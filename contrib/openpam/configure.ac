@@ -1,8 +1,8 @@
-dnl $Id: configure.ac 924 2017-02-19 20:52:28Z des $
+dnl $OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$Id: configure.ac 924 2017-02-19 20:52:28Z des $])
-AC_INIT([OpenPAM], [20170219], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_REVISION([$OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $])
+AC_INIT([OpenPAM], [20170430], [des@des.no], [openpam], [http://www.openpam.org/])
 AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])

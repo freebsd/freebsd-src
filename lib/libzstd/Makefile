@@ -22,7 +22,9 @@ SRCS=	entropy_common.c \
 	zdict.c
 WARNS=	2
 INCS=	zstd.h
-CFLAGS+=	-I${ZSTDDIR}/lib -I${ZSTDDIR}/lib/common -DXXH_NAMESPACE=ZSTD_
+CFLAGS+=	-I${ZSTDDIR}/lib -I${ZSTDDIR}/lib/common -DXXH_NAMESPACE=ZSTD_ \
+		-DZSTD_MULTITHREAD=1
+LIBADD=	pthread
 
 PRIVATELIB=	yes
 

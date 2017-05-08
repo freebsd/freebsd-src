@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -144,7 +144,7 @@ static int ch_addbuf();
  * Get the character pointed to by the read pointer.
  */
 	int
-ch_get(void)
+ch_get()
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -378,7 +378,8 @@ ch_get(void)
  * a single char onto an input file descriptor.
  */
 	public void
-ch_ungetchar(int c)
+ch_ungetchar(c)
+	int c;
 {
 	if (c != -1 && ch_ungotchar != -1)
 		error("ch_ungetchar overrun", NULL_PARG);
@@ -391,7 +392,7 @@ ch_ungetchar(int c)
  * If we haven't read all of standard input into it, do that now.
  */
 	public void
-end_logfile(void)
+end_logfile()
 {
 	static int tried = FALSE;
 
@@ -416,7 +417,7 @@ end_logfile(void)
  * Write all the existing buffered data to the log file.
  */
 	public void
-sync_logfile(void)
+sync_logfile()
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -453,7 +454,8 @@ sync_logfile(void)
  * Determine if a specific block is currently in one of the buffers.
  */
 	static int
-buffered(BLOCKNUM block)
+buffered(block)
+	BLOCKNUM block;
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -474,7 +476,8 @@ buffered(BLOCKNUM block)
  * Return 0 if successful, non-zero if can't seek there.
  */
 	public int
-ch_seek(POSITION pos)
+ch_seek(pos)
+	POSITION pos;
 {
 	BLOCKNUM new_block;
 	POSITION len;
@@ -512,7 +515,7 @@ ch_seek(POSITION pos)
  * Seek to the end of the file.
  */
 	public int
-ch_end_seek(void)
+ch_end_seek()
 {
 	POSITION len;
 
@@ -539,7 +542,7 @@ ch_end_seek(void)
  * Seek to the last position in the file that is currently buffered.
  */
 	public int
-ch_end_buffer_seek(void)
+ch_end_buffer_seek()
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -567,7 +570,7 @@ ch_end_buffer_seek(void)
  * beginning of the pipe is no longer buffered.
  */
 	public int
-ch_beg_seek(void)
+ch_beg_seek()
 {
 	struct bufnode *bn;
 	struct bufnode *firstbn;
@@ -599,7 +602,7 @@ ch_beg_seek(void)
  * Return the length of the file, if known.
  */
 	public POSITION
-ch_length(void)
+ch_length()
 {
 	if (thisfile == NULL)
 		return (NULL_POSITION);
@@ -616,7 +619,7 @@ ch_length(void)
  * Return the current position in the file.
  */
 	public POSITION
-ch_tell(void)
+ch_tell()
 {
 	if (thisfile == NULL)
 		return (NULL_POSITION);
@@ -627,7 +630,7 @@ ch_tell(void)
  * Get the current char and post-increment the read pointer.
  */
 	public int
-ch_forw_get(void)
+ch_forw_get()
 {
 	int c;
 
@@ -650,7 +653,7 @@ ch_forw_get(void)
  * Pre-decrement the read pointer and get the new current char.
  */
 	public int
-ch_back_get(void)
+ch_back_get()
 {
 	if (thisfile == NULL)
 		return (EOI);
@@ -673,7 +676,8 @@ ch_back_get(void)
  * bufspace is in units of 1024 bytes.  -1 mean no limit.
  */
 	public void
-ch_setbufspace(int bufspace)
+ch_setbufspace(bufspace)
+	int bufspace;
 {
 	if (bufspace < 0)
 		maxbufs = -1;
@@ -689,7 +693,7 @@ ch_setbufspace(int bufspace)
  * Flush (discard) any saved file state, including buffer contents.
  */
 	public void
-ch_flush(void)
+ch_flush()
 {
 	struct bufnode *bn;
 
@@ -756,7 +760,7 @@ ch_flush(void)
  * The buffer is added to the tail of the buffer chain.
  */
 	static int
-ch_addbuf(void)
+ch_addbuf()
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -781,7 +785,7 @@ ch_addbuf(void)
  *
  */
 	static void
-init_hashtbl(void)
+init_hashtbl()
 {
 	int h;
 
@@ -796,7 +800,7 @@ init_hashtbl(void)
  * Delete all buffers for this file.
  */
 	static void
-ch_delbufs(void)
+ch_delbufs()
 {
 	struct bufnode *bn;
 
@@ -814,7 +818,8 @@ ch_delbufs(void)
  * Is it possible to seek on a file descriptor?
  */
 	public int
-seekable(int f)
+seekable(f)
+	int f;
 {
 #if MSDOS_COMPILER
 	extern int fd0;
@@ -835,7 +840,7 @@ seekable(int f)
  * This is used after an ignore_eof read, during which the EOF may change.
  */
 	public void
-ch_set_eof(void)
+ch_set_eof()
 {
 	ch_fsize = ch_fpos;
 }
@@ -845,7 +850,9 @@ ch_set_eof(void)
  * Initialize file state for a new file.
  */
 	public void
-ch_init(int f, int flags)
+ch_init(f, flags)
+	int f;
+	int flags;
 {
 	/*
 	 * See if we already have a filestate for this file.
@@ -884,7 +891,7 @@ ch_init(int f, int flags)
  * Close a filestate.
  */
 	public void
-ch_close(void)
+ch_close()
 {
 	int keepstate = FALSE;
 
@@ -927,7 +934,7 @@ ch_close(void)
  * Return ch_flags for the current file.
  */
 	public int
-ch_getflags(void)
+ch_getflags()
 {
 	if (thisfile == NULL)
 		return (0);

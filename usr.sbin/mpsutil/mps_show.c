@@ -217,6 +217,19 @@ show_iocfacts(int ac, char **av)
 		return (errno);
 	}
 
+	printf("          MsgVersion: %02d.%02d\n",
+	    facts->MsgVersion >> 8, facts->MsgVersion & 0xff);
+	printf("           MsgLength: %d\n", facts->MsgLength);
+	printf("            Function: 0x%x\n", facts->Function);
+	printf("       HeaderVersion: %02d,%02d\n",
+	    facts->HeaderVersion >> 8, facts->HeaderVersion & 0xff);
+	printf("           IOCNumber: %d\n", facts->IOCNumber);
+	printf("            MsgFlags: 0x%x\n", facts->MsgFlags);
+	printf("               VP_ID: %d\n", facts->VP_ID);
+	printf("               VF_ID: %d\n", facts->VF_ID);
+	printf("       IOCExceptions: %d\n", facts->IOCExceptions);
+	printf("           IOCStatus: %d\n", facts->IOCStatus);
+	printf("          IOCLogInfo: 0x%x\n", facts->IOCLogInfo);
 	printf("       MaxChainDepth: %d\n", facts->MaxChainDepth);
 	printf("             WhoInit: 0x%x\n", facts->WhoInit);
 	printf("       NumberOfPorts: %d\n", facts->NumberOfPorts);

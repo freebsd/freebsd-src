@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/errno.h>
@@ -61,6 +63,12 @@
 #include <dev/etherswitch/ip17x/ip175c.h>
 #include <dev/etherswitch/ip17x/ip175d.h>
 
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include "mdio_if.h"
 #include "miibus_if.h"
 #include "etherswitch_if.h"
@@ -72,11 +80,28 @@ static void ip17x_tick(void *);
 static int ip17x_ifmedia_upd(struct ifnet *);
 static void ip17x_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
+static void
+ip17x_identify(driver_t *driver, device_t parent)
+{
+	if (device_find_child(parent, "ip17x", -1) == NULL)
+	    BUS_ADD_CHILD(parent, 0, "ip17x", -1);
+}
+
 static int
 ip17x_probe(device_t dev)
 {
 	struct ip17x_softc *sc;
 	uint32_t oui, model, phy_id1, phy_id2;
+#ifdef FDT
+	phandle_t ip17x_node;
+	pcell_t cell;
+
+	ip17x_node = fdt_find_compatible(OF_finddevice("/"),
+	    "icplus,ip17x", 0);
+
+	if (ip17x_node == 0)
+		return (ENXIO);
+#endif
 
 	sc = device_get_softc(dev);
 
@@ -118,6 +143,15 @@ ip17x_probe(device_t dev)
 			sc->sc_switchtype = IP17X_SWITCH_IP178C;
 	}
 
+	sc->miipoll = 1;
+#ifdef FDT
+	if ((OF_getencprop(ip17x_node, "mii-poll",
+	    &cell, sizeof(cell))) > 0)
+		sc->miipoll = cell ? 1 : 0;
+#else
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "mii-poll", &sc->miipoll);
+#endif
 	device_set_desc_copy(dev, "IC+ IP17x switch driver");
 	return (BUS_PROBE_DEFAULT);
 }
@@ -229,9 +263,11 @@ ip17x_attach(device_t dev)
 	if (err != 0)
 		return (err);
 	
-	callout_init(&sc->callout_tick, 0);
+	if (sc->miipoll) {
+		callout_init(&sc->callout_tick, 0);
 
-	ip17x_tick(sc);
+		ip17x_tick(sc);
+	}
 	
 	return (0);
 }
@@ -243,7 +279,8 @@ ip17x_detach(device_t dev)
 	int i, port;
 
 	sc = device_get_softc(dev);
-	callout_drain(&sc->callout_tick);
+	if (sc->miipoll)
+		callout_drain(&sc->callout_tick);
 
 	for (i=0; i < MII_NPHY; i++) {
 		if (((1 << i) & sc->phymask) == 0)
@@ -564,6 +601,7 @@ ip17x_setconf(device_t dev, etherswitch_conf_t *conf)
 
 static device_method_t ip17x_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	ip17x_identify),
 	DEVMETHOD(device_probe,		ip17x_probe),
 	DEVMETHOD(device_attach,	ip17x_attach),
 	DEVMETHOD(device_detach,	ip17x_detach),
@@ -604,8 +642,13 @@ static devclass_t ip17x_devclass;
 
 DRIVER_MODULE(ip17x, mdio, ip17x_driver, ip17x_devclass, 0, 0);
 DRIVER_MODULE(miibus, ip17x, miibus_driver, miibus_devclass, 0, 0);
-DRIVER_MODULE(mdio, ip17x, mdio_driver, mdio_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, ip17x, etherswitch_driver, etherswitch_devclass, 0, 0);
 MODULE_VERSION(ip17x, 1);
+
+#ifdef FDT
+MODULE_DEPEND(ip17x, mdio, 1, 1, 1); /* XXX which versions? */
+#else
+DRIVER_MODULE(mdio, ip17x, mdio_driver, mdio_devclass, 0, 0);
 MODULE_DEPEND(ip17x, miibus, 1, 1, 1); /* XXX which versions? */
 MODULE_DEPEND(ip17x, etherswitch, 1, 1, 1); /* XXX which versions? */
+#endif

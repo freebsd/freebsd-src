@@ -1,6 +1,6 @@
 .\" Generated from openpam_subst.c by gendoc.pl
-.\" $Id: openpam_subst.c 648 2013-03-05 17:54:27Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: openpam_subst.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt OPENPAM_SUBST 3
 .Os
 .Sh NAME
@@ -81,6 +81,10 @@ The
 .Fn openpam_subst
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
 .It Bq Er PAM_TRY_AGAIN
 Try again.
 .El

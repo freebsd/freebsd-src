@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_asprintf.h 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: openpam_asprintf.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_ASPRINTF_H_INCLUDED

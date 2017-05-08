@@ -59,10 +59,7 @@ __FBSDID("$FreeBSD$");
 
 /* Caller must leave room for ethernet, ip and udp headers in front!! */
 ssize_t
-sendudp(d, pkt, len)
-	struct iodesc *d;
-	void *pkt;
-	size_t len;
+sendudp(struct iodesc *d, void *pkt, size_t len)
 {
 	ssize_t cc;
 	struct ip *ip;
@@ -131,32 +128,29 @@ sendudp(d, pkt, len)
 
 /*
  * Receive a UDP packet and validate it is for us.
- * Caller leaves room for the headers (Ether, IP, UDP)
  */
 ssize_t
-readudp(d, pkt, len, tleft)
-	struct iodesc *d;
-	void *pkt;
-	size_t len;
-	time_t tleft;
+readudp(struct iodesc *d, void **pkt, void **payload, time_t tleft)
 {
 	ssize_t n;
 	size_t hlen;
 	struct ip *ip;
 	struct udphdr *uh;
-	u_int16_t etype;	/* host order */
+	uint16_t etype;		/* host order */
+	void *ptr;
 
 #ifdef NET_DEBUG
 	if (debug)
 		printf("readudp: called\n");
 #endif
 
-	uh = (struct udphdr *)pkt - 1;
-	ip = (struct ip *)uh - 1;
-
-	n = readether(d, ip, len + sizeof(*ip) + sizeof(*uh), tleft, &etype);
-	if (n == -1 || n < sizeof(*ip) + sizeof(*uh))
-		return -1;
+	ip = NULL;
+	ptr = NULL;
+	n = readether(d, &ptr, (void **)&ip, tleft, &etype);
+	if (n == -1 || n < sizeof(*ip) + sizeof(*uh)) {
+		free(ptr);
+		return (-1);
+	}
 
 	/* Ethernet address checks now in readether() */
 
@@ -167,7 +161,8 @@ readudp(d, pkt, len, tleft)
 			/* Send ARP reply */
 			arp_reply(d, ah);
 		}
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	if (etype != ETHERTYPE_IP) {
@@ -175,7 +170,8 @@ readudp(d, pkt, len, tleft)
 		if (debug)
 			printf("readudp: not IP. ether_type=%x\n", etype);
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	/* Check ip header */
@@ -185,7 +181,8 @@ readudp(d, pkt, len, tleft)
 		if (debug)
 			printf("readudp: IP version or not UDP. ip_v=%d ip_p=%d\n", ip->ip_v, ip->ip_p);
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	hlen = ip->ip_hl << 2;
@@ -195,7 +192,8 @@ readudp(d, pkt, len, tleft)
 		if (debug)
 			printf("readudp: short hdr or bad cksum.\n");
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 	if (n < ntohs(ip->ip_len)) {
 #ifdef NET_DEBUG
@@ -203,7 +201,8 @@ readudp(d, pkt, len, tleft)
 			printf("readudp: bad length %d < %d.\n",
 			       (int)n, ntohs(ip->ip_len));
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 	if (d->myip.s_addr && ip->ip_dst.s_addr != d->myip.s_addr) {
 #ifdef NET_DEBUG
@@ -212,12 +211,14 @@ readudp(d, pkt, len, tleft)
 			printf("%s\n", inet_ntoa(ip->ip_dst));
 		}
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
+	uh = (struct udphdr *)((uintptr_t)ip + sizeof (*ip));
 	/* If there were ip options, make them go away */
 	if (hlen != sizeof(*ip)) {
-		bcopy(((u_char *)ip) + hlen, uh, len - hlen);
+		bcopy(((u_char *)ip) + hlen, uh, uh->uh_ulen - hlen);
 		ip->ip_len = htons(sizeof(*ip));
 		n -= hlen - sizeof(*ip);
 	}
@@ -227,7 +228,8 @@ readudp(d, pkt, len, tleft)
 			printf("readudp: bad dport %d != %d\n",
 				d->myport, ntohs(uh->uh_dport));
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 #ifndef UDP_NO_CKSUM
@@ -238,7 +240,8 @@ readudp(d, pkt, len, tleft)
 		n = ntohs(uh->uh_ulen) + sizeof(*ip);
 		if (n > RECV_SIZE - ETHER_SIZE) {
 			printf("readudp: huge packet, udp len %d\n", (int)n);
-			return -1;
+			free(ptr);
+			return (-1);
 		}
 
 		/* Check checksum (must save and restore ip header) */
@@ -251,8 +254,8 @@ readudp(d, pkt, len, tleft)
 			if (debug)
 				printf("readudp: bad cksum\n");
 #endif
-			*ip = tip;
-			return -1;
+			free(ptr);
+			return (-1);
 		}
 		*ip = tip;
 	}
@@ -263,10 +266,13 @@ readudp(d, pkt, len, tleft)
 			printf("readudp: bad udp len %d < %d\n",
 				ntohs(uh->uh_ulen), (int)sizeof(*uh));
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	n = (n > (ntohs(uh->uh_ulen) - sizeof(*uh))) ? 
 	    ntohs(uh->uh_ulen) - sizeof(*uh) : n;
+	*pkt = ptr;
+	*payload = (void *)((uintptr_t)uh + sizeof(*uh));
 	return (n);
 }

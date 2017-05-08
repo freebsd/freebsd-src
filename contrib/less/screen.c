@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -151,6 +151,7 @@ public int bl_fg_color;		/* Color of blinking text */
 public int bl_bg_color;
 static int sy_fg_color;		/* Color of system text (before less) */
 static int sy_bg_color;
+public int sgr_mode;		/* Honor ANSI sequences rather than using above */
 
 #else
 
@@ -203,11 +204,11 @@ public int missing_cap = 0;	/* Some capability is missing */
 
 static int attrmode = AT_NORMAL;
 extern int binattr;
+extern int line_count;
 
 #if !MSDOS_COMPILER
-static char *cheaper(char *t1, char *t2, char *def);
-static void tmodes(char *incap, char *outcap, char **instr, char **outstr,
-	char *def_instr, char *def_outstr, char **spp);
+static char *cheaper();
+static void tmodes();
 #endif
 
 /*
@@ -233,6 +234,7 @@ extern int wscroll;
 extern int screen_trashed;
 extern int tty;
 extern int top_scroll;
+extern int quit_if_one_screen;
 extern int oldbot;
 #if HILITE_SEARCH
 extern int hilite_search;
@@ -254,7 +256,8 @@ extern char *tgoto();
  * It doesn't matter whether an input \n is mapped to \r, or vice versa.
  */
 	public void
-raw_mode(int on)
+raw_mode(on)
+	int on;
 {
 	static int curr_on = 0;
 
@@ -618,7 +621,8 @@ raw_mode(int on)
 static int hardcopy;
 
 	static char *
-ltget_env(char *capname)
+ltget_env(capname)
+	char *capname;
 {
 	char name[16];
 	char *s;
@@ -646,7 +650,8 @@ ltget_env(char *capname)
 }
 
 	static int
-ltgetflag(char *capname)
+ltgetflag(capname)
+	char *capname;
 {
 	char *s;
 
@@ -658,7 +663,8 @@ ltgetflag(char *capname)
 }
 
 	static int
-ltgetnum(char *capname)
+ltgetnum(capname)
+	char *capname;
 {
 	char *s;
 
@@ -670,7 +676,9 @@ ltgetnum(char *capname)
 }
 
 	static char *
-ltgetstr(char *capname, char **pp)
+ltgetstr(capname, pp)
+	char *capname;
+	char **pp;
 {
 	char *s;
 
@@ -686,7 +694,7 @@ ltgetstr(char *capname, char **pp)
  * Get size of the output screen.
  */
 	public void
-scrsize(void)
+scrsize()
 {
 	char *s;
 	int sys_height;
@@ -816,7 +824,7 @@ scrsize(void)
  * Figure out how many empty loops it takes to delay a millisecond.
  */
 	static void
-get_clock(void)
+get_clock()
 {
 	clock_t start;
 	
@@ -844,14 +852,15 @@ get_clock(void)
  * Delay for a specified number of milliseconds.
  */
 	static void
-dummy_func(void)
+dummy_func()
 {
 	static long delay_dummy = 0;
 	delay_dummy++;
 }
 
 	static void
-delay(int msec)
+delay(msec)
+	int msec;
 {
 	long i;
 	
@@ -873,7 +882,8 @@ delay(int msec)
  * Return the characters actually input by a "special" key.
  */
 	public char *
-special_key_str(int key)
+special_key_str(key)
+	int key;
 {
 	static char tbuf[40];
 	char *s;
@@ -1045,7 +1055,7 @@ special_key_str(int key)
  * Get terminal capabilities via termcap.
  */
 	public void
-get_term(void)
+get_term()
 {
 #if MSDOS_COMPILER
 	auto_wrap = 1;
@@ -1099,6 +1109,7 @@ get_term(void)
 	so_bg_color = 9;
 	bl_fg_color = 15;
 	bl_bg_color = 0;
+	sgr_mode = 0;
 
 	/*
 	 * Get size of the screen.
@@ -1342,14 +1353,16 @@ static int costcount;
 
 /*ARGSUSED*/
 	static int
-inc_costcount(int c)
+inc_costcount(c)
+	int c;
 {
 	costcount++;
 	return (c);
 }
 
 	static int
-cost(char *t)
+cost(t)
+	char *t;
 {
 	costcount = 0;
 	tputs(t, sc_height, inc_costcount);
@@ -1362,7 +1375,9 @@ cost(char *t)
  * cost (see cost() function).
  */
 	static char *
-cheaper(char *t1, char *t2, char *def)
+cheaper(t1, t2, def)
+	char *t1, *t2;
+	char *def;
 {
 	if (*t1 == '\0' && *t2 == '\0')
 	{
@@ -1379,8 +1394,14 @@ cheaper(char *t1, char *t2, char *def)
 }
 
 	static void
-tmodes(char *incap, char *outcap, char **instr, char **outstr, char *def_instr,
-    char *def_outstr, char **spp)
+tmodes(incap, outcap, instr, outstr, def_instr, def_outstr, spp)
+	char *incap;
+	char *outcap;
+	char **instr;
+	char **outstr;
+	char *def_instr;
+	char *def_outstr;
+	char **spp;
 {
 	*instr = ltgetstr(incap, spp);
 	if (*instr == NULL)
@@ -1429,8 +1450,11 @@ _settextposition(int row, int col)
  * Initialize the screen to the correct color at startup.
  */
 	static void
-initcolor(void)
+initcolor()
 {
+#if MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
+	intensevideo();
+#endif
 	SETCOLORS(nm_fg_color, nm_bg_color);
 #if 0
 	/*
@@ -1462,7 +1486,7 @@ initcolor(void)
  * Termcap-like init with a private win32 console.
  */
 	static void
-win32_init_term(void)
+win32_init_term()
 {
 	CONSOLE_SCREEN_BUFFER_INFO scr;
 	COORD size;
@@ -1513,10 +1537,12 @@ win32_deinit_term()
  * Initialize terminal
  */
 	public void
-init(void)
+init()
 {
 #if !MSDOS_COMPILER
-	if (!no_init)
+	if (quit_if_one_screen && line_count >= sc_height)
+		quit_if_one_screen = FALSE;
+	if (!no_init && !quit_if_one_screen)
 		tputs(sc_init, sc_height, putchr);
 	if (!no_keypad)
 		tputs(sc_s_keypad, sc_height, putchr);
@@ -1549,14 +1575,14 @@ init(void)
  * Deinitialize terminal
  */
 	public void
-deinit(void)
+deinit()
 {
 	if (!init_done)
 		return;
 #if !MSDOS_COMPILER
 	if (!no_keypad)
 		tputs(sc_e_keypad, sc_height, putchr);
-	if (!no_init)
+	if (!no_init && !quit_if_one_screen)
 		tputs(sc_deinit, sc_height, putchr);
 #else
 	/* Restore system colors. */
@@ -1576,7 +1602,7 @@ deinit(void)
  * Home cursor (move to upper left corner of screen).
  */
 	public void
-home(void)
+home()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_home, 1, putchr);
@@ -1591,7 +1617,7 @@ home(void)
  * Should scroll the display down.
  */
 	public void
-add_line(void)
+add_line()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_addline, sc_height, putchr);
@@ -1649,7 +1675,8 @@ add_line(void)
  * into the scrollback buffer when we go down-one-line (in WIN32).
  */
 	public void
-remove_top(int n)
+remove_top(n)
+	int n;
 {
 #if MSDOS_COMPILER==WIN32C
 	SMALL_RECT rcSrc, rcClip;
@@ -1702,7 +1729,7 @@ remove_top(int n)
  * Clear the screen.
  */
 	static void
-win32_clear(void)
+win32_clear()
 {
 	/*
 	 * This will clear only the currently visible rows of the NT
@@ -1733,7 +1760,8 @@ win32_clear(void)
  * window upward.
  */
 	public void
-win32_scroll_up(int n)
+win32_scroll_up(n)
+	int n;
 {
 	SMALL_RECT rcSrc, rcClip;
 	CHAR_INFO fillchar;
@@ -1798,7 +1826,7 @@ win32_scroll_up(int n)
  * Move cursor to lower left corner of screen.
  */
 	public void
-lower_left(void)
+lower_left()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_lower_left, 1, putchr);
@@ -1812,7 +1840,7 @@ lower_left(void)
  * Move cursor to left position of current line.
  */
 	public void
-line_left(void)
+line_left()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_return, 1, putchr);
@@ -1844,7 +1872,7 @@ line_left(void)
  * (in lieu of SIGWINCH for WIN32).
  */
 	public void
-check_winch(void)
+check_winch()
 {
 #if MSDOS_COMPILER==WIN32C
 	CONSOLE_SCREEN_BUFFER_INFO scr;
@@ -1874,7 +1902,8 @@ check_winch(void)
  * Goto a specific line on the screen.
  */
 	public void
-goto_line(int slinenum)
+goto_line(slinenum)
+	int slinenum;
 {
 #if !MSDOS_COMPILER
 	tputs(tgoto(sc_move, 0, slinenum), 1, putchr);
@@ -1892,7 +1921,7 @@ goto_line(int slinenum)
  * {{ Yuck!  There must be a better way to get a visual bell. }}
  */
 	static void
-create_flash(void)
+create_flash()
 {
 #if MSDOS_COMPILER==MSOFTC
 	struct videoconfig w;
@@ -1951,7 +1980,7 @@ create_flash(void)
  * Output the "visual bell", if there is one.
  */
 	public void
-vbell(void)
+vbell()
 {
 #if !MSDOS_COMPILER
 	if (*sc_visual_bell == '\0')
@@ -2015,7 +2044,7 @@ vbell(void)
  * Make a noise.
  */
 	static void
-beep(void)
+beep()
 {
 #if !MSDOS_COMPILER
 	putchr(CONTROL('G'));
@@ -2032,7 +2061,7 @@ beep(void)
  * Ring the terminal bell.
  */
 	public void
-bell(void)
+bell()
 {
 	if (quiet == VERY_QUIET)
 		vbell();
@@ -2044,7 +2073,7 @@ bell(void)
  * Clear the screen.
  */
 	public void
-clear(void)
+clear()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_clear, sc_height, putchr);
@@ -2063,7 +2092,7 @@ clear(void)
  * {{ This must not move the cursor. }}
  */
 	public void
-clear_eol(void)
+clear_eol()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_eol_clear, 1, putchr);
@@ -2122,7 +2151,7 @@ clear_eol(void)
  * Clear the screen if there's off-screen memory below the display.
  */
 	static void
-clear_eol_bot(void)
+clear_eol_bot()
 {
 #if MSDOS_COMPILER
 	clear_eol();
@@ -2139,7 +2168,7 @@ clear_eol_bot(void)
  * Leave the cursor at the beginning of the bottom line.
  */
 	public void
-clear_bot(void)
+clear_bot()
 {
 	/*
 	 * If we're in a non-normal attribute mode, temporarily exit
@@ -2164,7 +2193,8 @@ clear_bot(void)
 }
 
 	public void
-at_enter(int attr)
+at_enter(attr)
+	int attr;
 {
 	attr = apply_at_specials(attr);
 
@@ -2202,7 +2232,7 @@ at_enter(int attr)
 }
 
 	public void
-at_exit(void)
+at_exit()
 {
 #if !MSDOS_COMPILER
 	/* Undo things in the reverse order we did them.  */
@@ -2223,7 +2253,8 @@ at_exit(void)
 }
 
 	public void
-at_switch(int attr)
+at_switch(attr)
+	int attr;
 {
 	int new_attrmode = apply_at_specials(attr);
 	int ignore_modes = AT_ANSI;
@@ -2236,7 +2267,9 @@ at_switch(int attr)
 }
 
 	public int
-is_at_equiv(int attr1, int attr2)
+is_at_equiv(attr1, attr2)
+	int attr1;
+	int attr2;
 {
 	attr1 = apply_at_specials(attr1);
 	attr2 = apply_at_specials(attr2);
@@ -2245,7 +2278,8 @@ is_at_equiv(int attr1, int attr2)
 }
 
 	public int
-apply_at_specials(int attr)
+apply_at_specials(attr)
+	int attr;
 {
 	if (attr & AT_BINARY)
 		attr |= binattr;
@@ -2262,7 +2296,7 @@ apply_at_specials(int attr)
  * and move the cursor left.
  */
 	public void
-backspace(void)
+backspace()
 {
 #if !MSDOS_COMPILER
 	/* 
@@ -2311,7 +2345,7 @@ backspace(void)
  * Output a plain backspace, without erasing the previous char.
  */
 	public void
-putbs(void)
+putbs()
 {
 #if !MSDOS_COMPILER
 	tputs(sc_backspace, 1, putchr);
@@ -2350,7 +2384,8 @@ putbs(void)
  * Determine whether an input character is waiting to be read.
  */
 	static int
-win32_kbhit(HANDLE tty)
+win32_kbhit(tty)
+	HANDLE tty;
 {
 	INPUT_RECORD ip;
 	DWORD read;
@@ -2406,7 +2441,16 @@ win32_kbhit(HANDLE tty)
 			currentKey.scan = PCK_CTL_DELETE;
 			break;
 		}
+	} else if (ip.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
+	{
+		switch (currentKey.scan)
+		{
+		case PCK_SHIFT_TAB: /* tab */
+			currentKey.ascii = 0;
+			break;
+		}
 	}
+
 	return (TRUE);
 }
 
@@ -2414,7 +2458,8 @@ win32_kbhit(HANDLE tty)
  * Read a character from the keyboard.
  */
 	public char
-WIN32getch(int tty)
+WIN32getch(tty)
+	int tty;
 {
 	int ascii;
 
@@ -2447,7 +2492,9 @@ WIN32getch(int tty)
 /*
  */
 	public void
-WIN32setcolors(int fg, int bg)
+WIN32setcolors(fg, bg)
+	int fg;
+	int bg;
 {
 	SETCOLORS(fg, bg);
 }
@@ -2455,7 +2502,9 @@ WIN32setcolors(int fg, int bg)
 /*
  */
 	public void
-WIN32textout(char *text, int len)
+WIN32textout(text, len)
+	char *text;
+	int len;
 {
 #if MSDOS_COMPILER==WIN32C
 	DWORD written;

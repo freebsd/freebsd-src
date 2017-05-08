@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -36,7 +36,8 @@ extern int sc_width, sc_height;
  *	the line after the bottom line on the screen
  */
 	public POSITION
-position(int where)
+position(where)
+	int where;
 {
 	switch (where)
 	{
@@ -56,7 +57,8 @@ position(int where)
  * Add a new file position to the bottom of the position table.
  */
 	public void
-add_forw_pos(POSITION pos)
+add_forw_pos(pos)
+	POSITION pos;
 {
 	int i;
 
@@ -72,7 +74,8 @@ add_forw_pos(POSITION pos)
  * Add a new file position to the top of the position table.
  */
 	public void
-add_back_pos(POSITION pos)
+add_back_pos(pos)
+	POSITION pos;
 {
 	int i;
 
@@ -88,7 +91,7 @@ add_back_pos(POSITION pos)
  * Initialize the position table, done whenever we clear the screen.
  */
 	public void
-pos_clear(void)
+pos_clear()
 {
 	int i;
 
@@ -100,7 +103,7 @@ pos_clear(void)
  * Allocate or reallocate the position table.
  */
 	public void
-pos_init(void)
+pos_init()
 {
 	struct scrpos scrpos;
 
@@ -129,7 +132,8 @@ pos_init(void)
  * Return the position table entry if found, -1 if not.
  */
 	public int
-onscreen(POSITION pos)
+onscreen(pos)
+	POSITION pos;
 {
 	int i;
 
@@ -145,13 +149,15 @@ onscreen(POSITION pos)
  * See if the entire screen is empty.
  */
 	public int
-empty_screen(void)
+empty_screen()
 {
 	return (empty_lines(0, sc_height-1));
 }
 
 	public int
-empty_lines(int s, int e)
+empty_lines(s, e)
+	int s;
+	int e;
 {
 	int i;
 
@@ -170,7 +176,8 @@ empty_lines(int s, int e)
  * the screen line to a number > 0.
  */
 	public void
-get_scrpos(struct scrpos *scrpos)
+get_scrpos(scrpos)
+	struct scrpos *scrpos;
 {
 	int i;
 
@@ -201,7 +208,8 @@ get_scrpos(struct scrpos *scrpos)
  * relative to the bottom of the screen.
  */
 	public int
-adjsline(int sline)
+adjsline(sline)
+	int sline;
 {
 	/*
 	 * Negative screen line number means

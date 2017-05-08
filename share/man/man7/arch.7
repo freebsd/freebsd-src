@@ -1,4 +1,4 @@
-.\" Copyright (c) 2016 The FreeBSD Foundation. All rights reserved.
+.\" Copyright (c) 2016-2017 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" This documentation was created by Ed Maste under sponsorship of
 .\" The FreeBSD Foundation.
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2017
+.Dd May 5, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -35,9 +35,139 @@
 .Sh DESCRIPTION
 Differences between CPU architectures and platforms supported by
 .Fx .
+.Ss Introduction
+This document is a quick reference of key ABI details of
+.Fx
+architecture ports.
+For full details consult the processor-specific ABI supplement
+documentation.
 .Pp
 If not explicitly mentioned, sizes are in bytes.
+The architecture details in this document apply to
+.Fx 10.0
+and later, unless otherwise noted.
+.Pp
+.Fx
+uses a flat address space.
+Variables of types
+.Vt unsigned long ,
+.Vt uintptr_t ,
+and
+.Vt size_t
+and pointers all have the same representation.
+.Pp
+In order to maximize compatibility with future pointer integrity mechanisms,
+manipulations of pointers as integers should be performed via
+.Vt uintptr_t
+or
+.Vt intptr_t
+and no other types.
+In particular,
+.Vt long
+and
+.Vt ptrdiff_t
+should be avoided.
+.Pp
+On some architectures, e.g.
+.Dv sparc64 ,
+.Dv powerpc
+and AIM variants of
+.Dv powerpc64 ,
+the kernel uses a separate address space.
+On other architectures, kernel and a user mode process share a
+single address space.
+The kernel is located at the highest addresses.
+.Pp
+On each architecture, the main user mode thread's stack starts near
+the highest user address and grows down.
+.Pp
+.Fx
+architecture support varies by release.
+This table shows the first
+.Fx
+release to support each architecture, and, for discontinued
+architectures, the final release.
+.Pp
+.Bl -column -offset indent "Sy Architecture" "Sy Initial Release" "Sy Final Release"
+.It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
+.It alpha       Ta 3.x   Ta 6.4
+.It amd64       Ta 5.1
+.It arm         Ta 6.0
+.It armeb       Ta 8.0
+.It armv6       Ta 10.0
+.It arm64       Ta 11.0
+.It ia64        Ta 5.0   Ta 10.x
+.It i386        Ta 1.0
+.It mips        Ta 8.0
+.It mipsel      Ta 9.0
+.It mipselhf    Ta 12.0
+.It mipshf      Ta 12.0
+.It mipsn32     Ta 9.0
+.It mips64      Ta 9.0
+.It mips64el    Ta 9.0
+.It mips64elhf  Ta 12.0
+.It mips64hf    Ta 12.0
+.It pc98        Ta 2.2   Ta 11.x
+.It powerpc     Ta 6.0
+.It powerpcspe  Ta 12.0
+.It powerpc64   Ta 6.0
+.It riscv64     Ta 12.0
+.It riscv64sf   Ta 12.0
+.It sparc64     Ta 5.0
+.El
 .Ss Type sizes
+All
+.Fx
+architectures use some variant of the ELF (see
+.Xr elf 5 )
+.Sy Application Binary Interface
+(ABI) for the machine processor.
+All supported ABIs can be divided into two groups:
+.Bl -tag -width "Dv ILP32"
+.It Dv ILP32
+.Vt int ,
+.Vt long ,
+.Vt void *
+types machine representations all have 4-byte size.
+.It Dv LP64
+.Vt int
+type machine representation uses 4 bytes,
+while
+.Vt long
+and
+.Vt void *
+are 8 bytes.
+.El
+Compilers define the
+.Dv _LP64
+symbol when compiling for an
+.Dv LP64
+ABI.
+.Pp
+Some machines support more that one
+.Fx
+ABI.
+Typically these are 64-bit machines, where the
+.Dq native
+.Dv LP64
+execution environment is accompanied by the
+.Dq legacy
+.Dv ILP32
+environment, which was historical 32-bit predecessor for 64-bit evolution.
+Examples are:
+.Bl -column -offset indent "Dv powerpc64" "Sy ILP32 counterpart"
+.It Sy LP64        Ta Sy ILP32 counterpart
+.It Dv amd64       Ta Dv i386
+.It Dv powerpc64   Ta Dv powerpc
+.It Dv mips64*     Ta Dv mips*
+.El
+.Dv arm64
+currently does not support execution of
+.Dv armv6
+binaries, even if the CPU implements
+.Dv AArch32
+execution state.
+.Pp
 On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
 .It Sy Type Ta Sy Size
@@ -48,6 +178,12 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
+Integers are represented in two's complement.
+Alignment of integer and pointer types is natural, that is,
+the address of the variable must be congruent to zero modulo the type size.
+Most ILP32 ABIs, except
+.Dv arm ,
+require only 4-byte alignment for 64-bit integers.
 .Pp
 Machine-dependent type sizes:
 .Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
@@ -134,7 +270,7 @@ variants of powerpc.
 .It amd64       Ta hard Ta hard, 80 bit
 .It arm         Ta soft Ta soft, double precision
 .It armeb       Ta soft Ta soft, double precision
-.It armv6       Ta hard Ta hard, double precision
+.It armv6       Ta hard(1) Ta hard, double precision
 .It arm64       Ta hard Ta soft, quad precision
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
@@ -153,6 +289,11 @@ variants of powerpc.
 .It riscv64sf   Ta soft Ta soft, double precision
 .It sparc64     Ta hard Ta hard, quad precision
 .El
+.Pp
+(1) Prior to
+.Fx 11.0 ,
+armv6 used the softfp ABI even though it supported only processors
+with a floating point unit.
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
 Some of these provide architecture-specific details and are explained below.

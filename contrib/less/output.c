@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -37,13 +37,14 @@ extern int bo_fg_color, bo_bg_color;
 extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
+extern int sgr_mode;
 #endif
 
 /*
  * Display the line which is in the line buffer.
  */
 	public void
-put_line(void)
+put_line()
 {
 	int c;
 	int i;
@@ -93,7 +94,7 @@ static char *ob = obuf;
  * overwritten or scrolled away.
  */
 	public void
-flush(void)
+flush()
 {
 	int n;
 	int fd;
@@ -126,8 +127,9 @@ flush(void)
 			 * the -D command-line option.
 			 */
 			char *anchor, *p, *p_next;
-			unsigned char fg, bg;
+			static unsigned char fg, fgi, bg, bgi;
 			static unsigned char at;
+			unsigned char f, b;
 #if MSDOS_COMPILER==WIN32C
 			/* Screen colors used by 3x and 4x SGR commands. */
 			static unsigned char screen_color[] = {
@@ -147,6 +149,13 @@ flush(void)
 			};
 #endif
 
+			if (fg == 0 && bg == 0)
+			{
+				fg  = nm_fg_color & 7;
+				fgi = nm_fg_color & 8;
+				bg  = nm_bg_color & 7;
+				bgi = nm_bg_color & 8;
+			}
 			for (anchor = p_next = obuf;
 			     (p_next = memchr(p_next, ESC, ob - p_next)) != NULL; )
 			{
@@ -173,18 +182,21 @@ flush(void)
 						 */
 						p++;
 						anchor = p_next = p;
-						at = 0;
+						fg  = nm_fg_color & 7;
+						fgi = nm_fg_color & 8;
+						bg  = nm_bg_color & 7;
+						bgi = nm_bg_color & 8;
+						at  = 0;
 						WIN32setcolors(nm_fg_color, nm_bg_color);
 						continue;
 					}
 					p_next = p;
+					at &= ~32;
 
 					/*
 					 * Select foreground/background colors
 					 * based on the escape sequence. 
 					 */
-					fg = nm_fg_color;
-					bg = nm_bg_color;
 					while (!is_ansi_end(*p))
 					{
 						char *q;
@@ -212,17 +224,35 @@ flush(void)
 							break;
 						}
 						if (*q == ';')
+						{
 							q++;
+							at |= 32;
+						}
 
 						switch (code)
 						{
 						default:
 						/* case 0: all attrs off */
-							fg = nm_fg_color;
-							bg = nm_bg_color;
-							at = 0;
+							fg = nm_fg_color & 7;
+							bg = nm_bg_color & 7;
+							at &= 32;
+							/*
+							 * \e[0m use normal
+							 * intensities, but
+							 * \e[0;...m resets them
+							 */
+							if (at & 32)
+							{
+								fgi = 0;
+								bgi = 0;
+							} else
+							{
+								fgi = nm_fg_color & 8;
+								bgi = nm_bg_color & 8;
+							}
 							break;
 						case 1:	/* bold on */
+							fgi = 8;
 							at |= 1;
 							break;
 						case 3:	/* italic on */
@@ -230,16 +260,19 @@ flush(void)
 							at |= 2;
 							break;
 						case 4:	/* underline on */
+							bgi = 8;
 							at |= 4;
 							break;
 						case 5: /* slow blink on */
 						case 6: /* fast blink on */
+							bgi = 8;
 							at |= 8;
 							break;
 						case 8:	/* concealed on */
-							fg = (bg & 7) | 8;
+							at |= 16;
 							break;
 						case 22: /* bold off */
+							fgi = 0;
 							at &= ~1;
 							break;
 						case 23: /* italic off */
@@ -247,62 +280,84 @@ flush(void)
 							at &= ~2;
 							break;
 						case 24: /* underline off */
+							bgi = 0;
 							at &= ~4;
+							break;
+						case 28: /* concealed off */
+							at &= ~16;
 							break;
 						case 30: case 31: case 32:
 						case 33: case 34: case 35:
 						case 36: case 37:
-							fg = (fg & 8) | (screen_color[code - 30]);
+							fg = screen_color[code - 30];
+							at |= 32;
 							break;
 						case 39: /* default fg */
-							fg = nm_fg_color;
+							fg = nm_fg_color & 7;
+							at |= 32;
 							break;
 						case 40: case 41: case 42:
 						case 43: case 44: case 45:
 						case 46: case 47:
-							bg = (bg & 8) | (screen_color[code - 40]);
+							bg = screen_color[code - 40];
+							at |= 32;
 							break;
-						case 49: /* default fg */
-							bg = nm_bg_color;
+						case 49: /* default bg */
+							bg = nm_bg_color & 7;
+							at |= 32;
 							break;
 						}
 						p = q;
 					}
 					if (!is_ansi_end(*p) || p == p_next)
 						break;
-					if (at & 1)
+					/*
+					 * In SGR mode, the ANSI sequence is
+					 * always honored; otherwise if an attr
+					 * is used by itself ("\e[1m" versus
+					 * "\e[1;33m", for example), set the
+					 * color assigned to that attribute.
+					 */
+					if (sgr_mode || (at & 32))
 					{
-						/*
-						 * If \e[1m use defined bold
-						 * color, else set intensity.
-						 */
-						if (p[-2] == '[')
+						if (at & 2)
 						{
-#if MSDOS_COMPILER==WIN32C
-							fg |= FOREGROUND_INTENSITY;
-							bg |= BACKGROUND_INTENSITY;
-#else
-							fg = bo_fg_color;
-							bg = bo_bg_color;
-#endif
+							f = bg | bgi;
+							b = fg | fgi;
 						} else
-							fg |= 8;
-					} else if (at & 2)
+						{
+							f = fg | fgi;
+							b = bg | bgi;
+						}
+					} else
 					{
-						fg = so_fg_color;
-						bg = so_bg_color;
-					} else if (at & 4)
-					{
-						fg = ul_fg_color;
-						bg = ul_bg_color;
-					} else if (at & 8)
-					{
-						fg = bl_fg_color;
-						bg = bl_bg_color;
+						if (at & 1)
+						{
+							f = bo_fg_color;
+							b = bo_bg_color;
+						} else if (at & 2)
+						{
+							f = so_fg_color;
+							b = so_bg_color;
+						} else if (at & 4)
+						{
+							f = ul_fg_color;
+							b = ul_bg_color;
+						} else if (at & 8)
+						{
+							f = bl_fg_color;
+							b = bl_bg_color;
+						} else
+						{
+							f = nm_fg_color;
+							b = nm_bg_color;
+						}
 					}
-					fg &= 0xf;
-					bg &= 0xf;
-					WIN32setcolors(fg, bg);
+					if (at & 16)
+						f = b ^ 8;
+					f &= 0xf;
+					b &= 0xf;
+					WIN32setcolors(f, b);
 					p_next = anchor = p + 1;
 				} else
 					p_next++;
@@ -326,7 +381,8 @@ flush(void)
  * Output a character.
  */
 	public int
-putchr(int c)
+putchr(c)
+	int c;
 {
 #if 0 /* fake UTF-8 output for testing */
 	extern int utf_mode;
@@ -379,7 +435,8 @@ putchr(int c)
  * Output a string.
  */
 	public void
-putstr(constant char *s)
+putstr(s)
+	constant char *s;
 {
 	while (*s != '\0')
 		putchr(*s++);
@@ -414,7 +471,8 @@ TYPE_TO_A_FUNC(inttoa, int)
  * Output an integer in a given radix.
  */
 	static int
-iprint_int(int num)
+iprint_int(num)
+	int num;
 {
 	char buf[INT_STRLEN_BOUND(num)];
 
@@ -427,7 +485,8 @@ iprint_int(int num)
  * Output a line number in a given radix.
  */
 	static int
-iprint_linenum(LINENUM num)
+iprint_linenum(num)
+	LINENUM num;
 {
 	char buf[INT_STRLEN_BOUND(num)];
 
@@ -441,7 +500,9 @@ iprint_linenum(LINENUM num)
  * using a more portable argument list mechanism than printf's.
  */
 	static int
-less_printf(char *fmt, PARG *parg)
+less_printf(fmt, parg)
+	char *fmt;
+	PARG *parg;
 {
 	char *s;
 	int col;
@@ -487,7 +548,7 @@ less_printf(char *fmt, PARG *parg)
  * become the next command.
  */
 	public void
-get_return(void)
+get_return()
 {
 	int c;
 
@@ -506,7 +567,9 @@ get_return(void)
  * and wait for carriage return.
  */
 	public void
-error(char *fmt, PARG *parg)
+error(fmt, parg)
+	char *fmt;
+	PARG *parg;
 {
 	int col = 0;
 	static char return_to_continue[] = "  (press RETURN)";
@@ -559,7 +622,9 @@ static char intr_to_abort[] = "... (interrupt to abort)";
  * time-consuming operation.
  */
 	public void
-ierror(char *fmt, PARG *parg)
+ierror(fmt, parg)
+	char *fmt;
+	PARG *parg;
 {
 	at_exit();
 	clear_bot();
@@ -576,7 +641,9 @@ ierror(char *fmt, PARG *parg)
  * and return a single-character response.
  */
 	public int
-query(char *fmt, PARG *parg)
+query(fmt, parg)
+	char *fmt;
+	PARG *parg;
 {
 	int c;
 	int col = 0;

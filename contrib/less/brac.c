@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,14 +24,18 @@
  * "close bracket" are given.
  */
 	public void
-match_brac(int obrac, int cbrac, int forwdir, int n)
+match_brac(obrac, cbrac, forwdir, n)
+	int obrac;
+	int cbrac;
+	int forwdir;
+	int n;
 {
 	int c;
 	int nest;
 	POSITION pos;
-	int (*chget)(void);
+	int (*chget)();
 
-	extern int ch_forw_get(void), ch_back_get(void);
+	extern int ch_forw_get(), ch_back_get();
 
 	/*
 	 * Seek to the line containing the open bracket.

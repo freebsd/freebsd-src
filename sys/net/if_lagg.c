@@ -553,6 +553,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	LAGG_WLOCK(sc);
 	lagg_proto_detach(sc);
 	LAGG_UNLOCK_ASSERT(sc);
+	LAGG_XUNLOCK(sc);
 
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
@@ -561,7 +562,6 @@ lagg_clone_destroy(struct ifnet *ifp)
 	LAGG_LIST_LOCK();
 	SLIST_REMOVE(&V_lagg_list, sc, lagg_softc, sc_entries);
 	LAGG_LIST_UNLOCK();
-	LAGG_XUNLOCK(sc);
 
 	LAGG_SX_DESTROY(sc);
 	LAGG_LOCK_DESTROY(sc);

@@ -608,7 +608,8 @@ struct cg {
  * Determining the size of a file block in the filesystem.
  */
 #define	blksize(fs, ip, lbn) \
-	(((lbn) >= UFS_NDADDR || (ip)->i_size >= smalllblktosize(fs, (lbn) + 1)) \
+	(((lbn) >= UFS_NDADDR || (ip)->i_size >= \
+	    (uint64_t)smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (ip)->i_size))))
 #define	sblksize(fs, size, lbn) \
