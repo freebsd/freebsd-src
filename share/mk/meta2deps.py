@@ -143,7 +143,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
     for e in list:
         if e == le:
             continue
-	le = e
+        le = e
         nl.append(e)
     return nl
 
@@ -535,7 +535,7 @@ class MetaFile:
         # to the src dir, we may need to add dependencies for each
         rdir = dir
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
-            rdir = os.path.realpath(dir)
+        rdir = os.path.realpath(dir)
         if rdir == dir:
             rdir = None
         # now put path back together
