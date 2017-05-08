@@ -84,7 +84,7 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 	assert(root != NULL);
 	assert(dir != NULL);
 
-	len = snprintf(path, sizeof(path), "%s/%s", root, dir);
+	len = (size_t)snprintf(path, sizeof(path), "%s/%s", root, dir);
 	if (len >= (int)sizeof(path))
 		errx(1, "Pathname too long.");
 	if (debug & DEBUG_WALK_DIR)
