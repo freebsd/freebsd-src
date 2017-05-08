@@ -228,6 +228,7 @@ protected:
   MemoryRegion *findMemoryRegion(OutputSectionCommand *Cmd);
 
   void switchTo(OutputSection *Sec);
+  uint64_t advance(uint64_t Size, unsigned Align);
   void output(InputSection *Sec);
   void process(BaseCommand &Base);
 
@@ -252,7 +253,7 @@ public:
   bool isDefined(StringRef S);
 
   std::vector<OutputSection *> *OutputSections;
-  void fabricateDefaultCommands(bool AllocateHeader);
+  void fabricateDefaultCommands();
   void addOrphanSections(OutputSectionFactory &Factory);
   void removeEmptyCommands();
   void adjustSectionsBeforeSorting();
@@ -269,9 +270,8 @@ public:
   void processNonSectionCommands();
   void synchronize();
   void assignAddresses(std::vector<PhdrEntry> &Phdrs);
-  int getSectionIndex(StringRef Name);
 
-  void writeDataBytes(StringRef Name, uint8_t *Buf);
+  void writeDataBytes(OutputSection *Sec, uint8_t *Buf);
   void addSymbol(SymbolAssignment *Cmd);
   void processCommands(OutputSectionFactory &Factory);
 
