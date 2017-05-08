@@ -1131,6 +1131,11 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		else
 			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid,
 			    stuff);
+		if (error == NFSERR_OPENMODE && mode == NFSV4OPEN_ACCESSREAD) {
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_OPENMODE;
+			NFSUNLOCKMNT(nmp);
+		}
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -1151,7 +1156,9 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 	    error == NFSERR_BADSESSION ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
-	     expireret == 0 && clidrev != 0 && retrycnt < 4));
+	     expireret == 0 && clidrev != 0 && retrycnt < 4) ||
+	    (error == NFSERR_OPENMODE && mode == NFSV4OPEN_ACCESSREAD &&
+	     retrycnt < 4));
 	if (error && retrycnt >= 4)
 		error = EIO;
 	return (error);
@@ -1388,6 +1395,11 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			    &lckp);
 		error = nfsrpc_readrpc(vp, uiop, newcred, &stateid, p, nap,
 		    attrflagp, stuff);
+		if (error == NFSERR_OPENMODE) {
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_OPENMODE;
+			NFSUNLOCKMNT(nmp);
+		}
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -1406,7 +1418,8 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	    error == NFSERR_BADSESSION ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
-	     expireret == 0 && clidrev != 0 && retrycnt < 4));
+	     expireret == 0 && clidrev != 0 && retrycnt < 4) ||
+	    (error == NFSERR_OPENMODE && retrycnt < 4));
 	if (error && retrycnt >= 4)
 		error = EIO;
 	if (NFSHASNFSV4(nmp))
@@ -5591,6 +5604,11 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					if (lastbyte > layp->nfsly_lastbyte)
 						layp->nfsly_lastbyte = lastbyte;
 					NFSUNLOCKCLSTATE();
+				} else if (error == NFSERR_OPENMODE &&
+				    rwaccess == NFSV4OPEN_ACCESSREAD) {
+					NFSLOCKMNT(nmp);
+					nmp->nm_state |= NFSSTA_OPENMODE;
+					NFSUNLOCKMNT(nmp);
 				}
 			} else
 				error = EIO;
