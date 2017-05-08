@@ -185,6 +185,7 @@ static void addSanitizerCoveragePass(const PassManagerBuilder &Builder,
   Opts.Use8bitCounters = CGOpts.SanitizeCoverage8bitCounters;
   Opts.TracePC = CGOpts.SanitizeCoverageTracePC;
   Opts.TracePCGuard = CGOpts.SanitizeCoverageTracePCGuard;
+  Opts.NoPrune = CGOpts.SanitizeCoverageNoPrune;
   PM.add(createSanitizerCoverageModulePass(Opts));
 }
 
@@ -974,10 +975,14 @@ static void runThinLTOBackend(ModuleSummaryIndex *CombinedIndex, Module *M,
   // via a WriteIndexesThinBackend.
   FunctionImporter::ImportMapTy ImportList;
   for (auto &GlobalList : *CombinedIndex) {
+    // Ignore entries for undefined references.
+    if (GlobalList.second.SummaryList.empty())
+      continue;
+
     auto GUID = GlobalList.first;
-    assert(GlobalList.second.size() == 1 &&
+    assert(GlobalList.second.SummaryList.size() == 1 &&
            "Expected individual combined index to have one summary per GUID");
-    auto &Summary = GlobalList.second[0];
+    auto &Summary = GlobalList.second.SummaryList[0];
     // Skip the summaries for the importing module. These are included to
     // e.g. record required linkage changes.
     if (Summary->modulePath() == M->getModuleIdentifier())
