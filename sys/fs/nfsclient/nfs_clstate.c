@@ -88,6 +88,8 @@ extern struct nfsstats newnfsstats;
 extern struct nfsreqhead nfsd_reqq;
 extern u_int32_t newnfs_false, newnfs_true;
 extern int nfscl_debuglevel;
+extern int nfscl_enablecallb;
+extern int nfs_numnfscbd;
 NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
@@ -118,7 +120,8 @@ static struct nfsclclient *nfscl_getclnt(u_int32_t);
 static struct nfsclclient *nfscl_getclntsess(uint8_t *);
 static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
-static void nfscl_retoncloselayout(struct nfsclclient *, uint8_t *, int);
+static void nfscl_retoncloselayout(vnode_t, struct nfsclclient *, uint8_t *,
+    int, struct nfsclrecalllayout **);
 static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
@@ -3121,6 +3124,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	struct nfsclopen *op;
 	struct nfscldeleg *dp;
 	struct nfsfh *nfhp;
+	struct nfsclrecalllayout *recallp;
 	int error;
 
 	error = nfscl_getcl(vnode_mount(vp), NULL, NULL, 1, &clp);
@@ -3129,6 +3133,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	*clpp = clp;
 
 	nfhp = VTONFS(vp)->n_fhp;
+	recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL, M_WAITOK);
 	NFSLOCKCLSTATE();
 	/*
 	 * First get rid of the local Open structures, which should be no
@@ -3148,7 +3153,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	}
 
 	/* Return any layouts marked return on close. */
-	nfscl_retoncloselayout(clp, nfhp->nfh_fh, nfhp->nfh_len);
+	nfscl_retoncloselayout(vp, clp, nfhp->nfh_fh, nfhp->nfh_len, &recallp);
 
 	/* Now process the opens against the server. */
 lookformore:
@@ -3171,6 +3176,11 @@ lookformore:
 		}
 	}
 	NFSUNLOCKCLSTATE();
+	/*
+	 * recallp has been set NULL by nfscl_retoncloselayout() if it was
+	 * used by the function, but calling free() with a NULL pointer is ok.
+	 */
+	free(recallp, M_NFSLAYRECALL);
 	return (0);
 }
 
@@ -4890,28 +4900,32 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 }
 
 /*
- * Search for a layout by MDS file handle. If one is found that is marked
- * "return on close", delete it, since it should now be forgotten.
+ * Search for a layout by MDS file handle. If one is found, mark in to be
+ * recalled, if it already marked "return on close".
  */
 static void
-nfscl_retoncloselayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen)
+nfscl_retoncloselayout(vnode_t vp, struct nfsclclient *clp, uint8_t *fhp,
+    int fhlen, struct nfsclrecalllayout **recallpp)
 {
 	struct nfscllayout *lyp;
+	uint32_t iomode;
 
-tryagain:
+	if (vp->v_type != VREG || !NFSHASPNFS(VFSTONFS(vnode_mount(vp))) ||
+	    nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
+	    (VTONFS(vp)->n_flag & NNOLAYOUT) != 0)
+		return;
 	lyp = nfscl_findlayout(clp, fhp, fhlen);
-	if (lyp != NULL && (lyp->nfsly_flags & NFSLY_RETONCLOSE) != 0) {
-		/*
-		 * Wait for outstanding I/O ops to be done.
-		 */
-		if (lyp->nfsly_lock.nfslock_usecnt != 0 ||
-		    lyp->nfsly_lock.nfslock_lock != 0) {
-			lyp->nfsly_lock.nfslock_lock |= NFSV4LOCK_WANTED;
-			(void)mtx_sleep(&lyp->nfsly_lock,
-			    NFSCLSTATEMUTEXPTR, PZERO, "nfslyc", 0);
-			goto tryagain;
-		}
-		nfscl_freelayout(lyp);
+	if (lyp != NULL && (lyp->nfsly_flags & (NFSLY_RETONCLOSE |
+	    NFSLY_RECALL)) == NFSLY_RETONCLOSE) {
+		iomode = 0;
+		if (!LIST_EMPTY(&lyp->nfsly_flayread))
+			iomode |= NFSLAYOUTIOMODE_READ;
+		if (!LIST_EMPTY(&lyp->nfsly_flayrw))
+			iomode |= NFSLAYOUTIOMODE_RW;
+		(void)nfscl_layoutrecall(NFSLAYOUTRETURN_FILE, lyp, iomode,
+		    0, UINT64_MAX, lyp->nfsly_stateid.seqid, *recallpp);
+		NFSCL_DEBUG(4, "retoncls recall iomode=%d\n", iomode);
+		*recallpp = NULL;
 	}
 }
 
@@ -5195,8 +5209,8 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 	nfsv4stateid_t stateid;
 
 	NFSBCOPY(lyp->nfsly_stateid.other, stateid.other, NFSX_STATEIDOTHER);
+	stateid.seqid = lyp->nfsly_stateid.seqid;
 	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
-		stateid.seqid = rp->nfsrecly_stateseqid;
 		(void)nfsrpc_layoutreturn(nmp, lyp->nfsly_fh,
 		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
