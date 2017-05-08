@@ -61,9 +61,9 @@ main(int argc, char **argv)
 {
 	struct termios old, new;
 	struct winsize w;
-	int ret, fd, ch, cnt, error, zflag;
-	char data[20];
 	struct timeval then, now;
+	char data[20];
+	int ch, cnt, error, fd, ret, zflag;
 
 	error = 0;
 	zflag = 0;
