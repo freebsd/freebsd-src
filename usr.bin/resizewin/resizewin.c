@@ -52,7 +52,7 @@ main(__unused int argc, __unused char **argv)
 {
 	struct termios old, new;
 	struct winsize w;
-	int ret, fd, cnt, error, what;
+	int ret, fd, cnt, error;
 	char data[20];
 	struct timeval then, now;
 
@@ -72,10 +72,9 @@ main(__unused int argc, __unused char **argv)
 		exit(1);
 
 	/* Discard input received so far */
-	what = FREAD | FWRITE;
-	error = ioctl(fd, TIOCFLUSH, &what);
+	error = tcflush(fd, TCIOFLUSH);
 	if (error != 0)
-		warn("ioctl");
+		warn("tcflush");
 
 	if (write(fd, query, sizeof(query)) != sizeof(query)) {
 		error = 1;
