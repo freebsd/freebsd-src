@@ -1688,6 +1688,8 @@ def mllvm : Separate<["-"], "mllvm">, Flags<[CC1Option,CC1AsOption,CoreOption]>,
   HelpText<"Additional arguments to forward to LLVM's option processing">;
 def mmacosx_version_min_EQ : Joined<["-"], "mmacosx-version-min=">,
   Group<m_Group>, HelpText<"Set Mac OS X deployment target">;
+def mmacos_version_min_EQ : Joined<["-"], "mmacos-version-min=">,
+  Group<m_Group>, Alias<mmacosx_version_min_EQ>;
 def mms_bitfields : Flag<["-"], "mms-bitfields">, Group<m_Group>, Flags<[CC1Option]>,
   HelpText<"Set the default structure layout to be compatible with the Microsoft compiler standard">;
 def mno_ms_bitfields : Flag<["-"], "mno-ms-bitfields">, Group<m_Group>,
@@ -1750,6 +1752,7 @@ def mno_bmi : Flag<["-"], "mno-bmi">, Group<m_x86_Features_Group>;
 def mno_bmi2 : Flag<["-"], "mno-bmi2">, Group<m_x86_Features_Group>;
 def mno_popcnt : Flag<["-"], "mno-popcnt">, Group<m_x86_Features_Group>;
 def mno_tbm : Flag<["-"], "mno-tbm">, Group<m_x86_Features_Group>;
+def mno_lwp : Flag<["-"], "mno-lwp">, Group<m_x86_Features_Group>;
 def mno_fma4 : Flag<["-"], "mno-fma4">, Group<m_x86_Features_Group>;
 def mno_fma : Flag<["-"], "mno-fma">, Group<m_x86_Features_Group>;
 def mno_xop : Flag<["-"], "mno-xop">, Group<m_x86_Features_Group>;
@@ -1949,6 +1952,7 @@ def mbmi : Flag<["-"], "mbmi">, Group<m_x86_Features_Group>;
 def mbmi2 : Flag<["-"], "mbmi2">, Group<m_x86_Features_Group>;
 def mpopcnt : Flag<["-"], "mpopcnt">, Group<m_x86_Features_Group>;
 def mtbm : Flag<["-"], "mtbm">, Group<m_x86_Features_Group>;
+def mlwp : Flag<["-"], "mlwp">, Group<m_x86_Features_Group>;
 def mfma4 : Flag<["-"], "mfma4">, Group<m_x86_Features_Group>;
 def mfma : Flag<["-"], "mfma">, Group<m_x86_Features_Group>;
 def mxop : Flag<["-"], "mxop">, Group<m_x86_Features_Group>;
