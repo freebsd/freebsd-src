@@ -27,17 +27,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2016
+.Dd May 8, 2017
 .Dt RESIZEWIN 1
 .Os
 .Sh NAME
 .Nm resizewin
 .Nd update the kernel window size for the current TTY
+.Sh SYNOPSIS
+.Nm
+.Op Fl z
 .Sh DESCRIPTION
 Query the terminal emulator window size with the
 .Dv TIOCSWINSZ
 ioctl and set the window size known by the kernel to the new values.
 The terminal is assumed to be VT100/ANSI compatible.
+.Pp
+The following options are available:
+.Bl -tag -width ".Fl z"
+.It Fl z
+Do nothing unless the current kernel terminal size is zero.
+.El
+.Pp
 .Nm
 is functionally similar to
 .Xr resize 1 ,
