@@ -1613,7 +1613,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x20, 0x01, SS_RDEF,	/* XXX TBD */
 	    "Access denied - initiator pending-enrolled") },
 	/* DT PWROMAEBK   */
-	{ SST(0x20, 0x02, SS_RDEF,	/* XXX TBD */
+	{ SST(0x20, 0x02, SS_FATAL | EPERM,
 	    "Access denied - no access rights") },
 	/* DT PWROMAEBK   */
 	{ SST(0x20, 0x03, SS_RDEF,	/* XXX TBD */
