@@ -565,6 +565,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_LASTN_PAGE		0x07
 #define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
 #define	SLS_SELF_TEST_PAGE		0x10
+#define	SLS_SOLID_STATE_MEDIA		0x11
 #define	SLS_STAT_AND_PERF		0x19
 #define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
@@ -622,6 +623,13 @@ struct scsi_log_param_header {
 #define	SLP_DS				0x40
 #define	SLP_DU				0x80
 	u_int8_t param_len;
+};
+
+struct scsi_log_media_pct_used {
+	struct scsi_log_param_header hdr;
+#define	SLP_SS_MEDIA_PCT_USED		0x0001
+	uint8_t reserved[3];
+	uint8_t pct_used;
 };
 
 struct scsi_log_stat_and_perf {
