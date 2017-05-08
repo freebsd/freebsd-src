@@ -200,7 +200,6 @@ extern u_int	security_cheri_debugger_on_sandbox_unwind;
 extern u_int	security_cheri_debugger_on_sigprot;
 extern u_int	security_cheri_sandboxed_signals;
 extern u_int	security_cheri_syscall_violations;
-extern u_int	security_cheri_improve_tags;
 
 /*
  * Functions exposed to machine-independent code that must interact with
