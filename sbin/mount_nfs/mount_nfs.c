@@ -636,7 +636,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 
 	build_iovec(iov, iovlen, "hostname", nam, (size_t)-1);
 	/* Add mounted file system to PATH_MOUNTTAB */
-	if (!add_mtab(hostp, spec))
+	if (mountmode != V4 && !add_mtab(hostp, spec))
 		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
 	return (1);
 }
