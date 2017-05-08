@@ -68,7 +68,8 @@ void OutputSection::writeHeaderTo(typename ELFT::Shdr *Shdr) {
 OutputSection::OutputSection(StringRef Name, uint32_t Type, uint64_t Flags)
     : SectionBase(Output, Name, Flags, /*Entsize*/ 0, /*Alignment*/ 1, Type,
                   /*Info*/ 0,
-                  /*Link*/ 0) {}
+                  /*Link*/ 0),
+      SectionIndex(INT_MAX) {}
 
 static bool compareByFilePosition(InputSection *A, InputSection *B) {
   // Synthetic doesn't have link order dependecy, stable_sort will keep it last
@@ -139,11 +140,23 @@ template <class ELFT> void OutputSection::finalize() {
   this->Info = S->OutSec->SectionIndex;
 }
 
+static uint64_t updateOffset(uint64_t Off, InputSection *S) {
+  Off = alignTo(Off, S->Alignment);
+  S->OutSecOff = Off;
+  return Off + S->getSize();
+}
+
 void OutputSection::addSection(InputSection *S) {
   assert(S->Live);
   Sections.push_back(S);
   S->OutSec = this;
   this->updateAlignment(S->Alignment);
+
+  // The actual offsets will be computed by assignAddresses. For now, use
+  // crude approximation so that it is at least easy for other code to know the
+  // section order. It is also used to calculate the output section size early
+  // for compressed debug sections.
+  this->Size = updateOffset(Size, S);
 
   // If this section contains a table of fixed-size entries, sh_entsize
   // holds the element size. Consequently, if this contains two or more
@@ -159,11 +172,8 @@ void OutputSection::addSection(InputSection *S) {
 // and scan relocations to setup sections' offsets.
 void OutputSection::assignOffsets() {
   uint64_t Off = 0;
-  for (InputSection *S : Sections) {
-    Off = alignTo(Off, S->Alignment);
-    S->OutSecOff = Off;
-    Off += S->getSize();
-  }
+  for (InputSection *S : Sections)
+    Off = updateOffset(Off, S);
   this->Size = Off;
 }
 
@@ -305,7 +315,7 @@ template <class ELFT> void OutputSection::writeTo(uint8_t *Buf) {
 
   // Linker scripts may have BYTE()-family commands with which you
   // can write arbitrary bytes to the output. Process them if any.
-  Script->writeDataBytes(Name, Buf);
+  Script->writeDataBytes(this, Buf);
 }
 
 static uint64_t getOutFlags(InputSectionBase *S) {

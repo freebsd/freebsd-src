@@ -12,6 +12,7 @@ add_lld_library(lldCore
   Resolver.cpp
   SymbolTable.cpp
   TargetOptionsCommandFlags.cpp
+  TaskGroup.cpp
   Writer.cpp
 
   ADDITIONAL_HEADER_DIRS
@@ -20,6 +21,9 @@ add_lld_library(lldCore
   LINK_COMPONENTS
     MC
     Support
+  
+  LINK_LIBS
+  ${LLVM_PTHREAD_LIB}
 
   DEPENDS
   ${tablegen_deps}
