@@ -47,19 +47,49 @@ static const char query[] =
     "\033[999;999H"	/* Move cursor */
     "\033[6n"		/* Get cursor position */
     "\0338";		/* Restore cursor position */
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: resizewin [-z]\n");
+	exit(1);
+}
+
 int
-main(__unused int argc, __unused char **argv)
+main(int argc, char **argv)
 {
 	struct termios old, new;
 	struct winsize w;
-	int ret, fd, cnt, error;
+	int ret, fd, ch, cnt, error, zflag;
 	char data[20];
 	struct timeval then, now;
 
 	error = 0;
+	zflag = 0;
+	while ((ch = getopt(argc, argv, "z")) != -1) {
+		switch (ch) {
+		case 'z':
+			zflag = 1;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	if (argc != 0)
+		usage();
 
 	if ((fd = open("/dev/tty", O_RDWR | O_NONBLOCK)) == -1)
 		exit(1);
+
+	if (zflag) {
+		if (ioctl(fd, TIOCGWINSZ, &w) == -1)
+			exit(1);
+		if (w.ws_row != 0 && w.ws_col != 0)
+			exit(0);
+	}
 
 	/* Disable echo */
 	if (tcgetattr(fd, &old) == -1)
