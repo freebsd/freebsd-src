@@ -2970,7 +2970,7 @@ static const APInt gcd(const SCEVConstant *C1, const SCEVConstant *C2) {
   else if (ABW < BBW)
     A = A.zext(BBW);
 
-  return APIntOps::GreatestCommonDivisor(A, B);
+  return APIntOps::GreatestCommonDivisor(std::move(A), std::move(B));
 }
 
 /// Get a canonical unsigned division expression, or something simpler if
@@ -4083,6 +4083,56 @@ static Optional<BinaryOp> MatchBinaryOp(Value *V, DominatorTree &DT) {
   return None;
 }
 
+/// A helper function for createAddRecFromPHI to handle simple cases.
+///
+/// This function tries to find an AddRec expression for the simplest (yet most
+/// common) cases: PN = PHI(Start, OP(Self, LoopInvariant)).
+/// If it fails, createAddRecFromPHI will use a more general, but slow,
+/// technique for finding the AddRec expression.
+const SCEV *ScalarEvolution::createSimpleAffineAddRec(PHINode *PN,
+                                                      Value *BEValueV,
+                                                      Value *StartValueV) {
+  const Loop *L = LI.getLoopFor(PN->getParent());
+  assert(L && L->getHeader() == PN->getParent());
+  assert(BEValueV && StartValueV);
+
+  auto BO = MatchBinaryOp(BEValueV, DT);
+  if (!BO)
+    return nullptr;
+
+  if (BO->Opcode != Instruction::Add)
+    return nullptr;
+
+  const SCEV *Accum = nullptr;
+  if (BO->LHS == PN && L->isLoopInvariant(BO->RHS))
+    Accum = getSCEV(BO->RHS);
+  else if (BO->RHS == PN && L->isLoopInvariant(BO->LHS))
+    Accum = getSCEV(BO->LHS);
+
+  if (!Accum)
+    return nullptr;
+
+  SCEV::NoWrapFlags Flags = SCEV::FlagAnyWrap;
+  if (BO->IsNUW)
+    Flags = setFlags(Flags, SCEV::FlagNUW);
+  if (BO->IsNSW)
+    Flags = setFlags(Flags, SCEV::FlagNSW);
+
+  const SCEV *StartVal = getSCEV(StartValueV);
+  const SCEV *PHISCEV = getAddRecExpr(StartVal, Accum, L, Flags);
+
+  ValueExprMap[SCEVCallbackVH(PN, this)] = PHISCEV;
+
+  // We can add Flags to the post-inc expression only if we
+  // know that it is *undefined behavior* for BEValueV to
+  // overflow.
+  if (auto *BEInst = dyn_cast<Instruction>(BEValueV))
+    if (isLoopInvariant(Accum, L) && isAddRecNeverPoison(BEInst, L))
+      (void)getAddRecExpr(getAddExpr(StartVal, Accum), Accum, L, Flags);
+
+  return PHISCEV;
+}
+
 const SCEV *ScalarEvolution::createAddRecFromPHI(PHINode *PN) {
   const Loop *L = LI.getLoopFor(PN->getParent());
   if (!L || L->getHeader() != PN->getParent())
@@ -4111,10 +4161,16 @@ const SCEV *ScalarEvolution::createAddRecFromPHI(PHINode *PN) {
   if (!BEValueV || !StartValueV)
     return nullptr;
 
-  // While we are analyzing this PHI node, handle its value symbolically.
-  const SCEV *SymbolicName = getUnknown(PN);
   assert(ValueExprMap.find_as(PN) == ValueExprMap.end() &&
          "PHI node already processed?");
+
+  // First, try to find AddRec expression without creating a fictituos symbolic
+  // value for PN.
+  if (auto *S = createSimpleAffineAddRec(PN, BEValueV, StartValueV))
+    return S;
+
+  // Handle PHI node value symbolically.
+  const SCEV *SymbolicName = getUnknown(PN);
   ValueExprMap.insert({SCEVCallbackVH(PN, this), SymbolicName});
 
   // Using this symbolic name for the PHI, analyze the value coming around
@@ -4189,7 +4245,7 @@ const SCEV *ScalarEvolution::createAddRecFromPHI(PHINode *PN) {
         ValueExprMap[SCEVCallbackVH(PN, this)] = PHISCEV;
 
         // We can add Flags to the post-inc expression only if we
-        // know that it us *undefined behavior* for BEValueV to
+        // know that it is *undefined behavior* for BEValueV to
         // overflow.
         if (auto *BEInst = dyn_cast<Instruction>(BEValueV))
           if (isLoopInvariant(Accum, L) && isAddRecNeverPoison(BEInst, L))
@@ -4744,7 +4800,7 @@ ScalarEvolution::getRange(const SCEV *S,
       }
     }
 
-    return setRange(AddRec, SignHint, ConservativeResult);
+    return setRange(AddRec, SignHint, std::move(ConservativeResult));
   }
 
   if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(S)) {
@@ -4775,10 +4831,10 @@ ScalarEvolution::getRange(const SCEV *S,
                           APInt::getSignedMaxValue(BitWidth).ashr(NS - 1) + 1));
     }
 
-    return setRange(U, SignHint, ConservativeResult);
+    return setRange(U, SignHint, std::move(ConservativeResult));
   }
 
-  return setRange(S, SignHint, ConservativeResult);
+  return setRange(S, SignHint, std::move(ConservativeResult));
 }
 
 // Given a StartRange, Step and MaxBECount for an expression compute a range of
@@ -4786,8 +4842,8 @@ ScalarEvolution::getRange(const SCEV *S,
 // from StartRange and then is changed by Step up to MaxBECount times. Signed
 // argument defines if we treat Step as signed or unsigned.
 static ConstantRange getRangeForAffineARHelper(APInt Step,
-                                               ConstantRange StartRange,
-                                               APInt MaxBECount,
+                                               const ConstantRange &StartRange,
+                                               const APInt &MaxBECount,
                                                unsigned BitWidth, bool Signed) {
   // If either Step or MaxBECount is 0, then the expression won't change, and we
   // just need to return the initial range.
@@ -4826,8 +4882,8 @@ static ConstantRange getRangeForAffineARHelper(APInt Step,
   // if the expression is decreasing and will be increased by Offset otherwise.
   APInt StartLower = StartRange.getLower();
   APInt StartUpper = StartRange.getUpper() - 1;
-  APInt MovedBoundary =
-      Descending ? (StartLower - Offset) : (StartUpper + Offset);
+  APInt MovedBoundary = Descending ? (StartLower - std::move(Offset))
+                                   : (StartUpper + std::move(Offset));
 
   // It's possible that the new minimum/maximum value will fall into the initial
   // range (due to wrap around). This means that the expression can take any
@@ -4835,21 +4891,18 @@ static ConstantRange getRangeForAffineARHelper(APInt Step,
   if (StartRange.contains(MovedBoundary))
     return ConstantRange(BitWidth, /* isFullSet = */ true);
 
-  APInt NewLower, NewUpper;
-  if (Descending) {
-    NewLower = MovedBoundary;
-    NewUpper = StartUpper;
-  } else {
-    NewLower = StartLower;
-    NewUpper = MovedBoundary;
-  }
+  APInt NewLower =
+      Descending ? std::move(MovedBoundary) : std::move(StartLower);
+  APInt NewUpper =
+      Descending ? std::move(StartUpper) : std::move(MovedBoundary);
+  NewUpper += 1;
 
   // If we end up with full range, return a proper full range.
-  if (NewLower == NewUpper + 1)
+  if (NewLower == NewUpper)
     return ConstantRange(BitWidth, /* isFullSet = */ true);
 
   // No overflow detected, return [StartLower, StartUpper + Offset + 1) range.
-  return ConstantRange(NewLower, NewUpper + 1);
+  return ConstantRange(std::move(NewLower), std::move(NewUpper));
 }
 
 ConstantRange ScalarEvolution::getRangeForAffineAR(const SCEV *Start,
@@ -7323,7 +7376,6 @@ SolveQuadraticEquation(const SCEVAddRecExpr *AddRec, ScalarEvolution &SE) {
   const APInt &M = MC->getAPInt();
   const APInt &N = NC->getAPInt();
   APInt Two(BitWidth, 2);
-  APInt Four(BitWidth, 4);
 
   {
     using namespace APIntOps;
@@ -7339,7 +7391,7 @@ SolveQuadraticEquation(const SCEVAddRecExpr *AddRec, ScalarEvolution &SE) {
     // Compute the B^2-4ac term.
     APInt SqrtTerm(B);
     SqrtTerm *= B;
-    SqrtTerm -= Four * (A * C);
+    SqrtTerm -= 4 * (A * C);
 
     if (SqrtTerm.isNegative()) {
       // The loop is provably infinite.
@@ -8887,7 +8939,7 @@ bool ScalarEvolution::isImpliedCondOperandsViaRanges(ICmpInst::Predicate Pred,
   if (!Addend)
     return false;
 
-  APInt ConstFoundRHS = cast<SCEVConstant>(FoundRHS)->getAPInt();
+  const APInt &ConstFoundRHS = cast<SCEVConstant>(FoundRHS)->getAPInt();
 
   // `FoundLHSRange` is the range we know `FoundLHS` to be in by virtue of the
   // antecedent "`FoundLHS` `Pred` `FoundRHS`".
@@ -8899,7 +8951,7 @@ bool ScalarEvolution::isImpliedCondOperandsViaRanges(ICmpInst::Predicate Pred,
 
   // We can also compute the range of values for `LHS` that satisfy the
   // consequent, "`LHS` `Pred` `RHS`":
-  APInt ConstRHS = cast<SCEVConstant>(RHS)->getAPInt();
+  const APInt &ConstRHS = cast<SCEVConstant>(RHS)->getAPInt();
   ConstantRange SatisfyingLHSRange =
       ConstantRange::makeSatisfyingICmpRegion(Pred, ConstRHS);
 
@@ -8924,7 +8976,7 @@ bool ScalarEvolution::doesIVOverflowOnLT(const SCEV *RHS, const SCEV *Stride,
                                 .getSignedMax();
 
     // SMaxRHS + SMaxStrideMinusOne > SMaxValue => overflow!
-    return (MaxValue - MaxStrideMinusOne).slt(MaxRHS);
+    return (std::move(MaxValue) - std::move(MaxStrideMinusOne)).slt(MaxRHS);
   }
 
   APInt MaxRHS = getUnsignedRange(RHS).getUnsignedMax();
@@ -8933,7 +8985,7 @@ bool ScalarEvolution::doesIVOverflowOnLT(const SCEV *RHS, const SCEV *Stride,
                               .getUnsignedMax();
 
   // UMaxRHS + UMaxStrideMinusOne > UMaxValue => overflow!
-  return (MaxValue - MaxStrideMinusOne).ult(MaxRHS);
+  return (std::move(MaxValue) - std::move(MaxStrideMinusOne)).ult(MaxRHS);
 }
 
 bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
@@ -8950,7 +9002,7 @@ bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
                                .getSignedMax();
 
     // SMinRHS - SMaxStrideMinusOne < SMinValue => overflow!
-    return (MinValue + MaxStrideMinusOne).sgt(MinRHS);
+    return (std::move(MinValue) + std::move(MaxStrideMinusOne)).sgt(MinRHS);
   }
 
   APInt MinRHS = getUnsignedRange(RHS).getUnsignedMin();
@@ -8959,7 +9011,7 @@ bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
                             .getUnsignedMax();
 
   // UMinRHS - UMaxStrideMinusOne < UMinValue => overflow!
-  return (MinValue + MaxStrideMinusOne).ugt(MinRHS);
+  return (std::move(MinValue) + std::move(MaxStrideMinusOne)).ugt(MinRHS);
 }
 
 const SCEV *ScalarEvolution::computeBECount(const SCEV *Delta, const SCEV *Step,
@@ -9250,9 +9302,8 @@ const SCEV *SCEVAddRecExpr::getNumIterationsInRange(const ConstantRange &Range,
     // the upper value of the range must be the first possible exit value.
     // If A is negative then the lower of the range is the last possible loop
     // value.  Also note that we already checked for a full range.
-    APInt One(BitWidth,1);
     APInt A = cast<SCEVConstant>(getOperand(1))->getAPInt();
-    APInt End = A.sge(One) ? (Range.getUpper() - One) : Range.getLower();
+    APInt End = A.sge(1) ? (Range.getUpper() - 1) : Range.getLower();
 
     // The exit value should be (End+A)/A.
     APInt ExitVal = (End + A).udiv(A);
@@ -9268,7 +9319,7 @@ const SCEV *SCEVAddRecExpr::getNumIterationsInRange(const ConstantRange &Range,
     // Ensure that the previous value is in the range.  This is a sanity check.
     assert(Range.contains(
            EvaluateConstantChrecAtConstant(this,
-           ConstantInt::get(SE.getContext(), ExitVal - One), SE)->getValue()) &&
+           ConstantInt::get(SE.getContext(), ExitVal - 1), SE)->getValue()) &&
            "Linear scev computation is off in a bad way!");
     return SE.getConstant(ExitValue);
   } else if (isQuadratic()) {
@@ -9574,7 +9625,7 @@ const SCEV *ScalarEvolution::getElementSize(Instruction *Inst) {
 
 void ScalarEvolution::findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
                                           SmallVectorImpl<const SCEV *> &Sizes,
-                                          const SCEV *ElementSize) const {
+                                          const SCEV *ElementSize) {
   if (Terms.size() < 1 || !ElementSize)
     return;
 
@@ -9590,7 +9641,7 @@ void ScalarEvolution::findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
     });
 
   // Remove duplicates.
-  std::sort(Terms.begin(), Terms.end());
+  array_pod_sort(Terms.begin(), Terms.end());
   Terms.erase(std::unique(Terms.begin(), Terms.end()), Terms.end());
 
   // Put larger terms first.
@@ -9598,13 +9649,11 @@ void ScalarEvolution::findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
     return numberOfTerms(LHS) > numberOfTerms(RHS);
   });
 
-  ScalarEvolution &SE = *const_cast<ScalarEvolution *>(this);
-
   // Try to divide all terms by the element size. If term is not divisible by
   // element size, proceed with the original term.
   for (const SCEV *&Term : Terms) {
     const SCEV *Q, *R;
-    SCEVDivision::divide(SE, Term, ElementSize, &Q, &R);
+    SCEVDivision::divide(*this, Term, ElementSize, &Q, &R);
     if (!Q->isZero())
       Term = Q;
   }
@@ -9613,7 +9662,7 @@ void ScalarEvolution::findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
 
   // Remove constant factors.
   for (const SCEV *T : Terms)
-    if (const SCEV *NewT = removeConstantFactors(SE, T))
+    if (const SCEV *NewT = removeConstantFactors(*this, T))
       NewTerms.push_back(NewT);
 
   DEBUG({
@@ -9622,8 +9671,7 @@ void ScalarEvolution::findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
         dbgs() << *T << "\n";
     });
 
-  if (NewTerms.empty() ||
-      !findArrayDimensionsRec(SE, NewTerms, Sizes)) {
+  if (NewTerms.empty() || !findArrayDimensionsRec(*this, NewTerms, Sizes)) {
     Sizes.clear();
     return;
   }

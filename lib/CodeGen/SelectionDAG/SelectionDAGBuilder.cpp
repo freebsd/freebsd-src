@@ -4992,45 +4992,33 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
       SDV = DAG.getConstantDbgValue(Variable, Expression, V, Offset, dl,
                                     SDNodeOrder);
       DAG.AddDbgValue(SDV, nullptr, false);
-    } else {
-      // Do not use getValue() in here; we don't want to generate code at
-      // this point if it hasn't been done yet.
-      SDValue N = NodeMap[V];
-      if (!N.getNode() && isa<Argument>(V))
-        // Check unused arguments map.
-        N = UnusedArgNodeMap[V];
-      if (N.getNode()) {
-        if (!EmitFuncArgumentDbgValue(V, Variable, Expression, dl, Offset,
-                                      false, N)) {
-          SDV = getDbgValue(N, Variable, Expression, Offset, dl, SDNodeOrder);
-          DAG.AddDbgValue(SDV, N.getNode(), false);
-        }
-      } else if (!V->use_empty() ) {
-        // Do not call getValue(V) yet, as we don't want to generate code.
-        // Remember it for later.
-        DanglingDebugInfo DDI(&DI, dl, SDNodeOrder);
-        DanglingDebugInfoMap[V] = DDI;
-      } else {
-        // We may expand this to cover more cases.  One case where we have no
-        // data available is an unreferenced parameter.
-        DEBUG(dbgs() << "Dropping debug info for " << DI << "\n");
-      }
-    }
-
-    // Build a debug info table entry.
-    if (const BitCastInst *BCI = dyn_cast<BitCastInst>(V))
-      V = BCI->getOperand(0);
-    const AllocaInst *AI = dyn_cast<AllocaInst>(V);
-    // Don't handle byval struct arguments or VLAs, for example.
-    if (!AI) {
-      DEBUG(dbgs() << "Dropping debug location info for:\n  " << DI << "\n");
-      DEBUG(dbgs() << "  Last seen at:\n    " << *V << "\n");
       return nullptr;
     }
-    DenseMap<const AllocaInst*, int>::iterator SI =
-      FuncInfo.StaticAllocaMap.find(AI);
-    if (SI == FuncInfo.StaticAllocaMap.end())
-      return nullptr; // VLAs.
+
+    // Do not use getValue() in here; we don't want to generate code at
+    // this point if it hasn't been done yet.
+    SDValue N = NodeMap[V];
+    if (!N.getNode() && isa<Argument>(V)) // Check unused arguments map.
+      N = UnusedArgNodeMap[V];
+    if (N.getNode()) {
+      if (EmitFuncArgumentDbgValue(V, Variable, Expression, dl, Offset, false,
+                                   N))
+        return nullptr;
+      SDV = getDbgValue(N, Variable, Expression, Offset, dl, SDNodeOrder);
+      DAG.AddDbgValue(SDV, N.getNode(), false);
+      return nullptr;
+    }
+
+    if (!V->use_empty() ) {
+      // Do not call getValue(V) yet, as we don't want to generate code.
+      // Remember it for later.
+      DanglingDebugInfo DDI(&DI, dl, SDNodeOrder);
+      DanglingDebugInfoMap[V] = DDI;
+      return nullptr;
+    }
+
+    DEBUG(dbgs() << "Dropping debug location info for:\n  " << DI << "\n");
+    DEBUG(dbgs() << "  Last seen at:\n    " << *V << "\n");
     return nullptr;
   }
 
@@ -5715,7 +5703,37 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     setValue(&I, N);
     return nullptr;
   }
+  case Intrinsic::xray_customevent: {
+    // Here we want to make sure that the intrinsic behaves as if it has a
+    // specific calling convention, and only for x86_64.
+    // FIXME: Support other platforms later.
+    const auto &Triple = DAG.getTarget().getTargetTriple();
+    if (Triple.getArch() != Triple::x86_64 || !Triple.isOSLinux())
+      return nullptr;
 
+    SDLoc DL = getCurSDLoc();
+    SmallVector<SDValue, 8> Ops;
+
+    // We want to say that we always want the arguments in registers.
+    SDValue LogEntryVal = getValue(I.getArgOperand(0));
+    SDValue StrSizeVal = getValue(I.getArgOperand(1));
+    SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
+    SDValue Chain = getRoot();
+    Ops.push_back(LogEntryVal);
+    Ops.push_back(StrSizeVal);
+    Ops.push_back(Chain);
+
+    // We need to enforce the calling convention for the callsite, so that
+    // argument ordering is enforced correctly, and that register allocation can
+    // see that some registers may be assumed clobbered and have to preserve
+    // them across calls to the intrinsic.
+    MachineSDNode *MN = DAG.getMachineNode(TargetOpcode::PATCHABLE_EVENT_CALL,
+                                           DL, NodeTys, Ops);
+    SDValue patchableNode = SDValue(MN, 0);
+    DAG.setRoot(patchableNode);
+    setValue(&I, patchableNode);
+    return nullptr;
+  }
   case Intrinsic::experimental_deoptimize:
     LowerDeoptimizeCall(&I);
     return nullptr;
