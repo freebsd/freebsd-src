@@ -2477,6 +2477,32 @@ siginfo_to_siginfo32(const siginfo_t *src, struct siginfo32 *dst)
 	dst->si_overrun = src->si_overrun;
 }
 
+#ifndef _FREEBSD32_SYSPROTO_H_
+struct freebsd32_sigqueue_args {
+        pid_t pid;
+        int signum;
+        /* union sigval32 */ int value;
+};
+#endif
+int
+freebsd32_sigqueue(struct thread *td, struct freebsd32_sigqueue_args *uap)
+{
+	union sigval sv;
+
+	/*
+	 * On 32-bit ABIs, sival_int and sival_ptr are the same.
+	 * On 64-bit little-endian ABIs, the low bits are the same.
+	 * In 64-bit big-endian ABIs, sival_int overlaps with
+	 * sival_ptr's HIGH bits.  We choose to support sival_int
+	 * rather than sival_ptr in this case as it seems to be
+	 * more common.
+	 */
+	bzero(&sv, sizeof(sv));
+	sv.sival_int = uap->value;
+
+	return (kern_sigqueue(td, uap->pid, uap->signum, &sv));
+}
+
 int
 freebsd32_sigtimedwait(struct thread *td, struct freebsd32_sigtimedwait_args *uap)
 {

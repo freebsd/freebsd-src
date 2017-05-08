@@ -33,8 +33,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "blacklist_client.h"
 #include <blacklist.h>
+#include "blacklist_client.h"
 
 static struct blacklist *blstate;
 extern int use_blacklist;
@@ -48,7 +48,7 @@ blacklist_init(void)
 }
 
 void
-blacklist_notify(int action, int fd, char *msg)
+blacklist_notify(int action, int fd, const char *msg)
 {
 
 	if (blstate == NULL)

@@ -224,7 +224,7 @@ cd9660_boot_setup_validation_entry(char sys)
 	boot_catalog_validation_entry *ve;
 	int16_t checksum;
 	unsigned char *csptr;
-	int i;
+	size_t i;
 	entry = cd9660_init_boot_catalog_entry();
 
 	ve = &entry->entry_data.VE;

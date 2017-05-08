@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-#include <sys/libkern.h>
 
 #include <sys/limits.h>
 #include <sys/mouse.h>
@@ -300,6 +299,8 @@ typedef struct elantechhw {
 	int			dpmmy;
 	int			ntracesx;
 	int			ntracesy;
+	int			dptracex;
+	int			dptracey;
 	int			issemimt;
 	int			isclickpad;
 	int			hascrc;
@@ -366,6 +367,7 @@ enum {
 typedef struct elantechaction {
 	finger_t		fingers[ELANTECH_MAX_FINGERS];
 	int			mask;
+	int			mask_v4wait;
 } elantechaction_t;
 
 /* driver control block */
@@ -3016,13 +3018,15 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 	ms->button = touchpad_buttons;
 
+	psmgestures(sc, &f[0], nfingers, ms);
+	for (id = 0; id < PSM_FINGERS; id++)
+		psmsmoother(sc, &f[id], id, ms, x, y);
+
 	/* Palm detection doesn't terminate the current action. */
-	if (!psmpalmdetect(sc, &f[0], nfingers)) {
-		psmgestures(sc, &f[0], nfingers, ms);
-		for (id = 0; id < PSM_FINGERS; id++)
-			psmsmoother(sc, &f[id], id, ms, x, y);
-	} else {
-		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f[0].w));
+	if (psmpalmdetect(sc, &f[0], nfingers)) {
+		*x = *y = *z = 0;
+		ms->button = ms->obutton;
+		return (0);
 	}
 
 	ms->button |= extended_buttons | guest_buttons;
@@ -3062,8 +3066,9 @@ static int
 psmpalmdetect(struct psm_softc *sc, finger_t *f, int nfingers)
 {
 	if (!(
-	    ((sc->synhw.capMultiFinger ||
-	      sc->synhw.capAdvancedGestures) && nfingers > 1) ||
+	    ((sc->synhw.capMultiFinger || sc->synhw.capAdvancedGestures) &&
+	      !sc->synhw.capReportsV && nfingers > 1) ||
+	    (sc->synhw.capReportsV && nfingers > 2) ||
 	    (sc->synhw.capPalmDetect && f->w <= sc->syninfo.max_width) ||
 	    (!sc->synhw.capPalmDetect && f->p <= sc->syninfo.max_pressure) ||
 	    (sc->synhw.capPen && f->flags & PSM_FINGER_IS_PEN))) {
@@ -3076,6 +3081,7 @@ psmpalmdetect(struct psm_softc *sc, finger_t *f, int nfingers)
 		 *    [min_pressure; max_pressure]
 		 *  - pen aren't supported but PSM_FINGER_IS_PEN is set
 		 */
+		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f->w));
 		return (1);
 	}
 	return (0);
@@ -3767,27 +3773,30 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
 		if (nfingers == 3 && (pb->ipacket[3] & 0x80))
 			nfingers = 4;
-		mask = (1 << nfingers) - 1;
 
-		fn = ELANTECH_FINGER_SET_XYP(pb);
+		if (nfingers == 0) {
+			mask = (1 << nfingers) - 1;	/* = 0x00 */
+			break;
+		}
+
+		/* Map 3-rd and 4-th fingers to first finger */
+		mask = (1 << 1) - 1;	/* = 0x01 */
+		f[0] = ELANTECH_FINGER_SET_XYP(pb);
 		if (sc->elanhw.haspressure) {
-			fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
+			f[0].w = ((pb->ipacket[0] & 0x30) >> 2) |
 			    ((pb->ipacket[3] & 0x30) >> 4);
 		} else {
-			fn.p = PSM_FINGER_DEFAULT_P;
-			fn.w = PSM_FINGER_DEFAULT_W;
+			f[0].p = PSM_FINGER_DEFAULT_P;
+			f[0].w = PSM_FINGER_DEFAULT_W;
 		}
 
 		/*
 		 * HW v2 dont report exact finger positions when 3 or more
-		 * fingers are on touchpad. Use reported value as fingers
-		 * position as it is required for tap detection
+		 * fingers are on touchpad.
 		 */
 		if (nfingers > 2)
-			fn.flags = PSM_FINGER_FUZZY;
+			f[0].flags = PSM_FINGER_FUZZY;
 
-		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
-			f[id] = fn;
 		break;
 
 	case ELANTECH_PKT_V2_2FINGER:	/*HW V2. Two finger touch */
@@ -3833,8 +3842,12 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		 * -------------------------------------------
 		 */
 		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
-		mask = (1 << nfingers) - 1;
-		id = nfingers - 1;
+		/* Map 3-rd finger to first finger */
+		id = nfingers > 2 ? 0 : nfingers - 1;
+		mask = (1 << (id + 1)) - 1;
+
+		if (nfingers == 0)
+			break;
 
 		fn = ELANTECH_FINGER_SET_XYP(pb);
 		fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
@@ -3842,14 +3855,10 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 		/*
 		 * HW v3 dont report exact finger positions when 3 or more
-		 * fingers are on touchpad. Use reported value as fingers
-		 * position as it is required for tap detection
+		 * fingers are on touchpad.
 		 */
 		if (nfingers > 1)
 			fn.flags = PSM_FINGER_FUZZY;
-
-		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
-			f[id] = fn;
 
 		if (nfingers == 2) {
 			if (ELANTECH_PKT_IS_V3_HEAD(pb, sc->elanhw.hascrc)) {
@@ -3858,6 +3867,7 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			} else
 				f[0] = sc->elanaction.fingers[0];
 		}
+		f[id] = fn;
 		break;
 
 	case ELANTECH_PKT_V4_STATUS:	/* HW Version 4. Status packet */
@@ -3879,9 +3889,15 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		mask = pb->ipacket[1] & 0x1f;
 		nfingers = bitcount(mask);
 
+		if (sc->elanaction.mask_v4wait != 0)
+			VLOG(3, (LOG_DEBUG, "elantech: HW v4 status packet"
+			    " when not all previous head packets received\n"));
+
+		/* Bitmap of fingers to receive before gesture processing */
+		sc->elanaction.mask_v4wait = mask & ~sc->elanaction.mask;
+
 		/* Skip "new finger is on touchpad" packets */
-		if ((sc->elanaction.mask & mask) == sc->elanaction.mask &&
-		    (mask & ~sc->elanaction.mask)) {
+		if (sc->elanaction.mask_v4wait) {
 			sc->elanaction.mask = mask;
 			return (0);
 		}
@@ -3906,11 +3922,33 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		mask = sc->elanaction.mask;
 		nfingers = bitcount(mask);
 		id = ((pb->ipacket[3] & 0xe0) >> 5) - 1;
+		fn = ELANTECH_FINGER_SET_XYP(pb);
+		fn.w =(pb->ipacket[0] & 0xf0) >> 4;
 
-		if (id >= 0 && id < ELANTECH_MAX_FINGERS) {
-			f[id] = ELANTECH_FINGER_SET_XYP(pb);
-			f[id].w = (pb->ipacket[0] & 0xf0) >> 4;
+		if (id < 0)
+			return (0);
+
+		/* Packet is finger position update. Report it */
+		if (sc->elanaction.mask_v4wait == 0) {
+			if (id < ELANTECH_MAX_FINGERS)
+				f[id] = fn;
+			break;
 		}
+
+		/* Remove finger from waiting bitmap and store into context */
+		sc->elanaction.mask_v4wait &= ~(1 << id);
+		if (id < ELANTECH_MAX_FINGERS)
+			sc->elanaction.fingers[id] = fn;
+
+		/* Wait for other fingers if needed */
+		if (sc->elanaction.mask_v4wait != 0)
+			return (0);
+
+		/* All new fingers are received. Report them from context */
+		for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+			if (sc->elanaction.mask & (1 << id))
+				f[id] =  sc->elanaction.fingers[id];
+
 		break;
 
 	case ELANTECH_PKT_V4_MOTION:	/* HW Version 4. Motion packet */
@@ -4006,20 +4044,14 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 	ms->button = touchpad_button | trackpoint_button;
 
-	/* Palm detection doesn't terminate the current action. */
-	if (!psmpalmdetect(sc, &f[0], nfingers)) {
-		/* Send finger 1 position to gesture processor */
-		if (PSM_FINGER_IS_SET(f[0]) || PSM_FINGER_IS_SET(f[1]) ||
-		    nfingers == 0)
-			psmgestures(sc, &f[0], imin(nfingers, 3), ms);
-		/* Send fingers positions to movement smoothers */
-		for (id = 0; id < PSM_FINGERS; id++)
-			if (PSM_FINGER_IS_SET(f[id]) || !(mask & (1 << id)))
-				psmsmoother(sc, &f[id], id, ms, x, y);
-	} else {
-		VLOG(2, (LOG_DEBUG, "elantech: palm detected! (%d)\n",
-		    f[0].w));
-	}
+	/* Send finger 1 position to gesture processor */
+	if (PSM_FINGER_IS_SET(f[0]) || PSM_FINGER_IS_SET(f[1]) ||
+	    nfingers == 0)
+		psmgestures(sc, &f[0], imin(nfingers, 3), ms);
+	/* Send fingers positions to movement smoothers */
+	for (id = 0; id < PSM_FINGERS; id++)
+		if (PSM_FINGER_IS_SET(f[id]) || !(mask & (1 << id)))
+			psmsmoother(sc, &f[id], id, ms, x, y);
 
 	/* Store current finger positions in action context */
 	for (id = 0; id < ELANTECH_MAX_FINGERS; id++) {
@@ -4029,6 +4061,13 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			PSM_FINGER_RESET(sc->elanaction.fingers[id]);
 	}
 	sc->elanaction.mask = mask;
+
+	/* Palm detection doesn't terminate the current action. */
+	if (psmpalmdetect(sc, &f[0], nfingers)) {
+		*x = *y = *z = 0;
+		ms->button = ms->obutton;
+		return (0);
+	}
 
 	/* Use the extra buttons as a scrollwheel */
 	if (ms->button & MOUSE_BUTTON4DOWN)
@@ -5054,7 +5093,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc, const char *name,
 	    "Enable two finger scrolling");
 
 	/* hw.psm.synaptics.min_pressure. */
-	sc->syninfo.min_pressure = 16;
+	sc->syninfo.min_pressure = 32;
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "min_pressure", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
@@ -6155,7 +6194,10 @@ elantech_init_synaptics(struct psm_softc *sc)
 	sc->synhw.capPassthrough = sc->elanhw.hastrackpoint;
 	sc->synhw.capClickPad = sc->elanhw.isclickpad;
 	sc->synhw.capMultiFinger = 1;
-	sc->synhw.capAdvancedGestures = 1;
+	if (sc->elanhw.issemimt)
+		sc->synhw.capAdvancedGestures = 1;
+	else
+		sc->synhw.capReportsV = 1;
 	sc->synhw.capPalmDetect = 1;
 	sc->synhw.capPen = 0;
 	sc->synhw.capReportsMax = 1;
@@ -6188,6 +6230,12 @@ elantech_init_synaptics(struct psm_softc *sc)
 
 		/* Disable finger detection pressure threshold */
 		sc->syninfo.min_pressure = 1;
+
+		/* Adjust palm width to nearly match synaptics w=10 */
+		sc->syninfo.max_width = 7;
+
+		/* Elans often report double & triple taps as single event */
+		sc->syninfo.tap_min_queue = 1;
 
 		/* Use full area of touchpad */
 		sc->syninfo.margin_top = 0;
@@ -6233,8 +6281,17 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 	static const int ic2hw[] =
 	/*IC: 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
 	    { 0, 0, 2, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
+	static const int fw_sizes[][3] = {
+		/* FW.vers  MaxX  MaxY */
+		{ 0x020030, 1152,  768 },
+		{ 0x020800, 1152,  768 },
+		{ 0x020b00, 1152,  768 },
+		{ 0x040215,  900,  500 },
+		{ 0x040216,  819,  405 },
+		{ 0x040219,  900,  500 },
+	};
 	elantechhw_t elanhw;
-	int icversion, hwversion, dptracex, dptracey, id, resp[3], dpix, dpiy;
+	int icversion, hwversion, xtr, i, id, resp[3], dpix, dpiy;
 	KBDC kbdc = sc->kbdc;
 
 	VLOG(3, (LOG_DEBUG, "elantech: BEGIN init\n"));
@@ -6285,8 +6342,8 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	}
 
-	elanhw.ntracesx = resp[1] - 1;
-	elanhw.ntracesy = resp[2] - 1;
+	elanhw.ntracesx = imax(resp[1], 3);
+	elanhw.ntracesy = imax(resp[2], 3);
 	elanhw.hastrackpoint = (resp[0] & 0x80) != 0;
 
 	/* Get the touchpad resolution */
@@ -6320,24 +6377,35 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 	 * On HW v.3 touchpads it should be done after switching hardware
 	 * to real resolution mode (by setting bit 3 of reg10)
 	 */
+	elanhw.dptracex = elanhw.dptracey = 64;
+	for (i = 0; i < nitems(fw_sizes); i++) {
+		if (elanhw.fwversion == fw_sizes[i][0]) {
+			elanhw.sizex = fw_sizes[i][1];
+			elanhw.sizey = fw_sizes[i][2];
+			goto found;
+		}
+	}
 	if (elantech_cmd(kbdc, hwversion, ELANTECH_FW_ID, resp) != 0) {
 		printf("  Failed to read touchpad size\n");
 		elanhw.sizex = 10000; /* Arbitrary high values to     */
 		elanhw.sizey = 10000; /* prevent clipping in smoother */
 	} else if (hwversion == 2) {
-		dptracex = dptracey = 64;
 		if ((elanhw.fwversion >> 16) == 0x14 && (resp[1] & 0x10) &&
 		    !elantech_cmd(kbdc, hwversion, ELANTECH_SAMPLE, resp)) {
-			dptracex = resp[1] / 2;
-			dptracey = resp[2] / 2;
+			elanhw.dptracex = resp[1] / 2;
+			elanhw.dptracey = resp[2] / 2;
 		}
-		elanhw.sizex = (elanhw.ntracesx - 1) * dptracex;
-		elanhw.sizey = (elanhw.ntracesy - 1) * dptracey;
+		xtr = ((elanhw.fwversion >> 8) == 0x0208) ? 1 : 2;
+		elanhw.sizex = (elanhw.ntracesx - xtr) * elanhw.dptracex;
+		elanhw.sizey = (elanhw.ntracesy - xtr) * elanhw.dptracey;
 	} else {
 		elanhw.sizex = (resp[0] & 0x0f) << 8 | resp[1];
 		elanhw.sizey = (resp[0] & 0xf0) << 4 | resp[2];
+		xtr = (elanhw.sizex % (elanhw.ntracesx - 2) == 0) ? 2 : 1;
+		elanhw.dptracex = elanhw.sizex / (elanhw.ntracesx - xtr);
+		elanhw.dptracey = elanhw.sizey / (elanhw.ntracesy - xtr);
 	}
-
+found:
 	if (verbose >= 2) {
 		printf("  Model information:\n");
 		printf("   MaxX:       %d\n", elanhw.sizex);
@@ -6346,6 +6414,8 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 		printf("   DpmmY:      %d\n", elanhw.dpmmy);
 		printf("   TracesX:    %d\n", elanhw.ntracesx);
 		printf("   TracesY:    %d\n", elanhw.ntracesy);
+		printf("   DptraceX:   %d\n", elanhw.dptracex);
+		printf("   DptraceY:   %d\n", elanhw.dptracey);
 		printf("   SemiMT:     %d\n", elanhw.issemimt);
 		printf("   Clickpad:   %d\n", elanhw.isclickpad);
 		printf("   Trackpoint: %d\n", elanhw.hastrackpoint);

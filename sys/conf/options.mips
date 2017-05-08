@@ -152,6 +152,7 @@ RT3050F				opt_rt305x.h
 RT305X				opt_rt305x.h
 RT305X_UBOOT			opt_rt305x.h
 RT305X_USE_UART			opt_rt305x.h
+RT_MDIO				opt_rt305x.h
 
 #
 # Options that affect the pmap.

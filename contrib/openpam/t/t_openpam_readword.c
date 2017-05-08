@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Dag-Erling Smørgrav
+ * Copyright (c) 2012-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_openpam_readword.c 922 2017-02-19 19:28:30Z des $
+ * $OpenPAM: t_openpam_readword.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +34,7 @@
 #endif
 
 #include <err.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +51,7 @@
 	    OPENPAM_UNUSED(void *arg))
 
 #define T(n)								\
-	t_add_test(&t_ ## n ## _func, NULL, t_ ## n ## _desc)
+	t_add_test(&t_ ## n ## _func, NULL, "%s", t_ ## n ## _desc)
 
 /*
  * Read a word from the temp file and verify that the result matches our
@@ -71,37 +72,37 @@ orw_expect(struct t_file *tf, const char *expected, int lines, int eof, int eol)
 	if (t_ferror(tf))
 		err(1, "%s(): %s", __func__, tf->name);
 	if (expected != NULL && got == NULL) {
-		t_verbose("expected <<%s>>, got nothing\n", expected);
+		t_printv("expected <<%s>>, got nothing\n", expected);
 		ret = 0;
 	} else if (expected == NULL && got != NULL) {
-		t_verbose("expected nothing, got <<%s>>\n", got);
+		t_printv("expected nothing, got <<%s>>\n", got);
 		ret = 0;
 	} else if (expected != NULL && got != NULL && strcmp(expected, got) != 0) {
-		t_verbose("expected <<%s>>, got <<%s>>\n", expected, got);
+		t_printv("expected <<%s>>, got <<%s>>\n", expected, got);
 		ret = 0;
 	}
 	free(got);
 	if (lineno != lines) {
-		t_verbose("expected to advance %d lines, advanced %d lines\n",
+		t_printv("expected to advance %d lines, advanced %d lines\n",
 		    lines, lineno);
 		ret = 0;
 	}
 	if (eof && !t_feof(tf)) {
-		t_verbose("expected EOF, but didn't get it\n");
+		t_printv("expected EOF, but didn't get it\n");
 		ret = 0;
 	}
 	if (!eof && t_feof(tf)) {
-		t_verbose("didn't expect EOF, but got it anyway\n");
+		t_printv("didn't expect EOF, but got it anyway\n");
 		ret = 0;
 	}
 	ch = fgetc(tf->file);
 	if (t_ferror(tf))
 		err(1, "%s(): %s", __func__, tf->name);
 	if (eol && ch != '\n') {
-		t_verbose("expected EOL, but didn't get it\n");
+		t_printv("expected EOL, but didn't get it\n");
 		ret = 0;
 	} else if (!eol && ch == '\n') {
-		t_verbose("didn't expect EOL, but got it anyway\n");
+		t_printv("didn't expect EOL, but got it anyway\n");
 		ret = 0;
 	}
 	if (ch != EOF)

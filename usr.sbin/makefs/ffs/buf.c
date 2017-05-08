@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "makefs.h"
 #include "buf.h"
 
+extern int sectorsize;		/* XXX: from ffs.c & mkfs.c */
+
 static TAILQ_HEAD(buftailhead,buf) buftail;
 
 int
@@ -60,7 +62,6 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 {
 	off_t	offset;
 	ssize_t	rv;
-	fsinfo_t *fs = vp->fs;
 
 	assert (bpp != NULL);
 
@@ -68,7 +69,7 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 		printf("%s: blkno %lld size %d\n", __func__, (long long)blkno,
 		    size);
 	*bpp = getblk(vp, blkno, size, 0, 0, 0);
-	offset = (*bpp)->b_blkno * fs->sectorsize;
+	offset = (*bpp)->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BREAD)
 		printf("%s: blkno %lld offset %lld bcount %ld\n", __func__,
 		    (long long)(*bpp)->b_blkno, (long long) offset,
@@ -125,10 +126,9 @@ bwrite(struct buf *bp)
 {
 	off_t	offset;
 	ssize_t	rv;
-	fsinfo_t *fs = bp->b_fs;
 
 	assert (bp != NULL);
-	offset = bp->b_blkno * fs->sectorsize;
+	offset = bp->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BWRITE)
 		printf("bwrite: blkno %lld offset %lld bcount %ld\n",
 		    (long long)bp->b_blkno, (long long) offset,

@@ -22,6 +22,7 @@ MAN=	aac.4 \
 	acpi_video.4 \
 	${_acpi_wmi.4} \
 	ada.4 \
+	adm6996fc.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -152,6 +153,7 @@ MAN=	aac.4 \
 	etherswitch.4 \
 	eventtimers.4 \
 	exca.4 \
+	e6060sw.4 \
 	fd.4 \
 	fdc.4 \
 	fdt.4 \
@@ -245,6 +247,7 @@ MAN=	aac.4 \
 	keyboard.4 \
 	kld.4 \
 	ksyms.4 \
+	ksz8995ma.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \

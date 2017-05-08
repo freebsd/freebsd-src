@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Dag-Erling Smørgrav
+ * Copyright (c) 2015-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_pam_conv.c 922 2017-02-19 19:28:30Z des $
+ * $OpenPAM: t_pam_conv.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -99,16 +99,16 @@ t_pam_conv(int nm, const struct pam_message **msgs,
 		}
 		switch (msgs[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			t_verbose("[PAM_PROMPT_ECHO_OFF] %s\n", msgs[i]->msg);
+			t_printv("[PAM_PROMPT_ECHO_OFF] %s\n", msgs[i]->msg);
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			t_verbose("[PAM_PROMPT_ECHO_ON] %s\n", msgs[i]->msg);
+			t_printv("[PAM_PROMPT_ECHO_ON] %s\n", msgs[i]->msg);
 			break;
 		case PAM_ERROR_MSG:
-			t_verbose("[PAM_ERROR_MSG] %s\n", msgs[i]->msg);
+			t_printv("[PAM_ERROR_MSG] %s\n", msgs[i]->msg);
 			break;
 		case PAM_TEXT_INFO:
-			t_verbose("[PAM_TEXT_INFO] %s\n", msgs[i]->msg);
+			t_printv("[PAM_TEXT_INFO] %s\n", msgs[i]->msg);
 			break;
 		default:
 			asprintf(&s->comment, "invalid message style %d",

@@ -1,6 +1,6 @@
 .\" Generated from openpam_restore_cred.c by gendoc.pl
-.\" $Id: openpam_restore_cred.c 648 2013-03-05 17:54:27Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: openpam_restore_cred.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt OPENPAM_RESTORE_CRED 3
 .Os
 .Sh NAME
@@ -23,6 +23,8 @@ The
 .Fn openpam_restore_cred
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_NO_MODULE_DATA
 Module data not found.
 .It Bq Er PAM_SYSTEM_ERR

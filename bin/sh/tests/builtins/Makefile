@@ -120,6 +120,7 @@ ${PACKAGE}FILES+=		local7.0
 .if ${MK_NLS} != "no"
 ${PACKAGE}FILES+=		locale1.0
 .endif
+${PACKAGE}FILES+=		locale2.0
 ${PACKAGE}FILES+=		printf1.0
 ${PACKAGE}FILES+=		printf2.0
 ${PACKAGE}FILES+=		printf3.0

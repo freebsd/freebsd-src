@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -48,7 +48,7 @@ extern char *tagoption;
  * Sound the bell to indicate user is trying to move past end of file.
  */
 	static void
-eof_bell(void)
+eof_bell()
 {
 	if (quiet == NOT_QUIET)
 		bell();
@@ -60,7 +60,7 @@ eof_bell(void)
  * Check to see if the end of file is currently displayed.
  */
 	public int
-eof_displayed(void)
+eof_displayed()
 {
 	POSITION pos;
 
@@ -87,7 +87,7 @@ eof_displayed(void)
  * Check to see if the entire file is currently displayed.
  */
 	public int
-entire_file_displayed(void)
+entire_file_displayed()
 {
 	POSITION pos;
 
@@ -107,7 +107,7 @@ entire_file_displayed(void)
  * for the first time.
  */
 	public void
-squish_check(void)
+squish_check()
 {
 	if (!squished)
 		return;
@@ -125,7 +125,12 @@ squish_check(void)
  *   The first real line after the blanks will start at ch_zero().
  */
 	public void
-forw(int n, POSITION pos, int force, int only_last, int nblank)
+forw(n, pos, force, only_last, nblank)
+	int n;
+	POSITION pos;
+	int force;
+	int only_last;
+	int nblank;
 {
 	int nlines = 0;
 	int do_repaint;
@@ -297,7 +302,11 @@ forw(int n, POSITION pos, int force, int only_last, int nblank)
  * Display n lines, scrolling backward.
  */
 	public void
-back(int n, POSITION pos, int force, int only_last)
+back(n, pos, force, only_last)
+	int n;
+	POSITION pos;
+	int force;
+	int only_last;
 {
 	int nlines = 0;
 	int do_repaint;
@@ -355,7 +364,10 @@ back(int n, POSITION pos, int force, int only_last)
  * Start just after the line currently displayed at the bottom of the screen.
  */
 	public void
-forward(int n, int force, int only_last)
+forward(n, force, only_last)
+	int n;
+	int force;
+	int only_last;
 {
 	POSITION pos;
 
@@ -404,7 +416,10 @@ forward(int n, int force, int only_last)
  * Start just before the line currently displayed at the top of the screen.
  */
 	public void
-backward(int n, int force, int only_last)
+backward(n, force, only_last)
+	int n;
+	int force;
+	int only_last;
 {
 	POSITION pos;
 
@@ -424,7 +439,7 @@ backward(int n, int force, int only_last)
  * top_scroll, as well as back_scroll.
  */
 	public int
-get_back_scroll(void)
+get_back_scroll()
 {
 	if (no_back_scroll)
 		return (0);
@@ -433,4 +448,22 @@ get_back_scroll(void)
 	if (top_scroll)
 		return (sc_height - 2);
 	return (10000); /* infinity */
+}
+
+/*
+ * Get line count of file up to the screen height + 1 char
+ */
+	public int
+get_line_count()
+{
+	int nlines;
+	POSITION pos;
+
+	pos = ch_zero();
+	for (nlines = 0;  nlines <= sc_height;  nlines++)
+	{
+		pos = forw_line(pos);
+		if (pos == NULL_POSITION) break;
+	}
+	return nlines;
 }

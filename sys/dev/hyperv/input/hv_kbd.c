@@ -198,7 +198,7 @@ static void
 hvkbd_do_poll(hv_kbd_sc *sc, uint8_t wait)
 {
 	while (!hv_kbd_prod_is_ready(sc)) {
-		hv_kbd_read_channel(NULL, sc);
+		hv_kbd_read_channel(sc->hs_chan, sc);
 		if (!wait)
 			break;
 	}
