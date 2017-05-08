@@ -162,7 +162,7 @@ static int
 evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct evdev_client *client;
-	struct input_event *event;
+	struct input_event event;
 	int ret = 0;
 	int remaining;
 
@@ -197,13 +197,14 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 
 	while (ret == 0 && !EVDEV_CLIENT_EMPTYQ(client) && remaining > 0) {
-		event = &client->ec_buffer[client->ec_buffer_head];
+		memcpy(&event, &client->ec_buffer[client->ec_buffer_head],
+		    sizeof(struct input_event));
 		client->ec_buffer_head =
 		    (client->ec_buffer_head + 1) % client->ec_buffer_size;
 		remaining--;
 
 		EVDEV_CLIENT_UNLOCKQ(client);
-		ret = uiomove(event, sizeof(struct input_event), uio);
+		ret = uiomove(&event, sizeof(struct input_event), uio);
 		EVDEV_CLIENT_LOCKQ(client);
 	}
 
