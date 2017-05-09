@@ -437,7 +437,8 @@
     <sect2 xml:id="hardware-arm">
       <title>ARM Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="305436">Support for the Allwinner A13 board has
+	been added.</para>
     </sect2>
   </sect1>
 
