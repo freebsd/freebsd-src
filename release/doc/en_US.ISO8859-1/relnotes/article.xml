@@ -229,6 +229,9 @@
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
 
+      <para revision="314278"><literal>libucl</literal> has been
+	updated to version 20170219.</para>
+
       <para revision="315432">&man.libarchive.3; has been updated to
 	version 3.3.1.</para>
 
