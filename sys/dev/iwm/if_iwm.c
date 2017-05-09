@@ -355,7 +355,7 @@ static int	iwm_mvm_add_int_sta_common(struct iwm_softc *,
                                            struct iwm_int_sta *,
 				           const uint8_t *, uint16_t, uint16_t);
 static int	iwm_mvm_add_aux_sta(struct iwm_softc *);
-static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_node *);
+static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_vap *);
 static int	iwm_auth(struct ieee80211vap *, struct iwm_softc *);
 static int	iwm_assoc(struct ieee80211vap *, struct iwm_softc *);
 static int	iwm_release(struct iwm_softc *, struct iwm_node *);
@@ -1286,6 +1286,7 @@ iwm_stop_device(struct iwm_softc *sc)
 	 */
 	if (vap) {
 		struct iwm_vap *iv = IWM_VAP(vap);
+		iv->phy_ctxt = NULL;
 		iv->is_uploaded = 0;
 	}
 
@@ -4014,7 +4015,7 @@ iwm_mvm_add_aux_sta(struct iwm_softc *sc)
  */
 
 static int
-iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_time_quota_cmd cmd;
 	int i, idx, ret, num_active_macs, quota, quota_rem;
@@ -4025,10 +4026,10 @@ iwm_mvm_update_quotas(struct iwm_softc *sc, struct iwm_node *in)
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* currently, PHY ID == binding ID */
-	if (in) {
-		id = in->in_phyctxt->id;
+	if (ivp) {
+		id = ivp->phy_ctxt->id;
 		KASSERT(id < IWM_MAX_BINDINGS, ("invalid id"));
-		colors[id] = in->in_phyctxt->color;
+		colors[id] = ivp->phy_ctxt->color;
 
 		if (1)
 			n_ifs[id] = 1;
@@ -4153,9 +4154,9 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed update phy ctxt\n", __func__);
 			goto out;
 		}
-		in->in_phyctxt = &sc->sc_phyctxt[0];
+		iv->phy_ctxt = &sc->sc_phyctxt[0];
 
-		if ((error = iwm_mvm_binding_update(sc, in)) != 0) {
+		if ((error = iwm_mvm_binding_update(sc, iv)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: binding update cmd\n", __func__);
 			goto out;
@@ -4184,9 +4185,9 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			error = ETIMEDOUT;
 			goto out;
 		}
-		in->in_phyctxt = &sc->sc_phyctxt[0];
+		iv->phy_ctxt = &sc->sc_phyctxt[0];
 
-		if ((error = iwm_mvm_binding_add_vif(sc, in)) != 0) {
+		if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: binding add cmd\n", __func__);
 			goto out;
@@ -4590,7 +4591,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		in = IWM_NODE(vap->iv_bss);
 		iwm_mvm_enable_beacon_filter(sc, in);
 		iwm_mvm_power_update_mac(sc);
-		iwm_mvm_update_quotas(sc, in);
+		iwm_mvm_update_quotas(sc, ivp);
 		iwm_setrates(sc, in);
 
 		cmd.data[0] = &in->in_lq;
@@ -5761,7 +5762,6 @@ iwm_intr(void *arg)
 		device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
 		    "restarting\n", __func__, vap->iv_state);
 
-		/* XXX TODO: turn this into a callout/taskqueue */
 		ieee80211_restart_all(ic);
 		return;
 	}

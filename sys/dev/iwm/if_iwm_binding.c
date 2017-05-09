@@ -162,10 +162,10 @@ __FBSDID("$FreeBSD$");
  */
 
 int
-iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in, uint32_t action)
+iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_vap *ivp, uint32_t action)
 {
 	struct iwm_binding_cmd cmd;
-	struct iwm_mvm_phy_ctxt *phyctxt = in->in_phyctxt;
+	struct iwm_mvm_phy_ctxt *phyctxt = ivp->phy_ctxt;
 	int i, ret;
 	uint32_t status;
 
@@ -204,13 +204,13 @@ iwm_mvm_binding_cmd(struct iwm_softc *sc, struct iwm_node *in, uint32_t action)
 }
 
 int
-iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_binding_update(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
-	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_MODIFY);
+	return iwm_mvm_binding_cmd(sc, ivp, IWM_FW_CTXT_ACTION_MODIFY);
 }
 
 int
-iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
-	return iwm_mvm_binding_cmd(sc, in, IWM_FW_CTXT_ACTION_ADD);
+	return iwm_mvm_binding_cmd(sc, ivp, IWM_FW_CTXT_ACTION_ADD);
 }
