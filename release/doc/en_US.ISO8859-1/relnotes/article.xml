@@ -229,6 +229,9 @@
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
 
+      <para revision="316068">&man.ntpd.8; has been updated to version
+	4.2.8p10.</para>
+
       <para revision="316303"><application>ACPICA</application> has
 	been updated to version 20170303.</para>
 
