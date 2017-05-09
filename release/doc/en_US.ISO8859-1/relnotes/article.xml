@@ -186,11 +186,12 @@
 	  class="directory">/usr/local/etc/cron.d</filename> by
 	default.</para>
 
-      <para revision="308721">The &man.syslogd.8; utility has been
-	updated to add the <literal>include</literal> keyword which
-	allows specifying a directory containing configuration files
-	to be included in addition to &man.syslogd.8;.  The default
-	&man.syslogd.8; has been updated to include <filename
+      <para revision="308721" contrib="sponsor" sponsor="&gandi;">The
+	&man.syslogd.8; utility has been updated to add the
+	<literal>include</literal> keyword which allows specifying
+	a directory containing configuration files to be included in
+	addition to &man.syslogd.8;.  The default &man.syslogd.8; has
+	been updated to include <filename
 	  class="directory">/etc/syslog.d</filename> and <filename
 	  class="directory">/usr/local/etc/syslog.d</filename> by
 	default.</para>
