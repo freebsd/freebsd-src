@@ -237,6 +237,19 @@
       <para>&nbsp;</para>
     </sect2>
 
+    <sect2 xml:id="kernel-modules">
+      <title>Kernel Modules</title>
+
+      <para revision="317045" contrib="sponsor" sponsor="&yandex;">The
+	<literal>ipfw_pmod</literal> kernel module has been added,
+	designed for modifying packets of any protocol.</para>
+
+      <note>
+	<para>At present, only <acronym>TCP</acronym>
+	  <acronym>MSS</acronym> modification is implemented.</para>
+      </note>
+    </sect2>
+
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
