@@ -235,6 +235,9 @@
       <para revision="313980"><application>openresolv</application>
 	has been updated to version 3.9.0.</para>
 
+      <para revision="313680">The NetBSD test suite has been updated
+	to the 01.11.2017_23.20 snapshot.</para>
+
       <para revision="314278"><literal>libucl</literal> has been
 	updated to version 20170219.</para>
 
