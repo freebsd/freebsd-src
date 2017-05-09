@@ -162,6 +162,12 @@ struct ixgbe_osdep
 struct ixgbe_hw; 
 
 /* These routines are needed by the shared code */
+extern u16 ixv_read_pci_cfg(struct ixgbe_hw *, u32);
+#define IXGBE_READ_PCIE_WORD ixv_read_pci_cfg
+
+extern void ixv_write_pci_cfg(struct ixgbe_hw *, u32, u16);
+#define IXGBE_WRITE_PCIE_WORD ixv_write_pci_cfg
+
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
 extern u32 ixv_read_reg(struct ixgbe_hw *, u32);
