@@ -617,6 +617,16 @@ target.
 If set, the update process does not update the www tree as part of the
 .Dq make update
 target.
+.It Va WORLDFAST
+If set, the build target
+.Cm buildworld
+defaults to setting
+.Va NO_CLEAN ,
+.Va NO_OBJ ,
+and will skip most bootstrap phases.
+It will only bootstrap libraries and build all of userland.
+This option should be used only when it is known that none of the bootstrap
+needs changed and that no new directories have been connected to the build.
 .El
 .Pp
 Builds under directory

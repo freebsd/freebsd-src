@@ -302,6 +302,11 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+.if defined(WORLDFAST)
+NO_CLEAN=	t
+NO_OBJ=		t
+.endif
+
 .if ${MK_META_MODE} == "yes"
 # If filemon is used then we can rely on the build being incremental-safe.
 # The .meta files will also track the build command and rebuild should
@@ -831,6 +836,7 @@ everything: .PHONY
 	${_+_}cd ${.CURDIR}; _PARALLEL_SUBDIR_OK=1 ${WMAKE} all
 
 WMAKE_TGTS=
+.if !defined(WORLDFAST)
 WMAKE_TGTS+=	_worldtmp _legacy
 .if empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_bootstrap-tools
@@ -841,7 +847,9 @@ WMAKE_TGTS+=	_obj
 .endif
 WMAKE_TGTS+=	_build-tools _cross-tools
 WMAKE_TGTS+=	_compiler-metadata
-WMAKE_TGTS+=	_includes _libraries
+WMAKE_TGTS+=	_includes
+.endif
+WMAKE_TGTS+=	_libraries
 WMAKE_TGTS+=	everything
 .if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	build${libcompat}
