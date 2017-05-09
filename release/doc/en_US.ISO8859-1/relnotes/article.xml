@@ -443,10 +443,6 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para revision="308942">The &man.bytgpio.4; driver has been
-	added, providing support for Intel&reg; Bay&nbsp;Trail&trade;
-	SoC GPIO controllers.</para>
-
       <para revision="307768">The &man.jedec.ts.4; driver has been
 	added, providing support for thermal sensors on memory
 	modules.  The driver currently supports chips that are fully
@@ -456,6 +452,10 @@
       <para revision="308104">The &man.chromebook.platform.4; driver
 	has been added, providing support for various Chromebook
 	models.</para>
+
+      <para revision="308942">The &man.bytgpio.4; driver has been
+	added, providing support for Intel&reg; Bay&nbsp;Trail&trade;
+	SoC GPIO controllers.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
