@@ -301,7 +301,12 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para>&nbsp;</para>
+      <para revision="316120" contrib="sponsor"
+	sponsor="&dellemc;">When the system real time clock
+	(<acronym>RTC</acronym>) is adjusted, such as by
+	<function>clock_settime()</function>, sleeping threads are now
+	awakened and absolute sleep times are reevaluated based on the
+	new value of the RTC.</para>
     </sect2>
   </sect1>
 
