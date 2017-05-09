@@ -399,11 +399,6 @@ wflag_emptypat_head()
 }
 wflag_emptypat_body()
 {
-	grep_type
-	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
-		atf_expect_fail "this test does not pass with GNU grep in base"
-	fi
-
 	printf "" > test1
 	printf "\n" > test2
 	printf "qaz" > test3
