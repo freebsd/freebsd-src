@@ -440,6 +440,12 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
+      <para revision="307768">The &man.jedec.ts.4; driver has been
+	added, providing support for thermal sensors on memory
+	modules.  The driver currently supports chips that are fully
+	compliant with the <acronym>JEDEC</acronym>
+	<acronym>JC</acronym> 42.4 specification.</para>
+
       <para revision="308104">The &man.chromebook.platform.4; driver
 	has been added, providing support for various Chromebook
 	models.</para>
