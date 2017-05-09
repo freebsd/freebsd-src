@@ -605,6 +605,10 @@ If set, the update process does not update the source of the
 documentation as part of the
 .Dq make update
 target.
+.It Va NO_OBJ
+If set, no object directories will be created.
+This should only be used if object directories were created in a
+previous build and no new directories are connected.
 .It Va NO_PORTSUPDATE
 If set, the update process does not update the Ports tree as part of the
 .Dq make update
