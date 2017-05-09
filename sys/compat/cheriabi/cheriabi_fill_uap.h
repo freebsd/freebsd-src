@@ -1916,14 +1916,14 @@ CHERIABI_SYS_cheriabi_writev_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->iovcnt, CHERI_CR_CTEMP0);
 
-	/* [1] _In_reads_(iovcnt) struct iovec_c * iovp */
+	/* [1] _In_reads_opt_(iovcnt) struct iovec_c * iovp */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_writev, 1);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->iovp),
-		    &tmpcap, (sizeof(*uap->iovp) * uap->iovcnt), reqperms, 0);
+		    &tmpcap, (sizeof(*uap->iovp) * uap->iovcnt), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
