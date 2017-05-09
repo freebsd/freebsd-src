@@ -35,7 +35,7 @@ KERN_DEBUGDIR?=	${DEBUGDIR}
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
-    obj reinstall tags
+    ${_obj} reinstall tags
 ${target}: kernel-${target}
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 ${target}: modules-${target}
