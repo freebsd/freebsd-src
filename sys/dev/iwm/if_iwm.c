@@ -1294,9 +1294,9 @@ iwm_stop_device(struct iwm_softc *sc)
 
 	/* stop tx and rx.  tx and rx bits, as usual, are from if_iwn */
 
-	iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
-
 	if (iwm_nic_lock(sc)) {
+		iwm_write_prph(sc, IWM_SCD_TXFACT, 0);
+
 		/* Stop each Tx DMA channel */
 		for (chnl = 0; chnl < IWM_FH_TCSR_CHNL_NUM; chnl++) {
 			IWM_WRITE(sc,
@@ -1324,8 +1324,10 @@ iwm_stop_device(struct iwm_softc *sc)
 
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
 		/* Power-down device's busmaster DMA clocks */
-		iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG,
-		    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG,
+			    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+		}
 		DELAY(5);
 	}
 
@@ -1622,8 +1624,6 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 
 	iwm_ict_reset(sc);
 
-	iwm_nic_unlock(sc);
-
 	sc->scd_base_addr = iwm_read_prph(sc, IWM_SCD_SRAM_BASE_ADDR);
 	if (scd_base_addr != 0 &&
 	    scd_base_addr != sc->scd_base_addr) {
@@ -1631,6 +1631,8 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 		    "%s: sched addr mismatch: alive: 0x%x prph: 0x%x\n",
 		    __func__, sc->scd_base_addr, scd_base_addr);
 	}
+
+	iwm_nic_unlock(sc);
 
 	/* reset context data, TX status and translation data */
 	error = iwm_write_mem(sc,
@@ -2591,9 +2593,11 @@ iwm_pcie_load_given_ucode(struct iwm_softc *sc,
 
 	if (image->is_dual_cpus) {
 		/* set CPU2 header address */
-                iwm_write_prph(sc,
-			       IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
-			       IWM_LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc,
+				       IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
+				       IWM_LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+		}
 
 		/* load to FW the binary sections of CPU2 */
 		ret = iwm_pcie_load_cpu_sections(sc, image, 2,
@@ -2622,7 +2626,10 @@ iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
 
 	/* configure the ucode to be ready to get the secured image */
 	/* release CPU reset */
-	iwm_write_prph(sc, IWM_RELEASE_CPU_RESET, IWM_RELEASE_CPU_RESET_BIT);
+	if (iwm_nic_lock(sc)) {
+		iwm_write_prph(sc, IWM_RELEASE_CPU_RESET,
+		    IWM_RELEASE_CPU_RESET_BIT);
+	}
 
 	/* load to FW the binary Secured sections of CPU1 */
 	ret = iwm_pcie_load_cpu_sections_8000(sc, image, 1,
@@ -2876,10 +2883,14 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	IWM_LOCK(sc);
 	if (error) {
 		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+			uint32_t a = 0x5a5a5a5a, b = 0x5a5a5a5a;
+			if (iwm_nic_lock(sc)) {
+				a = iwm_read_prph(sc, IWM_SB_CPU_1_STATUS);
+				b = iwm_read_prph(sc, IWM_SB_CPU_2_STATUS);
+			}
 			device_printf(sc->sc_dev,
 			    "SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
-			    iwm_read_prph(sc, IWM_SB_CPU_1_STATUS),
-			    iwm_read_prph(sc, IWM_SB_CPU_2_STATUS));
+			    a, b);
 		}
 		sc->cur_ucode = old_type;
 		return error;
