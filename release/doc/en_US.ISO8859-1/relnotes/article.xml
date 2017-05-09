@@ -201,7 +201,11 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
-      <para>&nbsp;</para>
+      <para revision="317618" contrib="sponsor"
+	sponsor="&dellemc;">The <function>clock_nanosleep()</function>
+	system call has been added.  The
+	<function>nanosleep()</function> system call is now a wrapper
+	around <function>clock_nanosleep()</function>.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
