@@ -77,7 +77,15 @@ ATF_TC_BODY(write_err, tc)
 		ATF_REQUIRE_ERRNO(0, write(fd, wbuf, 3) == 3);
 
 		errno = 0;
+#ifndef __CHERI_PURE_CAPABILITY__
 		ATF_REQUIRE_ERRNO(EINVAL, write(fd, wbuf, SIZE_MAX) == -1);
+#else
+		/*
+		 * XXX: True in argument translation implementation, but
+		 * probably false with capabilities in the kernel.
+		 */
+		ATF_REQUIRE_ERRNO(EPROT, write(fd, wbuf, SIZE_MAX) == -1);
+#endif
 
 		errno = 0;
 		ATF_REQUIRE_ERRNO(EFAULT, write(fd, (void *)-1, 1) == -1);
