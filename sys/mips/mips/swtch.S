@@ -526,6 +526,44 @@ END(MipsSwitchFPState)
 
 /*----------------------------------------------------------------------------
  *
+ * MipsFPID --
+ *
+ *	Read and return the floating point implementation register.
+ *
+ *	uint32_t
+ *	MipsFPID(void)
+ *
+ * Results:
+ *	Floating point implementation register.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------------
+ */
+LEAF(MipsFPID)
+	.set push
+	.set hardfloat
+	mfc0	t1, MIPS_COP_0_STATUS		# Save the status register.
+	HAZARD_DELAY
+#if defined(__mips_n64)
+	or	t0, t1, MIPS_SR_COP_1_BIT | MIPS_SR_FR
+#else
+	or	t0, t1, MIPS_SR_COP_1_BIT
+#endif
+	mtc0	t0, MIPS_COP_0_STATUS 		# Enable the coprocessor
+	HAZARD_DELAY
+	ITLBNOPFIX
+	cfc1	v0, MIPS_FPU_ID
+	mtc0	t1, MIPS_COP_0_STATUS		# Restore the status register.
+	ITLBNOPFIX
+	j	ra
+	nop
+	.set pop
+END(MipsFPID)
+
+/*----------------------------------------------------------------------------
+ *
  * MipsSaveCurFPState --
  *
  *	Save the current floating point coprocessor state.
