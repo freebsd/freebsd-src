@@ -315,6 +315,11 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
+      <para revision="315539">The
+	<literal>vfs.root_mount_always_wait</literal> tunable has been
+	added, which forces the kernel to wait for root mount holds
+	even if the root device is already present.</para>
+
       <para revision="316120" contrib="sponsor"
 	sponsor="&dellemc;">When the system real time clock
 	(<acronym>RTC</acronym>) is adjusted, such as by
