@@ -925,7 +925,9 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 	if_maddr_runlock(ifp);
 
 	QLA_LOCK(ha);
-	ret = ql_hw_set_multi(ha, mta, mcnt, add_multi);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		ret = ql_hw_set_multi(ha, mta, mcnt, add_multi);
+	}
 	QLA_UNLOCK(ha);
 
 	return (ret);
@@ -1031,20 +1033,16 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4(ha, (ha->pci_dev,
 			"%s: %s (0x%lx)\n", __func__, "SIOCADDMULTI", cmd));
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if (qla_set_multi(ha, 1))
-				ret = EINVAL;
-		}
+		if (qla_set_multi(ha, 1))
+			ret = EINVAL;
 		break;
 
 	case SIOCDELMULTI:
 		QL_DPRINT4(ha, (ha->pci_dev,
 			"%s: %s (0x%lx)\n", __func__, "SIOCDELMULTI", cmd));
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if (qla_set_multi(ha, 0))
-				ret = EINVAL;
-		}
+		if (qla_set_multi(ha, 0))
+			ret = EINVAL;
 		break;
 
 	case SIOCSIFMEDIA:
@@ -1529,9 +1527,9 @@ qla_stop(qla_host_t *ha)
 
 	ha->flags.qla_interface_up = 0;
 
+	QLA_UNLOCK(ha);
 	qla_drain_fp_taskqueues(ha);
-
-	ql_hw_stop_rcv(ha);
+	QLA_LOCK(ha);
 
 	ql_del_hw_if(ha);
 
@@ -1922,8 +1920,6 @@ qla_error_recovery(void *context, int pending)
 		ha->hw.imd_compl = 1;
 		qla_mdelay(__func__, 300);
 
-		ql_hw_stop_rcv(ha);
-
 	        ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 
 		for (i = 0; i < ha->hw.num_sds_rings; i++) {
@@ -1942,6 +1938,8 @@ qla_error_recovery(void *context, int pending)
 	}
 
         QLA_UNLOCK(ha);
+
+	qla_drain_fp_taskqueues(ha);
 
 	if ((ha->pci_func & 0x1) == 0) {
 
