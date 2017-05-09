@@ -390,7 +390,10 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="309377" contrib="sponsor"
+	sponsor="&broadcom;">The &man.bnxt.4; driver has been added,
+	providing support for Broadcom&reg; NetXtreme-C&trade; and
+	NetXtreme-E&trade; devices.</para>
     </sect2>
   </sect1>
 
