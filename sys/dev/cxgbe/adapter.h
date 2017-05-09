@@ -399,6 +399,7 @@ enum {
 	EQ_TYPEMASK	= 0x3,		/* 2 lsbits hold the type (see above) */
 	EQ_ALLOCATED	= (1 << 2),	/* firmware resources allocated */
 	EQ_ENABLED	= (1 << 3),	/* open for business */
+	EQ_QFLUSH	= (1 << 4),	/* if_qflush in progress */
 };
 
 /* Listed in order of preference.  Update t4_sysctls too if you change these */
