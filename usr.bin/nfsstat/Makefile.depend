@@ -9,6 +9,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libdevstat \
+	lib/libelf \
+	lib/libkvm \
 
 
 .include <dirdeps.mk>
