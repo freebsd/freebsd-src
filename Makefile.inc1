@@ -849,7 +849,9 @@ WMAKE_TGTS+=	_build-tools _cross-tools
 WMAKE_TGTS+=	_compiler-metadata
 WMAKE_TGTS+=	_includes
 .endif
+.if !defined(NO_LIBS)
 WMAKE_TGTS+=	_libraries
+.endif
 WMAKE_TGTS+=	everything
 .if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	build${libcompat}
