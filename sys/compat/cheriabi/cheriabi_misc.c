@@ -155,6 +155,14 @@ static int cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 static register_t cheriabi_mmap_prot2perms(int prot);
 
+#ifdef KTRACE
+#define	SYSERRCAUSE(fmt, ...)						\
+	if (KTRPOINT(td, KTR_SYSERRCAUSE))				\
+		ktrsyserrcause("%s: " fmt, __func__, ##__VA_ARGS__);
+#else
+#define	SYSERRCAUSE(fmt, ...)
+#endif
+
 int
 cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 {
@@ -1030,15 +1038,21 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag) {
 			CHERI_CTOINT(sa.sa_handler, CHERI_CR_CTEMP0);
-			if (sa.sa_handler != SIG_DFL && sa.sa_handler != SIG_IGN)
+			if (sa.sa_handler != SIG_DFL &&
+			    sa.sa_handler != SIG_IGN) {
+				SYSERRCAUSE("untagged sa_handler and not "
+				    "SIG_DFL or SIG_IGN (%p)", sa.sa_handler);
 				return (EPROT);
+			}
 		} else {
 			error = cheriabi_cap_to_ptr((caddr_t *)&sa.sa_handler,
 			    &sa_c.sa_u,
 			    8 /* XXX-BD: at least two instructions */,
 		            CHERI_PERM_LOAD | CHERI_PERM_EXECUTE, 0);
-			if (error)
+			if (error) {
+				SYSERRCAUSE("in cheriabi_cap_to_ptr");
 				return (error);
+			}
 		}
 		CP(sa_c, sa, sa_flags);
 		CP(sa_c, sa, sa_mask);
@@ -1048,11 +1062,16 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		sap = NULL;
 	error = kern_sigaction_cap(td, uap->sig, sap,
 	    uap->oact != NULL ? &osa : NULL, 0, &cap);
+	if (error != 0)
+		SYSERRCAUSE("error in kern_sigaction_cap");
 	if (error == 0 && uap->oact != NULL) {
 		cheri_capability_copy(&sa_c.sa_u, &cap);
 		CP(osa, sa_c, sa_flags);
 		CP(osa, sa_c, sa_mask);
 		error = copyoutcap(&sa_c, uap->oact, sizeof(sa_c));
+		if (error != 0) {
+			SYSERRCAUSE("error in copyoutcap");
+		}
 	}
 	return (error);
 }
@@ -1786,12 +1805,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	vm_offset_t reqaddr;
 
 	if (flags & MAP_32BIT) {
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_SYSERRCAUSE))
-			ktrsyserrcause(
-			    "%s: MAP_32BIT not supported in CheriABI",
-			    __func__);
-#endif
+		SYSERRCAUSE("MAP_32BIT not supported in CheriABI");
 		return (EINVAL);
 	}
 
@@ -1801,21 +1815,13 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	CHERI_CGETTAG(usertag, CHERI_CR_CTEMP0);
 	if (!usertag) {
 		if (flags & MAP_FIXED) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause(
-				    "%s: MAP_FIXED without a valid addr "
-				    "capability", __func__);
-#endif
+			SYSERRCAUSE(
+			    "MAP_FIXED without a valid addr capability");
 			return (EINVAL);
 		}
 		if (flags & MAP_CHERI_NOSETBOUNDS) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause(
-				    "%s: MAP_CHERI_NOSETBOUNDS without a valid "
-				    "addr capability", __func__);
-#endif
+			SYSERRCAUSE("MAP_CHERI_NOSETBOUNDS without a valid"
+			    "addr capability");
 			return (EINVAL);
 		}
 
@@ -1841,12 +1847,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		 */
 		cap_offset = 0;
 	if (cap_offset >= cap_len) {
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_SYSERRCAUSE))
-			ktrsyserrcause(
-			    "%s: capability has out of range offset",
-			    __func__);
-#endif
+		SYSERRCAUSE("capability has out of range offset");
 		return (EPROT);
 	}
 	reqaddr = cap_base + cap_offset;
@@ -1855,12 +1856,8 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 	reqperms = cheriabi_mmap_prot2perms(uap->prot);
 	if ((perms & reqperms) != reqperms) {
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_SYSERRCAUSE))
-			ktrsyserrcause(
-			    "%s: capability has insufficient perms (0x%lx) "
-			    "for request (0x%lx)", __func__, perms, reqperms);
-#endif
+		SYSERRCAUSE("capability has insufficient perms (0x%lx)"
+		    "for request (0x%lx)", perms, reqperms);
 		return (EPROT);
 	}
 
@@ -1902,12 +1899,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	default:
 		/* Reject nonsensical sub-page alignment requests */
 		if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause(
-				    "%s: subpage alignment request",
-				    __func__);
-#endif
+			SYSERRCAUSE("subpage alignment request");
 			return (EINVAL);
 		}
 
@@ -1936,14 +1928,9 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	if (flags & MAP_FIXED) {
 		if (cap_len - cap_offset <
 		    roundup2(uap->len, PAGE_SIZE)) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause( "%s: MAP_FIXED and "
-				    "too little space in capablity "
-				    "(0x%zx < 0x%zx)",
-				    __func__, cap_len - cap_offset,
-				    roundup2(uap->len, PAGE_SIZE));
-#endif
+			SYSERRCAUSE("MAP_FIXED and too little space in "
+			    "capablity (0x%zx < 0x%zx)", cap_len - cap_offset,
+			    roundup2(uap->len, PAGE_SIZE));
 			return (EPROT);
 		}
 
@@ -1953,14 +1940,9 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		 * boundary.
 		 */
 		if ((reqaddr & PAGE_MASK) > cap_offset) {
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSERRCAUSE))
-				ktrsyserrcause(
-				    "%s: insufficent space to shift "
-				    "addr (0x%lx) down in capability "
-				    "(offset 0x%zx)", __func__,
-				    reqaddr, cap_offset);
-#endif
+			SYSERRCAUSE("insufficent space to shift addr (0x%lx) "
+			    "down in capability (offset 0x%zx)",
+			    reqaddr, cap_offset);
 			return (EPROT);
 		}
 
