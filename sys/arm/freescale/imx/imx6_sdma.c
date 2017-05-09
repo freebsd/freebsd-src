@@ -352,7 +352,7 @@ sdma_configure(int chn, struct sdma_conf *conf)
 static int
 load_firmware(struct sdma_softc *sc)
 {
-	struct sdma_firmware_header *header;
+	const struct sdma_firmware_header *header;
 	const struct firmware *fp;
 
 	fp = firmware_get("sdma_fw");
@@ -361,14 +361,14 @@ load_firmware(struct sdma_softc *sc)
 		return (-1);
 	}
 
-	header = (struct sdma_firmware_header *)fp->data;
+	header = fp->data;
 	if (header->magic != FW_HEADER_MAGIC) {
 		device_printf(sc->dev, "Can't use firmware.\n");
 		return (-1);
 	}
 
 	sc->fw_header = header;
-	sc->fw_scripts = (void *)((char *)header +
+	sc->fw_scripts = (const void *)((const char *)header +
 				header->script_addrs_start);
 
 	return (0);
@@ -378,14 +378,14 @@ static int
 boot_firmware(struct sdma_softc *sc)
 {
 	struct sdma_buffer_descriptor *bd0;
-	uint32_t *ram_code;
+	const uint32_t *ram_code;
 	int timeout;
 	int ret;
 	int chn;
 	int sz;
 	int i;
 
-	ram_code = (void *)((char *)sc->fw_header +
+	ram_code = (const void *)((const char *)sc->fw_header +
 			sc->fw_header->ram_code_start);
 
 	/* Make sure SDMA has not started yet */
@@ -515,4 +515,5 @@ static driver_t sdma_driver = {
 
 static devclass_t sdma_devclass;
 
-DRIVER_MODULE(sdma, simplebus, sdma_driver, sdma_devclass, 0, 0);
+EARLY_DRIVER_MODULE(sdma, simplebus, sdma_driver, sdma_devclass, 0, 0,
+    BUS_PASS_RESOURCE);
