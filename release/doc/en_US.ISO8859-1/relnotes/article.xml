@@ -229,6 +229,9 @@
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
 
+      <para revision="315432">&man.libarchive.3; has been updated to
+	version 3.3.1.</para>
+
       <para revision="315995">&man.dma.8; has been updated to the
 	2017-02-10 snapshot.</para>
 
@@ -237,9 +240,6 @@
 
       <para revision="316303"><application>ACPICA</application> has
 	been updated to version 20170303.</para>
-
-      <para revision="316337">&man.libarchive.3; has been updated to
-	version 3.3.1.</para>
 
       <para revision="316349">Timezone data files have been updated to
 	version 2017b.</para>
