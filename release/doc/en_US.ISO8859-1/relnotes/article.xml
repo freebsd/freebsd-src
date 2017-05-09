@@ -191,7 +191,9 @@
       <title><filename class="directory">/etc/periodic</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="317857">The <filename>410.status-mfi</filename>
+	&man.periodic.8; script has been added to monitor the status
+	of &man.mfi.4; volumes.</para>
     </sect2>
 
     <sect2 xml:id="userland-libraries">
