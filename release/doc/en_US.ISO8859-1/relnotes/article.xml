@@ -168,6 +168,12 @@
       <para revision="317855">The &man.daemon.8; utility has been
 	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
 	output to &man.syslog.3; and to a file.</para>
+
+      <para revision="316944" contrib="sponsor"
+	sponsor="&multiplay;">The &man.jail.8; utility has been
+	updated to allow explicitly-assigned <acronym>IPv4</acronym>
+	and <acronym>IPv6</acronym> addresses to be used within
+	a jail.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
