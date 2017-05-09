@@ -134,7 +134,7 @@ struct trapframe {
 	f_register_t	f30;
 	f_register_t	f31;
 	register_t	fsr;
-        register_t   fdummy;
+        register_t	fir;
 };
 
 #endif	/* !_MACHINE_FRAME_H_ */

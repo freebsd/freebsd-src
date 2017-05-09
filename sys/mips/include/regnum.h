@@ -160,7 +160,7 @@
 #define	F30	(FPBASE+30)
 #define	F31	(FPBASE+31)
 #define	FSR	(FPBASE+32)
-#define FSR_DUMMY (FPBASE+33) /* For 8 byte alignment */
+#define FIR	(FPBASE+33)
 
 #define	NUMFPREGS	34
 
@@ -204,5 +204,6 @@
 #define	F30_NUM	(30)
 #define	F31_NUM	(31)
 #define	FSR_NUM	(32)
+#define	FIR_NUM	(33)
 
 #endif /* !_MACHINE_REGNUM_H_ */
