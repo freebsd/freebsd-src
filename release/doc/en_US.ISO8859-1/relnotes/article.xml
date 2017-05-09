@@ -229,6 +229,9 @@
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
 
+      <para revision="313537">&man.tcpdump.1; has been updated to
+	version 4.9.0.</para>
+
       <para revision="313795">&man.zlib.3; has been updated to version
 	1.2.11.</para>
 
