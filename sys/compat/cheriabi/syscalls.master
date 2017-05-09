@@ -680,7 +680,7 @@
 345	AUE_SIGWAIT	STD	{ int cheriabi_sigtimedwait( \
 				    _In_ const sigset_t *set, \
 				    _Out_opt_ struct siginfo_c *info, \
-				    _In_ const struct timespec *timeout); }
+				    _In_opt_ const struct timespec *timeout); }
 346	AUE_NULL	STD	{ int cheriabi_sigwaitinfo( \
 				    _In_ const sigset_t *set, \
 				    _Out_opt_ struct siginfo_c *info); }

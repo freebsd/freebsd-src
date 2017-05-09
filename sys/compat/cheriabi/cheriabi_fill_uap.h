@@ -4895,14 +4895,14 @@ CHERIABI_SYS_cheriabi_sigtimedwait_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_ const struct timespec * timeout */
+	/* [2] _In_opt_ const struct timespec * timeout */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_sigtimedwait, 2);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->timeout),
-		    &tmpcap, sizeof(*uap->timeout), reqperms, 0);
+		    &tmpcap, sizeof(*uap->timeout), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
