@@ -187,7 +187,8 @@ aio_context_init(struct aio_context *ac, int read_fd,
 }
 
 static ssize_t
-poll(struct aiocb *aio) {
+poll(struct aiocb *aio)
+{
 	int error;
 
 	while ((error = aio_error(aio)) == EINPROGRESS && !aio_timedout)
@@ -204,7 +205,8 @@ poll(struct aiocb *aio) {
 }
 
 static ssize_t
-suspend(struct aiocb *aio) {
+suspend(struct aiocb *aio)
+{
 	const struct aiocb *const iocbs[] = {aio};
 	int error;
 
@@ -216,7 +218,8 @@ suspend(struct aiocb *aio) {
 }
 
 static ssize_t
-waitcomplete(struct aiocb *aio) {
+waitcomplete(struct aiocb *aio)
+{
 	struct aiocb *aiop;
 	ssize_t ret;
 
