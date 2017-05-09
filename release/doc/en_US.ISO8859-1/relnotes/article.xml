@@ -306,7 +306,10 @@
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="310009" contrib="sponsor"
+	sponsor="&fisglobal;">The <literal>jail_confwarn</literal>
+	&man.rc.conf.5; entry has been added, which suppresses warning
+	about obsolete per-&man.jail.8; configurations.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">

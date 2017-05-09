@@ -27,6 +27,7 @@
 
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
+<!ENTITY fisglobal	"FIS Global, Inc.">
 
 <!ENTITY gandi		"Gandi.net">
 <!ENTITY google		"Google">
