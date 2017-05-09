@@ -481,7 +481,10 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="307632" contrib="sponsor" sponsor="&gandi;">The
+	<acronym>EFI</acronym> loader has been updated to support
+	<acronym>TFTPFS</acronym>, providing netboot support without
+	requiring an <acronym>NFS</acronym> server.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
