@@ -232,6 +232,9 @@
       <para revision="316303"><application>ACPICA</application> has
 	been updated to version 20170303.</para>
 
+      <para revision="316349">Timezone data files have been updated to
+	version 2017b.</para>
+
       <para revision="316420">&man.mandoc.1; has been updated to
 	version 1.14.</para>
 
