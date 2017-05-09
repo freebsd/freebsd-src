@@ -65,6 +65,7 @@ is_unsafe_aio_enabled(void)
 		atf_tc_skip("Unsafe AIO is disabled");				\
 		break;								\
 	default:								\
+		printf("Unsafe AIO is enabled\n");				\
 		break;								\
 	}									\
 } while (0)
@@ -80,6 +81,7 @@ is_unsafe_aio_enabled(void)
 		_exit(_exit_code);						\
 		break;								\
 	default:								\
+		printf("Unsafe AIO is enabled\n");				\
 		break;								\
 	}									\
 } while (0)
