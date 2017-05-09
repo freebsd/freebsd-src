@@ -142,12 +142,62 @@ ATF_TC_BODY(sigaction_resethand, tc)
 	}
 }
 
+static void
+restore_handler(void (*handler_p)(int), int flags)
+{
+	struct sigaction newsa, setsa, setsa2;
+
+	memset(&newsa, 0, sizeof(newsa));
+	newsa.sa_flags = flags;
+	if (flags & SA_SIGINFO)
+		newsa.sa_sigaction =
+		    (void(*)(int, struct __siginfo *, void *))handler_p;
+	else
+		newsa.sa_handler = handler_p;
+
+	/* Set a handler */
+	ATF_REQUIRE(sigaction(SIGUSR1, &newsa, NULL) == 0);
+	/* Check that we've set the handler */
+	ATF_REQUIRE(sigaction(SIGUSR1, NULL, &setsa) == 0);
+	ATF_REQUIRE_EQ(memcmp(&newsa, &setsa, 0), 0);
+	/* Reset the handler */
+	newsa.sa_handler = SIG_DFL;
+	ATF_REQUIRE(sigaction(SIGUSR1, &newsa, NULL) == 0);
+	/*
+	 * Set the handler to the previous set handler as reported by
+	 * the kernel.
+	 */
+	ATF_REQUIRE(sigaction(SIGUSR1, &setsa, NULL) == 0);
+	/* Check that the newly set handler matches the previous one */
+	ATF_REQUIRE(sigaction(SIGUSR1, NULL, &setsa2) == 0);
+	ATF_REQUIRE_EQ(memcmp(&setsa, &setsa2, sizeof(setsa)), 0);
+	/* Reset the handler */
+	ATF_REQUIRE(sigaction(SIGUSR1, &newsa, NULL) == 0);
+}
+
+ATF_TC(sigaction_restore_handler);
+ATF_TC_HEAD(sigaction_restore_handler, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks that we can set the handler to old value");
+}
+
+ATF_TC_BODY(sigaction_restore_handler, tc)
+{
+
+	restore_handler(&handler, 0);
+	restore_handler(&handler, SA_SIGINFO);
+	restore_handler(SIG_DFL, 0);
+	restore_handler(SIG_DFL, SA_SIGINFO);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, sigaction_basic);
 	ATF_TP_ADD_TC(tp, sigaction_noflags);
 	ATF_TP_ADD_TC(tp, sigaction_resethand);
+	ATF_TP_ADD_TC(tp, sigaction_restore_handler);
 
 	return atf_no_error();
 }
