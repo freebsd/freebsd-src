@@ -642,6 +642,22 @@ file_findmetadata(struct preloaded_file *fp, int type)
     return(md);
 }
 
+/*
+ * Remove all metadata from the file.
+ */
+void
+file_removemetadata(struct preloaded_file *fp)
+{
+    struct file_metadata *md, *next;
+
+    for (md = fp->f_metadata; md != NULL; md = next)
+    {
+	next = md->md_next;
+	free(md);
+    }
+    fp->f_metadata = NULL;
+}
+
 struct file_metadata *
 metadata_next(struct file_metadata *md, int type)
 {
