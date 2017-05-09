@@ -222,6 +222,8 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para>&man.file.1; has been updated to version 5.29.</para>
+
       <para revision="310490">The &man.amd.8; utility has been updated
 	to version 6.2.</para>
 
