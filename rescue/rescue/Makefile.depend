@@ -39,13 +39,13 @@ DIRDEPS = \
 	lib/liblzma \
 	lib/libmd \
 	lib/libmt \
-	lib/libnetgraph \
 	lib/libsbuf \
 	lib/libthr \
 	lib/libufs \
 	lib/libutil \
 	lib/libxo \
 	lib/libz \
+	lib/libzstd \
 	lib/msun \
 	lib/ncurses/ncursesw \
 	rescue/librescue \
