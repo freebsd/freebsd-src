@@ -68,10 +68,10 @@ options 	USB_DEBUG		# Enable usb debug support code
 # Optional extras, never enabled by default:
 #options 	BOOTVERBOSE
 #options 	DEBUG			# May result in extreme spewage
-options 	KTR
-options 	KTR_COMPILE=KTR_ALL
-options 	KTR_ENTRIES=163840
-options 	KTR_MASK=(KTR_SPARE3)
+#options 	KTR
+#options 	KTR_COMPILE=KTR_ALL
+#options 	KTR_ENTRIES=16384
+#options 	KTR_MASK=(KTR_SPARE2)
 #options 	KTR_VERBOSE=0
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
