@@ -159,6 +159,12 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
+      <para revision="316045">The &man.libthr.3; library and related
+	files are now evaluated and removed by the
+	<literal>delete-old-libs</literal> target when upgrading the
+	system if <literal>WITHOUT_LIBTHR</literal> is
+	set in &man.src.conf.5;.</para>
+
       <para revision="316423" contrib="sponsor" sponsor="&ff;">The
 	<literal>WITH_LLD_AS_LD</literal> build knob has been added,
 	which installs <application>LLD</application> as
