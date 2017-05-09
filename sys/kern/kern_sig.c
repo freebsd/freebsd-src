@@ -734,12 +734,12 @@ kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
 			    (__siginfohandler_t *)ps->ps_sigact[_SIG_IDX(sig)];
 		} else {
 			oact->sa_handler = ps->ps_sigact[_SIG_IDX(sig)];
-#ifdef COMPAT_CHERIABI
-			if (cap != NULL)
-				cheri_capability_copy(cap,
-				    &ps->ps_sigcap[_SIG_IDX(sig)]);
-#endif
 		}
+#ifdef COMPAT_CHERIABI
+		if (cap != NULL)
+			cheri_capability_copy(cap,
+			    &ps->ps_sigcap[_SIG_IDX(sig)]);
+#endif
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDSTOP)
 			oact->sa_flags |= SA_NOCLDSTOP;
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDWAIT)
