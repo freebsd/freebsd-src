@@ -477,6 +477,11 @@
     <sect2 xml:id="network-general">
       <title>General Network Changes</title>
 
+      <para revision="311681" contrib="sponsor" sponsor="&yandex;">The
+	network stack has been updated to include
+	<function>ip6_tryforward()</function>, providing performance
+	benefits as result of a reduced number of checks.</para>
+
       <para revision="313523" contrib="sponsor"
 	sponsor="&dellemc;">The network stack has been modified to fix
 	incorrect or invalid <acronym>IP</acronym> addresses if
