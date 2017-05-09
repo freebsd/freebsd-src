@@ -246,6 +246,11 @@
     <sect2 xml:id="kernel-modules">
       <title>Kernel Modules</title>
 
+      <para revision="316446" contrib="sponsor" sponsor="&yandex;">The
+	<literal>ipfw_nat64</literal> kernel module has been added,
+	implementing stateless and stateful
+	<acronym>NAT64</acronym>.</para>
+
       <para revision="317045" contrib="sponsor" sponsor="&yandex;">The
 	<literal>ipfw_pmod</literal> kernel module has been added,
 	designed for modifying packets of any protocol.</para>
