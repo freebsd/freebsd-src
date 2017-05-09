@@ -199,6 +199,13 @@
 	<entry>12&nbsp;April&nbsp;2017</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-17:04.ipfilter.asc">FreeBSD-SA-17:04.ipfilter</link></entry>
+	<entry>27&nbsp;April&nbsp;2017</entry>
+	<entry><para>Fix fragment handling panic</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
