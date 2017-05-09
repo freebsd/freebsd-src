@@ -165,15 +165,15 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para revision="317855">The &man.daemon.8; utility has been
-	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
-	output to &man.syslog.3; and to a file.</para>
-
       <para revision="316944" contrib="sponsor"
 	sponsor="&multiplay;">The &man.jail.8; utility has been
 	updated to allow explicitly-assigned <acronym>IPv4</acronym>
 	and <acronym>IPv6</acronym> addresses to be used within
 	a jail.</para>
+
+      <para revision="317855">The &man.daemon.8; utility has been
+	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
+	output to &man.syslog.3; and to a file.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -251,6 +251,11 @@
 	implementing stateless and stateful
 	<acronym>NAT64</acronym>.</para>
 
+      <para revision="316660" contrib="sponsor" sponsor="&ff;">The
+	&man.cfumass.4; device has been added, providing a storage
+	frontend to <acronym>USB</acronym>
+	<acronym>OTG</acronym>-capable hardware.</para>
+
       <para revision="317045" contrib="sponsor" sponsor="&yandex;">The
 	<literal>ipfw_pmod</literal> kernel module has been added,
 	designed for modifying packets of any protocol.</para>
@@ -259,11 +264,6 @@
 	<para>At present, only <acronym>TCP</acronym>
 	  <acronym>MSS</acronym> modification is implemented.</para>
       </note>
-
-      <para revision="316660" contrib="sponsor" sponsor="&ff;">The
-	&man.cfumass.4; device has been added, providing a storage
-	frontend to <acronym>USB</acronym>
-	<acronym>OTG</acronym>-capable hardware.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
