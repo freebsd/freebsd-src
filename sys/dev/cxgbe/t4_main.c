@@ -995,6 +995,7 @@ t4_attach(device_t dev)
 			lc->autoneg = t4_autoneg ? AUTONEG_ENABLE :
 			    AUTONEG_DISABLE;
 		}
+		lc->requested_speed = port_top_speed_raw(pi);
 
 		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 		if (rc != 0) {
@@ -5883,7 +5884,12 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	if ((lc->supported & FW_PORT_CAP_ANEG) == 0)
 		return (ENOTSUP);
 
-	val = val ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	if (val == 0)
+		val = AUTONEG_DISABLE;
+	else if (val == 1)
+		val = AUTONEG_ENABLE;
+	else
+		return (EINVAL);
 	if (lc->autoneg == val)
 		return (0);	/* no change */
 
@@ -5896,6 +5902,7 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0)
 		lc->autoneg = old;
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 

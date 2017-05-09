@@ -1086,6 +1086,24 @@ port_top_speed(const struct port_info *pi)
 }
 
 static inline int
+port_top_speed_raw(const struct port_info *pi)
+{
+
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		return (FW_PORT_CAP_SPEED_100G);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		return (FW_PORT_CAP_SPEED_40G);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+		return (FW_PORT_CAP_SPEED_25G);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		return (FW_PORT_CAP_SPEED_10G);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		return (FW_PORT_CAP_SPEED_1G);
+
+	return (0);
+}
+
+static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
 
