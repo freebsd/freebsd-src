@@ -153,6 +153,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_config.h>
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_binding.h>
 #include <dev/iwm/if_iwm_util.h>
@@ -486,4 +487,18 @@ iwm_dma_contig_free(struct iwm_dma_info *dma)
 		bus_dma_tag_destroy(dma->tag);
 		dma->tag = NULL;
 	}
+}
+
+boolean_t
+iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc)
+{
+	if (num_of_ant(iwm_mvm_get_valid_rx_ant(sc)) == 1)
+		return FALSE;
+
+	/*
+	 * XXX Also return FALSE when SMPS (Spatial Multiplexing Powersave)
+	 *     is used on any vap (in the future).
+	 */
+
+	return TRUE;
 }
