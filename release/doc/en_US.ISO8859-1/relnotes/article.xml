@@ -165,7 +165,9 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="317855">The &man.daemon.8; utility has been
+	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
+	output to &man.syslog.3; and to a file.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
