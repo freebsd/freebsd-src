@@ -456,6 +456,9 @@
 	sponsor="&broadcom;">The &man.bnxt.4; driver has been added,
 	providing support for Broadcom&reg; NetXtreme-C&trade; and
 	NetXtreme-E&trade; devices.</para>
+
+      <para revision="317182">The &man.qlxgbe.4; firmware has been
+	updated to version 5.4.64.</para>
     </sect2>
   </sect1>
 
