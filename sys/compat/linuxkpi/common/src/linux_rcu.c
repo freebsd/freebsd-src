@@ -119,7 +119,7 @@ linux_rcu_runtime_init(void *arg __unused)
 		TAILQ_INIT(&record->ts_head);
 	}
 }
-SYSINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
+SYSINIT(linux_rcu_runtime, SI_SUB_CPU, SI_ORDER_ANY, linux_rcu_runtime_init, NULL);
 
 static void
 linux_rcu_runtime_uninit(void *arg __unused)
