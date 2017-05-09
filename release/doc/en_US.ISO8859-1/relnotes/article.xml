@@ -263,6 +263,10 @@
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
+      <para revision="316039">The &man.kvm.close.3; function has been
+	updated to return the accumulated error from previous
+	&man.close.2; calls.</para>
+
       <para revision="317434">The &man.ipf.4; packet filter has been
 	updated to prevent &quot;keep state&quot; from incorrectly
 	implying &quot;keep frags&quot;, matching the behavior
