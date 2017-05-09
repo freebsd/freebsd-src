@@ -205,6 +205,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="310490">The &man.amd.8; utility has been updated
+	to version 6.2.</para>
+
       <para revision="312336">The <acronym>CLDR</acronym> locales have
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
