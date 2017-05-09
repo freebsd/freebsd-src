@@ -52,7 +52,7 @@
 	} else if (_unsafe == 0)					\
 		atf_tc_skip("Unsafe AIO is disabled");			\
 } while (0)
-	
+
 #define	PLAIN_REQUIRE_UNSAFE_AIO(_exit_code) do {			\
 	size_t _len;							\
 	int _unsafe;							\
