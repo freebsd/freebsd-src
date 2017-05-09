@@ -257,7 +257,9 @@
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
 
-      <para>&nbsp;</para>
+      <para revision="315282">The <application>clang</application>
+	<literal>nullability</literal> attribute has been added to the
+	<literal>C</literal> library headers.</para>
     </sect2>
   </sect1>
 
