@@ -254,6 +254,11 @@
 	<para>At present, only <acronym>TCP</acronym>
 	  <acronym>MSS</acronym> modification is implemented.</para>
       </note>
+
+      <para revision="316660" contrib="sponsor" sponsor="&ff;">The
+	&man.cfumass.4; device has been added, providing a storage
+	frontend to <acronym>USB</acronym>
+	<acronym>OTG</acronym>-capable hardware.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
