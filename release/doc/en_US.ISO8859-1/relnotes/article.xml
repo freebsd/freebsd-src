@@ -159,6 +159,11 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
+      <para revision="313203">The &man.inetd.8; utility can now be
+	built without <literal>libwrap</literal> support when
+	<literal>WITHOUT_TCP_WRAPPERS</literal> is set in
+	&man.src.conf.5;.</para>
+
       <para revision="316045">The &man.libthr.3; library and related
 	files are now evaluated and removed by the
 	<literal>delete-old-libs</literal> target when upgrading the
