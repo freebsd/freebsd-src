@@ -120,6 +120,8 @@ extern	int iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 				 bus_size_t size, bus_size_t alignment);
 extern	void iwm_dma_contig_free(struct iwm_dma_info *);
 
+extern	boolean_t iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc);
+
 extern	uint8_t iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx);
 
 static inline uint8_t
