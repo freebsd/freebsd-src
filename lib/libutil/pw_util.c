@@ -468,7 +468,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 			if (eof)
 				break;
 			while ((size_t)(q - p) >= size) {
-				if ((tmp = realloc(buf, size * 2)) == NULL) {
+				if ((tmp = reallocarray(buf, 2, size)) == NULL) {
 					warnx("passwd line too long");
 					goto err;
 				}
