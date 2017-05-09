@@ -7,7 +7,6 @@ DIRDEPS = \
 	include/rpc \
 	include/rpcsvc \
 	include/xlocale \
-	lib/libwrap \
 	usr.sbin/amd/include \
 
 
