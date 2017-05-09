@@ -246,6 +246,12 @@
     <sect2 xml:id="kernel-modules">
       <title>Kernel Modules</title>
 
+      <para revision="316444" contrib="sponsor" sponsor="&yandex;">The
+	<literal>ipfw_nptv6</literal> kernel module has been added,
+	implementing Network Prefix Translation for
+	<acronym>IPv6</acronym> as defined in <acronym>RFC</acronym>
+	6296.</para>
+
       <para revision="316446" contrib="sponsor" sponsor="&yandex;">The
 	<literal>ipfw_nat64</literal> kernel module has been added,
 	implementing stateless and stateful
