@@ -249,6 +249,9 @@
 
       <para revision="316423"><application>libc++</application> has
 	been updated to version 4.0.0.</para>
+
+      <para revision="316957">&man.tcsh.1; has been updated to version
+	6.20.00.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
