@@ -63,8 +63,6 @@
 #include "freebsd_test_suite/macros.h"
 #include "local.h"
 
-#define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
-
 /*
  * GLOBAL_MAX sets the largest usable buffer size to be read and written, as
  * it sizes ac_buffer in the aio_context structure.  It is also the default
