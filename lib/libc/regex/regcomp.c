@@ -444,6 +444,8 @@ p_ere_exp(struct parse *p)
 		(void)REQUIRE(!MORE() || !isdigit((uch)PEEK()), REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
+		if (p->error != 0)
+			return;
 		p->next--;
 		wc = WGETNEXT();
 		ordinary(p, wc);
@@ -651,6 +653,8 @@ p_simp_re(struct parse *p,
 		(void)REQUIRE(starordinary, REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
+		if (p->error != 0)
+			return(0);	/* Definitely not $... */
 		p->next--;
 		wc = WGETNEXT();
 		ordinary(p, wc);
