@@ -159,7 +159,10 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="316423" contrib="sponsor" sponsor="&ff;">The
+	<literal>WITH_LLD_AS_LD</literal> build knob has been added,
+	which installs <application>LLD</application> as
+	<filename>/usr/bin/ld</filename> if set.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -179,7 +182,23 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="316423"><application>Clang</application> has
+	been updated to version 4.0.0.</para>
+
+      <para revision="316423"><application>LLVM</application> has
+	been updated to version 4.0.0.</para>
+
+      <para revision="316423"><application>LLD</application> has
+	been updated to version 4.0.0.</para>
+
+      <para revision="316423"><application>LLDB</application> has
+	been updated to version 4.0.0.</para>
+
+      <para revision="316423"><application>compiler-rt</application>
+	has been updated to version 4.0.0.</para>
+
+      <para revision="316423"><application>libc++</application> has
+	been updated to version 4.0.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
