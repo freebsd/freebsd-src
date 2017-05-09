@@ -229,6 +229,9 @@
 	been updated to version 30.0.3.  The unicode locales have been
 	updated to version 9.0.0.</para>
 
+      <para revision="313980"><application>openresolv</application>
+	has been updated to version 3.9.0.</para>
+
       <para revision="314278"><literal>libucl</literal> has been
 	updated to version 20170219.</para>
 
