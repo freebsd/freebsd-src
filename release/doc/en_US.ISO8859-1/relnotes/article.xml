@@ -222,6 +222,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="309511"><application>Subversion</application>
+	has been updated to version 1.9.5.</para>
+
       <para revision="309847">&man.file.1; has been updated to version
 	5.29.</para>
 
