@@ -352,6 +352,15 @@
     <para>This section describes changes that affect networking in
       &os;.</para>
 
+    <sect2 xml:id="network-general">
+      <title>General Network Changes</title>
+
+      <para revision="317386" contrib="sponsor"
+	sponsor="&multiplay;">The <acronym>TCP</acronym> stack has
+	been changed to use the estimated <acronym>RTT</acronym>
+	instead of timestamps for receive buffer auto resizing.</para>
+    </sect2>
+
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
