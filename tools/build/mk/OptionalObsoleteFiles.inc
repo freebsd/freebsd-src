@@ -875,7 +875,6 @@ OLD_FILES+=usr/share/man/man3/snmp_trace.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_copy.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_free.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_parse.3.gz
-OLD_FILES+=usr/share/man/man3/tree.3.gz
 OLD_FILES+=usr/share/man/man3/tree_size.3.gz
 # usr.sbin/bsnmpd/bsnmpd
 OLD_FILES+=usr/share/man/man3/FIND_OBJECT_INT.3.gz
