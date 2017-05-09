@@ -4171,6 +4171,12 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed to add MAC\n", __func__);
 			goto out;
 		}
+		if ((error = iwm_mvm_power_update_mac(sc)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update power management\n",
+			    __func__);
+			goto out;
+		}
 		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
 		    in->in_ni.ni_chan, 1, 1)) != 0) {
 			device_printf(sc->sc_dev,
@@ -4582,8 +4588,8 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		in = IWM_NODE(vap->iv_bss);
-		iwm_mvm_power_mac_update_mode(sc, in);
 		iwm_mvm_enable_beacon_filter(sc, in);
+		iwm_mvm_power_update_mac(sc);
 		iwm_mvm_update_quotas(sc, in);
 		iwm_setrates(sc, in);
 
@@ -4871,6 +4877,7 @@ iwm_init_hw(struct iwm_softc *sc)
 	 * image just loaded
 	 */
 	iwm_stop_device(sc);
+	sc->sc_ps_disabled = FALSE;
 	if ((error = iwm_start_hw(sc)) != 0) {
 		device_printf(sc->sc_dev, "could not initialize hardware\n");
 		return error;
@@ -6122,6 +6129,7 @@ iwm_attach(device_t dev)
 	    IEEE80211_C_STA |
 	    IEEE80211_C_WPA |		/* WPA/RSN */
 	    IEEE80211_C_WME |
+	    IEEE80211_C_PMGT |
 	    IEEE80211_C_SHSLOT |	/* short slot time supported */
 	    IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 //	    IEEE80211_C_BGSCAN		/* capable of bg scanning */

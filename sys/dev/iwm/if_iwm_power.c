@@ -138,8 +138,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
 #include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_constants.h>
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_power.h>
+
+static int iwm_power_scheme = IWM_POWER_SCHEME_BPS;
+
+TUNABLE_INT("hw.iwm.power_scheme", &iwm_power_scheme);
 
 /*
  * BEGIN mvm/power.c
@@ -154,7 +159,7 @@ iwm_mvm_beacon_filter_send_cmd(struct iwm_softc *sc,
 	int ret;
 
 	ret = iwm_mvm_send_cmd_pdu(sc, IWM_REPLY_BEACON_FILTERING_CMD,
-	    IWM_CMD_SYNC, sizeof(struct iwm_beacon_filter_cmd), cmd);
+	    0, sizeof(struct iwm_beacon_filter_cmd), cmd);
 
 	if (!ret) {
 		IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
@@ -201,24 +206,6 @@ iwm_mvm_beacon_filter_set_cqm_params(struct iwm_softc *sc,
 	cmd->ba_enable_beacon_abort = htole32(sc->sc_bf.ba_enabled);
 }
 
-static int
-iwm_mvm_update_beacon_abort(struct iwm_softc *sc, struct iwm_node *in,
-	int enable)
-{
-	struct iwm_beacon_filter_cmd cmd = {
-		IWM_BF_CMD_CONFIG_DEFAULTS,
-		.bf_enable_beacon_filter = htole32(1),
-		.ba_enable_beacon_abort = htole32(enable),
-	};
-
-	if (!sc->sc_bf.bf_enabled)
-		return 0;
-
-	sc->sc_bf.ba_enabled = enable;
-	iwm_mvm_beacon_filter_set_cqm_params(sc, in, &cmd);
-	return iwm_mvm_beacon_filter_send_cmd(sc, &cmd);
-}
-
 static void
 iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 {
@@ -234,6 +221,60 @@ iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 		    "Disable power management\n");
 		return;
 	}
+
+	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
+	    "Rx timeout = %u usec\n", le32toh(cmd->rx_data_timeout));
+	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
+	    "Tx timeout = %u usec\n", le32toh(cmd->tx_data_timeout));
+	if (cmd->flags & htole16(IWM_POWER_FLAGS_SKIP_OVER_DTIM_MSK))
+		IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
+		    "DTIM periods to skip = %u\n", cmd->skip_dtim_periods);
+}
+
+static boolean_t
+iwm_mvm_power_is_radar(struct iwm_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_channel *chan;
+	boolean_t radar_detect = FALSE;
+
+	chan = ic->ic_bsschan;
+	if (chan == IEEE80211_CHAN_ANYC ||
+	    (chan->ic_flags & IEEE80211_CHAN_DFS) != 0) {
+		radar_detect = TRUE;
+	}
+
+        return radar_detect;
+}
+
+static void
+iwm_mvm_power_config_skip_dtim(struct iwm_softc *sc,
+	struct iwm_mac_power_cmd *cmd)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	int dtimper = vap->iv_dtim_period ?: 1;
+	int skip;
+
+	/* disable, in case we're supposed to override */
+	cmd->skip_dtim_periods = 0;
+	cmd->flags &= ~htole16(IWM_POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+
+        if (iwm_mvm_power_is_radar(sc))
+                return;
+
+	if (dtimper >= 10)
+		return;
+
+	/* TODO: check that multicast wake lock is off */
+
+	if (iwm_power_scheme != IWM_POWER_SCHEME_LP)
+		return;
+	skip = 2;
+
+	/* the firmware really expects "look at every X DTIMs", so add 1 */
+	cmd->skip_dtim_periods = 1 + skip;
+	cmd->flags |= htole16(IWM_POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 
 static void
@@ -258,45 +299,49 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	 */
 	dtimper_msec = dtimper * ni->ni_intval;
 	keep_alive
-	    = MAX(3 * dtimper_msec, 1000 * IWM_POWER_KEEP_ALIVE_PERIOD_SEC);
+	    = imax(3 * dtimper_msec, 1000 * IWM_POWER_KEEP_ALIVE_PERIOD_SEC);
 	keep_alive = roundup(keep_alive, 1000) / 1000;
 	cmd->keep_alive_seconds = htole16(keep_alive);
+
+	if (sc->sc_ps_disabled)
+		return;
+
+	cmd->flags |= htole16(IWM_POWER_FLAGS_POWER_SAVE_ENA_MSK);
+	cmd->flags |= htole16(IWM_POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
+
+	iwm_mvm_power_config_skip_dtim(sc, cmd);
+
+	cmd->rx_data_timeout =
+		htole32(IWM_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
+	cmd->tx_data_timeout =
+		htole32(IWM_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
 }
 
-int
-iwm_mvm_power_mac_update_mode(struct iwm_softc *sc, struct iwm_node *in)
+static int
+iwm_mvm_power_send_cmd(struct iwm_softc *sc, struct iwm_node *in)
 {
-	int ret;
-	int ba_enable;
-	struct iwm_mac_power_cmd cmd;
-
-	memset(&cmd, 0, sizeof(cmd));
+	struct iwm_mac_power_cmd cmd = {};
 
 	iwm_mvm_power_build_cmd(sc, in, &cmd);
 	iwm_mvm_power_log(sc, &cmd);
 
-	if ((ret = iwm_mvm_send_cmd_pdu(sc, IWM_MAC_PM_POWER_TABLE,
-	    IWM_CMD_SYNC, sizeof(cmd), &cmd)) != 0)
-		return ret;
-
-	ba_enable = !!(cmd.flags &
-	    htole16(IWM_POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK));
-	return iwm_mvm_update_beacon_abort(sc, in, ba_enable);
+	return iwm_mvm_send_cmd_pdu(sc, IWM_MAC_PM_POWER_TABLE, 0,
+	    sizeof(cmd), &cmd);
 }
 
-int
-iwm_mvm_power_update_device(struct iwm_softc *sc)
+static int
+_iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in,
+	struct iwm_beacon_filter_cmd *cmd)
 {
-	struct iwm_device_power_cmd cmd = {
-		.flags = htole16(IWM_DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
-	};
+	int ret;
 
-	cmd.flags |= htole16(IWM_DEVICE_POWER_FLAGS_CAM_MSK);
-	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
-	    "Sending device power command with flags = 0x%X\n", cmd.flags);
+	iwm_mvm_beacon_filter_set_cqm_params(sc, in, cmd);
+	ret = iwm_mvm_beacon_filter_send_cmd(sc, cmd);
 
-	return iwm_mvm_send_cmd_pdu(sc,
-	    IWM_POWER_TABLE_CMD, IWM_CMD_SYNC, sizeof(cmd), &cmd);
+	if (!ret)
+		sc->sc_bf.bf_enabled = 1;
+
+	return ret;
 }
 
 int
@@ -306,15 +351,8 @@ iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in)
 		IWM_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = htole32(1),
 	};
-	int ret;
 
-	iwm_mvm_beacon_filter_set_cqm_params(sc, in, &cmd);
-	ret = iwm_mvm_beacon_filter_send_cmd(sc, &cmd);
-
-	if (ret == 0)
-		sc->sc_bf.bf_enabled = 1;
-
-	return ret;
+	return _iwm_mvm_enable_beacon_filter(sc, in, &cmd);
 }
 
 int
@@ -328,4 +366,106 @@ iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
 		sc->sc_bf.bf_enabled = 0;
 
 	return ret;
+}
+
+static int
+iwm_mvm_power_set_ps(struct iwm_softc *sc)
+{
+	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
+	boolean_t disable_ps;
+	int ret;
+
+	/* disable PS if CAM */
+	disable_ps = (iwm_power_scheme == IWM_POWER_SCHEME_CAM);
+	/* ...or if any of the vifs require PS to be off */
+	if (vap != NULL && (vap->iv_flags & IEEE80211_F_PMGTON) == 0)
+		disable_ps = TRUE;
+
+	/* update device power state if it has changed */
+	if (sc->sc_ps_disabled != disable_ps) {
+		boolean_t old_ps_disabled = sc->sc_ps_disabled;
+
+		sc->sc_ps_disabled = disable_ps;
+		ret = iwm_mvm_power_update_device(sc);
+		if (ret) {
+			sc->sc_ps_disabled = old_ps_disabled;
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int
+iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_node *in)
+{
+	struct iwm_beacon_filter_cmd cmd = {
+		IWM_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter = htole32(1),
+	};
+
+	if (!sc->sc_bf.bf_enabled)
+		return 0;
+
+	sc->sc_bf.ba_enabled = !sc->sc_ps_disabled;
+
+	return _iwm_mvm_enable_beacon_filter(sc, in, &cmd);
+}
+
+int
+iwm_mvm_power_update_ps(struct iwm_softc *sc)
+{
+	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
+	int ret;
+
+	ret = iwm_mvm_power_set_ps(sc);
+	if (ret)
+		return ret;
+
+	if (vap != NULL)
+		return iwm_mvm_power_set_ba(sc, IWM_NODE(vap->iv_bss));
+
+	return 0;
+}
+
+int
+iwm_mvm_power_update_mac(struct iwm_softc *sc)
+{
+	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
+	int ret;
+
+	ret = iwm_mvm_power_set_ps(sc);
+	if (ret)
+		return ret;
+
+	if (vap != NULL) {
+		ret = iwm_mvm_power_send_cmd(sc, IWM_NODE(vap->iv_bss));
+		if (ret)
+			return ret;
+	}
+
+	if (vap != NULL)
+		return iwm_mvm_power_set_ba(sc, IWM_NODE(vap->iv_bss));
+
+	return 0;
+}
+
+int
+iwm_mvm_power_update_device(struct iwm_softc *sc)
+{
+	struct iwm_device_power_cmd cmd = {
+		.flags = 0,
+	};
+
+	if (iwm_power_scheme == IWM_POWER_SCHEME_CAM)
+		sc->sc_ps_disabled = TRUE;
+
+	if (!sc->sc_ps_disabled)
+		cmd.flags |= htole16(IWM_DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
+
+	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
+	    "Sending device power command with flags = 0x%X\n", cmd.flags);
+
+	return iwm_mvm_send_cmd_pdu(sc,
+	    IWM_POWER_TABLE_CMD, 0, sizeof(cmd), &cmd);
 }

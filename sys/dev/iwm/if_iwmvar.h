@@ -538,6 +538,9 @@ struct iwm_softc {
 	uint16_t		num_of_pages_in_last_blk;
 
 	boolean_t		last_ebs_successful;
+
+	/* Indicate if device power save is allowed */
+	boolean_t		sc_ps_disabled;
 };
 
 #define IWM_LOCK_INIT(_sc) \
