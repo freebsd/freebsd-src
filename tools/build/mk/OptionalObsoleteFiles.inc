@@ -1383,6 +1383,7 @@ OLD_FILES+=usr/lib/clang/5.0.0/include/htmintrin.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/htmxlintrin.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/ia32intrin.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/immintrin.h
+OLD_FILES+=usr/lib/clang/5.0.0/include/lwpintrin.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/lzcntintrin.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/mm3dnow.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/mm_malloc.h
