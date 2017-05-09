@@ -503,6 +503,13 @@
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
+      <para revision="309337" contrib="sponsor"
+	sponsor="&dellemc;">Support for <acronym>GARP</acronym>
+	retransmit has been added.  A new &man.sysctl.8;,
+	<literal>net.link.ether.inet.garp_rexmit_count</literal>, has
+	been added, which sets the maximum number of retransmissions
+	when set to a non-zero value.</para>
+
       <para revision="315514" contrib="sponsor"
 	sponsor="&yandex;">Support for the
 	<literal>UDP_ENCAP_ESPINUDP_NON_IKE</literal> encapsulation
