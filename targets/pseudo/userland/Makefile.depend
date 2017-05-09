@@ -234,6 +234,7 @@ DIRDEPS+= \
 	usr.bin/ftp \
 	usr.bin/gcore \
 	usr.bin/gencat \
+	usr.bin/getaddrinfo \
 	usr.bin/getconf \
 	usr.bin/getent \
 	usr.bin/getopt \
@@ -833,6 +834,8 @@ DIRDEPS.amd64= \
 	usr.sbin/camdd \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \
+	usr.sbin/hyperv/tools/kvp \
+	usr.sbin/hyperv/tools/vss \
 	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
@@ -859,6 +862,8 @@ DIRDEPS.i386= \
 	usr.sbin/btxld \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \
+	usr.sbin/hyperv/tools/kvp \
+	usr.sbin/hyperv/tools/vss \
 	usr.sbin/kgmon \
 	usr.sbin/kgzip \
 	usr.sbin/lptcontrol \
