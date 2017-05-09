@@ -205,6 +205,10 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
+      <para revision="312336">The <acronym>CLDR</acronym> locales have
+	been updated to version 30.0.3.  The unicode locales have been
+	updated to version 9.0.0.</para>
+
       <para revision="316303"><application>ACPICA</application> has
 	been updated to version 20170303.</para>
 
