@@ -188,6 +188,7 @@ vm_offset_t pmap_preboot_reserve_pages(u_int);
 vm_offset_t pmap_preboot_get_vpages(u_int);
 void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
     vm_memattr_t);
+void pmap_remap_vm_attr(vm_memattr_t old_attr, vm_memattr_t new_attr);
 
 #endif	/* _KERNEL */
 #endif	/* !_MACHINE_PMAP_V6_H_ */
