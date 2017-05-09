@@ -440,7 +440,9 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="308104">The &man.chromebook.platform.4; driver
+	has been added, providing support for various Chromebook
+	models.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
