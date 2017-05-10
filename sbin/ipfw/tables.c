@@ -1654,18 +1654,19 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 		}
 
 		if (sort != 0)
-			qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
+			qsort(olh + 1, olh->count, olh->objsize,
+			    tablename_cmp);
 
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(info, arg); /* Ignore errors for now */
-			info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
+			if (co.use_set == 0 || info->set == co.use_set - 1)
+				error = f(info, arg);
+			info = (ipfw_xtable_info *)((caddr_t)info +
+			    olh->objsize);
 		}
-
 		free(olh);
 		break;
 	}
-
 	return (0);
 }
 
