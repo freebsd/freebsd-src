@@ -751,6 +751,7 @@ Main_SetObjdir(const char *fmt, ...)
 	struct stat sb;
 	char *path;
 	char buf[MAXPATHLEN + 1];
+	char buf2[MAXPATHLEN + 1];
 	Boolean rc = FALSE;
 	va_list ap;
 
@@ -759,8 +760,6 @@ Main_SetObjdir(const char *fmt, ...)
 	va_end(ap);
 
 	if (path[0] != '/') {
-		char buf2[MAXPATHLEN + 1];
-		
 		snprintf(buf2, MAXPATHLEN, "%s/%s", curdir, path);
 		path = buf2;
 	}
