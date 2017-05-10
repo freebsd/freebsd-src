@@ -1,52 +1,91 @@
-# $Id: scripts.mk,v 1.2 2006/11/09 01:55:18 sjg Exp $
+# $Id: scripts.mk,v 1.3 2017/05/06 17:29:45 sjg Exp $
+#
+#	@(#) Copyright (c) 2006, Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that 
+#	the above copyright notice and this notice are
+#	left intact. 
+#      
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
+#
 
 .include <init.mk>
 
-.if defined(SCRIPTS) 
+SCRIPTSGROUPS ?= SCRIPTS
+SCRIPTSGROUPS := ${SCRIPTSGROUPS:O:u}
 
-all:	${SCRIPTS}
-
-.PHONY:		scriptsinstall
-install:	scriptsinstall
-
-.if !target(scriptsinstall)
 SCRIPTSDIR?=	${BINDIR}
 SCRIPTSOWN?=	${BINOWN}
 SCRIPTSGRP?=	${BINGRP}
 SCRIPTSMODE?=	${BINMODE}
 
+SCRIPTS_INSTALL_OWN?= -o ${SCRIPTSOWN} -g ${SCRIPTSGRP}
+SCRIPTS_COPY ?= -C
+
 # how we get script name from src
 SCRIPTSNAME_MOD?=T:R
 
-script_targets= ${SCRIPTS:@s@${DESTDIR}${SCRIPTSDIR_$s:U${SCRIPTSDIR}}/${SCRIPTSNAME_$s:U${s:${SCRIPTSNAME_MOD}}}@}
-
-scriptsinstall:: ${script_targets}
-
-.PRECIOUS: ${script_targets}
-.if !defined(UPDATE)
-.PHONY: ${script_targets}
-.endif
-
-INSTALL_FLAGS?= ${RENAME} ${PRESERVE} ${COPY} ${INSTPRIV} \
-	-o ${OWN_${.TARGET:T}:U${SCRIPTSOWN}} \
-	-g ${GRP_${.TARGET:T}:U${SCRIPTSGRP}} \
-	-m ${MODE_${.TARGET:T}:U${SCRIPTSMODE}}
-
-__SCRIPTINSTALL_USE: .USE
-	${INSTALL} ${INSTALL_FLAGS_${.TARGET:T}:U${INSTALL_FLAGS}} \
-	    ${.ALLSRC} ${.TARGET}
-
-.for s in ${SCRIPTS}
-.if !defined(BUILD) && !make(all) && !make(${s})
-${DESTDIR}${SCRIPTSDIR_$s:U${SCRIPTSDIR}}/${SCRIPTSNAME_$s:U${s:${SCRIPTSNAME_MOD}}}:	.MADE
-.endif
-${DESTDIR}${SCRIPTSDIR_$s:U${SCRIPTSDIR}}/${SCRIPTSNAME_$s:U${s:${SCRIPTSNAME_MOD}}}:	${s} __SCRIPTINSTALL_USE
+.if !target(buildfiles)
+.for group in ${SCRIPTSGROUPS}
+buildfiles: ${${group}}
 .endfor
 .endif
+buildfiles:
+realbuild: buildfiles
 
+.for group in ${SCRIPTSGROUPS}
+.if !empty(${group}) && defined(${group}DIR)
+.if ${group} != "SCRIPTS"
+${group}_INSTALL_OWN ?= ${SCRIPTS_INSTALL_OWN}
+.endif
+# incase we are staging
+STAGE_DIR.${group} ?= ${STAGE_OBJTOP}${${group}DIR}
+
+.for script in ${${group}:O:u}
+${group}_INSTALL_OWN.${script:T} ?= ${${group}_INSTALL_OWN}
+${group}DIR.${script:T} ?= ${${group}DIR_${script:T}:U${${group}DIR}}
+script_mkdir_list += ${${group}DIR.${script:T}}
+
+${group}NAME.${script} ?= ${${group}NAME_${script:T}:U${script:${SCRIPTSNAME_MOD}}}
+.if ${${group}NAME.${script}:T} != ${script:T}
+STAGE_AS_SETS += ${group}
+STAGE_AS_${script} = ${${group}NAME.${script:T}}
+stage_as.${group}: ${script}
+
+installscripts: installscripts.${group}.${script:T}
+installscripts.${group}.${script:T}: ${script} script_mkdirs
+	${INSTALL} ${SCRIPTS_COPY} ${${group}_INSTALL_OWN.${script:T}} \
+	-m ${SCRIPTSMODE} ${.ALLSRC:Nscript_mkdirs} ${DESTDIR}${${group}DIR}/${${group}NAME.${script:T}}
+
+.else
+STAGE_SETS += ${group}
+stage_files.${group}: ${script}
+installscripts.${group}: ${script}
+installscripts: installscripts.${group}
 .endif
 
-.if !target(scriptsinstall)
-scriptsinstall::
-.endif
+.endfor				# script
+
+installscripts.${group}: script_mkdirs
+	${INSTALL} ${SCRIPTS_COPY} ${${group}_INSTALL_OWN} -m ${SCRIPTSMODE} \
+	${.ALLSRC:Nscript_mkdirs:O:u} ${DESTDIR}${${group}DIR}
+
+.endif				# !empty
+.endfor				# group
+
+script_mkdirs:
+	@for d in ${script_mkdir_list:O:u}; do \
+		test -d ${DESTDIR}$$d || \
+		${INSTALL} -d ${SCRIPTS_INSTALL_OWN} -m 775 ${DESTDIR}$$d; \
+	done
+
+
+beforeinstall:
+installscripts:
+realinstall:	installscripts
+.ORDER: beforeinstall installscripts
 
