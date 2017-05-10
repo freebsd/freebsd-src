@@ -130,7 +130,6 @@ __RCSID("$NetBSD: parse.c,v 1.225 2017/04/17 13:29:07 maya Exp $");
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdint.h>
 
 #include "make.h"
 #include "hash.h"
@@ -138,6 +137,10 @@ __RCSID("$NetBSD: parse.c,v 1.225 2017/04/17 13:29:07 maya Exp $");
 #include "job.h"
 #include "buf.h"
 #include "pathnames.h"
+
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
