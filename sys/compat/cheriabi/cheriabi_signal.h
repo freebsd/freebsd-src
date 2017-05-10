@@ -94,25 +94,6 @@ typedef struct {
 	int		ss_flag;
 } cheriabi_stack_t;
 
-struct ucontext_c {
-	/*
-	 * Keep the order of the first two fields. Also,
-	 * keep them the first two fields in the structure.
-	 * This way we can have a union with struct
-	 * sigcontext and ucontext_t. This allows us to
-	 * support them both at the same time.
-	 * note: the union is not defined, though.
-	 */
-	__sigset_t		uc_sigmask;
-	mcontext_t		uc_mcontext;
-
-	struct chericap		uc_link;	/* struct ucontext_c * */
-	cheriabi_stack_t	uc_stack;
-	int			uc_flags;
-	int			__spare__[4];
-};
-typedef struct ucontext_c ucontext_t_c;
-
 struct sigevent;
 int convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig);
 void siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst);

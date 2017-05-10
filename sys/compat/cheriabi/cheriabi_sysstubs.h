@@ -2502,43 +2502,43 @@ SYS_STUB_ARGHASPTRS(416, int, sigaction,
     /* _localcheck */ {if (!(cheri_getperm(act) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(oact) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
-SYS_STUB_ARGHASPTRS(417, int, sigreturn,
-    /* _protoargs */ (const ucontext_t* sigcntxp),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const ucontext_t* __capability  sigcntxp),
-    /* _protoargs_err */ (__capability int *stub_errno, const ucontext_t* __capability  sigcntxp),
-    /* _callargs */ ((const ucontext_t*)sigcntxp),
+SYS_STUB(417, int, sigreturn,
+    /* _protoargs */ (const ucontext_c_t * sigcntxp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const ucontext_c_t * __capability  sigcntxp),
+    /* _protoargs_err */ (__capability int *stub_errno, const ucontext_c_t * __capability  sigcntxp),
+    /* _callargs */ ((const ucontext_c_t *)sigcntxp),
     /* _callargs_chk */ (&ret, stub_errno, sigcntxp),
-    /* _callargs_err */ (&errno, (const ucontext_t*)sigcntxp),
+    /* _callargs_err */ (&errno, (const ucontext_c_t *)sigcntxp),
     /* _localcheck */ {if (!(cheri_getperm(sigcntxp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
-SYS_STUB_ARGHASPTRS(421, int, getcontext,
-    /* _protoargs */ (ucontext_t* ucp),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_t* __capability  ucp),
-    /* _protoargs_err */ (__capability int *stub_errno, ucontext_t* __capability  ucp),
-    /* _callargs */ ((ucontext_t*)ucp),
+SYS_STUB(421, int, getcontext,
+    /* _protoargs */ (ucontext_c_t * ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_c_t * __capability  ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, ucontext_c_t * __capability  ucp),
+    /* _callargs */ ((ucontext_c_t *)ucp),
     /* _callargs_chk */ (&ret, stub_errno, ucp),
-    /* _callargs_err */ (&errno, (ucontext_t*)ucp),
+    /* _callargs_err */ (&errno, (ucontext_c_t *)ucp),
     /* _localcheck */ {if (!(cheri_getperm(ucp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
-SYS_STUB_ARGHASPTRS(422, int, setcontext,
-    /* _protoargs */ (const ucontext_t* ucp),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const ucontext_t* __capability  ucp),
-    /* _protoargs_err */ (__capability int *stub_errno, const ucontext_t* __capability  ucp),
-    /* _callargs */ ((const ucontext_t*)ucp),
+SYS_STUB(422, int, setcontext,
+    /* _protoargs */ (const ucontext_c_t * ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, const ucontext_c_t * __capability  ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, const ucontext_c_t * __capability  ucp),
+    /* _callargs */ ((const ucontext_c_t *)ucp),
     /* _callargs_chk */ (&ret, stub_errno, ucp),
-    /* _callargs_err */ (&errno, (const ucontext_t*)ucp),
+    /* _callargs_err */ (&errno, (const ucontext_c_t *)ucp),
     /* _localcheck */ {if (!(cheri_getperm(ucp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
-SYS_STUB_ARGHASPTRS(423, int, swapcontext,
-    /* _protoargs */ (ucontext_t* oucp, const ucontext_t* ucp),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_t* __capability  oucp, const ucontext_t* __capability  ucp),
-    /* _protoargs_err */ (__capability int *stub_errno, ucontext_t* __capability  oucp, const ucontext_t* __capability  ucp),
-    /* _callargs */ ((ucontext_t*)oucp, (const ucontext_t*)ucp),
+SYS_STUB(423, int, swapcontext,
+    /* _protoargs */ (ucontext_c_t * oucp, const ucontext_c_t * ucp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_c_t * __capability  oucp, const ucontext_c_t * __capability  ucp),
+    /* _protoargs_err */ (__capability int *stub_errno, ucontext_c_t * __capability  oucp, const ucontext_c_t * __capability  ucp),
+    /* _callargs */ ((ucontext_c_t *)oucp, (const ucontext_c_t *)ucp),
     /* _callargs_chk */ (&ret, stub_errno, oucp, ucp),
-    /* _callargs_err */ (&errno, (ucontext_t*)oucp, (const ucontext_t*)ucp),
+    /* _callargs_err */ (&errno, (ucontext_c_t *)oucp, (const ucontext_c_t *)ucp),
     /* _localcheck */ {if (!(cheri_getperm(oucp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(ucp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
@@ -2602,13 +2602,13 @@ SYS_STUB(429, int, sigwait,
     /* _localcheck */ {if (!(cheri_getperm(set) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(sig) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
-SYS_STUB_ARGHASPTRS(430, int, thr_create,
-    /* _protoargs */ (ucontext_t* ctx, long * id, int flags),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_t* __capability  ctx, long * __capability  id, int flags),
-    /* _protoargs_err */ (__capability int *stub_errno, ucontext_t* __capability  ctx, long * __capability  id, int flags),
-    /* _callargs */ ((ucontext_t*)ctx, (long *)id, flags),
+SYS_STUB(430, int, thr_create,
+    /* _protoargs */ (ucontext_c_t * ctx, long * id, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, ucontext_c_t * __capability  ctx, long * __capability  id, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, ucontext_c_t * __capability  ctx, long * __capability  id, int flags),
+    /* _callargs */ ((ucontext_c_t *)ctx, (long *)id, flags),
     /* _callargs_chk */ (&ret, stub_errno, ctx, id, flags),
-    /* _callargs_err */ (&errno, (ucontext_t*)ctx, (long *)id, flags),
+    /* _callargs_err */ (&errno, (ucontext_c_t *)ctx, (long *)id, flags),
     /* _localcheck */ {if (!(cheri_getperm(ctx) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(id) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
