@@ -1,4 +1,4 @@
-#	$Id: Linux.mk,v 1.8 2016/03/22 20:45:14 sjg Exp $
+#	$Id: Linux.mk,v 1.9 2017/05/05 18:02:16 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -69,8 +69,6 @@ LDFLAGS=
 
 LINT=		lint
 LINTFLAGS=	-chapbx
-
-MAKE=		bmake
 
 PC=		pc
 PFLAGS=

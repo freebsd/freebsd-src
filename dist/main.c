@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.264 2017/04/20 03:57:27 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.264 2017/04/20 03:57:27 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.264 2017/04/20 03:57:27 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -751,6 +751,7 @@ Main_SetObjdir(const char *fmt, ...)
 	struct stat sb;
 	char *path;
 	char buf[MAXPATHLEN + 1];
+	char buf2[MAXPATHLEN + 1];
 	Boolean rc = FALSE;
 	va_list ap;
 
@@ -759,8 +760,6 @@ Main_SetObjdir(const char *fmt, ...)
 	va_end(ap);
 
 	if (path[0] != '/') {
-		char buf2[MAXPATHLEN + 1];
-		
 		snprintf(buf2, MAXPATHLEN, "%s/%s", curdir, path);
 		path = buf2;
 	}
