@@ -256,9 +256,11 @@ add_leaf(struct sort_level *sl, struct sort_list_item *item)
 static inline int
 get_wc_index(struct sort_list_item *sli, size_t level)
 {
+	const struct key_value *kv;
 	const struct bwstring *bws;
 
-	bws = sli->ka.key[0].k;
+	kv = get_key_from_keys_array(&sli->ka, 0);
+	bws = kv->k;
 
 	if ((BWSLEN(bws) > level))
 		return (unsigned char) BWS_GET(bws,level);
