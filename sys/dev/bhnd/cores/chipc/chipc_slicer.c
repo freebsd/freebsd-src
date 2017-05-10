@@ -63,10 +63,12 @@ chipc_register_slicer(chipc_flash flash_type)
 	switch (flash_type) {
 	case CHIPC_SFLASH_AT:
 	case CHIPC_SFLASH_ST:
-		flash_register_slicer(chipc_slicer_spi);
+		flash_register_slicer(chipc_slicer_spi, FLASH_SLICES_TYPE_SPI,
+		   TRUE);
 		break;
 	case CHIPC_PFLASH_CFI:
-		flash_register_slicer(chipc_slicer_cfi);
+		flash_register_slicer(chipc_slicer_cfi, FLASH_SLICES_TYPE_CFI,
+		   TRUE);
 		break;
 	default:
 		/* Unsupported */
@@ -75,7 +77,8 @@ chipc_register_slicer(chipc_flash flash_type)
 }
 
 int
-chipc_slicer_cfi(device_t dev, struct flash_slice *slices, int *nslices)
+chipc_slicer_cfi(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *nslices)
 {
 	struct cfi_softc	*sc;
 	device_t		 parent;
@@ -100,7 +103,8 @@ chipc_slicer_cfi(device_t dev, struct flash_slice *slices, int *nslices)
 }
 
 int
-chipc_slicer_spi(device_t dev, struct flash_slice *slices, int *nslices)
+chipc_slicer_spi(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *nslices)
 {
 	struct chipc_spi_softc	*sc;
 	device_t		 chipc, spi, spibus;
