@@ -478,10 +478,14 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mulhi = td->td_frame->mulhi;
 	mcp->mc_tls = td->td_md.md_tls;
 
-#if 0
 #ifdef CPU_CHERI
-	/* XXXRW: TODO */
-#endif
+	/*
+	 * XXXBD: Can't do easily do anything useful with capability state
+	 * here because we get mcp as an uninitialized stack allocation from
+	 * sys_getcontext().
+	 */
+	mcp->mc_cp2state = 0;
+	mcp->mc_cp2state_len = 0;
 #endif
 
 	return (0);
@@ -499,7 +503,9 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 #ifdef CPU_CHERI
 	if ((void *)mcp->mc_cp2state != NULL) {
 		if (mcp->mc_cp2state_len != sizeof(*cfp)) {
-			printf("%s: invalid length\n", __func__);
+			printf("%s: invalid cp2 state length "
+			    "(expected %zd, got %zd)\n", __func__,
+			    sizeof(*cfp), mcp->mc_cp2state_len);
 			return (EINVAL);
 		}
 		cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK);
