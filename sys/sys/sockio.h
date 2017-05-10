@@ -97,6 +97,7 @@
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
 #define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
 #define	SIOCGI2C	_IOWR('i', 61, struct ifreq)	/* get I2C data  */
+#define	SIOCGHWADDR	_IOWR('i', 62, struct ifreq)	/* get hardware lladdr */
 
 #define	SIOCSIFPHYADDR	 _IOW('i', 70, struct ifaliasreq) /* set gif address */
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
