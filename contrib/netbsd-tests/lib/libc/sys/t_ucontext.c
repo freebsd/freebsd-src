@@ -51,17 +51,17 @@ ATF_TC_BODY(ucontext_basic, tc)
 
 	printf("Start\n");
 
-	getcontext(&u);
+	ATF_REQUIRE(getcontext(&u) != -1);
 	y++;
 
 	printf("x == %d\n", x);
 
-	getcontext(&v);
+	ATF_REQUIRE(getcontext(&v) != -1);
 
 	if ( x < 20 ) {
 		x++;
-		getcontext(&w);
-		setcontext(&u);
+		ATF_REQUIRE(getcontext(&w) != -1);
+		ATF_REQUIRE(setcontext(&u) != -1);
 	}
 
 	printf("End, y = %d\n", y);
