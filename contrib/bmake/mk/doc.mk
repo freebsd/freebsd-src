@@ -1,4 +1,4 @@
-# $Id: doc.mk,v 1.5 2015/09/08 06:15:31 sjg Exp $
+# $Id: doc.mk,v 1.6 2017/05/01 21:24:10 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -59,7 +59,7 @@ spell: ${SRCS}
 .include <own.mk>
 
 .if !empty(DOCOWN)
-DOC_INSTALL_OWN?= -o ${DOCOWN} -g ${DOGGRP}
+DOC_INSTALL_OWN?= -o ${DOCOWN} -g ${DOCGRP}
 .endif
 
 .endif

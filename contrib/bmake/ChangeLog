@@ -1,3 +1,29 @@
+2017-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170510
+	  Merge with NetBSD make, pick up
+	  o main.c: Main_SetObjdir: ensure buf2 is in scope
+
+2017-05-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170505
+	  see mk/ChangeLog
+
+2017-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* parse.c: not everyone has stdint.h
+
+2017-05-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170501
+	  see mk/ChangeLog
+
+2017-04-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170421
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: fix closure tests for [^] and add unit-test.
+
 2017-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20170420
