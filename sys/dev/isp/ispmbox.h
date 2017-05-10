@@ -1421,6 +1421,10 @@ typedef struct {
 /*
  * Port Database Changed Async Event information for 24XX cards
  */
+/* N-Port Handle */
+#define PDB24XX_AE_GLOBAL	0xFFFF
+
+/* Reason Codes */
 #define	PDB24XX_AE_OK		0x00
 #define	PDB24XX_AE_IMPL_LOGO_1	0x01
 #define	PDB24XX_AE_IMPL_LOGO_2	0x02
@@ -1440,7 +1444,7 @@ typedef struct {
 #define	PDB24XX_AE_FLOGI_TIMO	0x10
 #define	PDB24XX_AE_ABX_LOGO	0x11
 #define	PDB24XX_AE_PLOGI_DONE	0x12
-#define	PDB24XX_AE_PRLI_DONJE	0x13
+#define	PDB24XX_AE_PRLI_DONE	0x13
 #define	PDB24XX_AE_OPN_1	0x14
 #define	PDB24XX_AE_OPN_2	0x15
 #define	PDB24XX_AE_TXERR	0x16
