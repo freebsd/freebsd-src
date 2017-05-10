@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <ifaddrs.h>
+#include <unistd.h>
 
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -67,7 +68,7 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 		    sdl->sdl_alen == ETHER_ADDR_LEN) {
 			ether_format = ether_ntoa((struct ether_addr *)LLADDR(sdl));
 			if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
-				for (format_char = strchr(ether_format, ':'); 
+				for (format_char = strchr(ether_format, ':');
 				    format_char != NULL; 
 				    format_char = strchr(ether_format, ':'))
 					*format_char = '-';
@@ -77,6 +78,48 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 			int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
 
 			printf("\tlladdr %s\n", link_ntoa(sdl) + n);
+		}
+		/* Best-effort (i.e. failures are silent) to get original
+		 * hardware address, as read by NIC driver at attach time. Only
+		 * applies to Ethernet NICs (IFT_ETHER). However, laggX
+		 * interfaces claim to be IFT_ETHER, and re-type their component
+		 * Ethernet NICs as IFT_IEEE8023ADLAG. So, check for both. If
+		 * the MAC is zeroed, then it's actually a lagg.
+		 */
+		if ((sdl->sdl_type == IFT_ETHER ||
+		    sdl->sdl_type == IFT_IEEE8023ADLAG) &&
+		    sdl->sdl_alen == ETHER_ADDR_LEN) {
+			struct ifreq ifr;
+			int sock_hw;
+			int rc;
+			static const u_char laggaddr[6] = {0};
+
+			strncpy(ifr.ifr_name, ifa->ifa_name,
+			    sizeof(ifr.ifr_name));
+			memcpy(&ifr.ifr_addr, ifa->ifa_addr,
+			    sizeof(ifa->ifa_addr->sa_len));
+			ifr.ifr_addr.sa_family = AF_LOCAL;
+			if ((sock_hw = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0) {
+				warn("socket(AF_LOCAL,SOCK_DGRAM)");
+				return;
+			}
+			rc = ioctl(sock_hw, SIOCGHWADDR, &ifr);
+			close(sock_hw);
+			if (rc != 0) {
+				return;
+			}
+			if (memcmp(ifr.ifr_addr.sa_data, laggaddr, sdl->sdl_alen) == 0) {
+				return;
+			}
+			ether_format = ether_ntoa((const struct ether_addr *)
+			    &ifr.ifr_addr.sa_data);
+			if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
+				for (format_char = strchr(ether_format, ':');
+				    format_char != NULL; 
+				    format_char = strchr(ether_format, ':'))
+					*format_char = '-';
+			}
+			printf("\thwaddr %s\n", ether_format);
 		}
 	}
 }
