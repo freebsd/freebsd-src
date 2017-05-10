@@ -253,7 +253,7 @@ PROG_CXX	If defined, the name of the program to build.  Also
 		of PROG if PROG is also set.
 
 PROGS		When used with <bsd.progs.mk>, allow building multiple
-PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
+PROGS_CXX	PROG and PROG_CXX in one Makefile.  To define
 		individual variables for each program the VAR.prog
 		syntax should be used.  For example:
 
@@ -470,7 +470,7 @@ SRCS		List of source files to build the library.  Suffix types
 		versions of make.)
 
 SHLIB_LDSCRIPT	Template file to generate shared library linker script.
-		Unless used, a simple symlink is created to the real
+		If not defined, a simple symlink is created to the real
 		shared object.
 
 LIBRARIES_ONLY	Do not build or install files other than the library.
