@@ -499,6 +499,11 @@ If combined with
 .Cm buildworld
 then all libraries and includes, and some of the build tools will still build
 as well.
+Specifying
+.Cm -DNO_LIBS ,
+and
+.Cm -DWORLDFAST
+will only build the specified directory as was done historically.
 When combined with
 .Cm buildworld
 it is necesarry to override
