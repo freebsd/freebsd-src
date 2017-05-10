@@ -127,7 +127,7 @@ ACFLAGS.${SRC}
 CFLAGS.${SRC}
 		Flags dependent on source file name.
 CFLAGS.${COMPILER_TYPE}
-		Flags dependent on compiler added to CXXFLAGS.
+		Flags dependent on compiler added to CFLAGS.
 CFLAGS.${MACHINE_ARCH}
 		Architectural flags added to CFLAGS.
 CFLAGS_NO_SIMD	Add this to CFLAGS for programs that don't want any SIMD
@@ -311,7 +311,7 @@ LDFLAGS		Additional loader flags. Passed to the loader via CC,
 
 LIBADD		Additional libraries.  This is for base system libraries
 		and is only valid inside of the /usr/src tree.
-		Rather than use LDADD=-lname use LIBADD=name.
+		Use LIBADD=name instead of LDADD=-lname.
 
 LINKS		The list of binary links; should be full pathnames, the
 		linked-to file coming first, followed by the linked
@@ -335,7 +335,7 @@ PROG_CXX	If defined, the name of the program to build.  Also
 		of PROG if PROG is also set.
 
 PROGS		When used with <bsd.progs.mk>, allow building multiple
-PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
+PROGS_CXX	PROG and PROG_CXX in one Makefile.  To define
 		individual variables for each program the VAR.prog
 		syntax should be used.  For example:
 
@@ -511,7 +511,7 @@ LIB		The name of the library to build.  Both a shared and static
 
 LIBADD		Additional libraries.  This is for base system libraries
 		and is only valid inside of the /usr/src tree.
-		Rather than use LDADD=-lname use LIBADD=name.
+		Use LIBADD=name instead of LDADD=-lname.
 
 LIBDIR		Target directory for libraries.
 
@@ -540,7 +540,7 @@ SHLIB		Like LIB but only builds a shared library.
 SHLIB_CXX	Like LIB_CXX but only builds a shared library.
 
 SHLIB_LDSCRIPT	Template file to generate shared library linker script.
-		Unless used, a simple symlink is created to the real
+		If not defined, a simple symlink is created to the real
 		shared object.
 
 SRCS		List of source files to build the library.  Suffix types
