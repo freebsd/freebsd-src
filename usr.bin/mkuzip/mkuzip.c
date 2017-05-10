@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 	struct mkuz_conveyor *cvp;
         void *c_ctx;
 	struct mkuz_blk_info *chit;
-	size_t ncpusz, ncpu;
+	size_t ncpusz, ncpu, magiclen;
 	double st, et;
 
 	st = getdtime();
@@ -192,8 +192,8 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 
-	assert(strlcpy(hdr.magic, cfs.handler->magic, sizeof(hdr.magic))
-	    < sizeof(hdr.magic));
+	magiclen = strlcpy(hdr.magic, cfs.handler->magic, sizeof(hdr.magic));
+	assert(magiclen < sizeof(hdr.magic));
 
 	if (cfs.en_dedup != 0) {
 		hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
