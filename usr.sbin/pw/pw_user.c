@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
@@ -501,7 +502,8 @@ pw_pwcrypt(char *password)
 	cryptpw = crypt(password, salt);
 	if (cryptpw == NULL)
 		errx(EX_CONFIG, "crypt(3) failure");
-	return strcpy(buf, cryptpw);
+	assert(strlcpy(buf, cryptpw, sizeof(buf)) < sizeof(buf));
+	return (buf);
 }
 
 static char *
