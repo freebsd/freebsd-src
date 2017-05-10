@@ -127,7 +127,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		return (0);
 #endif
 
-	if (fbt_excluded(name) == 0)
+	if (fbt_excluded(name))
 		return (0);
 
 	instr = (uint32_t *) symval->value;
