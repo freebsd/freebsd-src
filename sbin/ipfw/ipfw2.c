@@ -3187,15 +3187,14 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
+	ipfw_range_tlv rt;
+	char *sep;
 	int i, j;
 	int exitval = EX_OK;
 	int do_set = 0;
-	char *sep;
-	ipfw_range_tlv rt;
 
 	av++;
 	NEED1("missing rule specification");
-	memset(&rt, 0, sizeof(rt));
 	if ( *av && _substrcmp(*av, "set") == 0) {
 		/* Do not allow using the following syntax:
 		 *	ipfw set N delete set M
@@ -3222,6 +3221,7 @@ ipfw_delete(char *av[])
  		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
+			memset(&rt, 0, sizeof(rt));
 			if (do_set != 0) {
 				rt.set = i & 31;
 				rt.flags = IPFW_RCFLAG_SET;
@@ -5157,18 +5157,17 @@ void
 ipfw_zero(int ac, char *av[], int optname)
 {
 	ipfw_range_tlv rt;
-	uint32_t arg;
-	int failed = EX_OK;
 	char const *errstr;
 	char const *name = optname ? "RESETLOG" : "ZERO";
+	uint32_t arg;
+	int failed = EX_OK;
 
 	optname = optname ? IP_FW_XRESETLOG : IP_FW_XZERO;
-	memset(&rt, 0, sizeof(rt));
-
 	av++; ac--;
 
 	if (ac == 0) {
 		/* clear all entries */
+		memset(&rt, 0, sizeof(rt));
 		rt.flags = IPFW_RCFLAG_ALL;
 		if (do_range_cmd(optname, &rt) < 0)
 			err(EX_UNAVAILABLE, "setsockopt(IP_FW_X%s)", name);
@@ -5186,6 +5185,7 @@ ipfw_zero(int ac, char *av[], int optname)
 			if (errstr)
 				errx(EX_DATAERR,
 				    "invalid rule number %s\n", *av);
+			memset(&rt, 0, sizeof(rt));
 			rt.start_rule = arg;
 			rt.end_rule = arg;
 			rt.flags |= IPFW_RCFLAG_RANGE;
