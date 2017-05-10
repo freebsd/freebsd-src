@@ -155,7 +155,7 @@ rarprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft)
 		printf("rarprecv: ");
 #endif
 
-	n = readether(d, ptr, (void **)&ap, tleft, &etype);
+	n = readether(d, &ptr, (void **)&ap, tleft, &etype);
 	errno = 0;	/* XXX */
 	if (n == -1 || n < sizeof(struct ether_arp)) {
 #ifdef RARP_DEBUG
