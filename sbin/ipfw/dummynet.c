@@ -1881,7 +1881,7 @@ parse_range(int ac, char *av[], uint32_t *v, int len)
 			av--;
 		}
 		if (v[1] < v[0] ||
-			v[1] >= DN_MAX_ID-1 ||
+			v[0] >= DN_MAX_ID-1 ||
 			v[1] >= DN_MAX_ID-1) {
 			continue; /* invalid entry */
 		}
