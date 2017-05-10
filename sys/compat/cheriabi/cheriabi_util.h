@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
+#include <sys/ucontext.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
@@ -142,6 +143,7 @@ int	cheriabi_copyinstrarg(struct thread *td, int syscall, int arg,
 int	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	    struct chericap *addr, size_t len, int prot, int flags);
 
+int	cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp);
 void	cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param);
 int	cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base);
 

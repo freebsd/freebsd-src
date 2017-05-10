@@ -1076,6 +1076,46 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 	return (error);
 }
 
+int
+cheriabi_sigreturn(struct thread *td, struct cheriabi_sigreturn_args *uap)
+{
+	ucontext_c_t uc;
+	int error;
+
+	error = copyincap(uap->sigcntxp, &uc, sizeof(uc));
+	if (error != 0)
+		return (error);
+
+	error = cheriabi_set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
+
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
+
+	return (EJUSTRETURN);
+}
+
+int
+cheriabi_getcontext(struct thread *td, struct cheriabi_getcontext_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cheriabi_setcontext(struct thread *td, struct cheriabi_setcontext_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cheriabi_swapcontext(struct thread *td, struct cheriabi_swapcontext_args *uap)
+{
+
+	return (ENOSYS);
+}
+
 struct sigvec_c {
 	struct chericap	sv_handler;
 	int		sv_mask;
