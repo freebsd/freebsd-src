@@ -192,7 +192,8 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 
-	strcpy(hdr.magic, cfs.handler->magic);
+	assert(strlcpy(hdr.magic, cfs.handler->magic, sizeof(hdr.magic))
+	    < sizeof(hdr.magic));
 
 	if (cfs.en_dedup != 0) {
 		hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
