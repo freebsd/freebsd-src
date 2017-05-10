@@ -204,11 +204,11 @@ struct vi_info {
 	int first_intr;
 
 	/* These need to be int as they are used in sysctl */
-	int ntxq;	/* # of tx queues */
-	int first_txq;	/* index of first tx queue */
-	int rsrv_noflowq; /* Reserve queue 0 for non-flowid packets */
-	int nrxq;	/* # of rx queues */
-	int first_rxq;	/* index of first rx queue */
+	int ntxq;		/* # of tx queues */
+	int first_txq;		/* index of first tx queue */
+	int rsrv_noflowq; 	/* Reserve queue 0 for non-flowid packets */
+	int nrxq;		/* # of rx queues */
+	int first_rxq;		/* index of first rx queue */
 	int nofldtxq;		/* # of offload tx queues */
 	int first_ofld_txq;	/* index of first offload tx queue */
 	int nofldrxq;		/* # of offload rx queues */
@@ -705,7 +705,7 @@ struct sge_nm_txq {
 
 struct sge {
 	int nrxq;	/* total # of Ethernet rx queues */
-	int ntxq;	/* total # of Ethernet tx tx queues */
+	int ntxq;	/* total # of Ethernet tx queues */
 	int nofldrxq;	/* total # of TOE rx queues */
 	int nofldtxq;	/* total # of TOE tx queues */
 	int nnmrxq;	/* total # of netmap rx queues */
