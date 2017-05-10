@@ -196,6 +196,10 @@
 	  class="directory">/usr/local/etc/syslog.d</filename> by
 	default.</para>
 
+      <para revision="308914">The &man.zfsbootcfg.8; utility has been
+	added, providing one-time &man.nextboot.8; options for
+	&man.zfsboot.8;.</para>
+
       <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
 	&man.setkey.8; utility has been modified to show the runtime
 	<acronym>NAT-T</acronym> configuration.  The
