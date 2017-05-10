@@ -118,7 +118,8 @@ struct mmc_ivars {
 static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
 static int mmc_debug;
-SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RW, &mmc_debug, 0, "Debug level");
+TUNABLE_INT("hw.mmc.debug", &mmc_debug);
+SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RWTUN, &mmc_debug, 0, "Debug level");
 
 /* bus entry points */
 static int mmc_acquire_bus(device_t busdev, device_t dev);
