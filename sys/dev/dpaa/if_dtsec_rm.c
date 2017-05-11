@@ -115,7 +115,7 @@ dtsec_rm_fi_pool_init(struct dtsec_softc *sc)
 
 	sc->sc_fi_zone = uma_zcreate(sc->sc_fi_zname,
 	    sizeof(struct dtsec_rm_frame_info), NULL, NULL, NULL, NULL,
-	    sizeof(void *), 0);
+	    sizeof(void *) - 1, 0);
 	if (sc->sc_fi_zone == NULL)
 		return (EIO);
 
@@ -312,7 +312,7 @@ dtsec_rm_pool_rx_init(struct dtsec_softc *sc)
 	    device_get_nameunit(sc->sc_dev));
 
 	sc->sc_rx_zone = uma_zcreate(sc->sc_rx_zname, FM_PORT_BUFFER_SIZE, NULL,
-	    NULL, NULL, NULL, FM_PORT_BUFFER_SIZE, 0);
+	    NULL, NULL, NULL, FM_PORT_BUFFER_SIZE - 1, 0);
 	if (sc->sc_rx_zone == NULL)
 		return (EIO);
 
