@@ -74,8 +74,8 @@ DEFINE_TEST(test_option_lz4)
 			free(p);
 			return;
 		}
-		free(p);
 		failure("--lz4 option is broken: %s", p);
+		free(p);
 		assertEqualInt(r, 0);
 		return;
 	}
