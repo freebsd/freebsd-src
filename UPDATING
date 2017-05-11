@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20170511:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
 20170413:
 	As of r316810 for ipfilter, keep frags is no longer assumed when
 	keep state is specified in a rule. r316810 aligns ipfilter with

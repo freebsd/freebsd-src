@@ -52,13 +52,15 @@
  */
 
 #ifndef DEV_MMC_BRIDGE_H
-#define DEV_MMC_BRIDGE_H
+#define	DEV_MMC_BRIDGE_H
+
+#include <sys/bus.h>
 
 /*
  * This file defines interfaces for the mmc bridge.  The names chosen
  * are similar to or the same as the names used in Linux to allow for
  * easy porting of what Linux calls mmc host drivers.  I use the
- * FreeBSD terminology of bridge and bus for consistancy with other
+ * FreeBSD terminology of bridge and bus for consistency with other
  * drivers in the system.  This file corresponds roughly to the Linux
  * linux/mmc/host.h file.
  *
@@ -71,9 +73,8 @@
  * to be added to the mmcbus file).
  *
  * Attached to the mmc bridge is an mmcbus.  The mmcbus is described
- * in dev/mmc/bus.h.
+ * in dev/mmc/mmcbus_if.m.
  */
-
 
 /*
  * mmc_ios is a structure that is used to store the state of the mmc/sd
@@ -110,7 +111,7 @@ enum mmc_bus_timing {
 
 struct mmc_ios {
 	uint32_t	clock;	/* Speed of the clock in Hz to move data */
-	enum mmc_vdd	vdd;	/* Voltage to apply to the power pins/ */
+	enum mmc_vdd	vdd;	/* Voltage to apply to the power pins */
 	enum mmc_bus_mode bus_mode;
 	enum mmc_chip_select chip_select;
 	enum mmc_bus_width bus_width;
@@ -128,11 +129,24 @@ struct mmc_host {
 	uint32_t host_ocr;
 	uint32_t ocr;
 	uint32_t caps;
-#define MMC_CAP_4_BIT_DATA	(1 << 0) /* Can do 4-bit data transfers */
-#define MMC_CAP_8_BIT_DATA	(1 << 1) /* Can do 8-bit data transfers */
-#define MMC_CAP_HSPEED		(1 << 2) /* Can do High Speed transfers */
+#define	MMC_CAP_4_BIT_DATA	(1 <<  0) /* Can do 4-bit data transfers */
+#define	MMC_CAP_8_BIT_DATA	(1 <<  1) /* Can do 8-bit data transfers */
+#define	MMC_CAP_HSPEED		(1 <<  2) /* Can do High Speed transfers */
+#define	MMC_CAP_BOOT_NOACC	(1 <<  4) /* Cannot access boot partitions */
+#define	MMC_CAP_WAIT_WHILE_BUSY	(1 <<  5) /* Host waits for busy responses */
 	enum mmc_card_mode mode;
 	struct mmc_ios ios;	/* Current state of the host */
 };
+
+extern driver_t   mmc_driver;
+extern devclass_t mmc_devclass;
+
+#define	MMC_VERSION	2
+
+#define	MMC_DECLARE_BRIDGE(name)					\
+    DRIVER_MODULE(mmc, name, mmc_driver, mmc_devclass, NULL, NULL);	\
+    MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
+#define	MMC_DEPEND(name)						\
+    MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
 
 #endif /* DEV_MMC_BRIDGE_H */

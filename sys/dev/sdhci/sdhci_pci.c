@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -44,27 +43,24 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
-#include "sdhci.h"
+#include <dev/sdhci/sdhci.h>
+
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 /*
  * PCI registers
  */
+#define	PCI_SDHCI_IFPIO			0x00
+#define	PCI_SDHCI_IFDMA			0x01
+#define	PCI_SDHCI_IFVENDOR		0x02
 
-#define PCI_SDHCI_IFPIO			0x00
-#define PCI_SDHCI_IFDMA			0x01
-#define PCI_SDHCI_IFVENDOR		0x02
-
-#define PCI_SLOT_INFO			0x40	/* 8 bits */
-#define PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
-#define PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
+#define	PCI_SLOT_INFO			0x40	/* 8 bits */
+#define	PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
+#define	PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
 
 /*
  * RICOH specific PCI registers
@@ -81,45 +77,55 @@ static const struct sdhci_device {
 	const char	*desc;
 	u_int		quirks;
 } sdhci_devices[] = {
-	{ 0x08221180, 	0xffff,	"RICOH R5C822 SD",
+	{ 0x08221180,	0xffff,	"RICOH R5C822 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0xe8221180, 	0xffff,	"RICOH R5CE822 SD",
+	{ 0xe8221180,	0xffff,	"RICOH R5CE822 SD",
 	    SDHCI_QUIRK_FORCE_DMA |
 	    SDHCI_QUIRK_LOWER_FREQUENCY },
-	{ 0xe8231180, 	0xffff,	"RICOH R5CE823 SD",
+	{ 0xe8231180,	0xffff,	"RICOH R5CE823 SD",
 	    SDHCI_QUIRK_LOWER_FREQUENCY },
-	{ 0x8034104c, 	0xffff, "TI XX21/XX11 SD",
+	{ 0x8034104c,	0xffff, "TI XX21/XX11 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0x05501524, 	0xffff, "ENE CB712 SD",
+	{ 0x05501524,	0xffff, "ENE CB712 SD",
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x05511524, 	0xffff, "ENE CB712 SD 2",
+	{ 0x05511524,	0xffff, "ENE CB712 SD 2",
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07501524, 	0xffff, "ENE CB714 SD",
+	{ 0x07501524,	0xffff, "ENE CB714 SD",
 	    SDHCI_QUIRK_RESET_ON_IOS |
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07511524, 	0xffff, "ENE CB714 SD 2",
+	{ 0x07511524,	0xffff, "ENE CB714 SD 2",
 	    SDHCI_QUIRK_RESET_ON_IOS |
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x410111ab, 	0xffff, "Marvell CaFe SD",
+	{ 0x410111ab,	0xffff, "Marvell CaFe SD",
 	    SDHCI_QUIRK_INCR_TIMEOUT_CONTROL },
-	{ 0x2381197B, 	0xffff,	"JMicron JMB38X SD",
+	{ 0x2381197B,	0xffff,	"JMicron JMB38X SD",
 	    SDHCI_QUIRK_32BIT_DMA_SIZE |
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
 	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
 	{ 0x0f148086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	{ 0x0f158086,	0xffff,	"Intel Bay Trail SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
 	{ 0x0f508086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
 	{ 0x22948086,	0xffff,	"Intel Braswell eMMC 4.5.1 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	{ 0x22968086,	0xffff,	"Intel Braswell SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	{ 0x5aca8086,	0xffff,	"Intel Apollo Lake SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
 	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -127,7 +133,7 @@ static const struct sdhci_device {
 struct sdhci_pci_softc {
 	u_int		quirks;		/* Chip specific quirks */
 	struct resource *irq_res;	/* IRQ resource */
-	void 		*intrhand;	/* Interrupt handle */
+	void		*intrhand;	/* Interrupt handle */
 
 	int		num_slots;	/* Number of slots on this controller */
 	struct sdhci_slot slots[6];
@@ -142,7 +148,7 @@ SYSCTL_INT(_hw_sdhci, OID_AUTO, enable_msi, CTLFLAG_RDTUN, &sdhci_enable_msi,
     0, "Enable MSI interrupts");
 
 static uint8_t
-sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -152,7 +158,8 @@ sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
+sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint8_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -162,7 +169,7 @@ sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t
 }
 
 static uint16_t
-sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -172,7 +179,8 @@ sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
+sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint16_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -182,7 +190,7 @@ sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 }
 
 static uint32_t
-sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -192,7 +200,8 @@ sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
+sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint32_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -202,7 +211,7 @@ sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_
 }
 
 static void
-sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
@@ -211,7 +220,7 @@ sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot,
 }
 
 static void
-sdhci_pci_write_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_pci_write_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
@@ -298,6 +307,7 @@ static int
 sdhci_pci_attach(device_t dev)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
+	struct sdhci_slot *slot;
 	uint32_t model;
 	uint16_t subvendor;
 	int bar, err, rid, slots, i;
@@ -340,17 +350,18 @@ sdhci_pci_attach(device_t dev)
 	}
 	/* Scan all slots. */
 	for (i = 0; i < slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[sc->num_slots];
+		slot = &sc->slots[sc->num_slots];
 
 		/* Allocate memory. */
 		rid = PCIR_BAR(bar + i);
 		sc->mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
 		if (sc->mem_res[i] == NULL) {
-			device_printf(dev, "Can't allocate memory for slot %d\n", i);
+			device_printf(dev,
+			    "Can't allocate memory for slot %d\n", i);
 			continue;
 		}
-		
+
 		slot->quirks = sc->quirks;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
@@ -366,11 +377,8 @@ sdhci_pci_attach(device_t dev)
 		device_printf(dev, "Can't setup IRQ\n");
 	pci_enable_busmaster(dev);
 	/* Process cards detection. */
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_start_slot(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_start_slot(&sc->slots[i]);
 
 	return (0);
 }
@@ -387,9 +395,7 @@ sdhci_pci_detach(device_t dev)
 	pci_release_msi(dev);
 
 	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_cleanup_slot(slot);
+		sdhci_cleanup_slot(&sc->slots[i]);
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res[i]), sc->mem_res[i]);
 	}
@@ -444,29 +450,27 @@ sdhci_pci_intr(void *arg)
 	struct sdhci_pci_softc *sc = (struct sdhci_pci_softc *)arg;
 	int i;
 
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		sdhci_generic_intr(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_generic_intr(&sc->slots[i]);
 }
 
 static device_method_t sdhci_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, sdhci_pci_probe),
-	DEVMETHOD(device_attach, sdhci_pci_attach),
-	DEVMETHOD(device_detach, sdhci_pci_detach),
-	DEVMETHOD(device_shutdown, sdhci_pci_shutdown),
-	DEVMETHOD(device_suspend, sdhci_pci_suspend),
-	DEVMETHOD(device_resume, sdhci_pci_resume),
+	DEVMETHOD(device_probe,		sdhci_pci_probe),
+	DEVMETHOD(device_attach,	sdhci_pci_attach),
+	DEVMETHOD(device_detach,	sdhci_pci_detach),
+	DEVMETHOD(device_shutdown,	sdhci_pci_shutdown),
+	DEVMETHOD(device_suspend,	sdhci_pci_suspend),
+	DEVMETHOD(device_resume,	sdhci_pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
 
 	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios,     sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request,        sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,         sdhci_generic_get_ro),
+	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 
@@ -493,3 +497,4 @@ static devclass_t sdhci_pci_devclass;
 DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_pci);
