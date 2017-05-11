@@ -1937,6 +1937,9 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	uma_zone_t res;
 	bool locked;
 
+	KASSERT(powerof2(align + 1), ("invalid zone alignment %d for \"%s\"",
+	    align, name));
+
 	/* This stuff is essential for the zone ctor */
 	memset(&args, 0, sizeof(args));
 	args.name = name;
