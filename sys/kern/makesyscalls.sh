@@ -372,13 +372,13 @@ sed -e '
 		reqperms = "";
 		if (annotation ~ /^_In/) {
 			reqperms = reqperms "|CHERI_PERM_LOAD"
-			if (a_saltype ~ /_c \*/)
+			if (a_saltype ~ /_c[ _]\*/)
 				reqperms = reqperms "|CHERI_PERM_LOAD_CAP"
 		}
 		if (annotation ~ /^_Inout/ ||
 		    annotation ~ /^_Out/) {
 			reqperms = reqperms "|CHERI_PERM_STORE"
-			if (a_saltype ~ /_c \*/)
+			if (a_saltype ~ /_c[ _]\*/)
 				reqperms = reqperms "|CHERI_PERM_STORE_CAP"
 		}
 		gsub(/^\|/, "", reqperms);
@@ -837,7 +837,7 @@ sed -e '
 			arghasptrs = 0
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]) &&
-				    argtype[i] ~ /_c /)
+				    argtype[i] ~ /_c[ _]/)
 					arghasptrs = 1
 			}
 			nocheri_funcname = funcname
@@ -866,6 +866,7 @@ sed -e '
 						comma = ", "
 					a_type = argtype[i]
 					sub(/_c /, "", a_type)
+					sub(/_c_/, "_", a_type)
 					printf("%s%s %s", comma, a_type,
 					    argname[i]) > sysstubstubs
 				}
@@ -884,6 +885,7 @@ sed -e '
 							comma = ", "
 						a_type = argtype[i]
 						sub(/_c /, "", a_type)
+						sub(/_c_/, "_", a_type)
 						if (i == argc)
 							printf(", ...") > sysstubstubs
 						else
@@ -899,6 +901,7 @@ sed -e '
 			for (i = 1; i <= argc; i++) {
 				a_type = argtype[i]
 				sub(/_c /, "", a_type)
+				sub(/_c_/, "_", a_type)
 				if (isptrtype(a_type)) {
 					if (a_type ~ /intptr_t/) {
 						sub(/uintptr_t/, "__uintcap_t",
@@ -918,6 +921,7 @@ sed -e '
 			for (i = 1; i <= argc; i++) {
 				a_type = argtype[i]
 				sub(/_c /, "", a_type)
+				sub(/_c_/, "_", a_type)
 				if (isptrtype(a_type)) {
 					if (a_type ~ /intptr_t/) {
 						sub(/uintptr_t/, "__uintcap_t",
@@ -942,6 +946,7 @@ sed -e '
 				if (isptrtype(argtype[i]) && !(argtype[i] ~ /caddr_t/)) {
 					a_type = argtype[i]
 					sub(/_c /, "", a_type)
+					sub(/_c_/, "_", a_type)
 					cast = "(" a_type ")"
 				} else
 					cast = ""
@@ -962,6 +967,7 @@ sed -e '
 				if (isptrtype(argtype[i]) && !(argtype[i] ~ /caddr_t/)) {
 					a_type = argtype[i]
 					sub(/_c /, "", a_type)
+					sub(/_c_/, "_", a_type)
 					cast = "(" a_type ")"
 				} else
 					cast = ""
