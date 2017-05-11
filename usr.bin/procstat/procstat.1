@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2017
+.Dd May 11, 2017
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -271,6 +271,60 @@ omitted, and a new capabilities field will be included listing capabilities,
 as described in
 .Xr cap_rights_limit 2 ,
 present for each capability descriptor.
+.Pp
+The following network protocols may be displayed (grouped by address family):
+.Pp
+.Dv AF_INET ,
+.Dv AF_INET6
+.Pp
+.Bl -tag -width indent -compact
+.It ICM
+.Dv IPPROTO_ICMP ;
+see
+.Xr icmp 4 .
+.It IPD
+.Dv IPPROTO_DIVERT ;
+see
+.Xr divert 4 .
+.It IP\?
+unknown protocol.
+.It RAW
+.Dv IPPROTO_RAW ;
+see
+.Xr ip 4 .
+.It SCT
+.Dv IPPROTO_SCTP ;
+see
+.Xr sctp 4 .
+.It TCP
+.Dv IPPROTO_TCP ;
+see
+.Xr tcp 4 .
+.It UDP
+.Dv IPPROTO_UDP ;
+see
+.Xr udp 4 .
+.El
+.Pp
+.Dv AF_LOCAL
+.Pp
+.Bl -tag -width indent -compact
+.It UDD
+.Dv IPPROTO_UDP ;
+see
+.Xr udp 4 .
+.It UDS
+.Dv IPPROTO_TCP ;
+see
+.Xr tcp 4 .
+.It UD\?
+unknown protocol.
+.El
+.Pp
+.Bl -tag -width indent -compact
+.It \?
+unknown address family.
+.El
 .Ss Signal Disposition Information
 Display signal pending and disposition for a process:
 .Pp
@@ -547,6 +601,10 @@ auxiliary vector value
 .Xr signal 3 ,
 .Xr xo_parse_args 3 ,
 .Xr ddb 4 ,
+.Xr divert 4 ,
+.Xr ip 4 ,
+.Xr tcp 4 ,
+.Xr udp 4 ,
 .Xr stack 9
 .Sh AUTHORS
 .An Robert N M Watson Aq Mt rwatson@FreeBSD.org .
