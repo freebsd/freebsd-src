@@ -283,3 +283,6 @@ META_MODE+=	missing-meta=yes
 .if empty(META_MODE:Mnofilemon)
 META_MODE+=	missing-filemon=yes
 .endif
+# We do not want everything out-of-date just because
+# some unrelated shared lib updated this.
+.MAKE.META.IGNORE_PATHS+= /usr/local/etc/libmap.d
