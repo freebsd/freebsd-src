@@ -580,6 +580,7 @@ struct proc {
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
 	signed char	p_nice;		/* (c) Process "nice" value. */
 	int		p_fibnum;	/* in this routing domain XXX MRT */
+
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
@@ -623,6 +624,8 @@ struct proc {
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 	u_int		p_ptevents;	/* (c) ptrace() event mask. */
+	uint16_t	p_elf_machine;	/* (x) ELF machine type */
+	uint64_t	p_elf_flags;	/* (x) ELF flags */
 };
 
 #define	p_session	p_pgrp->pg_session
