@@ -408,6 +408,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
+	p2->p_elf_machine = p1->p_elf_machine;
+	p2->p_elf_flags = p1->p_elf_flags;
 	pargs_hold(p2->p_args);
 
 	PROC_UNLOCK(p1);
