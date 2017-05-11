@@ -1562,7 +1562,7 @@ mprsas_send_abort(struct mpr_softc *sc, struct mpr_command *tm,
 		return -1;
 	}
 
-	mprsas_log_command(tm, MPR_RECOVERY|MPR_INFO,
+	mprsas_log_command(cm, MPR_RECOVERY|MPR_INFO,
 	    "Aborting command %p\n", cm);
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
@@ -1594,7 +1594,7 @@ mprsas_send_abort(struct mpr_softc *sc, struct mpr_command *tm,
 
 	err = mpr_map_command(sc, tm);
 	if (err)
-		mprsas_log_command(tm, MPR_RECOVERY,
+		mpr_dprint(sc, MPR_RECOVERY,
 		    "error %d sending abort for cm %p SMID %u\n",
 		    err, cm, req->TaskMID);
 	return err;
@@ -1635,8 +1635,9 @@ mprsas_scsiio_timeout(void *data)
 	targ = cm->cm_targ;
 	targ->timeouts++;
 
-	mprsas_log_command(cm, MPR_ERROR, "command timeout cm %p ccb %p target "
-	    "%u, handle(0x%04x)\n", cm, cm->cm_ccb, targ->tid, targ->handle);
+	mprsas_log_command(cm, MPR_ERROR, "command timeout %d cm %p target "
+	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm,  targ->tid,
+	    targ->handle);
 	if (targ->encl_level_valid) {
 		mpr_dprint(sc, MPR_ERROR, "At enclosure level %d, slot %d, "
 		    "connector name (%4s)\n", targ->encl_level, targ->encl_slot,
