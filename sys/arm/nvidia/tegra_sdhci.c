@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/bus.h>
-#include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -45,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -55,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -457,5 +454,4 @@ static DEFINE_CLASS_0(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
 DRIVER_MODULE(sdhci_tegra, simplebus, tegra_sdhci_driver, tegra_sdhci_devclass,
     NULL, NULL);
 MODULE_DEPEND(sdhci_tegra, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_tegra, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci);
