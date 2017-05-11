@@ -505,15 +505,44 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 }
 
 int
+cheriabi_get_mcontext(struct thread *td, mcontext_c_t *mcp, int flags)
+{
+	struct trapframe *tp;
+
+	tp = td->td_frame;
+	PROC_LOCK(curthread->td_proc);
+	mcp->mc_onstack = sigonstack(tp->sp);
+	PROC_UNLOCK(curthread->td_proc);
+	bcopy((void *)&td->td_frame->zero, (void *)&mcp->mc_regs,
+	    sizeof(mcp->mc_regs));
+
+	mcp->mc_fpused = td->td_md.md_flags & MDTD_FPUSED;
+	if (mcp->mc_fpused) {
+		bcopy((void *)&td->td_frame->f0, (void *)&mcp->mc_fpregs,
+		    sizeof(mcp->mc_fpregs));
+	}
+	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs,
+	    &mcp->mc_cheriframe);
+	if (flags & GET_MC_CLEAR_RET) {
+		mcp->mc_regs[V0] = 0;
+		mcp->mc_regs[V1] = 0;
+		mcp->mc_regs[A3] = 0;
+		cheri_capability_set_null(&mcp->mc_cheriframe.cf_c3);
+	}
+
+	mcp->mc_pc = td->td_frame->pc;
+	mcp->mullo = td->td_frame->mullo;
+	mcp->mulhi = td->td_frame->mulhi;
+	cheri_capability_copy(&mcp->mc_tls, &td->td_md.md_tls_cap);
+
+	return (0);
+}
+
+int
 cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 {
 	struct trapframe *tp;
 	int tag;
-
-	if (mcp->mc_regs[0] != UCONTEXT_MAGIC) {
-		printf("mcp->mc_regs[0] != UCONTEXT_MAGIC\n");
-		return (EINVAL);
-	}
 
 	tp = td->td_frame;
 	cheri_trapframe_from_cheriframe(tp, &mcp->mc_cheriframe);

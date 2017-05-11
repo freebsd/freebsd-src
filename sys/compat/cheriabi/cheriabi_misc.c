@@ -1095,25 +1095,66 @@ cheriabi_sigreturn(struct thread *td, struct cheriabi_sigreturn_args *uap)
 	return (EJUSTRETURN);
 }
 
+#define UCC_COPY_SIZE	offsetof(ucontext_c_t, uc_link)
+
 int
 cheriabi_getcontext(struct thread *td, struct cheriabi_getcontext_args *uap)
 {
 
-	return (ENOSYS);
+	ucontext_c_t uc;
+
+	if (uap->ucp == NULL)
+		return (EINVAL);
+
+	bzero(&uc, sizeof(uc));
+	cheriabi_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+	PROC_LOCK(td->td_proc);
+	uc.uc_sigmask = td->td_sigmask;
+	PROC_UNLOCK(td->td_proc);
+	return (copyoutcap(&uc, uap->ucp, UCC_COPY_SIZE));
 }
 
 int
 cheriabi_setcontext(struct thread *td, struct cheriabi_setcontext_args *uap)
 {
+	ucontext_c_t uc;
+	int ret;
 
-	return (ENOSYS);
+	if (uap->ucp == NULL)
+		return (EINVAL);
+	if ((ret = copyincap(uap->ucp, &uc, UCC_COPY_SIZE)) != 0)
+		return (ret);
+	if ((ret = cheriabi_set_mcontext(td, &uc.uc_mcontext)) != 0)
+		return (ret);
+	kern_sigprocmask(td, SIG_SETMASK,
+	    &uc.uc_sigmask, NULL, 0);
+
+	return (EJUSTRETURN);
 }
 
 int
 cheriabi_swapcontext(struct thread *td, struct cheriabi_swapcontext_args *uap)
 {
+	ucontext_c_t uc;
+	int ret;
 
-	return (ENOSYS);
+	if (uap->oucp == NULL || uap->ucp == NULL)
+		return (EINVAL);
+
+	bzero(&uc, sizeof(uc));
+	cheriabi_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+	PROC_LOCK(td->td_proc);
+	uc.uc_sigmask = td->td_sigmask;
+	PROC_UNLOCK(td->td_proc);
+	if ((ret = copyoutcap(&uc, uap->oucp, UCC_COPY_SIZE)) != 0)
+		return (ret);
+	if ((ret = copyincap(uap->ucp, &uc, UCC_COPY_SIZE)) != 0)
+		return (ret);
+	if ((ret = cheriabi_set_mcontext(td, &uc.uc_mcontext)) != 0)
+		return (ret);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
+
+	return (EJUSTRETURN);
 }
 
 struct sigvec_c {
