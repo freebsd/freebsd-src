@@ -117,8 +117,8 @@ static void *elf_note_procstat_psstrings(void *, size_t *);
 static void *elf_note_procstat_rlimit(void *, size_t *);
 static void *elf_note_procstat_umask(void *, size_t *);
 static void *elf_note_procstat_vmmap(void *, size_t *);
-static void elf_puthdr(pid_t, vm_map_entry_t, void *, size_t, size_t, size_t,
-    int);
+static void elf_puthdr(int, pid_t, vm_map_entry_t, void *, size_t, size_t,
+    size_t, int);
 static void elf_putnote(int, notefunc_t, void *, struct sbuf *);
 static void elf_putnotes(pid_t, struct sbuf *, size_t *);
 static void freemap(vm_map_entry_t);
@@ -178,7 +178,7 @@ elf_detach(void)
  * Write an ELF coredump for the given pid to the given fd.
  */
 static void
-elf_coredump(int efd __unused, int fd, pid_t pid)
+elf_coredump(int efd, int fd, pid_t pid)
 {
 	vm_map_entry_t map;
 	struct sseg_closure seginfo;
@@ -228,7 +228,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	hdr = sbuf_data(sb);
 	segoff = sbuf_len(sb);
 	/* Fill in the header. */
-	elf_puthdr(pid, map, hdr, hdrsize, notesz, segoff, seginfo.count);
+	elf_puthdr(efd, pid, map, hdr, hdrsize, notesz, segoff, seginfo.count);
 
 	n = write(fd, hdr, segoff);
 	if (n == -1)
@@ -418,12 +418,19 @@ elf_putnote(int type, notefunc_t notefunc, void *arg, struct sbuf *sb)
  * Generate the ELF coredump header.
  */
 static void
-elf_puthdr(pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
+elf_puthdr(int efd, pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
     size_t notesz, size_t segoff, int numsegs)
 {
-	Elf_Ehdr *ehdr;
+	Elf_Ehdr *ehdr, binhdr;
 	Elf_Phdr *phdr;
 	struct phdr_closure phc;
+	ssize_t cnt;
+
+	cnt = read(efd, &binhdr, sizeof(binhdr));
+	if (cnt < 0)
+		err(1, "Failed to re-read ELF header");
+	else if (cnt != sizeof(binhdr))
+		errx(1, "Failed to re-read ELF header");
 
 	ehdr = (Elf_Ehdr *)hdr;
 	phdr = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr));
@@ -439,11 +446,11 @@ elf_puthdr(pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
-	ehdr->e_machine = ELF_ARCH;
+	ehdr->e_machine = binhdr.e_machine;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_entry = 0;
 	ehdr->e_phoff = sizeof(Elf_Ehdr);
-	ehdr->e_flags = 0;
+	ehdr->e_flags = binhdr.e_flags;
 	ehdr->e_ehsize = sizeof(Elf_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf_Phdr);
 	ehdr->e_phnum = numsegs + 1;
