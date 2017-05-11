@@ -29,24 +29,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
-
-#include <sys/kdb.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -58,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #include <arm/lpc/lpcreg.h>
@@ -754,7 +743,6 @@ static device_method_t lpc_mmc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	lpc_mmc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	lpc_mmc_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	lpc_mmc_update_ios),
@@ -763,7 +751,7 @@ static device_method_t lpc_mmc_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host,	lpc_mmc_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	lpc_mmc_release_host),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t lpc_mmc_devclass;
@@ -774,4 +762,5 @@ static driver_t lpc_mmc_driver = {
 	sizeof(struct lpc_mmc_softc),
 };
 
-DRIVER_MODULE(lpcmmc, simplebus, lpc_mmc_driver, lpc_mmc_devclass, 0, 0);
+DRIVER_MODULE(lpcmmc, simplebus, lpc_mmc_driver, lpc_mmc_devclass, NULL, NULL);
+MMC_DECLARE_BRIDGE(lpcmmc);

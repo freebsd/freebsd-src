@@ -132,6 +132,8 @@
         ..
         mfi
         ..
+        mmc
+        ..
         mpt
             mpilib
             ..
