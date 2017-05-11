@@ -1505,7 +1505,7 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 		return -1;
 	}
 
-	mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
+	mpssas_log_command(cm, MPS_RECOVERY|MPS_INFO,
 	    "Aborting command %p\n", cm);
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
@@ -1536,7 +1536,7 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 
 	err = mps_map_command(sc, tm);
 	if (err)
-		mpssas_log_command(tm, MPS_RECOVERY,
+		mps_dprint(sc, MPS_RECOVERY,
 		    "error %d sending abort for cm %p SMID %u\n",
 		    err, cm, req->TaskMID);
 	return err;
@@ -1574,11 +1574,12 @@ mpssas_scsiio_timeout(void *data)
 		return;
 	}
 
-	mpssas_log_command(cm, MPS_INFO, "command timeout cm %p ccb %p\n", 
-	    cm, cm->cm_ccb);
-
 	targ = cm->cm_targ;
 	targ->timeouts++;
+
+	mpssas_log_command(cm, MPS_ERROR, "command timeout %d cm %p target "
+	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm,  targ->tid,
+	    targ->handle);
 
 	/* XXX first, check the firmware state, to see if it's still
 	 * operational.  if not, do a diag reset.
