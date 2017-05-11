@@ -285,11 +285,13 @@ signal name
 process signal disposition details, three symbols
 .Bl -tag -width X -compact
 .It P
-if signal is pending in the global process queue, - otherwise
+if signal is pending in the global process queue; - otherwise.
 .It I
-if signal delivery disposition is SIGIGN, - otherwise
+if signal delivery disposition is
+.Dv SIG_IGN;
+- otherwise.
 .It C
-if signal delivery is to catch it, - otherwise
+if the signal will be caught; - otherwise.
 .El
 .El
 .Pp
@@ -542,6 +544,7 @@ auxiliary vector value
 .Xr cap_rights_limit 2 ,
 .Xr libprocstat 3 ,
 .Xr libxo 3 ,
+.Xr signal 3 ,
 .Xr xo_parse_args 3 ,
 .Xr ddb 4 ,
 .Xr stack 9
