@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd May 11, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -528,7 +528,10 @@ and
 .Va TARGET Ns = Ns Li arm64 .
 If not set,
 .Va TARGET
-defaults to the current hardware platform.
+defaults to the current hardware platform, unless
+.Va TARGET_ARCH
+is also set, in which case it defaults to the appropriate
+value for that architecture.
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
@@ -689,11 +692,11 @@ section in
 .Pa src/UPDATING .
 .Pp
 The following sequence of commands can be used to cross-build the
-system for the sparc64 architecture on an i386 host:
+system for the armv6 architecture on an amd64 host:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET=sparc64 buildworld
-make TARGET=sparc64 DESTDIR=/clients/sparc64 installworld
+make TARGET_ARCH=armv6 buildworld buildkernel
+make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
@@ -702,6 +705,7 @@ make TARGET=sparc64 DESTDIR=/clients/sparc64 installworld
 .Xr svn 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
+.Xr arch 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
 .Xr tests 7 ,
