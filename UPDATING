@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170511:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
 20170414:
 	Binds and sends to the loopback addresses, IPv6 and IPv4, will now
 	use any explicitly assigned loopback address available in the jail

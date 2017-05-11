@@ -52,45 +52,21 @@
  * $FreeBSD$
  */
 
-#ifndef DEV_MMC_MMCVAR_H
-#define DEV_MMC_MMCVAR_H
+#ifndef DEV_MMC_SUBR_H
+#define	DEV_MMC_SUBR_H
 
-enum mmc_device_ivars {
-    MMC_IVAR_SPEC_VERS,
-    MMC_IVAR_DSR_IMP,
-    MMC_IVAR_MEDIA_SIZE,
-    MMC_IVAR_RCA,
-    MMC_IVAR_SECTOR_SIZE,
-    MMC_IVAR_TRAN_SPEED,
-    MMC_IVAR_READ_ONLY,
-    MMC_IVAR_HIGH_CAP,
-    MMC_IVAR_CARD_TYPE,
-    MMC_IVAR_BUS_WIDTH,
-    MMC_IVAR_ERASE_SECTOR,
-    MMC_IVAR_MAX_DATA,
-    MMC_IVAR_CARD_ID_STRING,
-    MMC_IVAR_CARD_SN_STRING,
-};
+struct mmc_command;
 
-/*
- * Simplified accessors for mmc devices
- */
-#define MMC_ACCESSOR(var, ivar, type)					\
-	__BUS_ACCESSOR(mmc, var, MMC, ivar, type)
+int mmc_send_ext_csd(device_t brdev, device_t reqdev, uint8_t *rawextcsd);
+int mmc_send_status(device_t brdev, device_t reqdev, uint16_t rca,
+    uint32_t *status);
+int mmc_switch(device_t brdev, device_t reqdev, uint16_t rca, uint8_t set,
+    uint8_t index, uint8_t value, u_int timeout, bool send_status);
+int mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca,
+    u_int timeout);
+int mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
+    struct mmc_command *cmd, int retries);
+int mmc_wait_for_cmd(device_t brdev, device_t reqdev, struct mmc_command *cmd,
+    int retries);
 
-MMC_ACCESSOR(spec_vers, SPEC_VERS, uint8_t)
-MMC_ACCESSOR(dsr_imp, DSR_IMP, int)
-MMC_ACCESSOR(media_size, MEDIA_SIZE, long)
-MMC_ACCESSOR(rca, RCA, int)
-MMC_ACCESSOR(sector_size, SECTOR_SIZE, int)
-MMC_ACCESSOR(tran_speed, TRAN_SPEED, int)
-MMC_ACCESSOR(read_only, READ_ONLY, int)
-MMC_ACCESSOR(high_cap, HIGH_CAP, int)
-MMC_ACCESSOR(card_type, CARD_TYPE, int)
-MMC_ACCESSOR(bus_width, BUS_WIDTH, int)
-MMC_ACCESSOR(erase_sector, ERASE_SECTOR, int)
-MMC_ACCESSOR(max_data, MAX_DATA, int)
-MMC_ACCESSOR(card_id_string, CARD_ID_STRING, const char *)
-MMC_ACCESSOR(card_sn_string, CARD_SN_STRING, const char *)
-
-#endif /* DEV_MMC_MMCVAR_H */
+#endif /* DEV_MMC_SUBR_H */
