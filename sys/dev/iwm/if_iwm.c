@@ -5459,7 +5459,8 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 		case IWM_REMOVE_STA:
 		case IWM_TXPATH_FLUSH:
 		case IWM_LQ_CMD:
-		case IWM_FW_PAGING_BLOCK_CMD:
+		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP,
+				 IWM_FW_PAGING_BLOCK_CMD):
 		case IWM_BT_CONFIG:
 		case IWM_REPLY_THERMAL_MNG_BACKOFF:
 			cresp = (void *)pkt->data;
