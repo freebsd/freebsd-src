@@ -4364,6 +4364,39 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
+	case IEEE80211_S_SCAN:
+		if (vap->iv_state == IEEE80211_S_AUTH ||
+		    vap->iv_state == IEEE80211_S_ASSOC) {
+			int myerr;
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			myerr = ivp->iv_newstate(vap, nstate, arg);
+			IEEE80211_UNLOCK(ic);
+			IWM_LOCK(sc);
+			in = IWM_NODE(vap->iv_bss);
+			error = iwm_mvm_rm_sta(sc, vap, in);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+				    "%s: Failed to remove station: %d\n",
+				    __func__, error);
+			}
+			error = iwm_mvm_mac_ctxt_changed(sc, vap);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+                                    "%s: Failed to change mac context: %d\n",
+                                    __func__, error);
+                        }
+                        error = iwm_mvm_binding_remove_vif(sc, ivp);
+                        if (error) {
+                                device_printf(sc->sc_dev,
+                                    "%s: Failed to remove channel ctx: %d\n",
+                                    __func__, error);
+                        }
+			ivp->phy_ctxt = NULL;
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return myerr;
+		}
 		break;
 
 	case IEEE80211_S_AUTH:
