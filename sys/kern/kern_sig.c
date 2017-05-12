@@ -1862,33 +1862,43 @@ struct sigqueue_args {
 int
 sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
 {
+	union sigval sv;
+
+	sv.sival_ptr = uap->value;
+
+	return (kern_sigqueue(td, uap->pid, uap->signum, &sv));
+}
+
+int
+kern_sigqueue(struct thread *td, pid_t pid, int signum, union sigval *value)
+{
 	ksiginfo_t ksi;
 	struct proc *p;
 	int error;
 
-	if ((u_int)uap->signum > _SIG_MAXSIG)
+	if ((u_int)signum > _SIG_MAXSIG)
 		return (EINVAL);
 
 	/*
 	 * Specification says sigqueue can only send signal to
 	 * single process.
 	 */
-	if (uap->pid <= 0)
+	if (pid <= 0)
 		return (EINVAL);
 
-	if ((p = pfind(uap->pid)) == NULL) {
-		if ((p = zpfind(uap->pid)) == NULL)
+	if ((p = pfind(pid)) == NULL) {
+		if ((p = zpfind(pid)) == NULL)
 			return (ESRCH);
 	}
-	error = p_cansignal(td, p, uap->signum);
-	if (error == 0 && uap->signum != 0) {
+	error = p_cansignal(td, p, signum);
+	if (error == 0 && signum != 0) {
 		ksiginfo_init(&ksi);
 		ksi.ksi_flags = KSI_SIGQ;
-		ksi.ksi_signo = uap->signum;
+		ksi.ksi_signo = signum;
 		ksi.ksi_code = SI_QUEUE;
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
-		ksi.ksi_value.sival_ptr = uap->value;
+		ksi.ksi_value = *value;
 		error = pksignal(p, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
