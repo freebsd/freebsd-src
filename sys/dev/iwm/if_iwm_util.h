@@ -123,6 +123,9 @@ extern	void iwm_dma_contig_free(struct iwm_dma_info *);
 extern	boolean_t iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc);
 
 extern	uint8_t iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx);
+extern	int iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo);
+extern	int iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk,
+				  uint32_t flags);
 
 static inline uint8_t
 iwm_mvm_get_valid_tx_ant(struct iwm_softc *sc)
