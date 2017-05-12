@@ -4029,12 +4029,6 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed to add MAC\n", __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_power_update_mac(sc)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to update power management\n",
-			    __func__);
-			goto out;
-		}
 	}
 
 	if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
@@ -4048,6 +4042,12 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: binding update cmd\n", __func__);
+		goto out;
+	}
+	if ((error = iwm_mvm_power_update_mac(sc)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to update power management\n",
+		    __func__);
 		goto out;
 	}
 	if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
@@ -4408,6 +4408,12 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
                                     __func__, error);
                         }
 			ivp->phy_ctxt = NULL;
+			error = iwm_mvm_power_update_mac(sc);
+			if (error != 0) {
+				device_printf(sc->sc_dev,
+				    "%s: failed to update power management\n",
+				    __func__);
+			}
 			IWM_UNLOCK(sc);
 			IEEE80211_LOCK(ic);
 			return myerr;
