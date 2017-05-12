@@ -3925,7 +3925,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWM_ADD_STA_STATUS_MASK) {
 	case IWM_ADD_STA_SUCCESS:
 		break;
 	default:
@@ -3971,7 +3971,7 @@ iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
 	if (ret)
 		return ret;
 
-	switch (status) {
+	switch (status & IWM_ADD_STA_STATUS_MASK) {
 	case IWM_ADD_STA_SUCCESS:
 		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 		    "%s: Internal station added.\n", __func__);
