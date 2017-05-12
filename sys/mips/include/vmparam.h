@@ -95,9 +95,11 @@
  * and some QED CPUs perform some virtual address checks before the
  * offset is calculated.
  */
-#define	USRSTACK		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
 #ifdef __mips_n64
-#define	FREEBSD32_USRSTACK	(((vm_offset_t)0x80000000) - PAGE_SIZE)
+#define	FREEBSD32_SHAREDPAGE	(((vm_offset_t)0x80000000) - PAGE_SIZE)
+#define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 #endif
 
 #ifdef MIPS64_NEW_PMAP
