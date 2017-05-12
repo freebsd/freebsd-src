@@ -3976,6 +3976,21 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 
 	in->in_assoc = 0;
 
+	/*
+	 * Firmware bug - it'll crash if the beacon interval is less
+	 * than 16. We can't avoid connecting at all, so refuse the
+	 * station state change, this will cause net80211 to abandon
+	 * attempts to connect to this AP, and eventually wpa_s will
+	 * blacklist the AP...
+	 */
+	if (ni->ni_intval < 16) {
+		device_printf(sc->sc_dev,
+		    "AP %s beacon interval is %d, refusing due to firmware bug!\n",
+		    ether_sprintf(ni->ni_bssid), ni->ni_intval);
+		error = EINVAL;
+		goto out;
+	}
+
 	error = iwm_mvm_sf_config(sc, IWM_SF_FULL_ON);
 	if (error != 0)
 		return error;
