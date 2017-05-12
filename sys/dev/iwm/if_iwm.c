@@ -3895,6 +3895,7 @@ iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *sc,
 static int
 iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 {
+	struct iwm_vap *ivp = IWM_VAP(in->in_ni.ni_vap);
 	struct iwm_mvm_add_sta_cmd add_sta_cmd;
 	int ret;
 	uint32_t status;
@@ -3903,8 +3904,7 @@ iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 
 	add_sta_cmd.sta_id = IWM_STATION_ID;
 	add_sta_cmd.mac_id_n_color
-	    = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	        IWM_DEFAULT_COLOR));
+	    = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id, ivp->color));
 	if (!update) {
 		int ac;
 		for (ac = 0; ac < WME_NUM_AC; ac++) {
