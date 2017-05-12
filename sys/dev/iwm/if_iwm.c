@@ -4152,24 +4152,6 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed to update MAC\n", __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
-		    in->in_ni.ni_chan, 1, 1)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed update phy ctxt\n", __func__);
-			goto out;
-		}
-		iv->phy_ctxt = &sc->sc_phyctxt[0];
-
-		if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: binding update cmd\n", __func__);
-			goto out;
-		}
-		if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to add sta\n", __func__);
-			goto out;
-		}
 	} else {
 		if ((error = iwm_mvm_mac_ctxt_add(sc, vap)) != 0) {
 			device_printf(sc->sc_dev,
@@ -4182,25 +4164,25 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
-		    in->in_ni.ni_chan, 1, 1)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed add phy ctxt!\n", __func__);
-			error = ETIMEDOUT;
-			goto out;
-		}
-		iv->phy_ctxt = &sc->sc_phyctxt[0];
+	}
 
-		if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: binding add cmd\n", __func__);
-			goto out;
-		}
-		if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to add sta\n", __func__);
-			goto out;
-		}
+	if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
+	    in->in_ni.ni_chan, 1, 1)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed update phy ctxt\n", __func__);
+		goto out;
+	}
+	iv->phy_ctxt = &sc->sc_phyctxt[0];
+
+	if ((error = iwm_mvm_binding_add_vif(sc, iv)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: binding update cmd\n", __func__);
+		goto out;
+	}
+	if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to add sta\n", __func__);
+		goto out;
 	}
 
 	/*
