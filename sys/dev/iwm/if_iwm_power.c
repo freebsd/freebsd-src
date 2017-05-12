@@ -212,7 +212,7 @@ iwm_mvm_power_log(struct iwm_softc *sc, struct iwm_mac_power_cmd *cmd)
 	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
 	    "Sending power table command on mac id 0x%X for "
 	    "power level %d, flags = 0x%X\n",
-	    cmd->id_and_color, IWM_POWER_SCHEME_CAM, le16toh(cmd->flags));
+	    cmd->id_and_color, iwm_power_scheme, le16toh(cmd->flags));
 	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
 	    "Keep alive = %u sec\n", le16toh(cmd->keep_alive_seconds));
 
@@ -281,11 +281,10 @@ static void
 iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct iwm_mac_power_cmd *cmd)
 {
-	struct ieee80211_node *ni = ivp->iv_vap.iv_bss;
+	struct ieee80211vap *vap = &ivp->iv_vap;
+	struct ieee80211_node *ni = vap->iv_bss;
 	int dtimper, dtimper_msec;
 	int keep_alive;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
 	    ivp->color));
