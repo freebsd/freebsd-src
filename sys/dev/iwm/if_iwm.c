@@ -359,7 +359,6 @@ static int	iwm_mvm_add_int_sta_common(struct iwm_softc *,
 static int	iwm_mvm_add_aux_sta(struct iwm_softc *);
 static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_vap *);
 static int	iwm_auth(struct ieee80211vap *, struct iwm_softc *);
-static int	iwm_assoc(struct ieee80211vap *, struct iwm_softc *);
 static int	iwm_release(struct iwm_softc *, struct iwm_node *);
 static struct ieee80211_node *
 		iwm_node_alloc(struct ieee80211vap *,
@@ -4166,9 +4165,9 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: binding update cmd\n", __func__);
 			goto out;
 		}
-		if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
+		if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: failed to update sta\n", __func__);
+			    "%s: failed to add sta\n", __func__);
 			goto out;
 		}
 	} else {
@@ -4217,28 +4216,6 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 out:
 	ieee80211_free_node(ni);
 	return (error);
-}
-
-static int
-iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
-{
-	struct iwm_node *in = IWM_NODE(vap->iv_bss);
-	int error;
-
-	if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed to update STA\n", __func__);
-		return error;
-	}
-
-	in->in_assoc = 1;
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed to update MAC\n", __func__);
-		return error;
-	}
-
-	return 0;
 }
 
 static int
@@ -4556,7 +4533,6 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			device_printf(sc->sc_dev,
 			    "%s: could not move to auth state: %d\n",
 			    __func__, error);
-			break;
 		}
 		break;
 
@@ -4565,13 +4541,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * EBS may be disabled due to previous failures reported by FW.
 		 * Reset EBS status here assuming environment has been changed.
 		 */
-                sc->last_ebs_successful = TRUE;
-		if ((error = iwm_assoc(vap, sc)) != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: failed to associate: %d\n", __func__,
-			    error);
-			break;
-		}
+		sc->last_ebs_successful = TRUE;
 		break;
 
 	case IEEE80211_S_RUN:
@@ -4582,18 +4552,24 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			.flags = IWM_CMD_SYNC,
 		};
 
+		in = IWM_NODE(vap->iv_bss);
 		/* Update the association state, now we have it all */
 		/* (eg associd comes in at this point */
-		error = iwm_assoc(vap, sc);
+		error = iwm_mvm_update_sta(sc, in);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: failed to update association state: %d\n",
-			    __func__,
-			    error);
-			break;
+			    "%s: failed to update STA\n", __func__);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return error;
+		}
+		in->in_assoc = 1;
+		error = iwm_mvm_mac_ctxt_changed(sc, vap);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update MAC: %d\n", __func__, error);
 		}
 
-		in = IWM_NODE(vap->iv_bss);
 		iwm_mvm_enable_beacon_filter(sc, in);
 		iwm_mvm_power_update_mac(sc);
 		iwm_mvm_update_quotas(sc, ivp);
