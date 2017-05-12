@@ -549,12 +549,14 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 {
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	const struct iwm_tlv_ucode_header *uhdr;
-	struct iwm_ucode_tlv tlv;
+	const struct iwm_ucode_tlv *tlv;
 	struct iwm_ucode_capabilities *capa = &sc->ucode_capa;
 	enum iwm_ucode_tlv_type tlv_type;
 	const struct firmware *fwp;
 	const uint8_t *data;
+	uint32_t tlv_len;
 	uint32_t usniffer_img;
+	const uint8_t *tlv_data;
 	uint32_t paging_mem_size;
 	int num_of_cpus;
 	int error = 0;
@@ -607,24 +609,20 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		goto out;
 	}
 
-	snprintf(sc->sc_fwver, sizeof(sc->sc_fwver), "%d.%d (API ver %d)",
+	snprintf(sc->sc_fwver, sizeof(sc->sc_fwver), "%u.%u (API ver %u)",
 	    IWM_UCODE_MAJOR(le32toh(uhdr->ver)),
 	    IWM_UCODE_MINOR(le32toh(uhdr->ver)),
 	    IWM_UCODE_API(le32toh(uhdr->ver)));
 	data = uhdr->data;
 	len = fw->fw_fp->datasize - sizeof(*uhdr);
 
-	while (len >= sizeof(tlv)) {
-		size_t tlv_len;
-		const void *tlv_data;
+	while (len >= sizeof(*tlv)) {
+		len -= sizeof(*tlv);
+		tlv = (const void *)data;
 
-		memcpy(&tlv, data, sizeof(tlv));
-		tlv_len = le32toh(tlv.length);
-		tlv_type = le32toh(tlv.type);
-
-		len -= sizeof(tlv);
-		data += sizeof(tlv);
-		tlv_data = data;
+		tlv_len = le32toh(tlv->length);
+		tlv_type = le32toh(tlv->type);
+		tlv_data = tlv->data;
 
 		if (len < tlv_len) {
 			device_printf(sc->sc_dev,
@@ -633,19 +631,21 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			error = EINVAL;
 			goto parse_out;
 		}
+		len -= roundup2(tlv_len, 4);
+		data += sizeof(tlv) + roundup2(tlv_len, 4);
 
 		switch ((int)tlv_type) {
 		case IWM_UCODE_TLV_PROBE_MAX_LEN:
-			if (tlv_len < sizeof(uint32_t)) {
+			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: PROBE_MAX_LEN (%d) < sizeof(uint32_t)\n",
+				    "%s: PROBE_MAX_LEN (%d) != sizeof(uint32_t)\n",
 				    __func__,
 				    (int) tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
 			capa->max_probe_length =
-			    le32toh(*(const uint32_t *)tlv_data);
+			    le32_to_cpup((const uint32_t *)tlv_data);
 			/* limit it to something sensible */
 			if (capa->max_probe_length >
 			    IWM_SCAN_OFFLOAD_PROBE_REQ_SIZE) {
@@ -676,6 +676,14 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
+			if (tlv_len % sizeof(uint32_t)) {
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%d) %% sizeof(uint32_t)\n",
+				    __func__,
+				    (int) tlv_len);
+				error = EINVAL;
+				goto parse_out;
+			}
 			/*
 			 * Apparently there can be many flags, but Linux driver
 			 * parses only the first one, and so do we.
@@ -687,7 +695,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			 *  2) TLV_FLAGS contains TLV_FLAGS_PAN
 			 * ==> this resets TLV_PAN to itself... hnnnk
 			 */
-			capa->flags = le32toh(*(const uint32_t *)tlv_data);
+			capa->flags = le32_to_cpup((const uint32_t *)tlv_data);
 			break;
 		case IWM_UCODE_TLV_CSCHEME:
 			if ((error = iwm_store_cscheme(sc,
@@ -708,7 +716,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			num_of_cpus = le32toh(*(const uint32_t *)tlv_data);
+			num_of_cpus = le32_to_cpup((const uint32_t *)tlv_data);
 			if (num_of_cpus == 2) {
 				fw->fw_sects[IWM_UCODE_REGULAR].is_dual_cpus =
 					TRUE;
@@ -782,7 +790,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				goto parse_out;
 			}
 			sc->sc_fw.phy_config =
-			    le32toh(*(const uint32_t *)tlv_data);
+			    le32_to_cpup((const uint32_t *)tlv_data);
 			sc->sc_fw.valid_tx_ant = (sc->sc_fw.phy_config &
 						  IWM_FW_PHY_CFG_TX_CHAIN) >>
 						  IWM_FW_PHY_CFG_TX_CHAIN_POS;
@@ -833,7 +841,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			paging_mem_size = le32toh(*(const uint32_t *)tlv_data);
+			paging_mem_size = le32_to_cpup((const uint32_t *)tlv_data);
 
 			IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
 			    "%s: Paging: paging enabled (size = %u bytes)\n",
@@ -866,7 +874,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				goto parse_out;
 			}
 			capa->n_scan_channels =
-			    le32toh(*(const uint32_t *)tlv_data);
+			    le32_to_cpup((const uint32_t *)tlv_data);
 			break;
 
 		case IWM_UCODE_TLV_FW_VERSION:
@@ -891,9 +899,6 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			error = EINVAL;
 			goto parse_out;
 		}
-
-		len -= roundup(tlv_len, 4);
-		data += roundup(tlv_len, 4);
 	}
 
 	KASSERT(error == 0, ("unhandled error"));
