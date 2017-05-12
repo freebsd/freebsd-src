@@ -308,7 +308,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	/*
 	 * Default to 2ghz if no node information is given.
 	 */
-	if (in) {
+	if (in && in->in_ni.ni_chan != IEEE80211_CHAN_ANYC) {
 		is2ghz = !! IEEE80211_IS_CHAN_2GHZ(in->in_ni.ni_chan);
 	} else {
 		is2ghz = 1;
