@@ -1050,9 +1050,7 @@ setnodeaddr(int type, int role, void *ptr, char *arg)
 	if (type == IPLT_POOL) {
 		ip_pool_node_t *node = ptr;
 
-#ifdef USE_INET6
 		if (node->ipn_addr.adf_family == AF_INET)
-#endif
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in_addr);
