@@ -2104,7 +2104,7 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 	case SSH_ERR_NO_KEX_ALG_MATCH:
 	case SSH_ERR_NO_HOSTKEY_ALG_MATCH:
 		if (ssh && ssh->kex && ssh->kex->failed_choice) {
-			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, "ssh");
 			logdie("Unable to negotiate with %.200s port %d: %s. "
 			    "Their offer: %s", ssh_remote_ipaddr(ssh),
 			    ssh_remote_port(ssh), ssh_err(r),
