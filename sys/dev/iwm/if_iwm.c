@@ -4462,7 +4462,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    "%s: failed to update MAC: %d\n", __func__, error);
 		}
 
-		iwm_mvm_enable_beacon_filter(sc, in);
+		iwm_mvm_enable_beacon_filter(sc, ivp);
 		iwm_mvm_power_update_mac(sc);
 		iwm_mvm_update_quotas(sc, ivp);
 		iwm_setrates(sc, in);
