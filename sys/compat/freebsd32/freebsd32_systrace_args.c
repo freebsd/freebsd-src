@@ -2364,12 +2364,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* sigqueue */
+	/* freebsd32_sigqueue */
 	case 456: {
-		struct sigqueue_args *p = params;
+		struct freebsd32_sigqueue_args *p = params;
 		iarg[0] = p->pid; /* pid_t */
 		iarg[1] = p->signum; /* int */
-		uarg[2] = (intptr_t) p->value; /* void * */
+		iarg[2] = p->value; /* int */
 		*n_args = 3;
 		break;
 	}
@@ -7155,7 +7155,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sigqueue */
+	/* freebsd32_sigqueue */
 	case 456:
 		switch(ndx) {
 		case 0:
@@ -7165,7 +7165,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "void *";
+			p = "int";
 			break;
 		default:
 			break;
@@ -10335,7 +10335,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigqueue */
+	/* freebsd32_sigqueue */
 	case 456:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
