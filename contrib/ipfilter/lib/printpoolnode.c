@@ -52,7 +52,7 @@ printpoolnode(np, opts, fields)
 			PRINTF("\tAddress: %s%s", np->ipn_info ? "! " : "",
 				inet_ntoa(np->ipn_addr.adf_addr.in4));
 		} else {
-			PRINTF("\tAddress: family: %d",
+			PRINTF("\tAddress: family: %d\n",
 				np->ipn_addr.adf_family);
 #ifdef AF_INET6
 		}
