@@ -213,10 +213,9 @@ iwm_mvm_update_sta(struct iwm_softc *sc, struct iwm_node *in)
 }
 
 int
-iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_node *in, boolean_t drain)
+iwm_mvm_drain_sta(struct iwm_softc *sc, struct iwm_vap *ivp, boolean_t drain)
 {
 	struct iwm_mvm_add_sta_cmd cmd = {};
-	struct iwm_vap *ivp = IWM_VAP(in->in_ni.ni_vap);
 	int ret;
 	uint32_t status;
 
@@ -275,13 +274,13 @@ iwm_mvm_rm_sta_common(struct iwm_softc *sc)
 
 int
 iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
-	struct iwm_node *in)
+	boolean_t is_assoc)
 {
 	uint32_t tfd_queue_msk = 0;
 	int ret;
 	int ac;
 
-	ret = iwm_mvm_drain_sta(sc, in, TRUE);
+	ret = iwm_mvm_drain_sta(sc, IWM_VAP(vap), TRUE);
 	if (ret)
 		return ret;
 	mbufq_drain(&sc->sc_snd); /* XXX needed ? */
@@ -297,18 +296,25 @@ iwm_mvm_rm_sta(struct iwm_softc *sc, struct ieee80211vap *vap,
 	if (ret)
 		return ret;
 #endif
-	ret = iwm_mvm_drain_sta(sc, in, FALSE);
+	ret = iwm_mvm_drain_sta(sc, IWM_VAP(vap), FALSE);
 
-#if 0
 	/* if we are associated - we can't remove the AP STA now */
-	if (sta->assoc)
+	if (is_assoc)
 		return ret;
-#endif
+
 	/* XXX wait until STA is drained */
 
 	ret = iwm_mvm_rm_sta_common(sc);
 
 	return ret;
+}
+
+int
+iwm_mvm_rm_sta_id(struct iwm_softc *sc, struct ieee80211vap *vap)
+{
+	/* XXX wait until STA is drained */
+
+	return iwm_mvm_rm_sta_common(sc);
 }
 
 static int
