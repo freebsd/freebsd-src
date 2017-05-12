@@ -1533,13 +1533,6 @@ iwm_nic_init(struct iwm_softc *sc)
 	return 0;
 }
 
-const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
-	IWM_MVM_TX_FIFO_VO,
-	IWM_MVM_TX_FIFO_VI,
-	IWM_MVM_TX_FIFO_BE,
-	IWM_MVM_TX_FIFO_BK,
-};
-
 static int
 iwm_enable_txq(struct iwm_softc *sc, int sta_id, int qid, int fifo)
 {
@@ -4258,7 +4251,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * from RUN back to SCAN is:
 	 *
 	 * iwm_mvm_power_mac_disable(sc, in);
-	 * iwm_mvm_mac_ctxt_changed(sc, in);
+	 * iwm_mvm_mac_ctxt_changed(sc, vap);
 	 * iwm_mvm_rm_sta(sc, in);
 	 * iwm_mvm_update_quotas(sc, NULL);
 	 * iwm_mvm_mac_ctxt_changed(sc, in);
@@ -4295,7 +4288,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 
 	iwm_mvm_power_mac_disable(sc, in);
 
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, in)) != 0) {
+	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
 		device_printf(sc->sc_dev, "mac ctxt change fail 1 %d\n", error);
 		return error;
 	}
@@ -4307,7 +4300,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	error = iwm_mvm_rm_sta(sc, in);
 	in->in_assoc = 0;
 	iwm_mvm_update_quotas(sc, NULL);
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, in)) != 0) {
+	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
 		device_printf(sc->sc_dev, "mac ctxt change fail 2 %d\n", error);
 		return error;
 	}
@@ -6260,12 +6253,47 @@ iwm_is_valid_ether_addr(uint8_t *addr)
 }
 
 static int
-iwm_update_edca(struct ieee80211com *ic)
+iwm_wme_update(struct ieee80211com *ic)
 {
+#define IWM_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
 	struct iwm_softc *sc = ic->ic_softc;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct iwm_vap *ivp = IWM_VAP(vap);
+	struct iwm_node *in;
+	struct wmeParams tmp[WME_NUM_AC];
+	int aci, error;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	if (vap == NULL)
+		return (0);
+
+	IEEE80211_LOCK(ic);
+	for (aci = 0; aci < WME_NUM_AC; aci++)
+		tmp[aci] = ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
+	IEEE80211_UNLOCK(ic);
+
+	IWM_LOCK(sc);
+	for (aci = 0; aci < WME_NUM_AC; aci++) {
+		const struct wmeParams *ac = &tmp[aci];
+		ivp->queue_params[aci].aifsn = ac->wmep_aifsn;
+		ivp->queue_params[aci].cw_min = IWM_EXP2(ac->wmep_logcwmin);
+		ivp->queue_params[aci].cw_max = IWM_EXP2(ac->wmep_logcwmax);
+		ivp->queue_params[aci].edca_txop =
+		    IEEE80211_TXOP_TO_US(ac->wmep_txopLimit);
+	}
+	ivp->have_wme = TRUE;
+	if (ivp->is_uploaded && vap->iv_bss != NULL) {
+		in = IWM_NODE(vap->iv_bss);
+		if (in->in_assoc) {
+			if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
+				device_printf(sc->sc_dev,
+				    "%s: failed to update MAC\n", __func__);
+			}
+		}
+	}
+	IWM_UNLOCK(sc);
+
 	return (0);
+#undef IWM_EXP2
 }
 
 static void
@@ -6322,7 +6350,7 @@ iwm_preinit(void *arg)
 	ic->ic_set_channel = iwm_set_channel;
 	ic->ic_scan_curchan = iwm_scan_curchan;
 	ic->ic_scan_mindwell = iwm_scan_mindwell;
-	ic->ic_wme.wme_update = iwm_update_edca;
+	ic->ic_wme.wme_update = iwm_wme_update;
 	ic->ic_parent = iwm_parent;
 	ic->ic_transmit = iwm_transmit;
 	iwm_radiotap_attach(sc);
@@ -6379,6 +6407,8 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	ivp->id = IWM_DEFAULT_MACID;
 	ivp->color = IWM_DEFAULT_COLOR;
+
+	ivp->have_wme = FALSE;
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
