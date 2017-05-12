@@ -302,10 +302,15 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->pc = (register_t)(intptr_t)catcher;
 	regs->t9 = (register_t)(intptr_t)catcher;
 	regs->sp = (register_t)(intptr_t)sfp;
-	/*
-	 * Signal trampoline code is at base of user stack.
-	 */
-	regs->ra = (register_t)(intptr_t)PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	if (p->p_sysent->sv_sigcode_base != 0) {
+		/* Signal trampoline code is in the shared page */
+		regs->ra = p->p_sysent->sv_sigcode_base;
+	} else {
+		/* Signal trampoline code is at base of user stack. */
+		/* XXX: GC this code path once shared page is stable */
+		regs->ra = (register_t)(intptr_t)PS_STRINGS -
+		    *(p->p_sysent->sv_szsigcode);
+	}
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
