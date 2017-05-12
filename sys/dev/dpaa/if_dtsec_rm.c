@@ -115,7 +115,7 @@ dtsec_rm_fi_pool_init(struct dtsec_softc *sc)
 
 	sc->sc_fi_zone = uma_zcreate(sc->sc_fi_zname,
 	    sizeof(struct dtsec_rm_frame_info), NULL, NULL, NULL, NULL,
-	    sizeof(void *) - 1, 0);
+	    UMA_ALIGN_PTR, 0);
 	if (sc->sc_fi_zone == NULL)
 		return (EIO);
 
