@@ -285,6 +285,7 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct ieee80211_node *ni = vap->iv_bss;
 	int dtimper, dtimper_msec;
 	int keep_alive;
+	boolean_t bss_conf_ps = FALSE;
 
 	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
 	    ivp->color));
@@ -306,6 +307,14 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 		return;
 
 	cmd->flags |= htole16(IWM_POWER_FLAGS_POWER_SAVE_ENA_MSK);
+
+	if (IWM_NODE(ni)->in_assoc &&
+	    (vap->iv_flags & IEEE80211_F_PMGTON) != 0) {
+		bss_conf_ps = TRUE;
+	}
+	if (!bss_conf_ps)
+		return;
+
 	cmd->flags |= htole16(IWM_POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
 
 	iwm_mvm_power_config_skip_dtim(sc, cmd);
@@ -370,15 +379,18 @@ iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
 static int
 iwm_mvm_power_set_ps(struct iwm_softc *sc)
 {
-	struct ieee80211vap *vap = TAILQ_FIRST(&sc->sc_ic.ic_vaps);
+	struct ieee80211vap *vap;
 	boolean_t disable_ps;
 	int ret;
 
 	/* disable PS if CAM */
 	disable_ps = (iwm_power_scheme == IWM_POWER_SCHEME_CAM);
 	/* ...or if any of the vifs require PS to be off */
-	if (vap != NULL && (vap->iv_flags & IEEE80211_F_PMGTON) == 0)
-		disable_ps = TRUE;
+	TAILQ_FOREACH(vap, &sc->sc_ic.ic_vaps, iv_next) {
+		struct iwm_vap *ivp = IWM_VAP(vap);
+		if (ivp->phy_ctxt != NULL && ivp->ps_disabled)
+			disable_ps = TRUE;
+	}
 
 	/* update device power state if it has changed */
 	if (sc->sc_ps_disabled != disable_ps) {
@@ -402,11 +414,18 @@ iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_vap *ivp)
 		IWM_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = htole32(1),
 	};
+	struct ieee80211vap *vap = &ivp->iv_vap;
+	struct ieee80211_node *ni = vap->iv_bss;
+	boolean_t bss_conf_ps = FALSE;
 
 	if (!sc->sc_bf.bf_enabled)
 		return 0;
 
-	sc->sc_bf.ba_enabled = !sc->sc_ps_disabled;
+	if (ni != NULL && IWM_NODE(ni)->in_assoc &&
+	    (vap->iv_flags & IEEE80211_F_PMGTON) != 0) {
+		bss_conf_ps = TRUE;
+	}
+	sc->sc_bf.ba_enabled = !sc->sc_ps_disabled && bss_conf_ps;
 
 	return _iwm_mvm_enable_beacon_filter(sc, ivp, &cmd);
 }
