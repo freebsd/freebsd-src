@@ -19,8 +19,8 @@ fi
 if [ -z "$pf" ]; then
 	for f in npf pf ipf; do
 		if [ -f "/etc/$f.conf" ]; then
-		    pf="$f"
-		    break
+			pf="$f"
+			break
 		fi
 	done
 fi
