@@ -390,6 +390,9 @@ struct iwm_vap {
 		uint16_t edca_txop;
 		uint8_t aifsn;
 	} queue_params[WME_NUM_AC];
+
+	/* indicates that this interface requires PS to be disabled */
+	boolean_t		ps_disabled;
 };
 #define IWM_VAP(_vap)		((struct iwm_vap *)(_vap))
 
