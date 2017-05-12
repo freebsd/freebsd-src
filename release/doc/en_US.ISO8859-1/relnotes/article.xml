@@ -298,6 +298,10 @@
 
       <para revision="316957">&man.tcsh.1; has been updated to version
 	6.20.00.</para>
+
+      <para revision="318239" contrib="sponsor"
+	sponsor="&ff;">&man.blacklistd.8; has been updated to the
+	20170503 snapshot.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
