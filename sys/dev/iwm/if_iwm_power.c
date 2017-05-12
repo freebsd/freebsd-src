@@ -201,7 +201,7 @@ iwm_mvm_beacon_filter_send_cmd(struct iwm_softc *sc,
 
 static void
 iwm_mvm_beacon_filter_set_cqm_params(struct iwm_softc *sc,
-	struct iwm_node *in, struct iwm_beacon_filter_cmd *cmd)
+	struct iwm_vap *ivp, struct iwm_beacon_filter_cmd *cmd)
 {
 	cmd->ba_enable_beacon_abort = htole32(sc->sc_bf.ba_enabled);
 }
@@ -278,15 +278,14 @@ iwm_mvm_power_config_skip_dtim(struct iwm_softc *sc,
 }
 
 static void
-iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_node *in,
+iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct iwm_mac_power_cmd *cmd)
 {
-	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211_node *ni = ivp->iv_vap.iv_bss;
 	int dtimper, dtimper_msec;
 	int keep_alive;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct iwm_vap *ivp = IWM_VAP(vap);
 
 	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
 	    ivp->color));
@@ -319,11 +318,11 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 static int
-iwm_mvm_power_send_cmd(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_power_send_cmd(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_mac_power_cmd cmd = {};
 
-	iwm_mvm_power_build_cmd(sc, in, &cmd);
+	iwm_mvm_power_build_cmd(sc, ivp, &cmd);
 	iwm_mvm_power_log(sc, &cmd);
 
 	return iwm_mvm_send_cmd_pdu(sc, IWM_MAC_PM_POWER_TABLE, 0,
@@ -331,12 +330,12 @@ iwm_mvm_power_send_cmd(struct iwm_softc *sc, struct iwm_node *in)
 }
 
 static int
-_iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in,
+_iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp,
 	struct iwm_beacon_filter_cmd *cmd)
 {
 	int ret;
 
-	iwm_mvm_beacon_filter_set_cqm_params(sc, in, cmd);
+	iwm_mvm_beacon_filter_set_cqm_params(sc, ivp, cmd);
 	ret = iwm_mvm_beacon_filter_send_cmd(sc, cmd);
 
 	if (!ret)
@@ -346,14 +345,14 @@ _iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 int
-iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_beacon_filter_cmd cmd = {
 		IWM_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = htole32(1),
 	};
 
-	return _iwm_mvm_enable_beacon_filter(sc, in, &cmd);
+	return _iwm_mvm_enable_beacon_filter(sc, ivp, &cmd);
 }
 
 int
@@ -398,7 +397,7 @@ iwm_mvm_power_set_ps(struct iwm_softc *sc)
 }
 
 static int
-iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_node *in)
+iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_vap *ivp)
 {
 	struct iwm_beacon_filter_cmd cmd = {
 		IWM_BF_CMD_CONFIG_DEFAULTS,
@@ -410,7 +409,7 @@ iwm_mvm_power_set_ba(struct iwm_softc *sc, struct iwm_node *in)
 
 	sc->sc_bf.ba_enabled = !sc->sc_ps_disabled;
 
-	return _iwm_mvm_enable_beacon_filter(sc, in, &cmd);
+	return _iwm_mvm_enable_beacon_filter(sc, ivp, &cmd);
 }
 
 int
@@ -424,7 +423,7 @@ iwm_mvm_power_update_ps(struct iwm_softc *sc)
 		return ret;
 
 	if (vap != NULL)
-		return iwm_mvm_power_set_ba(sc, IWM_NODE(vap->iv_bss));
+		return iwm_mvm_power_set_ba(sc, IWM_VAP(vap));
 
 	return 0;
 }
@@ -440,13 +439,13 @@ iwm_mvm_power_update_mac(struct iwm_softc *sc)
 		return ret;
 
 	if (vap != NULL) {
-		ret = iwm_mvm_power_send_cmd(sc, IWM_NODE(vap->iv_bss));
+		ret = iwm_mvm_power_send_cmd(sc, IWM_VAP(vap));
 		if (ret)
 			return ret;
 	}
 
 	if (vap != NULL)
-		return iwm_mvm_power_set_ba(sc, IWM_NODE(vap->iv_bss));
+		return iwm_mvm_power_set_ba(sc, IWM_VAP(vap));
 
 	return 0;
 }
