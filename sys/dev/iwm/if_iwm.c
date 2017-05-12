@@ -4044,7 +4044,15 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 		    "%s: binding update cmd\n", __func__);
 		goto out;
 	}
-	if ((error = iwm_mvm_power_update_mac(sc)) != 0) {
+	/*
+	 * Authentication becomes unreliable when powersaving is left enabled
+	 * here. Powersaving will be activated again when association has
+	 * finished or is aborted.
+	 */
+	iv->ps_disabled = TRUE;
+	error = iwm_mvm_power_update_mac(sc);
+	iv->ps_disabled = FALSE;
+	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: failed to update power management\n",
 		    __func__);
@@ -6277,6 +6285,7 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	ivp->color = IWM_DEFAULT_COLOR;
 
 	ivp->have_wme = FALSE;
+	ivp->ps_disabled = FALSE;
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
