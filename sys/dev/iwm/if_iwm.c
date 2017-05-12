@@ -4396,8 +4396,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			myerr = ivp->iv_newstate(vap, nstate, arg);
 			IEEE80211_UNLOCK(ic);
 			IWM_LOCK(sc);
-			in = IWM_NODE(vap->iv_bss);
-			error = iwm_mvm_rm_sta(sc, vap, in);
+			error = iwm_mvm_rm_sta(sc, vap, FALSE);
                         if (error) {
                                 device_printf(sc->sc_dev,
 				    "%s: Failed to remove station: %d\n",
