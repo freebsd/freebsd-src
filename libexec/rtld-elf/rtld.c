@@ -339,22 +339,16 @@ _LD(const char *var)
 func_ptr_type
 _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
-    Elf_Auxinfo *aux_info[AT_COUNT];
-    int i;
-    int argc;
-    char **argv;
-    char **env;
-    Elf_Auxinfo *aux;
-    Elf_Auxinfo *auxp;
-    const char *argv0;
+    Elf_Auxinfo *aux, *auxp, *aux_info[AT_COUNT];
     Objlist_Entry *entry;
-    Obj_Entry *obj;
-    Obj_Entry *preload_tail;
-    Obj_Entry *last_interposer;
+    Obj_Entry *last_interposer, *obj, *preload_tail;
+    const Elf_Phdr *phdr;
     Objlist initlist;
     RtldLockState lockstate;
-    char *library_path_rpath;
-    int mib[2];
+    char **argv, *argv0, **env, *kexecpath, *library_path_rpath;
+    caddr_t imgentry;
+    char buf[MAXPATHLEN];
+    int argc, fd, i, mib[2], phnum;
     size_t len;
 
     /*
@@ -477,7 +471,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * already loaded.
      */
     if (aux_info[AT_EXECFD] != NULL) {	/* Load the main program. */
-	int fd = aux_info[AT_EXECFD]->a_un.a_val;
+	fd = aux_info[AT_EXECFD]->a_un.a_val;
 	dbg("loading main program");
 	obj_main = map_object(fd, argv0, NULL);
 	close(fd);
@@ -485,10 +479,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    rtld_die();
 	max_stack_flags = obj->stack_flags;
     } else {				/* Main program already loaded. */
-	const Elf_Phdr *phdr;
-	int phnum;
-	caddr_t entry;
-
 	dbg("processing main program's program header");
 	assert(aux_info[AT_PHDR] != NULL);
 	phdr = (const Elf_Phdr *) aux_info[AT_PHDR]->a_un.a_ptr;
@@ -497,15 +487,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	assert(aux_info[AT_PHENT] != NULL);
 	assert(aux_info[AT_PHENT]->a_un.a_val == sizeof(Elf_Phdr));
 	assert(aux_info[AT_ENTRY] != NULL);
-	entry = (caddr_t) aux_info[AT_ENTRY]->a_un.a_ptr;
-	if ((obj_main = digest_phdr(phdr, phnum, entry, argv0)) == NULL)
+	imgentry = (caddr_t) aux_info[AT_ENTRY]->a_un.a_ptr;
+	if ((obj_main = digest_phdr(phdr, phnum, imgentry, argv0)) == NULL)
 	    rtld_die();
     }
 
     if (aux_info[AT_EXECPATH] != NULL) {
-	    char *kexecpath;
-	    char buf[MAXPATHLEN];
-
 	    kexecpath = aux_info[AT_EXECPATH]->a_un.a_ptr;
 	    dbg("AT_EXECPATH %p %s", kexecpath, kexecpath);
 	    if (kexecpath[0] == '/')
