@@ -631,7 +631,7 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	} /* else {} */
 	if (robust)
 		_mutex_leave_robust(curthread, m);
-	if ((ret == 0 || ret == EOWNERDEAD) &&
+	if (ret != 0 && ret != EOWNERDEAD &&
 	    (m->m_flags & PMUTEX_FLAG_PRIVATE) != 0)
 		THR_CRITICAL_LEAVE(curthread);
 	return (ret);
