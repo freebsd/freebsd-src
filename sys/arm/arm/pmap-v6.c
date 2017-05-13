@@ -500,7 +500,24 @@ pmap_set_tex(void)
 /*
  * Remap one vm_meattr class to another one. This can be useful as
  * workaround for SOC errata, e.g. if devices must be accessed using
- * SO memory class. 
+ * SO memory class.
+ *
+ * !!! Please note that this function is absolutely last resort thing.
+ * It should not be used under normal circumstances. !!!
+ *
+ * Usage rules:
+ * - it shall be called after pmap_bootstrap_prepare() and before
+ *   cpu_mp_start() (thus only on boot CPU). In practice, it's expected
+ *   to be called from platform_attach() or platform_late_init().
+ *
+ * - if remapping doesn't change caching mode, or until uncached class
+ *   is remapped to any kind of cached one, then no other restriction exists.
+ *
+ * - if pmap_remap_vm_attr() changes caching mode, but both (original and
+ *   remapped) remain cached, then caller is resposible for calling
+ *   of dcache_wbinv_poc_all().
+ *
+ * - remapping of any kind of cached class to uncached is not permitted.
  */
 void
 pmap_remap_vm_attr(vm_memattr_t old_attr, vm_memattr_t new_attr)
