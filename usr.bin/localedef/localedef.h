@@ -35,10 +35,10 @@
  */
 
 /* Common header files. */
+#include <sys/types.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <sys/types.h>
 
 extern int com_char;
 extern int esc_char;
