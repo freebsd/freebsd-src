@@ -339,6 +339,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 {
 	int len = 0;
 	struct in6_addr *d = &(cmd->addr6);
+	char *oav;
 	/*
 	 * Needed for multiple address.
 	 * Note d[1] points to struct in6_add r mask6 of cmd
@@ -365,7 +366,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 		return (1);
 	}
 
-	av = strdup(av);
+	oav = av = strdup(av);
 	while (av) {
 		/*
 		 * After the address we can have '/' indicating a mask,
@@ -446,7 +447,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 	if (len + 1 > F_LEN_MASK)
 		errx(EX_DATAERR, "address list too long");
 	cmd->o.len |= len+1;
-	free(av);
+	free(oav);
 	return (1);
 }
 
