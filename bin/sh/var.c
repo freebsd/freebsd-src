@@ -512,7 +512,7 @@ bltinunsetlocale(void)
 		if (localevar(cmdenviron->args[i])) {
 			setlocale(LC_ALL, "");
 			updatecharset();
-			return;
+			break;
 		}
 	}
 	INTON;
