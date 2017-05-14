@@ -274,7 +274,6 @@ ffs_rawread_main(struct vnode *vp,
 	struct buf *bp, *nbp, *tbp;
 	caddr_t sa, nsa, tsa;
 	u_int iolen;
-	int spl;
 	caddr_t udata;
 	long resid;
 	off_t offset;
@@ -339,10 +338,7 @@ ffs_rawread_main(struct vnode *vp,
 			}
 		}
 		
-		spl = splbio();
 		bwait(bp, PRIBIO, "rawrd");
-		splx(spl);
-		
 		vunmapbuf(bp);
 		
 		iolen = bp->b_bcount - bp->b_resid;
@@ -415,9 +411,7 @@ ffs_rawread_main(struct vnode *vp,
 		relpbuf(bp, &ffsrawbufcnt);
 	}
 	if (nbp != NULL) {			/* Run down readahead buffer */
-		spl = splbio();
 		bwait(nbp, PRIBIO, "rawrd");
-		splx(spl);
 		vunmapbuf(nbp);
 		pbrelvp(nbp);
 		relpbuf(nbp, &ffsrawbufcnt);
