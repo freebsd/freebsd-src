@@ -440,8 +440,15 @@ expari(const char *p, struct nodelist **restrict argbackq, int flag,
 	fmtstr(expdest, DIGITS(result), ARITH_FORMAT_STR, result);
 	adj = strlen(expdest);
 	STADJUST(adj, expdest);
-	if (!quoted)
-		reprocess(expdest - adj - stackblock(), flag, VSNORMAL, 0, dst);
+	/*
+	 * If this is quoted, a '-' must not indicate a range in [...].
+	 * If this is not quoted, splitting may occur.
+	 */
+	if (quoted ?
+	    result < 0 && begoff > 1 && flag & (EXP_GLOB | EXP_CASE) :
+	    flag & EXP_SPLIT)
+		reprocess(expdest - adj - stackblock(), flag, VSNORMAL, quoted,
+		    dst);
 	return p;
 }
 
