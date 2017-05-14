@@ -59,7 +59,7 @@ printhash_live(hp, fd, name, opts, fields)
 		printed++;
 	}
 	if (last == 0)
-		ipferror(fd, "walking hash nodes:");
+		ipferror(fd, "walking hash nodes");
 
 	if (printed == 0)
 		putchar(';');
