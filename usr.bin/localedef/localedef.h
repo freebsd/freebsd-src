@@ -35,6 +35,7 @@
  */
 
 /* Common header files. */
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -54,8 +55,8 @@ extern int warnings;
 
 int yylex(void);
 void yyerror(const char *);
-void errf(const char *, ...);
-void warn(const char *, ...);
+_Noreturn void errf(const char *, ...) __printflike(1, 2);
+void warn(const char *, ...) __printflike(1, 2);
 
 int putl_category(const char *, FILE *);
 int wr_category(void *, size_t, FILE *);
