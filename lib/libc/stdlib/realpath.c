@@ -89,7 +89,7 @@ realpath1(const char *path, char *resolved)
 		 */
 		p = strchr(left, '/');
 
-		next_token_len = p ? p - left : left_len;
+		next_token_len = p != NULL ? p - left : left_len;
 		memcpy(next_token, left, next_token_len);
 		next_token[next_token_len] = '\0';
 
@@ -112,10 +112,9 @@ realpath1(const char *path, char *resolved)
 		if (next_token[0] == '\0') {
 			/* Handle consequential slashes. */
 			continue;
-		}
-		else if (strcmp(next_token, ".") == 0)
+		} else if (strcmp(next_token, ".") == 0) {
 			continue;
-		else if (strcmp(next_token, "..") == 0) {
+		} else if (strcmp(next_token, "..") == 0) {
 			/*
 			 * Strip the last path component except when we have
 			 * single "/"
@@ -146,13 +145,12 @@ realpath1(const char *path, char *resolved)
 			}
 			slen = readlink(resolved, symlink, sizeof(symlink));
 			if (slen <= 0 || slen >= sizeof(symlink)) {
-				if (slen < 0) {
-					/* keep errno from readlink(2) call */
-				} else if (slen == 0) {
+				if (slen < 0)
+					; /* keep errno from readlink(2) call */
+				else if (slen == 0)
 					errno = ENOENT;
-				} else {
+				else
 					errno = ENAMETOOLONG;
-				}
 				return (NULL);
 			}
 			symlink[slen] = '\0';
