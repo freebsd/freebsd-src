@@ -141,14 +141,6 @@ div_inpcb_init(void *mem, int size, int flags)
 }
 
 static void
-div_inpcb_fini(void *mem, int size)
-{
-	struct inpcb *inp = mem;
-
-	INP_LOCK_DESTROY(inp);
-}
-
-static void
 div_init(void)
 {
 
@@ -158,7 +150,7 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, div_inpcb_fini, 0, IPI_HASHFIELDS_NONE);
+	    div_inpcb_init, IPI_HASHFIELDS_NONE);
 }
 
 static void
