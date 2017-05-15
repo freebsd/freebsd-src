@@ -1986,6 +1986,15 @@ static enum _ecore_status_t ecore_hw_init_pf(struct ecore_hwfn *p_hwfn,
 		}
 	}
 #endif
+	/* Add an LLH filter with the primary MAC address.  */
+	if (p_hwfn->p_dev->num_hwfns > 1 && IS_LEAD_HWFN(p_hwfn)) {
+		rc = ecore_llh_add_mac_filter(p_hwfn, p_ptt,
+					      p_hwfn->hw_info.hw_mac_addr);
+		if (rc != ECORE_SUCCESS)
+			DP_NOTICE(p_hwfn, false,
+				"Failed to add an LLH filter with the primary MAC\n");
+	}
+
 	if (b_hw_start) {
 		/* enable interrupts */
 		rc = ecore_int_igu_enable(p_hwfn, p_ptt, int_mode);
@@ -2473,6 +2482,11 @@ enum _ecore_status_t ecore_hw_stop(struct ecore_dev *p_dev)
 				rc2 = ECORE_UNKNOWN_ERROR;
 			}
 		}
+
+		/* remove the LLH filter with the primary MAC addres */
+		if (p_hwfn->p_dev->num_hwfns > 1 && IS_LEAD_HWFN(p_hwfn))
+			ecore_llh_remove_mac_filter(p_hwfn, p_ptt,
+				    p_hwfn->hw_info.hw_mac_addr);
 	} /* hwfn loop */
 
 	if (IS_PF(p_dev)) {
@@ -4569,7 +4583,7 @@ enum _ecore_status_t ecore_llh_add_mac_filter(struct ecore_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-		   "MAC: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx is added at %d\n",
+		   "MAC: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx is added at LLH entry %d\n",
 		   p_filter[0], p_filter[1], p_filter[2], p_filter[3],
 		   p_filter[4], p_filter[5], entry_num);
 
@@ -4651,7 +4665,7 @@ void ecore_llh_remove_mac_filter(struct ecore_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-		   "MAC: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx was removed from %d\n",
+		   "MAC: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx was removed from LLH entry %d\n",
 		   p_filter[0], p_filter[1], p_filter[2], p_filter[3],
 		   p_filter[4], p_filter[5], entry_num);
 }
@@ -4760,37 +4774,37 @@ ecore_llh_add_protocol_filter(struct ecore_hwfn *p_hwfn,
 	switch (type) {
 	case ECORE_LLH_FILTER_ETHERTYPE:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "ETH type %x is added at %d\n",
+			   "ETH type %x is added at LLH entry %d\n",
 			   source_port_or_eth_type, entry_num);
 		break;
 	case ECORE_LLH_FILTER_TCP_SRC_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "TCP src port %x is added at %d\n",
+			   "TCP src port %x is added at LLH entry %d\n",
 			   source_port_or_eth_type, entry_num);
 		break;
 	case ECORE_LLH_FILTER_UDP_SRC_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "UDP src port %x is added at %d\n",
+			   "UDP src port %x is added at LLH entry %d\n",
 			   source_port_or_eth_type, entry_num);
 		break;
 	case ECORE_LLH_FILTER_TCP_DEST_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "TCP dst port %x is added at %d\n",
+			   "TCP dst port %x is added at LLH entry %d\n",
 			   dest_port, entry_num);
 		break;
 	case ECORE_LLH_FILTER_UDP_DEST_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "UDP dst port %x is added at %d\n",
+			   "UDP dst port %x is added at LLH entry %d\n",
 			   dest_port, entry_num);
 		break;
 	case ECORE_LLH_FILTER_TCP_SRC_AND_DEST_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "TCP src/dst ports %x/%x are added at %d\n",
+			   "TCP src/dst ports %x/%x are added at LLH entry %d\n",
 			   source_port_or_eth_type, dest_port, entry_num);
 		break;
 	case ECORE_LLH_FILTER_UDP_SRC_AND_DEST_PORT:
 		DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-			   "UDP src/dst ports %x/%x are added at %d\n",
+			   "UDP src/dst ports %x/%x are added at LLH entry %d\n",
 			   source_port_or_eth_type, dest_port, entry_num);
 			break;
 	}
@@ -4917,7 +4931,7 @@ ecore_llh_remove_protocol_filter(struct ecore_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_HW,
-		   "Protocol filter [type %d, source_port_or_eth_type 0x%x, dest_port 0x%x] was removed from %d\n",
+		   "Protocol filter [type %d, source_port_or_eth_type 0x%x, dest_port 0x%x] was removed from LLH entry %d\n",
 		   type, source_port_or_eth_type, dest_port, entry_num);
 }
 
