@@ -108,6 +108,8 @@ ssize_t sendether(struct iodesc *d, void *pkt, size_t len,
 			u_char *dea, int etype);
 ssize_t readether(struct iodesc *, void **, void **, time_t, uint16_t *);
 
+ssize_t	sendip(struct iodesc *, void *, size_t, uint8_t);
+ssize_t	readip(struct iodesc *, void **, void **, time_t, uint8_t);
 ssize_t	sendudp(struct iodesc *, void *, size_t);
 ssize_t	readudp(struct iodesc *, void **, void **, time_t);
 ssize_t	sendrecv(struct iodesc *,
