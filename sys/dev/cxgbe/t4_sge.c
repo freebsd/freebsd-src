@@ -5323,7 +5323,7 @@ sysctl_tc(SYSCTL_HANDLER_ARGS)
 			tc->refcount--;
 		}
 		txq->tc_idx = tc_idx;
-	} else {
+	} else if (tc_idx != -1) {
 		tc = &pi->sched_params->cl_rl[tc_idx];
 		MPASS(tc->refcount > 0);
 		tc->refcount--;
