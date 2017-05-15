@@ -196,11 +196,12 @@ int
 procfile(const char *fn)
 {
 	struct parsec pc;
+	long long tail;
 	struct file *f;
 	struct stat sb;
 	struct str *ln;
 	mode_t s;
-	int c, last_outed, t, tail;
+	int c, last_outed, t;
 	bool doctx, printmatch, same_file;
 
 	if (strcmp(fn, "-") == 0) {
