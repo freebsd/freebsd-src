@@ -47,32 +47,16 @@ __FBSDID("$FreeBSD$");
  * components.  Returns (resolved) on success, or (NULL) on failure,
  * in which case the path which caused trouble is left in (resolved).
  */
-char *
-realpath(const char * __restrict path, char * __restrict resolved)
+static char *
+realpath1(const char *path, char *resolved)
 {
 	struct stat sb;
 	char *p, *q;
 	size_t left_len, resolved_len, next_token_len;
 	unsigned symlinks;
-	int m;
 	ssize_t slen;
 	char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
 
-	if (path == NULL) {
-		errno = EINVAL;
-		return (NULL);
-	}
-	if (path[0] == '\0') {
-		errno = ENOENT;
-		return (NULL);
-	}
-	if (resolved == NULL) {
-		resolved = malloc(PATH_MAX);
-		if (resolved == NULL)
-			return (NULL);
-		m = 1;
-	} else
-		m = 0;
 	symlinks = 0;
 	if (path[0] == '/') {
 		resolved[0] = '/';
@@ -83,20 +67,14 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		left_len = strlcpy(left, path + 1, sizeof(left));
 	} else {
 		if (getcwd(resolved, PATH_MAX) == NULL) {
-			if (m)
-				free(resolved);
-			else {
-				resolved[0] = '.';
-				resolved[1] = '\0';
-			}
+			resolved[0] = '.';
+			resolved[1] = '\0';
 			return (NULL);
 		}
 		resolved_len = strlen(resolved);
 		left_len = strlcpy(left, path, sizeof(left));
 	}
 	if (left_len >= sizeof(left) || resolved_len >= PATH_MAX) {
-		if (m)
-			free(resolved);
 		errno = ENAMETOOLONG;
 		return (NULL);
 	}
@@ -125,8 +103,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 
 		if (resolved[resolved_len - 1] != '/') {
 			if (resolved_len + 1 >= PATH_MAX) {
-				if (m)
-					free(resolved);
 				errno = ENAMETOOLONG;
 				return (NULL);
 			}
@@ -158,27 +134,18 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		 */
 		resolved_len = strlcat(resolved, next_token, PATH_MAX);
 		if (resolved_len >= PATH_MAX) {
-			if (m)
-				free(resolved);
 			errno = ENAMETOOLONG;
 			return (NULL);
 		}
-		if (lstat(resolved, &sb) != 0) {
-			if (m)
-				free(resolved);
+		if (lstat(resolved, &sb) != 0)
 			return (NULL);
-		}
 		if (S_ISLNK(sb.st_mode)) {
 			if (symlinks++ > MAXSYMLINKS) {
-				if (m)
-					free(resolved);
 				errno = ELOOP;
 				return (NULL);
 			}
 			slen = readlink(resolved, symlink, sizeof(symlink));
 			if (slen <= 0 || slen >= sizeof(symlink)) {
-				if (m)
-					free(resolved);
 				if (slen < 0) {
 					/* keep errno from readlink(2) call */
 				} else if (slen == 0) {
@@ -207,8 +174,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			if (p != NULL) {
 				if (symlink[slen - 1] != '/') {
 					if (slen + 1 >= sizeof(symlink)) {
-						if (m)
-							free(resolved);
 						errno = ENAMETOOLONG;
 						return (NULL);
 					}
@@ -218,16 +183,12 @@ realpath(const char * __restrict path, char * __restrict resolved)
 				left_len = strlcat(symlink, left,
 				    sizeof(symlink));
 				if (left_len >= sizeof(symlink)) {
-					if (m)
-						free(resolved);
 					errno = ENAMETOOLONG;
 					return (NULL);
 				}
 			}
 			left_len = strlcpy(left, symlink, sizeof(left));
 		} else if (!S_ISDIR(sb.st_mode) && p != NULL) {
-			if (m)
-				free(resolved);
 			errno = ENOTDIR;
 			return (NULL);
 		}
@@ -240,4 +201,30 @@ realpath(const char * __restrict path, char * __restrict resolved)
 	if (resolved_len > 1 && resolved[resolved_len - 1] == '/')
 		resolved[resolved_len - 1] = '\0';
 	return (resolved);
+}
+
+char *
+realpath(const char * __restrict path, char * __restrict resolved)
+{
+	char *m, *res;
+
+	if (path == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+	if (path[0] == '\0') {
+		errno = ENOENT;
+		return (NULL);
+	}
+	if (resolved != NULL) {
+		m = NULL;
+	} else {
+		m = resolved = malloc(PATH_MAX);
+		if (resolved == NULL)
+			return (NULL);
+	}
+	res = realpath1(path, resolved);
+	if (res == NULL)
+		free(m);
+	return (res);
 }
