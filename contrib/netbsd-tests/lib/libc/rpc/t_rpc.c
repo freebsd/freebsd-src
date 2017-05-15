@@ -335,9 +335,6 @@ ATF_TC_BODY(raw, tc)
 #ifdef __FreeBSD_bug_216954__
 	atf_tc_expect_signal(SIGSEGV,
 	    "fails with SIGSEGV only on ^/stable/10 -- bug # 216954");
-#else
-	atf_tc_expect_fail("fails with: clnt_call: "
-	    "RPC: Can't decode result -- PR # 211804");
 #endif
 #endif
 	rawtest(NULL);
