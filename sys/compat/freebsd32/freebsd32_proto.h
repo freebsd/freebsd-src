@@ -395,6 +395,11 @@ struct freebsd32_thr_new_args {
 	char param_l_[PADL_(struct thr_param32 *)]; struct thr_param32 * param; char param_r_[PADR_(struct thr_param32 *)];
 	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
 };
+struct freebsd32_sigqueue_args {
+	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
+	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
+	char value_l_[PADL_(int)]; int value; char value_r_[PADR_(int)];
+};
 struct freebsd32_kmq_open_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
@@ -785,6 +790,7 @@ int	freebsd32_ksem_timedwait(struct thread *, struct freebsd32_ksem_timedwait_ar
 int	freebsd32_thr_suspend(struct thread *, struct freebsd32_thr_suspend_args *);
 int	freebsd32_umtx_op(struct thread *, struct freebsd32_umtx_op_args *);
 int	freebsd32_thr_new(struct thread *, struct freebsd32_thr_new_args *);
+int	freebsd32_sigqueue(struct thread *, struct freebsd32_sigqueue_args *);
 int	freebsd32_kmq_open(struct thread *, struct freebsd32_kmq_open_args *);
 int	freebsd32_kmq_setattr(struct thread *, struct freebsd32_kmq_setattr_args *);
 int	freebsd32_kmq_timedreceive(struct thread *, struct freebsd32_kmq_timedreceive_args *);
@@ -1216,6 +1222,7 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_suspend	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_umtx_op	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_new	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_sigqueue	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_open	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_setattr	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_timedreceive	AUE_NULL

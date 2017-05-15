@@ -242,6 +242,8 @@ int	kern_sigtimedwait(struct thread *td, sigset_t waitset,
 	    struct ksiginfo *ksi, struct timespec *timeout);
 int	kern_stat(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct stat *sbp);
+int	kern_sigqueue(struct thread *td, pid_t pid, int signum,
+	    union sigval *value);
 int	kern_statat(struct thread *td, int flag, int fd, char *path,
 	    enum uio_seg pathseg, struct stat *sbp);
 int	kern_statat_vnhook(struct thread *td, int flag, int fd, char *path,
