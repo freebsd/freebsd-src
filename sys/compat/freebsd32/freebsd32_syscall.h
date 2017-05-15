@@ -359,7 +359,7 @@
 #define	FREEBSD32_SYS_auditctl	453
 #define	FREEBSD32_SYS_freebsd32_umtx_op	454
 #define	FREEBSD32_SYS_freebsd32_thr_new	455
-#define	FREEBSD32_SYS_sigqueue	456
+#define	FREEBSD32_SYS_freebsd32_sigqueue	456
 #define	FREEBSD32_SYS_freebsd32_kmq_open	457
 #define	FREEBSD32_SYS_freebsd32_kmq_setattr	458
 #define	FREEBSD32_SYS_freebsd32_kmq_timedreceive	459
