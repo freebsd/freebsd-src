@@ -48,6 +48,8 @@ CPU_BERI	opt_global.h
 CPU_XBURST	opt_global.h
 CPU_MALTA	opt_global.h
 
+MIPS_SHAREDPAGE	opt_global.h
+
 # which MACHINE_ARCH architecture
 MIPS
 MIPSHF
