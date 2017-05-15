@@ -462,7 +462,7 @@ assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-fno-common} \
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 
