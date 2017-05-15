@@ -2173,6 +2173,49 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 }
 
 /*
+ * Implement the SIOCGIFNAME ioctl
+ */
+
+static int
+linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
+{
+	struct l_ifreq ifr;
+	struct ifnet *ifp;
+	int error, ethno, index;
+
+	error = copyin(uifr, &ifr, sizeof(ifr));
+	if (error != 0)
+		return (error);
+
+	CURVNET_SET(TD_TO_VNET(curthread));
+	IFNET_RLOCK();
+	index = 1;	/* ifr.ifr_ifindex starts from 1 */
+	ethno = 0;
+	error = ENODEV;
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifr.ifr_ifindex == index) {
+			if (IFP_IS_ETH(ifp))
+				snprintf(ifr.ifr_name, LINUX_IFNAMSIZ,
+				    "eth%d", ethno);
+			else
+				strlcpy(ifr.ifr_name, ifp->if_xname,
+				    LINUX_IFNAMSIZ);
+			error = 0;
+			break;
+		}
+		if (IFP_IS_ETH(ifp))
+			ethno++;
+		index++;
+	}
+	IFNET_RUNLOCK();
+	if (error == 0)
+		error = copyout(&ifr, uifr, sizeof(ifr));
+	CURVNET_RESTORE();
+
+	return (error);
+}
+
+/*
  * Implement the SIOCGIFCONF ioctl
  */
 
@@ -2399,6 +2442,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCADDMULTI:
 	case LINUX_SIOCATMARK:
 	case LINUX_SIOCDELMULTI:
+	case LINUX_SIOCGIFNAME:
 	case LINUX_SIOCGIFCONF:
 	case LINUX_SIOCGPGRP:
 	case LINUX_SIOCSPGRP:
@@ -2483,6 +2527,10 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	/* LINUX_SIOCGSTAMP */
+
+	case LINUX_SIOCGIFNAME:
+		error = linux_ioctl_ifname(td, (struct l_ifreq *)args->arg);
+		break;
 
 	case LINUX_SIOCGIFCONF:
 		error = linux_ifconf(td, (struct ifconf *)args->arg);
