@@ -983,7 +983,8 @@ ql_isr(void *arg)
 
 	fp = &ha->tx_fp[idx];
 
-	if (fp->fp_taskqueue != NULL)
+	if ((fp->fp_taskqueue != NULL) &&
+		(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
 
 	return;
