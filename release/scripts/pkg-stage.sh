@@ -24,6 +24,7 @@ shells/bash
 shells/zsh
 security/sudo
 sysutils/screen
+sysutils/tmux
 www/firefox
 www/links
 x11-drivers/xf86-video-vmware
