@@ -115,7 +115,7 @@ extern bool	 Eflag, Fflag, Gflag, Hflag, Lflag,
 		 bflag, cflag, hflag, iflag, lflag, mflag, nflag, oflag,
 		 qflag, sflag, vflag, wflag, xflag;
 extern bool	 dexclude, dinclude, fexclude, finclude, lbflag, nullflag;
-extern unsigned long long Aflag, Bflag;
+extern long long Aflag, Bflag;
 extern long long mcount;
 extern long long mlimit;
 extern char	 fileeol;

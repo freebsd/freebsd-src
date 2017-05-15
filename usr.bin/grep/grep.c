@@ -108,8 +108,8 @@ struct epat	*dpattern, *fpattern;
 char	 re_error[RE_ERROR_BUF + 1];
 
 /* Command-line flags */
-unsigned long long Aflag;	/* -A x: print x lines trailing each match */
-unsigned long long Bflag;	/* -B x: print x lines leading each match */
+long long Aflag;	/* -A x: print x lines trailing each match */
+long long Bflag;	/* -B x: print x lines leading each match */
 bool	 Hflag;		/* -H: always print file name */
 bool	 Lflag;		/* -L: only show names of files with no matches */
 bool	 bflag;		/* -b: show block numbers for each match */
@@ -351,7 +351,7 @@ main(int argc, char *argv[])
 	char **aargv, **eargv, *eopts;
 	char *ep;
 	const char *pn;
-	unsigned long long l;
+	long long l;
 	unsigned int aargc, eargc, i;
 	int c, lastc, needpattern, newarg, prevoptind;
 
@@ -438,10 +438,11 @@ main(int argc, char *argv[])
 		case '5': case '6': case '7': case '8': case '9':
 			if (newarg || !isdigit(lastc))
 				Aflag = 0;
-			else if (Aflag > LLONG_MAX / 10) {
+			else if (Aflag > LLONG_MAX / 10 - 1) {
 				errno = ERANGE;
 				err(2, NULL);
 			}
+
 			Aflag = Bflag = (Aflag * 10) + (c - '0');
 			break;
 		case 'C':
@@ -454,14 +455,17 @@ main(int argc, char *argv[])
 			/* FALLTHROUGH */
 		case 'B':
 			errno = 0;
-			l = strtoull(optarg, &ep, 10);
-			if (((errno == ERANGE) && (l == ULLONG_MAX)) ||
-			    ((errno == EINVAL) && (l == 0)))
+			l = strtoll(optarg, &ep, 10);
+			if (errno == ERANGE || errno == EINVAL)
 				err(2, NULL);
 			else if (ep[0] != '\0') {
 				errno = EINVAL;
 				err(2, NULL);
+			} else if (l < 0) {
+				errno = EINVAL;
+				err(2, "context argument must be non-negative");
 			}
+
 			if (c == 'A')
 				Aflag = l;
 			else if (c == 'B')
