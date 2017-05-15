@@ -650,6 +650,8 @@
         ..
         printf
         ..
+        procstat
+        ..
         sdiff
         ..
         sed
