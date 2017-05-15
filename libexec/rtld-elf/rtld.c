@@ -339,13 +339,14 @@ _LD(const char *var)
 func_ptr_type
 _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
-    Elf_Auxinfo *aux, *auxp, *aux_info[AT_COUNT];
+    Elf_Auxinfo *aux, *auxp, *auxpf, *aux_info[AT_COUNT];
     Objlist_Entry *entry;
     Obj_Entry *last_interposer, *obj, *preload_tail;
     const Elf_Phdr *phdr;
     Objlist initlist;
     RtldLockState lockstate;
-    char **argv, *argv0, **env, *kexecpath, *library_path_rpath;
+    Elf_Addr *argcp;
+    char **argv, *argv0, **env, **envp, *kexecpath, *library_path_rpath;
     caddr_t imgentry;
     char buf[MAXPATHLEN];
     int argc, fd, i, mib[2], phnum;
@@ -359,6 +360,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      */
 
     /* Find the auxiliary vector on the stack. */
+    argcp = sp;
     argc = *sp++;
     argv = (char **) sp;
     sp += argc + 1;	/* Skip over arguments and NULL terminator */
@@ -409,6 +411,57 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     trust = !issetugid();
 
     md_abi_variant_hook(aux_info);
+
+    fd = -1;
+    if (aux_info[AT_EXECFD] != NULL) {
+	fd = aux_info[AT_EXECFD]->a_un.a_val;
+    } else {
+	assert(aux_info[AT_PHDR] != NULL);
+	phdr = (const Elf_Phdr *)aux_info[AT_PHDR]->a_un.a_ptr;
+	if (phdr == obj_rtld.phdr) {
+	    dbg("opening main program in direct exec mode");
+	    if (argc >= 2) {
+		argv0 = argv[1];
+		fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
+		if (fd == -1) {
+		    rtld_printf("Opening %s: %s\n", argv0,
+		      rtld_strerror(errno));
+		    rtld_die();
+		}
+
+		/*
+		 * For direct exec mode, argv[0] is the interpreter
+		 * name, we must remove it and shift arguments left by
+		 * 1 before invoking binary main.  Since stack layout
+		 * places environment pointers and aux vectors right
+		 * after the terminating NULL, we must shift
+		 * environment and aux as well.
+		 * XXX Shift will be > 1 when options are implemented.
+		 */
+		do {
+		    *argv = *(argv + 1);
+		    argv++;
+		} while (*argv != NULL);
+		*argcp -= 1;
+		main_argc = argc - 1;
+		environ = env = envp = argv;
+		do {
+		    *envp = *(envp + 1);
+		    envp++;
+		} while (*envp != NULL);
+		aux = auxp = (Elf_Auxinfo *)envp;
+		auxpf = (Elf_Auxinfo *)(envp + 1);
+		for (;; auxp++, auxpf++) {
+		    *auxp = *auxpf;
+		    if (auxp->a_type == AT_NULL)
+			    break;
+		}
+	    } else {
+		rtld_printf("no binary\n");
+		rtld_die();
+	    }
+	}
+    }
 
     ld_bind_now = getenv(_LD("BIND_NOW"));
 
@@ -470,8 +523,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * Load the main program, or process its program header if it is
      * already loaded.
      */
-    if (aux_info[AT_EXECFD] != NULL) {	/* Load the main program. */
-	fd = aux_info[AT_EXECFD]->a_un.a_val;
+    if (fd != -1) {	/* Load the main program. */
 	dbg("loading main program");
 	obj_main = map_object(fd, argv0, NULL);
 	close(fd);
@@ -492,7 +544,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    rtld_die();
     }
 
-    if (aux_info[AT_EXECPATH] != NULL) {
+    if (aux_info[AT_EXECPATH] != NULL && fd == -1) {
 	    kexecpath = aux_info[AT_EXECPATH]->a_un.a_ptr;
 	    dbg("AT_EXECPATH %p %s", kexecpath, kexecpath);
 	    if (kexecpath[0] == '/')
@@ -504,7 +556,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    else
 		    obj_main->path = xstrdup(buf);
     } else {
-	    dbg("No AT_EXECPATH");
+	    dbg("No AT_EXECPATH or direct exec");
 	    obj_main->path = xstrdup(argv0);
     }
     dbg("obj_main path %s", obj_main->path);
