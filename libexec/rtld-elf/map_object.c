@@ -193,6 +193,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
     if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
 	base_flags |= MAP_ALIGNED_SUPER;
+    if (base_vaddr != 0)
+	base_flags |= MAP_FIXED | MAP_EXCL;
 
     mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
     if (mapbase == (caddr_t) -1) {
