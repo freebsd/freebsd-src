@@ -517,6 +517,28 @@ grep_nomatch_flags_body()
 	atf_check -o empty grep -q -A 1 -e "B" test1
 	atf_check -o empty grep -q -C 1 -e "B" test1
 }
+
+atf_test_case badcontext
+badcontext_head()
+{
+	atf_set "descr" "Check for handling of invalid context arguments"
+}
+badcontext_body()
+{
+	printf "A\nB\nC\n" > test1
+
+	atf_check -s not-exit:0 -e ignore grep -A "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -B "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -C "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -A "B" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -B "B" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -C "B" "B" test1
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -551,5 +573,6 @@ atf_init_test_cases()
 	atf_add_test_case egrep_sanity
 	atf_add_test_case grep_sanity
 	atf_add_test_case grep_nomatch_flags
+	atf_add_test_case badcontext
 # End FreeBSD
 }
