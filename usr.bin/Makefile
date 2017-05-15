@@ -403,6 +403,12 @@ SUBDIR+=	who
 SUBDIR+=	svn
 .endif
 
+# These are normally only handled for build-tools.
+.if make(clean*)
+SUBDIR+=	mkcsmapper_static
+SUBDIR+=	mkesdb_static
+.endif
+
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
