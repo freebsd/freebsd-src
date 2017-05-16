@@ -1,40 +1,23 @@
-// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o %t
-// RUN: llvm-readobj -t %t | FileCheck  %s
+// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o %t.o
+// RUN: echo "SECTIONS { . = SIZEOF_HEADERS; .text : { *(.text) } }" > %t.script
+// FIXME: threads are disable because the test is too slow with them (PR32942).
+// RUN: ld.lld -T %t.script %t.o -o %t --no-threads
+// RUN: llvm-readobj -t %t | FileCheck %s
 
-// Verify that the symbol _start is in a section with an index >= SHN_LORESERVE.
+// Test that _start is in the correct section.
 // CHECK:      Name: _start
-// CHECK-NEXT: Value: 0x0
+// CHECK-NEXT: Value: 0x120
 // CHECK-NEXT: Size: 0
 // CHECK-NEXT: Binding: Global
 // CHECK-NEXT: Type: None
 // CHECK-NEXT: Other: 0
-// CHECK-NEXT: Section: dm (0xFF00)
-
-
-// FIXME: threads are disable because the test is too slow with them (PR32942).
-// RUN: ld.lld %t -o %t2 --no-threads
-// RUN: llvm-readobj -t %t2 | FileCheck --check-prefix=LINKED %s
-
-// Test also with a linker script.
-// RUN: echo "SECTIONS { . = SIZEOF_HEADERS; .text : { *(.text) } }" > %t.script
-// FIXME: threads are disable because the test is too slow with them (PR32942).
-// RUN: ld.lld -T %t.script %t -o %t2 --no-threads
-// RUN: llvm-readobj -t %t2 | FileCheck --check-prefix=LINKED %s
-
-// Test that _start is in the correct section.
-// LINKED:      Name: _start
-// LINKED-NEXT: Value: 0x0
-// LINKED-NEXT: Size: 0
-// LINKED-NEXT: Binding: Global
-// LINKED-NEXT: Type: None
-// LINKED-NEXT: Other: 0
-// LINKED-NEXT: Section: dm
+// CHECK-NEXT: Section: dm
 
 .macro gen_sections4 x
-        .section a\x
-        .section b\x
-        .section c\x
-        .section d\x
+        .section a\x,"a"
+        .section b\x,"a"
+        .section c\x,"a"
+        .section d\x,"a"
 .endm
 
 .macro gen_sections8 x
