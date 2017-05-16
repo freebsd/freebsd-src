@@ -392,7 +392,7 @@ xen_intr_release_isrc(struct xenisrc *isrc)
  */
 static int
 xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
-    enum evtchn_type type, device_t intr_owner, driver_filter_t filter,
+    enum evtchn_type type, const char *intr_owner, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags,
     xen_intr_handle_t *port_handlep)
 {
@@ -401,8 +401,8 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 
 	*isrcp = NULL;
 	if (port_handlep == NULL) {
-		device_printf(intr_owner,
-			      "xen_intr_bind_isrc: Bad event handle\n");
+		printf("%s: xen_intr_bind_isrc: Bad event handle\n",
+		    intr_owner);
 		return (EINVAL);
 	}
 
@@ -1174,8 +1174,9 @@ xen_intr_bind_local_port(device_t dev, evtchn_port_t local_port,
 	struct xenisrc *isrc;
 	int error;
 
-	error = xen_intr_bind_isrc(&isrc, local_port, EVTCHN_TYPE_PORT, dev,
-		    filter, handler, arg, flags, port_handlep);
+	error = xen_intr_bind_isrc(&isrc, local_port, EVTCHN_TYPE_PORT,
+	    device_get_nameunit(dev), filter, handler, arg, flags,
+	    port_handlep);
 	if (error != 0)
 		return (error);
 
@@ -1209,8 +1210,8 @@ xen_intr_alloc_and_bind_local_port(device_t dev, u_int remote_domain,
 	}
 
 	error = xen_intr_bind_isrc(&isrc, alloc_unbound.port, EVTCHN_TYPE_PORT,
-				 dev, filter, handler, arg, flags,
-				 port_handlep);
+	    device_get_nameunit(dev), filter, handler, arg, flags,
+	    port_handlep);
 	if (error != 0) {
 		evtchn_close_t close = { .port = alloc_unbound.port };
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
@@ -1244,8 +1245,8 @@ xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
 	}
 
 	error = xen_intr_bind_isrc(&isrc, bind_interdomain.local_port,
-				 EVTCHN_TYPE_PORT, dev, filter, handler,
-				 arg, flags, port_handlep);
+	    EVTCHN_TYPE_PORT, device_get_nameunit(dev), filter, handler, arg,
+	    flags, port_handlep);
 	if (error) {
 		evtchn_close_t close = { .port = bind_interdomain.local_port };
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
@@ -1284,8 +1285,9 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 		return (-error);
 	}
 
-	error = xen_intr_bind_isrc(&isrc, bind_virq.port, EVTCHN_TYPE_VIRQ, dev,
-				 filter, handler, arg, flags, port_handlep);
+	error = xen_intr_bind_isrc(&isrc, bind_virq.port, EVTCHN_TYPE_VIRQ,
+	    device_get_nameunit(dev), filter, handler, arg, flags,
+	    port_handlep);
 
 #ifdef SMP
 	if (error == 0)
@@ -1324,14 +1326,15 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 }
 
 int
-xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
-    driver_filter_t filter, enum intr_type flags,
-    xen_intr_handle_t *port_handlep)
+xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
+    enum intr_type flags, xen_intr_handle_t *port_handlep)
 {
 #ifdef SMP
 	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	struct xenisrc *isrc;
 	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
+	/* Same size as the one used by intr_handler->ih_name. */
+	char name[MAXCOMLEN + 1];
 	int error;
 
 	/* Ensure the target CPU is ready to handle evtchn interrupts. */
@@ -1347,12 +1350,10 @@ xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
 		return (-error);
 	}
 
-	error = xen_intr_bind_isrc(&isrc, bind_ipi.port, EVTCHN_TYPE_IPI,
-	                           dev, filter, NULL, NULL, flags,
-	                           port_handlep);
-	if (error == 0)
-		error = intr_event_bind(isrc->xi_intsrc.is_event, cpu);
+	snprintf(name, sizeof(name), "cpu%u", cpu);
 
+	error = xen_intr_bind_isrc(&isrc, bind_ipi.port, EVTCHN_TYPE_IPI,
+	    name, filter, NULL, NULL, flags, port_handlep);
 	if (error != 0) {
 		evtchn_close_t close = { .port = bind_ipi.port };
 
@@ -1541,7 +1542,7 @@ xen_intr_port(xen_intr_handle_t handle)
 }
 
 int
-xen_intr_add_handler(device_t dev, driver_filter_t filter,
+xen_intr_add_handler(const char *name, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags,
     xen_intr_handle_t handle)
 {
@@ -1552,12 +1553,12 @@ xen_intr_add_handler(device_t dev, driver_filter_t filter,
 	if (isrc == NULL || isrc->xi_cookie != NULL)
 		return (EINVAL);
 
-	error = intr_add_handler(device_get_nameunit(dev), isrc->xi_vector,
-	    filter, handler, arg, flags|INTR_EXCL, &isrc->xi_cookie);
+	error = intr_add_handler(name, isrc->xi_vector,filter, handler, arg,
+	    flags|INTR_EXCL, &isrc->xi_cookie);
 	if (error != 0) {
-		device_printf(dev,
-		    "xen_intr_add_handler: intr_add_handler failed: %d\n",
-		    error);
+		printf(
+		    "%s: xen_intr_add_handler: intr_add_handler failed: %d\n",
+		    name, error);
 	}
 
 	return (error);
