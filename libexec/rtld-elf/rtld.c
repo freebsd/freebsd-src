@@ -115,7 +115,7 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
-static int parse_libdir(const char *);
+static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static void release_object(Obj_Entry *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
@@ -3033,9 +3033,12 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 	envcopy = xstrdup(path);
 	for (fdstr = strtok_r(envcopy, ":", &last_token); fdstr != NULL;
 	    fdstr = strtok_r(NULL, ":", &last_token)) {
-		dirfd = parse_libdir(fdstr);
-		if (dirfd < 0)
+		dirfd = parse_integer(fdstr);
+		if (dirfd < 0) {
+			_rtld_error("failed to parse directory FD: '%s'",
+				fdstr);
 			break;
+		}
 		fd = __sys_openat(dirfd, name, O_RDONLY | O_CLOEXEC | O_VERIFY);
 		if (fd >= 0) {
 			*fdp = fd;
@@ -5236,29 +5239,27 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
  * Parse a file descriptor number without pulling in more of libc (e.g. atoi).
  */
 static int
-parse_libdir(const char *str)
+parse_integer(const char *str)
 {
 	static const int RADIX = 10;  /* XXXJA: possibly support hex? */
 	const char *orig;
-	int fd;
+	int n;
 	char c;
 
 	orig = str;
-	fd = 0;
+	n = 0;
 	for (c = *str; c != '\0'; c = *++str) {
 		if (c < '0' || c > '9')
 			return (-1);
 
-		fd *= RADIX;
-		fd += c - '0';
+		n *= RADIX;
+		n += c - '0';
 	}
 
 	/* Make sure we actually parsed something. */
-	if (str == orig) {
-		_rtld_error("failed to parse directory FD from '%s'", str);
+	if (str == orig)
 		return (-1);
-	}
-	return (fd);
+	return (n);
 }
 
 /*
