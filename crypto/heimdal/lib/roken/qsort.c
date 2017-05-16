@@ -185,19 +185,35 @@ loop:	SWAPINIT(a, es);
 	vecswap(a, pb - r, r);
 	r = min(pd - pc, pn - pd - es);
 	vecswap(pb, pn - r, r);
-	if ((r = pb - pa) > es)
+	if ((pb - pa) < (pd - pc)) {
+		if ((r = pb - pa) > es)
 #ifdef I_AM_QSORT_R
-		rk_qsort_r(a, r / es, es, thunk, cmp);
+			rk_qsort_r(a, r / es, es, thunk, cmp);
 #else
-		rk_qsort(a, r / es, es, cmp);
+			rk_qsort(a, r / es, es, cmp);
 #endif
-	if ((r = pd - pc) > es) {
-		/* Iterate rather than recurse to save stack space */
-		a = pn - r;
-		n = r / es;
-		goto loop;
+		if ((r = pd - pc) > es) {
+			/* Iterate rather than recurse to save stack space */
+			a = pn - r;
+			n = r / es;
+			goto loop;
+		}
+/*			rk_qsort(pn - r, r / es, es, cmp);*/
+	} else {
+		if ((r = pd - pc) > es)
+#ifdef I_AM_QSORT_R
+			rk_qsort_r(pn - r, r / es, es, thunk, cmp);
+#else
+			rk_qsort(pn - r, r / es, es, cmp);
+#endif
+		if ((r = pb - pa) > es) {
+			/* Iterate rather than recurse to save stack space */
+			/* a = a; */
+			n = r / es;
+			goto loop;
+		}
+/*			rk_qsort(a, r / es, es, cmp);*/
 	}
-/*		rk_qsort(pn - r, r / es, es, cmp);*/
 }
 
 #endif /* NEED_QSORT */
