@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
 
 static int doformat_wr(void *, const char *, int);
 
-struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 256, 2, 0};
-struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
+struct output output = {NULL, NULL, NULL, OUTBUFSIZ, 1, 0};
+struct output errout = {NULL, NULL, NULL, 256, 2, 0};
+struct output memout = {NULL, NULL, NULL, 0, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
 
@@ -214,20 +214,19 @@ emptyoutbuf(struct output *dest)
 		INTOFF;
 		dest->buf = ckmalloc(dest->bufsize);
 		dest->nextc = dest->buf;
-		dest->nleft = dest->bufsize;
+		dest->bufend = dest->buf + dest->bufsize;
 		INTON;
 	} else if (dest->fd == MEM_OUT) {
-		offset = dest->bufsize;
+		offset = dest->nextc - dest->buf;
 		INTOFF;
 		dest->bufsize <<= 1;
 		dest->buf = ckrealloc(dest->buf, dest->bufsize);
-		dest->nleft = dest->bufsize - offset;
+		dest->bufend = dest->buf + dest->bufsize;
 		dest->nextc = dest->buf + offset;
 		INTON;
 	} else {
 		flushout(dest);
 	}
-	dest->nleft--;
 }
 
 
@@ -248,7 +247,6 @@ flushout(struct output *dest)
 	if (xwrite(dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
 		dest->flags |= OUTPUT_ERR;
 	dest->nextc = dest->buf;
-	dest->nleft = dest->bufsize;
 }
 
 
@@ -258,8 +256,9 @@ freestdout(void)
 	INTOFF;
 	if (output.buf) {
 		ckfree(output.buf);
+		output.nextc = NULL;
 		output.buf = NULL;
-		output.nleft = 0;
+		output.bufend = NULL;
 	}
 	INTON;
 }
