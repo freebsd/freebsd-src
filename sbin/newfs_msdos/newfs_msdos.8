@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2015
+.Dd May 16, 2017
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -55,6 +55,7 @@
 .Op Fl o Ar hidden
 .Op Fl r Ar reserved
 .Op Fl s Ar total
+.Op Fl T Ar timestamp
 .Op Fl u Ar track-size
 .Ar special
 .Op Ar disktype
@@ -159,6 +160,12 @@ Number of hidden sectors.
 Number of reserved sectors.
 .It Fl s Ar total
 File system size.
+.It Fl T Ar timestamp
+Specify a timestamp to be used for filesystem creation so that
+it can be consistent for reproducible builds.
+The timestamp can be a pathname (where the timestamps are derived from
+that file) or an integer value interpreted
+as the number of seconds since the Epoch.
 .It Fl u Ar track-size
 Number of sectors per track.
 .El
