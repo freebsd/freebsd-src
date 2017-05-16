@@ -1583,6 +1583,16 @@ vlan_capabilities(struct ifvlan *ifv)
 	}
 
 	/*
+	 * If the parent interface can do LRO and checksum offloading on
+	 * VLANs, then guess it may do LRO on VLANs.  False positive here
+	 * cost nothing, while false negative may lead to some confusions.
+	 */
+	if (p->if_capabilities & IFCAP_VLAN_HWCSUM)
+		cap |= p->if_capabilities & IFCAP_LRO;
+	if (p->if_capenable & IFCAP_VLAN_HWCSUM)
+		ena |= p->if_capenable & IFCAP_LRO;
+
+	/*
 	 * If the parent interface can offload TCP connections over VLANs then
 	 * propagate its TOE capability to the VLAN interface.
 	 *
