@@ -28,4 +28,4 @@ mips/cheri/cheri_signal.c		optional cpu_cheri
 mips/cheri/cheri_stack.c		optional cpu_cheri
 mips/cheri/cheri_syscall.c		optional cpu_cheri
 mips/cheri/cheri_test.c			optional cpu_cheri
-mips/cheri/cheriabi_machdep.c		optional cpu_cheri compat_cheriabi
+mips/cheri/cheriabi_machdep.c		optional cpu_cheri compat_cheriabi compile-with "${NORMAL_C} --param inline-unit-growth=1000 -O2 -fno-strict-aliasing"
