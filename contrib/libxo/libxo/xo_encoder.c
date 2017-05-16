@@ -139,7 +139,7 @@ xo_encoder_list_add (const char *name)
 
     xo_encoder_node_t *xep = xo_realloc(NULL, sizeof(*xep));
     if (xep) {
-	int len = strlen(name) + 1;
+	ssize_t len = strlen(name) + 1;
 	xep->xe_name = xo_realloc(NULL, len);
 	if (xep->xe_name == NULL) {
 	    xo_free(xep);
@@ -241,7 +241,7 @@ xo_encoder_discover (const char *name)
 	    bzero(&xei, sizeof(xei));
 
 	    xei.xei_version = XO_ENCODER_VERSION;
-	    int rc = func(&xei);
+	    ssize_t rc = func(&xei);
 	    if (rc == 0 && xei.xei_handler) {
 		xep = xo_encoder_list_add(name);
 		if (xep) {

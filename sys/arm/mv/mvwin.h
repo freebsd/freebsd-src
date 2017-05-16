@@ -296,6 +296,10 @@
 #define	MV_WIN_SATA_MAX			4
 #endif
 
+#define	MV_WIN_SDHCI_CTRL(n)		(0x8 * (n) + 0x4080)
+#define	MV_WIN_SDHCI_BASE(n)		(0x8 * (n) + 0x4084)
+#define	MV_WIN_SDHCI_MAX		8
+
 #if defined(SOC_MV_ARMADA38X)
 #define	MV_BOOTROM_MEM_ADDR	0xFFF00000
 #define	MV_BOOTROM_WIN_SIZE	0xF

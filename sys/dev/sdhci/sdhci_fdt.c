@@ -57,7 +57,17 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
-#define	MAX_SLOTS	6
+#define	MAX_SLOTS		6
+#define	SDHCI_FDT_ARMADA38X	1
+#define	SDHCI_FDT_GENERIC	2
+#define	SDHCI_FDT_XLNX_ZY7	3
+
+static struct ofw_compat_data compat_data[] = {
+	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
+	{ "sdhci_generic",		SDHCI_FDT_GENERIC },
+	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
+	{ NULL, 0 }
+};
 
 struct sdhci_fdt_softc {
 	device_t	dev;		/* Controller device */
@@ -181,13 +191,21 @@ sdhci_fdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "sdhci_generic")) {
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case SDHCI_FDT_ARMADA38X:
+		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
+		device_set_desc(dev, "ARMADA38X SDHCI controller");
+		break;
+	case SDHCI_FDT_GENERIC:
 		device_set_desc(dev, "generic fdt SDHCI controller");
-	} else if (ofw_bus_is_compatible(dev, "xlnx,zy7_sdhci")) {
+		break;
+	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 		device_set_desc(dev, "Zynq-7000 generic fdt SDHCI controller");
-	} else
+		break;
+	default:
 		return (ENXIO);
+	}
 
 	node = ofw_bus_get_node(dev);
 

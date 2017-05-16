@@ -212,14 +212,25 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
  */
 
 /*
+ * Different protocols initialize their inpcbs differently - giving
+ * different name to the lock.  But they all are disposed the same.
+ */
+static void
+inpcb_fini(void *mem, int size)
+{
+	struct inpcb *inp = mem;
+
+	INP_LOCK_DESTROY(inp);
+}
+
+/*
  * Initialize an inpcbinfo -- we should be able to reduce the number of
  * arguments in time.
  */
 void
 in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
     struct inpcbhead *listhead, int hash_nelements, int porthash_nelements,
-    char *inpcbzone_name, uma_init inpcbzone_init, uma_fini inpcbzone_fini,
-    uint32_t inpcbzone_flags, u_int hashfields)
+    char *inpcbzone_name, uma_init inpcbzone_init, u_int hashfields)
 {
 
 	INP_INFO_LOCK_INIT(pcbinfo, name);
@@ -239,8 +250,7 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	in_pcbgroup_init(pcbinfo, hashfields, hash_nelements);
 #endif
 	pcbinfo->ipi_zone = uma_zcreate(inpcbzone_name, sizeof(struct inpcb),
-	    NULL, NULL, inpcbzone_init, inpcbzone_fini, UMA_ALIGN_PTR,
-	    inpcbzone_flags);
+	    NULL, NULL, inpcbzone_init, inpcb_fini, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
 	uma_zone_set_warning(pcbinfo->ipi_zone,
 	    "kern.ipc.maxsockets limit reached");

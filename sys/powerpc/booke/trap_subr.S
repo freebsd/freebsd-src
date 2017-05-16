@@ -981,12 +981,12 @@ int_debug_int:
 	LOAD	%r4,0(%r5)	/* interrupt_vector_base in r4 */
 	add	%r4,%r4,%r5
 	CMPL	cr0, %r3, %r4
-	blt	1f
+	blt	trap_common
 	LOAD	%r4,4(%r5)	/* interrupt_vector_top in r4 */
 	add	%r4,%r4,%r5
 	addi	%r4,%r4,4
 	CMPL	cr0, %r3, %r4
-	bge	1f
+	bge	trap_common
 	/* Disable single-stepping for the interrupt handlers. */
 	LOAD	%r3, FRAME_SRR1+CALLSIZE(%r1);
 	rlwinm	%r3, %r3, 0, 23, 21
@@ -999,16 +999,6 @@ int_debug_int:
 	mtspr	SPR_SRR1, %r4
 	mtlr	%r14
 	blr
-1:
-	GET_TOCBASE(%r2)
-	addi	%r3, %r1, CALLSIZE
-	bl	CNAME(trap)
-	TOC_RESTORE
-	/*
-	 * Handle ASTs, needed for proper support of single-stepping.
-	 * We actually need to return to the process with an rfi.
-	 */
-	b	trapexit
 
 /*****************************************************************************
  * Common trap code

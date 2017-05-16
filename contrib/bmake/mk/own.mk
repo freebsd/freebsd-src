@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.32 2016/05/18 20:54:29 sjg Exp $
+# $Id: own.mk,v 1.35 2017/05/03 18:09:44 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -117,6 +117,7 @@ OPTIONS_DEFAULT_DEPENDENT+= \
 	PICINSTALL/LINKLIB \
 	PICLIB/PIC \
 	PROFILE/LINKLIB \
+	STAGING_PROG/STAGING \
 
 .include <options.mk>
 
@@ -128,7 +129,7 @@ _uid!=  id -u
 USERGRP!=  id -g
 .export USERGRP
 .endif
-.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+.for x in BIN CONF DOC INC INFO FILES KMOD LIB MAN NLS SHARE
 $xOWN=  ${USER}
 $xGRP=  ${USERGRP}
 $x_INSTALL_OWN=
@@ -144,6 +145,9 @@ BINOWN?=	root
 BINMODE?=	555
 NONBINMODE?=	444
 DIRMODE?=	755
+
+INCLUDEDIR?=	${prefix}/include
+INCDIR?=	${INCLUDEDIR}
 
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1
@@ -183,6 +187,10 @@ KMODDIR?=	${prefix}/lkm
 KMODGRP?=	${BINGRP}
 KMODOWN?=	${BINOWN}
 KMODMODE?=	${NONBINMODE}
+
+SHAREGRP?=	${BINGRP}
+SHAREOWN?=	${BINOWN}
+SHAREMODE?=	${NONBINMODE}
 
 COPY?=		-c
 STRIP_FLAG?=	-s
@@ -242,6 +250,21 @@ MK_DOC=		no
 MK_INFO=	no
 MK_MAN=		no
 MK_NLS=		no
+.endif
+
+# :U incase not using our sys.mk
+.if ${MK_META_MODE:Uno} == "yes"
+# should all be set by sys.mk if not default
+TARGET_SPEC_VARS ?= MACHINE
+.if ${TARGET_SPEC_VARS:[#]} > 1
+TARGET_SPEC_VARS_REV := ${TARGET_SPEC_VARS:[-1..1]}
+.else
+TARGET_SPEC_VARS_REV = ${TARGET_SPEC_VARS}
+.endif
+.if ${MK_STAGING} == "yes"
+STAGE_ROOT?= ${OBJROOT}/stage
+STAGE_OBJTOP?= ${STAGE_ROOT}/${TARGET_SPEC_VARS_REV:ts/}
+.endif
 .endif
 
 .endif

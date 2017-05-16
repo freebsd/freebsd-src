@@ -12,6 +12,7 @@ ident 	ARMADA38X
 options 	SOC_MV_ARMADA38X
 
 makeoptions 	WERROR="-Werror"
+makeoptions 	MODULES_EXTRA="dtb/mv"
 
 options 	MD_ROOT
 #makeoptions 	MFS_IMAGE=/path/to/miniroot
@@ -62,6 +63,11 @@ device		scbus
 device		pass
 device		da
 
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
 # SATA
 device		ahci
 
@@ -78,7 +84,5 @@ device		cryptodev
 # L2 Cache
 device		pl310
 
-#FDT
+# FDT
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions 	FDT_DTS_FILE=armada-388-gp.dts

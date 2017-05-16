@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2000
+.Dd May 16, 2017
 .Dt PXEBOOT 8
 .Os
 .Sh NAME
@@ -91,7 +91,7 @@ This may be changed by setting the
 .Va nfs.read_size
 variable in
 .Pa /boot/loader.conf .
-Valid values range from 1024 to 4096 bytes.
+Valid values range from 1024 to 16384 bytes.
 .Pp
 In all other respects,
 .Nm

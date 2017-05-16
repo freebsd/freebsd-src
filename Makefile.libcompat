@@ -163,7 +163,7 @@ build${libcompat}: .PHONY
 .endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _t in obj includes
+.for _t in ${_obj} includes
 .for _dir in ${_LC_INCDIRS}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
 	    DIRPRFX=${_dir}/ ${_t}
@@ -180,7 +180,7 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .if ${libcompat} == "32"
-.for _t in obj all
+.for _t in ${_obj} all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \

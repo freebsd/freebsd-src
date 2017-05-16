@@ -63,8 +63,6 @@
 #include "freebsd_test_suite/macros.h"
 #include "local.h"
 
-#define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
-
 /*
  * GLOBAL_MAX sets the largest usable buffer size to be read and written, as
  * it sizes ac_buffer in the aio_context structure.  It is also the default
@@ -187,7 +185,8 @@ aio_context_init(struct aio_context *ac, int read_fd,
 }
 
 static ssize_t
-poll(struct aiocb *aio) {
+poll(struct aiocb *aio)
+{
 	int error;
 
 	while ((error = aio_error(aio)) == EINPROGRESS && !aio_timedout)
@@ -204,7 +203,8 @@ poll(struct aiocb *aio) {
 }
 
 static ssize_t
-suspend(struct aiocb *aio) {
+suspend(struct aiocb *aio)
+{
 	const struct aiocb *const iocbs[] = {aio};
 	int error;
 
@@ -216,7 +216,8 @@ suspend(struct aiocb *aio) {
 }
 
 static ssize_t
-waitcomplete(struct aiocb *aio) {
+waitcomplete(struct aiocb *aio)
+{
 	struct aiocb *aiop;
 	ssize_t ret;
 
@@ -734,6 +735,7 @@ aio_md_test(completion comp)
 	struct md_ioctl mdio;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	ATF_REQUIRE_MSG(mdctl_fd != -1,
