@@ -1,4 +1,6 @@
 <top>
+  <kve_start>0xdeadbeef</kve_start>
+  <kve_end>0xcabb1e</kve_end>
   <host>my-box</host>
   <domain>example.com</domain>
   <host>my-box</host>
