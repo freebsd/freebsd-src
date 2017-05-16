@@ -79,8 +79,14 @@ struct ixl_pf {
 
 	struct callout		timer;
 	int			msix;
+#ifdef IXL_IW
+	int			iw_msix;
+	bool			iw_enabled;
+#endif
 	int			if_flags;
 	int			state;
+	bool			init_in_progress;
+	u8			supported_speeds;
 
 	struct ixl_pf_qmgr	qmgr;
 	struct ixl_pf_qtag	qtag;
@@ -107,6 +113,7 @@ struct ixl_pf {
 	int			advertised_speed;
 	int			fc; /* link flow ctrl setting */
 	enum ixl_dbg_mask	dbg_mask;
+	bool			has_i2c;
 
 	/* Misc stats maintained by the driver */
 	u64			watchdog_events;
@@ -145,8 +152,10 @@ struct ixl_pf {
 "\t 0x2 - advertise 1G\n"		\
 "\t 0x4 - advertise 10G\n"		\
 "\t 0x8 - advertise 20G\n"		\
-"\t0x10 - advertise 40G\n\n"		\
-"Set to 0 to disable link."
+"\t0x10 - advertise 25G\n"		\
+"\t0x20 - advertise 40G\n\n"		\
+"Set to 0 to disable link.\n"		\
+"Use \"sysctl -x\" to view flags properly."
 
 #define IXL_SYSCTL_HELP_FC				\
 "\nSet flow control mode using the values below.\n" 	\
@@ -171,10 +180,11 @@ static char *ixl_fc_string[6] = {
 static MALLOC_DEFINE(M_IXL, "ixl", "ixl driver allocations");
 
 /*** Functions / Macros ***/
-#define	I40E_VC_DEBUG(pf, level, ...) \
-	do { \
-		if ((pf)->vc_debug_lvl >= (level)) \
-			device_printf((pf)->dev, __VA_ARGS__); \
+/* Adjust the level here to 10 or over to print stats messages */
+#define	I40E_VC_DEBUG(p, level, ...)				\
+	do {							\
+		if (level < 10)					\
+			ixl_dbg(p, IXL_DBG_IOV_VC, ##__VA_ARGS__); \
 	} while (0)
 
 #define	i40e_send_vf_nack(pf, vf, op, st) \
@@ -187,16 +197,25 @@ static MALLOC_DEFINE(M_IXL, "ixl", "ixl driver allocations");
 #define IXL_PF_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->pf_mtx)
 #define IXL_PF_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->pf_mtx, MA_OWNED)
 
+/* Debug printing */
+#define ixl_dbg(p, m, s, ...)	ixl_debug_core(p, m, s, ##__VA_ARGS__)
+void	ixl_debug_core(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
+
 /* For stats sysctl naming */
 #define QUEUE_NAME_LEN 32
+
+/* For netmap(4) compatibility */
+#define ixl_disable_intr(vsi)	ixl_disable_rings_intr(vsi)
 
 /*
  * PF-only function declarations
  */
 
 void	ixl_set_busmaster(device_t);
+void	ixl_set_msix_enable(device_t);
 int	ixl_setup_interface(device_t, struct ixl_vsi *);
 void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
+char *	ixl_aq_speed_to_str(enum i40e_aq_link_speed);
 
 void	ixl_handle_que(void *context, int pending);
 
@@ -223,13 +242,10 @@ void    ixl_media_status(struct ifnet *, struct ifmediareq *);
 int     ixl_media_change(struct ifnet *);
 int     ixl_ioctl(struct ifnet *, u_long, caddr_t);
 
-void    ixl_enable_adminq(struct i40e_hw *);
-void	ixl_get_bus_info(struct i40e_hw *, device_t);
-void	ixl_disable_adminq(struct i40e_hw *);
 void	ixl_enable_queue(struct i40e_hw *, int);
 void	ixl_disable_queue(struct i40e_hw *, int);
-void	ixl_enable_legacy(struct i40e_hw *);
-void	ixl_disable_legacy(struct i40e_hw *);
+void	ixl_enable_intr0(struct i40e_hw *);
+void	ixl_disable_intr0(struct i40e_hw *);
 void	ixl_nvm_version_str(struct i40e_hw *hw, struct sbuf *buf);
 void	ixl_stat_update48(struct i40e_hw *, u32, u32, bool,
 		    u64 *, u64 *);
@@ -239,6 +255,7 @@ void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 void	ixl_stop(struct ixl_pf *);
 void	ixl_add_vsi_sysctls(struct ixl_pf *pf, struct ixl_vsi *vsi, struct sysctl_ctx_list *ctx, const char *sysctl_name);
 int	ixl_get_hw_capabilities(struct ixl_pf *);
+void	ixl_link_up_msg(struct ixl_pf *);
 void    ixl_update_link_status(struct ixl_pf *);
 int     ixl_allocate_pci_resources(struct ixl_pf *);
 int	ixl_setup_stations(struct ixl_pf *);
@@ -256,7 +273,7 @@ int	ixl_teardown_adminq_msix(struct ixl_pf *);
 void	ixl_configure_intr0_msix(struct ixl_pf *);
 void	ixl_configure_queue_intr_msix(struct ixl_pf *);
 void	ixl_free_adminq_tq(struct ixl_pf *);
-int	ixl_assign_vsi_legacy(struct ixl_pf *);
+int	ixl_setup_legacy(struct ixl_pf *);
 int	ixl_init_msix(struct ixl_pf *);
 void	ixl_configure_itr(struct ixl_pf *);
 void	ixl_configure_legacy(struct ixl_pf *);
@@ -271,7 +288,9 @@ void	ixl_handle_mdd_event(struct ixl_pf *);
 void	ixl_add_hw_stats(struct ixl_pf *);
 void	ixl_update_stats_counters(struct ixl_pf *);
 void	ixl_pf_reset_stats(struct ixl_pf *);
-void	ixl_dbg(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
+void	ixl_get_bus_info(struct ixl_pf *pf);
+int	ixl_aq_get_link_status(struct ixl_pf *,
+    struct i40e_aqc_get_link_status *);
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
@@ -295,10 +314,9 @@ int	ixl_enable_rx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
 int	ixl_enable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
 
 void	ixl_update_eth_stats(struct ixl_vsi *);
-void	ixl_disable_intr(struct ixl_vsi *);
 void	ixl_cap_txcsum_tso(struct ixl_vsi *, struct ifnet *, int);
 int	ixl_initialize_vsi(struct ixl_vsi *);
-void	ixl_add_ifmedia(struct ixl_vsi *, u32);
+void	ixl_add_ifmedia(struct ixl_vsi *, u64);
 int	ixl_setup_queue_msix(struct ixl_vsi *);
 int	ixl_setup_queue_tqs(struct ixl_vsi *);
 int	ixl_teardown_queue_msix(struct ixl_vsi *);
@@ -318,5 +336,14 @@ void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
 void	ixl_free_mac_filters(struct ixl_vsi *vsi);
 void	ixl_update_vsi_stats(struct ixl_vsi *);
 void	ixl_vsi_reset_stats(struct ixl_vsi *);
+
+/*
+ * I2C Function prototypes
+ */
+int	ixl_find_i2c_interface(struct ixl_pf *);
+s32	ixl_read_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 *data);
+s32	ixl_write_i2c_byte(struct ixl_pf *pf, u8 byte_offset,
+	    u8 dev_addr, u8 data);
 
 #endif /* _IXL_PF_H_ */

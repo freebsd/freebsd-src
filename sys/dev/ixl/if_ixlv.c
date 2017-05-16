@@ -38,7 +38,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.4.6-k";
+char ixlv_driver_version[] = "1.4.12-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -53,10 +53,8 @@ char ixlv_driver_version[] = "1.4.6-k";
 static ixl_vendor_info_t ixlv_vendor_info_array[] =
 {
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_VF, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_VF_HV, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_VF, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_A0_VF, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_VF_HV, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -90,6 +88,7 @@ static void	ixlv_add_multi(struct ixl_vsi *);
 static void	ixlv_del_multi(struct ixl_vsi *);
 static void	ixlv_free_queues(struct ixl_vsi *);
 static int	ixlv_setup_interface(device_t, struct ixlv_sc *);
+static int	ixlv_teardown_adminq_msix(struct ixlv_sc *);
 
 static int	ixlv_media_change(struct ifnet *);
 static void	ixlv_media_status(struct ifnet *, struct ifmediareq *);
@@ -170,7 +169,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, ixlv, CTLFLAG_RD, 0,
 ** Number of descriptors per ring:
 **   - TX and RX are the same size
 */
-static int ixlv_ringsz = DEFAULT_RING;
+static int ixlv_ringsz = IXL_DEFAULT_RING;
 TUNABLE_INT("hw.ixlv.ringsz", &ixlv_ringsz);
 SYSCTL_INT(_hw_ixlv, OID_AUTO, ring_size, CTLFLAG_RDTUN,
     &ixlv_ringsz, 0, "Descriptor Ring Size");
@@ -486,13 +485,14 @@ ixlv_detach(device_t dev)
 {
 	struct ixlv_sc	*sc = device_get_softc(dev);
 	struct ixl_vsi 	*vsi = &sc->vsi;
+	struct i40e_hw	*hw = &sc->hw;
+	enum i40e_status_code	status;
 
 	INIT_DBG_DEV(dev, "begin");
 
 	/* Make sure VLANS are not using driver */
 	if (vsi->ifp->if_vlantrunk != NULL) {
 		if_printf(vsi->ifp, "Vlan in use, detach first\n");
-		INIT_DBG_DEV(dev, "end");
 		return (EBUSY);
 	}
 
@@ -513,16 +513,25 @@ ixlv_detach(device_t dev)
 	/* Drain VC mgr */
 	callout_drain(&sc->vc_mgr.callout);
 
-	i40e_shutdown_adminq(&sc->hw);
+	ixlv_disable_adminq_irq(hw);
+	ixlv_teardown_adminq_msix(sc);
+	/* Drain admin queue taskqueue */
 	taskqueue_free(sc->tq);
+	status = i40e_shutdown_adminq(&sc->hw);
+	if (status != I40E_SUCCESS) {
+		device_printf(dev,
+		    "i40e_shutdown_adminq() failed with status %s\n",
+		    i40e_stat_str(hw, status));
+	}
+
 	if_free(vsi->ifp);
 	free(sc->vf_res, M_DEVBUF);
 	ixlv_free_pci_resources(sc);
 	ixlv_free_queues(vsi);
-	mtx_destroy(&sc->mtx);
 	ixlv_free_filters(sc);
 
 	bus_generic_detach(dev);
+	mtx_destroy(&sc->mtx);
 	INIT_DBG_DEV(dev, "end");
 	return (0);
 }
@@ -964,10 +973,10 @@ ixlv_init(void *arg)
 
 	/* Wait for init_locked to finish */
 	while (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING)
-	    && ++retries < IXLV_AQ_MAX_ERR) {
+	    && ++retries < IXLV_MAX_INIT_WAIT) {
 		i40e_msec_pause(25);
 	}
-	if (retries >= IXLV_AQ_MAX_ERR) {
+	if (retries >= IXLV_MAX_INIT_WAIT) {
 		if_printf(vsi->ifp,
 		    "Init failed to complete in allotted time!\n");
 	}
@@ -1178,7 +1187,7 @@ ixlv_init_msix(struct ixlv_sc *sc)
 	int rid, want, vectors, queues, available;
 	int auto_max_queues;
 
-	rid = PCIR_BAR(IXL_BAR);
+	rid = PCIR_BAR(IXL_MSIX_BAR);
 	sc->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
        	if (!sc->msix_mem) {
@@ -1264,11 +1273,11 @@ ixlv_init_msix(struct ixlv_sc *sc)
 	}
 
 	/* Next we need to setup the vector for the Admin Queue */
-	rid = 1;	// zero vector + 1
+	rid = 1;	/* zero vector + 1 */
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->res == NULL) {
-		device_printf(dev,"Unable to allocate"
+		device_printf(dev, "Unable to allocate"
 		    " bus resource: AQ interrupt \n");
 		goto fail;
 	}
@@ -1367,21 +1376,11 @@ ixlv_free_pci_resources(struct ixlv_sc *sc)
 	}
         
 early:
-	/* Clean the AdminQ interrupt */
-	if (sc->tag != NULL) {
-		bus_teardown_intr(dev, sc->res, sc->tag);
-		sc->tag = NULL;
-	}
-	if (sc->res != NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, 1, sc->res);
-		sc->res = NULL;
-	}
-
 	pci_release_msi(dev);
 
 	if (sc->msix_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IXL_BAR), sc->msix_mem);
+		    PCIR_BAR(IXL_MSIX_BAR), sc->msix_mem);
 
 	if (sc->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -1651,8 +1650,6 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 		que->num_desc = ixlv_ringsz;
 		que->me = i;
 		que->vsi = vsi;
-		/* mark the queue as active */
-		vsi->active_queues |= (u64)1 << que->me;
 
 		txr = &que->txr;
 		txr->que = que;
@@ -1855,6 +1852,35 @@ ixlv_find_mac_filter(struct ixlv_sc *sc, u8 *macaddr)
 	return (f);
 }
 
+static int
+ixlv_teardown_adminq_msix(struct ixlv_sc *sc)
+{
+	device_t		dev = sc->dev;
+	int			error = 0;
+
+	if (sc->tag != NULL) {
+		bus_teardown_intr(dev, sc->res, sc->tag);
+		if (error) {
+			device_printf(dev, "bus_teardown_intr() for"
+			    " interrupt 0 failed\n");
+			// return (ENXIO);
+		}
+		sc->tag = NULL;
+	}
+	if (sc->res != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, 1, sc->res);
+		if (error) {
+			device_printf(dev, "bus_release_resource() for"
+			    " interrupt 0 failed\n");
+			// return (ENXIO);
+		}
+		sc->res = NULL;
+	}
+
+	return (0);
+
+}
+
 /*
 ** Admin Queue interrupt handler
 */
@@ -2025,7 +2051,7 @@ ixlv_set_queue_rx_itr(struct ixl_queue *que)
 			/* do an exponential smoothing */
 			rx_itr = (10 * rx_itr * rxr->itr) /
 			    ((9 * rx_itr) + rxr->itr);
-			rxr->itr = rx_itr & IXL_MAX_ITR;
+			rxr->itr = min(rx_itr, IXL_MAX_ITR);
 			wr32(hw, I40E_VFINT_ITRN1(IXL_RX_ITR,
 			    que->me), rxr->itr);
 		}
@@ -2098,7 +2124,7 @@ ixlv_set_queue_tx_itr(struct ixl_queue *que)
        	         /* do an exponential smoothing */
 			tx_itr = (10 * tx_itr * txr->itr) /
 			    ((9 * tx_itr) + txr->itr);
-			txr->itr = tx_itr & IXL_MAX_ITR;
+			txr->itr = min(tx_itr, IXL_MAX_ITR);
 			wr32(hw, I40E_VFINT_ITRN1(IXL_TX_ITR,
 			    que->me), txr->itr);
 		}
@@ -2415,8 +2441,10 @@ ixlv_local_timer(void *arg)
 	struct ixl_vsi		*vsi = &sc->vsi;
 	struct ixl_queue	*que = vsi->queues;
 	device_t		dev = sc->dev;
+	struct tx_ring		*txr;
 	int			hung = 0;
 	u32			mask, val;
+	s32			timer, new_timer;
 
 	IXLV_CORE_LOCK_ASSERT(sc);
 
@@ -2446,41 +2474,40 @@ ixlv_local_timer(void *arg)
 	    I40E_VFINT_DYN_CTLN1_SWINT_TRIG_MASK |
 	    I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
 
-	for (int i = 0; i < vsi->num_queues; i++,que++) {
-		/* Any queues with outstanding work get a sw irq */
-		if (que->busy)
-			wr32(hw, I40E_VFINT_DYN_CTLN1(que->me), mask);
-		/*
-		** Each time txeof runs without cleaning, but there
-		** are uncleaned descriptors it increments busy. If
-		** we get to 5 we declare it hung.
-		*/
-		if (que->busy == IXL_QUEUE_HUNG) {
-			++hung;
-			/* Mark the queue as inactive */
-			vsi->active_queues &= ~((u64)1 << que->me);
-			continue;
-		} else {
-			/* Check if we've come back from hung */
-			if ((vsi->active_queues & ((u64)1 << que->me)) == 0)
-				vsi->active_queues |= ((u64)1 << que->me);
-		}
-		if (que->busy >= IXL_MAX_TX_BUSY) {
-			device_printf(dev,"Warning queue %d "
-			    "appears to be hung!\n", i);
-			que->busy = IXL_QUEUE_HUNG;
-			++hung;
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		txr = &que->txr;
+		timer = atomic_load_acq_32(&txr->watchdog_timer);
+		if (timer > 0) {
+			new_timer = timer - hz;
+			if (new_timer <= 0) {
+				atomic_store_rel_32(&txr->watchdog_timer, -1);
+				device_printf(dev, "WARNING: queue %d "
+				    "appears to be hung!\n", que->me);
+				++hung;
+			} else {
+				/*
+				 * If this fails, that means something in the TX path has updated
+				 * the watchdog, so it means the TX path is still working and
+				 * the watchdog doesn't need to countdown.
+				 */
+				atomic_cmpset_rel_32(&txr->watchdog_timer, timer, new_timer);
+				/* Any queues with outstanding work get a sw irq */
+				wr32(hw, I40E_VFINT_DYN_CTLN1(que->me), mask);
+			}
 		}
 	}
-	/* Only reset when all queues show hung */
-	if (hung == vsi->num_queues)
+	/* Reset when a queue shows hung */
+	if (hung)
 		goto hung;
+
 	callout_reset(&sc->timer, hz, ixlv_local_timer, sc);
 	return;
 
 hung:
-	device_printf(dev, "Local Timer: TX HANG DETECTED - Resetting!!\n");
+	device_printf(dev, "WARNING: Resetting!\n");
 	sc->init_state = IXLV_RESET_REQUIRED;
+	sc->watchdog_events++;
+	ixlv_stop(sc);
 	ixlv_init_locked(sc);
 }
 
@@ -2635,7 +2662,7 @@ ixlv_config_rss_reg(struct ixlv_sc *sc)
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
 #else
-	set_hena = IXL_DEFAULT_RSS_HENA;
+	set_hena = IXL_DEFAULT_RSS_HENA_XL710;
 #endif
 	hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
 	    ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
@@ -2802,6 +2829,7 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 	u16				result = 0;
 	u32				reg, oldreg;
 	i40e_status			ret;
+	bool				aq_error = false;
 
 	IXLV_CORE_LOCK_ASSERT(sc);
 
@@ -2824,14 +2852,17 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 	if (reg & I40E_VF_ARQLEN1_ARQVFE_MASK) {
 		device_printf(dev, "ARQ VF Error detected\n");
 		reg &= ~I40E_VF_ARQLEN1_ARQVFE_MASK;
+		aq_error = true;
 	}
 	if (reg & I40E_VF_ARQLEN1_ARQOVFL_MASK) {
 		device_printf(dev, "ARQ Overflow Error detected\n");
 		reg &= ~I40E_VF_ARQLEN1_ARQOVFL_MASK;
+		aq_error = true;
 	}
 	if (reg & I40E_VF_ARQLEN1_ARQCRIT_MASK) {
 		device_printf(dev, "ARQ Critical Error detected\n");
 		reg &= ~I40E_VF_ARQLEN1_ARQCRIT_MASK;
+		aq_error = true;
 	}
 	if (oldreg != reg)
 		wr32(hw, hw->aq.arq.len, reg);
@@ -2840,18 +2871,28 @@ ixlv_do_adminq_locked(struct ixlv_sc *sc)
 	if (reg & I40E_VF_ATQLEN1_ATQVFE_MASK) {
 		device_printf(dev, "ASQ VF Error detected\n");
 		reg &= ~I40E_VF_ATQLEN1_ATQVFE_MASK;
+		aq_error = true;
 	}
 	if (reg & I40E_VF_ATQLEN1_ATQOVFL_MASK) {
 		device_printf(dev, "ASQ Overflow Error detected\n");
 		reg &= ~I40E_VF_ATQLEN1_ATQOVFL_MASK;
+		aq_error = true;
 	}
 	if (reg & I40E_VF_ATQLEN1_ATQCRIT_MASK) {
 		device_printf(dev, "ASQ Critical Error detected\n");
 		reg &= ~I40E_VF_ATQLEN1_ATQCRIT_MASK;
+		aq_error = true;
 	}
 	if (oldreg != reg)
 		wr32(hw, hw->aq.asq.len, reg);
 
+	if (aq_error) {
+		/* Need to reset adapter */
+		device_printf(dev, "WARNING: Resetting!\n");
+		sc->init_state = IXLV_RESET_REQUIRED;
+		ixlv_stop(sc);
+		ixlv_init_locked(sc);
+	}
 	ixlv_enable_adminq_irq(hw);
 }
 
@@ -2978,6 +3019,9 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 				sizeof(struct ixl_queue),
 				ixlv_sysctl_qrx_tail_handler, "IU",
 				"Queue Receive Descriptor Tail");
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "watchdog_timer",
+				CTLFLAG_RD, &(txr.watchdog_timer), 0,
+				"Ticks before watchdog event is triggered");
 #endif
 	}
 }
