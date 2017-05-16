@@ -483,35 +483,141 @@ typedef struct qlnx_host qlnx_host_t;
 
 #ifdef QLNX_DEBUG
 
-#define QL_DPRINT1(ha, x)       if (ha->dbg_level & 0x0001) device_printf x
-#define QL_DPRINT2(ha, x)       if (ha->dbg_level & 0x0002) device_printf x
-#define QL_DPRINT3(ha, x)       if (ha->dbg_level & 0x0004) device_printf x
-#define QL_DPRINT4(ha, x)       if (ha->dbg_level & 0x0008) device_printf x
-#define QL_DPRINT5(ha, x)       if (ha->dbg_level & 0x0010) device_printf x
-#define QL_DPRINT6(ha, x)       if (ha->dbg_level & 0x0020) device_printf x
-#define QL_DPRINT7(ha, x)       if (ha->dbg_level & 0x0040) device_printf x
-#define QL_DPRINT8(ha, x)       if (ha->dbg_level & 0x0080) device_printf x
-#define QL_DPRINT9(ha, x)       if (ha->dbg_level & 0x0100) device_printf x
-#define QL_DPRINT11(ha, x)      if (ha->dbg_level & 0x0400) device_printf x
-#define QL_DPRINT12(ha, x)      if (ha->dbg_level & 0x0800) device_printf x
-#define QL_DPRINT13(ha, x)      if (ha->dbg_level & 0x1000) device_printf x
-#define QL_DPRINT14(ha, x)      if (ha->dbg_level & 0x2000) device_printf x
+#define QL_DPRINT1(ha, x, ...) 					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0001) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT2(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0002) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT3(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0004) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT4(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0008) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT5(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0010) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT6(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0020) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT7(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0040) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT8(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0080) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT9(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0100) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT11(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0400) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT12(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x0800) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
+#define QL_DPRINT13(ha, x, ...)					\
+	do { 							\
+		if ((ha)->dbg_level & 0x1000) {			\
+			device_printf ((ha)->pci_dev,		\
+				"[%s:%d]" x,			\
+				__func__, __LINE__,		\
+				## __VA_ARGS__);		\
+		}						\
+	} while (0)
+
 
 #else
 
-#define QL_DPRINT1(ha, x)
-#define QL_DPRINT2(ha, x)
-#define QL_DPRINT3(ha, x)
-#define QL_DPRINT4(ha, x)
-#define QL_DPRINT5(ha, x)
-#define QL_DPRINT6(ha, x)
-#define QL_DPRINT7(ha, x)
-#define QL_DPRINT8(ha, x)
-#define QL_DPRINT9(ha, x)
-#define QL_DPRINT11(ha, x)
-#define QL_DPRINT12(ha, x)
-#define QL_DPRINT13(ha, x)
-#define QL_DPRINT14(ha, x)
+#define QL_DPRINT1(ha, x, ...)
+#define QL_DPRINT2(ha, x, ...)
+#define QL_DPRINT3(ha, x, ...)
+#define QL_DPRINT4(ha, x, ...)
+#define QL_DPRINT5(ha, x, ...)
+#define QL_DPRINT6(ha, x, ...)
+#define QL_DPRINT7(ha, x, ...)
+#define QL_DPRINT8(ha, x, ...)
+#define QL_DPRINT9(ha, x, ...)
+#define QL_DPRINT11(ha, x, ...)
+#define QL_DPRINT12(ha, x, ...)
+#define QL_DPRINT13(ha, x, ...)
 
 #endif /* #ifdef QLNX_DEBUG */
 
