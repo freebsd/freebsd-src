@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "scudo_allocator.h"
+#include "scudo_crc32.h"
 #include "scudo_tls.h"
 #include "scudo_utils.h"
 
@@ -34,21 +35,28 @@ static uptr Cookie;
 // at compilation or at runtime.
 static atomic_uint8_t HashAlgorithm = { CRC32Software };
 
-SANITIZER_WEAK_ATTRIBUTE u32 computeHardwareCRC32(u32 Crc, uptr Data);
-
-INLINE u32 computeCRC32(u32 Crc, uptr Data, u8 HashType) {
-  // If SSE4.2 is defined here, it was enabled everywhere, as opposed to only
-  // for scudo_crc32.cpp. This means that other SSE instructions were likely
-  // emitted at other places, and as a result there is no reason to not use
-  // the hardware version of the CRC32.
+INLINE u32 computeCRC32(uptr Crc, uptr Value, uptr *Array, uptr ArraySize) {
+  // If the hardware CRC32 feature is defined here, it was enabled everywhere,
+  // as opposed to only for scudo_crc32.cpp. This means that other hardware
+  // specific instructions were likely emitted at other places, and as a
+  // result there is no reason to not use it here.
 #if defined(__SSE4_2__) || defined(__ARM_FEATURE_CRC32)
-  return computeHardwareCRC32(Crc, Data);
+  Crc = CRC32_INTRINSIC(Crc, Value);
+  for (uptr i = 0; i < ArraySize; i++)
+    Crc = CRC32_INTRINSIC(Crc, Array[i]);
+  return Crc;
 #else
-  if (computeHardwareCRC32 && HashType == CRC32Hardware)
-    return computeHardwareCRC32(Crc, Data);
-  else
-    return computeSoftwareCRC32(Crc, Data);
-#endif  // defined(__SSE4_2__)
+  if (atomic_load_relaxed(&HashAlgorithm) == CRC32Hardware) {
+    Crc = computeHardwareCRC32(Crc, Value);
+    for (uptr i = 0; i < ArraySize; i++)
+      Crc = computeHardwareCRC32(Crc, Array[i]);
+    return Crc;
+  }
+  Crc = computeSoftwareCRC32(Crc, Value);
+  for (uptr i = 0; i < ArraySize; i++)
+    Crc = computeSoftwareCRC32(Crc, Array[i]);
+  return Crc;
+#endif  // defined(__SSE4_2__) || defined(__ARM_FEATURE_CRC32)
 }
 
 static ScudoBackendAllocator &getBackendAllocator();
@@ -65,8 +73,9 @@ struct ScudoChunk : UnpackedHeader {
   // Returns the usable size for a chunk, meaning the amount of bytes from the
   // beginning of the user data to the end of the backend allocated chunk.
   uptr getUsableSize(UnpackedHeader *Header) {
-    uptr Size = getBackendAllocator().GetActuallyAllocatedSize(
-        getAllocBeg(Header));
+    uptr Size =
+        getBackendAllocator().GetActuallyAllocatedSize(getAllocBeg(Header),
+                                                       Header->FromPrimary);
     if (Size == 0)
       return 0;
     return Size - AlignedChunkHeaderSize - (Header->Offset << MinAlignmentLog);
@@ -78,10 +87,8 @@ struct ScudoChunk : UnpackedHeader {
     ZeroChecksumHeader.Checksum = 0;
     uptr HeaderHolder[sizeof(UnpackedHeader) / sizeof(uptr)];
     memcpy(&HeaderHolder, &ZeroChecksumHeader, sizeof(HeaderHolder));
-    u8 HashType = atomic_load_relaxed(&HashAlgorithm);
-    u32 Crc = computeCRC32(Cookie, reinterpret_cast<uptr>(this), HashType);
-    for (uptr i = 0; i < ARRAY_SIZE(HeaderHolder); i++)
-      Crc = computeCRC32(Crc, HeaderHolder[i], HashType);
+    u32 Crc = computeCRC32(Cookie, reinterpret_cast<uptr>(this), HeaderHolder,
+                           ARRAY_SIZE(HeaderHolder));
     return static_cast<u16>(Crc);
   }
 
@@ -195,10 +202,10 @@ void initScudo() {
   CHECK(!ScudoInitIsRunning && "Scudo init calls itself!");
   ScudoInitIsRunning = true;
 
-  // Check is SSE4.2 is supported, if so, opt for the CRC32 hardware version.
-  if (testCPUFeature(CRC32CPUFeature)) {
+  // Check if hardware CRC32 is supported in the binary and by the platform, if
+  // so, opt for the CRC32 hardware version of the checksum.
+  if (computeHardwareCRC32 && testCPUFeature(CRC32CPUFeature))
     atomic_store_relaxed(&HashAlgorithm, CRC32Hardware);
-  }
 
   initFlags();
 
@@ -215,7 +222,8 @@ struct QuarantineCallback {
   explicit QuarantineCallback(AllocatorCache *Cache)
     : Cache_(Cache) {}
 
-  // Chunk recycling function, returns a quarantined chunk to the backend.
+  // Chunk recycling function, returns a quarantined chunk to the backend,
+  // first making sure it hasn't been tampered with.
   void Recycle(ScudoChunk *Chunk) {
     UnpackedHeader Header;
     Chunk->loadHeader(&Header);
@@ -225,17 +233,19 @@ struct QuarantineCallback {
     }
     Chunk->eraseHeader();
     void *Ptr = Chunk->getAllocBeg(&Header);
-    getBackendAllocator().Deallocate(Cache_, Ptr);
+    getBackendAllocator().Deallocate(Cache_, Ptr, Header.FromPrimary);
   }
 
-  /// Internal quarantine allocation and deallocation functions.
+  // Internal quarantine allocation and deallocation functions. We first check
+  // that the batches are indeed serviced by the Primary.
+  // TODO(kostyak): figure out the best way to protect the batches.
+  COMPILER_CHECK(sizeof(QuarantineBatch) < SizeClassMap::kMaxSize);
   void *Allocate(uptr Size) {
-    // TODO(kostyak): figure out the best way to protect the batches.
-    return getBackendAllocator().Allocate(Cache_, Size, MinAlignment);
+    return getBackendAllocator().Allocate(Cache_, Size, MinAlignment, true);
   }
 
   void Deallocate(void *Ptr) {
-    getBackendAllocator().Deallocate(Cache_, Ptr);
+    getBackendAllocator().Deallocate(Cache_, Ptr, true);
   }
 
   AllocatorCache *Cache_;
@@ -353,58 +363,55 @@ struct ScudoAllocator {
       Size = 1;
 
     uptr NeededSize = RoundUpTo(Size, MinAlignment) + AlignedChunkHeaderSize;
-    if (Alignment > MinAlignment)
-      NeededSize += Alignment;
-    if (NeededSize >= MaxAllowedMallocSize)
+    uptr AlignedSize = (Alignment > MinAlignment) ?
+        NeededSize + (Alignment - AlignedChunkHeaderSize) : NeededSize;
+    if (AlignedSize >= MaxAllowedMallocSize)
       return BackendAllocator.ReturnNullOrDieOnBadRequest();
 
-    // Primary backed and Secondary backed allocations have a different
-    // treatment. We deal with alignment requirements of Primary serviced
-    // allocations here, but the Secondary will take care of its own alignment
-    // needs, which means we also have to work around some limitations of the
-    // combined allocator to accommodate the situation.
-    bool FromPrimary = PrimaryAllocator::CanAllocate(NeededSize, MinAlignment);
+    // Primary and Secondary backed allocations have a different treatment. We
+    // deal with alignment requirements of Primary serviced allocations here,
+    // but the Secondary will take care of its own alignment needs.
+    bool FromPrimary = PrimaryAllocator::CanAllocate(AlignedSize, MinAlignment);
 
     void *Ptr;
     uptr Salt;
+    uptr AllocationSize = FromPrimary ? AlignedSize : NeededSize;
     uptr AllocationAlignment = FromPrimary ? MinAlignment : Alignment;
     ScudoThreadContext *ThreadContext = getThreadContextAndLock();
     if (LIKELY(ThreadContext)) {
       Salt = getPrng(ThreadContext)->getNext();
       Ptr = BackendAllocator.Allocate(getAllocatorCache(ThreadContext),
-                                      NeededSize, AllocationAlignment);
+                                      AllocationSize, AllocationAlignment,
+                                      FromPrimary);
       ThreadContext->unlock();
     } else {
       SpinMutexLock l(&FallbackMutex);
       Salt = FallbackPrng.getNext();
-      Ptr = BackendAllocator.Allocate(&FallbackAllocatorCache, NeededSize,
-                                      AllocationAlignment);
+      Ptr = BackendAllocator.Allocate(&FallbackAllocatorCache, AllocationSize,
+                                      AllocationAlignment, FromPrimary);
     }
     if (!Ptr)
       return BackendAllocator.ReturnNullOrDieOnOOM();
 
-    uptr AllocBeg = reinterpret_cast<uptr>(Ptr);
-    // If the allocation was serviced by the secondary, the returned pointer
-    // accounts for ChunkHeaderSize to pass the alignment check of the combined
-    // allocator. Adjust it here.
-    if (!FromPrimary) {
-      AllocBeg -= AlignedChunkHeaderSize;
-      if (Alignment > MinAlignment)
-        NeededSize -= Alignment;
-    }
-
     // If requested, we will zero out the entire contents of the returned chunk.
     if ((ForceZeroContents || ZeroContents) && FromPrimary)
-       memset(Ptr, 0, BackendAllocator.GetActuallyAllocatedSize(Ptr));
+       memset(Ptr, 0,
+              BackendAllocator.GetActuallyAllocatedSize(Ptr, FromPrimary));
 
-    uptr UserBeg = AllocBeg + AlignedChunkHeaderSize;
-    if (!IsAligned(UserBeg, Alignment))
-      UserBeg = RoundUpTo(UserBeg, Alignment);
-    CHECK_LE(UserBeg + Size, AllocBeg + NeededSize);
     UnpackedHeader Header = {};
+    uptr AllocBeg = reinterpret_cast<uptr>(Ptr);
+    uptr UserBeg = AllocBeg + AlignedChunkHeaderSize;
+    if (!IsAligned(UserBeg, Alignment)) {
+      // Since the Secondary takes care of alignment, a non-aligned pointer
+      // means it is from the Primary. It is also the only case where the offset
+      // field of the header would be non-zero.
+      CHECK(FromPrimary);
+      UserBeg = RoundUpTo(UserBeg, Alignment);
+      uptr Offset = UserBeg - AlignedChunkHeaderSize - AllocBeg;
+      Header.Offset = Offset >> MinAlignmentLog;
+    }
+    CHECK_LE(UserBeg + Size, AllocBeg + AllocationSize);
     Header.State = ChunkAllocated;
-    uptr Offset = UserBeg - AlignedChunkHeaderSize - AllocBeg;
-    Header.Offset = Offset >> MinAlignmentLog;
     Header.AllocType = Type;
     if (FromPrimary) {
       Header.FromPrimary = FromPrimary;
@@ -431,17 +438,20 @@ struct ScudoAllocator {
   // with no additional security value.
   void quarantineOrDeallocateChunk(ScudoChunk *Chunk, UnpackedHeader *Header,
                                    uptr Size) {
+    bool FromPrimary = Header->FromPrimary;
     bool BypassQuarantine = (AllocatorQuarantine.GetCacheSize() == 0);
     if (BypassQuarantine) {
       Chunk->eraseHeader();
       void *Ptr = Chunk->getAllocBeg(Header);
       ScudoThreadContext *ThreadContext = getThreadContextAndLock();
       if (LIKELY(ThreadContext)) {
-        getBackendAllocator().Deallocate(getAllocatorCache(ThreadContext), Ptr);
+        getBackendAllocator().Deallocate(getAllocatorCache(ThreadContext), Ptr,
+                                         FromPrimary);
         ThreadContext->unlock();
       } else {
         SpinMutexLock Lock(&FallbackMutex);
-        getBackendAllocator().Deallocate(&FallbackAllocatorCache, Ptr);
+        getBackendAllocator().Deallocate(&FallbackAllocatorCache, Ptr,
+                                         FromPrimary);
       }
     } else {
       UnpackedHeader NewHeader = *Header;

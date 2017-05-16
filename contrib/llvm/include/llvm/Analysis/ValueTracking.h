@@ -56,6 +56,11 @@ template <typename T> class ArrayRef;
                         const Instruction *CxtI = nullptr,
                         const DominatorTree *DT = nullptr,
                         OptimizationRemarkEmitter *ORE = nullptr);
+  /// Returns the known bits rather than passing by reference.
+  KnownBits computeKnownBits(const Value *V, const DataLayout &DL,
+                             unsigned Depth = 0, AssumptionCache *AC = nullptr,
+                             const Instruction *CxtI = nullptr,
+                             const DominatorTree *DT = nullptr);
   /// Compute known bits from the range metadata.
   /// \p KnownZero the set of bits that are known to be zero
   /// \p KnownOne the set of bits that are known to be one
@@ -67,14 +72,6 @@ template <typename T> class ArrayRef;
                            AssumptionCache *AC = nullptr,
                            const Instruction *CxtI = nullptr,
                            const DominatorTree *DT = nullptr);
-
-  /// Determine whether the sign bit is known to be zero or one. Convenience
-  /// wrapper around computeKnownBits.
-  void ComputeSignBit(const Value *V, bool &KnownZero, bool &KnownOne,
-                      const DataLayout &DL, unsigned Depth = 0,
-                      AssumptionCache *AC = nullptr,
-                      const Instruction *CxtI = nullptr,
-                      const DominatorTree *DT = nullptr);
 
   /// Return true if the given value is known to have exactly one bit set when
   /// defined. For vectors return true if every element is known to be a power

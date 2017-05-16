@@ -171,6 +171,18 @@ template <> struct ScalarEnumerationTraits<FormatStyle::BracketAlignmentStyle> {
   }
 };
 
+template <> struct ScalarEnumerationTraits<FormatStyle::EscapedNewlineAlignmentStyle> {
+  static void enumeration(IO &IO, FormatStyle::EscapedNewlineAlignmentStyle &Value) {
+    IO.enumCase(Value, "DontAlign", FormatStyle::ENAS_DontAlign);
+    IO.enumCase(Value, "Left", FormatStyle::ENAS_Left);
+    IO.enumCase(Value, "Right", FormatStyle::ENAS_Right);
+
+    // For backward compatibility.
+    IO.enumCase(Value, "true", FormatStyle::ENAS_Left);
+    IO.enumCase(Value, "false", FormatStyle::ENAS_Right);
+  }
+};
+
 template <> struct ScalarEnumerationTraits<FormatStyle::PointerAlignmentStyle> {
   static void enumeration(IO &IO, FormatStyle::PointerAlignmentStyle &Value) {
     IO.enumCase(Value, "Middle", FormatStyle::PAS_Middle);
@@ -233,6 +245,7 @@ template <> struct MappingTraits<FormatStyle> {
 
     // For backward compatibility.
     if (!IO.outputting()) {
+      IO.mapOptional("AlignEscapedNewlinesLeft", Style.AlignEscapedNewlines);
       IO.mapOptional("DerivePointerBinding", Style.DerivePointerAlignment);
       IO.mapOptional("IndentFunctionDeclarationAfterType",
                      Style.IndentWrappedFunctionNames);
@@ -247,7 +260,7 @@ template <> struct MappingTraits<FormatStyle> {
                    Style.AlignConsecutiveAssignments);
     IO.mapOptional("AlignConsecutiveDeclarations",
                    Style.AlignConsecutiveDeclarations);
-    IO.mapOptional("AlignEscapedNewlinesLeft", Style.AlignEscapedNewlinesLeft);
+    IO.mapOptional("AlignEscapedNewlines", Style.AlignEscapedNewlines);
     IO.mapOptional("AlignOperands", Style.AlignOperands);
     IO.mapOptional("AlignTrailingComments", Style.AlignTrailingComments);
     IO.mapOptional("AllowAllParametersOfDeclarationOnNextLine",
@@ -498,7 +511,7 @@ FormatStyle getLLVMStyle() {
   FormatStyle LLVMStyle;
   LLVMStyle.Language = FormatStyle::LK_Cpp;
   LLVMStyle.AccessModifierOffset = -2;
-  LLVMStyle.AlignEscapedNewlinesLeft = false;
+  LLVMStyle.AlignEscapedNewlines = FormatStyle::ENAS_Right;
   LLVMStyle.AlignAfterOpenBracket = FormatStyle::BAS_Align;
   LLVMStyle.AlignOperands = true;
   LLVMStyle.AlignTrailingComments = true;
@@ -587,7 +600,7 @@ FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
   GoogleStyle.Language = Language;
 
   GoogleStyle.AccessModifierOffset = -1;
-  GoogleStyle.AlignEscapedNewlinesLeft = true;
+  GoogleStyle.AlignEscapedNewlines = FormatStyle::ENAS_Left;
   GoogleStyle.AllowShortIfStatementsOnASingleLine = true;
   GoogleStyle.AllowShortLoopsOnASingleLine = true;
   GoogleStyle.AlwaysBreakBeforeMultilineStrings = true;
@@ -624,9 +637,10 @@ FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
     GoogleStyle.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_Empty;
     GoogleStyle.AlwaysBreakBeforeMultilineStrings = false;
     GoogleStyle.BreakBeforeTernaryOperators = false;
-    // taze:, @tag followed by { for a lot of JSDoc tags, and @see, which is
-    // commonly followed by overlong URLs.
-    GoogleStyle.CommentPragmas = "(taze:|(@[A-Za-z_0-9-]+[ \\t]*{)|@see)";
+    // taze:, triple slash directives (`/// <...`), @tag followed by { for a lot
+    // of JSDoc tags, and @see, which is commonly followed by overlong URLs.
+    GoogleStyle.CommentPragmas =
+        "(taze:|^/[ \t]*<|(@[A-Za-z_0-9-]+[ \\t]*{)|@see)";
     GoogleStyle.MaxEmptyLinesToKeep = 3;
     GoogleStyle.NamespaceIndentation = FormatStyle::NI_All;
     GoogleStyle.SpacesInContainerLiterals = false;

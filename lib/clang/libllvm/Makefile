@@ -155,6 +155,7 @@ SRCS_MIN+=	CodeGen/EdgeBundles.cpp
 SRCS_MIN+=	CodeGen/ExecutionDepsFix.cpp
 SRCS_MIN+=	CodeGen/ExpandISelPseudos.cpp
 SRCS_MIN+=	CodeGen/ExpandPostRAPseudos.cpp
+SRCS_MIN+=	CodeGen/ExpandReductions.cpp
 SRCS_MIN+=	CodeGen/FEntryInserter.cpp
 SRCS_MIN+=	CodeGen/FaultMaps.cpp
 SRCS_MIN+=	CodeGen/FuncletLayout.cpp
@@ -182,6 +183,7 @@ SRCS_MIN+=	CodeGen/LiveIntervalUnion.cpp
 SRCS_MIN+=	CodeGen/LivePhysRegs.cpp
 SRCS_MIN+=	CodeGen/LiveRangeCalc.cpp
 SRCS_MIN+=	CodeGen/LiveRangeEdit.cpp
+SRCS_MIN+=	CodeGen/LiveRangeShrink.cpp
 SRCS_MIN+=	CodeGen/LiveRegMatrix.cpp
 SRCS_MIN+=	CodeGen/LiveRegUnits.cpp
 SRCS_MIN+=	CodeGen/LiveStackAnalysis.cpp
@@ -254,6 +256,7 @@ SRCS_MIN+=	CodeGen/ResetMachineFunctionPass.cpp
 SRCS_MIN+=	CodeGen/SafeStack.cpp
 SRCS_MIN+=	CodeGen/SafeStackColoring.cpp
 SRCS_MIN+=	CodeGen/SafeStackLayout.cpp
+SRCS_MIN+=	CodeGen/ScalarizeMaskedMemIntrin.cpp
 SRCS_MIN+=	CodeGen/ScheduleDAG.cpp
 SRCS_MIN+=	CodeGen/ScheduleDAGInstrs.cpp
 SRCS_MIN+=	CodeGen/ScheduleDAGPrinter.cpp
@@ -516,7 +519,6 @@ SRCS_EXL+=	LTO/LTOCodeGenerator.cpp
 SRCS_EXL+=	LTO/LTOModule.cpp
 SRCS_EXL+=	LTO/ThinLTOCodeGenerator.cpp
 SRCS_MIN+=	LTO/UpdateCompilerUsed.cpp
-SRCS_EXL+=	LibDriver/LibDriver.cpp
 SRCS_MIN+=	LineEditor/LineEditor.cpp
 SRCS_MIN+=	Linker/IRMover.cpp
 SRCS_MIN+=	Linker/LinkModules.cpp
@@ -676,6 +678,7 @@ SRCS_MIN+=	Support/MemoryBuffer.cpp
 SRCS_MIN+=	Support/Mutex.cpp
 SRCS_MIN+=	Support/NativeFormatting.cpp
 SRCS_MIN+=	Support/Options.cpp
+SRCS_LLD+=	Support/Parallel.cpp
 SRCS_MIN+=	Support/Path.cpp
 SRCS_MIN+=	Support/PluginLoader.cpp
 SRCS_MIN+=	Support/PrettyStackTrace.cpp
@@ -989,6 +992,7 @@ SRCS_MIN+=	Target/X86/X86TargetTransformInfo.cpp
 SRCS_MIN+=	Target/X86/X86VZeroUpper.cpp
 SRCS_MIN+=	Target/X86/X86WinAllocaExpander.cpp
 SRCS_MIN+=	Target/X86/X86WinEHState.cpp
+SRCS_EXL+=	ToolDrivers/llvm-lib/LibDriver.cpp
 SRCS_MIN+=	Transforms/Coroutines/CoroCleanup.cpp
 SRCS_MIN+=	Transforms/Coroutines/CoroEarly.cpp
 SRCS_MIN+=	Transforms/Coroutines/CoroElide.cpp
@@ -1228,10 +1232,10 @@ AttributesCompatFunc.inc: ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 	    ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 TGHDRS+=	AttributesCompatFunc.inc
 
-Options.inc: ${LLVM_SRCS}/lib/LibDriver/Options.td
+Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/lib/LibDriver/Options.td
+	    ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
 TGHDRS+=	Options.inc
 
 # Note: some rules are superfluous, not every combination is valid.

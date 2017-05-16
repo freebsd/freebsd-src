@@ -301,6 +301,8 @@ int main(int argc, char **argv) {
   initializeConstantHoistingLegacyPassPass(*Registry);
   initializeScalarOpts(*Registry);
   initializeVectorization(*Registry);
+  initializeScalarizeMaskedMemIntrinPass(*Registry);
+  initializeExpandReductionsPass(*Registry);
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
