@@ -251,7 +251,7 @@ extern	struct pmap kernel_pmap_store;
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
 void		pmap_kenter(vm_offset_t va, vm_paddr_t pa);
-void		pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t);
+void		pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t);
 void		pmap_kremove(vm_offset_t);
 void		*pmap_mapdev(vm_paddr_t, vm_size_t);
 void		*pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
