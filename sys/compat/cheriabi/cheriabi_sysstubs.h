@@ -18,8 +18,8 @@
 struct __wrusage;
 struct acl;
 struct aiocb;
-struct auditinfo;
 struct auditinfo_addr;
+struct auditinfo;
 struct chericap;
 struct ffclock_estimate;
 struct fhandle;
