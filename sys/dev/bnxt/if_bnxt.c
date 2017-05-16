@@ -287,7 +287,8 @@ static driver_t bnxt_iflib_driver = {
  * iflib shared context
  */
 
-char bnxt_driver_version[] = "FreeBSD base";
+#define BNXT_DRIVER_VERSION	"1.0.0.0"
+char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
