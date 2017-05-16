@@ -409,7 +409,7 @@ static bool isWordAligned(SDValue Value, SelectionDAG &DAG)
 {
   KnownBits Known;
   DAG.computeKnownBits(Value, Known);
-  return Known.Zero.countTrailingOnes() >= 2;
+  return Known.countMinTrailingZeros() >= 2;
 }
 
 SDValue XCoreTargetLowering::
@@ -1131,8 +1131,7 @@ SDValue XCoreTargetLowering::LowerCCCCallTo(
   unsigned NumBytes = RetCCInfo.getNextStackOffset();
   auto PtrVT = getPointerTy(DAG.getDataLayout());
 
-  Chain = DAG.getCALLSEQ_START(Chain,
-                               DAG.getConstant(NumBytes, dl, PtrVT, true), dl);
+  Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
 
   SmallVector<std::pair<unsigned, SDValue>, 4> RegsToPass;
   SmallVector<SDValue, 12> MemOpChains;

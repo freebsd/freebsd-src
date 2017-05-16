@@ -1062,7 +1062,7 @@ COFFObjectFile::getSectionContents(const coff_section *Sec,
   // In COFF, a virtual section won't have any in-file
   // content, so the file pointer to the content will be zero.
   if (Sec->PointerToRawData == 0)
-    return object_error::parse_failed;
+    return std::error_code();
   // The only thing that we need to verify is that the contents is contained
   // within the file bounds. We don't need to make sure it doesn't cover other
   // data, as there's nothing that says that is not allowed.
@@ -1602,8 +1602,6 @@ ErrorOr<ArrayRef<UTF16>> ResourceSectionRef::getDirStringAtOffset(uint32_t Offse
   uint16_t Length;
   RETURN_IF_ERROR(Reader.readInteger(Length));
   ArrayRef<UTF16> RawDirString;
-  // Strings are stored as 2-byte aligned unicode characters but readFixedString
-  // assumes byte string, so we double length.
   RETURN_IF_ERROR(Reader.readArray(RawDirString, Length));
   return RawDirString;
 }

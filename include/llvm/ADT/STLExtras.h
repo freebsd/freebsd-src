@@ -706,6 +706,18 @@ struct is_one_of<T, U, Ts...> {
       std::is_same<T, U>::value || is_one_of<T, Ts...>::value;
 };
 
+/// \brief traits class for checking whether type T is a base class for all
+///  the given types in the variadic list.
+template <typename T, typename... Ts> struct are_base_of {
+  static const bool value = true;
+};
+
+template <typename T, typename U, typename... Ts>
+struct are_base_of<T, U, Ts...> {
+  static const bool value =
+      std::is_base_of<T, U>::value && are_base_of<T, Ts...>::value;
+};
+
 //===----------------------------------------------------------------------===//
 //     Extra additions for arrays
 //===----------------------------------------------------------------------===//
@@ -1079,7 +1091,7 @@ private:
 ///
 /// std::vector<char> Items = {'A', 'B', 'C', 'D'};
 /// for (auto X : enumerate(Items)) {
-///   printf("Item %d - %c\n", X.Index, X.Value);
+///   printf("Item %d - %c\n", X.index(), X.value());
 /// }
 ///
 /// Output:

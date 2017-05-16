@@ -584,7 +584,7 @@ CompareValueComplexity(SmallSet<std::pair<Value *, Value *>, 8> &EqCache,
 static int CompareSCEVComplexity(
     SmallSet<std::pair<const SCEV *, const SCEV *>, 8> &EqCacheSCEV,
     const LoopInfo *const LI, const SCEV *LHS, const SCEV *RHS,
-    unsigned Depth = 0) {
+    DominatorTree &DT, unsigned Depth = 0) {
   // Fast-path: SCEVs are uniqued so we can do a quick equality check.
   if (LHS == RHS)
     return 0;
@@ -629,9 +629,16 @@ static int CompareSCEVComplexity(
     const SCEVAddRecExpr *LA = cast<SCEVAddRecExpr>(LHS);
     const SCEVAddRecExpr *RA = cast<SCEVAddRecExpr>(RHS);
 
-    // Compare addrec loop depths.
+    // If there is a dominance relationship between the loops, sort by the
+    // dominance. Otherwise, sort by depth. We require such order in getAddExpr.
     const Loop *LLoop = LA->getLoop(), *RLoop = RA->getLoop();
     if (LLoop != RLoop) {
+      const BasicBlock *LHead = LLoop->getHeader(), *RHead = RLoop->getHeader();
+      assert(LHead != RHead && "Two loops share the same header?");
+      if (DT.dominates(LHead, RHead))
+        return 1;
+      else if (DT.dominates(RHead, LHead))
+        return -1;
       unsigned LDepth = LLoop->getLoopDepth(), RDepth = RLoop->getLoopDepth();
       if (LDepth != RDepth)
         return (int)LDepth - (int)RDepth;
@@ -645,7 +652,7 @@ static int CompareSCEVComplexity(
     // Lexicographically compare.
     for (unsigned i = 0; i != LNumOps; ++i) {
       int X = CompareSCEVComplexity(EqCacheSCEV, LI, LA->getOperand(i),
-                                    RA->getOperand(i), Depth + 1);
+                                    RA->getOperand(i), DT,  Depth + 1);
       if (X != 0)
         return X;
     }
@@ -669,7 +676,7 @@ static int CompareSCEVComplexity(
       if (i >= RNumOps)
         return 1;
       int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getOperand(i),
-                                    RC->getOperand(i), Depth + 1);
+                                    RC->getOperand(i), DT, Depth + 1);
       if (X != 0)
         return X;
     }
@@ -683,10 +690,10 @@ static int CompareSCEVComplexity(
 
     // Lexicographically compare udiv expressions.
     int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getLHS(), RC->getLHS(),
-                                  Depth + 1);
+                                  DT, Depth + 1);
     if (X != 0)
       return X;
-    X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getRHS(), RC->getRHS(),
+    X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getRHS(), RC->getRHS(), DT,
                               Depth + 1);
     if (X == 0)
       EqCacheSCEV.insert({LHS, RHS});
@@ -701,7 +708,7 @@ static int CompareSCEVComplexity(
 
     // Compare cast expressions by operand.
     int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getOperand(),
-                                  RC->getOperand(), Depth + 1);
+                                  RC->getOperand(), DT, Depth + 1);
     if (X == 0)
       EqCacheSCEV.insert({LHS, RHS});
     return X;
@@ -724,7 +731,7 @@ static int CompareSCEVComplexity(
 /// land in memory.
 ///
 static void GroupByComplexity(SmallVectorImpl<const SCEV *> &Ops,
-                              LoopInfo *LI) {
+                              LoopInfo *LI, DominatorTree &DT) {
   if (Ops.size() < 2) return;  // Noop
 
   SmallSet<std::pair<const SCEV *, const SCEV *>, 8> EqCache;
@@ -732,15 +739,16 @@ static void GroupByComplexity(SmallVectorImpl<const SCEV *> &Ops,
     // This is the common case, which also happens to be trivially simple.
     // Special case it.
     const SCEV *&LHS = Ops[0], *&RHS = Ops[1];
-    if (CompareSCEVComplexity(EqCache, LI, RHS, LHS) < 0)
+    if (CompareSCEVComplexity(EqCache, LI, RHS, LHS, DT) < 0)
       std::swap(LHS, RHS);
     return;
   }
 
   // Do the rough sort by complexity.
   std::stable_sort(Ops.begin(), Ops.end(),
-                   [&EqCache, LI](const SCEV *LHS, const SCEV *RHS) {
-                     return CompareSCEVComplexity(EqCache, LI, LHS, RHS) < 0;
+                   [&EqCache, LI, &DT](const SCEV *LHS, const SCEV *RHS) {
+                     return
+                         CompareSCEVComplexity(EqCache, LI, LHS, RHS, DT) < 0;
                    });
 
   // Now that we are sorted by complexity, group elements of the same
@@ -2186,7 +2194,7 @@ const SCEV *ScalarEvolution::getAddExpr(SmallVectorImpl<const SCEV *> &Ops,
 #endif
 
   // Sort by complexity, this groups all similar expression types together.
-  GroupByComplexity(Ops, &LI);
+  GroupByComplexity(Ops, &LI, DT);
 
   Flags = StrengthenNoWrapFlags(this, scAddExpr, Ops, Flags);
 
@@ -2492,7 +2500,13 @@ const SCEV *ScalarEvolution::getAddExpr(SmallVectorImpl<const SCEV *> &Ops,
     // added together.  If so, we can fold them.
     for (unsigned OtherIdx = Idx+1;
          OtherIdx < Ops.size() && isa<SCEVAddRecExpr>(Ops[OtherIdx]);
-         ++OtherIdx)
+         ++OtherIdx) {
+      // We expect the AddRecExpr's to be sorted in reverse dominance order,
+      // so that the 1st found AddRecExpr is dominated by all others.
+      assert(DT.dominates(
+           cast<SCEVAddRecExpr>(Ops[OtherIdx])->getLoop()->getHeader(),
+           AddRec->getLoop()->getHeader()) &&
+        "AddRecExprs are not sorted in reverse dominance order?");
       if (AddRecLoop == cast<SCEVAddRecExpr>(Ops[OtherIdx])->getLoop()) {
         // Other + {A,+,B}<L> + {C,+,D}<L>  -->  Other + {A+C,+,B+D}<L>
         SmallVector<const SCEV *, 4> AddRecOps(AddRec->op_begin(),
@@ -2518,6 +2532,7 @@ const SCEV *ScalarEvolution::getAddExpr(SmallVectorImpl<const SCEV *> &Ops,
         Ops[Idx] = getAddRecExpr(AddRecOps, AddRecLoop, SCEV::FlagAnyWrap);
         return getAddExpr(Ops, SCEV::FlagAnyWrap, Depth + 1);
       }
+    }
 
     // Otherwise couldn't fold anything into this recurrence.  Move onto the
     // next one.
@@ -2614,7 +2629,7 @@ const SCEV *ScalarEvolution::getMulExpr(SmallVectorImpl<const SCEV *> &Ops,
 #endif
 
   // Sort by complexity, this groups all similar expression types together.
-  GroupByComplexity(Ops, &LI);
+  GroupByComplexity(Ops, &LI, DT);
 
   Flags = StrengthenNoWrapFlags(this, scMulExpr, Ops, Flags);
 
@@ -3211,7 +3226,7 @@ ScalarEvolution::getSMaxExpr(SmallVectorImpl<const SCEV *> &Ops) {
 #endif
 
   // Sort by complexity, this groups all similar expression types together.
-  GroupByComplexity(Ops, &LI);
+  GroupByComplexity(Ops, &LI, DT);
 
   // If there are any constants, fold them together.
   unsigned Idx = 0;
@@ -3312,7 +3327,7 @@ ScalarEvolution::getUMaxExpr(SmallVectorImpl<const SCEV *> &Ops) {
 #endif
 
   // Sort by complexity, this groups all similar expression types together.
-  GroupByComplexity(Ops, &LI);
+  GroupByComplexity(Ops, &LI, DT);
 
   // If there are any constants, fold them together.
   unsigned Idx = 0;
@@ -4636,7 +4651,7 @@ uint32_t ScalarEvolution::GetMinTrailingZerosImpl(const SCEV *S) {
     KnownBits Known(BitWidth);
     computeKnownBits(U->getValue(), Known, getDataLayout(), 0, &AC,
                      nullptr, &DT);
-    return Known.Zero.countTrailingOnes();
+    return Known.countMinTrailingZeros();
   }
 
   // SCEVUDivExpr
@@ -5955,6 +5970,30 @@ bool ScalarEvolution::BackedgeTakenInfo::hasOperand(const SCEV *S,
   return false;
 }
 
+ScalarEvolution::ExitLimit::ExitLimit(const SCEV *E)
+    : ExactNotTaken(E), MaxNotTaken(E), MaxOrZero(false) {}
+
+ScalarEvolution::ExitLimit::ExitLimit(
+    const SCEV *E, const SCEV *M, bool MaxOrZero,
+    ArrayRef<const SmallPtrSetImpl<const SCEVPredicate *> *> PredSetList)
+    : ExactNotTaken(E), MaxNotTaken(M), MaxOrZero(MaxOrZero) {
+  assert((isa<SCEVCouldNotCompute>(ExactNotTaken) ||
+          !isa<SCEVCouldNotCompute>(MaxNotTaken)) &&
+         "Exact is not allowed to be less precise than Max");
+  for (auto *PredSet : PredSetList)
+    for (auto *P : *PredSet)
+      addPredicate(P);
+}
+
+ScalarEvolution::ExitLimit::ExitLimit(
+    const SCEV *E, const SCEV *M, bool MaxOrZero,
+    const SmallPtrSetImpl<const SCEVPredicate *> &PredSet)
+    : ExitLimit(E, M, MaxOrZero, {&PredSet}) {}
+
+ScalarEvolution::ExitLimit::ExitLimit(const SCEV *E, const SCEV *M,
+                                      bool MaxOrZero)
+    : ExitLimit(E, M, MaxOrZero, None) {}
+
 /// Allocate memory for BackedgeTakenInfo and copy the not-taken count of each
 /// computable exit into a persistent ExitNotTakenInfo array.
 ScalarEvolution::BackedgeTakenInfo::BackedgeTakenInfo(
@@ -6637,13 +6676,12 @@ ScalarEvolution::ExitLimit ScalarEvolution::computeShiftCompareExitLimit(
     // {K,ashr,<positive-constant>} stabilizes to signum(K) in at most
     // bitwidth(K) iterations.
     Value *FirstValue = PN->getIncomingValueForBlock(Predecessor);
-    bool KnownZero, KnownOne;
-    ComputeSignBit(FirstValue, KnownZero, KnownOne, DL, 0, nullptr,
-                   Predecessor->getTerminator(), &DT);
+    KnownBits Known = computeKnownBits(FirstValue, DL, 0, nullptr,
+                                       Predecessor->getTerminator(), &DT);
     auto *Ty = cast<IntegerType>(RHS->getType());
-    if (KnownZero)
+    if (Known.isNonNegative())
       StableValue = ConstantInt::get(Ty, 0);
-    else if (KnownOne)
+    else if (Known.isNegative())
       StableValue = ConstantInt::get(Ty, -1, true);
     else
       return getCouldNotCompute();
@@ -7377,48 +7415,49 @@ SolveQuadraticEquation(const SCEVAddRecExpr *AddRec, ScalarEvolution &SE) {
   const APInt &N = NC->getAPInt();
   APInt Two(BitWidth, 2);
 
-  {
-    using namespace APIntOps;
-    const APInt& C = L;
-    // Convert from chrec coefficients to polynomial coefficients AX^2+BX+C
-    // The B coefficient is M-N/2
-    APInt B(M);
-    B -= N.sdiv(Two);
+  // Convert from chrec coefficients to polynomial coefficients AX^2+BX+C
 
-    // The A coefficient is N/2
-    APInt A(N.sdiv(Two));
+  // The A coefficient is N/2
+  APInt A = N.sdiv(Two);
 
-    // Compute the B^2-4ac term.
-    APInt SqrtTerm(B);
-    SqrtTerm *= B;
-    SqrtTerm -= 4 * (A * C);
+  // The B coefficient is M-N/2
+  APInt B = M;
+  B -= A; // A is the same as N/2.
 
-    if (SqrtTerm.isNegative()) {
-      // The loop is provably infinite.
-      return None;
-    }
+  // The C coefficient is L.
+  const APInt& C = L;
 
-    // Compute sqrt(B^2-4ac). This is guaranteed to be the nearest
-    // integer value or else APInt::sqrt() will assert.
-    APInt SqrtVal(SqrtTerm.sqrt());
+  // Compute the B^2-4ac term.
+  APInt SqrtTerm = B;
+  SqrtTerm *= B;
+  SqrtTerm -= 4 * (A * C);
 
-    // Compute the two solutions for the quadratic formula.
-    // The divisions must be performed as signed divisions.
-    APInt NegB(-B);
-    APInt TwoA(A << 1);
-    if (TwoA.isMinValue())
-      return None;
+  if (SqrtTerm.isNegative()) {
+    // The loop is provably infinite.
+    return None;
+  }
 
-    LLVMContext &Context = SE.getContext();
+  // Compute sqrt(B^2-4ac). This is guaranteed to be the nearest
+  // integer value or else APInt::sqrt() will assert.
+  APInt SqrtVal = SqrtTerm.sqrt();
 
-    ConstantInt *Solution1 =
-      ConstantInt::get(Context, (NegB + SqrtVal).sdiv(TwoA));
-    ConstantInt *Solution2 =
-      ConstantInt::get(Context, (NegB - SqrtVal).sdiv(TwoA));
+  // Compute the two solutions for the quadratic formula.
+  // The divisions must be performed as signed divisions.
+  APInt NegB = -std::move(B);
+  APInt TwoA = std::move(A);
+  TwoA <<= 1;
+  if (TwoA.isNullValue())
+    return None;
 
-    return std::make_pair(cast<SCEVConstant>(SE.getConstant(Solution1)),
-                          cast<SCEVConstant>(SE.getConstant(Solution2)));
-  } // end APIntOps namespace
+  LLVMContext &Context = SE.getContext();
+
+  ConstantInt *Solution1 =
+    ConstantInt::get(Context, (NegB + SqrtVal).sdiv(TwoA));
+  ConstantInt *Solution2 =
+    ConstantInt::get(Context, (NegB - SqrtVal).sdiv(TwoA));
+
+  return std::make_pair(cast<SCEVConstant>(SE.getConstant(Solution1)),
+                        cast<SCEVConstant>(SE.getConstant(Solution2)));
 }
 
 ScalarEvolution::ExitLimit
@@ -8976,7 +9015,7 @@ bool ScalarEvolution::doesIVOverflowOnLT(const SCEV *RHS, const SCEV *Stride,
                                 .getSignedMax();
 
     // SMaxRHS + SMaxStrideMinusOne > SMaxValue => overflow!
-    return (std::move(MaxValue) - std::move(MaxStrideMinusOne)).slt(MaxRHS);
+    return (std::move(MaxValue) - MaxStrideMinusOne).slt(MaxRHS);
   }
 
   APInt MaxRHS = getUnsignedRange(RHS).getUnsignedMax();
@@ -8985,7 +9024,7 @@ bool ScalarEvolution::doesIVOverflowOnLT(const SCEV *RHS, const SCEV *Stride,
                               .getUnsignedMax();
 
   // UMaxRHS + UMaxStrideMinusOne > UMaxValue => overflow!
-  return (std::move(MaxValue) - std::move(MaxStrideMinusOne)).ult(MaxRHS);
+  return (std::move(MaxValue) - MaxStrideMinusOne).ult(MaxRHS);
 }
 
 bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
@@ -9002,7 +9041,7 @@ bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
                                .getSignedMax();
 
     // SMinRHS - SMaxStrideMinusOne < SMinValue => overflow!
-    return (std::move(MinValue) + std::move(MaxStrideMinusOne)).sgt(MinRHS);
+    return (std::move(MinValue) + MaxStrideMinusOne).sgt(MinRHS);
   }
 
   APInt MinRHS = getUnsignedRange(RHS).getUnsignedMin();
@@ -9011,7 +9050,7 @@ bool ScalarEvolution::doesIVOverflowOnGT(const SCEV *RHS, const SCEV *Stride,
                             .getUnsignedMax();
 
   // UMinRHS - UMaxStrideMinusOne < UMinValue => overflow!
-  return (std::move(MinValue) + std::move(MaxStrideMinusOne)).ugt(MinRHS);
+  return (std::move(MinValue) + MaxStrideMinusOne).ugt(MinRHS);
 }
 
 const SCEV *ScalarEvolution::computeBECount(const SCEV *Delta, const SCEV *Step,

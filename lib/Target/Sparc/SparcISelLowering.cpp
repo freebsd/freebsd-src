@@ -773,8 +773,7 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
     }
   }
 
-  Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(ArgsSize, dl, true),
-                               dl);
+  Chain = DAG.getCALLSEQ_START(Chain, ArgsSize, 0, dl);
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
@@ -1165,8 +1164,7 @@ SparcTargetLowering::LowerCall_64(TargetLowering::CallLoweringInfo &CLI,
   // Adjust the stack pointer to make room for the arguments.
   // FIXME: Use hasReservedCallFrame to avoid %sp adjustments around all calls
   // with more than 6 arguments.
-  Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(ArgsSize, DL, true),
-                               DL);
+  Chain = DAG.getCALLSEQ_START(Chain, ArgsSize, 0, DL);
 
   // Collect the set of registers to pass to the function and their values.
   // This will be emitted as a sequence of CopyToReg nodes glued to the call
@@ -2058,7 +2056,7 @@ SDValue SparcTargetLowering::LowerGlobalTLSAddress(SDValue Op,
     SDValue Chain = DAG.getEntryNode();
     SDValue InFlag;
 
-    Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(1, DL, true), DL);
+    Chain = DAG.getCALLSEQ_START(Chain, 1, 0, DL);
     Chain = DAG.getCopyToReg(Chain, DL, SP::O0, Argument, InFlag);
     InFlag = Chain.getValue(1);
     SDValue Callee = DAG.getTargetExternalSymbol("__tls_get_addr", PtrVT);
@@ -3386,7 +3384,10 @@ SparcTargetLowering::getConstraintType(StringRef Constraint) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     default:  break;
-    case 'r': return C_RegisterClass;
+    case 'r':
+    case 'f':
+    case 'e':
+      return C_RegisterClass;
     case 'I': // SIMM13
       return C_Other;
     }
@@ -3465,6 +3466,24 @@ SparcTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
         return std::make_pair(0U, &SP::IntPairRegClass);
       else
         return std::make_pair(0U, &SP::IntRegsRegClass);
+    case 'f':
+      if (VT == MVT::f32)
+        return std::make_pair(0U, &SP::FPRegsRegClass);
+      else if (VT == MVT::f64)
+        return std::make_pair(0U, &SP::LowDFPRegsRegClass);
+      else if (VT == MVT::f128)
+        return std::make_pair(0U, &SP::LowQFPRegsRegClass);
+      llvm_unreachable("Unknown ValueType for f-register-type!");
+      break;
+    case 'e':
+      if (VT == MVT::f32)
+        return std::make_pair(0U, &SP::FPRegsRegClass);
+      else if (VT == MVT::f64)
+        return std::make_pair(0U, &SP::DFPRegsRegClass);
+      else if (VT == MVT::f128)
+        return std::make_pair(0U, &SP::QFPRegsRegClass);
+      llvm_unreachable("Unknown ValueType for e-register-type!");
+      break;
     }
   } else if (!Constraint.empty() && Constraint.size() <= 5
               && Constraint[0] == '{' && *(Constraint.end()-1) == '}') {

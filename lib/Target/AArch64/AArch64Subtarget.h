@@ -83,6 +83,9 @@ protected:
   // NegativeImmediates - transform instructions with negative immediates
   bool NegativeImmediates = true;
 
+  // Enable 64-bit vectorization in SLP.
+  unsigned MinVectorRegisterBitWidth = 64;
+
   bool UseAA = false;
   bool PredictableSelectIsExpensive = false;
   bool BalanceFPOps = false;
@@ -106,6 +109,7 @@ protected:
   unsigned PrefFunctionAlignment = 0;
   unsigned PrefLoopAlignment = 0;
   unsigned MaxJumpTableSize = 0;
+  unsigned WideningBaseCost = 0;
 
   // ReserveX18 - X18 is not available as a general purpose register.
   bool ReserveX18;
@@ -190,6 +194,10 @@ public:
 
   bool isXRaySupported() const override { return true; }
 
+  unsigned getMinVectorRegisterBitWidth() const {
+    return MinVectorRegisterBitWidth;
+  }
+
   bool isX18Reserved() const { return ReserveX18; }
   bool hasFPARMv8() const { return HasFPARMv8; }
   bool hasNEON() const { return HasNEON; }
@@ -227,6 +235,8 @@ public:
   unsigned getPrefLoopAlignment() const { return PrefLoopAlignment; }
 
   unsigned getMaximumJumpTableSize() const { return MaxJumpTableSize; }
+
+  unsigned getWideningBaseCost() const { return WideningBaseCost; }
 
   /// CPU has TBI (top byte of addresses is ignored during HW address
   /// translation) and OS enables it.
