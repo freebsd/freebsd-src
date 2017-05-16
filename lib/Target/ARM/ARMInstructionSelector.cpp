@@ -101,14 +101,6 @@ static bool selectCopy(MachineInstr &I, const TargetInstrInfo &TII,
   assert(RegBank && "Can't get reg bank for virtual register");
 
   const unsigned DstSize = MRI.getType(DstReg).getSizeInBits();
-  (void)DstSize;
-  unsigned SrcReg = I.getOperand(1).getReg();
-  const unsigned SrcSize = RBI.getSizeInBits(SrcReg, MRI, TRI);
-  (void)SrcSize;
-  // We use copies for trunc, so it's ok for the size of the destination to be
-  // smaller (the higher bits will just be undefined).
-  assert(DstSize <= SrcSize && "Copy with different width?!");
-
   assert((RegBank->getID() == ARM::GPRRegBankID ||
           RegBank->getID() == ARM::FPRRegBankID) &&
          "Unsupported reg bank");
@@ -132,28 +124,6 @@ static bool selectCopy(MachineInstr &I, const TargetInstrInfo &TII,
                  << " operand\n");
     return false;
   }
-  return true;
-}
-
-static bool selectFAdd(MachineInstrBuilder &MIB, const ARMBaseInstrInfo &TII,
-                       MachineRegisterInfo &MRI) {
-  assert(TII.getSubtarget().hasVFP2() && "Can't select fp add without vfp");
-
-  LLT Ty = MRI.getType(MIB->getOperand(0).getReg());
-  unsigned ValSize = Ty.getSizeInBits();
-
-  if (ValSize == 32) {
-    if (TII.getSubtarget().useNEONForSinglePrecisionFP())
-      return false;
-    MIB->setDesc(TII.get(ARM::VADDS));
-  } else {
-    assert(ValSize == 64 && "Unsupported size for floating point value");
-    if (TII.getSubtarget().isFPOnlySP())
-      return false;
-    MIB->setDesc(TII.get(ARM::VADDD));
-  }
-  MIB.add(predOps(ARMCC::AL));
-
   return true;
 }
 
@@ -352,6 +322,7 @@ bool ARMInstructionSelector::select(MachineInstr &I) const {
     }
     break;
   }
+  case G_ANYEXT:
   case G_TRUNC: {
     // The high bits are undefined, so there's nothing special to do, just
     // treat it as a copy.
@@ -362,12 +333,12 @@ bool ARMInstructionSelector::select(MachineInstr &I) const {
     const auto &DstRegBank = *RBI.getRegBank(DstReg, MRI, TRI);
 
     if (SrcRegBank.getID() != DstRegBank.getID()) {
-      DEBUG(dbgs() << "G_TRUNC operands on different register banks\n");
+      DEBUG(dbgs() << "G_TRUNC/G_ANYEXT operands on different register banks\n");
       return false;
     }
 
     if (SrcRegBank.getID() != ARM::GPRRegBankID) {
-      DEBUG(dbgs() << "G_TRUNC on non-GPR not supported yet\n");
+      DEBUG(dbgs() << "G_TRUNC/G_ANYEXT on non-GPR not supported yet\n");
       return false;
     }
 
@@ -392,10 +363,6 @@ bool ARMInstructionSelector::select(MachineInstr &I) const {
       MIB->getOperand(0).setIsEarlyClobber(true);
     }
     MIB.add(predOps(ARMCC::AL)).add(condCodeOp());
-    break;
-  case G_FADD:
-    if (!selectFAdd(MIB, TII, MRI))
-      return false;
     break;
   case G_FRAME_INDEX:
     // Add 0 to the given frame index and hope it will eventually be folded into

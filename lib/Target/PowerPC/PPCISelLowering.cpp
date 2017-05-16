@@ -923,6 +923,9 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
   setStackPointerRegisterToSaveRestore(isPPC64 ? PPC::X1 : PPC::R1);
 
   // We have target-specific dag combine patterns for the following nodes:
+  setTargetDAGCombine(ISD::SHL);
+  setTargetDAGCombine(ISD::SRA);
+  setTargetDAGCombine(ISD::SRL);
   setTargetDAGCombine(ISD::SINT_TO_FP);
   setTargetDAGCombine(ISD::BUILD_VECTOR);
   if (Subtarget.hasFPCVT())
@@ -4949,8 +4952,7 @@ SDValue PPCTargetLowering::LowerCall_32SVR4(
 
   // Adjust the stack pointer for the new arguments...
   // These operations are automatically eliminated by the prolog/epilog pass
-  Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumBytes, dl, true),
-                               dl);
+  Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
   SDValue CallSeqStart = Chain;
 
   // Load the return address and frame pointer so it can be moved somewhere else
@@ -5000,9 +5002,8 @@ SDValue PPCTargetLowering::LowerCall_32SVR4(
                                   Flags, DAG, dl);
 
       // This must go outside the CALLSEQ_START..END.
-      SDValue NewCallSeqStart = DAG.getCALLSEQ_START(MemcpyCall,
-                           CallSeqStart.getNode()->getOperand(1),
-                           SDLoc(MemcpyCall));
+      SDValue NewCallSeqStart = DAG.getCALLSEQ_START(MemcpyCall, NumBytes, 0,
+                                                     SDLoc(MemcpyCall));
       DAG.ReplaceAllUsesWith(CallSeqStart.getNode(),
                              NewCallSeqStart.getNode());
       Chain = CallSeqStart = NewCallSeqStart;
@@ -5083,9 +5084,9 @@ SDValue PPCTargetLowering::createMemcpyOutsideCallSeq(
                         CallSeqStart.getNode()->getOperand(0),
                         Flags, DAG, dl);
   // The MEMCPY must go outside the CALLSEQ_START..END.
-  SDValue NewCallSeqStart = DAG.getCALLSEQ_START(MemcpyCall,
-                             CallSeqStart.getNode()->getOperand(1),
-                             SDLoc(MemcpyCall));
+  int64_t FrameSize = CallSeqStart.getConstantOperandVal(1);
+  SDValue NewCallSeqStart = DAG.getCALLSEQ_START(MemcpyCall, FrameSize, 0,
+                                                 SDLoc(MemcpyCall));
   DAG.ReplaceAllUsesWith(CallSeqStart.getNode(),
                          NewCallSeqStart.getNode());
   return NewCallSeqStart;
@@ -5268,8 +5269,7 @@ SDValue PPCTargetLowering::LowerCall_64SVR4(
   // Adjust the stack pointer for the new arguments...
   // These operations are automatically eliminated by the prolog/epilog pass
   if (!IsSibCall)
-    Chain = DAG.getCALLSEQ_START(Chain,
-                                 DAG.getIntPtrConstant(NumBytes, dl, true), dl);
+    Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
   SDValue CallSeqStart = Chain;
 
   // Load the return address and frame pointer so it can be move somewhere else
@@ -5828,8 +5828,7 @@ SDValue PPCTargetLowering::LowerCall_Darwin(
 
   // Adjust the stack pointer for the new arguments...
   // These operations are automatically eliminated by the prolog/epilog pass
-  Chain = DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(NumBytes, dl, true),
-                               dl);
+  Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
   SDValue CallSeqStart = Chain;
 
   // Load the return address and frame pointer so it can be move somewhere else
@@ -8741,9 +8740,9 @@ static Instruction* callIntrinsic(IRBuilder<> &Builder, Intrinsic::ID Id) {
 
 // The mappings for emitLeading/TrailingFence is taken from
 // http://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
-Instruction* PPCTargetLowering::emitLeadingFence(IRBuilder<> &Builder,
-                                         AtomicOrdering Ord, bool IsStore,
-                                         bool IsLoad) const {
+Instruction *PPCTargetLowering::emitLeadingFence(IRBuilder<> &Builder,
+                                                 Instruction *Inst,
+                                                 AtomicOrdering Ord) const {
   if (Ord == AtomicOrdering::SequentiallyConsistent)
     return callIntrinsic(Builder, Intrinsic::ppc_sync);
   if (isReleaseOrStronger(Ord))
@@ -8751,10 +8750,10 @@ Instruction* PPCTargetLowering::emitLeadingFence(IRBuilder<> &Builder,
   return nullptr;
 }
 
-Instruction* PPCTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
-                                          AtomicOrdering Ord, bool IsStore,
-                                          bool IsLoad) const {
-  if (IsLoad && isAcquireOrStronger(Ord))
+Instruction *PPCTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
+                                                  Instruction *Inst,
+                                                  AtomicOrdering Ord) const {
+  if (Inst->hasAtomicLoad() && isAcquireOrStronger(Ord))
     return callIntrinsic(Builder, Intrinsic::ppc_lwsync);
   // FIXME: this is too conservative, a dependent branch + isync is enough.
   // See http://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html and
@@ -11316,6 +11315,12 @@ SDValue PPCTargetLowering::PerformDAGCombine(SDNode *N,
   SDLoc dl(N);
   switch (N->getOpcode()) {
   default: break;
+  case ISD::SHL:
+    return combineSHL(N, DCI);
+  case ISD::SRA:
+    return combineSRA(N, DCI);
+  case ISD::SRL:
+    return combineSRL(N, DCI);
   case PPCISD::SHL:
     if (isNullConstant(N->getOperand(0))) // 0 << V -> 0.
         return N->getOperand(0);
@@ -12947,4 +12952,59 @@ bool PPCTargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
   case MVT::ppcf128:
     return Imm.isPosZero();
   }
+}
+
+// For vector shift operation op, fold
+// (op x, (and y, ((1 << numbits(x)) - 1))) -> (target op x, y)
+static SDValue stripModuloOnShift(const TargetLowering &TLI, SDNode *N,
+                                  SelectionDAG &DAG) {
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  EVT VT = N0.getValueType();
+  unsigned OpSizeInBits = VT.getScalarSizeInBits();
+  unsigned Opcode = N->getOpcode();
+  unsigned TargetOpcode;
+
+  switch (Opcode) {
+  default:
+    llvm_unreachable("Unexpected shift operation");
+  case ISD::SHL:
+    TargetOpcode = PPCISD::SHL;
+    break;
+  case ISD::SRL:
+    TargetOpcode = PPCISD::SRL;
+    break;
+  case ISD::SRA:
+    TargetOpcode = PPCISD::SRA;
+    break;
+  }
+
+  if (VT.isVector() && TLI.isOperationLegal(Opcode, VT) &&
+      N1->getOpcode() == ISD::AND)
+    if (ConstantSDNode *Mask = isConstOrConstSplat(N1->getOperand(1)))
+      if (Mask->getZExtValue() == OpSizeInBits - 1)
+        return DAG.getNode(TargetOpcode, SDLoc(N), VT, N0, N1->getOperand(0));
+
+  return SDValue();
+}
+
+SDValue PPCTargetLowering::combineSHL(SDNode *N, DAGCombinerInfo &DCI) const {
+  if (auto Value = stripModuloOnShift(*this, N, DCI.DAG))
+    return Value;
+
+  return SDValue();
+}
+
+SDValue PPCTargetLowering::combineSRA(SDNode *N, DAGCombinerInfo &DCI) const {
+  if (auto Value = stripModuloOnShift(*this, N, DCI.DAG))
+    return Value;
+
+  return SDValue();
+}
+
+SDValue PPCTargetLowering::combineSRL(SDNode *N, DAGCombinerInfo &DCI) const {
+  if (auto Value = stripModuloOnShift(*this, N, DCI.DAG))
+    return Value;
+
+  return SDValue();
 }

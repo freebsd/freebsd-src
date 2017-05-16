@@ -64,6 +64,10 @@ enum CondCode {
 // Turn condition code into conditional branch opcode.
 unsigned GetCondBranchFromCond(CondCode CC);
 
+/// \brief Return a pair of condition code for the given predicate and whether
+/// the instruction operands should be swaped to match the condition code.
+std::pair<CondCode, bool> getX86ConditionCode(CmpInst::Predicate Predicate);
+
 /// \brief Return a set opcode for the given condition and whether it has
 /// a memory operand.
 unsigned getSETFromCond(CondCode CC, bool HasMemoryOperand = false);
@@ -186,6 +190,8 @@ public:
   /// setup..destroy sequence (e.g. by pushes, or inside the callee).
   int64_t getFrameAdjustment(const MachineInstr &I) const {
     assert(isFrameInstr(I));
+    if (isFrameSetup(I))
+      return I.getOperand(2).getImm();
     return I.getOperand(1).getImm();
   }
 
@@ -193,7 +199,10 @@ public:
   /// instruction.
   void setFrameAdjustment(MachineInstr &I, int64_t V) const {
     assert(isFrameInstr(I));
-    I.getOperand(1).setImm(V);
+    if (isFrameSetup(I))
+      I.getOperand(2).setImm(V);
+    else
+      I.getOperand(1).setImm(V);
   }
 
   /// getSPAdjust - This returns the stack pointer adjustment made by

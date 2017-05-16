@@ -232,7 +232,7 @@ computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
         }
         // We should have named any anonymous globals
         assert(CalledFunction->hasName());
-        auto ScaledCount = ProfileSummaryInfo::getProfileCount(&I, BFI);
+        auto ScaledCount = PSI->getProfileCount(&I, BFI);
         auto Hotness = ScaledCount ? getHotness(ScaledCount.getValue(), PSI)
                                    : CalleeInfo::HotnessType::Unknown;
 
@@ -330,6 +330,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
     const Module &M,
     std::function<BlockFrequencyInfo *(const Function &F)> GetBFICallback,
     ProfileSummaryInfo *PSI) {
+  assert(PSI);
   ModuleSummaryIndex Index;
 
   // Identify the local values in the llvm.used and llvm.compiler.used sets,

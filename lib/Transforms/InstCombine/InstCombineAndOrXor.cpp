@@ -23,21 +23,6 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "instcombine"
 
-static inline Value *dyn_castNotVal(Value *V) {
-  // If this is not(not(x)) don't return that this is a not: we want the two
-  // not's to be folded first.
-  if (BinaryOperator::isNot(V)) {
-    Value *Operand = BinaryOperator::getNotArgument(V);
-    if (!IsFreeToInvert(Operand, Operand->hasOneUse()))
-      return Operand;
-  }
-
-  // Constants can be considered to be not'ed values...
-  if (ConstantInt *C = dyn_cast<ConstantInt>(V))
-    return ConstantInt::get(C->getType(), ~C->getValue());
-  return nullptr;
-}
-
 /// Similar to getICmpCode but for FCmpInst. This encodes a fcmp predicate into
 /// a four bit mask.
 static unsigned getFCmpCode(FCmpInst::Predicate CC) {
@@ -713,9 +698,8 @@ Value *InstCombiner::simplifyRangeCheck(ICmpInst *Cmp0, ICmpInst *Cmp1,
   }
 
   // This simplification is only valid if the upper range is not negative.
-  bool IsNegative, IsNotNegative;
-  ComputeSignBit(RangeEnd, IsNotNegative, IsNegative, /*Depth=*/0, Cmp1);
-  if (!IsNotNegative)
+  KnownBits Known = computeKnownBits(RangeEnd, /*Depth=*/0, Cmp1);
+  if (!Known.isNonNegative())
     return nullptr;
 
   if (Inverted)
@@ -1013,26 +997,22 @@ Value *InstCombiner::FoldAndOfFCmps(FCmpInst *LHS, FCmpInst *RHS) {
 /// (~A & ~B) == (~(A | B))
 /// (~A | ~B) == (~(A & B))
 static Instruction *matchDeMorgansLaws(BinaryOperator &I,
-                                       InstCombiner::BuilderTy *Builder) {
+                                       InstCombiner::BuilderTy &Builder) {
   auto Opcode = I.getOpcode();
   assert((Opcode == Instruction::And || Opcode == Instruction::Or) &&
          "Trying to match De Morgan's Laws with something other than and/or");
-  // Flip the logic operation.
-  if (Opcode == Instruction::And)
-    Opcode = Instruction::Or;
-  else
-    Opcode = Instruction::And;
 
-  Value *Op0 = I.getOperand(0);
-  Value *Op1 = I.getOperand(1);
-  // TODO: Use pattern matchers instead of dyn_cast.
-  if (Value *Op0NotVal = dyn_castNotVal(Op0))
-    if (Value *Op1NotVal = dyn_castNotVal(Op1))
-      if (Op0->hasOneUse() && Op1->hasOneUse()) {
-        Value *LogicOp = Builder->CreateBinOp(Opcode, Op0NotVal, Op1NotVal,
-                                              I.getName() + ".demorgan");
-        return BinaryOperator::CreateNot(LogicOp);
-      }
+  // Flip the logic operation.
+  Opcode = (Opcode == Instruction::And) ? Instruction::Or : Instruction::And;
+
+  Value *A, *B;
+  if (match(I.getOperand(0), m_OneUse(m_Not(m_Value(A)))) &&
+      match(I.getOperand(1), m_OneUse(m_Not(m_Value(B)))) &&
+      !IsFreeToInvert(A, A->hasOneUse()) &&
+      !IsFreeToInvert(B, B->hasOneUse())) {
+    Value *AndOr = Builder.CreateBinOp(Opcode, A, B, I.getName() + ".demorgan");
+    return BinaryOperator::CreateNot(AndOr);
+  }
 
   return nullptr;
 }
@@ -1376,7 +1356,7 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
     if (Instruction *FoldedLogic = foldOpWithConstantIntoOperand(I))
       return FoldedLogic;
 
-  if (Instruction *DeMorgan = matchDeMorgansLaws(I, Builder))
+  if (Instruction *DeMorgan = matchDeMorgansLaws(I, *Builder))
     return DeMorgan;
 
   {
@@ -2005,18 +1985,6 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (Value *V = SimplifyBSwap(I))
     return replaceInstUsesWith(I, V);
 
-  if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
-    ConstantInt *C1 = nullptr; Value *X = nullptr;
-    // (X ^ C1) | C2 --> (X | C2) ^ (C1&~C2)
-    if (match(Op0, m_Xor(m_Value(X), m_ConstantInt(C1))) &&
-        Op0->hasOneUse()) {
-      Value *Or = Builder->CreateOr(X, RHS);
-      Or->takeName(Op0);
-      return BinaryOperator::CreateXor(Or,
-                            Builder->getInt(C1->getValue() & ~RHS->getValue()));
-    }
-  }
-
   if (isa<Constant>(Op1))
     if (Instruction *FoldedLogic = foldOpWithConstantIntoOperand(I))
       return FoldedLogic;
@@ -2167,7 +2135,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (match(Op0, m_And(m_Or(m_Specific(Op1), m_Value(C)), m_Value(A))))
     return BinaryOperator::CreateOr(Op1, Builder->CreateAnd(A, C));
 
-  if (Instruction *DeMorgan = matchDeMorgansLaws(I, Builder))
+  if (Instruction *DeMorgan = matchDeMorgansLaws(I, *Builder))
     return DeMorgan;
 
   // Canonicalize xor to the RHS.
@@ -2399,27 +2367,44 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   }
 
   // Is this a 'not' (~) fed by a binary operator?
-  BinaryOperator *NotOp;
-  if (match(&I, m_Not(m_BinOp(NotOp)))) {
-    if (NotOp->getOpcode() == Instruction::And ||
-        NotOp->getOpcode() == Instruction::Or) {
+  BinaryOperator *NotVal;
+  if (match(&I, m_Not(m_BinOp(NotVal)))) {
+    if (NotVal->getOpcode() == Instruction::And ||
+        NotVal->getOpcode() == Instruction::Or) {
       // Apply DeMorgan's Law when inverts are free:
       // ~(X & Y) --> (~X | ~Y)
       // ~(X | Y) --> (~X & ~Y)
-      if (IsFreeToInvert(NotOp->getOperand(0),
-                         NotOp->getOperand(0)->hasOneUse()) &&
-          IsFreeToInvert(NotOp->getOperand(1),
-                         NotOp->getOperand(1)->hasOneUse())) {
-        Value *NotX = Builder->CreateNot(NotOp->getOperand(0), "notlhs");
-        Value *NotY = Builder->CreateNot(NotOp->getOperand(1), "notrhs");
-        if (NotOp->getOpcode() == Instruction::And)
+      if (IsFreeToInvert(NotVal->getOperand(0),
+                         NotVal->getOperand(0)->hasOneUse()) &&
+          IsFreeToInvert(NotVal->getOperand(1),
+                         NotVal->getOperand(1)->hasOneUse())) {
+        Value *NotX = Builder->CreateNot(NotVal->getOperand(0), "notlhs");
+        Value *NotY = Builder->CreateNot(NotVal->getOperand(1), "notrhs");
+        if (NotVal->getOpcode() == Instruction::And)
           return BinaryOperator::CreateOr(NotX, NotY);
         return BinaryOperator::CreateAnd(NotX, NotY);
       }
-    } else if (NotOp->getOpcode() == Instruction::AShr) {
-      // ~(~X >>s Y) --> (X >>s Y)
-      if (Value *Op0NotVal = dyn_castNotVal(NotOp->getOperand(0)))
-        return BinaryOperator::CreateAShr(Op0NotVal, NotOp->getOperand(1));
+    }
+
+    // ~(~X >>s Y) --> (X >>s Y)
+    if (match(NotVal, m_AShr(m_Not(m_Value(X)), m_Value(Y))))
+      return BinaryOperator::CreateAShr(X, Y);
+
+    // If we are inverting a right-shifted constant, we may be able to eliminate
+    // the 'not' by inverting the constant and using the opposite shift type.
+    // Canonicalization rules ensure that only a negative constant uses 'ashr',
+    // but we must check that in case that transform has not fired yet.
+    const APInt *C;
+    if (match(NotVal, m_AShr(m_APInt(C), m_Value(Y))) && C->isNegative()) {
+      // ~(C >>s Y) --> ~C >>u Y (when inverting the replicated sign bits)
+      Constant *NotC = ConstantInt::get(I.getType(), ~(*C));
+      return BinaryOperator::CreateLShr(NotC, Y);
+    }
+
+    if (match(NotVal, m_LShr(m_APInt(C), m_Value(Y))) && C->isNonNegative()) {
+      // ~(C >>u Y) --> ~C >>s Y (when inverting the replicated sign bits)
+      Constant *NotC = ConstantInt::get(I.getType(), ~(*C));
+      return BinaryOperator::CreateAShr(NotC, Y);
     }
   }
 

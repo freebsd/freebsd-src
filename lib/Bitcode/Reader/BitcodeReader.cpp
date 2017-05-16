@@ -93,13 +93,6 @@ static cl::opt<bool> PrintSummaryGUIDs(
     cl::desc(
         "Print the global id for each value when reading the module summary"));
 
-// FIXME: This flag should either be removed or moved to clang as a driver flag.
-static llvm::cl::opt<bool> IgnoreEmptyThinLTOIndexFile(
-    "ignore-empty-index-file", llvm::cl::ZeroOrMore,
-    llvm::cl::desc(
-        "Ignore an empty index file and perform non-ThinLTO compilation"),
-    llvm::cl::init(false));
-
 namespace {
 
 enum {
@@ -2750,7 +2743,7 @@ Error BitcodeReader::parseComdatRecord(ArrayRef<uint64_t> Record) {
 Error BitcodeReader::parseGlobalVarRecord(ArrayRef<uint64_t> Record) {
   // v1: [pointer type, isconst, initid, linkage, alignment, section,
   // visibility, threadlocal, unnamed_addr, externally_initialized,
-  // dllstorageclass, comdat] (name in VST)
+  // dllstorageclass, comdat, attributes] (name in VST)
   // v2: [strtab_offset, strtab_size, v1]
   StringRef Name;
   std::tie(Name, Record) = readNameFromStrtab(Record);
@@ -2829,6 +2822,11 @@ Error BitcodeReader::parseGlobalVarRecord(ArrayRef<uint64_t> Record) {
     }
   } else if (hasImplicitComdat(RawLinkage)) {
     NewGV->setComdat(reinterpret_cast<Comdat *>(1));
+  }
+
+  if (Record.size() > 12) {
+    auto AS = getAttributes(Record[12]).getFnAttributes();
+    NewGV->setAttributes(AS);
   }
   return Error::success();
 }
@@ -5658,7 +5656,8 @@ Expected<bool> llvm::hasGlobalValueSummary(MemoryBufferRef Buffer) {
 }
 
 Expected<std::unique_ptr<ModuleSummaryIndex>>
-llvm::getModuleSummaryIndexForFile(StringRef Path) {
+llvm::getModuleSummaryIndexForFile(StringRef Path,
+                                   bool IgnoreEmptyThinLTOIndexFile) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
       MemoryBuffer::getFileOrSTDIN(Path);
   if (!FileOrErr)

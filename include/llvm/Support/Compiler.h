@@ -111,12 +111,6 @@
 #define LLVM_PREFETCH(addr, rw, locality)
 #endif
 
-#if __has_attribute(sentinel) || LLVM_GNUC_PREREQ(3, 0, 0)
-#define LLVM_END_WITH_NULL __attribute__((sentinel))
-#else
-#define LLVM_END_WITH_NULL
-#endif
-
 #if __has_attribute(used) || LLVM_GNUC_PREREQ(3, 1, 0)
 #define LLVM_ATTRIBUTE_USED __attribute__((__used__))
 #else
@@ -233,6 +227,8 @@
 /// LLVM_FALLTHROUGH - Mark fallthrough cases in switch statements.
 #if __cplusplus > 201402L && __has_cpp_attribute(fallthrough)
 #define LLVM_FALLTHROUGH [[fallthrough]]
+#elif __has_cpp_attribute(gnu::fallthrough)
+#define LLVM_FALLTHROUGH [[gnu::fallthrough]]
 #elif !__cplusplus
 // Workaround for llvm.org/PR23435, since clang 3.6 and below emit a spurious
 // error when __has_cpp_attribute is given a scoped attribute in C mode.

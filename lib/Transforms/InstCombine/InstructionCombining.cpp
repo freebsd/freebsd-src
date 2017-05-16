@@ -2212,9 +2212,9 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
 
   // Canonicalize fcmp_one -> fcmp_oeq
   FCmpInst::Predicate FPred; Value *Y;
-  if (match(&BI, m_Br(m_FCmp(FPred, m_Value(X), m_Value(Y)),
-                             TrueDest, FalseDest)) &&
-      BI.getCondition()->hasOneUse())
+  if (match(&BI, m_Br(m_OneUse(m_FCmp(FPred, m_Value(X), m_Value(Y))),
+                      TrueDest, FalseDest))) {
+    // TODO: Why are we only transforming these 3 predicates?
     if (FPred == FCmpInst::FCMP_ONE || FPred == FCmpInst::FCMP_OLE ||
         FPred == FCmpInst::FCMP_OGE) {
       FCmpInst *Cond = cast<FCmpInst>(BI.getCondition());
@@ -2225,12 +2225,12 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
       Worklist.Add(Cond);
       return &BI;
     }
+  }
 
   // Canonicalize icmp_ne -> icmp_eq
   ICmpInst::Predicate IPred;
-  if (match(&BI, m_Br(m_ICmp(IPred, m_Value(X), m_Value(Y)),
-                      TrueDest, FalseDest)) &&
-      BI.getCondition()->hasOneUse())
+  if (match(&BI, m_Br(m_OneUse(m_ICmp(IPred, m_Value(X), m_Value(Y))),
+                      TrueDest, FalseDest))) {
     if (IPred == ICmpInst::ICMP_NE  || IPred == ICmpInst::ICMP_ULE ||
         IPred == ICmpInst::ICMP_SLE || IPred == ICmpInst::ICMP_UGE ||
         IPred == ICmpInst::ICMP_SGE) {
@@ -2241,6 +2241,7 @@ Instruction *InstCombiner::visitBranchInst(BranchInst &BI) {
       Worklist.Add(Cond);
       return &BI;
     }
+  }
 
   return nullptr;
 }
@@ -2264,8 +2265,8 @@ Instruction *InstCombiner::visitSwitchInst(SwitchInst &SI) {
   unsigned BitWidth = cast<IntegerType>(Cond->getType())->getBitWidth();
   KnownBits Known(BitWidth);
   computeKnownBits(Cond, Known, 0, &SI);
-  unsigned LeadingKnownZeros = Known.Zero.countLeadingOnes();
-  unsigned LeadingKnownOnes = Known.One.countLeadingOnes();
+  unsigned LeadingKnownZeros = Known.countMinLeadingZeros();
+  unsigned LeadingKnownOnes = Known.countMinLeadingOnes();
 
   // Compute the number of leading bits we can ignore.
   // TODO: A better way to determine this would use ComputeNumSignBits().
@@ -3141,7 +3142,7 @@ combineInstructionsOverFunction(Function &F, InstCombineWorklist &Worklist,
 
   // Lower dbg.declare intrinsics otherwise their value may be clobbered
   // by instcombiner.
-  bool DbgDeclaresChanged = LowerDbgDeclare(F);
+  bool MadeIRChange = LowerDbgDeclare(F);
 
   // Iterate while there is work to do.
   int Iteration = 0;
@@ -3150,18 +3151,17 @@ combineInstructionsOverFunction(Function &F, InstCombineWorklist &Worklist,
     DEBUG(dbgs() << "\n\nINSTCOMBINE ITERATION #" << Iteration << " on "
                  << F.getName() << "\n");
 
-    bool Changed = prepareICWorklistFromFunction(F, DL, &TLI, Worklist);
+    MadeIRChange |= prepareICWorklistFromFunction(F, DL, &TLI, Worklist);
 
     InstCombiner IC(Worklist, &Builder, F.optForMinSize(), ExpensiveCombines,
                     AA, AC, TLI, DT, DL, LI);
     IC.MaxArraySizeForCombine = MaxArraySize;
-    Changed |= IC.run();
 
-    if (!Changed)
+    if (!IC.run())
       break;
   }
 
-  return DbgDeclaresChanged || Iteration > 1;
+  return MadeIRChange || Iteration > 1;
 }
 
 PreservedAnalyses InstCombinePass::run(Function &F,

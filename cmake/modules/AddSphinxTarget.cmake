@@ -1,3 +1,16 @@
+
+# Create sphinx target
+if (LLVM_ENABLE_SPHINX)
+  message(STATUS "Sphinx enabled.")
+  find_package(Sphinx REQUIRED)
+  if (LLVM_BUILD_DOCS AND NOT TARGET sphinx)
+    add_custom_target(sphinx ALL)
+  endif()
+else()
+  message(STATUS "Sphinx disabled.")
+endif()
+
+
 # Handy function for creating the different Sphinx targets.
 #
 # ``builder`` should be one of the supported builders used by

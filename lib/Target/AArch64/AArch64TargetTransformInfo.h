@@ -43,6 +43,9 @@ class AArch64TTIImpl : public BasicTTIImplBase<AArch64TTIImpl> {
     VECTOR_LDST_FOUR_ELEMENTS
   };
 
+  bool isWideningInstruction(Type *Ty, unsigned Opcode,
+                             ArrayRef<const Value *> Args);
+
 public:
   explicit AArch64TTIImpl(const AArch64TargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
@@ -82,6 +85,10 @@ public:
       return 0;
     }
     return 64;
+  }
+
+  unsigned getMinVectorRegisterBitWidth() {
+    return ST->getMinVectorRegisterBitWidth();
   }
 
   unsigned getMaxInterleaveFactor(unsigned VF);
@@ -134,6 +141,10 @@ public:
   unsigned getMinPrefetchStride();
 
   unsigned getMaxPrefetchIterationsAhead();
+
+  bool shouldExpandReduction(const IntrinsicInst *II) const {
+    return false;
+  }
   /// @}
 };
 

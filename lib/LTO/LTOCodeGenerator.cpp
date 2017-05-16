@@ -495,17 +495,14 @@ void LTOCodeGenerator::verifyMergedModuleOnce() {
     return;
   HasVerifiedInput = true;
 
-  if (LTOStripInvalidDebugInfo) {
-    bool BrokenDebugInfo = false;
-    if (verifyModule(*MergedModule, &dbgs(), &BrokenDebugInfo))
-      report_fatal_error("Broken module found, compilation aborted!");
-    if (BrokenDebugInfo) {
-      emitWarning("Invalid debug info found, debug info will be stripped");
-      StripDebugInfo(*MergedModule);
-    }
-  }
-  if (verifyModule(*MergedModule, &dbgs()))
+  bool BrokenDebugInfo = false;
+  if (verifyModule(*MergedModule, &dbgs(),
+                   LTOStripInvalidDebugInfo ? &BrokenDebugInfo : nullptr))
     report_fatal_error("Broken module found, compilation aborted!");
+  if (BrokenDebugInfo) {
+    emitWarning("Invalid debug info found, debug info will be stripped");
+    StripDebugInfo(*MergedModule);
+  }
 }
 
 void LTOCodeGenerator::finishOptimizationRemarks() {
@@ -600,6 +597,7 @@ bool LTOCodeGenerator::compileOptimized(ArrayRef<raw_pwrite_stream *> Out) {
   // If statistics were requested, print them out after codegen.
   if (llvm::AreStatisticsEnabled())
     llvm::PrintStatistics();
+  reportAndResetTimings();
 
   finishOptimizationRemarks();
 
