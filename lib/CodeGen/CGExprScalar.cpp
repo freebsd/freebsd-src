@@ -89,14 +89,14 @@ struct BinOpInfo {
   }
 
   /// Check if the binop computes a division or a remainder.
-  bool isDivisionLikeOperation() const {
+  bool isDivremOp() const {
     return Opcode == BO_Div || Opcode == BO_Rem || Opcode == BO_DivAssign ||
            Opcode == BO_RemAssign;
   }
 
   /// Check if the binop can result in an integer division by zero.
   bool mayHaveIntegerDivisionByZero() const {
-    if (isDivisionLikeOperation())
+    if (isDivremOp())
       if (auto *CI = dyn_cast<llvm::ConstantInt>(RHS))
         return CI->isZero();
     return true;
@@ -104,7 +104,7 @@ struct BinOpInfo {
 
   /// Check if the binop can result in a float division by zero.
   bool mayHaveFloatDivisionByZero() const {
-    if (isDivisionLikeOperation())
+    if (isDivremOp())
       if (auto *CFP = dyn_cast<llvm::ConstantFP>(RHS))
         return CFP->isZero();
     return true;
@@ -2552,6 +2552,7 @@ Value *ScalarExprEmitter::EmitOverflowCheckedBinOp(const BinOpInfo &Ops) {
   if (isSigned)
     OpID |= 1;
 
+  CodeGenFunction::SanitizerScope SanScope(&CGF);
   llvm::Type *opTy = CGF.CGM.getTypes().ConvertType(Ops.Ty);
 
   llvm::Function *intrinsic = CGF.CGM.getIntrinsic(IID, opTy);
@@ -2567,7 +2568,6 @@ Value *ScalarExprEmitter::EmitOverflowCheckedBinOp(const BinOpInfo &Ops) {
     // If the signed-integer-overflow sanitizer is enabled, emit a call to its
     // runtime. Otherwise, this is a -ftrapv check, so just emit a trap.
     if (!isSigned || CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow)) {
-      CodeGenFunction::SanitizerScope SanScope(&CGF);
       llvm::Value *NotOverflow = Builder.CreateNot(overflow);
       SanitizerMask Kind = isSigned ? SanitizerKind::SignedIntegerOverflow
                               : SanitizerKind::UnsignedIntegerOverflow;
