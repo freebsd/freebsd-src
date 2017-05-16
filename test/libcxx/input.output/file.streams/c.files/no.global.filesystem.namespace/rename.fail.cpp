@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// REQUIRES: libcpp-has-no-global-filesystem-namespace
+
 #include <cstdio>
 
 int main() {
