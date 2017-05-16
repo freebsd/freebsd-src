@@ -4720,10 +4720,24 @@ static bool EvaluateBinaryTypeTrait(Sema &Self, TypeTrait BTT, QualType LhsT,
     // regard to cv-qualifiers.
 
     const RecordType *lhsRecord = LhsT->getAs<RecordType>();
-    if (!lhsRecord) return false;
-
     const RecordType *rhsRecord = RhsT->getAs<RecordType>();
-    if (!rhsRecord) return false;
+    if (!rhsRecord || !lhsRecord) {
+      const ObjCObjectType *LHSObjTy = LhsT->getAs<ObjCObjectType>();
+      const ObjCObjectType *RHSObjTy = RhsT->getAs<ObjCObjectType>();
+      if (!LHSObjTy || !RHSObjTy)
+        return false;
+
+      ObjCInterfaceDecl *BaseInterface = LHSObjTy->getInterface();
+      ObjCInterfaceDecl *DerivedInterface = RHSObjTy->getInterface();
+      if (!BaseInterface || !DerivedInterface)
+        return false;
+
+      if (Self.RequireCompleteType(
+              KeyLoc, RhsT, diag::err_incomplete_type_used_in_type_trait_expr))
+        return false;
+
+      return BaseInterface->isSuperClassOf(DerivedInterface);
+    }
 
     assert(Self.Context.hasSameUnqualifiedType(LhsT, RhsT)
              == (lhsRecord == rhsRecord));
@@ -5342,6 +5356,15 @@ QualType Sema::CXXCheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
 
   // C++11 [expr.cond]p1
   //   The first expression is contextually converted to bool.
+  //
+  // FIXME; GCC's vector extension permits the use of a?b:c where the type of
+  //        a is that of a integer vector with the same number of elements and
+  //        size as the vectors of b and c. If one of either b or c is a scalar
+  //        it is implicitly converted to match the type of the vector.
+  //        Otherwise the expression is ill-formed. If both b and c are scalars,
+  //        then b and c are checked and converted to the type of a if possible.
+  //        Unlike the OpenCL ?: operator, the expression is evaluated as
+  //        (a[0] != 0 ? b[0] : c[0], .. , a[n] != 0 ? b[n] : c[n]).
   if (!Cond.get()->isTypeDependent()) {
     ExprResult CondRes = CheckCXXBooleanCondition(Cond.get());
     if (CondRes.isInvalid())

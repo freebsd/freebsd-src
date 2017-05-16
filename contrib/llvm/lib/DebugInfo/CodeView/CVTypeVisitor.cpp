@@ -26,8 +26,7 @@ CVTypeVisitor::CVTypeVisitor(TypeVisitorCallbacks &Callbacks)
     : Callbacks(Callbacks) {}
 
 template <typename T>
-static Error visitKnownRecord(CVTypeVisitor &Visitor, CVType &Record,
-                              TypeVisitorCallbacks &Callbacks) {
+static Error visitKnownRecord(CVType &Record, TypeVisitorCallbacks &Callbacks) {
   TypeRecordKind RK = static_cast<TypeRecordKind>(Record.Type);
   T KnownRecord(RK);
   if (auto EC = Callbacks.visitKnownRecord(Record, KnownRecord))
@@ -76,7 +75,7 @@ void CVTypeVisitor::addTypeServerHandler(TypeServerHandler &Handler) {
   Handlers.push_back(&Handler);
 }
 
-Error CVTypeVisitor::visitTypeRecord(CVType &Record) {
+Expected<bool> CVTypeVisitor::handleTypeServer(CVType &Record) {
   if (Record.Type == TypeLeafKind::LF_TYPESERVER2 && !Handlers.empty()) {
     auto TS = deserializeTypeServerRecord(Record);
     if (!TS)
@@ -90,16 +89,16 @@ Error CVTypeVisitor::visitTypeRecord(CVType &Record) {
 
       // If the handler processed the record, return success.
       if (*ExpectedResult)
-        return Error::success();
+        return true;
 
       // Otherwise keep searching for a handler, eventually falling out and
       // using the default record handler.
     }
   }
+  return false;
+}
 
-  if (auto EC = Callbacks.visitTypeBegin(Record))
-    return EC;
-
+Error CVTypeVisitor::finishVisitation(CVType &Record) {
   switch (Record.Type) {
   default:
     if (auto EC = Callbacks.visitUnknownType(Record))
@@ -107,7 +106,7 @@ Error CVTypeVisitor::visitTypeRecord(CVType &Record) {
     break;
 #define TYPE_RECORD(EnumName, EnumVal, Name)                                   \
   case EnumName: {                                                             \
-    if (auto EC = visitKnownRecord<Name##Record>(*this, Record, Callbacks))    \
+    if (auto EC = visitKnownRecord<Name##Record>(Record, Callbacks))           \
       return EC;                                                               \
     break;                                                                     \
   }
@@ -122,6 +121,32 @@ Error CVTypeVisitor::visitTypeRecord(CVType &Record) {
     return EC;
 
   return Error::success();
+}
+
+Error CVTypeVisitor::visitTypeRecord(CVType &Record, TypeIndex Index) {
+  auto ExpectedResult = handleTypeServer(Record);
+  if (!ExpectedResult)
+    return ExpectedResult.takeError();
+  if (*ExpectedResult)
+    return Error::success();
+
+  if (auto EC = Callbacks.visitTypeBegin(Record, Index))
+    return EC;
+
+  return finishVisitation(Record);
+}
+
+Error CVTypeVisitor::visitTypeRecord(CVType &Record) {
+  auto ExpectedResult = handleTypeServer(Record);
+  if (!ExpectedResult)
+    return ExpectedResult.takeError();
+  if (*ExpectedResult)
+    return Error::success();
+
+  if (auto EC = Callbacks.visitTypeBegin(Record))
+    return EC;
+
+  return finishVisitation(Record);
 }
 
 static Error visitMemberRecord(CVMemberRecord &Record,

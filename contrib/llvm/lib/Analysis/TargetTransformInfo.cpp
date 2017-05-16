@@ -279,6 +279,10 @@ unsigned TargetTransformInfo::getRegisterBitWidth(bool Vector) const {
   return TTIImpl->getRegisterBitWidth(Vector);
 }
 
+unsigned TargetTransformInfo::getMinVectorRegisterBitWidth() const {
+  return TTIImpl->getMinVectorRegisterBitWidth();
+}
+
 bool TargetTransformInfo::shouldConsiderAddressTypePromotion(
     const Instruction &I, bool &AllowPromotionWithoutCommonHeader) const {
   return TTIImpl->shouldConsiderAddressTypePromotion(
@@ -498,6 +502,15 @@ unsigned TargetTransformInfo::getStoreVectorFactor(unsigned VF,
                                                    unsigned ChainSizeInBytes,
                                                    VectorType *VecTy) const {
   return TTIImpl->getStoreVectorFactor(VF, StoreSize, ChainSizeInBytes, VecTy);
+}
+
+bool TargetTransformInfo::useReductionIntrinsic(unsigned Opcode,
+                                                Type *Ty, ReductionFlags Flags) const {
+  return TTIImpl->useReductionIntrinsic(Opcode, Ty, Flags);
+}
+
+bool TargetTransformInfo::shouldExpandReduction(const IntrinsicInst *II) const {
+  return TTIImpl->shouldExpandReduction(II);
 }
 
 TargetTransformInfo::Concept::~Concept() {}

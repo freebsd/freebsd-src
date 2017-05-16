@@ -767,7 +767,7 @@ void CodeViewDebug::emitDebugInfoForFunction(const Function *GV,
 
   // If our DISubprogram name is empty, use the mangled name.
   if (FuncName.empty())
-    FuncName = GlobalValue::getRealLinkageName(GV->getName());
+    FuncName = GlobalValue::dropLLVMManglingEscape(GV->getName());
 
   // Emit a symbol subsection, required by VS2012+ to find function boundaries.
   OS.AddComment("Symbol subsection for " + Twine(FuncName));
@@ -888,13 +888,21 @@ void CodeViewDebug::collectVariableInfoFromMFTable(
     if (!Scope)
       continue;
 
+    // If the variable has an attached offset expression, extract it.
+    // FIXME: Try to handle DW_OP_deref as well.
+    int64_t ExprOffset = 0;
+    if (VI.Expr)
+      if (!VI.Expr->extractIfOffset(ExprOffset))
+        continue;
+
     // Get the frame register used and the offset.
     unsigned FrameReg = 0;
     int FrameOffset = TFI->getFrameIndexReference(*Asm->MF, VI.Slot, FrameReg);
     uint16_t CVReg = TRI->getCodeViewRegNum(FrameReg);
 
     // Calculate the label ranges.
-    LocalVarDefRange DefRange = createDefRangeMem(CVReg, FrameOffset);
+    LocalVarDefRange DefRange =
+        createDefRangeMem(CVReg, FrameOffset + ExprOffset);
     for (const InsnRange &Range : Scope->getRanges()) {
       const MCSymbol *Begin = getLabelBeforeInsn(Range.first);
       const MCSymbol *End = getLabelAfterInsn(Range.second);
@@ -2194,7 +2202,7 @@ void CodeViewDebug::emitDebugInfoForGlobals() {
         if (GV->hasComdat()) {
           MCSymbol *GVSym = Asm->getSymbol(GV);
           OS.AddComment("Symbol subsection for " +
-                        Twine(GlobalValue::getRealLinkageName(GV->getName())));
+                        Twine(GlobalValue::dropLLVMManglingEscape(GV->getName())));
           switchToDebugSectionForSymbol(GVSym);
           EndLabel = beginCVSubsection(ModuleDebugFragmentKind::Symbols);
           // FIXME: emitDebugInfoForGlobal() doesn't handle DIExpressions.

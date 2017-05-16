@@ -15,7 +15,7 @@ using namespace llvm;
 
 using namespace llvm::codeview;
 
-Error TypeDatabaseVisitor::visitTypeBegin(CVRecord<TypeLeafKind> &Record) {
+Error TypeDatabaseVisitor::visitTypeBegin(CVType &Record) {
   assert(!IsInFieldList);
   // Reset Name to the empty string. If the visitor sets it, we know it.
   Name = "";
@@ -26,6 +26,22 @@ Error TypeDatabaseVisitor::visitTypeBegin(CVRecord<TypeLeafKind> &Record) {
     IsInFieldList = true;
   }
   return Error::success();
+}
+
+Error TypeDatabaseVisitor::visitTypeBegin(CVType &Record, TypeIndex Index) {
+  if (auto EC = visitTypeBegin(Record))
+    return EC;
+
+  CurrentTypeIndex = Index;
+  return Error::success();
+}
+
+StringRef TypeDatabaseVisitor::getTypeName(TypeIndex Index) const {
+  return TypeDB->getTypeName(Index);
+}
+
+StringRef TypeDatabaseVisitor::saveTypeName(StringRef Name) {
+  return TypeDB->saveTypeName(Name);
 }
 
 Error TypeDatabaseVisitor::visitTypeEnd(CVType &CVR) {
@@ -39,7 +55,12 @@ Error TypeDatabaseVisitor::visitTypeEnd(CVType &CVR) {
   // CVUDTNames is indexed by type index, and must have one entry for every
   // type.  Field list members are not recorded, and are only referenced by
   // their containing field list record.
-  TypeDB.recordType(Name, CVR);
+  if (CurrentTypeIndex)
+    TypeDB->recordType(Name, *CurrentTypeIndex, CVR);
+  else
+    TypeDB->appendType(Name, CVR);
+
+  CurrentTypeIndex.reset();
   return Error::success();
 }
 
@@ -73,13 +94,13 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, ArgListRecord &Args) {
   uint32_t Size = Indices.size();
   SmallString<256> TypeName("(");
   for (uint32_t I = 0; I < Size; ++I) {
-    StringRef ArgTypeName = TypeDB.getTypeName(Indices[I]);
+    StringRef ArgTypeName = getTypeName(Indices[I]);
     TypeName.append(ArgTypeName);
     if (I + 1 != Size)
       TypeName.append(", ");
   }
   TypeName.push_back(')');
-  Name = TypeDB.saveTypeName(TypeName);
+  Name = saveTypeName(TypeName);
   return Error::success();
 }
 
@@ -89,13 +110,13 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR,
   uint32_t Size = Indices.size();
   SmallString<256> TypeName("\"");
   for (uint32_t I = 0; I < Size; ++I) {
-    StringRef ArgTypeName = TypeDB.getTypeName(Indices[I]);
+    StringRef ArgTypeName = getTypeName(Indices[I]);
     TypeName.append(ArgTypeName);
     if (I + 1 != Size)
       TypeName.append("\" \"");
   }
   TypeName.push_back('\"');
-  Name = TypeDB.saveTypeName(TypeName);
+  Name = saveTypeName(TypeName);
   return Error::success();
 }
 
@@ -132,26 +153,26 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR,
 
 Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR,
                                             ProcedureRecord &Proc) {
-  StringRef ReturnTypeName = TypeDB.getTypeName(Proc.getReturnType());
-  StringRef ArgListTypeName = TypeDB.getTypeName(Proc.getArgumentList());
+  StringRef ReturnTypeName = getTypeName(Proc.getReturnType());
+  StringRef ArgListTypeName = getTypeName(Proc.getArgumentList());
   SmallString<256> TypeName(ReturnTypeName);
   TypeName.push_back(' ');
   TypeName.append(ArgListTypeName);
-  Name = TypeDB.saveTypeName(TypeName);
+  Name = saveTypeName(TypeName);
   return Error::success();
 }
 
 Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR,
                                             MemberFunctionRecord &MF) {
-  StringRef ReturnTypeName = TypeDB.getTypeName(MF.getReturnType());
-  StringRef ClassTypeName = TypeDB.getTypeName(MF.getClassType());
-  StringRef ArgListTypeName = TypeDB.getTypeName(MF.getArgumentList());
+  StringRef ReturnTypeName = getTypeName(MF.getReturnType());
+  StringRef ClassTypeName = getTypeName(MF.getClassType());
+  StringRef ArgListTypeName = getTypeName(MF.getArgumentList());
   SmallString<256> TypeName(ReturnTypeName);
   TypeName.push_back(' ');
   TypeName.append(ClassTypeName);
   TypeName.append("::");
   TypeName.append(ArgListTypeName);
-  Name = TypeDB.saveTypeName(TypeName);
+  Name = saveTypeName(TypeName);
   return Error::success();
 }
 
@@ -171,13 +192,13 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, PointerRecord &Ptr) {
   if (Ptr.isPointerToMember()) {
     const MemberPointerInfo &MI = Ptr.getMemberInfo();
 
-    StringRef PointeeName = TypeDB.getTypeName(Ptr.getReferentType());
-    StringRef ClassName = TypeDB.getTypeName(MI.getContainingType());
+    StringRef PointeeName = getTypeName(Ptr.getReferentType());
+    StringRef ClassName = getTypeName(MI.getContainingType());
     SmallString<256> TypeName(PointeeName);
     TypeName.push_back(' ');
     TypeName.append(ClassName);
     TypeName.append("::*");
-    Name = TypeDB.saveTypeName(TypeName);
+    Name = saveTypeName(TypeName);
   } else {
     SmallString<256> TypeName;
     if (Ptr.isConst())
@@ -187,7 +208,7 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, PointerRecord &Ptr) {
     if (Ptr.isUnaligned())
       TypeName.append("__unaligned ");
 
-    TypeName.append(TypeDB.getTypeName(Ptr.getReferentType()));
+    TypeName.append(getTypeName(Ptr.getReferentType()));
 
     if (Ptr.getMode() == PointerMode::LValueReference)
       TypeName.append("&");
@@ -197,7 +218,7 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, PointerRecord &Ptr) {
       TypeName.append("*");
 
     if (!TypeName.empty())
-      Name = TypeDB.saveTypeName(TypeName);
+      Name = saveTypeName(TypeName);
   }
   return Error::success();
 }
@@ -205,7 +226,7 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, PointerRecord &Ptr) {
 Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, ModifierRecord &Mod) {
   uint16_t Mods = static_cast<uint16_t>(Mod.getModifiers());
 
-  StringRef ModifiedName = TypeDB.getTypeName(Mod.getModifiedType());
+  StringRef ModifiedName = getTypeName(Mod.getModifiedType());
   SmallString<256> TypeName;
   if (Mods & uint16_t(ModifierOptions::Const))
     TypeName.append("const ");
@@ -214,14 +235,14 @@ Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR, ModifierRecord &Mod) {
   if (Mods & uint16_t(ModifierOptions::Unaligned))
     TypeName.append("__unaligned ");
   TypeName.append(ModifiedName);
-  Name = TypeDB.saveTypeName(TypeName);
+  Name = saveTypeName(TypeName);
   return Error::success();
 }
 
 Error TypeDatabaseVisitor::visitKnownRecord(CVType &CVR,
                                             VFTableShapeRecord &Shape) {
-  Name = TypeDB.saveTypeName("<vftable " + utostr(Shape.getEntryCount()) +
-                             " methods>");
+  Name =
+      saveTypeName("<vftable " + utostr(Shape.getEntryCount()) + " methods>");
   return Error::success();
 }
 

@@ -106,6 +106,15 @@ public:
 
   bool isNoneType() const { return *this == None(); }
 
+  uint32_t toArrayIndex() const {
+    assert(!isSimple());
+    return getIndex() - FirstNonSimpleIndex;
+  }
+
+  static TypeIndex fromArrayIndex(uint32_t Index) {
+    return TypeIndex(Index + FirstNonSimpleIndex);
+  }
+
   SimpleTypeKind getSimpleKind() const {
     assert(isSimple());
     return static_cast<SimpleTypeKind>(Index & SimpleKindMask);
@@ -159,6 +168,39 @@ public:
   static TypeIndex Float32() { return TypeIndex(SimpleTypeKind::Float32); }
   static TypeIndex Float64() { return TypeIndex(SimpleTypeKind::Float64); }
 
+  TypeIndex &operator+=(unsigned N) {
+    Index += N;
+    return *this;
+  }
+
+  TypeIndex &operator++() {
+    Index += 1;
+    return *this;
+  }
+
+  TypeIndex operator++(int) {
+    TypeIndex Copy = *this;
+    operator++();
+    return Copy;
+  }
+
+  TypeIndex &operator-=(unsigned N) {
+    assert(Index >= N);
+    Index -= N;
+    return *this;
+  }
+
+  TypeIndex &operator--() {
+    Index -= 1;
+    return *this;
+  }
+
+  TypeIndex operator--(int) {
+    TypeIndex Copy = *this;
+    operator--();
+    return Copy;
+  }
+
   friend inline bool operator==(const TypeIndex &A, const TypeIndex &B) {
     return A.getIndex() == B.getIndex();
   }
@@ -183,10 +225,30 @@ public:
     return A.getIndex() >= B.getIndex();
   }
 
+  friend inline TypeIndex operator+(const TypeIndex &A, uint32_t N) {
+    TypeIndex Result(A);
+    Result += N;
+    return Result;
+  }
+
+  friend inline TypeIndex operator-(const TypeIndex &A, uint32_t N) {
+    assert(A.getIndex() >= N);
+    TypeIndex Result(A);
+    Result -= N;
+    return Result;
+  }
+
 private:
   support::ulittle32_t Index;
 };
 
+// Used for pseudo-indexing an array of type records.  An array of such records
+// sorted by TypeIndex can allow log(N) lookups even though such a type record
+// stream does not provide random access.
+struct TypeIndexOffset {
+  TypeIndex Type;
+  support::ulittle32_t Offset;
+};
 }
 }
 

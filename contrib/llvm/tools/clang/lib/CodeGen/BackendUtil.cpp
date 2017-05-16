@@ -194,6 +194,8 @@ static void addSanitizerCoveragePass(const PassManagerBuilder &Builder,
 // where this is not a factor). Also, on ELF this feature requires an assembler
 // extension that only works with -integrated-as at the moment.
 static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
+  if (!CGOpts.SanitizeAddressGlobalsDeadStripping)
+    return false;
   switch (T.getObjectFormat()) {
   case Triple::MachO:
   case Triple::COFF:
@@ -1071,7 +1073,8 @@ void clang::EmitBackendOutput(DiagnosticsEngine &Diags,
     // into memory and pass it into runThinLTOBackend, which will run the
     // function importer and invoke LTO passes.
     Expected<std::unique_ptr<ModuleSummaryIndex>> IndexOrErr =
-        llvm::getModuleSummaryIndexForFile(CGOpts.ThinLTOIndexFile);
+        llvm::getModuleSummaryIndexForFile(CGOpts.ThinLTOIndexFile,
+                                           /*IgnoreEmptyThinLTOIndexFile*/true);
     if (!IndexOrErr) {
       logAllUnhandledErrors(IndexOrErr.takeError(), errs(),
                             "Error loading index file '" +

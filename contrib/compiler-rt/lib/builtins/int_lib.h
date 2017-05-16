@@ -30,19 +30,18 @@
 /* ABI macro definitions */
 
 #if __ARM_EABI__
-# define ARM_EABI_FNALIAS(aeabi_name, name)         \
-  void __aeabi_##aeabi_name() __attribute__((alias("__" #name)));
 # if defined(COMPILER_RT_ARMHF_TARGET) || (!defined(__clang__) && \
      defined(__GNUC__) && (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5))
 /* The pcs attribute was introduced in GCC 4.5.0 */
 #   define COMPILER_RT_ABI
 # else
-#   define COMPILER_RT_ABI __attribute__((pcs("aapcs")))
+#   define COMPILER_RT_ABI __attribute__((__pcs__("aapcs")))
 # endif
 #else
-# define ARM_EABI_FNALIAS(aeabi_name, name)
 # define COMPILER_RT_ABI
 #endif
+
+#define AEABI_RTABI __attribute__((__pcs__("aapcs")))
 
 #ifdef _MSC_VER
 #define ALWAYS_INLINE __forceinline

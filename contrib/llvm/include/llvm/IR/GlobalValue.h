@@ -435,14 +435,20 @@ public:
 
   bool isWeakForLinker() const { return isWeakForLinker(getLinkage()); }
 
+protected:
   /// Copy all additional attributes (those not needed to create a GlobalValue)
   /// from the GlobalValue Src to this one.
-  virtual void copyAttributesFrom(const GlobalValue *Src);
+  void copyAttributesFrom(const GlobalValue *Src);
 
-  /// If special LLVM prefix that is used to inform the asm printer to not emit
-  /// usual symbol prefix before the symbol name is used then return linkage
-  /// name after skipping this special LLVM prefix.
-  static StringRef getRealLinkageName(StringRef Name) {
+public:
+  /// If the given string begins with the GlobalValue name mangling escape
+  /// character '\1', drop it.
+  ///
+  /// This function applies a specific mangling that is used in PGO profiles,
+  /// among other things. If you're trying to get a symbol name for an
+  /// arbitrary GlobalValue, this is not the function you're looking for; see
+  /// Mangler.h.
+  static StringRef dropLLVMManglingEscape(StringRef Name) {
     if (!Name.empty() && Name[0] == '\1')
       return Name.substr(1);
     return Name;
@@ -530,10 +536,10 @@ public:
 
   /// This method unlinks 'this' from the containing module, but does not delete
   /// it.
-  virtual void removeFromParent() = 0;
+  void removeFromParent();
 
   /// This method unlinks 'this' from the containing module and deletes it.
-  virtual void eraseFromParent() = 0;
+  void eraseFromParent();
 
   /// Get the module that this global value is contained inside of...
   Module *getParent() { return Parent; }
