@@ -92,6 +92,7 @@
 #include <sys/kthread.h>
 #include <sys/libkern.h>
 #include <sys/smp.h>
+#include <sys/sched.h>
 
 static __inline int qlnx_ms_to_hz(int ms)
 {
@@ -137,10 +138,6 @@ MALLOC_DECLARE(M_QLNXBUF);
  */
 #define QLNX_LOCK(ha)		mtx_lock(&ha->hw_lock)
 #define QLNX_UNLOCK(ha)		mtx_unlock(&ha->hw_lock)
-
- 
-#define QLNX_TX_LOCK(ha)	mtx_lock(&ha->tx_lock);
-#define QLNX_TX_UNLOCK(ha)	mtx_unlock(&ha->tx_lock);
 
 /*
  * structure encapsulating a DMA buffer
