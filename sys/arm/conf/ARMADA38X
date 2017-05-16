@@ -63,6 +63,11 @@ device		scbus
 device		pass
 device		da
 
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
+
 # SATA
 device		ahci
 
