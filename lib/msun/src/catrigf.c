@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define isinf(x)	(fabsf(x) == INFINITY)
 #undef isnan
 #define isnan(x)	((x) != (x))
-#define	raise_inexact()	do { volatile float junk = 1 + tiny; } while(0)
+#define	raise_inexact()	do { volatile float junk __unused = 1 + tiny; } while(0)
 #undef signbit
 #define signbit(x)	(__builtin_signbitf(x))
 
