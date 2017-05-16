@@ -49,6 +49,9 @@ AGP_DEBUG		opt_agp.h
 
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
+# iWARP client interface support in ixl
+IXL_IW			opt_ixl.h
+
 # -------------------------------
 # EOF
 # -------------------------------

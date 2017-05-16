@@ -341,6 +341,7 @@ device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
 device		ixl		# Intel XL710 40Gbe PCIE Ethernet
+options		IXL_IW		# Enable iWARP Client Interface in ixl(4)
 device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlxen		# Mellanox ConnectX HCA Ethernet
