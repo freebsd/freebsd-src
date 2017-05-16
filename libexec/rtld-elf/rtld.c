@@ -345,12 +345,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     const Elf_Phdr *phdr;
     Objlist initlist;
     RtldLockState lockstate;
+    struct stat st;
     Elf_Addr *argcp;
     char **argv, *argv0, **env, **envp, *kexecpath, *library_path_rpath;
     caddr_t imgentry;
     char buf[MAXPATHLEN];
     int argc, fd, i, mib[2], phnum;
     size_t len;
+    bool dir_enable;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -419,6 +421,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	assert(aux_info[AT_PHDR] != NULL);
 	phdr = (const Elf_Phdr *)aux_info[AT_PHDR]->a_un.a_ptr;
 	if (phdr == obj_rtld.phdr) {
+	    if (!trust) {
+		rtld_printf("Tainted process refusing to run binary %s\n",
+		  argv0);
+		rtld_die();
+	    }
 	    dbg("opening main program in direct exec mode");
 	    if (argc >= 2) {
 		argv0 = argv[1];
@@ -426,6 +433,37 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		if (fd == -1) {
 		    rtld_printf("Opening %s: %s\n", argv0,
 		      rtld_strerror(errno));
+		    rtld_die();
+		}
+		if (fstat(fd, &st) == -1) {
+		    rtld_printf("Stat %s: %s\n", argv0,
+		      rtld_strerror(errno));
+		    rtld_die();
+		}
+
+		/*
+		 * Rough emulation of the permission checks done by
+		 * execve(2), only Unix DACs are checked, ACLs are
+		 * ignored.  Preserve the semantic of disabling owner
+		 * to execute if owner x bit is cleared, even if
+		 * others x bit is enabled.
+		 * mmap(2) does not allow to mmap with PROT_EXEC if
+		 * binary' file comes from noexec mount.  We cannot
+		 * set VV_TEXT on the binary.
+		 */
+		dir_enable = false;
+		if (st.st_uid == geteuid()) {
+		    if ((st.st_mode & S_IXUSR) != 0)
+			dir_enable = true;
+		} else if (st.st_gid == getegid()) {
+		    if ((st.st_mode & S_IXGRP) != 0)
+			dir_enable = true;
+		} else if ((st.st_mode & S_IXOTH) != 0) {
+		    dir_enable = true;
+		}
+		if (!dir_enable) {
+		    rtld_printf("No execute permission for binary %s\n",
+		      argv0);
 		    rtld_die();
 		}
 
