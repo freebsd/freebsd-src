@@ -367,6 +367,25 @@ TEST_F(FormatTestJS, GoogScopes) {
                "});");
 }
 
+TEST_F(FormatTestJS, IIFEs) {
+  // Internal calling parens; no semi.
+  verifyFormat("(function() {\n"
+               "var a = 1;\n"
+               "}())");
+  // External calling parens; no semi.
+  verifyFormat("(function() {\n"
+               "var b = 2;\n"
+               "})()");
+  // Internal calling parens; with semi.
+  verifyFormat("(function() {\n"
+               "var c = 3;\n"
+               "}());");
+  // External calling parens; with semi.
+  verifyFormat("(function() {\n"
+               "var d = 4;\n"
+               "})();");
+}
+
 TEST_F(FormatTestJS, GoogModules) {
   verifyFormat("goog.module('this.is.really.absurdly.long');",
                getGoogleJSStyleWithColumns(40));
@@ -451,6 +470,16 @@ TEST_F(FormatTestJS, FormatsFreestandingFunctions) {
                "  inner2(a, b);\n"
                "}");
   verifyFormat("function f() {}");
+  verifyFormat("function aFunction() {}\n"
+               "(function f() {\n"
+               "  var x = 1;\n"
+               "}());\n");
+  // Known issue: this should wrap after {}, but calculateBraceTypes
+  // misclassifies the first braces as a BK_BracedInit.
+  verifyFormat("function aFunction(){} {\n"
+               "  let x = 1;\n"
+               "  console.log(x);\n"
+               "}\n");
 }
 
 TEST_F(FormatTestJS, GeneratorFunctions) {
@@ -519,6 +548,39 @@ TEST_F(FormatTestJS, AsyncFunctions) {
                "  // Comment.\n"
                "  return async.then();\n"
                "}\n");
+  verifyFormat("for async (const x of y) {\n"
+               "  console.log(x);\n"
+               "}\n");
+  verifyFormat("function asyncLoop() {\n"
+               "  for async (const x of y) {\n"
+               "    console.log(x);\n"
+               "  }\n"
+               "}\n");
+
+}
+
+TEST_F(FormatTestJS, FunctionParametersTrailingComma) {
+  verifyFormat("function trailingComma(\n"
+               "    p1,\n"
+               "    p2,\n"
+               "    p3,\n"
+               ") {\n"
+               "  a;  //\n"
+               "}\n",
+               "function trailingComma(p1, p2, p3,) {\n"
+               "  a;  //\n"
+               "}\n");
+  verifyFormat("trailingComma(\n"
+               "    p1,\n"
+               "    p2,\n"
+               "    p3,\n"
+               ");\n",
+               "trailingComma(p1, p2, p3,);\n");
+  verifyFormat("trailingComma(\n"
+               "    p1  // hello\n"
+               ");\n",
+               "trailingComma(p1 // hello\n"
+               ");\n");
 }
 
 TEST_F(FormatTestJS, ArrayLiterals) {
@@ -662,7 +724,7 @@ TEST_F(FormatTestJS, FunctionLiterals) {
                "})\n"
                "    .doSomethingElse(\n"
                "        // break\n"
-               "        );");
+               "    );");
 
   Style.ColumnLimit = 33;
   verifyFormat("f({a: function() { return 1; }});", Style);
@@ -829,7 +891,7 @@ TEST_F(FormatTestJS, ArrowFunctions) {
                "})\n"
                "    .doSomethingElse(\n"
                "        // break\n"
-               "        );");
+               "    );");
 }
 
 TEST_F(FormatTestJS, ReturnStatements) {
@@ -1770,6 +1832,8 @@ TEST_F(FormatTestJS, NonNullAssertionOperator) {
       "            .foo()!\n"
       "            .foo()!;\n",
       getGoogleJSStyleWithColumns(20));
+  verifyFormat("let x = namespace!;\n");
+  verifyFormat("return !!x;\n");
 }
 
 TEST_F(FormatTestJS, Conditional) {
@@ -1785,6 +1849,7 @@ TEST_F(FormatTestJS, ImportComments) {
   verifyFormat("import {x} from 'x';  // from some location",
                getGoogleJSStyleWithColumns(25));
   verifyFormat("// taze: x from 'location'", getGoogleJSStyleWithColumns(10));
+  verifyFormat("/// <reference path=\"some/location\" />", getGoogleJSStyleWithColumns(10));
 }
 
 TEST_F(FormatTestJS, Exponentiation) {

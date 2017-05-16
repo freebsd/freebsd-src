@@ -141,6 +141,34 @@ public:
     return true;
   }
 
+  bool VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
+    const DependentNameType *DNT = TL.getTypePtr();
+    const NestedNameSpecifier *NNS = DNT->getQualifier();
+    const Type *T = NNS->getAsType();
+    if (!T)
+      return true;
+    const TemplateSpecializationType *TST =
+        T->getAs<TemplateSpecializationType>();
+    if (!TST)
+      return true;
+    TemplateName TN = TST->getTemplateName();
+    const ClassTemplateDecl *TD =
+        dyn_cast_or_null<ClassTemplateDecl>(TN.getAsTemplateDecl());
+    if (!TD)
+      return true;
+    CXXRecordDecl *RD = TD->getTemplatedDecl();
+    if (!RD->hasDefinition())
+      return true;
+    RD = RD->getDefinition();
+    DeclarationName Name(DNT->getIdentifier());
+    std::vector<const NamedDecl *> Symbols = RD->lookupDependentName(
+        Name, [](const NamedDecl *ND) { return isa<TypeDecl>(ND); });
+    if (Symbols.size() != 1)
+      return true;
+    return IndexCtx.handleReference(Symbols[0], TL.getNameLoc(), Parent,
+                                    ParentDC, SymbolRoleSet(), Relations);
+  }
+
   bool TraverseStmt(Stmt *S) {
     IndexCtx.indexBody(S, Parent, ParentDC);
     return true;
@@ -184,7 +212,7 @@ void IndexingContext::indexNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS,
 
   if (!DC)
     DC = Parent->getLexicalDeclContext();
-  SourceLocation Loc = NNS.getSourceRange().getBegin();
+  SourceLocation Loc = NNS.getLocalBeginLoc();
 
   switch (NNS.getNestedNameSpecifier()->getKind()) {
   case NestedNameSpecifier::Identifier:

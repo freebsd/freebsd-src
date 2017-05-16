@@ -1849,6 +1849,19 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
         }
       }
     }
+
+    // Check the template parameter list against the previous declaration. The
+    // goal here is to pick up default arguments added since the friend was
+    // declared; we know the template parameter lists match, since otherwise
+    // we would not have picked this template as the previous declaration.
+    if (TemplateParams && FunctionTemplate->getPreviousDecl()) {
+      SemaRef.CheckTemplateParameterList(
+          TemplateParams,
+          FunctionTemplate->getPreviousDecl()->getTemplateParameters(),
+          Function->isThisDeclarationADefinition()
+              ? Sema::TPC_FriendFunctionTemplateDefinition
+              : Sema::TPC_FriendFunctionTemplate);
+    }
   }
 
   if (Function->isLocalExternDecl() && !Function->getPreviousDecl())
@@ -3660,6 +3673,7 @@ TemplateDeclInstantiator::InitFunctionInstantiation(FunctionDecl *New,
       New->setType(SemaRef.Context.getFunctionType(
           NewProto->getReturnType(), NewProto->getParamTypes(), EPI));
     } else {
+      Sema::ContextRAII SwitchContext(SemaRef, New);
       SemaRef.SubstExceptionSpec(New, Proto, TemplateArgs);
     }
   }
