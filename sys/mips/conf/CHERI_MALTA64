@@ -26,3 +26,6 @@ options 	TMPFS
 # Qemu-CHERI tracing is permitted per thread, not just globally.
 #
 options 	CPU_QEMU_MALTA
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
