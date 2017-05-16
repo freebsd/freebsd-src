@@ -42,30 +42,56 @@ devfs_start()
 read_devfs_conf()
 {
 	if [ -r /etc/devfs.conf ]; then
-		cd /dev
 		while read action devicelist parameter; do
 			case "${action}" in
 			l*)	for device in ${devicelist}; do
-					if [ ! -e ${parameter} ]; then
-						ln -fs ${device} ${parameter}
+					if [ ! -e /dev/${parameter} ]; then
+						ln -fs /dev/${device} /dev/${parameter}
 					fi
 				done
 				;;
 			o*)	for device in ${devicelist}; do
-					if [ -c ${device} ]; then
-						chown ${parameter} ${device}
+					if [ -c /dev/${device} ]; then
+						chown ${parameter} /dev/${device}
 					fi
 				done
 				;;
 			p*)	for device in ${devicelist}; do
-					if [ -c ${device} ]; then
-						chmod ${parameter} ${device}
+					if [ -c /dev/${device} ]; then
+						chmod ${parameter} /dev/${device}
 					fi
 				done
 				;;
 			esac
 		done < /etc/devfs.conf
 	fi
+	
+	for CONFIG in /etc/devfs.d/; do
+		if [ -f /etc/devfs.d/"${CONFIG}" ] && [ -r /etc/devfs.d/"${CONFIG}" ]; then
+		while read action devicelist parameter; do
+			case "${action}" in
+			l*)	for device in ${devicelist}; do
+					if [ ! -e /dev/${parameter} ]; then
+						ln -fs /dev/${device} /dev/${parameter}
+					fi
+				done
+				;;
+			o*)	for device in ${devicelist}; do
+					if [ -c /dev/${device} ]; then
+						chown ${parameter} /dev/${device}
+					fi
+				done
+				;;
+			p*)	for device in ${devicelist}; do
+					if [ -c /dev/${device} ]; then
+						chmod ${parameter} /dev/${device}
+					fi
+				done
+				;;
+			esac
+		done < /etc/devfs.d/"${CONFIG}"
+		fi
+	done
 }
 
 load_rc_config $name
