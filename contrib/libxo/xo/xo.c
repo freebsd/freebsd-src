@@ -90,8 +90,8 @@ checkpoint (xo_handle_t *xop UNUSED, va_list vap UNUSED, int restore)
  * with our command line arguments to build strings.  This involves faking
  * some printf-style logic.
  */
-static int
-formatter (xo_handle_t *xop, char *buf, int bufsiz,
+static xo_ssize_t
+formatter (xo_handle_t *xop, char *buf, xo_ssize_t bufsiz,
 	   const char *fmt, va_list vap UNUSED)
 {
     int lflag UNUSED = 0;	/* Parse long flag, though currently ignored */

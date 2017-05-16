@@ -4,6 +4,7 @@
 
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
+.PATH:
 .PATH:	${LIBXOSRC}/xo
 
 PROG=	xo

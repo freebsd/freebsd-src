@@ -72,7 +72,10 @@ man3_files = \
 man5_files = \
     xo_format.5
 
-man_MANS = ${man3_files} ${man5_files}
+man7_files = \
+    xo_options.7
+
+man_MANS = ${man3_files} ${man5_files} ${man7_files}
 
 EXTRA_DIST = \
     ${man_MANS}
@@ -87,3 +90,5 @@ install-data-hook:
 	    cat ../libxo/add.man >> ${DESTDIR}${man3dir}/$$file ; done
 	for file in ${man5_files}; do \
 	    cat ../libxo/add.man >> ${DESTDIR}${man5dir}/$$file ; done
+	for file in ${man7_files}; do \
+	    cat ../libxo/add.man >> ${DESTDIR}${man7dir}/$$file ; done

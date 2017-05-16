@@ -1,4 +1,4 @@
-<top __version="3.1.4">
+<top version="3.1.4">
   <data test="value">
     <data test2="value2">bold</data>
     <data>bold-ul</data>
