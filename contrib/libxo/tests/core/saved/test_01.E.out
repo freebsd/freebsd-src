@@ -1,5 +1,7 @@
 op create: [] []
 op open_container: [top] []
+op content: [kve_start] [0xdeadbeef]
+op content: [kve_end] [0xcabb1e]
 op string: [host] [my-box]
 op string: [domain] [example.com]
 op string: [host] [my-box]

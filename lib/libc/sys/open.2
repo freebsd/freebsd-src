@@ -141,6 +141,7 @@ O_NOCTTY	ignored
 O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
+O_VERIFY	verify the contents of the file
 .Ed
 .Pp
 Opening a file with
@@ -258,6 +259,15 @@ such as device nodes.
 may be used to set
 .Dv FD_CLOEXEC
 flag for the newly returned file descriptor.
+.Pp
+.Dv O_VERIFY
+may be used to indicate to the kernel that the contents of the file should
+be verified before allowing the open to proceed.
+The details of what
+.Dq verified
+means is implementation specific.
+The run-time linker (rtld) uses this flag to ensure shared objects have
+been verified before operating on them.
 .Pp
 If successful,
 .Fn open

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/cpuset.h>
 #include <sys/event.h>
+#include <sys/file.h>
 #include <sys/time.h>
 #include <sys/procctl.h>
 #include <sys/ptrace.h>
@@ -3025,6 +3026,99 @@ ATF_TC_BODY(ptrace__event_mask_sigkill_discard, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+static void *
+flock_thread(void *arg)
+{
+	int fd;
+
+	fd = *(int *)arg;
+	(void)flock(fd, LOCK_EX);
+	(void)flock(fd, LOCK_UN);
+	return (NULL);
+}
+
+/*
+ * Verify that PT_ATTACH will suspend threads sleeping in an SBDRY section.
+ * We rely on the fact that the lockf implementation sets SBDRY before blocking
+ * on a lock. This is a regression test for r318191.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_ATTACH_with_SBDRY_thread);
+ATF_TC_BODY(ptrace__PT_ATTACH_with_SBDRY_thread, tc)
+{
+	pthread_barrier_t barrier;
+	pthread_barrierattr_t battr;
+	char tmpfile[64];
+	pid_t child, wpid;
+	int error, fd, i, status;
+
+	ATF_REQUIRE(pthread_barrierattr_init(&battr) == 0);
+	ATF_REQUIRE(pthread_barrierattr_setpshared(&battr,
+	    PTHREAD_PROCESS_SHARED) == 0);
+	ATF_REQUIRE(pthread_barrier_init(&barrier, &battr, 2) == 0);
+
+	(void)snprintf(tmpfile, sizeof(tmpfile), "./ptrace.XXXXXX");
+	fd = mkstemp(tmpfile);
+	ATF_REQUIRE(fd >= 0);
+
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		pthread_t t[2];
+		int error, cfd;
+
+		error = pthread_barrier_wait(&barrier);
+		if (error != 0 && error != PTHREAD_BARRIER_SERIAL_THREAD)
+			_exit(1);
+
+		cfd = open(tmpfile, O_RDONLY);
+		if (cfd < 0)
+			_exit(1);
+
+		/*
+		 * We want at least two threads blocked on the file lock since
+		 * the SIGSTOP from PT_ATTACH may kick one of them out of
+		 * sleep.
+		 */
+		if (pthread_create(&t[0], NULL, flock_thread, &cfd) != 0)
+			_exit(1);
+		if (pthread_create(&t[1], NULL, flock_thread, &cfd) != 0)
+			_exit(1);
+		if (pthread_join(t[0], NULL) != 0)
+			_exit(1);
+		if (pthread_join(t[1], NULL) != 0)
+			_exit(1);
+		_exit(0);
+	}
+
+	ATF_REQUIRE(flock(fd, LOCK_EX) == 0);
+
+	error = pthread_barrier_wait(&barrier);
+	ATF_REQUIRE(error == 0 || error == PTHREAD_BARRIER_SERIAL_THREAD);
+
+	/*
+	 * Give the child some time to block. Is there a better way to do this?
+	 */
+	sleep(1);
+
+	/*
+	 * Attach and give the child 3 seconds to stop.
+	 */
+	ATF_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) == 0);
+	for (i = 0; i < 3; i++) {
+		wpid = waitpid(child, &status, WNOHANG);
+		if (wpid == child && WIFSTOPPED(status) &&
+		    WSTOPSIG(status) == SIGSTOP)
+			break;
+		sleep(1);
+	}
+	ATF_REQUIRE_MSG(i < 3, "failed to stop child process after PT_ATTACH");
+
+	ATF_REQUIRE(ptrace(PT_DETACH, child, NULL, 0) == 0);
+
+	ATF_REQUIRE(flock(fd, LOCK_UN) == 0);
+	ATF_REQUIRE(unlink(tmpfile) == 0);
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -3072,6 +3166,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop1);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
 	ATF_TP_ADD_TC(tp, ptrace__event_mask_sigkill_discard);
+	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_with_SBDRY_thread);
 
 	return (atf_no_error());
 }

@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.25 2017/04/03 21:04:09 sjg Exp $
+	$Id: meta2deps.py,v 1.26 2017/05/09 04:04:16 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -142,7 +142,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
     for e in list:
         if e == le:
             continue
-	le = e
+        le = e
         nl.append(e)
     return nl
 
@@ -534,7 +534,7 @@ class MetaFile:
         # to the src dir, we may need to add dependencies for each
         rdir = dir
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
-            rdir = os.path.realpath(dir)
+        rdir = os.path.realpath(dir)
         if rdir == dir:
             rdir = None
         # now put path back together

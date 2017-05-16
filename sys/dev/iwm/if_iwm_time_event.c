@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -165,7 +166,7 @@ __FBSDID("$FreeBSD$");
 #define IWM_MVM_ROC_TE_TYPE_MGMT_TX IWM_TE_P2P_CLIENT_ASSOC
 
 static int
-iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_node *in,
+iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 	void *te_data, struct iwm_time_event_cmd *te_cmd)
 {
 	int ret;
@@ -185,14 +186,14 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 void
-iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
+iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
 	uint32_t duration, uint32_t max_delay)
 {
 	struct iwm_time_event_cmd time_cmd = {};
 
 	time_cmd.action = htole32(IWM_FW_CTXT_ACTION_ADD);
 	time_cmd.id_and_color =
-	    htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID, IWM_DEFAULT_COLOR));
+	    htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id, ivp->color));
 	time_cmd.id = htole32(IWM_TE_BSS_STA_AGGRESSIVE_ASSOC);
 
 	time_cmd.apply_time = htole32(0);
@@ -208,5 +209,5 @@ iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
 	        IWM_TE_V2_NOTIF_HOST_EVENT_END |
 		IWM_T2_V2_START_IMMEDIATELY);
 
-	iwm_mvm_time_event_send_add(sc, in, /*te_data*/NULL, &time_cmd);
+	iwm_mvm_time_event_send_add(sc, ivp, /*te_data*/NULL, &time_cmd);
 }

@@ -115,8 +115,8 @@ _local_initshells(void	*rv, void *cb_data, va_list ap)
 	if ((fp = fopen(_PATH_SHELLS, "re")) == NULL)
 		return NS_UNAVAIL;
 
-	cp = line;
-	while (fgets(cp, MAXPATHLEN + 1, fp) != NULL) {
+	while (fgets(line, MAXPATHLEN + 1, fp) != NULL) {
+		cp = line;
 		while (*cp != '#' && *cp != '/' && *cp != '\0')
 			cp++;
 		if (*cp == '#' || *cp == '\0')
@@ -124,7 +124,7 @@ _local_initshells(void	*rv, void *cb_data, va_list ap)
 		sp = cp;
 		while (!isspace(*cp) && *cp != '#' && *cp != '\0')
 			cp++;
-		*cp++ = '\0';
+		*cp = '\0';
 		sl_add(sl, strdup(sp));
 	}
 	(void)fclose(fp);

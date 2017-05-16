@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -159,6 +160,13 @@ __FBSDID("$FreeBSD$");
 /*
  * BEGIN mvm/mac-ctxt.c
  */
+
+const uint8_t iwm_mvm_ac_to_tx_fifo[] = {
+	IWM_MVM_TX_FIFO_BE,
+	IWM_MVM_TX_FIFO_BK,
+	IWM_MVM_TX_FIFO_VI,
+	IWM_MVM_TX_FIFO_VO,
+};
 
 static void
 iwm_mvm_ack_rates(struct iwm_softc *sc, int is2ghz,
@@ -251,6 +259,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
+	struct iwm_vap *ivp = IWM_VAP(vap);
 	int cck_ack_rates, ofdm_ack_rates;
 	int i;
 	int is2ghz;
@@ -262,8 +271,8 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 * These are both functions of the vap, not of the node.
 	 * So, for now, hard-code both to 0 (default).
 	 */
-	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,
-	    IWM_DEFAULT_COLOR));
+	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(ivp->id,
+	    ivp->color));
 	cmd->action = htole32(action);
 
 	cmd->mac_type = htole32(IWM_FW_MAC_TYPE_BSS_STA);
@@ -306,7 +315,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	/*
 	 * Default to 2ghz if no node information is given.
 	 */
-	if (in) {
+	if (in && in->in_ni.ni_chan != IEEE80211_CHAN_ANYC) {
 		is2ghz = !! IEEE80211_IS_CHAN_2GHZ(in->in_ni.ni_chan);
 	} else {
 		is2ghz = 1;
@@ -327,16 +336,19 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 * cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA)
 	 */
 
-	/* XXX TODO: set wme parameters; also handle getting updated wme parameters */
-	for (i = 0; i < IWM_AC_NUM+1; i++) {
-		int txf = i;
+	for (i = 0; i < WME_NUM_AC; i++) {
+		uint8_t txf = iwm_mvm_ac_to_tx_fifo[i];
 
-		cmd->ac[txf].cw_min = htole16(0x0f);
-		cmd->ac[txf].cw_max = htole16(0x3f);
-		cmd->ac[txf].aifsn = 1;
+		cmd->ac[txf].cw_min = htole16(ivp->queue_params[i].cw_min);
+		cmd->ac[txf].cw_max = htole16(ivp->queue_params[i].cw_max);
+		cmd->ac[txf].edca_txop =
+		    htole16(ivp->queue_params[i].edca_txop);
+		cmd->ac[txf].aifsn = ivp->queue_params[i].aifsn;
 		cmd->ac[txf].fifos_mask = (1 << txf);
-		cmd->ac[txf].edca_txop = 0;
 	}
+
+	if (ivp->have_wme)
+		cmd->qos_flags |= htole32(IWM_MAC_QOS_FLG_UPDATE_EDCA);
 
 	if (ic->ic_flags & IEEE80211_F_USEPROT)
 		cmd->protection_flags |= htole32(IWM_MAC_PROT_FLG_TGG_PROTECT);

@@ -396,7 +396,7 @@ ENTRY(resumectx)
 	movl	4 + PCB_KGSBASE(%rdi),%edx
 	wrmsr
 
-	/* Restore EFER. */
+	/* Restore EFER one more time. */
 	movl	$MSR_EFER,%ecx
 	movl	PCB_EFER(%rdi),%eax
 	wrmsr

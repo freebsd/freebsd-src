@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.55 2016/09/23 23:04:51 sjg Exp $
+# $Id: lib.mk,v 1.61 2017/05/06 17:30:09 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -37,7 +37,7 @@ PICO?= .pico
 
 CFLAGS+=	${COPTS}
 
-# Derrived from NetBSD-1.6
+# Originally derrived from NetBSD-1.6
 
 # Set PICFLAGS to cc flags for producing position-independent code,
 # if not already set.  Includes -DPIC, if required.
@@ -375,15 +375,14 @@ _LIBS+=llib-l${LIB}.ln
 .include <dpadd.mk>
 .endif
 
+.if empty(LIB)
+_LIBS=
+.endif
+
 .if !defined(_SKIP_BUILD)
-all: prebuild .WAIT ${_LIBS} 
-# a hook for things that must be done early
-prebuild:
-.if !defined(.PARSEDIR)
-# no-op is the best we can do if not bmake.
-.WAIT:
+realbuild: ${_LIBS} 
 .endif
-.endif
+
 all: _SUBDIRUSE
 
 .for s in ${SRCS:N*.h:M*/*}
@@ -509,7 +508,7 @@ LIB_INSTALL_OWN ?= -o ${LIBOWN} -g ${LIBGRP}
 
 .include <links.mk>
 
-.if !target(realinstall)
+.if !target(realinstall) && !empty(LIB)
 realinstall: libinstall
 .endif
 .if !target(libinstall)
@@ -552,11 +551,17 @@ libinstall:
 .endif
 .endif
 
+.if ${MK_MAN} != "no"
 install: maninstall _SUBDIRUSE
 maninstall: afterinstall
+.endif
 afterinstall: realinstall
 libinstall: beforeinstall
 realinstall: beforeinstall
+.endif
+
+.if defined(FILES) || defined(FILESGROUPS)
+.include <files.mk>
 .endif
 
 .if ${MK_MAN} != "no"
@@ -590,6 +595,11 @@ realinstall: beforeinstall
 .endif
 .endfor
 	@touch ${.TARGET}
+
+.if !empty(LIB)
+STAGE_LIBDIR?= ${STAGE_OBJTOP}${LIBDIR}
+stage_libs: ${_LIBS}
+.endif
 
 .include <final.mk>
 .endif

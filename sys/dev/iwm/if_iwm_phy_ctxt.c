@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -216,6 +217,18 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	/* Set rx the chains */
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
+
+	/* In scenarios where we only ever use a single-stream rates,
+	 * i.e. legacy 11b/g/a associations, single-stream APs or even
+	 * static SMPS, enable both chains to get diversity, improving
+	 * the case where we're far enough from the AP that attenuation
+	 * between the two antennas is sufficiently different to impact
+	 * performance.
+	 */
+	if (active_cnt == 1 && iwm_mvm_rx_diversity_allowed(sc)) {
+		idle_cnt = 2;
+		active_cnt = 2;
+	}
 
 	cmd->rxchain_info = htole32(iwm_mvm_get_valid_rx_ant(sc) <<
 					IWM_PHY_RX_CHAIN_VALID_POS);
