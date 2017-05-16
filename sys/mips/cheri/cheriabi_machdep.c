@@ -223,15 +223,23 @@ cheriabi_elf_header_supported(struct image_params *imgp)
 	return FALSE;
 }
 
-
-void
+inline void
 cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
     int syscall_no, int argnum)
+{
+
+	cheriabi_fetch_syscall_arg_x(td, arg, syscall_no, argnum,
+	    CHERIABI_SYS_argmap[syscall_no].sam_ptrmask);
+}
+
+inline void
+cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
+    int syscall_no, int argnum, int ptrmask)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct chericap *arg_capp;
 	struct sysentvec *se;
-	int i, intreg_offset, ptrreg_offset, ptrmask, is_ptr_arg;
+	int i, intreg_offset, ptrreg_offset, is_ptr_arg;
 	register_t arg_reg;
 
 	se = td->td_proc->p_sysent;
@@ -244,7 +252,6 @@ cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 	    ("Argument number out of range %d > %d\n", argnum,
 	    se->sv_table[syscall_no].sy_narg));
 
-	ptrmask = CHERIABI_SYS_argmap[syscall_no].sam_ptrmask;
 	/* XXX: O(1) possible with more bit twiddling. */
 	intreg_offset = ptrreg_offset = -1;
 	for (i = 0; i <= argnum; i++) {

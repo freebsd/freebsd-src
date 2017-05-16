@@ -197,7 +197,7 @@ sed -e '
 		printf "#define\t%s\n\n", sysargmap_h > sysargmap
 		printf "struct {\n" > sysargmap
 		printf "\tu_char sam_return_ptr;\n" > sysargmap
-		printf "\tu_char sam_ptrmask;\n} " > sysargmap
+		printf "\tconst u_char sam_ptrmask;\n} " > sysargmap
 		printf("%sargmap[%sMAXSYSCALL] = {\n",
 		    syscallprefix, syscallprefix) > sysargmap
 
@@ -425,8 +425,8 @@ sed -e '
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    &tmpcap, %s, reqperms, %s);\n",
 		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
@@ -500,8 +500,8 @@ sed -e '
 			printf("%s %s has no length constraint",
 			    a_saltype, a_name) > "/dev/stderr"
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    &tmpcap, %s, %s, %s);\n",
 		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
@@ -739,6 +739,15 @@ sed -e '
 					}
 				printf "\n" > sysargmap
 			}
+			printf("#define	%s%s_PTRMASK	(0x0", syscallprefix, funcalias) > sysargmap
+			for (i = 1; i <= argc; i++)
+				if (isptrtype(argtype[i])) {
+					printf(" %s0x%x",
+					    or_space,
+					    2 ^ (i - 1)) > sysargmap
+					or_space = "| "
+				}
+			printf ")\n" > sysargmap
 			printf "\t},\n" > sysargmap
 		}
 
@@ -792,8 +801,8 @@ sed -e '
 					continue
 				printf("\n\t/* [%d] %s %s */\n", i-1,
 				    argsaltype[i], argname[i]) > cheriabi_fill_uap
-				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-				    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+				printf("\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+				    syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 				printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > cheriabi_fill_uap
 				printf("\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", argname[i]) > cheriabi_fill_uap
 			}

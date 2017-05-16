@@ -137,6 +137,8 @@ void	cheriabi_set_signal_stack_capability(struct thread *td,
 
 void	cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 	    int syscall_no, int argnum);
+void	cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
+	    int syscall_no, int argnum, int ptrmask);
 int	cheriabi_copyinstrarg(struct thread *td, int syscall, int arg,
 	    char *buf, size_t len, size_t *done);
 
