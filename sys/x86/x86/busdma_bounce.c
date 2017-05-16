@@ -396,23 +396,36 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	else
 		attr = VM_MEMATTR_DEFAULT;
 
-	/* 
-	 * XXX:
-	 * (dmat->alignment <= dmat->maxsize) is just a quick hack; the exact
-	 * alignment guarantees of malloc need to be nailed down, and the
-	 * code below should be rewritten to take that into account.
+	/*
+	 * Allocate the buffer from the malloc(9) allocator if...
+	 *  - It's small enough to fit into a single power of two sized bucket.
+	 *  - The alignment is less than or equal to the maximum size
+	 *  - The low address requirement is fulfilled.
+	 * else allocate non-contiguous pages if...
+	 *  - The page count that could get allocated doesn't exceed
+	 *    nsegments also when the maximum segment size is less
+	 *    than PAGE_SIZE.
+	 *  - The alignment constraint isn't larger than a page boundary.
+	 *  - There are no boundary-crossing constraints.
+	 * else allocate a block of contiguous pages because one or more of the
+	 * constraints is something that only the contig allocator can fulfill.
 	 *
-	 * In the meantime, we'll warn the user if malloc gets it wrong.
+	 * NOTE: The (dmat->common.alignment <= dmat->maxsize) check
+	 * below is just a quick hack. The exact alignment guarantees
+	 * of malloc(9) need to be nailed down, and the code below
+	 * should be rewritten to take that into account.
+	 *
+	 * In the meantime warn the user if malloc gets it wrong.
 	 */
 	if ((dmat->common.maxsize <= PAGE_SIZE) &&
 	   (dmat->common.alignment <= dmat->common.maxsize) &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc(dmat->common.maxsize, M_DEVBUF, mflags);
-	} else if (dmat->common.nsegments >= btoc(dmat->common.maxsize) &&
+	} else if (dmat->common.nsegments >=
+	    howmany(dmat->common.maxsize, MIN(dmat->common.maxsegsz, PAGE_SIZE)) &&
 	    dmat->common.alignment <= PAGE_SIZE &&
-	    (dmat->common.boundary == 0 ||
-	    dmat->common.boundary >= dmat->common.lowaddr)) {
+	    (dmat->common.boundary % PAGE_SIZE) == 0) {
 		/* Page-based multi-segment allocations allowed */
 		*vaddr = (void *)kmem_alloc_attr(kernel_arena,
 		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
