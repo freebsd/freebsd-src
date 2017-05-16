@@ -31,6 +31,10 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_wait.c,v 1.8 2017/01/13 19:28:55 christos Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 #include <sys/wait.h>
 #include <sys/resource.h>
 
@@ -146,6 +150,14 @@ ATF_TC_BODY(wait6_coredumped, tc)
 	int st;
 	pid_t pid;
 	static const struct rlimit rl = { RLIM_INFINITY, RLIM_INFINITY };
+
+#ifdef __FreeBSD__
+	int coredump_enabled;
+	size_t ce_len = sizeof(coredump_enabled);
+	if (sysctlbyname("kern.coredump", &coredump_enabled, &ce_len, NULL,
+	    0) == 0 && !coredump_enabled)
+		atf_tc_skip("Coredumps disabled");
+#endif
 
 	switch (pid = fork()) {
 	case 0:
