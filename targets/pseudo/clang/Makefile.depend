@@ -9,6 +9,7 @@ DIRDEPS = \
 	share/doc/llvm/clang \
 	usr.bin/clang/clang \
 	usr.bin/clang/clang-tblgen \
+	usr.bin/clang/llvm-objdump \
 	usr.bin/clang/llvm-tblgen \
 
 .if ${MK_LLDB} == "yes"
@@ -38,7 +39,6 @@ DIRDEPS+= \
 	usr.bin/clang/llvm-mc \
 	usr.bin/clang/llvm-modextract \
 	usr.bin/clang/llvm-nm \
-	usr.bin/clang/llvm-objdump \
 	usr.bin/clang/llvm-pdbdump \
 	usr.bin/clang/llvm-profdata \
 	usr.bin/clang/llvm-rtdyld \
