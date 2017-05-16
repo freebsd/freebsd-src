@@ -1070,7 +1070,7 @@ libxo will convert these arguments as needed to either UTF-8 (for XML,
 JSON, and HTML styles) or locale-based strings for display in text
 style.
 
-   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
+   xo_emit("All strings are utf-8 content {:tag/%ls}",
            L"except for wide strings");
 
 "%S" is equivalent to "%ls".
@@ -1464,6 +1464,8 @@ styles, flags, or features:
 |-------------+-------------------------------------------------------|
 | color       | Enable colors/effects for display styles (TEXT, HTML) |
 | dtrt        | Enable "Do The Right Thing" mode                      |
+| flush       | Flush after every libxo function call                 |
+| flush-line  | Flush after every line (line-buffered)                |
 | html        | Emit HTML output                                      |
 | indent=xx   | Set the indentation level                             |
 | info        | Add info attributes (HTML)                            |
@@ -1479,7 +1481,7 @@ styles, flags, or features:
 | pretty      | Emit pretty-printed output                            |
 | retain      | Force retaining formatting information                |
 | text        | Emit TEXT output                                      |
-| underscores | Replace XML-friendly "-"s with JSON friendly "_"s e   |
+| underscores | Replace XML-friendly "-"s with JSON friendly "_"s     |
 | units       | Add the 'units' (XML) or 'data-units (HTML) attribute |
 | warn        | Emit warnings when libxo detects bad calls            |
 | warn-xml    | Emit warnings in XML                                  |
@@ -1488,6 +1490,29 @@ styles, flags, or features:
 |-------------+-------------------------------------------------------|
 
 The brief options are detailed in ^LIBXO_OPTIONS^.
+
+Most of these option are simple and direct, but some require
+additional details:
+
+- "flush-line" performs line buffering, even when the output is not
+directed to a TTY device.
+- "info" generates additional data for HTML, encoded in attributes
+using names that state with "data-".
+- "keys" adds a "key" attribute for XML output to indicate that a leaf
+is an identifier for the list member.
+- "no-humanize"avoids "humanizing" numeric output (see
+humanize_number(3) for details).
+- "no-locale" instructs libxo to avoid translating output to the
+current locale.
+- "no-retain" disables the ability of libxo to internally retain
+"compiled" information about formatting strings.
+- "underscores" can be used with JSON output to change XML-friendly
+names with dashes into JSON-friendly name with underscores.
+- "warn" allows libxo to emit warnings on stderr when application code
+make incorrect calls.
+- "warn-xml" causes those warnings to be placed in XML inside the
+output.
+
 
 * The libxo API
 
@@ -1576,6 +1601,16 @@ To set the style, use the xo_set_style() function:
 To use the default handle, pass a NULL handle:
 
     xo_set_style(NULL, XO_STYLE_XML);
+
+*** xo_get_style
+
+To find the current style, use the xo_get_style() function:
+
+    xo_style_t xo_get_style(xo_handle_t *xop);
+
+To use the default handle, pass a NULL handle:
+
+    style = xo_get_style(NULL);
 
 **** Output Styles (XO_STYLE_*) @styles@
 
@@ -2883,9 +2918,9 @@ which include the following:
 Compiler warnings are a very good thing, but recent compiler version
 have added some very pedantic checks.  While every attempt is made to
 keep libxo code warning-free, warnings are now optional.  If you are
-doing development work on libxo, it is required that you use
---enable-warnings to keep the code warning free, but most users need
-not use this option.
+doing development work on libxo, it is required that you
+use --enable-warnings to keep the code warning free, but most users
+need not use this option.
 
 libxo provides the --enable-text-only option to reduce the footprint
 of the library for smaller installations.  XML, JSON, and HTML
