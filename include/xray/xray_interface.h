@@ -1,4 +1,4 @@
-//===-- xray_interface.h ----------------------------------------*- C++ -*-===//
+//===- xray_interface.h -----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,11 +11,12 @@
 //
 // APIs for controlling XRay functionality explicitly.
 //===----------------------------------------------------------------------===//
+
 #ifndef XRAY_XRAY_INTERFACE_H
 #define XRAY_XRAY_INTERFACE_H
 
+#include <cstddef>
 #include <cstdint>
-#include <stddef.h>
 
 extern "C" {
 
@@ -25,6 +26,7 @@ enum XRayEntryType {
   EXIT = 1,
   TAIL = 2,
   LOG_ARGS_ENTRY = 3,
+  CUSTOM_EVENT = 4,
 };
 
 /// Provide a function to invoke for when instrumentation points are hit. This
@@ -64,6 +66,9 @@ extern int __xray_set_handler_arg1(void (*)(int32_t, XRayEntryType, uint64_t));
 /// Returns 1 on success, 0 on error.
 extern int __xray_remove_handler_arg1();
 
+/// Provide a function to invoke when XRay encounters a custom event.
+extern int __xray_set_customevent_handler(void (*entry)(void*, std::size_t));
+
 enum XRayPatchingStatus {
   NOT_INITIALIZED = 0,
   SUCCESS = 1,
@@ -96,6 +101,6 @@ extern uintptr_t __xray_function_address(int32_t FuncId);
 /// encounter errors (when there are no instrumented functions, etc.).
 extern size_t __xray_max_function_id();
 
-}
+} // end extern "C"
 
-#endif
+#endif // XRAY_XRAY_INTERFACE_H
