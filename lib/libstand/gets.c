@@ -41,11 +41,15 @@ __FBSDID("$FreeBSD$");
 void
 ngets(char *buf, int n)
 {
-    int c;
+    unsigned int c;
     char *lp;
 
-    for (lp = buf;;)
-	switch (c = getchar() & 0177) {
+    for (lp = buf;;) {
+	c = getchar();
+	if (c == -1)
+		break;
+
+	switch (c & 0177) {
 	case '\n':
 	case '\r':
 	    *lp = '\0';
@@ -79,6 +83,7 @@ ngets(char *buf, int n)
 		putchar(c);
 	    }
 	}
+    }
     /*NOTREACHED*/
 }
 
