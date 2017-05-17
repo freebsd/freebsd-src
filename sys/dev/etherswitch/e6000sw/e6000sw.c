@@ -321,9 +321,11 @@ e6000sw_init_interface(e6000sw_softc_t *sc, int port)
 	sc->ifp[port]->if_softc = sc;
 	sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 	    IFF_DRV_RUNNING | IFF_SIMPLEX;
-	sc->ifname[port] = malloc(strlen(name) + 1, M_E6000SW, M_WAITOK);
-	if (sc->ifname[port] == NULL)
+	sc->ifname[port] = malloc(strlen(name) + 1, M_E6000SW, M_NOWAIT);
+	if (sc->ifname[port] == NULL) {
+		if_free(sc->ifp[port]);
 		return (ENOMEM);
+	}
 	memcpy(sc->ifname[port], name, strlen(name) + 1);
 	if_initname(sc->ifp[port], sc->ifname[port], port);
 
