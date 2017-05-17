@@ -40,6 +40,7 @@ void mpr_describe_devinfo(uint32_t devinfo, char *string, int len);
 extern struct mpr_table_lookup mpr_event_names[];
 extern struct mpr_table_lookup mpr_phystatus_names[];
 extern struct mpr_table_lookup mpr_linkrate_names[];
+extern struct mpr_table_lookup mpr_pcie_linkrate_names[];
 
 void _mpr_print_iocfacts(struct mpr_softc *, MPI2_IOC_FACTS_REPLY *);
 void _mpr_print_portfacts(struct mpr_softc *, MPI2_PORT_FACTS_REPLY *);

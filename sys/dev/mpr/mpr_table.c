@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpr_ioctl.h>
 #include <dev/mpr/mprvar.h>
 #include <dev/mpr/mpr_table.h>
@@ -74,6 +75,7 @@ mpr_describe_table(struct mpr_table_lookup *table, u_int code)
 	return(table[i+1].string);
 }
 
+//SLM-Add new PCIe info to all of these tables
 struct mpr_table_lookup mpr_event_names[] = {
 	{"LogData",			0x01},
 	{"StateChange",			0x02},
@@ -100,6 +102,10 @@ struct mpr_table_lookup mpr_event_names[] = {
 	{"TempThreshold",		0x27},
 	{"HostMessage",			0x28},
 	{"PowerPerformanceChange",	0x29},
+	{"PCIeDeviceStatusChange",	0x30},
+	{"PCIeEnumeration",		0x31},
+	{"PCIeTopologyChangeList",	0x32},
+	{"PCIeLinkCounter",		0x33},
 	{"CableEvent",			0x34},
 	{NULL, 0},
 	{"Unknown Event", 0}
@@ -190,6 +196,16 @@ struct mpr_table_lookup mpr_sasdev_reason[] = {
 	{"Sata Init Failure",		0x10},
 	{NULL, 0},
 	{"Unknown",			0x00}
+};
+
+struct mpr_table_lookup mpr_pcie_linkrate_names[] = {
+	{"Port disabled",		0x01},
+	{"2.5GT/sec",			0x02},
+	{"5.0GT/sec",			0x03},
+	{"8.0GT/sec",			0x04},
+	{"16.0GT/sec",			0x05},
+	{NULL, 0},
+	{"LinkRate Unknown",		0x00}
 };
 
 void
@@ -321,6 +337,7 @@ _mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 		    "\40MaxEnclosures");
 		break;
 	}
+//SLM-add for PCIE EVENT too
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 	{
 		MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *data;
