@@ -220,8 +220,8 @@
 #define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4
 
-#define	MV_WIN_USB3_CTRL(n)		(0x8 * (n))
-#define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4)
+#define	MV_WIN_USB3_CTRL(n)		(0x8 * (n) + 0x4000)
+#define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4004)
 #define	MV_WIN_USB3_MAX			8
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
