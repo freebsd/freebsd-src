@@ -100,6 +100,7 @@ MAN=	aac.4 \
 	cc_newreno.4 \
 	cc_vegas.4 \
 	${_ccd.4} \
+	ccr.4 \
 	cd.4 \
 	cdce.4 \
 	cfi.4 \
