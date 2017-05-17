@@ -93,9 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 int
-ibcs2_ulimit(td, uap)
-	struct thread *td;
-	struct ibcs2_ulimit_args *uap;
+ibcs2_ulimit(struct thread *td, struct ibcs2_ulimit_args *uap)
 {
 	struct rlimit rl;
 	int error;
@@ -134,9 +132,7 @@ ibcs2_ulimit(td, uap)
 #define IBCS2_WSTOPPED       0177
 #define IBCS2_STOPCODE(sig)  ((sig) << 8 | IBCS2_WSTOPPED)
 int
-ibcs2_wait(td, uap)
-	struct thread *td;
-	struct ibcs2_wait_args *uap;
+ibcs2_wait(struct thread *td, struct ibcs2_wait_args *uap)
 {
 	int error, options, status;
 	int *statusp;
@@ -185,9 +181,7 @@ ibcs2_wait(td, uap)
 }
 
 int
-ibcs2_execv(td, uap)
-	struct thread *td;
-	struct ibcs2_execv_args *uap;
+ibcs2_execv(struct thread *td, struct ibcs2_execv_args *uap)
 {
 	struct image_args eargs;
 	struct vmspace *oldvmspace;
@@ -210,9 +204,7 @@ ibcs2_execv(td, uap)
 }
 
 int
-ibcs2_execve(td, uap) 
-        struct thread *td;
-        struct ibcs2_execve_args *uap;
+ibcs2_execve(struct thread *td, struct ibcs2_execve_args *uap)
 {
 	struct image_args eargs;
 	struct vmspace *oldvmspace;
@@ -236,9 +228,7 @@ ibcs2_execve(td, uap)
 }
 
 int
-ibcs2_umount(td, uap)
-	struct thread *td;
-	struct ibcs2_umount_args *uap;
+ibcs2_umount(struct thread *td, struct ibcs2_umount_args *uap)
 {
 	struct unmount_args um;
 
@@ -248,9 +238,7 @@ ibcs2_umount(td, uap)
 }
 
 int
-ibcs2_mount(td, uap)
-	struct thread *td;
-	struct ibcs2_mount_args *uap;
+ibcs2_mount(struct thread *td, struct ibcs2_mount_args *uap)
 {
 #ifdef notyet
 	int oflags = uap->flags, nflags, error;
@@ -321,15 +309,13 @@ ibcs2_mount(td, uap)
  */
 
 int
-ibcs2_getdents(td, uap)
-	struct thread *td;
-	register struct ibcs2_getdents_args *uap;
+ibcs2_getdents(struct thread *td, struct ibcs2_getdents_args *uap)
 {
-	register struct vnode *vp;
-	register caddr_t inp, buf;	/* BSD-format */
-	register int len, reclen;	/* BSD-format */
-	register caddr_t outp;		/* iBCS2-format */
-	register int resid;		/* iBCS2-format */
+	struct vnode *vp;
+	caddr_t inp, buf;		/* BSD-format */
+	int len, reclen;		/* BSD-format */
+	caddr_t outp;			/* iBCS2-format */
+	int resid;			/* iBCS2-format */
 	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
@@ -475,15 +461,13 @@ out:
 }
 
 int
-ibcs2_read(td, uap)
-	struct thread *td;
-	struct ibcs2_read_args *uap;
+ibcs2_read(struct thread *td, struct ibcs2_read_args *uap)
 {
-	register struct vnode *vp;
-	register caddr_t inp, buf;	/* BSD-format */
-	register int len, reclen;	/* BSD-format */
-	register caddr_t outp;		/* iBCS2-format */
-	register int resid;		/* iBCS2-format */
+	struct vnode *vp;
+	caddr_t inp, buf;		/* BSD-format */
+	int len, reclen;		/* BSD-format */
+	caddr_t outp;			/* iBCS2-format */
+	int resid;			/* iBCS2-format */
 	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
@@ -640,9 +624,7 @@ out:
 }
 
 int
-ibcs2_mknod(td, uap)
-	struct thread *td;
-	struct ibcs2_mknod_args *uap;
+ibcs2_mknod(struct thread *td, struct ibcs2_mknod_args *uap)
 {
 	char *path;
 	int error;
@@ -660,9 +642,7 @@ ibcs2_mknod(td, uap)
 }
 
 int
-ibcs2_getgroups(td, uap)
-	struct thread *td;
-	struct ibcs2_getgroups_args *uap;
+ibcs2_getgroups(struct thread *td, struct ibcs2_getgroups_args *uap)
 {
 	struct ucred *cred;
 	ibcs2_gid_t *iset;
@@ -690,9 +670,7 @@ out:
 }
 
 int
-ibcs2_setgroups(td, uap)
-	struct thread *td;
-	struct ibcs2_setgroups_args *uap;
+ibcs2_setgroups(struct thread *td, struct ibcs2_setgroups_args *uap)
 {
 	ibcs2_gid_t *iset;
 	gid_t *gp;
@@ -722,9 +700,7 @@ out:
 }
 
 int
-ibcs2_setuid(td, uap)
-	struct thread *td;
-	struct ibcs2_setuid_args *uap;
+ibcs2_setuid(struct thread *td, struct ibcs2_setuid_args *uap)
 {
 	struct setuid_args sa;
 
@@ -733,9 +709,7 @@ ibcs2_setuid(td, uap)
 }
 
 int
-ibcs2_setgid(td, uap)
-	struct thread *td;
-	struct ibcs2_setgid_args *uap;
+ibcs2_setgid(struct thread *td, struct ibcs2_setgid_args *uap)
 {
 	struct setgid_args sa;
 
@@ -744,9 +718,7 @@ ibcs2_setgid(td, uap)
 }
 
 int
-ibcs2_time(td, uap)
-	struct thread *td;
-	struct ibcs2_time_args *uap;
+ibcs2_time(struct thread *td, struct ibcs2_time_args *uap)
 {
 	struct timeval tv;
 
@@ -760,9 +732,7 @@ ibcs2_time(td, uap)
 }
 
 int
-ibcs2_pathconf(td, uap)
-	struct thread *td;
-	struct ibcs2_pathconf_args *uap;
+ibcs2_pathconf(struct thread *td, struct ibcs2_pathconf_args *uap)
 {
 	char *path;
 	int error;
@@ -775,18 +745,14 @@ ibcs2_pathconf(td, uap)
 }
 
 int
-ibcs2_fpathconf(td, uap)
-	struct thread *td;
-	struct ibcs2_fpathconf_args *uap;
+ibcs2_fpathconf(struct thread *td, struct ibcs2_fpathconf_args *uap)
 {
 	uap->name++;	/* iBCS2 _PC_* defines are offset by one */
         return sys_fpathconf(td, (struct fpathconf_args *)uap);
 }
 
 int
-ibcs2_sysconf(td, uap)
-	struct thread *td;
-	struct ibcs2_sysconf_args *uap;
+ibcs2_sysconf(struct thread *td, struct ibcs2_sysconf_args *uap)
 {
 	int mib[2], value, len, error;
 
@@ -845,9 +811,7 @@ ibcs2_sysconf(td, uap)
 }
 
 int
-ibcs2_alarm(td, uap)
-	struct thread *td;
-	struct ibcs2_alarm_args *uap;
+ibcs2_alarm(struct thread *td, struct ibcs2_alarm_args *uap)
 {
 	struct itimerval itv, oitv;
 	int error;
@@ -865,9 +829,7 @@ ibcs2_alarm(td, uap)
 }
 
 int
-ibcs2_times(td, uap)
-	struct thread *td;
-	struct ibcs2_times_args *uap;
+ibcs2_times(struct thread *td, struct ibcs2_times_args *uap)
 {
 	struct rusage ru;
 	struct timeval t;
@@ -895,9 +857,7 @@ ibcs2_times(td, uap)
 }
 
 int
-ibcs2_stime(td, uap)
-	struct thread *td;
-	struct ibcs2_stime_args *uap;
+ibcs2_stime(struct thread *td, struct ibcs2_stime_args *uap)
 {
 	struct timeval tv;
 	long secs;
@@ -915,9 +875,7 @@ ibcs2_stime(td, uap)
 }
 
 int
-ibcs2_utime(td, uap)
-	struct thread *td;
-	struct ibcs2_utime_args *uap;
+ibcs2_utime(struct thread *td, struct ibcs2_utime_args *uap)
 {
 	struct ibcs2_utimbuf ubuf;
 	struct timeval tbuf[2], *tp;
@@ -944,9 +902,7 @@ ibcs2_utime(td, uap)
 }
 
 int
-ibcs2_nice(td, uap)
-	struct thread *td;
-	struct ibcs2_nice_args *uap;
+ibcs2_nice(struct thread *td, struct ibcs2_nice_args *uap)
 {
 	int error;
 	struct setpriority_args sa;
@@ -965,9 +921,7 @@ ibcs2_nice(td, uap)
  */
 
 int
-ibcs2_pgrpsys(td, uap)
-	struct thread *td;
-	struct ibcs2_pgrpsys_args *uap;
+ibcs2_pgrpsys(struct thread *td, struct ibcs2_pgrpsys_args *uap)
 {
 	struct proc *p = td->td_proc;
 	switch (uap->type) {
@@ -1012,9 +966,7 @@ ibcs2_pgrpsys(td, uap)
  */
 
 int
-ibcs2_plock(td, uap)
-	struct thread *td;
-	struct ibcs2_plock_args *uap;
+ibcs2_plock(struct thread *td, struct ibcs2_plock_args *uap)
 {
 	int error;
 #define IBCS2_UNLOCK	0
@@ -1044,9 +996,7 @@ ibcs2_plock(td, uap)
 }
 
 int
-ibcs2_uadmin(td, uap)
-	struct thread *td;
-	struct ibcs2_uadmin_args *uap;
+ibcs2_uadmin(struct thread *td, struct ibcs2_uadmin_args *uap)
 {
 #define SCO_A_REBOOT        1
 #define SCO_A_SHUTDOWN      2
@@ -1093,9 +1043,7 @@ ibcs2_uadmin(td, uap)
 }
 
 int
-ibcs2_sysfs(td, uap)
-	struct thread *td;
-	struct ibcs2_sysfs_args *uap;
+ibcs2_sysfs(struct thread *td, struct ibcs2_sysfs_args *uap)
 {
 #define IBCS2_GETFSIND        1
 #define IBCS2_GETFSTYP        2
@@ -1111,9 +1059,7 @@ ibcs2_sysfs(td, uap)
 }
 
 int
-ibcs2_unlink(td, uap)
-	struct thread *td;
-	struct ibcs2_unlink_args *uap;
+ibcs2_unlink(struct thread *td, struct ibcs2_unlink_args *uap)
 {
 	char *path;
 	int error;
@@ -1125,9 +1071,7 @@ ibcs2_unlink(td, uap)
 }
 
 int
-ibcs2_chdir(td, uap)
-	struct thread *td;
-	struct ibcs2_chdir_args *uap;
+ibcs2_chdir(struct thread *td, struct ibcs2_chdir_args *uap)
 {
 	char *path;
 	int error;
@@ -1139,9 +1083,7 @@ ibcs2_chdir(td, uap)
 }
 
 int
-ibcs2_chmod(td, uap)
-	struct thread *td;
-	struct ibcs2_chmod_args *uap;
+ibcs2_chmod(struct thread *td, struct ibcs2_chmod_args *uap)
 {
 	char *path;
 	int error;
@@ -1153,9 +1095,7 @@ ibcs2_chmod(td, uap)
 }
 
 int
-ibcs2_chown(td, uap)
-	struct thread *td;
-	struct ibcs2_chown_args *uap;
+ibcs2_chown(struct thread *td, struct ibcs2_chown_args *uap)
 {
 	char *path;
 	int error;
@@ -1168,9 +1108,7 @@ ibcs2_chown(td, uap)
 }
 
 int
-ibcs2_rmdir(td, uap)
-	struct thread *td;
-	struct ibcs2_rmdir_args *uap;
+ibcs2_rmdir(struct thread *td, struct ibcs2_rmdir_args *uap)
 {
 	char *path;
 	int error;
@@ -1182,9 +1120,7 @@ ibcs2_rmdir(td, uap)
 }
 
 int
-ibcs2_mkdir(td, uap)
-	struct thread *td;
-	struct ibcs2_mkdir_args *uap;
+ibcs2_mkdir(struct thread *td, struct ibcs2_mkdir_args *uap)
 {
 	char *path;
 	int error;
@@ -1196,9 +1132,7 @@ ibcs2_mkdir(td, uap)
 }
 
 int
-ibcs2_symlink(td, uap)
-	struct thread *td;
-	struct ibcs2_symlink_args *uap;
+ibcs2_symlink(struct thread *td, struct ibcs2_symlink_args *uap)
 {
 	char *path, *link;
 	int error;
@@ -1221,9 +1155,7 @@ ibcs2_symlink(td, uap)
 }
 
 int
-ibcs2_rename(td, uap)
-	struct thread *td;
-	struct ibcs2_rename_args *uap;
+ibcs2_rename(struct thread *td, struct ibcs2_rename_args *uap)
 {
 	char *from, *to;
 	int error;
@@ -1246,9 +1178,7 @@ ibcs2_rename(td, uap)
 }
 
 int
-ibcs2_readlink(td, uap)
-	struct thread *td;
-	struct ibcs2_readlink_args *uap;
+ibcs2_readlink(struct thread *td, struct ibcs2_readlink_args *uap)
 {
 	char *path;
 	int error;
