@@ -241,6 +241,7 @@ struct ifnet {
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
+	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 	struct	rwlock if_afdata_lock;
 	void	*if_afdata[AF_MAX];
@@ -608,6 +609,7 @@ int if_gethwassist(if_t ifp);
 int if_setsoftc(if_t ifp, void *softc);
 void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
+int if_gethwaddr(if_t ifp, struct ifreq *);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(if_t ifp);
 int if_getmtu_family(if_t ifp, int family);
