@@ -305,18 +305,6 @@
 #define	MV_BOOTROM_WIN_SIZE	0xF
 #define	MV_CPU_SUBSYS_REGS_LEN	0x100
 
-/* IO Window Control Register fields */
-#define	IO_WIN_SIZE_SHIFT	16
-#define	IO_WIN_SIZE_MASK	0xFFFF
-#define	IO_WIN_ATTR_SHIFT	8
-#define	IO_WIN_ATTR_MASK	0xFF
-#define	IO_WIN_TGT_SHIFT	4
-#define	IO_WIN_TGT_MASK		0xF
-#define	IO_WIN_SYNC_SHIFT	1
-#define	IO_WIN_SYNC_MASK	0x1
-#define	IO_WIN_ENA_SHIFT	0
-#define	IO_WIN_ENA_MASK		0x1
-
 #define	IO_WIN_9_CTRL_OFFSET	0x98
 #define	IO_WIN_9_BASE_OFFSET	0x9C
 
@@ -328,6 +316,18 @@
 #define	MV_SYNC_BARRIER_CTRL		0x84
 #define	MV_SYNC_BARRIER_CTRL_ALL	0xFFFF
 #endif
+
+/* IO Window Control Register fields */
+#define	IO_WIN_SIZE_SHIFT	16
+#define	IO_WIN_SIZE_MASK	0xFFFF
+#define	IO_WIN_ATTR_SHIFT	8
+#define	IO_WIN_ATTR_MASK	0xFF
+#define	IO_WIN_TGT_SHIFT	4
+#define	IO_WIN_TGT_MASK		0xF
+#define	IO_WIN_SYNC_SHIFT	1
+#define	IO_WIN_SYNC_MASK	0x1
+#define	IO_WIN_ENA_SHIFT	0
+#define	IO_WIN_ENA_MASK		0x1
 
 #define WIN_REG_IDX_RD(pre,reg,off,base)					\
 	static __inline uint32_t						\
