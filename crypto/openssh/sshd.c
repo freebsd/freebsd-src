@@ -389,7 +389,7 @@ grace_alarm_handler(int sig)
 		kill(0, SIGTERM);
 	}
 
-	BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
+	BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, "ssh");
 
 	/* Log error and exit. */
 	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
