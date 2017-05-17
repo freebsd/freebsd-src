@@ -148,12 +148,10 @@ static void	mpic_unmask_irq(uintptr_t nb);
 static void	mpic_mask_irq(uintptr_t nb);
 static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
+#ifdef INTRNG
 static int	mpic_intr(void *arg);
-static void	mpic_unmask_msi(void);
-#ifndef INTRNG
-static void	arm_mask_irq_err(uintptr_t);
-static void	arm_unmask_irq_err(uintptr_t);
 #endif
+static void	mpic_unmask_msi(void);
 
 #define	MPIC_WRITE(softc, reg, val) \
     bus_space_write_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg), (val))
@@ -260,8 +258,7 @@ mv_mpic_attach(device_t dev)
 		sc->drbl_bsh = rman_get_bushandle(sc->mpic_res[2]);
 	}
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_CTRL, 1);
+	MPIC_WRITE(mv_mpic_sc, MPIC_CTRL, 1);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
 
 	val = MPIC_READ(mv_mpic_sc, MPIC_CTRL);
@@ -435,26 +432,11 @@ arm_mask_irq(uintptr_t nb)
 	mpic_mask_irq(nb);
 }
 
-
-static void
-arm_mask_irq_err(uintptr_t nb)
-{
-
-	mpic_mask_irq_err(nb);
-}
-
 void
 arm_unmask_irq(uintptr_t nb)
 {
 
 	mpic_unmask_irq(nb);
-}
-
-void
-arm_unmask_irq_err(uintptr_t nb)
-{
-
-	mpic_unmask_irq_err(nb);
 }
 #endif
 
@@ -471,8 +453,7 @@ mpic_unmask_irq_err(uintptr_t nb)
 	uint32_t mask;
 	uint8_t bit_off;
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ISE, MPIC_INT_ERR);
+	MPIC_WRITE(mv_mpic_sc, MPIC_ISE, MPIC_INT_ERR);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, MPIC_INT_ERR);
 
 	bit_off = nb - ERR_IRQ;
@@ -498,8 +479,7 @@ mpic_unmask_irq(uintptr_t nb)
 {
 
 	if (nb < ERR_IRQ) {
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ISE, nb);
+		MPIC_WRITE(mv_mpic_sc, MPIC_ISE, nb);
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
 	} else if (nb < MSI_IRQ)
 		mpic_unmask_irq_err(nb);
@@ -513,8 +493,7 @@ mpic_mask_irq(uintptr_t nb)
 {
 
 	if (nb < ERR_IRQ) {
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ICE, nb);
+		MPIC_WRITE(mv_mpic_sc, MPIC_ICE, nb);
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
 	} else if (nb < MSI_IRQ)
 		mpic_mask_irq_err(nb);
@@ -533,8 +512,7 @@ mv_mpic_get_cause_err(void)
 	uint32_t err_cause;
 	uint8_t bit_off;
 
-	err_cause = bus_space_read_4(mv_mpic_sc->mpic_bst,
-	    mv_mpic_sc->mpic_bsh, MPIC_ERR_CAUSE);
+	err_cause = MPIC_READ(mv_mpic_sc, MPIC_ERR_CAUSE);
 
 	if (err_cause)
 		bit_off = ffs(err_cause) - 1;
@@ -615,8 +593,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 		if (CPU_ISSET(i, &cpus))
 			val |= (1 << (8 + i));
 	val |= ipi;
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_SOFT_INT, val);
+	MPIC_WRITE(mv_mpic_sc, MPIC_SOFT_INT, val);
 }
 
 int
