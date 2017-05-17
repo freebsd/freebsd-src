@@ -139,6 +139,7 @@ struct soc_node_spec {
 static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
+	{ "marvell,orion-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
 	{ "marvell,armada-380-ahci", &decode_win_ahci_setup, &decode_win_ahci_dump },
 	{ "marvell,armada-380-sdhci", &decode_win_sdhci_setup, &decode_win_sdhci_dump },
