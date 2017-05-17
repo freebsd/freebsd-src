@@ -1401,7 +1401,7 @@ int
 qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 	uint32_t jumbo)
 {
-	register struct mbuf *mp = nmp;
+	struct mbuf *mp = nmp;
 	struct ifnet   *ifp;
 	int             ret = 0;
 	uint32_t	offset;

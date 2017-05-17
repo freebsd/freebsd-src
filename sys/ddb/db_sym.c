@@ -286,10 +286,10 @@ static c_db_sym_t
 db_lookup(const char *symstr)
 {
 	c_db_sym_t sp;
-	register int i;
+	int i;
 	int symtab_start = 0;
 	int symtab_end = db_nsymtab;
-	register const char *cp;
+	const char *cp;
 
 	/*
 	 * Look for, remove, and remember any symbol table specifier.
@@ -343,8 +343,8 @@ static bool
 db_symbol_is_ambiguous(c_db_sym_t sym)
 {
 	const char	*sym_name;
-	register int	i;
-	register bool	found_once = false;
+	int		i;
+	bool		found_once = false;
 
 	if (!db_qualify_ambiguous_names)
 		return (false);
@@ -367,10 +367,9 @@ db_symbol_is_ambiguous(c_db_sym_t sym)
 c_db_sym_t
 db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 {
-	register
 	unsigned int	diff;
 	size_t		newdiff;
-	register int	i;
+	int		i;
 	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
 	newdiff = diff = val;

@@ -169,9 +169,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 }
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error = 0;
 	struct pcb *pcb = curthread->td_pcb;

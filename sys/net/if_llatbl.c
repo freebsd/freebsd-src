@@ -534,7 +534,7 @@ lltable_drain(int af)
 {
 	struct lltable	*llt;
 	struct llentry	*lle;
-	register int i;
+	int i;
 
 	LLTABLE_LIST_RLOCK();
 	SLIST_FOREACH(llt, &V_lltables, llt_link) {

@@ -411,8 +411,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
  * Prototype text segments cannot be written.
  */
 int
-vn_writechk(vp)
-	register struct vnode *vp;
+vn_writechk(struct vnode *vp)
 {
 
 	ASSERT_VOP_LOCKED(vp, "vn_writechk");
@@ -1368,15 +1367,11 @@ vn_statfile(fp, sb, active_cred, td)
  * Stat a vnode; implementation for the stat syscall
  */
 int
-vn_stat(vp, sb, active_cred, file_cred, td)
-	struct vnode *vp;
-	register struct stat *sb;
-	struct ucred *active_cred;
-	struct ucred *file_cred;
-	struct thread *td;
+vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
+    struct ucred *file_cred, struct thread *td)
 {
 	struct vattr vattr;
-	register struct vattr *vap;
+	struct vattr *vap;
 	int error;
 	u_short mode;
 
@@ -1479,12 +1474,8 @@ vn_stat(vp, sb, active_cred, file_cred, td)
  * File table vnode ioctl routine.
  */
 static int
-vn_ioctl(fp, com, data, active_cred, td)
-	struct file *fp;
-	u_long com;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vattr vattr;
 	struct vnode *vp;
@@ -1522,11 +1513,8 @@ vn_ioctl(fp, com, data, active_cred, td)
  * File table vnode poll routine.
  */
 static int
-vn_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vnode *vp;
 	int error;
@@ -1771,8 +1759,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
  * now in effect.
  */
 void
-vn_finished_write(mp)
-	struct mount *mp;
+vn_finished_write(struct mount *mp)
 {
 	if (mp == NULL || !vn_suspendable(mp))
 		return;
@@ -1794,8 +1781,7 @@ vn_finished_write(mp)
  * that the suspension is now in effect.
  */
 void
-vn_finished_secondary_write(mp)
-	struct mount *mp;
+vn_finished_secondary_write(struct mount *mp)
 {
 	if (mp == NULL || !vn_suspendable(mp))
 		return;

@@ -57,8 +57,8 @@ db_expr_t
 db_get_value(db_addr_t addr, int size, bool is_signed)
 {
 	char		data[sizeof(u_int64_t)];
-	register db_expr_t value;
-	register int	i;
+	db_expr_t	value;
+	int		i;
 
 	if (db_read_bytes(addr, size, data) != 0) {
 		db_printf("*** error reading from address %llx ***\n",
@@ -87,7 +87,7 @@ void
 db_put_value(db_addr_t addr, int size, db_expr_t value)
 {
 	char		data[sizeof(int)];
-	register int	i;
+	int		i;
 
 #if	BYTE_MSF
 	for (i = size - 1; i >= 0; i--)
