@@ -481,6 +481,14 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		/* Send packet to input processing via netisr */
 		switch (ip->ip_v) {
 		case IPVERSION:
+			/*
+			 * Restore M_BCAST flag when destination address is
+			 * broadcast. It is expected by ip_tryforward().
+			 */
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+				m->m_flags |= M_MCAST;
+			else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+				m->m_flags |= M_BCAST;
 			netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 			break;
 #ifdef INET6
