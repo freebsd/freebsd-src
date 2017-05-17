@@ -46,8 +46,8 @@
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
-#include "blacklist_client.h"
 #include <blacklist.h>
+#include "blacklist_client.h"
 
 static struct blacklist *blstate = NULL;
 
@@ -88,10 +88,10 @@ blacklist_init(void)
 }
 
 void
-blacklist_notify(int action)
+blacklist_notify(int action, const char *msg)
 {
 
 	if (blstate != NULL && packet_connection_is_on_socket())
 		(void)blacklist_r(blstate, action,
-		packet_get_connection_in(), "ssh");
+		packet_get_connection_in(), msg);
 }

@@ -296,7 +296,7 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 	else {
 		authmsg = authenticated ? "Accepted" : "Failed";
 		if (authenticated)
-			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK);
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK, "ssh");
 	}
 
 	authlog("%s %s%s%s for %s%.100s from %.200s port %d %s%s%s",
@@ -644,7 +644,7 @@ getpwnamallow(const char *user)
 	}
 #endif
 	if (pw == NULL) {
-		BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
+		BLACKLIST_NOTIFY(BLACKLIST_BAD_USER, user);
 		logit("Invalid user %.100s from %.100s",
 		    user, get_remote_ipaddr());
 #ifdef CUSTOM_FAILED_LOGIN
