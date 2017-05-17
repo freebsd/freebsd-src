@@ -40,8 +40,6 @@
 #include "hdmi.h"
 #include "cvtlib.h"
 
-extern int qflag;
-
 static int config_fd = -1;
 static int ps_fd = -1;
 
