@@ -918,6 +918,9 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
 
+	if (ifp->if_hw_addr != NULL)
+		bcopy(lla, ifp->if_hw_addr, ifp->if_addrlen);
+
 	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
