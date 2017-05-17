@@ -1260,16 +1260,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->sport = port;
-
 			arg = p;
 		}
 
@@ -1304,16 +1302,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->dport = port;
-
 			arg = p;
 		}
 
