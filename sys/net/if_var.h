@@ -200,6 +200,7 @@ struct ifnet {
 		(struct ifnet *, struct vnet *, char *);
 	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
+	void	*if_hw_addr;		/* hardware link-level address */
 	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
@@ -973,6 +974,7 @@ void	if_qflush(struct ifnet *);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
+int	if_gethwaddr(struct ifnet *, struct ifreq *);
 void	if_up(struct ifnet *);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
