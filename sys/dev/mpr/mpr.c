@@ -63,18 +63,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <cam/cam.h>
+#include <cam/cam_ccb.h>
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/mpr/mpi/mpi2_type.h>
 #include <dev/mpr/mpi/mpi2.h>
 #include <dev/mpr/mpi/mpi2_ioc.h>
 #include <dev/mpr/mpi/mpi2_sas.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
 #include <dev/mpr/mpr_ioctl.h>
 #include <dev/mpr/mprvar.h>
 #include <dev/mpr/mpr_table.h>
+#include <dev/mpr/mpr_sas.h>
 
 static int mpr_diag_reset(struct mpr_softc *sc, int sleep_flag);
 static int mpr_init_queues(struct mpr_softc *sc);
@@ -87,6 +90,7 @@ static int mpr_send_iocinit(struct mpr_softc *sc);
 static int mpr_alloc_queues(struct mpr_softc *sc);
 static int mpr_alloc_replies(struct mpr_softc *sc);
 static int mpr_alloc_requests(struct mpr_softc *sc);
+static int mpr_alloc_nvme_prp_pages(struct mpr_softc *sc);
 static int mpr_attach_log(struct mpr_softc *sc);
 static __inline void mpr_complete_command(struct mpr_softc *sc,
     struct mpr_command *cm);
@@ -110,7 +114,7 @@ static char mpt2_reset_magic[] = { 0x00, 0x0f, 0x04, 0x0b, 0x02, 0x07, 0x0d };
 
 /* 
  * Added this union to smoothly convert le64toh cm->cm_desc.Words.
- * Compiler only supports unint64_t to be passed as an argument.
+ * Compiler only supports uint64_t to be passed as an argument.
  * Otherwise it will through this error:
  * "aggregate value used where an integer was expected"
  */
@@ -120,7 +124,7 @@ typedef union _reply_descriptor {
                 u32 low;
                 u32 high;
         } u;
-}reply_descriptor,address_descriptor;
+} reply_descriptor, request_descriptor;
 
 /* Rate limit chain-fail messages to 1 per minute */
 static struct timeval mpr_chainfail_interval = { 60, 0 };
@@ -311,7 +315,6 @@ mpr_transition_ready(struct mpr_softc *sc)
 
 	if (error)
 		device_printf(sc->mpr_dev, "Cannot transition IOC to ready\n");
-
 	return (error);
 }
 
@@ -392,7 +395,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	mpr_printf(sc, "IOCCapabilities: %b\n", sc->facts->IOCCapabilities,
 	    "\20" "\3ScsiTaskFull" "\4DiagTrace" "\5SnapBuf" "\6ExtBuf"
 	    "\7EEDP" "\10BiDirTarg" "\11Multicast" "\14TransRetry" "\15IR"
-	    "\16EventReplay" "\17RaidAccel" "\20MSIXIndex" "\21HostDisc");
+	    "\16EventReplay" "\17RaidAccel" "\20MSIXIndex" "\21HostDisc"
+	    "\22FastPath" "\23RDPQArray" "\24AtomicReqDesc" "\25PCIeSRIOV");
 
 	/*
 	 * If the chip doesn't support event replay then a hard reset will be
@@ -480,12 +484,15 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 			    enabled = TRUE;
 
 		/*
-		 * Set flag if EEDP is supported and if TLR is supported.
+		 * Set flags for some supported items.
 		 */
 		if (sc->facts->IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_EEDP)
 			sc->eedp_enabled = TRUE;
 		if (sc->facts->IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_TLR)
 			sc->control_TLR = TRUE;
+		if (sc->facts->IOCCapabilities &
+		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ)
+			sc->atomic_desc_capable = TRUE;
 
 		/*
 		 * Size the queues. Since the reply queues always need one free
@@ -501,6 +508,7 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		TAILQ_INIT(&sc->req_list);
 		TAILQ_INIT(&sc->high_priority_req_list);
 		TAILQ_INIT(&sc->chain_list);
+		TAILQ_INIT(&sc->prp_page_list);
 		TAILQ_INIT(&sc->tm_list);
 	}
 
@@ -634,6 +642,14 @@ mpr_iocfacts_free(struct mpr_softc *sc)
 	if (sc->sense_dmat != NULL)
 		bus_dma_tag_destroy(sc->sense_dmat);
 
+	if (sc->prp_page_busaddr != 0)
+		bus_dmamap_unload(sc->prp_page_dmat, sc->prp_page_map);
+	if (sc->prp_pages != NULL)
+		bus_dmamem_free(sc->prp_page_dmat, sc->prp_pages,
+		    sc->prp_page_map);
+	if (sc->prp_page_dmat != NULL)
+		bus_dma_tag_destroy(sc->prp_page_dmat);
+
 	if (sc->reply_busaddr != 0)
 		bus_dmamap_unload(sc->reply_dmat, sc->reply_map);
 	if (sc->reply_frames != NULL)
@@ -651,6 +667,8 @@ mpr_iocfacts_free(struct mpr_softc *sc)
 
 	if (sc->chains != NULL)
 		free(sc->chains, M_MPR);
+	if (sc->prps != NULL)
+		free(sc->prps, M_MPR);
 	if (sc->commands != NULL) {
 		for (i = 1; i < sc->num_reqs; i++) {
 			cm = &sc->commands[i];
@@ -804,7 +822,7 @@ mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag)
 		count++;
 	} while (--cntdn);
 
-	out:
+out:
 	mpr_dprint(sc, MPR_FAULT, "%s: failed due to timeout count(%d), "
 		"int_status(%x)!\n", __func__, count, int_status);
 	return (ETIMEDOUT);
@@ -959,7 +977,7 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 static void
 mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 {
-	reply_descriptor rd;
+	request_descriptor rd;
 
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_TRACE, "SMID %u cm %p ccb %p\n",
@@ -972,14 +990,19 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 	if (++sc->io_cmds_active > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
-	rd.u.low = cm->cm_desc.Words.Low;
-	rd.u.high = cm->cm_desc.Words.High;
-	rd.word = htole64(rd.word);
-	/* TODO-We may need to make below regwrite atomic */
-	mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET,
-	    rd.u.low);
-	mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET,
-	    rd.u.high);
+	if (sc->atomic_desc_capable) {
+		rd.u.low = cm->cm_desc.Words.Low;
+		mpr_regwrite(sc, MPI26_ATOMIC_REQUEST_DESCRIPTOR_POST_OFFSET,
+		    rd.u.low);
+	} else {
+		rd.u.low = cm->cm_desc.Words.Low;
+		rd.u.high = cm->cm_desc.Words.High;
+		rd.word = htole64(rd.word);
+		mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET,
+		    rd.u.low);
+		mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET,
+		    rd.u.high);
+	}
 }
 
 /*
@@ -1047,6 +1070,7 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	time_in_msec = (now.tv_sec * 1000 + now.tv_usec/1000);
 	init.TimeStamp.High = htole32((time_in_msec >> 32) & 0xFFFFFFFF);
 	init.TimeStamp.Low = htole32(time_in_msec & 0xFFFFFFFF);
+	init.HostPageSize = HOST_PAGE_SIZE_4K;
 
 	error = mpr_request_sync(sc, &init, &reply, req_sz, reply_sz, 5);
 	if ((reply.IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
@@ -1276,6 +1300,16 @@ mpr_alloc_requests(struct mpr_softc *sc)
 		sc->chain_free_lowwater++;
 	}
 
+	/*
+	 * Allocate NVMe PRP Pages for NVMe SGL support only if the FW supports
+	 * these devices.
+	 */
+	if ((sc->facts->MsgVersion >= MPI2_VERSION_02_06) &&
+	    (sc->facts->ProtocolFlags & MPI2_IOCFACTS_PROTOCOL_NVME_DEVICES)) {
+		if (mpr_alloc_nvme_prp_pages(sc) == ENOMEM)
+			return (ENOMEM);
+	}
+
 	/* XXX Need to pick a more precise value */
 	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
@@ -1316,19 +1350,101 @@ mpr_alloc_requests(struct mpr_softc *sc)
 		cm->cm_desc.Default.SMID = i;
 		cm->cm_sc = sc;
 		TAILQ_INIT(&cm->cm_chain_list);
+		TAILQ_INIT(&cm->cm_prp_page_list);
 		callout_init_mtx(&cm->cm_callout, &sc->mpr_mtx, 0);
 
 		/* XXX Is a failure here a critical problem? */
-		if (bus_dmamap_create(sc->buffer_dmat, 0, &cm->cm_dmamap) == 0)
+		if (bus_dmamap_create(sc->buffer_dmat, 0, &cm->cm_dmamap)
+		    == 0) {
 			if (i <= sc->facts->HighPriorityCredit)
 				mpr_free_high_priority_command(sc, cm);
 			else
 				mpr_free_command(sc, cm);
-		else {
+		} else {
 			panic("failed to allocate command %d\n", i);
 			sc->num_reqs = i;
 			break;
 		}
+	}
+
+	return (0);
+}
+
+/*
+ * Allocate contiguous buffers for PCIe NVMe devices for building native PRPs,
+ * which are scatter/gather lists for NVMe devices. 
+ *
+ * This buffer must be contiguous due to the nature of how NVMe PRPs are built
+ * and translated by FW.
+ *
+ * returns ENOMEM if memory could not be allocated, otherwise returns 0.
+ */
+static int
+mpr_alloc_nvme_prp_pages(struct mpr_softc *sc)
+{
+	int PRPs_per_page, PRPs_required, pages_required;
+	int rsize, i;
+	struct mpr_prp_page *prp_page;
+
+	/*
+	 * Assuming a MAX_IO_SIZE of 1MB and a PAGE_SIZE of 4k, the max number
+	 * of PRPs (NVMe's Scatter/Gather Element) needed per I/O is:
+	 * MAX_IO_SIZE / PAGE_SIZE = 256
+	 * 
+	 * 1 PRP entry in main frame for PRP list pointer still leaves 255 PRPs
+	 * required for the remainder of the 1MB I/O. 512 PRPs can fit into one
+	 * page (4096 / 8 = 512), so only one page is required for each I/O.
+	 *
+	 * Each of these buffers will need to be contiguous. For simplicity,
+	 * only one buffer is allocated here, which has all of the space
+	 * required for the NVMe Queue Depth. If there are problems allocating
+	 * this one buffer, this function will need to change to allocate
+	 * individual, contiguous NVME_QDEPTH buffers.
+	 *
+	 * The real calculation will use the real max io size. Above is just an
+	 * example.
+	 *
+	 */
+	PRPs_required = sc->maxio / PAGE_SIZE;
+	PRPs_per_page = (PAGE_SIZE / PRP_ENTRY_SIZE) - 1;
+	pages_required = (PRPs_required / PRPs_per_page) + 1;
+
+	sc->prp_buffer_size = PAGE_SIZE * pages_required; 
+	rsize = sc->prp_buffer_size * NVME_QDEPTH; 
+	if (bus_dma_tag_create( sc->mpr_parent_dmat,	/* parent */
+				4, 0,			/* algnmnt, boundary */
+				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
+				NULL, NULL,		/* filter, filterarg */
+				rsize,			/* maxsize */
+				1,			/* nsegments */
+				rsize,			/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->prp_page_dmat)) {
+		device_printf(sc->mpr_dev, "Cannot allocate NVMe PRP DMA "
+		    "tag\n");
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(sc->prp_page_dmat, (void **)&sc->prp_pages,
+	    BUS_DMA_NOWAIT, &sc->prp_page_map)) {
+		device_printf(sc->mpr_dev, "Cannot allocate NVMe PRP memory\n");
+		return (ENOMEM);
+	}
+	bzero(sc->prp_pages, rsize);
+	bus_dmamap_load(sc->prp_page_dmat, sc->prp_page_map, sc->prp_pages,
+	    rsize, mpr_memaddr_cb, &sc->prp_page_busaddr, 0);
+
+	sc->prps = malloc(sizeof(struct mpr_prp_page) * NVME_QDEPTH, M_MPR,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < NVME_QDEPTH; i++) {
+		prp_page = &sc->prps[i];
+		prp_page->prp_page = (uint64_t *)(sc->prp_pages +
+		    i * sc->prp_buffer_size);
+		prp_page->prp_page_busaddr = (uint64_t)(sc->prp_page_busaddr +
+		    i * sc->prp_buffer_size);
+		mpr_free_prp_page(sc, prp_page);
+		sc->prp_pages_free_lowwater++;
 	}
 
 	return (0);
@@ -1352,8 +1468,10 @@ mpr_init_queues(struct mpr_softc *sc)
 	/*
 	 * Initialize all of the free queue entries.
 	 */
-	for (i = 0; i < sc->fqdepth; i++)
-		sc->free_queue[i] = sc->reply_busaddr + (i * sc->facts->ReplyFrameSize * 4);
+	for (i = 0; i < sc->fqdepth; i++) {
+		sc->free_queue[i] = sc->reply_busaddr +
+		    (i * sc->facts->ReplyFrameSize * 4);
+	}
 	sc->replyfreeindex = sc->num_replies;
 
 	return (0);
@@ -1520,6 +1638,18 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "prp_pages_free", CTLFLAG_RD,
+	    &sc->prp_pages_free, 0, "number of free PRP pages");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "prp_pages_free_lowwater", CTLFLAG_RD,
+	    &sc->prp_pages_free_lowwater, 0,"lowest number of free PRP pages");
+
+	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "prp_page_alloc_fail", CTLFLAG_RD,
+	    &sc->prp_page_alloc_fail, "PRP page allocation failures");
 }
 
 int
@@ -1912,6 +2042,7 @@ mpr_intr_locked(void *data)
 		switch (flags) {
 		case MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS:
 		case MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS:
+		case MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
 			cm->cm_reply = NULL;
 			break;
@@ -2198,6 +2329,519 @@ mpr_deregister_events(struct mpr_softc *sc, struct mpr_event_handle *handle)
 	TAILQ_REMOVE(&sc->event_list, handle, eh_list);
 	free(handle, M_MPR);
 	return (mpr_update_events(sc, NULL, NULL));
+}
+
+/**
+* mpr_build_nvme_prp - This function is called for NVMe end devices to build a
+* native SGL (NVMe PRP). The native SGL is built starting in the first PRP entry
+* of the NVMe message (PRP1). If the data buffer is small enough to be described
+* entirely using PRP1, then PRP2 is not used. If needed, PRP2 is used to
+* describe a larger data buffer. If the data buffer is too large to describe
+* using the two PRP entriess inside the NVMe message, then PRP1 describes the
+* first data memory segment, and PRP2 contains a pointer to a PRP list located
+* elsewhere in memory to describe the remaining data memory segments. The PRP
+* list will be contiguous.
+
+* The native SGL for NVMe devices is a Physical Region Page (PRP). A PRP
+* consists of a list of PRP entries to describe a number of noncontigous
+* physical memory segments as a single memory buffer, just as a SGL does. Note
+* however, that this function is only used by the IOCTL call, so the memory
+* given will be guaranteed to be contiguous. There is no need to translate
+* non-contiguous SGL into a PRP in this case. All PRPs will describe contiguous
+* space that is one page size each.
+*
+* Each NVMe message contains two PRP entries. The first (PRP1) either contains
+* a PRP list pointer or a PRP element, depending upon the command. PRP2 contains
+* the second PRP element if the memory being described fits within 2 PRP
+* entries, or a PRP list pointer if the PRP spans more than two entries.
+*
+* A PRP list pointer contains the address of a PRP list, structured as a linear
+* array of PRP entries. Each PRP entry in this list describes a segment of
+* physical memory.
+*
+* Each 64-bit PRP entry comprises an address and an offset field. The address
+* always points to the beginning of a PAGE_SIZE physical memory page, and the
+* offset describes where within that page the memory segment begins. Only the
+* first element in a PRP list may contain a non-zero offest, implying that all
+* memory segments following the first begin at the start of a PAGE_SIZE page.
+*
+* Each PRP element normally describes a chunck of PAGE_SIZE physical memory,
+* with exceptions for the first and last elements in the list. If the memory
+* being described by the list begins at a non-zero offset within the first page,
+* then the first PRP element will contain a non-zero offset indicating where the
+* region begins within the page. The last memory segment may end before the end
+* of the PAGE_SIZE segment, depending upon the overall size of the memory being
+* described by the PRP list. 
+*
+* Since PRP entries lack any indication of size, the overall data buffer length
+* is used to determine where the end of the data memory buffer is located, and
+* how many PRP entries are required to describe it.
+*
+* Returns nothing.
+*/
+void 
+mpr_build_nvme_prp(struct mpr_softc *sc, struct mpr_command *cm,
+    Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request, void *data,
+    uint32_t data_in_sz, uint32_t data_out_sz)
+{
+	int			prp_size = PRP_ENTRY_SIZE;
+	uint64_t		*prp_entry, *prp1_entry, *prp2_entry;
+	uint64_t		*prp_entry_phys, *prp_page, *prp_page_phys;
+	uint32_t		offset, entry_len, page_mask_result, page_mask;
+	bus_addr_t		paddr;
+	size_t			length;
+	struct mpr_prp_page	*prp_page_info = NULL;
+
+	/*
+	 * Not all commands require a data transfer. If no data, just return
+	 * without constructing any PRP.
+	 */
+	if (!data_in_sz && !data_out_sz)
+		return;
+
+	/*
+	 * Set pointers to PRP1 and PRP2, which are in the NVMe command. PRP1 is
+	 * located at a 24 byte offset from the start of the NVMe command. Then
+	 * set the current PRP entry pointer to PRP1.
+	 */
+	prp1_entry = (uint64_t *)(nvme_encap_request->NVMe_Command +
+	    NVME_CMD_PRP1_OFFSET);
+	prp2_entry = (uint64_t *)(nvme_encap_request->NVMe_Command +
+	    NVME_CMD_PRP2_OFFSET);
+	prp_entry = prp1_entry;
+
+	/*
+	 * For the PRP entries, use the specially allocated buffer of
+	 * contiguous memory. PRP Page allocation failures should not happen
+	 * because there should be enough PRP page buffers to account for the
+	 * possible NVMe QDepth.
+	 */
+	prp_page_info = mpr_alloc_prp_page(sc);
+	KASSERT(prp_page_info != NULL, ("%s: There are no PRP Pages left to be "
+	    "used for building a native NVMe SGL.\n", __func__));
+	prp_page = (uint64_t *)prp_page_info->prp_page;
+	prp_page_phys = (uint64_t *)(uintptr_t)prp_page_info->prp_page_busaddr;
+
+	/*
+	 * Insert the allocated PRP page into the command's PRP page list. This
+	 * will be freed when the command is freed.
+	 */
+	TAILQ_INSERT_TAIL(&cm->cm_prp_page_list, prp_page_info, prp_page_link);
+
+	/*
+	 * Check if we are within 1 entry of a page boundary we don't want our
+	 * first entry to be a PRP List entry.
+	 */
+	page_mask = PAGE_SIZE - 1;
+	page_mask_result = (uintptr_t)((uint8_t *)prp_page + prp_size) &
+	    page_mask;
+	if (!page_mask_result)
+	{
+		/* Bump up to next page boundary. */
+		prp_page = (uint64_t *)((uint8_t *)prp_page + prp_size);
+		prp_page_phys = (uint64_t *)((uint8_t *)prp_page_phys +
+		    prp_size);
+	}
+
+	/*
+	 * Set PRP physical pointer, which initially points to the current PRP
+	 * DMA memory page.
+	 */
+	prp_entry_phys = prp_page_phys;
+
+	/* Get physical address and length of the data buffer. */
+	paddr = (bus_addr_t)data;
+	if (data_in_sz)
+		length = data_in_sz;
+	else
+		length = data_out_sz;
+
+	/* Loop while the length is not zero. */
+	while (length)
+	{
+		/*
+		 * Check if we need to put a list pointer here if we are at page
+		 * boundary - prp_size (8 bytes).
+		 */
+		page_mask_result = (uintptr_t)((uint8_t *)prp_entry_phys +
+		    prp_size) & page_mask;
+		if (!page_mask_result)
+		{
+			/*
+			 * This is the last entry in a PRP List, so we need to
+			 * put a PRP list pointer here. What this does is:
+			 *   - bump the current memory pointer to the next
+			 *     address, which will be the next full page.
+			 *   - set the PRP Entry to point to that page. This is
+			 *     now the PRP List pointer.
+			 *   - bump the PRP Entry pointer the start of the next
+			 *     page. Since all of this PRP memory is contiguous,
+			 *     no need to get a new page - it's just the next
+			 *     address.
+			 */
+			prp_entry_phys++;
+			*prp_entry =
+			    htole64((uint64_t)(uintptr_t)prp_entry_phys);
+			prp_entry++;
+		}
+
+		/* Need to handle if entry will be part of a page. */
+		offset = (uint32_t)paddr & page_mask;
+		entry_len = PAGE_SIZE - offset;
+
+		if (prp_entry == prp1_entry)
+		{
+			/*
+			 * Must fill in the first PRP pointer (PRP1) before
+			 * moving on.
+			 */
+			*prp1_entry = htole64((uint64_t)paddr);
+
+			/*
+			 * Now point to the second PRP entry within the
+			 * command (PRP2).
+			 */
+			prp_entry = prp2_entry;
+		}
+		else if (prp_entry == prp2_entry)
+		{
+			/*
+			 * Should the PRP2 entry be a PRP List pointer or just a
+			 * regular PRP pointer? If there is more than one more
+			 * page of data, must use a PRP List pointer.
+			 */
+			if (length > PAGE_SIZE)
+			{
+				/*
+				 * PRP2 will contain a PRP List pointer because
+				 * more PRP's are needed with this command. The
+				 * list will start at the beginning of the
+				 * contiguous buffer.
+				 */
+				*prp2_entry =
+				    htole64(
+				    (uint64_t)(uintptr_t)prp_entry_phys);
+
+				/*
+				 * The next PRP Entry will be the start of the
+				 * first PRP List.
+				 */
+				prp_entry = prp_page;
+			}
+			else
+			{
+				/*
+				 * After this, the PRP Entries are complete.
+				 * This command uses 2 PRP's and no PRP list.
+				 */
+				*prp2_entry = htole64((uint64_t)paddr);
+			}
+		}
+		else
+		{
+			/*
+			 * Put entry in list and bump the addresses.
+			 *
+			 * After PRP1 and PRP2 are filled in, this will fill in
+			 * all remaining PRP entries in a PRP List, one per each
+			 * time through the loop.
+			 */
+			*prp_entry = htole64((uint64_t)paddr);
+			prp_entry++;
+			prp_entry_phys++;
+		}
+
+		/*
+		 * Bump the phys address of the command's data buffer by the
+		 * entry_len.
+		 */
+		paddr += entry_len;
+
+		/* Decrement length accounting for last partial page. */
+		if (entry_len > length)
+			length = 0;
+		else
+			length -= entry_len;
+	}
+}
+
+/*
+ * mpr_check_pcie_native_sgl - This function is called for PCIe end devices to
+ * determine if the driver needs to build a native SGL. If so, that native SGL
+ * is built in the contiguous buffers allocated especially for PCIe SGL
+ * creation. If the driver will not build a native SGL, return TRUE and a
+ * normal IEEE SGL will be built. Currently this routine supports NVMe devices
+ * only.
+ *
+ * Returns FALSE (0) if native SGL was built, TRUE (1) if no SGL was built.
+ */
+static int
+mpr_check_pcie_native_sgl(struct mpr_softc *sc, struct mpr_command *cm,
+    bus_dma_segment_t *segs, int segs_left)
+{
+	uint32_t		i, sge_dwords, length, offset, entry_len;
+	uint32_t		num_entries, buff_len = 0, sges_in_segment;
+	uint32_t		page_mask, page_mask_result, *curr_buff;
+	uint32_t		*ptr_sgl, *ptr_first_sgl, first_page_offset;
+	uint32_t		first_page_data_size, end_residual;
+	uint64_t		*msg_phys;
+	bus_addr_t		paddr;
+	int			build_native_sgl = 0, first_prp_entry;
+	int			prp_size = PRP_ENTRY_SIZE;
+	Mpi25IeeeSgeChain64_t	*main_chain_element = NULL;
+	struct mpr_prp_page	*prp_page_info = NULL;
+
+	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
+
+	/*
+	 * Add up the sizes of each segment length to get the total transfer
+	 * size, which will be checked against the Maximum Data Transfer Size.
+	 * If the data transfer length exceeds the MDTS for this device, just
+	 * return 1 so a normal IEEE SGL will be built. F/W will break the I/O
+	 * up into multiple I/O's. [nvme_mdts = 0 means unlimited]
+	 */
+	for (i = 0; i < segs_left; i++)
+		buff_len += htole32(segs[i].ds_len);
+	if ((cm->cm_targ->MDTS > 0) && (buff_len > cm->cm_targ->MDTS))
+		return 1;
+
+	/* Create page_mask (to get offset within page) */
+	page_mask = PAGE_SIZE - 1;
+
+	/*
+	 * Check if the number of elements exceeds the max number that can be
+	 * put in the main message frame (H/W can only translate an SGL that
+	 * is contained entirely in the main message frame).
+	 */
+	sges_in_segment = (sc->facts->IOCRequestFrameSize -
+	    offsetof(Mpi25SCSIIORequest_t, SGL)) / sizeof(MPI25_SGE_IO_UNION);
+	if (segs_left > sges_in_segment)
+		build_native_sgl = 1;
+	else
+	{
+		/*
+		 * NVMe uses one PRP for each physical page (or part of physical
+		 * page).
+		 *    if 4 pages or less then IEEE is OK
+		 *    if > 5 pages then we need to build a native SGL
+		 *    if > 4 and <= 5 pages, then check the physical address of
+		 *      the first SG entry, then if this first size in the page
+		 *      is >= the residual beyond 4 pages then use IEEE,
+		 *      otherwise use native SGL
+		 */
+		if (buff_len > (PAGE_SIZE * 5))
+			build_native_sgl = 1;
+		else if ((buff_len > (PAGE_SIZE * 4)) &&
+		    (buff_len <= (PAGE_SIZE * 5)) )
+		{
+			msg_phys = (uint64_t *)segs[0].ds_addr;
+			first_page_offset =
+			    ((uint32_t)(uint64_t)(uintptr_t)msg_phys &
+			    page_mask);
+			first_page_data_size = PAGE_SIZE - first_page_offset;
+			end_residual = buff_len % PAGE_SIZE;
+
+			/*
+			 * If offset into first page pushes the end of the data
+			 * beyond end of the 5th page, we need the extra PRP
+			 * list.
+			 */
+			if (first_page_data_size < end_residual)
+				build_native_sgl = 1;
+
+			/*
+			 * Check if first SG entry size is < residual beyond 4
+			 * pages.
+			 */
+			if (htole32(segs[0].ds_len) <
+			    (buff_len - (PAGE_SIZE * 4)))
+				build_native_sgl = 1;
+		}
+	}
+
+	/* check if native SGL is needed */
+	if (!build_native_sgl)
+		return 1;
+
+	/*
+	 * Native SGL is needed.
+	 * Put a chain element in main message frame that points to the first
+	 * chain buffer.
+	 *
+	 * NOTE:  The ChainOffset field must be 0 when using a chain pointer to
+	 *        a native SGL.
+	 */
+
+	/* Set main message chain element pointer */
+	main_chain_element = (pMpi25IeeeSgeChain64_t)cm->cm_sge;
+
+	/*
+	 * For NVMe the chain element needs to be the 2nd SGL entry in the main
+	 * message.
+	 */
+	main_chain_element = (Mpi25IeeeSgeChain64_t *)
+	    ((uint8_t *)main_chain_element + sizeof(MPI25_IEEE_SGE_CHAIN64));
+
+	/*
+	 * For the PRP entries, use the specially allocated buffer of
+	 * contiguous memory. PRP Page allocation failures should not happen
+	 * because there should be enough PRP page buffers to account for the
+	 * possible NVMe QDepth.
+	 */
+	prp_page_info = mpr_alloc_prp_page(sc);
+	KASSERT(prp_page_info != NULL, ("%s: There are no PRP Pages left to be "
+	    "used for building a native NVMe SGL.\n", __func__));
+	curr_buff = (uint32_t *)prp_page_info->prp_page;
+	msg_phys = (uint64_t *)(uintptr_t)prp_page_info->prp_page_busaddr;
+
+	/*
+	 * Insert the allocated PRP page into the command's PRP page list. This
+	 * will be freed when the command is freed.
+	 */
+	TAILQ_INSERT_TAIL(&cm->cm_prp_page_list, prp_page_info, prp_page_link);
+
+	/*
+	 * Check if we are within 1 entry of a page boundary we don't want our
+	 * first entry to be a PRP List entry.
+	 */
+	page_mask_result = (uintptr_t)((uint8_t *)curr_buff + prp_size) &
+	    page_mask;
+	if (!page_mask_result) {
+		/* Bump up to next page boundary. */
+		curr_buff = (uint32_t *)((uint8_t *)curr_buff + prp_size);
+		msg_phys = (uint64_t *)((uint8_t *)msg_phys + prp_size);
+	}
+
+	/* Fill in the chain element and make it an NVMe segment type. */
+	main_chain_element->Address.High =
+	    htole32((uint32_t)((uint64_t)(uintptr_t)msg_phys >> 32));
+	main_chain_element->Address.Low =
+	    htole32((uint32_t)(uintptr_t)msg_phys);
+	main_chain_element->NextChainOffset = 0;
+	main_chain_element->Flags = MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT |
+	    MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR |
+	    MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP;
+
+	/* Set SGL pointer to start of contiguous PCIe buffer. */
+	ptr_sgl = curr_buff;
+	sge_dwords = 2;
+	num_entries = 0;
+
+	/*
+	 * NVMe has a very convoluted PRP format. One PRP is required for each
+	 * page or partial page. We need to split up OS SG entries if they are
+	 * longer than one page or cross a page boundary. We also have to insert
+	 * a PRP list pointer entry as the last entry in each physical page of
+	 * the PRP list.
+	 *
+	 * NOTE: The first PRP "entry" is actually placed in the first SGL entry
+	 * in the main message in IEEE 64 format. The 2nd entry in the main
+	 * message is the chain element, and the rest of the PRP entries are
+	 * built in the contiguous PCIe buffer.
+	 */
+	first_prp_entry = 1;
+	ptr_first_sgl = (uint32_t *)cm->cm_sge;
+
+	for (i = 0; i < segs_left; i++) {
+		/* Get physical address and length of this SG entry. */
+		paddr = segs[i].ds_addr;
+		length = segs[i].ds_len;
+
+		/*
+		 * Check whether a given SGE buffer lies on a non-PAGED
+		 * boundary if this is not the first page. If so, this is not
+		 * expected so have FW build the SGL.
+		 */
+		if (i) {
+			if ((uint32_t)paddr & page_mask) {
+				mpr_dprint(sc, MPR_ERROR, "Unaligned SGE while "
+				    "building NVMe PRPs, low address is 0x%x\n",
+				    (uint32_t)paddr);
+				return 1;
+			}
+		}
+
+		/* Apart from last SGE, if any other SGE boundary is not page
+		 * aligned then it means that hole exists. Existence of hole
+		 * leads to data corruption. So fallback to IEEE SGEs.
+		 */
+		if (i != (segs_left - 1)) {
+			if (((uint32_t)paddr + length) & page_mask) {
+				mpr_dprint(sc, MPR_ERROR, "Unaligned SGE "
+				    "boundary while building NVMe PRPs, low "
+				    "address: 0x%x and length: %u\n",
+				    (uint32_t)paddr, length);
+				return 1;
+			}
+		}
+
+		/* Loop while the length is not zero. */
+		while (length) {
+			/*
+			 * Check if we need to put a list pointer here if we are
+			 * at page boundary - prp_size.
+			 */
+			page_mask_result = (uintptr_t)((uint8_t *)ptr_sgl +
+			    prp_size) & page_mask;
+			if (!page_mask_result) {
+				/*
+				 * Need to put a PRP list pointer here.
+				 */
+				msg_phys = (uint64_t *)((uint8_t *)msg_phys +
+				    prp_size);
+				*ptr_sgl = htole32((uintptr_t)msg_phys);
+				*(ptr_sgl+1) = htole32((uint64_t)(uintptr_t)
+				    msg_phys >> 32);
+				ptr_sgl += sge_dwords;
+				num_entries++;
+			}
+
+			/* Need to handle if entry will be part of a page. */
+			offset = (uint32_t)paddr & page_mask;
+			entry_len = PAGE_SIZE - offset;
+			if (first_prp_entry) {
+				/*
+				 * Put IEEE entry in first SGE in main message.
+				 * (Simple element, System addr, not end of
+				 * list.)
+				 */
+				*ptr_first_sgl = htole32((uint32_t)paddr);
+				*(ptr_first_sgl + 1) =
+				    htole32((uint32_t)((uint64_t)paddr >> 32));
+				*(ptr_first_sgl + 2) = htole32(entry_len);
+				*(ptr_first_sgl + 3) = 0;
+
+				/* No longer the first PRP entry. */
+				first_prp_entry = 0;
+			} else {
+				/* Put entry in list. */
+				*ptr_sgl = htole32((uint32_t)paddr);
+				*(ptr_sgl + 1) =
+				    htole32((uint32_t)((uint64_t)paddr >> 32));
+
+				/* Bump ptr_sgl, msg_phys, and num_entries. */
+				ptr_sgl += sge_dwords;
+				msg_phys = (uint64_t *)((uint8_t *)msg_phys +
+				    prp_size);
+				num_entries++;
+			}
+
+			/* Bump the phys address by the entry_len. */
+			paddr += entry_len;
+
+			/* Decrement length accounting for last partial page. */
+			if (entry_len > length)
+				length = 0;
+			else
+				length -= entry_len;
+		}
+	}
+
+	/* Set chain element Length. */
+	main_chain_element->Length = htole32(num_entries * prp_size);
+
+	/* Return 0, indicating we built a native SGL. */
+	return 0;
 }
 
 /*
@@ -2540,6 +3184,13 @@ mpr_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	} else
 		dir = BUS_DMASYNC_PREREAD;
 
+	/* Check if a native SG list is needed for an NVMe PCIe device. */
+	if (cm->cm_targ && cm->cm_targ->is_nvme &&
+	    mpr_check_pcie_native_sgl(sc, cm, segs, nsegs) == 0) {
+		/* A native SG list was built, skip to end. */
+		goto out;
+	}
+
 	for (i = 0; i < nsegs; i++) {
 		if ((cm->cm_flags & MPR_CM_FLAGS_SMP_PASS) && (i != 0)) {
 			sflags &= ~MPI2_SGE_FLAGS_DIRECTION;
@@ -2557,6 +3208,7 @@ mpr_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		}
 	}
 
+out:
 	bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap, dir);
 	mpr_enqueue_request(sc, cm);
 
