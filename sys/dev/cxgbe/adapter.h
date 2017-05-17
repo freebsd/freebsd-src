@@ -796,6 +796,7 @@ struct adapter {
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
+	void *ccr_softc;	/* (struct ccr_softc *) */
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
