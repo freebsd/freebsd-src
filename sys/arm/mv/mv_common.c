@@ -2280,11 +2280,12 @@ moveon:
 static int
 fdt_win_setup(void)
 {
-	phandle_t node, child;
+	phandle_t node, child, sb;
 	struct soc_node_spec *soc_node;
 	u_long size, base;
 	int err, i;
 
+	sb = 0;
 	node = OF_finddevice("/");
 	if (node == -1)
 		panic("fdt_win_setup: no root node");
@@ -2326,7 +2327,7 @@ fdt_win_setup(void)
 		 */
 		child = OF_peer(child);
 		if ((child == 0) && (node == OF_finddevice("/"))) {
-			node = fdt_find_compatible(node, "simple-bus", 0);
+			sb = node = fdt_find_compatible(node, "simple-bus", 0);
 			if (node == 0)
 				return (ENXIO);
 			child = OF_child(node);
@@ -2336,7 +2337,7 @@ fdt_win_setup(void)
 		 * it is present) and its children. This node also have
 		 * "simple-bus" compatible.
 		 */
-		if ((child == 0) && (node == OF_finddevice("simple-bus"))) {
+		if ((child == 0) && (node == sb)) {
 			node = fdt_find_compatible(node, "simple-bus", 0);
 			if (node == 0)
 				return (0);
