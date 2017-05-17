@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2.h>
 #include <dev/mpr/mpi/mpi2_ioc.h>
 #include <dev/mpr/mpi/mpi2_sas.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
@@ -676,6 +677,55 @@ _mapping_add_to_removal_table(struct mpr_softc *sc, u16 handle,
 }
 
 /**
+ * _mapping_inc_missing_count
+ * @sc: per adapter object
+ * @map_idx: index into the mapping table for the device that is missing 
+ *
+ * Increment the missing count in the mapping table for a SAS, SATA, or PCIe
+ * device that is not responding. If Persitent Mapping is used, increment the
+ * DPM entry as well. Also, add this device to the removal table for possible
+ * removal if a new device is added.
+ *
+ * Returns nothing.
+ */
+static void
+_mapping_inc_missing_count(struct mpr_softc *sc, u32 map_idx)
+{
+	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
+	struct dev_mapping_table *mt_entry;
+	Mpi2DriverMap0Entry_t *dpm_entry;
+
+	if (map_idx == MPR_MAPTABLE_BAD_IDX) {
+		mpr_dprint(sc, MPR_INFO, "%s: device is already removed from "
+		    "mapping table\n", __func__);
+		return;
+	}
+	mt_entry = &sc->mapping_table[map_idx];
+	if (!mt_entry->init_complete) {
+		if (mt_entry->missing_count < MPR_MAX_MISSING_COUNT)
+			mt_entry->missing_count++;
+		else
+			mt_entry->init_complete = 1;
+	}
+	if (!mt_entry->missing_count)
+		mt_entry->missing_count++;
+	_mapping_add_to_removal_table(sc, mt_entry->dev_handle, 0);
+	mt_entry->dev_handle = 0;
+
+	if (((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
+	    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) &&
+	    sc->is_dpm_enable && !mt_entry->init_complete &&
+	    mt_entry->dpm_entry_num != MPR_DPM_BAD_IDX) {
+		dpm_entry = (Mpi2DriverMap0Entry_t *) ((u8 *)sc->dpm_pg0 +
+		    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
+		dpm_entry += mt_entry->dpm_entry_num;
+		dpm_entry->MappingInformation = mt_entry->missing_count;
+		sc->dpm_flush_entry[mt_entry->dpm_entry_num] = 1;
+	}
+	mt_entry->init_complete = 1;
+}
+
+/**
  * _mapping_update_missing_count - Update missing count for a device
  * @sc: per adapter object
  * @topo_change: Topology change event entry
@@ -689,12 +739,9 @@ static void
 _mapping_update_missing_count(struct mpr_softc *sc,
     struct _map_topology_change *topo_change)
 {
-	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 	u8 entry;
 	struct _map_phy_change *phy_change;
 	u32 map_idx;
-	struct dev_mapping_table *mt_entry;
-	Mpi2DriverMap0Entry_t *dpm_entry;
 
 	for (entry = 0; entry < topo_change->num_entries; entry++) {
 		phy_change = &topo_change->phy_details[entry];
@@ -704,35 +751,37 @@ _mapping_update_missing_count(struct mpr_softc *sc,
 		map_idx = _mapping_get_mt_idx_from_handle(sc, phy_change->
 		    dev_handle);
 		phy_change->is_processed = 1;
-		if (map_idx == MPR_MAPTABLE_BAD_IDX) {
-			printf("%s: device is already removed from mapping "
-			    "table\n", __func__);
-			continue;
-		}
-		mt_entry = &sc->mapping_table[map_idx];
-		if (!mt_entry->init_complete) {
-			if (mt_entry->missing_count < MPR_MAX_MISSING_COUNT)
-				mt_entry->missing_count++;
-			else
-				mt_entry->init_complete = 1;
-		}
-		if (!mt_entry->missing_count)
-			mt_entry->missing_count++;
-		_mapping_add_to_removal_table(sc, mt_entry->dev_handle, 0);
-		mt_entry->dev_handle = 0;
+		_mapping_inc_missing_count(sc, map_idx);
+	}
+}
 
-		if (((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
-		    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) &&
-		    sc->is_dpm_enable && !mt_entry->init_complete &&
-		    mt_entry->dpm_entry_num != MPR_DPM_BAD_IDX) {
-			dpm_entry =
-			    (Mpi2DriverMap0Entry_t *) ((u8 *)sc->dpm_pg0 +
-			    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
-			dpm_entry += mt_entry->dpm_entry_num;
-			dpm_entry->MappingInformation = mt_entry->missing_count;
-			sc->dpm_flush_entry[mt_entry->dpm_entry_num] = 1;
-		}
-		mt_entry->init_complete = 1;
+/**
+ * _mapping_update_pcie_missing_count - Update missing count for a PCIe device
+ * @sc: per adapter object
+ * @topo_change: Topology change event entry
+ *
+ * Search through the PCIe topology change list and if any device is found not
+ * responding it's associated map table entry and DPM entry is updated
+ *
+ * Returns nothing.
+ */
+static void
+_mapping_update_pcie_missing_count(struct mpr_softc *sc,
+    struct _map_pcie_topology_change *topo_change)
+{
+	u8 entry;
+	struct _map_port_change *port_change;
+	u32 map_idx;
+
+	for (entry = 0; entry < topo_change->num_entries; entry++) {
+		port_change = &topo_change->port_details[entry];
+		if (!port_change->dev_handle || (port_change->reason !=
+		    MPI26_EVENT_PCIE_TOPO_PS_NOT_RESPONDING))
+			continue;
+		map_idx = _mapping_get_mt_idx_from_handle(sc, port_change->
+		    dev_handle);
+		port_change->is_processed = 1;
+		_mapping_inc_missing_count(sc, map_idx);
 	}
 }
 
@@ -940,7 +989,7 @@ _mapping_get_dev_info(struct mpr_softc *sc,
 
 		phy_change->physical_id = sas_address;
 		phy_change->slot = le16toh(sas_device_pg0.Slot);
-		phy_change->device_info = le32toh(sas_device_pg0.DeviceInfo);
+		phy_change->device_info = device_info;
 
 		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
 		    MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING) {
@@ -990,12 +1039,118 @@ _mapping_get_dev_info(struct mpr_softc *sc,
 					break;
 				}
 			}
+
+			/* Found space in enclosure for mapping entry */
 			mt_entry = &sc->mapping_table[map_idx];
 			for (index = map_idx; index < (et_entry->num_slots
 			    + map_idx); index++, mt_entry++) {
 				mt_entry->device_info = MPR_DEV_RESERVED;
 				mt_entry->physical_id = et_entry->enclosure_id;
 				mt_entry->phy_bits = et_entry->phy_bits;
+				mt_entry->missing_count = 0;
+			}
+		}
+	}
+}
+
+/**
+ * _mapping_get_pcie_dev_info -get information about newly added PCIe devices
+ * @sc: per adapter object
+ * @topo_change: Topology change event entry
+ *
+ * Searches through the PCIe topology change event list and issues PCIe device
+ * pg0 requests for the newly added PCIe device. If the device is in an
+ * enclosure, search for available space in the enclosure mapping table for the
+ * device and reserve that space.
+ *
+ * Returns nothing
+ */
+static void
+_mapping_get_pcie_dev_info(struct mpr_softc *sc,
+    struct _map_pcie_topology_change *topo_change)
+{
+	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi26PCIeDevicePage0_t pcie_device_pg0;
+	u8 entry, enc_idx, port_idx;
+	u32 map_idx, index;
+	struct _map_port_change *port_change, *tmp_port_change;
+	uint64_t pcie_wwid;
+	struct enc_mapping_table *et_entry;
+	struct dev_mapping_table *mt_entry;
+	u8 add_code = MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED;
+
+	for (entry = 0; entry < topo_change->num_entries; entry++) {
+		port_change = &topo_change->port_details[entry];
+		if (port_change->is_processed || !port_change->dev_handle ||
+		    port_change->reason != MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED)
+			continue;
+		if (mpr_config_get_pcie_device_pg0(sc, &mpi_reply,
+		    &pcie_device_pg0, MPI26_PCIE_DEVICE_PGAD_FORM_HANDLE,
+		    port_change->dev_handle)) {
+			port_change->is_processed = 1;
+			continue;
+		}
+
+		pcie_wwid = pcie_device_pg0.WWID.High;
+		pcie_wwid = (pcie_wwid << 32) | pcie_device_pg0.WWID.Low;
+		port_change->physical_id = pcie_wwid;
+		port_change->slot = le16toh(pcie_device_pg0.Slot);
+		port_change->device_info = le32toh(pcie_device_pg0.DeviceInfo);
+
+		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
+		    MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING) {
+			enc_idx = _mapping_get_enc_idx_from_handle(sc,
+			    topo_change->enc_handle);
+			if (enc_idx == MPR_ENCTABLE_BAD_IDX) {
+				port_change->is_processed = 1;
+				mpr_dprint(sc, MPR_MAPPING, "%s: failed to add "
+				    "the device with handle 0x%04x because the "
+				    "enclosure is not in the mapping table\n",
+				    __func__, port_change->dev_handle);
+				continue;
+			}
+			if (!(port_change->device_info &
+			    MPI26_PCIE_DEVINFO_NVME)) {
+				port_change->is_processed = 1;
+				continue;
+			}
+			et_entry = &sc->enclosure_table[enc_idx];
+			if (et_entry->start_index != MPR_MAPTABLE_BAD_IDX)
+				continue;
+			if (!topo_change->switch_dev_handle) {
+				map_idx	= sc->num_rsvd_entries;
+				et_entry->start_index = map_idx;
+			} else {
+				map_idx = _mapping_find_enc_map_space(sc,
+				    et_entry);
+				et_entry->start_index = map_idx;
+				if (et_entry->start_index ==
+				    MPR_MAPTABLE_BAD_IDX) {
+					port_change->is_processed = 1;
+					for (port_idx = 0; port_idx <
+					    topo_change->num_entries;
+					    port_idx++) {
+						tmp_port_change =
+						    &topo_change->port_details
+						    [port_idx];
+						if (tmp_port_change->reason ==
+						    add_code)
+							tmp_port_change->
+							    is_processed = 1;
+					}
+					break;
+				}
+			}
+
+			/* Found space in enclosure for mapping entry */
+			mt_entry = &sc->mapping_table[map_idx];
+			for (index = map_idx; index < (et_entry->num_slots
+			    + map_idx); index++, mt_entry++) {
+				mt_entry->device_info = MPR_DEV_RESERVED;
+				mt_entry->physical_id = et_entry->enclosure_id;
+				mt_entry->phy_bits = et_entry->phy_bits;
+				mt_entry->missing_count = 0;
 			}
 		}
 	}
@@ -1106,8 +1261,8 @@ _mapping_clear_removed_entries(struct mpr_softc *sc)
  * @sc: per adapter object
  * @topo_change: Topology change event entry
  *
- * Search through the topology change event list and updates map table,
- * enclosure table and DPM pages for for the newly added devices.
+ * Search through the topology change event list and update map table,
+ * enclosure table and DPM pages for the newly added devices.
  *
  * Returns nothing
  */
@@ -1144,10 +1299,10 @@ _mapping_add_new_device(struct mpr_softc *sc,
 			    (sc, topo_change->enc_handle);
 			if (enc_idx == MPR_ENCTABLE_BAD_IDX) {
 				phy_change->is_processed = 1;
-				printf("%s: failed to add the device with "
-				    "handle 0x%04x because the enclosure is "
-				    "not in the mapping table\n", __func__,
-				    phy_change->dev_handle);
+				mpr_dprint(sc, MPR_ERROR, "%s: failed to add "
+				    "the device with handle 0x%04x because the "
+				    "enclosure is not in the mapping table\n",
+				    __func__, phy_change->dev_handle);
 				continue;
 			}
 			et_entry = &sc->enclosure_table[enc_idx];
@@ -1157,10 +1312,11 @@ _mapping_add_new_device(struct mpr_softc *sc,
 					sc->mt_add_device_failed = 1;
 					continue;
 				}
-				printf("%s: failed to add the device with "
-				    "handle 0x%04x because there is no free "
-				    "space available in the mapping table\n",
-				    __func__, phy_change->dev_handle);
+				mpr_dprint(sc, MPR_INFO, "%s: failed to add "
+				    "the device with handle 0x%04x because "
+				    "there is no free space available in the "
+				    "mapping table\n", __func__,
+				    phy_change->dev_handle);
 				continue;
 			}
 			map_idx = et_entry->start_index + phy_change->slot -
@@ -1268,10 +1424,11 @@ _mapping_add_new_device(struct mpr_softc *sc,
 					sc->mt_add_device_failed = 1;
 					continue;
 				}
-				printf("%s: failed to add the device with "
-				    "handle 0x%04x because there is no free "
-				    "space available in the mapping table\n",
-				    __func__, phy_change->dev_handle);
+				mpr_dprint(sc, MPR_INFO, "%s: failed to add "
+				    "the device with handle 0x%04x because "
+				    "there is no free space available in the "
+				    "mapping table\n", __func__,
+				    phy_change->dev_handle);
 				continue;
 			}
 			if (sc->is_dpm_enable) {
@@ -1314,20 +1471,254 @@ _mapping_add_new_device(struct mpr_softc *sc,
 					sc->dpm_flush_entry[dpm_idx] = 1;
 					phy_change->is_processed = 1;
 				} else if (dpm_idx == MPR_DPM_BAD_IDX) {
-						phy_change->is_processed = 1;
-						mpr_dprint(sc, MPR_INFO, "%s: "
-						    "failed to add the device "
-						    "with handle 0x%04x to "
-						    "persistent table because "
-						    "there is no free space "
-						    "available\n", __func__,
-						    phy_change->dev_handle);
+					phy_change->is_processed = 1;
+					mpr_dprint(sc, MPR_INFO, "%s: failed "
+					    "to add the device with handle "
+					    "0x%04x to persistent table "
+					    "because there is no free space "
+					    "available\n", __func__,
+					    phy_change->dev_handle);
 				}
 			}
 			mt_entry->init_complete = 1;
 		}
 
 		phy_change->is_processed = 1;
+	}
+	if (is_removed)
+		_mapping_clear_removed_entries(sc);
+}
+
+/**
+ * _mapping_add_new_pcie_device -Add the new PCIe device into mapping table
+ * @sc: per adapter object
+ * @topo_change: Topology change event entry
+ *
+ * Search through the PCIe topology change event list and update map table,
+ * enclosure table and DPM pages for the newly added devices.
+ *
+ * Returns nothing
+ */
+static void
+_mapping_add_new_pcie_device(struct mpr_softc *sc,
+    struct _map_pcie_topology_change *topo_change)
+{
+	u8 enc_idx, missing_cnt, is_removed = 0;
+	u16 dpm_idx;
+	u32 search_idx, map_idx;
+	u32 entry;
+	struct dev_mapping_table *mt_entry;
+	struct enc_mapping_table *et_entry;
+	struct _map_port_change *port_change;
+	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
+	Mpi2DriverMap0Entry_t *dpm_entry;
+	uint64_t temp64_var;
+	u8 map_shift = MPI2_DRVMAP0_MAPINFO_SLOT_SHIFT;
+	u8 hdr_sz = sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER);
+	u16 max_num_phy_ids = le16toh(sc->ioc_pg8.MaxNumPhysicalMappedIDs);
+
+	for (entry = 0; entry < topo_change->num_entries; entry++) {
+		port_change = &topo_change->port_details[entry];
+		if (port_change->is_processed)
+			continue;
+		if (port_change->reason != MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED ||
+		    !port_change->dev_handle) {
+			port_change->is_processed = 1;
+			continue;
+		}
+		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
+		    MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING) {
+			enc_idx = _mapping_get_enc_idx_from_handle
+			    (sc, topo_change->enc_handle);
+			if (enc_idx == MPR_ENCTABLE_BAD_IDX) {
+				port_change->is_processed = 1;
+				mpr_dprint(sc, MPR_ERROR, "%s: failed to add "
+				    "the device with handle 0x%04x because the "
+				    "enclosure is not in the mapping table\n",
+				    __func__, port_change->dev_handle);
+				continue;
+			}
+			et_entry = &sc->enclosure_table[enc_idx];
+			if (et_entry->start_index == MPR_MAPTABLE_BAD_IDX) {
+				port_change->is_processed = 1;
+				if (!sc->mt_full_retry) {
+					sc->mt_add_device_failed = 1;
+					continue;
+				}
+				mpr_dprint(sc, MPR_INFO, "%s: failed to add "
+				    "the device with handle 0x%04x because "
+				    "there is no free space available in the "
+				    "mapping table\n", __func__,
+				    port_change->dev_handle);
+				continue;
+			}
+			map_idx = et_entry->start_index + port_change->slot -
+			    et_entry->start_slot;
+			mt_entry = &sc->mapping_table[map_idx];
+			mt_entry->physical_id = port_change->physical_id;
+			mt_entry->channel = 0;
+			mt_entry->id = map_idx;
+			mt_entry->dev_handle = port_change->dev_handle;
+			mt_entry->missing_count = 0;
+			mt_entry->dpm_entry_num = et_entry->dpm_entry_num;
+			mt_entry->device_info = port_change->device_info |
+			    (MPR_DEV_RESERVED | MPR_MAP_IN_USE);
+			if (sc->is_dpm_enable) {
+				dpm_idx = et_entry->dpm_entry_num;
+				if (dpm_idx == MPR_DPM_BAD_IDX)
+					dpm_idx = _mapping_get_dpm_idx_from_id
+					    (sc, et_entry->enclosure_id,
+					     et_entry->phy_bits);
+				if (dpm_idx == MPR_DPM_BAD_IDX) {
+					dpm_idx = _mapping_get_free_dpm_idx(sc);
+					if (dpm_idx != MPR_DPM_BAD_IDX) {
+						dpm_entry =
+						    (Mpi2DriverMap0Entry_t *)
+						    ((u8 *) sc->dpm_pg0 +
+						     hdr_sz);
+						dpm_entry += dpm_idx;
+						dpm_entry->
+						    PhysicalIdentifier.Low =
+						    (0xFFFFFFFF &
+						    et_entry->enclosure_id);
+						dpm_entry->
+						    PhysicalIdentifier.High =
+						    ( et_entry->enclosure_id
+						     >> 32);
+						dpm_entry->DeviceIndex =
+						    (U16)et_entry->start_index;
+						dpm_entry->MappingInformation =
+							et_entry->num_slots;
+						dpm_entry->MappingInformation
+						    <<= map_shift;
+						dpm_entry->PhysicalBitsMapping
+						    = et_entry->phy_bits;
+						et_entry->dpm_entry_num =
+						    dpm_idx;
+		/* FIXME Do I need to set the dpm_idxin mt_entry too */
+						sc->dpm_entry_used[dpm_idx] = 1;
+						sc->dpm_flush_entry[dpm_idx] =
+						    1;
+						port_change->is_processed = 1;
+					} else {
+						port_change->is_processed = 1;
+						mpr_dprint(sc, MPR_INFO, "%s: "
+						    "failed to add the device "
+						    "with handle 0x%04x to "
+						    "persistent table because "
+						    "there is no free space "
+						    "available\n", __func__,
+						    port_change->dev_handle);
+					}
+				} else {
+					et_entry->dpm_entry_num = dpm_idx;
+					mt_entry->dpm_entry_num = dpm_idx;
+				}
+			}
+			/* FIXME Why not mt_entry too? */
+			et_entry->init_complete = 1;
+		} else if ((ioc_pg8_flags &
+		    MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
+		    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) {
+			map_idx = _mapping_get_mt_idx_from_id
+			    (sc, port_change->physical_id);
+			if (map_idx == MPR_MAPTABLE_BAD_IDX) {
+				search_idx = sc->num_rsvd_entries;
+				if (topo_change->switch_dev_handle)
+					search_idx += max_num_phy_ids;
+				map_idx = _mapping_get_free_mt_idx(sc,
+				    search_idx);
+			}
+			if (map_idx == MPR_MAPTABLE_BAD_IDX) {
+				map_idx = _mapping_get_high_missing_mt_idx(sc);
+				if (map_idx != MPR_MAPTABLE_BAD_IDX) {
+					mt_entry = &sc->mapping_table[map_idx];
+					if (mt_entry->dev_handle) {
+						_mapping_add_to_removal_table
+						    (sc, mt_entry->dev_handle,
+						     0);
+						is_removed = 1;
+					}
+					mt_entry->init_complete = 0;
+				}
+			}
+			if (map_idx != MPR_MAPTABLE_BAD_IDX) {
+				mt_entry = &sc->mapping_table[map_idx];
+				mt_entry->physical_id =
+				    port_change->physical_id;
+				mt_entry->channel = 0;
+				mt_entry->id = map_idx;
+				mt_entry->dev_handle = port_change->dev_handle;
+				mt_entry->missing_count = 0;
+				mt_entry->device_info =
+				    port_change->device_info |
+				    (MPR_DEV_RESERVED | MPR_MAP_IN_USE);
+			} else {
+				port_change->is_processed = 1;
+				if (!sc->mt_full_retry) {
+					sc->mt_add_device_failed = 1;
+					continue;
+				}
+				mpr_dprint(sc, MPR_INFO, "%s: failed to add "
+				    "the device with handle 0x%04x because "
+				    "there is no free space available in the "
+				    "mapping table\n", __func__,
+				    port_change->dev_handle);
+				continue;
+			}
+			if (sc->is_dpm_enable) {
+				if (mt_entry->dpm_entry_num !=
+				    MPR_DPM_BAD_IDX) {
+					dpm_idx = mt_entry->dpm_entry_num;
+					dpm_entry = (Mpi2DriverMap0Entry_t *)
+					    ((u8 *)sc->dpm_pg0 + hdr_sz);
+					dpm_entry += dpm_idx;
+					missing_cnt = dpm_entry->
+					    MappingInformation &
+					    MPI2_DRVMAP0_MAPINFO_MISSING_MASK;
+					temp64_var = dpm_entry->
+					    PhysicalIdentifier.High;
+					temp64_var = (temp64_var << 32) |
+					   dpm_entry->PhysicalIdentifier.Low;
+					if ((mt_entry->physical_id ==
+					    temp64_var) && !missing_cnt)
+						mt_entry->init_complete = 1;
+				} else {
+					dpm_idx = _mapping_get_free_dpm_idx(sc);
+					mt_entry->init_complete = 0;
+				}
+				if (dpm_idx != MPR_DPM_BAD_IDX &&
+				    !mt_entry->init_complete) {
+					mt_entry->init_complete = 1;
+					mt_entry->dpm_entry_num = dpm_idx;
+					dpm_entry = (Mpi2DriverMap0Entry_t *)
+					    ((u8 *)sc->dpm_pg0 + hdr_sz);
+					dpm_entry += dpm_idx;
+					dpm_entry->PhysicalIdentifier.Low =
+					    (0xFFFFFFFF &
+					    mt_entry->physical_id);
+					dpm_entry->PhysicalIdentifier.High =
+					    (mt_entry->physical_id >> 32);
+					dpm_entry->DeviceIndex = (U16) map_idx;
+					dpm_entry->MappingInformation = 0;
+					dpm_entry->PhysicalBitsMapping = 0;
+					sc->dpm_entry_used[dpm_idx] = 1;
+					sc->dpm_flush_entry[dpm_idx] = 1;
+					port_change->is_processed = 1;
+				} else if (dpm_idx == MPR_DPM_BAD_IDX) {
+					port_change->is_processed = 1;
+					mpr_dprint(sc, MPR_INFO, "%s: failed "
+					    "to add the device with handle "
+					    "0x%04x to persistent table "
+					    "because there is no free space "
+					    "available\n", __func__,
+					    port_change->dev_handle);
+				}
+			}
+			mt_entry->init_complete = 1;
+		}
+
+		port_change->is_processed = 1;
 	}
 	if (is_removed)
 		_mapping_clear_removed_entries(sc);
@@ -2067,6 +2458,56 @@ mpr_mapping_topology_change_event(struct mpr_softc *sc,
 
 out:
 	free(topo_change.phy_details, M_MPR);
+	_mapping_flush_dpm_pages(sc);
+	if (sc->pending_map_events)
+		sc->pending_map_events--;
+}
+
+/**
+ * mpr_mapping_pcie_topology_change_event - handle PCIe topology change events
+ * @sc: per adapter object
+ * @event_data: event data payload
+ *
+ * Returns nothing.
+ */
+void
+mpr_mapping_pcie_topology_change_event(struct mpr_softc *sc,
+    Mpi26EventDataPCIeTopologyChangeList_t *event_data)
+{
+	struct _map_pcie_topology_change topo_change;
+	struct _map_port_change *port_change;
+	Mpi26EventPCIeTopoPortEntry_t *event_port_change;
+	u8 i, num_entries;
+
+	topo_change.switch_dev_handle = le16toh(event_data->SwitchDevHandle);
+	topo_change.enc_handle = le16toh(event_data->EnclosureHandle);
+	num_entries = event_data->NumEntries;
+	topo_change.num_entries = num_entries;
+	topo_change.start_port_num = event_data->StartPortNum;
+	topo_change.num_ports = event_data->NumPorts;
+	topo_change.switch_status = event_data->SwitchStatus;
+	event_port_change = event_data->PortEntry;
+	topo_change.port_details = NULL;
+
+	if (!num_entries)
+		goto out;
+	port_change = malloc(sizeof(struct _map_port_change) * num_entries,
+	    M_MPR, M_NOWAIT|M_ZERO);
+	topo_change.port_details = port_change;
+	if (!port_change)
+		goto out;
+	for (i = 0; i < num_entries; i++, event_port_change++, port_change++) {
+		port_change->dev_handle = le16toh(event_port_change->
+		    AttachedDevHandle);
+		port_change->reason = event_port_change->PortStatus;
+	}
+	_mapping_update_pcie_missing_count(sc, &topo_change);
+	_mapping_get_pcie_dev_info(sc, &topo_change);
+	_mapping_clear_removed_entries(sc);
+	_mapping_add_new_pcie_device(sc, &topo_change);
+
+out:
+	free(topo_change.port_details, M_MPR);
 	_mapping_flush_dpm_pages(sc);
 	if (sc->pending_map_events)
 		sc->pending_map_events--;
