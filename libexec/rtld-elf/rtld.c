@@ -115,8 +115,10 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp);
 static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
+static void print_usage(const char *argv0);
 static void release_object(Obj_Entry *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
     Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
@@ -350,9 +352,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     char **argv, *argv0, **env, **envp, *kexecpath, *library_path_rpath;
     caddr_t imgentry;
     char buf[MAXPATHLEN];
-    int argc, fd, i, mib[2], phnum;
+    int argc, fd, i, mib[2], phnum, rtld_argc;
     size_t len;
-    bool dir_enable;
+    bool dir_enable, explicit_fd, search_in_path;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -428,15 +430,19 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    }
 	    dbg("opening main program in direct exec mode");
 	    if (argc >= 2) {
-		argv0 = argv[1];
-		fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
+		rtld_argc = parse_args(argv, argc, &search_in_path, &fd);
+		argv0 = argv[rtld_argc];
+		explicit_fd = (fd != -1);
+		if (!explicit_fd)
+		    fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
 		if (fd == -1) {
 		    rtld_printf("Opening %s: %s\n", argv0,
 		      rtld_strerror(errno));
 		    rtld_die();
 		}
 		if (fstat(fd, &st) == -1) {
-		    rtld_printf("Stat %s: %s\n", argv0,
+		    _rtld_error("failed to fstat FD %d (%s): %s", fd,
+		      explicit_fd ? "user-provided descriptor" : argv0,
 		      rtld_strerror(errno));
 		    rtld_die();
 		}
@@ -469,26 +475,23 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 		/*
 		 * For direct exec mode, argv[0] is the interpreter
-		 * name, we must remove it and shift arguments left by
-		 * 1 before invoking binary main.  Since stack layout
+		 * name, we must remove it and shift arguments left
+		 * before invoking binary main.  Since stack layout
 		 * places environment pointers and aux vectors right
 		 * after the terminating NULL, we must shift
 		 * environment and aux as well.
-		 * XXX Shift will be > 1 when options are implemented.
 		 */
+		main_argc = argc - rtld_argc;
+		for (i = 0; i <= main_argc; i++)
+		    argv[i] = argv[i + rtld_argc];
+		*argcp -= rtld_argc;
+		environ = env = envp = argv + main_argc + 1;
 		do {
-		    *argv = *(argv + 1);
-		    argv++;
-		} while (*argv != NULL);
-		*argcp -= 1;
-		main_argc = argc - 1;
-		environ = env = envp = argv;
-		do {
-		    *envp = *(envp + 1);
+		    *envp = *(envp + rtld_argc);
 		    envp++;
 		} while (*envp != NULL);
 		aux = auxp = (Elf_Auxinfo *)envp;
-		auxpf = (Elf_Auxinfo *)(envp + 1);
+		auxpf = (Elf_Auxinfo *)(envp + rtld_argc);
 		for (;; auxp++, auxpf++) {
 		    *auxp = *auxpf;
 		    if (auxp->a_type == AT_NULL)
@@ -5274,6 +5277,81 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 
 
 /*
+ * Parse a set of command-line arguments.
+ */
+static int
+parse_args(char* argv[], int argc, bool *use_pathp, int *fdp)
+{
+	const char *arg;
+	int fd, i, j, arglen;
+	char opt;
+
+	dbg("Parsing command-line arguments");
+	*use_pathp = false;
+	*fdp = -1;
+
+	for (i = 1; i < argc; i++ ) {
+		arg = argv[i];
+		dbg("argv[%d]: '%s'", i, arg);
+
+		/*
+		 * rtld arguments end with an explicit "--" or with the first
+		 * non-prefixed argument.
+		 */
+		if (strcmp(arg, "--") == 0) {
+			i++;
+			break;
+		}
+		if (arg[0] != '-')
+			break;
+
+		/*
+		 * All other arguments are single-character options that can
+		 * be combined, so we need to search through `arg` for them.
+		 */
+		arglen = strlen(arg);
+		for (j = 1; j < arglen; j++) {
+			opt = arg[j];
+			if (opt == 'h') {
+				print_usage(argv[0]);
+				rtld_die();
+			} else if (opt == 'f') {
+			/*
+			 * -f XX can be used to specify a descriptor for the
+			 * binary named at the command line (i.e., the later
+			 * argument will specify the process name but the
+			 * descriptor is what will actually be executed)
+			 */
+			if (j != arglen - 1) {
+				/* -f must be the last option in, e.g., -abcf */
+				_rtld_error("invalid options: %s", arg);
+				rtld_die();
+			}
+			i++;
+			fd = parse_integer(argv[i]);
+			if (fd == -1) {
+				_rtld_error("invalid file descriptor: '%s'",
+				    argv[i]);
+				rtld_die();
+			}
+			*fdp = fd;
+			break;
+			/* TODO:
+			} else if (opt == 'p') {
+				*use_pathp = true;
+			*/
+			} else {
+				rtld_printf("invalid argument: '%s'\n", arg);
+				print_usage(argv[0]);
+				rtld_die();
+			}
+		}
+	}
+
+	return (i);
+}
+
+/*
  * Parse a file descriptor number without pulling in more of libc (e.g. atoi).
  */
 static int
@@ -5298,6 +5376,20 @@ parse_integer(const char *str)
 	if (str == orig)
 		return (-1);
 	return (n);
+}
+
+void print_usage(const char *argv0)
+{
+
+	rtld_printf("Usage: %s [-h] [-f <FD>] [--] <binary> [<args>]\n"
+		"\n"
+		"Options:\n"
+		"  -h        Display this help message\n"
+		/* TODO: "  -p        Search in PATH for named binary\n" */
+		"  -f <FD>   Execute <FD> instead of searching for <binary>\n"
+		"  --        End of RTLD options\n"
+		"  <binary>  Name of process to execute\n"
+		"  <args>    Arguments to the executed process\n", argv0);
 }
 
 /*
