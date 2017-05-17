@@ -519,6 +519,7 @@ acpi_pcib_acpi_attach(device_t dev)
 
     acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
+    bus_generic_probe(dev);
     if (device_add_child(dev, "pci", -1) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
