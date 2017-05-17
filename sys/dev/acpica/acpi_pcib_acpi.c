@@ -509,6 +509,7 @@ acpi_pcib_acpi_attach(device_t dev)
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
 	    bus0_seen = 1;
 
+    bus_generic_probe(dev);
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
 }
 
