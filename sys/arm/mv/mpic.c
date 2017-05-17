@@ -398,7 +398,7 @@ static driver_t mv_mpic_driver = {
 static devclass_t mv_mpic_devclass;
 
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, mv_mpic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 
 #ifndef INTRNG
 int
