@@ -79,6 +79,7 @@
 #     must change before we can run Clang-compiled CHERI code.
 #
 	.text
+	.option pic0
 	.global __invoke_vector
 	.ent __invoke_vector
 __invoke_vector:
