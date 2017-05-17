@@ -7,6 +7,10 @@ include "llvm/Target/Target.td"
 def MyTargetISA : InstrInfo;
 def MyTarget : Target { let InstructionSet = MyTargetISA; }
 
+let TargetPrefix = "mytarget" in {
+def int_mytarget_nop : Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]>;
+}
+
 def R0 : Register<"r0"> { let Namespace = "MyTarget"; }
 def GPR32 : RegisterClass<"MyTarget", [i32], 32, (add R0)>;
 def GPR32Op : RegisterOperand<GPR32>;
@@ -127,6 +131,37 @@ def : Pat<(select GPR32:$src1, complex:$src2, complex:$src3),
 def ADD : I<(outs GPR32:$dst), (ins GPR32:$src1, GPR32:$src2),
             [(set GPR32:$dst, (add GPR32:$src1, GPR32:$src2))]>;
 
+//===- Test a simple pattern with an intrinsic. ---------------------------===//
+//
+
+// CHECK-LABEL: if ([&]() {
+// CHECK-NEXT:    MachineInstr &MI0 = I;
+// CHECK-NEXT:    if (MI0.getNumOperands() < 3)
+// CHECK-NEXT:      return false;
+// CHECK-NEXT:    if ((MI0.getOpcode() == TargetOpcode::G_INTRINSIC) &&
+// CHECK-NEXT:        ((/* dst */ (MRI.getType(MI0.getOperand(0).getReg()) == (LLT::scalar(32))) &&
+// CHECK-NEXT:         ((&RBI.getRegBankFromRegClass(MyTarget::GPR32RegClass) == RBI.getRegBank(MI0.getOperand(0).getReg(), MRI, TRI))))) &&
+// CHECK-NEXT:        ((/* Operand 1 */ (isOperandImmEqual(MI0.getOperand(1), [[ID:[0-9]+]], MRI)))) &&
+// CHECK-NEXT:        ((/* src1 */ (MRI.getType(MI0.getOperand(2).getReg()) == (LLT::scalar(32))) &&
+// CHECK-NEXT:         ((&RBI.getRegBankFromRegClass(MyTarget::GPR32RegClass) == RBI.getRegBank(MI0.getOperand(2).getReg(), MRI, TRI)))))) {
+// CHECK-NEXT:      // (intrinsic_wo_chain:i32 [[ID]]:iPTR, GPR32:i32:$src1) => (MOV:i32 GPR32:i32:$src1)
+// CHECK-NEXT:      MachineInstrBuilder MIB = BuildMI(*I.getParent(), I, I.getDebugLoc(), TII.get(MyTarget::MOV));
+// CHECK-NEXT:      MIB.add(MI0.getOperand(0)/*dst*/);
+// CHECK-NEXT:      MIB.add(MI0.getOperand(2)/*src1*/);
+// CHECK-NEXT:      for (const auto *FromMI : {&MI0, })
+// CHECK-NEXT:        for (const auto &MMO : FromMI->memoperands())
+// CHECK-NEXT:          MIB.addMemOperand(MMO);
+// CHECK-NEXT:      I.eraseFromParent();
+// CHECK-NEXT:      MachineInstr &NewI = *MIB;
+// CHECK-NEXT:      constrainSelectedInstRegOperands(NewI, TII, TRI, RBI);
+// CHECK-NEXT:      return true;
+// CHECK-NEXT:    }
+// CHECK-NEXT:    return false;
+// CHECK-NEXT:  }()) { return true; }
+
+def MOV : I<(outs GPR32:$dst), (ins GPR32:$src1),
+            [(set GPR32:$dst, (int_mytarget_nop GPR32:$src1))]>;
+
 //===- Test a nested instruction match. -----------------------------------===//
 
 // CHECK-LABEL: if ([&]() {
@@ -137,6 +172,8 @@ def ADD : I<(outs GPR32:$dst), (ins GPR32:$src1, GPR32:$src2),
 // CHECK-NEXT:    if (MI0.getNumOperands() < 3)
 // CHECK-NEXT:      return false;
 // CHECK-NEXT:    if (!MI0.getOperand(1).isReg())
+// CHECK-NEXT:      return false;
+// CHECK-NEXT:    if (TRI.isPhysicalRegister(MI0.getOperand(1).getReg()))
 // CHECK-NEXT:      return false;
 // CHECK-NEXT:    MachineInstr &MI1 = *MRI.getVRegDef(MI0.getOperand(1).getReg());
 // CHECK-NEXT:    if (MI1.getNumOperands() < 3)
@@ -179,6 +216,8 @@ def ADD : I<(outs GPR32:$dst), (ins GPR32:$src1, GPR32:$src2),
 // CHECK-NEXT:    if (MI0.getNumOperands() < 3)
 // CHECK-NEXT:      return false;
 // CHECK-NEXT:    if (!MI0.getOperand(2).isReg())
+// CHECK-NEXT:      return false;
+// CHECK-NEXT:    if (TRI.isPhysicalRegister(MI0.getOperand(2).getReg()))
 // CHECK-NEXT:      return false;
 // CHECK-NEXT:    MachineInstr &MI1 = *MRI.getVRegDef(MI0.getOperand(2).getReg());
 // CHECK-NEXT:    if (MI1.getNumOperands() < 3)
@@ -386,6 +425,42 @@ def XOR : I<(outs GPR32:$dst), (ins Z:$src2, GPR32:$src1),
 // The -4 is just to distinguish it from the other 'not' cases.
 def XORlike : I<(outs GPR32:$dst), (ins m1Z:$src2, GPR32:$src1),
                 [(set GPR32:$dst, (xor GPR32:$src1, -4))]>;
+
+//===- Test a simple pattern with multiple operands with defaults. --------===//
+//
+
+// CHECK-LABEL: if ([&]() {
+// CHECK-NEXT:    MachineInstr &MI0 = I;
+// CHECK-NEXT:    if (MI0.getNumOperands() < 3)
+// CHECK-NEXT:      return false;
+// CHECK-NEXT:    if ((MI0.getOpcode() == TargetOpcode::G_XOR) &&
+// CHECK-NEXT:        ((/* dst */ (MRI.getType(MI0.getOperand(0).getReg()) == (LLT::scalar(32))) &&
+// CHECK-NEXT:         ((&RBI.getRegBankFromRegClass(MyTarget::GPR32RegClass) == RBI.getRegBank(MI0.getOperand(0).getReg(), MRI, TRI))))) &&
+// CHECK-NEXT:        ((/* src1 */ (MRI.getType(MI0.getOperand(1).getReg()) == (LLT::scalar(32))) &&
+// CHECK-NEXT:         ((&RBI.getRegBankFromRegClass(MyTarget::GPR32RegClass) == RBI.getRegBank(MI0.getOperand(1).getReg(), MRI, TRI))))) &&
+// CHECK-NEXT:        ((/* Operand 2 */ (MRI.getType(MI0.getOperand(2).getReg()) == (LLT::scalar(32))) &&
+// CHECK-NEXT:        (isOperandImmEqual(MI0.getOperand(2), -5, MRI))))) {
+// CHECK-NEXT:      // (xor:i32 GPR32:i32:$src1, -5:i32) => (XORManyDefaults:i32 GPR32:i32:$src1)
+// CHECK-NEXT:      MachineInstrBuilder MIB = BuildMI(*I.getParent(), I, I.getDebugLoc(), TII.get(MyTarget::XORManyDefaults));
+// CHECK-NEXT:      MIB.add(MI0.getOperand(0)/*dst*/);
+// CHECK-NEXT:      MIB.addImm(-1);
+// CHECK-NEXT:      MIB.addReg(MyTarget::R0);
+// CHECK-NEXT:      MIB.addReg(MyTarget::R0);
+// CHECK-NEXT:      MIB.add(MI0.getOperand(1)/*src1*/);
+// CHECK-NEXT:      for (const auto *FromMI : {&MI0, })
+// CHECK-NEXT:        for (const auto &MMO : FromMI->memoperands())
+// CHECK-NEXT:          MIB.addMemOperand(MMO);
+// CHECK-NEXT:      I.eraseFromParent();
+// CHECK-NEXT:      MachineInstr &NewI = *MIB;
+// CHECK-NEXT:      constrainSelectedInstRegOperands(NewI, TII, TRI, RBI);
+// CHECK-NEXT:      return true;
+// CHECK-NEXT:    }
+// CHECK-NEXT:    return false;
+// CHECK-NEXT:  }()) { return true; }
+
+// The -5 is just to distinguish it from the other cases.
+def XORManyDefaults : I<(outs GPR32:$dst), (ins m1Z:$src3, Z:$src2, GPR32:$src1),
+                        [(set GPR32:$dst, (xor GPR32:$src1, -5))]>;
 
 //===- Test a simple pattern with constant immediate operands. ------------===//
 //
