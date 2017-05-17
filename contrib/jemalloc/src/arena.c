@@ -2857,7 +2857,7 @@ arena_prof_promoted(tsdn_t *tsdn, const void *ptr, size_t size)
 
 	cassert(config_prof);
 	assert(ptr != NULL);
-	assert(CHUNK_ADDR2BASE(ptr) != ptr);
+	assert((vaddr_t)CHUNK_ADDR2BASE(ptr) != (vaddr_t)ptr);
 	assert(isalloc(tsdn, ptr, false) == LARGE_MINCLASS);
 	assert(isalloc(tsdn, ptr, true) == LARGE_MINCLASS);
 	assert(size <= SMALL_MAXCLASS);

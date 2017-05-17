@@ -204,7 +204,7 @@ bool
 pages_huge(void *addr, size_t size)
 {
 
-	assert(PAGE_ADDR2BASE(addr) == addr);
+	assert((vaddr_t)PAGE_ADDR2BASE(addr) == (vaddr_t)addr);
 	assert(PAGE_CEILING(size) == size);
 
 #ifdef JEMALLOC_HAVE_MADVISE_HUGE
@@ -218,7 +218,7 @@ bool
 pages_nohuge(void *addr, size_t size)
 {
 
-	assert(PAGE_ADDR2BASE(addr) == addr);
+	assert((vaddr_t)PAGE_ADDR2BASE(addr) == (vaddr_t)addr);
 	assert(PAGE_CEILING(size) == size);
 
 #ifdef JEMALLOC_HAVE_MADVISE_HUGE
