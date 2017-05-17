@@ -285,7 +285,7 @@ ppc_detect_port(struct ppc_data *ppc)
 static void
 ppc_reset_epp_timeout(struct ppc_data *ppc)
 {
-	register char r;
+	char r;
 
 	r = r_str(ppc);
 	w_str(ppc, r | 0x1);
@@ -1321,10 +1321,10 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 	int i, iter, len;
 	int error;
 
-	register int reg;
-	register char mask;
-	register int accum = 0;
-	register char *ptr = NULL;
+	int reg;
+	char mask;
+	int accum = 0;
+	char *ptr = NULL;
 
 	struct ppb_microseq *stack = NULL;
 

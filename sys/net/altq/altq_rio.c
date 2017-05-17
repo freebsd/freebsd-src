@@ -150,7 +150,7 @@
 #define	RIO_STATS		/* collect statistics */
 
 #define	TV_DELTA(a, b, delta) {					\
-	register int	xxs;					\
+	int	xxs;						\
 								\
 	delta = (a)->tv_usec - (b)->tv_usec; 			\
 	if ((xxs = (a)->tv_sec - (b)->tv_sec) != 0) { 		\

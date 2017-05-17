@@ -115,9 +115,7 @@ struct sync_args {
 #endif
 /* ARGSUSED */
 int
-sys_sync(td, uap)
-	struct thread *td;
-	struct sync_args *uap;
+sys_sync(struct thread *td, struct sync_args *uap)
 {
 	struct mount *mp, *nmp;
 	int save;
@@ -156,14 +154,7 @@ struct quotactl_args {
 };
 #endif
 int
-sys_quotactl(td, uap)
-	struct thread *td;
-	register struct quotactl_args /* {
-		char *path;
-		int cmd;
-		int uid;
-		caddr_t arg;
-	} */ *uap;
+sys_quotactl(struct thread *td, struct quotactl_args *uap)
 {
 	struct mount *mp;
 	struct nameidata nd;
@@ -291,12 +282,7 @@ struct statfs_args {
 };
 #endif
 int
-sys_statfs(td, uap)
-	struct thread *td;
-	register struct statfs_args /* {
-		char *path;
-		struct statfs *buf;
-	} */ *uap;
+sys_statfs(struct thread *td, struct statfs_args *uap)
 {
 	struct statfs *sfp;
 	int error;
@@ -339,12 +325,7 @@ struct fstatfs_args {
 };
 #endif
 int
-sys_fstatfs(td, uap)
-	struct thread *td;
-	register struct fstatfs_args /* {
-		int fd;
-		struct statfs *buf;
-	} */ *uap;
+sys_fstatfs(struct thread *td, struct fstatfs_args *uap)
 {
 	struct statfs *sfp;
 	int error;
@@ -394,13 +375,7 @@ struct getfsstat_args {
 };
 #endif
 int
-sys_getfsstat(td, uap)
-	struct thread *td;
-	register struct getfsstat_args /* {
-		struct statfs *buf;
-		long bufsize;
-		int mode;
-	} */ *uap;
+sys_getfsstat(struct thread *td, struct getfsstat_args *uap)
 {
 	size_t count;
 	int error;
@@ -559,12 +534,7 @@ struct freebsd4_statfs_args {
 };
 #endif
 int
-freebsd4_statfs(td, uap)
-	struct thread *td;
-	struct freebsd4_statfs_args /* {
-		char *path;
-		struct ostatfs *buf;
-	} */ *uap;
+freebsd4_statfs(struct thread *td, struct freebsd4_statfs_args *uap)
 {
 	struct ostatfs osb;
 	struct statfs *sfp;
@@ -590,12 +560,7 @@ struct freebsd4_fstatfs_args {
 };
 #endif
 int
-freebsd4_fstatfs(td, uap)
-	struct thread *td;
-	struct freebsd4_fstatfs_args /* {
-		int fd;
-		struct ostatfs *buf;
-	} */ *uap;
+freebsd4_fstatfs(struct thread *td, struct freebsd4_fstatfs_args *uap)
 {
 	struct ostatfs osb;
 	struct statfs *sfp;
@@ -622,13 +587,7 @@ struct freebsd4_getfsstat_args {
 };
 #endif
 int
-freebsd4_getfsstat(td, uap)
-	struct thread *td;
-	register struct freebsd4_getfsstat_args /* {
-		struct ostatfs *buf;
-		long bufsize;
-		int mode;
-	} */ *uap;
+freebsd4_getfsstat(struct thread *td, struct freebsd4_getfsstat_args *uap)
 {
 	struct statfs *buf, *sp;
 	struct ostatfs osb;
@@ -668,12 +627,7 @@ struct freebsd4_fhstatfs_args {
 };
 #endif
 int
-freebsd4_fhstatfs(td, uap)
-	struct thread *td;
-	struct freebsd4_fhstatfs_args /* {
-		struct fhandle *u_fhp;
-		struct ostatfs *buf;
-	} */ *uap;
+freebsd4_fhstatfs(struct thread *td, struct freebsd4_fhstatfs_args *uap)
 {
 	struct ostatfs osb;
 	struct statfs *sfp;
@@ -697,9 +651,7 @@ freebsd4_fhstatfs(td, uap)
  * Convert a new format statfs structure to an old format statfs structure.
  */
 static void
-cvtstatfs(nsp, osp)
-	struct statfs *nsp;
-	struct ostatfs *osp;
+cvtstatfs(struct statfs *nsp, struct ostatfs *osp)
 {
 
 	statfs_scale_blocks(nsp, LONG_MAX);
@@ -737,11 +689,7 @@ struct fchdir_args {
 };
 #endif
 int
-sys_fchdir(td, uap)
-	struct thread *td;
-	struct fchdir_args /* {
-		int fd;
-	} */ *uap;
+sys_fchdir(struct thread *td, struct fchdir_args *uap)
 {
 	struct vnode *vp, *tdp;
 	struct mount *mp;
@@ -788,11 +736,7 @@ struct chdir_args {
 };
 #endif
 int
-sys_chdir(td, uap)
-	struct thread *td;
-	struct chdir_args /* {
-		char *path;
-	} */ *uap;
+sys_chdir(struct thread *td, struct chdir_args *uap)
 {
 
 	return (kern_chdir(td, uap->path, UIO_USERSPACE));
@@ -828,11 +772,7 @@ struct chroot_args {
 };
 #endif
 int
-sys_chroot(td, uap)
-	struct thread *td;
-	struct chroot_args /* {
-		char *path;
-	} */ *uap;
+sys_chroot(struct thread *td, struct chroot_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -870,9 +810,7 @@ error:
  * instance.
  */
 int
-change_dir(vp, td)
-	struct vnode *vp;
-	struct thread *td;
+change_dir(struct vnode *vp, struct thread *td)
 {
 #ifdef MAC
 	int error;
@@ -936,13 +874,7 @@ struct open_args {
 };
 #endif
 int
-sys_open(td, uap)
-	struct thread *td;
-	register struct open_args /* {
-		char *path;
-		int flags;
-		int mode;
-	} */ *uap;
+sys_open(struct thread *td, struct open_args *uap)
 {
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -1116,12 +1048,7 @@ struct ocreat_args {
 };
 #endif
 int
-ocreat(td, uap)
-	struct thread *td;
-	register struct ocreat_args /* {
-		char *path;
-		int mode;
-	} */ *uap;
+ocreat(struct thread *td, struct ocreat_args *uap)
 {
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -1140,13 +1067,7 @@ struct mknod_args {
 };
 #endif
 int
-sys_mknod(td, uap)
-	struct thread *td;
-	register struct mknod_args /* {
-		char *path;
-		int mode;
-		int dev;
-	} */ *uap;
+sys_mknod(struct thread *td, struct mknod_args *uap)
 {
 
 	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -1283,12 +1204,7 @@ struct mkfifo_args {
 };
 #endif
 int
-sys_mkfifo(td, uap)
-	struct thread *td;
-	register struct mkfifo_args /* {
-		char *path;
-		int mode;
-	} */ *uap;
+sys_mkfifo(struct thread *td, struct mkfifo_args *uap)
 {
 
 	return (kern_mkfifoat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -1375,12 +1291,7 @@ struct link_args {
 };
 #endif
 int
-sys_link(td, uap)
-	struct thread *td;
-	register struct link_args /* {
-		char *path;
-		char *link;
-	} */ *uap;
+sys_link(struct thread *td, struct link_args *uap)
 {
 
 	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
@@ -1544,12 +1455,7 @@ struct symlink_args {
 };
 #endif
 int
-sys_symlink(td, uap)
-	struct thread *td;
-	register struct symlink_args /* {
-		char *path;
-		char *link;
-	} */ *uap;
+sys_symlink(struct thread *td, struct symlink_args *uap)
 {
 
 	return (kern_symlinkat(td, uap->path, AT_FDCWD, uap->link,
@@ -1641,12 +1547,13 @@ out:
 /*
  * Delete a whiteout from the filesystem.
  */
+#ifndef _SYS_SYSPROTO_H_
+struct undelete_args {
+	char *path;
+};
+#endif
 int
-sys_undelete(td, uap)
-	struct thread *td;
-	register struct undelete_args /* {
-		char *path;
-	} */ *uap;
+sys_undelete(struct thread *td, struct undelete_args *uap)
 {
 	struct mount *mp;
 	struct nameidata nd;
@@ -1693,11 +1600,7 @@ struct unlink_args {
 };
 #endif
 int
-sys_unlink(td, uap)
-	struct thread *td;
-	struct unlink_args /* {
-		char *path;
-	} */ *uap;
+sys_unlink(struct thread *td, struct unlink_args *uap)
 {
 
 	return (kern_unlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE, 0));
@@ -1862,11 +1765,8 @@ freebsd6_lseek(struct thread *td, struct freebsd6_lseek_args *uap)
  * Check access permissions using passed credentials.
  */
 static int
-vn_access(vp, user_flags, cred, td)
-	struct vnode	*vp;
-	int		user_flags;
-	struct ucred	*cred;
-	struct thread	*td;
+vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
+     struct thread *td)
 {
 	accmode_t accmode;
 	int error;
@@ -1902,12 +1802,7 @@ struct access_args {
 };
 #endif
 int
-sys_access(td, uap)
-	struct thread *td;
-	register struct access_args /* {
-		char *path;
-		int amode;
-	} */ *uap;
+sys_access(struct thread *td, struct access_args *uap)
 {
 
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -1988,12 +1883,7 @@ struct eaccess_args {
 };
 #endif
 int
-sys_eaccess(td, uap)
-	struct thread *td;
-	register struct eaccess_args /* {
-		char *path;
-		int amode;
-	} */ *uap;
+sys_eaccess(struct thread *td, struct eaccess_args *uap)
 {
 
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2011,12 +1901,7 @@ struct ostat_args {
 };
 #endif
 int
-ostat(td, uap)
-	struct thread *td;
-	register struct ostat_args /* {
-		char *path;
-		struct ostat *ub;
-	} */ *uap;
+ostat(struct thread *td, struct ostat_args *uap)
 {
 	struct stat sb;
 	struct ostat osb;
@@ -2040,12 +1925,7 @@ struct olstat_args {
 };
 #endif
 int
-olstat(td, uap)
-	struct thread *td;
-	register struct olstat_args /* {
-		char *path;
-		struct ostat *ub;
-	} */ *uap;
+olstat(struct thread *td, struct olstat_args *uap)
 {
 	struct stat sb;
 	struct ostat osb;
@@ -2063,9 +1943,7 @@ olstat(td, uap)
  * Convert from an old to a new stat structure.
  */
 void
-cvtstat(st, ost)
-	struct stat *st;
-	struct ostat *ost;
+cvtstat(struct stat *st, struct ostat *ost)
 {
 
 	bzero(ost, sizeof(*ost));
@@ -2100,12 +1978,7 @@ struct stat_args {
 };
 #endif
 int
-sys_stat(td, uap)
-	struct thread *td;
-	register struct stat_args /* {
-		char *path;
-		struct stat *ub;
-	} */ *uap;
+sys_stat(struct thread *td, struct stat_args *uap)
 {
 	struct stat sb;
 	int error;
@@ -2187,12 +2060,7 @@ struct lstat_args {
 };
 #endif
 int
-sys_lstat(td, uap)
-	struct thread *td;
-	register struct lstat_args /* {
-		char *path;
-		struct stat *ub;
-	} */ *uap;
+sys_lstat(struct thread *td, struct lstat_args *uap)
 {
 	struct stat sb;
 	int error;
@@ -2208,9 +2076,7 @@ sys_lstat(td, uap)
  * Implementation of the NetBSD [l]stat() functions.
  */
 void
-cvtnstat(sb, nsb)
-	struct stat *sb;
-	struct nstat *nsb;
+cvtnstat( struct stat *sb, struct nstat *nsb)
 {
 
 	bzero(nsb, sizeof *nsb);
@@ -2239,12 +2105,7 @@ struct nstat_args {
 };
 #endif
 int
-sys_nstat(td, uap)
-	struct thread *td;
-	register struct nstat_args /* {
-		char *path;
-		struct nstat *ub;
-	} */ *uap;
+sys_nstat(struct thread *td, struct nstat_args *uap)
 {
 	struct stat sb;
 	struct nstat nsb;
@@ -2268,12 +2129,7 @@ struct lstat_args {
 };
 #endif
 int
-sys_nlstat(td, uap)
-	struct thread *td;
-	register struct nlstat_args /* {
-		char *path;
-		struct nstat *ub;
-	} */ *uap;
+sys_nlstat(struct thread *td, struct nlstat_args *uap)
 {
 	struct stat sb;
 	struct nstat nsb;
@@ -2297,12 +2153,7 @@ struct pathconf_args {
 };
 #endif
 int
-sys_pathconf(td, uap)
-	struct thread *td;
-	register struct pathconf_args /* {
-		char *path;
-		int name;
-	} */ *uap;
+sys_pathconf(struct thread *td, struct pathconf_args *uap)
 {
 
 	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW));
@@ -2315,12 +2166,7 @@ struct lpathconf_args {
 };
 #endif
 int
-sys_lpathconf(td, uap)
-	struct thread *td;
-	register struct lpathconf_args /* {
-		char *path;
-		int name;
-	} */ *uap;
+sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
 {
 
 	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name,
@@ -2356,13 +2202,7 @@ struct readlink_args {
 };
 #endif
 int
-sys_readlink(td, uap)
-	struct thread *td;
-	register struct readlink_args /* {
-		char *path;
-		char *buf;
-		size_t count;
-	} */ *uap;
+sys_readlink(struct thread *td, struct readlink_args *uap)
 {
 
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2434,10 +2274,7 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
  * Common implementation code for chflags() and fchflags().
  */
 static int
-setfflags(td, vp, flags)
-	struct thread *td;
-	struct vnode *vp;
-	u_long flags;
+setfflags(struct thread *td, struct vnode *vp, u_long flags)
 {
 	struct mount *mp;
 	struct vattr vattr;
@@ -2484,12 +2321,7 @@ struct chflags_args {
 };
 #endif
 int
-sys_chflags(td, uap)
-	struct thread *td;
-	register struct chflags_args /* {
-		const char *path;
-		u_long flags;
-	} */ *uap;
+sys_chflags(struct thread *td, struct chflags_args *uap)
 {
 
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2521,13 +2353,14 @@ sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 /*
  * Same as chflags() but doesn't follow symlinks.
  */
+#ifndef _SYS_SYSPROTO_H_
+struct lchflags_args {
+	const char *path;
+	u_long flags;
+};
+#endif
 int
-sys_lchflags(td, uap)
-	struct thread *td;
-	register struct lchflags_args /* {
-		const char *path;
-		u_long flags;
-	} */ *uap;
+sys_lchflags(struct thread *td, struct lchflags_args *uap)
 {
 
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2564,12 +2397,7 @@ struct fchflags_args {
 };
 #endif
 int
-sys_fchflags(td, uap)
-	struct thread *td;
-	register struct fchflags_args /* {
-		int fd;
-		u_long flags;
-	} */ *uap;
+sys_fchflags(struct thread *td, struct fchflags_args *uap)
 {
 	struct file *fp;
 	cap_rights_t rights;
@@ -2595,11 +2423,7 @@ sys_fchflags(td, uap)
  * Common implementation code for chmod(), lchmod() and fchmod().
  */
 int
-setfmode(td, cred, vp, mode)
-	struct thread *td;
-	struct ucred *cred;
-	struct vnode *vp;
-	int mode;
+setfmode(struct thread *td, struct ucred *cred, struct vnode *vp, int mode)
 {
 	struct mount *mp;
 	struct vattr vattr;
@@ -2630,12 +2454,7 @@ struct chmod_args {
 };
 #endif
 int
-sys_chmod(td, uap)
-	struct thread *td;
-	register struct chmod_args /* {
-		char *path;
-		int mode;
-	} */ *uap;
+sys_chmod(struct thread *td, struct chmod_args *uap)
 {
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2674,12 +2493,7 @@ struct lchmod_args {
 };
 #endif
 int
-sys_lchmod(td, uap)
-	struct thread *td;
-	register struct lchmod_args /* {
-		char *path;
-		int mode;
-	} */ *uap;
+sys_lchmod(struct thread *td, struct lchmod_args *uap)
 {
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2737,12 +2551,8 @@ sys_fchmod(struct thread *td, struct fchmod_args *uap)
  * Common implementation for chown(), lchown(), and fchown()
  */
 int
-setfown(td, cred, vp, uid, gid)
-	struct thread *td;
-	struct ucred *cred;
-	struct vnode *vp;
-	uid_t uid;
-	gid_t gid;
+setfown(struct thread *td, struct ucred *cred, struct vnode *vp, uid_t uid,
+    gid_t gid)
 {
 	struct mount *mp;
 	struct vattr vattr;
@@ -2776,13 +2586,7 @@ struct chown_args {
 };
 #endif
 int
-sys_chown(td, uap)
-	struct thread *td;
-	register struct chown_args /* {
-		char *path;
-		int uid;
-		int gid;
-	} */ *uap;
+sys_chown(struct thread *td, struct chown_args *uap)
 {
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
@@ -2843,13 +2647,7 @@ struct lchown_args {
 };
 #endif
 int
-sys_lchown(td, uap)
-	struct thread *td;
-	register struct lchown_args /* {
-		char *path;
-		int uid;
-		int gid;
-	} */ *uap;
+sys_lchown(struct thread *td, struct lchown_args *uap)
 {
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -2867,13 +2665,7 @@ struct fchown_args {
 };
 #endif
 int
-sys_fchown(td, uap)
-	struct thread *td;
-	register struct fchown_args /* {
-		int fd;
-		int uid;
-		int gid;
-	} */ *uap;
+sys_fchown(struct thread *td, struct fchown_args *uap)
 {
 	struct file *fp;
 	cap_rights_t rights;
@@ -2893,10 +2685,8 @@ sys_fchown(td, uap)
  * Common implementation code for utimes(), lutimes(), and futimes().
  */
 static int
-getutimes(usrtvp, tvpseg, tsp)
-	const struct timeval *usrtvp;
-	enum uio_seg tvpseg;
-	struct timespec *tsp;
+getutimes(const struct timeval *usrtvp, enum uio_seg tvpseg,
+    struct timespec *tsp)
 {
 	struct timeval tv[2];
 	const struct timeval *tvp;
@@ -2973,12 +2763,8 @@ getutimens(const struct timespec *usrtsp, enum uio_seg tspseg,
  * and utimensat().
  */
 static int
-setutimes(td, vp, ts, numtimes, nullflag)
-	struct thread *td;
-	struct vnode *vp;
-	const struct timespec *ts;
-	int numtimes;
-	int nullflag;
+setutimes(struct thread *td, struct vnode *vp, const struct timespec *ts,
+    int numtimes, int nullflag)
 {
 	struct mount *mp;
 	struct vattr vattr;
@@ -3021,12 +2807,7 @@ struct utimes_args {
 };
 #endif
 int
-sys_utimes(td, uap)
-	struct thread *td;
-	register struct utimes_args /* {
-		char *path;
-		struct timeval *tptr;
-	} */ *uap;
+sys_utimes(struct thread *td, struct utimes_args *uap)
 {
 
 	return (kern_utimesat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -3080,12 +2861,7 @@ struct lutimes_args {
 };
 #endif
 int
-sys_lutimes(td, uap)
-	struct thread *td;
-	register struct lutimes_args /* {
-		char *path;
-		struct timeval *tptr;
-	} */ *uap;
+sys_lutimes(struct thread *td, struct lutimes_args *uap)
 {
 
 	return (kern_lutimes(td, uap->path, UIO_USERSPACE, uap->tptr,
@@ -3121,12 +2897,7 @@ struct futimes_args {
 };
 #endif
 int
-sys_futimes(td, uap)
-	struct thread *td;
-	register struct futimes_args /* {
-		int  fd;
-		struct timeval *tptr;
-	} */ *uap;
+sys_futimes(struct thread *td, struct futimes_args *uap)
 {
 
 	return (kern_futimes(td, uap->fd, uap->tptr, UIO_USERSPACE));
@@ -3244,13 +3015,7 @@ struct truncate_args {
 };
 #endif
 int
-sys_truncate(td, uap)
-	struct thread *td;
-	register struct truncate_args /* {
-		char *path;
-		int pad;
-		off_t length;
-	} */ *uap;
+sys_truncate(struct thread *td, struct truncate_args *uap)
 {
 
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
@@ -3409,12 +3174,7 @@ struct rename_args {
 };
 #endif
 int
-sys_rename(td, uap)
-	struct thread *td;
-	register struct rename_args /* {
-		char *from;
-		char *to;
-	} */ *uap;
+sys_rename(struct thread *td, struct rename_args *uap)
 {
 
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
@@ -3579,12 +3339,7 @@ struct mkdir_args {
 };
 #endif
 int
-sys_mkdir(td, uap)
-	struct thread *td;
-	register struct mkdir_args /* {
-		char *path;
-		int mode;
-	} */ *uap;
+sys_mkdir(struct thread *td, struct mkdir_args *uap)
 {
 
 	return (kern_mkdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
@@ -3677,11 +3432,7 @@ struct rmdir_args {
 };
 #endif
 int
-sys_rmdir(td, uap)
-	struct thread *td;
-	struct rmdir_args /* {
-		char *path;
-	} */ *uap;
+sys_rmdir(struct thread *td, struct rmdir_args *uap)
 {
 
 	return (kern_rmdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE));
@@ -3918,14 +3669,7 @@ struct getdirentries_args {
 };
 #endif
 int
-sys_getdirentries(td, uap)
-	struct thread *td;
-	register struct getdirentries_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-		long *basep;
-	} */ *uap;
+sys_getdirentries(struct thread *td, struct getdirentries_args *uap)
 {
 	long base;
 	int error;
@@ -4023,13 +3767,7 @@ struct getdents_args {
 };
 #endif
 int
-sys_getdents(td, uap)
-	struct thread *td;
-	register struct getdents_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-	} */ *uap;
+sys_getdents(struct thread *td, struct getdents_args *uap)
 {
 	struct getdirentries_args ap;
 
@@ -4049,11 +3787,7 @@ struct umask_args {
 };
 #endif
 int
-sys_umask(td, uap)
-	struct thread *td;
-	struct umask_args /* {
-		int newmask;
-	} */ *uap;
+sys_umask(struct thread *td, struct umask_args *uap)
 {
 	struct filedesc *fdp;
 
@@ -4075,11 +3809,7 @@ struct revoke_args {
 };
 #endif
 int
-sys_revoke(td, uap)
-	struct thread *td;
-	register struct revoke_args /* {
-		char *path;
-	} */ *uap;
+sys_revoke(struct thread *td, struct revoke_args *uap)
 {
 	struct vnode *vp;
 	struct vattr vattr;
@@ -4162,13 +3892,11 @@ struct lgetfh_args {
 };
 #endif
 int
-sys_lgetfh(td, uap)
-	struct thread *td;
-	register struct lgetfh_args *uap;
+sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
 {
 	struct nameidata nd;
 	fhandle_t fh;
-	register struct vnode *vp;
+	struct vnode *vp;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_GETFH);
@@ -4197,13 +3925,11 @@ struct getfh_args {
 };
 #endif
 int
-sys_getfh(td, uap)
-	struct thread *td;
-	register struct getfh_args *uap;
+sys_getfh(struct thread *td, struct getfh_args *uap)
 {
 	struct nameidata nd;
 	fhandle_t fh;
-	register struct vnode *vp;
+	struct vnode *vp;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_GETFH);
@@ -4239,12 +3965,7 @@ struct fhopen_args {
 };
 #endif
 int
-sys_fhopen(td, uap)
-	struct thread *td;
-	struct fhopen_args /* {
-		const struct fhandle *u_fhp;
-		int flags;
-	} */ *uap;
+sys_fhopen(struct thread *td, struct fhopen_args *uap)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -4328,12 +4049,7 @@ struct fhstat_args {
 };
 #endif
 int
-sys_fhstat(td, uap)
-	struct thread *td;
-	register struct fhstat_args /* {
-		struct fhandle *u_fhp;
-		struct stat *sb;
-	} */ *uap;
+sys_fhstat(struct thread *td, struct fhstat_args *uap)
 {
 	struct stat sb;
 	struct fhandle fh;
@@ -4379,12 +4095,7 @@ struct fhstatfs_args {
 };
 #endif
 int
-sys_fhstatfs(td, uap)
-	struct thread *td;
-	struct fhstatfs_args /* {
-		struct fhandle *u_fhp;
-		struct statfs *buf;
-	} */ *uap;
+sys_fhstatfs(struct thread *td, struct fhstatfs_args *uap)
 {
 	struct statfs *sfp;
 	fhandle_t fh;
