@@ -56,6 +56,9 @@ _CHERI_CC=	${CHERI_CC} -g -integrated-as --target=cheri-unknown-freebsd \
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
+.if ${MK_CHERI_EXACT_EQUALS} == "yes"
+_CHERI_CC+=	-mllvm -cheri-exact-equals
+.endif
 
 # Turn off deprecated warnings
 _CHERI_CC+= -Wno-deprecated-declarations
