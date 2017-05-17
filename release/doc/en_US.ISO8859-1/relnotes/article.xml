@@ -302,6 +302,13 @@
       <para revision="318239" contrib="sponsor"
 	sponsor="&ff;">&man.blacklistd.8; has been updated to the
 	20170503 snapshot.</para>
+
+      <para revision="318402" contrib="sponsor"
+	sponsor="&ff;">&man.blacklistd.8; support for
+	<application>OpenSSH</application> has been refined to adjust
+	notification points to catch all authentication failures
+	rather than authentication failures caused by invalid
+	login usernames.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
