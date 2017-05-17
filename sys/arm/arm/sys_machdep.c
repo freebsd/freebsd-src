@@ -188,9 +188,7 @@ arm32_get_tp(struct thread *td, void *args)
 }
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 
