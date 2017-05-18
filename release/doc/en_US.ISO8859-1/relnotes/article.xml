@@ -491,6 +491,11 @@
 	providing support for Broadcom&reg; NetXtreme-C&trade; and
 	NetXtreme-E&trade; devices.</para>
 
+      <para revision="310852" contrib="sponsor"
+	sponsor="&netgate;">The &man.miibus.4; driver has been updated
+	to support Microchip/Micrel KSZ9031 Gigabit ethernet
+	cards.</para>
+
       <para revision="311506" contrib="sponsor"
 	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
 	to firmware version 1.16.26.0 for T4, T5, and T6 cards.</para>
