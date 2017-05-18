@@ -241,7 +241,6 @@ struct ifnet {
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
-	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 	struct	rwlock if_afdata_lock;
 	void	*if_afdata[AF_MAX];
@@ -312,7 +311,8 @@ struct ifnet {
 	 * that structure can be enhanced without changing the kernel
 	 * binary interface.
 	 */
-	void	*if_pspare[4];		/* packet pacing / general use */
+	void	*if_pspare[3];		/* packet pacing / general use */
+	void	*if_hw_addr;		/* hardware link-level address */
 	int	if_ispare[4];		/* packet pacing / general use */
 };
 
