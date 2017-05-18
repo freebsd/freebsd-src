@@ -622,6 +622,8 @@
         ..
         file2c
         ..
+        getconf
+        ..
         grep
         ..
         gzip
