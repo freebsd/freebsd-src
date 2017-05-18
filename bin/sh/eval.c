@@ -1081,8 +1081,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		mode = (cmdentry.u.index == EXECCMD)? 0 : REDIR_PUSH;
 		if (flags == EV_BACKCMD) {
 			memout.nextc = memout.buf;
-			memout.bufend = memout.buf;
-			memout.bufsize = 64;
 			mode |= REDIR_BACKQ;
 		}
 		savecmdname = commandname;
@@ -1139,6 +1137,7 @@ cmddone:
 			memout.buf = NULL;
 			memout.nextc = NULL;
 			memout.bufend = NULL;
+			memout.bufsize = 64;
 		}
 		if (cmdentry.u.index != EXECCMD)
 			popredir();
