@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2011
+.Dd April 26, 2017
 .Dt UVSCOM 4
 .Os
 .Sh NAME
@@ -77,6 +77,19 @@ The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
