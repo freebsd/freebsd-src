@@ -1519,7 +1519,8 @@ tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			newsize = min(so->so_rcv.sb_hiwat +
 			    V_tcp_autorcvbuf_inc, V_tcp_autorcvbuf_max);
 		}
-		TCP_PROBE6(receive__autoresize, NULL, tp, m, tp, th, newsize);
+		TCP_PROBE6(receive__autoresize, NULL, tp, mtod(m, const char *),
+		    tp, th, newsize);
 
 		/* Start over with next RTT. */
 		tp->rfbuf_ts = 0;
