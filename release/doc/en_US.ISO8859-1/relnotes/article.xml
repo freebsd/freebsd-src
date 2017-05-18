@@ -471,6 +471,10 @@
       <para revision="308942">The &man.bytgpio.4; driver has been
 	added, providing support for Intel&reg; Bay&nbsp;Trail&trade;
 	SoC GPIO controllers.</para>
+
+      <para revision="318357" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.ixl.4; driver has been updated
+	to version 1.7.12-k.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
