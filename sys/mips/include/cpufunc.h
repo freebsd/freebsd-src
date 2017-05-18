@@ -167,6 +167,9 @@ MIPS_RW64_COP0_SEL(cvmmemctl, MIPS_COP_0_COMPARE, 7);
 MIPS_RW64_COP0_SEL(icache_err, MIPS_COP_0_CACHE_ERR, 0);
 MIPS_RW64_COP0_SEL(dcache_err, MIPS_COP_0_CACHE_ERR, 1);
 #endif
+#ifdef CPU_QEMU_MALTA
+MIPS_RW64_COP0_SEL(qemurtc64, MIPS_COP_0_COUNT, 6);
+#endif
 #endif
 #if defined(__mips_n64) || defined(__mips_n32) /* PHYSADDR_64_BIT */
 MIPS_RW64_COP0(entrylo0, MIPS_COP_0_TLB_LO0);

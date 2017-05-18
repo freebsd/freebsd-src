@@ -29,3 +29,4 @@ mips/cheri/cheri_stack.c		optional cpu_cheri
 mips/cheri/cheri_syscall.c		optional cpu_cheri
 mips/cheri/cheri_test.c			optional cpu_cheri
 mips/cheri/cheriabi_machdep.c		optional cpu_cheri compat_cheriabi
+mips/qemu/qemu_rtc.c            optional cpu_qemu_malta
