@@ -2303,18 +2303,28 @@ brelse(struct buf *bp)
 		bdirty(bp);
 	}
 	if (bp->b_iocmd == BIO_WRITE && (bp->b_ioflags & BIO_ERROR) &&
+	    (bp->b_error != ENXIO || !LIST_EMPTY(&bp->b_dep)) &&
 	    !(bp->b_flags & B_INVAL)) {
 		/*
-		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
-		 * pages from being scrapped.
+		 * Failed write, redirty.  All errors except ENXIO (which
+		 * means the device is gone) are expected to be potentially
+		 * transient - underlying media might work if tried again
+		 * after EIO, and memory might be available after an ENOMEM.
+		 *
+		 * Do this also for buffers that failed with ENXIO, but have
+		 * non-empty dependencies - the soft updates code might need
+		 * to access the buffer to untangle them.
+		 *
+		 * Must clear BIO_ERROR to prevent pages from being scrapped.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
 	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL)) ||
 	    (bp->b_ioflags & BIO_ERROR) || (bp->b_bufsize <= 0)) {
 		/*
-		 * Either a failed read I/O or we were asked to free or not
-		 * cache the buffer.
+		 * Either a failed read I/O, or we were asked to free or not
+		 * cache the buffer, or we failed to write to a device that's
+		 * no longer present.
 		 */
 		bp->b_flags |= B_INVAL;
 		if (!LIST_EMPTY(&bp->b_dep))
