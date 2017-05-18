@@ -254,14 +254,7 @@ flushout(struct output *dest)
 void
 freestdout(void)
 {
-	INTOFF;
-	if (output.buf) {
-		ckfree(output.buf);
-		output.nextc = NULL;
-		output.buf = NULL;
-		output.bufend = NULL;
-	}
-	INTON;
+	output.nextc = output.buf;
 }
 
 
