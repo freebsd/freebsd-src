@@ -555,7 +555,7 @@
       </itemizedlist>
 
       <para>The following Sun &ultrasparc; systems are not tested but
-	believed to also be supported by &os;:</para>
+	believed to be supported by &os; as well:</para>
 
       <itemizedlist>
 	<listitem>
@@ -581,7 +581,7 @@
       </itemizedlist>
 
       <para>The following Fujitsu &primepower; systems are not tested
-	but believed to also be supported by &os;:</para>
+	but believed to be supported by &os; as well:</para>
 
       <itemizedlist>
 	<listitem>
