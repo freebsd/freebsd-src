@@ -176,6 +176,8 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	      0, 0, "Optimization (time|space)" },
 	    { 'l', "label", ffs_opts->label, OPT_STRARRAY,
 	      1, sizeof(ffs_opts->label), "UFS label" },
+	    { 's', "softupdates", &ffs_opts->softupdates, OPT_INT32,
+	      0, 1, "enable softupdates" },
 	    { .name = NULL }
 	};
 
@@ -190,6 +192,7 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	ffs_opts->avgfilesize= -1;
 	ffs_opts->avgfpdir= -1;
 	ffs_opts->version = 1;
+	ffs_opts->softupdates = 0;
 
 	fsopts->fs_specific = ffs_opts;
 	fsopts->fs_options = copy_opts(ffs_options);
