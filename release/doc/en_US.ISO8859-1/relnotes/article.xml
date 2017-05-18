@@ -524,10 +524,11 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>The &man.cloudabi.4; driver has been updated to allow
-	running 32-bit binaries within 64-bit userland environments
-	when the kernel configuration file has the
-	<literal>COMPAT_CLOUDABI32</literal> option present.</para>
+      <para revision="307144">The &man.cloudabi.4; driver has been
+	updated to allow running 32-bit binaries within 64-bit
+	userland environments when the kernel configuration file has
+	the <literal>COMPAT_CLOUDABI32</literal> option
+	present.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
