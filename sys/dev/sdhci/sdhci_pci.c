@@ -132,9 +132,11 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5aca8086,	0xffff,	"Intel Apollo Lake SDXC Controller",
+	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
+	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
@@ -341,6 +343,7 @@ sdhci_pci_attach(device_t dev)
 	}
 	sc->quirks &= ~sdhci_quirk_clear;
 	sc->quirks |= sdhci_quirk_set;
+
 	/* Some controllers need to be bumped into the right mode. */
 	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
 		sdhci_lower_frequency(dev);
