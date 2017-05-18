@@ -8,7 +8,6 @@ FILESGROUPS=	FILES
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
 SUBDIR=	\
-	cron.d \
 	newsyslog.conf.d \
 	syslog.d
 
