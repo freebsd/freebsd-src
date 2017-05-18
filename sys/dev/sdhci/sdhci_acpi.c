@@ -57,18 +57,30 @@ static const struct sdhci_acpi_device {
 	const char	*desc;
 	u_int		quirks;
 } sdhci_acpi_devices[] = {
-	{ "80860F14",	1,	"Intel Bay Trail eMMC 4.5 Controller",
+	{ "80860F14",	1, "Intel Bay Trail/Braswell eMMC 4.5/4.5.1 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
 	    SDHCI_QUIRK_MMC_DDR52 |
 	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
-	{ "80860F14",	3,	"Intel Bay Trail SDXC Controller",
+	{ "80860F14",	3, "Intel Bay Trail/Braswell SDXC Controller",
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
-	{ "80860F16",	0,	"Intel Bay Trail SDXC Controller",
+	{ "80860F16",	0, "Intel Bay Trail/Braswell SDXC Controller",
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ "80865ACA",	0, "Intel Apollo Lake SDXC Controller",
+	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ "80865ACC",	0, "Intel Apollo Lake eMMC 5.0 Controller",
+	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ NULL, 0, NULL, 0}
 };
@@ -76,6 +88,8 @@ static const struct sdhci_acpi_device {
 static char *sdhci_ids[] = {
 	"80860F14",
 	"80860F16",
+	"80865ACA",
+	"80865ACC",
 	NULL
 };
 
@@ -249,6 +263,11 @@ sdhci_acpi_attach(device_t dev)
 		return (ENOMEM);
 	}
 
+	/* Intel Braswell eMMC 4.5.1 controller quirk */
+	if (strcmp(acpi_dev->hid, "80860F14") == 0 && acpi_dev->uid == 1 &&
+	    SDHCI_READ_4(dev, &sc->slot, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
+	    SDHCI_READ_4(dev, &sc->slot, SDHCI_CAPABILITIES2) == 0x00000807)
+		sc->quirks |= SDHCI_QUIRK_DATA_TIMEOUT_1MHZ;
 	sc->quirks &= ~sdhci_quirk_clear;
 	sc->quirks |= sdhci_quirk_set;
 	sc->slot.quirks = sc->quirks;
