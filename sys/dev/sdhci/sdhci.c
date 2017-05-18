@@ -58,6 +58,12 @@ static int sdhci_debug;
 TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0,
     "Debug level");
+u_int sdhci_quirk_clear = 0;
+SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_clear, CTLFLAG_RWTUN, &sdhci_quirk_clear,
+    0, "Mask of quirks to clear");
+u_int sdhci_quirk_set = 0;
+SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
+    "Mask of quirks to set");
 
 #define	RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))
 #define	RD2(slot, off)	SDHCI_READ_2((slot)->bus, (slot), (off))
@@ -79,6 +85,10 @@ static void sdhci_card_poll(void *);
 static void sdhci_card_task(void *, int);
 
 /* helper routines */
+static void sdhci_dumpregs(struct sdhci_slot *slot);
+static int slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
+    __printflike(2, 3);
+
 #define	SDHCI_LOCK(_slot)		mtx_lock(&(_slot)->mtx)
 #define	SDHCI_UNLOCK(_slot)		mtx_unlock(&(_slot)->mtx)
 #define	SDHCI_LOCK_INIT(_slot) \
@@ -582,7 +592,7 @@ sdhci_card_poll(void *arg)
 int
 sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
-	uint32_t caps, freq;
+	uint32_t caps, caps2, freq, host_caps;
 	int err;
 
 	SDHCI_LOCK_INIT(slot);
@@ -626,10 +636,16 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	sdhci_init(slot);
 	slot->version = (RD2(slot, SDHCI_HOST_VERSION)
 		>> SDHCI_SPEC_VER_SHIFT) & SDHCI_SPEC_VER_MASK;
-	if (slot->quirks & SDHCI_QUIRK_MISSING_CAPS)
+	if (slot->quirks & SDHCI_QUIRK_MISSING_CAPS) {
 		caps = slot->caps;
-	else
+		caps2 = slot->caps2;
+	} else {
 		caps = RD4(slot, SDHCI_CAPABILITIES);
+		if (slot->version >= SDHCI_SPEC_300)
+			caps2 = RD4(slot, SDHCI_CAPABILITIES2);
+		else
+			caps2 = 0;
+	}
 	/* Calculate base clock frequency. */
 	if (slot->version >= SDHCI_SPEC_300)
 		freq = (caps & SDHCI_CLOCK_V3_BASE_MASK) >>
@@ -685,15 +701,45 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		device_printf(dev, "Hardware doesn't report any "
 		    "support voltages.\n");
 	}
-	slot->host.caps = MMC_CAP_4_BIT_DATA;
+	host_caps = MMC_CAP_4_BIT_DATA;
 	if (caps & SDHCI_CAN_DO_8BITBUS)
-		slot->host.caps |= MMC_CAP_8_BIT_DATA;
+		host_caps |= MMC_CAP_8_BIT_DATA;
 	if (caps & SDHCI_CAN_DO_HISPD)
-		slot->host.caps |= MMC_CAP_HSPEED;
+		host_caps |= MMC_CAP_HSPEED;
 	if (slot->quirks & SDHCI_QUIRK_BOOT_NOACC)
-		slot->host.caps |= MMC_CAP_BOOT_NOACC;
+		host_caps |= MMC_CAP_BOOT_NOACC;
 	if (slot->quirks & SDHCI_QUIRK_WAIT_WHILE_BUSY)
-		slot->host.caps |= MMC_CAP_WAIT_WHILE_BUSY;
+		host_caps |= MMC_CAP_WAIT_WHILE_BUSY;
+	if (caps2 & (SDHCI_CAN_SDR50 | SDHCI_CAN_SDR104 | SDHCI_CAN_DDR50))
+		host_caps |= MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25;
+	if (caps2 & SDHCI_CAN_SDR104) {
+		host_caps |= MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_SDR50;
+		if (!(slot->quirks & SDHCI_QUIRK_BROKEN_MMC_HS200))
+			host_caps |= MMC_CAP_MMC_HS200;
+	} else if (caps2 & SDHCI_CAN_SDR50)
+		host_caps |= MMC_CAP_UHS_SDR50;
+	if (caps2 & SDHCI_CAN_DDR50 &&
+	    !(slot->quirks & SDHCI_QUIRK_BROKEN_UHS_DDR50))
+		host_caps |= MMC_CAP_UHS_DDR50;
+	if (slot->quirks & SDHCI_QUIRK_MMC_DDR52)
+		host_caps |= MMC_CAP_MMC_DDR52;
+	if (slot->quirks & SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 &&
+	    caps2 & SDHCI_CAN_MMC_HS400)
+		host_caps |= MMC_CAP_MMC_HS400;
+	host_caps |= MMC_CAP_SIGNALING_330;
+	if (host_caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_DDR50 |
+	    MMC_CAP_MMC_DDR52_180 | MMC_CAP_MMC_HS200_180 |
+	    MMC_CAP_MMC_HS400_180))
+		host_caps |= MMC_CAP_SIGNALING_180;
+	if (caps & SDHCI_CTRL2_DRIVER_TYPE_A)
+		host_caps |= MMC_CAP_DRIVER_TYPE_A;
+	if (caps & SDHCI_CTRL2_DRIVER_TYPE_C)
+		host_caps |= MMC_CAP_DRIVER_TYPE_C;
+	if (caps & SDHCI_CTRL2_DRIVER_TYPE_D)
+		host_caps |= MMC_CAP_DRIVER_TYPE_D;
+	slot->host.caps = host_caps;
+
 	/* Decide if we have usable DMA. */
 	if (caps & SDHCI_CAN_DO_DMA)
 		slot->opt |= SDHCI_HAVE_DMA;
@@ -713,16 +759,39 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		slot->opt &= ~SDHCI_HAVE_DMA;
 
 	if (bootverbose || sdhci_debug) {
-		slot_printf(slot, "%uMHz%s %s%s%s%s %s\n",
+		slot_printf(slot,
+		    "%uMHz%s %s VDD:%s%s%s VCCQ: 3.3V%s%s DRV: B%s%s%s %s\n",
 		    slot->max_clk / 1000000,
 		    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
-		    (slot->host.caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
-			((slot->host.caps & MMC_CAP_4_BIT_DATA) ? "4bits" :
-			"1bit"),
+		    (host_caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
+			((host_caps & MMC_CAP_4_BIT_DATA) ? "4bits" : "1bit"),
 		    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
 		    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
 		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
+		    (host_caps & MMC_CAP_SIGNALING_180) ? " 1.8V" : "",
+		    (host_caps & MMC_CAP_SIGNALING_120) ? " 1.2V" : "",
+		    (caps & SDHCI_CTRL2_DRIVER_TYPE_A) ? "A" : "",
+		    (caps & SDHCI_CTRL2_DRIVER_TYPE_C) ? "C" : "",
+		    (caps & SDHCI_CTRL2_DRIVER_TYPE_D) ? "D" : "",
 		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
+		if (host_caps & (MMC_CAP_MMC_DDR52 | MMC_CAP_MMC_HS200 |
+		    MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE))
+			slot_printf(slot, "eMMC:%s%s%s%s\n",
+			    (host_caps & MMC_CAP_MMC_DDR52) ? " DDR52" : "",
+			    (host_caps & MMC_CAP_MMC_HS200) ? " HS200" : "",
+			    (host_caps & MMC_CAP_MMC_HS400) ? " HS400" : "",
+			    ((host_caps &
+			    (MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE)) ==
+			    (MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE)) ?
+			    " HS400ES" : "");
+		if (host_caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+		    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104))
+			slot_printf(slot, "UHS-I:%s%s%s%s%s\n",
+			    (host_caps & MMC_CAP_UHS_SDR12) ? " SDR12" : "",
+			    (host_caps & MMC_CAP_UHS_SDR25) ? " SDR25" : "",
+			    (host_caps & MMC_CAP_UHS_SDR50) ? " SDR50" : "",
+			    (host_caps & MMC_CAP_UHS_SDR104) ? " SDR104" : "",
+			    (host_caps & MMC_CAP_UHS_DDR50) ? " DDR50" : "");
 		sdhci_dumpregs(slot);
 	}
 
@@ -820,6 +889,38 @@ sdhci_generic_get_card_present(device_t brdev __unused, struct sdhci_slot *slot)
 	return (RD4(slot, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
 }
 
+void
+sdhci_generic_set_uhs_timing(device_t brdev __unused, struct sdhci_slot *slot)
+{
+	struct mmc_ios *ios;
+	uint16_t hostctrl2;
+
+	if (slot->version < SDHCI_SPEC_300)
+		return;
+
+	ios = &slot->host.ios;
+	sdhci_set_clock(slot, 0);
+	hostctrl2 = RD2(slot, SDHCI_HOST_CONTROL2);
+	hostctrl2 &= ~SDHCI_CTRL2_UHS_MASK;
+	if (ios->timing == bus_timing_mmc_hs400 ||
+	    ios->timing == bus_timing_mmc_hs400es)
+		hostctrl2 |= SDHCI_CTRL2_MMC_HS400;
+	else if (ios->clock > SD_SDR50_MAX)
+		hostctrl2 |= SDHCI_CTRL2_UHS_SDR104;
+	else if (ios->clock > SD_SDR25_MAX)
+		hostctrl2 |= SDHCI_CTRL2_UHS_SDR50;
+	else if (ios->clock > SD_SDR12_MAX) {
+		if (ios->timing == bus_timing_uhs_ddr50 ||
+		    ios->timing == bus_timing_mmc_ddr52)
+			hostctrl2 |= SDHCI_CTRL2_UHS_DDR50;
+		else
+			hostctrl2 |= SDHCI_CTRL2_UHS_SDR25;
+	} else if (ios->clock > SD_MMC_CARD_ID_FREQUENCY)
+		hostctrl2 |= SDHCI_CTRL2_UHS_SDR12;
+	WR2(slot, SDHCI_HOST_CONTROL2, hostctrl2);
+	sdhci_set_clock(slot, ios->clock);
+}
+
 int
 sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 {
@@ -847,18 +948,74 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	} else {
 		panic("Invalid bus width: %d", ios->bus_width);
 	}
-	if (ios->timing == bus_timing_hs &&
+	if (ios->clock > SD_SDR12_MAX &&
 	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl);
+	SDHCI_SET_UHS_TIMING(brdev, slot);
 	/* Some controllers like reset after bus changes. */
 	if (slot->quirks & SDHCI_QUIRK_RESET_ON_IOS)
 		sdhci_reset(slot, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
 	SDHCI_UNLOCK(slot);
 	return (0);
+}
+
+int
+sdhci_generic_switch_vccq(device_t brdev __unused, device_t reqdev)
+{
+	struct sdhci_slot *slot = device_get_ivars(reqdev);
+	enum mmc_vccq vccq;
+	int err;
+	uint16_t hostctrl2;
+
+	if (slot->version < SDHCI_SPEC_300)
+		return (0);
+
+	err = 0;
+	vccq = slot->host.ios.vccq;
+	SDHCI_LOCK(slot);
+	sdhci_set_clock(slot, 0);
+	hostctrl2 = RD2(slot, SDHCI_HOST_CONTROL2);
+	switch (vccq) {
+	case vccq_330:
+		if (!(hostctrl2 & SDHCI_CTRL2_S18_ENABLE))
+			goto done;
+		hostctrl2 &= ~SDHCI_CTRL2_S18_ENABLE;
+		WR2(slot, SDHCI_HOST_CONTROL2, hostctrl2);
+		DELAY(5000);
+		hostctrl2 = RD2(slot, SDHCI_HOST_CONTROL2);
+		if (!(hostctrl2 & SDHCI_CTRL2_S18_ENABLE))
+			goto done;
+		err = EAGAIN;
+		break;
+	case vccq_180:
+		if (!(slot->host.caps & MMC_CAP_SIGNALING_180)) {
+			err = EINVAL;
+			goto done;
+		}
+		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
+			goto done;
+		hostctrl2 |= SDHCI_CTRL2_S18_ENABLE;
+		WR2(slot, SDHCI_HOST_CONTROL2, hostctrl2);
+		DELAY(5000);
+		hostctrl2 = RD2(slot, SDHCI_HOST_CONTROL2);
+		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
+			goto done;
+		err = EAGAIN;
+		break;
+	default:
+		slot_printf(slot,
+		    "Attempt to set unsupported signaling voltage\n");
+		err = EINVAL;
+		break;
+	}
+done:
+	sdhci_set_clock(slot, slot->host.ios.clock);
+	SDHCI_UNLOCK(slot);
+	return (err);
 }
 
 static void
@@ -1524,6 +1681,9 @@ sdhci_generic_read_ivar(device_t bus, device_t child, int which,
 	case MMCBR_IVAR_VDD:
 		*result = slot->host.ios.vdd;
 		break;
+	case MMCBR_IVAR_VCCQ:
+		*result = slot->host.ios.vccq;
+		break;
 	case MMCBR_IVAR_CAPS:
 		*result = slot->host.caps;
 		break;
@@ -1599,6 +1759,9 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
 		break;
 	case MMCBR_IVAR_VDD:
 		slot->host.ios.vdd = value;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		slot->host.ios.vccq = value;
 		break;
 	case MMCBR_IVAR_TIMING:
 		slot->host.ios.timing = value;
