@@ -146,10 +146,12 @@ struct sysentvec elf_freebsd_cheriabi_sysvec = {
 	.sv_setregs	= cheriabi_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_CHERI,
+	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_CHERI | SV_SHP,
 	.sv_set_syscall_retval = cheriabi_set_syscall_retval,
 	.sv_fetch_syscall_args = cheriabi_fetch_syscall_args,
 	.sv_syscallnames = cheriabi_syscallnames,
+	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 };
 INIT_SYSENTVEC(cheriabi_sysent, &elf_freebsd_cheriabi_sysvec);

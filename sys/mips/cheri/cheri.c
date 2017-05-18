@@ -248,9 +248,16 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 	uintptr_t base;
 	int szsigcode = *se->sv_szsigcode;
 
-	/* XXX: true for mips64 and mip64-cheriabi... */
-	base = (uintptr_t)se->sv_psstrings - szsigcode;
-	base = rounddown2(base, sizeof(struct chericap));
+	if (se->sv_sigcode_base != 0) {
+		base = se->sv_sigcode_base;
+	} else {
+		/*
+		 * XXX: true for mips64 and mip64-cheriabi without
+		 * shared page support...
+		 */
+		base = (uintptr_t)se->sv_psstrings - szsigcode;
+		base = rounddown2(base, sizeof(struct chericap));
+	}
 
 	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS, (void *)base,
 	    szsigcode, 0);
