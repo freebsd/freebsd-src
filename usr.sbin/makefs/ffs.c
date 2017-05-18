@@ -1065,10 +1065,11 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	struct ufs2_dinode *dp2, *dip;
 	struct cg	*cgp;
 	struct fs	*fs;
-	int		cg, cgino, i;
+	int		cg, cgino;
+	uint32_t	i;
 	daddr_t		d;
 	char		sbbuf[FFS_MAXBSIZE];
-	int32_t		initediblk;
+	uint32_t	initediblk;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (dp != NULL);

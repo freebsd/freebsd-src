@@ -14,7 +14,7 @@ SRCS=	cd9660.c ffs.c \
 	walk.c
 MAN=	makefs.8
 
-WARNS?=	2
+WARNS?=	3
 
 .include "${SRCDIR}/cd9660/Makefile.inc"
 .include "${SRCDIR}/ffs/Makefile.inc"
