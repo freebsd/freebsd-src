@@ -188,6 +188,12 @@ char *arcnames[] = {
 	NULL
 };
 
+int carc_stats[5];
+char *carcnames[] = {
+	"K Compressed, ", "K Uncompressed, ", ":1 Ratio, ", "K Overhead",
+	NULL
+};
+
 int swap_stats[7];
 char *swapnames[] = {
 	"K Total, ", "K Used, ", "K Free, ", "% Inuse, ", "K In, ", "K Out",
@@ -223,6 +229,7 @@ static long total_majflt;
 /* these are for getting the memory statistics */
 
 static int arc_enabled;
+static int carc_enabled;
 static int pageshift;		/* log base 2 of the pagesize */
 
 /* define pagetok in terms of pageshift */
@@ -283,16 +290,18 @@ update_layout(void)
 
 	y_mem = 3;
 	y_arc = 4;
-	y_swap = 4 + arc_enabled;
-	y_idlecursor = 5 + arc_enabled;
-	y_message = 5 + arc_enabled;
-	y_header = 6 + arc_enabled;
-	y_procs = 7 + arc_enabled;
-	Header_lines = 7 + arc_enabled;
+	y_carc = 5;
+	y_swap = 4 + arc_enabled + carc_enabled;
+	y_idlecursor = 5 + arc_enabled + carc_enabled;
+	y_message = 5 + arc_enabled + carc_enabled;
+	y_header = 6 + arc_enabled + carc_enabled;
+	y_procs = 7 + arc_enabled + carc_enabled;
+	Header_lines = 7 + arc_enabled + carc_enabled;
 
 	if (pcpu_stats) {
 		y_mem += ncpus - 1;
 		y_arc += ncpus - 1;
+		y_carc += ncpus - 1;
 		y_swap += ncpus - 1;
 		y_idlecursor += ncpus - 1;
 		y_message += ncpus - 1;
@@ -307,6 +316,7 @@ machine_init(struct statics *statics, char do_unames)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
+	boolean_t carc_en;
 	size_t size;
 	struct passwd *pw;
 
@@ -318,6 +328,10 @@ machine_init(struct statics *statics, char do_unames)
 	    size != sizeof(smpmode))
 		smpmode = 0;
 
+	size = sizeof(carc_en);
+	if (sysctlbyname("vfs.zfs.compressed_arc_enabled", &carc_en, &size,
+	    NULL, 0) == 0 && carc_en == 1)
+		carc_enabled = 1;
 	size = sizeof(arc_size);
 	if (sysctlbyname("kstat.zfs.misc.arcstats.size", &arc_size, &size,
 	    NULL, 0) == 0 && arc_size != 0)
@@ -368,6 +382,10 @@ machine_init(struct statics *statics, char do_unames)
 		statics->arc_names = arcnames;
 	else
 		statics->arc_names = NULL;
+	if (carc_enabled)
+		statics->carc_names = carcnames;
+	else
+		statics->carc_names = NULL;
 	statics->swap_names = swapnames;
 #ifdef ORDER
 	statics->order_names = ordernames;
@@ -558,6 +576,16 @@ get_system_info(struct system_info *si)
 		GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc_stat);
 		arc_stats[5] = arc_stat >> 10;
 		si->arc = arc_stats;
+	}
+	if (carc_enabled) {
+		GETSYSCTL("kstat.zfs.misc.arcstats.compressed_size", arc_stat);
+		carc_stats[0] = arc_stat >> 10;
+		GETSYSCTL("kstat.zfs.misc.arcstats.uncompressed_size", arc_stat);
+		carc_stats[1] = arc_stat >> 10;
+		carc_stats[2] = arc_stats[0]; /* ARC Total */
+		GETSYSCTL("kstat.zfs.misc.arcstats.overhead_size", arc_stat);
+		carc_stats[3] = arc_stat >> 10;
+		si->carc = carc_stats;
 	}
 
 	/* set arrays and strings */
