@@ -200,7 +200,6 @@ struct ifnet {
 		(struct ifnet *, struct vnet *, char *);
 	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
-	void	*if_hw_addr;		/* hardware link-level address */
 	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
@@ -260,7 +259,8 @@ struct ifnet {
 	 */
 	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
 	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
-	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
+	void	*if_pspare[7];		/* 1 netmap, 6 TDB */
+	void	*if_hw_addr;		/* hardware link-level address */
 };
 
 typedef void if_init_f_t(void *);
