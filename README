@@ -87,4 +87,4 @@ usr.sbin	System administration commands.
 For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
-  http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html
+  https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
