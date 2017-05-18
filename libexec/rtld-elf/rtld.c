@@ -5378,7 +5378,8 @@ parse_integer(const char *str)
 	return (n);
 }
 
-void print_usage(const char *argv0)
+static void
+print_usage(const char *argv0)
 {
 
 	rtld_printf("Usage: %s [-h] [-f <FD>] [--] <binary> [<args>]\n"
