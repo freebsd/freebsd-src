@@ -13,8 +13,9 @@ CLEANFILES+=	confstr.c limits.c pathconf.c progenv.c sysconf.c \
 
 all:	conflicts
 
-.gperf.c:
-	LC_ALL=C awk -f ${.CURDIR}/fake-gperf.awk ${.IMPSRC} >${.TARGET}
+FAKE_GPERF=	${.CURDIR}/fake-gperf.awk
+.gperf.c: ${FAKE_GPERF}
+	LC_ALL=C awk -f ${FAKE_GPERF} ${.IMPSRC} >${.TARGET}
 
 .gperf.names:
 	LC_ALL=C awk '/^[_A-Z]/ { print; }' ${.IMPSRC} | \
