@@ -180,13 +180,21 @@
     </sect2>
 
     <sect2>
+      <title>HTTPS</title>
+
+      <para>&os; releases may be downloaded via
+	<acronym>HTTPS</acronym> from <uri
+	  xlink:href="https://download.FreeBSD.org/">https://download.FreeBSD.org/</uri>,
+	which is the official &os; release site.</para>
+    </sect2>
+
+    <sect2>
       <title>FTP</title>
 
       <para>You can use FTP to retrieve &os; and any or all of its
 	optional packages from <uri
 	  xlink:href="ftp://ftp.FreeBSD.org/">ftp://ftp.FreeBSD.org/</uri>,
-	which is the official &os; release site, or any of its
-	<quote>mirrors</quote>.</para>
+	or any of its <quote>mirrors</quote>.</para>
 
       <para>Lists of locations that mirror &os; can be found in the
 	<link xlink:href="&url.books.handbook;/mirrors-ftp.html">FTP
