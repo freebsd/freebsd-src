@@ -493,7 +493,7 @@
 
       <para revision="311506" contrib="sponsor"
 	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
-	to firmware version 1.16.26.0.</para>
+	to firmware version 1.16.26.0 for T4, T5, and T6 cards.</para>
 
       <para revision="312358">The &man.alc.4; driver has been updated
 	to provide support for Atheros&reg; Killer&nbsp;E2400&trade;
