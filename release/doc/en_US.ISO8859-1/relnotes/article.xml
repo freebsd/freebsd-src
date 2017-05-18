@@ -491,6 +491,10 @@
 	providing support for Broadcom&reg; NetXtreme-C&trade; and
 	NetXtreme-E&trade; devices.</para>
 
+      <para revision="311506" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.26.0.</para>
+
       <para revision="317116">The &man.qlnxe.4; driver has been added,
 	providing support for Cavium&reg; Qlogic&trade; 45000 Series
 	adapters.</para>
