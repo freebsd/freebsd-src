@@ -61,6 +61,10 @@ typedef uint16_t	__u16;
 typedef uint32_t	__u32;
 typedef uint64_t	__u64;
 
+#define POOL_FILE_MODE	(S_IRUSR | S_IWUSR)
+#define POOL_DIR_MODE	(POOL_FILE_MODE | S_IXUSR)
+#define POOL_DIR	"/var/db/hyperv/pool"
+
 /*
  * ENUM Data
  */
@@ -285,11 +289,12 @@ kvp_file_init(void)
 	int i;
 	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
 
-	if (mkdir("/var/db/hyperv/pool", S_IRUSR | S_IWUSR | S_IROTH) < 0 &&
+	if (mkdir(POOL_DIR, POOL_DIR_MODE) < 0 &&
 	    (errno != EEXIST && errno != EISDIR)) {
 		KVP_LOG(LOG_ERR, " Failed to create /var/db/hyperv/pool\n");
 		exit(EXIT_FAILURE);
 	}
+	chmod(POOL_DIR, POOL_DIR_MODE); /* fix old mistake */
 
 	for (i = 0; i < HV_KVP_POOL_COUNT; i++)
 	{
@@ -297,11 +302,12 @@ kvp_file_init(void)
 		records_read = 0;
 		num_blocks = 1;
 		snprintf(fname, MAX_FILE_NAME, "/var/db/hyperv/pool/.kvp_pool_%d", i);
-		fd = open(fname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IROTH);
+		fd = open(fname, O_RDWR | O_CREAT, POOL_FILE_MODE);
 
 		if (fd == -1) {
 			return (1);
 		}
+		fchmod(fd, POOL_FILE_MODE); /* fix old mistake */
 
 
 		filep = fopen(fname, "r");
