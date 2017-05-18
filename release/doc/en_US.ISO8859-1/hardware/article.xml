@@ -555,7 +555,7 @@
       </itemizedlist>
 
       <para>The following Sun &ultrasparc; systems are not tested but
-	believed to be also supported by &os;:</para>
+	believed to also be supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
@@ -581,7 +581,7 @@
       </itemizedlist>
 
       <para>The following Fujitsu &primepower; systems are not tested
-	but believed to be also supported by &os;:</para>
+	but believed to also be supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
@@ -620,11 +620,11 @@
   is highly recommended to try to keep the formatting of
   this section consistent.
 
-  We give manpage references using the &man entities where
-  possible.  If a driver has no manpage (and consequently no
+  We give manual page references using the &man entities where
+  possible.  If a driver has no manual page (and consequently no
   &man entity, we simply give the name of the driver).
   Please avoid doing &man entity conversions unless you
-  know for sure that an entity and manpage exist; sweeps through
+  know for sure that an entity and manual page exist; sweeps through
   this file to fix "missed" conversions are likely to break the
   build.
   -->
