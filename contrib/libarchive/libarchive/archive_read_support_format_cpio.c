@@ -165,7 +165,7 @@ __FBSDID("$FreeBSD$");
 struct links_entry {
         struct links_entry      *next;
         struct links_entry      *previous;
-        int                      links;
+        unsigned int             links;
         dev_t                    dev;
         int64_t                  ino;
         char                    *name;
