@@ -125,6 +125,7 @@ void (*d_procstates)() = i_procstates;
 void (*d_cpustates)() = i_cpustates;
 void (*d_memory)() = i_memory;
 void (*d_arc)() = i_arc;
+void (*d_carc)() = i_carc;
 void (*d_swap)() = i_swap;
 void (*d_message)() = i_message;
 void (*d_header)() = i_header;
@@ -658,6 +659,7 @@ restart:
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
 	(*d_arc)(system_info.arc);
+	(*d_carc)(system_info.carc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -724,6 +726,7 @@ restart:
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
 		    d_arc = u_arc;
+		    d_carc = u_carc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -1190,6 +1193,7 @@ reset_display()
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
     d_arc        = i_arc;
+    d_carc       = i_carc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;

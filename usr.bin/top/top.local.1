@@ -2,9 +2,10 @@
 .SH "FreeBSD NOTES"
 
 .SH DESCRIPTION OF MEMORY
-Mem: 9220K Active, 1M Inact, 3284K Wired, 1M Cache, 2M Buf, 1320K Free
-ARC: 2048K Total, 342K MRU, 760K MFU, 272K Anon, 232K Header, 442K Other
-Swap: 91M Total, 79M Free, 13% Inuse, 80K In, 104K Out
+Mem: 61M Active, 86M Inact, 22G Wired, 1M Cache, 2M Buf, 102G Free
+ARC: 15G Total, 9303M MFU, 6155M MRU, 1464K Anon, 98M Header, 35M Other
+     15G Compressed, 27G Uncompressed, 1.75:1 Ratio, 174M Overhead
+Swap: 4096M Total, 532M Free, 13% Inuse, 80K In, 104K Out
 .TP
 .B K:
 Kilobyte
@@ -55,8 +56,20 @@ number of ARC bytes holding in flight data
 .B Header:
 number of ARC bytes holding headers
 .TP
-.B Other
+.B Other:
 miscellaneous ARC bytes
+.TP
+.B Compressed:
+bytes of memory used by ARC caches
+.TP
+.B Uncompressed:
+bytes of data stored in ARC caches before compression
+.TP
+.B Ratio:
+ratio of uncompressed data to total ARC size
+.TP
+.B Overhead:
+amount of overhead from ARC compression
 .SS Swap Stats
 .TP
 .B Total:

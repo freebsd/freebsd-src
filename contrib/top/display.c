@@ -69,6 +69,7 @@ static char **procstate_names;
 static char **cpustate_names;
 static char **memory_names;
 static char **arc_names;
+static char **carc_names;
 static char **swap_names;
 
 static int num_procstates;
@@ -105,6 +106,8 @@ int  x_mem =		5;
 int  y_mem =		3;
 int  x_arc =		5;
 int  y_arc =		4;
+int  x_carc =		5;
+int  y_carc =		5;
 int  x_swap =		6;
 int  y_swap =		4;
 int  y_message =	5;
@@ -222,6 +225,7 @@ struct statics *statics;
 	lmemory = (int *)malloc(num_memory * sizeof(int));
 
 	arc_names = statics->arc_names;
+	carc_names = statics->carc_names;
 	
 	/* calculate starting columns where needed */
 	cpustate_total_length = 0;
@@ -684,6 +688,47 @@ int *stats;
     line_update(arc_buffer, new, x_arc, y_arc);
 }
 
+
+/*
+ *  *_carc(stats) - print "Compressed ARC: " followed by the summary string
+ *
+ *  Assumptions:  cursor is on "lastline"
+ *                for i_carc ONLY: cursor is on the previous line
+ */
+char carc_buffer[MAX_COLS];
+
+void
+i_carc(stats)
+
+int *stats;
+
+{
+    if (carc_names == NULL)
+	return;
+
+    fputs("\n     ", stdout);
+    lastline++;
+
+    /* format and print the memory summary */
+    summary_format(carc_buffer, stats, carc_names);
+    fputs(carc_buffer, stdout);
+}
+
+void
+u_carc(stats)
+
+int *stats;
+
+{
+    static char new[MAX_COLS];
+
+    if (carc_names == NULL)
+	return;
+
+    /* format the new line */
+    summary_format(new, stats, carc_names);
+    line_update(carc_buffer, new, x_carc, y_carc);
+}
  
 /*
  *  *_swap(stats) - print "Swap: " followed by the swap summary string
@@ -1174,6 +1219,7 @@ register char **names;
     register int num;
     register char *thisname;
     register int useM = No;
+    char rbuf[6];
 
     /* format each number followed by its string */
     p = str;
@@ -1193,6 +1239,14 @@ register char **names;
 
 		/* skip over the K, since it was included by format_k */
 		p = strecpy(p, thisname+1);
+	    }
+	    /* is this number a ratio? */
+	    else if (thisname[0] == ':')
+	    {
+		(void) snprintf(rbuf, sizeof(rbuf), "%.2f", 
+		    (float)*(numbers - 2) / (float)num);
+		p = strecpy(p, rbuf);
+		p = strecpy(p, thisname);
 	    }
 	    else
 	    {
