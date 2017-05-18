@@ -123,7 +123,8 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 
 	if (lbn < UFS_NDADDR) {
 		nb = ufs_rw32(ip->i_ffs1_db[lbn], needswap);
-		if (nb != 0 && ip->i_ffs1_size >= lblktosize(fs, lbn + 1)) {
+		if (nb != 0 && ip->i_ffs1_size >=
+		    (uint64_t)lblktosize(fs, lbn + 1)) {
 
 			/*
 			 * The block is an already-allocated direct block
@@ -178,7 +179,7 @@ ffs_balloc_ufs1(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			 * allocate a new block or fragment.
 			 */
 
-			if (ip->i_ffs1_size < lblktosize(fs, lbn + 1))
+			if (ip->i_ffs1_size < (uint64_t)lblktosize(fs, lbn + 1))
 				nsize = fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
@@ -373,7 +374,8 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 
 	if (lbn < UFS_NDADDR) {
 		nb = ufs_rw64(ip->i_ffs2_db[lbn], needswap);
-		if (nb != 0 && ip->i_ffs2_size >= lblktosize(fs, lbn + 1)) {
+		if (nb != 0 && ip->i_ffs2_size >=
+		    (uint64_t)lblktosize(fs, lbn + 1)) {
 
 			/*
 			 * The block is an already-allocated direct block
@@ -428,7 +430,7 @@ ffs_balloc_ufs2(struct inode *ip, off_t offset, int bufsize, struct buf **bpp)
 			 * allocate a new block or fragment.
 			 */
 
-			if (ip->i_ffs2_size < lblktosize(fs, lbn + 1))
+			if (ip->i_ffs2_size < (uint64_t)lblktosize(fs, lbn + 1))
 				nsize = fragroundup(fs, size);
 			else
 				nsize = fs->fs_bsize;
