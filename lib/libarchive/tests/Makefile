@@ -194,6 +194,7 @@ TESTS_SRCS= \
 	test_read_format_zip_traditional_encryption_data.c	\
 	test_read_format_zip_winzip_aes.c	\
 	test_read_format_zip_winzip_aes_large.c	\
+	test_read_format_zip_with_invalid_traditional_eocd.c	\
 	test_read_format_zip_zip64.c		\
 	test_read_large.c			\
 	test_read_pax_truncated.c		\
@@ -541,6 +542,7 @@ FILES+=	test_read_format_zip_sfx.uu
 FILES+=	test_read_format_zip_symlink.zip.uu
 FILES+=	test_read_format_zip_traditional_encryption_data.zip.uu
 FILES+=	test_read_format_zip_ux.zip.uu
+FILES+=	test_read_format_zip_with_invalid_traditional_eocd.zip.uu
 FILES+=	test_read_format_zip_winzip_aes128.zip.uu
 FILES+=	test_read_format_zip_winzip_aes256.zip.uu
 FILES+=	test_read_format_zip_winzip_aes256_large.zip.uu

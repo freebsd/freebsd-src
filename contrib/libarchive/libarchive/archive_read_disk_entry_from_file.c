@@ -916,11 +916,10 @@ setup_sparse(struct archive_read_disk *a,
 		return (ARCHIVE_OK);
 
 	/* Does filesystem support the reporting of hole ? */
-	if (*fd < 0) {
+	if (*fd < 0)
 		path = archive_read_disk_entry_setup_path(a, entry, fd);
-		if (path == NULL)
-			return (ARCHIVE_FAILED);
-	}
+	else
+		path = NULL;
 
 	if (*fd >= 0) {
 #ifdef _PC_MIN_HOLE_SIZE
@@ -931,6 +930,8 @@ setup_sparse(struct archive_read_disk *a,
 		if (initial_off != 0)
 			lseek(*fd, 0, SEEK_SET);
 	} else {
+		if (path == NULL)
+			return (ARCHIVE_FAILED);
 #ifdef _PC_MIN_HOLE_SIZE
 		if (pathconf(path, _PC_MIN_HOLE_SIZE) <= 0)
 			return (ARCHIVE_OK);

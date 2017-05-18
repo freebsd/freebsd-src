@@ -141,13 +141,19 @@ typedef struct _U32_S { U32 v; } _PACKED U32_S;
 #  pragma pack(pop)
 #endif
 
-#define A32(x) (((const U32_S *)(x))->v)
-
 
 /****************************************
 ** Compiler-specific Functions and Macros
 *****************************************/
-#define GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
+#define GCC_VERSION ((__GNUC__-0) * 100 + (__GNUC_MINOR__ - 0))
+
+#if GCC_VERSION >= 409
+__attribute__((__no_sanitize_undefined__))
+#endif
+static inline U32 A32(const void * x)
+{
+    return (((const U32_S *)(x))->v);
+}
 
 /* Note : although _rotl exists for minGW (GCC under windows), performance seems poor */
 #if defined(_MSC_VER)

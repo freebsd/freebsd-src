@@ -38,7 +38,7 @@ DEFINE_TEST(test_option_z)
 	r = systemf("echo f | %s -oz >archive.out 2>archive.err",
 	    testprog);
 	p = slurpfile(&s, "archive.err");
-	p[s] = '\0';
+	free(p);
 	if (r != 0) {
 		if (!canGzip()) {
 			skipping("gzip is not supported on this platform");
@@ -52,4 +52,5 @@ DEFINE_TEST(test_option_z)
 	p = slurpfile(&s, "archive.out");
 	assert(s > 4);
 	assertEqualMem(p, "\x1f\x8b\x08\x00", 4);
+	free(p);
 }
