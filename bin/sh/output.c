@@ -73,7 +73,7 @@ static int doformat_wr(void *, const char *, int);
 
 struct output output = {NULL, NULL, NULL, OUTBUFSIZ, 1, 0};
 struct output errout = {NULL, NULL, NULL, 256, 2, 0};
-struct output memout = {NULL, NULL, NULL, 0, MEM_OUT, 0};
+struct output memout = {NULL, NULL, NULL, 64, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
 
@@ -208,7 +208,7 @@ outbin(const void *data, size_t len, struct output *file)
 void
 emptyoutbuf(struct output *dest)
 {
-	int offset;
+	int offset, newsize;
 
 	if (dest->buf == NULL) {
 		INTOFF;
@@ -218,10 +218,11 @@ emptyoutbuf(struct output *dest)
 		INTON;
 	} else if (dest->fd == MEM_OUT) {
 		offset = dest->nextc - dest->buf;
+		newsize = dest->bufsize << 1;
 		INTOFF;
-		dest->bufsize <<= 1;
-		dest->buf = ckrealloc(dest->buf, dest->bufsize);
-		dest->bufend = dest->buf + dest->bufsize;
+		dest->buf = ckrealloc(dest->buf, newsize);
+		dest->bufsize = newsize;
+		dest->bufend = dest->buf + newsize;
 		dest->nextc = dest->buf + offset;
 		INTON;
 	} else {
