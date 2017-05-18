@@ -314,7 +314,9 @@
     <sect2 xml:id="userland-installer">
       <title>Installation and Configuration Tools</title>
 
-      <para>&nbsp;</para>
+      <para revision="311686">The &man.bsdinstall.8; installer has
+	been updated to include support for hidden wireless networks
+	when configuring the &man.wlan.4; interface.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
