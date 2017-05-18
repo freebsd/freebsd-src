@@ -529,6 +529,12 @@
 	userland environments when the kernel configuration file has
 	the <literal>COMPAT_CLOUDABI32</literal> option
 	present.</para>
+
+      <para revision="307576">The &man.atkbdc.4; driver has been
+	updated to provide support for Elantech&reg; trackpads.  To
+	enable hardware support, add
+	<literal>hw.psm.elantech_support=1</literal> to
+	&man.loader.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
