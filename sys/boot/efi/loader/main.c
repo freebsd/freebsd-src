@@ -314,7 +314,7 @@ main(int argc, CHAR16 *argv[])
 						} else {
 							cpy16to8(&argv[i + 1][0], var,
 							    sizeof(var));
-							setenv("comconsole_speedspeed", var, 1);
+							setenv("comconsole_speed", var, 1);
 						}
 						i++;
 						break;
