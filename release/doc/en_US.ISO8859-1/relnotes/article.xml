@@ -488,6 +488,17 @@
       <para revision="308942">The &man.bytgpio.4; driver has been
 	added, providing support for Intel&reg; Bay&nbsp;Trail&trade;
 	SoC GPIO controllers.</para>
+
+      <para revision="312394"><filename>/dev/kmem</filename> no longer
+	supports access via <function>mmap()</function>.  Consumers
+	wishing to use <filename>/dev/kmem</filename> must use
+	<function>read()</function> and
+	<function>write()</function>.</para>
+
+      <para revision="306533" contrib="sponsor"
+	sponsor="&chelsio;">&man.devctl.8; now supports a &quot;clear
+	driver&quot; command as a complement to &quot;set
+	driver&quot;.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
