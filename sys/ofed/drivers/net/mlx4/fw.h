@@ -144,6 +144,7 @@ struct mlx4_func_cap {
 	u8	physical_port;
 	u8	port_flags;
 	u8	def_counter_index;
+	u8	extra_flags;
 };
 
 struct mlx4_adapter {
