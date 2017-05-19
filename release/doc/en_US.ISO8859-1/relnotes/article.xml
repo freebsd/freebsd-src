@@ -633,7 +633,7 @@
 	sponsor="&dellemc;">The network stack has been modified to fix
 	incorrect or invalid <acronym>IP</acronym> addresses if
 	multiple threads emit a <acronym>UDP</acronym>
-	<literal>log_in_vein</literal> message concurrently.</para>
+	<literal>log_in_vain</literal> message concurrently.</para>
 
       <para revision="317386" contrib="sponsor"
 	sponsor="&multiplay;">The <acronym>TCP</acronym> stack has
