@@ -362,6 +362,9 @@
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
 
+      <para revision="309258">The type <literal>max_align_t</literal>
+	is now defined for C11 compliance.</para>
+
       <para revision="315274" contrib="sponsor"
 	sponsor="&dellemc;">The
 	<function>sem_clockwait_np()</function> library function has
