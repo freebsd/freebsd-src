@@ -46,7 +46,7 @@ typedef int		 cmp_t(void *, const void *, const void *);
 typedef int		 cmp_t(const void *, const void *);
 #endif
 static inline char	*med3(char *, char *, char *, cmp_t *, void *);
-static inline void	 swapfunc(char *, char *, int, int, int);
+static inline void	 swapfunc(char *, char *, size_t, int, int);
 
 #define	MIN(a, b)	((a) < (b) ? a : b)
 
@@ -54,7 +54,7 @@ static inline void	 swapfunc(char *, char *, int, int, int);
  * Qsort routine from Bentley & McIlroy's "Engineering a Sort Function".
  */
 #define	swapcode(TYPE, parmi, parmj, n) {		\
-	long i = (n) / sizeof (TYPE);			\
+	size_t i = (n) / sizeof (TYPE);			\
 	TYPE *pi = (TYPE *) (parmi);		\
 	TYPE *pj = (TYPE *) (parmj);		\
 	do { 						\
@@ -69,7 +69,7 @@ static inline void	 swapfunc(char *, char *, int, int, int);
 	es % sizeof(TYPE) ? 2 : es == sizeof(TYPE) ? 0 : 1;
 
 static inline void
-swapfunc( char *a, char *b, int n, int swaptype_big_primitive_type, int swaptype_int)
+swapfunc( char *a, char *b, size_t n, int swaptype_big_primitive_type, int swaptype_int)
 {
 	if (swaptype_big_primitive_type <= 1)
 		swapcode(big_primitive_type, a, b, n)
