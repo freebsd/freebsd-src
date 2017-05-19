@@ -333,6 +333,13 @@
       <title><filename class="directory">/etc/periodic</filename>
 	Scripts</title>
 
+      <para revision="317373">The default &man.periodic.conf.5; has
+	been updated to include the
+	<literal>anticongestion_sleeptime</literal> option,
+	consolidating random sleeps in &man.periodic.8; scripts and
+	replacing the <literal>daily_ntpd_avoid_congestion</literal>
+	option.  The default value is 3600 seconds.</para>
+
       <para revision="317857">The <filename>410.status-mfi</filename>
 	&man.periodic.8; script has been added to monitor the status
 	of &man.mfi.4; volumes.</para>
