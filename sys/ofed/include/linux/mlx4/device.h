@@ -199,6 +199,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  23,
 	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1LL << 24,
 	MLX4_DEV_CAP_FLAG2_RX_CSUM_MODE		= 1LL <<  25,
+	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  26,
 };
 
 /* bit enums for an 8-bit flags field indicating special use
@@ -490,6 +491,7 @@ struct mlx4_caps {
 	int			num_cqs;
 	int			max_cqes;
 	int			reserved_cqs;
+	int			num_sys_eqs;
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
