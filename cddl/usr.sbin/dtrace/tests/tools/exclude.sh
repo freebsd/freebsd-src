@@ -139,11 +139,6 @@ exclude EXFAIL common/pid/tst.newprobes.ksh
 exclude EXFAIL common/pid/tst.provregex2.ksh
 exclude EXFAIL common/pid/tst.provregex4.ksh
 
-# libproc doesn't properly handle probe sites that correspond to multiple
-# symbols.
-exclude EXFAIL common/pid/tst.weak1.d
-exclude EXFAIL common/pid/tst.weak2.d
-
 # This test checks for a leading tab on a line before #define. That is illegal
 # on Solaris, but the clang pre-processor on FreeBSD is happy with code like
 # that.
