@@ -388,7 +388,7 @@
 	&man.vfork.2; invocations.</para>
 
       <para revision="306786">Process core dumps now include the
-	process ID (<acronym>PID</acronym> and command line
+	process ID (<acronym>PID</acronym>) and command line
 	arguments.</para>
     </sect2>
   </sect1>
