@@ -431,13 +431,21 @@ out_fail:
 	return (err);
 }
 
-static __inline void
+static __inline int
 e6000sw_poll_done(e6000sw_softc_t *sc)
 {
+	int i;
 
-	while (e6000sw_readreg(sc, REG_GLOBAL2, PHY_CMD) &
-	    (1 << PHY_CMD_SMI_BUSY))
-		continue;
+	for (i = 0; i < 16; i++) {
+
+		if (!(e6000sw_readreg(sc, REG_GLOBAL2, PHY_CMD) &
+		    (1 << PHY_CMD_SMI_BUSY)))
+			return (0);
+
+		pause("e6000sw PHY poll", hz/1000);
+	}
+
+	return (ETIMEDOUT);
 }
 
 /*
@@ -449,6 +457,7 @@ e6000sw_readphy(device_t dev, int phy, int reg)
 {
 	e6000sw_softc_t *sc;
 	uint32_t val;
+	int err;
 
 	sc = device_get_softc(dev);
 	val = 0;
@@ -460,14 +469,25 @@ e6000sw_readphy(device_t dev, int phy, int reg)
 
 	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
-	e6000sw_poll_done(sc);
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val |= 1 << PHY_CMD_SMI_BUSY;
 	val |= PHY_CMD_MODE_MDIO << PHY_CMD_MODE;
 	val |= PHY_CMD_OPCODE_READ << PHY_CMD_OPCODE;
 	val |= (reg << PHY_CMD_REG_ADDR) & PHY_CMD_REG_ADDR_MASK;
 	val |= (phy << PHY_CMD_DEV_ADDR) & PHY_CMD_DEV_ADDR_MASK;
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG, val);
-	e6000sw_poll_done(sc);
+
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val = e6000sw_readreg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG)
 		& PHY_DATA_MASK;
 
@@ -479,6 +499,7 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 {
 	e6000sw_softc_t *sc;
 	uint32_t val;
+	int err;
 
 	sc = device_get_softc(dev);
 	val = 0;
@@ -490,7 +511,12 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 
 	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
-	e6000sw_poll_done(sc);
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val |= PHY_CMD_MODE_MDIO << PHY_CMD_MODE;
 	val |= 1 << PHY_CMD_SMI_BUSY;
 	val |= PHY_CMD_OPCODE_WRITE << PHY_CMD_OPCODE;
@@ -499,7 +525,12 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG,
 			 data & PHY_DATA_MASK);
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG, val);
-	e6000sw_poll_done(sc);
+
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
 
 	return (0);
 }
