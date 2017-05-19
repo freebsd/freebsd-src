@@ -29,7 +29,7 @@
 # when going to single-user mode.
 console	none				unknown	off secure
 #
-ttyv0	"/usr/libexec/getty Pc"		xterm	on  secure
+ttyv0	"/usr/libexec/getty Pc"		xterm	onifexists  secure
 # Virtual terminals
 ttyv1	"/usr/libexec/getty Pc"		xterm	off secure
 ttyv2	"/usr/libexec/getty Pc"		xterm	off secure
@@ -46,6 +46,6 @@ ttyu1	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 ttyu2	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 ttyu3	"/usr/libexec/getty 3wire"	vt100	onifconsole secure
 # Altera JTAG UART
-ttyj0	"/usr/libexec/getty std.115200"	xterm	on  secure
-ttyj1	"/usr/libexec/getty std.115200"	xterm	on  secure
-ttyj2	"/usr/libexec/getty std.115200"	xterm	on  secure
+ttyj0	"/usr/libexec/getty std.115200"	xterm	onifexists  secure
+ttyj1	"/usr/libexec/getty std.115200"	xterm	onifexists  secure
+ttyj2	"/usr/libexec/getty std.115200"	xterm	onifexists  secure
