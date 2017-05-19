@@ -44,7 +44,7 @@ int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout) __hidden;
-int __thr_umutex_unlock(struct umutex *mtx, uint32_t id) __hidden;
+int __thr_umutex_unlock(struct umutex *mtx) __hidden;
 int __thr_umutex_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
@@ -155,7 +155,7 @@ _thr_umutex_unlock2(struct umutex *mtx, uint32_t id, int *defer)
 		if (atomic_cmpset_rel_32(&mtx->m_owner, id, noncst ?
 		    UMUTEX_RB_NOTRECOV : UMUTEX_UNOWNED))
 			return (0);
-		return (__thr_umutex_unlock(mtx, id));
+		return (__thr_umutex_unlock(mtx));
 	}
 
 	do {
