@@ -89,7 +89,7 @@ typedef struct e6000sw_softc {
 	char			*ifname[E6000SW_MAX_PORTS];
 	device_t		miibus[E6000SW_MAX_PORTS];
 	struct mii_data		*mii[E6000SW_MAX_PORTS];
-	struct callout		tick_callout;
+	struct proc		*kproc;
 
 	uint32_t		cpuports_mask;
 	uint32_t		fixed_mask;
@@ -148,8 +148,6 @@ static __inline int e6000sw_is_fixedport(e6000sw_softc_t *sc, int port);
 static __inline int e6000sw_is_phyport(e6000sw_softc_t *sc, int port);
 static __inline struct mii_data *e6000sw_miiforphy(e6000sw_softc_t *sc,
     unsigned int phy);
-
-static struct proc *e6000sw_kproc;
 
 static device_method_t e6000sw_methods[] = {
 	/* device interface */
@@ -419,8 +417,7 @@ e6000sw_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
-	kproc_create(e6000sw_tick, sc, &e6000sw_kproc, 0, 0,
-	    "e6000sw tick kproc");
+	kproc_create(e6000sw_tick, sc, &sc->kproc, 0, 0, "e6000sw tick kproc");
 
 	return (0);
 
@@ -1010,23 +1007,65 @@ e6000sw_get_pvid(e6000sw_softc_t *sc, int port, int *pvid)
 	return (0);
 }
 
+/*
+ * Convert port status to ifmedia.
+ */
+static void
+e6000sw_update_ifmedia(uint16_t portstatus, u_int *media_status, u_int *media_active)
+{
+	*media_active = IFM_ETHER;
+	*media_status = IFM_AVALID;
+
+	if ((portstatus & PORT_STATUS_LINK_MASK) != 0)
+		*media_status |= IFM_ACTIVE;
+	else {
+		*media_active |= IFM_NONE;
+		return;
+	}
+
+	switch (portstatus & PORT_STATUS_SPEED_MASK) {
+	case PORT_STATUS_SPEED_10:
+		*media_active |= IFM_10_T;
+		break;
+	case PORT_STATUS_SPEED_100:
+		*media_active |= IFM_100_TX;
+		break;
+	case PORT_STATUS_SPEED_1000:
+		*media_active |= IFM_1000_T;
+		break;
+	}
+
+	if ((portstatus & PORT_STATUS_DUPLEX_MASK) == 0)
+		*media_active |= IFM_FDX;
+	else
+		*media_active |= IFM_HDX;
+}
+
 static void
 e6000sw_tick (void *arg)
 {
 	e6000sw_softc_t *sc;
 	struct mii_softc *miisc;
+	uint16_t portstatus;
 	int port;
 
 	sc = arg;
 
 	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+
 	for (;;) {
 		E6000SW_LOCK(sc);
 		for (port = 0; port < sc->num_ports; port++) {
 			/* Tick only on PHY ports */
 			if (!e6000sw_is_phyport(sc, port))
 				continue;
-			mii_tick(sc->mii[port]);
+
+			portstatus = e6000sw_readreg(sc, REG_PORT(port), PORT_STATUS);
+
+			e6000sw_update_ifmedia(portstatus,
+			    &sc->mii[port]->mii_media_status,
+			    &sc->mii[port]->mii_media_active);
+
 			LIST_FOREACH(miisc, &sc->mii[port]->mii_phys, mii_list) {
 				if (IFM_INST(sc->mii[port]->mii_media.ifm_cur->ifm_media)
 				    != miisc->mii_inst)
