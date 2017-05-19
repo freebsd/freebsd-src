@@ -56,6 +56,7 @@ struct mlx4_dev_cap {
 	int max_mpts;
 	int reserved_eqs;
 	int max_eqs;
+	int num_sys_eqs;
 	int reserved_mtts;
 	int max_mrw_sz;
 	int reserved_mrws;
@@ -147,6 +148,16 @@ struct mlx4_func_cap {
 	u8	extra_flags;
 };
 
+struct mlx4_func {
+	int	bus;
+	int	device;
+	int	function;
+	int	physical_function;
+	int	rsvd_eqs;
+	int	max_eq;
+	int	rsvd_uars;
+};
+
 struct mlx4_adapter {
 	u16 vsd_vendor_id;
 	char board_id[MLX4_BOARD_ID_LEN];
@@ -174,6 +185,7 @@ struct mlx4_init_hca_param {
 	u8  log_num_srqs;
 	u8  log_num_cqs;
 	u8  log_num_eqs;
+	u16 num_sys_eqs;
 	u8  log_rd_per_qp;
 	u8  log_mc_table_sz;
 	u8  log_mpt_sz;
@@ -226,6 +238,7 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt);
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages);
 int mlx4_NOP(struct mlx4_dev *dev);
 int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg);
+int mlx4_QUERY_FUNC(struct mlx4_dev *dev, struct mlx4_func *func, int slave);
 void mlx4_opreq_action(struct work_struct *work);
 
 #endif /* MLX4_FW_H */

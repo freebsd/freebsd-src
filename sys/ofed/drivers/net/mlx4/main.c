@@ -592,6 +592,29 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
 }
 
+enum {
+	MLX4_QUERY_FUNC_NUM_SYS_EQS = 1 << 0,
+};
+
+static int mlx4_query_func(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
+{
+	int err = 0;
+	struct mlx4_func func;
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+		err = mlx4_QUERY_FUNC(dev, &func, 0);
+		if (err) {
+			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+			return err;
+		}
+		dev_cap->max_eqs = func.max_eq;
+		dev_cap->reserved_eqs = func.rsvd_eqs;
+		dev_cap->reserved_uars = func.rsvd_uars;
+		err |= MLX4_QUERY_FUNC_NUM_SYS_EQS;
+	}
+	return err;
+}
+
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -625,7 +648,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	}
 
 	dev->caps.num_ports	     = dev_cap->num_ports;
-	dev->phys_caps.num_phys_eqs  = MLX4_MAX_EQ_NUM;
+       dev->caps.num_sys_eqs = dev_cap->num_sys_eqs;
+       dev->phys_caps.num_phys_eqs = dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS ?
+                                     dev->caps.num_sys_eqs :
+                                     MLX4_MAX_EQ_NUM;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
 		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
@@ -1476,8 +1502,7 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 	if (err)
 		goto err_srq;
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		  dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.cmpt_table,
 				  cmpt_base +
 				  ((u64) (MLX4_CMPT_TYPE_EQ *
@@ -1539,8 +1564,7 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		   dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
 				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
 				  num_eqs, num_eqs, 0, 0);
@@ -2074,6 +2098,18 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		if (err) {
 			mlx4_err(dev, "INIT_HCA command failed, aborting.\n");
 			goto err_free_icm;
+		}
+
+		if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+			err = mlx4_query_func(dev, dev_cap);
+			if (err < 0) {
+				mlx4_err(dev, "QUERY_FUNC command failed, aborting.\n");
+				goto err_stop_fw;
+			} else if (err & MLX4_QUERY_FUNC_NUM_SYS_EQS) {
+				dev->caps.num_eqs = dev_cap->max_eqs;
+				dev->caps.reserved_eqs = dev_cap->reserved_eqs;
+				dev->caps.reserved_uars = dev_cap->reserved_uars;
+			}
 		}
 
 		/*
@@ -2916,13 +2952,12 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
-	int nreq = min_t(int, dev->caps.num_ports *
-			 min_t(int, num_possible_cpus() + 1, MAX_MSIX_P_PORT)
-				+ MSIX_LEGACY_SZ, MAX_MSIX);
 	int err;
 	int i;
 
 	if (msi_x) {
+		int nreq = dev->caps.num_ports * num_online_cpus() + MSIX_LEGACY_SZ;
+
 		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
 			     nreq);
 
