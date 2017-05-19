@@ -1161,17 +1161,18 @@ xn_rxeof(struct netfront_rxq *rxq)
 	struct mbufq mbufq_rxq, mbufq_errq;
 	int err, work_to_do;
 
+	XN_RX_LOCK_ASSERT(rxq);
+
+	if (!netfront_carrier_ok(np))
+		return;
+
+	/* XXX: there should be some sane limit. */
+	mbufq_init(&mbufq_errq, INT_MAX);
+	mbufq_init(&mbufq_rxq, INT_MAX);
+
+	ifp = np->xn_ifp;
+
 	do {
-		XN_RX_LOCK_ASSERT(rxq);
-		if (!netfront_carrier_ok(np))
-			return;
-
-		/* XXX: there should be some sane limit. */
-		mbufq_init(&mbufq_errq, INT_MAX);
-		mbufq_init(&mbufq_rxq, INT_MAX);
-
-		ifp = np->xn_ifp;
-
 		rp = rxq->ring.sring->rsp_prod;
 		rmb();	/* Ensure we see queued responses up to 'rp'. */
 
@@ -1191,7 +1192,7 @@ xn_rxeof(struct netfront_rxq *rxq)
 			}
 
 			m->m_pkthdr.rcvif = ifp;
-			if ( rx->flags & NETRXF_data_validated ) {
+			if (rx->flags & NETRXF_data_validated) {
 				/*
 				 * According to mbuf(9) the correct way to tell
 				 * the stack that the checksum of an inbound
@@ -1214,50 +1215,45 @@ xn_rxeof(struct netfront_rxq *rxq)
 			}
 
 			(void )mbufq_enqueue(&mbufq_rxq, m);
-			rxq->ring.rsp_cons = i;
-		}
-
-		mbufq_drain(&mbufq_errq);
-
-		/*
-		 * Process all the mbufs after the remapping is complete.
-		 * Break the mbuf chain first though.
-		 */
-		while ((m = mbufq_dequeue(&mbufq_rxq)) != NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-
-			/* XXX: Do we really need to drop the rx lock? */
-			XN_RX_UNLOCK(rxq);
-#if (defined(INET) || defined(INET6))
-			/* Use LRO if possible */
-			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
-			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
-				/*
-				 * If LRO fails, pass up to the stack
-				 * directly.
-				 */
-				(*ifp->if_input)(ifp, m);
-			}
-#else
-			(*ifp->if_input)(ifp, m);
-#endif
-
-			XN_RX_LOCK(rxq);
 		}
 
 		rxq->ring.rsp_cons = i;
-
-#if (defined(INET) || defined(INET6))
-		/*
-		 * Flush any outstanding LRO work
-		 */
-		tcp_lro_flush_all(lro);
-#endif
 
 		xn_alloc_rx_buffers(rxq);
 
 		RING_FINAL_CHECK_FOR_RESPONSES(&rxq->ring, work_to_do);
 	} while (work_to_do);
+
+	XN_RX_UNLOCK(rxq);
+	mbufq_drain(&mbufq_errq);
+	/*
+	 * Process all the mbufs after the remapping is complete.
+	 * Break the mbuf chain first though.
+	 */
+	while ((m = mbufq_dequeue(&mbufq_rxq)) != NULL) {
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+#if (defined(INET) || defined(INET6))
+		/* Use LRO if possible */
+		if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
+		    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
+			/*
+			 * If LRO fails, pass up to the stack
+			 * directly.
+			 */
+			(*ifp->if_input)(ifp, m);
+		}
+#else
+		(*ifp->if_input)(ifp, m);
+#endif
+	}
+
+#if (defined(INET) || defined(INET6))
+	/*
+	 * Flush any outstanding LRO work
+	 */
+	tcp_lro_flush_all(lro);
+#endif
+	XN_RX_LOCK(rxq);
 }
 
 static void
