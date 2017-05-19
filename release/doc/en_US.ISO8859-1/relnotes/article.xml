@@ -197,8 +197,8 @@
 	default.</para>
 
       <para revision="308914">The &man.zfsbootcfg.8; utility has been
-	added, providing one-time &man.nextboot.8; options for
-	&man.zfsboot.8;.</para>
+	added, providing one-time &man.boot.config.5;-style options
+	for &man.zfsboot.8;.</para>
 
       <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
 	&man.setkey.8; utility has been modified to show the runtime
@@ -348,6 +348,10 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
+      <para revision="316039">The &man.kvm.close.3; function has been
+	updated to return the accumulated error from previous
+	&man.close.2; calls.</para>
+
       <para revision="317618" contrib="sponsor"
 	sponsor="&dellemc;">The <function>clock_nanosleep()</function>
 	system call has been added.  The
@@ -380,10 +384,6 @@
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
-      <para revision="316039">The &man.kvm.close.3; function has been
-	updated to return the accumulated error from previous
-	&man.close.2; calls.</para>
-
       <para revision="317434">The &man.ipf.4; packet filter has been
 	updated to prevent <literal>keep state</literal> from
 	incorrectly implying <literal>keep frags</literal>, matching
@@ -406,6 +406,11 @@
 
     <sect2 xml:id="kernel-modules">
       <title>Kernel Modules</title>
+
+      <para revision="307144">&man.cloudabi.4; has been updated to
+	allow running 32-bit binaries within 64-bit userland
+	environments when the kernel configuration file has the
+	<literal>COMPAT_CLOUDABI32</literal> option present.</para>
 
       <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
 	<literal>ipsec</literal> and <literal>tcpmd5</literal> kernel
@@ -541,12 +546,6 @@
 
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
-
-      <para revision="307144">The &man.cloudabi.4; driver has been
-	updated to allow running 32-bit binaries within 64-bit
-	userland environments when the kernel configuration file has
-	the <literal>COMPAT_CLOUDABI32</literal> option
-	present.</para>
 
       <para revision="307576">The &man.atkbdc.4; driver has been
 	updated to provide support for Elantech&reg; trackpads.  To
