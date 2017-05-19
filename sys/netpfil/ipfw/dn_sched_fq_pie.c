@@ -383,11 +383,16 @@ fq_calculate_drop_prob(void *x)
 	pprms = pst->parms;
 	prob = pst->drop_prob;
 
-	/* calculate current qdelay */
-	if (pprms->flags & PIE_DEPRATEEST_ENABLED) {
+	/* calculate current qdelay using DRE method.
+	 * If TS is used and no data in the queue, reset current_qdelay
+	 * as it stays at last value during dequeue process.
+	*/
+	if (pprms->flags & PIE_DEPRATEEST_ENABLED)
 		pst->current_qdelay = ((uint64_t)q->stats.len_bytes  * pst->avg_dq_time)
 			>> PIE_DQ_THRESHOLD_BITS;
-	}
+	else
+		if (!q->stats.len_bytes)
+			pst->current_qdelay = 0;
 
 	/* calculate drop probability */
 	p = (int64_t)pprms->alpha * 
