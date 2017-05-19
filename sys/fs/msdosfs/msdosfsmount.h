@@ -96,7 +96,7 @@ struct msdosfsmount {
 	u_long pm_fatblocksize;	/* size of fat blocks in bytes */
 	u_long pm_fatblocksec;	/* size of fat blocks in sectors */
 	u_long pm_fatsize;	/* size of fat in bytes */
-	u_int32_t pm_fatmask;	/* mask to use for fat numbers */
+	uint32_t pm_fatmask;	/* mask to use for fat numbers */
 	u_long pm_fsinfo;	/* fsinfo block number */
 	u_long pm_nxtfree;	/* next place to search for a free cluster */
 	u_int pm_fatmult;	/* these 2 values are used in fat */
@@ -108,7 +108,7 @@ struct msdosfsmount {
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
-	u_int32_t pm_nfileno;	/* next 32-bit fileno */
+	uint32_t pm_nfileno;	/* next 32-bit fileno */
 	RB_HEAD(msdosfs_filenotree, msdosfs_fileno)
 	    pm_filenos; /* 64<->32-bit fileno mapping */
 	struct lock pm_fatlock;	/* lockmgr protecting allocations and rb tree */
@@ -240,7 +240,7 @@ struct msdosfs_args {
 	mode_t	mask;		/* file mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
 	int	unused1;	/* unused, was version number */
-	u_int16_t unused2[128];	/* no longer used, was Local->Unicode table */
+	uint16_t unused2[128];	/* no longer used, was Local->Unicode table */
 	char	*cs_win;	/* Windows(Unicode) Charset */
 	char	*cs_dos;	/* DOS Charset */
 	char	*cs_local;	/* Local Charset */

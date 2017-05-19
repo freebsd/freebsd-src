@@ -176,6 +176,8 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	      0, 0, "Optimization (time|space)" },
 	    { 'l', "label", ffs_opts->label, OPT_STRARRAY,
 	      1, sizeof(ffs_opts->label), "UFS label" },
+	    { 's', "softupdates", &ffs_opts->softupdates, OPT_INT32,
+	      0, 1, "enable softupdates" },
 	    { .name = NULL }
 	};
 
@@ -190,6 +192,7 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	ffs_opts->avgfilesize= -1;
 	ffs_opts->avgfpdir= -1;
 	ffs_opts->version = 1;
+	ffs_opts->softupdates = 0;
 
 	fsopts->fs_specific = ffs_opts;
 	fsopts->fs_options = copy_opts(ffs_options);
@@ -1065,10 +1068,11 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	struct ufs2_dinode *dp2, *dip;
 	struct cg	*cgp;
 	struct fs	*fs;
-	int		cg, cgino, i;
+	int		cg, cgino;
+	uint32_t	i;
 	daddr_t		d;
 	char		sbbuf[FFS_MAXBSIZE];
-	int32_t		initediblk;
+	uint32_t	initediblk;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (dp != NULL);

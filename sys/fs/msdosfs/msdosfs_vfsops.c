@@ -398,7 +398,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
 	struct byte_bpb710 *b710;
-	u_int8_t SecPerClust;
+	uint8_t SecPerClust;
 	u_long clusters;
 	int ronly, error;
 	struct g_consumer *cp;

@@ -72,10 +72,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/smp_all.h>
 #endif
 
+#include <dev/nvme/nvme.h>
+
 #include <dev/mpr/mpi/mpi2_type.h>
 #include <dev/mpr/mpi/mpi2.h>
 #include <dev/mpr/mpi/mpi2_ioc.h>
 #include <dev/mpr/mpi/mpi2_sas.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
@@ -477,13 +480,13 @@ mprsas_prepare_volume_remove(struct mprsas_softc *sassc, uint16_t handle)
 }
 
 /*
- * The MPT3 firmware performs debounce on the link to avoid transient link
- * errors and false removals.  When it does decide that link has been lost
- * and a device needs to go away, it expects that the host will perform a
- * target reset and then an op remove.  The reset has the side-effect of
- * aborting any outstanding requests for the device, which is required for
- * the op-remove to succeed.  It's not clear if the host should check for
- * the device coming back alive after the reset.
+ * The firmware performs debounce on the link to avoid transient link errors
+ * and false removals.  When it does decide that link has been lost and a
+ * device needs to go away, it expects that the host will perform a target reset
+ * and then an op remove.  The reset has the side-effect of aborting any
+ * outstanding requests for the device, which is required for the op-remove to
+ * succeed.  It's not clear if the host should check for the device coming back
+ * alive after the reset.
  */
 void
 mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
@@ -705,7 +708,14 @@ mprsas_register_events(struct mpr_softc *sc)
 	setbit(events, MPI2_EVENT_IR_PHYSICAL_DISK);
 	setbit(events, MPI2_EVENT_IR_OPERATION_STATUS);
 	setbit(events, MPI2_EVENT_TEMP_THRESHOLD);
-	setbit(events, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
+	if (sc->facts->MsgVersion >= MPI2_VERSION_02_06) {
+		setbit(events, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
+		if (sc->mpr_flags & MPR_FLAGS_GEN35_IOC) {
+			setbit(events, MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE);
+			setbit(events, MPI2_EVENT_PCIE_ENUMERATION);
+			setbit(events, MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST);
+		}
+	}
 
 	mpr_register_events(sc, events, mprsas_evt_handler, NULL,
 	    &sc->sassc->mprsas_eh);
@@ -1018,6 +1028,7 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		if ((sc->max_io_pages > 0) && (sc->max_io_pages * PAGE_SIZE <
 		    cpi->maxio))
 			cpi->maxio = sc->max_io_pages * PAGE_SIZE;
+		sc->maxio = cpi->maxio;
 		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -1636,7 +1647,7 @@ mprsas_scsiio_timeout(void *data)
 	targ->timeouts++;
 
 	mprsas_log_command(cm, MPR_ERROR, "command timeout %d cm %p target "
-	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm,  targ->tid,
+	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm, targ->tid,
 	    targ->handle);
 	if (targ->encl_level_valid) {
 		mpr_dprint(sc, MPR_ERROR, "At enclosure level %d, slot %d, "
@@ -1680,6 +1691,160 @@ mprsas_scsiio_timeout(void *data)
 	}
 }
 
+/** 
+ * mprsas_build_nvme_unmap - Build Native NVMe DSM command equivalent
+ *			     to SCSI Unmap.
+ * Return 0 - for success,
+ *	  1 - to immediately return back the command with success status to CAM
+ *	  negative value - to fallback to firmware path i.e. issue scsi unmap
+ *			   to FW without any translation.
+ */
+static int
+mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
+    union ccb *ccb, struct mprsas_target *targ)
+{
+	Mpi26NVMeEncapsulatedRequest_t *req = NULL;
+	struct ccb_scsiio *csio;
+	struct unmap_parm_list *plist;
+	struct nvme_dsm_range *nvme_dsm_ranges = NULL;
+	struct nvme_command *c;
+	int i, res;
+	uint16_t ndesc, list_len, data_length;
+	struct mpr_prp_page *prp_page_info;
+	uint64_t nvme_dsm_ranges_dma_handle;
+
+	csio = &ccb->csio;
+#if __FreeBSD_version >= 1100103
+	list_len = (scsiio_cdb_ptr(csio)[7] << 8 | scsiio_cdb_ptr(csio)[8]);
+#else
+	if (csio->ccb_h.flags & CAM_CDB_POINTER) {
+		list_len = (ccb->csio.cdb_io.cdb_ptr[7] << 8 |
+		    ccb->csio.cdb_io.cdb_ptr[8]);
+	} else {
+		list_len = (ccb->csio.cdb_io.cdb_bytes[7] << 8 |
+		    ccb->csio.cdb_io.cdb_bytes[8]);
+	}
+#endif
+	if (!list_len) {
+		mpr_dprint(sc, MPR_ERROR, "Parameter list length is Zero\n");
+		return -EINVAL;
+	}
+
+	plist = malloc(csio->dxfer_len, M_MPR, M_ZERO|M_NOWAIT);
+	if (!plist) {
+		mpr_dprint(sc, MPR_ERROR, "Unable to allocate memory to "
+		    "save UNMAP data\n");
+		return -ENOMEM;
+	}
+
+	/* Copy SCSI unmap data to a local buffer */
+	bcopy(csio->data_ptr, plist, csio->dxfer_len);
+
+	/* return back the unmap command to CAM with success status,
+	 * if number of descripts is zero.
+	 */
+	ndesc = be16toh(plist->unmap_blk_desc_data_len) >> 4;
+	if (!ndesc) {
+		mpr_dprint(sc, MPR_XINFO, "Number of descriptors in "
+		    "UNMAP cmd is Zero\n");
+		res = 1;
+		goto out;
+	}
+
+	data_length = ndesc * sizeof(struct nvme_dsm_range);
+	if (data_length > targ->MDTS) {
+		mpr_dprint(sc, MPR_ERROR, "data length: %d is greater than "
+		    "Device's MDTS: %d\n", data_length, targ->MDTS);
+		res = -EINVAL;
+		goto out;
+	}
+
+	prp_page_info = mpr_alloc_prp_page(sc);
+	KASSERT(prp_page_info != NULL, ("%s: There is no PRP Page for "
+	    "UNMAP command.\n", __func__));
+
+	/*
+	 * Insert the allocated PRP page into the command's PRP page list. This
+	 * will be freed when the command is freed.
+	 */
+	TAILQ_INSERT_TAIL(&cm->cm_prp_page_list, prp_page_info, prp_page_link);
+
+	nvme_dsm_ranges = (struct nvme_dsm_range *)prp_page_info->prp_page;
+	nvme_dsm_ranges_dma_handle = prp_page_info->prp_page_busaddr;
+
+	bzero(nvme_dsm_ranges, data_length);
+
+	/* Convert SCSI unmap's descriptor data to NVMe DSM specific Range data
+	 * for each descriptors contained in SCSI UNMAP data.
+	 */
+	for (i = 0; i < ndesc; i++) {
+		nvme_dsm_ranges[i].length =
+		    htole32(be32toh(plist->desc[i].nlb));
+		nvme_dsm_ranges[i].starting_lba =
+		    htole64(be64toh(plist->desc[i].slba));
+		nvme_dsm_ranges[i].attributes = 0;
+	}
+
+	/* Build MPI2.6's NVMe Encapsulated Request Message */
+	req = (Mpi26NVMeEncapsulatedRequest_t *)cm->cm_req;
+	bzero(req, sizeof(*req));
+	req->DevHandle = htole16(targ->handle);
+	req->Function = MPI2_FUNCTION_NVME_ENCAPSULATED;
+	req->Flags = MPI26_NVME_FLAGS_WRITE;
+	req->ErrorResponseBaseAddress.High =
+	    htole32((uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32));
+	req->ErrorResponseBaseAddress.Low =
+	    htole32(cm->cm_sense_busaddr);
+	req->ErrorResponseAllocationLength =
+	    htole16(sizeof(struct nvme_completion));
+	req->EncapsulatedCommandLength =
+	    htole16(sizeof(struct nvme_command));
+	req->DataLength = htole32(data_length);
+
+	/* Build NVMe DSM command */
+	c = (struct nvme_command *) req->NVMe_Command;
+	c->opc = NVME_OPC_DATASET_MANAGEMENT;
+	c->nsid = htole32(csio->ccb_h.target_lun + 1);
+	c->cdw10 = htole32(ndesc - 1);
+	c->cdw11 = htole32(NVME_DSM_ATTR_DEALLOCATE);
+
+	cm->cm_length = data_length;
+	cm->cm_data = NULL;
+
+	cm->cm_complete = mprsas_scsiio_complete;
+	cm->cm_complete_data = ccb;
+	cm->cm_targ = targ;
+	cm->cm_lun = csio->ccb_h.target_lun;
+	cm->cm_ccb = ccb;
+
+	cm->cm_desc.Default.RequestFlags =
+	    MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED;
+
+#if __FreeBSD_version >= 1000029
+	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    mprsas_scsiio_timeout, cm, 0);
+#else //__FreeBSD_version < 1000029
+	callout_reset(&cm->cm_callout, (ccb->ccb_h.timeout * hz) / 1000,
+	    mprsas_scsiio_timeout, cm);
+#endif //__FreeBSD_version >= 1000029
+
+	targ->issued++;
+	targ->outstanding++;
+	TAILQ_INSERT_TAIL(&targ->commands, cm, cm_link);
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
+
+	mprsas_log_command(cm, MPR_XINFO, "%s cm %p ccb %p outstanding %u\n",
+	    __func__, cm, ccb, targ->outstanding);
+
+	mpr_build_nvme_prp(sc, cm, req, (void *)nvme_dsm_ranges_dma_handle, 0,
+	    data_length);
+	mpr_map_command(sc, cm);
+
+out:
+	free(plist, M_MPR);
+	return 0;
+}
+
 static void
 mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 {
@@ -1689,9 +1854,10 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 	struct mprsas_target *targ;
 	struct mprsas_lun *lun;
 	struct mpr_command *cm;
-	uint8_t i, lba_byte, *ref_tag_addr;
+	uint8_t i, lba_byte, *ref_tag_addr, scsi_opcode;
 	uint16_t eedp_flags;
 	uint32_t mpi_control;
+	int rc;
 
 	sc = sassc->sc;
 	MPR_FUNCTRACE(sc);
@@ -1777,6 +1943,30 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		return;
 	}
 
+	/* For NVME device's issue UNMAP command directly to NVME drives by
+	 * constructing equivalent native NVMe DataSetManagement command.
+	 */
+#if __FreeBSD_version >= 1100103
+	scsi_opcode = scsiio_cdb_ptr(csio)[0];
+#else
+	if (csio->ccb_h.flags & CAM_CDB_POINTER)
+		scsi_opcode = csio->cdb_io.cdb_ptr[0];
+	else
+		scsi_opcode = csio->cdb_io.cdb_bytes[0];
+#endif
+	if (scsi_opcode == UNMAP &&
+	    targ->is_nvme &&
+	    (csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
+		rc = mprsas_build_nvme_unmap(sc, cm, ccb, targ);
+		if (rc == 1) { /* return command to CAM with success status */
+			mpr_free_command(sc, cm);
+			mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
+			xpt_done(ccb);
+			return;
+		} else if (!rc) /* Issued NVMe Encapsulated Request Message */
+			return;
+	}
+
 	req = (MPI2_SCSI_IO_REQUEST *)cm->cm_req;
 	bzero(req, sizeof(*req));
 	req->DevHandle = htole16(targ->handle);
@@ -1849,8 +2039,8 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		bcopy(csio->cdb_io.cdb_ptr, &req->CDB.CDB32[0], csio->cdb_len);
 	else {
 		KASSERT(csio->cdb_len <= IOCDBLEN,
-		    ("cdb_len %d is greater than IOCDBLEN but CAM_CDB_POINTER is not set",
-		     csio->cdb_len));
+		    ("cdb_len %d is greater than IOCDBLEN but CAM_CDB_POINTER "
+		    "is not set", csio->cdb_len));
 		bcopy(csio->cdb_io.cdb_bytes, &req->CDB.CDB32[0],csio->cdb_len);
 	}
 	req->IoFlags = htole16(csio->cdb_len);
@@ -1874,6 +2064,10 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 			eedp_flags |= (MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD);
+			if (sc->mpr_flags & MPR_FLAGS_GEN35_IOC) {
+				eedp_flags |=
+				    MPI25_SCSIIO_EEDPFLAGS_APPTAG_DISABLE_MODE;
+			}
 			req->EEDPFlags = htole16(eedp_flags);
 
 			/*
@@ -1933,11 +2127,15 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		req->IoFlags |= MPI25_SCSIIO_IOFLAGS_FAST_PATH;
 		cm->cm_desc.FastPathSCSIIO.RequestFlags =
 		    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO;
-		cm->cm_desc.FastPathSCSIIO.DevHandle = htole16(targ->handle);
+		if (!sc->atomic_desc_capable) {
+			cm->cm_desc.FastPathSCSIIO.DevHandle =
+			    htole16(targ->handle);
+		}
 	} else {
 		cm->cm_desc.SCSIIO.RequestFlags =
 		    MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
-		cm->cm_desc.SCSIIO.DevHandle = htole16(targ->handle);
+		if (!sc->atomic_desc_capable)
+			cm->cm_desc.SCSIIO.DevHandle = htole16(targ->handle);
 	}
 
 #if __FreeBSD_version >= 1000029
@@ -2160,6 +2358,200 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
 	}
 }
 
+/** mprsas_nvme_trans_status_code
+ *
+ * Convert Native NVMe command error status to
+ * equivalent SCSI error status.
+ *
+ * Returns appropriate scsi_status
+ */
+static u8
+mprsas_nvme_trans_status_code(struct nvme_status nvme_status,
+    struct mpr_command *cm)
+{
+	u8 status = MPI2_SCSI_STATUS_GOOD;
+	int skey, asc, ascq;
+	union ccb *ccb = cm->cm_complete_data;
+	int returned_sense_len;
+
+	status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+	skey = SSD_KEY_ILLEGAL_REQUEST;
+	asc = SCSI_ASC_NO_SENSE;
+	ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+
+	switch (nvme_status.sct) {
+	case NVME_SCT_GENERIC:
+		switch (nvme_status.sc) {
+		case NVME_SC_SUCCESS:
+			status = MPI2_SCSI_STATUS_GOOD;
+			skey = SSD_KEY_NO_SENSE;
+			asc = SCSI_ASC_NO_SENSE;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_INVALID_OPCODE:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_ILLEGAL_COMMAND;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_INVALID_FIELD:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_INVALID_CDB;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_DATA_TRANSFER_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_NO_SENSE;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_ABORTED_POWER_LOSS:
+			status = MPI2_SCSI_STATUS_TASK_ABORTED;
+			skey = SSD_KEY_ABORTED_COMMAND;
+			asc = SCSI_ASC_WARNING;
+			ascq = SCSI_ASCQ_POWER_LOSS_EXPECTED;
+			break;
+		case NVME_SC_INTERNAL_DEVICE_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_HARDWARE_ERROR;
+			asc = SCSI_ASC_INTERNAL_TARGET_FAILURE;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_ABORTED_BY_REQUEST:
+		case NVME_SC_ABORTED_SQ_DELETION:
+		case NVME_SC_ABORTED_FAILED_FUSED:
+		case NVME_SC_ABORTED_MISSING_FUSED:
+			status = MPI2_SCSI_STATUS_TASK_ABORTED;
+			skey = SSD_KEY_ABORTED_COMMAND;
+			asc = SCSI_ASC_NO_SENSE;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_INVALID_NAMESPACE_OR_FORMAT:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_ACCESS_DENIED_INVALID_LUN_ID;
+			ascq = SCSI_ASCQ_INVALID_LUN_ID;
+			break;
+		case NVME_SC_LBA_OUT_OF_RANGE:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_ILLEGAL_BLOCK;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_CAPACITY_EXCEEDED:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_NO_SENSE;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_NAMESPACE_NOT_READY:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_NOT_READY; 
+			asc = SCSI_ASC_LUN_NOT_READY;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		}
+		break;
+	case NVME_SCT_COMMAND_SPECIFIC:
+		switch (nvme_status.sc) {
+		case NVME_SC_INVALID_FORMAT:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_FORMAT_COMMAND_FAILED;
+			ascq = SCSI_ASCQ_FORMAT_COMMAND_FAILED;
+			break;
+		case NVME_SC_CONFLICTING_ATTRIBUTES:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_INVALID_CDB;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		}
+		break;
+	case NVME_SCT_MEDIA_ERROR:
+		switch (nvme_status.sc) {
+		case NVME_SC_WRITE_FAULTS:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_PERIPHERAL_DEV_WRITE_FAULT;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_UNRECOVERED_READ_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_UNRECOVERED_READ_ERROR;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_GUARD_CHECK_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_LOG_BLOCK_GUARD_CHECK_FAILED;
+			ascq = SCSI_ASCQ_LOG_BLOCK_GUARD_CHECK_FAILED;
+			break;
+		case NVME_SC_APPLICATION_TAG_CHECK_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_LOG_BLOCK_APPTAG_CHECK_FAILED;
+			ascq = SCSI_ASCQ_LOG_BLOCK_APPTAG_CHECK_FAILED;
+			break;
+		case NVME_SC_REFERENCE_TAG_CHECK_ERROR:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MEDIUM_ERROR;
+			asc = SCSI_ASC_LOG_BLOCK_REFTAG_CHECK_FAILED;
+			ascq = SCSI_ASCQ_LOG_BLOCK_REFTAG_CHECK_FAILED;
+			break;
+		case NVME_SC_COMPARE_FAILURE:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_MISCOMPARE;
+			asc = SCSI_ASC_MISCOMPARE_DURING_VERIFY;
+			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
+			break;
+		case NVME_SC_ACCESS_DENIED:
+			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
+			skey = SSD_KEY_ILLEGAL_REQUEST;
+			asc = SCSI_ASC_ACCESS_DENIED_INVALID_LUN_ID;
+			ascq = SCSI_ASCQ_INVALID_LUN_ID;
+			break;
+		}
+		break;
+	}
+	
+	returned_sense_len = sizeof(struct scsi_sense_data);
+	if (returned_sense_len < ccb->csio.sense_len)
+		ccb->csio.sense_resid = ccb->csio.sense_len -
+		    returned_sense_len;
+	else
+		ccb->csio.sense_resid = 0;
+
+	scsi_set_sense_data(&ccb->csio.sense_data, SSD_TYPE_FIXED,
+	    1, skey, asc, ascq, SSD_ELEM_NONE);
+	ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+
+	return status;
+}
+
+/** mprsas_complete_nvme_unmap 
+ *
+ * Complete native NVMe command issued using NVMe Encapsulated
+ * Request Message.
+ */
+static u8
+mprsas_complete_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm)
+{
+	Mpi26NVMeEncapsulatedErrorReply_t *mpi_reply;
+	struct nvme_completion *nvme_completion = NULL;
+	u8 scsi_status = MPI2_SCSI_STATUS_GOOD;
+
+	mpi_reply =(Mpi26NVMeEncapsulatedErrorReply_t *)cm->cm_reply;
+	if (le16toh(mpi_reply->ErrorResponseCount)){
+		nvme_completion = (struct nvme_completion *)cm->cm_sense;
+		scsi_status = mprsas_nvme_trans_status_code(
+		    nvme_completion->status, cm);
+	}
+	return scsi_status;
+}
+
 static void
 mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 {
@@ -2168,7 +2560,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	struct ccb_scsiio *csio;
 	struct mprsas_softc *sassc;
 	struct scsi_vpd_supported_page_list *vpd_list = NULL;
-	u8 *TLR_bits, TLR_on;
+	u8 *TLR_bits, TLR_on, *scsi_cdb;
 	int dir = 0, i;
 	u16 alloc_len;
 	struct mprsas_target *target;
@@ -2267,13 +2659,27 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	}
 
 	/*
+	 * Point to the SCSI CDB, which is dependent on the CAM_CDB_POINTER
+	 * flag, and use it in a few places in the rest of this function for
+	 * convenience. Use the macro if available.
+	 */
+#if __FreeBSD_version >= 1100103
+	scsi_cdb = scsiio_cdb_ptr(csio);
+#else
+	if (csio->ccb_h.flags & CAM_CDB_POINTER)
+		scsi_cdb = csio->cdb_io.cdb_ptr;
+	else
+		scsi_cdb = csio->cdb_io.cdb_bytes;
+#endif
+
+	/*
 	 * If this is a Start Stop Unit command and it was issued by the driver
 	 * during shutdown, decrement the refcount to account for all of the
 	 * commands that were sent.  All SSU commands should be completed before
 	 * shutdown completes, meaning SSU_refcount will be 0 after SSU_started
 	 * is TRUE.
 	 */
-	if (sc->SSU_started && (csio->cdb_io.cdb_bytes[0] == START_STOP_UNIT)) {
+	if (sc->SSU_started && (scsi_cdb[0] == START_STOP_UNIT)) {
 		mpr_dprint(sc, MPR_INFO, "Decrementing SSU count.\n");
 		sc->SSU_refcount--;
 	}
@@ -2314,6 +2720,14 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		return;
 	}
 
+	target = &sassc->targets[target_id];
+	if (scsi_cdb[0] == UNMAP &&
+	    target->is_nvme &&
+	    (csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
+		rep->SCSIStatus = mprsas_complete_nvme_unmap(sc, cm);
+		csio->scsi_status = rep->SCSIStatus;
+	}
+
 	mprsas_log_command(cm, MPR_XINFO,
 	    "ioc %x scsi %x state %x xfer %u\n",
 	    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
@@ -2325,7 +2739,6 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		/* FALLTHROUGH */
 	case MPI2_IOCSTATUS_SUCCESS:
 	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
-
 		if ((le16toh(rep->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
 		    MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR)
 			mprsas_log_command(cm, MPR_XINFO, "recovered error\n");
@@ -2403,9 +2816,9 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 * controller, turn the TLR_bits value ON if page 0x90 is
 		 * supported.
 		 */
-		if ((csio->cdb_io.cdb_bytes[0] == INQUIRY) &&
-		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
-		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
+		if ((scsi_cdb[0] == INQUIRY) &&
+		    (scsi_cdb[1] & SI_EVPD) &&
+		    (scsi_cdb[2] == SVPD_SUPPORTED_PAGE_LIST) &&
 		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
 		    (csio->data_ptr != NULL) &&
 		    ((csio->data_ptr[0] & 0x1f) == T_SEQUENTIAL) &&
@@ -2417,8 +2830,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 			TLR_bits = &sc->mapping_table[target_id].TLR_bits;
 			*TLR_bits = (u8)MPI2_SCSIIO_CONTROL_NO_TLR;
 			TLR_on = (u8)MPI2_SCSIIO_CONTROL_TLR_ON;
-			alloc_len = ((u16)csio->cdb_io.cdb_bytes[3] << 8) +
-			    csio->cdb_io.cdb_bytes[4];
+			alloc_len = ((u16)scsi_cdb[3] << 8) + scsi_cdb[4];
 			alloc_len -= csio->resid;
 			for (i = 0; i < MIN(vpd_list->length, alloc_len); i++) {
 				if (vpd_list->list[i] == 0x90) {
@@ -2433,7 +2845,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		 * a SCSI StartStopUnit command will be sent to it when the
 		 * driver is being shutdown.
 		 */
-		if ((csio->cdb_io.cdb_bytes[0] == INQUIRY) &&
+		if ((scsi_cdb[0] == INQUIRY) &&
 		    (csio->data_ptr != NULL) &&
 		    ((csio->data_ptr[0] & 0x1f) == T_DIRECT) &&
 		    (sc->mapping_table[target_id].device_info &
@@ -2524,7 +2936,14 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		csio->resid = cm->cm_length;
-		mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
+
+		if (scsi_cdb[0] == UNMAP &&
+		    target->is_nvme &&
+		    (csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
+			mprsas_set_ccbstatus(ccb, CAM_REQ_CMP);
+		else
+			mprsas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
+
 		break;
 	}
 	

@@ -92,7 +92,7 @@ static void	db_pager(void);
 void
 db_force_whitespace(void)
 {
-	register int last_print, next_tab;
+	int last_print, next_tab;
 
 	last_print = db_last_non_space;
 	while (last_print < db_output_position) {
@@ -355,7 +355,7 @@ db_iprintf(const char *fmt,...)
 	char bufr[DDB_BUFR_SIZE];
 #endif
 	struct dbputchar_arg dca;
-	register int i;
+	int i;
 	va_list listp;
 
 	for (i = db_indent; i >= 8; i -= 8)

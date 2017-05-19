@@ -126,7 +126,7 @@ reserve:
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (unlikely(ret != 0)) {
 		if (ret == -EBUSY) {
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		}
 	}
@@ -139,7 +139,7 @@ reserve:
 		case -EBUSY:
 		case -ERESTARTSYS:
 		case -EINTR:
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		default:
 			retval = VM_PAGER_ERROR;

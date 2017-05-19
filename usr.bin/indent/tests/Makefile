@@ -2,6 +2,8 @@
 
 PACKAGE=	tests
 
+${PACKAGE}FILES+=	binary.0
+${PACKAGE}FILES+=	binary.0.stdout
 ${PACKAGE}FILES+=	comments.0
 ${PACKAGE}FILES+=	comments.0.stdout
 ${PACKAGE}FILES+=	declarations.0
