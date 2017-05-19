@@ -264,6 +264,7 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 
 enum checkpoint_opcodes {
 	START_CHECKPOINT = 0,
+	START_SUSPEND = 1,
 };
 
 struct __attribute__((packed)) checkpoint_op {

@@ -85,6 +85,7 @@ usage(bool cpu_intel)
 	"       [--create]\n"
 	"       [--destroy]\n"
 	"       [--checkpoint=<filename>]\n"
+	"       [--suspend=<filename>]\n"
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -296,6 +297,7 @@ static int run;
 static int get_cpu_topology;
 static int show_vmem_stat;
 static int vm_checkpoint_opt;
+static int vm_suspend_opt;
 static int vcpu_lock_all_opt;
 static int vcpu_unlock_all_opt;
 
@@ -603,6 +605,7 @@ enum {
 	SET_RTC_NVRAM,
 	RTC_NVRAM_OFFSET,
 	SET_CHECKPOINT_FILE,
+	SET_SUSPEND_FILE,
 };
 
 static void
@@ -1473,6 +1476,7 @@ setup_options(bool cpu_intel)
 		{ "get-cpu-topology",	NO_ARG, &get_cpu_topology,	1 },
 		{ "get-vmem-stat", 	NO_ARG,	&show_vmem_stat,	1 },
 		{ "checkpoint", 	REQ_ARG, 0,	SET_CHECKPOINT_FILE},
+		{ "suspend", 		REQ_ARG, 0,	SET_SUSPEND_FILE},
 		{ "vcpu_lock_all", 	NO_ARG,&vcpu_lock_all_opt,		1 },
 		{ "vcpu_unlock_all", 	NO_ARG,&vcpu_unlock_all_opt,	1 },
 	};
@@ -1769,6 +1773,18 @@ send_start_checkpoint(struct vmctx *ctx, const char *checkpoint_file)
 	return send_checkpoint_op_req(ctx, &op);
 }
 
+static int
+send_start_suspend(struct vmctx *ctx, const char *suspend_file)
+{
+	struct checkpoint_op op;
+
+	op.op = START_SUSPEND;
+	strncpy(op.snapshot_filename, suspend_file, MAX_SNAPSHOT_VMNAME);
+	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
+
+	return send_checkpoint_op_req(ctx, &op);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1785,7 +1801,7 @@ main(int argc, char *argv[])
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
 	struct tm tm;
 	struct option *opts;
-	char *checkpoint_file;
+	char *checkpoint_file, *suspend_file;
 
 	cpu_intel = cpu_vendor_intel();
 	opts = setup_options(cpu_intel);
@@ -1955,6 +1971,10 @@ main(int argc, char *argv[])
 		case SET_CHECKPOINT_FILE:
 			vm_checkpoint_opt = 1;
 			checkpoint_file = optarg;
+			break;
+		case SET_SUSPEND_FILE:
+			vm_suspend_opt = 1;
+			suspend_file = optarg;
 			break;
 		default:
 			usage(cpu_intel);
@@ -2446,6 +2466,9 @@ main(int argc, char *argv[])
 
 	if (!error && vm_checkpoint_opt)
 		error = send_start_checkpoint(ctx, checkpoint_file);
+
+	if (!error && vm_suspend_opt)
+		error = send_start_suspend(ctx, suspend_file);
 
 	if (!error && vcpu_lock_all_opt)
 		error = vm_vcpu_lock_all(ctx);

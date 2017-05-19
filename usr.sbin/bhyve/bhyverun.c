@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 
 #include <libxo/xo.h>
 #include <ucl.h>
+#include <unistd.h>
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
@@ -1653,7 +1654,7 @@ err_pci:
 }
 
 static int
-vm_checkpoint(struct vmctx *ctx, char *checkpoint_file)
+vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 {
 	int fd_checkpoint = 0, kdata_fd = 0;
 	int ret = 0;
@@ -1778,6 +1779,18 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file)
 
 	xo_finish_h(xop);
 
+	if (stop_vm) {
+		ret = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to suspend vm\n");
+		}
+		vm_vcpu_unlock_all(ctx);
+		/* Wait for CPUs to suspend. TODO: write this properly. */
+		sleep(5);
+		vm_destroy(ctx);
+		exit(0);
+	}
+
 done_unlock:
 	vm_vcpu_unlock_all(ctx);
 done:
@@ -1822,8 +1835,11 @@ int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 	checkpoint_op = (struct checkpoint_op *)buf;
 	switch (checkpoint_op->op) {
 		case START_CHECKPOINT:
-			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename);
-		break;
+			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, false);
+			break;
+		case START_SUSPEND:
+			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
+			break;
 		default:
 			fprintf(stderr, "Unrecognized checkpoint operation.\n");
 			err = -1;
