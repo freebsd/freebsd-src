@@ -755,7 +755,7 @@ calculate_crc32c(uint32_t crc32c,
     const unsigned char *buffer,
     unsigned int length)
 {
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 	if ((cpu_feature2 & CPUID2_SSE42) != 0) {
 		return (sse42_crc32c(crc32c, buffer, length));
 	} else
