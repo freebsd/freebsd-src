@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wmissing-variable-declarations"
+#endif
+
 /* A collection of symbols needed by debugger */
 
 /* int _libthr_debug */

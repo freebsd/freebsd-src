@@ -534,7 +534,7 @@ static u_int8_t tl_eeprom_putbyte(sc, byte)
 	struct tl_softc		*sc;
 	int			byte;
 {
-	register int		i, ack = 0;
+	int			i, ack = 0;
 
 	/*
 	 * Make sure we're in TX mode.
@@ -579,7 +579,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	int			addr;
 	u_int8_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int8_t		byte = 0;
 	device_t		tl_dev = sc->tl_dev;
 
@@ -2199,7 +2199,7 @@ static void
 tl_stop(sc)
 	struct tl_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	TL_LOCK_ASSERT(sc);

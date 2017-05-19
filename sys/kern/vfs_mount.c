@@ -366,14 +366,15 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *oldopts)
 /*
  * Mount a filesystem.
  */
+#ifndef _SYS_SYSPROTO_H_
+struct nmount_args {
+	struct iovec *iovp;
+	unsigned int iovcnt;
+	int flags;
+};
+#endif
 int
-sys_nmount(td, uap)
-	struct thread *td;
-	struct nmount_args /* {
-		struct iovec *iovp;
-		unsigned int iovcnt;
-		int flags;
-	} */ *uap;
+sys_nmount(struct thread *td, struct nmount_args *uap)
 {
 	struct uio *auio;
 	int error;
@@ -706,14 +707,7 @@ struct mount_args {
 #endif
 /* ARGSUSED */
 int
-sys_mount(td, uap)
-	struct thread *td;
-	struct mount_args /* {
-		char *type;
-		char *path;
-		int flags;
-		caddr_t data;
-	} */ *uap;
+sys_mount(struct thread *td, struct mount_args *uap)
 {
 	char *fstype;
 	struct vfsconf *vfsp = NULL;
@@ -1544,11 +1538,7 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
  * with the address of the option.
  */
 int
-vfs_getopt(opts, name, buf, len)
-	struct vfsoptlist *opts;
-	const char *name;
-	void **buf;
-	int *len;
+vfs_getopt(struct vfsoptlist *opts, const char *name, void **buf, int *len)
 {
 	struct vfsopt *opt;
 
@@ -1761,11 +1751,7 @@ vfs_setopts(struct vfsoptlist *opts, const char *name, const char *value)
  * Returns ENOENT if the option is not found.
  */
 int
-vfs_copyopt(opts, name, dest, len)
-	struct vfsoptlist *opts;
-	const char *name;
-	void *dest;
-	int len;
+vfs_copyopt(struct vfsoptlist *opts, const char *name, void *dest, int len)
 {
 	struct vfsopt *opt;
 

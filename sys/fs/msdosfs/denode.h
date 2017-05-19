@@ -158,7 +158,7 @@ struct denode {
 	u_long de_FileSize;	/* size of file in bytes */
 	struct fatcache de_fc[FC_SIZE];	/* fat cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
-	u_int64_t de_inode;	/* Inode number (really byte offset of direntry) */
+	uint64_t de_inode;	/* Inode number (really byte offset of direntry) */
 };
 
 /*
@@ -224,7 +224,7 @@ struct denode {
 		break;							\
 	}								\
 	if ((dep)->de_flag & DE_ACCESS) {				\
-		u_int16_t adate;					\
+		uint16_t adate;						\
 									\
 		timespec2fattime((acc), 0, &adate, NULL, NULL);		\
 		if (adate != (dep)->de_ADate) {				\
@@ -247,10 +247,10 @@ struct defid {
 	u_short defid_len;	/* length of structure */
 	u_short defid_pad;	/* force long alignment */
 
-	u_int32_t defid_dirclust; /* cluster this dir entry came from */
-	u_int32_t defid_dirofs;	/* offset of entry within the cluster */
+	uint32_t defid_dirclust; /* cluster this dir entry came from */
+	uint32_t defid_dirofs;	/* offset of entry within the cluster */
 #if 0
-	u_int32_t defid_gen;	/* generation number */
+	uint32_t defid_gen;	/* generation number */
 #endif
 };
 

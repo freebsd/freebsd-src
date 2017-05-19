@@ -89,7 +89,7 @@ typedef struct e6000sw_softc {
 	char			*ifname[E6000SW_MAX_PORTS];
 	device_t		miibus[E6000SW_MAX_PORTS];
 	struct mii_data		*mii[E6000SW_MAX_PORTS];
-	struct callout		tick_callout;
+	struct proc		*kproc;
 
 	uint32_t		cpuports_mask;
 	uint32_t		fixed_mask;
@@ -148,8 +148,6 @@ static __inline int e6000sw_is_fixedport(e6000sw_softc_t *sc, int port);
 static __inline int e6000sw_is_phyport(e6000sw_softc_t *sc, int port);
 static __inline struct mii_data *e6000sw_miiforphy(e6000sw_softc_t *sc,
     unsigned int phy);
-
-static struct proc *e6000sw_kproc;
 
 static device_method_t e6000sw_methods[] = {
 	/* device interface */
@@ -321,9 +319,11 @@ e6000sw_init_interface(e6000sw_softc_t *sc, int port)
 	sc->ifp[port]->if_softc = sc;
 	sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 	    IFF_DRV_RUNNING | IFF_SIMPLEX;
-	sc->ifname[port] = malloc(strlen(name) + 1, M_E6000SW, M_WAITOK);
-	if (sc->ifname[port] == NULL)
+	sc->ifname[port] = malloc(strlen(name) + 1, M_E6000SW, M_NOWAIT);
+	if (sc->ifname[port] == NULL) {
+		if_free(sc->ifp[port]);
 		return (ENOMEM);
+	}
 	memcpy(sc->ifname[port], name, strlen(name) + 1);
 	if_initname(sc->ifp[port], sc->ifname[port], port);
 
@@ -417,24 +417,32 @@ e6000sw_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
-	kproc_create(e6000sw_tick, sc, &e6000sw_kproc, 0, 0,
-	    "e6000sw tick kproc");
+	kproc_create(e6000sw_tick, sc, &sc->kproc, 0, 0, "e6000sw tick kproc");
 
 	return (0);
 
 out_fail:
+	E6000SW_UNLOCK(sc);
 	e6000sw_detach(dev);
 
 	return (err);
 }
 
-static __inline void
+static __inline int
 e6000sw_poll_done(e6000sw_softc_t *sc)
 {
+	int i;
 
-	while (e6000sw_readreg(sc, REG_GLOBAL2, PHY_CMD) &
-	    (1 << PHY_CMD_SMI_BUSY))
-		continue;
+	for (i = 0; i < 16; i++) {
+
+		if (!(e6000sw_readreg(sc, REG_GLOBAL2, PHY_CMD) &
+		    (1 << PHY_CMD_SMI_BUSY)))
+			return (0);
+
+		pause("e6000sw PHY poll", hz/1000);
+	}
+
+	return (ETIMEDOUT);
 }
 
 /*
@@ -446,6 +454,7 @@ e6000sw_readphy(device_t dev, int phy, int reg)
 {
 	e6000sw_softc_t *sc;
 	uint32_t val;
+	int err;
 
 	sc = device_get_softc(dev);
 	val = 0;
@@ -457,14 +466,25 @@ e6000sw_readphy(device_t dev, int phy, int reg)
 
 	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
-	e6000sw_poll_done(sc);
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val |= 1 << PHY_CMD_SMI_BUSY;
 	val |= PHY_CMD_MODE_MDIO << PHY_CMD_MODE;
 	val |= PHY_CMD_OPCODE_READ << PHY_CMD_OPCODE;
 	val |= (reg << PHY_CMD_REG_ADDR) & PHY_CMD_REG_ADDR_MASK;
 	val |= (phy << PHY_CMD_DEV_ADDR) & PHY_CMD_DEV_ADDR_MASK;
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG, val);
-	e6000sw_poll_done(sc);
+
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val = e6000sw_readreg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG)
 		& PHY_DATA_MASK;
 
@@ -476,6 +496,7 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 {
 	e6000sw_softc_t *sc;
 	uint32_t val;
+	int err;
 
 	sc = device_get_softc(dev);
 	val = 0;
@@ -487,7 +508,12 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 
 	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
-	e6000sw_poll_done(sc);
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
+
 	val |= PHY_CMD_MODE_MDIO << PHY_CMD_MODE;
 	val |= 1 << PHY_CMD_SMI_BUSY;
 	val |= PHY_CMD_OPCODE_WRITE << PHY_CMD_OPCODE;
@@ -496,7 +522,12 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG,
 			 data & PHY_DATA_MASK);
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG, val);
-	e6000sw_poll_done(sc);
+
+	err = e6000sw_poll_done(sc);
+	if (err != 0) {
+		device_printf(dev, "Timeout while waiting for switch\n");
+		return (err);
+	}
 
 	return (0);
 }
@@ -976,23 +1007,65 @@ e6000sw_get_pvid(e6000sw_softc_t *sc, int port, int *pvid)
 	return (0);
 }
 
+/*
+ * Convert port status to ifmedia.
+ */
+static void
+e6000sw_update_ifmedia(uint16_t portstatus, u_int *media_status, u_int *media_active)
+{
+	*media_active = IFM_ETHER;
+	*media_status = IFM_AVALID;
+
+	if ((portstatus & PORT_STATUS_LINK_MASK) != 0)
+		*media_status |= IFM_ACTIVE;
+	else {
+		*media_active |= IFM_NONE;
+		return;
+	}
+
+	switch (portstatus & PORT_STATUS_SPEED_MASK) {
+	case PORT_STATUS_SPEED_10:
+		*media_active |= IFM_10_T;
+		break;
+	case PORT_STATUS_SPEED_100:
+		*media_active |= IFM_100_TX;
+		break;
+	case PORT_STATUS_SPEED_1000:
+		*media_active |= IFM_1000_T;
+		break;
+	}
+
+	if ((portstatus & PORT_STATUS_DUPLEX_MASK) == 0)
+		*media_active |= IFM_FDX;
+	else
+		*media_active |= IFM_HDX;
+}
+
 static void
 e6000sw_tick (void *arg)
 {
 	e6000sw_softc_t *sc;
 	struct mii_softc *miisc;
+	uint16_t portstatus;
 	int port;
 
 	sc = arg;
 
 	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+
 	for (;;) {
 		E6000SW_LOCK(sc);
 		for (port = 0; port < sc->num_ports; port++) {
 			/* Tick only on PHY ports */
 			if (!e6000sw_is_phyport(sc, port))
 				continue;
-			mii_tick(sc->mii[port]);
+
+			portstatus = e6000sw_readreg(sc, REG_PORT(port), PORT_STATUS);
+
+			e6000sw_update_ifmedia(portstatus,
+			    &sc->mii[port]->mii_media_status,
+			    &sc->mii[port]->mii_media_active);
+
 			LIST_FOREACH(miisc, &sc->mii[port]->mii_phys, mii_list) {
 				if (IFM_INST(sc->mii[port]->mii_media.ifm_cur->ifm_media)
 				    != miisc->mii_inst)

@@ -505,7 +505,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 	struct stat *st, sb;
 	intmax_t num;
 	u_long flset, flclr;
-	int error, istemp, type;
+	int error, istemp;
+	uint32_t type;
 
 	st = &node->inode->st;
 	do {

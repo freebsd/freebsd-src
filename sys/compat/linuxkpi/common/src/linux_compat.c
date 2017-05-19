@@ -435,7 +435,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 		err = vmap->vm_ops->fault(vmap, &vmf);
 
 		while (vmap->vm_pfn_count == 0 && err == VM_FAULT_NOPAGE) {
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			err = vmap->vm_ops->fault(vmap, &vmf);
 		}
 	}
