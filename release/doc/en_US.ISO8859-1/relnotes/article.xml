@@ -594,7 +594,7 @@
     </sect2>
 
     <sect2 xml:id="storage-geom">
-      <title>&man.geom.4;</title>
+      <title><literal>geom(4)</literal></title>
 
       <para>&nbsp;</para>
     </sect2>
