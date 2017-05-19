@@ -825,6 +825,11 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (!mlx4_is_slave(dev)) {
 		for (i = 0; i < dev->caps.num_ports; ++i)
 			dev->caps.def_counter_index[i] = i << 1;
+
+		dev->caps.alloc_res_qp_mask =
+			(dev->caps.bf_reg_size ? MLX4_RESERVE_ETH_BF_QP : 0);
+	} else {
+		dev->caps.alloc_res_qp_mask = 0;
 	}
 
 	return 0;
@@ -1089,6 +1094,10 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	mlx4_warn(dev, "Timestamping is not supported in slave mode.\n");
 
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
+
+	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_BF_RES_QP &&
+	    dev->caps.bf_reg_size)
+		dev->caps.alloc_res_qp_mask |= MLX4_RESERVE_ETH_BF_QP;
 
 	return 0;
 
