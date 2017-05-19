@@ -216,6 +216,11 @@
 #define MV_WIN_CESA_ATTR(eng_sel)	0
 #endif
 
+/* CESA TDMA address decoding registers */
+#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xA04)
+#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xA00)
+#define MV_WIN_CESA_MAX			4
+
 #define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
 #define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4

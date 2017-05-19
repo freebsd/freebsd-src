@@ -76,6 +76,7 @@ MALLOC_DEFINE(M_IDMA, "idma", "idma dma test memory");
 
 static int win_eth_can_remap(int i);
 
+static int decode_win_cesa_valid(void);
 static int decode_win_cpu_valid(void);
 static int decode_win_usb_valid(void);
 static int decode_win_usb3_valid(void);
@@ -91,6 +92,7 @@ static void decode_win_cpu_setup(void);
 #ifdef SOC_MV_ARMADAXP
 static int decode_win_sdram_fixup(void);
 #endif
+static void decode_win_cesa_setup(u_long);
 static void decode_win_usb_setup(u_long);
 static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
@@ -101,6 +103,7 @@ static void decode_win_sdhci_setup(u_long);
 static void decode_win_idma_setup(u_long);
 static void decode_win_xor_setup(u_long);
 
+static void decode_win_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
@@ -146,6 +149,7 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
+	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump },
 	{ "mrvl,pcie", &decode_win_pcie_setup, NULL },
 	{ NULL, NULL, NULL },
 };
@@ -574,7 +578,7 @@ soc_decode_win(void)
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
 	    !decode_win_xor_valid() || !decode_win_usb3_valid() ||
-	    !decode_win_sdhci_valid())
+	    !decode_win_sdhci_valid() || !decode_win_cesa_valid())
 		return (EINVAL);
 
 	decode_win_cpu_setup();
@@ -600,6 +604,11 @@ WIN_REG_IDX_WR(win_cpu, cr, MV_WIN_CPU_CTRL, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, br, MV_WIN_CPU_BASE, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, remap_l, MV_WIN_CPU_REMAP_LO, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
+
+WIN_REG_BASE_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL)
+WIN_REG_BASE_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE)
+WIN_REG_BASE_IDX_WR(win_cesa, cr, MV_WIN_CESA_CTRL)
+WIN_REG_BASE_IDX_WR(win_cesa, br, MV_WIN_CESA_BASE)
 
 WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
@@ -1068,6 +1077,63 @@ ddr_target(int i)
 	 * DDR SDRAM controller is always 0x0.
 	 */
 	return (0);
+}
+
+/**************************************************************************
+ * CESA windows routines
+ **************************************************************************/
+static int
+decode_win_cesa_valid(void)
+{
+
+	return (decode_win_can_cover_ddr(MV_WIN_CESA_MAX));
+}
+
+static void
+decode_win_cesa_dump(u_long base)
+{
+	int i;
+
+	for (i = 0; i < MV_WIN_CESA_MAX; i++)
+		printf("CESA window#%d: c 0x%08x, b 0x%08x\n", i,
+		    win_cesa_cr_read(base, i), win_cesa_br_read(base, i));
+}
+
+/*
+ * Set CESA decode windows.
+ */
+static void
+decode_win_cesa_setup(u_long base)
+{
+	uint32_t br, cr;
+	int i, j;
+
+	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
+		win_cesa_cr_write(base, i, 0);
+		win_cesa_br_write(base, i, 0);
+	}
+
+	/* Only access to active DRAM banks is required */
+	for (i = 0; i < MV_WIN_DDR_MAX; i++) {
+		if (ddr_is_active(i)) {
+			br = ddr_base(i);
+
+			cr = (((ddr_size(i) - 1) & 0xffff0000) |
+			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
+			    (ddr_target(i) << IO_WIN_TGT_SHIFT) |
+			    IO_WIN_ENA_MASK);
+
+			/* Set the first free CESA window */
+			for (j = 0; j < MV_WIN_CESA_MAX; j++) {
+				if (win_cesa_cr_read(base, j) & 0x1)
+					continue;
+
+				win_cesa_br_write(base, j, br);
+				win_cesa_cr_write(base, j, cr);
+				break;
+			}
+		}
+	}
 }
 
 /**************************************************************************
