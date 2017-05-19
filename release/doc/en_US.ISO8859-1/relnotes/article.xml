@@ -385,9 +385,9 @@
 	&man.close.2; calls.</para>
 
       <para revision="317434">The &man.ipf.4; packet filter has been
-	updated to prevent &quot;keep state&quot; from incorrectly
-	implying &quot;keep frags&quot;, matching the behavior
-	documented in &man.ipf.5;.</para>
+	updated to prevent <literal>keep state</literal> from
+	incorrectly implying <literal>keep frags</literal>, matching
+	the behavior documented in &man.ipf.5;.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
