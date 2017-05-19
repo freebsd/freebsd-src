@@ -527,8 +527,8 @@
       <title>Network Drivers</title>
 
       <para revision="306660" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbe.4; has been updated to
-	provide support for Virtual Function devices
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to provide support for Virtual Function devices
 	(<acronym>VFs</acronym>) on Chelsio T4 and T5 adapters.</para>
 
       <para revision="306661" contrib="sponsor"
@@ -538,7 +538,7 @@
 	<function>aio_write()</function>.</para>
 
       <para revision="306664" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbev.4; has been added,
+	sponsor="&chelsio;">The &man.cxgbev.4; driver has been added,
 	providing support for Virtual Function devices
 	(<acronym>VFs</acronym>) on Chelsio T4 and T5 adapters.</para>
 
@@ -553,13 +553,13 @@
 	100 Gbps.</para>
 
       <para revision="309560" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbe.4; has been updated to
-	provide support for Virtual Function devices
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to provide support for Virtual Function devices
 	(<acronym>VFs</acronym>) on Chelsio T6 adapters.</para>
 
       <para revision="309560" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbev.4; has been updated to
-	provide support for Virtual Function devices
+	sponsor="&chelsio;">The &man.cxgbev.4; driver has been updated
+	to provide support for Virtual Function devices
 	(<acronym>VFs</acronym>) on Chelsio T6 adapters.</para>
 
       <para revision="310852" contrib="sponsor"
