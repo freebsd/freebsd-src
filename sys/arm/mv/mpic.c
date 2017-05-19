@@ -148,6 +148,7 @@ static void	mpic_unmask_irq(uintptr_t nb);
 static void	mpic_mask_irq(uintptr_t nb);
 static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
+static boolean_t mpic_irq_is_percpu(uintptr_t);
 #ifdef INTRNG
 static int	mpic_intr(void *arg);
 #endif
@@ -474,14 +475,24 @@ mpic_mask_irq_err(uintptr_t nb)
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
 }
 
+static boolean_t
+mpic_irq_is_percpu(uintptr_t nb)
+{
+	if (nb < MPIC_PPI)
+		return TRUE;
+
+	return FALSE;
+}
+
 static void
 mpic_unmask_irq(uintptr_t nb)
 {
 
-	if (nb < ERR_IRQ) {
-		MPIC_WRITE(mv_mpic_sc, MPIC_ISE, nb);
+	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
-	} else if (nb < MSI_IRQ)
+	else if (nb < ERR_IRQ)
+		MPIC_WRITE(mv_mpic_sc, MPIC_ISE, nb);
+	else if (nb < MSI_IRQ)
 		mpic_unmask_irq_err(nb);
 
 	if (nb == 0)
@@ -492,10 +503,11 @@ static void
 mpic_mask_irq(uintptr_t nb)
 {
 
-	if (nb < ERR_IRQ) {
-		MPIC_WRITE(mv_mpic_sc, MPIC_ICE, nb);
+	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
-	} else if (nb < MSI_IRQ)
+	else if (nb < ERR_IRQ)
+		MPIC_WRITE(mv_mpic_sc, MPIC_ICE, nb);
+	else if (nb < MSI_IRQ)
 		mpic_mask_irq_err(nb);
 }
 
