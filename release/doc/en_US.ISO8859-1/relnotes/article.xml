@@ -159,8 +159,8 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
-      <para revision="313203">The &man.inetd.8; utility can now be
-	built without <literal>libwrap</literal> support when
+      <para revision="313203">The &man.inetd.8; utility is now built
+	without <literal>libwrap</literal> support when
 	<literal>WITHOUT_TCP_WRAPPERS</literal> is set in
 	&man.src.conf.5;.</para>
 
@@ -178,6 +178,10 @@
 
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
+
+      <para revision="305476" contrib="sponsor"
+	sponsor="&ff;">Support for &man.blacklistd.8; has been added
+	to <application>OpenSSH</application>.</para>
 
       <para revision="308720" contrib="sponsor" sponsor="&gandi;">The
 	&man.cron.8; utility has been updated to add support for
@@ -718,7 +722,8 @@
 
       <para revision="309337" contrib="sponsor"
 	sponsor="&dellemc;">Support for <acronym>GARP</acronym>
-	retransmit has been added.  A new &man.sysctl.8;,
+	(gratuitous <acronym>ARP</acronym>) retransmit has been added.
+	A new &man.sysctl.8;,
 	<literal>net.link.ether.inet.garp_rexmit_count</literal>, has
 	been added, which sets the maximum number of retransmissions
 	when set to a non-zero value.</para>
