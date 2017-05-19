@@ -441,7 +441,7 @@ _thr_signal_init(int dlopened)
 }
 
 void
-_thr_sigact_unload(struct dl_phdr_info *phdr_info)
+_thr_sigact_unload(struct dl_phdr_info *phdr_info __unused)
 {
 #if 0
 	struct pthread *curthread = _get_curthread();

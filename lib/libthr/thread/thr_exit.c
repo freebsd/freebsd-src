@@ -157,7 +157,8 @@ _Unwind_GetCFA(struct _Unwind_Context *context)
 #endif
 
 static void
-thread_unwind_cleanup(_Unwind_Reason_Code code, struct _Unwind_Exception *e)
+thread_unwind_cleanup(_Unwind_Reason_Code code __unused,
+    struct _Unwind_Exception *e __unused)
 {
 	/*
 	 * Specification said that _Unwind_Resume should not be used here,
@@ -168,10 +169,10 @@ thread_unwind_cleanup(_Unwind_Reason_Code code, struct _Unwind_Exception *e)
 }
 
 static _Unwind_Reason_Code
-thread_unwind_stop(int version, _Unwind_Action actions,
-	int64_t exc_class,
-	struct _Unwind_Exception *exc_obj,
-	struct _Unwind_Context *context, void *stop_parameter)
+thread_unwind_stop(int version __unused, _Unwind_Action actions,
+	int64_t exc_class __unused,
+	struct _Unwind_Exception *exc_obj __unused,
+	struct _Unwind_Context *context, void *stop_parameter __unused)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread_cleanup *cur;
