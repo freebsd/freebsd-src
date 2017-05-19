@@ -587,7 +587,8 @@ struct mlx4_en_priv {
 	struct callout watchdog_timer;
         struct ifmedia media;
 	volatile int blocked;
-	struct sysctl_oid *sysctl;
+	struct sysctl_oid *conf_sysctl;
+	struct sysctl_oid *stat_sysctl;
 	struct sysctl_ctx_list conf_ctx;
 	struct sysctl_ctx_list stat_ctx;
 #define MLX4_EN_MAC_HASH_IDX 5
