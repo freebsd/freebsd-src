@@ -338,9 +338,9 @@ updatefats(struct msdosfsmount *pmp, struct buf *bp, u_long fatbn)
 			bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
 			/* Force the clean bit on in the other copies. */
 			if (cleanfat == 16)
-				((u_int8_t *)bpn->b_data)[3] |= 0x80;
+				((uint8_t *)bpn->b_data)[3] |= 0x80;
 			else if (cleanfat == 32)
-				((u_int8_t *)bpn->b_data)[7] |= 0x08;
+				((uint8_t *)bpn->b_data)[7] |= 0x08;
 			if (pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS)
 				bwrite(bpn);
 			else
