@@ -602,7 +602,16 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="306471" contrib="sponsor"
+	sponsor="&chelsio;"><acronym>PCI</acronym> passthrough with
+	&man.bhyve.4; supports more dynamic configurations permitting
+	devices to be marked for passthrough or host use at
+	runtime.</para>
+
+      <para revision="306520" contrib="sponsor"
+	sponsor="&chelsio;"><acronym>PCI</acronym> passthrough with
+	&man.bhyve.4; resets functions via <acronym>FLR</acronym> when
+	a virtual machine is started and stopped.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
