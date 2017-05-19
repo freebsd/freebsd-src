@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include "cryptodev_if.h"
 
 #include <arm/mv/mvreg.h>
-#include <arm/mv/mvwin.h>
 #include <arm/mv/mvvar.h>
 #include "cesa.h"
 
@@ -80,7 +79,6 @@ static void	cesa_intr(void *);
 static int	cesa_newsession(device_t, u_int32_t *, struct cryptoini *);
 static int	cesa_freesession(device_t, u_int64_t);
 static int	cesa_process(device_t, struct cryptop *, int);
-static int	decode_win_cesa_setup(struct cesa_softc *sc);
 
 static struct resource_spec cesa_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -1085,13 +1083,6 @@ cesa_attach(device_t dev)
 		goto err0;
 	}
 
-	/* Setup CESA decoding windows */
-	error = decode_win_cesa_setup(sc);
-	if (error) {
-		device_printf(dev, "could not setup decoding windows\n");
-		goto err1;
-	}
-
 	/* Acquire SRAM base address */
 	error = cesa_setup_sram(sc);
 	if (error) {
@@ -1706,50 +1697,3 @@ cesa_process(device_t dev, struct cryptop *crp, int hint)
 
 	return (0);
 }
-
-/*
- * Set CESA TDMA decode windows.
- */
-static int
-decode_win_cesa_setup(struct cesa_softc *sc)
-{
-	struct mem_region availmem_regions[FDT_MEM_REGIONS];
-	int availmem_regions_sz;
-	uint32_t br, cr, i;
-
-	/* Grab physical memory regions information from DTS */
-	if (fdt_get_mem_regions(availmem_regions, &availmem_regions_sz,
-	    NULL) != 0)
-		return (ENXIO);
-
-	if (availmem_regions_sz > MV_WIN_CESA_MAX) {
-		device_printf(sc->sc_dev, "Too much memory regions, cannot "
-		    " set CESA windows to cover whole DRAM \n");
-		return (ENXIO);
-	}
-
-	/* Disable and clear all CESA windows */
-	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
-		CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), 0);
-		CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), 0);
-	}
-
-	/* Fill CESA TDMA decoding windows with information acquired from DTS */
-	for (i = 0; i < availmem_regions_sz; i++) {
-		br = availmem_regions[i].mr_start;
-		cr = availmem_regions[i].mr_size;
-
-		/* Don't add entries with size lower than 64KB */
-		if (cr & 0xffff0000) {
-			cr = (((cr - 1) & 0xffff0000) |
-			(MV_WIN_DDR_ATTR(i) << MV_WIN_CPU_ATTR_SHIFT) |
-			    (MV_WIN_DDR_TARGET << MV_WIN_CPU_TARGET_SHIFT) |
-			    MV_WIN_CPU_ENABLE_BIT);
-			CESA_TDMA_WRITE(sc, MV_WIN_CESA_BASE(i), br);
-			CESA_TDMA_WRITE(sc, MV_WIN_CESA_CTRL(i), cr);
-		}
-	}
-
-	return (0);
-}
-
