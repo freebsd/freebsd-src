@@ -61,11 +61,6 @@ pages_map(void *addr, size_t size, bool *commit)
 #endif
 	assert(ret == NULL || (addr == NULL && ret != addr)
 	    || (addr != NULL && ret == addr));
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* Discard the bounds on the allocation */
-	if (ret != NULL)
-		ret = UNBOUND_PTR(ret);
-#endif
 	return (ret);
 }
 
