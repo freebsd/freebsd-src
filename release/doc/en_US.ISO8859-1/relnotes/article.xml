@@ -510,10 +510,41 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
+      <para revision="306660" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; has been updated to
+	provide support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T4 and T5 adapters.</para>
+
+      <para revision="306661" contrib="sponsor"
+	sponsor="&chelsio;">TCP connections using the TCP Offload
+	Engine (<acronym>TOE</acronym>) on Chelsio T4+ adapters can
+	now perform zero-copy sends via
+	<function>aio_write()</function>.</para>
+
+      <para revision="306664" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbev.4; has been added,
+	providing support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T4 and T5 adapters.</para>
+
       <para revision="309377" contrib="sponsor"
 	sponsor="&broadcom;">The &man.bnxt.4; driver has been added,
 	providing support for Broadcom&reg; NetXtreme-C&trade; and
 	NetXtreme-E&trade; devices.</para>
+
+      <para revision="309560" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver now supports
+	devices using T6-based adapters which support 10, 25, 40, and
+	100 Gbps.</para>
+
+      <para revision="309560" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; has been updated to
+	provide support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T6 adapters.</para>
+
+      <para revision="309560" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbev.4; has been updated to
+	provide support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T6 adapters.</para>
 
       <para revision="310852" contrib="sponsor"
 	sponsor="&netgate;">The &man.miibus.4; driver has been updated
