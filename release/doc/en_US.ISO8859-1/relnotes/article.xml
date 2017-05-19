@@ -375,6 +375,18 @@
 	<literal>nullability</literal> attribute has been added to the
 	<literal>C</literal> library headers.</para>
     </sect2>
+
+    <sect2 xml:id="userland-debug">
+      <title>Userland Debugging</title>
+
+      <para revision="304499">&man.ptrace.2; now supports events for
+	&man.vfork.2;, permitting reliable debugging across
+	&man.vfork.2; invocations.</para>
+
+      <para revision="306786">Process core dumps now include the
+	process ID (<acronym>PID</acronym> and command line
+	arguments.</para>
+    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">
