@@ -205,7 +205,7 @@
 	<acronym>NAT-T</acronym> configuration.  The
 	<literal>-g</literal> and <literal>-t</literal> flags have
 	been added, which list only global and virtual policies,
-	respectively when used with the <literal>-D</literal> and
+	respectively, when used with the <literal>-D</literal> and
 	<literal>-P</literal> flags.</para>
 
       <para revision="316098" contrib="sponsor"
@@ -220,7 +220,7 @@
 
       <para revision="317855">The &man.daemon.8; utility has been
 	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
-	output to &man.syslog.3; and to a file.</para>
+	output to &man.syslog.3; or to a file.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -307,8 +307,8 @@
 	sponsor="&ff;">&man.blacklistd.8; support for
 	<application>OpenSSH</application> has been refined to adjust
 	notification points to catch all authentication failures
-	rather than authentication failures caused by invalid
-	login usernames.</para>
+	rather than only those caused by invalid login
+	usernames.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
