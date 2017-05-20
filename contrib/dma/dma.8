@@ -30,7 +30,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 13, 2014
+.Dd May 20, 2017
 .Dt DMA 8
 .Os
 .Sh NAME
@@ -213,7 +213,7 @@ Just stick with the default.
 Path to the
 .Sq auth.conf
 file.
-.It Ic SECURETRANS Xo
+.It Ic SECURETRANSFER Xo
 (boolean, default=commented)
 .Xc
 Uncomment if you want TLS/SSL secured transfer.
@@ -222,7 +222,7 @@ Uncomment if you want TLS/SSL secured transfer.
 .Xc
 Uncomment if you want to use STARTTLS.
 Only useful together with
-.Sq SECURETRANS .
+.Sq SECURETRANSFER .
 .It Ic OPPORTUNISTIC_TLS Xo
 (boolean, default=commented)
 .Xc
@@ -234,7 +234,7 @@ the outside mail exchangers; in opportunistic TLS mode, the connection will
 be encrypted if the remote server supports STARTTLS, but an unencrypted
 delivery will still be made if the negotiation fails.
 Only useful together with
-.Sq SECURETRANS
+.Sq SECURETRANSFER
 and
 .Sq STARTTLS .
 .It Ic CERTFILE Xo
