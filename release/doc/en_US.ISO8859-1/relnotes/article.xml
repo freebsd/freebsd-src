@@ -376,7 +376,7 @@
 	clock and choose between absolute and relative mode.</para>
 
       <para revision="315282">The <application>clang</application>
-	<literal>nullability</literal> attribute has been added to the
+	<literal>nullability</literal> qualifier has been added to the
 	<literal>C</literal> library headers.</para>
     </sect2>
 
