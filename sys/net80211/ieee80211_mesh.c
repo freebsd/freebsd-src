@@ -1580,7 +1580,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1))
+			if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1, rxs))
 				goto out;
 		}
 	}
