@@ -648,7 +648,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			if (! ieee80211_check_rxseq(ni, wh, bssid))
+			if (! ieee80211_check_rxseq(ni, wh, bssid, rxs))
 				goto out;
 		}
 	}
@@ -673,7 +673,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		if ((m->m_flags & M_AMPDU) &&
 		    (dir == IEEE80211_FC1_DIR_FROMDS ||
 		     dir == IEEE80211_FC1_DIR_DSTODS) &&
-		    ieee80211_ampdu_reorder(ni, m) != 0) {
+		    ieee80211_ampdu_reorder(ni, m, rxs) != 0) {
 			m = NULL;
 			goto out;
 		}
