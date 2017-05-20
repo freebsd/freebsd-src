@@ -413,6 +413,26 @@ wflag_emptypat_body()
 	atf_check -o file:test4 grep -w -e "" test4
 }
 
+atf_test_case excessive_matches
+excessive_matches_head()
+{
+	atf_set "descr" "Check for proper handling of lines with excessive matches (PR 218811)"
+}
+excessive_matches_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	for i in $(jot 4096); do
+		printf "x" >> test.in
+	done
+
+	atf_check -s exit:0 -x '[ $(grep -o x test.in | wc -l) -eq 4096 ]'
+	#atf_check -s exit:1 -x 'grep -on x test.in | grep -v "1:x"'
+}
+
 atf_test_case fgrep_sanity
 fgrep_sanity_head()
 {
@@ -603,6 +623,7 @@ atf_init_test_cases()
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
 	atf_add_test_case wflag_emptypat
+	atf_add_test_case excessive_matches
 	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
