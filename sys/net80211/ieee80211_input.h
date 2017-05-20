@@ -158,7 +158,7 @@ ishtinfooui(const uint8_t *frm)
  */
 static __inline int
 ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
-    uint8_t *bssid)
+    uint8_t *bssid, const struct ieee80211_rx_stats *rxs)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
