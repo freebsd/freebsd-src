@@ -803,12 +803,12 @@ INTERRUPT(int_debug)
 	lwz	%r4,0(%r5)	/* interrupt_vector_base in r4 */
 	add	%r4,%r4,%r5
 	cmplw	cr0, %r3, %r4
-	blt	1f
+	blt	trap_common
 	lwz	%r4,4(%r5)	/* interrupt_vector_top in r4 */
 	add	%r4,%r4,%r5
 	addi	%r4,%r4,4
 	cmplw	cr0, %r3, %r4
-	bge	1f
+	bge	trap_common
 	/* Disable single-stepping for the interrupt handlers. */
 	lwz	%r3, FRAME_SRR1+8(%r1);
 	rlwinm	%r3, %r3, 0, 23, 21
@@ -820,14 +820,6 @@ INTERRUPT(int_debug)
 	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r4);
 	mtspr	SPR_SRR1, %r4
 	b	9f
-1:
-	addi	%r3, %r1, 8
-	bl	CNAME(trap)
-	/*
-	 * Handle ASTs, needed for proper support of single-stepping.
-	 * We actually need to return to the process with an rfi.
-	 */
-	b	trapexit
 9:
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci

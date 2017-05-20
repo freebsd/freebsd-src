@@ -125,7 +125,7 @@
 #define	EXC_PGM_TRAP		(1UL << 17)
 
 /* DTrace trap opcode. */
-#define EXC_DTRACE	0x7c810808
+#define EXC_DTRACE	0x7ffff808
 
 /* Magic pointer to store TOC base and other info for trap handlers on ppc64 */
 #define TRAP_GENTRAP	0x1f0
