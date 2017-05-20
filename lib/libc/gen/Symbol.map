@@ -485,7 +485,6 @@ FBSDprivate_1.0 {
 	_pthread_sigmask;
 	_pthread_testcancel;
 	_spinlock;
-	_spinlock_debug;
 	_spinunlock;
 	_rtld_addr_phdr;
 	_rtld_atfork_pre;
