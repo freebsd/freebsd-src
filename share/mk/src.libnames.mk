@@ -91,6 +91,7 @@ _LIBRARIES=	\
 		dtrace \
 		dwarf \
 		edit \
+		efivar \
 		elf \
 		execinfo \
 		fetch \

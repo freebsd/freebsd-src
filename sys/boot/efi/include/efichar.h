@@ -26,15 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef _LIBEFI_INT_H_
-#define	_LIBEFI_INT_H_
+#ifndef _BOOT_EFI_EFICHAR_H_
+#define	_BOOT_EFI_EFICHAR_H_
 
-#include <sys/errno.h>
-#include <machine/iodev.h>
+int ucs2_to_utf8(const efi_char *, char **);
+int utf8_to_ucs2(const char *, efi_char **, size_t *);
 
-int libefi_ucs2_to_utf8(u_short *, size_t *, char *);
-int libefi_utf8_to_ucs2(char *, size_t *, u_short **);
-
-int libefi_efivar(struct iodev_efivar_req *);
-
-#endif /* _LIBEFI_INT_H_ */
+#endif /* _BOOT_EFI_EFICHAR_H_ */
