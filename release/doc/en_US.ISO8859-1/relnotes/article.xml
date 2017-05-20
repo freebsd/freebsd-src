@@ -386,6 +386,11 @@
       <para revision="315282">The <application>clang</application>
 	<literal>nullability</literal> qualifier has been added to the
 	<literal>C</literal> library headers.</para>
+
+      <para revision="315282">Uses of the <acronym>GNU</acronym>
+	<literal>__nonnull__</literal> attribute have been replaced
+	with the more benign <application>Clang</application>
+	nullability attributes.</para>
     </sect2>
 
     <sect2 xml:id="userland-debug">
