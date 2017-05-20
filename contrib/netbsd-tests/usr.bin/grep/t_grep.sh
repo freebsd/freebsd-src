@@ -430,7 +430,7 @@ excessive_matches_body()
 	done
 
 	atf_check -s exit:0 -x '[ $(grep -o x test.in | wc -l) -eq 4096 ]'
-	#atf_check -s exit:1 -x 'grep -on x test.in | grep -v "1:x"'
+	atf_check -s exit:1 -x 'grep -on x test.in | grep -v "1:x"'
 }
 
 atf_test_case fgrep_sanity
@@ -508,6 +508,39 @@ wv_combo_break_body()
 
 	atf_check -s exit:1 grep -v -w "x" test1
 	atf_check -s exit:1 grep -v -w "x" test2
+}
+
+atf_test_case ocolor_metadata
+ocolor_metadata_head()
+{
+	atf_set "descr" "Check for -n/-b producing per-line metadata output"
+}
+ocolor_metadata_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	printf "xxx\nyyyy\nzzz\nfoobarbaz\n" > test1
+	check_expr="^[^:]*[0-9][^:]*:[^:]+$"
+
+	atf_check -o inline:"1:1:xx\n" grep -bon "xx$" test1
+
+	atf_check -o inline:"2:4:yyyy\n" grep -bn "yy" test1
+
+	atf_check -o inline:"2:6:yy\n" grep -bon "yy$" test1
+
+	# These checks ensure that grep isn't producing bogus line numbering
+	# in the middle of a line.
+	atf_check -s exit:1 -x \
+	    "grep -Eon 'x|y|z|f' test1 | grep -Ev '${check_expr}'"
+
+	atf_check -s exit:1 -x \
+	    "grep -En 'x|y|z|f' --color=always test1 | grep -Ev '${check_expr}'"
+
+	atf_check -s exit:1 -x \
+	    "grep -Eon 'x|y|z|f' --color=always test1 | grep -Ev '${check_expr}'"
 }
 
 atf_test_case grep_nomatch_flags
@@ -628,6 +661,7 @@ atf_init_test_cases()
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
 	atf_add_test_case grep_sanity
+	atf_add_test_case ocolor_metadata
 	atf_add_test_case grep_nomatch_flags
 	atf_add_test_case binary_flags
 	atf_add_test_case badcontext
