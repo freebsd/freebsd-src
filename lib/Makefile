@@ -49,6 +49,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdpv \
 	libdwarf \
 	libedit \
+	${_libefivar} \
 	${_libelftc} \
 	libevent \
 	libexecinfo \
@@ -230,6 +231,10 @@ _libclang_rt=	libclang_rt
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
+.endif
+
+.if ${MK_EFI} != "no"
+_libefivar=	libefivar
 .endif
 
 .if ${MK_LIBTHR} != "no"

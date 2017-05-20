@@ -123,6 +123,7 @@ SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
 SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
 SUBDIR.${MK_BSNMP}+=	bsnmpd
 SUBDIR.${MK_CTM}+=	ctm
+SUBDIR.${MK_EFI}+=	efivar efidp
 SUBDIR.${MK_FLOPPY}+=	fdcontrol
 SUBDIR.${MK_FLOPPY}+=	fdformat
 SUBDIR.${MK_FLOPPY}+=	fdread
