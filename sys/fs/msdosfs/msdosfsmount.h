@@ -65,7 +65,7 @@ MALLOC_DECLARE(M_MSDOSFSMNT);
 struct msdosfs_fileno;
 
 /*
- * Layout of the mount control block for a msdos filesystem.
+ * Layout of the mount control block for a MSDOSFS filesystem.
  */
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */
@@ -73,7 +73,7 @@ struct msdosfsmount {
 	struct bufobj *pm_bo;
 	uid_t pm_uid;		/* uid to set as owner of the files */
 	gid_t pm_gid;		/* gid to set as owner of the files */
-	mode_t pm_mask;		/* mask to and with file protection bits 
+	mode_t pm_mask;		/* mask to and with file protection bits
 				   for files */
 	mode_t pm_dirmask;	/* mask to and with file protection bits
 				   for directories */
@@ -81,7 +81,7 @@ struct msdosfsmount {
 	struct cdev *pm_dev;	/* character device mounted */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
 	u_long pm_BlkPerSec;	/* How many DEV_BSIZE blocks fit inside a physical sector */
-	u_long pm_FATsecs;	/* actual number of fat sectors */
+	u_long pm_FATsecs;	/* actual number of FAT sectors */
 	u_long pm_fatblk;	/* block # of first FAT */
 	u_long pm_rootdirblk;	/* block # (cluster # for FAT32) of root directory number */
 	u_long pm_rootdirsize;	/* size in blocks (not clusters) */
@@ -93,15 +93,15 @@ struct msdosfsmount {
 	u_long pm_bnshift;	/* shift file offset right this amount to get a block number */
 	u_long pm_bpcluster;	/* bytes per cluster */
 	u_long pm_fmod;		/* ~0 if fs is modified, this can rollover to 0	*/
-	u_long pm_fatblocksize;	/* size of fat blocks in bytes */
-	u_long pm_fatblocksec;	/* size of fat blocks in sectors */
-	u_long pm_fatsize;	/* size of fat in bytes */
-	uint32_t pm_fatmask;	/* mask to use for fat numbers */
+	u_long pm_fatblocksize;	/* size of FAT blocks in bytes */
+	u_long pm_fatblocksec;	/* size of FAT blocks in sectors */
+	u_long pm_fatsize;	/* size of FAT in bytes */
+	uint32_t pm_fatmask;	/* mask to use for FAT numbers */
 	u_long pm_fsinfo;	/* fsinfo block number */
 	u_long pm_nxtfree;	/* next place to search for a free cluster */
-	u_int pm_fatmult;	/* these 2 values are used in fat */
+	u_int pm_fatmult;	/* these 2 values are used in FAT */
 	u_int pm_fatdiv;	/*	offset computation */
-	u_int pm_curfat;	/* current fat for FAT32 (0 otherwise) */
+	u_int pm_curfat;	/* current FAT for FAT32 (0 otherwise) */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
 	uint64_t pm_flags;	/* see below */
 	void *pm_u2w;	/* Local->Unicode iconv handle */

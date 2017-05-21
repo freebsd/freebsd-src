@@ -604,7 +604,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		    <= ((CLUST_RSRVD - CLUST_FIRST) & FAT12_MASK)) {
 			/*
 			 * This will usually be a floppy disk. This size makes
-			 * sure that one fat entry will not be split across
+			 * sure that one FAT entry will not be split across
 			 * multiple blocks.
 			 */
 			pmp->pm_fatmask = FAT12_MASK;
@@ -717,9 +717,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		goto error_exit;
 
 	/*
-	 * If they want fat updates to be synchronous then let them suffer
+	 * If they want FAT updates to be synchronous then let them suffer
 	 * the performance degradation in exchange for the on disk copy of
-	 * the fat being correct just about all the time.  I suppose this
+	 * the FAT being correct just about all the time.  I suppose this
 	 * would be a good thing to turn on if the kernel is still flakey.
 	 */
 	if (mp->mnt_flag & MNT_SYNCHRONOUS)
@@ -925,14 +925,14 @@ msdosfs_sync(struct mount *mp, int waitfor)
 	td = curthread;
 
 	/*
-	 * If we ever switch to not updating all of the fats all the time,
+	 * If we ever switch to not updating all of the FATs all the time,
 	 * this would be the place to update them from the first one.
 	 */
 	if (pmp->pm_fmod != 0) {
 		if (pmp->pm_flags & MSDOSFSMNT_RONLY)
 			panic("msdosfs_sync: rofs mod");
 		else {
-			/* update fats here */
+			/* update FATs here */
 		}
 	}
 	/*
