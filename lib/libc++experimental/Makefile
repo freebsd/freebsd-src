@@ -17,6 +17,7 @@ SRCS+=		filesystem/path.cpp
 SRCS+=		memory_resource.cpp
 
 WARNS?=		0
+CXXFLAGS+=	${PICFLAG}
 CXXFLAGS+=	-isystem ${SRCDIR}/include
 CXXFLAGS+=	-nostdinc++
 CXXFLAGS+=	-nostdlib
