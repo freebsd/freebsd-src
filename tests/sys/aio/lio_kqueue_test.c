@@ -55,7 +55,8 @@
 #define PATH_TEMPLATE   "aio.XXXXXXXXXX"
 
 #define LIO_MAX 5
-#define MAX_IOCBS LIO_MAX * 16
+#define IOCBS_PER_LIO	16
+#define MAX_IOCBS (LIO_MAX * IOCBS_PER_LIO)
 #define MAX_RUNS 300
 
 int
@@ -103,9 +104,9 @@ main(int argc, char *argv[])
 #endif
 		for (j = 0; j < LIO_MAX; j++) {
 			lio[j] =
-			    malloc(sizeof(struct aiocb *) * MAX_IOCBS/LIO_MAX);
-			for (i = 0; i < MAX_IOCBS / LIO_MAX; i++) {
-				k = (MAX_IOCBS / LIO_MAX * j) + i;
+			    malloc(sizeof(struct aiocb *) * IOCBS_PER_LIO);
+			for (i = 0; i < IOCBS_PER_LIO; i++) {
+				k = (IOCBS_PER_LIO * j) + i;
 				lio[j][i] = iocb[k] =
 				    calloc(1, sizeof(struct aiocb));
 				iocb[k]->aio_nbytes = sizeof(buffer);
@@ -115,7 +116,7 @@ main(int argc, char *argv[])
 				    = iocb[k]->aio_nbytes * k * (run + 1);
 
 #ifdef DEBUG
-				printf("hello iocb[k] %d\n",
+				printf("hello iocb[k] %ld\n",
 				       iocb[k]->aio_offset);
 #endif
 				iocb[k]->aio_lio_opcode = LIO_WRITE;
@@ -125,11 +126,11 @@ main(int argc, char *argv[])
 			sig.sigev_notify = SIGEV_KEVENT;
 			time(&time1);
 			result = lio_listio(LIO_NOWAIT, lio[j],
-					    MAX_IOCBS / LIO_MAX, &sig);
+					    IOCBS_PER_LIO, &sig);
 			error = errno;
 			time(&time2);
 #ifdef DEBUG
-			printf("Time %d %d %d result -> %d\n",
+			printf("Time %ld %ld %ld result -> %d\n",
 			    time1, time2, time2-time1, result);
 #endif
 			if (result != 0) {
@@ -169,7 +170,8 @@ main(int argc, char *argv[])
 				printf("kevent %d %d errno %d return.ident %p "
 				       "return.data %p return.udata %p %p\n",
 				       i, result, error,
-				       kq_returned.ident, kq_returned.data,
+				       (void*)kq_returned.ident,
+				       (void*)kq_returned.data,
 				       kq_returned.udata,
 				       lio[j]);
 #endif
