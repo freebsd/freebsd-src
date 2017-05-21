@@ -736,7 +736,7 @@ msdosfs_write(struct vop_write_args *ap)
 			vfs_bio_clrbuf(bp);
 			/*
 			 * Do the bmap now, since pcbmap needs buffers
-			 * for the fat table. (see msdosfs_strategy)
+			 * for the FAT table. (see msdosfs_strategy)
 			 */
 			if (bp->b_blkno == bp->b_lblkno) {
 				error = pcbmap(dep, bp->b_lblkno, &bn, 0, 0);
