@@ -606,6 +606,8 @@
         ..
         cmp
         ..
+        compress
+        ..
         cpio
         ..
         col
