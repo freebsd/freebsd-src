@@ -119,17 +119,10 @@ private:
   void enqueueTask(std::function<void()> Task);
   bool run();
 
-  // Driver is the owner of all opened files.
-  // InputFiles have MemoryBufferRefs to them.
-  std::vector<std::unique_ptr<MemoryBuffer>> OwningMBs;
-
   std::list<std::function<void()>> TaskQueue;
   std::vector<StringRef> FilePaths;
   std::vector<MemoryBufferRef> Resources;
 };
-
-void parseModuleDefs(MemoryBufferRef MB);
-void writeImportLibrary();
 
 // Functions below this line are defined in DriverUtils.cpp.
 
