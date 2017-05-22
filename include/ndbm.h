@@ -53,7 +53,7 @@
 
 typedef struct {
 	void *dptr;
-	int dsize;
+	int dsize;	/* XXX Should be size_t according to 1003.1-2008. */
 } datum;
 
 typedef DB DBM;
