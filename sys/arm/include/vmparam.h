@@ -42,7 +42,7 @@
  * Virtual memory related constants, all in bytes
  */
 #ifndef	MAXTSIZ
-#define	MAXTSIZ		(64UL*1024*1024)	/* max text size */
+#define	MAXTSIZ		(256UL*1024*1024)	/* max text size */
 #endif
 #ifndef	DFLDSIZ
 #define	DFLDSIZ		(128UL*1024*1024)	/* initial data size limit */
