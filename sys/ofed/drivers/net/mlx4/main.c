@@ -3448,6 +3448,8 @@ slave_start:
 			goto err_free_eq;
 	}
 
+	mlx4_init_quotas(dev);
+
 	err = mlx4_setup_hca(dev);
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
 	    !mlx4_is_mfunc(dev)) {
@@ -3461,7 +3463,6 @@ slave_start:
 	if (err)
 		goto err_steer;
 
-	mlx4_init_quotas(dev);
 	mlx4_init_hca_info(dev);
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
