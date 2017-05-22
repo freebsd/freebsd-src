@@ -174,6 +174,11 @@
 	<literal>WITH_LLD_AS_LD</literal> build knob has been added,
 	which installs <application>LLD</application> as
 	<filename>/usr/bin/ld</filename> if set.</para>
+
+      <para revision="318472" contrib="sponsor" sponsor="&ff;">
+	<application>LDD</application> has been enabled by default and
+	installed as <filename>/usr/bin/ld</filename> on
+	&os;/&arch.arm64;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
