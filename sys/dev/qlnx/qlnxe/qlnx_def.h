@@ -191,6 +191,7 @@ struct qlnx_fastpath {
 	struct mtx		tx_mtx;
 	char			tx_mtx_name[32];
 	struct buf_ring		*tx_br;
+	uint32_t		tx_ring_full;
 
 	struct task		fp_task;
 	struct taskqueue	*fp_taskqueue;
@@ -364,6 +365,8 @@ struct qlnx_host {
 	/* debug */
 
 	uint32_t                dbg_level;
+	uint32_t                dbg_trace_lro_cnt;
+	uint32_t                dbg_trace_tso_pkt_len;
 	uint32_t                dp_level;
 	uint32_t                dp_module;
 
@@ -386,7 +389,6 @@ struct qlnx_host {
 
 	/* tx related */
 	struct callout		tx_callout;
-	struct mtx		tx_lock;
 	uint32_t		txr_idx;
 
 	/* rx related */
