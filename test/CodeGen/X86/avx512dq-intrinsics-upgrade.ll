@@ -13,10 +13,9 @@ define <2 x double>@test_int_x86_avx512_mask_vextractf64x2_512(<8 x double> %x0,
 ; CHECK-NEXT:    kshiftlb $6, %k0, %k0
 ; CHECK-NEXT:    kshiftrb $7, %k0, %k0
 ; CHECK-NEXT:    kmovw %k0, %eax
-; CHECK-NEXT:    vmovq %rax, %xmm2
-; CHECK-NEXT:    kmovw %k1, %eax
-; CHECK-NEXT:    vmovq %rax, %xmm3
-; CHECK-NEXT:    vpunpcklqdq {{.*#+}} xmm2 = xmm3[0],xmm2[0]
+; CHECK-NEXT:    kmovw %k1, %ecx
+; CHECK-NEXT:    vmovd %ecx, %xmm2
+; CHECK-NEXT:    vpinsrb $8, %eax, %xmm2, %xmm2
 ; CHECK-NEXT:    vpsllq $63, %xmm2, %xmm2
 ; CHECK-NEXT:    vpsraq $63, %zmm2, %zmm2
 ; CHECK-NEXT:    vblendvpd %xmm2, %xmm0, %xmm1, %xmm1
@@ -40,8 +39,8 @@ define <8 x float>@test_int_x86_avx512_mask_vextractf32x8(<16 x float> %x0, <8 x
 ; CHECK-NEXT:    vextractf32x8 $1, %zmm0, %ymm2
 ; CHECK-NEXT:    kmovw %edi, %k1
 ; CHECK-NEXT:    vextractf32x8 $1, %zmm0, %ymm1 {%k1}
-; CHECK-NEXT:    vaddps %ymm2, %ymm1, %ymm1
 ; CHECK-NEXT:    vextractf32x8 $1, %zmm0, %ymm0 {%k1} {z}
+; CHECK-NEXT:    vaddps %ymm2, %ymm1, %ymm1
 ; CHECK-NEXT:    vaddps %ymm1, %ymm0, %ymm0
 ; CHECK-NEXT:    retq
   %res  = call <8 x float> @llvm.x86.avx512.mask.vextractf32x8.512(<16 x float> %x0,i32 1, <8 x float> %x2, i8 %x3)

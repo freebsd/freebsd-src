@@ -320,6 +320,7 @@ void X86Subtarget::initializeEnvironment() {
   CallRegIndirect = false;
   LEAUsesAG = false;
   SlowLEA = false;
+  Slow3OpsLEA = false;
   SlowIncDec = false;
   stackAlignment = 4;
   // FIXME: this is a known good value for Yonah. How about others?
@@ -336,8 +337,7 @@ X86Subtarget &X86Subtarget::initializeSubtargetDependencies(StringRef CPU,
 
 X86Subtarget::X86Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
                            const X86TargetMachine &TM,
-                           unsigned StackAlignOverride, bool OptForSize,
-                           bool OptForMinSize)
+                           unsigned StackAlignOverride)
     : X86GenSubtargetInfo(TT, CPU, FS), X86ProcFamily(Others),
       PICStyle(PICStyles::None), TM(TM), TargetTriple(TT),
       StackAlignOverride(StackAlignOverride),
@@ -347,8 +347,7 @@ X86Subtarget::X86Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
       In16BitMode(TargetTriple.getArch() == Triple::x86 &&
                   TargetTriple.getEnvironment() == Triple::CODE16),
       InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM, *this),
-      FrameLowering(*this, getStackAlignment()), OptForSize(OptForSize),
-      OptForMinSize(OptForMinSize) {
+      FrameLowering(*this, getStackAlignment()) {
   // Determine the PICStyle based on the target selected.
   if (!isPositionIndependent())
     setPICStyle(PICStyles::None);

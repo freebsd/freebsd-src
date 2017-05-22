@@ -11,11 +11,9 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/DebugInfo/CodeView/CVTypeVisitor.h"
-#include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
 #include "llvm/DebugInfo/CodeView/TypeIndex.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeTableBuilder.h"
-#include "llvm/DebugInfo/CodeView/TypeVisitorCallbackPipeline.h"
 #include "llvm/DebugInfo/CodeView/TypeVisitorCallbacks.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -60,9 +58,12 @@ namespace {
 class TypeStreamMerger : public TypeVisitorCallbacks {
 public:
   TypeStreamMerger(TypeTableBuilder &DestIdStream,
-                   TypeTableBuilder &DestTypeStream, TypeServerHandler *Handler)
+                   TypeTableBuilder &DestTypeStream,
+                   SmallVectorImpl<TypeIndex> &SourceToDest,
+                   TypeServerHandler *Handler)
       : DestIdStream(DestIdStream), DestTypeStream(DestTypeStream),
-        FieldListBuilder(DestTypeStream), Handler(Handler) {}
+        FieldListBuilder(DestTypeStream), Handler(Handler),
+        IndexMap(SourceToDest) {}
 
   static const TypeIndex Untranslated;
 
@@ -143,7 +144,7 @@ private:
 
   /// Map from source type index to destination type index. Indexed by source
   /// type index minus 0x1000.
-  SmallVector<TypeIndex, 0> IndexMap;
+  SmallVectorImpl<TypeIndex> &IndexMap;
 };
 
 } // end anonymous namespace
@@ -477,8 +478,9 @@ Error TypeStreamMerger::mergeStream(const CVTypeArray &Types) {
 
 Error llvm::codeview::mergeTypeStreams(TypeTableBuilder &DestIdStream,
                                        TypeTableBuilder &DestTypeStream,
+                                       SmallVectorImpl<TypeIndex> &SourceToDest,
                                        TypeServerHandler *Handler,
                                        const CVTypeArray &Types) {
-  return TypeStreamMerger(DestIdStream, DestTypeStream, Handler)
+  return TypeStreamMerger(DestIdStream, DestTypeStream, SourceToDest, Handler)
       .mergeStream(Types);
 }

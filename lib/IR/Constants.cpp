@@ -37,10 +37,6 @@ using namespace llvm;
 //                              Constant Class
 //===----------------------------------------------------------------------===//
 
-void Constant::anchor() { }
-
-void ConstantData::anchor() {}
-
 bool Constant::isNegativeZeroValue() const {
   // Floating point values have an explicit -0.0 value.
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(this))
@@ -496,8 +492,6 @@ void Constant::removeDeadConstantUsers() const {
 //                                ConstantInt
 //===----------------------------------------------------------------------===//
 
-void ConstantInt::anchor() { }
-
 ConstantInt::ConstantInt(IntegerType *Ty, const APInt &V)
     : ConstantData(Ty, ConstantIntVal), Val(V) {
   assert(V.getBitWidth() == Ty->getBitWidth() && "Invalid constant for type");
@@ -609,8 +603,6 @@ static const fltSemantics *TypeToFloatSemantics(Type *Ty) {
   assert(Ty->isPPC_FP128Ty() && "Unknown FP format");
   return &APFloat::PPCDoubleDouble();
 }
-
-void ConstantFP::anchor() { }
 
 Constant *ConstantFP::get(Type *Ty, double V) {
   LLVMContext &Context = Ty->getContext();
@@ -2266,9 +2258,6 @@ Type *GetElementPtrConstantExpr::getResultElementType() const {
 //===----------------------------------------------------------------------===//
 //                       ConstantData* implementations
 
-void ConstantDataArray::anchor() {}
-void ConstantDataVector::anchor() {}
-
 Type *ConstantDataSequential::getElementType() const {
   return getType()->getElementType();
 }
@@ -2627,8 +2616,8 @@ Constant *ConstantDataSequential::getElementAsConstant(unsigned Elt) const {
   return ConstantInt::get(getElementType(), getElementAsInteger(Elt));
 }
 
-bool ConstantDataSequential::isString() const {
-  return isa<ArrayType>(getType()) && getElementType()->isIntegerTy(8);
+bool ConstantDataSequential::isString(unsigned CharSize) const {
+  return isa<ArrayType>(getType()) && getElementType()->isIntegerTy(CharSize);
 }
 
 bool ConstantDataSequential::isCString() const {

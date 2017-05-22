@@ -979,7 +979,7 @@ Error DWARFContextInMemory::maybeDecompress(const SectionRef &Sec,
     return Decompressor.takeError();
 
   SmallString<32> Out;
-  if (auto Err = Decompressor->decompress(Out))
+  if (auto Err = Decompressor->resizeAndDecompress(Out))
     return Err;
 
   UncompressedSections.emplace_back(std::move(Out));
@@ -1063,18 +1063,20 @@ DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
 
     // TODO: Add support for relocations in other sections as needed.
     // Record relocations for the debug_info and debug_line sections.
-    RelocAddrMap *Map = StringSwitch<RelocAddrMap*>(RelSecName)
-        .Case("debug_info", &InfoSection.Relocs)
-        .Case("debug_loc", &LocSection.Relocs)
-        .Case("debug_info.dwo", &InfoDWOSection.Relocs)
-        .Case("debug_line", &LineSection.Relocs)
-        .Case("debug_ranges", &RangeSection.Relocs)
-        .Case("apple_names", &AppleNamesSection.Relocs)
-        .Case("apple_types", &AppleTypesSection.Relocs)
-        .Case("apple_namespaces", &AppleNamespacesSection.Relocs)
-        .Case("apple_namespac", &AppleNamespacesSection.Relocs)
-        .Case("apple_objc", &AppleObjCSection.Relocs)
-        .Default(nullptr);
+    RelocAddrMap *Map =
+        StringSwitch<RelocAddrMap *>(RelSecName)
+            .Case("debug_info", &InfoSection.Relocs)
+            .Case("debug_loc", &LocSection.Relocs)
+            .Case("debug_info.dwo", &InfoDWOSection.Relocs)
+            .Case("debug_line", &LineSection.Relocs)
+            .Case("debug_ranges", &RangeSection.Relocs)
+            .Case("debug_addr", &AddrSection.Relocs)
+            .Case("apple_names", &AppleNamesSection.Relocs)
+            .Case("apple_types", &AppleTypesSection.Relocs)
+            .Case("apple_namespaces", &AppleNamespacesSection.Relocs)
+            .Case("apple_namespac", &AppleNamespacesSection.Relocs)
+            .Case("apple_objc", &AppleObjCSection.Relocs)
+            .Default(nullptr);
     if (!Map) {
       // Find debug_types relocs by section rather than name as there are
       // multiple, comdat grouped, debug_types sections.
@@ -1104,14 +1106,14 @@ DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
       }
 
       object::RelocVisitor V(Obj);
-      object::RelocToApply R(V.visit(Reloc.getType(), Reloc, *SymAddrOrErr));
+      uint64_t Val = V.visit(Reloc.getType(), Reloc, *SymAddrOrErr);
       if (V.error()) {
         SmallString<32> Name;
         Reloc.getTypeName(Name);
         errs() << "error: failed to compute relocation: " << Name << "\n";
         continue;
       }
-      Map->insert({Reloc.getOffset(), {R.Value}});
+      Map->insert({Reloc.getOffset(), {Val}});
     }
   }
 }
@@ -1148,7 +1150,7 @@ StringRef *DWARFContextInMemory::MapSectionToMember(StringRef Name) {
       .Case("debug_line.dwo", &LineDWOSection.Data)
       .Case("debug_str.dwo", &StringDWOSection)
       .Case("debug_str_offsets.dwo", &StringOffsetDWOSection)
-      .Case("debug_addr", &AddrSection)
+      .Case("debug_addr", &AddrSection.Data)
       .Case("apple_names", &AppleNamesSection.Data)
       .Case("apple_types", &AppleTypesSection.Data)
       .Case("apple_namespaces", &AppleNamespacesSection.Data)
