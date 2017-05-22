@@ -176,7 +176,7 @@
 	<filename>/usr/bin/ld</filename> if set.</para>
 
       <para revision="318472" contrib="sponsor" sponsor="&ff;">
-	<application>LDD</application> has been enabled by default and
+	<application>LLD</application> has been enabled by default and
 	installed as <filename>/usr/bin/ld</filename> on
 	&os;/&arch.arm64;.</para>
     </sect2>
