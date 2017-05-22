@@ -52,7 +52,7 @@ script()
 	/curpsinfo->pr_ppid == $child &&
 	    execargs == "$longsleep" && args[0] != CLD_DUMPED/
 	{
-		printf("Child process could did dump core.");
+		printf("Child process could not dump core.");
 		exit(1);
 	}
 EOF
@@ -62,10 +62,9 @@ sleeper()
 {
 	while true; do
 		$longsleep &
-		/bin/sleep 1
+                /bin/sleep 1
 		kill -SEGV $!
 	done
-	/bin/rm -f $corefile
 }
 
 if [ $# != 1 ]; then
@@ -74,8 +73,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-longsleep="/bin/sleep 10000"
-corefile=/tmp/sleep.core
+longsleep="./tst.exitcore.exe"
 
 sleeper &
 child=$!
@@ -83,10 +81,6 @@ child=$!
 script
 status=$?
 
-#pstop $child
-#pkill -P $child
 kill $child
-#prun $child
 
-/bin/rm -f $corefile
 exit $status
