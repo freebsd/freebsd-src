@@ -114,7 +114,10 @@ fi
 
 # Unpack distributions
 bsdinstall checksum
-bsdinstall distextract
+for set in $DISTRIBUTIONS; do
+	f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
+	tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT
+done
 
 # Finalize install
 bsdinstall config
