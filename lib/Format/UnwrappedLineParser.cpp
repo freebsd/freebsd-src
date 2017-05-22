@@ -55,13 +55,33 @@ private:
   std::vector<bool> &Stack;
 };
 
+static bool isLineComment(const FormatToken &FormatTok) {
+  return FormatTok.is(tok::comment) &&
+         FormatTok.TokenText.startswith("//");
+}
+
+// Checks if \p FormatTok is a line comment that continues the line comment
+// \p Previous. The original column of \p MinColumnToken is used to determine
+// whether \p FormatTok is indented enough to the right to continue \p Previous.
+static bool continuesLineComment(const FormatToken &FormatTok,
+                                 const FormatToken *Previous,
+                                 const FormatToken *MinColumnToken) {
+  if (!Previous || !MinColumnToken)
+    return false;
+  unsigned MinContinueColumn =
+      MinColumnToken->OriginalColumn + (isLineComment(*MinColumnToken) ? 0 : 1);
+  return isLineComment(FormatTok) && FormatTok.NewlinesBefore == 1 &&
+         isLineComment(*Previous) &&
+         FormatTok.OriginalColumn >= MinContinueColumn;
+}
+
 class ScopedMacroState : public FormatTokenSource {
 public:
   ScopedMacroState(UnwrappedLine &Line, FormatTokenSource *&TokenSource,
                    FormatToken *&ResetToken)
       : Line(Line), TokenSource(TokenSource), ResetToken(ResetToken),
         PreviousLineLevel(Line.Level), PreviousTokenSource(TokenSource),
-        Token(nullptr) {
+        Token(nullptr), PreviousToken(nullptr) {
     TokenSource = this;
     Line.Level = 0;
     Line.InPPDirective = true;
@@ -78,6 +98,7 @@ public:
     // The \c UnwrappedLineParser guards against this by never calling
     // \c getNextToken() after it has encountered the first eof token.
     assert(!eof());
+    PreviousToken = Token;
     Token = PreviousTokenSource->getNextToken();
     if (eof())
       return getFakeEOF();
@@ -87,12 +108,17 @@ public:
   unsigned getPosition() override { return PreviousTokenSource->getPosition(); }
 
   FormatToken *setPosition(unsigned Position) override {
+    PreviousToken = nullptr;
     Token = PreviousTokenSource->setPosition(Position);
     return Token;
   }
 
 private:
-  bool eof() { return Token && Token->HasUnescapedNewline; }
+  bool eof() {
+    return Token && Token->HasUnescapedNewline &&
+           !continuesLineComment(*Token, PreviousToken,
+                                 /*MinColumnToken=*/PreviousToken);
+  }
 
   FormatToken *getFakeEOF() {
     static bool EOFInitialized = false;
@@ -112,6 +138,7 @@ private:
   FormatTokenSource *PreviousTokenSource;
 
   FormatToken *Token;
+  FormatToken *PreviousToken;
 };
 
 } // end anonymous namespace
@@ -429,8 +456,9 @@ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
     parseParens();
 
   addUnwrappedLine();
-  size_t OpeningLineIndex =
-      Lines.empty() ? (UnwrappedLine::kInvalidIndex) : (Lines.size() - 1);
+  size_t OpeningLineIndex = CurrentLines->empty()
+                                ? (UnwrappedLine::kInvalidIndex)
+                                : (CurrentLines->size() - 1);
 
   ScopedDeclarationState DeclarationState(*Line, DeclarationScopeStack,
                                           MustBeDeclaration);
@@ -1635,9 +1663,9 @@ void UnwrappedLineParser::parseForOrWhileLoop() {
   assert(FormatTok->isOneOf(tok::kw_for, tok::kw_while, TT_ForEachMacro) &&
          "'for', 'while' or foreach macro expected");
   nextToken();
-  // JS' for async ( ...
+  // JS' for await ( ...
   if (Style.Language == FormatStyle::LK_JavaScript &&
-      FormatTok->is(Keywords.kw_async))
+      FormatTok->is(Keywords.kw_await))
     nextToken();
   if (FormatTok->Tok.is(tok::l_paren))
     parseParens();
@@ -2091,16 +2119,11 @@ bool UnwrappedLineParser::isOnNewLine(const FormatToken &FormatTok) {
          FormatTok.NewlinesBefore > 0;
 }
 
-static bool isLineComment(const FormatToken &FormatTok) {
-  return FormatTok.is(tok::comment) &&
-         FormatTok.TokenText.startswith("//");
-}
-
 // Checks if \p FormatTok is a line comment that continues the line comment
 // section on \p Line.
-static bool continuesLineComment(const FormatToken &FormatTok,
-                                 const UnwrappedLine &Line,
-                                 llvm::Regex &CommentPragmasRegex) {
+static bool continuesLineCommentSection(const FormatToken &FormatTok,
+                                        const UnwrappedLine &Line,
+                                        llvm::Regex &CommentPragmasRegex) {
   if (Line.Tokens.empty())
     return false;
 
@@ -2199,12 +2222,8 @@ static bool continuesLineComment(const FormatToken &FormatTok,
     MinColumnToken = PreviousToken;
   }
 
-  unsigned MinContinueColumn =
-      MinColumnToken->OriginalColumn +
-      (isLineComment(*MinColumnToken) ? 0 : 1);
-  return isLineComment(FormatTok) && FormatTok.NewlinesBefore == 1 &&
-         isLineComment(*(Line.Tokens.back().Tok)) &&
-         FormatTok.OriginalColumn >= MinContinueColumn;
+  return continuesLineComment(FormatTok, /*Previous=*/Line.Tokens.back().Tok,
+                              MinColumnToken);
 }
 
 void UnwrappedLineParser::flushComments(bool NewlineBeforeNext) {
@@ -2222,7 +2241,7 @@ void UnwrappedLineParser::flushComments(bool NewlineBeforeNext) {
     // FIXME: Consider putting separate line comment sections as children to the
     // unwrapped line instead.
     (*I)->ContinuesLineCommentSection =
-        continuesLineComment(**I, *Line, CommentPragmasRegex);
+        continuesLineCommentSection(**I, *Line, CommentPragmasRegex);
     if (isOnNewLine(**I) && JustComments && !(*I)->ContinuesLineCommentSection)
       addUnwrappedLine();
     pushToken(*I);
@@ -2255,7 +2274,7 @@ void UnwrappedLineParser::distributeComments(
     const SmallVectorImpl<FormatToken *> &Comments,
     const FormatToken *NextTok) {
   // Whether or not a line comment token continues a line is controlled by
-  // the method continuesLineComment, with the following caveat:
+  // the method continuesLineCommentSection, with the following caveat:
   //
   // Define a trail of Comments to be a nonempty proper postfix of Comments such
   // that each comment line from the trail is aligned with the next token, if
@@ -2293,7 +2312,7 @@ void UnwrappedLineParser::distributeComments(
       FormatTok->ContinuesLineCommentSection = false;
     } else {
       FormatTok->ContinuesLineCommentSection =
-          continuesLineComment(*FormatTok, *Line, CommentPragmasRegex);
+          continuesLineCommentSection(*FormatTok, *Line, CommentPragmasRegex);
     }
     if (!FormatTok->ContinuesLineCommentSection &&
         (isOnNewLine(*FormatTok) || FormatTok->IsFirst)) {

@@ -407,12 +407,11 @@ llvm::Constant *TargetCodeGenInfo::getNullPointer(const CodeGen::CodeGenModule &
 }
 
 llvm::Value *TargetCodeGenInfo::performAddrSpaceCast(
-    CodeGen::CodeGenFunction &CGF, llvm::Value *Src, QualType SrcTy,
-    QualType DestTy) const {
+    CodeGen::CodeGenFunction &CGF, llvm::Value *Src, unsigned SrcAddr,
+    unsigned DestAddr, llvm::Type *DestTy, bool isNonNull) const {
   // Since target may map different address spaces in AST to the same address
   // space, an address space conversion may end up as a bitcast.
-  return CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(Src,
-             CGF.ConvertType(DestTy));
+  return CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(Src, DestTy);
 }
 
 static bool isEmptyRecord(ASTContext &Context, QualType T, bool AllowArrays);
@@ -6558,6 +6557,11 @@ public:
       Fn->addFnAttr("nomips16");
     }
 
+    if (FD->hasAttr<MicroMipsAttr>())
+      Fn->addFnAttr("micromips");
+    else if (FD->hasAttr<NoMicroMipsAttr>())
+      Fn->addFnAttr("nomicromips");
+
     const MipsInterruptAttr *Attr = FD->getAttr<MipsInterruptAttr>();
     if (!Attr)
       return;
@@ -7292,6 +7296,11 @@ public:
 
   llvm::Constant *getNullPointer(const CodeGen::CodeGenModule &CGM,
       llvm::PointerType *T, QualType QT) const override;
+
+  unsigned getASTAllocaAddressSpace() const override {
+    return LangAS::FirstTargetAddressSpace +
+           getABIInfo().getDataLayout().getAllocaAddrSpace();
+  }
 };
 }
 

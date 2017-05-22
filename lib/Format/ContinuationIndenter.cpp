@@ -207,7 +207,7 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
       //     ...
       //   }.bind(...));
       // FIXME: We should find a more generic solution to this problem.
-      !(State.Column <= NewLineColumn &&
+      !(State.Column <= NewLineColumn && Previous.isNot(tok::r_paren) &&
         Style.Language == FormatStyle::LK_JavaScript))
     return true;
 
@@ -587,8 +587,10 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
   if (!DryRun) {
     unsigned Newlines = std::max(
         1u, std::min(Current.NewlinesBefore, Style.MaxEmptyLinesToKeep + 1));
+    bool ContinuePPDirective =
+        State.Line->InPPDirective && State.Line->Type != LT_ImportStatement;
     Whitespaces.replaceWhitespace(Current, Newlines, State.Column, State.Column,
-                                  State.Line->InPPDirective);
+                                  ContinuePPDirective);
   }
 
   if (!Current.isTrailingComment())
