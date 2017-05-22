@@ -1836,8 +1836,8 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 	mprsas_log_command(cm, MPR_XINFO, "%s cm %p ccb %p outstanding %u\n",
 	    __func__, cm, ccb, targ->outstanding);
 
-	mpr_build_nvme_prp(sc, cm, req, (void *)nvme_dsm_ranges_dma_handle, 0,
-	    data_length);
+	mpr_build_nvme_prp(sc, cm, req,
+	    (void *)(uintptr_t)nvme_dsm_ranges_dma_handle, 0, data_length);
 	mpr_map_command(sc, cm);
 
 out:
