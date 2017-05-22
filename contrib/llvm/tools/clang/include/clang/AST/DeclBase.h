@@ -34,6 +34,7 @@ class DeclarationName;
 class DependentDiagnostic;
 class EnumDecl;
 class ExportDecl;
+class ExternalSourceSymbolAttr;
 class FunctionDecl;
 class FunctionType;
 enum Linkage : unsigned char;
@@ -332,15 +333,15 @@ private:
   bool AccessDeclContextSanity() const;
 
 protected:
-
   Decl(Kind DK, DeclContext *DC, SourceLocation L)
-    : NextInContextAndBits(), DeclCtx(DC),
-      Loc(L), DeclKind(DK), InvalidDecl(0),
-      HasAttrs(false), Implicit(false), Used(false), Referenced(false),
-      Access(AS_none), FromASTFile(0), Hidden(DC && cast<Decl>(DC)->Hidden),
-      IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
-      CacheValidAndLinkage(0)
-  {
+      : NextInContextAndBits(), DeclCtx(DC), Loc(L), DeclKind(DK),
+        InvalidDecl(0), HasAttrs(false), Implicit(false), Used(false),
+        Referenced(false), Access(AS_none), FromASTFile(0),
+        Hidden(DC && cast<Decl>(DC)->Hidden &&
+               (!cast<Decl>(DC)->isFromASTFile() ||
+                hasLocalOwningModuleStorage())),
+        IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
+        CacheValidAndLinkage(0) {
     if (StatisticsEnabled) add(DK);
   }
 
@@ -562,6 +563,10 @@ public:
     NextInContextAndBits.setInt(Bits);
   }
 
+  /// \brief Looks on this and related declarations for an applicable
+  /// external source symbol attribute.
+  ExternalSourceSymbolAttr *getExternalSourceSymbolAttr() const;
+
   /// \brief Whether this declaration was marked as being private to the
   /// module in which it was defined.
   bool isModulePrivate() const {
@@ -698,6 +703,9 @@ public:
   Module *getLocalOwningModule() const {
     if (isFromASTFile() || !Hidden)
       return nullptr;
+
+    assert(hasLocalOwningModuleStorage() &&
+           "hidden local decl but no local module storage");
     return reinterpret_cast<Module *const *>(this)[-1];
   }
   void setLocalOwningModule(Module *M) {

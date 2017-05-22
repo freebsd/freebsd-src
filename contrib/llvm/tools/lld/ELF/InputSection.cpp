@@ -390,14 +390,28 @@ static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t Type, uint64_t A,
   }
 }
 
-template <class ELFT>
-static typename ELFT::uint
-getRelocTargetVA(uint32_t Type, int64_t A, typename ELFT::uint P,
-                 const SymbolBody &Body, RelExpr Expr) {
+// ARM SBREL relocations are of the form S + A - B where B is the static base
+// The ARM ABI defines base to be "addressing origin of the output segment
+// defining the symbol S". We defined the "addressing origin"/static base to be
+// the base of the PT_LOAD segment containing the Body.
+// The procedure call standard only defines a Read Write Position Independent
+// RWPI variant so in practice we should expect the static base to be the base
+// of the RW segment.
+static uint64_t getARMStaticBase(const SymbolBody &Body) {
+  OutputSection *OS = Body.getOutputSection();
+  if (!OS || !OS->FirstInPtLoad)
+    fatal("SBREL relocation to " + Body.getName() + " without static base\n");
+  return OS->FirstInPtLoad->Addr;
+}
+
+static uint64_t getRelocTargetVA(uint32_t Type, int64_t A, uint64_t P,
+                                 const SymbolBody &Body, RelExpr Expr) {
   switch (Expr) {
   case R_ABS:
   case R_RELAX_GOT_PC_NOPIC:
     return Body.getVA(A);
+  case R_ARM_SBREL:
+    return Body.getVA(A) - getARMStaticBase(Body);
   case R_GOT:
   case R_RELAX_TLS_GD_TO_IE_ABS:
     return Body.getGotVA() + A;
@@ -518,7 +532,7 @@ getRelocTargetVA(uint32_t Type, int64_t A, typename ELFT::uint P,
   case R_NEG_TLS:
     return Out::TlsPhdr->p_memsz - Body.getVA(A);
   case R_SIZE:
-    return Body.getSize<ELFT>() + A;
+    return A; // Body.getSize was already folded into the addend.
   case R_TLSDESC:
     return InX::Got->getGlobalDynAddr(Body) + A;
   case R_TLSDESC_PAGE:
@@ -566,7 +580,7 @@ void InputSection::relocateNonAlloc(uint8_t *Buf, ArrayRef<RelTy> Rels) {
     uint64_t SymVA = 0;
     if (!Sym.isTls() || Out::TlsPhdr)
       SymVA = SignExtend64<sizeof(typename ELFT::uint) * 8>(
-          getRelocTargetVA<ELFT>(Type, Addend, AddrLoc, Sym, R_ABS));
+          getRelocTargetVA(Type, Addend, AddrLoc, Sym, R_ABS));
     Target->relocateOne(BufLoc, Type, SymVA);
   }
 }
@@ -577,19 +591,28 @@ template <class ELFT> elf::ObjectFile<ELFT> *InputSectionBase::getFile() const {
 
 template <class ELFT>
 void InputSectionBase::relocate(uint8_t *Buf, uint8_t *BufEnd) {
+  if (Flags & SHF_ALLOC)
+    relocateAlloc(Buf, BufEnd);
+  else
+    relocateNonAlloc<ELFT>(Buf, BufEnd);
+}
+
+template <class ELFT>
+void InputSectionBase::relocateNonAlloc(uint8_t *Buf, uint8_t *BufEnd) {
   // scanReloc function in Writer.cpp constructs Relocations
   // vector only for SHF_ALLOC'ed sections. For other sections,
   // we handle relocations directly here.
-  auto *IS = dyn_cast<InputSection>(this);
-  if (IS && !(IS->Flags & SHF_ALLOC)) {
-    if (IS->AreRelocsRela)
-      IS->relocateNonAlloc<ELFT>(Buf, IS->template relas<ELFT>());
-    else
-      IS->relocateNonAlloc<ELFT>(Buf, IS->template rels<ELFT>());
-    return;
-  }
+  auto *IS = cast<InputSection>(this);
+  assert(!(IS->Flags & SHF_ALLOC));
+  if (IS->AreRelocsRela)
+    IS->relocateNonAlloc<ELFT>(Buf, IS->template relas<ELFT>());
+  else
+    IS->relocateNonAlloc<ELFT>(Buf, IS->template rels<ELFT>());
+}
 
-  const unsigned Bits = sizeof(typename ELFT::uint) * 8;
+void InputSectionBase::relocateAlloc(uint8_t *Buf, uint8_t *BufEnd) {
+  assert(Flags & SHF_ALLOC);
+  const unsigned Bits = Config->Wordsize * 8;
   for (const Relocation &Rel : Relocations) {
     uint64_t Offset = getOffset(Rel.Offset);
     uint8_t *BufLoc = Buf + Offset;
@@ -597,8 +620,8 @@ void InputSectionBase::relocate(uint8_t *Buf, uint8_t *BufEnd) {
 
     uint64_t AddrLoc = getOutputSection()->Addr + Offset;
     RelExpr Expr = Rel.Expr;
-    uint64_t TargetVA = SignExtend64<Bits>(
-        getRelocTargetVA<ELFT>(Type, Rel.Addend, AddrLoc, *Rel.Sym, Expr));
+    uint64_t TargetVA = SignExtend64(
+        getRelocTargetVA(Type, Rel.Addend, AddrLoc, *Rel.Sym, Expr), Bits);
 
     switch (Expr) {
     case R_RELAX_GOT_PC:
