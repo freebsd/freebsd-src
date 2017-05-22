@@ -333,15 +333,18 @@ public:
 
   bool hasAddressSpace() const { return Mask & AddressSpaceMask; }
   unsigned getAddressSpace() const { return Mask >> AddressSpaceShift; }
+  bool hasTargetSpecificAddressSpace() const {
+    return getAddressSpace() >= LangAS::FirstTargetAddressSpace;
+  }
   /// Get the address space attribute value to be printed by diagnostics.
   unsigned getAddressSpaceAttributePrintValue() const {
     auto Addr = getAddressSpace();
     // This function is not supposed to be used with language specific
     // address spaces. If that happens, the diagnostic message should consider
     // printing the QualType instead of the address space value.
-    assert(Addr == 0 || Addr >= LangAS::Count);
+    assert(Addr == 0 || hasTargetSpecificAddressSpace());
     if (Addr)
-      return Addr - LangAS::Count;
+      return Addr - LangAS::FirstTargetAddressSpace;
     // TODO: The diagnostic messages where Addr may be 0 should be fixed
     // since it cannot differentiate the situation where 0 denotes the default
     // address space or user specified __attribute__((address_space(0))).
@@ -2008,10 +2011,11 @@ public:
   Optional<NullabilityKind> getNullability(const ASTContext &context) const;
 
   /// Determine whether the given type can have a nullability
-  /// specifier applied to it, i.e., if it is any kind of pointer type
-  /// or a dependent type that could instantiate to any kind of
-  /// pointer type.
-  bool canHaveNullability() const;
+  /// specifier applied to it, i.e., if it is any kind of pointer type.
+  ///
+  /// \param ResultIfUnknown The value to return if we don't yet know whether
+  ///        this type can have nullability because it is dependent.
+  bool canHaveNullability(bool ResultIfUnknown = true) const;
 
   /// Retrieve the set of substitutions required when accessing a member
   /// of the Objective-C receiver type that is declared in the given context.
