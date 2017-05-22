@@ -270,7 +270,7 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 
 pkg-stage:
 .if !defined(NOPKG)
-	env REPOS_DIR=${.CURDIR}/pkg_repos/ \
+	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
 		sh ${.CURDIR}/scripts/pkg-stage.sh
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \

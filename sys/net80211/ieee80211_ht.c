@@ -849,7 +849,8 @@ ampdu_rx_flush_upto(struct ieee80211_node *ni,
  * the frame should be processed normally by the caller.
  */
 int
-ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs)
 {
 #define	PROCESS		0	/* caller should process frame */
 #define	CONSUMED	1	/* frame consumed, caller does nothing */

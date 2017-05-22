@@ -17,6 +17,7 @@ MK_SSP=	no
 LIB=thr
 SHLIB_MAJOR= 3
 WARNS?=	3
+NO_WTHREAD_SAFETY=1
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${SRCTOP}/lib/libc/include -I${.CURDIR}/thread \
 	-I${SRCTOP}/include
@@ -26,6 +27,12 @@ CFLAGS+=-I${SRCTOP}/libexec/rtld-elf
 CFLAGS+=-I${SRCTOP}/libexec/rtld-elf/${MACHINE_CPUARCH}
 CFLAGS+=-I${SRCTOP}/lib/libthread_db
 CFLAGS+=-Winline
+
+CFLAGS.thr_stack.c+=	-Wno-cast-align
+.include <bsd.compiler.mk>
+.if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 40300)
+CFLAGS.thr_symbols.c+=	-Wno-missing-variable-declarations
+.endif
 
 .ifndef NO_THREAD_UNWIND_STACK
 CFLAGS+=-fexceptions

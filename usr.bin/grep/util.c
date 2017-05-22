@@ -61,10 +61,12 @@ static bool	 first_match = true;
  * other useful bits
  */
 struct parsec {
-	regmatch_t matches[MAX_LINE_MATCHES];	/* Matches made */
-	struct str ln;				/* Current line */
-	size_t matchidx;			/* Latest used match index */
-	bool binary;				/* Binary file? */
+	regmatch_t	matches[MAX_LINE_MATCHES];	/* Matches made */
+	struct str	ln;				/* Current line */
+	size_t		lnstart;			/* Position in line */
+	size_t		matchidx;			/* Latest match index */
+	int		printed;			/* Metadata printed? */
+	bool		binary;				/* Binary file? */
 };
 
 
@@ -232,8 +234,10 @@ procfile(const char *fn)
 	strcpy(pc.ln.file, fn);
 	pc.ln.line_no = 0;
 	pc.ln.len = 0;
+	pc.ln.boff = 0;
 	pc.ln.off = -1;
 	pc.binary = f->binary;
+	pc.printed = 0;
 	tail = 0;
 	last_outed = 0;
 	same_file = false;
@@ -247,8 +251,11 @@ procfile(const char *fn)
 	mcount = mlimit;
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
-		/* Reset match count for every line processed */
+		/* Reset per-line statistics */
+		pc.printed = 0;
 		pc.matchidx = 0;
+		pc.lnstart = 0;
+		pc.ln.boff = 0;
 		pc.ln.off += pc.ln.len + 1;
 		if ((pc.ln.dat = grep_fgetln(f, &pc.ln.len)) == NULL ||
 		    pc.ln.len == 0) {
@@ -288,6 +295,14 @@ procfile(const char *fn)
 		/* Print the matching line, but only if not quiet/binary */
 		if (t == 0 && printmatch) {
 			printline(&pc, ':');
+			while (pc.matchidx >= MAX_LINE_MATCHES) {
+				/* Reset matchidx and try again */
+				pc.matchidx = 0;
+				if (procline(&pc) == 0)
+					printline(&pc, ':');
+				else
+					break;
+			}
 			first_match = false;
 			same_file = true;
 			last_outed = 0;
@@ -295,7 +310,7 @@ procfile(const char *fn)
 		if (t != 0 && doctx) {
 			/* Deal with any -A context */
 			if (tail > 0) {
-				printline(&pc, '-');
+				grep_printline(&pc.ln, '-');
 				tail--;
 				if (Bflag > 0)
 					clearqueue();
@@ -356,11 +371,11 @@ procline(struct parsec *pc)
 {
 	regmatch_t pmatch, lastmatch, chkmatch;
 	wchar_t wbegin, wend;
-	size_t st = 0, nst = 0;
+	size_t st, nst;
 	unsigned int i;
 	int c = 0, r = 0, lastmatches = 0, leflags = eflags;
 	size_t startm = 0, matchidx;
-	int retry;
+	unsigned int retry;
 
 	matchidx = pc->matchidx;
 
@@ -376,6 +391,8 @@ procline(struct parsec *pc)
 	} else if (matchall)
 		return (0);
 
+	st = pc->lnstart;
+	nst = 0;
 	/* Initialize to avoid a false positive warning from GCC. */
 	lastmatch.rm_so = lastmatch.rm_eo = 0;
 
@@ -432,12 +449,12 @@ procline(struct parsec *pc)
 				 * still match a whole word.
 				 */
 				if (r == REG_NOMATCH &&
-				    (retry == 0 || pmatch.rm_so + 1 < retry))
+				    (retry == pc->lnstart ||
+				    pmatch.rm_so + 1 < retry))
 					retry = pmatch.rm_so + 1;
 				if (r == REG_NOMATCH)
 					continue;
 			}
-
 			lastmatches++;
 			lastmatch = pmatch;
 
@@ -466,8 +483,11 @@ procline(struct parsec *pc)
 			}
 			/* avoid excessive matching - skip further patterns */
 			if ((color == NULL && !oflag) || qflag || lflag ||
-			    matchidx >= MAX_LINE_MATCHES)
+			    matchidx >= MAX_LINE_MATCHES) {
+				pc->lnstart = nst;
+				lastmatches = 0;
 				break;
+			}
 		}
 
 		/*
@@ -475,7 +495,7 @@ procline(struct parsec *pc)
 		 * again just in case we still have a chance to match later in
 		 * the string.
 		 */
-		if (lastmatches == 0 && retry > 0) {
+		if (lastmatches == 0 && retry > pc->lnstart) {
 			st = retry;
 			continue;
 		}
@@ -497,6 +517,7 @@ procline(struct parsec *pc)
 
 		/* Advance st based on previous matches */
 		st = nst;
+		pc->lnstart = st;
 	}
 
 	/* Reflect the new matchidx in the context */
@@ -591,7 +612,7 @@ printline_metadata(struct str *line, int sep)
 	if (bflag) {
 		if (printsep)
 			putchar(sep);
-		printf("%lld", (long long)line->off);
+		printf("%lld", (long long)(line->off + line->boff));
 		printsep = true;
 	}
 	if (printsep)
@@ -616,13 +637,22 @@ printline(struct parsec *pc, int sep)
 
 	/* --color and -o */
 	if ((oflag || color) && matchidx > 0) {
-		printline_metadata(&pc->ln, sep);
+		/* Only print metadata once per line if --color */
+		if (!oflag && pc->printed == 0)
+			printline_metadata(&pc->ln, sep);
 		for (i = 0; i < matchidx; i++) {
 			match = pc->matches[i];
 			/* Don't output zero length matches */
 			if (match.rm_so == match.rm_eo)
 				continue;
-			if (!oflag)
+			/*
+			 * Metadata is printed on a per-line basis, so every
+			 * match gets file metadata with the -o flag.
+			 */
+			if (oflag) {
+				pc->ln.boff = match.rm_so;
+				printline_metadata(&pc->ln, sep);
+			} else
 				fwrite(pc->ln.dat + a, match.rm_so - a, 1,
 				    stdout);
 			if (color)
@@ -643,4 +673,5 @@ printline(struct parsec *pc, int sep)
 		}
 	} else
 		grep_printline(&pc->ln, sep);
+	pc->printed++;
 }
