@@ -230,6 +230,10 @@
       <para revision="317855">The &man.daemon.8; utility has been
 	updated to allow redirecting &man.stdout.4; and &man.stderr.4;
 	output to &man.syslog.3; or to a file.</para>
+
+      <para revision="318576" contrib="sponsor" sponsor="&ff;">The
+	&man.efivar.8; utility has been added, providing an interface
+	to manage <acronym>UEFI</acronym> variables.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
