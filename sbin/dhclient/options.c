@@ -783,7 +783,7 @@ pretty_print_option(unsigned int code, unsigned char *data, int len,
 				dp += 4;
 				break;
 			case 'L':
-				opcount = snprintf(op, opleft, "%ld",
+				opcount = snprintf(op, opleft, "%lu",
 				    (unsigned long)getULong(dp));
 				if (opcount >= opleft || opcount == -1)
 					goto toobig;
@@ -799,7 +799,7 @@ pretty_print_option(unsigned int code, unsigned char *data, int len,
 				dp += 2;
 				break;
 			case 'S':
-				opcount = snprintf(op, opleft, "%d",
+				opcount = snprintf(op, opleft, "%u",
 				    getUShort(dp));
 				if (opcount >= opleft || opcount == -1)
 					goto toobig;
