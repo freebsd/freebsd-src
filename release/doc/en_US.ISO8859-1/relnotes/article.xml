@@ -646,6 +646,25 @@
 	sponsor="&chelsio;"><acronym>PCI</acronym> passthrough with
 	&man.bhyve.4; resets functions via <acronym>FLR</acronym> when
 	a virtual machine is started and stopped.</para>
+
+      <para revision="309312" contrib="sponsor"
+	sponsor="&ms;"><acronym>PCI</acronym> passthrough support has
+	been enabled on &os; virtual machines running on
+	Microsoft&reg; Hyper-V&trade;.</para>
+
+      <para revision="314091" contrib="sponsor" sponsor="&ms;">The
+	&man.hv.netvsc.4; driver <acronym>SR-IOV</acronym>
+	implementation has been updated to support Virtual Function
+	(<acronym>VF</acronym>) devices, such as the Mellanox&reg;
+	Connect-X3&trade; network card.</para>
+
+      <para revision="316272" contrib="sponsor" sponsor="&ms;">Support
+	for Microsoft&reg; Hyper-V&trade; Generation 2 virtual
+	machines has been added.</para>
+
+      <para revision="317119" contrib="sponsor" sponsor="&ms;">Support
+	for synthetic keyboards has been added for virtual machines
+	running on Microsoft&reg; Hyper-V&trade;.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
