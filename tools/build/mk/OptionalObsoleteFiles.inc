@@ -4514,6 +4514,7 @@ OLD_LIBS+=${DEBUG_LIB32_LIBS}
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
 OLD_FILES+=usr/lib/libc++_p.a
+OLD_FILES+=usr/lib/libc++experimental.a
 OLD_FILES+=usr/lib/libc++.so
 OLD_LIBS+=usr/lib/libc++.so.1
 OLD_FILES+=usr/lib/libcxxrt.a

@@ -1224,7 +1224,6 @@ xn_rxeof(struct netfront_rxq *rxq)
 		RING_FINAL_CHECK_FOR_RESPONSES(&rxq->ring, work_to_do);
 	} while (work_to_do);
 
-	XN_RX_UNLOCK(rxq);
 	mbufq_drain(&mbufq_errq);
 	/*
 	 * Process all the mbufs after the remapping is complete.
@@ -1253,7 +1252,6 @@ xn_rxeof(struct netfront_rxq *rxq)
 	 */
 	tcp_lro_flush_all(lro);
 #endif
-	XN_RX_LOCK(rxq);
 }
 
 static void

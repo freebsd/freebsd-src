@@ -290,19 +290,6 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		return (-1);
 }
 
-/*
- * Disable this warning from clang:
- *
- * cast from 'char *' to
- *    'struct stack *' increases required alignment from 1 to 8
- *    [-Werror,-Wcast-align]
- *                 spare_stack = (struct stack *)
- */
-#ifdef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align"
-#endif
-
 /* This function must be called with _thread_list_lock held. */
 void
 _thr_stack_free(struct pthread_attr *attr)
@@ -329,7 +316,3 @@ _thr_stack_free(struct pthread_attr *attr)
 		attr->stackaddr_attr = NULL;
 	}
 }
-
-#ifdef __clang__
-#pragma GCC diagnostic pop
-#endif
