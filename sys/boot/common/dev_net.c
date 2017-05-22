@@ -387,16 +387,14 @@ net_print(int verbose)
 uint32_t
 net_parse_rootpath()
 {
-	int i;
 	n_long addr = INADDR_NONE;
+	char *ptr;
 
-	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
-		if (rootpath[i] == ':')
-			break;
-	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
-		rootpath[i++] = '\0';
-		addr = inet_addr(&rootpath[0]);
-		bcopy(&rootpath[i], rootpath, strlen(&rootpath[i])+1);
+	ptr = rootpath;
+	(void)strsep(&ptr, ":");
+	if (ptr != NULL) {
+		addr = inet_addr(rootpath);
+		bcopy(ptr, rootpath, strlen(ptr) + 1);
 	}
 
 	return (addr);
