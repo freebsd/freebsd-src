@@ -475,6 +475,7 @@ nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
 		if (*++tl != 0) {
 			nd->nd_flag |= ND_NOMOREDATA;
 			flag = 0;
+			error = ENXIO;	/* Return ENXIO so *nfhpp isn't used. */
 		}
 	}
 	if (flag) {
