@@ -154,6 +154,11 @@ MipsTargetMachine::getSubtargetImpl(const Function &F) const {
   bool hasNoMips16Attr =
       !F.getFnAttribute("nomips16").hasAttribute(Attribute::None);
 
+  bool HasMicroMipsAttr =
+      !F.getFnAttribute("micromips").hasAttribute(Attribute::None);
+  bool HasNoMicroMipsAttr =
+      !F.getFnAttribute("nomicromips").hasAttribute(Attribute::None);
+
   // FIXME: This is related to the code below to reset the target options,
   // we need to know whether or not the soft float flag is set on the
   // function, so we can enable it as a subtarget feature.
@@ -165,6 +170,10 @@ MipsTargetMachine::getSubtargetImpl(const Function &F) const {
     FS += FS.empty() ? "+mips16" : ",+mips16";
   else if (hasNoMips16Attr)
     FS += FS.empty() ? "-mips16" : ",-mips16";
+  if (HasMicroMipsAttr)
+    FS += FS.empty() ? "+micromips" : ",+micromips";
+  else if (HasNoMicroMipsAttr)
+    FS += FS.empty() ? "-micromips" : ",-micromips";
   if (softFloat)
     FS += FS.empty() ? "+soft-float" : ",+soft-float";
 
@@ -223,23 +232,23 @@ TargetPassConfig *MipsTargetMachine::createPassConfig(PassManagerBase &PM) {
 
 void MipsPassConfig::addIRPasses() {
   TargetPassConfig::addIRPasses();
-  addPass(createAtomicExpandPass(&getMipsTargetMachine()));
+  addPass(createAtomicExpandPass());
   if (getMipsSubtarget().os16())
-    addPass(createMipsOs16Pass(getMipsTargetMachine()));
+    addPass(createMipsOs16Pass());
   if (getMipsSubtarget().inMips16HardFloat())
-    addPass(createMips16HardFloatPass(getMipsTargetMachine()));
+    addPass(createMips16HardFloatPass());
 }
 // Install an instruction selector pass using
 // the ISelDag to gen Mips code.
 bool MipsPassConfig::addInstSelector() {
-  addPass(createMipsModuleISelDagPass(getMipsTargetMachine()));
+  addPass(createMipsModuleISelDagPass());
   addPass(createMips16ISelDag(getMipsTargetMachine(), getOptLevel()));
   addPass(createMipsSEISelDag(getMipsTargetMachine(), getOptLevel()));
   return false;
 }
 
 void MipsPassConfig::addPreRegAlloc() {
-  addPass(createMipsOptimizePICCallPass(getMipsTargetMachine()));
+  addPass(createMipsOptimizePICCallPass());
 }
 
 TargetIRAnalysis MipsTargetMachine::getTargetIRAnalysis() {
@@ -259,15 +268,14 @@ TargetIRAnalysis MipsTargetMachine::getTargetIRAnalysis() {
 // machine code is emitted. return true if -print-machineinstrs should
 // print out the code after the passes.
 void MipsPassConfig::addPreEmitPass() {
-  MipsTargetMachine &TM = getMipsTargetMachine();
   addPass(createMicroMipsSizeReductionPass());
 
   // The delay slot filler pass can potientially create forbidden slot (FS)
   // hazards for MIPSR6 which the hazard schedule pass (HSP) will fix. Any
   // (new) pass that creates compact branches after the HSP must handle FS
   // hazards itself or be pipelined before the HSP.
-  addPass(createMipsDelaySlotFillerPass(TM));
+  addPass(createMipsDelaySlotFillerPass());
   addPass(createMipsHazardSchedule());
-  addPass(createMipsLongBranchPass(TM));
+  addPass(createMipsLongBranchPass());
   addPass(createMipsConstantIslandPass());
 }
