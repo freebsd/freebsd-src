@@ -59,19 +59,7 @@ TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
 	rm -f ${.CURDIR}/TAGS
 	cd ${.CURDIR}; xargs etags -a < ${.CURDIR}/cscope.files
 
-# You need the textproc/glimpse ports for this.
-glimpse:
-.if !exists(${.CURDIR}/.glimpse_exclude)
-	echo .svn > ${.CURDIR}/.glimpse_exclude
-	echo /compile/ >> ${.CURDIR}/.glimpse_exclude
-.endif
-	cd ${.CURDIR}; glimpseindex -H . -B -f -o .
-
-glimpse-clean:
-	cd ${.CURDIR}; rm -f .glimpse_*
-
-.if !(make(cscope) || make(cscope-clean) || make(cscope-hook) || make(TAGS) || \
-    make(glimpse) || make(glimpse-clean))
+.if !(make(cscope) || make(cscope-clean) || make(cscope-hook) || make(TAGS))
 .include <src.opts.mk>
 
 # The boot loader
