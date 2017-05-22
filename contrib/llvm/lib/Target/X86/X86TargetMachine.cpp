@@ -61,6 +61,7 @@ static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
 namespace llvm {
 
 void initializeWinEHStatePassPass(PassRegistry &);
+void initializeFixupLEAPassPass(PassRegistry &);
 void initializeX86ExecutionDepsFixPass(PassRegistry &);
 
 } // end namespace llvm
@@ -75,6 +76,7 @@ extern "C" void LLVMInitializeX86Target() {
   initializeWinEHStatePassPass(PR);
   initializeFixupBWInstPassPass(PR);
   initializeEvexToVexInstPassPass(PR);
+  initializeFixupLEAPassPass(PR);
   initializeX86ExecutionDepsFixPass(PR);
 }
 
@@ -268,12 +270,6 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
 
   FS = Key.substr(CPU.size());
 
-  bool OptForSize = F.optForSize();
-  bool OptForMinSize = F.optForMinSize();
-
-  Key += std::string(OptForSize ? "+" : "-") + "optforsize";
-  Key += std::string(OptForMinSize ? "+" : "-") + "optforminsize";
-
   auto &I = SubtargetMap[Key];
   if (!I) {
     // This needs to be done before we create a new subtarget since any
@@ -281,8 +277,7 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
     // function that reside in TargetOptions.
     resetTargetOptions(F);
     I = llvm::make_unique<X86Subtarget>(TargetTriple, CPU, FS, *this,
-                                        Options.StackAlignmentOverride,
-                                        OptForSize, OptForMinSize);
+                                        Options.StackAlignmentOverride);
 #ifndef LLVM_BUILD_GLOBAL_ISEL
     GISelAccessor *GISel = new GISelAccessor();
 #else
@@ -378,12 +373,12 @@ TargetPassConfig *X86TargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void X86PassConfig::addIRPasses() {
-  addPass(createAtomicExpandPass(&getX86TargetMachine()));
+  addPass(createAtomicExpandPass());
 
   TargetPassConfig::addIRPasses();
 
   if (TM->getOptLevel() != CodeGenOpt::None)
-    addPass(createInterleavedAccessPass(TM));
+    addPass(createInterleavedAccessPass());
 }
 
 bool X86PassConfig::addInstSelector() {

@@ -33,7 +33,7 @@ using namespace dwarf;
 
 void DWARFUnitSectionBase::parse(DWARFContext &C, const DWARFSection &Section) {
   parseImpl(C, Section, C.getDebugAbbrev(), &C.getRangeSection(),
-            C.getStringSection(), StringRef(), C.getAddrSection(),
+            C.getStringSection(), StringRef(), &C.getAddrSection(),
             C.getLineSection().Data, C.isLittleEndian(), false);
 }
 
@@ -42,14 +42,14 @@ void DWARFUnitSectionBase::parseDWO(DWARFContext &C,
                                     DWARFUnitIndex *Index) {
   parseImpl(C, DWOSection, C.getDebugAbbrevDWO(), &C.getRangeDWOSection(),
             C.getStringDWOSection(), C.getStringOffsetDWOSection(),
-            C.getAddrSection(), C.getLineDWOSection().Data, C.isLittleEndian(),
+            &C.getAddrSection(), C.getLineDWOSection().Data, C.isLittleEndian(),
             true);
 }
 
 DWARFUnit::DWARFUnit(DWARFContext &DC, const DWARFSection &Section,
                      const DWARFDebugAbbrev *DA, const DWARFSection *RS,
-                     StringRef SS, StringRef SOS, StringRef AOS, StringRef LS,
-                     bool LE, bool IsDWO,
+                     StringRef SS, StringRef SOS, const DWARFSection *AOS,
+                     StringRef LS, bool LE, bool IsDWO,
                      const DWARFUnitSectionBase &UnitSection,
                      const DWARFUnitIndex::Entry *IndexEntry)
     : Context(DC), InfoSection(Section), Abbrev(DA), RangeSection(RS),
@@ -69,10 +69,10 @@ DWARFUnit::~DWARFUnit() = default;
 bool DWARFUnit::getAddrOffsetSectionItem(uint32_t Index,
                                                 uint64_t &Result) const {
   uint32_t Offset = AddrOffsetSectionBase + Index * AddrSize;
-  if (AddrOffsetSection.size() < Offset + AddrSize)
+  if (AddrOffsetSection->Data.size() < Offset + AddrSize)
     return false;
-  DataExtractor DA(AddrOffsetSection, isLittleEndian, AddrSize);
-  Result = DA.getAddress(&Offset);
+  DataExtractor DA(AddrOffsetSection->Data, isLittleEndian, AddrSize);
+  Result = getRelocatedValue(DA, AddrSize, &Offset, &AddrOffsetSection->Relocs);
   return true;
 }
 
@@ -249,7 +249,7 @@ size_t DWARFUnit::extractDIEsIfNeeded(bool CUDieOnly) {
   return DieArray.size();
 }
 
-DWARFUnit::DWOHolder::DWOHolder(StringRef DWOPath) {
+DWARFUnit::DWOHolder::DWOHolder(StringRef DWOPath, uint64_t DWOId) {
   auto Obj = object::ObjectFile::createObjectFile(DWOPath);
   if (!Obj) {
     // TODO: Actually report errors helpfully.
@@ -259,8 +259,11 @@ DWARFUnit::DWOHolder::DWOHolder(StringRef DWOPath) {
   DWOFile = std::move(Obj.get());
   DWOContext.reset(
       cast<DWARFContext>(new DWARFContextInMemory(*DWOFile.getBinary())));
-  if (DWOContext->getNumDWOCompileUnits() > 0)
-    DWOU = DWOContext->getDWOCompileUnitAtIndex(0);
+  for (const auto &DWOCU : DWOContext->dwo_compile_units())
+    if (DWOCU->getDWOId() == DWOId) {
+      DWOU = DWOCU.get();
+      return;
+    }
 }
 
 bool DWARFUnit::parseDWO() {
@@ -281,10 +284,12 @@ bool DWARFUnit::parseDWO() {
     sys::path::append(AbsolutePath, *CompilationDir);
   }
   sys::path::append(AbsolutePath, *DWOFileName);
-  DWO = llvm::make_unique<DWOHolder>(AbsolutePath);
+  auto DWOId = getDWOId();
+  if (!DWOId)
+    return false;
+  DWO = llvm::make_unique<DWOHolder>(AbsolutePath, *DWOId);
   DWARFUnit *DWOCU = DWO->getUnit();
-  // Verify that compile unit in .dwo file is valid.
-  if (!DWOCU || DWOCU->getDWOId() != getDWOId()) {
+  if (!DWOCU) {
     DWO.reset();
     return false;
   }

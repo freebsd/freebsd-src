@@ -126,8 +126,8 @@ static bool ValueDominatesPHI(Value *V, PHINode *P, const DominatorTree *DT) {
 /// Also performs the transform "(A op' B) op C" -> "(A op C) op' (B op C)".
 /// Returns the simplified value, or null if no simplification was performed.
 static Value *ExpandBinOp(Instruction::BinaryOps Opcode, Value *LHS, Value *RHS,
-                          Instruction::BinaryOps OpcodeToExpand, const SimplifyQuery &Q,
-                          unsigned MaxRecurse) {
+                          Instruction::BinaryOps OpcodeToExpand,
+                          const SimplifyQuery &Q, unsigned MaxRecurse) {
   // Recursion is always used, so bail out at once if we already hit the limit.
   if (!MaxRecurse--)
     return nullptr;
@@ -184,7 +184,8 @@ static Value *ExpandBinOp(Instruction::BinaryOps Opcode, Value *LHS, Value *RHS,
 /// Generic simplifications for associative binary operations.
 /// Returns the simpler value, or null if none was found.
 static Value *SimplifyAssociativeBinOp(Instruction::BinaryOps Opcode,
-                                       Value *LHS, Value *RHS, const SimplifyQuery &Q,
+                                       Value *LHS, Value *RHS,
+                                       const SimplifyQuery &Q,
                                        unsigned MaxRecurse) {
   assert(Instruction::isAssociative(Opcode) && "Not an associative operation!");
 
@@ -2260,28 +2261,49 @@ static Value *simplifyICmpOfBools(CmpInst::Predicate Pred, Value *LHS,
   if (!OpTy->getScalarType()->isIntegerTy(1))
     return nullptr;
 
+  // A boolean compared to true/false can be simplified in 14 out of the 20
+  // (10 predicates * 2 constants) possible combinations. Cases not handled here
+  // require a 'not' of the LHS, so those must be transformed in InstCombine.
+  if (match(RHS, m_Zero())) {
+    switch (Pred) {
+    case CmpInst::ICMP_NE:  // X !=  0 -> X
+    case CmpInst::ICMP_UGT: // X >u  0 -> X
+    case CmpInst::ICMP_SLT: // X <s  0 -> X
+      return LHS;
+
+    case CmpInst::ICMP_ULT: // X <u  0 -> false
+    case CmpInst::ICMP_SGT: // X >s  0 -> false
+      return getFalse(ITy);
+
+    case CmpInst::ICMP_UGE: // X >=u 0 -> true
+    case CmpInst::ICMP_SLE: // X <=s 0 -> true
+      return getTrue(ITy);
+
+    default: break;
+    }
+  } else if (match(RHS, m_One())) {
+    switch (Pred) {
+    case CmpInst::ICMP_EQ:  // X ==   1 -> X
+    case CmpInst::ICMP_UGE: // X >=u  1 -> X
+    case CmpInst::ICMP_SLE: // X <=s -1 -> X
+      return LHS;
+
+    case CmpInst::ICMP_UGT: // X >u   1 -> false
+    case CmpInst::ICMP_SLT: // X <s  -1 -> false
+      return getFalse(ITy);
+
+    case CmpInst::ICMP_ULE: // X <=u  1 -> true
+    case CmpInst::ICMP_SGE: // X >=s -1 -> true
+      return getTrue(ITy);
+
+    default: break;
+    }
+  }
+
   switch (Pred) {
   default:
     break;
-  case ICmpInst::ICMP_EQ:
-    // X == 1 -> X
-    if (match(RHS, m_One()))
-      return LHS;
-    break;
-  case ICmpInst::ICMP_NE:
-    // X != 0 -> X
-    if (match(RHS, m_Zero()))
-      return LHS;
-    break;
-  case ICmpInst::ICMP_UGT:
-    // X >u 0 -> X
-    if (match(RHS, m_Zero()))
-      return LHS;
-    break;
   case ICmpInst::ICMP_UGE:
-    // X >=u 1 -> X
-    if (match(RHS, m_One()))
-      return LHS;
     if (isImpliedCondition(RHS, LHS, Q.DL).getValueOr(false))
       return getTrue(ITy);
     break;
@@ -2295,16 +2317,6 @@ static Value *simplifyICmpOfBools(CmpInst::Predicate Pred, Value *LHS,
     ///  1  |  1  |  1 (-1 >= -1) |  1
     if (isImpliedCondition(LHS, RHS, Q.DL).getValueOr(false))
       return getTrue(ITy);
-    break;
-  case ICmpInst::ICMP_SLT:
-    // X <s 0 -> X
-    if (match(RHS, m_Zero()))
-      return LHS;
-    break;
-  case ICmpInst::ICMP_SLE:
-    // X <=s -1 -> X
-    if (match(RHS, m_One()))
-      return LHS;
     break;
   case ICmpInst::ICMP_ULE:
     if (isImpliedCondition(LHS, RHS, Q.DL).getValueOr(false))

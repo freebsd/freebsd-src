@@ -9,10 +9,7 @@
 
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/DebugInfo/CodeView/CVTypeVisitor.h"
-#include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
-#include "llvm/DebugInfo/CodeView/TypeVisitorCallbackPipeline.h"
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/PDBTypeServerHandler.h"
@@ -91,9 +88,6 @@ Error TpiStream::reload() {
     HSR.setOffset(Header->HashValueBuffer.Off);
     if (auto EC = HSR.readArray(HashValues, NumHashValues))
       return EC;
-    std::vector<ulittle32_t> HashValueList;
-    for (auto I : HashValues)
-      HashValueList.push_back(I);
 
     HSR.setOffset(Header->IndexOffsetBuffer.Off);
     uint32_t NumTypeIndexOffsets =

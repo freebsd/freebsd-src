@@ -58,8 +58,6 @@ template <class ConstantClass> struct ConstantAggrKeyType;
 class ConstantData : public Constant {
   friend class Constant;
 
-  void anchor() override;
-
   Value *handleOperandChangeImpl(Value *From, Value *To) {
     llvm_unreachable("Constant data does not have operands!");
   }
@@ -93,7 +91,6 @@ class ConstantInt final : public ConstantData {
 
   ConstantInt(IntegerType *Ty, const APInt& V);
 
-  void anchor() override;
   void destroyConstantImpl();
 
 public:
@@ -274,7 +271,6 @@ class ConstantFP final : public ConstantData {
 
   ConstantFP(Type *Ty, const APFloat& V);
 
-  void anchor() override;
   void destroyConstantImpl();
 
 public:
@@ -588,7 +584,7 @@ class ConstantDataSequential : public ConstantData {
 protected:
   explicit ConstantDataSequential(Type *ty, ValueTy VT, const char *Data)
       : ConstantData(ty, VT), DataElements(Data), Next(nullptr) {}
-  ~ConstantDataSequential() override { delete Next; }
+  ~ConstantDataSequential() { delete Next; }
 
   static Constant *getImpl(StringRef Bytes, Type *Ty);
 
@@ -638,8 +634,8 @@ public:
   /// The size of the elements is known to be a multiple of one byte.
   uint64_t getElementByteSize() const;
 
-  /// This method returns true if this is an array of i8.
-  bool isString() const;
+  /// This method returns true if this is an array of \p CharSize integers.
+  bool isString(unsigned CharSize = 8) const;
 
   /// This method returns true if the array "isString", ends with a null byte,
   /// and does not contains any other null bytes.
@@ -691,8 +687,6 @@ class ConstantDataArray final : public ConstantDataSequential {
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-
-  void anchor() override;
 
 public:
   ConstantDataArray(const ConstantDataArray &) = delete;
@@ -754,8 +748,6 @@ class ConstantDataVector final : public ConstantDataSequential {
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-
-  void anchor() override;
 
 public:
   ConstantDataVector(const ConstantDataVector &) = delete;
