@@ -1006,7 +1006,7 @@ exec_map_first_page(imgp)
 					break;
 			} else {
 				ma[i] = vm_page_alloc(object, i,
-				    VM_ALLOC_NORMAL | VM_ALLOC_IFNOTCACHED);
+				    VM_ALLOC_NORMAL);
 				if (ma[i] == NULL)
 					break;
 			}

@@ -2,7 +2,7 @@
 .SH "FreeBSD NOTES"
 
 .SH DESCRIPTION OF MEMORY
-Mem: 61M Active, 86M Inact, 22G Wired, 1M Cache, 2M Buf, 102G Free
+Mem: 61M Active, 86M Inact, 1M Laundry, 22G Wired, 2M Buf, 102G Free
 ARC: 15G Total, 9303M MFU, 6155M MRU, 1464K Anon, 98M Header, 35M Other
      15G Compressed, 27G Uncompressed, 1.75:1 Ratio, 174M Overhead
 Swap: 4096M Total, 532M Free, 13% Inuse, 80K In, 104K Out
@@ -24,14 +24,13 @@ Gigabyte
 number of bytes active
 .TP
 .B Inact:
-number of bytes inactive
+number of clean bytes inactive
+.TP
+.B Laundry:
+number of dirty bytes queued for laundering
 .TP
 .B Wired:
 number of bytes wired down, including BIO-level cached file data pages
-.TP
-.B Cache:
-number of clean bytes caching data that are available for
-immediate reallocation
 .TP
 .B Buf:
 number of bytes used for BIO-level disk caching

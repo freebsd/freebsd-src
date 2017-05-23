@@ -1314,7 +1314,7 @@ vm_phys_zero_pages_idle(void)
 	for (;;) {
 		TAILQ_FOREACH_REVERSE(m, &fl[oind].pl, pglist, plinks.q) {
 			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
-				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
+				if ((m_tmp->flags & PG_ZERO) == 0) {
 					vm_phys_unfree_page(m_tmp);
 					vm_phys_freecnt_adj(m, -1);
 					mtx_unlock(&vm_page_queue_free_mtx);
