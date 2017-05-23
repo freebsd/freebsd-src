@@ -42,7 +42,10 @@
  * or more threads. It is used to avoid calling locking functions
  * when they are not required.
  */
+#ifndef __LIBC_ISTHREADED_DECLARED
+#define __LIBC_ISTHREADED_DECLARED
 extern int	__isthreaded;
+#endif
 
 /*
  * Elf_Auxinfo *__elf_aux_vector, the pointer to the ELF aux vector
