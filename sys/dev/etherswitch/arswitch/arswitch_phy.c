@@ -151,10 +151,20 @@ arswitch_readphy_internal(device_t dev, int phy, int reg)
 	data = arswitch_readreg_lsb(dev, a) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
 	ARSWITCH_UNLOCK(sc);
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, ret=0x%08x\n",
+	    __func__, phy, reg, data);
+
 	return (data);
 
 fail:
 	ARSWITCH_UNLOCK(sc);
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, fail; err=%d\n",
+	    __func__, phy, reg, err);
+
 	return (-1);
 }
 
@@ -194,6 +204,11 @@ arswitch_writephy_internal(device_t dev, int phy, int reg, int data)
 	}
 	if (timeout < 0)
 		err = EIO;
+
+	DPRINTF(sc, ARSWITCH_DBG_PHYIO,
+	    "%s: phy=0x%08x, reg=0x%08x, data=0x%08x, err=%d\n",
+	    __func__, phy, reg, data, err);
+
 out:
 	DEVERR(dev, err, "arswitch_writephy()=%d: phy=%d.%02x\n", phy, reg);
 	ARSWITCH_UNLOCK(sc);
