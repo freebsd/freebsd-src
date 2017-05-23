@@ -47,11 +47,12 @@ static char *boot_disk(struct gmesh *mesh);
 static char *wizard_partition(struct gmesh *mesh, const char *disk);
 
 int
-part_wizard(const char *fsreq) {
-	int error;
-	struct gmesh mesh;
+part_wizard(const char *fsreq)
+{
 	char *disk, *schemeroot;
 	const char *fstype;
+	struct gmesh mesh;
+	int error;
 
 	if (fsreq != NULL)
 		fstype = fsreq;
@@ -199,9 +200,9 @@ wizard_partition(struct gmesh *mesh, const char *disk)
 	struct gclass *classp;
 	struct ggeom *gpart = NULL;
 	struct gconfig *gc;
-	char message[512];
-	const char *scheme = NULL;
 	char *retval = NULL;
+	const char *scheme = NULL;
+	char message[512];
 	int choice;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class)
@@ -295,15 +296,17 @@ query:
 }
 
 int
-wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype, int interactive)
+wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
+    int interactive)
 {
-	struct gmesh submesh;
 	struct gclass *classp;
 	struct ggeom *gp;
 	struct gprovider *pp;
-	intmax_t swapsize, available;
-	char swapsizestr[10], rootsizestr[10], *fsname;
 	char *fsnames[] = {"freebsd-ufs", "freebsd-zfs"};
+	char *fsname;
+	struct gmesh submesh;
+	char swapsizestr[10], rootsizestr[10];
+	intmax_t swapsize, available;
 	int retval;
 
 	if (strcmp(fstype, "zfs") == 0) {
@@ -362,4 +365,3 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype, int i
 
 	return (0);
 }
-
