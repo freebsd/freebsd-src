@@ -779,6 +779,13 @@
 	sponsor="&yandex;">Support for the
 	<literal>UDP_ENCAP_ESPINUDP_NON_IKE</literal> encapsulation
 	type has been removed.</para>
+
+      <note>
+	<para>Following the <acronym>IPSEC</acronym> code refactoring,
+	  it is now necessary to have a security association
+	  (<acronym>SA</acronym>) entry for both inbound and outbound
+	  directions.</para>
+      </note>
     </sect2>
   </sect1>
 
