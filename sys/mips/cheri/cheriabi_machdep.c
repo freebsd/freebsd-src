@@ -232,6 +232,7 @@ cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 	    CHERIABI_SYS_argmap[syscall_no].sam_ptrmask);
 }
 
+__attribute__((always_inline))
 inline void
 cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
     int syscall_no, int argnum, int ptrmask)
