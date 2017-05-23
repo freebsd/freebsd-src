@@ -165,11 +165,15 @@ struct g_mirror_event {
 #define	G_MIRROR_DEVICE_STATE_STARTING		0
 #define	G_MIRROR_DEVICE_STATE_RUNNING		1
 
+#define	G_MIRROR_TYPE_MANUAL	0
+#define	G_MIRROR_TYPE_AUTOMATIC	1
+
 /* Bump syncid on first write. */
 #define	G_MIRROR_BUMP_SYNCID	0x1
 /* Bump genid immediately. */
 #define	G_MIRROR_BUMP_GENID	0x2
 struct g_mirror_softc {
+	u_int		sc_type;	/* Device type (manual/automatic). */
 	u_int		sc_state;	/* Device state. */
 	uint32_t	sc_slice;	/* Slice size. */
 	uint8_t		sc_balance;	/* Balance algorithm. */
@@ -220,7 +224,11 @@ struct g_mirror_softc {
 };
 #define	sc_name	sc_geom->name
 
+struct g_mirror_metadata;
+
 u_int g_mirror_ndisks(struct g_mirror_softc *sc, int state);
+struct g_geom * g_mirror_create(struct g_class *mp,
+    const struct g_mirror_metadata *md, u_int type);
 #define	G_MIRROR_DESTROY_SOFT		0
 #define	G_MIRROR_DESTROY_DELAYED	1
 #define	G_MIRROR_DESTROY_HARD		2
