@@ -759,7 +759,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	bus_addr_t curaddr;
 	bus_size_t sgsize;
 
-	if ((map->pagesneeded == 0)) {
+	if (map->pagesneeded == 0) {
 		CTR3(KTR_BUSDMA, "lowaddr= %d, boundary= %d, alignment= %d",
 		    dmat->lowaddr, dmat->boundary, dmat->alignment);
 		CTR2(KTR_BUSDMA, "map= %p, pagesneeded= %d",
@@ -790,7 +790,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 	vm_offset_t vendaddr;
 	bus_addr_t paddr;
 
-	if ((map->pagesneeded == 0)) {
+	if (map->pagesneeded == 0) {
 		CTR3(KTR_BUSDMA, "lowaddr= %d, boundary= %d, alignment= %d",
 		    dmat->lowaddr, dmat->boundary, dmat->alignment);
 		CTR2(KTR_BUSDMA, "map= %p, pagesneeded= %d",
