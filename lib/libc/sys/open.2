@@ -490,7 +490,6 @@ was called and the process is in capability mode.
 is an absolute path or contained "..".
 .El
 .Sh SEE ALSO
-.Xr capsicum 4 ,
 .Xr chmod 2 ,
 .Xr close 2 ,
 .Xr dup 2 ,
@@ -503,16 +502,8 @@ is an absolute path or contained "..".
 .Xr read 2 ,
 .Xr umask 2 ,
 .Xr write 2 ,
-.Xr fopen 3
-.Sh HISTORY
-The
-.Fn open
-function appeared in
-.At v6 .
-The
-.Fn openat
-function was introduced in
-.Fx 8.0 .
+.Xr fopen 3 ,
+.Xr capsicum 4
 .Sh STANDARDS
 These functions are specified by
 .St -p1003.1-2008 .
@@ -529,6 +520,15 @@ when
 is set in flags and the final component of pathname is a symbolic link
 to distinguish it from the case of too many symbolic link traversals
 in one of its non-final components.
+.Sh HISTORY
+The
+.Fn open
+function appeared in
+.At v6 .
+The
+.Fn openat
+function was introduced in
+.Fx 8.0 .
 .Sh BUGS
 The Open Group Extended API Set 2 specification requires that the test
 for whether
