@@ -69,6 +69,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_swap.h"
 #include "opt_vm.h"
 
@@ -2417,10 +2418,24 @@ swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len)
 	return (error);
 }
 
+#if defined(COMPAT_FREEBSD11)
+#define XSWDEV_VERSION_11	1
+struct xswdev11 {
+	u_int	xsw_version;
+	uint32_t xsw_dev;
+	int	xsw_flags;
+	int	xsw_nblks;
+	int     xsw_used;
+};
+#endif
+
 static int
 sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 {
 	struct xswdev xs;
+#if defined(COMPAT_FREEBSD11)
+	struct xswdev11 xs11;
+#endif
 	int error;
 
 	if (arg2 != 1)			/* name length */
@@ -2428,7 +2443,17 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	error = swap_dev_info(*(int *)arg1, &xs, NULL, 0);
 	if (error != 0)
 		return (error);
-	error = SYSCTL_OUT(req, &xs, sizeof(xs));
+#if defined(COMPAT_FREEBSD11)
+	if (req->oldlen == sizeof(xs11)) {
+		xs11.xsw_version = XSWDEV_VERSION_11;
+		xs11.xsw_dev = xs.xsw_dev; /* truncation */
+		xs11.xsw_flags = xs.xsw_flags;
+		xs11.xsw_nblks = xs.xsw_nblks;
+		xs11.xsw_used = xs.xsw_used;
+		error = SYSCTL_OUT(req, &xs11, sizeof(xs11));
+	} else
+#endif
+		error = SYSCTL_OUT(req, &xs, sizeof(xs));
 	return (error);
 }
 
