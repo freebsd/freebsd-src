@@ -65,8 +65,8 @@ struct fid {
  * filesystem statistics
  */
 #define	MFSNAMELEN	16		/* length of type name including null */
-#define	MNAMELEN	88		/* size of on/from name bufs */
-#define	STATFS_VERSION	0x20030518	/* current version number */
+#define	MNAMELEN	1024		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20140518	/* current version number */
 struct statfs {
 	uint32_t f_version;		/* structure version number */
 	uint32_t f_type;		/* type of filesystem */
@@ -91,6 +91,34 @@ struct statfs {
 	char	  f_mntfromname[MNAMELEN];  /* mounted filesystem */
 	char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
 };
+
+#if defined(_WANT_FREEBSD11_STATFS) || defined(_KERNEL)
+#define	FREEBSD11_STATFS_VERSION	0x20030518 /* current version number */
+struct freebsd11_statfs {
+	uint32_t f_version;		/* structure version number */
+	uint32_t f_type;		/* type of filesystem */
+	uint64_t f_flags;		/* copy of mount exported flags */
+	uint64_t f_bsize;		/* filesystem fragment size */
+	uint64_t f_iosize;		/* optimal transfer block size */
+	uint64_t f_blocks;		/* total data blocks in filesystem */
+	uint64_t f_bfree;		/* free blocks in filesystem */
+	int64_t	 f_bavail;		/* free blocks avail to non-superuser */
+	uint64_t f_files;		/* total file nodes in filesystem */
+	int64_t	 f_ffree;		/* free nodes avail to non-superuser */
+	uint64_t f_syncwrites;		/* count of sync writes since mount */
+	uint64_t f_asyncwrites;		/* count of async writes since mount */
+	uint64_t f_syncreads;		/* count of sync reads since mount */
+	uint64_t f_asyncreads;		/* count of async reads since mount */
+	uint64_t f_spare[10];		/* unused spare */
+	uint32_t f_namemax;		/* maximum filename length */
+	uid_t	  f_owner;		/* user that mounted the filesystem */
+	fsid_t	  f_fsid;		/* filesystem id */
+	char	  f_charspare[80];	/* spare string space */
+	char	  f_fstypename[16];	/* filesystem type name */
+	char	  f_mntfromname[88];	/* mounted filesystem */
+	char	  f_mntonname[88];	/* directory on which mounted */
+};
+#endif /* _WANT_FREEBSD11_STATFS || _KERNEL */
 
 #ifdef _KERNEL
 #define	OMFSNAMELEN	16	/* length of fs type name, including null */
