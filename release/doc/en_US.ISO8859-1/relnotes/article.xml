@@ -457,6 +457,13 @@
 	<literal>ipsec</literal> and <literal>tcpmd5</literal> kernel
 	modules have been added.</para>
 
+      <note>
+	<para>Following the addition of the <literal>tcpmd5</literal>
+	  module, it is now necessary to have a security association
+	  (<acronym>SA</acronym>) entry for both inbound and outbound
+	  directions.</para>
+      </note>
+
       <para revision="316274" contrib="sponsor" sponsor="&yandex;">The
 	&man.ipfw.4; packet filter has been updated to add support for
 	named dynamic states.</para>
@@ -779,13 +786,6 @@
 	sponsor="&yandex;">Support for the
 	<literal>UDP_ENCAP_ESPINUDP_NON_IKE</literal> encapsulation
 	type has been removed.</para>
-
-      <note>
-	<para>Following the <acronym>IPSEC</acronym> code refactoring,
-	  it is now necessary to have a security association
-	  (<acronym>SA</acronym>) entry for both inbound and outbound
-	  directions.</para>
-      </note>
     </sect2>
   </sect1>
 
