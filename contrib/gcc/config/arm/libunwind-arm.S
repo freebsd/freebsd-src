@@ -133,4 +133,22 @@ UNWIND_WRAPPER _Unwind_Resume_or_Rethrow 1
 UNWIND_WRAPPER _Unwind_ForcedUnwind 3
 UNWIND_WRAPPER _Unwind_Backtrace 2
 
+/*
+ * Originally, we incorrectly export _Unwind_Backtrace symbol
+ * with  GCC_3.3 version, but real GCC libgcc export it as GCC_4.3.0.
+ * To maintain  backward compatibility, export it with both versions where 
+ * GCC_4.3.0 is default one.
+ *
+ * The workaround is complicated by next two issues:
+ *  - old GNU ld cannot handle two (or more) symbol versions
+ *    targeting same function.
+ *  - the .weakref crashes clang 4.0
+ */
+	.globl	SYM(_Unwind_Backtrace33)
+	TYPE(_Unwind_Backtrace33)
+SYM(_Unwind_Backtrace33):
+	b _Unwind_Backtrace
+
+	.symver	SYM(_Unwind_Backtrace33),_Unwind_Backtrace@GCC_3.3
+
 #endif  /* ndef __symbian__ */
