@@ -100,6 +100,7 @@ struct blockif_ctxt {
 	int			bc_psectsz;
 	int			bc_psectoff;
 	int			bc_closing;
+	int			bc_paused;
 	pthread_t		bc_btid[BLOCKIF_NUMTHR];
 	pthread_mutex_t		bc_mtx;
 	pthread_cond_t		bc_cond;
@@ -205,6 +206,18 @@ blockif_complete(struct blockif_ctxt *bc, struct blockif_elem *be)
 	TAILQ_INSERT_TAIL(&bc->bc_freeq, be, be_link);
 }
 
+static int
+blockif_flush_bc(struct blockif_ctxt *bc)
+{
+	if (bc->bc_ischr) {
+		if (ioctl(bc->bc_fd, DIOCGFLUSH))
+			return (errno);
+	} else if (fsync(bc->bc_fd))
+		return (errno);
+
+	return (0);
+}
+
 static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
@@ -295,11 +308,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 		}
 		break;
 	case BOP_FLUSH:
-		if (bc->bc_ischr) {
-			if (ioctl(bc->bc_fd, DIOCGFLUSH))
-				err = errno;
-		} else if (fsync(bc->bc_fd))
-			err = errno;
+		err = blockif_flush_bc(bc);
 		break;
 	case BOP_DELETE:
 		if (!bc->bc_candelete)
@@ -588,7 +597,7 @@ blockif_request(struct blockif_ctxt *bc, struct blockif_req *breq,
 	err = 0;
 
 	pthread_mutex_lock(&bc->bc_mtx);
-	if (!TAILQ_EMPTY(&bc->bc_freeq)) {
+	if (!bc->bc_paused || !TAILQ_EMPTY(&bc->bc_freeq)) {
 		/*
 		 * Enqueue and inform the block i/o thread
 		 * that there is work available
@@ -846,4 +855,47 @@ blockif_candelete(struct blockif_ctxt *bc)
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 	return (bc->bc_candelete);
+}
+
+static void
+blockif_waitall(struct blockif_ctxt *bc)
+{
+	assert(bc->bc_magic == BLOCKIF_SIG);
+
+	while (1) {
+		pthread_mutex_lock(&bc->bc_mtx);
+		if (TAILQ_EMPTY(&bc->bc_pendq) && TAILQ_EMPTY(&bc->bc_busyq)) {
+			pthread_mutex_unlock(&bc->bc_mtx);
+			break;
+		}
+		pthread_mutex_unlock(&bc->bc_mtx);
+		usleep(10000);
+	}
+}
+
+void
+blockif_pause(struct blockif_ctxt *bc)
+{
+	assert(bc->bc_magic == BLOCKIF_SIG);
+
+	pthread_mutex_lock(&bc->bc_mtx);
+	bc->bc_paused = 1;
+	pthread_mutex_unlock(&bc->bc_mtx);
+
+	blockif_waitall(bc);
+
+	/* Sync backing file to disk. */
+	if (blockif_flush_bc(bc))
+		fprintf(stderr, "%s: [WARN] failed to flush backing file.\r\n",
+			__func__);
+}
+
+void
+blockif_resume(struct blockif_ctxt *bc)
+{
+	assert(bc->bc_magic == BLOCKIF_SIG);
+
+	pthread_mutex_lock(&bc->bc_mtx);
+	bc->bc_paused = 0;
+	pthread_mutex_unlock(&bc->bc_mtx);
 }

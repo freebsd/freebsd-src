@@ -144,6 +144,10 @@ struct pci_vtblk_softc {
 };
 
 static void pci_vtblk_reset(void *);
+static void pci_vtblk_pause(void *);
+static void pci_vtblk_resume(void *);
+static int pci_vtblk_snapshot(void *, void *, size_t, size_t *);
+static int pci_vtblk_restore(void *, void *, size_t);
 static void pci_vtblk_notify(void *, struct vqueue_info *);
 static int pci_vtblk_cfgread(void *, int, int, uint32_t *);
 static int pci_vtblk_cfgwrite(void *, int, int, uint32_t);
@@ -158,6 +162,10 @@ static struct virtio_consts vtblk_vi_consts = {
 	pci_vtblk_cfgwrite,	/* write PCI config */
 	NULL,			/* apply negotiated features */
 	VTBLK_S_HOSTCAPS,	/* our capabilities */
+	pci_vtblk_pause,	/* pause blockif threads */
+	pci_vtblk_resume,	/* resume blockif threads */
+	pci_vtblk_snapshot,	/* save device state */
+	pci_vtblk_restore,	/* restore device state */
 };
 
 static void
@@ -167,6 +175,68 @@ pci_vtblk_reset(void *vsc)
 
 	DPRINTF(("vtblk: device reset requested !\n"));
 	vi_reset_dev(&sc->vbsc_vs);
+}
+
+static void
+pci_vtblk_pause(void *vsc)
+{
+	struct pci_vtblk_softc *sc = vsc;
+
+	DPRINTF(("vtblk: device pause requested !\n"));
+	blockif_pause(sc->bc);
+}
+
+static void
+pci_vtblk_resume(void *vsc)
+{
+	struct pci_vtblk_softc *sc = vsc;
+
+	DPRINTF(("vtblk: device resume requested !\n"));
+	blockif_resume(sc->bc);
+}
+
+static int
+pci_vtblk_snapshot(void *vsc, void *buffer, size_t buf_size, size_t *snap_size)
+{
+	struct pci_vtblk_softc *sc = vsc;
+	size_t snap_len = sizeof(sc->vbsc_cfg)
+			+ sizeof(sc->vbsc_ident);
+
+	DPRINTF(("vtblk: device snapshot requested !\n"));
+	*snap_size = 0;
+
+	if (snap_len > buf_size) {
+		fprintf(stderr, "%s: buffer too small\n", __func__);
+		return (-1);
+	}
+	memcpy(buffer, &sc->vbsc_cfg, sizeof(sc->vbsc_cfg));
+	buffer += sizeof(sc->vbsc_cfg);
+	memcpy(buffer, &sc->vbsc_ident, sizeof(sc->vbsc_ident));
+	buffer += sizeof(sc->vbsc_ident);
+
+	*snap_size = snap_len;
+	return (0);
+}
+
+static int
+pci_vtblk_restore(void *vsc, void *buffer, size_t buf_size)
+{
+	struct pci_vtblk_softc *sc = vsc;
+	size_t snap_len = sizeof(sc->vbsc_cfg)
+			+ sizeof(sc->vbsc_ident);
+
+	DPRINTF(("vtblk: device restore requested !\n"));
+
+	if (snap_len > buf_size) {
+		fprintf(stderr, "%s: buffer too small\n", __func__);
+		return (-1);
+	}
+
+	memcpy(&sc->vbsc_cfg, buffer, sizeof(sc->vbsc_cfg));
+	buffer += sizeof(sc->vbsc_cfg);
+	memcpy(&sc->vbsc_ident, buffer, sizeof(sc->vbsc_ident));
+	buffer += sizeof(sc->vbsc_ident);
+	return (snap_len);
 }
 
 static void
@@ -408,6 +478,8 @@ struct pci_devemu pci_de_vblk = {
 	.pe_emu =	"virtio-blk",
 	.pe_init =	pci_vtblk_init,
 	.pe_barwrite =	vi_pci_write,
-	.pe_barread =	vi_pci_read
+	.pe_barread =	vi_pci_read,
+	.pe_snapshot =	vi_pci_snapshot,
+	.pe_restore =	vi_pci_restore,
 };
 PCI_EMUL_SET(pci_de_vblk);
