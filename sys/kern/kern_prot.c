@@ -1386,6 +1386,35 @@ cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
+/*
+ * 'see_jail_proc' determines whether or not visibility of processes and
+ * sockets with credentials holding different jail ids is possible using a
+ * variety of system MIBs.
+ *
+ * XXX: data declarations should be together near the beginning of the file.
+ */
+
+static int	see_jail_proc = 1;
+SYSCTL_INT(_security_bsd, OID_AUTO, see_jail_proc, CTLFLAG_RW,
+    &see_jail_proc, 0,
+    "Unprivileged processes may see subjects/objects with different jail ids");
+
+/*-
+ * Determine if u1 "can see" the subject specified by u2, according to the
+ * 'see_jail_proc' policy.
+ * Returns: 0 for permitted, ESRCH otherwise
+ * Locks: none
+ * References: *u1 and *u2 must not change during the call
+ *             u1 may equal u2, in which case only one reference is required
+ */
+int
+cr_canseejailproc(struct ucred *u1, struct ucred *u2)
+{
+	if (u1->cr_uid == 0)
+		return (0);
+	return (!see_jail_proc && u1->cr_prison != u2->cr_prison ? ESRCH : 0);
+}
+
 /*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
@@ -1407,6 +1436,8 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 	if ((error = cr_canseeotheruids(u1, u2)))
 		return (error);
 	if ((error = cr_canseeothergids(u1, u2)))
+		return (error);
+	if ((error = cr_canseejailproc(u1, u2)))
 		return (error);
 	return (0);
 }
