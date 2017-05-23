@@ -43,4 +43,13 @@ int blacklist_sa_r(struct blacklist *, int, int,
     const struct sockaddr *, socklen_t, const char *);
 __END_DECLS
 
+/* action values for user applications */
+#define BLACKLIST_API_ENUM	1
+enum {
+        BLACKLIST_AUTH_OK = 0,
+        BLACKLIST_AUTH_FAIL,
+        BLACKLIST_ABUSIVE_BEHAVIOR,
+        BLACKLIST_BAD_USER
+};
+
 #endif /* _BLACKLIST_H */
