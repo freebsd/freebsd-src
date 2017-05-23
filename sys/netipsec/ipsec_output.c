@@ -273,10 +273,6 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		goto bad;
 	}
 	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
-	if (error != 0) {
-		key_freesav(&sav);
-		key_freesp(&sp);
-	}
 	return (error);
 bad:
 	IPSECSTAT_INC(ips_out_inval);
@@ -581,10 +577,6 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		goto bad;
 	}
 	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
-	if (error != 0) {
-		key_freesav(&sav);
-		key_freesp(&sp);
-	}
 	return (error);
 bad:
 	IPSEC6STAT_INC(ips_out_inval);
