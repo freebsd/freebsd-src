@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <pthread.h>
 
-#include "thr_private.h"
 #include "libc_private.h"
+#include "thr_private.h"
 
 /*#define DEBUG_THREAD_LIST */
 #ifdef DEBUG_THREAD_LIST
