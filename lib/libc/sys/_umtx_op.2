@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2016
+.Dd May 23, 2017
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -1382,6 +1382,28 @@ Mutex lock requests without timeout specified are restartable.
 The error is not returned to userspace code since restart
 is handled by usual adjustment of the instruction counter.
 .El
+.Sh SEE ALSO
+.Xr clock_gettime 2 ,
+.Xr mmap 2 ,
+.Xr setrlimit 2 ,
+.Xr shm_open 2 ,
+.Xr sigaction 2 ,
+.Xr thr_exit 2 ,
+.Xr thr_kill 2 ,
+.Xr thr_kill2 2 ,
+.Xr thr_new 2 ,
+.Xr thr_self 2 ,
+.Xr thr_set_name 2 ,
+.Xr signal 3
+.Sh STANDARDS
+The
+.Fn _umtx_op
+system call is non-standard and is used by the
+.Lb libthr
+to implement
+.St -p1003.1-2001
+.Xr pthread 3
+functionality.
 .Sh BUGS
 A window between a unlocking robust mutex and resetting the pointer in the
 .Dv robust_inact_offset
@@ -1403,25 +1425,3 @@ This is not done because it is believed that the race is adequately
 covered by other consistency checks, while adding the check would
 prevent alternative implementations of
 .Li libpthread .
-.Sh SEE ALSO
-.Xr clock_gettime 2 ,
-.Xr mmap 2 ,
-.Xr shm_open 2 ,
-.Xr setrlimit 2 ,
-.Xr sigaction 2 ,
-.Xr thr_exit 2 ,
-.Xr thr_kill 2 ,
-.Xr thr_kill2 2 ,
-.Xr thr_new 2 ,
-.Xr thr_self 2 ,
-.Xr thr_set_name 2 ,
-.Xr signal 3
-.Sh STANDARDS
-The
-.Fn _umtx_op
-system call is non-standard and is used by the
-.Lb libthr
-to implement
-.St -p1003.1-2001
-.Xr pthread 3
-functionality.
