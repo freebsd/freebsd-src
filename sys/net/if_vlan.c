@@ -474,6 +474,7 @@ trunk_destroy(struct ifvlantrunk *trunk)
 	trunk->parent->if_vlantrunk = NULL;
 	TRUNK_UNLOCK(trunk);
 	TRUNK_LOCK_DESTROY(trunk);
+	if_rele(trunk->parent);
 	free(trunk, M_VLAN);
 }
 
@@ -848,16 +849,20 @@ vlan_clone_match_ethervid(const char *name, int *vidp)
 	if ((cp = strchr(ifname, '.')) == NULL)
 		return (NULL);
 	*cp = '\0';
-	if ((ifp = ifunit(ifname)) == NULL)
+	if ((ifp = ifunit_ref(ifname)) == NULL)
 		return (NULL);
 	/* Parse VID. */
-	if (*++cp == '\0')
+	if (*++cp == '\0') {
+		if_rele(ifp);
 		return (NULL);
+	}
 	vid = 0;
 	for(; *cp >= '0' && *cp <= '9'; cp++)
 		vid = (vid * 10) + (*cp - '0');
-	if (*cp != '\0')
+	if (*cp != '\0') {
+		if_rele(ifp);
 		return (NULL);
+	}
 	if (vidp != NULL)
 		*vidp = vid;
 
@@ -890,7 +895,6 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	int unit;
 	int error;
 	int vid;
-	int ethertag;
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
@@ -915,23 +919,21 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		error = copyin(params, &vlr, sizeof(vlr));
 		if (error)
 			return error;
-		p = ifunit(vlr.vlr_parent);
+		p = ifunit_ref(vlr.vlr_parent);
 		if (p == NULL)
 			return (ENXIO);
 		error = ifc_name2unit(name, &unit);
-		if (error != 0)
+		if (error != 0) {
+			if_rele(p);
 			return (error);
-
-		ethertag = 1;
+		}
 		vid = vlr.vlr_tag;
 		wildcard = (unit < 0);
 	} else if ((p = vlan_clone_match_ethervid(name, &vid)) != NULL) {
-		ethertag = 1;
 		unit = -1;
 		wildcard = 0;
 	} else {
-		ethertag = 0;
-
+		p = NULL;
 		error = ifc_name2unit(name, &unit);
 		if (error != 0)
 			return (error);
@@ -940,8 +942,11 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	}
 
 	error = ifc_alloc_unit(ifc, &unit);
-	if (error != 0)
+	if (error != 0) {
+		if (p != NULL)
+			if_rele(p);
 		return (error);
+	}
 
 	/* In the wildcard case, we need to update the name. */
 	if (wildcard) {
@@ -957,6 +962,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	if (ifp == NULL) {
 		ifc_free_unit(ifc, unit);
 		free(ifv, M_VLAN);
+		if (p != NULL)
+			if_rele(p);
 		return (ENOSPC);
 	}
 	SLIST_INIT(&ifv->vlan_mc_listhead);
@@ -990,8 +997,9 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_L2VLAN;
 
-	if (ethertag) {
+	if (p != NULL) {
 		error = vlan_config(ifv, p, vid);
+		if_rele(p);
 		if (error != 0) {
 			/*
 			 * Since we've partially failed, we need to back
@@ -1278,6 +1286,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 		TRUNK_LOCK(trunk);
 		p->if_vlantrunk = trunk;
 		trunk->parent = p;
+		if_ref(trunk->parent);
 	} else {
 		VLAN_LOCK();
 exists:
@@ -1693,8 +1702,10 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
 			p = PARENT(ifv);
+			if_ref(p);
 			VLAN_UNLOCK();
 			error = (*p->if_ioctl)(p, SIOCGIFMEDIA, data);
+			if_rele(p);
 			/* Limit the result to the parent's current config. */
 			if (error == 0) {
 				struct ifmediareq *ifmr;
@@ -1756,12 +1767,13 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			vlan_unconfig(ifp);
 			break;
 		}
-		p = ifunit(vlr.vlr_parent);
+		p = ifunit_ref(vlr.vlr_parent);
 		if (p == NULL) {
 			error = ENOENT;
 			break;
 		}
 		error = vlan_config(ifv, p, vlr.vlr_tag);
+		if_rele(p);
 		if (error)
 			break;
 
