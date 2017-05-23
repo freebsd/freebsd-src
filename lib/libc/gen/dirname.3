@@ -37,6 +37,16 @@ Any trailing
 .Sq \&/
 characters are not counted as part of the directory
 name.
+.Sh IMPLEMENTATION NOTES
+This implementation of
+.Fn dirname
+uses the buffer provided by the caller to store the resulting parent
+directory.
+Other vendor implementations may return a pointer to internal storage
+space instead.
+The advantage of the former approach is that it ensures thread-safety,
+while also placing no upper limit on the supported length of the
+pathname.
 .Sh RETURN VALUES
 If
 .Fa path
@@ -50,16 +60,6 @@ signifying the current directory.
 Otherwise,
 it returns a pointer to the parent directory of
 .Fa path .
-.Sh IMPLEMENTATION NOTES
-This implementation of
-.Fn dirname
-uses the buffer provided by the caller to store the resulting parent
-directory.
-Other vendor implementations may return a pointer to internal storage
-space instead.
-The advantage of the former approach is that it ensures thread-safety,
-while also placing no upper limit on the supported length of the
-pathname.
 .Sh SEE ALSO
 .Xr basename 1 ,
 .Xr dirname 1 ,
