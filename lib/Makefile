@@ -175,7 +175,7 @@ _libclang_rt=	libclang_rt
 
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
-_libcplusplus=	libc++
+_libcplusplus=	libc++ libc++experimental
 .endif
 
 SUBDIR.${MK_EFI}+=	libefivar
@@ -227,7 +227,7 @@ SUBDIR+=	libcheri_syscalls
 SUBDIR+=	libcheri_support
 SUBDIR_BOOTSTRAP:=	libgcc_s libgcc_eh ${SUBDIR_BOOTSTRAP}
 # No C++ support in cheri clang
-SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
+SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl:Nlibc++experimental}
 # header issue in ioctl.c, probably needs more porting for CheriABI
 SUBDIR:=	${SUBDIR:Nlibsysdecode}
 # libstand is for bootloaders and the like, no need to build
