@@ -59,17 +59,6 @@ qsort_b(void *, size_t, size_t, void*);
 
 static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
 
-/*
- * The DIRSIZ macro is the minimum record length which will hold the directory
- * entry.  This requires the amount of space in struct dirent without the
- * d_name field, plus enough space for the name and a terminating nul byte
- * (dp->d_namlen + 1), rounded up to a 4 byte boundary.
- */
-#undef DIRSIZ
-#define DIRSIZ(dp)							\
-	((sizeof(struct dirent) - sizeof(dp)->d_name) +			\
-	    (((dp)->d_namlen + 1 + 3) &~ 3))
-
 int
 #ifdef I_AM_SCANDIR_B
 scandir_b(const char *dirname, struct dirent ***namelist,
@@ -100,7 +89,7 @@ scandir(const char *dirname, struct dirent ***namelist,
 		/*
 		 * Make a minimum size copy of the data
 		 */
-		p = (struct dirent *)malloc(DIRSIZ(d));
+		p = (struct dirent *)malloc(_GENERIC_DIRSIZ(d));
 		if (p == NULL)
 			goto fail;
 		p->d_fileno = d->d_fileno;

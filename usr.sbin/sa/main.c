@@ -310,7 +310,7 @@ usage(void)
 static FILE *
 acct_load(const char *pn, int wr)
 {
-	struct acctv2 ac;
+	struct acctv3 ac;
 	struct cmdinfo ci;
 	ssize_t rv;
 	FILE *f;

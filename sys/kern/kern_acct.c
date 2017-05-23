@@ -96,6 +96,11 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+_Static_assert(sizeof(struct acctv3) - offsetof(struct acctv3, ac_trailer) ==
+    sizeof(struct acctv2) - offsetof(struct acctv2, ac_trailer), "trailer");
+_Static_assert(sizeof(struct acctv3) - offsetof(struct acctv3, ac_len2) ==
+    sizeof(struct acctv2) - offsetof(struct acctv2, ac_len2), "len2");
+
 /*
  * The routines implemented in this file are described in:
  *      Leffler, et al.: The Design and Implementation of the 4.3BSD
@@ -339,7 +344,7 @@ acct_disable(struct thread *td, int logging)
 int
 acct_process(struct thread *td)
 {
-	struct acctv2 acct;
+	struct acctv3 acct;
 	struct timeval ut, st, tmp;
 	struct plimit *oldlim;
 	struct proc *p;
@@ -421,7 +426,7 @@ acct_process(struct thread *td)
 	/* Setup ancillary structure fields. */
 	acct.ac_flagx |= ANVER;
 	acct.ac_zero = 0;
-	acct.ac_version = 2;
+	acct.ac_version = 3;
 	acct.ac_len = acct.ac_len2 = sizeof(acct);
 
 	/*

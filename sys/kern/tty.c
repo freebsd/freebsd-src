@@ -1205,7 +1205,7 @@ tty_to_xtty(struct tty *tp, struct xtty *xt)
 	xt->xt_pgid = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
 	xt->xt_sid = tp->t_session ? tp->t_session->s_sid : 0;
 	xt->xt_flags = tp->t_flags;
-	xt->xt_dev = tp->t_dev ? dev2udev(tp->t_dev) : NODEV;
+	xt->xt_dev = tp->t_dev ? dev2udev(tp->t_dev) : (uint32_t)NODEV;
 }
 
 static int

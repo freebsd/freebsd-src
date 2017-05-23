@@ -148,7 +148,7 @@ struct xtty {
 	pid_t	xt_pgid;	/* Foreground process group. */
 	pid_t	xt_sid;		/* Session. */
 	unsigned int xt_flags;	/* Terminal option flags. */
-	dev_t	xt_dev;		/* Userland device. */
+	uint32_t xt_dev;	/* Userland device. XXXKIB truncated */
 };
 
 #ifdef _KERNEL

@@ -730,12 +730,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	NFSMINOR(d)		minor(d)
 
 /*
- * Define this to be the macro that returns the minimum size required
- * for a directory entry.
- */
-#define	DIRENT_SIZE(dp)		GENERIC_DIRSIZ(dp)
-
-/*
  * The vnode tag for nfsv4root.
  */
 #define	VT_NFSV4ROOT		"nfsv4root"

@@ -72,7 +72,7 @@ short nfsv4_cbport = NFSV4_CBPORT;
 int nfstest_openallsetattr = 0;
 #endif	/* !APPLEKEXT */
 
-#define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
+#define	DIRHDSIZ	offsetof(struct dirent, d_name)
 
 /*
  * nfscl_getsameserver() can return one of three values:
@@ -2861,17 +2861,18 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			if (error)
 			    return (error);
 			nd->nd_mrep = NULL;
-			dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+			dp = (struct dirent *)uio_iov_base(uiop);
+			dp->d_off = 0;
 			dp->d_type = DT_DIR;
 			dp->d_fileno = dotfileid;
 			dp->d_namlen = 1;
+			*((uint64_t *)dp->d_name) = 0;	/* Zero pad it. */
 			dp->d_name[0] = '.';
-			dp->d_name[1] = '\0';
-			dp->d_reclen = DIRENT_SIZE(dp) + NFSX_HYPER;
+			dp->d_reclen = _GENERIC_DIRSIZ(dp) + NFSX_HYPER;
 			/*
 			 * Just make these offset cookie 0.
 			 */
-			tl = (u_int32_t *)&dp->d_name[4];
+			tl = (u_int32_t *)&dp->d_name[8];
 			*tl++ = 0;
 			*tl = 0;
 			blksiz += dp->d_reclen;
@@ -2879,18 +2880,19 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			uiop->uio_offset += dp->d_reclen;
 			uio_iov_base_add(uiop, dp->d_reclen);
 			uio_iov_len_add(uiop, -(dp->d_reclen));
-			dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+			dp = (struct dirent *)uio_iov_base(uiop);
+			dp->d_off = 0;
 			dp->d_type = DT_DIR;
 			dp->d_fileno = dotdotfileid;
 			dp->d_namlen = 2;
+			*((uint64_t *)dp->d_name) = 0;
 			dp->d_name[0] = '.';
 			dp->d_name[1] = '.';
-			dp->d_name[2] = '\0';
-			dp->d_reclen = DIRENT_SIZE(dp) + NFSX_HYPER;
+			dp->d_reclen = _GENERIC_DIRSIZ(dp) + NFSX_HYPER;
 			/*
 			 * Just make these offset cookie 0.
 			 */
-			tl = (u_int32_t *)&dp->d_name[4];
+			tl = (u_int32_t *)&dp->d_name[8];
 			*tl++ = 0;
 			*tl = 0;
 			blksiz += dp->d_reclen;
@@ -2987,11 +2989,11 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = EBADRPC;
 				goto nfsmout;
 			}
-			tlen = NFSM_RNDUP(len);
+			tlen = roundup2(len, 8);
 			if (tlen == len)
-				tlen += 4;  /* To ensure null termination */
+				tlen += 8;  /* To ensure null termination. */
 			left = DIRBLKSIZ - blksiz;
-			if ((int)(tlen + DIRHDSIZ + NFSX_HYPER) > left) {
+			if (_GENERIC_DIRLEN(len) + NFSX_HYPER > left) {
 				dp->d_reclen += left;
 				uio_iov_base_add(uiop, left);
 				uio_iov_len_add(uiop, -(left));
@@ -2999,12 +3001,15 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				uiop->uio_offset += left;
 				blksiz = 0;
 			}
-			if ((int)(tlen + DIRHDSIZ + NFSX_HYPER) > uio_uio_resid(uiop))
+			if (_GENERIC_DIRLEN(len) + NFSX_HYPER >
+			    uio_uio_resid(uiop))
 				bigenough = 0;
 			if (bigenough) {
-				dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+				dp = (struct dirent *)uio_iov_base(uiop);
+				dp->d_off = 0;
 				dp->d_namlen = len;
-				dp->d_reclen = tlen + DIRHDSIZ + NFSX_HYPER;
+				dp->d_reclen = _GENERIC_DIRLEN(len) +
+				    NFSX_HYPER;
 				dp->d_type = DT_UNKNOWN;
 				blksiz += dp->d_reclen;
 				if (blksiz == DIRBLKSIZ)
@@ -3016,7 +3021,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = nfsm_mbufuio(nd, uiop, len);
 				if (error)
 					goto nfsmout;
-				cp = CAST_DOWN(caddr_t, uio_iov_base(uiop));
+				cp = uio_iov_base(uiop);
 				tlen -= len;
 				*cp = '\0';	/* null terminate */
 				cp += tlen;	/* points to cookie storage */
@@ -3131,8 +3136,8 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	/*
 	 * Add extra empty records to any remaining DIRBLKSIZ chunks.
 	 */
-	while (uio_uio_resid(uiop) > 0 && ((size_t)(uio_uio_resid(uiop))) != tresid) {
-		dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+	while (uio_uio_resid(uiop) > 0 && uio_uio_resid(uiop) != tresid) {
+		dp = (struct dirent *)uio_iov_base(uiop);
 		dp->d_type = DT_UNKNOWN;
 		dp->d_fileno = 0;
 		dp->d_namlen = 0;
@@ -3289,16 +3294,17 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			    return (error);
 			nd->nd_mrep = NULL;
 			dp = (struct dirent *)uio_iov_base(uiop);
+			dp->d_off = 0;
 			dp->d_type = DT_DIR;
 			dp->d_fileno = dotfileid;
 			dp->d_namlen = 1;
+			*((uint64_t *)dp->d_name) = 0;	/* Zero pad it. */
 			dp->d_name[0] = '.';
-			dp->d_name[1] = '\0';
-			dp->d_reclen = DIRENT_SIZE(dp) + NFSX_HYPER;
+			dp->d_reclen = _GENERIC_DIRSIZ(dp) + NFSX_HYPER;
 			/*
 			 * Just make these offset cookie 0.
 			 */
-			tl = (u_int32_t *)&dp->d_name[4];
+			tl = (u_int32_t *)&dp->d_name[8];
 			*tl++ = 0;
 			*tl = 0;
 			blksiz += dp->d_reclen;
@@ -3307,17 +3313,18 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			uio_iov_base_add(uiop, dp->d_reclen);
 			uio_iov_len_add(uiop, -(dp->d_reclen));
 			dp = (struct dirent *)uio_iov_base(uiop);
+			dp->d_off = 0;
 			dp->d_type = DT_DIR;
 			dp->d_fileno = dotdotfileid;
 			dp->d_namlen = 2;
+			*((uint64_t *)dp->d_name) = 0;
 			dp->d_name[0] = '.';
 			dp->d_name[1] = '.';
-			dp->d_name[2] = '\0';
-			dp->d_reclen = DIRENT_SIZE(dp) + NFSX_HYPER;
+			dp->d_reclen = _GENERIC_DIRSIZ(dp) + NFSX_HYPER;
 			/*
 			 * Just make these offset cookie 0.
 			 */
-			tl = (u_int32_t *)&dp->d_name[4];
+			tl = (u_int32_t *)&dp->d_name[8];
 			*tl++ = 0;
 			*tl = 0;
 			blksiz += dp->d_reclen;
@@ -3395,11 +3402,11 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = EBADRPC;
 				goto nfsmout;
 			}
-			tlen = NFSM_RNDUP(len);
+			tlen = roundup2(len, 8);
 			if (tlen == len)
-				tlen += 4;  /* To ensure null termination */
+				tlen += 8;  /* To ensure null termination. */
 			left = DIRBLKSIZ - blksiz;
-			if ((tlen + DIRHDSIZ + NFSX_HYPER) > left) {
+			if (_GENERIC_DIRLEN(len) + NFSX_HYPER > left) {
 				dp->d_reclen += left;
 				uio_iov_base_add(uiop, left);
 				uio_iov_len_add(uiop, -(left));
@@ -3407,12 +3414,15 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				uiop->uio_offset += left;
 				blksiz = 0;
 			}
-			if ((tlen + DIRHDSIZ + NFSX_HYPER) > uio_uio_resid(uiop))
+			if (_GENERIC_DIRLEN(len) + NFSX_HYPER >
+			    uio_uio_resid(uiop))
 				bigenough = 0;
 			if (bigenough) {
 				dp = (struct dirent *)uio_iov_base(uiop);
+				dp->d_off = 0;
 				dp->d_namlen = len;
-				dp->d_reclen = tlen + DIRHDSIZ + NFSX_HYPER;
+				dp->d_reclen = _GENERIC_DIRLEN(len) +
+				    NFSX_HYPER;
 				dp->d_type = DT_UNKNOWN;
 				blksiz += dp->d_reclen;
 				if (blksiz == DIRBLKSIZ)

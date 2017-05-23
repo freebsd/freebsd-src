@@ -986,11 +986,14 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	}
 	if ((p->p_flag & P_CONTROLT) && tp != NULL) {
 		kp->ki_tdev = tty_udev(tp);
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		if (tp->t_session)
 			kp->ki_tsid = tp->t_session->s_sid;
-	} else
+	} else {
 		kp->ki_tdev = NODEV;
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
+	}
 	if (p->p_comm[0] != '\0')
 		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
 	if (p->p_sysent && p->p_sysent->sv_name != NULL &&
@@ -1232,6 +1235,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_tsid);
 	CP(*ki, *ki32, ki_jobc);
 	CP(*ki, *ki32, ki_tdev);
+	CP(*ki, *ki32, ki_tdev_freebsd11);
 	CP(*ki, *ki32, ki_siglist);
 	CP(*ki, *ki32, ki_sigmask);
 	CP(*ki, *ki32, ki_sigignore);
@@ -2204,6 +2208,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
+					/* truncate */
 					kve->kve_fsid = va.va_fsid;
 				}
 				vput(vp);
@@ -2443,10 +2448,14 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
 					kve->kve_vn_fsid = va.va_fsid;
+					kve->kve_vn_fsid_freebsd11 =
+					    kve->kve_vn_fsid; /* truncate */
 					kve->kve_vn_mode =
 					    MAKEIMODE(va.va_type, va.va_mode);
 					kve->kve_vn_size = va.va_size;
 					kve->kve_vn_rdev = va.va_rdev;
+					kve->kve_vn_rdev_freebsd11 =
+					    kve->kve_vn_rdev; /* truncate */
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
