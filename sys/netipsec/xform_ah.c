@@ -1049,6 +1049,8 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 bad:
 	if (m)
 		m_freem(m);
+	key_freesav(&sav);
+	key_freesp(&sp);
 	return (error);
 }
 
