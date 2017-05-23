@@ -120,8 +120,8 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		CP((*md_c), (*mdv), md_fwsectors);
 
 		/* _In_z_opt_ const char * md_file */
-		error = cheriabi_strcap_to_ptr((const char **)&mdv->md_file,
-		    &md_c->md_file, 1);
+		error = cheriabi_strcap_to_ptr(&mdv->md_file, &md_c->md_file,
+		    1);
 		if (error != 0)
 			return (error);
 

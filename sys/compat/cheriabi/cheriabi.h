@@ -140,7 +140,7 @@ cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 }
 
 static inline int
-cheriabi_strcap_to_ptr(const char **strp, struct chericap *cap, int may_be_null)
+cheriabi_strcap_to_ptr(char **strp, struct chericap *cap, int may_be_null)
 {
 
 	/*
@@ -150,7 +150,7 @@ cheriabi_strcap_to_ptr(const char **strp, struct chericap *cap, int may_be_null)
 	 * that out from under us.  Completely safe string handling
 	 * requires pushing the length down to the copyinstr().
 	 */
-	return (cheriabi_cap_to_ptr(__DECONST(caddr_t *, strp), cap, 1,
+	return (cheriabi_cap_to_ptr(strp, cap, 1,
 	    CHERI_PERM_LOAD, may_be_null));
 }
 

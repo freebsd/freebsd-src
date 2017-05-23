@@ -336,8 +336,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag)
 			break;
-		error = cheriabi_strcap_to_ptr((const char **)&argp,
-		    argcap, 0);
+		error = cheriabi_strcap_to_ptr(&argp, argcap, 0);
 		if (error)
 			goto err_exit;
 		/* Lose any stray caps in arg strings. */
@@ -367,8 +366,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 			if (!tag)
 				break;
-			error = cheriabi_strcap_to_ptr((const char **)&envp,
-			    argcap, 0);
+			error = cheriabi_strcap_to_ptr(&envp, argcap, 0);
 			if (error)
 				goto err_exit;
 			/* Lose any stray caps in env strings. */
@@ -942,11 +940,9 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		if (error)
 			return (error);
 		CP(j_c, j, version);
-		cheriabi_strcap_to_ptr((const char **)&j.path, &j_c.path, 1);
-		cheriabi_strcap_to_ptr((const char **)&j.hostname,
-		    &j_c.hostname, 1);
-		cheriabi_strcap_to_ptr((const char **)&j.jailname,
-		    &j_c.jailname, 1);
+		cheriabi_strcap_to_ptr(&j.path, &j_c.path, 1);
+		cheriabi_strcap_to_ptr(&j.hostname, &j_c.hostname, 1);
+		cheriabi_strcap_to_ptr(&j.jailname, &j_c.jailname, 1);
 		CP(j_c, j, ip4s);
 		CP(j_c, j, ip6s);
 		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip4, &j_c.ip4,

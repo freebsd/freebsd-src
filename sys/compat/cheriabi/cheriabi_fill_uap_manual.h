@@ -339,7 +339,8 @@ CHERIABI_SYS_mac_syscall_fill_uap(struct thread *td,
 
 	/* [0] _In_z_ char * policy */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mac_syscall, 0);
-	error = cheriabi_strcap_to_ptr(&uap->policy, &tmpcap, 0);
+	error = cheriabi_strcap_to_ptr(__DECONST(char **, &uap->policy),
+	    &tmpcap, 0);
 	if (error != 0)
 		return (error);
 
@@ -744,7 +745,8 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 		if (uap->path != SHM_ANON)
 			return (EPROT);
 	} else {
-		error = cheriabi_strcap_to_ptr(&uap->path, &tmpcap, 0);
+		error = cheriabi_strcap_to_ptr(__DECONST(char **, &uap->path),
+		    &tmpcap, 0);
 		if (error != 0)
 			return (error);
 	}
