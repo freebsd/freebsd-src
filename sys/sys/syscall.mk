@@ -14,7 +14,7 @@ MIASM =  \
 	unlink.o \
 	chdir.o \
 	fchdir.o \
-	mknod.o \
+	freebsd11_mknod.o \
 	chmod.o \
 	chown.o \
 	break.o \
@@ -119,14 +119,14 @@ MIASM =  \
 	setgid.o \
 	setegid.o \
 	seteuid.o \
-	stat.o \
-	fstat.o \
-	lstat.o \
+	freebsd11_stat.o \
+	freebsd11_fstat.o \
+	freebsd11_lstat.o \
 	pathconf.o \
 	fpathconf.o \
 	getrlimit.o \
 	setrlimit.o \
-	getdirentries.o \
+	freebsd11_getdirentries.o \
 	__syscall.o \
 	__sysctl.o \
 	mlock.o \
@@ -168,18 +168,18 @@ MIASM =  \
 	aio_read.o \
 	aio_write.o \
 	lio_listio.o \
-	getdents.o \
+	freebsd11_getdents.o \
 	lchmod.o \
 	netbsd_lchown.o \
 	lutimes.o \
 	netbsd_msync.o \
-	nstat.o \
-	nfstat.o \
-	nlstat.o \
+	freebsd11_nstat.o \
+	freebsd11_nfstat.o \
+	freebsd11_nlstat.o \
 	preadv.o \
 	pwritev.o \
 	fhopen.o \
-	fhstat.o \
+	freebsd11_fhstat.o \
 	modnext.o \
 	modstat.o \
 	modfnext.o \
@@ -253,10 +253,10 @@ MIASM =  \
 	uuidgen.o \
 	sendfile.o \
 	mac_syscall.o \
-	getfsstat.o \
-	statfs.o \
-	fstatfs.o \
-	fhstatfs.o \
+	freebsd11_getfsstat.o \
+	freebsd11_statfs.o \
+	freebsd11_fstatfs.o \
+	freebsd11_fhstatfs.o \
 	ksem_close.o \
 	ksem_post.o \
 	ksem_wait.o \
@@ -340,12 +340,12 @@ MIASM =  \
 	fchmodat.o \
 	fchownat.o \
 	fexecve.o \
-	fstatat.o \
+	freebsd11_fstatat.o \
 	futimesat.o \
 	linkat.o \
 	mkdirat.o \
 	mkfifoat.o \
-	mknodat.o \
+	freebsd11_mknodat.o \
 	openat.o \
 	readlinkat.o \
 	renameat.o \
@@ -395,4 +395,13 @@ MIASM =  \
 	utimensat.o \
 	numa_getaffinity.o \
 	numa_setaffinity.o \
-	fdatasync.o
+	fdatasync.o \
+	fstat.o \
+	fstatat.o \
+	fhstat.o \
+	getdirentries.o \
+	statfs.o \
+	fstatfs.o \
+	getfsstat.o \
+	fhstatfs.o \
+	mknodat.o

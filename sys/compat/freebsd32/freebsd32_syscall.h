@@ -19,7 +19,7 @@
 				/* 11 is obsolete execv */
 #define	FREEBSD32_SYS_chdir	12
 #define	FREEBSD32_SYS_fchdir	13
-#define	FREEBSD32_SYS_mknod	14
+#define	FREEBSD32_SYS_freebsd11_freebsd32_mknod	14
 #define	FREEBSD32_SYS_chmod	15
 #define	FREEBSD32_SYS_chown	16
 #define	FREEBSD32_SYS_break	17
@@ -171,14 +171,14 @@
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
 #define	FREEBSD32_SYS_seteuid	183
-#define	FREEBSD32_SYS_freebsd32_stat	188
-#define	FREEBSD32_SYS_freebsd32_fstat	189
-#define	FREEBSD32_SYS_freebsd32_lstat	190
+#define	FREEBSD32_SYS_freebsd11_freebsd32_stat	188
+#define	FREEBSD32_SYS_freebsd11_freebsd32_fstat	189
+#define	FREEBSD32_SYS_freebsd11_freebsd32_lstat	190
 #define	FREEBSD32_SYS_pathconf	191
 #define	FREEBSD32_SYS_fpathconf	192
 #define	FREEBSD32_SYS_getrlimit	194
 #define	FREEBSD32_SYS_setrlimit	195
-#define	FREEBSD32_SYS_freebsd32_getdirentries	196
+#define	FREEBSD32_SYS_freebsd11_freebsd32_getdirentries	196
 				/* 197 is freebsd6 freebsd32_mmap */
 #define	FREEBSD32_SYS___syscall	198
 				/* 199 is freebsd6 freebsd32_lseek */
@@ -224,19 +224,19 @@
 #define	FREEBSD32_SYS_freebsd32_aio_read	255
 #define	FREEBSD32_SYS_freebsd32_aio_write	256
 #define	FREEBSD32_SYS_freebsd32_lio_listio	257
-#define	FREEBSD32_SYS_getdents	272
+#define	FREEBSD32_SYS_freebsd11_freebsd32_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
 #define	FREEBSD32_SYS_netbsd_lchown	275
 #define	FREEBSD32_SYS_freebsd32_lutimes	276
 #define	FREEBSD32_SYS_netbsd_msync	277
-#define	FREEBSD32_SYS_nstat	278
-#define	FREEBSD32_SYS_nfstat	279
-#define	FREEBSD32_SYS_nlstat	280
+#define	FREEBSD32_SYS_freebsd11_nstat	278
+#define	FREEBSD32_SYS_freebsd11_nfstat	279
+#define	FREEBSD32_SYS_freebsd11_nlstat	280
 #define	FREEBSD32_SYS_freebsd32_preadv	289
 #define	FREEBSD32_SYS_freebsd32_pwritev	290
 				/* 297 is freebsd4 freebsd32_fhstatfs */
 #define	FREEBSD32_SYS_fhopen	298
-#define	FREEBSD32_SYS_fhstat	299
+#define	FREEBSD32_SYS_freebsd11_freebsd32_fhstat	299
 #define	FREEBSD32_SYS_modnext	300
 #define	FREEBSD32_SYS_freebsd32_modstat	301
 #define	FREEBSD32_SYS_modfnext	302
@@ -310,10 +310,10 @@
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
 #define	FREEBSD32_SYS_freebsd32_sendfile	393
-#define	FREEBSD32_SYS_getfsstat	395
-#define	FREEBSD32_SYS_statfs	396
-#define	FREEBSD32_SYS_fstatfs	397
-#define	FREEBSD32_SYS_fhstatfs	398
+#define	FREEBSD32_SYS_freebsd11_getfsstat	395
+#define	FREEBSD32_SYS_freebsd11_statfs	396
+#define	FREEBSD32_SYS_freebsd11_fstatfs	397
+#define	FREEBSD32_SYS_freebsd11_fhstatfs	398
 #define	FREEBSD32_SYS_ksem_close	400
 #define	FREEBSD32_SYS_ksem_post	401
 #define	FREEBSD32_SYS_ksem_wait	402
@@ -398,12 +398,12 @@
 #define	FREEBSD32_SYS_fchmodat	490
 #define	FREEBSD32_SYS_fchownat	491
 #define	FREEBSD32_SYS_freebsd32_fexecve	492
-#define	FREEBSD32_SYS_freebsd32_fstatat	493
+#define	FREEBSD32_SYS_freebsd11_freebsd32_fstatat	493
 #define	FREEBSD32_SYS_freebsd32_futimesat	494
 #define	FREEBSD32_SYS_linkat	495
 #define	FREEBSD32_SYS_mkdirat	496
 #define	FREEBSD32_SYS_mkfifoat	497
-#define	FREEBSD32_SYS_mknodat	498
+#define	FREEBSD32_SYS_freebsd11_freebsd32_mknodat	498
 #define	FREEBSD32_SYS_openat	499
 #define	FREEBSD32_SYS_readlinkat	500
 #define	FREEBSD32_SYS_renameat	501
@@ -458,4 +458,13 @@
 #define	FREEBSD32_SYS_numa_getaffinity	548
 #define	FREEBSD32_SYS_numa_setaffinity	549
 #define	FREEBSD32_SYS_fdatasync	550
-#define	FREEBSD32_SYS_MAXSYSCALL	551
+#define	FREEBSD32_SYS_freebsd32_fstat	551
+#define	FREEBSD32_SYS_freebsd32_fstatat	552
+#define	FREEBSD32_SYS_freebsd32_fhstat	553
+#define	FREEBSD32_SYS_freebsd32_getdirentries	554
+#define	FREEBSD32_SYS_statfs	555
+#define	FREEBSD32_SYS_fstatfs	556
+#define	FREEBSD32_SYS_getfsstat	557
+#define	FREEBSD32_SYS_fhstatfs	558
+#define	FREEBSD32_SYS_mknodat	559
+#define	FREEBSD32_SYS_MAXSYSCALL	560
