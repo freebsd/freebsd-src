@@ -87,11 +87,11 @@ _Static_assert(offsetof(struct proc, p_flag) == 0xb0,
     "struct proc KBI p_flag");
 _Static_assert(offsetof(struct proc, p_pid) == 0xbc,
     "struct proc KBI p_pid");
-_Static_assert(offsetof(struct proc, p_filemon) == 0x3d0,
+_Static_assert(offsetof(struct proc, p_filemon) == 0x3c0,
     "struct proc KBI p_filemon");
-_Static_assert(offsetof(struct proc, p_comm) == 0x3e0,
+_Static_assert(offsetof(struct proc, p_comm) == 0x3d0,
     "struct proc KBI p_comm");
-_Static_assert(offsetof(struct proc, p_emuldata) == 0x4b0,
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x4a0,
     "struct proc KBI p_emuldata");
 #endif
 #ifdef __i386__
@@ -107,11 +107,11 @@ _Static_assert(offsetof(struct proc, p_flag) == 0x68,
     "struct proc KBI p_flag");
 _Static_assert(offsetof(struct proc, p_pid) == 0x74,
     "struct proc KBI p_pid");
-_Static_assert(offsetof(struct proc, p_filemon) == 0x278,
+_Static_assert(offsetof(struct proc, p_filemon) == 0x268,
     "struct proc KBI p_filemon");
-_Static_assert(offsetof(struct proc, p_comm) == 0x284,
+_Static_assert(offsetof(struct proc, p_comm) == 0x274,
     "struct proc KBI p_comm");
-_Static_assert(offsetof(struct proc, p_emuldata) == 0x304,
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x2f4,
     "struct proc KBI p_emuldata");
 #endif
 

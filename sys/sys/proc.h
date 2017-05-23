@@ -567,8 +567,8 @@ struct proc {
 	struct mtx	p_itimmtx;	/* Lock for the virt/prof timers */
 	struct mtx	p_profmtx;	/* Lock for the profiling */
 	struct ksiginfo *p_ksi;	/* Locked by parent proc lock */
-	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
-#define p_siglist	p_sigqueue.sq_signals
+	uint64_t	padding1[4];
+	void		*padding2[4];
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
@@ -660,6 +660,8 @@ struct proc {
 	u_int		p_ptevents;	/* (c) ptrace() event mask. */
 	uint16_t	p_elf_machine;	/* (x) ELF machine type */
 	uint64_t	p_elf_flags;	/* (x) ELF flags */
+	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
+#define p_siglist	p_sigqueue.sq_signals
 };
 
 #define	p_session	p_pgrp->pg_session
