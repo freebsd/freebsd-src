@@ -63,7 +63,7 @@ LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 
 LDFLAGS=	-nostdlib			\
 		-static				\
-		-N				\
+		-Wl,-N				\
 		-G0				\
 		-L${.CURDIR}
 
