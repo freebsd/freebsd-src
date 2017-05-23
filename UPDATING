@@ -57,7 +57,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	the full procedure documented below under the heading "To rebuild
 	everything and install it on the current system."  Specifically, a
 	reboot is required after installing the new kernel before installing
-	world.
+	world.  In addition, if using a custom kernel configuration ensure
+	that the COMPAT_FREEBSD11 option is included.
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
