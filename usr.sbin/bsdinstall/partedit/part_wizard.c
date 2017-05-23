@@ -27,11 +27,10 @@
  */
 
 #include <sys/param.h>
-#include <errno.h>
-#include <libutil.h>
-#include <inttypes.h>
-
 #include <sys/sysctl.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <libutil.h>
 #include <string.h>
 
 #include <libgeom.h>
