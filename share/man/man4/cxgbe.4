@@ -168,6 +168,10 @@ Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
+There are multiple tunables that control the number of queues of various
+types.
+A negative value for such a tunable instructs the driver to create
+up to that many queues if there are enough CPU cores available.
 .Bl -tag -width indent
 .It Va hw.cxgbe.ntxq10g
 Number of tx queues used for a 10Gb or higher-speed port.
