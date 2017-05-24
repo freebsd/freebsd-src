@@ -11,7 +11,7 @@ trap "cleanup" INT QUIT TRAP ABRT TERM
 
 write_partition_layout() {
 	if [ -z "${NOSWAP}" ]; then
-		SWAPOPT="-p freebsd-swap/swapfs::1G"
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
 	fi
 
 	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
