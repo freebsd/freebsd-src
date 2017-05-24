@@ -2376,6 +2376,8 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 			set_bit(EP_DISC_ABORT, &ep->com.history);
 			close_complete_upcall(ep, -ECONNRESET);
 			ret = send_abort(ep);
+			if (ret)
+				fatal = 1;
 		} else {
 
 			CTR2(KTR_IW_CXGBE, "%s:ced5 %p", __func__, ep);
@@ -2383,13 +2385,9 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 			if (!ep->parent_ep)
 				__state_set(&ep->com, MORIBUND);
-			ret = sodisconnect(ep->com.so);
+			sodisconnect(ep->com.so);
 		}
 
-		if (ret) {
-
-			fatal = 1;
-		}
 	}
 
 	if (fatal) {
