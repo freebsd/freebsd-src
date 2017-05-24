@@ -443,6 +443,12 @@
 	<literal>IPSEC_FILTERTUNNEL</literal> kernel option has been
 	removed, which was deprecated by the
 	<literal>net.inet.ipsec.filtertunnel</literal> sysctl.</para>
+
+      <para revision="318763">The <literal>EARLY_AP_STARTUP</literal>
+	option has been enabled by default on &arch.amd64; and
+	&arch.i386; architectures, which when enabled releases
+	Application Processors (<acronym>AP</acronym>s) earlier in the
+	kernel startup process.</para>
     </sect2>
 
     <sect2 xml:id="kernel-modules">
