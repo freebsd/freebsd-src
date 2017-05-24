@@ -133,6 +133,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	int ret;
 	int eqsize;
 	struct wrqe *wr;
+	const int spg_ndesc = sc->params.sge.spg_len / EQ_ESIZE;
 
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
 	if (!wq->sq.qid)
@@ -214,8 +215,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS +
-	    (sc->params.sge.spg_len / EQ_ESIZE);
+	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS + spg_ndesc;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
@@ -237,8 +237,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
-	    (sc->params.sge.spg_len / EQ_ESIZE);
+	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS + spg_ndesc;
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
@@ -1523,7 +1522,7 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_create_qp_resp uresp;
 	int sqsize, rqsize;
 	struct c4iw_ucontext *ucontext;
-	int ret;
+	int ret, spg_ndesc;
 	struct c4iw_mm_entry *mm1, *mm2, *mm3, *mm4;
 
 	CTR2(KTR_IW_CXGBE, "%s ib_pd %p", __func__, pd);
@@ -1541,12 +1540,13 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (attrs->cap.max_inline_data > T4_MAX_SEND_INLINE)
 		return ERR_PTR(-EINVAL);
 
+	spg_ndesc = rhp->rdev.adap->params.sge.spg_len / EQ_ESIZE;
 	rqsize = roundup(attrs->cap.max_recv_wr + 1, 16);
-	if (rqsize > T4_MAX_RQ_SIZE)
+	if (rqsize > T4_MAX_RQ_SIZE(spg_ndesc))
 		return ERR_PTR(-E2BIG);
 
 	sqsize = roundup(attrs->cap.max_send_wr + 1, 16);
-	if (sqsize > T4_MAX_SQ_SIZE)
+	if (sqsize > T4_MAX_SQ_SIZE(spg_ndesc))
 		return ERR_PTR(-E2BIG);
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
@@ -1556,9 +1556,10 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 	qhp->wq.sq.size = sqsize;
-	qhp->wq.sq.memsize = (sqsize + 1) * sizeof *qhp->wq.sq.queue;
+	qhp->wq.sq.memsize = (sqsize + spg_ndesc) * sizeof *qhp->wq.sq.queue +
+	    16 * sizeof(__be64);
 	qhp->wq.rq.size = rqsize;
-	qhp->wq.rq.memsize = (rqsize + 1) * sizeof *qhp->wq.rq.queue;
+	qhp->wq.rq.memsize = (rqsize + spg_ndesc) * sizeof *qhp->wq.rq.queue;
 
 	if (ucontext) {
 		qhp->wq.sq.memsize = roundup(qhp->wq.sq.memsize, PAGE_SIZE);
