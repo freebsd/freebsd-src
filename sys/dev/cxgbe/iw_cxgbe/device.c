@@ -330,7 +330,7 @@ c4iw_modevent(module_t mod, int cmd, void *arg)
 	case MOD_LOAD:
 		rc = c4iw_mod_load();
 		if (rc == 0)
-			printf("iw_cxgbe: Chelsio T4/T5 RDMA driver loaded.\n");
+			printf("iw_cxgbe: Chelsio T4/T5/T6 RDMA driver loaded.\n");
 		break;
 
 	case MOD_UNLOAD:
