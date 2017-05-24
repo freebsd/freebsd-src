@@ -74,7 +74,7 @@ BEGIN {
 	FXSHIFT = 16;
 	FXONE   = shl(1, FXSHIFT);
 
-	SND_CHN_MAX = 18;
+	SND_CHN_MAX = 127;
 
 	PCM_8_BPS  = 1;
 	PCM_16_BPS = 2;
@@ -103,9 +103,9 @@ BEGIN {
 	printf("/*\n");
 	printf(" * Fast unsigned 32bit integer division and rounding, accurate for\n");
 	printf(" * x = 1 - %d. This table should be enough to handle possible\n", FXONE);
-	printf(" * division for 1 - 72 (more can be generated though..).\n");
+	printf(" * division for 1 - 508 (more can be generated though..).\n");
 	printf(" *\n");
-	printf(" * 72 = SND_CHN_MAX * PCM_32_BPS, which is why....\n");
+	printf(" * 508 = SND_CHN_MAX * PCM_32_BPS, which is why....\n");
 	printf(" */\n\n");
 
 	printf("static const uint32_t snd_fxdiv_table[][2] = {\n");
