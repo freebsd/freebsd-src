@@ -120,6 +120,7 @@ setpfsync_syncpeer(const char *val, int d, int s, const struct afswtch *rafp)
 
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
+	freeaddrinfo(peerres);
 }
 
 /* ARGSUSED */
