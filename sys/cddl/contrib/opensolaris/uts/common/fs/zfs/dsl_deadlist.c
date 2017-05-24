@@ -72,6 +72,8 @@ dsl_deadlist_load_tree(dsl_deadlist_t *dl)
 	zap_cursor_t zc;
 	zap_attribute_t za;
 
+	ASSERT(MUTEX_HELD(&dl->dl_lock));
+
 	ASSERT(!dl->dl_oldfmt);
 	if (dl->dl_havetree)
 		return;
@@ -182,6 +184,7 @@ static void
 dle_enqueue(dsl_deadlist_t *dl, dsl_deadlist_entry_t *dle,
     const blkptr_t *bp, dmu_tx_t *tx)
 {
+	ASSERT(MUTEX_HELD(&dl->dl_lock));
 	if (dle->dle_bpobj.bpo_object ==
 	    dmu_objset_pool(dl->dl_os)->dp_empty_bpobj) {
 		uint64_t obj = bpobj_alloc(dl->dl_os, SPA_OLD_MAXBLOCKSIZE, tx);
@@ -198,6 +201,7 @@ static void
 dle_enqueue_subobj(dsl_deadlist_t *dl, dsl_deadlist_entry_t *dle,
     uint64_t obj, dmu_tx_t *tx)
 {
+	ASSERT(MUTEX_HELD(&dl->dl_lock));
 	if (dle->dle_bpobj.bpo_object !=
 	    dmu_objset_pool(dl->dl_os)->dp_empty_bpobj) {
 		bpobj_enqueue_subobj(&dle->dle_bpobj, obj, tx);
@@ -222,15 +226,14 @@ dsl_deadlist_insert(dsl_deadlist_t *dl, const blkptr_t *bp, dmu_tx_t *tx)
 		return;
 	}
 
+	mutex_enter(&dl->dl_lock);
 	dsl_deadlist_load_tree(dl);
 
 	dmu_buf_will_dirty(dl->dl_dbuf, tx);
-	mutex_enter(&dl->dl_lock);
 	dl->dl_phys->dl_used +=
 	    bp_get_dsize_sync(dmu_objset_spa(dl->dl_os), bp);
 	dl->dl_phys->dl_comp += BP_GET_PSIZE(bp);
 	dl->dl_phys->dl_uncomp += BP_GET_UCSIZE(bp);
-	mutex_exit(&dl->dl_lock);
 
 	dle_tofind.dle_mintxg = bp->blk_birth;
 	dle = avl_find(&dl->dl_tree, &dle_tofind, &where);
@@ -239,6 +242,7 @@ dsl_deadlist_insert(dsl_deadlist_t *dl, const blkptr_t *bp, dmu_tx_t *tx)
 	else
 		dle = AVL_PREV(&dl->dl_tree, dle);
 	dle_enqueue(dl, dle, bp, tx);
+	mutex_exit(&dl->dl_lock);
 }
 
 /*
@@ -254,16 +258,19 @@ dsl_deadlist_add_key(dsl_deadlist_t *dl, uint64_t mintxg, dmu_tx_t *tx)
 	if (dl->dl_oldfmt)
 		return;
 
-	dsl_deadlist_load_tree(dl);
-
 	dle = kmem_alloc(sizeof (*dle), KM_SLEEP);
 	dle->dle_mintxg = mintxg;
+
+	mutex_enter(&dl->dl_lock);
+	dsl_deadlist_load_tree(dl);
+
 	obj = bpobj_alloc_empty(dl->dl_os, SPA_OLD_MAXBLOCKSIZE, tx);
 	VERIFY3U(0, ==, bpobj_open(&dle->dle_bpobj, dl->dl_os, obj));
 	avl_add(&dl->dl_tree, dle);
 
 	VERIFY3U(0, ==, zap_add_int_key(dl->dl_os, dl->dl_object,
 	    mintxg, obj, tx));
+	mutex_exit(&dl->dl_lock);
 }
 
 /*
@@ -278,6 +285,7 @@ dsl_deadlist_remove_key(dsl_deadlist_t *dl, uint64_t mintxg, dmu_tx_t *tx)
 	if (dl->dl_oldfmt)
 		return;
 
+	mutex_enter(&dl->dl_lock);
 	dsl_deadlist_load_tree(dl);
 
 	dle_tofind.dle_mintxg = mintxg;
@@ -291,6 +299,7 @@ dsl_deadlist_remove_key(dsl_deadlist_t *dl, uint64_t mintxg, dmu_tx_t *tx)
 	kmem_free(dle, sizeof (*dle));
 
 	VERIFY3U(0, ==, zap_remove_int(dl->dl_os, dl->dl_object, mintxg, tx));
+	mutex_exit(&dl->dl_lock);
 }
 
 /*
@@ -334,6 +343,7 @@ dsl_deadlist_clone(dsl_deadlist_t *dl, uint64_t maxtxg,
 		return (newobj);
 	}
 
+	mutex_enter(&dl->dl_lock);
 	dsl_deadlist_load_tree(dl);
 
 	for (dle = avl_first(&dl->dl_tree); dle;
@@ -347,6 +357,7 @@ dsl_deadlist_clone(dsl_deadlist_t *dl, uint64_t maxtxg,
 		VERIFY3U(0, ==, zap_add_int_key(dl->dl_os, newobj,
 		    dle->dle_mintxg, obj, tx));
 	}
+	mutex_exit(&dl->dl_lock);
 	return (newobj);
 }
 
@@ -424,6 +435,8 @@ dsl_deadlist_insert_bpobj(dsl_deadlist_t *dl, uint64_t obj, uint64_t birth,
 	uint64_t used, comp, uncomp;
 	bpobj_t bpo;
 
+	ASSERT(MUTEX_HELD(&dl->dl_lock));
+
 	VERIFY3U(0, ==, bpobj_open(&bpo, dl->dl_os, obj));
 	VERIFY3U(0, ==, bpobj_space(&bpo, &used, &comp, &uncomp));
 	bpobj_close(&bpo);
@@ -431,11 +444,9 @@ dsl_deadlist_insert_bpobj(dsl_deadlist_t *dl, uint64_t obj, uint64_t birth,
 	dsl_deadlist_load_tree(dl);
 
 	dmu_buf_will_dirty(dl->dl_dbuf, tx);
-	mutex_enter(&dl->dl_lock);
 	dl->dl_phys->dl_used += used;
 	dl->dl_phys->dl_comp += comp;
 	dl->dl_phys->dl_uncomp += uncomp;
-	mutex_exit(&dl->dl_lock);
 
 	dle_tofind.dle_mintxg = birth;
 	dle = avl_find(&dl->dl_tree, &dle_tofind, &where);
@@ -475,6 +486,7 @@ dsl_deadlist_merge(dsl_deadlist_t *dl, uint64_t obj, dmu_tx_t *tx)
 		return;
 	}
 
+	mutex_enter(&dl->dl_lock);
 	for (zap_cursor_init(&zc, dl->dl_os, obj);
 	    zap_cursor_retrieve(&zc, &za) == 0;
 	    zap_cursor_advance(&zc)) {
@@ -489,6 +501,7 @@ dsl_deadlist_merge(dsl_deadlist_t *dl, uint64_t obj, dmu_tx_t *tx)
 	dmu_buf_will_dirty(bonus, tx);
 	bzero(dlp, sizeof (*dlp));
 	dmu_buf_rele(bonus, FTAG);
+	mutex_exit(&dl->dl_lock);
 }
 
 /*
@@ -503,6 +516,8 @@ dsl_deadlist_move_bpobj(dsl_deadlist_t *dl, bpobj_t *bpo, uint64_t mintxg,
 	avl_index_t where;
 
 	ASSERT(!dl->dl_oldfmt);
+
+	mutex_enter(&dl->dl_lock);
 	dmu_buf_will_dirty(dl->dl_dbuf, tx);
 	dsl_deadlist_load_tree(dl);
 
@@ -518,14 +533,12 @@ dsl_deadlist_move_bpobj(dsl_deadlist_t *dl, bpobj_t *bpo, uint64_t mintxg,
 
 		VERIFY3U(0, ==, bpobj_space(&dle->dle_bpobj,
 		    &used, &comp, &uncomp));
-		mutex_enter(&dl->dl_lock);
 		ASSERT3U(dl->dl_phys->dl_used, >=, used);
 		ASSERT3U(dl->dl_phys->dl_comp, >=, comp);
 		ASSERT3U(dl->dl_phys->dl_uncomp, >=, uncomp);
 		dl->dl_phys->dl_used -= used;
 		dl->dl_phys->dl_comp -= comp;
 		dl->dl_phys->dl_uncomp -= uncomp;
-		mutex_exit(&dl->dl_lock);
 
 		VERIFY3U(0, ==, zap_remove_int(dl->dl_os, dl->dl_object,
 		    dle->dle_mintxg, tx));
@@ -536,4 +549,5 @@ dsl_deadlist_move_bpobj(dsl_deadlist_t *dl, bpobj_t *bpo, uint64_t mintxg,
 		kmem_free(dle, sizeof (*dle));
 		dle = dle_next;
 	}
+	mutex_exit(&dl->dl_lock);
 }
