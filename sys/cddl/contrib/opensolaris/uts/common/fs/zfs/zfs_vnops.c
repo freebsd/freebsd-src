@@ -18,11 +18,12 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
- * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -1535,7 +1536,15 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	zfsvfs_t *zfsvfs = zdp->z_zfsvfs;
 	int	error = 0;
 
-	/* fast path (should be redundant with vfs namecache) */
+	/*
+	 * Fast path lookup, however we must skip DNLC lookup
+	 * for case folding or normalizing lookups because the
+	 * DNLC code only stores the passed in name.  This means
+	 * creating 'a' and removing 'A' on a case insensitive
+	 * file system would work, but DNLC still thinks 'a'
+	 * exists and won't let you create it again on the next
+	 * pass through fast path.
+	 */
 	if (!(flags & LOOKUP_XATTR)) {
 		if (dvp->v_type != VDIR) {
 			return (SET_ERROR(ENOTDIR));
