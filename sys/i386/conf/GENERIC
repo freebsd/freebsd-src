@@ -85,6 +85,7 @@ options 	KDB_TRACE		# Print a stack trace for a panic.
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
+options 	EARLY_AP_STARTUP
 
 # CPU frequency control
 device		cpufreq
