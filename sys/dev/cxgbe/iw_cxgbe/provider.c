@@ -188,7 +188,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			    "%s:6 USER DB-GTS addr %p region %p, reglen %u",
 			    __func__, addr, va_udbs_res, len_udbs_res);
 #ifdef DOT5
-			if (is_t5(rdev->lldi.adapter_type) && map_udb_as_wc)
+			if (!is_t4(rdev->lldi.adapter_type) && map_udb_as_wc)
 				vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 			else
 #endif
@@ -305,6 +305,7 @@ c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 {
 	struct c4iw_dev *dev = to_c4iw_dev(ibdev);
 	struct adapter *sc = dev->rdev.adap;
+	const int spg_ndesc = sc->params.sge.spg_len / EQ_ESIZE;
 
 	CTR3(KTR_IW_CXGBE, "%s ibdev %p, props %p", __func__, ibdev, props);
 
@@ -318,13 +319,15 @@ c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	props->vendor_id = pci_get_vendor(sc->dev);
 	props->vendor_part_id = pci_get_device(sc->dev);
 	props->max_mr_size = T4_MAX_MR_SIZE;
-	props->max_qp = T4_MAX_NUM_QP;
-	props->max_qp_wr = T4_MAX_QP_DEPTH;
+	props->max_qp = sc->vres.qp.size / 2;
+	props->max_qp_wr = T4_MAX_QP_DEPTH(spg_ndesc);
 	props->max_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
-	props->max_qp_rd_atom = c4iw_max_read_depth;
-	props->max_qp_init_rd_atom = c4iw_max_read_depth;
-	props->max_cq = T4_MAX_NUM_CQ;
+	props->max_res_rd_atom = sc->params.max_ird_adapter;
+	props->max_qp_rd_atom = min(sc->params.max_ordird_qp,
+	    c4iw_max_read_depth);
+	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
+	props->max_cq = sc->vres.qp.size;
 	props->max_cqe = T4_MAX_CQ_DEPTH;
 	props->max_mr = c4iw_num_stags(&dev->rdev);
 	props->max_pd = T4_MAX_NUM_PD;
@@ -427,7 +430,7 @@ c4iw_register_device(struct c4iw_dev *dev)
 	strlcpy(ibdev->node_desc, C4IW_NODE_DESC, sizeof(ibdev->node_desc));
 	ibdev->phys_port_cnt = sc->params.nports;
 	ibdev->num_comp_vectors = 1;
-	ibdev->dma_device = sc->dev;
+	ibdev->dma_device = NULL;
 	ibdev->query_device = c4iw_query_device;
 	ibdev->query_port = c4iw_query_port;
 	ibdev->modify_port = c4iw_modify_port;
