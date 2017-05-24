@@ -110,7 +110,6 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
 	lc->lro_flushed = 0;
-	lc->lro_cnt = 0;
 	lc->lro_mbuf_count = 0;
 	lc->lro_mbuf_max = lro_mbufs;
 	lc->lro_cnt = lro_entries;
@@ -889,17 +888,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	/* check if packet is not LRO capable */
 	if (__predict_false(mb->m_pkthdr.csum_flags == 0 ||
 	    (lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
-		lc->lro_flushed++;
-		lc->lro_queued++;
 
 		/* input packet to network layer */
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
-
-	/* check if array is full */
-	if (__predict_false(lc->lro_mbuf_count == lc->lro_mbuf_max))
-		tcp_lro_flush_all(lc);
 
 	/* create sequence number */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
@@ -908,7 +901,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	    ((uint64_t)lc->lro_mbuf_count);
 
 	/* enter mbuf */
-	lc->lro_mbuf_data[lc->lro_mbuf_count++].mb = mb;
+	lc->lro_mbuf_data[lc->lro_mbuf_count].mb = mb;
+
+	/* flush if array is full */
+	if (__predict_false(++lc->lro_mbuf_count == lc->lro_mbuf_max))
+		tcp_lro_flush_all(lc);
 }
 
 /* end */
