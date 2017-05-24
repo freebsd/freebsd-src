@@ -106,7 +106,7 @@ static	int ifconfig(int argc, char *const *argv, int iscreate,
 static	void status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
 static	void tunnel_status(int s);
-static	void usage(void);
+static	void usage(void) _Noreturn;
 
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
@@ -802,26 +802,24 @@ top:
 			 */
 			p = (setaddr ? &setifdstaddr_cmd : &setifaddr_cmd);
 		}
-		if (p->c_u.c_func || p->c_u.c_func2) {
-			if (p->c_parameter == NEXTARG) {
-				if (argv[1] == NULL)
-					errx(1, "'%s' requires argument",
-					    p->c_name);
-				p->c_u.c_func(argv[1], 0, s, afp);
+		if (p->c_parameter == NEXTARG && p->c_u.c_func) {
+			if (argv[1] == NULL)
+				errx(1, "'%s' requires argument",
+				    p->c_name);
+			p->c_u.c_func(argv[1], 0, s, afp);
+			argc--, argv++;
+		} else if (p->c_parameter == OPTARG && p->c_u.c_func) {
+			p->c_u.c_func(argv[1], 0, s, afp);
+			if (argv[1] != NULL)
 				argc--, argv++;
-			} else if (p->c_parameter == OPTARG) {
-				p->c_u.c_func(argv[1], 0, s, afp);
-				if (argv[1] != NULL)
-					argc--, argv++;
-			} else if (p->c_parameter == NEXTARG2) {
-				if (argc < 3)
-					errx(1, "'%s' requires 2 arguments",
-					    p->c_name);
-				p->c_u.c_func2(argv[1], argv[2], s, afp);
-				argc -= 2, argv += 2;
-			} else
-				p->c_u.c_func(*argv, p->c_parameter, s, afp);
-		}
+		} else if (p->c_parameter == NEXTARG2 && p->c_u.c_func2) {
+			if (argc < 3)
+				errx(1, "'%s' requires 2 arguments",
+				    p->c_name);
+			p->c_u.c_func2(argv[1], argv[2], s, afp);
+			argc -= 2, argv += 2;
+		} else if (p->c_u.c_func)
+			p->c_u.c_func(*argv, p->c_parameter, s, afp);
 		argc--, argv++;
 	}
 
@@ -1297,8 +1295,8 @@ printb(const char *s, unsigned v, const char *bits)
 		printf("%s=%o", s, v);
 	else
 		printf("%s=%x", s, v);
-	bits++;
 	if (bits) {
+		bits++;
 		putchar('<');
 		while ((i = *bits++) != '\0') {
 			if (v & (1 << (i-1))) {
@@ -1376,8 +1374,11 @@ ifmaybeload(const char *name)
 		}
 	}
 
-	/* not present, we should try to load it */
-	kldload(ifkind);
+	/*
+	 * Try to load the module.  But ignore failures, because ifconfig can't
+	 * infer the names of all drivers (eg mlx4en(4)).
+	 */
+	(void) kldload(ifkind);
 }
 
 static struct cmd basic_cmds[] = {
