@@ -199,7 +199,10 @@ int blen;
 
   int ch, pch, fid_len, res = 0;
   int match = 0;
-  char info[MAX_FILEID + MAX_PATH_LEN+MAX_MACHINE_NAME + 3];
+#define INFOLEN 1343
+  _Static_assert(INFOLEN >= MAX_FILEID + MAX_PATH_LEN+MAX_MACHINE_NAME + 3,
+		  "INFOLEN isn't large enough");
+  char info[INFOLEN + 1];
 
   bpf = fopen(bootpfile, "r");
   if ( ! bpf )
@@ -251,8 +254,9 @@ int blen;
      info of the file */
 
   if (match) {
-    fid_len = strlen(fileid);
-    while ( ! res && (fscanf(bpf,"%s", info)) > 0) { /* read a string */
+#define AS_FORMAT(d)	"%" #d "s"
+#define REXPAND(d) AS_FORMAT(d)	/* Force another preprocessor expansion */
+    while ( ! res && (fscanf(bpf, REXPAND(INFOLEN), info)) > 0) {
       ch = getc(bpf);                                /* and a character */
       if ( *info != '#' ) {                          /* Comment ? */
 	if (! strncmp(info, fileid, fid_len) && *(info + fid_len) == '=') {
