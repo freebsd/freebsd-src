@@ -18,9 +18,11 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 #include <sys/types.h>
@@ -63,12 +65,11 @@
  */
 static int
 zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, const char *name,
-    boolean_t exact, uint64_t *zoid)
+    matchtype_t mt, uint64_t *zoid)
 {
 	int error;
 
 	if (zfsvfs->z_norm) {
-		matchtype_t mt = exact? MT_EXACT : MT_FIRST;
 
 		/*
 		 * In the non-mixed case we only expect there would ever
@@ -108,7 +109,7 @@ int
 zfs_dirent_lookup(znode_t *dzp, const char *name, znode_t **zpp, int flag)
 {
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
-	boolean_t	exact;
+	matchtype_t	mt = 0;
 	uint64_t	zoid;
 	vnode_t		*vp = NULL;
 	int		error = 0;
@@ -131,15 +132,39 @@ zfs_dirent_lookup(znode_t *dzp, const char *name, znode_t **zpp, int flag)
 	 * zfsvfs->z_case and zfsvfs->z_norm fields.  These choices
 	 * affect how we perform zap lookups.
 	 *
-	 * Decide if exact matches should be requested when performing
-	 * a zap lookup on file systems supporting case-insensitive
-	 * access.
+	 * When matching we may need to normalize & change case according to
+	 * FS settings.
+	 *
+	 * Note that a normalized match is necessary for a case insensitive
+	 * filesystem when the lookup request is not exact because normalization
+	 * can fold case independent of normalizing code point sequences.
+	 *
+	 * See the table above zfs_dropname().
+	 */
+	if (zfsvfs->z_norm != 0) {
+		mt = MT_NORMALIZE;
+
+		/*
+		 * Determine if the match needs to honor the case specified in
+		 * lookup, and if so keep track of that so that during
+		 * normalization we don't fold case.
+		 */
+		if (zfsvfs->z_case == ZFS_CASE_MIXED) {
+			mt |= MT_MATCH_CASE;
+		}
+	}
+
+	/*
+	 * Only look in or update the DNLC if we are looking for the
+	 * name on a file system that does not require normalization
+	 * or case folding.  We can also look there if we happen to be
+	 * on a non-normalizing, mixed sensitivity file system IF we
+	 * are looking for the exact name.
 	 *
 	 * NB: we do not need to worry about this flag for ZFS_CASE_SENSITIVE
 	 * because in that case MT_EXACT and MT_FIRST should produce exactly
 	 * the same result.
 	 */
-	exact = zfsvfs->z_case == ZFS_CASE_MIXED;
 
 	if (dzp->z_unlinked && !(flag & ZXATTR))
 		return (ENOENT);
@@ -149,7 +174,7 @@ zfs_dirent_lookup(znode_t *dzp, const char *name, znode_t **zpp, int flag)
 		if (error == 0)
 			error = (zoid == 0 ? ENOENT : 0);
 	} else {
-		error = zfs_match_find(zfsvfs, dzp, name, exact, &zoid);
+		error = zfs_match_find(zfsvfs, dzp, name, mt, &zoid);
 	}
 	if (error) {
 		if (error != ENOENT || (flag & ZEXISTS)) {
@@ -566,6 +591,28 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	return (0);
 }
 
+/*
+ * The match type in the code for this function should conform to:
+ *
+ * ------------------------------------------------------------------------
+ * fs type  | z_norm      | lookup type | match type
+ * ---------|-------------|-------------|----------------------------------
+ * CS !norm | 0           |           0 | 0 (exact)
+ * CS  norm | formX       |           0 | MT_NORMALIZE
+ * CI !norm | upper       |   !ZCIEXACT | MT_NORMALIZE
+ * CI !norm | upper       |    ZCIEXACT | MT_NORMALIZE | MT_MATCH_CASE
+ * CI  norm | upper|formX |   !ZCIEXACT | MT_NORMALIZE
+ * CI  norm | upper|formX |    ZCIEXACT | MT_NORMALIZE | MT_MATCH_CASE
+ * CM !norm | upper       |    !ZCILOOK | MT_NORMALIZE | MT_MATCH_CASE
+ * CM !norm | upper       |     ZCILOOK | MT_NORMALIZE
+ * CM  norm | upper|formX |    !ZCILOOK | MT_NORMALIZE | MT_MATCH_CASE
+ * CM  norm | upper|formX |     ZCILOOK | MT_NORMALIZE
+ *
+ * Abbreviations:
+ *    CS = Case Sensitive, CI = Case Insensitive, CM = Case Mixed
+ *    upper = case folding set by fs type on creation (U8_TEXTPREP_TOUPPER)
+ *    formX = unicode normalization form set on fs creation
+ */
 static int
 zfs_dropname(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
     int flag)
@@ -573,15 +620,16 @@ zfs_dropname(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	int error;
 
 	if (zp->z_zfsvfs->z_norm) {
-		if (zp->z_zfsvfs->z_case == ZFS_CASE_MIXED)
-			error = zap_remove_norm(zp->z_zfsvfs->z_os,
-			    dzp->z_id, name, MT_EXACT, tx);
-		else
-			error = zap_remove_norm(zp->z_zfsvfs->z_os,
-			    dzp->z_id, name, MT_FIRST, tx);
+		matchtype_t mt = MT_NORMALIZE;
+
+		if (zp->z_zfsvfs->z_case == ZFS_CASE_MIXED) {
+			mt |= MT_MATCH_CASE;
+		}
+
+		error = zap_remove_norm(zp->z_zfsvfs->z_os, dzp->z_id,
+		    name, mt, tx);
 	} else {
-		error = zap_remove(zp->z_zfsvfs->z_os,
-		    dzp->z_id, name, tx);
+		error = zap_remove(zp->z_zfsvfs->z_os, dzp->z_id, name, tx);
 	}
 
 	return (error);
