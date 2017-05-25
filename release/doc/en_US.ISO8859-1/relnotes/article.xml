@@ -719,7 +719,10 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
-      <para>&nbsp;</para>
+      <para revision="318785">The
+	<literal>vfs.zfs.debug_flags</literal> &man.sysctl.8; has been
+	deprecated in favor of
+	<literal>vfs.zfs.debugflags</literal>.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
