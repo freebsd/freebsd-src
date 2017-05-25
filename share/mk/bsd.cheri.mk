@@ -53,7 +53,7 @@ WANT_CHERI=	none
 .endif
 
 .if !defined(CHERI_CXX)
-.error CHERI is enabled and request, but CHERI_CXX is undefined
+CHERI_CXX=${CHERI_CC:H}/${CHERI_CC:T:S/clang/clang++/}
 .endif
 .if !exists(${CHERI_CXX}) 
 .error CHERI_CXX is defined to ${CHERI_CXX} which does not exist
