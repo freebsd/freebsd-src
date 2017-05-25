@@ -2269,6 +2269,12 @@ win_cpu_from_dt(void)
 		entry_size = tuple_size / sizeof(pcell_t);
 		cpu_wins_no = tuples;
 
+		/* Check range */
+		if (tuples > nitems(cpu_win_tbl)) {
+			debugf("too many tuples to fit into cpu_win_tbl\n");
+			return (ENOMEM);
+		}
+
 		for (i = 0, t = 0; t < tuples; i += entry_size, t++) {
 			cpu_win_tbl[t].target = 1;
 			cpu_win_tbl[t].attr = fdt32_to_cpu(ranges[i + 1]);
@@ -2300,6 +2306,12 @@ moveon:
 	sram_base = sram_size = 0;
 	if (fdt_regsize(node, &sram_base, &sram_size) != 0)
 		return (EINVAL);
+
+	/* Check range */
+	if (t >= nitems(cpu_win_tbl)) {
+		debugf("cannot fit CESA tuple into cpu_win_tbl\n");
+		return (ENOMEM);
+	}
 
 	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
 #ifdef SOC_MV_ARMADA38X
