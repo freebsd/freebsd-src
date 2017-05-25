@@ -32,10 +32,22 @@
 .PATH:	${SRCTOP}/sys/dev/ath
 .PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_hal_ar5211
 
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
+# FreeBSD module loading pieces
+.PATH:	${SRCTOP}/sys/dev/ath/
+SRCS=	ah_osdep_ar5211.c
+
+#
+# AR5211 support; these are second generation 11b/g/a devices
+# (but 11g was OFDM only and is not supported).
+#
+.PATH:	${SRCTOP}/sys/dev/ath/ath_hal/ar5211
+SRCS+=	ar5211_attach.c ar5211_beacon.c ar5211_interrupts.c \
+	ar5211_keycache.c ar5211_misc.c	ar5211_phy.c ar5211_power.c \
+	ar5211_recv.c ar5211_reset.c ar5211_xmit.c
+
+SRCS+=  device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
