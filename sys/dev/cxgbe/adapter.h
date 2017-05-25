@@ -322,6 +322,7 @@ enum {
 	IQ_HAS_FL	= (1 << 1),	/* iq associated with a freelist */
 	IQ_INTR		= (1 << 2),	/* iq takes direct interrupt */
 	IQ_LRO_ENABLED	= (1 << 3),	/* iq is an eth rxq with LRO enabled */
+	IQ_ADJ_CREDIT	= (1 << 4),	/* hw is off by 1 credit for this iq */
 
 	/* iq state */
 	IQS_DISABLED	= 0,
