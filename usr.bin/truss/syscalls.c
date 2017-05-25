@@ -1938,13 +1938,20 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		fprintf(fp, "%u", (socklen_t)args[sc->offset]);
 		break;
 	case Sockprotocol: {
-		int protocol;
+		const char *temp;
+		int domain, protocol;
 
+		domain = args[sc->offset - 2];
 		protocol = args[sc->offset];
 		if (protocol == 0) {
 			fputs("0", fp);
 		} else {
-			print_integer_arg(sysdecode_ipproto, fp, protocol);
+			temp = sysdecode_socket_protocol(domain, protocol);
+			if (temp) {
+				fputs(temp, fp);
+			} else {
+				fprintf(fp, "%d", protocol);
+			}
 		}
 		break;
 	}
