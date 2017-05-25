@@ -112,11 +112,25 @@ struct {
 	{0x5813,  "Chelsio T580-CHR VF"},
 #endif
 }, t6vf_pciids[] = {
+	{0x6800, "Chelsio T6-DBG-25 VF"},	/* 2 x 10/25G, debug */
 	{0x6801, "Chelsio T6225-CR VF"},	/* 2 x 10/25G */
 	{0x6802, "Chelsio T6225-SO-CR VF"},	/* 2 x 10/25G, nomem */
+	{0x6803, "Chelsio T6425-CR VF"},	/* 4 x 10/25G */
+	{0x6804, "Chelsio T6425-SO-CR VF"},	/* 4 x 10/25G, nomem */
+	{0x6805, "Chelsio T6225-OCP-SO VF"},	/* 2 x 10/25G, nomem */
+	{0x6806, "Chelsio T62100-OCP-SO VF"},	/* 2 x 40/50/100G, nomem */
 	{0x6807, "Chelsio T62100-LP-CR VF"},	/* 2 x 40/50/100G */
 	{0x6808, "Chelsio T62100-SO-CR VF"},	/* 2 x 40/50/100G, nomem */
+	{0x6809, "Chelsio T6210-BT VF"},	/* 2 x 10GBASE-T */
 	{0x680d, "Chelsio T62100-CR VF"},	/* 2 x 40/50/100G */
+	{0x6810, "Chelsio T6-DBG-100 VF"},	/* 2 x 40/50/100G, debug */
+	{0x6811, "Chelsio T6225-LL-CR VF"},	/* 2 x 10/25G */
+	{0x6814, "Chelsio T61100-OCP-SO VF"},	/* 1 x 40/50/100G, nomem */
+	{0x6815, "Chelsio T6201-BT VF"},	/* 2 x 1000BASE-T */
+
+	/* Custom */
+	{0x6880, "Chelsio T6225 80 VF"},
+	{0x6881, "Chelsio T62100 81 VF"},
 };
 
 static d_ioctl_t t4vf_ioctl;
