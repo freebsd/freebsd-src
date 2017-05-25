@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170525: remove misleading template
+OLD_FILES+=usr/share/misc/man.template
 # 20170525: disconnect the roff docs from the build
 OLD_FILES+=usr/share/doc/papers/beyond43.ascii.gz
 OLD_FILES+=usr/share/doc/papers/bio.ascii.gz
