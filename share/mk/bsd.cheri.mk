@@ -39,6 +39,11 @@
 WANT_CHERI:= ${NEED_CHERI}
 .endif
 
+.if defined(PROG_CXX)
+# more C++ build system work needed to pick up libc++ headers instead of libstdc++
+WANT_CHERI=	none
+.endif
+
 .if ${MK_CHERI} != "no" && defined(WANT_CHERI) && ${WANT_CHERI} != "none"
 .if !defined(CHERI_CC)
 .error CHERI is enabled and request, but CHERI_CC is undefined
@@ -126,8 +131,8 @@ NO_SHARED=	yes
 .elif defined(__BSD_PROG_MK) && ${MK_CHERI_SHARED_PROG} == "no"
 NO_SHARED=	yes
 .endif
-CC:=	${CHERI_CC} ${_CHERI_COMMON_FLAGS}
-CXX:=   ${CHERI_CXX} ${_CHERI_COMMON_FLAGS}
+CC:=	${_CHERI_CC}
+CXX:=   ${_CHERI_CXX}
 COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
 CXXFLAGS+=	${_CHERI_CFLAGS}
