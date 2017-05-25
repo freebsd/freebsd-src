@@ -688,6 +688,10 @@
       <para revision="317119" contrib="sponsor" sponsor="&ms;">Support
 	for synthetic keyboards has been added for virtual machines
 	running on Microsoft&reg; Hyper-V&trade;.</para>
+
+      <para revision="312790">The &os; virtual machines provided on
+	Amazon&reg; EC2&trade; now enable <acronym>IPv6</acronym> by
+	default.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
