@@ -1,9 +1,14 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=	clibs
-.if defined(LIBCHERI)
-# XXXAR: TODO: do this for MIPS too
-SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt
+.if ${MK_CHERI} != "no"
+WANT_CHERI?=	hybrid
+# currently crashes need to debug
+CHERI_LLD_BROKEN=yes
+ALLOW_SHARED_TEXTREL=yes
+SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt/src
 .else
 SRCDIR=		${SRCTOP}/contrib/libcxxrt
 .endif

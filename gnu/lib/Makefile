@@ -25,7 +25,8 @@ SUBDIR+= libstdc++ libsupc++
 SUBDIR_DEPENDS_libsupc++:= libstdc++
 .endif
 
-.if defined(LIBCHERI)
+# We want to use libc++ for CHERI (even when targeting MIPS)
+.if defined(LIBCHERI) || ${MK_CHERI} != "no"
 # No C++ support
 SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
 # Don't use csu for CheriABI

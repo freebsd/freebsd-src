@@ -3,7 +3,12 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
+.if ${MK_CHERI} != "no"
+WANT_CHERI?=	hybrid
+SRCDIR=		${SRCTOP}/contrib/cheri-libc++
+.else
 SRCDIR=		${SRCTOP}/contrib/libc++
+.endif
 
 LIB=		c++experimental
 NO_PIC=

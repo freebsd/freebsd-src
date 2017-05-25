@@ -224,6 +224,11 @@ SUBDIR.${MK_USB}+=	libusbhid libusb
 SUBDIR_PARALLEL=
 .endif
 
+.if ${MK_CHERI} != "no"
+# libc++experimental currently causes crashes
+SUBDIR:=	${SUBDIR:Nlibc++experimental}
+.endif
+
 .if defined(LIBCHERI)
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
-.if defined(LIBCHERI)
-# XXXAR: we should do this for MIPS too
+.if ${MK_CHERI} != "no"
+WANT_CHERI?=	hybrid
 UNWINDINCDIR=   ${SRCTOP}/contrib/cheri-libunwind/include
 UNWINDSRCDIR=   ${SRCTOP}/contrib/cheri-libunwind/src
 .else

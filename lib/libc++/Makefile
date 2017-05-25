@@ -3,9 +3,12 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
-.if defined(LIBCHERI) 
-# XXXAR: TODO: do this for MIPS too
-_LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt
+.if ${MK_CHERI} != "no"
+WANT_CHERI?=	hybrid
+# currently crashes...., need to debug
+CHERI_LLD_BROKEN=yes
+CXXFLAGS+=	-fno-exceptions -DLIBCXXRT_NO_EXCEPTIONS_NO_RTTI
+_LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt/src
 HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
 SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
 .else
@@ -55,7 +58,9 @@ SRCS+=		variant.cpp
 
 CXXRT_SRCS+=	auxhelper.cc
 CXXRT_SRCS+=	dynamic_cast.cc
+.if !defined(LIBCHERI)
 CXXRT_SRCS+=	exception.cc
+.endif
 CXXRT_SRCS+=	guard.cc
 CXXRT_SRCS+=	libelftc_dem_gnu3.c
 CXXRT_SRCS+=	memory.cc
@@ -77,6 +82,11 @@ CXXFLAGS+=	-std=c++11
 .endif
 
 LIBADD+=	cxxrt
+.ifdef LIBCHERI
+
+# XXXAR: why is this needed?
+LDFLAGS+=	-L../libcxxrt
+.endif
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS+=	__bit_reference
