@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2017
+.Dd May 22, 2017
 .Dt EFIVAR 8
 .Os
 .Sh NAME
 .Nm efivar
-.Nd UEFI environemnt variable interaction
+.Nd UEFI environment variable interaction
 .Sh SYNOPSIS
 .Nm
 .Op Fl abdDHlLNpRtw
@@ -58,7 +58,7 @@ This program manages
 .Pq UEFI
 environment variables.
 UEFI variables have three part: A namespace, a name and a value.
-The namespace is a GUID that's self assigned by the group defining the
+The namespace is a GUID that is self assigned by the group defining the
 variables.
 The name is a Unicode name for the variable.
 The value is binary data.
@@ -70,7 +70,7 @@ The following options are available:
 Specify the name of the variable to operate on.
 The
 .Ar name
-argument is the GUID of variable, followed by a dash, followed by the
+argument is the GUID of the variable, followed by a dash, followed by the
 UEFI variable name.
 The GUID may be in numeric format, or may be one of the well known
 symbolic name (see
@@ -86,19 +86,19 @@ This flag implies
 unless the
 .Fl -append
 flag is given.
-This is not well understood and currently unimplemented.
+This behavior is not well understood and is currently unimplemented.
 .It Fl a Fl -append
 Append the specified value to the UEFI variable rather than replacing
-it.p
+it.
 .It Fl t Ar attr Fl -attributes Ar attr
-Specify, in user hostile hexidecimal, the attributes for this
+Specify, in hexadecimal, the attributes for this
 variable.
 See section 7.2 (GetVariable subsection, Related Definitions) of the
 UEFI Specification for hex values to use.
 .It Fl A Fl -ascii
 Display the variable data as modified ascii: All printable characters
 are printed, while unprintable characters are rendered as a two-digit
-hexadecimal number preceeded by a % character.
+hexadecimal number preceded by a % character.
 .It Fl b Fl -binary
 Display the variable data as binary data.
 Usually will be used with the
@@ -155,31 +155,29 @@ can be used to specify simple strings.
 Display the
 .Ar name
 environment variable.
+.El
 .Sh COMPATIBILITY
 The
 .Nm
-program is intended to be compatible (strict superset) with a progam
-of the same name included in the Red Hat libefivar package.
-.Pp
-Except the
+program is intended to be compatible (strict superset) with a program
+of the same name included in the Red Hat libefivar package,
+but the
 .Fl d
 and
 .Fl -print-decimal
-flags are not implmenented and never will be.
+flags are not implemented and never will be.
+.Pp
 The
 .Fl d
-flag is a short-hand for
+flag is short for
 .Fl -device-path .
 .Sh SEE ALSO
 Appendix A of the UEFI specification has the format for GUIDs.
 All GUIDs
 .Dq Globally Unique Identifiers
 have the format described in RFC 4122.
-.El
-.Pp
-.Xr efivar 8
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
-.Fx 12.0 .
+.Fx 11.1 .
