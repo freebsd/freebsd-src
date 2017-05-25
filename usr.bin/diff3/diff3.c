@@ -149,9 +149,7 @@ enum {
 	STRIPCR_OPT,
 };
 
-#define MAX_CHECK 768	/* 3 kb of chars */
 #define DIFF_PATH "/usr/bin/diff"
-
 
 #define OPTIONS "3aAeEiL:mTxX"
 static struct option longopts[] = {
