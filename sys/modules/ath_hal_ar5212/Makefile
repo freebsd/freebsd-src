@@ -32,10 +32,27 @@
 .PATH:	${SRCTOP}/sys/dev/ath
 .PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_hal_ar5212
 
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
+# FreeBSD module loading pieces
+.PATH:	${SRCTOP}/sys/dev/ath/
+SRCS=	ah_osdep_ar5212.c
+
+#
+# AR5212 support; this covers almost all other pci/cardbus legacy parts.
+#
+.PATH:	${SRCTOP}/sys/dev/ath/ath_hal/ar5212
+SRCS+=	ar5212_ani.c ar5212_attach.c ar5212_beacon.c ar5212_eeprom.c \
+	ar5212_gpio.c ar5212_interrupts.c ar5212_keycache.c ar5212_misc.c \
+	ar5212_phy.c ar5212_power.c ar5212_recv.c ar5212_reset.c \
+	ar5212_rfgain.c ar5212_xmit.c
+SRCS+=  device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
+# RF backends
+SRCS+=	ar5111.c
+SRCS+=	ar5112.c
+SRCS+=	ar2413.c
+SRCS+=	ar2425.c
+SRCS+=	ar5413.c
 
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
