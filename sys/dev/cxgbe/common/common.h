@@ -774,6 +774,13 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int cl,
 		    int minrate, int maxrate, int weight, int pktsize,
 		    int sleep_ok);
+int t4_sched_params_ch_rl(struct adapter *adapter, int channel, int ratemode,
+			  unsigned int maxrate, int sleep_ok);
+int t4_sched_params_cl_wrr(struct adapter *adapter, int channel, int cl,
+			   int weight, int sleep_ok);
+int t4_sched_params_cl_rl_kbps(struct adapter *adapter, int channel, int cl,
+			       int mode, unsigned int maxrate, int pktsize,
+			       int sleep_ok);
 int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
 		       unsigned int pf, unsigned int vf,
 		       unsigned int timeout, unsigned int action);
