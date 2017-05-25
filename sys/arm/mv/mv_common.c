@@ -133,6 +133,16 @@ const struct decode_win *cpu_wins = cpu_win_tbl;
 typedef void (*decode_win_setup_t)(u_long);
 typedef void (*dump_win_t)(u_long);
 
+/*
+ * The power status of device feature is only supported on
+ * Kirkwood and Discovery SoCs.
+ */
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#define	SOC_MV_POWER_STAT_SUPPORTED		1
+#else
+#define	SOC_MV_POWER_STAT_SUPPORTED		0
+#endif
+
 struct soc_node_spec {
 	const char		*compat;
 	decode_win_setup_t	decode_handler;
@@ -174,10 +184,10 @@ static struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 static __inline int
 pm_is_disabled(uint32_t mask)
 {
-#if defined(SOC_MV_KIRKWOOD)
-	return (soc_power_ctrl_get(mask) == mask);
-#else
+#if SOC_MV_POWER_STAT_SUPPORTED
 	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
+#else
+	return (0);
 #endif
 }
 
@@ -364,7 +374,7 @@ uint32_t
 soc_power_ctrl_get(uint32_t mask)
 {
 
-#if !defined(SOC_MV_ORION)
+#if SOC_MV_POWER_STAT_SUPPORTED
 	if (mask != CPU_PM_CTRL_NONE)
 		mask &= read_cpu_ctrl(CPU_PM_CTRL);
 
@@ -1167,7 +1177,6 @@ decode_win_usb_setup(u_long base)
 {
 	uint32_t br, cr;
 	int i, j;
-
 
 	if (pm_is_disabled(CPU_PM_CTRL_USB(usb_port)))
 		return;
