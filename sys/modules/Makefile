@@ -46,6 +46,15 @@ SUBDIR=	\
 	${_asmc} \
 	ata \
 	ath \
+	ath_dfs \
+	ath_hal \
+	ath_hal_ar5210 \
+	ath_hal_ar5211 \
+	ath_hal_ar5212 \
+	ath_hal_ar5416 \
+	ath_hal_ar9300 \
+	ath_main \
+	ath_rate \
 	ath_pci \
 	${_autofs} \
 	${_auxio} \

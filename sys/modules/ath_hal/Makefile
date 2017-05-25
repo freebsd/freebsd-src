@@ -32,8 +32,10 @@
 .PATH:	${SRCTOP}/sys/dev/ath
 .PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_hal
+
+SRCS=	ah_osdep.c ah.c ah_regdomain.c
+SRCS+=	ah_eeprom_v1.c ah_eeprom_v3.c ah_eeprom_v14.c ah_eeprom_v4k.c
 
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
@@ -41,3 +43,5 @@ CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}

@@ -343,8 +343,9 @@ static driver_t ath_ahb_driver = {
 	sizeof (struct ath_ahb_softc)
 };
 static	devclass_t ath_devclass;
-DRIVER_MODULE(ath, nexus, ath_ahb_driver, ath_devclass, 0, 0);
-DRIVER_MODULE(ath, apb, ath_ahb_driver, ath_devclass, 0, 0);
-MODULE_VERSION(ath, 1);
-MODULE_DEPEND(ath, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(ath, if_ath, 1, 1, 1);		/* if_ath driver */
+DRIVER_MODULE(if_ath_ahb, nexus, ath_ahb_driver, ath_devclass, 0, 0);
+DRIVER_MODULE(if_ath_ahb, apb, ath_ahb_driver, ath_devclass, 0, 0);
+MODULE_VERSION(if_ath_ahb, 1);
+MODULE_DEPEND(if_ath_ahb, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(if_ath_ahb, ath_main, 1, 1, 1);		/* if_ath driver */
+MODULE_DEPEND(if_ath_ahb, ath_hal, 1, 1, 1);		/* ath HAL */
