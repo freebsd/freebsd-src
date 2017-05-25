@@ -612,7 +612,7 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			break;
 
 		case FAIL_POINT_YIELD:
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 			break;
 
 		case FAIL_POINT_DELAY:
