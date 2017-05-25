@@ -210,7 +210,7 @@ struct tp_rdma_stats {
 };
 
 struct sge_params {
-	int timer_val[SGE_NTIMERS];
+	int timer_val[SGE_NTIMERS];	/* final, scaled values */
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
 	int fl_starve_threshold2;
