@@ -29,11 +29,25 @@
 # $FreeBSD$
 #
 
-.PATH:	${SRCTOP}/sys/dev/ath
-.PATH:	${SRCTOP}/sys/dev/ath/ath_hal
+ATH_RATE?=	sample		# tx rate control algorithm
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+.PATH:	${SRCTOP}/sys/dev/ath
+
+KMOD=	ath_rate
+
+SRCS=	if_ath_rate.c
+
+# NB: rate control is bound to the driver by symbol names so only pick one
+.if ${ATH_RATE} == "sample"
+.PATH:	${SRCTOP}/sys/dev/ath/ath_rate/sample
+SRCS+=	sample.c
+.elif ${ATH_RATE} == "onoe"
+.PATH:	${SRCTOP}/sys/dev/ath/ath_rate/onoe
+SRCS+=	onoe.c
+.elif ${ATH_RATE} == "amrr"
+.PATH:	${SRCTOP}/sys/dev/ath/ath_rate/amrr
+SRCS+=	amrr.c
+.endif
 
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 

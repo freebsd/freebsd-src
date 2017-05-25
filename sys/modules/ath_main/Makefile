@@ -29,11 +29,16 @@
 # $FreeBSD$
 #
 
+ATH_RATE?=	sample		# tx rate control algorithm
+
 .PATH:	${SRCTOP}/sys/dev/ath
 .PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_main
+SRCS=	if_ath.c if_ath_alq.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
+SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c if_ath_rx.c if_ath_tdma.c
+SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c if_ath_spectral.c
+SRCS+=	if_ath_btcoex.c if_ath_btcoex_mci.c if_ath_lna_div.c if_ath_ioctl.c if_ath_descdma.c
 
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
@@ -41,3 +46,6 @@ CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
 
 .include <bsd.kmod.mk>
+
+# XXX Work around clang warnings, until maintainer approves fix.
+CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}

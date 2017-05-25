@@ -30,10 +30,14 @@
 #
 
 .PATH:	${SRCTOP}/sys/dev/ath
-.PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_dfs
+
+SRCS=	if_ath_dfs.c
+
+# DFS
+.PATH: ${SRCTOP}/sys/dev/ath/ath_dfs/null
+SRCS+=	dfs_null.c
 
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 

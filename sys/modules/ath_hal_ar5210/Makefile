@@ -30,12 +30,22 @@
 #
 
 .PATH:	${SRCTOP}/sys/dev/ath
-.PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
-KMOD=	if_ath
-SRCS=	if_ath_drv.c
+KMOD=	ath_hal_ar5210
 
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
+# FreeBSD module loading pieces
+.PATH:	${SRCTOP}/sys/dev/ath/
+SRCS=	ah_osdep_ar5210.c
+
+#
+# AR5210 support; these are first generation 11a-only devices.
+#
+.PATH:	${SRCTOP}/sys/dev/ath/ath_hal/ar5210
+SRCS+=	ar5210_attach.c ar5210_beacon.c ar5210_interrupts.c \
+	ar5210_keycache.c ar5210_misc.c ar5210_phy.c ar5210_power.c \
+	ar5210_recv.c ar5210_reset.c ar5210_xmit.c
+
+SRCS+=  device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
