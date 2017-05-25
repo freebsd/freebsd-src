@@ -99,6 +99,7 @@ const char *sysdecode_sigsegv_code(int _si_code);
 const char *sysdecode_sigtrap_code(int _si_code);
 const char *sysdecode_sockaddr_family(int _sa_family);
 const char *sysdecode_socketdomain(int _domain);
+const char *sysdecode_socket_protocol(int _domain, int _protocol);
 bool	sysdecode_socket_type(FILE *_fp, int _type, int *_rem);
 const char *sysdecode_sockopt_level(int _level);
 const char *sysdecode_sockopt_name(int _level, int _optname);
