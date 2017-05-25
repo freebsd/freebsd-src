@@ -57,9 +57,11 @@ openssl-*/crypto/rand/rand_vms.c
 openssl-*/crypto/rand/rand_win.c
 openssl-*/crypto/threads/solaris.sh
 openssl-*/demos
+openssl-*/doc-nits
 openssl-*/engines/*.ec
 openssl-*/engines/*.opt
 openssl-*/engines/ccgost/e_gost_err.proto
+openssl-*/fuzz
 openssl-*/include
 openssl-*/ms
 openssl-*/op
