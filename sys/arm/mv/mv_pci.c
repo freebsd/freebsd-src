@@ -918,7 +918,7 @@ static inline void
 pcib_write_irq_mask(struct mv_pcib_softc *sc, uint32_t mask)
 {
 
-	if (sc->sc_type != MV_TYPE_PCI)
+	if (sc->sc_type != MV_TYPE_PCIE)
 		return;
 
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, PCIE_REG_IRQ_MASK, mask);
