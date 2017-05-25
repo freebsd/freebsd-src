@@ -736,7 +736,10 @@
       <para revision="318785">The
 	<literal>vfs.zfs.debug_flags</literal> &man.sysctl.8; has been
 	deprecated in favor of
-	<literal>vfs.zfs.debugflags</literal>.</para>
+	<literal>vfs.zfs.debugflags</literal>.  Additionally,
+	<literal>vfs.zfs.debugflags</literal> can now be configured in
+	&man.loader.conf.5;, whereas
+	<literal>vfs.zfs.debug_flags</literal> could not.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
