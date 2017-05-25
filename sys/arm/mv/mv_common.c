@@ -1116,6 +1116,7 @@ static void
 decode_win_cesa_setup(u_long base)
 {
 	uint32_t br, cr;
+	uint64_t size;
 	int i, j;
 
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
@@ -1128,7 +1129,21 @@ decode_win_cesa_setup(u_long base)
 		if (ddr_is_active(i)) {
 			br = ddr_base(i);
 
-			cr = (((ddr_size(i) - 1) & 0xffff0000) |
+			size = ddr_size(i);
+#ifdef SOC_MV_ARMADA38X
+			/*
+			 * Armada 38x SoC's equipped with 4GB DRAM
+			 * suffer freeze during CESA operation, if
+			 * MBUS window opened at given DRAM CS reaches
+			 * end of the address space. Apply a workaround
+			 * by setting the window size to the closest possible
+			 * value, i.e. divide it by 2.
+			 */
+			if (size + ddr_base(i) == 0x100000000ULL)
+				size /= 2;
+#endif
+
+			cr = (((size - 1) & 0xffff0000) |
 			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
 			    (ddr_target(i) << IO_WIN_TGT_SHIFT) |
 			    IO_WIN_ENA_MASK);
