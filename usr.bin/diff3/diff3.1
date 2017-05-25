@@ -30,7 +30,7 @@
 .\"     @(#)diff3.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd May 25, 2017
 .Dt DIFF3 1
 .Os
 .Sh NAME
@@ -156,26 +156,6 @@ between all files.
 The lines beneath this notation are ranges of lines which are exclusively
 different in file
 .Va n .
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width TMPDIR
-.It Ev TMPDIR
-If the environment variable
-.Ev TMPDIR
-exists,
-.Nm
-will use the directory specified by
-.Ev TMPDIR
-as the temporary directory.
-.El
-.Sh FILES
-.Bl -tag -width /usr/libexec/diff3 -compact
-.It Pa /tmp/d3a.XXXXXXXXXX
-temporary file
-.It Pa /tmp/d3b.XXXXXXXXXX
-temporary file
-.It Pa /usr/libexec/diff3
-the actual executable
 .El
 .Sh SEE ALSO
 .Xr diff 1 ,
