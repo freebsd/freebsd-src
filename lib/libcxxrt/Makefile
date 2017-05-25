@@ -1,8 +1,12 @@
 # $FreeBSD$
 
 PACKAGE=	clibs
+.if defined(LIBCHERI)
+# XXXAR: TODO: do this for MIPS too
+SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt
+.else
 SRCDIR=		${SRCTOP}/contrib/libcxxrt
-
+.endif
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib
 

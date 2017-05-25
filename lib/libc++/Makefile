@@ -3,9 +3,16 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
+.if defined(LIBCHERI) 
+# XXXAR: TODO: do this for MIPS too
+_LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt
+HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
+SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
+.else
 _LIBCXXRTDIR=	${SRCTOP}/contrib/libcxxrt
 HDRDIR=		${SRCTOP}/contrib/libc++/include
 SRCDIR=		${SRCTOP}/contrib/libc++/src
+.endif
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 .if ${MACHINE_CPUARCH} == "arm"
 STATIC_CXXFLAGS+= -mlong-calls

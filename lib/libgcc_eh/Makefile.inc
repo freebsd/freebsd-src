@@ -1,8 +1,14 @@
 # $FreeBSD$
 
 COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
+.if defined(LIBCHERI)
+# XXXAR: we should do this for MIPS too
+UNWINDINCDIR=   ${SRCTOP}/contrib/cheri-libunwind/include
+UNWINDSRCDIR=   ${SRCTOP}/contrib/cheri-libunwind/src
+.else
 UNWINDINCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/include
 UNWINDSRCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/src
+.endif
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 

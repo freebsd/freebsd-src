@@ -1,3 +1,15 @@
 [submodule "contrib/cheri-c-tests"]
 	path = contrib/cheri-c-tests
 	url = https://github.com/CTSRD-CHERI/cheri-c-tests.git
+[submodule "contrib/cheri-libc++"]
+	path = contrib/cheri-libc++
+	url = https://github.com/CTSRD-CHERI/libcxx.git
+	branch = master
+[submodule "contrib/cheri-libcxxrt"]
+	path = contrib/cheri-libcxxrt
+	url = https://github.com/CTSRD-CHERI/libcxxrt.git
+	branch = master
+[submodule "contrib/cheri-libunwind"]
+	path = contrib/cheri-libunwind
+	url = https://github.com/CTSRD-CHERI/libunwind.git
+	branch = master
