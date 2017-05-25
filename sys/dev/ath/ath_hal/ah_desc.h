@@ -20,21 +20,6 @@
 #ifndef _DEV_ATH_DESC_H
 #define _DEV_ATH_DESC_H
 
-#include "opt_ah.h"		/* NB: required for AH_SUPPORT_AR5416 */
-
-/*
- * For now, define this for the structure definitions.
- * Because of how the HAL / driver module currently builds,
- * it's not very feasible to build the module without
- * this defined.  The rest of the code (eg in the driver
- * body) can work fine with these fields being uninitialised;
- * they'll be initialised to 0 anyway.
- */
-
-#ifndef	AH_SUPPORT_AR5416
-#define	AH_SUPPORT_AR5416	1
-#endif
-
 /*
  * Transmit descriptor status.  This structure is filled
  * in only after the tx descriptor process method finds a
@@ -56,7 +41,6 @@ struct ath_tx_status {
 	uint8_t		ts_virtcol;	/* virtual collision count */
 	uint8_t		ts_antenna;	/* antenna information */
 	uint8_t		ts_finaltsi;	/* final transmit series index */
-#ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
 	uint8_t		ts_flags;	/* misc flags */
 	uint8_t		ts_queue_id;	/* AR9300: TX queue id */
@@ -71,7 +55,6 @@ struct ath_tx_status {
 	int8_t		ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
 	int8_t		ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
 	uint8_t		ts_pad[2];
-#endif /* AH_SUPPORT_AR5416 */
 };
 
 /* bits found in ts_status */
@@ -121,7 +104,6 @@ struct ath_rx_status {
 	uint8_t		rs_more;	/* more descriptors follow */
 	uint32_t	rs_tstamp;	/* h/w assigned timestamp */
 	uint32_t	rs_antenna;	/* antenna information */
-#ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
 	int8_t		rs_rssi_ctl[3];	/* rx frame RSSI [ctl, chain 0-2] */
 	int8_t		rs_rssi_ext[3];	/* rx frame RSSI [ext, chain 0-2] */
@@ -138,7 +120,6 @@ struct ath_rx_status {
 	uint32_t	rs_evm2;
 	uint32_t	rs_evm3;	/* needed for ar9300 and later */
 	uint32_t	rs_evm4;	/* needed for ar9300 and later */
-#endif /* AH_SUPPORT_AR5416 */
 };
 
 /* bits found in rs_status */
@@ -241,11 +222,7 @@ enum {
  * to complete the work.  Status for completed frames is returned
  * in a device-independent format.
  */
-#ifdef AH_SUPPORT_AR5416
 #define	HAL_DESC_HW_SIZE	20
-#else
-#define	HAL_DESC_HW_SIZE	4
-#endif /* AH_SUPPORT_AR5416 */
 
 struct ath_desc {
 	/*
