@@ -9396,6 +9396,79 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 			       NULL, sleep_ok);
 }
 
+int t4_sched_params_ch_rl(struct adapter *adapter, int channel, int ratemode,
+    unsigned int maxrate, int sleep_ok)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = FW_SCHED_TYPE_PKTSCHED;
+	cmd.u.params.level = FW_SCHED_PARAMS_LEVEL_CH_RL;
+	cmd.u.params.ch = channel;
+	cmd.u.params.rate = ratemode;		/* REL or ABS */
+	cmd.u.params.max = cpu_to_be32(maxrate);/*  %  or kbps */
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, sleep_ok);
+}
+
+int t4_sched_params_cl_wrr(struct adapter *adapter, int channel, int cl,
+    int weight, int sleep_ok)
+{
+	struct fw_sched_cmd cmd;
+
+	if (weight < 0 || weight > 100)
+		return -EINVAL;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = FW_SCHED_TYPE_PKTSCHED;
+	cmd.u.params.level = FW_SCHED_PARAMS_LEVEL_CL_WRR;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = cl;
+	cmd.u.params.weight = cpu_to_be16(weight);
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, sleep_ok);
+}
+
+int t4_sched_params_cl_rl_kbps(struct adapter *adapter, int channel, int cl,
+    int mode, unsigned int maxrate, int pktsize, int sleep_ok)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = FW_SCHED_TYPE_PKTSCHED;
+	cmd.u.params.level = FW_SCHED_PARAMS_LEVEL_CL_RL;
+	cmd.u.params.mode = mode;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = cl;
+	cmd.u.params.unit = FW_SCHED_PARAMS_UNIT_BITRATE;
+	cmd.u.params.rate = FW_SCHED_PARAMS_RATE_ABS;
+	cmd.u.params.max = cpu_to_be32(maxrate);
+	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, sleep_ok);
+}
+
 /*
  *	t4_config_watchdog - configure (enable/disable) a watchdog timer
  *	@adapter: the adapter
