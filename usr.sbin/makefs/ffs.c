@@ -143,7 +143,6 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 				 fsnode *, fsinfo_t *);
 
 
-int	sectorsize;		/* XXX: for buf.c::getblk() */
 	/* publicly visible functions */
 
 void
@@ -429,8 +428,6 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		printf("ffs_validate: dir %s; %lld bytes, %lld inodes\n",
 		    dir, (long long)fsopts->size, (long long)fsopts->inodes);
 	}
-	sectorsize = fsopts->sectorsize;	/* XXX - see earlier */
-
 		/* now check calculated sizes vs requested sizes */
 	if (fsopts->maxsize > 0 && fsopts->size > fsopts->maxsize) {
 		errx(1, "`%s' size of %lld is larger than the maxsize of %lld.",
@@ -480,13 +477,13 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	int	i, bufsize;
 	off_t	bufrem;
 	time_t	tstamp;
+	int	oflags = O_RDWR | O_CREAT | O_TRUNC;
 
 	assert (image != NULL);
 	assert (fsopts != NULL);
 
 		/* create image */
-	if ((fsopts->fd = open(image, O_RDWR | O_CREAT | O_TRUNC, 0666))
-	    == -1) {
+	if ((fsopts->fd = open(image, oflags, 0666)) == -1) {
 		warn("Can't open `%s' for writing", image);
 		return (-1);
 	}
@@ -878,6 +875,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	struct inode	in;
 	struct buf *	bp;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
+	struct vnode vp = { fsopts, NULL };
 
 	assert (din != NULL);
 	assert (buf != NULL);
@@ -890,6 +888,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	p = NULL;
 
 	in.i_fs = (struct fs *)fsopts->superblock;
+	in.i_devvp = &vp;
 
 	if (debug & DEBUG_FS_WRITE_FILE) {
 		printf(
@@ -910,7 +909,6 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 	else
 		memcpy(&in.i_din.ffs2_din, &din->ffs2_din,
 		    sizeof(in.i_din.ffs2_din));
-	in.i_fd = fsopts->fd;
 
 	if (DIP(din, size) == 0)
 		goto write_inode_and_leave;		/* mmm, cheating */
