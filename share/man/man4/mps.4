@@ -1,8 +1,8 @@
 .\"
 .\" Copyright (c) 2010 Spectra Logic Corporation
 .\" Copyright (c) 2014 LSI Corp
-.\" Copyright (c) 2016 Avago Technologies
-.\" Copyright (c) 2016 Broadcom Ltd.
+.\" Copyright (c) 2015-2017 Avago Technologies
+.\" Copyright (c) 2015-2017 Broadcom Ltd.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 .\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#6 $
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2016
+.Dd May 25, 2017
 .Dt MPS 4
 .Os
 .Sh NAME
@@ -241,13 +241,13 @@ Send SSU to HDDs, but not to SSDs.
 Send SSU to both HDDs and SSDs.
 .El
 .Pp
-To control the feature for a specific adapter, set this tunable value in
+To control this feature for a specific adapter, set this tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 dev.mps.X.enable_ssu
 .Ed
 .Pp
-The same set of values are valid when setting this tunable for all adapters.
+The same set of values are valid as when setting this tunable for all adapters.
 .Pp
 SATA disks that take several seconds to spin up and fail the SATA Identify
 command might not be discovered by the driver.
@@ -273,6 +273,45 @@ dev.mps.X.spinup_wait_time=NNNN
 tunable.
 NNNN is the number of seconds to wait for SATA devices to spin up when they fail
 the initial SATA Identify command.
+.Pp
+The driver can map devices discovered by the adapter so that target IDs
+corresponding to a specific device persist across resets and reboots.
+In some cases it is possible for devices to lose their mapped IDs due to
+unexpected behavior from certain hardware, such as some types of enclosures.
+To overcome this problem, a tunable is provided that will force the driver to
+map devices using the Phy number associated with the device.
+This feature is not recommended if the topology includes multiple
+enclosures/expanders.
+If multiple enclosures/expanders are present in the topology, Phy numbers are
+repeated, causing all devices at these Phy numbers except the first device to
+fail enumeration.
+To control this feature for all adapters, set the
+.Bd -literal -offset indent
+hw.mps.use_phy_num
+.Ed
+.Pp
+tunable in
+.Xr loader.conf 5
+to one of these values:
+.Bl -tag -width 6n -offset indent
+.It -1
+Only use Phy numbers to map devices and bypass the driver's mapping logic.
+.It 0
+Never use Phy numbers to map devices.
+.It 1
+Use Phy numbers to map devices, but only if the driver's mapping logic fails
+to map the device that is being enumerated.
+This is the default value.
+.El
+.Pp
+To control this feature for a specific adapter, set this tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mps.X.use_phy_num
+.Ed
+.Pp
+The same set of values are valid as when setting this tunable for all adapters.
+.Pp
 .Sh DEBUGGING
 To enable debugging prints from the
 .Nm
