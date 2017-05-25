@@ -51,6 +51,31 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170524:
+	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
+	smaller runtime footprint builds.  This is useful for embedded systems
+	which only require one chipset support.
+
+	If you load it as a module, make sure this is in /boot/loader.conf:
+
+	if_ath_load="YES"
+
+	This will load the HAL, all chip/RF backends and if_ath_pci.
+	If you have if_ath_pci in /boot/loader.conf, ensure it is after
+	if_ath or it will not load any HAL chipset support.
+
+	If you want to selectively load things (eg on ye cheape ARM/MIPS
+	platforms where RAM is at a premium) you should:
+
+	* load ath_hal
+	* load the chip modules in question
+	* load ath_rate, ath_dfs
+	* load ath_main
+	* load if_ath_pci and/or if_ath_ahb depending upon your particular
+	  bus bind type - this is where probe/attach is done.
+
+	For further comments/feedback, poke adrian@ .
+
 20170523:
 	The "ino64" 64-bit inode project has been committed, which extends
 	a number of types to 64 bits.  Upgrading in place requires care and
