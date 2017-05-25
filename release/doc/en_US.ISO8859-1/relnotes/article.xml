@@ -720,6 +720,10 @@
 	prevent creating new <acronym>TCP</acronym> connections when
 	<literal>ERESTART</literal> is received from
 	&man.sosend.9;.</para>
+
+      <para revision="318660">The <acronym>NFS</acronym> client now
+	supports the Amazon&reg; Elastic File System&trade;
+	(<acronym>EFS</acronym>).</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
