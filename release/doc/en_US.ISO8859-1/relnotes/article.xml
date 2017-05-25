@@ -713,7 +713,13 @@
     <sect2 xml:id="storage-net">
       <title>Networked Storage</title>
 
-      <para>&nbsp;</para>
+      <para revision="318660">The <acronym>NFS</acronym> client now
+	properly handles <literal>NFS4ERR_BAD_SESSION</literal> errors
+	received from an <acronym>NFS</acronym> server.  Additionally,
+	the kernel <acronym>RPC</acronym> client has been updated to
+	prevent creating new <acronym>TCP</acronym> connections when
+	<literal>ERESTART</literal> is received from
+	&man.sosend.9;.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
