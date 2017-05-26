@@ -39,6 +39,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/dmu_tx.h>
 #include <sys/dsl_pool.h>
+#include <sys/abd.h>
 
 /*
  * The zfs intent log (ZIL) saves transaction records of system calls
@@ -867,6 +868,7 @@ zil_lwb_write_done(zio_t *zio)
 	 * one in zil_commit_writer(). zil_sync() will only remove
 	 * the lwb if lwb_buf is null.
 	 */
+	abd_put(zio->io_abd);
 	zio_buf_free(lwb->lwb_buf, lwb->lwb_sz);
 	mutex_enter(&zilog->zl_lock);
 	lwb->lwb_buf = NULL;
@@ -898,8 +900,10 @@ zil_lwb_write_init(zilog_t *zilog, lwb_t *lwb)
 		    ZIO_FLAG_CANFAIL);
 	}
 	if (lwb->lwb_zio == NULL) {
+		abd_t *lwb_abd = abd_get_from_buf(lwb->lwb_buf,
+		    BP_GET_LSIZE(&lwb->lwb_blk));
 		lwb->lwb_zio = zio_rewrite(zilog->zl_root_zio, zilog->zl_spa,
-		    0, &lwb->lwb_blk, lwb->lwb_buf, BP_GET_LSIZE(&lwb->lwb_blk),
+		    0, &lwb->lwb_blk, lwb_abd, BP_GET_LSIZE(&lwb->lwb_blk),
 		    zil_lwb_write_done, lwb, ZIO_PRIORITY_SYNC_WRITE,
 		    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE, &zb);
 	}

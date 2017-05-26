@@ -46,6 +46,7 @@
 #include <sys/blkptr.h>
 #include <sys/range_tree.h>
 #include <sys/callb.h>
+#include <sys/abd.h>
 
 uint_t zfs_dbuf_evict_key;
 
@@ -3457,8 +3458,10 @@ dbuf_write_override_done(zio_t *zio)
 		arc_release(dr->dt.dl.dr_data, db);
 	}
 	mutex_exit(&db->db_mtx);
-
 	dbuf_write_done(zio, NULL, db);
+
+	if (zio->io_abd != NULL)
+		abd_put(zio->io_abd);
 }
 
 /* Issue I/O to commit a dirty buffer to disk. */
@@ -3551,7 +3554,8 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 		 * The BP for this block has been provided by open context
 		 * (by dmu_sync() or dmu_buf_write_embedded()).
 		 */
-		void *contents = (data != NULL) ? data->b_data : NULL;
+		abd_t *contents = (data != NULL) ?
+		    abd_get_from_buf(data->b_data, arc_buf_size(data)) : NULL;
 
 		dr->dr_zio = zio_write(zio, os->os_spa, txg, &dr->dr_bp_copy,
 		    contents, db->db.db_size, db->db.db_size, &zp,
