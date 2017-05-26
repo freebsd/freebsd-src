@@ -69,6 +69,9 @@ __NULLABILITY_PRAGMA_PUSH
 	WEAK_REF(func, SYM_FBP10(sym));			\
 	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
+struct pthread;
+extern struct pthread	*_thr_initial __hidden;
+
 #include "pthread_md.h"
 #include "thr_umtx.h"
 #include "thread_db.h"
@@ -711,7 +714,6 @@ extern int __isthreaded;
  */
 
 extern char		*_usrstack __hidden;
-extern struct pthread	*_thr_initial __hidden;
 
 /* For debugger */
 extern int		_libthr_debug;
