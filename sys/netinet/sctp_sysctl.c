@@ -410,6 +410,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.socket = inp->sctp_socket;
 		so = inp->sctp_socket;
 		if ((so == NULL) ||
+		    (!SCTP_IS_LISTENING(inp)) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
 			xinpcb.qlen = 0;
 			xinpcb.maxqlen = 0;
