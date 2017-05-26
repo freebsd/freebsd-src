@@ -132,6 +132,18 @@ typedef enum zfs_error {
 } zfs_error_t;
 
 /*
+ * UEFI boot support parameters. When creating whole disk boot pool,
+ * zpool create should allow to create EFI System partition for UEFI boot
+ * program. In case of BIOS, the EFI System partition is not used
+ * even if it does exist.
+ */
+typedef enum zpool_boot_label {
+	ZPOOL_NO_BOOT_LABEL = 0,
+	ZPOOL_CREATE_BOOT_LABEL,
+	ZPOOL_COPY_BOOT_LABEL
+} zpool_boot_label_t;
+
+/*
  * The following data structures are all part
  * of the zfs_allow_t data structure which is
  * used for printing 'allow' permissions.
@@ -262,7 +274,8 @@ extern nvlist_t *zpool_find_vdev(zpool_handle_t *, const char *, boolean_t *,
     boolean_t *, boolean_t *);
 extern nvlist_t *zpool_find_vdev_by_physpath(zpool_handle_t *, const char *,
     boolean_t *, boolean_t *, boolean_t *);
-extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *);
+extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *,
+    zpool_boot_label_t, uint64_t, int *);
 
 /*
  * Functions to manage pool properties
@@ -344,6 +357,7 @@ extern nvlist_t *zpool_get_config(zpool_handle_t *, nvlist_t **);
 extern nvlist_t *zpool_get_features(zpool_handle_t *);
 extern int zpool_refresh_stats(zpool_handle_t *, boolean_t *);
 extern int zpool_get_errlog(zpool_handle_t *, nvlist_t **);
+extern boolean_t zpool_is_bootable(zpool_handle_t *);
 
 /*
  * Import and export functions
