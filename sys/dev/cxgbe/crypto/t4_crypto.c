@@ -117,6 +117,13 @@ __FBSDID("$FreeBSD$");
 #define	MAX_RX_PHYS_DSGL_SGE	32
 #define	DSGL_SGE_MAXLEN		65535
 
+/*
+ * The adapter only supports requests with a total input or output
+ * length of 64k-1 or smaller.  Longer requests either result in hung
+ * requests or incorrect results.
+ */
+#define	MAX_REQUEST_SIZE	65535
+
 static MALLOC_DEFINE(M_CCR, "ccr", "Chelsio T6 crypto");
 
 struct ccr_session_hmac {
@@ -412,6 +419,12 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	u_int imm_len, iopad_size;
 	int error, sgl_nsegs, sgl_len;
 
+	crd = crp->crp_desc;
+
+	/* Reject requests with too large of an input buffer. */
+	if (crd->crd_len > MAX_REQUEST_SIZE)
+		return (EFBIG);
+
 	axf = s->hmac.auth_hash;
 
 	/* PADs must be 128-bit aligned. */
@@ -425,7 +438,6 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	hash_size_in_response = axf->hashsize;
 	transhdr_len = HASH_TRANSHDR_SIZE(kctx_len);
 
-	crd = crp->crp_desc;
 	if (ccr_use_imm_data(transhdr_len, crd->crd_len)) {
 		imm_len = crd->crd_len;
 		sgl_nsegs = 0;
@@ -537,6 +549,10 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	if (crd->crd_alg == CRYPTO_AES_CBC &&
 	    (crd->crd_len % AES_BLOCK_LEN) != 0)
 		return (EINVAL);
+
+	/* Reject requests with too large of an input buffer. */
+	if (crd->crd_len > MAX_REQUEST_SIZE)
+		return (EFBIG);
 
 	iv_loc = IV_NOP;
 	if (crd->crd_flags & CRD_F_ENCRYPT) {
@@ -785,6 +801,13 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * the hash when encrypting.  For decryption it only contains
 	 * the plain text.
 	 */
+	if (op_type == CHCR_ENCRYPT_OP) {
+		if (crde->crd_len + hash_size_in_response > MAX_REQUEST_SIZE)
+			return (EFBIG);
+	} else {
+		if (crde->crd_len > MAX_REQUEST_SIZE)
+			return (EFBIG);
+	}
 	sglist_reset(sc->sg_dsgl);
 	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_crp, crde->crd_skip,
 	    crde->crd_len);
@@ -824,6 +847,17 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	} else
 		aad_len = 0;
 	input_len = aad_len + crde->crd_len;
+
+	/*
+	 * The firmware hangs if sent a request which is a
+	 * bit smaller than MAX_REQUEST_SIZE.  In particular, the
+	 * firmware appears to require 512 - 16 bytes of spare room
+	 * along with the size of the hash even if the hash isn't
+	 * included in the input buffer.
+	 */
+	if (input_len + roundup2(axf->hashsize, 16) + (512 - 16) >
+	    MAX_REQUEST_SIZE)
+		return (EFBIG);
 	if (op_type == CHCR_DECRYPT_OP)
 		input_len += hash_size_in_response;
 	if (ccr_use_imm_data(transhdr_len, s->blkcipher.iv_len + input_len)) {
@@ -1105,6 +1139,13 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	 * the tag when encrypting.  For decryption it only contains
 	 * the plain text.
 	 */
+	if (op_type == CHCR_ENCRYPT_OP) {
+		if (crde->crd_len + hash_size_in_response > MAX_REQUEST_SIZE)
+			return (EFBIG);
+	} else {
+		if (crde->crd_len > MAX_REQUEST_SIZE)
+			return (EFBIG);
+	}
 	sglist_reset(sc->sg_dsgl);
 	error = sglist_append_sglist(sc->sg_dsgl, sc->sg_crp, crde->crd_skip,
 	    crde->crd_len);
@@ -1136,6 +1177,8 @@ ccr_gcm(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	input_len = crda->crd_len + crde->crd_len;
 	if (op_type == CHCR_DECRYPT_OP)
 		input_len += hash_size_in_response;
+	if (input_len > MAX_REQUEST_SIZE)
+		return (EFBIG);
 	if (ccr_use_imm_data(transhdr_len, iv_len + input_len)) {
 		imm_len = input_len;
 		sgl_nsegs = 0;
