@@ -23,8 +23,9 @@
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2017 by Delphix. All rights reserved.
+ */
 
 #include <sys/types.h>
 #include <sys/cmn_err.h>
@@ -671,7 +672,7 @@ found:
 		}
 		vn_free(vp);
 	} else {
-		vp->v_count--;
+		VN_RELE_LOCKED(vp);
 		data = NULL;
 		mutex_exit(&vp->v_lock);
 		if (vp->v_flag & V_XATTRDIR) {
