@@ -6339,19 +6339,6 @@ arc_init(void)
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
 
-	/* Start out with 1/8 of all memory */
-	arc_c = allmem / 8;
-
-#ifdef illumos
-#ifdef _KERNEL
-	/*
-	 * On architectures where the physical memory can be larger
-	 * than the addressable space (intel in 32-bit mode), we may
-	 * need to limit the cache to 1/8 of VM size.
-	 */
-	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
-#endif
-#endif	/* illumos */
 	/* set min cache to 1/32 of all memory, or arc_abs_min, whichever is more */
 	arc_c_min = MAX(allmem / 32, arc_abs_min);
 	/* set max to 5/8 of all memory, or all but 1GB, whichever is more */
@@ -6390,6 +6377,15 @@ arc_init(void)
 
 	/* limit meta-data to 1/4 of the arc capacity */
 	arc_meta_limit = arc_c_max / 4;
+
+#ifdef _KERNEL
+	/*
+	 * Metadata is stored in the kernel's heap.  Don't let us
+	 * use more than half the heap for the ARC.
+	 */
+	arc_meta_limit = MIN(arc_meta_limit,
+	    vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 2);
+#endif
 
 	/* Allow the tunable to override if it is reasonable */
 	if (zfs_arc_meta_limit > 0 && zfs_arc_meta_limit <= arc_c_max)
