@@ -372,7 +372,8 @@ db_command(struct command **last_cmdp, struct command_table *cmd_table,
 	    return;
 	}
 	else if (t != tIDENT) {
-	    db_printf("?\n");
+	    db_printf("Unrecognized input; use \"help\" "
+	        "to list available commands\n");
 	    db_flush_lex();
 	    return;
 	}
@@ -643,7 +644,7 @@ db_fncall(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 		db_unread_token(t);
 	    }
 	    if (db_read_token() != tRPAREN) {
-		db_printf("?\n");
+	        db_printf("Mismatched parens\n");
 		db_flush_lex();
 		return;
 	    }
