@@ -29,6 +29,7 @@ SRCS+=	main.c engine.c listener.c handler.c comm.c monitor.c smfi.c \
 CLEANFILES+=sm_os.h
 
 WARNS?=	0
+SHLIB_MAJOR= 6
 
 sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}

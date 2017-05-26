@@ -28,11 +28,7 @@
 #define	AH_MAX(a,b)	((a)>(b)?(a):(b))
 
 #include <net80211/_ieee80211.h>
-#include "opt_ah.h"			/* needed for AH_SUPPORT_AR5416 */
-
-#ifndef	AH_SUPPORT_AR5416
-#define	AH_SUPPORT_AR5416	1
-#endif
+#include <sys/queue.h>			/* XXX for reasons */
 
 #ifndef NBBY
 #define	NBBY	8			/* number of bits/byte */
@@ -85,6 +81,11 @@ typedef enum {
 
 /*
  * Each chip or class of chips registers to offer support.
+ *
+ * Compiled-in versions will include a linker set to iterate through the
+ * linked in code.
+ *
+ * Modules will have to register HAL backends separately.
  */
 struct ath_hal_chip {
 	const char	*name;
@@ -93,13 +94,14 @@ struct ath_hal_chip {
 			    HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
 			    HAL_OPS_CONFIG *ah,
 			    HAL_STATUS *error);
+	TAILQ_ENTRY(ath_hal_chip) node;
 };
 #ifndef AH_CHIP
 #define	AH_CHIP(_name, _probe, _attach)				\
-static struct ath_hal_chip _name##_chip = {			\
+struct ath_hal_chip _name##_chip = {				\
 	.name		= #_name,				\
 	.probe		= _probe,				\
-	.attach		= _attach				\
+	.attach		= _attach,				\
 };								\
 OS_DATA_SET(ah_chips, _name##_chip)
 #endif
@@ -108,18 +110,24 @@ OS_DATA_SET(ah_chips, _name##_chip)
  * Each RF backend registers to offer support; this is mostly
  * used by multi-chip 5212 solutions.  Single-chip solutions
  * have a fixed idea about which RF to use.
+ *
+ * Compiled in versions will include this linker set to iterate through
+ * the linked in code.
+ *
+ * Modules will have to register RF backends separately.
  */
 struct ath_hal_rf {
 	const char	*name;
 	HAL_BOOL	(*probe)(struct ath_hal *ah);
 	HAL_BOOL	(*attach)(struct ath_hal *ah, HAL_STATUS *ecode);
+	TAILQ_ENTRY(ath_hal_rf) node;
 };
 #ifndef AH_RF
 #define	AH_RF(_name, _probe, _attach)				\
-static struct ath_hal_rf _name##_rf = {				\
+struct ath_hal_rf _name##_rf = {				\
 	.name		= __STRING(_name),			\
 	.probe		= _probe,				\
-	.attach		= _attach				\
+	.attach		= _attach,				\
 };								\
 OS_DATA_SET(ah_rfs, _name##_rf)
 #endif
@@ -188,10 +196,8 @@ typedef struct {
 	int8_t		qCoff;
 	int16_t		rawNoiseFloor;
 	int16_t		noiseFloorAdjust;
-#ifdef	AH_SUPPORT_AR5416
 	int16_t		noiseFloorCtl[AH_MAX_CHAINS];
 	int16_t		noiseFloorExt[AH_MAX_CHAINS];
-#endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
 
 	/*XXX TODO: make these part of privFlags */
@@ -1037,5 +1043,13 @@ extern	void ath_hal_survey_clear(struct ath_hal *ah);
  */
 extern	void ath_hal_survey_add_sample(struct ath_hal *ah,
 	    HAL_SURVEY_SAMPLE *hs);
+
+/*
+ * Chip registration - for modules.
+ */
+extern	int ath_hal_add_chip(struct ath_hal_chip *ahc);
+extern	int ath_hal_remove_chip(struct ath_hal_chip *ahc);
+extern	int ath_hal_add_rf(struct ath_hal_rf *arf);
+extern	int ath_hal_remove_rf(struct ath_hal_rf *arf);
 
 #endif /* _ATH_AH_INTERAL_H_ */

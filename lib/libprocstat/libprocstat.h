@@ -120,15 +120,15 @@ struct filestat {
 struct vnstat {
 	uint64_t	vn_fileid;
 	uint64_t	vn_size;
+	uint64_t	vn_dev;
+	uint64_t	vn_fsid;
 	char		*vn_mntdir;
-	uint32_t	vn_dev;
-	uint32_t	vn_fsid;
 	int		vn_type;
 	uint16_t	vn_mode;
 	char		vn_devname[SPECNAMELEN + 1];
 };
 struct ptsstat {
-	uint32_t	dev;
+	uint64_t	dev;
 	char		devname[SPECNAMELEN + 1];
 };
 struct pipestat {

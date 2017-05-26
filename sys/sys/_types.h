@@ -43,13 +43,13 @@ typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
 typedef	__uint32_t	__gid_t;
 typedef	__int64_t	__id_t;		/* can hold a gid_t, pid_t, or uid_t */
-typedef	__uint32_t	__ino_t;	/* inode number */
+typedef	__uint64_t	__ino_t;	/* inode number */
 typedef	long		__key_t;	/* IPC key (for Sys V IPC) */
 typedef	__int32_t	__lwpid_t;	/* Thread ID (a.k.a. LWP) */
 typedef	__uint16_t	__mode_t;	/* permissions */
 typedef	int		__accmode_t;	/* access permissions */
 typedef	int		__nl_item;
-typedef	__uint16_t	__nlink_t;	/* link count */
+typedef	__uint64_t	__nlink_t;	/* link count */
 typedef	__int64_t	__off_t;	/* file offset */
 typedef	__int64_t	__off64_t;	/* file offset (alias) */
 typedef	__int32_t	__pid_t;	/* process [group] */
@@ -105,7 +105,7 @@ typedef struct {
 	long double __max_align2 __aligned(_Alignof(long double));
 } __max_align_t;
 
-typedef	__uint32_t	__dev_t;	/* device number */
+typedef	__uint64_t	__dev_t;	/* device number */
 
 typedef	__uint32_t	__fixpt_t;	/* fixed point number */
 
@@ -119,5 +119,12 @@ typedef union {
 } __mbstate_t;
 
 typedef __uintmax_t     __rman_res_t;
+
+/*
+ * When the following macro is defined, the system uses 64-bit inode numbers.
+ * Programs can use this to avoid including <sys/param.h>, with its associated
+ * namespace pollution.
+ */
+#define	__INO64
 
 #endif /* !_SYS__TYPES_H_ */

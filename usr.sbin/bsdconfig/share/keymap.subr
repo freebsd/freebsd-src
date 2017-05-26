@@ -39,7 +39,10 @@ f_include $BSDCFG_SHARE/struct.subr
 # Defaults taken from usr.sbin/kbdmap/kbdmap.h
 #
 : ${DEFAULT_LANG:=en}
-: ${DEFAULT_KEYMAP_DIR:=/usr/share/syscons/keymaps}
+case "$( sysctl -n kern.vty )" in
+vt)	: ${DEFAULT_KEYMAP_DIR:=/usr/share/vt/keymaps}		;;
+*)	: ${DEFAULT_KEYMAP_DIR:=/usr/share/syscons/keymaps}	;;
+esac
 
 ############################################################ GLOBALS
 

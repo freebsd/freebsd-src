@@ -745,7 +745,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 	 * of MaxTargets here so that we don't get into trouble later.  This
 	 * should move into the reinit logic.
 	 */
-	sassc->maxtargets = sc->facts->MaxTargets;
+	sassc->maxtargets = sc->facts->MaxTargets + sc->facts->MaxVolumes;
 	sassc->targets = malloc(sizeof(struct mprsas_target) *
 	    sassc->maxtargets, M_MPR, M_WAITOK|M_ZERO);
 	if (!sassc->targets) {
@@ -963,6 +963,25 @@ mprsas_discovery_end(struct mprsas_softc *sassc)
 	if (sassc->flags & MPRSAS_DISCOVERY_TIMEOUT_PENDING)
 		callout_stop(&sassc->discovery_callout);
 
+	/*
+	 * After discovery has completed, check the mapping table for any
+	 * missing devices and update their missing counts. Only do this once
+	 * whenever the driver is initialized so that missing counts aren't
+	 * updated unnecessarily. Note that just because discovery has
+	 * completed doesn't mean that events have been processed yet. The
+	 * check_devices function is a callout timer that checks if ALL devices
+	 * are missing. If so, it will wait a little longer for events to
+	 * complete and keep resetting itself until some device in the mapping
+	 * table is not missing, meaning that event processing has started.
+	 */
+	if (sc->track_mapping_events) {
+		mpr_dprint(sc, MPR_XINFO | MPR_MAPPING, "Discovery has "
+		    "completed. Check for missing devices in the mapping "
+		    "table.\n");
+		callout_reset(&sc->device_check_callout,
+		    MPR_MISSING_CHECK_DELAY * hz, mpr_mapping_check_devices,
+		    sc);
+	}
 }
 
 static void
@@ -996,7 +1015,12 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->maxtargets - 1;
 		cpi->max_lun = 255;
-		cpi->initiator_id = sassc->maxtargets - 1;
+
+		/*
+		 * initiator_id is set here to an ID outside the set of valid
+		 * target IDs (including volumes).
+		 */
+		cpi->initiator_id = sassc->maxtargets;
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "Avago Tech", HBA_IDLEN);
 		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -1836,8 +1860,8 @@ mprsas_build_nvme_unmap(struct mpr_softc *sc, struct mpr_command *cm,
 	mprsas_log_command(cm, MPR_XINFO, "%s cm %p ccb %p outstanding %u\n",
 	    __func__, cm, ccb, targ->outstanding);
 
-	mpr_build_nvme_prp(sc, cm, req, (void *)nvme_dsm_ranges_dma_handle, 0,
-	    data_length);
+	mpr_build_nvme_prp(sc, cm, req,
+	    (void *)(uintptr_t)nvme_dsm_ranges_dma_handle, 0, data_length);
 	mpr_map_command(sc, cm);
 
 out:

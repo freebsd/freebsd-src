@@ -185,10 +185,6 @@ struct lagg_ifreq {
 
 #define	sc_ifflags		sc_ifp->if_flags		/* flags */
 #define	sc_ifname		sc_ifp->if_xname		/* name */
-#define	sc_capabilities		sc_ifp->if_capabilities	/* capabilities */
-
-#define	IFCAP_LAGG_MASK		0xffff0000	/* private capabilities */
-#define	IFCAP_LAGG_FULLDUPLEX	0x00010000	/* full duplex with >1 ports */
 
 /* Private data used by the loadbalancing protocol */
 struct lagg_lb {

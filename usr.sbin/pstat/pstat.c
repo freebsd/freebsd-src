@@ -255,7 +255,7 @@ ttymode_kvm(void)
 		/* xt.xt_pgid = ... */
 		/* xt.xt_sid = ... */
 		xt.xt_flags = tty.t_flags;
-		xt.xt_dev = NODEV;
+		xt.xt_dev = (uint32_t)NODEV;
 		ttyprt(&xt);
 		tp = TAILQ_NEXT(&tty, t_list);
 	}

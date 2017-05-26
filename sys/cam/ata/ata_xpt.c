@@ -800,6 +800,16 @@ out:
 			goto noerror;
 
 		/*
+		 * Some old WD SATA disks have broken SPINUP handling.
+		 * If we really fail to spin up the disk, then there will be
+		 * some media access errors later on, but at least we will
+		 * have a device to interact with for recovery attempts.
+		 */
+		} else if (softc->action == PROBE_SPINUP &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
+
+		/*
 		 * Some HP SATA disks report supported DMA Auto-Activation,
 		 * but return ABORT on attempt to enable it.
 		 */

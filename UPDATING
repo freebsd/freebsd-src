@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 handbook:
 
-    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -55,6 +55,47 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 5.0.0.
 	Please see the 20141231 entry below for information about prerequisites
 	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170524:
+	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
+	smaller runtime footprint builds.  This is useful for embedded systems
+	which only require one chipset support.
+
+	If you load it as a module, make sure this is in /boot/loader.conf:
+
+	if_ath_load="YES"
+
+	This will load the HAL, all chip/RF backends and if_ath_pci.
+	If you have if_ath_pci in /boot/loader.conf, ensure it is after
+	if_ath or it will not load any HAL chipset support.
+
+	If you want to selectively load things (eg on ye cheape ARM/MIPS
+	platforms where RAM is at a premium) you should:
+
+	* load ath_hal
+	* load the chip modules in question
+	* load ath_rate, ath_dfs
+	* load ath_main
+	* load if_ath_pci and/or if_ath_ahb depending upon your particular
+	  bus bind type - this is where probe/attach is done.
+
+	For further comments/feedback, poke adrian@ .
+
+20170523:
+	The "ino64" 64-bit inode project has been committed, which extends
+	a number of types to 64 bits.  Upgrading in place requires care and
+	adherence to the documented upgrade procedure.
+
+	If using a custom kernel configuration ensure that the
+	COMPAT_FREEBSD11 option is included (as during the upgrade the
+	system will be running the ino64 kernel with the existing world).
+
+	For the safest in-place upgrade begin by removing previous build
+	artifacts via "rm -rf /usr/obj/*".   Then, carefully follow the
+	full procedure documented below under the heading "To rebuild
+	everything and install it on the current system."  Specifically,
+	a reboot is required after installing the new kernel before
+	installing world.  
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and

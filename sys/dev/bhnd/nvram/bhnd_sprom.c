@@ -120,9 +120,9 @@ bhnd_sprom_attach(device_t dev, bus_size_t offset)
 
 	sprom_size = r_size - offset;
 
-	/* Allocate an I/O context for the SPROM parser. SPROM reads do not
-	 * appear to require any specific alignment. */
-	io = bhnd_nvram_iores_new(r, offset, sprom_size, 1);
+	/* Allocate an I/O context for the SPROM parser. All SPROM reads
+	 * must be 16-bit aligned */
+	io = bhnd_nvram_iores_new(r, offset, sprom_size, sizeof(uint16_t));
 	if (io == NULL) {
 		error = ENXIO;
 		goto failed;

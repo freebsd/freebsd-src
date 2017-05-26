@@ -124,7 +124,7 @@ main(int argc, char *argv[])
 		err(1, "Unable to get system time");
 
 
-	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:T:xZ")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:O:o:pR:s:S:t:T:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -202,7 +202,12 @@ main(int argc, char *argv[])
 			fsoptions.maxsize =
 			    strsuftoll("maximum size", optarg, 1LL, LLONG_MAX);
 			break;
-			
+
+		case 'O':
+			fsoptions.offset =
+			    strsuftoll("offset", optarg, 0LL, LLONG_MAX);
+			break;
+
 		case 'o':
 		{
 			char *p;
@@ -479,8 +484,8 @@ usage(fstype_t *fstype, fsinfo_t *fsoptions)
 	fprintf(stderr,
 "Usage: %s [-xZ] [-B endian] [-b free-blocks] [-d debug-mask]\n"
 "\t[-F mtree-specfile] [-f free-files] [-M minimum-size] [-m maximum-size]\n"
-"\t[-N userdb-dir] [-o fs-options] [-R roundup-size] [-S sector-size]\n"
-"\t[-s image-size] [-T <timestamp/file>] [-t fs-type]\n"
+"\t[-N userdb-dir] [-O offset] [-o fs-options] [-R roundup-size]\n"
+"\t[-S sector-size] [-s image-size] [-T <timestamp/file>] [-t fs-type]\n"
 "\timage-file directory | manifest [extra-directory ...]\n",
 	    prog);
 

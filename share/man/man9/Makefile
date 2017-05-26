@@ -963,6 +963,61 @@ MLINKS+=ieee80211_scan.9 ieee80211_add_scan.9 \
 MLINKS+=ieee80211_vap.9 ieee80211_vap_attach.9 \
 	ieee80211_vap.9 ieee80211_vap_detach.9 \
 	ieee80211_vap.9 ieee80211_vap_setup.9
+MLINKS+=iflibdd.9 ifdi_attach_pre.9 \
+	iflibdd.9 ifdi_attach_post.9 \
+	iflibdd.9 ifdi_detach.9 \
+	iflibdd.9 ifdi_get_counter.9 \
+	iflibdd.9 ifdi_i2c_req.9 \
+	iflibdd.9 ifdi_init.9 \
+	iflibdd.9 ifdi_intr_enable.9 \
+	iflibdd.9 ifdi_intr_disable.9 \
+	iflibdd.9 ifdi_led_func.9 \
+	iflibdd.9 ifdi_link_intr_enable.9 \
+	iflibdd.9 ifdi_media_set.9 \
+	iflibdd.9 ifdi_media_status.9 \
+	iflibdd.9 ifdi_media_change.9 \
+	iflibdd.9 ifdi_mtu_set.9 \
+	iflibdd.9 ifdi_multi_set.9 \
+	iflibdd.9 ifdi_promisc_set.9 \
+	iflibdd.9 ifdi_queues_alloc.9 \
+	iflibdd.9 ifdi_queues_free.9 \
+	iflibdd.9 ifdi_queue_intr_enable.9 \
+	iflibdd.9 ifdi_resume.9 \
+	iflibdd.9 ifdi_rxq_setup.9 \
+	iflibdd.9 ifdi_stop.9 \
+	iflibdd.9 ifdi_suspend.9 \
+	iflibdd.9 ifdi_sysctl_int_delay.9 \
+	iflibdd.9 ifdi_timer.9 \
+	iflibdd.9 ifdi_txq_setup.9 \
+	iflibdd.9 ifdi_update_admin_status.9 \
+	iflibdd.9 ifdi_vf_add.9 \
+	iflibdd.9 ifdi_vflr_handle.9 \
+	iflibdd.9 ifdi_vlan_register.9 \
+	iflibdd.9 ifdi_vlan_unregister.9 \
+	iflibdd.9 ifdi_watchdog_reset.9 \
+	iflibdd.9 iov_init.9 \
+	iflibdd.9 iov_uinit.9
+MLINKS+=iflibdi.9 iflib_add_int_delay_sysctl.9 \
+	iflibdi.9 iflib_device_attach.9 \
+	iflibdi.9 iflib_device_deregister.9 \
+	iflibdi.9 iflib_device_detach.9 \
+	iflibdi.9 iflib_device_suspend.9 \
+	iflibdi.9 iflib_device_register.9 \
+	iflibdi.9 iflib_device_resume.9 \
+	iflibdi.9 iflib_led_create.9 \
+	iflibdi.9 iflib_irq_alloc.9 \
+	iflibdi.9 iflib_irq_alloc_generic.9 \
+	iflibdi.9 iflib_link_intr_deferred.9 \
+	iflibdi.9 iflib_link_state_change.9 \
+	iflibdi.9 iflib_rx_intr_deferred.9 \
+	iflibdi.9 iflib_tx_intr_deferred.9
+MLINKS+=iflibtxrx.9 isc_rxd_available.9 \
+	iflibtxrx.9 isc_rxd_refill.9 \
+	iflibtxrx.9 isc_rxd_flush.9 \
+	iflibtxrx.9 isc_rxd_pkt_get.9 \
+	iflibtxrx.9 isc_txd_credits_update.9 \
+	iflibtxrx.9 isc_txd_encap.9 \
+	iflibtxrx.9 isc_txd_flush.9
 MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 if_alloc.9 \
 	ifnet.9 if_allmulti.9 \

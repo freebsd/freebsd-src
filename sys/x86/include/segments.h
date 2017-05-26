@@ -247,13 +247,9 @@ union descriptor {
  */
 #define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
 #define	LSYS5SIGR_SEL	1
-#define	L43BSDCALLS_SEL	2	/* notyet */
 #define	LUCODE_SEL	3
 #define	LUDATA_SEL	5
-/* separate stack, es,fs,gs sels ? */
-/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
-#define	LBSDICALLS_SEL	16	/* BSDI system call gate */
-#define	NLDT		(LBSDICALLS_SEL + 1)
+#define	NLDT		(LUDATA_SEL + 1)
 
 #else /* !__i386__ */
 /*

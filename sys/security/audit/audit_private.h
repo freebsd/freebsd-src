@@ -107,9 +107,9 @@ struct vnode_au_info {
 	mode_t	vn_mode;
 	uid_t	vn_uid;
 	gid_t	vn_gid;
-	dev_t	vn_dev;
-	long	vn_fsid;
-	long	vn_fileid;
+	u_int32_t vn_dev;		/* XXX dev_t compatibility */
+	long	vn_fsid;		/* XXX uint64_t compatibility */
+	long	vn_fileid;		/* XXX ino_t compatibility */
 	long	vn_gen;
 };
 
@@ -210,7 +210,7 @@ struct audit_record {
 	int			ar_arg_atfd2;
 	int			ar_arg_fflags;
 	mode_t			ar_arg_mode;
-	int			ar_arg_dev;
+	int			ar_arg_dev;	/* XXX dev_t compatibility */
 	long			ar_arg_value;
 	void			*ar_arg_addr;
 	int			ar_arg_len;

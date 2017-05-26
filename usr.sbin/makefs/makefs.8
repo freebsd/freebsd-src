@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2017
+.Dd May 26, 2017
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Op Fl M Ar minimum-size
 .Op Fl m Ar maximum-size
 .Op Fl N Ar userdb-dir
+.Op Fl O Ar offset
 .Op Fl o Ar fs-options
 .Op Fl R Ar roundup-size
 .Op Fl S Ar sector-size
@@ -193,6 +194,11 @@ rather than using the results from the system's
 and
 .Xr getgrnam 3
 (and related) library calls.
+.It Fl O Ar offset
+Instead of creating the filesystem at the beginning of the file, start
+at offset.
+Valid only for
+.Sy ffs .
 .It Fl o Ar fs-options
 Set file system specific options.
 .Ar fs-options

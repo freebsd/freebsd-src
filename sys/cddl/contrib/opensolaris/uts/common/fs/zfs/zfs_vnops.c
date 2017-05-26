@@ -18,11 +18,12 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
- * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -1385,7 +1386,7 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 
 			error = dmu_sync(zio, lr->lr_common.lrc_txg,
 			    zfs_get_done, zgd);
-			ASSERT(error || lr->lr_length <= zp->z_blksz);
+			ASSERT(error || lr->lr_length <= size);
 
 			/*
 			 * On success, we need to wait for the write I/O
@@ -1535,7 +1536,15 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	zfsvfs_t *zfsvfs = zdp->z_zfsvfs;
 	int	error = 0;
 
-	/* fast path (should be redundant with vfs namecache) */
+	/*
+	 * Fast path lookup, however we must skip DNLC lookup
+	 * for case folding or normalizing lookups because the
+	 * DNLC code only stores the passed in name.  This means
+	 * creating 'a' and removing 'A' on a case insensitive
+	 * file system would work, but DNLC still thinks 'a'
+	 * exists and won't let you create it again on the next
+	 * pass through fast path.
+	 */
 	if (!(flags & LOOKUP_XATTR)) {
 		if (dvp->v_type != VDIR) {
 			return (SET_ERROR(ENOTDIR));
@@ -4749,7 +4758,8 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 		    &zp->z_pflags, 8);
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime,
 		    B_TRUE);
-		(void)sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
+		err = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
+		ASSERT0(err);
 		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off, len, 0);
 
 		zfs_vmobject_wlock(object);

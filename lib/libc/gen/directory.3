@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2016
+.Dd May 22, 2017
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -292,14 +292,15 @@ is likely to be wrong if there are parallel unlinks happening
 and the directory is larger than one page.
 There is code to ensure that a
 .Fn seekdir
-to the location given by a 
+to the location given by a
 .Fn telldir
-immediately before the last 
+immediately before the last
 .Fn readdir
 will always set the correct location to return the same value as that last
 .Fn readdir
 performed.
-This is enough for some applications which want to "push back the last entry read" E.g. Samba. 
+This is enough for some applications which want to
+"push back the last entry read", e.g., Samba.
 Seeks back to any other location,
 other than the beginning of the directory,
 may result in unexpected behaviour if deletes are present.

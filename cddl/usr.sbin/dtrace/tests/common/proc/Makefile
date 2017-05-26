@@ -23,6 +23,7 @@ TESTEXES= \
 
 
 CFILES= \
+     tst.exitcore.c  \
      tst.sigwait.c  \
 
 
