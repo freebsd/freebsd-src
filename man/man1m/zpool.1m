@@ -23,7 +23,7 @@
 .\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright 2016 Nexenta Systems, Inc.
 .\"
-.Dd March 25, 2016
+.Dd March 30, 2016
 .Dt ZPOOL 1M
 .Os
 .Sh NAME
@@ -102,6 +102,10 @@
 .Op Fl T Sy u Ns | Ns Sy d
 .Oo Ar pool Oc Ns ...
 .Op Ar interval Op Ar count
+.Nm
+.Cm labelclear
+.Op Fl f
+.Ar device
 .Nm
 .Cm list
 .Op Fl Hpv
@@ -1151,6 +1155,21 @@ for standard date format. See
 .It Fl v
 Verbose statistics. Reports usage statistics for individual vdevs within the
 pool, in addition to the pool-wide statistics.
+.El
+.It Xo
+.Nm
+.Cm labelclear
+.Op Fl f
+.Ar device
+.Xc
+Removes ZFS label information from the specified
+.Ar device .
+The
+.Ar device
+must not be part of an active pool configuration.
+.Bl -tag -width Ds
+.It Fl f
+Treat exported or foreign devices as inactive.
 .El
 .It Xo
 .Nm
