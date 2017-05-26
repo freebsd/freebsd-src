@@ -50,7 +50,9 @@ struct image_args {
 	char *fname_buf;	/* pointer to optional malloc(M_TEMP) buffer */
 	int stringspace;	/* space left in arg & env buffer */
 	int argc;		/* count of argument strings */
+	char **argv;		/* pointer to argv (user space) */
 	int envc;		/* count of environment strings */
+	char **envv;		/* pointer to envv (user space) */
 	int fd;			/* file descriptor of the executable */
 	struct filedesc *fdp;	/* new file descriptor table */
 };

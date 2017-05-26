@@ -1673,8 +1673,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in argument portion of vector table.
 	 */
+	imgp->args->argv = (void *)vectp;
 	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS,
-	    vectp, (argc + 1) * sizeof(struct chericap), 0);
+	    imgp->args->argv, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1695,8 +1696,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in environment portion of vector table.
 	 */
+	imgp->args->envv = (void *)vectp;
 	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS,
-	    vectp, (envc + 1) * sizeof(struct chericap), 0);
+	    imgp->args->envv, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1828,6 +1830,17 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
 	    imgp->sysent->sv_stackprot);
+
+	AUXARGS_ENTRY(pos, AT_ARGC, imgp->args->argc);
+	/* XXX-BD: Includes terminating NULL.  Should it? */
+	AUXARGS_ENTRY_CAP(pos, AT_ARGV, imgp->args->argv, 0,
+	   sizeof(struct chericap) * (imgp->args->argc + 1),
+	   CHERI_CAP_USER_DATA_PERMS);
+	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
+	AUXARGS_ENTRY_CAP(pos, AT_ENVV, imgp->args->envv, 0,
+	   sizeof(struct chericap) * (imgp->args->envc + 1),
+	   CHERI_CAP_USER_DATA_PERMS);
+
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);

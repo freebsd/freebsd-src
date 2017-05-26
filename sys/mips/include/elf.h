@@ -144,8 +144,12 @@ __ElfType(Auxinfo);
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 #define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
+#define	AT_ARGC		24	/* Argument count */
+#define	AT_ARGV		25	/* Argument vector */
+#define	AT_ENVC		26	/* Environment count */
+#define	AT_ENVV		27	/* Environment vector */
 
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
+#define	AT_COUNT	28	/* Count of defined aux entry types. */
 
 #define	ET_DYN_LOAD_ADDR 0x0120000
 
