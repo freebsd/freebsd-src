@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD: head/lib/csu/mips/crt1_c.c 245133 2013-01-07 17:58:27Z kib $
 #include "ignore_init.c"
 
 struct Struct_Obj_Entry;
-struct ps_strings;
 
 void __start(struct cheriabi_execdata *, void (*)(void),
     struct Struct_Obj_Entry *);
@@ -71,7 +70,6 @@ extern int eprol;
 extern int etext;
 #endif
 
-struct ps_strings *__ps_strings;
 Elf64_Auxinfo *__auxargs;
 
 struct capreloc
@@ -145,7 +143,6 @@ __start(struct cheriabi_execdata *ce,
 	argv = ce->ce_argv;
 	env = ce->ce_envp;
 	__auxargs = (Elf64_Auxinfo *)ce->ce_auxargs;
-	__ps_strings = ce->ce_ps_strings;
 	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)
