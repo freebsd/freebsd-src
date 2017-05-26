@@ -344,7 +344,8 @@ struct kinfo_file {
 	int64_t		kf_offset;		/* Seek location. */
 	union {
 		struct {
-			uint32_t	kf_spareint;
+			/* Sendq size */
+			uint32_t	kf_sock_sendq;
 			/* Socket domain. */
 			int		kf_sock_domain0;
 			/* Socket type. */
@@ -365,8 +366,8 @@ struct kinfo_file {
 			uint16_t	kf_sock_snd_sb_state;
 			/* Receive buffer state. */
 			uint16_t	kf_sock_rcv_sb_state;
-			/* Round to 64 bit alignment. */
-			uint32_t	kf_sock_pad0;
+			/* Recvq size. */
+			uint32_t	kf_sock_recvq;
 		} kf_sock;
 		struct {
 			/* Vnode type. */

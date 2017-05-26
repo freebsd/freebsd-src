@@ -1497,6 +1497,8 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				} else
 					sock->inp_ppcb =
 					    (uintptr_t)inpcb.inp_ppcb;
+				sock->sendq = s.so_snd.sb_ccc;
+				sock->recvq = s.so_rcv.sb_ccc;
 			}
 		}
 		break;
@@ -1510,6 +1512,8 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				sock->so_rcv_sb_state = s.so_rcv.sb_state;
 				sock->so_snd_sb_state = s.so_snd.sb_state;
 				sock->unp_conn = (uintptr_t)unpcb.unp_conn;
+				sock->sendq = s.so_snd.sb_ccc;
+				sock->recvq = s.so_rcv.sb_ccc;
 			}
 		}
 		break;
@@ -1556,17 +1560,22 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	switch(sock->dom_family) {
 	case AF_INET:
 	case AF_INET6:
-		if (sock->proto == IPPROTO_TCP)
+		if (sock->proto == IPPROTO_TCP) {
 			sock->inp_ppcb = kif->kf_un.kf_sock.kf_sock_inpcb;
+			sock->sendq = kif->kf_un.kf_sock.kf_sock_sendq;
+			sock->recvq = kif->kf_un.kf_sock.kf_sock_recvq;
+		}
 		break;
 	case AF_UNIX:
 		if (kif->kf_un.kf_sock.kf_sock_unpconn != 0) {
-				sock->so_rcv_sb_state =
-				    kif->kf_un.kf_sock.kf_sock_rcv_sb_state;
-				sock->so_snd_sb_state =
-				    kif->kf_un.kf_sock.kf_sock_snd_sb_state;
-				sock->unp_conn =
-				    kif->kf_un.kf_sock.kf_sock_unpconn;
+			sock->so_rcv_sb_state =
+			    kif->kf_un.kf_sock.kf_sock_rcv_sb_state;
+			sock->so_snd_sb_state =
+			    kif->kf_un.kf_sock.kf_sock_snd_sb_state;
+			sock->unp_conn =
+			    kif->kf_un.kf_sock.kf_sock_unpconn;
+			sock->sendq = kif->kf_un.kf_sock.kf_sock_sendq;
+			sock->recvq = kif->kf_un.kf_sock.kf_sock_recvq;
 		}
 		break;
 	default:

@@ -157,6 +157,8 @@ struct sockstat {
 	struct sockaddr_storage	sa_peer;	/* Peer address. */
 	int		type;
 	char		dname[32];
+	unsigned int	sendq;
+	unsigned int	recvq;
 };
 
 STAILQ_HEAD(filestat_list, filestat);
