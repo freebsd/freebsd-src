@@ -23,7 +23,7 @@
 .\" Copyright (c) 2013 by Delphix. All rights reserved.
 .\" Copyright 2016 Nexenta Systems, Inc.
 .\"
-.Dd March 30, 2016
+.Dd Oct 2, 2016
 .Dt ZPOOL 1M
 .Os
 .Sh NAME
@@ -47,6 +47,7 @@
 .Nm
 .Cm create
 .Op Fl dfn
+.Op Fl B
 .Op Fl m Ar mountpoint
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Oo Fl O Ar file-system-property Ns = Ns Ar value Oc Ns ...
@@ -430,6 +431,12 @@ The following are read-only properties:
 Amount of storage available within the pool. This property can also be referred
 to by its shortened column name,
 .Sy avail .
+.It Sy bootsize
+The size of the system boot partition. This property can only be set at pool
+creation time and is read-only once pool is created. Setting this property
+implies using the
+.Fl B
+option.
 .It Sy capacity
 Percentage of pool space used. This property can also be referred to by its
 shortened column name,
@@ -708,6 +715,7 @@ those errors associated with the specified device or devices are cleared.
 .Nm
 .Cm create
 .Op Fl dfn
+.Op Fl B
 .Op Fl m Ar mountpoint
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Oo Fl O Ar file-system-property Ns = Ns Ar value Oc Ns ...
@@ -766,6 +774,16 @@ By default all supported features are enabled on the new pool unless the
 .Fl d
 option is specified.
 .Bl -tag -width Ds
+.It Fl B
+Create whole disk pool with EFI System partition to support booting system
+with UEFI firmware. Default size is 256MB. To create boot partition with
+custom size, set the
+.Sy bootsize
+property with the
+.Fl o
+option. See the
+.Sx Properties
+section for details.
 .It Fl d
 Do not enable any features on the new pool. Individual features can be enabled
 by setting their corresponding properties to

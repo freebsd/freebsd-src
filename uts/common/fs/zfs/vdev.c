@@ -2765,8 +2765,8 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	 * since that determines how much space the pool can expand.
 	 */
 	if (vd->vdev_aux == NULL && tvd != NULL) {
-		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize,
-		    1ULL << tvd->vdev_ms_shift);
+		vs->vs_esize = P2ALIGN(vd->vdev_max_asize - vd->vdev_asize -
+		    spa->spa_bootsize, 1ULL << tvd->vdev_ms_shift);
 	}
 	if (vd->vdev_aux == NULL && vd == vd->vdev_top && !vd->vdev_ishole) {
 		vs->vs_fragmentation = vd->vdev_mg->mg_fragmentation;
