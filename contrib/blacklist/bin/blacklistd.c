@@ -214,6 +214,17 @@ process(bl_t bl)
 	}
 
 	switch (bi->bi_type) {
+	case BL_ABUSE:
+		/*
+		 * If the application has signaled abusive behavior,
+		 * set the number of fails to be one less than the
+		 * configured limit.  Fallthrough to the normal BL_ADD
+		 * processing, which will increment the failure count
+		 * to the threshhold, and block the abusive address.
+		 */
+		if (c.c_nfail != -1)
+			dbi.count = c.c_nfail - 1;
+		/*FALLTHROUGH*/
 	case BL_ADD:
 		dbi.count++;
 		dbi.last = ts.tv_sec;
@@ -248,6 +259,9 @@ process(bl_t bl)
 			goto out;
 		dbi.count = 0;
 		dbi.last = 0;
+		break;
+	case BL_BADUSER:
+		/* ignore for now */
 		break;
 	default:
 		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
