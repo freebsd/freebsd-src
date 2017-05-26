@@ -120,8 +120,6 @@ _tcb_get(void)
 #  endif /* ! __mips_n64 */
 #endif /* ! TLS_USE_SYSARCH */
 
-extern struct pthread *_thr_initial;
-
 static __inline struct pthread *
 _get_curthread(void)
 {

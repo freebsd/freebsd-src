@@ -78,8 +78,6 @@ _tcb_get(void)
 	return ((struct tcb *)(_tp - TP_OFFSET));
 }
 
-extern struct pthread *_thr_initial;
-
 static __inline struct pthread *
 _get_curthread(void)
 {
