@@ -40,8 +40,6 @@ SUBDIR= cat \
 	test \
 	uuidgen
 
-SUBDIR+=	auxargs
-
 .if ${TARGET} == "mips"
 SUBDIR+=	shmem_bench
 SUBDIR+=	cheri_bench
