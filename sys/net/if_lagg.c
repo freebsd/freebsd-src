@@ -901,6 +901,7 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_XLOCK(sc);
 		lagg_capabilities(sc);
 		LAGG_XUNLOCK(sc);
+		VLAN_CAPABILITIES(sc->sc_ifp);
 		break;
 
 	case SIOCSIFMTU:
@@ -1014,6 +1015,7 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	lp->lp_detaching = 1;
 	lagg_port_destroy(lp, 1);
 	LAGG_XUNLOCK(sc);
+	VLAN_CAPABILITIES(sc->sc_ifp);
 }
 
 static void
@@ -1373,6 +1375,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = lagg_port_create(sc, tpif);
 		LAGG_XUNLOCK(sc);
 		if_rele(tpif);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	case SIOCSLAGGDELPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -1396,6 +1399,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = lagg_port_destroy(lp, 1);
 		LAGG_XUNLOCK(sc);
 		if_rele(tpif);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	case SIOCSIFFLAGS:
 		/* Set flags on ports too */
@@ -1446,6 +1450,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		lagg_capabilities(sc);
 		LAGG_XUNLOCK(sc);
+		VLAN_CAPABILITIES(ifp);
 		error = 0;
 		break;
 
