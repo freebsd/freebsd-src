@@ -707,6 +707,21 @@ _worldtmp: .PHONY
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .endif
+# Dependencies cannot cope with certain source tree changes, particularly
+# with respect to removing source files and replacing generated files.
+# Handle these cases here in an ad-hoc fashion.
+# 20170523 remove stale generated asm files for functions which are no longer
+# syscalls after r302092 (pipe) and r318736 (others)
+.for f in getdents lstat mknod pipe stat
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.s) || \
+    exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.S)
+	@echo Removing stale generated ${f} syscall files
+	@rm -f ${OBJTREE}${.CURDIR}/lib/libc/${f}.* \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/${f}.* \
+	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
+.endif
+.endfor
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
