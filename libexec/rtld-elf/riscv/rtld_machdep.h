@@ -80,11 +80,6 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 	(((Elf_Addr (*)(void))ptr)())
 
 /*
- * Lazy binding entry point, called via PLT.
- */
-void _rtld_bind_start(void);
-
-/*
  * TLS
  */
 #define	TLS_TP_OFFSET	0x0
