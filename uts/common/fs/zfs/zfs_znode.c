@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -1293,7 +1293,7 @@ zfs_zinactive(znode_t *zp)
 
 	mutex_enter(&zp->z_lock);
 	mutex_enter(&vp->v_lock);
-	vp->v_count--;
+	VN_RELE_LOCKED(vp);
 	if (vp->v_count > 0 || vn_has_cached_data(vp)) {
 		/*
 		 * If the hold count is greater than zero, somebody has

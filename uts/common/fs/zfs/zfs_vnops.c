@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2015 Joyent, Inc.
  * Copyright 2017 Nexenta Systems, Inc.
@@ -1819,7 +1819,7 @@ top:
 			ASSERT0(error);
 		}
 		mutex_enter(&vp->v_lock);
-		vp->v_count--;
+		VN_RELE_LOCKED(vp);
 		ASSERT0(vp->v_count);
 		mutex_exit(&vp->v_lock);
 		mutex_exit(&zp->z_lock);
@@ -4411,7 +4411,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		mutex_enter(&zp->z_lock);
 		mutex_enter(&vp->v_lock);
 		ASSERT(vp->v_count == 1);
-		vp->v_count = 0;
+		VN_RELE_LOCKED(vp);
 		mutex_exit(&vp->v_lock);
 		mutex_exit(&zp->z_lock);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);

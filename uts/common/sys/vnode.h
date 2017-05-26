@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -53,6 +54,7 @@
 #include <sys/list.h>
 #ifdef	_KERNEL
 #include <sys/buf.h>
+#include <sys/sdt.h>
 #endif	/* _KERNEL */
 
 #ifdef	__cplusplus
@@ -1342,10 +1344,32 @@ int	vn_vmpss_usepageio(vnode_t *);
  */
 extern uint_t pvn_vmodsort_supported;
 
-#define	VN_HOLD(vp)	{ \
-	mutex_enter(&(vp)->v_lock); \
-	(vp)->v_count++; \
-	mutex_exit(&(vp)->v_lock); \
+/*
+ * All changes to v_count should be done through VN_HOLD() or VN_RELE(), or
+ * one of their variants. This makes it possible to ensure proper locking,
+ * and to guarantee that all modifications are accompanied by a firing of
+ * the vn-hold or vn-rele SDT DTrace probe.
+ *
+ * Example DTrace command for tracing vnode references using these probes:
+ *
+ * dtrace -q -n 'sdt:::vn-hold,sdt:::vn-rele
+ * {
+ *	this->vp = (vnode_t *)arg0;
+ *	printf("%s %s(%p[%s]) %d\n", execname, probename, this->vp,
+ *	    this->vp->v_path == NULL ? "NULL" : stringof(this->vp->v_path),
+ *	    this->vp->v_count)
+ * }'
+ */
+#define	VN_HOLD_LOCKED(vp) {			\
+	ASSERT(mutex_owned(&(vp)->v_lock));	\
+	(vp)->v_count++;			\
+	DTRACE_PROBE1(vn__hold, vnode_t *, vp);	\
+}
+
+#define	VN_HOLD(vp)	{		\
+	mutex_enter(&(vp)->v_lock);	\
+	VN_HOLD_LOCKED(vp);		\
+	mutex_exit(&(vp)->v_lock);	\
 }
 
 #define	VN_RELE(vp)	{ \
@@ -1354,6 +1378,13 @@ extern uint_t pvn_vmodsort_supported;
 
 #define	VN_RELE_ASYNC(vp, taskq)	{ \
 	vn_rele_async(vp, taskq); \
+}
+
+#define	VN_RELE_LOCKED(vp) {			\
+	ASSERT(mutex_owned(&(vp)->v_lock));	\
+	ASSERT((vp)->v_count >= 1);		\
+	(vp)->v_count--;			\
+	DTRACE_PROBE1(vn__rele, vnode_t *, vp);	\
 }
 
 #define	VN_SET_VFS_TYPE_DEV(vp, vfsp, type, dev)	{ \
