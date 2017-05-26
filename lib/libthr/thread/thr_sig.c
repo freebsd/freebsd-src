@@ -737,7 +737,7 @@ __thr_setcontext(const ucontext_t *ucp)
 		return (-1);
 	}
 	if (!SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL))
-		return __sys_setcontext(ucp);
+		return (__sys_setcontext(ucp));
 	(void) memcpy(&uc, ucp, sizeof(uc));
 	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 	return (__sys_setcontext(&uc));
