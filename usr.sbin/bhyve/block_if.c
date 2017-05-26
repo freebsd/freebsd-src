@@ -597,7 +597,7 @@ blockif_request(struct blockif_ctxt *bc, struct blockif_req *breq,
 	err = 0;
 
 	pthread_mutex_lock(&bc->bc_mtx);
-	if (!bc->bc_paused || !TAILQ_EMPTY(&bc->bc_freeq)) {
+	if (!bc->bc_paused && !TAILQ_EMPTY(&bc->bc_freeq)) {
 		/*
 		 * Enqueue and inform the block i/o thread
 		 * that there is work available
