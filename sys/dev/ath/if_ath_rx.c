@@ -593,7 +593,8 @@ ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
 		else
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		if ((rs->rs_flags & HAL_RX_GI) == 0)
+
+		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 
