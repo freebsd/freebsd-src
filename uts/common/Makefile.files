@@ -1333,6 +1333,7 @@ NOTIFY_OBJS += md_notify.o
 TRANS_OBJS += mdtrans.o trans_ioctl.o trans_log.o
 
 ZFS_COMMON_OBJS +=		\
+	abd.o			\
 	arc.o			\
 	blkptr.o		\
 	bplist.o		\

@@ -31,6 +31,7 @@
 #include <sys/zio.h>
 #include <sys/fs/zfs.h>
 #include <sys/fm/fs/zfs.h>
+#include <sys/abd.h>
 
 /*
  * Virtual device vector for files.
@@ -157,6 +158,12 @@ vdev_file_io_intr(buf_t *bp)
 	if (zio->io_error == 0 && bp->b_resid != 0)
 		zio->io_error = SET_ERROR(ENOSPC);
 
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	} else {
+		abd_return_buf(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	}
+
 	kmem_free(vb, sizeof (vdev_buf_t));
 	zio_delay_interrupt(zio);
 }
@@ -222,7 +229,15 @@ vdev_file_io_start(zio_t *zio)
 	bioinit(bp);
 	bp->b_flags = (zio->io_type == ZIO_TYPE_READ ? B_READ : B_WRITE);
 	bp->b_bcount = zio->io_size;
-	bp->b_un.b_addr = zio->io_data;
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		bp->b_un.b_addr =
+		    abd_borrow_buf(zio->io_abd, zio->io_size);
+	} else {
+		bp->b_un.b_addr =
+		    abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+	}
+
 	bp->b_lblkno = lbtodb(zio->io_offset);
 	bp->b_bufsize = zio->io_size;
 	bp->b_private = vf->vf_vnode;
