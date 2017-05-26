@@ -485,7 +485,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 	return (error);
 }
 
-#define UIO_MX 16
+#define UIO_MX _GENERIC_DIRLEN(10) /* number of symbols in INT_MAX printout */
 
 static int
 fdesc_readdir(struct vop_readdir_args *ap)

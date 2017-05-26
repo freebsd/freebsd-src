@@ -537,7 +537,7 @@ struct nandfs_bdesc {
 
 #ifndef _KERNEL
 #ifndef	MNAMELEN
-#define	MNAMELEN	88
+#define	MNAMELEN	1024
 #endif
 #endif
 

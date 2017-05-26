@@ -37,6 +37,7 @@ SRCS+=	libzfs_changelist.c \
 	zprop_common.c \
 
 WARNS?=	0
+SHLIB_MAJOR= 3
 CSTD=	c99
 CFLAGS+= -DZFS_NO_ACL
 CFLAGS+= -I${SRCTOP}/sbin/mount

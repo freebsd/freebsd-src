@@ -28,7 +28,7 @@
 .\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2006
+.Dd February 13, 2017
 .Dt STATFS 2
 .Os
 .Sh NAME
@@ -66,8 +66,8 @@ typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
  */
 
 #define	MFSNAMELEN	16		/* length of type name including null */
-#define	MNAMELEN	88		/* size of on/from name bufs */
-#define	STATFS_VERSION	0x20030518	/* current version number */
+#define	MNAMELEN	1024		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20140518	/* current version number */
 
 struct statfs {
 uint32_t f_version;		/* structure version number */

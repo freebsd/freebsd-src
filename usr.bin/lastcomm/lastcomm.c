@@ -61,9 +61,9 @@ __FBSDID("$FreeBSD$");
 time_t	 expand(u_int);
 char	*flagbits(int);
 const	 char *getdev(dev_t);
-int	 readrec_forward(FILE *f, struct acctv2 *av2);
-int	 readrec_backward(FILE *f, struct acctv2 *av2);
-int	 requested(char *[], struct acctv2 *);
+int	 readrec_forward(FILE *f, struct acctv3 *av3);
+int	 readrec_backward(FILE *f, struct acctv3 *av3);
+int	 requested(char *[], struct acctv3 *);
 static	 void usage(void);
 
 #define AC_UTIME 1 /* user */
@@ -77,10 +77,10 @@ static	 void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct acctv2 ab;
+	struct acctv3 ab;
 	char *p;
 	FILE *fp;
-	int (*readrec)(FILE *f, struct acctv2 *av2);
+	int (*readrec)(FILE *f, struct acctv3 *av3);
 	time_t t;
 	int ch, rv;
 	const char *acctfile, *format;
@@ -234,7 +234,7 @@ flagbits(int f)
 }
 
 int
-requested(char *argv[], struct acctv2 *acp)
+requested(char *argv[], struct acctv3 *acp)
 {
 	const char *p;
 

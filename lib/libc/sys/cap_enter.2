@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2016
+.Dd May 23, 2017
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -144,11 +144,11 @@ points outside the process's allocated address space.
 .Xr cap_fcntls_limit 2 ,
 .Xr cap_ioctls_limit 2 ,
 .Xr cap_rights_limit 2 ,
-.Xr procctl 2 ,
-.Xr sysctl 2 ,
 .Xr fexecve 2 ,
+.Xr procctl 2 ,
 .Xr cap_sandboxed 3 ,
-.Xr capsicum 4
+.Xr capsicum 4 ,
+.Xr sysctl 9
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD

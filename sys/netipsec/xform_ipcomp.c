@@ -194,34 +194,35 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct cryptop *crp;
 	struct ipcomp *ipcomp;
 	caddr_t addr;
-	int hlen = IPCOMP_HLENGTH;
+	int error, hlen = IPCOMP_HLENGTH;
 
 	/*
 	 * Check that the next header of the IPComp is not IPComp again, before
 	 * doing any real work.  Given it is not possible to do double
 	 * compression it means someone is playing tricks on us.
 	 */
+	error = ENOBUFS;
 	if (m->m_len < skip + hlen && (m = m_pullup(m, skip + hlen)) == NULL) {
 		IPCOMPSTAT_INC(ipcomps_hdrops);		/*XXX*/
 		DPRINTF(("%s: m_pullup failed\n", __func__));
-		return (ENOBUFS);
+		key_freesav(&sav);
+		return (error);
 	}
 	addr = (caddr_t) mtod(m, struct ip *) + skip;
 	ipcomp = (struct ipcomp *)addr;
 	if (ipcomp->comp_nxt == IPPROTO_IPCOMP) {
-		m_freem(m);
 		IPCOMPSTAT_INC(ipcomps_pdrops);	/* XXX have our own stats? */
 		DPRINTF(("%s: recursive compression detected\n", __func__));
-		return (EINVAL);
+		error = EINVAL;
+		goto bad;
 	}
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
-		m_freem(m);
 		DPRINTF(("%s: no crypto descriptors\n", __func__));
 		IPCOMPSTAT_INC(ipcomps_crypto);
-		return ENOBUFS;
+		goto bad;
 	}
 	/* Get IPsec-specific opaque pointer */
 	xd = malloc(sizeof(*xd), M_XDATA, M_NOWAIT | M_ZERO);
@@ -229,8 +230,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		DPRINTF(("%s: cannot allocate xform_data\n", __func__));
 		IPCOMPSTAT_INC(ipcomps_crypto);
 		crypto_freereq(crp);
-		m_freem(m);
-		return ENOBUFS;
+		goto bad;
 	}
 	crdc = crp->crp_desc;
 
@@ -259,6 +259,10 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	SECASVAR_UNLOCK(sav);
 
 	return crypto_dispatch(crp);
+bad:
+	m_freem(m);
+	key_freesav(&sav);
+	return (error);
 }
 
 /*
@@ -506,6 +510,8 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 bad:
 	if (m)
 		m_freem(m);
+	key_freesav(&sav);
+	key_freesp(&sp);
 	return (error);
 }
 

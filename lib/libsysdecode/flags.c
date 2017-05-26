@@ -730,6 +730,19 @@ sysdecode_socketdomain(int domain)
 }
 
 const char *
+sysdecode_socket_protocol(int domain, int protocol)
+{
+
+	switch (domain) {
+	case PF_INET:
+	case PF_INET6:
+		return (lookup_value(sockipproto, protocol));
+	default:
+		return (NULL);
+	}
+}
+
+const char *
 sysdecode_sockaddr_family(int sa_family)
 {
 

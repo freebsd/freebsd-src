@@ -58,8 +58,9 @@ including the NULL terminator) in the location pointed to by
 .Va len_p .
 If the ACL is POSIX.1e, the format of the text string returned by
 .Fn acl_to_text
-shall be the POSIX.1e long ACL form.  If the ACL is NFSv4, the format
-of the text string shall be the compact form, unless the
+shall be the POSIX.1e long ACL form.
+If the ACL is NFSv4, the format of the text string shall be the compact form, unless
+the
 .Va ACL_TEXT_VERBOSE
 flag is given.
 .Pp

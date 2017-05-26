@@ -1347,8 +1347,8 @@ ino_adjust(struct suj_ino *sino)
 	struct suj_ino *stmp;
 	union dinode *ip;
 	nlink_t nlink;
+	nlink_t reqlink;
 	int recmode;
-	int reqlink;
 	int isdot;
 	int mode;
 	ino_t ino;
@@ -1635,9 +1635,9 @@ ino_check(struct suj_ino *sino)
 	struct suj_rec *srec;
 	struct jrefrec *rrec;
 	nlink_t dotlinks;
-	int newlinks;
-	int removes;
-	int nlink;
+	nlink_t newlinks;
+	nlink_t removes;
+	nlink_t nlink;
 	ino_t ino;
 	int isdot;
 	int isat;

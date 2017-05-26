@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "thr_private.h"
 
-void	_pthread_exit(void *status);
-
 static void	exit_thread(void) __dead2;
 
 __weak_reference(_pthread_exit, pthread_exit);
@@ -72,7 +70,7 @@ static void
 thread_uw_init(void)
 {
 	static int inited = 0;
-	Dl_info dlinfo;
+	Dl_info dli;
 	void *handle;
 	void *forcedunwind, *getcfa;
 
@@ -80,12 +78,12 @@ thread_uw_init(void)
 	    return;
 	handle = RTLD_DEFAULT;
 	if ((forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind")) != NULL) {
-	    if (dladdr(forcedunwind, &dlinfo)) {
+	    if (dladdr(forcedunwind, &dli)) {
 		/*
 		 * Make sure the address is always valid by holding the library,
 		 * also assume functions are in same library.
 		 */
-		if ((handle = dlopen(dlinfo.dli_fname, RTLD_LAZY)) != NULL) {
+		if ((handle = dlopen(dli.dli_fname, RTLD_LAZY)) != NULL) {
 		    forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind");
 		    getcfa = dlsym(handle, "_Unwind_GetCFA");
 		    if (forcedunwind != NULL && getcfa != NULL) {

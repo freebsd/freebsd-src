@@ -133,6 +133,16 @@ const struct decode_win *cpu_wins = cpu_win_tbl;
 typedef void (*decode_win_setup_t)(u_long);
 typedef void (*dump_win_t)(u_long);
 
+/*
+ * The power status of device feature is only supported on
+ * Kirkwood and Discovery SoCs.
+ */
+#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
+#define	SOC_MV_POWER_STAT_SUPPORTED		1
+#else
+#define	SOC_MV_POWER_STAT_SUPPORTED		0
+#endif
+
 struct soc_node_spec {
 	const char		*compat;
 	decode_win_setup_t	decode_handler;
@@ -174,10 +184,10 @@ static struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 static __inline int
 pm_is_disabled(uint32_t mask)
 {
-#if defined(SOC_MV_KIRKWOOD)
-	return (soc_power_ctrl_get(mask) == mask);
-#else
+#if SOC_MV_POWER_STAT_SUPPORTED
 	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
+#else
+	return (0);
 #endif
 }
 
@@ -364,7 +374,7 @@ uint32_t
 soc_power_ctrl_get(uint32_t mask)
 {
 
-#if !defined(SOC_MV_ORION)
+#if SOC_MV_POWER_STAT_SUPPORTED
 	if (mask != CPU_PM_CTRL_NONE)
 		mask &= read_cpu_ctrl(CPU_PM_CTRL);
 
@@ -1106,6 +1116,7 @@ static void
 decode_win_cesa_setup(u_long base)
 {
 	uint32_t br, cr;
+	uint64_t size;
 	int i, j;
 
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
@@ -1118,7 +1129,21 @@ decode_win_cesa_setup(u_long base)
 		if (ddr_is_active(i)) {
 			br = ddr_base(i);
 
-			cr = (((ddr_size(i) - 1) & 0xffff0000) |
+			size = ddr_size(i);
+#ifdef SOC_MV_ARMADA38X
+			/*
+			 * Armada 38x SoC's equipped with 4GB DRAM
+			 * suffer freeze during CESA operation, if
+			 * MBUS window opened at given DRAM CS reaches
+			 * end of the address space. Apply a workaround
+			 * by setting the window size to the closest possible
+			 * value, i.e. divide it by 2.
+			 */
+			if (size + ddr_base(i) == 0x100000000ULL)
+				size /= 2;
+#endif
+
+			cr = (((size - 1) & 0xffff0000) |
 			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
 			    (ddr_target(i) << IO_WIN_TGT_SHIFT) |
 			    IO_WIN_ENA_MASK);
@@ -1167,7 +1192,6 @@ decode_win_usb_setup(u_long base)
 {
 	uint32_t br, cr;
 	int i, j;
-
 
 	if (pm_is_disabled(CPU_PM_CTRL_USB(usb_port)))
 		return;
@@ -2269,6 +2293,12 @@ win_cpu_from_dt(void)
 		entry_size = tuple_size / sizeof(pcell_t);
 		cpu_wins_no = tuples;
 
+		/* Check range */
+		if (tuples > nitems(cpu_win_tbl)) {
+			debugf("too many tuples to fit into cpu_win_tbl\n");
+			return (ENOMEM);
+		}
+
 		for (i = 0, t = 0; t < tuples; i += entry_size, t++) {
 			cpu_win_tbl[t].target = 1;
 			cpu_win_tbl[t].attr = fdt32_to_cpu(ranges[i + 1]);
@@ -2300,6 +2330,12 @@ moveon:
 	sram_base = sram_size = 0;
 	if (fdt_regsize(node, &sram_base, &sram_size) != 0)
 		return (EINVAL);
+
+	/* Check range */
+	if (t >= nitems(cpu_win_tbl)) {
+		debugf("cannot fit CESA tuple into cpu_win_tbl\n");
+		return (ENOMEM);
+	}
 
 	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
 #ifdef SOC_MV_ARMADA38X

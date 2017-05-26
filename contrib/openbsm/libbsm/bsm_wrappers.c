@@ -264,12 +264,14 @@ audit_set_terminal_host(uint32_t *m)
 int
 audit_set_terminal_id(au_tid_t *tid)
 {
+	dev_t port;
 	int ret;
 
 	if (tid == NULL)
 		return (kAUBadParamErr);
-	if ((ret = audit_set_terminal_port(&tid->port)) != kAUNoErr)
+	if ((ret = audit_set_terminal_port(&port)) != kAUNoErr)
 		return (ret);
+	tid->port = port;
 	return (audit_set_terminal_host(&tid->machine));
 }
 

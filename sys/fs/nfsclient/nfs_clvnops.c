@@ -207,8 +207,6 @@ static int nfs_renameit(struct vnode *sdvp, struct vnode *svp,
 /*
  * Global variables
  */
-#define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
-
 SYSCTL_DECL(_vfs_nfs);
 
 static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;

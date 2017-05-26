@@ -505,11 +505,6 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 # Don't rebuild build-tools targets during normal build.
 CROSSENV+=	BUILD_TOOLS_META=.NOMETA
 .endif
-.if ${MK_GROFF} != "no"
-CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
-.endif
 .if defined(TARGET_CFLAGS)
 CROSSENV+=	${TARGET_CFLAGS}
 .endif
@@ -712,16 +707,39 @@ _worldtmp: .PHONY
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .endif
+# Dependencies cannot cope with certain source tree changes, particularly
+# with respect to removing source files and replacing generated files.
+# Handle these cases here in an ad-hoc fashion.
+# 20160829 remove stale dependencies for ptrace stub, rewritten in C
+# in r305012
+.for f in ptrace
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+	@if egrep -q '/${f}.[sS]' \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+		echo Removing stale dependencies for ${f} syscall wrappers; \
+		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+	fi
+.endif
+.endfor
+# 20170523 remove stale generated asm files for functions which are no longer
+# syscalls after r302092 (pipe) and r318736 (others)
+.for f in getdents lstat mknod pipe stat
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.s) || \
+    exists(${OBJTREE}${.CURDIR}/lib/libc/${f}.S)
+	@echo Removing stale generated ${f} syscall files
+	@rm -f ${OBJTREE}${.CURDIR}/lib/libc/${f}.* \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/${f}.* \
+	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
+.endif
+.endfor
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.if ${MK_GROFF} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.groff.dist \
-	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.endif
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/legacy/usr/include >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -1654,11 +1672,6 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_SHAREDOCS} != "no" && ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff \
-		usr.bin/soelim
-.endif
-
 .if ${MK_VT} != "no"
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
@@ -1765,7 +1778,6 @@ bootstrap-tools: .PHONY
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
     ${_gperf} \
-    ${_groff} \
     ${_dtc} \
     ${_cat} \
     ${_kbdcontrol} \

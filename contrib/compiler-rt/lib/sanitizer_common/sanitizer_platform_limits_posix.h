@@ -489,7 +489,8 @@ namespace __sanitizer {
   };
 #elif SANITIZER_FREEBSD
   struct __sanitizer_dirent {
-    unsigned int d_fileno;
+    unsigned long long d_fileno;
+    unsigned long long d_off;
     unsigned short d_reclen;
     // more fields that we don't care about
   };

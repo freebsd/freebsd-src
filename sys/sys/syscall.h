@@ -19,7 +19,7 @@
 				/* 11 is obsolete execv */
 #define	SYS_chdir	12
 #define	SYS_fchdir	13
-#define	SYS_mknod	14
+#define	SYS_freebsd11_mknod	14
 #define	SYS_chmod	15
 #define	SYS_chown	16
 #define	SYS_break	17
@@ -175,14 +175,14 @@
 #define	SYS_setgid	181
 #define	SYS_setegid	182
 #define	SYS_seteuid	183
-#define	SYS_stat	188
-#define	SYS_fstat	189
-#define	SYS_lstat	190
+#define	SYS_freebsd11_stat	188
+#define	SYS_freebsd11_fstat	189
+#define	SYS_freebsd11_lstat	190
 #define	SYS_pathconf	191
 #define	SYS_fpathconf	192
 #define	SYS_getrlimit	194
 #define	SYS_setrlimit	195
-#define	SYS_getdirentries	196
+#define	SYS_freebsd11_getdirentries	196
 				/* 197 is freebsd6 mmap */
 #define	SYS___syscall	198
 				/* 199 is freebsd6 lseek */
@@ -229,19 +229,19 @@
 #define	SYS_aio_read	255
 #define	SYS_aio_write	256
 #define	SYS_lio_listio	257
-#define	SYS_getdents	272
+#define	SYS_freebsd11_getdents	272
 #define	SYS_lchmod	274
 #define	SYS_netbsd_lchown	275
 #define	SYS_lutimes	276
 #define	SYS_netbsd_msync	277
-#define	SYS_nstat	278
-#define	SYS_nfstat	279
-#define	SYS_nlstat	280
+#define	SYS_freebsd11_nstat	278
+#define	SYS_freebsd11_nfstat	279
+#define	SYS_freebsd11_nlstat	280
 #define	SYS_preadv	289
 #define	SYS_pwritev	290
 				/* 297 is freebsd4 fhstatfs */
 #define	SYS_fhopen	298
-#define	SYS_fhstat	299
+#define	SYS_freebsd11_fhstat	299
 #define	SYS_modnext	300
 #define	SYS_modstat	301
 #define	SYS_modfnext	302
@@ -324,10 +324,10 @@
 #define	SYS_uuidgen	392
 #define	SYS_sendfile	393
 #define	SYS_mac_syscall	394
-#define	SYS_getfsstat	395
-#define	SYS_statfs	396
-#define	SYS_fstatfs	397
-#define	SYS_fhstatfs	398
+#define	SYS_freebsd11_getfsstat	395
+#define	SYS_freebsd11_statfs	396
+#define	SYS_freebsd11_fstatfs	397
+#define	SYS_freebsd11_fhstatfs	398
 #define	SYS_ksem_close	400
 #define	SYS_ksem_post	401
 #define	SYS_ksem_wait	402
@@ -411,12 +411,12 @@
 #define	SYS_fchmodat	490
 #define	SYS_fchownat	491
 #define	SYS_fexecve	492
-#define	SYS_fstatat	493
+#define	SYS_freebsd11_fstatat	493
 #define	SYS_futimesat	494
 #define	SYS_linkat	495
 #define	SYS_mkdirat	496
 #define	SYS_mkfifoat	497
-#define	SYS_mknodat	498
+#define	SYS_freebsd11_mknodat	498
 #define	SYS_openat	499
 #define	SYS_readlinkat	500
 #define	SYS_renameat	501
@@ -468,4 +468,13 @@
 #define	SYS_numa_getaffinity	548
 #define	SYS_numa_setaffinity	549
 #define	SYS_fdatasync	550
-#define	SYS_MAXSYSCALL	551
+#define	SYS_fstat	551
+#define	SYS_fstatat	552
+#define	SYS_fhstat	553
+#define	SYS_getdirentries	554
+#define	SYS_statfs	555
+#define	SYS_fstatfs	556
+#define	SYS_getfsstat	557
+#define	SYS_fhstatfs	558
+#define	SYS_mknodat	559
+#define	SYS_MAXSYSCALL	560
