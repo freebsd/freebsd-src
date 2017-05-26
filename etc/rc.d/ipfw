@@ -56,7 +56,7 @@ ipfw_start()
 	#
 	if checkyesno firewall_logging; then
 		echo 'Firewall logging enabled.'
-		sysctl net.inet.ip.fw.verbose=1 >/dev/null
+		${SYSCTL} net.inet.ip.fw.verbose=1 >/dev/null
 	fi
 	if checkyesno firewall_logif; then
 		ifconfig ipfw0 create
@@ -78,11 +78,11 @@ ipfw_poststart()
 
 	# Enable the firewall
 	#
-	if ! ${SYSCTL} net.inet.ip.fw.enable=1 1>/dev/null 2>&1; then
+	if ! ${SYSCTL} net.inet.ip.fw.enable=1 >/dev/null 2>&1; then
 		warn "failed to enable IPv4 firewall"
 	fi
 	if afexists inet6; then
-		if ! ${SYSCTL} net.inet6.ip6.fw.enable=1 1>/dev/null 2>&1
+		if ! ${SYSCTL} net.inet6.ip6.fw.enable=1 >/dev/null 2>&1
 		then
 			warn "failed to enable IPv6 firewall"
 		fi
@@ -95,9 +95,9 @@ ipfw_stop()
 
 	# Disable the firewall
 	#
-	${SYSCTL} net.inet.ip.fw.enable=0
+	${SYSCTL} net.inet.ip.fw.enable=0 >/dev/null
 	if afexists inet6; then
-		${SYSCTL} net.inet6.ip6.fw.enable=0
+		${SYSCTL} net.inet6.ip6.fw.enable=0 >/dev/null
 	fi
 
 	# Stop firewall coscripts
