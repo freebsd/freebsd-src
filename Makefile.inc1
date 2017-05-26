@@ -710,6 +710,18 @@ _worldtmp: .PHONY
 # Dependencies cannot cope with certain source tree changes, particularly
 # with respect to removing source files and replacing generated files.
 # Handle these cases here in an ad-hoc fashion.
+# 20160829 remove stale dependencies for ptrace stub, rewritten in C
+# in r305012
+.for f in ptrace
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+	@if egrep -q '/${f}.[sS]' \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+		echo Removing stale dependencies for ${f} syscall wrappers; \
+		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+	fi
+.endif
+.endfor
 # 20170523 remove stale generated asm files for functions which are no longer
 # syscalls after r302092 (pipe) and r318736 (others)
 .for f in getdents lstat mknod pipe stat
