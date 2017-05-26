@@ -82,7 +82,7 @@ extern const char		*errstr[];
 #define	EXCL_PAT	0
 #define	INCL_PAT	1
 
-#define	MAX_LINE_MATCHES	32
+#define	MAX_MATCHES	32
 
 struct file {
 	int		 fd;

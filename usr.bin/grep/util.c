@@ -61,7 +61,7 @@ static bool	 first_match = true;
  * other useful bits
  */
 struct parsec {
-	regmatch_t	matches[MAX_LINE_MATCHES];	/* Matches made */
+	regmatch_t	matches[MAX_MATCHES];		/* Matches made */
 	struct str	ln;				/* Current line */
 	size_t		lnstart;			/* Position in line */
 	size_t		matchidx;			/* Latest match index */
@@ -295,7 +295,7 @@ procfile(const char *fn)
 		/* Print the matching line, but only if not quiet/binary */
 		if (t == 0 && printmatch) {
 			printline(&pc, ':');
-			while (pc.matchidx >= MAX_LINE_MATCHES) {
+			while (pc.matchidx >= MAX_MATCHES) {
 				/* Reset matchidx and try again */
 				pc.matchidx = 0;
 				if (procline(&pc) == 0)
@@ -401,7 +401,7 @@ procline(struct parsec *pc)
 		lastmatches = 0;
 		startm = matchidx;
 		retry = 0;
-		if (st > 0)
+		if (st > 0 && pc->ln.dat[st - 1] != fileeol)
 			leflags |= REG_NOTBOL;
 		/* Loop to compare with all the patterns */
 		for (i = 0; i < patterns; i++) {
@@ -483,7 +483,7 @@ procline(struct parsec *pc)
 			}
 			/* avoid excessive matching - skip further patterns */
 			if ((color == NULL && !oflag) || qflag || lflag ||
-			    matchidx >= MAX_LINE_MATCHES) {
+			    matchidx >= MAX_MATCHES) {
 				pc->lnstart = nst;
 				lastmatches = 0;
 				break;
