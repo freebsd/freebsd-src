@@ -120,4 +120,11 @@ typedef union {
 
 typedef __uintmax_t     __rman_res_t;
 
+/*
+ * When the following macro is defined, the system uses 64-bit inode numbers.
+ * Programs can use this to avoid including <sys/param.h>, with its associated
+ * namespace pollution.
+ */
+#define	__INO64
+
 #endif /* !_SYS__TYPES_H_ */
