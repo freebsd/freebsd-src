@@ -476,13 +476,15 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	char	*buf;
 	int	i, bufsize;
 	off_t	bufrem;
+	int	oflags = O_RDWR | O_CREAT;
 	time_t	tstamp;
-	int	oflags = O_RDWR | O_CREAT | O_TRUNC;
 
 	assert (image != NULL);
 	assert (fsopts != NULL);
 
 		/* create image */
+	if (fsopts->offset == 0)
+		oflags |= O_TRUNC;
 	if ((fsopts->fd = open(image, oflags, 0666)) == -1) {
 		warn("Can't open `%s' for writing", image);
 		return (-1);
@@ -517,6 +519,13 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 			    bufsize);
 		buf = ecalloc(1, bufsize);
 	}
+
+	if (fsopts->offset != 0)
+		if (lseek(fsopts->fd, fsopts->offset, SEEK_SET) == -1) {
+			warn("can't seek");
+			return -1;
+		}
+
 	while (bufrem > 0) {
 		i = write(fsopts->fd, buf, MIN(bufsize, bufrem));
 		if (i == -1) {
