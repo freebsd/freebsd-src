@@ -5308,6 +5308,13 @@ OLD_FILES+=${TESTS_FILES}
 . endif
 .endif	# Test suite.
 
+.if ${MK_TFTP} == no
+OLD_FILES+=usr/bin/tftp
+OLD_FILES+=usr/libexec/tftpd
+OLD_FILES+=usr/share/man/man1/tftp.1.gz
+OLD_FILES+=usr/share/man/man8/tftpd.8.gz
+.endif
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
