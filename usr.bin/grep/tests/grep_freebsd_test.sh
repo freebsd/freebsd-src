@@ -77,8 +77,7 @@ rgrep_head()
 }
 rgrep_body()
 {
-	grep -r --exclude="*.out" -e "test" "$(atf_get_srcdir)" > d_grep_r_implied.out
-
+	atf_check -o save:d_grep_r_implied.out grep -r --exclude="*.out" -e "test" "$(atf_get_srcdir)"
 	atf_check -o file:d_grep_r_implied.out rgrep --exclude="*.out" -e "test" "$(atf_get_srcdir)"
 }
 
