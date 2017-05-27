@@ -1565,12 +1565,14 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	int szsigcode, szps;
 	struct cheriabi_execdata ce;
 
+	KASSERT(imgp->auxargs != NULL, ("CheriABI requires auxargs"));
+
 	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+	if (imgp->execpath != NULL)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
 		execpath_len = 0;
@@ -1629,18 +1631,14 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	    arginfo, sizeof(struct ps_strings), 0);
 
 	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
+	 * Prepare some room * on the stack for auxargs.
 	 */
-	if (imgp->auxargs) {
-		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
-		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
-	} else
-		imgp->auxarg_size = 0;
+	/*
+	 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+	 * lower compatibility.
+	 */
+	imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
+		: (AT_COUNT * 2);
 	/*
 	 * The '+ 2' is for the null pointers at the end of each of
 	 * the arg and env vector sets, and imgp->auxarg_size is room
