@@ -161,7 +161,7 @@ typedef struct ace_list {
 void
 ksort(caddr_t v, int n, int s, int (*f)())
 {
-	int g, i, j, ii;
+	int g = 1, i, j, ii;
 	unsigned int *p1, *p2;
 	unsigned int tmp;
 
@@ -172,7 +172,12 @@ ksort(caddr_t v, int n, int s, int (*f)())
 	/* Sanity check on arguments */
 	ASSERT(((uintptr_t)v & 0x3) == 0 && (s & 0x3) == 0);
 	ASSERT(s > 0);
-	for (g = n / 2; g > 0; g /= 2) {
+
+	do {
+		g = 3 * g + 1;
+	} while (g < n);
+
+	for (g /= 3; g > 0; g /= 3) {
 		for (i = g; i < n; i++) {
 			for (j = i - g; j >= 0 &&
 			    (*f)(v + j * s, v + (j + g) * s) == 1;
