@@ -56,6 +56,8 @@ ATF_TC_BODY(kvm_geterr_negative_test_NULL, tc)
 	ATF_REQUIRE(!errbuf_has_error(kvm_geterr(NULL)));
 }
 
+/* 1100090 was where kvm_open2(3) was introduced. */
+#if __FreeBSD_version >= 1100091
 ATF_TC(kvm_geterr_positive_test_error);
 ATF_TC_HEAD(kvm_geterr_positive_test_error, tc)
 {
@@ -65,8 +67,6 @@ ATF_TC_HEAD(kvm_geterr_positive_test_error, tc)
 	atf_tc_set_md_var(tc, "require.user", "root");
 }
 
-/* 1100090 was where kvm_open2(3) was introduced. */
-#if __FreeBSD_version >= 1100091
 ATF_TC_BODY(kvm_geterr_positive_test_error, tc)
 {
 	kvm_t *kd;
