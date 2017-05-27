@@ -124,12 +124,6 @@ struct bootp {
 #endif
 
 /*
- * bootp flags
- */
-#define	BOOTP_NONE		0x0000		/* No flags */
-#define	BOOTP_PXE		0x0001		/* Booting from PXE. */
-
-/*
  * "vendor" data permitted for CMU bootp clients.
  */
 
