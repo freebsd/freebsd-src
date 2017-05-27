@@ -150,7 +150,7 @@ bootp(int sock)
 	bp->bp_vend[19] = 8;
 	/* len of the first user class */
 	bp->bp_vend[20] = 7;
-	bcopy("FREEBSD", &bp->bp_vend[21], 7);
+	bcopy("FreeBSD", &bp->bp_vend[21], 7);
 	bp->bp_vend[28] = TAG_PARAM_REQ;
 	bp->bp_vend[29] = 7;
 	bp->bp_vend[30] = TAG_ROOTPATH;
