@@ -28,6 +28,10 @@
 # Verifies that vnd works with files stored in tmpfs.
 #
 
+# Begin FreeBSD
+MD_DEVICE_FILE=md.device
+# End FreeBSD
+
 atf_test_case basic cleanup
 basic_head() {
 	atf_set "descr" "Verifies that vnd works with files stored in tmpfs"
@@ -41,7 +45,10 @@ basic_body() {
 	# Begin FreeBSD
 	if true; then
 		atf_check -s eq:0 -o empty -e empty mkdir mnt
-		atf_check -s eq:0 -o empty -e empty mdmfs -F disk.img md3 mnt
+		atf_check -s eq:0 -o empty -e empty mdmfs -F disk.img md mnt
+		md_dev=$(df mnt | awk 'NR != 1 { print $1 }' | xargs basename)
+		atf_check test -c /dev/$md_dev # Sanity check
+		echo -n $md_dev > $TMPDIR/$MD_DEVICE_FILE
 	else
 	# End FreeBSD
 	atf_check -s eq:0 -o empty -e empty vndconfig /dev/vnd3 disk.img
@@ -67,31 +74,23 @@ basic_body() {
 	done
 
 	atf_check -s eq:0 -o empty -e empty umount mnt
-	# Begin FreeBSD
-	if true; then
-		atf_check -s eq:0 -o empty -e empty mdconfig -d -u 3
-	else
-	# End FreeBSD
 	atf_check -s eq:0 -o empty -e empty vndconfig -u /dev/vnd3
-	# Begin FreeBSD
-	fi
-	# End FreeBSD
 
 	test_unmount
 	touch done
 }
 basic_cleanup() {
+	# Begin FreeBSD
+	if md_dev=$(cat $TMPDIR/$MD_DEVICE_FILE); then
+		echo "Will try disconnecting $md_dev"
+	else
+		echo "$MD_DEVICE_FILE doesn't exist in $TMPDIR; returning early"
+		return 0
+	fi
+	# End FreeBSD
 	if [ ! -f done ]; then
 		umount mnt 2>/dev/null 1>&2
-		# Begin FreeBSD
-		if true; then
-			[ ! -c /dev/md3 ] || mdconfig -d -u 3
-		else
-		# End FreeBSD
 		vndconfig -u /dev/vnd3 2>/dev/null 1>&2
-		# Begin FreeBSD
-		fi
-		# End FreeBSD
 	fi
 }
 
