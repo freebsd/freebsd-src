@@ -382,7 +382,7 @@ _LD(const char *var)
  * The return value is the main program's entry point.
  */
 func_ptr_type
-_rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
+_rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
@@ -401,7 +401,6 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
     char *library_path_rpath;
     int mib[2];
     size_t len;
-    struct cheriabi_execdata *ce;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -411,13 +410,10 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
      */
 
     /* Find the auxiliary vector. */
-    /* Compat code remove in a couple weeks (20170526) */
-    if (*(long*)auxv == sizeof(struct cheriabi_execdata)) {
-	ce = auxv;
-	aux = (Elf_Auxinfo *)ce->ce_auxargs;
-    } else {
-	aux = auxv;
-    }
+    argc = ce->ce_argc;
+    argv = ce->ce_argv;
+    env = ce->ce_envp;
+    aux = (Elf_Auxinfo *)ce->ce_auxargs;
 
     /* Digest the auxiliary vector. */
     for (i = 0;  i < AT_COUNT;  i++)
@@ -425,17 +421,6 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
     for (auxp = aux;  auxp->a_type != AT_NULL;  auxp++) {
 	if (auxp->a_type < AT_COUNT)
 	    aux_info[auxp->a_type] = auxp;
-    }
-    argc = aux_info[AT_ARGC]->a_un.a_val;
-    argv = (char **)aux_info[AT_ARGV]->a_un.a_ptr;
-    argv = (char **)aux_info[AT_ENVV]->a_un.a_ptr;
-    if (ce != NULL) {
-	if (argc == 0)
-	    argc = ce->ce_argc;
-	if (argv == NULL)
-	    argv = ce->ce_argv;
-	if (env == NULL)
-	    env = ce->ce_envp;
     }
 
     /* Initialize and relocate ourselves. */
