@@ -310,6 +310,8 @@
         ..
         libcrypt
         ..
+        libkvm
+        ..
         libmp
         ..
         libnv
