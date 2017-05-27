@@ -381,18 +381,14 @@ struct pagerops swappagerops = {
 };
 
 /*
- * dmmax is in page-sized chunks with the new swap system.  It was
- * dev-bsized chunks in the old.  dmmax is always a power of 2.
- *
  * swap_*() routines are externally accessible.  swp_*() routines are
  * internal.
  */
-static int dmmax;
 static int nswap_lowat = 128;	/* in pages, swap_pager_almost_full warn */
 static int nswap_hiwat = 512;	/* in pages, swap_pager_almost_full warn */
 
-SYSCTL_INT(_vm, OID_AUTO, dmmax, CTLFLAG_RD, &dmmax, 0,
-    "Maximum size of a swap block");
+SYSCTL_INT(_vm, OID_AUTO, dmmax, CTLFLAG_RD, &nsw_cluster_max, 0,
+    "Maximum size of a swap block in pages");
 
 static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
@@ -489,11 +485,6 @@ swap_pager_init(void)
 	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
 	sx_init(&sw_alloc_sx, "swspsx");
 	sx_init(&swdev_syscall_lock, "swsysc");
-
-	/*
-	 * Device Stripe, in PAGE_SIZE'd blocks
-	 */
-	dmmax = SWB_NPAGES * 2;
 }
 
 /*
