@@ -736,8 +736,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
 	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
-	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
-	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
+	} else if (dmat->nsegments >=
+	    howmany(dmat->maxsize, MIN(dmat->maxsegsz, PAGE_SIZE)) &&
+	    dmat->alignment <= PAGE_SIZE &&
+	    (dmat->boundary % PAGE_SIZE) == 0) {
 		*vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
 		    mflags, 0, dmat->lowaddr, memattr);
 	} else {
