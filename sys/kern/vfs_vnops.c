@@ -2493,3 +2493,14 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 #endif
 	return (error);
 }
+
+void
+vn_fsid(struct vnode *vp, struct vattr *va)
+{
+	fsid_t *f;
+
+	f = &vp->v_mount->mnt_stat.f_fsid;
+	va->va_fsid = (uint32_t)f->val[1];
+	va->va_fsid <<= sizeof(f->val[1]) * NBBY;
+	va->va_fsid += (uint32_t)f->val[0];
+}

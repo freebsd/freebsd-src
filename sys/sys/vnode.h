@@ -885,6 +885,8 @@ int vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td);
 
+void vn_fsid(struct vnode *vp, struct vattr *va);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
