@@ -284,7 +284,7 @@ net_getparams(int sock)
 			d->myip = myip;
 		}
 		if (rc < 0)
-			bootp(sock, BOOTP_NONE);
+			bootp(sock);
 	}
 	if (myip.s_addr != 0)
 		goto exit;
