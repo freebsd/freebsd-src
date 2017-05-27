@@ -849,6 +849,13 @@ typedef struct {
 #define	SYMINFO_CURRENT		1
 #define	SYMINFO_NUM		2
 
+/* Values for ch_type (compressed section headers). */
+#define	ELFCOMPRESS_ZLIB	1	/* ZLIB/DEFLATE */
+#define	ELFCOMPRESS_LOOS	0x60000000	/* OS-specific */
+#define	ELFCOMPRESS_HIOS	0x6fffffff
+#define	ELFCOMPRESS_LOPROC	0x70000000	/* Processor-specific */
+#define	ELFCOMPRESS_HIPROC	0x7fffffff
+
 /*
  * Relocation types.
  *
