@@ -119,7 +119,7 @@ ssize_t	sendrecv(struct iodesc *,
 			void **, void **);
 
 /* bootp/DHCP */
-void	bootp(int, int);
+void	bootp(int);
 
 /* Utilities: */
 char	*ether_sprintf(u_char *);
