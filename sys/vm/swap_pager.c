@@ -2310,9 +2310,13 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 */
 	mtx_lock(&sw_dev_mtx);
 	sp->sw_flags |= SW_CLOSING;
-	for (dvbase = 0; dvbase < sp->sw_end; dvbase += dmmax) {
+	for (dvbase = 0; dvbase < nblks; dvbase += BLIST_BMAP_RADIX) {
+		/*
+		 * blist_fill() cannot allocate more than BLIST_BMAP_RADIX
+		 * blocks per call.
+		 */
 		swap_pager_avail -= blist_fill(sp->sw_blist,
-		     dvbase, dmmax);
+		    dvbase, ulmin(nblks - dvbase, BLIST_BMAP_RADIX));
 	}
 	swap_total -= (vm_ooffset_t)nblks * PAGE_SIZE;
 	mtx_unlock(&sw_dev_mtx);
