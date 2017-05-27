@@ -34,4 +34,10 @@ MLINKS+=kvm_getprocs.3 kvm_getargv.3 kvm_getprocs.3 kvm_getenvv.3
 MLINKS+=kvm_open.3 kvm_close.3 kvm_open.3 kvm_openfiles.3
 MLINKS+=kvm_read.3 kvm_write.3
 
+.include <bsd.own.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.lib.mk>
