@@ -779,7 +779,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	 *    (the allocator aligns buffers to their size boundaries).
 	 *  - There's no need to handle lowaddr/highaddr exclusion zones.
 	 * else allocate non-contiguous pages if...
-	 *  - The page count that could get allocated doesn't exceed nsegments.
+	 *  - The page count that could get allocated doesn't exceed
+	 *    nsegments also when the maximum segment size is less
+	 *    than PAGE_SIZE.
 	 *  - The alignment constraint isn't larger than a page boundary.
 	 *  - There are no boundary-crossing constraints.
 	 * else allocate a block of contiguous pages because one or more of the
@@ -788,8 +790,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
 	    !exclusion_bounce(dmat)) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
-	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
-	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
+	} else if (dmat->nsegments >=
+	    howmany(dmat->maxsize, MIN(dmat->maxsegsz, PAGE_SIZE)) &&
+	    dmat->alignment <= PAGE_SIZE &&
+	    (dmat->boundary % PAGE_SIZE) == 0) {
 		*vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
 		    mflags, 0, dmat->lowaddr, memattr);
 	} else {
