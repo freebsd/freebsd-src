@@ -468,6 +468,9 @@ struct ctl_lun_create_params {
 	uint32_t		req_lun_id;
 	uint8_t			serial_num[CTL_SN_LEN];
 	uint8_t			device_id[CTL_DEVID_LEN];
+        uint8_t			scbus;
+	uint8_t			target;
+	uint8_t			lun_num;
 };
 
 /*

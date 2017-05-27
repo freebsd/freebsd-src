@@ -420,6 +420,16 @@ The SCSI serial number presented to the initiator.
 .It Ic size Ar size
 The LUN size, in bytes.
 .El
+.Ss passthrough context
+.Bl -tag -width indent
+.It Ic passthrough-device Ar device
+The device represents the device path in /dev/. for eg, "/dev/da0".
+In lun block this is represented as passthrough-device "/dev/da0".
+.It Ic passthrough-address Ar address
+The address represents the string format of device address in the form of 
+"bus:target:lun". camcontrol devlist provides this address of every type of 
+device attached. for example, passthrough-address "1:0:0"
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/ctl.conf" -compact
 .It Pa /etc/ctl.conf

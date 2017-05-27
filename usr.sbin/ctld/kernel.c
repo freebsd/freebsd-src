@@ -675,6 +675,13 @@ kernel_lun_add(struct lun *lun)
 
 	req.reqdata.create.blocksize_bytes = lun->l_blocksize;
 
+
+	if(lun->l_pass_addr[0] != '\0')
+	{
+		req.reqdata.create.scbus = lun->l_pass_bus;
+		req.reqdata.create.target = lun->l_pass_target;
+		req.reqdata.create.lun_num = lun->l_pass_lun;
+	}
 	if (lun->l_size != 0)
 		req.reqdata.create.lun_size_bytes = lun->l_size;
 
@@ -742,7 +749,7 @@ kernel_lun_add(struct lun *lun)
 		}
 		assert(i == num_options);
 	}
-
+	
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
 	free(req.be_args);
 	if (error != 0) {
