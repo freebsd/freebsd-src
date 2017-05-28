@@ -177,16 +177,16 @@ sdump_servent(struct servent *serv, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d %s",
 		serv->s_name, ntohs(serv->s_port), serv->s_proto);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (serv->s_aliases != NULL) {
 		if (*(serv->s_aliases) != '\0') {
 			for (cp = serv->s_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -410,7 +410,7 @@ servent_test_getservent(struct servent *serv, void *mdata)
 	return (servent_test_correctness(serv, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct servent_test_data td, td_snap, td_2pass;
