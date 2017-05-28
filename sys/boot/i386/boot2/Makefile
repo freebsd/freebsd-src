@@ -69,17 +69,19 @@ boot1.out: boot1.o
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
 		boot2.s boot2.s.tmp boot2.h sio.o
 
+BOOT2SIZE=	7680
+
 boot2: boot2.ld
-	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
+	@set -- `ls -l ${.ALLSRC}`; x=$$((${BOOT2SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync status=none
+	${DD} if=${.ALLSRC} of=${.TARGET} obs=${BOOT2SIZE} conv=osync
 
 boot2.ld: boot2.ldr boot2.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l boot2.ldr \
 	    -o ${.TARGET} -P 1 boot2.bin
 
 boot2.ldr:
-	dd if=/dev/zero of=${.TARGET} bs=512 count=1 status=none
+	${DD} if=/dev/zero of=${.TARGET} bs=512 count=1
 
 boot2.bin: boot2.out
 	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
