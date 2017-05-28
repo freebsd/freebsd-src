@@ -100,7 +100,7 @@ clone_rpcent(struct rpcent *dest, struct rpcent const *src)
 		for (cp = src->r_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->r_aliases = calloc(1, (aliases_num + 1) * sizeof(char *));
+		dest->r_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->r_aliases != NULL);
 
 		for (cp = src->r_aliases; *cp; ++cp) {
