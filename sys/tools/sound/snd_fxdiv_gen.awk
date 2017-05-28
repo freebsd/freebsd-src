@@ -108,7 +108,10 @@ BEGIN {
 	printf(" * 508 = SND_CHN_MAX * PCM_32_BPS, which is why....\n");
 	printf(" */\n\n");
 
-	printf("static const uint32_t snd_fxdiv_table[][2] = {\n");
+	printf("extern const uint32_t snd_fxdiv_table[%d][2];\n\n", SND_MAX_ALIGN + 1);
+
+	printf("#ifdef SND_DECLARE_FXDIV\n");
+	printf("const uint32_t snd_fxdiv_table[%d][2] = {\n", SND_MAX_ALIGN + 1);
 
 	for (i = 1; i <= SND_MAX_ALIGN; i++) {
 		if (aligns[i] != 1)
@@ -120,7 +123,7 @@ BEGIN {
 		    i, r["mul"], r["shift"]);
 	}
 
-	printf("};\n\n");
+	printf("};\n#endif\n\n");
 
 	printf("#define SND_FXDIV_MAX\t\t0x%08x\n", FXONE);
 	printf("#define SND_FXDIV(x, y)\t\t(((uint32_t)(x) *\t\t\t\\\n");
