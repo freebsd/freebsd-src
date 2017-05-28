@@ -157,6 +157,11 @@ vm_extra_enable_services() {
 		done
 	fi
 
+	if [ -z "${VMCONFIG}" -o -c "${VMCONFIG}" ]; then
+		echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> \
+			${DESTDIR}/etc/rc.conf
+	fi
+
 	return 0
 }
 
