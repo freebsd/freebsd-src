@@ -60,14 +60,14 @@ int
 main(void)
 {
 	int error, fd, fds[2], i, read_only_fd;
-	char path[PATH_MAX];
+	char path[] = "ftruncate_file";
 	struct stat sb;
 	ssize_t size;
 	off_t len;
 	char ch;
 
 	/*
-	 * Tests using a writable temporary file: grow and then shrink a file
+	 * Tests using a writable file: grow and then shrink a file
 	 * using ftruncate and various lengths.  Make sure that a negative
 	 * file length is rejected.  Make sure that when we grow the file,
 	 * bytes now in the range of the file size return 0.
@@ -75,10 +75,9 @@ main(void)
 	 * Save a read-only reference to the file to use later for read-only
 	 * descriptor tests.
 	 */
-	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
-	fd = mkstemp(path);
+	fd = open(path, O_RDWR|O_CREAT);
 	if (fd < 0)
-		err(1, "mkstemp");
+		err(1, "open(%s, O_RDWR|O_CREAT", path);
 	read_only_fd = open(path, O_RDONLY);
 	if (read_only_fd < 0) {
 		error = errno;
