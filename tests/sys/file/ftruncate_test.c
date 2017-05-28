@@ -75,9 +75,9 @@ main(void)
 	 * Save a read-only reference to the file to use later for read-only
 	 * descriptor tests.
 	 */
-	fd = open(path, O_RDWR|O_CREAT);
+	fd = open(path, O_RDWR|O_CREAT, 0600);
 	if (fd < 0)
-		err(1, "open(%s, O_RDWR|O_CREAT", path);
+		err(1, "open(%s, O_RDWR|O_CREAT, 0600)", path);
 	read_only_fd = open(path, O_RDONLY);
 	if (read_only_fd < 0) {
 		error = errno;
