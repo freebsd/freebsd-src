@@ -164,30 +164,30 @@ sdump_addrinfo(struct addrinfo *ai, char *buffer, size_t buflen)
 		ai->ai_flags, ai->ai_family, ai->ai_socktype, ai->ai_protocol,
 		ai->ai_addrlen);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	written = snprintf(buffer, buflen, "%s ",
 		ai->ai_canonname == NULL ? "(null)" : ai->ai_canonname);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (ai->ai_addr == NULL) {
 		written = snprintf(buffer, buflen, "(null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	} else {
-		for (i = 0; i < ai->ai_addrlen; i++) {
+		for (i = 0; i < (int)ai->ai_addrlen; i++) {
 			written = snprintf(buffer, buflen,
-			    i + 1 != ai->ai_addrlen ? "%d." : "%d",
+			    i + 1 != (int)ai->ai_addrlen ? "%d." : "%d",
 			    ((unsigned char *)ai->ai_addr)[i]);
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 
@@ -199,7 +199,7 @@ sdump_addrinfo(struct addrinfo *ai, char *buffer, size_t buflen)
 	if (ai->ai_next != NULL) {
 		written = snprintf(buffer, buflen, ":");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 
