@@ -99,7 +99,7 @@ clone_protoent(struct protoent *dest, struct protoent const *src)
 		for (cp = src->p_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->p_aliases = calloc(1, (aliases_num+1) * sizeof(char *));
+		dest->p_aliases = calloc(aliases_num + 1, sizeof(char *));
 		assert(dest->p_aliases != NULL);
 
 		for (cp = src->p_aliases; *cp; ++cp) {
