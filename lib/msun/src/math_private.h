@@ -306,9 +306,21 @@ do {								\
 		fpsetprec(__oprec);		\
 	RETURNF(__retval);			\
 } while (0)
+#define	ENTERV()				\
+	fp_prec_t __oprec;			\
+						\
+	if ((__oprec = fpgetprec()) != FP_PE)	\
+		fpsetprec(FP_PE)
+#define	RETURNV() do {				\
+	if (__oprec != FP_PE)			\
+		fpsetprec(__oprec);		\
+	return;			\
+} while (0)
 #else
-#define	ENTERI(x)
+#define	ENTERI()
 #define	RETURNI(x)	RETURNF(x)
+#define	ENTERV()
+#define	RETURNV()	return
 #endif
 
 /* Default return statement if hack*_t() is not used. */
