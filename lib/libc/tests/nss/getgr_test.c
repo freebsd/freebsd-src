@@ -307,7 +307,7 @@ group_fill_test_data(struct group_test_data *td)
 }
 
 static int
-group_test_correctness(struct group *grp, void *mdata)
+group_test_correctness(struct group *grp, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_group(grp);
@@ -385,7 +385,7 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 }
 
 static int
-group_test_getgrent(struct group *grp, void *mdata)
+group_test_getgrent(struct group *grp, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getgrent(). */
