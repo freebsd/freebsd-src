@@ -104,7 +104,7 @@ clone_group(struct group *dest, struct group const *src)
 		for (cp = src->gr_mem; *cp; ++cp)
 			++members_num;
 
-		dest->gr_mem = calloc(1, (members_num + 1) * sizeof(char *));
+		dest->gr_mem = calloc(members_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->gr_mem != NULL);
 
 		for (cp = src->gr_mem; *cp; ++cp) {

@@ -163,8 +163,7 @@ clone_hostent(struct hostent *dest, struct hostent const *src)
 		for (cp = src->h_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->h_aliases = calloc(1, (aliases_num + 1) *
-			sizeof(char *));
+		dest->h_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->h_aliases != NULL);
 
 		for (cp = src->h_aliases; *cp; ++cp) {
@@ -178,7 +177,7 @@ clone_hostent(struct hostent *dest, struct hostent const *src)
 		for (cp = src->h_addr_list; *cp; ++cp)
 			++addrs_num;
 
-		dest->h_addr_list = calloc(1, (addrs_num + 1) * sizeof(char *));
+		dest->h_addr_list = calloc(addrs_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->h_addr_list != NULL);
 
 		for (cp = src->h_addr_list; *cp; ++cp) {

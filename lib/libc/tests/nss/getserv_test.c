@@ -102,7 +102,7 @@ clone_servent(struct servent *dest, struct servent const *src)
 		for (cp = src->s_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->s_aliases = calloc(1, (aliases_num + 1) * sizeof(char *));
+		dest->s_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->s_aliases != NULL);
 
 		for (cp = src->s_aliases; *cp; ++cp) {
