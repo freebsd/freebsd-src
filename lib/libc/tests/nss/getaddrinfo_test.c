@@ -310,12 +310,11 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 {
 	struct addrinfo *ai2;
 	char *s, *ps;
-	int i, rv;
+	int rv;
 
 	printf("1 line read from snapshot:\n%s\n", line);
 
 	rv = 0;
-	i = 0;
 	ps = line;
 
 	s = strsep(&ps, ":");
