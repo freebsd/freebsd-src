@@ -172,16 +172,16 @@ sdump_protoent(struct protoent *pe, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d",
 		pe->p_name, pe->p_proto);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (pe->p_aliases != NULL) {
 		if (*(pe->p_aliases) != '\0') {
 			for (cp = pe->p_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -395,7 +395,7 @@ protoent_test_getprotoent(struct protoent *pe, void *mdata)
 	return (protoent_test_correctness(pe, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct protoent_test_data td, td_snap, td_2pass;
