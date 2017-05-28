@@ -288,7 +288,7 @@ protoent_fill_test_data(struct protoent_test_data *td)
 }
 
 static int
-protoent_test_correctness(struct protoent *pe, void *mdata)
+protoent_test_correctness(struct protoent *pe, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_protoent(pe);
@@ -388,7 +388,7 @@ protoent_test_getprotobynumber(struct protoent *pe_model, void *mdata)
 }
 
 static int
-protoent_test_getprotoent(struct protoent *pe, void *mdata)
+protoent_test_getprotoent(struct protoent *pe, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getprotoent(). */
