@@ -210,11 +210,6 @@ ext2_getacl_posix1e(struct vop_getacl_args *ap)
 	int len;
 	int error;
 
-	len = sizeof(*ap->a_aclp) + sizeof(struct ext2_acl_header);
-	value = malloc(len, M_ACL, M_WAITOK);
-	if (!value)
-		return (ENOMEM);
-
 	switch (ap->a_type) {
 	case ACL_TYPE_DEFAULT:
 		attrnamespace = POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE;
@@ -227,6 +222,11 @@ ext2_getacl_posix1e(struct vop_getacl_args *ap)
 	default:
 		return (EINVAL);
 	}
+
+	len = sizeof(*ap->a_aclp) + sizeof(struct ext2_acl_header);
+	value = malloc(len, M_ACL, M_WAITOK);
+	if (!value)
+		return (ENOMEM);
 
 	error = vn_extattr_get(ap->a_vp, IO_NODELOCKED, attrnamespace, attrname,
 	    &len, value, ap->a_td);
