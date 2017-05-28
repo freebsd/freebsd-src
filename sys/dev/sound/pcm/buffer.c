@@ -35,6 +35,7 @@
 #include "feeder_if.h"
 
 #define SND_USE_FXDIV
+#define	SND_DECLARE_FXDIV
 #include "snd_fxdiv_gen.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
