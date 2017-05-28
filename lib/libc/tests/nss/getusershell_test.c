@@ -132,7 +132,7 @@ usershell_read_snapshot_func(struct usershell *us, char *line)
 	return (0);
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct usershell_test_data td, td_snap;
