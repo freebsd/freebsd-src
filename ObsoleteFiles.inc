@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170529: mount.conf(8) -> mount.conf(5)
+OLD_FILES+=usr/share/man/man8/mount.conf.8.gz
 # 20170525: remove misleading template
 OLD_FILES+=usr/share/misc/man.template
 # 20170525: disconnect the roff docs from the build
