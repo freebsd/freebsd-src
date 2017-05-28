@@ -76,7 +76,8 @@ clone_usershell(struct usershell *dest, struct usershell const *src)
 }
 
 static int
-compare_usershell(struct usershell *us1, struct usershell *us2, void *mdata)
+compare_usershell(struct usershell *us1, struct usershell *us2,
+    void *mdata __unused)
 {
 	int rv;
 
