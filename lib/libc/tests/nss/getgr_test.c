@@ -49,8 +49,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT = 16,
 };
 
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
-
 DECLARE_TEST_DATA(group)
 DECLARE_TEST_FILE_SNAPSHOT(group)
 DECLARE_1PASS_TEST(group)

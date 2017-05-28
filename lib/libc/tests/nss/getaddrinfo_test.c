@@ -144,7 +144,7 @@ compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2, void *mdata)
 	return (rv);
 }
 
-void
+static void
 free_addrinfo(struct addrinfo *ai)
 {
 	if (ai == NULL)
@@ -409,7 +409,7 @@ addrinfo_read_hostlist_func(struct addrinfo *ai, char *line)
 	return (0);
 }
 
-void
+static void
 run_tests(char *hostlist_file, char *snapshot_file, int ai_family)
 {
 	struct addrinfo_test_data td, td_snap;

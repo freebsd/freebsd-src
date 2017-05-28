@@ -48,8 +48,6 @@ struct usershell {
 	char *path;
 };
 
-static enum test_methods method = TEST_GETUSERSHELL;
-
 DECLARE_TEST_DATA(usershell)
 DECLARE_TEST_FILE_SNAPSHOT(usershell)
 DECLARE_2PASS_TEST(usershell)
