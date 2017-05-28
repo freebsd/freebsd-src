@@ -776,24 +776,26 @@ hostent_test_getaddrinfo_eq(struct hostent *he, void *mdata __unused)
 		rv = getaddrinfo(he->h_name, NULL, &hints, &ai);
 		if (rv == 0) {
 			printf("not ok - shouldn't have been resolved\n");
-			return (-1);
-		}
+			rv = -1;
+		} else
+			rv = 0;
 	} else {
 		rv = getaddrinfo(he->h_name, NULL, &hints, &ai);
 		if (rv != 0) {
 			printf("not ok - should have been resolved\n");
-			return (-1);
+			rv = -1;
+			goto done;
 		}
-
 		rv = is_hostent_equal(he, ai);
 		if (rv != 0) {
 			printf("not ok - addrinfo and hostent are not equal\n");
-			return (-1);
+			rv = -1;
 		}
-
 	}
-
-	return (0);
+done:
+	if (ai != NULL)
+		freeaddrinfo(ai);
+	return (rv);
 }
 
 static int
