@@ -96,7 +96,7 @@ do_fork(void)
 }
 
 int
-main(__unused int argc, __unused char *argv[])
+main(void)
 {
 	struct sockaddr_in sin;
 	pthread_t accept_thread;
