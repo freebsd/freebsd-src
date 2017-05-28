@@ -256,7 +256,6 @@ net_getparams(int sock)
 {
 	char buf[MAXHOSTNAMELEN];
 	n_long rootaddr, smask;
-	extern struct in_addr servip;
 
 #ifdef	SUPPORT_BOOTP
 	/*
@@ -421,8 +420,8 @@ net_parse_rootpath()
 			val = strchr(ptr, '/');
 			if (val != NULL) {
 				snprintf(ip, sizeof(ip), "%.*s",
-				    (int)((uintptr_t)val - (uintptr_t)ptr), ptr);
-				printf("%s\n", ip);
+				    (int)((uintptr_t)val - (uintptr_t)ptr),
+				    ptr);
 				addr = inet_addr(ip);
 				bcopy(val, rootpath, strlen(val) + 1);
 			}
