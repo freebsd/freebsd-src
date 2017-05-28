@@ -177,7 +177,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s:%s:%d:",
 		grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
@@ -187,7 +187,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 				written = snprintf(buffer, buflen, "%s%s",
 				    cp == grp->gr_mem ? "" : ",", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
