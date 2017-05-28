@@ -74,7 +74,7 @@ max-lease-time 120;
 subnet 10.0.0.0 netmask 255.255.255.0 {
        filename "pxeboot";
        range 10.0.0.10 10.0.0.254;
-       if exists user-class and option user-class = "FREEBSD" {
+       if exists user-class and option user-class = "FreeBSD" {
             option root-path "tftp://10.0.0.1/FreeBSD";
        }
 }
