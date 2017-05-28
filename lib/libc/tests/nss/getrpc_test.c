@@ -173,16 +173,16 @@ sdump_rpcent(struct rpcent *rpc, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d",
 		rpc->r_name, rpc->r_number);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (rpc->r_aliases != NULL) {
 		if (*(rpc->r_aliases) != '\0') {
 			for (cp = rpc->r_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -400,7 +400,7 @@ rpcent_test_getrpcent(struct rpcent *rpc, void *mdata)
 	return (rpcent_test_correctness(rpc, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct rpcent_test_data td, td_snap, td_2pass;
