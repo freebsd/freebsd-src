@@ -47,8 +47,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT
 };
 
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
-
 DECLARE_TEST_DATA(passwd)
 DECLARE_TEST_FILE_SNAPSHOT(passwd)
 DECLARE_1PASS_TEST(passwd)
