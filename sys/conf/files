@@ -3525,6 +3525,7 @@ geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
 geom/zero/g_zero.c		optional geom_zero
+fs/ext2fs/ext2_acl.c		optional ext2fs
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
