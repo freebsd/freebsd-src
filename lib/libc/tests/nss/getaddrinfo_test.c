@@ -28,7 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -125,7 +125,8 @@ compare_addrinfo_(struct addrinfo *ai1, struct addrinfo *ai2)
 }
 
 static int
-compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2, void *mdata)
+compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2,
+    void *mdata __unused)
 {
 	int rv;
 
@@ -344,7 +345,7 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 }
 
 static int
-addrinfo_test_correctness(struct addrinfo *ai, void *mdata)
+addrinfo_test_correctness(struct addrinfo *ai, void *mdata __unused)
 {
 
 	printf("testing correctness with the following data:\n");
