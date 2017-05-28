@@ -28,7 +28,7 @@
 .\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 1995
+.Dd May 28, 2017
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -71,10 +71,11 @@ The data in the buffer is a series of
 .Vt dirent
 structures each containing the following entries:
 .Bd -literal -offset indent
-uint32_t d_fileno;
-uint16_t d_reclen;
-uint8_t  d_type;
-uint8_t  d_namlen;
+ino_t	d_fileno;
+off_t	d_off;
+uint16_t	d_reclen;
+uint8_t	d_type;
+uint16_t	d_namlen;
 char	d_name[MAXNAMLEN + 1];	/* see below */
 .Ed
 .Pp
