@@ -300,7 +300,7 @@ servent_fill_test_data(struct servent_test_data *td)
 }
 
 static int
-servent_test_correctness(struct servent *serv, void *mdata)
+servent_test_correctness(struct servent *serv, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_servent(serv);
@@ -403,7 +403,7 @@ servent_test_getservbyport(struct servent *serv_model, void *mdata)
 }
 
 static int
-servent_test_getservent(struct servent *serv, void *mdata)
+servent_test_getservent(struct servent *serv, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getservent(). */
