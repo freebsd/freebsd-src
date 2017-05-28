@@ -884,7 +884,7 @@ hostent_test_getnameinfo_eq(struct hostent *he, void *mdata __unused)
 		 * An address might reverse resolve to hostname alias or the
 		 * official hostname, e.g. moon.vub.ac.be.
 		 */
-		bool found_a_match;
+		bool found_a_match = false;
 
 		if (strcmp(result->h_name, buffer) == 0) {
 			found_a_match = true;
