@@ -93,6 +93,35 @@ struct in_addr dhcp_serverip;
 struct bootp *bootp_response;
 size_t bootp_response_size;
 
+static void
+bootp_fill_request(unsigned char *bp_vend)
+{
+	/*
+	 * We are booting from PXE, we want to send the string
+	 * 'PXEClient' to the DHCP server so you have the option of
+	 * only responding to PXE aware dhcp requests.
+	 */
+	bp_vend[0] = TAG_CLASSID;
+	bp_vend[1] = 9;
+	bcopy("PXEClient", &bp_vend[2], 9);
+	bp_vend[11] = TAG_USER_CLASS;
+	/* len of each user class + number of user class */
+	bp_vend[12] = 8;
+	/* len of the first user class */
+	bp_vend[13] = 7;
+	bcopy("FreeBSD", &bp_vend[14], 7);
+	bp_vend[21] = TAG_PARAM_REQ;
+	bp_vend[22] = 7;
+	bp_vend[23] = TAG_ROOTPATH;
+	bp_vend[24] = TAG_HOSTNAME;
+	bp_vend[25] = TAG_SWAPSERVER;
+	bp_vend[26] = TAG_GATEWAY;
+	bp_vend[27] = TAG_SUBNET_MASK;
+	bp_vend[28] = TAG_INTF_MTU;
+	bp_vend[29] = TAG_SERVERID;
+	bp_vend[30] = TAG_END;
+}
+
 /* Fetch required bootp infomation */
 void
 bootp(int sock)
@@ -136,31 +165,8 @@ bootp(int sock)
 	bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
 	bp->bp_vend[5] = 1;
 	bp->bp_vend[6] = DHCPDISCOVER;
+	bootp_fill_request(&bp->bp_vend[7]);
 
-	/*
-	 * We are booting from PXE, we want to send the string
-	 * 'PXEClient' to the DHCP server so you have the option of
-	 * only responding to PXE aware dhcp requests.
-	 */
-	bp->bp_vend[7] = TAG_CLASSID;
-	bp->bp_vend[8] = 9;
-	bcopy("PXEClient", &bp->bp_vend[9], 9);
-	bp->bp_vend[18] = TAG_USER_CLASS;
-	/* len of each user class + number of user class */
-	bp->bp_vend[19] = 8;
-	/* len of the first user class */
-	bp->bp_vend[20] = 7;
-	bcopy("FreeBSD", &bp->bp_vend[21], 7);
-	bp->bp_vend[28] = TAG_PARAM_REQ;
-	bp->bp_vend[29] = 7;
-	bp->bp_vend[30] = TAG_ROOTPATH;
-	bp->bp_vend[31] = TAG_HOSTNAME;
-	bp->bp_vend[32] = TAG_SWAPSERVER;
-	bp->bp_vend[33] = TAG_GATEWAY;
-	bp->bp_vend[34] = TAG_SUBNET_MASK;
-	bp->bp_vend[35] = TAG_INTF_MTU;
-	bp->bp_vend[36] = TAG_SERVERID;
-	bp->bp_vend[37] = TAG_END;
 #else
 	bp->bp_vend[4] = TAG_END;
 #endif
@@ -196,10 +202,7 @@ bootp(int sock)
 		bp->bp_vend[20] = 4;
 		leasetime = htonl(300);
 		bcopy(&leasetime, &bp->bp_vend[21], 4);
-		bp->bp_vend[25] = TAG_CLASSID;
-		bp->bp_vend[26] = 9;
-		bcopy("PXEClient", &bp->bp_vend[27], 9);
-		bp->bp_vend[36] = TAG_END;
+		bootp_fill_request(&bp->bp_vend[25]);
 
 		expected_dhcpmsgtype = DHCPACK;
 
