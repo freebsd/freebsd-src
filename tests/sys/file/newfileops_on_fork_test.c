@@ -63,6 +63,7 @@ do_accept(__unused void *arg)
 	if (accept_fd < 0)
 		err(1, "accept");
 
+	close(accept_fd);
 	return (NULL);
 }
 
