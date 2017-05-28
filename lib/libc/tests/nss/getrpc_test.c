@@ -70,8 +70,6 @@ static int rpcent_test_getrpcbyname(struct rpcent *, void *);
 static int rpcent_test_getrpcbynumber(struct rpcent *, void *);
 static int rpcent_test_getrpcent(struct rpcent *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(rpcent)
 IMPLEMENT_TEST_FILE_SNAPSHOT(rpcent)
 IMPLEMENT_1PASS_TEST(rpcent)
@@ -289,7 +287,7 @@ rpcent_fill_test_data(struct rpcent_test_data *td)
 }
 
 static int
-rpcent_test_correctness(struct rpcent *rpc, void *mdata)
+rpcent_test_correctness(struct rpcent *rpc, void *mdata __unused)
 {
 
 	printf("testing correctness with the following data:\n");
@@ -390,7 +388,7 @@ rpcent_test_getrpcbynumber(struct rpcent *rpc_model, void *mdata)
 }
 
 static int
-rpcent_test_getrpcent(struct rpcent *rpc, void *mdata)
+rpcent_test_getrpcent(struct rpcent *rpc, void *mdata __unused)
 {
 
 	/*
