@@ -412,7 +412,7 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d %d",
 		ht->h_name, ht->h_addrtype, ht->h_length);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
@@ -421,7 +421,7 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 			for (cp = ht->h_aliases; *cp; ++cp) {
 				written = snprintf(buffer, buflen, " %s",*cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -431,59 +431,61 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 		} else {
 			written = snprintf(buffer, buflen, " noaliases");
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 		}
 	} else {
 		written = snprintf(buffer, buflen, " (null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	}
 
 	written = snprintf(buffer, buflen, " : ");
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (ht->h_addr_list != NULL) {
 		if (*(ht->h_addr_list) != NULL) {
 			for (cp = ht->h_addr_list; *cp; ++cp) {
-			    for (i = 0; i < ht->h_length; ++i ) {
-				written = snprintf(buffer, buflen,
-				    	i + 1 != ht->h_length ? "%d." : "%d",
-				    	(unsigned char)(*cp)[i]);
-				buffer += written;
-				if (written > buflen)
-					return;
-				buflen -= written;
+				for (i = 0; i < (size_t)ht->h_length; ++i) {
+					written = snprintf(buffer, buflen,
+					    i + 1 != (size_t)ht->h_length ?
+					        "%d." : "%d",
+					    (unsigned char)(*cp)[i]);
+					buffer += written;
+					if (written > (int)buflen)
+						return;
+					buflen -= written;
 
-				if (buflen == 0)
-					return;
-			    }
+					if (buflen == 0)
+						return;
+				}
 
-			    if (*(cp + 1) ) {
-				written = snprintf(buffer, buflen, " ");
-				buffer += written;
-				if (written > buflen)
-				    return;
-				buflen -= written;
-			    }
+				if (*(cp + 1)) {
+					written = snprintf(buffer, buflen,
+					    " ");
+					buffer += written;
+					if (written > (int)buflen)
+						return;
+					buflen -= written;
+				}
 			}
 		} else {
 			written = snprintf(buffer, buflen, " noaddrs");
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 		}
 	} else {
 		written = snprintf(buffer, buflen, " (null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	}
@@ -920,7 +922,7 @@ hostent_test_getnameinfo_eq(struct hostent *he, void *mdata)
 	return (0);
 }
 
-int
+static int
 run_tests(const char *hostlist_file, const char *snapshot_file, int af_type,
     enum test_methods method, bool use_ipv6_mapping)
 {
