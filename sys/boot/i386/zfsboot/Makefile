@@ -63,9 +63,9 @@ CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 BOOT2SIZE=	65536
 
 zfsboot2: zfsboot.ld
-	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \
+	@set -- `ls -l ${.ALLSRC}`; x=$$((${BOOT2SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=zfsboot.ld of=${.TARGET} obs=${BOOT2SIZE} conv=osync
+	${DD} if=${.ALLSRC} of=${.TARGET} obs=${BOOT2SIZE} conv=osync
 
 zfsboot.ld: zfsboot.ldr zfsboot.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l zfsboot.ldr \
