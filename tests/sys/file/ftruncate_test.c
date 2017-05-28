@@ -78,34 +78,34 @@ main(void)
 	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
 	fd = mkstemp(path);
 	if (fd < 0)
-		err(-1, "mkstemp");
+		err(1, "mkstemp");
 	read_only_fd = open(path, O_RDONLY);
 	if (read_only_fd < 0) {
 		error = errno;
 		(void)unlink(path);
 		errno = error;
-		err(-1, "open(%s, O_RDONLY)", path);
+		err(1, "open(%s, O_RDONLY)", path);
 	}
 	(void)unlink(path);
 
 	if (ftruncate(fd, -1) == 0)
-		errx(-1, "ftruncate(fd, -1) succeeded");
+		errx(1, "ftruncate(fd, -1) succeeded unexpectedly");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(fd, -1) returned wrong error");
+		err(1, "ftruncate(fd, -1) returned wrong error");
 
 	for (i = 0; i < lengths_count; i++) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%jd) up", (intmax_t)len);
+			err(1, "ftruncate(%jd) up", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
-			err(-1, "stat");
+			err(1, "stat");
 		if (sb.st_size != len)
 			errx(-1, "fstat with len=%jd returned len %jd up",
 			    (intmax_t)len, (intmax_t)sb.st_size);
 		if (len != 0) {
 			size = pread(fd, &ch, sizeof(ch), len - 1);
 			if (size < 0)
-				err(-1, "pread on len %jd up", (intmax_t)len);
+				err(1, "pread on len %jd up", (intmax_t)len);
 			if (size != sizeof(ch))
 				errx(-1, "pread len %jd size %jd up",
 				    (intmax_t)len, (intmax_t)size);
@@ -119,9 +119,9 @@ main(void)
 	for (i = lengths_count - 1; i >= 0; i--) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%jd) down", (intmax_t)len);
+			err(1, "ftruncate(%jd) down", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
-			err(-1, "stat");
+			err(1, "stat");
 		if (sb.st_size != len)
 			errx(-1, "fstat(%jd) returned %jd down", (intmax_t)len,
 			    sb.st_size);
@@ -134,7 +134,7 @@ main(void)
 	if (ftruncate(read_only_fd, 0) == 0)
 		errx(-1, "ftruncate(read_only_fd) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(read_only_fd) returned wrong error");
+		err(1, "ftruncate(read_only_fd) returned wrong error");
 	close(read_only_fd);
 
 	/*
@@ -142,22 +142,22 @@ main(void)
 	 */
 	fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0)
-		err(-1, "socket(PF_UNIX, SOCK_STREAM, 0)");
+		err(1, "socket(PF_UNIX, SOCK_STREAM, 0)");
 	if (ftruncate(fd, 0) == 0)
 		errx(-1, "ftruncate(socket) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(socket) returned wrong error");
+		err(1, "ftruncate(socket) returned wrong error");
 	close(fd);
 
 	/*
 	 * Make sure that ftruncate on pipes doesn't work.
 	 */
 	if (pipe(fds) < 0)
-		err(-1, "pipe");
+		err(1, "pipe");
 	if (ftruncate(fds[0], 0) == 0)
 		errx(-1, "ftruncate(pipe) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(pipe) returned wrong error");
+		err(1, "ftruncate(pipe) returned wrong error");
 	close(fds[0]);
 	close(fds[1]);
 
@@ -166,11 +166,11 @@ main(void)
 	 */
 	fd = kqueue();
 	if (fd < 0)
-		err(-1, "kqueue");
+		err(1, "kqueue");
 	if (ftruncate(fds[0], 0) == 0)
 		errx(-1, "ftruncate(kqueue) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(kqueue) returned wrong error");
+		err(1, "ftruncate(kqueue) returned wrong error");
 	close(fd);
 
 	return (0);
