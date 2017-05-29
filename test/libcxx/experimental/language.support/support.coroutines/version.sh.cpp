@@ -1,3 +1,4 @@
+// -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -7,22 +8,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-// <iterator>
+// UNSUPPORTED: c++98, c++03, c++11
+// REQUIRES: fcoroutines-ts
 
-// istreambuf_iterator
+// RUN: %build -fcoroutines-ts
+// RUN: %run
 
-// pointer operator->() const;
+#include <experimental/coroutine>
 
-#include <iostream>
-#include <sstream>
-#include <streambuf>
+#ifndef _LIBCPP_VERSION
+#error _LIBCPP_VERSION must be defined
+#endif
 
-typedef char C;
-int main ()
+int main()
 {
-   std::istringstream s("filename");
-   std::istreambuf_iterator<char> i(s);
-
-   (*i).~C();  // This is well-formed...
-   i->~C();  // ... so this should be supported!
 }
