@@ -1378,9 +1378,7 @@ static Instruction *foldCttzCtlz(IntrinsicInst &II, InstCombiner &IC) {
   if (!IT)
     return nullptr;
 
-  unsigned BitWidth = IT->getBitWidth();
-  KnownBits Known(BitWidth);
-  IC.computeKnownBits(Op0, Known, 0, &II);
+  KnownBits Known = IC.computeKnownBits(Op0, 0, &II);
 
   // Create a mask for bits above (ctlz) or below (cttz) the first known one.
   bool IsTZ = II.getIntrinsicID() == Intrinsic::cttz;
@@ -1401,7 +1399,9 @@ static Instruction *foldCttzCtlz(IntrinsicInst &II, InstCombiner &IC) {
   // If the input to cttz/ctlz is known to be non-zero,
   // then change the 'ZeroIsUndef' parameter to 'true'
   // because we know the zero behavior can't affect the result.
-  if (Known.One != 0 || isKnownNonZero(Op0, IC.getDataLayout())) {
+  if (Known.One != 0 ||
+      isKnownNonZero(Op0, IC.getDataLayout(), 0, &IC.getAssumptionCache(), &II,
+                     &IC.getDominatorTree())) {
     if (!match(II.getArgOperand(1), m_One())) {
       II.setOperand(1, IC.Builder->getTrue());
       return &II;

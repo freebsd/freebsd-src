@@ -311,8 +311,9 @@ void TestAllForms() {
   EXPECT_EQ(Data2, toReference(DieDG.find(Attr_DW_FORM_ref2), 0));
   EXPECT_EQ(Data4, toReference(DieDG.find(Attr_DW_FORM_ref4), 0));
   EXPECT_EQ(Data8, toReference(DieDG.find(Attr_DW_FORM_ref8), 0));
-  if (Version >= 4)
+  if (Version >= 4) {
     EXPECT_EQ(Data8_2, toReference(DieDG.find(Attr_DW_FORM_ref_sig8), 0));
+  }
   EXPECT_EQ(UData[0], toReference(DieDG.find(Attr_DW_FORM_ref_udata), 0));
 
   //----------------------------------------------------------------------
@@ -320,15 +321,17 @@ void TestAllForms() {
   //----------------------------------------------------------------------
   EXPECT_EQ(1ULL, toUnsigned(DieDG.find(Attr_DW_FORM_flag_true), 0));
   EXPECT_EQ(0ULL, toUnsigned(DieDG.find(Attr_DW_FORM_flag_false), 1));
-  if (Version >= 4)
+  if (Version >= 4) {
     EXPECT_EQ(1ULL, toUnsigned(DieDG.find(Attr_DW_FORM_flag_present), 0));
+  }
 
   //----------------------------------------------------------------------
   // Test SLEB128 based forms
   //----------------------------------------------------------------------
   EXPECT_EQ(SData, toSigned(DieDG.find(Attr_DW_FORM_sdata), 0));
-  if (Version >= 5)
+  if (Version >= 5) {
     EXPECT_EQ(ICSData, toSigned(DieDG.find(Attr_DW_FORM_implicit_const), 0));
+  }
 
   //----------------------------------------------------------------------
   // Test ULEB128 based forms
@@ -340,9 +343,10 @@ void TestAllForms() {
   //----------------------------------------------------------------------
   EXPECT_EQ(Dwarf32Values[0],
             toReference(DieDG.find(Attr_DW_FORM_GNU_ref_alt), 0));
-  if (Version >= 4)
+  if (Version >= 4) {
     EXPECT_EQ(Dwarf32Values[1],
               toSectionOffset(DieDG.find(Attr_DW_FORM_sec_offset), 0));
+  }
 
   //----------------------------------------------------------------------
   // Add an address at the end to make sure we can decode this value
@@ -849,8 +853,8 @@ template <uint16_t Version, class AddrType> void TestAddresses() {
   // Get the compile unit DIE is valid.
   auto DieDG = U->getUnitDIE(false);
   EXPECT_TRUE(DieDG.isValid());
-  
-  uint64_t LowPC, HighPC;
+
+  uint64_t LowPC, HighPC, SectionIndex;
   Optional<uint64_t> OptU64;
   // Verify the that our subprogram with no PC value fails appropriately when
   // asked for any PC values.
@@ -861,14 +865,14 @@ template <uint16_t Version, class AddrType> void TestAddresses() {
   EXPECT_FALSE((bool)OptU64);
   OptU64 = toAddress(SubprogramDieNoPC.find(DW_AT_high_pc));
   EXPECT_FALSE((bool)OptU64);
-  EXPECT_FALSE(SubprogramDieNoPC.getLowAndHighPC(LowPC, HighPC));
+  EXPECT_FALSE(SubprogramDieNoPC.getLowAndHighPC(LowPC, HighPC, SectionIndex));
   OptU64 = toAddress(SubprogramDieNoPC.find(DW_AT_high_pc));
   EXPECT_FALSE((bool)OptU64);
   OptU64 = toUnsigned(SubprogramDieNoPC.find(DW_AT_high_pc));
   EXPECT_FALSE((bool)OptU64);
   OptU64 = SubprogramDieNoPC.getHighPC(ActualLowPC);
   EXPECT_FALSE((bool)OptU64);
-  EXPECT_FALSE(SubprogramDieNoPC.getLowAndHighPC(LowPC, HighPC));
+  EXPECT_FALSE(SubprogramDieNoPC.getLowAndHighPC(LowPC, HighPC, SectionIndex));
  
   // Verify the that our subprogram with only a low PC value succeeds when
   // we ask for the Low PC, but fails appropriately when asked for the high PC
@@ -885,7 +889,7 @@ template <uint16_t Version, class AddrType> void TestAddresses() {
   EXPECT_FALSE((bool)OptU64);
   OptU64 = SubprogramDieLowPC.getHighPC(ActualLowPC);
   EXPECT_FALSE((bool)OptU64);
-  EXPECT_FALSE(SubprogramDieLowPC.getLowAndHighPC(LowPC, HighPC));
+  EXPECT_FALSE(SubprogramDieLowPC.getLowAndHighPC(LowPC, HighPC, SectionIndex));
 
   // Verify the that our subprogram with only a low PC value succeeds when
   // we ask for the Low PC, but fails appropriately when asked for the high PC
@@ -919,7 +923,7 @@ template <uint16_t Version, class AddrType> void TestAddresses() {
   EXPECT_TRUE((bool)OptU64);
   EXPECT_EQ(OptU64.getValue(), ActualHighPC);
 
-  EXPECT_TRUE(SubprogramDieLowHighPC.getLowAndHighPC(LowPC, HighPC));
+  EXPECT_TRUE(SubprogramDieLowHighPC.getLowAndHighPC(LowPC, HighPC, SectionIndex));
   EXPECT_EQ(LowPC, ActualLowPC);
   EXPECT_EQ(HighPC, ActualHighPC);
 }

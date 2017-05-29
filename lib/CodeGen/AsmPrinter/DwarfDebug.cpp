@@ -252,12 +252,6 @@ DwarfDebug::DwarfDebug(AsmPrinter *A, Module *M)
   // Handle split DWARF.
   HasSplitDwarf = !Asm->TM.Options.MCOptions.SplitDwarfFile.empty();
 
-  // Pubnames/pubtypes on by default for GDB.
-  if (DwarfPubSections == Default)
-    HasDwarfPubSections = tuneForGDB();
-  else
-    HasDwarfPubSections = DwarfPubSections == Enable;
-
   // SCE defaults to linkage names only for abstract subprograms.
   if (DwarfLinkageNames == DefaultLinkageNames)
     UseAllLinkageNames = !tuneForSCE();
@@ -380,19 +374,35 @@ void DwarfDebug::constructAbstractSubprogramScopeDIE(DwarfCompileUnit &SrcCU,
 
   // Find the subprogram's DwarfCompileUnit in the SPMap in case the subprogram
   // was inlined from another compile unit.
-  auto &CU = *CUMap.lookup(SP->getUnit());
-  if (auto *SkelCU = CU.getSkeleton()) {
-    (shareAcrossDWOCUs() ? CU : SrcCU)
-        .constructAbstractSubprogramScopeDIE(Scope);
-    if (CU.getCUNode()->getSplitDebugInlining())
-      SkelCU->constructAbstractSubprogramScopeDIE(Scope);
-  } else {
-    CU.constructAbstractSubprogramScopeDIE(Scope);
+  if (useSplitDwarf() && !shareAcrossDWOCUs() && !SP->getUnit()->getSplitDebugInlining())
+    // Avoid building the original CU if it won't be used
+    SrcCU.constructAbstractSubprogramScopeDIE(Scope);
+  else {
+    auto &CU = getOrCreateDwarfCompileUnit(SP->getUnit());
+    if (auto *SkelCU = CU.getSkeleton()) {
+      (shareAcrossDWOCUs() ? CU : SrcCU)
+          .constructAbstractSubprogramScopeDIE(Scope);
+      if (CU.getCUNode()->getSplitDebugInlining())
+        SkelCU->constructAbstractSubprogramScopeDIE(Scope);
+    } else
+      CU.constructAbstractSubprogramScopeDIE(Scope);
   }
 }
 
-void DwarfDebug::addGnuPubAttributes(DwarfUnit &U, DIE &D) const {
-  if (!GenerateGnuPubSections)
+bool DwarfDebug::hasDwarfPubSections(bool includeMinimalInlineScopes) const {
+  // Opting in to GNU Pubnames/types overrides the default to ensure these are
+  // generated for things like Gold's gdb_index generation.
+  if (GenerateGnuPubSections)
+    return true;
+
+  if (DwarfPubSections == Default)
+    return tuneForGDB() && !includeMinimalInlineScopes;
+
+  return DwarfPubSections == Enable;
+}
+
+void DwarfDebug::addGnuPubAttributes(DwarfCompileUnit &U, DIE &D) const {
+  if (!hasDwarfPubSections(U.includeMinimalInlineScopes()))
     return;
 
   U.addFlag(D, dwarf::DW_AT_GNU_pubnames);
@@ -401,7 +411,9 @@ void DwarfDebug::addGnuPubAttributes(DwarfUnit &U, DIE &D) const {
 // Create new DwarfCompileUnit for the given metadata node with tag
 // DW_TAG_compile_unit.
 DwarfCompileUnit &
-DwarfDebug::constructDwarfCompileUnit(const DICompileUnit *DIUnit) {
+DwarfDebug::getOrCreateDwarfCompileUnit(const DICompileUnit *DIUnit) {
+  if (auto *CU = CUMap.lookup(DIUnit))
+    return *CU;
   StringRef FN = DIUnit->getFilename();
   CompilationDir = DIUnit->getDirectory();
 
@@ -534,7 +546,12 @@ void DwarfDebug::beginModule() {
   }
 
   for (DICompileUnit *CUNode : M->debug_compile_units()) {
-    DwarfCompileUnit &CU = constructDwarfCompileUnit(CUNode);
+    if (CUNode->getEnumTypes().empty() && CUNode->getRetainedTypes().empty() &&
+        CUNode->getGlobalVariables().empty() &&
+        CUNode->getImportedEntities().empty() && CUNode->getMacros().empty())
+      continue;
+
+    DwarfCompileUnit &CU = getOrCreateDwarfCompileUnit(CUNode);
     for (auto *IE : CUNode->getImportedEntities())
       CU.addImportedEntity(IE);
 
@@ -581,11 +598,12 @@ void DwarfDebug::finishVariableDefinitions() {
 }
 
 void DwarfDebug::finishSubprogramDefinitions() {
-  for (const DISubprogram *SP : ProcessedSPNodes)
-    if (SP->getUnit()->getEmissionKind() != DICompileUnit::NoDebug)
-      forBothCUs(*CUMap.lookup(SP->getUnit()), [&](DwarfCompileUnit &CU) {
-        CU.finishSubprogramDefinition(SP);
-      });
+  for (const DISubprogram *SP : ProcessedSPNodes) {
+    assert(SP->getUnit()->getEmissionKind() != DICompileUnit::NoDebug);
+    forBothCUs(
+        getOrCreateDwarfCompileUnit(SP->getUnit()),
+        [&](DwarfCompileUnit &CU) { CU.finishSubprogramDefinition(SP); });
+  }
 }
 
 void DwarfDebug::finalizeModuleInfo() {
@@ -594,6 +612,13 @@ void DwarfDebug::finalizeModuleInfo() {
   finishSubprogramDefinitions();
 
   finishVariableDefinitions();
+
+  // Include the DWO file name in the hash if there's more than one CU.
+  // This handles ThinLTO's situation where imported CUs may very easily be
+  // duplicate with the same CU partially imported into another ThinLTO unit.
+  StringRef DWOName;
+  if (CUMap.size() > 1)
+    DWOName = Asm->TM.Options.MCOptions.SplitDwarfFile;
 
   // Handle anything that needs to be done on a per-unit basis after
   // all other generation.
@@ -609,7 +634,8 @@ void DwarfDebug::finalizeModuleInfo() {
     auto *SkCU = TheCU.getSkeleton();
     if (useSplitDwarf()) {
       // Emit a unique identifier for this CU.
-      uint64_t ID = DIEHash(Asm).computeCUSignature(TheCU.getUnitDie());
+      uint64_t ID =
+          DIEHash(Asm).computeCUSignature(DWOName, TheCU.getUnitDie());
       TheCU.addUInt(TheCU.getUnitDie(), dwarf::DW_AT_GNU_dwo_id,
                     dwarf::DW_FORM_data8, ID);
       SkCU->addUInt(SkCU->getUnitDie(), dwarf::DW_AT_GNU_dwo_id,
@@ -718,7 +744,9 @@ void DwarfDebug::endModule() {
   }
 
   // Emit the pubnames and pubtypes sections if requested.
-  if (HasDwarfPubSections) {
+  // The condition is optimistically correct - any CU not using GMLT (&
+  // implicit/default pubnames state) might still have pubnames.
+  if (hasDwarfPubSections(/* gmlt */ false)) {
     emitDebugPubNames(GenerateGnuPubSections);
     emitDebugPubTypes(GenerateGnuPubSections);
   }
@@ -1028,8 +1056,12 @@ void DwarfDebug::beginInstruction(const MachineInstr *MI) {
   DebugHandlerBase::beginInstruction(MI);
   assert(CurMI);
 
+  const auto *SP = MI->getParent()->getParent()->getFunction()->getSubprogram();
+  if (!SP || SP->getUnit()->getEmissionKind() == DICompileUnit::NoDebug)
+    return;
+
   // Check if source location changes, but ignore DBG_VALUE and CFI locations.
-  if (MI->isDebugValue() || MI->isCFIInstruction())
+  if (MI->isMetaInstruction())
     return;
   const DebugLoc &DL = MI->getDebugLoc();
   // When we emit a line-0 record, we don't update PrevInstLoc; so look at
@@ -1111,7 +1143,7 @@ static DebugLoc findPrologueEndLoc(const MachineFunction *MF) {
   // the beginning of the function body.
   for (const auto &MBB : *MF)
     for (const auto &MI : MBB)
-      if (!MI.isDebugValue() && !MI.getFlag(MachineInstr::FrameSetup) &&
+      if (!MI.isMetaInstruction() && !MI.getFlag(MachineInstr::FrameSetup) &&
           MI.getDebugLoc())
         return MI.getDebugLoc();
   return DebugLoc();
@@ -1122,40 +1154,28 @@ static DebugLoc findPrologueEndLoc(const MachineFunction *MF) {
 void DwarfDebug::beginFunctionImpl(const MachineFunction *MF) {
   CurFn = MF;
 
-  if (LScopes.empty())
+  auto *SP = MF->getFunction()->getSubprogram();
+  assert(LScopes.empty() || SP == LScopes.getCurrentFunctionScope()->getScopeNode());
+  if (SP->getUnit()->getEmissionKind() == DICompileUnit::NoDebug)
     return;
+
+  DwarfCompileUnit &CU = getOrCreateDwarfCompileUnit(SP->getUnit());
 
   // Set DwarfDwarfCompileUnitID in MCContext to the Compile Unit this function
   // belongs to so that we add to the correct per-cu line table in the
   // non-asm case.
-  LexicalScope *FnScope = LScopes.getCurrentFunctionScope();
-  // FnScope->getScopeNode() and DI->second should represent the same function,
-  // though they may not be the same MDNode due to inline functions merged in
-  // LTO where the debug info metadata still differs (either due to distinct
-  // written differences - two versions of a linkonce_odr function
-  // written/copied into two separate files, or some sub-optimal metadata that
-  // isn't structurally identical (see: file path/name info from clang, which
-  // includes the directory of the cpp file being built, even when the file name
-  // is absolute (such as an <> lookup header)))
-  auto *SP = cast<DISubprogram>(FnScope->getScopeNode());
-  DwarfCompileUnit *TheCU = CUMap.lookup(SP->getUnit());
-  if (!TheCU) {
-    assert(SP->getUnit()->getEmissionKind() == DICompileUnit::NoDebug &&
-           "DICompileUnit missing from llvm.dbg.cu?");
-    return;
-  }
   if (Asm->OutStreamer->hasRawTextSupport())
     // Use a single line table if we are generating assembly.
     Asm->OutStreamer->getContext().setDwarfCompileUnitID(0);
   else
-    Asm->OutStreamer->getContext().setDwarfCompileUnitID(TheCU->getUniqueID());
+    Asm->OutStreamer->getContext().setDwarfCompileUnitID(CU.getUniqueID());
 
   // Record beginning of function.
   PrologEndLoc = findPrologueEndLoc(MF);
-  if (DILocation *L = PrologEndLoc) {
+  if (PrologEndLoc) {
     // We'd like to list the prologue as "not statements" but GDB behaves
     // poorly if we do that. Revisit this with caution/GDB (7.5+) testing.
-    auto *SP = L->getInlinedAtScope()->getSubprogram();
+    auto *SP = PrologEndLoc->getInlinedAtScope()->getSubprogram();
     recordSourceLine(SP->getScopeLine(), 0, SP, DWARF2_FLAG_IS_STMT);
   }
 }
@@ -1395,7 +1415,7 @@ void DwarfDebug::emitDebugPubSection(
 
     const auto &Globals = (TheU->*Accessor)();
 
-    if (Globals.empty())
+    if (!hasDwarfPubSections(TheU->includeMinimalInlineScopes()))
       continue;
 
     if (auto *Skeleton = TheU->getSkeleton())
@@ -1544,6 +1564,9 @@ void DwarfDebug::emitDebugLocEntryLocation(const DebugLocStream::Entry &Entry) {
 
 // Emit locations into the debug loc section.
 void DwarfDebug::emitDebugLoc() {
+  if (DebugLocs.getLists().empty())
+    return;
+
   // Start the dwarf loc section.
   Asm->OutStreamer->SwitchSection(
       Asm->getObjFileLowering().getDwarfLocSection());
@@ -1755,6 +1778,9 @@ void DwarfDebug::emitDebugARanges() {
 
 /// Emit address ranges into a debug ranges section.
 void DwarfDebug::emitDebugRanges() {
+  if (CUMap.empty())
+    return;
+
   // Start the dwarf ranges section.
   Asm->OutStreamer->SwitchSection(
       Asm->getObjFileLowering().getDwarfRangesSection());
@@ -1834,6 +1860,9 @@ void DwarfDebug::emitMacroFile(DIMacroFile &F, DwarfCompileUnit &U) {
 
 /// Emit macros into a debug macinfo section.
 void DwarfDebug::emitDebugMacinfo() {
+  if (CUMap.empty())
+    return;
+
   // Start the dwarf macinfo section.
   Asm->OutStreamer->SwitchSection(
       Asm->getObjFileLowering().getDwarfMacinfoSection());
