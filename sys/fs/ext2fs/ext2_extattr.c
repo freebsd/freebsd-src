@@ -46,33 +46,90 @@
 #include <fs/ext2fs/ext2_extattr.h>
 #include <fs/ext2fs/ext2_extern.h>
 
-
 static int
-ext2_extattr_index_to_bsd(int index)
+ext2_extattr_attrnamespace_to_bsd(int attrnamespace)
 {
-	switch (index) {
-		case EXT4_XATTR_INDEX_SYSTEM:
-			return (EXTATTR_NAMESPACE_SYSTEM);
 
-		case EXT4_XATTR_INDEX_USER:
-			return (EXTATTR_NAMESPACE_USER);
+	switch (attrnamespace) {
+	case EXT4_XATTR_INDEX_SYSTEM:
+		return (EXTATTR_NAMESPACE_SYSTEM);
+
+	case EXT4_XATTR_INDEX_USER:
+		return (EXTATTR_NAMESPACE_USER);
+
+	case EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT:
+		return (POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE);
+
+	case EXT4_XATTR_INDEX_POSIX_ACL_ACCESS:
+		return (POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE);
 	}
 
 	return (EXTATTR_NAMESPACE_EMPTY);
 }
 
-static int
-ext2_extattr_index_to_linux(int index)
+static const char *
+ext2_extattr_name_to_bsd(int attrnamespace, const char *name, int* name_len)
 {
-	switch (index) {
-		case EXTATTR_NAMESPACE_SYSTEM:
-			return (EXT4_XATTR_INDEX_SYSTEM);
 
-		case EXTATTR_NAMESPACE_USER:
-			return (EXT4_XATTR_INDEX_USER);
+	if (attrnamespace == EXT4_XATTR_INDEX_SYSTEM)
+		return (name);
+	else if (attrnamespace == EXT4_XATTR_INDEX_USER)
+		return (name);
+	else if (attrnamespace == EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT) {
+		*name_len = strlen(POSIX1E_ACL_DEFAULT_EXTATTR_NAME);
+		return (POSIX1E_ACL_DEFAULT_EXTATTR_NAME);
+	} else if (attrnamespace == EXT4_XATTR_INDEX_POSIX_ACL_ACCESS) {
+		*name_len = strlen(POSIX1E_ACL_ACCESS_EXTATTR_NAME);
+		return (POSIX1E_ACL_ACCESS_EXTATTR_NAME);
 	}
 
+	/*
+	 * XXX: Not all linux namespaces are mapped to bsd for now,
+	 * return NULL, which will be converted to ENOTSUP on upper layer.
+	 */
+#ifdef EXT2FS_DEBUG
+	printf("can not convert ext2fs name to bsd: namespace=%d\n", attrnamespace);
+#endif	/* DEBUG */
+
+	return (NULL);
+}
+
+static int
+ext2_extattr_attrnamespace_to_linux(int attrnamespace, const char *name)
+{
+
+	if (attrnamespace == POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE &&
+	    !strcmp(name, POSIX1E_ACL_DEFAULT_EXTATTR_NAME))
+		return (EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT);
+
+	if (attrnamespace == POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE &&
+	    !strcmp(name, POSIX1E_ACL_ACCESS_EXTATTR_NAME))
+		return (EXT4_XATTR_INDEX_POSIX_ACL_ACCESS);
+
+	switch (attrnamespace) {
+	case EXTATTR_NAMESPACE_SYSTEM:
+		return (EXT4_XATTR_INDEX_SYSTEM);
+
+	case EXTATTR_NAMESPACE_USER:
+		return (EXT4_XATTR_INDEX_USER);
+	}
+
+	/*
+	 * In this case namespace conversion should be unique,
+	 * so this point is unreachable.
+	 */
 	return (-1);
+}
+
+static const char *
+ext2_extattr_name_to_linux(int attrnamespace, const char *name)
+{
+
+	if (attrnamespace == POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE ||
+	    attrnamespace == POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE)
+		return ("");
+	else
+		return (name);
 }
 
 int
@@ -114,6 +171,8 @@ ext2_extattr_inode_list(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_dinode_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -147,17 +206,26 @@ ext2_extattr_inode_list(struct inode *ip, int attrnamespace,
 
 	for (entry = EXT2_IFIRST(header); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
 		if (uio == NULL)
-			*size += entry->e_name_len + 1;
+			*size += name_len + 1;
 		else {
-			char *attr_name = malloc(entry->e_name_len + 1, M_TEMP, M_WAITOK);
-			attr_name[0] = entry->e_name_len;
-			memcpy(&attr_name[1], entry->e_name, entry->e_name_len);
-			error = uiomove(attr_name, entry->e_name_len + 1, uio);
-			free(attr_name, M_TEMP);
+			char *name = malloc(name_len + 1, M_TEMP, M_WAITOK);
+			name[0] = name_len;
+			memcpy(&name[1], attr_name, name_len);
+			error = uiomove(name, name_len + 1, uio);
+			free(name, M_TEMP);
 			if (error)
 				break;
 		}
@@ -176,6 +244,8 @@ ext2_extattr_block_list(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -202,17 +272,26 @@ ext2_extattr_block_list(struct inode *ip, int attrnamespace,
 
 	for (entry = EXT2_FIRST_ENTRY(bp); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
 		if (uio == NULL)
-			*size += entry->e_name_len + 1;
+			*size += name_len + 1;
 		else {
-			char *attr_name = malloc(entry->e_name_len + 1, M_TEMP, M_WAITOK);
-			attr_name[0] = entry->e_name_len;
-			memcpy(&attr_name[1], entry->e_name, entry->e_name_len);
-			error = uiomove(attr_name, entry->e_name_len + 1, uio);
-			free(attr_name, M_TEMP);
+			char *name = malloc(name_len + 1, M_TEMP, M_WAITOK);
+			name[0] = name_len;
+			memcpy(&name[1], attr_name, name_len);
+			error = uiomove(name, name_len + 1, uio);
+			free(name, M_TEMP);
 			if (error)
 				break;
 		}
@@ -231,6 +310,8 @@ ext2_extattr_inode_get(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_dinode_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -264,11 +345,20 @@ ext2_extattr_inode_get(struct inode *ip, int attrnamespace,
 
 	for (entry = EXT2_IFIRST(header); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			if (uio == NULL)
 				*size += entry->e_value_size;
 			else {
@@ -294,6 +384,8 @@ ext2_extattr_block_get(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -320,11 +412,20 @@ ext2_extattr_block_get(struct inode *ip, int attrnamespace,
 
 	for (entry = EXT2_FIRST_ENTRY(bp); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			if (uio == NULL)
 				*size += entry->e_value_size;
 			else {
@@ -411,6 +512,8 @@ ext2_extattr_inode_delete(struct inode *ip, int attrnamespace, const char *name)
 	struct buf *bp;
 	struct ext2fs_extattr_dinode_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -444,9 +547,20 @@ ext2_extattr_inode_delete(struct inode *ip, int attrnamespace, const char *name)
 
 	/* If I am last entry, just make magic zero */
 	entry = EXT2_IFIRST(header);
-	if (EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry))) {
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+	if ((EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry))) &&
+	    (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) ==
+	    attrnamespace)) {
+
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			memset(header, 0, sizeof(struct ext2fs_extattr_dinode_header));
 
 			return (bwrite(bp));
@@ -455,11 +569,20 @@ ext2_extattr_inode_delete(struct inode *ip, int attrnamespace, const char *name)
 
 	for (entry = EXT2_IFIRST(header); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			ext2_extattr_delete_entry((char *)EXT2_IFIRST(header),
 			    EXT2_IFIRST(header), entry,
 			    (char *)dinode + EXT2_INODE_SIZE(fs));
@@ -521,6 +644,8 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 	struct buf *bp;
 	struct ext2fs_extattr_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	int error;
 
 	fs = ip->i_e2fs;
@@ -555,9 +680,20 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 
 	/* If I am last entry, clean me and free the block */
 	entry = EXT2_FIRST_ENTRY(bp);
-	if (EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry))) {
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+	if (EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry)) &&
+	    (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) ==
+	    attrnamespace)) {
+
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			ip->i_blocks -= btodb(fs->e2fs_bsize);
 			ext2_blkfree(ip, ip->i_facl, fs->e2fs_bsize);
 			ip->i_facl = 0;
@@ -570,11 +706,20 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 
 	for (entry = EXT2_FIRST_ENTRY(bp); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len)) {
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len)) {
 			ext2_extattr_delete_entry(bp->b_data,
 			    EXT2_FIRST_ENTRY(bp), entry,
 			    bp->b_data + bp->b_bufsize);
@@ -592,15 +737,18 @@ static struct ext2fs_extattr_entry *
 allocate_entry(const char *name, int attrnamespace, uint16_t offs,
     uint32_t size, uint32_t hash)
 {
-	size_t name_len;
+	const char *attr_name;
+	int name_len;
 	struct ext2fs_extattr_entry *entry;
 
-	name_len = strlen(name);
+	attr_name = ext2_extattr_name_to_linux(attrnamespace, name);
+	name_len = strlen(attr_name);
+
 	entry = malloc(sizeof(struct ext2fs_extattr_entry) + name_len,
 	    M_TEMP, M_WAITOK);
 
 	entry->e_name_len = name_len;
-	entry->e_name_index = ext2_extattr_index_to_linux(attrnamespace);
+	entry->e_name_index = ext2_extattr_attrnamespace_to_linux(attrnamespace, name);
 	entry->e_value_offs = offs;
 	entry->e_value_block = 0;
 	entry->e_value_size = size;
@@ -727,6 +875,8 @@ ext2_extattr_inode_set(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_dinode_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	size_t size = 0, max_size;
 	int error;
 
@@ -762,11 +912,20 @@ ext2_extattr_inode_set(struct inode *ip, int attrnamespace,
 	/* Find if entry exist */
 	for (entry = EXT2_IFIRST(header); !EXT2_IS_LAST_ENTRY(entry);
 	    entry = EXT2_EXTATTR_NEXT(entry)) {
-		if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+		if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+		    attrnamespace)
 			continue;
 
-		if (strlen(name) == entry->e_name_len &&
-		    0 == strncmp(entry->e_name, name, entry->e_name_len))
+		name_len = entry->e_name_len;
+		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+		    entry->e_name, &name_len);
+		if (!attr_name) {
+			brelse(bp);
+			return (ENOTSUP);
+		}
+
+		if (strlen(name) == name_len &&
+		    0 == strncmp(attr_name, name, name_len))
 			break;
 	}
 
@@ -876,6 +1035,8 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 	struct buf *bp;
 	struct ext2fs_extattr_header *header;
 	struct ext2fs_extattr_entry *entry;
+	const char *attr_name;
+	int name_len;
 	size_t size;
 	int error;
 
@@ -916,11 +1077,20 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 		/* Find if entry exist */
 		for (entry = EXT2_FIRST_ENTRY(bp); !EXT2_IS_LAST_ENTRY(entry);
 		    entry = EXT2_EXTATTR_NEXT(entry)) {
-			if (ext2_extattr_index_to_bsd(entry->e_name_index) != attrnamespace)
+			if (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) !=
+			    attrnamespace)
 				continue;
 
-			if (strlen(name) == entry->e_name_len &&
-			    0 == strncmp(entry->e_name, name, entry->e_name_len))
+			name_len = entry->e_name_len;
+			attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
+			    entry->e_name, &name_len);
+			if (!attr_name) {
+				brelse(bp);
+				return (ENOTSUP);
+			}
+
+			if (strlen(name) == name_len &&
+			    0 == strncmp(attr_name, name, name_len))
 				break;
 		}
 
@@ -961,7 +1131,8 @@ ext2_extattr_block_set(struct inode *ip, int attrnamespace,
 	}
 
 	size = ext2_extattr_get_size(NULL, NULL,
-	    sizeof(struct ext2fs_extattr_header), strlen(name), uio->uio_resid);
+	    sizeof(struct ext2fs_extattr_header),
+	    strlen(ext2_extattr_name_to_linux(attrnamespace, name)), uio->uio_resid);
 	if (size > fs->e2fs_bsize)
 		return (ENOSPC);
 

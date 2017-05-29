@@ -53,10 +53,14 @@
 #define KEYDEBUG_IPSEC_DATA	(KEYDEBUG_IPSEC | KEYDEBUG_DATA)
 #define KEYDEBUG_IPSEC_DUMP	(KEYDEBUG_IPSEC | KEYDEBUG_DUMP)
 
+#ifdef IPSEC_DEBUG
 #define KEYDBG(lev, arg)	\
     if ((V_key_debug_level & (KEYDEBUG_ ## lev)) == (KEYDEBUG_ ## lev)) { \
 	    arg;		\
     }
+#else
+#define	KEYDBG(lev, arg)
+#endif /* !IPSEC_DEBUG */
 
 VNET_DECLARE(uint32_t, key_debug_level);
 #define	V_key_debug_level	VNET(key_debug_level)

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2017
+.Dd May 27, 2017
 .Dt PXEBOOT 8
 .Os
 .Sh NAME
@@ -39,6 +39,11 @@ configured to run under Intel's Preboot Execution Environment (PXE) system.
 PXE is a form of smart boot ROM, built into Intel EtherExpress Pro/100 and
 3Com 3c905c Ethernet cards, and Ethernet-equipped Intel motherboards.
 PXE supports DHCP configuration and provides low-level NIC access services.
+.Pp
+The DHCP client will set a DHCP user class named
+.Va FreeBSD
+to allow flexible configuration of the DHCP server.
+.Pp
 The
 .Nm
 bootloader retrieves the kernel, modules,
@@ -69,6 +74,9 @@ max-lease-time 120;
 subnet 10.0.0.0 netmask 255.255.255.0 {
        filename "pxeboot";
        range 10.0.0.10 10.0.0.254;
+       if exists user-class and option user-class = "FreeBSD" {
+            option root-path "tftp://10.0.0.1/FreeBSD";
+       }
 }
 
 .Ed
@@ -84,6 +92,27 @@ Note that
 expects to fetch
 .Pa /boot/loader.rc
 from the specified server before loading any other files.
+.Pp
+Valid
+.Va option root-path
+Syntax is the following
+.Bl -tag -width <scheme>://ip/path indent
+.It /path
+path to the root filesystem on the NFS server
+.It ip:/path
+path to the root filesystem on the NFS server
+.Ar ip
+.It nfs:/path
+path to the root filesystem on the NFS server
+.It nfs://ip/path
+path to the root filesystem on the NFS server
+.Ar ip
+.It tftp:/path
+path to the root filesystem on the TFTP server
+.It tftp://ip/path
+path to the root filesystem on the TFTP server
+.Ar ip
+.El
 .Pp
 .Nm
 defaults to a conservative 1024 byte NFS data packet size.

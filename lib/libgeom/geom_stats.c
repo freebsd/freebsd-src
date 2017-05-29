@@ -87,8 +87,6 @@ geom_stats_open(void)
 	if (statsfd < 0)
 		return (errno);
 	pagesize = getpagesize();
-	if (pagesize == -1)
-		return (errno);
 	spp = pagesize / sizeof(struct devstat);
 	p = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, statsfd, 0);
 	if (p == MAP_FAILED) {

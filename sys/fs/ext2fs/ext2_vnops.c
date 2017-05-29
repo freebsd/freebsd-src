@@ -81,6 +81,7 @@
 
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_acl.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/ext2_dinode.h>
@@ -163,6 +164,9 @@ struct vop_vector ext2_vnodeops = {
 	.vop_getextattr =	ext2_getextattr,
 	.vop_listextattr =	ext2_listextattr,
 	.vop_setextattr =	ext2_setextattr,
+	.vop_getacl =		ext2_getacl,
+	.vop_setacl =		ext2_setacl,
+	.vop_aclcheck =		ext2_aclcheck,
 	.vop_vptofh =		ext2_vptofh,
 };
 
@@ -1083,6 +1087,150 @@ out:
 	return (error);
 }
 
+static int
+ext2_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
+    mode_t dmode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *dacl, *acl;
+
+	acl = acl_alloc(M_WAITOK);
+	dacl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL from parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.  If the ACL is empty, fall through to
+		 * the "not defined or available" case.
+		 */
+		if (acl->acl_cnt != 0) {
+			dmode = acl_posix1e_newfilemode(dmode, acl);
+			ip->i_mode = dmode;
+			*dacl = *acl;
+			ext2_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = dmode;
+		error = 0;
+		goto out;
+
+	default:
+		goto out;
+	}
+
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	if (error == 0)
+		error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above
+		 * was supposed to free acl.
+		 */
+#ifdef DEBUG
+		printf("ext2_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
+#endif	/* DEBUG */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+	acl_free(dacl);
+
+	return (error);
+}
+
+static int
+ext2_do_posix1e_acl_inheritance_file(struct vnode *dvp, struct vnode *tvp,
+    mode_t mode, struct ucred *cred, struct thread *td)
+{
+	int error;
+	struct inode *ip = VTOI(tvp);
+	struct acl *acl;
+
+	acl = acl_alloc(M_WAITOK);
+
+	/*
+	 * Retrieve default ACL for parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cred, td);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.
+		 */
+		if (acl->acl_cnt != 0) {
+			/*
+			 * Two possible ways for default ACL to not
+			 * be present.  First, the EA can be
+			 * undefined, or second, the default ACL can
+			 * be blank.  If it's blank, fall through to
+			 * the it's not defined case.
+			 */
+			mode = acl_posix1e_newfilemode(mode, acl);
+			ip->i_mode = mode;
+			ext2_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = mode;
+		error = 0;
+		goto out;
+
+	default:
+		goto out;
+	}
+
+	error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cred, td);
+	switch (error) {
+	case 0:
+		break;
+
+	case EOPNOTSUPP:
+		/*
+		 * XXX: This should not happen, as EOPNOTSUPP above was
+		 * supposed to free acl.
+		 */
+		printf("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()\n");
+		/* panic("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
+		    "but no VOP_SETACL()"); */
+		break;
+
+	default:
+		goto out;
+	}
+
+out:
+	acl_free(acl);
+
+	return (error);
+}
+
 /*
  * Mkdir system call
  */
@@ -1190,6 +1338,13 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	else {
 		ip->i_size = DIRBLKSIZ;
 		ip->i_flag |= IN_CHANGE;
+	}
+
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ext2_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
 	}
 
 	/* Directory set up, now install its entry in the parent directory. */
@@ -1446,6 +1601,18 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
+	case _PC_ACL_EXTENDED:
+		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_ACL_PATH_MAX:
+		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+			*ap->a_retval = ACL_MAX_ENTRIES;
+		else
+			*ap->a_retval = 3;
+		break;
 	case _PC_MIN_HOLE_SIZE:
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
@@ -1513,6 +1680,8 @@ ext2_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (error)
 		return (error);
 
+	error = ENOATTR;
+
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
 		error = ext2_extattr_inode_delete(ip, ap->a_attrnamespace, ap->a_name);
 		if (error != ENOATTR)
@@ -1551,6 +1720,8 @@ ext2_getextattr(struct vop_getextattr_args *ap)
 
 	if (ap->a_size != NULL)
 		*ap->a_size = 0;
+
+	error = ENOATTR;
 
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
 		error = ext2_extattr_inode_get(ip, ap->a_attrnamespace,
@@ -1755,6 +1926,14 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	error = ext2_update(tvp, !DOINGASYNC(tvp));
 	if (error)
 		goto bad;
+
+	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
+		error = ext2_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
+		    cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			goto bad;
+	}
+
 	error = ext2_direnter(ip, dvp, cnp);
 	if (error)
 		goto bad;

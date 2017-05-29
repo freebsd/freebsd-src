@@ -28,7 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -125,7 +125,8 @@ compare_addrinfo_(struct addrinfo *ai1, struct addrinfo *ai2)
 }
 
 static int
-compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2, void *mdata)
+compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2,
+    void *mdata __unused)
 {
 	int rv;
 
@@ -144,7 +145,7 @@ compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2, void *mdata)
 	return (rv);
 }
 
-void
+static void
 free_addrinfo(struct addrinfo *ai)
 {
 	if (ai == NULL)
@@ -164,30 +165,30 @@ sdump_addrinfo(struct addrinfo *ai, char *buffer, size_t buflen)
 		ai->ai_flags, ai->ai_family, ai->ai_socktype, ai->ai_protocol,
 		ai->ai_addrlen);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	written = snprintf(buffer, buflen, "%s ",
 		ai->ai_canonname == NULL ? "(null)" : ai->ai_canonname);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (ai->ai_addr == NULL) {
 		written = snprintf(buffer, buflen, "(null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	} else {
-		for (i = 0; i < ai->ai_addrlen; i++) {
+		for (i = 0; i < (int)ai->ai_addrlen; i++) {
 			written = snprintf(buffer, buflen,
-			    i + 1 != ai->ai_addrlen ? "%d." : "%d",
+			    i + 1 != (int)ai->ai_addrlen ? "%d." : "%d",
 			    ((unsigned char *)ai->ai_addr)[i]);
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 
@@ -199,7 +200,7 @@ sdump_addrinfo(struct addrinfo *ai, char *buffer, size_t buflen)
 	if (ai->ai_next != NULL) {
 		written = snprintf(buffer, buflen, ":");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 
@@ -309,12 +310,11 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 {
 	struct addrinfo *ai2;
 	char *s, *ps;
-	int i, rv;
+	int rv;
 
 	printf("1 line read from snapshot:\n%s\n", line);
 
 	rv = 0;
-	i = 0;
 	ps = line;
 
 	s = strsep(&ps, ":");
@@ -344,7 +344,7 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 }
 
 static int
-addrinfo_test_correctness(struct addrinfo *ai, void *mdata)
+addrinfo_test_correctness(struct addrinfo *ai, void *mdata __unused)
 {
 
 	printf("testing correctness with the following data:\n");
@@ -409,11 +409,19 @@ addrinfo_read_hostlist_func(struct addrinfo *ai, char *line)
 	return (0);
 }
 
-void
-run_tests(char *hostlist_file, char *snapshot_file, int ai_family)
+static void
+run_tests(char *hostlist_file, const char *snapshot_file, int ai_family)
 {
 	struct addrinfo_test_data td, td_snap;
+	char *snapshot_file_copy;
 	int rv;
+
+	if (snapshot_file == NULL)
+		snapshot_file_copy = NULL;
+	else {
+		snapshot_file_copy = strdup(snapshot_file);
+		ATF_REQUIRE(snapshot_file_copy != NULL);
+	}
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = ai_family;
@@ -477,24 +485,17 @@ fin:
 	TEST_DATA_DESTROY(addrinfo, &td_snap);
 	TEST_DATA_DESTROY(addrinfo, &td);
 
-	free(hostlist_file);
-	free(snapshot_file);
+	free(snapshot_file_copy);
 }
 
 #define	HOSTLIST_FILE	"mach"
 #define	RUN_TESTS(tc, snapshot_file, ai_family) do {			\
 	char *_hostlist_file;						\
-	char *_snapshot_file;						\
 	ATF_REQUIRE(0 < asprintf(&_hostlist_file, "%s/%s",		\
 	    atf_tc_get_config_var(tc, "srcdir"), HOSTLIST_FILE));	\
-	if (snapshot_file == NULL)					\
-		_snapshot_file = NULL;					\
-	else {							\
-		_snapshot_file = strdup(snapshot_file); 		\
-		ATF_REQUIRE(_snapshot_file != NULL);			\
-	}								\
-	run_tests(_hostlist_file, _snapshot_file, ai_family);		\
-} while(0)
+	run_tests(_hostlist_file, snapshot_file, ai_family);		\
+	free(_hostlist_file);						\
+} while (0)
 
 ATF_TC_WITHOUT_HEAD(pf_unspec);
 ATF_TC_BODY(pf_unspec, tc)

@@ -150,6 +150,8 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
+# 20170529: mount.conf(8) -> mount.conf(5)
+OLD_FILES+=usr/share/man/man8/mount.conf.8.gz
 # 20170525: remove misleading template
 OLD_FILES+=usr/share/misc/man.template
 # 20170525: disconnect the roff docs from the build
@@ -222,6 +224,10 @@ OLD_FILES+=usr/share/doc/usd/21.troff/paper.ascii.gz
 OLD_FILES+=usr/share/doc/usd/22.trofftut/paper.ascii.gz
 OLD_FILES+=usr/share/doc/usd/Title.ascii.gz
 OLD_FILES+=usr/share/doc/usd/contents.ascii.gz
+# 20170523: 64-bit inode support, library version bumps
+OLD_LIBS+=lib/libzfs.so.2
+OLD_LIBS+=usr/lib/libarchive.so.6
+OLD_LIBS+=usr/lib/libmilter.so.5
 # 20170427: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2

@@ -15,7 +15,7 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	linux${SFX}_machdep.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_time.c \
-	linux_timer.c linux_vdso.c \
+	linux_timer.c linux_vdso.c opt_global.h \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h assym.s \
 	linux${SFX}_support.s
@@ -64,10 +64,12 @@ linux${SFX}_support.o: linux${SFX}_assym.h assym.s
 ${VDSO}.so: linux${SFX}_locore.o
 	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
+	strip -N _binary_linux${SFX}_locore_o_size ${.TARGET}
 .else
 ${VDSO}.so: linux${SFX}_locore.o
 	${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
+	strip -N _binary_linux_locore_o_size ${.TARGET}
 .endif
 
 linux${SFX}_genassym.o:

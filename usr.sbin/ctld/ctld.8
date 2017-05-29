@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2016
+.Dd May 28, 2017
 .Dt CTLD 8
 .Os
 .Sh NAME
@@ -55,7 +55,9 @@ instances, removes LUNs no longer existing in the configuration file,
 and creates new LUNs as necessary.
 After that it listens for the incoming iSCSI connections, performs
 authentication, and, if successful, passes the connections to the kernel part
-of CTL iSCSI target, which handles it from that point.
+of CTL iSCSI target,
+.Xr cfiscsi 4 ,
+which handles it from that point.
 .Pp
 When it receives a SIGHUP signal, the
 .Nm
@@ -105,6 +107,7 @@ The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
+.Xr cfiscsi 4 ,
 .Xr ctl 4 ,
 .Xr ctl.conf 5 ,
 .Xr ctladm 8 ,
