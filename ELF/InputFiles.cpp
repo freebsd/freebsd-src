@@ -281,18 +281,20 @@ bool elf::ObjectFile<ELFT>::shouldMerge(const Elf_Shdr &Sec) {
 template <class ELFT>
 void elf::ObjectFile<ELFT>::initializeSections(
     DenseSet<CachedHashStringRef> &ComdatGroups) {
+  const ELFFile<ELFT> &Obj = this->getObj();
+
   ArrayRef<Elf_Shdr> ObjSections =
       check(this->getObj().sections(), toString(this));
-  const ELFFile<ELFT> &Obj = this->getObj();
   uint64_t Size = ObjSections.size();
   this->Sections.resize(Size);
-  unsigned I = -1;
+
   StringRef SectionStringTable =
       check(Obj.getSectionStringTable(ObjSections), toString(this));
-  for (const Elf_Shdr &Sec : ObjSections) {
-    ++I;
+
+  for (size_t I = 0, E = ObjSections.size(); I < E; I++) {
     if (this->Sections[I] == &InputSection::Discarded)
       continue;
+    const Elf_Shdr &Sec = ObjSections[I];
 
     // SHF_EXCLUDE'ed sections are discarded by the linker. However,
     // if -r is given, we'll let the final link discard such sections.
@@ -303,13 +305,22 @@ void elf::ObjectFile<ELFT>::initializeSections(
     }
 
     switch (Sec.sh_type) {
-    case SHT_GROUP:
-      this->Sections[I] = &InputSection::Discarded;
-      if (ComdatGroups
-              .insert(
-                  CachedHashStringRef(getShtGroupSignature(ObjSections, Sec)))
-              .second)
+    case SHT_GROUP: {
+      // We discard comdat sections usually. When -r we should not do that. We
+      // still do deduplication in this case to simplify implementation, because
+      // otherwise merging group sections together would requre additional
+      // regeneration of its contents.
+      bool New = ComdatGroups
+                     .insert(CachedHashStringRef(
+                         getShtGroupSignature(ObjSections, Sec)))
+                     .second;
+      if (New && Config->Relocatable)
+        this->Sections[I] = createInputSection(Sec, SectionStringTable);
+      else
+        this->Sections[I] = &InputSection::Discarded;
+      if (New)
         continue;
+
       for (uint32_t SecIndex : getShtGroupEntries(Sec)) {
         if (SecIndex >= Size)
           fatal(toString(this) +
@@ -317,6 +328,7 @@ void elf::ObjectFile<ELFT>::initializeSections(
         this->Sections[SecIndex] = &InputSection::Discarded;
       }
       break;
+    }
     case SHT_SYMTAB:
       this->initSymtab(ObjSections, &Sec);
       break;

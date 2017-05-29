@@ -1005,10 +1005,11 @@ DynamicSection<ELFT>::DynamicSection()
                        ".dynamic") {
   this->Entsize = ELFT::Is64Bits ? 16 : 8;
 
-  // .dynamic section is not writable on MIPS.
+  // .dynamic section is not writable on MIPS and on Fuchsia OS
+  // which passes -z rodynamic.
   // See "Special Section" in Chapter 4 in the following document:
   // ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/mipsabi.pdf
-  if (Config->EMachine == EM_MIPS)
+  if (Config->EMachine == EM_MIPS || Config->ZRodynamic)
     this->Flags = SHF_ALLOC;
 
   addEntries();
@@ -1053,7 +1054,15 @@ template <class ELFT> void DynamicSection<ELFT>::addEntries() {
   if (DtFlags1)
     add({DT_FLAGS_1, DtFlags1});
 
-  if (!Config->Shared && !Config->Relocatable)
+  // DT_DEBUG is a pointer to debug informaion used by debuggers at runtime. We
+  // need it for each process, so we don't write it for DSOs. The loader writes
+  // the pointer into this entry.
+  //
+  // DT_DEBUG is the only .dynamic entry that needs to be written to. Some
+  // systems (currently only Fuchsia OS) provide other means to give the
+  // debugger this information. Such systems may choose make .dynamic read-only.
+  // If the target is such a system (used -z rodynamic) don't write DT_DEBUG.
+  if (!Config->Shared && !Config->Relocatable && !Config->ZRodynamic)
     add({DT_DEBUG, (uint64_t)0});
 }
 
@@ -1778,11 +1787,10 @@ void GdbIndexSection::readDwarf(InputSection *Sec) {
     std::tie(IsNew, Sym) = SymbolTable.add(Hash, Offset);
     if (IsNew) {
       Sym->CuVectorIndex = CuVectors.size();
-      CuVectors.push_back({{CuId, Pair.second}});
-      continue;
+      CuVectors.resize(CuVectors.size() + 1);
     }
 
-    CuVectors[Sym->CuVectorIndex].push_back({CuId, Pair.second});
+    CuVectors[Sym->CuVectorIndex].insert((Pair.second << 24) | (uint32_t)CuId);
   }
 }
 
@@ -1806,7 +1814,7 @@ void GdbIndexSection::finalizeContents() {
   ConstantPoolOffset =
       SymTabOffset + SymbolTable.getCapacity() * SymTabEntrySize;
 
-  for (std::vector<std::pair<uint32_t, uint8_t>> &CuVec : CuVectors) {
+  for (std::set<uint32_t> &CuVec : CuVectors) {
     CuVectorsOffset.push_back(CuVectorsSize);
     CuVectorsSize += OffsetTypeSize * (CuVec.size() + 1);
   }
@@ -1859,14 +1867,11 @@ void GdbIndexSection::writeTo(uint8_t *Buf) {
   }
 
   // Write the CU vectors into the constant pool.
-  for (std::vector<std::pair<uint32_t, uint8_t>> &CuVec : CuVectors) {
+  for (std::set<uint32_t> &CuVec : CuVectors) {
     write32le(Buf, CuVec.size());
     Buf += 4;
-    for (std::pair<uint32_t, uint8_t> &P : CuVec) {
-      uint32_t Index = P.first;
-      uint8_t Flags = P.second;
-      Index |= Flags << 24;
-      write32le(Buf, Index);
+    for (uint32_t Val : CuVec) {
+      write32le(Buf, Val);
       Buf += 4;
     }
   }
@@ -2173,17 +2178,6 @@ MipsRldMapSection::MipsRldMapSection()
     : SyntheticSection(SHF_ALLOC | SHF_WRITE, SHT_PROGBITS, Config->Wordsize,
                        ".rld_map") {}
 
-void MipsRldMapSection::writeTo(uint8_t *Buf) {
-  // Apply filler from linker script.
-  Optional<uint32_t> Fill = Script->getFiller(this->OutSec);
-  if (!Fill || *Fill == 0)
-    return;
-
-  uint64_t Filler = *Fill;
-  Filler = (Filler << 32) | Filler;
-  memcpy(Buf, &Filler, getSize());
-}
-
 ARMExidxSentinelSection::ARMExidxSentinelSection()
     : SyntheticSection(SHF_ALLOC | SHF_LINK_ORDER, SHT_ARM_EXIDX,
                        Config->Wordsize, ".ARM.exidx") {}
@@ -2194,7 +2188,7 @@ ARMExidxSentinelSection::ARMExidxSentinelSection()
 // | PREL31 upper bound of code that has exception tables | EXIDX_CANTUNWIND |
 void ARMExidxSentinelSection::writeTo(uint8_t *Buf) {
   // Get the InputSection before us, we are by definition last
-  auto RI = cast<OutputSection>(this->OutSec)->Sections.rbegin();
+  auto RI = this->OutSec->Sections.rbegin();
   InputSection *LE = *(++RI);
   InputSection *LC = cast<InputSection>(LE->getLinkOrderDep());
   uint64_t S = LC->OutSec->Addr + LC->getOffset(LC->getSize());
