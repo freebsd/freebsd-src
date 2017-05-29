@@ -46,6 +46,7 @@ public:
   void run();
 
 private:
+  void clearOutputSections();
   void createSyntheticSections();
   void copyLocalSymbols();
   void addSectionSymbols();
@@ -80,6 +81,8 @@ private:
   void addStartStopSymbols(OutputSection *Sec);
   uint64_t getEntryAddr();
   OutputSection *findSection(StringRef Name);
+  OutputSection *findSectionInScript(StringRef Name);
+  OutputSectionCommand *findSectionCommand(StringRef Name);
 
   std::vector<PhdrEntry> Phdrs;
 
@@ -161,7 +164,7 @@ static void combineMergableSections() {
       continue;
 
     StringRef OutsecName = getOutputSectionName(MS->Name);
-    uint64_t Flags = MS->Flags & ~(uint64_t)(SHF_GROUP | SHF_COMPRESSED);
+    uint64_t Flags = MS->Flags & ~(uint64_t)SHF_GROUP;
     uint32_t Alignment = std::max<uint32_t>(MS->Alignment, MS->Entsize);
 
     auto I = llvm::find_if(MergeSections, [=](MergeSyntheticSection *Sec) {
@@ -196,6 +199,15 @@ template <class ELFT> static void combineEhFrameSections() {
 
   std::vector<InputSectionBase *> &V = InputSections;
   V.erase(std::remove(V.begin(), V.end(), nullptr), V.end());
+}
+
+template <class ELFT> void Writer<ELFT>::clearOutputSections() {
+  // Clear the OutputSections to make sure it is not used anymore. Any
+  // code from this point on should be using the linker script
+  // commands.
+  for (OutputSection *Sec : OutputSections)
+    Sec->Sections.clear();
+  OutputSections.clear();
 }
 
 // The main function of the writer.
@@ -244,13 +256,21 @@ template <class ELFT> void Writer<ELFT>::run() {
   if (ErrorCount)
     return;
 
+  if (!Script->Opt.HasSections) {
+    if (!Config->Relocatable)
+      fixSectionAlignments();
+    Script->fabricateDefaultCommands();
+  }
+
+  // If -compressed-debug-sections is specified, we need to compress
+  // .debug_* sections. Do it right now because it changes the size of
+  // output sections.
+  parallelForEach(OutputSections.begin(), OutputSections.end(),
+                  [](OutputSection *S) { S->maybeCompress<ELFT>(); });
+
   if (Config->Relocatable) {
     assignFileOffsets();
   } else {
-    if (!Script->Opt.HasSections) {
-      fixSectionAlignments();
-      Script->fabricateDefaultCommands();
-    }
     Script->synchronize();
     Script->assignAddresses(Phdrs);
 
@@ -281,6 +301,7 @@ template <class ELFT> void Writer<ELFT>::run() {
   } else {
     writeSectionsBinary();
   }
+  clearOutputSections();
 
   // Backfill .note.gnu.build-id section content. This is done at last
   // because the content is usually a hash value of the entire output file.
@@ -288,10 +309,6 @@ template <class ELFT> void Writer<ELFT>::run() {
   if (ErrorCount)
     return;
 
-  // Clear the OutputSections to make sure it is not used anymore. Any
-  // code from this point on should be using the linker script
-  // commands.
-  OutputSections.clear();
 
   // Handle -Map option.
   writeMapFile<ELFT>(Script->Opt.Commands);
@@ -631,10 +648,11 @@ bool elf::isRelroSection(const OutputSection *Sec) {
 // * It is easy to check if a give branch was taken.
 // * It is easy two see how similar two ranks are (see getRankProximity).
 enum RankFlags {
-  RF_NOT_ADDR_SET = 1 << 15,
-  RF_NOT_INTERP = 1 << 14,
-  RF_NOT_ALLOC = 1 << 13,
-  RF_WRITE = 1 << 12,
+  RF_NOT_ADDR_SET = 1 << 16,
+  RF_NOT_INTERP = 1 << 15,
+  RF_NOT_ALLOC = 1 << 14,
+  RF_WRITE = 1 << 13,
+  RF_EXEC_WRITE = 1 << 12,
   RF_EXEC = 1 << 11,
   RF_NON_TLS_BSS = 1 << 10,
   RF_NON_TLS_BSS_RO = 1 << 9,
@@ -669,19 +687,29 @@ static unsigned getSectionRank(const OutputSection *Sec) {
   if (!(Sec->Flags & SHF_ALLOC))
     return Rank | RF_NOT_ALLOC;
 
-  // We want the read only sections first so that they go in the PT_LOAD
-  // covering the program headers at the start of the file.
-  if (Sec->Flags & SHF_WRITE)
-    Rank |= RF_WRITE;
+  // Sort sections based on their access permission in the following
+  // order: R, RX, RWX, RW.  This order is based on the following
+  // considerations:
+  // * Read-only sections come first such that they go in the
+  //   PT_LOAD covering the program headers at the start of the file.
+  // * Read-only, executable sections come next, unless the
+  //   -no-rosegment option is used.
+  // * Writable, executable sections follow such that .plt on
+  //   architectures where it needs to be writable will be placed
+  //   between .text and .data.
+  // * Writable sections come last, such that .bss lands at the very
+  //   end of the last PT_LOAD.
+  bool IsExec = Sec->Flags & SHF_EXECINSTR;
+  bool IsWrite = Sec->Flags & SHF_WRITE;
 
-  if (Sec->Flags & SHF_EXECINSTR) {
-    // For a corresponding reason, put non exec sections first (the program
-    // header PT_LOAD is not executable).
-    // We only do that if we are not using linker scripts, since with linker
-    // scripts ro and rx sections are in the same PT_LOAD, so their relative
-    // order is not important. The same applies for -no-rosegment.
-    if ((Rank & RF_WRITE) || !Config->SingleRoRx)
+  if (IsExec) {
+    if (IsWrite)
+      Rank |= RF_EXEC_WRITE;
+    else if (!Config->SingleRoRx)
       Rank |= RF_EXEC;
+  } else {
+    if (IsWrite)
+      Rank |= RF_WRITE;
   }
 
   // If we got here we know that both A and B are in the same PT_LOAD.
@@ -776,12 +804,6 @@ static bool compareSections(const OutputSection *A, const OutputSection *B) {
     return AIndex < BIndex;
 
   return compareSectionsNonScript(A, B);
-}
-
-// Program header entry
-PhdrEntry::PhdrEntry(unsigned Type, unsigned Flags) {
-  p_type = Type;
-  p_flags = Flags;
 }
 
 void PhdrEntry::add(OutputSection *Sec) {
@@ -1239,12 +1261,6 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   for (OutputSection *Sec : OutputSections)
     Sec->finalize<ELFT>();
 
-  // If -compressed-debug-sections is specified, we need to compress
-  // .debug_* sections. Do it right now because it changes the size of
-  // output sections.
-  parallelForEach(OutputSections.begin(), OutputSections.end(),
-                  [](OutputSection *S) { S->maybeCompress<ELFT>(); });
-
   // createThunks may have added local symbols to the static symbol table
   applySynthetic({InX::SymTab, InX::ShStrTab, InX::StrTab},
                  [](SyntheticSection *SS) { SS->postThunkContents(); });
@@ -1295,6 +1311,21 @@ void Writer<ELFT>::addStartStopSymbols(OutputSection *Sec) {
     return;
   addOptionalRegular<ELFT>(Saver.save("__start_" + S), Sec, 0, STV_DEFAULT);
   addOptionalRegular<ELFT>(Saver.save("__stop_" + S), Sec, -1, STV_DEFAULT);
+}
+
+template <class ELFT>
+OutputSectionCommand *Writer<ELFT>::findSectionCommand(StringRef Name) {
+  for (BaseCommand *Base : Script->Opt.Commands)
+    if (auto *Cmd = dyn_cast<OutputSectionCommand>(Base))
+      if (Cmd->Name == Name)
+        return Cmd;
+  return nullptr;
+}
+
+template <class ELFT> OutputSection *Writer<ELFT>::findSectionInScript(StringRef Name) {
+  if (OutputSectionCommand *Cmd = findSectionCommand(Name))
+    return Cmd->Sec;
+  return nullptr;
 }
 
 template <class ELFT> OutputSection *Writer<ELFT>::findSection(StringRef Name) {
@@ -1583,7 +1614,7 @@ template <class ELFT> uint64_t Writer<ELFT>::getEntryAddr() {
     return Addr;
 
   // Case 4
-  if (OutputSection *Sec = findSection(".text")) {
+  if (OutputSection *Sec = findSectionInScript(".text")) {
     if (Config->WarnMissingEntry)
       warn("cannot find entry symbol " + Config->Entry + "; defaulting to 0x" +
            utohexstr(Sec->Addr));
@@ -1609,18 +1640,6 @@ static uint16_t getELFType() {
 // to each section. This function fixes some predefined
 // symbol values that depend on section address and size.
 template <class ELFT> void Writer<ELFT>::fixPredefinedSymbols() {
-  auto Set = [](DefinedRegular *S1, DefinedRegular *S2, OutputSection *Sec,
-                uint64_t Value) {
-    if (S1) {
-      S1->Section = Sec;
-      S1->Value = Value;
-    }
-    if (S2) {
-      S2->Section = Sec;
-      S2->Value = Value;
-    }
-  };
-
   // _etext is the first location after the last read-only loadable segment.
   // _edata is the first location after the last read-write loadable segment.
   // _end is the first location after the uninitialized data region.
@@ -1636,15 +1655,29 @@ template <class ELFT> void Writer<ELFT>::fixPredefinedSymbols() {
     else
       LastRO = &P;
   }
-  if (Last)
-    Set(ElfSym::End1, ElfSym::End2, Last->First, Last->p_memsz);
-  if (LastRO)
-    Set(ElfSym::Etext1, ElfSym::Etext2, LastRO->First, LastRO->p_filesz);
-  if (LastRW)
-    Set(ElfSym::Edata1, ElfSym::Edata2, LastRW->First, LastRW->p_filesz);
+
+  auto Set = [](DefinedRegular *S, OutputSection *Sec, uint64_t Value) {
+    if (S) {
+      S->Section = Sec;
+      S->Value = Value;
+    }
+  };
+
+  if (Last) {
+    Set(ElfSym::End1, Last->First, Last->p_memsz);
+    Set(ElfSym::End2, Last->First, Last->p_memsz);
+  }
+  if (LastRO) {
+    Set(ElfSym::Etext1, LastRO->First, LastRO->p_filesz);
+    Set(ElfSym::Etext2, LastRO->First, LastRO->p_filesz);
+  }
+  if (LastRW) {
+    Set(ElfSym::Edata1, LastRW->First, LastRW->p_filesz);
+    Set(ElfSym::Edata2, LastRW->First, LastRW->p_filesz);
+  }
 
   if (ElfSym::Bss)
-    ElfSym::Bss->Section = findSection(".bss");
+    ElfSym::Bss->Section = findSectionInScript(".bss");
 
   // Setup MIPS _gp_disp/__gnu_local_gp symbols which should
   // be equal to the _gp symbol's value.
@@ -1736,9 +1769,14 @@ template <class ELFT> void Writer<ELFT>::openFile() {
 
 template <class ELFT> void Writer<ELFT>::writeSectionsBinary() {
   uint8_t *Buf = Buffer->getBufferStart();
-  for (OutputSection *Sec : OutputSections)
+  for (BaseCommand *Base : Script->Opt.Commands) {
+    auto *Cmd = dyn_cast<OutputSectionCommand>(Base);
+    if (!Cmd)
+      continue;
+    OutputSection *Sec = Cmd->Sec;
     if (Sec->Flags & SHF_ALLOC)
-      Sec->writeTo<ELFT>(Buf + Sec->Offset);
+      Cmd->writeTo<ELFT>(Buf + Sec->Offset);
+  }
 }
 
 // Write section contents to a mmap'ed file.
@@ -1747,31 +1785,45 @@ template <class ELFT> void Writer<ELFT>::writeSections() {
 
   // PPC64 needs to process relocations in the .opd section
   // before processing relocations in code-containing sections.
-  Out::Opd = findSection(".opd");
-  if (Out::Opd) {
+  if (auto *OpdCmd = findSectionCommand(".opd")) {
+    Out::Opd = OpdCmd->Sec;
     Out::OpdBuf = Buf + Out::Opd->Offset;
-    Out::Opd->template writeTo<ELFT>(Buf + Out::Opd->Offset);
+    OpdCmd->template writeTo<ELFT>(Buf + Out::Opd->Offset);
   }
 
   OutputSection *EhFrameHdr =
-      In<ELFT>::EhFrameHdr ? In<ELFT>::EhFrameHdr->OutSec : nullptr;
+      (In<ELFT>::EhFrameHdr && !In<ELFT>::EhFrameHdr->empty())
+          ? In<ELFT>::EhFrameHdr->OutSec
+          : nullptr;
 
   // In -r or -emit-relocs mode, write the relocation sections first as in
   // ELf_Rel targets we might find out that we need to modify the relocated
   // section while doing it.
-  for (OutputSection *Sec : OutputSections)
+  for (BaseCommand *Base : Script->Opt.Commands) {
+    auto *Cmd = dyn_cast<OutputSectionCommand>(Base);
+    if (!Cmd)
+      continue;
+    OutputSection *Sec = Cmd->Sec;
     if (Sec->Type == SHT_REL || Sec->Type == SHT_RELA)
-      Sec->writeTo<ELFT>(Buf + Sec->Offset);
+      Cmd->writeTo<ELFT>(Buf + Sec->Offset);
+  }
 
-  for (OutputSection *Sec : OutputSections)
+  for (BaseCommand *Base : Script->Opt.Commands) {
+    auto *Cmd = dyn_cast<OutputSectionCommand>(Base);
+    if (!Cmd)
+      continue;
+    OutputSection *Sec = Cmd->Sec;
     if (Sec != Out::Opd && Sec != EhFrameHdr && Sec->Type != SHT_REL &&
         Sec->Type != SHT_RELA)
-      Sec->writeTo<ELFT>(Buf + Sec->Offset);
+      Cmd->writeTo<ELFT>(Buf + Sec->Offset);
+  }
 
   // The .eh_frame_hdr depends on .eh_frame section contents, therefore
   // it should be written after .eh_frame is written.
-  if (EhFrameHdr && !EhFrameHdr->Sections.empty())
-    EhFrameHdr->writeTo<ELFT>(Buf + EhFrameHdr->Offset);
+  if (EhFrameHdr) {
+    OutputSectionCommand *Cmd = Script->getCmd(EhFrameHdr);
+    Cmd->writeTo<ELFT>(Buf + EhFrameHdr->Offset);
+  }
 }
 
 template <class ELFT> void Writer<ELFT>::writeBuildId() {
