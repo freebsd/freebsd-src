@@ -302,7 +302,7 @@ ath_hal_rf_name(struct ath_hal *ah)
 HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
-#define	AH_TIMEOUT	1000
+#define	AH_TIMEOUT	5000
 	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
 #undef AH_TIMEOUT
 }
