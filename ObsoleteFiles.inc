@@ -112,8 +112,10 @@ OLD_FILES+=usr/share/doc/usd/21.troff/paper.ascii.gz
 OLD_FILES+=usr/share/doc/usd/22.trofftut/paper.ascii.gz
 OLD_FILES+=usr/share/doc/usd/Title.ascii.gz
 OLD_FILES+=usr/share/doc/usd/contents.ascii.gz
-# 20170523: 64-bit inode support, libarchive version bump
+# 20170523: 64-bit inode support, library version bumps
+OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=usr/lib/libarchive.so.6
+OLD_LIBS+=usr/lib/libmilter.so.5
 # 20170427: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
