@@ -263,7 +263,7 @@ struct ata_params {
 	u_int16_t       reserved170[6];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
-	u_int16_t       reserved206[2];
+	u_int16_t       reserved207[2];
 /*209*/ u_int16_t       lsalign;
 /*210*/ u_int16_t       wrv_sectors_m3_1;
 	u_int16_t       wrv_sectors_m3_2;
