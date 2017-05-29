@@ -4779,23 +4779,23 @@ static bool FindOptimalMemOpLowering(std::vector<EVT> &MemOps,
                                    DAG.getMachineFunction());
 
   if (VT == MVT::Other) {
-    if (DstAlign >= DAG.getDataLayout().getPointerPrefAlignment(DstAS) ||
-        TLI.allowsMisalignedMemoryAccesses(VT, DstAS, DstAlign)) {
-      VT = TLI.getPointerTy(DAG.getDataLayout(), DstAS);
-    } else {
-      switch (DstAlign & 7) {
-      case 0:  VT = MVT::i64; break;
-      case 4:  VT = MVT::i32; break;
-      case 2:  VT = MVT::i16; break;
-      default: VT = MVT::i8;  break;
-      }
-    }
+    // Use the largest integer type whose alignment constraints are satisfied.
+    // We only need to check DstAlign here as SrcAlign is always greater or
+    // equal to DstAlign (or zero).
+    VT = MVT::i64;
+    while (DstAlign && DstAlign < VT.getSizeInBits() / 8 &&
+           !TLI.allowsMisalignedMemoryAccesses(VT, DstAS, DstAlign))
+      VT = (MVT::SimpleValueType)(VT.getSimpleVT().SimpleTy - 1);
+    assert(VT.isInteger());
 
+    // Find the largest legal integer type.
     MVT LVT = MVT::i64;
     while (!TLI.isTypeLegal(LVT))
       LVT = (MVT::SimpleValueType)(LVT.SimpleTy - 1);
     assert(LVT.isInteger());
 
+    // If the type we've chosen is larger than the largest legal integer type
+    // then use that instead.
     if (VT.bitsGT(LVT))
       VT = LVT;
   }
@@ -6540,6 +6540,63 @@ SDNode *SelectionDAG::MorphNodeTo(SDNode *N, unsigned Opc,
   if (IP)
     CSEMap.InsertNode(N, IP);   // Memoize the new node.
   return N;
+}
+
+SDNode* SelectionDAG::mutateStrictFPToFP(SDNode *Node) {
+  unsigned OrigOpc = Node->getOpcode();
+  unsigned NewOpc;
+  bool IsUnary = false;
+  switch (OrigOpc) {
+  default: 
+    llvm_unreachable("mutateStrictFPToFP called with unexpected opcode!");
+  case ISD::STRICT_FADD: NewOpc = ISD::FADD; break;
+  case ISD::STRICT_FSUB: NewOpc = ISD::FSUB; break;
+  case ISD::STRICT_FMUL: NewOpc = ISD::FMUL; break;
+  case ISD::STRICT_FDIV: NewOpc = ISD::FDIV; break;
+  case ISD::STRICT_FREM: NewOpc = ISD::FREM; break;
+  case ISD::STRICT_FSQRT: NewOpc = ISD::FSQRT; IsUnary = true; break;
+  case ISD::STRICT_FPOW: NewOpc = ISD::FPOW; break;
+  case ISD::STRICT_FPOWI: NewOpc = ISD::FPOWI; break;
+  case ISD::STRICT_FSIN: NewOpc = ISD::FSIN; IsUnary = true; break;
+  case ISD::STRICT_FCOS: NewOpc = ISD::FCOS; IsUnary = true; break;
+  case ISD::STRICT_FEXP: NewOpc = ISD::FEXP; IsUnary = true; break;
+  case ISD::STRICT_FEXP2: NewOpc = ISD::FEXP2; IsUnary = true; break;
+  case ISD::STRICT_FLOG: NewOpc = ISD::FLOG; IsUnary = true; break;
+  case ISD::STRICT_FLOG10: NewOpc = ISD::FLOG10; IsUnary = true; break;
+  case ISD::STRICT_FLOG2: NewOpc = ISD::FLOG2; IsUnary = true; break;
+  case ISD::STRICT_FRINT: NewOpc = ISD::FRINT; IsUnary = true; break;
+  case ISD::STRICT_FNEARBYINT:
+    NewOpc = ISD::FNEARBYINT;
+    IsUnary = true;
+    break;
+  }
+
+  // We're taking this node out of the chain, so we need to re-link things.
+  SDValue InputChain = Node->getOperand(0);
+  SDValue OutputChain = SDValue(Node, 1);
+  ReplaceAllUsesOfValueWith(OutputChain, InputChain);
+
+  SDVTList VTs = getVTList(Node->getOperand(1).getValueType());
+  SDNode *Res = nullptr;
+  if (IsUnary)
+    Res = MorphNodeTo(Node, NewOpc, VTs, { Node->getOperand(1) });
+  else
+    Res = MorphNodeTo(Node, NewOpc, VTs, { Node->getOperand(1),
+                                           Node->getOperand(2) });
+  
+  // MorphNodeTo can operate in two ways: if an existing node with the
+  // specified operands exists, it can just return it.  Otherwise, it
+  // updates the node in place to have the requested operands.
+  if (Res == Node) {
+    // If we updated the node in place, reset the node ID.  To the isel,
+    // this should be just like a newly allocated machine node.
+    Res->setNodeId(-1);
+  } else {
+    ReplaceAllUsesWith(Node, Res);
+    RemoveDeadNode(Node);
+  }
+
+  return Res; 
 }
 
 

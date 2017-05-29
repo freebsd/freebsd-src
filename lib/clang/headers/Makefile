@@ -37,6 +37,7 @@ INCS+=		avx512vlbwintrin.h
 INCS+=		avx512vlcdintrin.h
 INCS+=		avx512vldqintrin.h
 INCS+=		avx512vlintrin.h
+INCS+=		avx512vpopcntdqintrin.h
 INCS+=		avxintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h

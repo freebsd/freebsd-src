@@ -378,6 +378,9 @@ cl::opt<std::string> InputFilename(cl::Positional,
 }
 
 namespace pdb2yaml {
+cl::opt<bool> All("all",
+                  cl::desc("Dump everything we know how to dump."),
+                  cl::sub(PdbToYamlSubcommand), cl::init(false));
 cl::opt<bool>
     NoFileHeaders("no-file-headers",
                   cl::desc("Do not dump MSF file headers (you will not be able "
@@ -500,6 +503,7 @@ static void yamlToPdb(StringRef Path) {
   pdb::yaml::PdbInfoStream DefaultInfoStream;
   pdb::yaml::PdbDbiStream DefaultDbiStream;
   pdb::yaml::PdbTpiStream DefaultTpiStream;
+  pdb::yaml::PdbTpiStream DefaultIpiStream;
 
   const auto &Info = YamlObj.PdbStream.getValueOr(DefaultInfoStream);
 
@@ -524,12 +528,12 @@ static void yamlToPdb(StringRef Path) {
   DbiBuilder.setVersionHeader(Dbi.VerHeader);
   for (const auto &MI : Dbi.ModInfos) {
     auto &ModiBuilder = ExitOnErr(DbiBuilder.addModuleInfo(MI.Mod));
+    ModiBuilder.setObjFileName(MI.Obj);
 
     for (auto S : MI.SourceFiles)
       ExitOnErr(DbiBuilder.addModuleSourceFile(MI.Mod, S));
     if (MI.Modi.hasValue()) {
       const auto &ModiStream = *MI.Modi;
-      ModiBuilder.setObjFileName(MI.Obj);
       for (auto Symbol : ModiStream.Symbols)
         ModiBuilder.addSymbol(Symbol.Record);
     }
@@ -601,11 +605,11 @@ static void yamlToPdb(StringRef Path) {
   for (const auto &R : Tpi.Records)
     TpiBuilder.addTypeRecord(R.Record.data(), R.Record.Hash);
 
-  const auto &Ipi = YamlObj.IpiStream.getValueOr(DefaultTpiStream);
+  const auto &Ipi = YamlObj.IpiStream.getValueOr(DefaultIpiStream);
   auto &IpiBuilder = Builder.getIpiBuilder();
   IpiBuilder.setVersionHeader(Ipi.Version);
   for (const auto &R : Ipi.Records)
-    TpiBuilder.addTypeRecord(R.Record.data(), R.Record.Hash);
+    IpiBuilder.addTypeRecord(R.Record.data(), R.Record.Hash);
 
   ExitOnErr(Builder.commit(opts::yaml2pdb::YamlPdbOutputFile));
 }
@@ -852,18 +856,17 @@ static void mergePdbs() {
   for (const auto &Path : opts::merge::InputFilenames) {
     std::unique_ptr<IPDBSession> Session;
     auto &File = loadPDB(Path, Session);
-    SmallVector<TypeIndex, 128> SourceToDest;
+    SmallVector<TypeIndex, 128> TypeMap;
+    SmallVector<TypeIndex, 128> IdMap;
     if (File.hasPDBTpiStream()) {
-      SourceToDest.clear();
       auto &Tpi = ExitOnErr(File.getPDBTpiStream());
-      ExitOnErr(codeview::mergeTypeStreams(MergedIpi, MergedTpi, SourceToDest,
-                                           nullptr, Tpi.typeArray()));
+      ExitOnErr(codeview::mergeTypeRecords(MergedTpi, TypeMap, nullptr,
+                                           Tpi.typeArray()));
     }
     if (File.hasPDBIpiStream()) {
-      SourceToDest.clear();
       auto &Ipi = ExitOnErr(File.getPDBIpiStream());
-      ExitOnErr(codeview::mergeTypeStreams(MergedIpi, MergedTpi, SourceToDest,
-                                           nullptr, Ipi.typeArray()));
+      ExitOnErr(codeview::mergeIdRecords(MergedIpi, TypeMap, IdMap,
+                                         Ipi.typeArray()));
     }
   }
 
@@ -877,14 +880,12 @@ static void mergePdbs() {
 
   auto &DestTpi = Builder.getTpiBuilder();
   auto &DestIpi = Builder.getIpiBuilder();
-  MergedTpi.ForEachRecord(
-      [&DestTpi](TypeIndex TI, MutableArrayRef<uint8_t> Data) {
-        DestTpi.addTypeRecord(Data, None);
-      });
-  MergedIpi.ForEachRecord(
-      [&DestIpi](TypeIndex TI, MutableArrayRef<uint8_t> Data) {
-        DestIpi.addTypeRecord(Data, None);
-      });
+  MergedTpi.ForEachRecord([&DestTpi](TypeIndex TI, ArrayRef<uint8_t> Data) {
+    DestTpi.addTypeRecord(Data, None);
+  });
+  MergedIpi.ForEachRecord([&DestIpi](TypeIndex TI, ArrayRef<uint8_t> Data) {
+    DestIpi.addTypeRecord(Data, None);
+  });
 
   SmallString<64> OutFile(opts::merge::PdbOutputFile);
   if (OutFile.empty()) {

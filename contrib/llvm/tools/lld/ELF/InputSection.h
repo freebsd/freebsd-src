@@ -18,6 +18,7 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Support/Threading.h"
 #include <mutex>
 
 namespace lld {
@@ -248,7 +249,7 @@ private:
   std::vector<uint32_t> Hashes;
 
   mutable llvm::DenseMap<uint64_t, uint64_t> OffsetMap;
-  mutable std::once_flag InitOffsetMap;
+  mutable llvm::once_flag InitOffsetMap;
 
   llvm::DenseSet<uint64_t> LiveOffsets;
 };
@@ -318,6 +319,8 @@ public:
 private:
   template <class ELFT, class RelTy>
   void copyRelocations(uint8_t *Buf, llvm::ArrayRef<RelTy> Rels);
+
+  void copyShtGroup(uint8_t *Buf);
 };
 
 // The list of all input sections.

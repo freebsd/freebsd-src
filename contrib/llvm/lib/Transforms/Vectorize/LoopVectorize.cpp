@@ -2092,6 +2092,10 @@ private:
   /// The data is collected per VF.
   DenseMap<unsigned, SmallPtrSet<Instruction *, 4>> Scalars;
 
+  /// Holds the instructions (address computations) that are forced to be
+  /// scalarized.
+  DenseMap<unsigned, SmallPtrSet<Instruction *, 4>> ForcedScalars;
+
   /// Returns the expected difference in cost from scalarizing the expression
   /// feeding a predicated instruction \p PredInst. The instructions to
   /// scalarize and their scalar costs are collected in \p ScalarCosts. A
@@ -5086,12 +5090,18 @@ bool LoopVectorizationLegality::canVectorizeWithIfConvert() {
 }
 
 bool LoopVectorizationLegality::canVectorize() {
+  // Store the result and return it at the end instead of exiting early, in case
+  // allowExtraAnalysis is used to report multiple reasons for not vectorizing.
+  bool Result = true;
   // We must have a loop in canonical form. Loops with indirectbr in them cannot
   // be canonicalized.
   if (!TheLoop->getLoopPreheader()) {
     ORE->emit(createMissedAnalysis("CFGNotUnderstood")
               << "loop control flow is not understood by vectorizer");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // FIXME: The code is currently dead, since the loop gets sent to
@@ -5101,21 +5111,30 @@ bool LoopVectorizationLegality::canVectorize() {
   if (!TheLoop->empty()) {
     ORE->emit(createMissedAnalysis("NotInnermostLoop")
               << "loop is not the innermost loop");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // We must have a single backedge.
   if (TheLoop->getNumBackEdges() != 1) {
     ORE->emit(createMissedAnalysis("CFGNotUnderstood")
               << "loop control flow is not understood by vectorizer");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // We must have a single exiting block.
   if (!TheLoop->getExitingBlock()) {
     ORE->emit(createMissedAnalysis("CFGNotUnderstood")
               << "loop control flow is not understood by vectorizer");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // We only handle bottom-tested loops, i.e. loop in which the condition is
@@ -5124,7 +5143,10 @@ bool LoopVectorizationLegality::canVectorize() {
   if (TheLoop->getExitingBlock() != TheLoop->getLoopLatch()) {
     ORE->emit(createMissedAnalysis("CFGNotUnderstood")
               << "loop control flow is not understood by vectorizer");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // We need to have a loop header.
@@ -5135,28 +5157,28 @@ bool LoopVectorizationLegality::canVectorize() {
   unsigned NumBlocks = TheLoop->getNumBlocks();
   if (NumBlocks != 1 && !canVectorizeWithIfConvert()) {
     DEBUG(dbgs() << "LV: Can't if-convert the loop.\n");
-    return false;
-  }
-
-  // ScalarEvolution needs to be able to find the exit count.
-  const SCEV *ExitCount = PSE.getBackedgeTakenCount();
-  if (ExitCount == PSE.getSE()->getCouldNotCompute()) {
-    ORE->emit(createMissedAnalysis("CantComputeNumberOfIterations")
-              << "could not determine number of loop iterations");
-    DEBUG(dbgs() << "LV: SCEV could not compute the loop exit count.\n");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // Check if we can vectorize the instructions and CFG in this loop.
   if (!canVectorizeInstrs()) {
     DEBUG(dbgs() << "LV: Can't vectorize the instructions or CFG\n");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   // Go over each instruction and look at memory deps.
   if (!canVectorizeMemory()) {
     DEBUG(dbgs() << "LV: Can't vectorize due to memory conflicts\n");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
   DEBUG(dbgs() << "LV: We can vectorize this loop"
@@ -5184,13 +5206,17 @@ bool LoopVectorizationLegality::canVectorize() {
               << "Too many SCEV assumptions need to be made and checked "
               << "at runtime");
     DEBUG(dbgs() << "LV: Too many SCEV checks needed.\n");
-    return false;
+    if (ORE->allowExtraAnalysis())
+      Result = false;
+    else
+      return false;
   }
 
-  // Okay! We can vectorize. At this point we don't have any other mem analysis
+  // Okay! We've done all the tests. If any have failed, return false. Otherwise
+  // we can vectorize, and at this point we don't have any other mem analysis
   // which may limit our maximum vectorization factor, so just return true with
   // no restrictions.
-  return true;
+  return Result;
 }
 
 static Type *convertPointerToIntegerType(const DataLayout &DL, Type *Ty) {
@@ -5553,6 +5579,13 @@ void LoopVectorizationCostModel::collectLoopScalars(unsigned VF) {
     DEBUG(dbgs() << "LV: Found scalar instruction: " << *Ind << "\n");
     DEBUG(dbgs() << "LV: Found scalar instruction: " << *IndUpdate << "\n");
   }
+
+  // Insert the forced scalars.
+  // FIXME: Currently widenPHIInstruction() often creates a dead vector
+  // induction variable when the PHI user is scalarized.
+  if (ForcedScalars.count(VF))
+    for (auto *I : ForcedScalars.find(VF)->second)
+      Worklist.insert(I);
 
   // Expand the worklist by looking through any bitcasts and getelementptr
   // instructions we've already identified as scalar. This is similar to the
@@ -7129,11 +7162,18 @@ LoopVectorizationCostModel::getInstructionCost(Instruction *I, unsigned VF) {
   if (VF > 1 && isProfitableToScalarize(I, VF))
     return VectorizationCostTy(InstsToScalarize[VF][I], false);
 
+  // Forced scalars do not have any scalarization overhead.
+  if (VF > 1 && ForcedScalars.count(VF) &&
+      ForcedScalars.find(VF)->second.count(I))
+    return VectorizationCostTy((getInstructionCost(I, 1).first * VF), false);
+
   Type *VectorTy;
   unsigned C = getInstructionCost(I, VF, VectorTy);
 
+  // Note: Even if all instructions are scalarized, return true if any memory
+  // accesses appear in the loop to get benefits from address folding etc.
   bool TypeNotScalarized =
-      VF > 1 && !VectorTy->isVoidTy() && TTI.getNumberOfParts(VectorTy) < VF;
+      VF > 1 && VectorTy->isVectorTy() && TTI.getNumberOfParts(VectorTy) < VF;
   return VectorizationCostTy(C, TypeNotScalarized);
 }
 
@@ -7208,6 +7248,62 @@ void LoopVectorizationCostModel::setCostBasedWideningDecision(unsigned VF) {
         setWideningDecision(&I, VF, Decision, Cost);
     }
   }
+
+  // Make sure that any load of address and any other address computation
+  // remains scalar unless there is gather/scatter support. This avoids
+  // inevitable extracts into address registers, and also has the benefit of
+  // activating LSR more, since that pass can't optimize vectorized
+  // addresses.
+  if (TTI.prefersVectorizedAddressing())
+    return;
+
+  // Start with all scalar pointer uses.
+  SmallPtrSet<Instruction *, 8> AddrDefs;
+  for (BasicBlock *BB : TheLoop->blocks())
+    for (Instruction &I : *BB) {
+      Instruction *PtrDef =
+        dyn_cast_or_null<Instruction>(getPointerOperand(&I));
+      if (PtrDef && TheLoop->contains(PtrDef) &&
+          getWideningDecision(&I, VF) != CM_GatherScatter)
+        AddrDefs.insert(PtrDef);
+    }
+
+  // Add all instructions used to generate the addresses.
+  SmallVector<Instruction *, 4> Worklist;
+  for (auto *I : AddrDefs)
+    Worklist.push_back(I);
+  while (!Worklist.empty()) {
+    Instruction *I = Worklist.pop_back_val();
+    for (auto &Op : I->operands())
+      if (auto *InstOp = dyn_cast<Instruction>(Op))
+        if ((InstOp->getParent() == I->getParent()) && !isa<PHINode>(InstOp) &&
+            AddrDefs.insert(InstOp).second == true)
+          Worklist.push_back(InstOp);
+  }
+
+  for (auto *I : AddrDefs) {
+    if (isa<LoadInst>(I)) {
+      // Setting the desired widening decision should ideally be handled in
+      // by cost functions, but since this involves the task of finding out
+      // if the loaded register is involved in an address computation, it is
+      // instead changed here when we know this is the case.
+      if (getWideningDecision(I, VF) == CM_Widen)
+        // Scalarize a widened load of address.
+        setWideningDecision(I, VF, CM_Scalarize,
+                            (VF * getMemoryInstructionCost(I, 1)));
+      else if (auto Group = Legal->getInterleavedAccessGroup(I)) {
+        // Scalarize an interleave group of address loads.
+        for (unsigned I = 0; I < Group->getFactor(); ++I) {
+          if (Instruction *Member = Group->getMember(I))
+            setWideningDecision(Member, VF, CM_Scalarize,
+                                (VF * getMemoryInstructionCost(Member, 1)));
+        }
+      }
+    } else
+      // Make sure I gets scalarized and a cost estimate without
+      // scalarization overhead.
+      ForcedScalars[VF].insert(I);
+  }
 }
 
 unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
@@ -7216,7 +7312,7 @@ unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
   Type *RetTy = I->getType();
   if (canTruncateToMinimalBitwidth(I, VF))
     RetTy = IntegerType::get(RetTy->getContext(), MinBWs[I]);
-  VectorTy = ToVectorTy(RetTy, VF);
+  VectorTy = isScalarAfterVectorization(I, VF) ? RetTy : ToVectorTy(RetTy, VF);
   auto SE = PSE.getSE();
 
   // TODO: We need to estimate the cost of intrinsic calls.
@@ -7349,9 +7445,10 @@ unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
     } else if (Legal->isUniform(Op2)) {
       Op2VK = TargetTransformInfo::OK_UniformValue;
     }
-    SmallVector<const Value *, 4> Operands(I->operand_values()); 
-    return TTI.getArithmeticInstrCost(I->getOpcode(), VectorTy, Op1VK,
-                                      Op2VK, Op1VP, Op2VP, Operands);
+    SmallVector<const Value *, 4> Operands(I->operand_values());
+    unsigned N = isScalarAfterVectorization(I, VF) ? VF : 1;
+    return N * TTI.getArithmeticInstrCost(I->getOpcode(), VectorTy, Op1VK,
+                                          Op2VK, Op1VP, Op2VP, Operands);
   }
   case Instruction::Select: {
     SelectInst *SI = cast<SelectInst>(I);
@@ -7374,7 +7471,15 @@ unsigned LoopVectorizationCostModel::getInstructionCost(Instruction *I,
   }
   case Instruction::Store:
   case Instruction::Load: {
-    VectorTy = ToVectorTy(getMemInstValueType(I), VF);
+    unsigned Width = VF;
+    if (Width > 1) {
+      InstWidening Decision = getWideningDecision(I, Width);
+      assert(Decision != CM_Unknown &&
+             "CM decision should be taken at this point");
+      if (Decision == CM_Scalarize)
+        Width = 1;
+    }
+    VectorTy = ToVectorTy(getMemInstValueType(I), Width);
     return getMemoryInstructionCost(I, VF);
   }
   case Instruction::ZExt:

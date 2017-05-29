@@ -118,6 +118,10 @@ namespace AMDGPU {
     // Operand for source modifiers for VOP instructions
     OPERAND_INPUT_MODS,
 
+    // Operand for GFX9 SDWA instructions
+    OPERAND_SDWA9_SRC,
+    OPERAND_SDWA9_VOPC_DST,
+
     /// Operand with 32-bit immediate that uses the constant bus.
     OPERAND_KIMM32,
     OPERAND_KIMM16
@@ -160,7 +164,8 @@ namespace AMDGPUAsmVariants {
     DEFAULT = 0,
     VOP3 = 1,
     SDWA = 2,
-    DPP = 3
+    SDWA9 = 3,
+    DPP = 4
   };
 }
 
@@ -292,6 +297,18 @@ enum DstUnused {
   UNUSED_PAD = 0,
   UNUSED_SEXT = 1,
   UNUSED_PRESERVE = 2,
+};
+
+enum SDWA9EncValues{
+  SRC_SGPR_MASK = 0x100,
+  SRC_VGPR_MASK = 0xFF,
+  VOPC_DST_VCC_MASK = 0x80,
+  VOPC_DST_SGPR_MASK = 0x7F,
+
+  SRC_VGPR_MIN = 0,
+  SRC_VGPR_MAX = 255,
+  SRC_SGPR_MIN = 256,
+  SRC_SGPR_MAX = 357,
 };
 
 } // namespace SDWA

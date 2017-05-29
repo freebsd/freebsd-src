@@ -114,7 +114,10 @@ static void computeCacheKey(
   AddUnsigned((unsigned)Conf.Options.DebuggerTuning);
   for (auto &A : Conf.MAttrs)
     AddString(A);
-  AddUnsigned(Conf.RelocModel);
+  if (Conf.RelocModel)
+    AddUnsigned(*Conf.RelocModel);
+  else
+    AddUnsigned(-1);
   AddUnsigned(Conf.CodeModel);
   AddUnsigned(Conf.CGOptLevel);
   AddUnsigned(Conf.CGFileType);
@@ -539,16 +542,10 @@ Error LTO::addRegularLTO(BitcodeModule BM,
         if (Sym.isUndefined())
           continue;
         Keep.push_back(GV);
-        switch (GV->getLinkage()) {
-        default:
-          break;
-        case GlobalValue::LinkOnceAnyLinkage:
-          GV->setLinkage(GlobalValue::WeakAnyLinkage);
-          break;
-        case GlobalValue::LinkOnceODRLinkage:
-          GV->setLinkage(GlobalValue::WeakODRLinkage);
-          break;
-        }
+        GlobalValue::LinkageTypes OriginalLinkage = GV->getLinkage();
+        if (GlobalValue::isLinkOnceLinkage(OriginalLinkage))
+          GV->setLinkage(GlobalValue::getWeakLinkage(
+              GlobalValue::isLinkOnceODRLinkage(OriginalLinkage)));
       } else if (isa<GlobalObject>(GV) &&
                  (GV->hasLinkOnceODRLinkage() || GV->hasWeakODRLinkage() ||
                   GV->hasAvailableExternallyLinkage()) &&
@@ -999,10 +996,6 @@ Error LTO::runThinLTO(AddStreamFn AddStream, NativeObjectCache Cache,
         ExportedGUIDs.insert(GUID);
     }
 
-    auto isPrevailing = [&](GlobalValue::GUID GUID,
-                            const GlobalValueSummary *S) {
-      return ThinLTO.PrevailingModuleForGUID[GUID] == S->modulePath();
-    };
     auto isExported = [&](StringRef ModuleIdentifier, GlobalValue::GUID GUID) {
       const auto &ExportList = ExportLists.find(ModuleIdentifier);
       return (ExportList != ExportLists.end() &&
@@ -1010,16 +1003,19 @@ Error LTO::runThinLTO(AddStreamFn AddStream, NativeObjectCache Cache,
              ExportedGUIDs.count(GUID);
     };
     thinLTOInternalizeAndPromoteInIndex(ThinLTO.CombinedIndex, isExported);
-
-    auto recordNewLinkage = [&](StringRef ModuleIdentifier,
-                                GlobalValue::GUID GUID,
-                                GlobalValue::LinkageTypes NewLinkage) {
-      ResolvedODR[ModuleIdentifier][GUID] = NewLinkage;
-    };
-
-    thinLTOResolveWeakForLinkerInIndex(ThinLTO.CombinedIndex, isPrevailing,
-                                       recordNewLinkage);
   }
+
+  auto isPrevailing = [&](GlobalValue::GUID GUID,
+                          const GlobalValueSummary *S) {
+    return ThinLTO.PrevailingModuleForGUID[GUID] == S->modulePath();
+  };
+  auto recordNewLinkage = [&](StringRef ModuleIdentifier,
+                              GlobalValue::GUID GUID,
+                              GlobalValue::LinkageTypes NewLinkage) {
+    ResolvedODR[ModuleIdentifier][GUID] = NewLinkage;
+  };
+  thinLTOResolveWeakForLinkerInIndex(ThinLTO.CombinedIndex, isPrevailing,
+                                     recordNewLinkage);
 
   std::unique_ptr<ThinBackendProc> BackendProc =
       ThinLTO.Backend(Conf, ThinLTO.CombinedIndex, ModuleToDefinedGVSummaries,

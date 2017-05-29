@@ -1282,6 +1282,13 @@ Verifier::visitModuleFlag(const MDNode *Op,
     // These behavior types accept any value.
     break;
 
+  case Module::Max: {
+    Assert(mdconst::dyn_extract_or_null<ConstantInt>(Op->getOperand(2)),
+           "invalid value for 'max' module flag (expected constant integer)",
+           Op->getOperand(2));
+    break;
+  }
+
   case Module::Require: {
     // The value should itself be an MDNode with two operands, a flag ID (an
     // MDString), and a value.
@@ -1729,17 +1736,9 @@ void Verifier::visitConstantExpr(const ConstantExpr *CE) {
 }
 
 bool Verifier::verifyAttributeCount(AttributeList Attrs, unsigned Params) {
-  if (Attrs.getNumSlots() == 0)
-    return true;
-
-  unsigned LastSlot = Attrs.getNumSlots() - 1;
-  unsigned LastIndex = Attrs.getSlotIndex(LastSlot);
-  if (LastIndex <= Params ||
-      (LastIndex == AttributeList::FunctionIndex &&
-       (LastSlot == 0 || Attrs.getSlotIndex(LastSlot - 1) <= Params)))
-    return true;
-
-  return false;
+  // There shouldn't be more attribute sets than there are parameters plus the
+  // function and return value.
+  return Attrs.getNumAttrSets() <= Params + 2;
 }
 
 /// Verify that statepoint intrinsic is well formed.
@@ -3967,6 +3966,18 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
   case Intrinsic::experimental_constrained_fmul:
   case Intrinsic::experimental_constrained_fdiv:
   case Intrinsic::experimental_constrained_frem:
+  case Intrinsic::experimental_constrained_sqrt:
+  case Intrinsic::experimental_constrained_pow:
+  case Intrinsic::experimental_constrained_powi:
+  case Intrinsic::experimental_constrained_sin:
+  case Intrinsic::experimental_constrained_cos:
+  case Intrinsic::experimental_constrained_exp:
+  case Intrinsic::experimental_constrained_exp2:
+  case Intrinsic::experimental_constrained_log:
+  case Intrinsic::experimental_constrained_log10:
+  case Intrinsic::experimental_constrained_log2:
+  case Intrinsic::experimental_constrained_rint:
+  case Intrinsic::experimental_constrained_nearbyint:
     visitConstrainedFPIntrinsic(
         cast<ConstrainedFPIntrinsic>(*CS.getInstruction()));
     break;
@@ -4336,7 +4347,12 @@ static DISubprogram *getSubprogram(Metadata *LocalScope) {
 }
 
 void Verifier::visitConstrainedFPIntrinsic(ConstrainedFPIntrinsic &FPI) {
-  Assert(isa<MetadataAsValue>(FPI.getOperand(2)),
+  unsigned NumOperands = FPI.getNumArgOperands();
+  Assert(((NumOperands == 3 && FPI.isUnaryOp()) || (NumOperands == 4)),
+         "invalid arguments for constrained FP intrinsic", &FPI);
+  Assert(isa<MetadataAsValue>(FPI.getArgOperand(NumOperands-1)),
+         "invalid exception behavior argument", &FPI);
+  Assert(isa<MetadataAsValue>(FPI.getArgOperand(NumOperands-2)),
          "invalid rounding mode argument", &FPI);
   Assert(FPI.getRoundingMode() != ConstrainedFPIntrinsic::rmInvalid,
          "invalid rounding mode argument", &FPI);

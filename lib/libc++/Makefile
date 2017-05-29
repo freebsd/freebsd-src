@@ -65,7 +65,12 @@ cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 .endfor
 
 WARNS=		0
-CFLAGS+=	-isystem ${HDRDIR} -isystem ${_LIBCXXRTDIR} -nostdinc++ -nostdlib -D_LIBCPP_BUILDING_LIBRARY -DLIBCXXRT
+CFLAGS+=	-isystem ${HDRDIR}
+CFLAGS+=	-isystem ${_LIBCXXRTDIR}
+CFLAGS+=	-nostdinc++
+CFLAGS+=	-nostdlib
+CFLAGS+=	-D_LIBCPP_BUILDING_LIBRARY
+CFLAGS+=	-DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
@@ -215,6 +220,7 @@ EXP_HEADERS+=	__memory
 EXP_HEADERS+=	algorithm
 EXP_HEADERS+=	any
 EXP_HEADERS+=	chrono
+EXP_HEADERS+=	coroutine
 EXP_HEADERS+=	deque
 EXP_HEADERS+=	dynarray
 EXP_HEADERS+=	filesystem

@@ -115,10 +115,12 @@
 #if defined(USE_THUMB_2)
 #define IT(cond)  it cond
 #define ITT(cond) itt cond
+#define ITE(cond) ite cond
 #define WIDE(op) op.w
 #else
 #define IT(cond)
 #define ITT(cond)
+#define ITE(cond)
 #define WIDE(op) op
 #endif
 #endif /* defined(__arm__) */

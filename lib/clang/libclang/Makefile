@@ -234,6 +234,7 @@ SRCS_MIN+=	Driver/ToolChains/Arch/PPC.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/Sparc.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/SystemZ.cpp
 SRCS_MIN+=	Driver/ToolChains/Arch/X86.cpp
+SRCS_MIN+=	Driver/ToolChains/BareMetal.cpp
 SRCS_MIN+=	Driver/ToolChains/Bitrig.cpp
 SRCS_MIN+=	Driver/ToolChains/Clang.cpp
 SRCS_MIN+=	Driver/ToolChains/CloudABI.cpp

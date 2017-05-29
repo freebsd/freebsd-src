@@ -27,6 +27,8 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/MC/StringTableBuilder.h"
 
+#include <set>
+
 namespace lld {
 namespace elf {
 
@@ -515,7 +517,7 @@ public:
   GdbHashTab SymbolTable;
 
   // The CU vector portion of the constant pool.
-  std::vector<std::vector<std::pair<uint32_t, uint8_t>>> CuVectors;
+  std::vector<std::set<uint32_t>> CuVectors;
 
   std::vector<AddressEntry> AddressArea;
 
@@ -709,7 +711,7 @@ class MipsRldMapSection : public SyntheticSection {
 public:
   MipsRldMapSection();
   size_t getSize() const override { return Config->Wordsize; }
-  void writeTo(uint8_t *Buf) override;
+  void writeTo(uint8_t *Buf) override {}
 };
 
 class ARMExidxSentinelSection : public SyntheticSection {
