@@ -274,9 +274,17 @@ void Decl::setLexicalDeclContext(DeclContext *DC) {
   } else {
     getMultipleDC()->LexicalDC = DC;
   }
-  Hidden = cast<Decl>(DC)->Hidden;
-  if (Hidden && !isFromASTFile() && hasLocalOwningModuleStorage())
-    setLocalOwningModule(cast<Decl>(DC)->getOwningModule());
+
+  // FIXME: We shouldn't be changing the lexical context of declarations
+  // imported from AST files.
+  if (!isFromASTFile()) {
+    Hidden = cast<Decl>(DC)->Hidden && hasLocalOwningModuleStorage();
+    if (Hidden)
+      setLocalOwningModule(cast<Decl>(DC)->getOwningModule());
+  }
+
+  assert((!Hidden || getOwningModule()) &&
+         "hidden declaration has no owning module");
 }
 
 void Decl::setDeclContextsImpl(DeclContext *SemaDC, DeclContext *LexicalDC,
@@ -440,8 +448,8 @@ const Attr *Decl::getDefiningAttr() const {
   return nullptr;
 }
 
-StringRef getRealizedPlatform(const AvailabilityAttr *A,
-                              const ASTContext &Context) {
+static StringRef getRealizedPlatform(const AvailabilityAttr *A,
+                                     const ASTContext &Context) {
   // Check if this is an App Extension "platform", and if so chop off
   // the suffix for matching with the actual platform.
   StringRef RealizedPlatform = A->getPlatform()->getName();

@@ -7332,39 +7332,42 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
       AVX512PF,
       AVX512VBMI,
       AVX512IFMA,
+      AVX512VPOPCNTDQ,
       MAX
     };
 
-    X86Features Feature = StringSwitch<X86Features>(FeatureStr)
-                              .Case("cmov", X86Features::CMOV)
-                              .Case("mmx", X86Features::MMX)
-                              .Case("popcnt", X86Features::POPCNT)
-                              .Case("sse", X86Features::SSE)
-                              .Case("sse2", X86Features::SSE2)
-                              .Case("sse3", X86Features::SSE3)
-                              .Case("ssse3", X86Features::SSSE3)
-                              .Case("sse4.1", X86Features::SSE4_1)
-                              .Case("sse4.2", X86Features::SSE4_2)
-                              .Case("avx", X86Features::AVX)
-                              .Case("avx2", X86Features::AVX2)
-                              .Case("sse4a", X86Features::SSE4_A)
-                              .Case("fma4", X86Features::FMA4)
-                              .Case("xop", X86Features::XOP)
-                              .Case("fma", X86Features::FMA)
-                              .Case("avx512f", X86Features::AVX512F)
-                              .Case("bmi", X86Features::BMI)
-                              .Case("bmi2", X86Features::BMI2)
-                              .Case("aes", X86Features::AES)
-                              .Case("pclmul", X86Features::PCLMUL)
-                              .Case("avx512vl", X86Features::AVX512VL)
-                              .Case("avx512bw", X86Features::AVX512BW)
-                              .Case("avx512dq", X86Features::AVX512DQ)
-                              .Case("avx512cd", X86Features::AVX512CD)
-                              .Case("avx512er", X86Features::AVX512ER)
-                              .Case("avx512pf", X86Features::AVX512PF)
-                              .Case("avx512vbmi", X86Features::AVX512VBMI)
-                              .Case("avx512ifma", X86Features::AVX512IFMA)
-                              .Default(X86Features::MAX);
+    X86Features Feature =
+        StringSwitch<X86Features>(FeatureStr)
+            .Case("cmov", X86Features::CMOV)
+            .Case("mmx", X86Features::MMX)
+            .Case("popcnt", X86Features::POPCNT)
+            .Case("sse", X86Features::SSE)
+            .Case("sse2", X86Features::SSE2)
+            .Case("sse3", X86Features::SSE3)
+            .Case("ssse3", X86Features::SSSE3)
+            .Case("sse4.1", X86Features::SSE4_1)
+            .Case("sse4.2", X86Features::SSE4_2)
+            .Case("avx", X86Features::AVX)
+            .Case("avx2", X86Features::AVX2)
+            .Case("sse4a", X86Features::SSE4_A)
+            .Case("fma4", X86Features::FMA4)
+            .Case("xop", X86Features::XOP)
+            .Case("fma", X86Features::FMA)
+            .Case("avx512f", X86Features::AVX512F)
+            .Case("bmi", X86Features::BMI)
+            .Case("bmi2", X86Features::BMI2)
+            .Case("aes", X86Features::AES)
+            .Case("pclmul", X86Features::PCLMUL)
+            .Case("avx512vl", X86Features::AVX512VL)
+            .Case("avx512bw", X86Features::AVX512BW)
+            .Case("avx512dq", X86Features::AVX512DQ)
+            .Case("avx512cd", X86Features::AVX512CD)
+            .Case("avx512er", X86Features::AVX512ER)
+            .Case("avx512pf", X86Features::AVX512PF)
+            .Case("avx512vbmi", X86Features::AVX512VBMI)
+            .Case("avx512ifma", X86Features::AVX512IFMA)
+            .Case("avx512vpopcntdq", X86Features::AVX512VPOPCNTDQ)
+            .Default(X86Features::MAX);
     assert(Feature != X86Features::MAX && "Invalid feature!");
 
     // Matching the struct layout from the compiler-rt/libgcc structure that is
@@ -7517,7 +7520,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_storesd128_mask: {
     return EmitX86MaskedStore(*this, Ops, 16);
   }
-
+  case X86::BI__builtin_ia32_vpopcntd_512:
+  case X86::BI__builtin_ia32_vpopcntq_512: {
+    llvm::Type *ResultType = ConvertType(E->getType());
+    llvm::Function *F = CGM.getIntrinsic(Intrinsic::ctpop, ResultType);
+    return Builder.CreateCall(F, Ops);
+  }
   case X86::BI__builtin_ia32_cvtmask2b128:
   case X86::BI__builtin_ia32_cvtmask2b256:
   case X86::BI__builtin_ia32_cvtmask2b512:
@@ -8441,6 +8449,80 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
       Ops[1] = ConstantInt::getSigned(Int32Ty, Index);
       return Builder.CreateCall(F, Ops);
     }
+  }
+
+  case PPC::BI__builtin_vsx_xxpermdi: {
+    ConstantInt *ArgCI = dyn_cast<ConstantInt>(Ops[2]);
+    assert(ArgCI && "Third arg must be constant integer!");
+
+    unsigned Index = ArgCI->getZExtValue();
+    Ops[0] = Builder.CreateBitCast(Ops[0], llvm::VectorType::get(Int64Ty, 2));
+    Ops[1] = Builder.CreateBitCast(Ops[1], llvm::VectorType::get(Int64Ty, 2));
+
+    // Element zero comes from the first input vector and element one comes from
+    // the second. The element indices within each vector are numbered in big
+    // endian order so the shuffle mask must be adjusted for this on little
+    // endian platforms (i.e. index is complemented and source vector reversed).
+    unsigned ElemIdx0;
+    unsigned ElemIdx1;
+    if (getTarget().isLittleEndian()) {
+      ElemIdx0 = (~Index & 1) + 2;
+      ElemIdx1 = (~Index & 2) >> 1;
+    } else { // BigEndian
+      ElemIdx0 = (Index & 2) >> 1;
+      ElemIdx1 = 2 + (Index & 1);
+    }
+
+    Constant *ShuffleElts[2] = {ConstantInt::get(Int32Ty, ElemIdx0),
+                                ConstantInt::get(Int32Ty, ElemIdx1)};
+    Constant *ShuffleMask = llvm::ConstantVector::get(ShuffleElts);
+
+    Value *ShuffleCall =
+        Builder.CreateShuffleVector(Ops[0], Ops[1], ShuffleMask);
+    QualType BIRetType = E->getType();
+    auto RetTy = ConvertType(BIRetType);
+    return Builder.CreateBitCast(ShuffleCall, RetTy);
+  }
+
+  case PPC::BI__builtin_vsx_xxsldwi: {
+    ConstantInt *ArgCI = dyn_cast<ConstantInt>(Ops[2]);
+    assert(ArgCI && "Third argument must be a compile time constant");
+    unsigned Index = ArgCI->getZExtValue() & 0x3;
+    Ops[0] = Builder.CreateBitCast(Ops[0], llvm::VectorType::get(Int32Ty, 4));
+    Ops[1] = Builder.CreateBitCast(Ops[1], llvm::VectorType::get(Int32Ty, 4));
+
+    // Create a shuffle mask
+    unsigned ElemIdx0;
+    unsigned ElemIdx1;
+    unsigned ElemIdx2;
+    unsigned ElemIdx3;
+    if (getTarget().isLittleEndian()) {
+      // Little endian element N comes from element 8+N-Index of the
+      // concatenated wide vector (of course, using modulo arithmetic on
+      // the total number of elements).
+      ElemIdx0 = (8 - Index) % 8;
+      ElemIdx1 = (9 - Index) % 8;
+      ElemIdx2 = (10 - Index) % 8;
+      ElemIdx3 = (11 - Index) % 8;
+    } else {
+      // Big endian ElemIdx<N> = Index + N
+      ElemIdx0 = Index;
+      ElemIdx1 = Index + 1;
+      ElemIdx2 = Index + 2;
+      ElemIdx3 = Index + 3;
+    }
+
+    Constant *ShuffleElts[4] = {ConstantInt::get(Int32Ty, ElemIdx0),
+                                ConstantInt::get(Int32Ty, ElemIdx1),
+                                ConstantInt::get(Int32Ty, ElemIdx2),
+                                ConstantInt::get(Int32Ty, ElemIdx3)};
+
+    Constant *ShuffleMask = llvm::ConstantVector::get(ShuffleElts);
+    Value *ShuffleCall =
+        Builder.CreateShuffleVector(Ops[0], Ops[1], ShuffleMask);
+    QualType BIRetType = E->getType();
+    auto RetTy = ConvertType(BIRetType);
+    return Builder.CreateBitCast(ShuffleCall, RetTy);
   }
   }
 }
