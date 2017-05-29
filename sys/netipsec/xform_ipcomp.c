@@ -271,7 +271,7 @@ bad:
 static int
 ipcomp_input_cb(struct cryptop *crp)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	struct cryptodesc *crd;
 	struct xform_data *xd;
 	struct mbuf *m;
@@ -387,7 +387,7 @@ static int
 ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	const struct comp_algo *ipcompx;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
@@ -521,7 +521,7 @@ bad:
 static int
 ipcomp_output_cb(struct cryptop *crp)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	struct xform_data *xd;
 	struct secpolicy *sp;
 	struct secasvar *sav;
