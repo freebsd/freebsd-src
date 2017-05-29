@@ -640,6 +640,7 @@ ATF_TEST_CASE_BODY(nvlist_unpack__duplicate_key)
 	nvlist_add_number(nvl, key2, 10);
 
 	packed = nvlist_pack(nvl, &size);
+	ATF_REQUIRE(packed != NULL);
 
 	/*
 	 * Mangle the packed nvlist by replacing key1 with key2, creating a
