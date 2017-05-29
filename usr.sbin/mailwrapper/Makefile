@@ -27,7 +27,7 @@ SYMLINKS+=	..${BINDIR}/mailwrapper /bin/rmail
 
 .if ${MK_MAILWRAPPER} != "no"
 .if !exists(${DESTDIR}/etc/mail/mailer.conf)
-FILES=		${.CURDIR}/../../etc/mail/mailer.conf
+FILES=		${SRCTOP}/etc/mail/mailer.conf
 FILESDIR=	/etc/mail
 FILESMODE=	644
 .endif

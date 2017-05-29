@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../usr.bin/lastcomm
+.PATH: ${SRCTOP}/usr.bin/lastcomm
 
 PROG=	sa
 MAN=	sa.8

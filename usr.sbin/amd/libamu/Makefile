@@ -5,10 +5,12 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/libamu \
-       ${.CURDIR}/../../../contrib/amd/conf/transp \
-       ${.CURDIR}/../../../contrib/amd/conf/mtab \
-       ${.CURDIR}/../../../contrib/amd/conf/umount
+.include <bsd.init.mk>
+
+.PATH:	${SRCTOP}/contrib/amd/libamu \
+	${SRCTOP}/contrib/amd/conf/transp \
+	${SRCTOP}/contrib/amd/conf/mtab \
+	${SRCTOP}/contrib/amd/conf/umount
 
 LIB=	amu
 INTERNALLIB=
@@ -23,10 +25,10 @@ SRCS+=		nfs_prot_x.c xdr_func_%undef.c
 CLEANFILES+=	nfs_prot_x.c xdr_func_%undef.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu \
-	 -I${.OBJDIR}/../../../include/rpcsvc
+	 -I${OBJTOP}/include/rpcsvc
 
 nfs_prot_x.c: ${NFS_PROT_X}
-	${RPCCOM} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
+	${RPCCOM} -c -C -DWANT_NFS3 ${.ALLSRC} -o ${.TARGET}
 
 XDRDEFS!= grep 'ifndef.*HAVE_XDR' ${.CURDIR}/../../../contrib/amd/libamu/xdr_func.c | awk '{print "-D"$$2}'
 

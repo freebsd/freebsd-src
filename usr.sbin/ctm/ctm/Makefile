@@ -18,7 +18,7 @@ LIBADD=	md
 
 WARNS?=	2
 
-.if exists(${.CURDIR}/../../Makefile.inc)
-.include "${.CURDIR}/../../Makefile.inc"
+.if exists(${.CURDIR:H:H}/Makefile.inc)
+.include "${.CURDIR:H:H}/Makefile.inc"
 .endif
 .include <bsd.prog.mk>
