@@ -98,7 +98,11 @@ ATF_TC_BODY(msgsnd_block, tc)
 		 */
 		for (;;) {
 
+#ifdef __FreeBSD__
+			if (msgsnd(id, &msg, sizeof(msg.buf), 0) < 0)
+#else
 			if (msgsnd(id, &msg, sizeof(struct msg), 0) < 0)
+#endif
 				_exit(EXIT_FAILURE);
 		}
 	}
@@ -140,7 +144,11 @@ ATF_TC_BODY(msgsnd_count, tc)
 	for (;;) {
 
 		errno = 0;
+#ifdef	__FreeBSD__
+		rv = msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT);
+#else
 		rv = msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT);
+#endif
 
 		if (rv == 0) {
 			i++;
@@ -184,12 +192,20 @@ ATF_TC_BODY(msgsnd_err, tc)
 	errno = 0;
 
 	ATF_REQUIRE_ERRNO(EFAULT, msgsnd(id, (void *)-1,
+#ifdef	__FreeBSD__
+		sizeof(msg.buf), IPC_NOWAIT) == -1);
+#else
 		sizeof(struct msg), IPC_NOWAIT) == -1);
+#endif
 
 	errno = 0;
 
 	ATF_REQUIRE_ERRNO(EINVAL, msgsnd(-1, &msg,
+#ifdef	__FreeBSD__
+		sizeof(msg.buf), IPC_NOWAIT) == -1);
+#else
 		sizeof(struct msg), IPC_NOWAIT) == -1);
+#endif
 
 	errno = 0;
 
@@ -200,7 +216,11 @@ ATF_TC_BODY(msgsnd_err, tc)
 	msg.mtype = 0;
 
 	ATF_REQUIRE_ERRNO(EINVAL, msgsnd(id, &msg,
+#ifdef	__FreeBSD__
+		sizeof(msg.buf), IPC_NOWAIT) == -1);
+#else
 		sizeof(struct msg), IPC_NOWAIT) == -1);
+#endif
 
 	ATF_REQUIRE(msgctl(id, IPC_RMID, 0) == 0);
 }
@@ -234,7 +254,11 @@ ATF_TC_BODY(msgsnd_nonblock, tc)
 		for (;;) {
 
 			errno = 0;
+#ifdef	__FreeBSD__
+			rv = msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT);
+#else
 			rv = msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT);
+#endif
 
 			if (rv == -1 && errno == EAGAIN)
 				_exit(EXIT_SUCCESS);
@@ -299,7 +323,11 @@ ATF_TC_BODY(msgsnd_perm, tc)
 
 		errno = 0;
 
+#ifdef	__FreeBSD__
+		if (msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT) == 0)
+#else
 		if (msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT) == 0)
+#endif
 			_exit(EXIT_FAILURE);
 
 		if (errno != EACCES)
