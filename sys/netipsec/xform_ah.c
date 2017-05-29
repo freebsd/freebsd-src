@@ -544,7 +544,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	char buf[128];
+	IPSEC_DEBUG_DECLARE(char buf[128]);
 	const struct auth_hash *ahx;
 	struct cryptodesc *crda;
 	struct cryptop *crp;
@@ -681,7 +681,7 @@ bad:
 static int
 ah_input_cb(struct cryptop *crp)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	unsigned char calc[AH_ALEN_MAX];
 	const struct auth_hash *ahx;
 	struct mbuf *m;
@@ -831,7 +831,7 @@ static int
 ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	const struct auth_hash *ahx;
 	struct cryptodesc *crda;
 	struct xform_data *xd;
