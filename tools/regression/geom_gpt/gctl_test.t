@@ -172,20 +172,32 @@ foreach my $key (sort keys %steps) {
 	    ($errmsg eq "" ? "" : " - $errmsg"));
 	unlink $out;
     } elsif ($action =~ "^mdcfg") {
+	my $errmsg = "";
 	if ($args =~ "^create") {
-	    system("dd if=/dev/zero of=$disk count=1024 2>&1");
-	    if ($args =~ "corrupted") {
-		system("gpt create -p $disk");
+	    # NOTE: `count=1024` affects $key => {"025" "054", "065"}.
+	    if (system("dd if=/dev/zero of=$disk count=1024 2>&1") == 0) {
+		chomp($dev = `mdconfig -a -t vnode -f $disk`);
+		if ($? == 0) {
+		    if (system("gpart create -s GPT $dev") != 0) {
+			$errmsg = "gpart create failed";
+		    }
+		} else {
+		    $errmsg = "mdconfig -a failed";
+		}
+	    } else {
+		$errmsg = "dd failed";
 	    }
-	    $dev = `mdconfig -a -t vnode -f $disk`;
-	    chomp $dev;
 	} elsif ($args =~ "^destroy") {
 	    $dev =~ s/md/-u /g;
-	    system("mdconfig -d $dev");
+	    if (system("mdconfig -d $dev") != 0) {
+		$errmsg = "mdconfig -d failed";
+	    }
 	    unlink $disk;
 	    $dev = "n/a";
 	}
-	print "ok $nr \# mdcfg($key)\n";
+	printf("%sok $nr # mdcfg($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
     } elsif ($action =~ "^conf") {
 	system("sysctl -b kern.geom.conftxt | grep -a $dev | sed -e s:$disk:DISK:g -e s:$dev:DEV:g | sort | md5 -p | tee $out 2>&1");
 	$st = `tail -1 $out`;
