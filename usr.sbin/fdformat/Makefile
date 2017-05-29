@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../fdread
+.PATH: ${.CURDIR:H}/fdread
 
 PROG=	fdformat
 SRCS=	fdformat.c fdutil.c
 
-CFLAGS+= -I${.CURDIR}/../fdread
+CFLAGS+= -I${.CURDIR:H}/fdread
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98

@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../usr.bin/cksum
+.PATH: ${SRCTOP}/usr.bin/cksum
 
 PROG=	fmtree
 MAN=	fmtree.8

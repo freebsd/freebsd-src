@@ -18,7 +18,7 @@ WARNS?=	2
 SUBDIR+=	tests
 .endif
 
-CFLAGS+=-I${.CURDIR}/../../sys
+CFLAGS+=-I${SRCTOP}/sys
 
 .if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES
