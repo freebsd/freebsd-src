@@ -24,18 +24,17 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 19, 2017
+.Dd March 29, 2017
 .Dt CTL 4
 .Os
 .Sh NAME
 .Nm ctl
-.Nd CAM Target Layer / iSCSI target subsystem
+.Nd CAM Target Layer
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device iscsi"
 .Cd "device ctl"
 .Ed
 .Pp
@@ -106,11 +105,8 @@ Provides access for local user-level applications via
 .Xr ioctl 2
 based API.
 .It iscsi
-Combined with
-.Xr iscsi 4
-and
-.Xr ctld 8 ,
-provides access for remote systems via iSCSI protocol.
+Provides access for remote systems via the iSCSI protocol using
+.Xr cfiscsi 4 .
 .It tpc
 Internal frontend used to receive requests from Third Party Copy engine,
 implementing copy offload operations.
@@ -194,24 +190,9 @@ the opposite change -- opens.
 If there is no primary node (both nodes are secondary, or secondary node has
 no connection to primary one), secondary node(s) report Transitioning state.
 State with two primary nodes is illegal (split brain condition).
-.It Va kern.cam.ctl.iscsi.debug
-Verbosity level for log messages from the kernel part of iSCSI target.
-Set to 0 to disable logging or 1 to warn about potential problems.
-Larger values enable debugging output.
-Defaults to 1.
-.It Va kern.cam.ctl.iscsi.maxtags
-The number of outstanding commands to advertise to each iSCSI initiator.
-Current implementation is not very accurate, so do not set this below 2.
-Defaults to 256.
-.It Va kern.cam.ctl.iscsi.ping_timeout
-The number of seconds to wait for the iSCSI initiator to respond to a NOP-In
-PDU.
-In the event that there is no response within that time the session gets
-forcibly terminated.
-Set to 0 to disable sending NOP-In PDUs.
-Defaults to 5.
 .El
 .Sh SEE ALSO
+.Xr cfiscsi 4 ,
 .Xr cfumass 4 ,
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
