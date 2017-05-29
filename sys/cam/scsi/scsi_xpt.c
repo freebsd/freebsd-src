@@ -547,6 +547,14 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 		CAM_QUIRK_NORPTLUNS, /*mintags*/2, /*maxtags*/255
 	},
 	{
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic", "STORAGE DEVICE*", "120?" },
+		CAM_QUIRK_NORPTLUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic", "MassStorageClass", "1533" },
+		CAM_QUIRK_NORPTLUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
