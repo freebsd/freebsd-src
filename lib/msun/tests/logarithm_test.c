@@ -137,7 +137,7 @@ run_log2_tests(void)
 	 * We should insist that log2() return exactly the correct
 	 * result and not raise an inexact exception for powers of 2.
 	 */
-	feclearexcept(FE_ALL_EXCEPT);
+	assert(feclearexcept(FE_ALL_EXCEPT) == 0);
 	for (i = FLT_MIN_EXP - FLT_MANT_DIG; i < FLT_MAX_EXP; i++) {
 		assert(log2f(ldexpf(1.0, i)) == i);
 		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
