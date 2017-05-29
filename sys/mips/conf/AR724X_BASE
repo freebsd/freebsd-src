@@ -25,13 +25,14 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Build these as modules so small platform builds will have the
 # modules already built.
-makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_pci hwpmc cam"
+makeoptions	MODULES_OVERRIDE="gpio ar71xx if_gif if_gre if_tap if_tun libalias ipfw ipfw_nat ipfw_nptv6 if_vlan if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath_main ath_pci ath_hal ath_hal_ar5212 ath_hal_ar5416 ath_hal_ar9300 ath_rate ath_dfs hwpmc hwpmc_mips24k cam"
 
 # For small memory footprints
 options 	VM_KMEM_SIZE_SCALE=1
 
 options 	DDB
 options 	KDB
+options 	EARLY_PRINTF
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -59,10 +60,15 @@ options         NO_SYSCTL_DESCR
 
 options         FFS                     #Berkeley Fast Filesystem
 options 	NO_FFS_SNAPSHOT
+
+options 	IPFIREWALL_DEFAULT_TO_ACCEPT
+
 # options         SOFTUPDATES             #Enable FFS soft updates support
 # options         UFS_ACL                 #Support for access control lists
 # options         UFS_DIRHASH             #Improve performance on big directories
 # options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
+
+options 	UMTX_CHAINS=16
 
 device		pci
 device		ar724x_pci
@@ -129,7 +135,7 @@ device		loop
 device		ether
 device		md
 device		bpf
-#device		random
+device		random
 #device		if_bridge
 #device		gif		# ip[46] in ip[46] tunneling protocol
 #device		gre		# generic encapsulation - only for IPv4 in IPv4 though atm
