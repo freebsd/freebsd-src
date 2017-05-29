@@ -572,24 +572,41 @@ static void
 lagg_capabilities(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
-	int cap = ~0, ena = ~0;
-	u_long hwa = ~0UL;
+	int cap, ena, pena;
+	uint64_t hwa;
 	struct ifnet_hw_tsomax hw_tsomax;
 
 	LAGG_XLOCK_ASSERT(sc);
 
-	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
+	/* Get common enabled capabilities for the lagg ports */
+	ena = ~0;
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+		ena &= lp->lp_ifp->if_capenable;
+	ena = (ena == ~0 ? 0 : ena);
 
-	/* Get capabilities from the lagg ports */
+	/*
+	 * Apply common enabled capabilities back to the lagg ports.
+	 * May require several iterations if they are dependent.
+	 */
+	do {
+		pena = ena;
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+			lagg_setcaps(lp, ena);
+			ena &= lp->lp_ifp->if_capenable;
+		}
+	} while (pena != ena);
+
+	/* Get other capabilities from the lagg ports */
+	cap = ~0;
+	hwa = ~(uint64_t)0;
+	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		cap &= lp->lp_ifp->if_capabilities;
-		ena &= lp->lp_ifp->if_capenable;
 		hwa &= lp->lp_ifp->if_hwassist;
 		if_hw_tsomax_common(lp->lp_ifp, &hw_tsomax);
 	}
 	cap = (cap == ~0 ? 0 : cap);
-	ena = (ena == ~0 ? 0 : ena);
-	hwa = (hwa == ~0 ? 0 : hwa);
+	hwa = (hwa == ~(uint64_t)0 ? 0 : hwa);
 
 	if (sc->sc_ifp->if_capabilities != cap ||
 	    sc->sc_ifp->if_capenable != ena ||
@@ -604,10 +621,6 @@ lagg_capabilities(struct lagg_softc *sc)
 			if_printf(sc->sc_ifp,
 			    "capabilities 0x%08x enabled 0x%08x\n", cap, ena);
 	}
-
-	/* Apply unified capabilities back to the lagg ports. */
-	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-		lagg_setcaps(lp, ena);
 }
 
 static int
@@ -888,6 +901,7 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_XLOCK(sc);
 		lagg_capabilities(sc);
 		LAGG_XUNLOCK(sc);
+		VLAN_CAPABILITIES(sc->sc_ifp);
 		break;
 
 	case SIOCSIFMTU:
@@ -1001,6 +1015,7 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	lp->lp_detaching = 1;
 	lagg_port_destroy(lp, 1);
 	LAGG_XUNLOCK(sc);
+	VLAN_CAPABILITIES(sc->sc_ifp);
 }
 
 static void
@@ -1360,6 +1375,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = lagg_port_create(sc, tpif);
 		LAGG_XUNLOCK(sc);
 		if_rele(tpif);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	case SIOCSLAGGDELPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -1383,6 +1399,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = lagg_port_destroy(lp, 1);
 		LAGG_XUNLOCK(sc);
 		if_rele(tpif);
+		VLAN_CAPABILITIES(ifp);
 		break;
 	case SIOCSIFFLAGS:
 		/* Set flags on ports too */
@@ -1433,6 +1450,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		lagg_capabilities(sc);
 		LAGG_XUNLOCK(sc);
+		VLAN_CAPABILITIES(ifp);
 		error = 0;
 		break;
 

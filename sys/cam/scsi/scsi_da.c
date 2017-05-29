@@ -684,6 +684,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Genesys GL3224
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "STORAGE DEVICE*",
+		"120?"}, /*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_4K | DA_Q_NO_RC16
+	},
+	{
+		/*
 		 * Genesys 6-in-1 Card Reader
 		 * PR: usb/94647
 		 */

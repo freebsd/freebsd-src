@@ -10,7 +10,7 @@ SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 	linux_machdep.c linux_misc.c linux_ptrace.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux_sysent.c \
 	linux_sysvec.c linux_time.c linux_vdso.c linux_timer.c \
-	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h \
+	opt_inet6.h opt_compat.h opt_global.h opt_posix.h opt_usb.h \
 	vnode_if.h device_if.h bus_if.h assym.s \
 	linux_support.s
 DPSRCS=	linux_genassym.c
@@ -38,6 +38,7 @@ linux_locore.o: linux_locore.s linux_assym.h
 ${VDSO}.so: linux_locore.o
 	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd		\
 	    -S -g --binary-architecture i386:x86-64 linux_locore.o ${.TARGET}
+	strip -N _binary_linux_locore_o_size ${.TARGET}
 
 linux_support.o: assym.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \

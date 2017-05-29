@@ -27,7 +27,7 @@
 .\"
 .\"
 .Dd October 17, 2013
-.Dt MOUNT.CONF 8
+.Dt MOUNT.CONF 5
 .Os
 .Sh NAME
 .Nm mount.conf
@@ -52,7 +52,7 @@ The logic for this is in
 .Fn vfs_mountroot_conf0 .
 .It
 The kernel will first mount
-.Xr devfs 8
+.Xr devfs 5
 as the root file system.
 .It
 Next, the kernel will parse the in-memory config file created in step 1
@@ -224,7 +224,7 @@ For each root file system which is mounted, a
 directory
 .Em must
 exist so that the root mount logic can properly re-mount
-.Xr devfs 8 .
+.Xr devfs 5 .
 If this directory does not exist, the system
 may hang during the bootup process.
 .Sh SEE ALSO

@@ -97,6 +97,14 @@ struct devsw netdev = {
 	net_cleanup
 };
 
+static struct uri_scheme {
+	const char *scheme;
+	int proto;
+} uri_schemes[] = {
+	{ "tftp:/", NET_TFTP },
+	{ "nfs:/", NET_NFS },
+};
+
 static int
 net_init(void)
 {
@@ -248,8 +256,6 @@ net_getparams(int sock)
 {
 	char buf[MAXHOSTNAMELEN];
 	n_long rootaddr, smask;
-	struct iodesc *d = socktodesc(sock);
-	extern struct in_addr servip;
 
 #ifdef	SUPPORT_BOOTP
 	/*
@@ -258,26 +264,8 @@ net_getparams(int sock)
 	 * be initialized.  If any remain uninitialized, we will
 	 * use RARP and RPC/bootparam (the Sun way) to get them.
 	 */
-	if (try_bootp) {
-		int rc = -1;
-		if (bootp_response != NULL) {
-			rc = dhcp_try_rfc1048(bootp_response->bp_vend,
-			    bootp_response_size -
-			    offsetof(struct bootp, bp_vend));
-
-			if (servip.s_addr == 0)
-				servip = bootp_response->bp_siaddr;
-			if (rootip.s_addr == 0)
-				rootip = bootp_response->bp_siaddr;
-			if (gateip.s_addr == 0)
-				gateip = bootp_response->bp_giaddr;
-			if (myip.s_addr == 0)
-				myip = bootp_response->bp_yiaddr;
-			d->myip = myip;
-		}
-		if (rc < 0)
-			bootp(sock, BOOTP_NONE);
-	}
+	if (try_bootp)
+		bootp(sock);
 	if (myip.s_addr != 0)
 		goto exit;
 #ifdef	NETIF_DEBUG
@@ -334,11 +322,8 @@ net_getparams(int sock)
 		return (EIO);
 	}
 exit:
-	netproto = NET_TFTP;
-	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE) {
-		netproto = NET_NFS;
+	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
 		rootip.s_addr = rootaddr;
-	}
 
 #ifdef	NETIF_DEBUG
 	if (debug) {
@@ -381,20 +366,69 @@ net_print(int verbose)
 }
 
 /*
- * Strip the server's address off of the rootpath if present and return it in
- * network byte order, leaving just the pathname part in the global rootpath.
+ * Parses the rootpath if present
+ *
+ * The rootpath format can be in the form
+ * <scheme>://ip/path
+ * <scheme>:/path
+ *
+ * For compatibility with previous behaviour it also accepts as an NFS scheme
+ * ip:/path
+ * /path
+ *
+ * If an ip is set it returns it in network byte order.
+ * The default scheme defined in the global netproto, if not set it defaults to
+ * NFS.
+ * It leaves just the pathname in the global rootpath.
  */
 uint32_t
 net_parse_rootpath()
 {
-	n_long addr = INADDR_NONE;
-	char *ptr;
+	n_long addr = htonl(INADDR_NONE);
+	size_t i;
+	char ip[FNAME_SIZE];
+	char *ptr, *val;
 
+	netproto = NET_NONE;
+
+	for (i = 0; i < nitems(uri_schemes); i++) {
+		if (strncmp(rootpath, uri_schemes[i].scheme,
+		    strlen(uri_schemes[i].scheme)) != 0)
+			continue;
+
+		netproto = uri_schemes[i].proto;
+		break;
+	}
 	ptr = rootpath;
-	(void)strsep(&ptr, ":");
-	if (ptr != NULL) {
-		addr = inet_addr(rootpath);
-		bcopy(ptr, rootpath, strlen(ptr) + 1);
+	/* Fallback for compatibility mode */
+	if (netproto == NET_NONE) {
+		netproto = NET_NFS;
+		(void)strsep(&ptr, ":");
+		if (ptr != NULL) {
+			addr = inet_addr(rootpath);
+			bcopy(ptr, rootpath, strlen(ptr) + 1);
+		}
+	} else {
+		ptr += strlen(uri_schemes[i].scheme);
+		if (*ptr == '/') {
+			/* we are in the form <scheme>://, we do expect an ip */
+			ptr++;
+			/*
+			 * XXX when http will be there we will need to check for
+			 * a port, but right now we do not need it yet
+			 */
+			val = strchr(ptr, '/');
+			if (val != NULL) {
+				snprintf(ip, sizeof(ip), "%.*s",
+				    (int)((uintptr_t)val - (uintptr_t)ptr),
+				    ptr);
+				addr = inet_addr(ip);
+				bcopy(val, rootpath, strlen(val) + 1);
+			}
+		} else {
+			ptr--;
+			bcopy(ptr, rootpath, strlen(ptr) + 1);
+		}
 	}
 
 	return (addr);

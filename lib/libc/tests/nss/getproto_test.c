@@ -99,7 +99,7 @@ clone_protoent(struct protoent *dest, struct protoent const *src)
 		for (cp = src->p_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->p_aliases = calloc(1, (aliases_num+1) * sizeof(char *));
+		dest->p_aliases = calloc(aliases_num + 1, sizeof(char *));
 		assert(dest->p_aliases != NULL);
 
 		for (cp = src->p_aliases; *cp; ++cp) {
@@ -172,16 +172,16 @@ sdump_protoent(struct protoent *pe, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d",
 		pe->p_name, pe->p_proto);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (pe->p_aliases != NULL) {
 		if (*(pe->p_aliases) != '\0') {
 			for (cp = pe->p_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -288,7 +288,7 @@ protoent_fill_test_data(struct protoent_test_data *td)
 }
 
 static int
-protoent_test_correctness(struct protoent *pe, void *mdata)
+protoent_test_correctness(struct protoent *pe, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_protoent(pe);
@@ -388,14 +388,14 @@ protoent_test_getprotobynumber(struct protoent *pe_model, void *mdata)
 }
 
 static int
-protoent_test_getprotoent(struct protoent *pe, void *mdata)
+protoent_test_getprotoent(struct protoent *pe, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getprotoent(). */
 	return (protoent_test_correctness(pe, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct protoent_test_data td, td_snap, td_2pass;

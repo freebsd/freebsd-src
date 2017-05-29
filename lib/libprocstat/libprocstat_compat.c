@@ -60,12 +60,29 @@ struct freebsd11_shmstat {
 	uint16_t	mode;
 };
 
+struct freebsd11_sockstat {
+	uint64_t	inp_ppcb;
+	uint64_t	so_addr;
+	uint64_t	so_pcb;
+	uint64_t	unp_conn;
+	int		dom_family;
+	int		proto;
+	int		so_rcv_sb_state;
+	int		so_snd_sb_state;
+	struct sockaddr_storage	sa_local;	/* Socket address. */
+	struct sockaddr_storage	sa_peer;	/* Peer address. */
+	int		type;
+	char		dname[32];
+};
+
 int	freebsd11_procstat_get_pts_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_ptsstat *pts, char *errbuf);
 int	freebsd11_procstat_get_sem_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_semstat *sem, char *errbuf);
 int	freebsd11_procstat_get_shm_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_shmstat *shm, char *errbuf);
+int	freebsd11_procstat_get_socket_info(struct procstat *procstat,
+    struct filestat *fst, struct freebsd11_sockstat *sock, char *errbuf);
 int	freebsd11_procstat_get_vnode_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_vnstat *vn, char *errbuf);
 
@@ -116,6 +133,31 @@ freebsd11_procstat_get_shm_info(struct procstat *procstat,
 }
 
 int
+freebsd11_procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
+    struct freebsd11_sockstat *sock_compat, char *errbuf)
+{
+	struct sockstat sock;
+	int r;
+
+	r = procstat_get_socket_info(procstat, fst, &sock, errbuf);
+	if (r != 0)
+		return (r);
+	sock_compat->inp_ppcb = sock.inp_ppcb;
+	sock_compat->so_addr = sock.so_addr;
+	sock_compat->so_pcb = sock.so_pcb;
+	sock_compat->unp_conn = sock.unp_conn;
+	sock_compat->dom_family = sock.dom_family;
+	sock_compat->proto = sock.proto;
+	sock_compat->so_rcv_sb_state = sock.so_rcv_sb_state;
+	sock_compat->so_snd_sb_state = sock.so_snd_sb_state;
+	sock_compat->sa_local = sock.sa_local;
+	sock_compat->sa_peer = sock.sa_peer;
+	sock_compat->type = sock.type;
+	memcpy(sock_compat->dname, sock.dname, sizeof(sock.dname));
+	return (0);
+}
+
+int
 freebsd11_procstat_get_vnode_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_vnstat *vn_compat, char *errbuf)
 {
@@ -138,6 +180,8 @@ freebsd11_procstat_get_vnode_info(struct procstat *procstat,
 }
 
 __sym_compat(procstat_get_pts_info, freebsd11_procstat_get_pts_info, FBSD_1.2);
+__sym_compat(procstat_get_socket_info, freebsd11_procstat_get_socket_info,
+    FBSD_1.2);
 __sym_compat(procstat_get_vnode_info, freebsd11_procstat_get_vnode_info,
     FBSD_1.2);
 __sym_compat(procstat_get_sem_info, freebsd11_procstat_get_sem_info, FBSD_1.3);
