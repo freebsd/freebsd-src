@@ -1025,11 +1025,11 @@ void CodeViewDebug::beginFunctionImpl(const MachineFunction *MF) {
   bool EmptyPrologue = true;
   for (const auto &MBB : *MF) {
     for (const auto &MI : MBB) {
-      if (!MI.isDebugValue() && !MI.getFlag(MachineInstr::FrameSetup) &&
+      if (!MI.isMetaInstruction() && !MI.getFlag(MachineInstr::FrameSetup) &&
           MI.getDebugLoc()) {
         PrologEndLoc = MI.getDebugLoc();
         break;
-      } else if (!MI.isDebugValue()) {
+      } else if (!MI.isMetaInstruction()) {
         EmptyPrologue = false;
       }
     }
@@ -1562,7 +1562,7 @@ TypeIndex CodeViewDebug::lowerTypeEnum(const DICompositeType *Ty) {
         EnumeratorCount++;
       }
     }
-    FTI = FLRB.end();
+    FTI = FLRB.end(true);
   }
 
   std::string FullName = getFullyQualifiedName(Ty);
@@ -1869,7 +1869,7 @@ CodeViewDebug::lowerRecordFieldList(const DICompositeType *Ty) {
     MemberCount++;
   }
 
-  TypeIndex FieldTI = FLBR.end();
+  TypeIndex FieldTI = FLBR.end(true);
   return std::make_tuple(FieldTI, Info.VShapeTI, MemberCount,
                          !Info.NestedClasses.empty());
 }
