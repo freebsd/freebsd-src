@@ -115,7 +115,8 @@ uint64_t DebugHandlerBase::getBaseTypeSize(const DITypeRef TyRef) {
   return getBaseTypeSize(BaseType);
 }
 
-bool hasDebugInfo(const MachineModuleInfo *MMI, const MachineFunction *MF) {
+static bool hasDebugInfo(const MachineModuleInfo *MMI,
+                         const MachineFunction *MF) {
   if (!MMI->hasDebugInfo())
     return false;
   auto *SP = MF->getFunction()->getSubprogram();
@@ -223,9 +224,9 @@ void DebugHandlerBase::endInstruction() {
     return;
 
   assert(CurMI != nullptr);
-  // Don't create a new label after DBG_VALUE instructions.
-  // They don't generate code.
-  if (!CurMI->isDebugValue()) {
+  // Don't create a new label after DBG_VALUE and other instructions that don't
+  // generate code.
+  if (!CurMI->isMetaInstruction()) {
     PrevLabel = nullptr;
     PrevInstBB = CurMI->getParent();
   }

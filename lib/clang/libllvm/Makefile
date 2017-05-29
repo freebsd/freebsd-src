@@ -171,6 +171,7 @@ SRCS_MIN+=	CodeGen/GlobalISel/InstructionSelector.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/Legalizer.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/LegalizerHelper.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/LegalizerInfo.cpp
+SRCS_MIN+=	CodeGen/GlobalISel/Localizer.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/MachineIRBuilder.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/RegBankSelect.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/RegisterBank.cpp
@@ -346,6 +347,7 @@ SRCS_MIN+=	DebugInfo/CodeView/TypeDatabase.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDatabaseVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDumpVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeIndex.cpp
+#SRCS_MIN+=	DebugInfo/CodeView/TypeIndexDiscovery.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeRecordMapping.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeSerializer.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeStreamMerger.cpp
@@ -1104,6 +1106,7 @@ SRCS_MIN+=	Transforms/Scalar/FlattenCFGPass.cpp
 SRCS_MIN+=	Transforms/Scalar/Float2Int.cpp
 SRCS_MIN+=	Transforms/Scalar/GVN.cpp
 SRCS_MIN+=	Transforms/Scalar/GVNHoist.cpp
+SRCS_MIN+=	Transforms/Scalar/GVNSink.cpp
 SRCS_MIN+=	Transforms/Scalar/GuardWidening.cpp
 SRCS_MIN+=	Transforms/Scalar/IVUsersPrinter.cpp
 SRCS_MIN+=	Transforms/Scalar/IndVarSimplify.cpp
@@ -1278,6 +1281,7 @@ TGHDRS+=	Options.inc
 	DisassemblerTables/-gen-disassembler \
 	EVEX2VEXTables/-gen-x86-EVEX2VEX-tables \
 	FastISel/-gen-fast-isel \
+	FoldTables/-gen-x86-fold-tables \
 	GlobalISel/-gen-global-isel \
 	InstrInfo/-gen-instr-info \
 	MCCodeEmitter/-gen-emitter \
@@ -1359,6 +1363,7 @@ TGHDRS+=	X86GenDAGISel.inc
 TGHDRS+=	X86GenDisassemblerTables.inc
 TGHDRS+=	X86GenEVEX2VEXTables.inc
 TGHDRS+=	X86GenFastISel.inc
+TGHDRS+=	X86GenFoldTables.inc
 TGHDRS+=	X86GenGlobalISel.inc
 TGHDRS+=	X86GenInstrInfo.inc
 TGHDRS+=	X86GenRegisterBank.inc

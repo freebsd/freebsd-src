@@ -62,8 +62,6 @@
 #if SANITIZER_FREEBSD
 #include <sys/exec.h>
 #include <sys/sysctl.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #include <machine/atomic.h>
 extern "C" {
 // <sys/umtx.h> must be included after <errno.h> and <sys/types.h> on
@@ -263,7 +261,7 @@ uptr internal_stat(const char *path, void *buf) {
 uptr internal_lstat(const char *path, void *buf) {
 #if SANITIZER_FREEBSD
   return internal_syscall(SYSCALL(fstatat), AT_FDCWD, (uptr)path,
-                         (uptr)buf, AT_SYMLINK_NOFOLLOW);
+                          (uptr)buf, AT_SYMLINK_NOFOLLOW);
 #elif SANITIZER_USES_CANONICAL_LINUX_SYSCALLS
   return internal_syscall(SYSCALL(newfstatat), AT_FDCWD, (uptr)path,
                          (uptr)buf, AT_SYMLINK_NOFOLLOW);
@@ -551,7 +549,7 @@ void BlockingMutex::Lock() {
 
 void BlockingMutex::Unlock() {
   atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  u32 v = atomic_exchange(m, MtxUnlocked, memory_order_relaxed);
+  u32 v = atomic_exchange(m, MtxUnlocked, memory_order_release);
   CHECK_NE(v, MtxUnlocked);
   if (v == MtxSleeping) {
 #if SANITIZER_FREEBSD
@@ -1398,7 +1396,7 @@ AndroidApiLevel AndroidGetApiLevel() {
 
 #endif
 
-bool IsHandledDeadlySignal(int signum) {
+HandleSignalMode GetHandleSignalMode(int signum) {
   switch (signum) {
     case SIGABRT:
       return common_flags()->handle_abort;
@@ -1411,7 +1409,7 @@ bool IsHandledDeadlySignal(int signum) {
     case SIGBUS:
       return common_flags()->handle_sigbus;
   }
-  return false;
+  return kHandleSignalNo;
 }
 
 #if !SANITIZER_GO

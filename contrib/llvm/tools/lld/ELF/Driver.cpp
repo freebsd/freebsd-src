@@ -572,10 +572,14 @@ static std::pair<bool, bool> getHashStyle(opt::InputArgList &Args) {
 // -build-id=sha1 are actually tree hashes for performance reasons.
 static std::pair<BuildIdKind, std::vector<uint8_t>>
 getBuildId(opt::InputArgList &Args) {
-  if (Args.hasArg(OPT_build_id))
+  auto *Arg = Args.getLastArg(OPT_build_id, OPT_build_id_eq);
+  if (!Arg)
+    return {BuildIdKind::None, {}};
+
+  if (Arg->getOption().getID() == OPT_build_id)
     return {BuildIdKind::Fast, {}};
 
-  StringRef S = getString(Args, OPT_build_id_eq, "none");
+  StringRef S = Arg->getValue();
   if (S == "md5")
     return {BuildIdKind::Md5, {}};
   if (S == "sha1" || S == "tree")
@@ -688,6 +692,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->ZNow = hasZOption(Args, "now");
   Config->ZOrigin = hasZOption(Args, "origin");
   Config->ZRelro = !hasZOption(Args, "norelro");
+  Config->ZRodynamic = hasZOption(Args, "rodynamic");
   Config->ZStackSize = getZOptionValue(Args, "stack-size", 0);
   Config->ZText = !hasZOption(Args, "notext");
   Config->ZWxneeded = hasZOption(Args, "wxneeded");
