@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/ioctl.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/stat.h>
@@ -90,6 +91,14 @@ kernel_init(void)
 	}
 	if (ctl_fd < 0)
 		log_err(1, "failed to open %s", CTL_DEFAULT_DEV);
+#ifdef	WANT_ISCSI
+	else {
+		saved_errno = errno;
+		if (modfind("cfiscsi") == -1 && kldload("cfiscsi") == -1)
+			log_warn("couldn't load cfiscsi");
+		errno = saved_errno;
+	}
+#endif
 }
 
 /*
