@@ -497,9 +497,7 @@ ipf_nat_soft_init(softc, arg)
 	softn->ipf_nat_pending.ifq_next = NULL;
 
 	for (i = 0, tq = softn->ipf_nat_tcptq; i < IPF_TCP_NSTATES; i++, tq++) {
-#ifdef LARGE_NAT
 		if (tq->ifq_ttl < softn->ipf_nat_deficmpage)
-#endif
 			tq->ifq_ttl = softn->ipf_nat_deficmpage;
 #ifdef LARGE_NAT
 		else if (tq->ifq_ttl > softn->ipf_nat_defage)
