@@ -155,7 +155,7 @@ static void	ena_update_hwassist(struct ena_adapter *);
 static int	ena_setup_ifnet(device_t, struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static void	ena_tx_csum(struct ena_com_tx_ctx *, struct mbuf *);
-static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf *);
+static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf **);
 static void	ena_start_xmit(struct ena_ring *);
 static int	ena_mq_start(if_t, struct mbuf *);
 static void	ena_deferred_mq_start(void *, int);
@@ -2601,7 +2601,34 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 }
 
 static int
-ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf *mbuf)
+ena_check_and_defragment_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
+{
+	struct ena_adapter *adapter;
+	struct mbuf *defrag_mbuf;
+	int num_frags;
+
+	adapter = tx_ring->adapter;
+	num_frags = ena_mbuf_count(*mbuf);
+
+	/* One segment must be reserved for configuration descriptor. */
+	if (num_frags < adapter->max_tx_sgl_size)
+		return (0);
+	counter_u64_add(tx_ring->tx_stats.defragment, 1);
+
+	defrag_mbuf = m_defrag(*mbuf, M_NOWAIT);
+	if (defrag_mbuf == NULL) {
+		counter_u64_add(tx_ring->tx_stats.defragment_err, 1);
+		return (ENOMEM);
+	}
+
+	/* If mbuf was defragmented succesfully, original mbuf is released. */
+	*mbuf = defrag_mbuf;
+
+	return (0);
+}
+
+static int
+ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 {
 	struct ena_adapter *adapter;
 	struct ena_tx_buffer *tx_info;
@@ -2617,40 +2644,40 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf *mbuf)
 	uint16_t ena_qid;
 	uint32_t len, nsegs, header_len;
 	int i, rc;
-	int nb_hw_desc, num_frags;
+	int nb_hw_desc;
 
 	ena_qid = ENA_IO_TXQ_IDX(tx_ring->que->id);
 	adapter = tx_ring->que->adapter;
 	ena_dev = adapter->ena_dev;
 	io_sq = &adapter->ena_dev->io_sq_queues[ena_qid];
 
-	ENA_ASSERT(mbuf, "mbuf is NULL\n");
+	ENA_ASSERT(*mbuf, "mbuf is NULL\n");
 
-	num_frags = ena_mbuf_count(mbuf);
-	if (num_frags > (adapter->max_tx_sgl_size - 2)) {
-		device_printf(adapter->pdev,
-		   "too many fragments. Last fragment: %d!\n", num_frags);
-		return (ENA_COM_INVAL);
+	rc = ena_check_and_defragment_mbuf(tx_ring, mbuf);
+	if (rc) {
+		ena_trace(ENA_WARNING,
+		    "Failed to defragment mbuf! err: %d", rc);
+		return (rc);
 	}
 
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_tx_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
 
-	tx_info->mbuf = mbuf;
+	tx_info->mbuf = *mbuf;
 	tx_info->num_of_bufs = 0;
 
 	ena_buf = tx_info->bufs;
-	len = mbuf->m_len;
+	len = (*mbuf)->m_len;
 
-	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes", mbuf->m_pkthdr.len);
+	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes", (*mbuf)->m_pkthdr.len);
 
 	push_len = 0;
 	header_len = min_t(uint32_t, len, tx_ring->tx_max_header_size);
 	push_hdr = NULL;
 
 	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->map,
-	    mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
+	    *mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
 
 	if (rc || (nsegs == 0)) {
 		ena_trace(ENA_WARNING,
@@ -2678,7 +2705,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf *mbuf)
 	ena_tx_ctx.header_len = header_len;
 
 	/* Set flags and meta data */
-	ena_tx_csum(&ena_tx_ctx, mbuf);
+	ena_tx_csum(&ena_tx_ctx, *mbuf);
 	/* Prepare the packet's descriptors and send them to device */
 	rc = ena_com_prepare_tx(io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (rc != 0) {
@@ -2692,7 +2719,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf *mbuf)
 
 	counter_enter();
 	counter_u64_add_protected(tx_ring->tx_stats.cnt, 1);
-	counter_u64_add_protected(tx_ring->tx_stats.bytes,  mbuf->m_pkthdr.len);
+	counter_u64_add_protected(tx_ring->tx_stats.bytes,  (*mbuf)->m_pkthdr.len);
 	counter_exit();
 
 	tx_info->tx_descs = nb_hw_desc;
@@ -2740,7 +2767,7 @@ ena_start_xmit(struct ena_ring *tx_ring)
 		if (ena_com_sq_empty_space(io_sq) < ENA_TX_CLEANUP_TRESHOLD)
 			ena_tx_cleanup(tx_ring);
 
-		if ((ret = ena_xmit_mbuf(tx_ring, mbuf)) != 0) {
+		if ((ret = ena_xmit_mbuf(tx_ring, &mbuf)) != 0) {
 			if (ret == ENA_COM_NO_MEM) {
 				drbr_putback(adapter->ifp, tx_ring->br, mbuf);
 			} else if (ret == ENA_COM_NO_SPACE) {
