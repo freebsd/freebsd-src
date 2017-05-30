@@ -27,11 +27,8 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- First rev: 285831 -->
-    <!-- Last rev: 284813 -->
-
     <copyright>
-      <year>2016</year>
+      <year>2017</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
     </copyright>
@@ -177,7 +174,32 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="309512"><application>Subversion</application>
+	has been updated to version 1.9.5.</para>
+
+      <para revision="309848">&man.file.1; has been updated to version
+	5.29.</para>
+
+      <para revision="310490">The &man.amd.8; utility has been updated
+	to version 6.2.</para>
+
+      <para revision="312516">&man.xz.1; has been updated to version
+	5.2.3.</para>
+
+      <para revision="313796">&man.zlib.3; has been updated to version
+	1.2.11.</para>
+
+      <para revision="315433">&man.libarchive.3; has been updated to
+	version 3.3.1.</para>
+
+      <para revision="316069">&man.ntpd.8; has been updated to version
+	4.2.8p10.</para>
+
+      <para revision="316350">Timezone data files have been updated to
+	version 2017b.</para>
+
+      <para revision="316958">&man.tcsh.1; has been updated to version
+	6.20.00.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
