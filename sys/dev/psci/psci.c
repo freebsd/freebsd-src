@@ -221,6 +221,13 @@ psci_shutdown(void *xsc, int howto)
 	/* System reset and off do not return. */
 }
 
+void
+psci_reset(void)
+{
+
+	psci_shutdown(NULL, 0);
+}
+
 static int
 psci_v0_1_init(device_t dev)
 {
