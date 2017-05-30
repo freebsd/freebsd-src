@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers
@@ -11,6 +11,6 @@ SRCS=	drivers.c os_unix.c eloop.c common.c wpa_debug.c wpabuf.c wpa_priv.c \
 
 LIBADD=	pcap
 
-.include "${.CURDIR}/../Makefile.crypto"
+.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>
