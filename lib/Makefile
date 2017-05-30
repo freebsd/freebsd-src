@@ -46,7 +46,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdevdctl \
 	libdevinfo \
 	libdevstat \
-	libdpv \
 	libdwarf \
 	libedit \
 	${_libefivar} \
@@ -192,6 +191,8 @@ _cuse=		libcuse
 _libelftc=	libelftc
 _libpe=		libpe
 .endif
+
+SUBDIR.${MK_DIALOG}+=	libdpv
 
 .if ${MK_FILE} != "no"
 _libmagic=	libmagic
