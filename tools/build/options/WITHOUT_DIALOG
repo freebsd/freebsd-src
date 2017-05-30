@@ -1,2 +1,7 @@
 .\" $FreeBSD$
-Set to not build dialog(1), dialog(1,3), and dpv(1,3).
+Set to not build
+.Xr dialog 1 ,
+.Xr dialog 3 ,
+.Xr dpv 1 ,
+and
+.Xr dpv 3 .
