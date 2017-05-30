@@ -47,39 +47,49 @@ struct c4iw_stats c4iw_stats;
 
 static void copy_wr_to_sq(struct t4_wq *wq, union t4_wr *wqe, u8 len16)
 {
-	u64 *src, *dst;
+	void *src, *dst;
+	uintptr_t end;
+	int total, len;
 
-	src = (u64 *)wqe;
-	dst = (u64 *)((u8 *)wq->sq.queue + wq->sq.wq_pidx * T4_EQ_ENTRY_SIZE);
+	src = &wqe->flits[0];
+	dst = &wq->sq.queue->flits[wq->sq.wq_pidx *
+	    (T4_EQ_ENTRY_SIZE / sizeof(__be64))];
 	if (t4_sq_onchip(wq)) {
 		len16 = align(len16, 4);
 		wc_wmb();
 	}
-	while (len16) {
-		*dst++ = *src++;
-		if (dst == (u64 *)&wq->sq.queue[wq->sq.size])
-			dst = (u64 *)wq->sq.queue;
-		*dst++ = *src++;
-		if (dst == (u64 *)&wq->sq.queue[wq->sq.size])
-			dst = (u64 *)wq->sq.queue;
-		len16--;
+
+	total = len16 * 16;
+	end = (uintptr_t)&wq->sq.queue[wq->sq.size];
+	if (__predict_true((uintptr_t)dst + total <= end)) {
+		/* Won't wrap around. */
+		memcpy(dst, src, total);
+	} else {
+		len = end - (uintptr_t)dst;
+		memcpy(dst, src, len);
+		memcpy(wq->sq.queue, src + len, total - len);
 	}
 }
 
 static void copy_wr_to_rq(struct t4_wq *wq, union t4_recv_wr *wqe, u8 len16)
 {
-	u64 *src, *dst;
+	void *src, *dst;
+	uintptr_t end;
+	int total, len;
 
-	src = (u64 *)wqe;
-	dst = (u64 *)((u8 *)wq->rq.queue + wq->rq.wq_pidx * T4_EQ_ENTRY_SIZE);
-	while (len16) {
-		*dst++ = *src++;
-		if (dst >= (u64 *)&wq->rq.queue[wq->rq.size])
-			dst = (u64 *)wq->rq.queue;
-		*dst++ = *src++;
-		if (dst >= (u64 *)&wq->rq.queue[wq->rq.size])
-			dst = (u64 *)wq->rq.queue;
-		len16--;
+	src = &wqe->flits[0];
+	dst = &wq->rq.queue->flits[wq->rq.wq_pidx *
+	    (T4_EQ_ENTRY_SIZE / sizeof(__be64))];
+
+	total = len16 * 16;
+	end = (uintptr_t)&wq->rq.queue[wq->rq.size];
+	if (__predict_true((uintptr_t)dst + total <= end)) {
+		/* Won't wrap around. */
+		memcpy(dst, src, total);
+	} else {
+		len = end - (uintptr_t)dst;
+		memcpy(dst, src, len);
+		memcpy(wq->rq.queue, src + len, total - len);
 	}
 }
 
@@ -393,7 +403,7 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
 
-	t4_ring_sq_db(&qhp->wq, idx, dev_is_t5(qhp->rhp),
+	t4_ring_sq_db(&qhp->wq, idx, dev_is_t4(qhp->rhp),
 			len16, wqe);
 	qhp->wq.sq.queue[qhp->wq.sq.size].status.host_wq_pidx = \
 			(qhp->wq.sq.wq_pidx);
@@ -457,7 +467,7 @@ int c4iw_post_receive(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 		num_wrs--;
 	}
 
-	t4_ring_rq_db(&qhp->wq, idx, dev_is_t5(qhp->rhp),
+	t4_ring_rq_db(&qhp->wq, idx, dev_is_t4(qhp->rhp),
 			len16, wqe);
 	qhp->wq.rq.queue[qhp->wq.rq.size].status.host_wq_pidx = \
 			(qhp->wq.rq.wq_pidx);
