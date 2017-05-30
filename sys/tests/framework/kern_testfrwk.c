@@ -27,22 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
-#include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sdt.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/smp.h>
 #include <sys/queue.h>
 #include <tests/kern_testfrwk.h>
 #ifdef SMP
