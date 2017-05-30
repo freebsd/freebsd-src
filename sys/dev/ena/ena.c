@@ -3604,6 +3604,18 @@ ena_attach(device_t pdev)
 		goto err_ifp_free;
 	}
 
+	/* Initialize reset task queue */
+	TASK_INIT(&adapter->reset_task, 0, ena_reset_task, adapter);
+	adapter->reset_tq = taskqueue_create("ena_reset_enqueue",
+	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->reset_tq);
+	if (adapter->reset_tq == NULL) {
+		device_printf(adapter->pdev,
+		    "Unable to create reset task queue\n");
+		goto err_reset_tq;
+	}
+	taskqueue_start_threads(&adapter->reset_tq, 1, PI_NET,
+	    "%s rstq", device_get_nameunit(adapter->pdev));
+
 	/* Initialize statistics */
 	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
 	    sizeof(struct ena_stats_dev));
@@ -3613,16 +3625,12 @@ ena_attach(device_t pdev)
 	/* Tell the stack that the interface is not active */
 	if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 
-	/* Initialize reset task queue */
-	TASK_INIT(&adapter->reset_task, 0, ena_reset_task, adapter);
-	adapter->reset_tq = taskqueue_create("ena_reset_enqueue",
-	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->reset_tq);
-	taskqueue_start_threads(&adapter->reset_tq, 1, PI_NET,
-	    "%s rstq", device_get_nameunit(adapter->pdev));
-
 	adapter->running = true;
 	return (0);
 
+err_reset_tq:
+	ena_free_mgmnt_irq(adapter);
+	ena_disable_msix(adapter);
 err_ifp_free:
 	if_detach(adapter->ifp);
 	if_free(adapter->ifp);
