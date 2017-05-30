@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../lib/libc/iconv
+.PATH: ${SRCTOP}/lib/libc/iconv
 
 PROG=	mkesdb
 

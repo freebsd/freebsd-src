@@ -2,11 +2,11 @@
 
 .if !defined(SVNDIR)
 
-SVNDIR=		${.CURDIR}/../../../../contrib/subversion/subversion
-APRU=		${.CURDIR}/../../../../contrib/apr-util
-APR=		${.CURDIR}/../../../../contrib/apr
-SQLITE=		${.CURDIR}/../../../../contrib/sqlite3
-SERF=		${.CURDIR}/../../../../contrib/serf
+SVNDIR=		${SRCTOP}/contrib/subversion/subversion
+APRU=		${SRCTOP}/contrib/apr-util
+APR=		${SRCTOP}/contrib/apr
+SQLITE=		${SRCTOP}/contrib/sqlite3
+SERF=		${SRCTOP}/contrib/serf
 
 WARNS?=		0	# definitely not ready
 

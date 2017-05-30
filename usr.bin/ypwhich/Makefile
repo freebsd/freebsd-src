@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
 # $FreeBSD$
 
-YPSERV=${.CURDIR}/../../usr.sbin/ypserv/common
+YPSERV=${SRCTOP}/usr.sbin/ypserv/common
 .PATH: ${YPSERV}
 
 PROG=	ypwhich

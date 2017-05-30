@@ -5,7 +5,7 @@
 .include <src.opts.mk>
 
 PACKAGE=	vi
-SRCDIR=		${.CURDIR}/../../contrib/nvi
+SRCDIR=		${SRCTOP}/contrib/nvi
 SUBDIR+=	catalog
 
 WARNS?=	0	# some warn issues on 32 bit machines

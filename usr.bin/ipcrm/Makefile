@@ -3,8 +3,8 @@
 PROG=	ipcrm
 SRCS=	ipcrm.c ipc.c
 LIBADD=	kvm
-CFLAGS+=-I${.CURDIR}/../ipcs
-.PATH:  ${.CURDIR}/../ipcs
+CFLAGS+=-I${SRCTOP}/usr.bin/ipcs
+.PATH:  ${SRCTOP}/usr.bin/ipcs
 
 WARNS?=	0
 

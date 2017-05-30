@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	rsh
-CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
+CFLAGS+=-I${SRCTOP}/libexec/rlogind
 
 PACKAGE=rcmds
 
