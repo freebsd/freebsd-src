@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PACKAGE=runtime
-MOUNT=	${.CURDIR}/../../sbin/mount
+MOUNT=	${SRCTOP}/sbin/mount
 .PATH: ${MOUNT}
 
 PROG=	df
