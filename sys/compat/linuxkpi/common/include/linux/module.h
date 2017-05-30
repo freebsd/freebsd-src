@@ -45,6 +45,8 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
+#define	MODULE_INFO(tag, info)
+#define	MODULE_FIRMWARE(firmware)
 
 #define	THIS_MODULE	((struct module *)0)
 
