@@ -336,7 +336,7 @@ g_metadata_clear(const char *name, const char *magic)
 		goto out;
 	}
 	sectorsize = g_sectorsize(fd);
-	if (sectorsize == 0) {
+	if (sectorsize <= 0) {
 		error = errno;
 		goto out;
 	}
@@ -365,8 +365,7 @@ g_metadata_clear(const char *name, const char *magic)
 	}
 	(void)g_flush(fd);
 out:
-	if (sector != NULL)
-		free(sector);
+	free(sector);
 	g_close(fd);
 	return (error);
 }
