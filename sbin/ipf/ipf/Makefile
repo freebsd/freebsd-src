@@ -31,7 +31,7 @@ ipf_l.h: lexer.h
 	    ${.ALLSRC} > ${.TARGET}
 
 .if defined(RESCUE)
-LIBIPF_SRCS!=	cd ${.CURDIR}/../libipf && ${MAKE} -V SRCS
+LIBIPF_SRCS!=	cd ${.CURDIR:H}/libipf && ${MAKE} -V SRCS
 SRCS+=	${LIBIPF_SRCS}
 .else
 LIBADD+=	pcap

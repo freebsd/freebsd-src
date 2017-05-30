@@ -25,7 +25,7 @@ PROG=	mount_fusefs
 SRCS=	mount_fusefs.c getmntopts.c
 MAN8=	mount_fusefs.8
 
-MOUNT=	${.CURDIR}/../mount
+MOUNT=	${.CURDIR:H}/mount
 CFLAGS+=	-I${MOUNT}
 
 .PATH: ${MOUNT}
