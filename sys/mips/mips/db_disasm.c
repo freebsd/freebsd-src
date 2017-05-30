@@ -343,16 +343,16 @@ md_printins(int ins, int mdbdot)
 
 		switch (ops) {
 		case 0:
-			db_printf("%s\n", opcode);
+			db_printf("%s", opcode);
 			break;
 		case 1:
-			db_printf("%s\t%s\n", opcode, operands[0]);
+			db_printf("%s\t%s", opcode, operands[0]);
 			break;
 		case 2:
-			db_printf("%s\t%s,%s\n", opcode, operands[0], operands[1]);
+			db_printf("%s\t%s,%s", opcode, operands[0], operands[1]);
 			break;
 		case 3:
-			db_printf("%s\t%s,%s,%s\n", opcode, operands[0], operands[1],
+			db_printf("%s\t%s,%s,%s", opcode, operands[0], operands[1],
 					operands[2]);
 		}
 	}
@@ -362,14 +362,14 @@ md_printins(int ins, int mdbdot)
 		const char *opcode = i.JType.op == OP_LWC2 ?
 			cheri_cap_load_opname[i.CMType.fmt] :
 			cheri_cap_store_opname[i.CMType.fmt];
-		db_printf("%s\t%s, %s, %d(%s)\n", opcode, reg_name[i.CMType.rd],
+		db_printf("%s\t%s, %s, %d(%s)", opcode, reg_name[i.CMType.rd],
 				reg_name[i.CMType.rt], i.CMType.offset, c2_reg[i.CMType.cb]);
 		break;
 	}
 	case OP_LDC2:
 	case OP_SDC2: {
 		const char *opcode = i.JType.op == OP_LDC2 ? "clc" : "csc";
-		db_printf("%s\t%s, %s, %d(%s)\n", opcode, c2_reg[i.CCMType.cs],
+		db_printf("%s\t%s, %s, %d(%s)", opcode, c2_reg[i.CCMType.cs],
 				reg_name[i.CCMType.rt], i.CCMType.offset, c2_reg[i.CCMType.cb]);
 		break;
 	}
