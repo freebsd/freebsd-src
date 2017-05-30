@@ -137,18 +137,18 @@ static const char *cheri_cap_store_opname[8] = {
 	"csb", "csh", "csw", "cscd"
 };
 static const char *cheri_flow_control_opname[16] = {
-	"invalid", "CSealCode", "CSealData", "CUnseal",
-	"invalid", "CCall", "CReturn", "cjalr",
+	"invalid", "csealcode", "csealdata", "cunseal",
+	"invalid", "ccall", "creturn", "cjalr",
 	"cjr", "invalid", "invalid", "invalid",
 	"invalid", "invalid", "invalid", "invalid"
 };
 static const char *cheri_cap_inspect_opname[8] = {
-	"CGetPerm", "CGetType", "CGetBase", "CGetLen",
-	"CGetCause", "CGetTag", "CGetSealed", "CGetPCC"
+	"cgetperm", "cgettype", "cgetbase", "cgetlen",
+	"cgetcause", "cgettag", "cgetsealed", "cgetpcc"
 };
 static const char *cheri_cap_modify_name[8] = {
-	"CAndPerm", "CSetType", "CIncBase", "CSetLen",
-	"invalid", "CClearTag", "invalid", "invalid"
+	"candperm", "csettype", "cincbase", "csetlen",
+	"invalid", "ccleartag", "invalid", "invalid"
 };
 static const char *c2_reg[32] = {
 	"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
