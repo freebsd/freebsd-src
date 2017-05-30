@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
@@ -490,6 +491,7 @@ pw_pwcrypt(char *password)
 	char            salt[SALTSIZE + 1];
 	char		*cryptpw;
 	static char     buf[256];
+	size_t		pwlen;
 
 	/*
 	 * Calculate a salt value
@@ -501,7 +503,9 @@ pw_pwcrypt(char *password)
 	cryptpw = crypt(password, salt);
 	if (cryptpw == NULL)
 		errx(EX_CONFIG, "crypt(3) failure");
-	return strcpy(buf, cryptpw);
+	pwlen = strlcpy(buf, cryptpw, sizeof(buf));
+	assert(pwlen < sizeof(buf));
+	return (buf);
 }
 
 static char *
