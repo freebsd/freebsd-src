@@ -606,6 +606,8 @@
         ..
         opensm
         ..
+        pr
+        ..
         printf
         ..
         sed
