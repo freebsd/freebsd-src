@@ -2465,7 +2465,7 @@ do {\
 	if (src->type) {\
 		int hlen = (((struct ip6_ext *)src->type)->ip6e_len + 1) << 3;\
 		dst->type = malloc(hlen, M_IP6OPT, canwait);\
-		if (dst->type == NULL && canwait == M_NOWAIT)\
+		if (dst->type == NULL)\
 			goto bad;\
 		bcopy(src->type, dst->type, hlen);\
 	}\
