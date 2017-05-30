@@ -1849,8 +1849,129 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 static vm_page_t
 reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 {
+	struct pch new_tail;
+	struct pv_chunk *pc;
+	struct md_page *pvh;
+	pd_entry_t *pde;
+	pmap_t pmap;
+	pt_entry_t *pte, tpte;
+	pv_entry_t pv;
+	vm_offset_t va;
+	vm_page_t m, m_pc;
+	struct spglist free;
+	uint64_t inuse;
+	int bit, field, freed, lvl;
 
-	panic("ARM64TODO: reclaim_pv_chunk");
+	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
+	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
+	pmap = NULL;
+	m_pc = NULL;
+	SLIST_INIT(&free);
+	TAILQ_INIT(&new_tail);
+	mtx_lock(&pv_chunks_mutex);
+	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && SLIST_EMPTY(&free)) {
+		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+		mtx_unlock(&pv_chunks_mutex);
+		if (pmap != pc->pc_pmap) {
+			if (pmap != NULL && pmap != locked_pmap)
+				PMAP_UNLOCK(pmap);
+			pmap = pc->pc_pmap;
+			/* Avoid deadlock and lock recursion. */
+			if (pmap > locked_pmap) {
+				RELEASE_PV_LIST_LOCK(lockp);
+				PMAP_LOCK(pmap);
+			} else if (pmap != locked_pmap &&
+			    !PMAP_TRYLOCK(pmap)) {
+				pmap = NULL;
+				TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+				mtx_lock(&pv_chunks_mutex);
+				continue;
+			}
+		}
+
+		/*
+		 * Destroy every non-wired, 4 KB page mapping in the chunk.
+		 */
+		freed = 0;
+		for (field = 0; field < _NPCM; field++) {
+			for (inuse = ~pc->pc_map[field] & pc_freemask[field];
+			    inuse != 0; inuse &= ~(1UL << bit)) {
+				bit = ffsl(inuse) - 1;
+				pv = &pc->pc_pventry[field * 64 + bit];
+				va = pv->pv_va;
+				pde = pmap_pde(pmap, va, &lvl);
+				if (lvl != 2)
+					continue;
+				pte = pmap_l2_to_l3(pde, va);
+				tpte = pmap_load(pte);
+				if ((tpte & ATTR_SW_WIRED) != 0)
+					continue;
+				tpte = pmap_load_clear(pte);
+				PTE_SYNC(pte);
+				pmap_invalidate_page(pmap, va);
+				m = PHYS_TO_VM_PAGE(tpte & ~ATTR_MASK);
+				if (pmap_page_dirty(tpte))
+					vm_page_dirty(m);
+				if ((tpte & ATTR_AF) != 0)
+					vm_page_aflag_set(m, PGA_REFERENCED);
+				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+				m->md.pv_gen++;
+				if (TAILQ_EMPTY(&m->md.pv_list) &&
+				    (m->flags & PG_FICTITIOUS) == 0) {
+					pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+					if (TAILQ_EMPTY(&pvh->pv_list)) {
+						vm_page_aflag_clear(m,
+						    PGA_WRITEABLE);
+					}
+				}
+				pc->pc_map[field] |= 1UL << bit;
+				pmap_unuse_l3(pmap, va, pmap_load(pde), &free);
+				freed++;
+			}
+		}
+		if (freed == 0) {
+			TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+			mtx_lock(&pv_chunks_mutex);
+			continue;
+		}
+		/* Every freed mapping is for a 4 KB page. */
+		pmap_resident_count_dec(pmap, freed);
+		PV_STAT(atomic_add_long(&pv_entry_frees, freed));
+		PV_STAT(atomic_add_int(&pv_entry_spare, freed));
+		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+		if (pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
+		    pc->pc_map[2] == PC_FREE2) {
+			PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
+			PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
+			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
+			/* Entire chunk is free; return it. */
+			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			dump_drop_page(m_pc->phys_addr);
+			mtx_lock(&pv_chunks_mutex);
+			break;
+		}
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+		mtx_lock(&pv_chunks_mutex);
+		/* One freed pv entry in locked_pmap is sufficient. */
+		if (pmap == locked_pmap)
+			break;
+	}
+	TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
+	mtx_unlock(&pv_chunks_mutex);
+	if (pmap != NULL && pmap != locked_pmap)
+		PMAP_UNLOCK(pmap);
+	if (m_pc == NULL && !SLIST_EMPTY(&free)) {
+		m_pc = SLIST_FIRST(&free);
+		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
+		/* Recycle a freed page table page. */
+		m_pc->wire_count = 1;
+		atomic_add_int(&vm_cnt.v_wire_count, 1);
+	}
+	pmap_free_zero_pages(&free);
+	return (m_pc);
 }
 
 /*
