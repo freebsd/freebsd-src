@@ -491,8 +491,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		 * in the mounted subtree.
 		 */
 		vn_fsid(vp, vap);
-		vap->va_fsid = np->n_vattr.na_filesid[0];
-		if (vap->va_fsid == np->n_vattr.na_filesid[0])
+		if ((uint32_t)vap->va_fsid == np->n_vattr.na_filesid[0])
 			vap->va_fsid = hash32_buf(
 			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
 	} else
