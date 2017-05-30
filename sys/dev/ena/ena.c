@@ -2285,16 +2285,16 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	/*
 	 * Acquiring lock to prevent from running up and down routines parallel.
 	 */
-	sx_xlock(&adapter->ioctl_sx);
-
 	rc = 0;
 	switch (command) {
 	case SIOCSIFMTU:
+		sx_xlock(&adapter->ioctl_sx);
 		ena_down(adapter);
 
 		ena_change_mtu(ifp, ifr->ifr_mtu);
 
 		rc = ena_up(adapter);
+		sx_unlock(&adapter->ioctl_sx);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2306,11 +2306,16 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 					    "ioctl promisc/allmulti\n");
 				}
 			} else {
+				sx_xlock(&adapter->ioctl_sx);
 				rc = ena_up(adapter);
+				sx_unlock(&adapter->ioctl_sx);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				sx_xlock(&adapter->ioctl_sx);
 				ena_down(adapter);
+				sx_unlock(&adapter->ioctl_sx);
+			}
 		}
 		break;
 
@@ -2333,8 +2338,10 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 			}
 
 			if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				sx_xlock(&adapter->ioctl_sx);
 				ena_down(adapter);
 				rc = ena_up(adapter);
+				sx_unlock(&adapter->ioctl_sx);
 			}
 		}
 
@@ -2343,8 +2350,6 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 		rc = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	sx_unlock(&adapter->ioctl_sx);
 
 	return (rc);
 }
@@ -3666,7 +3671,9 @@ ena_detach(device_t pdev)
 		taskqueue_drain(adapter->reset_tq, &adapter->reset_task);
 	taskqueue_free(adapter->reset_tq);
 
+	sx_xlock(&adapter->ioctl_sx);
 	ena_down(adapter);
+	sx_unlock(&adapter->ioctl_sx);
 
 	if (adapter->ifp != NULL) {
 		ether_ifdetach(adapter->ifp);
