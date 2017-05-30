@@ -713,6 +713,7 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 	drbr_flush(adapter->ifp, tx_ring->br);
 
 	/* Free buffer DMA maps, */
+	ENA_RING_MTX_LOCK(tx_ring);
 	for (int i = 0; i < tx_ring->ring_size; i++) {
 		m_freem(tx_ring->tx_buffer_info[i].mbuf);
 		tx_ring->tx_buffer_info[i].mbuf = NULL;
@@ -721,6 +722,7 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 		bus_dmamap_destroy(adapter->tx_buf_tag,
 		    tx_ring->tx_buffer_info[i].map);
 	}
+	ENA_RING_MTX_UNLOCK(tx_ring);
 
 	/* And free allocated memory. */
 	ENA_MEM_FREE(adapter->ena_dev->dmadev, tx_ring->tx_buffer_info);
@@ -1121,6 +1123,7 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 {
 	struct ena_ring *tx_ring = &adapter->tx_ring[qid];
 
+	ENA_RING_MTX_LOCK(tx_ring);
 	for (int i = 0; i < tx_ring->ring_size; i++) {
 		struct ena_tx_buffer *tx_info = &tx_ring->tx_buffer_info[i];
 
@@ -1134,6 +1137,7 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 		m_free(tx_info->mbuf);
 		tx_info->mbuf = NULL;
 	}
+	ENA_RING_MTX_UNLOCK(tx_ring);
 
 	return;
 }
