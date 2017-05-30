@@ -13,6 +13,8 @@
 #include <cinttypes>
 #include <type_traits>
 
+#include "llvm/Support/Endian.h"
+
 namespace llvm {
 namespace codeview {
 
@@ -291,7 +293,7 @@ enum class ModifierOptions : uint16_t {
 };
 CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ModifierOptions)
 
-enum class ModuleDebugFragmentKind : uint32_t {
+enum class DebugSubsectionKind : uint32_t {
   None = 0,
   Symbols = 0xf1,
   Lines = 0xf2,
@@ -549,6 +551,24 @@ enum class FileChecksumKind : uint8_t { None, MD5, SHA1, SHA256 };
 enum LineFlags : uint16_t {
   LF_None = 0,
   LF_HaveColumns = 1, // CV_LINES_HAVE_COLUMNS
+};
+
+/// Data in the the SUBSEC_FRAMEDATA subection.
+struct FrameData {
+  support::ulittle32_t RvaStart;
+  support::ulittle32_t CodeSize;
+  support::ulittle32_t LocalSize;
+  support::ulittle32_t ParamsSize;
+  support::ulittle32_t MaxStackSize;
+  support::ulittle32_t FrameFunc;
+  support::ulittle16_t PrologSize;
+  support::ulittle16_t SavedRegsSize;
+  support::ulittle32_t Flags;
+  enum : uint32_t {
+    HasSEH = 1 << 0,
+    HasEH = 1 << 1,
+    IsFunctionStart = 1 << 2,
+  };
 };
 }
 }
