@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/le
+.PATH: ${SRCTOP}/sys/dev/le
 
 KMOD=	if_le
 SRCS=	am7990.c am79900.c ${if_le_cbus} ${if_le_isa} ${if_le_lebuffer}

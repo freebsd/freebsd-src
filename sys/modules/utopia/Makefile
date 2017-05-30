@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/utopia
+.PATH: ${SRCTOP}/sys/dev/utopia
 
 KMOD=	utopia
 SRCS=	utopia.c suni.c idtphy.c bus_if.h device_if.h

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm
+.PATH:	${SRCTOP}/sys/dev/drm
 KMOD	= mga
 SRCS	= mga_drv.c mga_state.c mga_warp.c mga_dma.c \
 	mga_irq.c

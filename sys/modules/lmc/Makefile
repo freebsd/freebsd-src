@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD  = if_lmc
-.PATH: ${.CURDIR}/../../dev/lmc
+.PATH: ${SRCTOP}/sys/dev/lmc
 
 SRCS  = if_lmc.c if_lmc.h
 SRCS += device_if.h bus_if.h pci_if.h

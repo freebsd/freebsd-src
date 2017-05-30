@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/msdosfs
+.PATH: ${SRCTOP}/sys/fs/msdosfs
 
 KMOD=	msdosfs
 SRCS=	vnode_if.h \

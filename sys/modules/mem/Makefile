@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mem
-.PATH: ${.CURDIR}/../../${MACHINE}/${MACHINE}
-.PATH: ${.CURDIR}/../../${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
+.PATH: ${SRCTOP}/sys/dev/mem
+.PATH: ${SRCTOP}/sys/${MACHINE}/${MACHINE}
+.PATH: ${SRCTOP}/sys/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${.CURDIR}/../../x86/x86
+.PATH: ${SRCTOP}/sys/x86/x86
 .endif
 
 KMOD=	mem

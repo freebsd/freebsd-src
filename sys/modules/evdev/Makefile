@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/evdev
+.PATH: ${SRCTOP}/sys/dev/evdev
 
 KMOD=	evdev
 SRCS=	cdev.c evdev.c evdev_mt.c evdev_utils.c

@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-CXGBE=	${.CURDIR}/../../../dev/cxgbe
+CXGBE=	${SRCTOP}/sys/dev/cxgbe
 .PATH: ${CXGBE} ${CXGBE}/common
 
 KMOD=	if_cxgbev

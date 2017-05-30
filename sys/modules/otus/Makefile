@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/otus
+.PATH: ${SRCTOP}/sys/dev/otus
 
 KMOD    = if_otus
 SRCS    = if_otus.c if_otusreg.h	\

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/agp
+.PATH: ${SRCTOP}/sys/dev/agp
 
 KMOD=	agp
 SRCS=	agp.c agp_if.c

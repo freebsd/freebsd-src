@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../i386/bios
+.PATH: ${SRCTOP}/sys/i386/bios
 .if ${MACHINE} == "pc98"
 .PATH: ${.CURDIR}/../../pc98/apm
 .endif

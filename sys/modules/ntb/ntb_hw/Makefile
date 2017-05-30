@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../../dev/ntb/ntb_hw
+.PATH:  ${SRCTOP}/sys/dev/ntb/ntb_hw
 
 KMOD    = ntb_hw
 SRCS    = ntb_hw.c

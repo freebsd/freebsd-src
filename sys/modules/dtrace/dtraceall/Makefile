@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=	${.CURDIR}/../../..
+SYSDIR?=	${SRCTOP}/sys
 
 KMOD=		dtraceall
 SRCS=		dtraceall.c opt_compat.h opt_nfs.h

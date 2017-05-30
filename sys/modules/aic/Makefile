@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/aic
+.PATH: ${SRCTOP}/sys/dev/aic
 
 KMOD=	aic
 SRCS=	aic.c aic_pccard.c

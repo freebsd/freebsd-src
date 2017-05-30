@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/proto
+.PATH: ${SRCTOP}/sys/dev/proto
 
 KMOD=	proto
 SRCS=	\

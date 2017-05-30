@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/evdev
+.PATH: ${SRCTOP}/sys/dev/evdev
 
 KMOD=	uinput
 SRCS=	uinput.c

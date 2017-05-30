@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/vinum
+.PATH: ${SRCTOP}/sys/geom/vinum
 
 KMOD=	geom_vinum
 SRCS=	geom_vinum.c geom_vinum_create.c geom_vinum_drive.c geom_vinum_plex.c \

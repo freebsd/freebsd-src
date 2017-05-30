@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/pci
+.PATH: ${SRCTOP}/sys/dev/virtio/pci
 
 KMOD=	virtio_pci
 SRCS=	virtio_pci.c

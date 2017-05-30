@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/bwn
+.PATH: ${SRCTOP}/sys/dev/bwn
 
 KMOD=	if_bwn
 SRCS=	if_bwn.c if_bwnreg.h if_bwnvar.h
@@ -18,7 +18,7 @@ SRCS+=	device_if.h bus_if.h pci_if.h opt_bwn.h opt_wlan.h
 # module be built with BWN_GPL_PHY set in the kernel
 # configuration.
 
-#.PATH: ${.CURDIR}/../../gnu/dev/bwn/phy_n
+#.PATH: ${SRCTOP}/sys/gnu/dev/bwn/phy_n
 #SRCS+=  if_bwn_radio_2055.c
 #SRCS+=  if_bwn_radio_2056.c
 #SRCS+=  if_bwn_radio_2057.c

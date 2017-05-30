@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-.PATH: ${.CURDIR}/../../../../netgraph/atm
+.PATH: ${SRCTOP}/sys/netgraph/atm
 
 KMOD=	ng_atm
 SRCS=	ng_atm.c

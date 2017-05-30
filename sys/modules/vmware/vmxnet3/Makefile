@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/vmware/vmxnet3
+.PATH: ${SRCTOP}/sys/dev/vmware/vmxnet3
 
 KMOD=	if_vmx
 SRCS=	if_vmx.c
