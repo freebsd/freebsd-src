@@ -145,10 +145,10 @@ static struct ibv_context *c4iw_alloc_context(struct ibv_device *ibdev,
 	context->ibv_ctx.ops = c4iw_ctx_ops;
 
 	switch (rhp->chip_version) {
+	case CHELSIO_T6:
 	case CHELSIO_T5:
-		PDBG("%s T5/T4 device\n", __FUNCTION__);
 	case CHELSIO_T4:
-		PDBG("%s T4 device\n", __FUNCTION__);
+		PDBG("%s T%d device\n", __FUNCTION__, rhp->chip_version);
 		context->ibv_ctx.ops.async_event = c4iw_async_event;
 		context->ibv_ctx.ops.post_send = c4iw_post_send;
 		context->ibv_ctx.ops.post_recv = c4iw_post_receive;
@@ -390,29 +390,26 @@ static struct ibv_device *cxgb4_driver_init(const char *uverbs_sys_path,
 					    int abi_version)
 {
 	char devstr[IBV_SYSFS_PATH_MAX], ibdev[16], value[128], *cp;
-	char t5nexstr[IBV_SYSFS_PATH_MAX];
+	char dev_str[IBV_SYSFS_PATH_MAX];
 	struct c4iw_dev *dev;
 	unsigned vendor, device, fw_maj, fw_min;
 	int i;
-	char devnum=0;
+	char devnum;
         char ib_param[16];
 
 #ifndef __linux__
 	if (ibv_read_sysfs_file(uverbs_sys_path, "ibdev",
 				ibdev, sizeof ibdev) < 0)
 		return NULL;
-	/* 
-	 * Extract the non-numeric part of ibdev
-	 * say "t5nex0" -> devname=="t5nex", devnum=0
-	 */
-	if (strstr(ibdev,"t5nex")) {
-		devnum = atoi(ibdev+strlen("t5nex"));
-		sprintf(t5nexstr, "/dev/t5nex/%d", devnum);
+
+	if (ibdev[0] == 't' && ibdev[1] >= '4' && ibdev[1] <= '6' &&
+	    strstr(&ibdev[2], "nex") && (devnum = atoi(&ibdev[5])) >= 0) {
+		snprintf(dev_str, sizeof(dev_str), "/dev/t%cnex/%d", ibdev[1],
+		    devnum);
 	} else
 		return NULL;
 
-	if (ibv_read_sysfs_file(t5nexstr, "\%pnpinfo",
-				value, sizeof value) < 0)
+	if (ibv_read_sysfs_file(dev_str, "\%pnpinfo", value, sizeof value) < 0)
 		return NULL;
 	else {
 		if (strstr(value,"vendor=")) {
@@ -449,7 +446,7 @@ found:
 
 
 #ifndef __linux__
-	if (ibv_read_sysfs_file(t5nexstr, "firmware_version",
+	if (ibv_read_sysfs_file(dev_str, "firmware_version",
 				value, sizeof value) < 0)
 		return NULL;
 #else
