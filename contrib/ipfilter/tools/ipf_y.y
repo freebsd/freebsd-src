@@ -2195,7 +2195,7 @@ char *phrase;
 
 			for (i = 0, s = strtok(phrase, " \r\n\t"); s != NULL;
 			     s = strtok(NULL, " \r\n\t"), i++) {
-				fb = realloc(fb, (i / 4 + 1) * sizeof(*fb));
+				fb = reallocarray(fb, i / 4 + 1, sizeof(*fb));
 				if (fb == NULL) {
 					warnx("memory allocation error at %d in %s in %s", __LINE__, __FUNCTION__, __FILE__);
 					abort();
