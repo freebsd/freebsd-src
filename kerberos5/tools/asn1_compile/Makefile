@@ -2,7 +2,7 @@
 
 PROG=	asn1_compile
 MAN=
-LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a
+LIBROKEN_A=	${.OBJDIR:H:H}/lib/libroken/libroken.a
 LIBADD=	vers
 LDADD=	${LIBROKEN_A}
 DPADD=	${LIBROKEN_A}

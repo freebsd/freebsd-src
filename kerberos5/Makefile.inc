@@ -4,9 +4,9 @@
 
 NO_LINT=
 
-KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
+KRB5DIR=	${SRCTOP}/crypto/heimdal
 
-CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR}/../../include
+CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR:H:H}/include
 
 .if ${MK_OPENLDAP} != "no" && !defined(COMPAT_32BIT)
 OPENLDAPBASE?=	/usr/local
