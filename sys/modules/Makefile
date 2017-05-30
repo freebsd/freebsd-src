@@ -368,8 +368,6 @@ SUBDIR=	\
 	${_ti} \
 	${_tcp_fastpath} \
 	${_tcpmd5} \
-	tests/framework \
-	tests/callout_test \
 	tl \
 	tmpfs \
 	${_toecore} \
@@ -534,6 +532,10 @@ _txp=		txp
 	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
 	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
+.endif
+
+.if ${MK_TESTS} != "no" || defined(ALL_MODULES)
+SUBDIR+=	tests
 .endif
 
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
