@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 # Vendor sources and generated files
-LDNSDIR= ${.CURDIR}/../../../contrib/ldns
-UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
-EXPATDIR= ${.CURDIR}/../../../contrib/expat
+LDNSDIR= ${SRCTOP}/contrib/ldns
+UNBOUNDDIR= ${SRCTOP}/contrib/unbound
+EXPATDIR= ${SRCTOP}/contrib/expat
 
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/doc
 

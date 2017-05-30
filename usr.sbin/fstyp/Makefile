@@ -24,15 +24,15 @@ CFLAGS+=-I${SRCTOP}/sys
 IGNORE_PRAGMA=  YES
 
 CFLAGS+= -DNEED_SOLARIS_BOOLEAN -DHAVE_ZFS
-CFLAGS+= -I${.CURDIR}/../../sys/cddl/compat/opensolaris
-CFLAGS+= -I${.CURDIR}/../../cddl/compat/opensolaris/include
-CFLAGS+= -I${.CURDIR}/../../cddl/compat/opensolaris/lib/libumem
-CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/lib/libnvpair
-CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/lib/libzpool/common
-CFLAGS+= -I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+= -I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common/sys
-CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/head
+CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
+CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
+CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
+CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
+CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
+CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
+CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
+CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
 .endif
 
 LIBADD=	geom md
