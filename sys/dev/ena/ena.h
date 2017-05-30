@@ -403,6 +403,10 @@ struct ena_adapter {
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
 
+	/* Task updating hw stats */
+	struct task stats_task;
+	struct taskqueue *stats_tq;
+
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
 	struct ena_hw_stats hw_stats;
