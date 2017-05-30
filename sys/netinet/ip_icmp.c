@@ -540,11 +540,10 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 			ICMPSTAT_INC(icps_bmcastecho);
 			break;
 		}
-		icp->icmp_type = ICMP_ECHOREPLY;
 		if (badport_bandlim(BANDLIM_ICMP_ECHO) < 0)
 			goto freeit;
-		else
-			goto reflect;
+		icp->icmp_type = ICMP_ECHOREPLY;
+		goto reflect;
 
 	case ICMP_TSTAMP:
 		if (V_icmptstamprepl == 0)
@@ -558,13 +557,12 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 			ICMPSTAT_INC(icps_badlen);
 			break;
 		}
+		if (badport_bandlim(BANDLIM_ICMP_TSTAMP) < 0)
+			goto freeit;
 		icp->icmp_type = ICMP_TSTAMPREPLY;
 		icp->icmp_rtime = iptime();
 		icp->icmp_ttime = icp->icmp_rtime;	/* bogus, do later! */
-		if (badport_bandlim(BANDLIM_ICMP_TSTAMP) < 0)
-			goto freeit;
-		else
-			goto reflect;
+		goto reflect;
 
 	case ICMP_MASKREQ:
 		if (V_icmpmaskrepl == 0)
