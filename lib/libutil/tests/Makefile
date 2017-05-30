@@ -9,5 +9,6 @@ TAP_TESTS_C+=	trimdomain-nodomain_test
 
 DPADD+=		${LIBUTIL}
 LDADD+=		-lutil
+WARNS?=		2
 
 .include <bsd.test.mk>

@@ -7,6 +7,7 @@ BINDIR=		${TESTSDIR}
 
 FILES+=		mach
 
+WARNS?=		1
 CFLAGS+=	-I${SRCTOP}/tests
 
 ATF_TESTS_C+=	getaddrinfo_test

@@ -4,6 +4,7 @@ BINDIR=		${TESTSDIR}
 
 PROGS+=		crypt
 LDADD+=		-lcrypt
+WARNS?=		6
 
 ATF_TESTS_SH=	pw_etcdir_test \
 		pw_lock_test \
