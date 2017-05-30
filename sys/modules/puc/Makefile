@@ -1,7 +1,7 @@
 
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/puc
+.PATH:	${SRCTOP}/sys/dev/puc
 
 KMOD=	puc
 SRCS=	puc.c puc_cfg.c puc_pci.c puc_pccard.c pucdata.c

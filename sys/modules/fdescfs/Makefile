@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/fdescfs
+.PATH: ${SRCTOP}/sys/fs/fdescfs
 
 KMOD=	fdescfs
 SRCS=	vnode_if.h \

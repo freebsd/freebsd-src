@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-S=	${.CURDIR}/../..
+S=	${SRCTOP}/sys
 
 .PATH: $S/cam $S/cam/scsi $S/cam/ata $S/${MACHINE}/${MACHINE}
 

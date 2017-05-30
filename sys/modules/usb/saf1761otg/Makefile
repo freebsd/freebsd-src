@@ -29,7 +29,7 @@
 # SUCH DAMAGE.
 #
 
-S=	${.CURDIR}/../../..
+S=	${SRCTOP}/sys
 
 .PATH: $S/dev/usb/controller
 

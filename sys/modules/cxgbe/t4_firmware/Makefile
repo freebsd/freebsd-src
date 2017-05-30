@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-T4FW=	${.CURDIR}/../../../dev/cxgbe/firmware
+T4FW=	${SRCTOP}/sys/dev/cxgbe/firmware
 .PATH: ${T4FW}
 
 KMOD=	t4fw_cfg

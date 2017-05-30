@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/cfi
+.PATH: ${SRCTOP}/sys/dev/cfi
 
 KMOD=   cfi
 SRCS=   ${_cfi_bus} cfi_core.c cfi_dev.c

@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/usb/gadget
+.PATH: ${SRCTOP}/sys/dev/usb/gadget
 
 KMOD=	g_modem
 

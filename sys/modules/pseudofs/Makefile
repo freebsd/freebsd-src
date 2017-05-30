@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/pseudofs
+.PATH: ${SRCTOP}/sys/fs/pseudofs
 
 KMOD=	pseudofs
 SRCS=	opt_pseudofs.h \

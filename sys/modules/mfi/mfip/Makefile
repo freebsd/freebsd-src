@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/mfi
+.PATH: ${SRCTOP}/sys/dev/mfi
 
 KMOD=	mfip
 SRCS=	mfi_cam.c

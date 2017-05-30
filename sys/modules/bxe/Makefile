@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR	?= ${.CURDIR}/../..
+SYSDIR	?= ${SRCTOP}/sys
 
 BXE	= ${SYSDIR}/dev/bxe
 .PATH:	${BXE}

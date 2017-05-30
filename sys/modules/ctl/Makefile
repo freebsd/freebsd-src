@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../cam/ctl
+.PATH: ${SRCTOP}/sys/cam/ctl
 
 KMOD=	ctl
 

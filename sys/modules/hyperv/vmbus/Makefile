@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/hyperv/vmbus \
-	${.CURDIR}/../../../dev/hyperv/vmbus/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/dev/hyperv/vmbus \
+	${SRCTOP}/sys/dev/hyperv/vmbus/${MACHINE_CPUARCH}
 
 KMOD=	hv_vmbus
 SRCS=	hyperv.c \
@@ -29,7 +29,7 @@ vmbus_vector.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
             ${.IMPSRC} -o ${.TARGET}
 
-CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
-	 -I${.CURDIR}/../../../dev/hyperv/vmbus
+CFLAGS+= -I${SRCTOP}/sys/dev/hyperv/include \
+	 -I${SRCTOP}/sys/dev/hyperv/vmbus
 
 .include <bsd.kmod.mk>

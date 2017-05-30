@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/acpi_support
+.PATH:	${SRCTOP}/sys/dev/acpi_support
 
 KMOD=	aibs
 SRCS=	atk0110.c

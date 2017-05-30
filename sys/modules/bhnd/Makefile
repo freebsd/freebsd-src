@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/bhnd
-.PATH: ${.CURDIR}/../../dev/bhnd/nvram
+.PATH: ${SRCTOP}/sys/dev/bhnd
+.PATH: ${SRCTOP}/sys/dev/bhnd/nvram
 
 KMOD=	bhnd
 SRCS=	bhnd.c bhnd_subr.c \

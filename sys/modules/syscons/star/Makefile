@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/star
+.PATH:	${SRCTOP}/sys/dev/syscons/star
 
 KMOD=	star_saver
 SRCS=	star_saver.c

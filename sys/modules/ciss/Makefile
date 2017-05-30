@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD		=  ciss
-.PATH:		${.CURDIR}/../../dev/${KMOD}
+.PATH:		${SRCTOP}/sys/dev/${KMOD}
 SRCS		=  ciss.c
 SRCS		+= opt_scsi.h opt_cam.h
 SRCS		+= device_if.h bus_if.h pci_if.h

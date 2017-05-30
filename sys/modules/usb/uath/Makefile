@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/usb/wlan
+.PATH: ${SRCTOP}/sys/dev/usb/wlan
 
 KMOD    = if_uath
 SRCS    = if_uath.c if_uathvar.h if_uathreg.h	\

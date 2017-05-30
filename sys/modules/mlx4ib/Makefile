@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/hw/mlx4
+.PATH:  ${SRCTOP}/sys/ofed/drivers/infiniband/hw/mlx4
 
 KMOD=	mlx4ib
 SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
@@ -8,9 +8,9 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
 	mlx4_exp.c \
 	doorbell.c mad.c main.c mr.c qp.c srq.c wc.c cm.c
 
-CFLAGS+= -I${.CURDIR}/../../ofed/drivers/infiniband/hw/mlx4
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/drivers/infiniband/hw/mlx4
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
 CFLAGS+= -DINET6 -DINET
 

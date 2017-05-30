@@ -32,7 +32,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../dev/qlxgbe
+.PATH: ${SRCTOP}/sys/dev/qlxgbe
 
 KMOD=if_qlxgbe
 SRCS=ql_os.c ql_dbg.c ql_hw.c ql_misc.c ql_isr.c ql_ioctl.c

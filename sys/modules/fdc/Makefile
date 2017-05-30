@@ -2,7 +2,7 @@
 
 KMOD=	fdc
 
-.PATH:  ${.CURDIR}/../../dev/fdc
+.PATH:  ${SRCTOP}/sys/dev/fdc
 .if ${MACHINE} == "pc98"
 SRCS=	fdc.c fdc_cbus.c
 .else

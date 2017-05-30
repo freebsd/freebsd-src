@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/bhnd/siba
+.PATH:	${SRCTOP}/sys/dev/bhnd/siba
 
 KMOD=	siba_bhndb
 SRCS=	siba_bhndb.c

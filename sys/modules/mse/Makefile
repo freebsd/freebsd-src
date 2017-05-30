@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mse
+.PATH: ${SRCTOP}/sys/dev/mse
 
 KMOD=	mse
 SRCS=	mse.c device_if.h bus_if.h isa_if.h

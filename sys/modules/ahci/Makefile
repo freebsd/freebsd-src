@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/ahci
+.PATH: ${SRCTOP}/sys/dev/ahci
 
 KMOD=	ahci
 SRCS=	ahci.c ahci_pci.c ahciem.c ahci.h device_if.h bus_if.h pci_if.h opt_cam.h

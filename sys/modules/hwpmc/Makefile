@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../dev/hwpmc
+.PATH: ${SRCTOP}/sys/dev/hwpmc
 
 KMOD=	hwpmc
 

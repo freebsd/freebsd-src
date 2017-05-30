@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 .if ${MACHINE} == "pc98"
-.PATH: ${.CURDIR}/../../pc98/cbus
+.PATH: ${SRCTOP}/sys/pc98/cbus
 .endif
-.PATH: ${.CURDIR}/../../dev/sio
+.PATH: ${SRCTOP}/sys/dev/sio
 
 KMOD=	sio
 SRCS=	bus_if.h card_if.h device_if.h isa_if.h pci_if.h serdev_if.h \

@@ -2,7 +2,7 @@
 
 # Makefile for the fwe(4) module (Ethernet over IEEE1394)
 
-.PATH: ${.CURDIR}/../../../dev/firewire
+.PATH: ${SRCTOP}/sys/dev/firewire
 
 KMOD	= if_fwe
 SRCS	= bus_if.h device_if.h \

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mpr
+.PATH: ${SRCTOP}/sys/dev/mpr
 
 KMOD=	mpr
 SRCS=	mpr_pci.c mpr.c mpr_sas.c mpr_table.c mpr_user.c

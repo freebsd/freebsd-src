@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/bhnd/bcma
+.PATH:	${SRCTOP}/sys/dev/bhnd/bcma
 
 KMOD=	bcma_bhndb
 SRCS=	bcma_bhndb.c

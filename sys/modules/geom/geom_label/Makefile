@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/label
+.PATH: ${SRCTOP}/sys/geom/label
 
 KMOD=	geom_label
 SRCS=	g_label.c

@@ -5,7 +5,7 @@ FIRMWS=	otusfw_main:otusfw_main:1
 
 CLEANFILES=	otusfw_main
 
-otusfw_main: ${.CURDIR}/../../../contrib/dev/otus/otus-main
-	cp ${.CURDIR}/../../../contrib/dev/otus/otus-main ${.TARGET}
+otusfw_main: ${SRCTOP}/sys/contrib/dev/otus/otus-main
+	cp ${.ALLSRC} ${.TARGET}
 
 .include <bsd.kmod.mk>

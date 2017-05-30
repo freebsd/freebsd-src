@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:	${.CURDIR}/../../dev/mlx5/mlx5_en
+.PATH:	${SRCTOP}/sys/dev/mlx5/mlx5_en
 
 KMOD=mlx5en
 SRCS= \
@@ -20,8 +20,8 @@ CFLAGS+= -DHAVE_PER_CQ_EVENT_PACKET
 CFLAGS+= -DHAVE_TCP_LRO_RX
 .endif
 
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
 

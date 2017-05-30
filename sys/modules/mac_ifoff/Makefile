@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../security/mac_ifoff
+.PATH: ${SRCTOP}/sys/security/mac_ifoff
 
 KMOD=	mac_ifoff
 SRCS=	vnode_if.h \
