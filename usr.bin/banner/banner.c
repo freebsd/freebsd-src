@@ -1064,8 +1064,8 @@ main(int argc, char *argv[])
 			err(1, "malloc");
 		strcpy(message, *argv);
 		while (*++argv) {
-			strcat(message, " ");
-			strcat(message, *argv);
+			strlcat(message, " ", j);
+			strlcat(message, *argv, j);
 		}
 		nchars = strlen(message);
 	} else {
