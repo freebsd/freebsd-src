@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
