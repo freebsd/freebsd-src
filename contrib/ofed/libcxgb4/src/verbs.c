@@ -212,10 +212,10 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 	if (chp->cq.ugts == MAP_FAILED)
 		goto err3;
 
-	if (dev_is_t5(chp->rhp))
-		chp->cq.ugts += 5;
-	else
+	if (dev_is_t4(chp->rhp))
 		chp->cq.ugts += 1;
+	else
+		chp->cq.ugts += 5;
 	chp->cq.sw_queue = calloc(chp->cq.size, sizeof *chp->cq.queue);
 	if (!chp->cq.sw_queue)
 		goto err4;
