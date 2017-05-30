@@ -725,7 +725,7 @@ on_read_request_process(struct query_state *qstate)
 		if (read_response->error_code == -2) {
 			read_response->data = malloc(
 				read_response->data_size);
-			assert(read_response != NULL);
+			assert(read_response->data != NULL);
 			read_response->error_code = cache_read(c_entry,
 				read_request->cache_key,
 		    		read_request->cache_key_size,
@@ -745,7 +745,7 @@ on_read_request_process(struct query_state *qstate)
 			if (read_response->error_code == -2) {
 				read_response->data = malloc(
 					read_response->data_size);
-				assert(read_response != NULL);
+				assert(read_response->data != NULL);
 				read_response->error_code = cache_read(neg_c_entry,
 					read_request->cache_key,
 		    			read_request->cache_key_size,
