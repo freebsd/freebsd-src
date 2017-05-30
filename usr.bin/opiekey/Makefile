@@ -1,10 +1,10 @@
 # $FreeBSD$
 #
-OPIE_DIST?=	${.CURDIR}/../../contrib/opie
+OPIE_DIST?=	${SRCTOP}/contrib/opie
 
 PROG=	opiekey
 
-CFLAGS+=-I${.CURDIR}/../../lib/libopie
+CFLAGS+=-I${SRCTOP}/lib/libopie
 CFLAGS+=-I${OPIE_DIST}
 CFLAGS+=-DINSECURE_OVERRIDE
 

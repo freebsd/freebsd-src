@@ -1,7 +1,7 @@
 # $FreeBSD$
 .include <src.opts.mk>
 
-_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=	3.3.1
@@ -27,7 +27,7 @@ CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 .endif
 
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../lib/libarchive/config_freebsd.h\"
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/libarchive
 CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe
 SYMLINKS=	bsdtar ${BINDIR}/tar

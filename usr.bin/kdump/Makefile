@@ -3,11 +3,11 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../ktrace
+.PATH: ${SRCTOP}/usr.bin/ktrace
 
 PROG=		kdump
 SRCS=		kdump.c subr.c
-CFLAGS+=	-I${.CURDIR}/../ktrace #-I${.CURDIR}/../...
+CFLAGS+=	-I${SRCTOP}/usr.bin/ktrace
 
 LIBADD=		sysdecode
 .if ${MK_CASPER} != "no"

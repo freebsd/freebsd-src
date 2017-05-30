@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
+MDOCMLDIR=	${SRCTOP}/contrib/mdocml
 .PATH: ${MDOCMLDIR}
 
 PROG=	mandoc
@@ -90,7 +90,7 @@ SRCS=		${LIB_SRCS} \
 WARNS?=	3
 CFLAGS+= -DHAVE_CONFIG_H \
 	 -D_WITH_GETLINE \
-	 -I${.CURDIR}/../../lib/libopenbsd/
+	 -I${SRCTOP}/lib/libopenbsd/
 LIBADD=	openbsd z
 
 .include <bsd.prog.mk>

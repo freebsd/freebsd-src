@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # Vendor sources and generated files
-LDNSDIR= ${.CURDIR}/../../contrib/ldns
+LDNSDIR= ${SRCTOP}/contrib/ldns
 
 .PATH: ${LDNSDIR}/drill
 
