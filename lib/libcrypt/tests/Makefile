@@ -6,6 +6,7 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libcrypt
 
 NETBSD_ATF_TESTS_C+= crypt_test
 
+WARNS?=		6
 CFLAGS+= -I${.CURDIR:H}
 DPADD+=	${LIBCRYPT}
 LDADD+= -lcrypt
