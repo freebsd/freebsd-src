@@ -72,8 +72,8 @@ __FBSDID("$FreeBSD$");
 extern register_t fsu_intr_fault;
 
 /* Called from exception.S */
-void do_el1h_sync(struct trapframe *);
-void do_el0_sync(struct trapframe *);
+void do_el1h_sync(struct thread *, struct trapframe *);
+void do_el0_sync(struct thread *, struct trapframe *);
 void do_el0_error(struct trapframe *);
 static void print_registers(struct trapframe *frame);
 
@@ -130,23 +130,20 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 static void
-svc_handler(struct trapframe *frame)
+svc_handler(struct thread *td, struct trapframe *frame)
 {
 	struct syscall_args sa;
-	struct thread *td;
 	int error;
-
-	td = curthread;
 
 	error = syscallenter(td, &sa);
 	syscallret(td, error, &sa);
 }
 
 static void
-data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
+data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
+    uint64_t far, int lower)
 {
 	struct vm_map *map;
-	struct thread *td;
 	struct proc *p;
 	struct pcb *pcb;
 	vm_prot_t ftype;
@@ -167,7 +164,6 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 	}
 #endif
 
-	td = curthread;
 	pcb = td->td_pcb;
 
 	/*
@@ -258,7 +254,7 @@ print_registers(struct trapframe *frame)
 }
 
 void
-do_el1h_sync(struct trapframe *frame)
+do_el1h_sync(struct thread *td, struct trapframe *frame)
 {
 	uint32_t exception;
 	uint64_t esr, far;
@@ -273,8 +269,8 @@ do_el1h_sync(struct trapframe *frame)
 #endif
 
 	CTR4(KTR_TRAP,
-	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
-	    curthread, esr, frame->tf_elr, frame);
+	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td,
+	    esr, frame->tf_elr, frame);
 
 	switch(exception) {
 	case EXCP_FP_SIMD:
@@ -286,7 +282,7 @@ do_el1h_sync(struct trapframe *frame)
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
 		intr_enable();
-		data_abort(frame, esr, far, 0);
+		data_abort(td, frame, esr, far, 0);
 		break;
 	case EXCP_BRK:
 #ifdef KDTRACE_HOOKS
@@ -327,9 +323,8 @@ el0_excp_unknown(struct trapframe *frame, uint64_t far)
 }
 
 void
-do_el0_sync(struct trapframe *frame)
+do_el0_sync(struct thread *td, struct trapframe *frame)
 {
-	struct thread *td;
 	uint32_t exception;
 	uint64_t esr, far;
 
@@ -337,9 +332,6 @@ do_el0_sync(struct trapframe *frame)
 	KASSERT((uintptr_t)get_pcpu() >= VM_MIN_KERNEL_ADDRESS,
 	    ("Invalid pcpu address from userland: %p (tpidr %lx)",
 	     get_pcpu(), READ_SPECIALREG(tpidr_el1)));
-
-	td = curthread;
-	td->td_frame = frame;
 
 	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
@@ -353,8 +345,8 @@ do_el0_sync(struct trapframe *frame)
 	intr_enable();
 
 	CTR4(KTR_TRAP,
-	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
-	    curthread, esr, frame->tf_elr, frame);
+	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td, esr,
+	    frame->tf_elr, frame);
 
 	switch(exception) {
 	case EXCP_FP_SIMD:
@@ -366,12 +358,12 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
-		svc_handler(frame);
+		svc_handler(td, frame);
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
-		data_abort(frame, esr, far, 1);
+		data_abort(td, frame, esr, far, 1);
 		break;
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame, far);
