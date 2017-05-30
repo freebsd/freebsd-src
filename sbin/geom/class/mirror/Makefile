@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PACKAGE=runtime
-.PATH: ${.CURDIR}/../../misc
+.PATH: ${.CURDIR:H:H}/misc
 
 GEOM_CLASS=	mirror
 

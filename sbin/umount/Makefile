@@ -7,8 +7,8 @@ PROG=	umount
 SRCS=	umount.c vfslist.c mounttab.c
 MAN=	umount.8
 
-MOUNT=	${.CURDIR}/../mount
-UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall
+MOUNT=	${.CURDIR:H}/mount
+UMNTALL= ${SRCTOP}/usr.sbin/rpc.umntall
 CFLAGS+= -I${MOUNT} -I${UMNTALL}
 
 .PATH: ${MOUNT} ${UMNTALL}
