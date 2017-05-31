@@ -79,6 +79,7 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+	volatile u_int	f_count;
 };
 
 #define	file		linux_file
@@ -218,6 +219,14 @@ iminor(struct inode *inode)
 {
 
 	return (minor(dev2unit(inode->v_rdev)));
+}
+
+static inline struct linux_file *
+get_file(struct linux_file *f)
+{
+
+	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
+	return (f);
 }
 
 static inline struct inode *
