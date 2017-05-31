@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.56 2016/03/25 00:16:28 Jung-uk.Kim Exp $ */
+/* $Id: main.c,v 1.57 2016/12/02 18:44:44 tom Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -92,6 +92,7 @@ char *symbol_assoc;
 
 int pure_parser;
 int token_table;
+int error_verbose;
 
 #if defined(YYBTYACC)
 Value_t *symbol_pval;
@@ -99,6 +100,7 @@ char **symbol_destructor;
 char **symbol_type_tag;
 int locations = 0;	/* default to no position processing */
 int backtrack = 0;	/* default is no backtracking */
+char *initial_action = NULL;
 #endif
 
 int exit_code;
