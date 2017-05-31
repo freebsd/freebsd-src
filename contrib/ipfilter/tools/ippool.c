@@ -663,7 +663,7 @@ poollist(argc, argv)
 	poolname = NULL;
 	role = IPL_LOGALL;
 
-	while ((c = getopt(argc, argv, "dm:M:N:o:Rt:v")) != -1)
+	while ((c = getopt(argc, argv, "dm:M:N:o:t:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -689,9 +689,6 @@ poollist(argc, argv)
 			break;
 		case 'O' :
 			pool_fields = parsefields(poolfields, optarg);
-			break;
-		case 'R' :
-			opts |= OPT_NORESOLVE;
 			break;
 		case 't' :
 			type = gettype(optarg, NULL);
