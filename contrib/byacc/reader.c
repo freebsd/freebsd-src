@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.60 2016/03/25 00:51:07 tom Exp $ */
+/* $Id: reader.c,v 1.66 2016/12/02 20:14:34 tom Exp $ */
 
 #include "defs.h"
 
@@ -22,6 +22,7 @@
 
 static void start_rule(bucket *bp, int s_lineno);
 #if defined(YYBTYACC)
+static void copy_initial_action(void);
 static void copy_destructor(void);
 static char *process_destructor_XX(char *code, char *tag);
 #endif
@@ -43,6 +44,9 @@ static bucket *goal;
 static Value_t prec;
 static int gensym;
 static char last_was_action;
+#if defined(YYBTYACC)
+static int trialaction;
+#endif
 
 static int maxitems;
 static bucket **pitem;
@@ -123,7 +127,7 @@ get_line(void)
 	return;
     }
 
-    if (line == 0 || linesize != (LINESIZE + 1))
+    if (line == NULL || linesize != (LINESIZE + 1))
     {
 	if (line)
 	    FREE(line);
@@ -163,8 +167,8 @@ dup_line(void)
 {
     char *p, *s, *t;
 
-    if (line == 0)
-	return (0);
+    if (line == NULL)
+	return (NULL);
     s = line;
     while (*s != '\n')
 	++s;
@@ -182,10 +186,10 @@ static void
 skip_comment(void)
 {
     char *s;
-
-    int st_lineno = lineno;
-    char *st_line = dup_line();
-    char *st_cptr = st_line + (cptr - line);
+    struct ainfo a;
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line);
 
     s = cptr + 2;
     for (;;)
@@ -193,14 +197,14 @@ skip_comment(void)
 	if (*s == '*' && s[1] == '/')
 	{
 	    cptr = s + 2;
-	    FREE(st_line);
+	    FREE(a.a_line);
 	    return;
 	}
 	if (*s == '\n')
 	{
 	    get_line();
-	    if (line == 0)
-		unterminated_comment(st_lineno, st_line, st_cptr);
+	    if (line == NULL)
+		unterminated_comment(&a);
 	    s = cptr;
 	}
 	else
@@ -213,10 +217,10 @@ next_inline(void)
 {
     char *s;
 
-    if (line == 0)
+    if (line == NULL)
     {
 	get_line();
-	if (line == 0)
+	if (line == NULL)
 	    return (EOF);
     }
 
@@ -236,7 +240,7 @@ next_inline(void)
 	    else if (s[1] == '/')
 	    {
 		get_line();
-		if (line == 0)
+		if (line == NULL)
 		    return (EOF);
 		s = cptr;
 		break;
@@ -287,17 +291,22 @@ nextc(void)
 /* *INDENT-OFF* */
 static struct keyword
 {
-    char name[13];
+    char name[14];
     int token;
 }
 keywords[] = {
     { "binary",      NONASSOC },
+    { "debug",       XXXDEBUG },
 #if defined(YYBTYACC)
     { "destructor",  DESTRUCTOR },
 #endif
+    { "error-verbose",ERROR_VERBOSE },
     { "expect",      EXPECT },
     { "expect-rr",   EXPECT_RR },
     { "ident",       IDENT }, 
+#if defined(YYBTYACC)
+    { "initial-action", INITIAL_ACTION },
+#endif
     { "left",        LEFT },
     { "lex-param",   LEX_PARAM },
 #if defined(YYBTYACC)
@@ -308,8 +317,8 @@ keywords[] = {
     { "pure-parser", PURE_PARSER },
     { "right",       RIGHT }, 
     { "start",       START },
-    { "term",        TOKEN }, 
-    { "token",       TOKEN }, 
+    { "term",        TOKEN },
+    { "token",       TOKEN },
     { "token-table", TOKEN_TABLE }, 
     { "type",        TYPE },
     { "union",       UNION },
@@ -386,7 +395,7 @@ keyword(void)
 	    return (NONASSOC);
     }
     syntax_error(lineno, line, t_cptr);
-    return (-1);
+    /*NOTREACHED */
 }
 
 static void
@@ -425,9 +434,10 @@ copy_string(int quote)
 {
     struct mstring *temp = msnew();
     int c;
-    int s_lineno = lineno;
-    char *s_line = dup_line();
-    char *s_cptr = s_line + (cptr - line - 1);
+    struct ainfo a;
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line - 1);
 
     for (;;)
     {
@@ -435,11 +445,11 @@ copy_string(int quote)
 	mputc(temp, c);
 	if (c == quote)
 	{
-	    FREE(s_line);
+	    FREE(a.a_line);
 	    return msdone(temp);
 	}
 	if (c == '\n')
-	    unterminated_string(s_lineno, s_line, s_cptr);
+	    unterminated_string(&a);
 	if (c == '\\')
 	{
 	    c = *cptr++;
@@ -447,8 +457,8 @@ copy_string(int quote)
 	    if (c == '\n')
 	    {
 		get_line();
-		if (line == 0)
-		    unterminated_string(s_lineno, s_line, s_cptr);
+		if (line == NULL)
+		    unterminated_string(&a);
 	    }
 	}
     }
@@ -475,9 +485,10 @@ copy_comment(void)
     }
     else if (c == '*')
     {
-	int c_lineno = lineno;
-	char *c_line = dup_line();
-	char *c_cptr = c_line + (cptr - line - 1);
+	struct ainfo a;
+	a.a_lineno = lineno;
+	a.a_line = dup_line();
+	a.a_cptr = a.a_line + (cptr - line - 1);
 
 	mputc(temp, c);
 	++cptr;
@@ -489,14 +500,14 @@ copy_comment(void)
 	    {
 		mputc(temp, '/');
 		++cptr;
-		FREE(c_line);
+		FREE(a.a_line);
 		return msdone(temp);
 	    }
 	    if (c == '\n')
 	    {
 		get_line();
-		if (line == 0)
-		    unterminated_comment(c_lineno, c_line, c_cptr);
+		if (line == NULL)
+		    unterminated_comment(&a);
 	    }
 	}
     }
@@ -509,15 +520,16 @@ copy_text(void)
     int c;
     FILE *f = text_file;
     int need_newline = 0;
-    int t_lineno = lineno;
-    char *t_line = dup_line();
-    char *t_cptr = t_line + (cptr - line - 2);
+    struct ainfo a;
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line - 2);
 
     if (*cptr == '\n')
     {
 	get_line();
-	if (line == 0)
-	    unterminated_text(t_lineno, t_line, t_cptr);
+	if (line == NULL)
+	    unterminated_text(&a);
     }
     if (!lflag)
 	fprintf(f, line_format, lineno, input_file_name);
@@ -532,7 +544,7 @@ copy_text(void)
 	get_line();
 	if (line)
 	    goto loop;
-	unterminated_text(t_lineno, t_line, t_cptr);
+	unterminated_text(&a);
 
     case '\'':
     case '"':
@@ -562,7 +574,7 @@ copy_text(void)
 	    if (need_newline)
 		putc('\n', f);
 	    ++cptr;
-	    FREE(t_line);
+	    FREE(a.a_line);
 	    return;
 	}
 	/* FALLTHRU */
@@ -595,16 +607,14 @@ copy_union(void)
 {
     int c;
     int depth;
-    int u_lineno = lineno;
-    char *u_line = dup_line();
-    char *u_cptr = u_line + (cptr - line - 6);
+    struct ainfo a;
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line - 6);
 
     if (unionized)
 	over_unionized(cptr - 6);
     unionized = 1;
-
-    if (!lflag)
-	fprintf(text_file, line_format, lineno, input_file_name);
 
     puts_both("#ifdef YYSTYPE\n");
     puts_both("#undef  YYSTYPE_IS_DECLARED\n");
@@ -612,6 +622,9 @@ copy_union(void)
     puts_both("#endif\n");
     puts_both("#ifndef YYSTYPE_IS_DECLARED\n");
     puts_both("#define YYSTYPE_IS_DECLARED 1\n");
+
+    if (!lflag)
+	fprintf(text_file, line_format, lineno, input_file_name);
     puts_both("typedef union");
 
     depth = 0;
@@ -622,8 +635,8 @@ copy_union(void)
     {
     case '\n':
 	get_line();
-	if (line == 0)
-	    unterminated_union(u_lineno, u_line, u_cptr);
+	if (line == NULL)
+	    unterminated_union(&a);
 	goto loop;
 
     case L_CURL:
@@ -635,7 +648,7 @@ copy_union(void)
 	{
 	    puts_both(" YYSTYPE;\n");
 	    puts_both("#endif /* !YYSTYPE_IS_DECLARED */\n");
-	    FREE(u_line);
+	    FREE(a.a_line);
 	    return;
 	}
 	goto loop;
@@ -858,7 +871,7 @@ copy_param(int k)
 	else if (c == '\n')
 	{
 	    get_line();
-	    if (line == 0)
+	    if (line == NULL)
 		unexpected_EOF();
 	    --cptr;
 	    buf_size += (size_t) linesize;
@@ -894,7 +907,7 @@ copy_param(int k)
 	goto oops;
     }
 
-    buf[i--] = '\0';
+    buf[++i] = '\0';
     (void)trim_blanks(buf);
 
     comma = buf - 1;
@@ -971,9 +984,10 @@ get_literal(void)
     int n;
     char *s;
     bucket *bp;
-    int s_lineno = lineno;
-    char *s_line = dup_line();
-    char *s_cptr = s_line + (cptr - line);
+    struct ainfo a;
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line);
 
     quote = *cptr++;
     cinc = 0;
@@ -983,7 +997,7 @@ get_literal(void)
 	if (c == quote)
 	    break;
 	if (c == '\n')
-	    unterminated_string(s_lineno, s_line, s_cptr);
+	    unterminated_string(&a);
 	if (c == '\\')
 	{
 	    char *c_cptr = cptr - 1;
@@ -993,8 +1007,8 @@ get_literal(void)
 	    {
 	    case '\n':
 		get_line();
-		if (line == 0)
-		    unterminated_string(s_lineno, s_line, s_cptr);
+		if (line == NULL)
+		    unterminated_string(&a);
 		continue;
 
 	    case '0':
@@ -1066,7 +1080,7 @@ get_literal(void)
 	}
 	cachec(c);
     }
-    FREE(s_line);
+    FREE(a.a_line);
 
     n = cinc;
     s = TMALLOC(char, n);
@@ -1187,7 +1201,7 @@ get_number(void)
 
     n = 0;
     for (c = *cptr; isdigit(c); c = *++cptr)
-	n = (Value_t) (10 * n + (c - '0'));
+	n = (Value_t)(10 * n + (c - '0'));
 
     return (n);
 }
@@ -1266,7 +1280,7 @@ scan_id(void)
 {
     char *b = cptr;
 
-    while (isalnum(*cptr) || *cptr == '_' || *cptr == '$')
+    while (isalnum(UCH(*cptr)) || *cptr == '_' || *cptr == '$')
 	cptr++;
     return cache_tag(b, (size_t) (cptr - b));
 }
@@ -1318,7 +1332,7 @@ declare_tokens(int assoc)
 	{
 	    if (bp->prec && prec != bp->prec)
 		reprec_warning(bp->name);
-	    bp->assoc = (Assoc_t) assoc;
+	    bp->assoc = (Assoc_t)assoc;
 	    bp->prec = prec;
 	}
 
@@ -1326,6 +1340,7 @@ declare_tokens(int assoc)
 	if (c == EOF)
 	    unexpected_EOF();
 
+	value = UNDEFINED;
 	if (isdigit(c))
 	{
 	    value = get_number();
@@ -1430,7 +1445,7 @@ static void
 declare_types(void)
 {
     int c;
-    bucket *bp;
+    bucket *bp = NULL;
     char *tag = NULL;
 
     c = nextc();
@@ -1558,6 +1573,10 @@ read_declarations(void)
 	    token_table = 1;
 	    break;
 
+	case ERROR_VERBOSE:
+	    error_verbose = 1;
+	    break;
+
 #if defined(YYBTYACC)
 	case LOCATIONS:
 	    locations = 1;
@@ -1567,7 +1586,14 @@ read_declarations(void)
 	    destructor = 1;
 	    copy_destructor();
 	    break;
+	case INITIAL_ACTION:
+	    copy_initial_action();
+	    break;
 #endif
+
+	case XXXDEBUG:
+	    /* XXX: FIXME */
+	    break;
 
 	case POSIX_YACC:
 	    /* noop for bison compatibility. byacc is already designed to be posix
@@ -1650,9 +1676,11 @@ copy_args(int *alen)
     struct mstring *s = msnew();
     int depth = 0, len = 1;
     char c, quote = 0;
-    int a_lineno = lineno;
-    char *a_line = dup_line();
-    char *a_cptr = a_line + (cptr - line - 1);
+    struct ainfo a;
+
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line - 1);
 
     while ((c = *cptr++) != R_PAREN || depth || quote)
     {
@@ -1669,9 +1697,9 @@ copy_args(int *alen)
 	    if (!line)
 	    {
 		if (quote)
-		    unterminated_string(a_lineno, a_line, a_cptr);
+		    unterminated_string(&a);
 		else
-		    unterminated_arglist(a_lineno, a_line, a_cptr);
+		    unterminated_arglist(&a);
 	    }
 	}
 	else if (quote)
@@ -1696,7 +1724,7 @@ copy_args(int *alen)
     }
     if (alen)
 	*alen = len;
-    FREE(a_line);
+    FREE(a.a_line);
     return msdone(s);
 }
 
@@ -1705,13 +1733,13 @@ parse_id(char *p, char **save)
 {
     char *b;
 
-    while (isspace(*p))
+    while (isspace(UCH(*p)))
 	if (*p++ == '\n')
 	    rescan_lineno++;
-    if (!isalpha(*p) && *p != '_')
+    if (!isalpha(UCH(*p)) && *p != '_')
 	return NULL;
     b = p;
-    while (isalnum(*p) || *p == '_' || *p == '$')
+    while (isalnum(UCH(*p)) || *p == '_' || *p == '$')
 	p++;
     if (save)
     {
@@ -1725,7 +1753,7 @@ parse_int(char *p, int *save)
 {
     int neg = 0, val = 0;
 
-    while (isspace(*p))
+    while (isspace(UCH(*p)))
 	if (*p++ == '\n')
 	    rescan_lineno++;
     if (*p == '-')
@@ -1733,9 +1761,9 @@ parse_int(char *p, int *save)
 	neg = 1;
 	p++;
     }
-    if (!isdigit(*p))
+    if (!isdigit(UCH(*p)))
 	return NULL;
-    while (isdigit(*p))
+    while (isdigit(UCH(*p)))
 	val = val * 10 + *p++ - '0';
     if (neg)
 	val = -val;
@@ -1750,7 +1778,7 @@ parse_arginfo(bucket *a, char *args, int argslen)
     char *p = args, *tmp;
     int i, redec = 0;
 
-    if (a->args > 0)
+    if (a->args >= 0)
     {
 	if (a->args != argslen)
 	    arg_number_disagree_warning(rescan_lineno, a->name);
@@ -1769,12 +1797,12 @@ parse_arginfo(bucket *a, char *args, int argslen)
 	return;
     for (i = 0; i < argslen; i++)
     {
-	while (isspace(*p))
+	while (isspace(UCH(*p)))
 	    if (*p++ == '\n')
 		rescan_lineno++;
 	if (*p++ != '$')
 	    bad_formals();
-	while (isspace(*p))
+	while (isspace(UCH(*p)))
 	    if (*p++ == '\n')
 		rescan_lineno++;
 	if (*p == '<')
@@ -1782,7 +1810,7 @@ parse_arginfo(bucket *a, char *args, int argslen)
 	    havetags = 1;
 	    if (!(p = parse_id(p + 1, &tmp)))
 		bad_formals();
-	    while (isspace(*p))
+	    while (isspace(UCH(*p)))
 		if (*p++ == '\n')
 		    rescan_lineno++;
 	    if (*p++ != '>')
@@ -1799,7 +1827,7 @@ parse_arginfo(bucket *a, char *args, int argslen)
 	    a->argtags[i] = NULL;
 	if (!(p = parse_id(p, &a->argnames[i])))
 	    bad_formals();
-	while (isspace(*p))
+	while (isspace(UCH(*p)))
 	    if (*p++ == '\n')
 		rescan_lineno++;
 	if (*p++)
@@ -1832,7 +1860,7 @@ compile_arg(char **theptr, char *yyvaltag)
 
 	for (j = 0, i++; i < nitems; i++)
 	    if (pitem[i]->class != ARGUMENT)
-		offsets[++j] = (Value_t) (i - nitems + 1);
+		offsets[++j] = (Value_t)(i - nitems + 1);
     }
     rhs = pitem + nitems - 1;
 
@@ -1848,7 +1876,7 @@ compile_arg(char **theptr, char *yyvaltag)
 	    if (*++p == '<')
 		if (!(p = parse_id(++p, &tag)) || *p++ != '>')
 		    illegal_tag(rescan_lineno, NULL, NULL);
-	    if (isdigit(*p) || *p == '-')
+	    if (isdigit(UCH(*p)) || *p == '-')
 	    {
 		int val;
 		if (!(p = parse_int(p, &val)))
@@ -1872,7 +1900,7 @@ compile_arg(char **theptr, char *yyvaltag)
 		else if (havetags)
 		    unknown_rhs(val);
 	    }
-	    else if (isalpha(*p) || *p == '_')
+	    else if (isalpha(UCH(*p)) || *p == '_')
 	    {
 		char *arg;
 		if (!(p = parse_id(p, &arg)))
@@ -1884,8 +1912,8 @@ compile_arg(char **theptr, char *yyvaltag)
 		    unknown_arg_warning(rescan_lineno, "$", arg, NULL, NULL);
 		else if (!tag)
 		    tag = plhs[nrules]->argtags[i];
-		msprintf(c, "yystack.l_mark[%d]", i - plhs[nrules]->args + 1
-			 - n);
+		msprintf(c, "yystack.l_mark[%d]",
+			 i - plhs[nrules]->args + 1 - n);
 		if (tag)
 		    msprintf(c, ".%s", tag);
 		else if (havetags)
@@ -1909,6 +1937,90 @@ compile_arg(char **theptr, char *yyvaltag)
     if (maxoffset > 0)
 	FREE(offsets);
     return msdone(c);
+}
+
+static int
+can_elide_arg(char **theptr, char *yyvaltag)
+{
+    char *p = *theptr;
+    int rv = 0;
+    int i, j, n = 0;
+    Value_t *offsets = NULL, maxoffset = 0;
+    bucket **rhs;
+    char *tag = 0;
+
+    if (*p++ != '$')
+	return 0;
+    if (*p == '<')
+    {
+	if (!(p = parse_id(++p, &tag)) || *p++ != '>')
+	    return 0;
+    }
+    for (i = nitems - 1; pitem[i]; --i)
+    {
+	n++;
+	if (pitem[i]->class != ARGUMENT)
+	    maxoffset++;
+    }
+    if (maxoffset > 0)
+    {
+	offsets = TMALLOC(Value_t, maxoffset + 1);
+	NO_SPACE(offsets);
+
+	for (j = 0, i++; i < nitems; i++)
+	    if (pitem[i]->class != ARGUMENT)
+		offsets[++j] = (Value_t)(i - nitems + 1);
+    }
+    rhs = pitem + nitems - 1;
+
+    if (isdigit(UCH(*p)) || *p == '-')
+    {
+	int val;
+	if (!(p = parse_int(p, &val)))
+	    rv = 0;
+	else
+	{
+	    if (val <= 0)
+		rv = 1 - val + n;
+	    else if (val > maxoffset)
+		rv = 0;
+	    else
+	    {
+		i = offsets[val];
+		rv = 1 - i;
+		if (!tag)
+		    tag = rhs[i]->tag;
+	    }
+	}
+    }
+    else if (isalpha(UCH(*p)) || *p == '_')
+    {
+	char *arg;
+	if (!(p = parse_id(p, &arg)))
+	    return 0;
+	for (i = plhs[nrules]->args - 1; i >= 0; i--)
+	    if (arg == plhs[nrules]->argnames[i])
+		break;
+	if (i >= 0)
+	{
+	    if (!tag)
+		tag = plhs[nrules]->argtags[i];
+	    rv = plhs[nrules]->args + n - i;
+	}
+    }
+    if (tag && yyvaltag)
+    {
+	if (strcmp(tag, yyvaltag))
+	    rv = 0;
+    }
+    else if (tag || yyvaltag)
+	rv = 0;
+    if (maxoffset > 0)
+	FREE(offsets);
+    if (*p || rv <= 0)
+	return 0;
+    *theptr = p + 1;
+    return rv;
 }
 
 #define ARG_CACHE_SIZE	1024
@@ -1962,7 +2074,7 @@ clean_arg_cache(void)
 	arg_cache[i] = NULL;
     }
 }
-#endif
+#endif /* defined(YYBTYACC) */
 
 static void
 advance_to_start(void)
@@ -2061,12 +2173,10 @@ end_rule(void)
 	    for (i = nitems - 1; (i > 0) && pitem[i]; --i)
 		continue;
 	    if (pitem[i + 1] == 0 || pitem[i + 1]->tag != plhs[nrules]->tag)
-		default_action_warning();
+		default_action_warning(plhs[nrules]->name);
 	}
 	else
-	{
-	    default_action_warning();
-	}
+	    default_action_warning(plhs[nrules]->name);
     }
 
     last_was_action = 0;
@@ -2094,7 +2204,7 @@ insert_empty_rule(void)
     bp->args = 0;
 #endif
 
-    nitems = (Value_t) (nitems + 2);
+    nitems = (Value_t)(nitems + 2);
     if (nitems > maxitems)
 	expand_items();
     bpp = pitem + nitems - 1;
@@ -2125,13 +2235,14 @@ insert_arg_rule(char *arg, char *tag)
     {
 	rule = nrules;
 	insert_arg_cache(code, rule);
+	trialaction = 1;	/* arg rules always run in trial mode */
 	fprintf(f, "case %d:\n", rule - 2);
 	if (!lflag)
 	    fprintf(f, line_format, line_number, input_file_name);
 	fprintf(f, "%s;\n", code);
 	fprintf(f, "break;\n");
 	insert_empty_rule();
-	plhs[rule]->tag = tag;
+	plhs[rule]->tag = cache_tag(tag, strlen(tag));
 	plhs[rule]->class = ARGUMENT;
     }
     else
@@ -2202,11 +2313,33 @@ add_symbol(void)
     }
     else if (bp->args != argslen)
 	wrong_number_args_warning("", bp->name);
-    if (bp->args > 0 && argslen > 0)
+    if (args != 0)
     {
-	char *ap;
-	int i;
-	for (ap = args, i = 0; i < argslen; i++)
+	char *ap = args;
+	int i = 0;
+	int elide_cnt = can_elide_arg(&ap, bp->argtags[0]);
+
+	if (elide_cnt > argslen)
+	    elide_cnt = 0;
+	if (elide_cnt)
+	{
+	    for (i = 1; i < elide_cnt; i++)
+		if (can_elide_arg(&ap, bp->argtags[i]) != elide_cnt - i)
+		{
+		    elide_cnt = 0;
+		    break;
+		}
+	}
+	if (elide_cnt)
+	{
+	    assert(i == elide_cnt);
+	}
+	else
+	{
+	    ap = args;
+	    i = 0;
+	}
+	for (; i < argslen; i++)
 	    ap = insert_arg_rule(ap, bp->argtags[i]);
 	free(args);
     }
@@ -2224,29 +2357,31 @@ copy_action(void)
     int i, j, n;
     int depth;
 #if defined(YYBTYACC)
-    int trialaction = 0;
     int haveyyval = 0;
 #endif
     char *tag;
     FILE *f = action_file;
-    int a_lineno = lineno;
-    char *a_line = dup_line();
-    char *a_cptr = a_line + (cptr - line);
+    struct ainfo a;
     Value_t *offsets = NULL, maxoffset;
     bucket **rhs;
+
+    a.a_lineno = lineno;
+    a.a_line = dup_line();
+    a.a_cptr = a.a_line + (cptr - line);
 
     if (last_was_action)
 	insert_empty_rule();
     last_was_action = 1;
+#if defined(YYBTYACC)
+    trialaction = (*cptr == L_BRAC);
+#endif
 
     fprintf(f, "case %d:\n", nrules - 2);
 #if defined(YYBTYACC)
     if (backtrack)
     {
-	if (*cptr != L_BRAC)
+	if (!trialaction)
 	    fprintf(f, "  if (!yytrial)\n");
-	else
-	    trialaction = 1;
     }
 #endif
     if (!lflag)
@@ -2278,7 +2413,7 @@ copy_action(void)
 	{
 	    if (pitem[i]->class != ARGUMENT)
 	    {
-		offsets[++j] = (Value_t) (i - nitems + 1);
+		offsets[++j] = (Value_t)(i - nitems + 1);
 	    }
 	}
     }
@@ -2337,8 +2472,8 @@ copy_action(void)
 			break;
 		if (i < 0)
 		    unknown_arg_warning(d_lineno, "$", arg, d_line, d_cptr);
-		fprintf(f, "yystack.l_mark[%d].%s", i - plhs[nrules]->args +
-			1 - n, tag);
+		fprintf(f, "yystack.l_mark[%d].%s",
+			i - plhs[nrules]->args + 1 - n, tag);
 		FREE(d_line);
 		goto loop;
 	    }
@@ -2400,7 +2535,7 @@ copy_action(void)
 	    goto loop;
 	}
 #if defined(YYBTYACC)
-	else if (isalpha(cptr[1]) || cptr[1] == '_')
+	else if (isalpha(UCH(cptr[1])) || cptr[1] == '_')
 	{
 	    char *arg;
 	    ++cptr;
@@ -2451,6 +2586,13 @@ copy_action(void)
 		fprintf(f, "yystack.p_mark[%d]", offsets[i]);
 	    goto loop;
 	}
+	else if (cptr[1] == '-')
+	{
+	    cptr += 2;
+	    i = get_number();
+	    fprintf(f, "yystack.p_mark[%d]", -i - n);
+	    goto loop;
+	}
     }
 #endif
     if (isalpha(c) || c == '_' || c == '$')
@@ -2491,7 +2633,7 @@ copy_action(void)
 		goto loop;
 	    }
 	    fprintf(f, "\nbreak;\n");
-	    FREE(a_line);
+	    FREE(a.a_line);
 	    if (maxoffset > 0)
 		FREE(offsets);
 	    return;
@@ -2505,13 +2647,13 @@ copy_action(void)
 	get_line();
 	if (line)
 	    goto loop;
-	unterminated_action(a_lineno, a_line, a_cptr);
+	unterminated_action(&a);
 
     case ';':
 	if (depth > 0)
 	    goto loop;
 	fprintf(f, "\nbreak;\n");
-	free(a_line);
+	free(a.a_line);
 	if (maxoffset > 0)
 	    FREE(offsets);
 	return;
@@ -2554,7 +2696,7 @@ copy_action(void)
 	}
 #endif
 	fprintf(f, "\nbreak;\n");
-	free(a_line);
+	free(a.a_line);
 	if (maxoffset > 0)
 	    FREE(offsets);
 	return;
@@ -2582,32 +2724,27 @@ copy_action(void)
 }
 
 #if defined(YYBTYACC)
-static void
-copy_destructor(void)
+static char *
+get_code(struct ainfo *a, const char *loc)
 {
     int c;
     int depth;
     char *tag;
-    bucket *bp;
-    struct mstring *destructor_text = msnew();
-    char *code_text;
-    int a_lineno;
-    char *a_line;
-    char *a_cptr;
+    struct mstring *code_mstr = msnew();
 
     if (!lflag)
-	msprintf(destructor_text, line_format, lineno, input_file_name);
+	msprintf(code_mstr, line_format, lineno, input_file_name);
 
     cptr = after_blanks(cptr);
     if (*cptr == L_CURL)
 	/* avoid putting curly-braces in first column, to ease editing */
-	mputc(destructor_text, '\t');
+	mputc(code_mstr, '\t');
     else
 	syntax_error(lineno, line, cptr);
 
-    a_lineno = lineno;
-    a_line = dup_line();
-    a_cptr = a_line + (cptr - line);
+    a->a_lineno = lineno;
+    a->a_line = dup_line();
+    a->a_cptr = a->a_line + (cptr - line);
 
     depth = 0;
   loop:
@@ -2625,7 +2762,7 @@ copy_destructor(void)
 	    c = *cptr;
 	    if (c == '$')
 	    {
-		msprintf(destructor_text, "(*val).%s", tag);
+		msprintf(code_mstr, "(*val).%s", tag);
 		++cptr;
 		FREE(d_line);
 		goto loop;
@@ -2636,7 +2773,7 @@ copy_destructor(void)
 	else if (cptr[1] == '$')
 	{
 	    /* process '$$' later; replacement is context dependent */
-	    msprintf(destructor_text, "$$");
+	    msprintf(code_mstr, "$$");
 	    cptr += 2;
 	    goto loop;
 	}
@@ -2650,7 +2787,7 @@ copy_destructor(void)
 	    char *l_cptr = l_line + (cptr - line);
 	    syntax_error(l_lineno, l_line, l_cptr);
 	}
-	msprintf(destructor_text, "(*loc)");
+	msprintf(code_mstr, "%s", loc);
 	cptr += 2;
 	goto loop;
     }
@@ -2658,21 +2795,21 @@ copy_destructor(void)
     {
 	do
 	{
-	    mputc(destructor_text, c);
+	    mputc(code_mstr, c);
 	    c = *++cptr;
 	}
 	while (isalnum(c) || c == '_' || c == '$');
 	goto loop;
     }
     ++cptr;
-    mputc(destructor_text, c);
+    mputc(code_mstr, c);
     switch (c)
     {
     case '\n':
 	get_line();
 	if (line)
 	    goto loop;
-	unterminated_action(a_lineno, a_line, a_cptr);
+	unterminated_action(a);
 
     case L_CURL:
 	++depth;
@@ -2681,13 +2818,13 @@ copy_destructor(void)
     case R_CURL:
 	if (--depth > 0)
 	    goto loop;
-	goto process_symbols;
+	goto out;
 
     case '\'':
     case '"':
 	{
 	    char *s = copy_string(c);
-	    msprintf(destructor_text, "%s", s);
+	    msprintf(code_mstr, "%s", s);
 	    free(s);
 	}
 	goto loop;
@@ -2695,7 +2832,7 @@ copy_destructor(void)
     case '/':
 	{
 	    char *s = copy_comment();
-	    msprintf(destructor_text, "%s", s);
+	    msprintf(code_mstr, "%s", s);
 	    free(s);
 	}
 	goto loop;
@@ -2703,8 +2840,29 @@ copy_destructor(void)
     default:
 	goto loop;
     }
-  process_symbols:
-    code_text = msdone(destructor_text);
+  out:
+    return msdone(code_mstr);
+}
+
+static void
+copy_initial_action(void)
+{
+    struct ainfo a;
+
+    initial_action = get_code(&a, "yyloc");
+    free(a.a_line);
+}
+
+static void
+copy_destructor(void)
+{
+    char *code_text;
+    int c;
+    struct ainfo a;
+    bucket *bp;
+
+    code_text = get_code(&a, "(*loc)");
+
     for (;;)
     {
 	c = nextc();
@@ -2723,7 +2881,7 @@ copy_destructor(void)
 		    default_destructor[UNTYPED_DEFAULT] = bp;
 		}
 		if (bp->destructor != NULL)
-		    destructor_redeclared_warning(a_lineno, a_line, a_cptr);
+		    destructor_redeclared_warning(&a);
 		else
 		    /* replace "$$" with "(*val)" in destructor code */
 		    bp->destructor = process_destructor_XX(code_text, NULL);
@@ -2739,7 +2897,7 @@ copy_destructor(void)
 		    default_destructor[TYPED_DEFAULT] = bp;
 		}
 		if (bp->destructor != NULL)
-		    destructor_redeclared_warning(a_lineno, a_line, a_cptr);
+		    destructor_redeclared_warning(&a);
 		else
 		{
 		    /* postpone re-processing destructor $$s until end of grammar spec */
@@ -2750,10 +2908,10 @@ copy_destructor(void)
 	    }
 	    else
 	    {			/* "semantic type" default destructor */
-		tag = get_tag();
+		char *tag = get_tag();
 		bp = lookup_type_destructor(tag);
 		if (bp->destructor != NULL)
-		    destructor_redeclared_warning(a_lineno, a_line, a_cptr);
+		    destructor_redeclared_warning(&a);
 		else
 		    /* replace "$$" with "(*val).tag" in destructor code */
 		    bp->destructor = process_destructor_XX(code_text, tag);
@@ -2763,7 +2921,7 @@ copy_destructor(void)
 	{			/* "symbol" destructor */
 	    bp = get_name();
 	    if (bp->destructor != NULL)
-		destructor_redeclared_warning(a_lineno, a_line, a_cptr);
+		destructor_redeclared_warning(&a);
 	    else
 	    {
 		/* postpone re-processing destructor $$s until end of grammar spec */
@@ -2775,7 +2933,7 @@ copy_destructor(void)
 	else
 	    break;
     }
-    free(a_line);
+    free(a.a_line);
     free(code_text);
 }
 
@@ -2897,6 +3055,7 @@ mark_symbol(void)
     else
     {
 	syntax_error(lineno, line, cptr);
+	/*NOTREACHED */
     }
 
     if (rprec[nrules] != UNDEFINED && bp->prec != rprec[nrules])
@@ -3067,8 +3226,8 @@ pack_symbols(void)
 	if (bp->class == TERM)
 	    ++ntokens;
     }
-    start_symbol = (Value_t) ntokens;
-    nvars = (Value_t) (nsyms - ntokens);
+    start_symbol = (Value_t)ntokens;
+    nvars = (Value_t)(nsyms - ntokens);
 
     symbol_name = TMALLOC(char *, nsyms);
     NO_SPACE(symbol_name);
@@ -3103,7 +3262,7 @@ pack_symbols(void)
     v[start_symbol] = 0;
 
     i = 1;
-    j = (Value_t) (start_symbol + 1);
+    j = (Value_t)(start_symbol + 1);
     for (bp = first_symbol; bp; bp = bp->next)
     {
 	if (bp->class == TERM)
@@ -3116,8 +3275,8 @@ pack_symbols(void)
     for (i = 1; i < ntokens; ++i)
 	v[i]->index = i;
 
-    goal->index = (Index_t) (start_symbol + 1);
-    k = (Value_t) (start_symbol + 2);
+    goal->index = (Index_t)(start_symbol + 1);
+    k = (Value_t)(start_symbol + 2);
     while (++i < nsyms)
 	if (v[i] != goal)
 	{
@@ -3127,7 +3286,7 @@ pack_symbols(void)
 
     goal->value = 0;
     k = 1;
-    for (i = (Value_t) (start_symbol + 1); i < nsyms; ++i)
+    for (i = (Value_t)(start_symbol + 1); i < nsyms; ++i)
     {
 	if (v[i] != goal)
 	{
@@ -3200,7 +3359,7 @@ pack_symbols(void)
     symbol_prec[start_symbol] = 0;
     symbol_assoc[start_symbol] = TOKEN;
 #if defined(YYBTYACC)
-    symbol_pval[start_symbol] = (Value_t) (max_tok_pval + 1);
+    symbol_pval[start_symbol] = (Value_t)(max_tok_pval + 1);
 #endif
     for (++i; i < nsyms; ++i)
     {
@@ -3210,7 +3369,7 @@ pack_symbols(void)
 	symbol_prec[k] = v[i]->prec;
 	symbol_assoc[k] = v[i]->assoc;
 #if defined(YYBTYACC)
-	symbol_pval[k] = (Value_t) ((max_tok_pval + 1) + v[i]->value + 1);
+	symbol_pval[k] = (Value_t)((max_tok_pval + 1) + v[i]->value + 1);
 	if (destructor)
 	{
 	    symbol_destructor[k] = v[i]->destructor;
@@ -3297,7 +3456,7 @@ pack_grammar(void)
 	    }
 	    ++j;
 	}
-	ritem[j] = (Value_t) - i;
+	ritem[j] = (Value_t)-i;
 	++j;
 	if (rprec[i] == UNDEFINED)
 	{
@@ -3455,7 +3614,7 @@ reader(void)
 
 #ifdef NO_LEAKS
 static param *
-free_declarations(param * list)
+free_declarations(param *list)
 {
     while (list != 0)
     {

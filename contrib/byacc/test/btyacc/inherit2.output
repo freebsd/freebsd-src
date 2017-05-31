@@ -5,23 +5,20 @@
    2  $$2 :
 
    3  declaration : class type $$1 $$2 namelist
+   4              | type locnamelist
 
-   4  $$3 :
+   5  class : GLOBAL
+   6        | LOCAL
 
-   5  declaration : type $$3 locnamelist
+   7  type : REAL
+   8       | INTEGER
 
-   6  class : GLOBAL
-   7        | LOCAL
+   9  namelist : namelist NAME
+  10           | NAME
 
-   8  type : REAL
-   9       | INTEGER
+  11  $$3 :
 
-  10  namelist : namelist NAME
-  11           | NAME
-
-  12  $$4 :
-
-  13  locnamelist : $$4 $$2 namelist
+  12  locnamelist : $$3 $$2 namelist
 
 state 0
 	$accept : . declaration $end  (0)
@@ -38,27 +35,27 @@ state 0
 
 
 state 1
-	class : GLOBAL .  (6)
+	class : GLOBAL .  (5)
+
+	.  reduce 5
+
+
+state 2
+	class : LOCAL .  (6)
 
 	.  reduce 6
 
 
-state 2
-	class : LOCAL .  (7)
+state 3
+	type : REAL .  (7)
 
 	.  reduce 7
 
 
-state 3
-	type : REAL .  (8)
+state 4
+	type : INTEGER .  (8)
 
 	.  reduce 8
-
-
-state 4
-	type : INTEGER .  (9)
-
-	.  reduce 9
 
 
 state 5
@@ -78,12 +75,13 @@ state 6
 
 
 state 7
-	declaration : type . $$3 locnamelist  (5)
-	$$3 : .  (4)
+	declaration : type . locnamelist  (4)
+	$$3 : .  (11)
 
-	.  reduce 4
+	.  reduce 11
 
-	$$3  goto 9
+	locnamelist  goto 9
+	$$3  goto 10
 
 
 state 8
@@ -92,20 +90,25 @@ state 8
 
 	.  reduce 1
 
-	$$1  goto 10
+	$$1  goto 11
 
 
 state 9
-	declaration : type $$3 . locnamelist  (5)
-	$$4 : .  (12)
+	declaration : type locnamelist .  (4)
 
-	.  reduce 12
-
-	locnamelist  goto 11
-	$$4  goto 12
+	.  reduce 4
 
 
 state 10
+	locnamelist : $$3 . $$2 namelist  (12)
+	$$2 : .  (2)
+
+	.  reduce 2
+
+	$$2  goto 12
+
+
+state 11
 	declaration : class type $$1 . $$2 namelist  (3)
 	$$2 : .  (2)
 
@@ -114,69 +117,54 @@ state 10
 	$$2  goto 13
 
 
-state 11
-	declaration : type $$3 locnamelist .  (5)
-
-	.  reduce 5
-
-
 state 12
-	locnamelist : $$4 . $$2 namelist  (13)
-	$$2 : .  (2)
+	locnamelist : $$3 $$2 . namelist  (12)
 
-	.  reduce 2
+	NAME  shift 14
+	.  error
 
-	$$2  goto 14
+	namelist  goto 15
 
 
 state 13
 	declaration : class type $$1 $$2 . namelist  (3)
 
-	NAME  shift 15
+	NAME  shift 14
 	.  error
 
 	namelist  goto 16
 
 
 state 14
-	locnamelist : $$4 $$2 . namelist  (13)
-
-	NAME  shift 15
-	.  error
-
-	namelist  goto 17
-
-
-state 15
-	namelist : NAME .  (11)
-
-	.  reduce 11
-
-
-state 16
-	declaration : class type $$1 $$2 namelist .  (3)
-	namelist : namelist . NAME  (10)
-
-	NAME  shift 18
-	$end  reduce 3
-
-
-state 17
-	namelist : namelist . NAME  (10)
-	locnamelist : $$4 $$2 namelist .  (13)
-
-	NAME  shift 18
-	$end  reduce 13
-
-
-state 18
-	namelist : namelist NAME .  (10)
+	namelist : NAME .  (10)
 
 	.  reduce 10
 
 
-7 terminals, 10 nonterminals
-14 grammar rules, 19 states
+state 15
+	namelist : namelist . NAME  (9)
+	locnamelist : $$3 $$2 namelist .  (12)
+
+	NAME  shift 17
+	$end  reduce 12
+
+
+state 16
+	declaration : class type $$1 $$2 namelist .  (3)
+	namelist : namelist . NAME  (9)
+
+	NAME  shift 17
+	$end  reduce 3
+
+
+state 17
+	namelist : namelist NAME .  (9)
+
+	.  reduce 9
+
+
+7 terminals, 9 nonterminals
+13 grammar rules, 18 states
 
 grammar parser grammar
 symbol# value# symbol
@@ -196,4 +184,3 @@ symbol# value# symbol
     13    268  $$1
     14    269  $$2
     15    270  $$3
-    16    271  $$4
