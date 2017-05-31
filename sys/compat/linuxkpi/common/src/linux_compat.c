@@ -486,6 +486,15 @@ static struct rwlock linux_vma_lock;
 static TAILQ_HEAD(, vm_area_struct) linux_vma_head =
     TAILQ_HEAD_INITIALIZER(linux_vma_head);
 
+static void
+linux_cdev_handle_free(struct vm_area_struct *vmap)
+{
+	/* Drop reference on mm_struct */
+	mmput(vmap->vm_mm);
+
+	kfree(vmap);
+}
+
 static struct vm_area_struct *
 linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 {
@@ -495,20 +504,10 @@ linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 	TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
 		if (ptr->vm_private_data == handle) {
 			rw_wunlock(&linux_vma_lock);
-			kfree(vmap);
+			linux_cdev_handle_free(vmap);
 			return (NULL);
 		}
 	}
-	/*
-	 * The same VM object might be shared by multiple processes
-	 * and the mm_struct is usually freed when a process exits.
-	 *
-	 * The atomic reference below makes sure the mm_struct is
-	 * available as long as the vmap is in the linux_vma_head.
-	 */
-	if (atomic_inc_not_zero(&vmap->vm_mm->mm_users) == 0)
-		panic("linuxkpi: mm_users is zero\n");
-
 	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
 	return (vmap);
@@ -517,16 +516,9 @@ linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 static void
 linux_cdev_handle_remove(struct vm_area_struct *vmap)
 {
-	if (vmap == NULL)
-		return;
-
 	rw_wlock(&linux_vma_lock);
 	TAILQ_REMOVE(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
-
-	/* Drop reference on mm_struct */
-	mmput(vmap->vm_mm);
-	kfree(vmap);
 }
 
 static struct vm_area_struct *
@@ -562,13 +554,19 @@ linux_cdev_pager_dtor(void *handle)
 	vmap = linux_cdev_handle_find(handle);
 	MPASS(vmap != NULL);
 
+	/*
+	 * Remove handle before calling close operation to prevent
+	 * other threads from reusing the handle pointer.
+	 */
+	linux_cdev_handle_remove(vmap);
+
 	down_write(&vmap->vm_mm->mmap_sem);
 	vm_ops = vmap->vm_ops;
 	if (likely(vm_ops != NULL))
 		vm_ops->close(vmap);
 	up_write(&vmap->vm_mm->mmap_sem);
 
-	linux_cdev_handle_remove(vmap);
+	linux_cdev_handle_free(vmap);
 }
 
 static struct cdev_pager_ops linux_cdev_pager_ops = {
@@ -895,6 +893,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
 	struct vm_area_struct *vmap;
+	struct mm_struct *mm;
 	struct linux_file *filp;
 	struct thread *td;
 	struct file *file;
@@ -914,6 +913,17 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	linux_set_current(td);
 
+	/*
+	 * The same VM object might be shared by multiple processes
+	 * and the mm_struct is usually freed when a process exits.
+	 *
+	 * The atomic reference below makes sure the mm_struct is
+	 * available as long as the vmap is in the linux_vma_head.
+	 */
+	mm = current->mm;
+	if (atomic_inc_not_zero(&mm->mm_users) == 0)
+		return (EINVAL);
+
 	vmap = kzalloc(sizeof(*vmap), GFP_KERNEL);
 	vmap->vm_start = 0;
 	vmap->vm_end = size;
@@ -922,7 +932,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_flags = vmap->vm_page_prot = nprot;
 	vmap->vm_ops = NULL;
 	vmap->vm_file = filp;
-	vmap->vm_mm = current->mm;
+	vmap->vm_mm = mm;
 
 	if (unlikely(down_write_killable(&vmap->vm_mm->mmap_sem))) {
 		error = EINTR;
@@ -932,7 +942,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	}
 
 	if (error != 0) {
-		kfree(vmap);
+		linux_cdev_handle_free(vmap);
 		return (error);
 	}
 
@@ -945,7 +955,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		    vmap->vm_ops->open == NULL ||
 		    vmap->vm_ops->close == NULL ||
 		    vmap->vm_private_data == NULL) {
-			kfree(vmap);
+			linux_cdev_handle_free(vmap);
 			return (EINVAL);
 		}
 
@@ -958,6 +968,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 		if (*object == NULL) {
 			linux_cdev_handle_remove(vmap);
+			linux_cdev_handle_free(vmap);
 			return (EINVAL);
 		}
 	} else {
@@ -969,7 +980,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		*object = vm_pager_allocate(OBJT_SG, sg, vmap->vm_len,
 		    nprot, 0, curthread->td_ucred);
 
-		kfree(vmap);
+		linux_cdev_handle_free(vmap);
 
 		if (*object == NULL) {
 			sglist_free(sg);
