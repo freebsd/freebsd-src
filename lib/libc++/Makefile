@@ -4,10 +4,8 @@
 
 PACKAGE=	clibs
 .if ${MK_CHERI} != "no"
+ALLOW_SHARED_TEXTREL=yes
 WANT_CHERI?=	hybrid
-# currently crashes...., need to debug
-CHERI_LLD_BROKEN=yes
-CXXFLAGS+=	-fno-exceptions -DLIBCXXRT_NO_EXCEPTIONS_NO_RTTI
 _LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt/src
 HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
 SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
@@ -58,9 +56,7 @@ SRCS+=		variant.cpp
 
 CXXRT_SRCS+=	auxhelper.cc
 CXXRT_SRCS+=	dynamic_cast.cc
-.if !defined(LIBCHERI)
 CXXRT_SRCS+=	exception.cc
-.endif
 CXXRT_SRCS+=	guard.cc
 CXXRT_SRCS+=	libelftc_dem_gnu3.c
 CXXRT_SRCS+=	memory.cc

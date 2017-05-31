@@ -5,8 +5,6 @@
 PACKAGE=	clibs
 .if ${MK_CHERI} != "no"
 WANT_CHERI?=	hybrid
-# currently crashes need to debug
-CHERI_LLD_BROKEN=yes
 ALLOW_SHARED_TEXTREL=yes
 SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt/src
 .else

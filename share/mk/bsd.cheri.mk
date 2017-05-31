@@ -39,9 +39,16 @@
 WANT_CHERI:= ${NEED_CHERI}
 .endif
 
-.if defined(PROG_CXX)
-# more C++ build system work needed to pick up libc++ headers instead of libstdc++
-WANT_CHERI=	none
+.if defined(LIB_CXX) || defined(PROG_CXX) || defined(SHLIB_CXX)
+.if ${MK_CHERI} != "no"
+# We need to use CHERI clang for C++ because we no longer build libstdc++
+WANT_CHERI?=	hybrid
+# XXXAR: leave this for a while until everyone has updated clang to
+# a version that defaults to libc++
+LDFLAGS+=	-stdlib=libc++
+# exceptions currently require text relocations on MIPS
+ALLOW_SHARED_TEXTREL=yes
+.endif
 .endif
 
 .if ${MK_CHERI} != "no" && defined(WANT_CHERI) && ${WANT_CHERI} != "none"
@@ -52,7 +59,7 @@ WANT_CHERI=	none
 .error CHERI_CC is defined to ${CHERI_CC} which does not exist
 .endif
 
-.if !defined(CHERI_CXX)
+.if !defined(CHERI_CXX) || empty(CHERI_CXX)
 CHERI_CXX=${CHERI_CC:H}/${CHERI_CC:T:S/clang/clang++/}
 .endif
 .if !exists(${CHERI_CXX}) 
@@ -136,6 +143,9 @@ CXX:=   ${_CHERI_CXX}
 COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
 CXXFLAGS+=	${_CHERI_CFLAGS}
+# XXXAR: leave this for a while until everyone has updated clang to
+# a version that defaults to libc++
+CXXFLAGS+=	-stdlib=libc++
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
 		--keep-symbol=__cheri_method.\*
