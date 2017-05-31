@@ -1,4 +1,4 @@
-/*	$NetBSD: unxz.c,v 1.5 2011/09/30 01:32:21 christos Exp $	*/
+/*	$NetBSD: unxz.c,v 1.6 2016/01/29 15:19:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
