@@ -409,6 +409,12 @@
     <sect2 xml:id="network-general">
       <title>General Networking Changes</title>
 
+      <para revision="313558" contrib="sponsor"
+	sponsor="&dellemc;">The network stack has been modified to fix
+	incorrect or invalid <acronym>IP</acronym> addresses if
+	multiple threads emit a <acronym>UDP</acronym>
+	<literal>log_in_vain</literal> message concurrently.</para>
+
       <para revision="317375" contrib="sponsor"
 	sponsor="&multiplay;">The <acronym>TCP</acronym> stack has
 	been changed to use the estimated <acronym>RTT</acronym>
