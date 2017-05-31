@@ -172,6 +172,12 @@
 	<literal>delete-old-libs</literal> target when upgrading the
 	system if <literal>WITHOUT_LIBTHR</literal> is
 	set in &man.src.conf.5;.</para>
+
+      <para revision="319243">The
+	<literal>WITH_RPCBIND_WARMSTART_SUPPORT</literal>
+	&man.src.conf.5; knob has been added, which when enabled
+	allows building &man.rpcbind.8; with
+	<literal>warmstart</literal> support.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
