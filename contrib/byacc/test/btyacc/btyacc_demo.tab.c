@@ -1330,6 +1330,9 @@ YYPARSE_DECL()
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
 #endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
 
 #if YYBTYACC
     yyps = yyNewState(0); if (yyps == 0) goto yyenomem;
@@ -2103,7 +2106,7 @@ case 59:
 #line 197 "btyacc_demo.y"
 	{ yyval.code = yystack.l_mark[-1].code; }
 break;
-#line 2107 "btyacc_demo.tab.c"
+#line 2110 "btyacc_demo.tab.c"
     default:
         break;
     }
