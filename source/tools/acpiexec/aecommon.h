@@ -204,9 +204,19 @@ extern ACPI_CONNECTION_INFO AeMyContext;
 #define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
                                             AcpiOsPrintf PARAM_LIST(fp);}
 
+#define AE_PREFIX                       "ACPI Exec: "
+
 void ACPI_SYSTEM_XFACE
-AeCtrlCHandler (
+AeSignalHandler (
     int                     Sig);
+
+ACPI_STATUS
+AeExceptionHandler (
+    ACPI_STATUS             AmlStatus,
+    ACPI_NAME               Name,
+    UINT16                  Opcode,
+    UINT32                  AmlOffset,
+    void                    *Context);
 
 ACPI_STATUS
 AeBuildLocalTables (

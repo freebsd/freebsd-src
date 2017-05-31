@@ -261,7 +261,7 @@ AcpiDmDisasmByteList (
 
         /* Dump the ASCII equivalents within a comment */
 
-        AcpiOsPrintf ("  /* ");
+        AcpiOsPrintf ("  // ");
         for (j = 0; j < ACPI_BUFFER_BYTES_PER_LINE; j++)
         {
             CurrentIndex = i + j;
@@ -283,7 +283,7 @@ AcpiDmDisasmByteList (
 
         /* Finished with this line */
 
-        AcpiOsPrintf (" */\n");
+        AcpiOsPrintf ("\n");
     }
 }
 

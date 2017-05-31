@@ -435,6 +435,7 @@ ExMoveExternals (
     ACPI_PARSE_OBJECT       *Next;
     char                    *ExternalName;
     ACPI_OBJECT_TYPE        ObjType;
+    ACPI_STATUS             Status;
     UINT32                  i;
 
 
@@ -473,8 +474,16 @@ ExMoveExternals (
         {
             Next->Asl.ParseOpcode = PARSEOP_NAMESTRING;
         }
+
         Next->Asl.ExternalName = ExternalName;
-        UtInternalizeName (ExternalName, &Next->Asl.Value.String);
+        Status = UtInternalizeName (ExternalName, &Next->Asl.Value.String);
+        if (ACPI_FAILURE (Status))
+        {
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+                Next, "Could not internalize namestring");
+            return;
+        }
+
         Next->Asl.AmlLength = strlen (Next->Asl.Value.String);
 
         Next = Next->Asl.Next;

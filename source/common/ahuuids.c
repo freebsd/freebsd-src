@@ -186,6 +186,10 @@ const AH_UUID  Gbl_AcpiUuids[] =
     {"Persistent Virtual Disk",     UUID_PERSISTENT_VIRTUAL_DISK},
     {"Persistent Virtual CD",       UUID_PERSISTENT_VIRTUAL_CD},
 
+    {"[Processor Properties]",      NULL},
+    {"Cache Properties",            UUID_CACHE_PROPERTIES},
+    {"Physical Package Property",   UUID_PHYSICAL_PROPERTY},
+
     {"[Miscellaneous]",             NULL},
     {"Platform-wide Capabilities",  UUID_PLATFORM_CAPABILITIES},
     {"Dynamic Enumeration",         UUID_DYNAMIC_ENUMERATION},

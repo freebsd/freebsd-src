@@ -191,6 +191,7 @@ CvProcessComment (
         *StringBuffer = (char) c1;
         ++StringBuffer;
         *StringBuffer = 0;
+
         CvDbgPrint ("Multi-line comment\n");
         CommentString = UtStringCacheCalloc (strlen (MsgBuffer) + 1);
         strcpy (CommentString, MsgBuffer);
@@ -198,17 +199,15 @@ CvProcessComment (
         CvDbgPrint ("CommentString: %s\n", CommentString);
 
         /*
-         * Determine whether if this comment spans multiple lines.
-         * If so, break apart the comment by line so that it can be
-         * properly indented.
+         * Determine whether if this comment spans multiple lines. If so,
+         * break apart the comment by storing each line in a different node
+         * within the comment list. This allows the disassembler to
+         * properly indent a multi-line comment.
          */
-        if (strchr (CommentString, '\n') != NULL)
+        LineToken = strtok (CommentString, "\n");
+
+        if (LineToken)
         {
-            /*
-             * Get the first token. The for loop pads subsequent lines
-             * for comments similar to the style of this comment.
-             */
-            LineToken = strtok (CommentString, "\n");
             FinalLineToken = UtStringCacheCalloc (strlen (LineToken) + 1);
             strcpy (FinalLineToken, LineToken);
 
@@ -263,7 +262,10 @@ CvProcessComment (
             * if this is not a regular comment, pad with extra spaces that appeared
             * in the original source input to retain the original spacing.
             */
-            FinalCommentString = UtStringCacheCalloc (strlen (CommentString) + CurrentState.SpacesBefore + 1);
+            FinalCommentString =
+                UtStringCacheCalloc (strlen (CommentString) +
+                CurrentState.SpacesBefore + 1);
+
             for (i=0; (CurrentState.CommentType != ASL_COMMENT_STANDARD) &&
                 (i < CurrentState.SpacesBefore); ++i)
             {
@@ -333,7 +335,9 @@ CvProcessCommentType2 (
          * [ (spaces) (comment)  ( * /) ('\0') ]
          *
          */
-        FinalCommentString = UtStringCacheCalloc (CurrentState.SpacesBefore + strlen (CommentString) + 3 + 1);
+        FinalCommentString = UtStringCacheCalloc (CurrentState.SpacesBefore +
+            strlen (CommentString) + 3 + 1);
+
         for (i=0; (CurrentState.CommentType!=1) && (i<CurrentState.SpacesBefore); ++i)
         {
             FinalCommentString[i] = ' ';
@@ -556,6 +560,12 @@ CgWriteOneAmlComment(
     UINT8 CommentOption = InputOption;
     UINT8 CommentOpcode = (UINT8)AML_COMMENT_OP;
 
+
+    if (!CommentToPrint)
+    {
+        return;
+    }
+
     CgLocalWriteAmlData (Op, &CommentOpcode, 1);
     CgLocalWriteAmlData (Op, &CommentOption, 1);
 
@@ -603,8 +613,12 @@ CgWriteAmlComment(
 
         NewFilename =
             FlGenerateFilename (Op->Asl.Filename, FILE_SUFFIX_DISASSEMBLY);
-        CvDbgPrint ("Writing file comment, \"%s\" for %s\n",
-            NewFilename, Op->Asl.ParseOpName);
+        if (NewFilename)
+        {
+            CvDbgPrint ("Writing file comment, \"%s\" for %s\n",
+                NewFilename, Op->Asl.ParseOpName);
+        }
+
         CgWriteOneAmlComment(Op, NewFilename, FILENAME_COMMENT);
 
         if (Op->Asl.ParentFilename &&
@@ -688,17 +702,16 @@ CgWriteAmlComment(
  *
  ******************************************************************************/
 
-ACPI_COMMENT_NODE*
+ACPI_COMMENT_NODE *
 CvCommentNodeCalloc (
     void)
 {
    ACPI_COMMENT_NODE        *NewCommentNode;
 
 
-   NewCommentNode =
-       (ACPI_COMMENT_NODE*) UtLocalCalloc (sizeof(ACPI_COMMENT_NODE));
+   NewCommentNode = UtLocalCalloc (sizeof (ACPI_COMMENT_NODE));
    NewCommentNode->Next = NULL;
-   return NewCommentNode;
+   return (NewCommentNode);
 }
 
 
@@ -907,10 +920,12 @@ CvAppendInlineComment (
     {
         return ToAdd;
     }
-    if (ToAdd)
+    if (!ToAdd)
     {
-        Size = strlen (ToAdd);
+        return InlineComment;
     }
+
+    Size = strlen (ToAdd);
     Size += strlen (InlineComment);
     Str = UtStringCacheCalloc (Size+1);
     strcpy (Str, InlineComment);

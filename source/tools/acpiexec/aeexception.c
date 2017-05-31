@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: dmdeferred - Disassembly of deferred AML opcodes
+ * Module Name: aeexception - Exception and signal handlers
  *
  *****************************************************************************/
 
@@ -149,224 +149,293 @@
  *
  *****************************************************************************/
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acdispat.h"
-#include "amlcode.h"
-#include "acdisasm.h"
-#include "acparser.h"
+#include "aecommon.h"
 
-#define _COMPONENT          ACPI_CA_DISASSEMBLER
-        ACPI_MODULE_NAME    ("dmdeferred")
+#define _COMPONENT          ACPI_TOOLS
+        ACPI_MODULE_NAME    ("aeexception")
 
 
 /* Local prototypes */
 
-static ACPI_STATUS
-AcpiDmDeferredParse (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   *Aml,
-    UINT32                  AmlLength);
+static void
+AeDisplayMethodCallStack (
+    void);
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiDmParseDeferredOps
+ * FUNCTION:    AeExceptionHandler
  *
- * PARAMETERS:  Root                - Root of the parse tree
+ * PARAMETERS:  Standard exception handler parameters
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Parse the deferred opcodes (Methods, regions, etc.)
+ * DESCRIPTION: System exception handler for AcpiExec utility. Called from
+ *              the core ACPICA code after any exception during method
+ *              execution.
  *
  *****************************************************************************/
 
 ACPI_STATUS
-AcpiDmParseDeferredOps (
-    ACPI_PARSE_OBJECT       *Root)
+AeExceptionHandler (
+    ACPI_STATUS             AmlStatus,
+    ACPI_NAME               Name,
+    UINT16                  Opcode,
+    UINT32                  AmlOffset,
+    void                    *Context)
 {
-    const ACPI_OPCODE_INFO  *OpInfo;
-    ACPI_PARSE_OBJECT       *Op = Root;
+    ACPI_STATUS             NewAmlStatus = AmlStatus;
     ACPI_STATUS             Status;
+    ACPI_BUFFER             ReturnObj;
+    ACPI_OBJECT_LIST        ArgList;
+    ACPI_OBJECT             Arg[3];
+    const char              *Exception;
+    ACPI_HANDLE             ErrHandle;
 
 
-    ACPI_FUNCTION_TRACE (DmParseDeferredOps);
-
-
-    /* Traverse the entire parse tree */
-
-    while (Op)
+    Exception = AcpiFormatException (AmlStatus);
+    AcpiOsPrintf (AE_PREFIX
+        "Exception %s during execution\n", Exception);
+    if (Name)
     {
-        OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
-        if (!(OpInfo->Flags & AML_DEFER))
-        {
-            Op = AcpiPsGetDepthNext (Root, Op);
-            continue;
-        }
-
-        /* Now we know we have a deferred opcode */
-
-        switch (Op->Common.AmlOpcode)
-        {
-        case AML_METHOD_OP:
-        case AML_BUFFER_OP:
-        case AML_PACKAGE_OP:
-        case AML_VARIABLE_PACKAGE_OP:
-
-            Status = AcpiDmDeferredParse (
-                Op, Op->Named.Data, Op->Named.Length);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-            break;
-
-        /* We don't need to do anything for these deferred opcodes */
-
-        case AML_REGION_OP:
-        case AML_DATA_REGION_OP:
-        case AML_CREATE_QWORD_FIELD_OP:
-        case AML_CREATE_DWORD_FIELD_OP:
-        case AML_CREATE_WORD_FIELD_OP:
-        case AML_CREATE_BYTE_FIELD_OP:
-        case AML_CREATE_BIT_FIELD_OP:
-        case AML_CREATE_FIELD_OP:
-        case AML_BANK_FIELD_OP:
-
-            break;
-
-        default:
-
-            ACPI_ERROR ((AE_INFO, "Unhandled deferred AML opcode [0x%.4X]",
-                 Op->Common.AmlOpcode));
-            break;
-        }
-
-        Op = AcpiPsGetDepthNext (Root, Op);
+        AcpiOsPrintf (AE_PREFIX
+            "Evaluating Method or Node: [%4.4s]",
+            (char *) &Name);
     }
 
-    return_ACPI_STATUS (AE_OK);
+    AcpiOsPrintf ("\n" AE_PREFIX
+        "AML Opcode [%s], Method Offset ~%5.5X\n",
+        AcpiPsGetOpcodeName (Opcode), AmlOffset);
+
+    /* Invoke the _ERR method if present */
+
+    Status = AcpiGetHandle (NULL, "\\_ERR", &ErrHandle);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
+
+    /* Setup parameter object */
+
+    ArgList.Count = 3;
+    ArgList.Pointer = Arg;
+
+    Arg[0].Type = ACPI_TYPE_INTEGER;
+    Arg[0].Integer.Value = AmlStatus;
+
+    Arg[1].Type = ACPI_TYPE_STRING;
+    Arg[1].String.Pointer = ACPI_CAST_PTR (char, Exception);
+    Arg[1].String.Length = strlen (Exception);
+
+    Arg[2].Type = ACPI_TYPE_INTEGER;
+    Arg[2].Integer.Value = AcpiOsGetThreadId();
+
+    /* Setup return buffer */
+
+    ReturnObj.Pointer = NULL;
+    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
+
+    Status = AcpiEvaluateObject (ErrHandle, NULL, &ArgList, &ReturnObj);
+    if (ACPI_SUCCESS (Status))
+    {
+        if (ReturnObj.Pointer)
+        {
+            /* Override original status */
+
+            NewAmlStatus = (ACPI_STATUS)
+                ((ACPI_OBJECT *) ReturnObj.Pointer)->Integer.Value;
+
+            /* Free a buffer created via ACPI_ALLOCATE_BUFFER */
+
+            AcpiOsFree (ReturnObj.Pointer);
+        }
+    }
+    else if (Status != AE_NOT_FOUND)
+    {
+        AcpiOsPrintf (AE_PREFIX
+            "Could not execute _ERR method, %s\n",
+            AcpiFormatException (Status));
+    }
+
+Cleanup:
+
+    /* Global overrides */
+
+    if (AcpiGbl_IgnoreErrors)
+    {
+        NewAmlStatus = AE_OK;
+    }
+    else if (AmlStatus == AE_AML_INTERNAL)
+    {
+        NewAmlStatus = AE_AML_INTERNAL;
+        AcpiOsPrintf (AE_PREFIX
+            "Cannot override status %s\n\n",
+            AcpiFormatException (NewAmlStatus));
+    }
+    else if (NewAmlStatus != AmlStatus)
+    {
+        AcpiOsPrintf (AE_PREFIX
+            "Exception override, new status %s\n\n",
+            AcpiFormatException (NewAmlStatus));
+    }
+
+    return (NewAmlStatus);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiDmDeferredParse
+ * FUNCTION:    AeSignalHandler
  *
- * PARAMETERS:  Op                  - Root Op of the deferred opcode
- *              Aml                 - Pointer to the raw AML
- *              AmlLength           - Length of the AML
+ * PARAMETERS:  Sig
  *
- * RETURN:      Status
+ * RETURN:      none
  *
- * DESCRIPTION: Parse one deferred opcode
- *              (Methods, operation regions, etc.)
+ * DESCRIPTION: Master signal handler. Currently handles SIGINT (ctrl-c),
+ *              and SIGSEGV (Segment violation).
  *
  *****************************************************************************/
 
-static ACPI_STATUS
-AcpiDmDeferredParse (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   *Aml,
-    UINT32                  AmlLength)
+void ACPI_SYSTEM_XFACE
+AeSignalHandler (
+    int                     Sig)
 {
-    ACPI_WALK_STATE         *WalkState;
-    ACPI_STATUS             Status;
-    ACPI_PARSE_OBJECT       *SearchOp;
-    ACPI_PARSE_OBJECT       *StartOp;
-    ACPI_PARSE_OBJECT       *NewRootOp;
-    ACPI_PARSE_OBJECT       *ExtraOp;
 
+    fflush(stdout);
+    AcpiOsPrintf ("\n" AE_PREFIX);
 
-    ACPI_FUNCTION_TRACE (DmDeferredParse);
-
-
-    if (!Aml || !AmlLength)
+    switch (Sig)
     {
-        return_ACPI_STATUS (AE_OK);
-    }
+    case SIGINT:
+        signal(Sig, SIG_IGN);
+        AcpiOsPrintf ("<Control-C>\n");
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Parsing deferred opcode %s [%4.4s]\n",
-        Op->Common.AmlOpName, (char *) &Op->Named.Name));
+        /* Abort the application if there are no methods executing */
 
-    /* Need a new walk state to parse the AML */
-
-    WalkState = AcpiDsCreateWalkState (0, Op, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, Aml,
-        AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Parse the AML for this deferred opcode */
-
-    WalkState->ParseFlags &= ~ACPI_PARSE_DELETE_TREE;
-    WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
-    Status = AcpiPsParseAml (WalkState);
-
-    StartOp = (Op->Common.Value.Arg)->Common.Next;
-    SearchOp = StartOp;
-    while (SearchOp)
-    {
-        SearchOp = AcpiPsGetDepthNext (StartOp, SearchOp);
-    }
-
-    /*
-     * For Buffer and Package opcodes, link the newly parsed subtree
-     * into the main parse tree
-     */
-    switch (Op->Common.AmlOpcode)
-    {
-    case AML_BUFFER_OP:
-    case AML_PACKAGE_OP:
-    case AML_VARIABLE_PACKAGE_OP:
-
-        switch (Op->Common.AmlOpcode)
+        if (!AcpiGbl_MethodExecuting)
         {
-        case AML_PACKAGE_OP:
-
-            ExtraOp = Op->Common.Value.Arg;
-            NewRootOp = ExtraOp->Common.Next;
-            ACPI_FREE (ExtraOp);
-            break;
-
-        case AML_VARIABLE_PACKAGE_OP:
-        case AML_BUFFER_OP:
-        default:
-
-            NewRootOp = Op->Common.Value.Arg;
             break;
         }
 
-        Op->Common.Value.Arg = NewRootOp->Common.Value.Arg;
+        /*
+         * Abort the method(s). This will also dump the method call
+         * stack so there is no need to do it here. The application
+         * will then drop back into the debugger interface.
+         */
+        AcpiGbl_AbortMethod = TRUE;
+        AcpiOsPrintf (AE_PREFIX "Control Method Call Stack:\n");
+        signal (SIGINT, AeSignalHandler);
+        return;
 
-        /* Must point all parents to the main tree */
-
-        StartOp = Op;
-        SearchOp = StartOp;
-        while (SearchOp)
-        {
-            if (SearchOp->Common.Parent == NewRootOp)
-            {
-                SearchOp->Common.Parent = Op;
-            }
-
-            SearchOp = AcpiPsGetDepthNext (StartOp, SearchOp);
-        }
-
-        ACPI_FREE (NewRootOp);
+    case SIGSEGV:
+        AcpiOsPrintf ("Segmentation Fault\n");
+        AeDisplayMethodCallStack ();
         break;
 
     default:
-
+        AcpiOsPrintf ("Unknown Signal, %X\n", Sig);
         break;
     }
 
-    return_ACPI_STATUS (AE_OK);
+    /* Terminate application -- cleanup then exit */
+
+    AcpiOsPrintf (AE_PREFIX "Terminating\n");
+    (void) AcpiOsTerminate ();
+    exit (0);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeDisplayMethodCallStack
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display current method call stack, if possible.
+ *
+ * NOTE:        Currently only called from a SIGSEGV, so AcpiExec is about
+ *              to terminate.
+ *
+ *****************************************************************************/
+
+static void
+AeDisplayMethodCallStack (
+    void)
+{
+    ACPI_WALK_STATE         *WalkState;
+    ACPI_THREAD_STATE       *ThreadList = AcpiGbl_CurrentWalkList;
+    char                    *FullPathname = NULL;
+
+
+    if (!AcpiGbl_MethodExecuting)
+    {
+        AcpiOsPrintf (AE_PREFIX "No method is executing\n");
+        return;
+    }
+
+    /*
+     * Try to find the currently executing control method(s)
+     *
+     * Note: The following code may fault if the data structures are
+     * in an indeterminate state when the interrupt occurs. However,
+     * in practice, this works quite well and can provide very
+     * valuable information.
+     *
+     * 1) Walk the global thread list
+     */
+    while (ThreadList &&
+        (ThreadList->DescriptorType == ACPI_DESC_TYPE_STATE_THREAD))
+    {
+        /* 2) Walk the walk state list for this thread */
+
+        WalkState = ThreadList->WalkStateList;
+        while (WalkState &&
+            (WalkState->DescriptorType == ACPI_DESC_TYPE_WALK))
+        {
+            /* An executing control method */
+
+            if (WalkState->MethodNode)
+            {
+                FullPathname = AcpiNsGetExternalPathname (
+                    WalkState->MethodNode);
+
+                AcpiOsPrintf (AE_PREFIX
+                    "Executing Method: %s\n", FullPathname);
+            }
+
+            /* Execution of a deferred opcode/node */
+
+            if (WalkState->DeferredNode)
+            {
+                FullPathname = AcpiNsGetExternalPathname (
+                    WalkState->DeferredNode);
+
+                AcpiOsPrintf (AE_PREFIX
+                    "Evaluating deferred node: %s\n", FullPathname);
+            }
+
+            /* Get the currently executing AML opcode */
+
+            if ((WalkState->Opcode != AML_INT_METHODCALL_OP) &&
+                FullPathname)
+            {
+                AcpiOsPrintf (AE_PREFIX
+                    "Current AML Opcode in %s: [%s]-0x%4.4X at %p\n",
+                    FullPathname, AcpiPsGetOpcodeName (WalkState->Opcode),
+                    WalkState->Opcode, WalkState->Aml);
+            }
+
+            if (FullPathname)
+            {
+                ACPI_FREE (FullPathname);
+                FullPathname = NULL;
+            }
+
+            WalkState = WalkState->Next;
+        }
+
+        ThreadList = ThreadList->Next;
+    }
 }

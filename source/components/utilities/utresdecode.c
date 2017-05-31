@@ -1,8 +1,8 @@
-/******************************************************************************
+/*******************************************************************************
  *
- * Module Name: dmdeferred - Disassembly of deferred AML opcodes
+ * Module Name: utresdecode - Resource descriptor keyword strings
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -151,222 +151,311 @@
 
 #include "acpi.h"
 #include "accommon.h"
-#include "acdispat.h"
-#include "amlcode.h"
-#include "acdisasm.h"
-#include "acparser.h"
-
-#define _COMPONENT          ACPI_CA_DISASSEMBLER
-        ACPI_MODULE_NAME    ("dmdeferred")
+#include "acresrc.h"
 
 
-/* Local prototypes */
-
-static ACPI_STATUS
-AcpiDmDeferredParse (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   *Aml,
-    UINT32                  AmlLength);
+#define _COMPONENT          ACPI_UTILITIES
+        ACPI_MODULE_NAME    ("utresdecode")
 
 
-/******************************************************************************
- *
- * FUNCTION:    AcpiDmParseDeferredOps
- *
- * PARAMETERS:  Root                - Root of the parse tree
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Parse the deferred opcodes (Methods, regions, etc.)
- *
- *****************************************************************************/
+#if defined (ACPI_DEBUG_OUTPUT) || \
+    defined (ACPI_DISASSEMBLER) || \
+    defined (ACPI_DEBUGGER)
 
-ACPI_STATUS
-AcpiDmParseDeferredOps (
-    ACPI_PARSE_OBJECT       *Root)
+/*
+ * Strings used to decode resource descriptors.
+ * Used by both the disassembler and the debugger resource dump routines
+ */
+const char                      *AcpiGbl_BmDecode[] =
 {
-    const ACPI_OPCODE_INFO  *OpInfo;
-    ACPI_PARSE_OBJECT       *Op = Root;
-    ACPI_STATUS             Status;
+    "NotBusMaster",
+    "BusMaster"
+};
 
-
-    ACPI_FUNCTION_TRACE (DmParseDeferredOps);
-
-
-    /* Traverse the entire parse tree */
-
-    while (Op)
-    {
-        OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
-        if (!(OpInfo->Flags & AML_DEFER))
-        {
-            Op = AcpiPsGetDepthNext (Root, Op);
-            continue;
-        }
-
-        /* Now we know we have a deferred opcode */
-
-        switch (Op->Common.AmlOpcode)
-        {
-        case AML_METHOD_OP:
-        case AML_BUFFER_OP:
-        case AML_PACKAGE_OP:
-        case AML_VARIABLE_PACKAGE_OP:
-
-            Status = AcpiDmDeferredParse (
-                Op, Op->Named.Data, Op->Named.Length);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-            break;
-
-        /* We don't need to do anything for these deferred opcodes */
-
-        case AML_REGION_OP:
-        case AML_DATA_REGION_OP:
-        case AML_CREATE_QWORD_FIELD_OP:
-        case AML_CREATE_DWORD_FIELD_OP:
-        case AML_CREATE_WORD_FIELD_OP:
-        case AML_CREATE_BYTE_FIELD_OP:
-        case AML_CREATE_BIT_FIELD_OP:
-        case AML_CREATE_FIELD_OP:
-        case AML_BANK_FIELD_OP:
-
-            break;
-
-        default:
-
-            ACPI_ERROR ((AE_INFO, "Unhandled deferred AML opcode [0x%.4X]",
-                 Op->Common.AmlOpcode));
-            break;
-        }
-
-        Op = AcpiPsGetDepthNext (Root, Op);
-    }
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiDmDeferredParse
- *
- * PARAMETERS:  Op                  - Root Op of the deferred opcode
- *              Aml                 - Pointer to the raw AML
- *              AmlLength           - Length of the AML
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Parse one deferred opcode
- *              (Methods, operation regions, etc.)
- *
- *****************************************************************************/
-
-static ACPI_STATUS
-AcpiDmDeferredParse (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   *Aml,
-    UINT32                  AmlLength)
+const char                      *AcpiGbl_ConfigDecode[] =
 {
-    ACPI_WALK_STATE         *WalkState;
-    ACPI_STATUS             Status;
-    ACPI_PARSE_OBJECT       *SearchOp;
-    ACPI_PARSE_OBJECT       *StartOp;
-    ACPI_PARSE_OBJECT       *NewRootOp;
-    ACPI_PARSE_OBJECT       *ExtraOp;
+    "0 - Good Configuration",
+    "1 - Acceptable Configuration",
+    "2 - Suboptimal Configuration",
+    "3 - ***Invalid Configuration***",
+};
 
+const char                      *AcpiGbl_ConsumeDecode[] =
+{
+    "ResourceProducer",
+    "ResourceConsumer"
+};
 
-    ACPI_FUNCTION_TRACE (DmDeferredParse);
+const char                      *AcpiGbl_DecDecode[] =
+{
+    "PosDecode",
+    "SubDecode"
+};
 
+const char                      *AcpiGbl_HeDecode[] =
+{
+    "Level",
+    "Edge"
+};
 
-    if (!Aml || !AmlLength)
-    {
-        return_ACPI_STATUS (AE_OK);
-    }
+const char                      *AcpiGbl_IoDecode[] =
+{
+    "Decode10",
+    "Decode16"
+};
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Parsing deferred opcode %s [%4.4s]\n",
-        Op->Common.AmlOpName, (char *) &Op->Named.Name));
+const char                      *AcpiGbl_LlDecode[] =
+{
+    "ActiveHigh",
+    "ActiveLow",
+    "ActiveBoth",
+    "Reserved"
+};
 
-    /* Need a new walk state to parse the AML */
+const char                      *AcpiGbl_MaxDecode[] =
+{
+    "MaxNotFixed",
+    "MaxFixed"
+};
 
-    WalkState = AcpiDsCreateWalkState (0, Op, NULL, NULL);
-    if (!WalkState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
+const char                      *AcpiGbl_MemDecode[] =
+{
+    "NonCacheable",
+    "Cacheable",
+    "WriteCombining",
+    "Prefetchable"
+};
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, NULL, Aml,
-        AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
+const char                      *AcpiGbl_MinDecode[] =
+{
+    "MinNotFixed",
+    "MinFixed"
+};
 
-    /* Parse the AML for this deferred opcode */
+const char                      *AcpiGbl_MtpDecode[] =
+{
+    "AddressRangeMemory",
+    "AddressRangeReserved",
+    "AddressRangeACPI",
+    "AddressRangeNVS"
+};
 
-    WalkState->ParseFlags &= ~ACPI_PARSE_DELETE_TREE;
-    WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
-    Status = AcpiPsParseAml (WalkState);
+const char                      *AcpiGbl_RngDecode[] =
+{
+    "InvalidRanges",
+    "NonISAOnlyRanges",
+    "ISAOnlyRanges",
+    "EntireRange"
+};
 
-    StartOp = (Op->Common.Value.Arg)->Common.Next;
-    SearchOp = StartOp;
-    while (SearchOp)
-    {
-        SearchOp = AcpiPsGetDepthNext (StartOp, SearchOp);
-    }
+const char                      *AcpiGbl_RwDecode[] =
+{
+    "ReadOnly",
+    "ReadWrite"
+};
 
-    /*
-     * For Buffer and Package opcodes, link the newly parsed subtree
-     * into the main parse tree
-     */
-    switch (Op->Common.AmlOpcode)
-    {
-    case AML_BUFFER_OP:
-    case AML_PACKAGE_OP:
-    case AML_VARIABLE_PACKAGE_OP:
+const char                      *AcpiGbl_ShrDecode[] =
+{
+    "Exclusive",
+    "Shared",
+    "ExclusiveAndWake",         /* ACPI 5.0 */
+    "SharedAndWake"             /* ACPI 5.0 */
+};
 
-        switch (Op->Common.AmlOpcode)
-        {
-        case AML_PACKAGE_OP:
+const char                      *AcpiGbl_SizDecode[] =
+{
+    "Transfer8",
+    "Transfer8_16",
+    "Transfer16",
+    "InvalidSize"
+};
 
-            ExtraOp = Op->Common.Value.Arg;
-            NewRootOp = ExtraOp->Common.Next;
-            ACPI_FREE (ExtraOp);
-            break;
+const char                      *AcpiGbl_TrsDecode[] =
+{
+    "DenseTranslation",
+    "SparseTranslation"
+};
 
-        case AML_VARIABLE_PACKAGE_OP:
-        case AML_BUFFER_OP:
-        default:
+const char                      *AcpiGbl_TtpDecode[] =
+{
+    "TypeStatic",
+    "TypeTranslation"
+};
 
-            NewRootOp = Op->Common.Value.Arg;
-            break;
-        }
+const char                      *AcpiGbl_TypDecode[] =
+{
+    "Compatibility",
+    "TypeA",
+    "TypeB",
+    "TypeF"
+};
 
-        Op->Common.Value.Arg = NewRootOp->Common.Value.Arg;
+const char                      *AcpiGbl_PpcDecode[] =
+{
+    "PullDefault",
+    "PullUp",
+    "PullDown",
+    "PullNone"
+};
 
-        /* Must point all parents to the main tree */
+const char                      *AcpiGbl_IorDecode[] =
+{
+    "IoRestrictionNone",
+    "IoRestrictionInputOnly",
+    "IoRestrictionOutputOnly",
+    "IoRestrictionNoneAndPreserve"
+};
 
-        StartOp = Op;
-        SearchOp = StartOp;
-        while (SearchOp)
-        {
-            if (SearchOp->Common.Parent == NewRootOp)
-            {
-                SearchOp->Common.Parent = Op;
-            }
+const char                      *AcpiGbl_DtsDecode[] =
+{
+    "Width8bit",
+    "Width16bit",
+    "Width32bit",
+    "Width64bit",
+    "Width128bit",
+    "Width256bit",
+};
 
-            SearchOp = AcpiPsGetDepthNext (StartOp, SearchOp);
-        }
+/* GPIO connection type */
 
-        ACPI_FREE (NewRootOp);
-        break;
+const char                      *AcpiGbl_CtDecode[] =
+{
+    "Interrupt",
+    "I/O"
+};
 
-    default:
+/* Serial bus type */
 
-        break;
-    }
+const char                      *AcpiGbl_SbtDecode[] =
+{
+    "/* UNKNOWN serial bus type */",
+    "I2C",
+    "SPI",
+    "UART"
+};
 
-    return_ACPI_STATUS (AE_OK);
-}
+/* I2C serial bus access mode */
+
+const char                      *AcpiGbl_AmDecode[] =
+{
+    "AddressingMode7Bit",
+    "AddressingMode10Bit"
+};
+
+/* I2C serial bus slave mode */
+
+const char                      *AcpiGbl_SmDecode[] =
+{
+    "ControllerInitiated",
+    "DeviceInitiated"
+};
+
+/* SPI serial bus wire mode */
+
+const char                      *AcpiGbl_WmDecode[] =
+{
+    "FourWireMode",
+    "ThreeWireMode"
+};
+
+/* SPI serial clock phase */
+
+const char                      *AcpiGbl_CphDecode[] =
+{
+    "ClockPhaseFirst",
+    "ClockPhaseSecond"
+};
+
+/* SPI serial bus clock polarity */
+
+const char                      *AcpiGbl_CpoDecode[] =
+{
+    "ClockPolarityLow",
+    "ClockPolarityHigh"
+};
+
+/* SPI serial bus device polarity */
+
+const char                      *AcpiGbl_DpDecode[] =
+{
+    "PolarityLow",
+    "PolarityHigh"
+};
+
+/* UART serial bus endian */
+
+const char                      *AcpiGbl_EdDecode[] =
+{
+    "LittleEndian",
+    "BigEndian"
+};
+
+/* UART serial bus bits per byte */
+
+const char                      *AcpiGbl_BpbDecode[] =
+{
+    "DataBitsFive",
+    "DataBitsSix",
+    "DataBitsSeven",
+    "DataBitsEight",
+    "DataBitsNine",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */"
+};
+
+/* UART serial bus stop bits */
+
+const char                      *AcpiGbl_SbDecode[] =
+{
+    "StopBitsZero",
+    "StopBitsOne",
+    "StopBitsOnePlusHalf",
+    "StopBitsTwo"
+};
+
+/* UART serial bus flow control */
+
+const char                      *AcpiGbl_FcDecode[] =
+{
+    "FlowControlNone",
+    "FlowControlHardware",
+    "FlowControlXON",
+    "/* UNKNOWN flow control keyword */"
+};
+
+/* UART serial bus parity type */
+
+const char                      *AcpiGbl_PtDecode[] =
+{
+    "ParityTypeNone",
+    "ParityTypeEven",
+    "ParityTypeOdd",
+    "ParityTypeMark",
+    "ParityTypeSpace",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */"
+};
+
+/* PinConfig type */
+
+const char                      *AcpiGbl_PtypDecode[] =
+{
+    "Default",
+    "Bias Pull-up",
+    "Bias Pull-down",
+    "Bias Default",
+    "Bias Disable",
+    "Bias High Impedance",
+    "Bias Bus Hold",
+    "Drive Open Drain",
+    "Drive Open Source",
+    "Drive Push Pull",
+    "Drive Strength",
+    "Slew Rate",
+    "Input Debounce",
+    "Input Schmitt Trigger",
+};
+
+#endif
