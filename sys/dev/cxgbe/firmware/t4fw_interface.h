@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Chelsio Communications, Inc.
+ * Copyright (c) 2012-2017 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,6 +100,7 @@ enum fw_wr_opcodes {
 	FW_ETH_TX_PKT_WR	= 0x08,
 	FW_ETH_TX_PKT2_WR	= 0x44,
 	FW_ETH_TX_PKTS_WR	= 0x09,
+	FW_ETH_TX_PKTS2_WR	= 0x78,
 	FW_ETH_TX_EO_WR		= 0x1c,
 	FW_EQ_FLUSH_WR		= 0x1b,
 	FW_OFLD_CONNECTION_WR	= 0x2f,
@@ -144,6 +145,7 @@ enum fw_wr_opcodes {
 	FW_COiSCSI_TGT_XMIT_WR	= 0x72,
 	FW_ISNS_WR		= 0x75,
 	FW_ISNS_XMIT_WR		= 0x76,
+	FW_FILTER2_WR		= 0x77,
 	FW_LASTC2E_WR		= 0x80
 };
 
@@ -301,6 +303,17 @@ enum fw_filter_wr_cookie {
 	FW_FILTER_WR_EINVAL,
 };
 
+enum fw_filter_wr_nat_mode {
+	FW_FILTER_WR_NATMODE_NONE = 0,
+	FW_FILTER_WR_NATMODE_DIP ,
+	FW_FILTER_WR_NATMODE_DIPDP,
+	FW_FILTER_WR_NATMODE_DIPDPSIP,
+	FW_FILTER_WR_NATMODE_DIPDPSP,
+	FW_FILTER_WR_NATMODE_SIPSP,
+	FW_FILTER_WR_NATMODE_DIPSIPSP,
+	FW_FILTER_WR_NATMODE_FOURTUPLE,
+};
+
 struct fw_filter_wr {
 	__be32 op_pkd;
 	__be32 len16_pkd;
@@ -331,6 +344,51 @@ struct fw_filter_wr {
 	__be16 fpm;
 	__be16 r7;
 	__u8   sma[6];
+};
+
+struct fw_filter2_wr {
+	__be32 op_pkd;
+	__be32 len16_pkd;
+	__be64 r3;
+	__be32 tid_to_iq;
+	__be32 del_filter_to_l2tix;
+	__be16 ethtype;
+	__be16 ethtypem;
+	__u8   frag_to_ovlan_vldm;
+	__u8   smac_sel;
+	__be16 rx_chan_rx_rpl_iq;
+	__be32 maci_to_matchtypem;
+	__u8   ptcl;
+	__u8   ptclm;
+	__u8   ttyp;
+	__u8   ttypm;
+	__be16 ivlan;
+	__be16 ivlanm;
+	__be16 ovlan;
+	__be16 ovlanm;
+	__u8   lip[16];
+	__u8   lipm[16];
+	__u8   fip[16];
+	__u8   fipm[16];
+	__be16 lp;
+	__be16 lpm;
+	__be16 fp;
+	__be16 fpm;
+	__be16 r7;
+	__u8   sma[6];
+	__u8   r8_hi[2];
+	__u8   filter_type_swapmac;
+	__u8   natmode_to_ulp_type;
+	__be16 newlport;
+	__be16 newfport;
+	__u8   newlip[16];
+	__u8   newfip[16];
+	__be32 natseqcheck;
+	__be32 dip_hit_vni;
+	__be64 r10;
+	__be64 r11;
+	__be64 r12;
+	__be64 r13;
 };
 
 #define S_FW_FILTER_WR_TID	12
@@ -516,6 +574,52 @@ struct fw_filter_wr {
 #define V_FW_FILTER_WR_RX_RPL_IQ(x)	((x) << S_FW_FILTER_WR_RX_RPL_IQ)
 #define G_FW_FILTER_WR_RX_RPL_IQ(x)	\
     (((x) >> S_FW_FILTER_WR_RX_RPL_IQ) & M_FW_FILTER_WR_RX_RPL_IQ)
+
+#define S_FW_FILTER2_WR_FILTER_TYPE	1
+#define M_FW_FILTER2_WR_FILTER_TYPE	0x1
+#define V_FW_FILTER2_WR_FILTER_TYPE(x)	((x) << S_FW_FILTER2_WR_FILTER_TYPE)
+#define G_FW_FILTER2_WR_FILTER_TYPE(x)	\
+    (((x) >> S_FW_FILTER2_WR_FILTER_TYPE) & M_FW_FILTER2_WR_FILTER_TYPE)
+#define F_FW_FILTER2_WR_FILTER_TYPE	V_FW_FILTER2_WR_FILTER_TYPE(1U)
+
+#define S_FW_FILTER2_WR_SWAPMAC		0
+#define M_FW_FILTER2_WR_SWAPMAC		0x1
+#define V_FW_FILTER2_WR_SWAPMAC(x)	((x) << S_FW_FILTER2_WR_SWAPMAC)
+#define G_FW_FILTER2_WR_SWAPMAC(x)	\
+    (((x) >> S_FW_FILTER2_WR_SWAPMAC) & M_FW_FILTER2_WR_SWAPMAC)
+#define F_FW_FILTER2_WR_SWAPMAC		V_FW_FILTER2_WR_SWAPMAC(1U)
+
+#define S_FW_FILTER2_WR_NATMODE		5
+#define M_FW_FILTER2_WR_NATMODE		0x7
+#define V_FW_FILTER2_WR_NATMODE(x)	((x) << S_FW_FILTER2_WR_NATMODE)
+#define G_FW_FILTER2_WR_NATMODE(x)	\
+    (((x) >> S_FW_FILTER2_WR_NATMODE) & M_FW_FILTER2_WR_NATMODE)
+
+#define S_FW_FILTER2_WR_NATFLAGCHECK	4
+#define M_FW_FILTER2_WR_NATFLAGCHECK	0x1
+#define V_FW_FILTER2_WR_NATFLAGCHECK(x)	((x) << S_FW_FILTER2_WR_NATFLAGCHECK)
+#define G_FW_FILTER2_WR_NATFLAGCHECK(x)	\
+    (((x) >> S_FW_FILTER2_WR_NATFLAGCHECK) & M_FW_FILTER2_WR_NATFLAGCHECK)
+#define F_FW_FILTER2_WR_NATFLAGCHECK	V_FW_FILTER2_WR_NATFLAGCHECK(1U)
+
+#define S_FW_FILTER2_WR_ULP_TYPE	0
+#define M_FW_FILTER2_WR_ULP_TYPE	0xf
+#define V_FW_FILTER2_WR_ULP_TYPE(x)	((x) << S_FW_FILTER2_WR_ULP_TYPE)
+#define G_FW_FILTER2_WR_ULP_TYPE(x)	\
+    (((x) >> S_FW_FILTER2_WR_ULP_TYPE) & M_FW_FILTER2_WR_ULP_TYPE)
+
+#define S_FW_FILTER2_WR_DIP_HIT		24
+#define M_FW_FILTER2_WR_DIP_HIT		0x1
+#define V_FW_FILTER2_WR_DIP_HIT(x)	((x) << S_FW_FILTER2_WR_DIP_HIT)
+#define G_FW_FILTER2_WR_DIP_HIT(x)	\
+    (((x) >> S_FW_FILTER2_WR_DIP_HIT) & M_FW_FILTER2_WR_DIP_HIT)
+#define F_FW_FILTER2_WR_DIP_HIT		V_FW_FILTER2_WR_DIP_HIT(1U)
+
+#define S_FW_FILTER2_WR_VNI		0
+#define M_FW_FILTER2_WR_VNI		0xffffff
+#define V_FW_FILTER2_WR_VNI(x)		((x) << S_FW_FILTER2_WR_VNI)
+#define G_FW_FILTER2_WR_VNI(x)		\
+    (((x) >> S_FW_FILTER2_WR_VNI) & M_FW_FILTER2_WR_VNI)
 
 #define S_FW_FILTER_WR_MACI	23
 #define M_FW_FILTER_WR_MACI	0x1ff
@@ -1446,6 +1550,12 @@ struct fw_ri_res_wr {
 	struct fw_ri_res res[0];
 #endif
 };
+
+#define S_FW_RI_RES_WR_VFN		8
+#define M_FW_RI_RES_WR_VFN		0xff
+#define V_FW_RI_RES_WR_VFN(x)		((x) << S_FW_RI_RES_WR_VFN)
+#define G_FW_RI_RES_WR_VFN(x)		\
+    (((x) >> S_FW_RI_RES_WR_VFN) & M_FW_RI_RES_WR_VFN)
 
 #define S_FW_RI_RES_WR_NRES	0
 #define M_FW_RI_RES_WR_NRES	0xff
@@ -4689,6 +4799,10 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_SCFGREV	= 0x1A,
 	FW_PARAMS_PARAM_DEV_VPDREV	= 0x1B,
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
+	FW_PARAMS_PARAM_DEV_FILTER2_WR	= 0x1D,
+
+	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
+	FW_PARAMS_PARAM_DEV_TPCHMAP	= 0x1F,
 };
 
 /*
@@ -4776,6 +4890,7 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_START	= 0x36,
 	FW_PARAMS_PARAM_PFVF_RAWF_END	= 0x37,
 	FW_PARAMS_PARAM_PFVF_RSSKEYINFO	= 0x38,
+	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 };
 
 /*
@@ -4866,6 +4981,22 @@ enum fw_params_param_chnet_flags {
     ((x) << S_FW_PARAMS_PARAM_DMAQ_DCA_ST)
 #define G_FW_PARAMS_PARAM_DMAQ_DCA_ST(x) \
     (((x) >> S_FW_PARAMS_PARAM_DMAQ_DCA_ST) & M_FW_PARAMS_PARAM_DMAQ_DCA_ST)
+
+#define S_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE	29
+#define M_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE	0x7
+#define V_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE(x)	\
+    ((x) << S_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE)
+#define G_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE(x)	\
+    (((x) >> S_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE) & \
+     M_FW_PARAMS_PARAM_DMAQ_INTIDX_QTYPE)
+
+#define S_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX	0
+#define M_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX	0x3ff
+#define V_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX(x)	\
+    ((x) << S_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX)
+#define G_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX(x)	\
+    (((x) >> S_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX) & \
+     M_FW_PARAMS_PARAM_DMAQ_INTIDX_INTIDX)
 
 struct fw_params_cmd {
 	__be32 op_to_vfn;
@@ -4992,7 +5123,8 @@ struct fw_pfvf_cmd {
  */
 enum fw_iq_type {
 	FW_IQ_TYPE_FL_INT_CAP,
-	FW_IQ_TYPE_NO_FL_INT_CAP
+	FW_IQ_TYPE_NO_FL_INT_CAP,
+	FW_IQ_TYPE_VF_CQ
 };
 
 struct fw_iq_cmd {
@@ -7247,12 +7379,12 @@ enum fw_port_type {
 	FW_PORT_TYPE_QSA	= 13,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_QSFP	= 14,	/* No, 4, Yes, No, No, No, 40G */
 	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP ANGE */
-	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G, Backplane */
-	FW_PORT_TYPE_CR4_QSFP	= 17,	/* No, 4, 100G */
+	FW_PORT_TYPE_KR4_100G	= 16,	/* No, 4, 100G/40G/25G, Backplane */
+	FW_PORT_TYPE_CR4_QSFP	= 17,	/* No, 4, 100G/40G/25G */
 	FW_PORT_TYPE_CR_QSFP	= 18,	/* No, 1, 25G Spider cable */
 	FW_PORT_TYPE_CR2_QSFP	= 19,	/* No, 2, 50G */
-	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G */
-	FW_PORT_TYPE_KR_SFP28	= 21,	/* No, 1, 25G using Backplane */
+	FW_PORT_TYPE_SFP28	= 20,	/* No, 1, 25G/10G/1G */
+	FW_PORT_TYPE_KR_SFP28	= 21,	/* No, 1, 25G/10G/1G using Backplane */
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PTYPE
 };
 
@@ -9314,17 +9446,17 @@ enum fw_hdr_chip {
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
 	T4FW_VERSION_MINOR	= 0x10,
-	T4FW_VERSION_MICRO	= 0x1a,
+	T4FW_VERSION_MICRO	= 0x2d,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
 	T5FW_VERSION_MINOR	= 0x10,
-	T5FW_VERSION_MICRO	= 0x1a,
+	T5FW_VERSION_MICRO	= 0x2d,
 	T5FW_VERSION_BUILD	= 0x00,
 
 	T6FW_VERSION_MAJOR	= 0x01,
 	T6FW_VERSION_MINOR	= 0x10,
-	T6FW_VERSION_MICRO	= 0x1a,
+	T6FW_VERSION_MICRO	= 0x2d,
 	T6FW_VERSION_BUILD	= 0x00,
 };
 
