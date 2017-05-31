@@ -87,8 +87,6 @@ static int hostent_test_gethostbyaddr(struct hostent *, void *);
 static int hostent_test_getaddrinfo_eq(struct hostent *, void *);
 static int hostent_test_getnameinfo_eq(struct hostent *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(hostent)
 IMPLEMENT_TEST_FILE_SNAPSHOT(hostent)
 IMPLEMENT_1PASS_TEST(hostent)
@@ -163,8 +161,7 @@ clone_hostent(struct hostent *dest, struct hostent const *src)
 		for (cp = src->h_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->h_aliases = calloc(1, (aliases_num + 1) *
-			sizeof(char *));
+		dest->h_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->h_aliases != NULL);
 
 		for (cp = src->h_aliases; *cp; ++cp) {
@@ -178,7 +175,7 @@ clone_hostent(struct hostent *dest, struct hostent const *src)
 		for (cp = src->h_addr_list; *cp; ++cp)
 			++addrs_num;
 
-		dest->h_addr_list = calloc(1, (addrs_num + 1) * sizeof(char *));
+		dest->h_addr_list = calloc(addrs_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->h_addr_list != NULL);
 
 		for (cp = src->h_addr_list; *cp; ++cp) {
@@ -413,7 +410,7 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d %d",
 		ht->h_name, ht->h_addrtype, ht->h_length);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
@@ -422,7 +419,7 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 			for (cp = ht->h_aliases; *cp; ++cp) {
 				written = snprintf(buffer, buflen, " %s",*cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -432,59 +429,61 @@ sdump_hostent(struct hostent *ht, char *buffer, size_t buflen)
 		} else {
 			written = snprintf(buffer, buflen, " noaliases");
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 		}
 	} else {
 		written = snprintf(buffer, buflen, " (null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	}
 
 	written = snprintf(buffer, buflen, " : ");
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (ht->h_addr_list != NULL) {
 		if (*(ht->h_addr_list) != NULL) {
 			for (cp = ht->h_addr_list; *cp; ++cp) {
-			    for (i = 0; i < ht->h_length; ++i ) {
-				written = snprintf(buffer, buflen,
-				    	i + 1 != ht->h_length ? "%d." : "%d",
-				    	(unsigned char)(*cp)[i]);
-				buffer += written;
-				if (written > buflen)
-					return;
-				buflen -= written;
+				for (i = 0; i < (size_t)ht->h_length; ++i) {
+					written = snprintf(buffer, buflen,
+					    i + 1 != (size_t)ht->h_length ?
+					        "%d." : "%d",
+					    (unsigned char)(*cp)[i]);
+					buffer += written;
+					if (written > (int)buflen)
+						return;
+					buflen -= written;
 
-				if (buflen == 0)
-					return;
-			    }
+					if (buflen == 0)
+						return;
+				}
 
-			    if (*(cp + 1) ) {
-				written = snprintf(buffer, buflen, " ");
-				buffer += written;
-				if (written > buflen)
-				    return;
-				buflen -= written;
-			    }
+				if (*(cp + 1)) {
+					written = snprintf(buffer, buflen,
+					    " ");
+					buffer += written;
+					if (written > (int)buflen)
+						return;
+					buflen -= written;
+				}
 			}
 		} else {
 			written = snprintf(buffer, buflen, " noaddrs");
 			buffer += written;
-			if (written > buflen)
+			if (written > (int)buflen)
 				return;
 			buflen -= written;
 		}
 	} else {
 		written = snprintf(buffer, buflen, " (null)");
 		buffer += written;
-		if (written > buflen)
+		if (written > (int)buflen)
 			return;
 		buflen -= written;
 	}
@@ -676,7 +675,7 @@ dump_hostent(struct hostent *result)
 }
 
 static int
-hostent_test_correctness(struct hostent *ht, void *mdata)
+hostent_test_correctness(struct hostent *ht, void *mdata __unused)
 {
 
 #ifdef DEBUG
@@ -759,7 +758,7 @@ hostent_test_gethostbyaddr(struct hostent *he, void *mdata)
 }
 
 static int
-hostent_test_getaddrinfo_eq(struct hostent *he, void *mdata)
+hostent_test_getaddrinfo_eq(struct hostent *he, void *mdata __unused)
 {
 	struct addrinfo *ai, hints;
 	int rv;
@@ -798,7 +797,7 @@ hostent_test_getaddrinfo_eq(struct hostent *he, void *mdata)
 }
 
 static int
-hostent_test_getnameinfo_eq(struct hostent *he, void *mdata)
+hostent_test_getnameinfo_eq(struct hostent *he, void *mdata __unused)
 {
 	char **cp;
 	char buffer[NI_MAXHOST];
@@ -921,15 +920,15 @@ hostent_test_getnameinfo_eq(struct hostent *he, void *mdata)
 	return (0);
 }
 
-int
-run_tests(const char *hostlist_file, const char *snapshot_file, int af_type,
+static int
+run_tests(const char *hostlist_file, const char *snapshot_file, int _af_type,
     enum test_methods method, bool use_ipv6_mapping)
 {
 	struct hostent_test_data td, td_addr, td_snap;
 	res_state statp;
 	int rv = -2;
 
-	switch (af_type) {
+	switch (_af_type) {
 	case AF_INET:
 		ATF_REQUIRE_FEATURE("inet");
 		ATF_REQUIRE(!use_ipv6_mapping);
@@ -938,7 +937,7 @@ run_tests(const char *hostlist_file, const char *snapshot_file, int af_type,
 		ATF_REQUIRE_FEATURE("inet6");
 		break;
 	default:
-		atf_tc_fail("unhandled address family: %d", af_type);
+		atf_tc_fail("unhandled address family: %d", _af_type);
 		break;
 	}
 

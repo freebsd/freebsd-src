@@ -1,14 +1,10 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/nss
-BINDIR=		${TESTSDIR}
-
 .PATH: ${.CURDIR:H}/resolv
 
-FILES+=		mach
+TESTSDIR=	${TESTSBASE}/lib/libc/nss
 
-WARNS?=		1
-CFLAGS+=	-I${SRCTOP}/tests
+BINDIR=		${TESTSDIR}
 
 ATF_TESTS_C+=	getaddrinfo_test
 ATF_TESTS_C+=	getgr_test
@@ -19,5 +15,11 @@ ATF_TESTS_C+=	getproto_test
 ATF_TESTS_C+=	getrpc_test
 ATF_TESTS_C+=	getserv_test
 ATF_TESTS_C+=	getusershell_test
+
+FILES+=		mach
+
+WARNS?=		1
+
+CFLAGS+=	-I${SRCTOP}/tests
 
 .include <bsd.test.mk>
