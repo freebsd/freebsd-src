@@ -296,10 +296,6 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para revision="311507" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
-	to firmware version 1.16.26.0 for T4, T5, and T6 cards.</para>
-
       <para revision="312359">The &man.alc.4; driver has been updated
 	to provide support for Atheros&reg; Killer&nbsp;E2400&trade;
 	Gigabit ethernet cards.</para>
@@ -312,6 +308,10 @@
       <para revision="316485">The &man.qlnxe.4; driver has been added,
 	providing support for Cavium&reg; Qlogic&trade; 45000 Series
 	adapters.</para>
+
+      <para revision="319270" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.45.0 for T4, T5, and T6 cards.</para>
     </sect2>
   </sect1>
 
