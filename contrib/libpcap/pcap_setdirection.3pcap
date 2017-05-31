@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_SETDIRECTION 3PCAP "5 April 2008"
+.TH PCAP_SETDIRECTION 3PCAP "8 March 2015"
 .SH NAME
 pcap_setdirection \- set the direction for which packets will be captured
 .SH SYNOPSIS
@@ -37,7 +37,7 @@ is used to specify a direction that packets will be captured.
 is one of the constants
 .BR PCAP_D_IN ,
 .B PCAP_D_OUT
-or 
+or
 .BR PCAP_D_INOUT .
 .B PCAP_D_IN
 will only capture packets received by the device,

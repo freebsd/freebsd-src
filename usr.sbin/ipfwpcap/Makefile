@@ -7,6 +7,7 @@
 PROG=	ipfwpcap
 
 LIBADD=	pcap
+CFLAGS+=-I${.CURDIR}/../../contrib/libpcap
 
 MAN=	ipfwpcap.8
 

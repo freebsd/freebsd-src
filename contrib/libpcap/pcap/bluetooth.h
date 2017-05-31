@@ -11,8 +11,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote 
- * products derived from this software without specific prior written 
+ * 3. The name of the author may not be used to endorse or promote
+ * products derived from this software without specific prior written
  * permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -30,9 +30,9 @@
  * bluetooth data struct
  * By Paolo Abeni <paolo.abeni@email.it>
  */
- 
-#ifndef _PCAP_BLUETOOTH_STRUCTS_H__
-#define _PCAP_BLUETOOTH_STRUCTS_H__
+
+#ifndef lib_pcap_bluetooth_h
+#define lib_pcap_bluetooth_h
 
 /*
  * Header prepended libpcap to each bluetooth h4 frame,
