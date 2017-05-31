@@ -215,6 +215,7 @@ iso_mountfs(devvp, mp)
 	int iso_bsize;
 	int iso_blknum;
 	int joliet_level;
+	int isverified = 0;
 	struct iso_volume_descriptor *vdp = NULL;
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
@@ -229,6 +230,8 @@ iso_mountfs(devvp, mp)
 	dev_ref(dev);
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
+	if (error == 0)
+		g_getattr("MNT::verified", cp, &isverified);
 	g_topology_unlock();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
@@ -377,6 +380,8 @@ iso_mountfs(devvp, mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
+	if (isverified)
+		mp->mnt_flag |= MNT_VERIFIED;
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
