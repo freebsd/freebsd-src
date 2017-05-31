@@ -662,6 +662,9 @@ YYPARSE_DECL()
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
 #endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
 
 #if YYBTYACC
     yyps = yyNewState(0); if (yyps == 0) goto yyenomem;
@@ -1225,7 +1228,7 @@ case 9:
 #line 86 "btyacc_destroy2.y"
 	{ yyval.nlist = yystack.l_mark[-5].nlist; }
 break;
-#line 1229 "btyacc_destroy2.tab.c"
+#line 1232 "btyacc_destroy2.tab.c"
     default:
         break;
     }
