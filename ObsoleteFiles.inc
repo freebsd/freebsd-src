@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170531: remove pcap-int.h
+OLD_FILES+=usr/include/pcap-int.h
 # 20170402: new libc++ import which bumps version from 3.9.1 to 4.0.0.
 OLD_FILES+=usr/include/c++/v1/__undef___deallocate
 OLD_FILES+=usr/include/c++/v1/tr1/__undef___deallocate

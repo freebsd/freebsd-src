@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_SETNONBLOCK 3PCAP "5 April 2008"
+.TH PCAP_SETNONBLOCK 3PCAP "18 October 2014"
 .SH NAME
 pcap_setnonblock, pcap_getnonblock \- set or get the state of
 non-blocking mode on a capture device
@@ -57,6 +57,14 @@ immediately rather than blocking waiting for packets to arrive.
 and
 .B pcap_next()
 will not work in ``non-blocking'' mode.
+.PP
+When first activated with
+.B pcap_activate()
+or opened with
+.B pcap_open_live() ,
+a capture handle is not in ``non-blocking mode''; a call to
+.B pcap_setnonblock()
+is required in order to put it into ``non-blocking'' mode.
 .SH RETURN VALUE
 .B pcap_getnonblock()
 returns the current ``non-blocking'' state of the capture descriptor; it
