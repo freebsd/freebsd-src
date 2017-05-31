@@ -1,3 +1,33 @@
+2017-04-30  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4-s.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/error.tab.c, test/btyacc/expr.oxout.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/rename_debug.c, btyaccpar.c, btyaccpar.skel:
+	fix another uninitialized variable warning in "make check_make" for btyacc
+
+	* test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/calc3.tab.c, btyaccpar.c, btyaccpar.skel, test/yacc/ok_syntax1.tab.c, test/yacc/pure_calc.tab.c, test/yacc/pure_error.tab.c, test/yacc/calc3.tab.c, yaccpar.c, defs.h, yaccpar.skel, output.c:
+	fix some compiler warnings for "make check_make" by adding section init_vars,
+	which initializes the body_vars for pure-parser configuration.
+
+2017-04-30  Tom.Shields
+
+	* output.c:
+	use YY_NO_LEAKS set in configure --with-no-leaks, in the generated code
+
+2017-04-30  Julien.Ramseier
+
+	* main.c, test/yacc/big_l.output:
+	fix typo in unsupported-flag warning message
+
+2017-04-30  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2017-03-18  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.sub: 2017-02-07
+
+	* config.guess: 2017-03-05
+
 2017-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/expr.oxout.error, test/btyacc/expr.oxout.output, test/btyacc/expr.oxout.tab.c, test/btyacc/expr.oxout.tab.h, test/yacc/expr.oxout.error, test/yacc/expr.oxout.output, test/yacc/expr.oxout.tab.c, test/yacc/expr.oxout.tab.h:
