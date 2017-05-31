@@ -282,7 +282,13 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="311507" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.26.0 for T4, T5, and T6 cards.</para>
+
+      <para revision="316485">The &man.qlnxe.4; driver has been added,
+	providing support for Cavium&reg; Qlogic&trade; 45000 Series
+	adapters.</para>
     </sect2>
   </sect1>
 
