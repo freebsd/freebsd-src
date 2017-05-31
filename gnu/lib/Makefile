@@ -25,10 +25,7 @@ SUBDIR+= libstdc++ libsupc++
 SUBDIR_DEPENDS_libsupc++:= libstdc++
 .endif
 
-# We want to use libc++ for CHERI (even when targeting MIPS)
-.if defined(LIBCHERI) || ${MK_CHERI} != "no"
-# No C++ support
-SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
+.if defined(LIBCHERI)
 # Don't use csu for CheriABI
 SUBDIR:=	${SUBDIR:Ncsu}
 # We'll be using the libunwind based libgcc_eh and libgcc_eh when the time
