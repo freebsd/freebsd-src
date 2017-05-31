@@ -328,6 +328,9 @@
 	notification points to catch all authentication failures
 	rather than only those caused by invalid login
 	usernames.</para>
+
+      <para revision="319349">&man.byacc.1; has been updated to
+	version 20170201.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
