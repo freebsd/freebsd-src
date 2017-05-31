@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.59 2017/02/02 00:44:38 tom Exp $ */
+/* $Id: main.c,v 1.60 2017/04/30 20:57:56 Julien.Ramseier Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -266,7 +266,7 @@ setflag(int ch)
 #if defined(YYBTYACC)
 	locations = 1;
 #else
-	unsupported_flag_warning("-B", "reconfigure with --enable-btyacc");
+	unsupported_flag_warning("-L", "reconfigure with --enable-btyacc");
 #endif
 	break;
 
