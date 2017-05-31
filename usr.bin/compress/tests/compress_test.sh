@@ -161,6 +161,27 @@ compress_uncompress_file_2_body()
 	atf_check cmp file2 expectfile2
 }
 
+atf_test_case compress_uncompress_file_minusc_1
+compress_uncompress_file_minusc_1_head()
+{
+	atf_set "descr" \
+	    "Test compressing and uncompressing some data, passing two filenames to uncompress -c"
+}
+compress_uncompress_file_minusc_1_body()
+{
+	printf '%01000d\n' 7 8 >expectfile1
+	printf '%01000d\n' 8 7 >expectfile2
+	cp expectfile1 file1
+	cp expectfile2 file2
+	atf_check compress file1 file2
+	atf_check -s exit:1 cmp -s file1.Z expectfile1
+	atf_check -s exit:1 cmp -s file2.Z expectfile2
+	atf_check -s exit:1 cmp -s file1.Z file2.Z
+	atf_check -x 'uncompress -c file1.Z file2.Z >all'
+	atf_check -x 'cat expectfile1 expectfile2 >expectall'
+	atf_check cmp all expectall
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case uncompress_file_1
@@ -171,4 +192,5 @@ atf_init_test_cases()
 	atf_add_test_case compress_uncompress_minusc_1
 	atf_add_test_case compress_uncompress_file_1
 	atf_add_test_case compress_uncompress_file_2
+	atf_add_test_case compress_uncompress_file_minusc_1
 }
