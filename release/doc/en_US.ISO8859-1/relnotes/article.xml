@@ -177,7 +177,9 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="308915">The &man.zfsbootcfg.8; utility has been
+	added, providing one-time &man.boot.config.5;-style options
+	for &man.zfsboot.8;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
