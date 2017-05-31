@@ -231,8 +231,7 @@ ApDisplayUsage (
     ACPI_OPTION ("-c <on|off>",             "Turning on/off customized table dumping");
     ACPI_OPTION ("-f <BinaryFile>",         "Get table via a binary file");
     ACPI_OPTION ("-n <Signature>",          "Get table via a name/signature");
-    ACPI_OPTION ("-x",                      "Do not use but dump XSDT");
-    ACPI_OPTION ("-x -x",                   "Do not use or dump XSDT");
+    ACPI_OPTION ("-x",                      "Use RSDT instead of XSDT");
 
     ACPI_USAGE_TEXT (
         "\n"

@@ -314,6 +314,18 @@ AcpiDbExecuteMethod (
 
     if (ACPI_FAILURE (Status))
     {
+        if ((Status == AE_ABORT_METHOD) || AcpiGbl_AbortMethod)
+        {
+            /* Clear the abort and fall back to the debugger prompt */
+
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Aborting top-level method"));
+
+            AcpiGbl_AbortMethod = FALSE;
+            Status = AE_OK;
+            goto Cleanup;
+        }
+
         ACPI_EXCEPTION ((AE_INFO, Status,
             "while executing %s from debugger", Info->Pathname));
 

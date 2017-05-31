@@ -250,7 +250,6 @@ LsAmlOffsetWalk (
         }
 
         Length = Op->Asl.FinalAmlLength;
-        NamepathOffset = Gbl_CurrentAmlOffset + Length;
 
         /* Get to the NameSeg/NamePath Op (and length of the name) */
 

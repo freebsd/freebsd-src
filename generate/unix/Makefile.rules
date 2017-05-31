@@ -11,14 +11,16 @@ $(FINAL_PROG) : $(PROG)
 	$(COPYPROG)
 
 $(PROG) : $(INTERMEDIATES) $(MISC) $(OBJECTS)
-	$(LINKPROG)
+	@echo "- Link" $(PROG)
+	@$(LINKPROG)
 	$(RENAMEPROG)
 
 $(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
-	$(COMPILEOBJ)
+	@echo $(PROG)  $<
+	@$(COMPILEOBJ)
 
 clean :
-	rm -f $(PROG) $(PROG).exe $(OBJECTS) $(OBJDIR)/*.o $(INTERMEDIATES) $(MISC)
+	@rm -f $(PROG) $(PROG).exe $(OBJECTS) $(OBJDIR)/*.o $(INTERMEDIATES) $(MISC)
 
 install :
 	$(INSTALLPROG)

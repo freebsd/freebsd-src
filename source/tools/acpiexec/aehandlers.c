@@ -182,14 +182,6 @@ AeDeviceNotifyHandler (
     void                    *Context);
 
 static ACPI_STATUS
-AeExceptionHandler (
-    ACPI_STATUS             AmlStatus,
-    ACPI_NAME               Name,
-    UINT16                  Opcode,
-    UINT32                  AmlOffset,
-    void                    *Context);
-
-static ACPI_STATUS
 AeTableHandler (
     UINT32                  Event,
     void                    *Table,
@@ -230,46 +222,7 @@ static char                *TableEvents[] =
 #endif /* !ACPI_REDUCED_HARDWARE */
 
 
-static UINT32               SigintCount = 0;
 static AE_DEBUG_REGIONS     AeRegions;
-
-
-/******************************************************************************
- *
- * FUNCTION:    AeCtrlCHandler
- *
- * PARAMETERS:  Sig
- *
- * RETURN:      none
- *
- * DESCRIPTION: Control-C handler. Abort running control method if any.
- *
- *****************************************************************************/
-
-void ACPI_SYSTEM_XFACE
-AeCtrlCHandler (
-    int                     Sig)
-{
-
-    signal (SIGINT, SIG_IGN);
-    SigintCount++;
-
-    AcpiOsPrintf ("Caught a ctrl-c (#%u)\n\n", SigintCount);
-
-    if (AcpiGbl_MethodExecuting)
-    {
-        AcpiGbl_AbortMethod = TRUE;
-        signal (SIGINT, AeCtrlCHandler);
-
-        if (SigintCount < 10)
-        {
-            return;
-        }
-    }
-
-    (void) AcpiOsTerminate ();
-    exit (0);
-}
 
 
 /******************************************************************************
@@ -325,28 +278,34 @@ AeCommonNotifyHandler (
 #if 0
     case 0:
 
-        printf ("[AcpiExec] Method Error 0x%X: Results not equal\n", Value);
+        printf (AE_PREFIX
+            "Method Error 0x%X: Results not equal\n", Value);
         if (AcpiGbl_DebugFile)
         {
-            AcpiOsPrintf ("[AcpiExec] Method Error: Results not equal\n");
+            AcpiOsPrintf (AE_PREFIX
+                "Method Error: Results not equal\n");
         }
         break;
 
     case 1:
 
-        printf ("[AcpiExec] Method Error: Incorrect numeric result\n");
+        printf (AE_PREFIX
+            "Method Error: Incorrect numeric result\n");
         if (AcpiGbl_DebugFile)
         {
-            AcpiOsPrintf ("[AcpiExec] Method Error: Incorrect numeric result\n");
+            AcpiOsPrintf (AE_PREFIX
+                "Method Error: Incorrect numeric result\n");
         }
         break;
 
     case 2:
 
-        printf ("[AcpiExec] Method Error: An operand was overwritten\n");
+        printf (AE_PREFIX
+            "Method Error: An operand was overwritten\n");
         if (AcpiGbl_DebugFile)
         {
-            AcpiOsPrintf ("[AcpiExec] Method Error: An operand was overwritten\n");
+            AcpiOsPrintf (AE_PREFIX
+                "Method Error: An operand was overwritten\n");
         }
         break;
 
@@ -354,12 +313,14 @@ AeCommonNotifyHandler (
 
     default:
 
-        printf ("[AcpiExec] Handler %u: Received a %s Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+        printf (AE_PREFIX
+            "Handler %u: Received a %s Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
             HandlerId, Type, AcpiUtGetNodeName (Device), Device, Value,
             AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
         if (AcpiGbl_DebugFile)
         {
-            AcpiOsPrintf ("[AcpiExec] Handler %u: Received a %s notify, Value 0x%2.2X\n",
+            AcpiOsPrintf (AE_PREFIX
+                "Handler %u: Received a %s notify, Value 0x%2.2X\n",
                 HandlerId, Type, Value);
         }
 
@@ -390,12 +351,14 @@ AeSystemNotifyHandler (
     void                        *Context)
 {
 
-    printf ("[AcpiExec] Global:    Received a System Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+    printf (AE_PREFIX
+        "Global:    Received a System Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
         AcpiUtGetNodeName (Device), Device, Value,
         AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
     if (AcpiGbl_DebugFile)
     {
-        AcpiOsPrintf ("[AcpiExec] Global:    Received a System Notify, Value 0x%2.2X\n", Value);
+        AcpiOsPrintf (AE_PREFIX
+            "Global:    Received a System Notify, Value 0x%2.2X\n", Value);
     }
 
     (void) AcpiEvaluateObject (Device, "_NOT", NULL, NULL);
@@ -423,117 +386,17 @@ AeDeviceNotifyHandler (
     void                        *Context)
 {
 
-    printf ("[AcpiExec] Global:    Received a Device Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+    printf (AE_PREFIX
+        "Global:    Received a Device Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
         AcpiUtGetNodeName (Device), Device, Value,
         AcpiUtGetNotifyName (Value, ACPI_TYPE_ANY));
     if (AcpiGbl_DebugFile)
     {
-        AcpiOsPrintf ("[AcpiExec] Global:    Received a Device Notify, Value 0x%2.2X\n", Value);
+        AcpiOsPrintf (AE_PREFIX
+            "Global:    Received a Device Notify, Value 0x%2.2X\n", Value);
     }
 
     (void) AcpiEvaluateObject (Device, "_NOT", NULL, NULL);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AeExceptionHandler
- *
- * PARAMETERS:  Standard exception handler parameters
- *
- * RETURN:      Status
- *
- * DESCRIPTION: System exception handler for AcpiExec utility.
- *
- *****************************************************************************/
-
-static ACPI_STATUS
-AeExceptionHandler (
-    ACPI_STATUS             AmlStatus,
-    ACPI_NAME               Name,
-    UINT16                  Opcode,
-    UINT32                  AmlOffset,
-    void                    *Context)
-{
-    ACPI_STATUS             NewAmlStatus = AmlStatus;
-    ACPI_STATUS             Status;
-    ACPI_BUFFER             ReturnObj;
-    ACPI_OBJECT_LIST        ArgList;
-    ACPI_OBJECT             Arg[3];
-    const char              *Exception;
-
-
-    Exception = AcpiFormatException (AmlStatus);
-    AcpiOsPrintf ("[AcpiExec] Exception %s during execution ", Exception);
-    if (Name)
-    {
-        AcpiOsPrintf ("of method [%4.4s]", (char *) &Name);
-    }
-    else
-    {
-        AcpiOsPrintf ("at module level (table load)");
-    }
-
-    AcpiOsPrintf (" Opcode [%s] @%X\n", AcpiPsGetOpcodeName (Opcode), AmlOffset);
-
-    /*
-     * Invoke the _ERR method if present
-     *
-     * Setup parameter object
-     */
-    ArgList.Count = 3;
-    ArgList.Pointer = Arg;
-
-    Arg[0].Type = ACPI_TYPE_INTEGER;
-    Arg[0].Integer.Value = AmlStatus;
-
-    Arg[1].Type = ACPI_TYPE_STRING;
-    Arg[1].String.Pointer = ACPI_CAST_PTR (char, Exception);
-    Arg[1].String.Length = strlen (Exception);
-
-    Arg[2].Type = ACPI_TYPE_INTEGER;
-    Arg[2].Integer.Value = AcpiOsGetThreadId();
-
-    /* Setup return buffer */
-
-    ReturnObj.Pointer = NULL;
-    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
-
-    Status = AcpiEvaluateObject (NULL, "\\_ERR", &ArgList, &ReturnObj);
-    if (ACPI_SUCCESS (Status))
-    {
-        if (ReturnObj.Pointer)
-        {
-            /* Override original status */
-
-            NewAmlStatus = (ACPI_STATUS)
-                ((ACPI_OBJECT *) ReturnObj.Pointer)->Integer.Value;
-
-            /* Free a buffer created via ACPI_ALLOCATE_BUFFER */
-
-            AcpiOsFree (ReturnObj.Pointer);
-        }
-    }
-    else if (Status != AE_NOT_FOUND)
-    {
-        AcpiOsPrintf ("[AcpiExec] Could not execute _ERR method, %s\n",
-            AcpiFormatException (Status));
-    }
-
-    /* Global override */
-
-    if (AcpiGbl_IgnoreErrors)
-    {
-        NewAmlStatus = AE_OK;
-    }
-
-    if (NewAmlStatus != AmlStatus)
-    {
-        AcpiOsPrintf ("[AcpiExec] Exception override, new status %s\n\n",
-            AcpiFormatException (NewAmlStatus));
-    }
-
-    return (NewAmlStatus);
 }
 
 
@@ -571,8 +434,9 @@ AeTableHandler (
     Status = AcpiUpdateAllGpes ();
     ACPI_CHECK_OK (AcpiUpdateAllGpes, Status);
 
-    printf ("[AcpiExec] Table Event %s, [%4.4s] %p\n",
-        TableEvents[Event], ((ACPI_TABLE_HEADER *) Table)->Signature, Table);
+    printf (AE_PREFIX "Table Event %s, [%4.4s] %p\n",
+        TableEvents[Event],
+        ((ACPI_TABLE_HEADER *) Table)->Signature, Table);
 #endif /* !ACPI_REDUCED_HARDWARE */
 
     return (AE_OK);
@@ -596,7 +460,8 @@ AeGpeHandler (
     ACPI_NAMESPACE_NODE     *DeviceNode = (ACPI_NAMESPACE_NODE *) GpeDevice;
 
 
-    AcpiOsPrintf ("[AcpiExec] GPE Handler received GPE %02X (GPE block %4.4s)\n",
+    AcpiOsPrintf (AE_PREFIX
+        "GPE Handler received GPE %02X (GPE block %4.4s)\n",
         GpeNumber, GpeDevice ? DeviceNode->Name.Ascii : "FADT");
 
     return (ACPI_REENABLE_GPE);
@@ -639,8 +504,8 @@ AeGlobalEventHandler (
         break;
     }
 
-    AcpiOsPrintf (
-        "[AcpiExec] Global Event Handler received: Type %s Number %.2X Dev %p\n",
+    AcpiOsPrintf (AE_PREFIX
+        "Global Event Handler received: Type %s Number %.2X Dev %p\n",
         TypeName, EventNumber, Device);
 }
 
@@ -662,7 +527,8 @@ AeAttachedDataHandler (
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Data);
 
 
-    AcpiOsPrintf ("Received an attached data deletion (1) on %4.4s\n",
+    AcpiOsPrintf (AE_PREFIX
+        "Received an attached data deletion (1) on %4.4s\n",
         Node->Name.Ascii);
 }
 
@@ -684,7 +550,8 @@ AeAttachedDataHandler2 (
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Data);
 
 
-    AcpiOsPrintf ("Received an attached data deletion (2) on %4.4s\n",
+    AcpiOsPrintf (AE_PREFIX
+        "Received an attached data deletion (2) on %4.4s\n",
         Node->Name.Ascii);
 }
 
@@ -734,7 +601,8 @@ AeSciHandler (
     void                    *Context)
 {
 
-    AcpiOsPrintf ("[AcpiExec] Received an SCI at handler\n");
+    AcpiOsPrintf (AE_PREFIX
+        "Received an SCI at handler\n");
     return (0);
 }
 
@@ -926,16 +794,16 @@ AeInstallEarlyHandlers (
 
     /* Install global notify handlers */
 
-    Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT, ACPI_SYSTEM_NOTIFY,
-        AeSystemNotifyHandler, NULL);
+    Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT,
+        ACPI_SYSTEM_NOTIFY, AeSystemNotifyHandler, NULL);
     if (ACPI_FAILURE (Status))
     {
         printf ("Could not install a global system notify handler, %s\n",
             AcpiFormatException (Status));
     }
 
-    Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT, ACPI_DEVICE_NOTIFY,
-        AeDeviceNotifyHandler, NULL);
+    Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT,
+        ACPI_DEVICE_NOTIFY, AeDeviceNotifyHandler, NULL);
     if (ACPI_FAILURE (Status))
     {
         printf ("Could not install a global notify handler, %s\n",

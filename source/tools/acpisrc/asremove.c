@@ -550,6 +550,7 @@ AsReduceTypedefs (
 {
     char                    *SubString;
     char                    *SubBuffer;
+    char                    *SubSubString;
     int                     NestLevel;
 
 
@@ -562,56 +563,89 @@ AsReduceTypedefs (
 
         if (SubString)
         {
-            /* Remove the typedef itself */
+            SubSubString = SubString + strlen (Keyword);
 
-            SubBuffer = SubString + strlen ("typedef") + 1;
-            SubBuffer = AsRemoveData (SubString, SubBuffer);
+            /* skip spaces */
 
-            /* Find the opening brace of the struct or union */
-
-            while (*SubString != '{')
+            while (strchr(" \t\r\n", *SubSubString))
             {
+                SubSubString++;
+            }
+
+            /* skip type name */
+
+            while (!strchr(" \t\r\n", *SubSubString))
+            {
+                SubSubString++;
+            }
+
+            /* skip spaces */
+
+            while (strchr(" \t\r\n", *SubSubString))
+            {
+                SubSubString++;
+            }
+
+            if (*SubSubString == '{')
+            {
+                /* Remove the typedef itself */
+
+                SubBuffer = SubString + strlen ("typedef") + 1;
+                SubBuffer = AsRemoveData (SubString, SubBuffer);
+
+                /* Find the opening brace of the struct or union */
+
+                while (*SubString != '{')
+                {
+                    SubString++;
+                }
                 SubString++;
+
+                /* Find the closing brace. Handles nested braces */
+
+                NestLevel = 1;
+                while (*SubString)
+                {
+                    if (*SubString == '{')
+                    {
+                        NestLevel++;
+                    }
+                    else if (*SubString == '}')
+                    {
+                        NestLevel--;
+                    }
+
+                    SubString++;
+
+                    if (NestLevel == 0)
+                    {
+                        break;
+                    }
+                }
+
+                /* Remove an extra line feed if present */
+
+                if (!strncmp (SubString - 3, "\n\n", 2))
+                {
+                    *(SubString -2) = '}';
+                    SubString--;
+                }
+
+                /* Find the end of the typedef name */
+
+                SubBuffer = AsSkipUntilChar (SubString, ';');
+
+                /* And remove the typedef name */
+
+                SubBuffer = AsRemoveData (SubString, SubBuffer);
             }
-            SubString++;
-
-            /* Find the closing brace. Handles nested braces */
-
-            NestLevel = 1;
-            while (*SubString)
+            else
             {
-                if (*SubString == '{')
-                {
-                    NestLevel++;
-                }
-                else if (*SubString == '}')
-                {
-                    NestLevel--;
-                }
+                /* Skip the entire definition */
 
-                SubString++;
-
-                if (NestLevel == 0)
-                {
-                    break;
-                }
+                SubString = strchr (SubString, ';') + 1;
+                SubBuffer = SubString;
             }
-
-            /* Remove an extra line feed if present */
-
-            if (!strncmp (SubString - 3, "\n\n", 2))
-            {
-                *(SubString -2) = '}';
-                SubString--;
-            }
-
-            /* Find the end of the typedef name */
-
-            SubBuffer = AsSkipUntilChar (SubString, ';');
-
-            /* And remove the typedef name */
-
-            SubBuffer = AsRemoveData (SubString, SubBuffer);
         }
     }
 }

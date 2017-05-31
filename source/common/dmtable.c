@@ -298,6 +298,7 @@ static const char           *AcpiDmHestSubnames[] =
     "PCI Express/PCI-X Bridge AER",
     "Generic Hardware Error Source",
     "Generic Hardware Error Source V2",
+    "IA-32 Deferred Machine Check",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -314,7 +315,16 @@ static const char           *AcpiDmHestNotifySubnames[] =
     "SEA",                          /* ACPI 6.1 */
     "SEI",                          /* ACPI 6.1 */
     "GSIV",                         /* ACPI 6.1 */
+    "Software Delegated Exception", /* ACPI 6.2 */
     "Unknown Notify Type"           /* Reserved */
+};
+
+static const char           *AcpiDmHmatSubnames[] =
+{
+    "Memory Subystem Address Range",
+    "System Locality Latency and Bandwidth Information",
+    "Memory Side Cache Information",
+    "Unknown Structure Type"         /* Reserved */
 };
 
 static const char           *AcpiDmMadtSubnames[] =
@@ -355,6 +365,8 @@ static const char           *AcpiDmPcctSubnames[] =
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
     "HW-Reduced Comm Subspace",         /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE */
     "HW-Reduced Comm Subspace Type2",   /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2 */
+    "Extended PCC Master Subspace",     /* ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE */
+    "Extended PCC Slave Subspace",      /* ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE */
     "Unknown Subtable Type"             /* Reserved */
 };
 
@@ -366,12 +378,21 @@ static const char           *AcpiDmPmttSubnames[] =
     "Unknown Subtable Type"         /* Reserved */
 };
 
+static const char           *AcpiDmPpttSubnames[] =
+{
+    "Processor Hierarchy Node",     /* ACPI_PPTT_TYPE_PROCESSOR */
+    "Cache Type",                   /* ACPI_PPTT_TYPE_CACHE */
+    "ID",                           /* ACPI_PMTT_TYPE_ID  */
+    "Unknown Subtable Type"         /* Reserved */
+};
+
 static const char           *AcpiDmSratSubnames[] =
 {
     "Processor Local APIC/SAPIC Affinity",
     "Memory Affinity",
     "Processor Local x2APIC Affinity",
     "GICC Affinity",
+    "GIC ITS Affinity",             /* Acpi 6.2 */
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -452,6 +473,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_FPDT, NULL,                   AcpiDmDumpFpdt, DtCompileFpdt,  TemplateFpdt},
     {ACPI_SIG_GTDT, NULL,                   AcpiDmDumpGtdt, DtCompileGtdt,  TemplateGtdt},
     {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest},
+    {ACPI_SIG_HMAT, NULL,                   AcpiDmDumpHmat, DtCompileHmat,  TemplateHmat},
     {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet},
     {ACPI_SIG_IORT, NULL,                   AcpiDmDumpIort, DtCompileIort,  TemplateIort},
     {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs},
@@ -466,6 +488,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
     {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
     {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt},
+    {ACPI_SIG_PPTT, NULL,                   AcpiDmDumpPptt, DtCompilePptt,  TemplatePptt},
     {ACPI_SIG_RASF, AcpiDmTableInfoRasf,    NULL,           NULL,           TemplateRasf},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt},
     {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt},
@@ -485,6 +508,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_WDDT, AcpiDmTableInfoWddt,    NULL,           NULL,           TemplateWddt},
     {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           NULL,           TemplateWdrt},
     {ACPI_SIG_WPBT, NULL,                   AcpiDmDumpWpbt, DtCompileWpbt,  TemplateWpbt},
+    {ACPI_SIG_WSMT, AcpiDmTableInfoWsmt,    NULL,           NULL,           TemplateWsmt},
     {ACPI_SIG_XENV, AcpiDmTableInfoXenv,    NULL,           NULL,           TemplateXenv},
     {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, DtCompileXsdt,  TemplateXsdt},
     {NULL,          NULL,                   NULL,           NULL,           NULL}
@@ -891,6 +915,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_MADT:
         case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
+        case ACPI_DMT_PPTT:
         case ACPI_DMT_SRAT:
         case ACPI_DMT_ASF:
         case ACPI_DMT_HESTNTYP:
@@ -907,6 +932,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT16:
         case ACPI_DMT_DMAR:
         case ACPI_DMT_HEST:
+        case ACPI_DMT_HMAT:
         case ACPI_DMT_NFIT:
 
             ByteLength = 2;
@@ -1086,6 +1112,31 @@ AcpiDmDumpTable (
         case ACPI_DMT_FLAGS4:
 
             AcpiOsPrintf ("%1.1X\n", (*Target >> 4) & 0x03);
+            break;
+
+        case ACPI_DMT_FLAGS4_0:
+
+            AcpiOsPrintf ("%1.1X\n", (*(UINT32 *)Target) & 0x0F);
+            break;
+
+        case ACPI_DMT_FLAGS4_4:
+
+            AcpiOsPrintf ("%1.1X\n", (*(UINT32 *)Target >> 4) & 0x0F);
+            break;
+
+        case ACPI_DMT_FLAGS4_8:
+
+            AcpiOsPrintf ("%1.1X\n", (*(UINT32 *)Target >> 8) & 0x0F);
+            break;
+
+        case ACPI_DMT_FLAGS4_12:
+
+            AcpiOsPrintf ("%1.1X\n", (*(UINT32 *)Target >> 12) & 0x0F);
+            break;
+
+        case ACPI_DMT_FLAGS16_16:
+
+            AcpiOsPrintf ("%4.4X\n", (*(UINT32 *)Target >> 16) & 0xFFFF);
             break;
 
         /* Integer Data Types */
@@ -1409,6 +1460,20 @@ AcpiDmDumpTable (
                 AcpiDmHestNotifySubnames[Temp8]);
             break;
 
+        case ACPI_DMT_HMAT:
+
+            /* HMAT subtable types */
+
+            Temp16 = *Target;
+            if (Temp16 > ACPI_HMAT_TYPE_RESERVED)
+            {
+                Temp16 = ACPI_HMAT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT16_FORMAT, *Target,
+                AcpiDmHmatSubnames[Temp16]);
+            break;
+
         case ACPI_DMT_IORTMEM:
 
             AcpiOsPrintf (STRING_FORMAT,
@@ -1478,6 +1543,20 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT8_FORMAT, *Target,
                 AcpiDmPmttSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_PPTT:
+
+            /* PPTT subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_PPTT_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_PPTT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target,
+                AcpiDmPpttSubnames[Temp8]);
             break;
 
         case ACPI_DMT_UNICODE:

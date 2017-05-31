@@ -121,6 +121,7 @@ OBJECTS = \
 	$(OBJDIR)/dmresrcl2.o\
 	$(OBJDIR)/dmresrcs.o\
 	$(OBJDIR)/dmrestag.o\
+	$(OBJDIR)/dmswitch.o\
 	$(OBJDIR)/dmtable.o\
 	$(OBJDIR)/dmtables.o\
 	$(OBJDIR)/dmtbdump.o\
@@ -224,6 +225,7 @@ OBJECTS = \
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utownerid.o\
 	$(OBJDIR)/utpredef.o\
+	$(OBJDIR)/utresdecode.o\
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstrtoul64.o\
@@ -277,13 +279,15 @@ CFLAGS += \
 include ../Makefile.rules
 
 #
-# Function to safely execute yacc
+# Function to safely execute yacc:
+# Generate the output files to a temporary directory,
+# move the file to $(OBJDIR), and discard the directory.
 #
 safe_yacc = \
 	_d=`mktemp -d $(OBJDIR)/$(1).XXXXXX` &&\
 	cd $$_d &&\
 	$(YACC) $(YFLAGS) -v -d -p$(1) $(abspath $(2)) &&\
-	cd - &&\
+	cd - > /dev/null;\
 	mv $$_d/y.tab$(suffix $(3)) $(3);\
 	_r=$$?;\
 	rm -fr $$_d;\
@@ -293,28 +297,35 @@ safe_yacc = \
 # Macro processing for iASL .y files
 #
 $(OBJDIR)/aslcompiler.y :      $(ASL_PARSER)
-	$(MACROPROC) $(MFLAGS) $(ASL_COMPILER)/aslparser.y > $@
+	@echo "- " $(MACROPROC) "          Preprocess main iASL parser"
+	@$(MACROPROC) $(MFLAGS) $(ASL_COMPILER)/aslparser.y > $@
 
 #
 # Parser and Lexer - intermediate C files
 #
 $(OBJDIR)/aslcompilerlex.c :   $(ASL_LEXER)
-	$(LEX) $(LFLAGS) -PAslCompiler -o$@ $(ASL_COMPILER)/aslcompiler.l
+	@echo "- " $(LEX) "        "$<
+	@$(LEX) $(LFLAGS) -PAslCompiler -o$@ $(ASL_COMPILER)/aslcompiler.l
 
 $(OBJDIR)/aslcompilerparse.c $(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompiler.y
-	$(call safe_yacc,AslCompiler,$<,$@)
+	@echo "- " $(YACC) "       "$<
+	@$(call safe_yacc,AslCompiler,$<,$@)
 
 $(OBJDIR)/dtparserlex.c :      $(ASL_COMPILER)/dtparser.l $(OBJDIR)/dtparser.y.h
-	$(LEX) $(LFLAGS) -PDtParser -o$@ $<
+	@echo "- " $(LEX) "        "$<
+	@$(LEX) $(LFLAGS) -PDtParser -o$@ $<
 
 $(OBJDIR)/dtparserparse.c $(OBJDIR)/dtparser.y.h :       $(ASL_COMPILER)/dtparser.y
-	$(call safe_yacc,DtParser,$<,$@)
+	@echo "- " $(YACC) "       "$<
+	@$(call safe_yacc,DtParser,$<,$@)
 
 $(OBJDIR)/prparserlex.c :      $(ASL_COMPILER)/prparser.l $(OBJDIR)/prparser.y.h
-	$(LEX) $(LFLAGS) -PPrParser -o$@ $<
+	@echo "- " $(LEX) "        "$<
+	@$(LEX) $(LFLAGS) -PPrParser -o$@ $<
 
 $(OBJDIR)/prparserparse.c $(OBJDIR)/prparser.y.h :       $(ASL_COMPILER)/prparser.y
-	$(call safe_yacc,PrParser,$<,$@)
+	@echo "- " $(YACC) "       "$<
+	@$(call safe_yacc,PrParser,$<,$@)
 
 #
 # Parsers and Lexers - final object files
@@ -323,19 +334,25 @@ $(OBJDIR)/prparserparse.c $(OBJDIR)/prparser.y.h :       $(ASL_COMPILER)/prparse
 # by the utilities above and they are not necessarily ANSI C, etc.
 #
 $(OBJDIR)/aslcompilerlex.o :   $(OBJDIR)/aslcompilerlex.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/aslcompilerparse.o : $(OBJDIR)/aslcompilerparse.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/dtparserlex.o :      $(OBJDIR)/dtparserlex.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/dtparserparse.o :    $(OBJDIR)/dtparserparse.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/prparserlex.o :      $(OBJDIR)/prparserlex.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
 
 $(OBJDIR)/prparserparse.o :    $(OBJDIR)/prparserparse.c
-	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<
+	@echo "- " "Intermediate" $<
+	@$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $<

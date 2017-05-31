@@ -7,8 +7,22 @@ $(PROGS): FORCE
 	@cd $(BUILD_DIRECTORY_PATH)/$@; \
 	mkdir -p obj; \
 	$(MAKE) || exit "$$?"; \
-	ls -al ../bin/$@; \
 	echo "";
+
+#
+# List just shows the status of each tool
+#
+status:	FORCE
+	@for toolname in $(PROGS); do \
+		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
+		pwd; \
+		if [ -d "obj" ] ; then \
+			echo "    `ls -1 obj | wc -l` files, `stat -c%s obj/$$toolname` bytes"; \
+		else \
+			echo "    Clean"; \
+		fi; \
+		); \
+	done;
 
 #
 # Simple clean removes all .obj files, but leaves the executables
@@ -17,12 +31,12 @@ $(PROGS): FORCE
 clean:	FORCE
 	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
+		pwd; \
 		if [ -d "obj" ] ; then \
-			echo "Removing $$toolname:"; \
-			pwd; \
-			$(MAKE) clean; \
-			rmdir obj; \
-			echo ""; \
+			echo "    Removing `ls -1 obj | wc -l` files"; \
+			rm -r obj; \
+		else \
+			echo "    Clean"; \
 		fi; \
 		); \
 	done;
@@ -53,7 +67,11 @@ install:	FORCE
 	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		pwd; \
-		$(MAKE) PROG=$$toolname install; \
+		if [ -d "obj" ] ; then \
+			$(MAKE) PROG=$$toolname install; \
+		else \
+			echo "    Clean"; \
+		fi; \
 		); \
 	done;
 
