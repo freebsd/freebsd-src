@@ -523,6 +523,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	if (fsopts->offset != 0)
 		if (lseek(fsopts->fd, fsopts->offset, SEEK_SET) == -1) {
 			warn("can't seek");
+			free(buf);
 			return -1;
 		}
 
