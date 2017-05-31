@@ -242,7 +242,9 @@
     <sect2 xml:id="userland-libraries">
       <title>Runtime Libraries and API</title>
 
-      <para>&nbsp;</para>
+      <para revision="316040">The &man.kvm.close.3; function has been
+	updated to return the accumulated error from previous
+	&man.close.2; calls.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
