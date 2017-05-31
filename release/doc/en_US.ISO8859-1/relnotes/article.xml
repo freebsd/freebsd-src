@@ -250,7 +250,8 @@
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
 
-      <para>&nbsp;</para>
+      <para revision="309258">The type <literal>max_align_t</literal>
+	is now defined for C11 compliance.</para>
     </sect2>
   </sect1>
 
