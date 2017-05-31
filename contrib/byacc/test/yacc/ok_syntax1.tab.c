@@ -467,6 +467,9 @@ YYPARSE_DECL()
     }
 #endif
 
+    memset(&yyval,  0, sizeof(yyval));
+    memset(&yylval, 0, sizeof(yylval));
+
     yym = 0;
     yyn = 0;
     yynerrs = 0;
@@ -651,7 +654,7 @@ case 18:
 #line 101 "ok_syntax1.y"
 	{  yyval.ival = (*base) * yystack.l_mark[-1].ival + yystack.l_mark[0].ival; }
 break;
-#line 655 "ok_syntax1.tab.c"
+#line 658 "ok_syntax1.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
