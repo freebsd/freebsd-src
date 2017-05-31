@@ -166,6 +166,12 @@
 	without <literal>libwrap</literal> support when
 	<literal>WITHOUT_TCP_WRAPPERS</literal> is set in
 	&man.src.conf.5;.</para>
+
+      <para revision="316046">The &man.libthr.3; library and related
+	files are now evaluated and removed by the
+	<literal>delete-old-libs</literal> target when upgrading the
+	system if <literal>WITHOUT_LIBTHR</literal> is
+	set in &man.src.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
