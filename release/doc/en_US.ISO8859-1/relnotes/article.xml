@@ -162,7 +162,10 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="313206">The &man.inetd.8; utility is now built
+	without <literal>libwrap</literal> support when
+	<literal>WITHOUT_TCP_WRAPPERS</literal> is set in
+	&man.src.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
