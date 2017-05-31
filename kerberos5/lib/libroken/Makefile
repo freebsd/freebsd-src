@@ -53,7 +53,6 @@ SRCS=	base64.c \
 	parse_bytes.c \
 	parse_time.c \
 	parse_units.c \
-	qsort.c \
 	rand.c \
 	realloc.c \
 	resolve.c \
