@@ -401,6 +401,20 @@ linux_file_dtor(void *cdp)
 	kfree(filp);
 }
 
+void
+linux_file_free(struct linux_file *filp)
+{
+	if (filp->_file == NULL) {
+		kfree(filp);
+	} else {
+		/*
+		 * The close method of the character device or file
+		 * will free the linux_file structure:
+		 */
+		_fdrop(filp->_file, curthread);
+	}
+}
+
 static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
@@ -593,9 +607,12 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
 	linux_set_current(td);
+	filp->_file = file;
+
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
+			vdrop(filp->f_vnode);
 			kfree(filp);
 			goto done;
 		}
@@ -603,6 +620,7 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	error = devfs_set_cdevpriv(filp, linux_file_dtor);
 	if (error) {
 		filp->f_op->release(file->f_vnode, filp);
+		vdrop(filp->f_vnode);
 		kfree(filp);
 	}
 done:
@@ -622,8 +640,7 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-        devfs_clear_cdevpriv();
-        
+	devfs_clear_cdevpriv();
 
 	return (0);
 }
