@@ -45,7 +45,8 @@ ${.CURDIR}/cscope.files: .PHONY
 		find ${CSCOPEDIRS} -name "*.[chSsly]" -a -type f > ${.TARGET}
 
 cscope-clean:
-	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
+	cd ${.CURDIR}; \
+	    rm -f cscope.files cscope.out cscope.in.out cscope.po.out
 
 # You need the devel/global and one of editor/emacs* ports for that.
 TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
