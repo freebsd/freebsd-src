@@ -489,6 +489,10 @@ static TAILQ_HEAD(, vm_area_struct) linux_vma_head =
 static void
 linux_cdev_handle_free(struct vm_area_struct *vmap)
 {
+	/* Drop reference on vm_file */
+	if (vmap->vm_file != NULL)
+		fput(vmap->vm_file);
+
 	/* Drop reference on mm_struct */
 	mmput(vmap->vm_mm);
 
@@ -931,7 +935,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_pfn = 0;
 	vmap->vm_flags = vmap->vm_page_prot = nprot;
 	vmap->vm_ops = NULL;
-	vmap->vm_file = filp;
+	vmap->vm_file = get_file(filp);
 	vmap->vm_mm = mm;
 
 	if (unlikely(down_write_killable(&vmap->vm_mm->mmap_sem))) {
