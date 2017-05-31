@@ -1,7 +1,7 @@
-dnl $Id: aclocal.m4,v 1.41 2016/12/02 13:03:06 tom Exp $
+dnl $Id: aclocal.m4,v 1.42 2017/02/01 10:12:21 tom Exp $
 dnl Macros for byacc configure script (Thomas E. Dickey)
 dnl ---------------------------------------------------------------------------
-dnl Copyright 2004-2015,2016 Thomas E. Dickey
+dnl Copyright 2004-2016,2017 Thomas E. Dickey
 dnl 
 dnl Permission is hereby granted, free of charge, to any person obtaining a
 dnl copy of this software and associated documentation files (the
@@ -803,20 +803,26 @@ fi
 test "$cf_cv_mixedcase" = yes && AC_DEFINE(MIXEDCASE_FILENAMES,1,[Define to 1 if filesystem supports mixed-case filenames.])
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_MKSTEMP version: 9 updated: 2012/10/03 04:34:49
+dnl CF_MKSTEMP version: 10 updated: 2017/01/21 11:12:16
 dnl ----------
 dnl Check for a working mkstemp.  This creates two files, checks that they are
 dnl successfully created and distinct (AmigaOS apparently fails on the last).
 AC_DEFUN([CF_MKSTEMP],[
+AC_CHECK_HEADERS( \
+unistd.h \
+)
 AC_CACHE_CHECK(for working mkstemp, cf_cv_func_mkstemp,[
 rm -rf conftest*
 AC_TRY_RUN([
 #include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-int main()
+int main(void)
 {
 	char *tmpl = "conftestXXXXXX";
 	char name[2][80];

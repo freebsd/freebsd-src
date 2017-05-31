@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.57 2016/12/02 18:44:44 tom Exp $ */
+/* $Id: main.c,v 1.59 2017/02/02 00:44:38 tom Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -48,13 +48,13 @@ const char *myname = "yacc";
 int lineno;
 int outline;
 
-static char empty_string[] = "";
 static char default_file_prefix[] = "y";
 
 static char *file_prefix = default_file_prefix;
 
 char *code_file_name;
-char *input_file_name = empty_string;
+char *input_file_name;
+size_t input_file_name_len = 0;
 char *defines_file_name;
 char *externs_file_name;
 
@@ -381,7 +381,10 @@ getargs(int argc, char *argv[])
   no_more_options:;
     if (i + 1 != argc)
 	usage();
-    input_file_name = argv[i];
+    input_file_name_len = strlen(argv[i]);
+    input_file_name = TMALLOC(char, input_file_name_len + 1);
+    NO_SPACE(input_file_name);
+    strcpy(input_file_name, argv[i]);
 }
 
 void *

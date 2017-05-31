@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.66 2016/12/02 20:14:34 tom Exp $ */
+/* $Id: reader.c,v 1.68 2017/02/02 01:05:36 tom Exp $ */
 
 #include "defs.h"
 
@@ -108,6 +108,134 @@ cachec(int c)
     ++cinc;
 }
 
+typedef enum
+{
+    ldSPC1,
+    ldSPC2,
+    ldNAME,
+    ldSPC3,
+    ldNUM,
+    ldSPC4,
+    ldFILE,
+    ldOK,
+    ldERR
+}
+LINE_DIR;
+
+/*
+ * Expect this pattern:
+ *	/^[[:space:]]*#[[:space:]]*
+ *	  line[[:space:]]+
+ *	  [[:digit:]]+
+ *	  ([[:space:]]*|[[:space:]]+"[^"]+")/
+ */
+static int
+line_directive(void)
+{
+#define UNLESS(what) if (what) { ld = ldERR; break; }
+    int n;
+    int line_1st = -1;
+    int name_1st = -1;
+    int name_end = -1;
+    LINE_DIR ld = ldSPC1;
+    for (n = 0; (ld <= ldOK) && (line[n] != '\0'); ++n)
+    {
+	int ch = UCH(line[n]);
+	switch (ld)
+	{
+	case ldSPC1:
+	    if (isspace(ch))
+	    {
+		break;
+	    }
+	    else
+		UNLESS(ch != '#');
+	    ld = ldSPC2;
+	    break;
+	case ldSPC2:
+	    if (isspace(ch))
+	    {
+		break;
+	    }
+	    /* FALLTHRU */
+	case ldNAME:
+	    UNLESS(strncmp(line + n, "line", 4));
+	    n += 4;
+	    if (line[n] == '\0')
+	    {
+		ld = ldOK;
+		break;
+	    }
+	    else
+		UNLESS(!isspace(UCH(line[n])));
+	    ld = ldSPC3;
+	    break;
+	case ldSPC3:
+	    if (isspace(ch))
+	    {
+		break;
+	    }
+	    else
+		UNLESS(!isdigit(ch));
+	    line_1st = n;
+	    ld = ldNUM;
+	    /* FALLTHRU */
+	case ldNUM:
+	    if (isdigit(ch))
+	    {
+		break;
+	    }
+	    else
+		UNLESS(!isspace(ch));
+	    ld = ldSPC4;
+	    break;
+	case ldSPC4:
+	    if (isspace(ch))
+	    {
+		break;
+	    }
+	    else
+		UNLESS(ch != '"');
+	    UNLESS(line[n + 1] == '"');
+	    ld = ldFILE;
+	    name_1st = n;
+	    break;
+	case ldFILE:
+	    if (ch != '"')
+	    {
+		break;
+	    }
+	    ld = ldOK;
+	    name_end = n;
+	    /* FALLTHRU */
+	case ldERR:
+	case ldOK:
+	    break;
+	}
+    }
+
+    if (ld == ldOK)
+    {
+	size_t need = (size_t) (name_end - name_1st);
+	if (need > input_file_name_len)
+	{
+	    input_file_name_len = need;
+	    input_file_name = TREALLOC(char, input_file_name, need + 1);
+	    NO_SPACE(input_file_name);
+	}
+	memcpy(input_file_name, line + name_1st + 1, need - 1);
+	input_file_name[need - 1] = '\0';
+    }
+
+    if (ld >= ldNUM && ld < ldERR)
+    {
+	lineno = (int)strtol(line + line_1st, NULL, 10) - 1;
+    }
+
+    return (ld == ldOK);
+#undef UNLESS
+}
+
 static void
 get_line(void)
 {
@@ -115,49 +243,53 @@ get_line(void)
     int c;
     int i;
 
-    if (saw_eof || (c = getc(f)) == EOF)
+    do
     {
-	if (line)
+	if (saw_eof || (c = getc(f)) == EOF)
 	{
-	    FREE(line);
-	    line = 0;
+	    if (line)
+	    {
+		FREE(line);
+		line = 0;
+	    }
+	    cptr = 0;
+	    saw_eof = 1;
+	    return;
 	}
-	cptr = 0;
-	saw_eof = 1;
-	return;
-    }
 
-    if (line == NULL || linesize != (LINESIZE + 1))
-    {
-	if (line)
-	    FREE(line);
-	linesize = LINESIZE + 1;
-	line = TMALLOC(char, linesize);
-	NO_SPACE(line);
-    }
-
-    i = 0;
-    ++lineno;
-    for (;;)
-    {
-	line[i++] = (char)c;
-	if (c == '\n')
-	    break;
-	if ((i + 3) >= linesize)
+	if (line == NULL || linesize != (LINESIZE + 1))
 	{
-	    linesize += LINESIZE;
-	    line = TREALLOC(char, line, linesize);
+	    if (line)
+		FREE(line);
+	    linesize = LINESIZE + 1;
+	    line = TMALLOC(char, linesize);
 	    NO_SPACE(line);
 	}
-	c = getc(f);
-	if (c == EOF)
+
+	i = 0;
+	++lineno;
+	for (;;)
 	{
-	    line[i++] = '\n';
-	    saw_eof = 1;
-	    break;
+	    line[i++] = (char)c;
+	    if (c == '\n')
+		break;
+	    if ((i + 3) >= linesize)
+	    {
+		linesize += LINESIZE;
+		line = TREALLOC(char, line, linesize);
+		NO_SPACE(line);
+	    }
+	    c = getc(f);
+	    if (c == EOF)
+	    {
+		line[i++] = '\n';
+		saw_eof = 1;
+		break;
+	    }
 	}
+	line[i] = '\0';
     }
-    line[i] = '\0';
+    while (line_directive());
     cptr = line;
     return;
 }
