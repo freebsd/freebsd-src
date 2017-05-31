@@ -73,8 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/kthread.h>
+#include <linux/kernel.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
@@ -1677,6 +1678,13 @@ linux_on_each_cpu(void callback(void *), void *data)
 	smp_rendezvous(smp_no_rendezvous_barrier, callback,
 	    smp_no_rendezvous_barrier, data);
 	return (0);
+}
+
+int
+linux_in_atomic(void)
+{
+
+	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
 }
 
 struct linux_cdev *
