@@ -387,7 +387,13 @@
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
-      <para>&nbsp;</para>
+      <para revision="309340" contrib="sponsor"
+	sponsor="&dellemc;">Support for <acronym>GARP</acronym>
+	(gratuitous <acronym>ARP</acronym>) retransmit has been added.
+	A new &man.sysctl.8;,
+	<literal>net.link.ether.inet.garp_rexmit_count</literal>, has
+	been added, which sets the maximum number of retransmissions
+	when set to a non-zero value.</para>
     </sect2>
   </sect1>
 
