@@ -547,20 +547,9 @@ static int
 linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		      vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
-	const struct vm_operations_struct *vm_ops;
-	struct vm_area_struct *vmap;
 
-	vmap = linux_cdev_handle_find(handle);
-	MPASS(vmap != NULL);
-
+	MPASS(linux_cdev_handle_find(handle) != NULL);
 	*color = 0;
-
-	down_write(&vmap->vm_mm->mmap_sem);
-	vm_ops = vmap->vm_ops;
-	if (likely(vm_ops != NULL))
-		vm_ops->open(vmap);
-	up_write(&vmap->vm_mm->mmap_sem);
-
 	return (0);
 }
 
