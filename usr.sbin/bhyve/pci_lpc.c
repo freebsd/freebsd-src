@@ -451,12 +451,54 @@ lpc_pirq_routed(void)
 		pci_set_cfgdata8(lpc_bridge, 0x68 + pin, pirq_read(pin + 5));
 }
 
+int
+pci_lpc_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		size_t buf_size, size_t *snapshot_size)
+{
+	int unit;
+	size_t snap_size;
+	struct uart_softc *sc;
+
+	for (unit = 0; unit < LPC_UART_NUM; unit++) {
+		sc = lpc_uart_softc[unit].uart_softc;
+		if (uart_snapshot(sc, buffer, buf_size, &snap_size)) {
+			fprintf(stderr, "%s: failed to snapshot uart dev\r\n", __func__);
+			*snapshot_size = 0;
+			return (-1);
+		}
+		*snapshot_size += snap_size;
+	}
+
+	return (0);
+}
+
+static int
+pci_lpc_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		size_t buf_size)
+{
+	int unit, ret;
+	size_t offset = 0;
+	struct uart_softc *sc;
+
+	for (unit = 0; unit < LPC_UART_NUM; unit++) {
+		sc = lpc_uart_softc[unit].uart_softc;
+		ret = uart_restore(sc, buffer + offset, buf_size - offset);
+		if (ret < 0)
+			return (-1);
+		offset += ret;
+	}
+
+	return (0);
+}
+
 struct pci_devemu pci_de_lpc = {
 	.pe_emu =	"lpc",
 	.pe_init =	pci_lpc_init,
 	.pe_write_dsdt = pci_lpc_write_dsdt,
 	.pe_cfgwrite =	pci_lpc_cfgwrite,
 	.pe_barwrite =	pci_lpc_write,
-	.pe_barread =	pci_lpc_read
+	.pe_barread =	pci_lpc_read,
+	.pe_snapshot =	pci_lpc_snapshot,
+	.pe_restore =	pci_lpc_restore,
 };
 PCI_EMUL_SET(pci_de_lpc);

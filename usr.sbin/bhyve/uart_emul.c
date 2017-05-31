@@ -701,3 +701,44 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 
 	return (retval);
 }
+
+int
+uart_snapshot(struct uart_softc *sc, void *buffer, size_t buf_size,
+	      size_t *snapshot_size)
+{
+	if (sizeof(*sc) > buf_size) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	memcpy(buffer, sc, sizeof(*sc));
+	*snapshot_size = sizeof(*sc);
+	return (0);
+}
+
+int uart_restore(struct uart_softc *sc, void *buffer, size_t buf_size)
+{
+	struct uart_softc *old_sc = buffer;
+
+	if (sizeof(*sc) > buf_size) {
+		fprintf(stderr, "%s: buffer too small\r\n", __func__);
+		return (-1);
+	}
+
+	sc->data = old_sc->data;
+	sc->ier = old_sc->ier;
+	sc->lcr = old_sc->lcr;
+	sc->mcr = old_sc->mcr;
+	sc->lsr = old_sc->lsr;
+	sc->msr = old_sc->msr;
+	sc->fcr = old_sc->fcr;
+	sc->scr = old_sc->scr;
+
+	sc->dll = old_sc->dll;
+	sc->dlh = old_sc->dlh;
+
+	sc->rxfifo = old_sc->rxfifo;
+	sc->thre_int_pending = old_sc->thre_int_pending;
+
+	return (sizeof(*sc));
+}
