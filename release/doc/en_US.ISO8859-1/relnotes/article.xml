@@ -602,10 +602,6 @@
 	to support Microchip/Micrel KSZ9031 Gigabit ethernet
 	cards.</para>
 
-      <para revision="311506" contrib="sponsor"
-	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
-	to firmware version 1.16.26.0 for T4, T5, and T6 cards.</para>
-
       <para revision="312358">The &man.alc.4; driver has been updated
 	to provide support for Atheros&reg; Killer&nbsp;E2400&trade;
 	Gigabit ethernet cards.</para>
@@ -635,6 +631,10 @@
       <para revision="318357" contrib="sponsor"
 	sponsor="&intelcorp;">The &man.ixl.4; driver has been updated
 	to version 1.7.12-k.</para>
+
+      <para revision="319269" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to firmware version 1.16.45.0 for T4, T5, and T6 cards.</para>
     </sect2>
   </sect1>
 
