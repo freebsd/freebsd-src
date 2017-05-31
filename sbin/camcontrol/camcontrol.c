@@ -6221,15 +6221,15 @@ doreport:
 				if ((scsi_get_sks(sense, ccb->csio.sense_len -
 				     ccb->csio.sense_resid, sks) == 0)
 				 && (quiet == 0)) {
-					int val;
+					uint32_t val;
 					u_int64_t percentage;
 
 					val = scsi_2btoul(&sks[1]);
-					percentage = 10000 * val;
+					percentage = 10000ull * val;
 
 					fprintf(stdout,
 						"\rFormatting:  %ju.%02u %% "
-						"(%d/%d) done",
+						"(%u/%d) done",
 						(uintmax_t)(percentage /
 						(0x10000 * 100)),
 						(unsigned)((percentage /
