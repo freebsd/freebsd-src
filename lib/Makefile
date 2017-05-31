@@ -151,9 +151,7 @@ SUBDIR.${MK_CLANG}+=	clang
 .endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
-.if !defined(LIBCHERI)
 SUBDIR.${MK_CXX}+=	libdevdctl
-.endif
 SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
 SUBDIR.${MK_FILE}+=	libmagic
