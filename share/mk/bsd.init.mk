@@ -16,6 +16,33 @@ __<bsd.init.mk>__:
 .include <bsd.own.mk>
 .MAIN: all
 
+# Handle INSTALL_AS_USER here to maximize the chance that
+# it has final authority over fooOWN and fooGRP.
+.if ${MK_INSTALL_AS_USER} != "no"
+.if !defined(_uid)
+_uid!=	id -u
+.export _uid
+.endif
+.if ${_uid} != 0
+.if !defined(USER)
+# Avoid exporting USER
+.if !defined(_USER)
+_USER!=	id -un
+.export _USER
+.endif
+USER=	${_USER}
+.endif
+.if !defined(_gid)
+_gid!=	id -g
+.export _gid
+.endif
+.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${USER}
+$xGRP=	${_gid}
+.endfor
+.endif
+.endif
+
 # Some targets need to know when something may build.  This is used to
 # optimize targets that are only needed when building something, such as
 # (not) reading in depend files.  For DIRDEPS_BUILD, it will only calculate
