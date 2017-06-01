@@ -151,20 +151,18 @@ get_unused_fd_flags(int flags)
 	return fd;
 }
 
+extern struct linux_file *linux_file_alloc(void);
+
 static inline struct linux_file *
 alloc_file(int mode, const struct file_operations *fops)
 {
 	struct linux_file *filp;
 
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL)
-		return (NULL);
-
-	filp->f_count = 1;
+	filp = linux_file_alloc();
 	filp->f_op = fops;
 	filp->f_mode = mode;
 
-	return filp;
+	return (filp);
 }
 
 struct fd {
