@@ -150,7 +150,7 @@ ATF_TEST_CASE_BODY(dnvlist_get_string__default_value)
 
 	ATF_REQUIRE_EQ(strcmp(dnvlist_get_string(nvl, "hthth", "fd"), "fd"), 0);
 	actual_value = dnvlist_get_string(nvl, "5", "5");
-	ATF_REQUIRE_EQ(strcmp("5", "5"), 0);
+	ATF_REQUIRE_EQ(strcmp(actual_value, "5"), 0);
 
 	nvlist_destroy(nvl);
 }
