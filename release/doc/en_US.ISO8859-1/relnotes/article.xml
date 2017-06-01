@@ -259,6 +259,11 @@
 	the changelog date rather than file modification date in
 	manual pages for build reproducibility.</para>
 
+      <note>
+	<para>&man.groff.1; is planned to be deprecated effective &os;
+	  12.0-RELEASE.</para>
+      </note>
+
       <para revision="307729">&man.unbound.8; has been updated to
 	version 1.5.10.</para>
 
