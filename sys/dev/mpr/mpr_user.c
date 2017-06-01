@@ -2145,7 +2145,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 			data->DevHandle = dev_handle;
 	} else {
 		bus = 0;
-		target = mpr_mapping_get_sas_id_from_handle(sc, dev_handle);
+		target = mpr_mapping_get_tid_from_handle(sc, dev_handle);
 		data->Bus = bus;
 		data->TargetID = target;
 	}

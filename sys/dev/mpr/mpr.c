@@ -520,7 +520,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	 */
 	if (reallocating) {
 		mpr_iocfacts_free(sc);
-		mprsas_realloc_targets(sc, saved_facts.MaxTargets);
+		mprsas_realloc_targets(sc, saved_facts.MaxTargets +
+		    saved_facts.MaxVolumes);
 	}
 
 	/*
@@ -1663,6 +1664,7 @@ mpr_attach(struct mpr_softc *sc)
 
 	mtx_init(&sc->mpr_mtx, "MPR lock", NULL, MTX_DEF);
 	callout_init_mtx(&sc->periodic, &sc->mpr_mtx, 0);
+	callout_init_mtx(&sc->device_check_callout, &sc->mpr_mtx, 0);
 	TAILQ_INIT(&sc->event_list);
 	timevalclear(&sc->lastfail);
 
@@ -1832,6 +1834,7 @@ mpr_free(struct mpr_softc *sc)
 	mpr_unlock(sc);
 	/* Lock must not be held for this */
 	callout_drain(&sc->periodic);
+	callout_drain(&sc->device_check_callout);
 
 	if (((error = mpr_detach_log(sc)) != 0) ||
 	    ((error = mpr_detach_sas(sc)) != 0))

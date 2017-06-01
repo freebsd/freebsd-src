@@ -223,8 +223,9 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 				if (mprsas_add_device(sc,
 				    le16toh(phy->AttachedDevHandle),
 				    phy->LinkRate)) {
-					printf("%s: failed to add device with "
-					    "handle 0x%x\n", __func__,
+					mpr_dprint(sc, MPR_ERROR, "%s: "
+					    "failed to add device with handle "
+					    "0x%x\n", __func__,
 					    le16toh(phy->AttachedDevHandle));
 					mprsas_prepare_remove(sassc, le16toh(
 					    phy->AttachedDevHandle));
@@ -289,7 +290,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 
 		element =
 		    (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
-		id = mpr_mapping_get_raid_id_from_handle(sc,
+		id = mpr_mapping_get_raid_tid_from_handle(sc,
 		    element->VolDevHandle);
 
 		mpr_mapping_ir_config_change_event(sc, event_data);
@@ -833,10 +834,17 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	 *  1 - use the PhyNum field as a fallback to the mapping logic
 	 *  0 - never use the PhyNum field
 	 * -1 - only use the PhyNum field
+	 *
+	 * Note that using the Phy number to map a device can cause device adds
+	 * to fail if multiple enclosures/expanders are in the topology. For
+	 * example, if two devices are in the same slot number in two different
+	 * enclosures within the topology, only one of those devices will be
+	 * added. PhyNum mapping should not be used if multiple enclosures are
+	 * in the topology.
 	 */
 	id = MPR_MAP_BAD_ID;
 	if (sc->use_phynum != -1) 
-		id = mpr_mapping_get_sas_id(sc, sas_address, handle);
+		id = mpr_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPR_MAP_BAD_ID) {
 		if ((sc->use_phynum == 0) ||
 		    ((id = config_page.PhyNum) > sassc->maxtargets)) {
@@ -847,19 +855,31 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 			goto out;
 		}
 	}
+	mpr_dprint(sc, MPR_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
 
-	if (mprsas_check_id(sassc, id) != 0) {
-		device_printf(sc->mpr_dev, "Excluding target id %d\n", id);
-		error = ENXIO;
-		goto out;
-	}
-
+	/*
+	 * Only do the ID check and reuse check if the target is not from a
+	 * RAID Component. For Physical Disks of a Volume, the ID will be reused
+	 * when a volume is deleted because the mapping entry for the PD will
+	 * still be in the mapping table. The ID check should not be done here
+	 * either since this PD is already being used.
+	 */
 	targ = &sassc->targets[id];
-	if (targ->handle != 0x0) {
-		mpr_dprint(sc, MPR_MAPPING, "Attempting to reuse target id "
-		    "%d handle 0x%04x\n", id, targ->handle);
-		error = ENXIO;
-		goto out;
+	if (!(targ->flags & MPR_TARGET_FLAGS_RAID_COMPONENT)) {
+		if (mprsas_check_id(sassc, id) != 0) {
+			device_printf(sc->mpr_dev, "Excluding target id %d\n",
+			    id);
+			error = ENXIO;
+			goto out;
+		}
+
+		if (targ->handle != 0x0) {
+			mpr_dprint(sc, MPR_MAPPING, "Attempting to reuse "
+			    "target id %d handle 0x%04x\n", id, targ->handle);
+			error = ENXIO;
+			goto out;
+		}
 	}
 
 	mpr_dprint(sc, MPR_MAPPING, "SAS Address from SAS device page0 = %jx\n",
@@ -1256,14 +1276,16 @@ mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		goto out;
 	}
 
-	id = mpr_mapping_get_sas_id(sc, pcie_wwid, handle);
+	id = mpr_mapping_get_tid(sc, pcie_wwid, handle);
 	if (id == MPR_MAP_BAD_ID) {
-		printf("failure at %s:%d/%s()! Could not get ID for device "
-		    "with handle 0x%04x\n", __FILE__, __LINE__, __func__,
-		    handle);
+		mpr_dprint(sc, MPR_ERROR | MPR_INFO, "failure at %s:%d/%s()! "
+		    "Could not get ID for device with handle 0x%04x\n",
+		    __FILE__, __LINE__, __func__, handle);
 		error = ENXIO;
 		goto out;
 	}
+	mpr_dprint(sc, MPR_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
 
 	if (mprsas_check_id(sassc, id) != 0) {
 		device_printf(sc->mpr_dev, "Excluding target id %d\n", id);
@@ -1356,7 +1378,7 @@ mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 		goto out;
 	}
 
-	id = mpr_mapping_get_raid_id(sc, wwid, handle);
+	id = mpr_mapping_get_raid_tid(sc, wwid, handle);
 	if (id == MPR_MAP_BAD_ID) {
 		printf("%s: could not get ID for volume with handle 0x%04x and "
 		    "WWID 0x%016llx\n", __func__, handle,
@@ -1418,7 +1440,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	 */
 	sc->SSU_started = TRUE;
 	sc->SSU_refcount = 0;
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
@@ -1602,7 +1624,7 @@ out:
 	 * 3: enable to SSD and HDD
 	 * anything else will default to 1.
 	 */
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sc->sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
