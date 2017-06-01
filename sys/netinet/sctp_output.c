@@ -7730,9 +7730,9 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	/* must make even word boundary */
 	space_left &= 0xfffffffc;
 	strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
+	giveup = 0;
+	bail = 0;
 	while ((space_left > 0) && (strq != NULL)) {
-		giveup = 0;
-		bail = 0;
 		moved = sctp_move_to_outqueue(stcb, strq, space_left, frag_point,
 		    &giveup, eeor_mode, &bail, so_locked);
 		stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved);
