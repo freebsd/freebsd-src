@@ -231,9 +231,6 @@ sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS)
 }
 #endif
 
-hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
-hrtime_t zfs_throttle_resolution = MSEC2NSEC(10);
-
 int
 dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
 {
