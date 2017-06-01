@@ -441,7 +441,7 @@ _thr_signal_init(int dlopened)
 }
 
 void
-_thr_sigact_unload(struct dl_phdr_info *phdr_info)
+_thr_sigact_unload(struct dl_phdr_info *phdr_info __unused)
 {
 #if 0
 	struct pthread *curthread = _get_curthread();
@@ -736,8 +736,8 @@ __thr_setcontext(const ucontext_t *ucp)
 		errno = EINVAL;
 		return (-1);
 	}
-	if (!SIGISMEMBER(uc.uc_sigmask, SIGCANCEL))
-		return __sys_setcontext(ucp);
+	if (!SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL))
+		return (__sys_setcontext(ucp));
 	(void) memcpy(&uc, ucp, sizeof(uc));
 	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 	return (__sys_setcontext(&uc));

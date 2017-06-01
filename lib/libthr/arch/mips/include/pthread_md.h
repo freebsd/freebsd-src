@@ -70,8 +70,6 @@ _tcb_get(void)
 	return tcb;
 }
 
-extern struct pthread *_thr_initial;
-
 static __inline struct pthread *
 _get_curthread(void)
 {
