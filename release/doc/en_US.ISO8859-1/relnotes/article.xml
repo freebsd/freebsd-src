@@ -248,8 +248,8 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="305837">&man.readelf.1; utility has been updated
-	to report &arch.arm; program and section header types.</para>
+      <para revision="305837">&man.readelf.1; has been updated to
+	report &arch.arm; program and section header types.</para>
 
       <para revision="305844" contrib="sponsor" sponsor="&ff;">The
 	<acronym>ELF</acronym> Tool Chain has been updated to upstream
