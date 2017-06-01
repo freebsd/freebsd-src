@@ -43,7 +43,7 @@ typedef struct poll_table_struct {
 static inline void
 poll_wait(struct linux_file *filp, wait_queue_head_t *wait_address, poll_table *p)
 {
-	selrecord(curthread, &filp->f_selinfo);
+	/* NOP */
 }
 
 extern void linux_poll_wakeup(struct linux_file *);
