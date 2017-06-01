@@ -36,8 +36,15 @@ typedef long long intmax_t;
 #include <inttypes.h>
 #endif
 
+typedef enum {
+	PROG_ENV_VALID_NO_ALT_PATH = -1,
+	PROG_ENV_INVALID = 0,
+	PROG_ENV_VALID_HAS_ALT_PATH = 1,
+	PROG_ENV_UNKNOWN = 2,
+} prog_env_validity;
+
 int	find_confstr(const char *name, int *key);
 int	find_limit(const char *name, intmax_t *value);
 int	find_pathconf(const char *name, int *key);
-int	find_progenv(const char *name, const char **alt_path);
+prog_env_validity	find_progenv(const char *name, const char **alt_path);
 int	find_sysconf(const char *name, int *key);
