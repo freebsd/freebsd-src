@@ -140,12 +140,15 @@ static LIST_HEAD(,uma_zone) uma_cachezones =
 /* This RW lock protects the keg list */
 static struct rwlock_padalign uma_rwlock;
 
-/* Linked list of boot time pages */
-static LIST_HEAD(,uma_slab) uma_boot_pages =
-    LIST_HEAD_INITIALIZER(uma_boot_pages);
-
-/* This mutex protects the boot time pages list */
-static struct mtx_padalign uma_boot_pages_mtx;
+/*
+ * Pointer and counter to pool of pages, that is preallocated at
+ * startup to bootstrap UMA.  Early zones continue to use the pool
+ * until it is depleted, so allocations may happen after boot, thus
+ * we need a mutex to protect it.
+ */
+static char *bootmem;
+static int boot_pages;
+static struct mtx uma_boot_pages_mtx;
 
 static struct sx uma_drain_lock;
 
@@ -1034,36 +1037,24 @@ static void *
 startup_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	uma_keg_t keg;
-	uma_slab_t tmps;
-	int pages, check_pages;
+	void *mem;
+	int pages;
 
 	keg = zone_first_keg(zone);
 	pages = howmany(bytes, PAGE_SIZE);
-	check_pages = pages - 1;
 	KASSERT(pages > 0, ("startup_alloc can't reserve 0 pages\n"));
 
 	/*
 	 * Check our small startup cache to see if it has pages remaining.
 	 */
 	mtx_lock(&uma_boot_pages_mtx);
-
-	/* First check if we have enough room. */
-	tmps = LIST_FIRST(&uma_boot_pages);
-	while (tmps != NULL && check_pages-- > 0)
-		tmps = LIST_NEXT(tmps, us_link);
-	if (tmps != NULL) {
-		/*
-		 * It's ok to lose tmps references.  The last one will
-		 * have tmps->us_data pointing to the start address of
-		 * "pages" contiguous pages of memory.
-		 */
-		while (pages-- > 0) {
-			tmps = LIST_FIRST(&uma_boot_pages);
-			LIST_REMOVE(tmps, us_link);
-		}
+	if (pages <= boot_pages) {
+		mem = bootmem;
+		boot_pages -= pages;
+		bootmem += pages * PAGE_SIZE;
 		mtx_unlock(&uma_boot_pages_mtx);
-		*pflag = tmps->us_flags;
-		return (tmps->us_data);
+		*pflag = UMA_SLAB_BOOT;
+		return (mem);
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
 	if (booted < UMA_STARTUP2)
@@ -1748,11 +1739,9 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 /* Public functions */
 /* See uma.h */
 void
-uma_startup(void *bootmem, int boot_pages)
+uma_startup(void *mem, int npages)
 {
 	struct uma_zctor_args args;
-	uma_slab_t slab;
-	int i;
 
 #ifdef UMA_DEBUG
 	printf("Creating uma keg headers zone and keg.\n");
@@ -1773,16 +1762,9 @@ uma_startup(void *bootmem, int boot_pages)
 	/* The initial zone has no Per cpu queues so it's smaller */
 	zone_ctor(kegs, sizeof(struct uma_zone), &args, M_WAITOK);
 
-#ifdef UMA_DEBUG
-	printf("Filling boot free list.\n");
-#endif
-	for (i = 0; i < boot_pages; i++) {
-		slab = (uma_slab_t)((uint8_t *)bootmem + (i * UMA_SLAB_SIZE));
-		slab->us_data = (uint8_t *)slab;
-		slab->us_flags = UMA_SLAB_BOOT;
-		LIST_INSERT_HEAD(&uma_boot_pages, slab, us_link);
-	}
 	mtx_init(&uma_boot_pages_mtx, "UMA boot pages", NULL, MTX_DEF);
+	bootmem = mem;
+	boot_pages = npages;
 
 #ifdef UMA_DEBUG
 	printf("Creating uma zone headers zone and keg.\n");
