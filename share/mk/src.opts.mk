@@ -271,6 +271,13 @@ BROKEN_OPTIONS+=LIBSOFT
 BROKEN_OPTIONS+=EFI
 .endif
 
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
+    ${__T} == "powerpc64" || ${__T} == "sparc64"
+__DEFAULT_YES_OPTIONS+=CXGBETOOL
+.else
+__DEFAULT_NO_OPTIONS+=CXGBETOOL
+.endif
+
 .include <bsd.mkopt.mk>
 
 #

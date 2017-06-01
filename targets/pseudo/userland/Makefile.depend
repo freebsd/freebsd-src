@@ -908,6 +908,10 @@ DIRDEPS+= \
 	usr.sbin/blacklistd
 .endif
 
+.if ${MK_CXGBETOOL} != "no"
+DIRDEPS+= usr.sbin/cxgbetool
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 DIRDEPS+= usr.bin/dtc
 .endif
