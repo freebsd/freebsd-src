@@ -92,9 +92,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	a reboot is required after installing the new kernel before
 	installing world.  
 
-	Users using META_MODE to build should also use -DNO_META_IGNORE_HOST
-	to 'make' for the first build after upgrading.
-
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
 	patm(4) devices has been removed.  Consumers should plan a
