@@ -393,7 +393,7 @@
       <title>Runtime Libraries and API</title>
 
       <para revision="310372">The <literal>libmd</literal> library has
-	been updated to introduce functions thta operate on &man.fd.4;
+	been updated to introduce functions that operate on &man.fd.4;
 	instead of <literal>filename</literal>.</para>
 
       <para revision="316039">The &man.kvm.close.3; function has been
