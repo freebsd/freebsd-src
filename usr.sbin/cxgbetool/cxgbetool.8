@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2013
+.Dd March 6, 2017
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -133,7 +133,8 @@ or
 .Va dev.cxgbe.%d.ofld_rxq.%d.fl.cntxt_id Ns .
 Note that freelists are egress queues too.
 .It Ar flm_cntxt_id
-context id of a freelist manager.  The FLM context id is displayed in the
+context id of a freelist manager.
+The FLM context id is displayed in the
 egress context dump of a freelist as FLMcontextID.
 .El
 .It Cm filter mode Op Ar match-criteria ...
@@ -379,7 +380,8 @@ The card's memory map is available in
 .Va dev.t4nex.%d.misc.meminfo Ns .
 .It Bro Cm reg | reg64 Brc Ar addr Ns Op Ar =val
 .It Cm regdump Op Ar register-block ...
-Display contents of device registers.  One or more
+Display contents of device registers.
+One or more
 .Ar register-block
 can be specified to limit the registers displayed.
 The default is to display registers for all blocks.
@@ -400,7 +402,8 @@ A non-zero value will enable "minmax" mode; a zero value will disable "minmax" m
 .Pp
 NOTE:  Many (most) of the parameters and constraints are adapter-specific
 - for instance the number of channels and classes which are available
-whether various modes are implemented, etc.  Consult the adapter documentation for specific information on any limitations.
+whether various modes are implemented, etc.
+Consult the adapter documentation for specific information on any limitations.
 .El
 .It Cm sched-class params Op Ar param Ar value
 Configure parameters for a scheduling class.
@@ -471,7 +474,8 @@ The weight to be used for a weighted-round-robin scheduling hierarchy.
 The average packet size will be used to compute scheduler constraints for a rate-limited scheduler class hierarchy.
 .Pp
 NOTE:  Many (most) of the parameters and constraints are adapter-specific - for instance the number of channels and classes which are available,
-whether various modes are implemented, etc.  Consult the adapter documentation for specific information on any limitations.
+whether various modes are implemented, etc.
+Consult the adapter documentation for specific information on any limitations.
 .El
 .It Cm sched-queue Ar port queue class
 Bind the indicated port's NIC TX
