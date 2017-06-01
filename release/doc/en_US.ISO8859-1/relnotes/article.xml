@@ -255,12 +255,20 @@
 	<acronym>ELF</acronym> Tool Chain has been updated to upstream
 	revision r3490.</para>
 
+      <para revision="307631">&man.groff.1; has been updated to use
+	the changelog date rather than file modification date in
+	manual pages for build reproducibility.</para>
+
       <para revision="307729">&man.unbound.8; has been updated to
 	version 1.5.10.</para>
 
       <para revision="309125">&man.strings.1; has been updated to fix
 	the exit status when multiple files are provided as arguments,
 	and an error is encountered before the last file.</para>
+
+      <para revision="309183" contrib="sponsor"
+	sponsor="&ff;">&man.makewhatis.1; has been updated to produce
+	build-reproducible output.</para>
 
       <para revision="309511"><application>Subversion</application>
 	has been updated to version 1.9.5.</para>
@@ -453,6 +461,11 @@
 
       <para revision="305516">The <literal>kern.proc.nfds</literal>
 	&man.sysctl.8; is now permitted in capability mode.</para>
+
+      <para revision="312249">The
+	<filename>sys/conf/newvers.sh</filename> script has been
+	updated with an option to exclude build-specific metadata from
+	the kernel for build reproducibility.</para>
     </sect2>
 
     <sect2 xml:id="kernel-bugfix">
@@ -466,6 +479,11 @@
 
     <sect2 xml:id="kernel-config">
       <title>Kernel Configuration</title>
+
+      <para revision="312730">The
+	<literal>WITH_REPRODUCIBLE_BUILD</literal> &man.src.conf.5;
+	knob has been added, which when set, excludes build-specific
+	metadata from the kernel, for build reproducibility.</para>
 
       <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
 	<literal>IPSEC_NAT_T</literal> kernel configuration option has
@@ -790,6 +808,10 @@
 
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
+
+      <para revision="305845" contrib="sponsor" sponsor="&ff;">The
+	<acronym>UEFI</acronym> boot loader has been updated for build
+	reproducibility.</para>
 
       <para revision="307632" contrib="sponsor" sponsor="&gandi;">The
 	<acronym>EFI</acronym> loader has been updated to support
