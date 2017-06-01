@@ -55,6 +55,7 @@
 #include <stdio.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
+#include <rpc/rpc_com.h>
 #include <rpc/pmap_prot.h>
 #endif /* PORTMAP */
 #include <string.h>
@@ -418,7 +419,8 @@ rpcbproc_taddr2uaddr_com(void *arg, struct svc_req *rqstp __unused,
 static bool_t
 xdr_encap_parms(XDR *xdrs, struct encap_parms *epp)
 {
-	return (xdr_bytes(xdrs, &(epp->args), (u_int *) &(epp->arglen), ~0));
+	return (xdr_bytes(xdrs, &(epp->args), (u_int *) &(epp->arglen),
+	    RPC_MAXDATASIZE));
 }
 
 /*
