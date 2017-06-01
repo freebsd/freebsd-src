@@ -347,7 +347,7 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 	sbuf_printf(&sb, "SMID %u ", cm->cm_desc.Default.SMID);
 	sbuf_vprintf(&sb, fmt, ap);
 	sbuf_finish(&sb);
-	mps_dprint_field(cm->cm_sc, level, "%s", sbuf_data(&sb));
+	mps_print_field(cm->cm_sc, "%s", sbuf_data(&sb));
 
 	va_end(ap);
 }
@@ -1505,7 +1505,7 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 		return -1;
 	}
 
-	mpssas_log_command(tm, MPS_RECOVERY|MPS_INFO,
+	mpssas_log_command(cm, MPS_RECOVERY|MPS_INFO,
 	    "Aborting command %p\n", cm);
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
@@ -1536,7 +1536,7 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 
 	err = mps_map_command(sc, tm);
 	if (err)
-		mpssas_log_command(tm, MPS_RECOVERY,
+		mps_dprint(sc, MPS_RECOVERY,
 		    "error %d sending abort for cm %p SMID %u\n",
 		    err, cm, req->TaskMID);
 	return err;
@@ -1574,11 +1574,12 @@ mpssas_scsiio_timeout(void *data)
 		return;
 	}
 
-	mpssas_log_command(cm, MPS_INFO, "command timeout cm %p ccb %p\n", 
-	    cm, cm->cm_ccb);
-
 	targ = cm->cm_targ;
 	targ->timeouts++;
+
+	mpssas_log_command(cm, MPS_ERROR, "command timeout %d cm %p target "
+	    "%u, handle(0x%04x)\n", cm->cm_ccb->ccb_h.timeout, cm,  targ->tid,
+	    targ->handle);
 
 	/* XXX first, check the firmware state, to see if it's still
 	 * operational.  if not, do a diag reset.
@@ -2437,8 +2438,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 */
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		mpssas_log_command(cm, MPS_INFO,
-		    "terminated ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "terminated ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		break;
 	case MPI2_IOCSTATUS_INVALID_FUNCTION:
@@ -2453,8 +2455,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
 	default:
 		mpssas_log_command(cm, MPS_XINFO,
-		    "completed ioc %x scsi %x state %x xfer %u\n",
-		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
+		    "completed ioc %x loginfo %x scsi %x state %x xfer %u\n",
+		    le16toh(rep->IOCStatus), le32toh(rep->IOCLogInfo),
+		    rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		csio->resid = cm->cm_length;
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
@@ -2820,11 +2823,9 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	uint8_t *request, *response;
 	MPI2_SMP_PASSTHROUGH_REQUEST *req;
 	struct mps_softc *sc;
-	struct sglist *sg;
 	int error;
 
 	sc = sassc->sc;
-	sg = NULL;
 	error = 0;
 
 	/*

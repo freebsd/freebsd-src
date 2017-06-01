@@ -83,6 +83,8 @@ struct mprsas_target {
 	uint8_t		scsi_req_desc_type;
 	uint8_t		stop_at_shutdown;
 	uint8_t		supports_SSU;
+	uint8_t		is_nvme;
+	uint32_t	MDTS;
 };
 
 struct mprsas_softc {

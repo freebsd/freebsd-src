@@ -1353,6 +1353,7 @@ mps_get_tunables(struct mps_softc *sc)
 	sc->max_io_pages = MPS_MAXIO_PAGES;
 	sc->enable_ssu = MPS_SSU_ENABLE_SSD_DISABLE_HDD;
 	sc->spinup_wait_time = DEFAULT_SPINUP_WAIT;
+	sc->use_phynum = 1;
 
 	/*
 	 * Grab the global variables.
@@ -1364,6 +1365,7 @@ mps_get_tunables(struct mps_softc *sc)
 	TUNABLE_INT_FETCH("hw.mps.max_io_pages", &sc->max_io_pages);
 	TUNABLE_INT_FETCH("hw.mps.enable_ssu", &sc->enable_ssu);
 	TUNABLE_INT_FETCH("hw.mps.spinup_wait_time", &sc->spinup_wait_time);
+	TUNABLE_INT_FETCH("hw.mps.use_phy_num", &sc->use_phynum);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.debug_level",
@@ -1398,6 +1400,10 @@ mps_get_tunables(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.spinup_wait_time",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->spinup_wait_time);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.use_phy_num",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->use_phynum);
 }
 
 static void
@@ -1479,16 +1485,26 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
 	    "enable SSU to SATA SSD/HDD at shutdown");
 
-#if __FreeBSD_version >= 900030
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
 	    &sc->chain_alloc_fail, "chain allocation failures");
-#endif //FreeBSD_version >= 900030
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "spinup_wait_time", CTLFLAG_RD,
 	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
 	    "spinup after SATA ID error");
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "mapping_table_dump", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    mps_mapping_dump, "A", "Mapping Table Dump");
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "encl_table_dump", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    mps_mapping_encl_dump, "A", "Enclosure Table Dump");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
+	    "Use the phy number for enumeration");
 }
 
 int
@@ -2096,7 +2112,7 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
 
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply;
 	if ((reply == NULL) ||
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
@@ -2520,18 +2536,21 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 		return  EBUSY;
 
 	cm->cm_complete = NULL;
-	cm->cm_flags |= (MPS_CM_FLAGS_WAKEUP + MPS_CM_FLAGS_POLLED);
+	cm->cm_flags |= MPS_CM_FLAGS_POLLED;
 	error = mps_map_command(sc, cm);
 	if ((error != 0) && (error != EINPROGRESS))
 		return (error);
 
-	// Check for context and wait for 50 mSec at a time until time has
-	// expired or the command has finished.  If msleep can't be used, need
-	// to poll.
+	/*
+	 * Check for context and wait for 50 mSec at a time until time has
+	 * expired or the command has finished.  If msleep can't be used, need
+	 * to poll.
+	 */
 	if (curthread->td_no_sleeping != 0)
 		sleep_flag = NO_SLEEP;
 	getmicrotime(&start_time);
 	if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP) {
+		cm->cm_flags |= MPS_CM_FLAGS_WAKEUP;
 		error = msleep(cm, &sc->mps_mtx, 0, "mpswait", timeout*hz);
 	} else {
 		while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
@@ -2556,54 +2575,6 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 		    "failed");
 		error = ETIMEDOUT;
 	}
-	return (error);
-}
-
-/*
- * This is the routine to enqueue a command synchonously and poll for
- * completion.  Its use should be rare.
- */
-int
-mps_request_polled(struct mps_softc *sc, struct mps_command *cm)
-{
-	int error, timeout = 0, rc;
-	struct timeval cur_time, start_time;
-
-	error = 0;
-
-	cm->cm_flags |= MPS_CM_FLAGS_POLLED;
-	cm->cm_complete = NULL;
-	mps_map_command(sc, cm);
-
-	getmicrotime(&start_time);
-	while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
-		mps_intr_locked(sc);
-
-		if (mtx_owned(&sc->mps_mtx))
-			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
-			    "mpspoll", hz/20);
-		else
-			pause("mpsdiag", hz/20);
-
-		/*
-		 * Check for real-time timeout and fail if more than 60 seconds.
-		 */
-		getmicrotime(&cur_time);
-		timeout = cur_time.tv_sec - start_time.tv_sec;
-		if (timeout > 60) {
-			mps_dprint(sc, MPS_FAULT, "polling failed\n");
-			error = ETIMEDOUT;
-			break;
-		}
-	}
-
-	if (error) {
-		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s\n", __func__);
-		rc = mps_reinit(sc);
-		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
-		    "failed");
-	}
-
 	return (error);
 }
 
