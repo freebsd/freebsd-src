@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
 .if ${MK_CHERI} != "no"
 WANT_CHERI?=	hybrid
