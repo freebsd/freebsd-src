@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2_ioc.h>
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 
 #include <sys/queue.h>
 #include <sys/kthread.h>
@@ -110,6 +111,10 @@ struct mpr_ident {
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3108_5" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_6,
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3108_6" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3216,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3216" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3224,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3224" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_1,
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3316_1" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3316_2,
@@ -118,10 +123,24 @@ struct mpr_ident {
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3324_1" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_2,
 	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3324_2" },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3216,
-	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3216" },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3224,
-	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3224" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3408,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3408" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3416,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3416" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3508,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3508" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3508_1,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3508_1" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3516,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3516" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3516_1,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3516_1" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3616,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3616" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3708,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3708" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3716,
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS3716" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
 
@@ -164,7 +183,7 @@ mpr_pci_attach(device_t dev)
 {
 	struct mpr_softc *sc;
 	struct mpr_ident *m;
-	int error;
+	int error, i;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -175,13 +194,32 @@ mpr_pci_attach(device_t dev)
 	/* Twiddle basic PCI config bits for a sanity check */
 	pci_enable_busmaster(dev);
 
-	/* Allocate the System Interface Register Set */
-	sc->mpr_regs_rid = PCIR_BAR(1);
-	if ((sc->mpr_regs_resource = bus_alloc_resource_any(dev,
-	    SYS_RES_MEMORY, &sc->mpr_regs_rid, RF_ACTIVE)) == NULL) {
+	/* Set flag if this is a Gen3.5 IOC */
+	if ((m->device == MPI26_MFGPAGE_DEVID_SAS3508) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3508_1) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3408) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3516) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3516_1) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3416) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3716) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3616) ||
+	    (m->device == MPI26_MFGPAGE_DEVID_SAS3708)) {
+		sc->mpr_flags |= MPR_FLAGS_GEN35_IOC;
+	}
+
+	for (i = 0; i < PCI_MAXMAPS_0; i++) {
+		sc->mpr_regs_rid = PCIR_BAR(i);
+
+		if ((sc->mpr_regs_resource = bus_alloc_resource_any(dev,
+		    SYS_RES_MEMORY, &sc->mpr_regs_rid, RF_ACTIVE)) != NULL)
+			break;
+	}
+
+	if (sc->mpr_regs_resource == NULL) {
 		mpr_printf(sc, "Cannot allocate PCI registers\n");
 		return (ENXIO);
 	}
+
 	sc->mpr_btag = rman_get_bustag(sc->mpr_regs_resource);
 	sc->mpr_bhandle = rman_get_bushandle(sc->mpr_regs_resource);
 
