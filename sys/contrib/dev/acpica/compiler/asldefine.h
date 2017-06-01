@@ -161,8 +161,8 @@
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
 #define ASL_DEFINE                  "__IASL__"
-
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.1"
+#define ASL_PREFIX                  "iASL: "
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.2"
 
 
 /* Configuration constants */

@@ -226,7 +226,7 @@ AslCommandLine (
     /* Next parameter must be the input filename */
 
     if (!argv[AcpiGbl_Optind] &&
-        !Gbl_DisasmFlag)
+        !AcpiGbl_DisasmFlag)
     {
         printf ("Missing input filename\n");
         BadCommandLine = TRUE;
@@ -466,7 +466,7 @@ AslDoOptions (
             return (-1);
         }
 
-        Gbl_DisasmFlag = TRUE;
+        AcpiGbl_DisasmFlag = TRUE;
         break;
 
     case 'D':   /* Define a symbol */
@@ -538,6 +538,7 @@ AslDoOptions (
         {
         case '^':
 
+            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
             Usage ();
             exit (0);
 

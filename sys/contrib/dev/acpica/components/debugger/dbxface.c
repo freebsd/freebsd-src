@@ -379,7 +379,7 @@ AcpiDbSingleStep (
         if ((AcpiGbl_DbOutputToFile)        ||
             (AcpiDbgLevel & ACPI_LV_PARSE))
         {
-            AcpiOsPrintf ("\n[AmlDebug] Next AML Opcode to execute:\n");
+            AcpiOsPrintf ("\nAML Debug: Next AML Opcode to execute:\n");
         }
 
         /*

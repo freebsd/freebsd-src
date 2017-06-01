@@ -150,6 +150,11 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
+# 20170601: old libifconfig and libifc
+OLD_FILES+=usr/lib/libifc.a
+OLD_FILES+=usr/lib/libifc_p.a
+OLD_FILES+=usr/lib/libifconfig.a
+OLD_FILES+=usr/lib/libifconfig_p.a
 # 20170529: mount.conf(8) -> mount.conf(5)
 OLD_FILES+=usr/share/man/man8/mount.conf.8.gz
 # 20170525: remove misleading template
@@ -228,6 +233,9 @@ OLD_FILES+=usr/share/doc/usd/contents.ascii.gz
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=usr/lib/libarchive.so.6
 OLD_LIBS+=usr/lib/libmilter.so.5
+OLD_LIBS+=usr/lib32/libzfs.so.2
+OLD_LIBS+=usr/lib32/libarchive.so.6
+OLD_LIBS+=usr/lib32/libmilter.so.5
 # 20170427: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2

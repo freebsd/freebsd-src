@@ -2,7 +2,7 @@
 # Configuration validation subroutine script.
 #   Copyright 1992-2017 Free Software Foundation, Inc.
 
-timestamp='2017-01-01'
+timestamp='2017-02-07'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -947,6 +947,9 @@ case $basic_machine in
 		;;
 	nsr-tandem)
 		basic_machine=nsr-tandem
+		;;
+	nsx-tandem)
+		basic_machine=nsx-tandem
 		;;
 	op50n-* | op60c-*)
 		basic_machine=hppa1.1-oki

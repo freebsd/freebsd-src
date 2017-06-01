@@ -857,6 +857,9 @@ MLINKS+=getenv.9 freeenv.9 \
 	getenv.9 getenv_quad.9 \
 	getenv.9 getenv_uint.9 \
 	getenv.9 getenv_ulong.9 \
+	getenv.9 kern_getenv.9 \
+	getenv.9 kern_setenv.9 \
+	getenv.9 kern_unsetenv.9 \
 	getenv.9 setenv.9 \
 	getenv.9 testenv.9 \
 	getenv.9 unsetenv.9

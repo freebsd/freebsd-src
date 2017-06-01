@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/semaphore.h>
+#include <linux/spinlock.h>
 
 struct module;
 struct kiocb;
@@ -79,6 +80,16 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+	volatile u_int	f_count;
+
+	/* kqfilter support */
+	int		f_kqflags;
+#define	LINUX_KQ_FLAG_HAS_READ (1 << 0)
+#define	LINUX_KQ_FLAG_HAS_WRITE (1 << 1)
+#define	LINUX_KQ_FLAG_NEED_READ (1 << 2)
+#define	LINUX_KQ_FLAG_NEED_WRITE (1 << 3)
+	/* protects f_selinfo.si_note */
+	spinlock_t	f_kqlock;
 };
 
 #define	file		linux_file
@@ -218,6 +229,14 @@ iminor(struct inode *inode)
 {
 
 	return (minor(dev2unit(inode->v_rdev)));
+}
+
+static inline struct linux_file *
+get_file(struct linux_file *f)
+{
+
+	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
+	return (f);
 }
 
 static inline struct inode *

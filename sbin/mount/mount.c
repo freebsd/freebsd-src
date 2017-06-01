@@ -115,6 +115,7 @@ static struct opt {
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
 	{ MNT_AUTOMOUNTED,	"automounted" },
+	{ MNT_VERIFIED,		"verified" },
 	{ 0, NULL }
 };
 

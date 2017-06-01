@@ -990,6 +990,31 @@ RsDoOneResourceDescriptor (
         Rnode = RsDoUartSerialBusDescriptor (Info);
         break;
 
+    case PARSEOP_PINCONFIG:
+
+        Rnode = RsDoPinConfigDescriptor (Info);
+        break;
+
+    case PARSEOP_PINFUNCTION:
+
+        Rnode = RsDoPinFunctionDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUP:
+
+        Rnode = RsDoPinGroupDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUPFUNCTION:
+
+        Rnode = RsDoPinGroupFunctionDescriptor (Info);
+        break;
+
+    case PARSEOP_PINGROUPCONFIG:
+
+        Rnode = RsDoPinGroupConfigDescriptor (Info);
+        break;
+
     case PARSEOP_DEFAULT_ARG:
 
         /* Just ignore any of these, they are used as fillers/placeholders */

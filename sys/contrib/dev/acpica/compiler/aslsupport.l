@@ -697,14 +697,18 @@ AslDoCommentType2 (
 
 
     AslInsertLineBuffer ('/');
-    AslInsertLineBuffer ('*');
 
     if (Gbl_CaptureComments && CurrentState.CaptureComments)
     {
+        AslInsertLineBuffer ('*');
         *StringBuffer = '/';
         ++StringBuffer;
         *StringBuffer = '*';
         ++StringBuffer;
+    }
+    else
+    {
+        AslInsertLineBuffer ('/');
     }
 
     while (((c = input ()) != '\n') && (c != EOF))
@@ -1006,15 +1010,6 @@ CompletedString:
     *StringBuffer = 0;
 
     CleanString = UtStringCacheCalloc (strlen (MsgBuffer) + 1);
-    if (!CleanString)
-    {
-        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-            Gbl_CurrentLineOffset, Gbl_CurrentColumn,
-            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-        return (FALSE);
-    }
-
     strcpy (CleanString, MsgBuffer);
     AslCompilerlval.s = CleanString;
     return (TRUE);
