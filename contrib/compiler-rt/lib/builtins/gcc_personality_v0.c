@@ -59,7 +59,7 @@ static uintptr_t readULEB128(const uint8_t** data)
     const uint8_t* p = *data;
     do {
         byte = *p++;
-        result |= (byte & 0x7f) << shift;
+        result |= (uintptr_t)((byte & 0x7f) << shift);
         shift += 7;
     } while (byte & 0x80);
     *data = p;
