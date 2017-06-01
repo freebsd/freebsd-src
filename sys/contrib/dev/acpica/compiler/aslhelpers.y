@@ -330,6 +330,15 @@ OptionalResourceType
     | ',' ResourceTypeKeyword       {$$ = $2;}
     ;
 
+/* Same as above except default is producer */
+OptionalProducerResourceType
+    :                               {$$ = TrCreateLeafNode (
+                                        PARSEOP_RESOURCETYPE_PRODUCER);}
+    | ','                           {$$ = TrCreateLeafNode (
+                                        PARSEOP_RESOURCETYPE_PRODUCER);}
+    | ',' ResourceTypeKeyword       {$$ = $2;}
+    ;
+
 OptionalSlaveMode
     : ','                           {$$ = NULL;}
     | ',' SlaveModeKeyword          {$$ = $2;}

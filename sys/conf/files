@@ -488,6 +488,7 @@ contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
 contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
+contrib/dev/acpica/components/utilities/utresdecode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
