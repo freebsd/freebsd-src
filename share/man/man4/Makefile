@@ -517,6 +517,8 @@ MAN=	aac.4 \
 	tws.4 \
 	tx.4 \
 	txp.4 \
+	udp.4 \
+	udplite.4 \
 	vale.4 \
 	vga.4 \
 	vge.4 \
@@ -894,8 +896,6 @@ MAN+=	u3g.4 \
 	ucycom.4 \
 	udav.4 \
 	udbp.4 \
-	udp.4 \
-	udplite.4 \
 	uep.4 \
 	ufm.4 \
 	ufoma.4 \
