@@ -6971,7 +6971,7 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 		}
 		sctp_notify(inp, stcb, net, type, code,
 		    ntohs(inner_ip->ip_len),
-		    ntohs(icmp->icmp_nextmtu));
+		    (uint32_t)ntohs(icmp->icmp_nextmtu));
 	} else {
 		if ((stcb == NULL) && (inp != NULL)) {
 			/* reduce ref-count */
@@ -7113,7 +7113,7 @@ sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx
 			code = ICMP6_PARAMPROB_NEXTHEADER;
 		}
 		sctp6_notify(inp, stcb, net, type, code,
-		    (uint16_t)ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
+		    ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
 	} else {
 		if ((stcb == NULL) && (inp != NULL)) {
 			/* reduce inp's ref-count */
