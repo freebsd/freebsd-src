@@ -46,4 +46,6 @@ poll_wait(struct linux_file *filp, wait_queue_head_t *wait_address, poll_table *
 	selrecord(curthread, &filp->f_selinfo);
 }
 
+extern void linux_poll_wakeup(struct linux_file *);
+
 #endif	/* _LINUX_POLL_H_ */
