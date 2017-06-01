@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2017
+.Dd May 20, 2017
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -60,10 +60,11 @@ This is useful for C++ libraries that contain static constructors.
 .Pp
 When resolving dependencies for the loaded objects,
 .Nm
-may be allowed to translate dynamic token strings in rpath and soname
-by setting
+translates dynamic token strings in rpath and soname.
+If the
 .Fl "z origin"
-option of the static linker
+option of the static linker was set when linking the binary,
+the token expansion is performed at the object load time, see
 .Xr ld 1 .
 The following strings are recognized now:
 .Bl -tag -width ".Pa $PLATFORM"
