@@ -635,7 +635,7 @@ UtCheckIntegerRange (
  *
  * PARAMETERS:  Length              - Size of buffer requested
  *
- * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ * RETURN:      Pointer to the buffer. Aborts compiler on allocation failure
  *
  * DESCRIPTION: Allocate a string buffer. Bypass the local
  *              dynamic memory manager for performance reasons (This has a
@@ -833,10 +833,6 @@ UtInternalizeName (
     /* We need a segment to store the internal name */
 
     Info.InternalName = UtStringCacheCalloc (Info.Length);
-    if (!Info.InternalName)
-    {
-        return (AE_NO_MEMORY);
-    }
 
     /* Build the name */
 

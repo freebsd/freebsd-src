@@ -187,6 +187,7 @@ const AH_DEVICE_ID  AslDeviceIds[] =
     {"ACPI0011",    "Generic Buttons Device"},
     {"ACPI0012",    "NVDIMM Root Device"},
     {"ACPI0013",    "Generic Event Device"},
+    {"ACPI0014",    "Wireless Power Calibration Device"},
     {"ADMA0F28",    "Intel Audio DMA"},
     {"AMCR0F28",    "Intel Audio Machine Driver"},
     {"ATK4001",     "Asus Radio Control Button"},
