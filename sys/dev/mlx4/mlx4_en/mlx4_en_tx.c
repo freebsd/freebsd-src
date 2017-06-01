@@ -661,18 +661,6 @@ static void mlx4_bf_copy(void __iomem *dst, volatile unsigned long *src, unsigne
 	__iowrite64_copy(dst, __DEVOLATILE(void *, src), bytecnt / 8);
 }
 
-static u64 mlx4_en_mac_to_u64(u8 *addr)
-{
-        u64 mac = 0;
-        int i;
-
-        for (i = 0; i < ETHER_ADDR_LEN; i++) {
-                mac <<= 8;
-                mac |= addr[i];
-        }
-        return mac;
-}
-
 static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
 {
 	enum {
@@ -770,8 +758,18 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 		tx_desc->ctrl.ins_vlan = 0;
 	}
 
-	/* clear immediate field */
-	tx_desc->ctrl.imm = 0;
+	if (unlikely(mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)) {
+		/*
+		 * Copy destination MAC address to WQE. This allows
+		 * loopback in eSwitch, so that VFs and PF can
+		 * communicate with each other:
+		 */
+		m_copydata(mb, 0, 2, __DEVOLATILE(void *, &tx_desc->ctrl.srcrb_flags16[0]));
+		m_copydata(mb, 2, 4, __DEVOLATILE(void *, &tx_desc->ctrl.imm));
+	} else {
+		/* clear immediate field */
+		tx_desc->ctrl.imm = 0;
+	}
 
 	/* Handle LSO (TSO) packets */
 	if (mb->m_pkthdr.csum_flags & CSUM_TSO) {
@@ -929,22 +927,6 @@ skip_dma:
 		mlx4_en_store_inline_lso_header(dseg_inline, ihs, owner_bit);
 	else
 		mlx4_en_store_inline_header(dseg_inline, ihs, owner_bit);
-
-	if (unlikely(priv->validate_loopback)) {
-		/* Copy dst mac address to wqe */
-                struct ether_header *ethh;
-                u64 mac;
-                u32 mac_l, mac_h;
-
-                ethh = mtod(mb, struct ether_header *);
-                mac = mlx4_en_mac_to_u64(ethh->ether_dhost);
-                if (mac) {
-                        mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
-                        mac_l = (u32) (mac & 0xffffffff);
-                        tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
-                        tx_desc->ctrl.imm = cpu_to_be32(mac_l);
-                }
-	}
 
 	/* update producer counter */
 	ring->prod += tx_info->nr_txbb;
