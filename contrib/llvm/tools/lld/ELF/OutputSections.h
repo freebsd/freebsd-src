@@ -83,7 +83,6 @@ public:
   void sortInitFini();
   void sortCtorsDtors();
   template <class ELFT> void finalize();
-  template <class ELFT> void maybeCompress();
   void assignOffsets();
   std::vector<InputSection *> Sections;
 
@@ -149,6 +148,7 @@ private:
 };
 
 uint64_t getHeaderSize();
+void reportDiscarded(InputSectionBase *IS);
 
 } // namespace elf
 } // namespace lld

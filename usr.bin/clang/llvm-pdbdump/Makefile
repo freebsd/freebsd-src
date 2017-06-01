@@ -23,8 +23,6 @@ SRCS+=		PrettyTypedefDumper.cpp
 SRCS+=		PrettyVariableDumper.cpp
 SRCS+=		StreamUtil.cpp
 SRCS+=		YAMLOutputStyle.cpp
-SRCS+=		YamlSymbolDumper.cpp
-SRCS+=		YamlTypeDumper.cpp
 SRCS+=		llvm-pdbdump.cpp
 
 .include "../llvm.prog.mk"
