@@ -2946,7 +2946,8 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			(1 << ETH_TX_1ST_BD_FLAGS_IP_CSUM_SHIFT);
 	}
 
-	if (m_head->m_pkthdr.csum_flags & (CSUM_UDP | CSUM_TCP)) {
+	if (m_head->m_pkthdr.csum_flags &
+		(CSUM_UDP | CSUM_TCP | CSUM_TCP_IPV6 | CSUM_UDP_IPV6)) {
 		first_bd->data.bd_flags.bitfields |=
 			(1 << ETH_TX_1ST_BD_FLAGS_L4_CSUM_SHIFT);
 	}
