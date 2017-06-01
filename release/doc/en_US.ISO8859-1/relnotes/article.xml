@@ -194,6 +194,9 @@
 	sponsor="&ff;">Support for &man.blacklistd.8; has been added
 	to <application>OpenSSH</application>.</para>
 
+      <para revision="306213">The &man.bspatch.1; utility has been
+	updated with &man.capsicum.4; support.</para>
+
       <para revision="308720" contrib="sponsor" sponsor="&gandi;">The
 	&man.cron.8; utility has been updated to add support for
 	including files within <filename
@@ -430,6 +433,16 @@
     <para>This section covers changes to kernel configurations, system
       tuning, and system control parameters that are not otherwise
       categorized.</para>
+
+    <sect2 xml:id="kernel-general">
+      <title>General Kernel Changes</title>
+
+      <para revision="305514">The &man.getdtablesize.2; system call is
+	now permitted in capability mode.</para>
+
+      <para revision="305516">The <literal>kern.proc.nfds</literal>
+	&man.sysctl.8; is now permitted in capability mode.</para>
+    </sect2>
 
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
