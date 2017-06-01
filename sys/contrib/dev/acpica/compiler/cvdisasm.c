@@ -314,6 +314,7 @@ CvPrintOneCommentType (
 
     if (*CommentToPrint)
     {
+        CommentExists = TRUE;
         AcpiOsPrintf ("%s", *CommentToPrint);
         *CommentToPrint = NULL;
     }
@@ -495,6 +496,7 @@ CvSwitchFiles(
 {
     char                    *Filename = Op->Common.CvFilename;
     ACPI_FILE_NODE          *FNode;
+    ACPI_FILE_NODE          *Current;
 
     CvDbgPrint ("Switching from %s to %s\n", AcpiGbl_CurrentFilename, Filename);
     FNode = CvFilenameExists (Filename, AcpiGbl_FileTreeRoot);
@@ -509,23 +511,23 @@ CvSwitchFiles(
         AslCommonError (ASL_ERROR, ASL_MSG_OPEN, 0, 0, 0, 0, NULL, MsgBuffer);
         AslAbort ();
     }
+    Current = FNode;
 
     /*
      * If the previous file is a descendent of the current file,
      * make sure that Include statements from the current file
      * to the previous have been emitted.
      */
-    while (FNode &&
-           FNode->Parent &&
-           AcpiUtStricmp (FNode->Filename, AcpiGbl_CurrentFilename))
+    while (Current &&
+           Current->Parent &&
+           AcpiUtStricmp (Current->Filename, AcpiGbl_CurrentFilename))
     {
-        CvPrintInclude (FNode, Level);
-        FNode = FNode->Parent;
+        CvPrintInclude (Current, Level);
+        Current = Current->Parent;
     }
 
-    /* Redirect output to the Op->Common.CvFilename */
+    /* Redirect output to Op->Common.CvFilename */
 
-    FNode = CvFilenameExists (Filename, AcpiGbl_FileTreeRoot);
     AcpiOsRedirectOutput (FNode->File);
     AcpiGbl_CurrentFilename = FNode->Filename;
 }

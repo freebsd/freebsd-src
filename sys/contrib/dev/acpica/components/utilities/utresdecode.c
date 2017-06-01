@@ -1,8 +1,8 @@
-/******************************************************************************
+/*******************************************************************************
  *
- * Module Name: adfile - Application-level disassembler file support routines
+ * Module Name: utresdecode - Resource descriptor keyword strings
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -149,308 +149,313 @@
  *
  *****************************************************************************/
 
-#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acapps.h>
-
-#include <stdio.h>
+#include <contrib/dev/acpica/include/acresrc.h>
 
 
-#define _COMPONENT          ACPI_TOOLS
-        ACPI_MODULE_NAME    ("adfile")
-
-/* Local prototypes */
-
-static INT32
-AdWriteBuffer (
-    char                    *Filename,
-    char                    *Buffer,
-    UINT32                  Length);
-
-static char                 FilenameBuf[20];
+#define _COMPONENT          ACPI_UTILITIES
+        ACPI_MODULE_NAME    ("utresdecode")
 
 
-/******************************************************************************
- *
- * FUNCTION:    AfGenerateFilename
- *
- * PARAMETERS:  Prefix              - prefix string
- *              TableId             - The table ID
- *
- * RETURN:      Pointer to the completed string
- *
- * DESCRIPTION: Build an output filename from an ACPI table ID string
- *
- ******************************************************************************/
+#if defined (ACPI_DEBUG_OUTPUT) || \
+    defined (ACPI_DISASSEMBLER) || \
+    defined (ACPI_DEBUGGER)
 
-char *
-AdGenerateFilename (
-    char                    *Prefix,
-    char                    *TableId)
+/*
+ * Strings used to decode resource descriptors.
+ * Used by both the disassembler and the debugger resource dump routines
+ */
+const char                      *AcpiGbl_BmDecode[] =
 {
-    UINT32                  i;
-    UINT32                  j;
+    "NotBusMaster",
+    "BusMaster"
+};
 
-
-    for (i = 0; Prefix[i]; i++)
-    {
-        FilenameBuf[i] = Prefix[i];
-    }
-
-    FilenameBuf[i] = '_';
-    i++;
-
-    for (j = 0; j < 8 && (TableId[j] != ' ') && (TableId[j] != 0); i++, j++)
-    {
-        FilenameBuf[i] = TableId[j];
-    }
-
-    FilenameBuf[i] = 0;
-    strcat (FilenameBuf, FILE_SUFFIX_BINARY_TABLE);
-    return (FilenameBuf);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AfWriteBuffer
- *
- * PARAMETERS:  Filename            - name of file
- *              Buffer              - data to write
- *              Length              - length of data
- *
- * RETURN:      Actual number of bytes written
- *
- * DESCRIPTION: Open a file and write out a single buffer
- *
- ******************************************************************************/
-
-static INT32
-AdWriteBuffer (
-    char                    *Filename,
-    char                    *Buffer,
-    UINT32                  Length)
+const char                      *AcpiGbl_ConfigDecode[] =
 {
-    FILE                    *File;
-    ACPI_SIZE               Actual;
+    "0 - Good Configuration",
+    "1 - Acceptable Configuration",
+    "2 - Suboptimal Configuration",
+    "3 - ***Invalid Configuration***",
+};
 
-
-    File = fopen (Filename, "wb");
-    if (!File)
-    {
-        printf ("Could not open file %s\n", Filename);
-        return (-1);
-    }
-
-    Actual = fwrite (Buffer, 1, (size_t) Length, File);
-    if (Actual != Length)
-    {
-        printf ("Could not write to file %s\n", Filename);
-    }
-
-    fclose (File);
-    return ((INT32) Actual);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AfWriteTable
- *
- * PARAMETERS:  Table               - pointer to the ACPI table
- *              Length              - length of the table
- *              TableName           - the table signature
- *              OemTableID          - from the table header
- *
- * RETURN:      None
- *
- * DESCRIPTION: Dump the loaded tables to a file (or files)
- *
- ******************************************************************************/
-
-void
-AdWriteTable (
-    ACPI_TABLE_HEADER       *Table,
-    UINT32                  Length,
-    char                    *TableName,
-    char                    *OemTableId)
+const char                      *AcpiGbl_ConsumeDecode[] =
 {
-    char                    *Filename;
+    "ResourceProducer",
+    "ResourceConsumer"
+};
 
-
-    Filename = AdGenerateFilename (TableName, OemTableId);
-    AdWriteBuffer (Filename, (char *) Table, Length);
-
-    AcpiOsPrintf ("Table [%s] written to \"%s\"\n", TableName, Filename);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FlGenerateFilename
- *
- * PARAMETERS:  InputFilename       - Original ASL source filename
- *              Suffix              - New extension.
- *
- * RETURN:      New filename containing the original base + the new suffix
- *
- * DESCRIPTION: Generate a new filename from the ASL source filename and a new
- *              extension. Used to create the *.LST, *.TXT, etc. files.
- *
- ******************************************************************************/
-
-char *
-FlGenerateFilename (
-    char                    *InputFilename,
-    char                    *Suffix)
+const char                      *AcpiGbl_DecDecode[] =
 {
-    char                    *Position;
-    char                    *NewFilename;
-    char                    *DirectoryPosition;
+    "PosDecode",
+    "SubDecode"
+};
 
-
-    /*
-     * Copy the original filename to a new buffer. Leave room for the worst
-     * case where we append the suffix, an added dot and the null terminator.
-     */
-    NewFilename = UtStringCacheCalloc ((ACPI_SIZE)
-        strlen (InputFilename) + strlen (Suffix) + 2);
-    strcpy (NewFilename, InputFilename);
-
-    /* Try to find the last dot in the filename */
-
-    DirectoryPosition = strrchr (NewFilename, '/');
-    Position = strrchr (NewFilename, '.');
-
-    if (Position && (Position > DirectoryPosition))
-    {
-        /* Tack on the new suffix */
-
-        Position++;
-        *Position = 0;
-        strcat (Position, Suffix);
-    }
-    else
-    {
-        /* No dot, add one and then the suffix */
-
-        strcat (NewFilename, ".");
-        strcat (NewFilename, Suffix);
-    }
-
-    return (NewFilename);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FlStrdup
- *
- * DESCRIPTION: Local strdup function
- *
- ******************************************************************************/
-
-static char *
-FlStrdup (
-    char                *String)
+const char                      *AcpiGbl_HeDecode[] =
 {
-    char                *NewString;
+    "Level",
+    "Edge"
+};
 
-
-    NewString = UtStringCacheCalloc ((ACPI_SIZE) strlen (String) + 1);
-    strcpy (NewString, String);
-    return (NewString);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FlSplitInputPathname
- *
- * PARAMETERS:  InputFilename       - The user-specified ASL source file to be
- *                                    compiled
- *              OutDirectoryPath    - Where the directory path prefix is
- *                                    returned
- *              OutFilename         - Where the filename part is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Split the input path into a directory and filename part
- *              1) Directory part used to open include files
- *              2) Filename part used to generate output filenames
- *
- ******************************************************************************/
-
-ACPI_STATUS
-FlSplitInputPathname (
-    char                    *InputPath,
-    char                    **OutDirectoryPath,
-    char                    **OutFilename)
+const char                      *AcpiGbl_IoDecode[] =
 {
-    char                    *Substring;
-    char                    *DirectoryPath;
-    char                    *Filename;
+    "Decode10",
+    "Decode16"
+};
 
+const char                      *AcpiGbl_LlDecode[] =
+{
+    "ActiveHigh",
+    "ActiveLow",
+    "ActiveBoth",
+    "Reserved"
+};
 
-    if (OutDirectoryPath)
-    {
-        *OutDirectoryPath = NULL;
-    }
+const char                      *AcpiGbl_MaxDecode[] =
+{
+    "MaxNotFixed",
+    "MaxFixed"
+};
 
-    if (!InputPath)
-    {
-        return (AE_OK);
-    }
+const char                      *AcpiGbl_MemDecode[] =
+{
+    "NonCacheable",
+    "Cacheable",
+    "WriteCombining",
+    "Prefetchable"
+};
 
-    /* Get the path to the input filename's directory */
+const char                      *AcpiGbl_MinDecode[] =
+{
+    "MinNotFixed",
+    "MinFixed"
+};
 
-    DirectoryPath = FlStrdup (InputPath);
-    if (!DirectoryPath)
-    {
-        return (AE_NO_MEMORY);
-    }
+const char                      *AcpiGbl_MtpDecode[] =
+{
+    "AddressRangeMemory",
+    "AddressRangeReserved",
+    "AddressRangeACPI",
+    "AddressRangeNVS"
+};
 
-    /* Convert backslashes to slashes in the entire path */
+const char                      *AcpiGbl_RngDecode[] =
+{
+    "InvalidRanges",
+    "NonISAOnlyRanges",
+    "ISAOnlyRanges",
+    "EntireRange"
+};
 
-    UtConvertBackslashes (DirectoryPath);
+const char                      *AcpiGbl_RwDecode[] =
+{
+    "ReadOnly",
+    "ReadWrite"
+};
 
-    /* Backup to last slash or colon */
+const char                      *AcpiGbl_ShrDecode[] =
+{
+    "Exclusive",
+    "Shared",
+    "ExclusiveAndWake",         /* ACPI 5.0 */
+    "SharedAndWake"             /* ACPI 5.0 */
+};
 
-    Substring = strrchr (DirectoryPath, '/');
-    if (!Substring)
-    {
-        Substring = strrchr (DirectoryPath, ':');
-    }
+const char                      *AcpiGbl_SizDecode[] =
+{
+    "Transfer8",
+    "Transfer8_16",
+    "Transfer16",
+    "InvalidSize"
+};
 
-    /* Extract the simple filename */
+const char                      *AcpiGbl_TrsDecode[] =
+{
+    "DenseTranslation",
+    "SparseTranslation"
+};
 
-    if (!Substring)
-    {
-        Filename = FlStrdup (DirectoryPath);
-        DirectoryPath[0] = 0;
-    }
-    else
-    {
-        Filename = FlStrdup (Substring + 1);
-        *(Substring+1) = 0;
-    }
+const char                      *AcpiGbl_TtpDecode[] =
+{
+    "TypeStatic",
+    "TypeTranslation"
+};
 
-    if (!Filename)
-    {
-        return (AE_NO_MEMORY);
-    }
+const char                      *AcpiGbl_TypDecode[] =
+{
+    "Compatibility",
+    "TypeA",
+    "TypeB",
+    "TypeF"
+};
 
-    if (OutDirectoryPath)
-    {
-        *OutDirectoryPath = DirectoryPath;
-    }
+const char                      *AcpiGbl_PpcDecode[] =
+{
+    "PullDefault",
+    "PullUp",
+    "PullDown",
+    "PullNone"
+};
 
-    if (OutFilename)
-    {
-        *OutFilename = Filename;
-        return (AE_OK);
-    }
+const char                      *AcpiGbl_IorDecode[] =
+{
+    "IoRestrictionNone",
+    "IoRestrictionInputOnly",
+    "IoRestrictionOutputOnly",
+    "IoRestrictionNoneAndPreserve"
+};
 
-    return (AE_OK);
-}
+const char                      *AcpiGbl_DtsDecode[] =
+{
+    "Width8bit",
+    "Width16bit",
+    "Width32bit",
+    "Width64bit",
+    "Width128bit",
+    "Width256bit",
+};
+
+/* GPIO connection type */
+
+const char                      *AcpiGbl_CtDecode[] =
+{
+    "Interrupt",
+    "I/O"
+};
+
+/* Serial bus type */
+
+const char                      *AcpiGbl_SbtDecode[] =
+{
+    "/* UNKNOWN serial bus type */",
+    "I2C",
+    "SPI",
+    "UART"
+};
+
+/* I2C serial bus access mode */
+
+const char                      *AcpiGbl_AmDecode[] =
+{
+    "AddressingMode7Bit",
+    "AddressingMode10Bit"
+};
+
+/* I2C serial bus slave mode */
+
+const char                      *AcpiGbl_SmDecode[] =
+{
+    "ControllerInitiated",
+    "DeviceInitiated"
+};
+
+/* SPI serial bus wire mode */
+
+const char                      *AcpiGbl_WmDecode[] =
+{
+    "FourWireMode",
+    "ThreeWireMode"
+};
+
+/* SPI serial clock phase */
+
+const char                      *AcpiGbl_CphDecode[] =
+{
+    "ClockPhaseFirst",
+    "ClockPhaseSecond"
+};
+
+/* SPI serial bus clock polarity */
+
+const char                      *AcpiGbl_CpoDecode[] =
+{
+    "ClockPolarityLow",
+    "ClockPolarityHigh"
+};
+
+/* SPI serial bus device polarity */
+
+const char                      *AcpiGbl_DpDecode[] =
+{
+    "PolarityLow",
+    "PolarityHigh"
+};
+
+/* UART serial bus endian */
+
+const char                      *AcpiGbl_EdDecode[] =
+{
+    "LittleEndian",
+    "BigEndian"
+};
+
+/* UART serial bus bits per byte */
+
+const char                      *AcpiGbl_BpbDecode[] =
+{
+    "DataBitsFive",
+    "DataBitsSix",
+    "DataBitsSeven",
+    "DataBitsEight",
+    "DataBitsNine",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */",
+    "/* UNKNOWN Bits per byte */"
+};
+
+/* UART serial bus stop bits */
+
+const char                      *AcpiGbl_SbDecode[] =
+{
+    "StopBitsZero",
+    "StopBitsOne",
+    "StopBitsOnePlusHalf",
+    "StopBitsTwo"
+};
+
+/* UART serial bus flow control */
+
+const char                      *AcpiGbl_FcDecode[] =
+{
+    "FlowControlNone",
+    "FlowControlHardware",
+    "FlowControlXON",
+    "/* UNKNOWN flow control keyword */"
+};
+
+/* UART serial bus parity type */
+
+const char                      *AcpiGbl_PtDecode[] =
+{
+    "ParityTypeNone",
+    "ParityTypeEven",
+    "ParityTypeOdd",
+    "ParityTypeMark",
+    "ParityTypeSpace",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */",
+    "/* UNKNOWN parity keyword */"
+};
+
+/* PinConfig type */
+
+const char                      *AcpiGbl_PtypDecode[] =
+{
+    "Default",
+    "Bias Pull-up",
+    "Bias Pull-down",
+    "Bias Default",
+    "Bias Disable",
+    "Bias High Impedance",
+    "Bias Bus Hold",
+    "Drive Open Drain",
+    "Drive Open Source",
+    "Drive Push Pull",
+    "Drive Strength",
+    "Slew Rate",
+    "Input Debounce",
+    "Input Schmitt Trigger",
+};
+
+#endif
