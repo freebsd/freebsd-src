@@ -323,7 +323,7 @@ namespace {
 /// X86 Code Generator Pass Configuration Options.
 class X86PassConfig : public TargetPassConfig {
 public:
-  X86PassConfig(X86TargetMachine *TM, PassManagerBase &PM)
+  X86PassConfig(X86TargetMachine &TM, PassManagerBase &PM)
     : TargetPassConfig(TM, PM) {}
 
   X86TargetMachine &getX86TargetMachine() const {
@@ -369,7 +369,7 @@ INITIALIZE_PASS(X86ExecutionDepsFix, "x86-execution-deps-fix",
                 "X86 Execution Dependency Fix", false, false)
 
 TargetPassConfig *X86TargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new X86PassConfig(this, PM);
+  return new X86PassConfig(*this, PM);
 }
 
 void X86PassConfig::addIRPasses() {
@@ -433,6 +433,7 @@ bool X86PassConfig::addPreISel() {
 
 void X86PassConfig::addPreRegAlloc() {
   if (getOptLevel() != CodeGenOpt::None) {
+    addPass(&LiveRangeShrinkID);
     addPass(createX86FixupSetCC());
     addPass(createX86OptimizeLEAs());
     addPass(createX86CallFrameOptimization());
