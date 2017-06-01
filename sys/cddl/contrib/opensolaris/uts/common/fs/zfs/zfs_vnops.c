@@ -1625,7 +1625,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 				cn.cn_nameptr = "snapshot";
 				cn.cn_namelen = strlen(cn.cn_nameptr);
 				cn.cn_nameiop = cnp->cn_nameiop;
-				cn.cn_flags = cnp->cn_flags;
+				cn.cn_flags = cnp->cn_flags & ~ISDOTDOT;
 				cn.cn_lkflags = cnp->cn_lkflags;
 				error = VOP_LOOKUP(zfsctl_vp, vpp, &cn);
 				vput(zfsctl_vp);
