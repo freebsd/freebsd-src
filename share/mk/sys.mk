@@ -91,7 +91,11 @@ META_MODE?= normal
 	/usr/share \
 
 .endif
-
+.if !empty(.MAKE.MODE:Mmeta)
+# We do not want everything out-of-date just because
+# some unrelated shared lib updated this.
+.MAKE.META.IGNORE_PATHS+= /usr/local/etc/libmap.d
+.endif
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
