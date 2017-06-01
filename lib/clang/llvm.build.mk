@@ -25,16 +25,17 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 # arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
 # For all other targets, we stick with 'unknown'.
 .if ${TARGET_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
-TARGET_ABI=	gnueabihf
+TARGET_ABI=	-gnueabihf
 .elif ${TARGET_ARCH:Marm*}
-TARGET_ABI=	gnueabi
+TARGET_ABI=	-gnueabi
 .else
-TARGET_ABI=	unknown
+TARGET_ABI=
 .endif
+VENDOR=		unknown
 OS_VERSION=	freebsd12.0
 
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${TARGET_ABI}-${OS_VERSION}
-BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-unknown-${OS_VERSION}
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${VENDOR}-${OS_VERSION}${TARGET_ABI}
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/arm64/aarch64/}-${VENDOR}-${OS_VERSION}
 
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\"
 CFLAGS+=	-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\"
