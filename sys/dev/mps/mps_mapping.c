@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 #include <sys/eventhandler.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
@@ -890,7 +891,7 @@ _mapping_get_dev_info(struct mps_softc *sc,
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
-	u8 entry, enc_idx, phy_idx, sata_end_device;
+	u8 entry, enc_idx, phy_idx;
 	u32 map_idx, index, device_info;
 	struct _map_phy_change *phy_change, *tmp_phy_change;
 	uint64_t sas_address;
@@ -920,10 +921,8 @@ _mapping_get_dev_info(struct mps_softc *sc,
 		sas_address = sas_device_pg0.SASAddress.High;
 		sas_address = (sas_address << 32) |
 		    sas_device_pg0.SASAddress.Low;
-		sata_end_device = 0;
 		if ((device_info & MPI2_SAS_DEVICE_INFO_END_DEVICE) &&
 		    (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE)) {
-			sata_end_device = 1;
 			rc = mpssas_get_sas_address_for_sata_disk(sc,
 			    &sas_address, phy_change->dev_handle, device_info,
 			    &phy_change->is_SATA_SSD);
@@ -2264,4 +2263,62 @@ out:
 	free(wwid_table, M_MPT2);
 	if (sc->pending_map_events)
 		sc->pending_map_events--;
+}
+
+int
+mps_mapping_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct mps_softc *sc;
+	struct dev_mapping_table *mt_entry;
+	struct sbuf sbuf;
+	int i, error;
+
+	sc = (struct mps_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	sbuf_printf(&sbuf, "\nindex physical_id       handle id\n");
+	for (i = 0; i < sc->max_devices; i++) {
+		mt_entry = &sc->mapping_table[i];
+		if (mt_entry->physical_id == 0)
+			continue;
+		sbuf_printf(&sbuf, "%4d  %jx  %04x   %hd\n",
+		    i, mt_entry->physical_id, mt_entry->dev_handle,
+		    mt_entry->id);
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+int
+mps_mapping_encl_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct mps_softc *sc;
+	struct enc_mapping_table *enc_entry;
+	struct sbuf sbuf;
+	int i, error;
+
+	sc = (struct mps_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	sbuf_printf(&sbuf, "\nindex enclosure_id      handle map_index\n");
+	for (i = 0; i < sc->max_enclosures; i++) {
+		enc_entry = &sc->enclosure_table[i];
+		if (enc_entry->enclosure_id == 0)
+			continue;
+		sbuf_printf(&sbuf, "%4d  %jx  %04x   %d\n",
+		    i, enc_entry->enclosure_id, enc_entry->enc_handle,
+		    enc_entry->start_index);
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
 }
