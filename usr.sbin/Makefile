@@ -148,6 +148,10 @@ SUBDIR+=	bsnmpd
 SUBDIR+=	ctm
 .endif
 
+.if ${MK_CXGBETOOL} != "no"
+SUBDIR+=	cxgbetool
+.endif
+
 .if ${MK_FLOPPY} != "no"
 SUBDIR+=	fdcontrol
 SUBDIR+=	fdformat
