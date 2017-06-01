@@ -32,7 +32,13 @@
 
 #include <atf-c.h>
 
+#if defined(__amd64__) || defined(__i386__)
 extern uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
+#elif defined(__aarch64__)
+extern uint32_t armv8_crc32c(uint32_t, const unsigned char *, unsigned);
+#else
+#error These tests are not supported on this platform
+#endif
 
 ATF_TC_WITHOUT_HEAD(crc32c_basic_correctness);
 ATF_TC_BODY(crc32c_basic_correctness, tc)
@@ -79,8 +85,13 @@ ATF_TC_BODY(crc32c_basic_correctness, tc)
 	ATF_REQUIRE(nitems(inputs) == nitems(results));
 
 	for (i = 0; i < nitems(inputs); i++) {
+#if defined(__amd64__) || defined(__i386__)
 		act = sse42_crc32c(~0, (const void *)&inputs[i],
 		    sizeof(inputs[0]));
+#else
+		act = armv8_crc32c(~0, (const void *)&inputs[i],
+		    sizeof(inputs[0]));
+#endif
 		ATF_REQUIRE_MSG(act == results[i],
 		    "crc32c(0x%jx) = 0x%08x, got 0x%08x", (uintmax_t)inputs[i],
 		    results[i], act);
@@ -100,7 +111,11 @@ ATF_TC_BODY(crc32c_alignment, tc)
 	for (i = 1; i < 8; i++) {
 		memcpy(&buf[i], &input, sizeof(input));
 
+#if defined(__amd64__) || defined(__i386__)
 		act = sse42_crc32c(~0, (const void *)&buf[i], sizeof(input));
+#else
+		act = armv8_crc32c(~0, (const void *)&buf[i], sizeof(input));
+#endif
 		ATF_REQUIRE_MSG(act == result,
 		    "crc32c(0x%jx) = 0x%08x, got 0x%08x", (uintmax_t)input,
 		    result, act);
@@ -117,7 +132,11 @@ ATF_TC_BODY(crc32c_trailing_bytes, tc)
 	const uint32_t result = 0xec638d62;
 	uint32_t act;
 
+#if defined(__amd64__) || defined(__i386__)
 	act = sse42_crc32c(~0, input, sizeof(input));
+#else
+	act = armv8_crc32c(~0, input, sizeof(input));
+#endif
 	ATF_REQUIRE_MSG(act == result, "expected 0x%08x, got 0x%08x", result,
 	    act);
 }
