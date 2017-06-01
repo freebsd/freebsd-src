@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	getconf
 
 SRCS=	confstr.c getconf.c limits.c pathconf.c progenv.c sysconf.c
@@ -34,5 +36,9 @@ conflicting.names:	confstr.names limits.names sysconf.names
 
 unique.names:		conflicting.names
 	LC_ALL=C sort -u ${.ALLSRC} >${.TARGET}
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>
