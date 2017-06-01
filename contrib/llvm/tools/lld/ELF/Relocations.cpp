@@ -360,9 +360,9 @@ static bool isStaticLinkTimeConstant(RelExpr E, uint32_t Type,
   // These expressions always compute a constant
   if (isRelExprOneOf<R_SIZE, R_GOT_FROM_END, R_GOT_OFF, R_MIPS_GOT_LOCAL_PAGE,
                      R_MIPS_GOT_OFF, R_MIPS_GOT_OFF32, R_MIPS_GOT_GP_PC,
-                     R_MIPS_TLSGD, R_GOT_PAGE_PC, R_GOT_PC, R_PLT_PC,
-                     R_TLSGD_PC, R_TLSGD, R_PPC_PLT_OPD, R_TLSDESC_CALL,
-                     R_TLSDESC_PAGE, R_HINT>(E))
+                     R_MIPS_TLSGD, R_GOT_PAGE_PC, R_GOT_PC,
+                     R_GOTONLY_PC_FROM_END, R_PLT_PC, R_TLSGD_PC, R_TLSGD,
+                     R_PPC_PLT_OPD, R_TLSDESC_CALL, R_TLSDESC_PAGE, R_HINT>(E))
     return true;
 
   // These never do, except if the entire file is position dependent or if
@@ -1015,7 +1015,7 @@ ThunkSection *ThunkCreator::getISThunkSec(InputSection *IS, OutputSection *OS) {
   ThunkSection *TS = ThunkedSections.lookup(IS);
   if (TS)
     return TS;
-  auto *TOS = cast<OutputSection>(IS->OutSec);
+  auto *TOS = IS->getParent();
   TS = make<ThunkSection>(TOS, IS->OutSecOff);
   ThunkSections[TOS].push_back(TS);
   ThunkedSections[IS] = TS;
