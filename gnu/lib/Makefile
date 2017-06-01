@@ -26,8 +26,6 @@ SUBDIR_DEPENDS_libsupc++:= libstdc++
 .endif
 
 .if defined(LIBCHERI)
-# No C++ support
-SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
 # Don't use csu for CheriABI
 SUBDIR:=	${SUBDIR:Ncsu}
 # We'll be using the libunwind based libgcc_eh and libgcc_eh when the time

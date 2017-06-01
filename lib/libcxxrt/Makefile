@@ -1,8 +1,15 @@
 # $FreeBSD$
 
-PACKAGE=	clibs
-SRCDIR=		${SRCTOP}/contrib/libcxxrt
+.include <src.opts.mk>
 
+PACKAGE=	clibs
+.if ${MK_CHERI} != "no"
+WANT_CHERI?=	hybrid
+ALLOW_SHARED_TEXTREL=yes
+SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt/src
+.else
+SRCDIR=		${SRCTOP}/contrib/libcxxrt
+.endif
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib
 

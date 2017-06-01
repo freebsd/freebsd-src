@@ -3,9 +3,17 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
+.if ${MK_CHERI} != "no"
+ALLOW_SHARED_TEXTREL=yes
+WANT_CHERI?=	hybrid
+_LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt/src
+HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
+SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
+.else
 _LIBCXXRTDIR=	${SRCTOP}/contrib/libcxxrt
 HDRDIR=		${SRCTOP}/contrib/libc++/include
 SRCDIR=		${SRCTOP}/contrib/libc++/src
+.endif
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 .if ${MACHINE_CPUARCH} == "arm"
 STATIC_CXXFLAGS+= -mlong-calls
@@ -70,6 +78,11 @@ CXXFLAGS+=	-std=c++11
 .endif
 
 LIBADD+=	cxxrt
+.ifdef LIBCHERI
+
+# XXXAR: why is this needed?
+LDFLAGS+=	-L../libcxxrt
+.endif
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS+=	__bit_reference

@@ -245,6 +245,8 @@ SOLINKOPTS+=	-Wl,--no-fatal-warnings
 SOLINKOPTS+=	-Wl,--fatal-warnings
 .endif
 SOLINKOPTS+=	-Wl,--warn-shared-textrel
+.elif ${ALLOW_SHARED_TEXTREL} != "no"
+SOLINKOPTS+=	-Wl,-z,notext
 .endif
 
 .if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
