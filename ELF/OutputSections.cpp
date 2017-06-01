@@ -16,7 +16,6 @@
 #include "SyntheticSections.h"
 #include "Target.h"
 #include "Threads.h"
-#include "llvm/Support/Compression.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/MD5.h"
 #include "llvm/Support/MathExtras.h"
@@ -76,46 +75,19 @@ static bool compareByFilePosition(InputSection *A, InputSection *B) {
   if (A->kind() == InputSectionBase::Synthetic ||
       B->kind() == InputSectionBase::Synthetic)
     return false;
-  auto *LA = cast<InputSection>(A->getLinkOrderDep());
-  auto *LB = cast<InputSection>(B->getLinkOrderDep());
-  OutputSection *AOut = LA->OutSec;
-  OutputSection *BOut = LB->OutSec;
+  InputSection *LA = A->getLinkOrderDep();
+  InputSection *LB = B->getLinkOrderDep();
+  OutputSection *AOut = LA->getParent();
+  OutputSection *BOut = LB->getParent();
   if (AOut != BOut)
     return AOut->SectionIndex < BOut->SectionIndex;
   return LA->OutSecOff < LB->OutSecOff;
 }
 
-// Compress section contents if this section contains debug info.
-template <class ELFT> void OutputSection::maybeCompress() {
-  typedef typename ELFT::Chdr Elf_Chdr;
-
-  // Compress only DWARF debug sections.
-  if (!Config->CompressDebugSections || (Flags & SHF_ALLOC) ||
-      !Name.startswith(".debug_"))
-    return;
-
-  // Create a section header.
-  ZDebugHeader.resize(sizeof(Elf_Chdr));
-  auto *Hdr = reinterpret_cast<Elf_Chdr *>(ZDebugHeader.data());
-  Hdr->ch_type = ELFCOMPRESS_ZLIB;
-  Hdr->ch_size = Size;
-  Hdr->ch_addralign = Alignment;
-
-  // Write section contents to a temporary buffer and compress it.
-  std::vector<uint8_t> Buf(Size);
-  Script->getCmd(this)->writeTo<ELFT>(Buf.data());
-  if (Error E = zlib::compress(toStringRef(Buf), CompressedData))
-    fatal("compress failed: " + llvm::toString(std::move(E)));
-
-  // Update section headers.
-  Size = sizeof(Elf_Chdr) + CompressedData.size();
-  Flags |= SHF_COMPRESSED;
-}
-
 template <class ELFT> static void finalizeShtGroup(OutputSection *Sec) {
   // sh_link field for SHT_GROUP sections should contain the section index of
   // the symbol table.
-  Sec->Link = InX::SymTab->OutSec->SectionIndex;
+  Sec->Link = InX::SymTab->getParent()->SectionIndex;
 
   // sh_info then contain index of an entry in symbol table section which
   // provides signature of the section group.
@@ -135,7 +107,7 @@ template <class ELFT> void OutputSection::finalize() {
     // need to translate the InputSection sh_link to the OutputSection sh_link,
     // all InputSections in the OutputSection have the same dependency.
     if (auto *D = this->Sections.front()->getLinkOrderDep())
-      this->Link = D->OutSec->SectionIndex;
+      this->Link = D->getParent()->SectionIndex;
   }
 
   uint32_t Type = this->Type;
@@ -151,11 +123,11 @@ template <class ELFT> void OutputSection::finalize() {
   if (isa<SyntheticSection>(First))
     return;
 
-  this->Link = InX::SymTab->OutSec->SectionIndex;
+  this->Link = InX::SymTab->getParent()->SectionIndex;
   // sh_info for SHT_REL[A] sections should contain the section header index of
   // the section to which the relocation applies.
   InputSectionBase *S = First->getRelocatedSection();
-  this->Info = S->OutSec->SectionIndex;
+  Info = S->getOutputSection()->SectionIndex;
 }
 
 static uint64_t updateOffset(uint64_t Off, InputSection *S) {
@@ -167,7 +139,7 @@ static uint64_t updateOffset(uint64_t Off, InputSection *S) {
 void OutputSection::addSection(InputSection *S) {
   assert(S->Live);
   Sections.push_back(S);
-  S->OutSec = this;
+  S->Parent = this;
   this->updateAlignment(S->Alignment);
 
   // The actual offsets will be computed by assignAddresses. For now, use
@@ -351,7 +323,7 @@ static bool canMergeToProgbits(unsigned Type) {
          Type == SHT_NOTE;
 }
 
-static void reportDiscarded(InputSectionBase *IS) {
+void elf::reportDiscarded(InputSectionBase *IS) {
   if (!Config->PrintGcSections)
     return;
   message("removing unused section from '" + IS->Name + "' in file '" +
@@ -437,8 +409,3 @@ template void OutputSection::finalize<ELF32LE>();
 template void OutputSection::finalize<ELF32BE>();
 template void OutputSection::finalize<ELF64LE>();
 template void OutputSection::finalize<ELF64BE>();
-
-template void OutputSection::maybeCompress<ELF32LE>();
-template void OutputSection::maybeCompress<ELF32BE>();
-template void OutputSection::maybeCompress<ELF64LE>();
-template void OutputSection::maybeCompress<ELF64BE>();
