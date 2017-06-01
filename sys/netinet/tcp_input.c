@@ -2011,8 +2011,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	/*
 	 * If the state is SYN_SENT:
-	 *	if seg contains a RST, then drop the connection.
-	 *	if seg does not contain SYN, then drop it.
+	 *	if seg contains a RST with valid ACK (SEQ.ACK has already
+	 *	    been verified), then drop the connection.
+	 *	if seg contains a RST without an ACK, drop the seg.
+	 *	if seg does not contain SYN, then drop the seg.
 	 * Otherwise this is an acceptable SYN segment
 	 *	initialize tp->rcv_nxt and tp->irs
 	 *	if seg contains ack then advance tp->snd_una

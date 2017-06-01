@@ -731,11 +731,11 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    MMC_CAP_MMC_DDR52_180 | MMC_CAP_MMC_HS200_180 |
 	    MMC_CAP_MMC_HS400_180))
 		host_caps |= MMC_CAP_SIGNALING_180;
-	if (caps & SDHCI_CTRL2_DRIVER_TYPE_A)
+	if (caps2 & SDHCI_CAN_DRIVE_TYPE_A)
 		host_caps |= MMC_CAP_DRIVER_TYPE_A;
-	if (caps & SDHCI_CTRL2_DRIVER_TYPE_C)
+	if (caps2 & SDHCI_CAN_DRIVE_TYPE_C)
 		host_caps |= MMC_CAP_DRIVER_TYPE_C;
-	if (caps & SDHCI_CTRL2_DRIVER_TYPE_D)
+	if (caps2 & SDHCI_CAN_DRIVE_TYPE_D)
 		host_caps |= MMC_CAP_DRIVER_TYPE_D;
 	slot->host.caps = host_caps;
 
@@ -769,9 +769,9 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
 		    (host_caps & MMC_CAP_SIGNALING_180) ? " 1.8V" : "",
 		    (host_caps & MMC_CAP_SIGNALING_120) ? " 1.2V" : "",
-		    (caps & SDHCI_CTRL2_DRIVER_TYPE_A) ? "A" : "",
-		    (caps & SDHCI_CTRL2_DRIVER_TYPE_C) ? "C" : "",
-		    (caps & SDHCI_CTRL2_DRIVER_TYPE_D) ? "D" : "",
+		    (caps2 & SDHCI_CAN_DRIVE_TYPE_A) ? "A" : "",
+		    (caps2 & SDHCI_CAN_DRIVE_TYPE_C) ? "C" : "",
+		    (caps2 & SDHCI_CAN_DRIVE_TYPE_D) ? "D" : "",
 		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
 		if (host_caps & (MMC_CAP_MMC_DDR52 | MMC_CAP_MMC_HS200 |
 		    MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE))

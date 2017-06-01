@@ -254,6 +254,7 @@ int blen;
      info of the file */
 
   if (match) {
+    fid_len = strlen(fileid);
 #define AS_FORMAT(d)	"%" #d "s"
 #define REXPAND(d) AS_FORMAT(d)	/* Force another preprocessor expansion */
     while ( ! res && (fscanf(bpf, REXPAND(INFOLEN), info)) > 0) {

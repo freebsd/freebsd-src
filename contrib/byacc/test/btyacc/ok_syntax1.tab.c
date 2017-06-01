@@ -698,6 +698,18 @@ YYPARSE_DECL()
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
 #endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
+
+    yyerrflag = 0;
+    yychar = 0;
+    memset(&yyval,  0, sizeof(yyval));
+    memset(&yylval, 0, sizeof(yylval));
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(&yyloc,  0, sizeof(yyloc));
+    memset(&yylloc, 0, sizeof(yylloc));
+#endif
 
 #if YYBTYACC
     yyps = yyNewState(0); if (yyps == 0) goto yyenomem;
@@ -1272,7 +1284,7 @@ case 18:
 #line 101 "ok_syntax1.y"
 	{  yyval.ival = (*base) * yystack.l_mark[-1].ival + yystack.l_mark[0].ival; }
 break;
-#line 1276 "ok_syntax1.tab.c"
+#line 1288 "ok_syntax1.tab.c"
     default:
         break;
     }
