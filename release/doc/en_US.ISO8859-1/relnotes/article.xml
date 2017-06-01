@@ -490,10 +490,10 @@
 	knob has been added, which when set, excludes build-specific
 	metadata from the kernel, for build reproducibility.</para>
 
-      <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
-	<literal>IPSEC_NAT_T</literal> kernel configuration option has
-	been removed.  Support for <acronym>NAT-T</acronym> is now
-	enabled by default.</para>
+      <para revision="315514" contrib="sponsor"
+	sponsor="&yandex;">Support for <acronym>NAT-T</acronym> is now
+	enabled by default.  The <literal>IPSEC_NAT_T</literal> kernel
+	configuration option has been removed.</para>
 
       <para revision="315514" contrib="sponsor" sponsor="&yandex;">The
 	<literal>IPSEC_FILTERTUNNEL</literal> kernel option has been
