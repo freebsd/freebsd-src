@@ -854,6 +854,8 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	if (error == EWOULDBLOCK)
 		linux_dev_kqfilter_poll(filp);
+	else if (error == ERESTARTSYS)
+		error = ERESTART;
 	return (error);
 }
 
@@ -889,6 +891,8 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 			if (error == EWOULDBLOCK)
 				linux_dev_kqfilter_poll(filp);
+			else if (error == ERESTARTSYS)
+				error = ERESTART;
 		}
 	} else
 		error = ENXIO;
@@ -928,6 +932,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 			if (error == EWOULDBLOCK)
 				linux_dev_kqfilter_poll(filp);
+			else if (error == ERESTARTSYS)
+				error = ERESTART;
 		}
 	} else
 		error = ENXIO;
