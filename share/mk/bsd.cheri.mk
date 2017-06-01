@@ -79,7 +79,6 @@ CFLAGS+=-Werror=implicit-function-declaration
 # lot of files that use it to check for not 32-bit
 # XXXAR: Remove this once we have checked all the #ifdef __LP64__ uses
 CFLAGS+=	-D__LP64__=1
-ALLOW_SHARED_TEXTREL=	yes
 LDFLAGS+=	-Wl,-melf64btsmip_cheri_fbsd
 .if defined(__BSD_PROG_MK)
 _LIB_OBJTOP=	${ROOTOBJDIR}
@@ -94,6 +93,15 @@ CHERI_LLD_BROKEN=	yes
 LDFLAGS+=	-fuse-ld=bfd
 .else
 LDFLAGS+=	-fuse-ld=lld -Wl,-z,norelro
+.if ${CFLAGS:M-fexceptions} != ""
+# any code built with -fexceptions currently needs text relocations
+# See https://reviews.llvm.org/D33670
+ALLOW_SHARED_TEXTREL=yes
+.endif
+.ifdef ALLOW_SHARED_TEXTREL
+# By default text relocations are an error instead of a warning with LLD
+LDFLAGS+=	-Wl,-z,notext
+.endif
 .endif
 .else
 STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
