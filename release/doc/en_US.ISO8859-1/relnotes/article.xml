@@ -611,7 +611,10 @@
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="319435">The &man.mpr.4; driver has been updated
+	to support tri-mode
+	(<acronym>SAS</acronym>/<acronym>SATA</acronym>/<acronym>PCIe</acronym>)
+	Broadcom&reg; storage adapters.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
