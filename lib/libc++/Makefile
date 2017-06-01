@@ -6,6 +6,9 @@ PACKAGE=	clibs
 .if ${MK_CHERI} != "no"
 ALLOW_SHARED_TEXTREL=yes
 WANT_CHERI?=	hybrid
+.if !exists(${SRCTOP}/contrib/cheri-libc++/src)
+.error "CHERI C++ submodules missing! Run `git submodule init && git submodule update` to fetch them."
+.endif
 _LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt/src
 HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
 SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
