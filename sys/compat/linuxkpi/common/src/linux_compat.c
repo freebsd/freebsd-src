@@ -826,6 +826,10 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (error);
 	filp->f_flags = file->f_flag;
 
+	/* the LinuxKPI supports blocking and non-blocking I/O */
+	if (cmd == FIONBIO || cmd == FIOASYNC)
+		return (0);
+
 	linux_set_current(td);
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
