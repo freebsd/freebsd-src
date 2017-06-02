@@ -495,14 +495,6 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l0, pd_entry_t **l1,
 }
 
 static __inline int
-pmap_is_current(pmap_t pmap)
-{
-
-	return ((pmap == pmap_kernel()) ||
-	    (pmap == curthread->td_proc->p_vmspace->vm_map.pmap));
-}
-
-static __inline int
 pmap_l3_valid(pt_entry_t l3)
 {
 
@@ -510,23 +502,7 @@ pmap_l3_valid(pt_entry_t l3)
 }
 
 
-/* Is a level 1 or 2entry a valid block and cacheable */
 CTASSERT(L1_BLOCK == L2_BLOCK);
-static __inline int
-pmap_pte_valid_cacheable(pt_entry_t pte)
-{
-
-	return (((pte & ATTR_DESCR_MASK) == L1_BLOCK) &&
-	    ((pte & ATTR_IDX_MASK) == ATTR_IDX(CACHED_MEMORY)));
-}
-
-static __inline int
-pmap_l3_valid_cacheable(pt_entry_t l3)
-{
-
-	return (((l3 & ATTR_DESCR_MASK) == L3_PAGE) &&
-	    ((l3 & ATTR_IDX_MASK) == ATTR_IDX(CACHED_MEMORY)));
-}
 
 #define	PTE_SYNC(pte)	cpu_dcache_wb_range((vm_offset_t)pte, sizeof(*pte))
 
@@ -1180,8 +1156,6 @@ pmap_kremove(vm_offset_t va)
 	KASSERT(pte != NULL, ("pmap_kremove: Invalid address"));
 	KASSERT(lvl == 3, ("pmap_kremove: Invalid pte level %d", lvl));
 
-	if (pmap_l3_valid_cacheable(pmap_load(pte)))
-		cpu_dcache_wb_range(va, L3_SIZE);
 	pmap_load_clear(pte);
 	PTE_SYNC(pte);
 	pmap_invalidate_page(kernel_pmap, va);
@@ -1292,8 +1266,6 @@ pmap_qremove(vm_offset_t sva, int count)
 		KASSERT(lvl == 3,
 		    ("Invalid device pagetable level: %d != 3", lvl));
 		if (pte != NULL) {
-			if (pmap_l3_valid_cacheable(pmap_load(pte)))
-				cpu_dcache_wb_range(va, L3_SIZE);
 			pmap_load_clear(pte);
 			PTE_SYNC(pte);
 		}
@@ -2295,8 +2267,6 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 	vm_page_t m;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (pmap_is_current(pmap) && pmap_l3_valid_cacheable(pmap_load(l3)))
-		cpu_dcache_wb_range(va, L3_SIZE);
 	old_l3 = pmap_load_clear(l3);
 	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
@@ -2518,9 +2488,6 @@ retry:
 
 		pte = pmap_l2_to_l3(pde, pv->pv_va);
 		tpte = pmap_load(pte);
-		if (pmap_is_current(pmap) &&
-		    pmap_l3_valid_cacheable(tpte))
-			cpu_dcache_wb_range(pv->pv_va, L3_SIZE);
 		pmap_load_clear(pte);
 		PTE_SYNC(pte);
 		pmap_invalidate_page(pmap, pv->pv_va);
@@ -3004,10 +2971,6 @@ havel3:
 			}
 			goto validate;
 		}
-
-		/* Flush the cache, there might be uncommitted data in it */
-		if (pmap_is_current(pmap) && pmap_l3_valid_cacheable(orig_l3))
-			cpu_dcache_wb_range(va, L3_SIZE);
 	} else {
 		/*
 		 * Increment the counters.
@@ -3673,20 +3636,8 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad pte %#jx",
 				    (uintmax_t)tpte));
 
-				if (pmap_is_current(pmap)) {
-					if (lvl == 2 &&
-					    pmap_l3_valid_cacheable(tpte)) {
-						cpu_dcache_wb_range(pv->pv_va,
-						    L3_SIZE);
-					} else if (lvl == 1 &&
-					    pmap_pte_valid_cacheable(tpte)) {
-						cpu_dcache_wb_range(pv->pv_va,
-						    L2_SIZE);
-					}
-				}
 				pmap_load_clear(pte);
 				PTE_SYNC(pte);
-				pmap_invalidate_page(pmap, pv->pv_va);
 
 				/*
 				 * Update the vm_page_t clean/reference bits.
