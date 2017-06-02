@@ -392,7 +392,8 @@ read_body()
 		h_fail "$prog 1027" "echo bar |"
 	else
 	# End FreeBSD
-	h_fail "$prog 1025" "echo bar |"
+	MAX_PATH=$(getconf _XOPEN_MAX_PATH) || atf_fail "getconf failed"
+	h_fail "$prog $(( $MAX_PATH + 1))" "echo bar |"
 	# Begin FreeBSD
 	fi
 	# End FreeBSD
