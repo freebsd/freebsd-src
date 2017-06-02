@@ -452,7 +452,7 @@ sodealloc(struct socket *so)
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 	/* remove accept filter if one is present. */
 	if (so->so_accf != NULL)
-		do_setopt_accept_filter(so, NULL);
+		accept_filt_setopt(so, NULL);
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
@@ -2526,7 +2526,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
-			error = do_setopt_accept_filter(so, sopt);
+			error = accept_filt_setopt(so, sopt);
 			if (error)
 				goto bad;
 			break;
@@ -2784,7 +2784,7 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
-			error = do_getopt_accept_filter(so, sopt);
+			error = accept_filt_getopt(so, sopt);
 			break;
 
 		case SO_LINGER:
