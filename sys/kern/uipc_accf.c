@@ -130,8 +130,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		p = malloc(sizeof(*p), M_ACCF,
-		    M_WAITOK);
+		p = malloc(sizeof(*p), M_ACCF, M_WAITOK);
 		bcopy(accfp, p, sizeof(*p));
 		error = accept_filt_add(p);
 		break;
@@ -168,8 +167,7 @@ do_getopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	int error;
 
 	error = 0;
-	afap = malloc(sizeof(*afap), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	afap = malloc(sizeof(*afap), M_TEMP, M_WAITOK | M_ZERO);
 	SOCK_LOCK(so);
 	if ((so->so_options & SO_ACCEPTCONN) == 0) {
 		error = EINVAL;
@@ -227,8 +225,7 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	 * Pre-allocate any memory we may need later to avoid blocking at
 	 * untimely moments.  This does not optimize for invalid arguments.
 	 */
-	afap = malloc(sizeof(*afap), M_TEMP,
-	    M_WAITOK);
+	afap = malloc(sizeof(*afap), M_TEMP, M_WAITOK);
 	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
 	afap->af_name[sizeof(afap->af_name)-1] = '\0';
 	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
@@ -247,12 +244,10 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	 * attached properly, 'newaf' is NULLed to avoid a free()
 	 * while in use.
 	 */
-	newaf = malloc(sizeof(*newaf), M_ACCF, M_WAITOK |
-	    M_ZERO);
+	newaf = malloc(sizeof(*newaf), M_ACCF, M_WAITOK | M_ZERO);
 	if (afp->accf_create != NULL && afap->af_name[0] != '\0') {
 		size_t len = strlen(afap->af_name) + 1;
-		newaf->so_accept_filter_str = malloc(len, M_ACCF,
-		    M_WAITOK);
+		newaf->so_accept_filter_str = malloc(len, M_ACCF, M_WAITOK);
 		strcpy(newaf->so_accept_filter_str, afap->af_name);
 	}
 
