@@ -155,8 +155,6 @@ struct atu_opt {
 #define SMI_PHY_CMD_REG			0x18
 #define SMI_PHY_DATA_REG		0x19
 
-#define PHY_CMD				0x18
-#define PHY_DATA			0x19
 #define PHY_DATA_MASK			0xffff
 
 #define PHY_CMD_SMI_BUSY		15
