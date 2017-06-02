@@ -28,6 +28,7 @@
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
  * Pathconf -- the 2nd argument of pathconf().
  * Utrace -- utrace(2) buffer.
+ * CapRights -- a pointer to a cap_rights_t.  Prints all set capabilities.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -47,7 +48,7 @@ enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
 	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray, Pipe2,
 	CapFcntlRights, Fadvice, FileFlags, Flockop, Getfsstatmode, Kldsymcmd,
 	Kldunloadflags, Sizet, Madvice, Socklent, Sockprotocol, Sockoptlevel,
-	Sockoptname, Msgflags,
+	Sockoptname, Msgflags, CapRights,
 
 	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
