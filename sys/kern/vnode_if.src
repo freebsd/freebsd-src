@@ -662,7 +662,7 @@ vop_advise {
 
 vop_unp_bind {
 	IN struct vnode *vp;
-	IN struct socket *socket;
+	IN struct unpcb *unpcb;
 };
 
 
@@ -670,7 +670,7 @@ vop_unp_bind {
 
 vop_unp_connect {
 	IN struct vnode *vp;
-	OUT struct socket **socket;
+	OUT struct unpcb **unpcb;
 };
 
 

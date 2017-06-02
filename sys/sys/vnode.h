@@ -112,14 +112,13 @@ struct vnode {
 
 	/*
 	 * Type specific fields, only one applies to any given vnode.
-	 * See #defines below for renaming to v_* namespace.
 	 */
 	union {
-		struct mount	*vu_mount;	/* v ptr to mountpoint (VDIR) */
-		struct socket	*vu_socket;	/* v unix domain net (VSOCK) */
-		struct cdev	*vu_cdev; 	/* v device (VCHR, VBLK) */
-		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
-	} v_un;
+		struct mount	*v_mountedhere;	/* v ptr to mountpoint (VDIR) */
+		struct unpcb	*v_unpcb;	/* v unix domain net (VSOCK) */
+		struct cdev	*v_rdev; 	/* v device (VCHR, VBLK) */
+		struct fifoinfo	*v_fifoinfo;	/* v fifo (VFIFO) */
+	};
 
 	/*
 	 * vfs_hash: (mount + inode) -> vnode hash.  The hash value
@@ -175,11 +174,6 @@ struct vnode {
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 
-#define	v_mountedhere	v_un.vu_mount
-#define	v_socket	v_un.vu_socket
-#define	v_rdev		v_un.vu_cdev
-#define	v_fifoinfo	v_un.vu_fifoinfo
-
 #define	bo2vnode(bo)	__containerof((bo), struct vnode, v_bufobj)
 
 /* XXX: These are temporary to avoid a source sweep at this time */
@@ -200,7 +194,7 @@ struct xvnode {
 	long	xv_numoutput;			/* num of writes in progress */
 	enum	vtype xv_type;			/* vnode type */
 	union {
-		void	*xvu_socket;		/* socket, if VSOCK */
+		void	*xvu_socket;		/* unpcb, if VSOCK */
 		void	*xvu_fifo;		/* fifo, if VFIFO */
 		dev_t	xvu_rdev;		/* maj/min, if VBLK/VCHR */
 		struct {
