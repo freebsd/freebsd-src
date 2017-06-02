@@ -161,7 +161,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 }
 
 int
-do_getopt_accept_filter(struct socket *so, struct sockopt *sopt)
+accept_filt_getopt(struct socket *so, struct sockopt *sopt)
 {
 	struct accept_filter_arg *afap;
 	int error;
@@ -189,7 +189,7 @@ out:
 }
 
 int
-do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
+accept_filt_setopt(struct socket *so, struct sockopt *sopt)
 {
 	struct accept_filter_arg *afap;
 	struct accept_filter *afp;
