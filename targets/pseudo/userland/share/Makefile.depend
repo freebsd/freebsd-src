@@ -13,6 +13,7 @@ DIRDEPS = \
 	share/doc/legal/intel_iwi \
 	share/doc/legal/intel_iwn \
 	share/doc/legal/intel_wpi \
+	share/doc/legal/realtek \
 	share/doc/llvm/clang \
 	share/doc/papers/beyond4.3 \
 	share/doc/papers/bufbio \
@@ -29,6 +30,7 @@ DIRDEPS = \
 	share/doc/papers/relengr \
 	share/doc/papers/sysperf \
 	share/doc/papers/timecounter \
+	share/doc/pjdfstest \
 	share/doc/psd/01.cacm \
 	share/doc/psd/02.implement \
 	share/doc/psd/03.iosys \

@@ -1030,45 +1030,80 @@ int
 setnodeaddr(int type, int role, void *ptr, char *arg)
 {
 	struct in_addr mask;
+	sa_family_t family;
 	char *s;
 
-	s = strchr(arg, '/');
-	if (s == NULL)
-		mask.s_addr = 0xffffffff;
-	else if (strchr(s, '.') == NULL) {
-		if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
-			return -1;
+	if (strchr(arg, ':') == NULL) {
+		family = AF_INET;
+		s = strchr(arg, '/');
+		if (s == NULL)
+			mask.s_addr = 0xffffffff;
+		else if (strchr(s, '.') == NULL) {
+			if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
+				return -1;
+		} else {
+			mask.s_addr = inet_addr(s + 1);
+		}
+		if (s != NULL)
+			*s = '\0';
 	} else {
-		mask.s_addr = inet_addr(s + 1);
+		family = AF_INET6;
+
+		/* XXX for now we use mask for IPv6 prefix length */
+		/* XXX mask should be a union with prefix */
+		/* XXX Currently address handling is sloppy. */
+
+		if ((s = strchr(arg, '/')) == NULL)
+			mask.s_addr = 128;
+		else
+			mask.s_addr = atoi(s + 1);
 	}
-	if (s != NULL)
-		*s = '\0';
 
 	if (type == IPLT_POOL) {
 		ip_pool_node_t *node = ptr;
 
+		node->ipn_addr.adf_family = family;
+
 #ifdef USE_INET6
-		if (node->ipn_addr.adf_family == AF_INET)
+		if (node->ipn_addr.adf_family == AF_INET) {
 #endif
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in_addr);
+			node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
 #ifdef USE_INET6
-		else
+		} else {
 			node->ipn_addr.adf_len = offsetof(addrfamily_t,
 							  adf_addr) +
 						 sizeof(struct in6_addr);
+			inet_pton(AF_INET6, arg, 
+				&node->ipn_addr.adf_addr.in6.s6_addr);
+		}
 #endif
-		node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
 		node->ipn_mask.adf_len = node->ipn_addr.adf_len;
 		node->ipn_mask.adf_addr.in4.s_addr = mask.s_addr;
 	} else if (type == IPLT_HASH) {
 		iphtent_t *node = ptr;
 
-		node->ipe_addr.in4.s_addr = inet_addr(arg);
-		node->ipe_mask.in4.s_addr = mask.s_addr;
-        	node->ipe_family = AF_INET;
-        	node->ipe_unit = role;
+        	node->ipe_family = family;
+		node->ipe_unit = role;
+
+#ifdef USE_INET6
+		if (node->ipe_family == AF_INET) {
+#endif
+			node->ipe_addr.in4.s_addr = inet_addr(arg);
+			node->ipe_mask.in4.s_addr = mask.s_addr;
+#ifdef USE_INET6
+		} else {
+			inet_pton(AF_INET6, arg, 
+				&node->ipe_addr.in6.__u6_addr.__u6_addr32);
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[0] =
+				mask.s_addr;
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[1] =
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[2] = 
+			node->ipe_mask.in6.__u6_addr.__u6_addr32[3] = 0;
+		}
+#endif
 	}
 
 	return 0;

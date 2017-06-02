@@ -223,8 +223,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	 * everything else.
 	 */
 	error = (*sav->tdb_xform->xf_input)(m, sav, skip, protoff);
-	if (error != 0)
-		key_freesav(&sav);
 	return (error);
 }
 

@@ -325,6 +325,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	uint32_t id;
 
 	if (inp != NULL) {
+		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if ((flags & IP_NODEFAULTFLOWID) == 0) {
 			/* unconditionally set flowid */

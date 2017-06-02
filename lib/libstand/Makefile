@@ -141,7 +141,7 @@ SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
 	fstat.c close.c lseek.c open.c read.c write.c readdir.c
 
 # network routines
-SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
+SRCS+=	arp.c ether.c ip.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 
 # network info services:
 SRCS+=	bootp.c rarp.c bootparam.c

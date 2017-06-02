@@ -40,7 +40,15 @@ WANT_CHERI:= ${NEED_CHERI}
 .endif
 
 .if defined(LIB_CXX) || defined(PROG_CXX) || defined(SHLIB_CXX)
-WANT_CHERI=	none
+.if ${MK_CHERI} != "no"
+# We need to use CHERI clang for C++ because we no longer build libstdc++
+WANT_CHERI?=	hybrid
+# XXXAR: leave this for a while until everyone has updated clang to
+# a version that defaults to libc++
+LDFLAGS+=	-stdlib=libc++
+# exceptions currently require text relocations on MIPS
+ALLOW_SHARED_TEXTREL=yes
+.endif
 .endif
 
 .if ${MK_CHERI} != "no" && defined(WANT_CHERI) && ${WANT_CHERI} != "none"
@@ -51,19 +59,33 @@ WANT_CHERI=	none
 .error CHERI_CC is defined to ${CHERI_CC} which does not exist
 .endif
 
-_CHERI_CC=	${CHERI_CC} -g -integrated-as --target=cheri-unknown-freebsd \
-		-msoft-float
+.if !defined(CHERI_CXX) || empty(CHERI_CXX)
+CHERI_CXX=${CHERI_CC:H}/${CHERI_CC:T:S/clang/clang++/}
+.endif
+.if !exists(${CHERI_CXX}) 
+.error CHERI_CXX is defined to ${CHERI_CXX} which does not exist
+.endif
+
+
+_CHERI_COMMON_FLAGS=	-g -integrated-as --target=cheri-unknown-freebsd \
+			-msoft-float
+_CHERI_CC=		${CHERI_CC} ${_CHERI_COMMON_FLAGS}
+_CHERI_CXX=		${CHERI_CXX} ${_CHERI_COMMON_FLAGS}
+
 .if defined(SYSROOT)
-_CHERI_CC+=	--sysroot=${SYSROOT}
+_CHERI_COMMON_FLAGS+=	--sysroot=${SYSROOT}
+.endif
+.if ${MK_CHERI_EXACT_EQUALS} == "yes"
+_CHERI_COMMON_FLAGS+=	-mllvm -cheri-exact-equals
 .endif
 
 # Turn off deprecated warnings
-_CHERI_CC+= -Wno-deprecated-declarations
+_CHERI_COMMON_FLAGS+= -Wno-deprecated-declarations
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
 OBJCOPY:=	objcopy
 MIPS_ABI=	purecap
-_CHERI_CC+=	-mxgot -fpic
+_CHERI_COMMON_FLAGS+=	-mxgot -fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
@@ -76,7 +98,6 @@ CFLAGS+=-Werror=implicit-function-declaration
 # lot of files that use it to check for not 32-bit
 # XXXAR: Remove this once we have checked all the #ifdef __LP64__ uses
 CFLAGS+=	-D__LP64__=1
-ALLOW_SHARED_TEXTREL=	yes
 LDFLAGS+=	-Wl,-melf64btsmip_cheri_fbsd
 .if defined(__BSD_PROG_MK)
 _LIB_OBJTOP=	${ROOTOBJDIR}
@@ -91,13 +112,22 @@ CHERI_LLD_BROKEN=	yes
 LDFLAGS+=	-fuse-ld=bfd
 .else
 LDFLAGS+=	-fuse-ld=lld -Wl,-z,norelro
+.if ${CFLAGS:M-fexceptions} != ""
+# any code built with -fexceptions currently needs text relocations
+# See https://reviews.llvm.org/D33670
+ALLOW_SHARED_TEXTREL=yes
+.endif
+.ifdef ALLOW_SHARED_TEXTREL
+# By default text relocations are an error instead of a warning with LLD
+LDFLAGS+=	-Wl,-z,notext
+.endif
 .endif
 .else
 STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
 .endif
 
 .if ${MK_CHERI128} == "yes"
-_CHERI_CC+=	-mllvm -cheri128
+_CHERI_COMMON_FLAGS+=	-mllvm -cheri128
 # XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.
 _CHERI_CFLAGS+=	-Qunused-arguments
 .endif
@@ -109,8 +139,13 @@ NO_SHARED=	yes
 NO_SHARED=	yes
 .endif
 CC:=	${_CHERI_CC}
+CXX:=   ${_CHERI_CXX}
 COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
+CXXFLAGS+=	${_CHERI_CFLAGS}
+# XXXAR: leave this for a while until everyone has updated clang to
+# a version that defaults to libc++
+CXXFLAGS+=	-stdlib=libc++
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
 		--keep-symbol=__cheri_method.\*

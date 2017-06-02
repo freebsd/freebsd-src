@@ -56,6 +56,7 @@ OLD_FILES+=usr/share/man/man8/iasl.8.gz
 
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
+OLD_FILES+=etc/newsyslog.conf.d/amd.conf
 OLD_FILES+=etc/rc.d/amd
 OLD_FILES+=usr/bin/pawd
 OLD_FILES+=usr/sbin/amd
@@ -1588,9 +1589,11 @@ OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 
 .if ${MK_FTP} == no
 OLD_FILES+=etc/ftpusers
+OLD_FILES+=etc/newsyslog.conf.d/ftp.conf
 OLD_FILES+=etc/pam.d/ftp
 OLD_FILES+=etc/pam.d/ftpd
 OLD_FILES+=etc/rc.d/ftpd
+OLD_FILES+=etc/syslog.d/ftp.conf
 OLD_FILES+=usr/bin/ftp
 OLD_FILES+=usr/bin/gate-ftp
 OLD_FILES+=usr/bin/pftp
@@ -4509,6 +4512,7 @@ OLD_LIBS+=${DEBUG_LIB32_LIBS}
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
 OLD_FILES+=usr/lib/libc++_p.a
+OLD_FILES+=usr/lib/libc++experimental.a
 OLD_FILES+=usr/lib/libc++.so
 OLD_LIBS+=usr/lib/libc++.so.1
 OLD_FILES+=usr/lib/libcxxrt.a
@@ -6183,7 +6187,9 @@ OLD_FILES+=usr/share/man/man8/updatedb.8.gz
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
+OLD_FILES+=etc/newsyslog.conf.d/lpr.conf
 OLD_FILES+=etc/rc.d/lpd
+OLD_FILES+=etc/syslog.d/lpr.conf
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -7158,6 +7164,7 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .endif
 
 .if ${MK_PF} == no
+OLD_FILES+=etc/newsyslog.conf.d/pf.conf
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
 OLD_FILES+=etc/rc.d/ftp-proxy
@@ -7297,7 +7304,9 @@ OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .endif
 
 .if ${MK_PPP} == no
+OLD_FILES+=etc/newsyslog.conf.d/ppp.conf
 OLD_FILES+=etc/ppp/ppp.conf
+OLD_FILES+=etc/syslog.d/ppp.conf
 OLD_DIRS+=etc/ppp
 OLD_FILES+=usr/sbin/ppp
 OLD_FILES+=usr/sbin/pppctl
@@ -7473,6 +7482,7 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 .endif
 
 .if ${MK_SENDMAIL} == no
+OLD_FILES+=etc/newsyslog.conf.d/sendmail.conf
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
@@ -9342,8 +9352,6 @@ OLD_FILES+=usr/share/man/man4/ucom.4.gz
 OLD_FILES+=usr/share/man/man4/ucycom.4.gz
 OLD_FILES+=usr/share/man/man4/udav.4.gz
 OLD_FILES+=usr/share/man/man4/udbp.4.gz
-OLD_FILES+=usr/share/man/man4/udp.4.gz
-OLD_FILES+=usr/share/man/man4/udplite.4.gz
 OLD_FILES+=usr/share/man/man4/uep.4.gz
 OLD_FILES+=usr/share/man/man4/ufm.4.gz
 OLD_FILES+=usr/share/man/man4/ufoma.4.gz

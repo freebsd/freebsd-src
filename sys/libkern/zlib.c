@@ -1282,9 +1282,9 @@ local uInt longest_match(s, cur_match)
     IPos cur_match;                             /* current match */
 {
     unsigned chain_length = s->max_chain_length;/* max hash chain length */
-    register Bytef *scan = s->window + s->strstart; /* current string */
-    register Bytef *match;                       /* matched string */
-    register int len;                           /* length of current match */
+    Bytef *scan = s->window + s->strstart;      /* current string */
+    Bytef *match;                               /* matched string */
+    int len;                                    /* length of current match */
     int best_len = s->prev_length;              /* best match length so far */
     int nice_match = s->nice_match;             /* stop if match long enough */
     IPos limit = s->strstart > (IPos)MAX_DIST(s) ?
@@ -1299,13 +1299,13 @@ local uInt longest_match(s, cur_match)
     /* Compare two bytes at a time. Note: this is not always beneficial.
      * Try with and without -DUNALIGNED_OK to check.
      */
-    register Bytef *strend = s->window + s->strstart + MAX_MATCH - 1;
-    register ush scan_start = *(ushf*)scan;
-    register ush scan_end   = *(ushf*)(scan+best_len-1);
+    Bytef *strend = s->window + s->strstart + MAX_MATCH - 1;
+    ush scan_start = *(ushf*)scan;
+    ush scan_end   = *(ushf*)(scan+best_len-1);
 #else
-    register Bytef *strend = s->window + s->strstart + MAX_MATCH;
-    register Byte scan_end1  = scan[best_len-1];
-    register Byte scan_end   = scan[best_len];
+    Bytef *strend = s->window + s->strstart + MAX_MATCH;
+    Byte scan_end1  = scan[best_len-1];
+    Byte scan_end   = scan[best_len];
 #endif
 
     /* The code is optimized for HASH_BITS >= 8 and MAX_MATCH-2 multiple of 16.
@@ -1457,8 +1457,8 @@ local void check_match(s, start, match, length)
 local void fill_window(s)
     deflate_state *s;
 {
-    register unsigned n, m;
-    register Posf *p;
+    unsigned n, m;
+    Posf *p;
     unsigned more;    /* Amount of free space at the end of the window. */
     uInt wsize = s->w_size;
 
@@ -2923,7 +2923,7 @@ local unsigned bi_reverse(code, len)
     unsigned code; /* the value to invert */
     int len;       /* its bit length */
 {
-    register unsigned res = 0;
+    unsigned res = 0;
     do {
         res |= code & 1;
         code >>= 1, res <<= 1;
@@ -4222,16 +4222,16 @@ z_streamp zs;           /* for zalloc function */
   uInt f;                       /* i repeats in table every f entries */
   int g;                        /* maximum code length */
   int h;                        /* table level */
-  register uInt i;              /* counter, current code */
-  register uInt j;              /* counter */
-  register int k;               /* number of bits in current code */
+  uInt i;                       /* counter, current code */
+  uInt j;                       /* counter */
+  int k;                        /* number of bits in current code */
   int l;                        /* bits per table (returned in m) */
-  register uIntf *p;            /* pointer into c[], b[], or v[] */
+  uIntf *p;                     /* pointer into c[], b[], or v[] */
   inflate_huft *q;              /* points to current table */
   struct inflate_huft_s r;      /* table entry for structure assignment */
   inflate_huft *u[BMAX];        /* table stack */
   uInt v[N_MAX];                /* values in order of bit length */
-  register int w;               /* bits before this table == (l * h) */
+  int w;                        /* bits before this table == (l * h) */
   uInt x[BMAX+1];               /* bit offsets, then code stack */
   uIntf *xp;                    /* pointer into x */
   int y;                        /* number of dummy codes added */
@@ -4561,7 +4561,7 @@ z_streamp z;            /* for zfree function */
    list of the tables it made, with the links in a dummy first entry of
    each table. */
 {
-  register inflate_huft *p, *q, *r;
+  inflate_huft *p, *q, *r;
 
   /* Reverse linked list */
   p = Z_NULL;

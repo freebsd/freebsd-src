@@ -24,6 +24,14 @@ _srcconf_included_:
 .MAKE.MODE+=	curdirOk=yes
 .endif
 
+.if defined(NO_OBJ) || ${MK_AUTO_OBJ} == "yes"
+NO_OBJ=		t
+NO_MODULES_OBJ=	t
+.endif
+.if !defined(NO_OBJ)
+_obj=		obj
+.endif
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel

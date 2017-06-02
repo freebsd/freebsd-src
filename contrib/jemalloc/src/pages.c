@@ -61,11 +61,6 @@ pages_map(void *addr, size_t size, bool *commit)
 #endif
 	assert(ret == NULL || (addr == NULL && ret != addr)
 	    || (addr != NULL && ret == addr));
-#ifdef __CHERI_PURE_CAPABILITY__
-	/* Discard the bounds on the allocation */
-	if (ret != NULL)
-		ret = UNBOUND_PTR(ret);
-#endif
 	return (ret);
 }
 
@@ -204,7 +199,7 @@ bool
 pages_huge(void *addr, size_t size)
 {
 
-	assert(PAGE_ADDR2BASE(addr) == addr);
+	assert((vaddr_t)PAGE_ADDR2BASE(addr) == (vaddr_t)addr);
 	assert(PAGE_CEILING(size) == size);
 
 #ifdef JEMALLOC_HAVE_MADVISE_HUGE
@@ -218,7 +213,7 @@ bool
 pages_nohuge(void *addr, size_t size)
 {
 
-	assert(PAGE_ADDR2BASE(addr) == addr);
+	assert((vaddr_t)PAGE_ADDR2BASE(addr) == (vaddr_t)addr);
 	assert(PAGE_CEILING(size) == size);
 
 #ifdef JEMALLOC_HAVE_MADVISE_HUGE

@@ -62,7 +62,7 @@
 #include <fs/msdosfs/msdosfsmount.h>
 
 static int msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, u_int64_t *inum);
+    struct componentname *cnp, uint64_t *inum);
 
 int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
@@ -110,7 +110,7 @@ msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
  */
 static int
 msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, u_int64_t *dd_inum)
+    struct componentname *cnp, uint64_t *dd_inum)
 {
 	struct mbnambuf nb;
 	daddr_t bn;
@@ -135,7 +135,7 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	int unlen;
-	u_int64_t inode1;
+	uint64_t inode1;
 
 	int wincnt = 1;
 	int chksum = -1, chksum_ok;
@@ -656,7 +656,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 	 * Now write the Win95 long name
 	 */
 	if (ddep->de_fndcnt > 0) {
-		u_int8_t chksum = winChksum(ndep->deName);
+		uint8_t chksum = winChksum(ndep->deName);
 		const u_char *un = (const u_char *)cnp->cn_nameptr;
 		int unlen = cnp->cn_namelen;
 		int cnt = 1;

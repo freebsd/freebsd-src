@@ -313,7 +313,7 @@ int
 fifo_printinfo(vp)
 	struct vnode *vp;
 {
-	register struct fifoinfo *fip = vp->v_fifoinfo;
+	struct fifoinfo *fip = vp->v_fifoinfo;
 
 	if (fip == NULL){
 		printf(", NULL v_fifoinfo");

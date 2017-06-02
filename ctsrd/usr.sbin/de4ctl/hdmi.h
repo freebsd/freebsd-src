@@ -29,6 +29,8 @@
 #ifndef	__HDMI_H__
 #define	__HDMI_H__
 
+extern int qflag;
+
 void	brute_force_write_seq(int fd);
 void    display_pixelstream_regs(int fd);
 void	hdmi_set_res(int fd, int xres, int yres, float refresh);

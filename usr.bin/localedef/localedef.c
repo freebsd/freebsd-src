@@ -119,7 +119,7 @@ open_category(void)
 	 */
 	file = fopen(category_file(), "w");
 	if (file == NULL) {
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 		return (NULL);
 	}
 	return (file);
@@ -131,11 +131,11 @@ close_category(FILE *f)
 	if (fchmod(fileno(f), 0644) < 0) {
 		(void) fclose(f);
 		(void) unlink(category_file());
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 	}
 	if (fclose(f) < 0) {
 		(void) unlink(category_file());
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 	}
 	if (verbose) {
 		(void) fprintf(stdout, "done.\n");
@@ -195,13 +195,13 @@ putl_category(const char *s, FILE *f)
 	if (s && fputs(s, f) == EOF) {
 		(void) fclose(f);
 		(void) unlink(category_file());
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 		return (EOF);
 	}
 	if (fputc('\n', f) == EOF) {
 		(void) fclose(f);
 		(void) unlink(category_file());
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 		return (EOF);
 	}
 	return (0);
@@ -216,7 +216,7 @@ wr_category(void *buf, size_t sz, FILE *f)
 	if (fwrite(buf, sz, 1, f) < 1) {
 		(void) fclose(f);
 		(void) unlink(category_file());
-		errf(strerror(errno));
+		errf("%s", strerror(errno));
 		return (EOF);
 	}
 	return (0);
@@ -331,7 +331,7 @@ main(int argc, char **argv)
 		while ((dir = opendir(locname)) == NULL) {
 			if ((errno != ENOENT) ||
 			    (mkdir(locname, 0755) <  0)) {
-				errf(strerror(errno));
+				errf("%s", strerror(errno));
 			}
 		}
 		(void) closedir(dir);

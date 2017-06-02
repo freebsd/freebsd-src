@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <sys/user.h>
 #include <sys/uio.h>
+#include <machine/cpuinfo.h>
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <machine/sigframe.h>
@@ -555,7 +556,8 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 #if defined(CPU_HAVEFPU)
 	if (td == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td);
-	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg)); 
+	memcpy(fpregs, &td->td_frame->f0, sizeof(struct fpreg));
+	fpregs->r_regs[FIR_NUM] = cpuinfo.fpu_id;
 #endif
 	return 0;
 }

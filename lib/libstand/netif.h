@@ -6,15 +6,13 @@
 #define __SYS_LIBNETBOOT_NETIF_H
 #include "iodesc.h"
 
-#define NENTS(x)	sizeof(x)/sizeof(x[0])
-
 struct netif_driver {
 	const	char *netif_bname;
 	int	(*netif_match)(struct netif *, void *);
 	int	(*netif_probe)(struct netif *, void *);
 	void	(*netif_init)(struct iodesc *, void *);
-	int	(*netif_get)(struct iodesc *, void *, size_t, time_t);
-	int	(*netif_put)(struct iodesc *, void *, size_t);
+	ssize_t	(*netif_get)(struct iodesc *, void **, time_t);
+	ssize_t	(*netif_put)(struct iodesc *, void *, size_t);
 	void	(*netif_end)(struct netif *);
 	struct	netif_dif *netif_ifs;
 	int	netif_nifs;
@@ -56,7 +54,7 @@ struct netif	*netif_select(void *);
 int		netif_probe(struct netif *, void *);
 void		netif_attach(struct netif *, struct iodesc *, void *);
 void		netif_detach(struct netif *);
-ssize_t		netif_get(struct iodesc *, void *, size_t, time_t);
+ssize_t		netif_get(struct iodesc *, void **, time_t);
 ssize_t		netif_put(struct iodesc *, void *, size_t);
 
 int		netif_open(void *);

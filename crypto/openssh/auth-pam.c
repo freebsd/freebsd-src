@@ -799,7 +799,8 @@ sshpam_query(void *ctx, char **name, char **info,
 				free(msg);
 				return (0);
 			}
-			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
+			BLACKLIST_NOTIFY(BLACKLIST_BAD_USER,
+			    sshpam_authctxt->user);
 			error("PAM: %s for %s%.100s from %.100s", msg,
 			    sshpam_authctxt->valid ? "" : "illegal user ",
 			    sshpam_authctxt->user,

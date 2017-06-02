@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 		exit (eval);
 	}
 
-	if (cat == 1 && argc > 1)
+	if (cat == 1 && style == COMPRESS && argc > 1)
 		errx(1, "the -c option permits only a single file argument");
 
 	for (; *argv; ++argv)

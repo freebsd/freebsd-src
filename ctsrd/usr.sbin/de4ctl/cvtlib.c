@@ -185,7 +185,7 @@
  * useful when comparing against the CVT EXCEL spreadsheet.
  */
 
-int global_verbose = 0;
+static int global_verbose = 0;
 
 void print_value(int n, const char *name, float val)
 {

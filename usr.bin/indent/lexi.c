@@ -169,19 +169,47 @@ lexi(void)
 	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
+	    enum base {
+		BASE_2, BASE_8, BASE_10, BASE_16
+	    };
 	    int         seendot = 0,
 	                seenexp = 0,
 			seensfx = 0;
-	    if (*buf_ptr == '0' &&
-		    (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')) {
+	    enum base	in_base = BASE_10;
+
+	    if (*buf_ptr == '0') {
+		if (buf_ptr[1] == 'b' || buf_ptr[1] == 'B')
+		    in_base = BASE_2;
+		else if (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')
+		    in_base = BASE_16;
+		else if (isdigit(buf_ptr[1]))
+		    in_base = BASE_8;
+	    }
+	    switch (in_base) {
+	    case BASE_2:
+		*e_token++ = *buf_ptr++;
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr == '0' || *buf_ptr == '1') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_8:
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr >= '0' && *buf_ptr <= '8') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_16:
 		*e_token++ = *buf_ptr++;
 		*e_token++ = *buf_ptr++;
 		while (isxdigit(*buf_ptr)) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		}
-	    }
-	    else
+		break;
+	    case BASE_10:
 		while (1) {
 		    if (*buf_ptr == '.') {
 			if (seendot)
@@ -204,6 +232,8 @@ lexi(void)
 			}
 		    }
 		}
+		break;
+	    }
 	    while (1) {
 		if (!(seensfx & 1) && (*buf_ptr == 'U' || *buf_ptr == 'u')) {
 		    CHECK_SIZE_TOKEN;

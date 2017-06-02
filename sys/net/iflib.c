@@ -5214,7 +5214,6 @@ iflib_msix_init(if_ctx_t ctx)
 
 	/*
 	 * bar == -1 => "trust me I know what I'm doing"
-	 * https://www.youtube.com/watch?v=nnwWKkNau4I
 	 * Some drivers are for hardware that is so shoddily
 	 * documented that no one knows which bars are which
 	 * so the developer has to map all bars. This hack

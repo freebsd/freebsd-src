@@ -71,7 +71,7 @@ A single exception is the signal SIGCONT, which may always be sent
 to any process with the same session ID as the sender.
 In addition, if the
 .Va security.bsd.conservative_signals
-.Xr sysctl
+.Xr sysctl 9
 is set to 1, the user is not a super-user, and
 the receiver is set-uid, then
 only job control and terminal control signals may

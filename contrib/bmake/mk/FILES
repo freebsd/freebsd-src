@@ -9,6 +9,7 @@ cython.mk
 dep.mk
 doc.mk
 dpadd.mk
+files.mk
 final.mk
 host-target.mk
 host.libnames.mk

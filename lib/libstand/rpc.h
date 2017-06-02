@@ -48,7 +48,7 @@
 
 /* RPC functions: */
 ssize_t	rpc_call(struct iodesc *, n_long, n_long, n_long,
-		     void *, size_t, void *, size_t);
+		     void *, size_t, void **, void **);
 void	rpc_fromaddr(void *, struct in_addr *, u_short *);
 int	rpc_pmap_getcache(struct in_addr, u_int, u_int);
 void	rpc_pmap_putcache(struct in_addr, u_int, u_int, int);

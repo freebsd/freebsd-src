@@ -336,8 +336,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag)
 			break;
-		error = cheriabi_strcap_to_ptr((const char **)&argp,
-		    argcap, 0);
+		error = cheriabi_strcap_to_ptr(&argp, argcap, 0);
 		if (error)
 			goto err_exit;
 		/* Lose any stray caps in arg strings. */
@@ -367,8 +366,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 			if (!tag)
 				break;
-			error = cheriabi_strcap_to_ptr((const char **)&envp,
-			    argcap, 0);
+			error = cheriabi_strcap_to_ptr(&envp, argcap, 0);
 			if (error)
 				goto err_exit;
 			/* Lose any stray caps in env strings. */
@@ -942,11 +940,9 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		if (error)
 			return (error);
 		CP(j_c, j, version);
-		cheriabi_strcap_to_ptr((const char **)&j.path, &j_c.path, 1);
-		cheriabi_strcap_to_ptr((const char **)&j.hostname,
-		    &j_c.hostname, 1);
-		cheriabi_strcap_to_ptr((const char **)&j.jailname,
-		    &j_c.jailname, 1);
+		cheriabi_strcap_to_ptr(&j.path, &j_c.path, 1);
+		cheriabi_strcap_to_ptr(&j.hostname, &j_c.hostname, 1);
+		cheriabi_strcap_to_ptr(&j.jailname, &j_c.jailname, 1);
 		CP(j_c, j, ip4s);
 		CP(j_c, j, ip6s);
 		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip4, &j_c.ip4,
@@ -1569,12 +1565,14 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	int szsigcode, szps;
 	struct cheriabi_execdata ce;
 
+	KASSERT(imgp->auxargs != NULL, ("CheriABI requires auxargs"));
+
 	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
-	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+	if (imgp->execpath != NULL)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
 		execpath_len = 0;
@@ -1633,18 +1631,14 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	    arginfo, sizeof(struct ps_strings), 0);
 
 	/*
-	 * If we have a valid auxargs ptr, prepare some room
-	 * on the stack.
+	 * Prepare some room * on the stack for auxargs.
 	 */
-	if (imgp->auxargs) {
-		/*
-		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
-		 * lower compatibility.
-		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
-	} else
-		imgp->auxarg_size = 0;
+	/*
+	 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+	 * lower compatibility.
+	 */
+	imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
+		: (AT_COUNT * 2);
 	/*
 	 * The '+ 2' is for the null pointers at the end of each of
 	 * the arg and env vector sets, and imgp->auxarg_size is room
@@ -1677,8 +1671,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in argument portion of vector table.
 	 */
+	imgp->args->argv = (void *)vectp;
 	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS,
-	    vectp, (argc + 1) * sizeof(struct chericap), 0);
+	    imgp->args->argv, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1699,8 +1694,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in environment portion of vector table.
 	 */
+	imgp->args->envv = (void *)vectp;
 	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS,
-	    vectp, (envc + 1) * sizeof(struct chericap), 0);
+	    imgp->args->envv, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1832,6 +1828,17 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
 	    imgp->sysent->sv_stackprot);
+
+	AUXARGS_ENTRY(pos, AT_ARGC, imgp->args->argc);
+	/* XXX-BD: Includes terminating NULL.  Should it? */
+	AUXARGS_ENTRY_CAP(pos, AT_ARGV, imgp->args->argv, 0,
+	   sizeof(struct chericap) * (imgp->args->argc + 1),
+	   CHERI_CAP_USER_DATA_PERMS);
+	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
+	AUXARGS_ENTRY_CAP(pos, AT_ENVV, imgp->args->envv, 0,
+	   sizeof(struct chericap) * (imgp->args->envc + 1),
+	   CHERI_CAP_USER_DATA_PERMS);
+
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);

@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -498,11 +499,17 @@ iwm_apm_init(struct iwm_softc *sc)
 		 * just to discard the value. But that's the way the hardware
 		 * seems to like it.
 		 */
-		iwm_read_prph(sc, IWM_OSC_CLK);
-		iwm_read_prph(sc, IWM_OSC_CLK);
+		if (iwm_nic_lock(sc)) {
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_nic_unlock(sc);
+		}
 		iwm_set_bits_prph(sc, IWM_OSC_CLK, IWM_OSC_CLK_FORCE_CONTROL);
-		iwm_read_prph(sc, IWM_OSC_CLK);
-		iwm_read_prph(sc, IWM_OSC_CLK);
+		if (iwm_nic_lock(sc)) {
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_read_prph(sc, IWM_OSC_CLK);
+			iwm_nic_unlock(sc);
+		}
 	}
 
 	/*
@@ -513,8 +520,11 @@ iwm_apm_init(struct iwm_softc *sc)
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
-		iwm_write_prph(sc, IWM_APMG_CLK_EN_REG,
-		    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_CLK_EN_REG,
+			    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+			iwm_nic_unlock(sc);
+		}
 		DELAY(20);
 
 		/* Disable L1-Active */
@@ -522,8 +532,11 @@ iwm_apm_init(struct iwm_softc *sc)
 		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 		/* Clear the interrupt in APMG if the NIC is in RFKILL */
-		iwm_write_prph(sc, IWM_APMG_RTC_INT_STT_REG,
-		    IWM_APMG_RTC_INT_STT_RFKILL);
+		if (iwm_nic_lock(sc)) {
+			iwm_write_prph(sc, IWM_APMG_RTC_INT_STT_REG,
+			    IWM_APMG_RTC_INT_STT_RFKILL);
+			iwm_nic_unlock(sc);
+		}
 	}
  out:
 	if (error)
@@ -625,12 +638,12 @@ iwm_pcie_set_cmd_in_flight(struct iwm_softc *sc)
 		IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 		    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-                ret = iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
+		ret = iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
 		    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
 		    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 		     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP),
 		    15000);
-                if (ret == 0) {
+		if (ret == 0) {
 			IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
 			    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			device_printf(sc->sc_dev,

@@ -13,6 +13,3 @@
 # msgs -q
 # Allow terminal messages
 # mesg y
-#
-# Query terminal size; useful for serial lines
-/usr/bin/resizewin

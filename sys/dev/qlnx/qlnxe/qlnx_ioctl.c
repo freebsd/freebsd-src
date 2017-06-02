@@ -121,8 +121,7 @@ qlnx_grc_dump(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 	p_ptt = ecore_ptt_acquire(p_hwfn);
 
 	if (!p_ptt) {
-		QL_DPRINT1(ha, (ha->pci_dev, "%s : ecore_ptt_acquire failed\n",
-			__func__));
+		QL_DPRINT1(ha,"ecore_ptt_acquire failed\n");
 		return (rval);
 	}
 
@@ -133,9 +132,8 @@ qlnx_grc_dump(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 	 	rval = 0;	
 		ha->grcdump_taken = 1;
 	} else
-		QL_DPRINT1(ha, (ha->pci_dev,
-			"%s : ecore_dbg_grc_dump failed [%d, 0x%x]\n",
-			__func__, hwfn_index, rval));
+		QL_DPRINT1(ha,"ecore_dbg_grc_dump failed [%d, 0x%x]\n",
+			   hwfn_index, rval);
 
 	ecore_ptt_release(p_hwfn, p_ptt);
 
@@ -177,8 +175,7 @@ qlnx_get_grc_dump(qlnx_host_t *ha, qlnx_grcdump_t *grcdump)
 
 		grcdump->grcdump_dwords[i] = dwords;
 
-		QL_DPRINT1(ha, (ha->pci_dev, "%s: grcdump_dwords[%d] = 0x%x\n",
-			__func__, i, dwords));
+		QL_DPRINT1(ha,"grcdump_dwords[%d] = 0x%x\n", i, dwords);
 
 		rval = copyout(ha->grcdump[i], grcdump->grcdump[i],
 				ha->grcdump_size[i]);
@@ -213,8 +210,7 @@ qlnx_idle_chk(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 	p_ptt = ecore_ptt_acquire(p_hwfn);
 
 	if (!p_ptt) {
-		QL_DPRINT1(ha, (ha->pci_dev,
-			"%s : ecore_ptt_acquire failed\n", __func__));
+		QL_DPRINT1(ha,"ecore_ptt_acquire failed\n");
 		return (rval);
 	}
 
@@ -225,9 +221,8 @@ qlnx_idle_chk(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 	 	rval = 0;	
 		ha->idle_chk_taken = 1;
 	} else
-		QL_DPRINT1(ha, (ha->pci_dev,
-			"%s : ecore_dbg_idle_chk_dump failed [%d, 0x%x]\n",
-			__func__, hwfn_index, rval));
+		QL_DPRINT1(ha,"ecore_dbg_idle_chk_dump failed [%d, 0x%x]\n",
+			   hwfn_index, rval);
 
 	ecore_ptt_release(p_hwfn, p_ptt);
 
@@ -271,8 +266,7 @@ qlnx_get_idle_chk(qlnx_host_t *ha, qlnx_idle_chk_t *idle_chk)
 		
 		idle_chk->idle_chk_dwords[i] = dwords;
 
-		QL_DPRINT1(ha, (ha->pci_dev, "%s: idle_chk_dwords[%d] = 0x%x\n",
-			__func__, i, dwords));
+		QL_DPRINT1(ha,"idle_chk_dwords[%d] = 0x%x\n", i, dwords);
 
                	rval = copyout(ha->idle_chk[i], idle_chk->idle_chk[i],
 				ha->idle_chk_size[i]);
@@ -299,9 +293,8 @@ qlnx_get_trace_cmd_size(qlnx_host_t *ha, int hwfn_index, uint16_t cmd)
         p_ptt = ecore_ptt_acquire(p_hwfn);
 
         if (!p_ptt) {
-                QL_DPRINT1(ha, (ha->pci_dev,
-			"%s: ecore_ptt_acquire [%d, 0x%x]failed\n",
-                        __func__, hwfn_index, cmd));
+                QL_DPRINT1(ha, "ecore_ptt_acquire [%d, 0x%x]failed\n",
+                           hwfn_index, cmd);
                 return (0);
         }
 
@@ -334,8 +327,7 @@ qlnx_get_trace_cmd_size(qlnx_host_t *ha, int hwfn_index, uint16_t cmd)
 	}
 
         if (rval != DBG_STATUS_OK) {
-                QL_DPRINT1(ha, (ha->pci_dev, "%s : cmd = 0x%x failed [0x%x]\n",
-                        __func__, cmd, rval));
+                QL_DPRINT1(ha,"cmd = 0x%x failed [0x%x]\n", cmd, rval);
 		num_dwords = 0;
         }
 
@@ -369,9 +361,8 @@ qlnx_get_trace(qlnx_host_t *ha, int hwfn_index, qlnx_trace_t *trace)
 
 	buffer = qlnx_zalloc(trace->size[hwfn_index]);
 	if (buffer == NULL) { 
-                QL_DPRINT1(ha, (ha->pci_dev,
-			"%s: qlnx_zalloc [%d, 0x%x]failed\n",
-                        __func__, hwfn_index, trace->cmd));
+                QL_DPRINT1(ha,"qlnx_zalloc [%d, 0x%x]failed\n",
+                           hwfn_index, trace->cmd);
                 return (ENXIO);
 	}
 	ecore_dbg_set_app_ver(ecore_dbg_get_fw_func_ver());
@@ -380,9 +371,8 @@ qlnx_get_trace(qlnx_host_t *ha, int hwfn_index, qlnx_trace_t *trace)
         p_ptt = ecore_ptt_acquire(p_hwfn);
 
         if (!p_ptt) {
-                QL_DPRINT1(ha, (ha->pci_dev,
-			"%s: ecore_ptt_acquire [%d, 0x%x]failed\n",
-                        __func__, hwfn_index, trace->cmd));
+                QL_DPRINT1(ha, "ecore_ptt_acquire [%d, 0x%x]failed\n",
+                           hwfn_index, trace->cmd);
                 return (ENXIO);
         }
 
@@ -420,8 +410,7 @@ qlnx_get_trace(qlnx_host_t *ha, int hwfn_index, qlnx_trace_t *trace)
 	}
 
         if (rval != DBG_STATUS_OK) {
-                QL_DPRINT1(ha, (ha->pci_dev, "%s : cmd = 0x%x failed [0x%x]\n",
-                        __func__, trace->cmd, rval));
+                QL_DPRINT1(ha,"cmd = 0x%x failed [0x%x]\n", trace->cmd, rval);
 		num_dwords = 0;
         }
 
@@ -609,21 +598,18 @@ qlnx_write_nvram(qlnx_host_t *ha, qlnx_nvram_t *nvram, uint32_t cmd)
 
 	ret = copyin(nvram->data, buf, nvram->data_len);
 
-	QL_DPRINT9(ha,
-		(ha->pci_dev, "%s: issue cmd = 0x%x data = %p "
-		" data_len = 0x%x ret = 0x%x exit\n", __func__,
-		cmd, nvram->data, nvram->data_len, ret));
+	QL_DPRINT9(ha, "issue cmd = 0x%x data = %p \
+		 data_len = 0x%x ret = 0x%x exit\n",
+		cmd, nvram->data, nvram->data_len, ret);
 
 	if (ret == 0) {
 		ret = ecore_mcp_nvm_write(&ha->cdev, cmd,
 			nvram->offset, buf, nvram->data_len);
 	}
 
-	QL_DPRINT9(ha,
-		(ha->pci_dev, "%s: cmd = 0x%x data = %p "
-		" data_len = 0x%x resp = 0x%x ret = 0x%x exit\n",
-		__func__, cmd, nvram->data, nvram->data_len,
-		ha->cdev.mcp_nvm_resp, ret));
+	QL_DPRINT9(ha, "cmd = 0x%x data = %p \
+		 data_len = 0x%x resp = 0x%x ret = 0x%x exit\n",
+		cmd, nvram->data, nvram->data_len, ha->cdev.mcp_nvm_resp, ret);
 
 	free(buf, M_QLNXBUF);
 
@@ -644,10 +630,9 @@ qlnx_read_nvram(qlnx_host_t *ha, qlnx_nvram_t *nvram)
 	ret = ecore_mcp_nvm_read(&ha->cdev, nvram->offset, buf,
 		nvram->data_len);
 
-	QL_DPRINT9(ha, (ha->pci_dev, "%s: data = %p data_len = 0x%x "
-		" resp = 0x%x ret = 0x%x exit\n", __func__,
-		nvram->data, nvram->data_len,
-		ha->cdev.mcp_nvm_resp, ret));
+	QL_DPRINT9(ha, " data = %p data_len = 0x%x \
+		 resp = 0x%x ret = 0x%x exit\n",
+		nvram->data, nvram->data_len, ha->cdev.mcp_nvm_resp, ret);
 
 	if (ret == 0) {
 		ret = copyout(buf, nvram->data, nvram->data_len);
@@ -672,10 +657,9 @@ qlnx_get_nvram_resp(qlnx_host_t *ha, qlnx_nvram_t *nvram)
 
 	ret = ecore_mcp_nvm_resp(&ha->cdev, buf);
 
-	QL_DPRINT9(ha, (ha->pci_dev, "%s: data = %p data_len = 0x%x "
-		" resp = 0x%x ret = 0x%x exit\n", __func__,
-		nvram->data, nvram->data_len,
-		ha->cdev.mcp_nvm_resp, ret));
+	QL_DPRINT9(ha, "data = %p data_len = 0x%x \
+		 resp = 0x%x ret = 0x%x exit\n",
+		nvram->data, nvram->data_len, ha->cdev.mcp_nvm_resp, ret);
 
 	if (ret == 0) {
 		ret = copyout(buf, nvram->data, nvram->data_len);
@@ -708,28 +692,25 @@ qlnx_nvram(qlnx_host_t *ha, qlnx_nvram_t *nvram)
 	case QLNX_NVRAM_CMD_SET_SECURE_MODE:
 		ret = ecore_mcp_nvm_set_secure_mode(&ha->cdev, nvram->offset);
 
-		QL_DPRINT9(ha, (ha->pci_dev,
-			"%s: QLNX_NVRAM_CMD_SET_SECURE_MODE "
-			" resp = 0x%x ret = 0x%x exit\n", __func__,
-			ha->cdev.mcp_nvm_resp, ret));
+		QL_DPRINT9(ha, "QLNX_NVRAM_CMD_SET_SECURE_MODE \
+			 resp = 0x%x ret = 0x%x exit\n",
+			 ha->cdev.mcp_nvm_resp, ret);
 		break;
 
 	case QLNX_NVRAM_CMD_DEL_FILE:
 		ret = ecore_mcp_nvm_del_file(&ha->cdev, nvram->offset);
 
-		QL_DPRINT9(ha, (ha->pci_dev,
-			"%s: QLNX_NVRAM_CMD_DEL_FILE "
-			" resp = 0x%x ret = 0x%x exit\n", __func__,
-			ha->cdev.mcp_nvm_resp, ret));
+		QL_DPRINT9(ha, "QLNX_NVRAM_CMD_DEL_FILE \
+			 resp = 0x%x ret = 0x%x exit\n",
+			ha->cdev.mcp_nvm_resp, ret);
 		break;
 
 	case QLNX_NVRAM_CMD_PUT_FILE_BEGIN:
 		ret = ecore_mcp_nvm_put_file_begin(&ha->cdev, nvram->offset);
 
-		QL_DPRINT9(ha, (ha->pci_dev,
-			"%s: QLNX_NVRAM_CMD_PUT_FILE_BEGIN "
-			" resp = 0x%x ret = 0x%x exit\n", __func__,
-			ha->cdev.mcp_nvm_resp, ret));
+		QL_DPRINT9(ha, "QLNX_NVRAM_CMD_PUT_FILE_BEGIN \
+			 resp = 0x%x ret = 0x%x exit\n",
+			ha->cdev.mcp_nvm_resp, ret);
 		break;
 
 	case QLNX_NVRAM_CMD_GET_NVRAM_RESP:

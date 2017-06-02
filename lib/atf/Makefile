@@ -29,9 +29,7 @@
 
 SUBDIR=		libatf-c
 
-.ifndef LIBCHERI
 SUBDIR+=	libatf-c++
-.endif
 
 .if ${MK_TESTS} != "no"
 SUBDIR+= 	tests

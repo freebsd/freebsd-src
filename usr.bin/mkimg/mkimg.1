@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2015
+.Dd April 26, 2017
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -37,7 +37,9 @@
 .Op Fl S Ar secsz
 .Op Fl T Ar tracksz
 .Op Fl b Ar bootcode
-.Op Fl c Ar capacity
+.Op Fl c Ar min_capacity
+.Op Fl C Ar max_capacity
+.Op Fl -capacity Ar capacity
 .Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl a Ar active
@@ -123,6 +125,18 @@ option, but without specifying any partitions.
 When the size required for all the partitions is larger than the
 given capacity, then the disk image will be larger than the capacity
 given.
+.Pp
+The
+.Fl C
+option specifies a maximum capacity for the disk image.
+If the combined sizes of the given partitions exceed the size given with
+.Fl C ,
+image creation fails.
+.Pp
+The
+.Fl -capacity
+option is a shorthand to specify the minimum and maximum capacity at the
+same time.
 .Pp
 The
 .Fl v

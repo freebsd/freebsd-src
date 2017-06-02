@@ -597,6 +597,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			error = EINVAL;
 			goto out;
 		}
+		if ((inp->inp_vflag & INP_IPV4) == 0) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
@@ -614,6 +618,11 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 #endif
 		error = tp->t_fb->tfb_tcp_output(tp);
 		goto out;
+	} else {
+		if ((inp->inp_vflag & INP_IPV6) == 0) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 	}
 #endif
 	inp->inp_vflag &= ~INP_IPV4;

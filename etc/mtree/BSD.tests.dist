@@ -606,11 +606,15 @@
         ..
         cmp
         ..
+        compress
+        ..
         cpio
         ..
         col
         ..
         comm
+        ..
+        csplit
         ..
         cut
         ..
@@ -619,6 +623,8 @@
         dirname
         ..
         file2c
+        ..
+        getconf
         ..
         grep
         ..
@@ -647,6 +653,8 @@
         pr
         ..
         printf
+        ..
+        procstat
         ..
         sdiff
         ..

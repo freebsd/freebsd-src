@@ -70,6 +70,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+#ifdef RT_MDIO
+#include <dev/mdio/mdio.h>
+#include <dev/etherswitch/miiproxy.h>
+#include "mdio_if.h"
+#endif
+
 #if 0
 #include <mips/rt305x/rt305x_sysctlvar.h>
 #include <mips/rt305x/rt305xreg.h>
@@ -91,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #define	RT_TX_WATCHDOG_TIMEOUT		5
 
+#define RT_CHIPID_RT2880 0x2880
 #define RT_CHIPID_RT3050 0x3050
 #define RT_CHIPID_RT5350 0x5350
 #define RT_CHIPID_MT7620 0x7620
@@ -99,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 /* more specific and new models should go first */
 static const struct ofw_compat_data rt_compat_data[] = {
+	{ "ralink,rt2880-eth",		RT_CHIPID_RT2880 },
 	{ "ralink,rt3050-eth",		RT_CHIPID_RT3050 },
 	{ "ralink,rt3352-eth",		RT_CHIPID_RT3050 },
 	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
@@ -166,6 +174,8 @@ static void	rt_dma_map_addr(void *arg, bus_dma_segment_t *segs,
 static void	rt_sysctl_attach(struct rt_softc *sc);
 #ifdef IF_RT_PHY_SUPPORT
 void		rt_miibus_statchg(device_t);
+#endif
+#if defined(IF_RT_PHY_SUPPORT) || defined(RT_MDIO)
 static int	rt_miibus_readreg(device_t, int, int);
 static int	rt_miibus_writereg(device_t, int, int, int);
 #endif
@@ -351,7 +361,7 @@ rt_attach(device_t dev)
 
 	sc->mem_rid = 0;
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		error = ENXIO;
@@ -466,6 +476,9 @@ rt_attach(device_t dev)
 		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
 		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
 		));
+
+	if (sc->rt_chipid == RT_CHIPID_RT2880)
+		RT_WRITE(sc, MDIO_CFG, MDIO_2880_100T_INIT);
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
@@ -2733,16 +2746,20 @@ rt_sysctl_attach(struct rt_softc *sc)
 	    "Tx collision count for GDMA ports");
 }
 
-#ifdef IF_RT_PHY_SUPPORT
+#if defined(IF_RT_PHY_SUPPORT) || defined(RT_MDIO)
+/* This code is only work RT2880 and same chip. */
+/* TODO: make RT3052 and later support code. But nobody need it? */
 static int
 rt_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rt_softc *sc = device_get_softc(dev);
+	int dat;
 
 	/*
 	 * PSEUDO_PHYAD is a special value for indicate switch attached.
 	 * No one PHY use PSEUDO_PHYAD (0x1e) address.
 	 */
+#ifndef RT_MDIO
 	if (phy == 31) {
 		/* Fake PHY ID for bfeswitch attach */
 		switch (reg) {
@@ -2754,13 +2771,14 @@ rt_miibus_readreg(device_t dev, int phy, int reg)
 			return (0x6250);		/* bfeswitch */
 		}
 	}
+#endif
 
 	/* Wait prev command done if any */
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
-	RT_WRITE(sc, MDIO_ACCESS,
-	    MDIO_CMD_ONGO ||
-	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) ||
-	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK));
+	dat = ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) |
+	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK);
+	RT_WRITE(sc, MDIO_ACCESS, dat);
+	RT_WRITE(sc, MDIO_ACCESS, dat | MDIO_CMD_ONGO);
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
 
 	return (RT_READ(sc, MDIO_ACCESS) & MDIO_PHY_DATA_MASK);
@@ -2770,19 +2788,23 @@ static int
 rt_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct rt_softc *sc = device_get_softc(dev);
+	int dat;
 
 	/* Wait prev command done if any */
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
-	RT_WRITE(sc, MDIO_ACCESS,
-	    MDIO_CMD_ONGO || MDIO_CMD_WR ||
-	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) ||
-	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK) ||
-	    (val & MDIO_PHY_DATA_MASK));
+	dat = MDIO_CMD_WR |
+	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) |
+	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK) |
+	    (val & MDIO_PHY_DATA_MASK);
+	RT_WRITE(sc, MDIO_ACCESS, dat);
+	RT_WRITE(sc, MDIO_ACCESS, dat | MDIO_CMD_ONGO);
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
 
 	return (0);
 }
+#endif
 
+#ifdef IF_RT_PHY_SUPPORT
 void
 rt_miibus_statchg(device_t dev)
 {
@@ -2842,3 +2864,85 @@ DRIVER_MODULE(rt, simplebus, rt_driver, rt_dev_class, 0, 0);
 MODULE_DEPEND(rt, ether, 1, 1, 1);
 MODULE_DEPEND(rt, miibus, 1, 1, 1);
 
+#ifdef RT_MDIO       
+MODULE_DEPEND(rt, mdio, 1, 1, 1);
+
+static int rtmdio_probe(device_t);
+static int rtmdio_attach(device_t);
+static int rtmdio_detach(device_t);
+
+static struct mtx miibus_mtx;
+
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "rt mii lock", MTX_DEF);
+
+/*
+ * Declare an additional, separate driver for accessing the MDIO bus.
+ */
+static device_method_t rtmdio_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         rtmdio_probe),
+	DEVMETHOD(device_attach,        rtmdio_attach),
+	DEVMETHOD(device_detach,        rtmdio_detach),
+
+	/* bus interface */
+	DEVMETHOD(bus_add_child,        device_add_child_ordered),
+
+	/* MDIO access */
+	DEVMETHOD(mdio_readreg,         rt_miibus_readreg),
+	DEVMETHOD(mdio_writereg,        rt_miibus_writereg),
+};
+
+DEFINE_CLASS_0(rtmdio, rtmdio_driver, rtmdio_methods,
+    sizeof(struct rt_softc));
+static devclass_t rtmdio_devclass;
+
+DRIVER_MODULE(miiproxy, rt, miiproxy_driver, miiproxy_devclass, 0, 0);
+DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, rtmdio_devclass, 0, 0);
+DRIVER_MODULE(mdio, rtmdio, mdio_driver, mdio_devclass, 0, 0);
+
+static int
+rtmdio_probe(device_t dev)
+{
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "ralink,rt2880-mdio"))
+		return (ENXIO);
+
+	device_set_desc(dev, "FV built-in ethernet interface, MDIO controller");
+	return(0);
+}
+
+static int
+rtmdio_attach(device_t dev)
+{
+	struct rt_softc	*sc;
+	int	error;
+
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->mem_rid = 0;
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->mem_rid, RF_ACTIVE | RF_SHAREABLE);
+	if (sc->mem == NULL) {
+		device_printf(dev, "couldn't map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	sc->bst = rman_get_bustag(sc->mem);
+	sc->bsh = rman_get_bushandle(sc->mem);
+
+        bus_generic_probe(dev);
+	bus_enumerate_hinted_children(dev);
+	error = bus_generic_attach(dev);
+fail:
+	return(error);
+}
+
+static int
+rtmdio_detach(device_t dev)
+{
+	return(0);
+}
+#endif

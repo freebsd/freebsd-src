@@ -129,7 +129,7 @@
 #define SB_SHOW_MAXCOL		793
 
 /* Start offsets for browser columns */
-const int	colstart[] = {0, 267, 534};
+static const int	colstart[] = {0, 267, 534};
 
 struct dent {
 	struct dirent	 entry;
@@ -142,7 +142,7 @@ struct dent {
  * the get_desc() function.  Processing is first match so most specific
  * entries should come first.
  */
-struct _iconmap {
+static struct _iconmap {
 	int		 i_offset;
 	const char	*i_type;
 } iconmap[] = {
@@ -171,13 +171,13 @@ struct _iconmap {
 	{ 0, NULL }
 };
 
-enum _sbtype {
+static enum _sbtype {
 	SB_NONE = 1,
 	SB_CAPSICUM,
 	SB_CHERI
 } sbtype = SB_NONE;
 
-struct _sbdata {
+static struct _sbdata {
 	enum _sbtype	sbtype;
 	int		enabled;
 	int		bcol;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2005
+.Dd May 22, 2017
 .Dt CATMAN 1
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@ The
 utility preformats all the man pages in
 .Ar directories
 using the
+.Nm mandoc
+command when supported, falling back on the
 .Nm nroff Fl man
 command.
 Directories may be separated by colons instead of spaces.
@@ -99,6 +101,7 @@ environment variable is not set.
 .Sh SEE ALSO
 .Xr makewhatis 1 ,
 .Xr man 1 ,
+.Xr mandoc 1 ,
 .Xr nroff 1
 .Sh HISTORY
 A previous version of the

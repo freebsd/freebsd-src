@@ -302,6 +302,11 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+.if defined(WORLDFAST)
+NO_CLEAN=	t
+NO_OBJ=		t
+.endif
+
 .if ${MK_META_MODE} == "yes"
 # If filemon is used then we can rely on the build being incremental-safe.
 # The .meta files will also track the build command and rebuild should
@@ -309,6 +314,13 @@ CLEANDIR=	cleandir
 .if empty(.MAKE.MODE:Mnofilemon)
 NO_CLEAN=	t
 .endif
+.endif
+.if defined(NO_OBJ) || ${MK_AUTO_OBJ} == "yes"
+NO_OBJ=		t
+NO_KERNELOBJ=	t
+.endif
+.if !defined(NO_OBJ)
+_obj=		obj
 .endif
 
 LOCAL_TOOL_DIRS?=
@@ -559,7 +571,7 @@ WMAKEENV=	${CROSSENV} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 .if defined(CHERI_CC)
-WMAKEENV+=	CHERI_CC=${CHERI_CC:Q}
+WMAKEENV+=	CHERI_CC=${CHERI_CC:Q} CHERI_CXX=${CHERI_CXX:Q}
 .endif
 
 # make hierarchy
@@ -929,7 +941,7 @@ buildcheri:
 	    ${_t}
 .endfor
 .endfor
-.for _lib in lib/csu lib/libgcc_eh lib/libcompiler_rt lib/libc lib/libc_nonshared lib/libgcc_s lib/libthr lib/libz lib/libbz2 lib/liblzma lib/libexpat secure/lib/libcrypto lib/libsbuf lib/libelf lib/libkvm lib/ncurses/ncurses lib/ncurses/ncursesw secure/lib/libssl lib/libmd lib/libutil lib/libprocstat lib/librtld_db cddl/lib/libctf lib/libkiconv lib/libpam/libpam lib/libcom_err lib/libcrypt kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libwind kerberos5/lib/libhx509 kerberos5/lib/libheimbase kerberos5/lib/libheimipcc kerberos5/lib/libkrb5 lib/libopie lib/libradius lib/libtacplus lib/libypclnt lib/libldns secure/lib/libssh lib/msun lib/libnv lib/libcheri gnu/lib/libdialog lib/libfigpar lib/libgssapi cddl/lib/libnvpair cddl/lib/libumem cddl/lib/libuutil cddl/lib/libzfs_core cddl/lib/libavl kerberos5/lib/libheimntlm lib/libsqlite3 kerberos5/lib/libhdb usr.bin/lex/lib  lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib ${INTERNAL_INC_DIRS} ${INTERNAL_LIB_DIRS}
+.for _lib in lib/csu lib/libgcc_eh lib/libcompiler_rt lib/libc lib/libc_nonshared lib/libgcc_s lib/libthr lib/libz lib/libbz2 lib/liblzma lib/libexpat secure/lib/libcrypto lib/libsbuf lib/libelf lib/libkvm lib/ncurses/ncurses lib/ncurses/ncursesw secure/lib/libssl lib/libmd lib/libutil lib/libprocstat lib/librtld_db cddl/lib/libctf lib/libkiconv lib/libpam/libpam lib/libcom_err lib/libcrypt kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libwind kerberos5/lib/libhx509 kerberos5/lib/libheimbase kerberos5/lib/libheimipcc kerberos5/lib/libkrb5 lib/libopie lib/libradius lib/libtacplus lib/libypclnt lib/libldns secure/lib/libssh lib/msun lib/libnv lib/libcheri gnu/lib/libdialog lib/libfigpar lib/libgssapi cddl/lib/libnvpair cddl/lib/libumem cddl/lib/libuutil cddl/lib/libzfs_core cddl/lib/libavl kerberos5/lib/libheimntlm lib/libsqlite3 kerberos5/lib/libhdb usr.bin/lex/lib lib/libcxxrt lib/libc++ lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib ${INTERNAL_INC_DIRS} ${INTERNAL_LIB_DIRS}
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
 		    ${LIBCHERIWMAKE} DIRPRFX=${_lib}/ obj && \
@@ -950,15 +962,24 @@ distributecheri installcheri:
 .endif
 
 WMAKE_TGTS=
+.if !defined(WORLDFAST)
 WMAKE_TGTS+=	_worldtmp _legacy
 .if empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_bootstrap-tools
 .endif
-WMAKE_TGTS+=	_cleanobj _obj _build-tools _cross-tools
+WMAKE_TGTS+=	_cleanobj
+.if !defined(NO_OBJ)
+WMAKE_TGTS+=	_obj
+.endif
+WMAKE_TGTS+=	_build-tools _cross-tools
 WMAKE_TGTS+=	_compiler-metadata
-WMAKE_TGTS+=	_includes _libraries
+WMAKE_TGTS+=	_includes
+.endif
+.if !defined(NO_LIBS)
+WMAKE_TGTS+=	_libraries
 .if ${MK_CHERI} != "no" && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	buildcheri
+.endif
 .endif
 WMAKE_TGTS+=	everything
 .if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
@@ -1760,7 +1781,7 @@ legacy: .PHONY
 .for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
-	    ${MAKE} DIRPRFX=${_tool}/ obj; \
+	    if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
 	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no all; \
 	    ${MAKE} DIRPRFX=${_tool}/ MK_INCLUDES=no \
@@ -1917,7 +1938,7 @@ bootstrap-tools: .PHONY
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 
@@ -1956,7 +1977,7 @@ _rescue=rescue/rescue
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 build-tools: build-tools_${_tool}
 .endfor
@@ -1965,7 +1986,7 @@ build-tools: build-tools_${_tool}
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all)"; \
 		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all
 build-tools: build-tools_${_tool}
 .endfor
@@ -2056,7 +2077,7 @@ cross-tools: .MAKE .PHONY
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
@@ -2088,7 +2109,7 @@ native-xtools: .PHONY
 	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
 	${_+_}@${ECHODIR} "===> ${_gperf} (obj,all,install)"; \
 	cd ${.CURDIR}/${_gperf}; \
-	${NXBMAKE} DIRPRFX=${_gperf}/ obj; \
+	if [ -z "${NO_OBJ}" ]; then ${NXBMAKE} DIRPRFX=${_gperf}/ obj; fi; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ all; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
 .endif
@@ -2164,7 +2185,7 @@ native-xtools: .PHONY
     usr.sbin/chown
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
-		${NXBMAKE} DIRPRFX=${_tool}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${NXBMAKE} DIRPRFX=${_tool}/ obj; fi; \
 		${NXBMAKE} DIRPRFX=${_tool}/ all; \
 		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${NXBDESTDIR} install
 .endfor
@@ -2433,7 +2454,7 @@ ${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
@@ -2446,7 +2467,7 @@ ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
+		if [ -z "${NO_OBJ}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
@@ -2773,7 +2794,7 @@ _xb-bootstrap-tools: .PHONY
     ${_yacc}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	if [ -z "${NO_OBJ}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ obj; fi; \
 	${CDMAKE} DIRPRFX=${_tool}/ all; \
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
@@ -2792,7 +2813,7 @@ _xb-cross-tools: .PHONY
     ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	if [ -z "${NO_OBJ}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ obj; fi; \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 

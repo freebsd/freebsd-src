@@ -84,6 +84,7 @@ daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
 danilo [label="Danilo E. Gondolfo\ndanilo@FreeBSD.org\n2013/09/23"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+dbaio [label="Danilo G. Baio\ndbaio@FreeBSD.org\n2017/05/03"]
 dbn [label="David Naylor\ndbn@FreeBSD.org\n2013/01/14"]
 decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
@@ -402,6 +403,7 @@ gabor -> scheidell
 
 garga -> acm
 garga -> alepulver
+garga -> dbaio
 garga -> mandree
 garga -> mm
 garga -> rnoland

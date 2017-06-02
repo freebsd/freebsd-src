@@ -75,6 +75,7 @@ struct mips_cpuinfo {
 		u_int8_t	dc_nways;
 		u_int16_t	dc_nsets;
 	} l2;
+	u_int32_t	fpu_id;
 };
 
 extern struct mips_cpuinfo cpuinfo;

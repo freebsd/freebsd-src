@@ -279,6 +279,8 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
 		sblock.fs_maxsymlinklen = ((UFS_NDADDR + UFS_NIADDR) *
 		    sizeof (ufs2_daddr_t));
+		if (ffs_opts->softupdates == 1)
+			sblock.fs_flags |= FS_DOSOFTDEP;
 	}
 
 	sblock.fs_sblkno =

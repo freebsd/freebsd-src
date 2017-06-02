@@ -266,37 +266,43 @@ sbt_to_nsec(sbintime_t sbt)
 }
 
 static void
-profile_fire(void *arg)
+profile_probe(profile_probe_t *prof, hrtime_t late)
 {
-	profile_probe_percpu_t *pcpu = arg;
-	profile_probe_t *prof = pcpu->profc_probe;
-	hrtime_t late;
+	struct thread *td;
 	struct trapframe *frame;
 	uintfptr_t pc, upc;
 
-#ifdef illumos
-	late = gethrtime() - pcpu->profc_expected;
-#else
-	late = sbt_to_nsec(sbinuptime() - pcpu->profc_expected);
-#endif
-
-	pc = 0;
-	upc = 0;
+	td = curthread;
+	pc = upc = 0;
 
 	/*
-	 * td_intr_frame can be unset if this is a catch up event
-	 * after waking up from idle sleep.
-	 * This can only happen on a CPU idle thread.
+	 * td_intr_frame can be unset if this is a catch-up event upon waking up
+	 * from idle sleep. This can only happen on a CPU idle thread. Use a
+	 * representative arg0 value in this case so that one of the probe
+	 * arguments is non-zero.
 	 */
-	frame = curthread->td_intr_frame;
+	frame = td->td_intr_frame;
 	if (frame != NULL) {
 		if (TRAPF_USERMODE(frame))
 			upc = TRAPF_PC(frame);
 		else
 			pc = TRAPF_PC(frame);
-	}
-	dtrace_probe(prof->prof_id, pc, upc, late, 0, 0);
+	} else if (TD_IS_IDLETHREAD(td))
+		pc = (uintfptr_t)&cpu_idle;
 
+	dtrace_probe(prof->prof_id, pc, upc, late, 0, 0);
+}
+
+static void
+profile_fire(void *arg)
+{
+	profile_probe_percpu_t *pcpu = arg;
+	profile_probe_t *prof = pcpu->profc_probe;
+	hrtime_t late;
+
+	late = sbt_to_nsec(sbinuptime() - pcpu->profc_expected);
+
+	profile_probe(prof, late);
 	pcpu->profc_expected += pcpu->profc_interval;
 	callout_schedule_sbt_curcpu(&pcpu->profc_cyclic,
 	    pcpu->profc_expected, 0, C_DIRECT_EXEC | C_ABSOLUTE);
@@ -306,26 +312,8 @@ static void
 profile_tick(void *arg)
 {
 	profile_probe_t *prof = arg;
-	struct trapframe *frame;
-	uintfptr_t pc, upc;
 
-	pc = 0;
-	upc = 0;
-
-	/*
-	 * td_intr_frame can be unset if this is a catch up event
-	 * after waking up from idle sleep.
-	 * This can only happen on a CPU idle thread.
-	 */
-	frame = curthread->td_intr_frame;
-	if (frame != NULL) {
-		if (TRAPF_USERMODE(frame))
-			upc = TRAPF_PC(frame);
-		else
-			pc = TRAPF_PC(frame);
-	}
-	dtrace_probe(prof->prof_id, pc, upc, 0, 0, 0);
-
+	profile_probe(prof, 0);
 	prof->prof_expected += prof->prof_interval;
 	callout_schedule_sbt(&prof->prof_cyclic,
 	    prof->prof_expected, 0, C_DIRECT_EXEC | C_ABSOLUTE);

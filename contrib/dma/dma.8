@@ -30,7 +30,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 13, 2014
+.Dd May 20, 2017
 .Dt DMA 8
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ acts as a compatibility option for sendmail.
 .It Fl bp
 List all mails currently stored in the mail queue.
 .It Fl bq
-Queue the mail, but don't attempt to deliver it.
+Queue the mail, but do not attempt to deliver it.
 See also the
 .Sq DEFER
 config file setting below.
@@ -82,9 +82,9 @@ config file setting below.
 .Pp
 All other
 .Ar mode Ns
-s are are ignored.
+s are ignored.
 .It Fl D
-Don't run in the background.
+Do not run in the background.
 Useful for debugging.
 .It Fl f Ar sender
 Set sender address (envelope-from) to
@@ -198,7 +198,7 @@ The special name
 .Ql *
 can be used to create a catch-all alias, which gets used if no other
 matching alias is found.
-Use the catch-all alias only if you don't want any local mail to be
+Use the catch-all alias only if you do not want any local mail to be
 delivered.
 .It Ic SPOOLDIR Xo
 (string, default=/var/spool/dma)
@@ -213,7 +213,7 @@ Just stick with the default.
 Path to the
 .Sq auth.conf
 file.
-.It Ic SECURETRANS Xo
+.It Ic SECURETRANSFER Xo
 (boolean, default=commented)
 .Xc
 Uncomment if you want TLS/SSL secured transfer.
@@ -222,7 +222,7 @@ Uncomment if you want TLS/SSL secured transfer.
 .Xc
 Uncomment if you want to use STARTTLS.
 Only useful together with
-.Sq SECURETRANS .
+.Sq SECURETRANSFER .
 .It Ic OPPORTUNISTIC_TLS Xo
 (boolean, default=commented)
 .Xc
@@ -234,7 +234,7 @@ the outside mail exchangers; in opportunistic TLS mode, the connection will
 be encrypted if the remote server supports STARTTLS, but an unencrypted
 delivery will still be made if the negotiation fails.
 Only useful together with
-.Sq SECURETRANS
+.Sq SECURETRANSFER
 and
 .Sq STARTTLS .
 .It Ic CERTFILE Xo
@@ -305,7 +305,8 @@ will send all mails as
 setting it to
 .Ql percolator
 will send all mails as
-.Ql Sm off Va username @percolator .
+.Sm off
+.Ql Va username @percolator .
 .Sm on
 .It Ic NULLCLIENT Xo
 .Xc

@@ -76,6 +76,7 @@ __DEFAULT_NO_OPTIONS = \
     STALE_STAGED
 
 __DEFAULT_NO_OPTIONS+= \
+    CHERI_EXACT_EQUALS \
     CHERI_PURE \
     CHERI_SHARED_PROG \
     CHERI128 \
@@ -104,6 +105,12 @@ WITH_CHERI256:=	yes
 .if ${MK_CHERI128} == "yes" || ${MK_CHERI256} == "yes"
 MK_CHERI:=	yes
 MK_CLANG:=	no
+# We want to use libc++ for CHERI (even when targeting MIPS)
+MK_GNUCXX:=	no
+MK_LIBCPLUSPLUS:=yes
+# GROFF is broken when building WITH_CHERI_PURE and it will be removed
+# soon anyway
+MK_GROFF:=	no
 .else
 MK_CHERI:=	no
 .endif

@@ -1117,7 +1117,7 @@ ipallocztm(tsdn_t *tsdn, size_t usize, size_t alignment, bool zero,
 	assert(!is_metadata || arena == NULL || arena->ind < narenas_auto);
 
 	ret = arena_palloc(tsdn, arena, usize, alignment, zero, tcache);
-	assert(ALIGNMENT_ADDR2BASE(ret, alignment) == ret);
+	assert((vaddr_t)ALIGNMENT_ADDR2BASE(ret, alignment) == (vaddr_t)ret);
 	if (config_stats && is_metadata && likely(ret != NULL)) {
 		arena_metadata_allocated_add(iaalloc(ret), isalloc(tsdn, ret,
 		    config_prof));

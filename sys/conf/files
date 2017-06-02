@@ -683,6 +683,7 @@ dev/acpica/acpi_perf.c		optional acpi
 dev/acpica/acpi_powerres.c	optional acpi
 dev/acpica/acpi_quirk.c		optional acpi
 dev/acpica/acpi_resource.c	optional acpi
+dev/acpica/acpi_container.c	optional acpi
 dev/acpica/acpi_smbat.c		optional acpi
 dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_throttle.c	optional acpi
@@ -1439,6 +1440,8 @@ t6fw.fw			optional cxgbe					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
+dev/cxgbe/crypto/t4_crypto.c	optional ccr \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
@@ -1593,6 +1596,12 @@ dev/e1000/e1000_mbx.c		optional em \
 dev/e1000/e1000_osdep.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
+dev/ena/ena.c			optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
+dev/ena/ena_sysctl.c 		optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
+contrib/ena-com/ena_com.c	optional ena
+contrib/ena-com/ena_eth_com.c	optional ena
 dev/ep/if_ep.c			optional ep
 dev/ep/if_ep_isa.c		optional ep isa
 dev/ep/if_ep_pccard.c		optional ep pccard
@@ -1866,6 +1875,7 @@ dev/iwm/if_iwm_phy_ctxt.c	optional iwm
 dev/iwm/if_iwm_phy_db.c		optional iwm
 dev/iwm/if_iwm_power.c		optional iwm
 dev/iwm/if_iwm_scan.c		optional iwm
+dev/iwm/if_iwm_sta.c		optional iwm
 dev/iwm/if_iwm_time_event.c	optional iwm
 dev/iwm/if_iwm_util.c		optional iwm
 iwm3160fw.c			optional iwm3160fw | iwmfw		\

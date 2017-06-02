@@ -107,6 +107,7 @@ SUBDIR=	\
 	${_efirt} \
 	${_elink} \
 	${_em} \
+	${_ena} \
 	${_ep} \
 	${_epic} \
 	esp \
@@ -356,8 +357,6 @@ SUBDIR=	\
 	sysvipc \
 	tcp \
 	${_ti} \
-	tests/framework \
-	tests/callout_test \
 	tl \
 	tmpfs \
 	${_toecore} \
@@ -521,6 +520,10 @@ _rtwnfw=	rtwnfw
 _cxgbe=		cxgbe
 .endif
 
+.if ${MK_TESTS} != "no" || defined(ALL_MODULES)
+SUBDIR+=	tests
+.endif
+
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
 .endif
@@ -573,6 +576,7 @@ _drm=		drm
 _drm2=		drm2
 _ed=		ed
 _em=		em
+_ena=		ena
 _ep=		ep
 _et=		et
 _exca=		exca

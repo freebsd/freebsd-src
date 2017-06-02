@@ -633,7 +633,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			/* Kernel checks invalid bits, we check it here too. */
 			size_t i;
 			for (i = kern_size; i < cpusetsize; ++i) {
-				if (((char *)cpusetp)[i])
+				if (((const char *)cpusetp)[i])
 					return (EINVAL);
 			}
 		}

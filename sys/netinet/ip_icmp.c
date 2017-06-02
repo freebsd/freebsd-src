@@ -185,10 +185,10 @@ kmod_icmpstat_inc(int statnum)
 void
 icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
-	register struct ip *oip = mtod(n, struct ip *), *nip;
-	register unsigned oiphlen = oip->ip_hl << 2;
-	register struct icmp *icp;
-	register struct mbuf *m;
+	struct ip *oip = mtod(n, struct ip *), *nip;
+	unsigned oiphlen = oip->ip_hl << 2;
+	struct icmp *icp;
+	struct mbuf *m;
 	unsigned icmplen, icmpelen, nlen;
 
 	KASSERT((u_int)type <= ICMP_MAXTYPE, ("%s: illegal ICMP type", __func__));
@@ -814,7 +814,7 @@ match:
 	ip->ip_ttl = V_ip_defttl;
 
 	if (optlen > 0) {
-		register u_char *cp;
+		u_char *cp;
 		int opt, cnt;
 		u_int len;
 
@@ -889,9 +889,9 @@ done:
 static void
 icmp_send(struct mbuf *m, struct mbuf *opts)
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register int hlen;
-	register struct icmp *icp;
+	struct ip *ip = mtod(m, struct ip *);
+	int hlen;
+	struct icmp *icp;
 
 	hlen = ip->ip_hl << 2;
 	m->m_data += hlen;

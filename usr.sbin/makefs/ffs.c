@@ -143,7 +143,7 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 				 fsnode *, fsinfo_t *);
 
 
-
+int	sectorsize;		/* XXX: for buf.c::getblk() */
 	/* publicly visible functions */
 
 void
@@ -176,6 +176,8 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	      0, 0, "Optimization (time|space)" },
 	    { 'l', "label", ffs_opts->label, OPT_STRARRAY,
 	      1, sizeof(ffs_opts->label), "UFS label" },
+	    { 's', "softupdates", &ffs_opts->softupdates, OPT_INT32,
+	      0, 1, "enable softupdates" },
 	    { .name = NULL }
 	};
 
@@ -190,6 +192,7 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	ffs_opts->avgfilesize= -1;
 	ffs_opts->avgfpdir= -1;
 	ffs_opts->version = 1;
+	ffs_opts->softupdates = 0;
 
 	fsopts->fs_specific = ffs_opts;
 	fsopts->fs_options = copy_opts(ffs_options);
@@ -426,6 +429,8 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		printf("ffs_validate: dir %s; %lld bytes, %lld inodes\n",
 		    dir, (long long)fsopts->size, (long long)fsopts->inodes);
 	}
+	sectorsize = fsopts->sectorsize;	/* XXX - see earlier */
+
 		/* now check calculated sizes vs requested sizes */
 	if (fsopts->maxsize > 0 && fsopts->size > fsopts->maxsize) {
 		errx(1, "`%s' size of %lld is larger than the maxsize of %lld.",
@@ -621,7 +626,7 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 			if (node->type == S_IFREG)
 				ADDSIZE(node->inode->st.st_size);
 			if (node->type == S_IFLNK) {
-				int	slen;
+				size_t slen;
 
 				slen = strlen(node->symlink) + 1;
 				if (slen >= (ffs_opts->version == 1 ?
@@ -644,7 +649,7 @@ static void *
 ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		 fsnode *root, fsinfo_t *fsopts)
 {
-	int slen;
+	size_t slen;
 	void *membuf;
 	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
@@ -692,7 +697,7 @@ static void *
 ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		 fsnode *root, fsinfo_t *fsopts)
 {
-	int slen;
+	size_t slen;
 	void *membuf;
 	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
 
@@ -846,8 +851,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	for (cur = root; cur != NULL; cur = cur->next) {
 		if (cur->child == NULL)
 			continue;
-		if (snprintf(path, sizeof(path), "%s/%s", dir, cur->name)
-		    >= sizeof(path))
+		if ((size_t)snprintf(path, sizeof(path), "%s/%s", dir,
+		    cur->name) >= sizeof(path))
 			errx(1, "Pathname too long.");
 		if (! ffs_populate_dir(path, cur->child, fsopts))
 			return (0);
@@ -1063,10 +1068,11 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 	struct ufs2_dinode *dp2, *dip;
 	struct cg	*cgp;
 	struct fs	*fs;
-	int		cg, cgino, i;
+	int		cg, cgino;
+	uint32_t	i;
 	daddr_t		d;
 	char		sbbuf[FFS_MAXBSIZE];
-	int32_t		initediblk;
+	uint32_t	initediblk;
 	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
 	assert (dp != NULL);

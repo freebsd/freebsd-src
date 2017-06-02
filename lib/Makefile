@@ -151,9 +151,7 @@ SUBDIR.${MK_CLANG}+=	clang
 .endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
-.if !defined(LIBCHERI)
 SUBDIR.${MK_CXX}+=	libdevdctl
-.endif
 SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
 SUBDIR.${MK_DIALOG}+=	libdpv
 SUBDIR.${MK_FILE}+=	libmagic
@@ -176,6 +174,9 @@ _libclang_rt=	libclang_rt
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
+.if ${MACHINE_CPUARCH} != "arm"
+_libcplusplus+=	libc++experimental
+.endif
 .endif
 
 SUBDIR.${MK_EFI}+=	libefivar
@@ -221,13 +222,20 @@ SUBDIR.${MK_USB}+=	libusbhid libusb
 SUBDIR_PARALLEL=
 .endif
 
+.if ${MK_CHERI} != "no"
+# libc++experimental currently causes crashes
+SUBDIR:=	${SUBDIR:Nlibc++experimental}
+.endif
+
 .if defined(LIBCHERI)
 SUBDIR+=	libmalloc_simple
 SUBDIR+=	libcheri_syscalls
 SUBDIR+=	libcheri_support
 SUBDIR_BOOTSTRAP:=	libgcc_s libgcc_eh ${SUBDIR_BOOTSTRAP}
+
 # No C++ support in cheri clang
-SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
+# SUBDIR:=	${SUBDIR:Nlibdevdctl:Nlibc++experimental}
+# TODO: build libc++experimental too
 # header issue in ioctl.c, probably needs more porting for CheriABI
 SUBDIR:=	${SUBDIR:Nlibsysdecode}
 # libstand is for bootloaders and the like, no need to build

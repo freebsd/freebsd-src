@@ -995,6 +995,7 @@ t4_attach(device_t dev)
 			lc->autoneg = t4_autoneg ? AUTONEG_ENABLE :
 			    AUTONEG_DISABLE;
 		}
+		lc->requested_speed = port_top_speed_raw(pi);
 
 		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 		if (rc != 0) {
@@ -1185,6 +1186,12 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
+	rc = bus_generic_probe(dev);
+	if (rc != 0) {
+		device_printf(dev, "failed to probe child drivers: %d\n", rc);
+		goto done;
+	}
+
 	rc = bus_generic_attach(dev);
 	if (rc != 0) {
 		device_printf(dev,
@@ -1337,6 +1344,8 @@ t4_detach_common(device_t dev)
 			free(pi, M_CXGBE);
 		}
 	}
+
+	device_delete_children(dev);
 
 	if (sc->flags & FULL_INIT_DONE)
 		adapter_full_uninit(sc);
@@ -1868,12 +1877,15 @@ cxgbe_qflush(struct ifnet *ifp)
 	if (vi->flags & VI_INIT_DONE) {
 		for_each_txq(vi, i, txq) {
 			TXQ_LOCK(txq);
-			txq->eq.flags &= ~EQ_ENABLED;
+			txq->eq.flags |= EQ_QFLUSH;
 			TXQ_UNLOCK(txq);
 			while (!mp_ring_is_idle(txq->r)) {
 				mp_ring_check_drainage(txq->r, 0);
 				pause("qflush", 1);
 			}
+			TXQ_LOCK(txq);
+			txq->eq.flags &= ~EQ_QFLUSH;
+			TXQ_UNLOCK(txq);
 		}
 	}
 	if_qflush(ifp);
@@ -5883,7 +5895,12 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	if ((lc->supported & FW_PORT_CAP_ANEG) == 0)
 		return (ENOTSUP);
 
-	val = val ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	if (val == 0)
+		val = AUTONEG_DISABLE;
+	else if (val == 1)
+		val = AUTONEG_ENABLE;
+	else
+		return (EINVAL);
 	if (lc->autoneg == val)
 		return (0);	/* no change */
 
@@ -5896,6 +5913,7 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0)
 		lc->autoneg = old;
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 

@@ -10,8 +10,8 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libmd \
 	lib/libutil \
-	secure/lib/libcrypto \
 	usr.bin/yacc.host \
 
 

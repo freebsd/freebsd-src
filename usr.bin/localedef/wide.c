@@ -598,7 +598,7 @@ to_mb(char *mb, wchar_t wc)
 	int	rv;
 
 	if ((rv = _tomb(mb, wc)) < 0) {
-		errf(widemsg);
+		warn("%s", widemsg);
 		free(widemsg);
 		widemsg = NULL;
 	}
@@ -614,7 +614,7 @@ to_mb_string(const wchar_t *wcs)
 
 	mbs = malloc((wcslen(wcs) * mb_cur_max) + 1);
 	if (mbs == NULL) {
-		errf("out of memory");
+		warn("out of memory");
 		return (NULL);
 	}
 	ptr = mbs;

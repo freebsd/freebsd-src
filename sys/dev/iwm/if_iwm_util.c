@@ -106,6 +106,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwm.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -152,6 +153,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwm/if_iwmreg.h>
 #include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_config.h>
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_binding.h>
 #include <dev/iwm/if_iwm_util.h>
@@ -344,7 +346,7 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 
 /* iwlwifi: mvm/utils.c */
 int
-iwm_mvm_send_cmd_pdu(struct iwm_softc *sc, uint8_t id,
+iwm_mvm_send_cmd_pdu(struct iwm_softc *sc, uint32_t id,
 	uint32_t flags, uint16_t len, const void *data)
 {
 	struct iwm_host_cmd cmd = {
@@ -400,7 +402,7 @@ iwm_mvm_send_cmd_status(struct iwm_softc *sc,
 
 /* iwlwifi/mvm/utils.c */
 int
-iwm_mvm_send_cmd_pdu_status(struct iwm_softc *sc, uint8_t id,
+iwm_mvm_send_cmd_pdu_status(struct iwm_softc *sc, uint32_t id,
 	uint16_t len, const void *data, uint32_t *status)
 {
 	struct iwm_host_cmd cmd = {
@@ -485,4 +487,18 @@ iwm_dma_contig_free(struct iwm_dma_info *dma)
 		bus_dma_tag_destroy(dma->tag);
 		dma->tag = NULL;
 	}
+}
+
+boolean_t
+iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc)
+{
+	if (num_of_ant(iwm_mvm_get_valid_rx_ant(sc)) == 1)
+		return FALSE;
+
+	/*
+	 * XXX Also return FALSE when SMPS (Spatial Multiplexing Powersave)
+	 *     is used on any vap (in the future).
+	 */
+
+	return TRUE;
 }

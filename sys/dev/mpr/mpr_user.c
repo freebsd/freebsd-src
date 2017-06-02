@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpr/mpi/mpi2_cnfg.h>
 #include <dev/mpr/mpi/mpi2_init.h>
 #include <dev/mpr/mpi/mpi2_tool.h>
+#include <dev/mpr/mpi/mpi2_pci.h>
 #include <dev/mpr/mpr_ioctl.h>
 #include <dev/mpr/mprvar.h>
 #include <dev/mpr/mpr_table.h>
@@ -747,6 +748,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 {
 	MPI2_REQUEST_HEADER	*hdr, tmphdr;	
 	MPI2_DEFAULT_REPLY	*rpl;
+	Mpi26NVMeEncapsulatedErrorReply_t *nvme_error_reply = NULL;
+	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
 	struct mpr_command	*cm = NULL;
 	int			i, err = 0, dir = 0, sz;
 	uint8_t			tool, function = 0;
@@ -923,8 +926,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			    cm->cm_data, data->DataSize);
 		}
 		if (err != 0)
-			mpr_dprint(sc, MPR_FAULT, "%s: failed to copy "
-			    "IOCTL data from user space\n", __func__);
+			mpr_dprint(sc, MPR_FAULT, "%s: failed to copy IOCTL "
+			    "data from user space\n", __func__);
 	}
 	/*
 	 * Set this flag only if processing a command that does not need an
@@ -945,6 +948,35 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		}
 	}
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
+
+	if (function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
+		nvme_encap_request =
+		    (Mpi26NVMeEncapsulatedRequest_t *)cm->cm_req;
+		cm->cm_desc.Default.RequestFlags =
+		    MPI26_REQ_DESCRIPT_FLAGS_PCIE_ENCAPSULATED;
+
+		/*
+		 * Get the Physical Address of the sense buffer.
+		 * Save the user's Error Response buffer address and use that
+		 *   field to hold the sense buffer address.
+		 * Clear the internal sense buffer, which will potentially hold
+		 *   the Completion Queue Entry on return, or 0 if no Entry.
+		 * Build the PRPs and set direction bits.
+		 * Send the request.
+		 */
+		cm->nvme_error_response =
+		    (uint64_t *)(uintptr_t)(((uint64_t)nvme_encap_request->
+		    ErrorResponseBaseAddress.High << 32) |
+		    (uint64_t)nvme_encap_request->
+		    ErrorResponseBaseAddress.Low);
+		nvme_encap_request->ErrorResponseBaseAddress.High =
+		    htole32((uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32));
+		nvme_encap_request->ErrorResponseBaseAddress.Low =
+		    htole32(cm->cm_sense_busaddr);
+		memset(cm->cm_sense, 0, NVME_ERROR_RESPONSE_SIZE);
+		mpr_build_nvme_prp(sc, cm, nvme_encap_request, cm->cm_data,
+		    data->DataSize, data->DataOutSize);
+	}
 
 	/*
 	 * Set up Sense buffer and SGL offset for IO passthru.  SCSI IO request
@@ -994,15 +1026,19 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO) {
 				cm->cm_desc.FastPathSCSIIO.RequestFlags =
 				    MPI25_REQ_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO;
-				cm->cm_desc.FastPathSCSIIO.DevHandle =
-				    scsi_io_req->DevHandle;
+				if (!sc->atomic_desc_capable) {
+					cm->cm_desc.FastPathSCSIIO.DevHandle =
+					    scsi_io_req->DevHandle;
+				}
 				scsi_io_req->IoFlags |=
 				    MPI25_SCSIIO_IOFLAGS_FAST_PATH;
 			} else {
 				cm->cm_desc.SCSIIO.RequestFlags =
 				    MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
-				cm->cm_desc.SCSIIO.DevHandle =
-				    scsi_io_req->DevHandle;
+				if (!sc->atomic_desc_capable) {
+					cm->cm_desc.SCSIIO.DevHandle =
+					    scsi_io_req->DevHandle;
+				}
 			}
 
 			/*
@@ -1078,6 +1114,38 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 				    sense_len);
 				mpr_lock(sc);
 			}
+		}
+
+		/*
+		 * Copy out the NVMe Error Reponse to user. The Error Response
+		 * buffer is given by the user, but a sense buffer is used to
+		 * get that data from the IOC. The user's
+		 * ErrorResponseBaseAddress is saved in the
+		 * 'nvme_error_response' field before the command because that
+		 * field is set to a sense buffer. When the command is
+		 * complete, the Error Response data from the IOC is copied to
+		 * that user address after it is checked for validity.
+		 * Also note that 'sense' buffers are not defined for
+		 * NVMe commands. Sense terminalogy is only used here so that
+		 * the same IOCTL structure and sense buffers can be used for
+		 * NVMe.
+		 */
+		if (function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
+			if (cm->nvme_error_response == NULL) {
+				mpr_dprint(sc, MPR_INFO, "NVMe Error Response "
+				    "buffer is NULL. Response data will not be "
+				    "returned.\n");
+				mpr_unlock(sc);
+				goto RetFreeUnlocked;
+			}
+
+			nvme_error_reply =
+			    (Mpi26NVMeEncapsulatedErrorReply_t *)cm->cm_reply;
+			sz = MIN(le32toh(nvme_error_reply->ErrorResponseCount),
+			    NVME_ERROR_RESPONSE_SIZE);
+			mpr_unlock(sc);
+			copyout(cm->cm_sense, cm->nvme_error_response, sz);
+			mpr_lock(sc);
 		}
 	}
 	mpr_unlock(sc);
@@ -2068,7 +2136,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 			return (EINVAL);
 
 		if (target > sc->max_devices) {
-			mpr_dprint(sc, MPR_FAULT, "Target ID is out of range "
+			mpr_dprint(sc, MPR_XINFO, "Target ID is out of range "
 			   "for Bus/Target to DevHandle mapping.");
 			return (EINVAL);
 		}

@@ -90,11 +90,11 @@
 #ifndef	__IF_IWM_POWER_H__
 #define	__IF_IWM_POWER_H__
 
-extern	int iwm_mvm_power_mac_update_mode(struct iwm_softc *sc,
-	    struct iwm_node *in);
 extern	int iwm_mvm_power_update_device(struct iwm_softc *sc);
+extern	int iwm_mvm_power_update_mac(struct iwm_softc *sc);
+extern	int iwm_mvm_power_update_ps(struct iwm_softc *sc);
 extern	int iwm_mvm_enable_beacon_filter(struct iwm_softc *sc,
-	    struct iwm_node *in);
+	    struct iwm_vap *ivp);
 extern	int iwm_mvm_disable_beacon_filter(struct iwm_softc *sc);
 
 #endif	/* __IF_IWM_POWER_H__ */

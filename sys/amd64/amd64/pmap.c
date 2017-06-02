@@ -6691,7 +6691,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
-			    (*pte & PG_PS_FRAME) < dmaplimit) {
+			    (*pte & PG_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pte & PG_FRAME;

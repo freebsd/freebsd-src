@@ -970,7 +970,7 @@ osigreturn(struct thread *td, struct osigreturn_args *uap)
 void
 siginit(struct proc *p)
 {
-	register int i;
+	int i;
 	struct sigacts *ps;
 
 	PROC_LOCK(p);
@@ -2453,7 +2453,7 @@ static void
 tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 {
 	struct proc *p = td->td_proc;
-	register int prop;
+	int prop;
 	int wakeup_swapper;
 
 	wakeup_swapper = 0;
@@ -2538,6 +2538,7 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	MPASS(sending || td == curthread);
 
 	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
@@ -2554,10 +2555,9 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 				 */
 				KASSERT(!TD_IS_SUSPENDED(td2),
 				    ("thread with deferred stops suspended"));
-				if (TD_SBDRY_INTR(td2) && sending) {
+				if (TD_SBDRY_INTR(td2))
 					wakeup_swapper |= sleepq_abort(td2,
 					    TD_SBDRY_ERRNO(td2));
-				}
 			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
 			}
@@ -2707,7 +2707,9 @@ reschedule_signals(struct proc *p, sigset_t block, int flags)
 		signotify(td);
 		if (!(flags & SIGPROCMASK_PS_LOCKED))
 			mtx_lock(&ps->ps_mtx);
-		if (p->p_flag & P_TRACED || SIGISMEMBER(ps->ps_sigcatch, sig))
+		if (p->p_flag & P_TRACED ||
+		    (SIGISMEMBER(ps->ps_sigcatch, sig) &&
+		    !SIGISMEMBER(td->td_sigmask, sig)))
 			tdsigwakeup(td, sig, SIG_CATCH,
 			    (SIGISMEMBER(ps->ps_sigintr, sig) ? EINTR :
 			     ERESTART));
@@ -3038,7 +3040,7 @@ thread_stopped(struct proc *p)
  */
 int
 postsig(sig)
-	register int sig;
+	int sig;
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;

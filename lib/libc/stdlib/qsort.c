@@ -46,7 +46,7 @@ typedef int		 cmp_t(void *, const void *, const void *);
 typedef int		 cmp_t(const void *, const void *);
 #endif
 static inline char	*med3(char *, char *, char *, cmp_t *, void *);
-static inline void	 swapfunc(char *, char *, int, int, int);
+static inline void	 swapfunc(char *, char *, size_t, int, int);
 
 #define	MIN(a, b)	((a) < (b) ? a : b)
 
@@ -54,7 +54,7 @@ static inline void	 swapfunc(char *, char *, int, int, int);
  * Qsort routine from Bentley & McIlroy's "Engineering a Sort Function".
  */
 #define	swapcode(TYPE, parmi, parmj, n) {		\
-	long i = (n) / sizeof (TYPE);			\
+	size_t i = (n) / sizeof (TYPE);			\
 	TYPE *pi = (TYPE *) (parmi);		\
 	TYPE *pj = (TYPE *) (parmj);		\
 	do { 						\
@@ -69,7 +69,7 @@ static inline void	 swapfunc(char *, char *, int, int, int);
 	es % sizeof(TYPE) ? 2 : es == sizeof(TYPE) ? 0 : 1;
 
 static inline void
-swapfunc( char *a, char *b, int n, int swaptype_big_primitive_type, int swaptype_int)
+swapfunc( char *a, char *b, size_t n, int swaptype_big_primitive_type, int swaptype_int)
 {
 	if (swaptype_big_primitive_type <= 1)
 		swapcode(big_primitive_type, a, b, n)
@@ -122,7 +122,7 @@ qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 #endif
 {
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
-	size_t d, r;
+	size_t d1, d2;
 	int cmp_result;
 	int swaptype_big_primitive_type, swaptype_int, swap_cnt;
 
@@ -143,7 +143,8 @@ loop:
 		pl = a;
 		pn = (char *)a + (n - 1) * es;
 		if (n > 40) {
-			d = (n / 8) * es;
+			size_t d = (n / 8) * es;
+
 			pl = med3(pl, pl + d, pl + 2 * d, cmp, thunk);
 			pm = med3(pm - d, pm, pm + d, cmp, thunk);
 			pn = med3(pn - 2 * d, pn - d, pn, cmp, thunk);
@@ -188,21 +189,43 @@ loop:
 	}
 
 	pn = (char *)a + n * es;
-	r = MIN(pa - (char *)a, pb - pa);
-	vecswap(a, pb - r, r);
-	r = MIN(pd - pc, pn - pd - es);
-	vecswap(pb, pn - r, r);
-	if ((r = pb - pa) > es)
+	d1 = MIN(pa - (char *)a, pb - pa);
+	vecswap(a, pb - d1, d1);
+	d1 = MIN(pd - pc, pn - pd - es);
+	vecswap(pb, pn - d1, d1);
+
+	d1 = pb - pa;
+	d2 = pd - pc;
+	if (d1 <= d2) {
+		/* Recurse on left partition, then iterate on right partition */
+		if (d1 > es) {
 #ifdef I_AM_QSORT_R
-		qsort_r(a, r / es, es, thunk, cmp);
+			qsort_r(a, d1 / es, es, thunk, cmp);
 #else
-		qsort(a, r / es, es, cmp);
+			qsort(a, d1 / es, es, cmp);
 #endif
-	if ((r = pd - pc) > es) {
-		/* Iterate rather than recurse to save stack space */
-		a = pn - r;
-		n = r / es;
-		goto loop;
+		}
+		if (d2 > es) {
+			/* Iterate rather than recurse to save stack space */
+			/* qsort(pn - d2, d2 / es, es, cmp); */
+			a = pn - d2;
+			n = d2 / es;
+			goto loop;
+		}
+	} else {
+		/* Recurse on right partition, then iterate on left partition */
+		if (d2 > es) {
+#ifdef I_AM_QSORT_R
+			qsort_r(pn - d2, d2 / es, es, thunk, cmp);
+#else
+			qsort(pn - d2, d2 / es, es, cmp);
+#endif
+		}
+		if (d1 > es) {
+			/* Iterate rather than recurse to save stack space */
+			/* qsort(a, d1 / es, es, cmp); */
+			n = d1 / es;
+			goto loop;
+		}
 	}
-/*		qsort(pn - r, r / es, es, cmp);*/
 }

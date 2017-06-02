@@ -504,7 +504,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    TID_TO_WME_AC(tid) >= WME_AC_VI)
 			ic->ic_wme.wme_hipri_traffic++;
-		if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1))
+		if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1, rxs))
 			goto out;
 	}
 	switch (type) {
@@ -540,7 +540,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * and we should do nothing more with it.
 		 */
 		if ((m->m_flags & M_AMPDU) &&
-		    ieee80211_ampdu_reorder(ni, m) != 0) {
+		    ieee80211_ampdu_reorder(ni, m, rxs) != 0) {
 			m = NULL;
 			goto out;
 		}

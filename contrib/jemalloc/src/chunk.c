@@ -215,7 +215,7 @@ chunk_recycle(tsdn_t *tsdn, arena_t *arena, chunk_hooks_t *chunk_hooks,
 	assert(CHUNK_CEILING(size) == size);
 	assert(alignment > 0);
 	assert(new_addr == NULL || alignment == chunksize);
-	assert(CHUNK_ADDR2BASE(new_addr) == new_addr);
+	assert((vaddr_t)CHUNK_ADDR2BASE(new_addr) == (vaddr_t)new_addr);
 	/*
 	 * Cached chunks use the node linkage embedded in their headers, in
 	 * which case dalloc_node is true, and new_addr is non-NULL because
@@ -613,7 +613,7 @@ chunk_dalloc_cache(tsdn_t *tsdn, arena_t *arena, chunk_hooks_t *chunk_hooks,
 {
 
 	assert(chunk != NULL);
-	assert(CHUNK_ADDR2BASE(chunk) == chunk);
+	assert((vaddr_t)CHUNK_ADDR2BASE(chunk) == (vaddr_t)chunk);
 	assert(size != 0);
 	assert((size & chunksize_mask) == 0);
 
@@ -647,7 +647,7 @@ chunk_dalloc_wrapper(tsdn_t *tsdn, arena_t *arena, chunk_hooks_t *chunk_hooks,
 	bool err;
 
 	assert(chunk != NULL);
-	assert(CHUNK_ADDR2BASE(chunk) == chunk);
+	assert((vaddr_t)CHUNK_ADDR2BASE(chunk) == (vaddr_t)chunk);
 	assert(size != 0);
 	assert((size & chunksize_mask) == 0);
 
@@ -700,7 +700,7 @@ chunk_purge_default(void *chunk, size_t size, size_t offset, size_t length,
 {
 
 	assert(chunk != NULL);
-	assert(CHUNK_ADDR2BASE(chunk) == chunk);
+	assert((vaddr_t)CHUNK_ADDR2BASE(chunk) == (vaddr_t)chunk);
 	assert((offset & PAGE_MASK) == 0);
 	assert(length != 0);
 	assert((length & PAGE_MASK) == 0);

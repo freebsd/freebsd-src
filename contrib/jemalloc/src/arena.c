@@ -310,13 +310,13 @@ arena_run_reg_dalloc(arena_run_t *run, void *ptr)
 
 	assert(run->nfree < bin_info->nregs);
 	/* Freeing an interior pointer can cause assertion failure. */
-	assert(((uintptr_t)ptr -
-	    ((uintptr_t)arena_miscelm_to_rpages(arena_run_to_miscelm(run)) +
-	    (uintptr_t)bin_info->reg0_offset)) %
-	    (uintptr_t)bin_info->reg_interval == 0);
-	assert((uintptr_t)ptr >=
-	    (uintptr_t)arena_miscelm_to_rpages(arena_run_to_miscelm(run)) +
-	    (uintptr_t)bin_info->reg0_offset);
+	assert(((vaddr_t)ptr -
+	    ((vaddr_t)arena_miscelm_to_rpages(arena_run_to_miscelm(run)) +
+	    (vaddr_t)bin_info->reg0_offset)) %
+	    (vaddr_t)bin_info->reg_interval == 0);
+	assert((vaddr_t)ptr >=
+	    (vaddr_t)arena_miscelm_to_rpages(arena_run_to_miscelm(run)) +
+	    (vaddr_t)bin_info->reg0_offset);
 	/* Freeing an unallocated pointer can cause assertion failure. */
 	assert(bitmap_get(run->bitmap, &bin_info->bitmap_info, regind));
 
@@ -2857,7 +2857,7 @@ arena_prof_promoted(tsdn_t *tsdn, const void *ptr, size_t size)
 
 	cassert(config_prof);
 	assert(ptr != NULL);
-	assert(CHUNK_ADDR2BASE(ptr) != ptr);
+	assert((vaddr_t)CHUNK_ADDR2BASE(ptr) != (vaddr_t)ptr);
 	assert(isalloc(tsdn, ptr, false) == LARGE_MINCLASS);
 	assert(isalloc(tsdn, ptr, true) == LARGE_MINCLASS);
 	assert(size <= SMALL_MAXCLASS);

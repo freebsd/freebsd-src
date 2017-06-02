@@ -399,11 +399,6 @@ wflag_emptypat_head()
 }
 wflag_emptypat_body()
 {
-	grep_type
-	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
-		atf_expect_fail "this test does not pass with GNU grep in base"
-	fi
-
 	printf "" > test1
 	printf "\n" > test2
 	printf "qaz" > test3
@@ -416,6 +411,26 @@ wflag_emptypat_body()
 	atf_check -s exit:1 -o empty grep -w -e "" test3
 
 	atf_check -o file:test4 grep -w -e "" test4
+}
+
+atf_test_case excessive_matches
+excessive_matches_head()
+{
+	atf_set "descr" "Check for proper handling of lines with excessive matches (PR 218811)"
+}
+excessive_matches_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	for i in $(jot 4096); do
+		printf "x" >> test.in
+	done
+
+	atf_check -s exit:0 -x '[ $(grep -o x test.in | wc -l) -eq 4096 ]'
+	atf_check -s exit:1 -x 'grep -on x test.in | grep -v "1:x"'
 }
 
 atf_test_case fgrep_sanity
@@ -495,6 +510,39 @@ wv_combo_break_body()
 	atf_check -s exit:1 grep -v -w "x" test2
 }
 
+atf_test_case ocolor_metadata
+ocolor_metadata_head()
+{
+	atf_set "descr" "Check for -n/-b producing per-line metadata output"
+}
+ocolor_metadata_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	printf "xxx\nyyyy\nzzz\nfoobarbaz\n" > test1
+	check_expr="^[^:]*[0-9][^:]*:[^:]+$"
+
+	atf_check -o inline:"1:1:xx\n" grep -bon "xx$" test1
+
+	atf_check -o inline:"2:4:yyyy\n" grep -bn "yy" test1
+
+	atf_check -o inline:"2:6:yy\n" grep -bon "yy$" test1
+
+	# These checks ensure that grep isn't producing bogus line numbering
+	# in the middle of a line.
+	atf_check -s exit:1 -x \
+	    "grep -Eon 'x|y|z|f' test1 | grep -Ev '${check_expr}'"
+
+	atf_check -s exit:1 -x \
+	    "grep -En 'x|y|z|f' --color=always test1 | grep -Ev '${check_expr}'"
+
+	atf_check -s exit:1 -x \
+	    "grep -Eon 'x|y|z|f' --color=always test1 | grep -Ev '${check_expr}'"
+}
+
 atf_test_case grep_nomatch_flags
 grep_nomatch_flags_head()
 {
@@ -521,6 +569,63 @@ grep_nomatch_flags_body()
 	atf_check -o empty grep -q -B 1 -e "B" test1
 	atf_check -o empty grep -q -A 1 -e "B" test1
 	atf_check -o empty grep -q -C 1 -e "B" test1
+}
+
+atf_test_case badcontext
+badcontext_head()
+{
+	atf_set "descr" "Check for handling of invalid context arguments"
+}
+badcontext_body()
+{
+	printf "A\nB\nC\n" > test1
+
+	atf_check -s not-exit:0 -e ignore grep -A "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -B "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -C "-1" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -A "B" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -B "B" "B" test1
+
+	atf_check -s not-exit:0 -e ignore grep -C "B" "B" test1
+}
+
+atf_test_case binary_flags
+binary_flags_head()
+{
+	atf_set "descr" "Check output for binary flags (-a, -I, -U, --binary-files)"
+}
+binary_flags_body()
+{
+	printf "A\000B\000C" > test1
+	printf "A\n\000B\n\000C" > test2
+	binmatchtext="Binary file test1 matches\n"
+
+	# Binaries not treated as text (default, -U)
+	atf_check -o inline:"${binmatchtext}" grep 'B' test1
+	atf_check -o inline:"${binmatchtext}" grep 'B' -C 1 test1
+
+	atf_check -o inline:"${binmatchtext}" grep -U 'B' test1
+	atf_check -o inline:"${binmatchtext}" grep -U 'B' -C 1 test1
+
+	# Binary, -a, no newlines
+	atf_check -o inline:"A\000B\000C\n" grep -a 'B' test1
+	atf_check -o inline:"A\000B\000C\n" grep -a 'B' -C 1 test1
+
+	# Binary, -a, newlines
+	atf_check -o inline:"\000B\n" grep -a 'B' test2
+	atf_check -o inline:"A\n\000B\n\000C\n" grep -a 'B' -C 1 test2
+
+	# Binary files ignored
+	atf_check -s exit:1 grep -I 'B' test2
+
+	# --binary-files equivalence
+	atf_check -o inline:"${binmatchtext}" grep --binary-files=binary 'B' test1
+	atf_check -o inline:"A\000B\000C\n" grep --binary-files=text 'B' test1
+	atf_check -s exit:1 grep --binary-files=without-match 'B' test2
 }
 # End FreeBSD
 
@@ -551,10 +656,14 @@ atf_init_test_cases()
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
 	atf_add_test_case wflag_emptypat
+	atf_add_test_case excessive_matches
 	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
 	atf_add_test_case grep_sanity
+	atf_add_test_case ocolor_metadata
 	atf_add_test_case grep_nomatch_flags
+	atf_add_test_case binary_flags
+	atf_add_test_case badcontext
 # End FreeBSD
 }

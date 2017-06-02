@@ -339,6 +339,9 @@ proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
 	prmap_t *map;
 	size_t i;
 
+	if (p->nmappings == 0)
+		if (proc_rdagent(p) == NULL)
+			return (NULL);
 	for (i = 0; i < p->nmappings; i++) {
 		map = &p->mappings[i].map;
 		if (addr >= map->pr_vaddr &&

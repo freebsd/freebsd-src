@@ -744,6 +744,11 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
 
+		if (ifp->if_type == IFT_ETHER) {
+			ifp->if_hw_addr = malloc(ifp->if_addrlen, M_IFADDR,
+			    M_WAITOK | M_ZERO);
+		}
+
 #if defined(INET) || defined(INET6)
 		/* Use defaults for TSO, if nothing is set */
 		if (ifp->if_hw_tsomax == 0 &&
@@ -1059,6 +1064,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		 * Remove link ifaddr pointer and maybe decrement if_index.
 		 * Clean up all addresses.
 		 */
+		free(ifp->if_hw_addr, M_IFADDR);
+		ifp->if_hw_addr = NULL;
 		ifp->if_addr = NULL;
 
 		/* We can now free link ifaddr. */
@@ -2667,6 +2674,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
 		break;
 
+	case SIOCGHWADDR:
+		error = if_gethwaddr(ifp, ifr);
+		break;
+
 	case SIOCAIFGROUP:
 	{
 		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
@@ -3581,6 +3592,29 @@ if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
 	req->lladdr_off = 0;
 
 	return (0);
+}
+
+/*
+ * Get the link layer address that was read from the hardware at attach.
+ *
+ * This is only set by Ethernet NICs (IFT_ETHER), but laggX interfaces re-type
+ * their component interfaces as IFT_IEEE8023ADLAG.
+ */
+int
+if_gethwaddr(struct ifnet *ifp, struct ifreq *ifr)
+{
+
+	if (ifp->if_hw_addr == NULL)
+		return (ENODEV);
+
+	switch (ifp->if_type) {
+	case IFT_ETHER:
+	case IFT_IEEE8023ADLAG:
+		bcopy(ifp->if_hw_addr, ifr->ifr_addr.sa_data, ifp->if_addrlen);
+		return (0);
+	default:
+		return (ENODEV);
+	}
 }
 
 /*

@@ -163,7 +163,8 @@ main (int argc, char *argv[])
 				printf("kevent %d %d errno %d return.ident %p "
 				       "return.data %p return.udata %p %p\n",
 				       i, result, error,
-				       kq_returned.ident, kq_returned.data,
+				       (void*)kq_returned.ident,
+				       (void*)kq_returned.data,
 				       kq_returned.udata,
 				       kq_iocb);
 #endif
@@ -171,7 +172,7 @@ main (int argc, char *argv[])
 				if (kq_iocb)
 					break;
 #ifdef DEBUG
-				printf("Try again left %d out of %d %d\n",
+				printf("Try again left %d out of %lu %d\n",
 				    pending, nitems(iocb), cancel);
 #endif
 			}
