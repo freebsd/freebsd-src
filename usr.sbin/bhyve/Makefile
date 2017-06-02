@@ -2,6 +2,8 @@
 # $FreeBSD$
 #
 
+.include <src.opts.mk>
+
 PROG=	bhyve
 PACKAGE=	bhyve
 
@@ -62,6 +64,12 @@ SRCS=	\
 SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread z
+
+.if ${MK_OPENSSL} == "no"
+CFLAGS+=-DNO_OPENSSL
+.else
+LIBADD+=	crypto
+.endif
 
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
