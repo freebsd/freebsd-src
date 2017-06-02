@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170601: remove stale manpage
+OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
 # 20170601: old libifconfig and libifc
 OLD_FILES+=usr/lib/libifc.a
 OLD_FILES+=usr/lib/libifc_p.a
