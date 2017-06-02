@@ -2019,6 +2019,7 @@ native-xtools: .PHONY
     ${_gcc_tools} \
     ${_clang_libs} \
     ${_clang} \
+    ${_lld} \
     sbin/md5 \
     sbin/sysctl \
     usr.bin/diff \
