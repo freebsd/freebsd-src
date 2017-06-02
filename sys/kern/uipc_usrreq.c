@@ -758,7 +758,6 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 	error = solisten_proto_check(so);
 	if (error == 0) {
 		cru2x(td->td_ucred, &unp->unp_peercred);
-		unp->unp_flags |= UNP_HAVEPCCACHED;
 		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
@@ -1429,8 +1428,6 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		 * listen(); uipc_listen() cached that process's credentials
 		 * at that time so we can use them now.
 		 */
-		KASSERT(unp2->unp_flags & UNP_HAVEPCCACHED,
-		    ("unp_connect: listener without cached peercred"));
 		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
 		    sizeof(unp->unp_peercred));
 		unp->unp_flags |= UNP_HAVEPC;
@@ -2495,10 +2492,6 @@ db_print_unpflags(int unp_flags)
 	comma = 0;
 	if (unp_flags & UNP_HAVEPC) {
 		db_printf("%sUNP_HAVEPC", comma ? ", " : "");
-		comma = 1;
-	}
-	if (unp_flags & UNP_HAVEPCCACHED) {
-		db_printf("%sUNP_HAVEPCCACHED", comma ? ", " : "");
 		comma = 1;
 	}
 	if (unp_flags & UNP_WANTCRED) {
