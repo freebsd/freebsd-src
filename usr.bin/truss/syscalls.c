@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
  * arguments.
  */
 
+#include <sys/capsicum.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/ioccom.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
  */
 static struct syscall decoded_syscalls[] = {
 	/* Native ABI */
+	{ .name = "__cap_rights_get", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Int, 1 }, { CapRights | OUT, 2 } } },
 	{ .name = "__getcwd", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | OUT, 0 }, { Int, 1 } } },
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
@@ -96,6 +99,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { CapFcntlRights | OUT, 1 } } },
 	{ .name = "cap_fcntls_limit", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { CapFcntlRights, 1 } } },
+	{ .name = "cap_rights_limit", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { CapRights, 1 } } },
 	{ .name = "chdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
 	{ .name = "chflags", .ret_type = 1, .nargs = 2,
@@ -1976,6 +1981,18 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Msgflags:
 		print_mask_arg(sysdecode_msg_flags, fp, args[sc->offset]);
 		break;
+	case CapRights: {
+		cap_rights_t rights;
+
+		if (get_struct(pid, (void *)args[sc->offset], &rights,
+		    sizeof(rights)) != -1) {
+			fputs("{ ", fp);
+			sysdecode_cap_rights(fp, &rights);
+			fputs(" }", fp);
+		} else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
