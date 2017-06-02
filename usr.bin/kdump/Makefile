@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-# missing libsysdecode
+# Can't read records produced by ktrace.
 WANT_CHERI=none
 
 .include <src.opts.mk>
