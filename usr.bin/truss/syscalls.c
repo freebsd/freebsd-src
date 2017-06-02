@@ -99,6 +99,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { CapFcntlRights | OUT, 1 } } },
 	{ .name = "cap_fcntls_limit", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { CapFcntlRights, 1 } } },
+	{ .name = "cap_getmode", .ret_type = 1, .nargs = 1,
+	  .args = { { PUInt | OUT, 0 } } },
 	{ .name = "cap_rights_limit", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { CapRights, 1 } } },
 	{ .name = "chdir", .ret_type = 1, .nargs = 1,
@@ -1190,6 +1192,16 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case UInt:
 		fprintf(fp, "%u", (unsigned int)args[sc->offset]);
 		break;
+	case PUInt: {
+		unsigned int val;
+
+		if (get_struct(pid, (void *)args[sc->offset], &val,
+		    sizeof(val)) == 0) 
+			fprintf(fp, "{ %u }", val);
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 	case LongHex:
 		fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
