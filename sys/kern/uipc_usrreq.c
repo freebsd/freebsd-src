@@ -552,7 +552,7 @@ restart:
 
 	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
-	VOP_UNP_BIND(vp, unp->unp_socket);
+	VOP_UNP_BIND(vp, unp);
 	unp->unp_vnode = vp;
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
@@ -670,9 +670,6 @@ uipc_detach(struct socket *so)
 	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
 
-	/*
-	 * XXXRW: Should assert vp->v_socket == so.
-	 */
 	if ((vp = unp->unp_vnode) != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
@@ -1386,11 +1383,12 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	 * and to protect simultaneous locking of multiple pcbs.
 	 */
 	UNP_LINK_WLOCK();
-	VOP_UNP_CONNECT(vp, &so2);
-	if (so2 == NULL) {
+	VOP_UNP_CONNECT(vp, &unp2);
+	if (unp2 == NULL) {
 		error = ECONNREFUSED;
 		goto bad2;
 	}
+	so2 = unp2->unp_socket;
 	if (so->so_type != so2->so_type) {
 		error = EPROTOTYPE;
 		goto bad2;
@@ -2454,7 +2452,6 @@ unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 void
 vfs_unp_reclaim(struct vnode *vp)
 {
-	struct socket *so;
 	struct unpcb *unp;
 	int active;
 
@@ -2464,10 +2461,7 @@ vfs_unp_reclaim(struct vnode *vp)
 
 	active = 0;
 	UNP_LINK_WLOCK();
-	VOP_UNP_CONNECT(vp, &so);
-	if (so == NULL)
-		goto done;
-	unp = sotounpcb(so);
+	VOP_UNP_CONNECT(vp, &unp);
 	if (unp == NULL)
 		goto done;
 	UNP_PCB_LOCK(unp);
