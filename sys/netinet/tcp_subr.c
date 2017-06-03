@@ -1963,16 +1963,16 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
 		inp = (*notify)(inp, EHOSTDOWN);
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
-	} else if (inp != NULL)  {
+		goto out;
+	}
+	icmp_tcp_seq = th->th_seq;
+	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
-			icmp_tcp_seq = ntohl(th->th_seq);
 			tp = intotcpcb(inp);
-			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
-			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
 					 * MTU discovery:
@@ -1980,7 +1980,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * in the route to the suggested new
 					 * value (if given) and then notify.
 					 */
-				    	mtu = ntohs(icp->icmp_nextmtu);
+					mtu = ntohs(icp->icmp_nextmtu);
 					/*
 					 * If no alternative MTU was
 					 * proposed, try the next smaller
@@ -2011,16 +2011,17 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    inetctlerrmap[cmd]);
 			}
 		}
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
 	} else {
 		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th->th_dport;
 		inc.inc_lport = th->th_sport;
 		inc.inc_faddr = faddr;
 		inc.inc_laddr = ip->ip_src;
-		syncache_unreach(&inc, th);
+		syncache_unreach(&inc, icmp_tcp_seq);
 	}
+out:
+	if (inp != NULL)
+		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET */
@@ -2030,7 +2031,6 @@ void
 tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
 	struct in6_addr *dst;
-	struct tcphdr *th;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
@@ -2040,10 +2040,13 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
+	struct tcp_ports {
+		uint16_t th_sport;
+		uint16_t th_dport;
+	} t_ports;
 	tcp_seq icmp_tcp_seq;
 	unsigned int mtu;
 	unsigned int off;
-
 
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
@@ -2093,27 +2096,31 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	/* Check if we can safely get the ports from the tcp hdr */
 	if (m == NULL ||
 	    (m->m_pkthdr.len <
-		(int32_t) (off + offsetof(struct tcphdr, th_seq)))) {
+		(int32_t) (off + sizeof(struct tcp_ports)))) {
 		return;
 	}
-
-	th = (struct tcphdr *) mtodo(ip6cp->ip6c_m, ip6cp->ip6c_off);
+	bzero(&t_ports, sizeof(struct tcp_ports));
+	m_copydata(m, off, sizeof(struct tcp_ports), (caddr_t)&t_ports);
 	INP_INFO_RLOCK(&V_tcbinfo);
-	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, th->th_dport,
-	    &ip6->ip6_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
+	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, t_ports.th_dport,
+	    &ip6->ip6_src, t_ports.th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
 		inp = (*notify)(inp, EHOSTDOWN);
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
-	} else if (inp != NULL)  {
+		goto out;
+	}
+	off += sizeof(struct tcp_ports);
+	if (m->m_pkthdr.len < (int32_t) (off + sizeof(tcp_seq))) {
+		goto out;
+	}
+	m_copydata(m, off, sizeof(tcp_seq), (caddr_t)&icmp_tcp_seq);
+	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
-			icmp_tcp_seq = ntohl(th->th_seq);
 			tp = intotcpcb(inp);
-			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
-			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
 					 * MTU discovery:
@@ -2130,22 +2137,20 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 					 */
 					if (mtu < IPV6_MMTU)
 						mtu = IPV6_MMTU - 8;
-
-
 					bzero(&inc, sizeof(inc));
 					inc.inc_fibnum = M_GETFIB(m);
 					inc.inc_flags |= INC_ISIPV6;
 					inc.inc6_faddr = *dst;
 					if (in6_setscope(&inc.inc6_faddr,
 						m->m_pkthdr.rcvif, NULL))
-						goto unlock_inp;
-
+						goto out;
 					/*
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
 					 */
 					if (mtu < tp->t_maxseg +
-					    (sizeof (*th) + sizeof (*ip6))) {
+					    sizeof (struct tcphdr) +
+					    sizeof (struct ip6_hdr)) {
 						tcp_hc_updatemtu(&inc, mtu);
 						tcp_mtudisc(inp, mtu);
 						ICMP6STAT_INC(icp6s_pmtuchg);
@@ -2155,19 +2160,19 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 					    inet6ctlerrmap[cmd]);
 			}
 		}
-unlock_inp:
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
 	} else {
 		bzero(&inc, sizeof(inc));
 		inc.inc_fibnum = M_GETFIB(m);
 		inc.inc_flags |= INC_ISIPV6;
-		inc.inc_fport = th->th_dport;
-		inc.inc_lport = th->th_sport;
+		inc.inc_fport = t_ports.th_dport;
+		inc.inc_lport = t_ports.th_sport;
 		inc.inc6_faddr = *dst;
 		inc.inc6_laddr = ip6->ip6_src;
-		syncache_unreach(&inc, th);
+		syncache_unreach(&inc, icmp_tcp_seq);
 	}
+out:
+	if (inp != NULL)
+		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET6 */
