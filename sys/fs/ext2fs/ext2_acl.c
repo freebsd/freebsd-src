@@ -276,7 +276,7 @@ ext2_getacl(struct vop_getacl_args *ap)
 {
 
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
@@ -473,7 +473,7 @@ int
 ext2_setacl(struct vop_setacl_args *ap)
 {
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
@@ -490,7 +490,7 @@ ext2_aclcheck(struct vop_aclcheck_args *ap)
 {
 
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
