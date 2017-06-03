@@ -454,7 +454,7 @@ tests_rfc5424() {
 	tmpdir_clean
 }
 
-echo 1..126
+echo 1..128
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
