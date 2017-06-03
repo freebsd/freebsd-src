@@ -103,6 +103,10 @@ __FBSDID("$FreeBSD$");
 #error FreeBSD/arm doesn't provide compatibility with releases prior to 10
 #endif
 
+#if __ARM_ARCH >= 6 && !defined(INTRNG)
+#error armv6 requires INTRNG
+#endif
+
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
 
