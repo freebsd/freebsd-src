@@ -16,14 +16,17 @@ using namespace llvm;
 using namespace llvm::codeview;
 
 DebugSubsectionRecord::DebugSubsectionRecord()
-    : Kind(DebugSubsectionKind::None) {}
+    : Container(CodeViewContainer::ObjectFile),
+      Kind(DebugSubsectionKind::None) {}
 
 DebugSubsectionRecord::DebugSubsectionRecord(DebugSubsectionKind Kind,
-                                             BinaryStreamRef Data)
-    : Kind(Kind), Data(Data) {}
+                                             BinaryStreamRef Data,
+                                             CodeViewContainer Container)
+    : Container(Container), Kind(Kind), Data(Data) {}
 
 Error DebugSubsectionRecord::initialize(BinaryStreamRef Stream,
-                                        DebugSubsectionRecord &Info) {
+                                        DebugSubsectionRecord &Info,
+                                        CodeViewContainer Container) {
   const DebugSubsectionHeader *Header;
   BinaryStreamReader Reader(Stream);
   if (auto EC = Reader.readObject(Header))
@@ -41,13 +44,14 @@ Error DebugSubsectionRecord::initialize(BinaryStreamRef Stream,
   }
   if (auto EC = Reader.readStreamRef(Info.Data, Header->Length))
     return EC;
+  Info.Container = Container;
   Info.Kind = Kind;
   return Error::success();
 }
 
 uint32_t DebugSubsectionRecord::getRecordLength() const {
   uint32_t Result = sizeof(DebugSubsectionHeader) + Data.getLength();
-  assert(Result % 4 == 0);
+  assert(Result % alignOf(Container) == 0);
   return Result;
 }
 
@@ -56,25 +60,29 @@ DebugSubsectionKind DebugSubsectionRecord::kind() const { return Kind; }
 BinaryStreamRef DebugSubsectionRecord::getRecordData() const { return Data; }
 
 DebugSubsectionRecordBuilder::DebugSubsectionRecordBuilder(
-    DebugSubsectionKind Kind, DebugSubsection &Frag)
-    : Kind(Kind), Frag(Frag) {}
+    std::unique_ptr<DebugSubsection> Subsection, CodeViewContainer Container)
+    : Subsection(std::move(Subsection)), Container(Container) {}
 
 uint32_t DebugSubsectionRecordBuilder::calculateSerializedLength() {
-  uint32_t Size = sizeof(DebugSubsectionHeader) +
-                  alignTo(Frag.calculateSerializedSize(), 4);
+  uint32_t Size =
+      sizeof(DebugSubsectionHeader) +
+      alignTo(Subsection->calculateSerializedSize(), alignOf(Container));
   return Size;
 }
 
 Error DebugSubsectionRecordBuilder::commit(BinaryStreamWriter &Writer) {
+  assert(Writer.getOffset() % alignOf(Container) == 0 &&
+         "Debug Subsection not properly aligned");
+
   DebugSubsectionHeader Header;
-  Header.Kind = uint32_t(Kind);
+  Header.Kind = uint32_t(Subsection->kind());
   Header.Length = calculateSerializedLength() - sizeof(DebugSubsectionHeader);
 
   if (auto EC = Writer.writeObject(Header))
     return EC;
-  if (auto EC = Frag.commit(Writer))
+  if (auto EC = Subsection->commit(Writer))
     return EC;
-  if (auto EC = Writer.padToAlignment(4))
+  if (auto EC = Writer.padToAlignment(alignOf(Container)))
     return EC;
 
   return Error::success();

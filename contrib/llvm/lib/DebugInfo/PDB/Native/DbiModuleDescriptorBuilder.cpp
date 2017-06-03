@@ -66,7 +66,11 @@ void DbiModuleDescriptorBuilder::setObjFileName(StringRef Name) {
 
 void DbiModuleDescriptorBuilder::addSymbol(CVSymbol Symbol) {
   Symbols.push_back(Symbol);
-  SymbolByteSize += Symbol.data().size();
+  // Symbols written to a PDB file are required to be 4 byte aligned.  The same
+  // is not true of object files.
+  assert(Symbol.length() % alignOf(CodeViewContainer::Pdb) == 0 &&
+         "Invalid Symbol alignment!");
+  SymbolByteSize += Symbol.length();
 }
 
 void DbiModuleDescriptorBuilder::addSourceFile(StringRef Path) {
@@ -140,7 +144,7 @@ Error DbiModuleDescriptorBuilder::commit(BinaryStreamWriter &ModiWriter,
 
   if (Layout.ModDiStream != kInvalidStreamIndex) {
     auto NS = WritableMappedBlockStream::createIndexedStream(
-        MsfLayout, MsfBuffer, Layout.ModDiStream);
+        MsfLayout, MsfBuffer, Layout.ModDiStream, MSF.getAllocator());
     WritableBinaryStreamRef Ref(*NS);
     BinaryStreamWriter SymbolWriter(Ref);
     // Write the symbols.
@@ -153,7 +157,8 @@ Error DbiModuleDescriptorBuilder::commit(BinaryStreamWriter &ModiWriter,
     if (auto EC = SymbolWriter.writeStreamRef(RecordsRef))
       return EC;
     // TODO: Write C11 Line data
-
+    assert(SymbolWriter.getOffset() % alignOf(CodeViewContainer::Pdb) == 0 &&
+           "Invalid debug section alignment!");
     for (const auto &Builder : C13Builders) {
       assert(Builder && "Empty C13 Fragment Builder!");
       if (auto EC = Builder->commit(SymbolWriter))
@@ -169,42 +174,9 @@ Error DbiModuleDescriptorBuilder::commit(BinaryStreamWriter &ModiWriter,
   return Error::success();
 }
 
-void DbiModuleDescriptorBuilder::addC13Fragment(
-    std::unique_ptr<DebugLinesSubsection> Lines) {
-  DebugLinesSubsection &Frag = *Lines;
-
-  // File Checksums have to come first, so push an empty entry on if this
-  // is the first.
-  if (C13Builders.empty())
-    C13Builders.push_back(nullptr);
-
-  this->LineInfo.push_back(std::move(Lines));
-  C13Builders.push_back(
-      llvm::make_unique<DebugSubsectionRecordBuilder>(Frag.kind(), Frag));
-}
-
-void DbiModuleDescriptorBuilder::addC13Fragment(
-    std::unique_ptr<codeview::DebugInlineeLinesSubsection> Inlinees) {
-  DebugInlineeLinesSubsection &Frag = *Inlinees;
-
-  // File Checksums have to come first, so push an empty entry on if this
-  // is the first.
-  if (C13Builders.empty())
-    C13Builders.push_back(nullptr);
-
-  this->Inlinees.push_back(std::move(Inlinees));
-  C13Builders.push_back(
-      llvm::make_unique<DebugSubsectionRecordBuilder>(Frag.kind(), Frag));
-}
-
-void DbiModuleDescriptorBuilder::setC13FileChecksums(
-    std::unique_ptr<DebugChecksumsSubsection> Checksums) {
-  assert(!ChecksumInfo && "Can't have more than one checksum info!");
-
-  if (C13Builders.empty())
-    C13Builders.push_back(nullptr);
-
-  ChecksumInfo = std::move(Checksums);
-  C13Builders[0] = llvm::make_unique<DebugSubsectionRecordBuilder>(
-      ChecksumInfo->kind(), *ChecksumInfo);
+void DbiModuleDescriptorBuilder::addDebugSubsection(
+    std::unique_ptr<DebugSubsection> Subsection) {
+  assert(Subsection);
+  C13Builders.push_back(llvm::make_unique<DebugSubsectionRecordBuilder>(
+      std::move(Subsection), CodeViewContainer::Pdb));
 }

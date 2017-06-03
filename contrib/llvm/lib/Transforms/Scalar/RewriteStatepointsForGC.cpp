@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Rewrite an existing set of gc.statepoints such that they make potential
-// relocations performed by the garbage collector explicit in the IR.
+// Rewrite call/invoke instructions so as to make potential relocations
+// performed by the garbage collector explicit in the IR.
 //
 //===----------------------------------------------------------------------===//
 
@@ -2094,9 +2094,9 @@ static bool insertParsePoints(Function &F, DominatorTree &DT,
   // live in the IR.  We'll remove all of these when done.
   SmallVector<CallInst *, 64> Holders;
 
-  // Insert a dummy call with all of the arguments to the vm_state we'll need
-  // for the actual safepoint insertion.  This ensures reference arguments in
-  // the deopt argument list are considered live through the safepoint (and
+  // Insert a dummy call with all of the deopt operands we'll need for the
+  // actual safepoint insertion as arguments.  This ensures reference operands
+  // in the deopt argument list are considered live through the safepoint (and
   // thus makes sure they get relocated.)
   for (CallSite CS : ToUpdate) {
     SmallVector<Value *, 64> DeoptValues;

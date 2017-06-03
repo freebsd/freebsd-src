@@ -21,4 +21,8 @@
 
 #define HAVE_SIGACTION 1
 
+#define HAVE_PROCESS_VM_READV 0
+
+#define HAVE_NR_PROCESS_VM_READV 0
+
 #endif // #ifndef LLDB_HOST_CONFIG_H
