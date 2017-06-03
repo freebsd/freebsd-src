@@ -33,6 +33,8 @@ seek_overflow_head()
 }
 seek_overflow_body()
 {
+	atf_expect_fail "fails with 'dd: truncating f.out: File too large' - bug 219757"
+
 	touch f.in
 	# Positive tests
 	seek=`echo "2^63 / 4096 - 1" | bc`
