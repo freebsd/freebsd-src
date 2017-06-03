@@ -33,7 +33,7 @@ linux_assym.h			optional	compat_linux		\
 #
 linux_locore.o			optional	compat_linux		\
 	dependency 	"linux_assym.h $S/i386/linux/linux_locore.s"	\
-	compile-with	"${CC} -x assembler-with-cpp -DLOCORE -shared -s -pipe -I. -I$S -Werror -Wall -fno-common -nostdinc -nostdlib -Wl,-T$S/i386/linux/linux_vdso.lds.s -Wl,-soname=linux_vdso.so,--eh-frame-hdr,-fPIC,-warn-common ${.IMPSRC} -o ${.TARGET}" \
+	compile-with	"${CC} -x assembler-with-cpp -DLOCORE -shared -s -pipe -I. -I$S -Werror -Wall -fPIC -fno-common -nostdinc -nostdlib -Wl,-T$S/i386/linux/linux_vdso.lds.s -Wl,-soname=linux_vdso.so,--eh-frame-hdr,-warn-common ${.IMPSRC} -o ${.TARGET}" \
 	no-obj no-implicit-rule						\
 	clean		"linux_locore.o"
 #
