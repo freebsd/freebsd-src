@@ -1767,6 +1767,9 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		break;
 	case SIOCSIFMTU:
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
+
 		ifp->if_mtu = ifr->ifr_mtu;
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xn_ifinit(sc);

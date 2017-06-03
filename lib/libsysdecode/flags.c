@@ -487,6 +487,13 @@ sysdecode_getfsstat_mode(int mode)
 }
 
 const char *
+sysdecode_getrusage_who(int who)
+{
+
+	return (lookup_value(rusage, who));
+}
+
+const char *
 sysdecode_kldsym_cmd(int cmd)
 {
 

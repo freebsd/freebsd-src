@@ -380,7 +380,6 @@ tests_time_rotate() {
 
 	sleep 1.1
 
-	(
 	TODO="rotate time 2-4 fail today; bug 212160"
 
 	begin "rotate time 2 ${name_postfix}"
@@ -404,7 +403,7 @@ tests_time_rotate() {
 	ckfe ${LOGFNAME}
 	chkfcnt 3 ${dir}${LOGFNAME}.*${ext}
 	end
-	)
+	unset TODO
 
 	begin "noaction ${name_postfix}"
 	ofiles=`ls -1 ${dir}${LOGFNAME}.*${ext} | tr -d '\n'`
@@ -455,7 +454,7 @@ tests_rfc5424() {
 	tmpdir_clean
 }
 
-echo 1..126
+echo 1..128
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 

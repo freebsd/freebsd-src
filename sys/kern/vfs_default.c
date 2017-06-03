@@ -1128,7 +1128,7 @@ int
 vop_stdunp_bind(struct vop_unp_bind_args *ap)
 {
 
-	ap->a_vp->v_socket = ap->a_socket;
+	ap->a_vp->v_unpcb = ap->a_unpcb;
 	return (0);
 }
 
@@ -1136,7 +1136,7 @@ int
 vop_stdunp_connect(struct vop_unp_connect_args *ap)
 {
 
-	*ap->a_socket = ap->a_vp->v_socket;
+	*ap->a_unpcb = ap->a_vp->v_unpcb;
 	return (0);
 }
 
@@ -1144,7 +1144,7 @@ int
 vop_stdunp_detach(struct vop_unp_detach_args *ap)
 {
 
-	ap->a_vp->v_socket = NULL;
+	ap->a_vp->v_unpcb = NULL;
 	return (0);
 }
 

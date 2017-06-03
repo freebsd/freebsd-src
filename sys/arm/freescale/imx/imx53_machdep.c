@@ -95,5 +95,4 @@ static platform_method_t imx53_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(imx53, "i.MX53", 0, "fsl,imx53", 0);
-
+FDT_PLATFORM_DEF(imx53, "i.MX53", 0, "fsl,imx53", 100);

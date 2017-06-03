@@ -150,6 +150,8 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
+# 20170601: remove stale manpage
+OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
 # 20170601: old libifconfig and libifc
 OLD_FILES+=usr/lib/libifc.a
 OLD_FILES+=usr/lib/libifc_p.a

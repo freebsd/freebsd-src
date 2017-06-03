@@ -60,7 +60,7 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 {
 	off_t	offset;
 	ssize_t	rv;
-	fsinfo_t *fsinfo = vp->fs;
+	fsinfo_t *fs = vp->fs;
 
 	assert (bpp != NULL);
 
@@ -68,7 +68,7 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 		printf("%s: blkno %lld size %d\n", __func__, (long long)blkno,
 		    size);
 	*bpp = getblk(vp, blkno, size, 0, 0, 0);
-	offset = (*bpp)->b_blkno * fsinfo->sectorsize + fsinfo->offset;
+	offset = (*bpp)->b_blkno * fs->sectorsize + fs->offset;
 	if (debug & DEBUG_BUF_BREAD)
 		printf("%s: blkno %lld offset %lld bcount %ld\n", __func__,
 		    (long long)(*bpp)->b_blkno, (long long) offset,
