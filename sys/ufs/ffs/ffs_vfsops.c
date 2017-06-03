@@ -1319,6 +1319,10 @@ ffs_unmount(mp, mntflags)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
+	if (td->td_su == mp) {
+		td->td_su = NULL;
+		vfs_rel(mp);
+	}
 	return (error);
 
 fail:
