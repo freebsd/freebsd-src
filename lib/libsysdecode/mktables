@@ -114,6 +114,7 @@ gen_table "quotactlcmds"    "Q_[A-Z]+[[:space:]]+0x[0-9]+"                 "ufs/
 gen_table "rebootopt"       "RB_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/reboot.h"
 gen_table "rforkflags"      "RF[A-Z]+[[:space:]]+\([0-9]+<<[0-9]+\)"       "sys/unistd.h"
 gen_table "rlimit"          "RLIMIT_[A-Z]+[[:space:]]+[0-9]+"              "sys/resource.h"
+gen_table "rusage"          "RUSAGE_[A-Z]+[[:space:]]+[-0-9]+"             "sys/resource.h"
 gen_table "schedpolicy"     "SCHED_[A-Z]+[[:space:]]+[0-9]+"               "sched.h"
 gen_table "sendfileflags"   "SF_[A-Z]+[[:space:]]+[0-9]+"                  "sys/socket.h"
 gen_table "shmatflags"      "SHM_[A-Z]+[[:space:]]+[0-9]{6}+"              "sys/shm.h"
