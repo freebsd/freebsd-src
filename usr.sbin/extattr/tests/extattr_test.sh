@@ -10,7 +10,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-#   
+#
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,7 +36,7 @@ bad_namespace_body() {
 		setextattr badnamespace myattr X foo
 	atf_check -s not-exit:0 -e match:"Invalid argument" \
 		lsextattr -q badnamespace foo
-}	
+}
 
 atf_test_case hex
 hex_head() {
@@ -48,7 +48,7 @@ hex_body() {
 	atf_check -s exit:0 -o empty setextattr user myattr XYZ foo
 	atf_check -s exit:0 -o inline:"58 59 5a\n" \
 		getextattr -qx user myattr foo
-}	
+}
 
 atf_test_case hex_nonascii
 hex_nonascii_head() {
@@ -62,7 +62,7 @@ hex_nonascii_body() {
 	getextattr user myattr foo
 	atf_check -s exit:0 -o inline:"20 30 40 55 66 70 81 a2 b3 ee ff\n" \
 		getextattr -qx user myattr foo
-}	
+}
 
 atf_test_case long_name
 long_name_head() {
@@ -70,10 +70,15 @@ long_name_head() {
 }
 long_name_body() {
 	check_fs
+
+	if ! NAME_MAX=$(getconf NAME_MAX .); then
+		atf_skip "Filesystem not reporting NAME_MAX; skipping testcase"
+	fi
+
 	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208965
 	atf_expect_fail "BUG 208965 extattr(2) doesn't allow maxlen attr names"
 
-	ATTRNAME=`jot -b X -s "" 255 0`
+	ATTRNAME=`jot -b X -s "" $NAME_MAX 0`
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user $ATTRNAME myvalue foo
 	atf_check -s exit:0 -o inline:"${ATTRNAME}\n" lsextattr -q user foo
@@ -81,7 +86,7 @@ long_name_body() {
 		getextattr -q user ${ATTRNAME} foo
 	atf_check -s exit:0 -o empty rmextattr user ${ATTRNAME} foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
-}	
+}
 
 atf_test_case loud
 loud_head() {
@@ -99,7 +104,7 @@ loud_body() {
 		printf "%s %s" $(getextattr user myattr foo)
 	atf_check -s exit:0 -o empty rmextattr user myattr foo
 	atf_check -s exit:0 -o inline:"foo" printf %s $(lsextattr user foo)
-}	
+}
 
 atf_test_case noattrs
 noattrs_head() {
@@ -109,7 +114,7 @@ noattrs_body() {
 	check_fs
 	touch foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
-}	
+}
 
 atf_test_case nonexistent_file
 nonexistent_file_head() {
@@ -125,7 +130,7 @@ nonexistent_file_body() {
 		getextattr user myattr foo
 	atf_check -s exit:1 -e match:"No such file or directory" \
 		rmextattr user myattr foo
-}	
+}
 
 atf_test_case null
 null_head() {
@@ -136,7 +141,7 @@ null_body() {
 	touch foo
 	atf_check -s exit:0 -o empty setextattr -n user myattr myvalue foo
 	atf_check -s exit:0 -o inline:"myvalue\0\n" getextattr -q user myattr foo
-}	
+}
 
 atf_test_case one_user_attr
 one_user_attr_head() {
@@ -150,7 +155,7 @@ one_user_attr_body() {
 	atf_check -s exit:0 -o inline:"myvalue\n" getextattr -q user myattr foo
 	atf_check -s exit:0 -o empty rmextattr user myattr foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
-}	
+}
 
 atf_test_case one_system_attr
 one_system_attr_head() {
@@ -165,7 +170,7 @@ one_system_attr_body() {
 	atf_check -s exit:0 -o inline:"myvalue\n" getextattr -q system myattr foo
 	atf_check -s exit:0 -o empty rmextattr system myattr foo
 	atf_check -s exit:0 -o empty lsextattr -q system foo
-}	
+}
 
 atf_test_case stdin
 stdin_head() {
@@ -179,7 +184,7 @@ stdin_body() {
 	atf_check -s exit:0 -o inline:"myattr\n" lsextattr -q user foo
 	getextattr -qq user myattr foo > outfile || atf_fail "getextattr failed"
 	atf_check -s exit:0 cmp -s infile outfile
-}	
+}
 
 atf_test_case stringify
 stringify_head() {
@@ -191,7 +196,7 @@ stringify_body() {
 	atf_check -s exit:0 -o empty setextattr user myattr "my value" foo
 	atf_check -s exit:0 -o inline:"\"my\\\040value\"\n" \
 		getextattr -qs user myattr foo
-}	
+}
 
 atf_test_case symlink
 symlink_head() {
@@ -248,7 +253,7 @@ system_and_user_attrs_body() {
 	atf_check -s exit:0 -o empty rmextattr system sysattr foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
 	atf_check -s exit:0 -o empty lsextattr -q system foo
-}	
+}
 
 atf_test_case two_files
 two_files_head() {
@@ -315,7 +320,7 @@ two_user_attrs_body() {
 	atf_check -s exit:0 -o empty rmextattr user myattr2 foo
 	atf_check -s exit:0 -o empty rmextattr user myattr1 foo
 	atf_check -s exit:0 -o empty lsextattr -q user foo
-}	
+}
 
 atf_test_case unprivileged_user_cannot_set_system_attr
 unprivileged_user_cannot_set_system_attr_head() {
@@ -327,7 +332,7 @@ unprivileged_user_cannot_set_system_attr_body() {
 	touch foo
 	atf_check -s exit:1 -e match:"Operation not permitted" \
 		setextattr system myattr myvalue foo
-}	
+}
 
 
 atf_init_test_cases() {
