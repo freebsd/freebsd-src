@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2017
+.Dd June 2, 2017
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -309,7 +309,7 @@ Emergency write is advertised, but no-op at present.
 .Pp
 Framebuffer devices:
 .Bl -tag -width 10n
-.It Oo rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc
+.It Oo rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc Ns Oo ,password= Ns Ar password Oc
 .Bl -tag -width 8n
 .It Ar IP:port
 An
@@ -368,6 +368,11 @@ Instruct
 to only boot upon the initiation of a VNC connection, simplifying the installation
 of operating systems that require immediate keyboard input.
 This can be removed for post-installation use.
+.It password
+This type of authentication is known to be cryptographically weak and is not
+intended for use on untrusted networks.
+Many implementations will want to use stronger security, such as running
+the session over an encrypted channel provided by IPsec or SSH.
 .El
 .El
 .Pp

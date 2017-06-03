@@ -252,7 +252,7 @@ __sigsetjmp:
   CFI_ENDPROC
 .size __sigsetjmp, .-__sigsetjmp
 
-#if defined(__linux__)
+#if defined(__FreeBSD__) || defined(__linux__)
 /* We do not need executable stack.  */
 .section        .note.GNU-stack,"",@progbits
 #endif

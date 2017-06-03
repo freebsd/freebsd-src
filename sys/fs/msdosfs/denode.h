@@ -179,7 +179,7 @@ struct denode {
 #define DE_INTERNALIZE32(dep, dp)			\
 	 ((dep)->de_StartCluster |= getushort((dp)->deHighClust) << 16)
 #define DE_INTERNALIZE(dep, dp)				\
-	(bcopy((dp)->deName, (dep)->de_Name, 11),	\
+	(memcpy((dep)->de_Name, (dp)->deName, 11),	\
 	 (dep)->de_Attributes = (dp)->deAttributes,	\
 	 (dep)->de_LowerCase = (dp)->deLowerCase,	\
 	 (dep)->de_CHun = (dp)->deCHundredth,		\
@@ -193,7 +193,7 @@ struct denode {
 	 (FAT32((dep)->de_pmp) ? DE_INTERNALIZE32((dep), (dp)) : 0))
 
 #define DE_EXTERNALIZE(dp, dep)				\
-	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
+	(memcpy((dp)->deName, (dep)->de_Name, 11),	\
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
 	 (dp)->deLowerCase = (dep)->de_LowerCase,	\
 	 (dp)->deCHundredth = (dep)->de_CHun,		\

@@ -207,12 +207,12 @@ xfsize(int i, int n, off_t off, off_t len)
 /*
  * Helper function to get offset within object for i page.
  */
-static inline vm_offset_t
+static inline vm_ooffset_t
 vmoff(int i, off_t off)
 {
 
 	if (i == 0)
-		return ((vm_offset_t)off);
+		return ((vm_ooffset_t)off);
 
 	return (trunc_page(off + i * PAGE_SIZE));
 }

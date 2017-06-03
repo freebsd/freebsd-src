@@ -536,7 +536,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	/*
 	 * Initialize winentry to some useful default
 	 */
-	for (wcp = (uint8_t *)wep, i = sizeof(*wep); --i >= 0; *wcp++ = 0xff);
+	memset(wep, 0xff, sizeof(*wep));
 	wep->weCnt = cnt;
 	wep->weAttributes = ATTR_WIN95;
 	wep->weReserved1 = 0;
@@ -1043,11 +1043,11 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 		    sizeof(nbp->nb_buf))
 			return (ENAMETOOLONG);
 
-		bcopy(slot + WIN_CHARS, slot + count, nbp->nb_len);
+		memmove(slot + count, slot + WIN_CHARS, nbp->nb_len);
 	}
 
 	/* Copy in the substring to its slot and update length so far. */
-	bcopy(name, slot, count);
+	memcpy(slot, name, count);
 	nbp->nb_len = newlen;
 	nbp->nb_last_id = id;
 
@@ -1069,7 +1069,7 @@ mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp)
 		mbnambuf_init(nbp);
 		return (NULL);
 	}
-	bcopy(&nbp->nb_buf[0], dp->d_name, nbp->nb_len);
+	memcpy(dp->d_name, &nbp->nb_buf[0], nbp->nb_len);
 	dp->d_name[nbp->nb_len] = '\0';
 	dp->d_namlen = nbp->nb_len;
 

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
  * arguments.
  */
 
+#include <sys/capsicum.h>
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/ioccom.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
  */
 static struct syscall decoded_syscalls[] = {
 	/* Native ABI */
+	{ .name = "__cap_rights_get", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Int, 1 }, { CapRights | OUT, 2 } } },
 	{ .name = "__getcwd", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | OUT, 0 }, { Int, 1 } } },
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
@@ -96,6 +99,10 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { CapFcntlRights | OUT, 1 } } },
 	{ .name = "cap_fcntls_limit", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { CapFcntlRights, 1 } } },
+	{ .name = "cap_getmode", .ret_type = 1, .nargs = 1,
+	  .args = { { PUInt | OUT, 0 } } },
+	{ .name = "cap_rights_limit", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { CapRights, 1 } } },
 	{ .name = "chdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
 	{ .name = "chflags", .ret_type = 1, .nargs = 2,
@@ -169,7 +176,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "getrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | OUT, 1 } } },
 	{ .name = "getrusage", .ret_type = 1, .nargs = 2,
-	  .args = { { Int, 0 }, { Rusage | OUT, 1 } } },
+	  .args = { { RusageWho, 0 }, { Rusage | OUT, 1 } } },
 	{ .name = "getsid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
 	{ .name = "getsockname", .ret_type = 1, .nargs = 3,
@@ -1185,6 +1192,16 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case UInt:
 		fprintf(fp, "%u", (unsigned int)args[sc->offset]);
 		break;
+	case PUInt: {
+		unsigned int val;
+
+		if (get_struct(pid, (void *)args[sc->offset], &val,
+		    sizeof(val)) == 0) 
+			fprintf(fp, "{ %u }", val);
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 	case LongHex:
 		fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
@@ -1578,6 +1595,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Resource:
 		print_integer_arg(sysdecode_rlimit, fp, args[sc->offset]);
+		break;
+	case RusageWho:
+		print_integer_arg(sysdecode_getrusage_who, fp, args[sc->offset]);
 		break;
 	case Pathconf:
 		fputs(xlookup(pathconf_arg, args[sc->offset]), fp);
@@ -1976,6 +1996,18 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Msgflags:
 		print_mask_arg(sysdecode_msg_flags, fp, args[sc->offset]);
 		break;
+	case CapRights: {
+		cap_rights_t rights;
+
+		if (get_struct(pid, (void *)args[sc->offset], &rights,
+		    sizeof(rights)) != -1) {
+			fputs("{ ", fp);
+			sysdecode_cap_rights(fp, &rights);
+			fputs(" }", fp);
+		} else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);

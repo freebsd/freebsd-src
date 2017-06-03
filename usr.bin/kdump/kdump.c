@@ -1190,6 +1190,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				c = ',';
 				break;
+			case SYS_getrusage:
+				putchar('(');
+				print_integer_arg(sysdecode_getrusage_who, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
 			case SYS_quotactl:
 				print_number(ip, narg, c);
 				putchar(',');

@@ -165,7 +165,7 @@ msdosfs_create(struct vop_create_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("msdosfs_create: no name");
 #endif
-	bzero(&ndirent, sizeof(ndirent));
+	memset(&ndirent, 0, sizeof(ndirent));
 	error = uniqdosname(pdep, cnp, ndirent.de_Name);
 	if (error)
 		goto bad;
@@ -1156,13 +1156,13 @@ abortit:
 		 * we moved a directory, then update its .. entry to point
 		 * to the new parent directory.
 		 */
-		bcopy(ip->de_Name, oldname, 11);
-		bcopy(toname, ip->de_Name, 11);	/* update denode */
+		memcpy(oldname, ip->de_Name, 11);
+		memcpy(ip->de_Name, toname, 11);	/* update denode */
 		dp->de_fndoffset = to_diroffset;
 		dp->de_fndcnt = to_count;
 		error = createde(ip, dp, (struct denode **)0, tcnp);
 		if (error) {
-			bcopy(oldname, ip->de_Name, 11);
+			memcpy(ip->de_Name, oldname, 11);
 			if (newparent)
 				VOP_UNLOCK(fdvp, 0);
 			VOP_UNLOCK(fvp, 0);
@@ -1178,7 +1178,7 @@ abortit:
 		 * to pass the correct name to createde().  Undo this.
 		 */
 		if ((ip->de_Attributes & ATTR_DIRECTORY) != 0)
-			bcopy(oldname, ip->de_Name, 11);
+			memcpy(ip->de_Name, oldname, 11);
 		ip->de_refcnt++;
 		zp->de_fndoffset = from_diroffset;
 		error = removede(zp, ip);
@@ -1324,7 +1324,7 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	if (error)
 		goto bad2;
 
-	bzero(&ndirent, sizeof(ndirent));
+	memset(&ndirent, 0, sizeof(ndirent));
 	ndirent.de_pmp = pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
 	getnanotime(&ts);
@@ -1338,8 +1338,8 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	bn = cntobn(pmp, newcluster);
 	/* always succeeds */
 	bp = getblk(pmp->pm_devvp, bn, pmp->pm_bpcluster, 0, 0, 0);
-	bzero(bp->b_data, pmp->pm_bpcluster);
-	bcopy(&dosdirtemplate, bp->b_data, sizeof dosdirtemplate);
+	memset(bp->b_data, 0, pmp->pm_bpcluster);
+	memcpy(bp->b_data, &dosdirtemplate, sizeof dosdirtemplate);
 	denp = (struct direntry *)bp->b_data;
 	putushort(denp[0].deStartCluster, newcluster);
 	putushort(denp[0].deCDate, ndirent.de_CDate);
@@ -1504,7 +1504,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * To be safe, initialize dirbuf
 	 */
-	bzero(dirbuf.d_name, sizeof(dirbuf.d_name));
+	memset(dirbuf.d_name, 0, sizeof(dirbuf.d_name));
 
 	/*
 	 * If the user buffer is smaller than the size of one dos directory

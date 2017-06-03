@@ -46,7 +46,7 @@ struct stat stb1, stb2;
 struct excludes *excludes_list;
 regex_t	 ignore_re;
 
-#define	OPTIONS	"0123456789aBbC:cdD:efhI:iL:lnNPpqrS:sTtU:uwX:x:"
+#define	OPTIONS	"0123456789aBbC:cdD:efHhI:iL:lnNPpqrS:sTtU:uwX:x:"
 enum {
 	OPT_TSIZE = CHAR_MAX + 1,
 	OPT_STRIPCR,
@@ -54,7 +54,6 @@ enum {
 	OPT_NO_IGN_FN_CASE,
 	OPT_NORMAL,
 	OPT_HORIZON_LINES,
-	OPT_SPEED_LARGE_FILES,
 	OPT_CHANGED_GROUP_FORMAT,
 };
 
@@ -66,6 +65,7 @@ static struct option longopts[] = {
 	{ "minimal",			no_argument,		0,	'd' },
 	{ "ed",				no_argument,		0,	'e' },
 	{ "forward-ed",			no_argument,		0,	'f' },
+	{ "speed-large-files",		no_argument,		NULL,	'H' },
 	{ "ignore-matching-lines",	required_argument,	0,	'I' },
 	{ "ignore-case",		no_argument,		0,	'i' },
 	{ "paginate",			no_argument,		NULL,	'l' },
@@ -88,7 +88,6 @@ static struct option longopts[] = {
 	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
 	{ "normal",			no_argument,		NULL,	OPT_NORMAL },
-	{ "speed-large-files",		no_argument,		NULL,	OPT_SPEED_LARGE_FILES},
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
 	{ "tabsize",			optional_argument,	NULL,	OPT_TSIZE },
 	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
@@ -158,6 +157,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			diff_format = D_REVERSE;
+			break;
+		case 'H':
+			/* ignore but needed for compatibility with GNU diff */
 			break;
 		case 'h':
 			/* silently ignore for backwards compatibility */
@@ -252,8 +254,6 @@ main(int argc, char **argv)
 				usage();
 			}
 			break;
-		case OPT_SPEED_LARGE_FILES:
-			break; /* ignore but needed for compatibility with GNU diff */
 		case OPT_STRIPCR:
 			dflags |= D_STRIPCR;
 			break;
