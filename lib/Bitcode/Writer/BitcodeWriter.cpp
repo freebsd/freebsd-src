@@ -351,7 +351,8 @@ public:
   /// Calls the callback for each value GUID and summary to be written to
   /// bitcode. This hides the details of whether they are being pulled from the
   /// entire index or just those in a provided ModuleToSummariesForIndex map.
-  void forEachSummary(std::function<void(GVInfo)> Callback) {
+  template<typename Functor>
+  void forEachSummary(Functor Callback) {
     if (ModuleToSummariesForIndex) {
       for (auto &M : *ModuleToSummariesForIndex)
         for (auto &Summary : M.second)
@@ -363,20 +364,35 @@ public:
     }
   }
 
+  /// Calls the callback for each entry in the modulePaths StringMap that
+  /// should be written to the module path string table. This hides the details
+  /// of whether they are being pulled from the entire index or just those in a
+  /// provided ModuleToSummariesForIndex map.
+  template <typename Functor> void forEachModule(Functor Callback) {
+    if (ModuleToSummariesForIndex) {
+      for (const auto &M : *ModuleToSummariesForIndex) {
+        const auto &MPI = Index.modulePaths().find(M.first);
+        if (MPI == Index.modulePaths().end()) {
+          // This should only happen if the bitcode file was empty, in which
+          // case we shouldn't be importing (the ModuleToSummariesForIndex
+          // would only include the module we are writing and index for).
+          assert(ModuleToSummariesForIndex->size() == 1);
+          continue;
+        }
+        Callback(*MPI);
+      }
+    } else {
+      for (const auto &MPSE : Index.modulePaths())
+        Callback(MPSE);
+    }
+  }
+
   /// Main entry point for writing a combined index to bitcode.
   void write();
 
 private:
   void writeModStrings();
   void writeCombinedGlobalValueSummary();
-
-  /// Indicates whether the provided \p ModulePath should be written into
-  /// the module string table, e.g. if full index written or if it is in
-  /// the provided subset.
-  bool doIncludeModule(StringRef ModulePath) {
-    return !ModuleToSummariesForIndex ||
-           ModuleToSummariesForIndex->count(ModulePath);
-  }
 
   Optional<unsigned> getValueId(GlobalValue::GUID ValGUID) {
     auto VMI = GUIDToValueIdMap.find(ValGUID);
@@ -864,7 +880,7 @@ static uint64_t getEncodedGVSummaryFlags(GlobalValueSummary::GVFlags Flags) {
   uint64_t RawFlags = 0;
 
   RawFlags |= Flags.NotEligibleToImport; // bool
-  RawFlags |= (Flags.LiveRoot << 1);
+  RawFlags |= (Flags.Live << 1);
   // Linkage don't need to be remapped at that time for the summary. Any future
   // change to the getEncodedLinkage() function will need to be taken into
   // account here as well.
@@ -968,19 +984,18 @@ void ModuleBitcodeWriter::writeValueSymbolTableForwardDecl() {
 enum StringEncoding { SE_Char6, SE_Fixed7, SE_Fixed8 };
 
 /// Determine the encoding to use for the given string name and length.
-static StringEncoding getStringEncoding(const char *Str, unsigned StrLen) {
+static StringEncoding getStringEncoding(StringRef Str) {
   bool isChar6 = true;
-  for (const char *C = Str, *E = C + StrLen; C != E; ++C) {
+  for (char C : Str) {
     if (isChar6)
-      isChar6 = BitCodeAbbrevOp::isChar6(*C);
-    if ((unsigned char)*C & 128)
+      isChar6 = BitCodeAbbrevOp::isChar6(C);
+    if ((unsigned char)C & 128)
       // don't bother scanning the rest.
       return SE_Fixed8;
   }
   if (isChar6)
     return SE_Char6;
-  else
-    return SE_Fixed7;
+  return SE_Fixed7;
 }
 
 /// Emit top-level description of module, including target triple, inline asm,
@@ -1073,8 +1088,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
   SmallVector<unsigned, 64> Vals;
   // Emit the module's source file name.
   {
-    StringEncoding Bits = getStringEncoding(M.getSourceFileName().data(),
-                                            M.getSourceFileName().size());
+    StringEncoding Bits = getStringEncoding(M.getSourceFileName());
     BitCodeAbbrevOp AbbrevOpToUse = BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 8);
     if (Bits == SE_Char6)
       AbbrevOpToUse = BitCodeAbbrevOp(BitCodeAbbrevOp::Char6);
@@ -2790,8 +2804,7 @@ void ModuleBitcodeWriter::writeFunctionLevelValueSymbolTable(
 
   for (const ValueName &Name : VST) {
     // Figure out the encoding to use for the name.
-    StringEncoding Bits =
-        getStringEncoding(Name.getKeyData(), Name.getKeyLength());
+    StringEncoding Bits = getStringEncoding(Name.getKey());
 
     unsigned AbbrevToUse = VST_ENTRY_8_ABBREV;
     NameVals.push_back(VE.getValueID(Name.getValue()));
@@ -3149,41 +3162,33 @@ void IndexBitcodeWriter::writeModStrings() {
   unsigned AbbrevHash = Stream.EmitAbbrev(std::move(Abbv));
 
   SmallVector<unsigned, 64> Vals;
-  for (const auto &MPSE : Index.modulePaths()) {
-    if (!doIncludeModule(MPSE.getKey()))
-      continue;
-    StringEncoding Bits =
-        getStringEncoding(MPSE.getKey().data(), MPSE.getKey().size());
-    unsigned AbbrevToUse = Abbrev8Bit;
-    if (Bits == SE_Char6)
-      AbbrevToUse = Abbrev6Bit;
-    else if (Bits == SE_Fixed7)
-      AbbrevToUse = Abbrev7Bit;
+  forEachModule(
+      [&](const StringMapEntry<std::pair<uint64_t, ModuleHash>> &MPSE) {
+        StringRef Key = MPSE.getKey();
+        const auto &Value = MPSE.getValue();
+        StringEncoding Bits = getStringEncoding(Key);
+        unsigned AbbrevToUse = Abbrev8Bit;
+        if (Bits == SE_Char6)
+          AbbrevToUse = Abbrev6Bit;
+        else if (Bits == SE_Fixed7)
+          AbbrevToUse = Abbrev7Bit;
 
-    Vals.push_back(MPSE.getValue().first);
+        Vals.push_back(Value.first);
+        Vals.append(Key.begin(), Key.end());
 
-    for (const auto P : MPSE.getKey())
-      Vals.push_back((unsigned char)P);
+        // Emit the finished record.
+        Stream.EmitRecord(bitc::MST_CODE_ENTRY, Vals, AbbrevToUse);
 
-    // Emit the finished record.
-    Stream.EmitRecord(bitc::MST_CODE_ENTRY, Vals, AbbrevToUse);
+        // Emit an optional hash for the module now
+        const auto &Hash = Value.second;
+        if (llvm::any_of(Hash, [](uint32_t H) { return H; })) {
+          Vals.assign(Hash.begin(), Hash.end());
+          // Emit the hash record.
+          Stream.EmitRecord(bitc::MST_CODE_HASH, Vals, AbbrevHash);
+        }
 
-    Vals.clear();
-    // Emit an optional hash for the module now
-    auto &Hash = MPSE.getValue().second;
-    bool AllZero = true; // Detect if the hash is empty, and do not generate it
-    for (auto Val : Hash) {
-      if (Val)
-        AllZero = false;
-      Vals.push_back(Val);
-    }
-    if (!AllZero) {
-      // Emit the hash record.
-      Stream.EmitRecord(bitc::MST_CODE_HASH, Vals, AbbrevHash);
-    }
-
-    Vals.clear();
-  }
+        Vals.clear();
+      });
   Stream.ExitBlock();
 }
 

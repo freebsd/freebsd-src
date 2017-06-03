@@ -110,6 +110,7 @@ protected:
   bool FPExceptions;
   bool DX10Clamp;
   bool FlatForGlobal;
+  bool AutoWaitcntBeforeBarrier;
   bool UnalignedScratchAccess;
   bool UnalignedBufferAccess;
   bool HasApertureRegs;
@@ -195,7 +196,8 @@ public:
   }
 
   bool isOpenCLEnv() const {
-    return TargetTriple.getEnvironment() == Triple::OpenCL;
+    return TargetTriple.getEnvironment() == Triple::OpenCL ||
+           TargetTriple.getEnvironmentName() == "amdgizcl";
   }
 
   Generation getGeneration() const {
@@ -361,6 +363,10 @@ public:
 
   bool useFlatForGlobal() const {
     return FlatForGlobal;
+  }
+
+  bool hasAutoWaitcntBeforeBarrier() const {
+    return AutoWaitcntBeforeBarrier;
   }
 
   bool hasUnalignedBufferAccess() const {
@@ -726,12 +732,6 @@ public:
 
   /// Return the maximum number of waves per SIMD for kernels using \p VGPRs VGPRs
   unsigned getOccupancyWithNumVGPRs(unsigned VGPRs) const;
-
-  /// \returns True if waitcnt instruction is needed before barrier instruction,
-  /// false otherwise.
-  bool needWaitcntBeforeBarrier() const {
-    return true;
-  }
 
   /// \returns true if the flat_scratch register should be initialized with the
   /// pointer to the wave's scratch memory rather than a size and offset.
