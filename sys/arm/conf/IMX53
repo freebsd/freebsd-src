@@ -28,6 +28,7 @@ options 	SOC_IMX53
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	NFSD			# Network Filesystem Server
 options 	PLATFORM
+options 	MULTIDELAY
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
 # kernel/memory size reduction
