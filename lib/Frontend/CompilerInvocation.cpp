@@ -768,6 +768,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.SanitizeCoverageTracePCGuard =
       Args.hasArg(OPT_fsanitize_coverage_trace_pc_guard);
   Opts.SanitizeCoverageNoPrune = Args.hasArg(OPT_fsanitize_coverage_no_prune);
+  Opts.SanitizeCoverageInline8bitCounters =
+      Args.hasArg(OPT_fsanitize_coverage_inline_8bit_counters);
   Opts.SanitizeMemoryTrackOrigins =
       getLastArgIntValue(Args, OPT_fsanitize_memory_track_origins_EQ, 0, Diags);
   Opts.SanitizeMemoryUseAfterDtor =
@@ -2699,6 +2701,13 @@ std::string CompilerInvocation::getModuleHash() const {
   for (const auto &ext : frontendOpts.ModuleFileExtensions) {
     code = ext->hashExtension(code);
   }
+
+  // Extend the signature with the enabled sanitizers, if at least one is
+  // enabled. Sanitizers which cannot affect AST generation aren't hashed.
+  SanitizerSet SanHash = LangOpts->Sanitize;
+  SanHash.clear(getPPTransparentSanitizers());
+  if (!SanHash.empty())
+    code = hash_combine(code, SanHash.Mask);
 
   return llvm::APInt(64, code).toString(36, /*Signed=*/false);
 }

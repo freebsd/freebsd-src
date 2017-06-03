@@ -404,6 +404,7 @@ ParsedType Sema::getTypeName(const IdentifierInfo &II, SourceLocation NameLoc,
       }
     }
     // If typo correction failed or was not performed, fall through
+    LLVM_FALLTHROUGH;
   case LookupResult::FoundOverloaded:
   case LookupResult::FoundUnresolvedValue:
     Result.suppressDiagnostics();
@@ -6160,7 +6161,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
     QualType NR = R;
     while (NR->isPointerType()) {
       if (NR->isFunctionPointerType()) {
-        Diag(D.getIdentifierLoc(), diag::err_opencl_function_pointer_variable);
+        Diag(D.getIdentifierLoc(), diag::err_opencl_function_pointer);
         D.setInvalidType();
         break;
       }
@@ -12309,7 +12310,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
         TypeSourceInfo *TI = FD->getTypeSourceInfo();
         TypeLoc TL = TI->getTypeLoc();
         FunctionTypeLoc FTL = TL.getAsAdjusted<FunctionTypeLoc>();
-        Diag(FTL.getLParenLoc(), diag::warn_strict_prototypes) << 1;
+        Diag(FTL.getLParenLoc(), diag::warn_strict_prototypes) << 2;
       }
     }
 
