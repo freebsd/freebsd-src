@@ -176,7 +176,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "getrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | OUT, 1 } } },
 	{ .name = "getrusage", .ret_type = 1, .nargs = 2,
-	  .args = { { Int, 0 }, { Rusage | OUT, 1 } } },
+	  .args = { { RusageWho, 0 }, { Rusage | OUT, 1 } } },
 	{ .name = "getsid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
 	{ .name = "getsockname", .ret_type = 1, .nargs = 3,
@@ -1595,6 +1595,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Resource:
 		print_integer_arg(sysdecode_rlimit, fp, args[sc->offset]);
+		break;
+	case RusageWho:
+		print_integer_arg(sysdecode_getrusage_who, fp, args[sc->offset]);
 		break;
 	case Pathconf:
 		fputs(xlookup(pathconf_arg, args[sc->offset]), fp);
