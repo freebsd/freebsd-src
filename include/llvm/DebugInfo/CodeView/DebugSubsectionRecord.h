@@ -31,28 +31,32 @@ struct DebugSubsectionHeader {
 class DebugSubsectionRecord {
 public:
   DebugSubsectionRecord();
-  DebugSubsectionRecord(DebugSubsectionKind Kind, BinaryStreamRef Data);
+  DebugSubsectionRecord(DebugSubsectionKind Kind, BinaryStreamRef Data,
+                        CodeViewContainer Container);
 
-  static Error initialize(BinaryStreamRef Stream, DebugSubsectionRecord &Info);
+  static Error initialize(BinaryStreamRef Stream, DebugSubsectionRecord &Info,
+                          CodeViewContainer Container);
 
   uint32_t getRecordLength() const;
   DebugSubsectionKind kind() const;
   BinaryStreamRef getRecordData() const;
 
 private:
+  CodeViewContainer Container;
   DebugSubsectionKind Kind;
   BinaryStreamRef Data;
 };
 
 class DebugSubsectionRecordBuilder {
 public:
-  DebugSubsectionRecordBuilder(DebugSubsectionKind Kind, DebugSubsection &Frag);
+  DebugSubsectionRecordBuilder(std::unique_ptr<DebugSubsection> Subsection,
+                               CodeViewContainer Container);
   uint32_t calculateSerializedLength();
   Error commit(BinaryStreamWriter &Writer);
 
 private:
-  DebugSubsectionKind Kind;
-  DebugSubsection &Frag;
+  std::unique_ptr<DebugSubsection> Subsection;
+  CodeViewContainer Container;
 };
 
 } // namespace codeview
@@ -62,7 +66,12 @@ template <> struct VarStreamArrayExtractor<codeview::DebugSubsectionRecord> {
 
   static Error extract(BinaryStreamRef Stream, uint32_t &Length,
                        codeview::DebugSubsectionRecord &Info) {
-    if (auto EC = codeview::DebugSubsectionRecord::initialize(Stream, Info))
+    // FIXME: We need to pass the container type through to this function, but
+    // VarStreamArray doesn't easily support stateful contexts.  In practice
+    // this isn't super important since the subsection header describes its
+    // length and we can just skip it.  It's more important when writing.
+    if (auto EC = codeview::DebugSubsectionRecord::initialize(
+            Stream, Info, codeview::CodeViewContainer::Pdb))
       return EC;
     Length = Info.getRecordLength();
     return Error::success();
