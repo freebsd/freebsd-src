@@ -32,6 +32,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_fadvice.3 \
 	sysdecode_enum.3 sysdecode_fcntl_cmd.3 \
 	sysdecode_enum.3 sysdecode_getfsstat_mode.3 \
+	sysdecode_enum.3 sysdecode_getrusage_who.3 \
 	sysdecode_enum.3 sysdecode_idtype.3 \
 	sysdecode_enum.3 sysdecode_ipproto.3 \
 	sysdecode_enum.3 sysdecode_kldsym_cmd.3 \
