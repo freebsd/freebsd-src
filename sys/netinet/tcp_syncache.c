@@ -602,7 +602,7 @@ syncache_badack(struct in_conninfo *inc)
 }
 
 void
-syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
+syncache_unreach(struct in_conninfo *inc, tcp_seq th_seq)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -613,7 +613,7 @@ syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
 		goto done;
 
 	/* If the sequence number != sc_iss, then it's a bogus ICMP msg */
-	if (ntohl(th->th_seq) != sc->sc_iss)
+	if (ntohl(th_seq) != sc->sc_iss)
 		goto done;
 
 	/*
