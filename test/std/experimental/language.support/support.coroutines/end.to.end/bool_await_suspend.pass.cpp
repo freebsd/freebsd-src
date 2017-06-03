@@ -10,6 +10,9 @@
 
 // UNSUPPORTED: c++98, c++03, c++11
 
+// See https://bugs.llvm.org/show_bug.cgi?id=33271
+// UNSUPPORTED: ubsan
+
 #include <experimental/coroutine>
 #include <cassert>
 
@@ -22,7 +25,7 @@ struct coro_t {
     }
     suspend_never initial_suspend() { return {}; }
     suspend_never final_suspend() { return {}; }
-    void return_void(){}
+    void return_void() {}
     void unhandled_exception() {}
   };
   coro_t(coroutine_handle<promise_type> hh) : h(hh) {}
