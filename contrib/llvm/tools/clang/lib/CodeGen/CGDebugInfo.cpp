@@ -2781,6 +2781,7 @@ llvm::DICompositeType *CGDebugInfo::CreateLimitedType(const RecordType *Ty) {
     // them distinct if they are ODR-uniqued.
     if (FullName.empty())
       break;
+    LLVM_FALLTHROUGH;
 
   case llvm::dwarf::DW_TAG_structure_type:
   case llvm::dwarf::DW_TAG_union_type:
@@ -3263,7 +3264,7 @@ void CGDebugInfo::EmitInlineFunctionStart(CGBuilderTy &Builder, GlobalDecl GD) {
 
 void CGDebugInfo::EmitInlineFunctionEnd(CGBuilderTy &Builder) {
   assert(CurInlinedAt && "unbalanced inline scope stack");
-  EmitFunctionEnd(Builder);
+  EmitFunctionEnd(Builder, nullptr);
   setInlinedAt(llvm::DebugLoc(CurInlinedAt).getInlinedAt());
 }
 
@@ -3332,7 +3333,7 @@ void CGDebugInfo::EmitLexicalBlockEnd(CGBuilderTy &Builder,
   LexicalBlockStack.pop_back();
 }
 
-void CGDebugInfo::EmitFunctionEnd(CGBuilderTy &Builder) {
+void CGDebugInfo::EmitFunctionEnd(CGBuilderTy &Builder, llvm::Function *Fn) {
   assert(!LexicalBlockStack.empty() && "Region stack mismatch, stack empty!");
   unsigned RCount = FnBeginRegionCount.back();
   assert(RCount <= LexicalBlockStack.size() && "Region stack mismatch");
@@ -3344,6 +3345,9 @@ void CGDebugInfo::EmitFunctionEnd(CGBuilderTy &Builder) {
     LexicalBlockStack.pop_back();
   }
   FnBeginRegionCount.pop_back();
+
+  if (Fn && Fn->getSubprogram())
+    DBuilder.finalizeSubprogram(Fn->getSubprogram());
 }
 
 llvm::DIType *CGDebugInfo::EmitTypeForVarWithBlocksAttr(const VarDecl *VD,

@@ -643,6 +643,7 @@ static void distributeTypeAttrsFromDeclarator(TypeProcessingState &state,
       if (!state.getSema().getLangOpts().ObjCAutoRefCount)
         break;
       // fallthrough
+      LLVM_FALLTHROUGH;
 
     FUNCTION_TYPE_ATTRS_CASELIST:
       distributeFunctionTypeAttrFromDeclarator(state, *attr, declSpecType);
@@ -1878,6 +1879,11 @@ QualType Sema::BuildPointerType(QualType T,
     // C++ 8.3.2p4: There shall be no ... pointers to references ...
     Diag(Loc, diag::err_illegal_decl_pointer_to_reference)
       << getPrintableNameForEntity(Entity) << T;
+    return QualType();
+  }
+
+  if (T->isFunctionType() && getLangOpts().OpenCL) {
+    Diag(Loc, diag::err_opencl_function_pointer);
     return QualType();
   }
 
@@ -4347,19 +4353,6 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       if (FTI.isAmbiguous)
         warnAboutAmbiguousFunction(S, D, DeclType, T);
 
-      // GNU warning -Wstrict-prototypes
-      //   Warn if a function declaration is without a prototype.
-      //   This warning is issued for all kinds of unprototyped function
-      //   declarations (i.e. function type typedef, function pointer etc.)
-      //   C99 6.7.5.3p14:
-      //   The empty list in a function declarator that is not part of a
-      //   definition of that function specifies that no information
-      //   about the number or types of the parameters is supplied.
-      if (D.getFunctionDefinitionKind() == FDK_Declaration &&
-          FTI.NumParams == 0 && !LangOpts.CPlusPlus)
-        S.Diag(DeclType.Loc, diag::warn_strict_prototypes)
-            << 0 << FixItHint::CreateInsertion(FTI.getRParenLoc(), "void");
-
       FunctionType::ExtInfo EI(getCCForDeclaratorChunk(S, D, FTI, chunkIndex));
 
       if (!FTI.NumParams && !FTI.isVariadic && !LangOpts.CPlusPlus) {
@@ -4600,6 +4593,36 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
     // See if there are any attributes on this declarator chunk.
     processTypeAttrs(state, T, TAL_DeclChunk,
                      const_cast<AttributeList *>(DeclType.getAttrs()));
+  }
+
+  // GNU warning -Wstrict-prototypes
+  //   Warn if a function declaration is without a prototype.
+  //   This warning is issued for all kinds of unprototyped function
+  //   declarations (i.e. function type typedef, function pointer etc.)
+  //   C99 6.7.5.3p14:
+  //   The empty list in a function declarator that is not part of a definition
+  //   of that function specifies that no information about the number or types
+  //   of the parameters is supplied.
+  if (!LangOpts.CPlusPlus && D.getFunctionDefinitionKind() == FDK_Declaration) {
+    bool IsBlock = false;
+    for (const DeclaratorChunk &DeclType : D.type_objects()) {
+      switch (DeclType.Kind) {
+      case DeclaratorChunk::BlockPointer:
+        IsBlock = true;
+        break;
+      case DeclaratorChunk::Function: {
+        const DeclaratorChunk::FunctionTypeInfo &FTI = DeclType.Fun;
+        if (FTI.NumParams == 0)
+          S.Diag(DeclType.Loc, diag::warn_strict_prototypes)
+              << IsBlock
+              << FixItHint::CreateInsertion(FTI.getRParenLoc(), "void");
+        IsBlock = false;
+        break;
+      }
+      default:
+        break;
+      }
+    }
   }
 
   assert(!T.isNull() && "T must not be null after this point");
@@ -6925,6 +6948,7 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       if (!state.getSema().getLangOpts().ObjCAutoRefCount)
         break;
       // fallthrough into the function attrs
+      LLVM_FALLTHROUGH;
 
     FUNCTION_TYPE_ATTRS_CASELIST:
       attr.setUsedAsTypeAttr();
