@@ -90,6 +90,29 @@ do { \
 #define WAR_USB_DISABLE_PLL_LOCK_DETECT(__ah)
 #endif
 
+/*
+ * Note: the below is the version that ships with ath9k.
+ * The original HAL version is above.
+ */
+
+static void
+ar9300_disable_pll_lock_detect(struct ath_hal *ah)
+{
+	/*
+	 * On AR9330 and AR9340 devices, some PHY registers must be
+	 * tuned to gain better stability/performance. These registers
+	 * might be changed while doing wlan reset so the registers must
+	 * be reprogrammed after each reset.
+	 */
+	if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah)) {
+		HALDEBUG(ah, HAL_DEBUG_RESET, "%s: called\n", __func__);
+		OS_REG_CLR_BIT(ah, AR_PHY_USB_CTRL1, (1 << 20));
+		OS_REG_RMW(ah, AR_PHY_USB_CTRL2,
+		    (1 << 21) | (0xf << 22),
+		    (1 << 21) | (0x3 << 22));
+	}
+}
+
 static inline void
 ar9300_attach_hw_platform(struct ath_hal *ah)
 {
@@ -1850,6 +1873,7 @@ ar9300_set_reset(struct ath_hal *ah, int type)
 
     /* Clear AHB reset */
     OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_RC), 0);
+    ar9300_disable_pll_lock_detect(ah);
 
     ar9300_attach_hw_platform(ah);
 
@@ -1984,6 +2008,7 @@ ar9300_phy_disable(struct ath_hal *ah)
 
 
     ar9300_init_pll(ah, AH_NULL);
+    ar9300_disable_pll_lock_detect(ah);
 
     return AH_TRUE;
 }
@@ -4774,7 +4799,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
              * successfully - skip the rest of reset
              */
             if (AH9300(ah)->ah_dma_stuck != AH_TRUE) {
-                WAR_USB_DISABLE_PLL_LOCK_DETECT(ah);
+                ar9300_disable_pll_lock_detect(ah);
 #if ATH_SUPPORT_MCI
                 if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready)
                 {
@@ -5350,7 +5375,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 #undef REG_WRITE
 #endif  /* ATH_LOW_POWER_ENABLE */
 
-    WAR_USB_DISABLE_PLL_LOCK_DETECT(ah);
+    ar9300_disable_pll_lock_detect(ah);
 
     /* H/W Green TX */
     ar9300_control_signals_for_green_tx_mode(ah);
