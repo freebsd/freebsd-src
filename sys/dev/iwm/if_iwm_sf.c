@@ -248,7 +248,7 @@ iwm_mvm_sf_config(struct iwm_softc *sc, struct ieee80211_node *ni,
 	enum iwm_sf_state new_state)
 {
 	struct iwm_sf_cfg_cmd sf_cmd = {
-		.state = htole32(IWM_SF_FULL_ON),
+		.state = htole32(new_state),
 	};
 	int ret = 0;
 
