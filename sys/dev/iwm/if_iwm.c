@@ -164,6 +164,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_time_event.h>
 #include <dev/iwm/if_iwm_power.h>
 #include <dev/iwm/if_iwm_scan.h>
+#include <dev/iwm/if_iwm_sf.h>
 #include <dev/iwm/if_iwm_sta.h>
 
 #include <dev/iwm/if_iwm_pcie_trans.h>
@@ -354,10 +355,6 @@ static void	iwm_setrates(struct iwm_softc *, struct iwm_node *);
 static int	iwm_media_change(struct ifnet *);
 static int	iwm_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwm_endscan_cb(void *, int);
-static void	iwm_mvm_fill_sf_command(struct iwm_softc *,
-					struct iwm_sf_cfg_cmd *,
-					struct ieee80211_node *);
-static int	iwm_mvm_sf_config(struct iwm_softc *, enum iwm_sf_state);
 static int	iwm_send_bt_init_conf(struct iwm_softc *);
 static int	iwm_send_update_mcc_cmd(struct iwm_softc *, const char *);
 static void	iwm_mvm_tt_tx_backoff(struct iwm_softc *, uint32_t);
@@ -2989,11 +2986,6 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 		goto error;
 	}
 
-	/* Init Smart FIFO. */
-	ret = iwm_mvm_sf_config(sc, IWM_SF_INIT_OFF);
-	if (ret)
-		goto error;
-
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwm_send_tx_ant_cfg(sc, iwm_mvm_get_valid_tx_ant(sc));
 	if (ret) {
@@ -3991,10 +3983,6 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 		goto out;
 	}
 
-	error = iwm_mvm_sf_config(sc, IWM_SF_FULL_ON);
-	if (error != 0)
-		return error;
-
 	error = iwm_allow_mcast(vap, sc);
 	if (error) {
 		device_printf(sc->sc_dev,
@@ -4469,6 +4457,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    "%s: failed to update MAC: %d\n", __func__, error);
 		}
 
+		iwm_mvm_sf_update(sc, vap, FALSE);
 		iwm_mvm_enable_beacon_filter(sc, ivp);
 		iwm_mvm_power_update_mac(sc);
 		iwm_mvm_update_quotas(sc, ivp);
@@ -4504,142 +4493,6 @@ iwm_endscan_cb(void *arg, int pending)
 	    __func__);
 
 	ieee80211_scan_done(TAILQ_FIRST(&ic->ic_vaps));
-}
-
-/*
- * Aging and idle timeouts for the different possible scenarios
- * in default configuration
- */
-static const uint32_t
-iwm_sf_full_timeout_def[IWM_SF_NUM_SCENARIO][IWM_SF_NUM_TIMEOUT_TYPES] = {
-	{
-		htole32(IWM_SF_SINGLE_UNICAST_AGING_TIMER_DEF),
-		htole32(IWM_SF_SINGLE_UNICAST_IDLE_TIMER_DEF)
-	},
-	{
-		htole32(IWM_SF_AGG_UNICAST_AGING_TIMER_DEF),
-		htole32(IWM_SF_AGG_UNICAST_IDLE_TIMER_DEF)
-	},
-	{
-		htole32(IWM_SF_MCAST_AGING_TIMER_DEF),
-		htole32(IWM_SF_MCAST_IDLE_TIMER_DEF)
-	},
-	{
-		htole32(IWM_SF_BA_AGING_TIMER_DEF),
-		htole32(IWM_SF_BA_IDLE_TIMER_DEF)
-	},
-	{
-		htole32(IWM_SF_TX_RE_AGING_TIMER_DEF),
-		htole32(IWM_SF_TX_RE_IDLE_TIMER_DEF)
-	},
-};
-
-/*
- * Aging and idle timeouts for the different possible scenarios
- * in single BSS MAC configuration.
- */
-static const uint32_t
-iwm_sf_full_timeout[IWM_SF_NUM_SCENARIO][IWM_SF_NUM_TIMEOUT_TYPES] = {
-	{
-		htole32(IWM_SF_SINGLE_UNICAST_AGING_TIMER),
-		htole32(IWM_SF_SINGLE_UNICAST_IDLE_TIMER)
-	},
-	{
-		htole32(IWM_SF_AGG_UNICAST_AGING_TIMER),
-		htole32(IWM_SF_AGG_UNICAST_IDLE_TIMER)
-	},
-	{
-		htole32(IWM_SF_MCAST_AGING_TIMER),
-		htole32(IWM_SF_MCAST_IDLE_TIMER)
-	},
-	{
-		htole32(IWM_SF_BA_AGING_TIMER),
-		htole32(IWM_SF_BA_IDLE_TIMER)
-	},
-	{
-		htole32(IWM_SF_TX_RE_AGING_TIMER),
-		htole32(IWM_SF_TX_RE_IDLE_TIMER)
-	},
-};
-
-static void
-iwm_mvm_fill_sf_command(struct iwm_softc *sc, struct iwm_sf_cfg_cmd *sf_cmd,
-    struct ieee80211_node *ni)
-{
-	int i, j, watermark;
-
-	sf_cmd->watermark[IWM_SF_LONG_DELAY_ON] = htole32(IWM_SF_W_MARK_SCAN);
-
-	/*
-	 * If we are in association flow - check antenna configuration
-	 * capabilities of the AP station, and choose the watermark accordingly.
-	 */
-	if (ni) {
-		if (ni->ni_flags & IEEE80211_NODE_HT) {
-#ifdef notyet
-			if (ni->ni_rxmcs[2] != 0)
-				watermark = IWM_SF_W_MARK_MIMO3;
-			else if (ni->ni_rxmcs[1] != 0)
-				watermark = IWM_SF_W_MARK_MIMO2;
-			else
-#endif
-				watermark = IWM_SF_W_MARK_SISO;
-		} else {
-			watermark = IWM_SF_W_MARK_LEGACY;
-		}
-	/* default watermark value for unassociated mode. */
-	} else {
-		watermark = IWM_SF_W_MARK_MIMO2;
-	}
-	sf_cmd->watermark[IWM_SF_FULL_ON] = htole32(watermark);
-
-	for (i = 0; i < IWM_SF_NUM_SCENARIO; i++) {
-		for (j = 0; j < IWM_SF_NUM_TIMEOUT_TYPES; j++) {
-			sf_cmd->long_delay_timeouts[i][j] =
-					htole32(IWM_SF_LONG_DELAY_AGING_TIMER);
-		}
-	}
-
-	if (ni) {
-		memcpy(sf_cmd->full_on_timeouts, iwm_sf_full_timeout,
-		       sizeof(iwm_sf_full_timeout));
-	} else {
-		memcpy(sf_cmd->full_on_timeouts, iwm_sf_full_timeout_def,
-		       sizeof(iwm_sf_full_timeout_def));
-	}
-}
-
-static int
-iwm_mvm_sf_config(struct iwm_softc *sc, enum iwm_sf_state new_state)
-{
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct iwm_sf_cfg_cmd sf_cmd = {
-		.state = htole32(IWM_SF_FULL_ON),
-	};
-	int ret = 0;
-
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
-		sf_cmd.state |= htole32(IWM_SF_CFG_DUMMY_NOTIF_OFF);
-
-	switch (new_state) {
-	case IWM_SF_UNINIT:
-	case IWM_SF_INIT_OFF:
-		iwm_mvm_fill_sf_command(sc, &sf_cmd, NULL);
-		break;
-	case IWM_SF_FULL_ON:
-		iwm_mvm_fill_sf_command(sc, &sf_cmd, vap->iv_bss);
-		break;
-	default:
-		IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE,
-		    "Invalid state: %d. not sending Smart Fifo cmd\n",
-			  new_state);
-		return EINVAL;
-	}
-
-	ret = iwm_mvm_send_cmd_pdu(sc, IWM_REPLY_SF_CFG_CMD, IWM_CMD_ASYNC,
-				   sizeof(sf_cmd), &sf_cmd);
-	return ret;
 }
 
 static int
@@ -4743,6 +4596,8 @@ iwm_init_hw(struct iwm_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error, i, ac;
 
+	sc->sf_state = IWM_SF_UNINIT;
+
 	if ((error = iwm_start_hw(sc)) != 0) {
 		printf("iwm_start_hw: failed %d\n", error);
 		return error;
@@ -4770,6 +4625,10 @@ iwm_init_hw(struct iwm_softc *sc)
 		device_printf(sc->sc_dev, "could not load firmware\n");
 		goto error;
 	}
+
+	error = iwm_mvm_sf_update(sc, NULL, FALSE);
+	if (error)
+		device_printf(sc->sc_dev, "Failed to initialize Smart Fifo\n");
 
 	if ((error = iwm_send_bt_init_conf(sc)) != 0) {
 		device_printf(sc->sc_dev, "bt init conf failed\n");
@@ -5935,6 +5794,8 @@ iwm_attach(device_t dev)
 		device_printf(dev, "failed to init notification wait struct\n");
 		goto fail;
 	}
+
+	sc->sf_state = IWM_SF_UNINIT;
 
 	/* Init phy db */
 	sc->sc_phy_db = iwm_phy_db_init(sc);
