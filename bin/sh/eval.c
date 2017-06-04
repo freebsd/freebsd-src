@@ -470,6 +470,7 @@ evalredir(union node *n, int flags)
 		if (e == EXERROR || e == EXEXEC) {
 			if (in_redirect) {
 				exitstatus = 2;
+				FORCEINTON;
 				return;
 			}
 		}
