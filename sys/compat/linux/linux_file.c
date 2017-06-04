@@ -826,7 +826,7 @@ linux_symlinkat(struct thread *td, struct linux_symlinkat_args *args)
 	int error, dfd;
 
 	dfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;
-	LCONVPATHEXIST_AT(td, args->oldname, &path, dfd);
+	LCONVPATHEXIST(td, args->oldname, &path);
 	/* Expand LCONVPATHCREATE so that `path' can be freed on errors */
 	error = linux_emul_convpath(td, args->newname, UIO_USERSPACE, &to, 1, dfd);
 	if (to == NULL) {
