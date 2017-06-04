@@ -1806,7 +1806,7 @@ enum {
 	/* Phy */
 	IWM_PHY_CONFIGURATION_CMD = 0x6a,
 	IWM_CALIB_RES_NOTIF_PHY_DB = 0x6b,
-	/* IWM_PHY_DB_CMD = 0x6c, */
+	IWM_PHY_DB_CMD = 0x6c,
 
 	/* Power - legacy power table command */
 	IWM_POWER_TABLE_CMD = 0x77,
