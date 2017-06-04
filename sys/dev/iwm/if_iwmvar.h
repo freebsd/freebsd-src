@@ -558,6 +558,9 @@ struct iwm_softc {
 
 	boolean_t		last_ebs_successful;
 
+	/* last smart fifo state that was successfully sent to firmware */
+	enum iwm_sf_state	sf_state;
+
 	/* Indicate if device power save is allowed */
 	boolean_t		sc_ps_disabled;
 };
