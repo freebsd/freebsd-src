@@ -8,7 +8,7 @@ arm/freescale/imx/imx51_machdep.c	optional	soc_imx51
 arm/freescale/imx/imx53_machdep.c	optional	soc_imx53
 
 # Special serial console for debuging early boot code
-#arm/freescale/imx/console.c		standard
+#arm/freescale/imx/imx_console.c	standard
 
 # UART driver (includes serial console support)
 dev/uart/uart_dev_imx.c			optional uart
