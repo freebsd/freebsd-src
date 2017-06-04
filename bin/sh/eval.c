@@ -800,11 +800,8 @@ xtracecommand(struct arglist *varlist, int argc, char **argv)
 static int
 safe_builtin(int idx, int argc, char **argv)
 {
-	if (idx == BLTINCMD || idx == COMMANDCMD || idx == ECHOCMD ||
-	    idx == FALSECMD || idx == JOBIDCMD || idx == JOBSCMD ||
-	    idx == KILLCMD || idx == PRINTFCMD || idx == PWDCMD ||
-	    idx == TESTCMD || idx == TIMESCMD || idx == TRUECMD ||
-	    idx == TYPECMD)
+	/* Generated from builtins.def. */
+	if (safe_builtin_always(idx))
 		return (1);
 	if (idx == EXPORTCMD || idx == TRAPCMD || idx == ULIMITCMD ||
 	    idx == UMASKCMD)
