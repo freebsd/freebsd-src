@@ -2,7 +2,8 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	mkimg_test
+_REBASE_SCRIPT=	mkimg_test
+ATF_TESTS_SH=	${_REBASE_SCRIPT}
 
 SOURCES!=	cd ${.CURDIR}; echo *.uu
 ${PACKAGE}FILES+=		${SOURCES:S,.gz.uu,,g}
@@ -12,7 +13,7 @@ ${${PACKAGE}FILES}:
 
 CLEANFILES+=	${${PACKAGE}FILES}}
 
-rebase:
-	(cd ${.CURDIR}; atf-sh mkimg.sh rebase)
+rebase: .PHONY
+	(cd ${.CURDIR}; atf-sh ${_REBASE_SCRIPT}.sh rebase)
 
 .include <bsd.test.mk>
