@@ -385,7 +385,7 @@ aio_file_test(completion comp)
 	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_UNSAFE_AIO();
 
-	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT);
+	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	arg.afa_fd = fd;
@@ -834,7 +834,7 @@ ATF_TC_BODY(aio_large_read_test, tc)
 		len = INT_MAX;
 #endif
 
-	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT);
+	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	unlink(FILE_PATHNAME);
@@ -1088,7 +1088,7 @@ ATF_TC_BODY(aio_fsync_test, tc)
 	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_UNSAFE_AIO();
 
-	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT);
+	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 	unlink(FILE_PATHNAME);
 
