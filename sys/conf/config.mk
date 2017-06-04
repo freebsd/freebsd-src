@@ -8,8 +8,6 @@
 # the code here when they all produce identical results
 # (or should)
 .if !defined(KERNBUILDDIR)
-opt_global.h:
-	echo "#define DEV_RANDOM 1" >> ${.TARGET}
 opt_bpf.h:
 	echo "#define DEV_BPF 1" > ${.TARGET}
 .if ${MK_INET_SUPPORT} != "no"
