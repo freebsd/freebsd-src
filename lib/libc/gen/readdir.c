@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * get next entry in a directory.
  */
 struct dirent *
-_readdir_unlocked(DIR *dirp, int skip)
+_readdir_unlocked(DIR *dirp, int flags)
 {
 	struct dirent *dp;
 	long initial_seek;
@@ -80,9 +80,12 @@ _readdir_unlocked(DIR *dirp, int skip)
 		    dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc)
 			return (NULL);
 		dirp->dd_loc += dp->d_reclen;
-		if (dp->d_ino == 0 && skip)
+		if (dp->d_ino == 0 && (flags & RDU_SKIP) != 0)
 			continue;
 		if (dp->d_type == DT_WHT && (dirp->dd_flags & DTF_HIDEW))
+			continue;
+		if (dp->d_namlen >= sizeof(dp->d_name) &&
+		    (flags & RDU_SHORT) != 0)
 			continue;
 		return (dp);
 	}
@@ -91,34 +94,31 @@ _readdir_unlocked(DIR *dirp, int skip)
 struct dirent *
 readdir(DIR *dirp)
 {
-	struct dirent	*dp;
+	struct dirent *dp;
 
-	if (__isthreaded) {
+	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-		dp = _readdir_unlocked(dirp, 1);
+	dp = _readdir_unlocked(dirp, RDU_SKIP);
+	if (__isthreaded)
 		_pthread_mutex_unlock(&dirp->dd_lock);
-	}
-	else
-		dp = _readdir_unlocked(dirp, 1);
 	return (dp);
 }
 
 int
-readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
+__readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
 	struct dirent *dp;
 	int saved_errno;
 
 	saved_errno = errno;
 	errno = 0;
-	if (__isthreaded) {
+	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-		if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
-			memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
-		_pthread_mutex_unlock(&dirp->dd_lock);
-	}
-	else if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
+	dp = _readdir_unlocked(dirp, RDU_SKIP | RDU_SHORT);
+	if (dp != NULL)
 		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
+	if (__isthreaded)
+		_pthread_mutex_unlock(&dirp->dd_lock);
 
 	if (errno != 0) {
 		if (dp == NULL)
@@ -133,3 +133,5 @@ readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 
 	return (0);
 }
+
+__strong_reference(__readdir_r, readdir_r);

@@ -59,6 +59,7 @@ fdclosedir(DIR *dirp)
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
 	free((void *)dirp->dd_buf);
+	free(dirp->dd_compat_de);
 	_reclaim_telldir(dirp);
 	if (__isthreaded) {
 		_pthread_mutex_unlock(&dirp->dd_lock);

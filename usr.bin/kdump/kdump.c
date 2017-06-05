@@ -959,7 +959,6 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
-			case SYS_mknod:
 			case SYS_mknodat:
 				print_number(ip, narg, c);
 				putchar(',');

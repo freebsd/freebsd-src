@@ -39,6 +39,8 @@ SRCS+=	\
 	__error.c \
 	interposing_table.c
 
+SRCS+= getdents.c lstat.c mknod.c stat.c
+
 SRCS+= futimens.c utimensat.c
 PSEUDO+= _futimens.o _utimensat.o
 

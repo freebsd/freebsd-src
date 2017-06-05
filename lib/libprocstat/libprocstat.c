@@ -1337,12 +1337,12 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 	struct statfs stbuf;
 	struct kinfo_file *kif;
 	struct kinfo_vmentry *kve;
+	char *name, *path;
 	uint64_t fileid;
 	uint64_t size;
-	char *name, *path;
-	uint32_t fsid;
+	uint64_t fsid;
+	uint64_t rdev;
 	uint16_t mode;
-	uint32_t rdev;
 	int vntype;
 	int status;
 
@@ -1545,8 +1545,10 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	sock->dom_family = kif->kf_sock_domain;
 	sock->so_pcb = kif->kf_un.kf_sock.kf_sock_pcb;
 	strlcpy(sock->dname, kif->kf_path, sizeof(sock->dname));
-	bcopy(&kif->kf_sa_local, &sock->sa_local, kif->kf_sa_local.ss_len);
-	bcopy(&kif->kf_sa_peer, &sock->sa_peer, kif->kf_sa_peer.ss_len);
+	bcopy(&kif->kf_un.kf_sock.kf_sa_local, &sock->sa_local,
+	    kif->kf_un.kf_sock.kf_sa_local.ss_len);
+	bcopy(&kif->kf_un.kf_sock.kf_sa_peer, &sock->sa_peer,
+	    kif->kf_un.kf_sock.kf_sa_peer.ss_len);
 
 	/*
 	 * Protocol specific data.

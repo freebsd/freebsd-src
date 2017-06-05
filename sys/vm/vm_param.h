@@ -89,7 +89,7 @@
 /*
  * Structure for swap device statistics
  */
-#define XSWDEV_VERSION	1
+#define XSWDEV_VERSION	2
 struct xswdev {
 	u_int	xsw_version;
 	dev_t	xsw_dev;

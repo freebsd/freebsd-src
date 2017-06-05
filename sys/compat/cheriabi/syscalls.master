@@ -89,8 +89,7 @@
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ const char *path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
-14	AUE_MKNOD	NOPROTO	{ int mknod(_In_z_ const char *path, \
-				    mode_t mode, dev_t dev); }
+14	AUE_MKNOD	OBSOL	fbsd11_mknod
 15	AUE_CHMOD	NOPROTO	{ int chmod(_In_z_ const char *path, \
 				    mode_t mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(_In_z_ const char *path, int uid, \
@@ -395,11 +394,9 @@
 185	AUE_NULL	UNIMPL	lfs_markv
 186	AUE_NULL	UNIMPL	lfs_segclean
 187	AUE_NULL	UNIMPL	lfs_segwait
-188	AUE_STAT	NOPROTO	{ int stat(_In_z_ const char *path, \
-				    _Out_ struct stat *ub); }
-189	AUE_FSTAT	NOPROTO	{ int fstat(int fd, _Out_ struct stat *sb); }
-190	AUE_LSTAT	NOPROTO	{ int lstat(_In_z_ const char *path, \
-				    _Out_ struct stat *ub); }
+188	AUE_STAT	OBSOL	fbsd11_stat
+189	AUE_FSTAT	OBSOL	fbsd11_fstat
+190	AUE_LSTAT	OBSOL	fbsd11_lstat
 191	AUE_PATHCONF	NOPROTO	{ int pathconf(_In_z_ const char *path, \
 				    int name); }
 192	AUE_FPATHCONF	NOPROTO	{ int fpathconf(int fd, int name); }
@@ -410,9 +407,7 @@
 195	AUE_SETRLIMIT	NOPROTO	{ int setrlimit(u_int which, \
 				    _In_ struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
-196	AUE_GETDIRENTRIES	NOPROTO	{ int getdirentries(int fd, \
-				    _Out_writes_bytes_(count) char *buf, \
-				    u_int count, _Out_ long *basep); }
+196	AUE_GETDIRENTRIES	OBSOL	fbsd11_getdirentries
 197	AUE_MMAP	OBSOL	mmap
 198	AUE_NULL	OBSOL	__syscall
 199	AUE_LSEEK	OBSOL	lseek
@@ -556,9 +551,7 @@
 269	AUE_NULL	UNIMPL	nosys
 270	AUE_NULL	UNIMPL	nosys
 271	AUE_NULL	UNIMPL	nosys
-272	AUE_O_GETDENTS	NOPROTO	{ int getdents(int fd, \
-				    _Out_writes_bytes_(count) char *buf, \
-				    size_t count); }
+272	AUE_O_GETDENTS	OBSOL	fbsd11_getdents
 273	AUE_NULL	UNIMPL	nosys
 274	AUE_LCHMOD	NOPROTO	{ int lchmod(_In_z_ const char *path, \
 				    mode_t mode); }
@@ -566,13 +559,13 @@
 276	AUE_LUTIMES	NOPROTO	{ int lutimes(_In_z_ const char *path, \
 				    _In_ const struct timeval *tptr); }
 277	AUE_MSYNC	UNIMPL	netbsd_msync
-; XXX-BD: why are these not COMPAT#?  struct nstat isn't even defined in
-; userspace.
-278	AUE_STAT	NOPROTO	{ int nstat(_In_z_ const char *path, \
+278	AUE_STAT	COMPAT11|NOPROTO { int nstat( \
+				    _In_z_ const char *path, \
 				    _Out_ struct nstat *ub); }
-279	AUE_FSTAT	NOPROTO	{ int nfstat(int fd, \
+279	AUE_FSTAT	COMPAT11|NOPROTO { int nfstat(int fd, \
 				    _Out_ struct nstat *sb); }
-280	AUE_LSTAT	NOPROTO	{ int nlstat(_In_z_ const char *path, \
+280	AUE_LSTAT	COMPAT11|NOPROTO { int nlstat(\
+				    _In_z_ const char *path, \
 				    _Out_ struct nstat *ub); }
 281	AUE_NULL	UNIMPL	nosys
 282	AUE_NULL	UNIMPL	nosys
@@ -600,8 +593,7 @@
 297	AUE_FHSTATFS	OBSOL	fhstatfs
 298	AUE_FHOPEN	NOPROTO	{ int fhopen(_In_ const struct fhandle *u_fhp, \
 			 	    int flags); }
-299	AUE_FHSTAT	NOPROTO	{ int fhstat(_In_ const struct fhandle *u_fhp, \
-				    _Out_ struct stat *sb); }
+299	AUE_FHSTAT	OBSOL	fbsd11_fhstat
 ; syscall numbers for FreeBSD
 300	AUE_NULL	NOPROTO	{ int modnext(int modid); }
 301	AUE_NULL	NOPROTO	{ int modstat(int modid, \
@@ -807,17 +799,10 @@
 394	AUE_NULL	NOPROTO|NOPARSE	{ int mac_syscall( \
 				    _In_z_ const char *policy, \
 				    int call, _In_opt_ void *arg); }
-395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat( \
-				    _Out_writes_bytes_opt_(bufsize) \
-				    struct statfs *buf, \
-				    long bufsize, int mode); }
-396	AUE_STATFS	NOPROTO	{ int statfs(_In_z_ char *path, \
-				    _Out_ struct statfs *buf); }
-397	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, \
-				    _Out_ struct statfs *buf); }
-398	AUE_FHSTATFS	NOPROTO	{ int fhstatfs( \
-				    _In_ const struct fhandle *u_fhp, \
-				    _Out_ struct statfs *buf); }
+395	AUE_GETFSSTAT	OBSOL	fbsd11_getfsstat
+396	AUE_STATFS	OBSOL	fbsd11_statfs
+397	AUE_FSTATFS	OBSOL	fbsd11_ftatfs
+398	AUE_FHSTATFS	OBSOL	fbsd11_fhstat
 399	AUE_NULL	UNIMPL	nosys
 400	AUE_SEMCLOSE	OBSOL	ksem_close
 401	AUE_SEMPOST	OBSOL	ksem_post
@@ -1075,8 +1060,7 @@
 492	AUE_FEXECVE	STD	{ int cheriabi_fexecve(int fd, \
 				    _In_ struct chericap *argv, \
 				    _In_ struct chericap *envv); }
-493	AUE_FSTATAT	NOPROTO	{ int fstatat(int fd, _In_z_ const char *path, \
-				    _Out_ struct stat *buf, int flag); }
+493	AUE_FSTATAT	OBSOL	fbsd11_fstatat
 494	AUE_FUTIMESAT	NOPROTO	{ int futimesat(int fd, \
 				    _In_z_ const char *path, \
 				    _In_reads_(2) const struct timeval *times); }
@@ -1088,8 +1072,7 @@
 				    mode_t mode); }
 497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, \
 				    _In_z_ const char *path, mode_t mode); }
-498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ const char *path, \
-				    mode_t mode, dev_t dev); }
+498	AUE_MKNODAT	OBSOL	fbsd11_mknodat
 499	AUE_OPENAT_RWTC	STD|VARARG	{ int cheriabi_openat(int fd, \
 				    _In_z_ const char *path, \
 				    int flag, mode_t mode); }
@@ -1239,3 +1222,24 @@
 				    _In_ \
 				    const struct vm_domain_policy_entry *policy); }
 550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }
+551	AUE_FSTAT	NOPROTO	{ int fstat(int fd, _Out_ struct stat *sb); }
+552	AUE_FSTATAT	NOPROTO	{ int fstatat(int fd, _In_z_ const char *path, \
+                                    _Out_ struct stat *buf, int flag); }
+553	AUE_FHSTAT	NOPROTO	{ int fhstat(_In_ const struct fhandle *u_fhp, \
+                                    _Out_ struct stat *sb); }
+554	AUE_GETDIRENTRIES NOPROTO { ssize_t getdirentries(int fd, \
+				    _Out_writes_bytes_(count) char *buf, \
+                                    size_t count, _Out_ off_t *basep); }
+555	AUE_STATFS	NOPROTO	{ int statfs(_In_z_ char *path, \
+				    _Out_ struct statfs *buf); }
+556	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, \
+				    _Out_ struct statfs *buf); }
+557	AUE_GETFSSTAT	NOPROTO	{ int getfsstat( \
+				    _Out_writes_bytes_opt_(bufsize) \
+				    struct statfs *buf, \
+                                    long bufsize, int mode); }
+558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs( \
+				    _In_ const struct fhandle *u_fhp, \
+                                    _Out_ struct statfs *buf); }
+559	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ const char *path, \
+				    mode_t mode, dev_t dev); }
