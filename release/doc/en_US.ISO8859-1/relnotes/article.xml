@@ -183,9 +183,17 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
+      <para revision="298427">The &man.truss.1; utility has been
+	updated to include the <literal>-H</literal> flag, which logs
+	the thread ID of a thread invoking a system call.</para>
+
       <para revision="308915">The &man.zfsbootcfg.8; utility has been
 	added, providing one-time &man.boot.config.5;-style options
 	for &man.zfsboot.8;.</para>
+
+      <para revision="319390">The &man.cxgbetool.8; utility has been
+	added, providing command-line access to features and debugging
+	facilities of &man.cxgbe.4; devices.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -253,6 +261,22 @@
       <para revision="309258">The type <literal>max_align_t</literal>
 	is now defined for C11 compliance.</para>
     </sect2>
+
+    <sect2 xml:id="userland-debug">
+      <title>Userland Debugging</title>
+
+      <para revision="304017">&man.ptrace.2; now supports events for
+	thread creation and destruction, permitting more reliable
+	debugging of threaded processes.</para>
+
+      <para revision="304499">&man.ptrace.2; now supports events for
+	&man.vfork.2;, permitting reliable debugging across
+	&man.vfork.2; invocations.</para>
+
+      <para revision="306786">Process core dumps now include the
+	process ID (<acronym>PID</acronym>) and command line
+	arguments.</para>
+    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">
@@ -293,7 +317,10 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="306533" contrib="sponsor"
+	sponsor="&chelsio;">&man.devctl.8; now supports a &quot;clear
+	driver&quot; command as a complement to &quot;set
+	driver&quot;.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -307,6 +334,21 @@
 
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
+
+      <para revision="309447" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbev.4; driver has been added,
+	providing support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T4 and T5 adapters.</para>
+
+      <para revision="309560" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
+	to provide support for Virtual Function devices
+	(<acronym>VFs</acronym>) on Chelsio T6 adapters.</para>
+
+      <para revision="309560" contrib="sponsor"
+	sponsor="&chelsio;">The &man.cxgbe.4; driver now supports
+	devices using T6-based adapters which support 10, 25, 40, and
+	100 Gbps.</para>
 
       <para revision="312359">The &man.alc.4; driver has been updated
 	to provide support for Atheros&reg; Killer&nbsp;E2400&trade;
@@ -344,7 +386,16 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para></para>
+      <para revision="306520" contrib="sponsor"
+	sponsor="&chelsio;"><acronym>PCI</acronym> passthrough with
+	&man.bhyve.4; resets functions via <acronym>FLR</acronym> when
+	a virtual machine is started and stopped.</para>
+
+      <para revision="306472" contrib="sponsor"
+	sponsor="&chelsio;"><acronym>PCI</acronym> passthrough with
+	&man.bhyve.4; supports more dynamic configurations permitting
+	devices to be marked for passthrough or host use at
+	runtime.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
