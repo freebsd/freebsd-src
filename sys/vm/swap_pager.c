@@ -116,9 +116,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 
 /*
- * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, 16
- * or 32 pages per allocation.
- * The 32-page limit is due to the radix code (kern/subr_blist.c).
+ * MAX_PAGEOUT_CLUSTER must be a power of 2 between 1 and 64.
+ * The 64-page limit is due to the radix code (kern/subr_blist.c).
  */
 #ifndef MAX_PAGEOUT_CLUSTER
 #define MAX_PAGEOUT_CLUSTER 16
