@@ -366,7 +366,7 @@ blst_leaf_alloc(
 			j >>= 1;
 			mask >>= j;
 		}
-		scan->u.bmu_bitmap &= ~(1 << r);
+		scan->u.bmu_bitmap &= ~((u_daddr_t)1 << r);
 		return(blk + r);
 	}
 	if (count <= BLIST_BMAP_RADIX) {
@@ -658,7 +658,7 @@ static void blst_copy(
 			int i;
 
 			for (i = 0; i < BLIST_BMAP_RADIX && i < count; ++i) {
-				if (v & (1 << i))
+				if (v & ((u_daddr_t)1 << i))
 					blist_free(dest, blk + i, 1);
 			}
 		}
