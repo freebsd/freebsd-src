@@ -371,9 +371,8 @@ _LD(const char *var)
 #endif
 
 /*
- * Main entry point for dynamic linking.  The first argument is a struct
- * cheri_execdata which contains capabilities to argv, envv, and the ELF
- * "auxiliary vector".
+ * Main entry point for dynamic linking.  The first argument is a
+ * pointer to the ELF  "auxiliary vector".
  *
  * The second argument points to a place to store the dynamic linker's
  * exit procedure pointer and the third to a place to store the main
@@ -382,14 +381,13 @@ _LD(const char *var)
  * The return value is the main program's entry point.
  */
 func_ptr_type
-_rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
+_rtld(Elf_Auxinfo *aux, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
     int argc;
     char **argv;
     char **env;
-    Elf_Auxinfo *aux;
     Elf_Auxinfo *auxp;
     const char *argv0;
     Objlist_Entry *entry;
@@ -401,7 +399,6 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
     char *library_path_rpath;
     int mib[2];
     size_t len;
-    struct cheriabi_execdata *ce;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -409,15 +406,6 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
      * init_rtld has returned.  It is OK to reference file-scope statics
      * and string constants, and to call static and global functions.
      */
-
-    /* Find the auxiliary vector. */
-    /* Compat code remove in a couple weeks (20170526) */
-    if (*(long*)auxv == sizeof(struct cheriabi_execdata)) {
-	ce = auxv;
-	aux = (Elf_Auxinfo *)ce->ce_auxargs;
-    } else {
-	aux = auxv;
-    }
 
     /* Digest the auxiliary vector. */
     for (i = 0;  i < AT_COUNT;  i++)
@@ -429,14 +417,6 @@ _rtld(void *auxv, func_ptr_type *exit_proc, Obj_Entry **objp)
     argc = aux_info[AT_ARGC]->a_un.a_val;
     argv = (char **)aux_info[AT_ARGV]->a_un.a_ptr;
     env = (char **)aux_info[AT_ENVV]->a_un.a_ptr;
-    if (ce != NULL) {
-	if (argc == 0)
-	    argc = ce->ce_argc;
-	if (argv == NULL)
-	    argv = ce->ce_argv;
-	if (env == NULL)
-	    env = ce->ce_envp;
-    }
 
     /* Initialize and relocate ourselves. */
     assert(aux_info[AT_BASE] != NULL);

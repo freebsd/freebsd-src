@@ -137,18 +137,11 @@ __start(void *auxv,
 	int argc = 0;
 	char **argv = NULL;
 	char **env = NULL;
-	struct cheriabi_execdata *ce = NULL;
 	Elf_Auxinfo *auxp;
 
 	crt_init_globals();
 
-	/* Compat code remove in a couple weeks (20170526) */
-	if (*(long*)auxv == sizeof(struct cheriabi_execdata)) {
-		ce = auxv;
-		__auxargs = (Elf_Auxinfo *)ce->ce_auxargs;
-	} else {
-		__auxargs = auxv;
-	}
+	__auxargs = auxv;
 	/* Digest the auxiliary vector. */
 	for (i = 0;  i < AT_COUNT;  i++)
 	    aux_info[i] = NULL;
@@ -159,16 +152,6 @@ __start(void *auxv,
 	argc = aux_info[AT_ARGC]->a_un.a_val;
 	argv = (char **)aux_info[AT_ARGV]->a_un.a_ptr;
 	env = (char **)aux_info[AT_ENVV]->a_un.a_ptr;
-
-	/* Compat code remove in a couple weeks (20170526) */
-	if (ce != NULL) {
-		if (argc == 0)
-			argc = ce->ce_argc;
-		if (argv == NULL)
-			argv = ce->ce_argv;
-		if (env == NULL)
-			env = ce->ce_envp;
-	}
 
 	handle_argv(argc, argv, env);
 

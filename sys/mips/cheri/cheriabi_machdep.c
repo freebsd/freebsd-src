@@ -873,7 +873,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	/*
 	 * Pass a pointer to the ELF auxiliary argument vector.
 	 */
-	auxv = stack + sizeof(struct cheriabi_execdata) +
+	auxv = stack +
 	    (imgp->args->argc + imgp->args->envc + 2) * sizeof(struct chericap);
 	cheri_capability_set(&td->td_frame->c3, CHERI_CAP_USER_DATA_PERMS,
 	    (void *)auxv, imgp->auxarg_size * 2 * sizeof(struct chericap), 0);

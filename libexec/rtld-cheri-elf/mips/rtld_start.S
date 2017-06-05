@@ -39,7 +39,7 @@
 #define	PTR_SIZE	32
 
 /*
- *      c3      cheriabi_execdata pointer
+ *      c3      auxargs pointer
  */
 LEAF(rtld_start)
 	/*
@@ -84,7 +84,7 @@ LEAF(rtld_start)
 	cjalr		$c12, $c17
 	nop
 
-	clc		$c3, sp, 2*CHERICAP_SIZE($c11)	/* execdata */
+	clc		$c3, sp, 2*CHERICAP_SIZE($c11)	/* auxargs */
 	/* XXX-BD: Should allocate cleanup and objp outside stack. */
 	dla		t1, CHERICAP_SIZE
 	daddi		t0, sp, 0*CHERICAP_SIZE
@@ -98,11 +98,11 @@ LEAF(rtld_start)
 	daddu		t0, t0, t9
 	cgetpcc		$c12
 	csetoffset	$c12, $c12, t0
-	cjalr		$c12, $c17	/* v0 = _rtld(execdata, cleanup, objp) */
+	cjalr		$c12, $c17	/* v0 = _rtld(auxargs, cleanup, objp) */
 	nop
 
 	cmove		$c12, $c3
-	clc		$c3, sp, 2*CHERICAP_SIZE($c11)	/* execdata */
+	clc		$c3, sp, 2*CHERICAP_SIZE($c11)	/* auxargs */
 	clc		$c4, sp, 0*CHERICAP_SIZE($c11)	/* cleanup */
 	clc		$c5, sp, 1*CHERICAP_SIZE($c11)	/* objp */
 

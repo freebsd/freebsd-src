@@ -1563,7 +1563,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	char canary[sizeof(long) * 8];
 	size_t execpath_len;
 	int szsigcode, szps;
-	struct cheriabi_execdata ce;
 
 	KASSERT(imgp->auxargs != NULL, ("CheriABI requires auxargs"));
 
@@ -1623,13 +1622,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(struct chericap));
 
-	/* Clear execdata */
-	memset(&ce, 0, sizeof(ce));
-	ce.ce_len = sizeof(ce);
-	ce.ce_argc = imgp->args->argc;
-	cheri_capability_set(&ce.ce_ps_strings, CHERI_CAP_USER_DATA_PERMS,
-	    arginfo, sizeof(struct ps_strings), 0);
-
 	/*
 	 * Prepare some room * on the stack for auxargs.
 	 */
@@ -1672,8 +1664,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 * Fill in argument portion of vector table.
 	 */
 	imgp->args->argv = (void *)vectp;
-	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS,
-	    imgp->args->argv, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1695,8 +1685,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 * Fill in environment portion of vector table.
 	 */
 	imgp->args->envv = (void *)vectp;
-	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS,
-	    imgp->args->envv, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
 		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1708,12 +1696,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/* end of vector table is a null pointer */
 	/* XXX: suword clears the tag */
 	suword(vectp++, 0);
-
-	cheri_capability_set(&ce.ce_auxargs, CHERI_CAP_USER_DATA_PERMS,
-	    vectp, imgp->auxarg_size * sizeof(struct chericap), 0);
-
-	stack_base -= sizeof(ce) / sizeof(*stack_base);
-	copyoutcap(&ce, stack_base, sizeof(ce));
 
 	return ((register_t *)stack_base);
 }
@@ -1851,7 +1833,6 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 	struct chericap *base;
 
 	base = (struct chericap *)*stack_base;
-	base += sizeof(struct cheriabi_execdata) / sizeof(*base);
 	base += imgp->args->argc + imgp->args->envc + 2;
 
 	cheriabi_set_auxargs(base, imgp);
