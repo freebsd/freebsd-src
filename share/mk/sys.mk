@@ -78,6 +78,7 @@ META_MODE?= normal
 # this should not be a real problem for incremental builds.
 # XXX: This relies on the existing host tools retaining ABI compatibility
 # through upgrades since they won't be rebuilt on header/library changes.
+# This is mitigated by Makefile.inc1 for known-ABI-breaking revisions.
 # Note that these are prefix matching, so /lib matches /libexec.
 .MAKE.META.IGNORE_PATHS+= \
 	${__MAKE_SHELL} \
