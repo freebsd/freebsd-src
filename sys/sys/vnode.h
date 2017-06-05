@@ -610,7 +610,7 @@ void	cache_purgevfs(struct mount *mp, bool force);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
-void	freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost);
+int	freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
 void	getnewvnode_reserve(u_int count);

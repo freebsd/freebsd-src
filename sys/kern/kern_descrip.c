@@ -1315,8 +1315,9 @@ freebsd11_fstat(struct thread *td, struct freebsd11_fstat_args *uap)
 	error = kern_fstat(td, uap->fd, &sb);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->sb, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->sb, sizeof(osb));
 	return (error);
 }
 #endif	/* COMPAT_FREEBSD11 */
