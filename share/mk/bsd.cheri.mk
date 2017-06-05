@@ -55,22 +55,29 @@ ALLOW_SHARED_TEXTREL=yes
 .if !defined(CHERI_CC)
 .error CHERI is enabled and request, but CHERI_CC is undefined
 .endif
-.if !exists(${CHERI_CC}) 
+.if !exists(${CHERI_CC})
 .error CHERI_CC is defined to ${CHERI_CC} which does not exist
+.endif
+
+.if !defined(CHERI_CPP) || empty(CHERI_CPP)
+CHERI_CPP=${CHERI_CC:H}/${CHERI_CC:T:S/clang/clang-cpp/}
+.endif
+.if !exists(${CHERI_CPP})
+.error CHERI_CPP is defined to ${CHERI_CPP} which does not exist
 .endif
 
 .if !defined(CHERI_CXX) || empty(CHERI_CXX)
 CHERI_CXX=${CHERI_CC:H}/${CHERI_CC:T:S/clang/clang++/}
 .endif
-.if !exists(${CHERI_CXX}) 
+.if !exists(${CHERI_CXX})
 .error CHERI_CXX is defined to ${CHERI_CXX} which does not exist
 .endif
-
 
 _CHERI_COMMON_FLAGS=	-g -integrated-as --target=cheri-unknown-freebsd \
 			-msoft-float
 _CHERI_CC=		${CHERI_CC} ${_CHERI_COMMON_FLAGS}
 _CHERI_CXX=		${CHERI_CXX} ${_CHERI_COMMON_FLAGS}
+_CHERI_CPP=		${CHERI_CPP} ${_CHERI_COMMON_FLAGS}
 
 .if defined(SYSROOT)
 _CHERI_COMMON_FLAGS+=	--sysroot=${SYSROOT}
@@ -140,6 +147,7 @@ NO_SHARED=	yes
 .endif
 CC:=	${_CHERI_CC}
 CXX:=   ${_CHERI_CXX}
+CPP:=	${_CHERI_CPP}
 COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
 CXXFLAGS+=	${_CHERI_CFLAGS}

@@ -108,6 +108,8 @@ MK_CLANG:=	no
 # We want to use libc++ for CHERI (even when targeting MIPS)
 MK_GNUCXX:=	no
 MK_LIBCPLUSPLUS:=yes
+# LLVM libunwind is needed for libc++
+MK_LLVM_LIBUNWIND:=	yes
 # GROFF is broken when building WITH_CHERI_PURE and it will be removed
 # soon anyway
 MK_GROFF:=	no
