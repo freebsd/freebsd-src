@@ -155,10 +155,10 @@ static const char *cheri_cap_modify_name[8] = {
 	"invalid", "ccleartag", "invalid", "cfromptr"
 };
 static const char *c2_reg[32] = {
-	"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
+	"ddc/c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
 	"c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19",
-	"c20", "c21", "c22", "c23", "c24", "c25", "idc", "kr2c", "kr2c", "kcc",
-	"kdc", "epcc"
+	"c20", "c21", "c22", "c23", "c24", "c25", "idc/c26", "kr1c/c27",
+	"kr2c/c28", "kcc/c29", "kdc/c30", "epcc/c31"
 };
 #endif /* CPU_CHERI */
 
