@@ -141,7 +141,7 @@ static const char *cheri_cap_store_opname[8] = {
 	"csb", "csh", "csw", "cscd"
 };
 static const char *cheri_flow_control_opname[16] = {
-	"invalid", "csealcode", "csealdata", "cunseal",
+	"invalid", "invalid", "invalid", "cunseal",
 	"invalid", "ccall", "creturn", "cjalr",
 	"cjr", "invalid", "invalid", "invalid",
 	"ctoptr", "cgetoffset", "invalid", "invalid"
@@ -151,7 +151,7 @@ static const char *cheri_cap_inspect_opname[8] = {
 	"cgetcause", "cgettag", "cgetsealed", "cgetpcc"
 };
 static const char *cheri_cap_modify_name[8] = {
-	"candperm", "csettype", "cincbase", "csetlen",
+	"candperm", "invalid", "invalid", "invalid",
 	"invalid", "ccleartag", "invalid", "cfromptr"
 };
 static const char *c2_reg[32] = {
@@ -328,14 +328,12 @@ md_printins(int ins, int mdbdot)
 				operands[1] = c2_reg[i.CType.r2];
 			}
 			break;
-		case 1:
 		case 5:
 			ops = 2;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			operands[0] = c2_reg[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 2:
 		case 3:
 			ops = 3;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
