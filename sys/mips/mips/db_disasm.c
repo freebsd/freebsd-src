@@ -152,7 +152,7 @@ static const char *cheri_cap_inspect_opname[8] = {
 };
 static const char *cheri_cap_modify_name[8] = {
 	"candperm", "csettype", "cincbase", "csetlen",
-	"invalid", "ccleartag", "invalid", "invalid"
+	"invalid", "ccleartag", "invalid", "cfromptr"
 };
 static const char *c2_reg[32] = {
 	"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
@@ -314,10 +314,19 @@ md_printins(int ins, int mdbdot)
 			}
 			break;
 		case 4:
-			ops = i.CType.fmt2 == 5 ? 0 : 3;
 			opcode = cheri_cap_modify_name[i.CType.fmt2];
-			operands[0] = reg_name[i.CType.r1];
-			operands[1] = c2_reg[i.CType.r2];
+			if (i.CType.fmt2 == 5) {
+				ops = 0;
+			} else if (i.CType.fmt2 == 7) {
+				ops = 3;
+				operands[0] = c2_reg[i.CType.r1];
+				operands[1] = c2_reg[i.CType.r2];
+				operands[2] = reg_name[i.CType.r3];
+			} else {
+				ops = 3;
+				operands[0] = reg_name[i.CType.r1];
+				operands[1] = c2_reg[i.CType.r2];
+			}
 			break;
 		case 1:
 		case 5:
