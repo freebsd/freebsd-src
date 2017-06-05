@@ -77,10 +77,6 @@ static void kdebug_sadb_x_sa2(struct sadb_ext *);
 static void kdebug_sadb_x_sa_replay(struct sadb_ext *);
 static void kdebug_sadb_x_natt(struct sadb_ext *);
 
-#ifdef _KERNEL
-static void kdebug_secreplay(struct secreplay *);
-#endif
-
 #ifndef _KERNEL
 #define panic(fmt, ...)	{ printf(fmt, ## __VA_ARGS__); exit(-1); }
 #endif
@@ -724,6 +720,7 @@ kdebug_secash(struct secashead *sah, const char *indent)
 	printf("}\n");
 }
 
+#ifdef IPSEC_DEBUG
 static void
 kdebug_secreplay(struct secreplay *rpl)
 {
@@ -745,6 +742,7 @@ kdebug_secreplay(struct secreplay *rpl)
 	}
 	printf("    }\n");
 }
+#endif /* IPSEC_DEBUG */
 
 static void
 kdebug_secnatt(struct secnatt *natt)

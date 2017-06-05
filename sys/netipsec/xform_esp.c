@@ -263,7 +263,7 @@ esp_zeroize(struct secasvar *sav)
 static int
 esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	char buf[128];
+	IPSEC_DEBUG_DECLARE(char buf[128]);
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
 	struct xform_data *xd;
@@ -436,7 +436,7 @@ bad:
 static int
 esp_input_cb(struct cryptop *crp)
 {
-	char buf[128];
+	IPSEC_DEBUG_DECLARE(char buf[128]);
 	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
 	const struct auth_hash *esph;
 	const struct enc_xform *espx;
@@ -622,7 +622,7 @@ static int
 esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
     u_int idx, int skip, int protoff)
 {
-	char buf[IPSEC_ADDRSTRLEN];
+	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	struct cryptodesc *crde = NULL, *crda = NULL;
 	struct cryptop *crp;
 	const struct auth_hash *esph;
