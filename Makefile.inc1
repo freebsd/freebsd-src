@@ -649,6 +649,8 @@ LIBCOMPAT= SOFT
 # to get updated host tools.
 .if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
     !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS)
+# r318736 - ino64 major ABI breakage
+META_MODE_BAD_ABI_VERS+=	1200031
 
 .if !defined(OBJDIR_HOST_OSRELDATE)
 .if exists(${OBJTREE}${.CURDIR}/host-osreldate.h)
