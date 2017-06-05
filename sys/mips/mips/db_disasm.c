@@ -144,7 +144,7 @@ static const char *cheri_flow_control_opname[16] = {
 	"invalid", "csealcode", "csealdata", "cunseal",
 	"invalid", "ccall", "creturn", "cjalr",
 	"cjr", "invalid", "invalid", "invalid",
-	"invalid", "invalid", "invalid", "invalid"
+	"ctoptr", "cgetoffset", "invalid", "invalid"
 };
 static const char *cheri_cap_inspect_opname[8] = {
 	"cgetperm", "cgettype", "cgetbase", "cgetlen",
@@ -343,6 +343,20 @@ md_printins(int ins, int mdbdot)
 			break;
 		case 6:
 			opcode = cheri_flow_control_opname[i.CType.fmt];
+			break;
+		case 12:
+			ops = 3;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = reg_name[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			operands[2] = c2_reg[i.CType.r3];
+			break;
+		case 13:
+			ops = 2;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = reg_name[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			break;
 		}
 
 		switch (ops) {
