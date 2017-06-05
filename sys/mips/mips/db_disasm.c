@@ -295,8 +295,8 @@ md_printins(int ins, int mdbdot)
 
 #ifdef CPU_CHERI
 	case OP_COP2: {
-		unsigned ops = 0;
-		const char *opcode = "invalid";
+		int ops = -1;
+		const char *opcode = NULL;
 		const char *operands[3] = { 0 };
 		switch (i.CType.fmt) {
 		case 0:
@@ -381,6 +381,10 @@ md_printins(int ins, int mdbdot)
 		case 3:
 			db_printf("%s\t%s,%s,%s", opcode, operands[0], operands[1],
 					operands[2]);
+			break;
+		default:
+			db_printf("unknown COP2 opcode (fmt %d, fmt2 %d)", i.CType.fmt, i.CType.fmt2);
+			break;
 		}
 	}
 		break;
