@@ -5,6 +5,8 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -15,6 +17,12 @@
 #include <compat/cheriabi/cheriabi_proto.h>
 
 #define AS(name) (sizeof(struct name) / sizeof(register_t))
+
+#ifdef COMPAT_FREEBSD11
+#define compat11(n, name) n, (sy_call_t *)__CONCAT(freebsd11_,name)
+#else
+#define compat11(n, name) 0, (sy_call_t *)nosys
+#endif
 
 /* The casts are bogus but will do for now. */
 struct sysent cheriabi_sysent[] = {
@@ -35,7 +43,7 @@ struct sysent cheriabi_sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 11 = obsolete execv */
 	{ AS(chdir_args), (sy_call_t *)sys_chdir, AUE_CHDIR, NULL, 0, 0, 0, SY_THR_STATIC },	/* 12 = chdir */
 	{ AS(fchdir_args), (sy_call_t *)sys_fchdir, AUE_FCHDIR, NULL, 0, 0, 0, SY_THR_STATIC },	/* 13 = fchdir */
-	{ AS(mknod_args), (sy_call_t *)sys_mknod, AUE_MKNOD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 14 = mknod */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 14 = obsolete fbsd11_mknod */
 	{ AS(chmod_args), (sy_call_t *)sys_chmod, AUE_CHMOD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 15 = chmod */
 	{ AS(chown_args), (sy_call_t *)sys_chown, AUE_CHOWN, NULL, 0, 0, 0, SY_THR_STATIC },	/* 16 = chown */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 17 = obsolete obreak */
@@ -209,15 +217,15 @@ struct sysent cheriabi_sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 185 = lfs_markv */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 186 = lfs_segclean */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 187 = lfs_segwait */
-	{ AS(stat_args), (sy_call_t *)sys_stat, AUE_STAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 188 = stat */
-	{ AS(fstat_args), (sy_call_t *)sys_fstat, AUE_FSTAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 189 = fstat */
-	{ AS(lstat_args), (sy_call_t *)sys_lstat, AUE_LSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 190 = lstat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 188 = obsolete fbsd11_stat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 189 = obsolete fbsd11_fstat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 190 = obsolete fbsd11_lstat */
 	{ AS(pathconf_args), (sy_call_t *)sys_pathconf, AUE_PATHCONF, NULL, 0, 0, 0, SY_THR_STATIC },	/* 191 = pathconf */
 	{ AS(fpathconf_args), (sy_call_t *)sys_fpathconf, AUE_FPATHCONF, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 192 = fpathconf */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 193 = nosys */
 	{ AS(__getrlimit_args), (sy_call_t *)sys_getrlimit, AUE_GETRLIMIT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 194 = getrlimit */
 	{ AS(__setrlimit_args), (sy_call_t *)sys_setrlimit, AUE_SETRLIMIT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 195 = setrlimit */
-	{ AS(getdirentries_args), (sy_call_t *)sys_getdirentries, AUE_GETDIRENTRIES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 196 = getdirentries */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 196 = obsolete fbsd11_getdirentries */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 197 = obsolete mmap */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 198 = obsolete __syscall */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 199 = obsolete lseek */
@@ -293,15 +301,15 @@ struct sysent cheriabi_sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 269 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 270 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 271 = nosys */
-	{ AS(getdents_args), (sy_call_t *)sys_getdents, AUE_O_GETDENTS, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 272 = getdents */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 272 = obsolete fbsd11_getdents */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 273 = nosys */
 	{ AS(lchmod_args), (sy_call_t *)sys_lchmod, AUE_LCHMOD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 274 = lchmod */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 275 = netbsd_lchown */
 	{ AS(lutimes_args), (sy_call_t *)sys_lutimes, AUE_LUTIMES, NULL, 0, 0, 0, SY_THR_STATIC },	/* 276 = lutimes */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 277 = netbsd_msync */
-	{ AS(nstat_args), (sy_call_t *)sys_nstat, AUE_STAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 278 = nstat */
-	{ AS(nfstat_args), (sy_call_t *)sys_nfstat, AUE_FSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 279 = nfstat */
-	{ AS(nlstat_args), (sy_call_t *)sys_nlstat, AUE_LSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 280 = nlstat */
+	{ compat11(AS(freebsd11_nstat_args),nstat), AUE_STAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 278 = freebsd11 nstat */
+	{ compat11(AS(freebsd11_nfstat_args),nfstat), AUE_FSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 279 = freebsd11 nfstat */
+	{ compat11(AS(freebsd11_nlstat_args),nlstat), AUE_LSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 280 = freebsd11 nlstat */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 281 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 282 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 283 = nosys */
@@ -320,7 +328,7 @@ struct sysent cheriabi_sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 296 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 297 = obsolete fhstatfs */
 	{ AS(fhopen_args), (sy_call_t *)sys_fhopen, AUE_FHOPEN, NULL, 0, 0, 0, SY_THR_STATIC },	/* 298 = fhopen */
-	{ AS(fhstat_args), (sy_call_t *)sys_fhstat, AUE_FHSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 299 = fhstat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 299 = obsolete fbsd11_fhstat */
 	{ AS(modnext_args), (sy_call_t *)sys_modnext, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 300 = modnext */
 	{ AS(modstat_args), (sy_call_t *)sys_modstat, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 301 = modstat */
 	{ AS(modfnext_args), (sy_call_t *)sys_modfnext, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 302 = modfnext */
@@ -416,10 +424,10 @@ struct sysent cheriabi_sysent[] = {
 	{ AS(uuidgen_args), (sy_call_t *)sys_uuidgen, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 392 = uuidgen */
 	{ AS(cheriabi_sendfile_args), (sy_call_t *)cheriabi_sendfile, AUE_SENDFILE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 393 = cheriabi_sendfile */
 	{ AS(mac_syscall_args), (sy_call_t *)sys_mac_syscall, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 394 = mac_syscall */
-	{ AS(getfsstat_args), (sy_call_t *)sys_getfsstat, AUE_GETFSSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 395 = getfsstat */
-	{ AS(statfs_args), (sy_call_t *)sys_statfs, AUE_STATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 396 = statfs */
-	{ AS(fstatfs_args), (sy_call_t *)sys_fstatfs, AUE_FSTATFS, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 397 = fstatfs */
-	{ AS(fhstatfs_args), (sy_call_t *)sys_fhstatfs, AUE_FHSTATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 398 = fhstatfs */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 395 = obsolete fbsd11_getfsstat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 396 = obsolete fbsd11_statfs */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 397 = obsolete fbsd11_ftatfs */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 398 = obsolete fbsd11_fhstat */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 399 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 400 = obsolete ksem_close */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 401 = obsolete ksem_post */
@@ -514,12 +522,12 @@ struct sysent cheriabi_sysent[] = {
 	{ AS(fchmodat_args), (sy_call_t *)sys_fchmodat, AUE_FCHMODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 490 = fchmodat */
 	{ AS(fchownat_args), (sy_call_t *)sys_fchownat, AUE_FCHOWNAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 491 = fchownat */
 	{ AS(cheriabi_fexecve_args), (sy_call_t *)cheriabi_fexecve, AUE_FEXECVE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 492 = cheriabi_fexecve */
-	{ AS(fstatat_args), (sy_call_t *)sys_fstatat, AUE_FSTATAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 493 = fstatat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 493 = obsolete fbsd11_fstatat */
 	{ AS(futimesat_args), (sy_call_t *)sys_futimesat, AUE_FUTIMESAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 494 = futimesat */
 	{ AS(linkat_args), (sy_call_t *)sys_linkat, AUE_LINKAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 495 = linkat */
 	{ AS(mkdirat_args), (sy_call_t *)sys_mkdirat, AUE_MKDIRAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 496 = mkdirat */
 	{ AS(mkfifoat_args), (sy_call_t *)sys_mkfifoat, AUE_MKFIFOAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 497 = mkfifoat */
-	{ AS(mknodat_args), (sy_call_t *)sys_mknodat, AUE_MKNODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 498 = mknodat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 498 = obsolete fbsd11_mknodat */
 	{ AS(cheriabi_openat_args), (sy_call_t *)cheriabi_openat, AUE_OPENAT_RWTC, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 499 = cheriabi_openat */
 	{ AS(readlinkat_args), (sy_call_t *)sys_readlinkat, AUE_READLINKAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 500 = readlinkat */
 	{ AS(renameat_args), (sy_call_t *)sys_renameat, AUE_RENAMEAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 501 = renameat */
@@ -572,4 +580,13 @@ struct sysent cheriabi_sysent[] = {
 	{ AS(numa_getaffinity_args), (sy_call_t *)sys_numa_getaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 548 = numa_getaffinity */
 	{ AS(numa_setaffinity_args), (sy_call_t *)sys_numa_setaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 549 = numa_setaffinity */
 	{ AS(fdatasync_args), (sy_call_t *)sys_fdatasync, AUE_FSYNC, NULL, 0, 0, 0, SY_THR_STATIC },	/* 550 = fdatasync */
+	{ AS(fstat_args), (sy_call_t *)sys_fstat, AUE_FSTAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 551 = fstat */
+	{ AS(fstatat_args), (sy_call_t *)sys_fstatat, AUE_FSTATAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 552 = fstatat */
+	{ AS(fhstat_args), (sy_call_t *)sys_fhstat, AUE_FHSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 553 = fhstat */
+	{ AS(getdirentries_args), (sy_call_t *)sys_getdirentries, AUE_GETDIRENTRIES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 554 = getdirentries */
+	{ AS(statfs_args), (sy_call_t *)sys_statfs, AUE_STATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 555 = statfs */
+	{ AS(fstatfs_args), (sy_call_t *)sys_fstatfs, AUE_FSTATFS, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 556 = fstatfs */
+	{ AS(getfsstat_args), (sy_call_t *)sys_getfsstat, AUE_GETFSSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 557 = getfsstat */
+	{ AS(fhstatfs_args), (sy_call_t *)sys_fhstatfs, AUE_FHSTATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 558 = fhstatfs */
+	{ AS(mknodat_args), (sy_call_t *)sys_mknodat, AUE_MKNODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 559 = mknodat */
 };

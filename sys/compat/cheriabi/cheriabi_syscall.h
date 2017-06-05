@@ -19,7 +19,7 @@
 				/* 11 is obsolete execv */
 #define	CHERIABI_SYS_chdir	12
 #define	CHERIABI_SYS_fchdir	13
-#define	CHERIABI_SYS_mknod	14
+				/* 14 is obsolete fbsd11_mknod */
 #define	CHERIABI_SYS_chmod	15
 #define	CHERIABI_SYS_chown	16
 				/* 17 is obsolete obreak */
@@ -175,14 +175,14 @@
 #define	CHERIABI_SYS_setgid	181
 #define	CHERIABI_SYS_setegid	182
 #define	CHERIABI_SYS_seteuid	183
-#define	CHERIABI_SYS_stat	188
-#define	CHERIABI_SYS_fstat	189
-#define	CHERIABI_SYS_lstat	190
+				/* 188 is obsolete fbsd11_stat */
+				/* 189 is obsolete fbsd11_fstat */
+				/* 190 is obsolete fbsd11_lstat */
 #define	CHERIABI_SYS_pathconf	191
 #define	CHERIABI_SYS_fpathconf	192
 #define	CHERIABI_SYS_getrlimit	194
 #define	CHERIABI_SYS_setrlimit	195
-#define	CHERIABI_SYS_getdirentries	196
+				/* 196 is obsolete fbsd11_getdirentries */
 				/* 197 is obsolete mmap */
 				/* 198 is obsolete __syscall */
 				/* 199 is obsolete lseek */
@@ -228,17 +228,17 @@
 #define	CHERIABI_SYS_cheriabi_aio_read	255
 #define	CHERIABI_SYS_cheriabi_aio_write	256
 #define	CHERIABI_SYS_cheriabi_lio_listio	257
-#define	CHERIABI_SYS_getdents	272
+				/* 272 is obsolete fbsd11_getdents */
 #define	CHERIABI_SYS_lchmod	274
 #define	CHERIABI_SYS_lutimes	276
-#define	CHERIABI_SYS_nstat	278
-#define	CHERIABI_SYS_nfstat	279
-#define	CHERIABI_SYS_nlstat	280
+#define	CHERIABI_SYS_freebsd11_nstat	278
+#define	CHERIABI_SYS_freebsd11_nfstat	279
+#define	CHERIABI_SYS_freebsd11_nlstat	280
 #define	CHERIABI_SYS_cheriabi_preadv	289
 #define	CHERIABI_SYS_cheriabi_pwritev	290
 				/* 297 is obsolete fhstatfs */
 #define	CHERIABI_SYS_fhopen	298
-#define	CHERIABI_SYS_fhstat	299
+				/* 299 is obsolete fbsd11_fhstat */
 #define	CHERIABI_SYS_modnext	300
 #define	CHERIABI_SYS_modstat	301
 #define	CHERIABI_SYS_modfnext	302
@@ -324,10 +324,10 @@
 #define	CHERIABI_SYS_uuidgen	392
 #define	CHERIABI_SYS_cheriabi_sendfile	393
 #define	CHERIABI_SYS_mac_syscall	394
-#define	CHERIABI_SYS_getfsstat	395
-#define	CHERIABI_SYS_statfs	396
-#define	CHERIABI_SYS_fstatfs	397
-#define	CHERIABI_SYS_fhstatfs	398
+				/* 395 is obsolete fbsd11_getfsstat */
+				/* 396 is obsolete fbsd11_statfs */
+				/* 397 is obsolete fbsd11_ftatfs */
+				/* 398 is obsolete fbsd11_fhstat */
 				/* 400 is obsolete ksem_close */
 				/* 401 is obsolete ksem_post */
 				/* 402 is obsolete ksem_wait */
@@ -412,12 +412,12 @@
 #define	CHERIABI_SYS_fchmodat	490
 #define	CHERIABI_SYS_fchownat	491
 #define	CHERIABI_SYS_cheriabi_fexecve	492
-#define	CHERIABI_SYS_fstatat	493
+				/* 493 is obsolete fbsd11_fstatat */
 #define	CHERIABI_SYS_futimesat	494
 #define	CHERIABI_SYS_linkat	495
 #define	CHERIABI_SYS_mkdirat	496
 #define	CHERIABI_SYS_mkfifoat	497
-#define	CHERIABI_SYS_mknodat	498
+				/* 498 is obsolete fbsd11_mknodat */
 #define	CHERIABI_SYS_cheriabi_openat	499
 #define	CHERIABI_SYS_readlinkat	500
 #define	CHERIABI_SYS_renameat	501
@@ -469,4 +469,13 @@
 #define	CHERIABI_SYS_numa_getaffinity	548
 #define	CHERIABI_SYS_numa_setaffinity	549
 #define	CHERIABI_SYS_fdatasync	550
-#define	CHERIABI_SYS_MAXSYSCALL	551
+#define	CHERIABI_SYS_fstat	551
+#define	CHERIABI_SYS_fstatat	552
+#define	CHERIABI_SYS_fhstat	553
+#define	CHERIABI_SYS_getdirentries	554
+#define	CHERIABI_SYS_statfs	555
+#define	CHERIABI_SYS_fstatfs	556
+#define	CHERIABI_SYS_getfsstat	557
+#define	CHERIABI_SYS_fhstatfs	558
+#define	CHERIABI_SYS_mknodat	559
+#define	CHERIABI_SYS_MAXSYSCALL	560

@@ -41,9 +41,6 @@ struct {
 	},
 	[CHERIABI_SYS_fchdir] = {
 	},
-	[CHERIABI_SYS_mknod] = {
-		.sam_ptrmask = 0x1
-	},
 	[CHERIABI_SYS_chmod] = {
 		.sam_ptrmask = 0x1
 	},
@@ -275,15 +272,6 @@ struct {
 	},
 	[CHERIABI_SYS_seteuid] = {
 	},
-	[CHERIABI_SYS_stat] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_fstat] = {
-		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_lstat] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
 	[CHERIABI_SYS_pathconf] = {
 		.sam_ptrmask = 0x1
 	},
@@ -294,9 +282,6 @@ struct {
 	},
 	[CHERIABI_SYS_setrlimit] = {
 		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_getdirentries] = {
-		.sam_ptrmask = 0x2 | 0x8
 	},
 	[CHERIABI_SYS___sysctl] = {
 		.sam_ptrmask = 0x1 | 0x4 | 0x8 | 0x10
@@ -400,22 +385,10 @@ struct {
 	[CHERIABI_SYS_cheriabi_lio_listio] = {
 		.sam_ptrmask = 0x2 | 0x8
 	},
-	[CHERIABI_SYS_getdents] = {
-		.sam_ptrmask = 0x2
-	},
 	[CHERIABI_SYS_lchmod] = {
 		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_lutimes] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_nstat] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_nfstat] = {
-		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_nlstat] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS_cheriabi_preadv] = {
@@ -426,9 +399,6 @@ struct {
 	},
 	[CHERIABI_SYS_fhopen] = {
 		.sam_ptrmask = 0x1
-	},
-	[CHERIABI_SYS_fhstat] = {
-		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS_modnext] = {
 	},
@@ -616,18 +586,6 @@ struct {
 	},
 	[CHERIABI_SYS_mac_syscall] = {
 		.sam_ptrmask = 0x1 | 0x4
-	},
-	[CHERIABI_SYS_getfsstat] = {
-		.sam_ptrmask = 0x1
-	},
-	[CHERIABI_SYS_statfs] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_fstatfs] = {
-		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_fhstatfs] = {
-		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS_cheriabi___mac_get_pid] = {
 		.sam_ptrmask = 0x2
@@ -843,9 +801,6 @@ struct {
 	[CHERIABI_SYS_cheriabi_fexecve] = {
 		.sam_ptrmask = 0x2 | 0x4
 	},
-	[CHERIABI_SYS_fstatat] = {
-		.sam_ptrmask = 0x2 | 0x4
-	},
 	[CHERIABI_SYS_futimesat] = {
 		.sam_ptrmask = 0x2 | 0x4
 	},
@@ -856,9 +811,6 @@ struct {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_mkfifoat] = {
-		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_mknodat] = {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_cheriabi_openat] = {
@@ -999,6 +951,33 @@ struct {
 		.sam_ptrmask = 0x4
 	},
 	[CHERIABI_SYS_fdatasync] = {
+	},
+	[CHERIABI_SYS_fstat] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_fstatat] = {
+		.sam_ptrmask = 0x2 | 0x4
+	},
+	[CHERIABI_SYS_fhstat] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_getdirentries] = {
+		.sam_ptrmask = 0x2 | 0x8
+	},
+	[CHERIABI_SYS_statfs] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_fstatfs] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_getfsstat] = {
+		.sam_ptrmask = 0x1
+	},
+	[CHERIABI_SYS_fhstatfs] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_mknodat] = {
+		.sam_ptrmask = 0x2
 	},
 };
 #endif /* !_CHERIABI_SYSARGMAP_H_ */
