@@ -358,6 +358,13 @@ select_filepath(char *path, uint32_t *optchkd)
 }
 
 /*
+ * XXXAR: previously these functions took the tokenstr_t argument by value
+ * but for some reason this currently crashes clang at -O2 in select_hdr32:
+ * https://github.com/CTSRD-CHERI/llvm/issues/222
+ * As there is no good reason to pass it by value, pass by pointer instead
+ */
+
+/*
  * Returns 1 if the following pass the selection rules:
  *
  * before-time, 
@@ -367,7 +374,7 @@ select_filepath(char *path, uint32_t *optchkd)
  * event 
  */
 static int
-select_hdr32(tokenstr_t tok, uint32_t *optchkd)
+select_hdr32(tokenstr_t *tok, uint32_t *optchkd)
 {
 	uint16_t *ev;
 	int match;
@@ -377,14 +384,14 @@ select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 	/* The A option overrides a, b and d. */
 	if (!ISOPTSET(opttochk, OPT_A)) {
 		if (ISOPTSET(opttochk, OPT_a)) {
-			if (difftime((time_t)tok.tt.hdr32.s, p_atime) < 0) {
+			if (difftime((time_t)tok->tt.hdr32.s, p_atime) < 0) {
 				/* Record was created before p_atime. */
 				return (0);
 			}
 		}
 
 		if (ISOPTSET(opttochk, OPT_b)) {
-			if (difftime(p_btime, (time_t)tok.tt.hdr32.s) < 0) {
+			if (difftime(p_btime, (time_t)tok->tt.hdr32.s) < 0) {
 				/* Record was created after p_btime. */
 				return (0);
 			}
@@ -396,7 +403,7 @@ select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 		 * Check if the classes represented by the event matches
 		 * given class.
 		 */
-		if (au_preselect(tok.tt.hdr32.e_type, &maskp, AU_PRS_BOTH,
+		if (au_preselect(tok->tt.hdr32.e_type, &maskp, AU_PRS_BOTH,
 		    AU_PRS_USECACHE) != 1)
 			return (0);
 	}
@@ -405,7 +412,7 @@ select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 	if (ISOPTSET(opttochk, OPT_m)) {
 		match = 0;
 		for (ev = p_evec; ev < &p_evec[p_evec_used]; ev++)
-			if (tok.tt.hdr32.e_type == *ev)
+			if (tok->tt.hdr32.e_type == *ev)
 				match = 1;
 		if (match == 0)
 			return (0);
@@ -415,17 +422,17 @@ select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 }
 
 static int
-select_return32(tokenstr_t tok_ret32, tokenstr_t tok_hdr32, uint32_t *optchkd)
+select_return32(tokenstr_t *tok_ret32, tokenstr_t *tok_hdr32, uint32_t *optchkd)
 {
 	int sorf;
 
 	SETOPT((*optchkd), (OPT_c));
-	if (tok_ret32.tt.ret32.status == 0)
+	if (tok_ret32->tt.ret32.status == 0)
 		sorf = AU_PRS_SUCCESS;
 	else
 		sorf = AU_PRS_FAILURE;
 	if (ISOPTSET(opttochk, OPT_c)) {
-		if (au_preselect(tok_hdr32.tt.hdr32.e_type, &maskp, sorf,
+		if (au_preselect(tok_hdr32->tt.hdr32.e_type, &maskp, sorf,
 		    AU_PRS_USECACHE) != 1)
 			return (0);
 	}
@@ -442,22 +449,22 @@ select_return32(tokenstr_t tok_ret32, tokenstr_t tok_hdr32, uint32_t *optchkd)
  * process id
  */
 static int
-select_proc32(tokenstr_t tok, uint32_t *optchkd)
+select_proc32(tokenstr_t *tok, uint32_t *optchkd)
 {
 
 	SETOPT((*optchkd), (OPT_u | OPT_e | OPT_f | OPT_g | OPT_r | OPT_op));
 
-	if (!select_auid(tok.tt.proc32.auid))
+	if (!select_auid(tok->tt.proc32.auid))
 		return (0);
-	if (!select_euid(tok.tt.proc32.euid))
+	if (!select_euid(tok->tt.proc32.euid))
 		return (0);
-	if (!select_egid(tok.tt.proc32.egid))
+	if (!select_egid(tok->tt.proc32.egid))
 		return (0);
-	if (!select_rgid(tok.tt.proc32.rgid))
+	if (!select_rgid(tok->tt.proc32.rgid))
 		return (0);
-	if (!select_ruid(tok.tt.proc32.ruid))
+	if (!select_ruid(tok->tt.proc32.ruid))
 		return (0);
-	if (!select_pidobj(tok.tt.proc32.pid))
+	if (!select_pidobj(tok->tt.proc32.pid))
 		return (0);
 	return (1);
 }
@@ -472,22 +479,22 @@ select_proc32(tokenstr_t tok, uint32_t *optchkd)
  * subject id
  */
 static int
-select_subj32(tokenstr_t tok, uint32_t *optchkd)
+select_subj32(tokenstr_t *tok, uint32_t *optchkd)
 {
 
 	SETOPT((*optchkd), (OPT_u | OPT_e | OPT_f | OPT_g | OPT_r | OPT_j));
 
-	if (!select_auid(tok.tt.subj32.auid))
+	if (!select_auid(tok->tt.subj32.auid))
 		return (0);
-	if (!select_euid(tok.tt.subj32.euid))
+	if (!select_euid(tok->tt.subj32.euid))
 		return (0);
-	if (!select_egid(tok.tt.subj32.egid))
+	if (!select_egid(tok->tt.subj32.egid))
 		return (0);
-	if (!select_rgid(tok.tt.subj32.rgid))
+	if (!select_rgid(tok->tt.subj32.rgid))
 		return (0);
-	if (!select_ruid(tok.tt.subj32.ruid))
+	if (!select_ruid(tok->tt.subj32.ruid))
 		return (0);
-	if (!select_subid(tok.tt.subj32.pid))
+	if (!select_subid(tok->tt.subj32.pid))
 		return (0);
 	return (1);
 }
@@ -527,19 +534,19 @@ select_records(FILE *fp)
 			 */
 			switch(tok.id) {
 			case AUT_HEADER32:
-					selected = select_hdr32(tok,
+					selected = select_hdr32(&tok,
 					    &optchkd);
 					bcopy(&tok, &tok_hdr32_copy,
 					    sizeof(tok));
 					break;
 
 			case AUT_PROCESS32:
-					selected = select_proc32(tok,
+					selected = select_proc32(&tok,
 					    &optchkd);
 					break;
 
 			case AUT_SUBJECT32:
-					selected = select_subj32(tok,
+					selected = select_subj32(&tok,
 					    &optchkd);
 					break;
 
@@ -555,8 +562,8 @@ select_records(FILE *fp)
 					break;	
 
 			case AUT_RETURN32:
-				selected = select_return32(tok,
-				    tok_hdr32_copy, &optchkd);
+				selected = select_return32(&tok,
+				    &tok_hdr32_copy, &optchkd);
 				break;
 
 			default:
