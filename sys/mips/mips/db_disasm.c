@@ -66,7 +66,7 @@ static char *op_name[64] = {
 
 static char *spec_name[64] = {
 /* 0 */ "sll",	"spec01","srl", "sra",	"sllv",	"spec05","srlv","srav",
-/* 8 */ "jr",	"jalr",	"spec12","spec13","syscall","break","spec16","sync",
+/* 8 */ "jr",	"jalr",	"movz", "movn","syscall","break","spec16","sync",
 /*16 */ "mfhi",	"mthi",	"mflo", "mtlo",	"dsllv","spec25","dsrlv","dsrav",
 /*24 */ "mult",	"multu","div",	"divu",	"dmult","dmultu","ddiv","ddivu",
 /*32 */ "add",	"addu",	"sub",	"subu",	"and",	"or",	"xor",	"nor",
@@ -79,7 +79,7 @@ static char *bcond_name[32] = {
 /* 0 */ "bltz",	"bgez",	"bltzl", "bgezl", "?", "?", "?", "?",
 /* 8 */ "tgei",	"tgeiu", "tlti", "tltiu", "teqi", "?", "tnei", "?",
 /*16 */ "bltzal", "bgezal", "bltzall", "bgezall", "?", "?", "?", "?",
-/*24 */ "?", "?", "?", "?", "?", "?", "?", "?",
+/*24 */ "?", "?", "?", "?", "?", "?", "?", "synci",
 };
 
 static char *cop1_name[64] = {
