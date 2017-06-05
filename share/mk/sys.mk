@@ -70,7 +70,8 @@ META_MODE+= missing-filemon=yes
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
-.if !empty(.MAKE.MODE:Mmeta) && !defined(NO_META_IGNORE_HOST)
+.if !empty(.MAKE.MODE:Mmeta)
+.if !defined(NO_META_IGNORE_HOST)
 # Ignore host file changes that will otherwise cause
 # buildworld -> installworld -> buildworld to rebuild everything.
 # Since the build is self-reliant and bootstraps everything it needs,
@@ -85,17 +86,20 @@ META_MODE?= normal
 	/rescue \
 	/sbin \
 	/usr/bin \
-	/usr/include \
 	/usr/lib \
 	/usr/sbin \
 	/usr/share \
 
+.else
+NO_META_IGNORE_HOST_HEADERS=	1
 .endif
-.if !empty(.MAKE.MODE:Mmeta)
+.if !defined(NO_META_IGNORE_HOST_HEADERS)
+.MAKE.META.IGNORE_PATHS+= /usr/include
+.endif
 # We do not want everything out-of-date just because
 # some unrelated shared lib updated this.
 .MAKE.META.IGNORE_PATHS+= /usr/local/etc/libmap.d
-.endif
+.endif	# !empty(.MAKE.MODE:Mmeta)
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
