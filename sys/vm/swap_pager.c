@@ -2203,7 +2203,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	sp->sw_end = dvbase + nblks;
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
 	nswapdev++;
-	swap_pager_avail += nblks;
+	swap_pager_avail += nblks - 2;
 	swap_total += (vm_ooffset_t)nblks * PAGE_SIZE;
 	swapon_check_swzone(swap_total / PAGE_SIZE);
 	swp_sizecheck();
