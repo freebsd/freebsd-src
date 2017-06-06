@@ -157,6 +157,7 @@ done:	if (port) {
 badmopt:		errx(1, "illegal -m option format: %s", copy);
 		mapp->porttype = strdup(port);
 	}
+	free(copy);
 
 #ifdef MAPDEBUG
 	(void)printf("port: %s\n", mapp->porttype ? mapp->porttype : "ANY");
