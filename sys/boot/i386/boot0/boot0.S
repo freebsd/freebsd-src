@@ -169,7 +169,7 @@
 
 /*
  * 	MAIN ENTRY POINT
- * Initialise segments and registers to known values.
+ * Initialize segments and registers to known values.
  * segments start at 0.
  * The stack is immediately below the address we were loaded to.
  * NOTE: the initial section of the code (up to movw $LOAD,%sp)
