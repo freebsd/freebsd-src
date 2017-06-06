@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/rpcb_prot.h>
 
 bool_t
@@ -74,13 +75,13 @@ xdr_rpcb(XDR *xdrs, RPCB *objp)
 	if (!xdr_uint32_t(xdrs, &objp->r_vers)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_netid, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_addr, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_addr, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_owner, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_owner, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	return (TRUE);
@@ -175,19 +176,19 @@ xdr_rpcblist(XDR *xdrs, RPCBLIST **rp)
 bool_t
 xdr_rpcb_entry(XDR *xdrs, rpcb_entry *objp)
 {
-	if (!xdr_string(xdrs, &objp->r_maddr, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_maddr, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_nc_netid, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_nc_netid, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	if (!xdr_uint32_t(xdrs, &objp->r_nc_semantics)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_nc_protofmly, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_nc_protofmly, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
-	if (!xdr_string(xdrs, &objp->r_nc_proto, (u_int)~0)) {
+	if (!xdr_string(xdrs, &objp->r_nc_proto, RPC_MAXDATASIZE)) {
 		return (FALSE);
 	}
 	return (TRUE);
