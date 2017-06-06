@@ -96,7 +96,7 @@ idr_preload_init(void *arg)
 		spin_lock_init(&lic->lock);
 	}
 }
-SYSINIT(idr_preload_init, SI_SUB_LOCK, SI_ORDER_FIRST, idr_preload_init, NULL);
+SYSINIT(idr_preload_init, SI_SUB_CPU, SI_ORDER_ANY, idr_preload_init, NULL);
 
 static void
 idr_preload_uninit(void *arg)
