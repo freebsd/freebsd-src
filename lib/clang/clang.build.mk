@@ -31,9 +31,14 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.3
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd10.3
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
-		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\" \
-		-ffunction-sections -fdata-sections
+		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
+# Work around gcc 4.2 "section type conflict" bug with -fdata-sections on
+# powerpc: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=33168
+.if !(${MACHINE_CPUARCH} == "powerpc" && ${COMPILER_TYPE} == "gcc" && \
+    ${COMPILER_VERSION} < 40300)
+CFLAGS+=	-ffunction-sections -fdata-sections
 LDFLAGS+=	-Wl,--gc-sections
+.endif
 CXXFLAGS+=	-fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
