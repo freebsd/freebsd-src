@@ -12,6 +12,8 @@
         ..
         dd
         ..
+        echo
+        ..
         expr
         ..
         ls
