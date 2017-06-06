@@ -452,6 +452,7 @@ nopgrp:
 		} else {
 			kp->ki_stat = SZOMB;
 		}
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 		bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
 		++bp;
 		++cnt;

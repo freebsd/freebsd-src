@@ -296,6 +296,7 @@ __opendir_common(int fd, int flags, bool use_current_pos)
 	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
 	LIST_INIT(&dirp->dd_td->td_locq);
 	dirp->dd_td->td_loccnt = 0;
+	dirp->dd_compat_de = NULL;
 
 	/*
 	 * Use the system page size if that is a multiple of DIRBLKSIZ.

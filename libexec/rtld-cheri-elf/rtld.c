@@ -371,9 +371,8 @@ _LD(const char *var)
 #endif
 
 /*
- * Main entry point for dynamic linking.  The first argument is a struct
- * cheri_execdata which contains capabilities to argv, envv, and the ELF
- * "auxiliary vector".
+ * Main entry point for dynamic linking.  The first argument is a
+ * pointer to the ELF  "auxiliary vector".
  *
  * The second argument points to a place to store the dynamic linker's
  * exit procedure pointer and the third to a place to store the main
@@ -382,14 +381,13 @@ _LD(const char *var)
  * The return value is the main program's entry point.
  */
 func_ptr_type
-_rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
+_rtld(Elf_Auxinfo *aux, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
     int argc;
     char **argv;
     char **env;
-    Elf_Auxinfo *aux;
     Elf_Auxinfo *auxp;
     const char *argv0;
     Objlist_Entry *entry;
@@ -409,12 +407,6 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
      * and string constants, and to call static and global functions.
      */
 
-    /* Find the auxiliary vector. */
-    argc = ce->ce_argc;
-    argv = ce->ce_argv;
-    env = ce->ce_envp;
-    aux = (Elf_Auxinfo *)ce->ce_auxargs;
-
     /* Digest the auxiliary vector. */
     for (i = 0;  i < AT_COUNT;  i++)
 	aux_info[i] = NULL;
@@ -422,6 +414,9 @@ _rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
 	if (auxp->a_type < AT_COUNT)
 	    aux_info[auxp->a_type] = auxp;
     }
+    argc = aux_info[AT_ARGC]->a_un.a_val;
+    argv = (char **)aux_info[AT_ARGV]->a_un.a_ptr;
+    env = (char **)aux_info[AT_ENVV]->a_un.a_ptr;
 
     /* Initialize and relocate ourselves. */
     assert(aux_info[AT_BASE] != NULL);

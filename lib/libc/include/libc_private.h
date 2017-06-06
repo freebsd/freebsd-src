@@ -307,6 +307,7 @@ struct pollfd;
 struct rusage;
 struct sigaction;
 struct sockaddr;
+struct stat;
 struct timespec;
 struct timeval;
 struct timezone;
@@ -323,9 +324,11 @@ int		__sys_clock_nanosleep(__clockid_t, int,
 		    const struct timespec *, struct timespec *);
 int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
+__ssize_t	__sys_getdirentries(int, char *, __size_t, __off_t *);
 		/* fcntl declared to match the kernel so we can call directly */
 int		__sys_fcntl(int, int, __intptr_t);
 int		__sys_fdatasync(int);
+int		__sys_fstatat(int, const char *, struct stat *, int);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);

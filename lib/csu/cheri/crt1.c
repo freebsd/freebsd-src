@@ -1,5 +1,5 @@
 /*-
- * Copyright 2015 SRI International
+ * Copyright 2015-2017 SRI International
  * Copyright 2013 Philip Withnall
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
@@ -58,8 +58,7 @@ __FBSDID("$FreeBSD: head/lib/csu/mips/crt1_c.c 245133 2013-01-07 17:58:27Z kib $
 
 struct Struct_Obj_Entry;
 
-void __start(struct cheriabi_execdata *, void (*)(void),
-    struct Struct_Obj_Entry *);
+void __start(void *, void (*)(void), struct Struct_Obj_Entry *);
 extern void crt_call_constructors(void);
 
 #ifdef GCRT
@@ -70,7 +69,7 @@ extern int eprol;
 extern int etext;
 #endif
 
-Elf64_Auxinfo *__auxargs;
+Elf_Auxinfo *__auxargs;
 
 struct capreloc
 {
@@ -129,20 +128,31 @@ crt_init_globals(void)
  * See: http://stackoverflow.com/questions/8095531/mips-elf-and-partial-linking
  */
 void
-__start(struct cheriabi_execdata *ce,
+__start(void *auxv,
 	void (*cleanup)(void),			/* from shared loader */
 	struct Struct_Obj_Entry *obj __unused)	/* from shared loader */
 {
-	int argc;
-	char **argv;
-	char **env;
+	Elf_Auxinfo *aux_info[AT_COUNT];
+	int i;
+	int argc = 0;
+	char **argv = NULL;
+	char **env = NULL;
+	Elf_Auxinfo *auxp;
 
 	crt_init_globals();
 
-	argc = ce->ce_argc;
-	argv = ce->ce_argv;
-	env = ce->ce_envp;
-	__auxargs = (Elf64_Auxinfo *)ce->ce_auxargs;
+	__auxargs = auxv;
+	/* Digest the auxiliary vector. */
+	for (i = 0;  i < AT_COUNT;  i++)
+	    aux_info[i] = NULL;
+	for (auxp = __auxargs;  auxp->a_type != AT_NULL;  auxp++) {
+		if (auxp->a_type < AT_COUNT)
+			aux_info[auxp->a_type] = auxp;
+	}
+	argc = aux_info[AT_ARGC]->a_un.a_val;
+	argv = (char **)aux_info[AT_ARGV]->a_un.a_ptr;
+	env = (char **)aux_info[AT_ENVV]->a_un.a_ptr;
+
 	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)

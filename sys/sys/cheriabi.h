@@ -31,24 +31,6 @@
 #ifndef _SYS_CHERIABI_H_
 #define _SYS_CHERIABI_H_
 
-struct cheriabi_execdata {
-	size_t		ce_len;			/* Length of this struct */
-	int		ce_argc;
-	int		_ce_spareint;
-	uint64_t	_ce_spare_uint64[2];	/* pad out to 32 bytes */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	char		**ce_argv;
-	char		**ce_envp;
-	struct cheriabi_auxarg *ce_auxargs;
-	struct ps_strings *ce_ps_strings;
-#else
-	struct chericap ce_argv;
-	struct chericap ce_envp;
-	struct chericap ce_auxargs;
-	struct chericap ce_ps_strings;
-#endif
-};
-
 extern int	cheriabi_mmap_precise_bounds;
 
 #endif /* _SYS_CHERIABI_H_ */

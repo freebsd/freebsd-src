@@ -14,7 +14,6 @@ MIASM =  \
 	unlink.o \
 	chdir.o \
 	fchdir.o \
-	mknod.o \
 	chmod.o \
 	chown.o \
 	getpid.o \
@@ -111,14 +110,10 @@ MIASM =  \
 	setgid.o \
 	setegid.o \
 	seteuid.o \
-	stat.o \
-	fstat.o \
-	lstat.o \
 	pathconf.o \
 	fpathconf.o \
 	getrlimit.o \
 	setrlimit.o \
-	getdirentries.o \
 	__sysctl.o \
 	mlock.o \
 	munlock.o \
@@ -156,16 +151,14 @@ MIASM =  \
 	cheriabi_aio_read.o \
 	cheriabi_aio_write.o \
 	cheriabi_lio_listio.o \
-	getdents.o \
 	lchmod.o \
 	lutimes.o \
-	nstat.o \
-	nfstat.o \
-	nlstat.o \
+	freebsd11_nstat.o \
+	freebsd11_nfstat.o \
+	freebsd11_nlstat.o \
 	cheriabi_preadv.o \
 	cheriabi_pwritev.o \
 	fhopen.o \
-	fhstat.o \
 	modnext.o \
 	modstat.o \
 	modfnext.o \
@@ -236,10 +229,6 @@ MIASM =  \
 	uuidgen.o \
 	cheriabi_sendfile.o \
 	mac_syscall.o \
-	getfsstat.o \
-	statfs.o \
-	fstatfs.o \
-	fhstatfs.o \
 	cheriabi___mac_get_pid.o \
 	cheriabi___mac_get_link.o \
 	cheriabi___mac_set_link.o \
@@ -314,12 +303,10 @@ MIASM =  \
 	fchmodat.o \
 	fchownat.o \
 	cheriabi_fexecve.o \
-	fstatat.o \
 	futimesat.o \
 	linkat.o \
 	mkdirat.o \
 	mkfifoat.o \
-	mknodat.o \
 	cheriabi_openat.o \
 	readlinkat.o \
 	renameat.o \
@@ -369,4 +356,13 @@ MIASM =  \
 	utimensat.o \
 	numa_getaffinity.o \
 	numa_setaffinity.o \
-	fdatasync.o
+	fdatasync.o \
+	fstat.o \
+	fstatat.o \
+	fhstat.o \
+	getdirentries.o \
+	statfs.o \
+	fstatfs.o \
+	getfsstat.o \
+	fhstatfs.o \
+	mknodat.o

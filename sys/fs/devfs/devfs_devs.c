@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -80,10 +82,20 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	dev_t ud;
+#ifdef COMPAT_FREEBSD11
+	uint32_t ud_compat;
+#endif
 	struct cdev_priv *cdp;
 	struct cdev *dev;
 
-	error = SYSCTL_IN(req, &ud, sizeof (ud));
+#ifdef COMPAT_FREEBSD11
+	if (req->newlen == sizeof(ud_compat)) {
+		error = SYSCTL_IN(req, &ud_compat, sizeof(ud_compat));
+		if (error == 0)
+			ud = ud_compat == (uint32_t)NODEV ? NODEV : ud_compat;
+	} else
+#endif
+		error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
 	if (ud == NODEV)

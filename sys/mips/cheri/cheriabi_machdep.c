@@ -860,7 +860,7 @@ static void
 cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct cheri_signal *csigp;
-	u_long stackbase, stacklen;
+	u_long auxv, stackbase, stacklen;
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
@@ -879,13 +879,12 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	cheri_stack_init(td->td_pcb);
 
 	/*
-	 * Pass a pointer to the struct cheriabi_execdata at the top of the
-	 * stack.
-	 *
-	 * XXXBD: should likely be read only
+	 * Pass a pointer to the ELF auxiliary argument vector.
 	 */
+	auxv = stack +
+	    (imgp->args->argc + imgp->args->envc + 2) * sizeof(struct chericap);
 	cheri_capability_set(&td->td_frame->c3, CHERI_CAP_USER_DATA_PERMS,
-	    (void *)stack, sizeof(struct cheriabi_execdata), 0);
+	    (void *)auxv, imgp->auxarg_size * 2 * sizeof(struct chericap), 0);
 
 	/*
 	 * Restrict the stack capability to the maximum region allowed for
