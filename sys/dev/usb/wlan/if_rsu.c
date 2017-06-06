@@ -512,6 +512,7 @@ rsu_attach(device_t self)
 		rft = "1T1R";
 		break;
 	case 0x1:
+	case 0x3:
 		sc->sc_rftype = RTL8712_RFCONFIG_1T2R;
 		sc->sc_nrxstream = 2;
 		sc->sc_ntxstream = 1;
