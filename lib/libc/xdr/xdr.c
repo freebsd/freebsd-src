@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include "un-namespace.h"
@@ -64,7 +66,6 @@ typedef u_quad_t        u_longlong_t;   /* ANSI unsigned long long type */
  */
 #define XDR_FALSE	((long) 0)
 #define XDR_TRUE	((long) 1)
-#define LASTUNSIGNED	((u_int) 0-1)
 
 /*
  * for unit alignment
@@ -602,6 +603,7 @@ xdr_bytes(xdrs, cpp, sizep, maxsize)
 {
 	char *sp = *cpp;  /* sp is the actual string pointer */
 	u_int nodesize;
+	bool_t ret, allocated = FALSE;
 
 	/*
 	 * first deal with the length since xdr bytes are counted
@@ -625,6 +627,7 @@ xdr_bytes(xdrs, cpp, sizep, maxsize)
 		}
 		if (sp == NULL) {
 			*cpp = sp = mem_alloc(nodesize);
+			allocated = TRUE;
 		}
 		if (sp == NULL) {
 			warnx("xdr_bytes: out of memory");
@@ -633,7 +636,14 @@ xdr_bytes(xdrs, cpp, sizep, maxsize)
 		/* FALLTHROUGH */
 
 	case XDR_ENCODE:
-		return (xdr_opaque(xdrs, sp, nodesize));
+		ret = xdr_opaque(xdrs, sp, nodesize);
+		if ((xdrs->x_op == XDR_DECODE) && (ret == FALSE)) {
+			if (allocated == TRUE) {
+				free(sp);
+				*cpp = NULL;
+			}
+		}
+		return (ret);
 
 	case XDR_FREE:
 		if (sp != NULL) {
@@ -727,6 +737,7 @@ xdr_string(xdrs, cpp, maxsize)
 	char *sp = *cpp;  /* sp is the actual string pointer */
 	u_int size;
 	u_int nodesize;
+	bool_t ret, allocated = FALSE;
 
 	/*
 	 * first deal with the length since xdr strings are counted-strings
@@ -760,8 +771,10 @@ xdr_string(xdrs, cpp, maxsize)
 		if (nodesize == 0) {
 			return (TRUE);
 		}
-		if (sp == NULL)
+		if (sp == NULL) {
 			*cpp = sp = mem_alloc(nodesize);
+			allocated = TRUE;
+		}
 		if (sp == NULL) {
 			warnx("xdr_string: out of memory");
 			return (FALSE);
@@ -770,7 +783,14 @@ xdr_string(xdrs, cpp, maxsize)
 		/* FALLTHROUGH */
 
 	case XDR_ENCODE:
-		return (xdr_opaque(xdrs, sp, size));
+		ret = xdr_opaque(xdrs, sp, size);
+		if ((xdrs->x_op == XDR_DECODE) && (ret == FALSE)) {
+			if (allocated == TRUE) {
+				free(sp);
+				*cpp = NULL;
+			}
+		}
+		return (ret);
 
 	case XDR_FREE:
 		mem_free(sp, nodesize);
@@ -790,7 +810,7 @@ xdr_wrapstring(xdrs, cpp)
 	XDR *xdrs;
 	char **cpp;
 {
-	return xdr_string(xdrs, cpp, LASTUNSIGNED);
+	return xdr_string(xdrs, cpp, RPC_MAXDATASIZE);
 }
 
 /*
