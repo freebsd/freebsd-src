@@ -2271,7 +2271,7 @@ done:
 static int
 swapoff_one(struct swdevt *sp, struct ucred *cred)
 {
-	u_long nblks, dvbase;
+	u_long nblks;
 #ifdef MAC
 	int error;
 #endif
@@ -2300,14 +2300,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 */
 	mtx_lock(&sw_dev_mtx);
 	sp->sw_flags |= SW_CLOSING;
-	for (dvbase = 0; dvbase < nblks; dvbase += BLIST_BMAP_RADIX) {
-		/*
-		 * blist_fill() cannot allocate more than BLIST_BMAP_RADIX
-		 * blocks per call.
-		 */
-		swap_pager_avail -= blist_fill(sp->sw_blist,
-		    dvbase, ulmin(nblks - dvbase, BLIST_BMAP_RADIX));
-	}
+	swap_pager_avail -= blist_fill(sp->sw_blist, 0, nblks);
 	swap_total -= (vm_ooffset_t)nblks * PAGE_SIZE;
 	mtx_unlock(&sw_dev_mtx);
 

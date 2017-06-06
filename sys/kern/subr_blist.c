@@ -769,6 +769,8 @@ blst_meta_fill(
 	int next_skip = ((u_int)skip / BLIST_META_RADIX);
 	int nblks = 0;
 
+	if (count > radix)
+		panic("blist_meta_fill: allocation too large");
 	if (count == radix || scan->u.bmu_avail == 0)  {
 		/*
 		 * ALL-ALLOCATED special case
@@ -799,9 +801,6 @@ blst_meta_fill(
 	} else {
 		radix /= BLIST_META_RADIX;
 	}
-
-	if (count > radix)
-		panic("blist_meta_fill: allocation too large");
 
 	i = (allocBlk - blk) / radix;
 	blk += i * radix;
