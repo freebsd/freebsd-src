@@ -55,7 +55,8 @@ struct vnet;
  * handle on protocol and pointer to protocol
  * private data and error information.
  */
-typedef	u_quad_t so_gen_t;
+typedef	uint64_t so_gen_t;
+typedef	int so_upcall_t(struct socket *, void *, int);
 
 struct socket;
 
@@ -400,9 +401,8 @@ int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    int flags, struct thread *td);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
-void	soupcall_clear(struct socket *so, int which);
-void	soupcall_set(struct socket *so, int which,
-	    int (*func)(struct socket *, void *, int), void *arg);
+void	soupcall_clear(struct socket *, int);
+void	soupcall_set(struct socket *, int, so_upcall_t, void *);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
 void	sowakeup_aio(struct socket *so, struct sockbuf *sb);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
