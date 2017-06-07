@@ -41,9 +41,6 @@ SRCS+=	\
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
 
-SRCS+= futimens.c utimensat.c
-PSEUDO+= _futimens.o _utimensat.o
-
 SRCS+= pipe.c
 
 INTERPOSED = \
