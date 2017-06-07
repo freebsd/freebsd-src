@@ -360,9 +360,6 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include	\
 		mtree/BSD.debug.dist		/usr/lib
-.if ${MK_GROFF} != "no"
-MTREES+=	mtree/BSD.groff.dist		/usr
-.endif
 .if ${MK_LIB32} != "no"
 MTREES+=	mtree/BSD.lib32.dist		/usr
 MTREES+=	mtree/BSD.lib32.dist		/usr/lib/debug/usr
