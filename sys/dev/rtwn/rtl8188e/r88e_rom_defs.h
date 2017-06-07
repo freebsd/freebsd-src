@@ -23,7 +23,7 @@
 
 #define R88E_GROUP_2G		6
 
-#define R88E_EFUSE_MAX_LEN	512
+#define R88E_EFUSE_MAX_LEN	256
 #define R88E_EFUSE_MAP_LEN	512
 
 #endif	/* R88E_ROM_DEFS_H */
