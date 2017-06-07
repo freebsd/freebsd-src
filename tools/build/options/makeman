@@ -279,14 +279,6 @@ EOF
 		comm -13 $t/config_default $t/config_${opt} | sed -n "/^${opt}$/!p" |
 		comm -13 $t/deps - > $t/deps2
 
-		# Work around BIND_UTILS=no being the default when every WITH_
-		# option is enabled.
-		if [ "$(cat $t/deps2)" = WITHOUT_BIND_UTILS ]; then
-			sort $t/deps $t/deps2 > $t/_deps
-			mv $t/_deps $t/deps
-			:> $t/deps2
-		fi
-
 		havedeps=0
 		if [ -s $t/deps ] ; then
 			havedeps=1
