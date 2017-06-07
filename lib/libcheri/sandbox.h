@@ -32,6 +32,10 @@
 #ifndef _SANDBOX_H_
 #define	_SANDBOX_H_
 
+#ifdef __cplusplus
+#include <exception>
+#endif
+
 /*
  * This section defines the interface between 'inside' and 'outside' the
  * sandbox model.
@@ -76,6 +80,38 @@ extern int sb_verbose;
  * returns normally then this value is unmodified.
  */
 extern _Thread_local int cherierrno;
+
+#ifdef __cplusplus
+#if __cplusplus >= 201103
+#define LIBCHERI_OVERRIDE override
+#else
+#define LIBCHERI_OVERRIDE
+#endif
+namespace cheri
+{
+	/**
+	 * Sandbox exception class.  In C++ mode, error returns from cross-domain
+	 * calls will be translated into exceptions.
+	 */
+	class sandbox_invoke_failure : public std::exception
+	{
+		/**
+		 * The error code set on construction.
+		 */
+		int errno;
+		public:
+		sandbox_invoke_failure(int e) : errno(e) {}
+		/**
+		 * Returns the error code, which should be the `cherierrno` value from
+		 * a failed ccall.
+		 */
+		int error_code() { return errno; }
+		virtual const char* what() const _NOEXCEPT LIBCHERI_OVERRIDE;
+		virtual ~sandbox_invoke_failure() _NOEXCEPT LIBCHERI_OVERRIDE;
+	};
+}
+#undef LIBCHERI_OVERRIDE
+#endif
 
 struct sandbox_class;
 int	sandbox_class_new(const char *path, size_t maxmapsize,

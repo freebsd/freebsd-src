@@ -12,6 +12,7 @@ SRCS+=	cheritest_bounds_globals.c					\
 	cheritest_fault.c						\
 	cheritest_fd.c							\
 	cheritest_libcheri.c						\
+	cheritest_libcheri_cxx.cc					\
 	cheritest_libcheri_local.c					\
 	cheritest_libcheri_trustedstack.c				\
 	cheritest_libcheri_var.c					\
