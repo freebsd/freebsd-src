@@ -102,7 +102,6 @@ __DEFAULT_YES_OPTIONS = \
     GNU_GREP \
     GPIO \
     GPL_DTC \
-    GROFF \
     HAST \
     HTML \
     HYPERV \
