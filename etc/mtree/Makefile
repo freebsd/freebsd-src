@@ -15,9 +15,6 @@ FILES=	${_BSD.debug.dist} \
 .if ${MK_DEBUG_FILES} != "no"
 _BSD.debug.dist=	BSD.debug.dist
 .endif
-.if ${MK_GROFF} != "no"
-_BSD.groff.dist=	BSD.groff.dist
-.endif
 .if ${MK_LIB32} != "no"
 _BSD.lib32.dist=	BSD.lib32.dist
 .endif
