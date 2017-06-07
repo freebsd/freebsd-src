@@ -76,6 +76,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 	For further comments/feedback, poke adrian@ .
 
+20170531:
+	The GNU roff toolchain has been removed from base. To render manpages
+	which are not supported by mandoc(1), man(1) can fallback on GNU roff
+	from ports (and recommends to install it).
+	To render roff(7) documents, consider using GNU roff from ports or the
+	heirloom doctools roff toolchain from ports via pkg install groff or
+	via pkg install heirloom-doctools.
+
 20170523:
 	The "ino64" 64-bit inode project has been committed, which extends
 	a number of types to 64 bits.  Upgrading in place requires care and
