@@ -3559,8 +3559,7 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
  * Register per-socket buffer upcalls.
  */
 void
-soupcall_set(struct socket *so, int which,
-    int (*func)(struct socket *, void *, int), void *arg)
+soupcall_set(struct socket *so, int which, so_upcall_t func, void *arg)
 {
 	struct sockbuf *sb;
 
