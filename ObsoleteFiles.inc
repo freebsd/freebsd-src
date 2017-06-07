@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170607: remove incorrect atf_check(1) manpage link
+OLD_FILES+=usr/share/man/man1/atf_check.1.gz
 # 20170601: remove stale manpage
 OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
 # 20170601: old libifconfig and libifc
