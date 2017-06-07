@@ -2627,8 +2627,7 @@ options 	DEADLKRES
 # it back on at run-time.
 #
 # This is sometimes usable for systems which don't have any swap space
-# (see also sysctls "vm.defer_swapspace_pageouts" and
-# "vm.disable_swapspace_pageouts")
+# (see also sysctl "vm.disable_swapspace_pageouts")
 #
 #options 	NO_SWAPPING
 
