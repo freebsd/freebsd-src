@@ -131,7 +131,8 @@ static inline int
 atomic_xchg(atomic_t *v, int i)
 {
 #if defined(__i386__) || defined(__amd64__) || \
-    defined(__arm__) || defined(__aarch64__)
+    defined(__arm__) || defined(__aarch64__) || \
+    defined(__powerpc__)
 	return (atomic_swap_int(&v->counter, i));
 #else
 	int ret;
