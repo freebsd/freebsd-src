@@ -68,3 +68,27 @@ test_sandbox_cxx_exception(const struct cheri_test *ctp __unused)
 	cheritest_success();
 #endif
 }
+
+extern "C" void
+test_sandbox_cxx_no_exception(const struct cheri_test *ctp __unused)
+{
+#ifdef CHERIERRNO_LINKS
+	try
+	{
+		invoke_cheri_system_putchar();
+	}
+	catch (cheri::sandbox_invoke_failure &e)
+	{
+		cheritest_failure_errx("Sandbox success threw a cheri exception\n");
+		return;
+	}
+	catch (...)
+	{
+		cheritest_failure_errx("Sandbox success threw an exception\n");
+		return;
+	}
+	cheritest_success();
+#else
+	cheritest_success();
+#endif
+}

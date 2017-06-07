@@ -1087,6 +1087,11 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_cxx_exception,
 	  .ct_flags = CT_FLAG_SANDBOX, },
 
+	{ .ct_name = "test_sandbox_cxx_no_exception",
+	  .ct_desc = "Test that successful sandbox invocations don't exceptions in C++",
+	  .ct_func = test_sandbox_cxx_no_exception,
+	  .ct_flags = CT_FLAG_SANDBOX, },
+
 	{ .ct_name = "test_sandbox_fd_fstat",
 	  .ct_desc = "Exercise fstat() on a cheri_fd in a libcheri sandbox",
 	  .ct_func = test_sandbox_fd_fstat,
