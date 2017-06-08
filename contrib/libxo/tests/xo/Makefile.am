@@ -51,8 +51,7 @@ all:
 XO=../../xo/xo
 
 TEST_ONE = \
-  LIBXO_OPTIONS=:W$$fmt \
-      ${CHECKER} sh ${srcdir}/$$base.sh ${XO} ${TEST_OPTS} \
+      ${CHECKER} sh ${srcdir}/$$base.sh "${XO} --libxo:W$$fmt" ${TEST_OPTS} \
       > out/$$base.$$fmt.out 2> out/$$base.$$fmt.err ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.out out/$$base.$$fmt.out ${S2O} ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.err out/$$base.$$fmt.err ${S2O}
