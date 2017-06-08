@@ -1398,9 +1398,20 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp,
 	AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
 	AES_GMAC_Final(digest, &gmac_ctx);
 
-	crypto_copyback(crp->crp_flags, crp->crp_buf, crda->crd_inject,
-	    sizeof(digest), digest);
-	crp->crp_etype = 0;
+	if (crde->crd_flags & CRD_F_ENCRYPT) {
+		crypto_copyback(crp->crp_flags, crp->crp_buf, crda->crd_inject,
+		    sizeof(digest), digest);
+		crp->crp_etype = 0;
+	} else {
+		char digest2[GMAC_DIGEST_LEN];
+
+		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_inject,
+		    sizeof(digest2), digest2);
+		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0)
+			crp->crp_etype = 0;
+		else
+			crp->crp_etype = EBADMSG;
+	}
 	crypto_done(crp);
 }
 
