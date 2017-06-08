@@ -326,6 +326,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name, 0 }, { Name, 1 }, { Mountflags, 2 }, { Ptr, 3 } } },
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Mprot, 2 } } },
+	{ .name = "msync", .ret_type = 1, .nargs = 3,
+	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Msync, 2 } } },
 	{ .name = "munlock", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { Sizet, 1 } } },
 	{ .name = "munmap", .ret_type = 1, .nargs = 2,
@@ -2117,6 +2119,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Mountflags:
 		print_mask_arg(sysdecode_mount_flags, fp, args[sc->offset]);
+		break;
+	case Msync:
+		print_mask_arg(sysdecode_msync_flags, fp, args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
