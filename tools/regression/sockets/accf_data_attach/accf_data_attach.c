@@ -233,6 +233,20 @@ main(void)
 		errx(-1, "not ok 11 - accept #2 %s", strerror(errno));
 	printf("ok 11 - accept\n");
 
+#if 1
+	/*
+	 * XXXGL: this doesn't belong to the test itself, but is known
+	 * to examine rarely examined paths in the kernel.  Intentionally
+	 * leave a socket on the incomplete queue, before the program
+	 * exits.
+	 */
+	so = socket(PF_INET, SOCK_STREAM, 0);
+	if (so == -1)
+		errx(-1, "not ok 12 - socket: %s", strerror(errno));
+	if (connect(so, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		errx(-1, "not ok 12 - connect %s", strerror(errno));
+#endif
+
 	/*
 	 * Step 11: Remove accept filter.  After removing the accept filter
 	 * getsockopt() should fail with EINVAL.
