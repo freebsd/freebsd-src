@@ -101,6 +101,8 @@ typedef unsigned long long xo_xof_flags_t;
 #define XOF_RETAIN_ALL	XOF_BIT(30) /** Force use of XOEF_RETAIN */
 #define XOF_RETAIN_NONE	XOF_BIT(31) /** Prevent use of XOEF_RETAIN */
 
+#define XOF_COLOR_MAP	XOF_BIT(32) /** Color map has been initialized */
+
 typedef unsigned xo_emit_flags_t; /* Flags to xo_emit() and friends */
 #define XOEF_RETAIN	(1<<0)	  /* Retain parsed formatting information */
 

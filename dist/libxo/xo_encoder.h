@@ -50,7 +50,8 @@ typedef unsigned xo_encoder_op_t;
 	xo_encoder_op_t op __attribute__ ((__unused__)),	\
 	const char *name __attribute__ ((__unused__)),		\
         const char *value __attribute__ ((__unused__)),		\
-	void *private __attribute__ ((__unused__))
+	void *private __attribute__ ((__unused__)),		\
+	xo_xof_flags_t flags __attribute__ ((__unused__))
 
 typedef int (*xo_encoder_func_t)(XO_ENCODER_HANDLER_ARGS);
 
@@ -105,7 +106,7 @@ xo_encoder_create (const char *name, xo_xof_flags_t flags);
 
 int
 xo_encoder_handle (xo_handle_t *xop, xo_encoder_op_t op,
-		   const char *name, const char *value);
+		   const char *name, const char *value, xo_xof_flags_t flags);
 
 void
 xo_encoders_clean (void);
