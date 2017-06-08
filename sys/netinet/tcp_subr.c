@@ -1664,7 +1664,6 @@ tcp_close(struct tcpcb *tp)
 		    ("tcp_close: !SS_PROTOREF"));
 		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
-		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
 		sofree(so);

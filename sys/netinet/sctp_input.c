@@ -5200,11 +5200,21 @@ process_control_chunks:
 			 * listening responded to a INIT-ACK and then
 			 * closed. We opened and bound.. and are now no
 			 * longer listening.
+			 *
+			 * XXXGL: notes on checking listen queue length.
+			 * 1) SCTP_IS_LISTENING() doesn't necessarily mean
+			 *    SOLISTENING(), because a listening "UDP type"
+			 *    socket isn't listening in terms of the socket
+			 *    layer.  It is a normal data flow socket, that
+			 *    can fork off new connections.  Thus, we should
+			 *    look into sol_qlen only in case we are !UDP.
+			 * 2) Checking sol_qlen in general requires locking
+			 *    the socket, and this code lacks that.
 			 */
-
 			if ((stcb == NULL) &&
 			    (!SCTP_IS_LISTENING(inp) ||
-			    inp->sctp_socket->so_qlen >= inp->sctp_socket->so_qlimit)) {
+			    (!(inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
+			    inp->sctp_socket->sol_qlen >= inp->sctp_socket->sol_qlimit))) {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 				    (SCTP_BASE_SYSCTL(sctp_abort_if_one_2_one_hits_limit))) {
 					op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
