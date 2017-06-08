@@ -323,7 +323,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "modfind", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
 	{ .name = "mount", .ret_type = 1, .nargs = 4,
-	  .args = { { Name, 0 }, { Name, 1 }, { Int, 2 }, { Ptr, 3 } } },
+	  .args = { { Name, 0 }, { Name, 1 }, { Mountflags, 2 }, { Ptr, 3 } } },
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Mprot, 2 } } },
 	{ .name = "munlock", .ret_type = 1, .nargs = 2,
@@ -332,6 +332,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Ptr, 0 }, { Sizet, 1 } } },
 	{ .name = "nanosleep", .ret_type = 1, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
+	{ .name = "nmount", .ret_type = 1, .nargs = 3,
+	  .args = { { Ptr, 0 }, { UInt, 1 }, { Mountflags, 2 } } },
 	{ .name = "open", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Open, 1 }, { Octal, 2 } } },
 	{ .name = "openat", .ret_type = 1, .nargs = 4,
@@ -452,7 +454,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "unlinkat", .ret_type = 1, .nargs = 3,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atflags, 2 } } },
 	{ .name = "unmount", .ret_type = 1, .nargs = 2,
-	  .args = { { Name, 0 }, { Int, 1 } } },
+	  .args = { { Name, 0 }, { Mountflags, 1 } } },
 	{ .name = "utimensat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Timespec2 | IN, 2 },
 		    { Atflags, 3 } } },
@@ -2112,6 +2114,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Mlockall:
 		print_mask_arg(sysdecode_mlockall_flags, fp, args[sc->offset]);
+		break;
+	case Mountflags:
+		print_mask_arg(sysdecode_mount_flags, fp, args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
