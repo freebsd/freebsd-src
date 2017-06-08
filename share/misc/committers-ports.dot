@@ -238,6 +238,7 @@ trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2013/10/17"]
 tz [label="Torsten Zuehlsdorff\ntz@FreeBSD.org\n2016/06/04"]
+ultima [label="Richard Gallamore\nultima@FreeBSD.org\n2017/06/07"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
@@ -463,6 +464,8 @@ lawrance -> itetcu
 
 leeym -> clsung
 
+lifanov -> ultima
+
 lioux -> pat
 
 lme -> tobik
@@ -495,6 +498,7 @@ mat -> tobik
 mat -> woodsb02
 
 matthew -> lifanov
+matthew -> ultima
 
 mezz -> tmclaugh
 
