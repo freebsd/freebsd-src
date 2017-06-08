@@ -49,7 +49,7 @@ enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
 	CapFcntlRights, Fadvice, FileFlags, Flockop, Getfsstatmode, Kldsymcmd,
 	Kldunloadflags, Sizet, Madvice, Socklent, Sockprotocol, Sockoptlevel,
 	Sockoptname, Msgflags, CapRights, PUInt, PQuadHex, Acltype,
-	Extattrnamespace, Minherit, Mlockall,
+	Extattrnamespace, Minherit, Mlockall, Mountflags,
 
 	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
