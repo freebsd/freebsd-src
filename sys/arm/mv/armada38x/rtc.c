@@ -56,6 +56,18 @@ __FBSDID("$FreeBSD$");
 
 #define	RTC_STATUS		0x0
 #define	RTC_TIME		0xC
+#define	RTC_TEST_CONFIG		0x1C
+#define	RTC_IRQ_1_CONFIG	0x4
+#define	RTC_IRQ_2_CONFIG	0x8
+#define	RTC_ALARM_1		0x10
+#define	RTC_ALARM_2		0x14
+#define	RTC_CLOCK_CORR		0x18
+
+#define	RTC_NOMINAL_TIMING	0x2000
+#define	RTC_NOMINAL_TIMING_MASK	0x7fff
+
+#define	RTC_STATUS_ALARM1_MASK	0x1
+#define	RTC_STATUS_ALARM2_MASK	0x2
 
 #define	MV_RTC_LOCK(sc)		mtx_lock(&(sc)->mutex)
 #define	MV_RTC_UNLOCK(sc)	mtx_unlock(&(sc)->mutex)
@@ -102,6 +114,43 @@ static driver_t mv_rtc_driver = {
 static devclass_t mv_rtc_devclass;
 
 DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
+
+static void
+mv_rtc_reset(device_t dev)
+{
+	struct mv_rtc_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	/* Reset Test register */
+	mv_rtc_reg_write(sc, RTC_TEST_CONFIG, 0);
+	DELAY(500000);
+
+	/* Reset Time register */
+	mv_rtc_reg_write(sc, RTC_TIME, 0);
+	DELAY(62);
+
+	/* Reset Status register */
+	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	DELAY(62);
+
+	/* Turn off Int1 and Int2 sources & clear the Alarm count */
+	mv_rtc_reg_write(sc, RTC_IRQ_1_CONFIG, 0);
+	mv_rtc_reg_write(sc, RTC_IRQ_2_CONFIG, 0);
+	mv_rtc_reg_write(sc, RTC_ALARM_1, 0);
+	mv_rtc_reg_write(sc, RTC_ALARM_2, 0);
+
+	/* Setup nominal register access timing */
+	mv_rtc_reg_write(sc, RTC_CLOCK_CORR, RTC_NOMINAL_TIMING);
+
+	/* Reset Time register */
+	mv_rtc_reg_write(sc, RTC_TIME, 0);
+	DELAY(10);
+
+	/* Reset Status register */
+	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	DELAY(50);
+}
 
 static int
 mv_rtc_probe(device_t dev)
@@ -197,6 +246,12 @@ mv_rtc_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 
 	MV_RTC_LOCK(sc);
+
+	if ((mv_rtc_reg_read(sc, RTC_CLOCK_CORR) & RTC_NOMINAL_TIMING_MASK) !=
+	    RTC_NOMINAL_TIMING) {
+		/* RTC was not resetted yet */
+		mv_rtc_reset(dev);
+	}
 
 	/*
 	 * According to errata FE-3124064, Write to RTC TIME register
