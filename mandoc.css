@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.17 2017/02/05 21:00:43 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.18 2017/03/13 20:22:18 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  */
@@ -13,6 +13,11 @@ td {		vertical-align: top; }
 ul, ol, dl {	margin-top: 0em;
 		margin-bottom: 0em; }
 li, dt {	margin-top: 1em; }
+
+a.selflink {	border-bottom: thin dotted;
+		color: inherit;
+		font: inherit;
+		text-decoration: inherit; }
 
 /* Search form and search results. */
 

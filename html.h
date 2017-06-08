@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.83 2017/02/05 20:22:04 schwarze Exp $ */
+/*	$Id: html.h,v 1.85 2017/05/04 22:16:09 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -112,8 +112,11 @@ struct	html {
 };
 
 
+struct	roff_node;
 struct	tbl_span;
 struct	eqn;
+
+void		  roff_html_pre(struct html *, const struct roff_node *);
 
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
@@ -127,4 +130,5 @@ void		  print_eqn(struct html *, const struct eqn *);
 void		  print_paragraph(struct html *);
 void		  print_endline(struct html *);
 
+char		 *html_make_id(const struct roff_node *);
 int		  html_strlen(const char *);
