@@ -322,7 +322,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 		wakeup(&sb->sb_acc);
 	}
 	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
-	if (sb->sb_upcall != NULL) {
+	if (sb->sb_upcall != NULL && !(so->so_state & SS_ISDISCONNECTED)) {
 		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_NOWAIT);
 		if (ret == SU_ISCONNECTED) {
 			KASSERT(sb == &so->so_rcv,
