@@ -1716,7 +1716,6 @@ struct lagg_port *
 lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 {
 	struct lagg_port *lp_next, *rval = NULL;
-	// int new_link = LINK_STATE_DOWN;
 
 	/*
 	 * Search a port which reports an active link state.
@@ -1743,22 +1742,6 @@ search:
 	}
 
 found:
-	if (rval != NULL) {
-		/*
-		 * The IEEE 802.1D standard assumes that a lagg with
-		 * multiple ports is always full duplex. This is valid
-		 * for load sharing laggs and if at least two links
-		 * are active. Unfortunately, checking the latter would
-		 * be too expensive at this point.
-		 XXX
-		if ((sc->sc_capabilities & IFCAP_LAGG_FULLDUPLEX) &&
-		    (sc->sc_count > 1))
-			new_link = LINK_STATE_FULL_DUPLEX;
-		else
-			new_link = rval->lp_link_state;
-		 */
-	}
-
 	return (rval);
 }
 
@@ -1775,7 +1758,6 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 static void
 lagg_rr_attach(struct lagg_softc *sc)
 {
-	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 	sc->sc_seq = 0;
 	sc->sc_bkt_count = sc->sc_bkt;
 }
@@ -1944,9 +1926,6 @@ lagg_lb_attach(struct lagg_softc *sc)
 	struct lagg_lb *lb;
 
 	lb = malloc(sizeof(struct lagg_lb), M_DEVBUF, M_WAITOK | M_ZERO);
-
-	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
-
 	lb->lb_key = m_ether_tcpip_hash_init();
 	sc->sc_psc = lb;
 
