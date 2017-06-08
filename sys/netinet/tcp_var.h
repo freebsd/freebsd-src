@@ -272,8 +272,9 @@ struct tcp_function_block {
 };
 
 struct tcp_function {
-	TAILQ_ENTRY(tcp_function) tf_next;
-	struct tcp_function_block *tf_fb;
+	TAILQ_ENTRY(tcp_function)	tf_next;
+	char				tf_name[TCP_FUNCTION_NAME_LEN_MAX];
+	struct tcp_function_block	*tf_fb;
 };
 
 TAILQ_HEAD(tcp_funchead, tcp_function);
@@ -785,6 +786,10 @@ void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
 			int);
 
 int register_tcp_functions(struct tcp_function_block *blk, int wait);
+int register_tcp_functions_as_names(struct tcp_function_block *blk,
+    int wait, const char *names[], int *num_names);
+int register_tcp_functions_as_name(struct tcp_function_block *blk,
+    const char *name, int wait);
 int deregister_tcp_functions(struct tcp_function_block *blk);
 struct tcp_function_block *find_and_ref_tcp_functions(struct tcp_function_set *fs);
 struct tcp_function_block *find_and_ref_tcp_fb(struct tcp_function_block *blk);
