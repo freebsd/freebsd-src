@@ -239,7 +239,6 @@ typedef uint8_t xo_color_t;
 #define XO_EFF_CLEAR_BITS XO_EFF_RESET /* Reset gets reset, surprisingly */
 
 typedef uint8_t xo_effect_t;
-typedef uint8_t xo_color_t;
 typedef struct xo_colors_s {
     xo_effect_t xoc_effects;	/* Current effect set */
     xo_color_t xoc_col_fg;	/* Foreground color */
