@@ -1,6 +1,7 @@
-/*	$Id: out.h,v 1.27 2015/11/07 14:01:16 schwarze Exp $ */
+/*	$Id: out.h,v 1.29 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -40,14 +41,16 @@ struct	roffsu {
 	double		  scale;
 };
 
+typedef	size_t	(*tbl_sulen)(const struct roffsu *, void *);
 typedef	size_t	(*tbl_strlen)(const char *, void *);
 typedef	size_t	(*tbl_len)(size_t, void *);
 
 struct	rofftbl {
+	tbl_sulen	 sulen; /* calculate scaling unit length */
 	tbl_strlen	 slen; /* calculate string length */
 	tbl_len		 len; /* produce width of empty space */
 	struct roffcol	*cols; /* master column specifiers */
-	void		*arg; /* passed to slen and len */
+	void		*arg; /* passed to sulen, slen, and len */
 };
 
 #define	SCALE_VS_INIT(p, v) \
@@ -63,6 +66,6 @@ struct	rofftbl {
 
 struct	tbl_span;
 
-int		  a2roffsu(const char *, struct roffsu *, enum roffscale);
+const char	 *a2roffsu(const char *, struct roffsu *, enum roffscale);
 void		  tblcalc(struct rofftbl *tbl,
 			const struct tbl_span *, size_t);
