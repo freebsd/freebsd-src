@@ -111,6 +111,7 @@ static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 static void decode_win_ahci_dump(u_long base);
 static void decode_win_sdhci_dump(u_long);
+static void decode_win_pcie_dump(u_long);
 
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
 #ifdef SOC_MV_ARMADA38X
@@ -160,7 +161,7 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
 	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump },
-	{ "mrvl,pcie", &decode_win_pcie_setup, NULL },
+	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump },
 	{ NULL, NULL, NULL },
 };
 
@@ -660,6 +661,8 @@ WIN_REG_BASE_IDX_WR(win_pcie, cr, MV_WIN_PCIE_CTRL);
 WIN_REG_BASE_IDX_WR(win_pcie, br, MV_WIN_PCIE_BASE);
 WIN_REG_BASE_IDX_WR(win_pcie, remap, MV_WIN_PCIE_REMAP);
 WIN_REG_BASE_IDX_RD(pcie_bar, br, MV_PCIE_BAR_BASE);
+WIN_REG_BASE_IDX_RD(pcie_bar, brh, MV_PCIE_BAR_BASE_H);
+WIN_REG_BASE_IDX_RD(pcie_bar, cr, MV_PCIE_BAR_CTRL);
 WIN_REG_BASE_IDX_WR(pcie_bar, br, MV_PCIE_BAR_BASE);
 WIN_REG_BASE_IDX_WR(pcie_bar, brh, MV_PCIE_BAR_BASE_H);
 WIN_REG_BASE_IDX_WR(pcie_bar, cr, MV_PCIE_BAR_CTRL);
@@ -1440,6 +1443,22 @@ decode_win_eth_valid(void)
 /**************************************************************************
  * PCIE windows routines
  **************************************************************************/
+static void
+decode_win_pcie_dump(u_long base)
+{
+	int i;
+
+	printf("PCIE windows base 0x%08lx\n", base);
+	for (i = 0; i < MV_WIN_PCIE_MAX; i++)
+		printf("PCIE window#%d: cr 0x%08x br 0x%08x remap 0x%08x\n",
+		    i, win_pcie_cr_read(base, i),
+		    win_pcie_br_read(base, i), win_pcie_remap_read(base, i));
+
+	for (i = 0; i < MV_PCIE_BAR_MAX; i++)
+		printf("PCIE bar#%d: cr 0x%08x br 0x%08x brh 0x%08x\n",
+		    i, pcie_bar_cr_read(base, i),
+		    pcie_bar_br_read(base, i), pcie_bar_brh_read(base, i));
+}
 
 void
 decode_win_pcie_setup(u_long base)
