@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_html.3,v 1.5 2017/01/28 22:36:38 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.8 2017/05/12 17:58:21 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 28 2017 $
+.Dd $Mdocdate: May 12 2017 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -47,6 +47,14 @@
 .Fo print_text
 .Fa "struct html *h"
 .Fa "const char *word"
+.Fc
+.Ft char *
+.Fo html_make_id
+.Fa "const struct roff_node *n"
+.Fc
+.Ft int
+.Fo html_strlen
+.Fa "const char *cp"
 .Fc
 .Sh DESCRIPTION
 The mandoc HTML formatter is not a formal library.
@@ -145,6 +153,11 @@ the respective attribute is not written.
 Print a
 .Cm class
 attribute.
+This attribute letter can optionally be followed by the modifier letter
+.Cm T .
+In that case, a
+.Cm title
+attribute with the same value is also printed.
 .It Cm h
 Print a
 .Cm href
@@ -191,7 +204,7 @@ Instead, the rest of the format string consists of pairs of
 argument type letters and style name letters.
 .El
 .Pp
-Argument type letters each require on argument as follows:
+Argument type letters each require one argument as follows:
 .Bl -tag -width 1n -offset indent
 .It Cm h
 Requires one
@@ -220,10 +233,18 @@ width specifier.
 If the argument is
 .Dv NULL ,
 nothing is printed for this pair.
-.It Cm W
-Similar to
-.Cm w ,
-but makes the width negative by multiplying it with \(mi1.
+.Pp
+The
+.Cm w
+argument type letter can optionally be followed by one or two
+modifier letters.
+The modifier
+.Cm +
+increases the width by 10% to make even bold text fit
+and adds two units for padding between columns.
+The modifier
+.Cm \-
+makes the width negative by multiplying it with \-1.
 .El
 .Pp
 Style name letters decide what to do with the preceding argument:
@@ -301,8 +322,27 @@ and
 .Fn print_tagq
 functions.
 .Pp
+The function
+.Fn html_make_id
+takes a node containing one or more text children
+and returns a newly allocated string containing the concatenation
+of the child strings, with blanks replaced by underscores.
+If the node
+.Fa n
+contains any non-text child node,
+.Fn html_make_id
+returns
+.Dv NULL
+instead.
+The caller is responsible for freeing the returned string.
+.Pp
+The function
+.Fn html_strlen
+counts the number of characters in
+.Fa cp .
+It is used as a crude estimate of the width needed to display a string.
+.Pp
 The functions
-.Fn html_strlen ,
 .Fn print_eqn ,
 .Fn print_tbl ,
 and

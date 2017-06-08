@@ -17,7 +17,6 @@ LINKS=	${BINDIR}/mandoc ${BINDIR}/whatis \
 .endif
 
 LIBMAN_SRCS=	man.c \
-		man_hash.c \
 		man_macro.c \
 		man_validate.c
 
@@ -25,14 +24,17 @@ LIBMDOC_SRCS=	att.c \
 		lib.c \
 		mdoc.c \
 		mdoc_argv.c \
-		mdoc_hash.c \
 		mdoc_macro.c \
+		mdoc_markdown.c \
 		mdoc_state.c \
 		mdoc_validate.c \
 		st.c \
 
 LIBROFF_SRCS=	eqn.c \
 		roff.c \
+		roff_html.c \
+		roff_term.c \
+		roff_validate.c \
 		tbl.c \
 		tbl_data.c \
 		tbl_layout.c \
@@ -63,6 +65,7 @@ TERM_SRCS=	eqn_term.c \
 		term.c \
 		term_ascii.c \
 		term_ps.c \
+		term_tab.c \
 		tbl_term.c
 
 DBM_SRCS=	dbm.c \
