@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2016
+.Dd March 10, 2017
 .Dt TCP_FUNCTIONS 9
 .Os
 .Sh NAME
@@ -36,6 +36,11 @@
 .In netinet/tcp_var.h
 .Ft int
 .Fn register_tcp_functions "struct tcp_function_block *blk" "int wait"
+.Ft int
+.Fn register_tcp_functions_as_name "struct tcp_function_block *blk" \
+"const char *name" "int wait"
+.Fn register_tcp_functions_as_names "struct tcp_function_block *blk" \
+"int wait" "const char *names[]" "int *num_names"
 .Ft int
 .Fn deregister_tcp_functions "struct tcp_function_block *blk"
 .Sh DESCRIPTION
@@ -62,26 +67,78 @@ This is intentional.
 A "TCP stack" is a collection of functions that implement a set of behavior.
 Therefore, an alternate "function block" defines an alternate "TCP stack".
 .Pp
-.Nm
-modules must call the
-.Fn register_tcp_functions
-function during initialization and successfully call the
-.Fn deregister_tcp_functions
-function prior to allowing the module to be unloaded.
+The
+.Fn register_tcp_functions ,
+.Fn register_tcp_functions_as_name ,
+and
+.Fn register_tcp_functions_as_names
+functions request that the system add a specified function block
+and register it for use with a given name.
+Modules may register the same function block multiple times with different
+names.
+However, names must be globally unique among all registered function blocks.
+Also, modules may not ever modify the contents of the function block (including
+the name) after it has been registered, unless the module first successfully
+de-registers the function block.
 .Pp
 The
 .Fn register_tcp_functions
-function requests that the system add a specified function block to the system.
+function requests that the system register the function block with the name
+defined in the function block's
+.Va tfb_tcp_block_name
+field.
+Note that this is the only one of the three registration functions that
+automatically registers the function block using the name defined in the
+function block's
+.Va tfb_tcp_block_name
+field.
+If a module uses one of the other registration functions, it may request that
+the system register the function block using the name defined in the
+function block's
+.Va tfb_tcp_block_name
+field by explicitly providing that name.
+.Pp
+The
+.Fn register_tcp_functions_as_name
+function requests that the system register the function block with the name
+provided in the
+.Fa name
+argument.
+.Pp
+The
+.Fn register_tcp_functions_as_names
+function requests that the system register the function block with all the
+names provided in the
+.Fa names
+argument.
+The
+.Fa num_names
+argument provides a pointer to the number of names.
+This function will either succeed in registering all of the names in the array,
+or none of the names in the array.
+On failure, the
+.Fa num_names
+argument is updated with the index number of the entry in the
+.Fa names
+array which the system was processing when it encountered the error.
 .Pp
 The
 .Fn deregister_tcp_functions
 function requests that the system remove a specified function block from the
 system.
+If this call succeeds, it will completely deregister the function block,
+regardless of the number of names used to register the function block.
 If the call fails because sockets are still using the specified function block,
 the system will mark the function block as being in the process of being
 removed.
 This will prevent additional sockets from using the specified function block.
 However, it will not impact sockets that are already using the function block.
+.Pp
+.Nm
+modules must call one or more of the registration functions during
+initialization and successfully call the
+.Fn deregister_tcp_functions
+function prior to allowing the module to be unloaded.
 .Pp
 The
 .Fa blk
@@ -270,7 +327,9 @@ rest of the system in a standardized format, alternate TCP stacks must
 update all fields in the TCP control block to the greatest extent practical.
 .Sh RETURN VALUES
 The
-.Fn register_tcp_functions
+.Fn register_tcp_functions ,
+.Fn register_tcp_functions_as_name ,
+.Fn register_tcp_functions_as_names ,
 and
 .Fn deregister_tcp_functions
 functions return zero on success and non-zero on failure.

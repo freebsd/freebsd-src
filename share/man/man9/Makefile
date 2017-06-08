@@ -1861,6 +1861,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_unblock.9 \
 	taskqueue.9 TIMEOUT_TASK_INIT.9
 MLINKS+=tcp_functions.9 register_tcp_functions.9 \
+	tcp_functions.9 register_tcp_functions_as_name.9 \
+	tcp_functions.9 register_tcp_functions_as_names.9 \
 	tcp_functions.9 deregister_tcp_functions.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \

@@ -275,7 +275,7 @@ find_tcp_functions_locked(struct tcp_function_set *fs)
 	struct tcp_function_block *blk=NULL;
 
 	TAILQ_FOREACH(f, &t_functions, tf_next) {
-		if (strcmp(f->tf_fb->tfb_tcp_block_name, fs->function_set_name) == 0) {
+		if (strcmp(f->tf_name, fs->function_set_name) == 0) {
 			blk = f->tf_fb;
 			break;
 		}
@@ -376,6 +376,7 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 	struct tcp_function *f;
 	char *buffer, *cp;
 	size_t bufsz, outsz;
+	bool alias;
 
 	cnt = 0;
 	rw_rlock(&tcp_function_lock);
@@ -384,22 +385,25 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 	}
 	rw_runlock(&tcp_function_lock);
 
-	bufsz = (cnt+2) * (TCP_FUNCTION_NAME_LEN_MAX + 12) + 1;
+	bufsz = (cnt+2) * ((TCP_FUNCTION_NAME_LEN_MAX * 2) + 13) + 1;
 	buffer = malloc(bufsz, M_TEMP, M_WAITOK);
 
 	error = 0;
 	cp = buffer;
 
-	linesz = snprintf(cp, bufsz, "\n%-32s%c %s\n", "Stack", 'D', "PCB count");
+	linesz = snprintf(cp, bufsz, "\n%-32s%c %-32s %s\n", "Stack", 'D',
+	    "Alias", "PCB count");
 	cp += linesz;
 	bufsz -= linesz;
 	outsz = linesz;
 
 	rw_rlock(&tcp_function_lock);	
 	TAILQ_FOREACH(f, &t_functions, tf_next) {
-		linesz = snprintf(cp, bufsz, "%-32s%c %u\n",
+		alias = (f->tf_name != f->tf_fb->tfb_tcp_block_name);
+		linesz = snprintf(cp, bufsz, "%-32s%c %-32s %u\n",
 		    f->tf_fb->tfb_tcp_block_name,
 		    (f->tf_fb == tcp_func_set_ptr) ? '*' : ' ',
+		    alias ? f->tf_name : "-",
 		    f->tf_fb->tfb_refcnt);
 		if (linesz >= bufsz) {
 			error = EOVERFLOW;
@@ -500,12 +504,31 @@ maketcp_hashsize(int size)
 	return (hashsize);
 }
 
+/*
+ * Register a TCP function block with the name provided in the names
+ * array.  (Note that this function does NOT automatically register
+ * blk->tfb_tcp_block_name as a stack name.  Therefore, you should
+ * explicitly include blk->tfb_tcp_block_name in the list of names if
+ * you wish to register the stack with that name.)
+ *
+ * Either all name registrations will succeed or all will fail.  If
+ * a name registration fails, the function will update the num_names
+ * argument to point to the array index of the name that encountered
+ * the failure.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
 int
-register_tcp_functions(struct tcp_function_block *blk, int wait)
+register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
+    const char *names[], int *num_names)
 {
-	struct tcp_function_block *lblk;
 	struct tcp_function *n;
 	struct tcp_function_set fs;
+	int error, i;
+
+	KASSERT(names != NULL && *num_names > 0,
+	    ("%s: Called with 0-length name list", __func__));
+	KASSERT(names != NULL, ("%s: Called with NULL name list", __func__));
 
 	if (t_functions_inited == 0) {
 		init_tcp_functions();
@@ -518,6 +541,7 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		 * These functions are required and you
 		 * need a name.
 		 */
+		*num_names = 0;
 		return (EINVAL);
 	}
 	if (blk->tfb_tcp_timer_stop_all ||
@@ -532,34 +556,99 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		    (blk->tfb_tcp_timer_activate == NULL) ||
 		    (blk->tfb_tcp_timer_active == NULL) ||
 		    (blk->tfb_tcp_timer_stop == NULL)) {
-			return (EINVAL);			
+			*num_names = 0;
+			return (EINVAL);
 		}
-	}	
-	n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
-	if (n == NULL) {
-		return (ENOMEM);
 	}
-	n->tf_fb = blk;
-	strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
-	rw_wlock(&tcp_function_lock);
-	lblk = find_tcp_functions_locked(&fs);
-	if (lblk) {
-		/* Duplicate name space not allowed */
-		rw_wunlock(&tcp_function_lock);
-		free(n, M_TCPFUNCTIONS);
-		return (EALREADY);
-	}
+
 	refcount_init(&blk->tfb_refcnt, 0);
 	blk->tfb_flags = 0;
-	TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
-	rw_wunlock(&tcp_function_lock);
+	for (i = 0; i < *num_names; i++) {
+		n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
+		if (n == NULL) {
+			error = ENOMEM;
+			goto cleanup;
+		}
+		n->tf_fb = blk;
+
+		(void)strncpy(fs.function_set_name, names[i],
+		    TCP_FUNCTION_NAME_LEN_MAX);
+		fs.function_set_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+		rw_wlock(&tcp_function_lock);
+		if (find_tcp_functions_locked(&fs) != NULL) {
+			/* Duplicate name space not allowed */
+			rw_wunlock(&tcp_function_lock);
+			free(n, M_TCPFUNCTIONS);
+			error = EALREADY;
+			goto cleanup;
+		}
+		(void)strncpy(n->tf_name, names[i], TCP_FUNCTION_NAME_LEN_MAX);
+		n->tf_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+		TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+		rw_wunlock(&tcp_function_lock);
+	}
 	return(0);
-}	
+
+cleanup:
+	/*
+	 * Deregister the names we just added. Because registration failed
+	 * for names[i], we don't need to deregister that name.
+	 */
+	*num_names = i;
+	rw_wlock(&tcp_function_lock);
+	while (--i >= 0) {
+		TAILQ_FOREACH(n, &t_functions, tf_next) {
+			if (!strncmp(n->tf_name, names[i],
+			    TCP_FUNCTION_NAME_LEN_MAX)) {
+				TAILQ_REMOVE(&t_functions, n, tf_next);
+				n->tf_fb = NULL;
+				free(n, M_TCPFUNCTIONS);
+				break;
+			}
+		}
+	}
+	rw_wunlock(&tcp_function_lock);
+	return (error);
+}
+
+/*
+ * Register a TCP function block using the name provided in the name
+ * argument.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
+int
+register_tcp_functions_as_name(struct tcp_function_block *blk, const char *name,
+    int wait)
+{
+	const char *name_list[1];
+	int num_names, rv;
+
+	num_names = 1;
+	if (name != NULL)
+		name_list[0] = name;
+	else
+		name_list[0] = blk->tfb_tcp_block_name;
+	rv = register_tcp_functions_as_names(blk, wait, name_list, &num_names);
+	return (rv);
+}
+
+/*
+ * Register a TCP function block using the name defined in
+ * blk->tfb_tcp_block_name.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
+int
+register_tcp_functions(struct tcp_function_block *blk, int wait)
+{
+
+	return (register_tcp_functions_as_name(blk, NULL, wait));
+}
 
 int
 deregister_tcp_functions(struct tcp_function_block *blk)
 {
-	struct tcp_function_block *lblk;
 	struct tcp_function *f;
 	int error=ENOENT;
 	
@@ -579,8 +668,7 @@ deregister_tcp_functions(struct tcp_function_block *blk)
 		rw_wunlock(&tcp_function_lock);		
 		return (EBUSY);
 	}
-	lblk = find_tcp_fb_locked(blk, &f);
-	if (lblk) {
+	while (find_tcp_fb_locked(blk, &f) != NULL) {
 		/* Found */
 		TAILQ_REMOVE(&t_functions, f, tf_next);
 		f->tf_fb = NULL;
