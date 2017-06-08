@@ -1384,8 +1384,6 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	keg->uk_reserve = 0;
 	keg->uk_pages = 0;
 	keg->uk_flags = arg->flags;
-	keg->uk_allocf = page_alloc;
-	keg->uk_freef = page_free;
 	keg->uk_slabzone = NULL;
 
 	/*
@@ -1426,20 +1424,20 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	 * If we haven't booted yet we need allocations to go through the
 	 * startup cache until the vm is ready.
 	 */
-	if (keg->uk_ppera == 1) {
-#ifdef UMA_MD_SMALL_ALLOC
-		keg->uk_allocf = uma_small_alloc;
-		keg->uk_freef = uma_small_free;
-
-		if (booted < UMA_STARTUP)
-			keg->uk_allocf = startup_alloc;
-#else
-		if (booted < UMA_STARTUP2)
-			keg->uk_allocf = startup_alloc;
-#endif
-	} else if (booted < UMA_STARTUP2 &&
-	    (keg->uk_flags & UMA_ZFLAG_INTERNAL))
+	if (booted < UMA_STARTUP2)
 		keg->uk_allocf = startup_alloc;
+#ifdef UMA_MD_SMALL_ALLOC
+	else if (keg->uk_ppera == 1)
+		keg->uk_allocf = uma_small_alloc;
+#endif
+	else
+		keg->uk_allocf = page_alloc;
+#ifdef UMA_MD_SMALL_ALLOC
+	if (keg->uk_ppera == 1)
+		keg->uk_freef = uma_small_free;
+	else
+#endif
+		keg->uk_freef = page_free;
 
 	/*
 	 * Initialize keg's lock
