@@ -2380,12 +2380,59 @@ moveon:
 }
 
 static int
+fdt_win_process(phandle_t child)
+{
+	int i;
+	struct soc_node_spec *soc_node;
+	int addr_cells, size_cells;
+	pcell_t reg[8];
+	u_long size, base;
+
+	for (i = 0; soc_nodes[i].compat != NULL; i++) {
+
+		soc_node = &soc_nodes[i];
+
+		/* Setup only for enabled devices */
+		if (ofw_bus_node_status_okay(child) == 0)
+			continue;
+
+		if (!ofw_bus_node_is_compatible(child, soc_node->compat))
+			continue;
+
+		if (fdt_addrsize_cells(OF_parent(child), &addr_cells,
+		    &size_cells))
+			return (ENXIO);
+
+		if ((sizeof(pcell_t) * (addr_cells + size_cells)) > sizeof(reg))
+			return (ENOMEM);
+
+		if (OF_getprop(child, "reg", &reg, sizeof(reg)) <= 0)
+			return (EINVAL);
+
+		if (addr_cells <= 2)
+			base = fdt_data_get(&reg[0], addr_cells);
+		else
+			base = fdt_data_get(&reg[addr_cells - 2], 2);
+		size = fdt_data_get(&reg[addr_cells], size_cells);
+
+		base = (base & 0x000fffff) | fdt_immr_va;
+		if (soc_node->decode_handler != NULL)
+			soc_node->decode_handler(base);
+		else
+			return (ENXIO);
+
+		if (MV_DUMP_WIN && (soc_node->dump_handler != NULL))
+			soc_node->dump_handler(base);
+	}
+
+	return (0);
+}
+static int
 fdt_win_setup(void)
 {
 	phandle_t node, child, sb;
-	struct soc_node_spec *soc_node;
-	u_long size, base;
-	int err, i;
+	phandle_t child_pci;
+	int err;
 
 	sb = 0;
 	node = OF_finddevice("/");
@@ -2398,29 +2445,21 @@ fdt_win_setup(void)
 	 */
 	child = OF_child(node);
 	while (child != 0) {
-		for (i = 0; soc_nodes[i].compat != NULL; i++) {
+		/* Lookup for callback and run */
+		err = fdt_win_process(child);
+		if (err != 0)
+			return (err);
 
-			soc_node = &soc_nodes[i];
+		/* Process Marvell Armada-XP/38x PCIe controllers */
+		if (ofw_bus_node_is_compatible(child, "marvell,armada-370-pcie")) {
+			child_pci = OF_child(child);
+			while (child_pci != 0) {
+				err = fdt_win_process(child_pci);
+				if (err != 0)
+					return (err);
 
-			/* Setup only for enabled devices */
-			if (ofw_bus_node_status_okay(child) == 0)
-				continue;
-
-			if (!ofw_bus_node_is_compatible(child,soc_node->compat))
-				continue;
-
-			err = fdt_regsize(child, &base, &size);
-			if (err != 0)
-				return (err);
-
-			base = (base & 0x000fffff) | fdt_immr_va;
-			if (soc_node->decode_handler != NULL)
-				soc_node->decode_handler(base);
-			else
-				return (ENXIO);
-
-			if (MV_DUMP_WIN && (soc_node->dump_handler != NULL))
-				soc_node->dump_handler(base);
+				child_pci = OF_peer(child_pci);
+			}
 		}
 
 		/*
