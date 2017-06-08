@@ -1,7 +1,7 @@
-/*	$Id: libmdoc.h,v 1.109 2017/02/16 03:00:23 schwarze Exp $ */
+/*	$Id: libmdoc.h,v 1.112 2017/05/30 16:22:03 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  */
 
 #define	MACRO_PROT_ARGS	struct roff_man *mdoc, \
-			int tok, \
+			enum roff_tok tok, \
 			int line, \
 			int ppos, \
 			int *pos, \
@@ -39,7 +39,6 @@ enum	margserr {
 	ARGS_EOLN, /* end-of-line */
 	ARGS_WORD, /* normal word */
 	ARGS_PUNCT, /* series of punctuation */
-	ARGS_QWORD, /* quoted word */
 	ARGS_PHRASE /* Bl -column phrase */
 };
 
@@ -65,24 +64,24 @@ extern	const struct mdoc_macro *const mdoc_macros;
 
 void		  mdoc_macro(MACRO_PROT_ARGS);
 void		  mdoc_elem_alloc(struct roff_man *, int, int,
-			int, struct mdoc_arg *);
+			enum roff_tok, struct mdoc_arg *);
 struct roff_node *mdoc_block_alloc(struct roff_man *, int, int,
-			int, struct mdoc_arg *);
-void		  mdoc_tail_alloc(struct roff_man *, int, int, int);
-struct roff_node *mdoc_endbody_alloc(struct roff_man *, int, int, int,
-			struct roff_node *);
+			enum roff_tok, struct mdoc_arg *);
+void		  mdoc_tail_alloc(struct roff_man *, int, int,
+			enum roff_tok);
+struct roff_node *mdoc_endbody_alloc(struct roff_man *, int, int,
+			enum roff_tok, struct roff_node *);
 void		  mdoc_node_relink(struct roff_man *, struct roff_node *);
 void		  mdoc_node_validate(struct roff_man *);
 void		  mdoc_state(struct roff_man *, struct roff_node *);
 void		  mdoc_state_reset(struct roff_man *);
-int		  mdoc_hash_find(const char *);
 const char	 *mdoc_a2arch(const char *);
 const char	 *mdoc_a2att(const char *);
 const char	 *mdoc_a2lib(const char *);
 enum roff_sec	  mdoc_a2sec(const char *);
 const char	 *mdoc_a2st(const char *);
-void		  mdoc_argv(struct roff_man *, int, int,
+void		  mdoc_argv(struct roff_man *, int, enum roff_tok,
 			struct mdoc_arg **, int *, char *);
 enum margserr	  mdoc_args(struct roff_man *, int,
-			int *, char *, int, char **);
+			int *, char *, enum roff_tok, char **);
 enum mdelim	  mdoc_isdelim(const char *);

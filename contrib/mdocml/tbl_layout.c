@@ -1,7 +1,7 @@
-/*	$Id: tbl_layout.c,v 1.41 2015/10/12 00:08:16 schwarze Exp $ */
+/*	$Id: tbl_layout.c,v 1.42 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -62,6 +62,7 @@ mods(struct tbl_node *tbl, struct tbl_cell *cp,
 		int ln, const char *p, int *pos)
 {
 	char		*endptr;
+	size_t		 sz;
 
 mod:
 	while (p[*pos] == ' ' || p[*pos] == '\t')
@@ -127,7 +128,22 @@ mod:
 	case 'u':
 		cp->flags |= TBL_CELL_UP;
 		goto mod;
-	case 'w':  /* XXX for now, ignore minimal column width */
+	case 'w':
+		sz = 0;
+		if (p[*pos] == '(') {
+			(*pos)++;
+			while (p[*pos + sz] != '\0' && p[*pos + sz] != ')')
+				sz++;
+		} else
+			while (isdigit((unsigned char)p[*pos + sz]))
+				sz++;
+		if (sz) {
+			free(cp->wstr);
+			cp->wstr = mandoc_strndup(p + *pos, sz);
+			*pos += sz;
+			if (p[*pos] == ')')
+				(*pos)++;
+		}
 		goto mod;
 	case 'x':
 		cp->flags |= TBL_CELL_WMAX;

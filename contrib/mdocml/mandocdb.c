@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.244 2017/02/17 14:45:55 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.250 2017/05/17 22:27:12 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -183,8 +183,7 @@ static	struct ohash	 names; /* table of all names */
 static	struct ohash	 strings; /* table of all strings */
 static	uint64_t	 name_mask;
 
-static	const struct mdoc_handler mdocs[MDOC_MAX] = {
-	{ NULL, 0, 0 },  /* Ap */
+static	const struct mdoc_handler __mdocs[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, 0, NODE_NOPRT },  /* Dd */
 	{ NULL, 0, NODE_NOPRT },  /* Dt */
 	{ NULL, 0, NODE_NOPRT },  /* Os */
@@ -200,6 +199,7 @@ static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 	{ NULL, 0, 0 },  /* It */
 	{ NULL, 0, 0 },  /* Ad */
 	{ NULL, TYPE_An, 0 },  /* An */
+	{ NULL, 0, 0 },  /* Ap */
 	{ NULL, TYPE_Ar, 0 },  /* Ar */
 	{ NULL, TYPE_Cd, 0 },  /* Cd */
 	{ NULL, TYPE_Cm, 0 },  /* Cm */
@@ -302,12 +302,10 @@ static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 	{ NULL, 0, 0 },  /* En */
 	{ NULL, TYPE_Dx, NODE_NOSRC },  /* Dx */
 	{ NULL, 0, 0 },  /* %Q */
-	{ NULL, 0, 0 },  /* br */
-	{ NULL, 0, 0 },  /* sp */
 	{ NULL, 0, 0 },  /* %U */
 	{ NULL, 0, 0 },  /* Ta */
-	{ NULL, 0, 0 },  /* ll */
 };
+static	const struct mdoc_handler *const mdocs = __mdocs - MDOC_Dd;
 
 
 int
@@ -1211,7 +1209,7 @@ mpages_merge(struct dba *dba, struct mparse *mp)
 		} else if (man != NULL && man->macroset == MACROSET_MAN) {
 			man_validate(man);
 			if (*man->meta.msec != '\0' ||
-			    *man->meta.msec != '\0') {
+			    *man->meta.title != '\0') {
 				mpage->form = FORM_SRC;
 				mpage->sec = mandoc_strdup(man->meta.msec);
 				mpage->arch = mandoc_strdup(mlink->arch);
@@ -1545,25 +1543,26 @@ parse_mdoc(struct mpage *mpage, const struct roff_meta *meta,
 	const struct roff_node *n)
 {
 
-	assert(NULL != n);
-	for (n = n->child; NULL != n; n = n->next) {
-		if (n->flags & mdocs[n->tok].taboo)
+	for (n = n->child; n != NULL; n = n->next) {
+		if (n->tok == TOKEN_NONE ||
+		    n->tok < ROFF_MAX ||
+		    n->flags & mdocs[n->tok].taboo)
 			continue;
+		assert(n->tok >= MDOC_Dd && n->tok < MDOC_MAX);
 		switch (n->type) {
 		case ROFFT_ELEM:
 		case ROFFT_BLOCK:
 		case ROFFT_HEAD:
 		case ROFFT_BODY:
 		case ROFFT_TAIL:
-			if (NULL != mdocs[n->tok].fp)
-			       if (0 == (*mdocs[n->tok].fp)(mpage, meta, n))
-				       break;
+			if (mdocs[n->tok].fp != NULL &&
+			    (*mdocs[n->tok].fp)(mpage, meta, n) == 0)
+				break;
 			if (mdocs[n->tok].mask)
 				putmdockey(mpage, n->child,
 				    mdocs[n->tok].mask, mdocs[n->tok].taboo);
 			break;
 		default:
-			assert(n->type != ROFFT_ROOT);
 			continue;
 		}
 		if (NULL != n->child)
@@ -2123,6 +2122,23 @@ dbwrite(struct dba *dba)
 	int		 status;
 	pid_t		 child;
 
+	/*
+	 * Do not write empty databases, and delete existing ones
+	 * when makewhatis -u causes them to become empty.
+	 */
+
+	dba_array_start(dba->pages);
+	if (dba_array_next(dba->pages) == NULL) {
+		if (unlink(MANDOC_DB) == -1)
+			say(MANDOC_DB, "&unlink");
+		return;
+	}
+
+	/*
+	 * Build the database in a temporary file,
+	 * then atomically move it into place.
+	 */
+
 	if (dba_write(MANDOC_DB "~", dba) != -1) {
 		if (rename(MANDOC_DB "~", MANDOC_DB) == -1) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
@@ -2131,6 +2147,11 @@ dbwrite(struct dba *dba)
 		}
 		return;
 	}
+
+	/*
+	 * We lack write permission and cannot replace the database
+	 * file, but let's at least check whether the data changed.
+	 */
 
 	(void)strlcpy(tfn, "/tmp/mandocdb.XXXXXXXX", sizeof(tfn));
 	if (mkdtemp(tfn) == NULL) {

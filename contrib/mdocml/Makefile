@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.504 2017/02/18 15:29:39 schwarze Exp $
+# $Id: Makefile,v 1.512 2017/05/07 17:31:45 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 # Copyright (c) 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -85,7 +85,6 @@ SRCS		 = att.c \
 		   lib.c \
 		   main.c \
 		   man.c \
-		   man_hash.c \
 		   man_html.c \
 		   man_macro.c \
 		   man_term.c \
@@ -95,15 +94,14 @@ SRCS		 = att.c \
 		   mandoc_ohash.c \
 		   mandocd.c \
 		   mandocdb.c \
-		   manpage.c \
 		   manpath.c \
 		   mansearch.c \
 		   mdoc.c \
 		   mdoc_argv.c \
-		   mdoc_hash.c \
 		   mdoc_html.c \
 		   mdoc_macro.c \
 		   mdoc_man.c \
+		   mdoc_markdown.c \
 		   mdoc_state.c \
 		   mdoc_term.c \
 		   mdoc_validate.c \
@@ -112,6 +110,9 @@ SRCS		 = att.c \
 		   preconv.c \
 		   read.c \
 		   roff.c \
+		   roff_html.c \
+		   roff_term.c \
+		   roff_validate.c \
 		   soelim.c \
 		   st.c \
 		   tag.c \
@@ -124,6 +125,7 @@ SRCS		 = att.c \
 		   term.c \
 		   term_ascii.c \
 		   term_ps.c \
+		   term_tab.c \
 		   tree.c
 
 DISTFILES	 = INSTALL \
@@ -198,7 +200,6 @@ DISTFILES	 = INSTALL \
 		   $(TESTSRCS)
 
 LIBMAN_OBJS	 = man.o \
-		   man_hash.o \
 		   man_macro.o \
 		   man_validate.o
 
@@ -206,7 +207,6 @@ LIBMDOC_OBJS	 = att.o \
 		   lib.o \
 		   mdoc.o \
 		   mdoc_argv.o \
-		   mdoc_hash.o \
 		   mdoc_macro.o \
 		   mdoc_state.o \
 		   mdoc_validate.o \
@@ -214,6 +214,7 @@ LIBMDOC_OBJS	 = att.o \
 
 LIBROFF_OBJS	 = eqn.o \
 		   roff.o \
+		   roff_validate.o \
 		   tbl.o \
 		   tbl_data.o \
 		   tbl_layout.o \
@@ -250,16 +251,17 @@ MANDOC_HTML_OBJS = eqn_html.o \
 		   html.o \
 		   man_html.o \
 		   mdoc_html.o \
+		   roff_html.o \
 		   tbl_html.o
-
-MANDOC_MAN_OBJS  = mdoc_man.o
 
 MANDOC_TERM_OBJS = eqn_term.o \
 		   man_term.o \
 		   mdoc_term.o \
+		   roff_term.o \
 		   term.o \
 		   term_ascii.o \
 		   term_ps.o \
+		   term_tab.o \
 		   tbl_term.o
 
 DBM_OBJS	 = dbm.o \
@@ -279,6 +281,8 @@ MAIN_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(DBA_OBJS) \
 		   main.o \
 		   manpath.o \
+		   mdoc_man.o \
+		   mdoc_markdown.o \
 		   out.o \
 		   tag.o \
 		   tree.o
@@ -293,10 +297,6 @@ MANDOCD_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   mandocd.o \
 		   out.o \
 		   tag.o
-
-MANPAGE_OBJS	 = $(DBM_OBJS) \
-		   manpage.o \
-		   manpath.o
 
 DEMANDOC_OBJS	 = demandoc.o
 
@@ -373,7 +373,6 @@ clean:
 	rm -f mandoc $(MAIN_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
 	rm -f mandocd catman $(MANDOCD_OBJS)
-	rm -f manpage $(MANPAGE_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
 	rm -f soelim $(SOELIM_OBJS)
 	rm -f $(WWW_MANS) $(WWW_OBJS)
@@ -388,17 +387,16 @@ base-install: mandoc demandoc soelim
 	mkdir -p $(DESTDIR)$(MANDIR)/man8
 	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
 	$(INSTALL_PROGRAM) soelim $(DESTDIR)$(BINDIR)/$(BINM_SOELIM)
-	$(LN) $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
-	$(LN) $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
-	$(LN) $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
-	$(LN) $(DESTDIR)$(BINDIR)/mandoc \
-		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_MAN)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_APROPOS)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_WHATIS)
+	cd $(DESTDIR)$(SBINDIR) && \
+		$(LN) ${BIN_FROM_SBIN}/mandoc $(BINM_MAKEWHATIS)
 	$(INSTALL_MAN) mandoc.1 demandoc.1 $(DESTDIR)$(MANDIR)/man1
 	$(INSTALL_MAN) soelim.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_SOELIM).1
 	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
 	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
-	$(LN) $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
-		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
+	cd $(DESTDIR)$(MANDIR)/man1 && $(LN) $(BINM_APROPOS).1 $(BINM_WHATIS).1
 	$(INSTALL_MAN) man.conf.5 $(DESTDIR)$(MANDIR)/man5/$(MANM_MANCONF).5
 	$(INSTALL_MAN) mandoc.db.5 $(DESTDIR)$(MANDIR)/man5
 	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_MAN).7
@@ -475,7 +473,7 @@ uninstall:
 	rm -f $(DESTDIR)$(INCLUDEDIR)/mandoc_aux.h
 	rm -f $(DESTDIR)$(INCLUDEDIR)/mdoc.h
 	rm -f $(DESTDIR)$(INCLUDEDIR)/roff.h
-	rmdir $(DESTDIR)$(INCLUDEDIR)
+	[ ! -e $(DESTDIR)$(INCLUDEDIR) ] || rmdir $(DESTDIR)$(INCLUDEDIR)
 
 regress: all
 	cd regress && ./regress.pl
@@ -492,9 +490,6 @@ libmandoc.a: $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
 
 mandoc: $(MAIN_OBJS) libmandoc.a
 	$(CC) -o $@ $(LDFLAGS) $(MAIN_OBJS) libmandoc.a $(LDADD)
-
-manpage: $(MANPAGE_OBJS) libmandoc.a
-	$(CC) -o $@ $(LDFLAGS) $(MANPAGE_OBJS) libmandoc.a $(LDADD)
 
 man.cgi: $(CGI_OBJS) libmandoc.a
 	$(CC) $(STATIC) -o $@ $(LDFLAGS) $(CGI_OBJS) libmandoc.a $(LDADD)
