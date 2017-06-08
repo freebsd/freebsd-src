@@ -573,8 +573,13 @@ vm_page_startup(vm_offset_t vaddr)
 		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
 		size += phys_avail[i + 1] - phys_avail[i];
-	page_range = size / (PAGE_SIZE + sizeof(struct vm_page));
 #elif defined(VM_PHYSSEG_DENSE)
+	size = high_avail - low_avail;
+#else
+#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
+#endif
+
+#ifdef VM_PHYSSEG_DENSE
 	/*
 	 * In the VM_PHYSSEG_DENSE case, the number of pages can account for
 	 * the overhead of a page structure per page only if vm_page_array is
@@ -582,14 +587,27 @@ vm_page_startup(vm_offset_t vaddr)
 	 * allocate page structures representing the physical memory
 	 * underlying vm_page_array, even though they will not be used.
 	 */
-	if (new_end == high_avail)
-		page_range = (high_avail - low_avail) / (PAGE_SIZE +
-		    sizeof(struct vm_page));
+	if (new_end != high_avail)
+		page_range = size / PAGE_SIZE;
 	else
-		page_range = high_avail / PAGE_SIZE - first_page;
-#else
-#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
+	{
+		page_range = size / (PAGE_SIZE + sizeof(struct vm_page));
+
+		/*
+		 * If the partial bytes remaining are large enough for
+		 * a page (PAGE_SIZE) without a corresponding
+		 * 'struct vm_page', then new_end will contain an
+		 * extra page after subtracting the length of the VM
+		 * page array.  Compensate by subtracting an extra
+		 * page from new_end.
+		 */
+		if (size % (PAGE_SIZE + sizeof(struct vm_page)) >= PAGE_SIZE) {
+			if (new_end == high_avail)
+				high_avail -= PAGE_SIZE;
+			new_end -= PAGE_SIZE;
+		}
+	}
 	end = new_end;
 
 	/*
