@@ -1,7 +1,7 @@
-.\"	$Id: tbl.7,v 1.26 2015/01/29 00:33:57 schwarze Exp $
+.\"	$Id: tbl.7,v 1.27 2017/06/08 18:11:22 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 29 2015 $
+.Dd $Mdocdate: June 8 2017 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -245,7 +245,7 @@ Emit a double-vertical bar instead of data.
 .Pp
 Keys may be followed by a set of modifiers.
 A modifier is either a modifier key or a natural number for specifying
-the minimum width of a column.
+the spacing to the right of the column.
 The following case-insensitive modifier keys are available:
 .Bl -tag -width 2n
 .It Cm b
@@ -284,8 +284,7 @@ Currently ignored.
 Move cell content up by half a table line.
 Currently ignored.
 .It Cm w
-Specify minimum column width.
-Currently ignored.
+Specify the minimum column width.
 .It Cm x
 After determining the width of all other columns, distribute the
 rest of the line length among all columns having the
@@ -300,7 +299,7 @@ minimum width 10, followed by vertical bar, followed by a left-justified
 column of minimum width 10, another vertical bar, then a column using
 bold font justified about the decimal point in numbers:
 .Pp
-.Dl c10 | l10 | nfB
+.Dl cw10 | lw10 | nfB
 .Ss Data
 The data section follows the last layout row.
 By default, cells in a data section are delimited by a tab.

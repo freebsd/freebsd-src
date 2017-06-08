@@ -1,4 +1,4 @@
-/*	$Id: eqn.c,v 1.61 2016/01/08 00:50:45 schwarze Exp $ */
+/*	$Id: eqn.c,v 1.62 2017/03/11 15:43:04 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -366,15 +366,19 @@ eqn_def_find(struct eqn_node *ep, const char *key, size_t sz)
 static const char *
 eqn_next(struct eqn_node *ep, char quote, size_t *sz, int repl)
 {
+	static size_t	 last_len;
+	static int	 lim;
+
 	char		*start, *next;
-	int		 q, diff, lim;
+	int		 q, diff;
 	size_t		 ssz, dummy;
 	struct eqn_def	*def;
 
 	if (NULL == sz)
 		sz = &dummy;
 
-	lim = 0;
+	if (ep->cur >= last_len)
+		lim = 0;
 	ep->rew = ep->cur;
 again:
 	/* Prevent self-definitions. */
@@ -448,6 +452,7 @@ again:
 		memmove(start + *sz + diff, start + *sz,
 		    (strlen(start) - *sz) + 1);
 		memcpy(start, def->val, def->valsz);
+		last_len = start - ep->data + def->valsz;
 		lim++;
 		goto again;
 	}

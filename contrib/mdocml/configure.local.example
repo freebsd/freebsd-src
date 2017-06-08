@@ -1,4 +1,4 @@
-# $Id: configure.local.example,v 1.29 2017/02/18 12:24:24 schwarze Exp $
+# $Id: configure.local.example,v 1.30 2017/03/04 16:36:29 schwarze Exp $
 #
 # Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -84,6 +84,13 @@ PREFIX="/usr/local"
 BINDIR="${PREFIX}/bin"
 SBINDIR="${PREFIX}/sbin"
 MANDIR="${PREFIX}/man"
+
+# If BINDIR and SBINDIR are not subdirectories of the same parent
+# directory or if the basename(1) of BINDIR differs from "bin",
+# the relative path from SBINDIR to BINDIR is also needed.
+# The default is:
+
+BIN_FROM_SBIN="../bin"
 
 # Some distributions may want to avoid naming conflicts
 # with the configuration files of other man(1) implementations.
