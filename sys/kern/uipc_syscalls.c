@@ -68,13 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
-/*
- * Flags for accept1() and kern_accept4(), in addition to SOCK_CLOEXEC
- * and SOCK_NONBLOCK.
- */
-#define	ACCEPT4_INHERIT	0x1
-#define	ACCEPT4_COMPAT	0x2
-
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
@@ -350,59 +343,22 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	    (flags & SOCK_CLOEXEC) ? O_CLOEXEC : 0, &fcaps);
 	if (error != 0)
 		goto done;
-	ACCEPT_LOCK();
-	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
-		ACCEPT_UNLOCK();
-		error = EWOULDBLOCK;
+	SOCK_LOCK(head);
+	if (!SOLISTENING(head)) {
+		SOCK_UNLOCK(head);
+		error = EINVAL;
 		goto noconnection;
 	}
-	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
-		if (head->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			head->so_error = ECONNABORTED;
-			break;
-		}
-		error = msleep(&head->so_timeo, &accept_mtx, PSOCK | PCATCH,
-		    "accept", 0);
-		if (error != 0) {
-			ACCEPT_UNLOCK();
-			goto noconnection;
-		}
-	}
-	if (head->so_error) {
-		error = head->so_error;
-		head->so_error = 0;
-		ACCEPT_UNLOCK();
+
+	error = solisten_dequeue(head, &so, flags);
+	if (error != 0)
 		goto noconnection;
-	}
-	so = TAILQ_FIRST(&head->so_comp);
-	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
-	KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
-
-	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 */
-	SOCK_LOCK(so);			/* soref() and so_state update */
-	soref(so);			/* file descriptor reference */
-
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	if (flags & ACCEPT4_INHERIT)
-		so->so_state |= (head->so_state & SS_NBIO);
-	else
-		so->so_state |= (flags & SOCK_NONBLOCK) ? SS_NBIO : 0;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
 
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	td->td_retval[0] = fd;
 
-	/* connection has been removed from the listen queue */
-	KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0);
+	/* Connection has been removed from the listen queue. */
+	KNOTE_UNLOCKED(&head->so_rdsel.si_note, 0);
 
 	if (flags & ACCEPT4_INHERIT) {
 		pgid = fgetown(&head->so_sigio);
@@ -420,7 +376,6 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
-	sa = NULL;
 	error = soaccept(so, &sa);
 	if (error != 0)
 		goto noconnection;
@@ -558,7 +513,7 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 	}
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		error = msleep(&so->so_timeo, SOCK_MTX(so), PSOCK | PCATCH,
+		error = msleep(&so->so_timeo, &so->so_lock, PSOCK | PCATCH,
 		    "connec", 0);
 		if (error != 0) {
 			if (error == EINTR || error == ERESTART)
