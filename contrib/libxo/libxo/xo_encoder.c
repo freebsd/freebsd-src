@@ -308,7 +308,7 @@ xo_encoder_init (xo_handle_t *xop, const char *name)
 
     xo_set_encoder(xop, xep->xe_handler);
 
-    return xo_encoder_handle(xop, XO_OP_CREATE, NULL, NULL);
+    return xo_encoder_handle(xop, XO_OP_CREATE, NULL, NULL, 0);
 }
 
 /*
@@ -334,7 +334,7 @@ xo_encoder_create (const char *name, xo_xof_flags_t flags)
 
 int
 xo_encoder_handle (xo_handle_t *xop, xo_encoder_op_t op,
-		  const char *name, const char *value)
+		   const char *name, const char *value, xo_xof_flags_t flags)
 {
     void *private = xo_get_private(xop);
     xo_encoder_func_t func = xo_get_encoder(xop);
@@ -342,7 +342,7 @@ xo_encoder_handle (xo_handle_t *xop, xo_encoder_op_t op,
     if (func == NULL)
 	return -1;
 
-    return func(xop, op, name, value, private);
+    return func(xop, op, name, value, private, flags);
 }
 
 const char *

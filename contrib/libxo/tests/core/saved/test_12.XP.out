@@ -1,5 +1,7 @@
 <top>
   <data>
+    <animal>fish</animal>
+    <animal>fish</animal>
     <thing>
       <name>thing</name>
       <color>green</color>

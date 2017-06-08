@@ -133,7 +133,7 @@ xo_buf_has_room (xo_buffer_t *xbp, ssize_t len)
 static inline void
 xo_buf_append (xo_buffer_t *xbp, const char *str, ssize_t len)
 {
-    if (!xo_buf_has_room(xbp, len))
+    if (str == NULL || len == 0 || !xo_buf_has_room(xbp, len))
 	return;
 
     memcpy(xbp->xb_curp, str, len);
