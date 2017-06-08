@@ -160,6 +160,42 @@ static struct syscall decoded_syscalls[] = {
 		    { ExecEnv | IN, 2 } } },
 	{ .name = "exit", .ret_type = 0, .nargs = 1,
 	  .args = { { Hex, 0 } } },
+	{ .name = "extattr_delete_fd", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Extattrnamespace, 1 }, { Name, 2 } } },
+	{ .name = "extattr_delete_file", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 } } },
+	{ .name = "extattr_delete_link", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 } } },
+	{ .name = "extattr_get_fd", .ret_type = 1, .nargs = 5,
+	  .args = { { Int, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | OUT, 3 }, { Sizet, 4 } } },
+	{ .name = "extattr_get_file", .ret_type = 1, .nargs = 5,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | OUT, 3 }, { Sizet, 4 } } },
+	{ .name = "extattr_get_link", .ret_type = 1, .nargs = 5,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | OUT, 3 }, { Sizet, 4 } } },
+	{ .name = "extattr_list_fd", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { Extattrnamespace, 1 }, { BinString | OUT, 2 },
+		    { Sizet, 3 } } },
+	{ .name = "extattr_list_file", .ret_type = 1, .nargs = 4,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { BinString | OUT, 2 },
+		    { Sizet, 3 } } },
+	{ .name = "extattr_list_link", .ret_type = 1, .nargs = 4,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { BinString | OUT, 2 },
+		    { Sizet, 3 } } },
+	{ .name = "extattr_set_fd", .ret_type = 1, .nargs = 5,
+	  .args = { { Int, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | IN, 3 }, { Sizet, 4 } } },
+	{ .name = "extattr_set_file", .ret_type = 1, .nargs = 5,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | IN, 3 }, { Sizet, 4 } } },
+	{ .name = "extattr_set_link", .ret_type = 1, .nargs = 5,
+	  .args = { { Name, 0 }, { Extattrnamespace, 1 }, { Name, 2 },
+		    { BinString | IN, 3 }, { Sizet, 4 } } },
+	{ .name = "extattrctl", .ret_type = 1, .nargs = 5,
+	  .args = { { Name, 0 }, { Hex, 1 }, { Name, 2 },
+		    { Extattrnamespace, 3 }, { Name, 4 } } },
 	{ .name = "faccessat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Accessmode, 2 },
 		    { Atflags, 3 } } },
@@ -2057,6 +2093,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	}
 	case Acltype:
 		print_integer_arg(sysdecode_acltype, fp, args[sc->offset]);
+		break;
+	case Extattrnamespace:
+		print_integer_arg(sysdecode_extattrnamespace, fp,
+		    args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
