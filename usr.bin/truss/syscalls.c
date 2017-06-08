@@ -77,6 +77,30 @@ __FBSDID("$FreeBSD$");
  */
 static struct syscall decoded_syscalls[] = {
 	/* Native ABI */
+	{ .name = "__acl_aclcheck_fd", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_aclcheck_file", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_aclcheck_link", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_delete_fd", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Acltype, 1 } } },
+	{ .name = "__acl_delete_file", .ret_type = 1, .nargs = 2,
+	  .args = { { Name, 0 }, { Acltype, 1 } } },
+	{ .name = "__acl_delete_link", .ret_type = 1, .nargs = 2,
+	  .args = { { Name, 0 }, { Acltype, 1 } } },
+	{ .name = "__acl_get_fd", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_get_file", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_get_link", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_set_fd", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_set_file", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
+	{ .name = "__acl_set_link", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
 	{ .name = "__cap_rights_get", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { CapRights | OUT, 2 } } },
 	{ .name = "__getcwd", .ret_type = 1, .nargs = 2,
@@ -2031,6 +2055,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
+	case Acltype:
+		print_integer_arg(sysdecode_acltype, fp, args[sc->offset]);
+		break;
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
