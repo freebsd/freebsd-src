@@ -419,7 +419,7 @@ blst_meta_alloc(
 		/*
 		 * ALL-ALLOCATED special case
 		 */
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return(SWAPBLK_NONE);
 	}
 
@@ -774,7 +774,7 @@ blst_meta_fill(
 		 */
 		nblks = scan->u.bmu_avail;
 		scan->u.bmu_avail = 0;
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return nblks;
 	}
 
