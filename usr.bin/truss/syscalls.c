@@ -299,6 +299,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Timeval2 | IN, 1 } } },
 	{ .name = "madvise", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Madvice, 2 } } },
+	{ .name = "minherit", .ret_type = 1, .nargs = 3,
+	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Minherit, 2 } } },
 	{ .name = "mkdir", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "mkdirat", .ret_type = 1, .nargs = 3,
@@ -2096,6 +2098,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Extattrnamespace:
 		print_integer_arg(sysdecode_extattrnamespace, fp,
+		    args[sc->offset]);
+		break;
+	case Minherit:
+		print_integer_arg(sysdecode_minherit_inherit, fp,
 		    args[sc->offset]);
 		break;
 
