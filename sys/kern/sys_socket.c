@@ -170,32 +170,36 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		break;
 
 	case FIOASYNC:
-		/*
-		 * XXXRW: This code separately acquires SOCK_LOCK(so) and
-		 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same
-		 * mutex to avoid introducing the assumption that they are
-		 * the same.
-		 */
 		if (*(int *)data) {
 			SOCK_LOCK(so);
 			so->so_state |= SS_ASYNC;
+			if (SOLISTENING(so)) {
+				so->sol_sbrcv_flags |= SB_ASYNC;
+				so->sol_sbsnd_flags |= SB_ASYNC;
+			} else {
+				SOCKBUF_LOCK(&so->so_rcv);
+				so->so_rcv.sb_flags |= SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_rcv);
+				SOCKBUF_LOCK(&so->so_snd);
+				so->so_snd.sb_flags |= SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_snd);
+			}
 			SOCK_UNLOCK(so);
-			SOCKBUF_LOCK(&so->so_rcv);
-			so->so_rcv.sb_flags |= SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_flags |= SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_snd);
 		} else {
 			SOCK_LOCK(so);
 			so->so_state &= ~SS_ASYNC;
+			if (SOLISTENING(so)) {
+				so->sol_sbrcv_flags &= ~SB_ASYNC;
+				so->sol_sbsnd_flags &= ~SB_ASYNC;
+			} else {
+				SOCKBUF_LOCK(&so->so_rcv);
+				so->so_rcv.sb_flags &= ~SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_rcv);
+				SOCKBUF_LOCK(&so->so_snd);
+				so->so_snd.sb_flags &= ~SB_ASYNC;
+				SOCKBUF_UNLOCK(&so->so_snd);
+			}
 			SOCK_UNLOCK(so);
-			SOCKBUF_LOCK(&so->so_rcv);
-			so->so_rcv.sb_flags &= ~SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_flags &= ~SB_ASYNC;
-			SOCKBUF_UNLOCK(&so->so_snd);
 		}
 		break;
 
@@ -706,7 +710,6 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 	sb->sb_flags &= ~SB_AIO_RUNNING;
 	SOCKBUF_UNLOCK(sb);
 
-	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sorele(so);
 }

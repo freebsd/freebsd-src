@@ -448,8 +448,6 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 	db_printf(")\n");
 
 	db_print_indent(indent);
-	db_printf("so_qstate: 0x%x (", so->so_qstate);
-	db_print_soqstate(so->so_qstate);
 	db_printf(")   ");
 	db_printf("so_pcb: %p   ", so->so_pcb);
 	db_printf("so_proto: %p\n", so->so_proto);
@@ -458,24 +456,28 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 		db_print_protosw(so->so_proto, "so_proto", indent);
 
 	db_print_indent(indent);
-	db_printf("so_head: %p   ", so->so_head);
-	db_printf("so_incomp first: %p   ", TAILQ_FIRST(&so->so_incomp));
-	db_printf("so_comp first: %p\n", TAILQ_FIRST(&so->so_comp));
+	if (so->so_options & SO_ACCEPTCONN) {
+		db_printf("sol_incomp first: %p   ",
+		    TAILQ_FIRST(&so->sol_incomp));
+		db_printf("sol_comp first: %p\n", TAILQ_FIRST(&so->sol_comp));
+		db_printf("sol_qlen: %d   ", so->sol_qlen);
+		db_printf("sol_incqlen: %d   ", so->sol_incqlen);
+		db_printf("sol_qlimit: %d   ", so->sol_qlimit);
+	} else {
+		db_printf("so_qstate: 0x%x (", so->so_qstate);
+		db_print_soqstate(so->so_qstate);
+		db_printf("so_listen: %p   ", so->so_listen);
+		/* so_list skipped */
+		db_printf("so_timeo: %d   ", so->so_timeo);
+		db_printf("so_error: %d\n", so->so_error);
 
-	db_print_indent(indent);
-	/* so_list skipped */
-	db_printf("so_qlen: %u   ", so->so_qlen);
-	db_printf("so_incqlen: %u   ", so->so_incqlen);
-	db_printf("so_qlimit: %u   ", so->so_qlimit);
-	db_printf("so_timeo: %d   ", so->so_timeo);
-	db_printf("so_error: %d\n", so->so_error);
+		db_print_indent(indent);
+		db_printf("so_sigio: %p   ", so->so_sigio);
+		db_printf("so_oobmark: %lu   ", so->so_oobmark);
 
-	db_print_indent(indent);
-	db_printf("so_sigio: %p   ", so->so_sigio);
-	db_printf("so_oobmark: %lu   ", so->so_oobmark);
-
-	db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
-	db_print_sockbuf(&so->so_snd, "so_snd", indent);
+		db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
+		db_print_sockbuf(&so->so_snd, "so_snd", indent);
+	}
 }
 
 DB_SHOW_COMMAND(socket, db_show_socket)

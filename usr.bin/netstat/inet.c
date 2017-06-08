@@ -170,14 +170,17 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	if (kread((uintptr_t)proto.pr_domain, &domain, sizeof(domain)) != 0)
 		return (-1);
 	xso->xso_family = domain.dom_family;
-	xso->so_qlen = so->so_qlen;
-	xso->so_incqlen = so->so_incqlen;
-	xso->so_qlimit = so->so_qlimit;
 	xso->so_timeo = so->so_timeo;
 	xso->so_error = so->so_error;
-	xso->so_oobmark = so->so_oobmark;
-	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
-	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
+	if (SOLISTENING(so)) {
+		xso->so_qlen = so->sol_qlen;
+		xso->so_incqlen = so->sol_incqlen;
+		xso->so_qlimit = so->sol_qlimit;
+	} else {
+		sbtoxsockbuf(&so->so_snd, &xso->so_snd);
+		sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
+		xso->so_oobmark = so->so_oobmark;
+	}
 	return (0);
 }
 
