@@ -832,11 +832,13 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 		memcpy(crypt_expected, challenge, AUTH_LENGTH);
 
 		/* Encrypt the Challenge with DES */
-		DES_set_key((C_Block *)keystr, &ks);
-		DES_ecb_encrypt((C_Block *)challenge,
-				(C_Block *)crypt_expected, &ks, DES_ENCRYPT);
-		DES_ecb_encrypt((C_Block *)(challenge + PASSWD_LENGTH),
-				(C_Block *)(crypt_expected + PASSWD_LENGTH),
+		DES_set_key((const_DES_cblock *)keystr, &ks);
+		DES_ecb_encrypt((const_DES_cblock *)challenge,
+				(const_DES_cblock *)crypt_expected,
+				&ks, DES_ENCRYPT);
+		DES_ecb_encrypt((const_DES_cblock *)(challenge + PASSWD_LENGTH),
+				(const_DES_cblock *)(crypt_expected +
+				PASSWD_LENGTH),
 				&ks, DES_ENCRYPT);
 
 		if (memcmp(crypt_expected, buf, AUTH_LENGTH) != 0) {
@@ -858,7 +860,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	if (sres) {
 		*((uint32_t *) buf) = htonl(strlen(message));
 		stream_write(cfd, buf, 4);
-                stream_write(cfd, message, strlen(message));
+		stream_write(cfd, message, strlen(message));
 		goto done;
 	}
 
