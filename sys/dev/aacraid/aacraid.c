@@ -670,10 +670,12 @@ aac_alloc(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_fibmap_tqh);
 	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
 				  M_AACRAIDBUF, M_WAITOK|M_ZERO);
+	mtx_lock(&sc->aac_io_lock);
 	while (sc->total_fibs < sc->aac_max_fibs) {
 		if (aac_alloc_commands(sc) != 0)
 			break;
 	}
+	mtx_unlock(&sc->aac_io_lock);
 	if (sc->total_fibs == 0)
 		return (ENOMEM);
 
@@ -1044,9 +1046,7 @@ aac_command_thread(struct aac_softc *sc)
 		 * will grab Giant, and would result in an LOR.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
-			mtx_unlock(&sc->aac_io_lock);
 			aac_alloc_commands(sc);
-			mtx_lock(&sc->aac_io_lock);
 			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
 			aacraid_startio(sc);
 		}
@@ -1193,6 +1193,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	u_int32_t maxsize;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 
 	if (sc->total_fibs + sc->aac_max_fibs_alloc > sc->aac_max_fibs)
 		return (ENOMEM);
@@ -1201,6 +1202,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	if (fm == NULL)
 		return (ENOMEM);
 
+	mtx_unlock(&sc->aac_io_lock);
 	/* allocate the FIBs in DMAable memory and load them */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&fm->aac_fibs,
 			     BUS_DMA_NOWAIT, &fm->aac_fibmap)) {
@@ -1218,6 +1220,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	(void)bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs,
 			      sc->aac_max_fibs_alloc * maxsize,
 			      aac_map_command_helper, &fibphys, 0);
+	mtx_lock(&sc->aac_io_lock);
 
 	/* initialize constant fields in the command structure */
 	bzero(fm->aac_fibs, sc->aac_max_fibs_alloc * maxsize);
@@ -1247,12 +1250,8 @@ aac_alloc_commands(struct aac_softc *sc)
 		if ((error = bus_dmamap_create(sc->aac_buffer_dmat, 0,
 					       &cm->cm_datamap)) != 0)
 			break;
-		if (sc->aac_max_fibs <= 1 ||
-		    sc->aac_max_fibs - sc->total_fibs > 1) {
-			mtx_lock(&sc->aac_io_lock);
+		if (sc->aac_max_fibs <= 1 || sc->aac_max_fibs - sc->total_fibs > 1)
 			aacraid_release_command(cm);
-			mtx_unlock(&sc->aac_io_lock);
-		}
 		sc->total_fibs++;
 	}
 
@@ -1501,7 +1500,6 @@ aac_unmap_command(struct aac_command *cm)
 	if (!(cm->cm_flags & AAC_CMD_MAPPED))
 		return;
 
-	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 	if (cm->cm_datalen != 0 && cm->cm_passthr_dmat == 0) {
 		if (cm->cm_flags & AAC_CMD_DATAIN)
 			bus_dmamap_sync(sc->aac_buffer_dmat, cm->cm_datamap,
