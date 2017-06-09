@@ -1911,11 +1911,31 @@ freebsd11_cvtstat32(struct stat *in, struct freebsd11_stat32 *out)
 {
 
 	CP(*in, *out, st_ino);
-	if (in->st_ino != out->st_ino && ino64_trunc_error)
-		return (EOVERFLOW);
+	if (in->st_ino != out->st_ino) {
+		switch (ino64_trunc_error) {
+		default:
+		case 0:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		case 2:
+			out->st_ino = UINT32_MAX;
+			break;
+		}
+	}
 	CP(*in, *out, st_nlink);
-	if (in->st_nlink != out->st_nlink && ino64_trunc_error)
-		return (EOVERFLOW);
+	if (in->st_nlink != out->st_nlink) {
+		switch (ino64_trunc_error) {
+		default:
+		case 0:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		case 2:
+			out->st_nlink = UINT16_MAX;
+			break;
+		}
+	}
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_mode);
 	CP(*in, *out, st_uid);
