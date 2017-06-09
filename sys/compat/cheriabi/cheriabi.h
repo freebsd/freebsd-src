@@ -193,6 +193,21 @@ cheriabi_strcap_to_ptr(char **strp, struct chericap *cap, int may_be_null)
 	    CHERI_PERM_LOAD, may_be_null));
 }
 
+static inline int
+cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
+{
+
+	/*
+	 * XXX-BD: place holder implementation checks that the capability
+	 * could hold a NUL terminated string empty string.  We can't
+	 * check that it does hold one because the caller could change
+	 * that out from under us.  Completely safe string handling
+	 * requires pushing the length down to the copyinstr().
+	 */
+	return (cheriabi_cap_to_ptr_x(strp, cap, 1,
+	    CHERI_PERM_LOAD, may_be_null));
+}
+
 struct kevent_c {
 	struct chericap	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
