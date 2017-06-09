@@ -90,7 +90,7 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 }
 
 static inline int
-cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability *cap, size_t reqlen,
+cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
 	u_int tag;
@@ -98,31 +98,31 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability *cap, size_t reqlen,
 	register_t sealed;
 	size_t length, offset;
 
-	tag = cheri_gettag(*cap);
+	tag = cheri_gettag(cap);
 	if (!tag) {
 		if (!may_be_null)
 			return (EFAULT);
-		*ptrp = (caddr_t)*cap;
+		*ptrp = (caddr_t)cap;
 		if (*ptrp != NULL)
 			return (EFAULT);
 	} else {
-		sealed = cheri_getsealed(*cap);
+		sealed = cheri_getsealed(cap);
 		if (sealed)
 			return (EPROT);
 
-		perms = cheri_getperm(*cap);
+		perms = cheri_getperm(cap);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
-		length = cheri_getlen(*cap);
-		offset = cheri_getoffset(*cap);
+		length = cheri_getlen(cap);
+		offset = cheri_getoffset(cap);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
 		if (length < reqlen)
 			return (EPROT);
 
-		*ptrp = (caddr_t)*cap;
+		*ptrp = (caddr_t)cap;
 	}
 	return (0);
 }
