@@ -120,6 +120,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
+#define CHERIABI_SYS_argmap a_hack_to_work_around_a_duplicated_symbol_problem
+#include <compat/cheriabi/cheriabi_sysargmap.h>
+#undef CHERIABI_SYS_argmap
 
 #include <sys/cheriabi.h>
 
@@ -1843,7 +1846,7 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 int
 cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 {
-	struct chericap addr_cap;
+	void * __capability addr_cap;
 	register_t perms;
 
 	/*
@@ -1851,10 +1854,9 @@ cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 	 * CHERI_PERM_CHERIABI_VMMAP.
 	 */
 	if (uap->behav == MADV_FREE) {
-		cheriabi_fetch_syscall_arg(td, &addr_cap,
-		    CHERIABI_SYS_cheriabi_madvise, 0);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		cheriabi_fetch_syscall_arg_x(td, &addr_cap,
+		    CHERIABI_SYS_cheriabi_madvise, 0, CHERIABI_SYS_cheriabi_madvise_PTRMASK);
+		perms = cheri_getperm(addr_cap);
 		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
 			return (EPROT);
 	}
@@ -2030,13 +2032,12 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 int
 cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
 {
-	struct chericap addr_cap;
+	void * __capability addr_cap;
 	register_t perms, reqperms;
 
-	cheriabi_fetch_syscall_arg(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
+	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mprotect_PTRMASK);
+	perms = cheri_getperm(addr_cap);
 	/*
 	 * Requested prot much be allowed by capability.
 	 *
