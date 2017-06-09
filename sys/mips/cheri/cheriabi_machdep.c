@@ -243,9 +243,11 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
 	struct chericap *arg_capp;
 	struct sysentvec *se;
 	int i, intreg_offset, ptrreg_offset, is_ptr_arg;
+	void * __capability *argp;
 	register_t arg_reg;
 
 	se = td->td_proc->p_sysent;
+	argp = (void * __capability *)arg;
 
 	KASSERT(syscall_no >= 0, ("Negative syscall number %d\n", syscall_no));
 	KASSERT(syscall_no < se->sv_size,
@@ -296,8 +298,7 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
 			panic("%s: integer argument %d out of range",
 			    __func__, intreg_offset);
 		}
-		cheri_capability_set_null(arg);
-		cheri_capability_setoffset(arg, arg_reg);
+		*argp = (void * __capability)arg_reg;
 	}
 }
 
