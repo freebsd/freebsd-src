@@ -1308,30 +1308,6 @@ SMBFS_OBJS +=	smbfs_vfsops.o	smbfs_vnops.o	smbfs_node.o	\
 		$(SMBFS_COMMON_OBJS)
 
 
-#
-#			LVM modules
-#
-MD_OBJS	+= md.o md_error.o md_ioctl.o md_mddb.o md_names.o \
-	md_med.o md_rename.o md_subr.o
-
-MD_COMMON_OBJS = md_convert.o md_crc.o md_revchk.o
-
-MD_DERIVED_OBJS = metamed_xdr.o meta_basic_xdr.o
-
-SOFTPART_OBJS += sp.o sp_ioctl.o
-
-STRIPE_OBJS += stripe.o stripe_ioctl.o
-
-HOTSPARES_OBJS += hotspares.o
-
-RAID_OBJS += raid.o raid_ioctl.o raid_replay.o raid_resync.o raid_hotspare.o
-
-MIRROR_OBJS += mirror.o mirror_ioctl.o mirror_resync.o
-
-NOTIFY_OBJS += md_notify.o
-
-TRANS_OBJS += mdtrans.o trans_ioctl.o trans_log.o
-
 ZFS_COMMON_OBJS +=		\
 	abd.o			\
 	arc.o			\
