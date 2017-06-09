@@ -283,7 +283,7 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
 			panic("%s: pointer argument %d out of range",
 			    __func__, ptrreg_offset);
 		}
-		cheri_capability_copy(arg, arg_capp);
+		*argp = *((void * __capability *)arg_capp);
 	} else {
 		switch (intreg_offset) {
 		case 0:	arg_reg = locr0->a0;	break;
