@@ -240,11 +240,9 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
     int syscall_no, int argnum, int ptrmask)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
-	struct chericap *arg_capp;
 	struct sysentvec *se;
 	int i, intreg_offset, ptrreg_offset, is_ptr_arg;
 	void * __capability *argp;
-	register_t arg_reg;
 
 	se = td->td_proc->p_sysent;
 	argp = (void * __capability *)arg;
@@ -271,34 +269,32 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, struct chericap *arg,
 
 	if (is_ptr_arg) {
 		switch (ptrreg_offset) {
-		case 0:	arg_capp = &locr0->c3;	break;
-		case 1:	arg_capp = &locr0->c4;	break;
-		case 2:	arg_capp = &locr0->c5;	break;
-		case 3:	arg_capp = &locr0->c6;	break;
-		case 4:	arg_capp = &locr0->c7;	break;
-		case 5:	arg_capp = &locr0->c8;	break;
-		case 6:	arg_capp = &locr0->c9;	break;
-		case 7:	arg_capp = &locr0->c10;	break;
+		case 0:	*argp = *((void * __capability *)&locr0->c3);	break;
+		case 1:	*argp = *((void * __capability *)&locr0->c4);	break;
+		case 2:	*argp = *((void * __capability *)&locr0->c5);	break;
+		case 3:	*argp = *((void * __capability *)&locr0->c6);	break;
+		case 4:	*argp = *((void * __capability *)&locr0->c7);	break;
+		case 5:	*argp = *((void * __capability *)&locr0->c8);	break;
+		case 6:	*argp = *((void * __capability *)&locr0->c9);	break;
+		case 7:	*argp = *((void * __capability *)&locr0->c10);	break;
 		default:
 			panic("%s: pointer argument %d out of range",
 			    __func__, ptrreg_offset);
 		}
-		*argp = *((void * __capability *)arg_capp);
 	} else {
 		switch (intreg_offset) {
-		case 0:	arg_reg = locr0->a0;	break;
-		case 1:	arg_reg = locr0->a1;	break;
-		case 2:	arg_reg = locr0->a2;	break;
-		case 3:	arg_reg = locr0->a3;	break;
-		case 4:	arg_reg = locr0->a4;	break;
-		case 5:	arg_reg = locr0->a5;	break;
-		case 6:	arg_reg = locr0->a6;	break;
-		case 7:	arg_reg = locr0->a7;	break;
+		case 0:	*argp = (void * __capability)locr0->a0;	break;
+		case 1:	*argp = (void * __capability)locr0->a1;	break;
+		case 2:	*argp = (void * __capability)locr0->a2;	break;
+		case 3:	*argp = (void * __capability)locr0->a3;	break;
+		case 4:	*argp = (void * __capability)locr0->a4;	break;
+		case 5:	*argp = (void * __capability)locr0->a5;	break;
+		case 6:	*argp = (void * __capability)locr0->a6;	break;
+		case 7:	*argp = (void * __capability)locr0->a7;	break;
 		default:
 			panic("%s: integer argument %d out of range",
 			    __func__, intreg_offset);
 		}
-		*argp = (void * __capability)arg_reg;
 	}
 }
 
