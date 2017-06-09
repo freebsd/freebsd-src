@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
+OLD_FILES+=usr/share/man/man4/if_rtwn.4.gz
 # 20170531: removal of groff
 OLD_FILES+=usr/bin/addftinfo
 OLD_FILES+=usr/bin/afmtodit
