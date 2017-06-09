@@ -692,6 +692,7 @@ xo_default_init (void)
 #if !defined(NO_LIBXO_OPTIONS)
     if (!XOF_ISSET(xop, XOF_NO_ENV)) {
        char *env = getenv("LIBXO_OPTIONS");
+
        if (env)
            xo_set_options_simple(xop, env);
 
@@ -1165,7 +1166,7 @@ xo_utf8_emit_len (wchar_t wc)
 }
 
 /*
- * Emit a single wide character into the given buffer
+ * Emit one wide character into the given buffer
  */
 static void
 xo_utf8_emit_char (char *buf, ssize_t len, wchar_t wc)
@@ -1177,7 +1178,7 @@ xo_utf8_emit_char (char *buf, ssize_t len, wchar_t wc)
 	return;
     }
 
-    /* Start with the low bits and insert them, six bits as a time */
+    /* Start with the low bits and insert them, six bits at a time */
     for (i = len - 1; i >= 0; i--) {
 	buf[i] = 0x80 | (wc & 0x3f);
 	wc >>= 6;		/* Drop the low six bits */
@@ -1185,7 +1186,7 @@ xo_utf8_emit_char (char *buf, ssize_t len, wchar_t wc)
 
     /* Finish off the first byte with the length bits */
     buf[0] &= xo_utf8_data_bits[len]; /* Clear out the length bits */
-    buf[0] |= xo_utf8_len_bits[len]; /* Drop in new length bits  */
+    buf[0] |= xo_utf8_len_bits[len]; /* Drop in new length bits */
 }
 
 /*
@@ -1525,6 +1526,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	newfmt[plen++] = ':';
 	newfmt[plen++] = ' ';
     }
+
     memcpy(newfmt + plen, fmt, len);
     newfmt[len + plen] = '\0';
 
@@ -1544,6 +1546,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
 	ssize_t left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	ssize_t rc = vsnprintf(xbp->xb_curp, left, newfmt, vap);
+
 	if (rc >= left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
 		va_end(va_local);
@@ -1556,6 +1559,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	    left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	    rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	}
+
 	va_end(va_local);
 
 	rc = xo_escape_xml(xbp, rc, 1);
@@ -1566,6 +1570,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
 	if (code >= 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_buf_append(xbp, ": ", 2);
 		xo_buf_append(xbp, msg, strlen(msg));
@@ -1579,6 +1584,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	vfprintf(stderr, newfmt, vap);
 	if (code >= 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg)
 		fprintf(stderr, ": %s", msg);
 	}
@@ -1695,6 +1701,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	va_copy(va_local, vap);
 
 	ssize_t left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
+
 	rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	if (rc >= left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
@@ -1708,6 +1715,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	    left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	    rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	}
+
 	va_end(va_local);
 
 	rc = xo_escape_xml(xbp, rc, 0);
@@ -1715,6 +1723,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	if (need_nl && code > 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_buf_append(xbp, ": ", 2);
 		xo_buf_append(xbp, msg, strlen(msg));
@@ -1748,6 +1757,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 		va_copy(va_local, vap);
 		rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    }
+
 	    va_end(va_local);
 	    cp = bp + rc;
 
@@ -1783,6 +1793,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	if (need_nl && code > 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_printf(xop, ": %s", msg);
 	    }
@@ -1797,6 +1808,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
     case XO_STYLE_HTML:
 	if (XOIF_ISSET(xop, XOIF_DIV_OPEN)) {
 	    static char div_close[] = "</div>";
+
 	    XOIF_CLEAR(xop, XOIF_DIV_OPEN);
 	    xo_data_append(xop, div_close, sizeof(div_close) - 1);
 
@@ -2181,6 +2193,7 @@ xo_set_style_name (xo_handle_t *xop, const char *name)
 	return -1;
 
     int style = xo_name_to_style(name);
+
     if (style < 0)
 	return -1;
 
