@@ -381,8 +381,10 @@ dt_stddev(uint64_t *data, uint64_t normal)
 	 * The standard approximation for standard deviation is
 	 * sqrt(average(x**2) - average(x)**2), i.e. the square root
 	 * of the average of the squares minus the square of the average.
+	 * When normalizing, we should divide the sum of x**2 by normal**2.
 	 */
 	dt_divide_128(data + 2, normal, avg_of_squares);
+	dt_divide_128(avg_of_squares, normal, avg_of_squares);
 	dt_divide_128(avg_of_squares, data[0], avg_of_squares);
 
 	norm_avg = (int64_t)data[1] / (int64_t)normal / (int64_t)data[0];
