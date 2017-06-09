@@ -14,6 +14,8 @@
 
 PROJECT=libxo
 
+BUILDWORLD="make -j8 buildworld -DWITH_META_MODE -DNO_CLEAN -DWITHOUT_TESTS"
+
 #"global" vars
 # Set SVN variables
 #  select the local subversion site
@@ -148,6 +150,7 @@ fi
 info "CWD = $CWD"
 info "VENDOR_DIR = $VENDOR_DIR"
 info "VERS = $VERS"
+info "BUILDWORLD = $BUILDWORLD"
 DATESTAMP=`date "+%Y-%m-%d-%H-%M"`
 
 [ -z "$VERS" ] && Error "missing version argument (-v)"
@@ -158,7 +161,7 @@ Cd $HEAD
 run "updating all" "svn update"
 
 if [ ! -z "$UPDATE" ]; then
-    run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP.before make -DNO_CLEAN MK_TESTS=no buildworld"
+    run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP.before $BUILDWORLD"
 fi
 
 Cd $CWD
@@ -299,7 +302,7 @@ run "copying add.man" "(echo '.\\\" \$FreeBSD\$' ; cat $CWD/dist/build/libxo/add
     #run "making build dir '$dir'" "make LIBXOSRC=$CWD/dist"
 #done
 
-run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP make -DNO_CLEAN MK_TESTS=no buildworld LIBXOSRC=$CWD/dist"
+run "building the entire world" "script $MAKEOBJDIRPREFIX/out.$DATESTAMP $BUILDWORLD LIBXOSRC=$CWD/dist"
 
 # Okay, so now it all builds!!  Now we can start committing....
 
