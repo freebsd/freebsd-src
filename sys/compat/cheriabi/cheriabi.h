@@ -35,6 +35,7 @@
 #define _COMPAT_CHERIABI_CHERIABI_H_
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
 
@@ -92,8 +93,38 @@ static inline int
 cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability *cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
+	u_int tag;
+	register_t perms;
+	register_t sealed;
+	size_t length, offset;
 
-	return (cheriabi_cap_to_ptr(ptrp, (struct chericap *)cap, reqlen, reqperms, may_be_null));
+	tag = cheri_gettag(*cap);
+	if (!tag) {
+		if (!may_be_null)
+			return (EFAULT);
+		*ptrp = (caddr_t)*cap;
+		if (*ptrp != NULL)
+			return (EFAULT);
+	} else {
+		sealed = cheri_getsealed(*cap);
+		if (sealed)
+			return (EPROT);
+
+		perms = cheri_getperm(*cap);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		length = cheri_getlen(*cap);
+		offset = cheri_getoffset(*cap);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < reqlen)
+			return (EPROT);
+
+		*ptrp = (caddr_t)*cap;
+	}
+	return (0);
 }
 
 /*

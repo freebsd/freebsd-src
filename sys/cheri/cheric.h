@@ -36,7 +36,7 @@
 
 #include <machine/cherireg.h>	/* Permission definitions. */
 
-#if !defined(_KERNEL) && __has_feature(capabilities)
+#if defined(__CHERI__) && __has_feature(capabilities)
 /*
  * Programmer-friendly macros for CHERI-aware C code -- requires use of
  * CHERI-aware Clang/LLVM, and full capability context switching, so not yet
