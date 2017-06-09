@@ -82,7 +82,7 @@ static const char *msdosfs_opts[] = {
 	"async", "noatime", "noclusterr", "noclusterw",
 	"export", "force", "from", "sync",
 	"cs_dos", "cs_local", "cs_win", "dirmask",
-	"gid", "kiconv", "large", "longname",
+	"gid", "kiconv", "longname",
 	"longnames", "mask", "shortname", "shortnames",
 	"uid", "win95", "nowin95",
 	NULL
@@ -242,17 +242,6 @@ msdosfs_mount(struct mount *mp)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		pmp = VFSTOMSDOSFS(mp);
-		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
-			/*
-			 * Forbid export requests if filesystem has
-			 * MSDOSFS_LARGEFS flag set.
-			 */
-			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0) {
-				vfs_mount_error(mp,
-				    "MSDOSFS_LARGEFS flag set, cannot export");
-				return (EOPNOTSUPP);
-			}
-		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			error = VFS_SYNC(mp, MNT_WAIT);
@@ -467,20 +456,6 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	    S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR;
 
 	/*
-	 * Experimental support for large MS-DOS filesystems.
-	 * WARNING: This uses at least 32 bytes of kernel memory (which is not
-	 * reclaimed until the FS is unmounted) for each file on disk to map
-	 * between the 32-bit inode numbers used by VFS and the 64-bit
-	 * pseudo-inode numbers used internally by msdosfs. This is only
-	 * safe to use in certain controlled situations (e.g. read-only FS
-	 * with less than 1 million files).
-	 * Since the mappings do not persist across unmounts (or reboots), these
-	 * filesystems are not suitable for exporting through NFS, or any other
-	 * application that requires fixed inode numbers.
-	 */
-	vfs_flagopt(mp->mnt_optnew, "large", &pmp->pm_flags, MSDOSFS_LARGEFS);
-
-	/*
 	 * Compute several useful quantities from the bpb in the
 	 * bootsector.  Copy in the dos 5 variant of the bpb then fix up
 	 * the fields that are different between dos 5 and dos 3.3.
@@ -520,20 +495,6 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	} else {
 		pmp->pm_HiddenSects = getushort(b33->bpbHiddenSecs);
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
-	}
-	if (!(pmp->pm_flags & MSDOSFS_LARGEFS)) {
-		if (pmp->pm_HugeSectors > 0xffffffff /
-		    (pmp->pm_BytesPerSec / sizeof(struct direntry)) + 1) {
-			/*
-			 * We cannot deal currently with this size of disk
-			 * due to fileid limitations (see msdosfs_getattr and
-			 * msdosfs_readdir)
-			 */
-			error = EINVAL;
-			vfs_mount_error(mp,
-			    "Disk too big, try '-o large' mount option");
-			goto error_exit;
-		}
 	}
 
 	if (pmp->pm_RootDirEnts == 0) {
@@ -745,10 +706,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_kern_flag |= MNTK_USES_BCACHE | MNTK_NO_IOPF;
 	MNT_IUNLOCK(mp);
 
-	if (pmp->pm_flags & MSDOSFS_LARGEFS)
-		msdosfs_fileno_init(mp);
-
-	return 0;
+	return (0);
 
 error_exit:
 	if (bp)
@@ -835,8 +793,6 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	vrele(pmp->pm_devvp);
 	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
-	if (pmp->pm_flags & MSDOSFS_LARGEFS)
-		msdosfs_fileno_free(mp);
 	lockdestroy(&pmp->pm_fatlock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
