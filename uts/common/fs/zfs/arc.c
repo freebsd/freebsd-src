@@ -5607,6 +5607,7 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
 	arc_buf_hdr_t *hdr = buf->b_hdr;
 	arc_write_callback_t *callback;
 	zio_t *zio;
+	zio_prop_t localprop = *zp;
 
 	ASSERT3P(ready, !=, NULL);
 	ASSERT3P(done, !=, NULL);
@@ -5617,7 +5618,13 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
 	if (l2arc)
 		arc_hdr_set_flags(hdr, ARC_FLAG_L2CACHE);
 	if (ARC_BUF_COMPRESSED(buf)) {
-		ASSERT3U(zp->zp_compress, !=, ZIO_COMPRESS_OFF);
+		/*
+		 * We're writing a pre-compressed buffer.  Make the
+		 * compression algorithm requested by the zio_prop_t match
+		 * the pre-compressed buffer's compression algorithm.
+		 */
+		localprop.zp_compress = HDR_GET_COMPRESS(hdr);
+
 		ASSERT3U(HDR_GET_LSIZE(hdr), !=, arc_buf_size(buf));
 		zio_flags |= ZIO_FLAG_RAW;
 	}
@@ -5653,7 +5660,7 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, arc_buf_t *buf,
 
 	zio = zio_write(pio, spa, txg, bp,
 	    abd_get_from_buf(buf->b_data, HDR_GET_LSIZE(hdr)),
-	    HDR_GET_LSIZE(hdr), arc_buf_size(buf), zp, arc_write_ready,
+	    HDR_GET_LSIZE(hdr), arc_buf_size(buf), &localprop, arc_write_ready,
 	    (children_ready != NULL) ? arc_write_children_ready : NULL,
 	    arc_write_physdone, arc_write_done, callback,
 	    priority, zio_flags, zb);
