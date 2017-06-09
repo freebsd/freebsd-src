@@ -5,7 +5,7 @@
 SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
-KMOD     = if_rtwn
+KMOD     = rtwn
 SRCS     = if_rtwn.c if_rtwn_tx.c if_rtwn_rx.c if_rtwn_beacon.c \
 	   if_rtwn_calib.c if_rtwn_cam.c if_rtwn_task.c if_rtwn_efuse.c \
 	   if_rtwn_fw.c if_rtwn_nop.h if_rtwnreg.h if_rtwnvar.h if_rtwn_tx.h \
