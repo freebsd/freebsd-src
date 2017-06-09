@@ -435,9 +435,9 @@ sed -e '
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, (void * __capability *)&tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
 		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    &tmpcap, %s, reqperms, %s);\n",
 		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
@@ -510,9 +510,9 @@ sed -e '
 			printf("%s %s has no length constraint",
 			    a_saltype, a_name) > "/dev/stderr"
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, (void * __capability *)&tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
 		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    &tmpcap, %s, %s, %s);\n",
 		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
@@ -806,17 +806,16 @@ sed -e '
 			    syscallprefix, funcalias) > cheriabi_fill_uap
 			printf("    struct %s *uap)\n{\n",
 			    argalias) > cheriabi_fill_uap
-			printf("\tstruct chericap tmpcap;\n") > cheriabi_fill_uap
+			printf("\tvoid * __capability tmpcap;\n") > cheriabi_fill_uap
 			# Process all the integer arguments
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]))
 					continue
 				printf("\n\t/* [%d] %s %s */\n", i-1,
 				    argsaltype[i], argname[i]) > cheriabi_fill_uap
-				printf("\tcheriabi_fetch_syscall_arg_x(td, (void * __capability *)&tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
+				printf("\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
 				    syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-				printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > cheriabi_fill_uap
-				printf("\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", argname[i]) > cheriabi_fill_uap
+				printf("\tuap->%s = (register_t)tmpcap;\n", argname[i]) > cheriabi_fill_uap
 			}
 			# Process pointer arguments that do not depend on
 			# dereferenced pointers.

@@ -88,6 +88,14 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 	return (0);
 }
 
+static inline int
+cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability *cap, size_t reqlen,
+    register_t reqperms, int may_be_null)
+{
+
+	return (cheriabi_cap_to_ptr(ptrp, (struct chericap *)cap, reqlen, reqperms, may_be_null));
+}
+
 /*
  * cheriabi_pagerange_to_ptr() is similar to cheriabi_cap_to_ptr except
  * that it reqires that the capability complete cover pages the range
