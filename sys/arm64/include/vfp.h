@@ -41,6 +41,8 @@ struct vfpstate {
 };
 
 #ifdef _KERNEL
+struct pcb;
+
 void	vfp_init(void);
 void	vfp_discard(struct thread *);
 void	vfp_restore_state(void);
