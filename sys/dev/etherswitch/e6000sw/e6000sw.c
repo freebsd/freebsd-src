@@ -69,7 +69,6 @@ typedef struct e6000sw_softc {
 	struct ifnet		*ifp[E6000SW_MAX_PORTS];
 	char			*ifname[E6000SW_MAX_PORTS];
 	device_t		miibus[E6000SW_MAX_PORTS];
-	struct mii_data		*mii[E6000SW_MAX_PORTS];
 	struct proc		*kproc;
 
 	uint32_t		cpuports_mask;
@@ -121,9 +120,9 @@ static int e6000sw_atu_mac_table(device_t, e6000sw_softc_t *, struct atu_opt *,
     int);
 static int e6000sw_get_pvid(e6000sw_softc_t *, int, int *);
 static int e6000sw_set_pvid(e6000sw_softc_t *, int, int);
-static __inline int e6000sw_is_cpuport(e6000sw_softc_t *, int);
-static __inline int e6000sw_is_fixedport(e6000sw_softc_t *, int);
-static __inline int e6000sw_is_phyport(e6000sw_softc_t *, int);
+static __inline bool e6000sw_is_cpuport(e6000sw_softc_t *, int);
+static __inline bool e6000sw_is_fixedport(e6000sw_softc_t *, int);
+static __inline bool e6000sw_is_phyport(e6000sw_softc_t *, int);
 static __inline struct mii_data *e6000sw_miiforphy(e6000sw_softc_t *,
     unsigned int);
 
@@ -278,7 +277,7 @@ e6000sw_parse_child_fdt(device_t dev, phandle_t child, uint32_t *fixed_mask,
 		*fixed_mask |= (1 << port);
 		device_printf(dev, "fixed port at %d\n", port);
 	} else {
-		device_printf(dev, "PHY at %d\n", port);
+		device_printf(dev, "PHY at port %d\n", port);
 	}
 
 	return (0);
@@ -319,7 +318,6 @@ e6000sw_attach_miibus(e6000sw_softc_t *sc, int port)
 	if (err != 0)
 		return (err);
 
-	sc->mii[port] = device_get_softc(sc->miibus[port]);
 	return (0);
 }
 
@@ -413,8 +411,8 @@ e6000sw_poll_done(e6000sw_softc_t *sc)
 
 	for (i = 0; i < E6000SW_SMI_TIMEOUT; i++) {
 
-		if (!(e6000sw_readreg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG) &
-		    (1 << PHY_CMD_SMI_BUSY)))
+		if ((e6000sw_readreg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG) &
+		    (1 << PHY_CMD_SMI_BUSY)) == 0)
 			return (0);
 
 		pause("e6000sw PHY poll", hz/1000);
@@ -915,27 +913,27 @@ e6000sw_writereg(e6000sw_softc_t *sc, int addr, int reg, int val)
 	}
 }
 
-static __inline int
+static __inline bool
 e6000sw_is_cpuport(e6000sw_softc_t *sc, int port)
 {
 
-	return (sc->cpuports_mask & (1 << port));
+	return ((sc->cpuports_mask & (1 << port)) ? true : false);
 }
 
-static __inline int
+static __inline bool
 e6000sw_is_fixedport(e6000sw_softc_t *sc, int port)
 {
 
-	return (sc->fixed_mask & (1 << port));
+	return ((sc->fixed_mask & (1 << port)) ? true : false);
 }
 
-static __inline int
+static __inline bool
 e6000sw_is_phyport(e6000sw_softc_t *sc, int port)
 {
 	uint32_t phy_mask;
 	phy_mask = ~(sc->fixed_mask | sc->cpuports_mask);
 
-	return (phy_mask & (1 << port));
+	return ((phy_mask & (1 << port)) ? true : false);
 }
 
 static __inline int
@@ -999,6 +997,7 @@ static void
 e6000sw_tick (void *arg)
 {
 	e6000sw_softc_t *sc;
+	struct mii_data *mii;
 	struct mii_softc *miisc;
 	uint16_t portstatus;
 	int port;
@@ -1014,14 +1013,18 @@ e6000sw_tick (void *arg)
 			if (!e6000sw_is_phyport(sc, port))
 				continue;
 
-			portstatus = e6000sw_readreg(sc, REG_PORT(port), PORT_STATUS);
+			mii = e6000sw_miiforphy(sc, port);
+			if (mii == NULL)
+				continue;
+
+			portstatus = e6000sw_readreg(sc, REG_PORT(port),
+			    PORT_STATUS);
 
 			e6000sw_update_ifmedia(portstatus,
-			    &sc->mii[port]->mii_media_status,
-			    &sc->mii[port]->mii_media_active);
+			    &mii->mii_media_status, &mii->mii_media_active);
 
-			LIST_FOREACH(miisc, &sc->mii[port]->mii_phys, mii_list) {
-				if (IFM_INST(sc->mii[port]->mii_media.ifm_cur->ifm_media)
+			LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+				if (IFM_INST(mii->mii_media.ifm_cur->ifm_media)
 				    != miisc->mii_inst)
 					continue;
 				mii_phy_update(miisc, MII_POLLSTAT);
