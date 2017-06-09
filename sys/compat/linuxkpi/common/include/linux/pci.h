@@ -321,6 +321,9 @@ pci_enable_device(struct pci_dev *pdev)
 static inline void
 pci_disable_device(struct pci_dev *pdev)
 {
+
+	pci_disable_io(pdev->dev.bsddev, SYS_RES_IOPORT);
+	pci_disable_io(pdev->dev.bsddev, SYS_RES_MEMORY);
 }
 
 static inline int
