@@ -137,6 +137,7 @@ MAN=	aac.4 \
 	ds3231.4 \
 	${_dtrace_io.4} \
 	${_dtrace_ip.4} \
+	${_dtrace_lockstat.4} \
 	${_dtrace_proc.4} \
 	${_dtrace_sched.4} \
 	${_dtrace_tcp.4} \
