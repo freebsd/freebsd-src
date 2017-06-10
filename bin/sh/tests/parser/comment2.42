@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-${SH} -c '#
-exit 42'

@@ -1,9 +1,0 @@
-hor 1
-vert 1
-sizescale 4
-sizes 1-3999 0
-styles R I B BI
-fonts 6 0 0 0 0 0 S
-family T
-tcommand
-postpro grolj4

@@ -1,3 +1,0 @@
-overrided {
-	key = "overrided";	
-}

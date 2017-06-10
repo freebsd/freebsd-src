@@ -1,4 +1,0 @@
-# $FreeBSD$
-#
-#/dev/ttyv0	0600	/dev/console
-#/dev/ttyv0	0600	/dev/pcaudio:/dev/pcaudioctl

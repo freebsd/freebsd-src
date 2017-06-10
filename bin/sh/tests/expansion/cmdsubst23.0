@@ -1,5 +1,0 @@
-# $FreeBSD$
-
-unset n
-x=abcd
-[ "X${n#$(echo a)}X${x#$(echo ab)}X$(echo abc)X" = XXcdXabcX ]
