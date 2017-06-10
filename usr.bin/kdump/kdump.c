@@ -1219,6 +1219,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				c = ',';
 				break;
 			case SYS_rtprio:
+			case SYS_rtprio_thread:
 				putchar('(');
 				print_integer_arg(sysdecode_rtprio_function,
 				    *ip);
