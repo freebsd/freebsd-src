@@ -18,6 +18,7 @@
 #include "lld/Driver/Driver.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/COFFImportFile.h"
 #include "llvm/Object/COFFModuleDefinition.h"
@@ -40,8 +41,6 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::COFF;
 using llvm::sys::Process;
-using llvm::sys::fs::file_magic;
-using llvm::sys::fs::identify_magic;
 
 namespace lld {
 namespace coff {
@@ -457,17 +456,11 @@ static void createImportLibrary() {
 static void parseModuleDefs(StringRef Path) {
   std::unique_ptr<MemoryBuffer> MB = check(
     MemoryBuffer::getFile(Path, -1, false, true), "could not open " + Path);
-  MemoryBufferRef MBRef = MB->getMemBufferRef();
+  COFFModuleDefinition M =
+      check(parseCOFFModuleDefinition(MB->getMemBufferRef(), Config->Machine));
 
-  Expected<COFFModuleDefinition> Def =
-      parseCOFFModuleDefinition(MBRef, Config->Machine);
-  if (!Def)
-    fatal(errorToErrorCode(Def.takeError()).message());
-
-  COFFModuleDefinition &M = *Def;
   if (Config->OutputFile.empty())
     Config->OutputFile = Saver.save(M.OutputFile);
-
   if (M.ImageBase)
     Config->ImageBase = M.ImageBase;
   if (M.StackReserve)
