@@ -144,7 +144,17 @@ my $out = basename($cmd) . ".out";
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
     print "1..0 # SKIP insufficient permissions\n";
-    unlink $cmd;
+    exit 0;
+}
+
+my $debugflags_oid = 'kern.geom.debugflags';
+chomp(my $old_geom_debugflags = `sysctl -n $debugflags_oid`);
+if ($? != 0) {
+    print "1..0 # SKIP could not query $debugflags_oid\n";
+    exit 0;
+}
+if (system("sysctl $debugflags_oid=0") != 0) {
+    print "1..0 # SKIP could not set $debugflags_oid=0\n";
     exit 0;
 }
 
@@ -227,4 +237,7 @@ foreach my $key (sort keys %steps) {
     }
     $nr += 1;
 }
-exit 0;
+END {
+    system("sysctl $debugflags_oid=$old_geom_debugflags");
+    unlink($cmd);
+}
