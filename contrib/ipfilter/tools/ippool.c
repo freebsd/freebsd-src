@@ -361,8 +361,6 @@ loadpoolfile(argc, argv, infile)
 {
 	int c;
 
-	infile = optarg;
-
 	while ((c = getopt(argc, argv, "dnRuv")) != -1)
 		switch (c)
 		{
