@@ -1060,11 +1060,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_getpriority:
 			case SYS_setpriority:
-				print_number(ip, narg, c);
-				print_number(ip, narg, c);
-				putchar(',');
+				putchar('(');
 				print_integer_arg(sysdecode_prio_which, *ip);
+				c = ',';
 				ip++;
 				narg--;
 				break;
