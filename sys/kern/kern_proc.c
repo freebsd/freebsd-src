@@ -226,6 +226,8 @@ proc_dtor(void *mem, int size, void *arg)
 #endif
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
+		td_softdep_cleanup(td);
+		MPASS(td->td_su == NULL);
 
 		/* Make sure all thread destructors are executed */
 		EVENTHANDLER_INVOKE(thread_dtor, td);
