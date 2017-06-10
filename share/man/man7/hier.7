@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2017
+.Dd June 10, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -509,8 +509,6 @@ various examples for users and programmers
 firmware images loaded by userland programs
 .It Pa games/
 ASCII text files used by various games
-.It Pa groff_font/
-device description file for device name
 .It Pa keys/
 known trusted and revoked keys.
 .Bl -tag -width "pkg/" -compact
@@ -527,10 +525,6 @@ see
 .Xr setlocale 3
 .It Pa man/
 manual pages
-.It Pa me/
-macros for use with the me macro package;
-see
-.Xr me 7
 .It Pa misc/
 miscellaneous system-wide ASCII text files
 .Bl -tag -width Fl -compact
@@ -593,12 +587,6 @@ tab description files for a variety of terminals; used in
 the termcap file;
 see
 .Xr termcap 5
-.It Pa tmac/
-text processing macros;
-see
-.Xr nroff 1
-and
-.Xr troff 1
 .It Pa vi/
 localization support and utilities for
 .Xr vi 1
