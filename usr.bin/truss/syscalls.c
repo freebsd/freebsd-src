@@ -375,6 +375,8 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "readlinkat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Readlinkres | OUT, 2 },
 		    { Sizet, 3 } } },
+	{ .name = "reboot", .ret_type = 1, .nargs = 1,
+	  .args = { { Reboothowto, 0 } } },
 	{ .name = "recvfrom", .ret_type = 1, .nargs = 6,
 	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 },
 	            { Msgflags, 3 }, { Sockaddr | OUT, 4 },
@@ -2141,6 +2143,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Quotactlcmd:
 		if (!sysdecode_quotactl_cmd(fp, args[sc->offset]))
 			fprintf(fp, "%#x", (int)args[sc->offset]);
+		break;
+	case Reboothowto:
+		print_mask_arg(sysdecode_reboot_howto, fp, args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
