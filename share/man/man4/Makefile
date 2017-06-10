@@ -876,6 +876,7 @@ _ccd.4=		ccd.4
 .if ${MK_CDDL} != "no"
 _dtrace_io.4=	dtrace_io.4
 _dtrace_ip.4=	dtrace_ip.4
+_dtrace_lockstat.4=	dtrace_lockstat.4
 _dtrace_proc.4=	dtrace_proc.4
 _dtrace_sched.4= dtrace_sched.4
 _dtrace_tcp.4=	dtrace_tcp.4
