@@ -29,15 +29,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/CodeGen/RegAllocPBQP.h"
 #include "RegisterCoalescer.h"
 #include "Spiller.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
@@ -56,7 +57,6 @@
 #include "llvm/CodeGen/PBQP/Math.h"
 #include "llvm/CodeGen/PBQP/Solution.h"
 #include "llvm/CodeGen/PBQPRAConstraint.h"
-#include "llvm/CodeGen/RegAllocPBQP.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/VirtRegMap.h"
@@ -84,8 +84,8 @@
 #include <string>
 #include <system_error>
 #include <tuple>
-#include <vector>
 #include <utility>
+#include <vector>
 
 using namespace llvm;
 
@@ -738,7 +738,15 @@ void RegAllocPBQP::finalizeAlloc(MachineFunction &MF,
 
     if (PReg == 0) {
       const TargetRegisterClass &RC = *MRI.getRegClass(LI.reg);
-      PReg = RC.getRawAllocationOrder(MF).front();
+      const ArrayRef<MCPhysReg> RawPRegOrder = RC.getRawAllocationOrder(MF);
+      for (unsigned CandidateReg : RawPRegOrder) {
+        if (!VRM.getRegInfo().isReserved(CandidateReg)) {
+          PReg = CandidateReg;
+          break;
+        }
+      }
+      assert(PReg &&
+             "No un-reserved physical registers in this register class");
     }
 
     VRM.assignVirt2Phys(LI.reg, PReg);

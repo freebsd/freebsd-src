@@ -11,18 +11,19 @@
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "MCTargetDesc/AMDGPUTargetStreamer.h"
 #include "SIDefines.h"
+#include "Utils/AMDGPUAsmUtils.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "Utils/AMDKernelCodeTUtils.h"
-#include "Utils/AMDGPUAsmUtils.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -40,12 +41,11 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -814,14 +814,8 @@ private:
   bool ParseDirectiveCodeObjectMetadata();
   bool ParseAMDKernelCodeTValue(StringRef ID, amd_kernel_code_t &Header);
   bool ParseDirectiveAMDKernelCodeT();
-  bool ParseSectionDirectiveHSAText();
   bool subtargetHasRegister(const MCRegisterInfo &MRI, unsigned RegNo) const;
   bool ParseDirectiveAMDGPUHsaKernel();
-  bool ParseDirectiveAMDGPUHsaModuleGlobal();
-  bool ParseDirectiveAMDGPUHsaProgramGlobal();
-  bool ParseSectionDirectiveHSADataGlobalAgent();
-  bool ParseSectionDirectiveHSADataGlobalProgram();
-  bool ParseSectionDirectiveHSARodataReadonlyAgent();
   bool AddNextRegisterToList(unsigned& Reg, unsigned& RegWidth,
                              RegisterKind RegKind, unsigned Reg1,
                              unsigned RegNum);
@@ -2365,12 +2359,6 @@ bool AMDGPUAsmParser::ParseDirectiveAMDKernelCodeT() {
   return false;
 }
 
-bool AMDGPUAsmParser::ParseSectionDirectiveHSAText() {
-  getParser().getStreamer().SwitchSection(
-      AMDGPU::getHSATextSection(getContext()));
-  return false;
-}
-
 bool AMDGPUAsmParser::ParseDirectiveAMDGPUHsaKernel() {
   if (getLexer().isNot(AsmToken::Identifier))
     return TokError("expected symbol name");
@@ -2381,46 +2369,6 @@ bool AMDGPUAsmParser::ParseDirectiveAMDGPUHsaKernel() {
                                            ELF::STT_AMDGPU_HSA_KERNEL);
   Lex();
   KernelScope.initialize(getContext());
-  return false;
-}
-
-bool AMDGPUAsmParser::ParseDirectiveAMDGPUHsaModuleGlobal() {
-  if (getLexer().isNot(AsmToken::Identifier))
-    return TokError("expected symbol name");
-
-  StringRef GlobalName = Parser.getTok().getIdentifier();
-
-  getTargetStreamer().EmitAMDGPUHsaModuleScopeGlobal(GlobalName);
-  Lex();
-  return false;
-}
-
-bool AMDGPUAsmParser::ParseDirectiveAMDGPUHsaProgramGlobal() {
-  if (getLexer().isNot(AsmToken::Identifier))
-    return TokError("expected symbol name");
-
-  StringRef GlobalName = Parser.getTok().getIdentifier();
-
-  getTargetStreamer().EmitAMDGPUHsaProgramScopeGlobal(GlobalName);
-  Lex();
-  return false;
-}
-
-bool AMDGPUAsmParser::ParseSectionDirectiveHSADataGlobalAgent() {
-  getParser().getStreamer().SwitchSection(
-      AMDGPU::getHSADataGlobalAgentSection(getContext()));
-  return false;
-}
-
-bool AMDGPUAsmParser::ParseSectionDirectiveHSADataGlobalProgram() {
-  getParser().getStreamer().SwitchSection(
-      AMDGPU::getHSADataGlobalProgramSection(getContext()));
-  return false;
-}
-
-bool AMDGPUAsmParser::ParseSectionDirectiveHSARodataReadonlyAgent() {
-  getParser().getStreamer().SwitchSection(
-      AMDGPU::getHSARodataReadonlyAgentSection(getContext()));
   return false;
 }
 
@@ -2439,26 +2387,8 @@ bool AMDGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   if (IDVal == ".amd_kernel_code_t")
     return ParseDirectiveAMDKernelCodeT();
 
-  if (IDVal == ".hsatext")
-    return ParseSectionDirectiveHSAText();
-
   if (IDVal == ".amdgpu_hsa_kernel")
     return ParseDirectiveAMDGPUHsaKernel();
-
-  if (IDVal == ".amdgpu_hsa_module_global")
-    return ParseDirectiveAMDGPUHsaModuleGlobal();
-
-  if (IDVal == ".amdgpu_hsa_program_global")
-    return ParseDirectiveAMDGPUHsaProgramGlobal();
-
-  if (IDVal == ".hsadata_global_agent")
-    return ParseSectionDirectiveHSADataGlobalAgent();
-
-  if (IDVal == ".hsadata_global_program")
-    return ParseSectionDirectiveHSADataGlobalProgram();
-
-  if (IDVal == ".hsarodata_readonly_agent")
-    return ParseSectionDirectiveHSARodataReadonlyAgent();
 
   return true;
 }
@@ -2919,6 +2849,7 @@ bool AMDGPUAsmParser::parseCnt(int64_t &IntVal) {
   if (getLexer().isNot(AsmToken::Integer))
     return true;
 
+  SMLoc ValLoc = Parser.getTok().getLoc();
   if (getParser().parseAbsoluteExpression(CntVal))
     return true;
 
@@ -2936,21 +2867,24 @@ bool AMDGPUAsmParser::parseCnt(int64_t &IntVal) {
     Failed = encodeCnt(ISA, IntVal, CntVal, Sat, encodeLgkmcnt, decodeLgkmcnt);
   }
 
-  // To improve diagnostics, do not skip delimiters on errors
-  if (!Failed) {
-    if (getLexer().isNot(AsmToken::RParen)) {
-      return true;
-    }
-    Parser.Lex();
-    if (getLexer().is(AsmToken::Amp) || getLexer().is(AsmToken::Comma)) {
-      const AsmToken NextToken = getLexer().peekTok();
-      if (NextToken.is(AsmToken::Identifier)) {
-        Parser.Lex();
-      }
+  if (Failed) {
+    Error(ValLoc, "too large value for " + CntName);
+    return true;
+  }
+
+  if (getLexer().isNot(AsmToken::RParen)) {
+    return true;
+  }
+
+  Parser.Lex();
+  if (getLexer().is(AsmToken::Amp) || getLexer().is(AsmToken::Comma)) {
+    const AsmToken NextToken = getLexer().peekTok();
+    if (NextToken.is(AsmToken::Identifier)) {
+      Parser.Lex();
     }
   }
 
-  return Failed;
+  return false;
 }
 
 OperandMatchResultTy

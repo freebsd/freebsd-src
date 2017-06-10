@@ -21,7 +21,8 @@ std::unique_ptr<TargetMachine> createTargetMachine() {
 
   std::string Error;
   const Target *TheTarget = TargetRegistry::lookupTarget(TT, Error);
-  assert(TheTarget && "Target not registered");
+  if (!TheTarget)
+    report_fatal_error("Target not registered");
 
   return std::unique_ptr<TargetMachine>(
       TheTarget->createTargetMachine(TT, CPU, FS, TargetOptions(), None,
@@ -58,20 +59,25 @@ void runChecks(
   std::unique_ptr<MemoryBuffer> MBuffer = MemoryBuffer::getMemBuffer(MIRString);
   std::unique_ptr<MIRParser> MParser =
       createMIRParser(std::move(MBuffer), Context);
-  assert(MParser && "Couldn't create MIR parser");
+  if (!MParser)
+    report_fatal_error("Couldn't create MIR parser");
 
-  std::unique_ptr<Module> M = MParser->parseLLVMModule();
-  assert(M && "Couldn't parse module");
+  std::unique_ptr<Module> M = MParser->parseIRModule();
+  if (!M)
+    report_fatal_error("Couldn't parse module");
 
   M->setTargetTriple(TM->getTargetTriple().getTriple());
   M->setDataLayout(TM->createDataLayout());
 
-  auto F = M->getFunction("sizes");
-  assert(F && "Couldn't find intended function");
-
   MachineModuleInfo MMI(TM);
-  MMI.setMachineFunctionInitializer(MParser.get());
-  auto &MF = MMI.getMachineFunction(*F);
+  bool Res = MParser->parseMachineFunctions(*M, MMI);
+  if (Res)
+    report_fatal_error("Couldn't parse MIR functions");
+
+  auto F = M->getFunction("sizes");
+  if (!F)
+    report_fatal_error("Couldn't find intended function");
+  auto &MF = MMI.getOrCreateMachineFunction(*F);
 
   Checks(*II, MF);
 }

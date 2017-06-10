@@ -2391,7 +2391,7 @@ static void setLimitsForBinOp(BinaryOperator &BO, APInt &Lower, APInt &Upper) {
   const APInt *C;
   switch (BO.getOpcode()) {
   case Instruction::Add:
-    if (match(BO.getOperand(1), m_APInt(C)) && *C != 0) {
+    if (match(BO.getOperand(1), m_APInt(C)) && !C->isNullValue()) {
       // FIXME: If we have both nuw and nsw, we should reduce the range further.
       if (BO.hasNoUnsignedWrap()) {
         // 'add nuw x, C' produces [C, UINT_MAX].
@@ -2429,7 +2429,7 @@ static void setLimitsForBinOp(BinaryOperator &BO, APInt &Lower, APInt &Upper) {
       Upper = APInt::getSignedMaxValue(Width).ashr(*C) + 1;
     } else if (match(BO.getOperand(0), m_APInt(C))) {
       unsigned ShiftAmount = Width - 1;
-      if (*C != 0 && BO.isExact())
+      if (!C->isNullValue() && BO.isExact())
         ShiftAmount = C->countTrailingZeros();
       if (C->isNegative()) {
         // 'ashr C, x' produces [C, C >> (Width-1)]
@@ -2450,7 +2450,7 @@ static void setLimitsForBinOp(BinaryOperator &BO, APInt &Lower, APInt &Upper) {
     } else if (match(BO.getOperand(0), m_APInt(C))) {
       // 'lshr C, x' produces [C >> (Width-1), C].
       unsigned ShiftAmount = Width - 1;
-      if (*C != 0 && BO.isExact())
+      if (!C->isNullValue() && BO.isExact())
         ShiftAmount = C->countTrailingZeros();
       Lower = C->lshr(ShiftAmount);
       Upper = *C + 1;
@@ -2512,7 +2512,7 @@ static void setLimitsForBinOp(BinaryOperator &BO, APInt &Lower, APInt &Upper) {
     break;
 
   case Instruction::UDiv:
-    if (match(BO.getOperand(1), m_APInt(C)) && *C != 0) {
+    if (match(BO.getOperand(1), m_APInt(C)) && !C->isNullValue()) {
       // 'udiv x, C' produces [0, UINT_MAX / C].
       Upper = APInt::getMaxValue(Width).udiv(*C) + 1;
     } else if (match(BO.getOperand(0), m_APInt(C))) {
@@ -2827,14 +2827,14 @@ static Value *simplifyICmpWithBinOp(CmpInst::Predicate Pred, Value *LHS,
         // - CI2 is one
         // - CI isn't zero
         if (LBO->hasNoSignedWrap() || LBO->hasNoUnsignedWrap() ||
-            *CI2Val == 1 || !CI->isZero()) {
+            CI2Val->isOneValue() || !CI->isZero()) {
           if (Pred == ICmpInst::ICMP_EQ)
             return ConstantInt::getFalse(RHS->getContext());
           if (Pred == ICmpInst::ICMP_NE)
             return ConstantInt::getTrue(RHS->getContext());
         }
       }
-      if (CIVal->isSignMask() && *CI2Val == 1) {
+      if (CIVal->isSignMask() && CI2Val->isOneValue()) {
         if (Pred == ICmpInst::ICMP_UGT)
           return ConstantInt::getFalse(RHS->getContext());
         if (Pred == ICmpInst::ICMP_ULE)
@@ -3308,11 +3308,9 @@ static Value *SimplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
   }
 
   // icmp eq|ne X, Y -> false|true if X != Y
-  if ((Pred == ICmpInst::ICMP_EQ || Pred == ICmpInst::ICMP_NE) &&
+  if (ICmpInst::isEquality(Pred) &&
       isKnownNonEqual(LHS, RHS, Q.DL, Q.AC, Q.CxtI, Q.DT)) {
-    LLVMContext &Ctx = LHS->getType()->getContext();
-    return Pred == ICmpInst::ICMP_NE ?
-      ConstantInt::getTrue(Ctx) : ConstantInt::getFalse(Ctx);
+    return Pred == ICmpInst::ICMP_NE ? getTrue(ITy) : getFalse(ITy);
   }
 
   if (Value *V = simplifyICmpWithBinOp(Pred, LHS, RHS, Q, MaxRecurse))
@@ -3357,19 +3355,6 @@ static Value *SimplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
             GLHS->getSourceElementType(), Null, IndicesRHS);
         return ConstantExpr::getICmp(Pred, NewLHS, NewRHS);
       }
-    }
-  }
-
-  // If a bit is known to be zero for A and known to be one for B,
-  // then A and B cannot be equal.
-  if (ICmpInst::isEquality(Pred)) {
-    const APInt *RHSVal;
-    if (match(RHS, m_APInt(RHSVal))) {
-      KnownBits LHSKnown = computeKnownBits(LHS, Q.DL, /*Depth=*/0, Q.AC, Q.CxtI, Q.DT);
-      if (LHSKnown.Zero.intersects(*RHSVal) ||
-          !LHSKnown.One.isSubsetOf(*RHSVal))
-        return Pred == ICmpInst::ICMP_EQ ? ConstantInt::getFalse(ITy)
-                                         : ConstantInt::getTrue(ITy);
     }
   }
 
@@ -3896,12 +3881,14 @@ static Value *SimplifyGEPInst(Type *SrcTy, ArrayRef<Value *> Ops,
   }
 
   // Check to see if this is constant foldable.
-  for (unsigned i = 0, e = Ops.size(); i != e; ++i)
-    if (!isa<Constant>(Ops[i]))
-      return nullptr;
+  if (!all_of(Ops, [](Value *V) { return isa<Constant>(V); }))
+    return nullptr;
 
-  return ConstantExpr::getGetElementPtr(SrcTy, cast<Constant>(Ops[0]),
-                                        Ops.slice(1));
+  auto *CE = ConstantExpr::getGetElementPtr(SrcTy, cast<Constant>(Ops[0]),
+                                            Ops.slice(1));
+  if (auto *CEFolded = ConstantFoldConstant(CE, Q.DL))
+    return CEFolded;
+  return CE;
 }
 
 Value *llvm::SimplifyGEPInst(Type *SrcTy, ArrayRef<Value *> Ops,
@@ -4486,8 +4473,9 @@ static Value *SimplifyIntrinsic(Function *F, IterTy ArgBegin, IterTy ArgEnd,
 }
 
 template <typename IterTy>
-static Value *SimplifyCall(Value *V, IterTy ArgBegin, IterTy ArgEnd,
-                           const SimplifyQuery &Q, unsigned MaxRecurse) {
+static Value *SimplifyCall(ImmutableCallSite CS, Value *V, IterTy ArgBegin,
+                           IterTy ArgEnd, const SimplifyQuery &Q,
+                           unsigned MaxRecurse) {
   Type *Ty = V->getType();
   if (PointerType *PTy = dyn_cast<PointerType>(Ty))
     Ty = PTy->getElementType();
@@ -4506,7 +4494,7 @@ static Value *SimplifyCall(Value *V, IterTy ArgBegin, IterTy ArgEnd,
     if (Value *Ret = SimplifyIntrinsic(F, ArgBegin, ArgEnd, Q, MaxRecurse))
       return Ret;
 
-  if (!canConstantFoldCallTo(F))
+  if (!canConstantFoldCallTo(CS, F))
     return nullptr;
 
   SmallVector<Constant *, 4> ConstantArgs;
@@ -4518,17 +4506,18 @@ static Value *SimplifyCall(Value *V, IterTy ArgBegin, IterTy ArgEnd,
     ConstantArgs.push_back(C);
   }
 
-  return ConstantFoldCall(F, ConstantArgs, Q.TLI);
+  return ConstantFoldCall(CS, F, ConstantArgs, Q.TLI);
 }
 
-Value *llvm::SimplifyCall(Value *V, User::op_iterator ArgBegin,
-                          User::op_iterator ArgEnd, const SimplifyQuery &Q) {
-  return ::SimplifyCall(V, ArgBegin, ArgEnd, Q, RecursionLimit);
-}
-
-Value *llvm::SimplifyCall(Value *V, ArrayRef<Value *> Args,
+Value *llvm::SimplifyCall(ImmutableCallSite CS, Value *V,
+                          User::op_iterator ArgBegin, User::op_iterator ArgEnd,
                           const SimplifyQuery &Q) {
-  return ::SimplifyCall(V, Args.begin(), Args.end(), Q, RecursionLimit);
+  return ::SimplifyCall(CS, V, ArgBegin, ArgEnd, Q, RecursionLimit);
+}
+
+Value *llvm::SimplifyCall(ImmutableCallSite CS, Value *V,
+                          ArrayRef<Value *> Args, const SimplifyQuery &Q) {
+  return ::SimplifyCall(CS, V, Args.begin(), Args.end(), Q, RecursionLimit);
 }
 
 /// See if we can compute a simplified version of this instruction.
@@ -4659,7 +4648,8 @@ Value *llvm::SimplifyInstruction(Instruction *I, const SimplifyQuery &SQ,
     break;
   case Instruction::Call: {
     CallSite CS(cast<CallInst>(I));
-    Result = SimplifyCall(CS.getCalledValue(), CS.arg_begin(), CS.arg_end(), Q);
+    Result = SimplifyCall(CS, CS.getCalledValue(), CS.arg_begin(), CS.arg_end(),
+                          Q);
     break;
   }
 #define HANDLE_CAST_INST(num, opc, clas) case Instruction::opc:

@@ -14,8 +14,9 @@
 #ifndef LLVM_OBJECT_OBJECTFILE_H
 #define LLVM_OBJECT_OBJECTFILE_H
 
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/Error.h"
@@ -292,6 +293,9 @@ public:
       return std::error_code();
     }
 
+  /// Maps a debug section name to a standard DWARF section name.
+  virtual StringRef mapDebugSectionName(StringRef Name) const { return Name; }
+
   /// True if this is a relocatable object (.o/.obj).
   virtual bool isRelocatableObject() const = 0;
 
@@ -303,10 +307,10 @@ public:
   createObjectFile(StringRef ObjectPath);
 
   static Expected<std::unique_ptr<ObjectFile>>
-  createObjectFile(MemoryBufferRef Object, sys::fs::file_magic Type);
+  createObjectFile(MemoryBufferRef Object, llvm::file_magic Type);
   static Expected<std::unique_ptr<ObjectFile>>
   createObjectFile(MemoryBufferRef Object) {
-    return createObjectFile(Object, sys::fs::file_magic::unknown);
+    return createObjectFile(Object, llvm::file_magic::unknown);
   }
 
   static inline bool classof(const Binary *v) {
