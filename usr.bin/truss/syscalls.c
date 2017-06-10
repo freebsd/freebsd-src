@@ -366,6 +366,8 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "pwrite", .ret_type = 1, .nargs = 4,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 },
 		    { QuadHex, 3 } } },
+	{ .name = "quotactl", .ret_type = 1, .nargs = 4,
+	  .args = { { Name, 0 }, { Quotactlcmd, 1 }, { Int, 2 }, { Ptr, 3 } } },
 	{ .name = "read", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 } } },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
@@ -2135,6 +2137,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Ptraceop:
 		print_integer_arg(sysdecode_ptrace_request, fp,
 		    args[sc->offset]);
+		break;
+	case Quotactlcmd:
+		if (!sysdecode_quotactl_cmd(fp, args[sc->offset]))
+			fprintf(fp, "%#x", (int)args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
