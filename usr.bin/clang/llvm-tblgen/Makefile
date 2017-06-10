@@ -39,7 +39,6 @@ SRCS+=		TableGen.cpp
 SRCS+=		Types.cpp
 SRCS+=		X86DisassemblerTables.cpp
 SRCS+=		X86EVEX2VEXTablesEmitter.cpp
-SRCS+=		X86FoldTablesEmitter.cpp
 SRCS+=		X86ModRMFilters.cpp
 SRCS+=		X86RecognizableInstr.cpp
 

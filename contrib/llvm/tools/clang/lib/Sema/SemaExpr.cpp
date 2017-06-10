@@ -11828,6 +11828,28 @@ ExprResult Sema::BuildBinOp(Scope *S, SourceLocation OpLoc,
           RHSExpr->getType()->isOverloadableType())
         return BuildOverloadedBinOp(*this, S, OpLoc, Opc, LHSExpr, RHSExpr);
     }
+
+    // If we're instantiating "a.x < b" or "A::x < b" and 'x' names a function
+    // template, diagnose the missing 'template' keyword instead of diagnosing
+    // an invalid use of a bound member function.
+    //
+    // Note that "A::x < b" might be valid if 'b' has an overloadable type due
+    // to C++1z [over.over]/1.4, but we already checked for that case above.
+    if (Opc == BO_LT && inTemplateInstantiation() &&
+        (pty->getKind() == BuiltinType::BoundMember ||
+         pty->getKind() == BuiltinType::Overload)) {
+      auto *OE = dyn_cast<OverloadExpr>(LHSExpr);
+      if (OE && !OE->hasTemplateKeyword() && !OE->hasExplicitTemplateArgs() &&
+          std::any_of(OE->decls_begin(), OE->decls_end(), [](NamedDecl *ND) {
+            return isa<FunctionTemplateDecl>(ND);
+          })) {
+        Diag(OE->getQualifier() ? OE->getQualifierLoc().getBeginLoc()
+                                : OE->getNameLoc(),
+             diag::err_template_kw_missing)
+          << OE->getName().getAsString() << "";
+        return ExprError();
+      }
+    }
         
     ExprResult LHS = CheckPlaceholderExpr(LHSExpr);
     if (LHS.isInvalid()) return ExprError();
@@ -11953,16 +11975,13 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
           << resultType << Input.get()->getSourceRange();
     else if (resultType->hasIntegerRepresentation())
       break;
-    else if (resultType->isExtVectorType()) {
-      if (Context.getLangOpts().OpenCL) {
-        // OpenCL v1.1 s6.3.f: The bitwise operator not (~) does not operate
-        // on vector float types.
-        QualType T = resultType->getAs<ExtVectorType>()->getElementType();
-        if (!T->isIntegerType())
-          return ExprError(Diag(OpLoc, diag::err_typecheck_unary_expr)
-                           << resultType << Input.get()->getSourceRange());
-      }
-      break;
+    else if (resultType->isExtVectorType() && Context.getLangOpts().OpenCL) {
+      // OpenCL v1.1 s6.3.f: The bitwise operator not (~) does not operate
+      // on vector float types.
+      QualType T = resultType->getAs<ExtVectorType>()->getElementType();
+      if (!T->isIntegerType())
+        return ExprError(Diag(OpLoc, diag::err_typecheck_unary_expr)
+                          << resultType << Input.get()->getSourceRange());
     } else {
       return ExprError(Diag(OpLoc, diag::err_typecheck_unary_expr)
                        << resultType << Input.get()->getSourceRange());

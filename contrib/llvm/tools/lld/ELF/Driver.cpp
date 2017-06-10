@@ -185,7 +185,7 @@ void LinkerDriver::addFile(StringRef Path, bool WithLOption) {
     // is attempting LTO and using a default ar command that doesn't
     // understand the LLVM bitcode file. It is a pretty common error, so
     // we'll handle it as if it had a symbol table.
-    if (!File->hasSymbolTable()) {
+    if (!File->isEmpty() && !File->hasSymbolTable()) {
       for (const auto &P : getArchiveMembers(MBRef))
         Files.push_back(make<LazyObjectFile>(P.first, Path, P.second));
       return;
@@ -970,6 +970,14 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
   Symtab.scanShlibUndefined();
   Symtab.scanVersionScript();
 
+  // Create wrapped symbols for -wrap option.
+  for (auto *Arg : Args.filtered(OPT_wrap))
+    Symtab.addSymbolWrap(Arg->getValue());
+
+  // Create alias symbols for -defsym option.
+  for (std::pair<StringRef, StringRef> &Def : getDefsym(Args))
+    Symtab.addSymbolAlias(Def.first, Def.second);
+
   Symtab.addCombinedLTOObject();
   if (ErrorCount)
     return;
@@ -979,12 +987,8 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
   for (StringRef Sym : Script->Opt.ReferencedSymbols)
     Symtab.addUndefined(Sym);
 
-  for (auto *Arg : Args.filtered(OPT_wrap))
-    Symtab.wrap(Arg->getValue());
-
-  // Handle --defsym=sym=alias option.
-  for (std::pair<StringRef, StringRef> &Def : getDefsym(Args))
-    Symtab.alias(Def.first, Def.second);
+  // Apply symbol renames for -wrap and -defsym
+  Symtab.applySymbolRenames();
 
   // Now that we have a complete list of input files.
   // Beyond this point, no new files are added.

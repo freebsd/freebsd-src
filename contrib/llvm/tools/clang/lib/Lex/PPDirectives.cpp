@@ -30,6 +30,7 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Pragma.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Lex/PTHLexer.h"
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -1654,6 +1655,26 @@ static bool trySimplifyPath(SmallVectorImpl<StringRef> &Components,
   return SuggestReplacement;
 }
 
+bool Preprocessor::checkModuleIsAvailable(const LangOptions &LangOpts,
+                                          const TargetInfo &TargetInfo,
+                                          DiagnosticsEngine &Diags, Module *M) {
+  Module::Requirement Requirement;
+  Module::UnresolvedHeaderDirective MissingHeader;
+  if (M->isAvailable(LangOpts, TargetInfo, Requirement, MissingHeader))
+    return false;
+
+  if (MissingHeader.FileNameLoc.isValid()) {
+    Diags.Report(MissingHeader.FileNameLoc, diag::err_module_header_missing)
+        << MissingHeader.IsUmbrella << MissingHeader.FileName;
+  } else {
+    // FIXME: Track the location at which the requirement was specified, and
+    // use it here.
+    Diags.Report(M->DefinitionLoc, diag::err_module_unavailable)
+        << M->getFullModuleName() << Requirement.second << Requirement.first;
+  }
+  return true;
+}
+
 /// HandleIncludeDirective - The "\#include" tokens have just been read, read
 /// the file to be included from the lexer, then include it!  This is a common
 /// routine with functionality shared between \#include, \#include_next and
@@ -1825,33 +1846,24 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   // we've imported or already built.
   bool ShouldEnter = true;
 
+  if (PPOpts->SingleFileParseMode)
+    ShouldEnter = false;
+
   // Determine whether we should try to import the module for this #include, if
   // there is one. Don't do so if precompiled module support is disabled or we
   // are processing this module textually (because we're building the module).
-  if (File && SuggestedModule && getLangOpts().Modules &&
+  if (ShouldEnter && File && SuggestedModule && getLangOpts().Modules &&
       SuggestedModule.getModule()->getTopLevelModuleName() !=
           getLangOpts().CurrentModule) {
     // If this include corresponds to a module but that module is
     // unavailable, diagnose the situation and bail out.
     // FIXME: Remove this; loadModule does the same check (but produces
     // slightly worse diagnostics).
-    if (!SuggestedModule.getModule()->isAvailable()) {
-      Module::Requirement Requirement;
-      Module::UnresolvedHeaderDirective MissingHeader;
-      Module *M = SuggestedModule.getModule();
-      // Identify the cause.
-      (void)M->isAvailable(getLangOpts(), getTargetInfo(), Requirement,
-                           MissingHeader);
-      if (MissingHeader.FileNameLoc.isValid()) {
-        Diag(MissingHeader.FileNameLoc, diag::err_module_header_missing)
-            << MissingHeader.IsUmbrella << MissingHeader.FileName;
-      } else {
-        Diag(M->DefinitionLoc, diag::err_module_unavailable)
-            << M->getFullModuleName() << Requirement.second << Requirement.first;
-      }
+    if (checkModuleIsAvailable(getLangOpts(), getTargetInfo(), getDiagnostics(),
+                               SuggestedModule.getModule())) {
       Diag(FilenameTok.getLocation(),
            diag::note_implicit_top_level_module_import_here)
-          << M->getTopLevelModuleName();
+          << SuggestedModule.getModule()->getTopLevelModuleName();
       return;
     }
 

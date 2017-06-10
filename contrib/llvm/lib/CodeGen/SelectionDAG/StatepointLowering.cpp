@@ -17,9 +17,9 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/GCMetadata.h"
 #include "llvm/CodeGen/GCStrategy.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/IR/CallingConv.h"
@@ -840,7 +840,7 @@ SelectionDAGBuilder::LowerStatepoint(ImmutableStatepoint ISP,
       //       completely and make statepoint call to return a tuple.
       unsigned Reg = FuncInfo.CreateRegs(RetTy);
       RegsForValue RFV(*DAG.getContext(), DAG.getTargetLoweringInfo(),
-                       DAG.getDataLayout(), Reg, RetTy);
+                       DAG.getDataLayout(), Reg, RetTy, true);
       SDValue Chain = DAG.getEntryNode();
 
       RFV.getCopyToRegs(ReturnValue, DAG, getCurSDLoc(), Chain, nullptr);

@@ -15,12 +15,13 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/None.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeView.h"
 #include "llvm/MC/MCContext.h"
@@ -47,7 +48,6 @@
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -703,7 +703,7 @@ const AsmToken &AsmParser::Lex() {
   // if it's a end of statement with a comment in it
   if (getTok().is(AsmToken::EndOfStatement)) {
     // if this is a line comment output it.
-    if (getTok().getString().front() != '\n' &&
+    if (!getTok().getString().empty() && getTok().getString().front() != '\n' &&
         getTok().getString().front() != '\r' && MAI.preserveAsmComments())
       Out.addExplicitComment(Twine(getTok().getString()));
   }
@@ -1523,7 +1523,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     Lex();
   if (Lexer.is(AsmToken::EndOfStatement)) {
     // if this is a line comment we can drop it safely
-    if (getTok().getString().front() == '\r' ||
+    if (getTok().getString().empty() || getTok().getString().front() == '\r' ||
         getTok().getString().front() == '\n')
       Out.AddBlankLine();
     Lex();

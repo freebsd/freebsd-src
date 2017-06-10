@@ -67,6 +67,11 @@ public:
   // formula: Off = Off_first + VA - VA_first.
   OutputSection *FirstInPtLoad = nullptr;
 
+  // Pointer to a relocation section for this section. Usually nullptr because
+  // we consume relocations, but if --emit-relocs is specified (which is rare),
+  // it may have a non-null value.
+  OutputSection *RelocationSection = nullptr;
+
   // The following fields correspond to Elf_Shdr members.
   uint64_t Size = 0;
   uint64_t Offset = 0;
@@ -78,7 +83,6 @@ public:
   void sort(std::function<int(InputSectionBase *S)> Order);
   void sortInitFini();
   void sortCtorsDtors();
-  template <class ELFT> void finalize();
   void assignOffsets();
   std::vector<InputSection *> Sections;
 

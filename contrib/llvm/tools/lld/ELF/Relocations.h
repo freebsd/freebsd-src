@@ -21,6 +21,7 @@ class SymbolBody;
 class InputSection;
 class InputSectionBase;
 class OutputSection;
+struct OutputSectionCommand;
 
 // List of target-independent relocation types. Relocations read
 // from files are converted to these types so that the main code
@@ -123,12 +124,18 @@ class Thunk;
 class ThunkCreator {
 public:
   // Return true if Thunks have been added to OutputSections
-  bool createThunks(ArrayRef<OutputSection *> OutputSections);
+  bool createThunks(ArrayRef<OutputSectionCommand *> OutputSections);
 
 private:
-  void mergeThunks(OutputSection *OS, std::vector<ThunkSection *> &Thunks);
-  ThunkSection *getOSThunkSec(ThunkSection *&TS, OutputSection *OS);
+  void mergeThunks();
+  ThunkSection *getOSThunkSec(OutputSection *OS,
+                              std::vector<InputSection *> *ISR);
   ThunkSection *getISThunkSec(InputSection *IS, OutputSection *OS);
+  void forEachExecInputSection(
+      ArrayRef<OutputSectionCommand *> OutputSections,
+      std::function<void(OutputSection *, std::vector<InputSection *> *,
+                         InputSection *)>
+          Fn);
   std::pair<Thunk *, bool> getThunk(SymbolBody &Body, uint32_t Type);
 
   // Track Symbols that already have a Thunk
@@ -138,7 +145,11 @@ private:
   llvm::DenseMap<InputSection *, ThunkSection *> ThunkedSections;
 
   // Track the ThunksSections that need to be inserted into an OutputSection
-  std::map<OutputSection *, std::vector<ThunkSection *>> ThunkSections;
+  std::map<std::vector<InputSection *> *, std::vector<ThunkSection *>>
+      ThunkSections;
+
+  // The ThunkSection for this vector of InputSections
+  ThunkSection *CurTS;
 };
 
 // Return a int64_t to make sure we get the sign extension out of the way as

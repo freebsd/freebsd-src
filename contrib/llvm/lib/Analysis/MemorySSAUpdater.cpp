@@ -14,6 +14,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/Analysis/MemorySSA.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -24,7 +25,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Analysis/MemorySSA.h"
 #include <algorithm>
 
 #define DEBUG_TYPE "memoryssa"
@@ -124,17 +124,12 @@ MemoryAccess *MemorySSAUpdater::getPreviousDefInBlock(MemoryAccess *MA) {
         return &*Iter;
     } else {
       // Otherwise, have to walk the all access iterator.
-      auto Iter = MA->getReverseIterator();
-      ++Iter;
-      while (&*Iter != &*Defs->begin()) {
-        if (!isa<MemoryUse>(*Iter))
-          return &*Iter;
-        --Iter;
-      }
-      // At this point it must be pointing at firstdef
-      assert(&*Iter == &*Defs->begin() &&
-             "Should have hit first def walking backwards");
-      return &*Iter;
+      auto End = MSSA->getWritableBlockAccesses(MA->getBlock())->rend();
+      for (auto &U : make_range(++MA->getReverseIterator(), End))
+        if (!isa<MemoryUse>(U))
+          return cast<MemoryAccess>(&U);
+      // Note that if MA comes before Defs->begin(), we won't hit a def.
+      return nullptr;
     }
   }
   return nullptr;

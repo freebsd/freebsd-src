@@ -486,6 +486,8 @@ namespace {
 class ASTInfoCollector : public ASTReaderListener {
   Preprocessor &PP;
   ASTContext &Context;
+  HeaderSearchOptions &HSOpts;
+  PreprocessorOptions &PPOpts;
   LangOptions &LangOpt;
   std::shared_ptr<TargetOptions> &TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> &Target;
@@ -493,11 +495,14 @@ class ASTInfoCollector : public ASTReaderListener {
 
   bool InitializedLanguage;
 public:
-  ASTInfoCollector(Preprocessor &PP, ASTContext &Context, LangOptions &LangOpt,
+  ASTInfoCollector(Preprocessor &PP, ASTContext &Context,
+                   HeaderSearchOptions &HSOpts, PreprocessorOptions &PPOpts,
+                   LangOptions &LangOpt,
                    std::shared_ptr<TargetOptions> &TargetOpts,
                    IntrusiveRefCntPtr<TargetInfo> &Target, unsigned &Counter)
-      : PP(PP), Context(Context), LangOpt(LangOpt), TargetOpts(TargetOpts),
-        Target(Target), Counter(Counter), InitializedLanguage(false) {}
+      : PP(PP), Context(Context), HSOpts(HSOpts), PPOpts(PPOpts),
+        LangOpt(LangOpt), TargetOpts(TargetOpts), Target(Target),
+        Counter(Counter), InitializedLanguage(false) {}
 
   bool ReadLanguageOptions(const LangOptions &LangOpts, bool Complain,
                            bool AllowCompatibleDifferences) override {
@@ -508,6 +513,20 @@ public:
     InitializedLanguage = true;
     
     updated();
+    return false;
+  }
+
+  virtual bool ReadHeaderSearchOptions(const HeaderSearchOptions &HSOpts,
+                                       StringRef SpecificModuleCachePath,
+                                       bool Complain) override {
+    this->HSOpts = HSOpts;
+    return false;
+  }
+
+  virtual bool
+  ReadPreprocessorOptions(const PreprocessorOptions &PPOpts, bool Complain,
+                          std::string &SuggestedPredefines) override {
+    this->PPOpts = PPOpts;
     return false;
   }
 
@@ -667,6 +686,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
 
   ConfigureDiags(Diags, *AST, CaptureDiagnostics);
 
+  AST->LangOpts = std::make_shared<LangOptions>();
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->Diagnostics = Diags;
@@ -682,13 +702,12 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   AST->HeaderInfo.reset(new HeaderSearch(AST->HSOpts,
                                          AST->getSourceManager(),
                                          AST->getDiagnostics(),
-                                         AST->ASTFileLangOpts,
+                                         AST->getLangOpts(),
                                          /*Target=*/nullptr));
-
-  auto PPOpts = std::make_shared<PreprocessorOptions>();
+  AST->PPOpts = std::make_shared<PreprocessorOptions>();
 
   for (const auto &RemappedFile : RemappedFiles)
-    PPOpts->addRemappedFile(RemappedFile.first, RemappedFile.second);
+    AST->PPOpts->addRemappedFile(RemappedFile.first, RemappedFile.second);
 
   // Gather Info for preprocessor construction later on.
 
@@ -696,13 +715,13 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   unsigned Counter;
 
   AST->PP = std::make_shared<Preprocessor>(
-      std::move(PPOpts), AST->getDiagnostics(), AST->ASTFileLangOpts,
-      AST->getSourceManager(), *AST->PCMCache, HeaderInfo, *AST,
+      AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
+      AST->getSourceManager(), *AST->PCMCache, HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);
   Preprocessor &PP = *AST->PP;
 
-  AST->Ctx = new ASTContext(AST->ASTFileLangOpts, AST->getSourceManager(),
+  AST->Ctx = new ASTContext(*AST->LangOpts, AST->getSourceManager(),
                             PP.getIdentifierTable(), PP.getSelectorTable(),
                             PP.getBuiltinInfo());
   ASTContext &Context = *AST->Ctx;
@@ -716,8 +735,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
                               AllowPCHWithCompilerErrors);
 
   AST->Reader->setListener(llvm::make_unique<ASTInfoCollector>(
-      *AST->PP, Context, AST->ASTFileLangOpts, AST->TargetOpts, AST->Target,
-      Counter));
+      *AST->PP, Context, *AST->HSOpts, *AST->PPOpts, *AST->LangOpts,
+      AST->TargetOpts, AST->Target, Counter));
 
   // Attach the AST reader to the AST context as an external AST
   // source, so that declarations will be deserialized from the
@@ -1140,6 +1159,8 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
   if (SavedMainFileBuffer)
     TranslateStoredDiagnostics(getFileManager(), getSourceManager(),
                                PreambleDiagnostics, StoredDiagnostics);
+  else
+    PreambleSrcLocCache.clear();
 
   if (!Act->Execute())
     goto error;
@@ -1963,7 +1984,7 @@ ASTUnit *ASTUnit::LoadFromCommandLine(
     unsigned PrecompilePreambleAfterNParses, TranslationUnitKind TUKind,
     bool CacheCodeCompletionResults, bool IncludeBriefCommentsInCodeCompletion,
     bool AllowPCHWithCompilerErrors, bool SkipFunctionBodies,
-    bool UserFilesAreVolatile, bool ForSerialization,
+    bool SingleFileParse, bool UserFilesAreVolatile, bool ForSerialization,
     llvm::Optional<StringRef> ModuleFormat, std::unique_ptr<ASTUnit> *ErrAST,
     IntrusiveRefCntPtr<vfs::FileSystem> VFS) {
   assert(Diags.get() && "no DiagnosticsEngine was provided");
@@ -1992,6 +2013,7 @@ ASTUnit *ASTUnit::LoadFromCommandLine(
   PPOpts.RemappedFilesKeepOriginalName = RemappedFilesKeepOriginalName;
   PPOpts.AllowPCHWithCompilerErrors = AllowPCHWithCompilerErrors;
   PPOpts.GeneratePreamble = PrecompilePreambleAfterNParses != 0;
+  PPOpts.SingleFileParseMode = SingleFileParse;
   
   // Override the resources path.
   CI->getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
@@ -2582,11 +2604,9 @@ void ASTUnit::TranslateStoredDiagnostics(
   // remap all the locations to the new view. This includes the diag location,
   // any associated source ranges, and the source ranges of associated fix-its.
   // FIXME: There should be a cleaner way to do this.
-
   SmallVector<StoredDiagnostic, 4> Result;
   Result.reserve(Diags.size());
-  const FileEntry *PreviousFE = nullptr;
-  FileID FID;
+
   for (const StandaloneDiagnostic &SD : Diags) {
     // Rebuild the StoredDiagnostic.
     if (SD.Filename.empty())
@@ -2594,11 +2614,16 @@ void ASTUnit::TranslateStoredDiagnostics(
     const FileEntry *FE = FileMgr.getFile(SD.Filename);
     if (!FE)
       continue;
-    if (FE != PreviousFE) {
-      FID = SrcMgr.translateFile(FE);
-      PreviousFE = FE;
+    SourceLocation FileLoc;
+    auto ItFileID = PreambleSrcLocCache.find(SD.Filename);
+    if (ItFileID == PreambleSrcLocCache.end()) {
+      FileID FID = SrcMgr.translateFile(FE);
+      FileLoc = SrcMgr.getLocForStartOfFile(FID);
+      PreambleSrcLocCache[SD.Filename] = FileLoc;
+    } else {
+      FileLoc = ItFileID->getValue();
     }
-    SourceLocation FileLoc = SrcMgr.getLocForStartOfFile(FID);
+
     if (FileLoc.isInvalid())
       continue;
     SourceLocation L = FileLoc.getLocWithOffset(SD.LocOffset);
@@ -2879,7 +2904,32 @@ const FileEntry *ASTUnit::getPCHFile() {
 }
 
 bool ASTUnit::isModuleFile() {
-  return isMainFileAST() && ASTFileLangOpts.isCompilingModule();
+  return isMainFileAST() && getLangOpts().isCompilingModule();
+}
+
+InputKind ASTUnit::getInputKind() const {
+  auto &LangOpts = getLangOpts();
+
+  InputKind::Language Lang;
+  if (LangOpts.OpenCL)
+    Lang = InputKind::OpenCL;
+  else if (LangOpts.CUDA)
+    Lang = InputKind::CUDA;
+  else if (LangOpts.RenderScript)
+    Lang = InputKind::RenderScript;
+  else if (LangOpts.CPlusPlus)
+    Lang = LangOpts.ObjC1 ? InputKind::ObjCXX : InputKind::CXX;
+  else
+    Lang = LangOpts.ObjC1 ? InputKind::ObjC : InputKind::C;
+
+  InputKind::Format Fmt = InputKind::Source;
+  if (LangOpts.getCompilingModule() == LangOptions::CMK_ModuleMap)
+    Fmt = InputKind::ModuleMap;
+
+  // We don't know if input was preprocessed. Assume not.
+  bool PP = false;
+
+  return InputKind(Lang, Fmt, PP);
 }
 
 void ASTUnit::PreambleData::countLines() const {

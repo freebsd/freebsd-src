@@ -108,6 +108,8 @@ SRCS_MIN+=	Bitcode/Writer/BitWriter.cpp
 SRCS_MIN+=	Bitcode/Writer/BitcodeWriter.cpp
 SRCS_MIN+=	Bitcode/Writer/BitcodeWriterPass.cpp
 SRCS_MIN+=	Bitcode/Writer/ValueEnumerator.cpp
+SRCS_MIN+=	BinaryFormat/Dwarf.cpp
+SRCS_MIN+=	BinaryFormat/Magic.cpp
 SRCS_MIN+=	CodeGen/AggressiveAntiDepBreaker.cpp
 SRCS_MIN+=	CodeGen/AllocationOrder.cpp
 SRCS_MIN+=	CodeGen/Analysis.cpp
@@ -330,6 +332,8 @@ SRCS_MIN+=	DebugInfo/CodeView/CVTypeVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CodeViewError.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CodeViewRecordIO.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugChecksumsSubsection.cpp
+SRCS_EXT+=	DebugInfo/CodeView/DebugCrossExSubsection.cpp
+SRCS_EXT+=	DebugInfo/CodeView/DebugCrossImpSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugFrameDataSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugInlineeLinesSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugLinesSubsection.cpp
@@ -337,6 +341,7 @@ SRCS_EXT+=	DebugInfo/CodeView/DebugStringTableSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugSubsectionRecord.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugSubsectionVisitor.cpp
+SRCS_EXT+=	DebugInfo/CodeView/DebugSymbolRVASubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/DebugSymbolsSubsection.cpp
 SRCS_EXT+=	DebugInfo/CodeView/EnumTables.cpp
 SRCS_MIN+=	DebugInfo/CodeView/Formatters.cpp
@@ -671,7 +676,6 @@ SRCS_MIN+=	Support/DataExtractor.cpp
 SRCS_MIN+=	Support/Debug.cpp
 SRCS_MIN+=	Support/DebugCounter.cpp
 SRCS_MIN+=	Support/DeltaAlgorithm.cpp
-SRCS_MIN+=	Support/Dwarf.cpp
 SRCS_MIN+=	Support/DynamicLibrary.cpp
 SRCS_MIN+=	Support/Errno.cpp
 SRCS_MIN+=	Support/Error.cpp
@@ -1287,7 +1291,6 @@ TGHDRS+=	Options.inc
 	DisassemblerTables/-gen-disassembler \
 	EVEX2VEXTables/-gen-x86-EVEX2VEX-tables \
 	FastISel/-gen-fast-isel \
-	FoldTables/-gen-x86-fold-tables \
 	GlobalISel/-gen-global-isel \
 	InstrInfo/-gen-instr-info \
 	MCCodeEmitter/-gen-emitter \
@@ -1369,7 +1372,6 @@ TGHDRS+=	X86GenDAGISel.inc
 TGHDRS+=	X86GenDisassemblerTables.inc
 TGHDRS+=	X86GenEVEX2VEXTables.inc
 TGHDRS+=	X86GenFastISel.inc
-TGHDRS+=	X86GenFoldTables.inc
 TGHDRS+=	X86GenGlobalISel.inc
 TGHDRS+=	X86GenInstrInfo.inc
 TGHDRS+=	X86GenRegisterBank.inc
