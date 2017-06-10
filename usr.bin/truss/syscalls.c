@@ -361,6 +361,8 @@ static struct syscall decoded_syscalls[] = {
 		    { QuadHex, 3 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
 	  .args = { { Idtype, 0 }, { Quad, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	{ .name = "ptrace", .ret_type = 1, .nargs = 4,
+	  .args = { { Ptraceop, 0 }, { Int, 1 }, { Ptr, 2 }, { Int, 3 } } },
 	{ .name = "pwrite", .ret_type = 1, .nargs = 4,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 },
 		    { QuadHex, 3 } } },
@@ -2129,6 +2131,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Priowhich:
 		print_integer_arg(sysdecode_prio_which, fp, args[sc->offset]);
+		break;
+	case Ptraceop:
+		print_integer_arg(sysdecode_ptrace_request, fp,
+		    args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
