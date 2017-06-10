@@ -520,8 +520,9 @@ Instruction *InstCombiner::visitShl(BinaryOperator &I) {
     return replaceInstUsesWith(I, V);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  if (Value *V = SimplifyShlInst(Op0, Op1, I.hasNoSignedWrap(),
-                                 I.hasNoUnsignedWrap(), SQ))
+  if (Value *V =
+          SimplifyShlInst(Op0, Op1, I.hasNoSignedWrap(), I.hasNoUnsignedWrap(),
+                          SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (Instruction *V = commonShiftTransforms(I))
@@ -619,7 +620,8 @@ Instruction *InstCombiner::visitLShr(BinaryOperator &I) {
     return replaceInstUsesWith(I, V);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  if (Value *V = SimplifyLShrInst(Op0, Op1, I.isExact(), SQ))
+  if (Value *V =
+          SimplifyLShrInst(Op0, Op1, I.isExact(), SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (Instruction *R = commonShiftTransforms(I))
@@ -680,6 +682,25 @@ Instruction *InstCombiner::visitLShr(BinaryOperator &I) {
       return BinaryOperator::CreateAnd(X, ConstantInt::get(Ty, Mask));
     }
 
+    if (match(Op0, m_SExt(m_Value(X)))) {
+      // Are we moving the sign bit to the low bit and widening with high zeros?
+      unsigned SrcTyBitWidth = X->getType()->getScalarSizeInBits();
+      if (ShAmt == BitWidth - 1 &&
+          (!Ty->isIntegerTy() || shouldChangeType(Ty, X->getType()))) {
+        // lshr (sext i1 X to iN), N-1 --> zext X to iN
+        if (SrcTyBitWidth == 1)
+          return new ZExtInst(X, Ty);
+
+        // lshr (sext iM X to iN), N-1 --> zext (lshr X, M-1) to iN
+        if (Op0->hasOneUse()) {
+          Value *NewLShr = Builder->CreateLShr(X, SrcTyBitWidth - 1);
+          return new ZExtInst(NewLShr, Ty);
+        }
+      }
+
+      // TODO: Convert to ashr+zext if the shift equals the extension amount.
+    }
+
     if (match(Op0, m_LShr(m_Value(X), m_APInt(ShOp1)))) {
       unsigned AmtSum = ShAmt + ShOp1->getZExtValue();
       // Oversized shifts are simplified to zero in InstSimplify.
@@ -703,7 +724,8 @@ Instruction *InstCombiner::visitAShr(BinaryOperator &I) {
     return replaceInstUsesWith(I, V);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  if (Value *V = SimplifyAShrInst(Op0, Op1, I.isExact(), SQ))
+  if (Value *V =
+          SimplifyAShrInst(Op0, Op1, I.isExact(), SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (Instruction *R = commonShiftTransforms(I))

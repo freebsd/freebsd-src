@@ -11,12 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AMDGPU.h"
 #include "AMDGPUTargetStreamer.h"
+#include "AMDGPU.h"
 #include "SIDefines.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "Utils/AMDKernelCodeTUtils.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Metadata.h"
@@ -25,7 +26,6 @@
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/Support/FormattedStream.h"
 
 namespace llvm {
@@ -98,16 +98,6 @@ void AMDGPUTargetAsmStreamer::EmitAMDGPUSymbolType(StringRef SymbolName,
       OS << "\t.amdgpu_hsa_kernel " << SymbolName << '\n' ;
       break;
   }
-}
-
-void AMDGPUTargetAsmStreamer::EmitAMDGPUHsaModuleScopeGlobal(
-    StringRef GlobalName) {
-  OS << "\t.amdgpu_hsa_module_global " << GlobalName << '\n';
-}
-
-void AMDGPUTargetAsmStreamer::EmitAMDGPUHsaProgramScopeGlobal(
-    StringRef GlobalName) {
-  OS << "\t.amdgpu_hsa_program_global " << GlobalName << '\n';
 }
 
 bool AMDGPUTargetAsmStreamer::EmitCodeObjectMetadata(StringRef YamlString) {
@@ -212,24 +202,6 @@ void AMDGPUTargetELFStreamer::EmitAMDGPUSymbolType(StringRef SymbolName,
   MCSymbolELF *Symbol = cast<MCSymbolELF>(
       getStreamer().getContext().getOrCreateSymbol(SymbolName));
   Symbol->setType(ELF::STT_AMDGPU_HSA_KERNEL);
-}
-
-void AMDGPUTargetELFStreamer::EmitAMDGPUHsaModuleScopeGlobal(
-    StringRef GlobalName) {
-
-  MCSymbolELF *Symbol = cast<MCSymbolELF>(
-      getStreamer().getContext().getOrCreateSymbol(GlobalName));
-  Symbol->setType(ELF::STT_OBJECT);
-  Symbol->setBinding(ELF::STB_LOCAL);
-}
-
-void AMDGPUTargetELFStreamer::EmitAMDGPUHsaProgramScopeGlobal(
-    StringRef GlobalName) {
-
-  MCSymbolELF *Symbol = cast<MCSymbolELF>(
-      getStreamer().getContext().getOrCreateSymbol(GlobalName));
-  Symbol->setType(ELF::STT_OBJECT);
-  Symbol->setBinding(ELF::STB_GLOBAL);
 }
 
 bool AMDGPUTargetELFStreamer::EmitCodeObjectMetadata(StringRef YamlString) {

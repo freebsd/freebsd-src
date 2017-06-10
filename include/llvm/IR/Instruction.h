@@ -16,9 +16,9 @@
 #define LLVM_IR_INSTRUCTION_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/ilist_node.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/IR/User.h"
@@ -360,9 +360,9 @@ public:
   /// Copy I's fast-math flags
   void copyFastMathFlags(const Instruction *I);
 
-  /// Convenience method to copy supported wrapping, exact, and fast-math flags
-  /// from V to this instruction.
-  void copyIRFlags(const Value *V);
+  /// Convenience method to copy supported exact, fast-math, and (optionally)
+  /// wrapping flags from V to this instruction.
+  void copyIRFlags(const Value *V, bool IncludeWrapFlags = true);
 
   /// Logical 'and' of any supported wrapping, exact, and fast-math flags of
   /// V and this instruction.

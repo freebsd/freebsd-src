@@ -20,8 +20,8 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -439,7 +439,7 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
 
       if (Callee->isDeclaration()) {
         // If this is a function we can constant fold, do it.
-        if (Constant *C = ConstantFoldCall(Callee, Formals, TLI)) {
+        if (Constant *C = ConstantFoldCall(CS, Callee, Formals, TLI)) {
           InstResult = C;
           DEBUG(dbgs() << "Constant folded function call. Result: " <<
                 *InstResult << "\n");

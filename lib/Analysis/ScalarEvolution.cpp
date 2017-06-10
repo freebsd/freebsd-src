@@ -91,8 +91,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -6793,7 +6793,7 @@ static bool CanConstantFold(const Instruction *I) {
 
   if (const CallInst *CI = dyn_cast<CallInst>(I))
     if (const Function *F = CI->getCalledFunction())
-      return canConstantFoldCallTo(F);
+      return canConstantFoldCallTo(CI, F);
   return false;
 }
 

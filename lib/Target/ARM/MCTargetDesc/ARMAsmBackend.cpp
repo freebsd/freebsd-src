@@ -7,15 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/ARMMCTargetDesc.h"
-#include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMAsmBackend.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMAsmBackendDarwin.h"
 #include "MCTargetDesc/ARMAsmBackendELF.h"
 #include "MCTargetDesc/ARMAsmBackendWinCOFF.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMFixupKinds.h"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
@@ -31,10 +33,8 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
-#include "llvm/Support/MachO.h"
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -98,6 +98,7 @@ const MCFixupKindInfo &ARMAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"fixup_t2_movt_hi16", 0, 20, 0},
       {"fixup_t2_movw_lo16", 0, 20, 0},
       {"fixup_arm_mod_imm", 0, 12, 0},
+      {"fixup_t2_so_imm", 0, 26, 0},
   };
   const static MCFixupKindInfo InfosBE[ARM::NumTargetFixupKinds] = {
       // This table *must* be in the order that the fixup_* kinds are defined in
@@ -148,6 +149,7 @@ const MCFixupKindInfo &ARMAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"fixup_t2_movt_hi16", 12, 20, 0},
       {"fixup_t2_movw_lo16", 12, 20, 0},
       {"fixup_arm_mod_imm", 20, 12, 0},
+      {"fixup_t2_so_imm", 26, 6, 0},
   };
 
   if (Kind < FirstTargetFixupKind)
@@ -693,6 +695,23 @@ unsigned ARMAsmBackend::adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
       return 0;
     }
     return Value;
+  case ARM::fixup_t2_so_imm: {
+    Value = ARM_AM::getT2SOImmVal(Value);
+    if ((int64_t)Value < 0) {
+      Ctx.reportError(Fixup.getLoc(), "out of range immediate fixup value");
+      return 0;
+    }
+    // Value will contain a 12-bit value broken up into a 4-bit shift in bits
+    // 11:8 and the 8-bit immediate in 0:7. The instruction has the immediate
+    // in 0:7. The 4-bit shift is split up into i:imm3 where i is placed at bit
+    // 10 of the upper half-word and imm3 is placed at 14:12 of the lower
+    // half-word.
+    uint64_t EncValue = 0;
+    EncValue |= (Value & 0x800) << 15;
+    EncValue |= (Value & 0x700) << 4;
+    EncValue |= (Value & 0xff);
+    return swapHalfWords(EncValue, IsLittleEndian);
+  }
   }
 }
 
@@ -704,16 +723,17 @@ void ARMAsmBackend::processFixupValue(const MCAssembler &Asm,
                                       bool &IsResolved) {
   const MCSymbolRefExpr *A = Target.getSymA();
   const MCSymbol *Sym = A ? &A->getSymbol() : nullptr;
+  const unsigned FixupKind = Fixup.getKind() ;
   // MachO (the only user of "Value") tries to make .o files that look vaguely
   // pre-linked, so for MOVW/MOVT and .word relocations they put the Thumb bit
   // into the addend if possible. Other relocation types don't want this bit
   // though (branches couldn't encode it if it *was* present, and no other
   // relocations exist) and it can interfere with checking valid expressions.
-  if ((unsigned)Fixup.getKind() == FK_Data_4 ||
-      (unsigned)Fixup.getKind() == ARM::fixup_arm_movw_lo16 ||
-      (unsigned)Fixup.getKind() == ARM::fixup_arm_movt_hi16 ||
-      (unsigned)Fixup.getKind() == ARM::fixup_t2_movw_lo16 ||
-      (unsigned)Fixup.getKind() == ARM::fixup_t2_movt_hi16) {
+  if (FixupKind == FK_Data_4 ||
+      FixupKind == ARM::fixup_arm_movw_lo16 ||
+      FixupKind == ARM::fixup_arm_movt_hi16 ||
+      FixupKind == ARM::fixup_t2_movw_lo16 ||
+      FixupKind == ARM::fixup_t2_movt_hi16) {
     if (Sym) {
       if (Asm.isThumbFunc(Sym))
         Value |= 1;
@@ -729,23 +749,27 @@ void ARMAsmBackend::processFixupValue(const MCAssembler &Asm,
     // linker can handle it. GNU AS produces an error in this case.
     if (Sym->isExternal() || Value >= 0x400004)
       IsResolved = false;
-    // When an ARM function is called from a Thumb function, produce a
-    // relocation so the linker will use the correct branch instruction for ELF
-    // binaries.
-    if (Sym->isELF()) {
-      unsigned Type = dyn_cast<MCSymbolELF>(Sym)->getType();
-      if ((Type == ELF::STT_FUNC || Type == ELF::STT_GNU_IFUNC) &&
-          !Asm.isThumbFunc(Sym))
+  }
+  // Create relocations for unconditional branches to function symbols with
+  // different execution mode in ELF binaries.
+  if (Sym && Sym->isELF()) {
+    unsigned Type = dyn_cast<MCSymbolELF>(Sym)->getType();
+    if ((Type == ELF::STT_FUNC || Type == ELF::STT_GNU_IFUNC)) {
+      if (Asm.isThumbFunc(Sym) && (FixupKind == ARM::fixup_arm_uncondbranch))
+        IsResolved = false;
+      if (!Asm.isThumbFunc(Sym) && (FixupKind == ARM::fixup_arm_thumb_br ||
+                                    FixupKind == ARM::fixup_arm_thumb_bl ||
+                                    FixupKind == ARM::fixup_t2_uncondbranch))
         IsResolved = false;
     }
   }
   // We must always generate a relocation for BL/BLX instructions if we have
   // a symbol to reference, as the linker relies on knowing the destination
   // symbol's thumb-ness to get interworking right.
-  if (A && ((unsigned)Fixup.getKind() == ARM::fixup_arm_thumb_blx ||
-            (unsigned)Fixup.getKind() == ARM::fixup_arm_blx ||
-            (unsigned)Fixup.getKind() == ARM::fixup_arm_uncondbl ||
-            (unsigned)Fixup.getKind() == ARM::fixup_arm_condbl))
+  if (A && (FixupKind == ARM::fixup_arm_thumb_blx ||
+            FixupKind == ARM::fixup_arm_blx ||
+            FixupKind == ARM::fixup_arm_uncondbl ||
+            FixupKind == ARM::fixup_arm_condbl))
     IsResolved = false;
 }
 
@@ -792,6 +816,7 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
   case ARM::fixup_arm_movw_lo16:
   case ARM::fixup_t2_movt_hi16:
   case ARM::fixup_t2_movw_lo16:
+  case ARM::fixup_t2_so_imm:
     return 4;
 
   case FK_SecRel_2:
@@ -844,6 +869,7 @@ static unsigned getFixupKindContainerSizeBytes(unsigned Kind) {
   case ARM::fixup_t2_movt_hi16:
   case ARM::fixup_t2_movw_lo16:
   case ARM::fixup_arm_mod_imm:
+  case ARM::fixup_t2_so_imm:
     // Instruction size is 4 bytes.
     return 4;
   }
