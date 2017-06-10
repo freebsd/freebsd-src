@@ -27,6 +27,7 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+.arch armv8-a+crc
 
 /*
  * uint32_t

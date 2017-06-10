@@ -438,7 +438,11 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	hash_size_in_response = axf->hashsize;
 	transhdr_len = HASH_TRANSHDR_SIZE(kctx_len);
 
-	if (ccr_use_imm_data(transhdr_len, crd->crd_len)) {
+	if (crd->crd_len == 0) {
+		imm_len = axf->blocksize;
+		sgl_nsegs = 0;
+		sgl_len = 0;
+	} else if (ccr_use_imm_data(transhdr_len, crd->crd_len)) {
 		imm_len = crd->crd_len;
 		sgl_nsegs = 0;
 		sgl_len = 0;
@@ -473,7 +477,8 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	    V_CPL_TX_SEC_PDU_CPLLEN(2) | V_CPL_TX_SEC_PDU_PLACEHOLDER(0) |
 	    V_CPL_TX_SEC_PDU_IVINSRTOFST(0));
 
-	crwr->sec_cpl.pldlen = htobe32(crd->crd_len);
+	crwr->sec_cpl.pldlen = htobe32(crd->crd_len == 0 ? axf->blocksize :
+	    crd->crd_len);
 
 	crwr->sec_cpl.cipherstop_lo_authinsert = htobe32(
 	    V_CPL_TX_SEC_PDU_AUTHSTART(1) | V_CPL_TX_SEC_PDU_AUTHSTOP(0));
@@ -486,7 +491,8 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	    V_SCMD_AUTH_MODE(s->hmac.auth_mode) |
 	    V_SCMD_HMAC_CTRL(CHCR_SCMD_HMAC_CTRL_NO_TRUNC));
 	crwr->sec_cpl.ivgen_hdrlen = htobe32(
-	    V_SCMD_LAST_FRAG(0) | V_SCMD_MORE_FRAGS(0) | V_SCMD_MAC_ONLY(1));
+	    V_SCMD_LAST_FRAG(0) |
+	    V_SCMD_MORE_FRAGS(crd->crd_len == 0 ? 1 : 0) | V_SCMD_MAC_ONLY(1));
 
 	memcpy(crwr->key_ctx.key, s->hmac.ipad, s->hmac.partial_digest_len);
 	memcpy(crwr->key_ctx.key + iopad_size, s->hmac.opad,
@@ -500,7 +506,11 @@ ccr_hmac(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	    V_KEY_CONTEXT_MK_SIZE(s->hmac.mk_size) | V_KEY_CONTEXT_VALID(1));
 
 	dst = (char *)(crwr + 1) + kctx_len + DUMMY_BYTES;
-	if (imm_len != 0)
+	if (crd->crd_len == 0) {
+		dst[0] = 0x80;
+		*(uint64_t *)(dst + axf->blocksize - sizeof(uint64_t)) =
+		    htobe64(axf->blocksize << 3);
+	} else if (imm_len != 0)
 		crypto_copydata(crp->crp_flags, crp->crp_buf, crd->crd_skip,
 		    crd->crd_len, dst);
 	else
@@ -544,7 +554,7 @@ ccr_blkcipher(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 
 	crd = crp->crp_desc;
 
-	if (s->blkcipher.key_len == 0)
+	if (s->blkcipher.key_len == 0 || crd->crd_len == 0)
 		return (EINVAL);
 	if (crd->crd_alg == CRYPTO_AES_CBC &&
 	    (crd->crd_len % AES_BLOCK_LEN) != 0)
@@ -755,7 +765,11 @@ ccr_authenc(struct ccr_softc *sc, uint32_t sid, struct ccr_session *s,
 	int sgl_nsegs, sgl_len;
 	int error;
 
-	if (s->blkcipher.key_len == 0)
+	/*
+	 * If there is a need in the future, requests with an empty
+	 * payload could be supported as HMAC-only requests.
+	 */
+	if (s->blkcipher.key_len == 0 || crde->crd_len == 0)
 		return (EINVAL);
 	if (crde->crd_alg == CRYPTO_AES_CBC &&
 	    (crde->crd_len % AES_BLOCK_LEN) != 0)
@@ -1330,6 +1344,75 @@ ccr_gcm_done(struct ccr_softc *sc, struct ccr_session *s,
 	 * Note that the hardware should always verify the GMAC hash.
 	 */
 	return (error);
+}
+
+/*
+ * Handle a GCM request with an empty payload by performing the
+ * operation in software.  Derived from swcr_authenc().
+ */
+static void
+ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp,
+    struct cryptodesc *crda, struct cryptodesc *crde)
+{
+	struct aes_gmac_ctx gmac_ctx;
+	char block[GMAC_BLOCK_LEN];
+	char digest[GMAC_DIGEST_LEN];
+	char iv[AES_BLOCK_LEN];
+	int i, len;
+
+	/*
+	 * This assumes a 12-byte IV from the crp.  See longer comment
+	 * above in ccr_gcm() for more details.
+	 */
+	if (crde->crd_flags & CRD_F_ENCRYPT) {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, 12);
+		else
+			arc4rand(iv, 12, 0);
+	} else {
+		if (crde->crd_flags & CRD_F_IV_EXPLICIT)
+			memcpy(iv, crde->crd_iv, 12);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    crde->crd_inject, 12, iv);
+	}
+	*(uint32_t *)&iv[12] = htobe32(1);
+
+	/* Initialize the MAC. */
+	AES_GMAC_Init(&gmac_ctx);
+	AES_GMAC_Setkey(&gmac_ctx, s->blkcipher.enckey, s->blkcipher.key_len);
+	AES_GMAC_Reinit(&gmac_ctx, iv, sizeof(iv));
+
+	/* MAC the AAD. */
+	for (i = 0; i < crda->crd_len; i += sizeof(block)) {
+		len = imin(crda->crd_len - i, sizeof(block));
+		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_skip +
+		    i, len, block);
+		bzero(block + len, sizeof(block) - len);
+		AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
+	}
+
+	/* Length block. */
+	bzero(block, sizeof(block));
+	((uint32_t *)block)[1] = htobe32(crda->crd_len * 8);
+	AES_GMAC_Update(&gmac_ctx, block, sizeof(block));
+	AES_GMAC_Final(digest, &gmac_ctx);
+
+	if (crde->crd_flags & CRD_F_ENCRYPT) {
+		crypto_copyback(crp->crp_flags, crp->crp_buf, crda->crd_inject,
+		    sizeof(digest), digest);
+		crp->crp_etype = 0;
+	} else {
+		char digest2[GMAC_DIGEST_LEN];
+
+		crypto_copydata(crp->crp_flags, crp->crp_buf, crda->crd_inject,
+		    sizeof(digest2), digest2);
+		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0)
+			crp->crp_etype = 0;
+		else
+			crp->crp_etype = EBADMSG;
+	}
+	crypto_done(crp);
 }
 
 static void
@@ -2016,6 +2099,11 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 				break;
 			ccr_aes_setkey(s, crde->crd_alg, crde->crd_key,
 			    crde->crd_klen);
+		}
+		if (crde->crd_len == 0) {
+			mtx_unlock(&sc->lock);
+			ccr_gcm_soft(s, crp, crda, crde);
+			return (0);
 		}
 		error = ccr_gcm(sc, sid, s, crp, crda, crde);
 		if (error == 0) {

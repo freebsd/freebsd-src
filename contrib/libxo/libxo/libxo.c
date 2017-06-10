@@ -203,6 +203,7 @@ typedef struct xo_stack_s {
  * XO_COL_* ("colors") refers to fancy ansi codes, while X__EFF_*
  * ("effects") are bits since we need to maintain state.
  */
+typedef uint8_t xo_color_t;
 #define XO_COL_DEFAULT		0
 #define XO_COL_BLACK		1
 #define XO_COL_RED		2
@@ -238,7 +239,6 @@ typedef struct xo_stack_s {
 #define XO_EFF_CLEAR_BITS XO_EFF_RESET /* Reset gets reset, surprisingly */
 
 typedef uint8_t xo_effect_t;
-typedef uint8_t xo_color_t;
 typedef struct xo_colors_s {
     xo_effect_t xoc_effects;	/* Current effect set */
     xo_color_t xoc_col_fg;	/* Foreground color */
@@ -279,8 +279,10 @@ struct xo_handle_s {
     ssize_t xo_anchor_min_width; /* Desired width of anchored text */
     ssize_t xo_units_offset;	/* Start of units insertion point */
     ssize_t xo_columns;	/* Columns emitted during this xo_emit call */
+#ifndef LIBXO_TEXT_ONLY
     uint8_t xo_color_map_fg[XO_NUM_COLORS]; /* Foreground color mappings */
     uint8_t xo_color_map_bg[XO_NUM_COLORS]; /* Background color mappings */
+#endif /* LIBXO_TEXT_ONLY */
     xo_colors_t xo_colors;	/* Current color and effect values */
     xo_buffer_t xo_color_buf;	/* HTML: buffer of colors and effects */
     char *xo_version;		/* Version string */
@@ -461,6 +463,12 @@ static ssize_t
 xo_transition (xo_handle_t *xop, xo_xsf_flags_t flags, const char *name,
 	       xo_state_t new_state);
 
+static int
+xo_set_options_simple (xo_handle_t *xop, const char *input);
+
+static int
+xo_color_find (const char *str);
+
 static void
 xo_buf_append_div (xo_handle_t *xop, const char *class, xo_xff_flags_t flags,
 		   const char *name, ssize_t nlen,
@@ -628,13 +636,6 @@ xo_init_handle (xo_handle_t *xop)
 	XOF_SET(xop, XOF_FLUSH_LINE);
 
     /*
-     * We only want to do color output on terminals, but we only want
-     * to do this if the user has asked for color.
-     */
-    if (XOF_ISSET(xop, XOF_COLOR_ALLOWED) && isatty(1))
-	XOF_SET(xop, XOF_COLOR);
-
-    /*
      * We need to initialize the locale, which isn't really pretty.
      * Libraries should depend on their caller to set up the
      * environment.  But we really can't count on the caller to do
@@ -667,15 +668,6 @@ xo_init_handle (xo_handle_t *xop)
     xop->xo_indent_by = XO_INDENT_BY;
     xo_depth_check(xop, XO_DEPTH);
 
-#if !defined(NO_LIBXO_OPTIONS)
-    if (!XOF_ISSET(xop, XOF_NO_ENV)) {
-	char *env = getenv("LIBXO_OPTIONS");
-	if (env)
-	    xo_set_options(xop, env);
-	    
-    }
-#endif /* NO_GETENV */
-
     XOIF_CLEAR(xop, XOIF_INIT_IN_PROGRESS);
 }
 
@@ -688,6 +680,16 @@ xo_default_init (void)
     xo_handle_t *xop = &xo_default_handle;
 
     xo_init_handle(xop);
+
+#if !defined(NO_LIBXO_OPTIONS)
+    if (!XOF_ISSET(xop, XOF_NO_ENV)) {
+       char *env = getenv("LIBXO_OPTIONS");
+
+       if (env)
+           xo_set_options_simple(xop, env);
+
+    }
+#endif /* NO_LIBXO_OPTIONS */
 
     xo_default_inited = 1;
 }
@@ -1041,32 +1043,36 @@ xo_printf (xo_handle_t *xop, const char *fmt, ...)
  * These next few function are make The Essential UTF-8 Ginsu Knife.
  * Identify an input and output character, and convert it.
  */
-static uint8_t xo_utf8_bits[7] = { 0, 0x7f, 0x1f, 0x0f, 0x07, 0x03, 0x01 };
+static uint8_t xo_utf8_data_bits[5] = { 0, 0x7f, 0x1f, 0x0f, 0x07 };
+static uint8_t xo_utf8_len_bits[5]  = { 0, 0x00, 0xc0, 0xe0, 0xf0 };
 
+/*
+ * If the byte has a high-bit set, it's UTF-8, not ASCII.
+ */
 static int
 xo_is_utf8 (char ch)
 {
     return (ch & 0x80);
 }
 
+/*
+ * Look at the high bits of the first byte to determine the length
+ * of the UTF-8 character.
+ */
 static inline ssize_t
 xo_utf8_to_wc_len (const char *buf)
 {
-    unsigned b = (unsigned char) *buf;
+    uint8_t bval = (uint8_t) *buf;
     ssize_t len;
 
-    if ((b & 0x80) == 0x0)
+    if ((bval & 0x80) == 0x0)
 	len = 1;
-    else if ((b & 0xe0) == 0xc0)
+    else if ((bval & 0xe0) == 0xc0)
 	len = 2;
-    else if ((b & 0xf0) == 0xe0)
+    else if ((bval & 0xf0) == 0xe0)
 	len = 3;
-    else if ((b & 0xf8) == 0xf0)
+    else if ((bval & 0xf8) == 0xf0)
 	len = 4;
-    else if ((b & 0xfc) == 0xf8)
-	len = 5;
-    else if ((b & 0xfe) == 0xfc)
-	len = 6;
     else
 	len = -1;
 
@@ -1076,12 +1082,11 @@ xo_utf8_to_wc_len (const char *buf)
 static ssize_t
 xo_buf_utf8_len (xo_handle_t *xop, const char *buf, ssize_t bufsiz)
 {
-
     unsigned b = (unsigned char) *buf;
     ssize_t len, i;
 
     len = xo_utf8_to_wc_len(buf);
-    if (len == -1) {
+    if (len < 0) {
         xo_failure(xop, "invalid UTF-8 data: %02hhx", b);
 	return -1;
     }
@@ -1119,9 +1124,9 @@ xo_utf8_char (const char *buf, ssize_t len)
     wchar_t wc;
     const unsigned char *cp = (const unsigned char *) buf;
 
-    wc = *cp & xo_utf8_bits[len];
+    wc = *cp & xo_utf8_data_bits[len];
     for (i = 1; i < len; i++) {
-	wc <<= 6;
+	wc <<= 6;		/* Low six bits have data */
 	wc |= cp[i] & 0x3f;
 	if ((cp[i] & 0xc0) != 0x80)
 	    return (wchar_t) -1;
@@ -1138,22 +1143,23 @@ xo_utf8_emit_len (wchar_t wc)
 {
     ssize_t len;
 
-    if ((wc & ((1<<7) - 1)) == wc) /* Simple case */
+    if ((wc & ((1 << 7) - 1)) == wc) /* Simple case */
 	len = 1;
-    else if ((wc & ((1<<11) - 1)) == wc)
+    else if ((wc & ((1 << 11) - 1)) == wc)
 	len = 2;
-    else if ((wc & ((1<<16) - 1)) == wc)
+    else if ((wc & ((1 << 16) - 1)) == wc)
 	len = 3;
-    else if ((wc & ((1<<21) - 1)) == wc)
+    else if ((wc & ((1 << 21) - 1)) == wc)
 	len = 4;
-    else if ((wc & ((1<<26) - 1)) == wc)
-	len = 5;
     else
-	len = 6;
+	len = -1;		/* Invalid */
 
     return len;
 }
 
+/*
+ * Emit one wide character into the given buffer
+ */
 static void
 xo_utf8_emit_char (char *buf, ssize_t len, wchar_t wc)
 {
@@ -1164,15 +1170,22 @@ xo_utf8_emit_char (char *buf, ssize_t len, wchar_t wc)
 	return;
     }
 
+    /* Start with the low bits and insert them, six bits at a time */
     for (i = len - 1; i >= 0; i--) {
 	buf[i] = 0x80 | (wc & 0x3f);
-	wc >>= 6;
+	wc >>= 6;		/* Drop the low six bits */
     }
 
-    buf[0] &= xo_utf8_bits[len];
-    buf[0] |= ~xo_utf8_bits[len] << 1;
+    /* Finish off the first byte with the length bits */
+    buf[0] &= xo_utf8_data_bits[len]; /* Clear out the length bits */
+    buf[0] |= xo_utf8_len_bits[len]; /* Drop in new length bits */
 }
 
+/*
+ * Append a single UTF-8 character to a buffer, converting it to locale
+ * encoding.  Returns the number of columns consumed by that character,
+ * as best we can determine it.
+ */
 static ssize_t
 xo_buf_append_locale_from_utf8 (xo_handle_t *xop, xo_buffer_t *xbp,
 				const char *ibuf, ssize_t ilen)
@@ -1187,7 +1200,7 @@ xo_buf_append_locale_from_utf8 (xo_handle_t *xop, xo_buffer_t *xbp,
      */
     wc = xo_utf8_char(ibuf, ilen);
     if (wc == (wchar_t) -1) {
-	xo_failure(xop, "invalid utf-8 byte sequence");
+	xo_failure(xop, "invalid UTF-8 byte sequence");
 	return 0;
     }
 
@@ -1216,6 +1229,9 @@ xo_buf_append_locale_from_utf8 (xo_handle_t *xop, xo_buffer_t *xbp,
     return xo_wcwidth(wc);
 }
 
+/*
+ * Append a UTF-8 string to a buffer, converting it into locale encoding
+ */
 static void
 xo_buf_append_locale (xo_handle_t *xop, xo_buffer_t *xbp,
 		      const char *cp, ssize_t len)
@@ -1502,6 +1518,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	newfmt[plen++] = ':';
 	newfmt[plen++] = ' ';
     }
+
     memcpy(newfmt + plen, fmt, len);
     newfmt[len + plen] = '\0';
 
@@ -1521,6 +1538,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
 	ssize_t left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	ssize_t rc = vsnprintf(xbp->xb_curp, left, newfmt, vap);
+
 	if (rc >= left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
 		va_end(va_local);
@@ -1533,6 +1551,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	    left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	    rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	}
+
 	va_end(va_local);
 
 	rc = xo_escape_xml(xbp, rc, 1);
@@ -1543,6 +1562,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
 	if (code >= 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_buf_append(xbp, ": ", 2);
 		xo_buf_append(xbp, msg, strlen(msg));
@@ -1556,6 +1576,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	vfprintf(stderr, newfmt, vap);
 	if (code >= 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg)
 		fprintf(stderr, ": %s", msg);
 	}
@@ -1672,6 +1693,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	va_copy(va_local, vap);
 
 	ssize_t left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
+
 	rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	if (rc >= left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
@@ -1685,6 +1707,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	    left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	    rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	}
+
 	va_end(va_local);
 
 	rc = xo_escape_xml(xbp, rc, 0);
@@ -1692,6 +1715,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	if (need_nl && code > 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_buf_append(xbp, ": ", 2);
 		xo_buf_append(xbp, msg, strlen(msg));
@@ -1725,6 +1749,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 		va_copy(va_local, vap);
 		rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    }
+
 	    va_end(va_local);
 	    cp = bp + rc;
 
@@ -1760,6 +1785,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	if (need_nl && code > 0) {
 	    const char *msg = strerror(code);
+
 	    if (msg) {
 		xo_printf(xop, ": %s", msg);
 	    }
@@ -1774,6 +1800,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
     case XO_STYLE_HTML:
 	if (XOIF_ISSET(xop, XOIF_DIV_OPEN)) {
 	    static char div_close[] = "</div>";
+
 	    XOIF_CLEAR(xop, XOIF_DIV_OPEN);
 	    xo_data_append(xop, div_close, sizeof(div_close) - 1);
 
@@ -1846,8 +1873,10 @@ xo_failure (xo_handle_t *xop, const char *fmt, ...)
  * Note: normal use of libxo does not require a distinct handle, since
  * the default handle (used when NULL is passed) generates text on stdout.
  *
- * @style Style of output desired (XO_STYLE_* value)
- * @flags Set of XOF_* flags in use with this handle
+ * @param style Style of output desired (XO_STYLE_* value)
+ * @param flags Set of XOF_* flags in use with this handle
+ * @return Newly allocated handle
+ * @see xo_destroy
  */
 xo_handle_t *
 xo_create (xo_style_t style, xo_xof_flags_t flags)
@@ -1869,9 +1898,12 @@ xo_create (xo_style_t style, xo_xof_flags_t flags)
 /**
  * Create a handle that will write to the given file.  Use
  * the XOF_CLOSE_FP flag to have the file closed on xo_destroy().
- * @fp FILE pointer to use
- * @style Style of output desired (XO_STYLE_* value)
- * @flags Set of XOF_* flags to use with this handle
+ *
+ * @param fp FILE pointer to use
+ * @param style Style of output desired (XO_STYLE_* value)
+ * @param flags Set of XOF_* flags to use with this handle
+ * @return Newly allocated handle
+ * @see xo_destroy
  */
 xo_handle_t *
 xo_create_to_file (FILE *fp, xo_style_t style, xo_xof_flags_t flags)
@@ -1890,8 +1922,10 @@ xo_create_to_file (FILE *fp, xo_style_t style, xo_xof_flags_t flags)
 
 /**
  * Set the default handler to output to a file.
- * @xop libxo handle
- * @fp FILE pointer to use
+ *
+ * @param xop libxo handle
+ * @param fp FILE pointer to use
+ * @return 0 on success, non-zero on failure
  */
 int
 xo_set_file_h (xo_handle_t *xop, FILE *fp)
@@ -1913,7 +1947,9 @@ xo_set_file_h (xo_handle_t *xop, FILE *fp)
 
 /**
  * Set the default handler to output to a file.
- * @fp FILE pointer to use
+ *
+ * @param fp FILE pointer to use
+ * @return 0 on success, non-zero on failure
  */
 int
 xo_set_file (FILE *fp)
@@ -1923,7 +1959,8 @@ xo_set_file (FILE *fp)
 
 /**
  * Release any resources held by the handle.
- * @xop XO handle to alter (or NULL for default handle)
+ *
+ * @param xop XO handle to alter (or NULL for default handle)
  */
 void
 xo_destroy (xo_handle_t *xop_arg)
@@ -1956,8 +1993,8 @@ xo_destroy (xo_handle_t *xop_arg)
  * Record a new output style to use for the given handle (or default if
  * handle is NULL).  This output style will be used for any future output.
  *
- * @xop XO handle to alter (or NULL for default handle)
- * @style new output style (XO_STYLE_*)
+ * @param xop XO handle to alter (or NULL for default handle)
+ * @param style new output style (XO_STYLE_*)
  */
 void
 xo_set_style (xo_handle_t *xop, xo_style_t style)
@@ -1966,6 +2003,12 @@ xo_set_style (xo_handle_t *xop, xo_style_t style)
     xop->xo_style = style;
 }
 
+/**
+ * Return the current style of a handle
+ *
+ * @param xop XO handle to access
+ * @return The handle's current style
+ */
 xo_style_t
 xo_get_style (xo_handle_t *xop)
 {
@@ -1973,6 +2016,12 @@ xo_get_style (xo_handle_t *xop)
     return xo_style(xop);
 }
 
+/**
+ * Return the XO_STYLE_* value matching a given name
+ *
+ * @param name String name of a style
+ * @return XO_STYLE_* value
+ */
 static int
 xo_name_to_style (const char *name)
 {
@@ -2008,8 +2057,8 @@ xo_style_is_encoding (xo_handle_t *xop)
 
 /* Simple name-value mapping */
 typedef struct xo_mapping_s {
-    xo_xff_flags_t xm_value;
-    const char *xm_name;
+    xo_xff_flags_t xm_value;	/* Flag value */
+    const char *xm_name;	/* String name */
 } xo_mapping_t;
 
 static xo_xff_flags_t
@@ -2056,6 +2105,7 @@ xo_value_lookup (xo_mapping_t *map, xo_xff_flags_t value)
 
 static xo_mapping_t xo_xof_names[] = {
     { XOF_COLOR_ALLOWED, "color" },
+    { XOF_COLOR, "color-force" },
     { XOF_COLUMNS, "columns" },
     { XOF_DTRT, "dtrt" },
     { XOF_FLUSH, "flush" },
@@ -2080,6 +2130,21 @@ static xo_mapping_t xo_xof_names[] = {
     { 0, NULL }
 };
 
+/* Options available via the environment variable ($LIBXO_OPTIONS) */
+static xo_mapping_t xo_xof_simple_names[] = {
+    { XOF_COLOR_ALLOWED, "color" },
+    { XOF_FLUSH, "flush" },
+    { XOF_FLUSH_LINE, "flush-line" },
+    { XOF_NO_HUMANIZE, "no-humanize" },
+    { XOF_NO_LOCALE, "no-locale" },
+    { XOF_RETAIN_NONE, "no-retain" },
+    { XOF_PRETTY, "pretty" },
+    { XOF_RETAIN_ALL, "retain" },
+    { XOF_UNDERSCORES, "underscores" },
+    { XOF_WARN, "warn" },
+    { 0, NULL }
+};
+
 /*
  * Convert string name to XOF_* flag value.
  * Not all are useful.  Or safe.  Or sane.
@@ -2090,6 +2155,13 @@ xo_name_to_flag (const char *name)
     return (unsigned) xo_name_lookup(xo_xof_names, name, -1);
 }
 
+/**
+ * Set the style of an libxo handle based on a string name
+ *
+ * @param xop XO handle
+ * @param name String value of name
+ * @return 0 on success, non-zero on failure
+ */
 int
 xo_set_style_name (xo_handle_t *xop, const char *name)
 {
@@ -2097,6 +2169,7 @@ xo_set_style_name (xo_handle_t *xop, const char *name)
 	return -1;
 
     int style = xo_name_to_style(name);
+
     if (style < 0)
 	return -1;
 
@@ -2105,9 +2178,95 @@ xo_set_style_name (xo_handle_t *xop, const char *name)
 }
 
 /*
+ * Fill in the color map, based on the input string; currently unimplemented
+ * Look for something like "colors=red/blue+green/yellow" as fg/bg pairs.
+ */
+static void
+xo_set_color_map (xo_handle_t *xop, char *value)
+{
+#ifdef LIBXO_TEXT_ONLY
+    return;
+#endif /* LIBXO_TEXT_ONLY */
+
+    char *cp, *ep, *vp, *np;
+    ssize_t len = value ? strlen(value) + 1 : 0;
+    int num = 1, fg, bg;
+
+    for (cp = value, ep = cp + len - 1; cp && *cp && cp < ep; cp = np) {
+	np = strchr(cp, '+');
+	if (np)
+	    *np++ = '\0';
+
+	vp = strchr(cp, '/');
+	if (vp)
+	    *vp++ = '\0';
+
+	fg = *cp ? xo_color_find(cp) : -1;
+	bg = (vp && *vp) ? xo_color_find(vp) : -1;
+
+	xop->xo_color_map_fg[num] = (fg < 0) ? num : fg;
+	xop->xo_color_map_bg[num] = (bg < 0) ? num : bg;
+	if (++num > XO_NUM_COLORS)
+	    break;
+    }
+
+    /* If no color initialization happened, then we don't need the map */
+    if (num > 0)
+	XOF_SET(xop, XOF_COLOR_MAP);
+    else
+	XOF_CLEAR(xop, XOF_COLOR_MAP);
+
+    /* Fill in the rest of the colors with the defaults */
+    for ( ; num < XO_NUM_COLORS; num++)
+	xop->xo_color_map_fg[num] = xop->xo_color_map_bg[num] = num;
+}
+
+static int
+xo_set_options_simple (xo_handle_t *xop, const char *input)
+{
+    xo_xof_flags_t new_flag;
+    char *cp, *ep, *vp, *np, *bp;
+    ssize_t len = strlen(input) + 1;
+
+    bp = alloca(len);
+    memcpy(bp, input, len);
+
+    for (cp = bp, ep = cp + len - 1; cp && cp < ep; cp = np) {
+	np = strchr(cp, ',');
+	if (np)
+	    *np++ = '\0';
+
+	vp = strchr(cp, '=');
+	if (vp)
+	    *vp++ = '\0';
+
+	if (strcmp("colors", cp) == 0) {
+	    xo_set_color_map(xop, vp);
+	    continue;
+	}
+
+	new_flag = xo_name_lookup(xo_xof_simple_names, cp, -1);
+	if (new_flag != 0) {
+	    XOF_SET(xop, new_flag);
+	} else if (strcmp(cp, "no-color") == 0) {
+	    XOF_CLEAR(xop, XOF_COLOR_ALLOWED);
+	} else {
+	    xo_failure(xop, "unknown simple option: %s", cp);
+	    return -1;
+	}
+    }
+
+    return 0;
+}
+
+/**
  * Set the options for a handle using a string of options
  * passed in.  The input is a comma-separated set of names
  * and optional values: "xml,pretty,indent=4"
+ *
+ * @param xop XO handle
+ * @param input Comma-separated set of option values
+ * @return 0 on success, non-zero on failure
  */
 int
 xo_set_options (xo_handle_t *xop, const char *input)
@@ -2227,7 +2386,7 @@ xo_set_options (xo_handle_t *xop, const char *input)
 	    *vp++ = '\0';
 
 	if (strcmp("colors", cp) == 0) {
-	    /* XXX Look for colors=red-blue+green-yellow */
+	    xo_set_color_map(xop, vp);
 	    continue;
 	}
 
@@ -2245,28 +2404,26 @@ xo_set_options (xo_handle_t *xop, const char *input)
 	    new_flag = xo_name_to_flag(cp);
 	    if (new_flag != 0)
 		XOF_SET(xop, new_flag);
-	    else {
-		if (strcmp(cp, "no-color") == 0) {
-		    XOF_CLEAR(xop, XOF_COLOR_ALLOWED);
-		} else if (strcmp(cp, "indent") == 0) {
-		    if (vp)
-			xop->xo_indent_by = atoi(vp);
-		    else
-			xo_failure(xop, "missing value for indent option");
-		} else if (strcmp(cp, "encoder") == 0) {
-		    if (vp == NULL)
-			xo_failure(xop, "missing value for encoder option");
-		    else {
-			if (xo_encoder_init(xop, vp)) {
-			    xo_failure(xop, "encoder not found: %s", vp);
-			    rc = -1;
-			}
+	    else if (strcmp(cp, "no-color") == 0)
+		XOF_CLEAR(xop, XOF_COLOR_ALLOWED);
+	    else if (strcmp(cp, "indent") == 0) {
+		if (vp)
+		    xop->xo_indent_by = atoi(vp);
+		else
+		    xo_failure(xop, "missing value for indent option");
+	    } else if (strcmp(cp, "encoder") == 0) {
+		if (vp == NULL)
+		    xo_failure(xop, "missing value for encoder option");
+		else {
+		    if (xo_encoder_init(xop, vp)) {
+			xo_failure(xop, "encoder not found: %s", vp);
+			rc = -1;
 		    }
-
-		} else {
-		    xo_warnx("unknown libxo option value: '%s'", cp);
-		    rc = -1;
 		}
+		
+	    } else {
+		xo_warnx("unknown libxo option value: '%s'", cp);
+		rc = -1;
 	    }
 	}
     }
@@ -2281,8 +2438,8 @@ xo_set_options (xo_handle_t *xop, const char *input)
  * Set one or more flags for a given handle (or default if handle is NULL).
  * These flags will affect future output.
  *
- * @xop XO handle to alter (or NULL for default handle)
- * @flags Flags to be set (XOF_*)
+ * @param xop XO handle to alter (or NULL for default handle)
+ * @param flags Flags to be set (XOF_*)
  */
 void
 xo_set_flags (xo_handle_t *xop, xo_xof_flags_t flags)
@@ -2292,6 +2449,11 @@ xo_set_flags (xo_handle_t *xop, xo_xof_flags_t flags)
     XOF_SET(xop, flags);
 }
 
+/**
+ * Accessor to return the current set of flags for a handle
+ * @param xop XO handle
+ * @return Current set of flags
+ */
 xo_xof_flags_t
 xo_get_flags (xo_handle_t *xop)
 {
@@ -2300,8 +2462,8 @@ xo_get_flags (xo_handle_t *xop)
     return xop->xo_flags;
 }
 
-/*
- * strndup with a twist: len < 0 means strlen
+/**
+ * strndup with a twist: len < 0 means len = strlen(str)
  */
 static char *
 xo_strndup (const char *str, ssize_t len)
@@ -2323,8 +2485,8 @@ xo_strndup (const char *str, ssize_t len)
  * generated data to be placed within an XML hierarchy but still have
  * accurate XPath expressions.
  *
- * @xop XO handle to alter (or NULL for default handle)
- * @path The XPath expression
+ * @param xop XO handle to alter (or NULL for default handle)
+ * @param path The XPath expression
  */
 void
 xo_set_leading_xpath (xo_handle_t *xop, const char *path)
@@ -2345,9 +2507,9 @@ xo_set_leading_xpath (xo_handle_t *xop, const char *path)
 /**
  * Record the info data for a set of tags
  *
- * @xop XO handle to alter (or NULL for default handle)
- * @info Info data (xo_info_t) to be recorded (or NULL) (MUST BE SORTED)
- * @count Number of entries in info (or -1 to count them ourselves)
+ * @param xop XO handle to alter (or NULL for default handle)
+ * @param info Info data (xo_info_t) to be recorded (or NULL) (MUST BE SORTED)
+ * @pararm count Number of entries in info (or -1 to count them ourselves)
  */
 void
 xo_set_info (xo_handle_t *xop, xo_info_t *infop, int count)
@@ -2384,8 +2546,8 @@ xo_set_formatter (xo_handle_t *xop, xo_formatter_t func,
  * Clear one or more flags for a given handle (or default if handle is NULL).
  * These flags will affect future output.
  *
- * @xop XO handle to alter (or NULL for default handle)
- * @flags Flags to be cleared (XOF_*)
+ * @param xop XO handle to alter (or NULL for default handle)
+ * @param flags Flags to be cleared (XOF_*)
  */
 void
 xo_clear_flags (xo_handle_t *xop, xo_xof_flags_t flags)
@@ -3077,6 +3239,11 @@ xo_data_append_content (xo_handle_t *xop, const char *str, ssize_t len,
 	xop->xo_anchor_columns += cols;
 }
 
+/**
+ * Bump one of the 'width' values in a format strings (e.g. "%40.50.60s").
+ * @param xfp Formatting instructions
+ * @param digit Single digit (0-9) of input
+ */
 static void
 xo_bump_width (xo_format_t *xfp, int digit)
 {
@@ -3323,7 +3490,8 @@ xo_do_format_field (xo_handle_t *xop, xo_buffer_t *xbp,
 		    rc = xo_trim_ws(xbp, rc);
 
 	    } else {
-		ssize_t columns = rc = xo_vsnprintf(xop, xbp, newfmt, xop->xo_vap);
+		ssize_t columns = rc = xo_vsnprintf(xop, xbp, newfmt,
+						    xop->xo_vap);
 
 		/*
 		 * For XML and HTML, we need "&<>" processing; for JSON,
@@ -4324,7 +4492,7 @@ xo_format_value (xo_handle_t *xop, const char *name, ssize_t nlen,
 
 	xo_encoder_handle(xop, quote ? XO_OP_STRING : XO_OP_CONTENT,
 			  xo_buf_data(&xop->xo_data, name_offset),
-			  xo_buf_data(&xop->xo_data, value_offset));
+			  xo_buf_data(&xop->xo_data, value_offset), flags);
 	xo_buf_reset(&xop->xo_data);
 	break;
     }
@@ -4581,6 +4749,28 @@ xo_colors_enabled (xo_handle_t *xop UNUSED)
 #endif /* LIBXO_TEXT_ONLY */
 }
 
+/*
+ * If the color map is in use (--libxo colors=xxxx), then update
+ * the incoming foreground and background colors from the map.
+ */
+static void
+xo_colors_update (xo_handle_t *xop, xo_colors_t *newp)
+{
+#ifdef LIBXO_TEXT_ONLY
+    return;
+#endif /* LIBXO_TEXT_ONLY */
+
+    xo_color_t fg = newp->xoc_col_fg;
+    if (XOF_ISSET(xop, XOF_COLOR_MAP) && fg < XO_NUM_COLORS)
+	fg = xop->xo_color_map_fg[fg]; /* Fetch from color map */
+    newp->xoc_col_fg = fg;
+
+    xo_color_t bg = newp->xoc_col_bg;
+    if (XOF_ISSET(xop, XOF_COLOR_MAP) && bg < XO_NUM_COLORS)
+	bg = xop->xo_color_map_bg[bg]; /* Fetch from color map */
+    newp->xoc_col_bg = bg;
+}
+
 static void
 xo_colors_handle_text (xo_handle_t *xop, xo_colors_t *newp)
 {
@@ -4627,16 +4817,16 @@ xo_colors_handle_text (xo_handle_t *xop, xo_colors_t *newp)
 	}
     }
 
-    if (newp->xoc_col_fg != oldp->xoc_col_fg) {
+    xo_color_t fg = newp->xoc_col_fg;
+    if (fg != oldp->xoc_col_fg) {
 	cp += snprintf(cp, ep - cp, ";3%u",
-		       (newp->xoc_col_fg != XO_COL_DEFAULT)
-		       ? newp->xoc_col_fg - 1 : 9);
+		       (fg != XO_COL_DEFAULT) ? fg - 1 : 9);
     }
 
-    if (newp->xoc_col_bg != oldp->xoc_col_bg) {
+    xo_color_t bg = newp->xoc_col_bg;
+    if (bg != oldp->xoc_col_bg) {
 	cp += snprintf(cp, ep - cp, ";4%u",
-		       (newp->xoc_col_bg != XO_COL_DEFAULT)
-		       ? newp->xoc_col_bg - 1 : 9);
+		       (bg != XO_COL_DEFAULT) ? bg - 1 : 9);
     }
 
     if (cp - buf != 1 && cp < ep - 3) {
@@ -4736,6 +4926,7 @@ xo_format_colors (xo_handle_t *xop, xo_field_info_t *xfip,
 
 	    xo_colors_t xoc = xop->xo_colors;
 	    xo_colors_parse(xop, &xoc, xb.xb_bufp);
+	    xo_colors_update(xop, &xoc);
 
 	    if (xo_style(xop) == XO_STYLE_TEXT) {
 		/*
@@ -5837,11 +6028,11 @@ xo_gettext_build_format (xo_handle_t *xop,
     if (gtfmt == NULL || gtfmt == fmt || strcmp(gtfmt, fmt) == 0)
 	goto bail2;
 
-    xo_buf_cleanup(&xb);
-
     char *new_fmt = xo_strndup(gtfmt, -1);
     if (new_fmt == NULL)
 	goto bail2;
+
+    xo_buf_cleanup(&xb);
 
     *new_fmtp = new_fmt;
     return new_fmt;
@@ -5975,7 +6166,7 @@ xo_do_emit_fields (xo_handle_t *xop, xo_field_info_t *fields,
     ssize_t fend[flimit];
     bzero(fend, flimit * sizeof(fend[0]));
 
-    for (xfip = fields, field = 0; xfip->xfi_ftype && field < max_fields;
+    for (xfip = fields, field = 0; field < max_fields && xfip->xfi_ftype;
 	 xfip++, field++) {
 	ftype = xfip->xfi_ftype;
 	flags = xfip->xfi_flags;
@@ -6458,7 +6649,7 @@ xo_attr_hv (xo_handle_t *xop, const char *name, const char *fmt, va_list vap)
 	    *xbp->xb_curp = '\0';
 	    rc = xo_encoder_handle(xop, XO_OP_ATTRIBUTE,
 				   xo_buf_data(xbp, name_offset),
-				   xo_buf_data(xbp, value_offset));
+				   xo_buf_data(xbp, value_offset), 0);
 	}
     }
 
@@ -6536,7 +6727,7 @@ xo_depth_change (xo_handle_t *xop, const char *name,
 	xo_stack_t *xsp = &xop->xo_stack[xop->xo_depth];
 	if (XOF_ISSET(xop, XOF_WARN)) {
 	    const char *top = xsp->xs_name;
-	    if (top && strcmp(name, top) != 0) {
+	    if (top != NULL && name != NULL && strcmp(name, top) != 0) {
 		xo_failure(xop, "incorrect close: '%s' .vs. '%s'",
 			      name, top);
 		return;
@@ -6648,7 +6839,7 @@ xo_do_open_container (xo_handle_t *xop, xo_xof_flags_t flags, const char *name)
 	break;
 
     case XO_STYLE_ENCODER:
-	rc = xo_encoder_handle(xop, XO_OP_OPEN_CONTAINER, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_OPEN_CONTAINER, name, NULL, flags);
 	break;
     }
 
@@ -6738,7 +6929,7 @@ xo_do_close_container (xo_handle_t *xop, const char *name)
 
     case XO_STYLE_ENCODER:
 	xo_depth_change(xop, name, -1, 0, XSS_CLOSE_CONTAINER, 0);
-	rc = xo_encoder_handle(xop, XO_OP_CLOSE_CONTAINER, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_CLOSE_CONTAINER, name, NULL, 0);
 	break;
     }
 
@@ -6804,7 +6995,7 @@ xo_do_open_list (xo_handle_t *xop, xo_xsf_flags_t flags, const char *name)
 	break;
 
     case XO_STYLE_ENCODER:
-	rc = xo_encoder_handle(xop, XO_OP_OPEN_LIST, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_OPEN_LIST, name, NULL, flags);
 	break;
     }
 
@@ -6879,7 +7070,7 @@ xo_do_close_list (xo_handle_t *xop, const char *name)
 
     case XO_STYLE_ENCODER:
 	xo_depth_change(xop, name, -1, 0, XSS_CLOSE_LIST, XSF_LIST);
-	rc = xo_encoder_handle(xop, XO_OP_CLOSE_LIST, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_CLOSE_LIST, name, NULL, 0);
 	break;
 
     default:
@@ -6953,7 +7144,7 @@ xo_do_open_leaf_list (xo_handle_t *xop, xo_xsf_flags_t flags, const char *name)
 	break;
 
     case XO_STYLE_ENCODER:
-	rc = xo_encoder_handle(xop, XO_OP_OPEN_LEAF_LIST, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_OPEN_LEAF_LIST, name, NULL, flags);
 	break;
     }
 
@@ -6997,7 +7188,7 @@ xo_do_close_leaf_list (xo_handle_t *xop, const char *name)
 	break;
 
     case XO_STYLE_ENCODER:
-	rc = xo_encoder_handle(xop, XO_OP_CLOSE_LEAF_LIST, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_CLOSE_LEAF_LIST, name, NULL, 0);
 	/* FALLTHRU */
 
     default:
@@ -7054,7 +7245,7 @@ xo_do_open_instance (xo_handle_t *xop, xo_xsf_flags_t flags, const char *name)
 	break;
 
     case XO_STYLE_ENCODER:
-	rc = xo_encoder_handle(xop, XO_OP_OPEN_INSTANCE, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_OPEN_INSTANCE, name, NULL, flags);
 	break;
     }
 
@@ -7142,7 +7333,7 @@ xo_do_close_instance (xo_handle_t *xop, const char *name)
 
     case XO_STYLE_ENCODER:
 	xo_depth_change(xop, name, -1, 0, XSS_CLOSE_INSTANCE, 0);
-	rc = xo_encoder_handle(xop, XO_OP_CLOSE_INSTANCE, name, NULL);
+	rc = xo_encoder_handle(xop, XO_OP_CLOSE_INSTANCE, name, NULL, 0);
 	break;
     }
 
@@ -7618,7 +7809,7 @@ xo_flush_h (xo_handle_t *xop)
 
     switch (xo_style(xop)) {
     case XO_STYLE_ENCODER:
-	xo_encoder_handle(xop, XO_OP_FLUSH, NULL, NULL);
+	xo_encoder_handle(xop, XO_OP_FLUSH, NULL, NULL, 0);
     }
 
     rc = xo_write(xop);
@@ -7656,7 +7847,7 @@ xo_finish_h (xo_handle_t *xop)
 	break;
 
     case XO_STYLE_ENCODER:
-	xo_encoder_handle(xop, XO_OP_FINISH, NULL, NULL);
+	xo_encoder_handle(xop, XO_OP_FINISH, NULL, NULL, 0);
 	break;
     }
 
@@ -7779,6 +7970,8 @@ xo_parse_args (int argc, char **argv)
     if (cp)
 	xo_program = cp + 1;
 
+    xo_handle_t *xop = xo_default(NULL);
+
     for (save = i = 1; i < argc; i++) {
 	if (argv[i] == NULL
 	    || strncmp(argv[i], libxo_opt, sizeof(libxo_opt) - 1) != 0) {
@@ -7796,14 +7989,14 @@ xo_parse_args (int argc, char **argv)
 		return -1;
 	    }
 		
-	    if (xo_set_options(NULL, cp) < 0)
+	    if (xo_set_options(xop, cp) < 0)
 		return -1;
 	} else if (*cp == ':') {
-	    if (xo_set_options(NULL, cp) < 0)
+	    if (xo_set_options(xop, cp) < 0)
 		return -1;
 
 	} else if (*cp == '=') {
-	    if (xo_set_options(NULL, ++cp) < 0)
+	    if (xo_set_options(xop, ++cp) < 0)
 		return -1;
 
 	} else if (*cp == '-') {
@@ -7820,6 +8013,13 @@ xo_parse_args (int argc, char **argv)
 	    return -1;
 	}
     }
+
+    /*
+     * We only want to do color output on terminals, but we only want
+     * to do this if the user has asked for color.
+     */
+    if (XOF_ISSET(xop, XOF_COLOR_ALLOWED) && isatty(1))
+	XOF_SET(xop, XOF_COLOR);
 
     argv[save] = NULL;
     return save;
@@ -7882,7 +8082,7 @@ xo_set_version_h (xo_handle_t *xop, const char *version)
 	break;
 
     case XO_STYLE_ENCODER:
-	xo_encoder_handle(xop, XO_OP_VERSION, NULL, version);
+	xo_encoder_handle(xop, XO_OP_VERSION, NULL, version, 0);
 	break;
     }
 }

@@ -72,6 +72,3 @@ extern const size_t pattern_size;	/* length of pattern array */
 
 /* Test for primality using strong pseudoprime tests. */
 int isprime(ubig);
-
-/* Maximum value which the SPSP code can handle. */
-#define	SPSPMAX 3825123056546413050ULL

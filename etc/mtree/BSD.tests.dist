@@ -8,11 +8,17 @@
     bin
         cat
         ..
+        chmod
+        ..
         date
         ..
         dd
         ..
+        echo
+        ..
         expr
+        ..
+        ln
         ..
         ls
         ..

@@ -140,6 +140,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_debug.h>
 #include <dev/iwm/if_iwm_util.h>
 #include <dev/iwm/if_iwm_binding.h>
+#include <dev/iwm/if_iwm_sf.h>
 
 /*
  * BEGIN iwlwifi/mvm/binding.c
@@ -223,14 +224,12 @@ iwm_mvm_binding_add_vif(struct iwm_softc *sc, struct iwm_vap *ivp)
 	if (!ivp->phy_ctxt)
 		return EINVAL;
 
-#ifdef notyet
 	/*
 	 * Update SF - Disable if needed. if this fails, SF might still be on
 	 * while many macs are bound, which is forbidden - so fail the binding.
 	 */
-	if (iwm_mvm_sf_update(sc, ivp, FALSE))
+	if (iwm_mvm_sf_update(sc, &ivp->iv_vap, FALSE))
 		return EINVAL;
-#endif
 
 	return iwm_mvm_binding_update(sc, ivp, ivp->phy_ctxt, TRUE);
 }
@@ -245,13 +244,11 @@ iwm_mvm_binding_remove_vif(struct iwm_softc *sc, struct iwm_vap *ivp)
 
 	ret = iwm_mvm_binding_update(sc, ivp, ivp->phy_ctxt, FALSE);
 
-#ifdef notyet
 	if (!ret) {
-		if (iwm_mvm_sf_update(sc, ivp, TRUE))
+		if (iwm_mvm_sf_update(sc, &ivp->iv_vap, TRUE))
 			device_printf(sc->sc_dev,
 			    "Failed to update SF state\n");
 	}
-#endif
 
 	return ret;
 }

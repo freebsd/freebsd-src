@@ -100,4 +100,25 @@ ANALYZE_DIR = ~/trash/libxo
 ANALYZE_CMD = scan-build-mp-3.6
 
 analyze:
+	${MAKE} clean
 	${ANALYZE_CMD} -o ${ANALYZE_DIR} ${MAKE}
+
+SANIFLAGS=-fno-omit-frame-pointer -g -O2
+
+sanitize-address:
+	${MAKE} clean
+	${MAKE} CFLAGS="-fsanitize=address ${SANIFLAGS}"
+	${MAKE} install
+	${MAKE} test
+
+sanitize-undefined:
+	${MAKE} clean
+	${MAKE} CFLAGS="-fsanitize=undefined ${SANIFLAGS}"
+	${MAKE} install
+	${MAKE} test
+
+sanitize-memory:
+	${MAKE} clean
+	${MAKE} CFLAGS="-fsanitize=memory ${SANIFLAGS}"
+	${MAKE} install
+	${MAKE} test

@@ -102,7 +102,6 @@ __DEFAULT_YES_OPTIONS = \
     GNU_GREP \
     GPIO \
     GPL_DTC \
-    GROFF \
     HAST \
     HTML \
     HYPERV \
@@ -357,7 +356,6 @@ MK_KERBEROS:=	no
 
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
-MK_GROFF:=	no
 MK_GNUCXX:=	no
 MK_TESTS:=	no
 .endif
@@ -388,10 +386,6 @@ MK_AUTHPF:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
-.endif
-
-.if ${MK_TEXTPROC} == "no"
-MK_GROFF:=	no
 .endif
 
 .if ${MK_CROSS_COMPILER} == "no"

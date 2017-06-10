@@ -25,6 +25,7 @@ include 	"../freescale/vybrid/std.vybrid"
 makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
+options 	PLATFORM		# Platform based SoC
 #options 	NANDFS			# NAND Filesystem
 #options 	SMP			# Enable multiple cores
 

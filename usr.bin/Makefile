@@ -220,7 +220,6 @@ SUBDIR.${MK_GAMES}+=	random
 SUBDIR+=	dtc
 .endif
 .endif
-SUBDIR.${MK_GROFF}+=	vgrind
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper
@@ -258,8 +257,6 @@ SUBDIR.${MK_SENDMAIL}+=	vacation
 SUBDIR.${MK_TALK}+=	talk
 SUBDIR.${MK_TELNET}+=	telnet
 SUBDIR.${MK_TESTS}+=	tests
-SUBDIR.${MK_TEXTPROC}+=	checknr
-SUBDIR.${MK_TEXTPROC}+=	colcrt
 SUBDIR.${MK_TEXTPROC}+=	ul
 SUBDIR.${MK_TFTP}+=	tftp
 SUBDIR.${MK_TOOLCHAIN}+=	addr2line

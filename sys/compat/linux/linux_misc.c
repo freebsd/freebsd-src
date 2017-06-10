@@ -31,9 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#if defined(KLD_MODULE)
-#include "opt_global.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/blist.h>
