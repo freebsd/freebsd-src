@@ -1,4 +1,4 @@
-.\"	$Id: man.cgi.8,v 1.20 2016/07/11 22:48:37 schwarze Exp $
+.\"	$Id: man.cgi.8,v 1.22 2017/03/18 16:48:24 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 11 2016 $
+.Dd $Mdocdate: March 18 2017 $
 .Dt MAN.CGI 8
 .Os
 .Sh NAME
@@ -186,11 +186,6 @@ Otherwise, a leading slash is needed.
 This is used in generated HTML code.
 .It Dv CUSTOMIZE_TITLE
 An ASCII string to be used for the HTML <TITLE> element.
-.It Dv HTTP_HOST
-The FQDN of the (possibly virtual) host the HTTP server is running on.
-This is used for
-.Ic Location:
-headers in HTTP 303 responses.
 .It Dv MAN_DIR
 A file system path to the
 .Nm
@@ -411,15 +406,16 @@ A version of
 based on
 .Xr mandoc 1
 first appeared in mdocml-1.12.1 (March 2012).
-The current SQLite3-based version first appeared in
-.Ox 5.6 .
+The current
+.Xr mandoc.db 5
+database format first appeared in
+.Ox 6.1 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 program was written by
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
-and ported to the SQLite3-based
-.Xr mandoc.db 5
-backend by
-.An Ingo Schwarze Aq Mt schwarze@openbsd.org .
+and is maintained by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org ,
+who also designed and implemented the database format.

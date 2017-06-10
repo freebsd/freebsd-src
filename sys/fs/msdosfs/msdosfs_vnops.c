@@ -284,11 +284,7 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 			fileid = (uint64_t)roottobn(pmp, 0) * dirsperblk;
 		fileid += (uoff_t)dep->de_diroffset / sizeof(struct direntry);
 	}
-
-	if (pmp->pm_flags & MSDOSFS_LARGEFS)
-		vap->va_fileid = msdosfs_fileno_map(pmp->pm_mountp, fileid);
-	else
-		vap->va_fileid = (long)fileid;
+	vap->va_fileid = fileid;
 
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	vap->va_mode = mode & 
@@ -1472,7 +1468,6 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	int blsize;
 	long on;
 	u_long cn;
-	uint64_t fileno;
 	u_long dirsperblk;
 	long bias = 0;
 	daddr_t bn, lbn;
@@ -1543,20 +1538,9 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 		if (offset < bias) {
 			for (n = (int)offset / sizeof(struct direntry);
 			     n < 2; n++) {
-				if (FAT32(pmp))
-					fileno = (uint64_t)cntobn(pmp,
-								 pmp->pm_rootdirblk)
-							  * dirsperblk;
-				else
-					fileno = 1;
-				if (pmp->pm_flags & MSDOSFS_LARGEFS) {
-					dirbuf.d_fileno =
-					    msdosfs_fileno_map(pmp->pm_mountp,
-					    fileno);
-				} else {
-
-					dirbuf.d_fileno = (uint32_t)fileno;
-				}
+				dirbuf.d_fileno = FAT32(pmp) ?
+				    (uint64_t)cntobn(pmp, pmp->pm_rootdirblk) *
+				    dirsperblk : 1;
 				dirbuf.d_type = DT_DIR;
 				switch (n) {
 				case 0:
@@ -1661,31 +1645,24 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			 * msdosfs_getattr.
 			 */
 			if (dentp->deAttributes & ATTR_DIRECTORY) {
-				fileno = getushort(dentp->deStartCluster);
-				if (FAT32(pmp))
-					fileno |= getushort(dentp->deHighClust) << 16;
-				/* if this is the root directory */
-				if (fileno == MSDOSFSROOT)
-					if (FAT32(pmp))
-						fileno = (uint64_t)cntobn(pmp,
-								pmp->pm_rootdirblk)
-							 * dirsperblk;
-					else
-						fileno = 1;
+				cn = getushort(dentp->deStartCluster);
+				if (FAT32(pmp)) {
+					cn |= getushort(dentp->deHighClust) <<
+					    16;
+					if (cn == MSDOSFSROOT)
+						cn = pmp->pm_rootdirblk;
+				}
+				if (cn == MSDOSFSROOT && !FAT32(pmp))
+					dirbuf.d_fileno = 1;
 				else
-					fileno = (uint64_t)cntobn(pmp, fileno) *
+					dirbuf.d_fileno = cntobn(pmp, cn) *
 					    dirsperblk;
 				dirbuf.d_type = DT_DIR;
 			} else {
-				fileno = (uoff_t)offset /
+				dirbuf.d_fileno = (uoff_t)offset /
 				    sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
-			if (pmp->pm_flags & MSDOSFS_LARGEFS) {
-				dirbuf.d_fileno =
-				    msdosfs_fileno_map(pmp->pm_mountp, fileno);
-			} else
-				dirbuf.d_fileno = (uint32_t)fileno;
 
 			if (chksum != winChksum(dentp->deName)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,

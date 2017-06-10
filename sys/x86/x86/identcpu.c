@@ -1282,6 +1282,8 @@ identify_hypervisor(void)
 				vm_guest = VM_GUEST_HV;
 			else if (strcmp(hv_vendor, "KVMKVMKVM") == 0)
 				vm_guest = VM_GUEST_KVM;
+			else if (strcmp(hv_vendor, "bhyve bhyve") == 0)
+				vm_guest = VM_GUEST_BHYVE;
 		}
 		return;
 	}

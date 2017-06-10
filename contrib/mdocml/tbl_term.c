@@ -1,7 +1,7 @@
-/*	$Id: tbl_term.c,v 1.43 2015/10/12 00:08:16 schwarze Exp $ */
+/*	$Id: tbl_term.c,v 1.46 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011,2012,2014,2015,2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,6 +30,7 @@
 
 static	size_t	term_tbl_len(size_t, void *);
 static	size_t	term_tbl_strlen(const char *, void *);
+static	size_t	term_tbl_sulen(const struct roffsu *, void *);
 static	void	tbl_char(struct termp *, char, size_t);
 static	void	tbl_data(struct termp *, const struct tbl_opts *,
 			const struct tbl_dat *,
@@ -44,16 +45,20 @@ static	void	tbl_word(struct termp *, const struct tbl_dat *);
 
 
 static size_t
+term_tbl_sulen(const struct roffsu *su, void *arg)
+{
+	return term_hspan((const struct termp *)arg, su) / 24;
+}
+
+static size_t
 term_tbl_strlen(const char *p, void *arg)
 {
-
 	return term_strlen((const struct termp *)arg, p);
 }
 
 static size_t
 term_tbl_len(size_t sz, void *arg)
 {
-
 	return term_len((const struct termp *)arg, sz);
 }
 
@@ -63,18 +68,12 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 	const struct tbl_cell	*cp;
 	const struct tbl_dat	*dp;
 	static size_t		 offset;
-	size_t			 rmargin, maxrmargin, tsz;
+	size_t			 tsz;
 	int			 ic, horiz, spans, vert;
-
-	rmargin = tp->rmargin;
-	maxrmargin = tp->maxrmargin;
-
-	tp->rmargin = tp->maxrmargin = TERM_MAXMARGIN;
 
 	/* Inhibit printing of spaces: we do padding ourselves. */
 
-	tp->flags |= TERMP_NONOSPACE;
-	tp->flags |= TERMP_NOSPACE;
+	tp->flags |= TERMP_NOSPACE | TERMP_NONOSPACE | TERMP_BRNEVER;
 
 	/*
 	 * The first time we're invoked for a given table block,
@@ -84,23 +83,24 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 	if (tp->tbl.cols == NULL) {
 		tp->tbl.len = term_tbl_len;
 		tp->tbl.slen = term_tbl_strlen;
+		tp->tbl.sulen = term_tbl_sulen;
 		tp->tbl.arg = tp;
 
-		tblcalc(&tp->tbl, sp, rmargin - tp->offset);
+		tblcalc(&tp->tbl, sp, tp->tcol->rmargin - tp->tcol->offset);
 
 		/* Center the table as a whole. */
 
-		offset = tp->offset;
+		offset = tp->tcol->offset;
 		if (sp->opts->opts & TBL_OPT_CENTRE) {
 			tsz = sp->opts->opts & (TBL_OPT_BOX | TBL_OPT_DBOX)
 			    ? 2 : !!sp->opts->lvert + !!sp->opts->rvert;
 			for (ic = 0; ic < sp->opts->cols; ic++)
 				tsz += tp->tbl.cols[ic].width + 3;
 			tsz -= 3;
-			if (offset + tsz > rmargin)
+			if (offset + tsz > tp->tcol->rmargin)
 				tsz -= 1;
-			tp->offset = (offset + rmargin > tsz) ?
-			    (offset + rmargin - tsz) / 2 : 0;
+			tp->tcol->offset = offset + tp->tcol->rmargin > tsz ?
+			    (offset + tp->tcol->rmargin - tsz) / 2 : 0;
 		}
 
 		/* Horizontal frame at the start of boxed tables. */
@@ -199,12 +199,9 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 		assert(tp->tbl.cols);
 		free(tp->tbl.cols);
 		tp->tbl.cols = NULL;
-		tp->offset = offset;
+		tp->tcol->offset = offset;
 	}
-
-	tp->flags &= ~TERMP_NONOSPACE;
-	tp->rmargin = rmargin;
-	tp->maxrmargin = maxrmargin;
+	tp->flags &= ~(TERMP_NONOSPACE | TERMP_BRNEVER);
 }
 
 /*

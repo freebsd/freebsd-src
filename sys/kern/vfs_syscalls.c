@@ -2107,14 +2107,42 @@ cvtstat(struct stat *st, struct ostat *ost)
 #endif /* COMPAT_43 */
 
 #if defined(COMPAT_FREEBSD11)
-void
+int ino64_trunc_error;
+SYSCTL_INT(_vfs, OID_AUTO, ino64_trunc_error, CTLFLAG_RW,
+    &ino64_trunc_error, 0,
+    "Error on truncation of inode number, device id or link count");
+int
 freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost)
 {
 
 	ost->st_dev = st->st_dev;
-	ost->st_ino = st->st_ino;		/* truncate */
+	ost->st_ino = st->st_ino;
+	if (ost->st_ino != st->st_ino) {
+		switch (ino64_trunc_error) {
+		default:
+		case 0:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		case 2:
+			ost->st_ino = UINT32_MAX;
+			break;
+		}
+	}
 	ost->st_mode = st->st_mode;
-	ost->st_nlink = st->st_nlink;		/* truncate */
+	ost->st_nlink = st->st_nlink;
+	if (ost->st_nlink != st->st_nlink) {
+		switch (ino64_trunc_error) {
+		default:
+		case 0:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		case 2:
+			ost->st_nlink = UINT16_MAX;
+			break;
+		}
+	}
 	ost->st_uid = st->st_uid;
 	ost->st_gid = st->st_gid;
 	ost->st_rdev = st->st_rdev;
@@ -2131,6 +2159,7 @@ freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost)
 	bzero((char *)&ost->st_birthtim + sizeof(ost->st_birthtim),
 	    sizeof(*ost) - offsetof(struct freebsd11_stat,
 	    st_birthtim) - sizeof(ost->st_birthtim));
+	return (0);
 }
 
 int
@@ -2144,8 +2173,9 @@ freebsd11_stat(struct thread *td, struct freebsd11_stat_args* uap)
 	    &sb, NULL);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->ub, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->ub, sizeof(osb));
 	return (error);
 }
 
@@ -2160,8 +2190,9 @@ freebsd11_lstat(struct thread *td, struct freebsd11_lstat_args* uap)
 	    UIO_USERSPACE, &sb, NULL);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->ub, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->ub, sizeof(osb));
 	return (error);
 }
 
@@ -2179,8 +2210,9 @@ freebsd11_fhstat(struct thread *td, struct freebsd11_fhstat_args* uap)
 	error = kern_fhstat(td, fh, &sb);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->sb, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->sb, sizeof(osb));
 	return (error);
 }
 
@@ -2195,8 +2227,9 @@ freebsd11_fstatat(struct thread *td, struct freebsd11_fstatat_args* uap)
 	    UIO_USERSPACE, &sb, NULL);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->buf, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->buf, sizeof(osb));
 	return (error);
 }
 #endif	/* COMPAT_FREEBSD11 */
@@ -3738,6 +3771,19 @@ freebsd11_kern_getdirentries(struct thread *td, int fd, char *ubuf, u_int count,
 		dstdp.d_type = dp->d_type;
 		dstdp.d_namlen = dp->d_namlen;
 		dstdp.d_fileno = dp->d_fileno;		/* truncate */
+		if (dstdp.d_fileno != dp->d_fileno) {
+			switch (ino64_trunc_error) {
+			default:
+			case 0:
+				break;
+			case 1:
+				error = EOVERFLOW;
+				goto done;
+			case 2:
+				dstdp.d_fileno = UINT32_MAX;
+				break;
+			}
+		}
 		dstdp.d_reclen = sizeof(dstdp) - sizeof(dstdp.d_name) +
 		    ((dp->d_namlen + 1 + 3) &~ 3);
 		bcopy(dp->d_name, dstdp.d_name, dstdp.d_namlen);

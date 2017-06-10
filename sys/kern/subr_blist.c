@@ -99,9 +99,8 @@ __FBSDID("$FreeBSD$");
 #define BLIST_DEBUG
 #endif
 
-#define SWAPBLK_NONE ((daddr_t)-1)
-
 #include <sys/types.h>
+#include <sys/malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -109,8 +108,6 @@ __FBSDID("$FreeBSD$");
 
 #define malloc(a,b,c)	calloc(a, 1)
 #define free(a,b)	free(a)
-
-typedef unsigned int u_daddr_t;
 
 #include <sys/blist.h>
 
@@ -130,8 +127,8 @@ static void blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count,
 					daddr_t radix, int skip, daddr_t blk);
 static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix, 
 				daddr_t skip, blist_t dest, daddr_t count);
-static int blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
-static int blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
+static daddr_t blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
+static daddr_t blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
 				daddr_t radix, int skip, daddr_t blk);
 static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, 
 						int skip, daddr_t count);
@@ -251,10 +248,10 @@ blist_free(blist_t bl, daddr_t blkno, daddr_t count)
  *			actually filled that were free before the call.
  */
 
-int
+daddr_t
 blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
 {
-	int filled;
+	daddr_t filled;
 
 	if (bl) {
 		if (bl->bl_radix == BLIST_BMAP_RADIX)
@@ -366,7 +363,7 @@ blst_leaf_alloc(
 			j >>= 1;
 			mask >>= j;
 		}
-		scan->u.bmu_bitmap &= ~(1 << r);
+		scan->u.bmu_bitmap &= ~((u_daddr_t)1 << r);
 		return(blk + r);
 	}
 	if (count <= BLIST_BMAP_RADIX) {
@@ -422,7 +419,7 @@ blst_meta_alloc(
 		/*
 		 * ALL-ALLOCATED special case
 		 */
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return(SWAPBLK_NONE);
 	}
 
@@ -658,7 +655,7 @@ static void blst_copy(
 			int i;
 
 			for (i = 0; i < BLIST_BMAP_RADIX && i < count; ++i) {
-				if (v & (1 << i))
+				if (v & ((u_daddr_t)1 << i))
 					blist_free(dest, blk + i, 1);
 			}
 		}
@@ -729,11 +726,11 @@ static void blst_copy(
  *	the number of blocks allocated by the call.
  */
 
-static int
+static daddr_t
 blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
 {
 	int n = blk & (BLIST_BMAP_RADIX - 1);
-	int nblks;
+	daddr_t nblks;
 	u_daddr_t mask, bitmap;
 
 	mask = ((u_daddr_t)-1 << n) &
@@ -756,7 +753,7 @@ blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
  *	range must be within the extent of this node.  Returns the
  *	number of blocks allocated by the call.
  */
-static int
+static daddr_t
 blst_meta_fill(
 	blmeta_t *scan,
 	daddr_t allocBlk,
@@ -767,15 +764,17 @@ blst_meta_fill(
 ) {
 	int i;
 	int next_skip = ((u_int)skip / BLIST_META_RADIX);
-	int nblks = 0;
+	daddr_t nblks = 0;
 
+	if (count > radix)
+		panic("blist_meta_fill: allocation too large");
 	if (count == radix || scan->u.bmu_avail == 0)  {
 		/*
 		 * ALL-ALLOCATED special case
 		 */
 		nblks = scan->u.bmu_avail;
 		scan->u.bmu_avail = 0;
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return nblks;
 	}
 
@@ -799,9 +798,6 @@ blst_meta_fill(
 	} else {
 		radix /= BLIST_META_RADIX;
 	}
-
-	if (count > radix)
-		panic("blist_meta_fill: allocation too large");
 
 	i = (allocBlk - blk) / radix;
 	blk += i * radix;
@@ -922,7 +918,7 @@ blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int skip, int tab)
 
 	if (radix == BLIST_BMAP_RADIX) {
 		printf(
-		    "%*.*s(%08llx,%lld): bitmap %08llx big=%lld\n", 
+		    "%*.*s(%08llx,%lld): bitmap %016llx big=%lld\n", 
 		    tab, tab, "",
 		    (long long)blk, (long long)radix,
 		    (long long)scan->u.bmu_bitmap,
@@ -1016,9 +1012,8 @@ main(int ac, char **av)
 
 	for (;;) {
 		char buf[1024];
-		daddr_t da = 0;
-		daddr_t count = 0;
-
+		long long da = 0;
+		long long count = 0;
 
 		printf("%lld/%lld/%lld> ", (long long)bl->bl_free,
 		    (long long)size, (long long)bl->bl_radix);
@@ -1028,7 +1023,7 @@ main(int ac, char **av)
 		switch(buf[0]) {
 		case 'r':
 			if (sscanf(buf + 1, "%lld", &count) == 1) {
-				blist_resize(&bl, count, 1);
+				blist_resize(&bl, count, 1, M_WAITOK);
 			} else {
 				printf("?\n");
 			}
@@ -1044,18 +1039,16 @@ main(int ac, char **av)
 			}
 			break;
 		case 'f':
-			if (sscanf(buf + 1, "%llx %lld",
-			    (long long *)&da, (long long *)&count) == 2) {
+			if (sscanf(buf + 1, "%llx %lld", &da, &count) == 2) {
 				blist_free(bl, da, count);
 			} else {
 				printf("?\n");
 			}
 			break;
 		case 'l':
-			if (sscanf(buf + 1, "%llx %lld",
-			    (long long *)&da, (long long *)&count) == 2) {
-				printf("    n=%d\n",
-				    blist_fill(bl, da, count));
+			if (sscanf(buf + 1, "%llx %lld", &da, &count) == 2) {
+				printf("    n=%jd\n",
+				    (intmax_t)blist_fill(bl, da, count));
 			} else {
 				printf("?\n");
 			}

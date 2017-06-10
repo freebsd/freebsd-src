@@ -145,6 +145,7 @@ iface_Create(const char *name)
       iface = (struct iface *)malloc(sizeof *iface);
       if (iface == NULL) {
         fprintf(stderr, "iface_Create: malloc: %s\n", strerror(errno));
+	free(buf);
         return NULL;
       }
       iface->name = strdup(name);

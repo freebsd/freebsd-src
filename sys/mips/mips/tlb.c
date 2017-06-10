@@ -88,13 +88,6 @@ tlb_write_indexed(void)
 	mips_cp0_sync();
 }
 
-static inline void
-tlb_write_random(void)
-{
-	__asm __volatile ("tlbwr" : : : "memory");
-	mips_cp0_sync();
-}
-
 static void tlb_invalidate_one(unsigned);
 
 void

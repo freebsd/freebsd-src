@@ -239,11 +239,32 @@
 			gpio-fan,speed-map = <	 0 0
 					      3000 1>;
 		};
+		pcie-controller {
+			status = "okay";
+			/*
+			 * One PCIe units is accessible through
+			 * standard PCIe slot on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/*
+			 * The two other PCIe units are accessible
+			 * through mini PCIe slot on the board.
+			 */
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+			pcie@3,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+			};
+		};
 	};
 
-	pci0: pcie@f1080000 {
-		status = "okay";
-	};
 
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";

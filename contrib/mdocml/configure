@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.61 2017/02/18 12:24:24 schwarze Exp $
+# $Id: configure,v 1.62 2017/03/04 16:36:29 schwarze Exp $
 #
 # Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -91,6 +91,7 @@ HAVE_WCHAR=
 PREFIX="/usr/local"
 BINDIR=
 SBINDIR=
+BIN_FROM_SBIN=
 INCLUDEDIR=
 LIBDIR=
 MANDIR=
@@ -458,14 +459,15 @@ echo "config.h: written" 1>&3
 
 exec > Makefile.local
 
-[ -z "${BINDIR}"     ] && BINDIR="${PREFIX}/bin"
-[ -z "${SBINDIR}"    ] && SBINDIR="${PREFIX}/sbin"
-[ -z "${INCLUDEDIR}" ] && INCLUDEDIR="${PREFIX}/include/mandoc"
-[ -z "${LIBDIR}"     ] && LIBDIR="${PREFIX}/lib/mandoc"
-[ -z "${MANDIR}"     ] && MANDIR="${PREFIX}/man"
+[ -z "${BINDIR}"          ] && BINDIR="${PREFIX}/bin"
+[ -z "${SBINDIR}"         ] && SBINDIR="${PREFIX}/sbin"
+[ -z "${BIN_FROM_SBIN}"   ] && BIN_FROM_SBIN="../bin"
+[ -z "${INCLUDEDIR}"      ] && INCLUDEDIR="${PREFIX}/include/mandoc"
+[ -z "${LIBDIR}"          ] && LIBDIR="${PREFIX}/lib/mandoc"
+[ -z "${MANDIR}"          ] && MANDIR="${PREFIX}/man"
 
-[ -z "${HTDOCDIR}"   ] && HTDOCDIR="${WWWPREFIX}/htdocs"
-[ -z "${CGIBINDIR}"  ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
+[ -z "${HTDOCDIR}"        ] && HTDOCDIR="${WWWPREFIX}/htdocs"
+[ -z "${CGIBINDIR}"       ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
 
 [ -z "${INSTALL_PROGRAM}" ] && INSTALL_PROGRAM="${INSTALL} -m 0555"
 [ -z "${INSTALL_LIB}"     ] && INSTALL_LIB="${INSTALL} -m 0444"
@@ -493,6 +495,7 @@ STATIC		= ${STATIC}
 PREFIX		= ${PREFIX}
 BINDIR		= ${BINDIR}
 SBINDIR		= ${SBINDIR}
+BIN_FROM_SBIN	= ${BIN_FROM_SBIN}
 INCLUDEDIR	= ${INCLUDEDIR}
 LIBDIR		= ${LIBDIR}
 MANDIR		= ${MANDIR}

@@ -560,19 +560,15 @@ dbuf_evict_notify(void)
 	if (tsd_get(zfs_dbuf_evict_key) != NULL)
 		return;
 
+	/*
+	 * We check if we should evict without holding the dbuf_evict_lock,
+	 * because it's OK to occasionally make the wrong decision here,
+	 * and grabbing the lock results in massive lock contention.
+	 */
 	if (refcount_count(&dbuf_cache_size) > dbuf_cache_max_bytes) {
-		boolean_t evict_now = B_FALSE;
-
-		mutex_enter(&dbuf_evict_lock);
-		if (refcount_count(&dbuf_cache_size) > dbuf_cache_max_bytes) {
-			evict_now = dbuf_cache_above_hiwater();
-			cv_signal(&dbuf_evict_cv);
-		}
-		mutex_exit(&dbuf_evict_lock);
-
-		if (evict_now) {
+		if (dbuf_cache_above_hiwater())
 			dbuf_evict_one();
-		}
+		cv_signal(&dbuf_evict_cv);
 	}
 }
 
@@ -3536,9 +3532,7 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 		wp_flag = WP_SPILL;
 	wp_flag |= (db->db_state == DB_NOFILL) ? WP_NOFILL : 0;
 
-	dmu_write_policy(os, dn, db->db_level, wp_flag,
-	    (data != NULL && arc_get_compression(data) != ZIO_COMPRESS_OFF) ?
-	    arc_get_compression(data) : ZIO_COMPRESS_INHERIT, &zp);
+	dmu_write_policy(os, dn, db->db_level, wp_flag, &zp);
 	DB_DNODE_EXIT(db);
 
 	/*
