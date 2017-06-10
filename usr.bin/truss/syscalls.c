@@ -240,6 +240,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
+	{ .name = "getpriority", .ret_type = 1, .nargs = 2,
+	  .args = { { Priowhich, 0 }, { Int, 1 } } },
 	{ .name = "getrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | OUT, 1 } } },
 	{ .name = "getrusage", .ret_type = 1, .nargs = 2,
@@ -402,6 +404,8 @@ static struct syscall decoded_syscalls[] = {
 	            { Socklent | IN, 5 } } },
 	{ .name = "setitimer", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
+	{ .name = "setpriority", .ret_type = 1, .nargs = 3,
+	  .args = { { Priowhich, 0 }, { Int, 1 }, { Int, 2 } } },
 	{ .name = "setrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | IN, 1 } } },
 	{ .name = "setsockopt", .ret_type = 1, .nargs = 5,
@@ -2122,6 +2126,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Msync:
 		print_mask_arg(sysdecode_msync_flags, fp, args[sc->offset]);
+		break;
+	case Priowhich:
+		print_integer_arg(sysdecode_prio_which, fp, args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
