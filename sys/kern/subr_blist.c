@@ -156,7 +156,7 @@ blist_t
 blist_create(daddr_t blocks, int flags)
 {
 	blist_t bl;
-	int radix;
+	daddr_t nodes, radix;
 	int skip = 0;
 
 	/*
@@ -170,13 +170,19 @@ blist_create(daddr_t blocks, int flags)
 	}
 
 	bl = malloc(sizeof(struct blist), M_SWAP, flags | M_ZERO);
+	if (bl == NULL)
+		return (NULL);
 
 	bl->bl_blocks = blocks;
 	bl->bl_radix = radix;
 	bl->bl_skip = skip;
-	bl->bl_rootblks = 1 +
-	    blst_radix_init(NULL, bl->bl_radix, bl->bl_skip, blocks);
-	bl->bl_root = malloc(sizeof(blmeta_t) * bl->bl_rootblks, M_SWAP, flags);
+	nodes = 1 + blst_radix_init(NULL, radix, bl->bl_skip, blocks);
+	bl->bl_root = malloc(nodes * sizeof(blmeta_t), M_SWAP, flags);
+	if (bl->bl_root == NULL) {
+		free(bl, M_SWAP);
+		return (NULL);
+	}
+	blst_radix_init(bl->bl_root, radix, bl->bl_skip, blocks);
 
 #if defined(BLIST_DEBUG)
 	printf(
@@ -184,14 +190,13 @@ blist_create(daddr_t blocks, int flags)
 		", requiring %lldK of ram\n",
 		(long long)bl->bl_blocks,
 		(long long)bl->bl_blocks * 4 / 1024,
-		(long long)(bl->bl_rootblks * sizeof(blmeta_t) + 1023) / 1024
+		(long long)(nodes * sizeof(blmeta_t) + 1023) / 1024
 	);
 	printf("BLIST raw radix tree contains %lld records\n",
-	    (long long)bl->bl_rootblks);
+	    (long long)nodes);
 #endif
-	blst_radix_init(bl->bl_root, bl->bl_radix, bl->bl_skip, blocks);
 
-	return(bl);
+	return (bl);
 }
 
 void 

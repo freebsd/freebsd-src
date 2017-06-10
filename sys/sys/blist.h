@@ -84,7 +84,6 @@ typedef struct blist {
 	daddr_t		bl_skip;	/* starting skip		*/
 	daddr_t		bl_free;	/* number of free blocks	*/
 	blmeta_t	*bl_root;	/* root of radix tree		*/
-	daddr_t		bl_rootblks;	/* daddr_t blks allocated for tree */
 } *blist_t;
 
 #define BLIST_META_RADIX	16
