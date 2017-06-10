@@ -391,6 +391,10 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Rforkflags, 0 } } },
 	{ .name = "rmdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
+	{ .name = "rtprio", .ret_type = 1, .nargs = 3,
+	  .args = { { Rtpriofunc, 0 }, { Int, 1 }, { Ptr, 2 } } },
+	{ .name = "rtprio_thread", .ret_type = 1, .nargs = 3,
+	  .args = { { Rtpriofunc, 0 }, { Int, 1 }, { Ptr, 2 } } },
 	{ .name = "sctp_generic_recvmsg", .ret_type = 1, .nargs = 7,
 	  .args = { { Int, 0 }, { Ptr | IN, 1 }, { Int, 2 },
 	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 }, { Ptr | OUT, 5 },
@@ -2146,6 +2150,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Reboothowto:
 		print_mask_arg(sysdecode_reboot_howto, fp, args[sc->offset]);
+		break;
+	case Rtpriofunc:
+		print_integer_arg(sysdecode_rtprio_function, fp,
+		    args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
