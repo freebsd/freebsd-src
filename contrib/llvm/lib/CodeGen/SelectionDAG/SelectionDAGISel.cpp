@@ -1,4 +1,4 @@
-//===-- SelectionDAGISel.cpp - Implement the SelectionDAGISel class -------===//
+//===- SelectionDAGISel.cpp - Implement the SelectionDAGISel class --------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,11 +17,11 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
@@ -31,6 +31,7 @@
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/GCMetadata.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -38,7 +39,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -51,9 +51,11 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
@@ -64,6 +66,7 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -89,6 +92,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -333,11 +337,12 @@ void SelectionDAGISel::getAnalysisUsage(AnalysisUsage &AU) const {
 /// SplitCriticalSideEffectEdges - Look for critical edges with a PHI value that
 /// may trap on it.  In this case we have to split the edge so that the path
 /// through the predecessor block that doesn't go to the phi block doesn't
-/// execute the possibly trapping instruction.
-///
+/// execute the possibly trapping instruction. If available, we pass a
+/// dominator tree to be updated when we split critical edges. This is because
+/// SelectionDAGISel preserves the DominatorTree.
 /// This is required for correctness, so it must be done at -O0.
 ///
-static void SplitCriticalSideEffectEdges(Function &Fn) {
+static void SplitCriticalSideEffectEdges(Function &Fn, DominatorTree *DT) {
   // Loop for blocks with phi nodes.
   for (BasicBlock &BB : Fn) {
     PHINode *PN = dyn_cast<PHINode>(BB.begin());
@@ -363,7 +368,7 @@ static void SplitCriticalSideEffectEdges(Function &Fn) {
         // Okay, we have to split this edge.
         SplitCriticalEdge(
             Pred->getTerminator(), GetSuccessorNumber(Pred, &BB),
-            CriticalEdgeSplittingOptions().setMergeIdenticalEdges());
+            CriticalEdgeSplittingOptions(DT).setMergeIdenticalEdges());
         goto ReprocessBlock;
       }
   }
@@ -399,10 +404,12 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   LibInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   GFI = Fn.hasGC() ? &getAnalysis<GCModuleInfo>().getFunctionInfo(Fn) : nullptr;
   ORE = make_unique<OptimizationRemarkEmitter>(&Fn);
+  auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>();
+  DominatorTree *DT = DTWP ? &DTWP->getDomTree() : nullptr;
 
   DEBUG(dbgs() << "\n\n\n=== " << Fn.getName() << "\n");
 
-  SplitCriticalSideEffectEdges(const_cast<Function &>(Fn));
+  SplitCriticalSideEffectEdges(const_cast<Function &>(Fn), DT);
 
   CurDAG->init(*MF, *ORE);
   FuncInfo->set(Fn, *MF, CurDAG);
@@ -763,7 +770,6 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
     DEBUG(dbgs() << "Optimized type-legalized selection DAG: BB#" << BlockNumber
           << " '" << BlockName << "'\n"; CurDAG->dump());
-
   }
 
   {
@@ -1134,7 +1140,7 @@ static void processDbgDeclares(FunctionLoweringInfo *FuncInfo) {
       // Check if the variable is a static alloca or a byval or inalloca
       // argument passed in memory. If it is not, then we will ignore this
       // intrinsic and handle this during isel like dbg.value.
-      int FI = INT_MAX;
+      int FI = std::numeric_limits<int>::max();
       if (const auto *AI = dyn_cast<AllocaInst>(Address)) {
         auto SI = FuncInfo->StaticAllocaMap.find(AI);
         if (SI != FuncInfo->StaticAllocaMap.end())
@@ -1142,7 +1148,7 @@ static void processDbgDeclares(FunctionLoweringInfo *FuncInfo) {
       } else if (const auto *Arg = dyn_cast<Argument>(Address))
         FI = FuncInfo->getArgumentFrameIndex(Arg);
 
-      if (FI == INT_MAX)
+      if (FI == std::numeric_limits<int>::max())
         continue;
 
       DIExpression *Expr = DI->getExpression();

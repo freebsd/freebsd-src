@@ -21,6 +21,7 @@
 
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 
 using namespace llvm;
@@ -122,8 +123,7 @@ struct OutgoingValueHandler : public CallLowering::ValueHandler {
 
     unsigned NewRegs[] = {MRI.createGenericVirtualRegister(LLT::scalar(32)),
                           MRI.createGenericVirtualRegister(LLT::scalar(32))};
-    MIRBuilder.buildExtract(NewRegs[0], Arg.Reg, 0);
-    MIRBuilder.buildExtract(NewRegs[1], Arg.Reg, 32);
+    MIRBuilder.buildUnmerge(NewRegs, Arg.Reg);
 
     bool IsLittle = MIRBuilder.getMF().getSubtarget<ARMSubtarget>().isLittle();
     if (!IsLittle)
@@ -339,7 +339,7 @@ struct IncomingValueHandler : public CallLowering::ValueHandler {
     if (!IsLittle)
       std::swap(NewRegs[0], NewRegs[1]);
 
-    MIRBuilder.buildSequence(Arg.Reg, NewRegs, {0, 32});
+    MIRBuilder.buildMerge(Arg.Reg, NewRegs);
 
     return 1;
   }
@@ -461,7 +461,8 @@ bool ARMCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   MachineFunction &MF = MIRBuilder.getMF();
   const auto &TLI = *getTLI<ARMTargetLowering>();
   const auto &DL = MF.getDataLayout();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  const auto &STI = MF.getSubtarget();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
 
   if (MF.getSubtarget<ARMSubtarget>().genLongCalls())
@@ -473,6 +474,13 @@ bool ARMCallLowering::lowerCall(MachineIRBuilder &MIRBuilder,
   // registers, but don't insert it yet.
   auto MIB = MIRBuilder.buildInstrNoInsert(ARM::BLX).add(Callee).addRegMask(
       TRI->getCallPreservedMask(MF, CallConv));
+  if (Callee.isReg()) {
+    auto CalleeReg = Callee.getReg();
+    if (CalleeReg && !TRI->isPhysicalRegister(CalleeReg))
+      MIB->getOperand(0).setReg(constrainOperandRegClass(
+          MF, *TRI, MRI, *STI.getInstrInfo(), *STI.getRegBankInfo(),
+          *MIB.getInstr(), MIB->getDesc(), CalleeReg, 0));
+  }
 
   SmallVector<ArgInfo, 8> ArgInfos;
   for (auto Arg : OrigArgs) {

@@ -93,20 +93,13 @@ private:
 } // anonymous namespace
 
 StringRef elf::getOutputSectionName(StringRef Name) {
+  // ".zdebug_" is a prefix for ZLIB-compressed sections.
+  // Because we decompressed input sections, we want to remove 'z'.
+  if (Name.startswith(".zdebug_"))
+    return Saver.save("." + Name.substr(2));
+
   if (Config->Relocatable)
     return Name;
-
-  // If -emit-relocs is given (which is rare), we need to copy
-  // relocation sections to the output. If input section .foo is
-  // output as .bar, we want to rename .rel.foo .rel.bar as well.
-  if (Config->EmitRelocs) {
-    for (StringRef V : {".rel.", ".rela."}) {
-      if (Name.startswith(V)) {
-        StringRef Inner = getOutputSectionName(Name.substr(V.size() - 1));
-        return Saver.save(V.drop_back() + Inner);
-      }
-    }
-  }
 
   for (StringRef V :
        {".text.", ".rodata.", ".data.rel.ro.", ".data.", ".bss.rel.ro.",
@@ -122,10 +115,6 @@ StringRef elf::getOutputSectionName(StringRef Name) {
   if (Name == "COMMON")
     return ".bss";
 
-  // ".zdebug_" is a prefix for ZLIB-compressed sections.
-  // Because we decompressed input sections, we want to remove 'z'.
-  if (Name.startswith(".zdebug_"))
-    return Saver.save("." + Name.substr(2));
   return Name;
 }
 
@@ -257,18 +246,7 @@ template <class ELFT> void Writer<ELFT>::run() {
   if (ErrorCount)
     return;
 
-  if (!Script->Opt.HasSections)
-    Script->fabricateDefaultCommands();
-  else
-    Script->synchronize();
-
-  for (BaseCommand *Base : Script->Opt.Commands)
-    if (auto *Cmd = dyn_cast<OutputSectionCommand>(Base))
-      OutputSectionCommands.push_back(Cmd);
-
-  clearOutputSections();
-
-  if (!Script->Opt.HasSections &&!Config->Relocatable)
+  if (!Script->Opt.HasSections && !Config->Relocatable)
     fixSectionAlignments();
 
   // If -compressed-debug-sections is specified, we need to compress
@@ -278,22 +256,24 @@ template <class ELFT> void Writer<ELFT>::run() {
       OutputSectionCommands.begin(), OutputSectionCommands.end(),
       [](OutputSectionCommand *Cmd) { Cmd->maybeCompress<ELFT>(); });
 
-  if (Config->Relocatable) {
+  Script->assignAddresses(Phdrs, OutputSectionCommands);
+
+  // Remove empty PT_LOAD to avoid causing the dynamic linker to try to mmap a
+  // 0 sized region. This has to be done late since only after assignAddresses
+  // we know the size of the sections.
+  removeEmptyPTLoad();
+
+  if (!Config->OFormatBinary)
     assignFileOffsets();
+  else
+    assignFileOffsetsBinary();
+
+  setPhdrs();
+
+  if (Config->Relocatable) {
+    for (OutputSectionCommand *Cmd : OutputSectionCommands)
+      Cmd->Sec->Addr = 0;
   } else {
-    Script->assignAddresses(Phdrs, OutputSectionCommands);
-
-    // Remove empty PT_LOAD to avoid causing the dynamic linker to try to mmap a
-    // 0 sized region. This has to be done late since only after assignAddresses
-    // we know the size of the sections.
-    removeEmptyPTLoad();
-
-    if (!Config->OFormatBinary)
-      assignFileOffsets();
-    else
-      assignFileOffsetsBinary();
-
-    setPhdrs();
     fixPredefinedSymbols();
   }
 
@@ -915,7 +895,14 @@ template <class ELFT> void Writer<ELFT>::addReservedSymbols() {
   // this symbol unconditionally even when using a linker script, which
   // differs from the behavior implemented by GNU linker which only define
   // this symbol if ELF headers are in the memory mapped segment.
-  addOptionalRegular<ELFT>("__ehdr_start", Out::ElfHeader, 0, STV_HIDDEN);
+  // __executable_start is not documented, but the expectation of at
+  // least the android libc is that it points to the elf header too.
+  // __dso_handle symbol is passed to cxa_finalize as a marker to identify
+  // each DSO. The address of the symbol doesn't matter as long as they are
+  // different in different DSOs, so we chose the start address of the DSO.
+  for (const char *Name :
+       {"__ehdr_start", "__executable_start", "__dso_handle"})
+    addOptionalRegular<ELFT>(Name, Out::ElfHeader, 0, STV_HIDDEN);
 
   // If linker script do layout we do not need to create any standart symbols.
   if (Script->Opt.HasSections)
@@ -1011,9 +998,6 @@ template <class ELFT> void Writer<ELFT>::createSections() {
   sortInitFini(findSection(".fini_array"));
   sortCtorsDtors(findSection(".ctors"));
   sortCtorsDtors(findSection(".dtors"));
-
-  for (OutputSection *Sec : OutputSections)
-    Sec->assignOffsets();
 }
 
 // We want to find how similar two ranks are.
@@ -1116,10 +1100,8 @@ template <class ELFT> void Writer<ELFT>::sortSections() {
 static void applySynthetic(const std::vector<SyntheticSection *> &Sections,
                            std::function<void(SyntheticSection *)> Fn) {
   for (SyntheticSection *SS : Sections)
-    if (SS && SS->getParent() && !SS->empty()) {
+    if (SS && SS->getParent() && !SS->empty())
       Fn(SS);
-      SS->getParent()->assignOffsets();
-    }
 }
 
 // We need to add input synthetic sections early in createSyntheticSections()
@@ -1225,6 +1207,12 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     Sec->ShName = InX::ShStrTab->addString(Sec->Name);
   }
 
+  if (!Script->Opt.HasSections)
+    Script->fabricateDefaultCommands();
+  for (BaseCommand *Base : Script->Opt.Commands)
+    if (auto *Cmd = dyn_cast<OutputSectionCommand>(Base))
+      OutputSectionCommands.push_back(Cmd);
+
   // Binary and relocatable output does not have PHDRS.
   // The headers have to be created before finalize as that can influence the
   // image base and the dynamic section on mips includes the image base.
@@ -1233,6 +1221,14 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     addPtArmExid(Phdrs);
     Out::ProgramHeaders->Size = sizeof(Elf_Phdr) * Phdrs.size();
   }
+
+  clearOutputSections();
+
+  // Compute the size of .rela.dyn and .rela.plt early since we need
+  // them to populate .dynamic.
+  for (SyntheticSection *SS : {In<ELFT>::RelaDyn, In<ELFT>::RelaPlt})
+    if (SS->getParent() && !SS->empty())
+      SS->getParent()->assignOffsets();
 
   // Dynamic section must be the last one in this list and dynamic
   // symbol table section (DynSymTab) must be the first one.
@@ -1257,15 +1253,16 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     // are out of range. This will need to turn into a loop that converges
     // when no more Thunks are added
     ThunkCreator TC;
-    if (TC.createThunks(OutputSections))
+    if (TC.createThunks(OutputSectionCommands))
       applySynthetic({InX::MipsGot},
                      [](SyntheticSection *SS) { SS->updateAllocSize(); });
   }
+
   // Fill other section headers. The dynamic table is finalized
   // at the end because some tags like RELSZ depend on result
   // of finalizing other sections.
-  for (OutputSection *Sec : OutputSections)
-    Sec->finalize<ELFT>();
+  for (OutputSectionCommand *Cmd : OutputSectionCommands)
+    Cmd->finalize<ELFT>();
 
   // createThunks may have added local symbols to the static symbol table
   applySynthetic({InX::SymTab, InX::ShStrTab, InX::StrTab},

@@ -150,6 +150,7 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
+OLD_FILES+=usr/bin/llvm-pdbdump
 # 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
 OLD_FILES+=usr/share/man/man4/if_rtwn.4.gz
 # 20170531: removal of groff

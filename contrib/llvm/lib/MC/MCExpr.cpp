@@ -7,13 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/MC/MCExpr.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
@@ -655,7 +655,11 @@ bool MCExpr::evaluateAsRelocatableImpl(MCValue &Res, const MCAssembler *Asm,
         // the OS X assembler will completely drop the 4. We should probably
         // include it in the relocation or produce an error if that is not
         // possible.
+        // Allow constant expressions.
         if (!A && !B)
+          return true;
+        // Allows aliases with zero offset.
+        if (Res.getConstant() == 0 && (!A || !B))
           return true;
       }
     }

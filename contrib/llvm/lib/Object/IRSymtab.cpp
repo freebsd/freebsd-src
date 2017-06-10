@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Object/IRSymtab.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -22,15 +23,16 @@
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/MC/StringTableBuilder.h"
-#include "llvm/Object/IRSymtab.h"
+#include "llvm/Object/IRObjectFile.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Object/SymbolicFile.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/StringSaver.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <string>
 #include <utility>
@@ -88,6 +90,10 @@ struct Builder {
 };
 
 Error Builder::addModule(Module *M) {
+  if (M->getDataLayoutStr().empty())
+    return make_error<StringError>("input module has no datalayout",
+                                   inconvertibleErrorCode());
+
   SmallPtrSet<GlobalValue *, 8> Used;
   collectUsedGlobalVariables(*M, Used, /*CompilerUsed*/ false);
 
@@ -258,4 +264,41 @@ Error Builder::build(ArrayRef<Module *> IRMods) {
 Error irsymtab::build(ArrayRef<Module *> Mods, SmallVector<char, 0> &Symtab,
                       SmallVector<char, 0> &Strtab) {
   return Builder(Symtab, Strtab).build(Mods);
+}
+
+// Upgrade a vector of bitcode modules created by an old version of LLVM by
+// creating an irsymtab for them in the current format.
+static Expected<FileContents> upgrade(ArrayRef<BitcodeModule> BMs) {
+  FileContents FC;
+
+  LLVMContext Ctx;
+  std::vector<Module *> Mods;
+  std::vector<std::unique_ptr<Module>> OwnedMods;
+  for (auto BM : BMs) {
+    Expected<std::unique_ptr<Module>> MOrErr =
+        BM.getLazyModule(Ctx, /*ShouldLazyLoadMetadata*/ true,
+                         /*IsImporting*/ false);
+    if (!MOrErr)
+      return MOrErr.takeError();
+
+    Mods.push_back(MOrErr->get());
+    OwnedMods.push_back(std::move(*MOrErr));
+  }
+
+  if (Error E = build(Mods, FC.Symtab, FC.Strtab))
+    return std::move(E);
+
+  FC.TheReader = {{FC.Symtab.data(), FC.Symtab.size()},
+                  {FC.Strtab.data(), FC.Strtab.size()}};
+  return std::move(FC);
+}
+
+Expected<FileContents> irsymtab::readBitcode(const BitcodeFileContents &BFC) {
+  if (BFC.Mods.empty())
+    return make_error<StringError>("Bitcode file does not contain any modules",
+                                   inconvertibleErrorCode());
+
+  // Right now we have no on-disk representation of symbol tables, so we always
+  // upgrade.
+  return upgrade(BFC.Mods);
 }

@@ -1,4 +1,4 @@
-//===-- XRayInstrumentation.cpp - Adds XRay instrumentation to functions. -===//
+//===- XRayInstrumentation.cpp - Adds XRay instrumentation to functions. --===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,20 +14,26 @@
 //
 //===---------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/Analysis.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Pass.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
 namespace {
+
 struct XRayInstrumentation : public MachineFunctionPass {
   static char ID;
 
@@ -66,7 +72,8 @@ private:
   void prependRetWithPatchableExit(MachineFunction &MF,
                                    const TargetInstrInfo *TII);
 };
-} // anonymous namespace
+
+} // end anonymous namespace
 
 void XRayInstrumentation::replaceRetWithPatchableRet(
     MachineFunction &MF, const TargetInstrInfo *TII) {
@@ -134,18 +141,23 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
     if (Attr.getValueAsString().getAsInteger(10, XRayThreshold))
       return false; // Invalid value for threshold.
 
+    // Count the number of MachineInstr`s in MachineFunction
+    int64_t MICount = 0;
+    for (const auto& MBB : MF)
+      MICount += MBB.size();
+
     // Check if we have a loop.
     // FIXME: Maybe make this smarter, and see whether the loops are dependent
     // on inputs or side-effects?
     MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
-    if (MLI.empty() && F.size() < XRayThreshold)
+    if (MLI.empty() && MICount < XRayThreshold)
       return false; // Function is too small and has no loops.
   }
 
   // We look for the first non-empty MachineBasicBlock, so that we can insert
   // the function instrumentation in the appropriate place.
-  auto MBI =
-      find_if(MF, [&](const MachineBasicBlock &MBB) { return !MBB.empty(); });
+  auto MBI = llvm::find_if(
+      MF, [&](const MachineBasicBlock &MBB) { return !MBB.empty(); });
   if (MBI == MF.end())
     return false; // The function is empty.
 

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/CodeGen/SelectionDAG.h"
 #include "SDNodeDbgValue.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -19,9 +20,9 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/None.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -33,7 +34,6 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
-#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -589,6 +589,11 @@ void SelectionDAG::RemoveDeadNodes(SmallVectorImpl<SDNode *> &DeadNodes) {
   // worklist.
   while (!DeadNodes.empty()) {
     SDNode *N = DeadNodes.pop_back_val();
+    // Skip to next node if we've already managed to delete the node. This could
+    // happen if replacing a node causes a node previously added to the node to
+    // be deleted.
+    if (N->getOpcode() == ISD::DELETED_NODE)
+      continue;
 
     for (DAGUpdateListener *DUL = UpdateListeners; DUL; DUL = DUL->Next)
       DUL->NodeDeleted(N, nullptr);
@@ -2661,7 +2666,7 @@ void SelectionDAG::computeKnownBits(SDValue Op, KnownBits &Known,
       if (DemandedElts[EltIdx]) {
         computeKnownBits(InVal, Known2, Depth + 1);
         Known.One &= Known2.One.zextOrTrunc(Known.One.getBitWidth());
-        Known.Zero &= Known2.Zero.zextOrTrunc(Known.Zero.getBitWidth());;
+        Known.Zero &= Known2.Zero.zextOrTrunc(Known.Zero.getBitWidth());
       }
 
       // If we demand the source vector then add its common known bits, ensuring
@@ -2677,7 +2682,7 @@ void SelectionDAG::computeKnownBits(SDValue Op, KnownBits &Known,
       computeKnownBits(InVec, Known, Depth + 1);
       computeKnownBits(InVal, Known2, Depth + 1);
       Known.One &= Known2.One.zextOrTrunc(Known.One.getBitWidth());
-      Known.Zero &= Known2.Zero.zextOrTrunc(Known.Zero.getBitWidth());;
+      Known.Zero &= Known2.Zero.zextOrTrunc(Known.Zero.getBitWidth());
     }
     break;
   }
@@ -3883,7 +3888,7 @@ SDValue SelectionDAG::FoldConstantArithmetic(unsigned Opcode, const SDLoc &DL,
   // fold (add Sym, c) -> Sym+c
   if (GlobalAddressSDNode *GA = dyn_cast<GlobalAddressSDNode>(Cst1))
     return FoldSymbolOffset(Opcode, VT, GA, Cst2);
-  if (isCommutativeBinOp(Opcode))
+  if (TLI->isCommutativeBinOp(Opcode))
     if (GlobalAddressSDNode *GA = dyn_cast<GlobalAddressSDNode>(Cst2))
       return FoldSymbolOffset(Opcode, VT, GA, Cst1);
 
@@ -4029,7 +4034,7 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
   ConstantFPSDNode *N2CFP = dyn_cast<ConstantFPSDNode>(N2);
 
   // Canonicalize constant to RHS if commutative.
-  if (isCommutativeBinOp(Opcode)) {
+  if (TLI->isCommutativeBinOp(Opcode)) {
     if (N1C && !N2C) {
       std::swap(N1C, N2C);
       std::swap(N1, N2);
@@ -4413,7 +4418,7 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
 
   // Canonicalize an UNDEF to the RHS, even over a constant.
   if (N1.isUndef()) {
-    if (isCommutativeBinOp(Opcode)) {
+    if (TLI->isCommutativeBinOp(Opcode)) {
       std::swap(N1, N2);
     } else {
       switch (Opcode) {

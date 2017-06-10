@@ -51,8 +51,10 @@ class DiagnosticsEngine;
 class FileEntry;
 class FileManager;
 class HeaderSearch;
+class InputKind;
 class MemoryBufferCache;
 class Preprocessor;
+class PreprocessorOptions;
 class PCHContainerOperations;
 class PCHContainerReader;
 class TargetInfo;
@@ -65,7 +67,7 @@ class FileSystem;
 
 /// \brief Utility class for loading a ASTContext from an AST file.
 ///
-class ASTUnit : public ModuleLoader {
+class ASTUnit {
 public:
   struct StandaloneFixIt {
     std::pair<unsigned, unsigned> RemoveRange;
@@ -96,6 +98,7 @@ private:
   IntrusiveRefCntPtr<ASTContext>          Ctx;
   std::shared_ptr<TargetOptions>          TargetOpts;
   std::shared_ptr<HeaderSearchOptions>    HSOpts;
+  std::shared_ptr<PreprocessorOptions>    PPOpts;
   IntrusiveRefCntPtr<ASTReader> Reader;
   bool HadModuleLoaderFatalFailure;
 
@@ -116,10 +119,13 @@ private:
   /// LoadFromCommandLine available.
   std::shared_ptr<CompilerInvocation> Invocation;
 
+  /// Fake module loader: the AST unit doesn't need to load any modules.
+  TrivialModuleLoader ModuleLoader;
+
   // OnlyLocalDecls - when true, walking this AST should only visit declarations
   // that come from the AST itself, not from included precompiled headers.
   // FIXME: This is temporary; eventually, CIndex will always do this.
-  bool                              OnlyLocalDecls;
+  bool OnlyLocalDecls;
 
   /// \brief Whether to capture any diagnostics produced.
   bool CaptureDiagnostics;
@@ -184,6 +190,14 @@ private:
   /// building the precompiled preamble fails, we won't try again for
   /// some number of calls.
   unsigned PreambleRebuildCounter;
+
+  /// \brief Cache pairs "filename - source location"
+  ///
+  /// Cache contains only source locations from preamble so it is
+  /// guaranteed that they stay valid when the SourceManager is recreated.
+  /// This cache is used when loading preambule to increase performance
+  /// of that loading. It must be cleared when preamble is recreated.
+  llvm::StringMap<SourceLocation> PreambleSrcLocCache;
 
 public:
   class PreambleData {
@@ -305,9 +319,6 @@ private:
   /// (likely to change while trying to use them).
   bool UserFilesAreVolatile : 1;
  
-  /// \brief The language options used when we load an AST file.
-  LangOptions ASTFileLangOpts;
-
   static void ConfigureDiags(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                              ASTUnit &AST, bool CaptureDiagnostics);
 
@@ -488,7 +499,7 @@ public:
   };
   friend class ConcurrencyCheck;
 
-  ~ASTUnit() override;
+  ~ASTUnit();
 
   bool isMainFileAST() const { return MainFileIsAST; }
 
@@ -518,8 +529,18 @@ public:
   }
 
   const LangOptions &getLangOpts() const {
-    assert(LangOpts && " ASTUnit does not have language options");
+    assert(LangOpts && "ASTUnit does not have language options");
     return *LangOpts;
+  }
+
+  const HeaderSearchOptions &getHeaderSearchOpts() const {
+    assert(HSOpts && "ASTUnit does not have header search options");
+    return *HSOpts;
+  }
+  
+  const PreprocessorOptions &getPreprocessorOpts() const {
+    assert(PPOpts && "ASTUnit does not have preprocessor options");
+    return *PPOpts;
   }
   
   const FileManager &getFileManager() const { return *FileMgr; }
@@ -702,6 +723,9 @@ public:
   /// \brief Determine what kind of translation unit this AST represents.
   TranslationUnitKind getTranslationUnitKind() const { return TUKind; }
 
+  /// \brief Determine the input kind this AST unit represents.
+  InputKind getInputKind() const;
+
   /// \brief A mapping from a file name to the memory buffer that stores the
   /// remapped contents of that file.
   typedef std::pair<std::string, llvm::MemoryBuffer *> RemappedFile;
@@ -858,6 +882,7 @@ public:
       bool CacheCodeCompletionResults = false,
       bool IncludeBriefCommentsInCodeCompletion = false,
       bool AllowPCHWithCompilerErrors = false, bool SkipFunctionBodies = false,
+      bool SingleFileParse = false,
       bool UserFilesAreVolatile = false, bool ForSerialization = false,
       llvm::Optional<StringRef> ModuleFormat = llvm::None,
       std::unique_ptr<ASTUnit> *ErrAST = nullptr,
@@ -923,21 +948,6 @@ public:
   ///
   /// \returns True if an error occurred, false otherwise.
   bool serialize(raw_ostream &OS);
-
-  ModuleLoadResult loadModule(SourceLocation ImportLoc, ModuleIdPath Path,
-                              Module::NameVisibilityKind Visibility,
-                              bool IsInclusionDirective) override {
-    // ASTUnit doesn't know how to load modules (not that this matters).
-    return ModuleLoadResult();
-  }
-
-  void makeModuleVisible(Module *Mod, Module::NameVisibilityKind Visibility,
-                         SourceLocation ImportLoc) override {}
-
-  GlobalModuleIndex *loadGlobalModuleIndex(SourceLocation TriggerLoc) override
-    { return nullptr; }
-  bool lookupMissingImports(StringRef Name, SourceLocation TriggerLoc) override
-    { return 0; }
 };
 
 } // namespace clang
