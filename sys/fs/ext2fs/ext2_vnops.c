@@ -164,9 +164,11 @@ struct vop_vector ext2_vnodeops = {
 	.vop_getextattr =	ext2_getextattr,
 	.vop_listextattr =	ext2_listextattr,
 	.vop_setextattr =	ext2_setextattr,
+#ifdef UFS_ACL
 	.vop_getacl =		ext2_getacl,
 	.vop_setacl =		ext2_setacl,
 	.vop_aclcheck =		ext2_aclcheck,
+#endif /* UFS_ACL */
 	.vop_vptofh =		ext2_vptofh,
 };
 
@@ -1087,6 +1089,7 @@ out:
 	return (error);
 }
 
+#ifdef UFS_ACL
 static int
 ext2_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
     mode_t dmode, struct ucred *cred, struct thread *td)
@@ -1231,6 +1234,8 @@ out:
 	return (error);
 }
 
+#endif /* UFS_ACL */
+
 /*
  * Mkdir system call
  */
@@ -1340,12 +1345,15 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		ip->i_flag |= IN_CHANGE;
 	}
 
+#ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ext2_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
 		    cnp->cn_cred, cnp->cn_thread);
 		if (error)
 			goto bad;
 	}
+
+#endif /* UFS_ACL */
 
 	/* Directory set up, now install its entry in the parent directory. */
 	error = ext2_direnter(ip, dvp, cnp);
@@ -1601,6 +1609,8 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
+
+#ifdef UFS_ACL
 	case _PC_ACL_EXTENDED:
 		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
 			*ap->a_retval = 1;
@@ -1613,6 +1623,8 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 		else
 			*ap->a_retval = 3;
 		break;
+#endif /* UFS_ACL */
+
 	case _PC_MIN_HOLE_SIZE:
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
@@ -1927,12 +1939,14 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	if (error)
 		goto bad;
 
+#ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
 		error = ext2_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
 		    cnp->cn_cred, cnp->cn_thread);
 		if (error)
 			goto bad;
 	}
+#endif /* UFS_ACL */
 
 	error = ext2_direnter(ip, dvp, cnp);
 	if (error)
