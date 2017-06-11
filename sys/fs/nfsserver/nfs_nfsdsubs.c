@@ -50,6 +50,8 @@ extern struct nfslockhashhead *nfslockhash;
 extern int nfsrv_lockhashsize;
 extern struct nfssessionhash *nfssessionhash;
 extern int nfsrv_sessionhashsize;
+extern struct nfslayouthash *nfslayouthash;
+extern int nfsrv_layouthashsize;
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
@@ -1442,7 +1444,14 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			nd->nd_flag |= ND_PUBLOOKUP;
 			goto nfsmout;
 		}
-		if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
+		copylen = len;
+
+		/* If len == NFSX_V4PNFSFH the RPC is a pNFS DS one. */
+		if (len == NFSX_V4PNFSFH && (nd->nd_flag & ND_NFSV41) != 0) {
+			copylen = NFSX_MYFH;
+			len = NFSM_RNDUP(len);
+			nd->nd_flag |= ND_DSSERVER;
+		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
@@ -1459,7 +1468,6 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 				goto nfsmout;
 			}
 		}
-		copylen = len;
 	} else {
 		/*
 		 * For NFSv2, the file handle is always 32 bytes on the
@@ -2053,6 +2061,12 @@ nfsd_init(void)
 	for (i = 0; i < nfsrv_sessionhashsize; i++) {
 		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
+	}
+	nfslayouthash = malloc(sizeof(struct nfslayouthash) *
+	    nfsrv_layouthashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_layouthashsize; i++) {
+		mtx_init(&nfslayouthash[i].mtx, "nfslm", NULL, MTX_DEF);
+		LIST_INIT(&nfslayouthash[i].list);
 	}
 
 	/* and the v2 pubfh should be all zeros */
