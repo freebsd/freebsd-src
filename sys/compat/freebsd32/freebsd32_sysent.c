@@ -552,8 +552,8 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(freebsd32_cpuset_setid_args), (sy_call_t *)freebsd32_cpuset_setid, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 485 = freebsd32_cpuset_setid */
 #endif
 	{ AS(freebsd32_cpuset_getid_args), (sy_call_t *)freebsd32_cpuset_getid, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 486 = freebsd32_cpuset_getid */
-	{ AS(freebsd32_cpuset_getaffinity_args), (sy_call_t *)freebsd32_cpuset_getaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 487 = freebsd32_cpuset_getaffinity */
-	{ AS(freebsd32_cpuset_setaffinity_args), (sy_call_t *)freebsd32_cpuset_setaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 488 = freebsd32_cpuset_setaffinity */
+	{ AS(freebsd32_cpuset_getaffinity_args), (sy_call_t *)freebsd32_cpuset_getaffinity, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 487 = freebsd32_cpuset_getaffinity */
+	{ AS(freebsd32_cpuset_setaffinity_args), (sy_call_t *)freebsd32_cpuset_setaffinity, AUE_NULL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 488 = freebsd32_cpuset_setaffinity */
 	{ AS(faccessat_args), (sy_call_t *)sys_faccessat, AUE_FACCESSAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 489 = faccessat */
 	{ AS(fchmodat_args), (sy_call_t *)sys_fchmodat, AUE_FCHMODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 490 = fchmodat */
 	{ AS(fchownat_args), (sy_call_t *)sys_fchownat, AUE_FCHOWNAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 491 = fchownat */
