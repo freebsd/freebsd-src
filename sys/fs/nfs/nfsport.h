@@ -707,6 +707,10 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSSESSIONMUTEXPTR(s)	(&((s)->mtx))
 #define	NFSLOCKSESSION(s)	mtx_lock(&((s)->mtx))
 #define	NFSUNLOCKSESSION(s)	mtx_unlock(&((s)->mtx))
+#define	NFSLOCKLAYOUT(l)	mtx_lock(&((l)->mtx))
+#define	NFSUNLOCKLAYOUT(l)	mtx_unlock(&((l)->mtx))
+#define	NFSDDSLOCK()		mtx_lock(&nfsrv_dslock_mtx)
+#define	NFSDDSUNLOCK()		mtx_unlock(&nfsrv_dslock_mtx)
 
 /*
  * Use these macros to initialize/free a mutex.
