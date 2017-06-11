@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2017
+.Dd June 11, 2017
 .Dt DTRACE_LOCKSTAT 4
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ The
 provider contains DTrace probe for inspecting the kernel's lock
 state transitions.
 Tracepoints exist for several types of kernel
-locking primitives, including mutexes, spin, reader-writer, 
+locking primitives, including mutexes, spin, reader-writer,
 and shared exclusive locks.
 An attempt has been made to provide a regular and easy to understand
 interface to the
@@ -101,7 +101,7 @@ The first argument is a pointer to the lock structure that describes
 the lock and the second argument is the length of time,
 in nanoseconds,
 that the waiting thread was blocked.
-The 
+The
 .Fn lockstat:::adaptive-block
 probe fires only after the lock has been successfully acquired,
 after the adaptive-acquire probe fires.
@@ -144,13 +144,13 @@ the lock and the second argument is the length of time,
 in nanoseconds,
 that the waiting thread was blocked.
 The third argument is 1 if the thread was were spinning while
-trying to acquire a read lock, 
+trying to acquire a read lock,
 otherwise it will be 0 indicating that we were spinning for the write lock.
 The fourth argument is 1 if we were waiting for a reader to release the lock,
-otherwise it will be  0 indicating that we were waiting for a writer 
+otherwise it will be 0 indicating that we were waiting for a writer
 to release the lock.
-The fifth argument is the number of readers that held the lock when 
-we started spinning; in particular, argument 5 is non-zero only 
+The fifth argument is the number of readers that held the lock when
+we started spinning; in particular, argument 5 is non-zero only
 if the fourth argument is 1.
 .Pp
 The
@@ -195,13 +195,13 @@ the lock and the second argument is the length of time,
 in nanoseconds,
 that the waiting thread was blocked.
 The third argument is 1 if the thread was were spinning while
-trying to acquire a read lock, 
+trying to acquire a read lock,
 otherwise it will be 0 indicating that we were spinning for the write lock.
 The fourth argument is 1 if we were waiting for a reader to release the lock,
-otherwise it will be  0 indicating that we were waiting for a writer 
+otherwise it will be 0 indicating that we were waiting for a writer
 to release the lock.
-The fifth argument is the number of readers that held the lock when 
-we started spinning; in particular, argument 5 is non-zero only 
+The fifth argument is the number of readers that held the lock when
+we started spinning; in particular, argument 5 is non-zero only
 if the fourth argument is 1.
 .Pp
 The
@@ -237,7 +237,7 @@ that the thread was spinning.
 .Xr dtrace 1 ,
 .Xr lockstat 1 ,
 .Xr locking 9 ,
-.Xr SDT 9 ,
+.Xr SDT 9
 .Sh HISTORY
 The
 .Nm lockstat
