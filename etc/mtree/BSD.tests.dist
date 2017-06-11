@@ -670,6 +670,8 @@
         ..
         soelim
         ..
+        stat
+        ..
         tail
         ..
         tar
