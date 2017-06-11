@@ -41,6 +41,7 @@ server
 .Op Fl ardute
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
+.Op Fl p Ar pnfs_setup
 .Op Fl Fl maxthreads Ar max_threads
 .Op Fl Fl minthreads Ar min_threads
 .Sh DESCRIPTION
@@ -103,6 +104,35 @@ It may also be specified in addition to any
 options given.
 Note that NFS/UDP does not operate properly when
 bound to the wildcard IP address whether you use -a or do not use -h.
+.It Fl p Ar pnfs_setup
+Enables pNFS support in the server and specifies the information that the
+daemon needs to start it.
+This option can only be used on one server and specifies that this server
+will be the MetaData Server (MDS) for the pNFS service.
+This can only be done if there is at least one FreeBSD system configured
+as a Data Server (DS) for it to use.
+.Pp
+The
+.Ar pnfs_setup
+string is a set of ',' separated fields:
+.Bl -tag -width Ds
+.It
+Each of these fields specifies one Data Server.
+It consists of a server hostname, followed by a ':'
+and the directory path where the DS's data storage file system is mounted on
+this MDS server.
+The DS storage file systems must be mounted on this system before the
+.Nm
+is started with this option specified.
+For example:
+.sp
+nfsv4-ds0:/DS0,nfsv4-ds1:/DS1
+.sp
+Would specify two DS servers called nfsv4-ds0 and nfsv4-ds1 that comprise the
+data storage component of the pNFS service.
+The directories "/DS0" and "/DS1" are where the DS storage servers exported
+storage directories are mounted on this system (which will act as the MDS).
+.El
 .It Fl t
 Serve
 .Tn TCP NFS
