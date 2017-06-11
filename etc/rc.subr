@@ -38,7 +38,9 @@
 #	Operating System dependent/independent variables
 #
 
-if [ -z "${_rc_subr_loaded}" ]; then
+if [ -n "${_rc_subr_loaded}" ]; then
+	return
+fi
 
 _rc_subr_loaded="YES"
 
@@ -2126,7 +2128,3 @@ _echoonce()
 if kenv -q rc.debug > /dev/null ; then
 	rc_debug=YES
 fi
-
-fi # [ -z "${_rc_subr_loaded}" ]
-
-_rc_subr_loaded=:
