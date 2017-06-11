@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170610: chown-f_test replaced by chown_test
+OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
 # 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
 OLD_FILES+=usr/share/man/man4/if_rtwn.4.gz
 # 20170531: removal of groff
