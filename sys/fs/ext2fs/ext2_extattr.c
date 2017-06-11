@@ -89,7 +89,7 @@ ext2_extattr_name_to_bsd(int attrnamespace, const char *name, int* name_len)
 	 */
 #ifdef EXT2FS_DEBUG
 	printf("can not convert ext2fs name to bsd: namespace=%d\n", attrnamespace);
-#endif	/* DEBUG */
+#endif
 
 	return (NULL);
 }
