@@ -49,6 +49,8 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_mount.h>
 
+#ifdef UFS_ACL
+
 void
 ext2_sync_acl_from_inode(struct inode *ip, struct acl *acl)
 {
@@ -522,3 +524,5 @@ ext2_aclcheck(struct vop_aclcheck_args *ap)
 
 	return (acl_posix1e_check(ap->a_aclp));
 }
+
+#endif /* UFS_ACL */
