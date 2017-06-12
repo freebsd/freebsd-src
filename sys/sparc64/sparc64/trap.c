@@ -538,17 +538,19 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 #define	REG_MAXARGS	6
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct trapframe *tf;
 	struct proc *p;
 	register_t *argp;
+	struct syscall_args *sa;
 	int reg;
 	int regcnt;
 	int error;
 
 	p = td->td_proc;
 	tf = td->td_frame;
+	sa = &td->td_sa;
 	reg = 0;
 	regcnt = REG_MAXARGS;
 
@@ -596,7 +598,6 @@ void
 syscall(struct trapframe *tf)
 {
 	struct thread *td;
-	struct syscall_args sa;
 	int error;
 
 	td = curthread;
@@ -612,6 +613,6 @@ syscall(struct trapframe *tf)
 	td->td_pcb->pcb_tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
-	error = syscallenter(td, &sa);
-	syscallret(td, error, &sa);
+	error = syscallenter(td);
+	syscallret(td, error);
 }

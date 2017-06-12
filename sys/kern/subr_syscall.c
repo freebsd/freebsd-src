@@ -57,13 +57,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static inline int
-syscallenter(struct thread *td, struct syscall_args *sa)
+syscallenter(struct thread *td)
 {
 	struct proc *p;
+	struct syscall_args *sa;
 	int error, traced;
 
 	VM_CNT_INC(v_syscall);
 	p = td->td_proc;
+	sa = &td->td_sa;
 
 	td->td_pticks = 0;
 	if (td->td_cowgen != p->p_cowgen)
@@ -76,7 +78,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
 	}
-	error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
+	error = (p->p_sysent->sv_fetch_syscall_args)(td);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(sa->code, sa->narg, sa->args);
@@ -90,8 +92,6 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		STOPEVENT(p, S_SCE, sa->narg);
 		if (p->p_flag & P_TRACED) {
 			PROC_LOCK(p);
-			td->td_dbg_sc_code = sa->code;
-			td->td_dbg_sc_narg = sa->narg;
 			if (p->p_ptevents & PTRACE_SCE)
 				ptracestop((td), SIGTRAP, NULL);
 			PROC_UNLOCK(p);
@@ -101,11 +101,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			 * Reread syscall number and arguments if
 			 * debugger modified registers or memory.
 			 */
-			error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
-			PROC_LOCK(p);
-			td->td_dbg_sc_code = sa->code;
-			td->td_dbg_sc_narg = sa->narg;
-			PROC_UNLOCK(p);
+			error = (p->p_sysent->sv_fetch_syscall_args)(td);
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSCALL))
 				ktrsyscall(sa->code, sa->narg, sa->args);
@@ -178,9 +174,10 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 }
 
 static inline void
-syscallret(struct thread *td, int error, struct syscall_args *sa)
+syscallret(struct thread *td, int error)
 {
 	struct proc *p, *p2;
+	struct syscall_args *sa;
 	ksiginfo_t ksi;
 	int traced, error1;
 
@@ -188,6 +185,7 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 	    ("fork() did not clear TDP_FORKING upon completion"));
 
 	p = td->td_proc;
+	sa = &td->td_sa;
 	if ((trap_enotcap || (p->p_flag2 & P2_TRAPCAP) != 0) &&
 	    IN_CAPABILITY_MODE(td)) {
 		error1 = (td->td_pflags & TDP_NERRNO) == 0 ? error :
