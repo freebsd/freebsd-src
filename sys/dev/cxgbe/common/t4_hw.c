@@ -7595,6 +7595,7 @@ static void init_link_config(struct link_config *lc, unsigned int pcaps,
 		fec |= FEC_BASER_RS;
 	if (acaps & FW_PORT_CAP_FEC_RESERVED)
 		fec |= FEC_RESERVED;
+	fec &= G_FW_PORT_CAP_FEC(lc->supported);
 	lc->requested_fec = lc->fec = fec;
 
 	if (lc->supported & FW_PORT_CAP_ANEG) {
