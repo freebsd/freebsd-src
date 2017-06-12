@@ -128,9 +128,6 @@ main(argc, argv)
 	case 's' :
 		err = poolstats(argc, argv);
 		break;
-	case 'v' :
-		opts |= OPT_VERBOSE;
-		break;
 	default :
 		exit(1);
 	}
