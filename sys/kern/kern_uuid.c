@@ -424,3 +424,10 @@ parse_uuid(const char *str, struct uuid *uuid)
 	    (c[3] & 0xc0) != 0x80 &&			/* variant 1? */
 	    (c[3] & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
 }
+
+int
+uuidcmp(const struct uuid *uuid1, const struct uuid *uuid2)
+{
+
+	return (memcmp(uuid1, uuid2, sizeof(struct uuid)));
+}
