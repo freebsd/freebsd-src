@@ -80,9 +80,9 @@ _Static_assert(offsetof(struct thread, td_flags) == 0xf4,
     "struct thread KBI td_flags");
 _Static_assert(offsetof(struct thread, td_pflags) == 0xfc,
     "struct thread KBI td_pflags");
-_Static_assert(offsetof(struct thread, td_frame) == 0x410,
+_Static_assert(offsetof(struct thread, td_frame) == 0x460,
     "struct thread KBI td_frame");
-_Static_assert(offsetof(struct thread, td_emuldata) == 0x4b8,
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x508,
     "struct thread KBI td_emuldata");
 _Static_assert(offsetof(struct proc, p_flag) == 0xb0,
     "struct proc KBI p_flag");
@@ -100,9 +100,9 @@ _Static_assert(offsetof(struct thread, td_flags) == 0x9c,
     "struct thread KBI td_flags");
 _Static_assert(offsetof(struct thread, td_pflags) == 0xa4,
     "struct thread KBI td_pflags");
-_Static_assert(offsetof(struct thread, td_frame) == 0x2c8,
+_Static_assert(offsetof(struct thread, td_frame) == 0x2ec,
     "struct thread KBI td_frame");
-_Static_assert(offsetof(struct thread, td_emuldata) == 0x314,
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x338,
     "struct thread KBI td_emuldata");
 _Static_assert(offsetof(struct proc, p_flag) == 0x68,
     "struct proc KBI p_flag");
