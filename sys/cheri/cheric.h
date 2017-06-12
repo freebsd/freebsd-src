@@ -109,13 +109,13 @@
  * appears not currently to be the case, so manually derive using
  * cheri_getpcc() for now.
  */
-static __inline __capability void *
+static __inline void * __capability
 cheri_codeptr(const void *ptr, size_t len)
 {
 #ifdef NOTYET
-	__capability void (*c)(void) = ptr;
+	void (* __capability c)(void) = ptr;
 #else
-	__capability void *c = cheri_setoffset(cheri_getpcc(),
+	void * __capability c = cheri_setoffset(cheri_getpcc(),
 	    (register_t)ptr);
 #endif
 
@@ -123,7 +123,7 @@ cheri_codeptr(const void *ptr, size_t len)
 	return (cheri_csetbounds(c, len));
 }
 
-static __inline __capability void *
+static __inline void * __capability
 cheri_codeptrperm(const void *ptr, size_t len, register_t perm)
 {
 
@@ -131,22 +131,22 @@ cheri_codeptrperm(const void *ptr, size_t len, register_t perm)
 	    perm | CHERI_PERM_GLOBAL));
 }
 
-static __inline __capability void *
+static __inline void * __capability
 cheri_ptr(const void *ptr, size_t len)
 {
 
 	/* Assume CFromPtr without base set, availability of CSetBounds. */
-	return (cheri_csetbounds((const __capability void *)ptr, len));
+	return (cheri_csetbounds((const void * __capability)ptr, len));
 }
 
-static __inline __capability void *
+static __inline void * __capability
 cheri_ptrperm(const void *ptr, size_t len, register_t perm)
 {
 
 	return (cheri_andperm(cheri_ptr(ptr, len), perm | CHERI_PERM_GLOBAL));
 }
 
-static __inline __capability void *
+static __inline void * __capability
 cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
 {
 
@@ -162,10 +162,10 @@ cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
  * The caller may wish to assert various properties about the returned
  * capability, including that CHERI_PERM_SEAL is set.
  */
-static __inline __capability void *
-cheri_maketype(__capability void *root_type, register_t type)
+static __inline void * __capability
+cheri_maketype(void * __capability root_type, register_t type)
 {
-	__capability void *c;
+	void * __capability c;
 
 	c = root_type;
 	c = cheri_setoffset(c, type);	/* Set type as desired. */
@@ -174,17 +174,17 @@ cheri_maketype(__capability void *root_type, register_t type)
 	return (c);
 }
 
-static __inline __capability void *
+static __inline void * __capability
 cheri_zerocap(void)
 {
-	return (__capability void *)0;
+	return (void * __capability)0;
 }
 
 #define CHERI_PRINT_PTR(ptr)						\
 	printf("%s: " #ptr " b:%016jx l:%016zx o:%jx\n", __func__,	\
-	   cheri_getbase((const __capability void *)(ptr)),		\
-	   cheri_getlen((const __capability void *)(ptr)),		\
-	   cheri_getoffset((const __capability void *)(ptr)))
+	   cheri_getbase((const void * __capability)(ptr)),		\
+	   cheri_getlen((const void * __capability)(ptr)),		\
+	   cheri_getoffset((const void * __capability)(ptr)))
 #endif
 
 #include <machine/cheric.h>
