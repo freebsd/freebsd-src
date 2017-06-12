@@ -767,6 +767,17 @@ _worldtmp: .PHONY
 	fi
 .endif
 .endfor
+# 20170607 remove stale dependencies for utimens* wrappers removed in r319663
+.for f in futimens utimensat
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+	@if egrep -q '/${f}.c' \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+		echo Removing stale dependencies for ${f} syscall wrappers; \
+		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+	fi
+.endif
+.endfor
 # 20170523 remove stale generated asm files for functions which are no longer
 # syscalls after r302092 (pipe) and r318736 (others)
 .for f in getdents lstat mknod pipe stat
