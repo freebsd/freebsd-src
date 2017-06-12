@@ -50,7 +50,8 @@ L_flag_body()
         stat_A=$(stat -f %i A)
         stat_C=$(stat -f %i C)
         atf_check_equal "$stat_A" "$stat_C"
-        atf_check -o inline:'B: symbolic link to A\n' file B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+        atf_check -o inline:'A\n' readlink B
 }
 
 atf_test_case P_flag
@@ -130,7 +131,8 @@ shf_flag_dir_body()
         atf_check mkdir -m 0777 A B
         atf_check ln -s A C
         atf_check ln -shf B C
-        atf_check -o inline:'C: symbolic link to B\n' file C
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT C
+        atf_check -o inline:'B\n' readlink C
 }
 
 atf_test_case snf_flag_dir
@@ -144,7 +146,8 @@ snf_flag_dir_body()
         atf_check mkdir -m 0777 A B
         atf_check ln -s A C
         atf_check ln -snf B C
-        atf_check -o inline:'C: symbolic link to B\n' file C
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT C
+        atf_check -o inline:'B\n' readlink C
 }
 
 atf_test_case sf_flag
@@ -160,7 +163,8 @@ sf_flag_body()
         set_umask
         atf_check touch A B
         atf_check ln -sf A B
-        atf_check -o inline:'B: symbolic link to A\n' file B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+        atf_check -o inline:'A\n' readlink B
 }
 
 atf_test_case s_flag
@@ -174,7 +178,8 @@ s_flag_body()
         set_umask
         atf_check touch A
         atf_check ln -s A B
-        atf_check -o inline:'B: symbolic link to A\n' file B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+        atf_check -o inline:'A\n' readlink B
 }
 
 atf_test_case s_flag_broken
@@ -187,7 +192,8 @@ s_flag_broken_head()
 s_flag_broken_body()
 {
         atf_check ln -s A B
-        atf_check -o inline:'B: broken symbolic link to A\n' file B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+        atf_check -o inline:'A\n' readlink B
 }
 
 atf_test_case sw_flag
@@ -201,7 +207,8 @@ sw_flag_body()
 {
         atf_check -s exit:0 -e inline:'ln: warning: A: No such file or directory\n' \
                 ln -sw A B
-        atf_check -o inline:'B: broken symbolic link to A\n' file B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+        atf_check -o inline:'A\n' readlink B
 }
 
 atf_init_test_cases()
