@@ -80,7 +80,6 @@ struct mdproc {
 	/* empty */
 };
 
-#ifdef _KERNEL
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -88,7 +87,6 @@ struct syscall_args {
 	int narg;
 	struct trapframe *trapframe;
 };
-#endif
 
 #ifdef __mips_n64
 #define	KINFO_PROC_SIZE 1088
