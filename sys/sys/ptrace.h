@@ -69,6 +69,8 @@
 #define	PT_GET_EVENT_MASK 25	/* get mask of optional events */
 #define	PT_SET_EVENT_MASK 26	/* set mask of optional events */
 
+#define	PT_GET_SC_ARGS	27	/* fetch syscall args */
+
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
 #define PT_GETFPREGS    35	/* get floating-point registers */
