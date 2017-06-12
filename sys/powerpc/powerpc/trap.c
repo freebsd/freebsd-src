@@ -496,16 +496,18 @@ handle_onfault(struct trapframe *frame)
 }
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	struct trapframe *frame;
+	struct syscall_args *sa;
 	caddr_t	params;
 	size_t argsz;
 	int error, n, i;
 
 	p = td->td_proc;
 	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	sa->code = frame->fixreg[0];
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
@@ -587,7 +589,6 @@ void
 syscall(struct trapframe *frame)
 {
 	struct thread *td;
-	struct syscall_args sa;
 	int error;
 
 	td = curthread;
@@ -602,8 +603,8 @@ syscall(struct trapframe *frame)
             "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
 #endif
 
-	error = syscallenter(td, &sa);
-	syscallret(td, error, &sa);
+	error = syscallenter(td);
+	syscallret(td, error);
 }
 
 #if defined(__powerpc64__) && defined(AIM)
