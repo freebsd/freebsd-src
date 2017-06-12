@@ -307,8 +307,6 @@ struct l_dirent64 {
     roundup(offsetof(struct l_dirent64, d_name) + (namlen) + 1,		\
     sizeof(uint64_t))
 
-#define	LINUX_DIRBLKSIZ		512
-
 int
 linux_getdents(struct thread *td, struct linux_getdents_args *args)
 {
