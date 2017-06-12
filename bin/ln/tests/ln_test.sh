@@ -150,6 +150,22 @@ snf_flag_dir_body()
         atf_check -o inline:'B\n' readlink C
 }
 
+atf_test_case sF_flag
+sF_flag_head()
+{
+        atf_set "descr" "Verify that if the target file already exists " \
+                        "and is a directory, then '-sF' option removes " \
+                        "it so that the link may occur"
+}
+
+sF_flag_body()
+{
+	atf_expect_fail "B isn't being unlinked (bug 219943)"
+	atf_check mkdir A B
+        atf_check ln -sF A B
+        atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+}
+
 atf_test_case sf_flag
 sf_flag_head()
 {
@@ -220,6 +236,7 @@ atf_init_test_cases()
         atf_add_test_case target_exists_symbolic
         atf_add_test_case shf_flag_dir
         atf_add_test_case snf_flag_dir
+        atf_add_test_case sF_flag
         atf_add_test_case sf_flag
         atf_add_test_case s_flag
         atf_add_test_case s_flag_broken
