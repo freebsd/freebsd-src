@@ -13,7 +13,9 @@ MAKE_PRINT_VAR_ON_ERROR += \
 	.MAKE.MODE
 .endif
 
+_ERROR_CMD=${sed -n '/^CMD/s,^CMD ,,p' ${.ERROR_META_FILE}:L:sh}
 MAKE_PRINT_VAR_ON_ERROR+= \
+	_ERROR_CMD \
 	.CURDIR \
 	.MAKE \
 	.OBJDIR \
