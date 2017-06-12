@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-
 #include <err.h>
 #include <errno.h>
 #include <fnmatch.h>
@@ -514,7 +513,7 @@ static void
 ignoreclean(void)
 {
 	struct ignentry *ign;
-	
+
 	while (!SLIST_EMPTY(&ignores)) {
 		ign = SLIST_FIRST(&ignores);
 		SLIST_REMOVE_HEAD(&ignores, next);
