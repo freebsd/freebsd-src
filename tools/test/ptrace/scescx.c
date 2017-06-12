@@ -97,6 +97,11 @@ decode_pl_flags(struct ptrace_lwpinfo *lwpinfo)
 		{ PL_FLAG_EXEC, "EXEC" },
 		{ PL_FLAG_SI, "SI" },
 		{ PL_FLAG_FORKED, "FORKED" },
+		{ PL_FLAG_CHILD, "CHILD" },
+		{ PL_FLAG_BORN, "LWPBORN" },
+		{ PL_FLAG_EXITED, "LWPEXITED" },
+		{ PL_FLAG_VFORKED, "VFORKED" },
+		{ PL_FLAG_VFORK_DONE, "VFORKDONE" },
 	};
 	char de[32];
 	unsigned first, flags, i;
