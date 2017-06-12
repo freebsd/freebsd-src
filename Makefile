@@ -522,6 +522,8 @@ TARGET!=	uname -m
 .endif
 .if defined(MAKE_ALL_KERNELS)
 _THINNER=cat
+.elif defined(MAKE_GENERIC_KERNELS)
+_THINNER=grep "GENERIC" || true
 .else
 _THINNER=xargs grep -L "^.NO_UNIVERSE" || true
 .endif
