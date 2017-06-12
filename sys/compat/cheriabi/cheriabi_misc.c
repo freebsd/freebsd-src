@@ -192,7 +192,7 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 
 	path = td->td_md.md_cheriabi_pathbuf;
 	error = cheriabi_copyinstrarg(td, CHERIABI_SYS_cheriabi_openat, 1,
-	    path, MAXPATHLEN, &slen);
+	    path, MAXPATHLEN, &slen, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 	if (error)
 		goto fail;
 
@@ -1309,8 +1309,8 @@ cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
 	union sigval	sv;
 	int		flags = 0, tag;
 
-	cheriabi_fetch_syscall_arg(td, &value_union.sival_ptr,
-	    CHERIABI_SYS_cheriabi_sigqueue, 2);
+	cheriabi_fetch_syscall_arg_x(td, &value_union.sival_ptr,
+	    CHERIABI_SYS_cheriabi_sigqueue, 2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	if (uap->pid == td->td_proc->p_pid) {
 		sv.sival_ptr = malloc(sizeof(value_union), M_TEMP, M_WAITOK);
 		cheri_capability_copy(sv.sival_ptr,
@@ -1325,9 +1325,7 @@ cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
 		 * CheriABI processess? (Would have to happen in
 		 * delivery code to avoid a race).
 		 */
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &value_union.sival_ptr, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(value_union.sival_ptr);
 		if (tag)
 			return (EPROT);
 		sv.sival_int = value_union.sival_int;
@@ -1870,7 +1868,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	int flags = uap->flags;
 	int usertag;
 	size_t cap_base, cap_len, cap_offset;
-	struct chericap addr_cap;
+	void * __capability addr_cap;
 	register_t perms, reqperms;
 	vm_offset_t reqaddr;
 
@@ -1879,10 +1877,9 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		return (EINVAL);
 	}
 
-	cheriabi_fetch_syscall_arg(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-	CHERI_CGETTAG(usertag, CHERI_CR_CTEMP0);
+	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
+	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mmap_PTRMASK);
+	usertag = cheri_gettag(addr_cap);
 	if (!usertag) {
 		if (flags & MAP_FIXED) {
 			SYSERRCAUSE(
@@ -1897,20 +1894,19 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 
 		/* User didn't provide a capability so get the default one. */
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		addr_cap = *((void * __capability *)&(td->td_proc->p_md.md_cheri_mmap_cap));
 		PROC_UNLOCK(td->td_proc);
 #ifdef INVARIANTS
 		int tag;
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(addr_cap);
 		KASSERT(tag,
 		    ("td->td_proc->p_md.md_cheri_mmap_cap is untagged!"));
 #endif
 	}
-	CHERI_CGETBASE(cap_base, CHERI_CR_CTEMP0);
-	CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
+	cap_base = cheri_getbase(addr_cap);
+	cap_len = cheri_getlen(addr_cap);
 	if (usertag)
-		CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
+		cap_offset = cheri_getoffset(addr_cap);
 	else
 		/*
 		 * Ignore offset of default cap, it's only used to set bounds.
@@ -1923,7 +1919,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	reqaddr = cap_base + cap_offset;
 	if (reqaddr == 0)
 		reqaddr = PAGE_SIZE;
-	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	perms = cheri_getperm(addr_cap);
 	reqperms = cheriabi_mmap_prot2perms(uap->prot);
 	if ((perms & reqperms) != reqperms) {
 		SYSERRCAUSE("capability has insufficient perms (0x%lx)"

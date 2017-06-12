@@ -140,7 +140,7 @@ void	cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 void	cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *arg,
 	    int syscall_no, int argnum, int ptrmask);
 int	cheriabi_copyinstrarg(struct thread *td, int syscall, int arg,
-	    char *buf, size_t len, size_t *done);
+	    char *buf, size_t len, size_t *done, int ptrmask);
 
 int	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	    struct chericap *addr, size_t len, int prot, int flags);

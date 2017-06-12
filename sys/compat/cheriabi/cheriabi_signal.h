@@ -39,7 +39,7 @@ struct sigaltstack_c {
 
 union sigval_c {
 	int			sival_int;
-	struct chericap		sival_ptr;
+	void * __capability	sival_ptr;
 	/* XXX: no 6.0 compatibility (sigval_*) */
 };
 
