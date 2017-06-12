@@ -206,12 +206,14 @@ required_files=
 if checkyesno sendmail_submit_enable; then
 	name="sendmail_submit"
 	rcvar="sendmail_submit_enable"
+	_rc_restart_done=false
 	run_rc_command "$1"
 fi
 
 if checkyesno sendmail_outbound_enable; then
 	name="sendmail_outbound"
 	rcvar="sendmail_outbound_enable"
+	_rc_restart_done=false
 	run_rc_command "$1"
 fi
 
@@ -219,4 +221,5 @@ name="sendmail_msp_queue"
 rcvar="sendmail_msp_queue_enable"
 pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
 required_files="/etc/mail/submit.cf"
+_rc_restart_done=false
 run_rc_command "$1"
