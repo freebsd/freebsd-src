@@ -362,6 +362,9 @@
 
       <para revision="319349">&man.byacc.1; has been updated to
 	version 20170201.</para>
+
+      <para revision="319884"><application>bmake</application> has
+	been updated to version 20170510.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
