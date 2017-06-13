@@ -1153,7 +1153,7 @@ cheriabi_swapcontext(struct thread *td, struct cheriabi_swapcontext_args *uap)
 }
 
 struct sigvec_c {
-	struct chericap	sv_handler;
+	void * __capability	sv_handler;
 	int		sv_mask;
 	int		sv_flags;
 };
