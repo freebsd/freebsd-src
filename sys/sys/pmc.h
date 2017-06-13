@@ -741,6 +741,7 @@ struct pmc {
 	struct pmc_owner *pm_owner;	/* owner thread state */
 	int		pm_runcount;	/* #cpus currently on */
 	enum pmc_state	pm_state;	/* current PMC state */
+	uint32_t	pm_overflowcnt;	/* count overflow interrupts */
 
 	/*
 	 * The PMC ID field encodes the row-index for the PMC, its
