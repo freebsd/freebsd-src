@@ -656,7 +656,7 @@ SRCS_MIN+=	Support/Regex.cpp
 SRCS_MIN+=	Support/SHA1.cpp
 SRCS_MIN+=	Support/ScaledNumber.cpp
 SRCS_MIN+=	Support/ScopedPrinter.cpp
-SRCS_LDB+=	Support/SearchForAddressOfSpecialSymbol.cpp
+SRCS_MIN+=	Support/SearchForAddressOfSpecialSymbol.cpp
 SRCS_MIN+=	Support/Signals.cpp
 SRCS_MIN+=	Support/SmallPtrSet.cpp
 SRCS_MIN+=	Support/SmallVector.cpp
@@ -1160,9 +1160,6 @@ SRCS_ALL+=	${SRCS_EXL}
 .endif
 .if ${MK_LLD} != "no"
 SRCS_ALL+=	${SRCS_LLD}
-.endif
-.if ${MK_LLDB} != "no"
-SRCS_ALL+=	${SRCS_LDB}
 .endif
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SRCS_ALL+=	${SRCS_XDB}
