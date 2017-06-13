@@ -50,8 +50,8 @@
  */
 struct cheri_frame {
 	/* DDC has special properties for MIPS load/store instructions. */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void	*cf_ddc;
+#if __has_feature(capabilities)
+	void * __capability	cf_ddc;
 #else
 	struct chericap	cf_ddc;
 #endif
@@ -60,13 +60,33 @@ struct cheri_frame {
 	 * General-purpose capabilities -- note, numbering is from v1.17 of
 	 * the CHERI ISA spec (ISAv5 draft).
 	 */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void *cf_c1, *cf_c2, *cf_c3, *cf_c4;
-	__capability void *cf_c5, *cf_c6, *cf_c7;
-	__capability void *cf_c8, *cf_c9, *cf_c10, *cf_stc, *cf_c12;
-	__capability void *cf_c13, *cf_c14, *cf_c15, *cf_c16, *cf_c17;
-	__capability void *cf_c18, *cf_c19, *cf_c20, *cf_c21, *cf_c22;
-	__capability void *cf_c23, *cf_c24, *cf_c25, *cf_idc;
+#if __has_feature(capabilities)
+	void * __capability	cf_c1;
+	void * __capability	cf_c2;
+	void * __capability	cf_c3;
+	void * __capability	cf_c4;
+	void * __capability	cf_c5;
+	void * __capability	cf_c6;
+	void * __capability	cf_c7;
+	void * __capability	cf_c8;
+	void * __capability	cf_c9;
+	void * __capability	cf_c10;
+	void * __capability	cf_stc;
+	void * __capability	cf_c12;
+	void * __capability	cf_c13;
+	void * __capability	cf_c14;
+	void * __capability	cf_c15;
+	void * __capability	cf_c16;
+	void * __capability	cf_c17;
+	void * __capability	cf_c18;
+	void * __capability	cf_c19;
+	void * __capability	cf_c20;
+	void * __capability	cf_c21;
+	void * __capability	cf_c22;
+	void * __capability	cf_c23;
+	void * __capability	cf_c24;
+	void * __capability	cf_c25;
+	void * __capability	cf_idc;
 #else
 	struct chericap	cf_c1, cf_c2, cf_c3, cf_c4;
 	struct chericap	cf_c5, cf_c6, cf_c7;
@@ -79,8 +99,8 @@ struct cheri_frame {
 	/*
 	 * Program counter capability -- extracted from exception frame EPCC.
 	 */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void *cf_pcc;
+#if __has_feature(capabilities)
+	void * __capability	cf_pcc;
 #else
 	struct chericap	cf_pcc;
 #endif
@@ -109,14 +129,14 @@ CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
  * voluntary context switches.  This is morally equivalent to pcb_context[].
  */
 struct cheri_kframe {
-	struct chericap	ckf_c17;
-	struct chericap	ckf_c18;
-	struct chericap ckf_c19;
-	struct chericap ckf_c20;
-	struct chericap ckf_c21;
-	struct chericap ckf_c22;
-	struct chericap ckf_c23;
-	struct chericap ckf_c24;
+	void * __capability	ckf_c17;
+	void * __capability	ckf_c18;
+	void * __capability	ckf_c19;
+	void * __capability	ckf_c20;
+	void * __capability	ckf_c21;
+	void * __capability	ckf_c22;
+	void * __capability	ckf_c23;
+	void * __capability	ckf_c24;
 };
 #endif
 
