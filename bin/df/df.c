@@ -490,7 +490,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		xo_emit("{T:/%-*s}", mwp->mntfrom, "Filesystem");
 		if (Tflag)
 			xo_emit("  {T:/%-*s}", mwp->fstype, "Type");
-		xo_emit(" {T:/%*s} {T:/%*s} {T:/%*s} Capacity",
+		xo_emit(" {T:/%*s} {T:/%*s} {T:/%*s} {T:Capacity}",
 			mwp->total, header,
 			mwp->used, "Used", mwp->avail, "Avail");
 		if (iflag) {
