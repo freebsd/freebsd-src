@@ -58,7 +58,7 @@ CTASSERT(sizeof(struct uuid) == 16);
 /* We use an alternative, more convenient representation in the generator. */
 struct uuid_private {
 	union {
-		uint64_t	ll;		/* internal. */
+		uint64_t	ll;	/* internal, for uuid_last only */
 		struct {
 			uint32_t	low;
 			uint16_t	mid;
