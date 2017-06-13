@@ -96,6 +96,7 @@ static void decode_win_cesa_setup(u_long);
 static void decode_win_usb_setup(u_long);
 static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
+static void decode_win_neta_setup(u_long);
 static void decode_win_sata_setup(u_long);
 static void decode_win_ahci_setup(u_long);
 static void decode_win_sdhci_setup(u_long);
@@ -107,6 +108,7 @@ static void decode_win_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
+static void decode_win_neta_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 static void decode_win_ahci_dump(u_long base);
@@ -152,6 +154,7 @@ struct soc_node_spec {
 
 static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
+	{ "marvell,armada-370-neta", &decode_win_neta_setup, &decode_win_neta_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,orion-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
@@ -1431,6 +1434,20 @@ decode_win_eth_setup(u_long base)
 				break;
 			}
 		}
+}
+
+static void
+decode_win_neta_dump(u_long base)
+{
+
+	decode_win_eth_dump(base + MV_WIN_NETA_OFFSET);
+}
+
+static void
+decode_win_neta_setup(u_long base)
+{
+
+	decode_win_eth_setup(base + MV_WIN_NETA_OFFSET);
 }
 
 static int
