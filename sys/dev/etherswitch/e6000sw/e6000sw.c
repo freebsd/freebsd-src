@@ -217,11 +217,15 @@ e6000sw_probe(device_t dev)
 	if (sc->sw_addr != 0 && (sc->sw_addr % 2) == 0)
 		sc->multi_chip = true;
 
-	/* Lock is necessary due to assertions. */
-	sx_init(&sc->sx, "e6000sw");
+	/*
+	 * Create temporary lock, just to satisfy assertions,
+	 * when obtaining the switch ID. Destroy immediately afterwards.
+	 */
+	sx_init(&sc->sx, "e6000sw_tmp");
 	E6000SW_LOCK(sc);
 	id = e6000sw_readreg(sc, REG_PORT(0), SWITCH_ID);
 	E6000SW_UNLOCK(sc);
+	sx_destroy(&sc->sx);
 
 	switch (id & 0xfff0) {
 	case 0x3400:
@@ -247,7 +251,6 @@ e6000sw_probe(device_t dev)
 		sc->num_ports = 7;
 		break;
 	default:
-		sx_destroy(&sc->sx);
 		device_printf(dev, "Unrecognized device, id 0x%x.\n", id);
 		return (ENXIO);
 	}
@@ -354,6 +357,8 @@ e6000sw_attach(device_t dev)
 		device_printf(dev, "multi-chip addressing mode\n");
 	else
 		device_printf(dev, "single-chip addressing mode\n");
+
+	sx_init(&sc->sx, "e6000sw");
 
 	E6000SW_LOCK(sc);
 	e6000sw_setup(dev, sc);
