@@ -1,4 +1,4 @@
-MAKE(1)                 NetBSD General Commands Manual                 MAKE(1)
+BMAKE(1)                NetBSD General Commands Manual                BMAKE(1)
 
 NNAAMMEE
      bbmmaakkee -- maintain program dependencies
@@ -604,6 +604,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      Provides a list of patterns to match against pathnames.
                      Ignore any that match.
 
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___F_I_L_T_E_R
+                     Provides a list of variable modifiers to apply to each
+                     pathname.  Ignore if the expansion is an empty string.
+
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
                      "meta verbose" mode.  The default value is:
@@ -635,9 +639,14 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      becomes `$' per normal evaluation rules.
 
      _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R
-                     When bbmmaakkee stops due to an error, it prints its name and
-                     the value of `_._C_U_R_D_I_R' as well as the value of any vari-
-                     ables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
+                     When bbmmaakkee stops due to an error, it sets `_._E_R_R_O_R___T_A_R_G_E_T'
+                     to the name of the target that failed, `_._E_R_R_O_R___C_M_D' to
+                     the commands of the failed target, and in "meta" mode, it
+                     also sets `_._E_R_R_O_R___C_W_D' to the getcwd(3), and
+                     `_._E_R_R_O_R___M_E_T_A___F_I_L_E' to the path of the meta file (if any)
+                     describing the failed target.  It then prints its name
+                     and the value of `_._C_U_R_D_I_R' as well as the value of any
+                     variables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
 
      _._n_e_w_l_i_n_e        This variable is simply assigned a newline character as
                      its value.  This allows expansions using the ::@@ modifier
@@ -780,16 +789,20 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::RR   Replaces each word in the variable with everything but its suffix.
 
-     ::ggmmttiimmee
-          The value is a format string for strftime(3), using the current
-          gmtime(3).
+     ::rraannggee[[==ccoouunntt]]
+          The value is an integer sequence representing the words of the orig-
+          inal value, or the supplied _c_o_u_n_t.
+
+     ::ggmmttiimmee[[==uuttcc]]
+          The value is a format string for strftime(3), using gmtime(3).  If a
+          _u_t_c value is not provided or is 0, the current time is used.
 
      ::hhaasshh
           Compute a 32-bit hash of the value and encode it as hex digits.
 
-     ::llooccaallttiimmee
-          The value is a format string for strftime(3), using the current
-          localtime(3).
+     ::llooccaallttiimmee[[==uuttcc]]
+          The value is a format string for strftime(3), using localtime(3).
+          If a _u_t_c value is not provided or is 0, the current time is used.
 
      ::ttAA  Attempt to convert variable to an absolute path using realpath(3),
           if that fails, the value is unchanged.
@@ -889,6 +902,19 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
           However a single character variable is often more readable:
                 ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
+
+     ::__[[==vvaarr]]
+          Save the current variable value in `$_' or the named _v_a_r for later
+          reference.  Example usage:
+
+                M_cmpv.units = 1 1000 1000000
+                M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \
+                \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+
+                .if ${VERSION:${M_cmpv}} < ${3.1.12:L:${M_cmpv}}
+
+          Here `$_' is used to save the result of the `:S' modifier which is
+          later referenced using the index values from `:range'.
 
      ::UU_n_e_w_v_a_l
           If the variable is undefined _n_e_w_v_a_l is the value.  If the variable
@@ -1276,6 +1302,14 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               target that inherits ..DDEEFFAAUULLTT's commands is set to the target's
               own name.
 
+     ..DDEELLEETTEE__OONN__EERRRROORR
+              If this target is present in the makefile, it globally causes
+              make to delete targets whose commands fail.  (By default, only
+              targets whose commands are interrupted during execution are
+              deleted.  This is the historical behavior.)  This setting can be
+              used to help prevent half-finished or malformed targets from
+              being left around and corrupting future rebuilds.
+
      ..EENNDD     Any command lines attached to this target are executed after
               everything else is done.
 
@@ -1489,4 +1523,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       June 2, 2016                       NetBSD 5.1
+NetBSD 7.1_RC1                 February 1, 2017                 NetBSD 7.1_RC1

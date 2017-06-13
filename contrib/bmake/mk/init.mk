@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.12 2016/04/05 15:58:37 sjg Exp $
+# $Id: init.mk,v 1.15 2017/05/07 20:27:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -50,8 +50,20 @@ PROFFLAGS?= -DGPROF -DPROF
 _SKIP_BUILD = not building at level 0
 .endif
 
-.if !empty(_SKIP_BUILD)
+.if !defined(.PARSEDIR)
+# no-op is the best we can do if not bmake.
+.WAIT:
+.endif
+
+# define this once for consistency
+.if empty(_SKIP_BUILD)
+# beforebuild is a hook for things that must be done early
+all: beforebuild .WAIT realbuild
+.else
 all: .PHONY
 .warning ${_SKIP_BUILD}
 .endif
+beforebuild:
+realbuild:
+
 .endif

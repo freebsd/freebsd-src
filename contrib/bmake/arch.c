@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.69 2016/04/06 09:57:00 gson Exp $	*/
+/*	$NetBSD: arch.c,v 1.70 2017/04/16 20:49:09 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: arch.c,v 1.69 2016/04/06 09:57:00 gson Exp $";
+static char rcsid[] = "$NetBSD: arch.c,v 1.70 2017/04/16 20:49:09 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)arch.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: arch.c,v 1.69 2016/04/06 09:57:00 gson Exp $");
+__RCSID("$NetBSD: arch.c,v 1.70 2017/04/16 20:49:09 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -726,7 +726,8 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 		if (fread(memName, elen, 1, arch) != 1)
 			goto badarch;
 		memName[elen] = '\0';
-		fseek(arch, -elen, SEEK_CUR);
+		if (fseek(arch, -elen, SEEK_CUR) != 0)
+			goto badarch;
 		if (DEBUG(ARCH) || DEBUG(MAKE)) {
 		    fprintf(debug_file, "ArchStat: Extended format entry for %s\n", memName);
 		}
@@ -737,7 +738,8 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 	    Hash_SetValue(he, bmake_malloc(sizeof(struct ar_hdr)));
 	    memcpy(Hash_GetValue(he), &arh, sizeof(struct ar_hdr));
 	}
-	fseek(arch, (size + 1) & ~1, SEEK_CUR);
+	if (fseek(arch, (size + 1) & ~1, SEEK_CUR) != 0)
+	    goto badarch;
     }
 
     fclose(arch);
@@ -956,7 +958,10 @@ ArchFindMember(char *archive, char *member, struct ar_hdr *arhPtr,
 		 * the file at the actual member, rather than its header, but
 		 * not here...
 		 */
-		fseek(arch, -sizeof(struct ar_hdr), SEEK_CUR);
+		if (fseek(arch, -sizeof(struct ar_hdr), SEEK_CUR) != 0) {
+		    fclose(arch);
+		    return NULL;
+		}
 		return (arch);
 	    }
 	} else
@@ -986,10 +991,17 @@ ArchFindMember(char *archive, char *member, struct ar_hdr *arhPtr,
 		}
 		if (strncmp(ename, member, len) == 0) {
 			/* Found as extended name */
-			fseek(arch, -sizeof(struct ar_hdr) - elen, SEEK_CUR);
+			if (fseek(arch, -sizeof(struct ar_hdr) - elen,
+				SEEK_CUR) != 0) {
+			    fclose(arch);
+			    return NULL;
+			}
 			return (arch);
 		}
-		fseek(arch, -elen, SEEK_CUR);
+		if (fseek(arch, -elen, SEEK_CUR) != 0) {
+		    fclose(arch);
+		    return NULL;
+		}
 		goto skip;
 	} else
 #endif
@@ -1002,9 +1014,12 @@ skip:
 	     * extract the size of the file from the 'size' field of the
 	     * header and round it up during the seek.
 	     */
-	    arhPtr->ar_size[sizeof(arhPtr->AR_SIZE)-1] = '\0';
+	    arhPtr->AR_SIZE[sizeof(arhPtr->AR_SIZE)-1] = '\0';
 	    size = (int)strtol(arhPtr->AR_SIZE, NULL, 10);
-	    fseek(arch, (size + 1) & ~1, SEEK_CUR);
+	    if (fseek(arch, (size + 1) & ~1, SEEK_CUR) != 0) {
+		fclose(arch);
+		return NULL;
+	    }
 	}
     }
 

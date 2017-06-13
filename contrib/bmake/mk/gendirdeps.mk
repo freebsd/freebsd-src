@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.32 2016/04/05 15:58:37 sjg Exp $
+# $Id: gendirdeps.mk,v 1.33 2016/10/11 22:37:28 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -145,6 +145,9 @@ META2DEPS_CMD += \
 M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
 .if defined(SB_OBJROOT)
 M2D_OBJROOTS += ${SB_OBJROOT}
+.endif
+.if defined(STAGE_ROOT)
+M2D_OBJROOTS += ${STAGE_ROOT}
 .endif
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} == ""
 # meta2deps.py only groks objroot

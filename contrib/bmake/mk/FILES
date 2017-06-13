@@ -9,6 +9,7 @@ cython.mk
 dep.mk
 doc.mk
 dpadd.mk
+files.mk
 final.mk
 host-target.mk
 host.libnames.mk
@@ -38,7 +39,9 @@ stage-install.sh
 subdir.mk
 sys.mk
 sys.clean-env.mk
+sys.debug.mk
 sys.dependfile.mk
+sys.vars.mk
 sys/AIX.mk
 sys/Darwin.mk
 sys/Generic.mk

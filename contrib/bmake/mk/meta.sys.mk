@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.28 2016/04/05 15:58:37 sjg Exp $
+# $Id: meta.sys.mk,v 1.31 2016/09/10 00:44:46 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -24,6 +24,10 @@
 
 # absoulte path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:tA}
+
+.if !defined(SYS_MK_DIR)
+SYS_MK_DIR := ${_PARSEDIR}
+.endif
 
 META_MODE += meta verbose
 .MAKE.MODE ?= ${META_MODE}
@@ -98,9 +102,6 @@ _metaError: .NOMETA .NOTMAIN
 
 .endif
 
-META_COOKIE_TOUCH=
-# some targets need to be .PHONY in non-meta mode
-META_NOPHONY= .PHONY
 # Are we, after all, in meta mode?
 .if ${.MAKE.MODE:Uno:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
@@ -117,8 +118,17 @@ MKDEP_MK = meta.autodep.mk
 
 # we can afford to use cookies to prevent some targets
 # re-running needlessly
-META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+META_COOKIE_TOUCH?= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET:T}}
 META_NOPHONY=
+
+# some targets involve old pre-built targets
+# ignore mtime of shell
+# and mtime of makefiles does not matter in meta mode
+.MAKE.META.IGNORE_PATHS += \
+        ${MAKEFILE} \
+        ${SHELL} \
+        ${SYS_MK_DIR}
+
 .if ${UPDATE_DEPENDFILE:Uyes:tl} != "no"
 .if ${.MAKEFLAGS:Uno:M-k} != ""
 # make this more obvious
@@ -149,5 +159,9 @@ BUILD_AT_LEVEL0 ?= no
 .endif
 
 .endif
+.else
+META_COOKIE_TOUCH=
+# some targets need to be .PHONY in non-meta mode
+META_NOPHONY= .PHONY
 .endif
 .endif
