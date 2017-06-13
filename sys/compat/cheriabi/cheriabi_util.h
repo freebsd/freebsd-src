@@ -126,7 +126,7 @@ int	cheriabi_copyiniov(struct iovec_c *iovp, u_int iovcnt,
 
 struct image_args;
 int	cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
-	    enum uio_seg segflg, struct chericap *argv, struct chericap *envv);
+	    enum uio_seg segflg, void * __capability *argv, void * __capability *envv);
 
 int	cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp);
 

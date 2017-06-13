@@ -284,10 +284,11 @@ cheriabi_sigaltstack(struct thread *td,
  */
 int
 cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
-    enum uio_seg segflg, struct chericap *argv, struct chericap *envv)
+    enum uio_seg segflg, void * __capability *argv, void * __capability *envv)
 {
 	char *argp, *envp;
-	struct chericap *pcap, *argcap;
+	void * __capability *pcap;
+	void * __capability *argcap;
 	size_t length;
 	int error, tag;
 
@@ -309,7 +310,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	 * XXX: Work around not being able to store capabilities to the stack
 	 * and use the allocated buffer instead.
 	 */
-	argcap = (struct chericap *)args->buf;
+	argcap = (void * __capability *)args->buf;
 	/*
 	 * Copy the file name.
 	 */
@@ -335,8 +336,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		error = copyincap(pcap++, argcap, sizeof(*argcap));
 		if (error)
 			goto err_exit;
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, argcap, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(*argcap);
 		if (!tag)
 			break;
 		error = cheriabi_strcap_to_ptr(&argp, argcap, 0);
@@ -365,8 +365,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 			error = copyincap(pcap++, argcap, sizeof(*argcap));
 			if (error)
 				goto err_exit;
-			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, argcap, 0);
-			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+			tag = cheri_gettag(*argcap);
 			if (!tag)
 				break;
 			error = cheriabi_strcap_to_ptr(&envp, argcap, 0);
@@ -488,15 +487,14 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 * XXX-BD: this is quite awkward.  ident could be anything.
 		 * If it's a capabilty, we'll hang on to it in udata.
 		 */
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &ks_c[i].ident, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(ks_c[i].ident);
 		if (!tag)
-			CHERI_CTOINT(kevp[i].ident, CHERI_CR_CTEMP0);
+			kevp[i].ident = (void *)ks_c[i].ident;
 		else {
-			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+			perms = cheri_getperm(ks_c[i].ident);
 			if (!(perms | CHERI_PERM_GLOBAL))
 				return (EPROT);
-			CHERI_CTOPTR(kevp[i].ident, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+			kevp[i].ident = (void *)ks_c[i].ident;
 		}
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
@@ -506,10 +504,9 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		if (ks_c[i].flags & EV_DELETE)
 			continue;
 
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &ks_c[i].udata, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(ks_c[i].udata);
 		if (tag) {
-			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+			perms = cheri_getperm(ks_c[i].udata);
 			if (!(perms & CHERI_PERM_GLOBAL))
 				return (EPROT);
 		}
@@ -517,7 +514,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 * We stash the real ident and udata capabilities in
 		 * a malloced array in udata.
 		 */
-		kevp[i].udata = malloc(2*sizeof(struct chericap), M_KQUEUE,
+		kevp[i].udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
 		    M_WAITOK);
 		cheri_capability_copy(kevp[i].udata, &ks_c[i].ident);
 		cheri_capability_copy((struct chericap *)kevp[i].udata + 1,
