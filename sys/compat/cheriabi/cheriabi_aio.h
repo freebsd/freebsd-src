@@ -37,16 +37,16 @@
 struct __aiocb_private_c {
 	long	status;
 	long	error;
-	struct chericap kernelinfo;
+	void * __capability kernelinfo;
 };
 
 struct aiocb_c {
 	int		aio_fildes;
 	off_t		aio_offset;
-	struct chericap	aio_buf;	/* XXX-BD: volatile void * aio.h */
+	void * __capability	aio_buf;	/* XXX-BD: volatile void * aio.h */
 	size_t		aio_nbytes;
 	int		__spare__[2];
-	struct chericap	__spare2__;
+	void * __capability	__spare2__;
 	int		aio_lio_opcode;
 	int		aio_reqprio;
 	struct		__aiocb_private_c	_aiocb_private;

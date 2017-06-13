@@ -42,15 +42,15 @@
 #include <vm/pmap.h>
 
 struct cheriabi_ps_strings {
-	struct chericap	ps_argvstr;
+	void * __capability	ps_argvstr;
 	int		ps_nargvstr;
-	struct chericap	ps_envstr;
+	void * __capability	ps_envstr;
 	int		ps_nenvstr;
-	struct chericap	ps_sbclasses;
+	void * __capability	ps_sbclasses;
 	size_t		ps_sbclasseslen;
-	struct chericap	ps_sbmethods;
+	void * __capability	ps_sbmethods;
 	size_t		ps_sbmethodslen;
-	struct chericap	ps_sbobjects;
+	void * __capability	ps_sbobjects;
 	size_t		ps_sbobjectslen;
 };
 
@@ -62,7 +62,7 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 	/* long    pad[(CHERICAP_SIZE / 8) - 1]; */
 	union {
 		long	a_val;		/* Integer value. */
-		struct chericap	a_ptr;	/* Address. */
+		void * __capability	a_ptr;	/* Address. */
 		/* void	(*a_fcn)(void); */ /* Function pointer (not used). */
        } a_un;
 } ElfCheriABI_Auxinfo;
