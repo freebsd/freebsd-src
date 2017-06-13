@@ -1103,7 +1103,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct chericap * argv */
+	/* [1] _In_ void *__capability * argv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -1115,7 +1115,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_ struct chericap * envv */
+	/* [2] _In_ void *__capability * envv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -2259,7 +2259,7 @@ CHERIABI_SYS_cheriabi_nlm_syscall_fill_uap(struct thread *td,
 	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_nlm_syscall, 2, CHERIABI_SYS_cheriabi_nlm_syscall_PTRMASK);
 	uap->addr_count = (register_t)tmpcap;
 
-	/* [3] _In_reads_(addr_count) struct chericap * addrs */
+	/* [3] _In_reads_(addr_count) void *__capability * addrs */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -5766,7 +5766,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [1] _In_ struct chericap * argv */
+	/* [1] _In_ void *__capability * argv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -5778,7 +5778,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_ struct chericap * envv */
+	/* [2] _In_ void *__capability * envv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -6886,7 +6886,7 @@ CHERIABI_SYS_cheriabi_abort2_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_reads_(nargs) struct chericap * args */
+	/* [2] _In_reads_(nargs) void *__capability * args */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7688,7 +7688,7 @@ CHERIABI_SYS_cheriabi_fexecve_fill_uap(struct thread *td,
 	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_fexecve, 0, CHERIABI_SYS_cheriabi_fexecve_PTRMASK);
 	uap->fd = (register_t)tmpcap;
 
-	/* [1] _In_ struct chericap * argv */
+	/* [1] _In_ void *__capability * argv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
@@ -7700,7 +7700,7 @@ CHERIABI_SYS_cheriabi_fexecve_fill_uap(struct thread *td,
 			return (error);
 	}
 
-	/* [2] _In_ struct chericap * envv */
+	/* [2] _In_ void *__capability * envv */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
