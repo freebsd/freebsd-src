@@ -520,6 +520,17 @@ rxd_info_zero(if_rxd_info_t ri)
 #define MAX_SINGLE_PACKET_FRACTION 12
 #define IF_BAD_DMA (bus_addr_t)-1
 
+static SYSCTL_NODE(_net, OID_AUTO, iflib, CTLFLAG_RD, 0,
+                   "iflib driver parameters");
+
+static int iflib_timer_int;
+SYSCTL_INT(_net_iflib, OID_AUTO, timer_int, CTLFLAG_RW, &iflib_timer_int,
+    0, "interval at which to run per-queue timers (in ticks)");
+
+static int force_busdma = 1;
+SYSCTL_INT(_net_iflib, OID_AUTO, force_busdma, CTLFLAG_RDTUN, &force_busdma,
+    1, "force busdma");
+
 #define CTX_ACTIVE(ctx) ((if_getdrvflags((ctx)->ifc_ifp) & IFF_DRV_RUNNING))
 
 #define CTX_LOCK_INIT(_sc, _name)  mtx_init(&(_sc)->ifc_mtx, _name, "iflib ctx lock", MTX_DEF)
@@ -558,9 +569,6 @@ TASKQGROUP_DEFINE(if_config_tqg, 1, 1);
 #define IFLIB_DEBUG_COUNTERS 0
 #endif /* !INVARIANTS */
 #endif
-
-static SYSCTL_NODE(_net, OID_AUTO, iflib, CTLFLAG_RD, 0,
-                   "iflib driver parameters");
 
 /*
  * XXX need to ensure that this can't accidentally cause the head to be moved backwards 
@@ -1867,7 +1875,6 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			cb_arg.error = 0;
 			q = fl->ifl_rxq;
 			MPASS(sd_map != NULL);
-			MPASS(sd_map[idx] != NULL);
 			err = bus_dmamap_load(fl->ifl_desc_tag, sd_map[idx],
 		         cl, fl->ifl_buf_size, _rxq_refill_cb, &cb_arg, 0);
 			bus_dmamap_sync(fl->ifl_desc_tag, sd_map[idx], BUS_DMASYNC_PREREAD);
@@ -2110,7 +2117,8 @@ iflib_timer(void *arg)
 
 	sctx->isc_pause_frames = 0;
 	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
-		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
+		callout_reset_on(&txq->ift_timer, iflib_timer_int, iflib_timer,
+		    txq, txq->ift_timer.c_cpu);
 	return;
 hung:
 	CTX_LOCK(ctx);
@@ -2185,8 +2193,8 @@ iflib_init_locked(if_ctx_t ctx)
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
 	for (i = 0; i < sctx->isc_ntxqsets; i++, txq++)
-		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq,
-			txq->ift_timer.c_cpu);
+		callout_reset_on(&txq->ift_timer, iflib_timer_int, iflib_timer,
+			txq, txq->ift_timer.c_cpu);
 }
 
 static int
@@ -2897,7 +2905,7 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 	ifsd_m = txq->ift_sds.ifsd_m;
 	ntxd = txq->ift_size;
 	pidx = txq->ift_pidx;
-	if (map != NULL) {
+	if (force_busdma || map != NULL) {
 		uint8_t *ifsd_flags = txq->ift_sds.ifsd_flags;
 
 		err = bus_dmamap_load_mbuf_sg(tag, map,
@@ -3037,7 +3045,8 @@ iflib_encap(iflib_txq_t txq, struct mbuf **m_headp)
 			next = (cidx + CACHE_LINE_SIZE) & (ntxd-1);
 			prefetch(&txq->ift_sds.ifsd_flags[next]);
 		}
-	} else if (txq->ift_sds.ifsd_map != NULL)
+	} 
+	if (txq->ift_sds.ifsd_map != NULL)
 		map = txq->ift_sds.ifsd_map[pidx];
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
@@ -3533,7 +3542,8 @@ _task_fn_admin(void *context)
 	}
 	IFDI_UPDATE_ADMIN_STATUS(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++)
-		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
+		callout_reset_on(&txq->ift_timer, iflib_timer_int, iflib_timer,
+		    txq, txq->ift_timer.c_cpu);
 	IFDI_LINK_INTR_ENABLE(ctx);
 	if (ctx->ifc_flags & IFC_DO_RESET) {
 		ctx->ifc_flags &= ~IFC_DO_RESET;
@@ -4087,6 +4097,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	/* set unconditionally for !x86 */
 	ctx->ifc_flags |= IFC_DMAR;
 #endif
+	if (force_busdma)
+		ctx->ifc_flags |= IFC_DMAR;
 
 	msix_bar = scctx->isc_msix_bar;
 	main_txq = (sctx->isc_flags & IFLIB_HAS_TXCQ) ? 1 : 0;
@@ -4409,6 +4421,9 @@ iflib_device_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 static int
 iflib_module_init(void)
 {
+
+	iflib_timer_int = hz / 2;
+	TUNABLE_INT_FETCH("net.iflib.timer_int", &iflib_timer_int);
 	return (0);
 }
 
