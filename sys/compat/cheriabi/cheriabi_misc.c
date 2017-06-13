@@ -1022,7 +1022,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 {
 	struct sigaction_c sa_c;
 	struct sigaction sa, osa, *sap;
-	struct chericap cap;
+	void * __capability cap;
 
 	int error, tag;
 
@@ -1030,10 +1030,9 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		error = copyincap(uap->act, &sa_c, sizeof(sa_c));
 		if (error)
 			return (error);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &sa_c.sa_u, 0);
-		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		tag = cheri_gettag(sa_c.sa_u);
 		if (!tag) {
-			CHERI_CTOINT(sa.sa_handler, CHERI_CR_CTEMP0);
+			sa.sa_handler = (int)sa_c.sa_u;
 			if (sa.sa_handler != SIG_DFL &&
 			    sa.sa_handler != SIG_IGN) {
 				SYSERRCAUSE("untagged sa_handler and not "
@@ -1041,8 +1040,8 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 				return (EPROT);
 			}
 		} else {
-			error = cheriabi_cap_to_ptr((caddr_t *)&sa.sa_handler,
-			    &sa_c.sa_u,
+			error = cheriabi_cap_to_ptr_x((caddr_t *)&sa.sa_handler,
+			    sa_c.sa_u,
 			    8 /* XXX-BD: at least two instructions */,
 		            CHERI_PERM_LOAD | CHERI_PERM_EXECUTE, 0);
 			if (error) {
@@ -1053,7 +1052,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		CP(sa_c, sa, sa_flags);
 		CP(sa_c, sa, sa_mask);
 		sap = &sa;
-		cheri_capability_copy(&cap, &sa_c.sa_u);
+		cap = sa_c.sa_u;
 	} else
 		sap = NULL;
 	error = kern_sigaction_cap(td, uap->sig, sap,
@@ -1061,7 +1060,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 	if (error != 0)
 		SYSERRCAUSE("error in kern_sigaction_cap");
 	if (error == 0 && uap->oact != NULL) {
-		cheri_capability_copy(&sa_c.sa_u, &cap);
+		sa_c.sa_u = cap;
 		CP(osa, sa_c, sa_flags);
 		CP(osa, sa_c, sa_mask);
 		error = copyoutcap(&sa_c, uap->oact, sizeof(sa_c));
