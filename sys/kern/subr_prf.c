@@ -389,7 +389,6 @@ log_console(struct uio *uio)
 	msgbuftrigger = 1;
 	free(uio, M_IOV);
 	free(consbuffer, M_TEMP);
-	return;
 }
 
 int
