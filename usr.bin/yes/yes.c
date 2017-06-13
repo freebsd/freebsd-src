@@ -55,6 +55,8 @@ main(int argc, char **argv)
 	char * exp = y;
 	size_t buflen = 0;
 	size_t explen = sizeof(y);
+	size_t more;
+	ssize_t ret;
 
 	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
 		err(1, "capsicum");
@@ -77,8 +79,10 @@ main(int argc, char **argv)
 		explen = buflen;
 	}
 
-	while (write(STDOUT_FILENO, exp, explen) > 0)
-		;
+	more = explen;
+	while ((ret = write(STDOUT_FILENO, exp + (explen - more), more)) > 0)
+		if ((more -= ret) == 0)
+			more = explen;
 
 	err(1, "stdout");
 	/*NOTREACHED*/
