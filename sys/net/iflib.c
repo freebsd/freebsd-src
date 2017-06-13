@@ -2880,8 +2880,8 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 	if_ctx_t ctx;
 	if_shared_ctx_t		sctx;
 	if_softc_ctx_t		scctx;
-	int i, next, pidx, mask, err, maxsegsz, ntxd, count;
-	struct mbuf *m, *tmp, **ifsd_m, **mp;
+	int i, next, pidx, err, maxsegsz, ntxd, count;
+	struct mbuf *m, *tmp, **ifsd_m;
 
 	m = *m0;
 
@@ -2905,19 +2905,22 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 		if (err)
 			return (err);
 		ifsd_flags[pidx] |= TX_SW_DESC_MAPPED;
-		i = 0;
-		next = pidx;
-		mask = (txq->ift_size-1);
+		count = 0;
 		m = *m0;
 		do {
-			mp = &ifsd_m[next];
-			*mp = m;
+			if (__predict_false(m->m_len <= 0)) {
+				tmp = m;
+				m = m->m_next;
+				tmp->m_next = NULL;
+				m_free(tmp);
+				continue;
+			}
+			next = (pidx + count) & (ntxd-1);
+			MPASS(ifsd_m[next] == NULL);
+			ifsd_m[next] = m;
+			count++;
+			tmp = m;
 			m = m->m_next;
-			if (__predict_false((*mp)->m_len == 0)) {
-				m_free(*mp);
-				*mp = NULL;
-			} else
-				next = (pidx + i) & (ntxd-1);
 		} while (m != NULL);
 	} else {
 		int buflen, sgsize, max_sgsize;
