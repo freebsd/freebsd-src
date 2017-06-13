@@ -142,8 +142,8 @@ void	cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *arg,
 int	cheriabi_copyinstrarg(struct thread *td, int syscall, int arg,
 	    char *buf, size_t len, size_t *done, int ptrmask);
 
-int	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
-	    struct chericap *addr, size_t len, int prot, int flags);
+int	cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
+	    void * __capability *addrp, size_t len, int prot, int flags);
 
 int	cheriabi_get_mcontext(struct thread *td, mcontext_c_t *mcp, int flags);
 int	cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp);

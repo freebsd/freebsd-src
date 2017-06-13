@@ -2075,21 +2075,21 @@ cheriabi_mmap_prot2perms(int prot)
 }
 
 int
-cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
-   struct chericap *addr, size_t len, int prot, int flags)
+cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
+   void * __capability *addrp, size_t len, int prot, int flags)
 {
 	register_t ret;
 	size_t mmap_cap_base, mmap_cap_len;
 	vm_map_t map;
 	register_t perms;
 	size_t addr_base;
+	void * __capability addr;
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
 	if ((void *)ret == MAP_FAILED) {
 		/* XXX-BD: the return of -1 is in userspace, not here. */
-		cheri_capability_set_null(retcap);
-		cheri_capability_setoffset(retcap, (register_t)-1);
+		*retcap = (void * __capability)-1;
 		return (0);
 	}
 
@@ -2106,23 +2106,21 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	 */
 	if (flags & MAP_CHERI_NOSETBOUNDS ||
 	    (!cheriabi_mmap_setbounds && flags & MAP_FIXED)) {
-		cheri_capability_copy(retcap, addr);
+		*retcap = *addrp;
 		return (0);
 	}
 
 	if (flags & MAP_FIXED) {
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, addr, 0);
+		addr = *addrp;
 	} else {
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		addr = *((void * __capability *)&td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 	}
 
 	if (cheriabi_mmap_honor_prot) {
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
+		perms = cheri_getperm(addr);
+		addr = cheri_andperm(addr, cheriabi_mmap_prot2perms(prot) | ~PERM_RWX);
 	}
 
 	if (flags & MAP_FIXED) {
@@ -2134,20 +2132,19 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		 * capability to the whole, properly aligned region
 		 * with the offset pointing to addr.
 		 */
-		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
+		addr_base = cheri_getbase(addr);
 		/* Set offset to vaddr of page */
-		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		addr = cheri_setoffset(addr,
 		    rounddown2(ret, PAGE_SIZE) - addr_base);
-		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		addr = cheri_csetbounds(addr,
 		    roundup2(len + (ret - rounddown2(ret, PAGE_SIZE)),
 		    PAGE_SIZE));
 		/* Shift offset up if required */
-		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
-		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    addr_base - ret);
+		addr_base = cheri_getbase(addr);
+		addr = cheri_setoffset(addr, addr_base - ret);
 	} else {
-		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
+		mmap_cap_base = cheri_getbase(addr);
+		mmap_cap_len = cheri_getlen(addr);
 		if (ret < mmap_cap_base ||
 		    ret + len > mmap_cap_base + mmap_cap_len) {
 			map = &td->td_proc->p_vmspace->vm_map;
@@ -2157,13 +2154,11 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 
 			return (EPERM);
 		}
-		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    ret - mmap_cap_base);
+		addr = cheri_setoffset(addr, ret - mmap_cap_base);
 		if (cheriabi_mmap_setbounds)
-			CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-			    roundup2(len, PAGE_SIZE));
+			addr = cheri_csetbounds(addr, roundup2(len, PAGE_SIZE));
 	}
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
+	*retcap = addr;
 
 	return (0);
 }
