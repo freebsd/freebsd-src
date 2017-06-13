@@ -44,20 +44,42 @@ static const char rcsid[] = "$FreeBSD$";
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 int
 main(int argc, char **argv)
 {
+	char buf[8192];
+	char y[2] = { 'y', '\n' };
+	char * exp = y;
+	size_t buflen = 0;
+	size_t explen = sizeof(y);
 
 	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
 		err(1, "capsicum");
 
 	if (argc > 1)
-		while (puts(argv[1]) != EOF)
-			;
-	else
-		while (puts("y") != EOF)
-			;
+	{
+		exp = argv[1];
+		explen = strlen(exp) + 1;
+		exp[explen - 1] = '\n';
+	}
+
+	if (explen <= sizeof(buf))
+	{
+		while (buflen < sizeof(buf) - explen)
+		{
+			memcpy(buf + buflen, exp, explen);
+			buflen += explen;
+		}
+		exp = buf;
+		explen = buflen;
+	}
+
+	while (write(STDOUT_FILENO, exp, explen) > 0)
+		;
+
 	err(1, "stdout");
 	/*NOTREACHED*/
 }
