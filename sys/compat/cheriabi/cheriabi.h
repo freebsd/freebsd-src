@@ -127,57 +127,6 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 	return (0);
 }
 
-/*
- * cheriabi_pagerange_to_ptr() is similar to cheriabi_cap_to_ptr except
- * that it reqires that the capability complete cover pages the range
- * touches.  It also does not require an particular permissions beyond
- * CHERI_PERM_GLOBAL.
- */
-static inline int
-cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
-    int may_be_null)
-{
-	u_int tag;
-	register_t perms, reqperms;
-	register_t sealed;
-	size_t adjust, base, length, offset;
-
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (!tag) {
-		if (!may_be_null)
-			return (EFAULT);
-		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
-		if (*ptrp != NULL)
-			return (EFAULT);
-	} else {
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
-			return (EPROT);
-
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL);
-		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
-		if (offset >= length)
-			return (EPROT);
-		length -= offset;
-		CHERI_CGETLEN(base, CHERI_CR_CTEMP0);
-		if (rounddown2(base + offset, PAGE_SIZE) < base)
-			return (EPROT);
-		adjust = ((base + offset) & PAGE_MASK);
-		length += adjust;
-		if (length < roundup2(reqlen + adjust, PAGE_SIZE))
-			return (EPROT);
-
-		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	}
-	return (0);
-}
-
 static inline int
 cheriabi_strcap_to_ptr(char **strp, struct chericap *cap, int may_be_null)
 {
