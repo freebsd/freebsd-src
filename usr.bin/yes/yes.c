@@ -61,17 +61,14 @@ main(int argc, char **argv)
 	if (caph_limit_stdio() < 0 || (cap_enter() < 0 && errno != ENOSYS))
 		err(1, "capsicum");
 
-	if (argc > 1)
-	{
+	if (argc > 1) {
 		exp = argv[1];
 		explen = strlen(exp) + 1;
 		exp[explen - 1] = '\n';
 	}
 
-	if (explen <= sizeof(buf))
-	{
-		while (buflen < sizeof(buf) - explen)
-		{
+	if (explen <= sizeof(buf)) {
+		while (buflen < sizeof(buf) - explen) {
 			memcpy(buf + buflen, exp, explen);
 			buflen += explen;
 		}
