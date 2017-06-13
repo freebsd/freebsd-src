@@ -1500,6 +1500,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	int rc;
 	int i;
+	char irq_name[16];
 
 	rc = iflib_irq_alloc_generic(ctx, &softc->def_cp_ring.irq,
 	    softc->def_cp_ring.ring.id + 1, IFLIB_INTR_ADMIN,
@@ -1511,9 +1512,10 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	}
 
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
+		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
 		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RX,
-		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, "rx_cp");
+		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, irq_name);
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),
 			    "Failed to register RX completion ring handler\n");
