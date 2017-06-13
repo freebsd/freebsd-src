@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $	*/
+/*	$NetBSD: suff.c,v 1.86 2017/04/16 20:38:18 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $";
+static char rcsid[] = "$NetBSD: suff.c,v 1.86 2017/04/16 20:38:18 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #else
-__RCSID("$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $");
+__RCSID("$NetBSD: suff.c,v 1.86 2017/04/16 20:38:18 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -135,6 +135,7 @@ __RCSID("$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $");
  *				order to find the node.
  */
 
+#include    	  <assert.h>
 #include    	  <stdio.h>
 #include	  "make.h"
 #include	  "hash.h"
@@ -762,7 +763,7 @@ Suff_AddTransform(char *line)
  *-----------------------------------------------------------------------
  */
 int
-Suff_EndTransform(void *gnp, void *dummy)
+Suff_EndTransform(void *gnp, void *dummy MAKE_ATTR_UNUSED)
 {
     GNode *gn = (GNode *)gnp;
 
@@ -809,7 +810,7 @@ Suff_EndTransform(void *gnp, void *dummy)
 	fprintf(debug_file, "transformation %s complete\n", gn->name);
     }
 
-    return(dummy ? 0 : 0);
+    return 0;
 }
 
 /*-
@@ -1215,7 +1216,7 @@ SuffAddSrc(void *sp, void *lsp)
 #ifdef DEBUG_SRC
 	s2->cp = Lst_Init(FALSE);
 	Lst_AtEnd(targ->cp, s2);
-	fprintf(debug_file, "1 add %x %x to %x:", targ, s2, ls->l);
+	fprintf(debug_file, "1 add %p %p to %p:", targ, s2, ls->l);
 	Lst_ForEach(ls->l, PrintAddr, NULL);
 	fprintf(debug_file, "\n");
 #endif
@@ -1233,7 +1234,7 @@ SuffAddSrc(void *sp, void *lsp)
 #ifdef DEBUG_SRC
     s2->cp = Lst_Init(FALSE);
     Lst_AtEnd(targ->cp, s2);
-    fprintf(debug_file, "2 add %x %x to %x:", targ, s2, ls->l);
+    fprintf(debug_file, "2 add %p %p to %p:", targ, s2, ls->l);
     Lst_ForEach(ls->l, PrintAddr, NULL);
     fprintf(debug_file, "\n");
 #endif
@@ -1305,14 +1306,14 @@ SuffRemoveSrc(Lst l)
 		free(s->pref);
 	    else {
 #ifdef DEBUG_SRC
-		LstNode ln = Lst_Member(s->parent->cp, s);
-		if (ln != NULL)
-		    Lst_Remove(s->parent->cp, ln);
+		LstNode ln2 = Lst_Member(s->parent->cp, s);
+		if (ln2 != NULL)
+		    Lst_Remove(s->parent->cp, ln2);
 #endif
 		--s->parent->children;
 	    }
 #ifdef DEBUG_SRC
-	    fprintf(debug_file, "free: [l=%x] p=%x %d\n", l, s, s->children);
+	    fprintf(debug_file, "free: [l=%p] p=%p %d\n", l, s, s->children);
 	    Lst_Destroy(s->cp, NULL);
 #endif
 	    Lst_Remove(l, ln);
@@ -1323,7 +1324,7 @@ SuffRemoveSrc(Lst l)
 	}
 #ifdef DEBUG_SRC
 	else {
-	    fprintf(debug_file, "keep: [l=%x] p=%x %d: ", l, s, s->children);
+	    fprintf(debug_file, "keep: [l=%p] p=%p %d: ", l, s, s->children);
 	    Lst_ForEach(s->cp, PrintAddr, NULL);
 	    fprintf(debug_file, "\n");
 	}
@@ -1372,7 +1373,7 @@ SuffFindThem(Lst srcs, Lst slst)
 	 */
 	if (Targ_FindNode(s->file, TARG_NOCREATE) != NULL) {
 #ifdef DEBUG_SRC
-	    fprintf(debug_file, "remove %x from %x\n", s, srcs);
+	    fprintf(debug_file, "remove %p from %p\n", s, srcs);
 #endif
 	    rs = s;
 	    break;
@@ -1381,7 +1382,7 @@ SuffFindThem(Lst srcs, Lst slst)
 	if ((ptr = Dir_FindFile(s->file, s->suff->searchPath)) != NULL) {
 	    rs = s;
 #ifdef DEBUG_SRC
-	    fprintf(debug_file, "remove %x from %x\n", s, srcs);
+	    fprintf(debug_file, "remove %p from %p\n", s, srcs);
 #endif
 	    free(ptr);
 	    break;
@@ -1497,7 +1498,7 @@ SuffFindCmds(Src *targ, Lst slst)
     targ->children += 1;
 #ifdef DEBUG_SRC
     ret->cp = Lst_Init(FALSE);
-    fprintf(debug_file, "3 add %x %x\n", targ, ret);
+    fprintf(debug_file, "3 add %p %p\n", targ, ret);
     Lst_AtEnd(targ->cp, ret);
 #endif
     Lst_AtEnd(slst, ret);
@@ -1616,7 +1617,7 @@ SuffExpandChildren(LstNode cln, GNode *pgn)
 		    }
 
 		    free(freeIt);
-		} else if (*cp == '\\' && *cp != '\0') {
+		} else if (*cp == '\\' && cp[1] != '\0') {
 		    /*
 		     * Escaped something -- skip over it
 		     */
@@ -1905,6 +1906,13 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
      */
     eoarch = strchr(gn->name, '(');
     eoname = strchr(eoarch, ')');
+
+    /*
+     * Caller guarantees the format `libname(member)', via
+     * Arch_ParseArchive.
+     */
+    assert(eoarch != NULL);
+    assert(eoname != NULL);
 
     *eoname = '\0';	  /* Nuke parentheses during suffix search */
     *eoarch = '\0';	  /* So a suffix can be found */
@@ -2595,14 +2603,15 @@ Suff_End(void)
 
 /********************* DEBUGGING FUNCTIONS **********************/
 
-static int SuffPrintName(void *s, void *dummy)
+static int SuffPrintName(void *s, void *dummy MAKE_ATTR_UNUSED)
 {
+
     fprintf(debug_file, "%s ", ((Suff *)s)->name);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 static int
-SuffPrintSuff(void *sp, void *dummy)
+SuffPrintSuff(void *sp, void *dummy MAKE_ATTR_UNUSED)
 {
     Suff    *s = (Suff *)sp;
     int	    flags;
@@ -2640,11 +2649,11 @@ SuffPrintSuff(void *sp, void *dummy)
     fprintf(debug_file, "#\tSearch Path: ");
     Dir_PrintPath(s->searchPath);
     fputc('\n', debug_file);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 static int
-SuffPrintTrans(void *tp, void *dummy)
+SuffPrintTrans(void *tp, void *dummy MAKE_ATTR_UNUSED)
 {
     GNode   *t = (GNode *)tp;
 
@@ -2653,7 +2662,7 @@ SuffPrintTrans(void *tp, void *dummy)
     fputc('\n', debug_file);
     Lst_ForEach(t->commands, Targ_PrintCmd, NULL);
     fputc('\n', debug_file);
-    return(dummy ? 0 : 0);
+    return 0;
 }
 
 void

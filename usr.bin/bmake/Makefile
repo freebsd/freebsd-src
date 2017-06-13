@@ -14,10 +14,10 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.67 2016/06/07 00:46:12 sjg Exp $
+#	$Id: Makefile,v 1.92 2017/05/10 22:29:04 sjg Exp $
 
 # Base version on src date
-_MAKE_VERSION= 20160606
+_MAKE_VERSION= 20170510
 
 PROG?=	${.CURDIR:T}
 
@@ -124,7 +124,10 @@ my.history: ${MAKEFILE}
 .NOPATH: ${MAN}
 ${MAN}:	make.1 my.history
 	@echo making $@
-	@sed -e 's/^.Nx/NetBSD/' -e '/^.Nm/s/make/${PROG}/' \
+	@sed \
+	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
+	-e 's/^.Nx/NetBSD/' \
+	-e '/^.Nm/s/make/${PROG}/' \
 	-e '/^.Sh HISTORY/rmy.history' \
 	-e '/^.Sh HISTORY/,$$s,^.Nm,make,' ${srcdir}/make.1 > $@
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $	*/
+/*	$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $";
+static char rcsid[] = "$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $");
+__RCSID("$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -521,10 +521,10 @@ TargPrintName(void *gnp, void *pflags MAKE_ATTR_UNUSED)
 
 
 int
-Targ_PrintCmd(void *cmd, void *dummy)
+Targ_PrintCmd(void *cmd, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "\t%s\n", (char *)cmd);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 /*-
