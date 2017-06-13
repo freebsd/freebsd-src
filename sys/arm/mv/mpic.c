@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+#define	MPIC_INT_LOCAL			3
 #define	MPIC_INT_ERR			4
 #define	MPIC_INT_MSI			96
 
@@ -93,7 +95,9 @@ __FBSDID("$FreeBSD$");
 #define	MPIC_IIACK		0x44
 #define	MPIC_ISM		0x48
 #define	MPIC_ICM		0x4c
-#define	MPIC_ERR_MASK		0xe50
+#define	MPIC_ERR_MASK		0x50
+#define	MPIC_LOCAL_MASK		0x54
+#define	MPIC_CPU(n)		(n) * 0x100
 
 #define	MPIC_PPI	32
 
@@ -223,6 +227,7 @@ mv_mpic_attach(device_t dev)
 	struct mv_mpic_softc *sc;
 	int error;
 	uint32_t val;
+	int cpu;
 
 	sc = (struct mv_mpic_softc *)device_get_softc(dev);
 
@@ -282,6 +287,12 @@ mv_mpic_attach(device_t dev)
 #endif
 
 	mpic_unmask_msi();
+
+	/* Unmask CPU performance counters overflow irq */
+	for (cpu = 0; cpu < mp_ncpus; cpu++)
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CPU(cpu) + MPIC_LOCAL_MASK,
+		    (1 << cpu) | MPIC_CPU_READ(mv_mpic_sc,
+		    MPIC_CPU(cpu) + MPIC_LOCAL_MASK));
 
 	return (0);
 }
@@ -488,6 +499,16 @@ static void
 mpic_unmask_irq(uintptr_t nb)
 {
 
+#ifdef SMP
+	int cpu;
+
+	if (nb == MPIC_INT_LOCAL) {
+		for (cpu = 0; cpu < mp_ncpus; cpu++)
+			MPIC_CPU_WRITE(mv_mpic_sc,
+			    MPIC_CPU(cpu) + MPIC_ICM, nb);
+		return;
+	}
+#endif
 	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
 	else if (nb < ERR_IRQ)
@@ -503,6 +524,16 @@ static void
 mpic_mask_irq(uintptr_t nb)
 {
 
+#ifdef SMP
+	int cpu;
+
+	if (nb == MPIC_INT_LOCAL) {
+		for (cpu = 0; cpu < mp_ncpus; cpu++)
+			MPIC_CPU_WRITE(mv_mpic_sc,
+			    MPIC_CPU(cpu) + MPIC_ISM, nb);
+		return;
+	}
+#endif
 	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
 	else if (nb < ERR_IRQ)
