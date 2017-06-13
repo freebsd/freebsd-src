@@ -255,7 +255,7 @@ static uint32_t getARMUndefinedRelativeWeakVA(uint32_t Type, uint32_t A,
                                               uint32_t P) {
   switch (Type) {
   case R_ARM_THM_JUMP11:
-    return P + 2;
+    return P + 2 + A;
   case R_ARM_CALL:
   case R_ARM_JUMP24:
   case R_ARM_PC24:
@@ -263,12 +263,12 @@ static uint32_t getARMUndefinedRelativeWeakVA(uint32_t Type, uint32_t A,
   case R_ARM_PREL31:
   case R_ARM_THM_JUMP19:
   case R_ARM_THM_JUMP24:
-    return P + 4;
+    return P + 4 + A;
   case R_ARM_THM_CALL:
     // We don't want an interworking BLX to ARM
-    return P + 5;
+    return P + 5 + A;
   default:
-    return A;
+    return P + A;
   }
 }
 
@@ -279,9 +279,9 @@ static uint64_t getAArch64UndefinedRelativeWeakVA(uint64_t Type, uint64_t A,
   case R_AARCH64_CONDBR19:
   case R_AARCH64_JUMP26:
   case R_AARCH64_TSTBR14:
-    return P + 4;
+    return P + 4 + A;
   default:
-    return A;
+    return P + A;
   }
 }
 
