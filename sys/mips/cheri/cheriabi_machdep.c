@@ -225,15 +225,6 @@ cheriabi_elf_header_supported(struct image_params *imgp)
 	return FALSE;
 }
 
-inline void
-cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
-    int syscall_no, int argnum)
-{
-
-	cheriabi_fetch_syscall_arg_x(td, (void * __capability *)arg, syscall_no, argnum,
-	    CHERIABI_SYS_argmap[syscall_no].sam_ptrmask);
-}
-
 __attribute__((always_inline))
 inline void
 cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
