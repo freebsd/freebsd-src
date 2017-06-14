@@ -171,6 +171,7 @@ void mpc85xx_enable_l3_cache(void);
 void mpc85xx_fix_errata(vm_offset_t);
 void dataloss_erratum_access(vm_offset_t, uint32_t);
 int mpc85xx_is_qoriq(void);
+uint32_t mpc85xx_get_platform_clock(void);
 uint32_t mpc85xx_get_system_clock(void);
 
 #endif /* _MPC85XX_H_ */
