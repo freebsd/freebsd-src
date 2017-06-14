@@ -73,7 +73,7 @@ struct sigacts {
 	u_int	ps_refcnt;
 	struct mtx ps_mtx;
 #ifdef COMPAT_CHERIABI
-	struct chericap	ps_sigcap[_SIG_MAXSIG];	/* CheriABI handlers */
+	void * __capability ps_sigcap[_SIG_MAXSIG];	/* CheriABI handlers */
 #endif
 };
 
