@@ -225,11 +225,9 @@ diu_set_pxclk(device_t dev, unsigned int freq)
 	unsigned long bus_freq;
 	uint32_t pxclk_set;
 	uint32_t clkdvd;
-	int res;
 
 	node = ofw_bus_get_node(device_get_parent(dev));
-	if ((res = OF_getencprop(node, "bus-frequency",
-	    (pcell_t *)&bus_freq, sizeof(bus_freq)) <= 0)) {
+	if ((bus_freq = mpc85xx_get_platform_clock()) <= 0) {
 		device_printf(dev, "Unable to get bus frequency\n");
 		return (ENXIO);
 	}
