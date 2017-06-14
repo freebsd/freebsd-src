@@ -146,34 +146,34 @@ struct trapframe {
 	 * this assumption can also be found in regnum.h.
 	 */
 #ifdef CPU_CHERI
-	struct chericap		ddc;
-	struct chericap		c1;
-	struct chericap		c2;
-	struct chericap		c3;
-	struct chericap		c4;
-	struct chericap		c5;
-	struct chericap		c6;
-	struct chericap		c7;
-	struct chericap		c8;
-	struct chericap		c9;
-	struct chericap		c10;
-	struct chericap		stc;
-	struct chericap		c12;
-	struct chericap		c13;
-	struct chericap		c14;
-	struct chericap		c15;
-	struct chericap		c16;
-	struct chericap		c17;
-	struct chericap		c18;
-	struct chericap		c19;
-	struct chericap		c20;
-	struct chericap		c21;
-	struct chericap		c22;
-	struct chericap		c23;
-	struct chericap		c24;
-	struct chericap		c25;
-	struct chericap		idc;
-	struct chericap		pcc;
+	void * __capability	ddc;
+	void * __capability	c1;
+	void * __capability	c2;
+	void * __capability	c3;
+	void * __capability	c4;
+	void * __capability	c5;
+	void * __capability	c6;
+	void * __capability	c7;
+	void * __capability	c8;
+	void * __capability	c9;
+	void * __capability	c10;
+	void * __capability	stc;
+	void * __capability	c12;
+	void * __capability	c13;
+	void * __capability	c14;
+	void * __capability	c15;
+	void * __capability	c16;
+	void * __capability	c17;
+	void * __capability	c18;
+	void * __capability	c19;
+	void * __capability	c20;
+	void * __capability	c21;
+	void * __capability	c22;
+	void * __capability	c23;
+	void * __capability	c24;
+	void * __capability	c25;
+	void * __capability	idc;
+	void * __capability	pcc;
 	register_t		capcause;  /* NB: Saved but not restored. */
 	register_t		_pad0;
 #if (CHERICAP_SIZE == 32)
