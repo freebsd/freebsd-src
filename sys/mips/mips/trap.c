@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CPU_CHERI
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #endif
 
 #ifdef DDB
@@ -1365,8 +1366,7 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	 * alignment on $pcc, etc?
 	 */
 	register_t pcc_base;
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &framePtr->pcc, 0);
-	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
+	pcc_base = cheri_getbase(framePtr->pcc);
 	if (instptr)
 		instptr += pcc_base;
 	instPC += pcc_base;
@@ -1833,8 +1833,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * XXXRW: Should just use the CP0 'faulting instruction' register
 	 * available in CHERI (but not MIPS generally).
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
-	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
+	pcc_base = cheri_getbase(frame->pcc);
 	pc += pcc_base;
 #endif
 	inst = *((u_int32_t *)(intptr_t)pc);;

@@ -238,7 +238,7 @@ int
 cheriabi_sigaltstack(struct thread *td,
     struct cheriabi_sigaltstack_args *uap)
 {
-	struct chericap old_ss_sp;
+	void * __capability old_ss_sp;
 	struct sigaltstack_c s_c;
 	struct sigaltstack ss, oss, *ssp;
 	int error;
@@ -315,7 +315,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	 * Copy the file name.
 	 */
 	if (fname != NULL) {
-		args->fname = args->buf + sizeof(struct chericap);
+		args->fname = args->buf + sizeof(void * __capability);
 		error = (segflg == UIO_SYSSPACE) ?
 		    copystr(fname, args->fname, PATH_MAX, &length) :
 		    copyinstr(fname, args->fname, PATH_MAX, &length);
@@ -324,7 +324,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 	} else
 		length = 0;
 
-	args->begin_argv = args->buf + sizeof(struct chericap) + length;
+	args->begin_argv = args->buf + sizeof(void * __capability) + length;
 	args->endp = args->begin_argv;
 	args->stringspace = ARG_MAX;
 
@@ -1552,10 +1552,10 @@ register_t *
 cheriabi_copyout_strings(struct image_params *imgp)
 {
 	int argc, envc;
-	struct chericap *vectp;
+	void * __capability *vectp;
 	char *stringp;
 	uintptr_t destp;
-	struct chericap *stack_base;
+	void * __capability *stack_base;
 	struct cheriabi_ps_strings *arginfo;
 	char canary[sizeof(long) * 8];
 	size_t execpath_len;
@@ -1584,7 +1584,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 */
 	if (szsigcode != 0) {
 		destp -= szsigcode;
-		destp = rounddown2(destp, sizeof(struct chericap));
+		destp = rounddown2(destp, sizeof(void * __capability));
 		copyout(imgp->proc->p_sysent->sv_sigcode, (void *)destp,
 		    szsigcode);
 	}
@@ -1611,13 +1611,13 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 * Prepare the pagesizes array.
 	 */
 	destp -= szps;
-	destp = rounddown2(destp, sizeof(struct chericap));
+	destp = rounddown2(destp, sizeof(void * __capability));
 	imgp->pagesizes = destp;
 	copyout(pagesizes, (void *)destp, szps);
 	imgp->pagesizeslen = szps;
 
 	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(struct chericap));
+	destp = rounddown2(destp, sizeof(void * __capability));
 
 	/*
 	 * Prepare some room * on the stack for auxargs.
@@ -1633,9 +1633,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 * the arg and env vector sets, and imgp->auxarg_size is room
 	 * for argument of runtime loader if any.
 	 */
-	vectp = (struct chericap *)(destp - (imgp->args->argc +
+	vectp = (void * __capability *)(destp - (imgp->args->argc +
 	    imgp->args->envc + 2 + imgp->auxarg_size) *
-	    sizeof(struct chericap));
+	    sizeof(void * __capability));
 
 	/*
 	 * vectp also becomes our initial stack base
@@ -1653,7 +1653,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	sucap(&arginfo->ps_argvstr, vectp, 0, argc * sizeof(struct chericap),
+	sucap(&arginfo->ps_argvstr, vectp, 0, argc * sizeof(void * __capability),
 	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nargvstr, argc);
 
@@ -1674,7 +1674,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	suword(vectp++, 0);
 
 	sucap(&arginfo->ps_envstr, vectp, 0,
-	    arginfo->ps_nenvstr * sizeof(struct chericap),
+	    arginfo->ps_nenvstr * sizeof(void * __capability),
 	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nenvstr, envc);
 
@@ -1751,7 +1751,7 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
  * a pointer to something capability sized.
  */
 static void
-cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
+cheriabi_set_auxargs(void * __capability *pos, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 
@@ -1811,11 +1811,11 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_ARGC, imgp->args->argc);
 	/* XXX-BD: Includes terminating NULL.  Should it? */
 	AUXARGS_ENTRY_CAP(pos, AT_ARGV, imgp->args->argv, 0,
-	   sizeof(struct chericap) * (imgp->args->argc + 1),
+	   sizeof(void * __capability) * (imgp->args->argc + 1),
 	   CHERI_CAP_USER_DATA_PERMS);
 	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
 	AUXARGS_ENTRY_CAP(pos, AT_ENVV, imgp->args->envv, 0,
-	   sizeof(struct chericap) * (imgp->args->envc + 1),
+	   sizeof(void * __capability) * (imgp->args->envc + 1),
 	   CHERI_CAP_USER_DATA_PERMS);
 
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
@@ -1827,9 +1827,9 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 int
 cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
-	struct chericap *base;
+	void * __capability *base;
 
-	base = (struct chericap *)*stack_base;
+	base = (void * __capability *)*stack_base;
 	base += imgp->args->argc + imgp->args->envc + 2;
 
 	cheriabi_set_auxargs(base, imgp);

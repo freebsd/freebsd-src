@@ -131,9 +131,9 @@ int	cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 int	cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp);
 
 void	cheriabi_get_signal_stack_capability(struct thread *td,
-	    struct chericap *csig);
+	    void * __capability *csig);
 void	cheriabi_set_signal_stack_capability(struct thread *td,
-	    struct chericap *csig);
+	    void * __capability *csig);
 
 void	cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *arg,
 	    int syscall_no, int argnum, int ptrmask);
@@ -146,6 +146,6 @@ int	cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 int	cheriabi_get_mcontext(struct thread *td, mcontext_c_t *mcp, int flags);
 int	cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp);
 void	cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param);
-int	cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base);
+int	cheriabi_set_user_tls(struct thread *td, void * __capability *tls_base);
 
 #endif /* !_COMPAT_CHERIABI_CHERIABI_UTIL_H_ */
