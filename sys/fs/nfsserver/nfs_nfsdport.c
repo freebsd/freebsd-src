@@ -97,13 +97,13 @@ extern struct nfsdevicehead nfsrv_devidhead;
 static void nfsrv_pnfscreate(struct vnode *, struct vattr *, struct ucred *,
     NFSPROC_T *);
 static void nfsrv_pnfsremovesetup(struct vnode *, NFSPROC_T *, struct vnode **,
-    fhandle_t *);
-static void nfsrv_pnfsremove(struct vnode *, fhandle_t *, NFSPROC_T *);
+    fhandle_t *, char *);
+static void nfsrv_pnfsremove(struct vnode *, fhandle_t *, char *, NFSPROC_T *);
 static int nfsrv_proxyds(struct nfsrv_descript *, struct vnode *, off_t, int,
     struct ucred *, struct thread *, int, struct mbuf **, char *,
     struct mbuf **, struct nfsvattr *, struct acl *);
-static int nfsrv_dsgetsockmnt(struct vnode *, int, char *, int,
-    NFSPROC_T *, struct vnode **, struct nfsmount **, fhandle_t *, char *);
+static int nfsrv_dsgetsockmnt(struct vnode *, int, char *, int, NFSPROC_T *,
+    struct vnode **, struct nfsmount **, fhandle_t *, char *, char *);
 static int nfsrv_setextattr(struct vnode *, struct nfsvattr *, NFSPROC_T *);
 static int nfsrv_readdsrpc(fhandle_t *, off_t, int, struct ucred *,
     NFSPROC_T *, struct nfsmount *, struct mbuf **, struct mbuf **);
@@ -271,6 +271,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 	    (nd->nd_flag & ND_NFSV4) == 0 ||
 	    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_CHANGE) ||
 	    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_SIZE) ||
+	    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_TIMEACCESS) ||
 	    NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_TIMEMODIFY))) {
 		error = nfsrv_proxyds(nd, vp, 0, 0, nd->nd_cred, p,
 		    NFSPROC_GETATTR, NULL, NULL, NULL, &na, NULL);
@@ -287,6 +288,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 	 * replace them.
 	 */
 	if (gotattr != 0) {
+		nvap->na_atime = na.na_atime;
 		nvap->na_mtime = na.na_mtime;
 		nvap->na_filerev = na.na_filerev;
 		nvap->na_size = na.na_size;
@@ -427,6 +429,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 	    nvap->na_vattr.va_gid != (gid_t)VNOVAL ||
 	    nvap->na_vattr.va_size != VNOVAL ||
 	    nvap->na_vattr.va_mode != (mode_t)VNOVAL ||
+	    nvap->na_vattr.va_atime.tv_sec != VNOVAL ||
 	    nvap->na_vattr.va_mtime.tv_sec != VNOVAL)) {
 		/* For a pNFS server, set the attributes on the DS file. */
 		error = nfsrv_proxyds(NULL, vp, 0, 0, cred, p, NFSPROC_SETATTR,
@@ -1194,6 +1197,7 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	struct vnode *vp, *dsdvp;
 	fhandle_t fh;
 	int error = 0;
+	char fname[PNFS_FILENAME_LEN + 1];
 
 	vp = ndp->ni_vp;
 	dsdvp = NULL;
@@ -1202,12 +1206,12 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else if (is_v4)
 		error = nfsrv_checkremove(vp, 1, p);
 	if (error == 0)
-		nfsrv_pnfsremovesetup(vp, p, &dsdvp, &fh);
+		nfsrv_pnfsremovesetup(vp, p, &dsdvp, &fh, fname);
 	if (!error)
 		error = VOP_REMOVE(ndp->ni_dvp, vp, &ndp->ni_cnd);
 	if (dsdvp != NULL) {
 		if (error == 0)
-			nfsrv_pnfsremove(dsdvp, &fh, p);
+			nfsrv_pnfsremove(dsdvp, &fh, fname, p);
 		NFSVOPUNLOCK(dsdvp, 0);
 	}
 	if (ndp->ni_dvp == vp)
@@ -1272,6 +1276,7 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 	struct vnode *fvp, *tvp, *tdvp, *dsdvp;
 	fhandle_t fh;
 	int error = 0;
+	char fname[PNFS_FILENAME_LEN + 1];
 
 	dsdvp = NULL;
 	fvp = fromndp->ni_vp;
@@ -1349,7 +1354,7 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		nfsd_recalldelegation(fvp, p);
 	}
 	if (error == 0 && tvp != NULL) {
-		nfsrv_pnfsremovesetup(tvp, p, &dsdvp, &fh);
+		nfsrv_pnfsremovesetup(tvp, p, &dsdvp, &fh, fname);
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremovesetup"
 		    " dsdvp=%p\n", dsdvp);
 	}
@@ -1378,7 +1383,7 @@ out:
 	 */
 	if (dsdvp != NULL) {
 		if (error == 0) {
-			nfsrv_pnfsremove(dsdvp, &fh, p);
+			nfsrv_pnfsremove(dsdvp, &fh, fname, p);
 			NFSD_DEBUG(4, "nfsvno_rename: pnfsremove\n");
 		}
 		NFSVOPUNLOCK(dsdvp, 0);
@@ -3641,7 +3646,6 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	} else
 		printf("pNFS: pnfscreate vnlock=%d\n", error);
 	NFSFREECRED(tcred);
-	nfsvno_relpathbuf(&named);
 	if (error == 0) {
 		pf = NULL;
 		np = VTONFS(nvp);
@@ -3661,12 +3665,15 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		if (error == 0) {
 			dsattr.dsa_filerev = va.va_filerev;
 			dsattr.dsa_size = va.va_size;
+			dsattr.dsa_atime = va.va_atime;
 			dsattr.dsa_mtime = va.va_mtime;
 			pf = malloc(sizeof(*pf), M_TEMP, M_WAITOK | M_ZERO);
 			pf->dsf_dir = dsdir;
 			NFSBCOPY(np->n_fhp->nfh_fh, &pf->dsf_fh, NFSX_MYFH);
 			NFSBCOPY(nmp->nm_nam, &pf->dsf_sin,
 			    nmp->nm_nam->sa_len);
+			NFSBCOPY(named.ni_cnd.cn_nameptr, pf->dsf_filename,
+			    sizeof(pf->dsf_filename));
 			error = vn_start_write(vp, &mp, V_WAIT);
 		} else
 			printf("pNFS: pnfscreate can't get DS attr=%d\n",
@@ -3689,6 +3696,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		free(pf, M_TEMP);
 	} else
 		printf("pNFS: pnfscreate=%d\n", error);
+	nfsvno_relpathbuf(&named);
 }
 
 /*
@@ -3698,7 +3706,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
  */
 static void
 nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
-    fhandle_t *fhp)
+    fhandle_t *fhp, char *fname)
 {
 	struct vnode *dvp;
 	struct nfsmount *nmp;
@@ -3732,7 +3740,7 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	/* Get the directory vnode for the DS mount and the file handle. */
 	error = nfsrv_dsgetsockmnt(vp, LK_EXCLUSIVE, buf, buflen, p, &dvp,
-	    &nmp, NULL, NULL);
+	    &nmp, NULL, NULL, fname);
 	if (error == 0) {
 		error = nfsvno_getfh(vp, fhp, p);
 		if (error != 0) {
@@ -3752,7 +3760,7 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
  * removed to set up the dvp and fill in the FH.
  */
 static void
-nfsrv_pnfsremove(struct vnode *dvp, fhandle_t *fhp, NFSPROC_T *p)
+nfsrv_pnfsremove(struct vnode *dvp, fhandle_t *fhp, char *fname, NFSPROC_T *p)
 {
 	struct vnode *nvp;
 	struct nameidata named;
@@ -3770,7 +3778,8 @@ nfsrv_pnfsremove(struct vnode *dvp, fhandle_t *fhp, NFSPROC_T *p)
 	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
-	named.ni_cnd.cn_namelen = nfsrv_putfhname(fhp, bufp);
+	named.ni_cnd.cn_namelen = strlen(fname);
+	strlcpy(bufp, fname, NAME_MAX);
 	NFSD_DEBUG(4, "nfsrv_pnfsremove: filename=%s\n", bufp);
 	error = VOP_LOOKUP(dvp, &nvp, &named.ni_cnd);
 	NFSD_DEBUG(4, "nfsrv_pnfsremove: aft LOOKUP=%d\n", error);
@@ -3881,6 +3890,7 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 			NFSBCOPY(buf, &dsattr, buflen);
 			nap->na_filerev = dsattr.dsa_filerev;
 			nap->na_size = dsattr.dsa_size;
+			nap->na_atime = dsattr.dsa_atime;
 			nap->na_mtime = dsattr.dsa_mtime;
 		}
 
@@ -3900,7 +3910,7 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 	if (error == 0) {
 		buflen = 1024;
 		error = nfsrv_dsgetsockmnt(vp, LK_SHARED, buf, buflen, p,
-		    &dvp, &nmp, &fh, NULL);
+		    &dvp, &nmp, &fh, NULL, NULL);
 		if (error != 0)
 			printf("pNFS: proxy getextattr sockaddr=%d\n", error);
 	} else
@@ -3939,7 +3949,7 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 static int
 nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
     NFSPROC_T *p, struct vnode **dvpp, struct nfsmount **nmpp, fhandle_t *fhp,
-    char *devid)
+    char *devid, char *fnamep)
 {
 	struct vnode *dvp;
 	struct nfsmount *nmp;
@@ -3995,6 +4005,9 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 		}
 		if (fhp != NULL)
 			NFSBCOPY(&pf->dsf_fh, fhp, NFSX_MYFH);
+		if (fnamep != NULL)
+			strlcpy(fnamep, pf->dsf_filename,
+			    sizeof(pf->dsf_filename));
 	} else
 		NFSD_DEBUG(4, "nfsrv_dsgetsockmnt err=%d\n", error);
 	return (error);
@@ -4014,6 +4027,7 @@ nfsrv_setextattr(struct vnode *vp, struct nfsvattr *nap, NFSPROC_T *p)
 	if (error == 0) {
 		dsattr.dsa_filerev = nap->na_filerev;
 		dsattr.dsa_size = nap->na_size;
+		dsattr.dsa_atime = nap->na_atime;
 		dsattr.dsa_mtime = nap->na_mtime;
 		error = vn_extattr_set(vp, IO_NODELOCKED,
 		    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
@@ -4185,6 +4199,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_CHANGE);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESS);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFY);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
@@ -4223,8 +4238,8 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	/* We have no use for the Write Verifier since we use FileSync. */
 
 	/*
-	 * Get the Change and Modify Time attributes and set on the
-	 * Metadata file, so its attributes will be what the file's
+	 * Get the Change, Size, Access Time and Modify Time attributes and set
+	 * on the Metadata file, so its attributes will be what the file's
 	 * would be if it had been written.
 	 */
 	if (error == 0) {
@@ -4271,10 +4286,11 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	nfsm_stateidtom(nd, &st, NFSSTATEID_PUTSTATEID);
 	nfscl_fillsattr(nd, &nap->na_vattr, vp, NFSSATTR_FULL, 0);
 
-	/* Do a Getattr for Size, Change and Modify Time. */
+	/* Do a Getattr for Size, Change, Access Time and Modify Time. */
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_CHANGE);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESS);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFY);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(NFSV4OP_GETATTR);
@@ -4307,8 +4323,8 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if (nd->nd_repstat != 0)
 		error = nd->nd_repstat;
 	/*
-	 * Get the Change and Modify Time attributes and set on the
-	 * Metadata file, so its attributes will be what the file's
+	 * Get the Change, Size, Access Time and Modify Time attributes and set
+	 * on the Metadata file, so its attributes will be what the file's
 	 * would be if it had been written.
 	 */
 	if (error == 0) {
@@ -4392,6 +4408,7 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_CHANGE);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESS);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFY);
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
@@ -4429,7 +4446,7 @@ nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, fhandle_t *fhp, char *devid)
 	buflen = 1024;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflen, p, NULL, NULL, fhp,
-	    devid);
+	    devid, NULL);
 	free(buf, M_TEMP);
 	return (error);
 }

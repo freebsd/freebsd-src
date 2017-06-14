@@ -3161,7 +3161,7 @@ nfsrvd_close(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	u_int32_t *tl;
 	struct nfsstate st, *stp = &st;
-	int error = 0, writeacc;
+	int error = 0;
 	nfsv4stateid_t stateid;
 	nfsquad_t clientid;
 	struct nfsvattr na;
@@ -3204,11 +3204,9 @@ nfsrvd_close(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
-	nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid, nd, p,
-	    &writeacc);
+	nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid, nd, p);
 	/* For pNFS, update the attributes. */
-	if (writeacc != 0)
-		nfsrv_updatemdsattr(vp, &na, p);
+	nfsrv_updatemdsattr(vp, &na, p);
 	vput(vp);
 	if (!nd->nd_repstat) {
 		/*
@@ -3262,7 +3260,7 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_clientid.qval = clientid.qval;
 	}
 	nd->nd_repstat = nfsrv_delegupdate(nd, clientid, NULL, NULL,
-	    NFSV4OP_DELEGPURGE, nd->nd_cred, p, NULL);
+	    NFSV4OP_DELEGPURGE, nd->nd_cred, p);
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
@@ -3276,7 +3274,7 @@ nfsrvd_delegreturn(struct nfsrv_descript *nd, __unused int isdgram,
     vnode_t vp, NFSPROC_T *p, __unused struct nfsexstuff *exp)
 {
 	u_int32_t *tl;
-	int error = 0, writeacc;
+	int error = 0;
 	nfsv4stateid_t stateid;
 	nfsquad_t clientid;
 	struct nfsvattr na;
@@ -3298,10 +3296,9 @@ nfsrvd_delegreturn(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_clientid.qval = clientid.qval;
 	}
 	nd->nd_repstat = nfsrv_delegupdate(nd, clientid, &stateid, vp,
-	    NFSV4OP_DELEGRETURN, nd->nd_cred, p, &writeacc);
+	    NFSV4OP_DELEGRETURN, nd->nd_cred, p);
 	/* For pNFS, update the attributes. */
-	if (writeacc != 0)
-		nfsrv_updatemdsattr(vp, &na, p);
+	nfsrv_updatemdsattr(vp, &na, p);
 nfsmout:
 	vput(vp);
 	NFSEXITCODE2(error, nd);
@@ -3365,8 +3362,7 @@ nfsrvd_openconfirm(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
-	nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid, nd, p,
-	    NULL);
+	nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid, nd, p);
 	if (!nd->nd_repstat) {
 		NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 		*tl++ = txdr_unsigned(stateid.seqid);
@@ -3469,7 +3465,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid,
-		    nd, p, NULL);
+		    nd, p);
 	if (!nd->nd_repstat) {
 		/* For NFSv4.1, set the Current StateID. */
 		if ((nd->nd_flag & ND_NFSV41) != 0) {

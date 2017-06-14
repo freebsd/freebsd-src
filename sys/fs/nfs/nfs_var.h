@@ -109,9 +109,9 @@ int nfsrv_openctrl(struct nfsrv_descript *, vnode_t,
 int nfsrv_opencheck(nfsquad_t, nfsv4stateid_t *, struct nfsstate *,
     vnode_t, struct nfsrv_descript *, NFSPROC_T *, int);
 int nfsrv_openupdate(vnode_t, struct nfsstate *, nfsquad_t,
-    nfsv4stateid_t *, struct nfsrv_descript *, NFSPROC_T *, int *);
+    nfsv4stateid_t *, struct nfsrv_descript *, NFSPROC_T *);
 int nfsrv_delegupdate(struct nfsrv_descript *, nfsquad_t, nfsv4stateid_t *,
-    vnode_t, int, struct ucred *, NFSPROC_T *, int *);
+    vnode_t, int, struct ucred *, NFSPROC_T *);
 int nfsrv_releaselckown(struct nfsstate *, nfsquad_t, NFSPROC_T *);
 void nfsrv_zapclient(struct nfsclient *, NFSPROC_T *);
 int nfssvc_idname(struct nfsd_idargs *);

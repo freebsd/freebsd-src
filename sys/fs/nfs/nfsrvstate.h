@@ -343,12 +343,13 @@ struct nfsdevice {
 TAILQ_HEAD(nfsdevicehead, nfsdevice);
 
 /*
- * This structure holds the va_size, va_filerev and va_mtime for the DS
- * file and is stored in the metadata file's extended attribute pnfsd.dsattr.
+ * This structure holds the va_size, va_filerev, va_atime and va_mtime for the
+ * DS file and is stored in the metadata file's extended attribute pnfsd.dsattr.
  */
 struct pnfsdsattr {
 	uint64_t	dsa_filerev;
 	uint64_t	dsa_size;
+	struct timespec	dsa_atime;
 	struct timespec	dsa_mtime;
 };
 
@@ -357,8 +358,8 @@ struct pnfsdsattr {
 /*
  * This structure holds the information about the DS file and is stored
  * in the metadata file's extended attribute called pnfsd.dsfile.
- * dsf_nam[0] is defined as the actual length of sa_len for the addr.
  */
+#define	PNFS_FILENAME_LEN	(2 * sizeof(fhandle_t))
 struct pnfsdsfile {
 	fhandle_t	dsf_fh;
 	uint32_t	dsf_dir;
@@ -366,6 +367,7 @@ struct pnfsdsfile {
 		struct sockaddr_in	sin;
 		struct sockaddr_in6	sin6;
 	} dsf_nam;
+	char		dsf_filename[PNFS_FILENAME_LEN + 1];
 };
 #define	dsf_sin		dsf_nam.sin
 #define	dsf_sin6	dsf_nam.sin6
