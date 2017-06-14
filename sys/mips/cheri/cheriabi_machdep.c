@@ -1082,7 +1082,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (EINVAL);
 	}
 	if (parms_from_cap) {
-		error = cheriabi_cap_to_ptr(&uap->parms, &regs->c3,
+		error = cheriabi_cap_to_ptr_x(&uap->parms, regs->c3,
 		    reqsize, reqperms, 0);
 		if (error != 0)
 			return (error);
