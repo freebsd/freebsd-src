@@ -958,7 +958,7 @@ cheriabi_thr_new_md(struct thread *parent_td, struct thr_param_c *param)
 }
 
 int
-cheriabi_set_user_tls(struct thread *td, void * __capability *tls_base)
+cheriabi_set_user_tls(struct thread *td, void * __capability tls_base)
 {
 	int error;
 	/* XXX-AR: add a TLS alignment check here */
@@ -968,11 +968,11 @@ cheriabi_set_user_tls(struct thread *td, void * __capability *tls_base)
 	 * Don't require any particular permissions or size and allow NULL.
 	 * If the caller passes nonsense, they just get nonsense results.
 	 */
-	error = cheriabi_cap_to_ptr((caddr_t *)&td->td_md.md_tls, tls_base,
+	error = cheriabi_cap_to_ptr_x((caddr_t *)&td->td_md.md_tls, tls_base,
 	    0, 0, 1);
 	if (error)
 		return (error);
-	td->td_md.md_tls_cap = *tls_base;
+	td->td_md.md_tls_cap = tls_base;
 	/* XXX: should support a crdhwr version */
 	if (curthread == td && cpuinfo.userlocal_reg == true) {
 		/*
@@ -1090,7 +1090,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 
 	switch (uap->op) {
 	case MIPS_SET_TLS:
-		return (cheriabi_set_user_tls(td, &regs->c3));
+		return (cheriabi_set_user_tls(td, regs->c3));
 
 	case MIPS_GET_TLS:
 		error = copyoutcap(&td->td_md.md_tls_cap, uap->parms,
