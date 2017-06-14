@@ -293,12 +293,6 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct sysentvec *se;
-#ifdef OLD_ARG_HANDLING
-	register_t intargs[8];
-	uintptr_t ptrargs[8];
-	u_int tag;
-	int i, isaved, psaved, curint, curptr, nintargs, nptrargs;
-#endif
 	int error;
 
 	error = 0;
@@ -324,110 +318,7 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	sa->narg = sa->callp->sy_narg;
 
-#ifndef OLD_ARG_HANDLING
 	error = cheriabi_dispatch_fill_uap(td, sa->code, sa->args);
-#else
-
-	intargs[0] = locr0->a0;
-	intargs[1] = locr0->a1;
-	intargs[2] = locr0->a2;
-	intargs[3] = locr0->a3;
-	intargs[4] = locr0->a4;
-	intargs[5] = locr0->a5;
-	intargs[6] = locr0->a6;
-	intargs[7] = locr0->a7;
-	isaved = 8;
-
-#if defined(CPU_CHERI_CHERI0) || defined (CPU_CHERI_CHERI8) || defined(CPU_CHERI_CHERI16)
-#error	CHERIABI does not support fewer than 8 argument registers
-#endif
-	/*
-	 * XXXBD: We should ideally use a user capability rather than $kdc
-	 * to generate the pointers, but then we have to answer: which one?
-	 *
-	 * XXXRW: The kernel cannot distinguish between pointers with tags vs.
-	 * untagged (possible) integers, which is problematic when a
-	 * system-call argument is an intptr_t.  We used to just use CToPtr
-	 * here, but this caused untagged integer arguments to be lost.  Now
-	 * we pick one of CToPtr and CToInt based on the tag -- but this is
-	 * not really ideal.  Instead, we'd prefer that the kernel could
-	 * differentiate between the two explicitly using tagged capabilities,
-	 * which we're not yet ready to do.
-	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c3, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[0], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c4, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[1], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c5, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[2], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c6, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[3], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c7, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[4], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c8, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[5], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c9, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[6], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c10, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[7], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[7], CHERI_CR_CTEMP0);
-	psaved = 8;
-
-#ifdef TRAP_DEBUG
-	if (trap_debug)
-		printf("SYSCALL #%d pid:%u\n", sa->code, td->td_proc->p_pid);
-#endif
-
-	nptrargs = bitcount(CHERIABI_SYS_argmap[sa->code].sam_ptrmask);
-	nintargs = sa->narg - nptrargs;
-	KASSERT(nintargs <= isaved,
-	    ("SYSCALL #%u pid:%u, nintargs (%u) > isaved (%u).\n",
-	     sa->code, td->td_proc->p_pid, nintargs, isaved));
-	KASSERT(nptrargs <= psaved,
-	    ("SYSCALL #%u pid:%u, nptrargs (%u) > psaved (%u).\n",
-	     sa->code, td->td_proc->p_pid, nptrargs, psaved));
-
-	/*
-	 * Check each argument to see if it is a pointer and pop an argument
-	 * off the appropriate list.
-	 */
-	curint = curptr = 0;
-	for (i = 0; i < sa->narg; i++)
-		sa->args[i] =
-		    (CHERIABI_SYS_argmap[sa->code].sam_ptrmask & 1 << i) ?
-		    ptrargs[curptr++] : intargs[curint++];
-#endif /* OLD_ARG_HANDLING */
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = locr0->v1;
