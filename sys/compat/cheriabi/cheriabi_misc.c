@@ -453,9 +453,8 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		 * Retrieve the ident and udata capabilities stashed by
 		 * cheriabi_kevent_copyin().
 		 */
-		cheri_capability_copy(&ks_c[i].ident, kevp[i].udata);
-		cheri_capability_copy(&ks_c[i].udata,
-		    (struct chericap *)kevp[i].udata + 1);
+		ks_c[i].ident = *((void * __capability *)kevp[i].udata);
+		ks_c[i].udata = *((void * __capability *)kevp[i].udata + 1);
 	}
 	error = copyoutcap(ks_c, uap->eventlist, count * sizeof(*ks_c));
 	if (error == 0)
@@ -516,9 +515,8 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 */
 		kevp[i].udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
 		    M_WAITOK);
-		cheri_capability_copy(kevp[i].udata, &ks_c[i].ident);
-		cheri_capability_copy((struct chericap *)kevp[i].udata + 1,
-		    &ks_c[i].udata);
+		*((void * __capability *)kevp[i].udata) = ks_c[i].ident;
+		*((void * __capability *)kevp[i].udata + 1) = ks_c[i].udata;
 	}
 done:
 	return (error);
@@ -1309,8 +1307,7 @@ cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
 	    CHERIABI_SYS_cheriabi_sigqueue, 2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	if (uap->pid == td->td_proc->p_pid) {
 		sv.sival_ptr = malloc(sizeof(value_union), M_TEMP, M_WAITOK);
-		cheri_capability_copy(sv.sival_ptr,
-		    &value_union.sival_ptr);
+		*((void * __capability *)sv.sival_ptr) = value_union.sival_ptr;
 		flags = KSI_CHERI;
 	} else {
 		/*
@@ -1712,16 +1709,16 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 		CP(*sig_c, *sig, sigev_signo);
 		sig->sigev_value.sival_ptr = malloc(sizeof(sig_c->sigev_value),
 		    M_TEMP, M_WAITOK);
-		cheri_capability_copy(sig->sigev_value.sival_ptr,
-		    &sig_c->sigev_value.sival_ptr);
+		*((void * __capability *)sig->sigev_value.sival_ptr) =
+		    sig_c->sigev_value.sival_ptr;
 		break;
 	case SIGEV_KEVENT:
 		CP(*sig_c, *sig, sigev_notify_kqueue);
 		CP(*sig_c, *sig, sigev_notify_kevent_flags);
 		sig->sigev_value.sival_ptr = malloc(sizeof(sig_c->sigev_value),
 		    M_TEMP, M_WAITOK);
-		cheri_capability_copy(sig->sigev_value.sival_ptr,
-		    &sig_c->sigev_value.sival_ptr);
+		*((void * __capability *)sig->sigev_value.sival_ptr) = 
+		    sig_c->sigev_value.sival_ptr;
 		break;
 	default:
 		return (EINVAL);
