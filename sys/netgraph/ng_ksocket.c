@@ -1184,7 +1184,8 @@ ng_ksocket_accept(priv_p priv)
 	if (error)
 		return (error);
 
-	soaccept(so, &sa);
+	if ((error = soaccept(so, &sa)) != 0)
+		return (error);
 
 	len = OFFSETOF(struct ng_ksocket_accept, addr);
 	if (sa != NULL)
