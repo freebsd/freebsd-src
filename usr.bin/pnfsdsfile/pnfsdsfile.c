@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsrvstate.h>
 
 static void usage(void);
-static void nfsrv_putfhname(fhandle_t *fhp, char *bufp);
 
 /*
  * This program displays the location information of a data storage file
@@ -51,20 +50,11 @@ static void nfsrv_putfhname(fhandle_t *fhp, char *bufp);
 int
 main(int argc, char *argv[])
 {
-	fhandle_t fh;
-	char buf[sizeof(fh) * 2 + 1], hostn[NI_MAXHOST + 1];
+	char hostn[NI_MAXHOST + 1];
 	struct pnfsdsfile dsfile;
 
 	if (argc != 2)
 		usage();
-
-	/*
-	 * The file's name is a hexadecimal representation of the MetaData
-	 * Server's file handle.
-	 */
-	if (getfh(argv[1], &fh) < 0)
-		err(1, "Getfh of %s failed", argv[1]);
-	nfsrv_putfhname(&fh, buf);
 
 	/*
 	 * The host address and directory where the data storage file is
@@ -79,21 +69,7 @@ main(int argc, char *argv[])
 	    dsfile.dsf_sin.sin_len, hostn, sizeof(hostn), NULL, 0, 0) < 0)
 		err(1, "Can't get hostname\n");
 
-	printf("%s\tds%d/%s\n", hostn, dsfile.dsf_dir, buf);
-}
-
-/*
- * Generate a file name based on the file handle and put it in *bufp.
- */
-static void
-nfsrv_putfhname(fhandle_t *fhp, char *bufp)
-{
-	int i;
-	uint8_t *cp;
-
-	cp = (uint8_t *)fhp;
-	for (i = 0; i < sizeof(*fhp); i++)
-		sprintf(&bufp[2 * i], "%02x", *cp++);
+	printf("%s\tds%d/%s\n", hostn, dsfile.dsf_dir, dsfile.dsf_filename);
 }
 
 static void
