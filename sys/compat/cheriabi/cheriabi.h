@@ -51,45 +51,6 @@
  * not create a spurious pointer. -- BD
  */
 static inline int
-cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
-    register_t reqperms, int may_be_null)
-{
-	u_int tag;
-	register_t perms;
-	register_t sealed;
-	size_t length, offset;
-
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (!tag) {
-		if (!may_be_null)
-			return (EFAULT);
-		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
-		if (*ptrp != NULL)
-			return (EFAULT);
-	} else {
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
-			return (EPROT);
-
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
-		if (offset >= length)
-			return (EPROT);
-		length -= offset;
-		if (length < reqlen)
-			return (EPROT);
-
-		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	}
-	return (0);
-}
-
-static inline int
 cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
@@ -125,21 +86,6 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 		*ptrp = (caddr_t)cap;
 	}
 	return (0);
-}
-
-static inline int
-cheriabi_strcap_to_ptr(char **strp, struct chericap *cap, int may_be_null)
-{
-
-	/*
-	 * XXX-BD: place holder implementation checks that the capability
-	 * could hold a NUL terminated string empty string.  We can't
-	 * check that it does hold one because the caller could change
-	 * that out from under us.  Completely safe string handling
-	 * requires pushing the length down to the copyinstr().
-	 */
-	return (cheriabi_cap_to_ptr(strp, cap, 1,
-	    CHERI_PERM_LOAD, may_be_null));
 }
 
 static inline int
