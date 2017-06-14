@@ -27,6 +27,8 @@ _PRIVATELIBS=	\
 		unbound \
 		zstd
 
+_PRIVATELIBS+=	png
+
 _INTERNALLIBS=	\
 		amu \
 		bfd \
@@ -161,7 +163,6 @@ _LIBRARIES=	\
 		pcsclite \
 		pjdlog \
 		pmc \
-		png \
 		png_sb \
 		proc \
 		procstat \

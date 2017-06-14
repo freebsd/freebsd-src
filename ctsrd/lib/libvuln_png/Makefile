@@ -10,6 +10,5 @@ SRCS+=	no_vuln_stub.c
 .endif
 
 BUILDDIR=	${.CURDIR}/../../../lib/libpng
-SRCDIR=		${.CURDIR}/../../../contrib/libpng
 
 .include <${BUILDDIR}/Makefile>

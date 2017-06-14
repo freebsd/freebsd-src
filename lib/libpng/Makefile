@@ -2,9 +2,10 @@
 
 LIB?=	png
 SHLIB_MAJOR= 15
+PRIVATELIB=
 
 BUILDDIR?=	${.CURDIR}
-SRCDIR?=	${.CURDIR}/../../contrib/libpng
+SRCDIR?=	${SRCTOP}/contrib/libpng
 
 CFLAGS+=	-I${BUILDDIR}
 
