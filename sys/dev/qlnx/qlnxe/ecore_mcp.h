@@ -51,20 +51,25 @@
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
 #define MFW_PORT(_p_hwfn)	((_p_hwfn)->abs_pf_id % \
-				 ((_p_hwfn)->p_dev->num_ports_in_engines * \
+				 ((_p_hwfn)->p_dev->num_ports_in_engine * \
 				  ecore_device_num_engines((_p_hwfn)->p_dev)))
 
 struct ecore_mcp_info {
-	/* Spinlock used for protecting the access to the MFW mailbox */
-	osal_spinlock_t lock;
+	/* List for mailbox commands which were sent and wait for a response */
+	osal_list_t cmd_list;
 
-	/* Spinglock used for syncing SW link-changes and link-changes
+	/* Spinlock used for protecting the access to the mailbox commands list
+	 * and the sending of the commands.
+	 */
+	osal_spinlock_t cmd_lock;
+
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool b_block_cmd;
+
+	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	osal_spinlock_t link_lock;
-
-	/* Flag to indicate whether sending a MFW mailbox is forbidden */
-	bool block_mb_sending;
 
 	/* Address of the MCP public area */
 	u32 public_base;
@@ -89,7 +94,7 @@ struct ecore_mcp_info {
 	u8 *mfw_mb_cur;
 	u8 *mfw_mb_shadow;
 	u16 mfw_mb_length;
-	u16 mcp_hist;
+	u32 mcp_hist;
 
 	/* Capabilties negotiated with the MFW */
 	u32 capabilities;
@@ -136,7 +141,7 @@ enum _ecore_status_t ecore_mcp_cmd_init(struct ecore_hwfn *p_hwfn,
  *
  * @param p_hwfn
  * @param p_ptt
- * Can only be called after `num_ports_in_engines' is set
+ * Can only be called after `num_ports_in_engine' is set
  */
 void ecore_mcp_cmd_port_init(struct ecore_hwfn *p_hwfn,
 			     struct ecore_ptt *p_ptt);
@@ -279,56 +284,6 @@ enum _ecore_status_t ecore_mcp_reset(struct ecore_hwfn *p_hwfn,
 				     struct ecore_ptt *p_ptt);
 
 /**
- * @brief - Sends an NVM write command request to the MFW with
- *          payload.
- *
- * @param p_hwfn
- * @param p_ptt
- * @param cmd - Command: Either DRV_MSG_CODE_NVM_WRITE_NVRAM or
- *            DRV_MSG_CODE_NVM_PUT_FILE_DATA
- * @param param - [0:23] - Offset [24:31] - Size
- * @param o_mcp_resp - MCP response
- * @param o_mcp_param - MCP response param
- * @param i_txn_size -  Buffer size
- * @param i_buf - Pointer to the buffer
- *
- * @param return ECORE_SUCCESS upon success.
- */
-enum _ecore_status_t ecore_mcp_nvm_wr_cmd(struct ecore_hwfn *p_hwfn,
-					  struct ecore_ptt *p_ptt,
-					  u32 cmd,
-					  u32 param,
-					  u32 *o_mcp_resp,
-					  u32 *o_mcp_param,
-					  u32 i_txn_size,
-					  u32 *i_buf);
-
-/**
- * @brief - Sends an NVM read command request to the MFW to get
- *        a buffer.
- *
- * @param p_hwfn
- * @param p_ptt
- * @param cmd - Command: DRV_MSG_CODE_NVM_GET_FILE_DATA or
- *            DRV_MSG_CODE_NVM_READ_NVRAM commands
- * @param param - [0:23] - Offset [24:31] - Size
- * @param o_mcp_resp - MCP response
- * @param o_mcp_param - MCP response param
- * @param o_txn_size -  Buffer size output
- * @param o_buf - Pointer to the buffer returned by the MFW.
- *
- * @param return ECORE_SUCCESS upon success.
- */
-enum _ecore_status_t ecore_mcp_nvm_rd_cmd(struct ecore_hwfn *p_hwfn,
-					  struct ecore_ptt *p_ptt,
-					  u32 cmd,
-					  u32 param,
-					  u32 *o_mcp_resp,
-					  u32 *o_mcp_param,
-					  u32 *o_txn_size,
-					  u32 *o_buf);
-
-/**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
  *
  * @param p_hwfn
@@ -434,17 +389,6 @@ ecore_mcp_mdump_get_retain(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 			   struct ecore_mdump_retain_data *p_mdump_retain);
 
 /**
- * @brief - Clear the mdump retained data.
- *
- * @param p_hwfn
- * @param p_ptt
- *
- * @param return ECORE_SUCCESS upon success.
- */
-enum _ecore_status_t ecore_mcp_mdump_clr_retain(struct ecore_hwfn *p_hwfn,
-						struct ecore_ptt *p_ptt);
-
-/**
  * @brief - Sets the MFW's max value for the given resource
  *
  *  @param p_hwfn
@@ -513,7 +457,12 @@ enum ecore_resc_lock {
 	ECORE_RESC_LOCK_PTP_PORT1,
 	ECORE_RESC_LOCK_PTP_PORT2,
 	ECORE_RESC_LOCK_PTP_PORT3,
-	ECORE_RESC_LOCK_RESC_ALLOC = ECORE_MCP_RESC_LOCK_MAX_VAL
+	ECORE_RESC_LOCK_RESC_ALLOC = ECORE_MCP_RESC_LOCK_MAX_VAL,
+
+	/* A dummy value to be used for auxillary functions in need of
+	 * returning an 'error' value.
+	 */
+	ECORE_RESC_LOCK_RESC_INVALID,
 };
 
 struct ecore_resc_lock_params {
@@ -527,9 +476,11 @@ struct ecore_resc_lock_params {
 
 	/* Number of times to retry locking */
 	u8 retry_num;
+#define ECORE_MCP_RESC_LOCK_RETRY_CNT_DFLT	10
 
 	/* The interval in usec between retries */
 	u16 retry_interval;
+#define ECORE_MCP_RESC_LOCK_RETRY_VAL_DFLT	10000
 
 	/* Use sleep or delay between retries */
 	bool sleep_b4_retry;
@@ -579,6 +530,19 @@ struct ecore_resc_unlock_params {
 enum _ecore_status_t
 ecore_mcp_resc_unlock(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		      struct ecore_resc_unlock_params *p_params);
+
+/**
+ * @brief - default initialization for lock/unlock resource structs
+ *
+ * @param p_lock - lock params struct to be initialized; Can be OSAL_NULL
+ * @param p_unlock - unlock params struct to be initialized; Can be OSAL_NULL
+ * @param resource - the requested resource
+ * @paral b_is_permanent - disable retries & aging when set
+ */
+void ecore_mcp_resc_lock_default_init(struct ecore_resc_lock_params *p_lock,
+				      struct ecore_resc_unlock_params *p_unlock,
+				      enum ecore_resc_lock resource,
+				      bool b_is_permanent);
 
 void ecore_mcp_wol_wr(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		      u32 offset, u32 val);
