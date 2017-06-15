@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <sys/capsicum.h>
 #endif
+#include <sys/endian.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/time.h>
@@ -754,7 +755,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 {
 	const char *vbuf = "RFB 003.008\n";
 	unsigned char buf[80];
-	unsigned char *message;
+	unsigned char *message = NULL;
 
 #ifndef NO_OPENSSL
 	unsigned char challenge[AUTH_LENGTH];
@@ -766,7 +767,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 #endif
 
 	pthread_t tid;
-	uint32_t sres;
+	uint32_t sres = 0;
 	int len;
 
 	rc->cfd = cfd;
@@ -858,7 +859,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	stream_write(cfd, &sres, 4);
 
 	if (sres) {
-		*((uint32_t *) buf) = htonl(strlen(message));
+		be32enc(buf, strlen(message));
 		stream_write(cfd, buf, 4);
 		stream_write(cfd, message, strlen(message));
 		goto done;
