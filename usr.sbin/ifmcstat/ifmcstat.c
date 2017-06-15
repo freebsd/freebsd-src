@@ -805,7 +805,7 @@ inm_print_sources_sysctl(uint32_t ifindex, struct in_addr gina)
 	uint32_t fmode;
 	const char *modestr;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	if (sysctlnametomib("net.inet.ip.mcast.filters", mib, &mibsize) == -1) {
 		perror("sysctlnametomib");
 		return;
@@ -814,7 +814,7 @@ inm_print_sources_sysctl(uint32_t ifindex, struct in_addr gina)
 	needed = 0;
 	mib[5] = ifindex;
 	mib[6] = gina.s_addr;	/* 32 bits wide */
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	do {
 		if (sysctl(mib, mibsize, NULL, &needed, NULL, 0) == -1) {
 			perror("sysctl net.inet.ip.mcast.filters");
@@ -905,7 +905,7 @@ in6m_print_sources_sysctl(uint32_t ifindex, struct in6_addr *pgroup)
 	uint32_t fmode;
 	const char *modestr;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	if (sysctlnametomib("net.inet6.ip6.mcast.filters", mib,
 	    &mibsize) == -1) {
 		perror("sysctlnametomib");
@@ -918,7 +918,7 @@ in6m_print_sources_sysctl(uint32_t ifindex, struct in6_addr *pgroup)
 	for (i = 0; i < 4; i++)
 		mib[6 + i] = *pi++;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	do {
 		if (sysctl(mib, mibsize, NULL, &needed, NULL, 0) == -1) {
 			perror("sysctl net.inet6.ip6.mcast.filters");
@@ -1145,7 +1145,7 @@ ifmcstat_getifmaddrs(void)
 				size_t mibsize, len;
 				int mib[5];
 
-				mibsize = sizeof(mib) / sizeof(mib[0]);
+				mibsize = nitems(mib);
 				if (sysctlnametomib("net.inet.igmp.ifinfo",
 				    mib, &mibsize) == -1) {
 					perror("sysctlnametomib");
@@ -1170,7 +1170,7 @@ ifmcstat_getifmaddrs(void)
 				size_t mibsize, len;
 				int mib[5];
 
-				mibsize = sizeof(mib) / sizeof(mib[0]);
+				mibsize = nitems(mib);
 				if (sysctlnametomib("net.inet6.mld.ifinfo",
 				    mib, &mibsize) == -1) {
 					perror("sysctlnametomib");
