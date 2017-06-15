@@ -333,8 +333,6 @@ db_print_protosw(struct protosw *pr, const char *prname, int indent)
 	db_printf("pr_fasttimo: %p   ", pr->pr_fasttimo);
 	db_printf("pr_slowtimo: %p   ", pr->pr_slowtimo);
 	db_printf("pr_drain: %p\n", pr->pr_drain);
-
-	db_print_indent(indent);
 }
 
 static void
@@ -408,6 +406,8 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_mbmax: %u\n", sb->sb_mbmax);
 
 	db_print_indent(indent);
+	db_printf("sb_mcnt: %u   ", sb->sb_mcnt);
+	db_printf("sb_ccnt: %u   ", sb->sb_ccnt);
 	db_printf("sb_ctl: %u   ", sb->sb_ctl);
 	db_printf("sb_lowat: %d   ", sb->sb_lowat);
 	db_printf("sb_timeo: %jd\n", sb->sb_timeo);
@@ -448,7 +448,6 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 	db_printf(")\n");
 
 	db_print_indent(indent);
-	db_printf(")   ");
 	db_printf("so_pcb: %p   ", so->so_pcb);
 	db_printf("so_proto: %p\n", so->so_proto);
 
@@ -466,6 +465,7 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 	} else {
 		db_printf("so_qstate: 0x%x (", so->so_qstate);
 		db_print_soqstate(so->so_qstate);
+		db_printf(")   ");
 		db_printf("so_listen: %p   ", so->so_listen);
 		/* so_list skipped */
 		db_printf("so_timeo: %d   ", so->so_timeo);
@@ -473,7 +473,7 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 
 		db_print_indent(indent);
 		db_printf("so_sigio: %p   ", so->so_sigio);
-		db_printf("so_oobmark: %lu   ", so->so_oobmark);
+		db_printf("so_oobmark: %lu\n", so->so_oobmark);
 
 		db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
 		db_print_sockbuf(&so->so_snd, "so_snd", indent);
