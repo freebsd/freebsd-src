@@ -224,6 +224,7 @@ free_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 	if (rc != 0)
 		device_printf(sc->dev, "%s: failed for iq %d, fl %d: %d\n",
 		    __func__, nm_rxq->iq_cntxt_id, nm_rxq->fl_cntxt_id, rc);
+	nm_rxq->iq_cntxt_id = INVALID_NM_RXQ_CNTXT_ID;
 	return (rc);
 }
 
@@ -310,6 +311,7 @@ free_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	if (rc != 0)
 		device_printf(sc->dev, "%s: failed for eq %d: %d\n", __func__,
 		    nm_txq->cntxt_id, rc);
+	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
 	return (rc);
 }
 
@@ -318,6 +320,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
     struct netmap_adapter *na)
 {
 	struct netmap_slot *slot;
+	struct netmap_kring *kring;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
 	int rc, i, j, hwidx;
@@ -347,6 +350,11 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	for_each_nm_rxq(vi, i, nm_rxq) {
 		struct irq *irq = &sc->irq[vi->first_intr + i];
 
+		kring = &na->rx_rings[nm_rxq->nid];
+		if (!nm_kring_pending_on(kring) ||
+		    nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
+			continue;
+
 		alloc_nm_rxq_hwq(vi, nm_rxq, tnl_cong(vi->pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
@@ -373,6 +381,11 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
+		kring = &na->tx_rings[nm_txq->nid];
+		if (!nm_kring_pending_on(kring) ||
+		    nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID)
+			continue;
+
 		alloc_nm_txq_hwq(vi, nm_txq);
 		slot = netmap_reset(na, NR_TX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
@@ -401,6 +414,7 @@ static int
 cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
     struct netmap_adapter *na)
 {
+	struct netmap_kring *kring;
 	int rc, i;
 	struct sge_nm_txq *nm_txq;
 	struct sge_nm_rxq *nm_rxq;
@@ -419,6 +433,11 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	for_each_nm_txq(vi, i, nm_txq) {
 		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
 
+		kring = &na->tx_rings[nm_txq->nid];
+		if (!nm_kring_pending_off(kring) ||
+		    nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
+			continue;
+
 		/* Wait for hw pidx to catch up ... */
 		while (be16toh(nm_txq->pidx) != spg->pidx)
 			pause("nmpidx", 1);
@@ -431,6 +450,11 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	}
 	for_each_nm_rxq(vi, i, nm_rxq) {
 		struct irq *irq = &sc->irq[vi->first_intr + i];
+
+		kring = &na->rx_rings[nm_rxq->nid];
+		if (!nm_kring_pending_off(kring) ||
+		    nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID)
+			continue;
 
 		while (!atomic_cmpset_int(&irq->nm_state, NM_ON, NM_OFF))
 			pause("nmst", 1);
