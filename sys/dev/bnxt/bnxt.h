@@ -438,6 +438,7 @@ struct bnxt_ring {
 	uint32_t		ring_size;	/* Must be a power of two */
 	uint16_t		id;		/* Logical ID */
 	uint16_t		phys_id;
+	struct bnxt_full_tpa_start *tpa_start;
 };
 
 struct bnxt_cp_ring {
@@ -564,7 +565,6 @@ struct bnxt_softc {
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
 
-	struct bnxt_full_tpa_start *tpa_start;
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
