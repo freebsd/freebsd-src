@@ -3892,19 +3892,28 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 			nap->na_size = dsattr.dsa_size;
 			nap->na_atime = dsattr.dsa_atime;
 			nap->na_mtime = dsattr.dsa_mtime;
+
+			/*
+			 * If nfsrv_pnfsgetdsattr is 0 or nfsrv_checkdsattr()
+			 * returns 0, just return now.  nfsrv_checkdsattr()
+			 * returns 0 if there is no Read/Write layout
+			 * plus either an Open/Write_access or Write
+			 * delegation issued to a client for the file.
+			 */
+			if (nfsrv_pnfsgetdsattr == 0 ||
+			    nfsrv_checkdsattr(nd, vp, p) == 0) {
+				free(buf, M_TEMP);
+				return (error);
+			}
 		}
 
 		/*
-		 * If nfsrv_pnfsgetdsattr is 0 or nfsrv_checkdsattr() returns
-		 * 0, just return now.  nfsrv_checkdsattr() returns 0 if there
-		 * is no Read/Write layout + either an Open/Write_access or
-		 * Write delegation issued to a client for the file.
+		 * Clear ENOATTR so the code below will attempt to do a
+		 * nfsrv_getattrdsrpc() to get the attributes and (re)create
+		 * the extended attribute.
 		 */
-		if (nfsrv_pnfsgetdsattr == 0 || nfsrv_checkdsattr(nd, vp, p) ==
-		    0) {
-			free(buf, M_TEMP);
-			return (error);
-		}
+		if (error == ENOATTR)
+			error = 0;
 	}
 
 	if (error == 0) {
@@ -4422,7 +4431,6 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 		    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
 		    NULL, NULL);
 		if (error == 0) {
-			/* Do this as root so that it won't EACCES fail. */
 			error = nfsrv_setextattr(vp, nap, p);
 			NFSD_DEBUG(4, "nfsrv_getattrdsrpc: aft setextat=%d\n",
 			    error);
