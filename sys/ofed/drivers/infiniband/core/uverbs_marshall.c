@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <rdma/ib_marshall.h>
 
 void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
@@ -140,5 +139,10 @@ void ib_copy_path_rec_from_user(struct ib_sa_path_rec *dst,
 	dst->packet_life_time	= src->packet_life_time;
 	dst->preference		= src->preference;
 	dst->packet_life_time_selector = src->packet_life_time_selector;
+
+	memset(dst->dmac, 0, sizeof(dst->dmac));
+	dst->net = NULL;
+	dst->ifindex = 0;
+	dst->gid_type = IB_GID_TYPE_IB;
 }
 EXPORT_SYMBOL(ib_copy_path_rec_from_user);

@@ -167,7 +167,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		}
 		priv->qkey = be32_to_cpu(priv->broadcast->mcmember.qkey);
 		spin_unlock_irq(&priv->lock);
-		priv->tx_wr.wr.ud.remote_qkey = priv->qkey;
+		priv->tx_wr.remote_qkey = priv->qkey;
 		set_qkey = 1;
 	}
 
@@ -480,7 +480,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 
-	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid))
+	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL))
 		ipoib_warn(priv, "ib_query_gid() failed\n");
 	else
 		memcpy(IF_LLADDR(dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));

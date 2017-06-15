@@ -14,7 +14,6 @@ struct krping_stats {
 	char name[16];
 };
 
-int krping_doit(char *, void *);
+int krping_doit(char *);
 void krping_walk_cb_list(void (*)(struct krping_stats *, void *), void *);
-void krping_init(void);
 int krping_sigpending(void);
