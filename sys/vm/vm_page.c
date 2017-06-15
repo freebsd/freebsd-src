@@ -1759,18 +1759,18 @@ retry:
 		pagedaemon_wakeup();
 		return (NULL);
 	}
-	if (m_ret != NULL)
+	if (m_ret != NULL) {
 		vm_phys_freecnt_adj(m_ret, -npages);
-	else {
+		for (m = m_ret; m < &m_ret[npages]; m++)
+			if ((m->flags & PG_ZERO) != 0)
+				vm_page_zero_count--;
+	} else {
 #if VM_NRESERVLEVEL > 0
 		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
 		    boundary))
 			goto retry;
 #endif
 	}
-	for (m = m_ret; m < &m_ret[npages]; m++)
-		if ((m->flags & PG_ZERO) != 0)
-			vm_page_zero_count--;
 	mtx_unlock(&vm_page_queue_free_mtx);
 	if (m_ret == NULL)
 		return (NULL);
