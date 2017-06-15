@@ -1198,7 +1198,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	vm_ooffset_t poffset;
 	struct uio auio;
 	struct iovec aiov;
-	int count, error, i, maxsize, ncount, ppscheck;
+	int count, error, i, maxsize, ncount, pgoff, ppscheck;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1209,10 +1209,11 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		rtvals[i] = VM_PAGER_ERROR;
 
 	if ((int64_t)ma[0]->pindex < 0) {
-		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
-		    (long)ma[0]->pindex, (u_long)ma[0]->dirty);
+		printf("vnode_pager_generic_putpages: "
+		    "attempt to write meta-data 0x%jx(%lx)\n",
+		    (uintmax_t)ma[0]->pindex, (u_long)ma[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
-		return VM_PAGER_BAD;
+		return (VM_PAGER_BAD);
 	}
 
 	maxsize = count * PAGE_SIZE;
@@ -1235,8 +1236,6 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	VM_OBJECT_WLOCK(object);
 	if (maxsize + poffset > object->un_pager.vnp.vnp_size) {
 		if (object->un_pager.vnp.vnp_size > poffset) {
-			int pgoff;
-
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
 			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
@@ -1250,6 +1249,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				vm_page_assert_sbusied(m);
 				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
+				MPASS(m->dirty != 0);
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);
 			}
@@ -1257,15 +1257,14 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 			maxsize = 0;
 			ncount = 0;
 		}
-		if (ncount < count) {
-			for (i = ncount; i < count; i++) {
-				rtvals[i] = VM_PAGER_BAD;
-			}
-		}
+		for (i = ncount; i < count; i++)
+			rtvals[i] = VM_PAGER_BAD;
 	}
+	for (i = 0; i < ncount - ((btoc(maxsize) & PAGE_MASK) != 0); i++)
+		MPASS(ma[i]->dirty == VM_PAGE_BITS_ALL);
 	VM_OBJECT_WUNLOCK(object);
 
-	aiov.iov_base = (caddr_t) 0;
+	aiov.iov_base = NULL;
 	aiov.iov_len = maxsize;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -1273,26 +1272,23 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_resid = maxsize;
-	auio.uio_td = (struct thread *) 0;
+	auio.uio_td = NULL;
 	error = VOP_WRITE(vp, &auio, vnode_pager_putpages_ioflags(flags),
 	    curthread->td_ucred);
 	VM_CNT_INC(v_vnodeout);
 	VM_CNT_ADD(v_vnodepgsout, ncount);
 
 	ppscheck = 0;
-	if (error) {
-		if ((ppscheck = ppsratecheck(&lastfail, &curfail, 1)))
-			printf("vnode_pager_putpages: I/O error %d\n", error);
-	}
-	if (auio.uio_resid) {
-		if (ppscheck || ppsratecheck(&lastfail, &curfail, 1))
-			printf("vnode_pager_putpages: residual I/O %zd at %lu\n",
-			    auio.uio_resid, (u_long)ma[0]->pindex);
-	}
-	for (i = 0; i < ncount; i++) {
+	if (error != 0 && (ppscheck = ppsratecheck(&lastfail, &curfail, 1))
+	    != 0)
+		printf("vnode_pager_putpages: I/O error %d\n", error);
+	if (auio.uio_resid != 0 && (ppscheck != 0 ||
+	    ppsratecheck(&lastfail, &curfail, 1) != 0))
+		printf("vnode_pager_putpages: residual I/O %zd at %ju\n",
+		    auio.uio_resid, (uintmax_t)ma[0]->pindex);
+	for (i = 0; i < ncount; i++)
 		rtvals[i] = VM_PAGER_OK;
-	}
-	return rtvals[0];
+	return (rtvals[0]);
 }
 
 int
