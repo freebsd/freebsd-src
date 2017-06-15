@@ -449,6 +449,11 @@ _libinstall:
 .include <bsd.confs.mk>
 .endif
 
+LINKOWN=	${LIBMODE}
+LINKGRP=	${LIBGRP}
+LINKMODE=	${LIBMODE}
+SYMLINKOWN=	${LIBOWN}
+SYMLINKGRP=	${LIBGRP}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)

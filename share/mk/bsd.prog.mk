@@ -309,6 +309,8 @@ NLSNAME?=	${PROG}
 .include <bsd.confs.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+
+LINKMODE=	${BINMODE}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no"

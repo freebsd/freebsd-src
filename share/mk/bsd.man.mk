@@ -51,6 +51,7 @@
 .endif
 
 MINSTALL?=	${INSTALL} ${TAG_ARGS} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+LINKMODE=	${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
