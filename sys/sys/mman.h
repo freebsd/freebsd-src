@@ -53,6 +53,19 @@
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
+#define	PROT_ALL	(PROT_READ|PROT_WRITE|PROT_EXEC)
+#define	EXTRACT_PROT(prot)	(prot & PROT_ALL)
+
+#define	_PROT_MAX_SHIFT	16
+#define _PROT_MAX_PRESENT	(0x1 << (_PROT_MAX_SHIFT - 1))
+#define	PROT_MAX_NONE	((PROT_NONE  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	PROT_MAX_READ	((PROT_READ  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	PROT_MAX_WRITE	((PROT_WRITE << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	PROT_MAX_EXEC	((PROT_EXEC  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	PROT_MAX_ALL	((PROT_ALL   << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	EXTRACT_PROT_MAX(prot)						\
+	((_PROT_MAX_PRESENT & (prot)) == 0 ?				\
+	 EXTRACT_PROT(prot) : EXTRACT_PROT((prot) >> _PROT_MAX_SHIFT))
 
 /*
  * Flags contain sharing type and options.

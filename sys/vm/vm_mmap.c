@@ -199,8 +199,11 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 	vm_size_t pageoff;
 	vm_offset_t addr, max_addr;
 	vm_prot_t cap_maxprot;
-	int align, error;
+	int align, error, max_prot;
 	cap_rights_t rights;
+
+	max_prot = EXTRACT_PROT_MAX(prot);
+	prot = EXTRACT_PROT(prot);
 
 	vms = td->td_proc->p_vmspace;
 	fp = NULL;
@@ -493,7 +496,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 		 * This relies on VM_PROT_* matching PROT_*.
 		 */
 		error = vm_mmap_object(&vms->vm_map, &addr, max_addr, size,
-		    prot, VM_PROT_ALL, flags, NULL, pos, FALSE, td);
+		    prot, max_prot, flags, NULL, pos, FALSE, td);
 	} else {
 		/*
 		 * Mapping file, get fp for validation and don't let the
@@ -521,7 +524,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, max_addr, size,
-		    prot, cap_maxprot, flags, pos, td);
+		    prot, max_prot & cap_maxprot, flags, pos, td);
 	}
 
 	if (error == 0)
@@ -538,8 +541,8 @@ int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
 
-	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len, uap->prot,
-	    uap->flags, uap->fd, uap->pos));
+	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
+	    PROT_MAX_ALL | uap->prot, uap->flags, uap->fd, uap->pos));
 }
 #endif
 
@@ -593,8 +596,8 @@ ommap(struct thread *td, struct ommap_args *uap)
 		flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
 		flags |= MAP_FIXED;
-	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len, prot, flags,
-	    uap->fd, uap->pos));
+	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
+	    PROT_MAX_ALL | prot, flags, uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
 
