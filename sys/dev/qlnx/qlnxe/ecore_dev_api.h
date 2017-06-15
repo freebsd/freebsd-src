@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_DEV_API_H__
 #define __ECORE_DEV_API_H__
 
@@ -171,8 +170,9 @@ enum _ecore_status_t ecore_hw_stop(struct ecore_dev *p_dev);
  *
  * @param p_dev
  *
+ * @return enum _ecore_status_t
  */
-void ecore_hw_stop_fastpath(struct ecore_dev *p_dev);
+enum _ecore_status_t ecore_hw_stop_fastpath(struct ecore_dev *p_dev);
 
 /**
  * @brief ecore_hw_hibernate_prepare -should be called when
@@ -197,10 +197,11 @@ void ecore_hw_hibernate_resume(struct ecore_dev *p_dev);
  * @brief ecore_hw_start_fastpath -restart fastpath traffic,
  *        only if hw_stop_fastpath was called
 
- * @param p_dev
+ * @param p_hwfn
  *
+ * @return enum _ecore_status_t
  */
-void ecore_hw_start_fastpath(struct ecore_hwfn *p_hwfn);
+enum _ecore_status_t ecore_hw_start_fastpath(struct ecore_hwfn *p_hwfn);
 
 enum ecore_hw_prepare_result {
 	ECORE_HW_PREPARE_SUCCESS,
@@ -270,7 +271,6 @@ void ecore_hw_remove(struct ecore_dev *p_dev);
 * @brief ecore_set_nwuf_reg -
 *
 * @param p_dev
-* @param wol_flag - wol_capability
 * @param reg_idx - Index of the pattern register
 * @param pattern_size - size of pattern
 * @param crc - CRC value of patter & mask
@@ -278,30 +278,31 @@ void ecore_hw_remove(struct ecore_dev *p_dev);
 * @return enum _ecore_status_t
 */
 enum _ecore_status_t ecore_set_nwuf_reg(struct ecore_dev *p_dev,
-	const bool b_enable,
-	u32 reg_idx,
-	u32 pattern_size,
-	u32 crc);
+					u32 reg_idx, u32 pattern_size, u32 crc);
 
 /**
 * @brief ecore_get_wake_info - get magic packet buffer
 *
-* @param p_dev
+* @param p_hwfn
+* @param p_ppt
 * @param wake_info - pointer to ecore_wake_info buffer
 *
 * @return enum _ecore_status_t
 */
-enum _ecore_status_t ecore_get_wake_info(struct ecore_dev *p_dev,
-	struct ecore_wake_info *wake_info);
+enum _ecore_status_t ecore_get_wake_info(struct ecore_hwfn *p_hwfn,
+					 struct ecore_ptt *p_ptt,
+					 struct ecore_wake_info *wake_info);
 
 /**
 * @brief ecore_wol_buffer_clear - Clear magic package buffer
 *
-* @param p_dev
+* @param p_hwfn
+* @param p_ptt
 *
 * @return void
 */
-void ecore_wol_buffer_clear(struct ecore_dev *p_dev);
+void ecore_wol_buffer_clear(struct ecore_hwfn *p_hwfn,
+			    struct ecore_ptt *p_ptt);
 
 /**
  * @brief ecore_ptt_acquire - Allocate a PTT window
@@ -328,6 +329,7 @@ struct ecore_ptt *ecore_ptt_acquire(struct ecore_hwfn *p_hwfn);
 void ecore_ptt_release(struct ecore_hwfn *p_hwfn,
 		       struct ecore_ptt *p_ptt);
 
+#ifndef __EXTRACT__LINUX__
 struct ecore_eth_stats_common {
 	u64 no_buff_discards;
 	u64 packet_too_big_discard;
@@ -418,6 +420,7 @@ struct ecore_eth_stats {
 		struct ecore_eth_stats_ah ah;
 	};
 };
+#endif
 
 enum ecore_dmae_address_type_t {
 	ECORE_DMAE_ADDRESS_HOST_VIRT,
@@ -482,7 +485,7 @@ ecore_dmae_grc2host(struct ecore_hwfn *p_hwfn,
 
 /**
  * @brief ecore_dmae_host2host - copy data from to source address
- * to a destination address (for SRIOV) using the given ptt
+ * to a destination adress (for SRIOV) using the given ptt
  *
  * @param p_hwfn
  * @param p_ptt
@@ -710,4 +713,44 @@ ecore_change_pci_hwfn(struct ecore_hwfn *p_hwfn,
 		      struct ecore_ptt *p_ptt,
 		      u8 enable);
 
+#ifndef __EXTRACT__LINUX__
+enum ecore_db_rec_width {
+	DB_REC_WIDTH_32B,
+	DB_REC_WIDTH_64B,
+};
+
+enum ecore_db_rec_space {
+	DB_REC_KERNEL,
+	DB_REC_USER,
+};
+#endif
+
+/**
+ * @brief db_recovery_add - add doorbell information to the doorbell
+ * recovery mechanism.
+ *
+ * @param p_dev
+ * @param db_addr - doorbell address
+ * @param db_data - address of where db_data is stored
+ * @param db_width - doorbell is 32b pr 64b
+ * @param db_space - doorbell recovery addresses are user or kernel space
+ */
+enum _ecore_status_t ecore_db_recovery_add(struct ecore_dev *p_dev,
+					   void OSAL_IOMEM *db_addr,
+					   void *db_data,
+					   enum ecore_db_rec_width db_width,
+					   enum ecore_db_rec_space db_space);
+
+/**
+ * @brief db_recovery_del - remove doorbell information from the doorbell
+ * recovery mechanism. db_data serves as key (db_addr is not unique).
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address where db_data is stored. Serves as key for the
+ *                  entry to delete.
+ */
+enum _ecore_status_t ecore_db_recovery_del(struct ecore_dev *p_dev,
+					   void OSAL_IOMEM *db_addr,
+					   void *db_data);
 #endif

@@ -28,6 +28,7 @@
  *
  */
 
+
 #ifndef __FCOE_COMMON__
 #define __FCOE_COMMON__ 
 /*********************/
@@ -38,249 +39,6 @@
 
 
 
-
-
-/*
- * fields coppied from ABTSrsp pckt
- */
-struct fcoe_abts_pkt
-{
-	__le32 abts_rsp_fc_payload_lo /* Abts flow: last 32 bits of fcPayload, out of 96 */;
-	__le16 abts_rsp_rx_id /* Abts flow: rxId parameter of the abts packet */;
-	u8 abts_rsp_rctl /* Abts flow: rctl parameter of the abts packet */;
-	u8 reserved2;
-};
-
-
-/*
- * FCoE additional WQE (Sq/ XferQ) information
- */
-union fcoe_additional_info_union
-{
-	__le32 previous_tid /* Previous tid. Used for Send XFER WQEs in Multiple continuation mode - Target only. */;
-	__le32 parent_tid /* Parent tid. Used for write tasks in a continuation mode - Target only */;
-	__le32 burst_length /* The desired burst length. */;
-	__le32 seq_rec_updated_offset /* The updated offset in SGL - Used in sequence recovery */;
-};
-
-
-/*
- * Cached data sges
- */
-struct fcoe_exp_ro
-{
-	__le32 data_offset /* data-offset */;
-	__le32 reserved /* High data-offset */;
-};
-
-/*
- * Union of Cleanup address \ expected relative offsets
- */
-union fcoe_cleanup_addr_exp_ro_union
-{
-	struct regpair abts_rsp_fc_payload_hi /* Abts flow: first 64 bits of fcPayload, out of 96 */;
-	struct fcoe_exp_ro exp_ro /* Expected relative offsets */;
-};
-
-
-/*
- * FCoE Ramrod Command IDs 
- */
-enum fcoe_completion_status
-{
-	FCOE_COMPLETION_STATUS_SUCCESS /* FCoE ramrod completed successfully */,
-	FCOE_COMPLETION_STATUS_FCOE_VER_ERR /* Wrong FCoE version */,
-	FCOE_COMPLETION_STATUS_SRC_MAC_ADD_ARR_ERR /* src_mac_arr for the current physical port is full- allocation failed */,
-	MAX_FCOE_COMPLETION_STATUS
-};
-
-
-/*
- * FC address (SID/DID) network presentation 
- */
-struct fc_addr_nw
-{
-	u8 addr_lo /* First byte of the SID/DID address that comes/goes from/to the NW (for example if SID is 11:22:33 - this is 0x11) */;
-	u8 addr_mid;
-	u8 addr_hi;
-};
-
-/*
- * FCoE connection offload
- */
-struct fcoe_conn_offload_ramrod_data
-{
-	struct regpair sq_pbl_addr /* SQ Pbl base address */;
-	struct regpair sq_curr_page_addr /* SQ current page address */;
-	struct regpair sq_next_page_addr /* SQ next page address */;
-	struct regpair xferq_pbl_addr /* XFERQ Pbl base address */;
-	struct regpair xferq_curr_page_addr /* XFERQ current page address */;
-	struct regpair xferq_next_page_addr /* XFERQ next page address */;
-	struct regpair respq_pbl_addr /* RESPQ Pbl base address */;
-	struct regpair respq_curr_page_addr /* RESPQ current page address */;
-	struct regpair respq_next_page_addr /* RESPQ next page address */;
-	__le16 dst_mac_addr_lo /* First word of the MAC address that comes/goes from/to the NW (for example if MAC is 11:22:33:44:55:66 - this is 0x2211) */;
-	__le16 dst_mac_addr_mid;
-	__le16 dst_mac_addr_hi;
-	__le16 src_mac_addr_lo /* Source MAC address in NW order - First word of the MAC address that comes/goes from/to the NW (for example if MAC is 11:22:33:44:55:66 - this is 0x2211) */;
-	__le16 src_mac_addr_mid;
-	__le16 src_mac_addr_hi;
-	__le16 tx_max_fc_pay_len /* The maximum acceptable FC payload size (Buffer-to-buffer Receive Data_Field size) supported by target, received during both FLOGI and PLOGI, minimum value should be taken */;
-	__le16 e_d_tov_timer_val /* E_D_TOV timeout value in resolution of 1 msec */;
-	__le16 rx_max_fc_pay_len /* Maximum acceptable FC payload size supported by us */;
-	__le16 vlan_tag;
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_MASK              0xFFF /* Vlan id */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_SHIFT             0
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_CFI_MASK                  0x1 /* Canonical format indicator */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_CFI_SHIFT                 12
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_MASK             0x7 /* Vlan priority */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT            13
-	__le16 physical_q0 /* Physical QM queue to be linked to logical queue 0 (fastPath queue) */;
-	__le16 rec_rr_tov_timer_val /* REC_TOV timeout value in resolution of 1 msec  */;
-	struct fc_addr_nw s_id /* Source ID in NW order, received during FLOGI */;
-	u8 max_conc_seqs_c3 /* Maximum concurrent Sequences for Class 3 supported by target, received during PLOGI */;
-	struct fc_addr_nw d_id /* Destination ID in NW order, received after inquiry of the fabric network */;
-	u8 flags;
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONT_INCR_SEQ_CNT_MASK  0x1 /* Continuously increasing SEQ_CNT indication, received during PLOGI */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONT_INCR_SEQ_CNT_SHIFT 0
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONF_REQ_MASK           0x1 /* Confirmation request supported */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONF_REQ_SHIFT          1
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_REC_VALID_MASK          0x1 /* REC allowed */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_REC_VALID_SHIFT         2
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_MASK          0x1 /* Does inner vlan exist */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_SHIFT         3
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_MASK                 0x3 /* indication for conn mode: 0=Initiator, 1=Target, 2=Both Initiator and Traget */
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_SHIFT                4
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_MASK            0x3
-#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_SHIFT           6
-	__le16 conn_id /* Drivers connection ID. Should be sent in EQs to speed-up drivers access to connection data. */;
-	u8 def_q_idx /* Default queue number to be used for unsolicited traffic */;
-	u8 reserved[5];
-};
-
-
-/*
- * FCoE terminate connection request 
- */
-struct fcoe_conn_terminate_ramrod_data
-{
-	struct regpair terminate_params_addr /* Terminate params ptr */;
-};
-
-
-/*
- * Data sgl
- */
-struct fcoe_slow_sgl_ctx
-{
-	struct regpair base_sgl_addr /* Address of first SGE in SGL */;
-	__le16 curr_sge_off /* Offset in current BD (in bytes) */;
-	__le16 remainder_num_sges /* Number of BDs */;
-	__le16 curr_sgl_index /* Index of current SGE */;
-	__le16 reserved;
-};
-
-/*
- * Union of DIX SGL \ cached DIX sges
- */
-union fcoe_dix_desc_ctx
-{
-	struct fcoe_slow_sgl_ctx dix_sgl /* DIX slow-SGL data base */;
-	struct scsi_sge cached_dix_sge /* Cached DIX sge */;
-};
-
-
-
-/*
- * Data sgl
- */
-struct fcoe_fast_sgl_ctx
-{
-	struct regpair sgl_start_addr /* Current sge address */;
-	__le32 sgl_byte_offset /* Byte offset from the beginning of the first page in the SGL. In case SGL starts in the middle of page then driver should init this value with the start offset */;
-	__le16 task_reuse_cnt /* The reuse count for that task. Wrap ion 4K value. */;
-	__le16 init_offset_in_first_sge /* offset from the beginning of the first page in the SGL, never changed by FW */;
-};
-
-
-/*
- * FCP CMD payload
- */
-struct fcoe_fcp_cmd_payload
-{
-	__le32 opaque[8] /* The FCP_CMD payload */;
-};
-
-
-/*
- * FCP RSP payload
- */
-struct fcoe_fcp_rsp_payload
-{
-	__le32 opaque[6] /* The FCP_RSP payload */;
-};
-
-
-/*
- * FCP RSP payload
- */
-struct fcoe_fcp_xfer_payload
-{
-	__le32 opaque[3] /* The FCP_XFER payload */;
-};
-
-
-/*
- * FCoE firmware function init
- */
-struct fcoe_init_func_ramrod_data
-{
-	struct scsi_init_func_params func_params /* Common SCSI init params passed by driver to FW in function init ramrod */;
-	struct scsi_init_func_queues q_params /* SCSI RQ/CQ/CMDQ firmware function init parameters */;
-	__le16 mtu /* Max transmission unit */;
-	__le16 sq_num_pages_in_pbl /* Number of pages at Send Queue */;
-	__le32 reserved;
-};
-
-
-/*
- * FCoE: Mode of the connection: Target or Initiator or both
- */
-enum fcoe_mode_type
-{
-	FCOE_INITIATOR_MODE=0x0,
-	FCOE_TARGET_MODE=0x1,
-	FCOE_BOTH_OR_NOT_CHOSEN=0x3,
-	MAX_FCOE_MODE_TYPE
-};
-
-
-/*
- * Per PF FCoE receive path statistics - tStorm RAM structure
- */
-struct fcoe_rx_stat
-{
-	struct regpair fcoe_rx_byte_cnt /* Number of FCoE bytes that were received */;
-	struct regpair fcoe_rx_data_pkt_cnt /* Number of FCoE FCP DATA packets that were received */;
-	struct regpair fcoe_rx_xfer_pkt_cnt /* Number of FCoE FCP XFER RDY packets that were received */;
-	struct regpair fcoe_rx_other_pkt_cnt /* Number of FCoE packets which are not DATA/XFER_RDY that were received */;
-	__le32 fcoe_silent_drop_pkt_cmdq_full_cnt /* Number of packets that were silently dropped since CMDQ was full */;
-	__le32 fcoe_silent_drop_pkt_rq_full_cnt /* Number of packets that were silently dropped since RQ (BDQ) was full */;
-	__le32 fcoe_silent_drop_pkt_crc_error_cnt /* Number of packets that were silently dropped due to FC CRC error */;
-	__le32 fcoe_silent_drop_pkt_task_invalid_cnt /* Number of packets that were silently dropped since task was not valid */;
-	__le32 fcoe_silent_drop_total_pkt_cnt /* Number of FCoE packets that were silently dropped */;
-	__le32 rsrv;
-};
-
-
-
-/*
- * FCoe statistics request 
- */
-struct fcoe_stat_ramrod_data
-{
-	struct regpair stat_params_addr /* Statistics host address */;
-};
 
 
 /*
@@ -315,12 +73,36 @@ union protection_info_union_ctx
 };
 
 /*
+ * FCP CMD payload
+ */
+struct fcoe_fcp_cmd_payload
+{
+	__le32 opaque[8] /* The FCP_CMD payload */;
+};
+
+/*
+ * FCP RSP payload
+ */
+struct fcoe_fcp_rsp_payload
+{
+	__le32 opaque[6] /* The FCP_RSP payload */;
+};
+
+/*
  * FCP RSP payload
  */
 struct fcp_rsp_payload_padded
 {
 	struct fcoe_fcp_rsp_payload rsp_payload /* The FCP_RSP payload */;
 	__le32 reserved[2];
+};
+
+/*
+ * FCP RSP payload
+ */
+struct fcoe_fcp_xfer_payload
+{
+	__le32 opaque[3] /* The FCP_XFER payload */;
 };
 
 /*
@@ -388,6 +170,27 @@ union fcoe_tx_info_union_ctx
 	struct fcp_rsp_payload_padded fcp_rsp_payload /* FCP RSP payload */;
 	struct fcp_xfer_payload_padded fcp_xfer_payload /* FCP XFER payload */;
 	struct fcoe_tx_params tx_params /* Task TX params */;
+};
+
+/*
+ * Data sgl
+ */
+struct fcoe_slow_sgl_ctx
+{
+	struct regpair base_sgl_addr /* Address of first SGE in SGL */;
+	__le16 curr_sge_off /* Offset in current BD (in bytes) */;
+	__le16 remainder_num_sges /* Number of BDs */;
+	__le16 curr_sgl_index /* Index of current SGE */;
+	__le16 reserved;
+};
+
+/*
+ * Union of DIX SGL \ cached DIX sges
+ */
+union fcoe_dix_desc_ctx
+{
+	struct fcoe_slow_sgl_ctx dix_sgl /* DIX slow-SGL data base */;
+	struct scsi_sge cached_dix_sge /* Cached DIX sge */;
 };
 
 /*
@@ -552,6 +355,35 @@ struct e4_tstorm_fcoe_task_ag_ctx
 	__le16 word4 /* word4 */;
 	__le32 data_offset_end_of_seq /* reg1 */;
 	__le32 data_offset_next /* reg2 */;
+};
+
+/*
+ * Cached data sges
+ */
+struct fcoe_exp_ro
+{
+	__le32 data_offset /* data-offset */;
+	__le32 reserved /* High data-offset */;
+};
+
+/*
+ * Union of Cleanup address \ expected relative offsets
+ */
+union fcoe_cleanup_addr_exp_ro_union
+{
+	struct regpair abts_rsp_fc_payload_hi /* Abts flow: first 64 bits of fcPayload, out of 96 */;
+	struct fcoe_exp_ro exp_ro /* Expected relative offsets */;
+};
+
+/*
+ * fields coppied from ABTSrsp pckt
+ */
+struct fcoe_abts_pkt
+{
+	__le32 abts_rsp_fc_payload_lo /* Abts flow: last 32 bits of fcPayload, out of 96 */;
+	__le16 abts_rsp_rx_id /* Abts flow: rxId parameter of the abts packet */;
+	u8 abts_rsp_rctl /* Abts flow: rctl parameter of the abts packet */;
+	u8 reserved2;
 };
 
 /*
@@ -764,7 +596,7 @@ struct e4_ustorm_fcoe_task_ag_ctx
 /*
  * fcoe task context
  */
-struct fcoe_task_context
+struct e4_fcoe_task_context
 {
 	struct ystorm_fcoe_task_st_ctx ystorm_st_context /* ystorm storm context */;
 	struct regpair ystorm_st_padding[2] /* padding */;
@@ -781,149 +613,76 @@ struct fcoe_task_context
 };
 
 
-
-
-
-
-
-
-/*
- * Per PF FCoE transmit path statistics - pStorm RAM structure
- */
-struct fcoe_tx_stat
-{
-	struct regpair fcoe_tx_byte_cnt /* Transmitted FCoE bytes count */;
-	struct regpair fcoe_tx_data_pkt_cnt /* Transmitted FCoE FCP DATA packets count */;
-	struct regpair fcoe_tx_xfer_pkt_cnt /* Transmitted FCoE XFER_RDY packets count */;
-	struct regpair fcoe_tx_other_pkt_cnt /* Transmitted FCoE packets which are not DATA/XFER_RDY count */;
-};
-
-
-/*
- * FCoE SQ/XferQ element 
- */
-struct fcoe_wqe
-{
-	__le16 task_id /* Initiator - The task identifier (OX_ID). Target - Continuation tid or RX_ID in non-continuation mode */;
-	__le16 flags;
-#define FCOE_WQE_REQ_TYPE_MASK       0xF /* Type of the wqe request. use enum fcoe_sqe_request_type  (use enum fcoe_sqe_request_type) */
-#define FCOE_WQE_REQ_TYPE_SHIFT      0
-#define FCOE_WQE_SGL_MODE_MASK       0x1 /* The driver will give a hint about sizes of SGEs for better credits evaluation at Xstorm. use enum scsi_sgl_mode (use enum scsi_sgl_mode) */
-#define FCOE_WQE_SGL_MODE_SHIFT      4
-#define FCOE_WQE_CONTINUATION_MASK   0x1 /* Indication if this wqe is a continuation to an existing task (Target only) */
-#define FCOE_WQE_CONTINUATION_SHIFT  5
-#define FCOE_WQE_SEND_AUTO_RSP_MASK  0x1 /* Indication to FW to send FCP_RSP after all data was sent - Target only */
-#define FCOE_WQE_SEND_AUTO_RSP_SHIFT 6
-#define FCOE_WQE_RESERVED_MASK       0x1
-#define FCOE_WQE_RESERVED_SHIFT      7
-#define FCOE_WQE_NUM_SGES_MASK       0xF /* Number of SGEs. 8 = at least 8 sges */
-#define FCOE_WQE_NUM_SGES_SHIFT      8
-#define FCOE_WQE_RESERVED1_MASK      0xF
-#define FCOE_WQE_RESERVED1_SHIFT     12
-	union fcoe_additional_info_union additional_info_union /* Additional wqe information (if needed) */;
-};
-
-
-
-
-
-
-
-
-
-/*
- * FCoE XFRQ element 
- */
-struct xfrqe_prot_flags
-{
-	u8 flags;
-#define XFRQE_PROT_FLAGS_PROT_INTERVAL_SIZE_LOG_MASK  0xF /* Protection log interval (9=512 10=1024  11=2048 12=4096 13=8192) */
-#define XFRQE_PROT_FLAGS_PROT_INTERVAL_SIZE_LOG_SHIFT 0
-#define XFRQE_PROT_FLAGS_DIF_TO_PEER_MASK             0x1 /* If DIF protection is configured against target (0=no, 1=yes) */
-#define XFRQE_PROT_FLAGS_DIF_TO_PEER_SHIFT            4
-#define XFRQE_PROT_FLAGS_HOST_INTERFACE_MASK          0x3 /* If DIF/DIX protection is configured against the host (0=none, 1=DIF, 2=DIX) */
-#define XFRQE_PROT_FLAGS_HOST_INTERFACE_SHIFT         5
-#define XFRQE_PROT_FLAGS_RESERVED_MASK                0x1 /* Must set to 0 */
-#define XFRQE_PROT_FLAGS_RESERVED_SHIFT               7
-};
-
-
-
-
-
-
-
-struct e5_mstorm_fcoe_task_ag_ctx
+struct e5_ystorm_fcoe_task_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
 	u8 byte1 /* state_and_core_id */;
-	__le16 icid /* icid */;
+	__le16 word0 /* icid */;
 	u8 flags0;
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE_MASK    0xF /* connection_type */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE_SHIFT   0
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EXIST_IN_QM0_MASK       0x1 /* exist_in_qm0 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EXIST_IN_QM0_SHIFT      4
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CQE_PLACED_MASK         0x1 /* exist_in_qm1 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CQE_PLACED_SHIFT        5
-#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT2_MASK               0x1 /* bit2 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT2_SHIFT              6
-#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT3_MASK               0x1 /* bit3 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT3_SHIFT              7
+#define E5_YSTORM_FCOE_TASK_AG_CTX_NIBBLE0_MASK       0xF /* connection_type */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_NIBBLE0_SHIFT      0
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT0_MASK          0x1 /* exist_in_qm0 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT0_SHIFT         4
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT1_MASK          0x1 /* exist_in_qm1 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT1_SHIFT         5
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT2_MASK          0x1 /* bit2 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT2_SHIFT         6
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT3_MASK          0x1 /* bit3 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT3_SHIFT         7
 	u8 flags1;
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_MASK      0x3 /* cf0 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_SHIFT     0
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1_MASK                0x3 /* cf1 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1_SHIFT               2
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2_MASK                0x3 /* cf2 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2_SHIFT               4
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_EN_MASK   0x1 /* cf0en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_EN_SHIFT  6
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1EN_MASK              0x1 /* cf1en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1EN_SHIFT             7
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0_MASK           0x3 /* cf0 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0_SHIFT          0
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1_MASK           0x3 /* cf1 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1_SHIFT          2
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF2SPECIAL_MASK    0x3 /* cf2special */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF2SPECIAL_SHIFT   4
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0EN_MASK         0x1 /* cf0en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0EN_SHIFT        6
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1EN_MASK         0x1 /* cf1en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1EN_SHIFT        7
 	u8 flags2;
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2EN_MASK              0x1 /* cf2en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2EN_SHIFT             0
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE0EN_MASK            0x1 /* rule0en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE0EN_SHIFT           1
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE1EN_MASK            0x1 /* rule1en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE1EN_SHIFT           2
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE2EN_MASK            0x1 /* rule2en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE2EN_SHIFT           3
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE3EN_MASK            0x1 /* rule3en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE3EN_SHIFT           4
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE4EN_MASK            0x1 /* rule4en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE4EN_SHIFT           5
-#define E5_MSTORM_FCOE_TASK_AG_CTX_XFER_PLACEMENT_EN_MASK  0x1 /* rule5en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_XFER_PLACEMENT_EN_SHIFT 6
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE6EN_MASK            0x1 /* rule6en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE6EN_SHIFT           7
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT4_MASK          0x1 /* bit4 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT4_SHIFT         0
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE0EN_MASK       0x1 /* rule0en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE0EN_SHIFT      1
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE1EN_MASK       0x1 /* rule1en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE1EN_SHIFT      2
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE2EN_MASK       0x1 /* rule2en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE2EN_SHIFT      3
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE3EN_MASK       0x1 /* rule3en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE3EN_SHIFT      4
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE4EN_MASK       0x1 /* rule4en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE4EN_SHIFT      5
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE5EN_MASK       0x1 /* rule5en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE5EN_SHIFT      6
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE6EN_MASK       0x1 /* rule6en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE6EN_SHIFT      7
 	u8 flags3;
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_MASK       0x1 /* bit4 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_SHIFT      0
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_MASK       0x3 /* cf3 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_SHIFT      1
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_MASK       0x3 /* cf4 */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_SHIFT      3
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_MASK       0x1 /* cf3en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_SHIFT      5
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_MASK       0x1 /* cf4en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_SHIFT      6
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_MASK       0x1 /* rule7en */
-#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_SHIFT      7
-	__le32 received_bytes /* reg0 */;
-	u8 cleanup_state /* byte2 */;
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_MASK  0x1 /* bit5 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_SHIFT 0
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_MASK  0x3 /* cf3 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_SHIFT 1
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_MASK  0x3 /* cf4 */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_SHIFT 3
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_MASK  0x1 /* cf3en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_SHIFT 5
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_MASK  0x1 /* cf4en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_SHIFT 6
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_MASK  0x1 /* rule7en */
+#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_SHIFT 7
+	__le32 reg0 /* reg0 */;
+	u8 byte2 /* byte2 */;
 	u8 byte3 /* byte3 */;
-	u8 glbl_q_num /* byte4 */;
+	u8 byte4 /* byte4 */;
 	u8 e4_reserved7 /* byte5 */;
-	__le16 word1 /* regpair0 */;
-	__le16 tid_to_xfer /* word2 */;
+	__le16 rx_id /* word1 */;
+	__le16 word2 /* word2 */;
 	__le16 word3 /* word3 */;
 	__le16 word4 /* word4 */;
-	__le16 word5 /* regpair1 */;
+	__le16 word5 /* word5 */;
 	__le16 e4_reserved8 /* word6 */;
-	__le32 expected_bytes /* reg1 */;
+	__le32 reg1 /* reg1 */;
 };
-
 
 struct e5_tstorm_fcoe_task_ag_ctx
 {
@@ -1005,6 +764,76 @@ struct e5_tstorm_fcoe_task_ag_ctx
 	__le32 data_offset_next /* reg2 */;
 };
 
+struct e5_mstorm_fcoe_task_ag_ctx
+{
+	u8 byte0 /* cdu_validation */;
+	u8 byte1 /* state_and_core_id */;
+	__le16 icid /* icid */;
+	u8 flags0;
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE_MASK    0xF /* connection_type */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE_SHIFT   0
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EXIST_IN_QM0_MASK       0x1 /* exist_in_qm0 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EXIST_IN_QM0_SHIFT      4
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CQE_PLACED_MASK         0x1 /* exist_in_qm1 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CQE_PLACED_SHIFT        5
+#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT2_MASK               0x1 /* bit2 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT2_SHIFT              6
+#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT3_MASK               0x1 /* bit3 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_BIT3_SHIFT              7
+	u8 flags1;
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_MASK      0x3 /* cf0 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_SHIFT     0
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1_MASK                0x3 /* cf1 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1_SHIFT               2
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2_MASK                0x3 /* cf2 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2_SHIFT               4
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_EN_MASK   0x1 /* cf0en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_EX_CLEANUP_CF_EN_SHIFT  6
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1EN_MASK              0x1 /* cf1en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF1EN_SHIFT             7
+	u8 flags2;
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2EN_MASK              0x1 /* cf2en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_CF2EN_SHIFT             0
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE0EN_MASK            0x1 /* rule0en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE0EN_SHIFT           1
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE1EN_MASK            0x1 /* rule1en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE1EN_SHIFT           2
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE2EN_MASK            0x1 /* rule2en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE2EN_SHIFT           3
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE3EN_MASK            0x1 /* rule3en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE3EN_SHIFT           4
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE4EN_MASK            0x1 /* rule4en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE4EN_SHIFT           5
+#define E5_MSTORM_FCOE_TASK_AG_CTX_XFER_PLACEMENT_EN_MASK  0x1 /* rule5en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_XFER_PLACEMENT_EN_SHIFT 6
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE6EN_MASK            0x1 /* rule6en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_RULE6EN_SHIFT           7
+	u8 flags3;
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_MASK       0x1 /* bit4 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_SHIFT      0
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_MASK       0x3 /* cf3 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_SHIFT      1
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_MASK       0x3 /* cf4 */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_SHIFT      3
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_MASK       0x1 /* cf3en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_SHIFT      5
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_MASK       0x1 /* cf4en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_SHIFT      6
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_MASK       0x1 /* rule7en */
+#define E5_MSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_SHIFT      7
+	__le32 received_bytes /* reg0 */;
+	u8 cleanup_state /* byte2 */;
+	u8 byte3 /* byte3 */;
+	u8 glbl_q_num /* byte4 */;
+	u8 e4_reserved7 /* byte5 */;
+	__le16 word1 /* regpair0 */;
+	__le16 tid_to_xfer /* word2 */;
+	__le16 word3 /* word3 */;
+	__le16 word4 /* word4 */;
+	__le16 word5 /* regpair1 */;
+	__le16 e4_reserved8 /* word6 */;
+	__le32 expected_bytes /* reg1 */;
+};
 
 struct e5_ustorm_fcoe_task_ag_ctx
 {
@@ -1082,77 +911,269 @@ struct e5_ustorm_fcoe_task_ag_ctx
 	__le32 reg4 /* reg4 */;
 };
 
-
-struct e5_ystorm_fcoe_task_ag_ctx
+/*
+ * fcoe task context
+ */
+struct e5_fcoe_task_context
 {
-	u8 byte0 /* cdu_validation */;
-	u8 byte1 /* state_and_core_id */;
-	__le16 word0 /* icid */;
-	u8 flags0;
-#define E5_YSTORM_FCOE_TASK_AG_CTX_NIBBLE0_MASK       0xF /* connection_type */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_NIBBLE0_SHIFT      0
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT0_MASK          0x1 /* exist_in_qm0 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT0_SHIFT         4
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT1_MASK          0x1 /* exist_in_qm1 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT1_SHIFT         5
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT2_MASK          0x1 /* bit2 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT2_SHIFT         6
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT3_MASK          0x1 /* bit3 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT3_SHIFT         7
-	u8 flags1;
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0_MASK           0x3 /* cf0 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0_SHIFT          0
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1_MASK           0x3 /* cf1 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1_SHIFT          2
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF2SPECIAL_MASK    0x3 /* cf2special */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF2SPECIAL_SHIFT   4
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0EN_MASK         0x1 /* cf0en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF0EN_SHIFT        6
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1EN_MASK         0x1 /* cf1en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_CF1EN_SHIFT        7
-	u8 flags2;
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT4_MASK          0x1 /* bit4 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_BIT4_SHIFT         0
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE0EN_MASK       0x1 /* rule0en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE0EN_SHIFT      1
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE1EN_MASK       0x1 /* rule1en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE1EN_SHIFT      2
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE2EN_MASK       0x1 /* rule2en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE2EN_SHIFT      3
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE3EN_MASK       0x1 /* rule3en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE3EN_SHIFT      4
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE4EN_MASK       0x1 /* rule4en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE4EN_SHIFT      5
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE5EN_MASK       0x1 /* rule5en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE5EN_SHIFT      6
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE6EN_MASK       0x1 /* rule6en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_RULE6EN_SHIFT      7
-	u8 flags3;
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_MASK  0x1 /* bit5 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED1_SHIFT 0
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_MASK  0x3 /* cf3 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED2_SHIFT 1
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_MASK  0x3 /* cf4 */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED3_SHIFT 3
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_MASK  0x1 /* cf3en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED4_SHIFT 5
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_MASK  0x1 /* cf4en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED5_SHIFT 6
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_MASK  0x1 /* rule7en */
-#define E5_YSTORM_FCOE_TASK_AG_CTX_E4_RESERVED6_SHIFT 7
-	__le32 reg0 /* reg0 */;
-	u8 byte2 /* byte2 */;
-	u8 byte3 /* byte3 */;
-	u8 byte4 /* byte4 */;
-	u8 e4_reserved7 /* byte5 */;
-	__le16 rx_id /* word1 */;
-	__le16 word2 /* word2 */;
-	__le16 word3 /* word3 */;
-	__le16 word4 /* word4 */;
-	__le16 word5 /* word5 */;
-	__le16 e4_reserved8 /* word6 */;
-	__le32 reg1 /* reg1 */;
+	struct ystorm_fcoe_task_st_ctx ystorm_st_context /* ystorm storm context */;
+	struct regpair ystorm_st_padding[2] /* padding */;
+	struct tdif_task_context tdif_context /* tdif context */;
+	struct e5_ystorm_fcoe_task_ag_ctx ystorm_ag_context /* ystorm aggregative context */;
+	struct e5_tstorm_fcoe_task_ag_ctx tstorm_ag_context /* tstorm aggregative context */;
+	struct timers_context timer_context /* timer context */;
+	struct tstorm_fcoe_task_st_ctx tstorm_st_context /* tstorm storm context */;
+	struct regpair tstorm_st_padding[2] /* padding */;
+	struct e5_mstorm_fcoe_task_ag_ctx mstorm_ag_context /* mstorm aggregative context */;
+	struct mstorm_fcoe_task_st_ctx mstorm_st_context /* mstorm storm context */;
+	struct e5_ustorm_fcoe_task_ag_ctx ustorm_ag_context /* ustorm aggregative context */;
+	struct rdif_task_context rdif_context /* rdif context */;
 };
+
+
+
+/*
+ * FCoE additional WQE (Sq/ XferQ) information
+ */
+union fcoe_additional_info_union
+{
+	__le32 previous_tid /* Previous tid. Used for Send XFER WQEs in Multiple continuation mode - Target only. */;
+	__le32 parent_tid /* Parent tid. Used for write tasks in a continuation mode - Target only */;
+	__le32 burst_length /* The desired burst length. */;
+	__le32 seq_rec_updated_offset /* The updated offset in SGL - Used in sequence recovery */;
+};
+
+
+
+/*
+ * FCoE Ramrod Command IDs 
+ */
+enum fcoe_completion_status
+{
+	FCOE_COMPLETION_STATUS_SUCCESS /* FCoE ramrod completed successfully */,
+	FCOE_COMPLETION_STATUS_FCOE_VER_ERR /* Wrong FCoE version */,
+	FCOE_COMPLETION_STATUS_SRC_MAC_ADD_ARR_ERR /* src_mac_arr for the current physical port is full- allocation failed */,
+	MAX_FCOE_COMPLETION_STATUS
+};
+
+
+/*
+ * FC address (SID/DID) network presentation 
+ */
+struct fc_addr_nw
+{
+	u8 addr_lo /* First byte of the SID/DID address that comes/goes from/to the NW (for example if SID is 11:22:33 - this is 0x11) */;
+	u8 addr_mid;
+	u8 addr_hi;
+};
+
+/*
+ * FCoE connection offload
+ */
+struct fcoe_conn_offload_ramrod_data
+{
+	struct regpair sq_pbl_addr /* SQ Pbl base address */;
+	struct regpair sq_curr_page_addr /* SQ current page address */;
+	struct regpair sq_next_page_addr /* SQ next page address */;
+	struct regpair xferq_pbl_addr /* XFERQ Pbl base address */;
+	struct regpair xferq_curr_page_addr /* XFERQ current page address */;
+	struct regpair xferq_next_page_addr /* XFERQ next page address */;
+	struct regpair respq_pbl_addr /* RESPQ Pbl base address */;
+	struct regpair respq_curr_page_addr /* RESPQ current page address */;
+	struct regpair respq_next_page_addr /* RESPQ next page address */;
+	__le16 dst_mac_addr_lo /* First word of the MAC address that comes/goes from/to the NW (for example if MAC is 11:22:33:44:55:66 - this is 0x2211) */;
+	__le16 dst_mac_addr_mid;
+	__le16 dst_mac_addr_hi;
+	__le16 src_mac_addr_lo /* Source MAC address in NW order - First word of the MAC address that comes/goes from/to the NW (for example if MAC is 11:22:33:44:55:66 - this is 0x2211) */;
+	__le16 src_mac_addr_mid;
+	__le16 src_mac_addr_hi;
+	__le16 tx_max_fc_pay_len /* The maximum acceptable FC payload size (Buffer-to-buffer Receive Data_Field size) supported by target, received during both FLOGI and PLOGI, minimum value should be taken */;
+	__le16 e_d_tov_timer_val /* E_D_TOV timeout value in resolution of 1 msec */;
+	__le16 rx_max_fc_pay_len /* Maximum acceptable FC payload size supported by us */;
+	__le16 vlan_tag;
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_MASK              0xFFF /* Vlan id */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_VLAN_ID_SHIFT             0
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_CFI_MASK                  0x1 /* Canonical format indicator */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_CFI_SHIFT                 12
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_MASK             0x7 /* Vlan priority */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_PRIORITY_SHIFT            13
+	__le16 physical_q0 /* Physical QM queue to be linked to logical queue 0 (fastPath queue) */;
+	__le16 rec_rr_tov_timer_val /* REC_TOV timeout value in resolution of 1 msec  */;
+	struct fc_addr_nw s_id /* Source ID in NW order, received during FLOGI */;
+	u8 max_conc_seqs_c3 /* Maximum concurrent Sequences for Class 3 supported by target, received during PLOGI */;
+	struct fc_addr_nw d_id /* Destination ID in NW order, received after inquiry of the fabric network */;
+	u8 flags;
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONT_INCR_SEQ_CNT_MASK  0x1 /* Continuously increasing SEQ_CNT indication, received during PLOGI */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONT_INCR_SEQ_CNT_SHIFT 0
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONF_REQ_MASK           0x1 /* Confirmation request supported */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_CONF_REQ_SHIFT          1
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_REC_VALID_MASK          0x1 /* REC allowed */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_REC_VALID_SHIFT         2
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_MASK          0x1 /* Does inner vlan exist */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_B_VLAN_FLAG_SHIFT         3
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_MASK                 0x3 /* indication for conn mode: 0=Initiator, 1=Target, 2=Both Initiator and Traget */
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_MODE_SHIFT                4
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_MASK            0x3
+#define FCOE_CONN_OFFLOAD_RAMROD_DATA_RESERVED0_SHIFT           6
+	__le16 conn_id /* Drivers connection ID. Should be sent in EQs to speed-up drivers access to connection data. */;
+	u8 def_q_idx /* Default queue number to be used for unsolicited traffic */;
+	u8 reserved[5];
+};
+
+
+/*
+ * FCoE terminate connection request 
+ */
+struct fcoe_conn_terminate_ramrod_data
+{
+	struct regpair terminate_params_addr /* Terminate params ptr */;
+};
+
+
+
+
+/*
+ * Data sgl
+ */
+struct fcoe_fast_sgl_ctx
+{
+	struct regpair sgl_start_addr /* Current sge address */;
+	__le32 sgl_byte_offset /* Byte offset from the beginning of the first page in the SGL. In case SGL starts in the middle of page then driver should init this value with the start offset */;
+	__le16 task_reuse_cnt /* The reuse count for that task. Wrap ion 4K value. */;
+	__le16 init_offset_in_first_sge /* offset from the beginning of the first page in the SGL, never changed by FW */;
+};
+
+
+
+
+
+/*
+ * FCoE firmware function init
+ */
+struct fcoe_init_func_ramrod_data
+{
+	struct scsi_init_func_params func_params /* Common SCSI init params passed by driver to FW in function init ramrod */;
+	struct scsi_init_func_queues q_params /* SCSI RQ/CQ/CMDQ firmware function init parameters */;
+	__le16 mtu /* Max transmission unit */;
+	__le16 sq_num_pages_in_pbl /* Number of pages at Send Queue */;
+	__le32 reserved[3];
+};
+
+
+/*
+ * FCoE: Mode of the connection: Target or Initiator or both
+ */
+enum fcoe_mode_type
+{
+	FCOE_INITIATOR_MODE=0x0,
+	FCOE_TARGET_MODE=0x1,
+	FCOE_BOTH_OR_NOT_CHOSEN=0x3,
+	MAX_FCOE_MODE_TYPE
+};
+
+
+/*
+ * Per PF FCoE receive path statistics - tStorm RAM structure
+ */
+struct fcoe_rx_stat
+{
+	struct regpair fcoe_rx_byte_cnt /* Number of FCoE bytes that were received */;
+	struct regpair fcoe_rx_data_pkt_cnt /* Number of FCoE FCP DATA packets that were received */;
+	struct regpair fcoe_rx_xfer_pkt_cnt /* Number of FCoE FCP XFER RDY packets that were received */;
+	struct regpair fcoe_rx_other_pkt_cnt /* Number of FCoE packets which are not DATA/XFER_RDY that were received */;
+	__le32 fcoe_silent_drop_pkt_cmdq_full_cnt /* Number of packets that were silently dropped since CMDQ was full */;
+	__le32 fcoe_silent_drop_pkt_rq_full_cnt /* Number of packets that were silently dropped since RQ (BDQ) was full */;
+	__le32 fcoe_silent_drop_pkt_crc_error_cnt /* Number of packets that were silently dropped due to FC CRC error */;
+	__le32 fcoe_silent_drop_pkt_task_invalid_cnt /* Number of packets that were silently dropped since task was not valid */;
+	__le32 fcoe_silent_drop_total_pkt_cnt /* Number of FCoE packets that were silently dropped */;
+	__le32 rsrv;
+};
+
+
+
+/*
+ * FCoe statistics request 
+ */
+struct fcoe_stat_ramrod_data
+{
+	struct regpair stat_params_addr /* Statistics host address */;
+};
+
+
+
+
+
+
+
+
+/*
+ * Per PF FCoE transmit path statistics - pStorm RAM structure
+ */
+struct fcoe_tx_stat
+{
+	struct regpair fcoe_tx_byte_cnt /* Transmitted FCoE bytes count */;
+	struct regpair fcoe_tx_data_pkt_cnt /* Transmitted FCoE FCP DATA packets count */;
+	struct regpair fcoe_tx_xfer_pkt_cnt /* Transmitted FCoE XFER_RDY packets count */;
+	struct regpair fcoe_tx_other_pkt_cnt /* Transmitted FCoE packets which are not DATA/XFER_RDY count */;
+};
+
+
+/*
+ * FCoE SQ/XferQ element 
+ */
+struct fcoe_wqe
+{
+	__le16 task_id /* Initiator - The task identifier (OX_ID). Target - Continuation tid or RX_ID in non-continuation mode */;
+	__le16 flags;
+#define FCOE_WQE_REQ_TYPE_MASK       0xF /* Type of the wqe request. use enum fcoe_sqe_request_type  (use enum fcoe_sqe_request_type) */
+#define FCOE_WQE_REQ_TYPE_SHIFT      0
+#define FCOE_WQE_SGL_MODE_MASK       0x1 /* The driver will give a hint about sizes of SGEs for better credits evaluation at Xstorm. use enum scsi_sgl_mode (use enum scsi_sgl_mode) */
+#define FCOE_WQE_SGL_MODE_SHIFT      4
+#define FCOE_WQE_CONTINUATION_MASK   0x1 /* Indication if this wqe is a continuation to an existing task (Target only) */
+#define FCOE_WQE_CONTINUATION_SHIFT  5
+#define FCOE_WQE_SEND_AUTO_RSP_MASK  0x1 /* Indication to FW to send FCP_RSP after all data was sent - Target only */
+#define FCOE_WQE_SEND_AUTO_RSP_SHIFT 6
+#define FCOE_WQE_RESERVED_MASK       0x1
+#define FCOE_WQE_RESERVED_SHIFT      7
+#define FCOE_WQE_NUM_SGES_MASK       0xF /* Number of SGEs. 8 = at least 8 sges */
+#define FCOE_WQE_NUM_SGES_SHIFT      8
+#define FCOE_WQE_RESERVED1_MASK      0xF
+#define FCOE_WQE_RESERVED1_SHIFT     12
+	union fcoe_additional_info_union additional_info_union /* Additional wqe information (if needed) */;
+};
+
+
+
+
+
+
+
+
+
+/*
+ * FCoE XFRQ element 
+ */
+struct xfrqe_prot_flags
+{
+	u8 flags;
+#define XFRQE_PROT_FLAGS_PROT_INTERVAL_SIZE_LOG_MASK  0xF /* Protection log interval (9=512 10=1024  11=2048 12=4096 13=8192) */
+#define XFRQE_PROT_FLAGS_PROT_INTERVAL_SIZE_LOG_SHIFT 0
+#define XFRQE_PROT_FLAGS_DIF_TO_PEER_MASK             0x1 /* If DIF protection is configured against target (0=no, 1=yes) */
+#define XFRQE_PROT_FLAGS_DIF_TO_PEER_SHIFT            4
+#define XFRQE_PROT_FLAGS_HOST_INTERFACE_MASK          0x3 /* If DIF/DIX protection is configured against the host (0=none, 1=DIF, 2=DIX) */
+#define XFRQE_PROT_FLAGS_HOST_INTERFACE_SHIFT         5
+#define XFRQE_PROT_FLAGS_RESERVED_MASK                0x1 /* Must set to 0 */
+#define XFRQE_PROT_FLAGS_RESERVED_SHIFT               7
+};
+
+
+
+
+
+
+
+
+
 
 
 /*
