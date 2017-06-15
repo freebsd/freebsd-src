@@ -119,6 +119,34 @@ struct ecore_iscsi_conn {
 	u16			physical_q0;
 	u16			physical_q1;
 	u8			abortive_dsconnect;
+	u8			dif_on_immediate;
+#define ECORE_ISCSI_CONN_DIF_ON_IMM_DIS		0
+#define ECORE_ISCSI_CONN_DIF_ON_IMM_DEFAULT	1
+#define ECORE_ISCSI_CONN_DIF_ON_IMM_LUN_MAPPER	2
+
+	dma_addr_t		lun_mapper_phys_addr;
+	u32			initial_ref_tag;
+	u16			application_tag;
+	u16			application_tag_mask;
+	u8			validate_guard;
+	u8			validate_app_tag;
+	u8			validate_ref_tag;
+	u8			forward_guard;
+	u8			forward_app_tag;
+	u8			forward_ref_tag;
+	u8			interval_size;		/* 0=512B, 1=4KB */
+	u8			network_interface;	/* 0=None, 1=DIF */
+	u8			host_interface;		/* 0=None, 1=DIF, 2=DIX */
+	u8			ref_tag_mask;		/* mask for refernce tag handling */
+	u8			forward_app_tag_with_mask;
+	u8			forward_ref_tag_with_mask;
+
+	u8			ignore_app_tag;
+	u8			initial_ref_tag_is_valid;
+	u8			host_guard_type;	/* 0 = IP checksum, 1 = CRC */
+	u8			protection_type;	/* 1/2/3 - Protection Type */
+	u8			crc_seed;		/* 0=0x0000, 1=0xffff */
+	u8			keep_ref_tag_const;
 };
 
 struct ecore_iscsi_stats

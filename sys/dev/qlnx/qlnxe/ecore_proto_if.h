@@ -92,7 +92,7 @@ struct ecore_fcoe_pf_params {
 struct ecore_iscsi_pf_params {
 
 	u64		glbl_q_params_addr;
-	u64		bdq_pbl_base_addr[2];
+	u64		bdq_pbl_base_addr[3];
 	u16		cq_num_entries;
 	u16		cmdq_num_entries;
 	u32		two_msl_timer;
@@ -106,8 +106,8 @@ struct ecore_iscsi_pf_params {
 
 	/* The following parameters are used during protocol-init */
 	u16		half_way_close_timeout;
-	u16		bdq_xoff_threshold[2];
-	u16		bdq_xon_threshold[2];
+	u16		bdq_xoff_threshold[3];
+	u16		bdq_xon_threshold[3];
 	u16		cmdq_xoff_threshold;
 	u16		cmdq_xon_threshold;
 	u16		rq_buffer_size;
@@ -126,7 +126,8 @@ struct ecore_iscsi_pf_params {
 	u8		ooo_enable;
 
 	u8		is_target;
-	u8		bdq_pbl_num_entries[2];
+	u8		is_tmwo_en;
+	u8		bdq_pbl_num_entries[3];
 };
 
 enum ecore_rdma_protocol {

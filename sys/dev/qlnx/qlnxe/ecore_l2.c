@@ -457,8 +457,7 @@ enum _ecore_status_t ecore_sp_eth_vport_start(struct ecore_hwfn *p_hwfn,
 	p_ramrod->ctl_frame_ethtype_check_en = !!p_params->check_ethtype;
 
 	/* Software Function ID in hwfn (PFs are 0 - 15, VFs are 16 - 135) */
-	p_ramrod->sw_fid = ecore_concrete_to_sw_fid(p_hwfn->p_dev,
-						    p_params->concrete_fid);
+	p_ramrod->sw_fid = ecore_concrete_to_sw_fid(p_params->concrete_fid);
 
 	return ecore_spq_post(p_hwfn, p_ent, OSAL_NULL);
 }
@@ -660,8 +659,7 @@ ecore_sp_update_accept_mode(struct ecore_hwfn *p_hwfn,
 }
 
 static void
-ecore_sp_vport_update_sge_tpa(struct ecore_hwfn *p_hwfn,
-			      struct vport_update_ramrod_data *p_ramrod,
+ecore_sp_vport_update_sge_tpa(struct vport_update_ramrod_data *p_ramrod,
 			      struct ecore_sge_tpa_params *p_params)
 {
 	struct eth_vport_tpa_param *p_tpa;
@@ -692,8 +690,7 @@ ecore_sp_vport_update_sge_tpa(struct ecore_hwfn *p_hwfn,
 }
 
 static void
-ecore_sp_update_mcast_bin(struct ecore_hwfn *p_hwfn,
-			  struct vport_update_ramrod_data *p_ramrod,
+ecore_sp_update_mcast_bin(struct vport_update_ramrod_data *p_ramrod,
 			  struct ecore_sp_vport_update_params *p_params)
 {
 	int i;
@@ -799,11 +796,10 @@ enum _ecore_status_t ecore_sp_vport_update(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Update mcast bins for VFs, PF doesn't use this functionality */
-	ecore_sp_update_mcast_bin(p_hwfn, p_ramrod, p_params);
+	ecore_sp_update_mcast_bin(p_ramrod, p_params);
 
 	ecore_sp_update_accept_mode(p_hwfn, p_ramrod, p_params->accept_flags);
-	ecore_sp_vport_update_sge_tpa(p_hwfn, p_ramrod,
-				      p_params->sge_tpa_params);
+	ecore_sp_vport_update_sge_tpa(p_ramrod, p_params->sge_tpa_params);
 	return ecore_spq_post(p_hwfn, p_ent, OSAL_NULL);
 }
 
@@ -1508,10 +1504,7 @@ enum _ecore_status_t ecore_sp_eth_filter_ucast(struct ecore_hwfn *p_hwfn,
  *         Note: crc32_length MUST be aligned to 8
  * Return:
  ******************************************************************************/
-static u32 ecore_calc_crc32c(u8 *crc32_packet,
-			     u32 crc32_length,
-			     u32 crc32_seed,
-			     u8 complement)
+static u32 ecore_calc_crc32c(u8 *crc32_packet, u32 crc32_length, u32 crc32_seed)
 {
 	u32 byte = 0, bit = 0, crc32_result = crc32_seed;
 	u8  msb = 0, current_byte = 0;
@@ -1537,25 +1530,23 @@ static u32 ecore_calc_crc32c(u8 *crc32_packet,
 	return crc32_result;
 }
 
-static u32 ecore_crc32c_le(u32 seed, u8 *mac, u32 len)
+static u32 ecore_crc32c_le(u32 seed, u8 *mac)
 {
 	u32 packet_buf[2] = {0};
 
 	OSAL_MEMCPY((u8 *)(&packet_buf[0]), &mac[0], 6);
-	return ecore_calc_crc32c((u8 *)packet_buf, 8, seed, 0);
+	return ecore_calc_crc32c((u8 *)packet_buf, 8, seed);
 }
 
 u8 ecore_mcast_bin_from_mac(u8 *mac)
 {
-	u32 crc = ecore_crc32c_le(ETH_MULTICAST_BIN_FROM_MAC_SEED,
-				  mac, ETH_ALEN);
+	u32 crc = ecore_crc32c_le(ETH_MULTICAST_BIN_FROM_MAC_SEED, mac);
 
 	return crc & 0xff;
 }
 
 static enum _ecore_status_t
 ecore_sp_eth_filter_mcast(struct ecore_hwfn *p_hwfn,
-			  u16 opaque_fid,
 			  struct ecore_filter_mcast *p_filter_cmd,
 			  enum spq_mode comp_mode,
 			  struct ecore_spq_comp_cb *p_comp_data)
@@ -1647,16 +1638,13 @@ enum _ecore_status_t ecore_filter_mcast_cmd(struct ecore_dev *p_dev,
 
 	for_each_hwfn(p_dev, i) {
 		struct ecore_hwfn *p_hwfn = &p_dev->hwfns[i];
-		u16 opaque_fid;
 
 		if (IS_VF(p_dev)) {
 			ecore_vf_pf_filter_mcast(p_hwfn, p_filter_cmd);
 			continue;
 		}
 
-		opaque_fid = p_hwfn->hw_info.opaque_fid;
 		rc = ecore_sp_eth_filter_mcast(p_hwfn,
-					       opaque_fid,
 					       p_filter_cmd,
 					       comp_mode,
 					       p_comp_data);
@@ -1748,8 +1736,7 @@ static void __ecore_get_vport_pstats(struct ecore_hwfn *p_hwfn,
 
 static void __ecore_get_vport_tstats(struct ecore_hwfn *p_hwfn,
 				     struct ecore_ptt *p_ptt,
-				     struct ecore_eth_stats *p_stats,
-				     u16 statistics_bin)
+				     struct ecore_eth_stats *p_stats)
 {
 	struct tstorm_per_port_stat tstats;
 	u32 tstats_addr, tstats_len;
@@ -1964,7 +1951,7 @@ void __ecore_get_vport_stats(struct ecore_hwfn *p_hwfn,
 {
 	__ecore_get_vport_mstats(p_hwfn, p_ptt, stats, statistics_bin);
 	__ecore_get_vport_ustats(p_hwfn, p_ptt, stats, statistics_bin);
-	__ecore_get_vport_tstats(p_hwfn, p_ptt, stats, statistics_bin);
+	__ecore_get_vport_tstats(p_hwfn, p_ptt, stats);
 	__ecore_get_vport_pstats(p_hwfn, p_ptt, stats, statistics_bin);
 
 #ifndef ASIC_ONLY
@@ -2101,7 +2088,6 @@ void ecore_arfs_mode_configure(struct ecore_hwfn *p_hwfn,
 
 enum _ecore_status_t
 ecore_configure_rfs_ntuple_filter(struct ecore_hwfn *p_hwfn,
-				  struct ecore_ptt *p_ptt,
 				  struct ecore_spq_comp_cb *p_cb,
 				  dma_addr_t p_addr, u16 length,
 				  u16 qid, u8 vport_id,

@@ -688,8 +688,8 @@ extern void qlnx_fill_link(struct ecore_hwfn *hwfn,
 #endif /* #if __FreeBSD_version < 1100000 */
 
 #define CQE_L3_PACKET(flags)    \
-        ((((flags) & PARSING_AND_ERR_FLAGS_L3TYPE_MASK) == e_l3Type_ipv4) || \
-        (((flags) & PARSING_AND_ERR_FLAGS_L3TYPE_MASK) == e_l3Type_ipv6))
+        ((((flags) & PARSING_AND_ERR_FLAGS_L3TYPE_MASK) == e_l3_type_ipv4) || \
+        (((flags) & PARSING_AND_ERR_FLAGS_L3TYPE_MASK) == e_l3_type_ipv6))
 
 #define CQE_IP_HDR_ERR(flags) \
         ((flags) & (PARSING_AND_ERR_FLAGS_IPHDRERROR_MASK \

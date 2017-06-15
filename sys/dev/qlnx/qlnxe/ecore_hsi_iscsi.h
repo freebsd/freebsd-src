@@ -559,7 +559,7 @@ struct ustorm_iscsi_conn_st_ctx
 /*
  * iscsi connection context
  */
-struct iscsi_conn_context
+struct e4_iscsi_conn_context
 {
 	struct ystorm_iscsi_conn_st_ctx ystorm_st_context /* ystorm storm context */;
 	struct regpair ystorm_st_padding[2] /* padding */;
@@ -579,307 +579,6 @@ struct iscsi_conn_context
 	struct e4_mstorm_iscsi_conn_ag_ctx mstorm_ag_context /* mstorm aggregative context */;
 	struct mstorm_iscsi_tcp_conn_st_ctx mstorm_st_context /* mstorm storm context */;
 	struct ustorm_iscsi_conn_st_ctx ustorm_st_context /* ustorm storm context */;
-};
-
-
-/*
- * iSCSI init params passed by driver to FW in iSCSI init ramrod 
- */
-struct iscsi_init_ramrod_params
-{
-	struct iscsi_spe_func_init iscsi_init_spe /* parameters initialized by the miniport and handed to bus-driver */;
-	struct tcp_init_params tcp_init /* TCP parameters initialized by the bus-driver */;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-struct e4_ystorm_iscsi_conn_ag_ctx
-{
-	u8 byte0 /* cdu_validation */;
-	u8 byte1 /* state */;
-	u8 flags0;
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1 /* exist_in_qm0 */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1 /* exist_in_qm1 */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3 /* cf0 */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3 /* cf1 */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3 /* cf2 */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
-	u8 flags1;
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1 /* cf0en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1 /* cf1en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1 /* cf2en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1 /* rule0en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1 /* rule1en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1 /* rule2en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1 /* rule3en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1 /* rule4en */
-#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
-	u8 byte2 /* byte2 */;
-	u8 byte3 /* byte3 */;
-	__le16 word0 /* word0 */;
-	__le32 reg0 /* reg0 */;
-	__le32 reg1 /* reg1 */;
-	__le16 word1 /* word1 */;
-	__le16 word2 /* word2 */;
-	__le16 word3 /* word3 */;
-	__le16 word4 /* word4 */;
-	__le32 reg2 /* reg2 */;
-	__le32 reg3 /* reg3 */;
-};
-
-
-struct e5_mstorm_iscsi_conn_ag_ctx
-{
-	u8 reserved /* cdu_validation */;
-	u8 state_and_core_id /* state_and_core_id */;
-	u8 flags0;
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1 /* exist_in_qm0 */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1 /* exist_in_qm1 */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3 /* cf0 */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3 /* cf1 */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3 /* cf2 */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
-	u8 flags1;
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1 /* cf0en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1 /* cf1en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1 /* cf2en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1 /* rule0en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1 /* rule1en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1 /* rule2en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1 /* rule3en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1 /* rule4en */
-#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
-	__le16 word0 /* word0 */;
-	__le16 word1 /* word1 */;
-	__le32 reg0 /* reg0 */;
-	__le32 reg1 /* reg1 */;
-};
-
-
-struct e5_tstorm_iscsi_conn_ag_ctx
-{
-	u8 reserved0 /* cdu_validation */;
-	u8 state_and_core_id /* state_and_core_id */;
-	u8 flags0;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK       0x1 /* exist_in_qm0 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT      0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK               0x1 /* exist_in_qm1 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT              1
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT2_MASK               0x1 /* bit2 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT2_SHIFT              2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT3_MASK               0x1 /* bit3 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT3_SHIFT              3
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK               0x1 /* bit4 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT              4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT5_MASK               0x1 /* bit5 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT5_SHIFT              5
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0_MASK                0x3 /* timer0cf */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT               6
-	u8 flags1;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_MASK       0x3 /* timer1cf */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_SHIFT      0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_MASK       0x3 /* timer2cf */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_SHIFT      2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK     0x3 /* timer_stop_all */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT    4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4_MASK                0x3 /* cf4 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT               6
-	u8 flags2;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5_MASK                0x3 /* cf5 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT               0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6_MASK                0x3 /* cf6 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT               2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7_MASK                0x3 /* cf7 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT               4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8_MASK                0x3 /* cf8 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT               6
-	u8 flags3;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_MASK           0x3 /* cf9 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_SHIFT          0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10_MASK               0x3 /* cf10 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT              2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK              0x1 /* cf0en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT             4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_MASK    0x1 /* cf1en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_SHIFT   5
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_MASK    0x1 /* cf2en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_SHIFT   6
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK  0x1 /* cf3en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT 7
-	u8 flags4;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK              0x1 /* cf4en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT             0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK              0x1 /* cf5en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT             1
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK              0x1 /* cf6en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT             2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK              0x1 /* cf7en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT             3
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK              0x1 /* cf8en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT             4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_MASK        0x1 /* cf9en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT       5
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK             0x1 /* cf10en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT            6
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK            0x1 /* rule0en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT           7
-	u8 flags5;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK            0x1 /* rule1en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT           0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK            0x1 /* rule2en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT           1
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK            0x1 /* rule3en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT           2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK            0x1 /* rule4en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT           3
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK            0x1 /* rule5en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT           4
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK            0x1 /* rule6en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT           5
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK            0x1 /* rule7en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT           6
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK            0x1 /* rule8en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT           7
-	u8 flags6;
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_MASK       0x1 /* bit6 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_SHIFT      0
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_MASK       0x1 /* bit7 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_SHIFT      1
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_MASK       0x1 /* bit8 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_SHIFT      2
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_MASK       0x3 /* cf11 */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_SHIFT      3
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_MASK       0x1 /* cf11en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_SHIFT      5
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_MASK       0x1 /* rule9en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_SHIFT      6
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED7_MASK       0x1 /* rule10en */
-#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED7_SHIFT      7
-	u8 cid_offload_cnt /* byte2 */;
-	__le16 word0 /* word0 */;
-	__le32 reg0 /* reg0 */;
-	__le32 reg1 /* reg1 */;
-	__le32 reg2 /* reg2 */;
-	__le32 reg3 /* reg3 */;
-	__le32 reg4 /* reg4 */;
-	__le32 reg5 /* reg5 */;
-	__le32 reg6 /* reg6 */;
-	__le32 reg7 /* reg7 */;
-	__le32 reg8 /* reg8 */;
-};
-
-
-struct e5_ustorm_iscsi_conn_ag_ctx
-{
-	u8 byte0 /* cdu_validation */;
-	u8 byte1 /* state_and_core_id */;
-	u8 flags0;
-#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT0_MASK          0x1 /* exist_in_qm0 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT         0
-#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT1_MASK          0x1 /* exist_in_qm1 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT         1
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0_MASK           0x3 /* timer0cf */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT          2
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1_MASK           0x3 /* timer1cf */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT          4
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2_MASK           0x3 /* timer2cf */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT          6
-	u8 flags1;
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3_MASK           0x3 /* timer_stop_all */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3_SHIFT          0
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4_MASK           0x3 /* cf4 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT          2
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5_MASK           0x3 /* cf5 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT          4
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6_MASK           0x3 /* cf6 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT          6
-	u8 flags2;
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK         0x1 /* cf0en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT        0
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK         0x1 /* cf1en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT        1
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK         0x1 /* cf2en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT        2
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3EN_MASK         0x1 /* cf3en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3EN_SHIFT        3
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK         0x1 /* cf4en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT        4
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK         0x1 /* cf5en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT        5
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK         0x1 /* cf6en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT        6
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK       0x1 /* rule0en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT      7
-	u8 flags3;
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK       0x1 /* rule1en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT      0
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK       0x1 /* rule2en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT      1
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK       0x1 /* rule3en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT      2
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK       0x1 /* rule4en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT      3
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK       0x1 /* rule5en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT      4
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK       0x1 /* rule6en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT      5
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK       0x1 /* rule7en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT      6
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK       0x1 /* rule8en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT      7
-	u8 flags4;
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_MASK  0x1 /* bit2 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_SHIFT 0
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_MASK  0x1 /* bit3 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_SHIFT 1
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_MASK  0x3 /* cf7 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_SHIFT 2
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_MASK  0x3 /* cf8 */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_SHIFT 4
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_MASK  0x1 /* cf7en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_SHIFT 6
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_MASK  0x1 /* cf8en */
-#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_SHIFT 7
-	u8 byte2 /* byte2 */;
-	__le16 word0 /* conn_dpi */;
-	__le16 word1 /* word1 */;
-	__le32 reg0 /* reg0 */;
-	__le32 reg1 /* reg1 */;
-	__le32 reg2 /* reg2 */;
-	__le32 reg3 /* reg3 */;
-	__le16 word2 /* word2 */;
-	__le16 word3 /* word3 */;
 };
 
 
@@ -1154,6 +853,333 @@ struct e5_xstorm_iscsi_conn_ag_ctx
 	__le32 reg16 /* reg16 */;
 	__le32 reg17 /* reg17 */;
 };
+
+struct e5_tstorm_iscsi_conn_ag_ctx
+{
+	u8 reserved0 /* cdu_validation */;
+	u8 state_and_core_id /* state_and_core_id */;
+	u8 flags0;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK       0x1 /* exist_in_qm0 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT      0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK               0x1 /* exist_in_qm1 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT              1
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT2_MASK               0x1 /* bit2 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT2_SHIFT              2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT3_MASK               0x1 /* bit3 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT3_SHIFT              3
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK               0x1 /* bit4 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT              4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT5_MASK               0x1 /* bit5 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_BIT5_SHIFT              5
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0_MASK                0x3 /* timer0cf */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT               6
+	u8 flags1;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_MASK       0x3 /* timer1cf */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_SHIFT      0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_MASK       0x3 /* timer2cf */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_SHIFT      2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK     0x3 /* timer_stop_all */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT    4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4_MASK                0x3 /* cf4 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT               6
+	u8 flags2;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5_MASK                0x3 /* cf5 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT               0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6_MASK                0x3 /* cf6 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT               2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7_MASK                0x3 /* cf7 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT               4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8_MASK                0x3 /* cf8 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT               6
+	u8 flags3;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_MASK           0x3 /* cf9 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_SHIFT          0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10_MASK               0x3 /* cf10 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT              2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK              0x1 /* cf0en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT             4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_MASK    0x1 /* cf1en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_SHIFT   5
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_MASK    0x1 /* cf2en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_SHIFT   6
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK  0x1 /* cf3en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT 7
+	u8 flags4;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK              0x1 /* cf4en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT             0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK              0x1 /* cf5en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT             1
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK              0x1 /* cf6en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT             2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK              0x1 /* cf7en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT             3
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK              0x1 /* cf8en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT             4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_MASK        0x1 /* cf9en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT       5
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK             0x1 /* cf10en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT            6
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK            0x1 /* rule0en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT           7
+	u8 flags5;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK            0x1 /* rule1en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT           0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK            0x1 /* rule2en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT           1
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK            0x1 /* rule3en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT           2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK            0x1 /* rule4en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT           3
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK            0x1 /* rule5en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT           4
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK            0x1 /* rule6en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT           5
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK            0x1 /* rule7en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT           6
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK            0x1 /* rule8en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT           7
+	u8 flags6;
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_MASK       0x1 /* bit6 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_SHIFT      0
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_MASK       0x1 /* bit7 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_SHIFT      1
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_MASK       0x1 /* bit8 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_SHIFT      2
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_MASK       0x3 /* cf11 */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_SHIFT      3
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_MASK       0x1 /* cf11en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_SHIFT      5
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_MASK       0x1 /* rule9en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_SHIFT      6
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED7_MASK       0x1 /* rule10en */
+#define E5_TSTORM_ISCSI_CONN_AG_CTX_E4_RESERVED7_SHIFT      7
+	u8 cid_offload_cnt /* byte2 */;
+	__le16 word0 /* word0 */;
+	__le32 reg0 /* reg0 */;
+	__le32 reg1 /* reg1 */;
+	__le32 reg2 /* reg2 */;
+	__le32 reg3 /* reg3 */;
+	__le32 reg4 /* reg4 */;
+	__le32 reg5 /* reg5 */;
+	__le32 reg6 /* reg6 */;
+	__le32 reg7 /* reg7 */;
+	__le32 reg8 /* reg8 */;
+};
+
+struct e5_ustorm_iscsi_conn_ag_ctx
+{
+	u8 byte0 /* cdu_validation */;
+	u8 byte1 /* state_and_core_id */;
+	u8 flags0;
+#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT0_MASK          0x1 /* exist_in_qm0 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT         0
+#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT1_MASK          0x1 /* exist_in_qm1 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT         1
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0_MASK           0x3 /* timer0cf */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT          2
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1_MASK           0x3 /* timer1cf */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT          4
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2_MASK           0x3 /* timer2cf */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT          6
+	u8 flags1;
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3_MASK           0x3 /* timer_stop_all */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3_SHIFT          0
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4_MASK           0x3 /* cf4 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT          2
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5_MASK           0x3 /* cf5 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT          4
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6_MASK           0x3 /* cf6 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT          6
+	u8 flags2;
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK         0x1 /* cf0en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT        0
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK         0x1 /* cf1en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT        1
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK         0x1 /* cf2en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT        2
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3EN_MASK         0x1 /* cf3en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF3EN_SHIFT        3
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK         0x1 /* cf4en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT        4
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK         0x1 /* cf5en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT        5
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK         0x1 /* cf6en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT        6
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK       0x1 /* rule0en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT      7
+	u8 flags3;
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK       0x1 /* rule1en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT      0
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK       0x1 /* rule2en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT      1
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK       0x1 /* rule3en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT      2
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK       0x1 /* rule4en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT      3
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK       0x1 /* rule5en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT      4
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK       0x1 /* rule6en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT      5
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK       0x1 /* rule7en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT      6
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK       0x1 /* rule8en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT      7
+	u8 flags4;
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_MASK  0x1 /* bit2 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED1_SHIFT 0
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_MASK  0x1 /* bit3 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED2_SHIFT 1
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_MASK  0x3 /* cf7 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED3_SHIFT 2
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_MASK  0x3 /* cf8 */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED4_SHIFT 4
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_MASK  0x1 /* cf7en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED5_SHIFT 6
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_MASK  0x1 /* cf8en */
+#define E5_USTORM_ISCSI_CONN_AG_CTX_E4_RESERVED6_SHIFT 7
+	u8 byte2 /* byte2 */;
+	__le16 word0 /* conn_dpi */;
+	__le16 word1 /* word1 */;
+	__le32 reg0 /* reg0 */;
+	__le32 reg1 /* reg1 */;
+	__le32 reg2 /* reg2 */;
+	__le32 reg3 /* reg3 */;
+	__le16 word2 /* word2 */;
+	__le16 word3 /* word3 */;
+};
+
+struct e5_mstorm_iscsi_conn_ag_ctx
+{
+	u8 reserved /* cdu_validation */;
+	u8 state_and_core_id /* state_and_core_id */;
+	u8 flags0;
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1 /* exist_in_qm0 */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1 /* exist_in_qm1 */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3 /* cf0 */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3 /* cf1 */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3 /* cf2 */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
+	u8 flags1;
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1 /* cf0en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1 /* cf1en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1 /* cf2en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1 /* rule0en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1 /* rule1en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1 /* rule2en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1 /* rule3en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1 /* rule4en */
+#define E5_MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
+	__le16 word0 /* word0 */;
+	__le16 word1 /* word1 */;
+	__le32 reg0 /* reg0 */;
+	__le32 reg1 /* reg1 */;
+};
+
+/*
+ * iscsi connection context
+ */
+struct e5_iscsi_conn_context
+{
+	struct ystorm_iscsi_conn_st_ctx ystorm_st_context /* ystorm storm context */;
+	struct regpair ystorm_st_padding[2] /* padding */;
+	struct pstorm_iscsi_tcp_conn_st_ctx pstorm_st_context /* pstorm storm context */;
+	struct regpair pstorm_st_padding[2] /* padding */;
+	struct pb_context xpb2_context /* xpb2 context */;
+	struct xstorm_iscsi_tcp_conn_st_ctx xstorm_st_context /* xstorm storm context */;
+	struct regpair xstorm_st_padding[2] /* padding */;
+	struct e5_xstorm_iscsi_conn_ag_ctx xstorm_ag_context /* xstorm aggregative context */;
+	struct e5_tstorm_iscsi_conn_ag_ctx tstorm_ag_context /* tstorm aggregative context */;
+	struct regpair tstorm_ag_padding[2] /* padding */;
+	struct timers_context timer_context /* timer context */;
+	struct e5_ustorm_iscsi_conn_ag_ctx ustorm_ag_context /* ustorm aggregative context */;
+	struct pb_context upb_context /* upb context */;
+	struct tstorm_iscsi_conn_st_ctx tstorm_st_context /* tstorm storm context */;
+	struct regpair tstorm_st_padding[2] /* padding */;
+	struct e5_mstorm_iscsi_conn_ag_ctx mstorm_ag_context /* mstorm aggregative context */;
+	struct mstorm_iscsi_tcp_conn_st_ctx mstorm_st_context /* mstorm storm context */;
+	struct ustorm_iscsi_conn_st_ctx ustorm_st_context /* ustorm storm context */;
+};
+
+
+/*
+ * iSCSI init params passed by driver to FW in iSCSI init ramrod 
+ */
+struct iscsi_init_ramrod_params
+{
+	struct iscsi_spe_func_init iscsi_init_spe /* parameters initialized by the miniport and handed to bus-driver */;
+	struct tcp_init_params tcp_init /* TCP parameters initialized by the bus-driver */;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+struct e4_ystorm_iscsi_conn_ag_ctx
+{
+	u8 byte0 /* cdu_validation */;
+	u8 byte1 /* state */;
+	u8 flags0;
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1 /* exist_in_qm0 */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1 /* exist_in_qm1 */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3 /* cf0 */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3 /* cf1 */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3 /* cf2 */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
+	u8 flags1;
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1 /* cf0en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1 /* cf1en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1 /* cf2en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1 /* rule0en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1 /* rule1en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1 /* rule2en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1 /* rule3en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1 /* rule4en */
+#define E4_YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
+	u8 byte2 /* byte2 */;
+	u8 byte3 /* byte3 */;
+	__le16 word0 /* word0 */;
+	__le32 reg0 /* reg0 */;
+	__le32 reg1 /* reg1 */;
+	__le16 word1 /* word1 */;
+	__le16 word2 /* word2 */;
+	__le16 word3 /* word3 */;
+	__le16 word4 /* word4 */;
+	__le32 reg2 /* reg2 */;
+	__le32 reg3 /* reg3 */;
+};
+
+
+
+
 
 
 struct e5_ystorm_iscsi_conn_ag_ctx

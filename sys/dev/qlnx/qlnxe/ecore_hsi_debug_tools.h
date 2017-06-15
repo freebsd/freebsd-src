@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_HSI_DEBUG_TOOLS__
 #define __ECORE_HSI_DEBUG_TOOLS__ 
 /****************************************/
@@ -91,8 +90,8 @@ enum block_addr
 	GRCBASE_MULD = 0x4e0000,
 	GRCBASE_YULD = 0x4c8000,
 	GRCBASE_XYLD = 0x4c0000,
-	GRCBASE_PTLD = 0x590000,
-	GRCBASE_YPLD = 0x5b0000,
+	GRCBASE_PTLD = 0x5a0000,
+	GRCBASE_YPLD = 0x5c0000,
 	GRCBASE_PRM = 0x230000,
 	GRCBASE_PBF_PB1 = 0xda0000,
 	GRCBASE_PBF_PB2 = 0xda4000,

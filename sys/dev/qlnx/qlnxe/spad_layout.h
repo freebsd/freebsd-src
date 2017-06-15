@@ -28,7 +28,6 @@
  *
  */
 
-
 /****************************************************************************
  * Name:        spad_layout.h
  *
@@ -98,8 +97,8 @@ extern struct spad_layout g_spad;
 #endif /* MDUMP_PARSE_TOOL */
 
 #define TO_OFFSIZE(_offset, _size) \
-    (u32)((((u32)(_offset) >> 2) << OFFSIZE_OFFSET_SHIFT) | \
-	  (((u32)(_size) >> 2) << OFFSIZE_SIZE_SHIFT))
+    (u32)((((u32)(_offset) >> 2) << OFFSIZE_OFFSET_OFFSET) | \
+	  (((u32)(_size) >> 2) << OFFSIZE_SIZE_OFFSET))
 
 enum spad_sections {
 	SPAD_SECTION_TRACE,
@@ -160,13 +159,13 @@ struct static_init {
 	u32 mim_start_addr;						/* 0xe20848 */
 	u32 ah_pcie_link_params; /* 0xe20850 Stores PCIe link configuration at start, so they can be used later also for Hot-Reset, without the need to re-reading them from nvm cfg. */
 #define AH_PCIE_LINK_PARAMS_LINK_SPEED_MASK	(0x000000ff)
-#define AH_PCIE_LINK_PARAMS_LINK_SPEED_SHIFT	(0)
+#define AH_PCIE_LINK_PARAMS_LINK_SPEED_OFFSET	(0)
 #define AH_PCIE_LINK_PARAMS_LINK_WIDTH_MASK	(0x0000ff00)
-#define AH_PCIE_LINK_PARAMS_LINK_WIDTH_SHIFT	(8)
+#define AH_PCIE_LINK_PARAMS_LINK_WIDTH_OFFSET	(8)
 #define AH_PCIE_LINK_PARAMS_ASPM_MODE_MASK	(0x00ff0000)
-#define AH_PCIE_LINK_PARAMS_ASPM_MODE_SHIFT	(16)
+#define AH_PCIE_LINK_PARAMS_ASPM_MODE_OFFSET	(16)
 #define AH_PCIE_LINK_PARAMS_ASPM_CAP_MASK	(0xff000000)
-#define AH_PCIE_LINK_PARAMS_ASPM_CAP_SHIFT	(24)
+#define AH_PCIE_LINK_PARAMS_ASPM_CAP_OFFSET	(24)
 #define AH_PCIE_LINK_PARAMS *((u32*)(STRUCT_OFFSET(ah_pcie_link_params)))
 	
 	u32 flags;							/* 0xe20850 */
@@ -183,6 +182,7 @@ struct static_init {
 #define FLAGS_SMBUS_AUX_MODE		(1 << 9)
 #define FLAGS_PEND_SMBUS_VMAIN_TO_AUX	(1 << 10)
 #define FLAGS_NVM_CFG_EFUSE_FAILURE	(1 << 11)
+#define FLAGS_POWER_TRANSITION		(1 << 12)
 #define FLAGS_OS_DRV_LOADED 		(1 << 29)
 #define FLAGS_OVER_TEMP_OCCUR		(1 << 30)
 #define FLAGS_FAN_FAIL_OCCUR		(1 << 31)
