@@ -449,7 +449,7 @@ _libinstall:
 .include <bsd.confs.mk>
 .endif
 
-LINKOWN=	${LIBMODE}
+LINKOWN=	${LIBOWN}
 LINKGRP=	${LIBGRP}
 LINKMODE=	${LIBMODE}
 SYMLINKOWN=	${LIBOWN}
