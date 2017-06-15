@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef _DBG_FW_FUNCS_H
 #define _DBG_FW_FUNCS_H
 /**************************** Public Functions *******************************/
@@ -179,7 +178,6 @@ enum dbg_status ecore_dbg_bus_set_nw_output(struct ecore_hwfn *p_hwfn,
  * unit is 2 dwords (64 bits).
  *
  * @param p_hwfn -		HW device data
- * @param p_ptt -		Ptt window used for writing the registers.
  * @param block -	block to be enabled.
  * @param line_num -	debug line number to select.
  * @param cycle_en -	4-bit value. If bit i is set, unit i is enabled.
@@ -200,13 +198,12 @@ enum dbg_status ecore_dbg_bus_set_nw_output(struct ecore_hwfn *p_hwfn,
  * Otherwise, returns ok.
  */
 enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
-										   struct ecore_ptt *p_ptt,
-										   enum block_id block,
-										   u8 line_num,
-										   u8 cycle_en,
-										   u8 right_shift,
-										   u8 force_valid,
-										   u8 force_frame);
+					   enum block_id block,
+					   u8 line_num,
+					   u8 cycle_en,
+					   u8 right_shift,
+					   u8 force_valid,
+					   u8 force_frame);
 
 /**
  * @brief ecore_dbg_bus_enable_storm - Enables recording of the specified Storm

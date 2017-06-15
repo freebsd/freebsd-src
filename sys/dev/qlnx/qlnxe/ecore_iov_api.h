@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_SRIOV_API_H__
 #define __ECORE_SRIOV_API_H__
 
@@ -179,6 +178,7 @@ struct ecore_hw_sriov_info {
 };
 
 #ifdef CONFIG_ECORE_SRIOV
+#ifndef LINUX_REMOVE
 /**
  * @brief mark/clear all VFs before/after an incoming PCIe sriov
  *        disable.
@@ -709,6 +709,7 @@ int ecore_iov_get_vf_min_rate(struct ecore_hwfn *p_hwfn, int vfid);
 enum _ecore_status_t ecore_iov_configure_min_tx_rate(struct ecore_dev *p_dev,
 						     int vfid, u32 rate);
 
+#endif
 
 /**
  * @brief ecore_pf_configure_vf_queue_coalesce - PF configure coalesce parameters
@@ -736,66 +737,68 @@ ecore_iov_pf_configure_vf_queue_coalesce(struct ecore_hwfn *p_hwfn,
  * @param p_hwfn
  * @param rel_vf_id
  *
- * @return E4_MAX_NUM_VFS in case no further active VFs, otherwise index.
+ * @return MAX_NUM_VFS_E4 in case no further active VFs, otherwise index.
  */
 u16 ecore_iov_get_next_active_vf(struct ecore_hwfn *p_hwfn, u16 rel_vf_id);
 void ecore_iov_bulletin_set_udp_ports(struct ecore_hwfn *p_hwfn, int vfid,
 				      u16 vxlan_port, u16 geneve_port);
 #else
-static OSAL_INLINE void ecore_iov_set_vfs_to_disable(struct ecore_dev *p_dev, u8 to_disable) {}
-static OSAL_INLINE void ecore_iov_set_vf_to_disable(struct ecore_dev *p_dev, u16 rel_vf_id, u8 to_disable) {}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_init_hw_for_vf(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, struct ecore_iov_vf_init_params *p_params) {return ECORE_INVAL;}
-static OSAL_INLINE void ecore_iov_process_mbx_req(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, int vfid) {}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_release_hw_for_vf(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, u16 rel_vf_id) {return ECORE_SUCCESS;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_set_vf_ctx(struct ecore_hwfn *p_hwfn, u16 vf_id, void *ctx) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_vf_flr_cleanup(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_single_vf_flr_cleanup(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, u16 rel_vf_id) {return ECORE_INVAL;}
-static OSAL_INLINE void ecore_iov_set_link(struct ecore_hwfn *p_hwfn, u16 vfid, struct ecore_mcp_link_params *params, struct ecore_mcp_link_state *link, struct ecore_mcp_link_capabilities *p_caps) {}
-static OSAL_INLINE void ecore_iov_get_link(struct ecore_hwfn *p_hwfn, u16 vfid, struct ecore_mcp_link_params *params, struct ecore_mcp_link_state *link, struct ecore_mcp_link_capabilities *p_caps) {}
-static OSAL_INLINE bool ecore_iov_is_vf_pending_flr(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return false;}
-static OSAL_INLINE bool ecore_iov_is_valid_vfid(struct ecore_hwfn *p_hwfn, int rel_vf_id, bool b_enabled_only) {return false;}
-static OSAL_INLINE struct ecore_public_vf_info* ecore_iov_get_public_vf_info(struct ecore_hwfn *p_hwfn, u16 vfid, bool b_enabled_only) {return OSAL_NULL;}
-static OSAL_INLINE void ecore_iov_pf_add_pending_events(struct ecore_hwfn *p_hwfn, u8 vfid) {}
-static OSAL_INLINE void ecore_iov_pf_get_and_clear_pending_events(struct ecore_hwfn *p_hwfn, u64 *events) {}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_copy_vf_msg(struct ecore_hwfn *p_hwfn, struct ecore_ptt *ptt, int vfid) {return ECORE_INVAL;}
-static OSAL_INLINE void ecore_iov_bulletin_set_forced_mac(struct ecore_hwfn *p_hwfn, u8 *mac, int vfid) {}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_mac(struct ecore_hwfn *p_hwfn, u8 *mac, int vfid) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_forced_untagged_default(struct ecore_hwfn *p_hwfn, bool b_untagged_only, int vfid) {return ECORE_INVAL;}
-static OSAL_INLINE void ecore_iov_get_vfs_opaque_fid(struct ecore_hwfn *p_hwfn, int vfid, u16 *opaque_fid) {}
-static OSAL_INLINE void ecore_iov_bulletin_set_forced_vlan(struct ecore_hwfn p_hwfn, u16 pvid, int vfid) {}
+#ifndef LINUX_REMOVE
+static OSAL_INLINE void ecore_iov_set_vfs_to_disable(struct ecore_dev OSAL_UNUSED *p_dev, u8 OSAL_UNUSED to_disable) {}
+static OSAL_INLINE void ecore_iov_set_vf_to_disable(struct ecore_dev OSAL_UNUSED *p_dev, u16 OSAL_UNUSED rel_vf_id, u8 OSAL_UNUSED to_disable) {}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_init_hw_for_vf(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, struct ecore_iov_vf_init_params OSAL_UNUSED *p_params) {return ECORE_INVAL;}
+static OSAL_INLINE void ecore_iov_process_mbx_req(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, int OSAL_UNUSED vfid) {}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_release_hw_for_vf(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, u16 OSAL_UNUSED rel_vf_id) {return ECORE_SUCCESS;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_set_vf_ctx(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vf_id, OSAL_UNUSED void *ctx) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_vf_flr_cleanup(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_single_vf_flr_cleanup(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, u16 OSAL_UNUSED rel_vf_id) {return ECORE_INVAL;}
+static OSAL_INLINE void ecore_iov_set_link(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, struct ecore_mcp_link_params OSAL_UNUSED *params, struct ecore_mcp_link_state OSAL_UNUSED *link, struct ecore_mcp_link_capabilities OSAL_UNUSED *p_caps) {}
+static OSAL_INLINE void ecore_iov_get_link(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, struct ecore_mcp_link_params OSAL_UNUSED *params, struct ecore_mcp_link_state OSAL_UNUSED *link, struct ecore_mcp_link_capabilities OSAL_UNUSED *p_caps) {}
+static OSAL_INLINE bool ecore_iov_is_vf_pending_flr(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return false;}
+static OSAL_INLINE bool ecore_iov_is_valid_vfid(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED rel_vf_id, bool OSAL_UNUSED b_enabled_only) {return false;}
+static OSAL_INLINE struct ecore_public_vf_info* ecore_iov_get_public_vf_info(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED vfid, bool OSAL_UNUSED b_enabled_only) {return OSAL_NULL;}
+static OSAL_INLINE void ecore_iov_pf_add_pending_events(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED vfid) {}
+static OSAL_INLINE void ecore_iov_pf_get_and_clear_pending_events(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u64 OSAL_UNUSED *events) {}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_copy_vf_msg(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *ptt, int OSAL_UNUSED vfid) {return ECORE_INVAL;}
+static OSAL_INLINE void ecore_iov_bulletin_set_forced_mac(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED *mac, int OSAL_UNUSED vfid) {}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_mac(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED *mac, OSAL_UNUSED int vfid) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_forced_untagged_default(struct ecore_hwfn OSAL_UNUSED *p_hwfn, bool OSAL_UNUSED b_untagged_only, int OSAL_UNUSED vfid) {return ECORE_INVAL;}
+static OSAL_INLINE void ecore_iov_get_vfs_opaque_fid(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, u16 OSAL_UNUSED *opaque_fid) {}
+static OSAL_INLINE void ecore_iov_bulletin_set_forced_vlan(struct ecore_hwfn OSAL_UNUSED p_hwfn, u16 OSAL_UNUSED pvid, int OSAL_UNUSED vfid) {}
 
-static OSAL_INLINE bool ecore_iov_vf_has_vport_instance(struct ecore_hwfn *p_hwfn, int vfid) {return false;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_post_vf_bulletin(struct ecore_hwfn *p_hwfn, int vfid, struct ecore_ptt *p_ptt) {return ECORE_INVAL;}
-static OSAL_INLINE bool ecore_iov_is_vf_stopped(struct ecore_hwfn *p_hwfn, int vfid) {return false;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_spoofchk_set(struct ecore_hwfn *p_hwfn, int vfid, bool val) {return ECORE_INVAL;}
-static OSAL_INLINE bool ecore_iov_spoofchk_get(struct ecore_hwfn *p_hwfn, int vfid) {return false;}
-static OSAL_INLINE bool ecore_iov_pf_sanity_check(struct ecore_hwfn *p_hwfn, int vfid) {return false;}
-static OSAL_INLINE u8 ecore_iov_vf_chains_per_pf(struct ecore_hwfn *p_hwfn) {return 0;}
-static OSAL_INLINE void ecore_iov_get_vf_req_virt_mbx_params(struct ecore_hwfn *p_hwfn, u16 rel_vf_id, void **pp_req_virt_addr, u16 *p_req_virt_size) {}
-static OSAL_INLINE void ecore_iov_get_vf_reply_virt_mbx_params(struct ecore_hwfn *p_hwfn, u16 rel_vf_id, void **pp_reply_virt_addr, u16 *p_reply_virt_size) {}
-static OSAL_INLINE bool ecore_iov_is_valid_vfpf_msg_length(u32 length) {return false;}
+static OSAL_INLINE bool ecore_iov_vf_has_vport_instance(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_post_vf_bulletin(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, struct ecore_ptt OSAL_UNUSED *p_ptt) {return ECORE_INVAL;}
+static OSAL_INLINE bool ecore_iov_is_vf_stopped(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_spoofchk_set(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, bool OSAL_UNUSED val) {return ECORE_INVAL;}
+static OSAL_INLINE bool ecore_iov_spoofchk_get(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
+static OSAL_INLINE bool ecore_iov_pf_sanity_check(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
+static OSAL_INLINE u8 ecore_iov_vf_chains_per_pf(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return 0;}
+static OSAL_INLINE void ecore_iov_get_vf_req_virt_mbx_params(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id, void OSAL_UNUSED **pp_req_virt_addr, u16 OSAL_UNUSED *p_req_virt_size) {}
+static OSAL_INLINE void ecore_iov_get_vf_reply_virt_mbx_params(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id, void OSAL_UNUSED **pp_reply_virt_addr, u16 OSAL_UNUSED *p_reply_virt_size) {}
+static OSAL_INLINE bool ecore_iov_is_valid_vfpf_msg_length(u32 OSAL_UNUSED length) {return false;}
 static OSAL_INLINE u32 ecore_iov_pfvf_msg_length(void) {return 0;}
-static OSAL_INLINE u8 *ecore_iov_bulletin_get_forced_mac(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return OSAL_NULL;}
-static OSAL_INLINE u16 ecore_iov_bulletin_get_forced_vlan(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return 0;}
-static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_tx_rate(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, int vfid, int val) { return ECORE_INVAL; }
-static OSAL_INLINE enum _ecore_status_t ecore_iov_get_vf_stats(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, int vfid, struct ecore_eth_stats *p_stats) { return ECORE_INVAL; }
+static OSAL_INLINE u8 *ecore_iov_bulletin_get_forced_mac(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return OSAL_NULL;}
+static OSAL_INLINE u16 ecore_iov_bulletin_get_forced_vlan(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
+static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_tx_rate(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, int OSAL_UNUSED vfid, int OSAL_UNUSED val) { return ECORE_INVAL; }
+static OSAL_INLINE enum _ecore_status_t ecore_iov_get_vf_stats(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, int OSAL_UNUSED vfid, struct ecore_eth_stats OSAL_UNUSED *p_stats) { return ECORE_INVAL; }
 
-static OSAL_INLINE u8 ecore_iov_get_vf_num_rxqs(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return 0;}
-static OSAL_INLINE u8 ecore_iov_get_vf_num_active_rxqs(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return 0;}
-static OSAL_INLINE void *ecore_iov_get_vf_ctx(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return OSAL_NULL;}
-static OSAL_INLINE u8 ecore_iov_get_vf_num_sbs(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return 0;}
-static OSAL_INLINE bool ecore_iov_is_vf_wait_for_acquire(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return false;}
-static OSAL_INLINE bool ecore_iov_is_vf_acquired_not_initialized(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return false;}
-static OSAL_INLINE bool ecore_iov_is_vf_initialized(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) {return false;}
-static OSAL_INLINE int ecore_iov_get_vf_min_rate(struct ecore_hwfn *p_hwfn, int vfid) { return 0; }
-static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_min_tx_rate(struct ecore_dev *p_dev, int vfid, u32 rate) { return ECORE_INVAL; }
+static OSAL_INLINE u8 ecore_iov_get_vf_num_rxqs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
+static OSAL_INLINE u8 ecore_iov_get_vf_num_active_rxqs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
+static OSAL_INLINE void *ecore_iov_get_vf_ctx(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return OSAL_NULL;}
+static OSAL_INLINE u8 ecore_iov_get_vf_num_sbs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
+static OSAL_INLINE bool ecore_iov_is_vf_wait_for_acquire(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return false;}
+static OSAL_INLINE bool ecore_iov_is_vf_acquired_not_initialized(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return false;}
+static OSAL_INLINE bool ecore_iov_is_vf_initialized(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return false;}
+static OSAL_INLINE int ecore_iov_get_vf_min_rate(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) { return 0; }
+static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_min_tx_rate(struct ecore_dev OSAL_UNUSED *p_dev, int OSAL_UNUSED vfid, OSAL_UNUSED u32 rate) { return ECORE_INVAL; }
 #endif
-static OSAL_INLINE void ecore_iov_bulletin_set_udp_ports(struct ecore_hwfn *p_hwfn, int vfid, u16 vxlan_port, u16 geneve_port) { return; }
-static OSAL_INLINE u16 ecore_iov_get_next_active_vf(struct ecore_hwfn *p_hwfn, u16 rel_vf_id) { return E4_MAX_NUM_VFS; }
+static OSAL_INLINE void ecore_iov_bulletin_set_udp_ports(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, u16 OSAL_UNUSED vxlan_port, u16 OSAL_UNUSED geneve_port) { return; }
+static OSAL_INLINE u16 ecore_iov_get_next_active_vf(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) { return MAX_NUM_VFS_E4; }
+#endif
 
 #define ecore_for_each_vf(_p_hwfn, _i)					\
 	for (_i = ecore_iov_get_next_active_vf(_p_hwfn, 0);		\
-	     _i < E4_MAX_NUM_VFS;					\
+	     _i < MAX_NUM_VFS_E4;					\
 	     _i = ecore_iov_get_next_active_vf(_p_hwfn, _i + 1))
 
 #endif

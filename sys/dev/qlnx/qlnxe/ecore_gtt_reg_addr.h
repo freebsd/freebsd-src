@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef GTT_REG_ADDR_H
 #define GTT_REG_ADDR_H
 

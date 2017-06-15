@@ -116,10 +116,9 @@ static void ecore_iscsi_eq_dump(struct ecore_hwfn *p_hwfn,
 /***************************************************************************
  * Blocking Imp. (BLOCK/EBLOCK mode)
  ***************************************************************************/
-static void ecore_spq_blocking_cb(struct ecore_hwfn *p_hwfn,
-					void                  *cookie,
-					union event_ring_data *data,
-					u8                    fw_return_code)
+static void ecore_spq_blocking_cb(struct ecore_hwfn *p_hwfn, void *cookie,
+				  union event_ring_data OSAL_UNUSED *data,
+				  u8 fw_return_code)
 {
 	struct ecore_spq_comp_done *comp_done;
 
@@ -168,6 +167,7 @@ static enum _ecore_status_t ecore_spq_block(struct ecore_hwfn *p_hwfn,
 					    u8 *p_fw_ret, bool skip_quick_poll)
 {
 	struct ecore_spq_comp_done *comp_done;
+	struct ecore_ptt *p_ptt;
 	enum _ecore_status_t rc;
 
 	/* A relatively short polling period w/o sleeping, to allow the FW to
@@ -184,8 +184,14 @@ static enum _ecore_status_t ecore_spq_block(struct ecore_hwfn *p_hwfn,
 	if (rc == ECORE_SUCCESS)
 		return ECORE_SUCCESS;
 
+	p_ptt = ecore_ptt_acquire(p_hwfn);
+	if (!p_ptt) {
+		DP_NOTICE(p_hwfn, true, "ptt, failed to acquire\n");
+		return ECORE_AGAIN;
+	}
+
 	DP_INFO(p_hwfn, "Ramrod is stuck, requesting MCP drain\n");
-	rc = ecore_mcp_drain(p_hwfn, p_hwfn->p_main_ptt);
+	rc = ecore_mcp_drain(p_hwfn, p_ptt);
 	if (rc != ECORE_SUCCESS) {
 		DP_NOTICE(p_hwfn, true, "MCP drain failed\n");
 		goto err;
@@ -194,15 +200,20 @@ static enum _ecore_status_t ecore_spq_block(struct ecore_hwfn *p_hwfn,
 	/* Retry after drain */
 	rc = __ecore_spq_block(p_hwfn, p_ent, p_fw_ret, true);
 	if (rc == ECORE_SUCCESS)
-		return ECORE_SUCCESS;
+		goto out;
 
 	comp_done = (struct ecore_spq_comp_done *)p_ent->comp_cb.cookie;
 	if (comp_done->done == 1) {
 		if (p_fw_ret)
 			*p_fw_ret = comp_done->fw_return_code;
-		return ECORE_SUCCESS;
 	}
+out:
+	ecore_ptt_release(p_hwfn, p_ptt);
+
+	return ECORE_SUCCESS;
+
 err:
+	ecore_ptt_release(p_hwfn, p_ptt);
 	DP_NOTICE(p_hwfn, true,
 		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
 		  OSAL_LE32_TO_CPU(p_ent->elem.hdr.cid),
@@ -253,10 +264,10 @@ static enum _ecore_status_t ecore_spq_fill_entry(struct ecore_hwfn *p_hwfn,
 static void ecore_spq_hw_initialize(struct ecore_hwfn *p_hwfn,
 				    struct ecore_spq  *p_spq)
 {
+	struct e4_core_conn_context *p_cxt;
 	struct ecore_cxt_info cxt_info;
-	struct core_conn_context *p_cxt;
-	enum _ecore_status_t rc;
 	u16 physical_q;
+	enum _ecore_status_t rc;
 
 	cxt_info.iid = p_spq->cid;
 
@@ -530,7 +541,7 @@ void ecore_eq_free(struct ecore_hwfn *p_hwfn)
 }
 
 /***************************************************************************
-* CQE API - manipulate EQ functionality
+* CQE API - manipulate EQ functionallity
 ***************************************************************************/
 static enum _ecore_status_t ecore_cqe_completion(struct ecore_hwfn *p_hwfn,
 						 struct eth_slow_path_rx_cqe *cqe,
@@ -648,7 +659,9 @@ enum _ecore_status_t ecore_spq_alloc(struct ecore_hwfn *p_hwfn)
 	p_spq->p_virt = p_virt;
 	p_spq->p_phys = p_phys;
 
+#ifdef CONFIG_ECORE_LOCK_ALLOC
 	OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_spq->lock);
+#endif
 
 	p_hwfn->p_spq = p_spq;
 	return ECORE_SUCCESS;
@@ -677,7 +690,9 @@ void ecore_spq_free(struct ecore_hwfn *p_hwfn)
 	}
 
 	ecore_chain_free(p_hwfn->p_dev, &p_spq->chain);
+#ifdef CONFIG_ECORE_LOCK_ALLOC
 	OSAL_SPIN_LOCK_DEALLOC(&p_spq->lock);
+#endif
 
 	OSAL_FREE(p_hwfn->p_dev, p_spq);
 	p_hwfn->p_spq = OSAL_NULL;
@@ -736,7 +751,7 @@ void ecore_spq_return_entry(struct ecore_hwfn *p_hwfn,
  *        list. Should be used while lock is being held.
  *
  * Addes an entry to the pending list is there is room (en empty
- * element is available in the free_pool), or else places the
+ * element is avaliable in the free_pool), or else places the
  * entry in the unlimited_pending pool.
  *
  * @param p_hwfn
@@ -937,7 +952,7 @@ enum _ecore_status_t ecore_spq_post(struct ecore_hwfn		*p_hwfn,
 		/* For entries in ECORE BLOCK mode, the completion code cannot
 		 * perform the necessary cleanup - if it did, we couldn't
 		 * access p_ent here to see whether it's successful or not.
-		 * Thus, after gaining the answer - perform the cleanup here.
+		 * Thus, after gaining the answer perform the cleanup here.
 		 */
 		rc = ecore_spq_block(p_hwfn, p_ent, fw_return_code,
 				     p_ent->queue == &p_spq->unlimited_pending);
@@ -1120,4 +1135,3 @@ void ecore_consq_free(struct ecore_hwfn *p_hwfn)
 	OSAL_FREE(p_hwfn->p_dev, p_hwfn->p_consq);
 	p_hwfn->p_consq = OSAL_NULL;
 }
-

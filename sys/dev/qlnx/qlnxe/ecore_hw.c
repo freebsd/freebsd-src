@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "bcm_osal.h"
 #include "ecore_hsi_common.h"
 #include "ecore_status.h"
@@ -90,7 +89,9 @@ enum _ecore_status_t ecore_ptt_pool_alloc(struct ecore_hwfn *p_hwfn)
 	}
 
 	p_hwfn->p_ptt_pool = p_pool;
+#ifdef CONFIG_ECORE_LOCK_ALLOC
 	OSAL_SPIN_LOCK_ALLOC(p_hwfn, &p_pool->lock);
+#endif
 	OSAL_SPIN_LOCK_INIT(&p_pool->lock);
 
 	return ECORE_SUCCESS;
@@ -109,8 +110,10 @@ void ecore_ptt_invalidate(struct ecore_hwfn *p_hwfn)
 
 void ecore_ptt_pool_free(struct ecore_hwfn *p_hwfn)
 {
+#ifdef CONFIG_ECORE_LOCK_ALLOC
 	if (p_hwfn->p_ptt_pool)
 		OSAL_SPIN_LOCK_DEALLOC(&p_hwfn->p_ptt_pool->lock);
+#endif
 	OSAL_FREE(p_hwfn->p_dev, p_hwfn->p_ptt_pool);
 	p_hwfn->p_ptt_pool = OSAL_NULL;
 }
@@ -156,8 +159,7 @@ void ecore_ptt_release(struct ecore_hwfn *p_hwfn,
 	OSAL_SPIN_UNLOCK(&p_hwfn->p_ptt_pool->lock);
 }
 
-u32 ecore_ptt_get_hw_addr(struct ecore_hwfn *p_hwfn,
-			  struct ecore_ptt *p_ptt)
+u32 ecore_ptt_get_hw_addr(struct ecore_ptt *p_ptt)
 {
 	/* The HW is using DWORDS and we need to translate it to Bytes */
 	return OSAL_LE32_TO_CPU(p_ptt->pxp.offset) << 2;
@@ -181,7 +183,7 @@ void ecore_ptt_set_win(struct ecore_hwfn *p_hwfn,
 {
 	u32 prev_hw_addr;
 
-	prev_hw_addr = ecore_ptt_get_hw_addr(p_hwfn, p_ptt);
+	prev_hw_addr = ecore_ptt_get_hw_addr(p_ptt);
 
 	if (new_hw_addr == prev_hw_addr)
 		return;
@@ -204,7 +206,7 @@ static u32 ecore_set_ptt(struct ecore_hwfn *p_hwfn,
 			 struct ecore_ptt *p_ptt,
 			 u32 hw_addr)
 {
-	u32 win_hw_addr = ecore_ptt_get_hw_addr(p_hwfn, p_ptt);
+	u32 win_hw_addr = ecore_ptt_get_hw_addr(p_ptt);
 	u32 offset;
 
 	offset = hw_addr - win_hw_addr;
@@ -442,7 +444,7 @@ u32 ecore_vfid_to_concrete(struct ecore_hwfn *p_hwfn, u8 vfid)
 #if 0
 /* Ecore HW lock
  * =============
- * Although the implementation is ready, today we don't have any flow that
+ * Although the implemention is ready, today we don't have any flow that
  * utliizes said locks - and we want to keep it this way.
  * If this changes, this needs to be revisted.
  */
