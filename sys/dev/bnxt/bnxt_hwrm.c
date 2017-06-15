@@ -935,7 +935,7 @@ bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 	/* TODO: Calculate this based on ring size? */
 	req.max_agg_segs = htole16(3);
 	/* Base this in the allocated TPA start size... */
-	req.max_aggs = htole16(2);
+	req.max_aggs = htole16(7);
 	/*
 	 * TODO: max_agg_timer?
 	 * req.mag_agg_timer = htole32(XXX);
