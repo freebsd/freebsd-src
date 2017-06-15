@@ -195,10 +195,10 @@ handle_remount() { # $1 = mount point
     to_umount="$b ${to_umount}"
 }
 
-# Create a generic memory disk
+# Create a generic memory disk (using tmpfs)
 #
 mount_md() {
-    /sbin/mdmfs -S -i 4096 -s $1 -M md $2
+    mount -t tmpfs -o size=$(($1 * 512)) tmpfs $2
 }
 
 # Create the memory filesystem if it has not already been created
