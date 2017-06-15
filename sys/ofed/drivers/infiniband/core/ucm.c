@@ -43,10 +43,10 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/string.h>
 
 #include <asm/uaccess.h>
 
+#include <rdma/ib.h>
 #include <rdma/ib_cm.h>
 #include <rdma/ib_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -108,7 +108,7 @@ enum {
 #define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
 
 static void ib_ucm_add_one(struct ib_device *device);
-static void ib_ucm_remove_one(struct ib_device *device);
+static void ib_ucm_remove_one(struct ib_device *device, void *client_data);
 
 static struct ib_client ucm_client = {
 	.name   = "ucm",
@@ -175,7 +175,6 @@ static void ib_ucm_cleanup_events(struct ib_ucm_context *ctx)
 static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 {
 	struct ib_ucm_context *ctx;
-	int result;
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
@@ -186,17 +185,10 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 	ctx->file = file;
 	INIT_LIST_HEAD(&ctx->events);
 
-	do {
-		result = idr_pre_get(&ctx_id_table, GFP_KERNEL);
-		if (!result)
-			goto error;
-
-		mutex_lock(&ctx_id_mutex);
-		result = idr_get_new(&ctx_id_table, ctx, &ctx->id);
-		mutex_unlock(&ctx_id_mutex);
-	} while (result == -EAGAIN);
-
-	if (result)
+	mutex_lock(&ctx_id_mutex);
+	ctx->id = idr_alloc(&ctx_id_table, ctx, 0, 0, GFP_KERNEL);
+	mutex_unlock(&ctx_id_mutex);
+	if (ctx->id < 0)
 		goto error;
 
 	list_add_tail(&ctx->file_list, &file->ctxs);
@@ -378,8 +370,7 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 	list_add_tail(&uevent->file_list, &ctx->file->events);
 	list_add_tail(&uevent->ctx_list, &ctx->events);
 	wake_up_interruptible(&ctx->file->poll_wait);
-	if (ctx->file->filp)
-		selwakeup(&ctx->file->filp->f_selinfo);
+	linux_poll_wakeup(ctx->file->filp);
 	mutex_unlock(&ctx->file->file_mutex);
 	return 0;
 
@@ -667,8 +658,7 @@ static ssize_t ib_ucm_listen(struct ib_ucm_file *file,
 	if (result)
 		goto out;
 
-	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask,
-			      NULL);
+	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask);
 out:
 	ib_ucm_ctx_put(ctx);
 	return result;
@@ -703,14 +693,9 @@ static int ib_ucm_alloc_data(const void **dest, u64 src, u32 len)
 	if (!len)
 		return 0;
 
-	data = kmalloc(len, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	if (copy_from_user(data, (void __user *)(unsigned long)src, len)) {
-		kfree(data);
-		return -EFAULT;
-	}
+	data = memdup_user((void __user *)(unsigned long)src, len);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	*dest = data;
 	return 0;
@@ -1118,6 +1103,9 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	struct ib_ucm_cmd_hdr hdr;
 	ssize_t result;
 
+	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+		return -EACCES;
+
 	if (len < sizeof(hdr))
 		return -EINVAL;
 
@@ -1207,6 +1195,7 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
 static void ib_ucm_release_dev(struct device *dev)
 {
 	struct ib_ucm_device *ucm_dev;
@@ -1214,17 +1203,17 @@ static void ib_ucm_release_dev(struct device *dev)
 	ucm_dev = container_of(dev, struct ib_ucm_device, dev);
 	cdev_del(&ucm_dev->cdev);
 	if (ucm_dev->devnum < IB_UCM_MAX_DEVICES)
-	clear_bit(ucm_dev->devnum, dev_map);
+		clear_bit(ucm_dev->devnum, dev_map);
 	else
-		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, dev_map);
+		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, overflow_map);
 	kfree(ucm_dev);
 }
 
 static const struct file_operations ucm_fops = {
-	.owner 	 = THIS_MODULE,
-	.open 	 = ib_ucm_open,
+	.owner	 = THIS_MODULE,
+	.open	 = ib_ucm_open,
 	.release = ib_ucm_close,
-	.write 	 = ib_ucm_write,
+	.write	 = ib_ucm_write,
 	.poll    = ib_ucm_poll,
 	.llseek	 = no_llseek,
 };
@@ -1240,7 +1229,6 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
 static dev_t overflow_maj;
-static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
 static int find_overflow_devnum(void)
 {
 	int ret;
@@ -1249,7 +1237,7 @@ static int find_overflow_devnum(void)
 		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UCM_MAX_DEVICES,
 					  "infiniband_cm");
 		if (ret) {
-			printk(KERN_ERR "ucm: couldn't register dynamic device number\n");
+			pr_err("ucm: couldn't register dynamic device number\n");
 			return ret;
 		}
 	}
@@ -1267,8 +1255,7 @@ static void ib_ucm_add_one(struct ib_device *device)
 	dev_t base;
 	struct ib_ucm_device *ucm_dev;
 
-	if (!device->alloc_ucontext ||
-	    rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+	if (!device->alloc_ucontext || !rdma_cap_ib_cm(device, 1))
 		return;
 
 	ucm_dev = kzalloc(sizeof *ucm_dev, GFP_KERNEL);
@@ -1281,7 +1268,7 @@ static void ib_ucm_add_one(struct ib_device *device)
 	if (devnum >= IB_UCM_MAX_DEVICES) {
 		devnum = find_overflow_devnum();
 		if (devnum < 0)
-		goto err;
+			goto err;
 
 		ucm_dev->devnum = devnum + IB_UCM_MAX_DEVICES;
 		base = devnum + overflow_maj;
@@ -1325,9 +1312,9 @@ err:
 	return;
 }
 
-static void ib_ucm_remove_one(struct ib_device *device)
+static void ib_ucm_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ib_ucm_device *ucm_dev = ib_get_client_data(device, &ucm_client);
+	struct ib_ucm_device *ucm_dev = client_data;
 
 	if (!ucm_dev)
 		return;
@@ -1335,12 +1322,8 @@ static void ib_ucm_remove_one(struct ib_device *device)
 	device_unregister(&ucm_dev->dev);
 }
 
-static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
-}
-
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_CM_ABI_VERSION));
 
 static int __init ib_ucm_init(void)
 {
@@ -1349,25 +1332,25 @@ static int __init ib_ucm_init(void)
 	ret = register_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES,
 				     "infiniband_cm");
 	if (ret) {
-		printk(KERN_ERR "ucm: couldn't register device number\n");
+		pr_err("ucm: couldn't register device number\n");
 		goto error1;
 	}
 
-	ret = class_create_file(&cm_class, &class_attr_abi_version);
+	ret = class_create_file(&cm_class, &class_attr_abi_version.attr);
 	if (ret) {
-		printk(KERN_ERR "ucm: couldn't create abi_version attribute\n");
+		pr_err("ucm: couldn't create abi_version attribute\n");
 		goto error2;
 	}
 
 	ret = ib_register_client(&ucm_client);
 	if (ret) {
-		printk(KERN_ERR "ucm: couldn't register client\n");
+		pr_err("ucm: couldn't register client\n");
 		goto error3;
 	}
 	return 0;
 
 error3:
-	class_remove_file(&cm_class, &class_attr_abi_version);
+	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 error2:
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
 error1:
@@ -1377,7 +1360,7 @@ error1:
 static void __exit ib_ucm_cleanup(void)
 {
 	ib_unregister_client(&ucm_client);
-	class_remove_file(&cm_class, &class_attr_abi_version);
+	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
 	if (overflow_maj)
 		unregister_chrdev_region(overflow_maj, IB_UCM_MAX_DEVICES);

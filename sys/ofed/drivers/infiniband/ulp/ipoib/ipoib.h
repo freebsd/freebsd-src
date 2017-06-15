@@ -325,6 +325,7 @@ struct ipoib_dev_priv {
 	unsigned long flags;
 
 	int gone;
+	int unit;
 
 	struct mutex vlan_mutex;
 
@@ -349,7 +350,6 @@ struct ipoib_dev_priv {
 	u16		  pkey;
 	u16		  pkey_index;
 	struct ib_pd	 *pd;
-	struct ib_mr	 *mr;
 	struct ib_cq	 *recv_cq;
 	struct ib_cq	 *send_cq;
 	struct ib_qp	 *qp;
@@ -368,7 +368,7 @@ struct ipoib_dev_priv {
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	struct ib_sge	     tx_sge[IPOIB_MAX_TX_SG];
-	struct ib_send_wr    tx_wr;
+	struct ib_ud_wr      tx_wr;
 	unsigned	     tx_outstanding;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
 
