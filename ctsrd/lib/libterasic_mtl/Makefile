@@ -15,4 +15,6 @@ SRCS+=  	decode.c
 
 SUBDIR=	images
 
+LIBADD=	png
+
 .include <bsd.lib.mk>
