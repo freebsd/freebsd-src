@@ -769,6 +769,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	pthread_t tid;
 	uint32_t sres = 0;
 	int len;
+	int perror = 1;
 
 	rc->cfd = cfd;
 
@@ -878,8 +879,9 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 
 	rfb_send_screen(rc, cfd, 1);
 
-	pthread_create(&tid, NULL, rfb_wr_thr, rc);
-	pthread_set_name_np(tid, "rfbout");
+	perror = pthread_create(&tid, NULL, rfb_wr_thr, rc);
+	if (perror == 0)
+		pthread_set_name_np(tid, "rfbout");
 
         /* Now read in client requests. 1st byte identifies type */
 	for (;;) {
@@ -915,7 +917,8 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	}
 done:
 	rc->cfd = -1;
-	pthread_join(tid, NULL);
+	if (perror == 0)
+		pthread_join(tid, NULL);
 	if (rc->enc_zlib_ok)
 		deflateEnd(&rc->zstream);
 }
