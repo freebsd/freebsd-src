@@ -24,6 +24,9 @@ CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 CFLAGS+=	-DIMAGEBOX_PNG_NO_FD
 LIBADD+=	vuln_png c_cheri
+# we need the png.h header but don't need to link against it
+CFLAGS+=        -I${.CURDIR}/../../../contrib/libpng
+CFLAGS+=        -I${.CURDIR}/../../../lib/libpng
 
 NO_SHARED=	yes
 

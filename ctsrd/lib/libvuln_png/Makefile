@@ -11,4 +11,5 @@ SRCS+=	no_vuln_stub.c
 
 BUILDDIR=	${.CURDIR}/../../../lib/libpng
 
+PNG_PRIVATE=no
 .include <${BUILDDIR}/Makefile>

@@ -9,8 +9,10 @@ LDFLAGS+=	-Wl,-T,${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
 
-LIBADD=	png z c_cheri
+CFLAGS+=        -I${.CURDIR}/../../contrib/libpng
+CFLAGS+=        -I${.CURDIR}
 
+LIBADD=png z c_cheri
 NEED_CHERI=	sandbox
 WANT_DUMP=	yes
 
