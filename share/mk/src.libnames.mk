@@ -497,7 +497,7 @@ LIBBSNMPTOOLSDIR=	${_LIB_OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
-LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+LIBAMU?=	${LIBAMUDIR}/libamu.a
 
 LIBBFDDIR=	${_LIB_OBJTOP}/gnu/usr.bin/binutils/libbfd
 LIBBFD?=	${LIBBFDDIR}/libbfd.a
