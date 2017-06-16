@@ -295,6 +295,7 @@ Cd $HEAD
 
 run "copying xo_config.h" "(echo '/* \$FreeBSD\$ */' ; cat $CWD/dist/build/libxo/xo_config.h ) > $HEAD/lib/libxo/xo_config.h"
 run "copying add.man" "(echo '.\\\" \$FreeBSD\$' ; cat $CWD/dist/build/libxo/add.man ) > $HEAD/lib/libxo/add.man"
+run "copying xohtml.sh" "(echo '#!/bin/sh' ; echo '# \$FreeBSD\$' ; cat $CWD/dist/build/xohtml/xohtml.sh ) > $HEAD/usr.bin/xohtml/xohtml.sh"
 
 #BUILDDIRS="lib/libxo usr.bin/xo"
 #for dir in $BUILDDIRS ; do
