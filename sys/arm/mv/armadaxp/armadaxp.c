@@ -136,6 +136,13 @@ get_tclk(void)
 		return (TCLK_200MHZ);
 }
 
+uint32_t
+get_cpu_freq(void)
+{
+
+	return (0);
+}
+
 static uint32_t
 count_l2clk(void)
 {
