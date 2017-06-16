@@ -204,6 +204,14 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 
 	max_prot = EXTRACT_PROT_MAX(prot);
 	prot = EXTRACT_PROT(prot);
+	if ((prot & maxprot) != prot) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: requested page permissions "
+			    "exceed requesed maximum", __func__, extra_flags);
+		return (EINVAL);
+#endif
+	}
 
 	vms = td->td_proc->p_vmspace;
 	fp = NULL;
