@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void);
 
 static struct option longopts[] = {
+	{ "changeds",	required_argument,	NULL,	'c'	},
 	{ "quiet",	no_argument,		NULL,	'q'	},
 	{ "ds",		required_argument,	NULL,	's'	},
 	{ "zerofh",	no_argument,		NULL,	'z'	},
@@ -60,18 +61,35 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	struct addrinfo *res, *ad;
+	struct addrinfo *res, *ad, *newres;
 	struct sockaddr_in *sin, *adsin;
 	struct sockaddr_in6 *sin6, *adsin6;
-	char hostn[NI_MAXHOST + 1];
+	char hostn[2 * NI_MAXHOST + 2], *cp;
 	struct pnfsdsfile dsfile;
 	int ch, quiet, zerofh;
+	in_port_t tport;
 
 	zerofh = 0;
 	quiet = 0;
 	res = NULL;
-	while ((ch = getopt_long(argc, argv, "qs:z", longopts, NULL)) != -1) {
+	newres = NULL;
+	while ((ch = getopt_long(argc, argv, "c:qs:z", longopts, NULL)) != -1) {
 		switch (ch) {
+		case 'c':
+			/* Replace the first DS server with the second one. */
+			if (zerofh != 0)
+				errx(1, "-c and -z are mutually exclusive\n");
+			strlcpy(hostn, optarg, 2 * NI_MAXHOST + 2);
+			cp = strchr(hostn, ',');
+			if (cp == NULL)
+				errx(1, "Bad -c argument %s\n", hostn);
+			*cp = '\0';
+			if (getaddrinfo(hostn, NULL, NULL, &res) != 0)
+				errx(1, "Can't get IP# for %s\n", hostn);
+			*cp++ = ',';
+			if (getaddrinfo(cp, NULL, NULL, &newres) != 0)
+				errx(1, "Can't get IP# for %s\n", cp);
+			break;
 		case 'q':
 			quiet = 1;
 			break;
@@ -81,6 +99,8 @@ main(int argc, char *argv[])
 				errx(1, "Can't get IP# for %s\n", optarg);
 			break;
 		case 'z':
+			if (newres != NULL)
+				errx(1, "-c and -z are mutually exclusive\n");
 			zerofh = 1;
 			break;
 		default:
@@ -129,6 +149,61 @@ main(int argc, char *argv[])
 		}
 		if (res == NULL || ad != NULL) {
 			memset(&dsfile.dsf_fh, 0, sizeof(dsfile.dsf_fh));
+			if (extattr_set_file(*argv, EXTATTR_NAMESPACE_SYSTEM,
+			    "pnfsd.dsfile", &dsfile, sizeof(dsfile)) !=
+			    sizeof(dsfile))
+				err(1, "Can't set pnfsd.dsfile\n");
+		}
+	}
+
+	/* Do the -c option to replace the DS host address. */
+	if (newres != NULL) {
+		if (geteuid() != 0)
+			errx(1, "Must be root/su to replace the host addr\n");
+
+		/*
+		 * Check that the old host address matches.
+		 */
+		sin = &dsfile.dsf_sin;
+		sin6 = &dsfile.dsf_sin6;
+		ad = res;
+		while (ad != NULL) {
+			adsin = (struct sockaddr_in *)ad->ai_addr;
+			adsin6 = (struct sockaddr_in6 *)ad->ai_addr;
+			if (adsin->sin_family == sin->sin_family) {
+				if (sin->sin_family == AF_INET &&
+				    sin->sin_addr.s_addr ==
+				    adsin->sin_addr.s_addr)
+					break;
+				else if (sin->sin_family == AF_INET6 &&
+				    IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr,
+				    &adsin6->sin6_addr))
+					break;
+			}
+			ad = ad->ai_next;
+		}
+		if (ad != NULL) {
+			if (sin->sin_family == AF_INET)
+				tport = sin->sin_port;
+			else
+				tport = sin6->sin6_port;
+			/*
+			 * We have a match, so replace it with the first
+			 * AF_INET or AF_INET6 address in the newres list.
+			 */
+			while (newres->ai_addr->sa_family != AF_INET &&
+			    newres->ai_addr->sa_family != AF_INET6) {
+				newres = newres->ai_next;
+				if (newres == NULL)
+					errx(1, "Hostname %s has no IP#\n", cp);
+			}
+			if (newres->ai_addr->sa_family == AF_INET) {
+				memcpy(sin, newres->ai_addr, sizeof(*sin));
+				sin->sin_port = tport;
+			} else if (newres->ai_addr->sa_family == AF_INET6) {
+				memcpy(sin6, newres->ai_addr, sizeof(*sin6));
+				sin6->sin6_port = tport;
+			}
 			if (extattr_set_file(*argv, EXTATTR_NAMESPACE_SYSTEM,
 			    "pnfsd.dsfile", &dsfile, sizeof(dsfile)) !=
 			    sizeof(dsfile))
