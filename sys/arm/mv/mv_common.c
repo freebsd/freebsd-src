@@ -419,7 +419,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 static void
 soc_identify(void)
 {
-	uint32_t d, r, size, mode;
+	uint32_t d, r, size, mode, freq;
 	const char *dev;
 	const char *rev;
 
@@ -512,7 +512,11 @@ soc_identify(void)
 	printf("%s", dev);
 	if (*rev != '\0')
 		printf(" rev %s", rev);
-	printf(", TClock %dMHz\n", get_tclk() / 1000 / 1000);
+	printf(", TClock %dMHz", get_tclk() / 1000 / 1000);
+	freq = get_cpu_freq();
+	if (freq != 0)
+		printf(", Frequency %dMHz", freq / 1000 / 1000);
+	printf("\n");
 
 	mode = read_cpu_ctrl(CPU_CONFIG);
 	printf("  Instruction cache prefetch %s, data cache prefetch %s\n",
