@@ -30,13 +30,6 @@ SRCS+=	\
 	pngwtran.c \
 	pngwutil.c
 
-.if ${BUILDDIR} == ${.CURDIR}
-INCS=	\
-	png.h \
-	pngconf.h \
-	pnglibconf.h
-.endif
-
 LIBADD=	z
 
 WARNS?=	6
