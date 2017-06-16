@@ -848,7 +848,7 @@ zfs_create_diskpart()
 
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-			             "$align_small" efiboot$index efi 800k $disk ||
+			             "$align_small" efiboot$index efi 200M $disk ||
 			             return $FAILURE
 			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PARTONLY" \
 			             /boot/boot1.efifat 1 $disk ||
