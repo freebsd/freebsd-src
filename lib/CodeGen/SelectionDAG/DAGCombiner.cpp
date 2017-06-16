@@ -2217,7 +2217,8 @@ SDValue DAGCombiner::visitADDCARRYLike(SDValue N0, SDValue N1, SDValue CarryIn,
                                        SDNode *N) {
   // Iff the flag result is dead:
   // (addcarry (add|uaddo X, Y), 0, Carry) -> (addcarry X, Y, Carry)
-  if ((N0.getOpcode() == ISD::ADD || N0.getOpcode() == ISD::UADDO) &&
+  if ((N0.getOpcode() == ISD::ADD ||
+       (N0.getOpcode() == ISD::UADDO && N0.getResNo() == 0)) &&
       isNullConstant(N1) && !N->hasAnyUseOfValue(1))
     return DAG.getNode(ISD::ADDCARRY, SDLoc(N), N->getVTList(),
                        N0.getOperand(0), N0.getOperand(1), CarryIn);
@@ -12460,10 +12461,27 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
 
   LSBaseSDNode *FirstInChain = StoreNodes[0].MemNode;
   SDValue NewChain = getMergeStoreChains(StoreNodes, NumStores);
-  SDValue NewStore = DAG.getStore(NewChain, DL, StoredVal,
-                                  FirstInChain->getBasePtr(),
-                                  FirstInChain->getPointerInfo(),
-                                  FirstInChain->getAlignment());
+
+  // make sure we use trunc store if it's necessary to be legal.
+  SDValue NewStore;
+  if (TLI.isTypeLegal(StoredVal.getValueType())) {
+    NewStore = DAG.getStore(NewChain, DL, StoredVal, FirstInChain->getBasePtr(),
+                            FirstInChain->getPointerInfo(),
+                            FirstInChain->getAlignment());
+  } else { // Must be realized as a trunc store
+    EVT LegalizedStoredValueTy =
+        TLI.getTypeToTransformTo(*DAG.getContext(), StoredVal.getValueType());
+    unsigned LegalizedStoreSize = LegalizedStoredValueTy.getSizeInBits();
+    ConstantSDNode *C = cast<ConstantSDNode>(StoredVal);
+    SDValue ExtendedStoreVal =
+        DAG.getConstant(C->getAPIntValue().zextOrTrunc(LegalizedStoreSize), DL,
+                        LegalizedStoredValueTy);
+    NewStore = DAG.getTruncStore(
+        NewChain, DL, ExtendedStoreVal, FirstInChain->getBasePtr(),
+        FirstInChain->getPointerInfo(), StoredVal.getValueType() /*TVT*/,
+        FirstInChain->getAlignment(),
+        FirstInChain->getMemOperand()->getFlags());
+  }
 
   // Replace all merged stores with the new store.
   for (unsigned i = 0; i < NumStores; ++i)
@@ -12731,8 +12749,7 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode *St) {
             IsFast) {
           LastLegalType = i + 1;
           // Or check whether a truncstore is legal.
-        } else if (!LegalTypes &&
-                   TLI.getTypeAction(Context, StoreTy) ==
+        } else if (TLI.getTypeAction(Context, StoreTy) ==
                    TargetLowering::TypePromoteInteger) {
           EVT LegalizedStoredValueTy =
               TLI.getTypeToTransformTo(Context, StoredVal.getValueType());
@@ -12947,8 +12964,7 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode *St) {
       else if (TLI.getTypeAction(Context, StoreTy) ==
                TargetLowering::TypePromoteInteger) {
         EVT LegalizedStoredValueTy = TLI.getTypeToTransformTo(Context, StoreTy);
-        if (!LegalTypes &&
-            TLI.isTruncStoreLegal(LegalizedStoredValueTy, StoreTy) &&
+        if (TLI.isTruncStoreLegal(LegalizedStoredValueTy, StoreTy) &&
             TLI.canMergeStoresTo(FirstStoreAS, LegalizedStoredValueTy) &&
             TLI.isLoadExtLegal(ISD::ZEXTLOAD, LegalizedStoredValueTy,
                                StoreTy) &&
@@ -12958,8 +12974,8 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode *St) {
             TLI.allowsMemoryAccess(Context, DL, LegalizedStoredValueTy,
                                    FirstStoreAS, FirstStoreAlign, &IsFastSt) &&
             IsFastSt &&
-            TLI.allowsMemoryAccess(Context, DL, LegalizedStoredValueTy,
-                                   FirstLoadAS, FirstLoadAlign, &IsFastLd) &&
+            TLI.allowsMemoryAccess(Context, DL, StoreTy, FirstLoadAS,
+                                   FirstLoadAlign, &IsFastLd) &&
             IsFastLd)
           LastLegalIntegerType = i + 1;
       }
@@ -13189,10 +13205,6 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
     Chain = ST->getChain();
   }
 
-  // Try transforming N to an indexed store.
-  if (CombineToPreIndexedLoadStore(N) || CombineToPostIndexedLoadStore(N))
-    return SDValue(N, 0);
-
   // FIXME: is there such a thing as a truncating indexed store?
   if (ST->isTruncatingStore() && ST->isUnindexed() &&
       Value.getValueType().isInteger()) {
@@ -13286,6 +13298,10 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
         return SDValue(N, 0);
     }
   }
+
+  // Try transforming N to an indexed store.
+  if (CombineToPreIndexedLoadStore(N) || CombineToPostIndexedLoadStore(N))
+    return SDValue(N, 0);
 
   // Turn 'store float 1.0, Ptr' -> 'store int 0x12345678, Ptr'
   //
@@ -14692,21 +14708,7 @@ static SDValue narrowExtractedVectorLoad(SDNode *Extract, SelectionDAG &DAG) {
   MachineMemOperand *MMO = MF.getMachineMemOperand(Ld->getMemOperand(), Offset,
                                                    VT.getStoreSize());
   SDValue NewLd = DAG.getLoad(VT, DL, Ld->getChain(), NewAddr, MMO);
-
-  // The new load must have the same position as the old load in terms of memory
-  // dependency. Create a TokenFactor for Ld and NewLd and update uses of Ld's
-  // output chain to use that TokenFactor.
-  // TODO: This code is based on a similar sequence in x86 lowering. It should
-  // be moved to a helper function, so it can be shared and reused.
-  if (Ld->hasAnyUseOfValue(1)) {
-    SDValue OldChain = SDValue(Ld, 1);
-    SDValue NewChain = SDValue(NewLd.getNode(), 1);
-    SDValue TokenFactor = DAG.getNode(ISD::TokenFactor, DL, MVT::Other,
-                                      OldChain, NewChain);
-    DAG.ReplaceAllUsesOfValueWith(OldChain, TokenFactor);
-    DAG.UpdateNodeOperands(TokenFactor.getNode(), OldChain, NewChain);
-  }
-
+  DAG.makeEquivalentMemoryOrdering(Ld, NewLd);
   return NewLd;
 }
 

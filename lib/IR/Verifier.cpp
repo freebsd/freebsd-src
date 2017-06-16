@@ -1330,6 +1330,14 @@ Verifier::visitModuleFlag(const MDNode *Op,
       = mdconst::dyn_extract_or_null<ConstantInt>(Op->getOperand(2));
     Assert(Value, "wchar_size metadata requires constant integer argument");
   }
+
+  if (ID->getString() == "Linker Options") {
+    // If the llvm.linker.options named metadata exists, we assume that the
+    // bitcode reader has upgraded the module flag. Otherwise the flag might
+    // have been created by a client directly.
+    Assert(M.getNamedMetadata("llvm.linker.options"),
+           "'Linker Options' named metadata no longer supported");
+  }
 }
 
 /// Return true if this attribute kind only applies to functions.
@@ -4004,10 +4012,16 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
            CS);
     break;
   }
-  case Intrinsic::memcpy_element_atomic: {
-    ConstantInt *ElementSizeCI = dyn_cast<ConstantInt>(CS.getArgOperand(3));
-    Assert(ElementSizeCI, "element size of the element-wise atomic memory "
-                          "intrinsic must be a constant int",
+  case Intrinsic::memcpy_element_unordered_atomic: {
+    const ElementUnorderedAtomicMemCpyInst *MI =
+        cast<ElementUnorderedAtomicMemCpyInst>(CS.getInstruction());
+    ;
+
+    ConstantInt *ElementSizeCI =
+        dyn_cast<ConstantInt>(MI->getRawElementSizeInBytes());
+    Assert(ElementSizeCI,
+           "element size of the element-wise unordered atomic memory "
+           "intrinsic must be a constant int",
            CS);
     const APInt &ElementSizeVal = ElementSizeCI->getValue();
     Assert(ElementSizeVal.isPowerOf2(),
@@ -4015,19 +4029,24 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
            "must be a power of 2",
            CS);
 
+    if (auto *LengthCI = dyn_cast<ConstantInt>(MI->getLength())) {
+      uint64_t Length = LengthCI->getZExtValue();
+      uint64_t ElementSize = MI->getElementSizeInBytes();
+      Assert((Length % ElementSize) == 0,
+             "constant length must be a multiple of the element size in the "
+             "element-wise atomic memory intrinsic",
+             CS);
+    }
+
     auto IsValidAlignment = [&](uint64_t Alignment) {
       return isPowerOf2_64(Alignment) && ElementSizeVal.ule(Alignment);
     };
-
     uint64_t DstAlignment = CS.getParamAlignment(0),
              SrcAlignment = CS.getParamAlignment(1);
-
     Assert(IsValidAlignment(DstAlignment),
-           "incorrect alignment of the destination argument",
-           CS);
+           "incorrect alignment of the destination argument", CS);
     Assert(IsValidAlignment(SrcAlignment),
-           "incorrect alignment of the source argument",
-           CS);
+           "incorrect alignment of the source argument", CS);
     break;
   }
   case Intrinsic::gcroot:
