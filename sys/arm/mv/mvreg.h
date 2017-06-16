@@ -355,6 +355,9 @@
 #define TCLK_300MHZ		300000000
 #define TCLK_667MHZ		667000000
 
+#define	A38X_CPU_DDR_CLK_MASK	0x00007c00
+#define	A38X_CPU_DDR_CLK_SHIFT	10
+
 /*
  * CPU Cache Configuration
  */
