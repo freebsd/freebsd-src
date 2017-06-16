@@ -524,10 +524,6 @@ On return,
 contains the number of times the timeout has expired since the last call to
 .Fn kevent .
 This filter automatically sets the EV_CLEAR flag internally.
-There is a system wide limit on the number of timers
-which is controlled by the
-.Va kern.kq_calloutmax
-sysctl.
 .Bl -tag -width "Dv NOTE_USECONDS"
 .It Dv NOTE_SECONDS
 .Va data
@@ -549,6 +545,11 @@ is not set, the default is milliseconds.
 On return,
 .Va fflags
 contains the events which triggered the filter.
+.Pp
+There is a system wide limit on the number of timers
+which is controlled by the
+.Va kern.kq_calloutmax
+sysctl.
 .It Dv EVFILT_USER
 Establishes a user event identified by
 .Va ident
