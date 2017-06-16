@@ -82,6 +82,7 @@ static pid_t nfsd_master_pid = (pid_t)-1;
 static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
 static uint32_t nfsv4_sysid = 0;
+static fhandle_t zerofh;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
@@ -116,6 +117,8 @@ static int nfsrv_setattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
 static int nfsrv_getattrdsrpc(fhandle_t *, struct ucred *, NFSPROC_T *,
     struct vnode *, struct nfsmount *, struct nfsvattr *);
 static int nfsrv_putfhname(fhandle_t *, char *);
+static int nfsrv_pnfslookupds(struct vnode *, struct pnfsdsfile *,
+    struct vnode *, NFSPROC_T *);
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
@@ -3966,8 +3969,11 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 	struct nfsdevice *ds;
 	struct pnfsdsfile *pf;
 	uint32_t dsdir;
-	int error;
+	int error, fhiszero;
 
+	fhiszero = 0;
+	if (lktype == 0)
+		lktype = LK_SHARED;
 	if (dvpp != NULL) {
 		*dvpp = NULL;
 		*nmpp = NULL;
@@ -3986,6 +3992,8 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 		}
 	}
 	if (error == 0) {
+		if (NFSBCMP(&zerofh, &pf->dsf_fh, sizeof(zerofh)) == 0)
+			fhiszero = 1;
 		/* Use the socket address to find the mount point. */
 		NFSDDSLOCK();
 		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
@@ -3996,10 +4004,19 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 		}
 		NFSDDSUNLOCK();
 		if (ds != NULL) {
-			if (dvpp != NULL) {
+			if (dvpp != NULL || fhiszero != 0) {
 				dvp = ds->nfsdev_dsdir[dsdir];
-				if (error == 0)
-					error = vn_lock(dvp, lktype);
+				error = vn_lock(dvp, lktype);
+				/*
+				 * If the file handle is all 0's, try to do a
+				 * Lookup against the DS to acquire it.
+				 */
+				if (error == 0 && fhiszero != 0) {
+					error = nfsrv_pnfslookupds(vp, pf, dvp,
+					    p);
+					if (error != 0 || dvpp == NULL)
+						NFSVOPUNLOCK(dvp, 0);
+				}
 			}
 			if (devid != NULL)
 				NFSBCOPY(ds->nfsdev_deviceid, devid,
@@ -4456,6 +4473,67 @@ nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, fhandle_t *fhp, char *devid)
 	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflen, p, NULL, NULL, fhp,
 	    devid, NULL);
 	free(buf, M_TEMP);
+	return (error);
+}
+
+/*
+ * Do a Lookup against the DS for the filename and set the file handle
+ * to the correct one, if successful.
+ */
+static int
+nfsrv_pnfslookupds(struct vnode *vp, struct pnfsdsfile *pf, struct vnode *dvp,
+    NFSPROC_T *p)
+{
+	struct nameidata named;
+	struct ucred *tcred;
+	struct mount *mp;
+	char *bufp;
+	u_long *hashp;
+	struct vnode *nvp;
+	struct nfsnode *np;
+	int error, ret;
+
+	tcred = newnfs_getcred();
+	named.ni_cnd.cn_nameiop = LOOKUP;
+	named.ni_cnd.cn_lkflags = LK_SHARED | LK_RETRY;
+	named.ni_cnd.cn_cred = tcred;
+	named.ni_cnd.cn_thread = p;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
+	nfsvno_setpathbuf(&named, &bufp, &hashp);
+	named.ni_cnd.cn_nameptr = bufp;
+	named.ni_cnd.cn_namelen = strlen(pf->dsf_filename);
+	strlcpy(bufp, pf->dsf_filename, NAME_MAX);
+	NFSD_DEBUG(4, "nfsrv_pnfslookupds: filename=%s\n", bufp);
+	error = VOP_LOOKUP(dvp, &nvp, &named.ni_cnd);
+	NFSD_DEBUG(4, "nfsrv_pnfslookupds: aft LOOKUP=%d\n", error);
+	NFSFREECRED(tcred);
+	nfsvno_relpathbuf(&named);
+	if (error == 0) {
+		np = VTONFS(nvp);
+		NFSBCOPY(np->n_fhp->nfh_fh, &pf->dsf_fh, NFSX_MYFH);
+		vput(nvp);
+		/*
+		 * We can only do a setextattr for an exclusively
+		 * locked vp.  Instead of trying to upgrade a shared
+		 * lock, just leave dsf_fh zeroed out and it will
+		 * keep doing this lookup until it is done with an
+		 * exclusively locked vp.
+		 */
+		if (NFSVOPISLOCKED(vp) == LK_EXCLUSIVE) {
+			ret = vn_start_write(vp, &mp, V_WAIT);
+			NFSD_DEBUG(4, "nfsrv_pnfslookupds: vn_start_write=%d\n",
+			    ret);
+			if (ret == 0) {
+				ret = vn_extattr_set(vp, IO_NODELOCKED,
+				    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
+				    sizeof(*pf), (char *)pf, p);
+				vn_finished_write(mp);
+				NFSD_DEBUG(4, "nfsrv_pnfslookupds: aft "
+				    "vn_extattr_set=%d\n", ret);
+			}
+		}
+	}
+	NFSD_DEBUG(4, "eo nfsrv_pnfslookupds=%d\n", error);
 	return (error);
 }
 
