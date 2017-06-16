@@ -264,6 +264,7 @@ SUBDIR+=contrib/ofed
 
 # Local directories are last, since it is nice to at least get the base
 # system rebuilt before you do them.
+SUBDIR+=.WAIT
 .for _DIR in ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+=	${_DIR}
@@ -2310,6 +2311,8 @@ gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 
 .if ${MK_CHERI} != "no"
 _prebuild_libs+=	lib/libcheri
+_prebuild_libs+=	lib/libpng
+lib/libpng__L: lib/libz__L
 .endif
 
 .if ${MK_DIALOG} != "no"
