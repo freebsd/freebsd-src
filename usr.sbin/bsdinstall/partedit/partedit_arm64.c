@@ -34,7 +34,7 @@
 
 #include "partedit.h"
 
-/* EFI partition size in KB */
+/* EFI partition size in bytes */
 #define	EFI_BOOTPART_SIZE	(200 * 1024 * 1024)
 #define	EFI_BOOTPART_PATH	"/boot/boot1.efifat"
 
