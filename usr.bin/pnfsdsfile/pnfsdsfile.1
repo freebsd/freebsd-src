@@ -34,6 +34,7 @@ a pNFS data storage file location and/or modify the pnfsd.dsfile extended attrib
 .Sh SYNOPSIS
 .Nm
 .Op Fl qz
+.Op Fl c Ar old-dshostname,new-dshostname
 .Op Fl s Ar dshostname
 .Ar metadata_file
 .Sh DESCRIPTION
@@ -60,6 +61,17 @@ This forces the pNFS MDS to do a Lookup RPC against the DS to acquire the file
 handle to update it.
 Normally this will only be necessary after the DS file has been recovered
 from a backup, causing the file handle to change.
+.It Fl c Ar old-dshostname,new-dshostname
+This option allows a sysadmin to replace the host IP# for the DS in the
+pnfsd.dsfile extended attribute.
+The old-hostname must resolve to the IP# already in the pnfsd.dsfile extended
+attribute or the replacement will not be done.
+If the old-dshostname matches, then the IP# is replaced by the first AF_INET
+or AF_INET6 address that
+.Xr getaddrinfo 3
+returns for the new-dshostname.
+Changing a DS server's host IP# should be avoided, but this option will
+allow it to be changed, if the change is unavoidable.
 .It Fl s Ar dshostname
 This option can be used with
 .Fl z
