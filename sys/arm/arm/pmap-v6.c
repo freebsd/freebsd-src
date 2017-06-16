@@ -508,7 +508,7 @@ pmap_set_tex(void)
  * Usage rules:
  * - it shall be called after pmap_bootstrap_prepare() and before
  *   cpu_mp_start() (thus only on boot CPU). In practice, it's expected
- *   to be called from platform_probe_and_attach() or platform_late_init().
+ *   to be called from platform_attach() or platform_late_init().
  *
  * - if remapping doesn't change caching mode, or until uncached class
  *   is remapped to any kind of cached one, then no other restriction exists.
