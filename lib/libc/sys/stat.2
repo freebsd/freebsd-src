@@ -137,6 +137,11 @@ The numeric ID of the device containing the file.
 The file's inode number.
 .It Va st_nlink
 The number of hard links to the file.
+.It Va st_flags
+The flags enabled for the file.
+See
+.Xr chflags 2
+for the list of flags and their description.
 .El
 .Pp
 The
