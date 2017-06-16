@@ -88,7 +88,7 @@ install-zoneinfo:
 	mkdir -p ${DESTDIR}/usr/share/zoneinfo
 	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
 	cd ${TZBUILDDIR} && \
-	    find -s * -type f -print -exec ${INSTALL} ${TAG_ARGS} \
+	    find -s * -type f -exec ${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
