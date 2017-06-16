@@ -4,15 +4,15 @@
 
 PROG=	readpng-capsicum-helper
 
-.PATH: ${.CURDIR}/../../lib/libimagebox
+.PATH: ${SRCTOP}/ctsrd/lib/libimagebox
 SRCS=	readpng.c decode_png.c
 # we need the png.h header but don't need to link against it
-CFLAGS+=        -I${.CURDIR}/../../../contrib/libpng
-CFLAGS+=        -I${.CURDIR}/../../../lib/libpng
+CFLAGS+=        -I${SRCTOP}/contrib/libpng
+CFLAGS+=        -I${SRCTOP}/lib/libpng
 
 MAN=
 
-CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
+CFLAGS+=	-I${SRCTOP}/ctsrd/lib/libimagebox
 LIBADD+=	vuln_png z
 
 .include <bsd.prog.mk>

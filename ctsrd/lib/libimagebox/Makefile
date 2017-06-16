@@ -10,8 +10,8 @@ SRCS=	decode_png.c pngbox.c
 INCS=	imagebox.h
 
 # we need the png.h header but don't need to link against it
-CFLAGS+=        -I${.CURDIR}/../../../contrib/libpng
-CFLAGS+=        -I${.CURDIR}/../../../lib/libpng
+CFLAGS+=        -I${SRCTOP}/contrib/libpng
+CFLAGS+=        -I${SRCTOP}/lib/libpng
 
 WANT_CHERI=	yes
 

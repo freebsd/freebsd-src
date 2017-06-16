@@ -3,8 +3,8 @@
 
 .include <src.opts.mk>
 
-CONTRDIR=	${.CURDIR}/../../../contrib/file
-.PATH: ${CONTRDIR}/src
+CONTRIBDIR=	${SRCTOP}/contrib/file
+.PATH: ${CONTRIBDIR}/src
 
 LIB=	vuln_magic
 SHLIB_MAJOR=	4
@@ -21,7 +21,7 @@ SRCS:=	${SRCS:Nfuncs.c} funcs_vuln.c
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I${CONTRDIR}/src -DBADMAGIC
+CFLAGS+= -I${.CURDIR} -I${CONTRIBDIR}/src -DBADMAGIC
 
 WARNS?=		3
 
