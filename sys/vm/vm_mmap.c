@@ -513,13 +513,13 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 		 * with maxprot later.
 		 */
 		cap_rights_init(&rights, CAP_MMAP);
-		if (prot & PROT_READ)
+		if (maxprot & PROT_READ)
 			cap_rights_set(&rights, CAP_MMAP_R);
 		if ((flags & MAP_SHARED) != 0) {
-			if (prot & PROT_WRITE)
+			if (maxprot & PROT_WRITE)
 				cap_rights_set(&rights, CAP_MMAP_W);
 		}
-		if (prot & PROT_EXEC)
+		if (maxprot & PROT_EXEC)
 			cap_rights_set(&rights, CAP_MMAP_X);
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
@@ -529,7 +529,16 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 			error = EINVAL;
 			goto done;
 		}
-
+		if ((max_prot & cap_maxprot) != max_prot) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: unable to map file with "
+				    "requested maximum permissions",
+				    __func__);
+#endif
+			error = EINVAL
+			goto done;
+		}
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, max_addr, size,
 		    prot, max_prot & cap_maxprot, flags, pos, td);
