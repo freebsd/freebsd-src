@@ -508,7 +508,7 @@ pmap_set_tex(void)
  * Usage rules:
  * - it shall be called after pmap_bootstrap_prepare() and before
  *   cpu_mp_start() (thus only on boot CPU). In practice, it's expected
- *   to be called from platform_attach() or platform_late_init().
+ *   to be called from platform_probe_and_attach() or platform_late_init().
  *
  * - if remapping doesn't change caching mode, or until uncached class
  *   is remapped to any kind of cached one, then no other restriction exists.
@@ -523,11 +523,11 @@ void
 pmap_remap_vm_attr(vm_memattr_t old_attr, vm_memattr_t new_attr)
 {
 	int old_idx, new_idx;
-	
+
 	/* Map VM memattrs to indexes to tex_class table. */
 	old_idx = pte2_attr_tab[(int)old_attr];
 	new_idx = pte2_attr_tab[(int)new_attr];
-	
+
 	/* Replace TEX attribute and apply it. */
 	tex_class[old_idx] = tex_class[new_idx];
 	pmap_set_tex();
