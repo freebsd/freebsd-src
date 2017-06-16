@@ -462,7 +462,7 @@ LIBBSNMPTOOLSDIR=	${OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
-LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+LIBAMU?=	${LIBAMUDIR}/libamu.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
