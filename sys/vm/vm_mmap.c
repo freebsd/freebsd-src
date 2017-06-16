@@ -542,7 +542,7 @@ freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
 
 	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
-	    PROT_MAX_ALL | uap->prot, uap->flags, uap->fd, uap->pos));
+	    PROT_MAX(PROT_ALL) | uap->prot, uap->flags, uap->fd, uap->pos));
 }
 #endif
 
@@ -597,7 +597,7 @@ ommap(struct thread *td, struct ommap_args *uap)
 	if (uap->flags & OMAP_FIXED)
 		flags |= MAP_FIXED;
 	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
-	    PROT_MAX_ALL | prot, flags, uap->fd, uap->pos));
+	    PROT_MAX(PROT_ALL) | prot, flags, uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
 

@@ -514,7 +514,7 @@ freebsd6_freebsd32_mmap(struct thread *td,
 #endif
 
 	return (kern_mmap(td, (uintptr_t)uap->addr, 0,
-	    uap->len, PROT_MAX_ALL | prot, uap->flags, uap->fd,
+	    uap->len, PROT_MAX(PROT_ALL) | prot, uap->flags, uap->fd,
 	    PAIR32TO64(off_t, uap->pos)));
 }
 #endif

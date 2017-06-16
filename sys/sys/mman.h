@@ -57,15 +57,10 @@
 #define	EXTRACT_PROT(prot)	(prot & PROT_ALL)
 
 #define	_PROT_MAX_SHIFT	16
-#define _PROT_MAX_PRESENT	(0x1 << (_PROT_MAX_SHIFT - 1))
-#define	PROT_MAX_NONE	((PROT_NONE  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
-#define	PROT_MAX_READ	((PROT_READ  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
-#define	PROT_MAX_WRITE	((PROT_WRITE << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
-#define	PROT_MAX_EXEC	((PROT_EXEC  << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
-#define	PROT_MAX_ALL	((PROT_ALL   << _PROT_MAX_SHIFT) | _PROT_MAX_PRESENT)
+#define	PROT_MAX(prot)	((prot) << _PROT_MAX_SHIFT)
 #define	EXTRACT_PROT_MAX(prot)						\
-	((_PROT_MAX_PRESENT & (prot)) == 0 ?				\
-	 EXTRACT_PROT(prot) : EXTRACT_PROT((prot) >> _PROT_MAX_SHIFT))
+	(((prot) >> _PROT_MAX_SHIFT) != 0 ?				\
+	 ((prot) >> _PROT_MAX_SHIFT) : EXTRACT_PROT(prot))
 
 /*
  * Flags contain sharing type and options.
