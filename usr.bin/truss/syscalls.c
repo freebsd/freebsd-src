@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -395,6 +396,20 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Rtpriofunc, 0 }, { Int, 1 }, { Ptr, 2 } } },
 	{ .name = "rtprio_thread", .ret_type = 1, .nargs = 3,
 	  .args = { { Rtpriofunc, 0 }, { Int, 1 }, { Ptr, 2 } } },
+	{ .name = "sched_get_priority_max", .ret_type = 1, .nargs = 1,
+	  .args = { { Schedpolicy, 0 } } },
+	{ .name = "sched_get_priority_min", .ret_type = 1, .nargs = 1,
+	  .args = { { Schedpolicy, 0 } } },
+	{ .name = "sched_getparam", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Schedparam | OUT, 1 } } },
+	{ .name = "sched_getscheduler", .ret_type = 1, .nargs = 1,
+	  .args = { { Int, 0 } } },
+	{ .name = "sched_rr_get_interval", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Timespec | OUT, 1 } } },
+	{ .name = "sched_setparam", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Schedparam, 1 } } },
+	{ .name = "sched_setscheduler", .ret_type = 1, .nargs = 3,
+	  .args = { { Int, 0 }, { Schedpolicy, 1 }, { Schedparam, 2 } } },
 	{ .name = "sctp_generic_recvmsg", .ret_type = 1, .nargs = 7,
 	  .args = { { Int, 0 }, { Ptr | IN, 1 }, { Int, 2 },
 	            { Sockaddr | OUT, 3 }, { Ptr | OUT, 4 }, { Ptr | OUT, 5 },
@@ -2155,6 +2170,20 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		print_integer_arg(sysdecode_rtprio_function, fp,
 		    args[sc->offset]);
 		break;
+	case Schedpolicy:
+		print_integer_arg(sysdecode_scheduler_policy, fp,
+		    args[sc->offset]);
+		break;
+	case Schedparam: {
+		struct sched_param sp;
+
+		if (get_struct(pid, (void *)args[sc->offset], &sp,
+		    sizeof(sp)) != -1)
+			fprintf(fp, "{ %d }", sp.sched_priority);
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
