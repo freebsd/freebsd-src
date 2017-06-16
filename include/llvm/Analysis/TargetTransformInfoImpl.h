@@ -177,6 +177,8 @@ public:
 
   bool isSourceOfDivergence(const Value *V) { return false; }
 
+  bool isAlwaysUniform(const Value *V) { return false; }
+
   unsigned getFlatAddressSpace () {
     return -1;
   }
@@ -320,7 +322,7 @@ public:
 
   unsigned getNumberOfRegisters(bool Vector) { return 8; }
 
-  unsigned getRegisterBitWidth(bool Vector) { return 32; }
+  unsigned getRegisterBitWidth(bool Vector) const { return 32; }
 
   unsigned getMinVectorRegisterBitWidth() { return 128; }
 

@@ -4033,26 +4033,26 @@ DICompileUnit
 """""""""""""
 
 ``DICompileUnit`` nodes represent a compile unit. The ``enums:``,
-``retainedTypes:``, ``subprograms:``, ``globals:``, ``imports:`` and ``macros:``
-fields are tuples containing the debug info to be emitted along with the compile
-unit, regardless of code optimizations (some nodes are only emitted if there are
-references to them from instructions). The ``debugInfoForProfiling:`` field is a
-boolean indicating whether or not line-table discriminators are updated to
-provide more-accurate debug info for profiling results.
+``retainedTypes:``, ``globals:``, ``imports:`` and ``macros:`` fields are tuples
+containing the debug info to be emitted along with the compile unit, regardless
+of code optimizations (some nodes are only emitted if there are references to
+them from instructions). The ``debugInfoForProfiling:`` field is a boolean
+indicating whether or not line-table discriminators are updated to provide
+more-accurate debug info for profiling results.
 
 .. code-block:: text
 
     !0 = !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang",
                         isOptimized: true, flags: "-O2", runtimeVersion: 2,
                         splitDebugFilename: "abc.debug", emissionKind: FullDebug,
-                        enums: !2, retainedTypes: !3, subprograms: !4,
-                        globals: !5, imports: !6, macros: !7, dwoId: 0x0abcd)
+                        enums: !2, retainedTypes: !3, globals: !4, imports: !5,
+                        macros: !6, dwoId: 0x0abcd)
 
 Compile unit descriptors provide the root scope for objects declared in a
-specific compilation unit. File descriptors are defined using this scope.
-These descriptors are collected by a named metadata ``!llvm.dbg.cu``. They
-keep track of subprograms, global variables, type information, and imported
-entities (declarations and namespaces).
+specific compilation unit. File descriptors are defined using this scope.  These
+descriptors are collected by a named metadata node ``!llvm.dbg.cu``. They keep
+track of global variables, type information, and imported entities (declarations
+and namespaces).
 
 .. _DIFile:
 
@@ -4326,8 +4326,8 @@ and ``scope:``.
                                 containingType: !4,
                                 virtuality: DW_VIRTUALITY_pure_virtual,
                                 virtualIndex: 10, flags: DIFlagPrototyped,
-                                isOptimized: true, templateParams: !5,
-                                declaration: !6, variables: !7)
+                                isOptimized: true, unit: !5, templateParams: !6,
+                                declaration: !7, variables: !8, thrownTypes: !9)
 
 .. _DILexicalBlock:
 
@@ -4404,7 +4404,12 @@ referenced LLVM variable relates to the source language variable.
 The current supported vocabulary is limited:
 
 - ``DW_OP_deref`` dereferences the top of the expression stack.
-- ``DW_OP_plus, 93`` adds ``93`` to the working expression.
+- ``DW_OP_plus`` pops the last two entries from the expression stack, adds
+  them together and appends the result to the expression stack.
+- ``DW_OP_minus`` pops the last two entries from the expression stack, subtracts
+  the last entry from the second last entry and appends the result to the
+  expression stack.
+- ``DW_OP_plus_uconst, 93`` adds ``93`` to the working expression.
 - ``DW_OP_LLVM_fragment, 16, 8`` specifies the offset and size (``16`` and ``8``
   here, respectively) of the variable fragment from the working expression. Note
   that contrary to DW_OP_bit_piece, the offset is describing the the location
@@ -4426,9 +4431,10 @@ combined with a concrete location.
 .. code-block:: llvm
 
     !0 = !DIExpression(DW_OP_deref)
-    !1 = !DIExpression(DW_OP_plus, 3)
+    !1 = !DIExpression(DW_OP_plus_uconst, 3)
+    !1 = !DIExpression(DW_OP_constu, 3, DW_OP_plus)
     !2 = !DIExpression(DW_OP_bit_piece, 3, 7)
-    !3 = !DIExpression(DW_OP_deref, DW_OP_plus, 3, DW_OP_LLVM_fragment, 3, 7)
+    !3 = !DIExpression(DW_OP_deref, DW_OP_constu, 3, DW_OP_plus, DW_OP_LLVM_fragment, 3, 7)
     !4 = !DIExpression(DW_OP_constu, 2, DW_OP_swap, DW_OP_xderef)
     !5 = !DIExpression(DW_OP_constu, 42, DW_OP_stack_value)
 
@@ -5186,6 +5192,72 @@ Example:
     !0 = !{i32* @a}
 
 
+'``prof``' Metadata
+^^^^^^^^^^^^^^^^^^^
+
+The ``prof`` metadata is used to record profile data in the IR.
+The first operand of the metadata node indicates the profile metadata
+type. There are currently 3 types:
+:ref:`branch_weights<prof_node_branch_weights>`,
+:ref:`function_entry_count<prof_node_function_entry_count>`, and
+:ref:`VP<prof_node_VP>`.
+
+.. _prof_node_branch_weights:
+
+branch_weights
+""""""""""""""
+
+Branch weight metadata attached to a branch, select, switch or call instruction
+represents the likeliness of the associated branch being taken.
+For more information, see :doc:`BranchWeightMetadata`.
+
+.. _prof_node_function_entry_count:
+
+function_entry_count
+""""""""""""""""""""
+
+Function entry count metadata can be attached to function definitions
+to record the number of times the function is called. Used with BFI
+information, it is also used to derive the basic block profile count.
+For more information, see :doc:`BranchWeightMetadata`.
+
+.. _prof_node_VP:
+
+VP
+""
+
+VP (value profile) metadata can be attached to instructions that have
+value profile information. Currently this is indirect calls (where it
+records the hottest callees) and calls to memory intrinsics such as memcpy,
+memmove, and memset (where it records the hottest byte lengths).
+
+Each VP metadata node contains "VP" string, then a uint32_t value for the value
+profiling kind, a uint64_t value for the total number of times the instruction
+is executed, followed by uint64_t value and execution count pairs.
+The value profiling kind is 0 for indirect call targets and 1 for memory
+operations. For indirect call targets, each profile value is a hash
+of the callee function name, and for memory operations each value is the
+byte length.
+
+Note that the value counts do not need to add up to the total count
+listed in the third operand (in practice only the top hottest values
+are tracked and reported).
+
+Indirect call example:
+
+.. code-block:: llvm
+
+    call void %f(), !prof !1
+    !1 = !{!"VP", i32 0, i64 1600, i64 7651369219802541373, i64 1030, i64 -4377547752858689819, i64 410}
+
+Note that the VP type is 0 (the second operand), which indicates this is
+an indirect call value profile data. The third operand indicates that the
+indirect call executed 1600 times. The 4th and 6th operands give the
+hashes of the 2 hottest target functions' names (this is the same hash used
+to represent function names in the profile database), and the 5th and 7th
+operands give the execution count that each of the respective prior target
+functions was called.
+
 Module Flags Metadata
 =====================
 
@@ -5352,40 +5424,6 @@ Some important flag interactions:
 -  A module with ``Objective-C Garbage Collection`` set to 0 cannot be
    merged with a module with ``Objective-C GC Only`` set to 6.
 
-Automatic Linker Flags Module Flags Metadata
---------------------------------------------
-
-Some targets support embedding flags to the linker inside individual object
-files. Typically this is used in conjunction with language extensions which
-allow source files to explicitly declare the libraries they depend on, and have
-these automatically be transmitted to the linker via object files.
-
-These flags are encoded in the IR using metadata in the module flags section,
-using the ``Linker Options`` key. The merge behavior for this flag is required
-to be ``AppendUnique``, and the value for the key is expected to be a metadata
-node which should be a list of other metadata nodes, each of which should be a
-list of metadata strings defining linker options.
-
-For example, the following metadata section specifies two separate sets of
-linker options, presumably to link against ``libz`` and the ``Cocoa``
-framework::
-
-    !0 = !{ i32 6, !"Linker Options",
-       !{
-          !{ !"-lz" },
-          !{ !"-framework", !"Cocoa" } } }
-    !llvm.module.flags = !{ !0 }
-
-The metadata encoding as lists of lists of options, as opposed to a collapsed
-list of options, is chosen so that the IR encoding can use multiple option
-strings to specify e.g., a single library, while still having that specifier be
-preserved as an atomic element that can be recognized by a target specific
-assembly writer or object file emitter.
-
-Each individual option is required to be either a valid option for the target's
-linker, or an option that is reserved by the target specific assembly writer or
-object file emitter. No other aspect of these options is defined by the IR.
-
 C type width Module Flags Metadata
 ----------------------------------
 
@@ -5421,6 +5459,37 @@ enum is the smallest type which can represent all of its values::
     !llvm.module.flags = !{!0, !1}
     !0 = !{i32 1, !"short_wchar", i32 1}
     !1 = !{i32 1, !"short_enum", i32 0}
+
+Automatic Linker Flags Named Metadata
+=====================================
+
+Some targets support embedding flags to the linker inside individual object
+files. Typically this is used in conjunction with language extensions which
+allow source files to explicitly declare the libraries they depend on, and have
+these automatically be transmitted to the linker via object files.
+
+These flags are encoded in the IR using named metadata with the name
+``!llvm.linker.options``. Each operand is expected to be a metadata node
+which should be a list of other metadata nodes, each of which should be a
+list of metadata strings defining linker options.
+
+For example, the following metadata section specifies two separate sets of
+linker options, presumably to link against ``libz`` and the ``Cocoa``
+framework::
+
+    !0 = !{ !"-lz" },
+    !1 = !{ !"-framework", !"Cocoa" } } }
+    !llvm.linker.options = !{ !0, !1 }
+
+The metadata encoding as lists of lists of options, as opposed to a collapsed
+list of options, is chosen so that the IR encoding can use multiple option
+strings to specify e.g., a single library, while still having that specifier be
+preserved as an atomic element that can be recognized by a target specific
+assembly writer or object file emitter.
+
+Each individual option is required to be either a valid option for the target's
+linker, or an option that is reserved by the target specific assembly writer or
+object file emitter. No other aspect of these options is defined by the IR.
 
 .. _intrinsicglobalvariables:
 
@@ -13999,62 +14068,66 @@ Element Wise Atomic Memory Intrinsics
 These intrinsics are similar to the standard library memory intrinsics except
 that they perform memory transfer as a sequence of atomic memory accesses.
 
-.. _int_memcpy_element_atomic:
+.. _int_memcpy_element_unordered_atomic:
 
-'``llvm.memcpy.element.atomic``' Intrinsic
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'``llvm.memcpy.element.unordered.atomic``' Intrinsic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Syntax:
 """""""
 
-This is an overloaded intrinsic. You can use ``llvm.memcpy.element.atomic`` on
+This is an overloaded intrinsic. You can use ``llvm.memcpy.element.unordered.atomic`` on
 any integer bit width and for different address spaces. Not all targets
 support all bit widths however.
 
 ::
 
-      declare void @llvm.memcpy.element.atomic.p0i8.p0i8(i8* <dest>, i8* <src>,
-                                              i64 <num_elements>, i32 <element_size>)
+      declare void @llvm.memcpy.element.unordered.atomic.p0i8.p0i8.i32(i8* <dest>,
+                                                                       i8* <src>,
+                                                                       i32 <len>,
+                                                                       i32 <element_size>)
+      declare void @llvm.memcpy.element.unordered.atomic.p0i8.p0i8.i64(i8* <dest>,
+                                                                       i8* <src>,
+                                                                       i64 <len>,
+                                                                       i32 <element_size>)
 
 Overview:
 """""""""
 
-The '``llvm.memcpy.element.atomic.*``' intrinsic performs copy of a block of 
-memory from the source location to the destination location as a sequence of
-unordered atomic memory accesses where each access is a multiple of
-``element_size`` bytes wide and aligned at an element size boundary. For example
-each element is accessed atomically in source and destination buffers.
+The '``llvm.memcpy.element.unordered.atomic.*``' intrinsic is a specialization of the
+'``llvm.memcpy.*``' intrinsic. It differs in that the ``dest`` and ``src`` are treated
+as arrays with elements that are exactly ``element_size`` bytes, and the copy between
+buffers uses a sequence of :ref:`unordered atomic <ordering>` load/store operations
+that are a positive integer multiple of the ``element_size`` in size.
 
 Arguments:
 """"""""""
 
-The first argument is a pointer to the destination, the second is a
-pointer to the source. The third argument is an integer argument
-specifying the number of elements to copy, the fourth argument is size of
-the single element in bytes.
+The first three arguments are the same as they are in the :ref:`@llvm.memcpy <int_memcpy>`
+intrinsic, with the added constraint that ``len`` is required to be a positive integer
+multiple of the ``element_size``. If ``len`` is not a positive integer multiple of
+``element_size``, then the behaviour of the intrinsic is undefined.
 
-``element_size`` should be a power of two, greater than zero and less than
-a target-specific atomic access size limit.
+``element_size`` must be a compile-time constant positive power of two no greater than
+target-specific atomic access size limit.
 
-For each of the input pointers ``align`` parameter attribute must be specified.
-It must be a power of two and greater than or equal to the ``element_size``.
-Caller guarantees that both the source and destination pointers are aligned to
-that boundary.
+For each of the input pointers ``align`` parameter attribute must be specified. It
+must be a power of two no less than the ``element_size``. Caller guarantees that
+both the source and destination pointers are aligned to that boundary.
 
 Semantics:
 """"""""""
 
-The '``llvm.memcpy.element.atomic.*``' intrinsic copies
-'``num_elements`` * ``element_size``' bytes of memory from the source location to
-the destination location. These locations are not allowed to overlap. Memory copy
-is performed as a sequence of unordered atomic memory accesses where each access
-is guaranteed to be a multiple of ``element_size`` bytes wide and aligned at an
-element size boundary.
+The '``llvm.memcpy.element.unordered.atomic.*``' intrinsic copies ``len`` bytes of
+memory from the source location to the destination location. These locations are not
+allowed to overlap. The memory copy is performed as a sequence of load/store operations
+where each access is guaranteed to be a multiple of ``element_size`` bytes wide and
+aligned at an ``element_size`` boundary. 
 
 The order of the copy is unspecified. The same value may be read from the source
 buffer many times, but only one write is issued to the destination buffer per
-element. It is well defined to have concurrent reads and writes to both source
-and destination provided those reads and writes are at least unordered atomic.
+element. It is well defined to have concurrent reads and writes to both source and
+destination provided those reads and writes are unordered atomic when specified.
 
 This intrinsic does not provide any additional ordering guarantees over those
 provided by a set of unordered loads from the source location and stores to the
@@ -14063,8 +14136,8 @@ destination.
 Lowering:
 """""""""
 
-In the most general case call to the '``llvm.memcpy.element.atomic.*``' is lowered
-to a call to the symbol ``__llvm_memcpy_element_atomic_*``. Where '*' is replaced
-with an actual element size.
+In the most general case call to the '``llvm.memcpy.element.unordered.atomic.*``' is
+lowered to a call to the symbol ``__llvm_memcpy_element_unordered_atomic_*``. Where '*'
+is replaced with an actual element size.
 
-Optimizer is allowed to inline memory copy when it's profitable to do so.
+The optimizer is allowed to inline the memory copy when it's profitable to do so.
