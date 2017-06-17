@@ -129,8 +129,8 @@ syslog(int pri, const char *fmt, ...)
 	va_end(ap);
 }
 
-void
-vsyslog(int pri, const char *fmt, va_list ap)
+static void
+vsyslog1(int pri, const char *fmt, va_list ap)
 {
 	int cnt;
 	char ch, *p;
@@ -151,13 +151,9 @@ vsyslog(int pri, const char *fmt, va_list ap)
 
 	saved_errno = errno;
 
-	THREAD_LOCK();
-
 	/* Check priority against setlogmask values. */
-	if (!(LOG_MASK(LOG_PRI(pri)) & LogMask)) {
-		THREAD_UNLOCK();
+	if (!(LOG_MASK(LOG_PRI(pri)) & LogMask))
 		return;
-	}
 
 	/* Set default facility if none specified. */
 	if ((pri & LOG_FACMASK) == 0)
@@ -167,10 +163,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	tbuf_cookie.base = tbuf;
 	tbuf_cookie.left = sizeof(tbuf);
 	fp = fwopen(&tbuf_cookie, writehook);
-	if (fp == NULL) {
-		THREAD_UNLOCK();
+	if (fp == NULL)
 		return;
-	}
 
 	/* Build the message. */
 	(void)time(&now);
@@ -200,7 +194,6 @@ vsyslog(int pri, const char *fmt, va_list ap)
 		fmt_fp = fwopen(&fmt_cookie, writehook);
 		if (fmt_fp == NULL) {
 			fclose(fp);
-			THREAD_UNLOCK();
 			return;
 		}
 
@@ -285,10 +278,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 			 */
 			disconnectlog();
 			connectlog();
-			if (send(LogFile, tbuf, cnt, 0) >= 0) {
-				THREAD_UNLOCK();
+			if (send(LogFile, tbuf, cnt, 0) >= 0)
 				return;
-			}
 			/*
 			 * if the resend failed, fall through to
 			 * possible scenario 2
@@ -303,15 +294,11 @@ vsyslog(int pri, const char *fmt, va_list ap)
 			if (status == CONNPRIV)
 				break;
 			_usleep(1);
-			if (send(LogFile, tbuf, cnt, 0) >= 0) {
-				THREAD_UNLOCK();
+			if (send(LogFile, tbuf, cnt, 0) >= 0)
 				return;
-			}
 		}
-	} else {
-		THREAD_UNLOCK();
+	} else
 		return;
-	}
 
 	/*
 	 * Output the message to the console; try not to block
@@ -333,8 +320,23 @@ vsyslog(int pri, const char *fmt, va_list ap)
 		(void)_writev(fd, iov, 2);
 		(void)_close(fd);
 	}
+}
+
+static void
+syslog_cancel_cleanup(void *arg __unused)
+{
 
 	THREAD_UNLOCK();
+}
+
+void
+vsyslog(int pri, const char *fmt, va_list ap)
+{
+
+	THREAD_LOCK();
+	pthread_cleanup_push(syslog_cancel_cleanup, NULL);
+	vsyslog1(pri, fmt, ap);
+	pthread_cleanup_pop(1);
 }
 
 /* Should be called with mutex acquired */
@@ -423,9 +425,11 @@ openlog_unlocked(const char *ident, int logstat, int logfac)
 void
 openlog(const char *ident, int logstat, int logfac)
 {
+
 	THREAD_LOCK();
+	pthread_cleanup_push(syslog_cancel_cleanup, NULL);
 	openlog_unlocked(ident, logstat, logfac);
-	THREAD_UNLOCK();
+	pthread_cleanup_pop(1);
 }
 
 
