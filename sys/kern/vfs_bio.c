@@ -131,6 +131,7 @@ static void bufkva_reclaim(vmem_t *, int);
 static void bufkva_free(struct buf *);
 static int buf_import(void *, void **, int, int);
 static void buf_release(void *, void **, int);
+static void maxbcachebuf_adjust(void);
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -245,6 +246,9 @@ SYSCTL_LONG(_vfs, OID_AUTO, barrierwrites, CTLFLAG_RW, &barrierwrites, 0,
 SYSCTL_INT(_vfs, OID_AUTO, unmapped_buf_allowed, CTLFLAG_RD,
     &unmapped_buf_allowed, 0,
     "Permit the use of the unmapped i/o");
+int maxbcachebuf = MAXBCACHEBUF;
+SYSCTL_INT(_vfs, OID_AUTO, maxbcachebuf, CTLFLAG_RDTUN, &maxbcachebuf, 0,
+    "Maximum size of a buffer cache block");
 
 /*
  * This lock synchronizes access to bd_request.
@@ -847,6 +851,29 @@ bd_wakeup(void)
 }
 
 /*
+ * Adjust the maxbcachbuf tunable.
+ */
+static void
+maxbcachebuf_adjust(void)
+{
+	int i;
+
+	/*
+	 * maxbcachebuf must be a power of 2 >= MAXBSIZE.
+	 */
+	i = 2;
+	while (i * 2 <= maxbcachebuf)
+		i *= 2;
+	maxbcachebuf = i;
+	if (maxbcachebuf < MAXBSIZE)
+		maxbcachebuf = MAXBSIZE;
+	if (maxbcachebuf > MAXPHYS)
+		maxbcachebuf = MAXPHYS;
+	if (bootverbose != 0 && maxbcachebuf != MAXBCACHEBUF)
+		printf("maxbcachebuf=%d\n", maxbcachebuf);
+}
+
+/*
  * bd_speedup - speedup the buffer cache flushing code
  */
 void
@@ -893,6 +920,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 */
 	physmem_est = physmem_est * (PAGE_SIZE / 1024);
 
+	maxbcachebuf_adjust();
 	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
@@ -1003,7 +1031,9 @@ bufinit(void)
 	struct buf *bp;
 	int i;
 
-	CTASSERT(MAXBCACHEBUF >= MAXBSIZE);
+	KASSERT(maxbcachebuf >= MAXBSIZE,
+	    ("maxbcachebuf (%d) must be >= MAXBSIZE (%d)\n", maxbcachebuf,
+	    MAXBSIZE));
 	mtx_init(&bqlocks[QUEUE_DIRTY], "bufq dirty lock", NULL, MTX_DEF);
 	mtx_init(&bqlocks[QUEUE_EMPTY], "bufq empty lock", NULL, MTX_DEF);
 	for (i = QUEUE_CLEAN; i < QUEUE_CLEAN + CLEAN_QUEUES; i++)
@@ -1050,7 +1080,7 @@ bufinit(void)
 	 * PAGE_SIZE.
 	 */
 	maxbufspace = (long)nbuf * BKVASIZE;
-	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBCACHEBUF * 10);
+	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - maxbcachebuf * 10);
 	lobufspace = (hibufspace / 20) * 19; /* 95% */
 	bufspacethresh = lobufspace + (hibufspace - lobufspace) / 2;
 
@@ -1062,9 +1092,9 @@ bufinit(void)
 	 * The lower 1 MiB limit is the historical upper limit for
 	 * hirunningspace.
 	 */
-	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBCACHEBUF),
+	hirunningspace = lmax(lmin(roundup(hibufspace / 64, maxbcachebuf),
 	    16 * 1024 * 1024), 1024 * 1024);
-	lorunningspace = roundup((hirunningspace * 2) / 3, MAXBCACHEBUF);
+	lorunningspace = roundup((hirunningspace * 2) / 3, maxbcachebuf);
 
 	/*
 	 * Limit the amount of malloc memory since it is wired permanently into
@@ -3484,9 +3514,9 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	KASSERT((flags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	ASSERT_VOP_LOCKED(vp, "getblk");
-	if (size > MAXBCACHEBUF)
-		panic("getblk: size(%d) > MAXBCACHEBUF(%d)\n", size,
-		    MAXBCACHEBUF);
+	if (size > maxbcachebuf)
+		panic("getblk: size(%d) > maxbcachebuf(%d)\n", size,
+		    maxbcachebuf);
 	if (!unmapped_buf_allowed)
 		flags &= ~(GB_UNMAPPED | GB_KVAALLOC);
 
