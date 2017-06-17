@@ -1255,7 +1255,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 	default:
 		fprintf(fp, "%#x", ke->fflags);
 	}
-	fprintf(fp, ",%p,%p", (void *)ke->data, (void *)ke->udata);
+	fprintf(fp, ",%#jx,%p", (uintmax_t)ke->data, ke->udata);
 }
 
 static void

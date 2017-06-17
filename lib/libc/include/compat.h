@@ -65,6 +65,8 @@ __sym_compat(statfs, freebsd11_statfs, FBSD_1.0);
 __sym_compat(mknod, freebsd11_mknod, FBSD_1.0);
 __sym_compat(mknodat, freebsd11_mknodat, FBSD_1.1);
 
+__sym_compat(kevent, freebsd11_kevent, FBSD_1.0);
+
 #undef __sym_compat
 
 #define	__weak_reference(sym,alias)	\
