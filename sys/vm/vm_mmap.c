@@ -204,11 +204,11 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 
 	max_prot = EXTRACT_PROT_MAX(prot);
 	prot = EXTRACT_PROT(prot);
-	if ((prot & maxprot) != prot) {
+	if ((prot & max_prot) != prot) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_SYSERRCAUSE))
 			ktrsyserrcause("%s: requested page permissions "
-			    "exceed requesed maximum", __func__, extra_flags);
+			    "exceed requesed maximum", __func__);
 		return (EINVAL);
 #endif
 	}
@@ -513,13 +513,13 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 		 * with maxprot later.
 		 */
 		cap_rights_init(&rights, CAP_MMAP);
-		if (maxprot & PROT_READ)
+		if (max_prot & PROT_READ)
 			cap_rights_set(&rights, CAP_MMAP_R);
 		if ((flags & MAP_SHARED) != 0) {
-			if (maxprot & PROT_WRITE)
+			if (max_prot & PROT_WRITE)
 				cap_rights_set(&rights, CAP_MMAP_W);
 		}
-		if (maxprot & PROT_EXEC)
+		if (max_prot & PROT_EXEC)
 			cap_rights_set(&rights, CAP_MMAP_X);
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
@@ -536,7 +536,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 				    "requested maximum permissions",
 				    __func__);
 #endif
-			error = EINVAL
+			error = EINVAL;
 			goto done;
 		}
 		/* This relies on VM_PROT_* matching PROT_*. */
