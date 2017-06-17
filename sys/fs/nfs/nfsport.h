@@ -1016,7 +1016,7 @@ struct nfsreq {
 };
 
 #ifndef NFS_MAXBSIZE
-#define	NFS_MAXBSIZE	MAXBCACHEBUF
+#define	NFS_MAXBSIZE	(maxbcachebuf)
 #endif
 
 /*
