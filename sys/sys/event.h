@@ -55,6 +55,10 @@
 	(kevp)->fflags = (d);			\
 	(kevp)->data = (e);			\
 	(kevp)->udata = (f);			\
+	(kevp)->ext[0] = 0;			\
+	(kevp)->ext[1] = 0;			\
+	(kevp)->ext[2] = 0;			\
+	(kevp)->ext[3] = 0;			\
 } while(0)
 
 struct kevent {
@@ -62,8 +66,9 @@ struct kevent {
 	short		filter;		/* filter for event */
 	unsigned short	flags;
 	unsigned int	fflags;
-	__intptr_t	data;
+	__int64_t	data;
 	void		*udata;		/* opaque user data identifier */
+	__uint64_t	ext[4];
 };
 
 /* actions */
@@ -149,6 +154,7 @@ struct kevent {
 #define NOTE_MSECONDS		0x00000002	/* data is milliseconds */
 #define NOTE_USECONDS		0x00000004	/* data is microseconds */
 #define NOTE_NSECONDS		0x00000008	/* data is nanoseconds */
+#define	NOTE_ABSTIME		0x00000010	/* timeout is absolute */
 
 struct knote;
 SLIST_HEAD(klist, knote);
@@ -232,7 +238,7 @@ struct knote {
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
 	int			kn_influx;
 	int			kn_sfflags;	/* saved filter flags */
-	intptr_t		kn_sdata;	/* saved data field */
+	int64_t			kn_sdata;	/* saved data field */
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
@@ -253,6 +259,7 @@ struct kevent_copyops {
 	void	*arg;
 	int	(*k_copyout)(void *arg, struct kevent *kevp, int count);
 	int	(*k_copyin)(void *arg, struct kevent *kevp, int count);
+	size_t	kevent_size;
 };
 
 struct thread;

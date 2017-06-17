@@ -137,12 +137,13 @@ struct statfs32 {
 };
 
 struct kevent32 {
-	u_int32_t	ident;		/* identifier for this event */
+	uint32_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-	int32_t		data;
-	u_int32_t	udata;		/* opaque user data identifier */
+	int32_t		data1, data2;
+	uint32_t	udata;		/* opaque user data identifier */
+	uint32_t	ext64[8];
 };
 
 struct iovec32 {
