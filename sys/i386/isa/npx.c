@@ -1108,7 +1108,7 @@ npx_fill_fpregs_xmm1(struct savexmm *sv_xmm, struct save87 *sv_87)
 		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
 		if ((penv_xmm->en_tw & (1 << i)) != 0)
 			/* zero and special are set as valid */
-			penv_87->en_tw &= ~(3 << i);
+			penv_87->en_tw &= ~(3 << i * 2);
 	}
 }
 
@@ -1139,11 +1139,16 @@ npx_set_fpregs_xmm(struct save87 *sv_87, struct savexmm *sv_xmm)
 	penv_xmm->en_foo = penv_87->en_foo;
 	penv_xmm->en_fos = penv_87->en_fos;
 
-	/* FPU registers and tags */
+	/*
+	 * FPU registers and tags.
+	 * Abridged  /  Full translation (values in binary), see FXSAVE spec.
+	 * 0		11
+	 * 1		00, 01, 10
+	 */
 	penv_xmm->en_tw = 0;
 	for (i = 0; i < 8; ++i) {
 		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
-		if ((penv_87->en_tw && (3 << i)) != (3 << i))
+		if ((penv_87->en_tw & (3 << i * 2)) != (3 << i * 2))
 		    penv_xmm->en_tw |= 1 << i;
 	}
 }
