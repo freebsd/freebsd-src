@@ -372,7 +372,7 @@ const char *freebsd32_syscallnames[] = {
 	"getresuid",			/* 360 = getresuid */
 	"getresgid",			/* 361 = getresgid */
 	"kqueue",			/* 362 = kqueue */
-	"freebsd32_kevent",			/* 363 = freebsd32_kevent */
+	"compat11.freebsd32_kevent",		/* 363 = freebsd11 freebsd32_kevent */
 	"#364",			/* 364 = __cap_get_proc */
 	"#365",			/* 365 = __cap_set_proc */
 	"#366",			/* 366 = __cap_get_fd */
@@ -592,4 +592,5 @@ const char *freebsd32_syscallnames[] = {
 	"getfsstat",			/* 557 = getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
 	"mknodat",			/* 559 = mknodat */
+	"freebsd32_kevent",			/* 560 = freebsd32_kevent */
 };

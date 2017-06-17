@@ -1774,18 +1774,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* freebsd32_kevent */
-	case 363: {
-		struct freebsd32_kevent_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->changelist; /* const struct kevent32 * */
-		iarg[2] = p->nchanges; /* int */
-		uarg[3] = (intptr_t) p->eventlist; /* struct kevent32 * */
-		iarg[4] = p->nevents; /* int */
-		uarg[5] = (intptr_t) p->timeout; /* const struct timespec32 * */
-		*n_args = 6;
-		break;
-	}
 	/* extattr_set_fd */
 	case 371: {
 		struct extattr_set_fd_args *p = params;
@@ -3264,6 +3252,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->mode; /* mode_t */
 		iarg[3] = p->dev; /* dev_t */
 		*n_args = 4;
+		break;
+	}
+	/* freebsd32_kevent */
+	case 560: {
+		struct freebsd32_kevent_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->changelist; /* const struct kevent32 * */
+		iarg[2] = p->nchanges; /* int */
+		uarg[3] = (intptr_t) p->eventlist; /* struct kevent32 * */
+		iarg[4] = p->nevents; /* int */
+		uarg[5] = (intptr_t) p->timeout; /* const struct timespec32 * */
+		*n_args = 6;
 		break;
 	}
 	default:
@@ -6088,31 +6088,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* kqueue */
 	case 362:
 		break;
-	/* freebsd32_kevent */
-	case 363:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland const struct kevent32 *";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "userland struct kevent32 *";
-			break;
-		case 4:
-			p = "int";
-			break;
-		case 5:
-			p = "userland const struct timespec32 *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* extattr_set_fd */
 	case 371:
 		switch(ndx) {
@@ -8768,6 +8743,31 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_kevent */
+	case 560:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland const struct kevent32 *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "userland struct kevent32 *";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "userland const struct timespec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -9805,11 +9805,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* kqueue */
 	case 362:
-	/* freebsd32_kevent */
-	case 363:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* extattr_set_fd */
 	case 371:
 		if (ndx == 0 || ndx == 1)
@@ -10616,6 +10611,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* mknodat */
 	case 559:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kevent */
+	case 560:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

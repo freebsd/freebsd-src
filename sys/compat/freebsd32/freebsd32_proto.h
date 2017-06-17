@@ -294,14 +294,6 @@ struct freebsd32_aio_waitcomplete_args {
 	char aiocbp_l_[PADL_(struct aiocb32 **)]; struct aiocb32 ** aiocbp; char aiocbp_r_[PADR_(struct aiocb32 **)];
 	char timeout_l_[PADL_(struct timespec32 *)]; struct timespec32 * timeout; char timeout_r_[PADR_(struct timespec32 *)];
 };
-struct freebsd32_kevent_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(const struct kevent32 *)]; const struct kevent32 * changelist; char changelist_r_[PADR_(const struct kevent32 *)];
-	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
-	char eventlist_l_[PADL_(struct kevent32 *)]; struct kevent32 * eventlist; char eventlist_r_[PADR_(struct kevent32 *)];
-	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
-	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
-};
 struct freebsd32_nmount_args {
 	char iovp_l_[PADL_(struct iovec32 *)]; struct iovec32 * iovp; char iovp_r_[PADR_(struct iovec32 *)];
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
@@ -693,6 +685,14 @@ struct freebsd32_getdirentries_args {
 	char count_l_[PADL_(size_t)]; size_t count; char count_r_[PADR_(size_t)];
 	char basep_l_[PADL_(int32_t *)]; int32_t * basep; char basep_r_[PADR_(int32_t *)];
 };
+struct freebsd32_kevent_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char changelist_l_[PADL_(const struct kevent32 *)]; const struct kevent32 * changelist; char changelist_r_[PADR_(const struct kevent32 *)];
+	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
+	char eventlist_l_[PADL_(struct kevent32 *)]; struct kevent32 * eventlist; char eventlist_r_[PADR_(struct kevent32 *)];
+	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
+};
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
@@ -747,7 +747,6 @@ int	freebsd32_jail(struct thread *, struct freebsd32_jail_args *);
 int	freebsd32_sigtimedwait(struct thread *, struct freebsd32_sigtimedwait_args *);
 int	freebsd32_sigwaitinfo(struct thread *, struct freebsd32_sigwaitinfo_args *);
 int	freebsd32_aio_waitcomplete(struct thread *, struct freebsd32_aio_waitcomplete_args *);
-int	freebsd32_kevent(struct thread *, struct freebsd32_kevent_args *);
 int	freebsd32_nmount(struct thread *, struct freebsd32_nmount_args *);
 int	freebsd32_sendfile(struct thread *, struct freebsd32_sendfile_args *);
 int	freebsd32_ksem_init(struct thread *, struct freebsd32_ksem_init_args *);
@@ -823,6 +822,7 @@ int	freebsd32_fstat(struct thread *, struct freebsd32_fstat_args *);
 int	freebsd32_fstatat(struct thread *, struct freebsd32_fstatat_args *);
 int	freebsd32_fhstat(struct thread *, struct freebsd32_fhstat_args *);
 int	freebsd32_getdirentries(struct thread *, struct freebsd32_getdirentries_args *);
+int	freebsd32_kevent(struct thread *, struct freebsd32_kevent_args *);
 
 #ifdef COMPAT_43
 
@@ -1165,6 +1165,14 @@ struct freebsd11_freebsd32_fhstat_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
 	char sb_l_[PADL_(struct freebsd11_stat32 *)]; struct freebsd11_stat32 * sb; char sb_r_[PADR_(struct freebsd11_stat32 *)];
 };
+struct freebsd11_freebsd32_kevent_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char changelist_l_[PADL_(const struct kevent32_freebsd11 *)]; const struct kevent32_freebsd11 * changelist; char changelist_r_[PADR_(const struct kevent32_freebsd11 *)];
+	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
+	char eventlist_l_[PADL_(struct kevent32_freebsd11 *)]; struct kevent32_freebsd11 * eventlist; char eventlist_r_[PADR_(struct kevent32_freebsd11 *)];
+	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
+};
 #ifdef PAD64_REQUIRED
 #else
 #endif
@@ -1196,6 +1204,7 @@ int	freebsd11_freebsd32_lstat(struct thread *, struct freebsd11_freebsd32_lstat_
 int	freebsd11_freebsd32_getdirentries(struct thread *, struct freebsd11_freebsd32_getdirentries_args *);
 int	freebsd11_freebsd32_getdents(struct thread *, struct freebsd11_freebsd32_getdents_args *);
 int	freebsd11_freebsd32_fhstat(struct thread *, struct freebsd11_freebsd32_fhstat_args *);
+int	freebsd11_freebsd32_kevent(struct thread *, struct freebsd11_freebsd32_kevent_args *);
 int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fstatat_args *);
 int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mknodat_args *);
 
@@ -1294,7 +1303,7 @@ int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mkno
 #define	FREEBSD32_SYS_AUE_freebsd32_sigtimedwait	AUE_SIGWAIT
 #define	FREEBSD32_SYS_AUE_freebsd32_sigwaitinfo	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_waitcomplete	AUE_AIO_WAITCOMPLETE
-#define	FREEBSD32_SYS_AUE_freebsd32_kevent	AUE_KEVENT
+#define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_kevent	AUE_KEVENT
 #define	FREEBSD32_SYS_AUE_freebsd32_nmount	AUE_NMOUNT
 #define	FREEBSD32_SYS_AUE_freebsd32_sendfile	AUE_SENDFILE
 #define	FREEBSD32_SYS_AUE_freebsd32_ksem_init	AUE_SEMINIT
@@ -1360,6 +1369,7 @@ int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mkno
 #define	FREEBSD32_SYS_AUE_freebsd32_fstatat	AUE_FSTATAT
 #define	FREEBSD32_SYS_AUE_freebsd32_fhstat	AUE_FHSTAT
 #define	FREEBSD32_SYS_AUE_freebsd32_getdirentries	AUE_GETDIRENTRIES
+#define	FREEBSD32_SYS_AUE_freebsd32_kevent	AUE_KEVENT
 
 #undef PAD_
 #undef PADL_
