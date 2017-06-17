@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2016
+.Dd February 23, 2017
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -176,6 +176,11 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
+.It Va DTC
+.Pq Vt str
+Select the compiler for DTS (Device Tree Syntax) file.
+.Va DTC
+is initially set to the value of dtc
 .It Va INSTALL
 .Pq Vt str
 the default install command.
