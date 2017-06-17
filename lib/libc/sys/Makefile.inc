@@ -421,8 +421,7 @@ MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
-	pdfork.2 pdkill.2 \
-	pdfork.2 pdwait4.2
+	pdfork.2 pdkill.2
 MLINKS+=pipe.2 pipe2.2
 MLINKS+=poll.2 ppoll.2
 MLINKS+=rctl_add_rule.2 rctl_get_limits.2 \
