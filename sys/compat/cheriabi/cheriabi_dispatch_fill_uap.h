@@ -224,7 +224,6 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_getresuid] = (fill_uap_fp)CHERIABI_SYS_getresuid_fill_uap,
 	[CHERIABI_SYS_getresgid] = (fill_uap_fp)CHERIABI_SYS_getresgid_fill_uap,
 	[CHERIABI_SYS_kqueue] = nop_fill_uap,
-	[CHERIABI_SYS_cheriabi_kevent] = (fill_uap_fp)CHERIABI_SYS_cheriabi_kevent_fill_uap,
 	[CHERIABI_SYS_extattr_set_fd] = (fill_uap_fp)CHERIABI_SYS_extattr_set_fd_fill_uap,
 	[CHERIABI_SYS_extattr_get_fd] = (fill_uap_fp)CHERIABI_SYS_extattr_get_fd_fill_uap,
 	[CHERIABI_SYS_extattr_delete_fd] = (fill_uap_fp)CHERIABI_SYS_extattr_delete_fd_fill_uap,
@@ -379,6 +378,7 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_getfsstat] = (fill_uap_fp)CHERIABI_SYS_getfsstat_fill_uap,
 	[CHERIABI_SYS_fhstatfs] = (fill_uap_fp)CHERIABI_SYS_fhstatfs_fill_uap,
 	[CHERIABI_SYS_mknodat] = (fill_uap_fp)CHERIABI_SYS_mknodat_fill_uap,
+	[CHERIABI_SYS_cheriabi_kevent] = (fill_uap_fp)CHERIABI_SYS_cheriabi_kevent_fill_uap,
 };
 
 static inline int

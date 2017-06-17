@@ -4955,63 +4955,6 @@ CHERIABI_SYS_getresgid_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_cheriabi_kevent_fill_uap(struct thread *td,
-    struct cheriabi_kevent_args *uap)
-{
-	void * __capability tmpcap;
-
-	/* [0] int fd */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-	uap->fd = (register_t)tmpcap;
-
-	/* [2] int nchanges */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-	uap->nchanges = (register_t)tmpcap;
-
-	/* [4] int nevents */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 4, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-	uap->nevents = (register_t)tmpcap;
-
-	/* [1] _In_reads_opt_(nchanges) const struct kevent_c * changelist */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->changelist),
-		    tmpcap, (sizeof(*uap->changelist) * uap->nchanges), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [3] _In_reads_opt_(nevents) struct kevent_c * eventlist */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->eventlist),
-		    tmpcap, (sizeof(*uap->eventlist) * uap->nevents), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [5] _In_opt_ const struct timespec * timeout */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, 5, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->timeout),
-		    tmpcap, sizeof(*uap->timeout), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_extattr_set_fd_fill_uap(struct thread *td,
     struct extattr_set_fd_args *uap)
 {
@@ -9535,6 +9478,63 @@ CHERIABI_SYS_mknodat_fill_uap(struct thread *td,
 		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_mknodat_PTRMASK);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->path),
 		    tmpcap, sizeof(*uap->path), reqperms, 0);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static inline int
+CHERIABI_SYS_cheriabi_kevent_fill_uap(struct thread *td,
+    struct cheriabi_kevent_args *uap)
+{
+	void * __capability tmpcap;
+
+	/* [0] int fd */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+	uap->fd = (register_t)tmpcap;
+
+	/* [2] int nchanges */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+	uap->nchanges = (register_t)tmpcap;
+
+	/* [4] int nevents */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 4, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+	uap->nevents = (register_t)tmpcap;
+
+	/* [1] _In_reads_opt_(nchanges) const struct kevent_c * changelist */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->changelist),
+		    tmpcap, (sizeof(*uap->changelist) * uap->nchanges), reqperms, 1);
+		if (error != 0)
+			return (error);
+	}
+
+	/* [3] _In_reads_opt_(nevents) struct kevent_c * eventlist */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->eventlist),
+		    tmpcap, (sizeof(*uap->eventlist) * uap->nevents), reqperms, 1);
+		if (error != 0)
+			return (error);
+	}
+
+	/* [5] _In_opt_ const struct timespec * timeout */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_LOAD);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 5, CHERIABI_SYS_cheriabi_kevent_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->timeout),
+		    tmpcap, sizeof(*uap->timeout), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}

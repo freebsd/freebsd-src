@@ -301,7 +301,6 @@
 #define	CHERIABI_SYS_getresuid	360
 #define	CHERIABI_SYS_getresgid	361
 #define	CHERIABI_SYS_kqueue	362
-#define	CHERIABI_SYS_cheriabi_kevent	363
 #define	CHERIABI_SYS_extattr_set_fd	371
 #define	CHERIABI_SYS_extattr_get_fd	372
 #define	CHERIABI_SYS_extattr_delete_fd	373
@@ -478,4 +477,5 @@
 #define	CHERIABI_SYS_getfsstat	557
 #define	CHERIABI_SYS_fhstatfs	558
 #define	CHERIABI_SYS_mknodat	559
-#define	CHERIABI_SYS_MAXSYSCALL	560
+#define	CHERIABI_SYS_cheriabi_kevent	560
+#define	CHERIABI_SYS_MAXSYSCALL	561

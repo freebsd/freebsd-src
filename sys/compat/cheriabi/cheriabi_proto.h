@@ -188,14 +188,6 @@ struct cheriabi_aio_waitcomplete_args {
 	char aiocbp_l_[PADL_(struct aiocb_c **)]; struct aiocb_c ** aiocbp; char aiocbp_r_[PADR_(struct aiocb_c **)];
 	char timeout_l_[PADL_(struct timespec *)]; struct timespec * timeout; char timeout_r_[PADR_(struct timespec *)];
 };
-struct cheriabi_kevent_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(const struct kevent_c *)]; const struct kevent_c * changelist; char changelist_r_[PADR_(const struct kevent_c *)];
-	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
-	char eventlist_l_[PADL_(struct kevent_c *)]; struct kevent_c * eventlist; char eventlist_r_[PADR_(struct kevent_c *)];
-	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
-	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
-};
 struct cheriabi_nmount_args {
 	char iovp_l_[PADL_(struct iovec_c *)]; struct iovec_c * iovp; char iovp_r_[PADR_(struct iovec_c *)];
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
@@ -380,6 +372,14 @@ struct cheriabi_procctl_args {
 	char com_l_[PADL_(int)]; int com; char com_r_[PADR_(int)];
 	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 };
+struct cheriabi_kevent_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char changelist_l_[PADL_(const struct kevent_c *)]; const struct kevent_c * changelist; char changelist_r_[PADR_(const struct kevent_c *)];
+	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
+	char eventlist_l_[PADL_(struct kevent_c *)]; struct kevent_c * eventlist; char eventlist_r_[PADR_(struct kevent_c *)];
+	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
+};
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
@@ -414,7 +414,6 @@ int	cheriabi_jail(struct thread *, struct cheriabi_jail_args *);
 int	cheriabi_sigtimedwait(struct thread *, struct cheriabi_sigtimedwait_args *);
 int	cheriabi_sigwaitinfo(struct thread *, struct cheriabi_sigwaitinfo_args *);
 int	cheriabi_aio_waitcomplete(struct thread *, struct cheriabi_aio_waitcomplete_args *);
-int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 int	cheriabi_nmount(struct thread *, struct cheriabi_nmount_args *);
 int	cheriabi___mac_get_proc(struct thread *, struct cheriabi___mac_get_proc_args *);
 int	cheriabi___mac_set_proc(struct thread *, struct cheriabi___mac_set_proc_args *);
@@ -452,6 +451,7 @@ int	cheriabi_msgctl(struct thread *, struct cheriabi_msgctl_args *);
 int	cheriabi_wait6(struct thread *, struct cheriabi_wait6_args *);
 int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
+int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 
 #ifdef COMPAT_43
 
@@ -537,7 +537,6 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_sigtimedwait	AUE_SIGWAIT
 #define	CHERIABI_SYS_AUE_cheriabi_sigwaitinfo	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_aio_waitcomplete	AUE_AIO_WAITCOMPLETE
-#define	CHERIABI_SYS_AUE_cheriabi_kevent	AUE_KEVENT
 #define	CHERIABI_SYS_AUE_cheriabi_nmount	AUE_NMOUNT
 #define	CHERIABI_SYS_AUE_cheriabi___mac_get_proc	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi___mac_set_proc	AUE_NULL
@@ -575,6 +574,7 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_wait6	AUE_WAIT6
 #define	CHERIABI_SYS_AUE_cheriabi_aio_mlock	AUE_AIO_MLOCK
 #define	CHERIABI_SYS_AUE_cheriabi_procctl	AUE_PROCCTL
+#define	CHERIABI_SYS_AUE_cheriabi_kevent	AUE_KEVENT
 
 #undef PAD_
 #undef PADL_

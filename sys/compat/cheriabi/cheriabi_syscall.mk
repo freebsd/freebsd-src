@@ -211,7 +211,6 @@ MIASM =  \
 	getresuid.o \
 	getresgid.o \
 	kqueue.o \
-	cheriabi_kevent.o \
 	extattr_set_fd.o \
 	extattr_get_fd.o \
 	extattr_delete_fd.o \
@@ -365,4 +364,5 @@ MIASM =  \
 	fstatfs.o \
 	getfsstat.o \
 	fhstatfs.o \
-	mknodat.o
+	mknodat.o \
+	cheriabi_kevent.o

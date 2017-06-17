@@ -18,8 +18,8 @@
 struct __wrusage;
 struct acl;
 struct aiocb;
-struct auditinfo_addr;
 struct auditinfo;
+struct auditinfo_addr;
 struct ffclock_estimate;
 struct fhandle;
 struct iovec;
@@ -2101,16 +2101,6 @@ SYS_STUB(362, int, kqueue,
     /* _localcheck */ {}
 )
 
-SYS_STUB_ARGHASPTRS(363, int, kevent,
-    /* _protoargs */ (int fd, const struct kevent* changelist, int nchanges, struct kevent* eventlist, int nevents, const struct timespec * timeout),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const struct kevent* __capability  changelist, int nchanges, struct kevent* __capability  eventlist, int nevents, const struct timespec * __capability  timeout),
-    /* _protoargs_err */ (__capability int *stub_errno, int fd, const struct kevent* __capability  changelist, int nchanges, struct kevent* __capability  eventlist, int nevents, const struct timespec * __capability  timeout),
-    /* _callargs */ (fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout),
-    /* _callargs_chk */ (&ret, stub_errno, fd, changelist, nchanges, eventlist, nevents, timeout),
-    /* _callargs_err */ (&errno, fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout),
-    /* _localcheck */ {if (!(cheri_getperm(changelist) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(eventlist) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(timeout) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
-)
-
 SYS_STUB(371, ssize_t, extattr_set_fd,
     /* _protoargs */ (int fd, int attrnamespace, const char * attrname, void * data, size_t nbytes),
     /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int fd, int attrnamespace, const char * __capability  attrname, void * __capability  data, size_t nbytes),
@@ -3600,5 +3590,15 @@ SYS_STUB(559, int, mknodat,
     /* _callargs_chk */ (&ret, stub_errno, fd, path, mode, dev),
     /* _callargs_err */ (&errno, fd, (const char *)path, mode, dev),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
+)
+
+SYS_STUB_ARGHASPTRS(560, int, kevent,
+    /* _protoargs */ (int fd, const struct kevent* changelist, int nchanges, struct kevent* eventlist, int nevents, const struct timespec * timeout),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const struct kevent* __capability  changelist, int nchanges, struct kevent* __capability  eventlist, int nevents, const struct timespec * __capability  timeout),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, const struct kevent* __capability  changelist, int nchanges, struct kevent* __capability  eventlist, int nevents, const struct timespec * __capability  timeout),
+    /* _callargs */ (fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout),
+    /* _callargs_chk */ (&ret, stub_errno, fd, changelist, nchanges, eventlist, nevents, timeout),
+    /* _callargs_err */ (&errno, fd, (const struct kevent*)changelist, nchanges, (struct kevent*)eventlist, nevents, (const struct timespec *)timeout),
+    /* _localcheck */ {if (!(cheri_getperm(changelist) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(eventlist) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(timeout) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

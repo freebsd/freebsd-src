@@ -372,7 +372,7 @@ const char *cheriabi_syscallnames[] = {
 	"getresuid",			/* 360 = getresuid */
 	"getresgid",			/* 361 = getresgid */
 	"kqueue",			/* 362 = kqueue */
-	"cheriabi_kevent",			/* 363 = cheriabi_kevent */
+	"#363",			/* 363 = kevent11 */
 	"#364",			/* 364 = __cap_get_proc */
 	"#365",			/* 365 = __cap_set_proc */
 	"#366",			/* 366 = __cap_get_fd */
@@ -569,4 +569,5 @@ const char *cheriabi_syscallnames[] = {
 	"getfsstat",			/* 557 = getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
 	"mknodat",			/* 559 = mknodat */
+	"cheriabi_kevent",			/* 560 = cheriabi_kevent */
 };

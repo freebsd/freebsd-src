@@ -198,7 +198,6 @@
 #define	CHERIABI_SYS_cheriabi_aio_waitcomplete_PTRMASK	(0x0 | 0x1 | 0x2)
 #define	CHERIABI_SYS_getresuid_PTRMASK	(0x0 | 0x1 | 0x2 | 0x4)
 #define	CHERIABI_SYS_getresgid_PTRMASK	(0x0 | 0x1 | 0x2 | 0x4)
-#define	CHERIABI_SYS_cheriabi_kevent_PTRMASK	(0x0 | 0x2 | 0x8 | 0x20)
 #define	CHERIABI_SYS_extattr_set_fd_PTRMASK	(0x0 | 0x4 | 0x8)
 #define	CHERIABI_SYS_extattr_get_fd_PTRMASK	(0x0 | 0x4 | 0x8)
 #define	CHERIABI_SYS_extattr_delete_fd_PTRMASK	(0x0 | 0x4)
@@ -352,4 +351,5 @@
 #define	CHERIABI_SYS_getfsstat_PTRMASK	(0x0 | 0x1)
 #define	CHERIABI_SYS_fhstatfs_PTRMASK	(0x0 | 0x1 | 0x2)
 #define	CHERIABI_SYS_mknodat_PTRMASK	(0x0 | 0x2)
+#define	CHERIABI_SYS_cheriabi_kevent_PTRMASK	(0x0 | 0x2 | 0x8 | 0x20)
 #endif /* !_CHERIABI_SYSARGMAP_H_ */

@@ -299,7 +299,7 @@
 #define	FREEBSD32_SYS_getresuid	360
 #define	FREEBSD32_SYS_getresgid	361
 #define	FREEBSD32_SYS_kqueue	362
-#define	FREEBSD32_SYS_freebsd32_kevent	363
+#define	FREEBSD32_SYS_freebsd11_freebsd32_kevent	363
 #define	FREEBSD32_SYS_extattr_set_fd	371
 #define	FREEBSD32_SYS_extattr_get_fd	372
 #define	FREEBSD32_SYS_extattr_delete_fd	373
@@ -467,4 +467,5 @@
 #define	FREEBSD32_SYS_getfsstat	557
 #define	FREEBSD32_SYS_fhstatfs	558
 #define	FREEBSD32_SYS_mknodat	559
-#define	FREEBSD32_SYS_MAXSYSCALL	560
+#define	FREEBSD32_SYS_freebsd32_kevent	560
+#define	FREEBSD32_SYS_MAXSYSCALL	561
