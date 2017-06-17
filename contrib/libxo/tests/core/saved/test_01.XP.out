@@ -1,4 +1,5 @@
 <top>
+  <used-percent>12</used-percent>
   <kve_start>0xdeadbeef</kve_start>
   <kve_end>0xcabb1e</kve_end>
   <host>my-box</host>
@@ -108,6 +109,9 @@
   <links>links</links>
   <user>user</user>
   <group>group</group>
+  <pre>that</pre>
+  <links>3</links>
+  <post>this</post>
   <mode>/some/file</mode>
   <mode_octal>640</mode_octal>
   <links>1</links>

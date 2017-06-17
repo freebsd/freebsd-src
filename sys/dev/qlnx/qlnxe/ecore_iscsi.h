@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_ISCSI_H__
 #define __ECORE_ISCSI_H__
 

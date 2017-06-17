@@ -129,6 +129,7 @@ ecore_sp_fcoe_func_start(struct ecore_hwfn *p_hwfn,
 
 enum _ecore_status_t
 ecore_sp_fcoe_func_stop(struct ecore_hwfn *p_hwfn,
+			struct ecore_ptt *p_ptt,
 			enum spq_mode comp_mode,
 			struct ecore_spq_comp_cb *p_comp_addr);
 

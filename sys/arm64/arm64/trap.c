@@ -92,15 +92,17 @@ call_trapsignal(struct thread *td, int sig, int code, void *addr)
 }
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	register_t *ap;
+	struct syscall_args *sa;
 	int nap;
 
 	nap = 8;
 	p = td->td_proc;
 	ap = td->td_frame->tf_x;
+	sa = &td->td_sa;
 
 	sa->code = td->td_frame->tf_x[8];
 
@@ -132,12 +134,11 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 static void
 svc_handler(struct thread *td, struct trapframe *frame)
 {
-	struct syscall_args sa;
 	int error;
 
 	if ((frame->tf_esr & ESR_ELx_ISS_MASK) == 0) {
-		error = syscallenter(td, &sa);
-		syscallret(td, error, &sa);
+		error = syscallenter(td);
+		syscallret(td, error);
 	} else {
 		call_trapsignal(td, SIGILL, ILL_ILLOPN, (void *)frame->tf_elr);
 		userret(td, frame);

@@ -135,12 +135,7 @@ MAN=	aac.4 \
 	dpt.4 \
 	ds1307.4 \
 	ds3231.4 \
-	${_dtrace_io.4} \
-	${_dtrace_ip.4} \
-	${_dtrace_proc.4} \
-	${_dtrace_sched.4} \
-	${_dtrace_tcp.4} \
-	${_dtrace_udp.4} \
+	${_dtrace_provs} \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
@@ -873,12 +868,13 @@ _ccd.4=		ccd.4
 .endif
 
 .if ${MK_CDDL} != "no"
-_dtrace_io.4=	dtrace_io.4
-_dtrace_ip.4=	dtrace_ip.4
-_dtrace_proc.4=	dtrace_proc.4
-_dtrace_sched.4= dtrace_sched.4
-_dtrace_tcp.4=	dtrace_tcp.4
-_dtrace_udp.4=	dtrace_udp.4
+_dtrace_provs=	dtrace_io.4 \
+		dtrace_ip.4 \
+		dtrace_lockstat.4 \
+		dtrace_proc.4 \
+		dtrace_sched.4 \
+		dtrace_tcp.4 \
+		dtrace_udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"

@@ -32,6 +32,10 @@
 
 #include "partedit.h"
 
+/* EFI partition size in bytes */
+#define	EFI_BOOTPART_SIZE	(200 * 1024 * 1024)
+#define	EFI_BOOTPART_PATH	"/boot/boot1.efifat"
+
 static const char *
 x86_bootmethod(void)
 {
@@ -99,7 +103,7 @@ bootpart_size(const char *scheme)
 	if (strcmp(x86_bootmethod(), "BIOS") == 0)
 		return (512*1024);
 	else 
-		return (200*1024*1024);
+		return (EFI_BOOTPART_SIZE);
 
 	return (0);
 }
@@ -137,7 +141,7 @@ partcode_path(const char *part_type, const char *fs_type)
 
 	if (strcmp(part_type, "GPT") == 0) {
 		if (strcmp(x86_bootmethod(), "UEFI") == 0)
-			return ("/boot/boot1.efifat");
+			return (EFI_BOOTPART_PATH);
 		else if (strcmp(fs_type, "zfs") == 0)
 			return ("/boot/gptzfsboot");
 		else

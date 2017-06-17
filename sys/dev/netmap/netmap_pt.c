@@ -170,7 +170,7 @@ rate_batch_stats_update(struct rate_batch_stats *bf, uint32_t pre_tail,
 
 struct ptnetmap_state {
     /* Kthreads. */
-    struct nm_kthread **kthreads;
+    struct nm_kctx **kctxs;
 
     /* Shared memory with the guest (TX/RX) */
     struct ptnet_ring __user *ptrings;
@@ -186,11 +186,11 @@ struct ptnetmap_state {
 static inline void
 ptnetmap_kring_dump(const char *title, const struct netmap_kring *kring)
 {
-    RD(1, "%s - name: %s hwcur: %d hwtail: %d rhead: %d rcur: %d \
-    		    rtail: %d head: %d cur: %d tail: %d",
-            title, kring->name, kring->nr_hwcur,
-            kring->nr_hwtail, kring->rhead, kring->rcur, kring->rtail,
-            kring->ring->head, kring->ring->cur, kring->ring->tail);
+	D("%s - name: %s hwcur: %d hwtail: %d rhead: %d rcur: %d"
+		" rtail: %d head: %d cur: %d tail: %d",
+		title, kring->name, kring->nr_hwcur,
+		kring->nr_hwtail, kring->rhead, kring->rcur, kring->rtail,
+		kring->ring->head, kring->ring->cur, kring->ring->tail);
 }
 
 /*
@@ -225,7 +225,7 @@ ptring_intr_enable(struct ptnet_ring __user *ptring, uint32_t val)
 
 /* Handle TX events: from the guest or from the backend */
 static void
-ptnetmap_tx_handler(void *data)
+ptnetmap_tx_handler(void *data, int is_kthread)
 {
     struct netmap_kring *kring = data;
     struct netmap_pt_host_adapter *pth_na =
@@ -234,7 +234,7 @@ ptnetmap_tx_handler(void *data)
     struct ptnet_ring __user *ptring;
     struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
     bool more_txspace = false;
-    struct nm_kthread *kth;
+    struct nm_kctx *kth;
     uint32_t num_slots;
     int batch;
     IFRATE(uint32_t pre_tail);
@@ -259,7 +259,7 @@ ptnetmap_tx_handler(void *data)
 
     /* Get TX ptring pointer from the CSB. */
     ptring = ptns->ptrings + kring->ring_id;
-    kth = ptns->kthreads[kring->ring_id];
+    kth = ptns->kctxs[kring->ring_id];
 
     num_slots = kring->nkr_num_slots;
     shadow_ring.head = kring->rhead;
@@ -337,10 +337,10 @@ ptnetmap_tx_handler(void *data)
 
 #ifndef BUSY_WAIT
         /* Interrupt the guest if needed. */
-        if (more_txspace && ptring_intr_enabled(ptring)) {
+        if (more_txspace && ptring_intr_enabled(ptring) && is_kthread) {
             /* Disable guest kick to avoid sending unnecessary kicks */
             ptring_intr_enable(ptring, 0);
-            nm_os_kthread_send_irq(kth);
+            nm_os_kctx_send_irq(kth);
             IFRATE(ptns->rate_ctx.new.htxk++);
             more_txspace = false;
         }
@@ -354,7 +354,9 @@ ptnetmap_tx_handler(void *data)
              * go to sleep, waiting for a kick from the guest when new
              * new slots are ready for transmission.
              */
-            usleep_range(1,1);
+            if (is_kthread) {
+                usleep_range(1,1);
+            }
             /* Reenable notifications. */
             ptring_kick_enable(ptring, 1);
             /* Doublecheck. */
@@ -383,11 +385,38 @@ ptnetmap_tx_handler(void *data)
 
     nm_kr_put(kring);
 
-    if (more_txspace && ptring_intr_enabled(ptring)) {
+    if (more_txspace && ptring_intr_enabled(ptring) && is_kthread) {
         ptring_intr_enable(ptring, 0);
-        nm_os_kthread_send_irq(kth);
+        nm_os_kctx_send_irq(kth);
         IFRATE(ptns->rate_ctx.new.htxk++);
     }
+}
+
+/* Called on backend nm_notify when there is no worker thread. */
+static void
+ptnetmap_tx_nothread_notify(void *data)
+{
+	struct netmap_kring *kring = data;
+	struct netmap_pt_host_adapter *pth_na =
+		(struct netmap_pt_host_adapter *)kring->na->na_private;
+	struct ptnetmap_state *ptns = pth_na->ptns;
+
+	if (unlikely(!ptns)) {
+		D("ERROR ptnetmap state is NULL");
+		return;
+	}
+
+	if (unlikely(ptns->stopped)) {
+		D("backend netmap is being stopped");
+		return;
+	}
+
+	/* We cannot access the CSB here (to check ptring->guest_need_kick),
+	 * unless we switch address space to the one of the guest. For now
+	 * we unconditionally inject an interrupt. */
+	nm_os_kctx_send_irq(ptns->kctxs[kring->ring_id]);
+	IFRATE(ptns->rate_ctx.new.htxk++);
+	ND(1, "%s interrupt", kring->name);
 }
 
 /*
@@ -405,7 +434,7 @@ ptnetmap_norxslots(struct netmap_kring *kring, uint32_t g_head)
 
 /* Handle RX events: from the guest or from the backend */
 static void
-ptnetmap_rx_handler(void *data)
+ptnetmap_rx_handler(void *data, int is_kthread)
 {
     struct netmap_kring *kring = data;
     struct netmap_pt_host_adapter *pth_na =
@@ -413,7 +442,7 @@ ptnetmap_rx_handler(void *data)
     struct ptnetmap_state *ptns = pth_na->ptns;
     struct ptnet_ring __user *ptring;
     struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
-    struct nm_kthread *kth;
+    struct nm_kctx *kth;
     uint32_t num_slots;
     int dry_cycles = 0;
     bool some_recvd = false;
@@ -440,7 +469,7 @@ ptnetmap_rx_handler(void *data)
 
     /* Get RX ptring pointer from the CSB. */
     ptring = ptns->ptrings + (pth_na->up.num_tx_rings + kring->ring_id);
-    kth = ptns->kthreads[pth_na->up.num_tx_rings + kring->ring_id];
+    kth = ptns->kctxs[pth_na->up.num_tx_rings + kring->ring_id];
 
     num_slots = kring->nkr_num_slots;
     shadow_ring.head = kring->rhead;
@@ -500,7 +529,7 @@ ptnetmap_rx_handler(void *data)
         if (some_recvd && ptring_intr_enabled(ptring)) {
             /* Disable guest kick to avoid sending unnecessary kicks */
             ptring_intr_enable(ptring, 0);
-            nm_os_kthread_send_irq(kth);
+            nm_os_kctx_send_irq(kth);
             IFRATE(ptns->rate_ctx.new.hrxk++);
             some_recvd = false;
         }
@@ -549,7 +578,7 @@ ptnetmap_rx_handler(void *data)
     /* Interrupt the guest if needed. */
     if (some_recvd && ptring_intr_enabled(ptring)) {
         ptring_intr_enable(ptring, 0);
-        nm_os_kthread_send_irq(kth);
+        nm_os_kctx_send_irq(kth);
         IFRATE(ptns->rate_ctx.new.hrxk++);
     }
 }
@@ -597,14 +626,14 @@ ptnetmap_print_configuration(struct ptnetmap_cfg *cfg)
 static int
 ptnetmap_kring_snapshot(struct netmap_kring *kring, struct ptnet_ring __user *ptring)
 {
-    if(CSB_WRITE(ptring, head, kring->rhead))
+    if (CSB_WRITE(ptring, head, kring->rhead))
         goto err;
-    if(CSB_WRITE(ptring, cur, kring->rcur))
+    if (CSB_WRITE(ptring, cur, kring->rcur))
         goto err;
 
-    if(CSB_WRITE(ptring, hwcur, kring->nr_hwcur))
+    if (CSB_WRITE(ptring, hwcur, kring->nr_hwcur))
         goto err;
-    if(CSB_WRITE(ptring, hwtail, NM_ACCESS_ONCE(kring->nr_hwtail)))
+    if (CSB_WRITE(ptring, hwtail, NM_ACCESS_ONCE(kring->nr_hwtail)))
         goto err;
 
     DBG(ptnetmap_kring_dump("ptnetmap_kring_snapshot", kring);)
@@ -643,15 +672,15 @@ ptnetmap_krings_snapshot(struct netmap_pt_host_adapter *pth_na)
 }
 
 /*
- * Functions to create, start and stop the kthreads
+ * Functions to create kernel contexts, and start/stop the workers.
  */
 
 static int
-ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
-			 struct ptnetmap_cfg *cfg)
+ptnetmap_create_kctxs(struct netmap_pt_host_adapter *pth_na,
+		      struct ptnetmap_cfg *cfg, int use_tx_kthreads)
 {
 	struct ptnetmap_state *ptns = pth_na->ptns;
-	struct nm_kthread_cfg nmk_cfg;
+	struct nm_kctx_cfg nmk_cfg;
 	unsigned int num_rings;
 	uint8_t *cfg_entries = (uint8_t *)(cfg + 1);
 	int k;
@@ -665,13 +694,16 @@ ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
 		nmk_cfg.type = k;
 		if (k < pth_na->up.num_tx_rings) {
 			nmk_cfg.worker_fn = ptnetmap_tx_handler;
+			nmk_cfg.use_kthread = use_tx_kthreads;
+			nmk_cfg.notify_fn = ptnetmap_tx_nothread_notify;
 		} else {
 			nmk_cfg.worker_fn = ptnetmap_rx_handler;
+			nmk_cfg.use_kthread = 1;
 		}
 
-		ptns->kthreads[k] = nm_os_kthread_create(&nmk_cfg,
+		ptns->kctxs[k] = nm_os_kctx_create(&nmk_cfg,
 			cfg->cfgtype, cfg_entries + k * cfg->entry_size);
-		if (ptns->kthreads[k] == NULL) {
+		if (ptns->kctxs[k] == NULL) {
 			goto err;
 		}
 	}
@@ -679,16 +711,16 @@ ptnetmap_create_kthreads(struct netmap_pt_host_adapter *pth_na,
 	return 0;
 err:
 	for (k = 0; k < num_rings; k++) {
-		if (ptns->kthreads[k]) {
-			nm_os_kthread_delete(ptns->kthreads[k]);
-			ptns->kthreads[k] = NULL;
+		if (ptns->kctxs[k]) {
+			nm_os_kctx_destroy(ptns->kctxs[k]);
+			ptns->kctxs[k] = NULL;
 		}
 	}
 	return EFAULT;
 }
 
 static int
-ptnetmap_start_kthreads(struct netmap_pt_host_adapter *pth_na)
+ptnetmap_start_kctx_workers(struct netmap_pt_host_adapter *pth_na)
 {
 	struct ptnetmap_state *ptns = pth_na->ptns;
 	int num_rings;
@@ -705,8 +737,8 @@ ptnetmap_start_kthreads(struct netmap_pt_host_adapter *pth_na)
 	num_rings = ptns->pth_na->up.num_tx_rings +
 		    ptns->pth_na->up.num_rx_rings;
 	for (k = 0; k < num_rings; k++) {
-		//nm_os_kthread_set_affinity(ptns->kthreads[k], xxx);
-		error = nm_os_kthread_start(ptns->kthreads[k]);
+		//nm_os_kctx_worker_setaff(ptns->kctxs[k], xxx);
+		error = nm_os_kctx_worker_start(ptns->kctxs[k]);
 		if (error) {
 			return error;
 		}
@@ -716,7 +748,7 @@ ptnetmap_start_kthreads(struct netmap_pt_host_adapter *pth_na)
 }
 
 static void
-ptnetmap_stop_kthreads(struct netmap_pt_host_adapter *pth_na)
+ptnetmap_stop_kctx_workers(struct netmap_pt_host_adapter *pth_na)
 {
 	struct ptnetmap_state *ptns = pth_na->ptns;
 	int num_rings;
@@ -732,7 +764,7 @@ ptnetmap_stop_kthreads(struct netmap_pt_host_adapter *pth_na)
 	num_rings = ptns->pth_na->up.num_tx_rings +
 		    ptns->pth_na->up.num_rx_rings;
 	for (k = 0; k < num_rings; k++) {
-		nm_os_kthread_stop(ptns->kthreads[k]);
+		nm_os_kctx_worker_stop(ptns->kctxs[k]);
 	}
 }
 
@@ -750,14 +782,14 @@ ptnetmap_read_cfg(struct nmreq *nmr)
 	}
 
 	cfglen = sizeof(tmp) + tmp.num_rings * tmp.entry_size;
-	cfg = malloc(cfglen, M_DEVBUF, M_NOWAIT | M_ZERO);
+	cfg = nm_os_malloc(cfglen);
 	if (!cfg) {
 		return NULL;
 	}
 
 	if (copyin((const void *)*nmr_ptncfg, cfg, cfglen)) {
 		D("Full copyin() failed");
-		free(cfg, M_DEVBUF);
+		nm_os_free(cfg);
 		return NULL;
 	}
 
@@ -772,6 +804,7 @@ static int
 ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
 		struct ptnetmap_cfg *cfg)
 {
+    int use_tx_kthreads = ptnetmap_tx_workers; /* snapshot */
     struct ptnetmap_state *ptns;
     unsigned int num_rings;
     int ret, i;
@@ -790,13 +823,18 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
         return EINVAL;
     }
 
-    ptns = malloc(sizeof(*ptns) + num_rings * sizeof(*ptns->kthreads),
-		  M_DEVBUF, M_NOWAIT | M_ZERO);
+    if (!use_tx_kthreads && na_is_generic(pth_na->parent)) {
+        D("ERROR ptnetmap direct transmission not supported with "
+	  "passed-through emulated adapters");
+        return EOPNOTSUPP;
+    }
+
+    ptns = nm_os_malloc(sizeof(*ptns) + num_rings * sizeof(*ptns->kctxs));
     if (!ptns) {
         return ENOMEM;
     }
 
-    ptns->kthreads = (struct nm_kthread **)(ptns + 1);
+    ptns->kctxs = (struct nm_kctx **)(ptns + 1);
     ptns->stopped = true;
 
     /* Cross-link data structures. */
@@ -808,9 +846,9 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
 
     DBG(ptnetmap_print_configuration(cfg));
 
-    /* Create kthreads */
-    if ((ret = ptnetmap_create_kthreads(pth_na, cfg))) {
-        D("ERROR ptnetmap_create_kthreads()");
+    /* Create kernel contexts. */
+    if ((ret = ptnetmap_create_kctxs(pth_na, cfg, use_tx_kthreads))) {
+        D("ERROR ptnetmap_create_kctxs()");
         goto err;
     }
     /* Copy krings state into the CSB for the guest initialization */
@@ -819,10 +857,17 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
         goto err;
     }
 
-    /* Overwrite parent nm_notify krings callback. */
+    /* Overwrite parent nm_notify krings callback, and
+     * clear NAF_BDG_MAYSLEEP if needed. */
     pth_na->parent->na_private = pth_na;
     pth_na->parent_nm_notify = pth_na->parent->nm_notify;
     pth_na->parent->nm_notify = nm_unused_notify;
+    pth_na->parent_na_flags = pth_na->parent->na_flags;
+    if (!use_tx_kthreads) {
+        /* VALE port txsync is executed under spinlock on Linux, so
+         * we need to make sure the bridge cannot sleep. */
+        pth_na->parent->na_flags &= ~NAF_BDG_MAYSLEEP;
+    }
 
     for (i = 0; i < pth_na->parent->num_rx_rings; i++) {
         pth_na->up.rx_rings[i].save_notify =
@@ -849,7 +894,7 @@ ptnetmap_create(struct netmap_pt_host_adapter *pth_na,
 
 err:
     pth_na->ptns = NULL;
-    free(ptns, M_DEVBUF);
+    nm_os_free(ptns);
     return ret;
 }
 
@@ -870,6 +915,7 @@ ptnetmap_delete(struct netmap_pt_host_adapter *pth_na)
     /* Restore parent adapter callbacks. */
     pth_na->parent->nm_notify = pth_na->parent_nm_notify;
     pth_na->parent->na_private = NULL;
+    pth_na->parent->na_flags = pth_na->parent_na_flags;
 
     for (i = 0; i < pth_na->parent->num_rx_rings; i++) {
         pth_na->up.rx_rings[i].nm_notify =
@@ -882,17 +928,17 @@ ptnetmap_delete(struct netmap_pt_host_adapter *pth_na)
         pth_na->up.tx_rings[i].save_notify = NULL;
     }
 
-    /* Delete kthreads. */
+    /* Destroy kernel contexts. */
     num_rings = ptns->pth_na->up.num_tx_rings +
                 ptns->pth_na->up.num_rx_rings;
     for (i = 0; i < num_rings; i++) {
-        nm_os_kthread_delete(ptns->kthreads[i]);
-	ptns->kthreads[i] = NULL;
+        nm_os_kctx_destroy(ptns->kctxs[i]);
+	ptns->kctxs[i] = NULL;
     }
 
     IFRATE(del_timer(&ptns->rate_ctx.timer));
 
-    free(ptns, M_DEVBUF);
+    nm_os_free(ptns);
 
     pth_na->ptns = NULL;
 
@@ -932,21 +978,21 @@ ptnetmap_ctl(struct nmreq *nmr, struct netmap_adapter *na)
         cfg = ptnetmap_read_cfg(nmr);
         if (!cfg)
             break;
-        /* Create ptnetmap state (kthreads, ...) and switch parent
+        /* Create ptnetmap state (kctxs, ...) and switch parent
 	 * adapter to ptnetmap mode. */
         error = ptnetmap_create(pth_na, cfg);
-	free(cfg, M_DEVBUF);
+	nm_os_free(cfg);
         if (error)
             break;
         /* Start kthreads. */
-        error = ptnetmap_start_kthreads(pth_na);
+        error = ptnetmap_start_kctx_workers(pth_na);
         if (error)
             ptnetmap_delete(pth_na);
         break;
 
     case NETMAP_PT_HOST_DELETE:
         /* Stop kthreads. */
-        ptnetmap_stop_kthreads(pth_na);
+        ptnetmap_stop_kctx_workers(pth_na);
         /* Switch parent adapter back to normal mode and destroy
 	 * ptnetmap state (kthreads, ...). */
         ptnetmap_delete(pth_na);
@@ -994,7 +1040,7 @@ nm_pt_host_notify(struct netmap_kring *kring, int flags)
 		ND(1, "RX backend irq");
 		IFRATE(ptns->rate_ctx.new.brxwu++);
 	}
-	nm_os_kthread_wakeup_worker(ptns->kthreads[k]);
+	nm_os_kctx_worker_wakeup(ptns->kctxs[k]);
 
 	return NM_IRQ_COMPLETED;
 }
@@ -1136,7 +1182,7 @@ nm_pt_host_dtor(struct netmap_adapter *na)
 
     /* The equivalent of NETMAP_PT_HOST_DELETE if the hypervisor
      * didn't do it. */
-    ptnetmap_stop_kthreads(pth_na);
+    ptnetmap_stop_kctx_workers(pth_na);
     ptnetmap_delete(pth_na);
 
     parent->na_flags &= ~NAF_BUSY;
@@ -1147,7 +1193,8 @@ nm_pt_host_dtor(struct netmap_adapter *na)
 
 /* check if nmr is a request for a ptnetmap adapter that we can satisfy */
 int
-netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
+netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na,
+		struct netmap_mem_d *nmd, int create)
 {
     struct nmreq parent_nmr;
     struct netmap_adapter *parent; /* target adapter */
@@ -1162,7 +1209,7 @@ netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 
     D("Requesting a ptnetmap host adapter");
 
-    pth_na = malloc(sizeof(*pth_na), M_DEVBUF, M_NOWAIT | M_ZERO);
+    pth_na = nm_os_malloc(sizeof(*pth_na));
     if (pth_na == NULL) {
         D("ERROR malloc");
         return ENOMEM;
@@ -1174,7 +1221,7 @@ netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
      */
     memcpy(&parent_nmr, nmr, sizeof(parent_nmr));
     parent_nmr.nr_flags &= ~(NR_PTNETMAP_HOST);
-    error = netmap_get_na(&parent_nmr, &parent, &ifp, create);
+    error = netmap_get_na(&parent_nmr, &parent, &ifp, nmd, create);
     if (error) {
         D("parent lookup failed: %d", error);
         goto put_out_noputparent;
@@ -1216,7 +1263,7 @@ netmap_get_pt_host_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
      * directly. */
     pth_na->up.nm_notify = nm_unused_notify;
 
-    pth_na->up.nm_mem = parent->nm_mem;
+    pth_na->up.nm_mem = netmap_mem_get(parent->nm_mem);
 
     pth_na->up.na_flags |= NAF_HOST_RINGS;
 
@@ -1248,7 +1295,7 @@ put_out:
     if (ifp)
 	if_rele(ifp);
 put_out_noputparent:
-    free(pth_na, M_DEVBUF);
+    nm_os_free(pth_na);
     return error;
 }
 #endif /* WITH_PTNETMAP_HOST */
@@ -1290,8 +1337,8 @@ netmap_pt_guest_txsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
 	ptnetmap_guest_write_kring_csb(ptring, kring->rcur, kring->rhead);
 
         /* Ask for a kick from a guest to the host if needed. */
-	if ((kring->rhead != kring->nr_hwcur &&
-		NM_ACCESS_ONCE(ptring->host_need_kick)) ||
+	if (((kring->rhead != kring->nr_hwcur || nm_kr_txempty(kring))
+		&& NM_ACCESS_ONCE(ptring->host_need_kick)) ||
 			(flags & NAF_FORCE_RECLAIM)) {
 		ptring->sync_flags = flags;
 		notify = true;
@@ -1320,9 +1367,9 @@ netmap_pt_guest_txsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
 		}
 	}
 
-	ND(1, "TX - CSB: head:%u cur:%u hwtail:%u - KRING: head:%u cur:%u tail: %u",
-			ptring->head, ptring->cur, ptring->hwtail,
-			kring->rhead, kring->rcur, kring->nr_hwtail);
+	ND(1, "%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
+		kring->name, ptring->head, ptring->cur, ptring->hwtail,
+		kring->rhead, kring->rcur, kring->nr_hwtail);
 
 	return notify;
 }
@@ -1385,9 +1432,9 @@ netmap_pt_guest_rxsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
                 }
         }
 
-	ND(1, "RX - CSB: head:%u cur:%u hwtail:%u - KRING: head:%u cur:%u",
-		ptring->head, ptring->cur, ptring->hwtail,
-		kring->rhead, kring->rcur);
+	ND(1, "%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
+		kring->name, ptring->head, ptring->cur, ptring->hwtail,
+		kring->rhead, kring->rcur, kring->nr_hwtail);
 
 	return notify;
 }
@@ -1445,9 +1492,43 @@ ptnet_nm_dtor(struct netmap_adapter *na)
 	struct netmap_pt_guest_adapter *ptna =
 			(struct netmap_pt_guest_adapter *)na;
 
-	netmap_mem_put(ptna->dr.up.nm_mem);
+	netmap_mem_put(ptna->dr.up.nm_mem); // XXX is this needed?
 	memset(&ptna->dr, 0, sizeof(ptna->dr));
 	netmap_mem_pt_guest_ifp_del(na->nm_mem, na->ifp);
+}
+
+int
+netmap_pt_guest_attach(struct netmap_adapter *arg, void *csb,
+		       unsigned int nifp_offset, unsigned int memid)
+{
+	struct netmap_pt_guest_adapter *ptna;
+	struct ifnet *ifp = arg ? arg->ifp : NULL;
+	int error;
+
+	/* get allocator */
+	arg->nm_mem = netmap_mem_pt_guest_new(ifp, nifp_offset, memid);
+	if (arg->nm_mem == NULL)
+		return ENOMEM;
+	arg->na_flags |= NAF_MEM_OWNER;
+	error = netmap_attach_ext(arg, sizeof(struct netmap_pt_guest_adapter));
+	if (error)
+		return error;
+
+	/* get the netmap_pt_guest_adapter */
+	ptna = (struct netmap_pt_guest_adapter *) NA(ifp);
+	ptna->csb = csb;
+
+	/* Initialize a separate pass-through netmap adapter that is going to
+	 * be used by the ptnet driver only, and so never exposed to netmap
+         * applications. We only need a subset of the available fields. */
+	memset(&ptna->dr, 0, sizeof(ptna->dr));
+	ptna->dr.up.ifp = ifp;
+	ptna->dr.up.nm_mem = netmap_mem_get(ptna->hwup.up.nm_mem);
+	ptna->dr.up.nm_config = ptna->hwup.up.nm_config;
+
+	ptna->backend_regifs = 0;
+
+	return 0;
 }
 
 #endif /* WITH_PTNETMAP_GUEST */

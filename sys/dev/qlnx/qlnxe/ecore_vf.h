@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_VF_H__
 #define __ECORE_VF_H__
 
@@ -69,7 +68,7 @@ struct ecore_vf_iov {
 	 * start, and as they lack an IGU mapping they need to store the
 	 * addresses of previously registered SBs.
 	 * Even if we were to change configuration flow, due to backward
-	 * compatibility [with older PFs] we'd still need to store these.
+	 * compatability [with older PFs] we'd still need to store these.
 	 */
 	struct ecore_sb_info *sbs_info[PFVF_MAX_SBS_PER_VF];
 };
@@ -174,6 +173,7 @@ enum _ecore_status_t ecore_vf_pf_txq_stop(struct ecore_hwfn *p_hwfn,
 
 /* TODO - fix all the !SRIOV prototypes */
 
+#ifndef LINUX_REMOVE
 /**
  * @brief VF - update the RX queue by sending a message to the
  *        PF
@@ -191,6 +191,7 @@ enum _ecore_status_t ecore_vf_pf_rxqs_update(struct ecore_hwfn *p_hwfn,
 					     u8 num_rxqs,
 					     u8 comp_cqe_flg,
 					     u8 comp_event_flg);
+#endif
 
 /**
  * @brief VF - send a vport update command
@@ -293,63 +294,59 @@ enum _ecore_status_t ecore_vf_pf_int_cleanup(struct ecore_hwfn *p_hwfn);
 /**
  * @brief - return the link params in a given bulletin board
  *
- * @param p_hwfn
  * @param p_params - pointer to a struct to fill with link params
  * @param p_bulletin
  */
-void __ecore_vf_get_link_params(struct ecore_hwfn *p_hwfn,
-				struct ecore_mcp_link_params *p_params,
+void __ecore_vf_get_link_params(struct ecore_mcp_link_params *p_params,
 				struct ecore_bulletin_content *p_bulletin);
 
 /**
  * @brief - return the link state in a given bulletin board
  *
- * @param p_hwfn
  * @param p_link - pointer to a struct to fill with link state
  * @param p_bulletin
  */
-void __ecore_vf_get_link_state(struct ecore_hwfn *p_hwfn,
-			       struct ecore_mcp_link_state *p_link,
+void __ecore_vf_get_link_state(struct ecore_mcp_link_state *p_link,
 			       struct ecore_bulletin_content *p_bulletin);
 
 /**
  * @brief - return the link capabilities in a given bulletin board
  *
- * @param p_hwfn
  * @param p_link - pointer to a struct to fill with link capabilities
  * @param p_bulletin
  */
-void __ecore_vf_get_link_caps(struct ecore_hwfn *p_hwfn,
-			      struct ecore_mcp_link_capabilities *p_link_caps,
+void __ecore_vf_get_link_caps(struct ecore_mcp_link_capabilities *p_link_caps,
 			      struct ecore_bulletin_content *p_bulletin);
 enum _ecore_status_t
 ecore_vf_pf_tunnel_param_update(struct ecore_hwfn *p_hwfn,
 				struct ecore_tunnel_info *p_tunn);
 void ecore_vf_set_vf_start_tunn_update_param(struct ecore_tunnel_info *p_tun);
 #else
-static OSAL_INLINE enum _ecore_status_t ecore_vf_hw_prepare(struct ecore_hwfn *p_hwfn) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_start(struct ecore_hwfn *p_hwfn, struct ecore_queue_cid *p_cid, u16 bd_max_bytes, dma_addr_t bd_chain_phys_addr, dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size, void OSAL_IOMEM **pp_prod) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_start(struct ecore_hwfn *p_hwfn, struct ecore_queue_cid *p_cid, dma_addr_t pbl_addr, u16 pbl_size, void OSAL_IOMEM **pp_doorbell) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_hw_prepare(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, u16 OSAL_UNUSED bd_max_bytes, dma_addr_t OSAL_UNUSED bd_chain_phys_addr, dma_addr_t OSAL_UNUSED cqe_pbl_addr, u16 OSAL_UNUSED cqe_pbl_size, void OSAL_IOMEM OSAL_UNUSED **pp_prod) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, dma_addr_t OSAL_UNUSED pbl_addr, u16 OSAL_UNUSED pbl_size, void OSAL_IOMEM OSAL_UNUSED **pp_doorbell) {return ECORE_INVAL;}
 
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_stop(struct ecore_hwfn *p_hwfn, struct ecore_queue_cid *p_cid, bool cqe_completion) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_stop(struct ecore_hwfn *p_hwfn, struct ecore_queue_cid *p_cid) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxqs_update(struct ecore_hwfn *p_hwfn, struct ecore_queue_cid **pp_cid, u8 num_rxqs, u8 comp_cqe_flg, u8 comp_event_flg) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_update(struct ecore_hwfn *p_hwfn, struct ecore_sp_vport_update_params *p_params) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_reset(struct ecore_hwfn *p_hwfn) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_release(struct ecore_hwfn *p_hwfn) {return ECORE_INVAL;}
-static OSAL_INLINE u16 ecore_vf_get_igu_sb_id(struct ecore_hwfn *p_hwfn, u16 sb_id) {return 0;}
-static OSAL_INLINE void ecore_vf_set_sb_info(struct ecore_hwfn *p_hwfn, u16 sb_id, struct ecore_sb_info *p_sb) {}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, bool OSAL_UNUSED cqe_completion) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid) {return ECORE_INVAL;}
+#ifndef LINUX_REMOVE
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxqs_update(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED **pp_cid, u8 OSAL_UNUSED num_rxqs, u8 OSAL_UNUSED comp_cqe_flg, u8 OSAL_UNUSED comp_event_flg) {return ECORE_INVAL;}
+#endif
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_update(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_sp_vport_update_params OSAL_UNUSED *p_params) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_reset(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_release(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
+static OSAL_INLINE u16 ecore_vf_get_igu_sb_id(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED sb_id) {return 0;}
+static OSAL_INLINE void ecore_vf_set_sb_info(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED sb_id, struct ecore_sb_info OSAL_UNUSED *p_sb) {}
 
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_start(struct ecore_hwfn *p_hwfn, u8 vport_id, u16 mtu, u8 inner_vlan_removal, enum ecore_tpa_mode tpa_mode, u8 max_buffers_per_cqe, u8 only_untagged) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_stop(struct ecore_hwfn *p_hwfn) {return ECORE_INVAL;}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_filter_ucast(struct ecore_hwfn *p_hwfn, struct ecore_filter_ucast *p_param) {return ECORE_INVAL;}
-static OSAL_INLINE void ecore_vf_pf_filter_mcast(struct ecore_hwfn *p_hwfn, struct ecore_filter_mcast *p_filter_cmd) {}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_int_cleanup(struct ecore_hwfn *p_hwfn) {return ECORE_INVAL;}
-static OSAL_INLINE void __ecore_vf_get_link_params(struct ecore_hwfn *p_hwfn, struct ecore_mcp_link_params *p_params, struct ecore_bulletin_content *p_bulletin) {}
-static OSAL_INLINE void __ecore_vf_get_link_state(struct ecore_hwfn *p_hwfn, struct ecore_mcp_link_state *p_link, struct ecore_bulletin_content *p_bulletin) {}
-static OSAL_INLINE void __ecore_vf_get_link_caps(struct ecore_hwfn *p_hwfn, struct ecore_mcp_link_capabilities *p_link_caps, struct ecore_bulletin_content *p_bulletin) {}
-static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_tunnel_param_update(struct ecore_hwfn *p_hwfn, struct ecore_tunnel_info *p_tunn) { return ECORE_INVAL; }
-static OSAL_INLINE void ecore_vf_set_vf_start_tunn_update_param(struct ecore_tunnel_info *p_tun) { return; }
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED vport_id, u16 OSAL_UNUSED mtu, u8 OSAL_UNUSED inner_vlan_removal, enum ecore_tpa_mode OSAL_UNUSED tpa_mode, u8 OSAL_UNUSED max_buffers_per_cqe, u8 OSAL_UNUSED only_untagged) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_filter_ucast(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_filter_ucast OSAL_UNUSED *p_param) {return ECORE_INVAL;}
+static OSAL_INLINE void ecore_vf_pf_filter_mcast(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_filter_mcast OSAL_UNUSED *p_filter_cmd) {}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_int_cleanup(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
+static OSAL_INLINE void __ecore_vf_get_link_params(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_mcp_link_params OSAL_UNUSED *p_params, struct ecore_bulletin_content OSAL_UNUSED *p_bulletin) {}
+static OSAL_INLINE void __ecore_vf_get_link_state(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_mcp_link_state OSAL_UNUSED *p_link, struct ecore_bulletin_content OSAL_UNUSED *p_bulletin) {}
+static OSAL_INLINE void __ecore_vf_get_link_caps(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_mcp_link_capabilities OSAL_UNUSED *p_link_caps, struct ecore_bulletin_content OSAL_UNUSED *p_bulletin) {}
+static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_tunnel_param_update(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_tunnel_info OSAL_UNUSED *p_tunn) { return ECORE_INVAL; }
+static OSAL_INLINE void ecore_vf_set_vf_start_tunn_update_param(struct ecore_tunnel_info OSAL_UNUSED *p_tun) { return; }
 #endif
 
 #endif /* __ECORE_VF_H__ */

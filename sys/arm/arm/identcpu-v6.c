@@ -60,29 +60,47 @@ static char hw_buf[81];
 static int hw_buf_idx;
 static bool hw_buf_newline;
 
+enum cpu_class cpu_class = CPU_CLASS_NONE;
+
 static struct {
 	int	implementer;
 	int	part_number;
 	char 	*impl_name;
 	char 	*core_name;
+	enum	cpu_class cpu_class;
 } cpu_names[] =  {
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_ARM1176,    "ARM", "ARM1176"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A5 , "ARM", "Cortex-A5"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A7 , "ARM", "Cortex-A7"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A8 , "ARM", "Cortex-A8"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A9 , "ARM", "Cortex-A9"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A12, "ARM", "Cortex-A12"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A15, "ARM", "Cortex-A15"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A17, "ARM", "Cortex-A17"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A53, "ARM", "Cortex-A53"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A57, "ARM", "Cortex-A57"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A72, "ARM", "Cortex-A72"},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A73, "ARM", "Cortex-A73"},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_ARM1176,    "ARM", "ARM1176",
+	    CPU_CLASS_ARM11J},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A5 , "ARM", "Cortex-A5",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A7 , "ARM", "Cortex-A7",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A8 , "ARM", "Cortex-A8",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A9 , "ARM", "Cortex-A9",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A12, "ARM", "Cortex-A12",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A15, "ARM", "Cortex-A15",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A17, "ARM", "Cortex-A17",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A53, "ARM", "Cortex-A53",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A57, "ARM", "Cortex-A57",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A72, "ARM", "Cortex-A72",
+	    CPU_CLASS_CORTEXA},
+	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A73, "ARM", "Cortex-A73",
+	    CPU_CLASS_CORTEXA},
 
-	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_581, "Marwell", "PJ4 v7"},
-	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_584, "Marwell", "PJ4MP v7"},
+	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_581, "Marvell", "PJ4 v7",
+	    CPU_CLASS_MARVELL},
+	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_584, "Marvell", "PJ4MP v7",
+	    CPU_CLASS_MARVELL},
 
-	{CPU_IMPLEMENTER_QCOM, CPU_ARCH_KRAIT_300, "Qualcomm", "Krait 300"},
+	{CPU_IMPLEMENTER_QCOM, CPU_ARCH_KRAIT_300, "Qualcomm", "Krait 300",
+	    CPU_CLASS_KRAIT},
 };
 
 
@@ -266,6 +284,7 @@ identify_arm_cpu(void)
 	for(i = 0; i < nitems(cpu_names); i++) {
 		if (cpu_names[i].implementer == cpuinfo.implementer &&
 		    cpu_names[i].part_number == cpuinfo.part_number) {
+			cpu_class = cpu_names[i].cpu_class;
 			printf("CPU: %s %s r%dp%d (ECO: 0x%08X)\n",
 			    cpu_names[i].impl_name, cpu_names[i].core_name,
 			    cpuinfo.revision, cpuinfo.patch,
