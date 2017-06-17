@@ -729,13 +729,7 @@
 				    _Out_opt_ gid_t *egid, \
 				    _Out_opt_ gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
-363	AUE_KEVENT	STD	{ int cheriabi_kevent(int fd, \
-				    _In_reads_opt_(nchanges) \
-				    const struct kevent_c *changelist, \
-				    int nchanges, \
-				    _In_reads_opt_(nevents) \
-				    struct kevent_c *eventlist, int nevents, \
-				    _In_opt_ const struct timespec *timeout); }
+363	AUE_NULL	UNIMPL	kevent11
 364	AUE_NULL	UNIMPL	__cap_get_proc
 365	AUE_NULL	UNIMPL	__cap_set_proc
 366	AUE_NULL	UNIMPL	__cap_get_fd
@@ -1241,3 +1235,10 @@
                                     _Out_ struct statfs *buf); }
 559	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ const char *path, \
 				    mode_t mode, dev_t dev); }
+560	AUE_KEVENT	STD	{ int cheriabi_kevent(int fd, \
+				    _In_reads_opt_(nchanges) \
+				    const struct kevent_c *changelist, \
+				    int nchanges, \
+				    _In_reads_opt_(nevents) \
+				    struct kevent_c *eventlist, int nevents, \
+				    _In_opt_ const struct timespec *timeout); }

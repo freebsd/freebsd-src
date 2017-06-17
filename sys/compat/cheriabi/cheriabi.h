@@ -124,6 +124,7 @@ struct kevent_c {
 	u_int			fflags;
 	int64_t			data;
 	void * __capability	udata;	/* opaque user data identifier */
+	__uint64_t		ext[4];
 };
 
 struct iovec_c {

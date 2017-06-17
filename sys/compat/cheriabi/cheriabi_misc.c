@@ -417,7 +417,7 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	int i, error = 0;
+	int i, j, error = 0;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -427,6 +427,8 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		CP(kevp[i], ks_c[i], flags);
 		CP(kevp[i], ks_c[i], fflags);
 		CP(kevp[i], ks_c[i], data);
+		for (j = 0; j < nitems(kevp->ext); j++)
+			CP(kevp[i], ks_c[i], ext[j]);
 
 		/*
 		 * Retrieve the ident and udata capabilities stashed by
@@ -450,7 +452,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	int error, i;
+	int error, i, j;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -474,6 +476,8 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
 		CP(ks_c[i], kevp[i], data);
+		for (j = 0; j < nitems(kevp->ext); j++)
+			CP(ks_c[i], kevp[i], ext[j]);
 
 		if (ks_c[i].flags & EV_DELETE)
 			continue;

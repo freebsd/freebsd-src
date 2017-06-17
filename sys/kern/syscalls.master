@@ -657,9 +657,11 @@
 361	AUE_GETRESGID	STD	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				    gid_t *sgid); }
 362	AUE_KQUEUE	STD	{ int kqueue(void); }
-363	AUE_KEVENT	STD	{ int kevent(int fd, \
-				    struct kevent *changelist, int nchanges, \
-				    struct kevent *eventlist, int nevents, \
+363	AUE_KEVENT	COMPAT11 { int kevent(int fd, \
+				    struct kevent_freebsd11 *changelist, \
+				    int nchanges, \
+				    struct kevent_freebsd11 *eventlist, \
+				    int nevents, \
 				    const struct timespec *timeout); }
 364	AUE_NULL	UNIMPL	__cap_get_proc
 365	AUE_NULL	UNIMPL	__cap_set_proc
@@ -1017,6 +1019,10 @@
 				    struct statfs *buf); }
 559	AUE_MKNODAT	STD	{ int mknodat(int fd, char *path, mode_t mode, \
 				    dev_t dev); }
+560	AUE_KEVENT	STD	{ int kevent(int fd, \
+				    struct kevent *changelist, int nchanges, \
+				    struct kevent *eventlist, int nevents, \
+				    const struct timespec *timeout); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

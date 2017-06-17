@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2017
+.Dd June 17, 2017
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -148,12 +148,13 @@ The
 structure is defined as:
 .Bd -literal
 struct kevent {
-	uintptr_t ident;	/* identifier for this event */
+	uintptr_t  ident;	/* identifier for this event */
 	short	  filter;	/* filter for event */
 	u_short	  flags;	/* action flags for kqueue */
 	u_int	  fflags;	/* filter flag value */
-	intptr_t  data;		/* filter data value */
+	int64_t   data;		/* filter data value */
 	void	  *udata;	/* opaque user data identifier */
+	uint64_t  ext[4];	/* extentions */
 };
 .Ed
 .Pp
@@ -177,6 +178,20 @@ Filter-specific flags.
 Filter-specific data value.
 .It Fa udata
 Opaque user-defined value passed through the kernel unchanged.
+.It Fa ext
+Extended data passed to and from kernel.
+The
+.Fa ext[0]
+and
+.Fa ext[1]
+members use is defined by the filter.
+If the filter does not use them, the members are copied unchanged.
+The
+.Fa ext[2]
+and
+.Fa ext[3]
+members are always passed throught the kernel as-is,
+making additional context available to application.
 .El
 .Pp
 The
@@ -515,16 +530,26 @@ Establishes an arbitrary timer identified by
 .Va ident .
 When adding a timer,
 .Va data
-specifies the timeout period.
+specifies the moment to fire the timer (for
+.Dv NOTE_ABSTIME )
+or the timeout period.
 The timer will be periodic unless
 .Dv EV_ONESHOT
+or
+.Dv NOTE_ABSTIME
 is specified.
 On return,
 .Va data
 contains the number of times the timeout has expired since the last call to
 .Fn kevent .
-This filter automatically sets the EV_CLEAR flag internally.
-.Bl -tag -width "Dv NOTE_USECONDS"
+For non-monotonic timers, this filter automatically sets the
+.Dv EV_CLEAR
+flag internally.
+.Pp
+The filter accepts the following flags in the
+.Va fflags
+argument:
+.Bl -tag -width "Dv NOTE_MSECONDS"
 .It Dv NOTE_SECONDS
 .Va data
 is in seconds.
@@ -537,6 +562,8 @@ is in microseconds.
 .It Dv NOTE_NSECONDS
 .Va data
 is in nanoseconds.
+.It Dv NOTE_ABSTIME
+The specified expiration time is absolute.
 .El
 .Pp
 If

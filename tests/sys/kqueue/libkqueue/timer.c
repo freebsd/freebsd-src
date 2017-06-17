@@ -17,6 +17,7 @@
  */
 
 #include "common.h"
+#include <sys/time.h>
 
 int kqfd;
 
@@ -164,6 +165,39 @@ disable_and_enable(void)
     success();
 }
 
+static void
+test_abstime(void)
+{
+    const char *test_id = "kevent(EVFILT_TIMER, EV_ONESHOT, NOTE_ABSTIME)";
+    struct kevent kev;
+    time_t when;
+    const int timeout = 3;
+
+    test_begin(test_id);
+
+    test_no_kevents();
+
+    when = time(NULL);
+    EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      NOTE_ABSTIME | NOTE_SECONDS, when + timeout, NULL);
+    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+        err(1, "%s", test_id);
+
+    /* Retrieve the event */
+    kev.flags = EV_ADD | EV_ONESHOT;
+    kev.data = 1;
+    kev.fflags = 0;
+    kevent_cmp(&kev, kevent_get(kqfd));
+    if (time(NULL) < when + timeout)
+	err(1, "too early %jd %jd", time(), when + timeout);
+
+    /* Check if the event occurs again */
+    sleep(3);
+    test_no_kevents();
+
+    success();
+}
+
 void
 test_evfilt_timer()
 {
@@ -173,6 +207,7 @@ test_evfilt_timer()
     test_kevent_timer_get();
     test_oneshot();
     test_periodic();
+    test_abstime();
     disable_and_enable();
 	close(kqfd);
 }
