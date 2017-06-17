@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170617:
+	The ABI of struct event was changed by extending the data
+	member to 64bit and adding ext fields.  For upgrade, same
+	precautions as for the entry 20170523 "ino64" must be
+	followed.
+
 20170524:
 	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
 	smaller runtime footprint builds.  This is useful for embedded systems
