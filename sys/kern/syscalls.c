@@ -369,7 +369,7 @@ const char *syscallnames[] = {
 	"getresuid",			/* 360 = getresuid */
 	"getresgid",			/* 361 = getresgid */
 	"kqueue",			/* 362 = kqueue */
-	"kevent",			/* 363 = kevent */
+	"compat11.kevent",		/* 363 = freebsd11 kevent */
 	"#364",			/* 364 = __cap_get_proc */
 	"#365",			/* 365 = __cap_set_proc */
 	"#366",			/* 366 = __cap_get_fd */
@@ -566,4 +566,5 @@ const char *syscallnames[] = {
 	"getfsstat",			/* 557 = getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
 	"mknodat",			/* 559 = mknodat */
+	"kevent",			/* 560 = kevent */
 };
