@@ -152,7 +152,8 @@ DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
 
-LIBDIR?=	/usr/lib
+LIBDIR_BASE?=	/usr/lib
+LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
