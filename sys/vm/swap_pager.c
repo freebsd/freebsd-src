@@ -1372,7 +1372,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			    mreq->pindex,
 			    blk + j
 			);
-			vm_page_dirty(mreq);
+			MPASS(mreq->dirty == VM_PAGE_BITS_ALL);
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
