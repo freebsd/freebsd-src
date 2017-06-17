@@ -267,7 +267,6 @@ public:
   ExprValue getSymbolValue(const Twine &Loc, StringRef S);
   bool isDefined(StringRef S);
 
-  std::vector<OutputSection *> *OutputSections;
   void fabricateDefaultCommands();
   void addOrphanSections(OutputSectionFactory &Factory);
   void removeEmptyCommands();
@@ -280,10 +279,9 @@ public:
   bool hasLMA(OutputSection *Sec);
   bool shouldKeep(InputSectionBase *S);
   void assignOffsets(OutputSectionCommand *Cmd);
-  void placeOrphanSections();
+  void createOrphanCommands();
   void processNonSectionCommands();
-  void assignAddresses(std::vector<PhdrEntry> &Phdrs,
-                       ArrayRef<OutputSectionCommand *> OutputSectionCommands);
+  void assignAddresses(std::vector<PhdrEntry> &Phdrs);
 
   void addSymbol(SymbolAssignment *Cmd);
   void processCommands(OutputSectionFactory &Factory);

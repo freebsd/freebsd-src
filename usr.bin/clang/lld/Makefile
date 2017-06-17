@@ -12,11 +12,21 @@ MAN=
 SYMLINKS=	${PROG_CXX} ${BINDIR}/ld
 .endif
 
+CFLAGS+=	-I${LLD_SRCS}/ELF
 CFLAGS+=	-I${LLD_SRCS}/include
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 SRCDIR=		tools/lld
+SRCS+=		ELF/Arch/AArch64.cpp
+SRCS+=		ELF/Arch/AMDGPU.cpp
+SRCS+=		ELF/Arch/ARM.cpp
+SRCS+=		ELF/Arch/AVR.cpp
+SRCS+=		ELF/Arch/Mips.cpp
+SRCS+=		ELF/Arch/PPC.cpp
+SRCS+=		ELF/Arch/PPC64.cpp
+SRCS+=		ELF/Arch/X86.cpp
+SRCS+=		ELF/Arch/X86_64.cpp
 SRCS+=		ELF/Driver.cpp
 SRCS+=		ELF/DriverUtils.cpp
 SRCS+=		ELF/EhFrame.cpp
