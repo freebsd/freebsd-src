@@ -4,6 +4,8 @@
 #
 # +++ variables +++
 #
+# DTC		The Device Tree Compiler to use
+#
 # DTS		List of the dts files to build and install.
 #
 # DTBDIR	Base path for dtb modules [/boot/dtb]
@@ -31,6 +33,8 @@
 # do this after bsd.own.mk.
 .include "kern.opts.mk"
 
+DTC?=		dtc
+
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
@@ -50,6 +54,7 @@ DTB=${DTS:R:S/$/.dtb/}
 all: ${DTB}
 
 .if defined(DTS)
+.export DTC
 .for _dts in ${DTS}
 ${_dts:R:S/$/.dtb/}:	${_dts} ${OP_META}
 	@echo Generating ${.TARGET} from ${_dts}
