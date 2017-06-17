@@ -18,6 +18,7 @@
 #include "llvm/DebugInfo/CodeView/DebugSubsection.h"
 #include "llvm/DebugInfo/CodeView/DebugUnknownSubsection.h"
 #include "llvm/DebugInfo/CodeView/Line.h"
+#include "llvm/DebugInfo/CodeView/StringsAndChecksums.h"
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStream.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
@@ -30,6 +31,13 @@
 using namespace llvm;
 using namespace llvm::codeview;
 using namespace llvm::pdb;
+
+static bool checkModuleSubsection(opts::ModuleSubsection MS) {
+  return any_of(opts::pdb2yaml::DumpModuleSubsections,
+                [=](opts::ModuleSubsection M) {
+                  return M == MS || M == opts::ModuleSubsection::All;
+                });
+}
 
 YAMLOutputStyle::YAMLOutputStyle(PDBFile &File)
     : File(File), Out(outs()), Obj(File.getAllocator()) {
@@ -92,8 +100,8 @@ Error YAMLOutputStyle::dumpFileHeaders() {
 }
 
 Error YAMLOutputStyle::dumpStringTable() {
-  bool RequiresStringTable = opts::shared::DumpModuleFiles ||
-                             !opts::shared::DumpModuleSubsections.empty();
+  bool RequiresStringTable = opts::pdb2yaml::DumpModuleFiles ||
+                             !opts::pdb2yaml::DumpModuleSubsections.empty();
   bool RequestedStringTable = opts::pdb2yaml::StringTable;
   if (!RequiresStringTable && !RequestedStringTable)
     return Error::success();
@@ -200,7 +208,7 @@ Error YAMLOutputStyle::dumpDbiStream() {
   Obj.DbiStream->PdbDllRbld = DS.getPdbDllRbld();
   Obj.DbiStream->PdbDllVersion = DS.getPdbDllVersion();
   Obj.DbiStream->VerHeader = DS.getDbiVersion();
-  if (opts::shared::DumpModules) {
+  if (opts::pdb2yaml::DumpModules) {
     const auto &Modules = DS.modules();
     for (uint32_t I = 0; I < Modules.getModuleCount(); ++I) {
       DbiModuleDescriptor MI = Modules.getModuleDescriptor(I);
@@ -210,7 +218,7 @@ Error YAMLOutputStyle::dumpDbiStream() {
 
       DMI.Mod = MI.getModuleName();
       DMI.Obj = MI.getObjFileName();
-      if (opts::shared::DumpModuleFiles) {
+      if (opts::pdb2yaml::DumpModuleFiles) {
         auto Files = Modules.source_files(I);
         DMI.SourceFiles.assign(Files.begin(), Files.end());
       }
@@ -230,27 +238,29 @@ Error YAMLOutputStyle::dumpDbiStream() {
       auto ExpectedST = File.getStringTable();
       if (!ExpectedST)
         return ExpectedST.takeError();
-      if (!opts::shared::DumpModuleSubsections.empty() &&
+      if (!opts::pdb2yaml::DumpModuleSubsections.empty() &&
           ModS.hasDebugSubsections()) {
         auto ExpectedChecksums = ModS.findChecksumsSubsection();
         if (!ExpectedChecksums)
           return ExpectedChecksums.takeError();
 
+        StringsAndChecksumsRef SC(ExpectedST->getStringTable(),
+                                  *ExpectedChecksums);
+
         for (const auto &SS : ModS.subsections()) {
           opts::ModuleSubsection OptionKind = convertSubsectionKind(SS.kind());
-          if (!opts::checkModuleSubsection(OptionKind))
+          if (!checkModuleSubsection(OptionKind))
             continue;
 
           auto Converted =
-              CodeViewYAML::YAMLDebugSubsection::fromCodeViewSubection(
-                  ExpectedST->getStringTable(), *ExpectedChecksums, SS);
+              CodeViewYAML::YAMLDebugSubsection::fromCodeViewSubection(SC, SS);
           if (!Converted)
             return Converted.takeError();
           DMI.Subsections.push_back(*Converted);
         }
       }
 
-      if (opts::shared::DumpModuleSyms) {
+      if (opts::pdb2yaml::DumpModuleSyms) {
         DMI.Modi.emplace();
 
         DMI.Modi->Signature = ModS.signature();
@@ -291,6 +301,12 @@ Error YAMLOutputStyle::dumpTpiStream() {
 
 Error YAMLOutputStyle::dumpIpiStream() {
   if (!opts::pdb2yaml::IpiStream)
+    return Error::success();
+
+  auto InfoS = File.getPDBInfoStream();
+  if (!InfoS)
+    return InfoS.takeError();
+  if (!InfoS->containsIdStream())
     return Error::success();
 
   auto IpiS = File.getPDBIpiStream();

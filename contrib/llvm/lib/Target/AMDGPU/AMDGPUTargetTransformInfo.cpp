@@ -195,7 +195,7 @@ unsigned AMDGPUTTIImpl::getNumberOfRegisters(bool Vec) {
   return 4 * 128; // XXX - 4 channels. Should these count as vector instead?
 }
 
-unsigned AMDGPUTTIImpl::getRegisterBitWidth(bool Vector) {
+unsigned AMDGPUTTIImpl::getRegisterBitWidth(bool Vector) const {
   return Vector ? 0 : 32;
 }
 
@@ -486,6 +486,19 @@ bool AMDGPUTTIImpl::isSourceOfDivergence(const Value *V) const {
   if (isa<CallInst>(V) || isa<InvokeInst>(V))
     return true;
 
+  return false;
+}
+
+bool AMDGPUTTIImpl::isAlwaysUniform(const Value *V) const {
+  if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V)) {
+    switch (Intrinsic->getIntrinsicID()) {
+    default:
+      return false;
+    case Intrinsic::amdgcn_readfirstlane:
+    case Intrinsic::amdgcn_readlane:
+      return true;
+    }
+  }
   return false;
 }
 
