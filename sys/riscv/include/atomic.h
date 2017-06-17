@@ -512,6 +512,8 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_set_acq_ptr		atomic_set_acq_64
 #define	atomic_subtract_acq_ptr		atomic_subtract_acq_64
 
+#undef ATOMIC_ACQ_REL
+
 static __inline void
 atomic_thread_fence_acq(void)
 {
