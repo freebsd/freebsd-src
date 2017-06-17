@@ -628,6 +628,8 @@
         ..
         dirname
         ..
+        du
+        ..
         file2c
         ..
         getconf
@@ -669,6 +671,8 @@
             ..
         ..
         soelim
+        ..
+        stat
         ..
         tail
         ..

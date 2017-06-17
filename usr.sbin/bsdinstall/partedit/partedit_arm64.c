@@ -34,8 +34,8 @@
 
 #include "partedit.h"
 
-/* EFI partition size in KB */
-#define	EFI_BOOTPART_SIZE	(50 * 1024)
+/* EFI partition size in bytes */
+#define	EFI_BOOTPART_SIZE	(200 * 1024 * 1024)
 #define	EFI_BOOTPART_PATH	"/boot/boot1.efifat"
 
 const char *
@@ -73,7 +73,7 @@ bootpart_size(const char *scheme)
 	if (strcmp(scheme, "GPT") != 0)
 		return (0);
 
-	return ((EFI_BOOTPART_SIZE) * 1024);
+	return (EFI_BOOTPART_SIZE);
 }
 
 const char *

@@ -13,7 +13,10 @@ MAKE_PRINT_VAR_ON_ERROR += \
 	.MAKE.MODE
 .endif
 
+_ERROR_CMD_EXEC=	${sed -n '/^CMD/s,^CMD \(.*\),\1;,p' ${.ERROR_META_FILE}:L:sh}
+_ERROR_CMD=		${!empty(.ERROR_META_FILE):?${_ERROR_CMD_EXEC}:.PHONY}
 MAKE_PRINT_VAR_ON_ERROR+= \
+	_ERROR_CMD \
 	.CURDIR \
 	.MAKE \
 	.OBJDIR \

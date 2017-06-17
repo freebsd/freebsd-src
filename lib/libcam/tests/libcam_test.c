@@ -58,6 +58,75 @@ cam_has_error(void)
 	return (strlen(cam_errbuf) != 0);
 }
 
+ATF_TC_WITHOUT_HEAD(cam_get_device_negative_test_NULL_path);
+ATF_TC_BODY(cam_get_device_negative_test_NULL_path, tc)
+{
+	char parsed_dev_name[DEV_IDLEN + 1];
+	int parsed_unit;
+
+	ATF_REQUIRE_MSG(cam_get_device(NULL, parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == -1,
+	    "cam_get_device succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(cam_get_device_negative_test_bad_path);
+ATF_TC_BODY(cam_get_device_negative_test_bad_path, tc)
+{
+	char parsed_dev_name[DEV_IDLEN + 1];
+	int parsed_unit;
+
+	ATF_REQUIRE_MSG(cam_get_device("1ada", parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == -1,
+	    "cam_get_device succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(cam_get_device_negative_test_nul_path);
+ATF_TC_BODY(cam_get_device_negative_test_nul_path, tc)
+{
+	char parsed_dev_name[DEV_IDLEN + 1];
+	int parsed_unit;
+
+	ATF_REQUIRE_MSG(cam_get_device("", parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == -1,
+	    "cam_get_device succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(cam_get_device_negative_test_root);
+ATF_TC_BODY(cam_get_device_negative_test_root, tc)
+{
+	char parsed_dev_name[DEV_IDLEN + 1];
+	int parsed_unit;
+
+	ATF_REQUIRE_MSG(cam_get_device("/", parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == -1,
+	    "cam_get_device succeeded unexpectedly");
+}
+
+ATF_TC_WITHOUT_HEAD(cam_get_device_positive_test);
+ATF_TC_BODY(cam_get_device_positive_test, tc)
+{
+	char expected_dev_name[] = "foo";
+	char parsed_dev_name[DEV_IDLEN + 1];
+	int expected_unit, parsed_unit;
+
+	expected_unit = 1;
+
+	ATF_REQUIRE_MSG(cam_get_device("/dev/foo1", parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == 0,
+	    "cam_get_device failed");
+	ATF_REQUIRE_STREQ(parsed_dev_name, expected_dev_name);
+	ATF_REQUIRE(parsed_unit == expected_unit);
+
+	strcpy(parsed_dev_name, "");
+	parsed_unit = -1;
+
+	ATF_REQUIRE_MSG(cam_get_device("foo1", parsed_dev_name,
+	    nitems(parsed_dev_name), &parsed_unit) == 0,
+	    "cam_get_device failed");
+	ATF_REQUIRE_STREQ(parsed_dev_name, expected_dev_name);
+	ATF_REQUIRE(parsed_unit == expected_unit);
+}
+
 ATF_TC(cam_open_device_negative_test_O_RDONLY);
 ATF_TC_HEAD(cam_open_device_negative_test_O_RDONLY, tc)
 {
@@ -206,6 +275,11 @@ ATF_TC_BODY(cam_freeccb_negative_test_NULL, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
+	ATF_TP_ADD_TC(tp, cam_get_device_negative_test_NULL_path);
+	ATF_TP_ADD_TC(tp, cam_get_device_negative_test_bad_path);
+	ATF_TP_ADD_TC(tp, cam_get_device_negative_test_nul_path);
+	ATF_TP_ADD_TC(tp, cam_get_device_negative_test_root);
+	ATF_TP_ADD_TC(tp, cam_get_device_positive_test);
 	ATF_TP_ADD_TC(tp, cam_open_device_negative_test_O_RDONLY);
 	ATF_TP_ADD_TC(tp, cam_open_device_negative_test_nonexistent);
 	ATF_TP_ADD_TC(tp, cam_open_device_negative_test_unprivileged);

@@ -142,6 +142,7 @@ struct pargs {
  *      j - locked by proc slock
  *      k - only accessed by curthread
  *	k*- only accessed by curthread and from an interrupt
+ *	kx- only accessed by curthread and by debugger
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
@@ -296,11 +297,11 @@ struct thread {
 	u_char		td_pri_class;	/* (t) Scheduling class. */
 	u_char		td_user_pri;	/* (t) User pri from estcpu and nice. */
 	u_char		td_base_user_pri; /* (t) Base user pri */
-	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
-	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 	uintptr_t	td_rb_list;	/* (k) Robust list head. */
 	uintptr_t	td_rbp_list;	/* (k) Robust priv list head. */
 	uintptr_t	td_rb_inact;	/* (k) Current in-action mutex loc. */
+	struct syscall_args td_sa;	/* (kx) Syscall parameters. Copied on
+					   fork for child tracing. */
 #define	td_endcopy td_pcb
 
 /*
@@ -1053,7 +1054,7 @@ void	userret(struct thread *, struct trapframe *);
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
 void	cpu_copy_thread(struct thread *td, struct thread *td0);
-int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+int	cpu_fetch_syscall_args(struct thread *td);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);
 void	cpu_set_syscall_retval(struct thread *, int);

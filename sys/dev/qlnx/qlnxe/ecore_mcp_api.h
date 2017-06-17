@@ -51,6 +51,7 @@ enum ecore_mcp_eee_mode {
 	ECORE_MCP_EEE_UNSUPPORTED
 };
 
+#ifndef __EXTRACT__LINUX__
 struct ecore_link_eee_params {
 	u32 tx_lpi_timer;
 #define ECORE_EEE_1G_ADV	(1 << 0)
@@ -61,6 +62,7 @@ struct ecore_link_eee_params {
 	bool enable;
 	bool tx_lpi_enable;
 };
+#endif
 
 struct ecore_mcp_link_params {
 	struct ecore_mcp_link_speed_params speed;
@@ -134,42 +136,13 @@ struct ecore_mcp_function_info {
 	u16 mtu;
 };
 
-struct ecore_mcp_nvm_common {
-	u32 offset;
-	u32 param;
-	u32 resp;
-	u32 cmd;
-};
-
-struct ecore_mcp_nvm_rd {
-	u32 *buf_size;
-	u32 *buf;
-};
-
-struct ecore_mcp_nvm_wr {
-	u32 buf_size;
-	u32 *buf;
-};
-
-struct ecore_mcp_nvm_params {
-#define ECORE_MCP_CMD		(1 << 0)
-#define ECORE_MCP_NVM_RD	(1 << 1)
-#define ECORE_MCP_NVM_WR	(1 << 2)
-	u8 type;
-
-	struct ecore_mcp_nvm_common nvm_common;
-
-	union {
-		struct ecore_mcp_nvm_rd nvm_rd;
-		struct ecore_mcp_nvm_wr nvm_wr;
-	};
-};
-
+#ifndef __EXTRACT__LINUX__
 enum ecore_nvm_images {
 	ECORE_NVM_IMAGE_ISCSI_CFG,
 	ECORE_NVM_IMAGE_FCOE_CFG,
 	ECORE_NVM_IMAGE_MDUMP,
 };
+#endif
 
 struct ecore_mcp_drv_version {
 	u32 version;
@@ -238,6 +211,7 @@ enum ecore_ov_wol {
 	ECORE_OV_WOL_ENABLED
 };
 
+#ifndef __EXTRACT__LINUX__
 #define ECORE_MAX_NPIV_ENTRIES 128
 #define ECORE_WWN_SIZE 8
 struct ecore_fc_npiv_tbl {
@@ -252,6 +226,7 @@ enum ecore_led_mode {
 	ECORE_LED_MODE_ON,
 	ECORE_LED_MODE_RESTORE
 };
+#endif
 
 struct ecore_temperature_sensor {
 	u8 sensor_location;
@@ -312,6 +287,7 @@ struct ecore_mfw_tlv_generic {
 	bool tx_bytes_set;
 };
 
+#ifndef __EXTRACT__LINUX__
 struct ecore_mfw_tlv_eth {
 	u16 lso_maxoff_size;
 	bool lso_maxoff_size_set;
@@ -576,6 +552,7 @@ struct ecore_mfw_tlv_iscsi {
 	u64 tx_bytes;
 	bool tx_bytes_set;
 };
+#endif
 
 union ecore_mfw_tlv_data {
 	struct ecore_mfw_tlv_generic generic;
@@ -698,6 +675,7 @@ enum _ecore_status_t ecore_mcp_cmd(struct ecore_hwfn *p_hwfn,
 enum _ecore_status_t ecore_mcp_drain(struct ecore_hwfn *p_hwfn,
 				     struct ecore_ptt *p_ptt);
 
+#ifndef LINUX_REMOVE
 /**
  * @brief - return the mcp function info of the hw function
  *
@@ -707,45 +685,9 @@ enum _ecore_status_t ecore_mcp_drain(struct ecore_hwfn *p_hwfn,
  */
 const struct ecore_mcp_function_info
 *ecore_mcp_get_function_info(struct ecore_hwfn *p_hwfn);
+#endif
 
-/**
- * @brief - Function for reading/manipulating the nvram. Following are supported
- *          functionalities.
- *          1. Read: Read the specified nvram offset.
- *             input values:
- *               type   - ECORE_MCP_NVM_RD
- *               cmd    - command code (e.g. DRV_MSG_CODE_NVM_READ_NVRAM)
- *               offset - nvm offset
- *
- *             output values:
- *               buf      - buffer
- *               buf_size - buffer size
- *
- *          2. Write: Write the data at the specified nvram offset
- *             input values:
- *               type     - ECORE_MCP_NVM_WR
- *               cmd      - command code (e.g. DRV_MSG_CODE_NVM_WRITE_NVRAM)
- *               offset   - nvm offset
- *               buf      - buffer
- *               buf_size - buffer size
- *
- *          3. Command: Send the NVM command to MCP.
- *             input values:
- *               type   - ECORE_MCP_CMD
- *               cmd    - command code (e.g. DRV_MSG_CODE_NVM_DEL_FILE)
- *               offset - nvm offset
- *
- *
- * @param p_hwfn
- * @param p_ptt
- * @param params
- *
- * @return ECORE_SUCCESS - operation was successful.
- */
-enum _ecore_status_t ecore_mcp_nvm_command(struct ecore_hwfn *p_hwfn,
-					   struct ecore_ptt *p_ptt,
-					   struct ecore_mcp_nvm_params *params);
-
+#ifndef LINUX_REMOVE
 /**
  * @brief - count number of function with a matching personality on engine.
  *
@@ -759,6 +701,7 @@ enum _ecore_status_t ecore_mcp_nvm_command(struct ecore_hwfn *p_hwfn,
 int ecore_mcp_get_personality_cnt(struct ecore_hwfn *p_hwfn,
 				  struct ecore_ptt *p_ptt,
 				  u32 personalities);
+#endif
 
 /**
  * @brief Get the flash size value
@@ -1038,6 +981,56 @@ enum _ecore_status_t ecore_mcp_get_nvm_image(struct ecore_hwfn *p_hwfn,
 					     u8 *p_buffer, u32 buffer_len);
 
 /**
+ * @brief - Sends an NVM write command request to the MFW with
+ *          payload.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param cmd - Command: Either DRV_MSG_CODE_NVM_WRITE_NVRAM or
+ *            DRV_MSG_CODE_NVM_PUT_FILE_DATA
+ * @param param - [0:23] - Offset [24:31] - Size
+ * @param o_mcp_resp - MCP response
+ * @param o_mcp_param - MCP response param
+ * @param i_txn_size -  Buffer size
+ * @param i_buf - Pointer to the buffer
+ *
+ * @param return ECORE_SUCCESS upon success.
+ */
+enum _ecore_status_t ecore_mcp_nvm_wr_cmd(struct ecore_hwfn *p_hwfn,
+					  struct ecore_ptt *p_ptt,
+					  u32 cmd,
+					  u32 param,
+					  u32 *o_mcp_resp,
+					  u32 *o_mcp_param,
+					  u32 i_txn_size,
+					  u32 *i_buf);
+
+/**
+ * @brief - Sends an NVM read command request to the MFW to get
+ *        a buffer.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param cmd - Command: DRV_MSG_CODE_NVM_GET_FILE_DATA or
+ *            DRV_MSG_CODE_NVM_READ_NVRAM commands
+ * @param param - [0:23] - Offset [24:31] - Size
+ * @param o_mcp_resp - MCP response
+ * @param o_mcp_param - MCP response param
+ * @param o_txn_size -  Buffer size output
+ * @param o_buf - Pointer to the buffer returned by the MFW.
+ *
+ * @param return ECORE_SUCCESS upon success.
+ */
+enum _ecore_status_t ecore_mcp_nvm_rd_cmd(struct ecore_hwfn *p_hwfn,
+					  struct ecore_ptt *p_ptt,
+					  u32 cmd,
+					  u32 param,
+					  u32 *o_mcp_resp,
+					  u32 *o_mcp_param,
+					  u32 *o_txn_size,
+					  u32 *o_buf);
+
+/**
  * @brief Read from sfp
  *
  *  @param p_hwfn - hw function
@@ -1243,6 +1236,17 @@ ecore_mcp_mdump_get_info(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
  * @param return ECORE_SUCCESS upon success.
  */
 enum _ecore_status_t ecore_mcp_mdump_clear_logs(struct ecore_hwfn *p_hwfn,
+						struct ecore_ptt *p_ptt);
+
+/**
+ * @brief - Clear the mdump retained data.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return ECORE_SUCCESS upon success.
+ */
+enum _ecore_status_t ecore_mcp_mdump_clr_retain(struct ecore_hwfn *p_hwfn,
 						struct ecore_ptt *p_ptt);
 
 /**

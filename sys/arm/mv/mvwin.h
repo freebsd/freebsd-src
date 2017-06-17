@@ -229,6 +229,9 @@
 #define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4004)
 #define	MV_WIN_USB3_MAX			8
 
+#define	MV_WIN_NETA_OFFSET		0x2000
+#define	MV_WIN_NETA_BASE(n)		MV_WIN_ETH_BASE(n) + MV_WIN_NETA_OFFSET
+
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
 #define MV_WIN_ETH_SIZE(n)		(0x8 * (n) + 0x204)
 #define MV_WIN_ETH_REMAP(n)		(0x4 * (n) + 0x280)
@@ -325,6 +328,7 @@
 /* IO Window Control Register fields */
 #define	IO_WIN_SIZE_SHIFT	16
 #define	IO_WIN_SIZE_MASK	0xFFFF
+#define	IO_WIN_COH_ATTR_MASK	(0xF << 12)
 #define	IO_WIN_ATTR_SHIFT	8
 #define	IO_WIN_ATTR_MASK	0xFF
 #define	IO_WIN_TGT_SHIFT	4

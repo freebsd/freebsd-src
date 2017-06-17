@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_HSI_ROCE__
 #define __ECORE_HSI_ROCE__ 
 /************************************************************************/
@@ -41,13 +40,12 @@
 #include "roce_common.h"
 
 /*
- * The roce storm context of Mstorm
+ * The roce storm context of Ystorm
  */
-struct mstorm_roce_conn_st_ctx
+struct ystorm_roce_conn_st_ctx
 {
-	struct regpair temp[6];
+	struct regpair temp[2];
 };
-
 
 /*
  * The roce storm context of Mstorm
@@ -55,15 +53,6 @@ struct mstorm_roce_conn_st_ctx
 struct pstorm_roce_conn_st_ctx
 {
 	struct regpair temp[16];
-};
-
-
-/*
- * The roce storm context of Ystorm
- */
-struct ystorm_roce_conn_st_ctx
-{
-	struct regpair temp[2];
 };
 
 /*
@@ -83,6 +72,14 @@ struct tstorm_roce_conn_st_ctx
 };
 
 /*
+ * The roce storm context of Mstorm
+ */
+struct mstorm_roce_conn_st_ctx
+{
+	struct regpair temp[6];
+};
+
+/*
  * The roce storm context of Ystorm
  */
 struct ustorm_roce_conn_st_ctx
@@ -93,7 +90,7 @@ struct ustorm_roce_conn_st_ctx
 /*
  * roce connection context
  */
-struct roce_conn_context
+struct e4_roce_conn_context
 {
 	struct ystorm_roce_conn_st_ctx ystorm_st_context /* ystorm storm context */;
 	struct regpair ystorm_st_padding[2] /* padding */;
@@ -109,6 +106,29 @@ struct roce_conn_context
 	struct ustorm_roce_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 	struct regpair ustorm_st_padding[2] /* padding */;
 };
+
+
+/*
+ * roce connection context
+ */
+struct e5_roce_conn_context
+{
+	struct ystorm_roce_conn_st_ctx ystorm_st_context /* ystorm storm context */;
+	struct regpair ystorm_st_padding[2] /* padding */;
+	struct pstorm_roce_conn_st_ctx pstorm_st_context /* pstorm storm context */;
+	struct xstorm_roce_conn_st_ctx xstorm_st_context /* xstorm storm context */;
+	struct regpair xstorm_st_padding[2] /* padding */;
+	struct e5_xstorm_rdma_conn_ag_ctx xstorm_ag_context /* xstorm aggregative context */;
+	struct e5_tstorm_rdma_conn_ag_ctx tstorm_ag_context /* tstorm aggregative context */;
+	struct timers_context timer_context /* timer context */;
+	struct e5_ustorm_rdma_conn_ag_ctx ustorm_ag_context /* ustorm aggregative context */;
+	struct tstorm_roce_conn_st_ctx tstorm_st_context /* tstorm storm context */;
+	struct mstorm_roce_conn_st_ctx mstorm_st_context /* mstorm storm context */;
+	struct ustorm_roce_conn_st_ctx ustorm_st_context /* ustorm storm context */;
+	struct regpair ustorm_st_padding[2] /* padding */;
+};
+
+
 
 
 /*

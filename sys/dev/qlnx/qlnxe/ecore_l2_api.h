@@ -51,10 +51,21 @@ enum ecore_rss_caps {
 #define ECORE_MAX_PHC_DRIFT_PPB	291666666
 
 enum ecore_ptp_filter_type {
-	ECORE_PTP_FILTER_L2,
-	ECORE_PTP_FILTER_IPV4,
-	ECORE_PTP_FILTER_IPV4_IPV6,
-	ECORE_PTP_FILTER_L2_IPV4_IPV6
+	ECORE_PTP_FILTER_NONE,
+	ECORE_PTP_FILTER_ALL,
+	ECORE_PTP_FILTER_V1_L4_EVENT,
+	ECORE_PTP_FILTER_V1_L4_GEN,
+	ECORE_PTP_FILTER_V2_L4_EVENT,
+	ECORE_PTP_FILTER_V2_L4_GEN,
+	ECORE_PTP_FILTER_V2_L2_EVENT,
+	ECORE_PTP_FILTER_V2_L2_GEN,
+	ECORE_PTP_FILTER_V2_EVENT,
+	ECORE_PTP_FILTER_V2_GEN
+};
+
+enum ecore_ptp_hwtstamp_tx_type {
+	ECORE_PTP_HWTSTAMP_TX_OFF,
+	ECORE_PTP_HWTSTAMP_TX_ON,
 };
 
 struct ecore_queue_start_common_params {
@@ -246,7 +257,7 @@ ecore_eth_rx_queue_start(struct ecore_hwfn *p_hwfn,
  *				different from the RXQ opaque
  *				otherwise on CQe.
  * @param cqe_completion	If True completion will be
- *				receive on CQe.
+ *				recieve on CQe.
  * @return enum _ecore_status_t
  */
 enum _ecore_status_t
@@ -460,4 +471,30 @@ void ecore_reset_vport_stats(struct ecore_dev *p_dev);
 void ecore_arfs_mode_configure(struct ecore_hwfn *p_hwfn,
 			       struct ecore_ptt *p_ptt,
 			       struct ecore_arfs_config_params *p_cfg_params);
+
+/**
+ * @brief - ecore_configure_rfs_ntuple_filter
+ *
+ * This ramrod should be used to add or remove arfs hw filter
+ *
+ * @params p_hwfn
+ * @params p_cb		Used for ECORE_SPQ_MODE_CB,where client would initialize
+ *			it with cookie and callback function address, if not
+ *			using this mode then client must pass NULL.
+ * @params p_addr	p_addr is an actual packet header that needs to be
+ *			filter. It has to mapped with IO to read prior to
+ *			calling this, [contains 4 tuples- src ip, dest ip,
+ *			src port, dest port].
+ * @params length	length of p_addr header up to past the transport header.
+ * @params qid		receive packet will be directed to this queue.
+ * @params vport_id
+ * @params b_is_add	flag to add or remove filter.
+ *
+ */
+enum _ecore_status_t
+ecore_configure_rfs_ntuple_filter(struct ecore_hwfn *p_hwfn,
+				  struct ecore_spq_comp_cb *p_cb,
+				  dma_addr_t p_addr, u16 length,
+				  u16 qid, u8 vport_id,
+				  bool b_is_add);
 #endif

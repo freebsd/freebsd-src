@@ -224,7 +224,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 #ifdef __amd64__
-		WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER));
+		WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER) &
+		    ~(EFER_LMA));
 #else
 		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
 #endif

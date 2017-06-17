@@ -972,6 +972,16 @@ unmapped_step:
 	return (error);
 }
 
+static void
+md_swap_page_free(vm_page_t m)
+{
+
+	vm_page_xunbusy(m);
+	vm_page_lock(m);
+	vm_page_free(m);
+	vm_page_unlock(m);
+}
+
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
@@ -1020,7 +1030,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
 			} else if (rv == VM_PAGER_FAIL) {
 				/*
@@ -1044,15 +1054,17 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				cpu_flush_dcache(p, len);
 			}
 		} else if (bp->bio_cmd == BIO_WRITE) {
-			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
-			else
-				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
-			}
+			} else if (rv == VM_PAGER_FAIL)
+				pmap_zero_page(m);
+
 			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 				pmap_copy_pages(bp->bio_ma, ma_offs, &m,
 				    offs, len);
@@ -1062,34 +1074,44 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			} else {
 				physcopyin(p, VM_PAGE_TO_PHYS(m) + offs, len);
 			}
+
 			m->valid = VM_PAGE_BITS_ALL;
+			if (m->dirty != VM_PAGE_BITS_ALL) {
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
 		} else if (bp->bio_cmd == BIO_DELETE) {
-			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
-			else
-				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				md_swap_page_free(m);
+				m = NULL;
+			} else {
+				/* Page is valid. */
+				if (len != PAGE_SIZE) {
+					pmap_zero_page_area(m, offs, len);
+					if (m->dirty != VM_PAGE_BITS_ALL) {
+						vm_page_dirty(m);
+						vm_pager_page_unswapped(m);
+					}
+				} else {
+					vm_pager_page_unswapped(m);
+					md_swap_page_free(m);
+					m = NULL;
+				}
 			}
-			if (len != PAGE_SIZE) {
-				pmap_zero_page_area(m, offs, len);
-				vm_page_clear_dirty(m, offs, len);
-				m->valid = VM_PAGE_BITS_ALL;
-			} else
-				vm_pager_page_unswapped(m);
 		}
-		vm_page_xunbusy(m);
-		vm_page_lock(m);
-		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
-			vm_page_free(m);
-		else
+		if (m != NULL) {
+			vm_page_xunbusy(m);
+			vm_page_lock(m);
 			vm_page_activate(m);
-		vm_page_unlock(m);
-		if (bp->bio_cmd == BIO_WRITE) {
-			vm_page_dirty(m);
-			vm_pager_page_unswapped(m);
+			vm_page_unlock(m);
 		}
 
 		/* Actions on further pages start at offset 0 */

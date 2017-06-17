@@ -48,6 +48,8 @@
  * October 1992
  */
 
+#ifndef _FS_MSDOSFS_FAT_H_
+#define	_FS_MSDOSFS_FAT_H_
 /*
  * Some useful cluster numbers.
  */
@@ -78,7 +80,7 @@
 
 #define	MSDOSFSEOF(pmp, cn)	((((cn) | ~(pmp)->pm_fatmask) & CLUST_EOFS) == CLUST_EOFS)
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(MAKEFS)
 /*
  * These are the values for the function argument to the function
  * fatentry().
@@ -101,4 +103,5 @@ int extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, 
 void fc_purge(struct denode *dep, u_int frcn);
 int markvoldirty(struct msdosfsmount *pmp, int dirty);
 
-#endif	/* _KERNEL */
+#endif	/* _KERNEL || MAKEFS */
+#endif	/* !_FS_MSDOSFS_FAT_H_ */

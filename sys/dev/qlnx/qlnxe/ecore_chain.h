@@ -214,6 +214,11 @@ static OSAL_INLINE u32 ecore_chain_get_cons_idx_u32(struct ecore_chain *p_chain)
 	return p_chain->u.chain32.cons_idx;
 }
 
+/* FIXME:
+ * Should create OSALs for the below definitions.
+ * For Linux, replace them with the existing U16_MAX and U32_MAX, and handle
+ * kernel versions that lack them.
+ */
 #define ECORE_U16_MAX	((u16)~0U)
 #define ECORE_U32_MAX	((u32)~0U)
 

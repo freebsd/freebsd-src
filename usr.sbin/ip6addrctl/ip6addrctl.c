@@ -111,7 +111,7 @@ get_policy(void)
 	struct in6_addrpolicy *buf;
 	struct in6_addrpolicy *pol, *ep;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0) {
 		err(1, "sysctl(IPV6CTL_ADDRCTLPOLICY)");
 		/* NOTREACHED */
 	}
@@ -123,7 +123,7 @@ get_policy(void)
 		errx(1, "malloc failed");
 		/* NOTREACHED */
 	}
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		err(1, "sysctl(IPV6CTL_ADDRCTLPOLICY)");
 		/* NOTREACHED */
 	}

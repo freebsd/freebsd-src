@@ -96,6 +96,7 @@ static void decode_win_cesa_setup(u_long);
 static void decode_win_usb_setup(u_long);
 static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
+static void decode_win_neta_setup(u_long);
 static void decode_win_sata_setup(u_long);
 static void decode_win_ahci_setup(u_long);
 static void decode_win_sdhci_setup(u_long);
@@ -107,6 +108,7 @@ static void decode_win_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
+static void decode_win_neta_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 static void decode_win_ahci_dump(u_long base);
@@ -152,6 +154,7 @@ struct soc_node_spec {
 
 static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
+	{ "marvell,armada-370-neta", &decode_win_neta_setup, &decode_win_neta_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,orion-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
@@ -416,7 +419,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 static void
 soc_identify(void)
 {
-	uint32_t d, r, size, mode;
+	uint32_t d, r, size, mode, freq;
 	const char *dev;
 	const char *rev;
 
@@ -509,7 +512,11 @@ soc_identify(void)
 	printf("%s", dev);
 	if (*rev != '\0')
 		printf(" rev %s", rev);
-	printf(", TClock %dMHz\n", get_tclk() / 1000 / 1000);
+	printf(", TClock %dMHz", get_tclk() / 1000 / 1000);
+	freq = get_cpu_freq();
+	if (freq != 0)
+		printf(", Frequency %dMHz", freq / 1000 / 1000);
+	printf("\n");
 
 	mode = read_cpu_ctrl(CPU_CONFIG);
 	printf("  Instruction cache prefetch %s, data cache prefetch %s\n",
@@ -1431,6 +1438,20 @@ decode_win_eth_setup(u_long base)
 				break;
 			}
 		}
+}
+
+static void
+decode_win_neta_dump(u_long base)
+{
+
+	decode_win_eth_dump(base + MV_WIN_NETA_OFFSET);
+}
+
+static void
+decode_win_neta_setup(u_long base)
+{
+
+	decode_win_eth_setup(base + MV_WIN_NETA_OFFSET);
 }
 
 static int

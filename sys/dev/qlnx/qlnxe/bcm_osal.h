@@ -34,12 +34,17 @@
 #include "ecore_status.h"
 #include <sys/bitstring.h>
 
-#if __FreeBSD_version >= 1100090
+#if __FreeBSD_version >= 1200000
 #include <linux/bitmap.h>
+#else
+#if __FreeBSD_version >= 1100090
+#include <compat/linuxkpi/common/include/linux/bitops.h>
 #else
 #include <ofed/include/linux/bitops.h>
 #endif
+#endif
 
+#define OSAL_NUM_CPUS()	mp_ncpus
 /*
  * prototypes of freebsd specific functions required by ecore
  */
@@ -60,6 +65,7 @@ extern int qlnx_pci_find_capability(void *ecore_dev, int cap);
 
 extern uint32_t qlnx_direct_reg_rd32(void *p_hwfn, uint32_t *reg_addr);
 extern void qlnx_direct_reg_wr32(void *p_hwfn, void *reg_addr, uint32_t value);
+extern void qlnx_direct_reg_wr64(void *p_hwfn, void *reg_addr, uint64_t value);
 
 extern uint32_t qlnx_reg_rd32(void *p_hwfn, uint32_t reg_addr);
 extern void qlnx_reg_wr32(void *p_hwfn, uint32_t reg_addr, uint32_t value);
@@ -128,6 +134,8 @@ rounddown_pow_of_two(unsigned long x)
 #define BUILD_BUG_ON(cond)	nothing
 
 #endif /* #ifndef QLNX_RDMA */
+
+#define OSAL_UNUSED
 
 #define OSAL_CPU_TO_BE64(val) htobe64(val)
 #define OSAL_BE64_TO_CPU(val) be64toh(val)
@@ -199,6 +207,8 @@ typedef struct osal_list_t
 #define REG_WR(hwfn, addr, val)  qlnx_reg_wr32(hwfn, addr, val)
 #define REG_WR16(hwfn, addr, val) qlnx_reg_wr16(hwfn, addr, val)
 #define DIRECT_REG_WR(p_hwfn, addr, value) qlnx_direct_reg_wr32(p_hwfn, addr, value)
+#define DIRECT_REG_WR64(p_hwfn, addr, value) \
+		qlnx_direct_reg_wr64(p_hwfn, addr, value)
 #define DIRECT_REG_RD(p_hwfn, addr) qlnx_direct_reg_rd32(p_hwfn, addr)
 #define REG_RD(hwfn, addr) qlnx_reg_rd32(hwfn, addr)
 #define DOORBELL(hwfn, addr, value) \

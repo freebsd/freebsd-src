@@ -33,7 +33,9 @@
 #define _PCICS_REG_DRIVER_H
 
 /* offset of configuration space in the pci core register */
+#ifndef __EXTRACT__LINUX__
 #define PCICFG_OFFSET					0x2000
+#endif
 #define PCICFG_VENDOR_ID_OFFSET				0x00
 #define PCICFG_DEVICE_ID_OFFSET				0x02
 #define PCICFG_COMMAND_OFFSET				0x04
@@ -243,6 +245,7 @@
  * define in version.v
  */
 #define GRC_CR_VF_MSIX_CTRL_VF_MSIX_TBL_SIZE_MASK   0x3F
+#ifndef __EXTRACT__LINUX__
 #define GRC_CONFIG_REG_PF_INIT_VF               0x624
 
 /* First VF_NUM for PF is encoded in this register.
@@ -253,6 +256,7 @@
  * have the same location for the same 4 bits
  */
 #define GRC_CR_PF_INIT_VF_PF_FIRST_VF_NUM_MASK  0xff
+#endif
 #define PXPCS_TL_CONTROL_5                      0x814
 #define PXPCS_TL_CONTROL_5_UNKNOWNTYPE_ERR_ATTN    (1 << 29) /*WC*/
 #define PXPCS_TL_CONTROL_5_BOUNDARY4K_ERR_ATTN     (1 << 28)   /*WC*/

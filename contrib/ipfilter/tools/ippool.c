@@ -99,7 +99,7 @@ main(argc, argv)
 
 	assigndefined(getenv("IPPOOL_PREDEFINED"));
 
-	switch (getopt(argc, argv, "aAf:FlnrRsv"))
+	switch (getopt(argc, argv, "aAf:FlrRs"))
 	{
 	case 'a' :
 		err = poolnodecommand(0, argc, argv);
@@ -116,9 +116,6 @@ main(argc, argv)
 	case 'l' :
 		err = poollist(argc, argv);
 		break;
-	case 'n' :
-		opts |= OPT_DONOTHING|OPT_DONTOPEN;
-		break;
 	case 'r' :
 		err = poolnodecommand(1, argc, argv);
 		break;
@@ -127,9 +124,6 @@ main(argc, argv)
 		break;
 	case 's' :
 		err = poolstats(argc, argv);
-		break;
-	case 'v' :
-		opts |= OPT_VERBOSE;
 		break;
 	default :
 		exit(1);
@@ -361,8 +355,6 @@ loadpoolfile(argc, argv, infile)
 {
 	int c;
 
-	infile = optarg;
-
 	while ((c = getopt(argc, argv, "dnRuv")) != -1)
 		switch (c)
 		{
@@ -382,7 +374,13 @@ loadpoolfile(argc, argv, infile)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "loadpoolfile: opts = %#x\n", opts);
@@ -453,7 +451,13 @@ poolstats(argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolstats: opts = %#x\n", opts);
@@ -559,7 +563,13 @@ poolflush(argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolflush: opts = %#x\n", opts);
