@@ -4625,7 +4625,7 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
     struct nfssockreq *nrp, uint32_t sequenceid, int mds, struct ucred *cred,
     NFSPROC_T *p)
 {
-	uint32_t crflags, *tl;
+	uint32_t crflags, maxval, *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	int error, irdcnt;
@@ -4643,8 +4643,8 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	/* Fill in fore channel attributes. */
 	NFSM_BUILD(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 	*tl++ = 0;				/* Header pad size */
-	*tl++ = txdr_unsigned(100000);		/* Max request size */
-	*tl++ = txdr_unsigned(100000);		/* Max response size */
+	*tl++ = txdr_unsigned(nmp->nm_wsize + NFS_MAXXDR);/* Max request size */
+	*tl++ = txdr_unsigned(nmp->nm_rsize + NFS_MAXXDR);/* Max reply size */
 	*tl++ = txdr_unsigned(4096);		/* Max response size cached */
 	*tl++ = txdr_unsigned(20);		/* Max operations */
 	*tl++ = txdr_unsigned(64);		/* Max slots */
@@ -4691,7 +4691,26 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 
 		/* Get the fore channel slot count. */
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
-		tl += 3;		/* Skip the other counts. */		
+		tl++;			/* Skip the header pad size. */
+
+		/* Make sure nm_wsize is small enough. */
+		maxval = fxdr_unsigned(uint32_t, *tl++);
+		while (maxval < nmp->nm_wsize + NFS_MAXXDR) {
+			if (nmp->nm_wsize > 8096)
+				nmp->nm_wsize /= 2;
+			else
+				break;
+		}
+
+		/* Make sure nm_rsize is small enough. */
+		maxval = fxdr_unsigned(uint32_t, *tl++);
+		while (maxval < nmp->nm_rsize + NFS_MAXXDR) {
+			if (nmp->nm_rsize > 8096)
+				nmp->nm_rsize /= 2;
+			else
+				break;
+		}
+
 		sep->nfsess_maxcache = fxdr_unsigned(int, *tl++);
 		tl++;
 		sep->nfsess_foreslots = fxdr_unsigned(uint16_t, *tl++);
