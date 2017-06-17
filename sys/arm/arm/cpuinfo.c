@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
@@ -76,6 +77,14 @@ SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
 void
 cpuinfo_init(void)
 {
+
+	/*
+	 * Prematurely fetch CPU quirks. Standard fetch for tunable
+	 * sysctls is handled using SYSINIT, thus too late for boot CPU.
+	 * Keep names in sync with sysctls.
+	 */
+	TUNABLE_INT_FETCH("hw.cpu.quirks.actlr_mask", &cpu_quirks_actlr_mask);
+	TUNABLE_INT_FETCH("hw.cpu.quirks.actlr_set", &cpu_quirks_actlr_set);
 
 	cpuinfo.midr = cp15_midr_get();
 	/* Test old version id schemes first */
