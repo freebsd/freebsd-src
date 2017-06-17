@@ -467,7 +467,6 @@ static uint64_t getRelocTargetVA(uint32_t Type, int64_t A, uint64_t P,
   case R_GOTREL_FROM_END:
     return Body.getVA(A) - InX::Got->getVA() - InX::Got->getSize();
   case R_GOT_FROM_END:
-  case R_GOT_FROM_END:
   case R_RELAX_TLS_GD_TO_IE_END:
     return Body.getGotOffset() + A - InX::Got->getSize();
   case R_GOT_OFF:
@@ -475,7 +474,6 @@ static uint64_t getRelocTargetVA(uint32_t Type, int64_t A, uint64_t P,
   case R_GOT_PAGE_PC:
   case R_RELAX_TLS_GD_TO_IE_PAGE_PC:
     return getAArch64Page(Body.getGotVA() + A) - getAArch64Page(P);
-  case R_GOT_PC:
   case R_GOT_PC:
   case R_RELAX_TLS_GD_TO_IE:
     return Body.getGotVA() + A - P;
@@ -546,36 +544,6 @@ static uint64_t getRelocTargetVA(uint32_t Type, int64_t A, uint64_t P,
   case R_PLT_PC:
   case R_PPC_PLT_OPD:
     return Body.getPltVA() + A - P;
-  case R_PAGE_PC:
-  case R_PLT_PAGE_PC: {
-    uint64_t Dest;
-    if (Body.isUndefined() && !Body.isLocal() && Body.symbol()->isWeak())
-      Dest = getAArch64Page(A);
-    else
-      Dest = getAArch64Page(Body.getVA<ELFT>(A));
-    return Dest - getAArch64Page(P);
-  }
-  case R_PC: {
-    uint64_t Dest;
-    if (Body.isUndefined() && !Body.isLocal() && Body.symbol()->isWeak()) {
-      // On ARM and AArch64 a branch to an undefined weak resolves to the
-      // next instruction, otherwise the place.
-      if (Config->EMachine == EM_ARM)
-        Dest = getARMUndefinedRelativeWeakVA(Type, A, P);
-      else if (Config->EMachine == EM_AARCH64)
-        Dest = getAArch64UndefinedRelativeWeakVA(Type, A, P);
-      else
-        Dest = Body.getVA<ELFT>(A);
-    } else {
-      Dest = Body.getVA<ELFT>(A);
-    }
-    return Dest - P;
-  }
-  case R_PLT:
-    return Body.getPltVA<ELFT>() + A;
-  case R_PLT_PC:
-  case R_PPC_PLT_OPD:
-    return Body.getPltVA<ELFT>() + A - P;
   case R_PPC_OPD: {
     uint64_t SymVA = Body.getVA(A);
     // If we have an undefined weak symbol, we might get here with a symbol
