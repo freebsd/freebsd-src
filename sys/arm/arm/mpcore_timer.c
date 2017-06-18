@@ -439,7 +439,12 @@ arm_tmr_attach(device_t dev)
 	}
 
 #ifdef MULTIDELAY
-	arm_set_delay(arm_tmr_delay, sc);
+	/*
+	 * We can register as the DELAY() implementation only if we successfully
+	 * set up the global timer.
+	 */
+	if (tc_err == 0)
+		arm_set_delay(arm_tmr_delay, sc);
 #endif
 
 	return (0);
