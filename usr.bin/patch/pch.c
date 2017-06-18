@@ -216,8 +216,10 @@ there_is_another_patch(void)
 			filearg[0] = fetchname(buf, &exists, 0);
 		}
 		if (!exists) {
-			ask("No file found--skip this patch? [n] ");
-			if (*buf != 'y')
+			int def_skip = *bestguess == '\0';
+			ask("No file found--skip this patch? [%c] ",
+			    def_skip  ? 'y' : 'n');
+			if (*buf == 'n' || (!def_skip && *buf != 'y'))
 				continue;
 			if (verbose)
 				say("Skipping patch...\n");
