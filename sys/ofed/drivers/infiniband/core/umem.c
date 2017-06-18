@@ -40,6 +40,7 @@
 #include <linux/dma-attrs.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/wait.h>
 #include <sys/priv.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
