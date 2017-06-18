@@ -48,15 +48,26 @@
 	__task;								\
 })
 
-#define	in_atomic() ({				\
-	linux_in_atomic();			\
-})
+int linux_kthread_stop(struct task_struct *);
+bool linux_kthread_should_stop_task(struct task_struct *);
+bool linux_kthread_should_stop(void);
+int linux_kthread_park(struct task_struct *);
+void linux_kthread_parkme(void);
+bool linux_kthread_should_park(void);
+void linux_kthread_unpark(struct task_struct *);
+void linux_kthread_fn(void *);
+struct task_struct *linux_kthread_setup_and_run(struct thread *,
+    linux_task_fn_t *, void *arg);
+int linux_in_atomic(void);
 
-extern int kthread_stop(struct task_struct *);
-extern bool kthread_should_stop_task(struct task_struct *);
-extern bool kthread_should_stop(void);
-extern void linux_kthread_fn(void *);
-extern struct task_struct *linux_kthread_setup_and_run(struct thread *, linux_task_fn_t *, void *arg);
-extern int linux_in_atomic(void);
+#define	kthread_stop(task)		linux_kthread_stop(task)
+#define	kthread_should_stop()		linux_kthread_should_stop()
+#define	kthread_should_stop_task(task)	linux_kthread_should_stop_task(task)
+#define	kthread_park(task)		linux_kthread_park(task)
+#define	kthread_parkme()		linux_kthread_parkme()
+#define	kthread_should_park()		linux_kthread_should_park()
+#define	kthread_unpark(task)		linux_kthread_unpark(task)
 
-#endif	/* _LINUX_KTHREAD_H_ */
+#define	in_atomic()			linux_in_atomic()
+
+#endif /* _LINUX_KTHREAD_H_ */
