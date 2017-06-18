@@ -94,8 +94,8 @@ ccm_init_gates(struct ccm_softc *sc)
 	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
 	WR4(sc, CCM_CCGR0, reg);
 
-	/* gpt, enet */
-	reg = CCGR1_ENET | CCGR1_GPT;
+	/* enet, epit, gpt */
+	reg = CCGR1_ENET | CCGR1_EPIT1 | CCGR1_GPT;
 	WR4(sc, CCM_CCGR1, reg);
 
 	/* ipmux & ipsync (bridges), iomux, i2c */
