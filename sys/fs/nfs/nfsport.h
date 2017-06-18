@@ -518,7 +518,7 @@ struct nfs_vattr {
 struct nfsvattr {
 	struct vattr	na_vattr;
 	nfsattrbit_t	na_suppattr;
-	u_int32_t	na_mntonfileno;
+	u_int64_t	na_mntonfileno;
 	u_int64_t	na_filesid[2];
 };
 
