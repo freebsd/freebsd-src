@@ -265,14 +265,6 @@
 #define BKVAMASK	(BKVASIZE-1)
 
 /*
- * This variable is tuned via vfs.maxbcachebuf and is set to the value of
- * MAXBCACHEBUF by default.
- */
-#ifdef _KERNEL
-extern int	maxbcachebuf;
-#endif
-
-/*
  * MAXPATHLEN defines the longest permissible path length after expanding
  * symbolic links. It is used to allocate a temporary buffer from the buffer
  * pool in which to do the name expansion, hence should be a power of two,
