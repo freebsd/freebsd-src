@@ -49,7 +49,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
 #include <linux/log2.h> 
 #include <asm/byteorder.h>
 

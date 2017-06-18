@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/jhash.h>
 #include <linux/kthread.h>
+#include <linux/wait.h>
 
 #include <rdma/ib_fmr_pool.h>
 
