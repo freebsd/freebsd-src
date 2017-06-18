@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#include <machine/cpu-v6.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #define	BUSDMA_DCACHE_ALIGN	cpuinfo.dcache_line_size
