@@ -72,6 +72,7 @@ struct at91_usart_softc {
 	struct uart_softc base;
 	bus_dma_tag_t tx_tag;
 	bus_dmamap_t tx_map;
+	bus_addr_t tx_paddr;
 	uint32_t flags;
 #define	HAS_TIMEOUT		0x1
 #define	USE_RTS0_WORKAROUND	0x2
@@ -472,6 +473,9 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	err = bus_dmamap_create(atsc->tx_tag, 0, &atsc->tx_map);
 	if (err != 0)
 		goto errout;
+	if (bus_dmamap_load(atsc->tx_tag, atsc->tx_map, sc->sc_txbuf,
+	    sc->sc_txfifosz, at91_getaddr, &atsc->tx_paddr, 0) != 0)
+		goto errout;
 
 	if (atsc->flags & HAS_TIMEOUT) {
 		/*
@@ -547,29 +551,22 @@ errout:
 static int
 at91_usart_bus_transmit(struct uart_softc *sc)
 {
-	bus_addr_t addr;
 	struct at91_usart_softc *atsc;
 	int err;
 
 	err = 0;
 	atsc = (struct at91_usart_softc *)sc;
 	uart_lock(sc->sc_hwmtx);
-	if (bus_dmamap_load(atsc->tx_tag, atsc->tx_map, sc->sc_txbuf,
-	    sc->sc_txdatasz, at91_getaddr, &addr, 0) != 0) {
-		err = EAGAIN;
-		goto errout;
-	}
 	bus_dmamap_sync(atsc->tx_tag, atsc->tx_map, BUS_DMASYNC_PREWRITE);
 	sc->sc_txbusy = 1;
 	/*
 	 * Setup the PDC to transfer the data and interrupt us when it
 	 * is done.  We've already requested the interrupt.
 	 */
-	WR4(&sc->sc_bas, PDC_TPR, addr);
+	WR4(&sc->sc_bas, PDC_TPR, atsc->tx_paddr);
 	WR4(&sc->sc_bas, PDC_TCR, sc->sc_txdatasz);
 	WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_TXTEN);
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_ENDTX);
-errout:
 	uart_unlock(sc->sc_hwmtx);
 	return (err);
 }
@@ -666,7 +663,6 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	if (csr & USART_CSR_ENDTX) {
 		bus_dmamap_sync(atsc->tx_tag, atsc->tx_map,
 		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(atsc->tx_tag, atsc->tx_map);
 	}
 	if (csr & (USART_CSR_TXRDY | USART_CSR_ENDTX)) {
 		if (sc->sc_txbusy)
