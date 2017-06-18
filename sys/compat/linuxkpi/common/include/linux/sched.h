@@ -54,6 +54,7 @@
 #define	TASK_UNINTERRUPTIBLE	0x0002
 #define	TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 #define	TASK_WAKING		0x0100
+#define	TASK_PARKED		0x0200
 
 struct task_struct {
 	struct thread *task_thread;
