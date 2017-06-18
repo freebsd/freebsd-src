@@ -37,7 +37,6 @@
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 
-#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
