@@ -2742,11 +2742,10 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, bigenough = 1;
 	int reqsize, tryformoredirs = 1, readsize, eof = 0, gotmnton = 0;
-	long dotfileid, dotdotfileid = 0;
-	u_int32_t fakefileno = 0xffffffff, rderr;
+	u_int64_t dotfileid, dotdotfileid = 0, fakefileno = UINT64_MAX;
 	char *cp;
 	nfsattrbit_t attrbits, dattrbits;
-	u_int32_t *tl2 = NULL;
+	u_int32_t rderr, *tl2 = NULL;
 	size_t tresid;
 
 	KASSERT(uiop->uio_iovcnt == 1 &&
@@ -2823,14 +2822,14 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = EPERM;
 			    if (!error) {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
-				nfsva.na_mntonfileno = 0xffffffff;
+				nfsva.na_mntonfileno = UINT64_MAX;
 				error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
 				    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
 				    NULL, NULL, NULL, p, cred);
 				if (error) {
 				    dotdotfileid = dotfileid;
 				} else if (gotmnton) {
-				    if (nfsva.na_mntonfileno != 0xffffffff)
+				    if (nfsva.na_mntonfileno != UINT64_MAX)
 					dotdotfileid = nfsva.na_mntonfileno;
 				    else
 					dotdotfileid = nfsva.na_fileid;
@@ -2981,8 +2980,8 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				len = fxdr_unsigned(int, *tl);
 			} else {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
-				nfsva.na_fileid =
-				    fxdr_unsigned(long, *tl++);
+				nfsva.na_fileid = fxdr_unsigned(uint64_t,
+				    *tl++);
 				len = fxdr_unsigned(int, *tl);
 			}
 			if (len <= 0 || len > NFS_MAXNAMLEN) {
@@ -3037,7 +3036,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			}
 			if (nd->nd_flag & ND_NFSV4) {
 				rderr = 0;
-				nfsva.na_mntonfileno = 0xffffffff;
+				nfsva.na_mntonfileno = UINT64_MAX;
 				error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
 				    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
 				    NULL, NULL, &rderr, p, cred);
@@ -3059,7 +3058,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    dp->d_fileno = 0;
 				} else {
 				    if (gotmnton) {
-					if (nfsva.na_mntonfileno != 0xffffffff)
+					if (nfsva.na_mntonfileno != UINT64_MAX)
 					    dp->d_fileno = nfsva.na_mntonfileno;
 					else
 					    dp->d_fileno = nfsva.na_fileid;
@@ -3184,11 +3183,12 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, bigenough = 1;
 	int attrflag, tryformoredirs = 1, eof = 0, gotmnton = 0;
 	int isdotdot = 0, unlocknewvp = 0;
-	long dotfileid, dotdotfileid = 0, fileno = 0;
+	u_int64_t dotfileid, dotdotfileid = 0, fakefileno = UINT64_MAX;
+	u_int64_t fileno = 0;
 	char *cp;
 	nfsattrbit_t attrbits, dattrbits;
 	size_t tresid;
-	u_int32_t *tl2 = NULL, fakefileno = 0xffffffff, rderr;
+	u_int32_t *tl2 = NULL, rderr;
 	struct timespec dctime;
 
 	KASSERT(uiop->uio_iovcnt == 1 &&
@@ -3255,14 +3255,14 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = EPERM;
 			    if (!error) {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
-				nfsva.na_mntonfileno = 0xffffffff;
+				nfsva.na_mntonfileno = UINT64_MAX;
 				error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,
 				    NULL, 0, NULL, NULL, NULL, NULL, NULL, 0,
 				    NULL, NULL, NULL, p, cred);
 				if (error) {
 				    dotdotfileid = dotfileid;
 				} else if (gotmnton) {
-				    if (nfsva.na_mntonfileno != 0xffffffff)
+				    if (nfsva.na_mntonfileno != UINT64_MAX)
 					dotdotfileid = nfsva.na_mntonfileno;
 				    else
 					dotdotfileid = nfsva.na_fileid;
@@ -3394,8 +3394,8 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				ncookie.lval[0] = *tl++;
 				ncookie.lval[1] = *tl++;
 			} else {
-				fileno = fxdr_unsigned(long, *++tl);
-				tl++;
+				fileno = fxdr_hyper(tl);
+				tl += 2;
 			}
 			len = fxdr_unsigned(int, *tl);
 			if (len <= 0 || len > NFS_MAXNAMLEN) {

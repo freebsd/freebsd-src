@@ -820,19 +820,14 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	struct timespec temptime;
 	uid_t uid;
 	gid_t gid;
-	long fid;
 	u_int32_t freenum = 0, tuint;
 	u_int64_t uquad = 0, thyp, thyp2;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
 #endif
-	static struct timeval last64fileid;
-	static size_t count64fileid;
-	static struct timeval last64mountfileid;
-	static size_t count64mountfileid;
-	static struct timeval warninterval = { 60, 0 };
 
+	CTASSERT(sizeof(ino_t) == sizeof(uint64_t));
 	if (compare) {
 		retnotsup = 0;
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, &retnotsup);
@@ -1212,20 +1207,11 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			thyp = fxdr_hyper(tl);
 			if (compare) {
 				if (!(*retcmpp)) {
-				    if ((u_int64_t)nap->na_fileid != thyp)
-					*retcmpp = NFSERR_NOTSAME;
+					if (nap->na_fileid != thyp)
+						*retcmpp = NFSERR_NOTSAME;
 				}
-			} else if (nap != NULL) {
-				if (*tl++) {
-					count64fileid++;
-					if (ratecheck(&last64fileid, &warninterval)) {
-						printf("NFSv4 fileid > 32bits (%zu occurrences)\n",
-						    count64fileid);
-						count64fileid = 0;
-					}
-				}
+			} else if (nap != NULL)
 				nap->na_fileid = thyp;
-			}
 			attrsum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_FILESAVAIL:
@@ -1749,27 +1735,14 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 			thyp = fxdr_hyper(tl);
 			if (compare) {
-			    if (!(*retcmpp)) {
-				if (*tl++) {
-					*retcmpp = NFSERR_NOTSAME;
-				} else {
-					if (!vp || !nfsrv_atroot(vp, &fid))
-						fid = nap->na_fileid;
-					if ((u_int64_t)fid != thyp)
+				if (!(*retcmpp)) {
+					if (!vp || !nfsrv_atroot(vp, &thyp2))
+						thyp2 = nap->na_fileid;
+					if (thyp2 != thyp)
 						*retcmpp = NFSERR_NOTSAME;
 				}
-			    }
-			} else if (nap != NULL) {
-			    if (*tl++) {
-				count64mountfileid++;
-				if (ratecheck(&last64mountfileid, &warninterval)) {
-					printf("NFSv4 mounted on fileid > 32bits (%zu occurrences)\n",
-					    count64mountfileid);
-					count64mountfileid = 0;
-				}
-			    }
-			    nap->na_mntonfileno = thyp;
-			}
+			} else if (nap != NULL)
+				nap->na_mntonfileno = thyp;
 			attrsum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_SUPPATTREXCLCREAT:
@@ -2259,8 +2232,8 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_FILEID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
-			*tl++ = 0;
-			*tl = txdr_unsigned(vap->va_fileid);
+			uquad = vap->va_fileid;
+			txdr_hyper(uquad, tl);
 			retnum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_FILESAVAIL:
@@ -2525,7 +2498,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			if (at_root != 0)
 				uquad = mounted_on_fileno;
 			else
-				uquad = (u_int64_t)vap->va_fileid;
+				uquad = vap->va_fileid;
 			txdr_hyper(uquad, tl);
 			retnum += NFSX_HYPER;
 			break;
