@@ -171,7 +171,8 @@ dmar_qi_emit_wait_descr(struct dmar_unit *unit, uint32_t seq, bool intr,
 }
 
 static void
-dmar_qi_emit_wait_seq(struct dmar_unit *unit, struct dmar_qi_genseq *pseq)
+dmar_qi_emit_wait_seq(struct dmar_unit *unit, struct dmar_qi_genseq *pseq,
+    bool emit_wait)
 {
 	struct dmar_qi_genseq gsec;
 	uint32_t seq;
@@ -192,7 +193,10 @@ dmar_qi_emit_wait_seq(struct dmar_unit *unit, struct dmar_qi_genseq *pseq)
 	seq = unit->inv_waitd_seq++;
 	pseq->gen = unit->inv_waitd_gen;
 	pseq->seq = seq;
-	dmar_qi_emit_wait_descr(unit, seq, true, true, false);
+	if (emit_wait) {
+		dmar_qi_ensure(unit, 1);
+		dmar_qi_emit_wait_descr(unit, seq, true, true, false);
+	}
 }
 
 static void
@@ -215,7 +219,7 @@ dmar_qi_wait_for_seq(struct dmar_unit *unit, const struct dmar_qi_genseq *gseq,
 
 void
 dmar_qi_invalidate_locked(struct dmar_domain *domain, dmar_gaddr_t base,
-    dmar_gaddr_t size, struct dmar_qi_genseq *pseq)
+    dmar_gaddr_t size, struct dmar_qi_genseq *pseq, bool emit_wait)
 {
 	struct dmar_unit *unit;
 	dmar_gaddr_t isize;
@@ -232,10 +236,7 @@ dmar_qi_invalidate_locked(struct dmar_domain *domain, dmar_gaddr_t base,
 		    DMAR_IQ_DESCR_IOTLB_DID(domain->domain),
 		    base | am);
 	}
-	if (pseq != NULL) {
-		dmar_qi_ensure(unit, 1);
-		dmar_qi_emit_wait_seq(unit, pseq);
-	}
+	dmar_qi_emit_wait_seq(unit, pseq, emit_wait);
 	dmar_qi_advance_tail(unit);
 }
 
@@ -247,7 +248,7 @@ dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
 	DMAR_ASSERT_LOCKED(unit);
 	dmar_qi_ensure(unit, 2);
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_CTX_INV | DMAR_IQ_DESCR_CTX_GLOB, 0);
-	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_emit_wait_seq(unit, &gseq, true);
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -261,7 +262,7 @@ dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit)
 	dmar_qi_ensure(unit, 2);
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_IOTLB_INV | DMAR_IQ_DESCR_IOTLB_GLOB |
 	    DMAR_IQ_DESCR_IOTLB_DW | DMAR_IQ_DESCR_IOTLB_DR, 0);
-	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_emit_wait_seq(unit, &gseq, true);
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -274,7 +275,7 @@ dmar_qi_invalidate_iec_glob(struct dmar_unit *unit)
 	DMAR_ASSERT_LOCKED(unit);
 	dmar_qi_ensure(unit, 2);
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV, 0);
-	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_emit_wait_seq(unit, &gseq, true);
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -298,7 +299,7 @@ dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt)
 		    DMAR_IQ_DESCR_IEC_IM(l), 0);
 	}
 	dmar_qi_ensure(unit, 1);
-	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_emit_wait_seq(unit, &gseq, true);
 	dmar_qi_advance_tail(unit);
 
 	/*
@@ -344,8 +345,7 @@ dmar_qi_task(void *arg, int pending __unused)
 		entry = TAILQ_FIRST(&unit->tlb_flush_entries);
 		if (entry == NULL)
 			break;
-		if ((entry->gseq.gen == 0 && entry->gseq.seq == 0) ||
-		    !dmar_qi_seq_processed(unit, &entry->gseq))
+		if (!dmar_qi_seq_processed(unit, &entry->gseq))
 			break;
 		TAILQ_REMOVE(&unit->tlb_flush_entries, entry, dmamap_link);
 		DMAR_UNLOCK(unit);
@@ -432,7 +432,7 @@ dmar_fini_qi(struct dmar_unit *unit)
 	DMAR_LOCK(unit);
 	/* quisce */
 	dmar_qi_ensure(unit, 1);
-	dmar_qi_emit_wait_seq(unit, &gseq);
+	dmar_qi_emit_wait_seq(unit, &gseq, true);
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 	/* only after the quisce, disable queue */
