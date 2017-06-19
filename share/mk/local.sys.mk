@@ -42,6 +42,10 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 .endif
 
+.if !empty(LIBDIR)
+_PREMK_LIBDIR:=	${LIBDIR}
+.endif
+
 .include "src.sys.mk"
 
 .if ${.MAKE.MODE:Mmeta*} != ""
