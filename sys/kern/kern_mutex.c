@@ -233,7 +233,8 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 
 	m = mtxlock2mtx(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED() ||
+	    !TD_IS_IDLETHREAD(curthread),
 	    ("mtx_lock() by idle thread %p on sleep mutex %s @ %s:%d",
 	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -390,7 +391,7 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 
 	m = mtxlock2mtx(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
 	    ("mtx_trylock() by idle thread %p on sleep mutex %s @ %s:%d",
 	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
