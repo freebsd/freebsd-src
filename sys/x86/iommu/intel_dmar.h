@@ -305,7 +305,7 @@ void dmar_disable_qi_intr(struct dmar_unit *unit);
 int dmar_init_qi(struct dmar_unit *unit);
 void dmar_fini_qi(struct dmar_unit *unit);
 void dmar_qi_invalidate_locked(struct dmar_domain *domain, dmar_gaddr_t start,
-    dmar_gaddr_t size, struct dmar_qi_genseq *pseq);
+    dmar_gaddr_t size, struct dmar_qi_genseq *psec, bool emit_wait);
 void dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iec_glob(struct dmar_unit *unit);
