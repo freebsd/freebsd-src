@@ -837,6 +837,11 @@
 	<acronym>EFI</acronym> loader has been updated to support
 	<acronym>TFTPFS</acronym>, providing netboot support without
 	requiring an <acronym>NFS</acronym> server.</para>
+
+      <para revision="320088" contrib="sponsor" sponsor="&ff;">The
+	default <acronym>EFI</acronym> partition created by
+	&man.bsdinstall.8; has been increased from 800kb to
+	200Mb.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
