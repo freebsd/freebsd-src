@@ -83,7 +83,6 @@ extern int nfscl_debuglevel;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern struct mtx ncl_iod_mutex;
-extern int maxbcachebuf;
 NFSCLSTATEMUTEX;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "NFS request header");

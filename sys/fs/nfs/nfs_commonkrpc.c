@@ -96,7 +96,6 @@ extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
 extern int nfs_numnfscbd;
 extern int nfscl_debuglevel;
-extern int maxbcachebuf;
 
 SVCPOOL		*nfscbd_pool;
 static int	nfsrv_gsscallbackson = 0;
