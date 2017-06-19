@@ -2194,6 +2194,20 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 		} else {
 			KASSERT(rxd->btype == VMXNET3_BTYPE_BODY,
 			    ("%s: non start of frame w/o body buffer", __func__));
+
+			if (m_head == NULL && m_tail == NULL) {
+				/*
+				 * This is a continuation of a packet that we
+				 * started to drop, but could not drop entirely
+				 * because this segment was still owned by the
+				 * host.  So, drop the remainder now.
+				 */
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				if (!rxcd->eop)
+					vmxnet3_rxq_discard_chain(rxq);
+				goto nextp;
+			}
+
 			KASSERT(m_head != NULL,
 			    ("%s: frame not started?", __func__));
 
