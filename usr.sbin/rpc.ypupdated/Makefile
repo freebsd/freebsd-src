@@ -17,7 +17,7 @@ LIBADD=	rpcsvc
 
 CLEANFILES= ypupdate_prot_svc.c ypupdate_prot.h
 
-RPCDIR=	${DESTDIR}/usr/include/rpcsvc
+RPCDIR=	${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
