@@ -373,6 +373,11 @@
       <para revision="311686">The installer, &man.bsdinstall.8;, has
 	been updated to include support for hidden wireless networks
 	when configuring the &man.wlan.4; interface.</para>
+
+      <para revision="320088" contrib="sponsor" sponsor="&ff;">The
+	default <acronym>EFI</acronym> partition created by
+	&man.bsdinstall.8; has been increased from 800KB to
+	200MB.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
@@ -837,11 +842,6 @@
 	<acronym>EFI</acronym> loader has been updated to support
 	<acronym>TFTPFS</acronym>, providing netboot support without
 	requiring an <acronym>NFS</acronym> server.</para>
-
-      <para revision="320088" contrib="sponsor" sponsor="&ff;">The
-	default <acronym>EFI</acronym> partition created by
-	&man.bsdinstall.8; has been increased from 800kb to
-	200Mb.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
