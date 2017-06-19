@@ -11,7 +11,7 @@ LIBADD=	rpcsvc
 
 CLEANFILES= sm_inter_svc.c sm_inter.h
 
-RPCSRC= ${DESTDIR}/usr/include/rpcsvc/sm_inter.x
+RPCSRC= ${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc/sm_inter.x
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C
 
 sm_inter_svc.c: ${RPCSRC}

@@ -14,7 +14,7 @@ SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
 	xstrtoumax.c
 CLEANFILES+=	gnugrep.1
 
-CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR} -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DHAVE_CONFIG_H
 
 .if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \

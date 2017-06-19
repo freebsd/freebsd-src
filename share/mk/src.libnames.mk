@@ -343,13 +343,13 @@ _DP_rdmacm=	ibverbs
 
 # Define special cases
 LDADD_supcplusplus=	-lsupc++
-LIBATF_C=	${DESTDIR}${LIBDIR_BASE}/libprivateatf-c.a
-LIBATF_CXX=	${DESTDIR}${LIBDIR_BASE}/libprivateatf-c++.a
+LIBATF_C=	${LIBDESTDIR}${LIBDIR_BASE}/libprivateatf-c.a
+LIBATF_CXX=	${LIBDESTDIR}${LIBDIR_BASE}/libprivateatf-c++.a
 LDADD_atf_c=	-lprivateatf-c
 LDADD_atf_cxx=	-lprivateatf-c++
 
 .for _l in ${_PRIVATELIBS}
-LIB${_l:tu}?=	${DESTDIR}${LIBDIR_BASE}/libprivate${_l}.a
+LIB${_l:tu}?=	${LIBDESTDIR}${LIBDIR_BASE}/libprivate${_l}.a
 .endfor
 
 .for _l in ${_LIBRARIES}
