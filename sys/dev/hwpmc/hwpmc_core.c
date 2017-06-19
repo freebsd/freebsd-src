@@ -578,7 +578,8 @@ struct iap_event_descr {
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
 #define	IAP_F_CAS	(1 << 11)	/* CPU: Atom Silvermont */
 #define	IAP_F_HWX	(1 << 12)	/* CPU: Haswell Xeon */
-#define	IAP_F_FM	(1 << 13)	/* Fixed mask */
+#define	IAP_F_BW	(1 << 13)	/* CPU: Broadwell */
+#define	IAP_F_FM	(1 << 14)	/* Fixed mask */
 
 #define	IAP_F_ALLCPUSCORE2					\
     (IAP_F_CC | IAP_F_CC2 | IAP_F_CC2E | IAP_F_CA)
@@ -2063,6 +2064,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
+	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE:
@@ -2094,6 +2096,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		break;
 	case PMC_CPU_INTEL_ATOM_SILVERMONT:
 		cpuflag = IAP_F_CAS;
+		break;
+	case PMC_CPU_INTEL_BROADWELL:
+		cpuflag = IAP_F_BW;
 		break;
 	case PMC_CPU_INTEL_CORE:
 		cpuflag = IAP_F_CC;
