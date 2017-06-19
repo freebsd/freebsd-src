@@ -114,7 +114,7 @@ CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h
 tables.h: mktables
-	sh ${.CURDIR}/mktables ${DESTDIR}${INCLUDEDIR} ${.TARGET}
+	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}
 
 # mkioctls runs find(1) for headers so needs to rebuild every time.  This used
 # to be a hack only done in buildworld.
@@ -123,7 +123,7 @@ ioctl.c: .PHONY
 .endif
 ioctl.c: mkioctls .META
 	env CPP="${CPP}" \
-		/bin/sh ${.CURDIR}/mkioctls ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
+	    /bin/sh ${.CURDIR}/mkioctls ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} > ${.TARGET}
 
 beforedepend: ioctl.c tables.h
 

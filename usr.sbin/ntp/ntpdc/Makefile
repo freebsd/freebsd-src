@@ -19,7 +19,7 @@ CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 
 LIBADD=	edit ntp m opts pthread
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
-		-I${DESTDIR}/${INCLUDEDIR}/edit
+		-I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto

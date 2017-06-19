@@ -6,7 +6,7 @@ SRCS=	gvinum.c gvinum.h geom_vinum_share.c
 MAN=	gvinum.8
 
 WARNS?=	2
-CFLAGS+=	-I${SRCTOP}/sys -I${DESTDIR}/${INCLUDEDIR}/edit
+CFLAGS+=	-I${SRCTOP}/sys -I${SYSROOT:U${DESTDIR}}/${INCLUDEDIR}/edit
 
 LIBADD=	edit geom
 

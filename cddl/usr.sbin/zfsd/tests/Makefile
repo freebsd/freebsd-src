@@ -11,16 +11,10 @@ SRCS=
 # Use #include <zfsd/xxx.h> in test programs.
 INCFLAGS+=	-I${.CURDIR:H:H}
 
-.if defined(DESTDIR)
-INCFLAGS+=	-I${DESTDIR}/usr/include
-LIBRARY_PATH=	${DESTDIR}/lib:${DESTDIR}/usr/lib
-LDFLAGS.zfsd_unittest+=	-L${DESTDIR}/lib -L${DESTDIR}/usr/lib
-.elif defined(WORLDTMP)
-INCFLAGS+=	-I${WORLDTMP}/usr/include
-LIBRARY_PATH=	${WORLDTMP}/lib:${WORLDTMP}/usr/lib
-LDFLAGS.zfsd_unittest+=	-L${WORLDTMP}/lib -L${WORLDTMP}/usr/lib
-.else
-LIBRARY_PATH=
+.if defined(DESTDIR) || defined(SYSROOT)
+INCFLAGS+=		-I${SYSROOT:U${DESTDIR}}/usr/include
+LDFLAGS.zfsd_unittest+=	-L${SYSROOT:U${DESTDIR}}/lib \
+			-L${SYSROOT:U${DESTDIR}}/usr/lib
 .endif
 
 # Googletest options

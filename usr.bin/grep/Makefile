@@ -82,7 +82,7 @@ CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
 .if ${MK_GNU_GREP_COMPAT} != "no"
-CFLAGS+= -I${DESTDIR}/usr/include/gnu -DWITH_GNU
+CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
 LIBADD+=	gnuregex
 .endif
 
