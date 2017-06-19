@@ -5158,7 +5158,7 @@ em_enable_intr(struct adapter *adapter)
 
 	if (hw->mac.type == e1000_82574) {
 		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
-		ims_mask |= adapter->ims;
+		ims_mask |= EM_MSIX_MASK;
 	} 
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 }
