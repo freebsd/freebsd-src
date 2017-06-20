@@ -310,7 +310,9 @@ NLSNAME?=	${PROG}
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 
-LINKMODE=	${BINMODE}
+LINKOWN?=	${BINOWN}
+LINKGRP?=	${BINGRP}
+LINKMODE?=	${BINMODE}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no"
