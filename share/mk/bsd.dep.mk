@@ -90,7 +90,7 @@ _meta_filemon=	1
 .if defined(_SKIP_BUILD) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir) || \
-    make(obj) || make(clean*) || make(destroy*)
+    make(obj) || (!make(all) && (make(clean*) || make(destroy*)))
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 .endif
