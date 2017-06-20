@@ -518,6 +518,7 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 # need to keep this in sync with targets/pseudo/bootstrap-tools/Makefile
 BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
+		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
@@ -536,6 +537,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
+		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
@@ -689,7 +691,9 @@ NO_META_IGNORE_HOST_HEADERS=	1
 host-osreldate.h: # DO NOT ADD /usr/include/osreldate.h here
 	@cp -f /usr/include/osreldate.h ${.TARGET}
 
-WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
+WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		BWPHASE=${.TARGET:C,^_,,} \
+		DESTDIR=${WORLDTMP}
 
 IMAKEENV=	${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
