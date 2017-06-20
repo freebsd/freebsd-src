@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu-v4.h>
 #else
 #include <machine/cpu-v6.h>
+#include <machine/pte-v6.h>
 #endif
 
 #include <arm/mv/mvreg.h>	/* XXX */
@@ -257,6 +258,15 @@ platform_late_init(void)
 #endif
 
 #if defined(SOC_MV_ARMADA38X)
+	/*
+	 * Workaround for Marvell Armada38X family HW issue
+	 * between Cortex-A9 CPUs and on-chip devices that may
+	 * cause hang on heavy load.
+	 * To avoid that, map all registers including PCIe IO
+	 * as strongly ordered instead of device memory.
+	 */
+	pmap_remap_vm_attr(PTE2_ATTR_DEVICE, PTE2_ATTR_SO);
+
 	/* Set IO Sync Barrier bit for all Mbus devices */
 	if (armada38x_win_set_iosync_barrier() != 0)
 		printf("WARNING: could not map CPU Subsystem registers\n");
