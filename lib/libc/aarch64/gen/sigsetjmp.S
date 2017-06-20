@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(sigsetjmp)
 	cmp	x1, #0
-	b.eq	_C_LABEL(_setjmp)
+	b.eq	1f
 	b	_C_LABEL(setjmp)
+1:
+	b	_C_LABEL(_setjmp)
 END(sigsetjmp)
 
 ENTRY(siglongjmp)
@@ -45,8 +47,10 @@ ENTRY(siglongjmp)
 
 	/* Check the magic */
 	cmp	x2, x3
-	b.eq	_C_LABEL(_longjmp)
+	b.eq	1f
 	b	_C_LABEL(longjmp)
+1:
+	b	_C_LABEL(_longjmp)
 	.align	3
 .Lmagic:
 	.quad	_JB_MAGIC__SETJMP
