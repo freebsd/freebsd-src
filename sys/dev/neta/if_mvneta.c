@@ -2100,6 +2100,7 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 	case SIOCGIFMEDIA: /* FALLTHROUGH */
+	case SIOCGIFXMEDIA:
 		if (!sc->phy_attached)
 			error = ifmedia_ioctl(ifp, ifr, &sc->mvneta_ifmedia,
 			    cmd);
@@ -2469,7 +2470,7 @@ mvneta_adjust_link(struct mvneta_softc *sc)
 		mvneta_linkupdate(sc, phy_linkup);
 
 	/* Don't update media on disabled link */
-	if (!phy_linkup )
+	if (!phy_linkup)
 		return;
 
 	/* Check for media type change */
@@ -3547,7 +3548,7 @@ mvneta_update_mib(struct mvneta_softc *sc)
 	if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, reg);
 
 	/* TX watchdog. */
-	if (sc->counter_watchdog_mib > 0 ) {
+	if (sc->counter_watchdog_mib > 0) {
 		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, sc->counter_watchdog_mib);
 		sc->counter_watchdog_mib = 0;
 	}
