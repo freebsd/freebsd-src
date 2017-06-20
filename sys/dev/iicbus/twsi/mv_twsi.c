@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+static phandle_t mv_twsi_get_node(device_t, device_t);
 static int mv_twsi_probe(device_t);
 static int mv_twsi_attach(device_t);
 
@@ -105,7 +106,10 @@ static device_method_t mv_twsi_methods[] = {
 	DEVMETHOD(device_probe,		mv_twsi_probe),
 	DEVMETHOD(device_attach,	mv_twsi_attach),
 
-	{ 0, 0 }
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	mv_twsi_get_node),
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(twsi, mv_twsi_driver, mv_twsi_methods,
@@ -116,6 +120,14 @@ static devclass_t mv_twsi_devclass;
 DRIVER_MODULE(twsi, simplebus, mv_twsi_driver, mv_twsi_devclass, 0, 0);
 DRIVER_MODULE(iicbus, twsi, iicbus_driver, iicbus_devclass, 0, 0);
 MODULE_DEPEND(twsi, iicbus, 1, 1, 1);
+
+static phandle_t
+mv_twsi_get_node(device_t bus, device_t dev)
+{
+
+	/* Used by ofw_iicbus. */
+	return (ofw_bus_get_node(bus));
+}
 
 static int
 mv_twsi_probe(device_t dev)
