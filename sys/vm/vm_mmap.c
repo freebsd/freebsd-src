@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>		/* Requires sys/signal.h, sys/uio.h */
 #include <sys/vmmeter.h>
@@ -108,6 +109,9 @@ __FBSDID("$FreeBSD$");
 int old_mlock = 0;
 SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
+static int log_wxrequests = 1;
+SYSCTL_INT(_vm, OID_AUTO, log_wxrequests, CTLFLAG_RWTUN, &log_wxrequests, 0,
+    "Log requests for PROT_WRITE and PROT_EXEC");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -155,6 +159,14 @@ ogetpagesize(struct thread *td, struct getpagesize_args *uap)
 }
 #endif				/* COMPAT_43 */
 
+static inline int
+vm_wxcheck(struct proc *p, char *call)
+{
+	if (log_wxrequests)
+		log(LOG_NOTICE, "%s(%d): W^X requested from %s\n",
+		    p->p_comm, p->p_pid, call);
+	return (0);
+}
 
 /*
  * Memory Map (mmap) system call.  Note that the file offset
@@ -212,6 +224,9 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 #endif
 		return (EACCES);
 	}
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    (error = vm_wxcheck(td->td_proc, "mmap")))
+		return (error);
 
 	vms = td->td_proc->p_vmspace;
 	fp = NULL;
@@ -779,6 +794,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 {
 	vm_offset_t addr;
 	vm_size_t pageoff;
+	int error;
 
 	addr = addr0;
 	prot = (prot & VM_PROT_ALL);
@@ -788,6 +804,10 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
 		return (EINVAL);
+
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    (error = vm_wxcheck(td->td_proc, "mprotect")))
+		return (error);
 
 	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
 	    addr + size, prot, FALSE)) {
