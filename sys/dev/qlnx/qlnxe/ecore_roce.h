@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_RDMA_H__
 #define __ECORE_RDMA_H__
 
@@ -100,11 +99,14 @@ void ecore_rdma_dpm_bar(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
 
 #ifdef CONFIG_ECORE_IWARP
 
+#define ECORE_IWARP_PREALLOC_CNT	(256)
+
 #define ECORE_IWARP_LL2_SYN_TX_SIZE	(128)
 #define ECORE_IWARP_LL2_SYN_RX_SIZE	(256)
 
 #define ECORE_IWARP_LL2_OOO_DEF_TX_SIZE	(256)
 #define ECORE_IWARP_LL2_OOO_DEF_RX_SIZE	(4096)
+#define ECORE_IWARP_LL2_OOO_MAX_RX_SIZE	(16384)
 
 #define ECORE_IWARP_MAX_SYN_PKT_SIZE	(128)
 #define ECORE_IWARP_HANDLE_INVAL	(0xff)
@@ -309,6 +311,13 @@ union async_output {
 	struct iwarp_eqe_data_tcp_async_completion mpa_request;
 };
 
+#define ECORE_MAX_PRIV_DATA_LEN (512)
+struct ecore_iwarp_ep_memory {
+	u8			in_pdata[ECORE_MAX_PRIV_DATA_LEN];
+	u8			out_pdata[ECORE_MAX_PRIV_DATA_LEN];
+	union async_output	async_output;
+};
+
 /* Endpoint structure represents a TCP connection. This connection can be
  * associated with a QP or not (in which case QP==NULL)
  */
@@ -322,15 +331,8 @@ struct ecore_iwarp_ep {
 	 * only one actually allocated and freed. The rest are pointers into
 	 * this buffer
 	 */
-	void				*ep_buffer_virt;
+	struct ecore_iwarp_ep_memory    *ep_buffer_virt;
 	dma_addr_t			ep_buffer_phys;
-
-	/* Asynce EQE events contain only the ep pointer on the completion. The
-	 * rest of the data is written to an output buffer pre-allocated by
-	 * the driver. This buffer points to a location in the ep_buffer.
-	 */
-	union async_output		*async_output_virt;
-	dma_addr_t			async_output_phys;
 
 	struct ecore_iwarp_cm_info	cm_info;
 	enum tcp_connect_mode		connect_mode;

@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_INT_H__
 #define __ECORE_INT_H__
 
@@ -42,7 +41,7 @@
 #define ECORE_SB_EVENT_MASK	0x0003
 
 #define SB_ALIGNED_SIZE(p_hwfn)					\
-	ALIGNED_TYPE_SIZE(struct status_block, p_hwfn)
+	ALIGNED_TYPE_SIZE(struct status_block_e4, p_hwfn)
 
 #define ECORE_SB_INVALID_IDX	0xffff
 
