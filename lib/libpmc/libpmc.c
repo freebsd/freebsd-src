@@ -341,7 +341,7 @@ PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
 PMC_CLASS_TABLE_DESC(nehalem_ex, IAP, nehalem_ex, iap);
 PMC_CLASS_TABLE_DESC(haswell, IAP, haswell, iap);
-PMC_CLASS_TABLE_DESC(haswell_xeon, IAP, haswell, iap);
+PMC_CLASS_TABLE_DESC(haswell_xeon, IAP, haswell_xeon, iap);
 PMC_CLASS_TABLE_DESC(broadwell, IAP, broadwell, iap);
 PMC_CLASS_TABLE_DESC(broadwell_xeon, IAP, broadwell_xeon, iap);
 PMC_CLASS_TABLE_DESC(skylake, IAP, skylake, iap);
