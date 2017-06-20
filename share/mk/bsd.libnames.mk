@@ -194,4 +194,26 @@ LDADD:=	${LDADD:N-lc} -lc
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}SRCDIR?=	${SRCTOP}/${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
 .endfor
+.else
+
+# Out of tree builds
+
+# There are LIBADD defined in an out-of-tree build.  Are they *all*
+# in-tree libraries?  If so convert them to LDADD to support
+# partial checkouts.
+.if !empty(LIBADD)
+_convert_libadd=	1
+.for l in ${LIBADD}
+.if empty(LIB${l:tu})
+_convert_libadd=	0
 .endif
+.endfor
+.if ${_convert_libadd} == 1
+.warning Converting out-of-tree build LIBADDs into LDADD.  This is not fully supported.
+.for l in ${LIBADD}
+LDADD+=	-l${l}
+.endfor
+.endif
+.endif
+
+.endif	# defined(SRCTOP)
