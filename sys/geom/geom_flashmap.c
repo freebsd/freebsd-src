@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/slicer.h>
 
 #include <geom/geom.h>
@@ -230,10 +231,12 @@ g_flashmap_load(device_t dev, struct g_provider *pp, flash_slicer_t slicer,
 void flash_register_slicer(flash_slicer_t slicer, u_int type, bool force)
 {
 
+	DROP_GIANT();
 	g_topology_lock();
 	if (g_flashmap_slicers[type].slicer == NULL || force == TRUE)
 		g_flashmap_slicers[type].slicer = slicer;
 	g_topology_unlock();
+	PICKUP_GIANT();
 }
 
 static struct g_class g_flashmap_class = {
