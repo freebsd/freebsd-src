@@ -31,8 +31,11 @@
 #ifndef __ECORE_RDMA_API_H__
 #define __ECORE_RDMA_API_H__
 
+#ifndef LINUX_REMOVE
 #define ETH_ALEN 6
+#endif
 
+#ifndef __EXTRACT__LINUX__
 
 enum ecore_roce_ll2_tx_dest
 {
@@ -324,6 +327,7 @@ struct ecore_rdma_create_cq_in_params {
 	u16	int_timeout;
 };
 
+#endif
 
 struct ecore_rdma_resize_cq_in_params {
 	/* input variables (given by miniport) */
@@ -338,6 +342,7 @@ struct ecore_rdma_resize_cq_in_params {
 		       */
 };
 
+#ifndef __EXTRACT__LINUX__
 
 enum roce_mode
 {
@@ -546,6 +551,7 @@ struct ecore_rdma_modify_srq_in_params {
 	u32 wqe_limit;
 	u16 srq_id;
 };
+#endif
 
 struct ecore_rdma_resize_cq_out_params {
 	/* output variables, provided to the upper layer */
@@ -562,6 +568,7 @@ struct ecore_rdma_resize_cnq_in_params {
 	u64	pbl_ptr;
 };
 
+#ifndef __EXTRACT__LINUX__
 struct ecore_rdma_stats_out_params {
 	u64	sent_bytes;
 	u64	sent_pkts;
@@ -592,6 +599,7 @@ struct ecore_rdma_counters_out_params {
 	u64	tid_count;
 	u64	max_tid;
 };
+#endif
 
 enum _ecore_status_t
 ecore_rdma_add_user(void *rdma_cxt,
@@ -699,16 +707,30 @@ ecore_rdma_query_counters(void *rdma_cxt,
 
 u32 ecore_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id);
 
-u32 ecore_rdma_query_cau_timer_res(void *p_hwfn);
+u32 ecore_rdma_query_cau_timer_res(void);
 
 void ecore_rdma_cnq_prod_update(void *rdma_cxt, u8 cnq_index, u16 prod);
 
 void ecore_rdma_resc_free(struct ecore_hwfn *p_hwfn);
 
+enum _ecore_status_t
+ecore_rdma_create_srq(void *rdma_cxt,
+		      struct ecore_rdma_create_srq_in_params *in_params,
+		      struct ecore_rdma_create_srq_out_params *out_params);
+
+enum _ecore_status_t
+ecore_rdma_destroy_srq(void *rdma_cxt,
+		       struct ecore_rdma_destroy_srq_in_params *in_params);
+
+enum _ecore_status_t
+ecore_rdma_modify_srq(void *rdma_cxt,
+		      struct ecore_rdma_modify_srq_in_params *in_params);
+
 #ifdef CONFIG_ECORE_IWARP
 
 /* iWARP API */
 
+#ifndef __EXTRACT__LINUX__
 
 enum ecore_iwarp_event_type {
 	ECORE_IWARP_EVENT_MPA_REQUEST, /* Passive side request received */
@@ -832,6 +854,7 @@ struct ecore_iwarp_tcp_abort_in {
 	void *ep_context;
 };
 
+#endif
 
 enum _ecore_status_t
 ecore_iwarp_connect(void *rdma_cxt,

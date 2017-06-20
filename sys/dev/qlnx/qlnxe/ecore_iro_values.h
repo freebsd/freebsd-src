@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __IRO_VALUES_H__
 #define __IRO_VALUES_H__
 
@@ -68,8 +67,8 @@ ARRAY_DECL struct iro iro_arr[49] = {
 	{   0x2578,      0x8,      0x0,      0x0,      0x8},	/* USTORM_TOE_CQ_PROD_OFFSET(rss_id) */
 	{   0x24f8,      0x8,      0x0,      0x0,      0x8},	/* USTORM_TOE_GRQ_PROD_OFFSET(pf_id) */
 	{      0x0,      0x8,      0x0,      0x0,      0x8},	/* TSTORM_SCSI_CMDQ_CONS_OFFSET(cmdq_queue_id) */
-	{    0x200,     0x10,      0x8,      0x0,      0x8},	/* TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id,bdq_id) */
-	{    0xb78,     0x10,      0x8,      0x0,      0x2},	/* MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id,bdq_id) */
+	{    0x200,     0x18,      0x8,      0x0,      0x8},	/* TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id,bdq_id) */
+	{    0xb78,     0x18,      0x8,      0x0,      0x2},	/* MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id,bdq_id) */
 	{   0xd9a8,     0x38,      0x0,      0x0,     0x24},	/* TSTORM_ISCSI_RX_STATS_OFFSET(pf_id) */
 	{  0x12988,     0x10,      0x0,      0x0,      0x8},	/* MSTORM_ISCSI_RX_STATS_OFFSET(pf_id) */
 	{  0x11aa0,     0x38,      0x0,      0x0,     0x18},	/* USTORM_ISCSI_RX_STATS_OFFSET(pf_id) */

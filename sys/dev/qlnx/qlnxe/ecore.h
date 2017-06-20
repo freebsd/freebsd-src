@@ -39,8 +39,8 @@
 #include "mcp_public.h"
 
 #define ECORE_MAJOR_VERSION		8
-#define ECORE_MINOR_VERSION		18
-#define ECORE_REVISION_VERSION		13
+#define ECORE_MINOR_VERSION		30
+#define ECORE_REVISION_VERSION		0
 #define ECORE_ENGINEERING_VERSION	0
 
 #define ECORE_VERSION							\
@@ -110,13 +110,13 @@ do {									\
 #define GET_FIELD(value, name)						\
 	(((value) >> (name##_SHIFT)) & name##_MASK)
 
-#define ECORE_MFW_GET_FIELD(name, field)				\
-	(((name) & (field ## _MASK)) >> (field ## _SHIFT))
+#define GET_MFW_FIELD(name, field)					\
+	(((name) & (field ## _MASK)) >> (field ## _OFFSET))
 
-#define ECORE_MFW_SET_FIELD(name, field, value)				\
+#define SET_MFW_FIELD(name, field, value)				\
 do {									\
-	(name) &= ~((field ## _MASK) << (field ## _SHIFT));		\
-	(name) |= (((value) << (field ## _SHIFT)) & (field ## _MASK));	\
+	(name) &= ~((field ## _MASK) << (field ## _OFFSET));		\
+	(name) |= (((value) << (field ## _OFFSET)) & (field ## _MASK));	\
 } while (0)
 
 static OSAL_INLINE u32 DB_ADDR(u32 cid, u32 DEMS)
@@ -401,6 +401,11 @@ enum ecore_wol_support {
 	ECORE_WOL_SUPPORT_PME,
 };
 
+enum ecore_db_rec_exec {
+	DB_REC_DRY_RUN,
+	DB_REC_REAL_DEAL,
+};
+
 struct ecore_hw_info {
 	/* PCI personality */
 	enum ecore_pci_personality personality;
@@ -450,10 +455,7 @@ struct ecore_hw_info {
 #ifndef ETH_ALEN
 #define ETH_ALEN 6 /* @@@ TBD - define somewhere else for Windows */
 #endif
-
 	unsigned char hw_mac_addr[ETH_ALEN];
-	u64 node_wwn; /* For FCoE only */
-	u64 port_wwn; /* For FCoE only */
 
 	u16 num_iscsi_conns;
 	u16 num_fcoe_conns;
@@ -537,6 +539,12 @@ struct ecore_qm_info {
 	u8			num_pf_rls;
 };
 
+struct ecore_db_recovery_info {
+	osal_list_t list;
+	osal_spinlock_t lock;
+	u32 db_recovery_counter;
+};
+
 struct storm_stats {
 	u32 address;
 	u32 len;
@@ -605,6 +613,11 @@ struct ecore_hwfn {
 	struct ecore_ptt		*p_main_ptt;
 	struct ecore_ptt		*p_dpc_ptt;
 
+	/* PTP will be used only by the leading funtion.
+	 * Usage of all PTP-apis should be synchronized as result.
+	 */
+	struct ecore_ptt		*p_ptp_ptt;
+
 	struct ecore_sb_sp_info		*p_sp_sb;
 	struct ecore_sb_attn_info	*p_sb_attn;
 
@@ -661,6 +674,9 @@ struct ecore_hwfn {
 
 	/* L2-related */
 	struct ecore_l2_info		*p_l2_info;
+
+	/* Mechanism for recovering from doorbell drop */
+	struct ecore_db_recovery_info	db_recovery_info;
 };
 
 enum ecore_mf_mode {
@@ -694,7 +710,7 @@ struct ecore_dev {
 #define ECORE_IS_AH(dev)	((dev)->type == ECORE_DEV_TYPE_AH)
 #define ECORE_IS_K2(dev)	ECORE_IS_AH(dev)
 
-#define ECORE_IS_E5(dev)	false
+#define ECORE_IS_E5(dev)	((dev)->type == ECORE_DEV_TYPE_E5)
 
 #define ECORE_E5_MISSING_CODE	OSAL_BUILD_BUG_ON(false)
 
@@ -703,6 +719,7 @@ struct ecore_dev {
 #define ECORE_DEV_ID_MASK	0xff00
 #define ECORE_DEV_ID_MASK_BB	0x1600
 #define ECORE_DEV_ID_MASK_AH	0x8000
+#define ECORE_DEV_ID_MASK_E5	0x8100
 
 	u16				chip_num;
 	#define CHIP_NUM_MASK			0xffff
@@ -746,7 +763,7 @@ struct ecore_dev {
 	#define CHIP_BOND_ID_SHIFT		0
 
 	u8				num_engines;
-	u8				num_ports_in_engines;
+	u8				num_ports_in_engine;
 	u8				num_funcs_in_port;
 
 	u8				path_id;
@@ -836,6 +853,9 @@ struct ecore_dev {
 						  : MAX_SB_PER_PATH_K2)
 #define NUM_OF_ENG_PFS(dev)	(ECORE_IS_BB(dev) ? MAX_NUM_PFS_BB \
 						  : MAX_NUM_PFS_K2)
+
+#define CRC8_TABLE_SIZE 256
+
 /**
  * @brief ecore_concrete_to_sw_fid - get the sw function id from
  *        the concrete value.
@@ -844,8 +864,7 @@ struct ecore_dev {
  *
  * @return OSAL_INLINE u8
  */
-static OSAL_INLINE u8 ecore_concrete_to_sw_fid(struct ecore_dev *p_dev,
-					  u32 concrete_fid)
+static OSAL_INLINE u8 ecore_concrete_to_sw_fid(u32 concrete_fid)
 {
 	u8 vfid     = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFID);
 	u8 pfid     = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_PFID);
@@ -860,8 +879,8 @@ static OSAL_INLINE u8 ecore_concrete_to_sw_fid(struct ecore_dev *p_dev,
 	return sw_fid;
 }
 
-#define PURE_LB_TC 8
 #define PKT_LB_TC 9
+#define MAX_NUM_VOQS_E4	20
 
 int ecore_configure_vport_wfq(struct ecore_dev *p_dev, u16 vp_id, u32 rate);
 void ecore_configure_vp_wfq_on_link_change(struct ecore_dev *p_dev,
@@ -873,6 +892,7 @@ int ecore_configure_pf_min_bandwidth(struct ecore_dev *p_dev, u8 min_bw);
 void ecore_clean_wfq_db(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
 int ecore_device_num_engines(struct ecore_dev *p_dev);
 int ecore_device_num_ports(struct ecore_dev *p_dev);
+int ecore_device_get_port_id(struct ecore_dev *p_dev);
 void ecore_set_fw_mac_addr(__le16 *fw_msb, __le16 *fw_mid, __le16 *fw_lsb,
 			   u8 *mac);
 
@@ -892,6 +912,13 @@ u16 ecore_get_cm_pq_idx_mcos(struct ecore_hwfn *p_hwfn, u8 tc);
 u16 ecore_get_cm_pq_idx_vf(struct ecore_hwfn *p_hwfn, u16 vf);
 u16 ecore_get_cm_pq_idx_rl(struct ecore_hwfn *p_hwfn, u8 qpid);
 
+const char *ecore_hw_get_resc_name(enum ecore_resources res_id);
+
+/* doorbell recovery mechanism */
+void ecore_db_recovery_dp(struct ecore_hwfn *p_hwfn);
+void ecore_db_recovery_execute(struct ecore_hwfn *p_hwfn,
+			       enum ecore_db_rec_exec);
+
 /* amount of resources used in qm init */
 u8 ecore_init_qm_get_num_tcs(struct ecore_hwfn *p_hwfn);
 u16 ecore_init_qm_get_num_vfs(struct ecore_hwfn *p_hwfn);
@@ -900,7 +927,5 @@ u16 ecore_init_qm_get_num_vports(struct ecore_hwfn *p_hwfn);
 u16 ecore_init_qm_get_num_pqs(struct ecore_hwfn *p_hwfn);
 
 #define ECORE_LEADING_HWFN(dev)	(&dev->hwfns[0])
-
-const char *ecore_hw_get_resc_name(enum ecore_resources res_id);
 
 #endif /* __ECORE_H */
