@@ -111,21 +111,14 @@ struct ecore_ll2_tx_queue {
 
 struct ecore_ll2_info {
 	osal_mutex_t			mutex;
-	enum ecore_ll2_conn_type	conn_type;
+
+	struct ecore_ll2_acquire_data_inputs input;
 	u32				cid;
 	u8				my_id;
 	u8				queue_id;
 	u8				tx_stats_id;
 	bool				b_active;
-	u16				mtu;
-	u8				rx_drop_ttl0_flg;
-	u8				rx_vlan_removal_en;
-	u8				tx_tc;
-	u8				tx_max_bds_per_packet;
 	enum core_tx_dest		tx_dest;
-	enum core_error_handle		ai_err_packet_too_big;
-	enum core_error_handle		ai_err_no_buf;
-	u8				gsi_enable;
 	u8				tx_stats_en;
 	u8				main_func_queue;
 	struct ecore_ll2_rx_queue	rx_queue;

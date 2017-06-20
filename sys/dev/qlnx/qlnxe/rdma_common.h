@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __RDMA_COMMON__
 #define __RDMA_COMMON__ 
 /************************/

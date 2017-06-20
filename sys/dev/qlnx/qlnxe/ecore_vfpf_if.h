@@ -28,12 +28,15 @@
  *
  */
 
+
 #ifndef __ECORE_VF_PF_IF_H__
 #define __ECORE_VF_PF_IF_H__
 
 #define T_ETH_INDIRECTION_TABLE_SIZE 128 /* @@@ TBD MichalK this should be HSI? */
 #define T_ETH_RSS_KEY_SIZE 10 /* @@@ TBD this should be HSI? */
+#ifndef LINUX_REMOVE
 #define ETH_ALEN 6 /* @@@ TBD MichalK - should this be defined here?*/
+#endif
 
 /***********************************************
  *
@@ -105,11 +108,13 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
+#ifndef LINUX_REMOVE
 	/* First bit was used on 8.7.x and 8.8.x versions, which had different
 	 * FWs used but with the same faspath HSI. As this was prior to the
 	 * fastpath versioning, wanted to have ability to override fw matching
 	 * and allow them to interact.
 	 */
+#endif
 #define VFPF_ACQUIRE_CAP_PRE_FP_HSI	(1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
 
@@ -191,6 +196,11 @@ struct pfvf_acquire_resp_tlv {
  * To overcome this, PFs now indicate that they're past that point and the new
  * VFs would fail probe on the older PFs that fail to do so.
  */
+#ifndef LINUX_REMOVE
+/* Said bug was in quest/serpens; Can't be certain no official release included
+ * the bug since the fix arrived very late in the programs.
+ */
+#endif
 #define PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE	(1 << 2)
 
 	/* PF expects queues to be received with additional qids */
