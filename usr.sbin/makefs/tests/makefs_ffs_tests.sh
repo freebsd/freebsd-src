@@ -182,7 +182,7 @@ o_flag_version_1_body()
 	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
-	atf_check -e empty -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
+	atf_check -e ignore -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
 	check_ffs_image_contents
 }
 o_flag_version_1_cleanup()
@@ -214,7 +214,7 @@ o_flag_version_2_body()
 	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
 
 	mount_image
-	atf_check -e empty -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
+	atf_check -e ignore -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
 	check_ffs_image_contents
 }
 o_flag_version_2_cleanup()
