@@ -30,7 +30,7 @@ if [ $# -lt 1 ] ; then
     usage
 fi
 
-# If possible, check the global system configuration file, 
+# If possible, check the global system configuration file,
 # to see if there are additional dirs to check
 if [ -r /etc/defaults/periodic.conf ]; then
     . /etc/defaults/periodic.conf
@@ -43,7 +43,7 @@ export host
 # If we were called normally, then create a lock file for each argument
 # in turn and reinvoke ourselves with the LOCKED argument.  This prevents
 # very long running jobs from being overlapped by another run as this is
-# will lead the system running progressivly slower and more and more jobs 
+# will lead the system running progressivly slower and more and more jobs
 # are run at once.
 if [ $1 != "LOCKED" ]; then
     ret=0
@@ -102,7 +102,7 @@ case $arg in
 /*) if [ -d "$arg" ]; then
         dirlist="$arg"
     else
-        echo "$0: $arg not found" >&2 
+        echo "$0: $arg not found" >&2
         continue
     fi
     ;;
