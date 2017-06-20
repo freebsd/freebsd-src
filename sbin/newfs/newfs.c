@@ -150,7 +150,8 @@ main(int argc, char *argv[])
 		case 'L':
 			volumelabel = optarg;
 			i = -1;
-			while (isalnum(volumelabel[++i]));
+			while (isalnum(volumelabel[++i]) ||
+			    volumelabel[i] == '_');
 			if (volumelabel[i] != '\0') {
 				errx(1, "bad volume label. Valid characters are alphanumerics.");
 			}
