@@ -317,7 +317,7 @@ struct ext2_gd {
 };
 
 /* EXT2FS metadata is stored in little-endian byte order. These macros
- * helps reading them.
+ * help reading it.
  */
 
 #define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));
