@@ -52,7 +52,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 ****************************** SPECIAL WARNING: ******************************
 
 20170620:
-	Switch back to the BSDL dtc (Device Tree Compiler), Set WITH_GPL_DTC
+	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
 	if you require the GPL compiler.
 
 20170618:
