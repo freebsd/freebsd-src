@@ -35,6 +35,7 @@ OSRELDATE?= 0
 # need to keep this in sync with src/Makefile.inc1 
 BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
+		BWPHASE=${.TARGET} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
