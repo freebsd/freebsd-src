@@ -49,10 +49,11 @@ static void
 usage(void)
 {
 
-	xo_error("usage: procstat [-CHhn] [-M core] [-N system] "
-	    "[-w interval]\n"
+	xo_error("usage: procstat [--libxo] [-CHhn] [-M core] "
+	    "[-N system] [-w interval]\n"
 	    "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -r | -s | -S | -t | -v | -x]\n"
+	    "-l | -r | -s | \n"
+	    "                 -S | -t | -v | -x]\n"
 	    "                [-a | pid | core ...]\n");
 	xo_finish();
 	exit(EX_USAGE);
@@ -161,7 +162,7 @@ main(int argc, char *argv[])
 	argc = xo_parse_args(argc, argv);
 	xocontainer = "basic";
 
-	while ((ch = getopt(argc, argv, "CHN:M:abcefijklhrsStvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "abCcefHhijklM:N:nrSstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
