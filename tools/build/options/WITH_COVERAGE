@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to build profiled libraries for use with
+.Xr gcov 1 ,
+.Xr lcov 1 ,
+etc.
