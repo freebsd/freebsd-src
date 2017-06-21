@@ -912,7 +912,7 @@ retry:
 		goto retry;
 	}
 
-	zio_buf_free(pad2, VDEV_PAD_SIZE);
+	abd_free(pad2);
 	return (error);
 }
 
