@@ -89,8 +89,7 @@ _meta_filemon=	1
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
 .if defined(_SKIP_BUILD) || defined(_meta_filemon)
 _SKIP_READ_DEPEND=	1
-.if ${MK_DIRDEPS_BUILD} == "no" || make(analyze) || make(print-dir) || \
-    make(obj) || (!make(all) && (make(clean*) || make(destroy*)))
+.if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 .endif
