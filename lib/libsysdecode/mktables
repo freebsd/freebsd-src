@@ -65,6 +65,7 @@ gen_table()
 	else
 		filter="egrep -v"
 	fi
+	[ -e "${include_dir}/${file}" ] || return 0
 	all_headers="${all_headers:+${all_headers} }${file}"
 	cat <<_EOF_
 TABLE_START(${name})
