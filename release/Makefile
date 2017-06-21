@@ -54,6 +54,8 @@ TARGET_ARCH=	${TARGET}
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 .ifdef NO_ROOT
 IMAKE+=		-DNO_ROOT
+NO_MERGEMASTER=	yes
+NO_ETCUPDATE=	yes
 .endif
 DISTDIR=	dist
 
@@ -133,10 +135,12 @@ clean: beforeclean
 base.txz:
 	mkdir -p ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR}
-.ifndef NO_ROOT
+.ifndef NO_MERGEMASTER
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${.OBJDIR}/${DISTDIR}/base"
+.endif
+.ifndef NO_ETCUPDATE
 	etcupdate extract -B -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate"
 .endif
