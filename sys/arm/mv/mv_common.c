@@ -128,6 +128,7 @@ static uint32_t dev_mask = 0;
 static int cpu_wins_no = 0;
 static int eth_port = 0;
 static int usb_port = 0;
+static boolean_t platform_io_coherent = false;
 
 static struct decode_win cpu_win_tbl[MAX_CPU_WIN];
 
@@ -1064,7 +1065,7 @@ ddr_size(int i)
 uint32_t
 ddr_attr(int i)
 {
-	uint32_t dev, rev;
+	uint32_t dev, rev, attr;
 
 	soc_id(&dev, &rev);
 	if (dev == MV_DEV_88RC8180)
@@ -1072,10 +1073,14 @@ ddr_attr(int i)
 	if (dev == MV_DEV_88F6781)
 		return (0);
 
-	return (i == 0 ? 0xe :
+	attr = (i == 0 ? 0xe :
 	    (i == 1 ? 0xd :
 	    (i == 2 ? 0xb :
 	    (i == 3 ? 0x7 : 0xff))));
+	if (platform_io_coherent)
+		attr |= 0x10;
+
+	return (attr);
 }
 
 uint32_t
@@ -2478,6 +2483,10 @@ fdt_win_setup(void)
 	node = OF_finddevice("/");
 	if (node == -1)
 		panic("fdt_win_setup: no root node");
+
+	/* Allow for coherent transactions on the A38x MBUS */
+	if (ofw_bus_node_is_compatible(node, "marvell,armada380"))
+		platform_io_coherent = true;
 
 	/*
 	 * Traverse through all children of root and simple-bus nodes.
