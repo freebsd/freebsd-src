@@ -2026,6 +2026,8 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
+	mtx_destroy(&vmmaplock);
+	spin_lock_destroy(&pci_lock);
 	rw_destroy(&linux_vma_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
