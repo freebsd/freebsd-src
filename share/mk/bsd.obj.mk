@@ -102,7 +102,7 @@ OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 # case 2 (using MAKEOBJDIR), don't issue a warning.  Otherwise,
 # issue a warning differentiating between cases 6 and (3 or 4).
 #
-objwarn:
+objwarn: .PHONY
 .if !defined(NO_OBJ) && ${.OBJDIR} != ${CANONICALOBJDIR} && \
     !(defined(MAKEOBJDIRPREFIX) && exists(${CANONICALOBJDIR}/)) && \
     !(defined(MAKEOBJDIR) && exists(${MAKEOBJDIR}/))
