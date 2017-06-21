@@ -134,7 +134,6 @@ __FBSDID("$FreeBSD$");
  * Unused disk addresses within a swap area are allocated and managed
  * using a blist.
  */
-#define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
