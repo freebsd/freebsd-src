@@ -210,8 +210,8 @@ ${PROG}.debug: ${FULLPROG}
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
 .if ${MACHINE_CPUARCH} != "aarch64"
-	${LD} -m ${LD_EMULATION} -Bshareable ${_LDFLAGS} -o ${.TARGET} \
-	    ${KMOD}.kld
+	${LD} -m ${LD_EMULATION} -Bshareable -znotext ${_LDFLAGS} \
+	    -o ${.TARGET} ${KMOD}.kld
 .else
 #XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
 #       not work.  The linker corrupts the references to the external
