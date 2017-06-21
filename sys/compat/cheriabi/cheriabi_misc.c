@@ -2128,8 +2128,13 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 
 	if (cheriabi_mmap_honor_prot) {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		/*
+		 * Set the permissions to PROT_MAX to allow a full
+		 * range of access subject to page permissions.
+		 */
 		CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
+		    (~PERM_RWX |
+		     cheriabi_mmap_prot2perms(EXTRACT_PROT_MAX(prot))));
 	}
 
 	if (flags & MAP_FIXED) {
