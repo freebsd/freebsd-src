@@ -33,8 +33,7 @@ CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
     struct cheriabi_ioctl_args *uap)
 {
 	void * __capability tmpcap;
-	u_int tag;
-	register_t reqperms;
+	register_t reqperms, tag;
 	int error;
 
 	/* [0] int fd */
@@ -84,9 +83,8 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
     struct mincore_args *uap)
 {
 	void * __capability tmpcap;
-	u_int tag;
 	int error;
-	register_t sealed;
+	register_t sealed, tag;
 	size_t base, length, offset;
 	size_t addr_adjust;
 
@@ -318,7 +316,7 @@ CHERIABI_SYS_mac_syscall_fill_uap(struct thread *td,
     struct mac_syscall_args *uap)
 {
 	void * __capability tmpcap;
-	u_int tag;
+	register_t tag;
 	int error;
 
 	/* [1] int call */
@@ -434,8 +432,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 {
 	void * __capability tmpcap;
 	int error;
-	u_int tag;
-	register_t reqperms;
+	register_t reqperms, tag;
 	size_t reqsize;
 
 	/* [1] int op */
@@ -697,7 +694,7 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
     struct shm_open_args *uap)
 {
 	void * __capability tmpcap;
-	u_int tag;
+	register_t tag;
 	int error;
 	size_t base;
 

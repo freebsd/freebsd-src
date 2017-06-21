@@ -54,7 +54,7 @@ static inline int
 cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
-	u_int tag;
+	register_t tag;
 	register_t perms;
 	register_t sealed;
 	size_t length, offset;
