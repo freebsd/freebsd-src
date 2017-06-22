@@ -902,7 +902,7 @@ ioctl_data_contains_pointers(u_long cmd)
 }
 
 #define SYS_IOCTL_SMALL_SIZE	128
-#define SYS_IOCTL_SMALL_ALIGN	sizeof(struct chericap)
+#define SYS_IOCTL_SMALL_ALIGN	sizeof(void * __capability)
 int
 cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 {

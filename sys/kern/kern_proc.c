@@ -1316,7 +1316,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 
 #ifdef COMPAT_CHERIABI
 static void
-ptr2cap(struct chericap *cap, void *ptr)
+ptr2cap(void * __capability *cap, void *ptr)
 {
 
 	/*

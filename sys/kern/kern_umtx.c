@@ -3432,7 +3432,7 @@ __umtx_op_nwake_private(struct thread *td, struct _umtx_op_args *uap)
 	return (error);
 #else
 	/*
-	 * XXX-BD: we'll get an array of struct chericap and need to
+	 * XXX-BD: we'll get an array of capabilities and need to
 	 * convert them into addresses.
 	 */
 	return (__umtx_op_unimpl(td, uap));
