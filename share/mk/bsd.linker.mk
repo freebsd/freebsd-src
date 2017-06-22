@@ -19,6 +19,27 @@ __<bsd.linker.mk>__:
 
 .for ld X_ in LD $${_empty_var_} XLD X_
 .if ${ld} == "LD" || !empty(XLD)
+# Try to import LINKER_TYPE and LINKER_VERSION from parent make.
+# The value is only used/exported for the same environment that impacts
+# LD and LINKER_* settings here.
+_exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION
+${X_}_ld_hash=	${${ld}}${MACHINE}${PATH}
+${X_}_ld_hash:=	${${X_}_ld_hash:hash}
+# Only import if none of the vars are set somehow else.
+_can_export=	yes
+.for var in ${_exported_vars}
+.if defined(${var})
+_can_export=	no
+.endif
+.endfor
+.if ${_can_export} == yes
+.for var in ${_exported_vars}
+.if defined(${var}.${${X_}_ld_hash})
+${var}=	${${var}.${${X_}_ld_hash}}
+.endif
+.endfor
+.endif
+
 .if ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 
 _ld_version!=	${${ld}} --version 2>/dev/null | head -n 1 || echo none
@@ -39,6 +60,14 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 .undef _ld_version
 .undef _v
 .endif	# ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
+
+# Export the values so sub-makes don't have to look them up again, using the
+# hash key computed above.
+.for var in ${_exported_vars}
+${var}.${${X_}_ld_hash}:=	${${var}}
+.export-env ${var}.${${X_}_ld_hash}
+.undef ${var}.${${X_}_ld_hash}
+.endfor
 
 .endif	# ${ld} == "LD" || !empty(XLD)
 .endfor	# .for ld in LD XLD
