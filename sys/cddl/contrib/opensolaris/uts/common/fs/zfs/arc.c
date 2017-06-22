@@ -1343,7 +1343,7 @@ typedef struct l2arc_read_callback {
 	blkptr_t		l2rcb_bp;		/* original blkptr */
 	zbookmark_phys_t	l2rcb_zb;		/* original bookmark */
 	int			l2rcb_flags;		/* original flags */
-	void			*l2rcb_abd;		/* temporary buffer */
+	abd_t			*l2rcb_abd;		/* temporary buffer */
 } l2arc_read_callback_t;
 
 typedef struct l2arc_write_callback {
@@ -7485,8 +7485,13 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			 * Normally the L2ARC can use the hdr's data, but if
 			 * we're sharing data between the hdr and one of its
 			 * bufs, L2ARC needs its own copy of the data so that
-			 * the ZIO below can't race with the buf consumer. To
-			 * ensure that this copy will be available for the
+			 * the ZIO below can't race with the buf consumer.
+			 * Another case where we need to create a copy of the
+			 * data is when the buffer size is not device-aligned
+			 * and we need to pad the block to make it such.
+			 * That also keeps the clock hand suitably aligned.
+			 *
+			 * To ensure that the copy will be available for the
 			 * lifetime of the ZIO and be cleaned up afterwards, we
 			 * add it to the l2arc_free_on_write queue.
 			 */
