@@ -499,14 +499,15 @@ try_nconf:
 					hostname = IN6_LOCALHOST_STRING;
 			}
 		}
-		endnetconfig(nc_handle);
 		if (tmpnconf == NULL) {
+			endnetconfig(nc_handle);
 			rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
 			mutex_unlock(&loopnconf_lock);
 			return (NULL);
 		}
 		loopnconf = getnetconfigent(tmpnconf->nc_netid);
 		/* loopnconf is never freed */
+		endnetconfig(nc_handle);
 	}
 	mutex_unlock(&loopnconf_lock);
 	client = getclnthandle(hostname, loopnconf, NULL);
