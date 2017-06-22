@@ -4,7 +4,9 @@
 .include <bsd.own.mk>
 
 SUBDIR=	\
-	newsyslog.conf.d
+	cron.d \
+	newsyslog.conf.d \
+	syslog.d
 
 .if ${MK_SENDMAIL} != "no"
 SUBDIR+=sendmail
