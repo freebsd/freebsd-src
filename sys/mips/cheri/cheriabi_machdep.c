@@ -415,7 +415,7 @@ cheriabi_get_mcontext(struct thread *td, mcontext_c_t *mcp, int flags)
 		mcp->mc_regs[V0] = 0;
 		mcp->mc_regs[V1] = 0;
 		mcp->mc_regs[A3] = 0;
-		cheri_capability_set_null(&mcp->mc_cheriframe.cf_c3);
+		mcp->mc_cheriframe.cf_c3 = NULL;
 	}
 
 	mcp->mc_pc = td->td_frame->pc;

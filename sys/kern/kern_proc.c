@@ -1325,8 +1325,8 @@ ptr2cap(struct chericap *cap, void *ptr)
 	 * alternative to consider is sealed capabilities, but would seem
 	 * to complicate attempts to impose hardware enforced flow control.
 	 */
-	cheri_capability_set_null(cap);
-	cheri_capability_setoffset(cap, (vaddr_t)ptr);
+	*cap = NULL;
+	*cap = cheri_setoffset(*cap, (vaddr_t)ptr);
 }
 
 #define PTREXPAND_CP(src,dst,fld) \
