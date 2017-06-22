@@ -178,6 +178,7 @@ typedef enum {
 #define EFI_MEMORY_DESCRIPTOR_VERSION  1
 typedef struct {
     UINT32                          Type;           // Field size is 32 bits followed by 32 bit pad
+    UINT32                          Pad;
     EFI_PHYSICAL_ADDRESS            PhysicalStart;  // Field size is 64 bits
     EFI_VIRTUAL_ADDRESS             VirtualStart;   // Field size is 64 bits
     UINT64                          NumberOfPages;  // Field size is 64 bits
