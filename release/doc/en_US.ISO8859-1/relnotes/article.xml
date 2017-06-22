@@ -247,6 +247,11 @@
       <para revision="319388">The &man.cxgbetool.8; utility has been
 	added, providing command-line access to features and debugging
 	facilities of &man.cxgbe.4; devices.</para>
+
+      <para revision="320218">The &man.primes.6; utility now
+	enumerates primes beyond
+	<literal>3825123056546413050</literal>, up to a new limit of
+	<literal>2^64 - 1</literal>.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -711,6 +716,12 @@
       <para revision="319269" contrib="sponsor"
 	sponsor="&chelsio;">The &man.cxgbe.4; driver has been updated
 	to firmware version 1.16.45.0 for T4, T5, and T6 cards.</para>
+
+      <para revision="320164">The &man.qlnxe.4; driver has been
+	updated to support QLE41XXX hardware.</para>
+
+      <para revision="320164">The &man.qlnxe.4; driver firmware has
+	been updated to version 8.30.0.0.</para>
     </sect2>
   </sect1>
 
