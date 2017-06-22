@@ -48,7 +48,7 @@ struct sglist_seg {
 
 struct sglist {
 	struct sglist_seg *sg_segs;
-	int		sg_refs;
+	u_int		sg_refs;
 	u_short		sg_nseg;
 	u_short		sg_maxseg;
 };
