@@ -56,7 +56,6 @@ OLD_FILES+=usr/share/man/man8/iasl.8.gz
 
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
-OLD_FILES+=etc/newsyslog.conf.d/amd.conf
 OLD_FILES+=etc/rc.d/amd
 OLD_FILES+=usr/bin/pawd
 OLD_FILES+=usr/sbin/amd
@@ -1064,11 +1063,7 @@ OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 
 .if ${MK_FTP} == no
 OLD_FILES+=etc/ftpusers
-OLD_FILES+=etc/newsyslog.conf.d/ftp.conf
-OLD_FILES+=etc/pam.d/ftp
-OLD_FILES+=etc/pam.d/ftpd
 OLD_FILES+=etc/rc.d/ftpd
-OLD_FILES+=etc/syslog.d/ftp.conf
 OLD_FILES+=usr/bin/ftp
 OLD_FILES+=usr/bin/gate-ftp
 OLD_FILES+=usr/bin/pftp
@@ -3821,9 +3816,7 @@ OLD_FILES+=usr/share/man/man8/updatedb.8.gz
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
-OLD_FILES+=etc/newsyslog.conf.d/lpr.conf
 OLD_FILES+=etc/rc.d/lpd
-OLD_FILES+=etc/syslog.d/lpr.conf
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -4199,7 +4192,6 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .endif
 
 .if ${MK_PF} == no
-OLD_FILES+=etc/newsyslog.conf.d/pf.conf
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
 OLD_FILES+=etc/rc.d/ftp-proxy
@@ -4268,9 +4260,7 @@ OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .endif
 
 .if ${MK_PPP} == no
-OLD_FILES+=etc/newsyslog.conf.d/ppp.conf
 OLD_FILES+=etc/ppp/ppp.conf
-OLD_FILES+=etc/syslog.d/ppp.conf
 OLD_DIRS+=etc/ppp
 OLD_FILES+=usr/sbin/ppp
 OLD_FILES+=usr/sbin/pppctl
@@ -4470,7 +4460,6 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 .endif
 
 .if ${MK_SENDMAIL} == no
-OLD_FILES+=etc/newsyslog.conf.d/sendmail.conf
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
@@ -4789,7 +4778,6 @@ OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
 .endif
 
 .if ${MK_TELNET} == no
-OLD_FILES+=etc/pam.d/telnetd
 OLD_FILES+=usr/bin/telnet
 OLD_FILES+=usr/libexec/telnetd
 OLD_FILES+=usr/share/man/man1/telnet.1.gz

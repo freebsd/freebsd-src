@@ -30,8 +30,6 @@
         ..
         bluetooth
         ..
-        cron.d
-        ..
         defaults
         ..
         devd
@@ -73,8 +71,6 @@
         ssh
         ..
         ssl
-        ..
-        syslog.d
         ..
         zfs
         ..
