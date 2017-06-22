@@ -1839,17 +1839,6 @@ done:
 #endif
 
 #ifdef COMPAT_CHERIABI
-/* Get the cursor from a capability stored in memory. */
-static inline uintptr_t
-cap_ctoint(struct chericap *cap)
-{
-	register_t _cursor;
-
-	cheri_capability_load(CHERI_CR_CTEMP0, cap);
-	CHERI_CTOINT(_cursor, CHERI_CR_CTEMP0);
-	return (_cursor);
-}
-
 static int
 get_proc_vector_cheriabi(struct thread *td, struct proc *p,
     char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
@@ -1866,26 +1855,26 @@ get_proc_vector_cheriabi(struct thread *td, struct proc *p,
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_argvstr);
+		vptr = (vm_offset_t)pss.ps_argvstr;
 		vsize = pss.ps_nargvstr;
 		if (vsize > ARG_MAX)
 			return (ENOEXEC);
-		size = vsize * sizeof(struct chericap);
+		size = vsize * sizeof(void * __capability);
 		break;
 	case PROC_ENV:
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr);
+		vptr = (vm_offset_t)pss.ps_envstr;
 		vsize = pss.ps_nenvstr;
 		if (vsize > ARG_MAX)
 			return (ENOEXEC);
-		size = vsize * sizeof(struct chericap);
+		size = vsize * sizeof(void * __capability);
 		break;
 	case PROC_AUX:
 		/*
 		 * The aux array is just above env array on the stack. Check
 		 * that the address is naturally aligned.
 		 */
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr) +
-			(pss.ps_nenvstr + 1) * sizeof(struct chericap);
+		vptr = (vm_offset_t)pss.ps_envstr +
+			(pss.ps_nenvstr + 1) * sizeof(void * __capability);
 #if __ELF_WORD_SIZE == 64
 		if (vptr % sizeof(uint64_t) != 0)
 #else
