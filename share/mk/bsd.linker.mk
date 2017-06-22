@@ -41,7 +41,7 @@ ${var}=	${${var}.${${X_}_ld_hash}}
 .endif
 
 .if ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
-
+.if !defined(${X_}LINKER_TYPE) || !defined(${X_}LINKER_VERSION)
 _ld_version!=	${${ld}} --version 2>/dev/null | head -n 1 || echo none
 .if ${_ld_version} == "none"
 .error Unable to determine linker type from ${ld}=${${ld}}
@@ -59,6 +59,7 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 			  awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .undef _ld_version
 .undef _v
+.endif
 .endif	# ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 
 # Export the values so sub-makes don't have to look them up again, using the
