@@ -672,6 +672,19 @@ out:
 	return (error);
 }
 
+static unsigned short
+ext2_max_nlink(struct inode *ip)
+{
+	struct m_ext2fs *fs;
+
+	fs = ip->i_e2fs;
+
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_DIR_NLINK))
+		return (EXT4_LINK_MAX);
+	else
+		return (EXT2_LINK_MAX);
+}
+
 /*
  * link vnode call
  */
@@ -689,7 +702,7 @@ ext2_link(struct vop_link_args *ap)
 		panic("ext2_link: no name");
 #endif
 	ip = VTOI(vp);
-	if ((nlink_t)ip->i_nlink >= EXT2_LINK_MAX) {
+	if ((nlink_t)ip->i_nlink >= ext2_max_nlink(ip)) {
 		error = EMLINK;
 		goto out;
 	}
@@ -708,6 +721,31 @@ ext2_link(struct vop_link_args *ap)
 	}
 out:
 	return (error);
+}
+
+static int
+ext2_inc_nlink(struct inode *ip)
+{
+
+	ip->i_nlink++;
+
+	if (ext2_htree_has_idx(ip) && ip->i_nlink > 1) {
+		if (ip->i_nlink >= ext2_max_nlink(ip) || ip->i_nlink == 2)
+			ip->i_nlink = 1;
+	} else if (ip->i_nlink > ext2_max_nlink(ip)) {
+		ip->i_nlink--;
+		return (EMLINK);
+	}
+
+	return (0);
+}
+
+static void
+ext2_dec_nlink(struct inode *ip)
+{
+
+	if (!S_ISDIR(ip->i_mode) || ip->i_nlink > 2)
+		ip->i_nlink--;
 }
 
 /*
@@ -792,7 +830,7 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
-	if (ip->i_nlink >= EXT2_LINK_MAX) {
+	if (ip->i_nlink >= ext2_max_nlink(ip) && !ext2_htree_has_idx(ip)) {
 		VOP_UNLOCK(fvp, 0);
 		error = EMLINK;
 		goto abortit;
@@ -835,7 +873,7 @@ abortit:
 	 *    completing our work, the link count
 	 *    may be wrong, but correctable.
 	 */
-	ip->i_nlink++;
+	ext2_inc_nlink(ip);
 	ip->i_flag |= IN_CHANGE;
 	if ((error = ext2_update(fvp, !DOINGASYNC(fvp))) != 0) {
 		VOP_UNLOCK(fvp, 0);
@@ -890,11 +928,10 @@ abortit:
 		 * parent we don't fool with the link count.
 		 */
 		if (doingdirectory && newparent) {
-			if ((nlink_t)dp->i_nlink >= EXT2_LINK_MAX) {
-				error = EMLINK;
+			error = ext2_inc_nlink(dp);
+			if (error)
 				goto bad;
-			}
-			dp->i_nlink++;
+
 			dp->i_flag |= IN_CHANGE;
 			error = ext2_update(tdvp, !DOINGASYNC(tdvp));
 			if (error)
@@ -903,7 +940,7 @@ abortit:
 		error = ext2_direnter(ip, tdvp, tcnp);
 		if (error) {
 			if (doingdirectory && newparent) {
-				dp->i_nlink--;
+				ext2_dec_nlink(dp);
 				dp->i_flag |= IN_CHANGE;
 				(void)ext2_update(tdvp, 1);
 			}
@@ -936,8 +973,7 @@ abortit:
 		 * (both directories, or both not directories).
 		 */
 		if ((xp->i_mode & IFMT) == IFDIR) {
-			if (!ext2_dirempty(xp, dp->i_number, tcnp->cn_cred) ||
-			    xp->i_nlink > 2) {
+			if (!ext2_dirempty(xp, dp->i_number, tcnp->cn_cred)) {
 				error = ENOTEMPTY;
 				goto bad;
 			}
@@ -960,7 +996,7 @@ abortit:
 		 * of the target directory.
 		 */
 		if (doingdirectory && !newparent) {
-			dp->i_nlink--;
+			ext2_dec_nlink(dp);
 			dp->i_flag |= IN_CHANGE;
 		}
 		vput(tdvp);
@@ -974,7 +1010,7 @@ abortit:
 		 * it above, as the remaining link would point to
 		 * a directory without "." or ".." entries.
 		 */
-		xp->i_nlink--;
+		ext2_dec_nlink(xp);
 		if (doingdirectory) {
 			if (--xp->i_nlink != 0)
 				panic("ext2_rename: linked directory");
@@ -1031,7 +1067,7 @@ abortit:
 		 * and ".." set to point to the new parent.
 		 */
 		if (doingdirectory && newparent) {
-			dp->i_nlink--;
+			ext2_dec_nlink(dp);
 			dp->i_flag |= IN_CHANGE;
 			error = vn_rdwr(UIO_READ, fvp, (caddr_t)&dirbuf,
 			    sizeof(struct dirtemplate), (off_t)0,
@@ -1060,7 +1096,7 @@ abortit:
 		}
 		error = ext2_dirremove(fdvp, fcnp);
 		if (!error) {
-			xp->i_nlink--;
+			ext2_dec_nlink(xp);
 			xp->i_flag |= IN_CHANGE;
 		}
 		xp->i_flag &= ~IN_RENAME;
@@ -1080,7 +1116,7 @@ out:
 	if (doingdirectory)
 		ip->i_flag &= ~IN_RENAME;
 	if (vn_lock(fvp, LK_EXCLUSIVE) == 0) {
-		ip->i_nlink--;
+		ext2_dec_nlink(ip);
 		ip->i_flag |= IN_CHANGE;
 		ip->i_flag &= ~IN_RENAME;
 		vput(fvp);
@@ -1255,7 +1291,8 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		panic("ext2_mkdir: no name");
 #endif
 	dp = VTOI(dvp);
-	if ((nlink_t)dp->i_nlink >= EXT2_LINK_MAX) {
+	if ((nlink_t)dp->i_nlink >= ext2_max_nlink(dp) &&
+	    !ext2_htree_has_idx(dp)) {
 		error = EMLINK;
 		goto out;
 	}
@@ -1306,7 +1343,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	 * be done before reference is created
 	 * so reparation is possible if we crash.
 	 */
-	dp->i_nlink++;
+	ext2_inc_nlink(dp);
 	dp->i_flag |= IN_CHANGE;
 	error = ext2_update(dvp, !DOINGASYNC(dvp));
 	if (error)
@@ -1333,7 +1370,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,
 	    NULL, NULL);
 	if (error) {
-		dp->i_nlink--;
+		ext2_dec_nlink(dp);
 		dp->i_flag |= IN_CHANGE;
 		goto bad;
 	}
@@ -1358,7 +1395,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	/* Directory set up, now install its entry in the parent directory. */
 	error = ext2_direnter(ip, dvp, cnp);
 	if (error) {
-		dp->i_nlink--;
+		ext2_dec_nlink(dp);
 		dp->i_flag |= IN_CHANGE;
 	}
 bad:
@@ -1400,7 +1437,7 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	 *  the current directory and thus be
 	 *  non-empty.)
 	 */
-	if (ip->i_nlink != 2 || !ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
+	if (!ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
 		error = ENOTEMPTY;
 		goto out;
 	}
@@ -1417,22 +1454,15 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	error = ext2_dirremove(dvp, cnp);
 	if (error)
 		goto out;
-	dp->i_nlink--;
+	ext2_dec_nlink(dp);
 	dp->i_flag |= IN_CHANGE;
 	cache_purge(dvp);
 	VOP_UNLOCK(dvp, 0);
 	/*
 	 * Truncate inode.  The only stuff left
-	 * in the directory is "." and "..".  The
-	 * "." reference is inconsequential since
-	 * we're quashing it.  The ".." reference
-	 * has already been adjusted above.  We've
-	 * removed the "." reference and the reference
-	 * in the parent directory, but there may be
-	 * other hard links so decrement by 2 and
-	 * worry about them later.
+	 * in the directory is "." and "..".
 	 */
-	ip->i_nlink -= 2;
+	ip->i_nlink = 0;
 	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
 	    cnp->cn_thread);
 	cache_purge(ITOV(ip));
@@ -1592,7 +1622,10 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		*ap->a_retval = EXT2_LINK_MAX;
+		if (ext2_htree_has_idx(VTOI(ap->a_vp)))
+			*ap->a_retval = INT_MAX;
+		else
+			*ap->a_retval = ext2_max_nlink(VTOI(ap->a_vp));
 		break;
 	case _PC_NAME_MAX:
 		*ap->a_retval = NAME_MAX;
