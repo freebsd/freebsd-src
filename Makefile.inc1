@@ -520,7 +520,7 @@ BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
-		MK_HTML=no NO_LINT=yes MK_MAN=no \
+		MK_COVERAGE=no MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -558,7 +558,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		MK_HTML=no -DNO_LINT MK_MAN=no \
+		MK_COVERAGE=no MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
 
@@ -906,7 +906,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
+	    ${WMAKE} -DNO_FSCHG MK_COVERAGE=no MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
 everything: .PHONY
 	@echo
