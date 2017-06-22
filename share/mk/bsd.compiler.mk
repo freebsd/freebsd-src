@@ -9,7 +9,7 @@
 #
 # COMPILER_VERSION is a numeric constant equal to:
 #     major * 10000 + minor * 100 + tiny
-# It too can be overriden on the command line. When testing it, be sure to
+# It too can be overridden on the command line. When testing it, be sure to
 # make sure that you are limiting the test to a specific compiler. Testing
 # against 30300 for gcc likely isn't  what you wanted (since versions of gcc
 # prior to 4.2 likely have no prayer of working).
