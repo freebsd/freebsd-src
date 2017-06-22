@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+.include <bsd.own.mk>
+
+.if ${MK_AT} != "no"
+FILES+=		at
+.endif
+
+BINDIR=		/etc/cron.d
+
+.include <bsd.prog.mk>

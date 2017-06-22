@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <ctype.h>
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -120,6 +121,8 @@ __FBSDID("$FreeBSD$");
 const char	*ConfFile = _PATH_LOGCONF;
 const char	*PidFile = _PATH_LOGPID;
 const char	ctty[] = _PATH_CONSOLE;
+static const char	include_str[] = "include";
+static const char	include_ext[] = ".conf";
 
 #define	dprintf		if (Debug) printf
 
@@ -1548,96 +1551,46 @@ die(int signo)
 	exit(1);
 }
 
-/*
- *  INIT -- Initialize syslogd from configuration table
- */
-static void
-init(int signo)
+static int
+configfiles(const struct dirent *dp)
 {
-	int i;
-	FILE *cf;
-	struct filed *f, *next, **nextp;
-	char *p;
+	const char *p;
+	size_t ext_len;
+
+	if (dp->d_name[0] == '.')
+		return (0);
+
+	ext_len = sizeof(include_ext) -1;
+
+	if (dp->d_namlen <= ext_len)
+		return (0);
+
+	p = &dp->d_name[dp->d_namlen - ext_len];
+	if (strcmp(p, include_ext) != 0)
+		return (0);
+
+	return (1);
+}
+
+static void
+readconfigfile(FILE *cf, struct filed **nextp, int allow_includes)
+{
+	FILE *cf2;
+	struct filed *f;
+	struct dirent **ent;
 	char cline[LINE_MAX];
- 	char prog[LINE_MAX];
 	char host[MAXHOSTNAMELEN];
-	char oldLocalHostName[MAXHOSTNAMELEN];
-	char hostMsg[2*MAXHOSTNAMELEN+40];
-	char bootfileMsg[LINE_MAX];
-
-	dprintf("init\n");
-
-	/*
-	 * Load hostname (may have changed).
-	 */
-	if (signo != 0)
-		(void)strlcpy(oldLocalHostName, LocalHostName,
-		    sizeof(oldLocalHostName));
-	if (gethostname(LocalHostName, sizeof(LocalHostName)))
-		err(EX_OSERR, "gethostname() failed");
-	if ((p = strchr(LocalHostName, '.')) != NULL) {
-		*p++ = '\0';
-		LocalDomain = p;
-	} else {
-		LocalDomain = "";
-	}
-
-	/*
-	 *  Close all open log files.
-	 */
-	Initialized = 0;
-	for (f = Files; f != NULL; f = next) {
-		/* flush any pending output */
-		if (f->f_prevcount)
-			fprintlog(f, 0, (char *)NULL);
-
-		switch (f->f_type) {
-		case F_FILE:
-		case F_FORW:
-		case F_CONSOLE:
-		case F_TTY:
-			close_filed(f);
-			break;
-		case F_PIPE:
-			if (f->f_un.f_pipe.f_pid > 0) {
-				close_filed(f);
-				deadq_enter(f->f_un.f_pipe.f_pid,
-					    f->f_un.f_pipe.f_pname);
-			}
-			f->f_un.f_pipe.f_pid = 0;
-			break;
-		}
-		next = f->f_next;
-		if (f->f_program) free(f->f_program);
-		if (f->f_host) free(f->f_host);
-		free((char *)f);
-	}
-	Files = NULL;
-	nextp = &Files;
-
-	/* open the configuration file */
-	if ((cf = fopen(ConfFile, "r")) == NULL) {
-		dprintf("cannot open %s\n", ConfFile);
-		*nextp = (struct filed *)calloc(1, sizeof(*f));
-		if (*nextp == NULL) {
-			logerror("calloc");
-			exit(1);
-		}
-		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
-		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
-		if ((*nextp)->f_next == NULL) {
-			logerror("calloc");
-			exit(1);
-		}
-		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
-		Initialized = 1;
-		return;
-	}
+	char prog[LINE_MAX];
+	char file[MAXPATHLEN];
+	char *p, *tmp;
+	int i, nents;
+	size_t include_len;
 
 	/*
 	 *  Foreach line in the conf table, open that file.
 	 */
 	f = NULL;
+	include_len = sizeof(include_str) -1;
 	(void)strlcpy(host, "*", sizeof(host));
 	(void)strlcpy(prog, "*", sizeof(prog));
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
@@ -1650,6 +1603,42 @@ init(int signo)
 			continue;
 		if (*p == 0)
 			continue;
+		if (allow_includes &&
+		    strncmp(p, include_str, include_len) == 0 &&
+		    isspace(p[include_len])) {
+			p += include_len;
+			while (isspace(*p))
+				p++;
+			tmp = p;
+			while (*tmp != '\0' && !isspace(*tmp))
+				tmp++;
+			*tmp = '\0';
+			dprintf("Trying to include files in '%s'\n", p);
+			nents = scandir(p, &ent, configfiles, alphasort);
+			if (nents == -1) {
+				dprintf("Unable to open '%s': %s\n", p,
+				    strerror(errno));
+				continue;
+			}
+			for (i = 0; i < nents; i++) {
+				if (snprintf(file, sizeof(file), "%s/%s", p,
+				    ent[i]->d_name) >= (int)sizeof(file)) {
+					dprintf("ignoring path too long: "
+					    "'%s/%s'\n", p, ent[i]->d_name);
+					free(ent[i]);
+					continue;
+				}
+				free(ent[i]);
+				cf2 = fopen(file, "r");
+				if (cf2 == NULL)
+					continue;
+				dprintf("reading %s\n", file);
+				readconfigfile(cf2, nextp, 0);
+				fclose(cf2);
+			}
+			free(ent);
+			continue;
+		}
 		if (*p == '#') {
 			p++;
 			if (*p != '!' && *p != '+' && *p != '-')
@@ -1711,6 +1700,91 @@ init(int signo)
 		nextp = &f->f_next;
 		cfline(cline, f, prog, host);
 	}
+}
+
+/*
+ *  INIT -- Initialize syslogd from configuration table
+ */
+static void
+init(int signo)
+{
+	int i;
+	FILE *cf;
+	struct filed *f, *next, **nextp;
+	char *p;
+	char oldLocalHostName[MAXHOSTNAMELEN];
+	char hostMsg[2*MAXHOSTNAMELEN+40];
+	char bootfileMsg[LINE_MAX];
+
+	dprintf("init\n");
+
+	/*
+	 * Load hostname (may have changed).
+	 */
+	if (signo != 0)
+		(void)strlcpy(oldLocalHostName, LocalHostName,
+		    sizeof(oldLocalHostName));
+	if (gethostname(LocalHostName, sizeof(LocalHostName)))
+		err(EX_OSERR, "gethostname() failed");
+	if ((p = strchr(LocalHostName, '.')) != NULL) {
+		*p++ = '\0';
+		LocalDomain = p;
+	} else {
+		LocalDomain = "";
+	}
+
+	/*
+	 *  Close all open log files.
+	 */
+	Initialized = 0;
+	for (f = Files; f != NULL; f = next) {
+		/* flush any pending output */
+		if (f->f_prevcount)
+			fprintlog(f, 0, (char *)NULL);
+
+		switch (f->f_type) {
+		case F_FILE:
+		case F_FORW:
+		case F_CONSOLE:
+		case F_TTY:
+			close_filed(f);
+			break;
+		case F_PIPE:
+			if (f->f_un.f_pipe.f_pid > 0) {
+				close_filed(f);
+				deadq_enter(f->f_un.f_pipe.f_pid,
+					    f->f_un.f_pipe.f_pname);
+			}
+			f->f_un.f_pipe.f_pid = 0;
+			break;
+		}
+		next = f->f_next;
+		if (f->f_program) free(f->f_program);
+		if (f->f_host) free(f->f_host);
+		free((char *)f);
+	}
+	Files = NULL;
+
+	/* open the configuration file */
+	if ((cf = fopen(ConfFile, "r")) == NULL) {
+		dprintf("cannot open %s\n", ConfFile);
+		*nextp = (struct filed *)calloc(1, sizeof(*f));
+		if (*nextp == NULL) {
+			logerror("calloc");
+			exit(1);
+		}
+		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
+		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
+		if ((*nextp)->f_next == NULL) {
+			logerror("calloc");
+			exit(1);
+		}
+		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
+		Initialized = 1;
+		return;
+	}
+
+	readconfigfile(cf, &Files, 1);
 
 	/* close the configuration file */
 	(void)fclose(cf);
