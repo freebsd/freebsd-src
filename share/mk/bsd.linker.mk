@@ -60,6 +60,10 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 .undef _ld_version
 .undef _v
 .endif
+.else
+# Use LD's values
+X_LINKER_TYPE=		${LINKER_TYPE}
+X_LINKER_VERSION=	${LINKER_VERSION}
 .endif	# ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 
 # Export the values so sub-makes don't have to look them up again, using the
