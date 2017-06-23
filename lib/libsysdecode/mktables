@@ -65,17 +65,19 @@ gen_table()
 	else
 		filter="egrep -v"
 	fi
-	all_headers="${all_headers:+${all_headers} }${file}"
 	cat <<_EOF_
 TABLE_START(${name})
 _EOF_
-	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
-		$include_dir/$file | ${filter} ${excl} | \
-	awk '{ for (i = 1; i <= NF; i++) \
-		if ($i ~ /define/) \
-			break; \
-		++i; \
-		printf "TABLE_ENTRY(%s)\n", $i }'
+	if [ -e "${include_dir}/${file}" ]; then
+		all_headers="${all_headers:+${all_headers} }${file}"
+		egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
+			$include_dir/$file | ${filter} ${excl} | \
+		awk '{ for (i = 1; i <= NF; i++) \
+			if ($i ~ /define/) \
+				break; \
+			++i; \
+			printf "TABLE_ENTRY(%s)\n", $i }'
+	fi
 cat <<_EOF_
 TABLE_END
 
