@@ -131,7 +131,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
-	create-world-packages create-kernel-packages create-packages \
+	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
 	print-dir test-system-compiler
 
