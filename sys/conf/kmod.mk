@@ -125,7 +125,7 @@ CFLAGS.gcc+= --param large-function-growth=1000
 CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
-.if ${LINKER_TYPE} != "bfd" || ${LINKER_VERSION} > 21750
+.if ${LINKER_FEATURES:Mbuild-id}
 LDFLAGS+=	-Wl,--build-id=sha1
 .endif
 

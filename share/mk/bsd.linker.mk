@@ -9,6 +9,11 @@
 #     major * 10000 + minor * 100 + tiny
 # It too can be overridden on the command line.
 #
+# LINKER_FEATURES may contain one or more of the following, based on
+# linker support for that feature:
+#
+# - build-id : support for generating a Build-ID note
+#
 # These variables with an X_ prefix will also be provided if XLD is set.
 #
 # This file may be included multiple times, but only has effect the first time.
@@ -22,7 +27,7 @@ __<bsd.linker.mk>__:
 # Try to import LINKER_TYPE and LINKER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts
 # LD and LINKER_* settings here.
-_exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION
+_exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION ${X_}LINKER_FEATURES
 ${X_}_ld_hash=	${${ld}}${MACHINE}${PATH}
 ${X_}_ld_hash:=	${${X_}_ld_hash:hash}
 # Only import if none of the vars are set somehow else.
@@ -59,11 +64,16 @@ ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 			  awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .undef _ld_version
 .undef _v
+${X_}LINKER_FEATURES=
+.if ${${X_}LINKER_TYPE} != "bfd" || ${${X_}LINKER_VERSION} > 21750
+${X_}LINKER_FEATURES+=	build-id
+.endif
 .endif
 .else
 # Use LD's values
 X_LINKER_TYPE=		${LINKER_TYPE}
 X_LINKER_VERSION=	${LINKER_VERSION}
+X_LINKER_FEATURES=	${LINKER_FEATURES}
 .endif	# ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 
 # Export the values so sub-makes don't have to look them up again, using the
