@@ -481,7 +481,10 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
-	wqe->write.immd_data = 0;
+	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
+		wqe->write.immd_data = wr->ex.imm_data;
+	else
+		wqe->write.immd_data = 0;
 	wqe->write.stag_sink = cpu_to_be32(rdma_wr(wr)->rkey);
 	wqe->write.to_sink = cpu_to_be64(rdma_wr(wr)->remote_addr);
 	if (wr->num_sge) {
@@ -829,6 +832,13 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				swsqe->opcode = FW_RI_SEND_WITH_INV;
 			err = build_rdma_send(&qhp->wq.sq, wqe, wr, &len16);
 			break;
+		case IB_WR_RDMA_WRITE_WITH_IMM:
+			if (unlikely(!qhp->rhp->rdev.adap->params.write_w_imm_support)) {
+				err = -ENOSYS;
+				break;
+			}
+			fw_flags |= FW_RI_RDMA_WRITE_WITH_IMMEDIATE;
+			/*FALLTHROUGH*/
 		case IB_WR_RDMA_WRITE:
 			fw_opcode = FW_RI_RDMA_WRITE_WR;
 			swsqe->opcode = FW_RI_RDMA_WRITE;
@@ -1832,6 +1842,8 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 			goto err6;
 		}
 		uresp.flags = 0;
+		if (rhp->rdev.adap->params.write_w_imm_support)
+			uresp.flags |= C4IW_QPF_WRITE_W_IMM;
 		uresp.qid_mask = rhp->rdev.qpmask;
 		uresp.sqid = qhp->wq.sq.qid;
 		uresp.sq_size = qhp->wq.sq.size;

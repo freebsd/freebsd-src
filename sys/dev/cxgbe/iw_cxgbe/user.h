@@ -57,6 +57,10 @@ struct c4iw_create_cq_resp {
 	__u32 reserved; /* explicit padding (optional for i386) */
 };
 
+enum {
+	C4IW_QPF_WRITE_W_IMM 	= (1<<1)
+};
+ 
 struct c4iw_create_qp_resp {
 	__u64 ma_sync_key;
 	__u64 sq_key;

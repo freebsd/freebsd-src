@@ -205,8 +205,13 @@ struct t4_cqe {
 			__be32 wrid_low;
 		} gen;
 		u64 drain_cookie;
+		struct {
+			__be32 mo;
+			__be32 msn;
+			__u64 imm_data;
+		} imm_data_rcqe;
 	} u;
-	__be64 reserved[4];
+	__be64 reserved[3];
 	__be64 bits_type_ts;
 };
 
@@ -256,6 +261,7 @@ struct t4_cqe {
 /* used for RQ completion processing */
 #define CQE_WRID_STAG(x)  (be32_to_cpu((x)->u.rcqe.stag))
 #define CQE_WRID_MSN(x)   (be32_to_cpu((x)->u.rcqe.msn))
+#define CQE_IMM_DATA(x)   ((x)->u.imm_data_rcqe.imm_data)
 
 /* used for SQ completion processing */
 #define CQE_WRID_SQ_IDX(x)	((x)->u.scqe.cidx)

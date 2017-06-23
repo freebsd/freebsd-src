@@ -213,8 +213,13 @@ struct t4_cqe {
 			__be32 wrid_hi;
 			__be32 wrid_low;
 		} gen;
+		struct {
+			__be32 mo;
+			__be32 msn;
+			__u64 imm_data;
+		} imm_data_rcqe;
 	} u;
-	__be64 reserved[4];
+	__be64 reserved[3];
 	__be64 bits_type_ts;
 };
 
@@ -264,6 +269,7 @@ struct t4_cqe {
 /* used for RQ completion processing */
 #define CQE_WRID_STAG(x)  (be32toh((x)->u.rcqe.stag))
 #define CQE_WRID_MSN(x)   (be32toh((x)->u.rcqe.msn))
+#define CQE_IMM_DATA(x)   ((x)->u.imm_data_rcqe.imm_data)
 
 /* used for SQ completion processing */
 #define CQE_WRID_SQ_IDX(x)	(x)->u.scqe.cidx
@@ -305,7 +311,8 @@ struct t4_swsqe {
 };
 
 enum {
-	T4_SQ_ONCHIP = (1<<0),
+	T4_SQ_ONCHIP =		(1<<0),
+	T4_SQ_WRITE_W_IMM =	(1<<2)
 };
 
 struct t4_sq {

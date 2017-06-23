@@ -213,7 +213,10 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
-	wqe->write.immd_data = 0;
+	if (wr->opcode == IBV_WR_RDMA_WRITE_WITH_IMM)
+		wqe->write.immd_data = wr->imm_data;
+	else
+		wqe->write.immd_data = 0;
 	wqe->write.stag_sink = htobe32(wr->wr.rdma.rkey);
 	wqe->write.to_sink = htobe64(wr->wr.rdma.remote_addr);
 	if (wr->num_sge) {
@@ -355,6 +358,13 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 			swsqe->opcode = FW_RI_SEND;
 			err = build_rdma_send(&qhp->wq.sq, wqe, wr, &len16);
 			break;
+		case IBV_WR_RDMA_WRITE_WITH_IMM:
+			if (unlikely(!(qhp->wq.sq.flags & T4_SQ_WRITE_W_IMM))) {
+				err = -ENOSYS;
+				break;
+			}
+			fw_flags |= FW_RI_RDMA_WRITE_WITH_IMMEDIATE;
+			/*FALLTHROUGH*/
 		case IBV_WR_RDMA_WRITE:
 			INC_STAT(write);
 			fw_opcode = FW_RI_RDMA_WRITE_WR;
