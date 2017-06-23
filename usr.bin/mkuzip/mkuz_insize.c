@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <err.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "mkuz_cfg.h"
 #include "mkuz_insize.h"
@@ -58,12 +59,15 @@ mkuz_get_insize(struct mkuz_cfg *cfp)
 		ffd = open(statfsbuf.f_mntfromname, O_RDONLY);
 		if (ffd < 0) {
 			warn("open(%s, O_RDONLY)", statfsbuf.f_mntfromname);
+			close(ffd);
 			return (-1);
 		}
 		if (ioctl(ffd, DIOCGMEDIASIZE, &ms) < 0) {
 			warn("ioctl(DIOCGMEDIASIZE)");
+			close(ffd);
 			return (-1);
 		}
+		close(ffd);
 		sb.st_size = ms;
 	} else if (S_ISCHR(sb.st_mode)) {
 		if (ioctl(cfp->fdr, DIOCGMEDIASIZE, &ms) < 0) {
