@@ -5194,7 +5194,7 @@ process_control_chunks:
 					return (NULL);
 				}
 			}
-			/*
+			/*-
 			 * First are we accepting? We do this again here
 			 * since it is possible that a previous endpoint WAS
 			 * listening responded to a INIT-ACK and then
