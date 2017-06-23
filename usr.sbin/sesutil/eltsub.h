@@ -34,4 +34,3 @@
 
 const char *geteltnm(int);
 const char *scode2ascii(u_char);
-struct sbuf *stat2sbuf(int, u_char *);

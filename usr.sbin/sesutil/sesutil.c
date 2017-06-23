@@ -29,10 +29,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/sbuf.h>
 
 #include <err.h>
 #include <errno.h>
@@ -56,6 +56,7 @@ static int fault(int argc, char **argv);
 static int locate(int argc, char **argv);
 static int objmap(int argc, char **argv);
 static int sesled(int argc, char **argv, bool fault);
+static void sesutil_print(bool *title, const char *fmt, ...) __printflike(2,3);
 
 static struct command {
 	const char *name;
@@ -303,10 +304,74 @@ fault(int argc, char **argv)
 	return (sesled(argc, argv, true));
 }
 
+#define TEMPERATURE_OFFSET 20
+static void
+sesutil_print(bool *title, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!*title) {
+		printf("\t\tExtra status:\n");
+		*title = true;
+	}
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+}
+
+static void
+print_extra_status(int eletype, u_char *cstat)
+{
+	bool title = false;
+
+	if (cstat[0] & 0x40) {
+		sesutil_print(&title, "\t\t- Predicted Failure\n");
+	}
+	if (cstat[0] & 0x20) {
+		sesutil_print(&title, "\t\t- Disabled\n");
+	}
+	if (cstat[0] & 0x10) {
+		sesutil_print(&title, "\t\t- Swapped\n");
+	}
+	switch (eletype) {
+	case ELMTYP_DEVICE:
+		if (cstat[2] & 0x02) {
+			sesutil_print(&title, "\t\t- LED=locate\n");
+		}
+		if (cstat[2] & 0x20) {
+			sesutil_print(&title, "\t\t- LED=fault\n");
+		}
+		break;
+	case ELMTYP_ARRAY_DEV:
+		if (cstat[2] & 0x02) {
+			sesutil_print(&title, "\t\t- LED=locate\n");
+		}
+		if (cstat[2] & 0x20) {
+			sesutil_print(&title, "\t\t- LED=fault\n");
+		}
+		break;
+	case ELMTYP_FAN:
+		sesutil_print(&title, "\t\t- Speed: %d rpm\n",
+		    (((0x7 & cstat[1]) << 8) + cstat[2]) * 10);
+		break;
+	case ELMTYP_THERM:
+		if (cstat[2]) {
+			sesutil_print(&title, "\t\t- Temperature: %d C\n",
+			    cstat[2] - TEMPERATURE_OFFSET);
+		} else {
+			sesutil_print(&title, "\t\t- Temperature: -reserved-\n");
+		}
+		break;
+	case ELMTYP_VOM:
+		sesutil_print(&title, "\t\t- Voltage: %.2f V\n",
+		    be16dec(cstat + 2) / 100.0);
+		break;
+	}
+}
+
 static int
 objmap(int argc, char **argv __unused)
 {
-	struct sbuf *extra;
 	encioc_string_t stri;
 	encioc_elm_devnames_t e_devname;
 	encioc_elm_status_t e_status;
@@ -422,12 +487,7 @@ objmap(int argc, char **argv __unused)
 				printf("\t\tDevice Names: %s\n",
 				    e_devname.elm_devnames);
 			}
-			extra = stat2sbuf(e_ptr[j].elm_type, e_status.cstat);
-			if (sbuf_len(extra) > 0) {
-				printf("\t\tExtra status:\n%s",
-				   sbuf_data(extra));
-			}
-			sbuf_delete(extra);
+			print_extra_status(e_ptr[j].elm_type, e_status.cstat);
 			free(e_devname.elm_devnames);
 		}
 		free(e_ptr);

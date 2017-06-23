@@ -32,9 +32,7 @@
  * mjacob@feral.com
  */
 
-#include <sys/endian.h>
 #include <sys/types.h>
-#include <sys/sbuf.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -142,53 +140,4 @@ scode2ascii(u_char code)
 		snprintf(rbuf, sizeof(rbuf), "<Status 0x%x>", code & 0xf);
 		return (rbuf);
 	}
-}
-
-struct sbuf *
-stat2sbuf(int eletype, u_char *cstat)
-{
-	struct sbuf *buf;
-
-	buf = sbuf_new_auto();
-	if (buf == NULL)
-		err(EXIT_FAILURE, "sbuf_new_auto()");
-
-	if (cstat[0] & 0x40)
-		sbuf_printf(buf, "\t\t- Predicted Failure\n");
-	if (cstat[0] & 0x20)
-		sbuf_printf(buf, "\t\t- Disabled\n");
-	if (cstat[0] & 0x10)
-		sbuf_printf(buf, "\t\t- Swapped\n");
-	switch (eletype) {
-	case ELMTYP_DEVICE:
-		if (cstat[2] & 0x02)
-			sbuf_printf(buf, "\t\t- LED=locate\n");
-		if (cstat[2] & 0x20)
-			sbuf_printf(buf, "\t\t- LED=fault\n");
-		break;
-	case ELMTYP_ARRAY_DEV:
-		if (cstat[2] & 0x02)
-			sbuf_printf(buf, "\t\t- LED=locate\n");
-		if (cstat[2] & 0x20)
-			sbuf_printf(buf, "\t\t- LED=fault\n");
-		break;
-	case ELMTYP_FAN:
-		sbuf_printf(buf, "\t\t- Speed: %d rpm\n",
-		    (((0x7 & cstat[1]) << 8) + cstat[2]) * 10);
-		break;
-	case ELMTYP_THERM:
-		if (cstat[2]) {
-			sbuf_printf(buf, "\t\t- Temperature: %d C\n",
-			    cstat[2] - TEMPERATURE_OFFSET);
-		} else {
-			sbuf_printf(buf, "\t\t- Temperature: -reserved-\n");
-		}
-		break;
-	case ELMTYP_VOM:
-		sbuf_printf(buf, "\t\t- Voltage: %.2f V\n",
-		    be16dec(cstat + 2) / 100.0);
-		break;
-	}
-	sbuf_finish(buf);
-	return (buf);
 }
