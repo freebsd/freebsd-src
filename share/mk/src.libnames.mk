@@ -339,13 +339,13 @@ _DP_rdmacm=	ibverbs
 
 # Define special cases
 LDADD_supcplusplus=	-lsupc++
-LIBATF_C=	${DESTDIR}${LIBDIR}/libprivateatf-c.a
-LIBATF_CXX=	${DESTDIR}${LIBDIR}/libprivateatf-c++.a
+LIBATF_C=	${DESTDIR}${LIBDIR_BASE}/libprivateatf-c.a
+LIBATF_CXX=	${DESTDIR}${LIBDIR_BASE}/libprivateatf-c++.a
 LDADD_atf_c=	-lprivateatf-c
 LDADD_atf_cxx=	-lprivateatf-c++
 
 .for _l in ${_PRIVATELIBS}
-LIB${_l:tu}?=	${DESTDIR}${LIBDIR}/libprivate${_l}.a
+LIB${_l:tu}?=	${DESTDIR}${LIBDIR_BASE}/libprivate${_l}.a
 .endfor
 
 .for _l in ${_LIBRARIES}
@@ -416,7 +416,7 @@ LIBSMDBDIR=	${OBJTOP}/lib/libsmdb
 LIBSMDB?=	${LIBSMDBDIR}/libsmdb.a
 
 LIBSMUTILDIR=	${OBJTOP}/lib/libsmutil
-LIBSMUTIL?=	${LIBSMDBDIR}/libsmutil.a
+LIBSMUTIL?=	${LIBSMUTILDIR}/libsmutil.a
 
 LIBNETBSDDIR?=	${OBJTOP}/lib/libnetbsd
 LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
@@ -449,16 +449,16 @@ LIBPARSEDIR=	${OBJTOP}/usr.sbin/ntp/libparse
 LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
 LIBLPRDIR=	${OBJTOP}/usr.sbin/lpr/common_source
-LIBLPR?=	${LIBOPTSDIR}/liblpr.a
+LIBLPR?=	${LIBLPRDIR}/liblpr.a
 
 LIBFIFOLOGDIR=	${OBJTOP}/usr.sbin/fifolog/lib
-LIBFIFOLOG?=	${LIBOPTSDIR}/libfifolog.a
+LIBFIFOLOG?=	${LIBFIFOLOGDIR}/libfifolog.a
 
 LIBBSNMPTOOLSDIR=	${OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
-LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+LIBAMU?=	${LIBAMUDIR}/libamu.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
