@@ -4354,6 +4354,7 @@ arc_reclaim_needed(void)
 extern kmem_cache_t	*zio_buf_cache[];
 extern kmem_cache_t	*zio_data_buf_cache[];
 extern kmem_cache_t	*range_seg_cache;
+extern kmem_cache_t	*abd_chunk_cache;
 
 static __noinline void
 arc_kmem_reap_now(void)
@@ -4361,7 +4362,6 @@ arc_kmem_reap_now(void)
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
 	kmem_cache_t		*prev_data_cache = NULL;
-	extern kmem_cache_t	*abd_chunk_cache;
 
 	DTRACE_PROBE(arc__kmem_reap_start);
 #ifdef _KERNEL
