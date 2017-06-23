@@ -626,6 +626,8 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    /* data rate */
 	    if (b == 0)
 		sprintf(bwbuf, "unlimited     ");
+	    else if (b >= 1000000000)
+		sprintf(bwbuf, "%7.3f Gbit/s", b/1000000000);
 	    else if (b >= 1000000)
 		sprintf(bwbuf, "%7.3f Mbit/s", b/1000000);
 	    else if (b >= 1000)
@@ -818,6 +820,9 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		} else if (*end == 'M' || *end == 'm') {
 			end++;
 			bw *= 1000000;
+		} else if (*end == 'G' || *end == 'g') {
+			end++;
+			bw *= 1000000000;
 		}
 		if ((*end == 'B' &&
 			_substrcmp2(end, "Bi", "Bit/s") != 0) ||
