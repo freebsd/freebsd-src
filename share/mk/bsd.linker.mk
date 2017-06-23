@@ -47,7 +47,7 @@ _ld_version!=	${${ld}} --version 2>/dev/null | head -n 1 || echo none
 .error Unable to determine linker type from ${ld}=${${ld}}
 .endif
 .if ${_ld_version:[1..2]} == "GNU ld"
-${X_}LINKER_TYPE=	binutils
+${X_}LINKER_TYPE=	bfd
 _v=	${_ld_version:M[1-9].[0-9]*:[1]}
 .elif ${_ld_version:[1]} == "LLD"
 ${X_}LINKER_TYPE=	lld
