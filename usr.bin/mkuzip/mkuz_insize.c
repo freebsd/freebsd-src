@@ -59,7 +59,6 @@ mkuz_get_insize(struct mkuz_cfg *cfp)
 		ffd = open(statfsbuf.f_mntfromname, O_RDONLY);
 		if (ffd < 0) {
 			warn("open(%s, O_RDONLY)", statfsbuf.f_mntfromname);
-			close(ffd);
 			return (-1);
 		}
 		if (ioctl(ffd, DIOCGMEDIASIZE, &ms) < 0) {
