@@ -33,7 +33,7 @@ printpoolnode(np, opts, fields)
 		printmask(np->ipn_addr.adf_family,
 			  (u_32_t *)&np->ipn_mask.adf_addr);
 	} else {
-#ifdef AF_INET6
+#ifdef USE_INET6
 		if (np->ipn_addr.adf_family == AF_INET6) {
 			char buf[INET6_ADDRSTRLEN + 1];
 			const char *str;
@@ -54,9 +54,7 @@ printpoolnode(np, opts, fields)
 		} else {
 			PRINTF("\tAddress: family: %d\n",
 				np->ipn_addr.adf_family);
-#ifdef AF_INET6
 		}
-#endif
 		printmask(np->ipn_addr.adf_family,
 			  (u_32_t *)&np->ipn_mask.adf_addr);
 #ifdef USE_QUAD_T
