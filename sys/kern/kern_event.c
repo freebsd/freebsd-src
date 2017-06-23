@@ -553,12 +553,13 @@ knote_fork(struct knlist *list, int pid)
  * interval timer support code.
  */
 
-#define NOTE_TIMER_PRECMASK	(NOTE_SECONDS|NOTE_MSECONDS|NOTE_USECONDS| \
-				NOTE_NSECONDS)
+#define NOTE_TIMER_PRECMASK						\
+    (NOTE_SECONDS | NOTE_MSECONDS | NOTE_USECONDS | NOTE_NSECONDS)
 
 static sbintime_t
 timer2sbintime(intptr_t data, int flags)
 {
+	int64_t secs;
 
         /*
          * Macros for converting to the fractional second portion of an
@@ -577,27 +578,27 @@ timer2sbintime(intptr_t data, int flags)
 	case NOTE_MSECONDS: /* FALLTHROUGH */
 	case 0:
 		if (data >= 1000) {
-			int64_t secs = data / 1000;
+			secs = data / 1000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
 			return (secs << 32 | MS_TO_SBT(data % 1000));
 		}
-		return MS_TO_SBT(data);
+		return (MS_TO_SBT(data));
 	case NOTE_USECONDS:
 		if (data >= 1000000) {
-			int64_t secs = data / 1000000;
+			secs = data / 1000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
 			return (secs << 32 | US_TO_SBT(data % 1000000));
 		}
-		return US_TO_SBT(data);
+		return (US_TO_SBT(data));
 	case NOTE_NSECONDS:
 		if (data >= 1000000000) {
-			int64_t secs = data / 1000000000;
+			secs = data / 1000000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
