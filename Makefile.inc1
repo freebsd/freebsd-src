@@ -882,7 +882,7 @@ _cross-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	@rm -f ${.OBJDIR}/compiler-metadata.mk
+	@rm -f ${OBJTREE}${.CURDIR}/compiler-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _build-metadata:
