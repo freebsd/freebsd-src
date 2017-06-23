@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Gleb Kurtsou <gleb@FreeBSD.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,18 +29,36 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#include "compat-ino64.h"
+#include <sys/errno.h>
 #include <sys/syscall.h>
-#include <dirent.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "libc_private.h"
 
-ssize_t
-getdents(int fd, char *buf, size_t nbytes)
+int
+getfsstat(struct statfs *buf, long bufsize, int flags)
 {
-	/*
-	 * _getdirentries knows how to call the right thing and
-	 * return it in the new format. It assumes that the entire
-	 * libc expecting the new format.
-	 */
+	struct freebsd11_statfs *statfs11 = NULL;
+	ssize_t len = 0;
+	int rv, i;
 
-	return (_getdirentries(fd, buf, nbytes, NULL));
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_getfsstat(buf, bufsize, flags));
+	if (buf != NULL) {
+		len = sizeof(struct freebsd11_statfs) *	/* Round down on purpose to avoid */
+		    (bufsize / sizeof(struct statfs));	/* overflow on translation.	  */
+		statfs11 = malloc(len);
+		if (statfs11 == NULL) {
+			errno = ENOMEM;
+			return (-1);
+		}
+	}
+	rv = syscall(SYS_freebsd11_getfsstat, statfs11, len, flags);
+	if (rv != -1 && buf != NULL) {
+		for (i = 0; i < rv; i++)
+			__statfs11_to_statfs(&statfs11[i], &buf[i]);
+	}
+	return (rv);
 }

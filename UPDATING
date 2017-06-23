@@ -55,6 +55,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
 	if you require the GPL compiler.
 
+20170619:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
+
 20170618:
 	The internal ABI used for communication between the NFS kernel modules
 	was changed by r320085, so __FreeBSD_version was bumped to
