@@ -2303,7 +2303,7 @@ makepool(list)
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (use_inet6 == 1) {
-#ifdef AF_INET6
+#ifdef USE_INET6
 			n->ipn_addr.adf_family = AF_INET6;
 			n->ipn_addr.adf_addr = a->al_i6addr;
 			n->ipn_addr.adf_len = offsetof(addrfamily_t,

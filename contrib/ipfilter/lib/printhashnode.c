@@ -35,7 +35,7 @@ printhashnode(iph, ipep, copyfunc, opts, fields)
 		}
 		printf("\n");
 	} else if ((opts & OPT_DEBUG) != 0) {
-#ifdef AF_INET6
+#ifdef USE_INET6
 		if (ipe.ipe_family == AF_INET6) {
 			char buf[INET6_ADDRSTRLEN + 1];
 			const char *str;
@@ -59,7 +59,7 @@ printhashnode(iph, ipep, copyfunc, opts, fields)
 		} else if (ipe.ipe_family == AF_INET) {
 #else
 		if (ipe.ipe_family == AF_INET) {
-#endif /* AF_INET6 */
+#endif /* USE_INET6 */
 			PRINTF("\t%d\tAddress: %s", hv,
 				inet_ntoa(ipe.ipe_addr.in4));
 			printmask(ipe.ipe_family, (u_32_t *)&ipe.ipe_mask.in4_addr);
