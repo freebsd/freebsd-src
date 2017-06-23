@@ -27,29 +27,33 @@
 #
 
 atf_test_case n_output
-n_output_head() {
-        atf_set "descr" "Verify that echo(1) does not print the trailing " \
-                "newline character with option '-n'"
+n_output_head()
+{
+	atf_set "descr" "Verify that echo(1) does not print the trailing " \
+			"newline character with option '-n'"
 }
 
-n_output_body() {
-        atf_check -s ignore -o inline:"Hello world" \
-                /bin/echo -n "Hello world"
+n_output_body()
+{
+	atf_check -s ignore -o inline:"Hello world" \
+		/bin/echo -n "Hello world"
 }
 
 atf_test_case append_c_output
-append_c_output_head() {
-        atf_set "descr" "Verify that echo(1) does not print the trailing newline " \
-                "character when '\c' is appended to the end of the string"
+append_c_output_head()
+{
+	atf_set "descr" "Verify that echo(1) does not print the trailing newline " \
+			"character when '\c' is appended to the end of the string"
 }
 
-append_c_output_body() {
-        atf_check -s ignore -o inline:"Hello world" \
-                /bin/echo "Hello world\c"
+append_c_output_body()
+{
+	atf_check -s ignore -o inline:"Hello world" \
+		/bin/echo "Hello world\c"
 }
 
 atf_init_test_cases()
 {
-        atf_add_test_case n_output
-        atf_add_test_case append_c_output
+	atf_add_test_case n_output
+	atf_add_test_case append_c_output
 }
