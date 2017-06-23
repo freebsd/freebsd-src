@@ -1539,8 +1539,8 @@ real-packages:	stage-packages create-packages sign-packages .PHONY
 stage-packages: .PHONY
 	@mkdir -p ${REPODIR} ${WSTAGEDIR} ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
+		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld; \
+		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
 create-packages:	_pkgbootstrap .PHONY
 	@mkdir -p ${REPODIR}
