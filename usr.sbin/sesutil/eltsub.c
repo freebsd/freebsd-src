@@ -51,134 +51,97 @@
  */
 #define TEMPERATURE_OFFSET 20
 
-char *
+const char *
 geteltnm(int type)
 {
 	static char rbuf[132];
 
 	switch (type) {
 	case ELMTYP_UNSPECIFIED:
-		sprintf(rbuf, "Unspecified");
-		break;
+		return ("Unspecified");
 	case ELMTYP_DEVICE:
-		sprintf(rbuf, "Device Slot");
-		break;
+		return ("Device Slot");
 	case ELMTYP_POWER:
-		sprintf(rbuf, "Power Supply");
-		break;
+		return ("Power Supply");
 	case ELMTYP_FAN:
-		sprintf(rbuf, "Cooling");
-		break;
+		return ("Cooling");
 	case ELMTYP_THERM:
-		sprintf(rbuf, "Temperature Sensors");
-		break;
+		return ("Temperature Sensors");
 	case ELMTYP_DOORLOCK:
-		sprintf(rbuf, "Door Lock");
-		break;
+		return ("Door Lock");
 	case ELMTYP_ALARM:
-		sprintf(rbuf, "Audible alarm");
-		break;
+		return ("Audible alarm");
 	case ELMTYP_ESCC:
-		sprintf(rbuf, "Enclosure Services Controller Electronics");
-		break;
+		return ("Enclosure Services Controller Electronics");
 	case ELMTYP_SCC:
-		sprintf(rbuf, "SCC Controller Electronics");
-		break;
+		return ("SCC Controller Electronics");
 	case ELMTYP_NVRAM:
-		sprintf(rbuf, "Nonvolatile Cache");
-		break;
+		return ("Nonvolatile Cache");
 	case ELMTYP_INV_OP_REASON:
-		sprintf(rbuf, "Invalid Operation Reason");
-		break;
+		return ("Invalid Operation Reason");
 	case ELMTYP_UPS:
-		sprintf(rbuf, "Uninterruptible Power Supply");
-		break;
+		return ("Uninterruptible Power Supply");
 	case ELMTYP_DISPLAY:
-		sprintf(rbuf, "Display");
-		break;
+		return ("Display");
 	case ELMTYP_KEYPAD:
-		sprintf(rbuf, "Key Pad Entry");
-		break;
+		return ("Key Pad Entry");
 	case ELMTYP_ENCLOSURE:
-		sprintf(rbuf, "Enclosure");
-		break;
+		return ("Enclosure");
 	case ELMTYP_SCSIXVR:
-		sprintf(rbuf, "SCSI Port/Transceiver");
-		break;
+		return ("SCSI Port/Transceiver");
 	case ELMTYP_LANGUAGE:
-		sprintf(rbuf, "Language");
-		break;
+		return ("Language");
 	case ELMTYP_COMPORT:
-		sprintf(rbuf, "Communication Port");
-		break;
+		return ("Communication Port");
 	case ELMTYP_VOM:
-		sprintf(rbuf, "Voltage Sensor");
-		break;
+		return ("Voltage Sensor");
 	case ELMTYP_AMMETER:
-		sprintf(rbuf, "Current Sensor");
-		break;
+		return ("Current Sensor");
 	case ELMTYP_SCSI_TGT:
-		sprintf(rbuf, "SCSI Target Port");
-		break;
+		return ("SCSI Target Port");
 	case ELMTYP_SCSI_INI:
-		sprintf(rbuf, "SCSI Initiator Port");
-		break;
+		return ("SCSI Initiator Port");
 	case ELMTYP_SUBENC:
-		sprintf(rbuf, "Simple Subenclosure");
-		break;
+		return ("Simple Subenclosure");
 	case ELMTYP_ARRAY_DEV:
-		sprintf(rbuf, "Array Device Slot");
-		break;
+		return ("Array Device Slot");
 	case ELMTYP_SAS_EXP:
-		sprintf(rbuf, "SAS Expander");
-		break;
+		return ("SAS Expander");
 	case ELMTYP_SAS_CONN:
-		sprintf(rbuf, "SAS Connector");
-		break;
+		return ("SAS Connector");
 	default:
-		(void) sprintf(rbuf, "<Type 0x%x>", type);
-		break;
+		snprintf(rbuf, sizeof(rbuf), "<Type 0x%x>", type);
+		return (rbuf);
 	}
-	return (rbuf);
 }
 
-char *
+const char *
 scode2ascii(u_char code)
 {
 	static char rbuf[32];
 	switch (code & 0xf) {
 	case SES_OBJSTAT_UNSUPPORTED:
-		sprintf(rbuf, "Unsupported");
-		break;
+		return ("Unsupported");
 	case SES_OBJSTAT_OK:
-		sprintf(rbuf, "OK");
-		break;
+		return ("OK");
 	case SES_OBJSTAT_CRIT:
-		sprintf(rbuf, "Critical");
-		break;
+		return ("Critical");
 	case SES_OBJSTAT_NONCRIT:
-		sprintf(rbuf, "Noncritical");
-		break;
+		return ("Noncritical");
 	case SES_OBJSTAT_UNRECOV:
-		sprintf(rbuf, "Unrecoverable");
-		break;
+		return ("Unrecoverable");
 	case SES_OBJSTAT_NOTINSTALLED:
-		sprintf(rbuf, "Not Installed");
-		break;
+		return ("Not Installed");
 	case SES_OBJSTAT_UNKNOWN:
-		sprintf(rbuf, "Unknown");
-		break;
+		return ("Unknown");
 	case SES_OBJSTAT_NOTAVAIL:
-		sprintf(rbuf, "Not Available");
-		break;
+		return ("Not Available");
 	case SES_OBJSTAT_NOACCESS:
-		sprintf(rbuf, "No Access Allowed");
-		break;
+		return ("No Access Allowed");
 	default:
-		sprintf(rbuf, "<Status 0x%x>", code & 0xf);
-		break;
+		snprintf(rbuf, sizeof(rbuf), "<Status 0x%x>", code & 0xf);
+		return (rbuf);
 	}
-	return (rbuf);
 }
 
 struct sbuf *
