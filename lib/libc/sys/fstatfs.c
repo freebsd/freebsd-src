@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Gleb Kurtsou <gleb@FreeBSD.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,17 +30,25 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/syscall.h>
-#include <dirent.h>
+#include "compat-ino64.h"
+#include <unistd.h>
+
 #include "libc_private.h"
 
-ssize_t
-getdents(int fd, char *buf, size_t nbytes)
-{
-	/*
-	 * _getdirentries knows how to call the right thing and
-	 * return it in the new format. It assumes that the entire
-	 * libc expecting the new format.
-	 */
+#undef fstatfs
+__weak_reference(_fstatfs, fstatfs);
 
-	return (_getdirentries(fd, buf, nbytes, NULL));
+#pragma weak _fstatfs
+int
+_fstatfs(int fd, struct statfs *buf)
+{
+	struct freebsd11_statfs statfs11;
+	int rv;
+
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_fstatfs(fd, buf));
+	rv = syscall(SYS_freebsd11_fstatfs, fd, &statfs11);
+	if (rv == 0)
+		__statfs11_to_statfs(&statfs11, buf);
+	return (rv);
 }
