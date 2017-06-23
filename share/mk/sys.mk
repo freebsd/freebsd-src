@@ -59,7 +59,7 @@ META_MODE+=	missing-meta=yes
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes
 .endif
-.if !exists(/dev/filemon)
+.if !exists(/dev/filemon) || defined(NO_FILEMON)
 META_MODE+= nofilemon
 .endif
 # Require filemon data with bmake
