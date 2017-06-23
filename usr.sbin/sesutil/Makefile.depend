@@ -8,8 +8,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libcompiler_rt \
-	lib/libsbuf \
+	lib/libcompiler_rt
 
 
 .include <dirdeps.mk>
