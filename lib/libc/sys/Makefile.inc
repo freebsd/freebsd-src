@@ -37,6 +37,14 @@ SRCS+=	\
 
 SRCS+= getdents.c lstat.c mknod.c stat.c
 
+SRCS+= fstat.c fstatat.c fstatfs.c getfsstat.c statfs.c
+NOASM+= fstat.o fstatat.o fstatfs.o getfsstat.o statfs.o
+PSEUDO+= _fstat.o _fstatat.o _fstatfs.o _getfsstat.o _statfs.o
+
+SRCS+= getdirentries.c
+NOASM+= getdirentries.o
+PSEUDO+= _getdirentries.o
+
 SRCS+= pipe.c
 
 INTERPOSED = \
