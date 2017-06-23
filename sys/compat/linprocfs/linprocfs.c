@@ -245,7 +245,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 #endif
-	do_cpuid(0x80000006, cache_size);
+	if (cpu_exthigh >= 0x80000006)
+		do_cpuid(0x80000006, cache_size);
+	else
+		memset(cache_size, 0, sizeof(cache_size));
 	for (i = 0; i < mp_ncpus; ++i) {
 		fqmhz = 0;
 		fqkhz = 0;
