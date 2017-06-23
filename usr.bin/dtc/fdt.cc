@@ -1224,9 +1224,9 @@ device_tree::resolve_cross_references()
 				{
 					pv->byte_data.push_back('@');
 					push_string(pv->byte_data, p->second);
-					pv->byte_data.push_back(0);
 				}
 			}
+			pv->byte_data.push_back(0);
 		}
 	}
 	std::unordered_map<property_value*, fixup&> phandle_set;
