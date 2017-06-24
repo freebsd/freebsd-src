@@ -51,17 +51,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-20170620:
-	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
-	if you require the GPL compiler.
-
-20170619:
+20170623:
 	Forward compatibility for the "ino64" project have been committed. This
 	will allow most new binaries to run on older kernels in a limited
 	fashion.  This prevents many of the common foot-shooting actions in the
 	upgrade as well as the limited ability to roll back the kernel across
 	the ino64 upgrade. Complicated use cases may not work properly, though
-	enough simpler ones work to allow recovery in most situations.
+	enough simpler ones work to allow recovery in most situations. There is an
+	issue with dependencies which may not properly rebuild everything needed
+	when doing a NO_CLEAN build. Removing *stat*o in lib/libc obj tree is
+	sufficient to avoid this issue.
+
+20170620:
+	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
+	if you require the GPL compiler.
 
 20170618:
 	The internal ABI used for communication between the NFS kernel modules
