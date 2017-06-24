@@ -226,7 +226,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 	}
 	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_HASSEMAPHORE |
 	    MAP_STACK | MAP_NOSYNC | MAP_ANON | MAP_EXCL | MAP_NOCORE |
-	    MAP_PREFAULT_READ |
+	    MAP_PREFAULT_READ | MAP_GUARD |
 #ifdef MAP_32BIT
 	    MAP_32BIT |
 #endif
@@ -238,6 +238,10 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 		return (EINVAL);
 	if (prot != PROT_NONE &&
 	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
+		return (EINVAL);
+	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || fd != -1 ||
+	    pos != 0 || (flags & (MAP_SHARED | MAP_PRIVATE | MAP_PREFAULT |
+	    MAP_PREFAULT_READ | MAP_ANON | MAP_STACK)) != 0))
 		return (EINVAL);
 
 	/*
@@ -314,7 +318,10 @@ kern_mmap(struct thread *td, uintptr_t addr0, size_t size, int prot, int flags,
 		 * returns an error earlier.
 		 */
 		error = 0;
-	} else if (flags & MAP_ANON) {
+	} else if ((flags & MAP_GUARD) != 0) {
+		error = vm_mmap_object(&vms->vm_map, &addr, size, VM_PROT_NONE,
+		    VM_PROT_NONE, flags, NULL, pos, FALSE, td);
+	} else if ((flags & MAP_ANON) != 0) {
 		/*
 		 * Mapping blank space is trivial.
 		 *
@@ -1511,6 +1518,8 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	}
 	if ((flags & MAP_EXCL) != 0)
 		docow |= MAP_CHECK_EXCL;
+	if ((flags & MAP_GUARD) != 0)
+		docow |= MAP_CREATE_GUARD;
 
 	if (fitit) {
 		if ((flags & MAP_ALIGNMENT_MASK) == MAP_ALIGNED_SUPER)
