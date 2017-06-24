@@ -1294,7 +1294,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case PUInt: {
 		unsigned int val;
 
-		if (get_struct(pid, (void *)args[sc->offset], &val,
+		if (get_struct(pid, args[sc->offset], &val,
 		    sizeof(val)) == 0) 
 			fprintf(fp, "{ %u }", val);
 		else
@@ -1456,7 +1456,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case PQuadHex: {
 		uint64_t val;
 
-		if (get_struct(pid, (void *)args[sc->offset], &val,
+		if (get_struct(pid, args[sc->offset], &val,
 		    sizeof(val)) == 0) 
 			fprintf(fp, "{ 0x%jx }", (uintmax_t)val);
 		else
@@ -2100,7 +2100,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case CapRights: {
 		cap_rights_t rights;
 
-		if (get_struct(pid, (void *)args[sc->offset], &rights,
+		if (get_struct(pid, args[sc->offset], &rights,
 		    sizeof(rights)) != -1) {
 			fputs("{ ", fp);
 			sysdecode_cap_rights(fp, &rights);
