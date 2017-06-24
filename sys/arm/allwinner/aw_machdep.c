@@ -261,6 +261,21 @@ static platform_method_t a83t_methods[] = {
 FDT_PLATFORM_DEF(a83t, "a83t", 0, "allwinner,sun8i-a83t", 200);
 #endif
 
+#if defined(SOC_ALLWINNER_H2PLUS)
+static platform_method_t h2_plus_methods[] = {
+	PLATFORMMETHOD(platform_attach,         h3_attach),
+	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(h2_plus, "h2_plus", 0, "allwinner,sun8i-h2-plus", 200);
+#endif
+
 #if defined(SOC_ALLWINNER_H3)
 static platform_method_t h3_methods[] = {
 	PLATFORMMETHOD(platform_attach,         h3_attach),
@@ -275,6 +290,8 @@ static platform_method_t h3_methods[] = {
 };
 FDT_PLATFORM_DEF(h3, "h3", 0, "allwinner,sun8i-h3", 200);
 #endif
+
+
 
 u_int
 allwinner_soc_type(void)
