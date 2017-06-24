@@ -251,8 +251,7 @@ static u_int vm_background_launder_max = 20 * 1024;
 SYSCTL_UINT(_vm, OID_AUTO, background_launder_max, CTLFLAG_RW,
     &vm_background_launder_max, 0, "background laundering cap, in kilobytes");
 
-#define VM_PAGEOUT_PAGE_COUNT 16
-int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
+int vm_pageout_page_count = 32;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 SYSCTL_INT(_vm, OID_AUTO, max_wired,

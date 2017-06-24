@@ -120,7 +120,7 @@ __FBSDID("$FreeBSD$");
  * The 64-page limit is due to the radix code (kern/subr_blist.c).
  */
 #ifndef MAX_PAGEOUT_CLUSTER
-#define MAX_PAGEOUT_CLUSTER 16
+#define	MAX_PAGEOUT_CLUSTER	32
 #endif
 
 #if !defined(SWB_NPAGES)
@@ -134,7 +134,7 @@ __FBSDID("$FreeBSD$");
  * Unused disk addresses within a swap area are allocated and managed
  * using a blist.
  */
-#define SWAP_META_PAGES		(SWB_NPAGES * 2)
+#define	SWAP_META_PAGES		32
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
 struct swblock {
