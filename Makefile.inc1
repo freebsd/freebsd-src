@@ -762,14 +762,18 @@ _worldtmp: .PHONY
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .endif
-# Dependencies cannot cope with certain source tree changes, particularly
-# with respect to removing source files and replacing generated files.
-# Handle these cases here in an ad-hoc fashion.
-# 20160829 remove stale dependencies for ptrace stub, rewritten in C
-# in r305012
-.for f in ptrace
+
+# Our current approach to dependency tracking cannot cope with certain source
+# tree changes, particularly with respect to removing source files and
+# replacing generated files.  Handle these cases here in an ad-hoc fashion.
+#
+# Syscall stubs rewritten in C
+# Date      SVN Rev  Syscalls
+# 20160829  r305012  ptrace
+# 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
+.for f in fstat fstatat fstatfs getdirentries getfsstat ptrace statfs           
 .if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
-	@if egrep -q '/${f}.[sS]' \
+	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
