@@ -57,10 +57,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	fashion.  This prevents many of the common foot-shooting actions in the
 	upgrade as well as the limited ability to roll back the kernel across
 	the ino64 upgrade. Complicated use cases may not work properly, though
-	enough simpler ones work to allow recovery in most situations. There is an
-	issue with dependencies which may not properly rebuild everything needed
-	when doing a NO_CLEAN build. Removing *stat*o in lib/libc obj tree is
-	sufficient to avoid this issue.
+	enough simpler ones work to allow recovery in most situations.
 
 20170620:
 	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
