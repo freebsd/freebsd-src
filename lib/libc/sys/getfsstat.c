@@ -60,5 +60,6 @@ getfsstat(struct statfs *buf, long bufsize, int flags)
 		for (i = 0; i < rv; i++)
 			__statfs11_to_statfs(&statfs11[i], &buf[i]);
 	}
+	free(statfs11);
 	return (rv);
 }
