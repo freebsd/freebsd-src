@@ -2003,6 +2003,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 */
 	for (current = entry; current != &map->header && current->start < end;
 	    current = current->next) {
+		if ((current->eflags & MAP_ENTRY_GUARD) != 0)
+			continue;
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			vm_map_unlock(map);
 			return (KERN_INVALID_ARGUMENT);
