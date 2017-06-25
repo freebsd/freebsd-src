@@ -1,0 +1,56 @@
+#  <substitution> ::= S <seq-id> _
+#                 ::= S_
+
+"_ZN1N1TIiiE2mfES_IddE", "N::T<int, int>::mf(N<double, double>)"
+"_ZN1N1TIiiE2mfES0_IddE", "N::T<int, int>::mf(N::T<double, double>)"
+"_ZN1N1TIiiE2mfES1_IddE", "N::T<int, int>::mf(N::T<int, int><double, double>)"
+"_ZN1N1TIiiE2mfES2_IddE", "_ZN1N1TIiiE2mfES2_IddE"
+# wrong result:
+# "_ZN1N1TIiiE2mfES2_IddE", "N::T<int, int>::mf(N::T<int, int>::mf<double, double>)"
+
+"_ZN1f1gEP1hNS_1iE", "f::g(h*, f::i)"
+"_ZN1f1gEP1hNS0_1iE", "f::g(h*, h::i)"
+# wrong result:
+# "_ZN1f1gEP1hNS0_1iE", "f::g(h*, f::g::i)"
+"_ZN1f1gEP1hNS1_1iE", "f::g(h*, h*::i)"
+
+"_Z3fooN1A1B1TES_", "foo(A::B::T, A)"
+"_Z3fooN1A1B1TES0_", "foo(A::B::T, A::B)"
+"_Z3fooN1A1B1TES1_", "foo(A::B::T, A::B::T)"
+
+"_Z3foo5Hello5WorldS_S0_", "foo(Hello, World, Hello, World)"
+
+# qualifiers with builtin type should be substitute candidates
+"_Z3fooPiS_", "foo(int*, int*)"
+"_Z3fooKPiS_", "foo(int* const, int*)"
+"_Z3fooKPiS0_", "foo(int* const, int* const)"
+"_Z3fooRKiS_", "foo(int const&, int const)"
+"_Z3fooRKiS0_", "foo(int const&, int const&)"
+"_Z3foorKiS_", "foo(int const restrict, int const restrict)"
+"_Z3fooPrKiS_", "foo(int const restrict*, int const restrict)"
+"_Z3fooPrKiS0_", "foo(int const restrict*, int const restrict*)"
+"_Z3foorPKiS_", "foo(int const* restrict, int const)"
+"_Z3foorPKiS0_", "foo(int const* restrict, int const*)"
+"_Z3foorPKiS1_", "foo(int const* restrict, int const* restrict)"
+"_Z3foorKPiS_", "foo(int* const restrict, int*)"
+"_Z3foorKPiS0_", "foo(int* const restrict, int* const restrict)"
+
+# qualifers with non-builin type
+"_Z3fooP3BarS_", "foo(Bar*, Bar)"
+"_Z3fooP3BarS0_", "foo(Bar*, Bar*)"
+"_Z3fooPK3BarS_", "foo(Bar const*, Bar)"
+"_Z3fooPK3BarS1_", "foo(Bar const*, Bar const*)"
+"_Z3foorKP3BarS0_", "foo(Bar* const restrict, Bar*)"
+"_Z3foorKP3BarS1_", "foo(Bar* const restrict, Bar* const restrict)"
+
+# vendor extended qualifiers and substitution
+# note that ABI requires that "the type with all the K, V, and r qualifiers
+# " plus any vendor extended types in the same order-insensitive set is
+# substitutible". Here vendor extended type is not handled as above
+# requirement.
+"_Z3fooU3barKiS_", "foo(int const bar, int const)"
+"_Z3fooU3barKiS0_", "foo(int const bar, int const bar)"
+
+# bug introduced with a botched fix for omitting "void"
+"_Z3barvPvS_", "bar(void, void*, void*)"
+# wrong result: bar(void, void*, void, void*)

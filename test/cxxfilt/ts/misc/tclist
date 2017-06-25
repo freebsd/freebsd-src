@@ -1,11 +1,11 @@
 # simple function
-
 "_Z1f", "f"
 "_Z1fi", "f(int)"
 "_Z1fic", "f(int, char)"
+"_Z1f3bar", "f(bar)"
+"_Z1fFviE", "f(void (int))"
 
 # namespace
-
 "_ZN12elftoolchainE", "elftoolchain"
 "_ZN11elftoolchainE", "_ZN11elftoolchainE"
 "_ZN12elftoolchain", "_ZN12elftoolchain"
@@ -13,3 +13,39 @@
 "_ZN12elftoolchain3foo3barEi", "elftoolchain::foo::bar(int)"
 "_ZN12elftoolchain3foo3barEic", "elftoolchain::foo::bar(int, char)"
 
+# non-static member function with qualifiers  <nested-name>
+# N [<CV-qualifiers>] [<ref-qualifier>] <prefix> <unqualified-name> E
+"_ZNKR12elftoolchain3fooEi", "elftoolchain::foo(int) const &"
+"_ZNKO12elftoolchain3fooEi", "elftoolchain::foo(int) const &&"
+
+# function type with qualifiers. (note that the place to encode qualifiers
+# is different than <nested-name>)
+# <function-type> ::= [<CV-qualifiers>] [Dx] F [Y] <bare-function-type>
+                      [<ref-qualifier>] E
+"_Z3fooKFviRE", "foo(void (int) const &)"
+"_Z3fooKFviOE", "foo(void (int) const &&)"
+
+# Pointer-to-member type and type qualifiers
+# <pointer-to-member-type> ::= M <class type> <member type>
+"_Z3barM12elftoolchainFviE", "bar(void (elftoolchain::*)(int))"
+"_Z3barM12elftoolchainKFviRE", "bar(void (elftoolchain::*)(int) const &)"
+"_Z3fooFvvEM1AFvvE", "foo(void (), void (A::*)())"
+"_Z3fooPFvvEM1AFvvE", "foo(void (*)(), void (A::*)())"
+"_Z3fooPFvvREM1AFvvE", "foo(void (*)() &, void (A::*)())"
+"_Z3fooPFvvREM1AFvvOE", "foo(void (*)() &, void (A::*)() &&)"
+"_Z3fooKFvvREM1AFvvE", "foo(void () const &, void (A::*)())"
+"_Z3fooKPFvvREM1AFvvE", "foo(void (* const)() &, void (A::*)())"
+"_Z3fooPKFvvREM1AFvvE", "foo(void (*)() const &, void (A::*)())"
+"_Z3fooPKFvvREPM1AFvvE", "foo(void (*)() const &, void (A::**)())"
+"_Z3fooPKFviREPM1AFvidE", "foo(void (*)(int) const &, void (A::**)(int, double))"
+"_Z3fooPrKFvvREPKVM1APKFvvE", "foo(void (*)() const restrict &, void (* A::* volatile const*)() const)"
+
+# local names
+
+
+
+# abbreviation St
+"_ZSt3foo", '::std::foo'
+"_ZNSt3for3barE", 'std::for::bar'
+
+# c++11 decltype

@@ -1,0 +1,10 @@
+# Misc
+"_Z1TIiE", "T<int>"
+"_Z1TIidE", "T<int, double>"
+"_Z1TIidET_T0_", "int T<int, double>(double)"
+"_ZN3Foo3BarIiiE1fEii", "Foo::Bar<int, int>::f(int, int)"
+"_ZN3Foo3BarIiiE1fIiiEEii", "int Foo::Bar<int, int>::f<int, int>(int)"
+"_ZN3Foo3BarIiiE1fE1TIiE", "Foo::Bar<int, int>::f(T<int>)"
+"_ZN3Foo3BarIiiE1fE1TIiEi", "Foo::Bar<int, int>::f(T<int>, int)"
+"_ZN3Foo3BarIiiE1fE1TIiEii", "Foo::Bar<int, int>::f(T<int>, int, int)"
+"_Z3foo1TIiEdh", "foo(T<int>, double, unsigned char)"
