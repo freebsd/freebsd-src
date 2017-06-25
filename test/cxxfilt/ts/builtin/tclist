@@ -1,0 +1,48 @@
+# <builtin-type> ::= v  # void
+#                ::= w  # wchar_t
+#                ::= b  # bool
+#                ::= c  # char
+#                ::= a  # signed char
+#                ::= h  # unsigned char
+#                ::= s  # short
+#                ::= t  # unsigned short
+#                ::= i  # int
+#                ::= j  # unsigned int
+#                ::= l  # long
+#                ::= m  # unsigned long
+#                ::= x  # long long, __int64
+#                ::= y  # unsigned long long, __int64
+#                ::= n  # __int128
+#                ::= o  # unsigned __int128
+#                ::= f  # float
+#                ::= d  # double
+#                ::= e  # long double, __float80
+#                ::= g  # __float128
+#                ::= z  # ellipsis
+#                ::= Dd # IEEE 754r decimal floating point (64 bits)
+#                ::= De # IEEE 754r decimal floating point (128 bits)
+#                ::= Df # IEEE 754r decimal floating point (32 bits)
+#                ::= Dh # IEEE 754r half-precision floating point (16 bits)
+#                ::= Di # char32_t
+#                ::= Ds # char16_t
+#                ::= Da # auto
+#                ::= Dc # decltype(auto)
+#                ::= Dn # std::nullptr_t (i.e., decltype(nullptr))
+#                ::= u <source-name>    # vendor extended type
+
+"_Z3barv", "bar()"
+"_Z3barPv", "bar(void*)"
+"_Z3bariPv", "bar(int, void*)"
+"_Z3fooww", "foo(wchar_t, wchar_t)"
+"_Z3foob", "foo(bool)"
+"_Z3foocah", "foo(char, signed char, unsigned char)"
+"_Z3barstij", "bar(short, unsigned short, int, unsigned int)"
+"_Z3barlmxy", "bar(long, unsigned long, long long, unsigned long long)"
+"_Z3barno", "bar(__int128, unsigned __int128)"
+"_Z3foofdeg", "foo(float, double, long double, __float128)"
+"_Z3fooiPcz", "foo(int, char*, ...)"
+"_Z3fooDdDeDfDh", "foo(decimal64, decimal128, decimal32, half)"
+"_Z3barDiDs", "bar(char32_t, char16_t)"
+"_Z3barIiEDai", "auto bar<int>(int)"
+"_Z3barIiEDci", "decltype(auto) bar<int>(int)"
+"_Z3barIiEDni", "decltype(nullptr) bar<int>(int)"

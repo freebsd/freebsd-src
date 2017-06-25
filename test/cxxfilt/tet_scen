@@ -2,16 +2,40 @@
 
 all
         "Starting Test Suite"
+	^builtin
 	^misc
+	^qualifiers
 	^regression
+	^substitute
+	^template
         "Complete Test Suite"
+
+builtin
+	"Starting builtin Test"
+	/ts/builtin/tc
+	"Complete builtin Test"
 
 misc
 	"Starting misc Test"
 	/ts/misc/tc
 	"Complete misc Test"
 
+qualifiers
+	"Starting qualifiers Test"
+	/ts/qualifiers/tc
+	"Complete qualifiers Test"
+
 regression
 	"Starting regression Test"
 	/ts/regression/tc
 	"Complete regression Test"
+
+substitute
+	"Starting substitute Test"
+	/ts/substitute/tc
+	"Complete substitute Test"
+
+template
+	"Starting template Test"
+	/ts/template/tc
+	"Complete template Test"

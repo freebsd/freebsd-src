@@ -1,0 +1,36 @@
+# <type> ::= <CV-qualifiers> <type>
+#        ::= P <type>        # pointer-to
+#        ::= R <type>        # reference-to
+#        ::= O <type>        # rvalue reference-to (C++0x)
+#        ::= C <type>        # complex pair (C 2000)
+#        ::= G <type>        # imaginary (C 2000)
+#        ::= U <source-name> [<template-args>] <type>   # vendor extended type qualifier
+
+# <CV-qualifiers> ::= [r] [V] [K]
+"_Z3foorPirPirPi", "foo(int* restrict, int* restrict, int* restrict)"
+"_Z3fooVPd", "foo(double* volatile)"
+
+# Pointer
+"_Z3fooPi", "foo(int*)"
+"_Z3fooPPi", "foo(int**)"
+"_Z3fooKPi", "foo(int* const)"
+"_Z3fooPKi", "foo(int const*)"
+"_Z3fooKPKi", "foo(int const* const)"
+"_Z3fooKPPi", "foo(int** const)"
+"_Z3fooPKPi", "foo(int* const*)"
+"_Z3fooPPKi", "foo(int const**)"
+"_Z3fooKPKPi", "foo(int* const* const)"
+
+# Reference
+"_Z3barRi", "bar(int&)"
+"_Z3barRKi", "bar(int const&)"
+"_ZplR1XS0_", "operator+(X&, X&)"
+"_ZrsRK1XS1_", "operator>>(X const&, X const&)"
+"_ZN1XaSEO1X", "X::operator=(X&&)"
+
+# Complex
+"_Z3fooCd", "foo(double complex)"
+"_Z3fooGdGf", "foo(double imaginary, float imaginary)"
+
+# Vendor
+"_Z3fooPU3farc", "foo(char far*)"
