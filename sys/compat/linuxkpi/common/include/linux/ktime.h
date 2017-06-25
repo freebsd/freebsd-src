@@ -51,6 +51,15 @@ ktime_to_ns(ktime_t kt)
 	return kt.tv64;
 }
 
+static inline ktime_t
+ns_to_ktime(uint64_t nsec)
+{
+	ktime_t kt;
+
+	kt.tv64 = nsec;
+	return (kt);
+}
+
 static inline int64_t
 ktime_divns(const ktime_t kt, int64_t div)
 {
