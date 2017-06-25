@@ -2018,6 +2018,11 @@ to return exit status 1 if the full pathname of the new directory
 cannot be determined reliably or at all.
 Normally this is not considered an error,
 although a warning is printed.
+.Pp
+If changing the directory fails, the exit status is greater than 1.
+If the directory is changed, the exit status is 0, or also 1 if
+.Fl e
+was given.
 .It Ic chdir
 A synonym for the
 .Ic cd
