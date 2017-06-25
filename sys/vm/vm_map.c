@@ -2712,9 +2712,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
 		 */
 	next_entry:
-		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
-		    (entry->end < end && (entry->next == &map->header ||
-		    entry->next->start > entry->end))) {
+		if ((flags & VM_MAP_WIRE_HOLESOK) == 0 &&
+		    entry->end < end && (entry->next == &map->header ||
+		    entry->next->start > entry->end)) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
