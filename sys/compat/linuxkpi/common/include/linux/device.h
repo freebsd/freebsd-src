@@ -69,6 +69,7 @@ struct dev_pm_ops {
 	int (*freeze)(struct device *dev);
 	int (*freeze_late)(struct device *dev);
 	int (*thaw)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
 	int (*poweroff)(struct device *dev);
 	int (*poweroff_late)(struct device *dev);
 	int (*restore)(struct device *dev);
