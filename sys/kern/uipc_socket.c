@@ -461,12 +461,6 @@ sodealloc(struct socket *so)
 	so->so_vnet->vnet_sockcnt--;
 #endif
 	mtx_unlock(&so_global_mtx);
-	if (so->so_rcv.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
-	if (so->so_snd.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
@@ -478,6 +472,12 @@ sodealloc(struct socket *so)
 		if (so->sol_accept_filter != NULL)
 			accept_filt_setopt(so, NULL);
 	} else {
+		if (so->so_rcv.sb_hiwat)
+			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
+		if (so->so_snd.sb_hiwat)
+			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 		sx_destroy(&so->so_snd.sb_sx);
 		sx_destroy(&so->so_rcv.sb_sx);
 		SOCKBUF_LOCK_DESTROY(&so->so_snd);
@@ -2834,38 +2834,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				goto bad;
 			}
 
-			switch (sopt->sopt_name) {
-			case SO_SNDBUF:
-			case SO_RCVBUF:
-				if (sbreserve(sopt->sopt_name == SO_SNDBUF ?
-				    &so->so_snd : &so->so_rcv, (u_long)optval,
-				    so, curthread) == 0) {
-					error = ENOBUFS;
-					goto bad;
-				}
-				(sopt->sopt_name == SO_SNDBUF ? &so->so_snd :
-				    &so->so_rcv)->sb_flags &= ~SB_AUTOSIZE;
-				break;
-
-			/*
-			 * Make sure the low-water is never greater than the
-			 * high-water.
-			 */
-			case SO_SNDLOWAT:
-				SOCKBUF_LOCK(&so->so_snd);
-				so->so_snd.sb_lowat =
-				    (optval > so->so_snd.sb_hiwat) ?
-				    so->so_snd.sb_hiwat : optval;
-				SOCKBUF_UNLOCK(&so->so_snd);
-				break;
-			case SO_RCVLOWAT:
-				SOCKBUF_LOCK(&so->so_rcv);
-				so->so_rcv.sb_lowat =
-				    (optval > so->so_rcv.sb_hiwat) ?
-				    so->so_rcv.sb_hiwat : optval;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				break;
-			}
+			error = sbsetopt(so, sopt->sopt_name, optval);
 			break;
 
 		case SO_SNDTIMEO:
