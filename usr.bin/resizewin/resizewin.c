@@ -91,7 +91,7 @@ main(int argc, char **argv)
 			exit(0);
 	}
 
-	/* Disable echo, drain the input, and flush the output */
+	/* Disable echo, flush the input, and drain the output */
 	if (tcgetattr(fd, &old) == -1)
 		exit(1);
 
