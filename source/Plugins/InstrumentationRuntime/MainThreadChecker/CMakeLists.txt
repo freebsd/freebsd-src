@@ -1,5 +1,5 @@
-add_lldb_library(lldbPluginInstrumentationRuntimeAddressSanitizer PLUGIN
-  AddressSanitizerRuntime.cpp
+add_lldb_library(lldbPluginInstrumentationRuntimeMainThreadChecker PLUGIN
+  MainThreadCheckerRuntime.cpp
 
   LINK_LIBS
     lldbBreakpoint
