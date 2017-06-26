@@ -3891,9 +3891,7 @@ Retry:
 		vm_map_wire(map,
 		    (stack_entry == next_entry) ? addr : addr - grow_amount,
 		    (stack_entry == next_entry) ? stack_entry->start : addr,
-		    (p->p_flag & P_SYSTEM)
-		    ? VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES
-		    : VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 	}
 
 out:
