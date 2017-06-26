@@ -51,6 +51,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170625:
+	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
+	a very major ABI incompatible change, so users of FreeBSD/powerpc must
+	be careful when performing source upgrades.  It is best to run
+	'make installworld' from an alternate root system, either a live
+	CD/memory stick, or a temporary root partition.  Additionally, all ports
+	must be recompiled.  powerpc64 is largely unaffected, except in the case
+	of 32-bit compatibility.  All 32-bit binaries will be affected.
+
 20170623:
 	Forward compatibility for the "ino64" project have been committed. This
 	will allow most new binaries to run on older kernels in a limited
