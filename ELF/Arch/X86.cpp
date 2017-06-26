@@ -9,7 +9,6 @@
 
 #include "Error.h"
 #include "InputFiles.h"
-#include "Memory.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
@@ -47,6 +46,7 @@ public:
 } // namespace
 
 X86::X86() {
+  GotBaseSymOff = -1;
   CopyRel = R_386_COPY;
   GotRel = R_386_GLOB_DAT;
   PltRel = R_386_JUMP_SLOT;
@@ -60,9 +60,7 @@ X86::X86() {
   PltEntrySize = 16;
   PltHeaderSize = 16;
   TlsGdRelaxSkip = 2;
-
-  // 0xCC is the "int3" (call debug exception handler) instruction.
-  TrapInstr = 0xcccccccc;
+  TrapInstr = 0xcccccccc; // 0xcc = INT3
 }
 
 RelExpr X86::getRelExpr(uint32_t Type, const SymbolBody &S,
@@ -360,4 +358,7 @@ void X86::relaxTlsLdToLe(uint8_t *Loc, uint32_t Type, uint64_t Val) const {
   memcpy(Loc - 2, Inst, sizeof(Inst));
 }
 
-TargetInfo *elf::createX86TargetInfo() { return make<X86>(); }
+TargetInfo *elf::getX86TargetInfo() {
+  static X86 Target;
+  return &Target;
+}
