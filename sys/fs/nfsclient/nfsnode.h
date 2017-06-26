@@ -158,6 +158,7 @@ struct nfsnode {
 #define	NNOLAYOUT	0x00020000  /* Can't get a layout for this file */
 #define	NWRITEOPENED	0x00040000  /* Has been opened for writing */
 #define	NHASBEENLOCKED	0x00080000  /* Has been file locked. */
+#define	NDSCOMMIT	0x00100000  /* Commit is done via the DS. */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
