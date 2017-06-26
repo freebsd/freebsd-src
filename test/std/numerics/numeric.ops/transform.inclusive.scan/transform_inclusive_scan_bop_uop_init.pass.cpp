@@ -10,18 +10,18 @@
 // <numeric>
 // UNSUPPORTED: c++98, c++03, c++11, c++14
 
-// template<class InputIterator, class OutputIterator, class T,
+// template<class InputIterator, class OutputIterator, class T, 
 //          class BinaryOperation, class UnaryOperation>
-//   OutputIterator transform_exclusive_scan(InputIterator first, InputIterator last,
-//                                           OutputIterator result, T init,
+//   OutputIterator transform_inclusive_scan(InputIterator first, InputIterator last,
+//                                           OutputIterator result,
 //                                           BinaryOperation binary_op,
-//                                           UnaryOperation unary_op);
+//                                           UnaryOperation unary_op,
+//                                           T init);
 
 
 #include <numeric>
 #include <vector>
 #include <cassert>
-#include <iostream>
 
 #include "test_iterators.h"
 
@@ -47,13 +47,13 @@ test(Iter1 first, Iter1 last, BOp bop, UOp uop, T init, Iter2 rFirst, Iter2 rLas
 {
     std::vector<typename std::iterator_traits<Iter1>::value_type> v;
 //  Test not in-place
-    std::transform_exclusive_scan(first, last, std::back_inserter(v), init, bop, uop);
+    std::transform_inclusive_scan(first, last, std::back_inserter(v), bop, uop, init);
     assert(std::equal(v.begin(), v.end(), rFirst, rLast));
 
 //  Test in-place
     v.clear();
     v.assign(first, last);
-    std::transform_exclusive_scan(v.begin(), v.end(), v.begin(), init, bop, uop);
+    std::transform_inclusive_scan(v.begin(), v.end(), v.begin(), bop, uop, init);
     assert(std::equal(v.begin(), v.end(), rFirst, rLast));
 }
 
@@ -62,15 +62,15 @@ template <class Iter>
 void
 test()
 {
-          int ia[]     = { 1,  3,  5,   7,   9};
-    const int pResI0[] = { 0,  1,  4,   9,  16};        // with identity
-    const int mResI0[] = { 0,  0,  0,   0,   0};
-    const int pResN0[] = { 0, -1, -4,  -9, -16};        // with negate
-    const int mResN0[] = { 0,  0,  0,   0,   0};
-    const int pResI2[] = { 2,  3,  6,  11,  18};        // with identity
-    const int mResI2[] = { 2,  2,  6,  30, 210};
-    const int pResN2[] = { 2,  1, -2,  -7, -14};        // with negate
-    const int mResN2[] = { 2, -2,  6, -30, 210};
+          int ia[]     = {  1,  3,   5,    7,     9};
+    const int pResI0[] = {  1,  4,   9,   16,    25};        // with identity
+    const int mResI0[] = {  0,  0,   0,    0,     0};        
+    const int pResN0[] = { -1, -4,  -9,  -16,   -25};        // with negate
+    const int mResN0[] = {  0,  0,   0,    0,     0};
+    const int pResI2[] = {  3,  6,  11,   18,    27};        // with identity
+    const int mResI2[] = {  2,  6,  30,  210,  1890};        
+    const int pResN2[] = {  1, -2,  -7,  -14,   -23};        // with negate
+    const int mResN2[] = { -2,  6, -30,  210, -1890};
     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
     static_assert(sa == sizeof(pResI0) / sizeof(pResI0[0]));       // just to be sure
     static_assert(sa == sizeof(mResI0) / sizeof(mResI0[0]));       // just to be sure
@@ -101,30 +101,30 @@ void basic_tests()
     {
     std::vector<int> v(10);
     std::fill(v.begin(), v.end(), 3);
-    std::transform_exclusive_scan(v.begin(), v.end(), v.begin(), 50, std::plus<>(), identity<>());
+    std::transform_inclusive_scan(v.begin(), v.end(), v.begin(), std::plus<>(), identity<>(), 50);
     for (size_t i = 0; i < v.size(); ++i)
-        assert(v[i] == 50 + (int) i * 3);
+        assert(v[i] == 50 + (int) (i + 1) * 3);
     }
 
     {
     std::vector<int> v(10);
     std::iota(v.begin(), v.end(), 0);
-    std::transform_exclusive_scan(v.begin(), v.end(), v.begin(), 30, std::plus<>(), identity<>());
+    std::transform_inclusive_scan(v.begin(), v.end(), v.begin(), std::plus<>(), identity<>(), 30);
     for (size_t i = 0; i < v.size(); ++i)
-        assert(v[i] == 30 + triangle(i-1));
+        assert(v[i] == 30 + triangle(i));
     }
 
     {
     std::vector<int> v(10);
     std::iota(v.begin(), v.end(), 1);
-    std::transform_exclusive_scan(v.begin(), v.end(), v.begin(), 40, std::plus<>(), identity<>());
+    std::transform_inclusive_scan(v.begin(), v.end(), v.begin(), std::plus<>(), identity<>(), 40);
     for (size_t i = 0; i < v.size(); ++i)
-        assert(v[i] == 40 + triangle(i));
+        assert(v[i] == 40 + triangle(i + 1));
     }
 
     {
     std::vector<int> v, res;
-    std::transform_exclusive_scan(v.begin(), v.end(), std::back_inserter(res), 40, std::plus<>(), identity<>());
+    std::transform_inclusive_scan(v.begin(), v.end(), std::back_inserter(res), std::plus<>(), identity<>(), 1);
     assert(res.empty());
     }
 
@@ -133,14 +133,14 @@ void basic_tests()
     std::vector<unsigned char> v(10);
     std::iota(v.begin(), v.end(), 1);
     std::vector<int> res;
-    std::transform_exclusive_scan(v.begin(), v.end(), std::back_inserter(res), 1, std::multiplies<>(), identity<>());
+    std::transform_inclusive_scan(v.begin(), v.end(), std::back_inserter(res), std::multiplies<>(), identity<>(), 1);
 
     assert(res.size() == 10);
     int j = 1;
     assert(res[0] == 1);
     for (size_t i = 1; i < res.size(); ++i)
     {
-        j *= i;
+        j *= i + 1;
         assert(res[i] == j);
     }
     }
@@ -149,7 +149,7 @@ void basic_tests()
 int main()
 {
     basic_tests();
-
+    
 //  All the iterator categories
     test<input_iterator        <const int*> >();
     test<forward_iterator      <const int*> >();
