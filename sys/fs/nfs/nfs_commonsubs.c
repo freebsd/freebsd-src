@@ -68,6 +68,7 @@ gid_t nfsrv_defaultgid = GID_NOGROUP;
 int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsd_enable_stringtouid = 0;
+int nfsd_enable_uidtostring = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 extern int nfsrv_lughashsize;
@@ -2561,7 +2562,7 @@ nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultuid to "nobody".
 		 */
@@ -2671,7 +2672,7 @@ nfsrv_getgrpscred(struct ucred *oldcred)
 	cnt = 0;
 	uid = oldcred->cr_uid;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
 		hp = NFSUSERHASH(uid);
 		mtx_lock(&hp->mtx);
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_numhash) {
@@ -2823,7 +2824,7 @@ nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultgid to "nogroup".
 		 */
