@@ -45,7 +45,7 @@
 /*
  * Being a newer port, 32-bit FreeBSD/MIPS uses 64-bit time_t.
  */
-#ifdef __mips__
+#if defined (__mips__) || defined(__powerpc__)
 typedef	int64_t	time32_t;
 #else
 typedef	int32_t	time32_t;
