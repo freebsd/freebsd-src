@@ -338,8 +338,9 @@ LinkerScript::computeInputSections(const InputSectionDescription *Cmd) {
 void LinkerScript::discard(ArrayRef<InputSectionBase *> V) {
   for (InputSectionBase *S : V) {
     S->Live = false;
-    if (S == InX::ShStrTab)
-      error("discarding .shstrtab section is not allowed");
+    if (S == InX::ShStrTab || S == InX::Dynamic || S == InX::DynSymTab ||
+        S == InX::DynStrTab)
+      error("discarding " + S->Name + " section is not allowed");
     discard(S->DependentSections);
   }
 }
@@ -462,11 +463,6 @@ void LinkerScript::fabricateDefaultCommands() {
     auto *OSCmd = createOutputSectionCommand(Sec->Name, "<internal>");
     OSCmd->Sec = Sec;
     SecToCommand[Sec] = OSCmd;
-
-    // Prefer user supplied address over additional alignment constraint
-    auto I = Config->SectionStartMap.find(Sec->Name);
-    if (I != Config->SectionStartMap.end())
-      OSCmd->AddrExpr = [=] { return I->second; };
 
     Commands.push_back(OSCmd);
     if (Sec->Sections.size()) {
@@ -953,6 +949,8 @@ static bool compareByFilePosition(InputSection *A, InputSection *B) {
 template <class ELFT>
 static void finalizeShtGroup(OutputSection *OS,
                              ArrayRef<InputSection *> Sections) {
+  assert(Config->Relocatable && Sections.size() == 1);
+
   // sh_link field for SHT_GROUP sections should contain the section index of
   // the symbol table.
   OS->Link = InX::SymTab->getParent()->SectionIndex;
@@ -960,7 +958,6 @@ static void finalizeShtGroup(OutputSection *OS,
   // sh_info then contain index of an entry in symbol table section which
   // provides signature of the section group.
   elf::ObjectFile<ELFT> *Obj = Sections[0]->getFile<ELFT>();
-  assert(Config->Relocatable && Sections.size() == 1);
   ArrayRef<SymbolBody *> Symbols = Obj->getSymbols();
   OS->Info = InX::SymTab->getSymbolIndex(Symbols[Sections[0]->Info - 1]);
 }
@@ -1044,8 +1041,9 @@ template <class ELFT> void OutputSectionCommand::writeTo(uint8_t *Buf) {
 
   Sec->Loc = Buf;
 
-  // We may have already rendered compressed content when using
-  // -compress-debug-sections option. Write it together with header.
+  // If -compress-debug-section is specified and if this is a debug seciton,
+  // we've already compressed section contents. If that's the case,
+  // just write it down.
   if (!Sec->CompressedData.empty()) {
     memcpy(Buf, Sec->ZDebugHeader.data(), Sec->ZDebugHeader.size());
     memcpy(Buf + Sec->ZDebugHeader.size(), Sec->CompressedData.data(),
@@ -1109,18 +1107,27 @@ ExprValue LinkerScript::getSymbolValue(const Twine &Loc, StringRef S) {
 
 bool LinkerScript::isDefined(StringRef S) { return findSymbol(S) != nullptr; }
 
+static const size_t NoPhdr = -1;
+
 // Returns indices of ELF headers containing specific section. Each index is a
 // zero based number of ELF header listed within PHDRS {} script block.
 std::vector<size_t> LinkerScript::getPhdrIndices(OutputSection *Sec) {
   if (OutputSectionCommand *Cmd = getCmd(Sec)) {
     std::vector<size_t> Ret;
-    for (StringRef PhdrName : Cmd->Phdrs)
-      Ret.push_back(getPhdrIndex(Cmd->Location, PhdrName));
+    for (StringRef PhdrName : Cmd->Phdrs) {
+      size_t Index = getPhdrIndex(Cmd->Location, PhdrName);
+      if (Index != NoPhdr)
+        Ret.push_back(Index);
+    }
     return Ret;
   }
   return {};
 }
 
+// Returns the index of the segment named PhdrName if found otherwise
+// NoPhdr. When not found, if PhdrName is not the special case value 'NONE'
+// (which can be used to explicitly specify that a section isn't assigned to a
+// segment) then error.
 size_t LinkerScript::getPhdrIndex(const Twine &Loc, StringRef PhdrName) {
   size_t I = 0;
   for (PhdrsCommand &Cmd : Opt.PhdrsCommands) {
@@ -1128,8 +1135,9 @@ size_t LinkerScript::getPhdrIndex(const Twine &Loc, StringRef PhdrName) {
       return I;
     ++I;
   }
-  error(Loc + ": section header '" + PhdrName + "' is not listed in PHDRS");
-  return 0;
+  if (PhdrName != "NONE")
+    error(Loc + ": section header '" + PhdrName + "' is not listed in PHDRS");
+  return NoPhdr;
 }
 
 template void OutputSectionCommand::writeTo<ELF32LE>(uint8_t *Buf);
