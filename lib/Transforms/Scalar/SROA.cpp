@@ -1252,7 +1252,7 @@ static bool isSafeSelectToSpeculate(SelectInst &SI) {
     if (!LI || !LI->isSimple())
       return false;
 
-    // Both operands to the select need to be dereferencable, either
+    // Both operands to the select need to be dereferenceable, either
     // absolutely (e.g. allocas) or at this point because we can see other
     // accesses to it.
     if (!isSafeToLoadUnconditionally(TValue, LI->getAlignment(), DL, LI))
@@ -1637,8 +1637,17 @@ static bool canConvertValue(const DataLayout &DL, Type *OldTy, Type *NewTy) {
       return cast<PointerType>(NewTy)->getPointerAddressSpace() ==
         cast<PointerType>(OldTy)->getPointerAddressSpace();
     }
-    if (NewTy->isIntegerTy() || OldTy->isIntegerTy())
-      return true;
+
+    // We can convert integers to integral pointers, but not to non-integral
+    // pointers.
+    if (OldTy->isIntegerTy())
+      return !DL.isNonIntegralPointerType(NewTy);
+
+    // We can convert integral pointers to integers, but non-integral pointers
+    // need to remain pointers.
+    if (!DL.isNonIntegralPointerType(OldTy))
+      return NewTy->isIntegerTy();
+
     return false;
   }
 

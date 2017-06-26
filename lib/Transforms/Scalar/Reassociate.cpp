@@ -35,6 +35,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -106,11 +107,12 @@ XorOpnd::XorOpnd(Value *V) {
             I->getOpcode() == Instruction::And)) {
     Value *V0 = I->getOperand(0);
     Value *V1 = I->getOperand(1);
-    if (isa<ConstantInt>(V0))
+    const APInt *C;
+    if (match(V0, PatternMatch::m_APInt(C)))
       std::swap(V0, V1);
 
-    if (ConstantInt *C = dyn_cast<ConstantInt>(V1)) {
-      ConstPart = C->getValue();
+    if (match(V1, PatternMatch::m_APInt(C))) {
+      ConstPart = *C;
       SymbolicPart = V0;
       isOr = (I->getOpcode() == Instruction::Or);
       return;
@@ -119,7 +121,7 @@ XorOpnd::XorOpnd(Value *V) {
 
   // view the operand as "V | 0"
   SymbolicPart = V;
-  ConstPart = APInt::getNullValue(V->getType()->getIntegerBitWidth());
+  ConstPart = APInt::getNullValue(V->getType()->getScalarSizeInBits());
   isOr = true;
 }
 
@@ -955,8 +957,8 @@ static BinaryOperator *ConvertShiftToMul(Instruction *Shl) {
 /// Scan backwards and forwards among values with the same rank as element i
 /// to see if X exists.  If X does not exist, return i.  This is useful when
 /// scanning for 'x' when we see '-x' because they both get the same rank.
-static unsigned FindInOperandList(SmallVectorImpl<ValueEntry> &Ops, unsigned i,
-                                  Value *X) {
+static unsigned FindInOperandList(const SmallVectorImpl<ValueEntry> &Ops,
+                                  unsigned i, Value *X) {
   unsigned XRank = Ops[i].Rank;
   unsigned e = Ops.size();
   for (unsigned j = i+1; j != e && Ops[j].Rank == XRank; ++j) {
@@ -1134,20 +1136,19 @@ static Value *OptimizeAndOrXor(unsigned Opcode,
 /// instruction. There are two special cases: 1) if the constant operand is 0,
 /// it will return NULL. 2) if the constant is ~0, the symbolic operand will
 /// be returned.
-static Value *createAndInstr(Instruction *InsertBefore, Value *Opnd, 
+static Value *createAndInstr(Instruction *InsertBefore, Value *Opnd,
                              const APInt &ConstOpnd) {
-  if (ConstOpnd != 0) {
-    if (!ConstOpnd.isAllOnesValue()) {
-      LLVMContext &Ctx = Opnd->getType()->getContext();
-      Instruction *I;
-      I = BinaryOperator::CreateAnd(Opnd, ConstantInt::get(Ctx, ConstOpnd),
-                                    "and.ra", InsertBefore);
-      I->setDebugLoc(InsertBefore->getDebugLoc());
-      return I;
-    }
+  if (ConstOpnd.isNullValue())
+    return nullptr;
+
+  if (ConstOpnd.isAllOnesValue())
     return Opnd;
-  }
-  return nullptr;
+
+  Instruction *I = BinaryOperator::CreateAnd(
+      Opnd, ConstantInt::get(Opnd->getType(), ConstOpnd), "and.ra",
+      InsertBefore);
+  I->setDebugLoc(InsertBefore->getDebugLoc());
+  return I;
 }
 
 // Helper function of OptimizeXor(). It tries to simplify "Opnd1 ^ ConstOpnd"
@@ -1163,24 +1164,24 @@ bool ReassociatePass::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1,
   //                       = ((x | c1) ^ c1) ^ (c1 ^ c2)
   //                       = (x & ~c1) ^ (c1 ^ c2)
   // It is useful only when c1 == c2.
-  if (Opnd1->isOrExpr() && Opnd1->getConstPart() != 0) {
-    if (!Opnd1->getValue()->hasOneUse())
-      return false;
+  if (!Opnd1->isOrExpr() || Opnd1->getConstPart().isNullValue())
+    return false;
 
-    const APInt &C1 = Opnd1->getConstPart();
-    if (C1 != ConstOpnd)
-      return false;
+  if (!Opnd1->getValue()->hasOneUse())
+    return false;
 
-    Value *X = Opnd1->getSymbolicPart();
-    Res = createAndInstr(I, X, ~C1);
-    // ConstOpnd was C2, now C1 ^ C2.
-    ConstOpnd ^= C1;
+  const APInt &C1 = Opnd1->getConstPart();
+  if (C1 != ConstOpnd)
+    return false;
 
-    if (Instruction *T = dyn_cast<Instruction>(Opnd1->getValue()))
-      RedoInsts.insert(T);
-    return true;
-  }
-  return false;
+  Value *X = Opnd1->getSymbolicPart();
+  Res = createAndInstr(I, X, ~C1);
+  // ConstOpnd was C2, now C1 ^ C2.
+  ConstOpnd ^= C1;
+
+  if (Instruction *T = dyn_cast<Instruction>(Opnd1->getValue()))
+    RedoInsts.insert(T);
+  return true;
 }
 
                            
@@ -1221,8 +1222,8 @@ bool ReassociatePass::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1,
     APInt C3((~C1) ^ C2);
 
     // Do not increase code size!
-    if (C3 != 0 && !C3.isAllOnesValue()) {
-      int NewInstNum = ConstOpnd != 0 ? 1 : 2;
+    if (!C3.isNullValue() && !C3.isAllOnesValue()) {
+      int NewInstNum = ConstOpnd.getBoolValue() ? 1 : 2;
       if (NewInstNum > DeadInstNum)
         return false;
     }
@@ -1238,8 +1239,8 @@ bool ReassociatePass::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1,
     APInt C3 = C1 ^ C2;
     
     // Do not increase code size
-    if (C3 != 0 && !C3.isAllOnesValue()) {
-      int NewInstNum = ConstOpnd != 0 ? 1 : 2;
+    if (!C3.isNullValue() && !C3.isAllOnesValue()) {
+      int NewInstNum = ConstOpnd.getBoolValue() ? 1 : 2;
       if (NewInstNum > DeadInstNum)
         return false;
     }
@@ -1279,17 +1280,20 @@ Value *ReassociatePass::OptimizeXor(Instruction *I,
   SmallVector<XorOpnd, 8> Opnds;
   SmallVector<XorOpnd*, 8> OpndPtrs;
   Type *Ty = Ops[0].Op->getType();
-  APInt ConstOpnd(Ty->getIntegerBitWidth(), 0);
+  APInt ConstOpnd(Ty->getScalarSizeInBits(), 0);
 
   // Step 1: Convert ValueEntry to XorOpnd
   for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
     Value *V = Ops[i].Op;
-    if (!isa<ConstantInt>(V)) {
+    const APInt *C;
+    // TODO: Support non-splat vectors.
+    if (match(V, PatternMatch::m_APInt(C))) {
+      ConstOpnd ^= *C;
+    } else {
       XorOpnd O(V);
       O.setSymbolicRank(getRank(O.getSymbolicPart()));
       Opnds.push_back(O);
-    } else
-      ConstOpnd ^= cast<ConstantInt>(V)->getValue();
+    }
   }
 
   // NOTE: From this point on, do *NOT* add/delete element to/from "Opnds".
@@ -1327,7 +1331,8 @@ Value *ReassociatePass::OptimizeXor(Instruction *I,
     Value *CV;
 
     // Step 3.1: Try simplifying "CurrOpnd ^ ConstOpnd"
-    if (ConstOpnd != 0 && CombineXorOpnd(I, CurrOpnd, ConstOpnd, CV)) {
+    if (!ConstOpnd.isNullValue() &&
+        CombineXorOpnd(I, CurrOpnd, ConstOpnd, CV)) {
       Changed = true;
       if (CV)
         *CurrOpnd = XorOpnd(CV);
@@ -1369,17 +1374,17 @@ Value *ReassociatePass::OptimizeXor(Instruction *I,
       ValueEntry VE(getRank(O.getValue()), O.getValue());
       Ops.push_back(VE);
     }
-    if (ConstOpnd != 0) {
-      Value *C = ConstantInt::get(Ty->getContext(), ConstOpnd);
+    if (!ConstOpnd.isNullValue()) {
+      Value *C = ConstantInt::get(Ty, ConstOpnd);
       ValueEntry VE(getRank(C), C);
       Ops.push_back(VE);
     }
-    int Sz = Ops.size();
+    unsigned Sz = Ops.size();
     if (Sz == 1)
       return Ops.back().Op;
-    else if (Sz == 0) {
-      assert(ConstOpnd == 0);
-      return ConstantInt::get(Ty->getContext(), ConstOpnd);
+    if (Sz == 0) {
+      assert(ConstOpnd.isNullValue());
+      return ConstantInt::get(Ty, ConstOpnd);
     }
   }
 
@@ -1627,8 +1632,8 @@ Value *ReassociatePass::OptimizeAdd(Instruction *I,
 ///   ((((x*y)*x)*y)*x) -> [(x, 3), (y, 2)]
 ///
 /// \returns Whether any factors have a power greater than one.
-bool ReassociatePass::collectMultiplyFactors(SmallVectorImpl<ValueEntry> &Ops,
-                                             SmallVectorImpl<Factor> &Factors) {
+static bool collectMultiplyFactors(SmallVectorImpl<ValueEntry> &Ops,
+                                   SmallVectorImpl<Factor> &Factors) {
   // FIXME: Have Ops be (ValueEntry, Multiplicity) pairs, simplifying this.
   // Compute the sum of powers of simplifiable factors.
   unsigned FactorPowerSum = 0;
@@ -1998,11 +2003,6 @@ void ReassociatePass::OptimizeInst(Instruction *I) {
   // transformations simpler.
   if (I->isCommutative())
     canonicalizeOperands(I);
-
-  // TODO: We should optimize vector Xor instructions, but they are
-  // currently unsupported.
-  if (I->getType()->isVectorTy() && I->getOpcode() == Instruction::Xor)
-    return;
 
   // Don't optimize floating point instructions that don't have unsafe algebra.
   if (I->getType()->isFPOrFPVectorTy() && !I->hasUnsafeAlgebra())

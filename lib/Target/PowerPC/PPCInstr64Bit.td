@@ -972,13 +972,15 @@ def LDMX : XForm_1<31, 309, (outs g8rc:$rD), (ins memrr:$src),
 
 // Support for medium and large code model.
 let hasSideEffects = 0 in {
+let isReMaterializable = 1 in {
 def ADDIStocHA: Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, tocentry:$disp),
                        "#ADDIStocHA", []>, isPPC64;
+def ADDItocL: Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, tocentry:$disp),
+                     "#ADDItocL", []>, isPPC64;
+}
 let mayLoad = 1 in
 def LDtocL: Pseudo<(outs g8rc:$rD), (ins tocentry:$disp, g8rc_nox0:$reg),
                    "#LDtocL", []>, isPPC64;
-def ADDItocL: Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, tocentry:$disp),
-                     "#ADDItocL", []>, isPPC64;
 }
 
 // Support for thread-local storage.
@@ -994,7 +996,7 @@ def LDgotTprelL: Pseudo<(outs g8rc:$rD), (ins s16imm64:$disp, g8rc_nox0:$reg),
                           (PPCldGotTprelL tglobaltlsaddr:$disp, i64:$reg))]>,
                  isPPC64;
 
-let isBarrier = 1, isPseudo = 1, Defs = [CR7], Itinerary = IIC_LdStSync in
+let isPseudo = 1, Defs = [CR7], Itinerary = IIC_LdStSync in
 def CFENCE8 : Pseudo<(outs), (ins g8rc:$cr), "#CFENCE8", []>;
 
 def : Pat<(PPCaddTls i64:$in, tglobaltlsaddr:$g),
