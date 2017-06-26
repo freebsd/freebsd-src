@@ -114,7 +114,8 @@ static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_storage *,
 static void nfscl_initsessionslots(struct nfsclsession *);
 static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
-    struct nfsclflayout *, uint64_t, uint64_t, struct ucred *, NFSPROC_T *);
+    struct nfsclflayout *, uint64_t, uint64_t, int, struct ucred *,
+    NFSPROC_T *);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, struct ucred *,
     NFSPROC_T *);
@@ -123,10 +124,8 @@ static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
     struct nfsfh *, int, struct ucred *, NFSPROC_T *);
 static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
     struct nfsclds *, struct nfsclds **);
-#ifdef notyet
 static int nfsrpc_commitds(vnode_t, uint64_t, int, struct nfsclds *,
-    struct nfsfh *, struct ucred *, NFSPROC_T *, void *);
-#endif
+    struct nfsfh *, struct ucred *, NFSPROC_T *);
 static void nfsrv_setuplayoutget(struct nfsrv_descript *, int, uint64_t,
     uint64_t, uint64_t, nfsv4stateid_t *, int, int);
 static int nfsrv_parselayoutget(struct nfsrv_descript *, nfsv4stateid_t *,
@@ -5439,7 +5438,7 @@ nfscl_initsessionslots(struct nfsclsession *sep)
  */
 int
 nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
-    uint32_t rwaccess, struct ucred *cred, NFSPROC_T *p)
+    uint32_t rwaccess, int docommit, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
@@ -5523,7 +5522,8 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			if (dip != NULL) {
 				error = nfscl_doflayoutio(vp, uiop, iomode,
 				    must_commit, &eof, &stateid, rwaccess, dip,
-				    layp, rflp, off, xfer, newcred, p);
+				    layp, rflp, off, xfer, docommit, newcred,
+				    p);
 				nfscl_reldevinfo(dip);
 				lastbyte = off + xfer - 1;
 				if (error == 0) {
@@ -5599,10 +5599,10 @@ static int
 nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
     struct nfscllayout *lyp, struct nfsclflayout *flp, uint64_t off,
-    uint64_t len, struct ucred *cred, NFSPROC_T *p)
+    uint64_t len, int docommit, struct ucred *cred, NFSPROC_T *p)
 {
 	uint64_t io_off, rel_off, stripe_unit_size, transfer, xfer;
-	int commit_thru_mds, error = 0, stripe_index, stripe_pos;
+	int commit_thru_mds, error, stripe_index, stripe_pos;
 	struct nfsnode *np;
 	struct nfsfh *fhp;
 	struct nfsclds **dspp;
@@ -5613,12 +5613,13 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	stripe_pos = (rel_off / stripe_unit_size + flp->nfsfl_stripe1) %
 	    dp->nfsdi_stripecnt;
 	transfer = stripe_unit_size - (rel_off % stripe_unit_size);
+	error = 0;
 
 	/* Loop around, doing I/O for each stripe unit. */
 	while (len > 0 && error == 0) {
 		stripe_index = nfsfldi_stripeindex(dp, stripe_pos);
 		dspp = nfsfldi_addr(dp, stripe_index);
-		if (len > transfer)
+		if (len > transfer && docommit == 0)
 			xfer = transfer;
 		else
 			xfer = len;
@@ -5642,11 +5643,33 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				fhp = np->n_fhp;
 			io_off = off;
 		}
-		if ((flp->nfsfl_util & NFSFLAYUTIL_COMMIT_THRU_MDS) != 0)
+		if ((flp->nfsfl_util & NFSFLAYUTIL_COMMIT_THRU_MDS) != 0) {
 			commit_thru_mds = 1;
-		else
+			if (docommit != 0)
+				error = EIO;
+		} else {
 			commit_thru_mds = 0;
-		if (rwflag == FREAD)
+			mtx_lock(&np->n_mtx);
+			np->n_flag |= NDSCOMMIT;
+			mtx_unlock(&np->n_mtx);
+		}
+		if (docommit != 0) {
+			if (error == 0)
+				error = nfsrpc_commitds(vp, io_off, xfer,
+				    *dspp, fhp, cred, p);
+			if (error == 0) {
+				/*
+				 * Set both eof and uio_resid = 0 to end any
+				 * loops.
+				 */
+				*eofp = 1;
+				uiop->uio_resid = 0;
+			} else {
+				mtx_lock(&np->n_mtx);
+				np->n_flag &= ~NDSCOMMIT;
+				mtx_unlock(&np->n_mtx);
+			}
+		} else if (rwflag == FREAD)
 			error = nfsrpc_readds(vp, uiop, stateidp, eofp, *dspp,
 			    io_off, xfer, fhp, cred, p);
 		else {
@@ -5882,13 +5905,12 @@ nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
 	return (NFSDSP_NOTFOUND);
 }
 
-#ifdef notyet
 /*
- * NFS commit rpc to a DS.
+ * NFS commit rpc to a NFSv4.1 DS.
  */
 static int
 nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
-    struct nfsfh *fhp, struct ucred *cred, NFSPROC_T *p, void *stuff)
+    struct nfsfh *fhp, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -5896,6 +5918,7 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 	struct nfssockreq *nrp;
 	int error;
 	
+	nd->nd_mrep = NULL;
 	nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh, fhp->nfh_len,
 	    NULL, &dsp->nfsclds_sess);
 	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
@@ -5908,7 +5931,7 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 		nrp = &nmp->nm_sockreq;
 	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
@@ -5925,7 +5948,6 @@ nfsmout:
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
-#endif
 
 /*
  * Set up the XDR arguments for the LayoutGet operation.
