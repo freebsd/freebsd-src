@@ -83,14 +83,19 @@ zoneinfo: yearistype ${TDATA}
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
+.if make(*install*)
+TZS!= cd ${TZBUILDDIR} && find -s * -type f
+.endif
+
 beforeinstall: install-zoneinfo
 install-zoneinfo:
 	mkdir -p ${DESTDIR}/usr/share/zoneinfo
 	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
-	cd ${TZBUILDDIR} && \
-	    find -s * -type f -exec ${INSTALL} ${TAG_ARGS} \
+.for f in ${TZS}
+	${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
+	    ${TZBUILDDIR:C,^${.OBJDIR}/,,}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
+.endfor
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
