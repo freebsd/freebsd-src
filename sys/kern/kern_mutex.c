@@ -410,10 +410,10 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 		if (v == tid &&
 		    ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
 		    (opts & MTX_RECURSE) != 0)) {
-				 m->mtx_recurse++;
-				 atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-				 recursed = true;
-				 break;
+			m->mtx_recurse++;
+			atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
+			recursed = true;
+			break;
 		}
 		rval = 0;
 		break;

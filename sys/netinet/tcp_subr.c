@@ -275,7 +275,7 @@ find_tcp_functions_locked(struct tcp_function_set *fs)
 	struct tcp_function_block *blk=NULL;
 
 	TAILQ_FOREACH(f, &t_functions, tf_next) {
-		if (strcmp(f->tf_fb->tfb_tcp_block_name, fs->function_set_name) == 0) {
+		if (strcmp(f->tf_name, fs->function_set_name) == 0) {
 			blk = f->tf_fb;
 			break;
 		}
@@ -376,6 +376,7 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 	struct tcp_function *f;
 	char *buffer, *cp;
 	size_t bufsz, outsz;
+	bool alias;
 
 	cnt = 0;
 	rw_rlock(&tcp_function_lock);
@@ -384,22 +385,25 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 	}
 	rw_runlock(&tcp_function_lock);
 
-	bufsz = (cnt+2) * (TCP_FUNCTION_NAME_LEN_MAX + 12) + 1;
+	bufsz = (cnt+2) * ((TCP_FUNCTION_NAME_LEN_MAX * 2) + 13) + 1;
 	buffer = malloc(bufsz, M_TEMP, M_WAITOK);
 
 	error = 0;
 	cp = buffer;
 
-	linesz = snprintf(cp, bufsz, "\n%-32s%c %s\n", "Stack", 'D', "PCB count");
+	linesz = snprintf(cp, bufsz, "\n%-32s%c %-32s %s\n", "Stack", 'D',
+	    "Alias", "PCB count");
 	cp += linesz;
 	bufsz -= linesz;
 	outsz = linesz;
 
 	rw_rlock(&tcp_function_lock);	
 	TAILQ_FOREACH(f, &t_functions, tf_next) {
-		linesz = snprintf(cp, bufsz, "%-32s%c %u\n",
+		alias = (f->tf_name != f->tf_fb->tfb_tcp_block_name);
+		linesz = snprintf(cp, bufsz, "%-32s%c %-32s %u\n",
 		    f->tf_fb->tfb_tcp_block_name,
 		    (f->tf_fb == tcp_func_set_ptr) ? '*' : ' ',
+		    alias ? f->tf_name : "-",
 		    f->tf_fb->tfb_refcnt);
 		if (linesz >= bufsz) {
 			error = EOVERFLOW;
@@ -500,12 +504,31 @@ maketcp_hashsize(int size)
 	return (hashsize);
 }
 
+/*
+ * Register a TCP function block with the name provided in the names
+ * array.  (Note that this function does NOT automatically register
+ * blk->tfb_tcp_block_name as a stack name.  Therefore, you should
+ * explicitly include blk->tfb_tcp_block_name in the list of names if
+ * you wish to register the stack with that name.)
+ *
+ * Either all name registrations will succeed or all will fail.  If
+ * a name registration fails, the function will update the num_names
+ * argument to point to the array index of the name that encountered
+ * the failure.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
 int
-register_tcp_functions(struct tcp_function_block *blk, int wait)
+register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
+    const char *names[], int *num_names)
 {
-	struct tcp_function_block *lblk;
 	struct tcp_function *n;
 	struct tcp_function_set fs;
+	int error, i;
+
+	KASSERT(names != NULL && *num_names > 0,
+	    ("%s: Called with 0-length name list", __func__));
+	KASSERT(names != NULL, ("%s: Called with NULL name list", __func__));
 
 	if (t_functions_inited == 0) {
 		init_tcp_functions();
@@ -518,6 +541,7 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		 * These functions are required and you
 		 * need a name.
 		 */
+		*num_names = 0;
 		return (EINVAL);
 	}
 	if (blk->tfb_tcp_timer_stop_all ||
@@ -532,34 +556,99 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 		    (blk->tfb_tcp_timer_activate == NULL) ||
 		    (blk->tfb_tcp_timer_active == NULL) ||
 		    (blk->tfb_tcp_timer_stop == NULL)) {
-			return (EINVAL);			
+			*num_names = 0;
+			return (EINVAL);
 		}
-	}	
-	n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
-	if (n == NULL) {
-		return (ENOMEM);
 	}
-	n->tf_fb = blk;
-	strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
-	rw_wlock(&tcp_function_lock);
-	lblk = find_tcp_functions_locked(&fs);
-	if (lblk) {
-		/* Duplicate name space not allowed */
-		rw_wunlock(&tcp_function_lock);
-		free(n, M_TCPFUNCTIONS);
-		return (EALREADY);
-	}
+
 	refcount_init(&blk->tfb_refcnt, 0);
 	blk->tfb_flags = 0;
-	TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
-	rw_wunlock(&tcp_function_lock);
+	for (i = 0; i < *num_names; i++) {
+		n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
+		if (n == NULL) {
+			error = ENOMEM;
+			goto cleanup;
+		}
+		n->tf_fb = blk;
+
+		(void)strncpy(fs.function_set_name, names[i],
+		    TCP_FUNCTION_NAME_LEN_MAX);
+		fs.function_set_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+		rw_wlock(&tcp_function_lock);
+		if (find_tcp_functions_locked(&fs) != NULL) {
+			/* Duplicate name space not allowed */
+			rw_wunlock(&tcp_function_lock);
+			free(n, M_TCPFUNCTIONS);
+			error = EALREADY;
+			goto cleanup;
+		}
+		(void)strncpy(n->tf_name, names[i], TCP_FUNCTION_NAME_LEN_MAX);
+		n->tf_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+		TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+		rw_wunlock(&tcp_function_lock);
+	}
 	return(0);
-}	
+
+cleanup:
+	/*
+	 * Deregister the names we just added. Because registration failed
+	 * for names[i], we don't need to deregister that name.
+	 */
+	*num_names = i;
+	rw_wlock(&tcp_function_lock);
+	while (--i >= 0) {
+		TAILQ_FOREACH(n, &t_functions, tf_next) {
+			if (!strncmp(n->tf_name, names[i],
+			    TCP_FUNCTION_NAME_LEN_MAX)) {
+				TAILQ_REMOVE(&t_functions, n, tf_next);
+				n->tf_fb = NULL;
+				free(n, M_TCPFUNCTIONS);
+				break;
+			}
+		}
+	}
+	rw_wunlock(&tcp_function_lock);
+	return (error);
+}
+
+/*
+ * Register a TCP function block using the name provided in the name
+ * argument.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
+int
+register_tcp_functions_as_name(struct tcp_function_block *blk, const char *name,
+    int wait)
+{
+	const char *name_list[1];
+	int num_names, rv;
+
+	num_names = 1;
+	if (name != NULL)
+		name_list[0] = name;
+	else
+		name_list[0] = blk->tfb_tcp_block_name;
+	rv = register_tcp_functions_as_names(blk, wait, name_list, &num_names);
+	return (rv);
+}
+
+/*
+ * Register a TCP function block using the name defined in
+ * blk->tfb_tcp_block_name.
+ *
+ * Returns 0 on success, or an error code on failure.
+ */
+int
+register_tcp_functions(struct tcp_function_block *blk, int wait)
+{
+
+	return (register_tcp_functions_as_name(blk, NULL, wait));
+}
 
 int
 deregister_tcp_functions(struct tcp_function_block *blk)
 {
-	struct tcp_function_block *lblk;
 	struct tcp_function *f;
 	int error=ENOENT;
 	
@@ -579,8 +668,7 @@ deregister_tcp_functions(struct tcp_function_block *blk)
 		rw_wunlock(&tcp_function_lock);		
 		return (EBUSY);
 	}
-	lblk = find_tcp_fb_locked(blk, &f);
-	if (lblk) {
+	while (find_tcp_fb_locked(blk, &f) != NULL) {
 		/* Found */
 		TAILQ_REMOVE(&t_functions, f, tf_next);
 		f->tf_fb = NULL;
@@ -1576,7 +1664,6 @@ tcp_close(struct tcpcb *tp)
 		    ("tcp_close: !SS_PROTOREF"));
 		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
-		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
 		sofree(so);
@@ -1963,16 +2050,16 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
 		inp = (*notify)(inp, EHOSTDOWN);
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
-	} else if (inp != NULL)  {
+		goto out;
+	}
+	icmp_tcp_seq = th->th_seq;
+	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
-			icmp_tcp_seq = ntohl(th->th_seq);
 			tp = intotcpcb(inp);
-			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
-			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
 					 * MTU discovery:
@@ -1980,7 +2067,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * in the route to the suggested new
 					 * value (if given) and then notify.
 					 */
-				    	mtu = ntohs(icp->icmp_nextmtu);
+					mtu = ntohs(icp->icmp_nextmtu);
 					/*
 					 * If no alternative MTU was
 					 * proposed, try the next smaller
@@ -2011,16 +2098,17 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    inetctlerrmap[cmd]);
 			}
 		}
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
 	} else {
 		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th->th_dport;
 		inc.inc_lport = th->th_sport;
 		inc.inc_faddr = faddr;
 		inc.inc_laddr = ip->ip_src;
-		syncache_unreach(&inc, th);
+		syncache_unreach(&inc, icmp_tcp_seq);
 	}
+out:
+	if (inp != NULL)
+		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET */
@@ -2030,7 +2118,6 @@ void
 tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
 	struct in6_addr *dst;
-	struct tcphdr *th;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
@@ -2040,10 +2127,13 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
+	struct tcp_ports {
+		uint16_t th_sport;
+		uint16_t th_dport;
+	} t_ports;
 	tcp_seq icmp_tcp_seq;
 	unsigned int mtu;
 	unsigned int off;
-
 
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
@@ -2093,27 +2183,31 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	/* Check if we can safely get the ports from the tcp hdr */
 	if (m == NULL ||
 	    (m->m_pkthdr.len <
-		(int32_t) (off + offsetof(struct tcphdr, th_seq)))) {
+		(int32_t) (off + sizeof(struct tcp_ports)))) {
 		return;
 	}
-
-	th = (struct tcphdr *) mtodo(ip6cp->ip6c_m, ip6cp->ip6c_off);
+	bzero(&t_ports, sizeof(struct tcp_ports));
+	m_copydata(m, off, sizeof(struct tcp_ports), (caddr_t)&t_ports);
 	INP_INFO_RLOCK(&V_tcbinfo);
-	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, th->th_dport,
-	    &ip6->ip6_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
+	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, t_ports.th_dport,
+	    &ip6->ip6_src, t_ports.th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
 		inp = (*notify)(inp, EHOSTDOWN);
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
-	} else if (inp != NULL)  {
+		goto out;
+	}
+	off += sizeof(struct tcp_ports);
+	if (m->m_pkthdr.len < (int32_t) (off + sizeof(tcp_seq))) {
+		goto out;
+	}
+	m_copydata(m, off, sizeof(tcp_seq), (caddr_t)&icmp_tcp_seq);
+	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
-			icmp_tcp_seq = ntohl(th->th_seq);
 			tp = intotcpcb(inp);
-			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
-			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
 					 * MTU discovery:
@@ -2130,22 +2224,20 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 					 */
 					if (mtu < IPV6_MMTU)
 						mtu = IPV6_MMTU - 8;
-
-
 					bzero(&inc, sizeof(inc));
 					inc.inc_fibnum = M_GETFIB(m);
 					inc.inc_flags |= INC_ISIPV6;
 					inc.inc6_faddr = *dst;
 					if (in6_setscope(&inc.inc6_faddr,
 						m->m_pkthdr.rcvif, NULL))
-						goto unlock_inp;
-
+						goto out;
 					/*
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
 					 */
 					if (mtu < tp->t_maxseg +
-					    (sizeof (*th) + sizeof (*ip6))) {
+					    sizeof (struct tcphdr) +
+					    sizeof (struct ip6_hdr)) {
 						tcp_hc_updatemtu(&inc, mtu);
 						tcp_mtudisc(inp, mtu);
 						ICMP6STAT_INC(icp6s_pmtuchg);
@@ -2155,19 +2247,19 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 					    inet6ctlerrmap[cmd]);
 			}
 		}
-unlock_inp:
-		if (inp != NULL)
-			INP_WUNLOCK(inp);
 	} else {
 		bzero(&inc, sizeof(inc));
 		inc.inc_fibnum = M_GETFIB(m);
 		inc.inc_flags |= INC_ISIPV6;
-		inc.inc_fport = th->th_dport;
-		inc.inc_lport = th->th_sport;
+		inc.inc_fport = t_ports.th_dport;
+		inc.inc_lport = t_ports.th_sport;
 		inc.inc6_faddr = *dst;
 		inc.inc6_laddr = ip6->ip6_src;
-		syncache_unreach(&inc, th);
+		syncache_unreach(&inc, icmp_tcp_seq);
 	}
+out:
+	if (inp != NULL)
+		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET6 */

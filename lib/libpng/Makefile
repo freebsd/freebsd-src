@@ -2,9 +2,13 @@
 
 LIB?=	png
 SHLIB_MAJOR= 15
+PNG_PRIVATE?=yes
+.if ${PNG_PRIVATE} == "yes"
+PRIVATELIB=
+.endif
 
 BUILDDIR?=	${.CURDIR}
-SRCDIR?=	${.CURDIR}/../../contrib/libpng
+SRCDIR?=	${SRCTOP}/contrib/libpng
 
 CFLAGS+=	-I${BUILDDIR}
 
@@ -25,13 +29,6 @@ SRCS+=	\
 	pngwrite.c \
 	pngwtran.c \
 	pngwutil.c
-
-.if ${BUILDDIR} == ${.CURDIR}
-INCS=	\
-	png.h \
-	pngconf.h \
-	pnglibconf.h
-.endif
 
 LIBADD=	z
 

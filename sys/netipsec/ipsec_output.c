@@ -183,7 +183,6 @@ next:
 static int
 ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 {
-	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
 	struct ipsec_ctx_data ctx;
 	union sockaddr_union *dst;
 	struct secasvar *sav;
@@ -230,12 +229,9 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
 		error = ipsec_encap(&m, &sav->sah->saidx);
 		if (error != 0) {
-			DPRINTF(("%s: encapsulation for SA %s->%s "
-			    "SPI 0x%08x failed with error %d\n", __func__,
-			    ipsec_address(&sav->sah->saidx.src, sbuf,
-				sizeof(sbuf)),
-			    ipsec_address(&sav->sah->saidx.dst, dbuf,
-				sizeof(dbuf)), ntohl(sav->spi), error));
+			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
+			    "with error %d\n", __func__, ntohl(sav->spi),
+			    error));
 			/* XXXAE: IPSEC_OSTAT_INC(tunnel); */
 			goto bad;
 		}
@@ -273,10 +269,6 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		goto bad;
 	}
 	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
-	if (error != 0) {
-		key_freesav(&sav);
-		key_freesp(&sp);
-	}
 	return (error);
 bad:
 	IPSECSTAT_INC(ips_out_inval);
@@ -501,7 +493,6 @@ next:
 static int
 ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 {
-	char sbuf[IPSEC_ADDRSTRLEN], dbuf[IPSEC_ADDRSTRLEN];
 	struct ipsec_ctx_data ctx;
 	union sockaddr_union *dst;
 	struct secasvar *sav;
@@ -543,12 +534,9 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		}
 		error = ipsec_encap(&m, &sav->sah->saidx);
 		if (error != 0) {
-			DPRINTF(("%s: encapsulation for SA %s->%s "
-			    "SPI 0x%08x failed with error %d\n", __func__,
-			    ipsec_address(&sav->sah->saidx.src, sbuf,
-				sizeof(sbuf)),
-			    ipsec_address(&sav->sah->saidx.dst, dbuf,
-				sizeof(dbuf)), ntohl(sav->spi), error));
+			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
+			    "with error %d\n", __func__, ntohl(sav->spi),
+			    error));
 			/* XXXAE: IPSEC_OSTAT_INC(tunnel); */
 			goto bad;
 		}
@@ -581,10 +569,6 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		goto bad;
 	}
 	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
-	if (error != 0) {
-		key_freesav(&sav);
-		key_freesp(&sp);
-	}
 	return (error);
 bad:
 	IPSEC6STAT_INC(ips_out_inval);

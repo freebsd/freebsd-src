@@ -120,6 +120,7 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+static int open_binary_fd(const char *argv0, bool search_in_path);
 static int parse_args(char* argv[], int argc, bool *use_pathp, int *fdp);
 static int parse_integer(const char *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
@@ -439,12 +440,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		argv0 = argv[rtld_argc];
 		explicit_fd = (fd != -1);
 		if (!explicit_fd)
-		    fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
-		if (fd == -1) {
-		    rtld_printf("Opening %s: %s\n", argv0,
-		      rtld_strerror(errno));
-		    rtld_die();
-		}
+		    fd = open_binary_fd(argv0, search_in_path);
 		if (fstat(fd, &st) == -1) {
 		    _rtld_error("failed to fstat FD %d (%s): %s", fd,
 		      explicit_fd ? "user-provided descriptor" : argv0,
@@ -5280,6 +5276,52 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 	dst->lockstate = src->lockstate;
 }
 
+static int
+open_binary_fd(const char *argv0, bool search_in_path)
+{
+	char *pathenv, *pe, binpath[PATH_MAX];
+	int fd;
+
+	if (search_in_path && strchr(argv0, '/') == NULL) {
+		pathenv = getenv("PATH");
+		if (pathenv == NULL) {
+			rtld_printf("-p and no PATH environment variable\n");
+			rtld_die();
+		}
+		pathenv = strdup(pathenv);
+		if (pathenv == NULL) {
+			rtld_printf("Cannot allocate memory\n");
+			rtld_die();
+		}
+		fd = -1;
+		errno = ENOENT;
+		while ((pe = strsep(&pathenv, ":")) != NULL) {
+			if (strlcpy(binpath, pe, sizeof(binpath)) >
+			    sizeof(binpath))
+				continue;
+			if (binpath[0] != '\0' &&
+			    strlcat(binpath, "/", sizeof(binpath)) >
+			    sizeof(binpath))
+				continue;
+			if (strlcat(binpath, argv0, sizeof(binpath)) >
+			    sizeof(binpath))
+				continue;
+			fd = open(binpath, O_RDONLY | O_CLOEXEC | O_VERIFY);
+			if (fd != -1 || errno != ENOENT)
+				break;
+		}
+		free(pathenv);
+	} else {
+		fd = open(argv0, O_RDONLY | O_CLOEXEC | O_VERIFY);
+	}
+
+	if (fd == -1) {
+		rtld_printf("Opening %s: %s\n", argv0,
+		    rtld_strerror(errno));
+		rtld_die();
+	}
+	return (fd);
+}
 
 /*
  * Parse a set of command-line arguments.
@@ -5341,10 +5383,8 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp)
 			}
 			*fdp = fd;
 			break;
-			/* TODO:
 			} else if (opt == 'p') {
 				*use_pathp = true;
-			*/
 			} else {
 				rtld_printf("invalid argument: '%s'\n", arg);
 				print_usage(argv[0]);
@@ -5391,7 +5431,7 @@ print_usage(const char *argv0)
 		"\n"
 		"Options:\n"
 		"  -h        Display this help message\n"
-		/* TODO: "  -p        Search in PATH for named binary\n" */
+		"  -p        Search in PATH for named binary\n"
 		"  -f <FD>   Execute <FD> instead of searching for <binary>\n"
 		"  --        End of RTLD options\n"
 		"  <binary>  Name of process to execute\n"

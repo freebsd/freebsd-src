@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.3,v 1.38 2017/01/09 01:37:03 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.39 2017/05/17 23:39:31 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 9 2017 $
+.Dd $Mdocdate: May 17 2017 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -669,11 +669,9 @@ Using badly-nested blocks is
 .Em strongly discouraged ;
 for example, the
 .Fl T Ns Cm html
-and
-.Fl T Ns Cm xhtml
-front-ends to
+front-end to
 .Xr mandoc 1
-are unable to render them in any meaningful way.
+is unable to render them in any meaningful way.
 Furthermore, behaviour when encountering badly-nested blocks is not
 consistent across troff implementations, especially when using multiple
 levels of badly-nested blocks.

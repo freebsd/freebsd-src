@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "bcm_osal.h"
 #include "ecore.h"
 #include "ecore_hw.h"
@@ -62,9 +61,6 @@ enum mem_groups {
 	MEM_GROUP_IOR,
 	MEM_GROUP_RAM,
 	MEM_GROUP_BTB_RAM,
-	MEM_GROUP_RDIF_CTX,
-	MEM_GROUP_TDIF_CTX,
-	MEM_GROUP_CFC_MEM,
 	MEM_GROUP_CONN_CFC_MEM,
 	MEM_GROUP_TASK_CFC_MEM,
 	MEM_GROUP_CAU_PI,
@@ -73,6 +69,9 @@ enum mem_groups {
 	MEM_GROUP_PBUF,
 	MEM_GROUP_MULD_MEM,
 	MEM_GROUP_BTB_MEM,
+	MEM_GROUP_RDIF_CTX,
+	MEM_GROUP_TDIF_CTX,
+	MEM_GROUP_CFC_MEM,
 	MEM_GROUP_IGU_MEM,
 	MEM_GROUP_IGU_MSIX,
 	MEM_GROUP_CAU_SB,
@@ -95,9 +94,6 @@ static const char* s_mem_group_names[] = {
 	"IOR",
 	"RAM",
 	"BTB_RAM",
-	"RDIF_CTX",
-	"TDIF_CTX",
-	"CFC_MEM",
 	"CONN_CFC_MEM",
 	"TASK_CFC_MEM",
 	"CAU_PI",
@@ -106,6 +102,9 @@ static const char* s_mem_group_names[] = {
 	"PBUF",
 	"MULD_MEM",
 	"BTB_MEM",
+	"RDIF_CTX",
+	"TDIF_CTX",
+	"CFC_MEM",
 	"IGU_MEM",
 	"IGU_MSIX",
 	"CAU_SB",
@@ -161,7 +160,7 @@ static u32 cond12(const u32 *r, const u32 *imm) {
 	return (r[0] != r[1] && r[2] > imm[0]);
 }
 
-static u32 cond3(const u32 *r, const u32 *imm) {
+static u32 cond3(const u32 *r, const u32 OSAL_UNUSED *imm) {
 	return (r[0] != r[1]);
 }
 
@@ -256,7 +255,7 @@ struct storm_defs {
 /* Block constant definitions */
 struct block_defs {
 	const char *name;
-	bool has_dbg_bus[MAX_CHIP_IDS];
+	bool exists[MAX_CHIP_IDS];
 	bool associated_to_storm;
 
 	/* Valid only if associated_to_storm is true */
@@ -280,8 +279,8 @@ struct block_defs {
 /* Reset register definitions */
 struct reset_reg_defs {
 	u32 addr;
-	u32 unreset_val;
 	bool exists[MAX_CHIP_IDS];
+	u32 unreset_val[MAX_CHIP_IDS];
 };
 
 /* Debug Bus Constraint operation constant definitions */
@@ -311,8 +310,8 @@ struct rss_mem_defs {
 	const char *mem_name;
 	const char *type_name;
 	u32 addr;
+	u32 entry_width;
 	u32 num_entries[MAX_CHIP_IDS];
-	u32 entry_width[MAX_CHIP_IDS];
 };
 
 struct vfc_ram_defs {
@@ -550,7 +549,7 @@ static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { { OSAL_NULL } 
 static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = {
 
 	/* BIN_BUF_DBG_MODE_TREE */
-	{ (const u32 *)dbg_modes_tree_buf, OSAL_ARRAY_SIZE(dbg_modes_tree_buf)},
+	{ (const u32*)dbg_modes_tree_buf, OSAL_ARRAY_SIZE(dbg_modes_tree_buf)},
 
 	/* BIN_BUF_DBG_DUMP_REG */
 	{ dump_reg, OSAL_ARRAY_SIZE(dump_reg) },
@@ -615,7 +614,7 @@ static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
 		/* FPGA */
 		{ MAX_NUM_PORTS_BB, MAX_NUM_PFS_BB, MAX_NUM_VFS_BB } } },
 
-	{ "k2",
+	{ "ah",
 
 		/* ASIC */
 		{ { MAX_NUM_PORTS_K2, MAX_NUM_PFS_K2, MAX_NUM_VFS_K2 },
@@ -627,7 +626,21 @@ static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
 		{ MAX_NUM_PORTS_K2, MAX_NUM_PFS_K2, MAX_NUM_VFS_K2 },
 
 		/* FPGA */
-		{ MAX_NUM_PORTS_K2, 8, MAX_NUM_VFS_K2 } } }
+		{ MAX_NUM_PORTS_K2, 8, MAX_NUM_VFS_K2 } } },
+
+	{ "e5",
+
+		/* ASIC */
+		{ { MAX_NUM_PORTS_E5, MAX_NUM_PFS_E5, MAX_NUM_VFS_E5 },
+
+		/* EMUL_FULL */
+		{ MAX_NUM_PORTS_E5, MAX_NUM_PFS_E5, MAX_NUM_VFS_E5 },
+
+		/* EMUL_REDUCED */
+		{ MAX_NUM_PORTS_E5, MAX_NUM_PFS_E5, MAX_NUM_VFS_E5 },
+
+		/* FPGA */
+		{ MAX_NUM_PORTS_E5, 8, MAX_NUM_VFS_E5 } } }
 };
 
 /* Storm constant definitions array */
@@ -635,7 +648,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Tstorm */
 	{	'T', BLOCK_TSEM,
-		{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT }, true,
+		{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT }, true,
 		TSEM_REG_FAST_MEMORY,
 		TSEM_REG_DBG_FRAME_MODE_BB_K2, TSEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		TSEM_REG_SLOW_DBG_MODE_BB_K2, TSEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -648,7 +661,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Mstorm */
 	{	'M', BLOCK_MSEM,
-		{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM }, false,
+		{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM }, false,
 		MSEM_REG_FAST_MEMORY,
 		MSEM_REG_DBG_FRAME_MODE_BB_K2, MSEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		MSEM_REG_SLOW_DBG_MODE_BB_K2, MSEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -661,7 +674,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Ustorm */
 	{	'U', BLOCK_USEM,
-		{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU }, false,
+		{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU }, false,
 		USEM_REG_FAST_MEMORY,
 		USEM_REG_DBG_FRAME_MODE_BB_K2, USEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		USEM_REG_SLOW_DBG_MODE_BB_K2, USEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -674,7 +687,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Xstorm */
 	{	'X', BLOCK_XSEM,
-		{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX }, false,
+		{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX }, false,
 		XSEM_REG_FAST_MEMORY,
 		XSEM_REG_DBG_FRAME_MODE_BB_K2, XSEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		XSEM_REG_SLOW_DBG_MODE_BB_K2, XSEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -687,7 +700,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Ystorm */
 	{	'Y', BLOCK_YSEM,
-		{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY }, false,
+		{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY, DBG_BUS_CLIENT_RBCY }, false,
 		YSEM_REG_FAST_MEMORY,
 		YSEM_REG_DBG_FRAME_MODE_BB_K2, YSEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		YSEM_REG_SLOW_DBG_MODE_BB_K2, YSEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -700,7 +713,7 @@ static struct storm_defs s_storm_defs[] = {
 
 	/* Pstorm */
 	{	'P', BLOCK_PSEM,
-		{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS }, true,
+		{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS }, true,
 		PSEM_REG_FAST_MEMORY,
 		PSEM_REG_DBG_FRAME_MODE_BB_K2, PSEM_REG_SLOW_DBG_ACTIVE_BB_K2,
 		PSEM_REG_SLOW_DBG_MODE_BB_K2, PSEM_REG_DBG_MODE1_CFG_BB_K2,
@@ -715,658 +728,668 @@ static struct storm_defs s_storm_defs[] = {
 /* Block definitions array */
 
 static struct block_defs block_grc_defs = {
-	"grc", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN },
+	"grc", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN },
 	GRC_REG_DBG_SELECT, GRC_REG_DBG_DWORD_ENABLE,
 	GRC_REG_DBG_SHIFT, GRC_REG_DBG_FORCE_VALID,
 	GRC_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_UA, 1 };
 
 static struct block_defs block_miscs_defs = {
-	"miscs", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"miscs", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_misc_defs = {
-	"misc", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"misc", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_dbu_defs = {
-	"dbu", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"dbu", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_pglue_b_defs = {
-	"pglue_b", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH },
+	"pglue_b", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH },
 	PGLUE_B_REG_DBG_SELECT, PGLUE_B_REG_DBG_DWORD_ENABLE,
 	PGLUE_B_REG_DBG_SHIFT, PGLUE_B_REG_DBG_FORCE_VALID,
 	PGLUE_B_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 1 };
 
 static struct block_defs block_cnig_defs = {
-	"cnig", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW },
+	"cnig", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW, DBG_BUS_CLIENT_RBCW },
 	CNIG_REG_DBG_SELECT_K2_E5, CNIG_REG_DBG_DWORD_ENABLE_K2_E5,
 	CNIG_REG_DBG_SHIFT_K2_E5, CNIG_REG_DBG_FORCE_VALID_K2_E5,
 	CNIG_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 0 };
 
 static struct block_defs block_cpmu_defs = {
-	"cpmu", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"cpmu", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 8 };
 
 static struct block_defs block_ncsi_defs = {
-	"ncsi", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
+	"ncsi", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
 	NCSI_REG_DBG_SELECT, NCSI_REG_DBG_DWORD_ENABLE,
 	NCSI_REG_DBG_SHIFT, NCSI_REG_DBG_FORCE_VALID,
 	NCSI_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 5 };
 
 static struct block_defs block_opte_defs = {
-	"opte", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"opte", { true, true, false }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 4 };
 
 static struct block_defs block_bmb_defs = {
-	"bmb", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCB },
+	"bmb", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCB, DBG_BUS_CLIENT_RBCB },
 	BMB_REG_DBG_SELECT, BMB_REG_DBG_DWORD_ENABLE,
 	BMB_REG_DBG_SHIFT, BMB_REG_DBG_FORCE_VALID,
 	BMB_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISCS_PL_UA, 7 };
 
 static struct block_defs block_pcie_defs = {
-	"pcie", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
+	"pcie", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH },
 	PCIE_REG_DBG_COMMON_SELECT_K2_E5, PCIE_REG_DBG_COMMON_DWORD_ENABLE_K2_E5,
 	PCIE_REG_DBG_COMMON_SHIFT_K2_E5, PCIE_REG_DBG_COMMON_FORCE_VALID_K2_E5,
 	PCIE_REG_DBG_COMMON_FORCE_FRAME_K2_E5,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_mcp_defs = {
-	"mcp", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"mcp", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_mcp2_defs = {
-	"mcp2", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
+	"mcp2", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
 	MCP2_REG_DBG_SELECT, MCP2_REG_DBG_DWORD_ENABLE,
 	MCP2_REG_DBG_SHIFT, MCP2_REG_DBG_FORCE_VALID,
 	MCP2_REG_DBG_FORCE_FRAME,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_pswhst_defs = {
-	"pswhst", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswhst", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWHST_REG_DBG_SELECT, PSWHST_REG_DBG_DWORD_ENABLE,
 	PSWHST_REG_DBG_SHIFT, PSWHST_REG_DBG_FORCE_VALID,
 	PSWHST_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 0 };
 
 static struct block_defs block_pswhst2_defs = {
-	"pswhst2", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswhst2", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWHST2_REG_DBG_SELECT, PSWHST2_REG_DBG_DWORD_ENABLE,
 	PSWHST2_REG_DBG_SHIFT, PSWHST2_REG_DBG_FORCE_VALID,
 	PSWHST2_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 0 };
 
 static struct block_defs block_pswrd_defs = {
-	"pswrd", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswrd", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWRD_REG_DBG_SELECT, PSWRD_REG_DBG_DWORD_ENABLE,
 	PSWRD_REG_DBG_SHIFT, PSWRD_REG_DBG_FORCE_VALID,
 	PSWRD_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 2 };
 
 static struct block_defs block_pswrd2_defs = {
-	"pswrd2", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswrd2", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWRD2_REG_DBG_SELECT, PSWRD2_REG_DBG_DWORD_ENABLE,
 	PSWRD2_REG_DBG_SHIFT,	PSWRD2_REG_DBG_FORCE_VALID,
 	PSWRD2_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 2 };
 
 static struct block_defs block_pswwr_defs = {
-	"pswwr", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswwr", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWWR_REG_DBG_SELECT, PSWWR_REG_DBG_DWORD_ENABLE,
 	PSWWR_REG_DBG_SHIFT, PSWWR_REG_DBG_FORCE_VALID,
 	PSWWR_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 3 };
 
 static struct block_defs block_pswwr2_defs = {
-	"pswwr2", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"pswwr2", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 3 };
 
 static struct block_defs block_pswrq_defs = {
-	"pswrq", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswrq", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWRQ_REG_DBG_SELECT, PSWRQ_REG_DBG_DWORD_ENABLE,
 	PSWRQ_REG_DBG_SHIFT, PSWRQ_REG_DBG_FORCE_VALID,
 	PSWRQ_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 1 };
 
 static struct block_defs block_pswrq2_defs = {
-	"pswrq2", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"pswrq2", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PSWRQ2_REG_DBG_SELECT, PSWRQ2_REG_DBG_DWORD_ENABLE,
 	PSWRQ2_REG_DBG_SHIFT, PSWRQ2_REG_DBG_FORCE_VALID,
 	PSWRQ2_REG_DBG_FORCE_FRAME,
 	true, false, DBG_RESET_REG_MISC_PL_HV, 1 };
 
 static struct block_defs block_pglcs_defs =	{
-	"pglcs", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
+	"pglcs", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH },
 	PGLCS_REG_DBG_SELECT_K2_E5, PGLCS_REG_DBG_DWORD_ENABLE_K2_E5,
 	PGLCS_REG_DBG_SHIFT_K2_E5, PGLCS_REG_DBG_FORCE_VALID_K2_E5,
 	PGLCS_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 2 };
 
 static struct block_defs block_ptu_defs ={
-	"ptu", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"ptu", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	PTU_REG_DBG_SELECT, PTU_REG_DBG_DWORD_ENABLE,
 	PTU_REG_DBG_SHIFT, PTU_REG_DBG_FORCE_VALID,
 	PTU_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 20 };
 
 static struct block_defs block_dmae_defs = {
-	"dmae", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"dmae", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	DMAE_REG_DBG_SELECT, DMAE_REG_DBG_DWORD_ENABLE,
 	DMAE_REG_DBG_SHIFT, DMAE_REG_DBG_FORCE_VALID,
 	DMAE_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 28 };
 
 static struct block_defs block_tcm_defs = {
-	"tcm", { true, true }, true, DBG_TSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
+	"tcm", { true, true, true }, true, DBG_TSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
 	TCM_REG_DBG_SELECT, TCM_REG_DBG_DWORD_ENABLE,
 	TCM_REG_DBG_SHIFT, TCM_REG_DBG_FORCE_VALID,
 	TCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 5 };
 
 static struct block_defs block_mcm_defs = {
-	"mcm", { true, true }, true, DBG_MSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"mcm", { true, true, true }, true, DBG_MSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	MCM_REG_DBG_SELECT, MCM_REG_DBG_DWORD_ENABLE,
 	MCM_REG_DBG_SHIFT, MCM_REG_DBG_FORCE_VALID,
 	MCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 3 };
 
 static struct block_defs block_ucm_defs = {
-	"ucm", { true, true }, true, DBG_USTORM_ID,
-	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
+	"ucm", { true, true, true }, true, DBG_USTORM_ID,
+	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
 	UCM_REG_DBG_SELECT, UCM_REG_DBG_DWORD_ENABLE,
 	UCM_REG_DBG_SHIFT, UCM_REG_DBG_FORCE_VALID,
 	UCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 8 };
 
 static struct block_defs block_xcm_defs = {
-	"xcm", { true, true }, true, DBG_XSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
+	"xcm", { true, true, true }, true, DBG_XSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
 	XCM_REG_DBG_SELECT, XCM_REG_DBG_DWORD_ENABLE,
 	XCM_REG_DBG_SHIFT, XCM_REG_DBG_FORCE_VALID,
 	XCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 19 };
 
 static struct block_defs block_ycm_defs = {
-	"ycm", { true, true }, true, DBG_YSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY },
+	"ycm", { true, true, true }, true, DBG_YSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY, DBG_BUS_CLIENT_RBCY },
 	YCM_REG_DBG_SELECT, YCM_REG_DBG_DWORD_ENABLE,
 	YCM_REG_DBG_SHIFT, YCM_REG_DBG_FORCE_VALID,
 	YCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 5 };
 
 static struct block_defs block_pcm_defs = {
-	"pcm", { true, true }, true, DBG_PSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
+	"pcm", { true, true, true }, true, DBG_PSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
 	PCM_REG_DBG_SELECT, PCM_REG_DBG_DWORD_ENABLE,
 	PCM_REG_DBG_SHIFT, PCM_REG_DBG_FORCE_VALID,
 	PCM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 4 };
 
 static struct block_defs block_qm_defs = {
-	"qm", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCQ },
+	"qm", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCQ, DBG_BUS_CLIENT_RBCQ },
 	QM_REG_DBG_SELECT, QM_REG_DBG_DWORD_ENABLE,
 	QM_REG_DBG_SHIFT, QM_REG_DBG_FORCE_VALID,
 	QM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 16 };
 
 static struct block_defs block_tm_defs = {
-	"tm", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
+	"tm", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
 	TM_REG_DBG_SELECT, TM_REG_DBG_DWORD_ENABLE,
 	TM_REG_DBG_SHIFT, TM_REG_DBG_FORCE_VALID,
 	TM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 17 };
 
 static struct block_defs block_dorq_defs = {
-	"dorq", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY },
+	"dorq", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY, DBG_BUS_CLIENT_RBCY },
 	DORQ_REG_DBG_SELECT, DORQ_REG_DBG_DWORD_ENABLE,
 	DORQ_REG_DBG_SHIFT, DORQ_REG_DBG_FORCE_VALID,
 	DORQ_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 18 };
 
 static struct block_defs block_brb_defs = {
-	"brb", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR },
+	"brb", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR },
 	BRB_REG_DBG_SELECT, BRB_REG_DBG_DWORD_ENABLE,
 	BRB_REG_DBG_SHIFT, BRB_REG_DBG_FORCE_VALID,
 	BRB_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 0 };
 
 static struct block_defs block_src_defs = {
-	"src", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
+	"src", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
 	SRC_REG_DBG_SELECT, SRC_REG_DBG_DWORD_ENABLE,
 	SRC_REG_DBG_SHIFT, SRC_REG_DBG_FORCE_VALID,
 	SRC_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 2 };
 
 static struct block_defs block_prs_defs = {
-	"prs", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR },
+	"prs", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCR },
 	PRS_REG_DBG_SELECT, PRS_REG_DBG_DWORD_ENABLE,
 	PRS_REG_DBG_SHIFT, PRS_REG_DBG_FORCE_VALID,
 	PRS_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 1 };
 
 static struct block_defs block_tsdm_defs = {
-	"tsdm", { true, true }, true, DBG_TSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
+	"tsdm", { true, true, true }, true, DBG_TSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
 	TSDM_REG_DBG_SELECT, TSDM_REG_DBG_DWORD_ENABLE,
 	TSDM_REG_DBG_SHIFT, TSDM_REG_DBG_FORCE_VALID,
 	TSDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 3 };
 
 static struct block_defs block_msdm_defs = {
-	"msdm", { true, true }, true, DBG_MSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"msdm", { true, true, true }, true, DBG_MSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	MSDM_REG_DBG_SELECT, MSDM_REG_DBG_DWORD_ENABLE,
 	MSDM_REG_DBG_SHIFT, MSDM_REG_DBG_FORCE_VALID,
 	MSDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 6 };
 
 static struct block_defs block_usdm_defs = {
-	"usdm", { true, true }, true, DBG_USTORM_ID,
-	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
+	"usdm", { true, true, true }, true, DBG_USTORM_ID,
+	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
 	USDM_REG_DBG_SELECT, USDM_REG_DBG_DWORD_ENABLE,
 	USDM_REG_DBG_SHIFT, USDM_REG_DBG_FORCE_VALID,
 	USDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 7
 	};
 static struct block_defs block_xsdm_defs = {
-	"xsdm", { true, true }, true, DBG_XSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
+	"xsdm", { true, true, true }, true, DBG_XSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
 	XSDM_REG_DBG_SELECT, XSDM_REG_DBG_DWORD_ENABLE,
 	XSDM_REG_DBG_SHIFT, XSDM_REG_DBG_FORCE_VALID,
 	XSDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 20 };
 
 static struct block_defs block_ysdm_defs = {
-	"ysdm", { true, true }, true, DBG_YSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY },
+	"ysdm", { true, true, true }, true, DBG_YSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY, DBG_BUS_CLIENT_RBCY },
 	YSDM_REG_DBG_SELECT, YSDM_REG_DBG_DWORD_ENABLE,
 	YSDM_REG_DBG_SHIFT, YSDM_REG_DBG_FORCE_VALID,
 	YSDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 8 };
 
 static struct block_defs block_psdm_defs = {
-	"psdm", { true, true }, true, DBG_PSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
+	"psdm", { true, true, true }, true, DBG_PSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
 	PSDM_REG_DBG_SELECT, PSDM_REG_DBG_DWORD_ENABLE,
 	PSDM_REG_DBG_SHIFT, PSDM_REG_DBG_FORCE_VALID,
 	PSDM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 7 };
 
 static struct block_defs block_tsem_defs = {
-	"tsem", { true, true }, true, DBG_TSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
+	"tsem", { true, true, true }, true, DBG_TSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
 	TSEM_REG_DBG_SELECT, TSEM_REG_DBG_DWORD_ENABLE,
 	TSEM_REG_DBG_SHIFT, TSEM_REG_DBG_FORCE_VALID,
 	TSEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 4 };
 
 static struct block_defs block_msem_defs = {
-	"msem", { true, true }, true, DBG_MSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"msem", { true, true, true }, true, DBG_MSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	MSEM_REG_DBG_SELECT, MSEM_REG_DBG_DWORD_ENABLE,
 	MSEM_REG_DBG_SHIFT, MSEM_REG_DBG_FORCE_VALID,
 	MSEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 9 };
 
 static struct block_defs block_usem_defs = {
-	"usem", { true, true }, true, DBG_USTORM_ID,
-	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
+	"usem", { true, true, true }, true, DBG_USTORM_ID,
+	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
 	USEM_REG_DBG_SELECT, USEM_REG_DBG_DWORD_ENABLE,
 	USEM_REG_DBG_SHIFT, USEM_REG_DBG_FORCE_VALID,
 	USEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 9 };
 
 static struct block_defs block_xsem_defs = {
-	"xsem", { true, true }, true, DBG_XSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
+	"xsem", { true, true, true }, true, DBG_XSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
 	XSEM_REG_DBG_SELECT, XSEM_REG_DBG_DWORD_ENABLE,
 	XSEM_REG_DBG_SHIFT, XSEM_REG_DBG_FORCE_VALID,
 	XSEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 21 };
 
 static struct block_defs block_ysem_defs = {
-	"ysem", { true, true }, true, DBG_YSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY },
+	"ysem", { true, true, true }, true, DBG_YSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCY, DBG_BUS_CLIENT_RBCY },
 	YSEM_REG_DBG_SELECT, YSEM_REG_DBG_DWORD_ENABLE,
 	YSEM_REG_DBG_SHIFT, YSEM_REG_DBG_FORCE_VALID,
 	YSEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 11 };
 
 static struct block_defs block_psem_defs = {
-	"psem", { true, true }, true, DBG_PSTORM_ID,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
+	"psem", { true, true, true }, true, DBG_PSTORM_ID,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
 	PSEM_REG_DBG_SELECT, PSEM_REG_DBG_DWORD_ENABLE,
 	PSEM_REG_DBG_SHIFT, PSEM_REG_DBG_FORCE_VALID,
 	PSEM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 10 };
 
 static struct block_defs block_rss_defs = {
-	"rss", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
+	"rss", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT },
 	RSS_REG_DBG_SELECT, RSS_REG_DBG_DWORD_ENABLE,
 	RSS_REG_DBG_SHIFT, RSS_REG_DBG_FORCE_VALID,
 	RSS_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 18 };
 
 static struct block_defs block_tmld_defs = {
-	"tmld", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"tmld", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	TMLD_REG_DBG_SELECT, TMLD_REG_DBG_DWORD_ENABLE,
 	TMLD_REG_DBG_SHIFT, TMLD_REG_DBG_FORCE_VALID,
 	TMLD_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 13 };
 
 static struct block_defs block_muld_defs = {
-	"muld", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
+	"muld", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
 	MULD_REG_DBG_SELECT, MULD_REG_DBG_DWORD_ENABLE,
 	MULD_REG_DBG_SHIFT, MULD_REG_DBG_FORCE_VALID,
 	MULD_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 14 };
 
 static struct block_defs block_yuld_defs = {
-	"yuld", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU },
+	"yuld", { true, true, false }, false, 0,
+	{ DBG_BUS_CLIENT_RBCU, DBG_BUS_CLIENT_RBCU, MAX_DBG_BUS_CLIENTS },
 	YULD_REG_DBG_SELECT_BB_K2, YULD_REG_DBG_DWORD_ENABLE_BB_K2,
 	YULD_REG_DBG_SHIFT_BB_K2, YULD_REG_DBG_FORCE_VALID_BB_K2,
 	YULD_REG_DBG_FORCE_FRAME_BB_K2,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 15 };
 
 static struct block_defs block_xyld_defs = {
-	"xyld", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
+	"xyld", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX, DBG_BUS_CLIENT_RBCX },
 	XYLD_REG_DBG_SELECT, XYLD_REG_DBG_DWORD_ENABLE,
 	XYLD_REG_DBG_SHIFT, XYLD_REG_DBG_FORCE_VALID,
 	XYLD_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 12 };
 
 static struct block_defs block_prm_defs = {
-	"prm", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"prm", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	PRM_REG_DBG_SELECT, PRM_REG_DBG_DWORD_ENABLE,
 	PRM_REG_DBG_SHIFT, PRM_REG_DBG_FORCE_VALID,
 	PRM_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 21 };
 
 static struct block_defs block_pbf_pb1_defs = {
-	"pbf_pb1", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV },
+	"pbf_pb1", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV, DBG_BUS_CLIENT_RBCV },
 	PBF_PB1_REG_DBG_SELECT, PBF_PB1_REG_DBG_DWORD_ENABLE,
 	PBF_PB1_REG_DBG_SHIFT, PBF_PB1_REG_DBG_FORCE_VALID,
 	PBF_PB1_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 11 };
 
 static struct block_defs block_pbf_pb2_defs = {
-	"pbf_pb2", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV },
+	"pbf_pb2", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV, DBG_BUS_CLIENT_RBCV },
 	PBF_PB2_REG_DBG_SELECT, PBF_PB2_REG_DBG_DWORD_ENABLE,
 	PBF_PB2_REG_DBG_SHIFT, PBF_PB2_REG_DBG_FORCE_VALID,
 	PBF_PB2_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 12 };
 
 static struct block_defs block_rpb_defs = {
-	"rpb", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"rpb", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	RPB_REG_DBG_SELECT, RPB_REG_DBG_DWORD_ENABLE,
 	RPB_REG_DBG_SHIFT, RPB_REG_DBG_FORCE_VALID,
 	RPB_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 13 };
 
 static struct block_defs block_btb_defs = {
-	"btb", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCV },
+	"btb", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCR, DBG_BUS_CLIENT_RBCV, DBG_BUS_CLIENT_RBCV },
 	BTB_REG_DBG_SELECT, BTB_REG_DBG_DWORD_ENABLE,
 	BTB_REG_DBG_SHIFT, BTB_REG_DBG_FORCE_VALID,
 	BTB_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 10 };
 
 static struct block_defs block_pbf_defs = {
-	"pbf", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV },
+	"pbf", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCV, DBG_BUS_CLIENT_RBCV },
 	PBF_REG_DBG_SELECT, PBF_REG_DBG_DWORD_ENABLE,
 	PBF_REG_DBG_SHIFT, PBF_REG_DBG_FORCE_VALID,
 	PBF_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 15 };
 
 static struct block_defs block_rdif_defs = {
-	"rdif", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM },
+	"rdif", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCM, DBG_BUS_CLIENT_RBCM },
 	RDIF_REG_DBG_SELECT, RDIF_REG_DBG_DWORD_ENABLE,
 	RDIF_REG_DBG_SHIFT, RDIF_REG_DBG_FORCE_VALID,
 	RDIF_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 16 };
 
 static struct block_defs block_tdif_defs = {
-	"tdif", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
+	"tdif", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS, DBG_BUS_CLIENT_RBCS },
 	TDIF_REG_DBG_SELECT, TDIF_REG_DBG_DWORD_ENABLE,
 	TDIF_REG_DBG_SHIFT, TDIF_REG_DBG_FORCE_VALID,
 	TDIF_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 17 };
 
 static struct block_defs block_cdu_defs = {
-	"cdu", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
+	"cdu", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
 	CDU_REG_DBG_SELECT, CDU_REG_DBG_DWORD_ENABLE,
 	CDU_REG_DBG_SHIFT, CDU_REG_DBG_FORCE_VALID,
 	CDU_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 23 };
 
 static struct block_defs block_ccfc_defs = {
-	"ccfc", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
+	"ccfc", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
 	CCFC_REG_DBG_SELECT, CCFC_REG_DBG_DWORD_ENABLE,
 	CCFC_REG_DBG_SHIFT, CCFC_REG_DBG_FORCE_VALID,
 	CCFC_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 24 };
 
 static struct block_defs block_tcfc_defs = {
-	"tcfc", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
+	"tcfc", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF, DBG_BUS_CLIENT_RBCF },
 	TCFC_REG_DBG_SELECT, TCFC_REG_DBG_DWORD_ENABLE,
 	TCFC_REG_DBG_SHIFT, TCFC_REG_DBG_FORCE_VALID,
 	TCFC_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 25 };
 
 static struct block_defs block_igu_defs = {
-	"igu", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"igu", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	IGU_REG_DBG_SELECT, IGU_REG_DBG_DWORD_ENABLE,
 	IGU_REG_DBG_SHIFT, IGU_REG_DBG_FORCE_VALID,
 	IGU_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 27 };
 
 static struct block_defs block_cau_defs = {
-	"cau", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
+	"cau", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP, DBG_BUS_CLIENT_RBCP },
 	CAU_REG_DBG_SELECT, CAU_REG_DBG_DWORD_ENABLE,
 	CAU_REG_DBG_SHIFT, CAU_REG_DBG_FORCE_VALID,
 	CAU_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 19 };
 
 static struct block_defs block_umac_defs = {
-	"umac", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ },
+	"umac", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
 	UMAC_REG_DBG_SELECT_K2_E5, UMAC_REG_DBG_DWORD_ENABLE_K2_E5,
 	UMAC_REG_DBG_SHIFT_K2_E5, UMAC_REG_DBG_FORCE_VALID_K2_E5,
 	UMAC_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 6 };
 
 static struct block_defs block_xmac_defs = {
-	"xmac", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"xmac", { true, false, false }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0	};
 
 static struct block_defs block_dbg_defs = {
-	"dbg", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"dbg", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VAUX, 3 };
 
 static struct block_defs block_nig_defs = {
-	"nig", { true, true }, false, 0,
-	{ DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN },
+	"nig", { true, true, true }, false, 0,
+	{ DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN, DBG_BUS_CLIENT_RBCN },
 	NIG_REG_DBG_SELECT, NIG_REG_DBG_DWORD_ENABLE,
 	NIG_REG_DBG_SHIFT, NIG_REG_DBG_FORCE_VALID,
 	NIG_REG_DBG_FORCE_FRAME,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VAUX, 0 };
 
 static struct block_defs block_wol_defs = {
-	"wol", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ },
+	"wol", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
 	WOL_REG_DBG_SELECT_K2_E5, WOL_REG_DBG_DWORD_ENABLE_K2_E5,
 	WOL_REG_DBG_SHIFT_K2_E5, WOL_REG_DBG_FORCE_VALID_K2_E5,
 	WOL_REG_DBG_FORCE_FRAME_K2_E5,
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VAUX, 7 };
 
 static struct block_defs block_bmbn_defs = {
-	"bmbn", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCB },
+	"bmbn", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCB, DBG_BUS_CLIENT_RBCB },
 	BMBN_REG_DBG_SELECT_K2_E5, BMBN_REG_DBG_DWORD_ENABLE_K2_E5,
 	BMBN_REG_DBG_SHIFT_K2_E5, BMBN_REG_DBG_FORCE_VALID_K2_E5,
 	BMBN_REG_DBG_FORCE_FRAME_K2_E5,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_ipc_defs = {
-	"ipc", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"ipc", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_UA, 8 };
 
 static struct block_defs block_nwm_defs = {
-	"nwm", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW },
+	"nwm", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW, DBG_BUS_CLIENT_RBCW },
 	NWM_REG_DBG_SELECT_K2_E5, NWM_REG_DBG_DWORD_ENABLE_K2_E5,
 	NWM_REG_DBG_SHIFT_K2_E5, NWM_REG_DBG_FORCE_VALID_K2_E5,
 	NWM_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV_2, 0 };
 
 static struct block_defs block_nws_defs = {
-	"nws", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW },
+	"nws", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCW, DBG_BUS_CLIENT_RBCW },
 	NWS_REG_DBG_SELECT_K2_E5, NWS_REG_DBG_DWORD_ENABLE_K2_E5,
 	NWS_REG_DBG_SHIFT_K2_E5, NWS_REG_DBG_FORCE_VALID_K2_E5,
 	NWS_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 12 };
 
 static struct block_defs block_ms_defs = {
-	"ms", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ },
+	"ms", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCZ, DBG_BUS_CLIENT_RBCZ },
 	MS_REG_DBG_SELECT_K2_E5, MS_REG_DBG_DWORD_ENABLE_K2_E5,
 	MS_REG_DBG_SHIFT_K2_E5, MS_REG_DBG_FORCE_VALID_K2_E5,
 	MS_REG_DBG_FORCE_FRAME_K2_E5,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 13 };
 
 static struct block_defs block_phy_pcie_defs = {
-	"phy_pcie", { false, true }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
+	"phy_pcie", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH, DBG_BUS_CLIENT_RBCH },
 	PCIE_REG_DBG_COMMON_SELECT_K2_E5, PCIE_REG_DBG_COMMON_DWORD_ENABLE_K2_E5,
 	PCIE_REG_DBG_COMMON_SHIFT_K2_E5, PCIE_REG_DBG_COMMON_FORCE_VALID_K2_E5,
 	PCIE_REG_DBG_COMMON_FORCE_FRAME_K2_E5,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_led_defs = {
-	"led", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"led", { false, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_HV, 14 };
 
 static struct block_defs block_avs_wrap_defs = {
-	"avs_wrap", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"avs_wrap", { false, true, false }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_UA, 11 };
 
+/* TODO: add debug bus parameters when E5 RGFS RF is added */
 static struct block_defs block_rgfs_defs = {
-	"rgfs", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"rgfs", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 29 };
 
 static struct block_defs block_rgsrc_defs = {
-	"rgsrc", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	"rgsrc", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCH },
+	RGSRC_REG_DBG_SELECT_E5, RGSRC_REG_DBG_DWORD_ENABLE_E5,
+	RGSRC_REG_DBG_SHIFT_E5, RGSRC_REG_DBG_FORCE_VALID_E5,
+	RGSRC_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 30 };
 
+/* TODO: add debug bus parameters when E5 TGFS RF is added */
 static struct block_defs block_tgfs_defs = {
-	"tgfs", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"tgfs", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 30 };
 
 static struct block_defs block_tgsrc_defs = {
-	"tgsrc", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	"tgsrc", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCV },
+	TGSRC_REG_DBG_SELECT_E5, TGSRC_REG_DBG_DWORD_ENABLE_E5,
+	TGSRC_REG_DBG_SHIFT_E5, TGSRC_REG_DBG_FORCE_VALID_E5,
+	TGSRC_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_1, 31 };
 
 static struct block_defs block_ptld_defs = {
-	"ptld", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	"ptld", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCT },
+	PTLD_REG_DBG_SELECT_E5, PTLD_REG_DBG_DWORD_ENABLE_E5,
+	PTLD_REG_DBG_SHIFT_E5, PTLD_REG_DBG_FORCE_VALID_E5,
+	PTLD_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 28 };
 
 static struct block_defs block_ypld_defs = {
-	"ypld", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0 };
+	"ypld", { false, false, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, DBG_BUS_CLIENT_RBCS },
+	YPLD_REG_DBG_SELECT_E5, YPLD_REG_DBG_DWORD_ENABLE_E5,
+	YPLD_REG_DBG_SHIFT_E5, YPLD_REG_DBG_FORCE_VALID_E5,
+	YPLD_REG_DBG_FORCE_FRAME_E5,
+	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 27 };
 
 static struct block_defs block_misc_aeu_defs = {
-	"misc_aeu", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"misc_aeu", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
 static struct block_defs block_bar0_map_defs = {
-	"bar0_map", { false, false }, false, 0,
-	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
+	"bar0_map", { true, true, true }, false, 0,
+	{ MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS },
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
@@ -1557,149 +1580,144 @@ static struct platform_defs s_platform_defs[] = {
 static struct grc_param_defs s_grc_param_defs[] = {
 
 	/* DBG_GRC_PARAM_DUMP_TSTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_MSTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_USTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_XSTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_YSTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_PSTORM */
-	{ { 1, 1 }, 0, 1, false, 1, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_REGS */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_RAM */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_PBUF */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_IOR */
-	{ { 0, 0 }, 0, 1, false, 0, 1 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_VFC */
-	{ { 0, 0 }, 0, 1, false, 0, 1 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_CM_CTX */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_ILT */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_RSS */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_CAU */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_QM */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_MCP */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_RESERVED */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_CFC */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_IGU */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_BRB */
-	{ { 0, 0 }, 0, 1, false, 0, 1 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_BTB */
-	{ { 0, 0 }, 0, 1, false, 0, 1 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_BMB */
-	{ { 0, 0 }, 0, 1, false, 0, 1 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_NIG */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_MULD */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_PRS */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_DMAE */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_TM */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_SDM */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_DIF */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_STATIC */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_UNSTALL */
-	{ { 0, 0 }, 0, 1, false, 0, 0 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 0 },
 
 	/* DBG_GRC_PARAM_NUM_LCIDS */
-	{ { MAX_LCIDS, MAX_LCIDS }, 1, MAX_LCIDS, false, MAX_LCIDS, MAX_LCIDS }, 
+	{ { MAX_LCIDS, MAX_LCIDS, MAX_LCIDS }, 1, MAX_LCIDS, false, MAX_LCIDS, MAX_LCIDS },
 
 	/* DBG_GRC_PARAM_NUM_LTIDS */
-	{ { MAX_LTIDS, MAX_LTIDS }, 1, MAX_LTIDS, false, MAX_LTIDS, MAX_LTIDS },
+	{ { MAX_LTIDS, MAX_LTIDS, MAX_LTIDS }, 1, MAX_LTIDS, false, MAX_LTIDS, MAX_LTIDS },
 
 	/* DBG_GRC_PARAM_EXCLUDE_ALL */
-	{ { 0, 0 }, 0, 1, true, 0, 0 },
+	{ { 0, 0, 0 }, 0, 1, true, 0, 0 },
 
 	/* DBG_GRC_PARAM_CRASH */
-	{ { 0, 0 }, 0, 1, true, 0, 0 },
+	{ { 0, 0, 0 }, 0, 1, true, 0, 0 },
 
 	/* DBG_GRC_PARAM_PARITY_SAFE */
-	{ { 0, 0 }, 0, 1, false, 1, 0 },
+	{ { 0, 0, 0 }, 0, 1, false, 1, 0 },
 
 	/* DBG_GRC_PARAM_DUMP_CM */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_DUMP_PHY */
-	{ { 1, 1 }, 0, 1, false, 0, 1 },
+	{ { 1, 1, 1 }, 0, 1, false, 0, 1 },
 
 	/* DBG_GRC_PARAM_NO_MCP */
-	{ { 0, 0 }, 0, 1, false, 0, 0 },
+	{ { 0, 0, 0 }, 0, 1, false, 0, 0 },
 
 	/* DBG_GRC_PARAM_NO_FW_VER */
-	{ { 0, 0 }, 0, 1, false, 0, 0 }
+	{ { 0, 0, 0 }, 0, 1, false, 0, 0 }
 };
 
 static struct rss_mem_defs s_rss_mem_defs[] = {
-	{ "rss_mem_cid", "rss_cid", 0,
-	{ 256, 320 },
-	{ 32, 32 } },
+	{ "rss_mem_cid", "rss_cid", 0, 32,
+	{ 256, 320, 512 } },
 
-	{ "rss_mem_key_msb", "rss_key", 1024,
-	{ 128, 208 },
-	{ 256, 256 } },
+	{ "rss_mem_key_msb", "rss_key", 1024, 256,
+	{ 128, 208, 257 } },
 
-	{ "rss_mem_key_lsb", "rss_key", 2048,
-	{ 128, 208 },
-	{ 64, 64 } },
+	{ "rss_mem_key_lsb", "rss_key", 2048, 64,
+	{ 128, 208, 257 } },
 
-	{ "rss_mem_info", "rss_info", 3072,
-	{ 128, 208 },
-	{ 16, 16 } },
+	{ "rss_mem_info", "rss_info", 3072, 16,
+	{ 128, 208, 256 } },
 
-	{ "rss_mem_ind", "rss_ind", 4096,
-	{ 16384, 26624 },
-	{ 16, 16 } }
+	{ "rss_mem_ind", "rss_ind", 4096, 16,
+	{ 16384, 26624, 32768 } }
 };
 
 static struct vfc_ram_defs s_vfc_ram_defs[] = {
@@ -1711,40 +1729,40 @@ static struct vfc_ram_defs s_vfc_ram_defs[] = {
 
 static struct big_ram_defs s_big_ram_defs[] = {
 	{ "BRB", MEM_GROUP_BRB_MEM, MEM_GROUP_BRB_RAM, DBG_GRC_PARAM_DUMP_BRB, BRB_REG_BIG_RAM_ADDRESS, BRB_REG_BIG_RAM_DATA,
-	  { 4800, 5632 } },
+	  { 4800, 5632, 4416 } },
 
 	{ "BTB", MEM_GROUP_BTB_MEM, MEM_GROUP_BTB_RAM, DBG_GRC_PARAM_DUMP_BTB, BTB_REG_BIG_RAM_ADDRESS, BTB_REG_BIG_RAM_DATA,
-	  { 2880, 3680 } },
+	  { 2880, 3680, 2640 } },
 
 	{ "BMB", MEM_GROUP_BMB_MEM, MEM_GROUP_BMB_RAM, DBG_GRC_PARAM_DUMP_BMB, BMB_REG_BIG_RAM_ADDRESS, BMB_REG_BIG_RAM_DATA,
-	  { 1152, 1152 } }
+	  { 1152, 1152, 1152 } }
 };
 
 static struct reset_reg_defs s_reset_regs_defs[] = {
 
 	/* DBG_RESET_REG_MISCS_PL_UA */
-	{ MISCS_REG_RESET_PL_UA, 0x0, { true, true } },
+	{ MISCS_REG_RESET_PL_UA, { true, true, true }, { 0x0, 0x0, 0x0 } },
 
 	/* DBG_RESET_REG_MISCS_PL_HV */
-	{ MISCS_REG_RESET_PL_HV, 0x0, { true, true } },
+	{ MISCS_REG_RESET_PL_HV, { true, true, true }, { 0x0, 0x400, 0x600 } },
 
 	/* DBG_RESET_REG_MISCS_PL_HV_2 */
-	{ MISCS_REG_RESET_PL_HV_2_K2_E5, 0x0, { false, true } },
+	{ MISCS_REG_RESET_PL_HV_2_K2_E5, { false, true, true }, { 0x0, 0x0, 0x0 } },
 
 	/* DBG_RESET_REG_MISC_PL_UA */
-	{ MISC_REG_RESET_PL_UA, 0x0, { true, true } },
+	{ MISC_REG_RESET_PL_UA, { true, true, true }, { 0x0, 0x0, 0x0 } },
 
 	/* DBG_RESET_REG_MISC_PL_HV */
-	{ MISC_REG_RESET_PL_HV, 0x0, { true, true } },
+	{ MISC_REG_RESET_PL_HV, { true, true, true }, { 0x0, 0x0, 0x0 } },
 
 	/* DBG_RESET_REG_MISC_PL_PDA_VMAIN_1 */
-	{ MISC_REG_RESET_PL_PDA_VMAIN_1, 0x4404040, { true, true } },
+	{ MISC_REG_RESET_PL_PDA_VMAIN_1, { true, true, true }, { 0x4404040, 0x4404040, 0x404040 } },
 
 	/* DBG_RESET_REG_MISC_PL_PDA_VMAIN_2 */
-	{ MISC_REG_RESET_PL_PDA_VMAIN_2, 0x7c00007, { true, true } },
+	{ MISC_REG_RESET_PL_PDA_VMAIN_2, { true, true, true }, { 0x7, 0x7c00007, 0x5c08007 } },
 
 	/* DBG_RESET_REG_MISC_PL_PDA_VAUX */
-	{ MISC_REG_RESET_PL_PDA_VAUX, 0x2, { true, true } },
+	{ MISC_REG_RESET_PL_PDA_VAUX, { true, true, true }, { 0x2, 0x2, 0x2 } },
 };
 
 static struct phy_defs s_phy_defs[] = {
@@ -1841,7 +1859,11 @@ static enum dbg_status ecore_dbg_dev_init(struct ecore_hwfn *p_hwfn,
 	if (!s_app_ver)
 		return DBG_STATUS_APP_VERSION_NOT_SET;
 
-	if (ECORE_IS_K2(p_hwfn->p_dev)) {
+	if (ECORE_IS_E5(p_hwfn->p_dev)) {
+		dev_data->chip_id = CHIP_E5;
+		dev_data->mode_enable[MODE_E5] = 1;
+	}
+	else if (ECORE_IS_K2(p_hwfn->p_dev)) {
 		dev_data->chip_id = CHIP_K2;
 		dev_data->mode_enable[MODE_K2] = 1;
 	}
@@ -2099,11 +2121,8 @@ static u32 ecore_dump_mfw_ver_param(struct ecore_hwfn *p_hwfn,
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	char mfw_ver_str[16] = EMPTY_FW_VERSION_STR;
-	bool is_emul;
 	
-	is_emul = dev_data->platform_id == PLATFORM_EMUL_FULL || dev_data->platform_id == PLATFORM_EMUL_REDUCED;
-
-	if (dump && !is_emul && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_FW_VER)) {
+	if (dump && dev_data->platform_id == PLATFORM_ASIC && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_FW_VER)) {
 		u32 public_data_addr, global_section_offsize_addr, global_section_offsize, global_section_addr, mfw_ver;
 
 		/* Find MCP public data GRC address. Needs to be ORed with
@@ -2169,10 +2188,7 @@ static u32 ecore_dump_common_global_params(struct ecore_hwfn *p_hwfn,
 /* Writes the "last" section (including CRC) to the specified buffer at the
  * given offset. Returns the dumped size in dwords.
  */
-static u32 ecore_dump_last_section(struct ecore_hwfn *p_hwfn,
-								   u32 *dump_buf,
-								   u32 offset,
-								   bool dump)
+static u32 ecore_dump_last_section(u32 *dump_buf, u32 offset, bool dump)
 {
 	u32 start_offset = offset;
 
@@ -2389,7 +2405,7 @@ static enum dbg_status ecore_bus_disable_inputs(struct ecore_hwfn *p_hwfn,
 	for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 		struct block_defs *block = s_block_defs[block_id];
 
-		if (block->has_dbg_bus[dev_data->chip_id] && !dev_data->block_in_reset[block_id])
+		if (block->dbg_client_id[dev_data->chip_id] != MAX_DBG_BUS_CLIENTS && !dev_data->block_in_reset[block_id])
 			ecore_wr(p_hwfn, p_ptt, block->dbg_enable_addr, 0);
 	}
 
@@ -2771,7 +2787,7 @@ static bool ecore_grc_is_mem_included(struct ecore_hwfn *p_hwfn,
 	case MEM_GROUP_CFC_MEM:
 	case MEM_GROUP_CONN_CFC_MEM:
 	case MEM_GROUP_TASK_CFC_MEM:
-		return ecore_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_CFC);
+		return ecore_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_CFC) || ecore_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_CM_CTX);
 	case MEM_GROUP_IGU_MEM:
 	case MEM_GROUP_IGU_MSIX:
 		return ecore_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_IGU);
@@ -2828,7 +2844,7 @@ static void ecore_grc_unreset_blocks(struct ecore_hwfn *p_hwfn,
 	for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 		struct block_defs *block = s_block_defs[block_id];
 
-		if (block->has_reset_bit && block->unreset)
+		if (block->exists[dev_data->chip_id] && block->has_reset_bit && block->unreset)
 			reg_val[block->reset_reg] |= (1 << block->reset_bit_offset);
 	}
 
@@ -2837,7 +2853,7 @@ static void ecore_grc_unreset_blocks(struct ecore_hwfn *p_hwfn,
 		if (!s_reset_regs_defs[i].exists[dev_data->chip_id])
 			continue;
 
-		reg_val[i] |= s_reset_regs_defs[i].unreset_val;
+		reg_val[i] |= s_reset_regs_defs[i].unreset_val[dev_data->chip_id];
 
 		if (reg_val[i])
 			ecore_wr(p_hwfn, p_ptt, s_reset_regs_defs[i].addr + RESET_REG_UNRESET_OFFSET, reg_val[i]);
@@ -2931,12 +2947,12 @@ static u32 ecore_grc_dump_regs_hdr(u32 *dump_buf,
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_addr_range(struct ecore_hwfn *p_hwfn,
-									 struct ecore_ptt *p_ptt,
-									 u32 *dump_buf,
-									 bool dump,
-									 u32 addr,
-									 u32 len,
-									 bool wide_bus)
+				     struct ecore_ptt *p_ptt,
+				     u32 *dump_buf,
+				     bool dump,
+				     u32 addr,
+				     u32 len,
+				     bool OSAL_UNUSED wide_bus)
 {
 	u32 byte_addr = DWORDS_TO_BYTES(addr), offset = 0, i;
 
@@ -2967,12 +2983,12 @@ static u32 ecore_grc_dump_reg_entry_hdr(u32 *dump_buf,
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_reg_entry(struct ecore_hwfn *p_hwfn,
-									struct ecore_ptt *p_ptt,
-									u32 *dump_buf,
-									bool dump,
-									u32 addr,
-									u32 len,
-									bool wide_bus)
+				    struct ecore_ptt *p_ptt,
+				    u32 *dump_buf,
+				    bool dump,
+				    u32 addr,
+				    u32 len,
+				    bool OSAL_UNUSED wide_bus)
 {
 	u32 offset = 0;
 
@@ -3059,9 +3075,9 @@ static u32 ecore_grc_dump_regs_entries(struct ecore_hwfn *p_hwfn,
 			const struct dbg_dump_reg *reg = (const struct dbg_dump_reg*)&input_regs_arr.ptr[input_offset];
 
 			offset += ecore_grc_dump_reg_entry(p_hwfn, p_ptt, dump_buf + offset, dump,
-												GET_FIELD(reg->data, DBG_DUMP_REG_ADDRESS),
-												GET_FIELD(reg->data, DBG_DUMP_REG_LENGTH),
-												GET_FIELD(reg->data, DBG_DUMP_REG_WIDE_BUS));
+							   GET_FIELD(reg->data, DBG_DUMP_REG_ADDRESS),
+							   GET_FIELD(reg->data, DBG_DUMP_REG_LENGTH),
+							   GET_FIELD(reg->data, DBG_DUMP_REG_WIDE_BUS));
 			(*num_dumped_reg_entries)++;
 		}
 	}
@@ -3376,18 +3392,18 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
  * The addr and len arguments are specified in dwords.
  */
 static u32 ecore_grc_dump_mem(struct ecore_hwfn *p_hwfn,
-							  struct ecore_ptt *p_ptt,
-							  u32 *dump_buf,
-							  bool dump,
-							  const char *name,
-							  u32 addr,
-							  u32 len,
-							  bool wide_bus,
-							  u32 bit_width,
-							  bool packed,
-							  const char *mem_group,
-							  bool is_storm,
-							  char storm_letter)
+			      struct ecore_ptt *p_ptt,
+			      u32 *dump_buf,
+			      bool dump,
+			      const char *name,
+			      u32 addr,
+			      u32 len,
+			      bool wide_bus,
+			      u32 bit_width,
+			      bool packed,
+			      const char *mem_group,
+			      bool is_storm,
+			      char storm_letter)
 {
 	u32 offset = 0;
 
@@ -3735,19 +3751,18 @@ static u32 ecore_grc_dump_rss(struct ecore_hwfn *p_hwfn,
 	u8 rss_mem_id;
 
 	for (rss_mem_id = 0; rss_mem_id < NUM_RSS_MEM_TYPES; rss_mem_id++) {
-		u32 rss_addr, num_entries, entry_width, total_dwords, i;
+		u32 rss_addr, num_entries, total_dwords;
 		struct rss_mem_defs *rss_defs;
 		bool packed;
 
 		rss_defs = &s_rss_mem_defs[rss_mem_id];
 		rss_addr = rss_defs->addr;
 		num_entries = rss_defs->num_entries[dev_data->chip_id];
-		entry_width = rss_defs->entry_width[dev_data->chip_id];
-		total_dwords = (num_entries * entry_width) / 32;
-		packed = (entry_width == 16);
+		total_dwords = (num_entries * rss_defs->entry_width) / 32;
+		packed = (rss_defs->entry_width == 16);
 
 		offset += ecore_grc_dump_mem_hdr(p_hwfn, dump_buf + offset, dump, rss_defs->mem_name, 0, total_dwords,
-			entry_width, packed, rss_defs->type_name, false, 0);
+			rss_defs->entry_width, packed, rss_defs->type_name, false, 0);
 
 		/* Dump RSS data */
 		if (!dump) {
@@ -3755,9 +3770,12 @@ static u32 ecore_grc_dump_rss(struct ecore_hwfn *p_hwfn,
 			continue;
 		}
 
-		for (i = 0; i < total_dwords; i += RSS_REG_RSS_RAM_DATA_SIZE, rss_addr++) {
+		while (total_dwords) {
+			u32 num_dwords_to_read = OSAL_MIN_T(u32, RSS_REG_RSS_RAM_DATA_SIZE, total_dwords);
 			ecore_wr(p_hwfn, p_ptt, RSS_REG_RSS_RAM_ADDR, rss_addr);
-			offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, dump, BYTES_TO_DWORDS(RSS_REG_RSS_RAM_DATA), RSS_REG_RSS_RAM_DATA_SIZE, false);
+			offset += ecore_grc_dump_addr_range(p_hwfn, p_ptt, dump_buf + offset, dump, BYTES_TO_DWORDS(RSS_REG_RSS_RAM_DATA), num_dwords_to_read, false);
+			total_dwords -= num_dwords_to_read;
+			rss_addr++;
 		}
 	}
 
@@ -3805,12 +3823,13 @@ static u32 ecore_grc_dump_mcp(struct ecore_hwfn *p_hwfn,
 							  u32 *dump_buf,
 							  bool dump)
 {
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	bool block_enable[MAX_BLOCK_ID] = { 0 };
 	bool halted = false;
 	u32 offset = 0;
 
 	/* Halt MCP */
-	if (dump && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP)) {
+	if (dump && dev_data->platform_id == PLATFORM_ASIC && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP)) {
 		halted = !ecore_mcp_halt(p_hwfn, p_ptt);
 		if (!halted)
 			DP_NOTICE(p_hwfn, false, "MCP halt failed!\n");
@@ -3922,7 +3941,7 @@ static u32 ecore_grc_dump_static_debug(struct ecore_hwfn *p_hwfn,
 		for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 			struct block_defs *block = s_block_defs[block_id];
 
-			if (block->has_dbg_bus[dev_data->chip_id])
+			if (block->dbg_client_id[dev_data->chip_id] != MAX_DBG_BUS_CLIENTS)
 				ecore_wr(p_hwfn, p_ptt, block->dbg_enable_addr, 0);
 		}
 
@@ -3939,7 +3958,7 @@ static u32 ecore_grc_dump_static_debug(struct ecore_hwfn *p_hwfn,
 		struct dbg_bus_block *block_desc;
 		u32 block_dwords;
 
-		if (!block->has_dbg_bus[dev_data->chip_id])
+		if (block->dbg_client_id[dev_data->chip_id] == MAX_DBG_BUS_CLIENTS)
 			continue;
 
 		block_desc = get_dbg_bus_block_desc(p_hwfn, (enum block_id)block_id);
@@ -3994,15 +4013,13 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 									  u32 *num_dumped_dwords)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
-	bool is_emul, parities_masked = false;
+	bool is_asic, parities_masked = false;
 	u8 i, port_mode = 0;
 	u32 offset = 0;
 
-	is_emul = dev_data->platform_id == PLATFORM_EMUL_FULL || dev_data->platform_id == PLATFORM_EMUL_REDUCED;
+	is_asic = dev_data->platform_id == PLATFORM_ASIC;
 
 	*num_dumped_dwords = 0;
-
-	;
 
 	if (dump) {
 
@@ -4035,7 +4052,7 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Disable all parities using MFW command */
-	if (dump && !is_emul && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP)) {
+	if (dump && is_asic && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP)) {
 		parities_masked = !ecore_mcp_mask_parities(p_hwfn, p_ptt, 1);
 		if (!parities_masked) {
 			DP_NOTICE(p_hwfn, false, "Failed to mask parities using MFW\n");
@@ -4103,7 +4120,7 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 		offset += ecore_grc_dump_static_debug(p_hwfn, p_ptt, dump_buf + offset, dump);
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	if (dump) {
 
@@ -4112,7 +4129,7 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 			ecore_grc_stall_storms(p_hwfn, p_ptt, false);
 
 		/* Clear parity status */
-		if (!is_emul)
+		if (is_asic)
 			ecore_grc_clear_all_prty(p_hwfn, p_ptt);
 
 		/* Enable all parities using MFW command */
@@ -4121,8 +4138,6 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	*num_dumped_dwords = offset;
-
-	;
 
 	return DBG_STATUS_OK;
 }
@@ -4291,17 +4306,19 @@ static u32 ecore_idle_chk_dump_rule_entries(struct ecore_hwfn *p_hwfn,
 		if (!check_rule && dump)
 			continue;
 
+		if (!dump) {
+			u32 entry_dump_size = ecore_idle_chk_dump_failure(p_hwfn, p_ptt, dump_buf + offset, false, rule->rule_id, rule, 0, OSAL_NULL);
+
+			offset += num_reg_entries * entry_dump_size;
+			(*num_failing_rules) += num_reg_entries;
+			continue;
+		}
+
 		/* Go over all register entries (number of entries is the same for all
 		 * condition registers).
 		 */
 		for (entry_id = 0; entry_id < num_reg_entries; entry_id++) {
 			u32 next_reg_offset = 0;
-
-			if (!dump) {
-				offset += ecore_idle_chk_dump_failure(p_hwfn, p_ptt, dump_buf + offset, false, rule->rule_id, rule, entry_id, OSAL_NULL);
-				(*num_failing_rules)++;
-				break;
-			}
 
 			/* Read current entry of all condition registers */
 			for (reg_id = 0; reg_id < rule->num_cond_regs; reg_id++) {
@@ -4332,7 +4349,6 @@ static u32 ecore_idle_chk_dump_rule_entries(struct ecore_hwfn *p_hwfn,
 			if ((*cond_arr[rule->cond_id])(cond_reg_values, imm_values)) {
 				offset += ecore_idle_chk_dump_failure(p_hwfn, p_ptt, dump_buf + offset, dump, rule->rule_id, rule, entry_id, cond_reg_values);
 				(*num_failing_rules)++;
-				break;
 			}
 		}
 	}
@@ -4385,7 +4401,7 @@ static u32 ecore_idle_chk_dump(struct ecore_hwfn *p_hwfn,
 		ecore_dump_num_param(dump_buf + num_failing_rules_offset, dump, "num_rules", num_failing_rules);
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	return offset;
 }
@@ -4438,7 +4454,7 @@ static enum dbg_status ecore_nvram_read(struct ecore_hwfn *p_hwfn,
 		bytes_to_copy = (bytes_left > MCP_DRV_NVM_BUF_LEN) ? MCP_DRV_NVM_BUF_LEN : bytes_left;
 
 		/* Call NVRAM read command */
-		if (ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_READ_NVRAM, (nvram_offset_bytes + read_offset) | (bytes_to_copy << DRV_MB_PARAM_NVM_LEN_SHIFT), &ret_mcp_resp, &ret_mcp_param, &ret_read_size, (u32*)((u8*)ret_buf + read_offset)))
+		if (ecore_mcp_nvm_rd_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_READ_NVRAM, (nvram_offset_bytes + read_offset) | (bytes_to_copy << DRV_MB_PARAM_NVM_LEN_OFFSET), &ret_mcp_resp, &ret_mcp_param, &ret_read_size, (u32*)((u8*)ret_buf + read_offset)))
 			return DBG_STATUS_NVRAM_READ_FAILED;
 
 		/* Check response */
@@ -4560,6 +4576,7 @@ static enum dbg_status ecore_mcp_trace_dump(struct ecore_hwfn *p_hwfn,
 {
 	u32 trace_meta_offset_bytes = 0, trace_meta_size_bytes = 0, trace_meta_size_dwords = 0;
 	u32 trace_data_grc_addr, trace_data_size_bytes, trace_data_size_dwords;
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	u32 running_bundle_id, offset = 0;
 	enum dbg_status status;
 	bool mcp_access;
@@ -4567,7 +4584,7 @@ static enum dbg_status ecore_mcp_trace_dump(struct ecore_hwfn *p_hwfn,
 
 	*num_dumped_dwords = 0;
 
-	mcp_access = !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP);
+	mcp_access = dev_data->platform_id == PLATFORM_ASIC && !ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_MCP);
 
 	/* Get trace data info */
 	status = ecore_mcp_trace_get_data_info(p_hwfn, p_ptt, &trace_data_grc_addr, &trace_data_size_bytes);
@@ -4624,7 +4641,7 @@ static enum dbg_status ecore_mcp_trace_dump(struct ecore_hwfn *p_hwfn,
 		offset += trace_meta_size_dwords;
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	*num_dumped_dwords = offset;
 
@@ -4683,7 +4700,7 @@ static enum dbg_status ecore_reg_fifo_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	*num_dumped_dwords = offset;
 
@@ -4738,7 +4755,7 @@ static enum dbg_status ecore_igu_fifo_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	*num_dumped_dwords = offset;
 
@@ -4780,7 +4797,7 @@ static enum dbg_status ecore_protection_override_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	*num_dumped_dwords = offset;
 
@@ -4842,7 +4859,7 @@ static u32 ecore_fw_asserts_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, dump);
+	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	return offset;
 }
@@ -5062,13 +5079,12 @@ static bool ecore_is_overlapping_enable_mask(struct ecore_hwfn *p_hwfn,
 }
 
 enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
-										   struct ecore_ptt *p_ptt,
-										   enum block_id block_id,
-										   u8 line_num,
-										   u8 enable_mask,
-										   u8 right_shift,
-										   u8 force_valid_mask,
-										   u8 force_frame_mask)
+					   enum block_id block_id,
+					   u8 line_num,
+					   u8 enable_mask,
+					   u8 right_shift,
+					   u8 force_valid_mask,
+					   u8 force_frame_mask)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct block_defs *block = s_block_defs[block_id];
@@ -5086,7 +5102,7 @@ enum dbg_status ecore_dbg_bus_enable_block(struct ecore_hwfn *p_hwfn,
 		return DBG_STATUS_INVALID_ARGS;
 	if (GET_FIELD(block_bus->data, DBG_BUS_BLOCK_DATA_ENABLE_MASK))
 		return DBG_STATUS_BLOCK_ALREADY_ENABLED;
-	if (!block->has_dbg_bus[dev_data->chip_id] ||
+	if (block->dbg_client_id[dev_data->chip_id] == MAX_DBG_BUS_CLIENTS ||
 		line_num >= NUM_DBG_LINES(block_desc) ||
 		!enable_mask ||
 		enable_mask > MAX_CYCLE_VALUES_MASK ||
@@ -5386,15 +5402,15 @@ enum dbg_status ecore_dbg_bus_add_trigger_state(struct ecore_hwfn *p_hwfn,
 }
 
 enum dbg_status ecore_dbg_bus_add_constraint(struct ecore_hwfn *p_hwfn,
-											 struct ecore_ptt *p_ptt,
-											 enum dbg_bus_constraint_ops constraint_op,
-											 u32 data_val,
-											 u32 data_mask,
-											 bool compare_frame,
-											 u8 frame_bit,
-											 u8 cycle_offset,
-											 u8 dword_offset_in_cycle,
-											 bool is_mandatory)
+			 struct ecore_ptt *p_ptt,
+			 enum dbg_bus_constraint_ops constraint_op,
+			 u32 data_val,
+			 u32 data_mask,
+			 bool compare_frame,
+			 u8 frame_bit,
+			 u8 cycle_offset,
+			 u8 dword_offset_in_cycle,
+			 bool is_mandatory)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	struct dbg_bus_data *bus = &dev_data->bus;
@@ -5874,7 +5890,7 @@ enum dbg_status ecore_dbg_bus_get_dump_buf_size(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	*buf_size += ecore_dump_last_section(p_hwfn, OSAL_NULL, 0, false);
+	*buf_size += ecore_dump_last_section(OSAL_NULL, 0, false);
 
 	return DBG_STATUS_OK;
 }
@@ -5929,7 +5945,7 @@ enum dbg_status ecore_dbg_bus_dump(struct ecore_hwfn *p_hwfn,
 	}
 
 	/* Dump last section */
-	offset += ecore_dump_last_section(p_hwfn, dump_buf, offset, true);
+	offset += ecore_dump_last_section(dump_buf, offset, true);
 
 	/* If recorded to PCI buffer - free the buffer */
 	ecore_bus_free_pci_buf(p_hwfn);

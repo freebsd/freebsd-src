@@ -89,6 +89,8 @@ if [ $# -ne 0 ]; then
     usage
 fi
 
+export LC_ALL=C
+
 readonly ORIGINDIR=$(realpath $(dirname $0))
 readonly TOPDIR=$(realpath ${ORIGINDIR}/../../../../..)
 readonly CONTRIB_TESTDIR=${TOPDIR}/cddl/contrib/opensolaris/cmd/dtrace/test/tst/common

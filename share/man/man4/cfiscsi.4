@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd March 29, 2017
+.Dd May 28, 2017
 .Dt CFISCSI 4
 .Os
 .Sh NAME
@@ -50,9 +50,15 @@ cfiscsi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-subsystem provides iSCSI target device emulation via
+subsystem provides the kernel component of an iSCSI target.
+The target is the iSCSI server, providing LUNs backed by local files
+and volumes to remote initiators.
+The userspace component is provided by
+.Xr ctld 8 .
+.Nm
+is implemented as a
 .Xr ctl 4
-and
+frontend and uses infrastructure provided by
 .Xr iscsi 4 .
 .Sh SYSCTL VARIABLES
 The following variables are available as both
@@ -80,7 +86,9 @@ Defaults to 5.
 .El
 .Sh SEE ALSO
 .Xr ctl 4 ,
-.Xr iscsi 4
+.Xr iscsi 4 ,
+.Xr ctl.conf 5 ,
+.Xr ctld 8
 .Sh HISTORY
 The
 .Nm

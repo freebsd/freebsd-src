@@ -211,6 +211,11 @@ ResourceMacroTerm
     | Memory24Term                  {}
     | Memory32FixedTerm             {}
     | Memory32Term                  {}
+    | PinConfigTerm                 {}
+    | PinFunctionTerm               {}
+    | PinGroupTerm                  {}
+    | PinGroupConfigTerm            {}
+    | PinGroupFunctionTerm          {}
     | QWordIOTerm                   {}
     | QWordMemoryTerm               {}
     | QWordSpaceTerm                {}
@@ -601,6 +606,95 @@ Memory32Term
         OptionalNameString_Last
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,6,$4,$6,$8,$10,$12,$13);}
     | PARSEOP_MEMORY32
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PinConfigTerm
+    : PARSEOP_PINCONFIG
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PINCONFIG);}
+        OptionalShareType_First     /* 04: SharedType */
+        ',' ByteConstExpr           /* 06: PinConfigType */
+        ',' DWordConstExpr          /* 08: PinConfigValue */
+        ',' StringData              /* 10: ResourceSource */
+        OptionalByteConstExpr       /* 11: ResourceSourceIndex */
+        OptionalResourceType        /* 12: ResourceType */
+        OptionalNameString          /* 13: DescriptorName */
+        OptionalBuffer_Last         /* 14: VendorData */
+        PARSEOP_CLOSE_PAREN '{'
+            DWordList '}'           {$$ = TrLinkChildren ($<n>3,9,
+                                        $4,$6,$8,$10,$11,$12,$13,$14,$17);}
+    | PARSEOP_PINCONFIG
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PinFunctionTerm
+    : PARSEOP_PINFUNCTION
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PINFUNCTION);}
+        OptionalShareType_First     /* 04: SharedType */
+        ',' PinConfigByte           /* 06: PinConfig */
+        ',' WordConstExpr           /* 08: FunctionNumber */
+        ',' StringData              /* 10: ResourceSource */
+        OptionalByteConstExpr       /* 11: ResourceSourceIndex */
+        OptionalResourceType        /* 12: ResourceType */
+        OptionalNameString          /* 13: DescriptorName */
+        OptionalBuffer_Last         /* 14: VendorData */
+        PARSEOP_CLOSE_PAREN '{'
+            DWordList '}'           {$$ = TrLinkChildren ($<n>3,9,
+                                        $4,$6,$8,$10,$11,$12,$13,$14,$17);}
+    | PARSEOP_PINFUNCTION
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PinGroupTerm
+    : PARSEOP_PINGROUP
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PINGROUP);}
+        StringData                  /* 04: ResourceLabel */
+        OptionalProducerResourceType /* 05: ResourceType */
+        OptionalNameString          /* 06: DescriptorName */
+        OptionalBuffer_Last         /* 07: VendorData */
+        PARSEOP_CLOSE_PAREN '{'
+            DWordList '}'           {$$ = TrLinkChildren ($<n>3,5,$4,$5,$6,$7,$10);}
+    | PARSEOP_PINGROUP
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PinGroupConfigTerm
+    : PARSEOP_PINGROUPCONFIG
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PINGROUPCONFIG);}
+        OptionalShareType_First     /* 04: SharedType */
+        ',' ByteConstExpr           /* 06: PinConfigType */
+        ',' DWordConstExpr          /* 08: PinConfigValue */
+        ',' StringData              /* 10: ResourceSource */
+        OptionalByteConstExpr       /* 11: ResourceSourceIndex */
+        ',' StringData              /* 13: ResourceSourceLabel */
+        OptionalResourceType        /* 14: ResourceType */
+        OptionalNameString          /* 15: DescriptorName */
+        OptionalBuffer_Last         /* 16: VendorData */
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,9,
+                                        $4,$6,$8,$10,$11,$13,$14,$15,$16);}
+    | PARSEOP_PINGROUPCONFIG
+        PARSEOP_OPEN_PAREN
+        error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
+    ;
+
+PinGroupFunctionTerm
+    : PARSEOP_PINGROUPFUNCTION
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_PINGROUPFUNCTION);}
+        OptionalShareType_First     /* 04: SharedType */
+        ',' WordConstExpr           /* 06: FunctionNumber */
+        ',' StringData              /* 08: ResourceSource */
+        OptionalByteConstExpr       /* 09: ResourceSourceIndex */
+        ',' StringData              /* 11: ResourceSourceLabel */
+        OptionalResourceType        /* 12: ResourceType */
+        OptionalNameString          /* 13: DescriptorName */
+        OptionalBuffer_Last         /* 14: VendorData */
+        PARSEOP_CLOSE_PAREN         {$$ = TrLinkChildren ($<n>3,8,
+                                        $4,$6,$8,$9,$11,$12,$13,$14);}
+    | PARSEOP_PINGROUPFUNCTION
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
     ;

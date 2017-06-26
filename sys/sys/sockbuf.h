@@ -32,7 +32,6 @@
  */
 #ifndef _SYS_SOCKBUF_H_
 #define _SYS_SOCKBUF_H_
-#include <sys/selinfo.h>		/* for struct selinfo */
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
@@ -64,6 +63,7 @@ struct mbuf;
 struct sockaddr;
 struct socket;
 struct thread;
+struct selinfo;
 
 struct	xsockbuf {
 	u_int	sb_cc;
@@ -84,9 +84,9 @@ struct	xsockbuf {
  * (a) locked by SOCKBUF_LOCK().
  */
 struct	sockbuf {
-	struct	selinfo sb_sel;	/* process selecting read/write */
-	struct	mtx sb_mtx;	/* sockbuf lock */
-	struct	sx sb_sx;	/* prevent I/O interlacing */
+	struct	mtx sb_mtx;		/* sockbuf lock */
+	struct	sx sb_sx;		/* prevent I/O interlacing */
+	struct	selinfo *sb_sel;	/* process selecting read/write */
 	short	sb_state;	/* (a) socket state on sockbuf */
 #define	sb_startzero	sb_mb
 	struct	mbuf *sb_mb;	/* (a) the mbuf chain */

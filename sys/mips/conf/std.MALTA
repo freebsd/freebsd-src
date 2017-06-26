@@ -31,6 +31,7 @@ options 	CAPABILITIES		# Capsicum capabilities
 options 	SYSVSHM
 options 	SYSVMSG
 options 	SYSVSEM
+options 	COMPAT_FREEBSD11	# Support FreeBSD 11 syscalls
 options 	MIPS_SHAREDPAGE		# Enable shared page support
 
 options 	TMPFS			#Efficient memory filesystem

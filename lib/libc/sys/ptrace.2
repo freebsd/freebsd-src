@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd August 29, 2016
+.Dd June 11, 2017
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -643,6 +643,26 @@ and
 .Fa data
 arguments are used the same as for
 .Dv PT_CONTINUE.
+.It Dv PT_GET_SC_ARGS
+For the thread which is stopped in either
+.Dv PL_FLAG_SCE
+or
+.Dv PL_FLAG_SCX
+state, that is, on entry or exit to a syscall,
+this request fetches the syscall arguments.
+.Pp
+The arguments are copied out into the buffer pointed to by the
+.Fa addr
+pointer, sequentially.
+Each syscall argument is stored as the machine word.
+Kernel copies out as many arguments as the syscall accepts,
+see the
+.Va pl_syscall_narg
+member of the
+.Vt struct ptrace_lwpinfo ,
+but not more than the
+.Fa data
+bytes in total are copied.
 .It Dv PT_FOLLOW_FORK
 This request controls tracing for new child processes of a traced process.
 If

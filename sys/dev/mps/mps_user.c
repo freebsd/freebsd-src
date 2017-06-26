@@ -2052,7 +2052,7 @@ mps_user_btdh(struct mps_softc *sc, mps_btdh_mapping_t *data)
 			data->DevHandle = dev_handle;
 	} else {
 		bus = 0;
-		target = mps_mapping_get_sas_id_from_handle(sc, dev_handle);
+		target = mps_mapping_get_tid_from_handle(sc, dev_handle);
 		data->Bus = bus;
 		data->TargetID = target;
 	}

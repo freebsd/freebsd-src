@@ -458,44 +458,19 @@ out:
 static int
 ctl_ha_accept(struct ha_softc *softc)
 {
-	struct socket *so;
+	struct socket *lso, *so;
 	struct sockaddr *sap;
 	int error;
 
-	ACCEPT_LOCK();
-	if (softc->ha_lso->so_rcv.sb_state & SBS_CANTRCVMORE)
-		softc->ha_lso->so_error = ECONNABORTED;
-	if (softc->ha_lso->so_error) {
-		error = softc->ha_lso->so_error;
-		softc->ha_lso->so_error = 0;
-		ACCEPT_UNLOCK();
+	lso = softc->ha_lso;
+	SOLISTEN_LOCK(lso);
+	error = solisten_dequeue(lso, &so, 0);
+	if (error == EWOULDBLOCK)
+		return (error);
+	if (error) {
 		printf("%s: socket error %d\n", __func__, error);
 		goto out;
 	}
-	so = TAILQ_FIRST(&softc->ha_lso->so_comp);
-	if (so == NULL) {
-		ACCEPT_UNLOCK();
-		return (EWOULDBLOCK);
-	}
-	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
-	KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
-
-	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 */
-	SOCK_LOCK(so);			/* soref() and so_state update */
-	soref(so);			/* file descriptor reference */
-
-	TAILQ_REMOVE(&softc->ha_lso->so_comp, so, so_list);
-	softc->ha_lso->so_qlen--;
-	so->so_state |= SS_NBIO;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
 
 	sap = NULL;
 	error = soaccept(so, &sap);
@@ -556,9 +531,6 @@ ctl_ha_listen(struct ha_softc *softc)
 			printf("%s: REUSEPORT setting failed %d\n",
 			    __func__, error);
 		}
-		SOCKBUF_LOCK(&softc->ha_lso->so_rcv);
-		soupcall_set(softc->ha_lso, SO_RCV, ctl_ha_lupcall, softc);
-		SOCKBUF_UNLOCK(&softc->ha_lso->so_rcv);
 	}
 
 	memcpy(&sa, &softc->ha_peer_in, sizeof(sa));
@@ -572,6 +544,10 @@ ctl_ha_listen(struct ha_softc *softc)
 		printf("%s: solisten() error %d\n", __func__, error);
 		goto out;
 	}
+	SOLISTEN_LOCK(softc->ha_lso);
+	softc->ha_lso->so_state |= SS_NBIO;
+	solisten_upcall_set(softc->ha_lso, ctl_ha_lupcall, softc);
+	SOLISTEN_UNLOCK(softc->ha_lso);
 	return (0);
 
 out:

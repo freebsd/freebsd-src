@@ -12,6 +12,7 @@ SRCS=	cheri_enter.c			\
 	cheri_stack.c			\
 	cheri_system.c			\
 	cheri_type.c			\
+	error.cc			\
 	libcheri_classes.S		\
 	sandbox.c			\
 	sandbox_elf.c			\

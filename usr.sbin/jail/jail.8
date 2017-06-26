@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2016
+.Dd June 5, 2017
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -483,7 +483,9 @@ and uname -K.
 Some restrictions of the jail environment may be set on a per-jail
 basis.
 With the exception of
-.Va allow.set_hostname ,
+.Va allow.set_hostname 
+and
+.Va allow.reserved_ports ,
 these boolean parameters are off by default.
 .Bl -tag -width indent
 .It Va allow.set_hostname
@@ -611,6 +613,8 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
+.It Va allow.reserved_ports
+The jail root may bind to ports lower than 1024. 
 .El
 .El
 .Pp

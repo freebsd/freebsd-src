@@ -252,6 +252,10 @@ sesled(int argc, char **argv, bool setfault)
 			break;
 		}
 		for (j = 0; j < nobj; j++) {
+			if (all) {
+				do_led(fd, objp[j].elm_idx, onoff, setfault);
+				continue;
+			}
 			memset(&objdn, 0, sizeof(objdn));
 			objdn.elm_idx = objp[j].elm_idx;
 			objdn.elm_names_size = 128;
@@ -265,11 +269,6 @@ sesled(int argc, char **argv, bool setfault)
 				continue;
 			}
 			if (objdn.elm_names_len > 0) {
-				if (all) {
-					do_led(fd, objdn.elm_idx,
-					    onoff, setfault);
-					continue;
-				}
 				if (disk_match(objdn.elm_devnames, disk, len)) {
 					do_led(fd, objdn.elm_idx,
 					    onoff, setfault);

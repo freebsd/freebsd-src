@@ -49,8 +49,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT = 16,
 };
 
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
-
 DECLARE_TEST_DATA(group)
 DECLARE_TEST_FILE_SNAPSHOT(group)
 DECLARE_1PASS_TEST(group)
@@ -104,7 +102,7 @@ clone_group(struct group *dest, struct group const *src)
 		for (cp = src->gr_mem; *cp; ++cp)
 			++members_num;
 
-		dest->gr_mem = calloc(1, (members_num + 1) * sizeof(char *));
+		dest->gr_mem = calloc(members_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->gr_mem != NULL);
 
 		for (cp = src->gr_mem; *cp; ++cp) {
@@ -179,7 +177,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s:%s:%d:",
 		grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
@@ -189,7 +187,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 				written = snprintf(buffer, buflen, "%s%s",
 				    cp == grp->gr_mem ? "" : ",", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -309,7 +307,7 @@ group_fill_test_data(struct group_test_data *td)
 }
 
 static int
-group_test_correctness(struct group *grp, void *mdata)
+group_test_correctness(struct group *grp, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_group(grp);
@@ -387,7 +385,7 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 }
 
 static int
-group_test_getgrent(struct group *grp, void *mdata)
+group_test_getgrent(struct group *grp, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getgrent(). */

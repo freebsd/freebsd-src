@@ -103,15 +103,10 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	sbcp->sbc_codelen = sandbox_map_maxoffset(sbcp->sbc_codemap);
 	sbcp->sbc_codelen = roundup2(sbcp->sbc_codelen, PAGE_SIZE);
 	base = sbcp->sbc_codemem = mmap(NULL, sbcp->sbc_codelen,
-	    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON, -1, 0);
+	    PROT_MAX(PROT_ALL)|PROT_NONE, MAP_ANON, -1, 0);
 	if (sbcp->sbc_codemem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
-		goto error;
-	}
-	if (mprotect(base, sbcp->sbc_codelen, PROT_NONE) == -1) {
-		saved_errno = errno;
-		warn("%s: mprotect region", __func__);
 		goto error;
 	}
 	if (sandbox_map_load(base, sbcp->sbc_codemap) == -1) {
@@ -310,16 +305,12 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 #endif
 	length += heaplen;
 	sbop->sbo_datalen = length;
-	base = sbop->sbo_datamem = mmap(NULL, length, PROT_READ|PROT_WRITE,
+	base = sbop->sbo_datamem = mmap(NULL, length,
+	    PROT_MAX(PROT_READ|PROT_WRITE) | PROT_NONE,
 	    MAP_ANON | MAP_ALIGNED_CHERI_SEAL, -1, 0);
 	if (sbop->sbo_datamem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
-		goto error;
-	}
-	if (mprotect(base, sbcp->sbc_codelen, PROT_NONE) == -1) {
-		saved_errno = errno;
-		warn("%s: mprotect region", __func__);
 		goto error;
 	}
 

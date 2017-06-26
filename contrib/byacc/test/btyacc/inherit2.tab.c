@@ -618,6 +618,9 @@ YYPARSE_DECL()
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
 #endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
 
 #if YYBTYACC
     yyps = yyNewState(0); if (yyps == 0) goto yyenomem;
@@ -1184,7 +1187,7 @@ case 12:
 #line 75 "inherit2.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; }
 break;
-#line 1188 "inherit2.tab.c"
+#line 1191 "inherit2.tab.c"
     default:
         break;
     }

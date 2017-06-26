@@ -88,6 +88,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/disk.h>
 
 #include <geom/geom.h>
 #include <geom/geom_int.h>
@@ -949,6 +950,8 @@ unmapped_step:
 		    sc->cred);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
+		if (error == 0)
+			sc->flags &= ~MD_VERIFY;
 	}
 
 	if (pb != NULL) {
@@ -967,6 +970,16 @@ unmapped_step:
 	if (pb == NULL)
 		bp->bio_resid = auio.uio_resid;
 	return (error);
+}
+
+static void
+md_swap_page_free(vm_page_t m)
+{
+
+	vm_page_xunbusy(m);
+	vm_page_lock(m);
+	vm_page_free(m);
+	vm_page_unlock(m);
 }
 
 static int
@@ -1017,7 +1030,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
 			} else if (rv == VM_PAGER_FAIL) {
 				/*
@@ -1041,15 +1054,17 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				cpu_flush_dcache(p, len);
 			}
 		} else if (bp->bio_cmd == BIO_WRITE) {
-			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
-			else
-				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
-			}
+			} else if (rv == VM_PAGER_FAIL)
+				pmap_zero_page(m);
+
 			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 				pmap_copy_pages(bp->bio_ma, ma_offs, &m,
 				    offs, len);
@@ -1059,34 +1074,44 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			} else {
 				physcopyin(p, VM_PAGE_TO_PHYS(m) + offs, len);
 			}
+
 			m->valid = VM_PAGE_BITS_ALL;
+			if (m->dirty != VM_PAGE_BITS_ALL) {
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
 		} else if (bp->bio_cmd == BIO_DELETE) {
-			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+			if (len == PAGE_SIZE || m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1,
 				    NULL, NULL);
-			else
-				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_xunbusy(m);
+				md_swap_page_free(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				md_swap_page_free(m);
+				m = NULL;
+			} else {
+				/* Page is valid. */
+				if (len != PAGE_SIZE) {
+					pmap_zero_page_area(m, offs, len);
+					if (m->dirty != VM_PAGE_BITS_ALL) {
+						vm_page_dirty(m);
+						vm_pager_page_unswapped(m);
+					}
+				} else {
+					vm_pager_page_unswapped(m);
+					md_swap_page_free(m);
+					m = NULL;
+				}
 			}
-			if (len != PAGE_SIZE) {
-				pmap_zero_page_area(m, offs, len);
-				vm_page_clear_dirty(m, offs, len);
-				m->valid = VM_PAGE_BITS_ALL;
-			} else
-				vm_pager_page_unswapped(m);
 		}
-		vm_page_xunbusy(m);
-		vm_page_lock(m);
-		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
-			vm_page_free(m);
-		else
+		if (m != NULL) {
+			vm_page_xunbusy(m);
+			vm_page_lock(m);
 			vm_page_activate(m);
-		vm_page_unlock(m);
-		if (bp->bio_cmd == BIO_WRITE) {
-			vm_page_dirty(m);
-			vm_pager_page_unswapped(m);
+			vm_page_unlock(m);
 		}
 
 		/* Actions on further pages start at offset 0 */
@@ -1143,12 +1168,16 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
+			int isv = ((sc->flags & MD_VERIFY) != 0);
+
 			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
 			    sc->fwheads))) ||
 			    g_handleattr_int(bp, "GEOM::candelete", 1))
+				error = -1;
+			else if (g_handleattr_int(bp, "MNT::verified", isv))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -1352,7 +1381,8 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * If the user specified that this is a read only device, don't
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
-	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
+	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE) \
+	    | ((mdio->md_options & MD_VERIFY) ? 0 : O_VERIFY);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
@@ -1380,7 +1410,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC);
+	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->vnode = nd.ni_vp;
@@ -1523,6 +1553,8 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Note the truncation.
 	 */
 
+	if ((mdio->md_options & MD_VERIFY) != 0)
+		return (EINVAL);
 	npage = mdio->md_mediasize / PAGE_SIZE;
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;

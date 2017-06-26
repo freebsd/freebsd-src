@@ -1,7 +1,7 @@
-.\"	$Id: apropos.1,v 1.40 2017/01/31 19:44:04 schwarze Exp $
+.\"	$Id: apropos.1,v 1.45 2017/03/27 18:51:36 schwarze Exp $
 .\"
 .\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2012, 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 31 2017 $
+.Dd $Mdocdate: March 27 2017 $
 .Dt APROPOS 1
 .Os
 .Sh NAME
@@ -24,7 +24,7 @@
 .Nd search manual page databases
 .Sh SYNOPSIS
 .Nm
-.Op Fl acfhklw
+.Op Fl afk
 .Op Fl C Ar file
 .Op Fl M Ar path
 .Op Fl m Ar path
@@ -89,12 +89,6 @@ Specify an alternative configuration
 in
 .Xr man.conf 5
 format.
-.It Fl c
-In
-.Fl a
-mode, copy the formatted manual pages to the standard output without using
-.Xr more 1
-to paginate them.
 .It Fl f
 Search for all words in
 .Ar expression
@@ -102,37 +96,12 @@ in manual page names only.
 The search is case insensitive and matches whole words only.
 In this mode, macro keys, comparison operators, and logical operators
 are not available.
-This overrides any earlier
-.Fl k
-and
-.Fl l
-options.
-.It Fl h
-Instead of showing the title lines, show the SYNOPSIS sections, just like
-.Xr man 1
-.Fl h
-would.
 .It Fl k
 Support the full
 .Ar expression
 syntax.
-This overrides any earlier
-.Fl f
-and
-.Fl l
-options.
 It is the default for
 .Nm .
-.It Fl l
-An alias for
-.Xr mandoc 1
-.Fl a .
-This overrides any earlier
-.Fl f ,
-.Fl k ,
-and
-.Fl w
-options.
 .It Fl M Ar path
 Use the colon-separated path instead of the default list of paths
 searched for
@@ -162,13 +131,15 @@ By default, pages from all sections are shown.
 See
 .Xr man 1
 for a listing of sections.
-.It Fl w
-Instead of showing title lines, show the pathnames of the matching
-manual pages, just like
-.Xr man 1
-.Fl w
-would.
 .El
+.Pp
+The options
+.Fl chlw
+are also supported and are documented in
+.Xr man 1 .
+The options
+.Fl fkl
+are mutually exclusive and override each other.
 .Pp
 An
 .Ar expression
@@ -237,7 +208,28 @@ is evaluated case-insensitively.
 Has no effect on substring terms.
 .El
 .Pp
-Results are sorted by manual sections and names, with output formatted as
+Results are sorted according to the following criteria:
+.Bl -enum
+.It
+The manpath directory tree the page is found in, according to the
+order specified with
+.Fl M ,
+.Fl m ,
+the
+.Ev MANPATH
+environment variable, the
+.Xr man.conf 5
+configuration file, or the default documented in
+.Xr man.conf 5 .
+.It
+The section number in ascending numerical order.
+.It
+The page name in ascending
+.Xr ascii 7
+alphabetical order, case-insensitive.
+.El
+.Pp
+Each output line is formatted as
 .Pp
 .D1 name[, name...](sec) \- description
 .Pp
@@ -341,25 +333,25 @@ Text production:
 .It Ev MANPAGER
 Any non-empty value of the environment variable
 .Ev MANPAGER
-will be used instead of the standard pagination program,
-.Xr more 1 .
-.It Ev MANPATH
-The standard search path used by
+is used instead of the standard pagination program,
+.Xr more 1 ;
+see
 .Xr man 1
-may be changed by specifying a path in the
-.Ev MANPATH
-environment variable.
-Invalid paths, or paths without manual databases, are ignored.
+for details.
+Only used if
+.Fl a
+or
+.Fl l
+is specified.
+.It Ev MANPATH
+A colon-separated list of directories to search for manual pages; see
+.Xr man 1
+for details.
 Overridden by
-.Fl M .
-If
-.Ev MANPATH
-begins with a colon, it is appended to the default list;
-if it ends with a colon, it is prepended to the default list;
-or if it contains two adjacent colons,
-the standard search path is inserted between the colons.
-If none of these conditions are met, it overrides the
-standard search path.
+.Fl M ,
+ignored if
+.Fl l
+is specified.
 .It Ev PAGER
 Specifies the pagination program to use when
 .Ev MANPAGER
@@ -367,7 +359,12 @@ is not defined.
 If neither PAGER nor MANPAGER is defined,
 .Xr more 1
 .Fl s
-will be used.
+is used.
+Only used if
+.Fl a
+or
+.Fl l
+is specified.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/man.conf" -compact

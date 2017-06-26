@@ -1,7 +1,7 @@
-.\"	$Id: makewhatis.8,v 1.4 2016/07/19 22:40:33 schwarze Exp $
+.\"	$Id: makewhatis.8,v 1.6 2017/05/17 22:27:12 schwarze Exp $
 .\"
 .\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2012 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2012, 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 19 2016 $
+.Dd $Mdocdate: May 17 2017 $
 .Dt MAKEWHATIS 8
 .Os
 .Sh NAME
@@ -74,6 +74,8 @@ and
 .Sm on
 in that directory.
 Existing databases are replaced.
+If a directory contains no manual pages, no database is created in that
+directory.
 If
 .Ar dir
 is not provided,
@@ -130,11 +132,22 @@ Remove
 .Ar
 from the database in
 .Ar dir .
+If that causes the database to become empty, also delete the database file.
 .El
 .Pp
 If fatal parse errors are encountered while parsing, the offending file
 is printed to stderr, omitted from the index, and the parse continues
 with the next input file.
+.Sh ENVIRONMENT
+.Bl -tag -width MANPATH
+.It Ev MANPATH
+A colon-separated list of directories to create databases in.
+Ignored if a
+.Ar dir
+argument or the
+.Fl t
+option is specified.
+.El
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa mandoc.db

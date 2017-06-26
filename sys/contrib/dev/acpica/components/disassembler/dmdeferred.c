@@ -190,7 +190,7 @@ AcpiDmParseDeferredOps (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_ENTRY ();
+    ACPI_FUNCTION_TRACE (DmParseDeferredOps);
 
 
     /* Traverse the entire parse tree */
@@ -217,7 +217,7 @@ AcpiDmParseDeferredOps (
                 Op, Op->Named.Data, Op->Named.Length);
             if (ACPI_FAILURE (Status))
             {
-                return (Status);
+                return_ACPI_STATUS (Status);
             }
             break;
 
@@ -245,7 +245,7 @@ AcpiDmParseDeferredOps (
         Op = AcpiPsGetDepthNext (Root, Op);
     }
 
-    return (AE_OK);
+    return_ACPI_STATUS (AE_OK);
 }
 
 

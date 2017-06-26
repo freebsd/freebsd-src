@@ -939,7 +939,7 @@ ipf_sync_nat(softc, sp, data)
 	nat_t *n, *nat;
 	synclist_t *sl;
 	u_int hv = 0;
-	int err;
+	int err = 0;
 
 	READ_ENTER(&softs->ipf_syncnat);
 
@@ -1016,7 +1016,7 @@ ipf_sync_nat(softc, sp, data)
 	}
 
 	RWLOCK_EXIT(&softs->ipf_syncnat);
-	return 0;
+	return err;
 }
 
 

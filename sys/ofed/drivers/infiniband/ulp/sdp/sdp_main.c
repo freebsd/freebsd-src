@@ -310,7 +310,6 @@ sdp_closed(struct sdp_sock *ssk)
 		    ("sdp_closed: !SS_PROTOREF"));
 		ssk->flags &= ~SDP_SOCKREF;
 		SDP_WUNLOCK(ssk);
-		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
 		sofree(so);

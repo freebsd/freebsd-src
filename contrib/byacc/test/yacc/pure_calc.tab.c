@@ -439,6 +439,9 @@ YYPARSE_DECL()
     }
 #endif
 
+    memset(&yyval,  0, sizeof(yyval));
+    memset(&yylval, 0, sizeof(yylval));
+
     yym = 0;
     yyn = 0;
     yynerrs = 0;
@@ -623,7 +626,7 @@ case 18:
 #line 69 "pure_calc.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
 break;
-#line 627 "pure_calc.tab.c"
+#line 630 "pure_calc.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

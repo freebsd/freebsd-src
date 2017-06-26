@@ -376,10 +376,10 @@ histcmd(int argc, char **argv __unused)
 		char *editcmd;
 
 		fclose(efp);
+		INTON;
 		editcmd = stalloc(strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(editcmd, 0);	/* XXX - should use no JC command */
-		INTON;
 		readcmdfile(editfile);	/* XXX - should read back - quick tst */
 		unlink(editfile);
 	}

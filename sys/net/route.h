@@ -189,7 +189,7 @@ struct rtentry {
 					/* 0x8000000 and up unassigned */
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
-#define	RTF_RNH_LOCKED	 0x40000000	/* unused */
+#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
 
 #define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
 					   with existing routing apps */

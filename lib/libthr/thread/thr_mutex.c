@@ -70,8 +70,6 @@ int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
 int	__pthread_mutex_lock(pthread_mutex_t *mutex);
 int	__pthread_mutex_timedlock(pthread_mutex_t *mutex,
 		const struct timespec *abstime);
-int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
-    		void *(calloc_cb)(size_t, size_t));
 int	_pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
 int	_pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
 int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
@@ -712,6 +710,7 @@ mutex_lock_common(struct pthread_mutex *m, const struct timespec *abstime,
 	struct pthread *curthread;
 	int ret, robust;
 
+	robust = 0;  /* pacify gcc */
 	curthread  = _get_curthread();
 	if (!cvattach && m->m_flags & PMUTEX_FLAG_PRIVATE)
 		THR_CRITICAL_ENTER(curthread);

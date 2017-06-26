@@ -1315,8 +1315,9 @@ freebsd11_fstat(struct thread *td, struct freebsd11_fstat_args *uap)
 	error = kern_fstat(td, uap->fd, &sb);
 	if (error != 0)
 		return (error);
-	freebsd11_cvtstat(&sb, &osb);
-	error = copyout(&osb, uap->sb, sizeof(osb));
+	error = freebsd11_cvtstat(&sb, &osb);
+	if (error == 0)
+		error = copyout(&osb, uap->sb, sizeof(osb));
 	return (error);
 }
 #endif	/* COMPAT_FREEBSD11 */
@@ -3820,23 +3821,33 @@ file_type_to_name(short type)
 	case 0:
 		return ("zero");
 	case DTYPE_VNODE:
-		return ("vnod");
+		return ("vnode");
 	case DTYPE_SOCKET:
-		return ("sock");
+		return ("socket");
 	case DTYPE_PIPE:
 		return ("pipe");
 	case DTYPE_FIFO:
 		return ("fifo");
 	case DTYPE_KQUEUE:
-		return ("kque");
+		return ("kqueue");
 	case DTYPE_CRYPTO:
-		return ("crpt");
+		return ("crypto");
 	case DTYPE_MQUEUE:
-		return ("mque");
+		return ("mqueue");
 	case DTYPE_SHM:
 		return ("shm");
 	case DTYPE_SEM:
 		return ("ksem");
+	case DTYPE_PTS:
+		return ("pts");
+	case DTYPE_DEV:
+		return ("dev");
+	case DTYPE_PROCDESC:
+		return ("proc");
+	case DTYPE_LINUXEFD:
+		return ("levent");
+	case DTYPE_LINUXTFD:
+		return ("ltimer");
 	default:
 		return ("unkn");
 	}
@@ -3871,17 +3882,21 @@ file_to_first_proc(struct file *fp)
 static void
 db_print_file(struct file *fp, int header)
 {
+#define XPTRWIDTH ((int)howmany(sizeof(void *) * NBBY, 4))
 	struct proc *p;
 
 	if (header)
-		db_printf("%8s %4s %8s %8s %4s %5s %6s %8s %5s %12s\n",
-		    "File", "Type", "Data", "Flag", "GCFl", "Count",
-		    "MCount", "Vnode", "FPID", "FCmd");
+		db_printf("%*s %6s %*s %8s %4s %5s %6s %*s %5s %s\n",
+		    XPTRWIDTH, "File", "Type", XPTRWIDTH, "Data", "Flag",
+		    "GCFl", "Count", "MCount", XPTRWIDTH, "Vnode", "FPID",
+		    "FCmd");
 	p = file_to_first_proc(fp);
-	db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
-	    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
-	    0, fp->f_count, 0, fp->f_vnode,
+	db_printf("%*p %6s %*p %08x %04x %5d %6d %*p %5d %s\n", XPTRWIDTH,
+	    fp, file_type_to_name(fp->f_type), XPTRWIDTH, fp->f_data,
+	    fp->f_flag, 0, fp->f_count, 0, XPTRWIDTH, fp->f_vnode,
 	    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
+
+#undef XPTRWIDTH
 }
 
 DB_SHOW_COMMAND(file, db_show_file)

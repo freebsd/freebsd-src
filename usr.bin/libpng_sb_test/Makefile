@@ -7,7 +7,7 @@ MAN=
 WARNS=	6
 
 LIBADD=	png_sb cheri
-
-NO_SHARED=
+CFLAGS+=        -I${SRCTOP}/contrib/libpng
+CFLAGS+=        -I${SRCTOP}/lib/libpng
 
 .include <bsd.prog.mk>

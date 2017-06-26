@@ -240,8 +240,6 @@ copies:
 		rm -f ${DESTDIR}${BINDIR}/$i; \
 	fi
 .endfor
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
-	    -f ${SRCTOP}/etc/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .for file in ${XFILES}
 	${INSTALL} -T package=${PACKAGE_${file}:Uexamples} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}

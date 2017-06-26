@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Set to build
-.Xr groff 1
-and
-.Xr vgrind 1 .

@@ -49,10 +49,6 @@ _dict=		dict
 _examples=	examples
 .endif
 
-.if ${MK_GROFF} != "no"
-_me=		me
-.endif
-
 .if ${MK_ICONV} != "no"
 _i18n=		i18n
 .endif

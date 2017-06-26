@@ -807,7 +807,7 @@ dsl_scan_visitbp(blkptr_t *bp, const zbookmark_phys_t *zb,
 		return;
 
 	/*
-	 * If dsl_scan_ddt() has aready visited this block, it will have
+	 * If dsl_scan_ddt() has already visited this block, it will have
 	 * already done any translations or scrubbing, so don't call the
 	 * callback again.
 	 */
@@ -1389,7 +1389,7 @@ dsl_scan_visit(dsl_scan_t *scn, dmu_tx_t *tx)
 		dsl_dataset_t *ds;
 		uint64_t dsobj;
 
-		dsobj = strtonum(za.za_name, NULL);
+		dsobj = zfs_strtonum(za.za_name, NULL);
 		VERIFY3U(0, ==, zap_remove_int(dp->dp_meta_objset,
 		    scn->scn_phys.scn_queue_obj, dsobj, tx));
 
@@ -1474,6 +1474,7 @@ dsl_scan_active(dsl_scan_t *scn)
 	return (used != 0);
 }
 
+/* Called whenever a txg syncs. */
 void
 dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 {
@@ -1892,6 +1893,7 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	return (0);
 }
 
+/* Called by the ZFS_IOC_POOL_SCAN ioctl to start a scrub or resilver */
 int
 dsl_scan(dsl_pool_t *dp, pool_scan_func_t func)
 {

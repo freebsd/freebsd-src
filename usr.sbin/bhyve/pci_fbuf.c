@@ -93,6 +93,7 @@ struct pci_fbuf_softc {
 
 	/* rfb server */
 	char      *rfb_host;
+	char      *rfb_password;
 	int       rfb_port;
 	int       rfb_wait;
 	int       vga_enabled;
@@ -285,7 +286,8 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 				goto done;
 			} else if (sc->memregs.height == 0)
 				sc->memregs.height = 1080;
-
+		} else if (!strcmp(xopts, "password")) {
+			sc->rfb_password = config;
 		} else {
 			pci_fbuf_usage(xopts);
 			ret = -1;
@@ -407,7 +409,7 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	memset((void *)sc->fb_base, 0, FB_SIZE);
 
-	error = rfb_init(sc->rfb_host, sc->rfb_port, sc->rfb_wait);
+	error = rfb_init(sc->rfb_host, sc->rfb_port, sc->rfb_wait, sc->rfb_password);
 done:
 	if (error)
 		free(sc);

@@ -9,7 +9,7 @@ CFLAGS+=	-DCTSRD_BACKDOOR
 SRCS+=	no_vuln_stub.c
 .endif
 
-BUILDDIR=	${.CURDIR}/../../../lib/libpng
-SRCDIR=		${.CURDIR}/../../../contrib/libpng
+BUILDDIR=	${SRCTOP}/lib/libpng
 
+PNG_PRIVATE=no
 .include <${BUILDDIR}/Makefile>

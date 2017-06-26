@@ -1657,7 +1657,7 @@ TrLinkChildNode (
      * turn on capture comments as it signifies that we are done parsing
      * a method call.
      */
-    if (Gbl_CaptureComments)
+    if (Gbl_CaptureComments && Op1)
     {
         if (Op1->Asl.ParseOpcode == PARSEOP_METHODCALL)
         {

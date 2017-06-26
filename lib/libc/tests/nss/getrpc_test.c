@@ -70,8 +70,6 @@ static int rpcent_test_getrpcbyname(struct rpcent *, void *);
 static int rpcent_test_getrpcbynumber(struct rpcent *, void *);
 static int rpcent_test_getrpcent(struct rpcent *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(rpcent)
 IMPLEMENT_TEST_FILE_SNAPSHOT(rpcent)
 IMPLEMENT_1PASS_TEST(rpcent)
@@ -100,7 +98,7 @@ clone_rpcent(struct rpcent *dest, struct rpcent const *src)
 		for (cp = src->r_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->r_aliases = calloc(1, (aliases_num + 1) * sizeof(char *));
+		dest->r_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->r_aliases != NULL);
 
 		for (cp = src->r_aliases; *cp; ++cp) {
@@ -173,16 +171,16 @@ sdump_rpcent(struct rpcent *rpc, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d",
 		rpc->r_name, rpc->r_number);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (rpc->r_aliases != NULL) {
 		if (*(rpc->r_aliases) != '\0') {
 			for (cp = rpc->r_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -289,7 +287,7 @@ rpcent_fill_test_data(struct rpcent_test_data *td)
 }
 
 static int
-rpcent_test_correctness(struct rpcent *rpc, void *mdata)
+rpcent_test_correctness(struct rpcent *rpc, void *mdata __unused)
 {
 
 	printf("testing correctness with the following data:\n");
@@ -390,7 +388,7 @@ rpcent_test_getrpcbynumber(struct rpcent *rpc_model, void *mdata)
 }
 
 static int
-rpcent_test_getrpcent(struct rpcent *rpc, void *mdata)
+rpcent_test_getrpcent(struct rpcent *rpc, void *mdata __unused)
 {
 
 	/*
@@ -400,7 +398,7 @@ rpcent_test_getrpcent(struct rpcent *rpc, void *mdata)
 	return (rpcent_test_correctness(rpc, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct rpcent_test_data td, td_snap, td_2pass;

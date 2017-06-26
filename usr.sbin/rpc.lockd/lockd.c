@@ -902,8 +902,7 @@ lookup_addresses(struct netconfig *nconf)
 						sin->sin_port = htons(0);
 						sin->sin_addr.s_addr = htonl(INADDR_ANY);
 						res->ai_addr = (struct sockaddr*) sin;
-						res->ai_addrlen = (socklen_t)
-						    sizeof(res->ai_addr);
+						res->ai_addrlen = sizeof(struct sockaddr_in);
 						break;
 					case AF_INET6:
 						sin6 = malloc(sizeof(struct sockaddr_in6));
@@ -913,7 +912,7 @@ lookup_addresses(struct netconfig *nconf)
 						sin6->sin6_port = htons(0);
 						sin6->sin6_addr = in6addr_any;
 						res->ai_addr = (struct sockaddr*) sin6;
-						res->ai_addrlen = (socklen_t) sizeof(res->ai_addr);
+						res->ai_addrlen = sizeof(struct sockaddr_in6);
 						break;
 					default:
 						break;
@@ -938,7 +937,7 @@ lookup_addresses(struct netconfig *nconf)
 			}
 		}
 
-		servaddr.len = servaddr.maxlen = res->ai_addr->sa_len;
+		servaddr.len = servaddr.maxlen = res->ai_addrlen;
 		servaddr.buf = res->ai_addr;
 		uaddr = taddr2uaddr(nconf, &servaddr);
 

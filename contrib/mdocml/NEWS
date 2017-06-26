@@ -1,8 +1,8 @@
-$Id: NEWS,v 1.20 2017/02/16 14:38:12 schwarze Exp $
+$Id: NEWS,v 1.21 2017/02/21 00:37:03 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
 
-Changes in version 1.14.1, released on February XXX, 2017
+Changes in version 1.14.1, released on February 21, 2017
 
     --- MAJOR NEW FEATURES ---
  * apropos(1): Reimplement complete semantic search functionality
@@ -95,28 +95,32 @@ Changes in version 1.14.1, released on February XXX, 2017
    easier to use and reducing the amount of code by a few hundred lines.
     --- THANKS TO ---
  * Michael Stapelberg (Debian) for designing the new mandocd(8)
-   and parts of the new catman(8), and for a number of patches
-   and bug reports.
+   and parts of the new catman(8), for release testing, and for a
+   number of patches and bug reports.
  * Baptiste Daroussin (FreeBSD) for profiling the new makewhatis(8)
    implementation and suggesting an algorithmic improvement which
    more than doubled performance, and for a few bug reports.
  * Ed Maste (FreeBSD) for an important patch improving reproducibility
    of builds in makewhatis(8), and for a few bug reports.
- * Theo Buehler (OpenBSD) for more than ten important bug reports,
+ * Theo Buehler (OpenBSD) for almost twenty important bug reports,
    most of them found by systematic afl(1) fuzzing.
  * Benny Lofgren, David Dahlberg, and in particular Vadim Zhukov
    for crucial help in getting .Bl -tag CSS formatting fixed.
  * Svyatoslav Mishyn (Crux Linux) for an initial version of the
-   patch to autodetect a suitable locale for -Tutf8 mode.
+   patch to autodetect a suitable locale for -Tutf8 mode
+   and for release testing.
  * Jason McIntyre (OpenBSD) for multiple useful discussions
    and a number of bug reports.
+ * Sevan Janiyan (NetBSD) for extensive release testing and multiple
+   bug reports.
+ * Thomas Klausner and Christos Zoulas (NetBSD), Yuri Pankov (illumos),
+   and Leah Neukirchen (Void Linux) for release testing and bug reports.
+ * Ulrich Spoerlein (FreeBSD) for release testing.
  * Alexander Bluhm, Andrew Fresh, Antoine Jacoutot, Antony Bentley,
    Christian Weisgerber, Jonathan Gray, Marc Espie, Martijn van Duren,
    Stuart Henderson, Ted Unangst, Theo de Raadt (OpenBSD), Abhinav
-   Upadhyay, Christos Zoulas, Kamil Rytarowski, Sevan Janiyan,
-   Thomas Klausner (NetBSD), Aaron M. Ucko, Bdale Garbee, Reiner
-   Herrmann, Shane Kerr (Debian), Leah Neukirchen (Void Linux),
-   Daniel Sabogal (Alpine Linux), Yuri Pankov (illumos),
+   Upadhyay, Kamil Rytarowski (NetBSD), Aaron M. Ucko, Bdale Garbee,
+   Reiner Herrmann, Shane Kerr (Debian), Daniel Sabogal (Alpine Linux),
    Carsten Kunze (Heirloom roff), Kristaps Dzonsons (bsd.lv),
    Anton Lindqvist, Jan Stary, Jeremy A. Mates, Mark Patruck,
    Pavan Maddamsetti, Sean Levy <attila@stalphonsos.com>, and

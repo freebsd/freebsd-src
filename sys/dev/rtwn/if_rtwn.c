@@ -91,9 +91,9 @@ static struct ieee80211vap *rtwn_vap_create(struct ieee80211com *,
 static void		rtwn_vap_delete(struct ieee80211vap *);
 static int		rtwn_read_chipid(struct rtwn_softc *);
 static int		rtwn_ioctl_reset(struct ieee80211vap *, u_long);
-#ifndef RTWN_WITHOUT_UCODE
 static void		rtwn_set_media_status(struct rtwn_softc *,
 			    union sec_param *);
+#ifndef RTWN_WITHOUT_UCODE
 static int		rtwn_tx_fwpkt_check(struct rtwn_softc *,
 			    struct ieee80211vap *);
 static int		rtwn_construct_nulldata(struct rtwn_softc *,
@@ -703,13 +703,13 @@ rtwn_ioctl_reset(struct ieee80211vap *vap, u_long cmd)
 	return (error);
 }
 
-#ifndef RTWN_WITHOUT_UCODE
 static void
 rtwn_set_media_status(struct rtwn_softc *sc, union sec_param *data)
 {
 	sc->sc_set_media_status(sc, data->macid);
 }
 
+#ifndef RTWN_WITHOUT_UCODE
 static int
 rtwn_tx_fwpkt_check(struct rtwn_softc *sc, struct ieee80211vap *vap)
 {
@@ -1743,11 +1743,9 @@ rtwn_newassoc(struct ieee80211_node *ni, int isnew __unused)
 		return;
 	}
 
-#ifndef RTWN_WITHOUT_UCODE
 	/* Notify firmware. */
 	id |= RTWN_MACID_VALID;
 	rtwn_cmd_sleepable(sc, &id, sizeof(id), rtwn_set_media_status);
-#endif
 }
 
 static void
@@ -1759,10 +1757,8 @@ rtwn_node_free(struct ieee80211_node *ni)
 	RTWN_NT_LOCK(sc);
 	if (un->id != RTWN_MACID_UNDEFINED) {
 		sc->node_list[un->id] = NULL;
-#ifndef RTWN_WITHOUT_UCODE
 		rtwn_cmd_sleepable(sc, &un->id, sizeof(un->id),
 		    rtwn_set_media_status);
-#endif
 	}
 	RTWN_NT_UNLOCK(sc);
 

@@ -374,7 +374,7 @@ bhnd_pwrctl_slowclk_freq(struct bhnd_pwrctl_softc *sc, bool max_freq)
 	} else if (PWRCTL_QUIRK(sc, SLOWCLK_CTL)) {
 		div = bhnd_bus_read_4(sc->res, CHIPC_PLL_SLOWCLK_CTL);
 		div = CHIPC_GET_BITS(div, CHIPC_SCC_CD);
-		div *= 4;
+		div = 4 * (div + 1);
 	} else if (PWRCTL_QUIRK(sc, INSTACLK_CTL)) {
 		if (max_freq) {
 			div = 1;
@@ -503,7 +503,10 @@ bhnd_pwrctl_setclk(struct bhnd_pwrctl_softc *sc, bhnd_clock clock)
 	if (bhnd_get_hwrev(sc->chipc_dev) == 10)
 		return (ENODEV);
 
-	scc = bhnd_bus_read_4(sc->res, CHIPC_PLL_SLOWCLK_CTL);
+	if (PWRCTL_QUIRK(sc, SLOWCLK_CTL))
+		scc = bhnd_bus_read_4(sc->res, CHIPC_PLL_SLOWCLK_CTL);
+	else
+		scc = bhnd_bus_read_4(sc->res, CHIPC_SYS_CLK_CTL);
 
 	switch (clock) {
 	case BHND_CLOCK_HT:
@@ -520,7 +523,10 @@ bhnd_pwrctl_setclk(struct bhnd_pwrctl_softc *sc, bhnd_clock clock)
 			return (ENODEV);
 		}
 
-		bhnd_bus_write_4(sc->res, CHIPC_PLL_SLOWCLK_CTL, scc);
+		if (PWRCTL_QUIRK(sc, SLOWCLK_CTL))
+			bhnd_bus_write_4(sc->res, CHIPC_PLL_SLOWCLK_CTL, scc);
+		else
+			bhnd_bus_write_4(sc->res, CHIPC_SYS_CLK_CTL, scc);
 		DELAY(CHIPC_PLL_DELAY);
 
 		break;		

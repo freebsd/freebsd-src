@@ -6989,8 +6989,11 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 #endif	/* ATH_SW_PSQ */
 }
 
-MODULE_VERSION(if_ath, 1);
-MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
+MODULE_VERSION(ath_main, 1);
+MODULE_DEPEND(ath_main, wlan, 1, 1, 1);          /* 802.11 media layer */
+MODULE_DEPEND(ath_main, ath_rate, 1, 1, 1);
+MODULE_DEPEND(ath_main, ath_dfs, 1, 1, 1);
+MODULE_DEPEND(ath_main, ath_hal, 1, 1, 1);
 #if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ) || defined(ATH_DEBUG_ALQ)
-MODULE_DEPEND(if_ath, alq, 1, 1, 1);
+MODULE_DEPEND(ath_main, alq, 1, 1, 1);
 #endif

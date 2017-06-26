@@ -490,14 +490,12 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		 * from the value used for the top level server volume
 		 * in the mounted subtree.
 		 */
-		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
-		    (uint32_t)np->n_vattr.na_filesid[0])
-			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
-		else
-			vap->va_fsid = (uint32_t)hash32_buf(
+		vn_fsid(vp, vap);
+		if ((uint32_t)vap->va_fsid == np->n_vattr.na_filesid[0])
+			vap->va_fsid = hash32_buf(
 			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
 	} else
-		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+		vn_fsid(vp, vap);
 	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {

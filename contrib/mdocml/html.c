@@ -1,4 +1,4 @@
-/*	$Id: html.c,v 1.207 2017/02/05 20:22:04 schwarze Exp $ */
+/*	$Id: html.c,v 1.213 2017/06/08 12:54:58 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -28,8 +28,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "mandoc.h"
+#include "roff.h"
 #include "out.h"
 #include "html.h"
 #include "manconf.h"
@@ -234,6 +235,28 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 	default:
 		break;
 	}
+}
+
+char *
+html_make_id(const struct roff_node *n)
+{
+	const struct roff_node	*nch;
+	char			*buf, *cp;
+
+	for (nch = n->child; nch != NULL; nch = nch->next)
+		if (nch->type != ROFFT_TEXT)
+			return NULL;
+
+	buf = NULL;
+	deroff(&buf, n);
+
+	/* http://www.w3.org/TR/html5/dom.html#the-id-attribute */
+
+	for (cp = buf; *cp != '\0'; cp++)
+		if (*cp == ' ')
+			*cp = '_';
+
+	return buf;
 }
 
 int
@@ -534,18 +557,25 @@ print_otag(struct html *h, enum htmltag tag, const char *fmt, ...)
 		print_byte(h, '=');
 		print_byte(h, '"');
 		switch (*fmt) {
-		case 'M':
-			print_href(h, arg1, arg2, 1);
-			fmt++;
-			break;
 		case 'I':
 			print_href(h, arg1, NULL, 0);
 			fmt++;
 			break;
+		case 'M':
+			print_href(h, arg1, arg2, 1);
+			fmt++;
+			break;
 		case 'R':
 			print_byte(h, '#');
+			print_encode(h, arg1, NULL, 1);
 			fmt++;
-			/* FALLTHROUGH */
+			break;
+		case 'T':
+			print_encode(h, arg1, NULL, 1);
+			print_word(h, "\" title=\"");
+			print_encode(h, arg1, NULL, 1);
+			fmt++;
+			break;
 		default:
 			print_encode(h, arg1, NULL, 1);
 			break;
@@ -579,13 +609,21 @@ print_otag(struct html *h, enum htmltag tag, const char *fmt, ...)
 			SCALE_VS_INIT(su, i);
 			break;
 		case 'w':
-		case 'W':
 			if ((arg2 = va_arg(ap, char *)) == NULL)
 				break;
 			su = &mysu;
 			a2width(arg2, su);
-			if (fmt[-1] == 'W')
+			if (*fmt == '+') {
+				/* Increase to make even bold text fit. */
+				su->scale *= 1.2;
+				/* Add padding. */
+				su->scale += 3.0;
+				fmt++;
+			}
+			if (*fmt == '-') {
 				su->scale *= -1.0;
+				fmt++;
+			}
 			break;
 		default:
 			abort();
@@ -912,7 +950,10 @@ print_word(struct html *h, const char *cp)
 static void
 a2width(const char *p, struct roffsu *su)
 {
-	if (a2roffsu(p, su, SCALE_MAX) < 2) {
+	const char	*end;
+
+	end = a2roffsu(p, su, SCALE_MAX);
+	if (end == NULL || *end != '\0') {
 		su->unit = SCALE_EN;
 		su->scale = html_strlen(p);
 	} else if (su->scale < 0.0)

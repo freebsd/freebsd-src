@@ -196,7 +196,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     if (base_vaddr != 0)
 	base_flags |= MAP_FIXED | MAP_EXCL;
 
-    mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
+    mapbase = mmap(base_addr, mapsize, PROT_NONE | PROT_MAX(PROT_ALL),
+	base_flags, -1, 0);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, rtld_strerror(errno));

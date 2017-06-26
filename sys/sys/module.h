@@ -106,14 +106,15 @@ struct mod_pnp_match_info
 
 #include <sys/linker_set.h>
 
+#define	MODULE_METADATA_CONCAT(uniquifier)	_mod_metadata##uniquifier
 #define	MODULE_METADATA(uniquifier, type, data, cval)			\
-	static struct mod_metadata _mod_metadata##uniquifier = {	\
+	static struct mod_metadata MODULE_METADATA_CONCAT(uniquifier) = {	\
 		MDT_STRUCT_VERSION,					\
 		type,							\
 		data,							\
 		cval							\
 	};								\
-	DATA_SET(modmetadata_set, _mod_metadata##uniquifier)
+	DATA_SET(modmetadata_set, MODULE_METADATA_CONCAT(uniquifier))
 
 #define	MODULE_DEPEND(module, mdepend, vmin, vpref, vmax)		\
 	static struct mod_depend _##module##_depend_on_##mdepend	\
@@ -139,7 +140,7 @@ struct mod_pnp_match_info
 #define	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, maxver)	\
 	MODULE_DEPEND(name, kernel, __FreeBSD_version,			\
 	    __FreeBSD_version, maxver);			\
-	MODULE_METADATA(_md_##name, MDT_MODULE, &data, #name);		\
+	MODULE_METADATA(_md_##name, MDT_MODULE, &data, __XSTRING(name));\
 	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
 
@@ -156,13 +157,14 @@ struct mod_pnp_match_info
 #define	DECLARE_MODULE_TIED(name, data, sub, order)				\
 	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
 
+#define	MODULE_VERSION_CONCAT(module, version)	_##module##_version
 #define	MODULE_VERSION(module, version)					\
-	static struct mod_version _##module##_version			\
+	static struct mod_version MODULE_VERSION_CONCAT(module, version)\
 	    __section(".data") = {					\
 		version							\
 	};								\
-	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
-	    &_##module##_version, #module)
+	MODULE_METADATA(MODULE_VERSION_CONCAT(module, version), MDT_VERSION,\
+	    &MODULE_VERSION_CONCAT(module, version), __XSTRING(module))
 
 /**
  * Generic macros to create pnp info hints that modules may export

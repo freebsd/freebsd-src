@@ -218,6 +218,7 @@ const AH_TABLE      Gbl_AcpiSupportedTables[] =
     {ACPI_SIG_FPDT, "Firmware Performance Data Table"},
     {ACPI_SIG_GTDT, "Generic Timer Description Table"},
     {ACPI_SIG_HEST, "Hardware Error Source Table"},
+    {ACPI_SIG_HMAT, "Heterogeneous Memory Attributes Table"},
     {ACPI_SIG_HPET, "High Precision Event Timer table"},
     {ACPI_SIG_IORT, "IO Remapping Table"},
     {ACPI_SIG_IVRS, "I/O Virtualization Reporting Structure"},
@@ -232,6 +233,7 @@ const AH_TABLE      Gbl_AcpiSupportedTables[] =
     {ACPI_SIG_NFIT, "NVDIMM Firmware Interface Table"},
     {ACPI_SIG_PCCT, "Platform Communications Channel Table"},
     {ACPI_SIG_PMTT, "Platform Memory Topology Table"},
+    {ACPI_SIG_PPTT, "Processor Properties Topology Table"},
     {ACPI_SIG_RASF, "RAS Features Table"},
     {ACPI_RSDP_NAME,"Root System Description Pointer"},
     {ACPI_SIG_RSDT, "Root System Description Table"},
@@ -253,6 +255,7 @@ const AH_TABLE      Gbl_AcpiSupportedTables[] =
     {ACPI_SIG_WDDT, "Watchdog Description Table"},
     {ACPI_SIG_WDRT, "Watchdog Resource Table"},
     {ACPI_SIG_WPBT, "Windows Platform Binary Table"},
+    {ACPI_SIG_WSMT, "Windows SMM Security Migrations Table"},
     {ACPI_SIG_XENV, "Xen Environment table"},
     {ACPI_SIG_XSDT, "Extended System Description Table"},
     {NULL,          NULL}

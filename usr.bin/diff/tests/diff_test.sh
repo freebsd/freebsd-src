@@ -6,6 +6,7 @@ atf_test_case header
 atf_test_case header_ns
 atf_test_case ifdef
 atf_test_case group_format
+atf_test_case side_by_side
 
 simple_body()
 {
@@ -88,6 +89,26 @@ group_format_body()
 ' "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
 }
 
+side_by_side_body()
+{
+	atf_expect_fail "--side-by-side not currently implemented (bug # 219933)"
+
+	atf_check -o save:A printf "A\nB\nC\n"
+	atf_check -o save:B printf "D\nB\nE\n"
+
+	exp_output="A[[:space:]]+|[[:space:]]+D\nB[[:space:]]+B\nC[[:space:]]+|[[:space:]]+E"
+	exp_output_suppressed="A[[:space:]]+|[[:space:]]+D\nC[[:space:]]+|[[:space:]]+E"
+
+	atf_check -o match:"$exp_output" -s exit:1 \
+	    diff --side-by-side A B
+	atf_check -o match:"$exp_output" -s exit:1 \
+	    diff -y A B
+	atf_check -o match:"$exp_output_suppressed" -s exit:1 \
+	    diff -y --suppress-common-lines A B
+	atf_check -o match:"$exp_output_suppressed" -s exit:1 \
+	    diff -W 65 -y --suppress-common-lines A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -96,4 +117,5 @@ atf_init_test_cases()
 	atf_add_test_case header_ns
 	atf_add_test_case ifdef
 	atf_add_test_case group_format
+	atf_add_test_case side_by_side
 }

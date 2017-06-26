@@ -143,15 +143,22 @@ void (*ecore_ll2_release_tx_packet_cb)(void *cxt,
 				       bool b_last_fragment,
 				       bool b_last_packet);
 
+typedef
+void (*ecore_ll2_slowpath_cb)(void *cxt,
+			      u8 connection_handle,
+			      u32 opaque_data_0,
+			      u32 opaque_data_1);
+
 struct ecore_ll2_cbs {
 	ecore_ll2_complete_rx_packet_cb rx_comp_cb;
 	ecore_ll2_release_rx_packet_cb rx_release_cb;
 	ecore_ll2_complete_tx_packet_cb tx_comp_cb;
 	ecore_ll2_release_tx_packet_cb tx_release_cb;
+	ecore_ll2_slowpath_cb slowpath_cb;
 	void *cookie;
 };
 
-struct ecore_ll2_acquire_data {
+struct ecore_ll2_acquire_data_inputs {
 	enum ecore_ll2_conn_type conn_type;
 	u16 mtu; /* Maximum bytes that can be placed on a BD*/
 	u16 rx_num_desc;
@@ -170,10 +177,14 @@ struct ecore_ll2_acquire_data {
 	enum ecore_ll2_error_handle ai_err_no_buf;
 	u8 secondary_queue;
 	u8 gsi_enable;
+};
+
+struct ecore_ll2_acquire_data {
+	struct ecore_ll2_acquire_data_inputs input;
+	const struct ecore_ll2_cbs *cbs;
 
 	/* Output container for LL2 connection's handle */
 	u8 *p_connection_handle;
-	const struct ecore_ll2_cbs *cbs;
 };
 
 /**

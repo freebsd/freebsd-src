@@ -133,7 +133,7 @@ struct winentry {
 #define DD_YEAR_MASK		0xFE00	/* year - 1980 */
 #define DD_YEAR_SHIFT		9
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(MAKEFS)
 struct mbnambuf {
 	size_t	nb_len;
 	int	nb_last_id;
@@ -159,5 +159,5 @@ int	win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 uint8_t winChksum(uint8_t *name);
 int	winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp);
 size_t	winLenFixup(const u_char *un, size_t unlen);
-#endif	/* _KERNEL */
+#endif	/* _KERNEL || MAKEFS */
 #endif	/* !_FS_MSDOSFS_DIRENTRY_H_ */

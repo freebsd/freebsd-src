@@ -1855,6 +1855,7 @@ vm_pageout_oom(int shortage)
 	vm_offset_t size, bigsize;
 	struct thread *td;
 	struct vmspace *vm;
+	bool breakout;
 
 	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
@@ -1868,8 +1869,6 @@ vm_pageout_oom(int shortage)
 	bigsize = 0;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		int breakout;
-
 		PROC_LOCK(p);
 
 		/*
@@ -1886,7 +1885,7 @@ vm_pageout_oom(int shortage)
 		 * If the process is in a non-running type state,
 		 * don't touch it.  Check all the threads individually.
 		 */
-		breakout = 0;
+		breakout = false;
 		FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (!TD_ON_RUNQ(td) &&
@@ -1895,7 +1894,7 @@ vm_pageout_oom(int shortage)
 			    !TD_IS_SUSPENDED(td) &&
 			    !TD_IS_SWAPPED(td)) {
 				thread_unlock(td);
-				breakout = 1;
+				breakout = true;
 				break;
 			}
 			thread_unlock(td);

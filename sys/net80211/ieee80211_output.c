@@ -779,6 +779,9 @@ ieee80211_send_setup(
 	tap = &ni->ni_tx_ampdu[tid];
 	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap)) {
 		m->m_flags |= M_AMPDU_MPDU;
+
+		/* NB: zero out i_seq field (for s/w encryption etc) */
+		*(uint16_t *)&wh->i_seq[0] = 0;
 	} else {
 		if (IEEE80211_HAS_SEQ(type & IEEE80211_FC0_TYPE_MASK,
 				      type & IEEE80211_FC0_SUBTYPE_MASK))
@@ -1610,6 +1613,9 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			*(uint16_t *)wh->i_seq =
 			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 			M_SEQNO_SET(m, seqno);
+		} else {
+			/* NB: zero out i_seq field (for s/w encryption etc) */
+			*(uint16_t *)wh->i_seq = 0;
 		}
 	} else {
 		/*

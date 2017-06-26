@@ -455,7 +455,7 @@ create_node(const char *name, u_int type, fsnode *parent, fsnode *global)
 	n->inode = ecalloc(1, sizeof(*n->inode));
 
 	/* Assign global options/defaults. */
-	bcopy(global->inode, n->inode, sizeof(*n->inode));
+	memcpy(n->inode, global->inode, sizeof(*n->inode));
 	n->inode->st.st_mode = (n->inode->st.st_mode & ~S_IFMT) | n->type;
 
 	if (n->type == S_IFLNK)
@@ -1041,8 +1041,8 @@ read_mtree(const char *fname, fsnode *node)
 	if (error)
 		goto out;
 
-	bzero(&mtree_global, sizeof(mtree_global));
-	bzero(&mtree_global_inode, sizeof(mtree_global_inode));
+	memset(&mtree_global, 0, sizeof(mtree_global));
+	memset(&mtree_global_inode, 0, sizeof(mtree_global_inode));
 	mtree_global.inode = &mtree_global_inode;
 	mtree_global_inode.nlink = 1;
 	mtree_global_inode.st.st_nlink = 1;

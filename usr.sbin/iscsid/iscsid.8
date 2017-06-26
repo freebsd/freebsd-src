@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd May 28, 2017
 .Dt ISCSID 8
 .Os
 .Sh NAME
@@ -43,12 +43,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon is responsible for performing the Login Phase of iSCSI connections,
-as well as performing SendTargets discovery.
+daemon is the userspace component of the iSCSI initiator,
+responsible for performing the Login Phase
+of iSCSI connections and the SendTargets discovery.
 .Pp
 Upon startup, the
 .Nm
-daemon opens the iSCSI initiator device file and waits for kernel requests.
+daemon opens the iSCSI initiator device file and waits for requests
+from the kernel component,
+.Xr iscsi 4 .
 .Nm
 does not use any configuration files.
 All needed information is supplied by the kernel.

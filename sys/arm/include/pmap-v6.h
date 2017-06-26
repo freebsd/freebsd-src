@@ -176,7 +176,6 @@ vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 int pmap_fault(pmap_t, vm_offset_t, uint32_t, int, bool);
 
 void pmap_set_tex(void);
-void reinit_mmu(ttb_entry_t ttb, u_int aux_clr, u_int aux_set);
 
 /*
  * Pre-bootstrap epoch functions set.

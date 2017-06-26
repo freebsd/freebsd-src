@@ -1496,6 +1496,9 @@ YYPARSE_DECL()
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
 #endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
 
 #if YYBTYACC
     yyps = yyNewState(0); if (yyps == 0) goto yyenomem;
@@ -2684,7 +2687,7 @@ case 114:
 	    yyval.declarator->func_def = FUNC_ANSI;
 	}
 break;
-#line 2688 "grammar.tab.c"
+#line 2691 "grammar.tab.c"
     default:
         break;
     }

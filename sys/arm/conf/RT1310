@@ -3,6 +3,8 @@
 #
 # $FreeBSD$
 #
+# TODO: This fails to build under universe, irnore it until it's fixed
+#NO_UNIVERSE
 
 ident		RT1310
 include 	"std.arm"

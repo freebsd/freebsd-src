@@ -498,6 +498,7 @@ contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
 contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
+contrib/dev/acpica/components/utilities/utresdecode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
@@ -1388,7 +1389,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.26.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.45.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1412,7 +1413,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.26.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.45.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1436,7 +1437,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.26.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.45.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -1875,6 +1876,7 @@ dev/iwm/if_iwm_phy_ctxt.c	optional iwm
 dev/iwm/if_iwm_phy_db.c		optional iwm
 dev/iwm/if_iwm_power.c		optional iwm
 dev/iwm/if_iwm_scan.c		optional iwm
+dev/iwm/if_iwm_sf.c		optional iwm
 dev/iwm/if_iwm_sta.c		optional iwm
 dev/iwm/if_iwm_time_event.c	optional iwm
 dev/iwm/if_iwm_util.c		optional iwm
@@ -2214,6 +2216,7 @@ dev/mii/micphy.c		optional miibus fdt | micphy fdt
 dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
+dev/mii/mii_fdt.c		optional miibus fdt | mii fdt
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
 dev/mii/nsgphy.c		optional miibus | nsgphy
@@ -2232,6 +2235,7 @@ dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/truephy.c		optional miibus | truephy
 dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
+dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
 dev/mk48txx/mk48txx.c		optional mk48txx
 dev/mlx/mlx.c			optional mlx
@@ -3333,7 +3337,6 @@ fs/fuse/fuse_vnops.c		optional fuse
 fs/msdosfs/msdosfs_conv.c	optional msdosfs
 fs/msdosfs/msdosfs_denode.c	optional msdosfs
 fs/msdosfs/msdosfs_fat.c	optional msdosfs
-fs/msdosfs/msdosfs_fileno.c	optional msdosfs
 fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
@@ -3537,6 +3540,7 @@ geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
 geom/zero/g_zero.c		optional geom_zero
+fs/ext2fs/ext2_acl.c		optional ext2fs
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
@@ -4291,6 +4295,8 @@ compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_rcu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C} -I$S/contrib/ck/include"
+compat/linuxkpi/common/src/linux_schedule.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_slab.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \

@@ -7,6 +7,7 @@ _DP_imagebox=		vuln_png pthread
 # Depends on png, but don't include to all png or vuln_png to be used.
 LIBTERASIC_MTLDIR=	ctsrd/lib/libterasic_mtl
 LIBTERASIC_MTL?=	${DESTDIR}${LIBDIR}/libterasic_mtl.a
+_DP_terasic_mtl=	png
 
 LIBVULN_MAGICDIR=	ctsrd/lib/libvuln_magic
 LIBVULN_MAGIC?=		${DESTDIR}${LIBDIR}/libvuln_magic.a

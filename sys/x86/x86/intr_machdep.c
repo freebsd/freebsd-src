@@ -312,7 +312,9 @@ intr_assign_cpu(void *arg, int cpu)
 
 #ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
-	if (cpu != NOCPU) {
+
+	/* Nothing to do if there is only a single CPU. */
+	if (mp_ncpus > 1 && cpu != NOCPU) {
 #else
 	/*
 	 * Don't do anything during early boot.  We will pick up the
@@ -500,6 +502,8 @@ intr_next_cpu(void)
 
 #ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
+	if (mp_ncpus == 1)
+		return (PCPU_GET(apic_id));
 #else
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)

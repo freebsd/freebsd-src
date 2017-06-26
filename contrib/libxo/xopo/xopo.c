@@ -114,7 +114,6 @@ static struct option long_opts[] = {
 int
 main (int argc UNUSED, char **argv)
 {
-    char *fmt = NULL;
     char *opt_options = NULL;
     char *opt_input = NULL;
     char *opt_output = NULL;
@@ -189,10 +188,8 @@ main (int argc UNUSED, char **argv)
 	    xo_errx(1, "invalid options: %s", opt_options);
     }
 
-    fmt = *argv++;
-
     if (opt_simplify) {
-	fmt = xo_simplify_format(NULL, opt_simplify, opt_numbers, NULL);
+	char *fmt = xo_simplify_format(NULL, opt_simplify, opt_numbers, NULL);
 	if (fmt) {
 	    xo_emit("{:format}\n", fmt);
 	    free(fmt);

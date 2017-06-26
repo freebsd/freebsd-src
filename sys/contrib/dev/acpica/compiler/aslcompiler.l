@@ -455,6 +455,11 @@ NamePathTail                [.]{NameSeg}
 "Memory24"                  { count (1); return (PARSEOP_MEMORY24); }
 "Memory32"                  { count (1); return (PARSEOP_MEMORY32); }
 "Memory32Fixed"             { count (1); return (PARSEOP_MEMORY32FIXED); }
+"PinConfig"                 { count (1); return (PARSEOP_PINCONFIG); }
+"PinFunction"               { count (1); return (PARSEOP_PINFUNCTION); }
+"PinGroup"                  { count (1); return (PARSEOP_PINGROUP); }
+"PinGroupConfig"            { count (1); return (PARSEOP_PINGROUPCONFIG); }
+"PinGroupFunction"          { count (1); return (PARSEOP_PINGROUPFUNCTION); }
 "QWordIO"                   { count (1); return (PARSEOP_QWORDIO); }
 "QWordMemory"               { count (1); return (PARSEOP_QWORDMEMORY); }
 "QWordSpace"                { count (1); return (PARSEOP_QWORDSPACE); }

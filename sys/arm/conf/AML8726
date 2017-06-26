@@ -18,6 +18,9 @@
 #
 # $FreeBSD$
 
+# TODO: Port to INTRNG
+#NO_UNIVERSE
+
 ident		AML8726
 
 include 	"std.armv6"

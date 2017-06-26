@@ -67,7 +67,7 @@ static int	vflg;	/* be verbose */
 
 typedef struct devs {
 	struct devs	*next;
-	uint32_t	fsid;
+	uint64_t	fsid;
 	uint64_t	ino;
 	const char	*name;
 } DEVS;

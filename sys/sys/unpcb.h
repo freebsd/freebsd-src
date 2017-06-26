@@ -92,14 +92,8 @@ struct unpcb {
  * and is really the credentials of the connected peer.  This is used
  * to determine whether the contents should be sent to the user or
  * not.
- *
- * UNP_HAVEPCCACHED - indicates that the unp_peercred member is filled
- * in, but does *not* contain the credentials of the connected peer
- * (there may not even be a peer).  This is set in unp_listen() when
- * it fills in unp_peercred for later consumption by unp_connect().
  */
 #define UNP_HAVEPC			0x001
-#define UNP_HAVEPCCACHED		0x002
 #define	UNP_WANTCRED			0x004	/* credentials wanted */
 #define	UNP_CONNWAIT			0x008	/* connect blocks until accepted */
 

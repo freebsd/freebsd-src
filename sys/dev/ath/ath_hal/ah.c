@@ -28,6 +28,23 @@
 
 /* linker set of registered chips */
 OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
+TAILQ_HEAD(, ath_hal_chip) ah_chip_list = TAILQ_HEAD_INITIALIZER(ah_chip_list);
+
+int
+ath_hal_add_chip(struct ath_hal_chip *ahc)
+{
+
+	TAILQ_INSERT_TAIL(&ah_chip_list, ahc, node);
+	return (0);
+}
+
+int
+ath_hal_remove_chip(struct ath_hal_chip *ahc)
+{
+
+	TAILQ_REMOVE(&ah_chip_list, ahc, node);
+	return (0);
+}
 
 /*
  * Check the set of registered chips to see if any recognize
@@ -37,12 +54,22 @@ const char*
 ath_hal_probe(uint16_t vendorid, uint16_t devid)
 {
 	struct ath_hal_chip * const *pchip;
+	struct ath_hal_chip *pc;
 
+	/* Linker set */
 	OS_SET_FOREACH(pchip, ah_chips) {
 		const char *name = (*pchip)->probe(vendorid, devid);
 		if (name != AH_NULL)
 			return name;
 	}
+
+	/* List */
+	TAILQ_FOREACH(pc, &ah_chip_list, node) {
+		const char *name = pc->probe(vendorid, devid);
+		if (name != AH_NULL)
+			return name;
+	}
+
 	return AH_NULL;
 }
 
@@ -60,6 +87,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_STATUS *error)
 {
 	struct ath_hal_chip * const *pchip;
+	struct ath_hal_chip *pc;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		struct ath_hal_chip *chip = *pchip;
@@ -82,6 +110,30 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 			return ah;
 		}
 	}
+
+	/* List */
+	TAILQ_FOREACH(pc, &ah_chip_list, node) {
+		struct ath_hal_chip *chip = pc;
+		struct ath_hal *ah;
+
+		/* XXX don't have vendorid, assume atheros one works */
+		if (chip->probe(ATHEROS_VENDOR_ID, devid) == AH_NULL)
+			continue;
+		ah = chip->attach(devid, sc, st, sh, eepromdata, ah_config,
+		    error);
+		if (ah != AH_NULL) {
+			/* copy back private state to public area */
+			ah->ah_devid = AH_PRIVATE(ah)->ah_devid;
+			ah->ah_subvendorid = AH_PRIVATE(ah)->ah_subvendorid;
+			ah->ah_macVersion = AH_PRIVATE(ah)->ah_macVersion;
+			ah->ah_macRev = AH_PRIVATE(ah)->ah_macRev;
+			ah->ah_phyRev = AH_PRIVATE(ah)->ah_phyRev;
+			ah->ah_analog5GhzRev = AH_PRIVATE(ah)->ah_analog5GhzRev;
+			ah->ah_analog2GhzRev = AH_PRIVATE(ah)->ah_analog2GhzRev;
+			return ah;
+		}
+	}
+
 	return AH_NULL;
 }
 
@@ -160,6 +212,23 @@ ath_hal_getwirelessmodes(struct ath_hal*ah)
 
 /* linker set of registered RF backends */
 OS_SET_DECLARE(ah_rfs, struct ath_hal_rf);
+TAILQ_HEAD(, ath_hal_rf) ah_rf_list = TAILQ_HEAD_INITIALIZER(ah_rf_list);
+
+int
+ath_hal_add_rf(struct ath_hal_rf *arf)
+{
+
+	TAILQ_INSERT_TAIL(&ah_rf_list, arf, node);
+	return (0);
+}
+
+int
+ath_hal_remove_rf(struct ath_hal_rf *arf)
+{
+
+	TAILQ_REMOVE(&ah_rf_list, arf, node);
+	return (0);
+}
 
 /*
  * Check the set of registered RF backends to see if
@@ -169,9 +238,15 @@ struct ath_hal_rf *
 ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 {
 	struct ath_hal_rf * const *prf;
+	struct ath_hal_rf * rf;
 
 	OS_SET_FOREACH(prf, ah_rfs) {
 		struct ath_hal_rf *rf = *prf;
+		if (rf->probe(ah))
+			return rf;
+	}
+
+	TAILQ_FOREACH(rf, &ah_rf_list, node) {
 		if (rf->probe(ah))
 			return rf;
 	}
@@ -227,7 +302,7 @@ ath_hal_rf_name(struct ath_hal *ah)
 HAL_BOOL
 ath_hal_wait(struct ath_hal *ah, u_int reg, uint32_t mask, uint32_t val)
 {
-#define	AH_TIMEOUT	1000
+#define	AH_TIMEOUT	5000
 	return ath_hal_waitfor(ah, reg, mask, val, AH_TIMEOUT);
 #undef AH_TIMEOUT
 }
@@ -1113,7 +1188,6 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
     const struct ieee80211_channel *chan, int16_t *nf_ctl,
     int16_t *nf_ext)
 {
-#ifdef	AH_SUPPORT_AR5416
 	HAL_CHANNEL_INTERNAL *ichan;
 	int i;
 
@@ -1168,9 +1242,6 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		}
 		return 1;
 	}
-#else
-	return 0;
-#endif	/* AH_SUPPORT_AR5416 */
 }
 
 /*

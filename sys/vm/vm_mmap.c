@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>		/* Requires sys/signal.h, sys/uio.h */
 #include <sys/vmmeter.h>
@@ -108,6 +109,9 @@ __FBSDID("$FreeBSD$");
 int old_mlock = 0;
 SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
+static int log_wxrequests = 1;
+SYSCTL_INT(_vm, OID_AUTO, log_wxrequests, CTLFLAG_RWTUN, &log_wxrequests, 0,
+    "Log requests for PROT_WRITE and PROT_EXEC");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -155,6 +159,14 @@ ogetpagesize(struct thread *td, struct getpagesize_args *uap)
 }
 #endif				/* COMPAT_43 */
 
+static inline int
+vm_wxcheck(struct proc *p, char *call)
+{
+	if (log_wxrequests)
+		log(LOG_NOTICE, "%s(%d): W^X requested from %s\n",
+		    p->p_comm, p->p_pid, call);
+	return (0);
+}
 
 /*
  * Memory Map (mmap) system call.  Note that the file offset
@@ -199,8 +211,22 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 	vm_size_t pageoff;
 	vm_offset_t addr, max_addr;
 	vm_prot_t cap_maxprot;
-	int align, error;
+	int align, error, max_prot;
 	cap_rights_t rights;
+
+	max_prot = EXTRACT_PROT_MAX(prot);
+	prot = EXTRACT_PROT(prot);
+	if ((prot & max_prot) != prot) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: requested page permissions "
+			    "exceed requesed maximum", __func__);
+#endif
+		return (EACCES);
+	}
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    (error = vm_wxcheck(td->td_proc, "mmap")))
+		return (error);
 
 	vms = td->td_proc->p_vmspace;
 	fp = NULL;
@@ -493,7 +519,7 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 		 * This relies on VM_PROT_* matching PROT_*.
 		 */
 		error = vm_mmap_object(&vms->vm_map, &addr, max_addr, size,
-		    prot, VM_PROT_ALL, flags, NULL, pos, FALSE, td);
+		    prot, max_prot, flags, NULL, pos, FALSE, td);
 	} else {
 		/*
 		 * Mapping file, get fp for validation and don't let the
@@ -502,13 +528,13 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 		 * with maxprot later.
 		 */
 		cap_rights_init(&rights, CAP_MMAP);
-		if (prot & PROT_READ)
+		if (max_prot & PROT_READ)
 			cap_rights_set(&rights, CAP_MMAP_R);
 		if ((flags & MAP_SHARED) != 0) {
-			if (prot & PROT_WRITE)
+			if (max_prot & PROT_WRITE)
 				cap_rights_set(&rights, CAP_MMAP_W);
 		}
-		if (prot & PROT_EXEC)
+		if (max_prot & PROT_EXEC)
 			cap_rights_set(&rights, CAP_MMAP_X);
 		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
@@ -518,10 +544,19 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 			error = EINVAL;
 			goto done;
 		}
-
+		if ((max_prot & cap_maxprot) != max_prot) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: unable to map file with "
+				    "requested maximum permissions",
+				    __func__);
+#endif
+			error = EINVAL;
+			goto done;
+		}
 		/* This relies on VM_PROT_* matching PROT_*. */
 		error = fo_mmap(fp, &vms->vm_map, &addr, max_addr, size,
-		    prot, cap_maxprot, flags, pos, td);
+		    prot, max_prot & cap_maxprot, flags, pos, td);
 	}
 
 	if (error == 0)
@@ -538,8 +573,8 @@ int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
 
-	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len, uap->prot,
-	    uap->flags, uap->fd, uap->pos));
+	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
+	    PROT_MAX(PROT_ALL) | uap->prot, uap->flags, uap->fd, uap->pos));
 }
 #endif
 
@@ -593,8 +628,8 @@ ommap(struct thread *td, struct ommap_args *uap)
 		flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
 		flags |= MAP_FIXED;
-	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len, prot, flags,
-	    uap->fd, uap->pos));
+	return (kern_mmap(td, (uintptr_t)uap->addr, 0, uap->len,
+	    PROT_MAX(PROT_ALL) | prot, flags, uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
 
@@ -759,6 +794,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 {
 	vm_offset_t addr;
 	vm_size_t pageoff;
+	int error;
 
 	addr = addr0;
 	prot = (prot & VM_PROT_ALL);
@@ -768,6 +804,10 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	size = (vm_size_t) round_page(size);
 	if (addr + size < addr)
 		return (EINVAL);
+
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC) &&
+	    (error = vm_wxcheck(td->td_proc, "mprotect")))
+		return (error);
 
 	switch (vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
 	    addr + size, prot, FALSE)) {

@@ -226,6 +226,8 @@ struct ena_stats_tx {
 	counter_u64_t doorbells;
 	counter_u64_t missing_tx_comp;
 	counter_u64_t bad_req_id;
+	counter_u64_t defragment;
+	counter_u64_t defragment_err;
 };
 
 struct ena_stats_rx {
@@ -400,6 +402,10 @@ struct ena_adapter {
 	sbintime_t missing_tx_timeout;
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
+
+	/* Task updating hw stats */
+	struct task stats_task;
+	struct taskqueue *stats_tq;
 
 	/* Statistics */
 	struct ena_stats_dev dev_stats;

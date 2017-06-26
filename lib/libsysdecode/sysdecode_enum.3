@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2017
+.Dd June 3, 2017
 .Dt sysdecode_enum 3
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm sysdecode_fadvice ,
 .Nm sysdecode_fcntl_cmd ,
 .Nm sysdecode_getfsstat_mode ,
+.Nm sysdecode_getrusage_who ,
 .Nm sysdecode_idtype ,
 .Nm sysdecode_ipproto ,
 .Nm sysdecode_kldsym_cmd ,
@@ -88,6 +89,8 @@
 .Fn sysdecode_fcntl_cmd "int cmd"
 .Ft const char *
 .Fn sysdecode_getfsstat_mode "int mode"
+.Ft const char *
+.Fn sysdecode_getrusage_who "int who"
 .Ft const char *
 .Fn sysdecode_idtype "int idtype"
 .Ft const char *
@@ -188,6 +191,7 @@ Most of these functions decode an argument passed to a system call:
 .It Fn sysdecode_ptrace_request Ta Xr ptrace 2 Ta Fa request
 .It Fn sysdecode_rlimit Ta Xr getrlimit 2 Ta Fa resource
 .It Fn sysdecode_rtprio_function Ta Xr rtprio 2 Ta Fa function
+.It Fn sysdecode_getrusage_who Ta Xr getrusage 2 Ta Fa who
 .It Fn sysdecode_scheduler_policy Ta Xr sched_setscheduler 2 Ta Fa policy
 .It Fn sysdecode_semctl_cmd Ta Xr semctl 2 Ta Fa cmd
 .It Fn sysdecode_shmctl_cmd Ta Xr shmctl 2 Ta Fa cmd

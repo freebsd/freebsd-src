@@ -27,21 +27,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2015
+.Dd June 1, 2017
 .Dt GETENV 9
 .Os
 .Sh NAME
 .Nm freeenv ,
-.Nm getenv ,
+.Nm kern_getenv ,
 .Nm getenv_int ,
 .Nm getenv_long ,
 .Nm getenv_string ,
 .Nm getenv_quad ,
 .Nm getenv_uint ,
 .Nm getenv_ulong ,
-.Nm setenv ,
+.Nm kern_setenv ,
 .Nm testenv ,
-.Nm unsetenv
+.Nm kern_unsetenv
 .Nd kernel environment variable functions
 .Sh SYNOPSIS
 .In sys/param.h
@@ -49,7 +49,7 @@
 .Ft void
 .Fn freeenv "char *env"
 .Ft char *
-.Fn getenv "const char *name"
+.Fn kern_getenv "const char *name"
 .Ft int
 .Fn getenv_int "const char *name" "int *data"
 .Ft int
@@ -63,41 +63,41 @@
 .Ft int
 .Fn getenv_ulong "const char *name" "unsigned long *data"
 .Ft int
-.Fn setenv "const char *name" "const char *value"
+.Fn kern_setenv "const char *name" "const char *value"
 .Ft int
 .Fn testenv "const char *name"
 .Ft int
-.Fn unsetenv "const char *name"
+.Fn kern_unsetenv "const char *name"
 .Sh DESCRIPTION
 These functions set, unset, fetch, and parse variables from the kernel's
 environment.
 .Pp
 The
-.Fn getenv
+.Fn kern_getenv
 function obtains the current value of the kernel environment variable
 .Fa name
 and returns a pointer to the string value.
 The caller should not modify the string pointed to by the return value.
 The
-.Fn getenv
+.Fn kern_getenv
 function may allocate temporary storage,
 so the
 .Fn freeenv
 function must be called to release any allocated resources when the value
 returned by
-.Fn getenv
+.Fn kern_getenv
 is no longer needed.
 .Pp
 The
 .Fn freeenv
 function is used to release the resources allocated by a previous call to
-.Fn getenv .
+.Fn kern_getenv .
 The
 .Fa env
 argument passed to
 .Fn freeenv
 is the pointer returned by the earlier call to
-.Fn getenv .
+.Fn kern_getenv .
 Like
 .Xr free 3 ,
 the
@@ -107,7 +107,7 @@ argument can be
 in which case no action occurs.
 .Pp
 The
-.Fn setenv
+.Fn kern_setenv
 function inserts or resets the kernel environment variable
 .Fa name
 to
@@ -120,7 +120,7 @@ This function can fail if an internal limit on the number of environment
 variables is exceeded.
 .Pp
 The
-.Fn unsetenv
+.Fn kern_unsetenv
 function deletes the kernel environment variable
 .Fa name .
 .Pp
@@ -196,15 +196,15 @@ characters of its value are copied to the buffer pointed to by
 followed by a null character and a non-zero value is returned.
 .Sh RETURN VALUES
 The
-.Fn getenv
+.Fn kern_getenv
 function returns a pointer to an environment variable's value on success or
 .Dv NULL
 if the variable does not exist.
 .Pp
 The
-.Fn setenv
+.Fn kern_setenv
 and
-.Fn unsetenv
+.Fn kern_unsetenv
 functions return zero on success and -1 on failure.
 .Pp
 The

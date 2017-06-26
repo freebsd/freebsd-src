@@ -410,7 +410,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 #endif
 				return (error);
 			}
-			bzero(bp->b_data + boff, pmp->pm_bpcluster - boff);
+			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else

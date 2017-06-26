@@ -22,6 +22,7 @@ MAN=	sysdecode.3 \
 	sysdecode_quotactl_cmd.3 \
 	sysdecode_sigcode.3 \
 	sysdecode_sockopt_name.3 \
+	sysdecode_socket_protocol.3 \
 	sysdecode_syscallnames.3 \
 	sysdecode_utrace.3
 MLINKS= sysdecode_abi_to_freebsd_errno.3 sysdecode_freebsd_to_abi_errno.3
@@ -31,6 +32,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_fadvice.3 \
 	sysdecode_enum.3 sysdecode_fcntl_cmd.3 \
 	sysdecode_enum.3 sysdecode_getfsstat_mode.3 \
+	sysdecode_enum.3 sysdecode_getrusage_who.3 \
 	sysdecode_enum.3 sysdecode_idtype.3 \
 	sysdecode_enum.3 sysdecode_ipproto.3 \
 	sysdecode_enum.3 sysdecode_kldsym_cmd.3 \

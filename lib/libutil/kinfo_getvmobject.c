@@ -46,8 +46,10 @@ kinfo_getvmobject(int *cntp)
 
 	buf = NULL;
 	for (i = 0; i < 3; i++) {
-		if (sysctlbyname("vm.objects", NULL, &len, NULL, 0) < 0)
+		if (sysctlbyname("vm.objects", NULL, &len, NULL, 0) < 0) {
+			free(buf);
 			return (NULL);
+		}
 		buf = reallocf(buf, len);
 		if (buf == NULL)
 			return (NULL);

@@ -1,4 +1,4 @@
-/*	$Id: libmandoc.h,v 1.66 2017/02/18 13:43:52 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.67 2017/04/29 12:45:41 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -50,11 +50,9 @@ int		 mandoc_eos(const char *, size_t);
 int		 mandoc_strntoi(const char *, size_t, int);
 const char	*mandoc_a2msec(const char*);
 
-void		 mdoc_hash_init(void);
 int		 mdoc_parseln(struct roff_man *, int, char *, int);
 void		 mdoc_endparse(struct roff_man *);
 
-void		 man_hash_init(void);
 int		 man_parseln(struct roff_man *, int, char *, int);
 void		 man_endparse(struct roff_man *);
 

@@ -335,7 +335,7 @@ updatefats(struct msdosfsmount *pmp, struct buf *bp, u_long fatbn)
 			/* getblk() never fails */
 			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount,
 			    0, 0, 0);
-			bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
+			memcpy(bpn->b_data, bp->b_data, bp->b_bcount);
 			/* Force the clean bit on in the other copies. */
 			if (cleanfat == 16)
 				((uint8_t *)bpn->b_data)[3] |= 0x80;

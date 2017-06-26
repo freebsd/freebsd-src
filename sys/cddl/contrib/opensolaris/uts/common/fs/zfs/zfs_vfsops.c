@@ -630,7 +630,7 @@ fuidstr_to_sid(zfsvfs_t *zfsvfs, const char *fuidstr,
 	uint64_t fuid;
 	const char *domain;
 
-	fuid = strtonum(fuidstr, NULL);
+	fuid = zfs_strtonum(fuidstr, NULL);
 
 	domain = zfs_fuid_find_by_idx(zfsvfs, FUID_INDEX(fuid));
 	if (domain)
@@ -2459,8 +2459,10 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 	else
 		pname = zfs_prop_to_name(prop);
 
-	if (os != NULL)
+	if (os != NULL) {
+		ASSERT3U(os->os_phys->os_type, ==, DMU_OST_ZFS);
 		error = zap_lookup(os, MASTER_NODE_OBJ, pname, 8, 1, value);
+	}
 
 	if (error == ENOENT) {
 		/* No value set, use the default value */

@@ -33,7 +33,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"21.01.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"21.02.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -53,6 +53,7 @@
 
 #define MPS_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
 #define MPS_ATA_ID_TIMEOUT	5	/* 5 second timeout for SATA ID cmd */
+#define MPS_MISSING_CHECK_DELAY	10	/* 10 seconds between missing check */
 
 #define MPS_SCSI_RI_INVALID_FRAME	(0x00000002)
 #define MPS_STRING_LENGTH               64
@@ -70,7 +71,6 @@
 #define MPS_MAX_MISSING_COUNT	0x0F
 #define MPS_DEV_RESERVED	0x20000000
 #define MPS_MAP_IN_USE		0x10000000
-#define MPS_RAID_CHANNEL	1
 #define MPS_MAP_BAD_ID		0xFFFFFFFF
 
 /*
@@ -107,7 +107,6 @@ typedef uint64_t u64;
  * @phy_bits: bitfields indicating controller phys
  * @dpm_entry_num: index of this device in device persistent map table
  * @dev_handle: device handle for the device pointed by this entry
- * @channel: target channel
  * @id: target id
  * @missing_count: number of times the device not detected by driver
  * @hide_flag: Hide this physical disk/not (foreign configuration)
@@ -119,8 +118,7 @@ struct dev_mapping_table {
 	u32	phy_bits;
 	u16	dpm_entry_num;
 	u16	dev_handle;
-	u8	reserved1;
-	u8	channel;
+	u16	reserved1;
 	u16	id;
 	u8	missing_count;
 	u8	init_complete;
@@ -293,6 +291,7 @@ struct mps_softc {
 	struct mps_command		*commands;
 	struct mps_chain		*chains;
 	struct callout			periodic;
+	struct callout			device_check_callout;
 
 	struct mpssas_softc		*sassc;
 	char            tmp_string[MPS_STRING_LENGTH];
@@ -377,13 +376,10 @@ struct mps_softc {
 	uint8_t				max_volumes;
 	uint8_t				num_enc_table_entries;
 	uint8_t				num_rsvd_entries;
-	uint8_t				num_channels;
 	uint16_t			max_dpm_entries;
 	uint8_t				is_dpm_enable;
 	uint8_t				track_mapping_events;
 	uint32_t			pending_map_events;
-	uint8_t				mt_full_retry;
-	uint8_t				mt_add_device_failed;
 
 	/* FW diag Buffer List */
 	mps_fw_diagnostic_buffer_t
@@ -732,19 +728,18 @@ void mps_wd_config_pages(struct mps_softc *sc);
 int mps_mapping_initialize(struct mps_softc *);
 void mps_mapping_topology_change_event(struct mps_softc *,
     Mpi2EventDataSasTopologyChangeList_t *);
-int mps_mapping_is_reinit_required(struct mps_softc *);
 void mps_mapping_free_memory(struct mps_softc *sc);
 int mps_config_set_dpm_pg0(struct mps_softc *, Mpi2ConfigReply_t *,
     Mpi2DriverMappingPage0_t *, u16 );
 void mps_mapping_exit(struct mps_softc *);
-void mps_mapping_check_devices(struct mps_softc *, int);
+void mps_mapping_check_devices(void *);
 int mps_mapping_allocate_memory(struct mps_softc *sc);
-unsigned int mps_mapping_get_sas_id(struct mps_softc *, uint64_t , u16);
-unsigned int mps_mapping_get_sas_id_from_handle(struct mps_softc *sc,
+unsigned int mps_mapping_get_tid(struct mps_softc *, uint64_t , u16);
+unsigned int mps_mapping_get_tid_from_handle(struct mps_softc *sc,
     u16 handle);
-unsigned int mps_mapping_get_raid_id(struct mps_softc *sc, u64 wwid,
-    u16 handle);
-unsigned int mps_mapping_get_raid_id_from_handle(struct mps_softc *sc,
+unsigned int mps_mapping_get_raid_tid(struct mps_softc *sc, u64 wwid,
+     u16 volHandle);
+unsigned int mps_mapping_get_raid_tid_from_handle(struct mps_softc *sc,
     u16 volHandle);
 void mps_mapping_enclosure_dev_status_change_event(struct mps_softc *,
     Mpi2EventDataSasEnclDevStatusChange_t *event_data);

@@ -141,11 +141,13 @@ r92eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_vap_preattach		= rtwn_nop_softc_vap;
 	sc->sc_postattach		= rtwn_nop_softc;
 	sc->sc_detach_private		= r92e_detach_private;
-	sc->sc_set_media_status		= r92e_set_media_status;
 #ifndef RTWN_WITHOUT_UCODE
+	sc->sc_set_media_status		= r92e_set_media_status;
 	sc->sc_set_rsvd_page		= r88e_set_rsvd_page;
 	sc->sc_set_pwrmode		= r92e_set_pwrmode;
 	sc->sc_set_rssi			= rtwn_nop_softc;	/* XXX TODO? */
+#else
+	sc->sc_set_media_status		= rtwn_nop_softc_int;
 #endif
 	sc->sc_beacon_init		= r12a_beacon_init;
 	sc->sc_beacon_enable		= r92c_beacon_enable;

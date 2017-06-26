@@ -108,10 +108,7 @@ struct msdosfsmount {
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
-	uint32_t pm_nfileno;	/* next 32-bit fileno */
-	RB_HEAD(msdosfs_filenotree, msdosfs_fileno)
-	    pm_filenos; /* 64<->32-bit fileno mapping */
-	struct lock pm_fatlock;	/* lockmgr protecting allocations and rb tree */
+	struct lock pm_fatlock;	/* lockmgr protecting allocations */
 };
 
 /*
@@ -216,10 +213,6 @@ struct msdosfs_fileno {
 	 ? roottobn((pmp), (dirofs)) \
 	 : cntobn((pmp), (dirclu)))
 
-void msdosfs_fileno_init(struct mount *);
-void msdosfs_fileno_free(struct mount *);
-uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
-
 #define	MSDOSFS_LOCK_MP(pmp) \
 	lockmgr(&(pmp)->pm_fatlock, LK_EXCLUSIVE, NULL)
 #define	MSDOSFS_UNLOCK_MP(pmp) \
@@ -261,7 +254,6 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
-#define	MSDOSFS_LARGEFS		0x10000000	/* perform fileno mapping */
 #define	MSDOSFS_FSIMOD		0x01000000
 
 #endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */

@@ -257,9 +257,9 @@ AcpiTbCheckDsdtHeader (
  *
  * FUNCTION:    AcpiTbCopyDsdt
  *
- * PARAMETERS:  TableDesc           - Installed table to copy
+ * PARAMETERS:  TableIndex          - Index of installed table to copy
  *
- * RETURN:      None
+ * RETURN:      The copied DSDT
  *
  * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
  *              Some very bad BIOSs are known to either corrupt the DSDT or
@@ -368,7 +368,7 @@ AcpiTbGetRootTableEntry (
  *
  * FUNCTION:    AcpiTbParseRootTable
  *
- * PARAMETERS:  Rsdp                    - Pointer to the RSDP
+ * PARAMETERS:  RsdpAddress         - Pointer to the RSDP
  *
  * RETURN:      Status
  *

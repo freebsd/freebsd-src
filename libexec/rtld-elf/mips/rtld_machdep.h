@@ -67,11 +67,6 @@ typedef struct {
     round(prev_offset + prev_size, align)
 #define calculate_tls_end(off, size)    ((off) + (size))
 
-/*
- * Lazy binding entry point, called via PLT.
- */
-void _rtld_bind_start(void);
-
 extern void *__tls_get_addr(tls_index *ti);
 
 #define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X

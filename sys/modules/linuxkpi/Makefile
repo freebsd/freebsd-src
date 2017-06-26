@@ -11,6 +11,7 @@ SRCS=	linux_kmod.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_rcu.c \
+	linux_schedule.c \
 	linux_slab.c \
 	linux_tasklet.c \
 	linux_idr.c \

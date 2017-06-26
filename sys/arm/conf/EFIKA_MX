@@ -31,6 +31,7 @@ options 	SCHED_4BSD		# 4BSD scheduler
 #options 	MD_ROOT			# MD is a potential root device
 #options 	NFSD			# Network Filesystem Server
 options 	PLATFORM
+options 	MULTIDELAY
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
 # NFS root from boopt/dhcp

@@ -217,9 +217,11 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			switch (phy->PhyStatus & MPI2_EVENT_SAS_TOPO_RC_MASK) {
 			case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 				if (mpssas_add_device(sc,
-				    le16toh(phy->AttachedDevHandle), phy->LinkRate)){
-					printf("%s: failed to add device with "
-					    "handle 0x%x\n", __func__,
+				    le16toh(phy->AttachedDevHandle),
+				    phy->LinkRate)){
+					mps_dprint(sc, MPS_ERROR, "%s: "
+					    "failed to add device with handle "
+					    "0x%x\n", __func__,
 					    le16toh(phy->AttachedDevHandle));
 					mpssas_prepare_remove(sassc, le16toh(
 						phy->AttachedDevHandle));
@@ -283,8 +285,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 
 		element =
 		    (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
-		id = mps_mapping_get_raid_id_from_handle
-		    (sc, element->VolDevHandle);
+		id = mps_mapping_get_raid_tid_from_handle(sc,
+		    element->VolDevHandle);
 
 		mps_mapping_ir_config_change_event(sc, event_data);
 
@@ -293,7 +295,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			case MPI2_EVENT_IR_CHANGE_RC_VOLUME_CREATED:
 			case MPI2_EVENT_IR_CHANGE_RC_ADDED:
 				if (!foreign_config) {
-					if (mpssas_volume_add(sc, le16toh(element->VolDevHandle))){
+					if (mpssas_volume_add(sc,
+					    le16toh(element->VolDevHandle))){
 						printf("%s: failed to add RAID "
 						    "volume with handle 0x%x\n",
 						    __func__, le16toh(element->
@@ -333,12 +336,16 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				 * Phys Disk of a volume has been created.  Hide
 				 * it from the OS.
 				 */
-				targ = mpssas_find_target_by_handle(sassc, 0, element->PhysDiskDevHandle);
+				targ = mpssas_find_target_by_handle(sassc, 0,
+				    element->PhysDiskDevHandle);
 				if (targ == NULL) 
 					break;
 				
-				/* Set raid component flags only if it is not WD.
-				 * OR WrapDrive with WD_HIDE_ALWAYS/WD_HIDE_IF_VOLUME is set in NVRAM
+				/*
+				 * Set raid component flags only if it is not
+				 * WD. OR WrapDrive with
+				 * WD_HIDE_ALWAYS/WD_HIDE_IF_VOLUME is set in
+				 * NVRAM
 				 */
 				if((!sc->WD_available) ||
 				((sc->WD_available && 
@@ -674,10 +681,17 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	 *  1 - use the PhyNum field as a fallback to the mapping logic
 	 *  0 - never use the PhyNum field
 	 * -1 - only use the PhyNum field
+	 *
+	 * Note that using the Phy number to map a device can cause device adds
+	 * to fail if multiple enclosures/expanders are in the topology. For
+	 * example, if two devices are in the same slot number in two different
+	 * enclosures within the topology, only one of those devices will be
+	 * added. PhyNum mapping should not be used if multiple enclosures are
+	 * in the topology.
 	 */
 	id = MPS_MAP_BAD_ID;
 	if (sc->use_phynum != -1) 
-		id = mps_mapping_get_sas_id(sc, sas_address, handle);
+		id = mps_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPS_MAP_BAD_ID) {
 		if ((sc->use_phynum == 0)
 		 || ((id = config_page.PhyNum) > sassc->maxtargets)) {
@@ -688,19 +702,31 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 			goto out;
 		}
 	}
+	mps_dprint(sc, MPS_MAPPING, "%s: Target ID for added device is %d.\n",
+	    __func__, id);
 
-	if (mpssas_check_id(sassc, id) != 0) {
-		device_printf(sc->mps_dev, "Excluding target id %d\n", id);
-		error = ENXIO;
-		goto out;
-	}
-
+	/*
+	 * Only do the ID check and reuse check if the target is not from a
+	 * RAID Component. For Physical Disks of a Volume, the ID will be reused
+	 * when a volume is deleted because the mapping entry for the PD will
+	 * still be in the mapping table. The ID check should not be done here
+	 * either since this PD is already being used.
+	 */
 	targ = &sassc->targets[id];
-	if (targ->handle != 0x0) {
-		mps_dprint(sc, MPS_MAPPING, "Attempting to reuse target id "
-		    "%d handle 0x%04x\n", id, targ->handle);
-		error = ENXIO;
-		goto out;
+	if (!(targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT)) {
+		if (mpssas_check_id(sassc, id) != 0) {
+			device_printf(sc->mps_dev, "Excluding target id %d\n",
+			    id);
+			error = ENXIO;
+			goto out;
+		}
+
+		if (targ->handle != 0x0) {
+			mps_dprint(sc, MPS_MAPPING, "Attempting to reuse "
+			    "target id %d handle 0x%04x\n", id, targ->handle);
+			error = ENXIO;
+			goto out;
+		}
 	}
 
 	mps_dprint(sc, MPS_MAPPING, "SAS Address from SAS device page0 = %jx\n",
@@ -787,7 +813,6 @@ out:
 	}
 	mpssas_startup_decrement(sassc);
 	return (error);
-	
 }
 	
 int
@@ -1040,7 +1065,7 @@ mpssas_volume_add(struct mps_softc *sc, u16 handle)
 		goto out;
 	}
 
-	id = mps_mapping_get_raid_id(sc, wwid, handle);
+	id = mps_mapping_get_raid_tid(sc, wwid, handle);
 	if (id == MPS_MAP_BAD_ID) {
 		printf("%s: could not get ID for volume with handle 0x%04x and "
 		    "WWID 0x%016llx\n", __func__, handle,
@@ -1099,7 +1124,7 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
 	 */
 	sc->SSU_started = TRUE;
 	sc->SSU_refcount = 0;
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;
@@ -1281,7 +1306,7 @@ out:
 	 * 3: enable to SSD and HDD
 	 * anything else will default to 1.
 	 */
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+	for (targetid = 0; targetid < sc->max_devices; targetid++) {
 		target = &sc->sassc->targets[targetid];
 		if (target->handle == 0x0) {
 			continue;

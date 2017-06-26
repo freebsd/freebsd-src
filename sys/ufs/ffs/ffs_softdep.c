@@ -901,6 +901,7 @@ static	int pagedep_find(struct pagedep_hashhead *, ino_t, ufs_lbn_t,
 	    struct pagedep **);
 static	void pause_timer(void *);
 static	int request_cleanup(struct mount *, int);
+static	int softdep_request_cleanup_flush(struct mount *, struct ufsmount *);
 static	void schedule_cleanup(struct mount *);
 static void softdep_ast_cleanup_proc(struct thread *);
 static	int process_worklist_item(struct mount *, int, int);
@@ -13274,10 +13275,9 @@ softdep_request_cleanup(fs, vp, cred, resource)
 {
 	struct ufsmount *ump;
 	struct mount *mp;
-	struct vnode *lvp, *mvp;
 	long starttime;
 	ufs2_daddr_t needed;
-	int error;
+	int error, failed_vnode;
 
 	/*
 	 * If we are being called because of a process doing a
@@ -13368,41 +13368,88 @@ retry:
 	 * to the worklist that we can then process to reap addition
 	 * resources. We walk the vnodes associated with the mount point
 	 * until we get the needed worklist requests that we can reap.
+	 *
+	 * If there are several threads all needing to clean the same
+	 * mount point, only one is allowed to walk the mount list.
+	 * When several threads all try to walk the same mount list,
+	 * they end up competing with each other and often end up in
+	 * livelock. This approach ensures that forward progress is
+	 * made at the cost of occational ENOSPC errors being returned
+	 * that might otherwise have been avoided.
 	 */
+	error = 1;
 	if ((resource == FLUSH_BLOCKS_WAIT && 
 	     fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
 	     fs->fs_cstotal.cs_nifree <= needed)) {
-		MNT_VNODE_FOREACH_ALL(lvp, mp, mvp) {
-			if (TAILQ_FIRST(&lvp->v_bufobj.bo_dirty.bv_hd) == 0) {
-				VI_UNLOCK(lvp);
-				continue;
+		ACQUIRE_LOCK(ump);
+		if ((ump->um_softdep->sd_flags & FLUSH_RC_ACTIVE) == 0) {
+			ump->um_softdep->sd_flags |= FLUSH_RC_ACTIVE;
+			FREE_LOCK(ump);
+			failed_vnode = softdep_request_cleanup_flush(mp, ump);
+			ACQUIRE_LOCK(ump);
+			ump->um_softdep->sd_flags &= ~FLUSH_RC_ACTIVE;
+			FREE_LOCK(ump);
+			if (ump->softdep_on_worklist > 0) {
+				stat_cleanup_retries += 1;
+				if (!failed_vnode)
+					goto retry;
 			}
-			if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
-			    curthread))
-				continue;
-			if (lvp->v_vflag & VV_NOSYNC) {	/* unlinked */
-				vput(lvp);
-				continue;
-			}
-			(void) ffs_syncvnode(lvp, MNT_NOWAIT, 0);
-			vput(lvp);
-		}
-		lvp = ump->um_devvp;
-		if (vn_lock(lvp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
-			VOP_FSYNC(lvp, MNT_NOWAIT, curthread);
-			VOP_UNLOCK(lvp, 0);
-		}
-		if (ump->softdep_on_worklist > 0) {
-			stat_cleanup_retries += 1;
-			goto retry;
+		} else {
+			FREE_LOCK(ump);
+			error = 0;
 		}
 		stat_cleanup_failures += 1;
 	}
 	if (time_second - starttime > stat_cleanup_high_delay)
 		stat_cleanup_high_delay = time_second - starttime;
 	UFS_LOCK(ump);
-	return (1);
+	return (error);
+}
+
+/*
+ * Scan the vnodes for the specified mount point flushing out any
+ * vnodes that can be locked without waiting. Finally, try to flush
+ * the device associated with the mount point if it can be locked
+ * without waiting.
+ *
+ * We return 0 if we were able to lock every vnode in our scan.
+ * If we had to skip one or more vnodes, we return 1.
+ */
+static int
+softdep_request_cleanup_flush(mp, ump)
+	struct mount *mp;
+	struct ufsmount *ump;
+{
+	struct thread *td;
+	struct vnode *lvp, *mvp;
+	int failed_vnode;
+
+	failed_vnode = 0;
+	td = curthread;
+	MNT_VNODE_FOREACH_ALL(lvp, mp, mvp) {
+		if (TAILQ_FIRST(&lvp->v_bufobj.bo_dirty.bv_hd) == 0) {
+			VI_UNLOCK(lvp);
+			continue;
+		}
+		if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
+		    td) != 0) {
+			failed_vnode = 1;
+			continue;
+		}
+		if (lvp->v_vflag & VV_NOSYNC) {	/* unlinked */
+			vput(lvp);
+			continue;
+		}
+		(void) ffs_syncvnode(lvp, MNT_NOWAIT, 0);
+		vput(lvp);
+	}
+	lvp = ump->um_devvp;
+	if (vn_lock(lvp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+		VOP_FSYNC(lvp, MNT_NOWAIT, td);
+		VOP_UNLOCK(lvp, 0);
+	}
+	return (failed_vnode);
 }
 
 static bool

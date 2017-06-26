@@ -61,7 +61,27 @@ int
 blacklist_sa_r(struct blacklist *bl, int action, int rfd,
 	const struct sockaddr *sa, socklen_t slen, const char *msg)
 {
-	return bl_send(bl, action ? BL_ADD : BL_DELETE, rfd, sa, slen, msg);
+	int internal_action;
+
+	/* internal values are not the same as user application values */
+	switch (action) {
+	case BLACKLIST_AUTH_FAIL:
+		internal_action = BL_ADD;
+		break;
+	case BLACKLIST_AUTH_OK:
+		internal_action = BL_DELETE;
+		break;
+	case BLACKLIST_ABUSIVE_BEHAVIOR:
+		internal_action = BL_ABUSE;
+		break;
+	case BLACKLIST_BAD_USER:
+		internal_action = BL_BADUSER;
+		break;
+	default:
+		internal_action = BL_INVALID;
+		break;
+	}
+	return bl_send(bl, internal_action, rfd, sa, slen, msg);
 }
 
 int

@@ -2446,10 +2446,6 @@ init386(int first)
 	gdp->gd_p = 1;
 	gdp->gd_hioffset = x >> 16;
 
-	/* XXX does this work? */
-	/* XXX yes! */
-	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
-
 	/* transfer to user mode */
 
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);

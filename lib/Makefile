@@ -137,7 +137,6 @@ SUBDIR.${MK_CASPER}+=	libcasper
 SUBDIR.${MK_CHERI}+=	libhelloworld
 SUBDIR.${MK_CHERI}+=	libsyscalls
 SUBDIR.${MK_CHERI}+=	libz-cheri
-SUBDIR.${MK_CHERI}+=	libcurl
 SUBDIR.${MK_CHERI}+=	libjpeg
 SUBDIR.${MK_CHERI}+=	libpng_sb
 
@@ -174,7 +173,7 @@ _libclang_rt=	libclang_rt
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.if ${MACHINE_CPUARCH} != "arm"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 _libcplusplus+=	libc++experimental
 .endif
 .endif

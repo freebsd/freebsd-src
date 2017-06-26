@@ -87,10 +87,9 @@ parse(char *arg, char **param, char **value, int *len)
 			return (EINVAL);
 		if (*len <= 0 || *len > PATH_MAX)
 			return (EINVAL);
-		*value = malloc(*len);
+		*value = calloc(*len, sizeof(char));
 		if (*value == NULL)
 			return (ENOMEM);
-		memset(*value, 0, *len);
 		if (equal != NULL) {
 			if (strlen(equal) >= PATH_MAX)
 				return (ENOMEM);
@@ -118,7 +117,6 @@ main(int argc, char *argv[])
 
 	req = gctl_get_handle();
 	assert(req != NULL);
-	gctl_ro_param(req, "class", -1, "PART");
 
 	while ((c = getopt(argc, argv, "v")) != -1) {
 		switch (c) {

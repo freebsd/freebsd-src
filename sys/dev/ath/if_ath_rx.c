@@ -569,7 +569,8 @@ ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
 	rix = rt->rateCodeToIndex[rs->rs_rate];
 	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
-#ifdef AH_SUPPORT_AR5416
+
+	/* 802.11 specific flags */
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
 	if (rs->rs_status & HAL_RXERR_PHY) {
 		/*
@@ -592,11 +593,11 @@ ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
 		else
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		if ((rs->rs_flags & HAL_RX_GI) == 0)
+
+		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 
-#endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
@@ -654,8 +655,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 	 */
 	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
 
-	/* These aren't specifically errors */
-#ifdef	AH_SUPPORT_AR5416
+	/* 802.11 return codes - These aren't specifically errors */
 	if (rs->rs_flags & HAL_RX_GI)
 		sc->sc_stats.ast_rx_halfgi++;
 	if (rs->rs_flags & HAL_RX_2040)
@@ -670,7 +670,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 		sc->sc_stats.ast_rx_hi_rx_chain++;
 	if (rs->rs_flags & HAL_RX_STBC)
 		sc->sc_stats.ast_rx_stbc++;
-#endif /* AH_SUPPORT_AR5416 */
 
 	if (rs->rs_status != 0) {
 		if (rs->rs_status & HAL_RXERR_CRC)
@@ -906,11 +905,8 @@ rx_accept:
 			IEEE80211_KEYIX_NONE : rs->rs_keyix);
 	sc->sc_lastrs = rs;
 
-#ifdef	AH_SUPPORT_AR5416
 	if (rs->rs_isaggr)
 		sc->sc_stats.ast_rx_agg++;
-#endif /* AH_SUPPORT_AR5416 */
-
 
 	/*
 	 * Populate the per-chain RSSI values where appropriate.

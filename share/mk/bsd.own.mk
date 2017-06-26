@@ -119,6 +119,18 @@
 #
 # PKG_CMD	Program for creating and manipulating packages.
 #               [pkg] 
+#
+# LINKOWN	Hard link owner [${BINOWN}]
+#
+# LINKGRP	Hard link group [${BINGRP}]
+#
+# LINKMODE	Hard link mode [${NOBINMODE}]
+#
+# SYMLINKOWN	Symbolic link owner [${BINOWN} or ${LIBOWN}]
+#
+# SYMLINKGRP	Symbolic link group [${BINGRP} or ${LIBGRP}]
+#
+# SYMLINKMODE	Symbolic link mode [755]
 
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
@@ -134,31 +146,6 @@ CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
-
-.if ${MK_INSTALL_AS_USER} != "no"
-.if !defined(_uid)
-_uid!=	id -u
-.export _uid
-.endif
-.if ${_uid} != 0
-.if !defined(USER)
-# Avoid exporting USER
-.if !defined(_USER)
-_USER!=	id -un
-.export _USER
-.endif
-USER=	${_USER}
-.endif
-.if !defined(_gid)
-_gid!=	id -g
-.export _gid
-.endif
-.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${USER}
-$xGRP=	${_gid}
-.endfor
-.endif
-.endif
 
 .endif # !_WITHOUT_SRCCONF
 
@@ -227,12 +214,22 @@ INCLUDEDIR?=	/usr/include
 #
 # install(1) parameters.
 #
-HRDLINK?=	-l h
-SYMLINK?=	-l s
-RSYMLINK?=	-l rs
+_LINKOWN?=	${LINKOWN:U${BINOWN}}
+_LINKGRP?=	${LINKGRP:U${BINGRP}}
+_LINKMODE?=	${LINKMODE:U${NOBINMODE}}
+_SYMLINKOWN?=	${SYMLINKOWN:U${BINOWN}}
+_SYMLINKGRP?=	${SYMLINKGRP:U${BINGRP}}
+_SYMLINKMODE?=	${SYMLINKMODE:U755}
+HRDLINK?=	-l h -o ${_LINKOWN} -g ${_LINKGRP} -m ${_LINKMODE}
+MANHRDLINK?=	-l h -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+SYMLINK?=	-l s -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
+LSYMLINK?=	-l s -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE}
+RSYMLINK?=	-l rs -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
 
 INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_MANLINK?=	${INSTALL} ${MANHRDLINK}
 INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_LIBSYMLINK?=	${INSTALL} ${LSYMLINK}
 INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 
 # Common variables

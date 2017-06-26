@@ -243,7 +243,7 @@ wtmp(void)
 	/* Display them in reverse order. */
 	while (amount > 0)
 		doentry(&buf[--amount]);
-
+	free(buf);
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), "%+", tm);
 	printf("\n%s begins %s\n", ((file == NULL) ? "utx.log" : file), ct);

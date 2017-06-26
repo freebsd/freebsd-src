@@ -6,11 +6,14 @@ SHLIB_MAJOR=	1
 SRCS=	terasic_mtl.c syscons-fonts.c
 
 INCS=	terasic_mtl.h
-
-.PATH:  ${.CURDIR}/../../../usr.sbin/vidcontrol
-CFLAGS+=	-I${.CURDIR}/../../../usr.sbin/vidcontrol
+.PATH:  ${SRCTOP}/usr.sbin/vidcontrol
+CFLAGS+=	-I${SRCTOP}/usr.sbin/vidcontrol
+CFLAGS+=	-I${SRCTOP}/contrib/libpng
+CFLAGS+=	-I${SRCTOP}/lib/libpng
 SRCS+=  	decode.c
 
 SUBDIR=	images
+
+LIBADD=	png
 
 .include <bsd.lib.mk>

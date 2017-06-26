@@ -152,7 +152,7 @@ gpt_write_pmbr(lba_t blks, void *bootcode)
 	uint32_t secs;
 	int error;
 
-	secs = (blks > UINT32_MAX) ? UINT32_MAX : (uint32_t)blks;
+	secs = (blks > UINT32_MAX) ? UINT32_MAX : (uint32_t)blks - 1;
 
 	pmbr = malloc(secsz);
 	if (pmbr == NULL)

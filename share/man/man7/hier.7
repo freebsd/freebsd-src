@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2017
+.Dd June 10, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -297,10 +297,6 @@ C include files for NFS (Network File System) version 2 and 3 (legacy)
 OpenSSL (Cryptography/SSL toolkit) headers
 .It Pa protocols/
 C include files for Berkeley service protocols
-.It Pa readline/
-get a line from a user, with editing;
-see
-.Xr readline 3
 .It Pa rpc/
 remote procedure calls;
 see
@@ -469,8 +465,6 @@ association)
 Frequently Asked Questions
 .It Pa IPv6/
 implementation notes for IPv6
-.It Pa bind/
-documents pertaining to BIND (the Berkeley Internet Name Domain)
 .It Pa es/
 Spanish translations of documents in /usr/share/doc
 .It Pa handbook/
@@ -486,19 +480,11 @@ see
 .Xr ncurses 3
 .It Pa ntp/
 HTML documents pertaining to the Network Time Protocol
-.It Pa papers/
-UNIX Papers
-.It Pa psd/
-UNIX Programmer's Supplementary Documents
 .It Pa ru/
 Russian translations of documents in /usr/share/doc
-.It Pa smm/
-UNIX System Manager's Manual
 .It Pa tutorials/
 .Fx
 tutorials
-.It Pa usd/
-UNIX User's Supplementary Documents
 .It Pa zh/
 Chinese translations of documents in /usr/share/doc
 .El
@@ -509,8 +495,6 @@ various examples for users and programmers
 firmware images loaded by userland programs
 .It Pa games/
 ASCII text files used by various games
-.It Pa groff_font/
-device description file for device name
 .It Pa keys/
 known trusted and revoked keys.
 .Bl -tag -width "pkg/" -compact
@@ -527,10 +511,6 @@ see
 .Xr setlocale 3
 .It Pa man/
 manual pages
-.It Pa me/
-macros for use with the me macro package;
-see
-.Xr me 7
 .It Pa misc/
 miscellaneous system-wide ASCII text files
 .Bl -tag -width Fl -compact
@@ -593,12 +573,6 @@ tab description files for a variety of terminals; used in
 the termcap file;
 see
 .Xr termcap 5
-.It Pa tmac/
-text processing macros;
-see
-.Xr nroff 1
-and
-.Xr troff 1
 .It Pa vi/
 localization support and utilities for
 .Xr vi 1
@@ -676,7 +650,7 @@ source for files in
 .Pa /usr/share
 .It Pa sys/
 kernel source code
-.Bl -tag -width ".Pa opencrypto/" -compact
+.Bl -tag -width "opencrypto/" -compact
 .It Pa amd64/
 AMD64 architecture support
 .It Pa arm/

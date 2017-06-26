@@ -33,7 +33,7 @@
 #ifndef _MPRVAR_H
 #define _MPRVAR_H
 
-#define MPR_DRIVER_VERSION	"15.02.00.00-fbsd"
+#define MPR_DRIVER_VERSION	"15.03.00.00-fbsd"
 
 #define MPR_DB_MAX_WAIT		2500
 
@@ -69,6 +69,7 @@
 
 #define MPR_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
 #define MPR_ATA_ID_TIMEOUT	5	/* 5 second timeout for SATA ID cmd */
+#define MPR_MISSING_CHECK_DELAY	10	/* 10 seconds between missing check */
 
 #define	IFAULT_IOP_OVER_TEMP_THRESHOLD_EXCEEDED	0x2810
 
@@ -88,7 +89,6 @@
 #define MPR_MAX_MISSING_COUNT	0x0F
 #define MPR_DEV_RESERVED	0x20000000
 #define MPR_MAP_IN_USE		0x10000000
-#define MPR_RAID_CHANNEL	1
 #define MPR_MAP_BAD_ID		0xFFFFFFFF
 
 typedef uint8_t u8;
@@ -103,7 +103,6 @@ typedef uint64_t u64;
  * @phy_bits: bitfields indicating controller phys
  * @dpm_entry_num: index of this device in device persistent map table
  * @dev_handle: device handle for the device pointed by this entry
- * @channel: target channel
  * @id: target id
  * @missing_count: number of times the device not detected by driver
  * @hide_flag: Hide this physical disk/not (foreign configuration)
@@ -116,8 +115,7 @@ struct dev_mapping_table {
 	u32	phy_bits;
 	u16	dpm_entry_num;
 	u16	dev_handle;
-	u8	reserved1;
-	u8	channel;
+	u16	reserved1;
 	u16	id;
 	u8	missing_count;
 	u8	init_complete;
@@ -306,6 +304,7 @@ struct mpr_softc {
 	struct mpr_chain		*chains;
 	struct mpr_prp_page		*prps;
 	struct callout			periodic;
+	struct callout			device_check_callout;
 
 	struct mprsas_softc		*sassc;
 	char            tmp_string[MPR_STRING_LENGTH];
@@ -397,13 +396,10 @@ struct mpr_softc {
 	uint8_t				max_volumes;
 	uint8_t				num_enc_table_entries;
 	uint8_t				num_rsvd_entries;
-	uint8_t				num_channels;
 	uint16_t			max_dpm_entries;
 	uint8_t				is_dpm_enable;
 	uint8_t				track_mapping_events;
 	uint32_t			pending_map_events;
-	uint8_t				mt_full_retry;
-	uint8_t				mt_add_device_failed;
 
 	/* FW diag Buffer List */
 	mpr_fw_diagnostic_buffer_t
@@ -774,19 +770,18 @@ void mpr_mapping_topology_change_event(struct mpr_softc *,
     Mpi2EventDataSasTopologyChangeList_t *);
 void mpr_mapping_pcie_topology_change_event(struct mpr_softc *sc,
     Mpi26EventDataPCIeTopologyChangeList_t *event_data);
-int mpr_mapping_is_reinit_required(struct mpr_softc *);
 void mpr_mapping_free_memory(struct mpr_softc *sc);
 int mpr_config_set_dpm_pg0(struct mpr_softc *, Mpi2ConfigReply_t *,
     Mpi2DriverMappingPage0_t *, u16 );
 void mpr_mapping_exit(struct mpr_softc *);
-void mpr_mapping_check_devices(struct mpr_softc *, int);
+void mpr_mapping_check_devices(void *);
 int mpr_mapping_allocate_memory(struct mpr_softc *sc);
-unsigned int mpr_mapping_get_sas_id(struct mpr_softc *, uint64_t , u16);
-unsigned int mpr_mapping_get_sas_id_from_handle(struct mpr_softc *sc,
+unsigned int mpr_mapping_get_tid(struct mpr_softc *, uint64_t , u16);
+unsigned int mpr_mapping_get_tid_from_handle(struct mpr_softc *sc,
     u16 handle);
-unsigned int mpr_mapping_get_raid_id(struct mpr_softc *sc, u64 wwid,
-    u16 handle);
-unsigned int mpr_mapping_get_raid_id_from_handle(struct mpr_softc *sc,
+unsigned int mpr_mapping_get_raid_tid(struct mpr_softc *sc, u64 wwid,
+    u16 volHandle);
+unsigned int mpr_mapping_get_raid_tid_from_handle(struct mpr_softc *sc,
     u16 volHandle);
 void mpr_mapping_enclosure_dev_status_change_event(struct mpr_softc *,
     Mpi2EventDataSasEnclDevStatusChange_t *event_data);

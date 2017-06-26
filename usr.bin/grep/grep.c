@@ -78,7 +78,7 @@ const char	*errstr[] = {
 };
 
 /* Flags passed to regcomp() and regexec() */
-int		 cflags = REG_NOSUB;
+int		 cflags = REG_NOSUB | REG_NEWLINE;
 int		 eflags = REG_STARTEND;
 
 /* XXX TODO: Get rid of this flag.

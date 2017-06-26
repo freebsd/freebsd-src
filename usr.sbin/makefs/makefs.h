@@ -151,6 +151,7 @@ typedef struct makefs_fsinfo {
 	off_t	maxsize;	/* maximum size image can be */
 	off_t	freefiles;	/* free file entries to leave */
 	off_t	freeblocks;	/* free blocks to leave */
+	off_t	offset;		/* offset from start of file */
 	off_t	roundup;	/* round image size up to this value */
 	int	freefilepc;	/* free file % */
 	int	freeblockpc;	/* free block % */

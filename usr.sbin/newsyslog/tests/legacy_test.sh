@@ -2,6 +2,15 @@
 
 # $FreeBSD$
 
+# A regular expression matching the format of an RFC-5424 log line header,
+# including the timestamp up through the seconds indicator; it does not include
+# the (optional) timezone offset.
+RFC5424_FMT='^<[0-9][0-9]*>1 [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'
+
+# A regular expression matching the format of an RFC-3164 (traditional syslog)
+# log line header, including the timestamp.
+RFC3164_FMT='^[A-Z][a-z]{2} [ 0-9][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2}'
+
 COUNT=0
 TMPDIR=$(pwd)/work
 if [ $? -ne 0 ]; then
@@ -98,6 +107,32 @@ ckntfe()
 	fi
 }
 
+# Verify that the specified file has RFC-5424 rotation messages.
+ckrfc5424()
+{
+	local lc=$(wc -l $1 | cut -w -f2)
+	local rc=$(grep -cE "${RFC5424_FMT}" $1)
+	if [ "$lc" -eq 0 -o "$rc" -eq 0 -o "$lc" -ne "$rc" ]
+	then
+		notok
+	else
+		ok
+	fi
+}
+
+
+# Verify that the specified file has RFC-3164 rotation messages.
+ckrfc3164()
+{
+	local lc=$(wc -l $1 | cut -w -f2)
+	local rc=$(grep -cE "${RFC3164_FMT}" $1)
+	if [ "$lc" -eq 0 -o "$rc" -eq 0 -o "$lc" -ne "$rc" ]
+	then
+		notok
+	else
+		ok
+	fi
+}
 
 
 # A part of a test succeeds
@@ -345,9 +380,6 @@ tests_time_rotate() {
 
 	sleep 1.1
 
-	(
-	TODO="rotate time 2-4 fail today; bug 212160"
-
 	begin "rotate time 2 ${name_postfix}"
 	run_newsyslog ${newsyslog_args}
 	ckfe ${LOGFNAME}
@@ -369,7 +401,6 @@ tests_time_rotate() {
 	ckfe ${LOGFNAME}
 	chkfcnt 3 ${dir}${LOGFNAME}.*${ext}
 	end
-	)
 
 	begin "noaction ${name_postfix}"
 	ofiles=`ls -1 ${dir}${LOGFNAME}.*${ext} | tr -d '\n'`
@@ -381,12 +412,55 @@ tests_time_rotate() {
 	tmpdir_clean
 }
 
-echo 1..126
+tests_rfc5424() {
+	ext="$1"
+	dir="$2"
+
+	if [ -n "$dir" ]; then
+		newsyslog_args=" -a ${dir}"
+		name_postfix="${ext} archive dir"
+	else
+		newsyslog_args=""
+		name_postfix="${ext}"
+	fi
+
+	tmpdir_create
+
+	begin "RFC-5424 - create file ${name_postfix}" -newdir
+	run_newsyslog -C
+	ckfe $LOGFNAME
+	cknt ${dir}${LOGFNAME}.0${ext}
+	ckfe $LOGFNAME5424
+	cknt ${dir}${LOGFNAME5424}.0${ext}
+        ckrfc3164 ${LOGFNAME}
+        ckrfc5424 ${LOGFNAME5424}
+	end
+
+	begin "RFC-5424 - rotate normal 1 ${name_postfix}"
+	run_newsyslog $newsyslog_args
+	ckfe ${LOGFNAME}
+	ckfe ${dir}${LOGFNAME}.0${ext}
+	ckfe $LOGFNAME5424
+	ckfe ${dir}${LOGFNAME5424}.0${ext}
+        ckrfc3164 ${LOGFNAME}
+        ckrfc3164 ${dir}${LOGFNAME}.0${ext}
+        ckrfc5424 ${LOGFNAME5424}
+        ckrfc5424 ${dir}${LOGFNAME5424}.0${ext}
+	end
+
+	tmpdir_clean
+}
+
+echo 1..128
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
 LOGFNAME=foo.log
 LOGFPATH=${TMPDIR}/log/${LOGFNAME}
+
+# Log file for RFC-5424 testing
+LOGFNAME5424=foo5424.log
+LOGFPATH5424=${TMPDIR}/log/${LOGFNAME5424}
 
 # Normal, no archive dir, keep X files
 echo "$LOGFPATH	640  0	   *	@T00  NC" > newsyslog.conf
@@ -453,5 +527,10 @@ tests_time_rotate "gz" "${TMPDIR}/alog/"
 
 echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_time_rotate "bz2" "${TMPDIR}/alog/"
+
+# RFC-5424; Normal, no archive dir
+echo "$LOGFPATH5424	640  3	   *	@T00  NCT" > newsyslog.conf
+echo "$LOGFPATH	640  3	   *	@T00  NC" >> newsyslog.conf
+tests_rfc5424
 
 rm -rf "${TMPDIR}"

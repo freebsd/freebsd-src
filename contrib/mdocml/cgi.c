@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.147 2017/02/08 13:34:27 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.154 2017/04/19 01:00:03 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
@@ -76,11 +76,12 @@ static	void		 pg_error_badrequest(const char *);
 static	void		 pg_error_internal(void);
 static	void		 pg_index(const struct req *);
 static	void		 pg_noresult(const struct req *, const char *);
+static	void		 pg_redirect(const struct req *, const char *);
 static	void		 pg_search(const struct req *);
 static	void		 pg_searchres(const struct req *,
 				struct manpage *, size_t);
 static	void		 pg_show(struct req *, const char *);
-static	void		 resp_begin_html(int, const char *);
+static	void		 resp_begin_html(int, const char *, const char *);
 static	void		 resp_begin_http(int, const char *);
 static	void		 resp_catman(const struct req *, const char *);
 static	void		 resp_copy(const char *);
@@ -345,8 +346,9 @@ resp_copy(const char *filename)
 }
 
 static void
-resp_begin_html(int code, const char *msg)
+resp_begin_html(int code, const char *msg, const char *file)
 {
+	char	*cp;
 
 	resp_begin_http(code, msg);
 
@@ -356,10 +358,20 @@ resp_begin_html(int code, const char *msg)
 	       "  <meta charset=\"UTF-8\"/>\n"
 	       "  <link rel=\"stylesheet\" href=\"%s/mandoc.css\""
 	       " type=\"text/css\" media=\"all\">\n"
-	       "  <title>%s</title>\n"
+	       "  <title>",
+	       CSS_DIR);
+	if (file != NULL) {
+		if ((cp = strrchr(file, '/')) != NULL)
+			file = cp + 1;
+		if ((cp = strrchr(file, '.')) != NULL) {
+			printf("%.*s(%s) - ", (int)(cp - file), file, cp + 1);
+		} else
+			printf("%s - ", file);
+	}
+	printf("%s</title>\n"
 	       "</head>\n"
 	       "<body>\n",
-	       CSS_DIR, CUSTOMIZE_TITLE);
+	       CUSTOMIZE_TITLE);
 
 	resp_copy(MAN_DIR "/header.html");
 }
@@ -492,7 +504,7 @@ static void
 pg_index(const struct req *req)
 {
 
-	resp_begin_html(200, NULL);
+	resp_begin_html(200, NULL, NULL);
 	resp_searchform(req, FOCUS_QUERY);
 	printf("<p>\n"
 	       "This web interface is documented in the\n"
@@ -509,7 +521,7 @@ pg_index(const struct req *req)
 static void
 pg_noresult(const struct req *req, const char *msg)
 {
-	resp_begin_html(200, NULL);
+	resp_begin_html(200, NULL, NULL);
 	resp_searchform(req, FOCUS_QUERY);
 	puts("<p>");
 	puts(msg);
@@ -521,7 +533,7 @@ static void
 pg_error_badrequest(const char *msg)
 {
 
-	resp_begin_html(400, "Bad Request");
+	resp_begin_html(400, "Bad Request", NULL);
 	puts("<h1>Bad Request</h1>\n"
 	     "<p>\n");
 	puts(msg);
@@ -534,9 +546,26 @@ pg_error_badrequest(const char *msg)
 static void
 pg_error_internal(void)
 {
-	resp_begin_html(500, "Internal Server Error");
+	resp_begin_html(500, "Internal Server Error", NULL);
 	puts("<p>Internal Server Error</p>");
 	resp_end_html();
+}
+
+static void
+pg_redirect(const struct req *req, const char *name)
+{
+	printf("Status: 303 See Other\r\n"
+	    "Location: /");
+	if (*scriptname != '\0')
+		printf("%s/", scriptname);
+	if (strcmp(req->q.manpath, req->p[0]))
+		printf("%s/", req->q.manpath);
+	if (req->q.arch != NULL)
+		printf("%s/", req->q.arch);
+	printf("%s", name);
+	if (req->q.sec != NULL)
+		printf(".%s", req->q.sec);
+	printf("\r\nContent-Type: text/html; charset=utf-8\r\n\r\n");
 }
 
 static void
@@ -562,37 +591,16 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 		 * If we have just one result, then jump there now
 		 * without any delay.
 		 */
-		printf("Status: 303 See Other\r\n");
-		printf("Location: http://%s/%s%s%s/%s",
-		    HTTP_HOST, scriptname,
-		    *scriptname == '\0' ? "" : "/",
-		    req->q.manpath, r[0].file);
-		printf("\r\n"
-		     "Content-Type: text/html; charset=utf-8\r\n"
-		     "\r\n");
+		printf("Status: 303 See Other\r\n"
+		    "Location: /");
+		if (*scriptname != '\0')
+			printf("%s/", scriptname);
+		if (strcmp(req->q.manpath, req->p[0]))
+			printf("%s/", req->q.manpath);
+		printf("%s\r\n"
+		    "Content-Type: text/html; charset=utf-8\r\n\r\n",
+		    r[0].file);
 		return;
-	}
-
-	resp_begin_html(200, NULL);
-	resp_searchform(req,
-	    req->q.equal || sz == 1 ? FOCUS_NONE : FOCUS_QUERY);
-
-	if (sz > 1) {
-		puts("<table class=\"results\">");
-		for (i = 0; i < sz; i++) {
-			printf("  <tr>\n"
-			       "    <td>"
-			       "<a class=\"Xr\" href=\"/%s%s%s/%s\">",
-			    scriptname, *scriptname == '\0' ? "" : "/",
-			    req->q.manpath, r[i].file);
-			html_print(r[i].names);
-			printf("</a></td>\n"
-			       "    <td><span class=\"Nd\">");
-			html_print(r[i].output);
-			puts("</span></td>\n"
-			     "  </tr>");
-		}
-		puts("</table>");
 	}
 
 	/*
@@ -600,9 +608,8 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 	 * even if more than one is found.
 	 */
 
+	iuse = 0;
 	if (req->q.equal || sz == 1) {
-		puts("<hr>");
-		iuse = 0;
 		priouse = 20;
 		archpriouse = 3;
 		for (i = 0; i < sz; i++) {
@@ -635,6 +642,36 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 			priouse = prio;
 			iuse = i;
 		}
+		resp_begin_html(200, NULL, r[iuse].file);
+	} else
+		resp_begin_html(200, NULL, NULL);
+
+	resp_searchform(req,
+	    req->q.equal || sz == 1 ? FOCUS_NONE : FOCUS_QUERY);
+
+	if (sz > 1) {
+		puts("<table class=\"results\">");
+		for (i = 0; i < sz; i++) {
+			printf("  <tr>\n"
+			       "    <td>"
+			       "<a class=\"Xr\" href=\"/");
+			if (*scriptname != '\0')
+				printf("%s/", scriptname);
+			if (strcmp(req->q.manpath, req->p[0]))
+				printf("%s/", req->q.manpath);
+			printf("%s\">", r[i].file);
+			html_print(r[i].names);
+			printf("</a></td>\n"
+			       "    <td><span class=\"Nd\">");
+			html_print(r[i].output);
+			puts("</span></td>\n"
+			     "  </tr>");
+		}
+		puts("</table>");
+	}
+
+	if (req->q.equal || sz == 1) {
+		puts("<hr>");
 		resp_show(req, r[iuse].file);
 	}
 
@@ -803,7 +840,8 @@ resp_format(const struct req *req, const char *file)
 	conf.fragment = 1;
 	conf.style = mandoc_strdup(CSS_DIR "/mandoc.css");
 	usepath = strcmp(req->q.manpath, req->p[0]);
-	mandoc_asprintf(&conf.man, "/%s%s%%N.%%S",
+	mandoc_asprintf(&conf.man, "/%s%s%s%s%%N.%%S",
+	    scriptname, *scriptname == '\0' ? "" : "/",
 	    usepath ? req->q.manpath : "", usepath ? "/" : "");
 
 	mparse_result(mp, &man, NULL);
@@ -886,7 +924,7 @@ pg_show(struct req *req, const char *fullpath)
 		return;
 	}
 
-	resp_begin_html(200, NULL);
+	resp_begin_html(200, NULL, file);
 	resp_searchform(req, FOCUS_NONE);
 	resp_show(req, file);
 	resp_end_html();
@@ -956,9 +994,13 @@ pg_search(const struct req *req)
 		}
 	}
 
-	if (0 == mansearch(&search, &paths, argc, argv, &res, &ressz))
+	res = NULL;
+	ressz = 0;
+	if (req->isquery && req->q.equal && argc == 1)
+		pg_redirect(req, argv[0]);
+	else if (mansearch(&search, &paths, argc, argv, &res, &ressz) == 0)
 		pg_noresult(req, "You entered an invalid query.");
-	else if (0 == ressz)
+	else if (ressz == 0)
 		pg_noresult(req, "No results found.");
 	else
 		pg_searchres(req, res, ressz);
@@ -977,6 +1019,22 @@ main(void)
 	const char	*path;
 	const char	*querystring;
 	int		 i;
+
+#if HAVE_PLEDGE
+	/*
+	 * The "rpath" pledge could be revoked after mparse_readfd()
+	 * if the file desciptor to "/footer.html" would be opened
+	 * up front, but it's probably not worth the complication
+	 * of the code it would cause: it would require scattering
+	 * pledge() calls in multiple low-level resp_*() functions.
+	 */
+
+	if (pledge("stdio rpath", NULL) == -1) {
+		warn("pledge");
+		pg_error_internal();
+		return EXIT_FAILURE;
+	}
+#endif
 
 	/* Poor man's ReDoS mitigation. */
 
@@ -1015,7 +1073,8 @@ main(void)
 
 	if (*path != '\0') {
 		parse_path_info(&req, path);
-		if (req.q.manpath == NULL || access(path, F_OK) == -1)
+		if (req.q.manpath == NULL || req.q.sec == NULL ||
+		    *req.q.query == '\0' || access(path, F_OK) == -1)
 			path = "";
 	} else if ((querystring = getenv("QUERY_STRING")) != NULL)
 		parse_query_string(&req, querystring);

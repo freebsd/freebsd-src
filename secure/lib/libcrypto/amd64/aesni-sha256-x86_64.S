@@ -4014,6 +4014,7 @@ aesni_cbc_sha256_enc_shaext:
 	movl	240(%rcx),%r11d
 	subq	%rdi,%rsi
 	movups	(%rcx),%xmm15
+	movups	(%r8),%xmm6
 	movups	16(%rcx),%xmm4
 	leaq	112(%rcx),%rcx
 

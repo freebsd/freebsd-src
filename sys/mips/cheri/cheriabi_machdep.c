@@ -112,8 +112,7 @@
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
-static int	cheriabi_fetch_syscall_args(struct thread *td,
-		    struct syscall_args *sa);
+static int	cheriabi_fetch_syscall_args(struct thread *td);
 static void	cheriabi_set_syscall_retval(struct thread *td, int error);
 static void	cheriabi_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 static void	cheriabi_exec_setregs(struct thread *, struct image_params *,
@@ -289,14 +288,16 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
 }
 
 static int
-cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cheriabi_fetch_syscall_args(struct thread *td)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct sysentvec *se;
+	struct syscall_args *sa;
 	int error;
 
 	error = 0;
 
+	sa = &td->td_sa;
 	bzero(sa->args, sizeof(sa->args));
 
 	/* compute next PC after syscall instruction */

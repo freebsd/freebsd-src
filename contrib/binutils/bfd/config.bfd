@@ -1156,13 +1156,13 @@ case "${targ}" in
     targ_selvecs="bfd_powerpcle_pei_vec bfd_powerpc_pei_vec bfd_powerpcle_pe_vec bfd_powerpc_pe_vec"
     ;;
 
-  s390-*-linux*)
+  s390-*-freebsd* | s390-*-linux*)
     targ_defvec=bfd_elf32_s390_vec
     targ64_selvecs=bfd_elf64_s390_vec
     want64=true
     ;;
 #ifdef BFD64
-  s390x-*-linux*)
+  s390x-*-freebsd* | s390x-*-linux*)
     targ_defvec=bfd_elf64_s390_vec
     targ_selvecs=bfd_elf32_s390_vec
     want64=true

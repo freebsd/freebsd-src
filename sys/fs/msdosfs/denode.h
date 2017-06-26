@@ -47,6 +47,8 @@
  *
  * October 1992
  */
+#ifndef _FS_MSDOSFS_DENODE_H_
+#define	_FS_MSDOSFS_DENODE_H_
 
 /*
  * This is the pc filesystem specific portion of the vnode structure.
@@ -179,7 +181,7 @@ struct denode {
 #define DE_INTERNALIZE32(dep, dp)			\
 	 ((dep)->de_StartCluster |= getushort((dp)->deHighClust) << 16)
 #define DE_INTERNALIZE(dep, dp)				\
-	(bcopy((dp)->deName, (dep)->de_Name, 11),	\
+	(memcpy((dep)->de_Name, (dp)->deName, 11),	\
 	 (dep)->de_Attributes = (dp)->deAttributes,	\
 	 (dep)->de_LowerCase = (dp)->deLowerCase,	\
 	 (dep)->de_CHun = (dp)->deCHundredth,		\
@@ -193,7 +195,7 @@ struct denode {
 	 (FAT32((dep)->de_pmp) ? DE_INTERNALIZE32((dep), (dp)) : 0))
 
 #define DE_EXTERNALIZE(dp, dep)				\
-	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
+	(memcpy((dp)->deName, (dep)->de_Name, 11),	\
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
 	 (dp)->deLowerCase = (dep)->de_LowerCase,	\
 	 (dp)->deCHundredth = (dep)->de_CHun,		\
@@ -207,7 +209,7 @@ struct denode {
 	     ((dep)->de_Attributes & ATTR_DIRECTORY) ? 0 : (dep)->de_FileSize), \
 	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16))
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(MAKEFS)
 
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
@@ -277,4 +279,6 @@ int deupdat(struct denode *dep, int waitfor);
 int removede(struct denode *pdep, struct denode *dep);
 int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred);
 int doscheckpath( struct denode *source, struct denode *target);
-#endif	/* _KERNEL */
+#endif	/* _KERNEL || MAKEFS */
+#endif	/* !_FS_MSDOSFS_DENODE_H_ */
+

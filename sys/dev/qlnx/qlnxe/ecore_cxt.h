@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef _ECORE_CID_
 #define _ECORE_CID_
 
@@ -130,15 +129,17 @@ void ecore_cxt_hw_init_common(struct ecore_hwfn *p_hwfn);
  * @brief ecore_cxt_hw_init_pf - Initailze ILT and DQ, PF phase, per path.
  *
  * @param p_hwfn
+ * @param p_ptt
  */
-void ecore_cxt_hw_init_pf(struct ecore_hwfn *p_hwfn);
+void ecore_cxt_hw_init_pf(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
 
 /**
  * @brief ecore_qm_init_pf - Initailze the QM PF phase, per path
  *
  * @param p_hwfn
+ * @param p_ptt
  */
-void ecore_qm_init_pf(struct ecore_hwfn *p_hwfn);
+void ecore_qm_init_pf(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt);
 
  /**
  * @brief Reconfigures QM pf on the fly

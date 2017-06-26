@@ -471,20 +471,13 @@ ng_btsocket_sco_process_lp_con_ind(struct ng_mesg *msg,
 
 	pcb = ng_btsocket_sco_pcb_by_addr(&rt->src);
 	if (pcb != NULL) {
-		struct socket	*so1 = NULL;
+		struct socket *so1;
 
 		/* pcb is locked */
 
-		/*
-		 * First check the pending connections queue and if we have
-		 * space then create new socket and set proper source address.
-		 */
-
-		if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
-			CURVNET_SET(pcb->so->so_vnet);
-			so1 = sonewconn(pcb->so, 0);
-			CURVNET_RESTORE();
-		}
+		CURVNET_SET(pcb->so->so_vnet);
+		so1 = sonewconn(pcb->so, 0);
+		CURVNET_RESTORE();
 
 		if (so1 == NULL) {
 			status = 0x0d; /* Rejected due to limited resources */

@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "des 3"
-.TH des 3 "2017-01-26" "1.0.2k" "OpenSSL"
+.TH des 3 "2017-05-25" "1.0.2l" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -256,7 +256,7 @@ architecture dependent \fIDES_key_schedule\fR via the
 \&\fIDES_set_key_checked()\fR or \fIDES_set_key_unchecked()\fR function.
 .PP
 \&\fIDES_set_key_checked()\fR will check that the key passed is of odd parity
-and is not a week or semi-weak key.  If the parity is wrong, then \-1
+and is not a weak or semi-weak key.  If the parity is wrong, then \-1
 is returned.  If the key is a weak key, then \-2 is returned.  If an
 error is returned, the key schedule is not generated.
 .PP

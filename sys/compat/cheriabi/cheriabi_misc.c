@@ -2146,7 +2146,7 @@ cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 		    ret + len > mmap_cap_base + mmap_cap_len) {
 			map = &td->td_proc->p_vmspace->vm_map;
 			vm_map_lock(map);
-			vm_map_delete(map, ret, ret + len);
+			vm_map_remove(map, ret, ret + len);
 			vm_map_unlock(map);
 
 			return (EPERM);

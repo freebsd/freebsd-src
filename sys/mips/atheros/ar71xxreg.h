@@ -528,13 +528,14 @@ typedef enum {
 #define		AR71XX_SPI_RDS		0x0C
 
 #define ATH_READ_REG(reg) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
-
+	*((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
+/*
+ * Note: Don't put a flush read here; some users (eg the AR724x PCI fixup code)
+ * requires write-only space to certain registers.  Doing the read afterwards
+ * causes things to break.
+ */
 #define ATH_WRITE_REG(reg, val) \
-    do { \
-      *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val); \
-      (void) ATH_READ_REG(reg); \
-    } while (0)
+      *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)

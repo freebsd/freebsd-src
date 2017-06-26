@@ -410,16 +410,17 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.socket = inp->sctp_socket;
 		so = inp->sctp_socket;
 		if ((so == NULL) ||
+		    (!SCTP_IS_LISTENING(inp)) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
 			xinpcb.qlen = 0;
 			xinpcb.maxqlen = 0;
 		} else {
-			xinpcb.qlen = so->so_qlen;
-			xinpcb.qlen_old = so->so_qlen > USHRT_MAX ?
-			    USHRT_MAX : (uint16_t)so->so_qlen;
-			xinpcb.maxqlen = so->so_qlimit;
-			xinpcb.maxqlen_old = so->so_qlimit > USHRT_MAX ?
-			    USHRT_MAX : (uint16_t)so->so_qlimit;
+			xinpcb.qlen = so->sol_qlen;
+			xinpcb.qlen_old = so->sol_qlen > USHRT_MAX ?
+			    USHRT_MAX : (uint16_t)so->sol_qlen;
+			xinpcb.maxqlen = so->sol_qlimit;
+			xinpcb.maxqlen_old = so->sol_qlimit > USHRT_MAX ?
+			    USHRT_MAX : (uint16_t)so->sol_qlimit;
 		}
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);

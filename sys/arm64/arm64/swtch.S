@@ -104,6 +104,8 @@ ENTRY(cpu_throw)
 	ldp	x5, x6, [x4, #PCB_SP]
 	mov	sp, x5
 	msr	tpidr_el0, x6
+	ldr	x6, [x4, #PCB_TPIDRRO]
+	msr	tpidrro_el0, x6
 	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
 	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
 	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
@@ -149,6 +151,8 @@ ENTRY(cpu_switch)
 	str	x30, [x4, #PCB_REGS + 30 * 8]
 	/* And the old stack pointer */
 	mov	x5, sp
+	mrs	x6, tpidrro_el0
+	str	x6, [x4, #PCB_TPIDRRO]
 	mrs	x6, tpidr_el0
 	stp	x5, x6, [x4, #PCB_SP]
 
@@ -215,6 +219,8 @@ ENTRY(cpu_switch)
 	ldp	x5, x6, [x4, #PCB_SP]
 	mov	sp, x5
 	msr	tpidr_el0, x6
+	ldr	x6, [x4, #PCB_TPIDRRO]
+	msr	tpidrro_el0, x6
 	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
 	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
 	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
@@ -301,6 +307,8 @@ ENTRY(savectx)
 	str	x30, [x0, #PCB_REGS + 30 * 8]
 	/* And the old stack pointer */
 	mov	x5, sp
+	mrs	x6, tpidrro_el0
+	str	x6, [x0, #PCB_TPIDRRO]
 	mrs	x6, tpidr_el0
 	stp	x5, x6, [x0, #PCB_SP]
 

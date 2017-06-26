@@ -487,6 +487,13 @@ sysdecode_getfsstat_mode(int mode)
 }
 
 const char *
+sysdecode_getrusage_who(int who)
+{
+
+	return (lookup_value(rusage, who));
+}
+
+const char *
 sysdecode_kldsym_cmd(int cmd)
 {
 
@@ -627,8 +634,19 @@ sysdecode_quotactl_cmd(FILE *fp, int cmd)
 bool
 sysdecode_reboot_howto(FILE *fp, int howto, int *rem)
 {
+	bool printed;
 
-	return (print_mask_int(fp, rebootopt, howto, rem));
+	/*
+	 * RB_AUTOBOOT is special in that its value is zero, but it is
+	 * also an implied argument if a different operation is not
+	 * requested via RB_HALT, RB_POWEROFF, or RB_REROOT.
+	 */
+	if (howto != 0 && (howto & (RB_HALT | RB_POWEROFF | RB_REROOT)) == 0) {
+		fputs("RB_AUTOBOOT|", fp);
+		printed = true;
+	} else
+		printed = false;
+	return (print_mask_int(fp, rebootopt, howto, rem) || printed);
 }
 
 bool
@@ -727,6 +745,19 @@ sysdecode_socketdomain(int domain)
 {
 
 	return (lookup_value(sockdomain, domain));
+}
+
+const char *
+sysdecode_socket_protocol(int domain, int protocol)
+{
+
+	switch (domain) {
+	case PF_INET:
+	case PF_INET6:
+		return (lookup_value(sockipproto, protocol));
+	default:
+		return (NULL);
+	}
 }
 
 const char *

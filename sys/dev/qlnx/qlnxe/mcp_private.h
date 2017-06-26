@@ -145,9 +145,9 @@ struct private_path {
 
 	u32 drv_load_vars; /* When the seconds_since_mcp_reset gets here */
 #define DRV_LOAD_TIMEOUT_MASK			0x0000ffff
-#define DRV_LOAD_TIMEOUT_SHIFT			0
+#define DRV_LOAD_TIMEOUT_OFFSET			0
 #define DRV_LOAD_NEED_FORCE_MASK		0xffff0000
-#define DRV_LOAD_NEED_FORCE_SHIFT		16
+#define DRV_LOAD_NEED_FORCE_OFFSET		16
 	struct load_rsp_stc drv_load_params;
 };
 
@@ -164,13 +164,13 @@ struct drv_port_info_t {
 
 	/* There are maximum 8 PFs per port */
 #define DRV_STATE_LOADED_MASK                       0x0000ff00
-#define DRV_STATE_LOADED_SHIFT                      8
+#define DRV_STATE_LOADED_OFFSET                      8
 
 #define DRV_STATE_PF_TRANSITION_MASK                0x00ff0000
-#define DRV_STATE_PF_TRANSITION_SHIFT               16
+#define DRV_STATE_PF_TRANSITION_OFFSET               16
 
 #define DRV_STATE_PF_PHY_INIT_MASK	                 0xff000000
-#define DRV_STATE_PF_PHY_INIT_SHIFT                 24
+#define DRV_STATE_PF_PHY_INIT_OFFSET                 24
 };
 
 typedef enum _lldp_subscriber_e {
@@ -186,9 +186,9 @@ typedef struct {
 	u16 valid;
 	u16 type_len;
 #define LLDP_LEN_MASK           (0x01ff)
-#define LLDP_LEN_SHIFT          (0)
+#define LLDP_LEN_OFFSET          (0)
 #define LLDP_TYPE_MASK          (0xfe00)
-#define LLDP_TYPE_SHIFT         (9)
+#define LLDP_TYPE_OFFSET         (9)
 	u8 *value_p;
 } tlv_s;
 
@@ -211,7 +211,7 @@ typedef struct {
 } subscriber_callback_receive_s;
 
 #define MAX_ETH_HEADER      14  /* TODO: to be extended per requirements */
-#define MAX_PACKET_SIZE     (1516)  /* So it can be divided by 4 */
+#define MAX_PACKET_SIZE     (1516)  /* So it can be devided by 4 */
 #define LLDP_CHASSIS_ID_TLV_LEN     7
 #define LLDP_PORT_ID_TLV_LEN     7
 #define MAX_TLV_BUFFER		128 /* In dwords. 512 in bytes*/
@@ -244,19 +244,19 @@ typedef struct {
 typedef struct {
 	u32 config; /* Uses same defines as local config plus some more below*/
 #define DCBX_MODE_MASK				0x00000010
-#define DCBX_MODE_SHIFT				4
+#define DCBX_MODE_OFFSET				4
 #define DCBX_MODE_DRIVER			0
 #define DCBX_MODE_DEFAULT			1
 #define DCBX_CHANGED_MASK			0x00000f00
-#define DCBX_CHANGED_SHIFT			8
+#define DCBX_CHANGED_OFFSET			8
 #define DCBX_CONTROL_CHANGED_MASK		0x00000100
-#define DCBX_CONTROL_CHANGED_SHIFT		8
+#define DCBX_CONTROL_CHANGED_OFFSET		8
 #define DCBX_PFC_CHANGED_MASK			0x00000200
-#define DCBX_PFC_CHANGED_SHIFT			9
+#define DCBX_PFC_CHANGED_OFFSET			9
 #define DCBX_ETS_CHANGED_MASK			0x00000400
-#define DCBX_ETS_CHANGED_SHIFT			10
+#define DCBX_ETS_CHANGED_OFFSET			10
 #define DCBX_APP_CHANGED_MASK			0x00000800
-#define DCBX_APP_CHANGED_SHIFT			11
+#define DCBX_APP_CHANGED_OFFSET			11
 
 	u32 seq_no;
 	u32 ack_no;
@@ -268,14 +268,14 @@ typedef struct {
 #ifdef CONFIG_HP_DCI_SUPPORT
 struct dci_info_port {
 	u32 config;
-#define DCI_PORT_CFG_ENABLE_SHIFT		(0)
-#define DCI_PORT_CFG_ENABLE_MASK		(1 << DCI_PORT_CFG_ENABLE_SHIFT)
-#define DCI_PORT_CFG_ENABLE_DIAG_SHIFT		(1)
-#define DCI_PORT_CFG_ENABLE_DIAG_MASK		(1 << DCI_PORT_CFG_ENABLE_DIAG_SHIFT)
-#define DCI_PORT_CFG_DIAG_L_LOOP_SHIFT		(2)
-#define DCI_PORT_CFG_DIAG_L_LOOP_MASK		(1 << DCI_PORT_CFG_DIAG_L_LOOP_SHIFT)
-#define DCI_PORT_CFG_DIAG_R_LOOP_SHIFT		(3)
-#define DCI_PORT_CFG_DIAG_R_LOOP_MASK		(1 << DCI_PORT_CFG_DIAG_R_LOOP_SHIFT)
+#define DCI_PORT_CFG_ENABLE_OFFSET		(0)
+#define DCI_PORT_CFG_ENABLE_MASK		(1 << DCI_PORT_CFG_ENABLE_OFFSET)
+#define DCI_PORT_CFG_ENABLE_DIAG_OFFSET		(1)
+#define DCI_PORT_CFG_ENABLE_DIAG_MASK		(1 << DCI_PORT_CFG_ENABLE_DIAG_OFFSET)
+#define DCI_PORT_CFG_DIAG_L_LOOP_OFFSET		(2)
+#define DCI_PORT_CFG_DIAG_L_LOOP_MASK		(1 << DCI_PORT_CFG_DIAG_L_LOOP_OFFSET)
+#define DCI_PORT_CFG_DIAG_R_LOOP_OFFSET		(3)
+#define DCI_PORT_CFG_DIAG_R_LOOP_MASK		(1 << DCI_PORT_CFG_DIAG_R_LOOP_OFFSET)
 
 };
 #endif
@@ -343,12 +343,12 @@ struct drv_func_info_t {
 
 struct dci_info_func {
 	u8 config;
-#define DCI_FUNC_CFG_FNIC_ENABLE_SHIFT		(0)
-#define DCI_FUNC_CFG_FNIC_ENABLE_MASK		(1 << DCI_FUNC_CFG_FNIC_ENABLE_SHIFT)
-#define DCI_FUNC_CFG_OS_MTU_OVERRIDE_SHIFT	(1)
-#define DCI_FUNC_CFG_OS_MTU_OVERRIDE_MASK	(1 << DCI_FUNC_CFG_OS_MTU_OVERRIDE_SHIFT)
-#define DCI_FUNC_CFG_DIAG_WOL_ENABLE_SHIFT	(2)
-#define DCI_FUNC_CFG_DIAG_WOL_ENABLE_MASK	(1 << DCI_FUNC_CFG_DIAG_WOL_ENABLE_SHIFT)
+#define DCI_FUNC_CFG_FNIC_ENABLE_OFFSET		(0)
+#define DCI_FUNC_CFG_FNIC_ENABLE_MASK		(1 << DCI_FUNC_CFG_FNIC_ENABLE_OFFSET)
+#define DCI_FUNC_CFG_OS_MTU_OVERRIDE_OFFSET	(1)
+#define DCI_FUNC_CFG_OS_MTU_OVERRIDE_MASK	(1 << DCI_FUNC_CFG_OS_MTU_OVERRIDE_OFFSET)
+#define DCI_FUNC_CFG_DIAG_WOL_ENABLE_OFFSET	(2)
+#define DCI_FUNC_CFG_DIAG_WOL_ENABLE_MASK	(1 << DCI_FUNC_CFG_DIAG_WOL_ENABLE_OFFSET)
 
 	u8 drv_state;
 	u16 fcoe_cvid;

@@ -267,6 +267,7 @@ dtrace_gethrestime(void)
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
+	uint16_t nofault;
 
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -277,7 +278,11 @@ dtrace_trap(struct trapframe *frame, u_int type)
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
 	 */
-	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
+	sched_pin();
+	nofault = cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT;
+	sched_unpin();
+	if (nofault) {
+		KASSERT((frame->srr1 & PSL_EE) == 0, ("interrupts enabled"));
 		/*
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.

@@ -1,4 +1,4 @@
-/*	$Id: tbl.c,v 1.40 2015/10/06 18:32:20 schwarze Exp $ */
+/*	$Id: tbl.c,v 1.41 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -114,6 +114,7 @@ tbl_free(struct tbl_node *tbl)
 		while (rp->first != NULL) {
 			cp = rp->first;
 			rp->first = cp->next;
+			free(cp->wstr);
 			free(cp);
 		}
 		free(rp);

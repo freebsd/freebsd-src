@@ -416,34 +416,19 @@ dequeue_socket(struct socket *head)
 {
 	struct socket *so;
 	struct sockaddr_in *remote;
+	int error;
 
-	ACCEPT_LOCK();
-	so = TAILQ_FIRST(&head->so_comp);
-	if (!so) {
-		ACCEPT_UNLOCK();
-		return NULL;
-	}
-
-	SOCK_LOCK(so);
-	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 */
-	soref(so);
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
+	SOLISTEN_LOCK(head);
+	error = solisten_dequeue(head, &so, SOCK_NONBLOCK);
+	if (error == EWOULDBLOCK)
+		return (NULL);
 	remote = NULL;
 	soaccept(so, (struct sockaddr **)&remote);
 
 	free(remote, M_SONAME);
 	return so;
 }
+
 static void
 iw_so_event_handler(struct work_struct *_work)
 {
@@ -485,18 +470,17 @@ err:
 #endif
 	return;
 }
+
 static int
 iw_so_upcall(struct socket *parent_so, void *arg, int waitflag)
 {
 	struct iwcm_listen_work *work;
-	struct socket *so;
 	struct iw_cm_id *cm_id = arg;
 
 	/* check whether iw_so_event_handler() already dequeued this 'so' */
-	so = TAILQ_FIRST(&parent_so->so_comp);
-	if (!so)
+	if (TAILQ_EMPTY(&parent_so->sol_comp))
 		return SU_OK;
-	work = kzalloc(sizeof(*work), M_NOWAIT);
+	work = kzalloc(sizeof(*work), waitflag);
 	if (!work)
 		return -ENOMEM;
 	work->cm_id = cm_id;
@@ -507,17 +491,21 @@ iw_so_upcall(struct socket *parent_so, void *arg, int waitflag)
 	return SU_OK;
 }
 
-static void
-iw_init_sock(struct iw_cm_id *cm_id)
+static int
+iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 {
 	struct sockopt sopt;
 	struct socket *so = cm_id->so;
 	int on = 1;
+	int rc;
 
-	SOCK_LOCK(so);
-	soupcall_set(so, SO_RCV, iw_so_upcall, cm_id);
+	rc = -solisten(cm_id->so, backlog, curthread);
+	if (rc != 0)
+		return (rc);
+	SOLISTEN_LOCK(so);
+	solisten_upcall_set(so, iw_so_upcall, cm_id);
 	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
+	SOLISTEN_UNLOCK(so);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = IPPROTO_TCP;
 	sopt.sopt_name = TCP_NODELAY;
@@ -525,37 +513,18 @@ iw_init_sock(struct iw_cm_id *cm_id)
 	sopt.sopt_valsize = sizeof(on);
 	sopt.sopt_td = NULL;
 	sosetopt(so, &sopt);
-}
-
-static int
-iw_uninit_socket(struct iw_cm_id *cm_id)
-{
-	struct socket *so = cm_id->so;
-
-	SOCK_LOCK(so);
-	soupcall_clear(so, SO_RCV);
-	SOCK_UNLOCK(so);
-
 	return (0);
-}
-
-static int
-iw_create_listen(struct iw_cm_id *cm_id, int backlog)
-{
-	int rc;
-
-	iw_init_sock(cm_id);
-	rc = -solisten(cm_id->so, backlog, curthread);
-	if (rc != 0)
-		iw_uninit_socket(cm_id);
-	return (rc);
 }
 
 static int
 iw_destroy_listen(struct iw_cm_id *cm_id)
 {
+	struct socket *so = cm_id->so;
 
-	return (iw_uninit_socket(cm_id));
+	SOLISTEN_LOCK(so);
+	solisten_upcall_set(so, NULL, NULL);
+	SOLISTEN_UNLOCK(so);
+	return (0);
 }
 
 

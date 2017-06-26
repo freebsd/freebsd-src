@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2016
+.Dd June 10, 2017
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -110,7 +110,7 @@ socket may provide a sequenced, reliable,
 two-way connection-based data transmission path for datagrams
 of fixed maximum length; a consumer may be required to read
 an entire packet with each read system call.
-This facility is protocol specific, and presently unimplemented.
+This facility may have protocol-specific properties.
 .Dv SOCK_RAW
 sockets provide access to internal network protocols and interfaces.
 The types

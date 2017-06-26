@@ -602,7 +602,7 @@ syncache_badack(struct in_conninfo *inc)
 }
 
 void
-syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
+syncache_unreach(struct in_conninfo *inc, tcp_seq th_seq)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
@@ -613,7 +613,7 @@ syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
 		goto done;
 
 	/* If the sequence number != sc_iss, then it's a bogus ICMP msg */
-	if (ntohl(th->th_seq) != sc->sc_iss)
+	if (ntohl(th_seq) != sc->sc_iss)
 		goto done;
 
 	/*
@@ -1264,6 +1264,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * soon as possible.
 	 */
 	so = *lsop;
+	KASSERT(SOLISTENING(so), ("%s: %p not listening", __func__, so));
 	tp = sototcpcb(so);
 	cred = crhold(so->so_cred);
 
@@ -1274,7 +1275,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #endif
 	ip_ttl = inp->inp_ip_ttl;
 	ip_tos = inp->inp_ip_tos;
-	win = sbspace(&so->so_rcv);
+	win = so->sol_sbrcv_hiwat;
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 #ifdef TCP_RFC7413
@@ -1287,7 +1288,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * listen queue with bogus TFO connections.
 		 */
 		if (atomic_fetchadd_int(tp->t_tfo_pending, 1) <=
-		    (so->so_qlimit / 2)) {
+		    (so->sol_qlimit / 2)) {
 			int result;
 
 			result = tcp_fastopen_check_cookie(inc,
@@ -2115,7 +2116,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 		sc->sc_flags |= SCF_WINSCALE;
 	}
 
-	wnd = sbspace(&lso->so_rcv);
+	wnd = lso->sol_sbrcv_hiwat;
 	wnd = imax(wnd, 0);
 	wnd = imin(wnd, TCP_MAXWIN);
 	sc->sc_wnd = wnd;

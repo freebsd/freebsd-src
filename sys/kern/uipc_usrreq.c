@@ -189,10 +189,9 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
 /*
  * Locking and synchronization:
  *
- * Three types of locks exit in the local domain socket implementation: a
- * global list mutex, a global linkage rwlock, and per-unpcb mutexes.  Of the
- * global locks, the list lock protects the socket count, global generation
- * number, and stream/datagram global lists.  The linkage lock protects the
+ * Two types of locks exist in the local domain socket implementation: a
+ * a global linkage rwlock and per-unpcb mutexes.  The linkage lock protects
+ * the socket count, global generation number, stream/datagram global lists and
  * interconnection of unpcbs, the v_socket and unp_vnode pointers, and can be
  * held exclusively over the acquisition of multiple unpcb locks to prevent
  * deadlock.
@@ -233,7 +232,6 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
  * to perform namei() and other file system operations.
  */
 static struct rwlock	unp_link_rwlock;
-static struct mtx	unp_list_lock;
 static struct mtx	unp_defers_lock;
 
 #define	UNP_LINK_LOCK_INIT()		rw_init(&unp_link_rwlock,	\
@@ -250,11 +248,7 @@ static struct mtx	unp_defers_lock;
 #define	UNP_LINK_WUNLOCK()		rw_wunlock(&unp_link_rwlock)
 #define	UNP_LINK_WLOCK_ASSERT()		rw_assert(&unp_link_rwlock,	\
 					    RA_WLOCKED)
-
-#define	UNP_LIST_LOCK_INIT()		mtx_init(&unp_list_lock,	\
-					    "unp_list_lock", NULL, MTX_DEF)
-#define	UNP_LIST_LOCK()			mtx_lock(&unp_list_lock)
-#define	UNP_LIST_UNLOCK()		mtx_unlock(&unp_list_lock)
+#define	UNP_LINK_WOWNED()		rw_wowned(&unp_link_rwlock)
 
 #define	UNP_DEFERRED_LOCK_INIT()	mtx_init(&unp_defers_lock, \
 					    "unp_defer", NULL, MTX_DEF)
@@ -396,6 +390,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	u_long sendspace, recvspace;
 	struct unpcb *unp;
 	int error;
+	bool locked;
 
 	KASSERT(so->so_pcb == NULL, ("uipc_attach: so_pcb != NULL"));
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
@@ -430,10 +425,12 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 	unp->unp_refcount = 1;
-	if (so->so_head != NULL)
+	if (so->so_listen != NULL)
 		unp->unp_flags |= UNP_NASCENT;
 
-	UNP_LIST_LOCK();
+	if ((locked = UNP_LINK_WOWNED()) == false)
+		UNP_LINK_WLOCK();
+
 	unp->unp_gencnt = ++unp_gencnt;
 	unp_count++;
 	switch (so->so_type) {
@@ -452,7 +449,9 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	default:
 		panic("uipc_attach");
 	}
-	UNP_LIST_UNLOCK();
+
+	if (locked == false)
+		UNP_LINK_WUNLOCK();
 
 	return (0);
 }
@@ -552,7 +551,7 @@ restart:
 
 	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
-	VOP_UNP_BIND(vp, unp->unp_socket);
+	VOP_UNP_BIND(vp, unp);
 	unp->unp_vnode = vp;
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
@@ -607,6 +606,7 @@ static void
 uipc_close(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
+	struct vnode *vp = NULL;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_close: unp == NULL"));
@@ -619,8 +619,14 @@ uipc_close(struct socket *so)
 		unp_disconnect(unp, unp2);
 		UNP_PCB_UNLOCK(unp2);
 	}
+	if (SOLISTENING(so) && ((vp = unp->unp_vnode) != NULL)) {
+		VOP_UNP_DETACH(vp);
+		unp->unp_vnode = NULL;
+	}
 	UNP_PCB_UNLOCK(unp);
 	UNP_LINK_WUNLOCK();
+	if (vp)
+		vrele(vp);
 }
 
 static int
@@ -657,22 +663,14 @@ uipc_detach(struct socket *so)
 	vp = NULL;
 	local_unp_rights = 0;
 
-	UNP_LIST_LOCK();
+	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
 	unp->unp_gencnt = ++unp_gencnt;
 	--unp_count;
-	UNP_LIST_UNLOCK();
-
-	if ((unp->unp_flags & UNP_NASCENT) != 0) {
-		UNP_PCB_LOCK(unp);
-		goto teardown;
-	}
-	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
+	if ((unp->unp_flags & UNP_NASCENT) != 0)
+		goto teardown;
 
-	/*
-	 * XXXRW: Should assert vp->v_socket == so.
-	 */
 	if ((vp = unp->unp_vnode) != NULL) {
 		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
@@ -696,8 +694,8 @@ uipc_detach(struct socket *so)
 		UNP_PCB_UNLOCK(ref);
 	}
 	local_unp_rights = unp_rights;
-	UNP_LINK_WUNLOCK();
 teardown:
+	UNP_LINK_WUNLOCK();
 	unp->unp_socket->so_pcb = NULL;
 	saved_unp_addr = unp->unp_addr;
 	unp->unp_addr = NULL;
@@ -761,7 +759,6 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 	error = solisten_proto_check(so);
 	if (error == 0) {
 		cru2x(td->td_ucred, &unp->unp_peercred);
-		unp->unp_flags |= UNP_HAVEPCCACHED;
 		solisten_proto(so, backlog);
 	}
 	SOCK_UNLOCK(so);
@@ -1319,7 +1316,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vnode *vp;
-	struct socket *so2, *so3;
+	struct socket *so2;
 	struct unpcb *unp, *unp2, *unp3;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
@@ -1386,31 +1383,30 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	 * and to protect simultaneous locking of multiple pcbs.
 	 */
 	UNP_LINK_WLOCK();
-	VOP_UNP_CONNECT(vp, &so2);
-	if (so2 == NULL) {
+	VOP_UNP_CONNECT(vp, &unp2);
+	if (unp2 == NULL) {
 		error = ECONNREFUSED;
 		goto bad2;
 	}
+	so2 = unp2->unp_socket;
 	if (so->so_type != so2->so_type) {
 		error = EPROTOTYPE;
 		goto bad2;
 	}
+	UNP_PCB_LOCK(unp);
+	UNP_PCB_LOCK(unp2);
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			CURVNET_SET(so2->so_vnet);
-			so3 = sonewconn(so2, 0);
+			so2 = sonewconn(so2, 0);
 			CURVNET_RESTORE();
 		} else
-			so3 = NULL;
-		if (so3 == NULL) {
+			so2 = NULL;
+		if (so2 == NULL) {
 			error = ECONNREFUSED;
-			goto bad2;
+			goto bad3;
 		}
-		unp = sotounpcb(so);
-		unp2 = sotounpcb(so2);
-		unp3 = sotounpcb(so3);
-		UNP_PCB_LOCK(unp);
-		UNP_PCB_LOCK(unp2);
+		unp3 = sotounpcb(so2);
 		UNP_PCB_LOCK(unp3);
 		if (unp2->unp_addr != NULL) {
 			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
@@ -1431,30 +1427,24 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		 * listen(); uipc_listen() cached that process's credentials
 		 * at that time so we can use them now.
 		 */
-		KASSERT(unp2->unp_flags & UNP_HAVEPCCACHED,
-		    ("unp_connect: listener without cached peercred"));
 		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
 		    sizeof(unp->unp_peercred));
 		unp->unp_flags |= UNP_HAVEPC;
 		if (unp2->unp_flags & UNP_WANTCRED)
 			unp3->unp_flags |= UNP_WANTCRED;
-		UNP_PCB_UNLOCK(unp3);
 		UNP_PCB_UNLOCK(unp2);
-		UNP_PCB_UNLOCK(unp);
+		unp2 = unp3;
 #ifdef MAC
-		mac_socketpeer_set_from_socket(so, so3);
-		mac_socketpeer_set_from_socket(so3, so);
+		mac_socketpeer_set_from_socket(so, so2);
+		mac_socketpeer_set_from_socket(so2, so);
 #endif
-
-		so2 = so3;
 	}
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
-	unp2 = sotounpcb(so2);
-	KASSERT(unp2 != NULL, ("unp_connect: unp2 == NULL"));
-	UNP_PCB_LOCK(unp);
-	UNP_PCB_LOCK(unp2);
+
+	KASSERT(unp2 != NULL && so2 != NULL && unp2->unp_socket == so2 &&
+	    sotounpcb(so2) == unp2,
+	    ("%s: unp2 %p so2 %p", __func__, unp2, so2));
 	error = unp_connect2(so, so2, PRU_CONNECT);
+bad3:
 	UNP_PCB_UNLOCK(unp2);
 	UNP_PCB_UNLOCK(unp);
 bad2:
@@ -1596,10 +1586,10 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * OK, now we're committed to doing something.
 	 */
 	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK);
-	UNP_LIST_LOCK();
+	UNP_LINK_RLOCK();
 	gencnt = unp_gencnt;
 	n = unp_count;
-	UNP_LIST_UNLOCK();
+	UNP_LINK_RUNLOCK();
 
 	xug->xug_len = sizeof *xug;
 	xug->xug_count = n;
@@ -1613,7 +1603,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 
 	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
 
-	UNP_LIST_LOCK();
+	UNP_LINK_RLOCK();
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
 		UNP_PCB_LOCK(unp);
@@ -1628,7 +1618,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		}
 		UNP_PCB_UNLOCK(unp);
 	}
-	UNP_LIST_UNLOCK();
+	UNP_LINK_RUNLOCK();
 	n = i;			/* In case we lost some during malloc. */
 
 	error = 0;
@@ -1886,7 +1876,6 @@ unp_init(void)
 	TIMEOUT_TASK_INIT(taskqueue_thread, &unp_gc_task, 0, unp_gc, NULL);
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
-	UNP_LIST_LOCK_INIT();
 	UNP_DEFERRED_LOCK_INIT();
 }
 
@@ -2237,8 +2226,7 @@ unp_accessable(struct filedescent **fdep, int fdcount)
 static void
 unp_gc_process(struct unpcb *unp)
 {
-	struct socket *soa;
-	struct socket *so;
+	struct socket *so, *soa;
 	struct file *fp;
 
 	/* Already processed. */
@@ -2258,28 +2246,30 @@ unp_gc_process(struct unpcb *unp)
 		return;
 	}
 
-	/*
-	 * Mark all sockets we reference with RIGHTS.
-	 */
 	so = unp->unp_socket;
-	if ((unp->unp_gcflag & UNPGC_IGNORE_RIGHTS) == 0) {
-		SOCKBUF_LOCK(&so->so_rcv);
-		unp_scan(so->so_rcv.sb_mb, unp_accessable);
-		SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCK_LOCK(so);
+	if (SOLISTENING(so)) {
+		/*
+		 * Mark all sockets in our accept queue.
+		 */
+		TAILQ_FOREACH(soa, &so->sol_comp, so_list) {
+			if (sotounpcb(soa)->unp_gcflag & UNPGC_IGNORE_RIGHTS)
+				continue;
+			SOCKBUF_LOCK(&soa->so_rcv);
+			unp_scan(soa->so_rcv.sb_mb, unp_accessable);
+			SOCKBUF_UNLOCK(&soa->so_rcv);
+		}
+	} else {
+		/*
+		 * Mark all sockets we reference with RIGHTS.
+		 */
+		if ((unp->unp_gcflag & UNPGC_IGNORE_RIGHTS) == 0) {
+			SOCKBUF_LOCK(&so->so_rcv);
+			unp_scan(so->so_rcv.sb_mb, unp_accessable);
+			SOCKBUF_UNLOCK(&so->so_rcv);
+		}
 	}
-
-	/*
-	 * Mark all sockets in our accept queue.
-	 */
-	ACCEPT_LOCK();
-	TAILQ_FOREACH(soa, &so->so_comp, so_list) {
-		if ((sotounpcb(soa)->unp_gcflag & UNPGC_IGNORE_RIGHTS) != 0)
-			continue;
-		SOCKBUF_LOCK(&soa->so_rcv);
-		unp_scan(soa->so_rcv.sb_mb, unp_accessable);
-		SOCKBUF_UNLOCK(&soa->so_rcv);
-	}
-	ACCEPT_UNLOCK();
+	SOCK_UNLOCK(so);
 	unp->unp_gcflag |= UNPGC_SCANNED;
 }
 
@@ -2302,7 +2292,7 @@ unp_gc(__unused void *arg, int pending)
 	int i, total;
 
 	unp_taskcount++;
-	UNP_LIST_LOCK();
+	UNP_LINK_RLOCK();
 	/*
 	 * First clear all gc flags from previous runs, apart from
 	 * UNPGC_IGNORE_RIGHTS.
@@ -2325,7 +2315,7 @@ unp_gc(__unused void *arg, int pending)
 			LIST_FOREACH(unp, *head, unp_link)
 				unp_gc_process(unp);
 	} while (unp_marked);
-	UNP_LIST_UNLOCK();
+	UNP_LINK_RUNLOCK();
 	if (unp_unreachable == 0)
 		return;
 
@@ -2340,7 +2330,6 @@ unp_gc(__unused void *arg, int pending)
 	 * as as unreachable and store them locally.
 	 */
 	UNP_LINK_RLOCK();
-	UNP_LIST_LOCK();
 	for (total = 0, head = heads; *head != NULL; head++)
 		LIST_FOREACH(unp, *head, unp_link)
 			if ((unp->unp_gcflag & UNPGC_DEAD) != 0) {
@@ -2353,7 +2342,6 @@ unp_gc(__unused void *arg, int pending)
 				KASSERT(total <= unp_unreachable,
 				    ("unp_gc: incorrect unreachable count."));
 			}
-	UNP_LIST_UNLOCK();
 	UNP_LINK_RUNLOCK();
 
 	/*
@@ -2396,10 +2384,11 @@ unp_dispose(struct socket *so)
 	struct unpcb *unp;
 
 	unp = sotounpcb(so);
-	UNP_LIST_LOCK();
+	UNP_LINK_WLOCK();
 	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
-	UNP_LIST_UNLOCK();
-	unp_dispose_mbuf(so->so_rcv.sb_mb);
+	UNP_LINK_WUNLOCK();
+	if (!SOLISTENING(so))
+		unp_dispose_mbuf(so->so_rcv.sb_mb);
 }
 
 static void
@@ -2454,7 +2443,6 @@ unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 void
 vfs_unp_reclaim(struct vnode *vp)
 {
-	struct socket *so;
 	struct unpcb *unp;
 	int active;
 
@@ -2464,10 +2452,7 @@ vfs_unp_reclaim(struct vnode *vp)
 
 	active = 0;
 	UNP_LINK_WLOCK();
-	VOP_UNP_CONNECT(vp, &so);
-	if (so == NULL)
-		goto done;
-	unp = sotounpcb(so);
+	VOP_UNP_CONNECT(vp, &unp);
 	if (unp == NULL)
 		goto done;
 	UNP_PCB_LOCK(unp);
@@ -2501,10 +2486,6 @@ db_print_unpflags(int unp_flags)
 	comma = 0;
 	if (unp_flags & UNP_HAVEPC) {
 		db_printf("%sUNP_HAVEPC", comma ? ", " : "");
-		comma = 1;
-	}
-	if (unp_flags & UNP_HAVEPCCACHED) {
-		db_printf("%sUNP_HAVEPCCACHED", comma ? ", " : "");
 		comma = 1;
 	}
 	if (unp_flags & UNP_WANTCRED) {

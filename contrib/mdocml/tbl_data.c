@@ -1,7 +1,7 @@
-/*	$Id: tbl_data.c,v 1.41 2015/10/06 18:32:20 schwarze Exp $ */
+/*	$Id: tbl_data.c,v 1.42 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -144,6 +144,7 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p, int pos)
 	}
 
 	dat->pos = TBL_DATA_DATA;
+	dat->block = 1;
 
 	if (dat->string != NULL) {
 		sz = strlen(p + pos) + strlen(dat->string) + 2;

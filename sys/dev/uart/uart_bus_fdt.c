@@ -117,9 +117,18 @@ static int
 phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
 {
 	char buf[64];
+	char *sep;
 
 	if (OF_getprop(chosen, name, buf, sizeof(buf)) <= 0)
 		return (ENXIO);
+	/*
+	 * stdout-path may have a ':' to separate the device from the
+	 * connection settings. Split the string so we just pass the former
+	 * to OF_finddevice.
+	 */
+	sep = strchr(buf, ':');
+	if (sep != NULL)
+		*sep = '\0';
 	if ((*node = OF_finddevice(buf)) == -1)
 		return (ENXIO);
 

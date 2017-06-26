@@ -195,7 +195,7 @@ enum iwm_phy_db_section_type {
 	IWM_PHY_DB_MAX
 };
 
-#define PHY_DB_CMD 0x6c	/* TEMP API - The actual is 0x8c */
+#define PHY_DB_CMD 0x6c
 
 /*
  * phy db - configure operational ucode

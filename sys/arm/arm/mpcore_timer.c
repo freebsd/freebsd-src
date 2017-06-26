@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#ifdef MULTIDELAY
+#include <machine/machdep.h> /* For arm_set_delay */
+#endif
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -114,6 +118,8 @@ static boolean_t arm_tmr_freq_varies;
 #define	tmr_prv_write_4(sc, reg, val)   bus_write_4((sc)->prv_mem, reg, val)
 #define	tmr_gbl_read_4(sc, reg)         bus_read_4((sc)->gbl_mem, reg)
 #define	tmr_gbl_write_4(sc, reg, val)   bus_write_4((sc)->gbl_mem, reg, val)
+
+static void arm_tmr_delay(int, void *);
 
 static timecounter_get_t arm_tmr_get_timecount;
 
@@ -431,6 +437,11 @@ arm_tmr_attach(device_t dev)
 	if (tc_err != 0 && et_err != 0) {
 		return (ENXIO);
 	}
+
+#ifdef MULTIDELAY
+	arm_set_delay(arm_tmr_delay, sc);
+#endif
+
 	return (0);
 }
 
@@ -482,36 +493,13 @@ arm_tmr_change_frequency(uint64_t newfreq)
 		et_change_frequency(arm_tmr_et, newfreq);
 }
 
-/**
- *	DELAY - Delay for at least usec microseconds.
- *	@usec: number of microseconds to delay by
- *
- *	This function is called all over the kernel and is suppose to provide a
- *	consistent delay.  This function may also be called before the console
- *	is setup so no printf's can be called here.
- *
- *	RETURNS:
- *	nothing
- */
-static void __used /* Must emit function code for the weak ref below. */
-arm_tmr_DELAY(int usec)
+static void
+arm_tmr_delay(int usec, void *arg)
 {
-	struct arm_tmr_softc *sc;
+	struct arm_tmr_softc *sc = arg;
 	int32_t counts_per_usec;
 	int32_t counts;
 	uint32_t first, last;
-
-	/* Check the timers are setup, if not just use a for loop for the meantime */
-	if (arm_tmr_tc == NULL || arm_tmr_timecount.tc_frequency == 0) {
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				cpufunc_nullop();	/* Prevent gcc from optimizing
-							 * out the loop
-							 */
-		return;
-	}
-
-	sc = arm_tmr_tc->tc_priv;
 
 	/* Get the number of times to count */
 	counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
@@ -536,10 +524,34 @@ arm_tmr_DELAY(int usec)
 	}
 }
 
-/*
- * Supply a DELAY() implementation via weak linkage.  A platform may want to use
- * the mpcore per-cpu eventtimers but provide its own DELAY() routine,
- * especially when the core frequency can change on the fly.
+#ifndef MULTIDELAY
+/**
+ *	DELAY - Delay for at least usec microseconds.
+ *	@usec: number of microseconds to delay by
+ *
+ *	This function is called all over the kernel and is suppose to provide a
+ *	consistent delay.  This function may also be called before the console
+ *	is setup so no printf's can be called here.
+ *
+ *	RETURNS:
+ *	nothing
  */
-__weak_reference(arm_tmr_DELAY, DELAY);
+void
+DELAY(int usec)
+{
+	struct arm_tmr_softc *sc;
+	int32_t counts;
 
+	/* Check the timers are setup, if not just use a for loop for the meantime */
+	if (arm_tmr_tc == NULL || arm_tmr_timecount.tc_frequency == 0) {
+		for (; usec > 0; usec--)
+			for (counts = 200; counts > 0; counts--)
+				cpufunc_nullop();	/* Prevent gcc from optimizing
+							 * out the loop
+							 */
+	} else {
+		sc = arm_tmr_tc->tc_priv;
+		arm_tmr_delay(usec, sc);
+	}
+}
+#endif

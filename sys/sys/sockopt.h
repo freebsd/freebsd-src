@@ -64,8 +64,8 @@ int	sooptcopyout(struct sockopt *sopt, const void *buf, size_t len);
 int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);
 int	soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
 int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
-int	do_getopt_accept_filter(struct socket *so, struct sockopt *sopt);
-int	do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
+int	accept_filt_getopt(struct socket *, struct sockopt *);
+int	accept_filt_setopt(struct socket *, struct sockopt *);
 int	so_setsockopt(struct socket *so, int level, int optname,
 	    void *optval, size_t optlen);
 

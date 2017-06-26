@@ -1,7 +1,7 @@
 /*	$OpenBSD$ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -48,14 +48,12 @@ static	void	  check_text(CHKARGS);
 static	void	  post_AT(CHKARGS);
 static	void	  post_IP(CHKARGS);
 static	void	  post_vs(CHKARGS);
-static	void	  post_ft(CHKARGS);
 static	void	  post_OP(CHKARGS);
 static	void	  post_TH(CHKARGS);
 static	void	  post_UC(CHKARGS);
 static	void	  post_UR(CHKARGS);
 
-static	v_check man_valids[MAN_MAX] = {
-	post_vs,    /* br */
+static	const v_check __man_valids[MAN_MAX - MAN_TH] = {
 	post_TH,    /* TH */
 	NULL,       /* SH */
 	NULL,       /* SS */
@@ -76,7 +74,6 @@ static	v_check man_valids[MAN_MAX] = {
 	NULL,       /* I */
 	NULL,       /* IR */
 	NULL,       /* RI */
-	post_vs,    /* sp */
 	NULL,       /* nf */
 	NULL,       /* fi */
 	NULL,       /* RE */
@@ -86,21 +83,20 @@ static	v_check man_valids[MAN_MAX] = {
 	NULL,       /* PD */
 	post_AT,    /* AT */
 	NULL,       /* in */
-	post_ft,    /* ft */
 	post_OP,    /* OP */
 	NULL,       /* EX */
 	NULL,       /* EE */
 	post_UR,    /* UR */
 	NULL,       /* UE */
-	NULL,       /* ll */
 };
+static	const v_check *man_valids = __man_valids - MAN_TH;
 
 
 void
 man_node_validate(struct roff_man *man)
 {
 	struct roff_node *n;
-	v_check		*cp;
+	const v_check	 *cp;
 
 	n = man->last;
 	man->last = man->last->child;
@@ -125,6 +121,19 @@ man_node_validate(struct roff_man *man)
 	case ROFFT_TBL:
 		break;
 	default:
+		if (n->tok < ROFF_MAX) {
+			switch (n->tok) {
+			case ROFF_br:
+			case ROFF_sp:
+				post_vs(man, n);
+				break;
+			default:
+				roff_validate(man);
+				break;
+			}
+			break;
+		}
+		assert(n->tok >= MAN_TH && n->tok < MAN_MAX);
 		cp = man_valids + n->tok;
 		if (*cp)
 			(*cp)(man, n);
@@ -201,53 +210,12 @@ post_UR(CHKARGS)
 }
 
 static void
-post_ft(CHKARGS)
-{
-	char	*cp;
-	int	 ok;
-
-	if (n->child == NULL)
-		return;
-
-	ok = 0;
-	cp = n->child->string;
-	switch (*cp) {
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case 'I':
-	case 'P':
-	case 'R':
-		if ('\0' == cp[1])
-			ok = 1;
-		break;
-	case 'B':
-		if ('\0' == cp[1] || ('I' == cp[1] && '\0' == cp[2]))
-			ok = 1;
-		break;
-	case 'C':
-		if ('W' == cp[1] && '\0' == cp[2])
-			ok = 1;
-		break;
-	default:
-		break;
-	}
-
-	if (0 == ok) {
-		mandoc_vmsg(MANDOCERR_FT_BAD, man->parse,
-		    n->line, n->pos, "ft %s", cp);
-		*cp = '\0';
-	}
-}
-
-static void
 check_part(CHKARGS)
 {
 
 	if (n->type == ROFFT_BODY && n->child == NULL)
 		mandoc_msg(MANDOCERR_BLK_EMPTY, man->parse,
-		    n->line, n->pos, man_macronames[n->tok]);
+		    n->line, n->pos, roff_name[n->tok]);
 }
 
 static void
@@ -263,14 +231,13 @@ check_par(CHKARGS)
 		if (n->child == NULL)
 			mandoc_vmsg(MANDOCERR_PAR_SKIP,
 			    man->parse, n->line, n->pos,
-			    "%s empty", man_macronames[n->tok]);
+			    "%s empty", roff_name[n->tok]);
 		break;
 	case ROFFT_HEAD:
 		if (n->child != NULL)
 			mandoc_vmsg(MANDOCERR_ARG_SKIP,
-			    man->parse, n->line, n->pos,
-			    "%s %s%s", man_macronames[n->tok],
-			    n->child->string,
+			    man->parse, n->line, n->pos, "%s %s%s",
+			    roff_name[n->tok], n->child->string,
 			    n->child->next != NULL ? " ..." : "");
 		break;
 	default:
@@ -291,7 +258,7 @@ post_IP(CHKARGS)
 		if (n->parent->head->child == NULL && n->child == NULL)
 			mandoc_vmsg(MANDOCERR_PAR_SKIP,
 			    man->parse, n->line, n->pos,
-			    "%s empty", man_macronames[n->tok]);
+			    "%s empty", roff_name[n->tok]);
 		break;
 	default:
 		break;
@@ -478,9 +445,12 @@ post_vs(CHKARGS)
 	switch (n->parent->tok) {
 	case MAN_SH:
 	case MAN_SS:
+	case MAN_PP:
+	case MAN_LP:
+	case MAN_P:
 		mandoc_vmsg(MANDOCERR_PAR_SKIP, man->parse, n->line, n->pos,
-		    "%s after %s", man_macronames[n->tok],
-		    man_macronames[n->parent->tok]);
+		    "%s after %s", roff_name[n->tok],
+		    roff_name[n->parent->tok]);
 		/* FALLTHROUGH */
 	case TOKEN_NONE:
 		/*

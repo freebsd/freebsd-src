@@ -1,7 +1,7 @@
-/*	$Id: term_ps.c,v 1.83 2017/02/17 14:31:52 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.85 2017/06/07 17:38:26 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -538,12 +538,15 @@ pspdf_alloc(const struct manoutput *outopts)
 	size_t		 marginx, marginy, lineheight;
 	const char	*pp;
 
-	p = mandoc_calloc(1, sizeof(struct termp));
+	p = mandoc_calloc(1, sizeof(*p));
+	p->tcol = p->tcols = mandoc_calloc(1, sizeof(*p->tcol));
+	p->maxtcol = 1;
+
 	p->enc = TERMENC_ASCII;
 	p->fontq = mandoc_reallocarray(NULL,
-	    (p->fontsz = 8), sizeof(enum termfont));
+	    (p->fontsz = 8), sizeof(*p->fontq));
 	p->fontq[0] = p->fontl = TERMFONT_NONE;
-	p->ps = mandoc_calloc(1, sizeof(struct termp_ps));
+	p->ps = mandoc_calloc(1, sizeof(*p->ps));
 
 	p->advance = ps_advance;
 	p->begin = ps_begin;
@@ -1219,6 +1222,9 @@ ps_endline(struct termp *p)
 	}
 
 	ps_closepage(p);
+
+	p->tcol->offset -= p->ti;
+	p->ti = 0;
 }
 
 static void

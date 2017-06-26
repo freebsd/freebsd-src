@@ -165,7 +165,7 @@ msdosfs_create(struct vop_create_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("msdosfs_create: no name");
 #endif
-	bzero(&ndirent, sizeof(ndirent));
+	memset(&ndirent, 0, sizeof(ndirent));
 	error = uniqdosname(pdep, cnp, ndirent.de_Name);
 	if (error)
 		goto bad;
@@ -284,11 +284,7 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 			fileid = (uint64_t)roottobn(pmp, 0) * dirsperblk;
 		fileid += (uoff_t)dep->de_diroffset / sizeof(struct direntry);
 	}
-
-	if (pmp->pm_flags & MSDOSFS_LARGEFS)
-		vap->va_fileid = msdosfs_fileno_map(pmp->pm_mountp, fileid);
-	else
-		vap->va_fileid = (long)fileid;
+	vap->va_fileid = fileid;
 
 	mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	vap->va_mode = mode & 
@@ -1156,13 +1152,13 @@ abortit:
 		 * we moved a directory, then update its .. entry to point
 		 * to the new parent directory.
 		 */
-		bcopy(ip->de_Name, oldname, 11);
-		bcopy(toname, ip->de_Name, 11);	/* update denode */
+		memcpy(oldname, ip->de_Name, 11);
+		memcpy(ip->de_Name, toname, 11);	/* update denode */
 		dp->de_fndoffset = to_diroffset;
 		dp->de_fndcnt = to_count;
 		error = createde(ip, dp, (struct denode **)0, tcnp);
 		if (error) {
-			bcopy(oldname, ip->de_Name, 11);
+			memcpy(ip->de_Name, oldname, 11);
 			if (newparent)
 				VOP_UNLOCK(fdvp, 0);
 			VOP_UNLOCK(fvp, 0);
@@ -1178,7 +1174,7 @@ abortit:
 		 * to pass the correct name to createde().  Undo this.
 		 */
 		if ((ip->de_Attributes & ATTR_DIRECTORY) != 0)
-			bcopy(oldname, ip->de_Name, 11);
+			memcpy(ip->de_Name, oldname, 11);
 		ip->de_refcnt++;
 		zp->de_fndoffset = from_diroffset;
 		error = removede(zp, ip);
@@ -1324,7 +1320,7 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	if (error)
 		goto bad2;
 
-	bzero(&ndirent, sizeof(ndirent));
+	memset(&ndirent, 0, sizeof(ndirent));
 	ndirent.de_pmp = pmp;
 	ndirent.de_flag = DE_ACCESS | DE_CREATE | DE_UPDATE;
 	getnanotime(&ts);
@@ -1338,8 +1334,8 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	bn = cntobn(pmp, newcluster);
 	/* always succeeds */
 	bp = getblk(pmp->pm_devvp, bn, pmp->pm_bpcluster, 0, 0, 0);
-	bzero(bp->b_data, pmp->pm_bpcluster);
-	bcopy(&dosdirtemplate, bp->b_data, sizeof dosdirtemplate);
+	memset(bp->b_data, 0, pmp->pm_bpcluster);
+	memcpy(bp->b_data, &dosdirtemplate, sizeof dosdirtemplate);
 	denp = (struct direntry *)bp->b_data;
 	putushort(denp[0].deStartCluster, newcluster);
 	putushort(denp[0].deCDate, ndirent.de_CDate);
@@ -1472,7 +1468,6 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	int blsize;
 	long on;
 	u_long cn;
-	uint64_t fileno;
 	u_long dirsperblk;
 	long bias = 0;
 	daddr_t bn, lbn;
@@ -1504,7 +1499,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * To be safe, initialize dirbuf
 	 */
-	bzero(dirbuf.d_name, sizeof(dirbuf.d_name));
+	memset(dirbuf.d_name, 0, sizeof(dirbuf.d_name));
 
 	/*
 	 * If the user buffer is smaller than the size of one dos directory
@@ -1543,20 +1538,9 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 		if (offset < bias) {
 			for (n = (int)offset / sizeof(struct direntry);
 			     n < 2; n++) {
-				if (FAT32(pmp))
-					fileno = (uint64_t)cntobn(pmp,
-								 pmp->pm_rootdirblk)
-							  * dirsperblk;
-				else
-					fileno = 1;
-				if (pmp->pm_flags & MSDOSFS_LARGEFS) {
-					dirbuf.d_fileno =
-					    msdosfs_fileno_map(pmp->pm_mountp,
-					    fileno);
-				} else {
-
-					dirbuf.d_fileno = (uint32_t)fileno;
-				}
+				dirbuf.d_fileno = FAT32(pmp) ?
+				    (uint64_t)cntobn(pmp, pmp->pm_rootdirblk) *
+				    dirsperblk : 1;
 				dirbuf.d_type = DT_DIR;
 				switch (n) {
 				case 0:
@@ -1661,31 +1645,24 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			 * msdosfs_getattr.
 			 */
 			if (dentp->deAttributes & ATTR_DIRECTORY) {
-				fileno = getushort(dentp->deStartCluster);
-				if (FAT32(pmp))
-					fileno |= getushort(dentp->deHighClust) << 16;
-				/* if this is the root directory */
-				if (fileno == MSDOSFSROOT)
-					if (FAT32(pmp))
-						fileno = (uint64_t)cntobn(pmp,
-								pmp->pm_rootdirblk)
-							 * dirsperblk;
-					else
-						fileno = 1;
+				cn = getushort(dentp->deStartCluster);
+				if (FAT32(pmp)) {
+					cn |= getushort(dentp->deHighClust) <<
+					    16;
+					if (cn == MSDOSFSROOT)
+						cn = pmp->pm_rootdirblk;
+				}
+				if (cn == MSDOSFSROOT && !FAT32(pmp))
+					dirbuf.d_fileno = 1;
 				else
-					fileno = (uint64_t)cntobn(pmp, fileno) *
+					dirbuf.d_fileno = cntobn(pmp, cn) *
 					    dirsperblk;
 				dirbuf.d_type = DT_DIR;
 			} else {
-				fileno = (uoff_t)offset /
+				dirbuf.d_fileno = (uoff_t)offset /
 				    sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
-			if (pmp->pm_flags & MSDOSFS_LARGEFS) {
-				dirbuf.d_fileno =
-				    msdosfs_fileno_map(pmp->pm_mountp, fileno);
-			} else
-				dirbuf.d_fileno = (uint32_t)fileno;
 
 			if (chksum != winChksum(dentp->deName)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,

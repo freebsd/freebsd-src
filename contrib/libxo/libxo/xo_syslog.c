@@ -176,8 +176,8 @@ xo_send_syslog (char *full_msg, char *v0_hdr,
     int fd;
     int full_len = strlen(full_msg);
 
-    /* Output to stderr if requested. */
-    if (xo_logstat & LOG_PERROR) {
+    /* Output to stderr if requested, then we've been passed a v0 header */
+    if (v0_hdr) {
         struct iovec iov[3];
         struct iovec *v = iov;
         char newline[] = "\n";

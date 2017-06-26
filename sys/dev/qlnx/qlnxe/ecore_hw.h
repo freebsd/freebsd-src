@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_HW_H__
 #define __ECORE_HW_H__
 
@@ -94,8 +93,10 @@ enum _dmae_cmd_crc_mask {
 * @brief ecore_gtt_init - Initialize GTT windows
 *
 * @param p_hwfn
+* @param p_ptt
 */
-void ecore_gtt_init(struct ecore_hwfn *p_hwfn);
+void ecore_gtt_init(struct ecore_hwfn *p_hwfn,
+		    struct ecore_ptt *p_ptt);
 
 /**
  * @brief ecore_ptt_invalidate - Forces all ptt entries to be re-configured
@@ -123,13 +124,11 @@ void ecore_ptt_pool_free(struct ecore_hwfn *p_hwfn);
 /**
  * @brief ecore_ptt_get_hw_addr - Get PTT's GRC/HW address
  *
- * @param p_hwfn
  * @param p_ptt
  *
  * @return u32
  */
-u32 ecore_ptt_get_hw_addr(struct ecore_hwfn	*p_hwfn,
-			  struct ecore_ptt	*p_ptt);
+u32 ecore_ptt_get_hw_addr(struct ecore_ptt *p_ptt);
 
 /**
  * @brief ecore_ptt_get_bar_addr - Get PPT's external BAR address
@@ -280,35 +279,6 @@ enum _ecore_status_t ecore_dmae_info_alloc(struct ecore_hwfn	*p_hwfn);
 * @param p_hwfn
 */
 void ecore_dmae_info_free(struct ecore_hwfn	*p_hwfn);
-
-union ecore_qm_pq_params {
-	struct {
-		u8 q_idx;
-	} iscsi;
-
-	struct {
-		u8 tc;
-	} core;
-
-	struct {
-		u8 is_vf;
-		u8 vf_id;
-		u8 tc;
-	} eth;
-
-	struct {
-		u8 dcqcn;
-		u8 qpid; /* roce relative */
-	} roce;
-
-	struct {
-		u8 qidx;
-	} iwarp;
-};
-
-u16 ecore_get_qm_pq(struct ecore_hwfn	*p_hwfn,
-		    enum protocol_type	proto,
-		    union ecore_qm_pq_params *params);
 
 enum _ecore_status_t ecore_init_fw_data(struct ecore_dev *p_dev,
 					const u8 *fw_data);

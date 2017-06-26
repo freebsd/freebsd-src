@@ -7039,7 +7039,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 				if (tinp && (tinp != inp) &&
 				    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) == 0) &&
 				    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-				    (tinp->sctp_socket->so_qlimit)) {
+				    (SCTP_IS_LISTENING(tinp))) {
 					/*
 					 * we have a listener already and
 					 * its not this inp.
@@ -7083,7 +7083,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 			if (tinp && (tinp != inp) &&
 			    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) == 0) &&
 			    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-			    (tinp->sctp_socket->so_qlimit)) {
+			    (SCTP_IS_LISTENING(tinp))) {
 				/*
 				 * we have a listener already and its not
 				 * this inp.
@@ -7137,18 +7137,14 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 			return (error);
 		}
 	}
-	SOCK_LOCK(so);
-	/* It appears for 7.0 and on, we must always call this. */
-	solisten_proto(so, backlog);
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
-		/* remove the ACCEPTCONN flag for one-to-many sockets */
-		so->so_options &= ~SO_ACCEPTCONN;
+	SCTP_INP_WLOCK(inp);
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) == 0) {
+		SOCK_LOCK(so);
+		solisten_proto(so, backlog);
+		SOCK_UNLOCK(so);
 	}
-	if (backlog == 0) {
-		/* turning off listen */
-		so->so_options &= ~SO_ACCEPTCONN;
-	}
-	SOCK_UNLOCK(so);
+	inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
+	SCTP_INP_WUNLOCK(inp);
 	return (error);
 }
 

@@ -183,26 +183,29 @@ struct icmp6_filter;
 struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
+	/* Cache line #1 (amd64) */
 	LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
 	LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
-	LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
-	                                /* (p[w]) for list iteration */
-	                                /* (p[r]/l) for addition/removal */
+	struct rwlock	inp_lock;
+	/* Cache line #2 (amd64) */
+#define	inp_start_zero	inp_refcount
+#define	inp_zero_size	(sizeof(struct inpcb) - \
+			    offsetof(struct inpcb, inp_start_zero))
+	u_int	inp_refcount;		/* (i) refcount */
+	int	inp_flags;		/* (i) generic IP/datagram flags */
+	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
+	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	inpcbgroup *inp_pcbgroup; /* (g/i) PCB group list */
 	LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/h) group wildcard entry */
-	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
-	int	inp_flags;		/* (i) generic IP/datagram flags */
-	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
 	u_char	inp_vflag;		/* (i) IP version flag (v4/v6) */
 	u_char	inp_ip_ttl;		/* (i) time to live proto */
 	u_char	inp_ip_p;		/* (c) protocol proto */
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
-	u_int	inp_refcount;		/* (i) refcount */
 	struct m_snd_tag *inp_snd_tag;	/* (i) send tag for outgoing mbufs */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
 	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
@@ -235,17 +238,16 @@ struct inpcb {
 	};
 	LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
 	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
-#define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	struct llentry	*inp_lle;	/* cached L2 information */
-	struct rwlock	inp_lock;
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
 	union {				/* cached L3 information */
-		struct route inpu_route;
-		struct route_in6 inpu_route6;
-	} inp_rtu;
-#define inp_route inp_rtu.inpu_route
-#define inp_route6 inp_rtu.inpu_route6
+		struct route inp_route;
+		struct route_in6 inp_route6;
+	};
+	LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
+	                                /* (p[w]) for list iteration */
+	                                /* (p[r]/l) for addition/removal */
 };
 #endif	/* _KERNEL */
 

@@ -122,16 +122,46 @@
 		(d)->__bits[__i] |= (s)->__bits[__i];			\
 } while (0)
 
+#define	BIT_OR2(_s, d, s1, s2) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] = (s1)->__bits[__i] | (s2)->__bits[__i];\
+} while (0)
+
 #define	BIT_AND(_s, d, s) do {						\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
 		(d)->__bits[__i] &= (s)->__bits[__i];			\
 } while (0)
 
+#define	BIT_AND2(_s, d, s1, s2) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] = (s1)->__bits[__i] & (s2)->__bits[__i];\
+} while (0)
+
 #define	BIT_NAND(_s, d, s) do {						\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
 		(d)->__bits[__i] &= ~(s)->__bits[__i];			\
+} while (0)
+
+#define	BIT_NAND2(_s, d, s1, s2) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] = (s1)->__bits[__i] & ~(s2)->__bits[__i];\
+} while (0)
+
+#define	BIT_XOR(_s, d, s) do {						\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] ^= (s)->__bits[__i];			\
+} while (0)
+
+#define	BIT_XOR2(_s, d, s1, s2) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		(d)->__bits[__i] = (s1)->__bits[__i] ^ (s2)->__bits[__i];\
 } while (0)
 
 #define	BIT_CLR_ATOMIC(_s, n, p)					\

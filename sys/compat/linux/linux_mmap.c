@@ -212,13 +212,14 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	 */
 	if (addr != 0 && (bsd_flags & MAP_FIXED) == 0 &&
 	    (bsd_flags & MAP_EXCL) == 0) {
-		error = kern_mmap(td, addr, 0, len, prot,
+		error = kern_mmap(td, addr, 0, len, PROT_MAX(PROT_ALL) | prot,
 		    bsd_flags | MAP_FIXED | MAP_EXCL, fd, pos);
 		if (error == 0)
 			goto out;
 	}
 
-	error = kern_mmap(td, addr, 0, len, prot, bsd_flags, fd, pos);
+	error = kern_mmap(td, addr, 0, len, PROT_MAX(PROT_ALL) | prot,
+	    bsd_flags, fd, pos);
 out:
 	LINUX_CTR2(mmap2, "return: %d (%p)", error, td->td_retval[0]);
 

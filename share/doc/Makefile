@@ -23,11 +23,6 @@ _llvm=	llvm
 _IPv6=	IPv6
 .endif
 
-# FIXME this is not a real solution ...
-.if ${MK_GROFF} != "no"
-_roffdocs=	papers psd smm usd
-.endif
-
 SUBDIR_PARALLEL=
 
 # Default output format for troff documents is ascii.

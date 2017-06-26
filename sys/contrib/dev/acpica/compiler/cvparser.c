@@ -215,7 +215,7 @@ CvIsFilename (
 
     for(i = 0; i<Length; ++i)
     {
-        if (!isprint (Filename[i]))
+        if (!isprint ((int) Filename[i]))
         {
             return FALSE;
         }
@@ -439,6 +439,11 @@ CvFilenameExists(
 {
     ACPI_FILE_NODE          *Current = Head;
 
+
+    if (!Filename)
+    {
+        return (NULL);
+    }
 
     while (Current)
     {

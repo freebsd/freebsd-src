@@ -204,6 +204,7 @@
 #define ACPI_GTDT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_GTDT,f)
 #define ACPI_HEST_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_HEST,f)
 #define ACPI_HPET_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_HPET,f)
+#define ACPI_HMAT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_HMAT,f)
 #define ACPI_IORT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_IORT,f)
 #define ACPI_IVRS_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_IVRS,f)
 #define ACPI_MADT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_MADT,f)
@@ -230,6 +231,7 @@
 #define ACPI_WDDT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_WDDT,f)
 #define ACPI_WDRT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_WDRT,f)
 #define ACPI_WPBT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_WPBT,f)
+#define ACPI_WSMT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_WSMT,f)
 #define ACPI_XENV_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_XENV,f)
 
 /* Subtables */
@@ -273,8 +275,13 @@
 #define ACPI_HEST8_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_AER_BRIDGE,f)
 #define ACPI_HEST9_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_GENERIC,f)
 #define ACPI_HEST10_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_HEST_GENERIC_V2,f)
+#define ACPI_HEST11_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_HEST_IA_DEFERRED_CHECK,f)
 #define ACPI_HESTN_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_NOTIFY,f)
 #define ACPI_HESTB_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_IA_ERROR_BANK,f)
+#define ACPI_HMAT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HMAT_ADDRESS_RANGE,f)
+#define ACPI_HMAT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HMAT_LOCALITY,f)
+#define ACPI_HMAT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HMAT_CACHE,f)
+#define ACPI_HMATH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HMAT_STRUCTURE,f)
 #define ACPI_IORT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_ITS_GROUP,f)
 #define ACPI_IORT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_NAMED_COMPONENT,f)
 #define ACPI_IORT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_ROOT_COMPLEX,f)
@@ -329,11 +336,17 @@
 #define ACPI_PCCT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_SUBSPACE,f)
 #define ACPI_PCCT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_HW_REDUCED,f)
 #define ACPI_PCCT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_HW_REDUCED_TYPE2,f)
+#define ACPI_PCCT3_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_EXT_PCC_MASTER,f)
+#define ACPI_PCCT4_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PCCT_EXT_PCC_SLAVE,f)
 #define ACPI_PMTT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PMTT_SOCKET,f)
 #define ACPI_PMTT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PMTT_CONTROLLER,f)
 #define ACPI_PMTT1A_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_PMTT_DOMAIN,f)
 #define ACPI_PMTT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PMTT_PHYSICAL_COMPONENT,f)
 #define ACPI_PMTTH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PMTT_HEADER,f)
+#define ACPI_PPTTH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
+#define ACPI_PPTT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PPTT_PROCESSOR,f)
+#define ACPI_PPTT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PPTT_CACHE,f)
+#define ACPI_PPTT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_PPTT_ID,f)
 #define ACPI_S3PTH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_FPDT_HEADER,f)
 #define ACPI_S3PT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_S3PT_RESUME,f)
 #define ACPI_S3PT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_S3PT_SUSPEND,f)
@@ -343,6 +356,7 @@
 #define ACPI_SRAT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_MEM_AFFINITY,f)
 #define ACPI_SRAT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f)
 #define ACPI_SRAT3_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_GICC_AFFINITY,f)
+#define ACPI_SRAT4_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_GIC_ITS_AFFINITY,f)
 #define ACPI_TCPA_CLIENT_OFFSET(f)      (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_CLIENT,f)
 #define ACPI_TCPA_SERVER_OFFSET(f)      (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_SERVER,f)
 #define ACPI_VRTC0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_VRTC_ENTRY,f)
@@ -355,11 +369,14 @@
 
 /* Flags */
 
+#define ACPI_BGRT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_BGRT,f,o)
 #define ACPI_DRTM_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_DRTM,f,o)
 #define ACPI_DRTM1a_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_DRTM_RESOURCE,f,o)
 #define ACPI_FADT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_FADT,f,o)
 #define ACPI_FACS_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_FACS,f,o)
 #define ACPI_HPET_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_HPET,f,o)
+#define ACPI_PPTT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PPTT_PROCESSOR,f,o)
+#define ACPI_PPTT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PPTT_CACHE,f,o)
 #define ACPI_SRAT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_CPU_AFFINITY,f,o)
 #define ACPI_SRAT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_MEM_AFFINITY,f,o)
 #define ACPI_SRAT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f,o)
@@ -367,6 +384,9 @@
 #define ACPI_GTDT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_GTDT,f,o)
 #define ACPI_GTDT0a_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_GTDT_TIMER_ENTRY,f,o)
 #define ACPI_GTDT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_GTDT_WATCHDOG,f,o)
+#define ACPI_HMAT0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HMAT_ADDRESS_RANGE,f,o)
+#define ACPI_HMAT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HMAT_LOCALITY,f,o)
+#define ACPI_HMAT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HMAT_CACHE,f,o)
 #define ACPI_IORT3_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_SMMU,f,o)
 #define ACPI_IORT3a_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_IORT_SMMU_GSI,f,o)
 #define ACPI_IORT4_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_SMMU_V3,f,o)
@@ -392,13 +412,17 @@
 #define ACPI_PCCT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_PCCT,f,o)
 #define ACPI_PCCT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_HW_REDUCED,f,o)
 #define ACPI_PCCT2_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_HW_REDUCED_TYPE2,f,o)
+#define ACPI_PCCT3_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_EXT_PCC_MASTER,f,o)
+#define ACPI_PCCT4_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PCCT_EXT_PCC_SLAVE,f,o)
 #define ACPI_PMTTH_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_PMTT_HEADER,f,o)
 #define ACPI_WDDT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_WDDT,f,o)
+#define ACPI_WSMT_FLAG_OFFSET(f,o)      ACPI_FLAG_OFFSET (ACPI_TABLE_WSMT,f,o)
 #define ACPI_EINJ0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_WHEA_HEADER,f,o)
 #define ACPI_ERST0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_WHEA_HEADER,f,o)
 #define ACPI_HEST0_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HEST_IA_MACHINE_CHECK,f,o)
 #define ACPI_HEST1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HEST_IA_CORRECTED,f,o)
 #define ACPI_HEST6_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_HEST_AER_ROOT,f,o)
+#define ACPI_HEST11_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_HEST_IA_DEFERRED_CHECK,f,o)
 
 /*
  * Required terminator for all tables below
@@ -780,7 +804,10 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoBert[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoBgrt[] =
 {
     {ACPI_DMT_UINT16,   ACPI_BGRT_OFFSET (Version),                 "Version", 0},
-    {ACPI_DMT_UINT8,    ACPI_BGRT_OFFSET (Status),                  "Status", 0},
+    {ACPI_DMT_UINT8,    ACPI_BGRT_OFFSET (Status),                  "Status (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_BGRT_FLAG_OFFSET (Status, 0),          "Displayed", 0},
+    {ACPI_DMT_FLAGS1,   ACPI_BGRT_FLAG_OFFSET (Status, 0),          "Orientation Offset", 0},
+
     {ACPI_DMT_UINT8,    ACPI_BGRT_OFFSET (ImageType),               "Image Type", 0},
     {ACPI_DMT_UINT64,   ACPI_BGRT_OFFSET (ImageAddress),            "Image Address", 0},
     {ACPI_DMT_UINT32,   ACPI_BGRT_OFFSET (ImageOffsetX),            "Image OffsetX", 0},
@@ -1349,6 +1376,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHest[] =
     {ACPI_DMT_UINT16,   ACPI_HEST6_OFFSET (Aer.Reserved1),              "Reserved", 0}, \
     {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Flags),                  "Flags (decoded below)", DT_FLAG}, \
     {ACPI_DMT_FLAG0,    ACPI_HEST6_FLAG_OFFSET (Aer.Flags,0),           "Firmware First", 0}, \
+    {ACPI_DMT_FLAG0,    ACPI_HEST6_FLAG_OFFSET (Aer.Flags,0),           "Global", 0}, \
     {ACPI_DMT_UINT8,    ACPI_HEST6_OFFSET (Aer.Enabled),                "Enabled", 0}, \
     {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.RecordsToPreallocate),   "Records To Preallocate", 0}, \
     {ACPI_DMT_UINT32,   ACPI_HEST6_OFFSET (Aer.MaxSectionsPerRecord),   "Max Sections Per Record", 0}, \
@@ -1373,6 +1401,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHest0[] =
     {ACPI_DMT_UINT16,   ACPI_HEST0_OFFSET (Reserved1),              "Reserved1", 0},
     {ACPI_DMT_UINT8,    ACPI_HEST0_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_HEST0_FLAG_OFFSET (Flags,0),           "Firmware First", 0},
+    {ACPI_DMT_FLAG2,    ACPI_HEST0_FLAG_OFFSET (Flags,0),           "GHES Assist", 0},
 
     {ACPI_DMT_UINT8,    ACPI_HEST0_OFFSET (Enabled),                "Enabled", 0},
     {ACPI_DMT_UINT32,   ACPI_HEST0_OFFSET (RecordsToPreallocate),   "Records To Preallocate", 0},
@@ -1392,6 +1421,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHest1[] =
     {ACPI_DMT_UINT16,   ACPI_HEST1_OFFSET (Reserved1),              "Reserved1", 0},
     {ACPI_DMT_UINT8,    ACPI_HEST1_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_HEST1_FLAG_OFFSET (Flags,0),           "Firmware First", 0},
+    {ACPI_DMT_FLAG2,    ACPI_HEST1_FLAG_OFFSET (Flags,0),           "GHES Assist", 0},
 
     {ACPI_DMT_UINT8,    ACPI_HEST1_OFFSET (Enabled),                "Enabled", 0},
     {ACPI_DMT_UINT32,   ACPI_HEST1_OFFSET (RecordsToPreallocate),   "Records To Preallocate", 0},
@@ -1482,6 +1512,27 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHest10[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* 11: IA32 Deferred Machine Check */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest11[] =
+{
+    ACPI_DM_HEST_HEADER,
+    {ACPI_DMT_UINT16,   ACPI_HEST11_OFFSET (Reserved1),             "Reserved1", 0},
+    {ACPI_DMT_UINT8,    ACPI_HEST11_OFFSET (Flags),                 "Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_HEST11_FLAG_OFFSET (Flags,0),          "Firmware First", 0},
+    {ACPI_DMT_FLAG2,    ACPI_HEST11_FLAG_OFFSET (Flags,0),          "GHES Assist", 0},
+
+    {ACPI_DMT_UINT8,    ACPI_HEST11_OFFSET (Enabled),               "Enabled", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST11_OFFSET (RecordsToPreallocate),  "Records To Preallocate", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST11_OFFSET (MaxSectionsPerRecord),  "Max Sections Per Record", 0},
+    {ACPI_DMT_HESTNTFY, ACPI_HEST11_OFFSET (Notify),                "Notify", 0},
+    {ACPI_DMT_UINT8,    ACPI_HEST11_OFFSET (NumHardwareBanks),      "Num Hardware Banks", 0},
+    {ACPI_DMT_UINT24,   ACPI_HEST11_OFFSET (Reserved2[0]),          "Reserved2", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Notification Structure */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoHestNotify[] =
 {
     {ACPI_DMT_HESTNTYP, ACPI_HESTN_OFFSET (Type),                   "Notify Type", 0},
@@ -1531,6 +1582,105 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHpet[] =
     {ACPI_DMT_UINT8,    ACPI_HPET_OFFSET (Flags),                   "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_HPET_FLAG_OFFSET (Flags,0),            "4K Page Protect", 0},
     {ACPI_DMT_FLAG1,    ACPI_HPET_FLAG_OFFSET (Flags,0),            "64K Page Protect", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * HMAT - Heterogeneous Memory Attributes Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_HMAT_OFFSET (Reserved),                "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Common HMAT structure header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmatHdr[] =
+{
+    {ACPI_DMT_HMAT,     ACPI_HMATH_OFFSET (Type),                   "Structure Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_HMATH_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMATH_OFFSET (Length),                 "Length", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* HMAT subtables */
+
+/* 0x00: Memory Subsystem Address Range */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat0[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_HMAT0_OFFSET (Flags),                  "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Processor Proximity Domain Valid", 0},
+    {ACPI_DMT_FLAG1,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Memory Proximity Domain Valid", 0},
+    {ACPI_DMT_FLAG2,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Reservation Hint", 0},
+    {ACPI_DMT_UINT16,   ACPI_HMAT0_OFFSET (Reserved1),              "Reserved1", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (ProcessorPD),            "Processor Proximity Domain", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (MemoryPD),               "Memory Proximity Domain", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (Reserved2),              "Reserved2", 0},
+    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (PhysicalAddressBase),    "Physical Address Range Base", 0},
+    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (PhysicalAddressLength),  "Physical Address Range Size", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0x01: System Locality Latency and Bandwidth Information */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat1[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_HMAT1_OFFSET (Flags),                  "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAGS4_0, ACPI_HMAT1_FLAG_OFFSET (Flags,0),           "Memory Hierarchy", 0},
+    {ACPI_DMT_UINT8,    ACPI_HMAT1_OFFSET (DataType),               "Data Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_HMAT1_OFFSET (Reserved1),              "Reserved1", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT1_OFFSET (NumberOfInitiatorPDs),   "Initiator Proximity Domains #", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT1_OFFSET (NumberOfTargetPDs),      "Target Proximity Domains #", 0},
+    {ACPI_DMT_UINT32,   ACPI_HMAT1_OFFSET (Reserved2),              "Reserved2", 0},
+    {ACPI_DMT_UINT64,   ACPI_HMAT1_OFFSET (EntryBaseUnit),          "Entry Base Unit", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat1a[] =
+{
+    {ACPI_DMT_UINT32,   0,                                          "Initiator Proximity Domain List", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat1b[] =
+{
+    {ACPI_DMT_UINT32,   0,                                          "Target Proximity Domain List", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat1c[] =
+{
+    {ACPI_DMT_UINT16,   0,                                          "Entry", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0x02: Memory Side Cache Information */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat2[] =
+{
+    {ACPI_DMT_UINT32,       ACPI_HMAT2_OFFSET (MemoryPD),               "Memory Proximity Domain", 0},
+    {ACPI_DMT_UINT32,       ACPI_HMAT2_OFFSET (Reserved1),              "Reserved1", 0},
+    {ACPI_DMT_UINT64,       ACPI_HMAT2_OFFSET (CacheSize),              "Memory Side Cache Size", 0},
+    {ACPI_DMT_UINT32,       ACPI_HMAT2_OFFSET (CacheAttributes),        "Cache Attributes (decoded below)", 0},
+    {ACPI_DMT_FLAGS4_0,     ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Total Cache Levels", 0},
+    {ACPI_DMT_FLAGS4_4,     ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Cache Level", 0},
+    {ACPI_DMT_FLAGS4_8,     ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Cache Associativity", 0},
+    {ACPI_DMT_FLAGS4_12,    ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Write Policy", 0},
+    {ACPI_DMT_FLAGS16_16,   ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Cache Line Size", 0},
+    {ACPI_DMT_UINT16,       ACPI_HMAT2_OFFSET (Reserved2),              "Reserved2", 0},
+    {ACPI_DMT_UINT16,       ACPI_HMAT2_OFFSET (NumberOfSMBIOSHandles),  "SMBIOS Handle #", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat2a[] =
+{
+    {ACPI_DMT_UINT16,   0,                                          "SMBIOS Handle", DT_OPTIONAL},
     ACPI_DMT_TERMINATOR
 };
 
@@ -2406,7 +2556,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit6a[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct[] =
 {
     {ACPI_DMT_UINT32,   ACPI_PCCT_OFFSET (Flags),                   "Flags (decoded below)", DT_FLAG},
-    {ACPI_DMT_FLAG0,    ACPI_PCCT_FLAG_OFFSET (Flags,0),            "Doorbell", 0},
+    {ACPI_DMT_FLAG0,    ACPI_PCCT_FLAG_OFFSET (Flags,0),            "Platform", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT_OFFSET (Reserved),                "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
@@ -2440,7 +2590,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct0[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct1[] =
 {
-    {ACPI_DMT_UINT32,   ACPI_PCCT1_OFFSET (DoorbellInterrupt),      "Doorbell Interrupt", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT1_OFFSET (PlatformInterrupt),      "Platform Interrupt", 0},
     {ACPI_DMT_UINT8,    ACPI_PCCT1_OFFSET (Flags),                  "Flags (Decoded Below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_PCCT1_FLAG_OFFSET (Flags,0),           "Polarity", 0},
     {ACPI_DMT_FLAG1,    ACPI_PCCT1_FLAG_OFFSET (Flags,0),           "Mode", 0},
@@ -2460,7 +2610,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct1[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct2[] =
 {
-    {ACPI_DMT_UINT32,   ACPI_PCCT2_OFFSET (DoorbellInterrupt),      "Doorbell Interrupt", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT2_OFFSET (PlatformInterrupt),      "Platform Interrupt", 0},
     {ACPI_DMT_UINT8,    ACPI_PCCT2_OFFSET (Flags),                  "Flags (Decoded Below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_PCCT2_FLAG_OFFSET (Flags,0),           "Polarity", 0},
     {ACPI_DMT_FLAG1,    ACPI_PCCT2_FLAG_OFFSET (Flags,0),           "Mode", 0},
@@ -2473,12 +2623,73 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct2[] =
     {ACPI_DMT_UINT32,   ACPI_PCCT2_OFFSET (Latency),                "Command Latency", 0},
     {ACPI_DMT_UINT32,   ACPI_PCCT2_OFFSET (MaxAccessRate),          "Maximum Access Rate", 0},
     {ACPI_DMT_UINT16,   ACPI_PCCT2_OFFSET (MinTurnaroundTime),      "Minimum Turnaround Time", 0},
-    {ACPI_DMT_GAS,      ACPI_PCCT2_OFFSET (DoorbellAckRegister),    "Doorbell ACK Register", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT2_OFFSET (PlatformAckRegister),    "Platform ACK Register", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT2_OFFSET (AckPreserveMask),        "ACK Preserve Mask", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT2_OFFSET (AckWriteMask),           "ACK Write Mask", 0},
     ACPI_DMT_TERMINATOR
 };
 
+/* 3: Extended PCC Master Subspace Type 3 (ACPI 6.2) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct3[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_PCCT3_OFFSET (PlatformInterrupt),      "Platform Interrupt", 0},
+    {ACPI_DMT_UINT8,    ACPI_PCCT3_OFFSET (Flags),                  "Flags (Decoded Below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_PCCT3_FLAG_OFFSET (Flags,0),           "Polarity", 0},
+    {ACPI_DMT_FLAG1,    ACPI_PCCT3_FLAG_OFFSET (Flags,0),           "Mode", 0},
+    {ACPI_DMT_UINT8,    ACPI_PCCT3_OFFSET (Reserved1),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (BaseAddress),            "Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT3_OFFSET (Length),                 "Address Length", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT3_OFFSET (DoorbellRegister),       "Doorbell Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (PreserveMask),           "Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (WriteMask),              "Write Mask", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT3_OFFSET (Latency),                "Command Latency", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT3_OFFSET (MaxAccessRate),          "Maximum Access Rate", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT3_OFFSET (MinTurnaroundTime),      "Minimum Turnaround Time", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT3_OFFSET (PlatformAckRegister),    "Platform ACK Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (AckPreserveMask),        "ACK Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (AckSetMask),             "ACK Set Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (Reserved2),              "Reserved", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT3_OFFSET (CmdCompleteRegister),    "Command Complete Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (CmdCompleteMask),        "Command Complete Check Mask", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT3_OFFSET (CmdUpdateRegister),      "Command Update Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (CmdUpdatePreserveMask),  "Command Update Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (CmdUpdateSetMask),       "Command Update Set Mask", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT3_OFFSET (ErrorStatusRegister),    "Error Status Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT3_OFFSET (ErrorStatusMask),        "Error Status Mask", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 4: Extended PCC Slave Subspace Type 4 (ACPI 6.2) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct4[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_PCCT4_OFFSET (PlatformInterrupt),      "Platform Interrupt", 0},
+    {ACPI_DMT_UINT8,    ACPI_PCCT4_OFFSET (Flags),                  "Flags (Decoded Below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_PCCT4_FLAG_OFFSET (Flags,0),           "Polarity", 0},
+    {ACPI_DMT_FLAG1,    ACPI_PCCT4_FLAG_OFFSET (Flags,0),           "Mode", 0},
+    {ACPI_DMT_UINT8,    ACPI_PCCT4_OFFSET (Reserved1),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (BaseAddress),            "Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT4_OFFSET (Length),                 "Address Length", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT4_OFFSET (DoorbellRegister),       "Doorbell Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (PreserveMask),           "Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (WriteMask),              "Write Mask", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT4_OFFSET (Latency),                "Command Latency", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT4_OFFSET (MaxAccessRate),          "Maximum Access Rate", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT4_OFFSET (MinTurnaroundTime),      "Minimum Turnaround Time", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT4_OFFSET (PlatformAckRegister),    "Platform ACK Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (AckPreserveMask),        "ACK Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (AckSetMask),             "ACK Set Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (Reserved2),              "Reserved", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT4_OFFSET (CmdCompleteRegister),    "Command Complete Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (CmdCompleteMask),        "Command Complete Check Mask", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT4_OFFSET (CmdUpdateRegister),      "Command Update Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (CmdUpdatePreserveMask),  "Command Update Preserve Mask", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (CmdUpdateSetMask),       "Command Update Set Mask", 0},
+    {ACPI_DMT_GAS,      ACPI_PCCT4_OFFSET (ErrorStatusRegister),    "Error Status Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT4_OFFSET (ErrorStatusMask),        "Error Status Mask", 0},
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *
@@ -2552,6 +2763,82 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPmtt2[] =
     ACPI_DMT_TERMINATOR
 };
 
+
+/*******************************************************************************
+ *
+ * PPTT - Processor Properties Topology Table (ACPI 6.2)
+ *
+ ******************************************************************************/
+
+/* Main table consists of only the standard ACPI header - subtables follow */
+
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPpttHdr[] =
+{
+    {ACPI_DMT_PPTT,     ACPI_PPTTH_OFFSET (Type),                   "Subtable Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_PPTTH_OFFSET (Length),                 "Length", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0: Processor hierarchy node */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPptt0[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_PPTT0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT0_OFFSET (Flags),                  "Flags", 0},
+    {ACPI_DMT_FLAG0,    ACPI_PPTT0_FLAG_OFFSET (Flags,0),           "Physical package", 0},
+    {ACPI_DMT_FLAG1,    ACPI_PPTT0_FLAG_OFFSET (Flags,0),           "ACPI Processor ID valid", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT0_OFFSET (Parent),                 "Parent", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT0_OFFSET (AcpiProcessorId),        "ACPI Processor ID", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT0_OFFSET (NumberOfPrivResources),  "Private Resource Number", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPptt0a[] =
+{
+    {ACPI_DMT_UINT32,   0,                                          "Private Resource", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1: Cache type */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPptt1[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_PPTT1_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT1_OFFSET (Flags),                  "Flags", 0},
+    {ACPI_DMT_FLAG0,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Size valid", 0},
+    {ACPI_DMT_FLAG1,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Number of Sets valid", 0},
+    {ACPI_DMT_FLAG2,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Associativity valid", 0},
+    {ACPI_DMT_FLAG3,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Allocation Type valid", 0},
+    {ACPI_DMT_FLAG4,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Cache Type valid", 0},
+    {ACPI_DMT_FLAG5,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Write Policy valid", 0},
+    {ACPI_DMT_FLAG5,    ACPI_PPTT1_FLAG_OFFSET (Flags,0),           "Line Size valid", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT1_OFFSET (NextLevelOfCache),       "Next Level of Cache", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT1_OFFSET (Size),                   "Size", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT1_OFFSET (NumberOfSets),           "Number of Sets", 0},
+    {ACPI_DMT_UINT8,    ACPI_PPTT1_OFFSET (Associativity),          "Associativity", 0},
+    {ACPI_DMT_UINT8,    ACPI_PPTT1_OFFSET (Attributes),             "Attributes", 0},
+    {ACPI_DMT_FLAGS0,   ACPI_PPTT1_OFFSET (Attributes),             "Allocation Type", 0},
+    {ACPI_DMT_FLAGS2,   ACPI_PPTT1_OFFSET (Attributes),             "Cache Type", 0},
+    {ACPI_DMT_FLAG4,    ACPI_PPTT1_OFFSET (Attributes),             "Write Policy", 0},
+    {ACPI_DMT_UINT16,   ACPI_PPTT1_OFFSET (LineSize),               "Line Size", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2: ID */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPptt2[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_PPTT2_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_PPTT2_OFFSET (VendorId),               "VENDOR_ID", 0},
+    {ACPI_DMT_UINT64,   ACPI_PPTT2_OFFSET (Level1Id),               "LEVEL_1_ID", 0},
+    {ACPI_DMT_UINT64,   ACPI_PPTT2_OFFSET (Level2Id),               "LEVEL_2_ID", 0},
+    {ACPI_DMT_UINT16,   ACPI_PPTT2_OFFSET (MajorRev),               "MAJOR_REV", 0},
+    {ACPI_DMT_UINT16,   ACPI_PPTT2_OFFSET (MinorRev),               "MINOR_REV", 0},
+    {ACPI_DMT_UINT16,   ACPI_PPTT2_OFFSET (SpinRev),                "SPIN_REV", 0},
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *
@@ -2779,7 +3066,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat2[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* : GICC Affinity (ACPI 5.1) */
+/* 3: GICC Affinity (ACPI 5.1) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat3[] =
 {
@@ -2788,6 +3075,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat3[] =
     {ACPI_DMT_UINT32,   ACPI_SRAT3_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_SRAT3_FLAG_OFFSET (Flags,0),           "Enabled", 0},
     {ACPI_DMT_UINT32,   ACPI_SRAT3_OFFSET (ClockDomain),            "Clock Domain", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 4: GCC ITS Affinity (ACPI 6.2) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat4[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_SRAT4_OFFSET (ProximityDomain),        "Proximity Domain", 0},
+    {ACPI_DMT_UINT16,   ACPI_SRAT4_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_SRAT4_OFFSET (ItsId),                  "ITS ID", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -3052,6 +3349,22 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoWpbt[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoWpbt0[] =
 {
     {ACPI_DMT_UNICODE,     sizeof (ACPI_TABLE_WPBT),                "Command-line Arguments", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * WSMT - Windows SMM Security Migrations Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoWsmt[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_WSMT_OFFSET (ProtectionFlags),         "Protection Flags", 0},
+    {ACPI_DMT_FLAG0,    ACPI_WSMT_FLAG_OFFSET (ProtectionFlags,0),  "FIXED_COMM_BUFFERS", 0},
+    {ACPI_DMT_FLAG1,    ACPI_WSMT_FLAG_OFFSET (ProtectionFlags,0),  "COMM_BUFFER_NESTED_PTR_PROTECTION", 0},
+    {ACPI_DMT_FLAG2,    ACPI_WSMT_FLAG_OFFSET (ProtectionFlags,0),  "SYSTEM_RESOURCE_PROTECTION", 0},
     ACPI_DMT_TERMINATOR
 };
 

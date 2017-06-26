@@ -419,7 +419,7 @@
 
 			mpic: interrupt-controller@20a00 {
 				compatible = "marvell,mpic";
-				reg = <0x20a00 0x2d0>, <0x21870 0x58>;
+				reg = <0x20a00 0x2d0>, <0x21870 0x300>;
 				#interrupt-cells = <1>;
 				#size-cells = <1>;
 				interrupt-controller;
@@ -642,25 +642,6 @@
 			no-memory-wc;
 			status = "disabled";
 		};
-	};
-
-	pci0: pcie@f1080000 {
-		compatible = "mrvl,pcie";
-		status = "disabled";
-		device_type = "pci";
-		#interrupt-cells = <3>;
-		#size-cells = <2>;
-		#address-cells = <3>;
-		reg = <0xf1080000 0x2000>;
-		bus-range = <0 255>;
-		ranges = <0x42000000 0x0 0xf1200000 0xf1200000 0x0 0x00100000
-			  0x41000000 0x0 0x00000000 0xf1300000 0x0 0x00100000>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 91 0>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			0x0000 0x0 0x0 0x1 &gic GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
-			>;
 	};
 
 	clocks {

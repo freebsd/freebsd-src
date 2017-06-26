@@ -208,7 +208,7 @@ bcm_get_uart_rclk(struct bcm_platform *bp)
 uint64_t
 bcm_get_alpfreq(struct bcm_platform *bp) {
 	if (!bcm_has_pmu(bp))
-		panic("%s requires PMU\n", __FUNCTION__);
+		return (BHND_PMU_ALP_CLOCK);
 
 	return (bhnd_pmu_alp_clock(bcm_get_pmu(bp)));
 }
@@ -217,7 +217,7 @@ bcm_get_alpfreq(struct bcm_platform *bp) {
 uint64_t
 bcm_get_ilpfreq(struct bcm_platform *bp) {
 	if (!bcm_has_pmu(bp))
-		panic("%s requires PMU\n", __FUNCTION__);
+		return (BHND_PMU_ILP_CLOCK);
 
 	return (bhnd_pmu_ilp_clock(bcm_get_pmu(bp)));
 }

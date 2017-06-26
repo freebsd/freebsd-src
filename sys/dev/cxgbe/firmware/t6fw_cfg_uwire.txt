@@ -1,6 +1,6 @@
 # Chelsio T6 Factory Default configuration file.
 #
-# Copyright (C) 2014-2016 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2014-2017 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
 #   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
@@ -79,7 +79,7 @@
 	#     The firmware will convert these values to Core Clock Ticks when
 	#     it processes the configuration parameters.
 	#
-	reg[0x1008] = 0x40810/0x21c70	# SGE_CONTROL
+	reg[0x1008] = 0x40800/0x21c70	# SGE_CONTROL
 	reg[0x100c] = 0x22222222	# SGE_HOST_PAGE_SIZE
 	reg[0x10a0] = 0x01040810	# SGE_INGRESS_RX_THRESHOLD
 	reg[0x1044] = 4096		# SGE_FL_BUFFER_SIZE0
@@ -109,10 +109,10 @@
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
 	#		  protocol, tos, vlan, vnic_id, port, fcoe
 	# valid filterModes are described the Terminator 5 Data Book
-	filterMode = srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMode = fcoemask, srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# filter tuples enforced in LE active region (equal to or subset of filterMode)
-	filterMask = protocol
+	filterMask = protocol, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
@@ -390,7 +390,7 @@
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
 	niqflint = 202		# NFLIQ_UNIFIED + NLFIQ_WD + NFLIQ_CRYPTO (32)
-	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
+	nethctrl = 116		# NETHCTRL_UNIFIED + NETHCTRL_WD + ncrypto_lookaside
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
 	nqpcq = 12288
 	nexactf = 40		# NMPSTCAM_UNIFIED
@@ -403,7 +403,7 @@
 	nfilter = 496		# number of filter region entries
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
-	nhpfilter = 0		# number of high priority filter region entries
+	nhpfilter = 64		# number of high priority filter region entries
 	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
 	tp_l2t = 3072
 	tp_ddp = 2
@@ -486,9 +486,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x1		# access to only one port ...
@@ -498,9 +498,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
@@ -509,9 +509,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x1		# access to only one port ...
@@ -521,9 +521,9 @@
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
 	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
+	niqflint = 6		# 2 "Queue Sets" + NXIQ
+	nethctrl = 4		# 2 "Queue Sets"
+	neq = 8			# 2 "Queue Sets" * 2
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
@@ -552,9 +552,6 @@
 	dcb_app_tlv[0] = 0x8906, ethertype, 3
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
-	#aec_retry_cnt = 4
-	flags = an_dis
-
 
 [port "1"]
 	dcb = ppp, dcbx
@@ -566,13 +563,10 @@
 	dcb_app_tlv[0] = 0x8906, ethertype, 3
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
-	#aec_retry_cnt = 4
-	flags = an_dis
-
 
 [fini]
-	version = 0x01000025
-	checksum = 0xb23e8983
+	version = 0x01000028
+	checksum = 0x4f820cc6
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

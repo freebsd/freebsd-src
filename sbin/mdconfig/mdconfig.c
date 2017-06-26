@@ -193,6 +193,10 @@ main(int argc, char **argv)
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
 				mdio.md_options &= ~MD_RESERVE;
+			else if (!strcmp(optarg, "verify"))
+				mdio.md_options |= MD_VERIFY;
+			else if (!strcmp(optarg, "noverify"))
+				mdio.md_options &= ~MD_VERIFY;
 			else
 				errx(1, "unknown option: %s", optarg);
 			break;

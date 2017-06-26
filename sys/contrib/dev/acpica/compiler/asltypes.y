@@ -432,6 +432,11 @@ NoEcho('
 %type <n> Memory32Term
 %type <n> NameSeg
 %type <n> NameString
+%type <n> PinConfigTerm
+%type <n> PinFunctionTerm
+%type <n> PinGroupTerm
+%type <n> PinGroupConfigTerm
+%type <n> PinGroupFunctionTerm
 %type <n> QWordIOTerm
 %type <n> QWordMemoryTerm
 %type <n> QWordSpaceTerm
@@ -487,6 +492,7 @@ NoEcho('
 %type <n> OptionalReference
 %type <n> OptionalResourceType
 %type <n> OptionalResourceType_First
+%type <n> OptionalProducerResourceType
 %type <n> OptionalReturnArg
 %type <n> OptionalSerializeRuleKeyword
 %type <n> OptionalShareType

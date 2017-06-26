@@ -1,4 +1,4 @@
-/* $Id: btyaccpar.skel,v 1.5 2016/12/02 22:02:28 tom Exp $ */
+/* $Id: btyaccpar.skel,v 1.7 2017/05/01 00:13:19 tom Exp $ */
 
 #include "defs.h"
 
@@ -384,6 +384,19 @@ YYPARSE_DECL()
     }
     if (yydebug)
         fprintf(stderr, "%sdebug[<# of symbols on state stack>]\n", YYPREFIX);
+#endif
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(yyerror_loc_range, 0, sizeof(yyerror_loc_range));
+#endif
+
+%% init_vars
+    yyerrflag = 0;
+    yychar = 0;
+    memset(&yyval,  0, sizeof(yyval));
+    memset(&yylval, 0, sizeof(yylval));
+#if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
+    memset(&yyloc,  0, sizeof(yyloc));
+    memset(&yylloc, 0, sizeof(yylloc));
 #endif
 
 %% body_3

@@ -526,11 +526,13 @@ exitshell_savedstatus(void)
 			 */
 			evalskip = 0;
 			trap[0] = NULL;
+			FORCEINTON;
 			evalstring(p, 0);
 		}
 	}
 	if (!setjmp(loc2.loc)) {
 		handler = &loc2;		/* probably unnecessary */
+		FORCEINTON;
 		flushall();
 #if JOBS
 		setjobctl(0);

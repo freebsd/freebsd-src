@@ -142,9 +142,6 @@ freebsd11_fts_open(char * const *argv, int options,
 	sp->fts_compar = compar;
 	sp->fts_options = options;
 
-	/* Shush, GCC. */
-	tmp = NULL;
-
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
 		SET(FTS_NOCHDIR);
@@ -160,6 +157,9 @@ freebsd11_fts_open(char * const *argv, int options,
 	if ((parent = fts_alloc(sp, "", 0)) == NULL)
 		goto mem2;
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
+
+	/* Shush, GCC. */
+	tmp = NULL;
 
 	/* Allocate/initialize root(s). */
 	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {

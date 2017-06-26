@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	start = 0;
-	stop = SPSPMAX;
+	stop = (uint64_t)(-1);
 
 	/*
 	 * Convert low and high args.  Strtoumax(3) sets errno to
@@ -147,8 +147,6 @@ main(int argc, char *argv[])
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[1]);
-		if (stop > SPSPMAX)
-			errx(1, "%s: stop value too large.", argv[1]);
 		break;
 	case 1:
 		/* Start on the command line. */

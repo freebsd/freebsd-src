@@ -505,7 +505,8 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	 */
 	if (reallocating) {
 		mps_iocfacts_free(sc);
-		mpssas_realloc_targets(sc, saved_facts.MaxTargets);
+		mpssas_realloc_targets(sc, saved_facts.MaxTargets +
+		    saved_facts.MaxVolumes);
 	}
 
 	/*
@@ -1518,6 +1519,7 @@ mps_attach(struct mps_softc *sc)
 
 	mtx_init(&sc->mps_mtx, "MPT2SAS lock", NULL, MTX_DEF);
 	callout_init_mtx(&sc->periodic, &sc->mps_mtx, 0);
+	callout_init_mtx(&sc->device_check_callout, &sc->mps_mtx, 0);
 	TAILQ_INIT(&sc->event_list);
 	timevalclear(&sc->lastfail);
 
@@ -1682,6 +1684,7 @@ mps_free(struct mps_softc *sc)
 	mps_unlock(sc);
 	/* Lock must not be held for this */
 	callout_drain(&sc->periodic);
+	callout_drain(&sc->device_check_callout);
 
 	if (((error = mps_detach_log(sc)) != 0) ||
 	    ((error = mps_detach_sas(sc)) != 0))

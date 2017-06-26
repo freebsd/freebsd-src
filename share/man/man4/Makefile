@@ -136,12 +136,7 @@ MAN=	aac.4 \
 	dpt.4 \
 	ds1307.4 \
 	ds3231.4 \
-	${_dtrace_io.4} \
-	${_dtrace_ip.4} \
-	${_dtrace_proc.4} \
-	${_dtrace_sched.4} \
-	${_dtrace_tcp.4} \
-	${_dtrace_udp.4} \
+	${_dtrace_provs} \
 	dummynet.4 \
 	ed.4 \
 	edsc.4 \
@@ -428,6 +423,7 @@ MAN=	aac.4 \
 	ral.4 \
 	random.4 \
 	rc.4 \
+	rctl.4 \
 	re.4 \
 	rgephy.4 \
 	rights.4 \
@@ -701,7 +697,6 @@ MLINKS+=pms.4 pmspcv.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
-MLINKS+=rtwn.4 if_rtwn.4
 MLINKS+=rtwn_pci.4 if_rtwn_pci.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=scsi.4 CAM.4 \
@@ -876,12 +871,13 @@ _ccd.4=		ccd.4
 .endif
 
 .if ${MK_CDDL} != "no"
-_dtrace_io.4=	dtrace_io.4
-_dtrace_ip.4=	dtrace_ip.4
-_dtrace_proc.4=	dtrace_proc.4
-_dtrace_sched.4= dtrace_sched.4
-_dtrace_tcp.4=	dtrace_tcp.4
-_dtrace_udp.4=	dtrace_udp.4
+_dtrace_provs=	dtrace_io.4 \
+		dtrace_ip.4 \
+		dtrace_lockstat.4 \
+		dtrace_proc.4 \
+		dtrace_sched.4 \
+		dtrace_tcp.4 \
+		dtrace_udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"

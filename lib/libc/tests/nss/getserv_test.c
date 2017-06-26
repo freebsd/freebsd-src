@@ -102,7 +102,7 @@ clone_servent(struct servent *dest, struct servent const *src)
 		for (cp = src->s_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->s_aliases = calloc(1, (aliases_num + 1) * sizeof(char *));
+		dest->s_aliases = calloc(aliases_num + 1, sizeof(char *));
 		ATF_REQUIRE(dest->s_aliases != NULL);
 
 		for (cp = src->s_aliases; *cp; ++cp) {
@@ -177,16 +177,16 @@ sdump_servent(struct servent *serv, char *buffer, size_t buflen)
 	written = snprintf(buffer, buflen, "%s %d %s",
 		serv->s_name, ntohs(serv->s_port), serv->s_proto);
 	buffer += written;
-	if (written > buflen)
+	if (written > (int)buflen)
 		return;
 	buflen -= written;
 
 	if (serv->s_aliases != NULL) {
 		if (*(serv->s_aliases) != '\0') {
 			for (cp = serv->s_aliases; *cp; ++cp) {
-				written = snprintf(buffer, buflen, " %s",*cp);
+				written = snprintf(buffer, buflen, " %s", *cp);
 				buffer += written;
-				if (written > buflen)
+				if (written > (int)buflen)
 					return;
 				buflen -= written;
 
@@ -300,7 +300,7 @@ servent_fill_test_data(struct servent_test_data *td)
 }
 
 static int
-servent_test_correctness(struct servent *serv, void *mdata)
+servent_test_correctness(struct servent *serv, void *mdata __unused)
 {
 	printf("testing correctness with the following data:\n");
 	dump_servent(serv);
@@ -403,14 +403,14 @@ servent_test_getservbyport(struct servent *serv_model, void *mdata)
 }
 
 static int
-servent_test_getservent(struct servent *serv, void *mdata)
+servent_test_getservent(struct servent *serv, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getservent(). */
 	return (servent_test_correctness(serv, NULL));
 }
 
-int
+static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct servent_test_data td, td_snap, td_2pass;

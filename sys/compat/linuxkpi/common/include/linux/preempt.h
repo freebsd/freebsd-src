@@ -34,4 +34,7 @@
 #define	in_interrupt() \
 	(curthread->td_intr_nesting_level || curthread->td_critnest)
 
+#define	preempt_disable()	critical_enter()
+#define	preempt_enable()	critical_exit()
+
 #endif					/* _LINUX_PREEMPT_H_ */

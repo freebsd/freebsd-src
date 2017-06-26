@@ -280,7 +280,7 @@ enum {
 #define	CHIPC_PLL_TYPE1		0x2	/* 48MHz base, 3 dividers */
 #define	CHIPC_PLL_TYPE2		0x4	/* 48MHz, 4 dividers */
 #define	CHIPC_PLL_TYPE3		0x6	/* 25MHz, 2 dividers */
-#define	CHIPC_PLL_TYPE4		0x8	/* 48MHz, 4 dividers */
+#define	CHIPC_PLL_TYPE4		0x1	/* 48MHz, 4 dividers */
 #define	CHIPC_PLL_TYPE5		0x3	/* 25MHz, 4 dividers */
 #define	CHIPC_PLL_TYPE6		0x5	/* 100/200 or 120/240 only */
 #define	CHIPC_PLL_TYPE7		0x7	/* 25MHz, 4 dividers */

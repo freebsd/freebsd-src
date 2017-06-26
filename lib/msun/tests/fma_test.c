@@ -498,11 +498,12 @@ main(void)
 		printf("ok %d # SKIP testcase fails assertion on "
 		    "amd64\n", j);
 		continue;
-#endif
+#else
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_infinities();
 		printf("ok %d - fma infinities\n", j);
+#endif
 	}
 
 	fesetround(FE_TONEAREST);

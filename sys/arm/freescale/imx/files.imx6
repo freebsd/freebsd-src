@@ -47,7 +47,7 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #
 # Low-level serial console for debugging early kernel startup.
 #
-#arm/freescale/imx/console.c  		standard
+#arm/freescale/imx/imx_console.c  	standard
 
 #
 # Not ready yet...

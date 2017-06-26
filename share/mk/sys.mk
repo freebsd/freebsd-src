@@ -59,7 +59,7 @@ META_MODE+=	missing-meta=yes
 .if !defined(NO_SILENT)
 META_MODE+=	silent=yes
 .endif
-.if !exists(/dev/filemon)
+.if !exists(/dev/filemon) || defined(NO_FILEMON)
 META_MODE+= nofilemon
 .endif
 # Require filemon data with bmake
@@ -70,13 +70,15 @@ META_MODE+= missing-filemon=yes
 META_MODE?= normal
 .export META_MODE
 .MAKE.MODE?= ${META_MODE}
-.if !empty(.MAKE.MODE:Mmeta) && !defined(NO_META_IGNORE_HOST)
+.if !empty(.MAKE.MODE:Mmeta)
+.if !defined(NO_META_IGNORE_HOST)
 # Ignore host file changes that will otherwise cause
 # buildworld -> installworld -> buildworld to rebuild everything.
 # Since the build is self-reliant and bootstraps everything it needs,
 # this should not be a real problem for incremental builds.
 # XXX: This relies on the existing host tools retaining ABI compatibility
 # through upgrades since they won't be rebuilt on header/library changes.
+# This is mitigated by Makefile.inc1 for known-ABI-breaking revisions.
 # Note that these are prefix matching, so /lib matches /libexec.
 .MAKE.META.IGNORE_PATHS+= \
 	${__MAKE_SHELL} \
@@ -85,13 +87,20 @@ META_MODE?= normal
 	/rescue \
 	/sbin \
 	/usr/bin \
-	/usr/include \
 	/usr/lib \
 	/usr/sbin \
 	/usr/share \
 
+.else
+NO_META_IGNORE_HOST_HEADERS=	1
 .endif
-
+.if !defined(NO_META_IGNORE_HOST_HEADERS)
+.MAKE.META.IGNORE_PATHS+= /usr/include
+.endif
+# We do not want everything out-of-date just because
+# some unrelated shared lib updated this.
+.MAKE.META.IGNORE_PATHS+= /usr/local/etc/libmap.d
+.endif	# !empty(.MAKE.MODE:Mmeta)
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed

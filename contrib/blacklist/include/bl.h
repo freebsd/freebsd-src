@@ -40,7 +40,9 @@
 typedef enum {
 	BL_INVALID,
 	BL_ADD,
-	BL_DELETE
+	BL_DELETE,
+	BL_ABUSE,
+	BL_BADUSER
 } bl_type_t;
 
 typedef struct {

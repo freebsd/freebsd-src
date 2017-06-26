@@ -1730,6 +1730,14 @@ AcpiDmDumpHest (
             SubTableLength = sizeof (ACPI_HEST_GENERIC_V2);
             break;
 
+        case ACPI_HEST_TYPE_IA32_DEFERRED_CHECK:
+
+            InfoTable = AcpiDmTableInfoHest11;
+            SubTableLength = sizeof (ACPI_HEST_IA_DEFERRED_CHECK);
+            BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_DEFERRED_CHECK,
+                SubTable))->NumHardwareBanks;
+            break;
+
         default:
 
             /* Cannot continue on unknown type - no length */
@@ -1778,6 +1786,203 @@ AcpiDmDumpHest (
         /* Point to next subtable */
 
         SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, SubTable, SubTableLength);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpHmat
+ *
+ * PARAMETERS:  Table               - A HMAT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a HMAT.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpHmat (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_HMAT_STRUCTURE     *HmatStruct;
+    ACPI_HMAT_LOCALITY      *HmatLocality;
+    ACPI_HMAT_CACHE         *HmatCache;
+    UINT32                  Offset;
+    UINT32                  SubTableOffset;
+    UINT32                  Length;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  i, j;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoHmat);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+    Offset = sizeof (ACPI_TABLE_HMAT);
+
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        SubTableOffset = 0;
+
+        /* Dump HMAT structure header */
+
+        HmatStruct = ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, Table, Offset);
+        if (HmatStruct->Length < sizeof (ACPI_HMAT_STRUCTURE))
+        {
+            AcpiOsPrintf ("Invalid HMAT structure length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, HmatStruct,
+            HmatStruct->Length, AcpiDmTableInfoHmatHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (HmatStruct->Type)
+        {
+        case ACPI_HMAT_TYPE_ADDRESS_RANGE:
+
+            InfoTable = AcpiDmTableInfoHmat0;
+            Length = sizeof (ACPI_HMAT_ADDRESS_RANGE);
+            break;
+
+        case ACPI_HMAT_TYPE_LOCALITY:
+
+            InfoTable = AcpiDmTableInfoHmat1;
+            Length = sizeof (ACPI_HMAT_LOCALITY);
+            break;
+
+        case ACPI_HMAT_TYPE_CACHE:
+
+            InfoTable = AcpiDmTableInfoHmat2;
+            Length = sizeof (ACPI_HMAT_CACHE);
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown HMAT structure type 0x%X\n",
+                HmatStruct->Type);
+
+            /* Attempt to continue */
+
+            goto NextSubTable;
+        }
+
+        /* Dump HMAT structure body */
+
+        if (HmatStruct->Length < Length)
+        {
+            AcpiOsPrintf ("Invalid HMAT structure length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, HmatStruct,
+            HmatStruct->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Dump HMAT structure additionals */
+
+        switch (HmatStruct->Type)
+        {
+        case ACPI_HMAT_TYPE_LOCALITY:
+
+            HmatLocality = ACPI_CAST_PTR (ACPI_HMAT_LOCALITY, HmatStruct);
+            SubTableOffset = sizeof (ACPI_HMAT_LOCALITY);
+
+            /* Dump initiator proximity domains */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfInitiatorPDs * 4))
+            {
+                AcpiOsPrintf ("Invalid initiator proximity domain number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfInitiatorPDs; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    4, AcpiDmTableInfoHmat1a);
+                SubTableOffset += 4;
+            }
+
+            /* Dump target proximity domains */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfTargetPDs * 4))
+            {
+                AcpiOsPrintf ("Invalid target proximity domain number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfTargetPDs; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    4, AcpiDmTableInfoHmat1b);
+                SubTableOffset += 4;
+            }
+
+            /* Dump latency/bandwidth entris */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfInitiatorPDs *
+                         HmatLocality->NumberOfTargetPDs * 2))
+            {
+                AcpiOsPrintf ("Invalid latency/bandwidth entry number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfInitiatorPDs; i++)
+            {
+                for (j = 0; j < HmatLocality->NumberOfTargetPDs; j++)
+                {
+                    Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                        ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                        2, AcpiDmTableInfoHmat1c);
+                    SubTableOffset += 2;
+                }
+            }
+            break;
+
+        case ACPI_HMAT_TYPE_CACHE:
+
+            HmatCache = ACPI_CAST_PTR (ACPI_HMAT_CACHE, HmatStruct);
+            SubTableOffset = sizeof (ACPI_HMAT_CACHE);
+
+            /* Dump SMBIOS handles */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatCache->NumberOfSMBIOSHandles * 2))
+            {
+                AcpiOsPrintf ("Invalid SMBIOS handle number\n");
+                return;
+            }
+            for (i = 0; i < HmatCache->NumberOfSMBIOSHandles; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    2, AcpiDmTableInfoHmat2a);
+                SubTableOffset += 2;
+            }
+            break;
+
+        default:
+
+            break;
+        }
+
+NextSubTable:
+        /* Point to next HMAT structure subtable */
+
+        Offset += (HmatStruct->Length);
     }
 }
 
@@ -3010,6 +3215,16 @@ AcpiDmDumpPcct (
             InfoTable = AcpiDmTableInfoPcct2;
             break;
 
+        case ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct3;
+            break;
+
+        case ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct4;
+            break;
+
         default:
 
             AcpiOsPrintf (
@@ -3236,6 +3451,136 @@ AcpiDmDumpPmtt (
         Offset += SubTable->Length;
         SubTable = ACPI_ADD_PTR (ACPI_PMTT_HEADER,
             SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpPptt
+ *
+ * PARAMETERS:  Table               - A PMTT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a PPTT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpPptt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_SUBTABLE_HEADER    *SubTable;
+    ACPI_PPTT_PROCESSOR     *PpttProcessor;
+    UINT8                   Length;
+    UINT8                   SubTableOffset;
+    UINT32                  Offset = sizeof (ACPI_TABLE_FPDT);
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  i;
+
+
+    /* There is no main table (other than the standard ACPI header) */
+
+    /* Subtables */
+
+    Offset = sizeof (ACPI_TABLE_HEADER);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+
+        /* Common subtable header */
+
+        SubTable = ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, Table, Offset);
+        if (SubTable->Length < sizeof (ACPI_SUBTABLE_HEADER))
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            SubTable->Length, AcpiDmTableInfoPpttHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (SubTable->Type)
+        {
+        case ACPI_PPTT_TYPE_PROCESSOR:
+
+            InfoTable = AcpiDmTableInfoPptt0;
+            Length = sizeof (ACPI_PPTT_PROCESSOR);
+            break;
+
+        case ACPI_PPTT_TYPE_CACHE:
+
+            InfoTable = AcpiDmTableInfoPptt1;
+            Length = sizeof (ACPI_PPTT_CACHE);
+            break;
+
+        case ACPI_PPTT_TYPE_ID:
+
+            InfoTable = AcpiDmTableInfoPptt2;
+            Length = sizeof (ACPI_PPTT_ID);
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown PPTT subtable type 0x%X\n\n",
+                SubTable->Type);
+
+            /* Attempt to continue */
+
+            goto NextSubTable;
+        }
+
+        if (SubTable->Length < Length)
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+        SubTableOffset = Length;
+
+        switch (SubTable->Type)
+        {
+        case ACPI_PPTT_TYPE_PROCESSOR:
+
+            PpttProcessor = ACPI_CAST_PTR (ACPI_PPTT_PROCESSOR, SubTable);
+
+            /* Dump SMBIOS handles */
+
+            if ((UINT8)(SubTable->Length - SubTableOffset) <
+                (UINT8)(PpttProcessor->NumberOfPrivResources * 4))
+            {
+                AcpiOsPrintf ("Invalid private resource number\n");
+                return;
+            }
+            for (i = 0; i < PpttProcessor->NumberOfPrivResources; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, SubTable, SubTableOffset),
+                    4, AcpiDmTableInfoPptt0a);
+                SubTableOffset += 4;
+            }
+            break;
+
+        default:
+
+            break;
+        }
+
+NextSubTable:
+        /* Point to next subtable */
+
+        Offset += SubTable->Length;
     }
 }
 
@@ -3496,6 +3841,11 @@ AcpiDmDumpSrat (
         case ACPI_SRAT_TYPE_GICC_AFFINITY:
 
             InfoTable = AcpiDmTableInfoSrat3;
+            break;
+
+        case ACPI_SRAT_TYPE_GIC_ITS_AFFINITY:
+
+            InfoTable = AcpiDmTableInfoSrat4;
             break;
 
         default:

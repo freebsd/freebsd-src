@@ -52,6 +52,11 @@ TARGET_ARCH=	${TARGET}
 .endif
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+.ifdef NO_ROOT
+IMAKE+=		-DNO_ROOT
+NO_MERGEMASTER=	yes
+NO_ETCUPDATE=	yes
+.endif
 DISTDIR=	dist
 
 # Define OSRELEASE by using newvars.sh
@@ -130,11 +135,15 @@ clean: beforeclean
 base.txz:
 	mkdir -p ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR}
+.ifndef NO_MERGEMASTER
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${.OBJDIR}/${DISTDIR}/base"
+.endif
+.ifndef NO_ETCUPDATE
 	etcupdate extract -B -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate"
+.endif
 # Package all components
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR}
 	mv ${DISTDIR}/*.txz .
@@ -202,7 +211,7 @@ bootonly: packagesystem
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
-	    MK_GAMES=no MK_GROFF=no \
+	    MK_GAMES=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \

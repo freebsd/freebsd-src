@@ -35,27 +35,28 @@
 static const u8 dbg_modes_tree_buf[] = {
 	0x02, 0x00, 0x01, 0x04, 0x05, 0x00, 0x01, 0x07, 0x09, 0x02, 0x00, 0x01, 
 	0x05, 0x12, 0x00, 0x00, 0x06, 0x02, 0x00, 0x04, 0x00, 0x01, 0x09, 0x00, 
-	0x06, 0x00, 0x01, 0x00, 0x06, 0x01, 0x04, 0x05, 0x02, 0x00, 0x04, 0x00, 
-	0x01, 0x07, 0x09, 0x02, 0x00, 0x12, 0x00, 0x01, 0x07, 0x09, 0x02, 0x05, 
-	0x02, 0x00, 0x0b, 0x10, 0x02, 0x05, 0x02, 0x00, 0x0b, 0x0f, 0x02, 0x05, 
-	0x02, 0x00, 0x0b, 0x0e, 0x02, 0x00, 0x06, 0x01, 0x04, 0x05, 0x02, 0x05, 
-	0x00, 0x01, 0x07, 0x09, 0x02, 0x00, 0x04, 0x00, 0x00, 0x06, 0x02, 0x00, 
-	0x12, 0x00, 0x00, 0x06, 0x02, 0x04, 0x02, 0x00, 0x11, 0x0f, 0x02, 0x04, 
-	0x02, 0x00, 0x11, 0x0e, 0x02, 0x04, 0x00, 0x01, 0x07, 0x09, 0x02, 0x05, 
-	0x02, 0x0b, 0x10, 0x02, 0x05, 0x02, 0x0b, 0x0f, 0x02, 0x00, 0x06, 0x00, 
-	0x04, 0x02, 0x04, 0x00, 0x00, 0x06, 0x02, 0x00, 0x04, 0x00, 0x09, 0x01, 
-	0x06, 0x01, 0x08, 0x0a, 0x02, 0x05, 0x02, 0x0b, 0x0e, 0x02, 0x05, 0x00, 
-	0x10, 0x02, 0x00, 0x04, 0x0c, 0x02, 0x00, 0x06, 0x04, 0x02, 0x00, 0x05, 
-	0x0f, 0x02, 0x00, 0x06, 0x05, 0x00, 0x01, 0x04, 0x12, 0x02, 0x04, 0x00, 
-	0x11, 0x02, 0x06, 0x00, 0x12, 0x02, 0x00, 0x06, 0x12, 0x02, 0x04, 0x06, 
-	0x02, 0x05, 0x0f, 0x02, 0x05, 0x10, 0x01, 0x0b, 0x0d, 0x02, 0x04, 0x11, 
-	0x00, 0x0d, 0x03, 
+	0x06, 0x00, 0x01, 0x00, 0x06, 0x01, 0x04, 0x05, 0x02, 0x00, 0x12, 0x00, 
+	0x01, 0x07, 0x09, 0x02, 0x00, 0x04, 0x00, 0x01, 0x07, 0x09, 0x02, 0x00, 
+	0x04, 0x02, 0x00, 0x0b, 0x0e, 0x02, 0x00, 0x04, 0x02, 0x00, 0x0b, 0x0f, 
+	0x02, 0x00, 0x04, 0x02, 0x00, 0x0b, 0x10, 0x02, 0x05, 0x00, 0x01, 0x07, 
+	0x09, 0x02, 0x00, 0x06, 0x01, 0x04, 0x05, 0x02, 0x04, 0x02, 0x00, 0x11, 
+	0x0f, 0x02, 0x04, 0x02, 0x00, 0x11, 0x0e, 0x02, 0x04, 0x00, 0x01, 0x07, 
+	0x09, 0x02, 0x00, 0x04, 0x00, 0x00, 0x06, 0x02, 0x00, 0x04, 0x02, 0x0b, 
+	0x10, 0x02, 0x00, 0x04, 0x02, 0x0b, 0x0e, 0x02, 0x00, 0x04, 0x02, 0x0b, 
+	0x0f, 0x02, 0x00, 0x06, 0x00, 0x04, 0x02, 0x00, 0x04, 0x00, 0x09, 0x02, 
+	0x04, 0x00, 0x00, 0x06, 0x01, 0x06, 0x01, 0x08, 0x0a, 0x00, 0x01, 0x04, 
+	0x12, 0x02, 0x04, 0x00, 0x11, 0x02, 0x00, 0x06, 0x12, 0x02, 0x00, 0x06, 
+	0x04, 0x02, 0x00, 0x06, 0x0e, 0x02, 0x00, 0x04, 0x0c, 0x02, 0x00, 0x04, 
+	0x0f, 0x02, 0x00, 0x04, 0x10, 0x02, 0x00, 0x06, 0x0f, 0x02, 0x00, 0x06, 
+	0x10, 0x02, 0x05, 0x00, 0x10, 0x02, 0x00, 0x06, 0x05, 0x02, 0x04, 0x0f, 
+	0x02, 0x12, 0x10, 0x02, 0x04, 0x11, 0x02, 0x04, 0x06, 0x01, 0x0b, 0x0d, 
+	0x02, 0x05, 0x10, 0x00, 0x0d, 0x00, 0x05, 0x03, 
 };
-/* Data size: 195 bytes */
+/* Data size: 212 bytes */
 
 /* Array of registers to be dumped */
 static const u32 dump_reg[] = {
-	0x00000c47, 	/* split NONE */
+	0x00000c74, 	/* split NONE */
 	0x06000000, 	/* block grc */
 	0x02014000, 	/* grc.override_window_mem_self_init_start .. grc.override_window_mem_self_init_done (2 regs) */
 	0x0a014010, 	/* grc.rsv_attn_access_data_0 .. grc.trace_fifo_valid_data (10 regs) */
@@ -63,7 +64,7 @@ static const u32 dump_reg[] = {
 	0x0201403a, 	/* grc.dbgsyn_status .. grc.dbgsyn_almost_full_thr (2 regs) */
 	0x02014060, 	/* grc.INT_STS_0 .. grc.INT_MASK_0 (2 regs) */
 	0x04014100, 	/* grc.timeout_val .. grc.number_valid_override_window (4 regs) */
-	0x0b010000, 	/* block miscs */
+	0x0d010000, 	/* block miscs */
 	0x02002410, 	/* miscs.reset_config .. miscs.reset_config_por (2 regs) */
 	0x0500241c, 	/* miscs.clk_100g_mode .. miscs.NVM_WR_EN (5 regs) */
 	0x0100245b, 	/* miscs.memctrl_status (1 regs) */
@@ -71,8 +72,10 @@ static const u32 dump_reg[] = {
 	0x83002500, 	/* miscs.gpio0_driver .. miscs.gpio_event_en (131 regs) */
 	0x0d0025af, 	/* miscs.LINK_HOLDOFF_STATUS .. miscs.vmain_por (13 regs) */
 	0x040025bd, 	/* miscs.pwr_attn .. miscs.func_hide_pin (4 regs) */
-	0x150025c2, 	/* miscs.four_port_shared_mdio_en .. miscs.unprepared_fw (21 regs) */
-	0x100025d8, 	/* miscs.VAUX_PRESENT .. miscs.perst_deassert_cnt (16 regs) */
+	0x050025c4, 	/* miscs.sel_vaux .. miscs.isolate_path (5 regs) */
+	0x0c0025cb, 	/* miscs.hot_reset_unprepared .. miscs.unprepared_fw (12 regs) */
+	0x070025d8, 	/* miscs.VAUX_PRESENT .. miscs.CHIP_TEST_REG (7 regs) */
+	0x080025e0, 	/* miscs.PCIE_DIS_IO .. miscs.perst_deassert_cnt (8 regs) */
 	0x010025eb, 	/* miscs.hot_reset_en (1 regs) */
 	0x020025ed, 	/* miscs.eco_reserved .. miscs.mcp_rom_tm (2 regs) */
 	0x09020000, 	/* block misc */
@@ -214,7 +217,7 @@ static const u32 dump_reg[] = {
 	0x02158060, 	/* ptu.INT_STS .. ptu.INT_MASK (2 regs) */
 	0x65158100, 	/* ptu.atc_num_sets .. ptu.atc_during_inv (101 regs) */
 	0x06158173, 	/* ptu.dbgsyn_almost_full_thr .. ptu.atc_ireq_fifo_tm (6 regs) */
-	0x25180000, 	/* block tcm */
+	0x24180000, 	/* block tcm */
 	0x01460000, 	/* tcm.init (1 regs) */
 	0x05460010, 	/* tcm.dbg_select .. tcm.dbg_force_frame (5 regs) */
 	0x02460060, 	/* tcm.INT_STS_0 .. tcm.INT_MASK_0 (2 regs) */
@@ -228,9 +231,8 @@ static const u32 dump_reg[] = {
 	0x02460181, 	/* tcm.storm_weight .. tcm.msem_weight (2 regs) */
 	0x02460184, 	/* tcm.dorq_weight .. tcm.pbf_weight (2 regs) */
 	0x01460187, 	/* tcm.grc_weight (1 regs) */
-	0x0b460189, 	/* tcm.qm_p_weight .. tcm.storm_frwrd_mode (11 regs) */
-	0x01460195, 	/* tcm.msem_frwrd_mode (1 regs) */
-	0x0b460197, 	/* tcm.dorq_frwrd_mode .. tcm.ia_trans_part_fill_lvl (11 regs) */
+	0x0a460189, 	/* tcm.qm_p_weight .. tcm.ia_arb_sp_timeout (10 regs) */
+	0x09460199, 	/* tcm.sdm_err_handle_en .. tcm.ia_trans_part_fill_lvl (9 regs) */
 	0x1b4601c1, 	/* tcm.xx_msg_up_bnd .. tcm.xx_tbyp_tbl_up_bnd (27 regs) */
 	0x054601e4, 	/* tcm.xx_byp_lock_msg_thr .. tcm.unlock_miss (5 regs) */
 	0x04460201, 	/* tcm.prcs_agg_con_curr_st .. tcm.prcs_sm_task_curr_st (4 regs) */
@@ -252,7 +254,7 @@ static const u32 dump_reg[] = {
 	0x034602e1, 	/* tcm.eco_reserved .. tcm.is_foc_msem_nxt_inf_unit (3 regs) */
 	0x024602e6, 	/* tcm.is_foc_pbf_nxt_inf_unit .. tcm.is_foc_dorq_nxt_inf_unit (2 regs) */
 	0x05460530, 	/* tcm.ctx_rbc_accs .. tcm.sm_task_ctx (5 regs) */
-	0x22190000, 	/* block mcm */
+	0x21190000, 	/* block mcm */
 	0x01480000, 	/* mcm.init (1 regs) */
 	0x05480010, 	/* mcm.dbg_select .. mcm.dbg_force_frame (5 regs) */
 	0x02480060, 	/* mcm.INT_STS_0 .. mcm.INT_MASK_0 (2 regs) */
@@ -264,9 +266,8 @@ static const u32 dump_reg[] = {
 	0x09480151, 	/* mcm.qm_task_use_st_flg_0 .. mcm.err_evnt_id (9 regs) */
 	0x02480181, 	/* mcm.storm_weight .. mcm.usem_weight (2 regs) */
 	0x02480184, 	/* mcm.pbf_weight .. mcm.grc_weight (2 regs) */
-	0x0d480187, 	/* mcm.ysdm_weight .. mcm.storm_frwrd_mode (13 regs) */
-	0x04480195, 	/* mcm.ysdm_frwrd_mode .. mcm.usem_frwrd_mode (4 regs) */
-	0x0a48019a, 	/* mcm.pbf_frwrd_mode .. mcm.ia_trans_part_fill_lvl (10 regs) */
+	0x0c480187, 	/* mcm.ysdm_weight .. mcm.ia_arb_sp_timeout (12 regs) */
+	0x0948019b, 	/* mcm.sdm_err_handle_en .. mcm.ia_trans_part_fill_lvl (9 regs) */
 	0x1b4801c1, 	/* mcm.xx_msg_up_bnd .. mcm.xx_tbyp_tbl_up_bnd (27 regs) */
 	0x054801e4, 	/* mcm.xx_byp_lock_msg_thr .. mcm.unlock_miss (5 regs) */
 	0x04480201, 	/* mcm.prcs_agg_con_curr_st .. mcm.prcs_sm_task_curr_st (4 regs) */
@@ -287,7 +288,7 @@ static const u32 dump_reg[] = {
 	0x014802e5, 	/* mcm.is_foc_pbf_nxt_inf_unit (1 regs) */
 	0x034802e7, 	/* mcm.is_foc_usdm_nxt_inf_unit .. mcm.is_foc_tmld_nxt_inf_unit (3 regs) */
 	0x05480600, 	/* mcm.ctx_rbc_accs .. mcm.sm_task_ctx (5 regs) */
-	0x1f1a0000, 	/* block ucm */
+	0x1d1a0000, 	/* block ucm */
 	0x014a0000, 	/* ucm.init (1 regs) */
 	0x064a0013, 	/* ucm.memctrl_status .. ucm.dbg_force_frame (6 regs) */
 	0x024a0060, 	/* ucm.INT_STS_0 .. ucm.INT_MASK_0 (2 regs) */
@@ -299,15 +300,13 @@ static const u32 dump_reg[] = {
 	0x084a0141, 	/* ucm.qm_task_use_st_flg_0 .. ucm.qm_task_use_st_flg_7 (8 regs) */
 	0x094a0151, 	/* ucm.tm_task_evnt_id_0 .. ucm.err_evnt_id (9 regs) */
 	0x0a4a0181, 	/* ucm.storm_weight .. ucm.muld_weight (10 regs) */
-	0x0d4a018c, 	/* ucm.qm_p_weight .. ucm.ysdm_frwrd_mode (13 regs) */
-	0x044a019a, 	/* ucm.usdm_frwrd_mode .. ucm.muld_frwrd_mode (4 regs) */
-	0x0b4a019f, 	/* ucm.dorq_frwrd_mode .. ucm.ia_trans_part_fill_lvl (11 regs) */
+	0x0a4a018c, 	/* ucm.qm_p_weight .. ucm.ia_arb_sp_timeout (10 regs) */
+	0x094a01a1, 	/* ucm.sdm_err_handle_en .. ucm.ia_trans_part_fill_lvl (9 regs) */
 	0x1b4a01c1, 	/* ucm.xx_msg_up_bnd .. ucm.xx_tbyp_tbl_up_bnd (27 regs) */
 	0x054a01e4, 	/* ucm.xx_byp_lock_msg_thr .. ucm.unlock_miss (5 regs) */
 	0x044a0201, 	/* ucm.prcs_agg_con_curr_st .. ucm.prcs_sm_task_curr_st (4 regs) */
 	0x1b4a020d, 	/* ucm.n_sm_task_ctx_ld_0 .. ucm.trans_data_buf_crd_dir (27 regs) */
 	0x0a4a0230, 	/* ucm.agg_task_ctx_size_0 .. ucm.sm_task_ctx_size (10 regs) */
-	0x094a024c, 	/* ucm.agg_con_rule0_q .. ucm.agg_con_rule8_q (9 regs) */
 	0x074a025a, 	/* ucm.agg_task_rule0_q .. ucm.agg_task_rule6_q (7 regs) */
 	0x0d4a0281, 	/* ucm.in_prcs_tbl_crd_agg .. ucm.xx_byp_task_state_evnt_id_flg (13 regs) */
 	0x054a02a1, 	/* ucm.ccfc_init_crd .. ucm.fic_init_crd (5 regs) */
@@ -319,7 +318,7 @@ static const u32 dump_reg[] = {
 	0x094a02d1, 	/* ucm.fic_msg_cntr .. ucm.tcfc_cntr (9 regs) */
 	0x0a4a02e1, 	/* ucm.eco_reserved .. ucm.is_foc_muld_nxt_inf_unit (10 regs) */
 	0x054a05c0, 	/* ucm.ctx_rbc_accs .. ucm.sm_task_ctx (5 regs) */
-	0x201b0000, 	/* block xcm */
+	0x1f1b0000, 	/* block xcm */
 	0x01400000, 	/* xcm.init (1 regs) */
 	0x01400002, 	/* xcm.qm_act_st_cnt_init_done (1 regs) */
 	0x05400010, 	/* xcm.dbg_select .. xcm.dbg_force_frame (5 regs) */
@@ -330,9 +329,8 @@ static const u32 dump_reg[] = {
 	0x01400131, 	/* xcm.err_evnt_id (1 regs) */
 	0x03400181, 	/* xcm.storm_weight .. xcm.usem_weight (3 regs) */
 	0x03400185, 	/* xcm.dorq_weight .. xcm.grc_weight (3 regs) */
-	0x0e400189, 	/* xcm.xsdm_weight .. xcm.storm_frwrd_mode (14 regs) */
-	0x05400198, 	/* xcm.xsdm_frwrd_mode .. xcm.usem_frwrd_mode (5 regs) */
-	0x0840019e, 	/* xcm.dorq_frwrd_mode .. xcm.ia_trans_part_fill_lvl (8 regs) */
+	0x0d400189, 	/* xcm.xsdm_weight .. xcm.ia_arb_sp_timeout (13 regs) */
+	0x064001a0, 	/* xcm.sdm_err_handle_en .. xcm.ia_trans_part_fill_lvl (6 regs) */
 	0x184001c1, 	/* xcm.xx_msg_up_bnd .. xcm.xx_cbyp_tbl_up_bnd (24 regs) */
 	0x054001e1, 	/* xcm.xx_byp_lock_msg_thr .. xcm.unlock_miss (5 regs) */
 	0x02400201, 	/* xcm.prcs_agg_con_curr_st .. xcm.prcs_sm_con_curr_st (2 regs) */
@@ -352,7 +350,7 @@ static const u32 dump_reg[] = {
 	0x024002e6, 	/* xcm.is_foc_pbf_nxt_inf_unit .. xcm.is_foc_dorq_nxt_inf_unit (2 regs) */
 	0x034002e9, 	/* xcm.is_foc_usdm_nxt_inf_unit .. xcm.is_foc_ysdm_nxt_inf_unit (3 regs) */
 	0x03400600, 	/* xcm.ctx_rbc_accs .. xcm.sm_con_ctx (3 regs) */
-	0x1e1c0000, 	/* block ycm */
+	0x1d1c0000, 	/* block ycm */
 	0x01420000, 	/* ycm.init (1 regs) */
 	0x05420010, 	/* ycm.dbg_select .. ycm.dbg_force_frame (5 regs) */
 	0x02420060, 	/* ycm.INT_STS_0 .. ycm.INT_MASK_0 (2 regs) */
@@ -363,14 +361,13 @@ static const u32 dump_reg[] = {
 	0x20420121, 	/* ycm.qm_agg_task_ctx_part_size_0 .. ycm.qm_tcfc_xxlock_cmd_7 (32 regs) */
 	0x09420151, 	/* ycm.qm_task_use_st_flg_0 .. ycm.err_evnt_id (9 regs) */
 	0x05420181, 	/* ycm.storm_weight .. ycm.grc_weight (5 regs) */
-	0x0c420187, 	/* ycm.ysdm_weight .. ycm.storm_frwrd_mode (12 regs) */
-	0x0e420194, 	/* ycm.ysdm_frwrd_mode .. ycm.ia_trans_part_fill_lvl (14 regs) */
+	0x0b420187, 	/* ycm.ysdm_weight .. ycm.ia_arb_sp_timeout (11 regs) */
+	0x09420199, 	/* ycm.sdm_err_handle_en .. ycm.ia_trans_part_fill_lvl (9 regs) */
 	0x1b4201c1, 	/* ycm.xx_msg_up_bnd .. ycm.xx_tbyp_tbl_up_bnd (27 regs) */
 	0x054201e4, 	/* ycm.xx_byp_lock_msg_thr .. ycm.unlock_miss (5 regs) */
 	0x04420201, 	/* ycm.prcs_agg_con_curr_st .. ycm.prcs_sm_task_curr_st (4 regs) */
 	0x1b42020d, 	/* ycm.n_sm_task_ctx_ld_0 .. ycm.trans_data_buf_crd_dir (27 regs) */
 	0x0a420230, 	/* ycm.agg_task_ctx_size_0 .. ycm.sm_task_ctx_size (10 regs) */
-	0x05420248, 	/* ycm.agg_con_rule0_q .. ycm.agg_con_rule4_q (5 regs) */
 	0x0b420281, 	/* ycm.in_prcs_tbl_crd_agg .. ycm.xx_byp_task_state_evnt_id_flg (11 regs) */
 	0x064202a1, 	/* ycm.ccfc_init_crd .. ycm.fic_init_crd (6 regs) */
 	0x014202a9, 	/* ycm.dir_byp_msg_cnt (1 regs) */
@@ -392,7 +389,7 @@ static const u32 dump_reg[] = {
 	0x02440100, 	/* pcm.ifen .. pcm.err_evnt_id (2 regs) */
 	0x01440181, 	/* pcm.storm_weight (1 regs) */
 	0x01440183, 	/* pcm.grc_weight (1 regs) */
-	0x08440185, 	/* pcm.ia_group_pr0 .. pcm.storm_frwrd_mode (8 regs) */
+	0x07440185, 	/* pcm.ia_group_pr0 .. pcm.ia_arb_sp_timeout (7 regs) */
 	0x0544018f, 	/* pcm.sdm_err_handle_en .. pcm.ia_trans_part_fill_lvl (5 regs) */
 	0x184401c1, 	/* pcm.xx_msg_up_bnd .. pcm.unlock_miss (24 regs) */
 	0x01440201, 	/* pcm.prcs_sm_con_curr_st (1 regs) */
@@ -405,16 +402,14 @@ static const u32 dump_reg[] = {
 	0x024402d1, 	/* pcm.fic_msg_cntr .. pcm.ccfc_cntr (2 regs) */
 	0x024402e1, 	/* pcm.eco_reserved .. pcm.is_foc_psem_nxt_inf_unit (2 regs) */
 	0x02440510, 	/* pcm.ctx_rbc_accs .. pcm.sm_con_ctx (2 regs) */
-	0x1e1e0000, 	/* block qm */
+	0x1c1e0000, 	/* block qm */
 	0x020bc060, 	/* qm.INT_STS .. qm.INT_MASK (2 regs) */
 	0x0d0bc100, 	/* qm.wrc_drop_cnt_0 .. qm.cm_push_int_en (13 regs) */
 	0x380bc110, 	/* qm.MaxPqSizeTxSel_0 .. qm.MaxPqSizeTxSel_55 (56 regs) */
 	0x040bc200, 	/* qm.OutLdReqSizeConnTx .. qm.OutLdReqCrdConnOther (4 regs) */
 	0x0e0bc410, 	/* qm.QstatusTx_0 .. qm.QstatusTx_13 (14 regs) */
 	0x020bc430, 	/* qm.QstatusOther_0 .. qm.QstatusOther_1 (2 regs) */
-	0x280bc448, 	/* qm.CtxRegCcfc_0 .. qm.CtxRegCcfc_39 (40 regs) */
 	0x280bc488, 	/* qm.CtxRegTcfc_0 .. qm.CtxRegTcfc_39 (40 regs) */
-	0x280bc4c8, 	/* qm.ActCtrInitValCcfc_0 .. qm.ActCtrInitValCcfc_39 (40 regs) */
 	0x280bc508, 	/* qm.ActCtrInitValTcfc_0 .. qm.ActCtrInitValTcfc_39 (40 regs) */
 	0x040bc548, 	/* qm.PciReqQId .. qm.QmPageSize (4 regs) */
 	0x050bc54d, 	/* qm.PciReqPadToCacheLine .. qm.OvfErrorOther (5 regs) */
@@ -638,7 +633,7 @@ static const u32 dump_reg[] = {
 	0x203e8300, 	/* psdm.queue_full .. psdm.prm_fifo_full (32 regs) */
 	0x1a3e8340, 	/* psdm.int_cmpl_pend_empty .. psdm.prm_fifo_empty (26 regs) */
 	0x053e838a, 	/* psdm.dbg_select .. psdm.dbg_force_frame (5 regs) */
-	0x252a0000, 	/* block tsem */
+	0x232a0000, 	/* block tsem */
 	0x025c0010, 	/* tsem.INT_STS_0 .. tsem.INT_MASK_0 (2 regs) */
 	0x025c0014, 	/* tsem.INT_STS_1 .. tsem.INT_MASK_1 (2 regs) */
 	0x035c0110, 	/* tsem.pf_err_vector .. tsem.exception_int (3 regs) */
@@ -649,13 +644,13 @@ static const u32 dump_reg[] = {
 	0x015c0403, 	/* tsem.sync_ram_wr_alm_full (1 regs) */
 	0x015c0441, 	/* tsem.ext_pas_empty (1 regs) */
 	0x015c0448, 	/* tsem.fic_empty (1 regs) */
-	0x055c0454, 	/* tsem.slow_ext_store_empty .. tsem.sync_dbg_empty (5 regs) */
+	0x025c0454, 	/* tsem.slow_ext_store_empty .. tsem.slow_ext_load_empty (2 regs) */
+	0x025c0457, 	/* tsem.slow_ram_wr_empty .. tsem.sync_dbg_empty (2 regs) */
 	0x025c0480, 	/* tsem.ext_pas_full .. tsem.ext_store_if_full (2 regs) */
 	0x015c0488, 	/* tsem.fic_full (1 regs) */
 	0x015c0491, 	/* tsem.ram_if_full (1 regs) */
 	0x065c0497, 	/* tsem.slow_ext_store_full .. tsem.sync_dbg_full (6 regs) */
 	0x055c054a, 	/* tsem.dbg_select .. tsem.dbg_force_frame (5 regs) */
-	0x015d0001, 	/* tsem.fast_memory.ram_ext_disable (1 regs) */
 	0x025d0010, 	/* tsem.fast_memory.INT_STS .. tsem.fast_memory.INT_MASK (2 regs) */
 	0x025d0120, 	/* tsem.fast_memory.gpre0 .. tsem.fast_memory.stall_mask (2 regs) */
 	0x045d0128, 	/* tsem.fast_memory.storm_stack_size .. tsem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -671,9 +666,7 @@ static const u32 dump_reg[] = {
 	0x015d02d3, 	/* tsem.fast_memory.vfc_status (1 regs) */
 	0x045d0310, 	/* tsem.fast_memory.cam_bist_en .. tsem.fast_memory.cam_bist_status (4 regs) */
 	0x0e5d2800, 	/* tsem.fast_memory.vfc_config.mask_lsb_0_low .. tsem.fast_memory.vfc_config.indications2 (14 regs) */
-	0x055d280f, 	/* tsem.fast_memory.vfc_config.memories_rst .. tsem.fast_memory.vfc_config.interrupt_mask (5 regs) */
-	0x055d2816, 	/* tsem.fast_memory.vfc_config.inp_fifo_tm .. tsem.fast_memory.vfc_config.vfc_cam_bist_status (5 regs) */
-	0x065d281c, 	/* tsem.fast_memory.vfc_config.inp_fifo_alm_full .. tsem.fast_memory.vfc_config.cpu_mbist_memctrl_1_cntrl_cmd (6 regs) */
+	0x135d280f, 	/* tsem.fast_memory.vfc_config.memories_rst .. tsem.fast_memory.vfc_config.cpu_mbist_memctrl_1_cntrl_cmd (19 regs) */
 	0x125d2824, 	/* tsem.fast_memory.vfc_config.debug_data .. tsem.fast_memory.vfc_config.mask_lsb_7_high (18 regs) */
 	0x0c5d283e, 	/* tsem.fast_memory.vfc_config.offset_alu_vector_0 .. tsem.fast_memory.vfc_config.cam_bist_skip_error_cnt (12 regs) */
 	0x1f2b0000, 	/* block msem */
@@ -687,13 +680,13 @@ static const u32 dump_reg[] = {
 	0x01600403, 	/* msem.sync_ram_wr_alm_full (1 regs) */
 	0x01600441, 	/* msem.ext_pas_empty (1 regs) */
 	0x01600448, 	/* msem.fic_empty (1 regs) */
-	0x05600454, 	/* msem.slow_ext_store_empty .. msem.sync_dbg_empty (5 regs) */
+	0x02600454, 	/* msem.slow_ext_store_empty .. msem.slow_ext_load_empty (2 regs) */
+	0x02600457, 	/* msem.slow_ram_wr_empty .. msem.sync_dbg_empty (2 regs) */
 	0x02600480, 	/* msem.ext_pas_full .. msem.ext_store_if_full (2 regs) */
 	0x01600488, 	/* msem.fic_full (1 regs) */
 	0x01600491, 	/* msem.ram_if_full (1 regs) */
 	0x06600497, 	/* msem.slow_ext_store_full .. msem.sync_dbg_full (6 regs) */
 	0x0560054a, 	/* msem.dbg_select .. msem.dbg_force_frame (5 regs) */
-	0x01610001, 	/* msem.fast_memory.ram_ext_disable (1 regs) */
 	0x02610010, 	/* msem.fast_memory.INT_STS .. msem.fast_memory.INT_MASK (2 regs) */
 	0x02610120, 	/* msem.fast_memory.gpre0 .. msem.fast_memory.stall_mask (2 regs) */
 	0x04610128, 	/* msem.fast_memory.storm_stack_size .. msem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -719,13 +712,13 @@ static const u32 dump_reg[] = {
 	0x01640403, 	/* usem.sync_ram_wr_alm_full (1 regs) */
 	0x01640441, 	/* usem.ext_pas_empty (1 regs) */
 	0x01640448, 	/* usem.fic_empty (1 regs) */
-	0x05640454, 	/* usem.slow_ext_store_empty .. usem.sync_dbg_empty (5 regs) */
+	0x02640454, 	/* usem.slow_ext_store_empty .. usem.slow_ext_load_empty (2 regs) */
+	0x02640457, 	/* usem.slow_ram_wr_empty .. usem.sync_dbg_empty (2 regs) */
 	0x02640480, 	/* usem.ext_pas_full .. usem.ext_store_if_full (2 regs) */
 	0x01640488, 	/* usem.fic_full (1 regs) */
 	0x01640491, 	/* usem.ram_if_full (1 regs) */
 	0x06640497, 	/* usem.slow_ext_store_full .. usem.sync_dbg_full (6 regs) */
 	0x0564054a, 	/* usem.dbg_select .. usem.dbg_force_frame (5 regs) */
-	0x01650001, 	/* usem.fast_memory.ram_ext_disable (1 regs) */
 	0x02650010, 	/* usem.fast_memory.INT_STS .. usem.fast_memory.INT_MASK (2 regs) */
 	0x02650120, 	/* usem.fast_memory.gpre0 .. usem.fast_memory.stall_mask (2 regs) */
 	0x04650128, 	/* usem.fast_memory.storm_stack_size .. usem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -750,12 +743,12 @@ static const u32 dump_reg[] = {
 	0x02500400, 	/* xsem.dbg_alm_full .. xsem.passive_alm_full (2 regs) */
 	0x01500403, 	/* xsem.sync_ram_wr_alm_full (1 regs) */
 	0x01500441, 	/* xsem.ext_pas_empty (1 regs) */
-	0x05500454, 	/* xsem.slow_ext_store_empty .. xsem.sync_dbg_empty (5 regs) */
+	0x02500454, 	/* xsem.slow_ext_store_empty .. xsem.slow_ext_load_empty (2 regs) */
+	0x02500457, 	/* xsem.slow_ram_wr_empty .. xsem.sync_dbg_empty (2 regs) */
 	0x02500480, 	/* xsem.ext_pas_full .. xsem.ext_store_if_full (2 regs) */
 	0x01500491, 	/* xsem.ram_if_full (1 regs) */
 	0x06500497, 	/* xsem.slow_ext_store_full .. xsem.sync_dbg_full (6 regs) */
 	0x0550054a, 	/* xsem.dbg_select .. xsem.dbg_force_frame (5 regs) */
-	0x01510001, 	/* xsem.fast_memory.ram_ext_disable (1 regs) */
 	0x02510010, 	/* xsem.fast_memory.INT_STS .. xsem.fast_memory.INT_MASK (2 regs) */
 	0x02510120, 	/* xsem.fast_memory.gpre0 .. xsem.fast_memory.stall_mask (2 regs) */
 	0x04510128, 	/* xsem.fast_memory.storm_stack_size .. xsem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -780,12 +773,12 @@ static const u32 dump_reg[] = {
 	0x02540400, 	/* ysem.dbg_alm_full .. ysem.passive_alm_full (2 regs) */
 	0x01540403, 	/* ysem.sync_ram_wr_alm_full (1 regs) */
 	0x01540441, 	/* ysem.ext_pas_empty (1 regs) */
-	0x05540454, 	/* ysem.slow_ext_store_empty .. ysem.sync_dbg_empty (5 regs) */
+	0x02540454, 	/* ysem.slow_ext_store_empty .. ysem.slow_ext_load_empty (2 regs) */
+	0x02540457, 	/* ysem.slow_ram_wr_empty .. ysem.sync_dbg_empty (2 regs) */
 	0x02540480, 	/* ysem.ext_pas_full .. ysem.ext_store_if_full (2 regs) */
 	0x01540491, 	/* ysem.ram_if_full (1 regs) */
 	0x06540497, 	/* ysem.slow_ext_store_full .. ysem.sync_dbg_full (6 regs) */
 	0x0554054a, 	/* ysem.dbg_select .. ysem.dbg_force_frame (5 regs) */
-	0x01550001, 	/* ysem.fast_memory.ram_ext_disable (1 regs) */
 	0x02550010, 	/* ysem.fast_memory.INT_STS .. ysem.fast_memory.INT_MASK (2 regs) */
 	0x02550120, 	/* ysem.fast_memory.gpre0 .. ysem.fast_memory.stall_mask (2 regs) */
 	0x04550128, 	/* ysem.fast_memory.storm_stack_size .. ysem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -811,13 +804,13 @@ static const u32 dump_reg[] = {
 	0x01580403, 	/* psem.sync_ram_wr_alm_full (1 regs) */
 	0x01580441, 	/* psem.ext_pas_empty (1 regs) */
 	0x01580448, 	/* psem.fic_empty (1 regs) */
-	0x05580454, 	/* psem.slow_ext_store_empty .. psem.sync_dbg_empty (5 regs) */
+	0x02580454, 	/* psem.slow_ext_store_empty .. psem.slow_ext_load_empty (2 regs) */
+	0x02580457, 	/* psem.slow_ram_wr_empty .. psem.sync_dbg_empty (2 regs) */
 	0x02580480, 	/* psem.ext_pas_full .. psem.ext_store_if_full (2 regs) */
 	0x01580488, 	/* psem.fic_full (1 regs) */
 	0x01580491, 	/* psem.ram_if_full (1 regs) */
 	0x06580497, 	/* psem.slow_ext_store_full .. psem.sync_dbg_full (6 regs) */
 	0x0558054a, 	/* psem.dbg_select .. psem.dbg_force_frame (5 regs) */
-	0x01590001, 	/* psem.fast_memory.ram_ext_disable (1 regs) */
 	0x02590010, 	/* psem.fast_memory.INT_STS .. psem.fast_memory.INT_MASK (2 regs) */
 	0x02590120, 	/* psem.fast_memory.gpre0 .. psem.fast_memory.stall_mask (2 regs) */
 	0x04590128, 	/* psem.fast_memory.storm_stack_size .. psem.fast_memory.pram_prty_addr_high (4 regs) */
@@ -832,14 +825,14 @@ static const u32 dump_reg[] = {
 	0x01590292, 	/* psem.fast_memory.stall_cycles_mask (1 regs) */
 	0x015902d3, 	/* psem.fast_memory.vfc_status (1 regs) */
 	0x04590310, 	/* psem.fast_memory.cam_bist_en .. psem.fast_memory.cam_bist_status (4 regs) */
-	0x05300000, 	/* block rss */
+	0x04300000, 	/* block rss */
 	0x0308e201, 	/* rss.rss_init_en .. rss.if_enable (3 regs) */
 	0x0208e260, 	/* rss.INT_STS .. rss.INT_MASK (2 regs) */
 	0x0208e300, 	/* rss.key_rss_ext5 .. rss.tmld_credit (2 regs) */
-	0x0108e30d, 	/* rss.rbc_status (1 regs) */
 	0x0608e312, 	/* rss.eco_reserved .. rss.dbg_force_frame (6 regs) */
-	0x05310000, 	/* block tmld */
-	0x2f134000, 	/* tmld.scbd_strict_prio .. tmld.cm_hdr_127_96 (47 regs) */
+	0x06310000, 	/* block tmld */
+	0x01134000, 	/* tmld.scbd_strict_prio (1 regs) */
+	0x2c134003, 	/* tmld.foci_foc_credits .. tmld.cm_hdr_127_96 (44 regs) */
 	0x05134030, 	/* tmld.stat_fic_msg .. tmld.len_err_log_2 (5 regs) */
 	0x01134036, 	/* tmld.len_err_log_v (1 regs) */
 	0x02134060, 	/* tmld.INT_STS .. tmld.INT_MASK (2 regs) */
@@ -850,8 +843,9 @@ static const u32 dump_reg[] = {
 	0x0113803f, 	/* muld.len_err_log_v (1 regs) */
 	0x02138060, 	/* muld.INT_STS .. muld.INT_MASK (2 regs) */
 	0x05138580, 	/* muld.dbg_select .. muld.dbg_force_frame (5 regs) */
-	0x06340000, 	/* block xyld */
-	0x31130000, 	/* xyld.scbd_strict_prio .. xyld.cm_hdr_127_96 (49 regs) */
+	0x07340000, 	/* block xyld */
+	0x01130000, 	/* xyld.scbd_strict_prio (1 regs) */
+	0x2e130003, 	/* xyld.foci_foc_credits .. xyld.cm_hdr_127_96 (46 regs) */
 	0x04130032, 	/* xyld.seg_msg_log .. xyld.seg_msg_log_len_arr_95_64 (4 regs) */
 	0x06130037, 	/* xyld.seg_msg_log_v .. xyld.len_err_log_2 (6 regs) */
 	0x0113003e, 	/* xyld.len_err_log_v (1 regs) */
@@ -918,7 +912,8 @@ static const u32 dump_reg[] = {
 	0x06360100, 	/* pbf.pxp_req_if_init_crd .. pbf.tm_if_init_crd (6 regs) */
 	0x05360107, 	/* pbf.tcm_if_init_crd .. pbf.ycm_if_init_crd (5 regs) */
 	0x08360110, 	/* pbf.pb1_db_almost_full_thrsh .. pbf.mrku_almost_full_thrsh (8 regs) */
-	0x0c360120, 	/* pbf.tag_ethertype_0 .. pbf.tag_len_5 (12 regs) */
+	0x04360120, 	/* pbf.tag_ethertype_0 .. pbf.tag_ethertype_3 (4 regs) */
+	0x04360126, 	/* pbf.tag_len_0 .. pbf.tag_len_3 (4 regs) */
 	0x0836013e, 	/* pbf.llc_type_threshold .. pbf.gre_protocol (8 regs) */
 	0x01360148, 	/* pbf.nge_eth_type (1 regs) */
 	0x01360161, 	/* pbf.regular_inband_tag_order (1 regs) */
@@ -947,7 +942,6 @@ static const u32 dump_reg[] = {
 	0x0c3602b8, 	/* pbf.ycmd_qs_num_lines_voq17 .. pbf.num_blocks_allocated_cons_voq17 (12 regs) */
 	0x0c3602c8, 	/* pbf.ycmd_qs_num_lines_voq18 .. pbf.num_blocks_allocated_cons_voq18 (12 regs) */
 	0x0c3602d8, 	/* pbf.ycmd_qs_num_lines_voq19 .. pbf.num_blocks_allocated_cons_voq19 (12 regs) */
-	0x013603a8, 	/* pbf.eco_reserved (1 regs) */
 	0x053d0000, 	/* block rdif */
 	0x040c0010, 	/* rdif.stop_on_error .. rdif.min_eob2wf_l1_rd_del (4 regs) */
 	0x010c0015, 	/* rdif.dirty_l1 (1 regs) */
@@ -1019,23 +1013,22 @@ static const u32 dump_reg[] = {
 	0x06060487, 	/* igu.group_rl_en_0 .. igu.group_rl_pending_1 (6 regs) */
 	0x08060540, 	/* igu.attention_signal_p0_status .. igu.Interrupt_status (8 regs) */
 	0x1706054c, 	/* igu.error_handling_data_valid .. igu.dbg_force_frame (23 regs) */
-	0x10430000, 	/* block cau */
+	0x0f430000, 	/* block cau */
 	0x01070035, 	/* cau.INT_STS (1 regs) */
 	0x01070038, 	/* cau.INT_MASK (1 regs) */
 	0x05070100, 	/* cau.num_pi_per_sb .. cau.reset_memories (5 regs) */
 	0x02070140, 	/* cau.in_arb_priority .. cau.in_arb_timeout (2 regs) */
-	0x05070180, 	/* cau.cqe_size .. cau.agg_release_timer (5 regs) */
 	0x040701c0, 	/* cau.tick_size .. cau.stop_scan (4 regs) */
-	0x02070220, 	/* cau.wdata_fifo_afull_thr .. cau.cqe_fifo_afull_thr (2 regs) */
+	0x01070220, 	/* cau.wdata_fifo_afull_thr (1 regs) */
 	0x02070260, 	/* cau.igu_req_credit_status .. cau.igu_cmd_credit_status (2 regs) */
 	0x060702a0, 	/* cau.stat_ctrl_sb_select .. cau.stat_ctrl_timer_cmd_type (6 regs) */
-	0x110702e0, 	/* cau.stat_counter_sb_gen .. cau.stat_counter_cqe_partial_cache (17 regs) */
+	0x0a0702e0, 	/* cau.stat_counter_sb_gen .. cau.stat_counter_fsm1_line (10 regs) */
 	0x06070320, 	/* cau.debug_fifo_status .. cau.error_cleanup_cmd_reg (6 regs) */
-	0x05070327, 	/* cau.agg_units_0to15_state .. cau.eco_reserved (5 regs) */
+	0x0107032b, 	/* cau.eco_reserved (1 regs) */
 	0x05070360, 	/* cau.debug_record_mask_min_sb .. cau.debug_record_mask_cmd_type (5 regs) */
 	0x03070380, 	/* cau.req_counter .. cau.wdone_counter (3 regs) */
 	0x050703aa, 	/* cau.dbg_select .. cau.dbg_force_frame (5 regs) */
-	0x050703c0, 	/* cau.main_fsm_status .. cau.igu_cqe_agg_fsm_status (5 regs) */
+	0x030703c0, 	/* cau.main_fsm_status .. cau.igu_dma_fsm_status (3 regs) */
 	0x0b4a0000, 	/* block dbg */
 	0x01004001, 	/* dbg.client_enable (1 regs) */
 	0x01004003, 	/* dbg.output_enable (1 regs) */
@@ -1090,15 +1083,13 @@ static const u32 dump_reg[] = {
 	0x02050007, 	/* mode bb, block cnig */
 	0x0108608e, 	/* cnig.eco_reserved (1 regs) */
 	0x020860ba, 	/* cnig.INT_STS .. cnig.INT_MASK (2 regs) */
-	0x13180000, 	/* block tcm */
+	0x11180000, 	/* block tcm */
 	0x08460101, 	/* tcm.qm_con_base_evnt_id_0 .. tcm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10460111, 	/* tcm.qm_agg_con_ctx_part_size_0 .. tcm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10460131, 	/* tcm.qm_xxlock_cmd_0 .. tcm.qm_con_use_st_flg_7 (16 regs) */
 	0x08460149, 	/* tcm.tm_con_evnt_id_0 .. tcm.tm_con_evnt_id_7 (8 regs) */
 	0x01460183, 	/* tcm.ysem_weight (1 regs) */
 	0x01460188, 	/* tcm.tsdm_weight (1 regs) */
-	0x01460194, 	/* tcm.tsdm_frwrd_mode (1 regs) */
-	0x01460196, 	/* tcm.ysem_frwrd_mode (1 regs) */
 	0x084601dc, 	/* tcm.xx_byp_msg_up_bnd_0 .. tcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08460205, 	/* tcm.n_sm_con_ctx_ld_0 .. tcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08460228, 	/* tcm.agg_con_ctx_size_0 .. tcm.agg_con_ctx_size_7 (8 regs) */
@@ -1110,14 +1101,12 @@ static const u32 dump_reg[] = {
 	0x014602c1, 	/* tcm.is_ysem_fill_lvl (1 regs) */
 	0x014602e4, 	/* tcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014602e8, 	/* tcm.is_foc_tsdm_nxt_inf_unit (1 regs) */
-	0x12190000, 	/* block mcm */
+	0x10190000, 	/* block mcm */
 	0x08480101, 	/* mcm.qm_con_base_evnt_id_0 .. mcm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10480111, 	/* mcm.qm_agg_con_ctx_part_size_0 .. mcm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10480141, 	/* mcm.qm_xxlock_cmd_0 .. mcm.qm_con_use_st_flg_7 (16 regs) */
 	0x01480183, 	/* mcm.ysem_weight (1 regs) */
 	0x01480186, 	/* mcm.msdm_weight (1 regs) */
-	0x01480194, 	/* mcm.msdm_frwrd_mode (1 regs) */
-	0x01480199, 	/* mcm.ysem_frwrd_mode (1 regs) */
 	0x084801dc, 	/* mcm.xx_byp_msg_up_bnd_0 .. mcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08480205, 	/* mcm.n_sm_con_ctx_ld_0 .. mcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08480228, 	/* mcm.agg_con_ctx_size_0 .. mcm.agg_con_ctx_size_7 (8 regs) */
@@ -1129,7 +1118,7 @@ static const u32 dump_reg[] = {
 	0x014802c4, 	/* mcm.is_ysem_fill_lvl (1 regs) */
 	0x014802e4, 	/* mcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014802e6, 	/* mcm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x091a0000, 	/* block ucm */
+	0x081a0000, 	/* block ucm */
 	0x084a0101, 	/* ucm.qm_con_base_evnt_id_0 .. ucm.qm_con_base_evnt_id_7 (8 regs) */
 	0x104a0111, 	/* ucm.qm_agg_con_ctx_part_size_0 .. ucm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x104a0131, 	/* ucm.qm_xxlock_cmd_0 .. ucm.qm_con_use_st_flg_7 (16 regs) */
@@ -1137,14 +1126,11 @@ static const u32 dump_reg[] = {
 	0x084a01dc, 	/* ucm.xx_byp_msg_up_bnd_0 .. ucm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x084a0205, 	/* ucm.n_sm_con_ctx_ld_0 .. ucm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x084a0228, 	/* ucm.agg_con_ctx_size_0 .. ucm.agg_con_ctx_size_7 (8 regs) */
-	0x074a0245, 	/* ucm.agg_con_cf0_q .. ucm.agg_con_cf6_q (7 regs) */
-	0x054a0255, 	/* ucm.agg_task_cf0_q .. ucm.agg_task_cf4_q (5 regs) */
-	0x101b0000, 	/* block xcm */
+	0x154a0245, 	/* ucm.agg_con_cf0_q .. ucm.agg_task_cf4_q (21 regs) */
+	0x0e1b0000, 	/* block xcm */
 	0x30400101, 	/* xcm.qm_con_base_evnt_id_0 .. xcm.tm_con_evnt_id_7 (48 regs) */
 	0x01400184, 	/* xcm.ysem_weight (1 regs) */
 	0x01400188, 	/* xcm.msdm_weight (1 regs) */
-	0x01400197, 	/* xcm.msdm_frwrd_mode (1 regs) */
-	0x0140019d, 	/* xcm.ysem_frwrd_mode (1 regs) */
 	0x084001d9, 	/* xcm.xx_byp_msg_up_bnd_0 .. xcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08400203, 	/* xcm.n_sm_con_ctx_ld_0 .. xcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08400215, 	/* xcm.agg_con_ctx_size_0 .. xcm.agg_con_ctx_size_7 (8 regs) */
@@ -1156,30 +1142,30 @@ static const u32 dump_reg[] = {
 	0x014002ca, 	/* xcm.is_ysem_fill_lvl (1 regs) */
 	0x014002e5, 	/* xcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014002e8, 	/* xcm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x0f1c0000, 	/* block ycm */
+	0x0d1c0000, 	/* block ycm */
 	0x08420101, 	/* ycm.qm_con_base_evnt_id_0 .. ycm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10420111, 	/* ycm.qm_agg_con_ctx_part_size_0 .. ycm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10420141, 	/* ycm.qm_xxlock_cmd_0 .. ycm.qm_con_use_st_flg_7 (16 regs) */
 	0x01420186, 	/* ycm.msdm_weight (1 regs) */
-	0x01420193, 	/* ycm.msdm_frwrd_mode (1 regs) */
 	0x084201dc, 	/* ycm.xx_byp_msg_up_bnd_0 .. ycm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08420205, 	/* ycm.n_sm_con_ctx_ld_0 .. ycm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08420228, 	/* ycm.agg_con_ctx_size_0 .. ycm.agg_con_ctx_size_7 (8 regs) */
-	0x03420245, 	/* ycm.agg_con_cf0_q .. ycm.agg_con_cf2_q (3 regs) */
-	0x0942024d, 	/* ycm.agg_task_cf0_q .. ycm.agg_task_rule6_q (9 regs) */
+	0x11420245, 	/* ycm.agg_con_cf0_q .. ycm.agg_task_rule6_q (17 regs) */
 	0x014202aa, 	/* ycm.msdm_length_mis (1 regs) */
 	0x014202b1, 	/* ycm.msdm_msg_cntr (1 regs) */
 	0x014202bd, 	/* ycm.is_msdm_fill_lvl (1 regs) */
 	0x014202e4, 	/* ycm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014202e6, 	/* ycm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x071d0000, 	/* block pcm */
+	0x061d0000, 	/* block pcm */
 	0x01440184, 	/* pcm.psdm_weight (1 regs) */
-	0x0144018d, 	/* pcm.psdm_frwrd_mode (1 regs) */
 	0x08440202, 	/* pcm.n_sm_con_ctx_ld_0 .. pcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x014402aa, 	/* pcm.psdm_length_mis (1 regs) */
 	0x014402af, 	/* pcm.psdm_msg_cntr (1 regs) */
 	0x014402b3, 	/* pcm.is_psdm_fill_lvl (1 regs) */
 	0x014402e4, 	/* pcm.is_foc_psdm_nxt_inf_unit (1 regs) */
+	0x021e0000, 	/* block qm */
+	0x280bc448, 	/* qm.CtxRegCcfc_0 .. qm.CtxRegCcfc_39 (40 regs) */
+	0x280bc4c8, 	/* qm.ActCtrInitValCcfc_0 .. qm.ActCtrInitValCcfc_39 (40 regs) */
 	0x03200000, 	/* block dorq */
 	0x1004012d, 	/* dorq.qm_en_byp_mask_0 .. dorq.dpi_val_sup_7 (16 regs) */
 	0x38040185, 	/* dorq.xcm_agg_flg_mask_conn_0 .. dorq.dpm_xcm_event_id_7 (56 regs) */
@@ -1204,15 +1190,19 @@ static const u32 dump_reg[] = {
 	0x04d40108, 	/* ysem.vf_err_vector (4 regs, WB) */
 	0x012f0000, 	/* block psem */
 	0x04d80108, 	/* psem.vf_err_vector (4 regs, WB) */
-	0x13180009, 	/* mode k2, block tcm */
+	0x01310000, 	/* block tmld */
+	0x02134001, 	/* tmld.scbd_wrr_weight_q0 .. tmld.scbd_wrr_weight_q1 (2 regs) */
+	0x01340000, 	/* block xyld */
+	0x02130001, 	/* xyld.scbd_wrr_weight_q0 .. xyld.scbd_wrr_weight_q1 (2 regs) */
+	0x013c0000, 	/* block pbf */
+	0x013603a8, 	/* pbf.eco_reserved (1 regs) */
+	0x11180009, 	/* mode k2, block tcm */
 	0x08460101, 	/* tcm.qm_con_base_evnt_id_0 .. tcm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10460111, 	/* tcm.qm_agg_con_ctx_part_size_0 .. tcm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10460131, 	/* tcm.qm_xxlock_cmd_0 .. tcm.qm_con_use_st_flg_7 (16 regs) */
 	0x08460149, 	/* tcm.tm_con_evnt_id_0 .. tcm.tm_con_evnt_id_7 (8 regs) */
 	0x01460183, 	/* tcm.ysem_weight (1 regs) */
 	0x01460188, 	/* tcm.tsdm_weight (1 regs) */
-	0x01460194, 	/* tcm.tsdm_frwrd_mode (1 regs) */
-	0x01460196, 	/* tcm.ysem_frwrd_mode (1 regs) */
 	0x084601dc, 	/* tcm.xx_byp_msg_up_bnd_0 .. tcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08460205, 	/* tcm.n_sm_con_ctx_ld_0 .. tcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08460228, 	/* tcm.agg_con_ctx_size_0 .. tcm.agg_con_ctx_size_7 (8 regs) */
@@ -1224,14 +1214,12 @@ static const u32 dump_reg[] = {
 	0x014602c1, 	/* tcm.is_ysem_fill_lvl (1 regs) */
 	0x014602e4, 	/* tcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014602e8, 	/* tcm.is_foc_tsdm_nxt_inf_unit (1 regs) */
-	0x12190000, 	/* block mcm */
+	0x10190000, 	/* block mcm */
 	0x08480101, 	/* mcm.qm_con_base_evnt_id_0 .. mcm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10480111, 	/* mcm.qm_agg_con_ctx_part_size_0 .. mcm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10480141, 	/* mcm.qm_xxlock_cmd_0 .. mcm.qm_con_use_st_flg_7 (16 regs) */
 	0x01480183, 	/* mcm.ysem_weight (1 regs) */
 	0x01480186, 	/* mcm.msdm_weight (1 regs) */
-	0x01480194, 	/* mcm.msdm_frwrd_mode (1 regs) */
-	0x01480199, 	/* mcm.ysem_frwrd_mode (1 regs) */
 	0x084801dc, 	/* mcm.xx_byp_msg_up_bnd_0 .. mcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08480205, 	/* mcm.n_sm_con_ctx_ld_0 .. mcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08480228, 	/* mcm.agg_con_ctx_size_0 .. mcm.agg_con_ctx_size_7 (8 regs) */
@@ -1243,7 +1231,7 @@ static const u32 dump_reg[] = {
 	0x014802c4, 	/* mcm.is_ysem_fill_lvl (1 regs) */
 	0x014802e4, 	/* mcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014802e6, 	/* mcm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x091a0000, 	/* block ucm */
+	0x081a0000, 	/* block ucm */
 	0x084a0101, 	/* ucm.qm_con_base_evnt_id_0 .. ucm.qm_con_base_evnt_id_7 (8 regs) */
 	0x104a0111, 	/* ucm.qm_agg_con_ctx_part_size_0 .. ucm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x104a0131, 	/* ucm.qm_xxlock_cmd_0 .. ucm.qm_con_use_st_flg_7 (16 regs) */
@@ -1251,14 +1239,11 @@ static const u32 dump_reg[] = {
 	0x084a01dc, 	/* ucm.xx_byp_msg_up_bnd_0 .. ucm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x084a0205, 	/* ucm.n_sm_con_ctx_ld_0 .. ucm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x084a0228, 	/* ucm.agg_con_ctx_size_0 .. ucm.agg_con_ctx_size_7 (8 regs) */
-	0x074a0245, 	/* ucm.agg_con_cf0_q .. ucm.agg_con_cf6_q (7 regs) */
-	0x054a0255, 	/* ucm.agg_task_cf0_q .. ucm.agg_task_cf4_q (5 regs) */
-	0x101b0000, 	/* block xcm */
+	0x154a0245, 	/* ucm.agg_con_cf0_q .. ucm.agg_task_cf4_q (21 regs) */
+	0x0e1b0000, 	/* block xcm */
 	0x30400101, 	/* xcm.qm_con_base_evnt_id_0 .. xcm.tm_con_evnt_id_7 (48 regs) */
 	0x01400184, 	/* xcm.ysem_weight (1 regs) */
 	0x01400188, 	/* xcm.msdm_weight (1 regs) */
-	0x01400197, 	/* xcm.msdm_frwrd_mode (1 regs) */
-	0x0140019d, 	/* xcm.ysem_frwrd_mode (1 regs) */
 	0x084001d9, 	/* xcm.xx_byp_msg_up_bnd_0 .. xcm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08400203, 	/* xcm.n_sm_con_ctx_ld_0 .. xcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08400215, 	/* xcm.agg_con_ctx_size_0 .. xcm.agg_con_ctx_size_7 (8 regs) */
@@ -1270,30 +1255,30 @@ static const u32 dump_reg[] = {
 	0x014002ca, 	/* xcm.is_ysem_fill_lvl (1 regs) */
 	0x014002e5, 	/* xcm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014002e8, 	/* xcm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x0f1c0000, 	/* block ycm */
+	0x0d1c0000, 	/* block ycm */
 	0x08420101, 	/* ycm.qm_con_base_evnt_id_0 .. ycm.qm_con_base_evnt_id_7 (8 regs) */
 	0x10420111, 	/* ycm.qm_agg_con_ctx_part_size_0 .. ycm.qm_sm_con_ctx_ldst_flg_7 (16 regs) */
 	0x10420141, 	/* ycm.qm_xxlock_cmd_0 .. ycm.qm_con_use_st_flg_7 (16 regs) */
 	0x01420186, 	/* ycm.msdm_weight (1 regs) */
-	0x01420193, 	/* ycm.msdm_frwrd_mode (1 regs) */
 	0x084201dc, 	/* ycm.xx_byp_msg_up_bnd_0 .. ycm.xx_byp_msg_up_bnd_7 (8 regs) */
 	0x08420205, 	/* ycm.n_sm_con_ctx_ld_0 .. ycm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x08420228, 	/* ycm.agg_con_ctx_size_0 .. ycm.agg_con_ctx_size_7 (8 regs) */
-	0x03420245, 	/* ycm.agg_con_cf0_q .. ycm.agg_con_cf2_q (3 regs) */
-	0x0942024d, 	/* ycm.agg_task_cf0_q .. ycm.agg_task_rule6_q (9 regs) */
+	0x11420245, 	/* ycm.agg_con_cf0_q .. ycm.agg_task_rule6_q (17 regs) */
 	0x014202aa, 	/* ycm.msdm_length_mis (1 regs) */
 	0x014202b1, 	/* ycm.msdm_msg_cntr (1 regs) */
 	0x014202bd, 	/* ycm.is_msdm_fill_lvl (1 regs) */
 	0x014202e4, 	/* ycm.is_foc_ysem_nxt_inf_unit (1 regs) */
 	0x014202e6, 	/* ycm.is_foc_msdm_nxt_inf_unit (1 regs) */
-	0x071d0000, 	/* block pcm */
+	0x061d0000, 	/* block pcm */
 	0x01440184, 	/* pcm.psdm_weight (1 regs) */
-	0x0144018d, 	/* pcm.psdm_frwrd_mode (1 regs) */
 	0x08440202, 	/* pcm.n_sm_con_ctx_ld_0 .. pcm.n_sm_con_ctx_ld_7 (8 regs) */
 	0x014402aa, 	/* pcm.psdm_length_mis (1 regs) */
 	0x014402af, 	/* pcm.psdm_msg_cntr (1 regs) */
 	0x014402b3, 	/* pcm.is_psdm_fill_lvl (1 regs) */
 	0x014402e4, 	/* pcm.is_foc_psdm_nxt_inf_unit (1 regs) */
+	0x021e0000, 	/* block qm */
+	0x280bc448, 	/* qm.CtxRegCcfc_0 .. qm.CtxRegCcfc_39 (40 regs) */
+	0x280bc4c8, 	/* qm.ActCtrInitValCcfc_0 .. qm.ActCtrInitValCcfc_39 (40 regs) */
 	0x03200000, 	/* block dorq */
 	0x1004012d, 	/* dorq.qm_en_byp_mask_0 .. dorq.dpi_val_sup_7 (16 regs) */
 	0x38040185, 	/* dorq.xcm_agg_flg_mask_conn_0 .. dorq.dpm_xcm_event_id_7 (56 regs) */
@@ -1303,6 +1288,12 @@ static const u32 dump_reg[] = {
 	0x0807c051, 	/* prs.con_inc_value_0 .. prs.con_inc_value_7 (8 regs) */
 	0x0807c245, 	/* prs.cm_hdr_event_id_0 .. prs.cm_hdr_event_id_7 (8 regs) */
 	0x1007c25f, 	/* prs.output_format_0_0 .. prs.output_format_7_1 (16 regs) */
+	0x01310000, 	/* block tmld */
+	0x02134001, 	/* tmld.scbd_wrr_weight_q0 .. tmld.scbd_wrr_weight_q1 (2 regs) */
+	0x01340000, 	/* block xyld */
+	0x02130001, 	/* xyld.scbd_wrr_weight_q0 .. xyld.scbd_wrr_weight_q1 (2 regs) */
+	0x013c0000, 	/* block pbf */
+	0x013603a8, 	/* pbf.eco_reserved (1 regs) */
 	0x04010025, 	/* mode !bb, block miscs */
 	0x0100245c, 	/* miscs.bsc_smbio_enable_glitch_filter (1 regs) */
 	0x060024f0, 	/* miscs.pcie_link_up_state .. miscs.main_pll_status (6 regs) */
@@ -1548,6 +1539,293 @@ static const u32 dump_reg[] = {
 	0x02530000, 	/* block led */
 	0x061ae006, 	/* led.mac_led_swap .. led.eco_reserved (6 regs) */
 	0x021ae060, 	/* led.INT_STS_0 .. led.INT_MASK_0 (2 regs) */
+	0x01040003, 	/* mode !(bb|k2), block pglue_b */
+	0x020aa13a, 	/* pglue_b.dorq_access_via_bar0 .. pglue_b.vsc_en (2 regs) */
+	0x010d0000, 	/* block pswhst */
+	0x010a8031, 	/* pswhst.dest_dorq_credits (1 regs) */
+	0x01110000, 	/* block pswwr */
+	0x030a6833, 	/* pswwr.prms_full_th .. pswwr.tgsrc_full_th (3 regs) */
+	0x01120000, 	/* block pswwr2 */
+	0x030a6c1a, 	/* pswwr2.prms_full_th2 .. pswwr2.prms_max_fill_level (3 regs) */
+	0x01160000, 	/* block dmae */
+	0x01003032, 	/* dmae.go_sticky (1 regs) */
+	0x01170000, 	/* block ptu */
+	0x0515817b, 	/* ptu.LOG_INV_HALT_RSC_TYPE .. ptu.index2_rsc_type_mask (5 regs) */
+	0x0c180000, 	/* block tcm */
+	0x2c460022, 	/* tcm.affinity_type_0 .. tcm.agg_con_cf11_q (44 regs) */
+	0x0b46015a, 	/* tcm.agg_con_rule0_q .. tcm.agg_con_rule10_q (11 regs) */
+	0x014601a2, 	/* tcm.ext_rd_fill_lvl (1 regs) */
+	0x134601e9, 	/* tcm.err_affinity_type .. tcm.xx_byp_msg_up_bnd_15 (19 regs) */
+	0x08460267, 	/* tcm.cm_task_event_id_bwidth_0 .. tcm.cm_task_event_id_bwidth_7 (8 regs) */
+	0x1046028e, 	/* tcm.cm_con_event_id_bwidth_0 .. tcm.cm_con_event_id_bwidth_15 (16 regs) */
+	0x85460640, 	/* tcm.tm_con_evnt_id_0 .. tcm.is_foc_tsdm_nxt_inf_unit (133 regs) */
+	0x054606e0, 	/* tcm.psdm_weight .. tcm.is_foc_psdm_nxt_inf_unit (5 regs) */
+	0x05460700, 	/* tcm.msdm_weight .. tcm.is_foc_msdm_nxt_inf_unit (5 regs) */
+	0x04460720, 	/* tcm.ysem_weight .. tcm.is_foc_ysem_nxt_inf_unit (4 regs) */
+	0x05460780, 	/* tcm.ptld_weight .. tcm.is_foc_ptld_nxt_inf_unit (5 regs) */
+	0x08460a00, 	/* tcm.agg_task_cf0_q .. tcm.agg_task_cf7_q (8 regs) */
+	0x0c190000, 	/* block mcm */
+	0x23480022, 	/* mcm.affinity_type_0 .. mcm.agg_con_cf2_q (35 regs) */
+	0x0548015a, 	/* mcm.agg_con_rule0_q .. mcm.agg_con_rule4_q (5 regs) */
+	0x014801a4, 	/* mcm.ext_rd_fill_lvl (1 regs) */
+	0x134801e9, 	/* mcm.err_affinity_type .. mcm.xx_byp_msg_up_bnd_15 (19 regs) */
+	0x09480257, 	/* mcm.agg_task_rule7_q .. mcm.cm_task_event_id_bwidth_7 (9 regs) */
+	0x1048028c, 	/* mcm.cm_con_event_id_bwidth_0 .. mcm.cm_con_event_id_bwidth_15 (16 regs) */
+	0x70480740, 	/* mcm.n_sm_con_ctx_ld_0 .. mcm.qm_sm_con_ctx_ldst_flg_15 (112 regs) */
+	0x05480a00, 	/* mcm.tsdm_weight .. mcm.is_foc_tsdm_nxt_inf_unit (5 regs) */
+	0x05480a20, 	/* mcm.psdm_weight .. mcm.is_foc_psdm_nxt_inf_unit (5 regs) */
+	0x05480a40, 	/* mcm.msdm_weight .. mcm.is_foc_msdm_nxt_inf_unit (5 regs) */
+	0x04480a80, 	/* mcm.ysem_weight .. mcm.is_foc_ysem_nxt_inf_unit (4 regs) */
+	0x05480b80, 	/* mcm.agg_task_cf0_q .. mcm.agg_task_cf4_q (5 regs) */
+	0x091a0000, 	/* block ucm */
+	0x294a002a, 	/* ucm.affinity_type_0 .. ucm.agg_con_cf8_q (41 regs) */
+	0x094a015a, 	/* ucm.agg_con_rule0_q .. ucm.agg_con_rule8_q (9 regs) */
+	0x014a01aa, 	/* ucm.ext_rd_fill_lvl (1 regs) */
+	0x134a01e9, 	/* ucm.err_affinity_type .. ucm.xx_byp_msg_up_bnd_15 (19 regs) */
+	0x0a4a0261, 	/* ucm.agg_task_rule7_q .. ucm.cm_task_event_id_bwidth_7 (10 regs) */
+	0x104a028e, 	/* ucm.cm_con_event_id_bwidth_0 .. ucm.cm_con_event_id_bwidth_15 (16 regs) */
+	0x804a0700, 	/* ucm.tm_con_evnt_id_0 .. ucm.qm_sm_con_ctx_ldst_flg_15 (128 regs) */
+	0x064a0a00, 	/* ucm.ring_base .. ucm.is_foc_ysem_nxt_inf_unit (6 regs) */
+	0x064a0a80, 	/* ucm.agg_task_cf0_q .. ucm.agg_task_cf5_q (6 regs) */
+	0x071b0000, 	/* block xcm */
+	0x39400022, 	/* xcm.affinity_type_0 .. xcm.agg_con_cf24_q (57 regs) */
+	0x1c400132, 	/* xcm.agg_con_rule0_q .. xcm.agg_con_rule27_q (28 regs) */
+	0x014001a6, 	/* xcm.ext_rd_fill_lvl (1 regs) */
+	0x134001e6, 	/* xcm.err_affinity_type .. xcm.xx_byp_msg_up_bnd_15 (19 regs) */
+	0x1040028a, 	/* xcm.cm_con_event_id_bwidth_0 .. xcm.cm_con_event_id_bwidth_15 (16 regs) */
+	0x95400700, 	/* xcm.tm_con_evnt_id_0 .. xcm.is_foc_msdm_nxt_inf_unit (149 regs) */
+	0x044007c0, 	/* xcm.ysem_weight .. xcm.is_foc_ysem_nxt_inf_unit (4 regs) */
+	0x091c0000, 	/* block ycm */
+	0x23420022, 	/* ycm.affinity_type_0 .. ycm.agg_con_cf2_q (35 regs) */
+	0x0542015a, 	/* ycm.agg_con_rule0_q .. ycm.agg_con_rule4_q (5 regs) */
+	0x014201a2, 	/* ycm.ext_rd_fill_lvl (1 regs) */
+	0x134201e9, 	/* ycm.err_affinity_type .. ycm.xx_byp_msg_up_bnd_15 (19 regs) */
+	0x10420251, 	/* ycm.agg_task_rule0_q .. ycm.cm_task_event_id_bwidth_7 (16 regs) */
+	0x1042028c, 	/* ycm.cm_con_event_id_bwidth_0 .. ycm.cm_con_event_id_bwidth_15 (16 regs) */
+	0x75420740, 	/* ycm.n_sm_con_ctx_ld_0 .. ycm.is_foc_msdm_nxt_inf_unit (117 regs) */
+	0x01420900, 	/* ycm.is_foc_ysem_nxt_inf_unit (1 regs) */
+	0x04420b00, 	/* ycm.agg_task_cf0_q .. ycm.agg_task_cf4_q (4 regs) */
+	0x041d0000, 	/* block pcm */
+	0x01440194, 	/* pcm.ext_rd_fill_lvl (1 regs) */
+	0x034401d9, 	/* pcm.err_affinity_type .. pcm.err_src_affinity (3 regs) */
+	0x154405c4, 	/* pcm.n_sm_con_ctx_ld_0 .. pcm.is_foc_psdm_nxt_inf_unit (21 regs) */
+	0x054405f0, 	/* pcm.ypld_weight .. pcm.is_foc_ypld_nxt_inf_unit (5 regs) */
+	0x031e0000, 	/* block qm */
+	0x080bd733, 	/* qm.Voq_Arb_Grp2_Weight_0 .. qm.Voq_Arb_Grp2_Weight_7 (8 regs) */
+	0xa00bda00, 	/* qm.CtxRegCcfc_0 .. qm.ActCtrInitValCcfc_79 (160 regs) */
+	0x040bff80, 	/* qm.AFullQmBypThrLineVoqMask_msb .. qm.VoqCrdByteFull_msb (4 regs) */
+	0x08200000, 	/* block dorq */
+	0x010402ab, 	/* dorq.iedpm_payload_endianity (1 regs) */
+	0x04040a00, 	/* dorq.glb_max_icid_0 .. dorq.glb_range2conn_type_1 (4 regs) */
+	0x02040a14, 	/* dorq.iedpm_exist_in_qm_en .. dorq.iedpm_agg_type (2 regs) */
+	0xc3040a1a, 	/* dorq.edpm_agg_type_sel_0 .. dorq.rtc_en (195 regs) */
+	0x02040adf, 	/* dorq.crc32c_bswap .. dorq.iwarp_opcode_en (2 regs) */
+	0x0c040ae9, 	/* dorq.rdma_en_pbf_spc_roce .. dorq.iedpm_abort_details_reason (12 regs) */
+	0x06040af6, 	/* dorq.iedpm_abort_reason .. dorq.iedpm_drop_details_db_icid (6 regs) */
+	0x41040afd, 	/* dorq.iedpm_drop_reason .. dorq.dpm_iedpm_success_cnt (65 regs) */
+	0x01210000, 	/* block brb */
+	0x090d1000, 	/* brb.wc_ll_high_pri .. brb.limit_oversubscrition_pause_lb (9 regs) */
+	0x0b230000, 	/* block prs */
+	0x0307c2ec, 	/* prs.fc_dbg_select_a .. prs.fc_dbg_shift_a (3 regs) */
+	0x0887c2f0, 	/* prs.fc_dbg_out_data_a (8 regs, WB) */
+	0x0407c2f8, 	/* prs.fc_dbg_force_valid_a .. prs.fc_dbg_out_frame_a (4 regs) */
+	0x0307c380, 	/* prs.fc_dbg_select_b .. prs.fc_dbg_shift_b (3 regs) */
+	0x0887c388, 	/* prs.fc_dbg_out_data_b (8 regs, WB) */
+	0x0407c390, 	/* prs.fc_dbg_force_valid_b .. prs.fc_dbg_out_frame_b (4 regs) */
+	0x0107c3c0, 	/* prs.ptld_initial_credit (1 regs) */
+	0x0107c3c3, 	/* prs.ptld_current_credit (1 regs) */
+	0x0707c3ce, 	/* prs.rgfs_initial_credit .. prs.fce_use_single_fc_chicken_bit (7 regs) */
+	0xb907c500, 	/* prs.compare_gre_version .. prs.xrc_opcodes (185 regs) */
+	0x0407c5ba, 	/* prs.new_entry_exclusive_classify_failed .. prs.en_ipv6_ext_event_id (4 regs) */
+	0x01240000, 	/* block tsdm */
+	0x013ec148, 	/* tsdm.init_credit_cm_rmt (1 regs) */
+	0x112a0000, 	/* block tsem */
+	0x085c0005, 	/* tsem.passive_buffer_write_wrr_arbiter .. tsem.passive_buffer_dra_wr (8 regs) */
+	0x025c0018, 	/* tsem.INT_STS_2 .. tsem.INT_MASK_2 (2 regs) */
+	0x015c0114, 	/* tsem.gpi_data_a (1 regs) */
+	0x035c0118, 	/* tsem.pb_wr_sdm_dma_mode .. tsem.gpi_data_b (3 regs) */
+	0x015c02c1, 	/* tsem.thread_error_low (1 regs) */
+	0x025c02c6, 	/* tsem.thread_number .. tsem.thread_error_high (2 regs) */
+	0x095c0404, 	/* tsem.sync_foc_fifo_wr_alm_full .. tsem.stall_on_breakpoint (9 regs) */
+	0x055c045b, 	/* tsem.pb_queue_empty .. tsem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x035c049f, 	/* tsem.sync_ready_fifo_full .. tsem.sync_foc_fifo_full (3 regs) */
+	0x105c050a, 	/* tsem.dbg_queue_peformance_mon_stat .. tsem.dbg_queue_max_sleep_value (16 regs) */
+	0x015d0122, 	/* tsem.fast_memory.stall_common (1 regs) */
+	0x015d0132, 	/* tsem.fast_memory.pram_last_addr_a (1 regs) */
+	0x075d0136, 	/* tsem.fast_memory.data_breakpoint_address_start .. tsem.fast_memory.stall_storm_b (7 regs) */
+	0x015d01dd, 	/* tsem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x015d0214, 	/* tsem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x015d0291, 	/* tsem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x085d0293, 	/* tsem.fast_memory.storm_stall_cycles_a .. tsem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x112b0000, 	/* block msem */
+	0x08600005, 	/* msem.passive_buffer_write_wrr_arbiter .. msem.passive_buffer_dra_wr (8 regs) */
+	0x02600018, 	/* msem.INT_STS_2 .. msem.INT_MASK_2 (2 regs) */
+	0x01600114, 	/* msem.gpi_data_a (1 regs) */
+	0x03600118, 	/* msem.pb_wr_sdm_dma_mode .. msem.gpi_data_b (3 regs) */
+	0x016002c1, 	/* msem.thread_error_low (1 regs) */
+	0x026002c6, 	/* msem.thread_number .. msem.thread_error_high (2 regs) */
+	0x09600404, 	/* msem.sync_foc_fifo_wr_alm_full .. msem.stall_on_breakpoint (9 regs) */
+	0x0560045b, 	/* msem.pb_queue_empty .. msem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x0360049f, 	/* msem.sync_ready_fifo_full .. msem.sync_foc_fifo_full (3 regs) */
+	0x1060050a, 	/* msem.dbg_queue_peformance_mon_stat .. msem.dbg_queue_max_sleep_value (16 regs) */
+	0x01610122, 	/* msem.fast_memory.stall_common (1 regs) */
+	0x01610132, 	/* msem.fast_memory.pram_last_addr_a (1 regs) */
+	0x07610136, 	/* msem.fast_memory.data_breakpoint_address_start .. msem.fast_memory.stall_storm_b (7 regs) */
+	0x016101dd, 	/* msem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x01610214, 	/* msem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x01610291, 	/* msem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x08610293, 	/* msem.fast_memory.storm_stall_cycles_a .. msem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x112c0000, 	/* block usem */
+	0x08640005, 	/* usem.passive_buffer_write_wrr_arbiter .. usem.passive_buffer_dra_wr (8 regs) */
+	0x02640018, 	/* usem.INT_STS_2 .. usem.INT_MASK_2 (2 regs) */
+	0x01640114, 	/* usem.gpi_data_a (1 regs) */
+	0x03640118, 	/* usem.pb_wr_sdm_dma_mode .. usem.gpi_data_b (3 regs) */
+	0x016402c1, 	/* usem.thread_error_low (1 regs) */
+	0x026402c6, 	/* usem.thread_number .. usem.thread_error_high (2 regs) */
+	0x09640404, 	/* usem.sync_foc_fifo_wr_alm_full .. usem.stall_on_breakpoint (9 regs) */
+	0x0564045b, 	/* usem.pb_queue_empty .. usem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x0364049f, 	/* usem.sync_ready_fifo_full .. usem.sync_foc_fifo_full (3 regs) */
+	0x1064050a, 	/* usem.dbg_queue_peformance_mon_stat .. usem.dbg_queue_max_sleep_value (16 regs) */
+	0x01650122, 	/* usem.fast_memory.stall_common (1 regs) */
+	0x01650132, 	/* usem.fast_memory.pram_last_addr_a (1 regs) */
+	0x07650136, 	/* usem.fast_memory.data_breakpoint_address_start .. usem.fast_memory.stall_storm_b (7 regs) */
+	0x016501dd, 	/* usem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x01650214, 	/* usem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x01650291, 	/* usem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x08650293, 	/* usem.fast_memory.storm_stall_cycles_a .. usem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x112d0000, 	/* block xsem */
+	0x08500005, 	/* xsem.passive_buffer_write_wrr_arbiter .. xsem.passive_buffer_dra_wr (8 regs) */
+	0x02500018, 	/* xsem.INT_STS_2 .. xsem.INT_MASK_2 (2 regs) */
+	0x01500114, 	/* xsem.gpi_data_a (1 regs) */
+	0x03500118, 	/* xsem.pb_wr_sdm_dma_mode .. xsem.gpi_data_b (3 regs) */
+	0x015002c1, 	/* xsem.thread_error_low (1 regs) */
+	0x025002c6, 	/* xsem.thread_number .. xsem.thread_error_high (2 regs) */
+	0x09500404, 	/* xsem.sync_foc_fifo_wr_alm_full .. xsem.stall_on_breakpoint (9 regs) */
+	0x0550045b, 	/* xsem.pb_queue_empty .. xsem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x0350049f, 	/* xsem.sync_ready_fifo_full .. xsem.sync_foc_fifo_full (3 regs) */
+	0x1050050a, 	/* xsem.dbg_queue_peformance_mon_stat .. xsem.dbg_queue_max_sleep_value (16 regs) */
+	0x01510122, 	/* xsem.fast_memory.stall_common (1 regs) */
+	0x01510132, 	/* xsem.fast_memory.pram_last_addr_a (1 regs) */
+	0x07510136, 	/* xsem.fast_memory.data_breakpoint_address_start .. xsem.fast_memory.stall_storm_b (7 regs) */
+	0x015101dd, 	/* xsem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x01510214, 	/* xsem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x01510291, 	/* xsem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x08510293, 	/* xsem.fast_memory.storm_stall_cycles_a .. xsem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x112e0000, 	/* block ysem */
+	0x08540005, 	/* ysem.passive_buffer_write_wrr_arbiter .. ysem.passive_buffer_dra_wr (8 regs) */
+	0x02540018, 	/* ysem.INT_STS_2 .. ysem.INT_MASK_2 (2 regs) */
+	0x01540114, 	/* ysem.gpi_data_a (1 regs) */
+	0x03540118, 	/* ysem.pb_wr_sdm_dma_mode .. ysem.gpi_data_b (3 regs) */
+	0x015402c1, 	/* ysem.thread_error_low (1 regs) */
+	0x025402c6, 	/* ysem.thread_number .. ysem.thread_error_high (2 regs) */
+	0x09540404, 	/* ysem.sync_foc_fifo_wr_alm_full .. ysem.stall_on_breakpoint (9 regs) */
+	0x0554045b, 	/* ysem.pb_queue_empty .. ysem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x0354049f, 	/* ysem.sync_ready_fifo_full .. ysem.sync_foc_fifo_full (3 regs) */
+	0x1054050a, 	/* ysem.dbg_queue_peformance_mon_stat .. ysem.dbg_queue_max_sleep_value (16 regs) */
+	0x01550122, 	/* ysem.fast_memory.stall_common (1 regs) */
+	0x01550132, 	/* ysem.fast_memory.pram_last_addr_a (1 regs) */
+	0x07550136, 	/* ysem.fast_memory.data_breakpoint_address_start .. ysem.fast_memory.stall_storm_b (7 regs) */
+	0x015501dd, 	/* ysem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x01550214, 	/* ysem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x01550291, 	/* ysem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x08550293, 	/* ysem.fast_memory.storm_stall_cycles_a .. ysem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x112f0000, 	/* block psem */
+	0x08580005, 	/* psem.passive_buffer_write_wrr_arbiter .. psem.passive_buffer_dra_wr (8 regs) */
+	0x02580018, 	/* psem.INT_STS_2 .. psem.INT_MASK_2 (2 regs) */
+	0x01580114, 	/* psem.gpi_data_a (1 regs) */
+	0x03580118, 	/* psem.pb_wr_sdm_dma_mode .. psem.gpi_data_b (3 regs) */
+	0x015802c1, 	/* psem.thread_error_low (1 regs) */
+	0x025802c6, 	/* psem.thread_number .. psem.thread_error_high (2 regs) */
+	0x09580404, 	/* psem.sync_foc_fifo_wr_alm_full .. psem.stall_on_breakpoint (9 regs) */
+	0x0558045b, 	/* psem.pb_queue_empty .. psem.ext_store_pre_fetch_fifo_empty (5 regs) */
+	0x0358049f, 	/* psem.sync_ready_fifo_full .. psem.sync_foc_fifo_full (3 regs) */
+	0x1058050a, 	/* psem.dbg_queue_peformance_mon_stat .. psem.dbg_queue_max_sleep_value (16 regs) */
+	0x01590122, 	/* psem.fast_memory.stall_common (1 regs) */
+	0x01590132, 	/* psem.fast_memory.pram_last_addr_a (1 regs) */
+	0x07590136, 	/* psem.fast_memory.data_breakpoint_address_start .. psem.fast_memory.stall_storm_b (7 regs) */
+	0x015901dd, 	/* psem.fast_memory.dbg_gpre_vect (1 regs) */
+	0x01590214, 	/* psem.fast_memory.sync_dra_wr_alm_full (1 regs) */
+	0x01590291, 	/* psem.fast_memory.storm_active_cycles_a (1 regs) */
+	0x08590293, 	/* psem.fast_memory.storm_stall_cycles_a .. psem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x01300000, 	/* block rss */
+	0x0408e326, 	/* rss.fifo_full_status1 .. rss.state_machines1 (4 regs) */
+	0x01310000, 	/* block tmld */
+	0x3a134240, 	/* tmld.l2ma_aggr_config1 .. tmld.scbd_wrr_weight_q3 (58 regs) */
+	0x01320000, 	/* block muld */
+	0x37138500, 	/* muld.l2ma_aggr_config1 .. muld.page_size (55 regs) */
+	0x01340000, 	/* block xyld */
+	0x3a130240, 	/* xyld.l2ma_aggr_config1 .. xyld.scbd_wrr_weight_q3 (58 regs) */
+	0x06350000, 	/* block ptld */
+	0x10168000, 	/* ptld.foci_foc_credits .. ptld.cm_hdr_127_96 (16 regs) */
+	0x03168011, 	/* ptld.stat_fic_msg .. ptld.len_err_log_2 (3 regs) */
+	0x01168015, 	/* ptld.len_err_log_v (1 regs) */
+	0x02168060, 	/* ptld.INT_STS .. ptld.INT_MASK (2 regs) */
+	0x36168300, 	/* ptld.l2ma_aggr_config1 .. ptld.ld_max_msg_size (54 regs) */
+	0x05168580, 	/* ptld.dbg_select .. ptld.dbg_force_frame (5 regs) */
+	0x06360000, 	/* block ypld */
+	0x10170000, 	/* ypld.foci_foc_credits .. ypld.cm_hdr_127_96 (16 regs) */
+	0x03170011, 	/* ypld.stat_fic_msg .. ypld.len_err_log_2 (3 regs) */
+	0x01170015, 	/* ypld.len_err_log_v (1 regs) */
+	0x02170060, 	/* ypld.INT_STS .. ypld.INT_MASK (2 regs) */
+	0x36170300, 	/* ypld.l2ma_aggr_config1 .. ypld.ld_max_msg_size (54 regs) */
+	0x05170580, 	/* ypld.dbg_select .. ypld.dbg_force_frame (5 regs) */
+	0x01370000, 	/* block prm */
+	0x1308c182, 	/* prm.num_of_wdone .. prm.num_of_xcm_done (19 regs) */
+	0x013b0000, 	/* block btb */
+	0x0236d000, 	/* btb.wc_ll_high_pri .. btb.br_fix_high_pri_collision (2 regs) */
+	0x163c0000, 	/* block pbf */
+	0x03360002, 	/* pbf.sal_cache_init_done .. pbf.sal_cam_scrub_miss_en (3 regs) */
+	0x0236010c, 	/* pbf.tgfs_main_if_init_crd .. pbf.tgfs_side_if_init_crd (2 regs) */
+	0x0836014a, 	/* pbf.same_as_last_config .. pbf.num_lookups_in_sal (8 regs) */
+	0x0236016a, 	/* pbf.event_id_mask_config .. pbf.event_id_l2_tags_exist_mask_config (2 regs) */
+	0x0136019d, 	/* pbf.per_voq_stat_mask_loopback (1 regs) */
+	0x0c3602e8, 	/* pbf.ycmd_qs_num_lines_voq20 .. pbf.num_blocks_allocated_cons_voq20 (12 regs) */
+	0x0c3602f8, 	/* pbf.ycmd_qs_num_lines_voq21 .. pbf.num_blocks_allocated_cons_voq21 (12 regs) */
+	0x0c360308, 	/* pbf.ycmd_qs_num_lines_voq22 .. pbf.num_blocks_allocated_cons_voq22 (12 regs) */
+	0x0c360318, 	/* pbf.ycmd_qs_num_lines_voq23 .. pbf.num_blocks_allocated_cons_voq23 (12 regs) */
+	0x0c360328, 	/* pbf.ycmd_qs_num_lines_voq24 .. pbf.num_blocks_allocated_cons_voq24 (12 regs) */
+	0x0c360338, 	/* pbf.ycmd_qs_num_lines_voq25 .. pbf.num_blocks_allocated_cons_voq25 (12 regs) */
+	0x0c360348, 	/* pbf.ycmd_qs_num_lines_voq26 .. pbf.num_blocks_allocated_cons_voq26 (12 regs) */
+	0x0c360358, 	/* pbf.ycmd_qs_num_lines_voq27 .. pbf.num_blocks_allocated_cons_voq27 (12 regs) */
+	0x0c360368, 	/* pbf.ycmd_qs_num_lines_voq28 .. pbf.num_blocks_allocated_cons_voq28 (12 regs) */
+	0x0c360378, 	/* pbf.ycmd_qs_num_lines_voq29 .. pbf.num_blocks_allocated_cons_voq29 (12 regs) */
+	0x0c360388, 	/* pbf.ycmd_qs_num_lines_voq30 .. pbf.num_blocks_allocated_cons_voq30 (12 regs) */
+	0x0c360398, 	/* pbf.ycmd_qs_num_lines_voq31 .. pbf.num_blocks_allocated_cons_voq31 (12 regs) */
+	0x0c3603a8, 	/* pbf.ycmd_qs_num_lines_voq32 .. pbf.num_blocks_allocated_cons_voq32 (12 regs) */
+	0x0c3603b8, 	/* pbf.ycmd_qs_num_lines_voq33 .. pbf.num_blocks_allocated_cons_voq33 (12 regs) */
+	0x0c3603c8, 	/* pbf.ycmd_qs_num_lines_voq34 .. pbf.num_blocks_allocated_cons_voq34 (12 regs) */
+	0x0c3603d8, 	/* pbf.ycmd_qs_num_lines_voq35 .. pbf.num_blocks_allocated_cons_voq35 (12 regs) */
+	0x013603e8, 	/* pbf.eco_reserved (1 regs) */
+	0x013d0000, 	/* block rdif */
+	0x010c0038, 	/* rdif.e4_backward_compatible_mode (1 regs) */
+	0x013e0000, 	/* block tdif */
+	0x090c4040, 	/* tdif.stat_num_err_interval_8 .. tdif.e4_backward_compatible_mode (9 regs) */
+	0x01400000, 	/* block ccfc */
+	0x010b8204, 	/* ccfc.eio_threshold (1 regs) */
+	0x01410000, 	/* block tcfc */
+	0x010b4204, 	/* tcfc.eio_threshold (1 regs) */
+	0x01420000, 	/* block igu */
+	0x09060315, 	/* igu.vf_with_more_16sb_21 .. igu.vf_with_more_16sb_29 (9 regs) */
+	0x06450000, 	/* block rgsrc */
+	0x050c8010, 	/* rgsrc.dbg_select .. rgsrc.dbg_force_frame (5 regs) */
+	0x020c8060, 	/* rgsrc.INT_STS .. rgsrc.INT_MASK (2 regs) */
+	0x010c8080, 	/* rgsrc.eco_reserved (1 regs) */
+	0x040c8100, 	/* rgsrc.cache_en .. rgsrc.max_hops (4 regs) */
+	0x040c8114, 	/* rgsrc.pxp_ctrl .. rgsrc.num_inhouse_cmd (4 regs) */
+	0x090c8119, 	/* rgsrc.num_src_cmd .. rgsrc.num_src_cmd_hit_hop_3_or_more (9 regs) */
+	0x06470000, 	/* block tgsrc */
+	0x050c8810, 	/* tgsrc.dbg_select .. tgsrc.dbg_force_frame (5 regs) */
+	0x020c8860, 	/* tgsrc.INT_STS .. tgsrc.INT_MASK (2 regs) */
+	0x010c8880, 	/* tgsrc.eco_reserved (1 regs) */
+	0x040c8900, 	/* tgsrc.cache_en .. tgsrc.max_hops (4 regs) */
+	0x040c8914, 	/* tgsrc.pxp_ctrl .. tgsrc.num_inhouse_cmd (4 regs) */
+	0x090c8919, 	/* tgsrc.num_src_cmd .. tgsrc.num_src_cmd_hit_hop_3_or_more (9 regs) */
+	0x014a0000, 	/* block dbg */
+	0x020042ea, 	/* dbg.filter_mode .. dbg.trigger_semi_core (2 regs) */
+	0x034b0000, 	/* block nig */
+	0x0214003c, 	/* nig.INT_STS_10 .. nig.INT_MASK_10 (2 regs) */
+	0x01143600, 	/* nig.tx_bmb_fifo_alm_full_thr (1 regs) */
+	0x29143603, 	/* nig.tx_ooo_rfifo_full .. nig.ipv6_ext_authentication_hdr_type_valid (41 regs) */
 	0x08010015, 	/* mode !(k2|e5), block miscs */
 	0x03002458, 	/* miscs.memctrl_wr_rd_n .. miscs.memctrl_address (3 regs) */
 	0x02002464, 	/* miscs.INT_STS_1 .. miscs.INT_MASK_1 (2 regs) */
@@ -1641,261 +1919,255 @@ static const u32 dump_reg[] = {
 	0x024b0000, 	/* block nig */
 	0x04142218, 	/* nig.user_one_step_type .. nig.ts_shift (4 regs) */
 	0x0114221e, 	/* nig.user_one_step_32 (1 regs) */
-	0x01040003, 	/* mode !(bb|k2), block pglue_b */
-	0x020aa13a, 	/* pglue_b.dorq_access_via_bar0 .. pglue_b.vsc_en (2 regs) */
-	0x010d0000, 	/* block pswhst */
-	0x010a8031, 	/* pswhst.dest_dorq_credits (1 regs) */
-	0x01110000, 	/* block pswwr */
-	0x030a6833, 	/* pswwr.prm_sec_full_th .. pswwr.tgfs_full_th (3 regs) */
+	0x04010043, 	/* mode !e5, block miscs */
+	0x010025bc, 	/* miscs.function_hide (1 regs) */
+	0x020025c2, 	/* miscs.four_port_shared_mdio_en .. miscs.sel_dbg_ifmux_test (2 regs) */
+	0x020025c9, 	/* miscs.mdio_override .. miscs.mdio_subscription (2 regs) */
+	0x010025df, 	/* miscs.LINK_IN_L23 (1 regs) */
 	0x01170000, 	/* block ptu */
-	0x0115817f, 	/* ptu.index2_rsc_type_mask (1 regs) */
-	0x0c180000, 	/* block tcm */
-	0x2c460022, 	/* tcm.affinity_type_0 .. tcm.agg_con_cf11_q (44 regs) */
-	0x0b46015a, 	/* tcm.agg_con_rule0_q .. tcm.agg_con_rule10_q (11 regs) */
-	0x014601a2, 	/* tcm.ext_rd_fill_lvl (1 regs) */
-	0x134601e9, 	/* tcm.err_affinity_type .. tcm.xx_byp_msg_up_bnd_15 (19 regs) */
-	0x08460267, 	/* tcm.cm_task_event_id_bwidth_0 .. tcm.cm_task_event_id_bwidth_7 (8 regs) */
-	0x1046028e, 	/* tcm.cm_con_event_id_bwidth_0 .. tcm.cm_con_event_id_bwidth_15 (16 regs) */
-	0x86460640, 	/* tcm.tm_con_evnt_id_0 .. tcm.is_foc_tsdm_nxt_inf_unit (134 regs) */
-	0x064606e0, 	/* tcm.psdm_weight .. tcm.is_foc_psdm_nxt_inf_unit (6 regs) */
-	0x06460700, 	/* tcm.msdm_weight .. tcm.is_foc_msdm_nxt_inf_unit (6 regs) */
-	0x05460720, 	/* tcm.ysem_weight .. tcm.is_foc_ysem_nxt_inf_unit (5 regs) */
-	0x05460780, 	/* tcm.ptld_weight .. tcm.is_foc_ptld_nxt_inf_unit (5 regs) */
-	0x08460a00, 	/* tcm.agg_task_cf0_q .. tcm.agg_task_cf7_q (8 regs) */
-	0x0c190000, 	/* block mcm */
-	0x23480022, 	/* mcm.affinity_type_0 .. mcm.agg_con_cf2_q (35 regs) */
-	0x0548015a, 	/* mcm.agg_con_rule0_q .. mcm.agg_con_rule4_q (5 regs) */
-	0x014801a4, 	/* mcm.ext_rd_fill_lvl (1 regs) */
-	0x134801e9, 	/* mcm.err_affinity_type .. mcm.xx_byp_msg_up_bnd_15 (19 regs) */
-	0x09480257, 	/* mcm.agg_task_rule7_q .. mcm.cm_task_event_id_bwidth_7 (9 regs) */
-	0x1048028c, 	/* mcm.cm_con_event_id_bwidth_0 .. mcm.cm_con_event_id_bwidth_15 (16 regs) */
-	0x70480740, 	/* mcm.n_sm_con_ctx_ld_0 .. mcm.qm_sm_con_ctx_ldst_flg_15 (112 regs) */
-	0x06480a00, 	/* mcm.tsdm_weight .. mcm.is_foc_tsdm_nxt_inf_unit (6 regs) */
-	0x06480a20, 	/* mcm.psdm_weight .. mcm.is_foc_psdm_nxt_inf_unit (6 regs) */
-	0x06480a40, 	/* mcm.msdm_weight .. mcm.is_foc_msdm_nxt_inf_unit (6 regs) */
-	0x05480a80, 	/* mcm.ysem_weight .. mcm.is_foc_ysem_nxt_inf_unit (5 regs) */
-	0x05480b80, 	/* mcm.agg_task_cf0_q .. mcm.agg_task_cf4_q (5 regs) */
-	0x081a0000, 	/* block ucm */
-	0x294a002a, 	/* ucm.affinity_type_0 .. ucm.agg_con_cf8_q (41 regs) */
-	0x014a01aa, 	/* ucm.ext_rd_fill_lvl (1 regs) */
-	0x134a01e9, 	/* ucm.err_affinity_type .. ucm.xx_byp_msg_up_bnd_15 (19 regs) */
-	0x0a4a0261, 	/* ucm.agg_task_rule7_q .. ucm.cm_task_event_id_bwidth_7 (10 regs) */
-	0x104a028e, 	/* ucm.cm_con_event_id_bwidth_0 .. ucm.cm_con_event_id_bwidth_15 (16 regs) */
-	0x804a0700, 	/* ucm.tm_con_evnt_id_0 .. ucm.qm_sm_con_ctx_ldst_flg_15 (128 regs) */
-	0x074a0a00, 	/* ucm.ring_base .. ucm.is_foc_ysem_nxt_inf_unit (7 regs) */
-	0x064a0a80, 	/* ucm.agg_task_cf0_q .. ucm.agg_task_cf5_q (6 regs) */
-	0x071b0000, 	/* block xcm */
-	0x39400022, 	/* xcm.affinity_type_0 .. xcm.agg_con_cf24_q (57 regs) */
-	0x1c400132, 	/* xcm.agg_con_rule0_q .. xcm.agg_con_rule27_q (28 regs) */
-	0x014001a6, 	/* xcm.ext_rd_fill_lvl (1 regs) */
-	0x134001e6, 	/* xcm.err_affinity_type .. xcm.xx_byp_msg_up_bnd_15 (19 regs) */
-	0x1040028a, 	/* xcm.cm_con_event_id_bwidth_0 .. xcm.cm_con_event_id_bwidth_15 (16 regs) */
-	0x96400700, 	/* xcm.tm_con_evnt_id_0 .. xcm.is_foc_msdm_nxt_inf_unit (150 regs) */
-	0x054007c0, 	/* xcm.ysem_weight .. xcm.is_foc_ysem_nxt_inf_unit (5 regs) */
-	0x081c0000, 	/* block ycm */
-	0x23420022, 	/* ycm.affinity_type_0 .. ycm.agg_con_cf2_q (35 regs) */
-	0x014201a2, 	/* ycm.ext_rd_fill_lvl (1 regs) */
-	0x134201e9, 	/* ycm.err_affinity_type .. ycm.xx_byp_msg_up_bnd_15 (19 regs) */
-	0x10420251, 	/* ycm.agg_task_rule0_q .. ycm.cm_task_event_id_bwidth_7 (16 regs) */
-	0x1042028c, 	/* ycm.cm_con_event_id_bwidth_0 .. ycm.cm_con_event_id_bwidth_15 (16 regs) */
-	0x76420740, 	/* ycm.n_sm_con_ctx_ld_0 .. ycm.is_foc_msdm_nxt_inf_unit (118 regs) */
-	0x01420900, 	/* ycm.is_foc_ysem_nxt_inf_unit (1 regs) */
-	0x04420b00, 	/* ycm.agg_task_cf0_q .. ycm.agg_task_cf4_q (4 regs) */
-	0x041d0000, 	/* block pcm */
-	0x01440194, 	/* pcm.ext_rd_fill_lvl (1 regs) */
-	0x034401d9, 	/* pcm.err_affinity_type .. pcm.err_src_affinity (3 regs) */
-	0x164405c4, 	/* pcm.n_sm_con_ctx_ld_0 .. pcm.is_foc_psdm_nxt_inf_unit (22 regs) */
-	0x054405f0, 	/* pcm.ypld_weight .. pcm.is_foc_ypld_nxt_inf_unit (5 regs) */
-	0x021e0000, 	/* block qm */
-	0x080bd733, 	/* qm.Voq_Arb_Grp2_Weight_0 .. qm.Voq_Arb_Grp2_Weight_7 (8 regs) */
-	0x040bff80, 	/* qm.AFullQmBypThrLineVoqMask_msb .. qm.VoqCrdByteFull_msb (4 regs) */
-	0x08200000, 	/* block dorq */
-	0x010402ab, 	/* dorq.iedpm_payload_endianity (1 regs) */
-	0x04040a00, 	/* dorq.glb_max_icid_0 .. dorq.glb_range2conn_type_1 (4 regs) */
-	0x02040a14, 	/* dorq.iedpm_exist_in_qm_en .. dorq.iedpm_agg_type (2 regs) */
-	0xc3040a1a, 	/* dorq.edpm_agg_type_sel_0 .. dorq.rtc_en (195 regs) */
-	0x02040adf, 	/* dorq.crc32c_bswap .. dorq.iwarp_opcode_en (2 regs) */
-	0x0c040ae9, 	/* dorq.rdma_en_pbf_spc_roce .. dorq.iedpm_abort_details_reason (12 regs) */
-	0x06040af6, 	/* dorq.iedpm_abort_reason .. dorq.iedpm_drop_details_db_icid (6 regs) */
-	0x41040afd, 	/* dorq.iedpm_drop_reason .. dorq.dpm_iedpm_success_cnt (65 regs) */
-	0x01210000, 	/* block brb */
-	0x020d0376, 	/* brb.wc_ll_high_pri .. brb.br_fix_high_pri_collision (2 regs) */
-	0x0b230000, 	/* block prs */
-	0x0307c2ec, 	/* prs.fc_dbg_select_a .. prs.fc_dbg_shift_a (3 regs) */
-	0x0887c2f0, 	/* prs.fc_dbg_out_data_a (8 regs, WB) */
-	0x0407c2f8, 	/* prs.fc_dbg_force_valid_a .. prs.fc_dbg_out_frame_a (4 regs) */
-	0x0307c380, 	/* prs.fc_dbg_select_b .. prs.fc_dbg_shift_b (3 regs) */
-	0x0887c388, 	/* prs.fc_dbg_out_data_b (8 regs, WB) */
-	0x0407c390, 	/* prs.fc_dbg_force_valid_b .. prs.fc_dbg_out_frame_b (4 regs) */
-	0x0107c3c0, 	/* prs.ptld_initial_credit (1 regs) */
-	0x0107c3c3, 	/* prs.ptld_current_credit (1 regs) */
-	0x0607c3ce, 	/* prs.rgfs_initial_credit .. prs.fce_max_parking_lot_valid_entries (6 regs) */
-	0xb907c500, 	/* prs.compare_gre_version .. prs.xrc_opcodes (185 regs) */
-	0x0407c5ba, 	/* prs.new_entry_exclusive_classify_failed .. prs.en_ipv6_ext_event_id (4 regs) */
-	0x01240000, 	/* block tsdm */
-	0x013ec148, 	/* tsdm.init_credit_cm_rmt (1 regs) */
-	0x112a0000, 	/* block tsem */
-	0x085c0005, 	/* tsem.passive_buffer_write_wrr_arbiter .. tsem.passive_buffer_dra_wr (8 regs) */
-	0x025c0018, 	/* tsem.INT_STS_2 .. tsem.INT_MASK_2 (2 regs) */
-	0x015c0114, 	/* tsem.gpi_data_a (1 regs) */
-	0x035c0118, 	/* tsem.pb_wr_sdm_dma_mode .. tsem.gpi_data_b (3 regs) */
-	0x015c02c1, 	/* tsem.thread_error_low (1 regs) */
-	0x025c02c6, 	/* tsem.thread_number .. tsem.thread_error_high (2 regs) */
-	0x085c0404, 	/* tsem.sync_foc_fifo_wr_alm_full .. tsem.fic1_a_max_thrds (8 regs) */
-	0x035c045b, 	/* tsem.pb_queue_empty .. tsem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x035c049f, 	/* tsem.sync_ready_fifo_full .. tsem.sync_foc_fifo_full (3 regs) */
-	0x105c050a, 	/* tsem.dbg_queue_peformance_mon_stat .. tsem.dbg_queue_max_sleep_value (16 regs) */
-	0x015d0122, 	/* tsem.fast_memory.stall_common (1 regs) */
-	0x015d0132, 	/* tsem.fast_memory.pram_last_addr_a (1 regs) */
-	0x075d0136, 	/* tsem.fast_memory.data_breakpoint_address_start .. tsem.fast_memory.stall_storm_b (7 regs) */
-	0x015d01dd, 	/* tsem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x015d0214, 	/* tsem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x015d0291, 	/* tsem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x085d0293, 	/* tsem.fast_memory.storm_stall_cycles_a .. tsem.fast_memory.lock_max_cycle_stall (8 regs) */
-	0x112b0000, 	/* block msem */
-	0x08600005, 	/* msem.passive_buffer_write_wrr_arbiter .. msem.passive_buffer_dra_wr (8 regs) */
-	0x02600018, 	/* msem.INT_STS_2 .. msem.INT_MASK_2 (2 regs) */
-	0x01600114, 	/* msem.gpi_data_a (1 regs) */
-	0x03600118, 	/* msem.pb_wr_sdm_dma_mode .. msem.gpi_data_b (3 regs) */
-	0x016002c1, 	/* msem.thread_error_low (1 regs) */
-	0x026002c6, 	/* msem.thread_number .. msem.thread_error_high (2 regs) */
-	0x08600404, 	/* msem.sync_foc_fifo_wr_alm_full .. msem.fic1_a_max_thrds (8 regs) */
-	0x0360045b, 	/* msem.pb_queue_empty .. msem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x0360049f, 	/* msem.sync_ready_fifo_full .. msem.sync_foc_fifo_full (3 regs) */
-	0x1060050a, 	/* msem.dbg_queue_peformance_mon_stat .. msem.dbg_queue_max_sleep_value (16 regs) */
-	0x01610122, 	/* msem.fast_memory.stall_common (1 regs) */
-	0x01610132, 	/* msem.fast_memory.pram_last_addr_a (1 regs) */
-	0x07610136, 	/* msem.fast_memory.data_breakpoint_address_start .. msem.fast_memory.stall_storm_b (7 regs) */
-	0x016101dd, 	/* msem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x01610214, 	/* msem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x01610291, 	/* msem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x08610293, 	/* msem.fast_memory.storm_stall_cycles_a .. msem.fast_memory.lock_max_cycle_stall (8 regs) */
-	0x112c0000, 	/* block usem */
-	0x08640005, 	/* usem.passive_buffer_write_wrr_arbiter .. usem.passive_buffer_dra_wr (8 regs) */
-	0x02640018, 	/* usem.INT_STS_2 .. usem.INT_MASK_2 (2 regs) */
-	0x01640114, 	/* usem.gpi_data_a (1 regs) */
-	0x03640118, 	/* usem.pb_wr_sdm_dma_mode .. usem.gpi_data_b (3 regs) */
-	0x016402c1, 	/* usem.thread_error_low (1 regs) */
-	0x026402c6, 	/* usem.thread_number .. usem.thread_error_high (2 regs) */
-	0x08640404, 	/* usem.sync_foc_fifo_wr_alm_full .. usem.fic1_a_max_thrds (8 regs) */
-	0x0364045b, 	/* usem.pb_queue_empty .. usem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x0364049f, 	/* usem.sync_ready_fifo_full .. usem.sync_foc_fifo_full (3 regs) */
-	0x1064050a, 	/* usem.dbg_queue_peformance_mon_stat .. usem.dbg_queue_max_sleep_value (16 regs) */
-	0x01650122, 	/* usem.fast_memory.stall_common (1 regs) */
-	0x01650132, 	/* usem.fast_memory.pram_last_addr_a (1 regs) */
-	0x07650136, 	/* usem.fast_memory.data_breakpoint_address_start .. usem.fast_memory.stall_storm_b (7 regs) */
-	0x016501dd, 	/* usem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x01650214, 	/* usem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x01650291, 	/* usem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x08650293, 	/* usem.fast_memory.storm_stall_cycles_a .. usem.fast_memory.lock_max_cycle_stall (8 regs) */
-	0x112d0000, 	/* block xsem */
-	0x08500005, 	/* xsem.passive_buffer_write_wrr_arbiter .. xsem.passive_buffer_dra_wr (8 regs) */
-	0x02500018, 	/* xsem.INT_STS_2 .. xsem.INT_MASK_2 (2 regs) */
-	0x01500114, 	/* xsem.gpi_data_a (1 regs) */
-	0x03500118, 	/* xsem.pb_wr_sdm_dma_mode .. xsem.gpi_data_b (3 regs) */
-	0x015002c1, 	/* xsem.thread_error_low (1 regs) */
-	0x025002c6, 	/* xsem.thread_number .. xsem.thread_error_high (2 regs) */
-	0x08500404, 	/* xsem.sync_foc_fifo_wr_alm_full .. xsem.fic1_a_max_thrds (8 regs) */
-	0x0350045b, 	/* xsem.pb_queue_empty .. xsem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x0350049f, 	/* xsem.sync_ready_fifo_full .. xsem.sync_foc_fifo_full (3 regs) */
-	0x1050050a, 	/* xsem.dbg_queue_peformance_mon_stat .. xsem.dbg_queue_max_sleep_value (16 regs) */
-	0x01510122, 	/* xsem.fast_memory.stall_common (1 regs) */
-	0x01510132, 	/* xsem.fast_memory.pram_last_addr_a (1 regs) */
-	0x07510136, 	/* xsem.fast_memory.data_breakpoint_address_start .. xsem.fast_memory.stall_storm_b (7 regs) */
-	0x015101dd, 	/* xsem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x01510214, 	/* xsem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x01510291, 	/* xsem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x08510293, 	/* xsem.fast_memory.storm_stall_cycles_a .. xsem.fast_memory.lock_max_cycle_stall (8 regs) */
-	0x112e0000, 	/* block ysem */
-	0x08540005, 	/* ysem.passive_buffer_write_wrr_arbiter .. ysem.passive_buffer_dra_wr (8 regs) */
-	0x02540018, 	/* ysem.INT_STS_2 .. ysem.INT_MASK_2 (2 regs) */
-	0x01540114, 	/* ysem.gpi_data_a (1 regs) */
-	0x03540118, 	/* ysem.pb_wr_sdm_dma_mode .. ysem.gpi_data_b (3 regs) */
-	0x015402c1, 	/* ysem.thread_error_low (1 regs) */
-	0x025402c6, 	/* ysem.thread_number .. ysem.thread_error_high (2 regs) */
-	0x08540404, 	/* ysem.sync_foc_fifo_wr_alm_full .. ysem.fic1_a_max_thrds (8 regs) */
-	0x0354045b, 	/* ysem.pb_queue_empty .. ysem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x0354049f, 	/* ysem.sync_ready_fifo_full .. ysem.sync_foc_fifo_full (3 regs) */
-	0x1054050a, 	/* ysem.dbg_queue_peformance_mon_stat .. ysem.dbg_queue_max_sleep_value (16 regs) */
-	0x01550122, 	/* ysem.fast_memory.stall_common (1 regs) */
-	0x01550132, 	/* ysem.fast_memory.pram_last_addr_a (1 regs) */
-	0x07550136, 	/* ysem.fast_memory.data_breakpoint_address_start .. ysem.fast_memory.stall_storm_b (7 regs) */
-	0x015501dd, 	/* ysem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x01550214, 	/* ysem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x01550291, 	/* ysem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x08550293, 	/* ysem.fast_memory.storm_stall_cycles_a .. ysem.fast_memory.lock_max_cycle_stall (8 regs) */
-	0x112f0000, 	/* block psem */
-	0x08580005, 	/* psem.passive_buffer_write_wrr_arbiter .. psem.passive_buffer_dra_wr (8 regs) */
-	0x02580018, 	/* psem.INT_STS_2 .. psem.INT_MASK_2 (2 regs) */
-	0x01580114, 	/* psem.gpi_data_a (1 regs) */
-	0x03580118, 	/* psem.pb_wr_sdm_dma_mode .. psem.gpi_data_b (3 regs) */
-	0x015802c1, 	/* psem.thread_error_low (1 regs) */
-	0x025802c6, 	/* psem.thread_number .. psem.thread_error_high (2 regs) */
-	0x08580404, 	/* psem.sync_foc_fifo_wr_alm_full .. psem.fic1_a_max_thrds (8 regs) */
-	0x0358045b, 	/* psem.pb_queue_empty .. psem.sync_foc_pre_fetch_fifo_empty (3 regs) */
-	0x0358049f, 	/* psem.sync_ready_fifo_full .. psem.sync_foc_fifo_full (3 regs) */
-	0x1058050a, 	/* psem.dbg_queue_peformance_mon_stat .. psem.dbg_queue_max_sleep_value (16 regs) */
-	0x01590122, 	/* psem.fast_memory.stall_common (1 regs) */
-	0x01590132, 	/* psem.fast_memory.pram_last_addr_a (1 regs) */
-	0x07590136, 	/* psem.fast_memory.data_breakpoint_address_start .. psem.fast_memory.stall_storm_b (7 regs) */
-	0x015901dd, 	/* psem.fast_memory.dbg_gpre_vect (1 regs) */
-	0x01590214, 	/* psem.fast_memory.sync_dra_wr_alm_full (1 regs) */
-	0x01590291, 	/* psem.fast_memory.storm_active_cycles_a (1 regs) */
-	0x08590293, 	/* psem.fast_memory.storm_stall_cycles_a .. psem.fast_memory.lock_max_cycle_stall (8 regs) */
+	0x0e158165, 	/* ptu.atc_fli_done_vf_31_0 .. ptu.atc_fli_done_clr_pf_15_0 (14 regs) */
+	0x06180000, 	/* block tcm */
+	0x01460186, 	/* tcm.prs_weight (1 regs) */
+	0x06460193, 	/* tcm.storm_frwrd_mode .. tcm.pbf_frwrd_mode (6 regs) */
+	0x014602ad, 	/* tcm.prs_length_mis (1 regs) */
+	0x014602b6, 	/* tcm.prs_msg_cntr (1 regs) */
+	0x014602c4, 	/* tcm.is_prs_fill_lvl (1 regs) */
+	0x014602e5, 	/* tcm.is_foc_prs_nxt_inf_unit (1 regs) */
+	0x01190000, 	/* block mcm */
+	0x08480193, 	/* mcm.storm_frwrd_mode .. mcm.pbf_frwrd_mode (8 regs) */
+	0x061a0000, 	/* block ucm */
+	0x014a018b, 	/* ucm.yuld_weight (1 regs) */
+	0x0b4a0196, 	/* ucm.storm_frwrd_mode .. ucm.pbf_frwrd_mode (11 regs) */
+	0x014a02b2, 	/* ucm.yuld_length_mis (1 regs) */
+	0x014a02bc, 	/* ucm.yuld_msg_cntr (1 regs) */
+	0x014a02cd, 	/* ucm.is_yuld_fill_lvl (1 regs) */
+	0x014a02eb, 	/* ucm.is_foc_yuld_nxt_inf_unit (1 regs) */
+	0x011b0000, 	/* block xcm */
+	0x0a400196, 	/* xcm.storm_frwrd_mode .. xcm.pbf_frwrd_mode (10 regs) */
+	0x011c0000, 	/* block ycm */
+	0x07420192, 	/* ycm.storm_frwrd_mode .. ycm.pbf_frwrd_mode (7 regs) */
+	0x061d0000, 	/* block pcm */
+	0x01440182, 	/* pcm.pbf_weight (1 regs) */
+	0x0344018c, 	/* pcm.storm_frwrd_mode .. pcm.pbf_frwrd_mode (3 regs) */
+	0x014402ab, 	/* pcm.pbf_length_mis (1 regs) */
+	0x014402b0, 	/* pcm.pbf_msg_cntr (1 regs) */
+	0x014402b4, 	/* pcm.is_pbf_fill_lvl (1 regs) */
+	0x014402e3, 	/* pcm.is_foc_pbf_nxt_inf_unit (1 regs) */
+	0x02200000, 	/* block dorq */
+	0x0104020e, 	/* dorq.edpm_exist_in_qm_en (1 regs) */
+	0x02040241, 	/* dorq.l2_edpm_ext_hdr_size .. dorq.l2_edpm_ext_hdr_offs (2 regs) */
+	0x02210000, 	/* block brb */
+	0x010d044a, 	/* brb.rc_eop_inp_sync_fifo_push_status_1 (1 regs) */
+	0x010d0459, 	/* brb.rc_eop_out_sync_fifo_push_status_1 (1 regs) */
+	0x06230000, 	/* block prs */
+	0x0107c2d4, 	/* prs.prs_pkt_ct (1 regs) */
+	0x0307c2ec, 	/* prs.fc_dbg_select .. prs.fc_dbg_shift (3 regs) */
+	0x0887c2f0, 	/* prs.fc_dbg_out_data (8 regs, WB) */
+	0x0407c2f8, 	/* prs.fc_dbg_force_valid .. prs.fc_dbg_out_frame (4 regs) */
+	0x0107c3c0, 	/* prs.tcm_initial_credit (1 regs) */
+	0x0107c3c3, 	/* prs.tcm_current_credit (1 regs) */
+	0x1d2a0000, 	/* block tsem */
+	0x045c0001, 	/* tsem.enable_in .. tsem.pas_disable (4 regs) */
+	0x015c0100, 	/* tsem.arb_cycle_size (1 regs) */
+	0x035c0113, 	/* tsem.ext_store_free_entries .. tsem.gpre_samp_period (3 regs) */
+	0x015c0180, 	/* tsem.fic_min_msg (1 regs) */
+	0x025c0188, 	/* tsem.fic_empty_ct_mode .. tsem.fic_empty_ct_cnt (2 regs) */
+	0x015c01b0, 	/* tsem.full_foc_dra_strt_en (1 regs) */
+	0x10dc01c0, 	/* tsem.fin_command (16 regs, WB) */
+	0x015c0240, 	/* tsem.invld_pas_wr_en (1 regs) */
+	0x035c0260, 	/* tsem.arbiter_request .. tsem.arbiter_slot (3 regs) */
+	0x025c02c1, 	/* tsem.thread_error .. tsem.thread_rdy (2 regs) */
+	0x015c02c5, 	/* tsem.threads_list (1 regs) */
+	0x015c0380, 	/* tsem.order_pop_en (1 regs) */
+	0x015c0382, 	/* tsem.order_wake_en (1 regs) */
+	0x015c0384, 	/* tsem.pf_num_order_base (1 regs) */
+	0x015c0402, 	/* tsem.sync_dra_wr_alm_full (1 regs) */
+	0x015c0440, 	/* tsem.dra_empty (1 regs) */
+	0x045c0450, 	/* tsem.slow_dbg_empty .. tsem.slow_dra_wr_empty (4 regs) */
+	0x015c0456, 	/* tsem.slow_ram_rd_empty (1 regs) */
+	0x025c0459, 	/* tsem.thread_fifo_empty .. tsem.ord_id_fifo_empty (2 regs) */
+	0x015c0490, 	/* tsem.pas_if_full (1 regs) */
+	0x055c0492, 	/* tsem.slow_dbg_alm_full .. tsem.slow_dra_wr_full (5 regs) */
+	0x025c049d, 	/* tsem.thread_fifo_full .. tsem.ord_id_fifo_full (2 regs) */
+	0x035c04c0, 	/* tsem.thread_inter_cnt .. tsem.thread_orun_num (3 regs) */
+	0x0a5c0500, 	/* tsem.slow_dbg_active .. tsem.dbg_msg_src (10 regs) */
+	0x015d0001, 	/* tsem.fast_memory.ram_ext_disable (1 regs) */
+	0x035d0122, 	/* tsem.fast_memory.stall_0 .. tsem.fast_memory.stall_2 (3 regs) */
+	0x015d0132, 	/* tsem.fast_memory.pram_last_addr (1 regs) */
+	0x015d0291, 	/* tsem.fast_memory.storm_active_cycles (1 regs) */
+	0x035d0293, 	/* tsem.fast_memory.storm_stall_cycles .. tsem.fast_memory.idle_inactive_cycles (3 regs) */
+	0x1d2b0000, 	/* block msem */
+	0x04600001, 	/* msem.enable_in .. msem.pas_disable (4 regs) */
+	0x01600100, 	/* msem.arb_cycle_size (1 regs) */
+	0x03600113, 	/* msem.ext_store_free_entries .. msem.gpre_samp_period (3 regs) */
+	0x01600180, 	/* msem.fic_min_msg (1 regs) */
+	0x02600188, 	/* msem.fic_empty_ct_mode .. msem.fic_empty_ct_cnt (2 regs) */
+	0x016001b0, 	/* msem.full_foc_dra_strt_en (1 regs) */
+	0x10e001c0, 	/* msem.fin_command (16 regs, WB) */
+	0x01600240, 	/* msem.invld_pas_wr_en (1 regs) */
+	0x03600260, 	/* msem.arbiter_request .. msem.arbiter_slot (3 regs) */
+	0x026002c1, 	/* msem.thread_error .. msem.thread_rdy (2 regs) */
+	0x016002c5, 	/* msem.threads_list (1 regs) */
+	0x01600380, 	/* msem.order_pop_en (1 regs) */
+	0x01600382, 	/* msem.order_wake_en (1 regs) */
+	0x01600384, 	/* msem.pf_num_order_base (1 regs) */
+	0x01600402, 	/* msem.sync_dra_wr_alm_full (1 regs) */
+	0x01600440, 	/* msem.dra_empty (1 regs) */
+	0x04600450, 	/* msem.slow_dbg_empty .. msem.slow_dra_wr_empty (4 regs) */
+	0x01600456, 	/* msem.slow_ram_rd_empty (1 regs) */
+	0x02600459, 	/* msem.thread_fifo_empty .. msem.ord_id_fifo_empty (2 regs) */
+	0x01600490, 	/* msem.pas_if_full (1 regs) */
+	0x05600492, 	/* msem.slow_dbg_alm_full .. msem.slow_dra_wr_full (5 regs) */
+	0x0260049d, 	/* msem.thread_fifo_full .. msem.ord_id_fifo_full (2 regs) */
+	0x036004c0, 	/* msem.thread_inter_cnt .. msem.thread_orun_num (3 regs) */
+	0x0a600500, 	/* msem.slow_dbg_active .. msem.dbg_msg_src (10 regs) */
+	0x01610001, 	/* msem.fast_memory.ram_ext_disable (1 regs) */
+	0x03610122, 	/* msem.fast_memory.stall_0 .. msem.fast_memory.stall_2 (3 regs) */
+	0x01610132, 	/* msem.fast_memory.pram_last_addr (1 regs) */
+	0x01610291, 	/* msem.fast_memory.storm_active_cycles (1 regs) */
+	0x03610293, 	/* msem.fast_memory.storm_stall_cycles .. msem.fast_memory.idle_inactive_cycles (3 regs) */
+	0x1d2c0000, 	/* block usem */
+	0x04640001, 	/* usem.enable_in .. usem.pas_disable (4 regs) */
+	0x01640100, 	/* usem.arb_cycle_size (1 regs) */
+	0x03640113, 	/* usem.ext_store_free_entries .. usem.gpre_samp_period (3 regs) */
+	0x01640180, 	/* usem.fic_min_msg (1 regs) */
+	0x02640188, 	/* usem.fic_empty_ct_mode .. usem.fic_empty_ct_cnt (2 regs) */
+	0x016401b0, 	/* usem.full_foc_dra_strt_en (1 regs) */
+	0x10e401c0, 	/* usem.fin_command (16 regs, WB) */
+	0x01640240, 	/* usem.invld_pas_wr_en (1 regs) */
+	0x03640260, 	/* usem.arbiter_request .. usem.arbiter_slot (3 regs) */
+	0x026402c1, 	/* usem.thread_error .. usem.thread_rdy (2 regs) */
+	0x016402c5, 	/* usem.threads_list (1 regs) */
+	0x01640380, 	/* usem.order_pop_en (1 regs) */
+	0x01640382, 	/* usem.order_wake_en (1 regs) */
+	0x01640384, 	/* usem.pf_num_order_base (1 regs) */
+	0x01640402, 	/* usem.sync_dra_wr_alm_full (1 regs) */
+	0x01640440, 	/* usem.dra_empty (1 regs) */
+	0x04640450, 	/* usem.slow_dbg_empty .. usem.slow_dra_wr_empty (4 regs) */
+	0x01640456, 	/* usem.slow_ram_rd_empty (1 regs) */
+	0x02640459, 	/* usem.thread_fifo_empty .. usem.ord_id_fifo_empty (2 regs) */
+	0x01640490, 	/* usem.pas_if_full (1 regs) */
+	0x05640492, 	/* usem.slow_dbg_alm_full .. usem.slow_dra_wr_full (5 regs) */
+	0x0264049d, 	/* usem.thread_fifo_full .. usem.ord_id_fifo_full (2 regs) */
+	0x036404c0, 	/* usem.thread_inter_cnt .. usem.thread_orun_num (3 regs) */
+	0x0a640500, 	/* usem.slow_dbg_active .. usem.dbg_msg_src (10 regs) */
+	0x01650001, 	/* usem.fast_memory.ram_ext_disable (1 regs) */
+	0x03650122, 	/* usem.fast_memory.stall_0 .. usem.fast_memory.stall_2 (3 regs) */
+	0x01650132, 	/* usem.fast_memory.pram_last_addr (1 regs) */
+	0x01650291, 	/* usem.fast_memory.storm_active_cycles (1 regs) */
+	0x03650293, 	/* usem.fast_memory.storm_stall_cycles .. usem.fast_memory.idle_inactive_cycles (3 regs) */
+	0x1c2d0000, 	/* block xsem */
+	0x04500001, 	/* xsem.enable_in .. xsem.pas_disable (4 regs) */
+	0x01500100, 	/* xsem.arb_cycle_size (1 regs) */
+	0x03500113, 	/* xsem.ext_store_free_entries .. xsem.gpre_samp_period (3 regs) */
+	0x02500188, 	/* xsem.fic_empty_ct_mode .. xsem.fic_empty_ct_cnt (2 regs) */
+	0x015001b0, 	/* xsem.full_foc_dra_strt_en (1 regs) */
+	0x10d001c0, 	/* xsem.fin_command (16 regs, WB) */
+	0x01500240, 	/* xsem.invld_pas_wr_en (1 regs) */
+	0x03500260, 	/* xsem.arbiter_request .. xsem.arbiter_slot (3 regs) */
+	0x025002c1, 	/* xsem.thread_error .. xsem.thread_rdy (2 regs) */
+	0x015002c5, 	/* xsem.threads_list (1 regs) */
+	0x01500380, 	/* xsem.order_pop_en (1 regs) */
+	0x01500382, 	/* xsem.order_wake_en (1 regs) */
+	0x01500384, 	/* xsem.pf_num_order_base (1 regs) */
+	0x01500402, 	/* xsem.sync_dra_wr_alm_full (1 regs) */
+	0x01500440, 	/* xsem.dra_empty (1 regs) */
+	0x04500450, 	/* xsem.slow_dbg_empty .. xsem.slow_dra_wr_empty (4 regs) */
+	0x01500456, 	/* xsem.slow_ram_rd_empty (1 regs) */
+	0x02500459, 	/* xsem.thread_fifo_empty .. xsem.ord_id_fifo_empty (2 regs) */
+	0x01500490, 	/* xsem.pas_if_full (1 regs) */
+	0x05500492, 	/* xsem.slow_dbg_alm_full .. xsem.slow_dra_wr_full (5 regs) */
+	0x0250049d, 	/* xsem.thread_fifo_full .. xsem.ord_id_fifo_full (2 regs) */
+	0x035004c0, 	/* xsem.thread_inter_cnt .. xsem.thread_orun_num (3 regs) */
+	0x0a500500, 	/* xsem.slow_dbg_active .. xsem.dbg_msg_src (10 regs) */
+	0x01510001, 	/* xsem.fast_memory.ram_ext_disable (1 regs) */
+	0x03510122, 	/* xsem.fast_memory.stall_0 .. xsem.fast_memory.stall_2 (3 regs) */
+	0x01510132, 	/* xsem.fast_memory.pram_last_addr (1 regs) */
+	0x01510291, 	/* xsem.fast_memory.storm_active_cycles (1 regs) */
+	0x03510293, 	/* xsem.fast_memory.storm_stall_cycles .. xsem.fast_memory.idle_inactive_cycles (3 regs) */
+	0x1c2e0000, 	/* block ysem */
+	0x04540001, 	/* ysem.enable_in .. ysem.pas_disable (4 regs) */
+	0x01540100, 	/* ysem.arb_cycle_size (1 regs) */
+	0x03540113, 	/* ysem.ext_store_free_entries .. ysem.gpre_samp_period (3 regs) */
+	0x02540188, 	/* ysem.fic_empty_ct_mode .. ysem.fic_empty_ct_cnt (2 regs) */
+	0x015401b0, 	/* ysem.full_foc_dra_strt_en (1 regs) */
+	0x10d401c0, 	/* ysem.fin_command (16 regs, WB) */
+	0x01540240, 	/* ysem.invld_pas_wr_en (1 regs) */
+	0x03540260, 	/* ysem.arbiter_request .. ysem.arbiter_slot (3 regs) */
+	0x025402c1, 	/* ysem.thread_error .. ysem.thread_rdy (2 regs) */
+	0x015402c5, 	/* ysem.threads_list (1 regs) */
+	0x01540380, 	/* ysem.order_pop_en (1 regs) */
+	0x01540382, 	/* ysem.order_wake_en (1 regs) */
+	0x01540384, 	/* ysem.pf_num_order_base (1 regs) */
+	0x01540402, 	/* ysem.sync_dra_wr_alm_full (1 regs) */
+	0x01540440, 	/* ysem.dra_empty (1 regs) */
+	0x04540450, 	/* ysem.slow_dbg_empty .. ysem.slow_dra_wr_empty (4 regs) */
+	0x01540456, 	/* ysem.slow_ram_rd_empty (1 regs) */
+	0x02540459, 	/* ysem.thread_fifo_empty .. ysem.ord_id_fifo_empty (2 regs) */
+	0x01540490, 	/* ysem.pas_if_full (1 regs) */
+	0x05540492, 	/* ysem.slow_dbg_alm_full .. ysem.slow_dra_wr_full (5 regs) */
+	0x0254049d, 	/* ysem.thread_fifo_full .. ysem.ord_id_fifo_full (2 regs) */
+	0x035404c0, 	/* ysem.thread_inter_cnt .. ysem.thread_orun_num (3 regs) */
+	0x0a540500, 	/* ysem.slow_dbg_active .. ysem.dbg_msg_src (10 regs) */
+	0x01550001, 	/* ysem.fast_memory.ram_ext_disable (1 regs) */
+	0x03550122, 	/* ysem.fast_memory.stall_0 .. ysem.fast_memory.stall_2 (3 regs) */
+	0x01550132, 	/* ysem.fast_memory.pram_last_addr (1 regs) */
+	0x01550291, 	/* ysem.fast_memory.storm_active_cycles (1 regs) */
+	0x03550293, 	/* ysem.fast_memory.storm_stall_cycles .. ysem.fast_memory.idle_inactive_cycles (3 regs) */
+	0x1d2f0000, 	/* block psem */
+	0x04580001, 	/* psem.enable_in .. psem.pas_disable (4 regs) */
+	0x01580100, 	/* psem.arb_cycle_size (1 regs) */
+	0x03580113, 	/* psem.ext_store_free_entries .. psem.gpre_samp_period (3 regs) */
+	0x01580180, 	/* psem.fic_min_msg (1 regs) */
+	0x02580188, 	/* psem.fic_empty_ct_mode .. psem.fic_empty_ct_cnt (2 regs) */
+	0x015801b0, 	/* psem.full_foc_dra_strt_en (1 regs) */
+	0x10d801c0, 	/* psem.fin_command (16 regs, WB) */
+	0x01580240, 	/* psem.invld_pas_wr_en (1 regs) */
+	0x03580260, 	/* psem.arbiter_request .. psem.arbiter_slot (3 regs) */
+	0x025802c1, 	/* psem.thread_error .. psem.thread_rdy (2 regs) */
+	0x015802c5, 	/* psem.threads_list (1 regs) */
+	0x01580380, 	/* psem.order_pop_en (1 regs) */
+	0x01580382, 	/* psem.order_wake_en (1 regs) */
+	0x01580384, 	/* psem.pf_num_order_base (1 regs) */
+	0x01580402, 	/* psem.sync_dra_wr_alm_full (1 regs) */
+	0x01580440, 	/* psem.dra_empty (1 regs) */
+	0x04580450, 	/* psem.slow_dbg_empty .. psem.slow_dra_wr_empty (4 regs) */
+	0x01580456, 	/* psem.slow_ram_rd_empty (1 regs) */
+	0x02580459, 	/* psem.thread_fifo_empty .. psem.ord_id_fifo_empty (2 regs) */
+	0x01580490, 	/* psem.pas_if_full (1 regs) */
+	0x05580492, 	/* psem.slow_dbg_alm_full .. psem.slow_dra_wr_full (5 regs) */
+	0x0258049d, 	/* psem.thread_fifo_full .. psem.ord_id_fifo_full (2 regs) */
+	0x035804c0, 	/* psem.thread_inter_cnt .. psem.thread_orun_num (3 regs) */
+	0x0a580500, 	/* psem.slow_dbg_active .. psem.dbg_msg_src (10 regs) */
+	0x01590001, 	/* psem.fast_memory.ram_ext_disable (1 regs) */
+	0x03590122, 	/* psem.fast_memory.stall_0 .. psem.fast_memory.stall_2 (3 regs) */
+	0x01590132, 	/* psem.fast_memory.pram_last_addr (1 regs) */
+	0x01590291, 	/* psem.fast_memory.storm_active_cycles (1 regs) */
+	0x03590293, 	/* psem.fast_memory.storm_stall_cycles .. psem.fast_memory.idle_inactive_cycles (3 regs) */
 	0x01300000, 	/* block rss */
-	0x0408e326, 	/* rss.fifo_full_status1 .. rss.state_machines1 (4 regs) */
-	0x01310000, 	/* block tmld */
-	0x19134240, 	/* tmld.l2ma_aggr_config1 .. tmld.ld_max_msg_size (25 regs) */
-	0x01320000, 	/* block muld */
-	0x1a138500, 	/* muld.l2ma_aggr_config1 .. muld.page_size (26 regs) */
-	0x01340000, 	/* block xyld */
-	0x19130240, 	/* xyld.l2ma_aggr_config1 .. xyld.ld_max_msg_size (25 regs) */
-	0x06350000, 	/* block ptld */
-	0x10164000, 	/* ptld.foci_foc_credits .. ptld.cm_hdr_127_96 (16 regs) */
-	0x03164011, 	/* ptld.stat_fic_msg .. ptld.len_err_log_2 (3 regs) */
-	0x01164015, 	/* ptld.len_err_log_v (1 regs) */
-	0x02164060, 	/* ptld.INT_STS .. ptld.INT_MASK (2 regs) */
-	0x19164300, 	/* ptld.l2ma_aggr_config1 .. ptld.ld_max_msg_size (25 regs) */
-	0x05164580, 	/* ptld.dbg_select .. ptld.dbg_force_frame (5 regs) */
-	0x06360000, 	/* block ypld */
-	0x1016c000, 	/* ypld.foci_foc_credits .. ypld.cm_hdr_127_96 (16 regs) */
-	0x0316c011, 	/* ypld.stat_fic_msg .. ypld.len_err_log_2 (3 regs) */
-	0x0116c015, 	/* ypld.len_err_log_v (1 regs) */
-	0x0216c060, 	/* ypld.INT_STS .. ypld.INT_MASK (2 regs) */
-	0x1916c300, 	/* ypld.l2ma_aggr_config1 .. ypld.ld_max_msg_size (25 regs) */
-	0x0516c580, 	/* ypld.dbg_select .. ypld.dbg_force_frame (5 regs) */
-	0x013b0000, 	/* block btb */
-	0x0236c217, 	/* btb.wc_ll_high_pri .. btb.br_fix_high_pri_collision (2 regs) */
-	0x023c0000, 	/* block pbf */
-	0x0236010c, 	/* pbf.tgfs_main_if_init_crd .. pbf.tgfs_side_if_init_crd (2 regs) */
-	0x0836014a, 	/* pbf.same_as_last_config .. pbf.num_lookups_in_sal (8 regs) */
-	0x01400000, 	/* block ccfc */
-	0x010b8204, 	/* ccfc.eio_threshold (1 regs) */
-	0x01410000, 	/* block tcfc */
-	0x010b4204, 	/* tcfc.eio_threshold (1 regs) */
-	0x01420000, 	/* block igu */
-	0x09060315, 	/* igu.vf_with_more_16sb_21 .. igu.vf_with_more_16sb_29 (9 regs) */
-	0x06450000, 	/* block rgsrc */
-	0x050c8010, 	/* rgsrc.dbg_select .. rgsrc.dbg_force_frame (5 regs) */
-	0x020c8060, 	/* rgsrc.INT_STS .. rgsrc.INT_MASK (2 regs) */
-	0x010c8080, 	/* rgsrc.eco_reserved (1 regs) */
-	0x040c8100, 	/* rgsrc.cache_en .. rgsrc.max_hops (4 regs) */
-	0x040c8108, 	/* rgsrc.pxp_ctrl .. rgsrc.num_inhouse_cmd (4 regs) */
-	0x090c810d, 	/* rgsrc.num_src_cmd .. rgsrc.num_src_cmd_hit_hop_3_or_more (9 regs) */
-	0x06470000, 	/* block tgsrc */
-	0x050c8810, 	/* tgsrc.dbg_select .. tgsrc.dbg_force_frame (5 regs) */
-	0x020c8860, 	/* tgsrc.INT_STS .. tgsrc.INT_MASK (2 regs) */
-	0x010c8880, 	/* tgsrc.eco_reserved (1 regs) */
-	0x040c8900, 	/* tgsrc.cache_en .. tgsrc.max_hops (4 regs) */
-	0x040c8908, 	/* tgsrc.pxp_ctrl .. tgsrc.num_inhouse_cmd (4 regs) */
-	0x090c890d, 	/* tgsrc.num_src_cmd .. tgsrc.num_src_cmd_hit_hop_3_or_more (9 regs) */
-	0x014a0000, 	/* block dbg */
-	0x010042ea, 	/* dbg.filter_mode (1 regs) */
-	0x034b0000, 	/* block nig */
-	0x0214003c, 	/* nig.INT_STS_10 .. nig.INT_MASK_10 (2 regs) */
-	0x01143600, 	/* nig.tx_bmb_fifo_alm_full_thr (1 regs) */
-	0x29143603, 	/* nig.tx_ooo_rfifo_full .. nig.ipv6_ext_authentication_hdr_type_valid (41 regs) */
-	0x02210143, 	/* mode !(bb|e5), block brb */
+	0x0508e30d, 	/* rss.rbc_status .. rss.state_machines (5 regs) */
+	0x05330000, 	/* block yuld */
+	0x2a132000, 	/* yuld.scbd_strict_prio .. yuld.cm_hdr_127_96 (42 regs) */
+	0x0513202b, 	/* yuld.stat_fic_msg .. yuld.len_err_log_2 (5 regs) */
+	0x01132031, 	/* yuld.len_err_log_v (1 regs) */
+	0x02132060, 	/* yuld.INT_STS .. yuld.INT_MASK (2 regs) */
+	0x05132580, 	/* yuld.dbg_select .. yuld.dbg_force_frame (5 regs) */
+	0x033c0000, 	/* block pbf */
+	0x01360106, 	/* pbf.pcm_if_init_crd (1 regs) */
+	0x02360124, 	/* pbf.tag_ethertype_4 .. pbf.tag_ethertype_5 (2 regs) */
+	0x0236012a, 	/* pbf.tag_len_4 .. pbf.tag_len_5 (2 regs) */
+	0x05430000, 	/* block cau */
+	0x05070180, 	/* cau.cqe_size .. cau.agg_release_timer (5 regs) */
+	0x01070221, 	/* cau.cqe_fifo_afull_thr (1 regs) */
+	0x070702ea, 	/* cau.stat_counter_cqe_msg_sent .. cau.stat_counter_cqe_partial_cache (7 regs) */
+	0x04070327, 	/* cau.agg_units_0to15_state .. cau.agg_units_48to63_state (4 regs) */
+	0x020703c3, 	/* cau.igu_cqe_cmd_fsm_status .. cau.igu_cqe_agg_fsm_status (2 regs) */
+	0x024a0000, 	/* block dbg */
+	0x01004002, 	/* dbg.other_client_enable (1 regs) */
+	0x01004004, 	/* dbg.other_engine_mode (1 regs) */
+	0x014b0000, 	/* block nig */
+	0xa0140212, 	/* nig.tx_lb_vport_drop_0 .. nig.tx_lb_vport_drop_159 (160 regs) */
+	0x0221011b, 	/* mode !(bb|e5), block brb */
 	0x020d044b, 	/* brb.rc_eop_inp_sync_fifo_push_status_2 .. brb.rc_eop_inp_sync_fifo_push_status_3 (2 regs) */
 	0x020d045a, 	/* brb.rc_eop_out_sync_fifo_push_status_2 .. brb.rc_eop_out_sync_fifo_push_status_3 (2 regs) */
 	0x0e2a0000, 	/* block tsem */
@@ -1993,227 +2265,6 @@ static const u32 dump_reg[] = {
 	0x02540000, 	/* block avs_wrap */
 	0x041ad000, 	/* avs_wrap.avs_control .. avs_wrap.INT_MASK (4 regs) */
 	0x091ad00a, 	/* avs_wrap.eco_reserved .. avs_wrap.efuse_data_word_23 (9 regs) */
-	0x01010051, 	/* mode !e5, block miscs */
-	0x010025bc, 	/* miscs.function_hide (1 regs) */
-	0x01170000, 	/* block ptu */
-	0x0e158165, 	/* ptu.atc_fli_done_vf_31_0 .. ptu.atc_fli_done_clr_pf_15_0 (14 regs) */
-	0x05180000, 	/* block tcm */
-	0x01460186, 	/* tcm.prs_weight (1 regs) */
-	0x014602ad, 	/* tcm.prs_length_mis (1 regs) */
-	0x014602b6, 	/* tcm.prs_msg_cntr (1 regs) */
-	0x014602c4, 	/* tcm.is_prs_fill_lvl (1 regs) */
-	0x014602e5, 	/* tcm.is_foc_prs_nxt_inf_unit (1 regs) */
-	0x071a0000, 	/* block ucm */
-	0x014a018b, 	/* ucm.yuld_weight (1 regs) */
-	0x014a0199, 	/* ucm.psdm_frwrd_mode (1 regs) */
-	0x014a019e, 	/* ucm.yuld_frwrd_mode (1 regs) */
-	0x014a02b2, 	/* ucm.yuld_length_mis (1 regs) */
-	0x014a02bc, 	/* ucm.yuld_msg_cntr (1 regs) */
-	0x014a02cd, 	/* ucm.is_yuld_fill_lvl (1 regs) */
-	0x014a02eb, 	/* ucm.is_foc_yuld_nxt_inf_unit (1 regs) */
-	0x061d0000, 	/* block pcm */
-	0x01440182, 	/* pcm.pbf_weight (1 regs) */
-	0x0144018e, 	/* pcm.pbf_frwrd_mode (1 regs) */
-	0x014402ab, 	/* pcm.pbf_length_mis (1 regs) */
-	0x014402b0, 	/* pcm.pbf_msg_cntr (1 regs) */
-	0x014402b4, 	/* pcm.is_pbf_fill_lvl (1 regs) */
-	0x014402e3, 	/* pcm.is_foc_pbf_nxt_inf_unit (1 regs) */
-	0x02200000, 	/* block dorq */
-	0x0104020e, 	/* dorq.edpm_exist_in_qm_en (1 regs) */
-	0x02040241, 	/* dorq.l2_edpm_ext_hdr_size .. dorq.l2_edpm_ext_hdr_offs (2 regs) */
-	0x02210000, 	/* block brb */
-	0x010d044a, 	/* brb.rc_eop_inp_sync_fifo_push_status_1 (1 regs) */
-	0x010d0459, 	/* brb.rc_eop_out_sync_fifo_push_status_1 (1 regs) */
-	0x06230000, 	/* block prs */
-	0x0107c2d4, 	/* prs.prs_pkt_ct (1 regs) */
-	0x0307c2ec, 	/* prs.fc_dbg_select .. prs.fc_dbg_shift (3 regs) */
-	0x0887c2f0, 	/* prs.fc_dbg_out_data (8 regs, WB) */
-	0x0407c2f8, 	/* prs.fc_dbg_force_valid .. prs.fc_dbg_out_frame (4 regs) */
-	0x0107c3c0, 	/* prs.tcm_initial_credit (1 regs) */
-	0x0107c3c3, 	/* prs.tcm_current_credit (1 regs) */
-	0x1d2a0000, 	/* block tsem */
-	0x045c0001, 	/* tsem.enable_in .. tsem.pas_disable (4 regs) */
-	0x015c0100, 	/* tsem.arb_cycle_size (1 regs) */
-	0x035c0113, 	/* tsem.ext_store_free_entries .. tsem.gpre_samp_period (3 regs) */
-	0x015c0180, 	/* tsem.fic_min_msg (1 regs) */
-	0x025c0188, 	/* tsem.fic_empty_ct_mode .. tsem.fic_empty_ct_cnt (2 regs) */
-	0x015c01b0, 	/* tsem.full_foc_dra_strt_en (1 regs) */
-	0x10dc01c0, 	/* tsem.fin_command (16 regs, WB) */
-	0x015c0240, 	/* tsem.invld_pas_wr_en (1 regs) */
-	0x035c0260, 	/* tsem.arbiter_request .. tsem.arbiter_slot (3 regs) */
-	0x025c02c1, 	/* tsem.thread_error .. tsem.thread_rdy (2 regs) */
-	0x015c02c5, 	/* tsem.threads_list (1 regs) */
-	0x015c0380, 	/* tsem.order_pop_en (1 regs) */
-	0x015c0382, 	/* tsem.order_wake_en (1 regs) */
-	0x015c0384, 	/* tsem.pf_num_order_base (1 regs) */
-	0x015c0402, 	/* tsem.sync_dra_wr_alm_full (1 regs) */
-	0x015c0440, 	/* tsem.dra_empty (1 regs) */
-	0x045c0450, 	/* tsem.slow_dbg_empty .. tsem.slow_dra_wr_empty (4 regs) */
-	0x025c0459, 	/* tsem.thread_fifo_empty .. tsem.ord_id_fifo_empty (2 regs) */
-	0x015c0490, 	/* tsem.pas_if_full (1 regs) */
-	0x055c0492, 	/* tsem.slow_dbg_alm_full .. tsem.slow_dra_wr_full (5 regs) */
-	0x025c049d, 	/* tsem.thread_fifo_full .. tsem.ord_id_fifo_full (2 regs) */
-	0x035c04c0, 	/* tsem.thread_inter_cnt .. tsem.thread_orun_num (3 regs) */
-	0x0a5c0500, 	/* tsem.slow_dbg_active .. tsem.dbg_msg_src (10 regs) */
-	0x035d0122, 	/* tsem.fast_memory.stall_0 .. tsem.fast_memory.stall_2 (3 regs) */
-	0x015d0132, 	/* tsem.fast_memory.pram_last_addr (1 regs) */
-	0x015d0291, 	/* tsem.fast_memory.storm_active_cycles (1 regs) */
-	0x035d0293, 	/* tsem.fast_memory.storm_stall_cycles .. tsem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x025d2814, 	/* tsem.fast_memory.vfc_config.rss_ram_tm_0 .. tsem.fast_memory.vfc_config.rss_ram_tm_1 (2 regs) */
-	0x015d281b, 	/* tsem.fast_memory.vfc_config.key_rss_ext5 (1 regs) */
-	0x1b2b0000, 	/* block msem */
-	0x04600001, 	/* msem.enable_in .. msem.pas_disable (4 regs) */
-	0x01600100, 	/* msem.arb_cycle_size (1 regs) */
-	0x03600113, 	/* msem.ext_store_free_entries .. msem.gpre_samp_period (3 regs) */
-	0x01600180, 	/* msem.fic_min_msg (1 regs) */
-	0x02600188, 	/* msem.fic_empty_ct_mode .. msem.fic_empty_ct_cnt (2 regs) */
-	0x016001b0, 	/* msem.full_foc_dra_strt_en (1 regs) */
-	0x10e001c0, 	/* msem.fin_command (16 regs, WB) */
-	0x01600240, 	/* msem.invld_pas_wr_en (1 regs) */
-	0x03600260, 	/* msem.arbiter_request .. msem.arbiter_slot (3 regs) */
-	0x026002c1, 	/* msem.thread_error .. msem.thread_rdy (2 regs) */
-	0x016002c5, 	/* msem.threads_list (1 regs) */
-	0x01600380, 	/* msem.order_pop_en (1 regs) */
-	0x01600382, 	/* msem.order_wake_en (1 regs) */
-	0x01600384, 	/* msem.pf_num_order_base (1 regs) */
-	0x01600402, 	/* msem.sync_dra_wr_alm_full (1 regs) */
-	0x01600440, 	/* msem.dra_empty (1 regs) */
-	0x04600450, 	/* msem.slow_dbg_empty .. msem.slow_dra_wr_empty (4 regs) */
-	0x02600459, 	/* msem.thread_fifo_empty .. msem.ord_id_fifo_empty (2 regs) */
-	0x01600490, 	/* msem.pas_if_full (1 regs) */
-	0x05600492, 	/* msem.slow_dbg_alm_full .. msem.slow_dra_wr_full (5 regs) */
-	0x0260049d, 	/* msem.thread_fifo_full .. msem.ord_id_fifo_full (2 regs) */
-	0x036004c0, 	/* msem.thread_inter_cnt .. msem.thread_orun_num (3 regs) */
-	0x0a600500, 	/* msem.slow_dbg_active .. msem.dbg_msg_src (10 regs) */
-	0x03610122, 	/* msem.fast_memory.stall_0 .. msem.fast_memory.stall_2 (3 regs) */
-	0x01610132, 	/* msem.fast_memory.pram_last_addr (1 regs) */
-	0x01610291, 	/* msem.fast_memory.storm_active_cycles (1 regs) */
-	0x03610293, 	/* msem.fast_memory.storm_stall_cycles .. msem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x1b2c0000, 	/* block usem */
-	0x04640001, 	/* usem.enable_in .. usem.pas_disable (4 regs) */
-	0x01640100, 	/* usem.arb_cycle_size (1 regs) */
-	0x03640113, 	/* usem.ext_store_free_entries .. usem.gpre_samp_period (3 regs) */
-	0x01640180, 	/* usem.fic_min_msg (1 regs) */
-	0x02640188, 	/* usem.fic_empty_ct_mode .. usem.fic_empty_ct_cnt (2 regs) */
-	0x016401b0, 	/* usem.full_foc_dra_strt_en (1 regs) */
-	0x10e401c0, 	/* usem.fin_command (16 regs, WB) */
-	0x01640240, 	/* usem.invld_pas_wr_en (1 regs) */
-	0x03640260, 	/* usem.arbiter_request .. usem.arbiter_slot (3 regs) */
-	0x026402c1, 	/* usem.thread_error .. usem.thread_rdy (2 regs) */
-	0x016402c5, 	/* usem.threads_list (1 regs) */
-	0x01640380, 	/* usem.order_pop_en (1 regs) */
-	0x01640382, 	/* usem.order_wake_en (1 regs) */
-	0x01640384, 	/* usem.pf_num_order_base (1 regs) */
-	0x01640402, 	/* usem.sync_dra_wr_alm_full (1 regs) */
-	0x01640440, 	/* usem.dra_empty (1 regs) */
-	0x04640450, 	/* usem.slow_dbg_empty .. usem.slow_dra_wr_empty (4 regs) */
-	0x02640459, 	/* usem.thread_fifo_empty .. usem.ord_id_fifo_empty (2 regs) */
-	0x01640490, 	/* usem.pas_if_full (1 regs) */
-	0x05640492, 	/* usem.slow_dbg_alm_full .. usem.slow_dra_wr_full (5 regs) */
-	0x0264049d, 	/* usem.thread_fifo_full .. usem.ord_id_fifo_full (2 regs) */
-	0x036404c0, 	/* usem.thread_inter_cnt .. usem.thread_orun_num (3 regs) */
-	0x0a640500, 	/* usem.slow_dbg_active .. usem.dbg_msg_src (10 regs) */
-	0x03650122, 	/* usem.fast_memory.stall_0 .. usem.fast_memory.stall_2 (3 regs) */
-	0x01650132, 	/* usem.fast_memory.pram_last_addr (1 regs) */
-	0x01650291, 	/* usem.fast_memory.storm_active_cycles (1 regs) */
-	0x03650293, 	/* usem.fast_memory.storm_stall_cycles .. usem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x1a2d0000, 	/* block xsem */
-	0x04500001, 	/* xsem.enable_in .. xsem.pas_disable (4 regs) */
-	0x01500100, 	/* xsem.arb_cycle_size (1 regs) */
-	0x03500113, 	/* xsem.ext_store_free_entries .. xsem.gpre_samp_period (3 regs) */
-	0x02500188, 	/* xsem.fic_empty_ct_mode .. xsem.fic_empty_ct_cnt (2 regs) */
-	0x015001b0, 	/* xsem.full_foc_dra_strt_en (1 regs) */
-	0x10d001c0, 	/* xsem.fin_command (16 regs, WB) */
-	0x01500240, 	/* xsem.invld_pas_wr_en (1 regs) */
-	0x03500260, 	/* xsem.arbiter_request .. xsem.arbiter_slot (3 regs) */
-	0x025002c1, 	/* xsem.thread_error .. xsem.thread_rdy (2 regs) */
-	0x015002c5, 	/* xsem.threads_list (1 regs) */
-	0x01500380, 	/* xsem.order_pop_en (1 regs) */
-	0x01500382, 	/* xsem.order_wake_en (1 regs) */
-	0x01500384, 	/* xsem.pf_num_order_base (1 regs) */
-	0x01500402, 	/* xsem.sync_dra_wr_alm_full (1 regs) */
-	0x01500440, 	/* xsem.dra_empty (1 regs) */
-	0x04500450, 	/* xsem.slow_dbg_empty .. xsem.slow_dra_wr_empty (4 regs) */
-	0x02500459, 	/* xsem.thread_fifo_empty .. xsem.ord_id_fifo_empty (2 regs) */
-	0x01500490, 	/* xsem.pas_if_full (1 regs) */
-	0x05500492, 	/* xsem.slow_dbg_alm_full .. xsem.slow_dra_wr_full (5 regs) */
-	0x0250049d, 	/* xsem.thread_fifo_full .. xsem.ord_id_fifo_full (2 regs) */
-	0x035004c0, 	/* xsem.thread_inter_cnt .. xsem.thread_orun_num (3 regs) */
-	0x0a500500, 	/* xsem.slow_dbg_active .. xsem.dbg_msg_src (10 regs) */
-	0x03510122, 	/* xsem.fast_memory.stall_0 .. xsem.fast_memory.stall_2 (3 regs) */
-	0x01510132, 	/* xsem.fast_memory.pram_last_addr (1 regs) */
-	0x01510291, 	/* xsem.fast_memory.storm_active_cycles (1 regs) */
-	0x03510293, 	/* xsem.fast_memory.storm_stall_cycles .. xsem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x1a2e0000, 	/* block ysem */
-	0x04540001, 	/* ysem.enable_in .. ysem.pas_disable (4 regs) */
-	0x01540100, 	/* ysem.arb_cycle_size (1 regs) */
-	0x03540113, 	/* ysem.ext_store_free_entries .. ysem.gpre_samp_period (3 regs) */
-	0x02540188, 	/* ysem.fic_empty_ct_mode .. ysem.fic_empty_ct_cnt (2 regs) */
-	0x015401b0, 	/* ysem.full_foc_dra_strt_en (1 regs) */
-	0x10d401c0, 	/* ysem.fin_command (16 regs, WB) */
-	0x01540240, 	/* ysem.invld_pas_wr_en (1 regs) */
-	0x03540260, 	/* ysem.arbiter_request .. ysem.arbiter_slot (3 regs) */
-	0x025402c1, 	/* ysem.thread_error .. ysem.thread_rdy (2 regs) */
-	0x015402c5, 	/* ysem.threads_list (1 regs) */
-	0x01540380, 	/* ysem.order_pop_en (1 regs) */
-	0x01540382, 	/* ysem.order_wake_en (1 regs) */
-	0x01540384, 	/* ysem.pf_num_order_base (1 regs) */
-	0x01540402, 	/* ysem.sync_dra_wr_alm_full (1 regs) */
-	0x01540440, 	/* ysem.dra_empty (1 regs) */
-	0x04540450, 	/* ysem.slow_dbg_empty .. ysem.slow_dra_wr_empty (4 regs) */
-	0x02540459, 	/* ysem.thread_fifo_empty .. ysem.ord_id_fifo_empty (2 regs) */
-	0x01540490, 	/* ysem.pas_if_full (1 regs) */
-	0x05540492, 	/* ysem.slow_dbg_alm_full .. ysem.slow_dra_wr_full (5 regs) */
-	0x0254049d, 	/* ysem.thread_fifo_full .. ysem.ord_id_fifo_full (2 regs) */
-	0x035404c0, 	/* ysem.thread_inter_cnt .. ysem.thread_orun_num (3 regs) */
-	0x0a540500, 	/* ysem.slow_dbg_active .. ysem.dbg_msg_src (10 regs) */
-	0x03550122, 	/* ysem.fast_memory.stall_0 .. ysem.fast_memory.stall_2 (3 regs) */
-	0x01550132, 	/* ysem.fast_memory.pram_last_addr (1 regs) */
-	0x01550291, 	/* ysem.fast_memory.storm_active_cycles (1 regs) */
-	0x03550293, 	/* ysem.fast_memory.storm_stall_cycles .. ysem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x1b2f0000, 	/* block psem */
-	0x04580001, 	/* psem.enable_in .. psem.pas_disable (4 regs) */
-	0x01580100, 	/* psem.arb_cycle_size (1 regs) */
-	0x03580113, 	/* psem.ext_store_free_entries .. psem.gpre_samp_period (3 regs) */
-	0x01580180, 	/* psem.fic_min_msg (1 regs) */
-	0x02580188, 	/* psem.fic_empty_ct_mode .. psem.fic_empty_ct_cnt (2 regs) */
-	0x015801b0, 	/* psem.full_foc_dra_strt_en (1 regs) */
-	0x10d801c0, 	/* psem.fin_command (16 regs, WB) */
-	0x01580240, 	/* psem.invld_pas_wr_en (1 regs) */
-	0x03580260, 	/* psem.arbiter_request .. psem.arbiter_slot (3 regs) */
-	0x025802c1, 	/* psem.thread_error .. psem.thread_rdy (2 regs) */
-	0x015802c5, 	/* psem.threads_list (1 regs) */
-	0x01580380, 	/* psem.order_pop_en (1 regs) */
-	0x01580382, 	/* psem.order_wake_en (1 regs) */
-	0x01580384, 	/* psem.pf_num_order_base (1 regs) */
-	0x01580402, 	/* psem.sync_dra_wr_alm_full (1 regs) */
-	0x01580440, 	/* psem.dra_empty (1 regs) */
-	0x04580450, 	/* psem.slow_dbg_empty .. psem.slow_dra_wr_empty (4 regs) */
-	0x02580459, 	/* psem.thread_fifo_empty .. psem.ord_id_fifo_empty (2 regs) */
-	0x01580490, 	/* psem.pas_if_full (1 regs) */
-	0x05580492, 	/* psem.slow_dbg_alm_full .. psem.slow_dra_wr_full (5 regs) */
-	0x0258049d, 	/* psem.thread_fifo_full .. psem.ord_id_fifo_full (2 regs) */
-	0x035804c0, 	/* psem.thread_inter_cnt .. psem.thread_orun_num (3 regs) */
-	0x0a580500, 	/* psem.slow_dbg_active .. psem.dbg_msg_src (10 regs) */
-	0x03590122, 	/* psem.fast_memory.stall_0 .. psem.fast_memory.stall_2 (3 regs) */
-	0x01590132, 	/* psem.fast_memory.pram_last_addr (1 regs) */
-	0x01590291, 	/* psem.fast_memory.storm_active_cycles (1 regs) */
-	0x03590293, 	/* psem.fast_memory.storm_stall_cycles .. psem.fast_memory.idle_inactive_cycles (3 regs) */
-	0x01300000, 	/* block rss */
-	0x0408e30e, 	/* rss.empty_status .. rss.state_machines (4 regs) */
-	0x05330000, 	/* block yuld */
-	0x2a132000, 	/* yuld.scbd_strict_prio .. yuld.cm_hdr_127_96 (42 regs) */
-	0x0513202b, 	/* yuld.stat_fic_msg .. yuld.len_err_log_2 (5 regs) */
-	0x01132031, 	/* yuld.len_err_log_v (1 regs) */
-	0x02132060, 	/* yuld.INT_STS .. yuld.INT_MASK (2 regs) */
-	0x05132580, 	/* yuld.dbg_select .. yuld.dbg_force_frame (5 regs) */
-	0x013c0000, 	/* block pbf */
-	0x01360106, 	/* pbf.pcm_if_init_crd (1 regs) */
-	0x024a0000, 	/* block dbg */
-	0x01004002, 	/* dbg.other_client_enable (1 regs) */
-	0x01004004, 	/* dbg.other_engine_mode (1 regs) */
-	0x014b0000, 	/* block nig */
-	0xa0140212, 	/* nig.tx_lb_vport_drop_0 .. nig.tx_lb_vport_drop_159 (160 regs) */
 	0x01030033, 	/* mode !((!asic)|(bb|k2)), block dbu */
 	0x01002800, 	/* dbu.cmd (1 regs) */
 	0x0203001d, 	/* mode !(!asic), block dbu */
@@ -2272,29 +2323,24 @@ static const u32 dump_reg[] = {
 	0x0115037d, 	/* bmb.available_mac_size_0 (1 regs) */
 	0x01150383, 	/* bmb.tc_pause_0 (1 regs) */
 	0x01150389, 	/* bmb.tc_full_0 (1 regs) */
-	0x062f0000, 	/* block psem */
+	0x042f0000, 	/* block psem */
 	0x0e592800, 	/* psem.fast_memory.vfc_config.mask_lsb_0_low .. psem.fast_memory.vfc_config.indications2 (14 regs) */
-	0x0559280f, 	/* psem.fast_memory.vfc_config.memories_rst .. psem.fast_memory.vfc_config.interrupt_mask (5 regs) */
-	0x05592816, 	/* psem.fast_memory.vfc_config.inp_fifo_tm .. psem.fast_memory.vfc_config.vfc_cam_bist_status (5 regs) */
-	0x0659281c, 	/* psem.fast_memory.vfc_config.inp_fifo_alm_full .. psem.fast_memory.vfc_config.cpu_mbist_memctrl_1_cntrl_cmd (6 regs) */
+	0x1359280f, 	/* psem.fast_memory.vfc_config.memories_rst .. psem.fast_memory.vfc_config.cpu_mbist_memctrl_1_cntrl_cmd (19 regs) */
 	0x12592824, 	/* psem.fast_memory.vfc_config.debug_data .. psem.fast_memory.vfc_config.mask_lsb_7_high (18 regs) */
 	0x0c59283e, 	/* psem.fast_memory.vfc_config.offset_alu_vector_0 .. psem.fast_memory.vfc_config.cam_bist_skip_error_cnt (12 regs) */
-	0x01090041, 	/* mode (!bb)&(!(emul_reduced|fpga)), block bmb */
+	0x0109004f, 	/* mode (!bb)&(!(emul_reduced|fpga)), block bmb */
 	0x02150252, 	/* bmb.wc_no_dead_cycles_en .. bmb.wc_highest_pri_en (2 regs) */
-	0x03090001, 	/* mode (!(bb|k2))&(!(emul_reduced|fpga)), block bmb */
-	0x02150254, 	/* bmb.wc_ll_high_pri .. bmb.br_fix_high_pri_collision (2 regs) */
-	0x08150339, 	/* bmb.rc_sop_inp_sync_fifo_pop_empty_1 .. bmb.rc_sop_out_sync_fifo_push_status_2 (8 regs) */
-	0x02150344, 	/* bmb.rc_out_sync_fifo_push_status_1 .. bmb.rc_out_sync_fifo_push_status_2 (2 regs) */
-	0x0609004f, 	/* mode (!e5)&(!(emul_reduced|fpga)), block bmb */
+	0x06090041, 	/* mode (!e5)&(!(emul_reduced|fpga)), block bmb */
 	0x071502d9, 	/* bmb.rc_pkt_empty_3 .. bmb.rc_pkt_empty_9 (7 regs) */
 	0x071502e8, 	/* bmb.rc_pkt_full_3 .. bmb.rc_pkt_full_9 (7 regs) */
 	0x071502f7, 	/* bmb.rc_pkt_status_3 .. bmb.rc_pkt_status_9 (7 regs) */
 	0x08150339, 	/* bmb.rc_sop_inp_sync_fifo_pop_empty_8 .. bmb.rc_sop_out_sync_fifo_push_status_9 (8 regs) */
 	0x02150344, 	/* bmb.rc_out_sync_fifo_push_status_8 .. bmb.rc_out_sync_fifo_push_status_9 (2 regs) */
 	0x01150364, 	/* bmb.rc_pkt_state_1 (1 regs) */
-	0x022f0000, 	/* block psem */
-	0x02592814, 	/* psem.fast_memory.vfc_config.rss_ram_tm_0 .. psem.fast_memory.vfc_config.rss_ram_tm_1 (2 regs) */
-	0x0159281b, 	/* psem.fast_memory.vfc_config.key_rss_ext5 (1 regs) */
+	0x03090001, 	/* mode (!(bb|k2))&(!(emul_reduced|fpga)), block bmb */
+	0x08150339, 	/* bmb.rc_sop_inp_sync_fifo_pop_empty_1 .. bmb.rc_sop_out_sync_fifo_push_status_2 (8 regs) */
+	0x02150344, 	/* bmb.rc_out_sync_fifo_push_status_1 .. bmb.rc_out_sync_fifo_push_status_2 (2 regs) */
+	0x02151000, 	/* bmb.wc_ll_high_pri .. bmb.br_fix_high_pri_collision (2 regs) */
 	0x08480013, 	/* mode (!(k2|e5))&(!(!asic)), block umac */
 	0x02014403, 	/* umac.mac_0 .. umac.mac_1 (2 regs) */
 	0x01014406, 	/* umac.pause_quant (1 regs) */
@@ -2310,7 +2356,7 @@ static const u32 dump_reg[] = {
 	0x0100812c, 	/* ipc.freq_nw (1 regs) */
 	0x0800813a, 	/* ipc.otp_config_0 .. ipc.otp_config_7 (8 regs) */
 	0x0500814b, 	/* ipc.lcpll_refclk_sel .. ipc.cpu_otp_rd_syndrome (5 regs) */
-	0x04480099, 	/* mode (!bb)&(!(!asic)), block umac */
+	0x044800c3, 	/* mode (!bb)&(!(!asic)), block umac */
 	0x07014423, 	/* umac.tx_ipg_length1 .. umac.dbg_force_frame (7 regs) */
 	0x02014460, 	/* umac.INT_STS .. umac.INT_MASK (2 regs) */
 	0x070144c1, 	/* umac.pause_opcode .. umac.mac_pause_sa_1 (7 regs) */
@@ -3004,7 +3050,7 @@ static const u32 dump_reg[] = {
 	0x02520000, 	/* block phy_pcie */
 	0x0c18a000, 	/* phy_pcie.eco_reserved .. phy_pcie.dbg_status (12 regs) */
 	0x0518a7fa, 	/* phy_pcie.dbg_select .. phy_pcie.dbg_force_frame (5 regs) */
-	0x044e00f3, 	/* mode bb&(!(!asic)), block ipc */
+	0x044e0107, 	/* mode bb&(!(!asic)), block ipc */
 	0x03008123, 	/* ipc.mdio_comm .. ipc.mdio_mode (3 regs) */
 	0x0200812a, 	/* ipc.freq_main .. ipc.freq_storm (2 regs) */
 	0x0d00812d, 	/* ipc.free_running_cntr_0 .. ipc.hw_straps (13 regs) */
@@ -3199,7 +3245,7 @@ static const u32 dump_reg[] = {
 	0x01189b8a, 	/* phy_pcie.phy1.ahb_comlane_csr_5_x394 (1 regs) */
 	0x0b189b91, 	/* phy_pcie.phy1.ahb_comlane_csr_5_x401 .. phy_pcie.phy1.ahb_comlane_csr_5_x411 (11 regs) */
 	0x57189b9d, 	/* phy_pcie.phy1.ahb_comlane_csr_5_x413 .. phy_pcie.phy1.ahb_comlane_csr_5_x499 (87 regs) */
-	0x0100007e, 	/* split PORT */
+	0x01000081, 	/* split PORT */
 	0x03060000, 	/* block cpmu */
 	0x0700c080, 	/* cpmu.lpi_mode_config .. cpmu.sw_force_lpi (7 regs) */
 	0x0600c0c9, 	/* cpmu.lpi_tx_req_stat_ro .. cpmu.lpi_duration_stat_ro (6 regs) */
@@ -3225,11 +3271,12 @@ static const u32 dump_reg[] = {
 	0x0907c2c2, 	/* prs.num_of_packets_0 .. prs.num_of_packets_8 (9 regs) */
 	0x0207c2d5, 	/* prs.queue_pkt_avail_status .. prs.storm_bkprs_status (2 regs) */
 	0x0107c3cd, 	/* prs.eop_req_ct (1 regs) */
-	0x063c0000, 	/* block pbf */
-	0x1236012c, 	/* pbf.first_hdr_hdrs_after_basic .. pbf.inner_hdr_must_have_hdrs (18 regs) */
+	0x073c0000, 	/* block pbf */
+	0x0636012c, 	/* pbf.first_hdr_hdrs_after_basic .. pbf.first_hdr_hdrs_after_tag_3 (6 regs) */
+	0x07360134, 	/* pbf.first_hdr_must_have_hdrs .. pbf.inner_hdr_hdrs_after_tag_3 (7 regs) */
+	0x0136013d, 	/* pbf.inner_hdr_must_have_hdrs (1 regs) */
 	0x02360146, 	/* pbf.vxlan_port .. pbf.nge_port (2 regs) */
 	0x01360149, 	/* pbf.nge_comp_ver (1 regs) */
-	0x01360160, 	/* pbf.prop_hdr_size (1 regs) */
 	0x01360162, 	/* pbf.t_tag_tagnum (1 regs) */
 	0x05360170, 	/* pbf.btb_shared_area_size .. pbf.num_strict_priority_slots (5 regs) */
 	0x2e4b0000, 	/* block nig */
@@ -3289,6 +3336,9 @@ static const u32 dump_reg[] = {
 	0x01184081, 	/* bmbn.eco_reserved_perport (1 regs) */
 	0x01530000, 	/* block led */
 	0x061ae000, 	/* led.control .. led.mac_led_speed (6 regs) */
+	0x024b0003, 	/* mode !(bb|k2), block nig */
+	0x02143420, 	/* nig.mng_to_mcp_ncsi_filter .. nig.mng_to_mcp_ncsi_filter_2 (2 regs) */
+	0x02143601, 	/* nig.tx_order_fifo_full .. nig.lb_order_fifo_full (2 regs) */
 	0x01050015, 	/* mode !(k2|e5), block cnig */
 	0x0608608f, 	/* cnig.led_control .. cnig.mac_led_speed (6 regs) */
 	0x144b0000, 	/* block nig */
@@ -3312,12 +3362,11 @@ static const u32 dump_reg[] = {
 	0x0114223b, 	/* nig.mld_msg_type (1 regs) */
 	0x041422c4, 	/* nig.acpi_tag_remove .. nig.rm_eth_crc (4 regs) */
 	0x011422c9, 	/* nig.corrupt_eth_crc (1 regs) */
-	0x01170003, 	/* mode !(bb|k2), block ptu */
-	0x0415817b, 	/* ptu.LOG_INV_HALT_RSC_TYPE .. ptu.LOG_TRANSPEND_REUSE_MISS_PAGE_INDEX_MSB (4 regs) */
-	0x024b0000, 	/* block nig */
-	0x02143420, 	/* nig.mng_to_mcp_ncsi_filter_0 .. nig.mng_to_mcp_ncsi_filter_1 (2 regs) */
-	0x02143601, 	/* nig.tx_order_fifo_full .. nig.lb_order_fifo_full (2 regs) */
-	0x034b0051, 	/* mode !e5, block nig */
+	0x033c0043, 	/* mode !e5, block pbf */
+	0x02360132, 	/* pbf.first_hdr_hdrs_after_tag_4 .. pbf.first_hdr_hdrs_after_tag_5 (2 regs) */
+	0x0236013b, 	/* pbf.inner_hdr_hdrs_after_tag_4 .. pbf.inner_hdr_hdrs_after_tag_5 (2 regs) */
+	0x01360160, 	/* pbf.prop_hdr_size (1 regs) */
+	0x034b0000, 	/* block nig */
 	0x01140390, 	/* nig.tx_macfifo_alm_full_thr (1 regs) */
 	0x02140393, 	/* nig.tx_macfifo_alm_full .. nig.tx_macfifo_empty (2 regs) */
 	0x011403c0, 	/* nig.tx_macfifo_full (1 regs) */
@@ -3461,6 +3510,22 @@ static const u32 dump_reg[] = {
 	0x01000d7a, 	/* pglcs.pgl_cs_shadow.SRIOV_BAR3_MASK_REG (1 regs) */
 	0x01000d7c, 	/* pglcs.pgl_cs_shadow.SRIOV_BAR5_MASK_REG (1 regs) */
 	0x01000e00, 	/* pglcs.first_vf (1 regs) */
+	0x01170003, 	/* mode !(bb|k2), block ptu */
+	0x02158179, 	/* ptu.inv_rsc_type .. ptu.inv_rsc_type_mask (2 regs) */
+	0x03200000, 	/* block dorq */
+	0x10040a04, 	/* dorq.prv_pf_max_icid_2 .. dorq.prv_vf_range2conn_type_5 (16 regs) */
+	0x02040add, 	/* dorq.ddp_version .. dorq.rdmap_version (2 regs) */
+	0x08040ae1, 	/* dorq.pf_ext_pcp_roce .. dorq.pf_int_vid_iwarp (8 regs) */
+	0x01230000, 	/* block prs */
+	0x0107c5b9, 	/* prs.new_entry_exclusive (1 regs) */
+	0x03450000, 	/* block rgsrc */
+	0x010c8104, 	/* rgsrc.hash_bin_bit_w (1 regs) */
+	0x020c8112, 	/* rgsrc.table_t1_entry_size .. rgsrc.table_t2_entry_size (2 regs) */
+	0x010c8118, 	/* rgsrc.was_error (1 regs) */
+	0x03470000, 	/* block tgsrc */
+	0x010c8904, 	/* tgsrc.hash_bin_bit_w (1 regs) */
+	0x020c8912, 	/* tgsrc.table_t1_entry_size .. tgsrc.table_t2_entry_size (2 regs) */
+	0x010c8918, 	/* tgsrc.was_error (1 regs) */
 	0x01040015, 	/* mode !(k2|e5), block pglue_b */
 	0x040aa901, 	/* pglue_b.pgl_addr_88_f0 .. pglue_b.pgl_addr_94_f0 (4 regs) */
 	0x0f150000, 	/* block pglcs */
@@ -3481,27 +3546,11 @@ static const u32 dump_reg[] = {
 	0x0b0008c0, 	/* pglcs.pgl_cs.Secondary_PCIE_Extended_Cap .. pglcs.pgl_cs.Lane14_15_equalization_ctrl (11 regs) */
 	0x01420000, 	/* block igu */
 	0x03060203, 	/* igu.pci_pf_msi_en .. igu.pci_pf_msix_func_mask (3 regs) */
-	0x01040135, 	/* mode !k2, block pglue_b */
-	0x010aa839, 	/* pglue_b.shadow_ats_stu (1 regs) */
-	0x01170003, 	/* mode !(bb|k2), block ptu */
-	0x02158179, 	/* ptu.inv_rsc_type .. ptu.inv_rsc_type_mask (2 regs) */
-	0x03200000, 	/* block dorq */
-	0x10040a04, 	/* dorq.prv_pf_max_icid_2 .. dorq.prv_vf_range2conn_type_5 (16 regs) */
-	0x02040add, 	/* dorq.ddp_version .. dorq.rdmap_version (2 regs) */
-	0x08040ae1, 	/* dorq.pf_ext_pcp_roce .. dorq.pf_int_vid_iwarp (8 regs) */
-	0x01230000, 	/* block prs */
-	0x0107c5b9, 	/* prs.new_entry_exclusive (1 regs) */
-	0x03450000, 	/* block rgsrc */
-	0x010c8104, 	/* rgsrc.hash_bin_bit_w (1 regs) */
-	0x020c8106, 	/* rgsrc.table_t1_entry_size .. rgsrc.table_t2_entry_size (2 regs) */
-	0x010c810c, 	/* rgsrc.was_error (1 regs) */
-	0x03470000, 	/* block tgsrc */
-	0x010c8904, 	/* tgsrc.hash_bin_bit_w (1 regs) */
-	0x020c8906, 	/* tgsrc.table_t1_entry_size .. tgsrc.table_t2_entry_size (2 regs) */
-	0x010c890c, 	/* tgsrc.was_error (1 regs) */
-	0x02200051, 	/* mode !e5, block dorq */
+	0x02200043, 	/* mode !e5, block dorq */
 	0x10040102, 	/* dorq.pf_max_icid_0 .. dorq.vf_max_icid_7 (16 regs) */
 	0x02040231, 	/* dorq.pf_pcp .. dorq.pf_ext_vid (2 regs) */
+	0x010401a3, 	/* mode !k2, block pglue_b */
+	0x010aa839, 	/* pglue_b.shadow_ats_stu (1 regs) */
 	0x044c00fd, 	/* mode (!bb)&(!fpga), block wol */
 	0x12182040, 	/* wol.acpi_enable .. wol.mpkt_enable (18 regs) */
 	0x02982052, 	/* wol.mpkt_mac_addr (2 regs, WB) */
@@ -3520,7 +3569,7 @@ static const u32 dump_reg[] = {
 	0x01142062, 	/* nig.mpkt_enable (1 regs) */
 	0x02942064, 	/* nig.mpkt_mac_addr (2 regs, WB) */
 	0x01142066, 	/* nig.force_wol (1 regs) */
-	0x024b0051, 	/* mode !e5, block nig */
+	0x024b0043, 	/* mode !e5, block nig */
 	0x20940680, 	/* nig.llh_func_filter_value (32 regs, WB) */
 	0x401406a0, 	/* nig.llh_func_filter_en .. nig.llh_func_filter_hdr_sel (64 regs) */
 	0x0400002a, 	/* split VF */
@@ -3567,13 +3616,13 @@ static const u32 dump_reg[] = {
 	0x01420015, 	/* mode !(k2|e5), block igu */
 	0x02060206, 	/* igu.pci_vf_msix_en .. igu.pci_vf_msix_func_mask (2 regs) */
 };
-/* Data size: 14044 bytes */
+/* Data size: 14236 bytes */
 
 #ifndef __PREVENT_DUMP_MEM_ARR__
 
 /* Array of memories to be dumped */
 static const u32 dump_mem[] = {
-	0x0000026f, 	/* split NONE */
+	0x00000295, 	/* split NONE */
 	0x14040000, 	/* block pglue_b */
 	0x000aa910, 0x00000006, 	/* pglue_b.sdm_inb_int_b_pf_0, group=PXP_MEM, size=6 regs */
 	0x000aa918, 0x00000006, 	/* pglue_b.sdm_inb_int_b_pf_1, group=PXP_MEM, size=6 regs */
@@ -3613,13 +3662,12 @@ static const u32 dump_mem[] = {
 	0x030bd100, 0x00000100, 	/* qm.RlGlblCrd, group=QM_MEM, size=256 regs */
 	0x021f0000, 	/* block tm */
 	0x040b2000, 0x01000a00, 	/* tm.context_mem, group=TM_MEM, size=2560 regs, WB */
-	0x0c210000, 	/* block brb */
+	0x0a210000, 	/* block brb */
 	0x050d0204, 0x00000004, 	/* brb.free_list_head, group=BRB_RAM, size=4 regs */
 	0x050d0208, 0x00000004, 	/* brb.free_list_tail, group=BRB_RAM, size=4 regs */
 	0x050d020c, 0x00000004, 	/* brb.free_list_size, group=BRB_RAM, size=4 regs */
 	0x060d0600, 0x01000014, 	/* brb.stopped_rd_req, group=BRB_MEM, size=20 regs, WB */
 	0x060d0640, 0x01000014, 	/* brb.stopped_rls_req, group=BRB_MEM, size=20 regs, WB */
-	0x060d0680, 0x00000022, 	/* brb.per_tc_counters, group=BRB_MEM, size=34 regs */
 	0x04230000, 	/* block prs */
 	0x0707c400, 0x01000040, 	/* prs.gft_profile_mask_ram, group=PRS_MEM, size=64 regs, WB */
 	0x0707c440, 0x0000001f, 	/* prs.gft_cam, group=PRS_MEM, size=31 regs */
@@ -3666,32 +3714,26 @@ static const u32 dump_mem[] = {
 	0x0b36c204, 0x00000004, 	/* btb.free_list_head, group=BTB_RAM, size=4 regs */
 	0x0b36c208, 0x00000004, 	/* btb.free_list_tail, group=BTB_RAM, size=4 regs */
 	0x0b36c20c, 0x00000004, 	/* btb.free_list_size, group=BTB_RAM, size=4 regs */
-	0x023d0000, 	/* block rdif */
-	0x0c0c1000, 0x01000a00, 	/* rdif.l1_task_context, group=RDIF_CTX, size=2560 regs, WB */
-	0x023e0000, 	/* block tdif */
-	0x0d0c6000, 0x01001400, 	/* tdif.l1_task_context, group=TDIF_CTX, size=5120 regs, WB */
-	0x0a400000, 	/* block ccfc */
-	0x0e0b81d0, 0x0000000e, 	/* ccfc.lcreq_credit, group=CFC_MEM, size=14 regs */
-	0x0f0ba200, 0x00000140, 	/* ccfc.activity_counter, group=CONN_CFC_MEM, size=320 regs */
-	0x0f0ba400, 0x00000140, 	/* ccfc.info_state, group=CONN_CFC_MEM, size=320 regs */
-	0x0f0ba600, 0x00000140, 	/* ccfc.info_reg, group=CONN_CFC_MEM, size=320 regs */
-	0x0f0bac00, 0x01000280, 	/* ccfc.cid_cam, group=CONN_CFC_MEM, size=640 regs, WB */
-	0x0a410000, 	/* block tcfc */
-	0x0e0b41d0, 0x0000000e, 	/* tcfc.lcreq_credit, group=CFC_MEM, size=14 regs */
-	0x100b6200, 0x00000140, 	/* tcfc.activity_counter, group=TASK_CFC_MEM, size=320 regs */
-	0x100b6400, 0x00000140, 	/* tcfc.info_state, group=TASK_CFC_MEM, size=320 regs */
-	0x100b6600, 0x00000140, 	/* tcfc.info_reg, group=TASK_CFC_MEM, size=320 regs */
-	0x100b6c00, 0x01000280, 	/* tcfc.cid_cam, group=TASK_CFC_MEM, size=640 regs, WB */
-	0x0e430000, 	/* block cau */
-	0x11070100, 0x00000001, 	/* cau.num_pi_per_sb, group=CAU_PI, size=1 regs */
-	0x12070800, 0x01000078, 	/* cau.cqe_fifo, group=CAU_MEM, size=120 regs, WB */
-	0x12070880, 0x01000010, 	/* cau.igu_cmd_fifo, group=CAU_MEM, size=16 regs, WB */
-	0x120708c0, 0x01000020, 	/* cau.pxp_req_fifo, group=CAU_MEM, size=32 regs, WB */
-	0x12070900, 0x01000100, 	/* cau.pxp_wdata_fifo, group=CAU_MEM, size=256 regs, WB */
-	0x12071100, 0x00000100, 	/* cau.fsm_table, group=CAU_MEM, size=256 regs */
-	0x12077000, 0x01000100, 	/* cau.agg_unit_descriptor, group=CAU_MEM, size=256 regs, WB */
-	0x02140007, 	/* mode bb, block pswrq2 */
-	0x13098000, 0x01003b60, 	/* pswrq2.ilt_memory, group=PXP_ILT, size=15200 regs, WB */
+	0x08400000, 	/* block ccfc */
+	0x0c0ba200, 0x00000140, 	/* ccfc.activity_counter, group=CONN_CFC_MEM, size=320 regs */
+	0x0c0ba400, 0x00000140, 	/* ccfc.info_state, group=CONN_CFC_MEM, size=320 regs */
+	0x0c0ba600, 0x00000140, 	/* ccfc.info_reg, group=CONN_CFC_MEM, size=320 regs */
+	0x0c0bac00, 0x01000280, 	/* ccfc.cid_cam, group=CONN_CFC_MEM, size=640 regs, WB */
+	0x08410000, 	/* block tcfc */
+	0x0d0b6200, 0x00000140, 	/* tcfc.activity_counter, group=TASK_CFC_MEM, size=320 regs */
+	0x0d0b6400, 0x00000140, 	/* tcfc.info_state, group=TASK_CFC_MEM, size=320 regs */
+	0x0d0b6600, 0x00000140, 	/* tcfc.info_reg, group=TASK_CFC_MEM, size=320 regs */
+	0x0d0b6c00, 0x01000280, 	/* tcfc.cid_cam, group=TASK_CFC_MEM, size=640 regs, WB */
+	0x0a430000, 	/* block cau */
+	0x0e070100, 0x00000001, 	/* cau.num_pi_per_sb, group=CAU_PI, size=1 regs */
+	0x0f070880, 0x01000010, 	/* cau.igu_cmd_fifo, group=CAU_MEM, size=16 regs, WB */
+	0x0f0708c0, 0x01000020, 	/* cau.pxp_req_fifo, group=CAU_MEM, size=32 regs, WB */
+	0x0f070900, 0x01000100, 	/* cau.pxp_wdata_fifo, group=CAU_MEM, size=256 regs, WB */
+	0x0f071100, 0x00000100, 	/* cau.fsm_table, group=CAU_MEM, size=256 regs */
+	0x020d0007, 	/* mode bb, block pswhst */
+	0x000a8200, 0x00000100, 	/* pswhst.zone_permission_table, group=PXP_MEM, size=256 regs */
+	0x02140000, 	/* block pswrq2 */
+	0x10098000, 0x01003b60, 	/* pswrq2.ilt_memory, group=PXP_ILT, size=15200 regs, WB */
 	0x06180000, 	/* block tcm */
 	0x02460580, 0x00000020, 	/* tcm.xx_lcid_cam, group=CM_MEM, size=32 regs */
 	0x024605c0, 0x00000020, 	/* tcm.xx_tbl, group=CM_MEM, size=32 regs */
@@ -3734,27 +3776,36 @@ static const u32 dump_mem[] = {
 	0x030bf400, 0x000001c0, 	/* qm.WfqVpMap, group=QM_MEM, size=448 regs */
 	0x021f0000, 	/* block tm */
 	0x040b0800, 0x01000130, 	/* tm.config_task_mem, group=TM_MEM, size=304 regs, WB */
-	0x02210000, 	/* block brb */
+	0x04210000, 	/* block brb */
+	0x060d0680, 0x00000022, 	/* brb.per_tc_counters, group=BRB_MEM, size=34 regs */
 	0x050d2000, 0x000012c0, 	/* brb.link_list, group=BRB_RAM, size=4800 regs */
 	0x022a0000, 	/* block tsem */
-	0x145c8000, 0x010010e0, 	/* tsem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x115c8000, 0x010010e0, 	/* tsem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022b0000, 	/* block msem */
-	0x14608000, 0x010010e0, 	/* msem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x11608000, 0x010010e0, 	/* msem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022c0000, 	/* block usem */
-	0x14648000, 0x01000b40, 	/* usem.passive_buffer, group=PBUF, size=2880 regs, WB */
+	0x11648000, 0x01000b40, 	/* usem.passive_buffer, group=PBUF, size=2880 regs, WB */
 	0x022d0000, 	/* block xsem */
-	0x14508000, 0x010010e0, 	/* xsem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x11508000, 0x010010e0, 	/* xsem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022e0000, 	/* block ysem */
-	0x14548000, 0x010009d8, 	/* ysem.passive_buffer, group=PBUF, size=2520 regs, WB */
+	0x11548000, 0x010009d8, 	/* ysem.passive_buffer, group=PBUF, size=2520 regs, WB */
 	0x022f0000, 	/* block psem */
-	0x14588000, 0x010002d0, 	/* psem.passive_buffer, group=PBUF, size=720 regs, WB */
+	0x11588000, 0x010002d0, 	/* psem.passive_buffer, group=PBUF, size=720 regs, WB */
 	0x04320000, 	/* block muld */
-	0x15139000, 0x01000800, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=2048 regs, WB */
-	0x1513a000, 0x01000800, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=2048 regs, WB */
+	0x12139000, 0x01000800, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=2048 regs, WB */
+	0x1213a000, 0x01000800, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=2048 regs, WB */
 	0x063b0000, 	/* block btb */
-	0x1636c400, 0x01000008, 	/* btb.stopped_rd_req, group=BTB_MEM, size=8 regs, WB */
-	0x1636c440, 0x01000008, 	/* btb.stopped_rls_req, group=BTB_MEM, size=8 regs, WB */
+	0x1336c400, 0x01000008, 	/* btb.stopped_rd_req, group=BTB_MEM, size=8 regs, WB */
+	0x1336c440, 0x01000008, 	/* btb.stopped_rls_req, group=BTB_MEM, size=8 regs, WB */
 	0x0b36d000, 0x00000b40, 	/* btb.link_list, group=BTB_RAM, size=2880 regs */
+	0x023d0000, 	/* block rdif */
+	0x140c1000, 0x01000a00, 	/* rdif.l1_task_context, group=RDIF_CTX, size=2560 regs, WB */
+	0x023e0000, 	/* block tdif */
+	0x150c6000, 0x01001400, 	/* tdif.l1_task_context, group=TDIF_CTX, size=5120 regs, WB */
+	0x02400000, 	/* block ccfc */
+	0x160b81d0, 0x0000000e, 	/* ccfc.lcreq_credit, group=CFC_MEM, size=14 regs */
+	0x02410000, 	/* block tcfc */
+	0x160b41d0, 0x0000000e, 	/* tcfc.lcreq_credit, group=CFC_MEM, size=14 regs */
 	0x0c420000, 	/* block igu */
 	0x17060220, 0x00000009, 	/* igu.pending_bits_status, group=IGU_MEM, size=9 regs */
 	0x17060240, 0x00000009, 	/* igu.write_done_pending, group=IGU_MEM, size=9 regs */
@@ -3765,10 +3816,8 @@ static const u32 dump_mem[] = {
 	0x06430000, 	/* block cau */
 	0x19071800, 0x01000240, 	/* cau.sb_var_memory, group=CAU_SB, size=576 regs, WB */
 	0x19072000, 0x01000240, 	/* cau.sb_addr_memory, group=CAU_SB, size=576 regs, WB */
-	0x11074000, 0x00000d80, 	/* cau.pi_memory, group=CAU_PI, size=3456 regs */
-	0x020d0009, 	/* mode k2, block pswhst */
-	0x000a8200, 0x00000140, 	/* pswhst.zone_permission_table, group=PXP_MEM, size=320 regs */
-	0x06180000, 	/* block tcm */
+	0x0e074000, 0x00000d80, 	/* cau.pi_memory, group=CAU_PI, size=3456 regs */
+	0x06180009, 	/* mode k2, block tcm */
 	0x02460580, 0x00000020, 	/* tcm.xx_lcid_cam, group=CM_MEM, size=32 regs */
 	0x024605c0, 0x00000020, 	/* tcm.xx_tbl, group=CM_MEM, size=32 regs */
 	0x02462000, 0x00001600, 	/* tcm.xx_msg_ram, group=CM_MEM, size=5632 regs */
@@ -3797,26 +3846,35 @@ static const u32 dump_mem[] = {
 	0x041f0000, 	/* block tm */
 	0x040b0400, 0x010001a0, 	/* tm.config_conn_mem, group=TM_MEM, size=416 regs, WB */
 	0x040b0800, 0x01000200, 	/* tm.config_task_mem, group=TM_MEM, size=512 regs, WB */
-	0x02210000, 	/* block brb */
+	0x04210000, 	/* block brb */
+	0x060d0680, 0x00000022, 	/* brb.per_tc_counters, group=BRB_MEM, size=34 regs */
 	0x050d2000, 0x00001e00, 	/* brb.link_list, group=BRB_RAM, size=7680 regs */
 	0x022a0000, 	/* block tsem */
-	0x145c8000, 0x010010e0, 	/* tsem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x115c8000, 0x010010e0, 	/* tsem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022b0000, 	/* block msem */
-	0x14608000, 0x010010e0, 	/* msem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x11608000, 0x010010e0, 	/* msem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022c0000, 	/* block usem */
-	0x14648000, 0x01000b40, 	/* usem.passive_buffer, group=PBUF, size=2880 regs, WB */
+	0x11648000, 0x01000b40, 	/* usem.passive_buffer, group=PBUF, size=2880 regs, WB */
 	0x022d0000, 	/* block xsem */
-	0x14508000, 0x010010e0, 	/* xsem.passive_buffer, group=PBUF, size=4320 regs, WB */
+	0x11508000, 0x010010e0, 	/* xsem.passive_buffer, group=PBUF, size=4320 regs, WB */
 	0x022e0000, 	/* block ysem */
-	0x14548000, 0x010009d8, 	/* ysem.passive_buffer, group=PBUF, size=2520 regs, WB */
+	0x11548000, 0x010009d8, 	/* ysem.passive_buffer, group=PBUF, size=2520 regs, WB */
 	0x022f0000, 	/* block psem */
-	0x14588000, 0x010002d0, 	/* psem.passive_buffer, group=PBUF, size=720 regs, WB */
+	0x11588000, 0x010002d0, 	/* psem.passive_buffer, group=PBUF, size=720 regs, WB */
 	0x04320000, 	/* block muld */
-	0x15139000, 0x01000a00, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=2560 regs, WB */
-	0x1513a000, 0x01000a00, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=2560 regs, WB */
+	0x12139000, 0x01000a00, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=2560 regs, WB */
+	0x1213a000, 0x01000a00, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=2560 regs, WB */
 	0x043b0000, 	/* block btb */
-	0x1636c400, 0x01000010, 	/* btb.stopped_rd_req, group=BTB_MEM, size=16 regs, WB */
+	0x1336c400, 0x01000010, 	/* btb.stopped_rd_req, group=BTB_MEM, size=16 regs, WB */
 	0x0b36d000, 0x00000e60, 	/* btb.link_list, group=BTB_RAM, size=3680 regs */
+	0x023d0000, 	/* block rdif */
+	0x140c1000, 0x01000a00, 	/* rdif.l1_task_context, group=RDIF_CTX, size=2560 regs, WB */
+	0x023e0000, 	/* block tdif */
+	0x150c6000, 0x01001400, 	/* tdif.l1_task_context, group=TDIF_CTX, size=5120 regs, WB */
+	0x02400000, 	/* block ccfc */
+	0x160b81d0, 0x0000000e, 	/* ccfc.lcreq_credit, group=CFC_MEM, size=14 regs */
+	0x02410000, 	/* block tcfc */
+	0x160b41d0, 0x0000000e, 	/* tcfc.lcreq_credit, group=CFC_MEM, size=14 regs */
 	0x0c420000, 	/* block igu */
 	0x17060220, 0x0000000c, 	/* igu.pending_bits_status, group=IGU_MEM, size=12 regs */
 	0x17060240, 0x0000000c, 	/* igu.write_done_pending, group=IGU_MEM, size=12 regs */
@@ -3824,8 +3882,14 @@ static const u32 dump_mem[] = {
 	0x17060c00, 0x00000180, 	/* igu.consumer_mem, group=IGU_MEM, size=384 regs */
 	0x17061000, 0x00000170, 	/* igu.mapping_memory, group=IGU_MEM, size=368 regs */
 	0x18061800, 0x010005c0, 	/* igu.msix_memory, group=IGU_MSIX, size=1472 regs, WB */
-	0x02140025, 	/* mode !bb, block pswrq2 */
-	0x13098000, 0x010055f0, 	/* pswrq2.ilt_memory, group=PXP_ILT, size=22000 regs, WB */
+	0x06430000, 	/* block cau */
+	0x19071800, 0x010002e0, 	/* cau.sb_var_memory, group=CAU_SB, size=736 regs, WB */
+	0x19072000, 0x010002e0, 	/* cau.sb_addr_memory, group=CAU_SB, size=736 regs, WB */
+	0x0e074000, 0x00001140, 	/* cau.pi_memory, group=CAU_PI, size=4416 regs */
+	0x020d0025, 	/* mode !bb, block pswhst */
+	0x000a8200, 0x00000140, 	/* pswhst.zone_permission_table, group=PXP_MEM, size=320 regs */
+	0x02140000, 	/* block pswrq2 */
+	0x10098000, 0x010055f0, 	/* pswrq2.ilt_memory, group=PXP_ILT, size=22000 regs, WB */
 	0x201e0000, 	/* block qm */
 	0x030bc180, 0x00000080, 	/* qm.BaseAddrOtherPq, group=QM_MEM, size=128 regs */
 	0x030bc800, 0x00000080, 	/* qm.PqFillLvlOther, group=QM_MEM, size=128 regs */
@@ -3844,15 +3908,7 @@ static const u32 dump_mem[] = {
 	0x030bf000, 0x00000200, 	/* qm.WfqVpCrd, group=QM_MEM, size=512 regs */
 	0x030bf400, 0x00000200, 	/* qm.WfqVpMap, group=QM_MEM, size=512 regs */
 	0x023b0000, 	/* block btb */
-	0x1636c440, 0x01000010, 	/* btb.stopped_rls_req, group=BTB_MEM, size=16 regs, WB */
-	0x06430000, 	/* block cau */
-	0x19071800, 0x010002e0, 	/* cau.sb_var_memory, group=CAU_SB, size=736 regs, WB */
-	0x19072000, 0x010002e0, 	/* cau.sb_addr_memory, group=CAU_SB, size=736 regs, WB */
-	0x11074000, 0x00001140, 	/* cau.pi_memory, group=CAU_PI, size=4416 regs */
-	0x020d0135, 	/* mode !k2, block pswhst */
-	0x000a8200, 0x00000100, 	/* pswhst.zone_permission_table, group=PXP_MEM, size=256 regs */
-	0x021f0000, 	/* block tm */
-	0x040b0400, 0x01000100, 	/* tm.config_conn_mem, group=TM_MEM, size=256 regs, WB */
+	0x1336c440, 0x01000010, 	/* btb.stopped_rls_req, group=BTB_MEM, size=16 regs, WB */
 	0x06180003, 	/* mode !(bb|k2), block tcm */
 	0x02460580, 0x00000040, 	/* tcm.xx_lcid_cam, group=CM_MEM, size=64 regs */
 	0x024605c0, 0x00000040, 	/* tcm.xx_tbl, group=CM_MEM, size=64 regs */
@@ -3881,26 +3937,35 @@ static const u32 dump_mem[] = {
 	0x030bff40, 0x00000024, 	/* qm.VoqInitCrdByte, group=QM_MEM, size=36 regs */
 	0x021f0000, 	/* block tm */
 	0x040b0800, 0x01000260, 	/* tm.config_task_mem, group=TM_MEM, size=608 regs, WB */
-	0x02210000, 	/* block brb */
+	0x04210000, 	/* block brb */
+	0x060d0680, 0x00000024, 	/* brb.per_tc_counters, group=BRB_MEM, size=36 regs */
 	0x050d4000, 0x00002280, 	/* brb.link_list, group=BRB_RAM, size=8832 regs */
 	0x022a0000, 	/* block tsem */
-	0x145c8000, 0x00003100, 	/* tsem.passive_buffer, group=PBUF, size=12544 regs */
+	0x115c8000, 0x00003100, 	/* tsem.passive_buffer, group=PBUF, size=12544 regs */
 	0x022b0000, 	/* block msem */
-	0x14608000, 0x00003100, 	/* msem.passive_buffer, group=PBUF, size=12544 regs */
+	0x11608000, 0x00003100, 	/* msem.passive_buffer, group=PBUF, size=12544 regs */
 	0x022c0000, 	/* block usem */
-	0x14648000, 0x00003100, 	/* usem.passive_buffer, group=PBUF, size=12544 regs */
+	0x11648000, 0x00003100, 	/* usem.passive_buffer, group=PBUF, size=12544 regs */
 	0x022d0000, 	/* block xsem */
-	0x14508000, 0x00003100, 	/* xsem.passive_buffer, group=PBUF, size=12544 regs */
+	0x11508000, 0x00003100, 	/* xsem.passive_buffer, group=PBUF, size=12544 regs */
 	0x022e0000, 	/* block ysem */
-	0x14548000, 0x00003100, 	/* ysem.passive_buffer, group=PBUF, size=12544 regs */
+	0x11548000, 0x00003100, 	/* ysem.passive_buffer, group=PBUF, size=12544 regs */
 	0x022f0000, 	/* block psem */
-	0x14588000, 0x00003100, 	/* psem.passive_buffer, group=PBUF, size=12544 regs */
+	0x11588000, 0x00003100, 	/* psem.passive_buffer, group=PBUF, size=12544 regs */
 	0x04320000, 	/* block muld */
-	0x15139000, 0x01001000, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=4096 regs, WB */
-	0x1513a000, 0x01001000, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=4096 regs, WB */
+	0x12139000, 0x01001000, 	/* muld.bd_db_arr_dw, group=MULD_MEM, size=4096 regs, WB */
+	0x1213a000, 0x01001000, 	/* muld.sge_db_arr_dw, group=MULD_MEM, size=4096 regs, WB */
 	0x043b0000, 	/* block btb */
-	0x1636c400, 0x01000020, 	/* btb.stopped_rd_req, group=BTB_MEM, size=32 regs, WB */
-	0x0b36e000, 0x00001900, 	/* btb.link_list, group=BTB_RAM, size=6400 regs */
+	0x1336c400, 0x01000020, 	/* btb.stopped_rd_req, group=BTB_MEM, size=32 regs, WB */
+	0x0b36e000, 0x000014a0, 	/* btb.link_list, group=BTB_RAM, size=5280 regs */
+	0x023d0000, 	/* block rdif */
+	0x140c2000, 0x01001800, 	/* rdif.l1_task_context, group=RDIF_CTX, size=6144 regs, WB */
+	0x023e0000, 	/* block tdif */
+	0x150c6000, 0x01001800, 	/* tdif.l1_task_context, group=TDIF_CTX, size=6144 regs, WB */
+	0x02400000, 	/* block ccfc */
+	0x160b81d0, 0x0000000d, 	/* ccfc.lcreq_credit, group=CFC_MEM, size=13 regs */
+	0x02410000, 	/* block tcfc */
+	0x160b41d0, 0x0000000d, 	/* tcfc.lcreq_credit, group=CFC_MEM, size=13 regs */
 	0x0c420000, 	/* block igu */
 	0x17060220, 0x00000010, 	/* igu.pending_bits_status, group=IGU_MEM, size=16 regs */
 	0x17060240, 0x00000010, 	/* igu.write_done_pending, group=IGU_MEM, size=16 regs */
@@ -3908,20 +3973,29 @@ static const u32 dump_mem[] = {
 	0x17060c00, 0x00000210, 	/* igu.consumer_mem, group=IGU_MEM, size=528 regs */
 	0x17061000, 0x00000200, 	/* igu.mapping_memory, group=IGU_MEM, size=512 regs */
 	0x18061800, 0x01000800, 	/* igu.msix_memory, group=IGU_MSIX, size=2048 regs, WB */
-	0x02230051, 	/* mode !e5, block prs */
+	0x06430000, 	/* block cau */
+	0x19071800, 0x01000400, 	/* cau.sb_var_memory, group=CAU_SB, size=1024 regs, WB */
+	0x19072000, 0x01000400, 	/* cau.sb_addr_memory, group=CAU_SB, size=1024 regs, WB */
+	0x0e074000, 0x00001000, 	/* cau.pi_memory, group=CAU_PI, size=4096 regs */
+	0x02230043, 	/* mode !e5, block prs */
 	0x0707c300, 0x00000080, 	/* prs.last_pkt_list, group=PRS_MEM, size=128 regs */
 	0x022a0000, 	/* block tsem */
-	0x145c02c4, 0x00000001, 	/* tsem.thread_valid, group=PBUF, size=1 regs */
+	0x115c02c4, 0x00000001, 	/* tsem.thread_valid, group=PBUF, size=1 regs */
 	0x022b0000, 	/* block msem */
-	0x146002c4, 0x00000001, 	/* msem.thread_valid, group=PBUF, size=1 regs */
+	0x116002c4, 0x00000001, 	/* msem.thread_valid, group=PBUF, size=1 regs */
 	0x022c0000, 	/* block usem */
-	0x146402c4, 0x00000001, 	/* usem.thread_valid, group=PBUF, size=1 regs */
+	0x116402c4, 0x00000001, 	/* usem.thread_valid, group=PBUF, size=1 regs */
 	0x022d0000, 	/* block xsem */
-	0x145002c4, 0x00000001, 	/* xsem.thread_valid, group=PBUF, size=1 regs */
+	0x115002c4, 0x00000001, 	/* xsem.thread_valid, group=PBUF, size=1 regs */
 	0x022e0000, 	/* block ysem */
-	0x145402c4, 0x00000001, 	/* ysem.thread_valid, group=PBUF, size=1 regs */
+	0x115402c4, 0x00000001, 	/* ysem.thread_valid, group=PBUF, size=1 regs */
 	0x022f0000, 	/* block psem */
-	0x145802c4, 0x00000001, 	/* psem.thread_valid, group=PBUF, size=1 regs */
+	0x115802c4, 0x00000001, 	/* psem.thread_valid, group=PBUF, size=1 regs */
+	0x04430000, 	/* block cau */
+	0x0f070800, 0x01000078, 	/* cau.cqe_fifo, group=CAU_MEM, size=120 regs, WB */
+	0x0f077000, 0x01000100, 	/* cau.agg_unit_descriptor, group=CAU_MEM, size=256 regs, WB */
+	0x021f01a3, 	/* mode !k2, block tm */
+	0x040b0400, 0x01000100, 	/* tm.config_conn_mem, group=TM_MEM, size=256 regs, WB */
 	0x0809000b, 	/* mode !(emul_reduced|fpga), block bmb */
 	0x1a150204, 0x00000004, 	/* bmb.free_list_head, group=BMB_RAM, size=4 regs */
 	0x1a150208, 0x00000004, 	/* bmb.free_list_tail, group=BMB_RAM, size=4 regs */
@@ -3930,14 +4004,14 @@ static const u32 dump_mem[] = {
 	0x04090001, 	/* mode (!(bb|k2))&(!(emul_reduced|fpga)), block bmb */
 	0x1b150480, 0x01000006, 	/* bmb.stopped_rd_req, group=BMB_MEM, size=6 regs, WB */
 	0x1b1504c0, 0x0100000c, 	/* bmb.stopped_rls_req, group=BMB_MEM, size=12 regs, WB */
-	0x040900c9, 	/* mode bb&(!(emul_reduced|fpga)), block bmb */
+	0x040900b7, 	/* mode bb&(!(emul_reduced|fpga)), block bmb */
 	0x1b150480, 0x01000014, 	/* bmb.stopped_rd_req, group=BMB_MEM, size=20 regs, WB */
 	0x1b1504c0, 0x01000028, 	/* bmb.stopped_rls_req, group=BMB_MEM, size=40 regs, WB */
-	0x0409008d, 	/* mode k2&(!(emul_reduced|fpga)), block bmb */
+	0x04090087, 	/* mode k2&(!(emul_reduced|fpga)), block bmb */
 	0x1b150480, 0x01000014, 	/* bmb.stopped_rd_req, group=BMB_MEM, size=20 regs, WB */
 	0x1b1504c0, 0x01000028, 	/* bmb.stopped_rls_req, group=BMB_MEM, size=40 regs, WB */
 };
-/* Data size: 2496 bytes */
+/* Data size: 2648 bytes */
 
 #endif /* __PREVENT_DUMP_MEM_ARR__ */
 
@@ -4013,6 +4087,10 @@ static const u32 idle_chk_regs[] = {
 	0x1600302f, 0x00010001, 	/* cond: dmae.go_c29 */
 	0x16003030, 0x00010001, 	/* cond: dmae.go_c30 */
 	0x16003031, 0x00010001, 	/* cond: dmae.go_c31 */
+	0x16003080, 0x00010001, 	/* cond: dmae.PRTY_STS_H_0 */
+	0x16003081, 0x00010001, 	/* cond: dmae.PRTY_MASK_H_0 */
+	0x4a004080, 0x00010001, 	/* cond: dbg.PRTY_STS_H_0 */
+	0x4a004081, 0x00010001, 	/* cond: dbg.PRTY_MASK_H_0 */
 	0x00014019, 0x00010001, 	/* cond: grc.trace_fifo_valid_data */
 	0x00014060, 0x00010001, 	/* cond: grc.INT_STS_0 */
 	0x00014061, 0x00010001, 	/* cond: grc.INT_MASK_0 */
@@ -4020,6 +4098,8 @@ static const u32 idle_chk_regs[] = {
 	0x00014081, 0x00010001, 	/* cond: grc.PRTY_MASK_H_0 */
 	0x20040060, 0x00010001, 	/* cond: dorq.INT_STS */
 	0x20040061, 0x00010001, 	/* cond: dorq.INT_MASK */
+	0x20040080, 0x00010001, 	/* cond: dorq.PRTY_STS_H_0 */
+	0x20040081, 0x00010001, 	/* cond: dorq.PRTY_MASK_H_0 */
 	0x20040260, 0x00010001, 	/* cond: dorq.xcm_msg_init_crd */
 	0x20040261, 0x00010001, 	/* cond: dorq.tcm_msg_init_crd */
 	0x20040262, 0x00010001, 	/* cond: dorq.ucm_msg_init_crd */
@@ -4037,6 +4117,8 @@ static const u32 idle_chk_regs[] = {
 	0x200402a2, 0x00010001, 	/* cond: dorq.dpm_tbl_fill_lvl */
 	0x42060064, 0x00010001, 	/* cond: igu.PRTY_STS */
 	0x42060065, 0x00010001, 	/* cond: igu.PRTY_MASK */
+	0x42060080, 0x00010001, 	/* cond: igu.PRTY_STS_H_0 */
+	0x42060081, 0x00010001, 	/* cond: igu.PRTY_MASK_H_0 */
 	0x42060545, 0x00010001, 	/* cond: igu.attn_write_done_pending */
 	0x42060547, 0x00010001, 	/* cond: igu.Interrupt_status */
 	0x4206054c, 0x00010001, 	/* cond: igu.error_handling_data_valid */
@@ -4056,10 +4138,6 @@ static const u32 idle_chk_regs[] = {
 	0x43070323, 0x00000001, 	/* info: cau.error_fsm_line_pre mode=all */
 	0x43070324, 0x00010001, 	/* cond: cau.parity_latch_status */
 	0x43070325, 0x00010001, 	/* cond: cau.error_cleanup_cmd_reg */
-	0x43070327, 0x00010001, 	/* cond: cau.agg_units_0to15_state */
-	0x43070328, 0x00010001, 	/* cond: cau.agg_units_16to31_state */
-	0x43070329, 0x00010001, 	/* cond: cau.agg_units_32to47_state */
-	0x4307032a, 0x00010001, 	/* cond: cau.agg_units_48to63_state */
 	0x43070380, 0x00010001, 	/* cond: cau.req_counter */
 	0x43070381, 0x00010001, 	/* cond: cau.ack_counter */
 	0x43070380, 0x00010001, 	/* cond: cau.req_counter */
@@ -4067,8 +4145,6 @@ static const u32 idle_chk_regs[] = {
 	0x430703c0, 0x00010001, 	/* cond: cau.main_fsm_status */
 	0x430703c1, 0x00010001, 	/* cond: cau.var_read_fsm_status */
 	0x430703c2, 0x00010001, 	/* cond: cau.igu_dma_fsm_status */
-	0x430703c3, 0x00010001, 	/* cond: cau.igu_cqe_cmd_fsm_status */
-	0x430703c4, 0x00010001, 	/* cond: cau.igu_cqe_agg_fsm_status */
 	0x2307c010, 0x00010001, 	/* cond: prs.INT_STS_0 */
 	0x2307c011, 0x00010001, 	/* cond: prs.INT_MASK_0 */
 	0x2307c2da, 0x00000001, 	/* info: prs.mini_cache_failed_response mode=all */
@@ -4076,6 +4152,8 @@ static const u32 idle_chk_regs[] = {
 	0x00014019, 0x00000001, 	/* info: grc.trace_fifo_valid_data mode=all */
 	0x2307c014, 0x00010001, 	/* cond: prs.PRTY_STS */
 	0x2307c015, 0x00010001, 	/* cond: prs.PRTY_MASK */
+	0x2307c081, 0x00010001, 	/* cond: prs.PRTY_STS_H_0 */
+	0x2307c082, 0x00010001, 	/* cond: prs.PRTY_MASK_H_0 */
 	0x2307c2d5, 0x00010001, 	/* cond: prs.queue_pkt_avail_status */
 	0x2307c2d6, 0x00010001, 	/* cond: prs.storm_bkprs_status */
 	0x2307c2d7, 0x00010001, 	/* cond: prs.stop_parsing_status */
@@ -4091,9 +4169,13 @@ static const u32 idle_chk_regs[] = {
 	0x2307c3cd, 0x00010001, 	/* cond: prs.eop_req_ct */
 	0x3708c010, 0x00010001, 	/* cond: prm.INT_STS */
 	0x3708c011, 0x00010001, 	/* cond: prm.INT_MASK */
+	0x3708c080, 0x00010001, 	/* cond: prm.PRTY_STS_H_0 */
+	0x3708c081, 0x00010001, 	/* cond: prm.PRTY_MASK_H_0 */
 	0x3008e202, 0x00010001, 	/* cond: rss.rss_init_done */
 	0x3008e260, 0x00010001, 	/* cond: rss.INT_STS */
 	0x3008e261, 0x00010001, 	/* cond: rss.INT_MASK */
+	0x3008e280, 0x00010001, 	/* cond: rss.PRTY_STS_H_0 */
+	0x3008e281, 0x00010001, 	/* cond: rss.PRTY_MASK_H_0 */
 	0x3008e301, 0x00010001, 	/* cond: rss.tmld_credit */
 	0x14090000, 0x00010001, 	/* cond: pswrq2.rbc_done */
 	0x14090001, 0x00010001, 	/* cond: pswrq2.cfg_done */
@@ -4221,6 +4303,14 @@ static const u32 idle_chk_regs[] = {
 	0x120a6c16, 0x00010001, 	/* cond: pswwr2.cdu_curr_fill_level */
 	0x120a6c60, 0x00010001, 	/* cond: pswwr2.INT_STS */
 	0x120a6c61, 0x00010001, 	/* cond: pswwr2.INT_MASK */
+	0x120a6c80, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_0 */
+	0x120a6c81, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_0 */
+	0x120a6c84, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_1 */
+	0x120a6c85, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_1 */
+	0x120a6c88, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_2 */
+	0x120a6c89, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_2 */
+	0x120a6c8c, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_3 */
+	0x120a6c8d, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_3 */
 	0x0f0a7029, 0x00010001, 	/* cond: pswrd.fifo_full_status */
 	0x0f0a7060, 0x00010001, 	/* cond: pswrd.INT_STS */
 	0x0f0a7061, 0x00010001, 	/* cond: pswrd.INT_MASK */
@@ -4263,8 +4353,12 @@ static const u32 idle_chk_regs[] = {
 	0x0d0a8058, 0x00010008, 	/* cond: pswhst.clients_waiting_to_source_arb[0:7] */
 	0x0d0a8060, 0x00010001, 	/* cond: pswhst.INT_STS */
 	0x0d0a8061, 0x00010001, 	/* cond: pswhst.INT_MASK */
+	0x0d0a8080, 0x00010001, 	/* cond: pswhst.PRTY_STS_H_0 */
+	0x0d0a8081, 0x00010001, 	/* cond: pswhst.PRTY_MASK_H_0 */
 	0x040aa060, 0x00010001, 	/* cond: pglue_b.INT_STS */
 	0x040aa060, 0x00010001, 	/* cond: pglue_b.INT_STS */
+	0x040aa080, 0x00010001, 	/* cond: pglue_b.PRTY_STS_H_0 */
+	0x040aa081, 0x00010001, 	/* cond: pglue_b.PRTY_MASK_H_0 */
 	0x040aa120, 0x00010001, 	/* cond: pglue_b.pgl_write_blocked */
 	0x040aa121, 0x00010001, 	/* cond: pglue_b.pgl_read_blocked */
 	0x040aa122, 0x00010001, 	/* cond: pglue_b.read_fifo_occupancy_level */
@@ -4323,6 +4417,8 @@ static const u32 idle_chk_regs[] = {
 	0x1f0b0060, 0x00010001, 	/* cond: tm.INT_STS_0 */
 	0x1f0b0060, 0x00010001, 	/* cond: tm.INT_STS_0 */
 	0x1f0b0064, 0x00010001, 	/* cond: tm.INT_STS_1 */
+	0x1f0b0080, 0x00010001, 	/* cond: tm.PRTY_STS_H_0 */
+	0x1f0b0081, 0x00010001, 	/* cond: tm.PRTY_MASK_H_0 */
 	0x1f0b01c4, 0x00010001, 	/* cond: tm.pxp_read_data_fifo_status */
 	0x1f0b01c6, 0x00010001, 	/* cond: tm.pxp_read_ctrl_fifo_status */
 	0x1f0b01c8, 0x00010001, 	/* cond: tm.cfc_load_echo_fifo_status */
@@ -4344,10 +4440,11 @@ static const u32 idle_chk_regs[] = {
 	0x410b4157, 0x00000001, 	/* info: tcfc.error_data2 mode=all */
 	0x410b4158, 0x00000001, 	/* info: tcfc.error_data3 mode=all */
 	0x410b4159, 0x00000001, 	/* info: tcfc.error_data4 mode=all */
+	0x410b4080, 0x00010001, 	/* cond: tcfc.PRTY_STS_H_0 */
+	0x410b4081, 0x00010001, 	/* cond: tcfc.PRTY_MASK_H_0 */
 	0x410b4184, 0x00010001, 	/* cond: tcfc.lstate_arriving */
 	0x410b4187, 0x00010001, 	/* cond: tcfc.lstate_leaving */
 	0x410b41e2, 0x00010001, 	/* cond: tcfc.cduld_credit */
-	0x410b41e3, 0x00010001, 	/* cond: tcfc.cduwb_credit */
 	0x400b8001, 0x00010001, 	/* cond: ccfc.ll_init_done */
 	0x400b8002, 0x00010001, 	/* cond: ccfc.ac_init_done */
 	0x400b8003, 0x00010001, 	/* cond: ccfc.cam_init_done */
@@ -4359,6 +4456,8 @@ static const u32 idle_chk_regs[] = {
 	0x400b8157, 0x00000001, 	/* info: ccfc.error_data2 mode=all */
 	0x400b8158, 0x00000001, 	/* info: ccfc.error_data3 mode=all */
 	0x400b8159, 0x00000001, 	/* info: ccfc.error_data4 mode=all */
+	0x400b8080, 0x00010001, 	/* cond: ccfc.PRTY_STS_H_0 */
+	0x400b8081, 0x00010001, 	/* cond: ccfc.PRTY_MASK_H_0 */
 	0x400b8179, 0x00010001, 	/* cond: ccfc.PRTY_STS */
 	0x400b817a, 0x00010001, 	/* cond: ccfc.PRTY_MASK */
 	0x400b8184, 0x00010001, 	/* cond: ccfc.lstate_arriving */
@@ -4369,6 +4468,12 @@ static const u32 idle_chk_regs[] = {
 	0x1e0bc061, 0x00010001, 	/* cond: qm.INT_MASK */
 	0x1e0bc064, 0x00010001, 	/* cond: qm.PRTY_STS */
 	0x1e0bc065, 0x00010001, 	/* cond: qm.PRTY_MASK */
+	0x1e0bc080, 0x00010001, 	/* cond: qm.PRTY_STS_H_0 */
+	0x1e0bc081, 0x00010001, 	/* cond: qm.PRTY_MASK_H_0 */
+	0x1e0bc084, 0x00010001, 	/* cond: qm.PRTY_STS_H_1 */
+	0x1e0bc085, 0x00010001, 	/* cond: qm.PRTY_MASK_H_1 */
+	0x1e0bc088, 0x00010001, 	/* cond: qm.PRTY_STS_H_2 */
+	0x1e0bc089, 0x00010001, 	/* cond: qm.PRTY_MASK_H_2 */
 	0x1e0bc106, 0x00010006, 	/* cond: qm.wrc_fifolvl_0[0:5] */
 	0x1e0bc202, 0x00010001, 	/* cond: qm.OutLdReqCrdConnTx */
 	0x1e0bc200, 0x00010001, 	/* cond: qm.OutLdReqSizeConnTx */
@@ -4404,6 +4509,8 @@ static const u32 idle_chk_regs[] = {
 	0x3d0c0061, 0x00010001, 	/* cond: rdif.INT_MASK */
 	0x3e0c4060, 0x00010001, 	/* cond: tdif.INT_STS */
 	0x3e0c4061, 0x00010001, 	/* cond: tdif.INT_MASK */
+	0x3e0c4080, 0x00010001, 	/* cond: tdif.PRTY_STS_H_0 */
+	0x3e0c4081, 0x00010001, 	/* cond: tdif.PRTY_MASK_H_0 */
 	0x210d0030, 0x00010001, 	/* cond: brb.INT_STS_0 */
 	0x210d0031, 0x00010001, 	/* cond: brb.INT_MASK_0 */
 	0x218d0600, 0x00000014, 	/* info: brb.stopped_rd_req[0:4] width=3 access=WB mode=all */
@@ -4418,6 +4525,10 @@ static const u32 idle_chk_regs[] = {
 	0x210d0049, 0x00010001, 	/* cond: brb.INT_MASK_4 */
 	0x218d0600, 0x00000014, 	/* info: brb.stopped_rd_req[0:4] width=3 access=WB mode=all */
 	0x218d0640, 0x00000014, 	/* info: brb.stopped_rls_req[0:4] width=3 access=WB mode=all */
+	0x210d0100, 0x00010001, 	/* cond: brb.PRTY_STS_H_0 */
+	0x210d0101, 0x00010001, 	/* cond: brb.PRTY_MASK_H_0 */
+	0x210d0104, 0x00010001, 	/* cond: brb.PRTY_STS_H_1 */
+	0x210d0105, 0x00010001, 	/* cond: brb.PRTY_MASK_H_1 */
 	0x210d03ec, 0x00010001, 	/* cond: brb.wc_bandwidth_if_full */
 	0x210d03ed, 0x00010001, 	/* cond: brb.rc_pkt_if_full */
 	0x210d03ee, 0x00010005, 	/* cond: brb.rc_pkt_empty_0[0:4] */
@@ -4454,6 +4565,8 @@ static const u32 idle_chk_regs[] = {
 	0x3413001f, 0x00010001, 	/* cond: xyld.pci_pending_msg_ctr */
 	0x34130039, 0x00010001, 	/* cond: xyld.dbg_pending_ccfc_req */
 	0x3413003a, 0x00010001, 	/* cond: xyld.dbg_pending_tcfc_req */
+	0x34130080, 0x00010001, 	/* cond: xyld.PRTY_STS_H_0 */
+	0x34130081, 0x00010001, 	/* cond: xyld.PRTY_MASK_H_0 */
 	0x31134016, 0x00010001, 	/* cond: tmld.pending_msg_to_ext_ev_1_ctr */
 	0x31134017, 0x00010001, 	/* cond: tmld.pending_msg_to_ext_ev_2_ctr */
 	0x31134018, 0x00010001, 	/* cond: tmld.pending_msg_to_ext_ev_3_ctr */
@@ -4463,6 +4576,8 @@ static const u32 idle_chk_regs[] = {
 	0x31134003, 0x00010001, 	/* cond: tmld.foci_foc_credits */
 	0x31134031, 0x00010001, 	/* cond: tmld.dbg_pending_ccfc_req */
 	0x31134032, 0x00010001, 	/* cond: tmld.dbg_pending_tcfc_req */
+	0x31134080, 0x00010001, 	/* cond: tmld.PRTY_STS_H_0 */
+	0x31134081, 0x00010001, 	/* cond: tmld.PRTY_MASK_H_0 */
 	0x3213801c, 0x00010001, 	/* cond: muld.pending_msg_to_ext_ev_1_ctr */
 	0x3213801d, 0x00010001, 	/* cond: muld.pending_msg_to_ext_ev_2_ctr */
 	0x3213801e, 0x00010001, 	/* cond: muld.pending_msg_to_ext_ev_3_ctr */
@@ -4475,6 +4590,8 @@ static const u32 idle_chk_regs[] = {
 	0x32138026, 0x00010001, 	/* cond: muld.pci_pending_msg_ctr */
 	0x3213803a, 0x00010001, 	/* cond: muld.dbg_pending_ccfc_req */
 	0x3213803b, 0x00010001, 	/* cond: muld.dbg_pending_tcfc_req */
+	0x32138080, 0x00010001, 	/* cond: muld.PRTY_STS_H_0 */
+	0x32138081, 0x00010001, 	/* cond: muld.PRTY_MASK_H_0 */
 	0x4b140010, 0x00010001, 	/* cond: nig.INT_STS_0 */
 	0x4b140011, 0x00010001, 	/* cond: nig.INT_MASK_0 */
 	0x4b140014, 0x00010001, 	/* cond: nig.INT_STS_1 */
@@ -4491,6 +4608,14 @@ static const u32 idle_chk_regs[] = {
 	0x4b140025, 0x00010001, 	/* cond: nig.INT_MASK_5 */
 	0x4b1406e8, 0x00000001, 	/* info: nig.flowctrl_mode mode=all */
 	0x4b140713, 0x00000001, 	/* info: nig.rx_flowctrl_status mode=all */
+	0x4b140080, 0x00010001, 	/* cond: nig.PRTY_STS_H_0 */
+	0x4b140081, 0x00010001, 	/* cond: nig.PRTY_MASK_H_0 */
+	0x4b140084, 0x00010001, 	/* cond: nig.PRTY_STS_H_1 */
+	0x4b140085, 0x00010001, 	/* cond: nig.PRTY_MASK_H_1 */
+	0x4b140088, 0x00010001, 	/* cond: nig.PRTY_STS_H_2 */
+	0x4b140089, 0x00010001, 	/* cond: nig.PRTY_MASK_H_2 */
+	0x4b14008c, 0x00010001, 	/* cond: nig.PRTY_STS_H_3 */
+	0x4b14008d, 0x00010001, 	/* cond: nig.PRTY_MASK_H_3 */
 	0x4b140301, 0x00010001, 	/* cond: nig.lb_sopq_empty */
 	0x4b140303, 0x00010001, 	/* cond: nig.tx_sopq_empty */
 	0x4b1404c6, 0x00010001, 	/* cond: nig.rx_llh_rfifo_empty */
@@ -4506,6 +4631,8 @@ static const u32 idle_chk_regs[] = {
 	0x17158033, 0x00010001, 	/* cond: ptu.prm_fill_level */
 	0x17158060, 0x00010001, 	/* cond: ptu.INT_STS */
 	0x17158061, 0x00010001, 	/* cond: ptu.INT_MASK */
+	0x17158080, 0x00010001, 	/* cond: ptu.PRTY_STS_H_0 */
+	0x17158081, 0x00010001, 	/* cond: ptu.PRTY_MASK_H_0 */
 	0x3f160070, 0x00010001, 	/* cond: cdu.INT_STS */
 	0x3f160073, 0x00010001, 	/* cond: cdu.INT_MASK */
 	0x3f160200, 0x00000001, 	/* info: cdu.ccfc_cvld_error_data mode=all */
@@ -4514,6 +4641,8 @@ static const u32 idle_chk_regs[] = {
 	0x3f160203, 0x00000001, 	/* info: cdu.tcfc_ld_l1_num_error_data mode=all */
 	0x3f160204, 0x00000001, 	/* info: cdu.ccfc_wb_l1_num_error_data mode=all */
 	0x3f160205, 0x00000001, 	/* info: cdu.tcfc_wb_l1_num_error_data mode=all */
+	0x3f160080, 0x00010001, 	/* cond: cdu.PRTY_STS_H_0 */
+	0x3f160081, 0x00010001, 	/* cond: cdu.PRTY_MASK_H_0 */
 	0x3c36019a, 0x00010001, 	/* cond: pbf.num_pkts_received_with_error */
 	0x3c36019b, 0x00010001, 	/* cond: pbf.num_pkts_sent_with_error_to_btb */
 	0x3c36019c, 0x00010001, 	/* cond: pbf.num_pkts_sent_with_drop_to_btb */
@@ -4583,6 +4712,8 @@ static const u32 idle_chk_regs[] = {
 	0x3b36c03d, 0x00010001, 	/* cond: btb.INT_MASK_2 */
 	0x3b36c042, 0x00010001, 	/* cond: btb.INT_STS_3 */
 	0x3b36c043, 0x00010001, 	/* cond: btb.INT_MASK_3 */
+	0x3b36c100, 0x00010001, 	/* cond: btb.PRTY_STS_H_0 */
+	0x3b36c101, 0x00010001, 	/* cond: btb.PRTY_MASK_H_0 */
 	0x3b36c244, 0x00010001, 	/* cond: btb.wc_dup_empty */
 	0x3b36c246, 0x00010001, 	/* cond: btb.wc_dup_status */
 	0x3b36c247, 0x00010001, 	/* cond: btb.wc_empty_0 */
@@ -4600,6 +4731,8 @@ static const u32 idle_chk_regs[] = {
 	0x273e0010, 0x00010001, 	/* cond: xsdm.INT_STS */
 	0x273e0011, 0x00010001, 	/* cond: xsdm.INT_MASK */
 	0x273e0109, 0x00000001, 	/* info: xsdm.inp_queue_err_vect mode=all */
+	0x273e0080, 0x00010001, 	/* cond: xsdm.PRTY_STS_H_0 */
+	0x273e0081, 0x00010001, 	/* cond: xsdm.PRTY_MASK_H_0 */
 	0x273e0303, 0x00010001, 	/* cond: xsdm.qm_full */
 	0x273e030c, 0x00010001, 	/* cond: xsdm.rsp_brb_if_full */
 	0x273e030d, 0x00010001, 	/* cond: xsdm.rsp_pxp_if_full */
@@ -4633,6 +4766,8 @@ static const u32 idle_chk_regs[] = {
 	0x283e4010, 0x00010001, 	/* cond: ysdm.INT_STS */
 	0x283e4011, 0x00010001, 	/* cond: ysdm.INT_MASK */
 	0x283e4109, 0x00000001, 	/* info: ysdm.inp_queue_err_vect mode=all */
+	0x283e4080, 0x00010001, 	/* cond: ysdm.PRTY_STS_H_0 */
+	0x283e4081, 0x00010001, 	/* cond: ysdm.PRTY_MASK_H_0 */
 	0x283e4303, 0x00010001, 	/* cond: ysdm.qm_full */
 	0x283e430c, 0x00010001, 	/* cond: ysdm.rsp_brb_if_full */
 	0x283e430d, 0x00010001, 	/* cond: ysdm.rsp_pxp_if_full */
@@ -4666,6 +4801,8 @@ static const u32 idle_chk_regs[] = {
 	0x293e8010, 0x00010001, 	/* cond: psdm.INT_STS */
 	0x293e8011, 0x00010001, 	/* cond: psdm.INT_MASK */
 	0x293e8109, 0x00000001, 	/* info: psdm.inp_queue_err_vect mode=all */
+	0x293e8080, 0x00010001, 	/* cond: psdm.PRTY_STS_H_0 */
+	0x293e8081, 0x00010001, 	/* cond: psdm.PRTY_MASK_H_0 */
 	0x293e8303, 0x00010001, 	/* cond: psdm.qm_full */
 	0x293e830c, 0x00010001, 	/* cond: psdm.rsp_brb_if_full */
 	0x293e830d, 0x00010001, 	/* cond: psdm.rsp_pxp_if_full */
@@ -4699,6 +4836,8 @@ static const u32 idle_chk_regs[] = {
 	0x243ec010, 0x00010001, 	/* cond: tsdm.INT_STS */
 	0x243ec011, 0x00010001, 	/* cond: tsdm.INT_MASK */
 	0x243ec109, 0x00000001, 	/* info: tsdm.inp_queue_err_vect mode=all */
+	0x243ec080, 0x00010001, 	/* cond: tsdm.PRTY_STS_H_0 */
+	0x243ec081, 0x00010001, 	/* cond: tsdm.PRTY_MASK_H_0 */
 	0x243ec303, 0x00010001, 	/* cond: tsdm.qm_full */
 	0x243ec30c, 0x00010001, 	/* cond: tsdm.rsp_brb_if_full */
 	0x243ec30d, 0x00010001, 	/* cond: tsdm.rsp_pxp_if_full */
@@ -4732,6 +4871,8 @@ static const u32 idle_chk_regs[] = {
 	0x253f0010, 0x00010001, 	/* cond: msdm.INT_STS */
 	0x253f0011, 0x00010001, 	/* cond: msdm.INT_MASK */
 	0x253f0109, 0x00000001, 	/* info: msdm.inp_queue_err_vect mode=all */
+	0x253f0080, 0x00010001, 	/* cond: msdm.PRTY_STS_H_0 */
+	0x253f0081, 0x00010001, 	/* cond: msdm.PRTY_MASK_H_0 */
 	0x253f0303, 0x00010001, 	/* cond: msdm.qm_full */
 	0x253f030c, 0x00010001, 	/* cond: msdm.rsp_brb_if_full */
 	0x253f030d, 0x00010001, 	/* cond: msdm.rsp_pxp_if_full */
@@ -4765,6 +4906,8 @@ static const u32 idle_chk_regs[] = {
 	0x263f4010, 0x00010001, 	/* cond: usdm.INT_STS */
 	0x263f4011, 0x00010001, 	/* cond: usdm.INT_MASK */
 	0x263f4109, 0x00000001, 	/* info: usdm.inp_queue_err_vect mode=all */
+	0x263f4080, 0x00010001, 	/* cond: usdm.PRTY_STS_H_0 */
+	0x263f4081, 0x00010001, 	/* cond: usdm.PRTY_MASK_H_0 */
 	0x263f4303, 0x00010001, 	/* cond: usdm.qm_full */
 	0x263f430c, 0x00010001, 	/* cond: usdm.rsp_brb_if_full */
 	0x263f430d, 0x00010001, 	/* cond: usdm.rsp_pxp_if_full */
@@ -4802,6 +4945,10 @@ static const u32 idle_chk_regs[] = {
 	0x1b400068, 0x00010001, 	/* cond: xcm.INT_STS_2 */
 	0x1b400069, 0x00010001, 	/* cond: xcm.INT_MASK_2 */
 	0x1b4002d4, 0x00000001, 	/* info: xcm.qm_act_st_cnt_err_details mode=all */
+	0x1b400080, 0x00010001, 	/* cond: xcm.PRTY_STS_H_0 */
+	0x1b400081, 0x00010001, 	/* cond: xcm.PRTY_MASK_H_0 */
+	0x1b400084, 0x00010001, 	/* cond: xcm.PRTY_STS_H_1 */
+	0x1b400085, 0x00010001, 	/* cond: xcm.PRTY_MASK_H_1 */
 	0x1b4001a2, 0x00010001, 	/* cond: xcm.fi_desc_input_violate */
 	0x1b4001a3, 0x00010001, 	/* cond: xcm.ia_agg_con_part_fill_lvl */
 	0x1b4001a4, 0x00010001, 	/* cond: xcm.ia_sm_con_part_fill_lvl */
@@ -4836,6 +4983,10 @@ static const u32 idle_chk_regs[] = {
 	0x1c420061, 0x00010001, 	/* cond: ycm.INT_MASK_0 */
 	0x1c420064, 0x00010001, 	/* cond: ycm.INT_STS_1 */
 	0x1c420065, 0x00010001, 	/* cond: ycm.INT_MASK_1 */
+	0x1c420080, 0x00010001, 	/* cond: ycm.PRTY_STS_H_0 */
+	0x1c420081, 0x00010001, 	/* cond: ycm.PRTY_MASK_H_0 */
+	0x1c420084, 0x00010001, 	/* cond: ycm.PRTY_STS_H_1 */
+	0x1c420085, 0x00010001, 	/* cond: ycm.PRTY_MASK_H_1 */
 	0x1c42019b, 0x00010001, 	/* cond: ycm.fi_desc_input_violate */
 	0x1c42019c, 0x00010001, 	/* cond: ycm.se_desc_input_violate */
 	0x1c42019e, 0x00010001, 	/* cond: ycm.ia_sm_con_part_fill_lvl */
@@ -4871,6 +5022,8 @@ static const u32 idle_chk_regs[] = {
 	0x1d440061, 0x00010001, 	/* cond: pcm.INT_MASK_0 */
 	0x1d440064, 0x00010001, 	/* cond: pcm.INT_STS_1 */
 	0x1d440065, 0x00010001, 	/* cond: pcm.INT_MASK_1 */
+	0x1d440080, 0x00010001, 	/* cond: pcm.PRTY_STS_H_0 */
+	0x1d440081, 0x00010001, 	/* cond: pcm.PRTY_MASK_H_0 */
 	0x1d440191, 0x00010001, 	/* cond: pcm.fi_desc_input_violate */
 	0x1d440192, 0x00010001, 	/* cond: pcm.ia_sm_con_part_fill_lvl */
 	0x1d440193, 0x00010001, 	/* cond: pcm.ia_trans_part_fill_lvl */
@@ -4886,6 +5039,10 @@ static const u32 idle_chk_regs[] = {
 	0x18460061, 0x00010001, 	/* cond: tcm.INT_MASK_0 */
 	0x18460064, 0x00010001, 	/* cond: tcm.INT_STS_1 */
 	0x18460065, 0x00010001, 	/* cond: tcm.INT_MASK_1 */
+	0x18460080, 0x00010001, 	/* cond: tcm.PRTY_STS_H_0 */
+	0x18460081, 0x00010001, 	/* cond: tcm.PRTY_MASK_H_0 */
+	0x18460084, 0x00010001, 	/* cond: tcm.PRTY_STS_H_1 */
+	0x18460085, 0x00010001, 	/* cond: tcm.PRTY_MASK_H_1 */
 	0x1846019b, 0x00010001, 	/* cond: tcm.fi_desc_input_violate */
 	0x1846019c, 0x00010001, 	/* cond: tcm.se_desc_input_violate */
 	0x1846019d, 0x00010001, 	/* cond: tcm.ia_agg_con_part_fill_lvl */
@@ -4922,6 +5079,10 @@ static const u32 idle_chk_regs[] = {
 	0x19480061, 0x00010001, 	/* cond: mcm.INT_MASK_0 */
 	0x19480064, 0x00010001, 	/* cond: mcm.INT_STS_1 */
 	0x19480065, 0x00010001, 	/* cond: mcm.INT_MASK_1 */
+	0x19480080, 0x00010001, 	/* cond: mcm.PRTY_STS_H_0 */
+	0x19480081, 0x00010001, 	/* cond: mcm.PRTY_MASK_H_0 */
+	0x19480084, 0x00010001, 	/* cond: mcm.PRTY_STS_H_1 */
+	0x19480085, 0x00010001, 	/* cond: mcm.PRTY_MASK_H_1 */
 	0x1948019d, 0x00010001, 	/* cond: mcm.fi_desc_input_violate */
 	0x1948019e, 0x00010001, 	/* cond: mcm.se_desc_input_violate */
 	0x1948019f, 0x00010001, 	/* cond: mcm.ia_agg_con_part_fill_lvl */
@@ -4960,6 +5121,10 @@ static const u32 idle_chk_regs[] = {
 	0x1a4a0061, 0x00010001, 	/* cond: ucm.INT_MASK_0 */
 	0x1a4a0064, 0x00010001, 	/* cond: ucm.INT_STS_1 */
 	0x1a4a0065, 0x00010001, 	/* cond: ucm.INT_MASK_1 */
+	0x1a4a0080, 0x00010001, 	/* cond: ucm.PRTY_STS_H_0 */
+	0x1a4a0081, 0x00010001, 	/* cond: ucm.PRTY_MASK_H_0 */
+	0x1a4a0084, 0x00010001, 	/* cond: ucm.PRTY_STS_H_1 */
+	0x1a4a0085, 0x00010001, 	/* cond: ucm.PRTY_MASK_H_1 */
 	0x1a4a01a3, 0x00010001, 	/* cond: ucm.fi_desc_input_violate */
 	0x1a4a01a4, 0x00010001, 	/* cond: ucm.se_desc_input_violate */
 	0x1a4a01a5, 0x00010001, 	/* cond: ucm.ia_agg_con_part_fill_lvl */
@@ -5008,13 +5173,12 @@ static const u32 idle_chk_regs[] = {
 	0x2d500032, 0x00010001, 	/* cond: xsem.PRTY_STS */
 	0x2d500033, 0x00010001, 	/* cond: xsem.PRTY_MASK */
 	0x2d500110, 0x00010001, 	/* cond: xsem.pf_err_vector */
-	0x2d5001a0, 0x00010001, 	/* cond: xsem.foc_credit */
 	0x2d5001a0, 0x01010001, 	/* cond: xsem.foc_credit[1] */
+	0x2d5001a0, 0x00010001, 	/* cond: xsem.foc_credit */
 	0x2d500441, 0x00010001, 	/* cond: xsem.ext_pas_empty */
 	0x2d500448, 0x00010002, 	/* cond: xsem.fic_empty[0:1] */
 	0x2d500454, 0x00010001, 	/* cond: xsem.slow_ext_store_empty */
 	0x2d500455, 0x00010001, 	/* cond: xsem.slow_ext_load_empty */
-	0x2d500456, 0x00010001, 	/* cond: xsem.slow_ram_rd_empty */
 	0x2d500457, 0x00010001, 	/* cond: xsem.slow_ram_wr_empty */
 	0x2d500458, 0x00010001, 	/* cond: xsem.sync_dbg_empty */
 	0x2d500481, 0x00010001, 	/* cond: xsem.ext_store_if_full */
@@ -5026,17 +5190,16 @@ static const u32 idle_chk_regs[] = {
 	0x2e540032, 0x00010001, 	/* cond: ysem.PRTY_STS */
 	0x2e540033, 0x00010001, 	/* cond: ysem.PRTY_MASK */
 	0x2e540110, 0x00010001, 	/* cond: ysem.pf_err_vector */
-	0x2e5401a0, 0x01010001, 	/* cond: ysem.foc_credit[1] */
 	0x2e5401a0, 0x02010001, 	/* cond: ysem.foc_credit[2] */
-	0x2e5401a0, 0x03010001, 	/* cond: ysem.foc_credit[3] */
-	0x2e5401a0, 0x05010001, 	/* cond: ysem.foc_credit[5] */
-	0x2e5401a0, 0x04010001, 	/* cond: ysem.foc_credit[4] */
 	0x2e5401a0, 0x00010001, 	/* cond: ysem.foc_credit */
+	0x2e5401a0, 0x01010001, 	/* cond: ysem.foc_credit[1] */
+	0x2e5401a0, 0x03010001, 	/* cond: ysem.foc_credit[3] */
+	0x2e5401a0, 0x04010001, 	/* cond: ysem.foc_credit[4] */
+	0x2e5401a0, 0x05010001, 	/* cond: ysem.foc_credit[5] */
 	0x2e540441, 0x00010001, 	/* cond: ysem.ext_pas_empty */
 	0x2e540448, 0x00010002, 	/* cond: ysem.fic_empty[0:1] */
 	0x2e540454, 0x00010001, 	/* cond: ysem.slow_ext_store_empty */
 	0x2e540455, 0x00010001, 	/* cond: ysem.slow_ext_load_empty */
-	0x2e540456, 0x00010001, 	/* cond: ysem.slow_ram_rd_empty */
 	0x2e540457, 0x00010001, 	/* cond: ysem.slow_ram_wr_empty */
 	0x2e540458, 0x00010001, 	/* cond: ysem.sync_dbg_empty */
 	0x2e540481, 0x00010001, 	/* cond: ysem.ext_store_if_full */
@@ -5054,7 +5217,6 @@ static const u32 idle_chk_regs[] = {
 	0x2f580448, 0x00010001, 	/* cond: psem.fic_empty */
 	0x2f580454, 0x00010001, 	/* cond: psem.slow_ext_store_empty */
 	0x2f580455, 0x00010001, 	/* cond: psem.slow_ext_load_empty */
-	0x2f580456, 0x00010001, 	/* cond: psem.slow_ram_rd_empty */
 	0x2f580457, 0x00010001, 	/* cond: psem.slow_ram_wr_empty */
 	0x2f580458, 0x00010001, 	/* cond: psem.sync_dbg_empty */
 	0x2f580481, 0x00010001, 	/* cond: psem.ext_store_if_full */
@@ -5066,13 +5228,12 @@ static const u32 idle_chk_regs[] = {
 	0x2a5c0032, 0x00010001, 	/* cond: tsem.PRTY_STS */
 	0x2a5c0033, 0x00010001, 	/* cond: tsem.PRTY_MASK */
 	0x2a5c0110, 0x00010001, 	/* cond: tsem.pf_err_vector */
-	0x2a5c01a0, 0x01010001, 	/* cond: tsem.foc_credit[1] */
 	0x2a5c01a0, 0x00010001, 	/* cond: tsem.foc_credit */
+	0x2a5c01a0, 0x01010001, 	/* cond: tsem.foc_credit[1] */
 	0x2a5c0441, 0x00010001, 	/* cond: tsem.ext_pas_empty */
 	0x2a5c0448, 0x00010001, 	/* cond: tsem.fic_empty */
 	0x2a5c0454, 0x00010001, 	/* cond: tsem.slow_ext_store_empty */
 	0x2a5c0455, 0x00010001, 	/* cond: tsem.slow_ext_load_empty */
-	0x2a5c0456, 0x00010001, 	/* cond: tsem.slow_ram_rd_empty */
 	0x2a5c0457, 0x00010001, 	/* cond: tsem.slow_ram_wr_empty */
 	0x2a5c0458, 0x00010001, 	/* cond: tsem.sync_dbg_empty */
 	0x2a5c0481, 0x00010001, 	/* cond: tsem.ext_store_if_full */
@@ -5083,18 +5244,19 @@ static const u32 idle_chk_regs[] = {
 	0x2b600015, 0x00010001, 	/* cond: msem.INT_MASK_1 */
 	0x2b600032, 0x00010001, 	/* cond: msem.PRTY_STS */
 	0x2b600033, 0x00010001, 	/* cond: msem.PRTY_MASK */
+	0x2b600080, 0x00010001, 	/* cond: msem.PRTY_STS_H_0 */
+	0x2b600081, 0x00010001, 	/* cond: msem.PRTY_MASK_H_0 */
 	0x2b600110, 0x00010001, 	/* cond: msem.pf_err_vector */
-	0x2b6001a0, 0x01010001, 	/* cond: msem.foc_credit[1] */
-	0x2b6001a0, 0x00010001, 	/* cond: msem.foc_credit */
+	0x2b6001a0, 0x03010001, 	/* cond: msem.foc_credit[3] */
 	0x2b6001a0, 0x04010001, 	/* cond: msem.foc_credit[4] */
 	0x2b6001a0, 0x05010001, 	/* cond: msem.foc_credit[5] */
-	0x2b6001a0, 0x03010001, 	/* cond: msem.foc_credit[3] */
+	0x2b6001a0, 0x00010001, 	/* cond: msem.foc_credit */
+	0x2b6001a0, 0x01010001, 	/* cond: msem.foc_credit[1] */
 	0x2b6001a0, 0x02010001, 	/* cond: msem.foc_credit[2] */
 	0x2b600441, 0x00010001, 	/* cond: msem.ext_pas_empty */
 	0x2b600448, 0x00010001, 	/* cond: msem.fic_empty */
 	0x2b600454, 0x00010001, 	/* cond: msem.slow_ext_store_empty */
 	0x2b600455, 0x00010001, 	/* cond: msem.slow_ext_load_empty */
-	0x2b600456, 0x00010001, 	/* cond: msem.slow_ram_rd_empty */
 	0x2b600457, 0x00010001, 	/* cond: msem.slow_ram_wr_empty */
 	0x2b600458, 0x00010001, 	/* cond: msem.sync_dbg_empty */
 	0x2b600481, 0x00010001, 	/* cond: msem.ext_store_if_full */
@@ -5106,16 +5268,15 @@ static const u32 idle_chk_regs[] = {
 	0x2c640032, 0x00010001, 	/* cond: usem.PRTY_STS */
 	0x2c640033, 0x00010001, 	/* cond: usem.PRTY_MASK */
 	0x2c640110, 0x00010001, 	/* cond: usem.pf_err_vector */
-	0x2c6401a0, 0x02010001, 	/* cond: usem.foc_credit[2] */
-	0x2c6401a0, 0x03010001, 	/* cond: usem.foc_credit[3] */
-	0x2c6401a0, 0x00010001, 	/* cond: usem.foc_credit */
 	0x2c6401a0, 0x01010001, 	/* cond: usem.foc_credit[1] */
+	0x2c6401a0, 0x03010001, 	/* cond: usem.foc_credit[3] */
+	0x2c6401a0, 0x02010001, 	/* cond: usem.foc_credit[2] */
+	0x2c6401a0, 0x00010001, 	/* cond: usem.foc_credit */
 	0x2c6401a0, 0x04010001, 	/* cond: usem.foc_credit[4] */
 	0x2c640441, 0x00010001, 	/* cond: usem.ext_pas_empty */
 	0x2c640448, 0x00010001, 	/* cond: usem.fic_empty */
 	0x2c640454, 0x00010001, 	/* cond: usem.slow_ext_store_empty */
 	0x2c640455, 0x00010001, 	/* cond: usem.slow_ext_load_empty */
-	0x2c640456, 0x00010001, 	/* cond: usem.slow_ram_rd_empty */
 	0x2c640457, 0x00010001, 	/* cond: usem.slow_ram_wr_empty */
 	0x2c640458, 0x00010001, 	/* cond: usem.sync_dbg_empty */
 	0x2c640481, 0x00010001, 	/* cond: usem.ext_store_if_full */
@@ -5139,18 +5300,19 @@ static const u32 idle_chk_regs[] = {
 	0x040aab93, 0x00010001, 	/* cond: pglue_b.tags_191_160 */
 	0x040aab94, 0x00010001, 	/* cond: pglue_b.tags_223_192 */
 	0x040aab95, 0x00010001, 	/* cond: pglue_b.tags_255_224 */
+	0x410b41e3, 0x00010001, 	/* cond: tcfc.cduwb_credit */
 	0x1e8bc300, 0x00020040, 	/* cond: qm.PtrTblOther[0:63] width=2 access=WB */
 	0x1e8bc300, 0x00020040, 	/* cond: qm.PtrTblOther[0:63] width=2 access=WB */
 	0x1e0bc410, 0x0001000e, 	/* cond: qm.QstatusTx_0[0:13] */
 	0x1e0bc430, 0x00010002, 	/* cond: qm.QstatusOther_0[0:1] */
+	0x1e0bc560, 0x00010008, 	/* cond: qm.VoqCrdLine[0:7] */
+	0x1e0bc5a0, 0x00010008, 	/* cond: qm.VoqInitCrdLine[0:7] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
 	0x1e0bc560, 0x10010001, 	/* cond: qm.VoqCrdLine[16] */
 	0x1e0bc5a0, 0x10010001, 	/* cond: qm.VoqInitCrdLine[16] */
 	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
 	0x1e0bc560, 0x00010012, 	/* cond: qm.VoqCrdLine[0:17] */
 	0x1e0bc5a0, 0x00010012, 	/* cond: qm.VoqInitCrdLine[0:17] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bc560, 0x00010008, 	/* cond: qm.VoqCrdLine[0:7] */
-	0x1e0bc5a0, 0x00010008, 	/* cond: qm.VoqInitCrdLine[0:7] */
 	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
 	0x1e0bc5e0, 0x00010008, 	/* cond: qm.VoqCrdByte[0:7] */
 	0x1e0bc620, 0x00010008, 	/* cond: qm.VoqInitCrdByte[0:7] */
@@ -5204,6 +5366,7 @@ static const u32 idle_chk_regs[] = {
 	0x42060240, 0x0001000c, 	/* cond: igu.write_done_pending[0:11] */
 	0x0d0a8018, 0x00010001, 	/* cond: pswhst.vf_disabled_error_valid */
 	0x0d0a8017, 0x00000001, 	/* info: pswhst.vf_disabled_error_data mode=all */
+	0x410b41e3, 0x00010001, 	/* cond: tcfc.cduwb_credit */
 	0x1e0bc410, 0x00010010, 	/* cond: qm.QstatusTx_0[0:15] */
 	0x1e0bc430, 0x00010004, 	/* cond: qm.QstatusOther_0[0:3] */
 	0x1e0bc560, 0x00010008, 	/* cond: qm.VoqCrdLine[0:7] */
@@ -5225,6 +5388,7 @@ static const u32 idle_chk_regs[] = {
 	0x1e0bc620, 0x00010008, 	/* cond: qm.VoqInitCrdByte[0:7] */
 	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
 	0x210d03cc, 0x00010008, 	/* cond: brb.wc_empty_0[0:7] */
+	0x210d041e, 0x00010001, 	/* cond: brb.rc_eop_empty */
 	0x218d06c0, 0x00030008, 	/* cond: brb.wc_status_0[0:7] width=3 access=WB */
 	0x3b36c030, 0x00010001, 	/* cond: btb.INT_STS_0 */
 	0x3b36c031, 0x00010001, 	/* cond: btb.INT_MASK_0 */
@@ -5283,6 +5447,10 @@ static const u32 idle_chk_regs[] = {
 	0x140902b2, 0x00010001, 	/* cond: pswrq2.blk_cnt_per_vq_31 */
 	0x14090270, 0x00010001, 	/* cond: pswrq2.max_blks_vq31 */
 	0x1f0b0064, 0x00010001, 	/* cond: tm.INT_STS_1 */
+	0x09150100, 0x00010001, 	/* cond: bmb.PRTY_STS_H_0 */
+	0x09150101, 0x00010001, 	/* cond: bmb.PRTY_MASK_H_0 */
+	0x09150104, 0x00010001, 	/* cond: bmb.PRTY_STS_H_1 */
+	0x09150105, 0x00010001, 	/* cond: bmb.PRTY_MASK_H_1 */
 	0x1f0b0064, 0x00010001, 	/* cond: tm.INT_STS_1 */
 	0x15000841, 0x00010001, 	/* cond: pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF */
 	0x15000841, 0x00010001, 	/* cond: pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF */
@@ -5306,7 +5474,6 @@ static const u32 idle_chk_regs[] = {
 	0x1e8bc300, 0x00020080, 	/* cond: qm.PtrTblOther[0:127] width=2 access=WB */
 	0x1e8bf800, 0x00020200, 	/* cond: qm.PtrTblTx[0:511] width=2 access=WB */
 	0x1e8bf800, 0x00020200, 	/* cond: qm.PtrTblTx[0:511] width=2 access=WB */
-	0x210d041e, 0x00010001, 	/* cond: brb.rc_eop_empty */
 	0x210d0494, 0x00010001, 	/* cond: brb.mac2_tc_occupancy_0 */
 	0x210d0495, 0x00010001, 	/* cond: brb.mac2_tc_occupancy_1 */
 	0x210d0496, 0x00010001, 	/* cond: brb.mac2_tc_occupancy_2 */
@@ -5366,6 +5533,48 @@ static const u32 idle_chk_regs[] = {
 	0x2adc0108, 0x00080001, 	/* cond: tsem.vf_err_vector width=8 access=WB */
 	0x2be00108, 0x00080001, 	/* cond: msem.vf_err_vector width=8 access=WB */
 	0x2ce40108, 0x00080001, 	/* cond: usem.vf_err_vector width=8 access=WB */
+	0x42060220, 0x00010010, 	/* cond: igu.pending_bits_status[0:15] */
+	0x42060240, 0x00010010, 	/* cond: igu.write_done_pending[0:15] */
+	0x410b41e3, 0x00010001, 	/* cond: tcfc.cduwb_credit */
+	0x1e0bfe80, 0x00010024, 	/* cond: qm.VoqCrdLine[0:35] */
+	0x1e0bfec0, 0x00010024, 	/* cond: qm.VoqInitCrdLine[0:35] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x1e0bfe80, 0x00010008, 	/* cond: qm.VoqCrdLine[0:7] */
+	0x1e0bfec0, 0x00010008, 	/* cond: qm.VoqInitCrdLine[0:7] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x1e0bfe80, 0x10010001, 	/* cond: qm.VoqCrdLine[16] */
+	0x1e0bfec0, 0x10010001, 	/* cond: qm.VoqInitCrdLine[16] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x1e0bff00, 0x10010001, 	/* cond: qm.VoqCrdByte[16] */
+	0x1e0bff40, 0x10010001, 	/* cond: qm.VoqInitCrdByte[16] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x1e0bff00, 0x00010008, 	/* cond: qm.VoqCrdByte[0:7] */
+	0x1e0bff40, 0x00010008, 	/* cond: qm.VoqInitCrdByte[0:7] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x1e0bff00, 0x00010024, 	/* cond: qm.VoqCrdByte[0:35] */
+	0x1e0bff40, 0x00010024, 	/* cond: qm.VoqInitCrdByte[0:35] */
+	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
+	0x210d041e, 0x00010001, 	/* cond: brb.rc_eop_empty */
+	0x3b36c030, 0x00010001, 	/* cond: btb.INT_STS_0 */
+	0x3b36c031, 0x00010001, 	/* cond: btb.INT_MASK_0 */
+	0x3bb6c400, 0x00000020, 	/* info: btb.stopped_rd_req[0:7] width=3 access=WB mode=all */
+	0x3bb6c440, 0x00000010, 	/* info: btb.stopped_rls_req[0:7] width=2 access=WB mode=all */
+	0x3b36c048, 0x00010001, 	/* cond: btb.INT_STS_4 */
+	0x3b36c049, 0x00010001, 	/* cond: btb.INT_MASK_4 */
+	0x3bb6c400, 0x00000020, 	/* info: btb.stopped_rd_req[0:7] width=3 access=WB mode=all */
+	0x3bb6c440, 0x00000010, 	/* info: btb.stopped_rls_req[0:7] width=2 access=WB mode=all */
+	0x1b400791, 0x00010001, 	/* cond: xcm.msdm_length_mis */
+	0x1b400793, 0x00010001, 	/* cond: xcm.is_msdm_fill_lvl */
+	0x1b4007c2, 0x00010001, 	/* cond: xcm.is_ysem_fill_lvl */
+	0x1c4207b1, 0x00010001, 	/* cond: ycm.msdm_length_mis */
+	0x1c4207b3, 0x00010001, 	/* cond: ycm.is_msdm_fill_lvl */
+	0x1d4405d5, 0x00010001, 	/* cond: pcm.psdm_length_mis */
+	0x1d4405d7, 0x00010001, 	/* cond: pcm.is_psdm_fill_lvl */
+	0x184606c1, 0x00010001, 	/* cond: tcm.tsdm_length_mis */
+	0x184606c3, 0x00010001, 	/* cond: tcm.is_tsdm_fill_lvl */
+	0x19480a41, 0x00010001, 	/* cond: mcm.msdm_length_mis */
+	0x19480a43, 0x00010001, 	/* cond: mcm.is_msdm_fill_lvl */
+	0x19480a82, 0x00010001, 	/* cond: mcm.is_ysem_fill_lvl */
 	0x15000841, 0x00010001, 	/* cond: pglcs.pgl_cs.uc_err_status */
 	0x15000841, 0x00010001, 	/* cond: pglcs.pgl_cs.uc_err_status */
 	0x15000841, 0x00010001, 	/* cond: pglcs.pgl_cs.uc_err_status */
@@ -5380,102 +5589,22 @@ static const u32 idle_chk_regs[] = {
 	0x42060084, 0x00010001, 	/* cond: igu.PRTY_STS_H_1 */
 	0x42060085, 0x00010001, 	/* cond: igu.PRTY_MASK_H_1 */
 	0x4b140391, 0x00010001, 	/* cond: nig.rx_macfifo_empty */
-	0x42060220, 0x00010010, 	/* cond: igu.pending_bits_status[0:15] */
-	0x42060240, 0x00010010, 	/* cond: igu.write_done_pending[0:15] */
-	0x1e0bfe80, 0x10010001, 	/* cond: qm.VoqCrdLine[16] */
-	0x1e0bfec0, 0x10010001, 	/* cond: qm.VoqInitCrdLine[16] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bfe80, 0x00010008, 	/* cond: qm.VoqCrdLine[0:7] */
-	0x1e0bfec0, 0x00010008, 	/* cond: qm.VoqInitCrdLine[0:7] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bfe80, 0x00010024, 	/* cond: qm.VoqCrdLine[0:35] */
-	0x1e0bfec0, 0x00010024, 	/* cond: qm.VoqInitCrdLine[0:35] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bff00, 0x00010008, 	/* cond: qm.VoqCrdByte[0:7] */
-	0x1e0bff40, 0x00010008, 	/* cond: qm.VoqInitCrdByte[0:7] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bff00, 0x10010001, 	/* cond: qm.VoqCrdByte[16] */
-	0x1e0bff40, 0x10010001, 	/* cond: qm.VoqInitCrdByte[16] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x1e0bff00, 0x00010024, 	/* cond: qm.VoqCrdByte[0:35] */
-	0x1e0bff40, 0x00010024, 	/* cond: qm.VoqInitCrdByte[0:35] */
-	0x02002300, 0x00010001, 	/* cond: misc.port_mode */
-	0x3b36c030, 0x00010001, 	/* cond: btb.INT_STS_0 */
-	0x3b36c031, 0x00010001, 	/* cond: btb.INT_MASK_0 */
-	0x3bb6c400, 0x00000020, 	/* info: btb.stopped_rd_req[0:7] width=3 access=WB mode=all */
-	0x3bb6c440, 0x00000010, 	/* info: btb.stopped_rls_req[0:7] width=2 access=WB mode=all */
-	0x3b36c048, 0x00010001, 	/* cond: btb.INT_STS_4 */
-	0x3b36c049, 0x00010001, 	/* cond: btb.INT_MASK_4 */
-	0x3bb6c400, 0x00000020, 	/* info: btb.stopped_rd_req[0:7] width=3 access=WB mode=all */
-	0x3bb6c440, 0x00000010, 	/* info: btb.stopped_rls_req[0:7] width=2 access=WB mode=all */
-	0x1b400792, 0x00010001, 	/* cond: xcm.msdm_length_mis */
-	0x1b400794, 0x00010001, 	/* cond: xcm.is_msdm_fill_lvl */
-	0x1b4007c3, 0x00010001, 	/* cond: xcm.is_ysem_fill_lvl */
-	0x1c4207b2, 0x00010001, 	/* cond: ycm.msdm_length_mis */
-	0x1c4207b4, 0x00010001, 	/* cond: ycm.is_msdm_fill_lvl */
-	0x1d4405d6, 0x00010001, 	/* cond: pcm.psdm_length_mis */
-	0x1d4405d8, 0x00010001, 	/* cond: pcm.is_psdm_fill_lvl */
-	0x184606c2, 0x00010001, 	/* cond: tcm.tsdm_length_mis */
-	0x184606c4, 0x00010001, 	/* cond: tcm.is_tsdm_fill_lvl */
-	0x19480a42, 0x00010001, 	/* cond: mcm.msdm_length_mis */
-	0x19480a44, 0x00010001, 	/* cond: mcm.is_msdm_fill_lvl */
-	0x19480a83, 0x00010001, 	/* cond: mcm.is_ysem_fill_lvl */
-	0x16003080, 0x00010001, 	/* cond: dmae.PRTY_STS_H_0 */
-	0x16003081, 0x00010001, 	/* cond: dmae.PRTY_MASK_H_0 */
-	0x4a004080, 0x00010001, 	/* cond: dbg.PRTY_STS_H_0 */
-	0x4a004081, 0x00010001, 	/* cond: dbg.PRTY_MASK_H_0 */
 	0x08014c00, 0x00010001, 	/* cond: opte.PRTY_STS_H_0 */
 	0x08014c01, 0x00010001, 	/* cond: opte.PRTY_MASK_H_0 */
-	0x20040080, 0x00010001, 	/* cond: dorq.PRTY_STS_H_0 */
-	0x20040081, 0x00010001, 	/* cond: dorq.PRTY_MASK_H_0 */
-	0x42060080, 0x00010001, 	/* cond: igu.PRTY_STS_H_0 */
-	0x42060081, 0x00010001, 	/* cond: igu.PRTY_MASK_H_0 */
-	0x2307c081, 0x00010001, 	/* cond: prs.PRTY_STS_H_0 */
-	0x2307c082, 0x00010001, 	/* cond: prs.PRTY_MASK_H_0 */
+	0x43070327, 0x00010001, 	/* cond: cau.agg_units_0to15_state */
+	0x43070328, 0x00010001, 	/* cond: cau.agg_units_16to31_state */
+	0x43070329, 0x00010001, 	/* cond: cau.agg_units_32to47_state */
+	0x4307032a, 0x00010001, 	/* cond: cau.agg_units_48to63_state */
+	0x430703c3, 0x00010001, 	/* cond: cau.igu_cqe_cmd_fsm_status */
+	0x430703c4, 0x00010001, 	/* cond: cau.igu_cqe_agg_fsm_status */
 	0x2307c085, 0x00010001, 	/* cond: prs.PRTY_STS_H_1 */
 	0x2307c086, 0x00010001, 	/* cond: prs.PRTY_MASK_H_1 */
 	0x2307c2d4, 0x00010001, 	/* cond: prs.prs_pkt_ct */
 	0x2307c3c3, 0x00010001, 	/* cond: prs.tcm_current_credit */
-	0x3708c080, 0x00010001, 	/* cond: prm.PRTY_STS_H_0 */
-	0x3708c081, 0x00010001, 	/* cond: prm.PRTY_MASK_H_0 */
-	0x3008e280, 0x00010001, 	/* cond: rss.PRTY_STS_H_0 */
-	0x3008e281, 0x00010001, 	/* cond: rss.PRTY_MASK_H_0 */
 	0x3008e30e, 0x00010001, 	/* cond: rss.empty_status */
 	0x3008e30f, 0x00010001, 	/* cond: rss.full_status */
 	0x3008e310, 0x00010001, 	/* cond: rss.counters_status */
 	0x3008e311, 0x00010001, 	/* cond: rss.state_machines */
-	0x120a6c80, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_0 */
-	0x120a6c81, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_0 */
-	0x120a6c84, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_1 */
-	0x120a6c85, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_1 */
-	0x120a6c88, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_2 */
-	0x120a6c89, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_2 */
-	0x120a6c8c, 0x00010001, 	/* cond: pswwr2.PRTY_STS_H_3 */
-	0x120a6c8d, 0x00010001, 	/* cond: pswwr2.PRTY_MASK_H_3 */
-	0x0d0a8080, 0x00010001, 	/* cond: pswhst.PRTY_STS_H_0 */
-	0x0d0a8081, 0x00010001, 	/* cond: pswhst.PRTY_MASK_H_0 */
-	0x040aa080, 0x00010001, 	/* cond: pglue_b.PRTY_STS_H_0 */
-	0x040aa081, 0x00010001, 	/* cond: pglue_b.PRTY_MASK_H_0 */
-	0x1f0b0080, 0x00010001, 	/* cond: tm.PRTY_STS_H_0 */
-	0x1f0b0081, 0x00010001, 	/* cond: tm.PRTY_MASK_H_0 */
-	0x410b4080, 0x00010001, 	/* cond: tcfc.PRTY_STS_H_0 */
-	0x410b4081, 0x00010001, 	/* cond: tcfc.PRTY_MASK_H_0 */
-	0x400b8080, 0x00010001, 	/* cond: ccfc.PRTY_STS_H_0 */
-	0x400b8081, 0x00010001, 	/* cond: ccfc.PRTY_MASK_H_0 */
-	0x1e0bc080, 0x00010001, 	/* cond: qm.PRTY_STS_H_0 */
-	0x1e0bc081, 0x00010001, 	/* cond: qm.PRTY_MASK_H_0 */
-	0x1e0bc084, 0x00010001, 	/* cond: qm.PRTY_STS_H_1 */
-	0x1e0bc085, 0x00010001, 	/* cond: qm.PRTY_MASK_H_1 */
-	0x1e0bc088, 0x00010001, 	/* cond: qm.PRTY_STS_H_2 */
-	0x1e0bc089, 0x00010001, 	/* cond: qm.PRTY_MASK_H_2 */
-	0x3e0c4080, 0x00010001, 	/* cond: tdif.PRTY_STS_H_0 */
-	0x3e0c4081, 0x00010001, 	/* cond: tdif.PRTY_MASK_H_0 */
-	0x210d0100, 0x00010001, 	/* cond: brb.PRTY_STS_H_0 */
-	0x210d0101, 0x00010001, 	/* cond: brb.PRTY_MASK_H_0 */
-	0x210d0104, 0x00010001, 	/* cond: brb.PRTY_STS_H_1 */
-	0x210d0105, 0x00010001, 	/* cond: brb.PRTY_MASK_H_1 */
-	0x34130080, 0x00010001, 	/* cond: xyld.PRTY_STS_H_0 */
-	0x34130081, 0x00010001, 	/* cond: xyld.PRTY_MASK_H_0 */
 	0x33132013, 0x00010001, 	/* cond: yuld.pending_msg_to_ext_ev_1_ctr */
 	0x33132014, 0x00010001, 	/* cond: yuld.pending_msg_to_ext_ev_2_ctr */
 	0x33132015, 0x00010001, 	/* cond: yuld.pending_msg_to_ext_ev_3_ctr */
@@ -5487,67 +5616,15 @@ static const u32 idle_chk_regs[] = {
 	0x3313202d, 0x00010001, 	/* cond: yuld.dbg_pending_tcfc_req */
 	0x33132080, 0x00010001, 	/* cond: yuld.PRTY_STS_H_0 */
 	0x33132081, 0x00010001, 	/* cond: yuld.PRTY_MASK_H_0 */
-	0x31134080, 0x00010001, 	/* cond: tmld.PRTY_STS_H_0 */
-	0x31134081, 0x00010001, 	/* cond: tmld.PRTY_MASK_H_0 */
-	0x32138080, 0x00010001, 	/* cond: muld.PRTY_STS_H_0 */
-	0x32138081, 0x00010001, 	/* cond: muld.PRTY_MASK_H_0 */
-	0x4b140080, 0x00010001, 	/* cond: nig.PRTY_STS_H_0 */
-	0x4b140081, 0x00010001, 	/* cond: nig.PRTY_MASK_H_0 */
-	0x4b140084, 0x00010001, 	/* cond: nig.PRTY_STS_H_1 */
-	0x4b140085, 0x00010001, 	/* cond: nig.PRTY_MASK_H_1 */
-	0x4b140088, 0x00010001, 	/* cond: nig.PRTY_STS_H_2 */
-	0x4b140089, 0x00010001, 	/* cond: nig.PRTY_MASK_H_2 */
-	0x4b14008c, 0x00010001, 	/* cond: nig.PRTY_STS_H_3 */
-	0x4b14008d, 0x00010001, 	/* cond: nig.PRTY_MASK_H_3 */
 	0x4b140394, 0x00010001, 	/* cond: nig.tx_macfifo_empty */
-	0x17158080, 0x00010001, 	/* cond: ptu.PRTY_STS_H_0 */
-	0x17158081, 0x00010001, 	/* cond: ptu.PRTY_MASK_H_0 */
-	0x3f160080, 0x00010001, 	/* cond: cdu.PRTY_STS_H_0 */
-	0x3f160081, 0x00010001, 	/* cond: cdu.PRTY_MASK_H_0 */
 	0x3c360080, 0x00010001, 	/* cond: pbf.PRTY_STS_H_0 */
 	0x3c360081, 0x00010001, 	/* cond: pbf.PRTY_MASK_H_0 */
 	0x3c360084, 0x00010001, 	/* cond: pbf.PRTY_STS_H_1 */
 	0x3c360085, 0x00010001, 	/* cond: pbf.PRTY_MASK_H_1 */
-	0x3b36c100, 0x00010001, 	/* cond: btb.PRTY_STS_H_0 */
-	0x3b36c101, 0x00010001, 	/* cond: btb.PRTY_MASK_H_0 */
-	0x273e0080, 0x00010001, 	/* cond: xsdm.PRTY_STS_H_0 */
-	0x273e0081, 0x00010001, 	/* cond: xsdm.PRTY_MASK_H_0 */
-	0x283e4080, 0x00010001, 	/* cond: ysdm.PRTY_STS_H_0 */
-	0x283e4081, 0x00010001, 	/* cond: ysdm.PRTY_MASK_H_0 */
-	0x293e8080, 0x00010001, 	/* cond: psdm.PRTY_STS_H_0 */
-	0x293e8081, 0x00010001, 	/* cond: psdm.PRTY_MASK_H_0 */
-	0x243ec080, 0x00010001, 	/* cond: tsdm.PRTY_STS_H_0 */
-	0x243ec081, 0x00010001, 	/* cond: tsdm.PRTY_MASK_H_0 */
-	0x253f0080, 0x00010001, 	/* cond: msdm.PRTY_STS_H_0 */
-	0x253f0081, 0x00010001, 	/* cond: msdm.PRTY_MASK_H_0 */
-	0x263f4080, 0x00010001, 	/* cond: usdm.PRTY_STS_H_0 */
-	0x263f4081, 0x00010001, 	/* cond: usdm.PRTY_MASK_H_0 */
-	0x1b400080, 0x00010001, 	/* cond: xcm.PRTY_STS_H_0 */
-	0x1b400081, 0x00010001, 	/* cond: xcm.PRTY_MASK_H_0 */
-	0x1b400084, 0x00010001, 	/* cond: xcm.PRTY_STS_H_1 */
-	0x1b400085, 0x00010001, 	/* cond: xcm.PRTY_MASK_H_1 */
-	0x1c420080, 0x00010001, 	/* cond: ycm.PRTY_STS_H_0 */
-	0x1c420081, 0x00010001, 	/* cond: ycm.PRTY_MASK_H_0 */
-	0x1c420084, 0x00010001, 	/* cond: ycm.PRTY_STS_H_1 */
-	0x1c420085, 0x00010001, 	/* cond: ycm.PRTY_MASK_H_1 */
-	0x1d440080, 0x00010001, 	/* cond: pcm.PRTY_STS_H_0 */
-	0x1d440081, 0x00010001, 	/* cond: pcm.PRTY_MASK_H_0 */
 	0x1d4402ab, 0x00010001, 	/* cond: pcm.pbf_length_mis */
 	0x1d4402b4, 0x00010001, 	/* cond: pcm.is_pbf_fill_lvl */
-	0x18460080, 0x00010001, 	/* cond: tcm.PRTY_STS_H_0 */
-	0x18460081, 0x00010001, 	/* cond: tcm.PRTY_MASK_H_0 */
-	0x18460084, 0x00010001, 	/* cond: tcm.PRTY_STS_H_1 */
-	0x18460085, 0x00010001, 	/* cond: tcm.PRTY_MASK_H_1 */
 	0x184602ad, 0x00010001, 	/* cond: tcm.prs_length_mis */
 	0x184602c4, 0x00010001, 	/* cond: tcm.is_prs_fill_lvl */
-	0x19480080, 0x00010001, 	/* cond: mcm.PRTY_STS_H_0 */
-	0x19480081, 0x00010001, 	/* cond: mcm.PRTY_MASK_H_0 */
-	0x19480084, 0x00010001, 	/* cond: mcm.PRTY_STS_H_1 */
-	0x19480085, 0x00010001, 	/* cond: mcm.PRTY_MASK_H_1 */
-	0x1a4a0080, 0x00010001, 	/* cond: ucm.PRTY_STS_H_0 */
-	0x1a4a0081, 0x00010001, 	/* cond: ucm.PRTY_MASK_H_0 */
-	0x1a4a0084, 0x00010001, 	/* cond: ucm.PRTY_STS_H_1 */
-	0x1a4a0085, 0x00010001, 	/* cond: ucm.PRTY_MASK_H_1 */
 	0x1a4a02b2, 0x00010001, 	/* cond: ucm.yuld_length_mis */
 	0x1a4a02cd, 0x00010001, 	/* cond: ucm.is_yuld_fill_lvl */
 	0x2d500080, 0x00010001, 	/* cond: xsem.PRTY_STS_H_0 */
@@ -5560,6 +5637,7 @@ static const u32 idle_chk_regs[] = {
 	0x2d500451, 0x00010001, 	/* cond: xsem.slow_dra_fin_empty */
 	0x2d500452, 0x00010001, 	/* cond: xsem.slow_dra_rd_empty */
 	0x2d500453, 0x00010001, 	/* cond: xsem.slow_dra_wr_empty */
+	0x2d500456, 0x00010001, 	/* cond: xsem.slow_ram_rd_empty */
 	0x2d500459, 0x00010001, 	/* cond: xsem.thread_fifo_empty */
 	0x2d500490, 0x00010001, 	/* cond: xsem.pas_if_full */
 	0x2d5004c2, 0x00010001, 	/* cond: xsem.thread_orun_num */
@@ -5574,6 +5652,7 @@ static const u32 idle_chk_regs[] = {
 	0x2e540451, 0x00010001, 	/* cond: ysem.slow_dra_fin_empty */
 	0x2e540452, 0x00010001, 	/* cond: ysem.slow_dra_rd_empty */
 	0x2e540453, 0x00010001, 	/* cond: ysem.slow_dra_wr_empty */
+	0x2e540456, 0x00010001, 	/* cond: ysem.slow_ram_rd_empty */
 	0x2e540459, 0x00010001, 	/* cond: ysem.thread_fifo_empty */
 	0x2e540490, 0x00010001, 	/* cond: ysem.pas_if_full */
 	0x2e5404c2, 0x00010001, 	/* cond: ysem.thread_orun_num */
@@ -5588,6 +5667,7 @@ static const u32 idle_chk_regs[] = {
 	0x2f580451, 0x00010001, 	/* cond: psem.slow_dra_fin_empty */
 	0x2f580452, 0x00010001, 	/* cond: psem.slow_dra_rd_empty */
 	0x2f580453, 0x00010001, 	/* cond: psem.slow_dra_wr_empty */
+	0x2f580456, 0x00010001, 	/* cond: psem.slow_ram_rd_empty */
 	0x2f580459, 0x00010001, 	/* cond: psem.thread_fifo_empty */
 	0x2f580490, 0x00010001, 	/* cond: psem.pas_if_full */
 	0x2f5804c2, 0x00010001, 	/* cond: psem.thread_orun_num */
@@ -5602,12 +5682,11 @@ static const u32 idle_chk_regs[] = {
 	0x2a5c0451, 0x00010001, 	/* cond: tsem.slow_dra_fin_empty */
 	0x2a5c0452, 0x00010001, 	/* cond: tsem.slow_dra_rd_empty */
 	0x2a5c0453, 0x00010001, 	/* cond: tsem.slow_dra_wr_empty */
+	0x2a5c0456, 0x00010001, 	/* cond: tsem.slow_ram_rd_empty */
 	0x2a5c0459, 0x00010001, 	/* cond: tsem.thread_fifo_empty */
 	0x2a5c0490, 0x00010001, 	/* cond: tsem.pas_if_full */
 	0x2a5c04c2, 0x00010001, 	/* cond: tsem.thread_orun_num */
 	0x2a5c0505, 0x00010001, 	/* cond: tsem.dbg_if_full */
-	0x2b600080, 0x00010001, 	/* cond: msem.PRTY_STS_H_0 */
-	0x2b600081, 0x00010001, 	/* cond: msem.PRTY_MASK_H_0 */
 	0x2b6002c1, 0x00010001, 	/* cond: msem.thread_error */
 	0x2b6002c2, 0x00010001, 	/* cond: msem.thread_rdy */
 	0x2b6002c4, 0x00010001, 	/* cond: msem.thread_valid */
@@ -5616,6 +5695,7 @@ static const u32 idle_chk_regs[] = {
 	0x2b600451, 0x00010001, 	/* cond: msem.slow_dra_fin_empty */
 	0x2b600452, 0x00010001, 	/* cond: msem.slow_dra_rd_empty */
 	0x2b600453, 0x00010001, 	/* cond: msem.slow_dra_wr_empty */
+	0x2b600456, 0x00010001, 	/* cond: msem.slow_ram_rd_empty */
 	0x2b600459, 0x00010001, 	/* cond: msem.thread_fifo_empty */
 	0x2b600490, 0x00010001, 	/* cond: msem.pas_if_full */
 	0x2b6004c2, 0x00010001, 	/* cond: msem.thread_orun_num */
@@ -5630,12 +5710,15 @@ static const u32 idle_chk_regs[] = {
 	0x2c640451, 0x00010001, 	/* cond: usem.slow_dra_fin_empty */
 	0x2c640452, 0x00010001, 	/* cond: usem.slow_dra_rd_empty */
 	0x2c640453, 0x00010001, 	/* cond: usem.slow_dra_wr_empty */
+	0x2c640456, 0x00010001, 	/* cond: usem.slow_ram_rd_empty */
 	0x2c640459, 0x00010001, 	/* cond: usem.thread_fifo_empty */
 	0x2c640490, 0x00010001, 	/* cond: usem.pas_if_full */
 	0x2c6404c2, 0x00010001, 	/* cond: usem.thread_orun_num */
 	0x2c640505, 0x00010001, 	/* cond: usem.dbg_if_full */
 	0x0c014810, 0x00010001, 	/* cond: mcp2.PRTY_STS */
 	0x0c014811, 0x00010001, 	/* cond: mcp2.PRTY_MASK */
+	0x0c014881, 0x00010001, 	/* cond: mcp2.PRTY_STS_H_0 */
+	0x0c014882, 0x00010001, 	/* cond: mcp2.PRTY_MASK_H_0 */
 	0x07010000, 0x00010001, 	/* cond: ncsi.PRTY_STS_H_0 */
 	0x07010001, 0x00010001, 	/* cond: ncsi.PRTY_MASK_H_0 */
 	0x48014460, 0x00010001, 	/* cond: umac.INT_STS */
@@ -5670,33 +5753,27 @@ static const u32 idle_chk_regs[] = {
 	0x501cb050, 0x00010001, 	/* cond: nws.nws_cmu.ln3_top_err_ctrl1 */
 	0x501cb051, 0x00010001, 	/* cond: nws.nws_cmu.ln3_top_err_ctrl2 */
 	0x501cb052, 0x00010001, 	/* cond: nws.nws_cmu.ln3_top_err_ctrl3 */
-	0x09150100, 0x00010001, 	/* cond: bmb.PRTY_STS_H_0 */
-	0x09150101, 0x00010001, 	/* cond: bmb.PRTY_MASK_H_0 */
-	0x09150104, 0x00010001, 	/* cond: bmb.PRTY_STS_H_1 */
-	0x09150105, 0x00010001, 	/* cond: bmb.PRTY_MASK_H_1 */
 	0x4e008147, 0x00010001, 	/* cond: ipc.PRTY_STS */
 	0x4e008148, 0x00010001, 	/* cond: ipc.PRTY_MASK */
-	0x0c014881, 0x00010001, 	/* cond: mcp2.PRTY_STS_H_0 */
-	0x0c014882, 0x00010001, 	/* cond: mcp2.PRTY_MASK_H_0 */
 };
-/* Data size: 13880 bytes */
+/* Data size: 13904 bytes */
 
 /* Idle check immediates */
 static const u32 idle_chk_imms[] = {
 	0x00000000, 0x000000b0, 0x00000000, 0x0000000f, 0x00000000, 0x34000000, 
 	0x00000000, 0x00000060, 0x00000000, 0x00000005, 0x00000010, 0x00000002, 
 	0x00000000, 0x00000001, 0x00000000, 0x00000020, 0x000000b7, 0x00000004, 
-	0x00000008, 0x00000003, 0x00022aab, 0x0000eaaa, 0x0076417c, 0x00000000, 
-	0x0001bc01, 0x00000000, 0x00000011, 0x00000001, 0x00000000, 0xffffffff, 
-	0x7f800000, 0x80000000, 0x007fffff, 0x0000041e, 0x00000030, 0x000000ff, 
+	0x00000008, 0x00000003, 0x00022aab, 0x0000eaaa, 0x0001bc01, 0x00000000, 
+	0x0076417c, 0x00000000, 0x00000011, 0x00000001, 0x00000000, 0xffffffff, 
+	0x007fffff, 0x80000000, 0x7f800000, 0x0000041e, 0x00000030, 0x000000ff, 
 	0x000fffff, 0x0000ffff, 0x000000ff, 0x00000000, 0x00000007, 0x00000000, 
 	0x00001ffe, 0x0000002e, 0x000001ff, 0x00000040, 0x00000028, 0x0000002a, 
-	0x00000034, 0x0000003f, 0x0000001d, 0x0000001a, 0x0000000a, 0x00000026, 
-	0x0000000e, 0x00000017, 0x0000003c, 0x0000002c, 0x00000032, 0x00003f02, 
+	0x00000034, 0x0000001d, 0x0000003f, 0x0000000a, 0x0000000e, 0x0000001a, 
+	0x00000026, 0x00000017, 0x0000002c, 0x0000003c, 0x00000032, 0x00003f02, 
 	0x00000000, 0x3fffffc0, 0x00000006, 0xc0000000, 0x0000001e, 0x003fffff, 
 	0x00000002, 0x00000030, 0x00000004, 0x00000003, 0x000003e1, 0x00000381, 
-	0x000fd010, 0x00000000, 0x00100000, 0x00000000, 0x00002000, 0x00000000, 
-	0x0000e001, 0x00000000, 0x00000002, 0x00000002, 0x00000004, 0x00000004, 
+	0x00002000, 0x00000000, 0x000fd010, 0x00000000, 0x00100000, 0x00000000, 
+	0x0000e001, 0x00000000, 0x00000004, 0x00000004, 0x00000002, 0x00000002, 
 	0x00000001, 0x0000000e, 0x00000001, 0x00000001, 0x00000001, 0x0000000f, 
 	0x00000001, 0x00000001, 0x00000001, 0x00000010, 0x00000001, 0x00000001, 
 	0x00000001, 0x00000011, 0x00000001, 0x00000001, 0x000001fe, 0x00000000, 
@@ -5707,7 +5784,7 @@ static const u32 idle_chk_imms[] = {
 
 /* Idle check rules */
 static const u32 idle_chk_rules[] = {
-	0x0b490000, 	/* mode all */
+	0x0bb80000, 	/* mode all */
 	0x00000000, 0x00010002, 0x00000000, 	/* ((r1&~r2)!=0), r1=misc.INT_STS, r2=misc.INT_MASK,  */
 	0x01000001, 0x00010101, 0x00000002, 	/* (r1!=0), r1=misc.aeu_after_invert_1_igu,  */
 	0x04000002, 0x00020101, 0x00010004, 	/* ((r1&~0xB0)!=0), r1=misc.aeu_after_invert_2_igu,  */
@@ -5760,1316 +5837,1317 @@ static const u32 idle_chk_rules[] = {
 	0x01010031, 0x00010001, 0x00000043, 	/* (r1!=0), r1=dmae.go_c29,  */
 	0x01010032, 0x00010001, 0x00000044, 	/* (r1!=0), r1=dmae.go_c30,  */
 	0x01010033, 0x00010001, 0x00000045, 	/* (r1!=0), r1=dmae.go_c31,  */
-	0x01020034, 0x00010001, 0x00000046, 	/* (r1!=0), r1=grc.trace_fifo_valid_data,  */
-	0x00000035, 0x00010002, 0x00000047, 	/* ((r1&~r2)!=0), r1=grc.INT_STS_0, r2=grc.INT_MASK_0,  */
-	0x00000036, 0x00010002, 0x00000049, 	/* ((r1&~r2)!=0), r1=grc.PRTY_STS_H_0, r2=grc.PRTY_MASK_H_0,  */
-	0x00000037, 0x00010002, 0x0000004b, 	/* ((r1&~r2)!=0), r1=dorq.INT_STS, r2=dorq.INT_MASK,  */
-	0x01000038, 0x00010001, 0x0009004d, 	/* (r1!=reset1), r1=dorq.xcm_msg_init_crd,  */
-	0x01000039, 0x00010001, 0x0009004e, 	/* (r1!=reset1), r1=dorq.tcm_msg_init_crd,  */
-	0x0100003a, 0x00010001, 0x0009004f, 	/* (r1!=reset1), r1=dorq.ucm_msg_init_crd,  */
-	0x0100003b, 0x00010001, 0x000a0050, 	/* (r1!=reset1), r1=dorq.pbf_cmd_init_crd,  */
-	0x0100003c, 0x00010001, 0x00000051, 	/* (r1!=0), r1=dorq.pf_usage_cnt,  */
-	0x0100003d, 0x00010001, 0x00000052, 	/* (r1!=0), r1=dorq.vf_usage_cnt,  */
-	0x0100003e, 0x00010001, 0x00000053, 	/* (r1!=0), r1=dorq.cfc_ld_req_fifo_fill_lvl,  */
-	0x0100003f, 0x00010001, 0x00000054, 	/* (r1!=0), r1=dorq.dorq_fifo_fill_lvl,  */
-	0x01020040, 0x00010201, 0x00000055, 	/* (r1!=0), r1=dorq.db_drop_cnt,  */
-	0x01020041, 0x00010201, 0x00000058, 	/* (r1!=0), r1=dorq.dpm_abort_cnt,  */
-	0x01000042, 0x00010001, 0x0000005b, 	/* (r1!=0), r1=dorq.dpm_tbl_fill_lvl,  */
-	0x00000043, 0x00010002, 0x0000005c, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS, r2=igu.PRTY_MASK,  */
-	0x01010044, 0x00010001, 0x0000005e, 	/* (r1!=0), r1=igu.attn_write_done_pending,  */
-	0x01020045, 0x00010001, 0x0000005f, 	/* (r1!=0), r1=igu.Interrupt_status,  */
-	0x01000046, 0x00010001, 0x00000060, 	/* (r1!=0), r1=igu.error_handling_data_valid,  */
-	0x01000047, 0x00010001, 0x00000061, 	/* (r1!=0), r1=igu.silent_drop,  */
-	0x01020048, 0x00010001, 0x00000062, 	/* (r1!=0), r1=igu.sb_ctrl_fsm,  */
-	0x01020049, 0x00010001, 0x00000063, 	/* (r1!=0), r1=igu.int_handle_fsm,  */
-	0x0402004a, 0x00020001, 0x000b0064, 	/* ((r1&~0x2)!=0), r1=igu.attn_fsm,  */
-	0x0402004b, 0x00020001, 0x000d0065, 	/* ((r1&~0x1)!=0), r1=igu.ctrl_fsm,  */
-	0x0402004c, 0x00020001, 0x000d0066, 	/* ((r1&~0x1)!=0), r1=igu.pxp_arb_fsm,  */
-	0x0000004d, 0x00010002, 0x00000067, 	/* ((r1&~r2)!=0), r1=cau.PRTY_STS_H_0, r2=cau.PRTY_MASK_H_0,  */
-	0x0101004e, 0x00010001, 0x000d0069, 	/* (r1!=1), r1=cau.igu_req_credit_status,  */
-	0x0101004f, 0x00010001, 0x000d006a, 	/* (r1!=1), r1=cau.igu_cmd_credit_status,  */
-	0x01010050, 0x00010001, 0x0000006b, 	/* (r1!=0), r1=cau.debug_fifo_status,  */
-	0x01000051, 0x00010001, 0x0000006c, 	/* (r1!=0), r1=cau.error_pxp_req,  */
-	0x01000052, 0x00010101, 0x0000006d, 	/* (r1!=0), r1=cau.error_fsm_line,  */
-	0x01000053, 0x00010001, 0x0000006f, 	/* (r1!=0), r1=cau.parity_latch_status,  */
-	0x01000054, 0x00010001, 0x00000070, 	/* (r1!=0), r1=cau.error_cleanup_cmd_reg,  */
-	0x01020055, 0x00010001, 0x00000071, 	/* (r1!=0), r1=cau.agg_units_0to15_state,  */
-	0x01020056, 0x00010001, 0x00000072, 	/* (r1!=0), r1=cau.agg_units_16to31_state,  */
-	0x01020057, 0x00010001, 0x00000073, 	/* (r1!=0), r1=cau.agg_units_32to47_state,  */
-	0x01020058, 0x00010001, 0x00000074, 	/* (r1!=0), r1=cau.agg_units_48to63_state,  */
-	0x03010059, 0x00000002, 0x00000075, 	/* (r1!=r2), r1=cau.req_counter, r2=cau.ack_counter,  */
-	0x0301005a, 0x00000002, 0x00000077, 	/* (r1!=r2), r1=cau.req_counter, r2=cau.wdone_counter,  */
-	0x0102005b, 0x00010001, 0x00000079, 	/* (r1!=0), r1=cau.main_fsm_status,  */
-	0x0102005c, 0x00010001, 0x0000007a, 	/* (r1!=0), r1=cau.var_read_fsm_status,  */
-	0x0102005d, 0x00010001, 0x0000007b, 	/* (r1!=0), r1=cau.igu_dma_fsm_status,  */
-	0x0102005e, 0x00010001, 0x0000007c, 	/* (r1!=0), r1=cau.igu_cqe_cmd_fsm_status,  */
-	0x0102005f, 0x00010001, 0x0000007d, 	/* (r1!=0), r1=cau.igu_cqe_agg_fsm_status,  */
-	0x00000060, 0x00010302, 0x0000007e, 	/* ((r1&~r2)!=0), r1=prs.INT_STS_0, r2=prs.INT_MASK_0,  */
-	0x00000061, 0x00010002, 0x00000083, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS, r2=prs.PRTY_MASK,  */
-	0x01010062, 0x00010001, 0x00000085, 	/* (r1!=0), r1=prs.queue_pkt_avail_status,  */
-	0x01010063, 0x00010001, 0x00000086, 	/* (r1!=0), r1=prs.storm_bkprs_status,  */
-	0x01010064, 0x00010001, 0x00000087, 	/* (r1!=0), r1=prs.stop_parsing_status,  */
-	0x01010065, 0x00010001, 0x00000088, 	/* (r1!=0), r1=prs.ccfc_search_current_credit,  */
-	0x01010066, 0x00010001, 0x00000089, 	/* (r1!=0), r1=prs.tcfc_search_current_credit,  */
-	0x01010067, 0x00010001, 0x0000008a, 	/* (r1!=0), r1=prs.ccfc_load_current_credit,  */
-	0x01010068, 0x00010001, 0x0000008b, 	/* (r1!=0), r1=prs.tcfc_load_current_credit,  */
-	0x01010069, 0x00010001, 0x0000008c, 	/* (r1!=0), r1=prs.ccfc_search_req_ct,  */
-	0x0101006a, 0x00010001, 0x0000008d, 	/* (r1!=0), r1=prs.tcfc_search_req_ct,  */
-	0x0101006b, 0x00010001, 0x0000008e, 	/* (r1!=0), r1=prs.ccfc_load_req_ct,  */
-	0x0101006c, 0x00010001, 0x0000008f, 	/* (r1!=0), r1=prs.tcfc_load_req_ct,  */
-	0x0101006d, 0x00010001, 0x00000090, 	/* (r1!=0), r1=prs.sop_req_ct,  */
-	0x0101006e, 0x00010001, 0x00000091, 	/* (r1!=0), r1=prs.eop_req_ct,  */
-	0x0000006f, 0x00010002, 0x00000092, 	/* ((r1&~r2)!=0), r1=prm.INT_STS, r2=prm.INT_MASK,  */
-	0x01000070, 0x00010001, 0x000d0094, 	/* (r1!=1), r1=rss.rss_init_done,  */
-	0x00000071, 0x00010002, 0x00000095, 	/* ((r1&~r2)!=0), r1=rss.INT_STS, r2=rss.INT_MASK,  */
-	0x01010072, 0x00010001, 0x000f0097, 	/* (r1!=0x20), r1=rss.tmld_credit,  */
-	0x01000073, 0x00010001, 0x000d0098, 	/* (r1!=1), r1=pswrq2.rbc_done,  */
-	0x01000074, 0x00010001, 0x000d0099, 	/* (r1!=1), r1=pswrq2.cfg_done,  */
-	0x00020075, 0x00010002, 0x0000009a, 	/* ((r1&~r2)!=0), r1=pswrq2.INT_STS, r2=pswrq2.INT_MASK,  */
-	0x00000076, 0x00010002, 0x0000009c, 	/* ((r1&~r2)!=0), r1=pswrq2.PRTY_STS_H_0, r2=pswrq2.PRTY_MASK_H_0,  */
-	0x01010077, 0x00010001, 0x0000009e, 	/* (r1!=0), r1=pswrq2.vq0_entry_cnt[0:31],  */
-	0x01000078, 0x00010001, 0x0010009f, 	/* (r1!=0xb7), r1=pswrq2.BW_CREDIT,  */
-	0x01010079, 0x00010001, 0x000000a0, 	/* (r1!=0), r1=pswrq2.treq_fifo_fill_lvl,  */
-	0x0101007a, 0x00010001, 0x000000a1, 	/* (r1!=0), r1=pswrq2.icpl_fifo_fill_lvl,  */
-	0x0100007b, 0x00010001, 0x000000a2, 	/* (r1!=0), r1=pswrq2.l2p_err_add_31_0,  */
-	0x0100007c, 0x00010001, 0x000000a3, 	/* (r1!=0), r1=pswrq2.l2p_err_add_63_32,  */
-	0x0100007d, 0x00010001, 0x000000a4, 	/* (r1!=0), r1=pswrq2.l2p_err_details,  */
-	0x0100007e, 0x00010001, 0x000000a5, 	/* (r1!=0), r1=pswrq2.l2p_err_details2,  */
-	0x0801007f, 0x00010002, 0x001100a6, 	/* (r1<(r2-4)), r1=pswrq2.sr_cnt, r2=pswrq2.sr_num_cfg,  */
-	0x03010080, 0x00000002, 0x000000a8, 	/* (r1!=r2), r1=pswrq2.sr_cnt, r2=pswrq2.sr_num_cfg,  */
-	0x03010081, 0x00000002, 0x000000aa, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_0, r2=pswrq2.max_srs_vq0,  */
-	0x03010082, 0x00000002, 0x000000ac, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_1, r2=pswrq2.max_srs_vq1,  */
-	0x03010083, 0x00000002, 0x000000ae, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_2, r2=pswrq2.max_srs_vq2,  */
-	0x03010084, 0x00000002, 0x000000b0, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_3, r2=pswrq2.max_srs_vq3,  */
-	0x03010085, 0x00000002, 0x000000b2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_4, r2=pswrq2.max_srs_vq4,  */
-	0x03010086, 0x00000002, 0x000000b4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_5, r2=pswrq2.max_srs_vq5,  */
-	0x03010087, 0x00000002, 0x000000b6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_6, r2=pswrq2.max_srs_vq6,  */
-	0x03010088, 0x00000002, 0x000000b8, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_9, r2=pswrq2.max_srs_vq9,  */
-	0x03010089, 0x00000002, 0x000000ba, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_11, r2=pswrq2.max_srs_vq11,  */
-	0x0301008a, 0x00000002, 0x000000bc, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_12, r2=pswrq2.max_srs_vq12,  */
-	0x0301008b, 0x00000002, 0x000000be, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_15, r2=pswrq2.max_srs_vq15,  */
-	0x0301008c, 0x00000002, 0x000000c0, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_16, r2=pswrq2.max_srs_vq16,  */
-	0x0301008d, 0x00000002, 0x000000c2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_17, r2=pswrq2.max_srs_vq17,  */
-	0x0301008e, 0x00000002, 0x000000c4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_18, r2=pswrq2.max_srs_vq18,  */
-	0x0301008f, 0x00000002, 0x000000c6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_19, r2=pswrq2.max_srs_vq19,  */
-	0x03010090, 0x00000002, 0x000000c8, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_21, r2=pswrq2.max_srs_vq21,  */
-	0x03010091, 0x00000002, 0x000000ca, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_22, r2=pswrq2.max_srs_vq22,  */
-	0x03010092, 0x00000002, 0x000000cc, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_23, r2=pswrq2.max_srs_vq23,  */
-	0x03010093, 0x00000002, 0x000000ce, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_24, r2=pswrq2.max_srs_vq24,  */
-	0x03010094, 0x00000002, 0x000000d0, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_26, r2=pswrq2.max_srs_vq26,  */
-	0x03010095, 0x00000002, 0x000000d2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_28, r2=pswrq2.max_srs_vq28,  */
-	0x03010096, 0x00000002, 0x000000d4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_29, r2=pswrq2.max_srs_vq29,  */
-	0x03010097, 0x00000002, 0x000000d6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_30, r2=pswrq2.max_srs_vq30,  */
-	0x08010098, 0x00010002, 0x001200d8, 	/* (r1<(r2-8)), r1=pswrq2.blk_cnt, r2=pswrq2.blk_num_cfg,  */
-	0x03010099, 0x00000002, 0x000000da, 	/* (r1!=r2), r1=pswrq2.blk_cnt, r2=pswrq2.blk_num_cfg,  */
-	0x0301009a, 0x00000002, 0x000000dc, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_0, r2=pswrq2.max_blks_vq0,  */
-	0x0301009b, 0x00000002, 0x000000de, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_1, r2=pswrq2.max_blks_vq1,  */
-	0x0301009c, 0x00000002, 0x000000e0, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_2, r2=pswrq2.max_blks_vq2,  */
-	0x0301009d, 0x00000002, 0x000000e2, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_3, r2=pswrq2.max_blks_vq3,  */
-	0x0301009e, 0x00000002, 0x000000e4, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_4, r2=pswrq2.max_blks_vq4,  */
-	0x0301009f, 0x00000002, 0x000000e6, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_5, r2=pswrq2.max_blks_vq5,  */
-	0x030100a0, 0x00000002, 0x000000e8, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_6, r2=pswrq2.max_blks_vq6,  */
-	0x030100a1, 0x00000002, 0x000000ea, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_9, r2=pswrq2.max_blks_vq9,  */
-	0x030100a2, 0x00000002, 0x000000ec, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_11, r2=pswrq2.max_blks_vq11,  */
-	0x030100a3, 0x00000002, 0x000000ee, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_12, r2=pswrq2.max_blks_vq12,  */
-	0x030100a4, 0x00000002, 0x000000f0, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_15, r2=pswrq2.max_blks_vq15,  */
-	0x030100a5, 0x00000002, 0x000000f2, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_16, r2=pswrq2.max_blks_vq16,  */
-	0x030100a6, 0x00000002, 0x000000f4, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_17, r2=pswrq2.max_blks_vq17,  */
-	0x030100a7, 0x00000002, 0x000000f6, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_18, r2=pswrq2.max_blks_vq18,  */
-	0x030100a8, 0x00000002, 0x000000f8, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_19, r2=pswrq2.max_blks_vq19,  */
-	0x030100a9, 0x00000002, 0x000000fa, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_21, r2=pswrq2.max_blks_vq21,  */
-	0x030100aa, 0x00000002, 0x000000fc, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_22, r2=pswrq2.max_blks_vq22,  */
-	0x030100ab, 0x00000002, 0x000000fe, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_23, r2=pswrq2.max_blks_vq23,  */
-	0x030100ac, 0x00000002, 0x00000100, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_24, r2=pswrq2.max_blks_vq24,  */
-	0x030100ad, 0x00000002, 0x00000102, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_26, r2=pswrq2.max_blks_vq26,  */
-	0x030100ae, 0x00000002, 0x00000104, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_28, r2=pswrq2.max_blks_vq28,  */
-	0x030100af, 0x00000002, 0x00000106, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_29, r2=pswrq2.max_blks_vq29,  */
-	0x030100b0, 0x00000002, 0x00000108, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_30, r2=pswrq2.max_blks_vq30,  */
-	0x010000b1, 0x00010001, 0x0000010a, 	/* (r1!=0), r1=pswrq2.l2p_close_gate_sts,  */
-	0x010000b2, 0x00010001, 0x0000010b, 	/* (r1!=0), r1=pswrq2.misc_close_gate_sts,  */
-	0x010200b3, 0x00010001, 0x0000010c, 	/* (r1!=0), r1=pswrq2.misc_stall_mem_sts,  */
-	0x000200b4, 0x00010002, 0x0000010d, 	/* ((r1&~r2)!=0), r1=pswrq.INT_STS, r2=pswrq.INT_MASK,  */
-	0x000200b5, 0x00010002, 0x0000010f, 	/* ((r1&~r2)!=0), r1=pswwr.INT_STS, r2=pswwr.INT_MASK,  */
-	0x010000b6, 0x00010001, 0x00000111, 	/* (r1!=0), r1=pswwr2.pglue_eop_err_details,  */
-	0x010100b7, 0x00010001, 0x00000112, 	/* (r1!=0), r1=pswwr2.prm_curr_fill_level,  */
-	0x010100b8, 0x00010001, 0x00000113, 	/* (r1!=0), r1=pswwr2.cdu_curr_fill_level,  */
-	0x000200b9, 0x00010002, 0x00000114, 	/* ((r1&~r2)!=0), r1=pswwr2.INT_STS, r2=pswwr2.INT_MASK,  */
-	0x010000ba, 0x00010001, 0x00000116, 	/* (r1!=0), r1=pswrd.fifo_full_status,  */
-	0x000200bb, 0x00010002, 0x00000117, 	/* ((r1&~r2)!=0), r1=pswrd.INT_STS, r2=pswrd.INT_MASK,  */
-	0x010000bc, 0x00010001, 0x000d0119, 	/* (r1!=1), r1=pswrd2.start_init,  */
-	0x010000bd, 0x00010001, 0x000d011a, 	/* (r1!=1), r1=pswrd2.init_done,  */
-	0x010200be, 0x00010001, 0x0000011b, 	/* (r1!=0), r1=pswrd2.cpl_err_details,  */
-	0x010200bf, 0x00010001, 0x0000011c, 	/* (r1!=0), r1=pswrd2.cpl_err_details2,  */
-	0x010100c0, 0x00010001, 0x000d011d, 	/* (r1!=1), r1=pswrd2.port_is_idle_0,  */
-	0x010100c1, 0x00010001, 0x000d011e, 	/* (r1!=1), r1=pswrd2.port_is_idle_1,  */
-	0x010000c2, 0x00010001, 0x0000011f, 	/* (r1!=0), r1=pswrd2.almost_full_0[0:14],  */
-	0x000200c3, 0x00010002, 0x00000120, 	/* ((r1&~r2)!=0), r1=pswrd2.INT_STS, r2=pswrd2.INT_MASK,  */
-	0x000000c4, 0x00010002, 0x00000122, 	/* ((r1&~r2)!=0), r1=pswrd2.PRTY_STS_H_0, r2=pswrd2.PRTY_MASK_H_0,  */
-	0x000000c5, 0x00010002, 0x00000124, 	/* ((r1&~r2)!=0), r1=pswrd2.PRTY_STS_H_1, r2=pswrd2.PRTY_MASK_H_1,  */
-	0x010000c6, 0x00010001, 0x00000126, 	/* (r1!=0), r1=pswrd2.disable_inputs,  */
-	0x010100c7, 0x00010001, 0x00000127, 	/* (r1!=0), r1=pswhst2.header_fifo_status,  */
-	0x010100c8, 0x00010001, 0x00000128, 	/* (r1!=0), r1=pswhst2.data_fifo_status,  */
-	0x000200c9, 0x00010002, 0x00000129, 	/* ((r1&~r2)!=0), r1=pswhst2.INT_STS, r2=pswhst2.INT_MASK,  */
-	0x010200ca, 0x00010001, 0x0000012b, 	/* (r1!=0), r1=pswhst.discard_internal_writes_status,  */
-	0x010200cb, 0x00010001, 0x0000012c, 	/* (r1!=0), r1=pswhst.discard_doorbells_status,  */
-	0x010200cc, 0x00010001, 0x0013012d, 	/* (r1!=3), r1=pswhst.arb_is_idle,  */
-	0x010200cd, 0x00010301, 0x0000012e, 	/* (r1!=0), r1=pswhst.incorrect_access_valid,  */
-	0x010200ce, 0x00010101, 0x00000132, 	/* (r1!=0), r1=pswhst.per_violation_valid,  */
-	0x010200cf, 0x00010001, 0x00140134, 	/* (r1!=reset1), r1=pswhst.source_credits_avail,  */
-	0x010200d0, 0x00010101, 0x00000135, 	/* (r1!=0), r1=pswhst.source_credit_viol_valid,  */
-	0x010200d1, 0x00010001, 0x00150137, 	/* (r1!=60074), r1=pswhst.dest_credits_avail,  */
-	0x010200d2, 0x00010001, 0x00000138, 	/* (r1!=0), r1=pswhst.is_in_drain_mode,  */
-	0x010200d3, 0x00010101, 0x00000139, 	/* (r1!=0), r1=pswhst.timeout_valid,  */
-	0x010200d4, 0x00010101, 0x0000013b, 	/* (r1!=0), r1=pswhst.timeout_valid,  */
-	0x010200d5, 0x00010001, 0x0000013d, 	/* (r1!=0), r1=pswhst.clients_waiting_to_source_arb[0:7],  */
-	0x000200d6, 0x00010002, 0x0000013e, 	/* ((r1&~r2)!=0), r1=pswhst.INT_STS, r2=pswhst.INT_MASK,  */
-	0x060200d7, 0x00020001, 0x00160140, 	/* ((r1&0x76417C)!=0), r1=pglue_b.INT_STS,  */
-	0x060000d8, 0x00020001, 0x00180141, 	/* ((r1&0x01BC01)!=0), r1=pglue_b.INT_STS,  */
-	0x010000d9, 0x00010001, 0x00000142, 	/* (r1!=0), r1=pglue_b.pgl_write_blocked,  */
-	0x010000da, 0x00010001, 0x00000143, 	/* (r1!=0), r1=pglue_b.pgl_read_blocked,  */
-	0x010100db, 0x00010001, 0x00000144, 	/* (r1!=0), r1=pglue_b.read_fifo_occupancy_level,  */
-	0x010200dc, 0x00010001, 0x00000145, 	/* (r1!=0), r1=pglue_b.rx_legacy_errors,  */
-	0x070100dd, 0x00030001, 0x001a0146, 	/* (((r1>>17)&1)!=0), r1=pglue_b.pgl_txw_cdts,  */
-	0x010200de, 0x00010001, 0x00000147, 	/* (r1!=0), r1=pglue_b.cfg_space_a_request,  */
-	0x010200df, 0x00010001, 0x00000148, 	/* (r1!=0), r1=pglue_b.cfg_space_b_request,  */
-	0x010200e0, 0x00010001, 0x00000149, 	/* (r1!=0), r1=pglue_b.flr_request_vf_31_0,  */
-	0x010200e1, 0x00010001, 0x0000014a, 	/* (r1!=0), r1=pglue_b.flr_request_vf_63_32,  */
-	0x010200e2, 0x00010001, 0x0000014b, 	/* (r1!=0), r1=pglue_b.flr_request_vf_95_64,  */
-	0x010200e3, 0x00010001, 0x0000014c, 	/* (r1!=0), r1=pglue_b.flr_request_vf_127_96,  */
-	0x010200e4, 0x00010001, 0x0000014d, 	/* (r1!=0), r1=pglue_b.flr_request_vf_159_128,  */
-	0x010200e5, 0x00010001, 0x0000014e, 	/* (r1!=0), r1=pglue_b.flr_request_vf_191_160,  */
-	0x010200e6, 0x00010001, 0x0000014f, 	/* (r1!=0), r1=pglue_b.flr_request_pf_31_0,  */
-	0x010200e7, 0x00010001, 0x00000150, 	/* (r1!=0), r1=pglue_b.sr_iov_disabled_request,  */
-	0x010200e8, 0x00010001, 0x00000151, 	/* (r1!=0), r1=pglue_b.was_error_vf_31_0,  */
-	0x010200e9, 0x00010001, 0x00000152, 	/* (r1!=0), r1=pglue_b.was_error_vf_63_32,  */
-	0x010200ea, 0x00010001, 0x00000153, 	/* (r1!=0), r1=pglue_b.was_error_vf_95_64,  */
-	0x010200eb, 0x00010001, 0x00000154, 	/* (r1!=0), r1=pglue_b.was_error_vf_127_96,  */
-	0x010200ec, 0x00010001, 0x00000155, 	/* (r1!=0), r1=pglue_b.was_error_vf_159_128,  */
-	0x010200ed, 0x00010001, 0x00000156, 	/* (r1!=0), r1=pglue_b.was_error_vf_191_160,  */
-	0x010200ee, 0x00010001, 0x00000157, 	/* (r1!=0), r1=pglue_b.was_error_pf_31_0,  */
-	0x010200ef, 0x00010001, 0x00000158, 	/* (r1!=0), r1=pglue_b.rx_err_details,  */
-	0x010200f0, 0x00010001, 0x00000159, 	/* (r1!=0), r1=pglue_b.rx_tcpl_err_details,  */
-	0x010200f1, 0x00010001, 0x0000015a, 	/* (r1!=0), r1=pglue_b.tx_err_wr_add_31_0,  */
-	0x010200f2, 0x00010001, 0x0000015b, 	/* (r1!=0), r1=pglue_b.tx_err_wr_add_63_32,  */
-	0x010200f3, 0x00010001, 0x0000015c, 	/* (r1!=0), r1=pglue_b.tx_err_wr_details,  */
-	0x010200f4, 0x00010001, 0x0000015d, 	/* (r1!=0), r1=pglue_b.tx_err_wr_details2,  */
-	0x010200f5, 0x00010001, 0x0000015e, 	/* (r1!=0), r1=pglue_b.tx_err_rd_add_31_0,  */
-	0x010200f6, 0x00010001, 0x0000015f, 	/* (r1!=0), r1=pglue_b.tx_err_rd_add_63_32,  */
-	0x010200f7, 0x00010001, 0x00000160, 	/* (r1!=0), r1=pglue_b.tx_err_rd_details,  */
-	0x010200f8, 0x00010001, 0x00000161, 	/* (r1!=0), r1=pglue_b.tx_err_rd_details2,  */
-	0x010200f9, 0x00010001, 0x00000162, 	/* (r1!=0), r1=pglue_b.vf_length_violation_details,  */
-	0x010200fa, 0x00010001, 0x00000163, 	/* (r1!=0), r1=pglue_b.vf_length_violation_details2,  */
-	0x010200fb, 0x00010001, 0x00000164, 	/* (r1!=0), r1=pglue_b.vf_grc_space_violation_details,  */
-	0x010200fc, 0x00010001, 0x00000165, 	/* (r1!=0), r1=pglue_b.master_zlr_err_add_31_0,  */
-	0x010200fd, 0x00010001, 0x00000166, 	/* (r1!=0), r1=pglue_b.master_zlr_err_add_63_32,  */
-	0x010200fe, 0x00010001, 0x00000167, 	/* (r1!=0), r1=pglue_b.master_zlr_err_details,  */
-	0x010200ff, 0x00010001, 0x00000168, 	/* (r1!=0), r1=pglue_b.admin_window_violation_details,  */
-	0x01000100, 0x00010001, 0x00000169, 	/* (r1!=0), r1=pglue_b.out_of_range_function_in_pretend_details,  */
-	0x01000101, 0x00010001, 0x0000016a, 	/* (r1!=0), r1=pglue_b.out_of_range_function_in_pretend_address,  */
-	0x01010102, 0x00010001, 0x0000016b, 	/* (r1!=0), r1=pglue_b.write_fifo_occupancy_level,  */
-	0x01020103, 0x00010001, 0x0000016c, 	/* (r1!=0), r1=pglue_b.illegal_address_add_31_0,  */
-	0x01020104, 0x00010001, 0x0000016d, 	/* (r1!=0), r1=pglue_b.illegal_address_add_63_32,  */
-	0x01020105, 0x00010001, 0x0000016e, 	/* (r1!=0), r1=pglue_b.illegal_address_details,  */
-	0x01020106, 0x00010001, 0x0000016f, 	/* (r1!=0), r1=pglue_b.illegal_address_details2,  */
-	0x01020107, 0x00010001, 0x001d0170, 	/* (r1!=0xffffffff), r1=pglue_b.tags_31_0,  */
-	0x01020108, 0x00010001, 0x001d0171, 	/* (r1!=0xffffffff), r1=pglue_b.tags_63_32,  */
-	0x01020109, 0x00010001, 0x001d0172, 	/* (r1!=0xffffffff), r1=pglue_b.tags_95_64,  */
-	0x0102010a, 0x00010001, 0x001d0173, 	/* (r1!=0xffffffff), r1=pglue_b.tags_127_96,  */
-	0x0102010b, 0x00010001, 0x00000174, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_add_31_0,  */
-	0x0102010c, 0x00010001, 0x00000175, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_add_63_32,  */
-	0x0102010d, 0x00010001, 0x00000176, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_details,  */
-	0x0102010e, 0x00010001, 0x00000177, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_details2,  */
-	0x0d00010f, 0x00010001, 0x001e0178, 	/* (r1&0x7F800000), r1=tm.INT_STS_0,  */
-	0x0d020110, 0x00010001, 0x001f0179, 	/* (r1&0x80000000), r1=tm.INT_STS_0,  */
-	0x0d000111, 0x00010001, 0x0020017a, 	/* (r1&0x7FFFFF), r1=tm.INT_STS_0,  */
-	0x0d000112, 0x00010001, 0x0021017b, 	/* (r1&0x41E), r1=tm.INT_STS_1,  */
-	0x01010113, 0x00010001, 0x0000017c, 	/* (r1!=0), r1=tm.pxp_read_data_fifo_status,  */
-	0x01010114, 0x00010001, 0x0000017d, 	/* (r1!=0), r1=tm.pxp_read_ctrl_fifo_status,  */
-	0x01010115, 0x00010001, 0x0000017e, 	/* (r1!=0), r1=tm.cfc_load_echo_fifo_status,  */
-	0x01010116, 0x00010001, 0x0000017f, 	/* (r1!=0), r1=tm.client_out_fifo_status,  */
-	0x01010117, 0x00010001, 0x00000180, 	/* (r1!=0), r1=tm.client_in_pbf_fifo_status,  */
-	0x01010118, 0x00010001, 0x00000181, 	/* (r1!=0), r1=tm.client_in_xcm_fifo_status,  */
-	0x01010119, 0x00010001, 0x00000182, 	/* (r1!=0), r1=tm.client_in_tcm_fifo_status,  */
-	0x0101011a, 0x00010001, 0x00000183, 	/* (r1!=0), r1=tm.client_in_ucm_fifo_status,  */
-	0x0101011b, 0x00010001, 0x00000184, 	/* (r1!=0), r1=tm.expiration_cmd_fifo_status,  */
-	0x0101011c, 0x00010001, 0x00000185, 	/* (r1!=0), r1=tm.ac_command_fifo_status,  */
-	0x0100011d, 0x00010001, 0x000d0186, 	/* (r1!=1), r1=tcfc.ll_init_done,  */
-	0x0100011e, 0x00010001, 0x000d0187, 	/* (r1!=1), r1=tcfc.ac_init_done,  */
-	0x0100011f, 0x00010001, 0x000d0188, 	/* (r1!=1), r1=tcfc.cam_init_done,  */
-	0x01000120, 0x00010001, 0x000d0189, 	/* (r1!=1), r1=tcfc.tidram_init_done,  */
-	0x00000121, 0x00010502, 0x0000018a, 	/* ((r1&~r2)!=0), r1=tcfc.INT_STS_0, r2=tcfc.INT_MASK_0,  */
-	0x01010122, 0x00010001, 0x00000191, 	/* (r1!=0x0), r1=tcfc.lstate_arriving,  */
-	0x01010123, 0x00010001, 0x00000192, 	/* (r1!=0x0), r1=tcfc.lstate_leaving,  */
-	0x01010124, 0x00010001, 0x00220193, 	/* (r1!=0x30), r1=tcfc.cduld_credit,  */
-	0x01010125, 0x00010001, 0x00220194, 	/* (r1!=reset1), r1=tcfc.cduwb_credit,  */
-	0x01000126, 0x00010001, 0x000d0195, 	/* (r1!=1), r1=ccfc.ll_init_done,  */
-	0x01000127, 0x00010001, 0x000d0196, 	/* (r1!=1), r1=ccfc.ac_init_done,  */
-	0x01000128, 0x00010001, 0x000d0197, 	/* (r1!=1), r1=ccfc.cam_init_done,  */
-	0x01000129, 0x00010001, 0x000d0198, 	/* (r1!=1), r1=ccfc.tidram_init_done,  */
-	0x0000012a, 0x00010502, 0x00000199, 	/* ((r1&~r2)!=0), r1=ccfc.INT_STS_0, r2=ccfc.INT_MASK_0,  */
-	0x0000012b, 0x00010002, 0x000001a0, 	/* ((r1&~r2)!=0), r1=ccfc.PRTY_STS, r2=ccfc.PRTY_MASK,  */
-	0x0101012c, 0x00010001, 0x000001a2, 	/* (r1!=0x0), r1=ccfc.lstate_arriving,  */
-	0x0101012d, 0x00010001, 0x000001a3, 	/* (r1!=0x0), r1=ccfc.lstate_leaving,  */
-	0x0101012e, 0x00010001, 0x002201a4, 	/* (r1!=0x30), r1=ccfc.cduld_credit,  */
-	0x0101012f, 0x00010001, 0x000a01a5, 	/* (r1!=0x10), r1=ccfc.cduwb_credit,  */
-	0x00000130, 0x00010002, 0x000001a6, 	/* ((r1&~r2)!=0), r1=qm.INT_STS, r2=qm.INT_MASK,  */
-	0x00000131, 0x00010002, 0x000001a8, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS, r2=qm.PRTY_MASK,  */
-	0x01000132, 0x00010001, 0x000001aa, 	/* (r1!=0), r1=qm.wrc_fifolvl_0[0:5],  */
-	0x03000133, 0x00000002, 0x000001ab, 	/* (r1!=r2), r1=qm.OutLdReqCrdConnTx, r2=qm.OutLdReqSizeConnTx,  */
-	0x03000134, 0x00000002, 0x000001ad, 	/* (r1!=r2), r1=qm.OutLdReqCrdConnOther, r2=qm.OutLdReqSizeConnOther,  */
-	0x01000135, 0x00010001, 0x000001af, 	/* (r1!=0), r1=qm.OvfQNumTx,  */
-	0x01000136, 0x00010101, 0x000001b0, 	/* (r1!=0), r1=qm.OvfErrorTx,  */
-	0x01000137, 0x00010001, 0x000001b2, 	/* (r1!=0), r1=qm.OvfQNumOther,  */
-	0x01000138, 0x00010101, 0x000001b3, 	/* (r1!=0), r1=qm.OvfErrorOther,  */
-	0x03010139, 0x00000002, 0x000001b5, 	/* (r1!=r2), r1=qm.CmCrd_0, r2=qm.CmInitCrd_0,  */
-	0x0301013a, 0x00000002, 0x000001b7, 	/* (r1!=r2), r1=qm.CmCrd_1, r2=qm.CmInitCrd_1,  */
-	0x0301013b, 0x00000002, 0x000001b9, 	/* (r1!=r2), r1=qm.CmCrd_2, r2=qm.CmInitCrd_2,  */
-	0x0301013c, 0x00000002, 0x000001bb, 	/* (r1!=r2), r1=qm.CmCrd_3, r2=qm.CmInitCrd_3,  */
-	0x0301013d, 0x00000002, 0x000001bd, 	/* (r1!=r2), r1=qm.CmCrd_4, r2=qm.CmInitCrd_4,  */
-	0x0301013e, 0x00000002, 0x000001bf, 	/* (r1!=r2), r1=qm.CmCrd_5, r2=qm.CmInitCrd_5,  */
-	0x0301013f, 0x00000002, 0x000001c1, 	/* (r1!=r2), r1=qm.CmCrd_6, r2=qm.CmInitCrd_6,  */
-	0x03010140, 0x00000002, 0x000001c3, 	/* (r1!=r2), r1=qm.CmCrd_7, r2=qm.CmInitCrd_7,  */
-	0x03010141, 0x00000002, 0x000001c5, 	/* (r1!=r2), r1=qm.CmCrd_8, r2=qm.CmInitCrd_8,  */
-	0x03010142, 0x00000002, 0x000001c7, 	/* (r1!=r2), r1=qm.CmCrd_9, r2=qm.CmInitCrd_9,  */
-	0x00000143, 0x00010002, 0x000001c9, 	/* ((r1&~r2)!=0), r1=rdif.INT_STS, r2=rdif.INT_MASK,  */
-	0x00000144, 0x00010002, 0x000001cb, 	/* ((r1&~r2)!=0), r1=tdif.INT_STS, r2=tdif.INT_MASK,  */
-	0x00000145, 0x00010202, 0x000001cd, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_0, r2=brb.INT_MASK_0,  */
-	0x00000146, 0x00010002, 0x000001d1, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_1, r2=brb.INT_MASK_1,  */
-	0x00000147, 0x00010002, 0x000001d3, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_2, r2=brb.INT_MASK_2,  */
-	0x00000148, 0x00010002, 0x000001d5, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_3, r2=brb.INT_MASK_3,  */
-	0x00000149, 0x00010202, 0x000001d7, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_4, r2=brb.INT_MASK_4,  */
-	0x0101014a, 0x00010001, 0x000001db, 	/* (r1!=0), r1=brb.wc_bandwidth_if_full,  */
-	0x0101014b, 0x00010001, 0x000001dc, 	/* (r1!=0), r1=brb.rc_pkt_if_full,  */
-	0x0101014c, 0x00010001, 0x002301dd, 	/* (r1!=255), r1=brb.rc_pkt_empty_0[0:4],  */
-	0x0101014d, 0x00010001, 0x000301de, 	/* (r1!=15), r1=brb.rc_sop_empty,  */
-	0x0101014e, 0x00010001, 0x000b01df, 	/* (r1!=2), r1=brb.ll_arb_empty,  */
-	0x0101014f, 0x00010001, 0x000001e0, 	/* (r1!=0), r1=brb.stop_packet_counter,  */
-	0x01010150, 0x00010001, 0x000001e1, 	/* (r1!=0), r1=brb.stop_byte_counter,  */
-	0x01010151, 0x00010001, 0x000001e2, 	/* (r1!=0), r1=brb.rc_pkt_state,  */
-	0x01010152, 0x00010001, 0x000001e3, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_0,  */
-	0x01010153, 0x00010001, 0x000001e4, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_1,  */
-	0x01010154, 0x00010001, 0x000001e5, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_2,  */
-	0x01010155, 0x00010001, 0x000001e6, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_3,  */
-	0x01010156, 0x00010001, 0x000001e7, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_4,  */
-	0x01010157, 0x00010001, 0x000001e8, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_5,  */
-	0x01010158, 0x00010001, 0x000001e9, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_6,  */
-	0x01010159, 0x00010001, 0x000001ea, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_7,  */
-	0x0101015a, 0x00010001, 0x000001eb, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_8,  */
-	0x0101015b, 0x00010001, 0x000001ec, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_0,  */
-	0x0101015c, 0x00010001, 0x000001ed, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_1,  */
-	0x0101015d, 0x00010001, 0x000001ee, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_2,  */
-	0x0101015e, 0x00010001, 0x000001ef, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_3,  */
-	0x0101015f, 0x00010001, 0x000001f0, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_4,  */
-	0x01010160, 0x00010001, 0x000001f1, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_5,  */
-	0x01010161, 0x00010001, 0x000001f2, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_6,  */
-	0x01010162, 0x00010001, 0x000001f3, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_7,  */
-	0x01010163, 0x00010001, 0x000001f4, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_8,  */
-	0x01010164, 0x00010001, 0x000001f5, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_1_ctr,  */
-	0x01010165, 0x00010001, 0x000001f6, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_2_ctr,  */
-	0x01010166, 0x00010001, 0x000001f7, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_3_ctr,  */
-	0x01010167, 0x00010001, 0x000001f8, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_4_ctr,  */
-	0x01010168, 0x00010001, 0x000001f9, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_5_ctr,  */
-	0x03010169, 0x00000002, 0x000001fa, 	/* (r1!=r2), r1=xyld.foc_remain_credits, r2=xyld.foci_foc_credits,  */
-	0x0101016a, 0x00010001, 0x000001fc, 	/* (r1!=0), r1=xyld.pci_pending_msg_ctr,  */
-	0x0101016b, 0x00010001, 0x000001fd, 	/* (r1!=0), r1=xyld.dbg_pending_ccfc_req,  */
-	0x0101016c, 0x00010001, 0x000001fe, 	/* (r1!=0), r1=xyld.dbg_pending_tcfc_req,  */
-	0x0101016d, 0x00010001, 0x000001ff, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_1_ctr,  */
-	0x0101016e, 0x00010001, 0x00000200, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_2_ctr,  */
-	0x0101016f, 0x00010001, 0x00000201, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_3_ctr,  */
-	0x01010170, 0x00010001, 0x00000202, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_4_ctr,  */
-	0x01010171, 0x00010001, 0x00000203, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_5_ctr,  */
-	0x03010172, 0x00000002, 0x00000204, 	/* (r1!=r2), r1=tmld.foc_remain_credits, r2=tmld.foci_foc_credits,  */
-	0x01010173, 0x00010001, 0x00000206, 	/* (r1!=0), r1=tmld.dbg_pending_ccfc_req,  */
-	0x01010174, 0x00010001, 0x00000207, 	/* (r1!=0), r1=tmld.dbg_pending_tcfc_req,  */
-	0x01010175, 0x00010001, 0x00000208, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_1_ctr,  */
-	0x01010176, 0x00010001, 0x00000209, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_2_ctr,  */
-	0x01010177, 0x00010001, 0x0000020a, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_3_ctr,  */
-	0x01010178, 0x00010001, 0x0000020b, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_4_ctr,  */
-	0x01010179, 0x00010001, 0x0000020c, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_5_ctr,  */
-	0x0301017a, 0x00000002, 0x0000020d, 	/* (r1!=r2), r1=muld.foc_remain_credits, r2=muld.foci_foc_credits,  */
-	0x0101017b, 0x00010001, 0x0000020f, 	/* (r1!=0), r1=muld.bd_pending_msg_ctr,  */
-	0x0101017c, 0x00010001, 0x00000210, 	/* (r1!=0), r1=muld.sge_pending_msg_ctr,  */
-	0x0101017d, 0x00010001, 0x00000211, 	/* (r1!=0), r1=muld.pci_pending_msg_ctr,  */
-	0x0101017e, 0x00010001, 0x00000212, 	/* (r1!=0), r1=muld.dbg_pending_ccfc_req,  */
-	0x0101017f, 0x00010001, 0x00000213, 	/* (r1!=0), r1=muld.dbg_pending_tcfc_req,  */
-	0x00000180, 0x00010002, 0x00000214, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_0, r2=nig.INT_MASK_0,  */
-	0x00000181, 0x00010002, 0x00000216, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_1, r2=nig.INT_MASK_1,  */
-	0x00000182, 0x00010002, 0x00000218, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_2, r2=nig.INT_MASK_2,  */
-	0x00020183, 0x00010202, 0x0000021a, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_3, r2=nig.INT_MASK_3,  */
-	0x00000184, 0x00010002, 0x0000021e, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_4, r2=nig.INT_MASK_4,  */
-	0x00020185, 0x00010202, 0x00000220, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_5, r2=nig.INT_MASK_5,  */
-	0x01010186, 0x00010001, 0x00240224, 	/* (r1!=0x000fffff), r1=nig.lb_sopq_empty,  */
-	0x01010187, 0x00010001, 0x00250225, 	/* (r1!=0x0000ffff), r1=nig.tx_sopq_empty,  */
-	0x01010188, 0x00010001, 0x000d0226, 	/* (r1!=1), r1=nig.rx_llh_rfifo_empty,  */
-	0x01010189, 0x00010001, 0x000d0227, 	/* (r1!=1), r1=nig.lb_btb_fifo_empty,  */
-	0x0101018a, 0x00010001, 0x000d0228, 	/* (r1!=1), r1=nig.lb_llh_rfifo_empty,  */
-	0x0500018b, 0x00040002, 0x00260229, 	/* (((r1&0xff)!=0)&&((r2&0x7)!=0)), r1=nig.rx_ptp_ts_msb_err, r2=nig.rx_ptp_en,  */
-	0x0101018c, 0x00010001, 0x000d022b, 	/* (r1!=1), r1=nig.tx_btb_fifo_empty,  */
-	0x0101018d, 0x00010001, 0x000d022c, 	/* (r1!=1), r1=nig.debug_fifo_empty,  */
-	0x0100018e, 0x00010001, 0x0000022d, 	/* (r1!=0), r1=ptu.pxp_err_ctr,  */
-	0x0100018f, 0x00010001, 0x0000022e, 	/* (r1!=0), r1=ptu.inv_err_ctr,  */
-	0x01000190, 0x00010001, 0x0000022f, 	/* (r1!=0), r1=ptu.pbf_fill_level,  */
-	0x01000191, 0x00010001, 0x00000230, 	/* (r1!=0), r1=ptu.prm_fill_level,  */
-	0x00000192, 0x00010002, 0x00000231, 	/* ((r1&~r2)!=0), r1=ptu.INT_STS, r2=ptu.INT_MASK,  */
-	0x00000193, 0x00010602, 0x00000233, 	/* ((r1&~r2)!=0), r1=cdu.INT_STS, r2=cdu.INT_MASK,  */
-	0x01020194, 0x00010001, 0x0000023b, 	/* (r1!=0), r1=pbf.num_pkts_received_with_error,  */
-	0x01020195, 0x00010001, 0x0000023c, 	/* (r1!=0), r1=pbf.num_pkts_sent_with_error_to_btb,  */
-	0x01020196, 0x00010001, 0x0000023d, 	/* (r1!=0), r1=pbf.num_pkts_sent_with_drop_to_btb,  */
-	0x01010197, 0x00010001, 0x0000023e, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq0,  */
-	0x01010198, 0x00010001, 0x0000023f, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq0,  */
-	0x01010199, 0x00010001, 0x00000240, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq0,  */
-	0x0101019a, 0x00010001, 0x00000241, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq1,  */
-	0x0101019b, 0x00010001, 0x00000242, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq1,  */
-	0x0101019c, 0x00010001, 0x00000243, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq1,  */
-	0x0101019d, 0x00010001, 0x00000244, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq2,  */
-	0x0101019e, 0x00010001, 0x00000245, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq2,  */
-	0x0101019f, 0x00010001, 0x00000246, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq2,  */
-	0x010101a0, 0x00010001, 0x00000247, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq3,  */
-	0x010101a1, 0x00010001, 0x00000248, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq3,  */
-	0x010101a2, 0x00010001, 0x00000249, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq3,  */
-	0x010101a3, 0x00010001, 0x0000024a, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq4,  */
-	0x010101a4, 0x00010001, 0x0000024b, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq4,  */
-	0x010101a5, 0x00010001, 0x0000024c, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq4,  */
-	0x010101a6, 0x00010001, 0x0000024d, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq5,  */
-	0x010101a7, 0x00010001, 0x0000024e, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq5,  */
-	0x010101a8, 0x00010001, 0x0000024f, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq5,  */
-	0x010101a9, 0x00010001, 0x00000250, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq6,  */
-	0x010101aa, 0x00010001, 0x00000251, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq6,  */
-	0x010101ab, 0x00010001, 0x00000252, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq6,  */
-	0x010101ac, 0x00010001, 0x00000253, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq7,  */
-	0x010101ad, 0x00010001, 0x00000254, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq7,  */
-	0x010101ae, 0x00010001, 0x00000255, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq7,  */
-	0x010101af, 0x00010001, 0x00000256, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq8,  */
-	0x010101b0, 0x00010001, 0x00000257, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq8,  */
-	0x010101b1, 0x00010001, 0x00000258, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq8,  */
-	0x010101b2, 0x00010001, 0x00000259, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq9,  */
-	0x010101b3, 0x00010001, 0x0000025a, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq9,  */
-	0x010101b4, 0x00010001, 0x0000025b, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq9,  */
-	0x010101b5, 0x00010001, 0x0000025c, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq10,  */
-	0x010101b6, 0x00010001, 0x0000025d, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq10,  */
-	0x010101b7, 0x00010001, 0x0000025e, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq10,  */
-	0x010101b8, 0x00010001, 0x0000025f, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq11,  */
-	0x010101b9, 0x00010001, 0x00000260, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq11,  */
-	0x010101ba, 0x00010001, 0x00000261, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq11,  */
-	0x010101bb, 0x00010001, 0x00000262, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq12,  */
-	0x010101bc, 0x00010001, 0x00000263, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq12,  */
-	0x010101bd, 0x00010001, 0x00000264, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq12,  */
-	0x010101be, 0x00010001, 0x00000265, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq13,  */
-	0x010101bf, 0x00010001, 0x00000266, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq13,  */
-	0x010101c0, 0x00010001, 0x00000267, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq13,  */
-	0x010101c1, 0x00010001, 0x00000268, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq14,  */
-	0x010101c2, 0x00010001, 0x00000269, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq14,  */
-	0x010101c3, 0x00010001, 0x0000026a, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq14,  */
-	0x010101c4, 0x00010001, 0x0000026b, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq15,  */
-	0x010101c5, 0x00010001, 0x0000026c, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq15,  */
-	0x010101c6, 0x00010001, 0x0000026d, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq15,  */
-	0x010101c7, 0x00010001, 0x0000026e, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq16,  */
-	0x010101c8, 0x00010001, 0x0000026f, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq16,  */
-	0x010101c9, 0x00010001, 0x00000270, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq16,  */
-	0x010101ca, 0x00010001, 0x00000271, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq17,  */
-	0x010101cb, 0x00010001, 0x00000272, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq17,  */
-	0x010101cc, 0x00010001, 0x00000273, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq17,  */
-	0x010101cd, 0x00010001, 0x00000274, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq18,  */
-	0x010101ce, 0x00010001, 0x00000275, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq18,  */
-	0x010101cf, 0x00010001, 0x00000276, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq18,  */
-	0x010101d0, 0x00010001, 0x00000277, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq19,  */
-	0x010101d1, 0x00010001, 0x00000278, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq19,  */
-	0x010101d2, 0x00010001, 0x00000279, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq19,  */
-	0x000001d3, 0x00010002, 0x0000027a, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_1, r2=btb.INT_MASK_1,  */
-	0x000001d4, 0x00010002, 0x0000027c, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_2, r2=btb.INT_MASK_2,  */
-	0x000001d5, 0x00010002, 0x0000027e, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_3, r2=btb.INT_MASK_3,  */
-	0x010101d6, 0x00010001, 0x00030280, 	/* (r1!=15), r1=btb.wc_dup_empty,  */
-	0x010101d7, 0x00010001, 0x00000281, 	/* (r1!=0), r1=btb.wc_dup_status,  */
-	0x010101d8, 0x00010001, 0x002a0282, 	/* (r1!=8190), r1=btb.wc_empty_0,  */
-	0x010201d9, 0x00010001, 0x00000283, 	/* (r1!=0), r1=btb.wc_bandwidth_if_full,  */
-	0x010201da, 0x00010001, 0x00000284, 	/* (r1!=0), r1=btb.rc_pkt_if_full,  */
-	0x010101db, 0x00010001, 0x00230285, 	/* (r1!=255), r1=btb.rc_pkt_empty_0,  */
-	0x010101dc, 0x00010001, 0x00230286, 	/* (r1!=255), r1=btb.rc_pkt_empty_1,  */
-	0x010101dd, 0x00010001, 0x00230287, 	/* (r1!=255), r1=btb.rc_pkt_empty_2,  */
-	0x010101de, 0x00010001, 0x00230288, 	/* (r1!=255), r1=btb.rc_pkt_empty_3,  */
-	0x010101df, 0x00010001, 0x00030289, 	/* (r1!=15), r1=btb.rc_sop_empty,  */
-	0x010101e0, 0x00010001, 0x000b028a, 	/* (r1!=2), r1=btb.ll_arb_empty,  */
-	0x020101e1, 0x00010001, 0x002b028b, 	/* (r1>46), r1=btb.block_occupancy,  */
-	0x010101e2, 0x00010001, 0x0000028c, 	/* (r1!=0), r1=btb.rc_pkt_state,  */
-	0x010101e3, 0x00010001, 0x000b028d, 	/* (r1!=2), r1=btb.wc_status_0 width=3 access=WB,  */
-	0x000001e4, 0x00010102, 0x0000028e, 	/* ((r1&~r2)!=0), r1=xsdm.INT_STS, r2=xsdm.INT_MASK,  */
-	0x010101e5, 0x00010001, 0x00000291, 	/* (r1!=0), r1=xsdm.qm_full,  */
-	0x010101e6, 0x00010001, 0x00000292, 	/* (r1!=0), r1=xsdm.rsp_brb_if_full,  */
-	0x010101e7, 0x00010001, 0x00000293, 	/* (r1!=0), r1=xsdm.rsp_pxp_if_full,  */
-	0x010101e8, 0x00010001, 0x00000294, 	/* (r1!=0), r1=xsdm.dst_pxp_if_full,  */
-	0x010101e9, 0x00010001, 0x00000295, 	/* (r1!=0), r1=xsdm.dst_int_ram_if_full,  */
-	0x010101ea, 0x00010001, 0x00000296, 	/* (r1!=0), r1=xsdm.dst_pas_buf_if_full,  */
-	0x010101eb, 0x00010001, 0x000d0297, 	/* (r1!=1), r1=xsdm.int_cmpl_pend_empty,  */
-	0x010101ec, 0x00010001, 0x000d0298, 	/* (r1!=1), r1=xsdm.int_cprm_pend_empty,  */
-	0x010101ed, 0x00010001, 0x002c0299, 	/* (r1!=511), r1=xsdm.queue_empty,  */
-	0x010101ee, 0x00010001, 0x000d029a, 	/* (r1!=1), r1=xsdm.delay_fifo_empty,  */
-	0x010101ef, 0x00010001, 0x000d029b, 	/* (r1!=1), r1=xsdm.rsp_pxp_rdata_empty,  */
-	0x010101f0, 0x00010001, 0x000d029c, 	/* (r1!=1), r1=xsdm.rsp_brb_rdata_empty,  */
-	0x010101f1, 0x00010001, 0x000d029d, 	/* (r1!=1), r1=xsdm.rsp_int_ram_rdata_empty,  */
-	0x010101f2, 0x00010001, 0x000d029e, 	/* (r1!=1), r1=xsdm.rsp_brb_pend_empty,  */
-	0x010101f3, 0x00010001, 0x000d029f, 	/* (r1!=1), r1=xsdm.rsp_int_ram_pend_empty,  */
-	0x010101f4, 0x00010001, 0x000d02a0, 	/* (r1!=1), r1=xsdm.dst_pxp_immed_empty,  */
-	0x010101f5, 0x00010001, 0x000d02a1, 	/* (r1!=1), r1=xsdm.dst_pxp_dst_pend_empty,  */
-	0x010101f6, 0x00010001, 0x000d02a2, 	/* (r1!=1), r1=xsdm.dst_pxp_src_pend_empty,  */
-	0x010101f7, 0x00010001, 0x000d02a3, 	/* (r1!=1), r1=xsdm.dst_brb_src_pend_empty,  */
-	0x010101f8, 0x00010001, 0x000d02a4, 	/* (r1!=1), r1=xsdm.dst_brb_src_addr_empty,  */
-	0x010101f9, 0x00010001, 0x000d02a5, 	/* (r1!=1), r1=xsdm.dst_pxp_link_empty,  */
-	0x010101fa, 0x00010001, 0x000d02a6, 	/* (r1!=1), r1=xsdm.dst_int_ram_wait_empty,  */
-	0x010101fb, 0x00010001, 0x000d02a7, 	/* (r1!=1), r1=xsdm.dst_pas_buf_wait_empty,  */
-	0x010101fc, 0x00010001, 0x000d02a8, 	/* (r1!=1), r1=xsdm.sh_delay_empty,  */
-	0x010101fd, 0x00010001, 0x000d02a9, 	/* (r1!=1), r1=xsdm.cm_delay_empty,  */
-	0x010101fe, 0x00010001, 0x000d02aa, 	/* (r1!=1), r1=xsdm.cmsg_que_empty,  */
-	0x010101ff, 0x00010001, 0x000d02ab, 	/* (r1!=1), r1=xsdm.ccfc_load_pend_empty,  */
-	0x01010200, 0x00010001, 0x000d02ac, 	/* (r1!=1), r1=xsdm.tcfc_load_pend_empty,  */
-	0x01010201, 0x00010001, 0x000d02ad, 	/* (r1!=1), r1=xsdm.async_host_empty,  */
-	0x01010202, 0x00010001, 0x000d02ae, 	/* (r1!=1), r1=xsdm.prm_fifo_empty,  */
-	0x00000203, 0x00010102, 0x000002af, 	/* ((r1&~r2)!=0), r1=ysdm.INT_STS, r2=ysdm.INT_MASK,  */
-	0x01010204, 0x00010001, 0x000002b2, 	/* (r1!=0), r1=ysdm.qm_full,  */
-	0x01010205, 0x00010001, 0x000002b3, 	/* (r1!=0), r1=ysdm.rsp_brb_if_full,  */
-	0x01010206, 0x00010001, 0x000002b4, 	/* (r1!=0), r1=ysdm.rsp_pxp_if_full,  */
-	0x01010207, 0x00010001, 0x000002b5, 	/* (r1!=0), r1=ysdm.dst_pxp_if_full,  */
-	0x01010208, 0x00010001, 0x000002b6, 	/* (r1!=0), r1=ysdm.dst_int_ram_if_full,  */
-	0x01010209, 0x00010001, 0x000002b7, 	/* (r1!=0), r1=ysdm.dst_pas_buf_if_full,  */
-	0x0101020a, 0x00010001, 0x000d02b8, 	/* (r1!=1), r1=ysdm.int_cmpl_pend_empty,  */
-	0x0101020b, 0x00010001, 0x000d02b9, 	/* (r1!=1), r1=ysdm.int_cprm_pend_empty,  */
-	0x0101020c, 0x00010001, 0x002c02ba, 	/* (r1!=511), r1=ysdm.queue_empty,  */
-	0x0101020d, 0x00010001, 0x000d02bb, 	/* (r1!=1), r1=ysdm.delay_fifo_empty,  */
-	0x0101020e, 0x00010001, 0x000d02bc, 	/* (r1!=1), r1=ysdm.rsp_pxp_rdata_empty,  */
-	0x0101020f, 0x00010001, 0x000d02bd, 	/* (r1!=1), r1=ysdm.rsp_brb_rdata_empty,  */
-	0x01010210, 0x00010001, 0x000d02be, 	/* (r1!=1), r1=ysdm.rsp_int_ram_rdata_empty,  */
-	0x01010211, 0x00010001, 0x000d02bf, 	/* (r1!=1), r1=ysdm.rsp_brb_pend_empty,  */
-	0x01010212, 0x00010001, 0x000d02c0, 	/* (r1!=1), r1=ysdm.rsp_int_ram_pend_empty,  */
-	0x01010213, 0x00010001, 0x000d02c1, 	/* (r1!=1), r1=ysdm.dst_pxp_immed_empty,  */
-	0x01010214, 0x00010001, 0x000d02c2, 	/* (r1!=1), r1=ysdm.dst_pxp_dst_pend_empty,  */
-	0x01010215, 0x00010001, 0x000d02c3, 	/* (r1!=1), r1=ysdm.dst_pxp_src_pend_empty,  */
-	0x01010216, 0x00010001, 0x000d02c4, 	/* (r1!=1), r1=ysdm.dst_brb_src_pend_empty,  */
-	0x01010217, 0x00010001, 0x000d02c5, 	/* (r1!=1), r1=ysdm.dst_brb_src_addr_empty,  */
-	0x01010218, 0x00010001, 0x000d02c6, 	/* (r1!=1), r1=ysdm.dst_pxp_link_empty,  */
-	0x01010219, 0x00010001, 0x000d02c7, 	/* (r1!=1), r1=ysdm.dst_int_ram_wait_empty,  */
-	0x0101021a, 0x00010001, 0x000d02c8, 	/* (r1!=1), r1=ysdm.dst_pas_buf_wait_empty,  */
-	0x0101021b, 0x00010001, 0x000d02c9, 	/* (r1!=1), r1=ysdm.sh_delay_empty,  */
-	0x0101021c, 0x00010001, 0x000d02ca, 	/* (r1!=1), r1=ysdm.cm_delay_empty,  */
-	0x0101021d, 0x00010001, 0x000d02cb, 	/* (r1!=1), r1=ysdm.cmsg_que_empty,  */
-	0x0101021e, 0x00010001, 0x000d02cc, 	/* (r1!=1), r1=ysdm.ccfc_load_pend_empty,  */
-	0x0101021f, 0x00010001, 0x000d02cd, 	/* (r1!=1), r1=ysdm.tcfc_load_pend_empty,  */
-	0x01010220, 0x00010001, 0x000d02ce, 	/* (r1!=1), r1=ysdm.async_host_empty,  */
-	0x01010221, 0x00010001, 0x000d02cf, 	/* (r1!=1), r1=ysdm.prm_fifo_empty,  */
-	0x00000222, 0x00010102, 0x000002d0, 	/* ((r1&~r2)!=0), r1=psdm.INT_STS, r2=psdm.INT_MASK,  */
-	0x01010223, 0x00010001, 0x000002d3, 	/* (r1!=0), r1=psdm.qm_full,  */
-	0x01010224, 0x00010001, 0x000002d4, 	/* (r1!=0), r1=psdm.rsp_brb_if_full,  */
-	0x01010225, 0x00010001, 0x000002d5, 	/* (r1!=0), r1=psdm.rsp_pxp_if_full,  */
-	0x01010226, 0x00010001, 0x000002d6, 	/* (r1!=0), r1=psdm.dst_pxp_if_full,  */
-	0x01010227, 0x00010001, 0x000002d7, 	/* (r1!=0), r1=psdm.dst_int_ram_if_full,  */
-	0x01010228, 0x00010001, 0x000002d8, 	/* (r1!=0), r1=psdm.dst_pas_buf_if_full,  */
-	0x01010229, 0x00010001, 0x000d02d9, 	/* (r1!=1), r1=psdm.int_cmpl_pend_empty,  */
-	0x0101022a, 0x00010001, 0x000d02da, 	/* (r1!=1), r1=psdm.int_cprm_pend_empty,  */
-	0x0101022b, 0x00010001, 0x002c02db, 	/* (r1!=511), r1=psdm.queue_empty,  */
-	0x0101022c, 0x00010001, 0x000d02dc, 	/* (r1!=1), r1=psdm.delay_fifo_empty,  */
-	0x0101022d, 0x00010001, 0x000d02dd, 	/* (r1!=1), r1=psdm.rsp_pxp_rdata_empty,  */
-	0x0101022e, 0x00010001, 0x000d02de, 	/* (r1!=1), r1=psdm.rsp_brb_rdata_empty,  */
-	0x0101022f, 0x00010001, 0x000d02df, 	/* (r1!=1), r1=psdm.rsp_int_ram_rdata_empty,  */
-	0x01010230, 0x00010001, 0x000d02e0, 	/* (r1!=1), r1=psdm.rsp_brb_pend_empty,  */
-	0x01010231, 0x00010001, 0x000d02e1, 	/* (r1!=1), r1=psdm.rsp_int_ram_pend_empty,  */
-	0x01010232, 0x00010001, 0x000d02e2, 	/* (r1!=1), r1=psdm.dst_pxp_immed_empty,  */
-	0x01010233, 0x00010001, 0x000d02e3, 	/* (r1!=1), r1=psdm.dst_pxp_dst_pend_empty,  */
-	0x01010234, 0x00010001, 0x000d02e4, 	/* (r1!=1), r1=psdm.dst_pxp_src_pend_empty,  */
-	0x01010235, 0x00010001, 0x000d02e5, 	/* (r1!=1), r1=psdm.dst_brb_src_pend_empty,  */
-	0x01010236, 0x00010001, 0x000d02e6, 	/* (r1!=1), r1=psdm.dst_brb_src_addr_empty,  */
-	0x01010237, 0x00010001, 0x000d02e7, 	/* (r1!=1), r1=psdm.dst_pxp_link_empty,  */
-	0x01010238, 0x00010001, 0x000d02e8, 	/* (r1!=1), r1=psdm.dst_int_ram_wait_empty,  */
-	0x01010239, 0x00010001, 0x000d02e9, 	/* (r1!=1), r1=psdm.dst_pas_buf_wait_empty,  */
-	0x0101023a, 0x00010001, 0x000d02ea, 	/* (r1!=1), r1=psdm.sh_delay_empty,  */
-	0x0101023b, 0x00010001, 0x000d02eb, 	/* (r1!=1), r1=psdm.cm_delay_empty,  */
-	0x0101023c, 0x00010001, 0x000d02ec, 	/* (r1!=1), r1=psdm.cmsg_que_empty,  */
-	0x0101023d, 0x00010001, 0x000d02ed, 	/* (r1!=1), r1=psdm.ccfc_load_pend_empty,  */
-	0x0101023e, 0x00010001, 0x000d02ee, 	/* (r1!=1), r1=psdm.tcfc_load_pend_empty,  */
-	0x0101023f, 0x00010001, 0x000d02ef, 	/* (r1!=1), r1=psdm.async_host_empty,  */
-	0x01010240, 0x00010001, 0x000d02f0, 	/* (r1!=1), r1=psdm.prm_fifo_empty,  */
-	0x00000241, 0x00010102, 0x000002f1, 	/* ((r1&~r2)!=0), r1=tsdm.INT_STS, r2=tsdm.INT_MASK,  */
-	0x01010242, 0x00010001, 0x000002f4, 	/* (r1!=0), r1=tsdm.qm_full,  */
-	0x01010243, 0x00010001, 0x000002f5, 	/* (r1!=0), r1=tsdm.rsp_brb_if_full,  */
-	0x01010244, 0x00010001, 0x000002f6, 	/* (r1!=0), r1=tsdm.rsp_pxp_if_full,  */
-	0x01010245, 0x00010001, 0x000002f7, 	/* (r1!=0), r1=tsdm.dst_pxp_if_full,  */
-	0x01010246, 0x00010001, 0x000002f8, 	/* (r1!=0), r1=tsdm.dst_int_ram_if_full,  */
-	0x01010247, 0x00010001, 0x000002f9, 	/* (r1!=0), r1=tsdm.dst_pas_buf_if_full,  */
-	0x01010248, 0x00010001, 0x000d02fa, 	/* (r1!=1), r1=tsdm.int_cmpl_pend_empty,  */
-	0x01010249, 0x00010001, 0x000d02fb, 	/* (r1!=1), r1=tsdm.int_cprm_pend_empty,  */
-	0x0101024a, 0x00010001, 0x002c02fc, 	/* (r1!=511), r1=tsdm.queue_empty,  */
-	0x0101024b, 0x00010001, 0x000d02fd, 	/* (r1!=1), r1=tsdm.delay_fifo_empty,  */
-	0x0101024c, 0x00010001, 0x000d02fe, 	/* (r1!=1), r1=tsdm.rsp_pxp_rdata_empty,  */
-	0x0101024d, 0x00010001, 0x000d02ff, 	/* (r1!=1), r1=tsdm.rsp_brb_rdata_empty,  */
-	0x0101024e, 0x00010001, 0x000d0300, 	/* (r1!=1), r1=tsdm.rsp_int_ram_rdata_empty,  */
-	0x0101024f, 0x00010001, 0x000d0301, 	/* (r1!=1), r1=tsdm.rsp_brb_pend_empty,  */
-	0x01010250, 0x00010001, 0x000d0302, 	/* (r1!=1), r1=tsdm.rsp_int_ram_pend_empty,  */
-	0x01010251, 0x00010001, 0x000d0303, 	/* (r1!=1), r1=tsdm.dst_pxp_immed_empty,  */
-	0x01010252, 0x00010001, 0x000d0304, 	/* (r1!=1), r1=tsdm.dst_pxp_dst_pend_empty,  */
-	0x01010253, 0x00010001, 0x000d0305, 	/* (r1!=1), r1=tsdm.dst_pxp_src_pend_empty,  */
-	0x01010254, 0x00010001, 0x000d0306, 	/* (r1!=1), r1=tsdm.dst_brb_src_pend_empty,  */
-	0x01010255, 0x00010001, 0x000d0307, 	/* (r1!=1), r1=tsdm.dst_brb_src_addr_empty,  */
-	0x01010256, 0x00010001, 0x000d0308, 	/* (r1!=1), r1=tsdm.dst_pxp_link_empty,  */
-	0x01010257, 0x00010001, 0x000d0309, 	/* (r1!=1), r1=tsdm.dst_int_ram_wait_empty,  */
-	0x01010258, 0x00010001, 0x000d030a, 	/* (r1!=1), r1=tsdm.dst_pas_buf_wait_empty,  */
-	0x01010259, 0x00010001, 0x000d030b, 	/* (r1!=1), r1=tsdm.sh_delay_empty,  */
-	0x0101025a, 0x00010001, 0x000d030c, 	/* (r1!=1), r1=tsdm.cm_delay_empty,  */
-	0x0101025b, 0x00010001, 0x000d030d, 	/* (r1!=1), r1=tsdm.cmsg_que_empty,  */
-	0x0101025c, 0x00010001, 0x000d030e, 	/* (r1!=1), r1=tsdm.ccfc_load_pend_empty,  */
-	0x0101025d, 0x00010001, 0x000d030f, 	/* (r1!=1), r1=tsdm.tcfc_load_pend_empty,  */
-	0x0101025e, 0x00010001, 0x000d0310, 	/* (r1!=1), r1=tsdm.async_host_empty,  */
-	0x0101025f, 0x00010001, 0x000d0311, 	/* (r1!=1), r1=tsdm.prm_fifo_empty,  */
-	0x00000260, 0x00010102, 0x00000312, 	/* ((r1&~r2)!=0), r1=msdm.INT_STS, r2=msdm.INT_MASK,  */
-	0x01010261, 0x00010001, 0x00000315, 	/* (r1!=0), r1=msdm.qm_full,  */
-	0x01010262, 0x00010001, 0x00000316, 	/* (r1!=0), r1=msdm.rsp_brb_if_full,  */
-	0x01010263, 0x00010001, 0x00000317, 	/* (r1!=0), r1=msdm.rsp_pxp_if_full,  */
-	0x01010264, 0x00010001, 0x00000318, 	/* (r1!=0), r1=msdm.dst_pxp_if_full,  */
-	0x01010265, 0x00010001, 0x00000319, 	/* (r1!=0), r1=msdm.dst_int_ram_if_full,  */
-	0x01010266, 0x00010001, 0x0000031a, 	/* (r1!=0), r1=msdm.dst_pas_buf_if_full,  */
-	0x01010267, 0x00010001, 0x000d031b, 	/* (r1!=1), r1=msdm.int_cmpl_pend_empty,  */
-	0x01010268, 0x00010001, 0x000d031c, 	/* (r1!=1), r1=msdm.int_cprm_pend_empty,  */
-	0x01010269, 0x00010001, 0x002c031d, 	/* (r1!=511), r1=msdm.queue_empty,  */
-	0x0101026a, 0x00010001, 0x000d031e, 	/* (r1!=1), r1=msdm.delay_fifo_empty,  */
-	0x0101026b, 0x00010001, 0x000d031f, 	/* (r1!=1), r1=msdm.rsp_pxp_rdata_empty,  */
-	0x0101026c, 0x00010001, 0x000d0320, 	/* (r1!=1), r1=msdm.rsp_brb_rdata_empty,  */
-	0x0101026d, 0x00010001, 0x000d0321, 	/* (r1!=1), r1=msdm.rsp_int_ram_rdata_empty,  */
-	0x0101026e, 0x00010001, 0x000d0322, 	/* (r1!=1), r1=msdm.rsp_brb_pend_empty,  */
-	0x0101026f, 0x00010001, 0x000d0323, 	/* (r1!=1), r1=msdm.rsp_int_ram_pend_empty,  */
-	0x01010270, 0x00010001, 0x000d0324, 	/* (r1!=1), r1=msdm.dst_pxp_immed_empty,  */
-	0x01010271, 0x00010001, 0x000d0325, 	/* (r1!=1), r1=msdm.dst_pxp_dst_pend_empty,  */
-	0x01010272, 0x00010001, 0x000d0326, 	/* (r1!=1), r1=msdm.dst_pxp_src_pend_empty,  */
-	0x01010273, 0x00010001, 0x000d0327, 	/* (r1!=1), r1=msdm.dst_brb_src_pend_empty,  */
-	0x01010274, 0x00010001, 0x000d0328, 	/* (r1!=1), r1=msdm.dst_brb_src_addr_empty,  */
-	0x01010275, 0x00010001, 0x000d0329, 	/* (r1!=1), r1=msdm.dst_pxp_link_empty,  */
-	0x01010276, 0x00010001, 0x000d032a, 	/* (r1!=1), r1=msdm.dst_int_ram_wait_empty,  */
-	0x01010277, 0x00010001, 0x000d032b, 	/* (r1!=1), r1=msdm.dst_pas_buf_wait_empty,  */
-	0x01010278, 0x00010001, 0x000d032c, 	/* (r1!=1), r1=msdm.sh_delay_empty,  */
-	0x01010279, 0x00010001, 0x000d032d, 	/* (r1!=1), r1=msdm.cm_delay_empty,  */
-	0x0101027a, 0x00010001, 0x000d032e, 	/* (r1!=1), r1=msdm.cmsg_que_empty,  */
-	0x0101027b, 0x00010001, 0x000d032f, 	/* (r1!=1), r1=msdm.ccfc_load_pend_empty,  */
-	0x0101027c, 0x00010001, 0x000d0330, 	/* (r1!=1), r1=msdm.tcfc_load_pend_empty,  */
-	0x0101027d, 0x00010001, 0x000d0331, 	/* (r1!=1), r1=msdm.async_host_empty,  */
-	0x0101027e, 0x00010001, 0x000d0332, 	/* (r1!=1), r1=msdm.prm_fifo_empty,  */
-	0x0000027f, 0x00010102, 0x00000333, 	/* ((r1&~r2)!=0), r1=usdm.INT_STS, r2=usdm.INT_MASK,  */
-	0x01010280, 0x00010001, 0x00000336, 	/* (r1!=0), r1=usdm.qm_full,  */
-	0x01010281, 0x00010001, 0x00000337, 	/* (r1!=0), r1=usdm.rsp_brb_if_full,  */
-	0x01010282, 0x00010001, 0x00000338, 	/* (r1!=0), r1=usdm.rsp_pxp_if_full,  */
-	0x01010283, 0x00010001, 0x00000339, 	/* (r1!=0), r1=usdm.dst_pxp_if_full,  */
-	0x01010284, 0x00010001, 0x0000033a, 	/* (r1!=0), r1=usdm.dst_int_ram_if_full,  */
-	0x01010285, 0x00010001, 0x0000033b, 	/* (r1!=0), r1=usdm.dst_pas_buf_if_full,  */
-	0x01010286, 0x00010001, 0x000d033c, 	/* (r1!=1), r1=usdm.int_cmpl_pend_empty,  */
-	0x01010287, 0x00010001, 0x000d033d, 	/* (r1!=1), r1=usdm.int_cprm_pend_empty,  */
-	0x01010288, 0x00010001, 0x002c033e, 	/* (r1!=511), r1=usdm.queue_empty,  */
-	0x01010289, 0x00010001, 0x000d033f, 	/* (r1!=1), r1=usdm.delay_fifo_empty,  */
-	0x0101028a, 0x00010001, 0x000d0340, 	/* (r1!=1), r1=usdm.rsp_pxp_rdata_empty,  */
-	0x0101028b, 0x00010001, 0x000d0341, 	/* (r1!=1), r1=usdm.rsp_brb_rdata_empty,  */
-	0x0101028c, 0x00010001, 0x000d0342, 	/* (r1!=1), r1=usdm.rsp_int_ram_rdata_empty,  */
-	0x0101028d, 0x00010001, 0x000d0343, 	/* (r1!=1), r1=usdm.rsp_brb_pend_empty,  */
-	0x0101028e, 0x00010001, 0x000d0344, 	/* (r1!=1), r1=usdm.rsp_int_ram_pend_empty,  */
-	0x0101028f, 0x00010001, 0x000d0345, 	/* (r1!=1), r1=usdm.dst_pxp_immed_empty,  */
-	0x01010290, 0x00010001, 0x000d0346, 	/* (r1!=1), r1=usdm.dst_pxp_dst_pend_empty,  */
-	0x01010291, 0x00010001, 0x000d0347, 	/* (r1!=1), r1=usdm.dst_pxp_src_pend_empty,  */
-	0x01010292, 0x00010001, 0x000d0348, 	/* (r1!=1), r1=usdm.dst_brb_src_pend_empty,  */
-	0x01010293, 0x00010001, 0x000d0349, 	/* (r1!=1), r1=usdm.dst_brb_src_addr_empty,  */
-	0x01010294, 0x00010001, 0x000d034a, 	/* (r1!=1), r1=usdm.dst_pxp_link_empty,  */
-	0x01010295, 0x00010001, 0x000d034b, 	/* (r1!=1), r1=usdm.dst_int_ram_wait_empty,  */
-	0x01010296, 0x00010001, 0x000d034c, 	/* (r1!=1), r1=usdm.dst_pas_buf_wait_empty,  */
-	0x01010297, 0x00010001, 0x000d034d, 	/* (r1!=1), r1=usdm.sh_delay_empty,  */
-	0x01010298, 0x00010001, 0x000d034e, 	/* (r1!=1), r1=usdm.cm_delay_empty,  */
-	0x01010299, 0x00010001, 0x000d034f, 	/* (r1!=1), r1=usdm.cmsg_que_empty,  */
-	0x0101029a, 0x00010001, 0x000d0350, 	/* (r1!=1), r1=usdm.ccfc_load_pend_empty,  */
-	0x0101029b, 0x00010001, 0x000d0351, 	/* (r1!=1), r1=usdm.tcfc_load_pend_empty,  */
-	0x0101029c, 0x00010001, 0x000d0352, 	/* (r1!=1), r1=usdm.async_host_empty,  */
-	0x0101029d, 0x00010001, 0x000d0353, 	/* (r1!=1), r1=usdm.prm_fifo_empty,  */
-	0x0000029e, 0x00010002, 0x00000354, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_0, r2=xcm.INT_MASK_0,  */
-	0x0000029f, 0x00010002, 0x00000356, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_1, r2=xcm.INT_MASK_1,  */
-	0x000002a0, 0x00010102, 0x00000358, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_2, r2=xcm.INT_MASK_2,  */
-	0x010002a1, 0x00010001, 0x0000035b, 	/* (r1!=0), r1=xcm.fi_desc_input_violate,  */
-	0x010102a2, 0x00010001, 0x0000035c, 	/* (r1!=0), r1=xcm.ia_agg_con_part_fill_lvl,  */
-	0x010102a3, 0x00010001, 0x0000035d, 	/* (r1!=0), r1=xcm.ia_sm_con_part_fill_lvl,  */
-	0x010102a4, 0x00010001, 0x0000035e, 	/* (r1!=0), r1=xcm.ia_trans_part_fill_lvl,  */
-	0x010102a5, 0x00010001, 0x002d035f, 	/* (r1!=reset1), r1=xcm.xx_free_cnt,  */
-	0x010102a6, 0x00010001, 0x00000360, 	/* (r1!=0), r1=xcm.xx_lcid_cam_fill_lvl,  */
-	0x010102a7, 0x00010001, 0x00000361, 	/* (r1!=0), r1=xcm.xx_lock_cnt,  */
-	0x010102a8, 0x00010001, 0x00000362, 	/* (r1!=0), r1=xcm.xx_cbyp_tbl_fill_lvl,  */
-	0x010102a9, 0x00010001, 0x00000363, 	/* (r1!=0), r1=xcm.agg_con_fic_buf_fill_lvl,  */
-	0x010102aa, 0x00010001, 0x00000364, 	/* (r1!=0), r1=xcm.sm_con_fic_buf_fill_lvl,  */
-	0x010102ab, 0x00010001, 0x00000365, 	/* (r1!=0), r1=xcm.in_prcs_tbl_fill_lvl,  */
-	0x010102ac, 0x00010001, 0x000d0366, 	/* (r1!=reset1), r1=xcm.ccfc_init_crd,  */
-	0x010102ad, 0x00010001, 0x000a0367, 	/* (r1!=reset1), r1=xcm.qm_init_crd0,  */
-	0x010102ae, 0x00010001, 0x000a0368, 	/* (r1!=reset1), r1=xcm.qm_init_crd1,  */
-	0x010102af, 0x00010001, 0x00110369, 	/* (r1!=reset1), r1=xcm.tm_init_crd,  */
-	0x010102b0, 0x00010001, 0x002e036a, 	/* (r1!=reset1), r1=xcm.fic_init_crd,  */
-	0x010002b1, 0x00010001, 0x0000036b, 	/* (r1!=0), r1=xcm.xsdm_length_mis,  */
-	0x010002b2, 0x00010001, 0x0000036c, 	/* (r1!=0), r1=xcm.ysdm_length_mis,  */
-	0x010002b3, 0x00010001, 0x0000036d, 	/* (r1!=0), r1=xcm.dorq_length_mis,  */
-	0x010002b4, 0x00010001, 0x0000036e, 	/* (r1!=0), r1=xcm.pbf_length_mis,  */
-	0x010102b5, 0x00010001, 0x0000036f, 	/* (r1!=0), r1=xcm.is_qm_p_fill_lvl,  */
-	0x010102b6, 0x00010001, 0x00000370, 	/* (r1!=0), r1=xcm.is_qm_s_fill_lvl,  */
-	0x010102b7, 0x00010001, 0x00000371, 	/* (r1!=0), r1=xcm.is_tm_fill_lvl,  */
-	0x010102b8, 0x00010001, 0x00000372, 	/* (r1!=0), r1=xcm.is_storm_fill_lvl,  */
-	0x010102b9, 0x00010001, 0x00000373, 	/* (r1!=0), r1=xcm.is_xsdm_fill_lvl,  */
-	0x010102ba, 0x00010001, 0x00000374, 	/* (r1!=0), r1=xcm.is_ysdm_fill_lvl,  */
-	0x010102bb, 0x00010001, 0x00000375, 	/* (r1!=0), r1=xcm.is_msem_fill_lvl,  */
-	0x010102bc, 0x00010001, 0x00000376, 	/* (r1!=0), r1=xcm.is_usem_fill_lvl,  */
-	0x010102bd, 0x00010001, 0x00000377, 	/* (r1!=0), r1=xcm.is_dorq_fill_lvl,  */
-	0x010102be, 0x00010001, 0x00000378, 	/* (r1!=0), r1=xcm.is_pbf_fill_lvl,  */
-	0x000002bf, 0x00010002, 0x00000379, 	/* ((r1&~r2)!=0), r1=ycm.INT_STS_0, r2=ycm.INT_MASK_0,  */
-	0x000002c0, 0x00010002, 0x0000037b, 	/* ((r1&~r2)!=0), r1=ycm.INT_STS_1, r2=ycm.INT_MASK_1,  */
-	0x010002c1, 0x00010001, 0x0000037d, 	/* (r1!=0), r1=ycm.fi_desc_input_violate,  */
-	0x010002c2, 0x00010001, 0x0000037e, 	/* (r1!=0), r1=ycm.se_desc_input_violate,  */
-	0x010102c3, 0x00010001, 0x0000037f, 	/* (r1!=0), r1=ycm.ia_sm_con_part_fill_lvl,  */
-	0x010102c4, 0x00010001, 0x00000380, 	/* (r1!=0), r1=ycm.ia_agg_task_part_fill_lvl,  */
-	0x010102c5, 0x00010001, 0x00000381, 	/* (r1!=0), r1=ycm.ia_sm_task_part_fill_lvl,  */
-	0x010102c6, 0x00010001, 0x00000382, 	/* (r1!=0), r1=ycm.ia_trans_part_fill_lvl,  */
-	0x010102c7, 0x00010001, 0x002d0383, 	/* (r1!=reset1), r1=ycm.xx_free_cnt,  */
-	0x010102c8, 0x00010001, 0x00000384, 	/* (r1!=0), r1=ycm.xx_lcid_cam_fill_lvl,  */
-	0x010102c9, 0x00010001, 0x00000385, 	/* (r1!=0), r1=ycm.xx_lock_cnt,  */
-	0x010102ca, 0x00010001, 0x00000386, 	/* (r1!=0), r1=ycm.xx_cbyp_tbl_fill_lvl,  */
-	0x010102cb, 0x00010001, 0x00000387, 	/* (r1!=0), r1=ycm.xx_tbyp_tbl_fill_lvl,  */
-	0x010102cc, 0x00010001, 0x00000388, 	/* (r1!=0), r1=ycm.xx_tbyp_tbl_fill_lvl,  */
-	0x010102cd, 0x00010001, 0x00000389, 	/* (r1!=0), r1=ycm.sm_con_fic_buf_fill_lvl,  */
-	0x010102ce, 0x00010001, 0x0000038a, 	/* (r1!=0), r1=ycm.agg_task_fic_buf_fill_lvl,  */
-	0x010102cf, 0x00010001, 0x0000038b, 	/* (r1!=0), r1=ycm.sm_task_fic_buf_fill_lvl,  */
-	0x010102d0, 0x00010001, 0x0000038c, 	/* (r1!=0), r1=ycm.in_prcs_tbl_fill_lvl,  */
-	0x010102d1, 0x00010001, 0x000d038d, 	/* (r1!=reset1), r1=ycm.ccfc_init_crd,  */
-	0x010102d2, 0x00010001, 0x000d038e, 	/* (r1!=reset1), r1=ycm.tcfc_init_crd,  */
-	0x010102d3, 0x00010001, 0x000a038f, 	/* (r1!=reset1), r1=ycm.qm_init_crd0,  */
-	0x010102d4, 0x00010001, 0x002f0390, 	/* (r1!=reset1), r1=ycm.fic_init_crd,  */
-	0x010002d5, 0x00010001, 0x00000391, 	/* (r1!=0), r1=ycm.ysdm_length_mis,  */
-	0x010002d6, 0x00010001, 0x00000392, 	/* (r1!=0), r1=ycm.pbf_length_mis,  */
-	0x010002d7, 0x00010001, 0x00000393, 	/* (r1!=0), r1=ycm.xyld_length_mis,  */
-	0x010102d8, 0x00010001, 0x00000394, 	/* (r1!=0), r1=ycm.is_qm_p_fill_lvl,  */
-	0x010102d9, 0x00010001, 0x00000395, 	/* (r1!=0), r1=ycm.is_qm_s_fill_lvl,  */
-	0x010102da, 0x00010001, 0x00000396, 	/* (r1!=0), r1=ycm.is_storm_fill_lvl,  */
-	0x010102db, 0x00010001, 0x00000397, 	/* (r1!=0), r1=ycm.is_ysdm_fill_lvl,  */
-	0x010102dc, 0x00010001, 0x00000398, 	/* (r1!=0), r1=ycm.is_xyld_fill_lvl,  */
-	0x010102dd, 0x00010001, 0x00000399, 	/* (r1!=0), r1=ycm.is_msem_fill_lvl,  */
-	0x010102de, 0x00010001, 0x0000039a, 	/* (r1!=0), r1=ycm.is_usem_fill_lvl,  */
-	0x010102df, 0x00010001, 0x0000039b, 	/* (r1!=0), r1=ycm.is_pbf_fill_lvl,  */
-	0x000002e0, 0x00010002, 0x0000039c, 	/* ((r1&~r2)!=0), r1=pcm.INT_STS_0, r2=pcm.INT_MASK_0,  */
-	0x000002e1, 0x00010002, 0x0000039e, 	/* ((r1&~r2)!=0), r1=pcm.INT_STS_1, r2=pcm.INT_MASK_1,  */
-	0x010002e2, 0x00010001, 0x000003a0, 	/* (r1!=0), r1=pcm.fi_desc_input_violate,  */
-	0x010102e3, 0x00010001, 0x000003a1, 	/* (r1!=0), r1=pcm.ia_sm_con_part_fill_lvl,  */
-	0x010102e4, 0x00010001, 0x000003a2, 	/* (r1!=0), r1=pcm.ia_trans_part_fill_lvl,  */
-	0x010102e5, 0x00010001, 0x001103a3, 	/* (r1!=reset1), r1=pcm.xx_free_cnt,  */
-	0x010102e6, 0x00010001, 0x000003a4, 	/* (r1!=0), r1=pcm.xx_lcid_cam_fill_lvl,  */
-	0x010102e7, 0x00010001, 0x000003a5, 	/* (r1!=0), r1=pcm.xx_lock_cnt,  */
-	0x010102e8, 0x00010001, 0x000003a6, 	/* (r1!=0), r1=pcm.sm_con_fic_buf_fill_lvl,  */
-	0x010102e9, 0x00010001, 0x000003a7, 	/* (r1!=0), r1=pcm.in_prcs_tbl_fill_lvl,  */
-	0x010102ea, 0x00010001, 0x000d03a8, 	/* (r1!=reset1), r1=pcm.ccfc_init_crd,  */
-	0x010102eb, 0x00010001, 0x002e03a9, 	/* (r1!=reset1), r1=pcm.fic_init_crd,  */
-	0x010102ec, 0x00010001, 0x000003aa, 	/* (r1!=0), r1=pcm.is_storm_fill_lvl,  */
-	0x000002ed, 0x00010002, 0x000003ab, 	/* ((r1&~r2)!=0), r1=tcm.INT_STS_0, r2=tcm.INT_MASK_0,  */
-	0x000002ee, 0x00010002, 0x000003ad, 	/* ((r1&~r2)!=0), r1=tcm.INT_STS_1, r2=tcm.INT_MASK_1,  */
-	0x010002ef, 0x00010001, 0x000003af, 	/* (r1!=0), r1=tcm.fi_desc_input_violate,  */
-	0x010002f0, 0x00010001, 0x000003b0, 	/* (r1!=0), r1=tcm.se_desc_input_violate,  */
-	0x010102f1, 0x00010001, 0x000003b1, 	/* (r1!=0), r1=tcm.ia_agg_con_part_fill_lvl,  */
-	0x010102f2, 0x00010001, 0x000003b2, 	/* (r1!=0), r1=tcm.ia_sm_con_part_fill_lvl,  */
-	0x010102f3, 0x00010001, 0x000003b3, 	/* (r1!=0), r1=tcm.ia_agg_task_part_fill_lvl,  */
-	0x010102f4, 0x00010001, 0x000003b4, 	/* (r1!=0), r1=tcm.ia_sm_task_part_fill_lvl,  */
-	0x010102f5, 0x00010001, 0x000003b5, 	/* (r1!=0), r1=tcm.ia_trans_part_fill_lvl,  */
-	0x010102f6, 0x00010001, 0x002d03b6, 	/* (r1!=reset1), r1=tcm.xx_free_cnt,  */
-	0x010102f7, 0x00010001, 0x000003b7, 	/* (r1!=0), r1=tcm.xx_lcid_cam_fill_lvl,  */
-	0x010102f8, 0x00010001, 0x000003b8, 	/* (r1!=0), r1=tcm.xx_lock_cnt,  */
-	0x010102f9, 0x00010001, 0x000003b9, 	/* (r1!=0), r1=tcm.xx_cbyp_tbl_fill_lvl,  */
-	0x010102fa, 0x00010001, 0x000003ba, 	/* (r1!=0), r1=tcm.xx_tbyp_tbl_fill_lvl,  */
-	0x010102fb, 0x00010001, 0x000003bb, 	/* (r1!=0), r1=tcm.xx_tbyp_tbl_fill_lvl,  */
-	0x010102fc, 0x00010001, 0x000003bc, 	/* (r1!=0), r1=tcm.agg_con_fic_buf_fill_lvl,  */
-	0x010102fd, 0x00010001, 0x000003bd, 	/* (r1!=0), r1=tcm.sm_con_fic_buf_fill_lvl,  */
-	0x010102fe, 0x00010001, 0x000003be, 	/* (r1!=0), r1=tcm.agg_task_fic_buf_fill_lvl,  */
-	0x010102ff, 0x00010001, 0x000003bf, 	/* (r1!=0), r1=tcm.sm_task_fic_buf_fill_lvl,  */
-	0x01010300, 0x00010001, 0x000003c0, 	/* (r1!=0), r1=tcm.in_prcs_tbl_fill_lvl,  */
-	0x01010301, 0x00010001, 0x000d03c1, 	/* (r1!=reset1), r1=tcm.ccfc_init_crd,  */
-	0x01010302, 0x00010001, 0x000d03c2, 	/* (r1!=reset1), r1=tcm.tcfc_init_crd,  */
-	0x01010303, 0x00010001, 0x000a03c3, 	/* (r1!=reset1), r1=tcm.qm_init_crd0,  */
-	0x01010304, 0x00010001, 0x001103c4, 	/* (r1!=reset1), r1=tcm.tm_init_crd,  */
-	0x01010305, 0x00010001, 0x003003c5, 	/* (r1!=reset1), r1=tcm.fic_init_crd,  */
-	0x01000306, 0x00010001, 0x000003c6, 	/* (r1!=0), r1=tcm.dorq_length_mis,  */
-	0x01000307, 0x00010001, 0x000003c7, 	/* (r1!=0), r1=tcm.pbf_length_mis,  */
-	0x01010308, 0x00010001, 0x000003c8, 	/* (r1!=0), r1=tcm.is_qm_p_fill_lvl,  */
-	0x01010309, 0x00010001, 0x000003c9, 	/* (r1!=0), r1=tcm.is_qm_s_fill_lvl,  */
-	0x0101030a, 0x00010001, 0x000003ca, 	/* (r1!=0), r1=tcm.is_tm_fill_lvl,  */
-	0x0101030b, 0x00010001, 0x000003cb, 	/* (r1!=0), r1=tcm.is_storm_fill_lvl,  */
-	0x0101030c, 0x00010001, 0x000003cc, 	/* (r1!=0), r1=tcm.is_msem_fill_lvl,  */
-	0x0101030d, 0x00010001, 0x000003cd, 	/* (r1!=0), r1=tcm.is_dorq_fill_lvl,  */
-	0x0101030e, 0x00010001, 0x000003ce, 	/* (r1!=0), r1=tcm.is_pbf_fill_lvl,  */
-	0x0000030f, 0x00010002, 0x000003cf, 	/* ((r1&~r2)!=0), r1=mcm.INT_STS_0, r2=mcm.INT_MASK_0,  */
-	0x00000310, 0x00010002, 0x000003d1, 	/* ((r1&~r2)!=0), r1=mcm.INT_STS_1, r2=mcm.INT_MASK_1,  */
-	0x01000311, 0x00010001, 0x000003d3, 	/* (r1!=0), r1=mcm.fi_desc_input_violate,  */
-	0x01000312, 0x00010001, 0x000003d4, 	/* (r1!=0), r1=mcm.se_desc_input_violate,  */
-	0x01010313, 0x00010001, 0x000003d5, 	/* (r1!=0), r1=mcm.ia_agg_con_part_fill_lvl,  */
-	0x01010314, 0x00010001, 0x000003d6, 	/* (r1!=0), r1=mcm.ia_sm_con_part_fill_lvl,  */
-	0x01010315, 0x00010001, 0x000003d7, 	/* (r1!=0), r1=mcm.ia_agg_task_part_fill_lvl,  */
-	0x01010316, 0x00010001, 0x000003d8, 	/* (r1!=0), r1=mcm.ia_sm_task_part_fill_lvl,  */
-	0x01010317, 0x00010001, 0x000003d9, 	/* (r1!=0), r1=mcm.ia_trans_part_fill_lvl,  */
-	0x01010318, 0x00010001, 0x002d03da, 	/* (r1!=reset1), r1=mcm.xx_free_cnt,  */
-	0x01010319, 0x00010001, 0x000003db, 	/* (r1!=0), r1=mcm.xx_lcid_cam_fill_lvl,  */
-	0x0101031a, 0x00010001, 0x000003dc, 	/* (r1!=0), r1=mcm.xx_lock_cnt,  */
-	0x0101031b, 0x00010001, 0x000003dd, 	/* (r1!=0), r1=mcm.xx_cbyp_tbl_fill_lvl,  */
-	0x0101031c, 0x00010001, 0x000003de, 	/* (r1!=0), r1=mcm.xx_tbyp_tbl_fill_lvl,  */
-	0x0101031d, 0x00010001, 0x000003df, 	/* (r1!=0), r1=mcm.xx_tbyp_tbl_fill_lvl,  */
-	0x0101031e, 0x00010001, 0x000003e0, 	/* (r1!=0), r1=mcm.agg_con_fic_buf_fill_lvl,  */
-	0x0101031f, 0x00010001, 0x000003e1, 	/* (r1!=0), r1=mcm.sm_con_fic_buf_fill_lvl,  */
-	0x01010320, 0x00010001, 0x000003e2, 	/* (r1!=0), r1=mcm.agg_task_fic_buf_fill_lvl,  */
-	0x01010321, 0x00010001, 0x000003e3, 	/* (r1!=0), r1=mcm.sm_task_fic_buf_fill_lvl,  */
-	0x01010322, 0x00010001, 0x000003e4, 	/* (r1!=0), r1=mcm.in_prcs_tbl_fill_lvl,  */
-	0x01010323, 0x00010001, 0x000d03e5, 	/* (r1!=reset1), r1=mcm.ccfc_init_crd,  */
-	0x01010324, 0x00010001, 0x000d03e6, 	/* (r1!=reset1), r1=mcm.tcfc_init_crd,  */
-	0x01010325, 0x00010001, 0x000a03e7, 	/* (r1!=reset1), r1=mcm.qm_init_crd0,  */
-	0x01010326, 0x00010001, 0x003003e8, 	/* (r1!=reset1), r1=mcm.fic_init_crd,  */
-	0x01000327, 0x00010001, 0x000003e9, 	/* (r1!=0), r1=mcm.ysdm_length_mis,  */
-	0x01000328, 0x00010001, 0x000003ea, 	/* (r1!=0), r1=mcm.usdm_length_mis,  */
-	0x01000329, 0x00010001, 0x000003eb, 	/* (r1!=0), r1=mcm.pbf_length_mis,  */
-	0x0100032a, 0x00010001, 0x000003ec, 	/* (r1!=0), r1=mcm.tmld_length_mis,  */
-	0x0101032b, 0x00010001, 0x000003ed, 	/* (r1!=0), r1=mcm.is_qm_p_fill_lvl,  */
-	0x0101032c, 0x00010001, 0x000003ee, 	/* (r1!=0), r1=mcm.is_qm_s_fill_lvl,  */
-	0x0101032d, 0x00010001, 0x000003ef, 	/* (r1!=0), r1=mcm.is_storm_fill_lvl,  */
-	0x0101032e, 0x00010001, 0x000003f0, 	/* (r1!=0), r1=mcm.is_ysdm_fill_lvl,  */
-	0x0101032f, 0x00010001, 0x000003f1, 	/* (r1!=0), r1=mcm.is_usdm_fill_lvl,  */
-	0x01010330, 0x00010001, 0x000003f2, 	/* (r1!=0), r1=mcm.is_tmld_fill_lvl,  */
-	0x01010331, 0x00010001, 0x000003f3, 	/* (r1!=0), r1=mcm.is_usem_fill_lvl,  */
-	0x01010332, 0x00010001, 0x000003f4, 	/* (r1!=0), r1=mcm.is_pbf_fill_lvl,  */
-	0x00000333, 0x00010002, 0x000003f5, 	/* ((r1&~r2)!=0), r1=ucm.INT_STS_0, r2=ucm.INT_MASK_0,  */
-	0x00000334, 0x00010002, 0x000003f7, 	/* ((r1&~r2)!=0), r1=ucm.INT_STS_1, r2=ucm.INT_MASK_1,  */
-	0x01000335, 0x00010001, 0x000003f9, 	/* (r1!=0), r1=ucm.fi_desc_input_violate,  */
-	0x01000336, 0x00010001, 0x000003fa, 	/* (r1!=0), r1=ucm.se_desc_input_violate,  */
-	0x01010337, 0x00010001, 0x000003fb, 	/* (r1!=0), r1=ucm.ia_agg_con_part_fill_lvl,  */
-	0x01010338, 0x00010001, 0x000003fc, 	/* (r1!=0), r1=ucm.ia_sm_con_part_fill_lvl,  */
-	0x01010339, 0x00010001, 0x000003fd, 	/* (r1!=0), r1=ucm.ia_agg_task_part_fill_lvl,  */
-	0x0101033a, 0x00010001, 0x000003fe, 	/* (r1!=0), r1=ucm.ia_sm_task_part_fill_lvl,  */
-	0x0101033b, 0x00010001, 0x000003ff, 	/* (r1!=0), r1=ucm.ia_trans_part_fill_lvl,  */
-	0x0101033c, 0x00010001, 0x002d0400, 	/* (r1!=reset1), r1=ucm.xx_free_cnt,  */
-	0x0101033d, 0x00010001, 0x00000401, 	/* (r1!=0), r1=ucm.xx_lcid_cam_fill_lvl,  */
-	0x0101033e, 0x00010001, 0x00000402, 	/* (r1!=0), r1=ucm.xx_lock_cnt,  */
-	0x0101033f, 0x00010001, 0x00000403, 	/* (r1!=0), r1=ucm.xx_cbyp_tbl_fill_lvl,  */
-	0x01010340, 0x00010001, 0x00000404, 	/* (r1!=0), r1=ucm.xx_tbyp_tbl_fill_lvl,  */
-	0x01010341, 0x00010001, 0x00000405, 	/* (r1!=0), r1=ucm.xx_tbyp_tbl_fill_lvl,  */
-	0x01010342, 0x00010001, 0x00000406, 	/* (r1!=0), r1=ucm.agg_con_fic_buf_fill_lvl,  */
-	0x01010343, 0x00010001, 0x00000407, 	/* (r1!=0), r1=ucm.sm_con_fic_buf_fill_lvl,  */
-	0x01010344, 0x00010001, 0x00000408, 	/* (r1!=0), r1=ucm.agg_task_fic_buf_fill_lvl,  */
-	0x01010345, 0x00010001, 0x00000409, 	/* (r1!=0), r1=ucm.sm_task_fic_buf_fill_lvl,  */
-	0x01010346, 0x00010001, 0x0000040a, 	/* (r1!=0), r1=ucm.in_prcs_tbl_fill_lvl,  */
-	0x01010347, 0x00010001, 0x000d040b, 	/* (r1!=reset1), r1=ucm.ccfc_init_crd,  */
-	0x01010348, 0x00010001, 0x000d040c, 	/* (r1!=reset1), r1=ucm.tcfc_init_crd,  */
-	0x01010349, 0x00010001, 0x000a040d, 	/* (r1!=reset1), r1=ucm.qm_init_crd0,  */
-	0x0101034a, 0x00010001, 0x0011040e, 	/* (r1!=reset1), r1=ucm.tm_init_crd,  */
-	0x0101034b, 0x00010001, 0x002f040f, 	/* (r1!=reset1), r1=ucm.fic_init_crd,  */
-	0x0100034c, 0x00010001, 0x00000410, 	/* (r1!=0), r1=ucm.ysdm_length_mis,  */
-	0x0100034d, 0x00010001, 0x00000411, 	/* (r1!=0), r1=ucm.usdm_length_mis,  */
-	0x0100034e, 0x00010001, 0x00000412, 	/* (r1!=0), r1=ucm.dorq_length_mis,  */
-	0x0100034f, 0x00010001, 0x00000413, 	/* (r1!=0), r1=ucm.pbf_length_mis,  */
-	0x01000350, 0x00010001, 0x00000414, 	/* (r1!=0), r1=ucm.rdif_length_mis,  */
-	0x01000351, 0x00010001, 0x00000415, 	/* (r1!=0), r1=ucm.tdif_length_mis,  */
-	0x01000352, 0x00010001, 0x00000416, 	/* (r1!=0), r1=ucm.muld_length_mis,  */
-	0x01010353, 0x00010001, 0x00000417, 	/* (r1!=0), r1=ucm.is_qm_p_fill_lvl,  */
-	0x01010354, 0x00010001, 0x00000418, 	/* (r1!=0), r1=ucm.is_qm_s_fill_lvl,  */
-	0x01010355, 0x00010001, 0x00000419, 	/* (r1!=0), r1=ucm.is_tm_fill_lvl,  */
-	0x01010356, 0x00010001, 0x0000041a, 	/* (r1!=0), r1=ucm.is_storm_fill_lvl,  */
-	0x01010357, 0x00010001, 0x0000041b, 	/* (r1!=0), r1=ucm.is_ysdm_fill_lvl,  */
-	0x01010358, 0x00010001, 0x0000041c, 	/* (r1!=0), r1=ucm.is_usdm_fill_lvl,  */
-	0x01010359, 0x00010001, 0x0000041d, 	/* (r1!=0), r1=ucm.is_rdif_fill_lvl,  */
-	0x0101035a, 0x00010001, 0x0000041e, 	/* (r1!=0), r1=ucm.is_tdif_fill_lvl,  */
-	0x0101035b, 0x00010001, 0x0000041f, 	/* (r1!=0), r1=ucm.is_muld_fill_lvl,  */
-	0x0101035c, 0x00010001, 0x00000420, 	/* (r1!=0), r1=ucm.is_dorq_fill_lvl,  */
-	0x0101035d, 0x00010001, 0x00000421, 	/* (r1!=0), r1=ucm.is_pbf_fill_lvl,  */
-	0x0000035e, 0x00010002, 0x00000422, 	/* ((r1&~r2)!=0), r1=xsem.INT_STS_0, r2=xsem.INT_MASK_0,  */
-	0x0000035f, 0x00010002, 0x00000424, 	/* ((r1&~r2)!=0), r1=xsem.INT_STS_1, r2=xsem.INT_MASK_1,  */
-	0x00000360, 0x00010002, 0x00000426, 	/* ((r1&~r2)!=0), r1=xsem.PRTY_STS, r2=xsem.PRTY_MASK,  */
-	0x01020361, 0x00010001, 0x00000428, 	/* (r1!=0), r1=xsem.pf_err_vector,  */
-	0x01010362, 0x00010001, 0x00310429, 	/* (r1!=0x3F), r1=xsem.foc_credit,  */
-	0x01010363, 0x00010001, 0x0032042a, 	/* (r1!=0x1D), r1=xsem.foc_credit[1],  */
-	0x01010364, 0x00010001, 0x000d042b, 	/* (r1!=1), r1=xsem.ext_pas_empty,  */
-	0x01010365, 0x00010001, 0x000d042c, 	/* (r1!=1), r1=xsem.fic_empty[0:1],  */
-	0x01010366, 0x00010001, 0x000d042d, 	/* (r1!=1), r1=xsem.slow_ext_store_empty,  */
-	0x01010367, 0x00010001, 0x000d042e, 	/* (r1!=1), r1=xsem.slow_ext_load_empty,  */
-	0x01010368, 0x00010001, 0x000d042f, 	/* (r1!=1), r1=xsem.slow_ram_rd_empty,  */
-	0x01010369, 0x00010001, 0x000d0430, 	/* (r1!=1), r1=xsem.slow_ram_wr_empty,  */
-	0x0101036a, 0x00010001, 0x000d0431, 	/* (r1!=1), r1=xsem.sync_dbg_empty,  */
-	0x0101036b, 0x00010001, 0x00000432, 	/* (r1!=0), r1=xsem.ext_store_if_full,  */
-	0x0101036c, 0x00010001, 0x00000433, 	/* (r1!=0), r1=xsem.ram_if_full,  */
-	0x0000036d, 0x00010002, 0x00000434, 	/* ((r1&~r2)!=0), r1=ysem.INT_STS_0, r2=ysem.INT_MASK_0,  */
-	0x0000036e, 0x00010002, 0x00000436, 	/* ((r1&~r2)!=0), r1=ysem.INT_STS_1, r2=ysem.INT_MASK_1,  */
-	0x0000036f, 0x00010002, 0x00000438, 	/* ((r1&~r2)!=0), r1=ysem.PRTY_STS, r2=ysem.PRTY_MASK,  */
-	0x01020370, 0x00010001, 0x0000043a, 	/* (r1!=0), r1=ysem.pf_err_vector,  */
-	0x01010371, 0x00010001, 0x0033043b, 	/* (r1!=0x1A), r1=ysem.foc_credit[1],  */
-	0x01010372, 0x00010001, 0x0034043c, 	/* (r1!=0xA), r1=ysem.foc_credit[2],  */
-	0x01010373, 0x00010001, 0x0028043d, 	/* (r1!=0x7), r1=ysem.foc_credit[3],  */
-	0x01010374, 0x00010001, 0x002e043e, 	/* (r1!=0x28), r1=ysem.foc_credit[5],  */
-	0x01010375, 0x00010001, 0x0035043f, 	/* (r1!=0x26), r1=ysem.foc_credit[4],  */
-	0x01010376, 0x00010001, 0x00360440, 	/* (r1!=0xE), r1=ysem.foc_credit,  */
-	0x01010377, 0x00010001, 0x000d0441, 	/* (r1!=1), r1=ysem.ext_pas_empty,  */
-	0x01010378, 0x00010001, 0x000d0442, 	/* (r1!=1), r1=ysem.fic_empty[0:1],  */
-	0x01010379, 0x00010001, 0x000d0443, 	/* (r1!=1), r1=ysem.slow_ext_store_empty,  */
-	0x0101037a, 0x00010001, 0x000d0444, 	/* (r1!=1), r1=ysem.slow_ext_load_empty,  */
-	0x0101037b, 0x00010001, 0x000d0445, 	/* (r1!=1), r1=ysem.slow_ram_rd_empty,  */
-	0x0101037c, 0x00010001, 0x000d0446, 	/* (r1!=1), r1=ysem.slow_ram_wr_empty,  */
-	0x0101037d, 0x00010001, 0x000d0447, 	/* (r1!=1), r1=ysem.sync_dbg_empty,  */
-	0x0101037e, 0x00010001, 0x00000448, 	/* (r1!=0), r1=ysem.ext_store_if_full,  */
-	0x0101037f, 0x00010001, 0x00000449, 	/* (r1!=0), r1=ysem.ram_if_full,  */
-	0x00000380, 0x00010002, 0x0000044a, 	/* ((r1&~r2)!=0), r1=psem.INT_STS_0, r2=psem.INT_MASK_0,  */
-	0x00000381, 0x00010002, 0x0000044c, 	/* ((r1&~r2)!=0), r1=psem.INT_STS_1, r2=psem.INT_MASK_1,  */
-	0x00000382, 0x00010002, 0x0000044e, 	/* ((r1&~r2)!=0), r1=psem.PRTY_STS, r2=psem.PRTY_MASK,  */
-	0x01020383, 0x00010001, 0x00000450, 	/* (r1!=0), r1=psem.pf_err_vector,  */
-	0x01010384, 0x00010001, 0x00370451, 	/* (r1!=0x17), r1=psem.foc_credit,  */
-	0x01010385, 0x00010001, 0x002d0452, 	/* (r1!=0x40), r1=psem.foc_credit[1],  */
-	0x01010386, 0x00010001, 0x000d0453, 	/* (r1!=1), r1=psem.ext_pas_empty,  */
-	0x01010387, 0x00010001, 0x000d0454, 	/* (r1!=1), r1=psem.fic_empty,  */
-	0x01010388, 0x00010001, 0x000d0455, 	/* (r1!=1), r1=psem.slow_ext_store_empty,  */
-	0x01010389, 0x00010001, 0x000d0456, 	/* (r1!=1), r1=psem.slow_ext_load_empty,  */
-	0x0101038a, 0x00010001, 0x000d0457, 	/* (r1!=1), r1=psem.slow_ram_rd_empty,  */
-	0x0101038b, 0x00010001, 0x000d0458, 	/* (r1!=1), r1=psem.slow_ram_wr_empty,  */
-	0x0101038c, 0x00010001, 0x000d0459, 	/* (r1!=1), r1=psem.sync_dbg_empty,  */
-	0x0101038d, 0x00010001, 0x0000045a, 	/* (r1!=0), r1=psem.ext_store_if_full,  */
-	0x0101038e, 0x00010001, 0x0000045b, 	/* (r1!=0), r1=psem.ram_if_full,  */
-	0x0000038f, 0x00010002, 0x0000045c, 	/* ((r1&~r2)!=0), r1=tsem.INT_STS_0, r2=tsem.INT_MASK_0,  */
-	0x00000390, 0x00010002, 0x0000045e, 	/* ((r1&~r2)!=0), r1=tsem.INT_STS_1, r2=tsem.INT_MASK_1,  */
-	0x00000391, 0x00010002, 0x00000460, 	/* ((r1&~r2)!=0), r1=tsem.PRTY_STS, r2=tsem.PRTY_MASK,  */
-	0x01020392, 0x00010001, 0x00000462, 	/* (r1!=0), r1=tsem.pf_err_vector,  */
-	0x01010393, 0x00010001, 0x00380463, 	/* (r1!=0x3C), r1=tsem.foc_credit[1],  */
-	0x01010394, 0x00010001, 0x00390464, 	/* (r1!=0x2C), r1=tsem.foc_credit,  */
-	0x01010395, 0x00010001, 0x000d0465, 	/* (r1!=1), r1=tsem.ext_pas_empty,  */
-	0x01010396, 0x00010001, 0x000d0466, 	/* (r1!=1), r1=tsem.fic_empty,  */
-	0x01010397, 0x00010001, 0x000d0467, 	/* (r1!=1), r1=tsem.slow_ext_store_empty,  */
-	0x01010398, 0x00010001, 0x000d0468, 	/* (r1!=1), r1=tsem.slow_ext_load_empty,  */
-	0x01010399, 0x00010001, 0x000d0469, 	/* (r1!=1), r1=tsem.slow_ram_rd_empty,  */
-	0x0101039a, 0x00010001, 0x000d046a, 	/* (r1!=1), r1=tsem.slow_ram_wr_empty,  */
-	0x0101039b, 0x00010001, 0x000d046b, 	/* (r1!=1), r1=tsem.sync_dbg_empty,  */
-	0x0101039c, 0x00010001, 0x0000046c, 	/* (r1!=0), r1=tsem.ext_store_if_full,  */
-	0x0101039d, 0x00010001, 0x0000046d, 	/* (r1!=0), r1=tsem.ram_if_full,  */
-	0x0000039e, 0x00010002, 0x0000046e, 	/* ((r1&~r2)!=0), r1=msem.INT_STS_0, r2=msem.INT_MASK_0,  */
-	0x0000039f, 0x00010002, 0x00000470, 	/* ((r1&~r2)!=0), r1=msem.INT_STS_1, r2=msem.INT_MASK_1,  */
-	0x000003a0, 0x00010002, 0x00000472, 	/* ((r1&~r2)!=0), r1=msem.PRTY_STS, r2=msem.PRTY_MASK,  */
-	0x010203a1, 0x00010001, 0x00000474, 	/* (r1!=0), r1=msem.pf_err_vector,  */
-	0x010103a2, 0x00010001, 0x00390475, 	/* (r1!=0x2C), r1=msem.foc_credit[1],  */
-	0x010103a3, 0x00010001, 0x00090476, 	/* (r1!=0x5), r1=msem.foc_credit,  */
-	0x010103a4, 0x00010001, 0x00280477, 	/* (r1!=0x7), r1=msem.foc_credit[4],  */
-	0x010103a5, 0x00010001, 0x000f0478, 	/* (r1!=0x20), r1=msem.foc_credit[5],  */
-	0x010103a6, 0x00010001, 0x001a0479, 	/* (r1!=0x11), r1=msem.foc_credit[3],  */
-	0x010103a7, 0x00010001, 0x0037047a, 	/* (r1!=0x17), r1=msem.foc_credit[2],  */
-	0x010103a8, 0x00010001, 0x000d047b, 	/* (r1!=1), r1=msem.ext_pas_empty,  */
-	0x010103a9, 0x00010001, 0x000d047c, 	/* (r1!=1), r1=msem.fic_empty,  */
-	0x010103aa, 0x00010001, 0x000d047d, 	/* (r1!=1), r1=msem.slow_ext_store_empty,  */
-	0x010103ab, 0x00010001, 0x000d047e, 	/* (r1!=1), r1=msem.slow_ext_load_empty,  */
-	0x010103ac, 0x00010001, 0x000d047f, 	/* (r1!=1), r1=msem.slow_ram_rd_empty,  */
-	0x010103ad, 0x00010001, 0x000d0480, 	/* (r1!=1), r1=msem.slow_ram_wr_empty,  */
-	0x010103ae, 0x00010001, 0x000d0481, 	/* (r1!=1), r1=msem.sync_dbg_empty,  */
-	0x010103af, 0x00010001, 0x00000482, 	/* (r1!=0), r1=msem.ext_store_if_full,  */
-	0x010103b0, 0x00010001, 0x00000483, 	/* (r1!=0), r1=msem.ram_if_full,  */
-	0x000003b1, 0x00010002, 0x00000484, 	/* ((r1&~r2)!=0), r1=usem.INT_STS_0, r2=usem.INT_MASK_0,  */
-	0x000003b2, 0x00010002, 0x00000486, 	/* ((r1&~r2)!=0), r1=usem.INT_STS_1, r2=usem.INT_MASK_1,  */
-	0x000003b3, 0x00010002, 0x00000488, 	/* ((r1&~r2)!=0), r1=usem.PRTY_STS, r2=usem.PRTY_MASK,  */
-	0x010203b4, 0x00010001, 0x0000048a, 	/* (r1!=0), r1=usem.pf_err_vector,  */
-	0x010103b5, 0x00010001, 0x0034048b, 	/* (r1!=0xA), r1=usem.foc_credit[2],  */
-	0x010103b6, 0x00010001, 0x0013048c, 	/* (r1!=0x3), r1=usem.foc_credit[3],  */
-	0x010103b7, 0x00010001, 0x0009048d, 	/* (r1!=0x5), r1=usem.foc_credit,  */
-	0x010103b8, 0x00010001, 0x003a048e, 	/* (r1!=0x32), r1=usem.foc_credit[1],  */
-	0x010103b9, 0x00010001, 0x000f048f, 	/* (r1!=0x20), r1=usem.foc_credit[4],  */
-	0x010103ba, 0x00010001, 0x000d0490, 	/* (r1!=1), r1=usem.ext_pas_empty,  */
-	0x010103bb, 0x00010001, 0x000d0491, 	/* (r1!=1), r1=usem.fic_empty,  */
-	0x010103bc, 0x00010001, 0x000d0492, 	/* (r1!=1), r1=usem.slow_ext_store_empty,  */
-	0x010103bd, 0x00010001, 0x000d0493, 	/* (r1!=1), r1=usem.slow_ext_load_empty,  */
-	0x010103be, 0x00010001, 0x000d0494, 	/* (r1!=1), r1=usem.slow_ram_rd_empty,  */
-	0x010103bf, 0x00010001, 0x000d0495, 	/* (r1!=1), r1=usem.slow_ram_wr_empty,  */
-	0x010103c0, 0x00010001, 0x000d0496, 	/* (r1!=1), r1=usem.sync_dbg_empty,  */
-	0x010103c1, 0x00010001, 0x00000497, 	/* (r1!=0), r1=usem.ext_store_if_full,  */
-	0x010103c2, 0x00010001, 0x00000498, 	/* (r1!=0), r1=usem.ram_if_full,  */
-	0x009c0007, 	/* mode bb */
-	0x040003c3, 0x00020001, 0x003b0499, 	/* ((r1&~0x3f02)!=0), r1=pcie.PRTY_STS_H_0,  */
-	0x010203c4, 0x00010001, 0x0000049a, 	/* (r1!=0), r1=igu.pending_bits_status[0:8],  */
-	0x010103c5, 0x00010001, 0x0000049b, 	/* (r1!=0), r1=igu.write_done_pending[0:8],  */
-	0x000003c6, 0x00010102, 0x0000049c, 	/* ((r1&~r2)!=0), r1=cnig.INT_STS, r2=cnig.INT_MASK,  */
-	0x000003c7, 0x00010002, 0x0000049f, 	/* ((r1&~r2)!=0), r1=cnig.PRTY_STS, r2=cnig.PRTY_MASK,  */
-	0x010203c8, 0x00010101, 0x000004a1, 	/* (r1!=0), r1=pswhst.vf_disabled_error_valid,  */
-	0x010203c9, 0x00010001, 0x000004a3, 	/* (r1!=0), r1=pglue_b.flr_request_vf_223_192,  */
-	0x010203ca, 0x00010001, 0x000004a4, 	/* (r1!=0), r1=pglue_b.flr_request_vf_255_224,  */
-	0x010003cb, 0x00010001, 0x000004a5, 	/* (r1!=0), r1=pglue_b.incorrect_rcv_details,  */
-	0x010203cc, 0x00010001, 0x000004a6, 	/* (r1!=0), r1=pglue_b.was_error_vf_223_192,  */
-	0x010203cd, 0x00010001, 0x000004a7, 	/* (r1!=0), r1=pglue_b.was_error_vf_255_224,  */
-	0x010203ce, 0x00010001, 0x001d04a8, 	/* (r1!=0xffffffff), r1=pglue_b.tags_159_128,  */
-	0x010203cf, 0x00010001, 0x001d04a9, 	/* (r1!=0xffffffff), r1=pglue_b.tags_191_160,  */
-	0x010203d0, 0x00010001, 0x001d04aa, 	/* (r1!=0xffffffff), r1=pglue_b.tags_223_192,  */
-	0x010203d1, 0x00010001, 0x001d04ab, 	/* (r1!=0xffffffff), r1=pglue_b.tags_255_224,  */
-	0x090103d2, 0x00060001, 0x003d04ac, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblOther[0:63] width=2 access=WB,  */
-	0x0a0103d3, 0x00030001, 0x004304ad, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblOther[0:63] width=2 access=WB,  */
-	0x010003d4, 0x00010001, 0x000004ae, 	/* (r1!=0), r1=qm.QstatusTx_0[0:13],  */
-	0x010003d5, 0x00010001, 0x000004af, 	/* (r1!=0), r1=qm.QstatusOther_0[0:1],  */
-	0x0b0103d6, 0x00010003, 0x000004b0, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
-	0x0c0103d7, 0x00010003, 0x000004b3, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:17], r2=qm.VoqInitCrdLine[0:17], r3=misc.port_mode,  */
-	0x0b0103d8, 0x00010003, 0x000004b6, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
-	0x0b0103d9, 0x00010003, 0x000004b9, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
-	0x0b0103da, 0x00010003, 0x000004bc, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
-	0x0c0103db, 0x00010003, 0x000004bf, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:17], r2=qm.VoqInitCrdByte[0:17], r3=misc.port_mode,  */
-	0x090103dc, 0x00060001, 0x003d04c2, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblTx[0:447] width=2 access=WB,  */
-	0x0a0103dd, 0x00030001, 0x004304c3, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblTx[0:447] width=2 access=WB,  */
-	0x010103de, 0x00010001, 0x002a04c4, 	/* (r1!=8190), r1=brb.wc_empty_0[0:3],  */
-	0x010103df, 0x00010001, 0x001304c5, 	/* (r1!=reset1), r1=brb.rc_eop_empty,  */
-	0x010103e0, 0x00010001, 0x000b04c6, 	/* (r1!=2), r1=brb.wc_status_0[0:3] width=3 access=WB,  */
-	0x000003e1, 0x00010302, 0x000004c7, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS, r2=nig.PRTY_MASK,  */
-	0x000003e2, 0x00010202, 0x000004cc, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
-	0x000003e3, 0x00010202, 0x000004d0, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
-	0x010003e4, 0x00010001, 0x000004d4, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
-	0x010103e5, 0x00010001, 0x000004d5, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
-	0x010103e6, 0x00010001, 0x000004d6, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
-	0x010103e7, 0x00010001, 0x000004d7, 	/* (r1!=0), r1=xcm.qm_act_st_cnt[0:447],  */
-	0x010003e8, 0x00010001, 0x000004d8, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
-	0x010103e9, 0x00010001, 0x000004d9, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
-	0x010003ea, 0x00010001, 0x000004da, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
-	0x010103eb, 0x00010001, 0x000004db, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
-	0x010003ec, 0x00010001, 0x000004dc, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
-	0x010103ed, 0x00010001, 0x000004dd, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
-	0x010003ee, 0x00010001, 0x000004de, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
-	0x010103ef, 0x00010001, 0x000004df, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
-	0x010103f0, 0x00010001, 0x000004e0, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
-	0x010203f1, 0x00010001, 0x000004e1, 	/* (r1!=0), r1=xsem.vf_err_vector width=4 access=WB,  */
-	0x010203f2, 0x00010001, 0x000004e2, 	/* (r1!=0), r1=ysem.vf_err_vector width=4 access=WB,  */
-	0x010203f3, 0x00010001, 0x000004e3, 	/* (r1!=0), r1=psem.vf_err_vector width=4 access=WB,  */
-	0x010203f4, 0x00010001, 0x000004e4, 	/* (r1!=0), r1=tsem.vf_err_vector width=4 access=WB,  */
-	0x010203f5, 0x00010001, 0x000004e5, 	/* (r1!=0), r1=msem.vf_err_vector width=4 access=WB,  */
-	0x010203f6, 0x00010001, 0x000004e6, 	/* (r1!=0), r1=usem.vf_err_vector width=4 access=WB,  */
-	0x00540009, 	/* mode k2 */
-	0x000003f7, 0x00010002, 0x000004e7, 	/* ((r1&~r2)!=0), r1=pcie.PRTY_STS_H_0, r2=pcie.PRTY_MASK_H_0,  */
-	0x010203f8, 0x00010001, 0x000004e9, 	/* (r1!=0), r1=igu.pending_bits_status[0:11],  */
-	0x010103f9, 0x00010001, 0x000004ea, 	/* (r1!=0), r1=igu.write_done_pending[0:11],  */
-	0x010203fa, 0x00010101, 0x000004eb, 	/* (r1!=0), r1=pswhst.vf_disabled_error_valid,  */
-	0x010003fb, 0x00010001, 0x000004ed, 	/* (r1!=0), r1=qm.QstatusTx_0[0:15],  */
-	0x010003fc, 0x00010001, 0x000004ee, 	/* (r1!=0), r1=qm.QstatusOther_0[0:3],  */
-	0x0b0103fd, 0x00010003, 0x000004ef, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
-	0x0c0103fe, 0x00010003, 0x000004f2, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:19], r2=qm.VoqInitCrdLine[0:19], r3=misc.port_mode,  */
-	0x0b0103ff, 0x00010003, 0x000004f5, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
-	0x0b010400, 0x00010003, 0x000004f8, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
-	0x0c010401, 0x00010003, 0x000004fb, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:19], r2=qm.VoqInitCrdByte[0:19], r3=misc.port_mode,  */
-	0x0b010402, 0x00010003, 0x000004fe, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
-	0x01010403, 0x00010001, 0x002a0501, 	/* (r1!=8190), r1=brb.wc_empty_0[0:7],  */
-	0x01010404, 0x00010001, 0x000b0502, 	/* (r1!=2), r1=brb.wc_status_0[0:7] width=3 access=WB,  */
-	0x00000405, 0x00010202, 0x00000503, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
-	0x00000406, 0x00010202, 0x00000507, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
-	0x01000407, 0x00010001, 0x0000050b, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
-	0x01010408, 0x00010001, 0x0000050c, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
-	0x01010409, 0x00010001, 0x0000050d, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
-	0x0100040a, 0x00010001, 0x0000050e, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
-	0x0101040b, 0x00010001, 0x0000050f, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
-	0x0100040c, 0x00010001, 0x00000510, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
-	0x0101040d, 0x00010001, 0x00000511, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
-	0x0100040e, 0x00010001, 0x00000512, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
-	0x0101040f, 0x00010001, 0x00000513, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
-	0x01000410, 0x00010001, 0x00000514, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
-	0x01010411, 0x00010001, 0x00000515, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
-	0x01010412, 0x00010001, 0x00000516, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
-	0x00390021, 	/* mode asic */
-	0x03010413, 0x00000002, 0x00000517, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_7, r2=pswrq2.max_srs_vq7,  */
-	0x03010414, 0x00000002, 0x00000519, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_8, r2=pswrq2.max_srs_vq8,  */
-	0x03010415, 0x00000002, 0x0000051b, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_10, r2=pswrq2.max_srs_vq10,  */
-	0x03010416, 0x00000002, 0x0000051d, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_13, r2=pswrq2.max_srs_vq13,  */
-	0x03010417, 0x00000002, 0x0000051f, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_14, r2=pswrq2.max_srs_vq14,  */
-	0x03010418, 0x00000002, 0x00000521, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_20, r2=pswrq2.max_srs_vq20,  */
-	0x03010419, 0x00000002, 0x00000523, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_25, r2=pswrq2.max_srs_vq25,  */
-	0x0301041a, 0x00000002, 0x00000525, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_27, r2=pswrq2.max_srs_vq27,  */
-	0x0301041b, 0x00000002, 0x00000527, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_31, r2=pswrq2.max_srs_vq31,  */
-	0x0301041c, 0x00000002, 0x00000529, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_7, r2=pswrq2.max_blks_vq7,  */
-	0x0301041d, 0x00000002, 0x0000052b, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_8, r2=pswrq2.max_blks_vq8,  */
-	0x0301041e, 0x00000002, 0x0000052d, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_10, r2=pswrq2.max_blks_vq10,  */
-	0x0301041f, 0x00000002, 0x0000052f, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_13, r2=pswrq2.max_blks_vq13,  */
-	0x03010420, 0x00000002, 0x00000531, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_14, r2=pswrq2.max_blks_vq14,  */
-	0x03010421, 0x00000002, 0x00000533, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_20, r2=pswrq2.max_blks_vq20,  */
-	0x03010422, 0x00000002, 0x00000535, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_25, r2=pswrq2.max_blks_vq25,  */
-	0x03010423, 0x00000002, 0x00000537, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_27, r2=pswrq2.max_blks_vq27,  */
-	0x03010424, 0x00000002, 0x00000539, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_31, r2=pswrq2.max_blks_vq31,  */
-	0x0d020425, 0x00010001, 0x0046053b, 	/* (r1&0x3E1), r1=tm.INT_STS_1,  */
+	0x00000034, 0x00010002, 0x00000046, 	/* ((r1&~r2)!=0), r1=dmae.PRTY_STS_H_0, r2=dmae.PRTY_MASK_H_0,  */
+	0x00000035, 0x00010002, 0x00000048, 	/* ((r1&~r2)!=0), r1=dbg.PRTY_STS_H_0, r2=dbg.PRTY_MASK_H_0,  */
+	0x01020036, 0x00010001, 0x0000004a, 	/* (r1!=0), r1=grc.trace_fifo_valid_data,  */
+	0x00000037, 0x00010002, 0x0000004b, 	/* ((r1&~r2)!=0), r1=grc.INT_STS_0, r2=grc.INT_MASK_0,  */
+	0x00000038, 0x00010002, 0x0000004d, 	/* ((r1&~r2)!=0), r1=grc.PRTY_STS_H_0, r2=grc.PRTY_MASK_H_0,  */
+	0x00000039, 0x00010002, 0x0000004f, 	/* ((r1&~r2)!=0), r1=dorq.INT_STS, r2=dorq.INT_MASK,  */
+	0x0000003a, 0x00010002, 0x00000051, 	/* ((r1&~r2)!=0), r1=dorq.PRTY_STS_H_0, r2=dorq.PRTY_MASK_H_0,  */
+	0x0100003b, 0x00010001, 0x00090053, 	/* (r1!=reset1), r1=dorq.xcm_msg_init_crd,  */
+	0x0100003c, 0x00010001, 0x00090054, 	/* (r1!=reset1), r1=dorq.tcm_msg_init_crd,  */
+	0x0100003d, 0x00010001, 0x00090055, 	/* (r1!=reset1), r1=dorq.ucm_msg_init_crd,  */
+	0x0100003e, 0x00010001, 0x000a0056, 	/* (r1!=reset1), r1=dorq.pbf_cmd_init_crd,  */
+	0x0100003f, 0x00010001, 0x00000057, 	/* (r1!=0), r1=dorq.pf_usage_cnt,  */
+	0x01000040, 0x00010001, 0x00000058, 	/* (r1!=0), r1=dorq.vf_usage_cnt,  */
+	0x01000041, 0x00010001, 0x00000059, 	/* (r1!=0), r1=dorq.cfc_ld_req_fifo_fill_lvl,  */
+	0x01000042, 0x00010001, 0x0000005a, 	/* (r1!=0), r1=dorq.dorq_fifo_fill_lvl,  */
+	0x01020043, 0x00010201, 0x0000005b, 	/* (r1!=0), r1=dorq.db_drop_cnt,  */
+	0x01020044, 0x00010201, 0x0000005e, 	/* (r1!=0), r1=dorq.dpm_abort_cnt,  */
+	0x01000045, 0x00010001, 0x00000061, 	/* (r1!=0), r1=dorq.dpm_tbl_fill_lvl,  */
+	0x00000046, 0x00010002, 0x00000062, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS, r2=igu.PRTY_MASK,  */
+	0x00000047, 0x00010002, 0x00000064, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS_H_0, r2=igu.PRTY_MASK_H_0,  */
+	0x01010048, 0x00010001, 0x00000066, 	/* (r1!=0), r1=igu.attn_write_done_pending,  */
+	0x01020049, 0x00010001, 0x00000067, 	/* (r1!=0), r1=igu.Interrupt_status,  */
+	0x0100004a, 0x00010001, 0x00000068, 	/* (r1!=0), r1=igu.error_handling_data_valid,  */
+	0x0100004b, 0x00010001, 0x00000069, 	/* (r1!=0), r1=igu.silent_drop,  */
+	0x0102004c, 0x00010001, 0x0000006a, 	/* (r1!=0), r1=igu.sb_ctrl_fsm,  */
+	0x0102004d, 0x00010001, 0x0000006b, 	/* (r1!=0), r1=igu.int_handle_fsm,  */
+	0x0402004e, 0x00020001, 0x000b006c, 	/* ((r1&~0x2)!=0), r1=igu.attn_fsm,  */
+	0x0402004f, 0x00020001, 0x000d006d, 	/* ((r1&~0x1)!=0), r1=igu.ctrl_fsm,  */
+	0x04020050, 0x00020001, 0x000d006e, 	/* ((r1&~0x1)!=0), r1=igu.pxp_arb_fsm,  */
+	0x00000051, 0x00010002, 0x0000006f, 	/* ((r1&~r2)!=0), r1=cau.PRTY_STS_H_0, r2=cau.PRTY_MASK_H_0,  */
+	0x01010052, 0x00010001, 0x000d0071, 	/* (r1!=1), r1=cau.igu_req_credit_status,  */
+	0x01010053, 0x00010001, 0x000d0072, 	/* (r1!=1), r1=cau.igu_cmd_credit_status,  */
+	0x01010054, 0x00010001, 0x00000073, 	/* (r1!=0), r1=cau.debug_fifo_status,  */
+	0x01000055, 0x00010001, 0x00000074, 	/* (r1!=0), r1=cau.error_pxp_req,  */
+	0x01000056, 0x00010101, 0x00000075, 	/* (r1!=0), r1=cau.error_fsm_line,  */
+	0x01000057, 0x00010001, 0x00000077, 	/* (r1!=0), r1=cau.parity_latch_status,  */
+	0x01000058, 0x00010001, 0x00000078, 	/* (r1!=0), r1=cau.error_cleanup_cmd_reg,  */
+	0x03010059, 0x00000002, 0x00000079, 	/* (r1!=r2), r1=cau.req_counter, r2=cau.ack_counter,  */
+	0x0301005a, 0x00000002, 0x0000007b, 	/* (r1!=r2), r1=cau.req_counter, r2=cau.wdone_counter,  */
+	0x0102005b, 0x00010001, 0x0000007d, 	/* (r1!=0), r1=cau.main_fsm_status,  */
+	0x0102005c, 0x00010001, 0x0000007e, 	/* (r1!=0), r1=cau.var_read_fsm_status,  */
+	0x0102005d, 0x00010001, 0x0000007f, 	/* (r1!=0), r1=cau.igu_dma_fsm_status,  */
+	0x0000005e, 0x00010302, 0x00000080, 	/* ((r1&~r2)!=0), r1=prs.INT_STS_0, r2=prs.INT_MASK_0,  */
+	0x0000005f, 0x00010002, 0x00000085, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS, r2=prs.PRTY_MASK,  */
+	0x00000060, 0x00010002, 0x00000087, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS_H_0, r2=prs.PRTY_MASK_H_0,  */
+	0x01010061, 0x00010001, 0x00000089, 	/* (r1!=0), r1=prs.queue_pkt_avail_status,  */
+	0x01010062, 0x00010001, 0x0000008a, 	/* (r1!=0), r1=prs.storm_bkprs_status,  */
+	0x01010063, 0x00010001, 0x0000008b, 	/* (r1!=0), r1=prs.stop_parsing_status,  */
+	0x01010064, 0x00010001, 0x0000008c, 	/* (r1!=0), r1=prs.ccfc_search_current_credit,  */
+	0x01010065, 0x00010001, 0x0000008d, 	/* (r1!=0), r1=prs.tcfc_search_current_credit,  */
+	0x01010066, 0x00010001, 0x0000008e, 	/* (r1!=0), r1=prs.ccfc_load_current_credit,  */
+	0x01010067, 0x00010001, 0x0000008f, 	/* (r1!=0), r1=prs.tcfc_load_current_credit,  */
+	0x01010068, 0x00010001, 0x00000090, 	/* (r1!=0), r1=prs.ccfc_search_req_ct,  */
+	0x01010069, 0x00010001, 0x00000091, 	/* (r1!=0), r1=prs.tcfc_search_req_ct,  */
+	0x0101006a, 0x00010001, 0x00000092, 	/* (r1!=0), r1=prs.ccfc_load_req_ct,  */
+	0x0101006b, 0x00010001, 0x00000093, 	/* (r1!=0), r1=prs.tcfc_load_req_ct,  */
+	0x0101006c, 0x00010001, 0x00000094, 	/* (r1!=0), r1=prs.sop_req_ct,  */
+	0x0101006d, 0x00010001, 0x00000095, 	/* (r1!=0), r1=prs.eop_req_ct,  */
+	0x0000006e, 0x00010002, 0x00000096, 	/* ((r1&~r2)!=0), r1=prm.INT_STS, r2=prm.INT_MASK,  */
+	0x0000006f, 0x00010002, 0x00000098, 	/* ((r1&~r2)!=0), r1=prm.PRTY_STS_H_0, r2=prm.PRTY_MASK_H_0,  */
+	0x01000070, 0x00010001, 0x000d009a, 	/* (r1!=1), r1=rss.rss_init_done,  */
+	0x00000071, 0x00010002, 0x0000009b, 	/* ((r1&~r2)!=0), r1=rss.INT_STS, r2=rss.INT_MASK,  */
+	0x00000072, 0x00010002, 0x0000009d, 	/* ((r1&~r2)!=0), r1=rss.PRTY_STS_H_0, r2=rss.PRTY_MASK_H_0,  */
+	0x01010073, 0x00010001, 0x000f009f, 	/* (r1!=0x20), r1=rss.tmld_credit,  */
+	0x01000074, 0x00010001, 0x000d00a0, 	/* (r1!=1), r1=pswrq2.rbc_done,  */
+	0x01000075, 0x00010001, 0x000d00a1, 	/* (r1!=1), r1=pswrq2.cfg_done,  */
+	0x00020076, 0x00010002, 0x000000a2, 	/* ((r1&~r2)!=0), r1=pswrq2.INT_STS, r2=pswrq2.INT_MASK,  */
+	0x00000077, 0x00010002, 0x000000a4, 	/* ((r1&~r2)!=0), r1=pswrq2.PRTY_STS_H_0, r2=pswrq2.PRTY_MASK_H_0,  */
+	0x01010078, 0x00010001, 0x000000a6, 	/* (r1!=0), r1=pswrq2.vq0_entry_cnt[0:31],  */
+	0x01000079, 0x00010001, 0x001000a7, 	/* (r1!=0xb7), r1=pswrq2.BW_CREDIT,  */
+	0x0101007a, 0x00010001, 0x000000a8, 	/* (r1!=0), r1=pswrq2.treq_fifo_fill_lvl,  */
+	0x0101007b, 0x00010001, 0x000000a9, 	/* (r1!=0), r1=pswrq2.icpl_fifo_fill_lvl,  */
+	0x0100007c, 0x00010001, 0x000000aa, 	/* (r1!=0), r1=pswrq2.l2p_err_add_31_0,  */
+	0x0100007d, 0x00010001, 0x000000ab, 	/* (r1!=0), r1=pswrq2.l2p_err_add_63_32,  */
+	0x0100007e, 0x00010001, 0x000000ac, 	/* (r1!=0), r1=pswrq2.l2p_err_details,  */
+	0x0100007f, 0x00010001, 0x000000ad, 	/* (r1!=0), r1=pswrq2.l2p_err_details2,  */
+	0x08010080, 0x00010002, 0x001100ae, 	/* (r1<(r2-4)), r1=pswrq2.sr_cnt, r2=pswrq2.sr_num_cfg,  */
+	0x03010081, 0x00000002, 0x000000b0, 	/* (r1!=r2), r1=pswrq2.sr_cnt, r2=pswrq2.sr_num_cfg,  */
+	0x03010082, 0x00000002, 0x000000b2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_0, r2=pswrq2.max_srs_vq0,  */
+	0x03010083, 0x00000002, 0x000000b4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_1, r2=pswrq2.max_srs_vq1,  */
+	0x03010084, 0x00000002, 0x000000b6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_2, r2=pswrq2.max_srs_vq2,  */
+	0x03010085, 0x00000002, 0x000000b8, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_3, r2=pswrq2.max_srs_vq3,  */
+	0x03010086, 0x00000002, 0x000000ba, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_4, r2=pswrq2.max_srs_vq4,  */
+	0x03010087, 0x00000002, 0x000000bc, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_5, r2=pswrq2.max_srs_vq5,  */
+	0x03010088, 0x00000002, 0x000000be, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_6, r2=pswrq2.max_srs_vq6,  */
+	0x03010089, 0x00000002, 0x000000c0, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_9, r2=pswrq2.max_srs_vq9,  */
+	0x0301008a, 0x00000002, 0x000000c2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_11, r2=pswrq2.max_srs_vq11,  */
+	0x0301008b, 0x00000002, 0x000000c4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_12, r2=pswrq2.max_srs_vq12,  */
+	0x0301008c, 0x00000002, 0x000000c6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_15, r2=pswrq2.max_srs_vq15,  */
+	0x0301008d, 0x00000002, 0x000000c8, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_16, r2=pswrq2.max_srs_vq16,  */
+	0x0301008e, 0x00000002, 0x000000ca, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_17, r2=pswrq2.max_srs_vq17,  */
+	0x0301008f, 0x00000002, 0x000000cc, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_18, r2=pswrq2.max_srs_vq18,  */
+	0x03010090, 0x00000002, 0x000000ce, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_19, r2=pswrq2.max_srs_vq19,  */
+	0x03010091, 0x00000002, 0x000000d0, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_21, r2=pswrq2.max_srs_vq21,  */
+	0x03010092, 0x00000002, 0x000000d2, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_22, r2=pswrq2.max_srs_vq22,  */
+	0x03010093, 0x00000002, 0x000000d4, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_23, r2=pswrq2.max_srs_vq23,  */
+	0x03010094, 0x00000002, 0x000000d6, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_24, r2=pswrq2.max_srs_vq24,  */
+	0x03010095, 0x00000002, 0x000000d8, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_26, r2=pswrq2.max_srs_vq26,  */
+	0x03010096, 0x00000002, 0x000000da, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_28, r2=pswrq2.max_srs_vq28,  */
+	0x03010097, 0x00000002, 0x000000dc, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_29, r2=pswrq2.max_srs_vq29,  */
+	0x03010098, 0x00000002, 0x000000de, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_30, r2=pswrq2.max_srs_vq30,  */
+	0x08010099, 0x00010002, 0x001200e0, 	/* (r1<(r2-8)), r1=pswrq2.blk_cnt, r2=pswrq2.blk_num_cfg,  */
+	0x0301009a, 0x00000002, 0x000000e2, 	/* (r1!=r2), r1=pswrq2.blk_cnt, r2=pswrq2.blk_num_cfg,  */
+	0x0301009b, 0x00000002, 0x000000e4, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_0, r2=pswrq2.max_blks_vq0,  */
+	0x0301009c, 0x00000002, 0x000000e6, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_1, r2=pswrq2.max_blks_vq1,  */
+	0x0301009d, 0x00000002, 0x000000e8, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_2, r2=pswrq2.max_blks_vq2,  */
+	0x0301009e, 0x00000002, 0x000000ea, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_3, r2=pswrq2.max_blks_vq3,  */
+	0x0301009f, 0x00000002, 0x000000ec, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_4, r2=pswrq2.max_blks_vq4,  */
+	0x030100a0, 0x00000002, 0x000000ee, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_5, r2=pswrq2.max_blks_vq5,  */
+	0x030100a1, 0x00000002, 0x000000f0, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_6, r2=pswrq2.max_blks_vq6,  */
+	0x030100a2, 0x00000002, 0x000000f2, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_9, r2=pswrq2.max_blks_vq9,  */
+	0x030100a3, 0x00000002, 0x000000f4, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_11, r2=pswrq2.max_blks_vq11,  */
+	0x030100a4, 0x00000002, 0x000000f6, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_12, r2=pswrq2.max_blks_vq12,  */
+	0x030100a5, 0x00000002, 0x000000f8, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_15, r2=pswrq2.max_blks_vq15,  */
+	0x030100a6, 0x00000002, 0x000000fa, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_16, r2=pswrq2.max_blks_vq16,  */
+	0x030100a7, 0x00000002, 0x000000fc, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_17, r2=pswrq2.max_blks_vq17,  */
+	0x030100a8, 0x00000002, 0x000000fe, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_18, r2=pswrq2.max_blks_vq18,  */
+	0x030100a9, 0x00000002, 0x00000100, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_19, r2=pswrq2.max_blks_vq19,  */
+	0x030100aa, 0x00000002, 0x00000102, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_21, r2=pswrq2.max_blks_vq21,  */
+	0x030100ab, 0x00000002, 0x00000104, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_22, r2=pswrq2.max_blks_vq22,  */
+	0x030100ac, 0x00000002, 0x00000106, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_23, r2=pswrq2.max_blks_vq23,  */
+	0x030100ad, 0x00000002, 0x00000108, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_24, r2=pswrq2.max_blks_vq24,  */
+	0x030100ae, 0x00000002, 0x0000010a, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_26, r2=pswrq2.max_blks_vq26,  */
+	0x030100af, 0x00000002, 0x0000010c, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_28, r2=pswrq2.max_blks_vq28,  */
+	0x030100b0, 0x00000002, 0x0000010e, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_29, r2=pswrq2.max_blks_vq29,  */
+	0x030100b1, 0x00000002, 0x00000110, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_30, r2=pswrq2.max_blks_vq30,  */
+	0x010000b2, 0x00010001, 0x00000112, 	/* (r1!=0), r1=pswrq2.l2p_close_gate_sts,  */
+	0x010000b3, 0x00010001, 0x00000113, 	/* (r1!=0), r1=pswrq2.misc_close_gate_sts,  */
+	0x010200b4, 0x00010001, 0x00000114, 	/* (r1!=0), r1=pswrq2.misc_stall_mem_sts,  */
+	0x000200b5, 0x00010002, 0x00000115, 	/* ((r1&~r2)!=0), r1=pswrq.INT_STS, r2=pswrq.INT_MASK,  */
+	0x000200b6, 0x00010002, 0x00000117, 	/* ((r1&~r2)!=0), r1=pswwr.INT_STS, r2=pswwr.INT_MASK,  */
+	0x010000b7, 0x00010001, 0x00000119, 	/* (r1!=0), r1=pswwr2.pglue_eop_err_details,  */
+	0x010100b8, 0x00010001, 0x0000011a, 	/* (r1!=0), r1=pswwr2.prm_curr_fill_level,  */
+	0x010100b9, 0x00010001, 0x0000011b, 	/* (r1!=0), r1=pswwr2.cdu_curr_fill_level,  */
+	0x000200ba, 0x00010002, 0x0000011c, 	/* ((r1&~r2)!=0), r1=pswwr2.INT_STS, r2=pswwr2.INT_MASK,  */
+	0x000000bb, 0x00010002, 0x0000011e, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_0, r2=pswwr2.PRTY_MASK_H_0,  */
+	0x000000bc, 0x00010002, 0x00000120, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_1, r2=pswwr2.PRTY_MASK_H_1,  */
+	0x000000bd, 0x00010002, 0x00000122, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_2, r2=pswwr2.PRTY_MASK_H_2,  */
+	0x000000be, 0x00010002, 0x00000124, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_3, r2=pswwr2.PRTY_MASK_H_3,  */
+	0x010000bf, 0x00010001, 0x00000126, 	/* (r1!=0), r1=pswrd.fifo_full_status,  */
+	0x000200c0, 0x00010002, 0x00000127, 	/* ((r1&~r2)!=0), r1=pswrd.INT_STS, r2=pswrd.INT_MASK,  */
+	0x010000c1, 0x00010001, 0x000d0129, 	/* (r1!=1), r1=pswrd2.start_init,  */
+	0x010000c2, 0x00010001, 0x000d012a, 	/* (r1!=1), r1=pswrd2.init_done,  */
+	0x010200c3, 0x00010001, 0x0000012b, 	/* (r1!=0), r1=pswrd2.cpl_err_details,  */
+	0x010200c4, 0x00010001, 0x0000012c, 	/* (r1!=0), r1=pswrd2.cpl_err_details2,  */
+	0x010100c5, 0x00010001, 0x000d012d, 	/* (r1!=1), r1=pswrd2.port_is_idle_0,  */
+	0x010100c6, 0x00010001, 0x000d012e, 	/* (r1!=1), r1=pswrd2.port_is_idle_1,  */
+	0x010000c7, 0x00010001, 0x0000012f, 	/* (r1!=0), r1=pswrd2.almost_full_0[0:14],  */
+	0x000200c8, 0x00010002, 0x00000130, 	/* ((r1&~r2)!=0), r1=pswrd2.INT_STS, r2=pswrd2.INT_MASK,  */
+	0x000000c9, 0x00010002, 0x00000132, 	/* ((r1&~r2)!=0), r1=pswrd2.PRTY_STS_H_0, r2=pswrd2.PRTY_MASK_H_0,  */
+	0x000000ca, 0x00010002, 0x00000134, 	/* ((r1&~r2)!=0), r1=pswrd2.PRTY_STS_H_1, r2=pswrd2.PRTY_MASK_H_1,  */
+	0x010000cb, 0x00010001, 0x00000136, 	/* (r1!=0), r1=pswrd2.disable_inputs,  */
+	0x010100cc, 0x00010001, 0x00000137, 	/* (r1!=0), r1=pswhst2.header_fifo_status,  */
+	0x010100cd, 0x00010001, 0x00000138, 	/* (r1!=0), r1=pswhst2.data_fifo_status,  */
+	0x000200ce, 0x00010002, 0x00000139, 	/* ((r1&~r2)!=0), r1=pswhst2.INT_STS, r2=pswhst2.INT_MASK,  */
+	0x010200cf, 0x00010001, 0x0000013b, 	/* (r1!=0), r1=pswhst.discard_internal_writes_status,  */
+	0x010200d0, 0x00010001, 0x0000013c, 	/* (r1!=0), r1=pswhst.discard_doorbells_status,  */
+	0x010200d1, 0x00010001, 0x0013013d, 	/* (r1!=3), r1=pswhst.arb_is_idle,  */
+	0x010200d2, 0x00010301, 0x0000013e, 	/* (r1!=0), r1=pswhst.incorrect_access_valid,  */
+	0x010200d3, 0x00010101, 0x00000142, 	/* (r1!=0), r1=pswhst.per_violation_valid,  */
+	0x010200d4, 0x00010001, 0x00140144, 	/* (r1!=reset1), r1=pswhst.source_credits_avail,  */
+	0x010200d5, 0x00010101, 0x00000145, 	/* (r1!=0), r1=pswhst.source_credit_viol_valid,  */
+	0x010200d6, 0x00010001, 0x00150147, 	/* (r1!=60074), r1=pswhst.dest_credits_avail,  */
+	0x010200d7, 0x00010001, 0x00000148, 	/* (r1!=0), r1=pswhst.is_in_drain_mode,  */
+	0x010200d8, 0x00010101, 0x00000149, 	/* (r1!=0), r1=pswhst.timeout_valid,  */
+	0x010200d9, 0x00010101, 0x0000014b, 	/* (r1!=0), r1=pswhst.timeout_valid,  */
+	0x010200da, 0x00010001, 0x0000014d, 	/* (r1!=0), r1=pswhst.clients_waiting_to_source_arb[0:7],  */
+	0x000200db, 0x00010002, 0x0000014e, 	/* ((r1&~r2)!=0), r1=pswhst.INT_STS, r2=pswhst.INT_MASK,  */
+	0x000000dc, 0x00010002, 0x00000150, 	/* ((r1&~r2)!=0), r1=pswhst.PRTY_STS_H_0, r2=pswhst.PRTY_MASK_H_0,  */
+	0x060000dd, 0x00020001, 0x00160152, 	/* ((r1&0x01BC01)!=0), r1=pglue_b.INT_STS,  */
+	0x060200de, 0x00020001, 0x00180153, 	/* ((r1&0x76417C)!=0), r1=pglue_b.INT_STS,  */
+	0x000000df, 0x00010002, 0x00000154, 	/* ((r1&~r2)!=0), r1=pglue_b.PRTY_STS_H_0, r2=pglue_b.PRTY_MASK_H_0,  */
+	0x010000e0, 0x00010001, 0x00000156, 	/* (r1!=0), r1=pglue_b.pgl_write_blocked,  */
+	0x010000e1, 0x00010001, 0x00000157, 	/* (r1!=0), r1=pglue_b.pgl_read_blocked,  */
+	0x010100e2, 0x00010001, 0x00000158, 	/* (r1!=0), r1=pglue_b.read_fifo_occupancy_level,  */
+	0x010200e3, 0x00010001, 0x00000159, 	/* (r1!=0), r1=pglue_b.rx_legacy_errors,  */
+	0x070100e4, 0x00030001, 0x001a015a, 	/* (((r1>>17)&1)!=0), r1=pglue_b.pgl_txw_cdts,  */
+	0x010200e5, 0x00010001, 0x0000015b, 	/* (r1!=0), r1=pglue_b.cfg_space_a_request,  */
+	0x010200e6, 0x00010001, 0x0000015c, 	/* (r1!=0), r1=pglue_b.cfg_space_b_request,  */
+	0x010200e7, 0x00010001, 0x0000015d, 	/* (r1!=0), r1=pglue_b.flr_request_vf_31_0,  */
+	0x010200e8, 0x00010001, 0x0000015e, 	/* (r1!=0), r1=pglue_b.flr_request_vf_63_32,  */
+	0x010200e9, 0x00010001, 0x0000015f, 	/* (r1!=0), r1=pglue_b.flr_request_vf_95_64,  */
+	0x010200ea, 0x00010001, 0x00000160, 	/* (r1!=0), r1=pglue_b.flr_request_vf_127_96,  */
+	0x010200eb, 0x00010001, 0x00000161, 	/* (r1!=0), r1=pglue_b.flr_request_vf_159_128,  */
+	0x010200ec, 0x00010001, 0x00000162, 	/* (r1!=0), r1=pglue_b.flr_request_vf_191_160,  */
+	0x010200ed, 0x00010001, 0x00000163, 	/* (r1!=0), r1=pglue_b.flr_request_pf_31_0,  */
+	0x010200ee, 0x00010001, 0x00000164, 	/* (r1!=0), r1=pglue_b.sr_iov_disabled_request,  */
+	0x010200ef, 0x00010001, 0x00000165, 	/* (r1!=0), r1=pglue_b.was_error_vf_31_0,  */
+	0x010200f0, 0x00010001, 0x00000166, 	/* (r1!=0), r1=pglue_b.was_error_vf_63_32,  */
+	0x010200f1, 0x00010001, 0x00000167, 	/* (r1!=0), r1=pglue_b.was_error_vf_95_64,  */
+	0x010200f2, 0x00010001, 0x00000168, 	/* (r1!=0), r1=pglue_b.was_error_vf_127_96,  */
+	0x010200f3, 0x00010001, 0x00000169, 	/* (r1!=0), r1=pglue_b.was_error_vf_159_128,  */
+	0x010200f4, 0x00010001, 0x0000016a, 	/* (r1!=0), r1=pglue_b.was_error_vf_191_160,  */
+	0x010200f5, 0x00010001, 0x0000016b, 	/* (r1!=0), r1=pglue_b.was_error_pf_31_0,  */
+	0x010200f6, 0x00010001, 0x0000016c, 	/* (r1!=0), r1=pglue_b.rx_err_details,  */
+	0x010200f7, 0x00010001, 0x0000016d, 	/* (r1!=0), r1=pglue_b.rx_tcpl_err_details,  */
+	0x010200f8, 0x00010001, 0x0000016e, 	/* (r1!=0), r1=pglue_b.tx_err_wr_add_31_0,  */
+	0x010200f9, 0x00010001, 0x0000016f, 	/* (r1!=0), r1=pglue_b.tx_err_wr_add_63_32,  */
+	0x010200fa, 0x00010001, 0x00000170, 	/* (r1!=0), r1=pglue_b.tx_err_wr_details,  */
+	0x010200fb, 0x00010001, 0x00000171, 	/* (r1!=0), r1=pglue_b.tx_err_wr_details2,  */
+	0x010200fc, 0x00010001, 0x00000172, 	/* (r1!=0), r1=pglue_b.tx_err_rd_add_31_0,  */
+	0x010200fd, 0x00010001, 0x00000173, 	/* (r1!=0), r1=pglue_b.tx_err_rd_add_63_32,  */
+	0x010200fe, 0x00010001, 0x00000174, 	/* (r1!=0), r1=pglue_b.tx_err_rd_details,  */
+	0x010200ff, 0x00010001, 0x00000175, 	/* (r1!=0), r1=pglue_b.tx_err_rd_details2,  */
+	0x01020100, 0x00010001, 0x00000176, 	/* (r1!=0), r1=pglue_b.vf_length_violation_details,  */
+	0x01020101, 0x00010001, 0x00000177, 	/* (r1!=0), r1=pglue_b.vf_length_violation_details2,  */
+	0x01020102, 0x00010001, 0x00000178, 	/* (r1!=0), r1=pglue_b.vf_grc_space_violation_details,  */
+	0x01020103, 0x00010001, 0x00000179, 	/* (r1!=0), r1=pglue_b.master_zlr_err_add_31_0,  */
+	0x01020104, 0x00010001, 0x0000017a, 	/* (r1!=0), r1=pglue_b.master_zlr_err_add_63_32,  */
+	0x01020105, 0x00010001, 0x0000017b, 	/* (r1!=0), r1=pglue_b.master_zlr_err_details,  */
+	0x01020106, 0x00010001, 0x0000017c, 	/* (r1!=0), r1=pglue_b.admin_window_violation_details,  */
+	0x01000107, 0x00010001, 0x0000017d, 	/* (r1!=0), r1=pglue_b.out_of_range_function_in_pretend_details,  */
+	0x01000108, 0x00010001, 0x0000017e, 	/* (r1!=0), r1=pglue_b.out_of_range_function_in_pretend_address,  */
+	0x01010109, 0x00010001, 0x0000017f, 	/* (r1!=0), r1=pglue_b.write_fifo_occupancy_level,  */
+	0x0102010a, 0x00010001, 0x00000180, 	/* (r1!=0), r1=pglue_b.illegal_address_add_31_0,  */
+	0x0102010b, 0x00010001, 0x00000181, 	/* (r1!=0), r1=pglue_b.illegal_address_add_63_32,  */
+	0x0102010c, 0x00010001, 0x00000182, 	/* (r1!=0), r1=pglue_b.illegal_address_details,  */
+	0x0102010d, 0x00010001, 0x00000183, 	/* (r1!=0), r1=pglue_b.illegal_address_details2,  */
+	0x0102010e, 0x00010001, 0x001d0184, 	/* (r1!=0xffffffff), r1=pglue_b.tags_31_0,  */
+	0x0102010f, 0x00010001, 0x001d0185, 	/* (r1!=0xffffffff), r1=pglue_b.tags_63_32,  */
+	0x01020110, 0x00010001, 0x001d0186, 	/* (r1!=0xffffffff), r1=pglue_b.tags_95_64,  */
+	0x01020111, 0x00010001, 0x001d0187, 	/* (r1!=0xffffffff), r1=pglue_b.tags_127_96,  */
+	0x01020112, 0x00010001, 0x00000188, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_add_31_0,  */
+	0x01020113, 0x00010001, 0x00000189, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_add_63_32,  */
+	0x01020114, 0x00010001, 0x0000018a, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_details,  */
+	0x01020115, 0x00010001, 0x0000018b, 	/* (r1!=0), r1=pglue_b.vf_ilt_err_details2,  */
+	0x0d000116, 0x00010001, 0x001e018c, 	/* (r1&0x7FFFFF), r1=tm.INT_STS_0,  */
+	0x0d020117, 0x00010001, 0x001f018d, 	/* (r1&0x80000000), r1=tm.INT_STS_0,  */
+	0x0d000118, 0x00010001, 0x0020018e, 	/* (r1&0x7F800000), r1=tm.INT_STS_0,  */
+	0x0d000119, 0x00010001, 0x0021018f, 	/* (r1&0x41E), r1=tm.INT_STS_1,  */
+	0x0000011a, 0x00010002, 0x00000190, 	/* ((r1&~r2)!=0), r1=tm.PRTY_STS_H_0, r2=tm.PRTY_MASK_H_0,  */
+	0x0101011b, 0x00010001, 0x00000192, 	/* (r1!=0), r1=tm.pxp_read_data_fifo_status,  */
+	0x0101011c, 0x00010001, 0x00000193, 	/* (r1!=0), r1=tm.pxp_read_ctrl_fifo_status,  */
+	0x0101011d, 0x00010001, 0x00000194, 	/* (r1!=0), r1=tm.cfc_load_echo_fifo_status,  */
+	0x0101011e, 0x00010001, 0x00000195, 	/* (r1!=0), r1=tm.client_out_fifo_status,  */
+	0x0101011f, 0x00010001, 0x00000196, 	/* (r1!=0), r1=tm.client_in_pbf_fifo_status,  */
+	0x01010120, 0x00010001, 0x00000197, 	/* (r1!=0), r1=tm.client_in_xcm_fifo_status,  */
+	0x01010121, 0x00010001, 0x00000198, 	/* (r1!=0), r1=tm.client_in_tcm_fifo_status,  */
+	0x01010122, 0x00010001, 0x00000199, 	/* (r1!=0), r1=tm.client_in_ucm_fifo_status,  */
+	0x01010123, 0x00010001, 0x0000019a, 	/* (r1!=0), r1=tm.expiration_cmd_fifo_status,  */
+	0x01010124, 0x00010001, 0x0000019b, 	/* (r1!=0), r1=tm.ac_command_fifo_status,  */
+	0x01000125, 0x00010001, 0x000d019c, 	/* (r1!=1), r1=tcfc.ll_init_done,  */
+	0x01000126, 0x00010001, 0x000d019d, 	/* (r1!=1), r1=tcfc.ac_init_done,  */
+	0x01000127, 0x00010001, 0x000d019e, 	/* (r1!=1), r1=tcfc.cam_init_done,  */
+	0x01000128, 0x00010001, 0x000d019f, 	/* (r1!=1), r1=tcfc.tidram_init_done,  */
+	0x00000129, 0x00010502, 0x000001a0, 	/* ((r1&~r2)!=0), r1=tcfc.INT_STS_0, r2=tcfc.INT_MASK_0,  */
+	0x0000012a, 0x00010002, 0x000001a7, 	/* ((r1&~r2)!=0), r1=tcfc.PRTY_STS_H_0, r2=tcfc.PRTY_MASK_H_0,  */
+	0x0101012b, 0x00010001, 0x000001a9, 	/* (r1!=0x0), r1=tcfc.lstate_arriving,  */
+	0x0101012c, 0x00010001, 0x000001aa, 	/* (r1!=0x0), r1=tcfc.lstate_leaving,  */
+	0x0101012d, 0x00010001, 0x002201ab, 	/* (r1!=0x30), r1=tcfc.cduld_credit,  */
+	0x0100012e, 0x00010001, 0x000d01ac, 	/* (r1!=1), r1=ccfc.ll_init_done,  */
+	0x0100012f, 0x00010001, 0x000d01ad, 	/* (r1!=1), r1=ccfc.ac_init_done,  */
+	0x01000130, 0x00010001, 0x000d01ae, 	/* (r1!=1), r1=ccfc.cam_init_done,  */
+	0x01000131, 0x00010001, 0x000d01af, 	/* (r1!=1), r1=ccfc.tidram_init_done,  */
+	0x00000132, 0x00010502, 0x000001b0, 	/* ((r1&~r2)!=0), r1=ccfc.INT_STS_0, r2=ccfc.INT_MASK_0,  */
+	0x00000133, 0x00010002, 0x000001b7, 	/* ((r1&~r2)!=0), r1=ccfc.PRTY_STS_H_0, r2=ccfc.PRTY_MASK_H_0,  */
+	0x00000134, 0x00010002, 0x000001b9, 	/* ((r1&~r2)!=0), r1=ccfc.PRTY_STS, r2=ccfc.PRTY_MASK,  */
+	0x01010135, 0x00010001, 0x000001bb, 	/* (r1!=0x0), r1=ccfc.lstate_arriving,  */
+	0x01010136, 0x00010001, 0x000001bc, 	/* (r1!=0x0), r1=ccfc.lstate_leaving,  */
+	0x01010137, 0x00010001, 0x002201bd, 	/* (r1!=0x30), r1=ccfc.cduld_credit,  */
+	0x01010138, 0x00010001, 0x000a01be, 	/* (r1!=0x10), r1=ccfc.cduwb_credit,  */
+	0x00000139, 0x00010002, 0x000001bf, 	/* ((r1&~r2)!=0), r1=qm.INT_STS, r2=qm.INT_MASK,  */
+	0x0000013a, 0x00010002, 0x000001c1, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS, r2=qm.PRTY_MASK,  */
+	0x0000013b, 0x00010002, 0x000001c3, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_0, r2=qm.PRTY_MASK_H_0,  */
+	0x0000013c, 0x00010002, 0x000001c5, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_1, r2=qm.PRTY_MASK_H_1,  */
+	0x0000013d, 0x00010002, 0x000001c7, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_2, r2=qm.PRTY_MASK_H_2,  */
+	0x0100013e, 0x00010001, 0x000001c9, 	/* (r1!=0), r1=qm.wrc_fifolvl_0[0:5],  */
+	0x0300013f, 0x00000002, 0x000001ca, 	/* (r1!=r2), r1=qm.OutLdReqCrdConnTx, r2=qm.OutLdReqSizeConnTx,  */
+	0x03000140, 0x00000002, 0x000001cc, 	/* (r1!=r2), r1=qm.OutLdReqCrdConnOther, r2=qm.OutLdReqSizeConnOther,  */
+	0x01000141, 0x00010001, 0x000001ce, 	/* (r1!=0), r1=qm.OvfQNumTx,  */
+	0x01000142, 0x00010101, 0x000001cf, 	/* (r1!=0), r1=qm.OvfErrorTx,  */
+	0x01000143, 0x00010001, 0x000001d1, 	/* (r1!=0), r1=qm.OvfQNumOther,  */
+	0x01000144, 0x00010101, 0x000001d2, 	/* (r1!=0), r1=qm.OvfErrorOther,  */
+	0x03010145, 0x00000002, 0x000001d4, 	/* (r1!=r2), r1=qm.CmCrd_0, r2=qm.CmInitCrd_0,  */
+	0x03010146, 0x00000002, 0x000001d6, 	/* (r1!=r2), r1=qm.CmCrd_1, r2=qm.CmInitCrd_1,  */
+	0x03010147, 0x00000002, 0x000001d8, 	/* (r1!=r2), r1=qm.CmCrd_2, r2=qm.CmInitCrd_2,  */
+	0x03010148, 0x00000002, 0x000001da, 	/* (r1!=r2), r1=qm.CmCrd_3, r2=qm.CmInitCrd_3,  */
+	0x03010149, 0x00000002, 0x000001dc, 	/* (r1!=r2), r1=qm.CmCrd_4, r2=qm.CmInitCrd_4,  */
+	0x0301014a, 0x00000002, 0x000001de, 	/* (r1!=r2), r1=qm.CmCrd_5, r2=qm.CmInitCrd_5,  */
+	0x0301014b, 0x00000002, 0x000001e0, 	/* (r1!=r2), r1=qm.CmCrd_6, r2=qm.CmInitCrd_6,  */
+	0x0301014c, 0x00000002, 0x000001e2, 	/* (r1!=r2), r1=qm.CmCrd_7, r2=qm.CmInitCrd_7,  */
+	0x0301014d, 0x00000002, 0x000001e4, 	/* (r1!=r2), r1=qm.CmCrd_8, r2=qm.CmInitCrd_8,  */
+	0x0301014e, 0x00000002, 0x000001e6, 	/* (r1!=r2), r1=qm.CmCrd_9, r2=qm.CmInitCrd_9,  */
+	0x0000014f, 0x00010002, 0x000001e8, 	/* ((r1&~r2)!=0), r1=rdif.INT_STS, r2=rdif.INT_MASK,  */
+	0x00000150, 0x00010002, 0x000001ea, 	/* ((r1&~r2)!=0), r1=tdif.INT_STS, r2=tdif.INT_MASK,  */
+	0x00000151, 0x00010002, 0x000001ec, 	/* ((r1&~r2)!=0), r1=tdif.PRTY_STS_H_0, r2=tdif.PRTY_MASK_H_0,  */
+	0x00000152, 0x00010202, 0x000001ee, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_0, r2=brb.INT_MASK_0,  */
+	0x00000153, 0x00010002, 0x000001f2, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_1, r2=brb.INT_MASK_1,  */
+	0x00000154, 0x00010002, 0x000001f4, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_2, r2=brb.INT_MASK_2,  */
+	0x00000155, 0x00010002, 0x000001f6, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_3, r2=brb.INT_MASK_3,  */
+	0x00000156, 0x00010202, 0x000001f8, 	/* ((r1&~r2)!=0), r1=brb.INT_STS_4, r2=brb.INT_MASK_4,  */
+	0x00000157, 0x00010002, 0x000001fc, 	/* ((r1&~r2)!=0), r1=brb.PRTY_STS_H_0, r2=brb.PRTY_MASK_H_0,  */
+	0x00000158, 0x00010002, 0x000001fe, 	/* ((r1&~r2)!=0), r1=brb.PRTY_STS_H_1, r2=brb.PRTY_MASK_H_1,  */
+	0x01010159, 0x00010001, 0x00000200, 	/* (r1!=0), r1=brb.wc_bandwidth_if_full,  */
+	0x0101015a, 0x00010001, 0x00000201, 	/* (r1!=0), r1=brb.rc_pkt_if_full,  */
+	0x0101015b, 0x00010001, 0x00230202, 	/* (r1!=255), r1=brb.rc_pkt_empty_0[0:4],  */
+	0x0101015c, 0x00010001, 0x00030203, 	/* (r1!=15), r1=brb.rc_sop_empty,  */
+	0x0101015d, 0x00010001, 0x000b0204, 	/* (r1!=2), r1=brb.ll_arb_empty,  */
+	0x0101015e, 0x00010001, 0x00000205, 	/* (r1!=0), r1=brb.stop_packet_counter,  */
+	0x0101015f, 0x00010001, 0x00000206, 	/* (r1!=0), r1=brb.stop_byte_counter,  */
+	0x01010160, 0x00010001, 0x00000207, 	/* (r1!=0), r1=brb.rc_pkt_state,  */
+	0x01010161, 0x00010001, 0x00000208, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_0,  */
+	0x01010162, 0x00010001, 0x00000209, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_1,  */
+	0x01010163, 0x00010001, 0x0000020a, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_2,  */
+	0x01010164, 0x00010001, 0x0000020b, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_3,  */
+	0x01010165, 0x00010001, 0x0000020c, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_4,  */
+	0x01010166, 0x00010001, 0x0000020d, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_5,  */
+	0x01010167, 0x00010001, 0x0000020e, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_6,  */
+	0x01010168, 0x00010001, 0x0000020f, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_7,  */
+	0x01010169, 0x00010001, 0x00000210, 	/* (r1!=0), r1=brb.mac0_tc_occupancy_8,  */
+	0x0101016a, 0x00010001, 0x00000211, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_0,  */
+	0x0101016b, 0x00010001, 0x00000212, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_1,  */
+	0x0101016c, 0x00010001, 0x00000213, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_2,  */
+	0x0101016d, 0x00010001, 0x00000214, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_3,  */
+	0x0101016e, 0x00010001, 0x00000215, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_4,  */
+	0x0101016f, 0x00010001, 0x00000216, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_5,  */
+	0x01010170, 0x00010001, 0x00000217, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_6,  */
+	0x01010171, 0x00010001, 0x00000218, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_7,  */
+	0x01010172, 0x00010001, 0x00000219, 	/* (r1!=0), r1=brb.mac1_tc_occupancy_8,  */
+	0x01010173, 0x00010001, 0x0000021a, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_1_ctr,  */
+	0x01010174, 0x00010001, 0x0000021b, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_2_ctr,  */
+	0x01010175, 0x00010001, 0x0000021c, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_3_ctr,  */
+	0x01010176, 0x00010001, 0x0000021d, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_4_ctr,  */
+	0x01010177, 0x00010001, 0x0000021e, 	/* (r1!=0), r1=xyld.pending_msg_to_ext_ev_5_ctr,  */
+	0x03010178, 0x00000002, 0x0000021f, 	/* (r1!=r2), r1=xyld.foc_remain_credits, r2=xyld.foci_foc_credits,  */
+	0x01010179, 0x00010001, 0x00000221, 	/* (r1!=0), r1=xyld.pci_pending_msg_ctr,  */
+	0x0101017a, 0x00010001, 0x00000222, 	/* (r1!=0), r1=xyld.dbg_pending_ccfc_req,  */
+	0x0101017b, 0x00010001, 0x00000223, 	/* (r1!=0), r1=xyld.dbg_pending_tcfc_req,  */
+	0x0000017c, 0x00010002, 0x00000224, 	/* ((r1&~r2)!=0), r1=xyld.PRTY_STS_H_0, r2=xyld.PRTY_MASK_H_0,  */
+	0x0101017d, 0x00010001, 0x00000226, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_1_ctr,  */
+	0x0101017e, 0x00010001, 0x00000227, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_2_ctr,  */
+	0x0101017f, 0x00010001, 0x00000228, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_3_ctr,  */
+	0x01010180, 0x00010001, 0x00000229, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_4_ctr,  */
+	0x01010181, 0x00010001, 0x0000022a, 	/* (r1!=0), r1=tmld.pending_msg_to_ext_ev_5_ctr,  */
+	0x03010182, 0x00000002, 0x0000022b, 	/* (r1!=r2), r1=tmld.foc_remain_credits, r2=tmld.foci_foc_credits,  */
+	0x01010183, 0x00010001, 0x0000022d, 	/* (r1!=0), r1=tmld.dbg_pending_ccfc_req,  */
+	0x01010184, 0x00010001, 0x0000022e, 	/* (r1!=0), r1=tmld.dbg_pending_tcfc_req,  */
+	0x00000185, 0x00010002, 0x0000022f, 	/* ((r1&~r2)!=0), r1=tmld.PRTY_STS_H_0, r2=tmld.PRTY_MASK_H_0,  */
+	0x01010186, 0x00010001, 0x00000231, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_1_ctr,  */
+	0x01010187, 0x00010001, 0x00000232, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_2_ctr,  */
+	0x01010188, 0x00010001, 0x00000233, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_3_ctr,  */
+	0x01010189, 0x00010001, 0x00000234, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_4_ctr,  */
+	0x0101018a, 0x00010001, 0x00000235, 	/* (r1!=0), r1=muld.pending_msg_to_ext_ev_5_ctr,  */
+	0x0301018b, 0x00000002, 0x00000236, 	/* (r1!=r2), r1=muld.foc_remain_credits, r2=muld.foci_foc_credits,  */
+	0x0101018c, 0x00010001, 0x00000238, 	/* (r1!=0), r1=muld.bd_pending_msg_ctr,  */
+	0x0101018d, 0x00010001, 0x00000239, 	/* (r1!=0), r1=muld.sge_pending_msg_ctr,  */
+	0x0101018e, 0x00010001, 0x0000023a, 	/* (r1!=0), r1=muld.pci_pending_msg_ctr,  */
+	0x0101018f, 0x00010001, 0x0000023b, 	/* (r1!=0), r1=muld.dbg_pending_ccfc_req,  */
+	0x01010190, 0x00010001, 0x0000023c, 	/* (r1!=0), r1=muld.dbg_pending_tcfc_req,  */
+	0x00000191, 0x00010002, 0x0000023d, 	/* ((r1&~r2)!=0), r1=muld.PRTY_STS_H_0, r2=muld.PRTY_MASK_H_0,  */
+	0x00000192, 0x00010002, 0x0000023f, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_0, r2=nig.INT_MASK_0,  */
+	0x00000193, 0x00010002, 0x00000241, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_1, r2=nig.INT_MASK_1,  */
+	0x00000194, 0x00010002, 0x00000243, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_2, r2=nig.INT_MASK_2,  */
+	0x00020195, 0x00010202, 0x00000245, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_3, r2=nig.INT_MASK_3,  */
+	0x00000196, 0x00010002, 0x00000249, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_4, r2=nig.INT_MASK_4,  */
+	0x00020197, 0x00010202, 0x0000024b, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_5, r2=nig.INT_MASK_5,  */
+	0x00000198, 0x00010002, 0x0000024f, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_0, r2=nig.PRTY_MASK_H_0,  */
+	0x00000199, 0x00010002, 0x00000251, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_1, r2=nig.PRTY_MASK_H_1,  */
+	0x0000019a, 0x00010002, 0x00000253, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_2, r2=nig.PRTY_MASK_H_2,  */
+	0x0000019b, 0x00010002, 0x00000255, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_3, r2=nig.PRTY_MASK_H_3,  */
+	0x0101019c, 0x00010001, 0x00240257, 	/* (r1!=0x000fffff), r1=nig.lb_sopq_empty,  */
+	0x0101019d, 0x00010001, 0x00250258, 	/* (r1!=0x0000ffff), r1=nig.tx_sopq_empty,  */
+	0x0101019e, 0x00010001, 0x000d0259, 	/* (r1!=1), r1=nig.rx_llh_rfifo_empty,  */
+	0x0101019f, 0x00010001, 0x000d025a, 	/* (r1!=1), r1=nig.lb_btb_fifo_empty,  */
+	0x010101a0, 0x00010001, 0x000d025b, 	/* (r1!=1), r1=nig.lb_llh_rfifo_empty,  */
+	0x050001a1, 0x00040002, 0x0026025c, 	/* (((r1&0xff)!=0)&&((r2&0x7)!=0)), r1=nig.rx_ptp_ts_msb_err, r2=nig.rx_ptp_en,  */
+	0x010101a2, 0x00010001, 0x000d025e, 	/* (r1!=1), r1=nig.tx_btb_fifo_empty,  */
+	0x010101a3, 0x00010001, 0x000d025f, 	/* (r1!=1), r1=nig.debug_fifo_empty,  */
+	0x010001a4, 0x00010001, 0x00000260, 	/* (r1!=0), r1=ptu.pxp_err_ctr,  */
+	0x010001a5, 0x00010001, 0x00000261, 	/* (r1!=0), r1=ptu.inv_err_ctr,  */
+	0x010001a6, 0x00010001, 0x00000262, 	/* (r1!=0), r1=ptu.pbf_fill_level,  */
+	0x010001a7, 0x00010001, 0x00000263, 	/* (r1!=0), r1=ptu.prm_fill_level,  */
+	0x000001a8, 0x00010002, 0x00000264, 	/* ((r1&~r2)!=0), r1=ptu.INT_STS, r2=ptu.INT_MASK,  */
+	0x000001a9, 0x00010002, 0x00000266, 	/* ((r1&~r2)!=0), r1=ptu.PRTY_STS_H_0, r2=ptu.PRTY_MASK_H_0,  */
+	0x000001aa, 0x00010602, 0x00000268, 	/* ((r1&~r2)!=0), r1=cdu.INT_STS, r2=cdu.INT_MASK,  */
+	0x000001ab, 0x00010002, 0x00000270, 	/* ((r1&~r2)!=0), r1=cdu.PRTY_STS_H_0, r2=cdu.PRTY_MASK_H_0,  */
+	0x010201ac, 0x00010001, 0x00000272, 	/* (r1!=0), r1=pbf.num_pkts_received_with_error,  */
+	0x010201ad, 0x00010001, 0x00000273, 	/* (r1!=0), r1=pbf.num_pkts_sent_with_error_to_btb,  */
+	0x010201ae, 0x00010001, 0x00000274, 	/* (r1!=0), r1=pbf.num_pkts_sent_with_drop_to_btb,  */
+	0x010101af, 0x00010001, 0x00000275, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq0,  */
+	0x010101b0, 0x00010001, 0x00000276, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq0,  */
+	0x010101b1, 0x00010001, 0x00000277, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq0,  */
+	0x010101b2, 0x00010001, 0x00000278, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq1,  */
+	0x010101b3, 0x00010001, 0x00000279, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq1,  */
+	0x010101b4, 0x00010001, 0x0000027a, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq1,  */
+	0x010101b5, 0x00010001, 0x0000027b, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq2,  */
+	0x010101b6, 0x00010001, 0x0000027c, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq2,  */
+	0x010101b7, 0x00010001, 0x0000027d, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq2,  */
+	0x010101b8, 0x00010001, 0x0000027e, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq3,  */
+	0x010101b9, 0x00010001, 0x0000027f, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq3,  */
+	0x010101ba, 0x00010001, 0x00000280, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq3,  */
+	0x010101bb, 0x00010001, 0x00000281, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq4,  */
+	0x010101bc, 0x00010001, 0x00000282, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq4,  */
+	0x010101bd, 0x00010001, 0x00000283, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq4,  */
+	0x010101be, 0x00010001, 0x00000284, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq5,  */
+	0x010101bf, 0x00010001, 0x00000285, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq5,  */
+	0x010101c0, 0x00010001, 0x00000286, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq5,  */
+	0x010101c1, 0x00010001, 0x00000287, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq6,  */
+	0x010101c2, 0x00010001, 0x00000288, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq6,  */
+	0x010101c3, 0x00010001, 0x00000289, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq6,  */
+	0x010101c4, 0x00010001, 0x0000028a, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq7,  */
+	0x010101c5, 0x00010001, 0x0000028b, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq7,  */
+	0x010101c6, 0x00010001, 0x0000028c, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq7,  */
+	0x010101c7, 0x00010001, 0x0000028d, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq8,  */
+	0x010101c8, 0x00010001, 0x0000028e, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq8,  */
+	0x010101c9, 0x00010001, 0x0000028f, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq8,  */
+	0x010101ca, 0x00010001, 0x00000290, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq9,  */
+	0x010101cb, 0x00010001, 0x00000291, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq9,  */
+	0x010101cc, 0x00010001, 0x00000292, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq9,  */
+	0x010101cd, 0x00010001, 0x00000293, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq10,  */
+	0x010101ce, 0x00010001, 0x00000294, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq10,  */
+	0x010101cf, 0x00010001, 0x00000295, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq10,  */
+	0x010101d0, 0x00010001, 0x00000296, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq11,  */
+	0x010101d1, 0x00010001, 0x00000297, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq11,  */
+	0x010101d2, 0x00010001, 0x00000298, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq11,  */
+	0x010101d3, 0x00010001, 0x00000299, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq12,  */
+	0x010101d4, 0x00010001, 0x0000029a, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq12,  */
+	0x010101d5, 0x00010001, 0x0000029b, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq12,  */
+	0x010101d6, 0x00010001, 0x0000029c, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq13,  */
+	0x010101d7, 0x00010001, 0x0000029d, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq13,  */
+	0x010101d8, 0x00010001, 0x0000029e, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq13,  */
+	0x010101d9, 0x00010001, 0x0000029f, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq14,  */
+	0x010101da, 0x00010001, 0x000002a0, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq14,  */
+	0x010101db, 0x00010001, 0x000002a1, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq14,  */
+	0x010101dc, 0x00010001, 0x000002a2, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq15,  */
+	0x010101dd, 0x00010001, 0x000002a3, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq15,  */
+	0x010101de, 0x00010001, 0x000002a4, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq15,  */
+	0x010101df, 0x00010001, 0x000002a5, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq16,  */
+	0x010101e0, 0x00010001, 0x000002a6, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq16,  */
+	0x010101e1, 0x00010001, 0x000002a7, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq16,  */
+	0x010101e2, 0x00010001, 0x000002a8, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq17,  */
+	0x010101e3, 0x00010001, 0x000002a9, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq17,  */
+	0x010101e4, 0x00010001, 0x000002aa, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq17,  */
+	0x010101e5, 0x00010001, 0x000002ab, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq18,  */
+	0x010101e6, 0x00010001, 0x000002ac, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq18,  */
+	0x010101e7, 0x00010001, 0x000002ad, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq18,  */
+	0x010101e8, 0x00010001, 0x000002ae, 	/* (r1!=0), r1=pbf.ycmd_qs_cmd_cnt_voq19,  */
+	0x010101e9, 0x00010001, 0x000002af, 	/* (r1!=0), r1=pbf.ycmd_qs_occupancy_voq19,  */
+	0x010101ea, 0x00010001, 0x000002b0, 	/* (r1!=0), r1=pbf.btb_allocated_blocks_voq19,  */
+	0x000001eb, 0x00010002, 0x000002b1, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_1, r2=btb.INT_MASK_1,  */
+	0x000001ec, 0x00010002, 0x000002b3, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_2, r2=btb.INT_MASK_2,  */
+	0x000001ed, 0x00010002, 0x000002b5, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_3, r2=btb.INT_MASK_3,  */
+	0x000001ee, 0x00010002, 0x000002b7, 	/* ((r1&~r2)!=0), r1=btb.PRTY_STS_H_0, r2=btb.PRTY_MASK_H_0,  */
+	0x010101ef, 0x00010001, 0x000302b9, 	/* (r1!=15), r1=btb.wc_dup_empty,  */
+	0x010101f0, 0x00010001, 0x000002ba, 	/* (r1!=0), r1=btb.wc_dup_status,  */
+	0x010101f1, 0x00010001, 0x002a02bb, 	/* (r1!=8190), r1=btb.wc_empty_0,  */
+	0x010201f2, 0x00010001, 0x000002bc, 	/* (r1!=0), r1=btb.wc_bandwidth_if_full,  */
+	0x010201f3, 0x00010001, 0x000002bd, 	/* (r1!=0), r1=btb.rc_pkt_if_full,  */
+	0x010101f4, 0x00010001, 0x002302be, 	/* (r1!=255), r1=btb.rc_pkt_empty_0,  */
+	0x010101f5, 0x00010001, 0x002302bf, 	/* (r1!=255), r1=btb.rc_pkt_empty_1,  */
+	0x010101f6, 0x00010001, 0x002302c0, 	/* (r1!=255), r1=btb.rc_pkt_empty_2,  */
+	0x010101f7, 0x00010001, 0x002302c1, 	/* (r1!=255), r1=btb.rc_pkt_empty_3,  */
+	0x010101f8, 0x00010001, 0x000302c2, 	/* (r1!=15), r1=btb.rc_sop_empty,  */
+	0x010101f9, 0x00010001, 0x000b02c3, 	/* (r1!=2), r1=btb.ll_arb_empty,  */
+	0x020101fa, 0x00010001, 0x002b02c4, 	/* (r1>46), r1=btb.block_occupancy,  */
+	0x010101fb, 0x00010001, 0x000002c5, 	/* (r1!=0), r1=btb.rc_pkt_state,  */
+	0x010101fc, 0x00010001, 0x000b02c6, 	/* (r1!=2), r1=btb.wc_status_0 width=3 access=WB,  */
+	0x000001fd, 0x00010102, 0x000002c7, 	/* ((r1&~r2)!=0), r1=xsdm.INT_STS, r2=xsdm.INT_MASK,  */
+	0x000001fe, 0x00010002, 0x000002ca, 	/* ((r1&~r2)!=0), r1=xsdm.PRTY_STS_H_0, r2=xsdm.PRTY_MASK_H_0,  */
+	0x010101ff, 0x00010001, 0x000002cc, 	/* (r1!=0), r1=xsdm.qm_full,  */
+	0x01010200, 0x00010001, 0x000002cd, 	/* (r1!=0), r1=xsdm.rsp_brb_if_full,  */
+	0x01010201, 0x00010001, 0x000002ce, 	/* (r1!=0), r1=xsdm.rsp_pxp_if_full,  */
+	0x01010202, 0x00010001, 0x000002cf, 	/* (r1!=0), r1=xsdm.dst_pxp_if_full,  */
+	0x01010203, 0x00010001, 0x000002d0, 	/* (r1!=0), r1=xsdm.dst_int_ram_if_full,  */
+	0x01010204, 0x00010001, 0x000002d1, 	/* (r1!=0), r1=xsdm.dst_pas_buf_if_full,  */
+	0x01010205, 0x00010001, 0x000d02d2, 	/* (r1!=1), r1=xsdm.int_cmpl_pend_empty,  */
+	0x01010206, 0x00010001, 0x000d02d3, 	/* (r1!=1), r1=xsdm.int_cprm_pend_empty,  */
+	0x01010207, 0x00010001, 0x002c02d4, 	/* (r1!=511), r1=xsdm.queue_empty,  */
+	0x01010208, 0x00010001, 0x000d02d5, 	/* (r1!=1), r1=xsdm.delay_fifo_empty,  */
+	0x01010209, 0x00010001, 0x000d02d6, 	/* (r1!=1), r1=xsdm.rsp_pxp_rdata_empty,  */
+	0x0101020a, 0x00010001, 0x000d02d7, 	/* (r1!=1), r1=xsdm.rsp_brb_rdata_empty,  */
+	0x0101020b, 0x00010001, 0x000d02d8, 	/* (r1!=1), r1=xsdm.rsp_int_ram_rdata_empty,  */
+	0x0101020c, 0x00010001, 0x000d02d9, 	/* (r1!=1), r1=xsdm.rsp_brb_pend_empty,  */
+	0x0101020d, 0x00010001, 0x000d02da, 	/* (r1!=1), r1=xsdm.rsp_int_ram_pend_empty,  */
+	0x0101020e, 0x00010001, 0x000d02db, 	/* (r1!=1), r1=xsdm.dst_pxp_immed_empty,  */
+	0x0101020f, 0x00010001, 0x000d02dc, 	/* (r1!=1), r1=xsdm.dst_pxp_dst_pend_empty,  */
+	0x01010210, 0x00010001, 0x000d02dd, 	/* (r1!=1), r1=xsdm.dst_pxp_src_pend_empty,  */
+	0x01010211, 0x00010001, 0x000d02de, 	/* (r1!=1), r1=xsdm.dst_brb_src_pend_empty,  */
+	0x01010212, 0x00010001, 0x000d02df, 	/* (r1!=1), r1=xsdm.dst_brb_src_addr_empty,  */
+	0x01010213, 0x00010001, 0x000d02e0, 	/* (r1!=1), r1=xsdm.dst_pxp_link_empty,  */
+	0x01010214, 0x00010001, 0x000d02e1, 	/* (r1!=1), r1=xsdm.dst_int_ram_wait_empty,  */
+	0x01010215, 0x00010001, 0x000d02e2, 	/* (r1!=1), r1=xsdm.dst_pas_buf_wait_empty,  */
+	0x01010216, 0x00010001, 0x000d02e3, 	/* (r1!=1), r1=xsdm.sh_delay_empty,  */
+	0x01010217, 0x00010001, 0x000d02e4, 	/* (r1!=1), r1=xsdm.cm_delay_empty,  */
+	0x01010218, 0x00010001, 0x000d02e5, 	/* (r1!=1), r1=xsdm.cmsg_que_empty,  */
+	0x01010219, 0x00010001, 0x000d02e6, 	/* (r1!=1), r1=xsdm.ccfc_load_pend_empty,  */
+	0x0101021a, 0x00010001, 0x000d02e7, 	/* (r1!=1), r1=xsdm.tcfc_load_pend_empty,  */
+	0x0101021b, 0x00010001, 0x000d02e8, 	/* (r1!=1), r1=xsdm.async_host_empty,  */
+	0x0101021c, 0x00010001, 0x000d02e9, 	/* (r1!=1), r1=xsdm.prm_fifo_empty,  */
+	0x0000021d, 0x00010102, 0x000002ea, 	/* ((r1&~r2)!=0), r1=ysdm.INT_STS, r2=ysdm.INT_MASK,  */
+	0x0000021e, 0x00010002, 0x000002ed, 	/* ((r1&~r2)!=0), r1=ysdm.PRTY_STS_H_0, r2=ysdm.PRTY_MASK_H_0,  */
+	0x0101021f, 0x00010001, 0x000002ef, 	/* (r1!=0), r1=ysdm.qm_full,  */
+	0x01010220, 0x00010001, 0x000002f0, 	/* (r1!=0), r1=ysdm.rsp_brb_if_full,  */
+	0x01010221, 0x00010001, 0x000002f1, 	/* (r1!=0), r1=ysdm.rsp_pxp_if_full,  */
+	0x01010222, 0x00010001, 0x000002f2, 	/* (r1!=0), r1=ysdm.dst_pxp_if_full,  */
+	0x01010223, 0x00010001, 0x000002f3, 	/* (r1!=0), r1=ysdm.dst_int_ram_if_full,  */
+	0x01010224, 0x00010001, 0x000002f4, 	/* (r1!=0), r1=ysdm.dst_pas_buf_if_full,  */
+	0x01010225, 0x00010001, 0x000d02f5, 	/* (r1!=1), r1=ysdm.int_cmpl_pend_empty,  */
+	0x01010226, 0x00010001, 0x000d02f6, 	/* (r1!=1), r1=ysdm.int_cprm_pend_empty,  */
+	0x01010227, 0x00010001, 0x002c02f7, 	/* (r1!=511), r1=ysdm.queue_empty,  */
+	0x01010228, 0x00010001, 0x000d02f8, 	/* (r1!=1), r1=ysdm.delay_fifo_empty,  */
+	0x01010229, 0x00010001, 0x000d02f9, 	/* (r1!=1), r1=ysdm.rsp_pxp_rdata_empty,  */
+	0x0101022a, 0x00010001, 0x000d02fa, 	/* (r1!=1), r1=ysdm.rsp_brb_rdata_empty,  */
+	0x0101022b, 0x00010001, 0x000d02fb, 	/* (r1!=1), r1=ysdm.rsp_int_ram_rdata_empty,  */
+	0x0101022c, 0x00010001, 0x000d02fc, 	/* (r1!=1), r1=ysdm.rsp_brb_pend_empty,  */
+	0x0101022d, 0x00010001, 0x000d02fd, 	/* (r1!=1), r1=ysdm.rsp_int_ram_pend_empty,  */
+	0x0101022e, 0x00010001, 0x000d02fe, 	/* (r1!=1), r1=ysdm.dst_pxp_immed_empty,  */
+	0x0101022f, 0x00010001, 0x000d02ff, 	/* (r1!=1), r1=ysdm.dst_pxp_dst_pend_empty,  */
+	0x01010230, 0x00010001, 0x000d0300, 	/* (r1!=1), r1=ysdm.dst_pxp_src_pend_empty,  */
+	0x01010231, 0x00010001, 0x000d0301, 	/* (r1!=1), r1=ysdm.dst_brb_src_pend_empty,  */
+	0x01010232, 0x00010001, 0x000d0302, 	/* (r1!=1), r1=ysdm.dst_brb_src_addr_empty,  */
+	0x01010233, 0x00010001, 0x000d0303, 	/* (r1!=1), r1=ysdm.dst_pxp_link_empty,  */
+	0x01010234, 0x00010001, 0x000d0304, 	/* (r1!=1), r1=ysdm.dst_int_ram_wait_empty,  */
+	0x01010235, 0x00010001, 0x000d0305, 	/* (r1!=1), r1=ysdm.dst_pas_buf_wait_empty,  */
+	0x01010236, 0x00010001, 0x000d0306, 	/* (r1!=1), r1=ysdm.sh_delay_empty,  */
+	0x01010237, 0x00010001, 0x000d0307, 	/* (r1!=1), r1=ysdm.cm_delay_empty,  */
+	0x01010238, 0x00010001, 0x000d0308, 	/* (r1!=1), r1=ysdm.cmsg_que_empty,  */
+	0x01010239, 0x00010001, 0x000d0309, 	/* (r1!=1), r1=ysdm.ccfc_load_pend_empty,  */
+	0x0101023a, 0x00010001, 0x000d030a, 	/* (r1!=1), r1=ysdm.tcfc_load_pend_empty,  */
+	0x0101023b, 0x00010001, 0x000d030b, 	/* (r1!=1), r1=ysdm.async_host_empty,  */
+	0x0101023c, 0x00010001, 0x000d030c, 	/* (r1!=1), r1=ysdm.prm_fifo_empty,  */
+	0x0000023d, 0x00010102, 0x0000030d, 	/* ((r1&~r2)!=0), r1=psdm.INT_STS, r2=psdm.INT_MASK,  */
+	0x0000023e, 0x00010002, 0x00000310, 	/* ((r1&~r2)!=0), r1=psdm.PRTY_STS_H_0, r2=psdm.PRTY_MASK_H_0,  */
+	0x0101023f, 0x00010001, 0x00000312, 	/* (r1!=0), r1=psdm.qm_full,  */
+	0x01010240, 0x00010001, 0x00000313, 	/* (r1!=0), r1=psdm.rsp_brb_if_full,  */
+	0x01010241, 0x00010001, 0x00000314, 	/* (r1!=0), r1=psdm.rsp_pxp_if_full,  */
+	0x01010242, 0x00010001, 0x00000315, 	/* (r1!=0), r1=psdm.dst_pxp_if_full,  */
+	0x01010243, 0x00010001, 0x00000316, 	/* (r1!=0), r1=psdm.dst_int_ram_if_full,  */
+	0x01010244, 0x00010001, 0x00000317, 	/* (r1!=0), r1=psdm.dst_pas_buf_if_full,  */
+	0x01010245, 0x00010001, 0x000d0318, 	/* (r1!=1), r1=psdm.int_cmpl_pend_empty,  */
+	0x01010246, 0x00010001, 0x000d0319, 	/* (r1!=1), r1=psdm.int_cprm_pend_empty,  */
+	0x01010247, 0x00010001, 0x002c031a, 	/* (r1!=511), r1=psdm.queue_empty,  */
+	0x01010248, 0x00010001, 0x000d031b, 	/* (r1!=1), r1=psdm.delay_fifo_empty,  */
+	0x01010249, 0x00010001, 0x000d031c, 	/* (r1!=1), r1=psdm.rsp_pxp_rdata_empty,  */
+	0x0101024a, 0x00010001, 0x000d031d, 	/* (r1!=1), r1=psdm.rsp_brb_rdata_empty,  */
+	0x0101024b, 0x00010001, 0x000d031e, 	/* (r1!=1), r1=psdm.rsp_int_ram_rdata_empty,  */
+	0x0101024c, 0x00010001, 0x000d031f, 	/* (r1!=1), r1=psdm.rsp_brb_pend_empty,  */
+	0x0101024d, 0x00010001, 0x000d0320, 	/* (r1!=1), r1=psdm.rsp_int_ram_pend_empty,  */
+	0x0101024e, 0x00010001, 0x000d0321, 	/* (r1!=1), r1=psdm.dst_pxp_immed_empty,  */
+	0x0101024f, 0x00010001, 0x000d0322, 	/* (r1!=1), r1=psdm.dst_pxp_dst_pend_empty,  */
+	0x01010250, 0x00010001, 0x000d0323, 	/* (r1!=1), r1=psdm.dst_pxp_src_pend_empty,  */
+	0x01010251, 0x00010001, 0x000d0324, 	/* (r1!=1), r1=psdm.dst_brb_src_pend_empty,  */
+	0x01010252, 0x00010001, 0x000d0325, 	/* (r1!=1), r1=psdm.dst_brb_src_addr_empty,  */
+	0x01010253, 0x00010001, 0x000d0326, 	/* (r1!=1), r1=psdm.dst_pxp_link_empty,  */
+	0x01010254, 0x00010001, 0x000d0327, 	/* (r1!=1), r1=psdm.dst_int_ram_wait_empty,  */
+	0x01010255, 0x00010001, 0x000d0328, 	/* (r1!=1), r1=psdm.dst_pas_buf_wait_empty,  */
+	0x01010256, 0x00010001, 0x000d0329, 	/* (r1!=1), r1=psdm.sh_delay_empty,  */
+	0x01010257, 0x00010001, 0x000d032a, 	/* (r1!=1), r1=psdm.cm_delay_empty,  */
+	0x01010258, 0x00010001, 0x000d032b, 	/* (r1!=1), r1=psdm.cmsg_que_empty,  */
+	0x01010259, 0x00010001, 0x000d032c, 	/* (r1!=1), r1=psdm.ccfc_load_pend_empty,  */
+	0x0101025a, 0x00010001, 0x000d032d, 	/* (r1!=1), r1=psdm.tcfc_load_pend_empty,  */
+	0x0101025b, 0x00010001, 0x000d032e, 	/* (r1!=1), r1=psdm.async_host_empty,  */
+	0x0101025c, 0x00010001, 0x000d032f, 	/* (r1!=1), r1=psdm.prm_fifo_empty,  */
+	0x0000025d, 0x00010102, 0x00000330, 	/* ((r1&~r2)!=0), r1=tsdm.INT_STS, r2=tsdm.INT_MASK,  */
+	0x0000025e, 0x00010002, 0x00000333, 	/* ((r1&~r2)!=0), r1=tsdm.PRTY_STS_H_0, r2=tsdm.PRTY_MASK_H_0,  */
+	0x0101025f, 0x00010001, 0x00000335, 	/* (r1!=0), r1=tsdm.qm_full,  */
+	0x01010260, 0x00010001, 0x00000336, 	/* (r1!=0), r1=tsdm.rsp_brb_if_full,  */
+	0x01010261, 0x00010001, 0x00000337, 	/* (r1!=0), r1=tsdm.rsp_pxp_if_full,  */
+	0x01010262, 0x00010001, 0x00000338, 	/* (r1!=0), r1=tsdm.dst_pxp_if_full,  */
+	0x01010263, 0x00010001, 0x00000339, 	/* (r1!=0), r1=tsdm.dst_int_ram_if_full,  */
+	0x01010264, 0x00010001, 0x0000033a, 	/* (r1!=0), r1=tsdm.dst_pas_buf_if_full,  */
+	0x01010265, 0x00010001, 0x000d033b, 	/* (r1!=1), r1=tsdm.int_cmpl_pend_empty,  */
+	0x01010266, 0x00010001, 0x000d033c, 	/* (r1!=1), r1=tsdm.int_cprm_pend_empty,  */
+	0x01010267, 0x00010001, 0x002c033d, 	/* (r1!=511), r1=tsdm.queue_empty,  */
+	0x01010268, 0x00010001, 0x000d033e, 	/* (r1!=1), r1=tsdm.delay_fifo_empty,  */
+	0x01010269, 0x00010001, 0x000d033f, 	/* (r1!=1), r1=tsdm.rsp_pxp_rdata_empty,  */
+	0x0101026a, 0x00010001, 0x000d0340, 	/* (r1!=1), r1=tsdm.rsp_brb_rdata_empty,  */
+	0x0101026b, 0x00010001, 0x000d0341, 	/* (r1!=1), r1=tsdm.rsp_int_ram_rdata_empty,  */
+	0x0101026c, 0x00010001, 0x000d0342, 	/* (r1!=1), r1=tsdm.rsp_brb_pend_empty,  */
+	0x0101026d, 0x00010001, 0x000d0343, 	/* (r1!=1), r1=tsdm.rsp_int_ram_pend_empty,  */
+	0x0101026e, 0x00010001, 0x000d0344, 	/* (r1!=1), r1=tsdm.dst_pxp_immed_empty,  */
+	0x0101026f, 0x00010001, 0x000d0345, 	/* (r1!=1), r1=tsdm.dst_pxp_dst_pend_empty,  */
+	0x01010270, 0x00010001, 0x000d0346, 	/* (r1!=1), r1=tsdm.dst_pxp_src_pend_empty,  */
+	0x01010271, 0x00010001, 0x000d0347, 	/* (r1!=1), r1=tsdm.dst_brb_src_pend_empty,  */
+	0x01010272, 0x00010001, 0x000d0348, 	/* (r1!=1), r1=tsdm.dst_brb_src_addr_empty,  */
+	0x01010273, 0x00010001, 0x000d0349, 	/* (r1!=1), r1=tsdm.dst_pxp_link_empty,  */
+	0x01010274, 0x00010001, 0x000d034a, 	/* (r1!=1), r1=tsdm.dst_int_ram_wait_empty,  */
+	0x01010275, 0x00010001, 0x000d034b, 	/* (r1!=1), r1=tsdm.dst_pas_buf_wait_empty,  */
+	0x01010276, 0x00010001, 0x000d034c, 	/* (r1!=1), r1=tsdm.sh_delay_empty,  */
+	0x01010277, 0x00010001, 0x000d034d, 	/* (r1!=1), r1=tsdm.cm_delay_empty,  */
+	0x01010278, 0x00010001, 0x000d034e, 	/* (r1!=1), r1=tsdm.cmsg_que_empty,  */
+	0x01010279, 0x00010001, 0x000d034f, 	/* (r1!=1), r1=tsdm.ccfc_load_pend_empty,  */
+	0x0101027a, 0x00010001, 0x000d0350, 	/* (r1!=1), r1=tsdm.tcfc_load_pend_empty,  */
+	0x0101027b, 0x00010001, 0x000d0351, 	/* (r1!=1), r1=tsdm.async_host_empty,  */
+	0x0101027c, 0x00010001, 0x000d0352, 	/* (r1!=1), r1=tsdm.prm_fifo_empty,  */
+	0x0000027d, 0x00010102, 0x00000353, 	/* ((r1&~r2)!=0), r1=msdm.INT_STS, r2=msdm.INT_MASK,  */
+	0x0000027e, 0x00010002, 0x00000356, 	/* ((r1&~r2)!=0), r1=msdm.PRTY_STS_H_0, r2=msdm.PRTY_MASK_H_0,  */
+	0x0101027f, 0x00010001, 0x00000358, 	/* (r1!=0), r1=msdm.qm_full,  */
+	0x01010280, 0x00010001, 0x00000359, 	/* (r1!=0), r1=msdm.rsp_brb_if_full,  */
+	0x01010281, 0x00010001, 0x0000035a, 	/* (r1!=0), r1=msdm.rsp_pxp_if_full,  */
+	0x01010282, 0x00010001, 0x0000035b, 	/* (r1!=0), r1=msdm.dst_pxp_if_full,  */
+	0x01010283, 0x00010001, 0x0000035c, 	/* (r1!=0), r1=msdm.dst_int_ram_if_full,  */
+	0x01010284, 0x00010001, 0x0000035d, 	/* (r1!=0), r1=msdm.dst_pas_buf_if_full,  */
+	0x01010285, 0x00010001, 0x000d035e, 	/* (r1!=1), r1=msdm.int_cmpl_pend_empty,  */
+	0x01010286, 0x00010001, 0x000d035f, 	/* (r1!=1), r1=msdm.int_cprm_pend_empty,  */
+	0x01010287, 0x00010001, 0x002c0360, 	/* (r1!=511), r1=msdm.queue_empty,  */
+	0x01010288, 0x00010001, 0x000d0361, 	/* (r1!=1), r1=msdm.delay_fifo_empty,  */
+	0x01010289, 0x00010001, 0x000d0362, 	/* (r1!=1), r1=msdm.rsp_pxp_rdata_empty,  */
+	0x0101028a, 0x00010001, 0x000d0363, 	/* (r1!=1), r1=msdm.rsp_brb_rdata_empty,  */
+	0x0101028b, 0x00010001, 0x000d0364, 	/* (r1!=1), r1=msdm.rsp_int_ram_rdata_empty,  */
+	0x0101028c, 0x00010001, 0x000d0365, 	/* (r1!=1), r1=msdm.rsp_brb_pend_empty,  */
+	0x0101028d, 0x00010001, 0x000d0366, 	/* (r1!=1), r1=msdm.rsp_int_ram_pend_empty,  */
+	0x0101028e, 0x00010001, 0x000d0367, 	/* (r1!=1), r1=msdm.dst_pxp_immed_empty,  */
+	0x0101028f, 0x00010001, 0x000d0368, 	/* (r1!=1), r1=msdm.dst_pxp_dst_pend_empty,  */
+	0x01010290, 0x00010001, 0x000d0369, 	/* (r1!=1), r1=msdm.dst_pxp_src_pend_empty,  */
+	0x01010291, 0x00010001, 0x000d036a, 	/* (r1!=1), r1=msdm.dst_brb_src_pend_empty,  */
+	0x01010292, 0x00010001, 0x000d036b, 	/* (r1!=1), r1=msdm.dst_brb_src_addr_empty,  */
+	0x01010293, 0x00010001, 0x000d036c, 	/* (r1!=1), r1=msdm.dst_pxp_link_empty,  */
+	0x01010294, 0x00010001, 0x000d036d, 	/* (r1!=1), r1=msdm.dst_int_ram_wait_empty,  */
+	0x01010295, 0x00010001, 0x000d036e, 	/* (r1!=1), r1=msdm.dst_pas_buf_wait_empty,  */
+	0x01010296, 0x00010001, 0x000d036f, 	/* (r1!=1), r1=msdm.sh_delay_empty,  */
+	0x01010297, 0x00010001, 0x000d0370, 	/* (r1!=1), r1=msdm.cm_delay_empty,  */
+	0x01010298, 0x00010001, 0x000d0371, 	/* (r1!=1), r1=msdm.cmsg_que_empty,  */
+	0x01010299, 0x00010001, 0x000d0372, 	/* (r1!=1), r1=msdm.ccfc_load_pend_empty,  */
+	0x0101029a, 0x00010001, 0x000d0373, 	/* (r1!=1), r1=msdm.tcfc_load_pend_empty,  */
+	0x0101029b, 0x00010001, 0x000d0374, 	/* (r1!=1), r1=msdm.async_host_empty,  */
+	0x0101029c, 0x00010001, 0x000d0375, 	/* (r1!=1), r1=msdm.prm_fifo_empty,  */
+	0x0000029d, 0x00010102, 0x00000376, 	/* ((r1&~r2)!=0), r1=usdm.INT_STS, r2=usdm.INT_MASK,  */
+	0x0000029e, 0x00010002, 0x00000379, 	/* ((r1&~r2)!=0), r1=usdm.PRTY_STS_H_0, r2=usdm.PRTY_MASK_H_0,  */
+	0x0101029f, 0x00010001, 0x0000037b, 	/* (r1!=0), r1=usdm.qm_full,  */
+	0x010102a0, 0x00010001, 0x0000037c, 	/* (r1!=0), r1=usdm.rsp_brb_if_full,  */
+	0x010102a1, 0x00010001, 0x0000037d, 	/* (r1!=0), r1=usdm.rsp_pxp_if_full,  */
+	0x010102a2, 0x00010001, 0x0000037e, 	/* (r1!=0), r1=usdm.dst_pxp_if_full,  */
+	0x010102a3, 0x00010001, 0x0000037f, 	/* (r1!=0), r1=usdm.dst_int_ram_if_full,  */
+	0x010102a4, 0x00010001, 0x00000380, 	/* (r1!=0), r1=usdm.dst_pas_buf_if_full,  */
+	0x010102a5, 0x00010001, 0x000d0381, 	/* (r1!=1), r1=usdm.int_cmpl_pend_empty,  */
+	0x010102a6, 0x00010001, 0x000d0382, 	/* (r1!=1), r1=usdm.int_cprm_pend_empty,  */
+	0x010102a7, 0x00010001, 0x002c0383, 	/* (r1!=511), r1=usdm.queue_empty,  */
+	0x010102a8, 0x00010001, 0x000d0384, 	/* (r1!=1), r1=usdm.delay_fifo_empty,  */
+	0x010102a9, 0x00010001, 0x000d0385, 	/* (r1!=1), r1=usdm.rsp_pxp_rdata_empty,  */
+	0x010102aa, 0x00010001, 0x000d0386, 	/* (r1!=1), r1=usdm.rsp_brb_rdata_empty,  */
+	0x010102ab, 0x00010001, 0x000d0387, 	/* (r1!=1), r1=usdm.rsp_int_ram_rdata_empty,  */
+	0x010102ac, 0x00010001, 0x000d0388, 	/* (r1!=1), r1=usdm.rsp_brb_pend_empty,  */
+	0x010102ad, 0x00010001, 0x000d0389, 	/* (r1!=1), r1=usdm.rsp_int_ram_pend_empty,  */
+	0x010102ae, 0x00010001, 0x000d038a, 	/* (r1!=1), r1=usdm.dst_pxp_immed_empty,  */
+	0x010102af, 0x00010001, 0x000d038b, 	/* (r1!=1), r1=usdm.dst_pxp_dst_pend_empty,  */
+	0x010102b0, 0x00010001, 0x000d038c, 	/* (r1!=1), r1=usdm.dst_pxp_src_pend_empty,  */
+	0x010102b1, 0x00010001, 0x000d038d, 	/* (r1!=1), r1=usdm.dst_brb_src_pend_empty,  */
+	0x010102b2, 0x00010001, 0x000d038e, 	/* (r1!=1), r1=usdm.dst_brb_src_addr_empty,  */
+	0x010102b3, 0x00010001, 0x000d038f, 	/* (r1!=1), r1=usdm.dst_pxp_link_empty,  */
+	0x010102b4, 0x00010001, 0x000d0390, 	/* (r1!=1), r1=usdm.dst_int_ram_wait_empty,  */
+	0x010102b5, 0x00010001, 0x000d0391, 	/* (r1!=1), r1=usdm.dst_pas_buf_wait_empty,  */
+	0x010102b6, 0x00010001, 0x000d0392, 	/* (r1!=1), r1=usdm.sh_delay_empty,  */
+	0x010102b7, 0x00010001, 0x000d0393, 	/* (r1!=1), r1=usdm.cm_delay_empty,  */
+	0x010102b8, 0x00010001, 0x000d0394, 	/* (r1!=1), r1=usdm.cmsg_que_empty,  */
+	0x010102b9, 0x00010001, 0x000d0395, 	/* (r1!=1), r1=usdm.ccfc_load_pend_empty,  */
+	0x010102ba, 0x00010001, 0x000d0396, 	/* (r1!=1), r1=usdm.tcfc_load_pend_empty,  */
+	0x010102bb, 0x00010001, 0x000d0397, 	/* (r1!=1), r1=usdm.async_host_empty,  */
+	0x010102bc, 0x00010001, 0x000d0398, 	/* (r1!=1), r1=usdm.prm_fifo_empty,  */
+	0x000002bd, 0x00010002, 0x00000399, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_0, r2=xcm.INT_MASK_0,  */
+	0x000002be, 0x00010002, 0x0000039b, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_1, r2=xcm.INT_MASK_1,  */
+	0x000002bf, 0x00010102, 0x0000039d, 	/* ((r1&~r2)!=0), r1=xcm.INT_STS_2, r2=xcm.INT_MASK_2,  */
+	0x000002c0, 0x00010002, 0x000003a0, 	/* ((r1&~r2)!=0), r1=xcm.PRTY_STS_H_0, r2=xcm.PRTY_MASK_H_0,  */
+	0x000002c1, 0x00010002, 0x000003a2, 	/* ((r1&~r2)!=0), r1=xcm.PRTY_STS_H_1, r2=xcm.PRTY_MASK_H_1,  */
+	0x010002c2, 0x00010001, 0x000003a4, 	/* (r1!=0), r1=xcm.fi_desc_input_violate,  */
+	0x010102c3, 0x00010001, 0x000003a5, 	/* (r1!=0), r1=xcm.ia_agg_con_part_fill_lvl,  */
+	0x010102c4, 0x00010001, 0x000003a6, 	/* (r1!=0), r1=xcm.ia_sm_con_part_fill_lvl,  */
+	0x010102c5, 0x00010001, 0x000003a7, 	/* (r1!=0), r1=xcm.ia_trans_part_fill_lvl,  */
+	0x010102c6, 0x00010001, 0x002d03a8, 	/* (r1!=reset1), r1=xcm.xx_free_cnt,  */
+	0x010102c7, 0x00010001, 0x000003a9, 	/* (r1!=0), r1=xcm.xx_lcid_cam_fill_lvl,  */
+	0x010102c8, 0x00010001, 0x000003aa, 	/* (r1!=0), r1=xcm.xx_lock_cnt,  */
+	0x010102c9, 0x00010001, 0x000003ab, 	/* (r1!=0), r1=xcm.xx_cbyp_tbl_fill_lvl,  */
+	0x010102ca, 0x00010001, 0x000003ac, 	/* (r1!=0), r1=xcm.agg_con_fic_buf_fill_lvl,  */
+	0x010102cb, 0x00010001, 0x000003ad, 	/* (r1!=0), r1=xcm.sm_con_fic_buf_fill_lvl,  */
+	0x010102cc, 0x00010001, 0x000003ae, 	/* (r1!=0), r1=xcm.in_prcs_tbl_fill_lvl,  */
+	0x010102cd, 0x00010001, 0x000d03af, 	/* (r1!=reset1), r1=xcm.ccfc_init_crd,  */
+	0x010102ce, 0x00010001, 0x000a03b0, 	/* (r1!=reset1), r1=xcm.qm_init_crd0,  */
+	0x010102cf, 0x00010001, 0x000a03b1, 	/* (r1!=reset1), r1=xcm.qm_init_crd1,  */
+	0x010102d0, 0x00010001, 0x001103b2, 	/* (r1!=reset1), r1=xcm.tm_init_crd,  */
+	0x010102d1, 0x00010001, 0x002e03b3, 	/* (r1!=reset1), r1=xcm.fic_init_crd,  */
+	0x010002d2, 0x00010001, 0x000003b4, 	/* (r1!=0), r1=xcm.xsdm_length_mis,  */
+	0x010002d3, 0x00010001, 0x000003b5, 	/* (r1!=0), r1=xcm.ysdm_length_mis,  */
+	0x010002d4, 0x00010001, 0x000003b6, 	/* (r1!=0), r1=xcm.dorq_length_mis,  */
+	0x010002d5, 0x00010001, 0x000003b7, 	/* (r1!=0), r1=xcm.pbf_length_mis,  */
+	0x010102d6, 0x00010001, 0x000003b8, 	/* (r1!=0), r1=xcm.is_qm_p_fill_lvl,  */
+	0x010102d7, 0x00010001, 0x000003b9, 	/* (r1!=0), r1=xcm.is_qm_s_fill_lvl,  */
+	0x010102d8, 0x00010001, 0x000003ba, 	/* (r1!=0), r1=xcm.is_tm_fill_lvl,  */
+	0x010102d9, 0x00010001, 0x000003bb, 	/* (r1!=0), r1=xcm.is_storm_fill_lvl,  */
+	0x010102da, 0x00010001, 0x000003bc, 	/* (r1!=0), r1=xcm.is_xsdm_fill_lvl,  */
+	0x010102db, 0x00010001, 0x000003bd, 	/* (r1!=0), r1=xcm.is_ysdm_fill_lvl,  */
+	0x010102dc, 0x00010001, 0x000003be, 	/* (r1!=0), r1=xcm.is_msem_fill_lvl,  */
+	0x010102dd, 0x00010001, 0x000003bf, 	/* (r1!=0), r1=xcm.is_usem_fill_lvl,  */
+	0x010102de, 0x00010001, 0x000003c0, 	/* (r1!=0), r1=xcm.is_dorq_fill_lvl,  */
+	0x010102df, 0x00010001, 0x000003c1, 	/* (r1!=0), r1=xcm.is_pbf_fill_lvl,  */
+	0x000002e0, 0x00010002, 0x000003c2, 	/* ((r1&~r2)!=0), r1=ycm.INT_STS_0, r2=ycm.INT_MASK_0,  */
+	0x000002e1, 0x00010002, 0x000003c4, 	/* ((r1&~r2)!=0), r1=ycm.INT_STS_1, r2=ycm.INT_MASK_1,  */
+	0x000002e2, 0x00010002, 0x000003c6, 	/* ((r1&~r2)!=0), r1=ycm.PRTY_STS_H_0, r2=ycm.PRTY_MASK_H_0,  */
+	0x000002e3, 0x00010002, 0x000003c8, 	/* ((r1&~r2)!=0), r1=ycm.PRTY_STS_H_1, r2=ycm.PRTY_MASK_H_1,  */
+	0x010002e4, 0x00010001, 0x000003ca, 	/* (r1!=0), r1=ycm.fi_desc_input_violate,  */
+	0x010002e5, 0x00010001, 0x000003cb, 	/* (r1!=0), r1=ycm.se_desc_input_violate,  */
+	0x010102e6, 0x00010001, 0x000003cc, 	/* (r1!=0), r1=ycm.ia_sm_con_part_fill_lvl,  */
+	0x010102e7, 0x00010001, 0x000003cd, 	/* (r1!=0), r1=ycm.ia_agg_task_part_fill_lvl,  */
+	0x010102e8, 0x00010001, 0x000003ce, 	/* (r1!=0), r1=ycm.ia_sm_task_part_fill_lvl,  */
+	0x010102e9, 0x00010001, 0x000003cf, 	/* (r1!=0), r1=ycm.ia_trans_part_fill_lvl,  */
+	0x010102ea, 0x00010001, 0x002d03d0, 	/* (r1!=reset1), r1=ycm.xx_free_cnt,  */
+	0x010102eb, 0x00010001, 0x000003d1, 	/* (r1!=0), r1=ycm.xx_lcid_cam_fill_lvl,  */
+	0x010102ec, 0x00010001, 0x000003d2, 	/* (r1!=0), r1=ycm.xx_lock_cnt,  */
+	0x010102ed, 0x00010001, 0x000003d3, 	/* (r1!=0), r1=ycm.xx_cbyp_tbl_fill_lvl,  */
+	0x010102ee, 0x00010001, 0x000003d4, 	/* (r1!=0), r1=ycm.xx_tbyp_tbl_fill_lvl,  */
+	0x010102ef, 0x00010001, 0x000003d5, 	/* (r1!=0), r1=ycm.xx_tbyp_tbl_fill_lvl,  */
+	0x010102f0, 0x00010001, 0x000003d6, 	/* (r1!=0), r1=ycm.sm_con_fic_buf_fill_lvl,  */
+	0x010102f1, 0x00010001, 0x000003d7, 	/* (r1!=0), r1=ycm.agg_task_fic_buf_fill_lvl,  */
+	0x010102f2, 0x00010001, 0x000003d8, 	/* (r1!=0), r1=ycm.sm_task_fic_buf_fill_lvl,  */
+	0x010102f3, 0x00010001, 0x000003d9, 	/* (r1!=0), r1=ycm.in_prcs_tbl_fill_lvl,  */
+	0x010102f4, 0x00010001, 0x000d03da, 	/* (r1!=reset1), r1=ycm.ccfc_init_crd,  */
+	0x010102f5, 0x00010001, 0x000d03db, 	/* (r1!=reset1), r1=ycm.tcfc_init_crd,  */
+	0x010102f6, 0x00010001, 0x000a03dc, 	/* (r1!=reset1), r1=ycm.qm_init_crd0,  */
+	0x010102f7, 0x00010001, 0x002f03dd, 	/* (r1!=reset1), r1=ycm.fic_init_crd,  */
+	0x010002f8, 0x00010001, 0x000003de, 	/* (r1!=0), r1=ycm.ysdm_length_mis,  */
+	0x010002f9, 0x00010001, 0x000003df, 	/* (r1!=0), r1=ycm.pbf_length_mis,  */
+	0x010002fa, 0x00010001, 0x000003e0, 	/* (r1!=0), r1=ycm.xyld_length_mis,  */
+	0x010102fb, 0x00010001, 0x000003e1, 	/* (r1!=0), r1=ycm.is_qm_p_fill_lvl,  */
+	0x010102fc, 0x00010001, 0x000003e2, 	/* (r1!=0), r1=ycm.is_qm_s_fill_lvl,  */
+	0x010102fd, 0x00010001, 0x000003e3, 	/* (r1!=0), r1=ycm.is_storm_fill_lvl,  */
+	0x010102fe, 0x00010001, 0x000003e4, 	/* (r1!=0), r1=ycm.is_ysdm_fill_lvl,  */
+	0x010102ff, 0x00010001, 0x000003e5, 	/* (r1!=0), r1=ycm.is_xyld_fill_lvl,  */
+	0x01010300, 0x00010001, 0x000003e6, 	/* (r1!=0), r1=ycm.is_msem_fill_lvl,  */
+	0x01010301, 0x00010001, 0x000003e7, 	/* (r1!=0), r1=ycm.is_usem_fill_lvl,  */
+	0x01010302, 0x00010001, 0x000003e8, 	/* (r1!=0), r1=ycm.is_pbf_fill_lvl,  */
+	0x00000303, 0x00010002, 0x000003e9, 	/* ((r1&~r2)!=0), r1=pcm.INT_STS_0, r2=pcm.INT_MASK_0,  */
+	0x00000304, 0x00010002, 0x000003eb, 	/* ((r1&~r2)!=0), r1=pcm.INT_STS_1, r2=pcm.INT_MASK_1,  */
+	0x00000305, 0x00010002, 0x000003ed, 	/* ((r1&~r2)!=0), r1=pcm.PRTY_STS_H_0, r2=pcm.PRTY_MASK_H_0,  */
+	0x01000306, 0x00010001, 0x000003ef, 	/* (r1!=0), r1=pcm.fi_desc_input_violate,  */
+	0x01010307, 0x00010001, 0x000003f0, 	/* (r1!=0), r1=pcm.ia_sm_con_part_fill_lvl,  */
+	0x01010308, 0x00010001, 0x000003f1, 	/* (r1!=0), r1=pcm.ia_trans_part_fill_lvl,  */
+	0x01010309, 0x00010001, 0x001103f2, 	/* (r1!=reset1), r1=pcm.xx_free_cnt,  */
+	0x0101030a, 0x00010001, 0x000003f3, 	/* (r1!=0), r1=pcm.xx_lcid_cam_fill_lvl,  */
+	0x0101030b, 0x00010001, 0x000003f4, 	/* (r1!=0), r1=pcm.xx_lock_cnt,  */
+	0x0101030c, 0x00010001, 0x000003f5, 	/* (r1!=0), r1=pcm.sm_con_fic_buf_fill_lvl,  */
+	0x0101030d, 0x00010001, 0x000003f6, 	/* (r1!=0), r1=pcm.in_prcs_tbl_fill_lvl,  */
+	0x0101030e, 0x00010001, 0x000d03f7, 	/* (r1!=reset1), r1=pcm.ccfc_init_crd,  */
+	0x0101030f, 0x00010001, 0x002e03f8, 	/* (r1!=reset1), r1=pcm.fic_init_crd,  */
+	0x01010310, 0x00010001, 0x000003f9, 	/* (r1!=0), r1=pcm.is_storm_fill_lvl,  */
+	0x00000311, 0x00010002, 0x000003fa, 	/* ((r1&~r2)!=0), r1=tcm.INT_STS_0, r2=tcm.INT_MASK_0,  */
+	0x00000312, 0x00010002, 0x000003fc, 	/* ((r1&~r2)!=0), r1=tcm.INT_STS_1, r2=tcm.INT_MASK_1,  */
+	0x00000313, 0x00010002, 0x000003fe, 	/* ((r1&~r2)!=0), r1=tcm.PRTY_STS_H_0, r2=tcm.PRTY_MASK_H_0,  */
+	0x00000314, 0x00010002, 0x00000400, 	/* ((r1&~r2)!=0), r1=tcm.PRTY_STS_H_1, r2=tcm.PRTY_MASK_H_1,  */
+	0x01000315, 0x00010001, 0x00000402, 	/* (r1!=0), r1=tcm.fi_desc_input_violate,  */
+	0x01000316, 0x00010001, 0x00000403, 	/* (r1!=0), r1=tcm.se_desc_input_violate,  */
+	0x01010317, 0x00010001, 0x00000404, 	/* (r1!=0), r1=tcm.ia_agg_con_part_fill_lvl,  */
+	0x01010318, 0x00010001, 0x00000405, 	/* (r1!=0), r1=tcm.ia_sm_con_part_fill_lvl,  */
+	0x01010319, 0x00010001, 0x00000406, 	/* (r1!=0), r1=tcm.ia_agg_task_part_fill_lvl,  */
+	0x0101031a, 0x00010001, 0x00000407, 	/* (r1!=0), r1=tcm.ia_sm_task_part_fill_lvl,  */
+	0x0101031b, 0x00010001, 0x00000408, 	/* (r1!=0), r1=tcm.ia_trans_part_fill_lvl,  */
+	0x0101031c, 0x00010001, 0x002d0409, 	/* (r1!=reset1), r1=tcm.xx_free_cnt,  */
+	0x0101031d, 0x00010001, 0x0000040a, 	/* (r1!=0), r1=tcm.xx_lcid_cam_fill_lvl,  */
+	0x0101031e, 0x00010001, 0x0000040b, 	/* (r1!=0), r1=tcm.xx_lock_cnt,  */
+	0x0101031f, 0x00010001, 0x0000040c, 	/* (r1!=0), r1=tcm.xx_cbyp_tbl_fill_lvl,  */
+	0x01010320, 0x00010001, 0x0000040d, 	/* (r1!=0), r1=tcm.xx_tbyp_tbl_fill_lvl,  */
+	0x01010321, 0x00010001, 0x0000040e, 	/* (r1!=0), r1=tcm.xx_tbyp_tbl_fill_lvl,  */
+	0x01010322, 0x00010001, 0x0000040f, 	/* (r1!=0), r1=tcm.agg_con_fic_buf_fill_lvl,  */
+	0x01010323, 0x00010001, 0x00000410, 	/* (r1!=0), r1=tcm.sm_con_fic_buf_fill_lvl,  */
+	0x01010324, 0x00010001, 0x00000411, 	/* (r1!=0), r1=tcm.agg_task_fic_buf_fill_lvl,  */
+	0x01010325, 0x00010001, 0x00000412, 	/* (r1!=0), r1=tcm.sm_task_fic_buf_fill_lvl,  */
+	0x01010326, 0x00010001, 0x00000413, 	/* (r1!=0), r1=tcm.in_prcs_tbl_fill_lvl,  */
+	0x01010327, 0x00010001, 0x000d0414, 	/* (r1!=reset1), r1=tcm.ccfc_init_crd,  */
+	0x01010328, 0x00010001, 0x000d0415, 	/* (r1!=reset1), r1=tcm.tcfc_init_crd,  */
+	0x01010329, 0x00010001, 0x000a0416, 	/* (r1!=reset1), r1=tcm.qm_init_crd0,  */
+	0x0101032a, 0x00010001, 0x00110417, 	/* (r1!=reset1), r1=tcm.tm_init_crd,  */
+	0x0101032b, 0x00010001, 0x00300418, 	/* (r1!=reset1), r1=tcm.fic_init_crd,  */
+	0x0100032c, 0x00010001, 0x00000419, 	/* (r1!=0), r1=tcm.dorq_length_mis,  */
+	0x0100032d, 0x00010001, 0x0000041a, 	/* (r1!=0), r1=tcm.pbf_length_mis,  */
+	0x0101032e, 0x00010001, 0x0000041b, 	/* (r1!=0), r1=tcm.is_qm_p_fill_lvl,  */
+	0x0101032f, 0x00010001, 0x0000041c, 	/* (r1!=0), r1=tcm.is_qm_s_fill_lvl,  */
+	0x01010330, 0x00010001, 0x0000041d, 	/* (r1!=0), r1=tcm.is_tm_fill_lvl,  */
+	0x01010331, 0x00010001, 0x0000041e, 	/* (r1!=0), r1=tcm.is_storm_fill_lvl,  */
+	0x01010332, 0x00010001, 0x0000041f, 	/* (r1!=0), r1=tcm.is_msem_fill_lvl,  */
+	0x01010333, 0x00010001, 0x00000420, 	/* (r1!=0), r1=tcm.is_dorq_fill_lvl,  */
+	0x01010334, 0x00010001, 0x00000421, 	/* (r1!=0), r1=tcm.is_pbf_fill_lvl,  */
+	0x00000335, 0x00010002, 0x00000422, 	/* ((r1&~r2)!=0), r1=mcm.INT_STS_0, r2=mcm.INT_MASK_0,  */
+	0x00000336, 0x00010002, 0x00000424, 	/* ((r1&~r2)!=0), r1=mcm.INT_STS_1, r2=mcm.INT_MASK_1,  */
+	0x00000337, 0x00010002, 0x00000426, 	/* ((r1&~r2)!=0), r1=mcm.PRTY_STS_H_0, r2=mcm.PRTY_MASK_H_0,  */
+	0x00000338, 0x00010002, 0x00000428, 	/* ((r1&~r2)!=0), r1=mcm.PRTY_STS_H_1, r2=mcm.PRTY_MASK_H_1,  */
+	0x01000339, 0x00010001, 0x0000042a, 	/* (r1!=0), r1=mcm.fi_desc_input_violate,  */
+	0x0100033a, 0x00010001, 0x0000042b, 	/* (r1!=0), r1=mcm.se_desc_input_violate,  */
+	0x0101033b, 0x00010001, 0x0000042c, 	/* (r1!=0), r1=mcm.ia_agg_con_part_fill_lvl,  */
+	0x0101033c, 0x00010001, 0x0000042d, 	/* (r1!=0), r1=mcm.ia_sm_con_part_fill_lvl,  */
+	0x0101033d, 0x00010001, 0x0000042e, 	/* (r1!=0), r1=mcm.ia_agg_task_part_fill_lvl,  */
+	0x0101033e, 0x00010001, 0x0000042f, 	/* (r1!=0), r1=mcm.ia_sm_task_part_fill_lvl,  */
+	0x0101033f, 0x00010001, 0x00000430, 	/* (r1!=0), r1=mcm.ia_trans_part_fill_lvl,  */
+	0x01010340, 0x00010001, 0x002d0431, 	/* (r1!=reset1), r1=mcm.xx_free_cnt,  */
+	0x01010341, 0x00010001, 0x00000432, 	/* (r1!=0), r1=mcm.xx_lcid_cam_fill_lvl,  */
+	0x01010342, 0x00010001, 0x00000433, 	/* (r1!=0), r1=mcm.xx_lock_cnt,  */
+	0x01010343, 0x00010001, 0x00000434, 	/* (r1!=0), r1=mcm.xx_cbyp_tbl_fill_lvl,  */
+	0x01010344, 0x00010001, 0x00000435, 	/* (r1!=0), r1=mcm.xx_tbyp_tbl_fill_lvl,  */
+	0x01010345, 0x00010001, 0x00000436, 	/* (r1!=0), r1=mcm.xx_tbyp_tbl_fill_lvl,  */
+	0x01010346, 0x00010001, 0x00000437, 	/* (r1!=0), r1=mcm.agg_con_fic_buf_fill_lvl,  */
+	0x01010347, 0x00010001, 0x00000438, 	/* (r1!=0), r1=mcm.sm_con_fic_buf_fill_lvl,  */
+	0x01010348, 0x00010001, 0x00000439, 	/* (r1!=0), r1=mcm.agg_task_fic_buf_fill_lvl,  */
+	0x01010349, 0x00010001, 0x0000043a, 	/* (r1!=0), r1=mcm.sm_task_fic_buf_fill_lvl,  */
+	0x0101034a, 0x00010001, 0x0000043b, 	/* (r1!=0), r1=mcm.in_prcs_tbl_fill_lvl,  */
+	0x0101034b, 0x00010001, 0x000d043c, 	/* (r1!=reset1), r1=mcm.ccfc_init_crd,  */
+	0x0101034c, 0x00010001, 0x000d043d, 	/* (r1!=reset1), r1=mcm.tcfc_init_crd,  */
+	0x0101034d, 0x00010001, 0x000a043e, 	/* (r1!=reset1), r1=mcm.qm_init_crd0,  */
+	0x0101034e, 0x00010001, 0x0030043f, 	/* (r1!=reset1), r1=mcm.fic_init_crd,  */
+	0x0100034f, 0x00010001, 0x00000440, 	/* (r1!=0), r1=mcm.ysdm_length_mis,  */
+	0x01000350, 0x00010001, 0x00000441, 	/* (r1!=0), r1=mcm.usdm_length_mis,  */
+	0x01000351, 0x00010001, 0x00000442, 	/* (r1!=0), r1=mcm.pbf_length_mis,  */
+	0x01000352, 0x00010001, 0x00000443, 	/* (r1!=0), r1=mcm.tmld_length_mis,  */
+	0x01010353, 0x00010001, 0x00000444, 	/* (r1!=0), r1=mcm.is_qm_p_fill_lvl,  */
+	0x01010354, 0x00010001, 0x00000445, 	/* (r1!=0), r1=mcm.is_qm_s_fill_lvl,  */
+	0x01010355, 0x00010001, 0x00000446, 	/* (r1!=0), r1=mcm.is_storm_fill_lvl,  */
+	0x01010356, 0x00010001, 0x00000447, 	/* (r1!=0), r1=mcm.is_ysdm_fill_lvl,  */
+	0x01010357, 0x00010001, 0x00000448, 	/* (r1!=0), r1=mcm.is_usdm_fill_lvl,  */
+	0x01010358, 0x00010001, 0x00000449, 	/* (r1!=0), r1=mcm.is_tmld_fill_lvl,  */
+	0x01010359, 0x00010001, 0x0000044a, 	/* (r1!=0), r1=mcm.is_usem_fill_lvl,  */
+	0x0101035a, 0x00010001, 0x0000044b, 	/* (r1!=0), r1=mcm.is_pbf_fill_lvl,  */
+	0x0000035b, 0x00010002, 0x0000044c, 	/* ((r1&~r2)!=0), r1=ucm.INT_STS_0, r2=ucm.INT_MASK_0,  */
+	0x0000035c, 0x00010002, 0x0000044e, 	/* ((r1&~r2)!=0), r1=ucm.INT_STS_1, r2=ucm.INT_MASK_1,  */
+	0x0000035d, 0x00010002, 0x00000450, 	/* ((r1&~r2)!=0), r1=ucm.PRTY_STS_H_0, r2=ucm.PRTY_MASK_H_0,  */
+	0x0000035e, 0x00010002, 0x00000452, 	/* ((r1&~r2)!=0), r1=ucm.PRTY_STS_H_1, r2=ucm.PRTY_MASK_H_1,  */
+	0x0100035f, 0x00010001, 0x00000454, 	/* (r1!=0), r1=ucm.fi_desc_input_violate,  */
+	0x01000360, 0x00010001, 0x00000455, 	/* (r1!=0), r1=ucm.se_desc_input_violate,  */
+	0x01010361, 0x00010001, 0x00000456, 	/* (r1!=0), r1=ucm.ia_agg_con_part_fill_lvl,  */
+	0x01010362, 0x00010001, 0x00000457, 	/* (r1!=0), r1=ucm.ia_sm_con_part_fill_lvl,  */
+	0x01010363, 0x00010001, 0x00000458, 	/* (r1!=0), r1=ucm.ia_agg_task_part_fill_lvl,  */
+	0x01010364, 0x00010001, 0x00000459, 	/* (r1!=0), r1=ucm.ia_sm_task_part_fill_lvl,  */
+	0x01010365, 0x00010001, 0x0000045a, 	/* (r1!=0), r1=ucm.ia_trans_part_fill_lvl,  */
+	0x01010366, 0x00010001, 0x002d045b, 	/* (r1!=reset1), r1=ucm.xx_free_cnt,  */
+	0x01010367, 0x00010001, 0x0000045c, 	/* (r1!=0), r1=ucm.xx_lcid_cam_fill_lvl,  */
+	0x01010368, 0x00010001, 0x0000045d, 	/* (r1!=0), r1=ucm.xx_lock_cnt,  */
+	0x01010369, 0x00010001, 0x0000045e, 	/* (r1!=0), r1=ucm.xx_cbyp_tbl_fill_lvl,  */
+	0x0101036a, 0x00010001, 0x0000045f, 	/* (r1!=0), r1=ucm.xx_tbyp_tbl_fill_lvl,  */
+	0x0101036b, 0x00010001, 0x00000460, 	/* (r1!=0), r1=ucm.xx_tbyp_tbl_fill_lvl,  */
+	0x0101036c, 0x00010001, 0x00000461, 	/* (r1!=0), r1=ucm.agg_con_fic_buf_fill_lvl,  */
+	0x0101036d, 0x00010001, 0x00000462, 	/* (r1!=0), r1=ucm.sm_con_fic_buf_fill_lvl,  */
+	0x0101036e, 0x00010001, 0x00000463, 	/* (r1!=0), r1=ucm.agg_task_fic_buf_fill_lvl,  */
+	0x0101036f, 0x00010001, 0x00000464, 	/* (r1!=0), r1=ucm.sm_task_fic_buf_fill_lvl,  */
+	0x01010370, 0x00010001, 0x00000465, 	/* (r1!=0), r1=ucm.in_prcs_tbl_fill_lvl,  */
+	0x01010371, 0x00010001, 0x000d0466, 	/* (r1!=reset1), r1=ucm.ccfc_init_crd,  */
+	0x01010372, 0x00010001, 0x000d0467, 	/* (r1!=reset1), r1=ucm.tcfc_init_crd,  */
+	0x01010373, 0x00010001, 0x000a0468, 	/* (r1!=reset1), r1=ucm.qm_init_crd0,  */
+	0x01010374, 0x00010001, 0x00110469, 	/* (r1!=reset1), r1=ucm.tm_init_crd,  */
+	0x01010375, 0x00010001, 0x002f046a, 	/* (r1!=reset1), r1=ucm.fic_init_crd,  */
+	0x01000376, 0x00010001, 0x0000046b, 	/* (r1!=0), r1=ucm.ysdm_length_mis,  */
+	0x01000377, 0x00010001, 0x0000046c, 	/* (r1!=0), r1=ucm.usdm_length_mis,  */
+	0x01000378, 0x00010001, 0x0000046d, 	/* (r1!=0), r1=ucm.dorq_length_mis,  */
+	0x01000379, 0x00010001, 0x0000046e, 	/* (r1!=0), r1=ucm.pbf_length_mis,  */
+	0x0100037a, 0x00010001, 0x0000046f, 	/* (r1!=0), r1=ucm.rdif_length_mis,  */
+	0x0100037b, 0x00010001, 0x00000470, 	/* (r1!=0), r1=ucm.tdif_length_mis,  */
+	0x0100037c, 0x00010001, 0x00000471, 	/* (r1!=0), r1=ucm.muld_length_mis,  */
+	0x0101037d, 0x00010001, 0x00000472, 	/* (r1!=0), r1=ucm.is_qm_p_fill_lvl,  */
+	0x0101037e, 0x00010001, 0x00000473, 	/* (r1!=0), r1=ucm.is_qm_s_fill_lvl,  */
+	0x0101037f, 0x00010001, 0x00000474, 	/* (r1!=0), r1=ucm.is_tm_fill_lvl,  */
+	0x01010380, 0x00010001, 0x00000475, 	/* (r1!=0), r1=ucm.is_storm_fill_lvl,  */
+	0x01010381, 0x00010001, 0x00000476, 	/* (r1!=0), r1=ucm.is_ysdm_fill_lvl,  */
+	0x01010382, 0x00010001, 0x00000477, 	/* (r1!=0), r1=ucm.is_usdm_fill_lvl,  */
+	0x01010383, 0x00010001, 0x00000478, 	/* (r1!=0), r1=ucm.is_rdif_fill_lvl,  */
+	0x01010384, 0x00010001, 0x00000479, 	/* (r1!=0), r1=ucm.is_tdif_fill_lvl,  */
+	0x01010385, 0x00010001, 0x0000047a, 	/* (r1!=0), r1=ucm.is_muld_fill_lvl,  */
+	0x01010386, 0x00010001, 0x0000047b, 	/* (r1!=0), r1=ucm.is_dorq_fill_lvl,  */
+	0x01010387, 0x00010001, 0x0000047c, 	/* (r1!=0), r1=ucm.is_pbf_fill_lvl,  */
+	0x00000388, 0x00010002, 0x0000047d, 	/* ((r1&~r2)!=0), r1=xsem.INT_STS_0, r2=xsem.INT_MASK_0,  */
+	0x00000389, 0x00010002, 0x0000047f, 	/* ((r1&~r2)!=0), r1=xsem.INT_STS_1, r2=xsem.INT_MASK_1,  */
+	0x0000038a, 0x00010002, 0x00000481, 	/* ((r1&~r2)!=0), r1=xsem.PRTY_STS, r2=xsem.PRTY_MASK,  */
+	0x0102038b, 0x00010001, 0x00000483, 	/* (r1!=0), r1=xsem.pf_err_vector,  */
+	0x0101038c, 0x00010001, 0x00310484, 	/* (r1!=0x1D), r1=xsem.foc_credit[1],  */
+	0x0101038d, 0x00010001, 0x00320485, 	/* (r1!=0x3F), r1=xsem.foc_credit,  */
+	0x0101038e, 0x00010001, 0x000d0486, 	/* (r1!=1), r1=xsem.ext_pas_empty,  */
+	0x0101038f, 0x00010001, 0x000d0487, 	/* (r1!=1), r1=xsem.fic_empty[0:1],  */
+	0x01010390, 0x00010001, 0x000d0488, 	/* (r1!=1), r1=xsem.slow_ext_store_empty,  */
+	0x01010391, 0x00010001, 0x000d0489, 	/* (r1!=1), r1=xsem.slow_ext_load_empty,  */
+	0x01010392, 0x00010001, 0x000d048a, 	/* (r1!=1), r1=xsem.slow_ram_wr_empty,  */
+	0x01010393, 0x00010001, 0x000d048b, 	/* (r1!=1), r1=xsem.sync_dbg_empty,  */
+	0x01010394, 0x00010001, 0x0000048c, 	/* (r1!=0), r1=xsem.ext_store_if_full,  */
+	0x01010395, 0x00010001, 0x0000048d, 	/* (r1!=0), r1=xsem.ram_if_full,  */
+	0x00000396, 0x00010002, 0x0000048e, 	/* ((r1&~r2)!=0), r1=ysem.INT_STS_0, r2=ysem.INT_MASK_0,  */
+	0x00000397, 0x00010002, 0x00000490, 	/* ((r1&~r2)!=0), r1=ysem.INT_STS_1, r2=ysem.INT_MASK_1,  */
+	0x00000398, 0x00010002, 0x00000492, 	/* ((r1&~r2)!=0), r1=ysem.PRTY_STS, r2=ysem.PRTY_MASK,  */
+	0x01020399, 0x00010001, 0x00000494, 	/* (r1!=0), r1=ysem.pf_err_vector,  */
+	0x0101039a, 0x00010001, 0x00330495, 	/* (r1!=0xA), r1=ysem.foc_credit[2],  */
+	0x0101039b, 0x00010001, 0x00340496, 	/* (r1!=0xE), r1=ysem.foc_credit,  */
+	0x0101039c, 0x00010001, 0x00350497, 	/* (r1!=0x1A), r1=ysem.foc_credit[1],  */
+	0x0101039d, 0x00010001, 0x00280498, 	/* (r1!=0x7), r1=ysem.foc_credit[3],  */
+	0x0101039e, 0x00010001, 0x00360499, 	/* (r1!=0x26), r1=ysem.foc_credit[4],  */
+	0x0101039f, 0x00010001, 0x002e049a, 	/* (r1!=0x28), r1=ysem.foc_credit[5],  */
+	0x010103a0, 0x00010001, 0x000d049b, 	/* (r1!=1), r1=ysem.ext_pas_empty,  */
+	0x010103a1, 0x00010001, 0x000d049c, 	/* (r1!=1), r1=ysem.fic_empty[0:1],  */
+	0x010103a2, 0x00010001, 0x000d049d, 	/* (r1!=1), r1=ysem.slow_ext_store_empty,  */
+	0x010103a3, 0x00010001, 0x000d049e, 	/* (r1!=1), r1=ysem.slow_ext_load_empty,  */
+	0x010103a4, 0x00010001, 0x000d049f, 	/* (r1!=1), r1=ysem.slow_ram_wr_empty,  */
+	0x010103a5, 0x00010001, 0x000d04a0, 	/* (r1!=1), r1=ysem.sync_dbg_empty,  */
+	0x010103a6, 0x00010001, 0x000004a1, 	/* (r1!=0), r1=ysem.ext_store_if_full,  */
+	0x010103a7, 0x00010001, 0x000004a2, 	/* (r1!=0), r1=ysem.ram_if_full,  */
+	0x000003a8, 0x00010002, 0x000004a3, 	/* ((r1&~r2)!=0), r1=psem.INT_STS_0, r2=psem.INT_MASK_0,  */
+	0x000003a9, 0x00010002, 0x000004a5, 	/* ((r1&~r2)!=0), r1=psem.INT_STS_1, r2=psem.INT_MASK_1,  */
+	0x000003aa, 0x00010002, 0x000004a7, 	/* ((r1&~r2)!=0), r1=psem.PRTY_STS, r2=psem.PRTY_MASK,  */
+	0x010203ab, 0x00010001, 0x000004a9, 	/* (r1!=0), r1=psem.pf_err_vector,  */
+	0x010103ac, 0x00010001, 0x003704aa, 	/* (r1!=0x17), r1=psem.foc_credit,  */
+	0x010103ad, 0x00010001, 0x002d04ab, 	/* (r1!=0x40), r1=psem.foc_credit[1],  */
+	0x010103ae, 0x00010001, 0x000d04ac, 	/* (r1!=1), r1=psem.ext_pas_empty,  */
+	0x010103af, 0x00010001, 0x000d04ad, 	/* (r1!=1), r1=psem.fic_empty,  */
+	0x010103b0, 0x00010001, 0x000d04ae, 	/* (r1!=1), r1=psem.slow_ext_store_empty,  */
+	0x010103b1, 0x00010001, 0x000d04af, 	/* (r1!=1), r1=psem.slow_ext_load_empty,  */
+	0x010103b2, 0x00010001, 0x000d04b0, 	/* (r1!=1), r1=psem.slow_ram_wr_empty,  */
+	0x010103b3, 0x00010001, 0x000d04b1, 	/* (r1!=1), r1=psem.sync_dbg_empty,  */
+	0x010103b4, 0x00010001, 0x000004b2, 	/* (r1!=0), r1=psem.ext_store_if_full,  */
+	0x010103b5, 0x00010001, 0x000004b3, 	/* (r1!=0), r1=psem.ram_if_full,  */
+	0x000003b6, 0x00010002, 0x000004b4, 	/* ((r1&~r2)!=0), r1=tsem.INT_STS_0, r2=tsem.INT_MASK_0,  */
+	0x000003b7, 0x00010002, 0x000004b6, 	/* ((r1&~r2)!=0), r1=tsem.INT_STS_1, r2=tsem.INT_MASK_1,  */
+	0x000003b8, 0x00010002, 0x000004b8, 	/* ((r1&~r2)!=0), r1=tsem.PRTY_STS, r2=tsem.PRTY_MASK,  */
+	0x010203b9, 0x00010001, 0x000004ba, 	/* (r1!=0), r1=tsem.pf_err_vector,  */
+	0x010103ba, 0x00010001, 0x003804bb, 	/* (r1!=0x2C), r1=tsem.foc_credit,  */
+	0x010103bb, 0x00010001, 0x003904bc, 	/* (r1!=0x3C), r1=tsem.foc_credit[1],  */
+	0x010103bc, 0x00010001, 0x000d04bd, 	/* (r1!=1), r1=tsem.ext_pas_empty,  */
+	0x010103bd, 0x00010001, 0x000d04be, 	/* (r1!=1), r1=tsem.fic_empty,  */
+	0x010103be, 0x00010001, 0x000d04bf, 	/* (r1!=1), r1=tsem.slow_ext_store_empty,  */
+	0x010103bf, 0x00010001, 0x000d04c0, 	/* (r1!=1), r1=tsem.slow_ext_load_empty,  */
+	0x010103c0, 0x00010001, 0x000d04c1, 	/* (r1!=1), r1=tsem.slow_ram_wr_empty,  */
+	0x010103c1, 0x00010001, 0x000d04c2, 	/* (r1!=1), r1=tsem.sync_dbg_empty,  */
+	0x010103c2, 0x00010001, 0x000004c3, 	/* (r1!=0), r1=tsem.ext_store_if_full,  */
+	0x010103c3, 0x00010001, 0x000004c4, 	/* (r1!=0), r1=tsem.ram_if_full,  */
+	0x000003c4, 0x00010002, 0x000004c5, 	/* ((r1&~r2)!=0), r1=msem.INT_STS_0, r2=msem.INT_MASK_0,  */
+	0x000003c5, 0x00010002, 0x000004c7, 	/* ((r1&~r2)!=0), r1=msem.INT_STS_1, r2=msem.INT_MASK_1,  */
+	0x000003c6, 0x00010002, 0x000004c9, 	/* ((r1&~r2)!=0), r1=msem.PRTY_STS, r2=msem.PRTY_MASK,  */
+	0x000003c7, 0x00010002, 0x000004cb, 	/* ((r1&~r2)!=0), r1=msem.PRTY_STS_H_0, r2=msem.PRTY_MASK_H_0,  */
+	0x010203c8, 0x00010001, 0x000004cd, 	/* (r1!=0), r1=msem.pf_err_vector,  */
+	0x010103c9, 0x00010001, 0x001a04ce, 	/* (r1!=0x11), r1=msem.foc_credit[3],  */
+	0x010103ca, 0x00010001, 0x002804cf, 	/* (r1!=0x7), r1=msem.foc_credit[4],  */
+	0x010103cb, 0x00010001, 0x000f04d0, 	/* (r1!=0x20), r1=msem.foc_credit[5],  */
+	0x010103cc, 0x00010001, 0x000904d1, 	/* (r1!=0x5), r1=msem.foc_credit,  */
+	0x010103cd, 0x00010001, 0x003804d2, 	/* (r1!=0x2C), r1=msem.foc_credit[1],  */
+	0x010103ce, 0x00010001, 0x003704d3, 	/* (r1!=0x17), r1=msem.foc_credit[2],  */
+	0x010103cf, 0x00010001, 0x000d04d4, 	/* (r1!=1), r1=msem.ext_pas_empty,  */
+	0x010103d0, 0x00010001, 0x000d04d5, 	/* (r1!=1), r1=msem.fic_empty,  */
+	0x010103d1, 0x00010001, 0x000d04d6, 	/* (r1!=1), r1=msem.slow_ext_store_empty,  */
+	0x010103d2, 0x00010001, 0x000d04d7, 	/* (r1!=1), r1=msem.slow_ext_load_empty,  */
+	0x010103d3, 0x00010001, 0x000d04d8, 	/* (r1!=1), r1=msem.slow_ram_wr_empty,  */
+	0x010103d4, 0x00010001, 0x000d04d9, 	/* (r1!=1), r1=msem.sync_dbg_empty,  */
+	0x010103d5, 0x00010001, 0x000004da, 	/* (r1!=0), r1=msem.ext_store_if_full,  */
+	0x010103d6, 0x00010001, 0x000004db, 	/* (r1!=0), r1=msem.ram_if_full,  */
+	0x000003d7, 0x00010002, 0x000004dc, 	/* ((r1&~r2)!=0), r1=usem.INT_STS_0, r2=usem.INT_MASK_0,  */
+	0x000003d8, 0x00010002, 0x000004de, 	/* ((r1&~r2)!=0), r1=usem.INT_STS_1, r2=usem.INT_MASK_1,  */
+	0x000003d9, 0x00010002, 0x000004e0, 	/* ((r1&~r2)!=0), r1=usem.PRTY_STS, r2=usem.PRTY_MASK,  */
+	0x010203da, 0x00010001, 0x000004e2, 	/* (r1!=0), r1=usem.pf_err_vector,  */
+	0x010103db, 0x00010001, 0x003a04e3, 	/* (r1!=0x32), r1=usem.foc_credit[1],  */
+	0x010103dc, 0x00010001, 0x001304e4, 	/* (r1!=0x3), r1=usem.foc_credit[3],  */
+	0x010103dd, 0x00010001, 0x003304e5, 	/* (r1!=0xA), r1=usem.foc_credit[2],  */
+	0x010103de, 0x00010001, 0x000904e6, 	/* (r1!=0x5), r1=usem.foc_credit,  */
+	0x010103df, 0x00010001, 0x000f04e7, 	/* (r1!=0x20), r1=usem.foc_credit[4],  */
+	0x010103e0, 0x00010001, 0x000d04e8, 	/* (r1!=1), r1=usem.ext_pas_empty,  */
+	0x010103e1, 0x00010001, 0x000d04e9, 	/* (r1!=1), r1=usem.fic_empty,  */
+	0x010103e2, 0x00010001, 0x000d04ea, 	/* (r1!=1), r1=usem.slow_ext_store_empty,  */
+	0x010103e3, 0x00010001, 0x000d04eb, 	/* (r1!=1), r1=usem.slow_ext_load_empty,  */
+	0x010103e4, 0x00010001, 0x000d04ec, 	/* (r1!=1), r1=usem.slow_ram_wr_empty,  */
+	0x010103e5, 0x00010001, 0x000d04ed, 	/* (r1!=1), r1=usem.sync_dbg_empty,  */
+	0x010103e6, 0x00010001, 0x000004ee, 	/* (r1!=0), r1=usem.ext_store_if_full,  */
+	0x010103e7, 0x00010001, 0x000004ef, 	/* (r1!=0), r1=usem.ram_if_full,  */
+	0x009f0007, 	/* mode bb */
+	0x040003e8, 0x00020001, 0x003b04f0, 	/* ((r1&~0x3f02)!=0), r1=pcie.PRTY_STS_H_0,  */
+	0x010203e9, 0x00010001, 0x000004f1, 	/* (r1!=0), r1=igu.pending_bits_status[0:8],  */
+	0x010103ea, 0x00010001, 0x000004f2, 	/* (r1!=0), r1=igu.write_done_pending[0:8],  */
+	0x000003eb, 0x00010102, 0x000004f3, 	/* ((r1&~r2)!=0), r1=cnig.INT_STS, r2=cnig.INT_MASK,  */
+	0x000003ec, 0x00010002, 0x000004f6, 	/* ((r1&~r2)!=0), r1=cnig.PRTY_STS, r2=cnig.PRTY_MASK,  */
+	0x010203ed, 0x00010101, 0x000004f8, 	/* (r1!=0), r1=pswhst.vf_disabled_error_valid,  */
+	0x010203ee, 0x00010001, 0x000004fa, 	/* (r1!=0), r1=pglue_b.flr_request_vf_223_192,  */
+	0x010203ef, 0x00010001, 0x000004fb, 	/* (r1!=0), r1=pglue_b.flr_request_vf_255_224,  */
+	0x010003f0, 0x00010001, 0x000004fc, 	/* (r1!=0), r1=pglue_b.incorrect_rcv_details,  */
+	0x010203f1, 0x00010001, 0x000004fd, 	/* (r1!=0), r1=pglue_b.was_error_vf_223_192,  */
+	0x010203f2, 0x00010001, 0x000004fe, 	/* (r1!=0), r1=pglue_b.was_error_vf_255_224,  */
+	0x010203f3, 0x00010001, 0x001d04ff, 	/* (r1!=0xffffffff), r1=pglue_b.tags_159_128,  */
+	0x010203f4, 0x00010001, 0x001d0500, 	/* (r1!=0xffffffff), r1=pglue_b.tags_191_160,  */
+	0x010203f5, 0x00010001, 0x001d0501, 	/* (r1!=0xffffffff), r1=pglue_b.tags_223_192,  */
+	0x010203f6, 0x00010001, 0x001d0502, 	/* (r1!=0xffffffff), r1=pglue_b.tags_255_224,  */
+	0x010103f7, 0x00010001, 0x00220503, 	/* (r1!=reset1), r1=tcfc.cduwb_credit,  */
+	0x090103f8, 0x00060001, 0x003d0504, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblOther[0:63] width=2 access=WB,  */
+	0x0a0103f9, 0x00030001, 0x00430505, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblOther[0:63] width=2 access=WB,  */
+	0x010003fa, 0x00010001, 0x00000506, 	/* (r1!=0), r1=qm.QstatusTx_0[0:13],  */
+	0x010003fb, 0x00010001, 0x00000507, 	/* (r1!=0), r1=qm.QstatusOther_0[0:1],  */
+	0x0b0103fc, 0x00010003, 0x00000508, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
+	0x0b0103fd, 0x00010003, 0x0000050b, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
+	0x0c0103fe, 0x00010003, 0x0000050e, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:17], r2=qm.VoqInitCrdLine[0:17], r3=misc.port_mode,  */
+	0x0b0103ff, 0x00010003, 0x00000511, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
+	0x0b010400, 0x00010003, 0x00000514, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
+	0x0c010401, 0x00010003, 0x00000517, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:17], r2=qm.VoqInitCrdByte[0:17], r3=misc.port_mode,  */
+	0x0a010402, 0x00030001, 0x0043051a, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblTx[0:447] width=2 access=WB,  */
+	0x09010403, 0x00060001, 0x003d051b, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblTx[0:447] width=2 access=WB,  */
+	0x01010404, 0x00010001, 0x002a051c, 	/* (r1!=8190), r1=brb.wc_empty_0[0:3],  */
+	0x01010405, 0x00010001, 0x0013051d, 	/* (r1!=reset1), r1=brb.rc_eop_empty,  */
+	0x01010406, 0x00010001, 0x000b051e, 	/* (r1!=2), r1=brb.wc_status_0[0:3] width=3 access=WB,  */
+	0x00000407, 0x00010302, 0x0000051f, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS, r2=nig.PRTY_MASK,  */
+	0x00000408, 0x00010202, 0x00000524, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
+	0x00000409, 0x00010202, 0x00000528, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
+	0x0100040a, 0x00010001, 0x0000052c, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
+	0x0101040b, 0x00010001, 0x0000052d, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
+	0x0101040c, 0x00010001, 0x0000052e, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
+	0x0101040d, 0x00010001, 0x0000052f, 	/* (r1!=0), r1=xcm.qm_act_st_cnt[0:447],  */
+	0x0100040e, 0x00010001, 0x00000530, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
+	0x0101040f, 0x00010001, 0x00000531, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
+	0x01000410, 0x00010001, 0x00000532, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
+	0x01010411, 0x00010001, 0x00000533, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
+	0x01000412, 0x00010001, 0x00000534, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
+	0x01010413, 0x00010001, 0x00000535, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
+	0x01000414, 0x00010001, 0x00000536, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
+	0x01010415, 0x00010001, 0x00000537, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
+	0x01010416, 0x00010001, 0x00000538, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
+	0x01020417, 0x00010001, 0x00000539, 	/* (r1!=0), r1=xsem.vf_err_vector width=4 access=WB,  */
+	0x01020418, 0x00010001, 0x0000053a, 	/* (r1!=0), r1=ysem.vf_err_vector width=4 access=WB,  */
+	0x01020419, 0x00010001, 0x0000053b, 	/* (r1!=0), r1=psem.vf_err_vector width=4 access=WB,  */
+	0x0102041a, 0x00010001, 0x0000053c, 	/* (r1!=0), r1=tsem.vf_err_vector width=4 access=WB,  */
+	0x0102041b, 0x00010001, 0x0000053d, 	/* (r1!=0), r1=msem.vf_err_vector width=4 access=WB,  */
+	0x0102041c, 0x00010001, 0x0000053e, 	/* (r1!=0), r1=usem.vf_err_vector width=4 access=WB,  */
+	0x005a0009, 	/* mode k2 */
+	0x0000041d, 0x00010002, 0x0000053f, 	/* ((r1&~r2)!=0), r1=pcie.PRTY_STS_H_0, r2=pcie.PRTY_MASK_H_0,  */
+	0x0102041e, 0x00010001, 0x00000541, 	/* (r1!=0), r1=igu.pending_bits_status[0:11],  */
+	0x0101041f, 0x00010001, 0x00000542, 	/* (r1!=0), r1=igu.write_done_pending[0:11],  */
+	0x01020420, 0x00010101, 0x00000543, 	/* (r1!=0), r1=pswhst.vf_disabled_error_valid,  */
+	0x01010421, 0x00010001, 0x00220545, 	/* (r1!=reset1), r1=tcfc.cduwb_credit,  */
+	0x01000422, 0x00010001, 0x00000546, 	/* (r1!=0), r1=qm.QstatusTx_0[0:15],  */
+	0x01000423, 0x00010001, 0x00000547, 	/* (r1!=0), r1=qm.QstatusOther_0[0:3],  */
+	0x0b010424, 0x00010003, 0x00000548, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
+	0x0c010425, 0x00010003, 0x0000054b, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:19], r2=qm.VoqInitCrdLine[0:19], r3=misc.port_mode,  */
+	0x0b010426, 0x00010003, 0x0000054e, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
+	0x0b010427, 0x00010003, 0x00000551, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
+	0x0c010428, 0x00010003, 0x00000554, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:19], r2=qm.VoqInitCrdByte[0:19], r3=misc.port_mode,  */
+	0x0b010429, 0x00010003, 0x00000557, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
+	0x0101042a, 0x00010001, 0x002a055a, 	/* (r1!=8190), r1=brb.wc_empty_0[0:7],  */
+	0x0101042b, 0x00010001, 0x0003055b, 	/* (r1!=reset1), r1=brb.rc_eop_empty,  */
+	0x0101042c, 0x00010001, 0x000b055c, 	/* (r1!=2), r1=brb.wc_status_0[0:7] width=3 access=WB,  */
+	0x0000042d, 0x00010202, 0x0000055d, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
+	0x0000042e, 0x00010202, 0x00000561, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
+	0x0100042f, 0x00010001, 0x00000565, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
+	0x01010430, 0x00010001, 0x00000566, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
+	0x01010431, 0x00010001, 0x00000567, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
+	0x01000432, 0x00010001, 0x00000568, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
+	0x01010433, 0x00010001, 0x00000569, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
+	0x01000434, 0x00010001, 0x0000056a, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
+	0x01010435, 0x00010001, 0x0000056b, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
+	0x01000436, 0x00010001, 0x0000056c, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
+	0x01010437, 0x00010001, 0x0000056d, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
+	0x01000438, 0x00010001, 0x0000056e, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
+	0x01010439, 0x00010001, 0x0000056f, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
+	0x0101043a, 0x00010001, 0x00000570, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
+	0x003f0021, 	/* mode asic */
+	0x0301043b, 0x00000002, 0x00000571, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_7, r2=pswrq2.max_srs_vq7,  */
+	0x0301043c, 0x00000002, 0x00000573, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_8, r2=pswrq2.max_srs_vq8,  */
+	0x0301043d, 0x00000002, 0x00000575, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_10, r2=pswrq2.max_srs_vq10,  */
+	0x0301043e, 0x00000002, 0x00000577, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_13, r2=pswrq2.max_srs_vq13,  */
+	0x0301043f, 0x00000002, 0x00000579, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_14, r2=pswrq2.max_srs_vq14,  */
+	0x03010440, 0x00000002, 0x0000057b, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_20, r2=pswrq2.max_srs_vq20,  */
+	0x03010441, 0x00000002, 0x0000057d, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_25, r2=pswrq2.max_srs_vq25,  */
+	0x03010442, 0x00000002, 0x0000057f, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_27, r2=pswrq2.max_srs_vq27,  */
+	0x03010443, 0x00000002, 0x00000581, 	/* (r1!=r2), r1=pswrq2.sr_cnt_per_vq_31, r2=pswrq2.max_srs_vq31,  */
+	0x03010444, 0x00000002, 0x00000583, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_7, r2=pswrq2.max_blks_vq7,  */
+	0x03010445, 0x00000002, 0x00000585, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_8, r2=pswrq2.max_blks_vq8,  */
+	0x03010446, 0x00000002, 0x00000587, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_10, r2=pswrq2.max_blks_vq10,  */
+	0x03010447, 0x00000002, 0x00000589, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_13, r2=pswrq2.max_blks_vq13,  */
+	0x03010448, 0x00000002, 0x0000058b, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_14, r2=pswrq2.max_blks_vq14,  */
+	0x03010449, 0x00000002, 0x0000058d, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_20, r2=pswrq2.max_blks_vq20,  */
+	0x0301044a, 0x00000002, 0x0000058f, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_25, r2=pswrq2.max_blks_vq25,  */
+	0x0301044b, 0x00000002, 0x00000591, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_27, r2=pswrq2.max_blks_vq27,  */
+	0x0301044c, 0x00000002, 0x00000593, 	/* (r1!=r2), r1=pswrq2.blk_cnt_per_vq_31, r2=pswrq2.max_blks_vq31,  */
+	0x0d02044d, 0x00010001, 0x00460595, 	/* (r1&0x3E1), r1=tm.INT_STS_1,  */
+	0x0000044e, 0x00010002, 0x00000596, 	/* ((r1&~r2)!=0), r1=bmb.PRTY_STS_H_0, r2=bmb.PRTY_MASK_H_0,  */
+	0x0000044f, 0x00010002, 0x00000598, 	/* ((r1&~r2)!=0), r1=bmb.PRTY_STS_H_1, r2=bmb.PRTY_MASK_H_1,  */
 	0x0003001f, 	/* mode !asic */
-	0x0d020426, 0x00010001, 0x0047053c, 	/* (r1&0x381), r1=tm.INT_STS_1,  */
-	0x00ae0025, 	/* mode !bb */
-	0x06000427, 0x00020001, 0x0048053d, 	/* ((r1&0x0FD010)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
-	0x06020428, 0x00020001, 0x004a053e, 	/* ((r1&0x100000)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
-	0x06020429, 0x00020001, 0x004c053f, 	/* ((r1&0x2000)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
-	0x0102042a, 0x00010001, 0x00000540, 	/* (r1!=0), r1=pglcs.pgl_cs.HDR_LOG_0_OFF[0:3],  */
-	0x0100042b, 0x00010001, 0x00000541, 	/* (r1!=0), r1=pglcs.syncfifo_pop_underflow,  */
-	0x0100042c, 0x00010001, 0x00000542, 	/* (r1!=0), r1=pglcs.syncfifo_push_overflow,  */
-	0x0101042d, 0x00010001, 0x00000543, 	/* (r1!=0), r1=pglcs.tx_syncfifo_pop_status,  */
-	0x0600042e, 0x00020001, 0x004e0544, 	/* ((r1&0xE001)!=0), r1=pcie.INT_STS,  */
-	0x0000042f, 0x00010102, 0x00000545, 	/* ((r1&~r2)!=0), r1=cnig.INT_STS, r2=cnig.INT_MASK,  */
-	0x00000430, 0x00010002, 0x00000548, 	/* ((r1&~r2)!=0), r1=cnig.PRTY_STS, r2=cnig.PRTY_MASK,  */
-	0x01000431, 0x00010001, 0x0000054a, 	/* (r1!=0), r1=pglue_b.syncfifo_push_overflow,  */
-	0x01000432, 0x00010001, 0x0000054b, 	/* (r1!=0), r1=pglue_b.syncfifo_pop_underflow,  */
-	0x01010433, 0x00010001, 0x0000054c, 	/* (r1!=0), r1=pglue_b.rxh_syncfifo_pop_status,  */
-	0x01010434, 0x00010101, 0x0000054d, 	/* (r1!=0), r1=pglue_b.rxd_syncfifo_pop_status,  */
-	0x09010435, 0x00060001, 0x003d054f, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblOther[0:127] width=2 access=WB,  */
-	0x0a010436, 0x00030001, 0x00430550, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblOther[0:127] width=2 access=WB,  */
-	0x09010437, 0x00060001, 0x003d0551, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblTx[0:511] width=2 access=WB,  */
-	0x0a010438, 0x00030001, 0x00430552, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblTx[0:511] width=2 access=WB,  */
-	0x01010439, 0x00010001, 0x00030553, 	/* (r1!=reset1), r1=brb.rc_eop_empty,  */
-	0x0101043a, 0x00010001, 0x00000554, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_0,  */
-	0x0101043b, 0x00010001, 0x00000555, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_1,  */
-	0x0101043c, 0x00010001, 0x00000556, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_2,  */
-	0x0101043d, 0x00010001, 0x00000557, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_3,  */
-	0x0101043e, 0x00010001, 0x00000558, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_4,  */
-	0x0101043f, 0x00010001, 0x00000559, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_0,  */
-	0x01010440, 0x00010001, 0x0000055a, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_1,  */
-	0x01010441, 0x00010001, 0x0000055b, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_2,  */
-	0x01010442, 0x00010001, 0x0000055c, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_3,  */
-	0x01010443, 0x00010001, 0x0000055d, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_4,  */
-	0x00000444, 0x00010002, 0x0000055e, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_6, r2=nig.INT_MASK_6,  */
-	0x00020445, 0x00010202, 0x00000560, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_7, r2=nig.INT_MASK_7,  */
-	0x00000446, 0x00010002, 0x00000564, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_8, r2=nig.INT_MASK_8,  */
-	0x00020447, 0x00010202, 0x00000566, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_9, r2=nig.INT_MASK_9,  */
-	0x00000448, 0x00010302, 0x0000056a, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS, r2=nig.PRTY_MASK,  */
-	0x06000449, 0x00020001, 0x0050056f, 	/* ((r1&0x00000002)!=2), r1=nws.common_status,  */
-	0x0600044a, 0x00020001, 0x00520570, 	/* ((r1&0x00000004)!=4), r1=nws.common_status,  */
-	0x0600044b, 0x00020001, 0x000d0571, 	/* ((r1&0x00000001)!=0), r1=nws.INT_STS_0,  */
-	0x0000044c, 0x00010002, 0x00000572, 	/* ((r1&~r2)!=0), r1=nws.PRTY_STS_H_0, r2=nws.PRTY_MASK_H_0,  */
-	0x0e02044d, 0x00040002, 0x00540574, 	/* ((r1!=1)&&(((r2>>14)&1)==1)), r1=nws.nws_cmu.ln0_top_phy_if_status, r2=nws.common_control,  */
-	0x0e02044e, 0x00040002, 0x00580576, 	/* ((r1!=1)&&(((r2>>15)&1)==1)), r1=nws.nws_cmu.ln1_top_phy_if_status, r2=nws.common_control,  */
-	0x0e02044f, 0x00040002, 0x005c0578, 	/* ((r1!=1)&&(((r2>>16)&1)==1)), r1=nws.nws_cmu.ln2_top_phy_if_status, r2=nws.common_control,  */
-	0x0e020450, 0x00040002, 0x0060057a, 	/* ((r1!=1)&&(((r2>>17)&1)==1)), r1=nws.nws_cmu.ln3_top_phy_if_status, r2=nws.common_control,  */
-	0x06000451, 0x00020001, 0x000d057c, 	/* ((r1&0x00000001)!=0), r1=nwm.INT_STS,  */
-	0x06000452, 0x00020001, 0x0064057d, 	/* ((r1&0x000001FE)!=0), r1=nwm.INT_STS,  */
-	0x00000453, 0x00010002, 0x0000057e, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_0, r2=nwm.PRTY_MASK_H_0,  */
-	0x00000454, 0x00010002, 0x00000580, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_1, r2=nwm.PRTY_MASK_H_1,  */
-	0x00000455, 0x00010002, 0x00000582, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_2, r2=nwm.PRTY_MASK_H_2,  */
-	0x01010456, 0x00010001, 0x00230584, 	/* (r1!=255), r1=btb.rc_pkt_empty_4,  */
-	0x01010457, 0x00010001, 0x00230585, 	/* (r1!=255), r1=btb.rc_pkt_empty_5,  */
-	0x01010458, 0x00010001, 0x00230586, 	/* (r1!=255), r1=btb.rc_pkt_empty_6,  */
-	0x01010459, 0x00010001, 0x00230587, 	/* (r1!=255), r1=btb.rc_pkt_empty_7,  */
-	0x0101045a, 0x00010001, 0x00000588, 	/* (r1!=0), r1=xcm.qm_act_st_cnt[0:511],  */
-	0x0102045b, 0x00010001, 0x00000589, 	/* (r1!=0), r1=xsem.vf_err_vector width=8 access=WB,  */
-	0x0102045c, 0x00010001, 0x0000058a, 	/* (r1!=0), r1=ysem.vf_err_vector width=8 access=WB,  */
-	0x0102045d, 0x00010001, 0x0000058b, 	/* (r1!=0), r1=psem.vf_err_vector width=8 access=WB,  */
-	0x0102045e, 0x00010001, 0x0000058c, 	/* (r1!=0), r1=tsem.vf_err_vector width=8 access=WB,  */
-	0x0102045f, 0x00010001, 0x0000058d, 	/* (r1!=0), r1=msem.vf_err_vector width=8 access=WB,  */
-	0x01020460, 0x00010001, 0x0000058e, 	/* (r1!=0), r1=usem.vf_err_vector width=8 access=WB,  */
+	0x0d020450, 0x00010001, 0x0047059a, 	/* (r1&0x381), r1=tm.INT_STS_1,  */
+	0x00ab0025, 	/* mode !bb */
+	0x06020451, 0x00020001, 0x0048059b, 	/* ((r1&0x2000)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
+	0x06000452, 0x00020001, 0x004a059c, 	/* ((r1&0x0FD010)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
+	0x06020453, 0x00020001, 0x004c059d, 	/* ((r1&0x100000)!=0), r1=pglcs.pgl_cs.UNCORR_ERR_STATUS_OFF,  */
+	0x01020454, 0x00010001, 0x0000059e, 	/* (r1!=0), r1=pglcs.pgl_cs.HDR_LOG_0_OFF[0:3],  */
+	0x01000455, 0x00010001, 0x0000059f, 	/* (r1!=0), r1=pglcs.syncfifo_pop_underflow,  */
+	0x01000456, 0x00010001, 0x000005a0, 	/* (r1!=0), r1=pglcs.syncfifo_push_overflow,  */
+	0x01010457, 0x00010001, 0x000005a1, 	/* (r1!=0), r1=pglcs.tx_syncfifo_pop_status,  */
+	0x06000458, 0x00020001, 0x004e05a2, 	/* ((r1&0xE001)!=0), r1=pcie.INT_STS,  */
+	0x00000459, 0x00010102, 0x000005a3, 	/* ((r1&~r2)!=0), r1=cnig.INT_STS, r2=cnig.INT_MASK,  */
+	0x0000045a, 0x00010002, 0x000005a6, 	/* ((r1&~r2)!=0), r1=cnig.PRTY_STS, r2=cnig.PRTY_MASK,  */
+	0x0100045b, 0x00010001, 0x000005a8, 	/* (r1!=0), r1=pglue_b.syncfifo_push_overflow,  */
+	0x0100045c, 0x00010001, 0x000005a9, 	/* (r1!=0), r1=pglue_b.syncfifo_pop_underflow,  */
+	0x0101045d, 0x00010001, 0x000005aa, 	/* (r1!=0), r1=pglue_b.rxh_syncfifo_pop_status,  */
+	0x0101045e, 0x00010101, 0x000005ab, 	/* (r1!=0), r1=pglue_b.rxd_syncfifo_pop_status,  */
+	0x0901045f, 0x00060001, 0x003d05ad, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblOther[0:127] width=2 access=WB,  */
+	0x0a010460, 0x00030001, 0x004305ae, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblOther[0:127] width=2 access=WB,  */
+	0x09010461, 0x00060001, 0x003d05af, 	/* ((r1[0]&0x3FFFFFC0)>>6)!=(((r1[0]&0xC0000000)>>30)|((r1[1]&0x3FFFFF)<<2)), r1=qm.PtrTblTx[0:511] width=2 access=WB,  */
+	0x0a010462, 0x00030001, 0x004305b0, 	/* ((r1&0x30)>>4)!=(r1&0x03), r1=qm.PtrTblTx[0:511] width=2 access=WB,  */
+	0x01010463, 0x00010001, 0x000005b1, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_0,  */
+	0x01010464, 0x00010001, 0x000005b2, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_1,  */
+	0x01010465, 0x00010001, 0x000005b3, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_2,  */
+	0x01010466, 0x00010001, 0x000005b4, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_3,  */
+	0x01010467, 0x00010001, 0x000005b5, 	/* (r1!=0), r1=brb.mac2_tc_occupancy_4,  */
+	0x01010468, 0x00010001, 0x000005b6, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_0,  */
+	0x01010469, 0x00010001, 0x000005b7, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_1,  */
+	0x0101046a, 0x00010001, 0x000005b8, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_2,  */
+	0x0101046b, 0x00010001, 0x000005b9, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_3,  */
+	0x0101046c, 0x00010001, 0x000005ba, 	/* (r1!=0), r1=brb.mac3_tc_occupancy_4,  */
+	0x0000046d, 0x00010002, 0x000005bb, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_6, r2=nig.INT_MASK_6,  */
+	0x0002046e, 0x00010202, 0x000005bd, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_7, r2=nig.INT_MASK_7,  */
+	0x0000046f, 0x00010002, 0x000005c1, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_8, r2=nig.INT_MASK_8,  */
+	0x00020470, 0x00010202, 0x000005c3, 	/* ((r1&~r2)!=0), r1=nig.INT_STS_9, r2=nig.INT_MASK_9,  */
+	0x00000471, 0x00010302, 0x000005c7, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS, r2=nig.PRTY_MASK,  */
+	0x06000472, 0x00020001, 0x005005cc, 	/* ((r1&0x00000004)!=4), r1=nws.common_status,  */
+	0x06000473, 0x00020001, 0x005205cd, 	/* ((r1&0x00000002)!=2), r1=nws.common_status,  */
+	0x06000474, 0x00020001, 0x000d05ce, 	/* ((r1&0x00000001)!=0), r1=nws.INT_STS_0,  */
+	0x00000475, 0x00010002, 0x000005cf, 	/* ((r1&~r2)!=0), r1=nws.PRTY_STS_H_0, r2=nws.PRTY_MASK_H_0,  */
+	0x0e020476, 0x00040002, 0x005405d1, 	/* ((r1!=1)&&(((r2>>14)&1)==1)), r1=nws.nws_cmu.ln0_top_phy_if_status, r2=nws.common_control,  */
+	0x0e020477, 0x00040002, 0x005805d3, 	/* ((r1!=1)&&(((r2>>15)&1)==1)), r1=nws.nws_cmu.ln1_top_phy_if_status, r2=nws.common_control,  */
+	0x0e020478, 0x00040002, 0x005c05d5, 	/* ((r1!=1)&&(((r2>>16)&1)==1)), r1=nws.nws_cmu.ln2_top_phy_if_status, r2=nws.common_control,  */
+	0x0e020479, 0x00040002, 0x006005d7, 	/* ((r1!=1)&&(((r2>>17)&1)==1)), r1=nws.nws_cmu.ln3_top_phy_if_status, r2=nws.common_control,  */
+	0x0600047a, 0x00020001, 0x000d05d9, 	/* ((r1&0x00000001)!=0), r1=nwm.INT_STS,  */
+	0x0600047b, 0x00020001, 0x006405da, 	/* ((r1&0x000001FE)!=0), r1=nwm.INT_STS,  */
+	0x0000047c, 0x00010002, 0x000005db, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_0, r2=nwm.PRTY_MASK_H_0,  */
+	0x0000047d, 0x00010002, 0x000005dd, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_1, r2=nwm.PRTY_MASK_H_1,  */
+	0x0000047e, 0x00010002, 0x000005df, 	/* ((r1&~r2)!=0), r1=nwm.PRTY_STS_H_2, r2=nwm.PRTY_MASK_H_2,  */
+	0x0101047f, 0x00010001, 0x002305e1, 	/* (r1!=255), r1=btb.rc_pkt_empty_4,  */
+	0x01010480, 0x00010001, 0x002305e2, 	/* (r1!=255), r1=btb.rc_pkt_empty_5,  */
+	0x01010481, 0x00010001, 0x002305e3, 	/* (r1!=255), r1=btb.rc_pkt_empty_6,  */
+	0x01010482, 0x00010001, 0x002305e4, 	/* (r1!=255), r1=btb.rc_pkt_empty_7,  */
+	0x01010483, 0x00010001, 0x000005e5, 	/* (r1!=0), r1=xcm.qm_act_st_cnt[0:511],  */
+	0x01020484, 0x00010001, 0x000005e6, 	/* (r1!=0), r1=xsem.vf_err_vector width=8 access=WB,  */
+	0x01020485, 0x00010001, 0x000005e7, 	/* (r1!=0), r1=ysem.vf_err_vector width=8 access=WB,  */
+	0x01020486, 0x00010001, 0x000005e8, 	/* (r1!=0), r1=psem.vf_err_vector width=8 access=WB,  */
+	0x01020487, 0x00010001, 0x000005e9, 	/* (r1!=0), r1=tsem.vf_err_vector width=8 access=WB,  */
+	0x01020488, 0x00010001, 0x000005ea, 	/* (r1!=0), r1=msem.vf_err_vector width=8 access=WB,  */
+	0x01020489, 0x00010001, 0x000005eb, 	/* (r1!=0), r1=usem.vf_err_vector width=8 access=WB,  */
+	0x00480003, 	/* mode !(bb|k2) */
+	0x0102048a, 0x00010001, 0x000005ec, 	/* (r1!=0), r1=igu.pending_bits_status[0:15],  */
+	0x0101048b, 0x00010001, 0x000005ed, 	/* (r1!=0), r1=igu.write_done_pending[0:15],  */
+	0x0101048c, 0x00010001, 0x002d05ee, 	/* (r1!=reset1), r1=tcfc.cduwb_credit,  */
+	0x0c01048d, 0x00010003, 0x000005ef, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:35], r2=qm.VoqInitCrdLine[0:35], r3=misc.port_mode,  */
+	0x0b01048e, 0x00010003, 0x000005f2, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
+	0x0b01048f, 0x00010003, 0x000005f5, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
+	0x0b010490, 0x00010003, 0x000005f8, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
+	0x0b010491, 0x00010003, 0x000005fb, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
+	0x0c010492, 0x00010003, 0x000005fe, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:35], r2=qm.VoqInitCrdByte[0:35], r3=misc.port_mode,  */
+	0x01010493, 0x00010001, 0x000d0601, 	/* (r1!=reset1), r1=brb.rc_eop_empty,  */
+	0x00000494, 0x00010202, 0x00000602, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
+	0x00000495, 0x00010202, 0x00000606, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
+	0x01000496, 0x00010001, 0x0000060a, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
+	0x01010497, 0x00010001, 0x0000060b, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
+	0x01010498, 0x00010001, 0x0000060c, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
+	0x01000499, 0x00010001, 0x0000060d, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
+	0x0101049a, 0x00010001, 0x0000060e, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
+	0x0100049b, 0x00010001, 0x0000060f, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
+	0x0101049c, 0x00010001, 0x00000610, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
+	0x0100049d, 0x00010001, 0x00000611, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
+	0x0101049e, 0x00010001, 0x00000612, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
+	0x0100049f, 0x00010001, 0x00000613, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
+	0x010104a0, 0x00010001, 0x00000614, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
+	0x010104a1, 0x00010001, 0x00000615, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
 	0x00240015, 	/* mode !(k2|e5) */
-	0x06020461, 0x00020001, 0x004a058f, 	/* ((r1&0x100000)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
-	0x06000462, 0x00020001, 0x00480590, 	/* ((r1&0x0FD010)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
-	0x06020463, 0x00020001, 0x004c0591, 	/* ((r1&0x2000)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
-	0x01020464, 0x00010001, 0x00000592, 	/* (r1!=0), r1=pglcs.pgl_cs.header_log1[0:3],  */
-	0x06020465, 0x00020001, 0x00660593, 	/* ((r1&0x2000000)!=0), r1=pglcs.pgl_cs.tl_ctrlstat_5,  */
-	0x04000466, 0x00020001, 0x00680594, 	/* ((r1&~0x2040902)!=0), r1=pglcs.pgl_cs.tl_ctrlstat_5,  */
-	0x04000467, 0x00020001, 0x006a0595, 	/* ((r1&~0x10240902)!=0), r1=pglcs.pgl_cs.tl_func345_stat,  */
-	0x04000468, 0x00020001, 0x006a0596, 	/* ((r1&~0x10240902)!=0), r1=pglcs.pgl_cs.tl_func678_stat,  */
-	0x06000469, 0x00020001, 0x000b0597, 	/* ((r1&0x2)!=0), r1=pglcs.pgl_cs.DLATTN_VEC,  */
-	0x0000046a, 0x00010002, 0x00000598, 	/* ((r1&~r2)!=0), r1=miscs.INT_STS_1, r2=miscs.INT_MASK_1,  */
-	0x0000046b, 0x00010002, 0x0000059a, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS_H_1, r2=igu.PRTY_MASK_H_1,  */
-	0x0101046c, 0x00010001, 0x000d059c, 	/* (r1!=1), r1=nig.rx_macfifo_empty,  */
-	0x00420003, 	/* mode !(bb|k2) */
-	0x0102046d, 0x00010001, 0x0000059d, 	/* (r1!=0), r1=igu.pending_bits_status[0:15],  */
-	0x0101046e, 0x00010001, 0x0000059e, 	/* (r1!=0), r1=igu.write_done_pending[0:15],  */
-	0x0b01046f, 0x00010003, 0x0000059f, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[16], r2=qm.VoqInitCrdLine[16], r3=misc.port_mode,  */
-	0x0b010470, 0x00010003, 0x000005a2, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdLine[0:7], r2=qm.VoqInitCrdLine[0:7], r3=misc.port_mode,  */
-	0x0c010471, 0x00010003, 0x000005a5, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdLine[0:35], r2=qm.VoqInitCrdLine[0:35], r3=misc.port_mode,  */
-	0x0b010472, 0x00010003, 0x000005a8, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[0:7], r2=qm.VoqInitCrdByte[0:7], r3=misc.port_mode,  */
-	0x0b010473, 0x00010003, 0x000005ab, 	/* (r1!=r2&&r3==0), r1=qm.VoqCrdByte[16], r2=qm.VoqInitCrdByte[16], r3=misc.port_mode,  */
-	0x0c010474, 0x00010003, 0x000005ae, 	/* (r1!=r2&&r3>0), r1=qm.VoqCrdByte[0:35], r2=qm.VoqInitCrdByte[0:35], r3=misc.port_mode,  */
-	0x00000475, 0x00010202, 0x000005b1, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_0, r2=btb.INT_MASK_0,  */
-	0x00000476, 0x00010202, 0x000005b5, 	/* ((r1&~r2)!=0), r1=btb.INT_STS_4, r2=btb.INT_MASK_4,  */
-	0x01000477, 0x00010001, 0x000005b9, 	/* (r1!=0), r1=xcm.msdm_length_mis,  */
-	0x01010478, 0x00010001, 0x000005ba, 	/* (r1!=0), r1=xcm.is_msdm_fill_lvl,  */
-	0x01010479, 0x00010001, 0x000005bb, 	/* (r1!=0), r1=xcm.is_ysem_fill_lvl,  */
-	0x0100047a, 0x00010001, 0x000005bc, 	/* (r1!=0), r1=ycm.msdm_length_mis,  */
-	0x0101047b, 0x00010001, 0x000005bd, 	/* (r1!=0), r1=ycm.is_msdm_fill_lvl,  */
-	0x0100047c, 0x00010001, 0x000005be, 	/* (r1!=0), r1=pcm.psdm_length_mis,  */
-	0x0101047d, 0x00010001, 0x000005bf, 	/* (r1!=0), r1=pcm.is_psdm_fill_lvl,  */
-	0x0100047e, 0x00010001, 0x000005c0, 	/* (r1!=0), r1=tcm.tsdm_length_mis,  */
-	0x0101047f, 0x00010001, 0x000005c1, 	/* (r1!=0), r1=tcm.is_tsdm_fill_lvl,  */
-	0x01000480, 0x00010001, 0x000005c2, 	/* (r1!=0), r1=mcm.msdm_length_mis,  */
-	0x01010481, 0x00010001, 0x000005c3, 	/* (r1!=0), r1=mcm.is_msdm_fill_lvl,  */
-	0x01010482, 0x00010001, 0x000005c4, 	/* (r1!=0), r1=mcm.is_ysem_fill_lvl,  */
-	0x01cb0051, 	/* mode !e5 */
-	0x00000483, 0x00010002, 0x000005c5, 	/* ((r1&~r2)!=0), r1=dmae.PRTY_STS_H_0, r2=dmae.PRTY_MASK_H_0,  */
-	0x00000484, 0x00010002, 0x000005c7, 	/* ((r1&~r2)!=0), r1=dbg.PRTY_STS_H_0, r2=dbg.PRTY_MASK_H_0,  */
-	0x00000485, 0x00010002, 0x000005c9, 	/* ((r1&~r2)!=0), r1=opte.PRTY_STS_H_0, r2=opte.PRTY_MASK_H_0,  */
-	0x00000486, 0x00010002, 0x000005cb, 	/* ((r1&~r2)!=0), r1=dorq.PRTY_STS_H_0, r2=dorq.PRTY_MASK_H_0,  */
-	0x00000487, 0x00010002, 0x000005cd, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS_H_0, r2=igu.PRTY_MASK_H_0,  */
-	0x00000488, 0x00010002, 0x000005cf, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS_H_0, r2=prs.PRTY_MASK_H_0,  */
-	0x00000489, 0x00010002, 0x000005d1, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS_H_1, r2=prs.PRTY_MASK_H_1,  */
-	0x0101048a, 0x00010001, 0x000005d3, 	/* (r1!=0), r1=prs.prs_pkt_ct,  */
-	0x0101048b, 0x00010001, 0x000005d4, 	/* (r1!=0), r1=prs.tcm_current_credit,  */
-	0x0000048c, 0x00010002, 0x000005d5, 	/* ((r1&~r2)!=0), r1=prm.PRTY_STS_H_0, r2=prm.PRTY_MASK_H_0,  */
-	0x0000048d, 0x00010002, 0x000005d7, 	/* ((r1&~r2)!=0), r1=rss.PRTY_STS_H_0, r2=rss.PRTY_MASK_H_0,  */
-	0x0102048e, 0x00010001, 0x006c05d9, 	/* (r1!=31), r1=rss.empty_status,  */
-	0x0102048f, 0x00010001, 0x000005da, 	/* (r1!=0), r1=rss.full_status,  */
-	0x01020490, 0x00010001, 0x000005db, 	/* (r1!=0), r1=rss.counters_status,  */
-	0x01010491, 0x00010001, 0x000005dc, 	/* (r1!=0), r1=rss.state_machines,  */
-	0x00000492, 0x00010002, 0x000005dd, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_0, r2=pswwr2.PRTY_MASK_H_0,  */
-	0x00000493, 0x00010002, 0x000005df, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_1, r2=pswwr2.PRTY_MASK_H_1,  */
-	0x00000494, 0x00010002, 0x000005e1, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_2, r2=pswwr2.PRTY_MASK_H_2,  */
-	0x00000495, 0x00010002, 0x000005e3, 	/* ((r1&~r2)!=0), r1=pswwr2.PRTY_STS_H_3, r2=pswwr2.PRTY_MASK_H_3,  */
-	0x00000496, 0x00010002, 0x000005e5, 	/* ((r1&~r2)!=0), r1=pswhst.PRTY_STS_H_0, r2=pswhst.PRTY_MASK_H_0,  */
-	0x00000497, 0x00010002, 0x000005e7, 	/* ((r1&~r2)!=0), r1=pglue_b.PRTY_STS_H_0, r2=pglue_b.PRTY_MASK_H_0,  */
-	0x00000498, 0x00010002, 0x000005e9, 	/* ((r1&~r2)!=0), r1=tm.PRTY_STS_H_0, r2=tm.PRTY_MASK_H_0,  */
-	0x00000499, 0x00010002, 0x000005eb, 	/* ((r1&~r2)!=0), r1=tcfc.PRTY_STS_H_0, r2=tcfc.PRTY_MASK_H_0,  */
-	0x0000049a, 0x00010002, 0x000005ed, 	/* ((r1&~r2)!=0), r1=ccfc.PRTY_STS_H_0, r2=ccfc.PRTY_MASK_H_0,  */
-	0x0000049b, 0x00010002, 0x000005ef, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_0, r2=qm.PRTY_MASK_H_0,  */
-	0x0000049c, 0x00010002, 0x000005f1, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_1, r2=qm.PRTY_MASK_H_1,  */
-	0x0000049d, 0x00010002, 0x000005f3, 	/* ((r1&~r2)!=0), r1=qm.PRTY_STS_H_2, r2=qm.PRTY_MASK_H_2,  */
-	0x0000049e, 0x00010002, 0x000005f5, 	/* ((r1&~r2)!=0), r1=tdif.PRTY_STS_H_0, r2=tdif.PRTY_MASK_H_0,  */
-	0x0000049f, 0x00010002, 0x000005f7, 	/* ((r1&~r2)!=0), r1=brb.PRTY_STS_H_0, r2=brb.PRTY_MASK_H_0,  */
-	0x000004a0, 0x00010002, 0x000005f9, 	/* ((r1&~r2)!=0), r1=brb.PRTY_STS_H_1, r2=brb.PRTY_MASK_H_1,  */
-	0x000004a1, 0x00010002, 0x000005fb, 	/* ((r1&~r2)!=0), r1=xyld.PRTY_STS_H_0, r2=xyld.PRTY_MASK_H_0,  */
-	0x010104a2, 0x00010001, 0x000005fd, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_1_ctr,  */
-	0x010104a3, 0x00010001, 0x000005fe, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_2_ctr,  */
-	0x010104a4, 0x00010001, 0x000005ff, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_3_ctr,  */
-	0x010104a5, 0x00010001, 0x00000600, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_4_ctr,  */
-	0x010104a6, 0x00010001, 0x00000601, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_5_ctr,  */
-	0x030104a7, 0x00000002, 0x00000602, 	/* (r1!=r2), r1=yuld.foc_remain_credits, r2=yuld.foci_foc_credits,  */
-	0x010104a8, 0x00010001, 0x00000604, 	/* (r1!=0), r1=yuld.dbg_pending_ccfc_req,  */
-	0x010104a9, 0x00010001, 0x00000605, 	/* (r1!=0), r1=yuld.dbg_pending_tcfc_req,  */
-	0x000004aa, 0x00010002, 0x00000606, 	/* ((r1&~r2)!=0), r1=yuld.PRTY_STS_H_0, r2=yuld.PRTY_MASK_H_0,  */
-	0x000004ab, 0x00010002, 0x00000608, 	/* ((r1&~r2)!=0), r1=tmld.PRTY_STS_H_0, r2=tmld.PRTY_MASK_H_0,  */
-	0x000004ac, 0x00010002, 0x0000060a, 	/* ((r1&~r2)!=0), r1=muld.PRTY_STS_H_0, r2=muld.PRTY_MASK_H_0,  */
-	0x000004ad, 0x00010002, 0x0000060c, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_0, r2=nig.PRTY_MASK_H_0,  */
-	0x000004ae, 0x00010002, 0x0000060e, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_1, r2=nig.PRTY_MASK_H_1,  */
-	0x000004af, 0x00010002, 0x00000610, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_2, r2=nig.PRTY_MASK_H_2,  */
-	0x000004b0, 0x00010002, 0x00000612, 	/* ((r1&~r2)!=0), r1=nig.PRTY_STS_H_3, r2=nig.PRTY_MASK_H_3,  */
-	0x010104b1, 0x00010001, 0x000d0614, 	/* (r1!=1), r1=nig.tx_macfifo_empty,  */
-	0x000004b2, 0x00010002, 0x00000615, 	/* ((r1&~r2)!=0), r1=ptu.PRTY_STS_H_0, r2=ptu.PRTY_MASK_H_0,  */
-	0x000004b3, 0x00010002, 0x00000617, 	/* ((r1&~r2)!=0), r1=cdu.PRTY_STS_H_0, r2=cdu.PRTY_MASK_H_0,  */
-	0x000004b4, 0x00010002, 0x00000619, 	/* ((r1&~r2)!=0), r1=pbf.PRTY_STS_H_0, r2=pbf.PRTY_MASK_H_0,  */
-	0x000004b5, 0x00010002, 0x0000061b, 	/* ((r1&~r2)!=0), r1=pbf.PRTY_STS_H_1, r2=pbf.PRTY_MASK_H_1,  */
-	0x000004b6, 0x00010002, 0x0000061d, 	/* ((r1&~r2)!=0), r1=btb.PRTY_STS_H_0, r2=btb.PRTY_MASK_H_0,  */
-	0x000004b7, 0x00010002, 0x0000061f, 	/* ((r1&~r2)!=0), r1=xsdm.PRTY_STS_H_0, r2=xsdm.PRTY_MASK_H_0,  */
-	0x000004b8, 0x00010002, 0x00000621, 	/* ((r1&~r2)!=0), r1=ysdm.PRTY_STS_H_0, r2=ysdm.PRTY_MASK_H_0,  */
-	0x000004b9, 0x00010002, 0x00000623, 	/* ((r1&~r2)!=0), r1=psdm.PRTY_STS_H_0, r2=psdm.PRTY_MASK_H_0,  */
-	0x000004ba, 0x00010002, 0x00000625, 	/* ((r1&~r2)!=0), r1=tsdm.PRTY_STS_H_0, r2=tsdm.PRTY_MASK_H_0,  */
-	0x000004bb, 0x00010002, 0x00000627, 	/* ((r1&~r2)!=0), r1=msdm.PRTY_STS_H_0, r2=msdm.PRTY_MASK_H_0,  */
-	0x000004bc, 0x00010002, 0x00000629, 	/* ((r1&~r2)!=0), r1=usdm.PRTY_STS_H_0, r2=usdm.PRTY_MASK_H_0,  */
-	0x000004bd, 0x00010002, 0x0000062b, 	/* ((r1&~r2)!=0), r1=xcm.PRTY_STS_H_0, r2=xcm.PRTY_MASK_H_0,  */
-	0x000004be, 0x00010002, 0x0000062d, 	/* ((r1&~r2)!=0), r1=xcm.PRTY_STS_H_1, r2=xcm.PRTY_MASK_H_1,  */
-	0x000004bf, 0x00010002, 0x0000062f, 	/* ((r1&~r2)!=0), r1=ycm.PRTY_STS_H_0, r2=ycm.PRTY_MASK_H_0,  */
-	0x000004c0, 0x00010002, 0x00000631, 	/* ((r1&~r2)!=0), r1=ycm.PRTY_STS_H_1, r2=ycm.PRTY_MASK_H_1,  */
-	0x000004c1, 0x00010002, 0x00000633, 	/* ((r1&~r2)!=0), r1=pcm.PRTY_STS_H_0, r2=pcm.PRTY_MASK_H_0,  */
-	0x010004c2, 0x00010001, 0x00000635, 	/* (r1!=0), r1=pcm.pbf_length_mis,  */
-	0x010104c3, 0x00010001, 0x00000636, 	/* (r1!=0), r1=pcm.is_pbf_fill_lvl,  */
-	0x000004c4, 0x00010002, 0x00000637, 	/* ((r1&~r2)!=0), r1=tcm.PRTY_STS_H_0, r2=tcm.PRTY_MASK_H_0,  */
-	0x000004c5, 0x00010002, 0x00000639, 	/* ((r1&~r2)!=0), r1=tcm.PRTY_STS_H_1, r2=tcm.PRTY_MASK_H_1,  */
-	0x010004c6, 0x00010001, 0x0000063b, 	/* (r1!=0), r1=tcm.prs_length_mis,  */
-	0x010104c7, 0x00010001, 0x0000063c, 	/* (r1!=0), r1=tcm.is_prs_fill_lvl,  */
-	0x000004c8, 0x00010002, 0x0000063d, 	/* ((r1&~r2)!=0), r1=mcm.PRTY_STS_H_0, r2=mcm.PRTY_MASK_H_0,  */
-	0x000004c9, 0x00010002, 0x0000063f, 	/* ((r1&~r2)!=0), r1=mcm.PRTY_STS_H_1, r2=mcm.PRTY_MASK_H_1,  */
-	0x000004ca, 0x00010002, 0x00000641, 	/* ((r1&~r2)!=0), r1=ucm.PRTY_STS_H_0, r2=ucm.PRTY_MASK_H_0,  */
-	0x000004cb, 0x00010002, 0x00000643, 	/* ((r1&~r2)!=0), r1=ucm.PRTY_STS_H_1, r2=ucm.PRTY_MASK_H_1,  */
-	0x010004cc, 0x00010001, 0x00000645, 	/* (r1!=0), r1=ucm.yuld_length_mis,  */
-	0x010104cd, 0x00010001, 0x00000646, 	/* (r1!=0), r1=ucm.is_yuld_fill_lvl,  */
-	0x000004ce, 0x00010002, 0x00000647, 	/* ((r1&~r2)!=0), r1=xsem.PRTY_STS_H_0, r2=xsem.PRTY_MASK_H_0,  */
-	0x010204cf, 0x00010001, 0x00000649, 	/* (r1!=0), r1=xsem.thread_error,  */
-	0x010104d0, 0x00010001, 0x0000064a, 	/* (r1!=0), r1=xsem.thread_rdy,  */
-	0x010104d1, 0x00010001, 0x0000064b, 	/* (r1!=0), r1=xsem.thread_valid,  */
-	0x010104d2, 0x00010001, 0x000d064c, 	/* (r1!=1), r1=xsem.dra_empty,  */
-	0x010104d3, 0x00010001, 0x000d064d, 	/* (r1!=1), r1=xsem.slow_dbg_empty,  */
-	0x010104d4, 0x00010001, 0x000d064e, 	/* (r1!=1), r1=xsem.slow_dra_fin_empty,  */
-	0x010104d5, 0x00010001, 0x000d064f, 	/* (r1!=1), r1=xsem.slow_dra_rd_empty,  */
-	0x010104d6, 0x00010001, 0x000d0650, 	/* (r1!=1), r1=xsem.slow_dra_wr_empty,  */
-	0x010104d7, 0x00010001, 0x000d0651, 	/* (r1!=1), r1=xsem.thread_fifo_empty,  */
-	0x010104d8, 0x00010001, 0x00000652, 	/* (r1!=0), r1=xsem.pas_if_full,  */
-	0x010204d9, 0x00010001, 0x00000653, 	/* (r1!=0), r1=xsem.thread_orun_num,  */
-	0x010104da, 0x00010001, 0x00000654, 	/* (r1!=0), r1=xsem.dbg_if_full,  */
-	0x000004db, 0x00010002, 0x00000655, 	/* ((r1&~r2)!=0), r1=ysem.PRTY_STS_H_0, r2=ysem.PRTY_MASK_H_0,  */
-	0x010204dc, 0x00010001, 0x00000657, 	/* (r1!=0), r1=ysem.thread_error,  */
-	0x010104dd, 0x00010001, 0x00000658, 	/* (r1!=0), r1=ysem.thread_rdy,  */
-	0x010104de, 0x00010001, 0x00000659, 	/* (r1!=0), r1=ysem.thread_valid,  */
-	0x010104df, 0x00010001, 0x000d065a, 	/* (r1!=1), r1=ysem.dra_empty,  */
-	0x010104e0, 0x00010001, 0x000d065b, 	/* (r1!=1), r1=ysem.slow_dbg_empty,  */
-	0x010104e1, 0x00010001, 0x000d065c, 	/* (r1!=1), r1=ysem.slow_dra_fin_empty,  */
-	0x010104e2, 0x00010001, 0x000d065d, 	/* (r1!=1), r1=ysem.slow_dra_rd_empty,  */
-	0x010104e3, 0x00010001, 0x000d065e, 	/* (r1!=1), r1=ysem.slow_dra_wr_empty,  */
-	0x010104e4, 0x00010001, 0x000d065f, 	/* (r1!=1), r1=ysem.thread_fifo_empty,  */
-	0x010104e5, 0x00010001, 0x00000660, 	/* (r1!=0), r1=ysem.pas_if_full,  */
-	0x010204e6, 0x00010001, 0x00000661, 	/* (r1!=0), r1=ysem.thread_orun_num,  */
-	0x010104e7, 0x00010001, 0x00000662, 	/* (r1!=0), r1=ysem.dbg_if_full,  */
-	0x000004e8, 0x00010002, 0x00000663, 	/* ((r1&~r2)!=0), r1=psem.PRTY_STS_H_0, r2=psem.PRTY_MASK_H_0,  */
-	0x010204e9, 0x00010001, 0x00000665, 	/* (r1!=0), r1=psem.thread_error,  */
-	0x010104ea, 0x00010001, 0x00000666, 	/* (r1!=0), r1=psem.thread_rdy,  */
-	0x010104eb, 0x00010001, 0x00000667, 	/* (r1!=0), r1=psem.thread_valid,  */
-	0x010104ec, 0x00010001, 0x000d0668, 	/* (r1!=1), r1=psem.dra_empty,  */
-	0x010104ed, 0x00010001, 0x000d0669, 	/* (r1!=1), r1=psem.slow_dbg_empty,  */
-	0x010104ee, 0x00010001, 0x000d066a, 	/* (r1!=1), r1=psem.slow_dra_fin_empty,  */
-	0x010104ef, 0x00010001, 0x000d066b, 	/* (r1!=1), r1=psem.slow_dra_rd_empty,  */
-	0x010104f0, 0x00010001, 0x000d066c, 	/* (r1!=1), r1=psem.slow_dra_wr_empty,  */
-	0x010104f1, 0x00010001, 0x000d066d, 	/* (r1!=1), r1=psem.thread_fifo_empty,  */
-	0x010104f2, 0x00010001, 0x0000066e, 	/* (r1!=0), r1=psem.pas_if_full,  */
-	0x010204f3, 0x00010001, 0x0000066f, 	/* (r1!=0), r1=psem.thread_orun_num,  */
-	0x010104f4, 0x00010001, 0x00000670, 	/* (r1!=0), r1=psem.dbg_if_full,  */
-	0x000004f5, 0x00010002, 0x00000671, 	/* ((r1&~r2)!=0), r1=tsem.PRTY_STS_H_0, r2=tsem.PRTY_MASK_H_0,  */
-	0x010204f6, 0x00010001, 0x00000673, 	/* (r1!=0), r1=tsem.thread_error,  */
-	0x010104f7, 0x00010001, 0x00000674, 	/* (r1!=0), r1=tsem.thread_rdy,  */
-	0x010104f8, 0x00010001, 0x00000675, 	/* (r1!=0), r1=tsem.thread_valid,  */
-	0x010104f9, 0x00010001, 0x000d0676, 	/* (r1!=1), r1=tsem.dra_empty,  */
-	0x010104fa, 0x00010001, 0x000d0677, 	/* (r1!=1), r1=tsem.slow_dbg_empty,  */
-	0x010104fb, 0x00010001, 0x000d0678, 	/* (r1!=1), r1=tsem.slow_dra_fin_empty,  */
-	0x010104fc, 0x00010001, 0x000d0679, 	/* (r1!=1), r1=tsem.slow_dra_rd_empty,  */
-	0x010104fd, 0x00010001, 0x000d067a, 	/* (r1!=1), r1=tsem.slow_dra_wr_empty,  */
-	0x010104fe, 0x00010001, 0x000d067b, 	/* (r1!=1), r1=tsem.thread_fifo_empty,  */
-	0x010104ff, 0x00010001, 0x0000067c, 	/* (r1!=0), r1=tsem.pas_if_full,  */
-	0x01020500, 0x00010001, 0x0000067d, 	/* (r1!=0), r1=tsem.thread_orun_num,  */
-	0x01010501, 0x00010001, 0x0000067e, 	/* (r1!=0), r1=tsem.dbg_if_full,  */
-	0x00000502, 0x00010002, 0x0000067f, 	/* ((r1&~r2)!=0), r1=msem.PRTY_STS_H_0, r2=msem.PRTY_MASK_H_0,  */
-	0x01020503, 0x00010001, 0x00000681, 	/* (r1!=0), r1=msem.thread_error,  */
-	0x01010504, 0x00010001, 0x00000682, 	/* (r1!=0), r1=msem.thread_rdy,  */
-	0x01010505, 0x00010001, 0x00000683, 	/* (r1!=0), r1=msem.thread_valid,  */
-	0x01010506, 0x00010001, 0x000d0684, 	/* (r1!=1), r1=msem.dra_empty,  */
-	0x01010507, 0x00010001, 0x000d0685, 	/* (r1!=1), r1=msem.slow_dbg_empty,  */
-	0x01010508, 0x00010001, 0x000d0686, 	/* (r1!=1), r1=msem.slow_dra_fin_empty,  */
-	0x01010509, 0x00010001, 0x000d0687, 	/* (r1!=1), r1=msem.slow_dra_rd_empty,  */
-	0x0101050a, 0x00010001, 0x000d0688, 	/* (r1!=1), r1=msem.slow_dra_wr_empty,  */
-	0x0101050b, 0x00010001, 0x000d0689, 	/* (r1!=1), r1=msem.thread_fifo_empty,  */
-	0x0101050c, 0x00010001, 0x0000068a, 	/* (r1!=0), r1=msem.pas_if_full,  */
-	0x0102050d, 0x00010001, 0x0000068b, 	/* (r1!=0), r1=msem.thread_orun_num,  */
-	0x0101050e, 0x00010001, 0x0000068c, 	/* (r1!=0), r1=msem.dbg_if_full,  */
-	0x0000050f, 0x00010002, 0x0000068d, 	/* ((r1&~r2)!=0), r1=usem.PRTY_STS_H_0, r2=usem.PRTY_MASK_H_0,  */
-	0x01020510, 0x00010001, 0x0000068f, 	/* (r1!=0), r1=usem.thread_error,  */
-	0x01010511, 0x00010001, 0x00000690, 	/* (r1!=0), r1=usem.thread_rdy,  */
-	0x01010512, 0x00010001, 0x00000691, 	/* (r1!=0), r1=usem.thread_valid,  */
-	0x01010513, 0x00010001, 0x000d0692, 	/* (r1!=1), r1=usem.dra_empty,  */
-	0x01010514, 0x00010001, 0x000d0693, 	/* (r1!=1), r1=usem.slow_dbg_empty,  */
-	0x01010515, 0x00010001, 0x000d0694, 	/* (r1!=1), r1=usem.slow_dra_fin_empty,  */
-	0x01010516, 0x00010001, 0x000d0695, 	/* (r1!=1), r1=usem.slow_dra_rd_empty,  */
-	0x01010517, 0x00010001, 0x000d0696, 	/* (r1!=1), r1=usem.slow_dra_wr_empty,  */
-	0x01010518, 0x00010001, 0x000d0697, 	/* (r1!=1), r1=usem.thread_fifo_empty,  */
-	0x01010519, 0x00010001, 0x00000698, 	/* (r1!=0), r1=usem.pas_if_full,  */
-	0x0102051a, 0x00010001, 0x00000699, 	/* (r1!=0), r1=usem.thread_orun_num,  */
-	0x0101051b, 0x00010001, 0x0000069a, 	/* (r1!=0), r1=usem.dbg_if_full,  */
-	0x0003001d, 	/* mode !(!asic) */
-	0x0000051c, 0x00010002, 0x0000069b, 	/* ((r1&~r2)!=0), r1=mcp2.PRTY_STS, r2=mcp2.PRTY_MASK,  */
-	0x0003004f, 	/* mode (!e5)&(!(emul_reduced|fpga)) */
-	0x0000051d, 0x00010002, 0x0000069d, 	/* ((r1&~r2)!=0), r1=ncsi.PRTY_STS_H_0, r2=ncsi.PRTY_MASK_H_0,  */
-	0x00600099, 	/* mode (!bb)&(!(!asic)) */
-	0x0600051e, 0x00020001, 0x000b069f, 	/* ((r1&0x00000002)!=0), r1=umac.INT_STS,  */
-	0x0600051f, 0x00020001, 0x000d06a0, 	/* ((r1&0x00000001)!=0), r1=umac.INT_STS,  */
-	0x01020520, 0x00010001, 0x000006a1, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl0,  */
-	0x01020521, 0x00010001, 0x000006a2, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl1,  */
-	0x01020522, 0x00010001, 0x000006a3, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl2,  */
-	0x01000523, 0x00010001, 0x000006a4, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
-	0x06000524, 0x00020001, 0x000d06a5, 	/* ((r1&0x00000001)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
-	0x06000525, 0x00020001, 0x000b06a6, 	/* ((r1&0x00000002)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
-	0x06000526, 0x00020001, 0x006d06a7, 	/* ((r1&0x00000004)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
-	0x01000527, 0x00010001, 0x000006a8, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status1,  */
-	0x01000528, 0x00010001, 0x000006a9, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status2,  */
-	0x01000529, 0x00010001, 0x000006aa, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status3,  */
-	0x0100052a, 0x00010001, 0x000d06ab, 	/* (r1!=1), r1=nws.nws_cmu.cmu_lc0_top_phy_if_status,  */
-	0x0100052b, 0x00010001, 0x000006ac, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl1,  */
-	0x0100052c, 0x00010001, 0x000006ad, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl2,  */
-	0x0100052d, 0x00010001, 0x000006ae, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl3,  */
-	0x0100052e, 0x00010001, 0x000d06af, 	/* (r1!=1), r1=nws.nws_cmu.cmu_r0_top_phy_if_status,  */
-	0x0100052f, 0x00010001, 0x000006b0, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl1,  */
-	0x01000530, 0x00010001, 0x000006b1, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl2,  */
-	0x01000531, 0x00010001, 0x000006b2, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl3,  */
-	0x01020532, 0x00010001, 0x000006b3, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl1,  */
-	0x01020533, 0x00010001, 0x000006b4, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl2,  */
-	0x01020534, 0x00010001, 0x000006b5, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl3,  */
-	0x01020535, 0x00010001, 0x000006b6, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl1,  */
-	0x01020536, 0x00010001, 0x000006b7, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl2,  */
-	0x01020537, 0x00010001, 0x000006b8, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl3,  */
-	0x01020538, 0x00010001, 0x000006b9, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl1,  */
-	0x01020539, 0x00010001, 0x000006ba, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl2,  */
-	0x0102053a, 0x00010001, 0x000006bb, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl3,  */
-	0x0102053b, 0x00010001, 0x000006bc, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl1,  */
-	0x0102053c, 0x00010001, 0x000006bd, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl2,  */
-	0x0102053d, 0x00010001, 0x000006be, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl3,  */
-	0x00060153, 	/* mode asic&(!e5) */
-	0x0000053e, 0x00010002, 0x000006bf, 	/* ((r1&~r2)!=0), r1=bmb.PRTY_STS_H_0, r2=bmb.PRTY_MASK_H_0,  */
-	0x0000053f, 0x00010002, 0x000006c1, 	/* ((r1&~r2)!=0), r1=bmb.PRTY_STS_H_1, r2=bmb.PRTY_MASK_H_1,  */
-	0x00030163, 	/* mode bb&asic */
-	0x00000540, 0x00010002, 0x000006c3, 	/* ((r1&~r2)!=0), r1=ipc.PRTY_STS, r2=ipc.PRTY_MASK,  */
-	0x000300a5, 	/* mode (!e5)&(!(!asic)) */
-	0x00000541, 0x00010002, 0x000006c5, 	/* ((r1&~r2)!=0), r1=mcp2.PRTY_STS_H_0, r2=mcp2.PRTY_MASK_H_0,  */
+	0x060004a2, 0x00020001, 0x004a0616, 	/* ((r1&0x0FD010)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
+	0x060204a3, 0x00020001, 0x00480617, 	/* ((r1&0x2000)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
+	0x060204a4, 0x00020001, 0x004c0618, 	/* ((r1&0x100000)!=0), r1=pglcs.pgl_cs.uc_err_status,  */
+	0x010204a5, 0x00010001, 0x00000619, 	/* (r1!=0), r1=pglcs.pgl_cs.header_log1[0:3],  */
+	0x060204a6, 0x00020001, 0x0066061a, 	/* ((r1&0x2000000)!=0), r1=pglcs.pgl_cs.tl_ctrlstat_5,  */
+	0x040004a7, 0x00020001, 0x0068061b, 	/* ((r1&~0x2040902)!=0), r1=pglcs.pgl_cs.tl_ctrlstat_5,  */
+	0x040004a8, 0x00020001, 0x006a061c, 	/* ((r1&~0x10240902)!=0), r1=pglcs.pgl_cs.tl_func345_stat,  */
+	0x040004a9, 0x00020001, 0x006a061d, 	/* ((r1&~0x10240902)!=0), r1=pglcs.pgl_cs.tl_func678_stat,  */
+	0x060004aa, 0x00020001, 0x000b061e, 	/* ((r1&0x2)!=0), r1=pglcs.pgl_cs.DLATTN_VEC,  */
+	0x000004ab, 0x00010002, 0x0000061f, 	/* ((r1&~r2)!=0), r1=miscs.INT_STS_1, r2=miscs.INT_MASK_1,  */
+	0x000004ac, 0x00010002, 0x00000621, 	/* ((r1&~r2)!=0), r1=igu.PRTY_STS_H_1, r2=igu.PRTY_MASK_H_1,  */
+	0x010104ad, 0x00010001, 0x000d0623, 	/* (r1!=1), r1=nig.rx_macfifo_empty,  */
+	0x01590043, 	/* mode !e5 */
+	0x000004ae, 0x00010002, 0x00000624, 	/* ((r1&~r2)!=0), r1=opte.PRTY_STS_H_0, r2=opte.PRTY_MASK_H_0,  */
+	0x010204af, 0x00010001, 0x00000626, 	/* (r1!=0), r1=cau.agg_units_0to15_state,  */
+	0x010204b0, 0x00010001, 0x00000627, 	/* (r1!=0), r1=cau.agg_units_16to31_state,  */
+	0x010204b1, 0x00010001, 0x00000628, 	/* (r1!=0), r1=cau.agg_units_32to47_state,  */
+	0x010204b2, 0x00010001, 0x00000629, 	/* (r1!=0), r1=cau.agg_units_48to63_state,  */
+	0x010204b3, 0x00010001, 0x0000062a, 	/* (r1!=0), r1=cau.igu_cqe_cmd_fsm_status,  */
+	0x010204b4, 0x00010001, 0x0000062b, 	/* (r1!=0), r1=cau.igu_cqe_agg_fsm_status,  */
+	0x000004b5, 0x00010002, 0x0000062c, 	/* ((r1&~r2)!=0), r1=prs.PRTY_STS_H_1, r2=prs.PRTY_MASK_H_1,  */
+	0x010104b6, 0x00010001, 0x0000062e, 	/* (r1!=0), r1=prs.prs_pkt_ct,  */
+	0x010104b7, 0x00010001, 0x0000062f, 	/* (r1!=0), r1=prs.tcm_current_credit,  */
+	0x010204b8, 0x00010001, 0x006c0630, 	/* (r1!=31), r1=rss.empty_status,  */
+	0x010204b9, 0x00010001, 0x00000631, 	/* (r1!=0), r1=rss.full_status,  */
+	0x010204ba, 0x00010001, 0x00000632, 	/* (r1!=0), r1=rss.counters_status,  */
+	0x010104bb, 0x00010001, 0x00000633, 	/* (r1!=0), r1=rss.state_machines,  */
+	0x010104bc, 0x00010001, 0x00000634, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_1_ctr,  */
+	0x010104bd, 0x00010001, 0x00000635, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_2_ctr,  */
+	0x010104be, 0x00010001, 0x00000636, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_3_ctr,  */
+	0x010104bf, 0x00010001, 0x00000637, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_4_ctr,  */
+	0x010104c0, 0x00010001, 0x00000638, 	/* (r1!=0), r1=yuld.pending_msg_to_ext_ev_5_ctr,  */
+	0x030104c1, 0x00000002, 0x00000639, 	/* (r1!=r2), r1=yuld.foc_remain_credits, r2=yuld.foci_foc_credits,  */
+	0x010104c2, 0x00010001, 0x0000063b, 	/* (r1!=0), r1=yuld.dbg_pending_ccfc_req,  */
+	0x010104c3, 0x00010001, 0x0000063c, 	/* (r1!=0), r1=yuld.dbg_pending_tcfc_req,  */
+	0x000004c4, 0x00010002, 0x0000063d, 	/* ((r1&~r2)!=0), r1=yuld.PRTY_STS_H_0, r2=yuld.PRTY_MASK_H_0,  */
+	0x010104c5, 0x00010001, 0x000d063f, 	/* (r1!=1), r1=nig.tx_macfifo_empty,  */
+	0x000004c6, 0x00010002, 0x00000640, 	/* ((r1&~r2)!=0), r1=pbf.PRTY_STS_H_0, r2=pbf.PRTY_MASK_H_0,  */
+	0x000004c7, 0x00010002, 0x00000642, 	/* ((r1&~r2)!=0), r1=pbf.PRTY_STS_H_1, r2=pbf.PRTY_MASK_H_1,  */
+	0x010004c8, 0x00010001, 0x00000644, 	/* (r1!=0), r1=pcm.pbf_length_mis,  */
+	0x010104c9, 0x00010001, 0x00000645, 	/* (r1!=0), r1=pcm.is_pbf_fill_lvl,  */
+	0x010004ca, 0x00010001, 0x00000646, 	/* (r1!=0), r1=tcm.prs_length_mis,  */
+	0x010104cb, 0x00010001, 0x00000647, 	/* (r1!=0), r1=tcm.is_prs_fill_lvl,  */
+	0x010004cc, 0x00010001, 0x00000648, 	/* (r1!=0), r1=ucm.yuld_length_mis,  */
+	0x010104cd, 0x00010001, 0x00000649, 	/* (r1!=0), r1=ucm.is_yuld_fill_lvl,  */
+	0x000004ce, 0x00010002, 0x0000064a, 	/* ((r1&~r2)!=0), r1=xsem.PRTY_STS_H_0, r2=xsem.PRTY_MASK_H_0,  */
+	0x010204cf, 0x00010001, 0x0000064c, 	/* (r1!=0), r1=xsem.thread_error,  */
+	0x010104d0, 0x00010001, 0x0000064d, 	/* (r1!=0), r1=xsem.thread_rdy,  */
+	0x010104d1, 0x00010001, 0x0000064e, 	/* (r1!=0), r1=xsem.thread_valid,  */
+	0x010104d2, 0x00010001, 0x000d064f, 	/* (r1!=1), r1=xsem.dra_empty,  */
+	0x010104d3, 0x00010001, 0x000d0650, 	/* (r1!=1), r1=xsem.slow_dbg_empty,  */
+	0x010104d4, 0x00010001, 0x000d0651, 	/* (r1!=1), r1=xsem.slow_dra_fin_empty,  */
+	0x010104d5, 0x00010001, 0x000d0652, 	/* (r1!=1), r1=xsem.slow_dra_rd_empty,  */
+	0x010104d6, 0x00010001, 0x000d0653, 	/* (r1!=1), r1=xsem.slow_dra_wr_empty,  */
+	0x010104d7, 0x00010001, 0x000d0654, 	/* (r1!=1), r1=xsem.slow_ram_rd_empty,  */
+	0x010104d8, 0x00010001, 0x000d0655, 	/* (r1!=1), r1=xsem.thread_fifo_empty,  */
+	0x010104d9, 0x00010001, 0x00000656, 	/* (r1!=0), r1=xsem.pas_if_full,  */
+	0x010204da, 0x00010001, 0x00000657, 	/* (r1!=0), r1=xsem.thread_orun_num,  */
+	0x010104db, 0x00010001, 0x00000658, 	/* (r1!=0), r1=xsem.dbg_if_full,  */
+	0x000004dc, 0x00010002, 0x00000659, 	/* ((r1&~r2)!=0), r1=ysem.PRTY_STS_H_0, r2=ysem.PRTY_MASK_H_0,  */
+	0x010204dd, 0x00010001, 0x0000065b, 	/* (r1!=0), r1=ysem.thread_error,  */
+	0x010104de, 0x00010001, 0x0000065c, 	/* (r1!=0), r1=ysem.thread_rdy,  */
+	0x010104df, 0x00010001, 0x0000065d, 	/* (r1!=0), r1=ysem.thread_valid,  */
+	0x010104e0, 0x00010001, 0x000d065e, 	/* (r1!=1), r1=ysem.dra_empty,  */
+	0x010104e1, 0x00010001, 0x000d065f, 	/* (r1!=1), r1=ysem.slow_dbg_empty,  */
+	0x010104e2, 0x00010001, 0x000d0660, 	/* (r1!=1), r1=ysem.slow_dra_fin_empty,  */
+	0x010104e3, 0x00010001, 0x000d0661, 	/* (r1!=1), r1=ysem.slow_dra_rd_empty,  */
+	0x010104e4, 0x00010001, 0x000d0662, 	/* (r1!=1), r1=ysem.slow_dra_wr_empty,  */
+	0x010104e5, 0x00010001, 0x000d0663, 	/* (r1!=1), r1=ysem.slow_ram_rd_empty,  */
+	0x010104e6, 0x00010001, 0x000d0664, 	/* (r1!=1), r1=ysem.thread_fifo_empty,  */
+	0x010104e7, 0x00010001, 0x00000665, 	/* (r1!=0), r1=ysem.pas_if_full,  */
+	0x010204e8, 0x00010001, 0x00000666, 	/* (r1!=0), r1=ysem.thread_orun_num,  */
+	0x010104e9, 0x00010001, 0x00000667, 	/* (r1!=0), r1=ysem.dbg_if_full,  */
+	0x000004ea, 0x00010002, 0x00000668, 	/* ((r1&~r2)!=0), r1=psem.PRTY_STS_H_0, r2=psem.PRTY_MASK_H_0,  */
+	0x010204eb, 0x00010001, 0x0000066a, 	/* (r1!=0), r1=psem.thread_error,  */
+	0x010104ec, 0x00010001, 0x0000066b, 	/* (r1!=0), r1=psem.thread_rdy,  */
+	0x010104ed, 0x00010001, 0x0000066c, 	/* (r1!=0), r1=psem.thread_valid,  */
+	0x010104ee, 0x00010001, 0x000d066d, 	/* (r1!=1), r1=psem.dra_empty,  */
+	0x010104ef, 0x00010001, 0x000d066e, 	/* (r1!=1), r1=psem.slow_dbg_empty,  */
+	0x010104f0, 0x00010001, 0x000d066f, 	/* (r1!=1), r1=psem.slow_dra_fin_empty,  */
+	0x010104f1, 0x00010001, 0x000d0670, 	/* (r1!=1), r1=psem.slow_dra_rd_empty,  */
+	0x010104f2, 0x00010001, 0x000d0671, 	/* (r1!=1), r1=psem.slow_dra_wr_empty,  */
+	0x010104f3, 0x00010001, 0x000d0672, 	/* (r1!=1), r1=psem.slow_ram_rd_empty,  */
+	0x010104f4, 0x00010001, 0x000d0673, 	/* (r1!=1), r1=psem.thread_fifo_empty,  */
+	0x010104f5, 0x00010001, 0x00000674, 	/* (r1!=0), r1=psem.pas_if_full,  */
+	0x010204f6, 0x00010001, 0x00000675, 	/* (r1!=0), r1=psem.thread_orun_num,  */
+	0x010104f7, 0x00010001, 0x00000676, 	/* (r1!=0), r1=psem.dbg_if_full,  */
+	0x000004f8, 0x00010002, 0x00000677, 	/* ((r1&~r2)!=0), r1=tsem.PRTY_STS_H_0, r2=tsem.PRTY_MASK_H_0,  */
+	0x010204f9, 0x00010001, 0x00000679, 	/* (r1!=0), r1=tsem.thread_error,  */
+	0x010104fa, 0x00010001, 0x0000067a, 	/* (r1!=0), r1=tsem.thread_rdy,  */
+	0x010104fb, 0x00010001, 0x0000067b, 	/* (r1!=0), r1=tsem.thread_valid,  */
+	0x010104fc, 0x00010001, 0x000d067c, 	/* (r1!=1), r1=tsem.dra_empty,  */
+	0x010104fd, 0x00010001, 0x000d067d, 	/* (r1!=1), r1=tsem.slow_dbg_empty,  */
+	0x010104fe, 0x00010001, 0x000d067e, 	/* (r1!=1), r1=tsem.slow_dra_fin_empty,  */
+	0x010104ff, 0x00010001, 0x000d067f, 	/* (r1!=1), r1=tsem.slow_dra_rd_empty,  */
+	0x01010500, 0x00010001, 0x000d0680, 	/* (r1!=1), r1=tsem.slow_dra_wr_empty,  */
+	0x01010501, 0x00010001, 0x000d0681, 	/* (r1!=1), r1=tsem.slow_ram_rd_empty,  */
+	0x01010502, 0x00010001, 0x000d0682, 	/* (r1!=1), r1=tsem.thread_fifo_empty,  */
+	0x01010503, 0x00010001, 0x00000683, 	/* (r1!=0), r1=tsem.pas_if_full,  */
+	0x01020504, 0x00010001, 0x00000684, 	/* (r1!=0), r1=tsem.thread_orun_num,  */
+	0x01010505, 0x00010001, 0x00000685, 	/* (r1!=0), r1=tsem.dbg_if_full,  */
+	0x01020506, 0x00010001, 0x00000686, 	/* (r1!=0), r1=msem.thread_error,  */
+	0x01010507, 0x00010001, 0x00000687, 	/* (r1!=0), r1=msem.thread_rdy,  */
+	0x01010508, 0x00010001, 0x00000688, 	/* (r1!=0), r1=msem.thread_valid,  */
+	0x01010509, 0x00010001, 0x000d0689, 	/* (r1!=1), r1=msem.dra_empty,  */
+	0x0101050a, 0x00010001, 0x000d068a, 	/* (r1!=1), r1=msem.slow_dbg_empty,  */
+	0x0101050b, 0x00010001, 0x000d068b, 	/* (r1!=1), r1=msem.slow_dra_fin_empty,  */
+	0x0101050c, 0x00010001, 0x000d068c, 	/* (r1!=1), r1=msem.slow_dra_rd_empty,  */
+	0x0101050d, 0x00010001, 0x000d068d, 	/* (r1!=1), r1=msem.slow_dra_wr_empty,  */
+	0x0101050e, 0x00010001, 0x000d068e, 	/* (r1!=1), r1=msem.slow_ram_rd_empty,  */
+	0x0101050f, 0x00010001, 0x000d068f, 	/* (r1!=1), r1=msem.thread_fifo_empty,  */
+	0x01010510, 0x00010001, 0x00000690, 	/* (r1!=0), r1=msem.pas_if_full,  */
+	0x01020511, 0x00010001, 0x00000691, 	/* (r1!=0), r1=msem.thread_orun_num,  */
+	0x01010512, 0x00010001, 0x00000692, 	/* (r1!=0), r1=msem.dbg_if_full,  */
+	0x00000513, 0x00010002, 0x00000693, 	/* ((r1&~r2)!=0), r1=usem.PRTY_STS_H_0, r2=usem.PRTY_MASK_H_0,  */
+	0x01020514, 0x00010001, 0x00000695, 	/* (r1!=0), r1=usem.thread_error,  */
+	0x01010515, 0x00010001, 0x00000696, 	/* (r1!=0), r1=usem.thread_rdy,  */
+	0x01010516, 0x00010001, 0x00000697, 	/* (r1!=0), r1=usem.thread_valid,  */
+	0x01010517, 0x00010001, 0x000d0698, 	/* (r1!=1), r1=usem.dra_empty,  */
+	0x01010518, 0x00010001, 0x000d0699, 	/* (r1!=1), r1=usem.slow_dbg_empty,  */
+	0x01010519, 0x00010001, 0x000d069a, 	/* (r1!=1), r1=usem.slow_dra_fin_empty,  */
+	0x0101051a, 0x00010001, 0x000d069b, 	/* (r1!=1), r1=usem.slow_dra_rd_empty,  */
+	0x0101051b, 0x00010001, 0x000d069c, 	/* (r1!=1), r1=usem.slow_dra_wr_empty,  */
+	0x0101051c, 0x00010001, 0x000d069d, 	/* (r1!=1), r1=usem.slow_ram_rd_empty,  */
+	0x0101051d, 0x00010001, 0x000d069e, 	/* (r1!=1), r1=usem.thread_fifo_empty,  */
+	0x0101051e, 0x00010001, 0x0000069f, 	/* (r1!=0), r1=usem.pas_if_full,  */
+	0x0102051f, 0x00010001, 0x000006a0, 	/* (r1!=0), r1=usem.thread_orun_num,  */
+	0x01010520, 0x00010001, 0x000006a1, 	/* (r1!=0), r1=usem.dbg_if_full,  */
+	0x0006001d, 	/* mode !(!asic) */
+	0x00000521, 0x00010002, 0x000006a2, 	/* ((r1&~r2)!=0), r1=mcp2.PRTY_STS, r2=mcp2.PRTY_MASK,  */
+	0x00000522, 0x00010002, 0x000006a4, 	/* ((r1&~r2)!=0), r1=mcp2.PRTY_STS_H_0, r2=mcp2.PRTY_MASK_H_0,  */
+	0x0003000b, 	/* mode !(emul_reduced|fpga) */
+	0x00000523, 0x00010002, 0x000006a6, 	/* ((r1&~r2)!=0), r1=ncsi.PRTY_STS_H_0, r2=ncsi.PRTY_MASK_H_0,  */
+	0x006000c3, 	/* mode (!bb)&(!(!asic)) */
+	0x06000524, 0x00020001, 0x000b06a8, 	/* ((r1&0x00000002)!=0), r1=umac.INT_STS,  */
+	0x06000525, 0x00020001, 0x000d06a9, 	/* ((r1&0x00000001)!=0), r1=umac.INT_STS,  */
+	0x01020526, 0x00010001, 0x000006aa, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl0,  */
+	0x01020527, 0x00010001, 0x000006ab, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl1,  */
+	0x01020528, 0x00010001, 0x000006ac, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_err_ctrl2,  */
+	0x06000529, 0x00020001, 0x006d06ad, 	/* ((r1&0x00000004)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
+	0x0600052a, 0x00020001, 0x000b06ae, 	/* ((r1&0x00000002)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
+	0x0600052b, 0x00020001, 0x000d06af, 	/* ((r1&0x00000001)!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
+	0x0100052c, 0x00010001, 0x000006b0, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status0,  */
+	0x0100052d, 0x00010001, 0x000006b1, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status1,  */
+	0x0100052e, 0x00010001, 0x000006b2, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status2,  */
+	0x0100052f, 0x00010001, 0x000006b3, 	/* (r1!=0), r1=nws.nws_cmu.phy0_top_regbus_err_info_status3,  */
+	0x01000530, 0x00010001, 0x000d06b4, 	/* (r1!=1), r1=nws.nws_cmu.cmu_lc0_top_phy_if_status,  */
+	0x01000531, 0x00010001, 0x000006b5, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl1,  */
+	0x01000532, 0x00010001, 0x000006b6, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl2,  */
+	0x01000533, 0x00010001, 0x000006b7, 	/* (r1!=0), r1=nws.nws_cmu.cmu_lc0_top_err_ctrl3,  */
+	0x01000534, 0x00010001, 0x000d06b8, 	/* (r1!=1), r1=nws.nws_cmu.cmu_r0_top_phy_if_status,  */
+	0x01000535, 0x00010001, 0x000006b9, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl1,  */
+	0x01000536, 0x00010001, 0x000006ba, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl2,  */
+	0x01000537, 0x00010001, 0x000006bb, 	/* (r1!=0), r1=nws.nws_cmu.cmu_r0_top_err_ctrl3,  */
+	0x01020538, 0x00010001, 0x000006bc, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl1,  */
+	0x01020539, 0x00010001, 0x000006bd, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl2,  */
+	0x0102053a, 0x00010001, 0x000006be, 	/* (r1!=0), r1=nws.nws_cmu.ln0_top_err_ctrl3,  */
+	0x0102053b, 0x00010001, 0x000006bf, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl1,  */
+	0x0102053c, 0x00010001, 0x000006c0, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl2,  */
+	0x0102053d, 0x00010001, 0x000006c1, 	/* (r1!=0), r1=nws.nws_cmu.ln1_top_err_ctrl3,  */
+	0x0102053e, 0x00010001, 0x000006c2, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl1,  */
+	0x0102053f, 0x00010001, 0x000006c3, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl2,  */
+	0x01020540, 0x00010001, 0x000006c4, 	/* (r1!=0), r1=nws.nws_cmu.ln2_top_err_ctrl3,  */
+	0x01020541, 0x00010001, 0x000006c5, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl1,  */
+	0x01020542, 0x00010001, 0x000006c6, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl2,  */
+	0x01020543, 0x00010001, 0x000006c7, 	/* (r1!=0), r1=nws.nws_cmu.ln3_top_err_ctrl3,  */
+	0x0003018d, 	/* mode bb&asic */
+	0x00000544, 0x00010002, 0x000006c8, 	/* ((r1&~r2)!=0), r1=ipc.PRTY_STS, r2=ipc.PRTY_MASK,  */
 };
-/* Data size: 16212 bytes */
+/* Data size: 16240 bytes */
 
 /* Array of attentions data per register */
 static const u32 attn_reg[] = {
@@ -7082,17 +7160,17 @@ static const u32 attn_reg[] = {
 	0x00000000, 0x180aa060, 0x000aa063, 0x000aa061, 	/* pglue_b.INT_STS */
 	0x00000000, 0x010aa064, 0x000aa067, 0x000aa065, 	/* pglue_b.PRTY_STS */
 	0x012a0007, 0x160aa080, 0x000aa083, 0x000aa081, 	/* pglue_b.PRTY_STS_H_0, mode bb */
-	0x00010143, 0x1f0aa080, 0x000aa083, 0x000aa081, 	/* pglue_b.PRTY_STS_H_0, mode !(bb|e5) */
-	0x00200143, 0x030aa084, 0x000aa087, 0x000aa085, 	/* pglue_b.PRTY_STS_H_1, mode !(bb|e5) */
+	0x00010025, 0x1f0aa080, 0x000aa083, 0x000aa081, 	/* pglue_b.PRTY_STS_H_0, mode !bb */
+	0x00200025, 0x030aa084, 0x000aa087, 0x000aa085, 	/* pglue_b.PRTY_STS_H_1, mode !bb */
 	0x01400007, 0x060860ba, 0x000860bd, 0x000860bb, 	/* cnig.INT_STS, mode bb */
 	0x00000025, 0x07086086, 0x00086089, 0x00086087, 	/* cnig.INT_STS, mode !bb */
 	0x01460007, 0x020860d2, 0x000860d5, 0x000860d3, 	/* cnig.PRTY_STS, mode bb */
 	0x01480025, 0x0208608b, 0x0008608e, 0x0008608c, 	/* cnig.PRTY_STS, mode !bb */
 	0x00000000, 0x0100c0f8, 0x0000c0fb, 0x0000c0f9, 	/* cpmu.INT_STS_0 */
 	0x00000000, 0x01010133, 0x00010136, 0x00010134, 	/* ncsi.INT_STS_0 */
-	0x00000051, 0x01010000, 0x00010003, 0x00010001, 	/* ncsi.PRTY_STS_H_0, mode !e5 */
-	0x00000051, 0x01014c82, 0x00014c85, 0x00014c83, 	/* opte.PRTY_STS, mode !e5 */
-	0x00010051, 0x0b014c00, 0x00014c03, 0x00014c01, 	/* opte.PRTY_STS_H_0, mode !e5 */
+	0x00000000, 0x03010000, 0x00010003, 0x00010001, 	/* ncsi.PRTY_STS_H_0 */
+	0x00000043, 0x01014c82, 0x00014c85, 0x00014c83, 	/* opte.PRTY_STS, mode !e5 */
+	0x00010043, 0x0b014c00, 0x00014c03, 0x00014c01, 	/* opte.PRTY_STS_H_0, mode !e5 */
 	0x014a0000, 0x17150030, 0x00150033, 0x00150031, 	/* bmb.INT_STS_0 */
 	0x01610000, 0x20150036, 0x00150039, 0x00150037, 	/* bmb.INT_STS_1 */
 	0x01810000, 0x1c15003c, 0x0015003f, 0x0015003d, 	/* bmb.INT_STS_2 */
@@ -7106,257 +7184,358 @@ static const u32 attn_reg[] = {
 	0x023f0000, 0x0715006d, 0x00150070, 0x0015006e, 	/* bmb.INT_STS_10 */
 	0x02460000, 0x08150073, 0x00150076, 0x00150074, 	/* bmb.INT_STS_11 */
 	0x00000000, 0x05150077, 0x0015007a, 0x00150078, 	/* bmb.PRTY_STS */
-	0x00050051, 0x1f150100, 0x00150103, 0x00150101, 	/* bmb.PRTY_STS_H_0, mode !e5 */
-	0x00240051, 0x0f150104, 0x00150107, 0x00150105, 	/* bmb.PRTY_STS_H_1, mode !e5 */
+	0x024e0000, 0x2e150100, 0x00150103, 0x00150101, 	/* bmb.PRTY_STS_H_0 */
+	0x027c0007, 0x0f150104, 0x00150107, 0x00150105, 	/* bmb.PRTY_STS_H_1, mode bb */
+	0x027c0009, 0x0f150104, 0x00150107, 0x00150105, 	/* bmb.PRTY_STS_H_1, mode k2 */
+	0x028b0003, 0x17150104, 0x00150107, 0x00150105, 	/* bmb.PRTY_STS_H_1, mode !(bb|k2) */
 	0x00000025, 0x110151e8, 0x000151eb, 0x000151e9, 	/* pcie.INT_STS, mode !bb */
 	0x00000025, 0x030151ec, 0x000151ef, 0x000151ed, 	/* pcie.PRTY_STS, mode !bb */
-	0x024e0007, 0x11015000, 0x00015003, 0x00015001, 	/* pcie.PRTY_STS_H_0, mode bb */
+	0x02a20007, 0x11015000, 0x00015003, 0x00015001, 	/* pcie.PRTY_STS_H_0, mode bb */
 	0x00030025, 0x08015000, 0x00015003, 0x00015001, 	/* pcie.PRTY_STS_H_0, mode !bb */
 	0x00000000, 0x01014810, 0x00014813, 0x00014811, 	/* mcp2.PRTY_STS */
-	0x00010051, 0x0c014881, 0x00014884, 0x00014882, 	/* mcp2.PRTY_STS_H_0, mode !e5 */
+	0x00010000, 0x0c014881, 0x00014884, 0x00014882, 	/* mcp2.PRTY_STS_H_0 */
 	0x00000000, 0x120a8060, 0x000a8063, 0x000a8061, 	/* pswhst.INT_STS */
 	0x00000000, 0x010a8064, 0x000a8067, 0x000a8065, 	/* pswhst.PRTY_STS */
-	0x00010051, 0x110a8080, 0x000a8083, 0x000a8081, 	/* pswhst.PRTY_STS_H_0, mode !e5 */
+	0x00010000, 0x110a8080, 0x000a8083, 0x000a8081, 	/* pswhst.PRTY_STS_H_0 */
 	0x00000000, 0x050a7860, 0x000a7863, 0x000a7861, 	/* pswhst2.INT_STS */
 	0x00000000, 0x010a7864, 0x000a7867, 0x000a7865, 	/* pswhst2.PRTY_STS */
 	0x00000000, 0x030a7060, 0x000a7063, 0x000a7061, 	/* pswrd.INT_STS */
 	0x00000000, 0x010a7064, 0x000a7067, 0x000a7065, 	/* pswrd.PRTY_STS */
 	0x00000000, 0x050a7460, 0x000a7463, 0x000a7461, 	/* pswrd2.INT_STS */
 	0x00000000, 0x010a7464, 0x000a7467, 0x000a7465, 	/* pswrd2.PRTY_STS */
-	0x00010000, 0x1f0a7480, 0x000a7483, 0x000a7481, 	/* pswrd2.PRTY_STS_H_0 */
-	0x00200000, 0x030a7484, 0x000a7487, 0x000a7485, 	/* pswrd2.PRTY_STS_H_1 */
+	0x02b30007, 0x1f0a7480, 0x000a7483, 0x000a7481, 	/* pswrd2.PRTY_STS_H_0, mode bb */
+	0x02b30009, 0x1f0a7480, 0x000a7483, 0x000a7481, 	/* pswrd2.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x1f0a7480, 0x000a7483, 0x000a7481, 	/* pswrd2.PRTY_STS_H_0, mode !(bb|k2) */
+	0x02d20007, 0x030a7484, 0x000a7487, 0x000a7485, 	/* pswrd2.PRTY_STS_H_1, mode bb */
+	0x02d20009, 0x030a7484, 0x000a7487, 0x000a7485, 	/* pswrd2.PRTY_STS_H_1, mode k2 */
+	0x02d50003, 0x030a7484, 0x000a7487, 0x000a7485, 	/* pswrd2.PRTY_STS_H_1, mode !(bb|k2) */
 	0x00000000, 0x130a6860, 0x000a6863, 0x000a6861, 	/* pswwr.INT_STS */
 	0x00000000, 0x010a6864, 0x000a6867, 0x000a6865, 	/* pswwr.PRTY_STS */
 	0x00000000, 0x160a6c60, 0x000a6c63, 0x000a6c61, 	/* pswwr2.INT_STS */
 	0x00000000, 0x010a6c64, 0x000a6c67, 0x000a6c65, 	/* pswwr2.PRTY_STS */
-	0x00010051, 0x1f0a6c80, 0x000a6c83, 0x000a6c81, 	/* pswwr2.PRTY_STS_H_0, mode !e5 */
-	0x00200051, 0x1f0a6c84, 0x000a6c87, 0x000a6c85, 	/* pswwr2.PRTY_STS_H_1, mode !e5 */
-	0x003f0051, 0x1f0a6c88, 0x000a6c8b, 0x000a6c89, 	/* pswwr2.PRTY_STS_H_2, mode !e5 */
-	0x005e0051, 0x140a6c8c, 0x000a6c8f, 0x000a6c8d, 	/* pswwr2.PRTY_STS_H_3, mode !e5 */
+	0x02d80007, 0x1f0a6c80, 0x000a6c83, 0x000a6c81, 	/* pswwr2.PRTY_STS_H_0, mode bb */
+	0x02d80009, 0x1f0a6c80, 0x000a6c83, 0x000a6c81, 	/* pswwr2.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x1f0a6c80, 0x000a6c83, 0x000a6c81, 	/* pswwr2.PRTY_STS_H_0, mode !(bb|k2) */
+	0x02f70007, 0x1f0a6c84, 0x000a6c87, 0x000a6c85, 	/* pswwr2.PRTY_STS_H_1, mode bb */
+	0x02f70009, 0x1f0a6c84, 0x000a6c87, 0x000a6c85, 	/* pswwr2.PRTY_STS_H_1, mode k2 */
+	0x03160003, 0x1f0a6c84, 0x000a6c87, 0x000a6c85, 	/* pswwr2.PRTY_STS_H_1, mode !(bb|k2) */
+	0x03350007, 0x1f0a6c88, 0x000a6c8b, 0x000a6c89, 	/* pswwr2.PRTY_STS_H_2, mode bb */
+	0x03350009, 0x1f0a6c88, 0x000a6c8b, 0x000a6c89, 	/* pswwr2.PRTY_STS_H_2, mode k2 */
+	0x03540003, 0x1f0a6c88, 0x000a6c8b, 0x000a6c89, 	/* pswwr2.PRTY_STS_H_2, mode !(bb|k2) */
+	0x03730007, 0x140a6c8c, 0x000a6c8f, 0x000a6c8d, 	/* pswwr2.PRTY_STS_H_3, mode bb */
+	0x03730009, 0x140a6c8c, 0x000a6c8f, 0x000a6c8d, 	/* pswwr2.PRTY_STS_H_3, mode k2 */
+	0x03870003, 0x1f0a6c8c, 0x000a6c8f, 0x000a6c8d, 	/* pswwr2.PRTY_STS_H_3, mode !(bb|k2) */
+	0x03a60003, 0x0d0a6c90, 0x000a6c93, 0x000a6c91, 	/* pswwr2.PRTY_STS_H_4, mode !(bb|k2) */
 	0x00000000, 0x170a0060, 0x000a0063, 0x000a0061, 	/* pswrq.INT_STS */
 	0x00000000, 0x010a0064, 0x000a0067, 0x000a0065, 	/* pswrq.PRTY_STS */
 	0x00000000, 0x0f090060, 0x00090063, 0x00090061, 	/* pswrq2.INT_STS */
-	0x025f0007, 0x09090080, 0x00090083, 0x00090081, 	/* pswrq2.PRTY_STS_H_0, mode bb */
+	0x03b30007, 0x09090080, 0x00090083, 0x00090081, 	/* pswrq2.PRTY_STS_H_0, mode bb */
 	0x00000025, 0x0a090080, 0x00090083, 0x00090081, 	/* pswrq2.PRTY_STS_H_0, mode !bb */
 	0x00000000, 0x02000740, 0x00000743, 0x00000741, 	/* pglcs.INT_STS */
 	0x00000000, 0x02003060, 0x00003063, 0x00003061, 	/* dmae.INT_STS */
-	0x00000051, 0x03003080, 0x00003083, 0x00003081, 	/* dmae.PRTY_STS_H_0, mode !e5 */
+	0x00000000, 0x03003080, 0x00003083, 0x00003081, 	/* dmae.PRTY_STS_H_0 */
 	0x00000000, 0x08158060, 0x00158063, 0x00158061, 	/* ptu.INT_STS */
-	0x00000051, 0x12158080, 0x00158083, 0x00158081, 	/* ptu.PRTY_STS_H_0, mode !e5 */
-	0x02680007, 0x08460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode bb */
-	0x02680009, 0x08460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode k2 */
-	0x00000003, 0x10460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode !(bb|k2) */
-	0x02700000, 0x22460064, 0x00460067, 0x00460065, 	/* tcm.INT_STS_1 */
-	0x00320000, 0x01460068, 0x0046006b, 0x00460069, 	/* tcm.INT_STS_2 */
-	0x02920007, 0x1f460080, 0x00460083, 0x00460081, 	/* tcm.PRTY_STS_H_0, mode bb */
-	0x00000143, 0x1f460080, 0x00460083, 0x00460081, 	/* tcm.PRTY_STS_H_0, mode !(bb|e5) */
-	0x00280007, 0x02460084, 0x00460087, 0x00460085, 	/* tcm.PRTY_STS_H_1, mode bb */
-	0x00270143, 0x03460084, 0x00460087, 0x00460085, 	/* tcm.PRTY_STS_H_1, mode !(bb|e5) */
-	0x02b10007, 0x0e480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode bb */
-	0x02b10009, 0x0e480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode k2 */
-	0x00000003, 0x16480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode !(bb|k2) */
-	0x00160000, 0x1a480064, 0x00480067, 0x00480065, 	/* mcm.INT_STS_1 */
-	0x00300000, 0x01480068, 0x0048006b, 0x00480069, 	/* mcm.INT_STS_2 */
-	0x00000051, 0x1f480080, 0x00480083, 0x00480081, 	/* mcm.PRTY_STS_H_0, mode !e5 */
-	0x001f0051, 0x04480084, 0x00480087, 0x00480085, 	/* mcm.PRTY_STS_H_1, mode !e5 */
-	0x02bf0000, 0x164a0060, 0x004a0063, 0x004a0061, 	/* ucm.INT_STS_0 */
-	0x00170007, 0x1d4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode bb */
-	0x00170009, 0x1d4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode k2 */
-	0x00160003, 0x1e4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode !(bb|k2) */
-	0x00340000, 0x014a0068, 0x004a006b, 0x004a0069, 	/* ucm.INT_STS_2 */
-	0x00000051, 0x1f4a0080, 0x004a0083, 0x004a0081, 	/* ucm.PRTY_STS_H_0, mode !e5 */
-	0x001f0051, 0x074a0084, 0x004a0087, 0x004a0085, 	/* ucm.PRTY_STS_H_1, mode !e5 */
-	0x00000000, 0x14400060, 0x00400063, 0x00400061, 	/* xcm.INT_STS_0 */
-	0x00140000, 0x19400064, 0x00400067, 0x00400065, 	/* xcm.INT_STS_1 */
-	0x002d0000, 0x08400068, 0x0040006b, 0x00400069, 	/* xcm.INT_STS_2 */
-	0x02d50007, 0x1f400080, 0x00400083, 0x00400081, 	/* xcm.PRTY_STS_H_0, mode bb */
-	0x00000143, 0x1f400080, 0x00400083, 0x00400081, 	/* xcm.PRTY_STS_H_0, mode !(bb|e5) */
-	0x02f40007, 0x0b400084, 0x00400087, 0x00400085, 	/* xcm.PRTY_STS_H_1, mode bb */
-	0x00250143, 0x0c400084, 0x00400087, 0x00400085, 	/* xcm.PRTY_STS_H_1, mode !(bb|e5) */
-	0x00000000, 0x11420060, 0x00420063, 0x00420061, 	/* ycm.INT_STS_0 */
-	0x00110000, 0x17420064, 0x00420067, 0x00420065, 	/* ycm.INT_STS_1 */
-	0x00280000, 0x01420068, 0x0042006b, 0x00420069, 	/* ycm.INT_STS_2 */
-	0x02ff0007, 0x1f420080, 0x00420083, 0x00420081, 	/* ycm.PRTY_STS_H_0, mode bb */
-	0x00000143, 0x1f420080, 0x00420083, 0x00420081, 	/* ycm.PRTY_STS_H_0, mode !(bb|e5) */
-	0x00290007, 0x03420084, 0x00420087, 0x00420085, 	/* ycm.PRTY_STS_H_1, mode bb */
-	0x00280143, 0x04420084, 0x00420087, 0x00420085, 	/* ycm.PRTY_STS_H_1, mode !(bb|e5) */
-	0x00000000, 0x0b440060, 0x00440063, 0x00440061, 	/* pcm.INT_STS_0 */
-	0x031e0007, 0x0e440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode bb */
-	0x031e0009, 0x0e440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode k2 */
-	0x000b0003, 0x0c440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode !(bb|k2) */
-	0x00190000, 0x01440068, 0x0044006b, 0x00440069, 	/* pcm.INT_STS_2 */
-	0x032c0007, 0x0b440080, 0x00440083, 0x00440081, 	/* pcm.PRTY_STS_H_0, mode bb */
-	0x00000143, 0x0f440080, 0x00440083, 0x00440081, 	/* pcm.PRTY_STS_H_0, mode !(bb|e5) */
+	0x03bc0007, 0x12158080, 0x00158083, 0x00158081, 	/* ptu.PRTY_STS_H_0, mode bb */
+	0x03bc0009, 0x12158080, 0x00158083, 0x00158081, 	/* ptu.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x11158080, 0x00158083, 0x00158081, 	/* ptu.PRTY_STS_H_0, mode !(bb|k2) */
+	0x03ce0007, 0x08460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode bb */
+	0x03ce0009, 0x08460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode k2 */
+	0x00000003, 0x0e460060, 0x00460063, 0x00460061, 	/* tcm.INT_STS_0, mode !(bb|k2) */
+	0x03d60000, 0x22460064, 0x00460067, 0x00460065, 	/* tcm.INT_STS_1 */
+	0x00300000, 0x01460068, 0x0046006b, 0x00460069, 	/* tcm.INT_STS_2 */
+	0x03f80007, 0x1f460080, 0x00460083, 0x00460081, 	/* tcm.PRTY_STS_H_0, mode bb */
+	0x04170009, 0x1f460080, 0x00460083, 0x00460081, 	/* tcm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x1f460080, 0x00460083, 0x00460081, 	/* tcm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00390007, 0x02460084, 0x00460087, 0x00460085, 	/* tcm.PRTY_STS_H_1, mode bb */
+	0x04360009, 0x03460084, 0x00460087, 0x00460085, 	/* tcm.PRTY_STS_H_1, mode k2 */
+	0x04390003, 0x0a460084, 0x00460087, 0x00460085, 	/* tcm.PRTY_STS_H_1, mode !(bb|k2) */
+	0x04430007, 0x0e480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode bb */
+	0x04430009, 0x0e480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode k2 */
+	0x00000003, 0x14480060, 0x00480063, 0x00480061, 	/* mcm.INT_STS_0, mode !(bb|k2) */
+	0x00140000, 0x1a480064, 0x00480067, 0x00480065, 	/* mcm.INT_STS_1 */
+	0x002e0000, 0x01480068, 0x0048006b, 0x00480069, 	/* mcm.INT_STS_2 */
+	0x04510007, 0x1f480080, 0x00480083, 0x00480081, 	/* mcm.PRTY_STS_H_0, mode bb */
+	0x04510009, 0x1f480080, 0x00480083, 0x00480081, 	/* mcm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x1f480080, 0x00480083, 0x00480081, 	/* mcm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00300007, 0x04480084, 0x00480087, 0x00480085, 	/* mcm.PRTY_STS_H_1, mode bb */
+	0x00300009, 0x04480084, 0x00480087, 0x00480085, 	/* mcm.PRTY_STS_H_1, mode k2 */
+	0x04700003, 0x0a480084, 0x00480087, 0x00480085, 	/* mcm.PRTY_STS_H_1, mode !(bb|k2) */
+	0x047a0000, 0x144a0060, 0x004a0063, 0x004a0061, 	/* ucm.INT_STS_0 */
+	0x00150007, 0x1d4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode bb */
+	0x00150009, 0x1d4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode k2 */
+	0x00140003, 0x1e4a0064, 0x004a0067, 0x004a0065, 	/* ucm.INT_STS_1, mode !(bb|k2) */
+	0x00320000, 0x014a0068, 0x004a006b, 0x004a0069, 	/* ucm.INT_STS_2 */
+	0x048e0007, 0x1f4a0080, 0x004a0083, 0x004a0081, 	/* ucm.PRTY_STS_H_0, mode bb */
+	0x048e0009, 0x1f4a0080, 0x004a0083, 0x004a0081, 	/* ucm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x1f4a0080, 0x004a0083, 0x004a0081, 	/* ucm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x002a0000, 0x074a0084, 0x004a0087, 0x004a0085, 	/* ucm.PRTY_STS_H_1 */
+	0x00000000, 0x12400060, 0x00400063, 0x00400061, 	/* xcm.INT_STS_0 */
+	0x00120000, 0x19400064, 0x00400067, 0x00400065, 	/* xcm.INT_STS_1 */
+	0x002b0000, 0x08400068, 0x0040006b, 0x00400069, 	/* xcm.INT_STS_2 */
+	0x04ad0007, 0x1f400080, 0x00400083, 0x00400081, 	/* xcm.PRTY_STS_H_0, mode bb */
+	0x04cc0009, 0x1f400080, 0x00400083, 0x00400081, 	/* xcm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x1f400080, 0x00400083, 0x00400081, 	/* xcm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x04eb0007, 0x0b400084, 0x00400087, 0x00400085, 	/* xcm.PRTY_STS_H_1, mode bb */
+	0x04f60009, 0x0c400084, 0x00400087, 0x00400085, 	/* xcm.PRTY_STS_H_1, mode k2 */
+	0x05020003, 0x0d400084, 0x00400087, 0x00400085, 	/* xcm.PRTY_STS_H_1, mode !(bb|k2) */
+	0x00000000, 0x0f420060, 0x00420063, 0x00420061, 	/* ycm.INT_STS_0 */
+	0x000f0000, 0x17420064, 0x00420067, 0x00420065, 	/* ycm.INT_STS_1 */
+	0x00260000, 0x01420068, 0x0042006b, 0x00420069, 	/* ycm.INT_STS_2 */
+	0x050f0007, 0x1f420080, 0x00420083, 0x00420081, 	/* ycm.PRTY_STS_H_0, mode bb */
+	0x052e0009, 0x1f420080, 0x00420083, 0x00420081, 	/* ycm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x1f420080, 0x00420083, 0x00420081, 	/* ycm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00370007, 0x03420084, 0x00420087, 0x00420085, 	/* ycm.PRTY_STS_H_1, mode bb */
+	0x054d0009, 0x04420084, 0x00420087, 0x00420085, 	/* ycm.PRTY_STS_H_1, mode k2 */
+	0x05510003, 0x09420084, 0x00420087, 0x00420085, 	/* ycm.PRTY_STS_H_1, mode !(bb|k2) */
+	0x00000000, 0x09440060, 0x00440063, 0x00440061, 	/* pcm.INT_STS_0 */
+	0x055a0007, 0x0e440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode bb */
+	0x055a0009, 0x0e440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode k2 */
+	0x00090003, 0x0c440064, 0x00440067, 0x00440065, 	/* pcm.INT_STS_1, mode !(bb|k2) */
+	0x00170000, 0x01440068, 0x0044006b, 0x00440069, 	/* pcm.INT_STS_2 */
+	0x05680007, 0x0b440080, 0x00440083, 0x00440081, 	/* pcm.PRTY_STS_H_0, mode bb */
+	0x05730009, 0x0f440080, 0x00440083, 0x00440081, 	/* pcm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x11440080, 0x00440083, 0x00440081, 	/* pcm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x160bc060, 0x000bc063, 0x000bc061, 	/* qm.INT_STS */
 	0x00000000, 0x0b0bc064, 0x000bc067, 0x000bc065, 	/* qm.PRTY_STS */
-	0x000b0051, 0x1f0bc080, 0x000bc083, 0x000bc081, 	/* qm.PRTY_STS_H_0, mode !e5 */
-	0x002a0051, 0x1f0bc084, 0x000bc087, 0x000bc085, 	/* qm.PRTY_STS_H_1, mode !e5 */
-	0x03370007, 0x0b0bc088, 0x000bc08b, 0x000bc089, 	/* qm.PRTY_STS_H_2, mode bb */
-	0x00490143, 0x130bc088, 0x000bc08b, 0x000bc089, 	/* qm.PRTY_STS_H_2, mode !(bb|e5) */
+	0x05820007, 0x1f0bc080, 0x000bc083, 0x000bc081, 	/* qm.PRTY_STS_H_0, mode bb */
+	0x05820009, 0x1f0bc080, 0x000bc083, 0x000bc081, 	/* qm.PRTY_STS_H_0, mode k2 */
+	0x000b0003, 0x1f0bc080, 0x000bc083, 0x000bc081, 	/* qm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x05a10007, 0x1f0bc084, 0x000bc087, 0x000bc085, 	/* qm.PRTY_STS_H_1, mode bb */
+	0x05a10009, 0x1f0bc084, 0x000bc087, 0x000bc085, 	/* qm.PRTY_STS_H_1, mode k2 */
+	0x05c00003, 0x1f0bc084, 0x000bc087, 0x000bc085, 	/* qm.PRTY_STS_H_1, mode !(bb|k2) */
+	0x05df0007, 0x0b0bc088, 0x000bc08b, 0x000bc089, 	/* qm.PRTY_STS_H_2, mode bb */
+	0x00000025, 0x000bc088, 0x000bc08b, 0x000bc089, 	/* qm.PRTY_STS_H_2, mode !bb */
 	0x00000000, 0x200b0060, 0x000b0063, 0x000b0061, 	/* tm.INT_STS_0 */
 	0x00200000, 0x0b0b0064, 0x000b0067, 0x000b0065, 	/* tm.INT_STS_1 */
-	0x00000051, 0x110b0080, 0x000b0083, 0x000b0081, 	/* tm.PRTY_STS_H_0, mode !e5 */
+	0x05ea0007, 0x110b0080, 0x000b0083, 0x000b0081, 	/* tm.PRTY_STS_H_0, mode bb */
+	0x05ea0009, 0x110b0080, 0x000b0083, 0x000b0081, 	/* tm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0f0b0080, 0x000b0083, 0x000b0081, 	/* tm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x0c040060, 0x00040063, 0x00040061, 	/* dorq.INT_STS */
 	0x00000000, 0x01040064, 0x00040067, 0x00040065, 	/* dorq.PRTY_STS */
-	0x00010051, 0x06040080, 0x00040083, 0x00040081, 	/* dorq.PRTY_STS_H_0, mode !e5 */
+	0x05fb0007, 0x06040080, 0x00040083, 0x00040081, 	/* dorq.PRTY_STS_H_0, mode bb */
+	0x05fb0009, 0x06040080, 0x00040083, 0x00040081, 	/* dorq.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x0c040080, 0x00040083, 0x00040081, 	/* dorq.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x200d0030, 0x000d0033, 0x000d0031, 	/* brb.INT_STS_0 */
-	0x03420000, 0x200d0036, 0x000d0039, 0x000d0037, 	/* brb.INT_STS_1 */
+	0x06010000, 0x200d0036, 0x000d0039, 0x000d0037, 	/* brb.INT_STS_1 */
 	0x003e0000, 0x1c0d003c, 0x000d003f, 0x000d003d, 	/* brb.INT_STS_2 */
-	0x03620000, 0x200d0042, 0x000d0045, 0x000d0043, 	/* brb.INT_STS_3 */
-	0x03820000, 0x1c0d0048, 0x000d004b, 0x000d0049, 	/* brb.INT_STS_4 */
+	0x06210000, 0x200d0042, 0x000d0045, 0x000d0043, 	/* brb.INT_STS_3 */
+	0x06410000, 0x1c0d0048, 0x000d004b, 0x000d0049, 	/* brb.INT_STS_4 */
 	0x00940000, 0x010d004e, 0x000d0051, 0x000d004f, 	/* brb.INT_STS_5 */
-	0x039e0000, 0x0a0d0054, 0x000d0057, 0x000d0055, 	/* brb.INT_STS_6 */
+	0x065d0000, 0x0a0d0054, 0x000d0057, 0x000d0055, 	/* brb.INT_STS_6 */
 	0x009d0000, 0x200d005a, 0x000d005d, 0x000d005b, 	/* brb.INT_STS_7 */
 	0x00bd0000, 0x110d0061, 0x000d0064, 0x000d0062, 	/* brb.INT_STS_8 */
 	0x00ce0000, 0x010d0067, 0x000d006a, 0x000d0068, 	/* brb.INT_STS_9 */
-	0x03a80000, 0x150d006d, 0x000d0070, 0x000d006e, 	/* brb.INT_STS_10 */
-	0x03bd0000, 0x090d0073, 0x000d0076, 0x000d0074, 	/* brb.INT_STS_11 */
+	0x06670000, 0x150d006d, 0x000d0070, 0x000d006e, 	/* brb.INT_STS_10 */
+	0x067c0000, 0x090d0073, 0x000d0076, 0x000d0074, 	/* brb.INT_STS_11 */
 	0x00000000, 0x050d0077, 0x000d007a, 0x000d0078, 	/* brb.PRTY_STS */
-	0x03c60007, 0x1f0d0100, 0x000d0103, 0x000d0101, 	/* brb.PRTY_STS_H_0, mode bb */
-	0x00050143, 0x1f0d0100, 0x000d0103, 0x000d0101, 	/* brb.PRTY_STS_H_0, mode !(bb|e5) */
-	0x03e50007, 0x0e0d0104, 0x000d0107, 0x000d0105, 	/* brb.PRTY_STS_H_1, mode bb */
-	0x03f30143, 0x1e0d0104, 0x000d0107, 0x000d0105, 	/* brb.PRTY_STS_H_1, mode !(bb|e5) */
+	0x06850007, 0x1f0d0100, 0x000d0103, 0x000d0101, 	/* brb.PRTY_STS_H_0, mode bb */
+	0x06a40009, 0x1f0d0100, 0x000d0103, 0x000d0101, 	/* brb.PRTY_STS_H_0, mode k2 */
+	0x00050003, 0x1f0d0100, 0x000d0103, 0x000d0101, 	/* brb.PRTY_STS_H_0, mode !(bb|k2) */
+	0x06c30007, 0x0e0d0104, 0x000d0107, 0x000d0105, 	/* brb.PRTY_STS_H_1, mode bb */
+	0x06d10009, 0x1e0d0104, 0x000d0107, 0x000d0105, 	/* brb.PRTY_STS_H_1, mode k2 */
+	0x06ef0003, 0x1f0d0104, 0x000d0107, 0x000d0105, 	/* brb.PRTY_STS_H_1, mode !(bb|k2) */
+	0x00520003, 0x010d0108, 0x000d010b, 0x000d0109, 	/* brb.PRTY_STS_H_2, mode !(bb|k2) */
 	0x00000000, 0x0108e076, 0x0008e077, 0x0008e079, 	/* src.INT_STS */
 	0x00000000, 0x0207c010, 0x0007c013, 0x0007c011, 	/* prs.INT_STS_0 */
 	0x00000000, 0x0207c014, 0x0007c017, 0x0007c015, 	/* prs.PRTY_STS */
-	0x04110007, 0x1f07c081, 0x0007c084, 0x0007c082, 	/* prs.PRTY_STS_H_0, mode bb */
-	0x00020143, 0x1f07c081, 0x0007c084, 0x0007c082, 	/* prs.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04300007, 0x0507c085, 0x0007c088, 0x0007c086, 	/* prs.PRTY_STS_H_1, mode bb */
-	0x04350143, 0x1f07c085, 0x0007c088, 0x0007c086, 	/* prs.PRTY_STS_H_1, mode !(bb|e5) */
+	0x070e0007, 0x1f07c081, 0x0007c084, 0x0007c082, 	/* prs.PRTY_STS_H_0, mode bb */
+	0x072d0009, 0x1f07c081, 0x0007c084, 0x0007c082, 	/* prs.PRTY_STS_H_0, mode k2 */
+	0x00020003, 0x1707c081, 0x0007c084, 0x0007c082, 	/* prs.PRTY_STS_H_0, mode !(bb|k2) */
+	0x074c0007, 0x0507c085, 0x0007c088, 0x0007c086, 	/* prs.PRTY_STS_H_1, mode bb */
+	0x0751011b, 0x1f07c085, 0x0007c088, 0x0007c086, 	/* prs.PRTY_STS_H_1, mode !(bb|e5) */
 	0x00000000, 0x1c3ec010, 0x003ec013, 0x003ec011, 	/* tsdm.INT_STS */
-	0x00000051, 0x0a3ec080, 0x003ec083, 0x003ec081, 	/* tsdm.PRTY_STS_H_0, mode !e5 */
+	0x07700007, 0x0a3ec080, 0x003ec083, 0x003ec081, 	/* tsdm.PRTY_STS_H_0, mode bb */
+	0x07700009, 0x0a3ec080, 0x003ec083, 0x003ec081, 	/* tsdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0b3ec080, 0x003ec083, 0x003ec081, 	/* tsdm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x1c3f0010, 0x003f0013, 0x003f0011, 	/* msdm.INT_STS */
-	0x00000051, 0x0b3f0080, 0x003f0083, 0x003f0081, 	/* msdm.PRTY_STS_H_0, mode !e5 */
+	0x077a0007, 0x0b3f0080, 0x003f0083, 0x003f0081, 	/* msdm.PRTY_STS_H_0, mode bb */
+	0x077a0009, 0x0b3f0080, 0x003f0083, 0x003f0081, 	/* msdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0c3f0080, 0x003f0083, 0x003f0081, 	/* msdm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x1c3f4010, 0x003f4013, 0x003f4011, 	/* usdm.INT_STS */
-	0x00000051, 0x0a3f4080, 0x003f4083, 0x003f4081, 	/* usdm.PRTY_STS_H_0, mode !e5 */
+	0x07850007, 0x0a3f4080, 0x003f4083, 0x003f4081, 	/* usdm.PRTY_STS_H_0, mode bb */
+	0x07850009, 0x0a3f4080, 0x003f4083, 0x003f4081, 	/* usdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0b3f4080, 0x003f4083, 0x003f4081, 	/* usdm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x1c3e0010, 0x003e0013, 0x003e0011, 	/* xsdm.INT_STS */
-	0x00000051, 0x0a3e0080, 0x003e0083, 0x003e0081, 	/* xsdm.PRTY_STS_H_0, mode !e5 */
+	0x078f0007, 0x0a3e0080, 0x003e0083, 0x003e0081, 	/* xsdm.PRTY_STS_H_0, mode bb */
+	0x078f0009, 0x0a3e0080, 0x003e0083, 0x003e0081, 	/* xsdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0b3e0080, 0x003e0083, 0x003e0081, 	/* xsdm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x1c3e4010, 0x003e4013, 0x003e4011, 	/* ysdm.INT_STS */
-	0x00000051, 0x093e4080, 0x003e4083, 0x003e4081, 	/* ysdm.PRTY_STS_H_0, mode !e5 */
+	0x078f0007, 0x093e4080, 0x003e4083, 0x003e4081, 	/* ysdm.PRTY_STS_H_0, mode bb */
+	0x078f0009, 0x093e4080, 0x003e4083, 0x003e4081, 	/* ysdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0a3e4080, 0x003e4083, 0x003e4081, 	/* ysdm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x1c3e8010, 0x003e8013, 0x003e8011, 	/* psdm.INT_STS */
-	0x00000051, 0x093e8080, 0x003e8083, 0x003e8081, 	/* psdm.PRTY_STS_H_0, mode !e5 */
-	0x04540007, 0x205c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode bb */
-	0x04540009, 0x205c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode k2 */
-	0x00000003, 0x205c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d5c0014, 0x005c0017, 0x005c0015, 	/* tsem.INT_STS_1 */
-	0x04a10003, 0x1f5c0018, 0x005c001b, 0x005c0019, 	/* tsem.INT_STS_2, mode !(bb|k2) */
+	0x07990007, 0x093e8080, 0x003e8083, 0x003e8081, 	/* psdm.PRTY_STS_H_0, mode bb */
+	0x07990009, 0x093e8080, 0x003e8083, 0x003e8081, 	/* psdm.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0a3e8080, 0x003e8083, 0x003e8081, 	/* psdm.PRTY_STS_H_0, mode !(bb|k2) */
+	0x07a20007, 0x205c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode bb */
+	0x07a20009, 0x205c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f5c0010, 0x005c0013, 0x005c0011, 	/* tsem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d5c0014, 0x005c0017, 0x005c0015, 	/* tsem.INT_STS_1 */
+	0x07ef0003, 0x1f5c0018, 0x005c001b, 0x005c0019, 	/* tsem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x015d0010, 0x005d0013, 0x005d0011, 	/* tsem.fast_memory.INT_STS */
-	0x00000000, 0x035c0032, 0x005c0035, 0x005c0033, 	/* tsem.PRTY_STS */
-	0x00030051, 0x065c0080, 0x005c0083, 0x005c0081, 	/* tsem.PRTY_STS_H_0, mode !e5 */
-	0x00090143, 0x075d0080, 0x005d0083, 0x005d0081, 	/* tsem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04c00051, 0x065d2880, 0x005d2883, 0x005d2881, 	/* tsem.fast_memory.vfc_config.PRTY_STS_H_0, mode !e5 */
-	0x04540007, 0x20600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode bb */
-	0x04540009, 0x20600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode k2 */
-	0x00000003, 0x20600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d600014, 0x00600017, 0x00600015, 	/* msem.INT_STS_1 */
-	0x04a10003, 0x1f600018, 0x0060001b, 0x00600019, 	/* msem.INT_STS_2, mode !(bb|k2) */
+	0x080e0007, 0x035c0032, 0x005c0035, 0x005c0033, 	/* tsem.PRTY_STS, mode bb */
+	0x080e0009, 0x035c0032, 0x005c0035, 0x005c0033, 	/* tsem.PRTY_STS, mode k2 */
+	0x00000003, 0x055c0032, 0x005c0035, 0x005c0033, 	/* tsem.PRTY_STS, mode !(bb|k2) */
+	0x00060043, 0x065c0080, 0x005c0083, 0x005c0081, 	/* tsem.PRTY_STS_H_0, mode !e5 */
+	0x08110009, 0x075d0080, 0x005d0083, 0x005d0081, 	/* tsem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x000c0003, 0x085d0080, 0x005d0083, 0x005d0081, 	/* tsem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x08180000, 0x075d2880, 0x005d2883, 0x005d2881, 	/* tsem.fast_memory.vfc_config.PRTY_STS_H_0 */
+	0x07a20007, 0x20600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode bb */
+	0x07a20009, 0x20600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f600010, 0x00600013, 0x00600011, 	/* msem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d600014, 0x00600017, 0x00600015, 	/* msem.INT_STS_1 */
+	0x07ef0003, 0x1f600018, 0x0060001b, 0x00600019, 	/* msem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x01610010, 0x00610013, 0x00610011, 	/* msem.fast_memory.INT_STS */
-	0x00000000, 0x03600032, 0x00600035, 0x00600033, 	/* msem.PRTY_STS */
-	0x00030051, 0x06600080, 0x00600083, 0x00600081, 	/* msem.PRTY_STS_H_0, mode !e5 */
-	0x00090143, 0x07610080, 0x00610083, 0x00610081, 	/* msem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04540007, 0x20640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode bb */
-	0x04540009, 0x20640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode k2 */
-	0x00000003, 0x20640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d640014, 0x00640017, 0x00640015, 	/* usem.INT_STS_1 */
-	0x04a10003, 0x1f640018, 0x0064001b, 0x00640019, 	/* usem.INT_STS_2, mode !(bb|k2) */
+	0x080e0007, 0x03600032, 0x00600035, 0x00600033, 	/* msem.PRTY_STS, mode bb */
+	0x080e0009, 0x03600032, 0x00600035, 0x00600033, 	/* msem.PRTY_STS, mode k2 */
+	0x00000003, 0x05600032, 0x00600035, 0x00600033, 	/* msem.PRTY_STS, mode !(bb|k2) */
+	0x081f0007, 0x06600080, 0x00600083, 0x00600081, 	/* msem.PRTY_STS_H_0, mode bb */
+	0x081f0009, 0x06600080, 0x00600083, 0x00600081, 	/* msem.PRTY_STS_H_0, mode k2 */
+	0x00060003, 0x10600080, 0x00600083, 0x00600081, 	/* msem.PRTY_STS_H_0, mode !(bb|k2) */
+	0x08250009, 0x07610080, 0x00610083, 0x00610081, 	/* msem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x00160003, 0x08610080, 0x00610083, 0x00610081, 	/* msem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x07a20007, 0x20640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode bb */
+	0x07a20009, 0x20640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f640010, 0x00640013, 0x00640011, 	/* usem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d640014, 0x00640017, 0x00640015, 	/* usem.INT_STS_1 */
+	0x07ef0003, 0x1f640018, 0x0064001b, 0x00640019, 	/* usem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x01650010, 0x00650013, 0x00650011, 	/* usem.fast_memory.INT_STS */
-	0x00000000, 0x03640032, 0x00640035, 0x00640033, 	/* usem.PRTY_STS */
-	0x00030051, 0x06640080, 0x00640083, 0x00640081, 	/* usem.PRTY_STS_H_0, mode !e5 */
-	0x00090143, 0x07650080, 0x00650083, 0x00650081, 	/* usem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04540007, 0x20500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode bb */
-	0x04540009, 0x20500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode k2 */
-	0x00000003, 0x20500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d500014, 0x00500017, 0x00500015, 	/* xsem.INT_STS_1 */
-	0x04a10003, 0x1f500018, 0x0050001b, 0x00500019, 	/* xsem.INT_STS_2, mode !(bb|k2) */
+	0x080e0007, 0x03640032, 0x00640035, 0x00640033, 	/* usem.PRTY_STS, mode bb */
+	0x080e0009, 0x03640032, 0x00640035, 0x00640033, 	/* usem.PRTY_STS, mode k2 */
+	0x00000003, 0x05640032, 0x00640035, 0x00640033, 	/* usem.PRTY_STS, mode !(bb|k2) */
+	0x00060043, 0x06640080, 0x00640083, 0x00640081, 	/* usem.PRTY_STS_H_0, mode !e5 */
+	0x08110009, 0x07650080, 0x00650083, 0x00650081, 	/* usem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x000c0003, 0x08650080, 0x00650083, 0x00650081, 	/* usem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x07a20007, 0x20500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode bb */
+	0x07a20009, 0x20500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f500010, 0x00500013, 0x00500011, 	/* xsem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d500014, 0x00500017, 0x00500015, 	/* xsem.INT_STS_1 */
+	0x07ef0003, 0x1f500018, 0x0050001b, 0x00500019, 	/* xsem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x01510010, 0x00510013, 0x00510011, 	/* xsem.fast_memory.INT_STS */
-	0x00000000, 0x03500032, 0x00500035, 0x00500033, 	/* xsem.PRTY_STS */
-	0x00030051, 0x07500080, 0x00500083, 0x00500081, 	/* xsem.PRTY_STS_H_0, mode !e5 */
-	0x000a0143, 0x07510080, 0x00510083, 0x00510081, 	/* xsem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04540007, 0x20540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode bb */
-	0x04540009, 0x20540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode k2 */
-	0x00000003, 0x20540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d540014, 0x00540017, 0x00540015, 	/* ysem.INT_STS_1 */
-	0x04a10003, 0x1f540018, 0x0054001b, 0x00540019, 	/* ysem.INT_STS_2, mode !(bb|k2) */
+	0x080e0007, 0x03500032, 0x00500035, 0x00500033, 	/* xsem.PRTY_STS, mode bb */
+	0x080e0009, 0x03500032, 0x00500035, 0x00500033, 	/* xsem.PRTY_STS, mode k2 */
+	0x00000003, 0x05500032, 0x00500035, 0x00500033, 	/* xsem.PRTY_STS, mode !(bb|k2) */
+	0x00060043, 0x07500080, 0x00500083, 0x00500081, 	/* xsem.PRTY_STS_H_0, mode !e5 */
+	0x082c0009, 0x07510080, 0x00510083, 0x00510081, 	/* xsem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x000d0003, 0x08510080, 0x00510083, 0x00510081, 	/* xsem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x07a20007, 0x20540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode bb */
+	0x07a20009, 0x20540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f540010, 0x00540013, 0x00540011, 	/* ysem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d540014, 0x00540017, 0x00540015, 	/* ysem.INT_STS_1 */
+	0x07ef0003, 0x1f540018, 0x0054001b, 0x00540019, 	/* ysem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x01550010, 0x00550013, 0x00550011, 	/* ysem.fast_memory.INT_STS */
-	0x00000000, 0x03540032, 0x00540035, 0x00540033, 	/* ysem.PRTY_STS */
-	0x00030051, 0x07540080, 0x00540083, 0x00540081, 	/* ysem.PRTY_STS_H_0, mode !e5 */
-	0x000a0143, 0x07550080, 0x00550083, 0x00550081, 	/* ysem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04540007, 0x20580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode bb */
-	0x04540009, 0x20580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode k2 */
-	0x00000003, 0x20580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode !(bb|k2) */
-	0x04740000, 0x2d580014, 0x00580017, 0x00580015, 	/* psem.INT_STS_1 */
-	0x04a10003, 0x1f580018, 0x0058001b, 0x00580019, 	/* psem.INT_STS_2, mode !(bb|k2) */
+	0x080e0007, 0x03540032, 0x00540035, 0x00540033, 	/* ysem.PRTY_STS, mode bb */
+	0x080e0009, 0x03540032, 0x00540035, 0x00540033, 	/* ysem.PRTY_STS, mode k2 */
+	0x00000003, 0x05540032, 0x00540035, 0x00540033, 	/* ysem.PRTY_STS, mode !(bb|k2) */
+	0x00060043, 0x07540080, 0x00540083, 0x00540081, 	/* ysem.PRTY_STS_H_0, mode !e5 */
+	0x082c0009, 0x07550080, 0x00550083, 0x00550081, 	/* ysem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x000d0003, 0x08550080, 0x00550083, 0x00550081, 	/* ysem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x07a20007, 0x20580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode bb */
+	0x07a20009, 0x20580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode k2 */
+	0x00000003, 0x1f580010, 0x00580013, 0x00580011, 	/* psem.INT_STS_0, mode !(bb|k2) */
+	0x07c20000, 0x2d580014, 0x00580017, 0x00580015, 	/* psem.INT_STS_1 */
+	0x07ef0003, 0x1f580018, 0x0058001b, 0x00580019, 	/* psem.INT_STS_2, mode !(bb|k2) */
 	0x00000000, 0x01590010, 0x00590013, 0x00590011, 	/* psem.fast_memory.INT_STS */
-	0x00000000, 0x03580032, 0x00580035, 0x00580033, 	/* psem.PRTY_STS */
-	0x00030051, 0x06580080, 0x00580083, 0x00580081, 	/* psem.PRTY_STS_H_0, mode !e5 */
-	0x00090143, 0x07590080, 0x00590083, 0x00590081, 	/* psem.fast_memory.PRTY_STS_H_0, mode !(bb|e5) */
-	0x04c00051, 0x06592880, 0x00592883, 0x00592881, 	/* psem.fast_memory.vfc_config.PRTY_STS_H_0, mode !e5 */
-	0x04c60000, 0x1608e260, 0x0008e263, 0x0008e261, 	/* rss.INT_STS */
-	0x00000051, 0x0408e280, 0x0008e283, 0x0008e281, 	/* rss.PRTY_STS_H_0, mode !e5 */
+	0x080e0007, 0x03580032, 0x00580035, 0x00580033, 	/* psem.PRTY_STS, mode bb */
+	0x080e0009, 0x03580032, 0x00580035, 0x00580033, 	/* psem.PRTY_STS, mode k2 */
+	0x00000003, 0x05580032, 0x00580035, 0x00580033, 	/* psem.PRTY_STS, mode !(bb|k2) */
+	0x00060043, 0x06580080, 0x00580083, 0x00580081, 	/* psem.PRTY_STS_H_0, mode !e5 */
+	0x08110009, 0x07590080, 0x00590083, 0x00590081, 	/* psem.fast_memory.PRTY_STS_H_0, mode k2 */
+	0x000c0003, 0x08590080, 0x00590083, 0x00590081, 	/* psem.fast_memory.PRTY_STS_H_0, mode !(bb|k2) */
+	0x08180000, 0x07592880, 0x00592883, 0x00592881, 	/* psem.fast_memory.vfc_config.PRTY_STS_H_0 */
+	0x08330000, 0x1608e260, 0x0008e263, 0x0008e261, 	/* rss.INT_STS */
+	0x08490000, 0x0a08e280, 0x0008e283, 0x0008e281, 	/* rss.PRTY_STS_H_0 */
 	0x00000000, 0x06134060, 0x00134063, 0x00134061, 	/* tmld.INT_STS */
-	0x00000051, 0x08134080, 0x00134083, 0x00134081, 	/* tmld.PRTY_STS_H_0, mode !e5 */
+	0x08530007, 0x08134080, 0x00134083, 0x00134081, 	/* tmld.PRTY_STS_H_0, mode bb */
+	0x08530009, 0x08134080, 0x00134083, 0x00134081, 	/* tmld.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0e134080, 0x00134083, 0x00134081, 	/* tmld.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x06138060, 0x00138063, 0x00138061, 	/* muld.INT_STS */
-	0x00000051, 0x0a138080, 0x00138083, 0x00138081, 	/* muld.PRTY_STS_H_0, mode !e5 */
-	0x00000051, 0x06132060, 0x00132063, 0x00132061, 	/* yuld.INT_STS, mode !e5 */
-	0x00000051, 0x06132080, 0x00132083, 0x00132081, 	/* yuld.PRTY_STS_H_0, mode !e5 */
+	0x085b0007, 0x0a138080, 0x00138083, 0x00138081, 	/* muld.PRTY_STS_H_0, mode bb */
+	0x085b0009, 0x0a138080, 0x00138083, 0x00138081, 	/* muld.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x10138080, 0x00138083, 0x00138081, 	/* muld.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00000043, 0x06132060, 0x00132063, 0x00132061, 	/* yuld.INT_STS, mode !e5 */
+	0x00000043, 0x06132080, 0x00132083, 0x00132081, 	/* yuld.PRTY_STS_H_0, mode !e5 */
 	0x00000000, 0x06130060, 0x00130063, 0x00130061, 	/* xyld.INT_STS */
-	0x00000051, 0x09130080, 0x00130083, 0x00130081, 	/* xyld.PRTY_STS_H_0, mode !e5 */
-	0x00000003, 0x06164060, 0x00164063, 0x00164061, 	/* ptld.INT_STS, mode !(bb|k2) */
-	0x00000003, 0x0616c060, 0x0016c063, 0x0016c061, 	/* ypld.INT_STS, mode !(bb|k2) */
-	0x00000000, 0x0b08c010, 0x0008c013, 0x0008c011, 	/* prm.INT_STS */
+	0x08650007, 0x09130080, 0x00130083, 0x00130081, 	/* xyld.PRTY_STS_H_0, mode bb */
+	0x08650009, 0x09130080, 0x00130083, 0x00130081, 	/* xyld.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0f130080, 0x00130083, 0x00130081, 	/* xyld.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00000003, 0x06168060, 0x00168063, 0x00168061, 	/* ptld.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x08168080, 0x00168083, 0x00168081, 	/* ptld.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00000003, 0x06170060, 0x00170063, 0x00170061, 	/* ypld.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x08170080, 0x00170083, 0x00170081, 	/* ypld.PRTY_STS_H_0, mode !(bb|k2) */
+	0x086e0000, 0x0b08c010, 0x0008c013, 0x0008c011, 	/* prm.INT_STS */
 	0x00000000, 0x0108c014, 0x0008c017, 0x0008c015, 	/* prm.PRTY_STS */
-	0x04dc0007, 0x1808c080, 0x0008c083, 0x0008c081, 	/* prm.PRTY_STS_H_0, mode bb */
-	0x00010143, 0x1708c080, 0x0008c083, 0x0008c081, 	/* prm.PRTY_STS_H_0, mode !(bb|e5) */
+	0x08790007, 0x1808c080, 0x0008c083, 0x0008c081, 	/* prm.PRTY_STS_H_0, mode bb */
+	0x08910009, 0x1708c080, 0x0008c083, 0x0008c081, 	/* prm.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x1808c080, 0x0008c083, 0x0008c081, 	/* prm.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x09368010, 0x00368013, 0x00368011, 	/* pbf_pb1.INT_STS */
 	0x00000000, 0x01368014, 0x00368017, 0x00368015, 	/* pbf_pb1.PRTY_STS */
 	0x00000000, 0x09369010, 0x00369013, 0x00369011, 	/* pbf_pb2.INT_STS */
 	0x00000000, 0x01369014, 0x00369017, 0x00369015, 	/* pbf_pb2.PRTY_STS */
 	0x00000000, 0x0908f010, 0x0008f013, 0x0008f011, 	/* rpb.INT_STS */
 	0x00000000, 0x0108f014, 0x0008f017, 0x0008f015, 	/* rpb.PRTY_STS */
-	0x04f40000, 0x1a36c030, 0x0036c033, 0x0036c031, 	/* btb.INT_STS_0 */
-	0x050e0000, 0x1236c036, 0x0036c039, 0x0036c037, 	/* btb.INT_STS_1 */
-	0x05200000, 0x0536c03c, 0x0036c03f, 0x0036c03d, 	/* btb.INT_STS_2 */
+	0x08a80000, 0x1a36c030, 0x0036c033, 0x0036c031, 	/* btb.INT_STS_0 */
+	0x08c20000, 0x1236c036, 0x0036c039, 0x0036c037, 	/* btb.INT_STS_1 */
+	0x08d40000, 0x0536c03c, 0x0036c03f, 0x0036c03d, 	/* btb.INT_STS_2 */
 	0x00240000, 0x2036c042, 0x0036c045, 0x0036c043, 	/* btb.INT_STS_3 */
-	0x05250000, 0x1c36c048, 0x0036c04b, 0x0036c049, 	/* btb.INT_STS_4 */
+	0x08d90000, 0x1c36c048, 0x0036c04b, 0x0036c049, 	/* btb.INT_STS_4 */
 	0x005b0000, 0x2036c04e, 0x0036c051, 0x0036c04f, 	/* btb.INT_STS_5 */
 	0x007b0000, 0x0136c054, 0x0036c057, 0x0036c055, 	/* btb.INT_STS_6 */
 	0x007c0000, 0x0136c061, 0x0036c064, 0x0036c062, 	/* btb.INT_STS_8 */
 	0x007d0000, 0x0136c067, 0x0036c06a, 0x0036c068, 	/* btb.INT_STS_9 */
-	0x05410000, 0x0236c06d, 0x0036c070, 0x0036c06e, 	/* btb.INT_STS_10 */
-	0x05430000, 0x0436c073, 0x0036c076, 0x0036c074, 	/* btb.INT_STS_11 */
+	0x08f50000, 0x0236c06d, 0x0036c070, 0x0036c06e, 	/* btb.INT_STS_10 */
+	0x08f70000, 0x0436c073, 0x0036c076, 0x0036c074, 	/* btb.INT_STS_11 */
 	0x00000000, 0x0536c077, 0x0036c07a, 0x0036c078, 	/* btb.PRTY_STS */
-	0x05470007, 0x1736c100, 0x0036c103, 0x0036c101, 	/* btb.PRTY_STS_H_0, mode bb */
-	0x00050143, 0x1f36c100, 0x0036c103, 0x0036c101, 	/* btb.PRTY_STS_H_0, mode !(bb|e5) */
+	0x08fb0007, 0x1736c100, 0x0036c103, 0x0036c101, 	/* btb.PRTY_STS_H_0, mode bb */
+	0x09120009, 0x1f36c100, 0x0036c103, 0x0036c101, 	/* btb.PRTY_STS_H_0, mode k2 */
+	0x00050003, 0x1f36c100, 0x0036c103, 0x0036c101, 	/* btb.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00240003, 0x0836c104, 0x0036c107, 0x0036c105, 	/* btb.PRTY_STS_H_1, mode !(bb|k2) */
 	0x00000000, 0x01360060, 0x00360063, 0x00360061, 	/* pbf.INT_STS */
 	0x00000000, 0x01360064, 0x00360067, 0x00360065, 	/* pbf.PRTY_STS */
-	0x00010051, 0x1f360080, 0x00360083, 0x00360081, 	/* pbf.PRTY_STS_H_0, mode !e5 */
-	0x00200051, 0x1b360084, 0x00360087, 0x00360085, 	/* pbf.PRTY_STS_H_1, mode !e5 */
+	0x00010043, 0x1f360080, 0x00360083, 0x00360081, 	/* pbf.PRTY_STS_H_0, mode !e5 */
+	0x00200043, 0x1b360084, 0x00360087, 0x00360085, 	/* pbf.PRTY_STS_H_1, mode !e5 */
 	0x00000000, 0x090c0060, 0x000c0063, 0x000c0061, 	/* rdif.INT_STS */
 	0x01480000, 0x020c0064, 0x000c0067, 0x000c0065, 	/* rdif.PRTY_STS */
 	0x00000000, 0x090c4060, 0x000c4063, 0x000c4061, 	/* tdif.INT_STS */
 	0x01480000, 0x020c4064, 0x000c4067, 0x000c4065, 	/* tdif.PRTY_STS */
-	0x00010051, 0x0b0c4080, 0x000c4083, 0x000c4081, 	/* tdif.PRTY_STS_H_0, mode !e5 */
+	0x09310007, 0x0b0c4080, 0x000c4083, 0x000c4081, 	/* tdif.PRTY_STS_H_0, mode bb */
+	0x09310009, 0x0b0c4080, 0x000c4083, 0x000c4081, 	/* tdif.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x0c0c4080, 0x000c4083, 0x000c4081, 	/* tdif.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x08160070, 0x00160071, 0x00160073, 	/* cdu.INT_STS */
-	0x00000051, 0x05160080, 0x00160083, 0x00160081, 	/* cdu.PRTY_STS_H_0, mode !e5 */
+	0x093c0007, 0x05160080, 0x00160083, 0x00160081, 	/* cdu.PRTY_STS_H_0, mode bb */
+	0x093c0009, 0x05160080, 0x00160083, 0x00160081, 	/* cdu.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x04160080, 0x00160083, 0x00160081, 	/* cdu.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x020b8060, 0x000b8063, 0x000b8061, 	/* ccfc.INT_STS_0 */
 	0x00000000, 0x060b8179, 0x000b817c, 0x000b817a, 	/* ccfc.PRTY_STS */
-	0x00060051, 0x020b8080, 0x000b8083, 0x000b8081, 	/* ccfc.PRTY_STS_H_0, mode !e5 */
+	0x07970007, 0x020b8080, 0x000b8083, 0x000b8081, 	/* ccfc.PRTY_STS_H_0, mode bb */
+	0x07970009, 0x020b8080, 0x000b8083, 0x000b8081, 	/* ccfc.PRTY_STS_H_0, mode k2 */
+	0x00060003, 0x040b8080, 0x000b8083, 0x000b8081, 	/* ccfc.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x020b4060, 0x000b4063, 0x000b4061, 	/* tcfc.INT_STS_0 */
 	0x00000000, 0x060b4179, 0x000b417c, 0x000b417a, 	/* tcfc.PRTY_STS */
-	0x00060051, 0x020b4080, 0x000b4083, 0x000b4081, 	/* tcfc.PRTY_STS_H_0, mode !e5 */
+	0x00080007, 0x020b4080, 0x000b4083, 0x000b4081, 	/* tcfc.PRTY_STS_H_0, mode bb */
+	0x00080009, 0x020b4080, 0x000b4083, 0x000b4081, 	/* tcfc.PRTY_STS_H_0, mode k2 */
+	0x00060003, 0x040b4080, 0x000b4083, 0x000b4081, 	/* tcfc.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000000, 0x0b060060, 0x00060063, 0x00060061, 	/* igu.INT_STS */
 	0x00000000, 0x01060064, 0x00060067, 0x00060065, 	/* igu.PRTY_STS */
-	0x055e0007, 0x1f060080, 0x00060083, 0x00060081, 	/* igu.PRTY_STS_H_0, mode bb */
-	0x00010143, 0x1c060080, 0x00060083, 0x00060081, 	/* igu.PRTY_STS_H_0, mode !(bb|e5) */
-	0x00020015, 0x01060084, 0x00060087, 0x00060085, 	/* igu.PRTY_STS_H_1, mode !(k2|e5) */
-	0x00000000, 0x0b070035, 0x00070036, 0x00070038, 	/* cau.INT_STS */
-	0x057d0007, 0x0d070080, 0x00070083, 0x00070081, 	/* cau.PRTY_STS_H_0, mode bb */
-	0x00000025, 0x0d070080, 0x00070083, 0x00070081, 	/* cau.PRTY_STS_H_0, mode !bb */
+	0x09410007, 0x1f060080, 0x00060083, 0x00060081, 	/* igu.PRTY_STS_H_0, mode bb */
+	0x09600009, 0x1c060080, 0x00060083, 0x00060081, 	/* igu.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x1c060080, 0x00060083, 0x00060081, 	/* igu.PRTY_STS_H_0, mode !(bb|k2) */
+	0x001e0015, 0x01060084, 0x00060087, 0x00060085, 	/* igu.PRTY_STS_H_1, mode !(k2|e5) */
+	0x097c0000, 0x0b070035, 0x00070036, 0x00070038, 	/* cau.INT_STS */
+	0x09870007, 0x0d070080, 0x00070083, 0x00070081, 	/* cau.PRTY_STS_H_0, mode bb */
+	0x09940009, 0x0d070080, 0x00070083, 0x00070081, 	/* cau.PRTY_STS_H_0, mode k2 */
+	0x00000003, 0x0a070080, 0x00070083, 0x00070081, 	/* cau.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00000003, 0x023c0060, 0x003c0063, 0x003c0061, 	/* rgfs.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x013c0064, 0x003c0067, 0x003c0065, 	/* rgfs.PRTY_STS, mode !(bb|k2) */
 	0x00000003, 0x010c8060, 0x000c8063, 0x000c8061, 	/* rgsrc.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x020c8081, 0x000c8084, 0x000c8082, 	/* rgsrc.PRTY_STS_H_0, mode !(bb|k2) */
+	0x00000003, 0x02340060, 0x00340063, 0x00340061, 	/* tgfs.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x01340064, 0x00340067, 0x00340065, 	/* tgfs.PRTY_STS, mode !(bb|k2) */
 	0x00000003, 0x010c8860, 0x000c8863, 0x000c8861, 	/* tgsrc.INT_STS, mode !(bb|k2) */
+	0x00000003, 0x020c8881, 0x000c8884, 0x000c8882, 	/* tgsrc.PRTY_STS_H_0, mode !(bb|k2) */
 	0x00000025, 0x02014460, 0x00014463, 0x00014461, 	/* umac.INT_STS, mode !bb */
 	0x00000000, 0x01004060, 0x00004063, 0x00004061, 	/* dbg.INT_STS */
-	0x00000051, 0x01004080, 0x00004083, 0x00004081, 	/* dbg.PRTY_STS_H_0, mode !e5 */
+	0x00000000, 0x01004080, 0x00004083, 0x00004081, 	/* dbg.PRTY_STS_H_0 */
 	0x00000000, 0x0e140010, 0x00140013, 0x00140011, 	/* nig.INT_STS_0 */
 	0x000e0000, 0x20140014, 0x00140017, 0x00140015, 	/* nig.INT_STS_1 */
 	0x002e0000, 0x16140018, 0x0014001b, 0x00140019, 	/* nig.INT_STS_2 */
@@ -7370,33 +7549,39 @@ static const u32 attn_reg[] = {
 	0x00ce0003, 0x1014003c, 0x0014003f, 0x0014003d, 	/* nig.INT_STS_10, mode !(bb|k2) */
 	0x00000007, 0x01140028, 0x0014002b, 0x00140029, 	/* nig.PRTY_STS, mode bb */
 	0x00000025, 0x01140038, 0x0014003b, 0x00140039, 	/* nig.PRTY_STS, mode !bb */
-	0x058a0007, 0x1f140080, 0x00140083, 0x00140081, 	/* nig.PRTY_STS_H_0, mode bb */
-	0x00010143, 0x1f140080, 0x00140083, 0x00140081, 	/* nig.PRTY_STS_H_0, mode !(bb|e5) */
-	0x00000051, 0x00140084, 0x00140087, 0x00140085, 	/* nig.PRTY_STS_H_1, mode !e5 */
-	0x05a90007, 0x1f140088, 0x0014008b, 0x00140089, 	/* nig.PRTY_STS_H_2, mode bb */
-	0x05c80143, 0x1f140088, 0x0014008b, 0x00140089, 	/* nig.PRTY_STS_H_2, mode !(bb|e5) */
-	0x00000051, 0x0014008c, 0x0014008f, 0x0014008d, 	/* nig.PRTY_STS_H_3, mode !e5 */
+	0x09a10007, 0x1f140080, 0x00140083, 0x00140081, 	/* nig.PRTY_STS_H_0, mode bb */
+	0x09c00009, 0x1f140080, 0x00140083, 0x00140081, 	/* nig.PRTY_STS_H_0, mode k2 */
+	0x00010003, 0x1f140080, 0x00140083, 0x00140081, 	/* nig.PRTY_STS_H_0, mode !(bb|k2) */
+	0x09df0007, 0x1f140084, 0x00140087, 0x00140085, 	/* nig.PRTY_STS_H_1, mode bb */
+	0x09fe0009, 0x1f140084, 0x00140087, 0x00140085, 	/* nig.PRTY_STS_H_1, mode k2 */
+	0x0a1d0003, 0x1f140084, 0x00140087, 0x00140085, 	/* nig.PRTY_STS_H_1, mode !(bb|k2) */
+	0x0a3c0007, 0x1f140088, 0x0014008b, 0x00140089, 	/* nig.PRTY_STS_H_2, mode bb */
+	0x0a5b0009, 0x1f140088, 0x0014008b, 0x00140089, 	/* nig.PRTY_STS_H_2, mode k2 */
+	0x0a7a0003, 0x1f140088, 0x0014008b, 0x00140089, 	/* nig.PRTY_STS_H_2, mode !(bb|k2) */
+	0x0a990007, 0x1114008c, 0x0014008f, 0x0014008d, 	/* nig.PRTY_STS_H_3, mode bb */
+	0x0aaa0009, 0x0e14008c, 0x0014008f, 0x0014008d, 	/* nig.PRTY_STS_H_3, mode k2 */
+	0x0ab80003, 0x1914008c, 0x0014008f, 0x0014008d, 	/* nig.PRTY_STS_H_3, mode !(bb|k2) */
 	0x00000025, 0x01180010, 0x00180013, 0x00180011, 	/* wol.INT_STS_0, mode !bb */
-	0x00000143, 0x18180080, 0x00180083, 0x00180081, 	/* wol.PRTY_STS_H_0, mode !(bb|e5) */
+	0x00000025, 0x18180080, 0x00180083, 0x00180081, 	/* wol.PRTY_STS_H_0, mode !bb */
 	0x00000025, 0x01184010, 0x00184013, 0x00184011, 	/* bmbn.INT_STS_0, mode !bb */
-	0x05e70007, 0x0e008143, 0x00008146, 0x00008144, 	/* ipc.INT_STS_0, mode bb */
-	0x05e70025, 0x060080b7, 0x000080ba, 0x000080b8, 	/* ipc.INT_STS_0, mode !bb */
+	0x0ad10007, 0x0e008143, 0x00008146, 0x00008144, 	/* ipc.INT_STS_0, mode bb */
+	0x0ad10025, 0x060080b7, 0x000080ba, 0x000080b8, 	/* ipc.INT_STS_0, mode !bb */
 	0x00000015, 0x01008147, 0x0000814a, 0x00008148, 	/* ipc.PRTY_STS, mode !(k2|e5) */
-	0x05f50025, 0x12200001, 0x00200004, 0x00200002, 	/* nwm.INT_STS, mode !bb */
+	0x0adf0025, 0x12200001, 0x00200004, 0x00200002, 	/* nwm.INT_STS, mode !bb */
 	0x00000025, 0x1f200080, 0x00200083, 0x00200081, 	/* nwm.PRTY_STS_H_0, mode !bb */
 	0x001f0025, 0x1f200084, 0x00200087, 0x00200085, 	/* nwm.PRTY_STS_H_1, mode !bb */
 	0x003e0025, 0x0a200088, 0x0020008b, 0x00200089, 	/* nwm.PRTY_STS_H_2, mode !bb */
 	0x00000025, 0x0a1c0060, 0x001c0063, 0x001c0061, 	/* nws.INT_STS_0, mode !bb */
-	0x06070025, 0x0a1c0064, 0x001c0067, 0x001c0065, 	/* nws.INT_STS_1, mode !bb */
-	0x06110025, 0x0a1c0068, 0x001c006b, 0x001c0069, 	/* nws.INT_STS_2, mode !bb */
-	0x061b0025, 0x0a1c006c, 0x001c006f, 0x001c006d, 	/* nws.INT_STS_3, mode !bb */
+	0x0af10025, 0x0a1c0064, 0x001c0067, 0x001c0065, 	/* nws.INT_STS_1, mode !bb */
+	0x0afb0025, 0x0a1c0068, 0x001c006b, 0x001c0069, 	/* nws.INT_STS_2, mode !bb */
+	0x0b050025, 0x0a1c006c, 0x001c006f, 0x001c006d, 	/* nws.INT_STS_3, mode !bb */
 	0x00000025, 0x041c0080, 0x001c0083, 0x001c0081, 	/* nws.PRTY_STS_H_0, mode !bb */
 	0x00000025, 0x011a8060, 0x001a8063, 0x001a8061, 	/* ms.INT_STS, mode !bb */
 	0x00000025, 0x011ae060, 0x001ae063, 0x001ae061, 	/* led.INT_STS_0, mode !bb */
-	0x06250143, 0x031ad002, 0x001ad005, 0x001ad003, 	/* avs_wrap.INT_STS, mode !(bb|e5) */
-	0x00000143, 0x031ad006, 0x001ad009, 0x001ad007, 	/* avs_wrap.PRTY_STS, mode !(bb|e5) */
+	0x0b0f011b, 0x031ad002, 0x001ad005, 0x001ad003, 	/* avs_wrap.INT_STS, mode !(bb|e5) */
+	0x0000011b, 0x031ad006, 0x001ad009, 0x001ad007, 	/* avs_wrap.PRTY_STS, mode !(bb|e5) */
 };
-/* Data size: 5152 bytes */
+/* Data size: 6864 bytes */
 
 /* Array of attentions data per block */
 static const u32 attn_block[] = {
@@ -7407,86 +7592,86 @@ static const u32 attn_block[] = {
 	0x00000016, 0x00060001, 0x0000002e, 0x00070004, 	/* block pglue_b, 1 interrupt regs (24 attentions), 4 parity regs (35 attentions) */
 	0x00000051, 0x000b0002, 0x0000005b, 0x000d0002, 	/* block cnig, 2 interrupt regs (10 attentions), 2 parity regs (2 attentions) */
 	0x00000000, 0x000f0001, 0x00000000, 0x00100000, 	/* block cpmu, 1 interrupt regs (1 attentions) */
-	0x00000000, 0x00100001, 0x00000006, 0x00110001, 	/* block ncsi, 1 interrupt regs (1 attentions), 1 parity regs (1 attentions) */
-	0x00000000, 0x00120000, 0x0000005d, 0x00120002, 	/* block opte, 2 parity regs (12 attentions) */
-	0x00000069, 0x0014000c, 0x00000193, 0x00200003, 	/* block bmb, 12 interrupt regs (298 attentions), 3 parity regs (51 attentions) */
-	0x000001c6, 0x00230001, 0x000001d7, 0x00240003, 	/* block pcie, 1 interrupt regs (17 attentions), 3 parity regs (24 attentions) */
-	0x00000000, 0x00270000, 0x00000000, 0x00270000, 	/* block mcp */
-	0x00000000, 0x00270000, 0x000001ef, 0x00270002, 	/* block mcp2, 2 parity regs (13 attentions) */
-	0x000001fc, 0x00290001, 0x0000020e, 0x002a0002, 	/* block pswhst, 1 interrupt regs (18 attentions), 2 parity regs (18 attentions) */
-	0x00000220, 0x002c0001, 0x0000002e, 0x002d0001, 	/* block pswhst2, 1 interrupt regs (5 attentions), 1 parity regs (1 attentions) */
-	0x00000225, 0x002e0001, 0x0000002e, 0x002f0001, 	/* block pswrd, 1 interrupt regs (3 attentions), 1 parity regs (1 attentions) */
-	0x00000228, 0x00300001, 0x0000022d, 0x00310003, 	/* block pswrd2, 1 interrupt regs (5 attentions), 3 parity regs (35 attentions) */
-	0x00000250, 0x00340001, 0x0000002e, 0x00350001, 	/* block pswwr, 1 interrupt regs (19 attentions), 1 parity regs (1 attentions) */
-	0x00000263, 0x00360001, 0x00000279, 0x00370005, 	/* block pswwr2, 1 interrupt regs (22 attentions), 5 parity regs (114 attentions) */
-	0x000002eb, 0x003c0001, 0x00000302, 0x003d0001, 	/* block pswrq, 1 interrupt regs (23 attentions), 1 parity regs (1 attentions) */
-	0x00000303, 0x003e0001, 0x00000312, 0x003f0002, 	/* block pswrq2, 1 interrupt regs (15 attentions), 2 parity regs (11 attentions) */
-	0x0000031d, 0x00410001, 0x00000000, 0x00420000, 	/* block pglcs, 1 interrupt regs (2 attentions) */
-	0x0000031f, 0x00420001, 0x00000321, 0x00430001, 	/* block dmae, 1 interrupt regs (2 attentions), 1 parity regs (3 attentions) */
-	0x00000324, 0x00440001, 0x0000032c, 0x00450001, 	/* block ptu, 1 interrupt regs (8 attentions), 1 parity regs (18 attentions) */
-	0x0000033e, 0x00460005, 0x00000371, 0x004b0004, 	/* block tcm, 5 interrupt regs (51 attentions), 4 parity regs (42 attentions) */
-	0x0000039b, 0x004f0005, 0x000003cc, 0x00540002, 	/* block mcm, 5 interrupt regs (49 attentions), 2 parity regs (35 attentions) */
-	0x000003ef, 0x00560005, 0x00000424, 0x005b0002, 	/* block ucm, 5 interrupt regs (53 attentions), 2 parity regs (38 attentions) */
-	0x0000044a, 0x005d0003, 0x0000047f, 0x00600004, 	/* block xcm, 3 interrupt regs (53 attentions), 4 parity regs (49 attentions) */
-	0x000004b0, 0x00640003, 0x000004d9, 0x00670004, 	/* block ycm, 3 interrupt regs (41 attentions), 4 parity regs (44 attentions) */
-	0x00000505, 0x006b0005, 0x0000051f, 0x00700002, 	/* block pcm, 5 interrupt regs (26 attentions), 2 parity regs (19 attentions) */
-	0x00000532, 0x00720001, 0x00000548, 0x00730005, 	/* block qm, 1 interrupt regs (22 attentions), 5 parity regs (92 attentions) */
-	0x000005a4, 0x00780002, 0x000005cf, 0x007a0001, 	/* block tm, 2 interrupt regs (43 attentions), 1 parity regs (17 attentions) */
-	0x000005e0, 0x007b0001, 0x000005ec, 0x007c0002, 	/* block dorq, 1 interrupt regs (12 attentions), 2 parity regs (7 attentions) */
-	0x000005f3, 0x007e000c, 0x000006dc, 0x008a0005, 	/* block brb, 12 interrupt regs (233 attentions), 5 parity regs (74 attentions) */
-	0x00000000, 0x008f0001, 0x00000000, 0x00900000, 	/* block src, 1 interrupt regs (1 attentions) */
-	0x00000726, 0x00900001, 0x00000728, 0x00910005, 	/* block prs, 1 interrupt regs (2 attentions), 5 parity regs (75 attentions) */
-	0x00000773, 0x00960001, 0x0000078f, 0x00970001, 	/* block tsdm, 1 interrupt regs (28 attentions), 1 parity regs (10 attentions) */
-	0x00000773, 0x00980001, 0x00000799, 0x00990001, 	/* block msdm, 1 interrupt regs (28 attentions), 1 parity regs (11 attentions) */
-	0x00000773, 0x009a0001, 0x00000790, 0x009b0001, 	/* block usdm, 1 interrupt regs (28 attentions), 1 parity regs (10 attentions) */
-	0x00000773, 0x009c0001, 0x000007a4, 0x009d0001, 	/* block xsdm, 1 interrupt regs (28 attentions), 1 parity regs (10 attentions) */
-	0x00000773, 0x009e0001, 0x000007ae, 0x009f0001, 	/* block ysdm, 1 interrupt regs (28 attentions), 1 parity regs (9 attentions) */
-	0x00000773, 0x00a00001, 0x000007ae, 0x00a10001, 	/* block psdm, 1 interrupt regs (28 attentions), 1 parity regs (9 attentions) */
-	0x000007b7, 0x00a20006, 0x00000838, 0x00a80004, 	/* block tsem, 6 interrupt regs (129 attentions), 4 parity regs (20 attentions) */
-	0x000007b7, 0x00ac0006, 0x00000838, 0x00b20003, 	/* block msem, 6 interrupt regs (129 attentions), 3 parity regs (16 attentions) */
-	0x000007b7, 0x00b50006, 0x00000838, 0x00bb0003, 	/* block usem, 6 interrupt regs (129 attentions), 3 parity regs (16 attentions) */
-	0x000007b7, 0x00be0006, 0x0000084c, 0x00c40003, 	/* block xsem, 6 interrupt regs (129 attentions), 3 parity regs (17 attentions) */
-	0x000007b7, 0x00c70006, 0x0000084c, 0x00cd0003, 	/* block ysem, 6 interrupt regs (129 attentions), 3 parity regs (17 attentions) */
-	0x000007b7, 0x00d00006, 0x00000838, 0x00d60004, 	/* block psem, 6 interrupt regs (129 attentions), 4 parity regs (20 attentions) */
-	0x0000085d, 0x00da0001, 0x00000873, 0x00db0001, 	/* block rss, 1 interrupt regs (22 attentions), 1 parity regs (4 attentions) */
-	0x00000877, 0x00dc0001, 0x0000087d, 0x00dd0001, 	/* block tmld, 1 interrupt regs (6 attentions), 1 parity regs (8 attentions) */
-	0x00000877, 0x00de0001, 0x00000885, 0x00df0001, 	/* block muld, 1 interrupt regs (6 attentions), 1 parity regs (10 attentions) */
-	0x00000877, 0x00e00001, 0x0000088f, 0x00e10001, 	/* block yuld, 1 interrupt regs (6 attentions), 1 parity regs (6 attentions) */
-	0x00000877, 0x00e20001, 0x00000895, 0x00e30001, 	/* block xyld, 1 interrupt regs (6 attentions), 1 parity regs (9 attentions) */
-	0x00000877, 0x00e40001, 0x00000000, 0x00e50000, 	/* block ptld, 1 interrupt regs (6 attentions) */
-	0x00000877, 0x00e50001, 0x00000000, 0x00e60000, 	/* block ypld, 1 interrupt regs (6 attentions) */
-	0x0000089e, 0x00e60001, 0x000008a9, 0x00e70003, 	/* block prm, 1 interrupt regs (11 attentions), 3 parity regs (30 attentions) */
-	0x000008c7, 0x00ea0001, 0x0000002e, 0x00eb0001, 	/* block pbf_pb1, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
-	0x000008c7, 0x00ec0001, 0x0000002e, 0x00ed0001, 	/* block pbf_pb2, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
-	0x000008c7, 0x00ee0001, 0x0000002e, 0x00ef0001, 	/* block rpb, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
-	0x000008d0, 0x00f0000b, 0x00000951, 0x00fb0003, 	/* block btb, 11 interrupt regs (129 attentions), 3 parity regs (36 attentions) */
-	0x00000000, 0x00fe0001, 0x00000975, 0x00ff0003, 	/* block pbf, 1 interrupt regs (1 attentions), 3 parity regs (59 attentions) */
-	0x000009b0, 0x01020001, 0x0000002e, 0x01030001, 	/* block rdif, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
-	0x000009b0, 0x01040001, 0x000009b9, 0x01050002, 	/* block tdif, 1 interrupt regs (9 attentions), 2 parity regs (12 attentions) */
-	0x000009c5, 0x01070001, 0x000009cd, 0x01080001, 	/* block cdu, 1 interrupt regs (8 attentions), 1 parity regs (5 attentions) */
-	0x000009d2, 0x01090001, 0x000009d4, 0x010a0002, 	/* block ccfc, 1 interrupt regs (2 attentions), 2 parity regs (8 attentions) */
-	0x000009d2, 0x010c0001, 0x000009dc, 0x010d0002, 	/* block tcfc, 1 interrupt regs (2 attentions), 2 parity regs (8 attentions) */
-	0x000009e4, 0x010f0001, 0x000009ef, 0x01100004, 	/* block igu, 1 interrupt regs (11 attentions), 4 parity regs (42 attentions) */
-	0x00000a19, 0x01140001, 0x00000a24, 0x01150002, 	/* block cau, 1 interrupt regs (11 attentions), 2 parity regs (15 attentions) */
-	0x00000000, 0x01170000, 0x00000000, 0x01170000, 	/* block rgfs */
-	0x00000000, 0x01170001, 0x00000000, 0x01180000, 	/* block rgsrc, 1 interrupt regs (1 attentions) */
-	0x00000000, 0x01180000, 0x00000000, 0x01180000, 	/* block tgfs */
-	0x00000000, 0x01180001, 0x00000000, 0x01190000, 	/* block tgsrc, 1 interrupt regs (1 attentions) */
-	0x00000a33, 0x01190001, 0x00000000, 0x011a0000, 	/* block umac, 1 interrupt regs (2 attentions) */
-	0x00000000, 0x011a0000, 0x00000000, 0x011a0000, 	/* block xmac */
-	0x00000000, 0x011a0001, 0x00000050, 0x011b0001, 	/* block dbg, 1 interrupt regs (1 attentions), 1 parity regs (1 attentions) */
-	0x00000a35, 0x011c000b, 0x00000b13, 0x01270008, 	/* block nig, 11 interrupt regs (222 attentions), 8 parity regs (113 attentions) */
-	0x00000000, 0x012f0001, 0x00000b84, 0x01300001, 	/* block wol, 1 interrupt regs (1 attentions), 1 parity regs (24 attentions) */
-	0x00000000, 0x01310001, 0x00000000, 0x01320000, 	/* block bmbn, 1 interrupt regs (1 attentions) */
-	0x00000b9c, 0x01320002, 0x00000ba9, 0x01340001, 	/* block ipc, 2 interrupt regs (13 attentions), 1 parity regs (1 attentions) */
-	0x00000baa, 0x01350001, 0x00000bbb, 0x01360003, 	/* block nwm, 1 interrupt regs (17 attentions), 3 parity regs (72 attentions) */
-	0x00000c03, 0x01390004, 0x00000c28, 0x013d0001, 	/* block nws, 4 interrupt regs (37 attentions), 1 parity regs (4 attentions) */
-	0x00000000, 0x013e0001, 0x00000000, 0x013f0000, 	/* block ms, 1 interrupt regs (1 attentions) */
-	0x00000000, 0x013f0000, 0x00000000, 0x013f0000, 	/* block phy_pcie */
-	0x00000000, 0x013f0001, 0x00000000, 0x01400000, 	/* block led, 1 interrupt regs (1 attentions) */
-	0x00000c2c, 0x01400001, 0x00000c2e, 0x01410001, 	/* block avs_wrap, 1 interrupt regs (2 attentions), 1 parity regs (3 attentions) */
-	0x00000000, 0x01420000, 0x00000000, 0x01420000, 	/* block misc_aeu */
-	0x00000000, 0x01420000, 0x00000000, 0x01420000, 	/* block bar0_map */
+	0x00000000, 0x00100001, 0x0000005d, 0x00110001, 	/* block ncsi, 1 interrupt regs (1 attentions), 1 parity regs (3 attentions) */
+	0x00000000, 0x00120000, 0x00000060, 0x00120002, 	/* block opte, 2 parity regs (12 attentions) */
+	0x0000006c, 0x0014000c, 0x00000196, 0x00200005, 	/* block bmb, 12 interrupt regs (298 attentions), 5 parity regs (66 attentions) */
+	0x000001d8, 0x00250001, 0x000001e9, 0x00260003, 	/* block pcie, 1 interrupt regs (17 attentions), 3 parity regs (24 attentions) */
+	0x00000000, 0x00290000, 0x00000000, 0x00290000, 	/* block mcp */
+	0x00000000, 0x00290000, 0x00000201, 0x00290002, 	/* block mcp2, 2 parity regs (13 attentions) */
+	0x0000020e, 0x002b0001, 0x00000220, 0x002c0002, 	/* block pswhst, 1 interrupt regs (18 attentions), 2 parity regs (18 attentions) */
+	0x00000232, 0x002e0001, 0x0000002e, 0x002f0001, 	/* block pswhst2, 1 interrupt regs (5 attentions), 1 parity regs (1 attentions) */
+	0x00000237, 0x00300001, 0x0000002e, 0x00310001, 	/* block pswrd, 1 interrupt regs (3 attentions), 1 parity regs (1 attentions) */
+	0x0000023a, 0x00320001, 0x0000023f, 0x00330007, 	/* block pswrd2, 1 interrupt regs (5 attentions), 7 parity regs (40 attentions) */
+	0x00000267, 0x003a0001, 0x0000002e, 0x003b0001, 	/* block pswwr, 1 interrupt regs (19 attentions), 1 parity regs (1 attentions) */
+	0x0000027a, 0x003c0001, 0x00000290, 0x003d000e, 	/* block pswwr2, 1 interrupt regs (22 attentions), 14 parity regs (161 attentions) */
+	0x00000331, 0x004b0001, 0x00000348, 0x004c0001, 	/* block pswrq, 1 interrupt regs (23 attentions), 1 parity regs (1 attentions) */
+	0x00000349, 0x004d0001, 0x00000358, 0x004e0002, 	/* block pswrq2, 1 interrupt regs (15 attentions), 2 parity regs (11 attentions) */
+	0x00000363, 0x00500001, 0x00000000, 0x00510000, 	/* block pglcs, 1 interrupt regs (2 attentions) */
+	0x00000365, 0x00510001, 0x0000005d, 0x00520001, 	/* block dmae, 1 interrupt regs (2 attentions), 1 parity regs (3 attentions) */
+	0x00000367, 0x00530001, 0x0000036f, 0x00540003, 	/* block ptu, 1 interrupt regs (8 attentions), 3 parity regs (20 attentions) */
+	0x00000383, 0x00570005, 0x000003b4, 0x005c0006, 	/* block tcm, 5 interrupt regs (49 attentions), 6 parity regs (59 attentions) */
+	0x000003ef, 0x00620005, 0x0000041e, 0x00670006, 	/* block mcm, 5 interrupt regs (47 attentions), 6 parity regs (52 attentions) */
+	0x00000452, 0x006d0005, 0x00000485, 0x00720004, 	/* block ucm, 5 interrupt regs (51 attentions), 4 parity regs (49 attentions) */
+	0x000004b6, 0x00760003, 0x000004e9, 0x00790006, 	/* block xcm, 3 interrupt regs (51 attentions), 6 parity regs (54 attentions) */
+	0x0000051f, 0x007f0003, 0x00000546, 0x00820006, 	/* block ycm, 3 interrupt regs (39 attentions), 6 parity regs (58 attentions) */
+	0x00000580, 0x00880005, 0x00000598, 0x008d0003, 	/* block pcm, 5 interrupt regs (24 attentions), 3 parity regs (24 attentions) */
+	0x000005b0, 0x00900001, 0x000005c6, 0x00910009, 	/* block qm, 1 interrupt regs (22 attentions), 9 parity regs (116 attentions) */
+	0x0000063a, 0x009a0002, 0x00000665, 0x009c0003, 	/* block tm, 2 interrupt regs (43 attentions), 3 parity regs (20 attentions) */
+	0x00000679, 0x009f0001, 0x00000685, 0x00a00004, 	/* block dorq, 1 interrupt regs (12 attentions), 4 parity regs (13 attentions) */
+	0x00000692, 0x00a4000c, 0x0000077b, 0x00b00008, 	/* block brb, 12 interrupt regs (233 attentions), 8 parity regs (83 attentions) */
+	0x00000000, 0x00b80001, 0x00000000, 0x00b90000, 	/* block src, 1 interrupt regs (1 attentions) */
+	0x000007ce, 0x00b90001, 0x000007d0, 0x00ba0006, 	/* block prs, 1 interrupt regs (2 attentions), 6 parity regs (78 attentions) */
+	0x0000081e, 0x00c00001, 0x0000083a, 0x00c10003, 	/* block tsdm, 1 interrupt regs (28 attentions), 3 parity regs (11 attentions) */
+	0x0000081e, 0x00c40001, 0x00000845, 0x00c50003, 	/* block msdm, 1 interrupt regs (28 attentions), 3 parity regs (14 attentions) */
+	0x0000081e, 0x00c80001, 0x00000853, 0x00c90003, 	/* block usdm, 1 interrupt regs (28 attentions), 3 parity regs (11 attentions) */
+	0x0000081e, 0x00cc0001, 0x0000085e, 0x00cd0003, 	/* block xsdm, 1 interrupt regs (28 attentions), 3 parity regs (11 attentions) */
+	0x0000081e, 0x00d00001, 0x00000869, 0x00d10003, 	/* block ysdm, 1 interrupt regs (28 attentions), 3 parity regs (10 attentions) */
+	0x0000081e, 0x00d40001, 0x00000873, 0x00d50003, 	/* block psdm, 1 interrupt regs (28 attentions), 3 parity regs (12 attentions) */
+	0x0000087f, 0x00d80006, 0x00000901, 0x00de0007, 	/* block tsem, 6 interrupt regs (130 attentions), 7 parity regs (24 attentions) */
+	0x0000087f, 0x00e50006, 0x00000919, 0x00eb0008, 	/* block msem, 6 interrupt regs (130 attentions), 8 parity regs (30 attentions) */
+	0x0000087f, 0x00f30006, 0x00000901, 0x00f90006, 	/* block usem, 6 interrupt regs (130 attentions), 6 parity regs (20 attentions) */
+	0x0000087f, 0x00ff0006, 0x00000937, 0x01050006, 	/* block xsem, 6 interrupt regs (130 attentions), 6 parity regs (21 attentions) */
+	0x0000087f, 0x010b0006, 0x00000937, 0x01110006, 	/* block ysem, 6 interrupt regs (130 attentions), 6 parity regs (21 attentions) */
+	0x0000087f, 0x01170006, 0x00000901, 0x011d0007, 	/* block psem, 6 interrupt regs (130 attentions), 7 parity regs (24 attentions) */
+	0x0000094c, 0x01240001, 0x00000962, 0x01250001, 	/* block rss, 1 interrupt regs (22 attentions), 1 parity regs (10 attentions) */
+	0x0000096c, 0x01260001, 0x00000972, 0x01270003, 	/* block tmld, 1 interrupt regs (6 attentions), 3 parity regs (15 attentions) */
+	0x0000096c, 0x012a0001, 0x00000981, 0x012b0003, 	/* block muld, 1 interrupt regs (6 attentions), 3 parity regs (19 attentions) */
+	0x0000096c, 0x012e0001, 0x00000994, 0x012f0001, 	/* block yuld, 1 interrupt regs (6 attentions), 1 parity regs (6 attentions) */
+	0x0000096c, 0x01300001, 0x0000099a, 0x01310003, 	/* block xyld, 1 interrupt regs (6 attentions), 3 parity regs (17 attentions) */
+	0x0000096c, 0x01340001, 0x000009ab, 0x01350001, 	/* block ptld, 1 interrupt regs (6 attentions), 1 parity regs (8 attentions) */
+	0x0000096c, 0x01360001, 0x000009ab, 0x01370001, 	/* block ypld, 1 interrupt regs (6 attentions), 1 parity regs (8 attentions) */
+	0x000009b3, 0x01380001, 0x000009be, 0x01390004, 	/* block prm, 1 interrupt regs (11 attentions), 4 parity regs (30 attentions) */
+	0x000009dc, 0x013d0001, 0x0000002e, 0x013e0001, 	/* block pbf_pb1, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
+	0x000009dc, 0x013f0001, 0x0000002e, 0x01400001, 	/* block pbf_pb2, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
+	0x000009dc, 0x01410001, 0x0000002e, 0x01420001, 	/* block rpb, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
+	0x000009e5, 0x0143000b, 0x00000a66, 0x014e0005, 	/* block btb, 11 interrupt regs (129 attentions), 5 parity regs (44 attentions) */
+	0x00000000, 0x01530001, 0x00000a92, 0x01540003, 	/* block pbf, 1 interrupt regs (1 attentions), 3 parity regs (59 attentions) */
+	0x00000acd, 0x01570001, 0x0000002e, 0x01580001, 	/* block rdif, 1 interrupt regs (9 attentions), 1 parity regs (1 attentions) */
+	0x00000acd, 0x01590001, 0x00000ad6, 0x015a0004, 	/* block tdif, 1 interrupt regs (9 attentions), 4 parity regs (13 attentions) */
+	0x00000ae3, 0x015e0001, 0x00000aeb, 0x015f0003, 	/* block cdu, 1 interrupt regs (8 attentions), 3 parity regs (5 attentions) */
+	0x00000af0, 0x01620001, 0x00000af2, 0x01630004, 	/* block ccfc, 1 interrupt regs (2 attentions), 4 parity regs (11 attentions) */
+	0x00000af0, 0x01670001, 0x00000afd, 0x01680004, 	/* block tcfc, 1 interrupt regs (2 attentions), 4 parity regs (10 attentions) */
+	0x00000b07, 0x016c0001, 0x00000b12, 0x016d0005, 	/* block igu, 1 interrupt regs (11 attentions), 5 parity regs (54 attentions) */
+	0x00000b48, 0x01720001, 0x00000b53, 0x01730003, 	/* block cau, 1 interrupt regs (11 attentions), 3 parity regs (16 attentions) */
+	0x000005b0, 0x01760001, 0x000005c6, 0x01770001, 	/* block rgfs, 1 interrupt regs (2 attentions), 1 parity regs (1 attentions) */
+	0x00000000, 0x01780001, 0x00000968, 0x01790001, 	/* block rgsrc, 1 interrupt regs (1 attentions), 1 parity regs (2 attentions) */
+	0x000005b0, 0x017a0001, 0x000005c6, 0x017b0001, 	/* block tgfs, 1 interrupt regs (2 attentions), 1 parity regs (1 attentions) */
+	0x00000000, 0x017c0001, 0x00000968, 0x017d0001, 	/* block tgsrc, 1 interrupt regs (1 attentions), 1 parity regs (2 attentions) */
+	0x00000b63, 0x017e0001, 0x00000000, 0x017f0000, 	/* block umac, 1 interrupt regs (2 attentions) */
+	0x00000000, 0x017f0000, 0x00000000, 0x017f0000, 	/* block xmac */
+	0x00000000, 0x017f0001, 0x00000050, 0x01800001, 	/* block dbg, 1 interrupt regs (1 attentions), 1 parity regs (1 attentions) */
+	0x00000b65, 0x0181000b, 0x00000c43, 0x018c000e, 	/* block nig, 11 interrupt regs (222 attentions), 14 parity regs (121 attentions) */
+	0x00000000, 0x019a0001, 0x00000cbc, 0x019b0001, 	/* block wol, 1 interrupt regs (1 attentions), 1 parity regs (24 attentions) */
+	0x00000000, 0x019c0001, 0x00000000, 0x019d0000, 	/* block bmbn, 1 interrupt regs (1 attentions) */
+	0x00000cd4, 0x019d0002, 0x00000ce1, 0x019f0001, 	/* block ipc, 2 interrupt regs (13 attentions), 1 parity regs (1 attentions) */
+	0x00000ce2, 0x01a00001, 0x00000cf3, 0x01a10003, 	/* block nwm, 1 interrupt regs (17 attentions), 3 parity regs (72 attentions) */
+	0x00000d3b, 0x01a40004, 0x00000d60, 0x01a80001, 	/* block nws, 4 interrupt regs (37 attentions), 1 parity regs (4 attentions) */
+	0x00000000, 0x01a90001, 0x00000000, 0x01aa0000, 	/* block ms, 1 interrupt regs (1 attentions) */
+	0x00000000, 0x01aa0000, 0x00000000, 0x01aa0000, 	/* block phy_pcie */
+	0x00000000, 0x01aa0001, 0x00000000, 0x01ab0000, 	/* block led, 1 interrupt regs (1 attentions) */
+	0x00000d64, 0x01ab0001, 0x00000d66, 0x01ac0001, 	/* block avs_wrap, 1 interrupt regs (2 attentions), 1 parity regs (3 attentions) */
+	0x00000000, 0x01ad0000, 0x00000000, 0x01ad0000, 	/* block misc_aeu */
+	0x00000000, 0x01ad0000, 0x00000000, 0x01ad0000, 	/* block bar0_map */
 };
 /* Data size: 1392 bytes */
 

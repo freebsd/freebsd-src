@@ -66,7 +66,9 @@ EXTRA_DIST = \
     ${addprefix saved/, ${TEST_CASES:.c=.H.err}} \
     ${addprefix saved/, ${TEST_CASES:.c=.H.out}} \
     ${addprefix saved/, ${TEST_CASES:.c=.HIPx.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.HIPx.out}}
+    ${addprefix saved/, ${TEST_CASES:.c=.HIPx.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.out}}
 
 S2O = | ${SED} '1,/@@/d'
 
@@ -79,16 +81,10 @@ valgrind:
 #TEST_TRACE = set -x ; 
 
 TEST_JIG = \
-      ${CHECKER} ./$$base.test ${TEST_OPTS} \
+      ${CHECKER} ./$$base.test --libxo$$xoopts ${TEST_OPTS} \
       > out/$$base.$$fmt.out 2> out/$$base.$$fmt.err ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.out out/$$base.$$fmt.out ${S2O} ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.err out/$$base.$$fmt.err ${S2O}
-
-TEST_ONE = \
-  LIBXO_OPTIONS=:W$$fmt ${TEST_JIG}
-
-TEST_TWO = \
-  LIBXO_OPTIONS=warn,encoder=test ${TEST_JIG}
 
 TEST_FORMATS = T XP JP HP X J H HIPx
 
@@ -98,12 +94,14 @@ test tests: ${bin_PROGRAMS}
 	    base=`${BASENAME} $$test .c` ; \
             (for fmt in ${TEST_FORMATS}; do \
 	        echo "... $$test ... $$fmt ..."; \
-	        ${TEST_ONE}; \
+                xoopts=:W$$fmt ; \
+	        ${TEST_JIG}; \
                 true; \
             done) ; \
             (for fmt in E; do \
 	        echo "... $$test ... $$fmt ..."; \
-	        ${TEST_TWO}; \
+                xoopts==warn,encoder=test ; \
+	        ${TEST_JIG}; \
                 true; \
             done) \
 	done)

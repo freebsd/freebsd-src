@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.234 2017/02/18 11:53:33 schwarze Exp $
+* $Id: TODO,v 1.237 2017/05/16 19:06:30 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -60,18 +60,6 @@ are mere guesses, and some may be wrong.
   when implementing this, also let .TH set it
   reported by brad@  Sat, 15 Jan 2011 15:45:23 -0500
   loc ***  exist ***  algo ***  size **  imp *
-
-- .ta (tab settings)
-  #1 most important issue naddy@ Mon, 16 Feb 2015 20:59:17 +0100
-  ircbug(1) gnats(1) reported by brad@  Sat, 15 Jan 2011 15:50:51 -0500
-  also Tcl_NewStringObj(3) via wiz@  Wed, 5 Mar 2014 22:27:43 +0100
-  also posix2time(3) Carsten Kunze  Mon, 1 Dec 2014 13:03:10 +0100
-  loc **  exist ***  algo **  size **  imp ***
-
-- .ti (temporary indent)
-  found by naddy@ in xloadimage(1) [devel/libvstr] vstr(3)
-  found by bentley@ in nmh(1)  Mon, 23 Apr 2012 13:38:28 -0600
-  loc **  exist **  algo **  size *  imp ** (parser reorg helps a lot)
 
 - .while and .shift
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
@@ -272,12 +260,6 @@ are mere guesses, and some may be wrong.
 
 - kettenis wants base roff, ms, and me  Fri, 1 Jan 2010 22:13:15 +0100 (CET)
   loc **  exist **  algo **  size ***  imp *
-
-- Vsevolod Stakhov (FreeBSD) needs either a markdown output formatter
-  for mandoc -mdoc or a markdown to mdoc converter because they
-  have to maintain manuals needed both in markdown and mdoc format.
-  Look at the libsoldout (markdown -> whatever)
-  loc *  exist *  algo *  size **  imp **
 
 --- compatibility checks -----------------------------------------------
 
@@ -566,8 +548,6 @@ are mere guesses, and some may be wrong.
 
 Several areas can be cleaned up to make mandoc even faster.  These are
 
-- improve hashing mechanism for macros (quite important: performance)
-
 - the PDF file is HUGE: this can be reduced by using relative offsets
 
 ************************************************************************
@@ -613,3 +593,10 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 
 - use uname(1) to set doc-default-operating-system at install time
   tobimensch  Mon, 1 Dec 2014 00:25:07 +0100
+
+- apostrophe (39), circumflex (94), grave (96), tilde (126)
+  in manuals: \(aq, \(ha, \`, \(ti
+  Re: [Groff] ASCII Minus Sign in man Pages.
+  bentley@ 26 Apr 2017 10:02:06 -0600
+  Do we need to fix existing manuals?
+  Do we need to fix the definition of the mdoc(7) language?

@@ -1087,11 +1087,11 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_getpriority:
 			case SYS_setpriority:
-				print_number(ip, narg, c);
-				print_number(ip, narg, c);
-				putchar(',');
+				putchar('(');
 				print_integer_arg(sysdecode_prio_which, *ip);
+				c = ',';
 				ip++;
 				narg--;
 				break;
@@ -1217,6 +1217,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				c = ',';
 				break;
+			case SYS_getrusage:
+				putchar('(');
+				print_integer_arg(sysdecode_getrusage_who, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
 			case SYS_quotactl:
 				print_number(ip, narg, c);
 				putchar(',');
@@ -1239,6 +1246,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				c = ',';
 				break;
 			case SYS_rtprio:
+			case SYS_rtprio_thread:
 				putchar('(');
 				print_integer_arg(sysdecode_rtprio_function,
 				    *ip);

@@ -51,7 +51,7 @@ extern nl_catd		 catalog;
 
 extern const char		*errstr[];
 
-#define	VERSION		"2.5.1-FreeBSD"
+#define	VERSION		"2.6.0-FreeBSD"
 
 #define	GREP_FIXED	0
 #define	GREP_BASIC	1
@@ -82,7 +82,7 @@ extern const char		*errstr[];
 #define	EXCL_PAT	0
 #define	INCL_PAT	1
 
-#define	MAX_LINE_MATCHES	32
+#define	MAX_MATCHES	32
 
 struct file {
 	int		 fd;

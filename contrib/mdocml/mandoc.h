@@ -1,4 +1,4 @@
-/*	$Id: mandoc.h,v 1.214 2017/01/28 23:30:08 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.226 2017/06/08 18:11:22 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -28,7 +28,7 @@
  */
 enum	mandoclevel {
 	MANDOCLEVEL_OK = 0,
-	MANDOCLEVEL_RESERVED,
+	MANDOCLEVEL_STYLE, /* style suggestions */
 	MANDOCLEVEL_WARNING, /* warnings: syntax, whitespace, etc. */
 	MANDOCLEVEL_ERROR, /* input has been thrown away */
 	MANDOCLEVEL_UNSUPP, /* input needs unimplemented features */
@@ -43,6 +43,14 @@ enum	mandoclevel {
  */
 enum	mandocerr {
 	MANDOCERR_OK,
+
+	MANDOCERR_STYLE, /* ===== start of style suggestions ===== */
+
+	MANDOCERR_MACRO_USELESS, /* useless macro: macro */
+	MANDOCERR_BX, /* consider using OS macro: macro */
+	MANDOCERR_ER_ORDER, /* errnos out of order: Er ... */
+	MANDOCERR_ER_REP, /* duplicate errno: Er ... */
+	MANDOCERR_ND_DOT, /* description line ends with a full stop */
 
 	MANDOCERR_WARNING, /* ===== start of warnings ===== */
 
@@ -71,6 +79,7 @@ enum	mandocerr {
 	MANDOCERR_NAMESEC_BAD, /* bad NAME section content: macro */
 	MANDOCERR_NAMESEC_PUNCT, /* missing comma before name: Nm name */
 	MANDOCERR_ND_EMPTY, /* missing description line, using "" */
+	MANDOCERR_ND_LATE, /* description line outside NAME section */
 	MANDOCERR_SEC_ORDER, /* sections out of conventional order: Sh title */
 	MANDOCERR_SEC_REP, /* duplicate section title: Sh title */
 	MANDOCERR_SEC_MSEC, /* unexpected section: Sh title for ... only */
@@ -90,6 +99,7 @@ enum	mandocerr {
 	MANDOCERR_FI_SKIP, /* fill mode already enabled, skipping: fi */
 	MANDOCERR_NF_SKIP, /* fill mode already disabled, skipping: nf */
 	MANDOCERR_BLK_LINE, /* line scope broken: macro breaks macro */
+	MANDOCERR_BLK_BLANK, /* skipping blank line in line scope */
 
 	/* related to missing arguments */
 	MANDOCERR_REQ_EMPTY, /* skipping empty request: request */
@@ -125,6 +135,7 @@ enum	mandocerr {
 	MANDOCERR_AT_BAD, /* unknown AT&T UNIX version: At version */
 	MANDOCERR_FA_COMMA, /* comma in function argument: arg */
 	MANDOCERR_FN_PAREN, /* parenthesis in function name: arg */
+	MANDOCERR_LB_BAD, /* unknown library name: Lb ... */
 	MANDOCERR_RS_BAD, /* invalid content in Rs block: macro */
 	MANDOCERR_SM_BAD, /* invalid Boolean argument: macro arg */
 	MANDOCERR_FT_BAD, /* unknown font, skipping request: ft font */
@@ -177,6 +188,7 @@ enum	mandocerr {
 	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_BD_NOARG, /* skipping display without arguments: Bd */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
+	MANDOCERR_CE_NONUM, /* argument is not numeric, using 1: ce ... */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
 	MANDOCERR_ST_BAD, /* unknown standard specifier: St standard */
@@ -234,9 +246,10 @@ enum	tbl_cellt {
  */
 struct	tbl_cell {
 	struct tbl_cell	 *next;
+	char		 *wstr; /* min width represented as a string */
+	size_t		  width; /* minimum column width */
+	size_t		  spacing; /* to the right of the column */
 	int		  vert; /* width of subsequent vertical line */
-	enum tbl_cellt	  pos;
-	size_t		  spacing;
 	int		  col; /* column number, starting from 0 */
 	int		  flags;
 #define	TBL_CELL_TALIGN	 (1 << 0) /* t, T */
@@ -247,6 +260,7 @@ struct	tbl_cell {
 #define	TBL_CELL_UP	 (1 << 5) /* u, U */
 #define	TBL_CELL_WIGN	 (1 << 6) /* z, Z */
 #define	TBL_CELL_WMAX	 (1 << 7) /* x, X */
+	enum tbl_cellt	  pos;
 };
 
 /*
@@ -274,9 +288,10 @@ enum	tbl_datt {
  */
 struct	tbl_dat {
 	struct tbl_cell	 *layout; /* layout cell */
-	int		  spans; /* how many spans follow */
 	struct tbl_dat	 *next;
 	char		 *string; /* data (NULL if not TBL_DATA_DATA) */
+	int		  spans; /* how many spans follow */
+	int		  block; /* T{ text block T} */
 	enum tbl_datt	  pos;
 };
 
@@ -404,6 +419,8 @@ enum	mandoc_esc {
 	ESCAPE_NUMBERED, /* a numbered glyph */
 	ESCAPE_UNICODE, /* a unicode codepoint */
 	ESCAPE_NOSPACE, /* suppress space if the last on a line */
+	ESCAPE_HORIZ, /* horizontal movement */
+	ESCAPE_HLINE, /* horizontal line drawing */
 	ESCAPE_SKIPCHAR, /* skip the next character */
 	ESCAPE_OVERSTRIKE /* overstrike all chars in the argument */
 };

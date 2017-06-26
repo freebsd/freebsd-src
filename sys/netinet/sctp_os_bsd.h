@@ -462,8 +462,6 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #define SCTP_SHA256_UPDATE	SHA256_Update
 #define SCTP_SHA256_FINAL(x,y)	SHA256_Final((caddr_t)x, y)
 
-#endif
-
 #define SCTP_DECREMENT_AND_CHECK_REFCOUNT(addr) (atomic_fetchadd_int(addr, -1) == 1)
 #if defined(INVARIANTS)
 #define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
@@ -483,4 +481,8 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 		*addr = 0; \
 	} \
 }
+#endif
+
+#define SCTP_IS_LISTENING(inp) ((inp->sctp_flags & SCTP_PCB_FLAGS_ACCEPTING) != 0)
+
 #endif

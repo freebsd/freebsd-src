@@ -299,7 +299,13 @@ VNET_DECLARE(int, natt_cksum_policy);
 
 #define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
+#ifdef IPSEC_DEBUG
+#define	IPSEC_DEBUG_DECLARE(x)	x
 #define	DPRINTF(x)	do { if (V_ipsec_debug) printf x; } while (0)
+#else
+#define	IPSEC_DEBUG_DECLARE(x)
+#define	DPRINTF(x)
+#endif
 
 struct inpcb;
 struct m_tag;

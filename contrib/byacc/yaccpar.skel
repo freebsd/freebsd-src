@@ -1,4 +1,4 @@
-/* $Id: yaccpar.skel,v 1.8 2016/12/02 21:44:42 tom Exp $ */
+/* $Id: yaccpar.skel,v 1.9 2017/04/30 23:28:17 tom Exp $ */
 
 #include "defs.h"
 
@@ -165,6 +165,10 @@ YYPARSE_DECL()
             yydebug = yyn - '0';
     }
 #endif
+
+%% init_vars
+    memset(&yyval,  0, sizeof(yyval));
+    memset(&yylval, 0, sizeof(yylval));
 
 %% body_3
     yym = 0;

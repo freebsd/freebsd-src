@@ -24,12 +24,12 @@ beforeinstall:
 .endfor
 .for link in ${DE_LINKS}
 	rm -rf ${DESTDIR}${SHAREDIR}/calendar/${link}
-	${INSTALL} ${TAG_ARGS} -l s de_DE.ISO8859-1 \
+	${INSTALL_SYMLINK} ${TAG_ARGS} de_DE.ISO8859-1 \
 	    ${DESTDIR}${SHAREDIR}/calendar/${link}
 .endfor
 .for link in ${FR_LINKS}
 	rm -rf ${DESTDIR}${SHAREDIR}/calendar/${link}
-	${INSTALL} ${TAG_ARGS} -l s fr_FR.ISO8859-1 \
+	${INSTALL_SYMLINK} ${TAG_ARGS} fr_FR.ISO8859-1 \
 	    ${DESTDIR}${SHAREDIR}/calendar/${link}
 .endfor
 

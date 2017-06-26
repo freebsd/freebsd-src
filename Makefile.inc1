@@ -264,6 +264,7 @@ SUBDIR+=contrib/ofed
 
 # Local directories are last, since it is nice to at least get the base
 # system rebuilt before you do them.
+SUBDIR+=.WAIT
 .for _DIR in ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+=	${_DIR}
@@ -505,11 +506,6 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 # Don't rebuild build-tools targets during normal build.
 CROSSENV+=	BUILD_TOOLS_META=.NOMETA
 .endif
-.if ${MK_GROFF} != "no"
-CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
-.endif
 .if defined(TARGET_CFLAGS)
 CROSSENV+=	${TARGET_CFLAGS}
 .endif
@@ -658,6 +654,51 @@ LIBCOMPAT= SOFT
 .undef LIBCOMPAT
 .endif
 
+# META_MODE normally ignores host file changes since every build updates
+# timestamps (see NO_META_IGNORE_HOST in sys.mk).  There are known times
+# when the ABI breaks though that we want to force rebuilding WORLDTMP
+# to get updated host tools.
+.if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
+    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS)
+# r318736 - ino64 major ABI breakage
+META_MODE_BAD_ABI_VERS+=	1200031
+
+.if !defined(OBJDIR_HOST_OSRELDATE)
+.if exists(${OBJTREE}${.CURDIR}/host-osreldate.h)
+OBJDIR_HOST_OSRELDATE!=	\
+    awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+    ${OBJTREE}${.CURDIR}/host-osreldate.h
+.else
+OBJDIR_HOST_OSRELDATE=	0
+.endif
+.export OBJDIR_HOST_OSRELDATE
+.endif
+
+# Note that this logic is the opposite of normal BOOTSTRAP handling.  We want
+# to compare the WORLDTMP's OSRELDATE to the host's OSRELDATE.  If the WORLDTMP
+# is older than the ABI-breakage OSRELDATE of the HOST then we rebuild.
+.for _ver in ${META_MODE_BAD_ABI_VERS}
+.if ${OSRELDATE} >= ${_ver} && ${OBJDIR_HOST_OSRELDATE} < ${_ver}
+_meta_mode_need_rebuild=	${_ver}
+.endif
+.endfor
+.if defined(_meta_mode_need_rebuild)
+.info META_MODE: Rebuilding host tools due to ABI breakage in __FreeBSD_version ${_meta_mode_need_rebuild}.
+NO_META_IGNORE_HOST_HEADERS=	1
+.export NO_META_IGNORE_HOST_HEADERS
+.endif
+.endif
+# This is only used for META_MODE+filemon to track what the oldest
+# __FreeBSD_version is in WORLDTMP.  This purposely does NOT have
+# a make dependency on /usr/include/osreldate.h as the file should
+# only be copied when it is missing or meta mode determines it has changed.
+# Since host files are normally ignored without NO_META_IGNORE_HOST
+# the file will never be updated unless that flag is specified.  This
+# allows tracking the oldest osreldate to force rebuilds via
+# META_MODE_BADABI_REVS above.
+host-osreldate.h: # DO NOT ADD /usr/include/osreldate.h here
+	@cp -f /usr/include/osreldate.h ${.TARGET}
+
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${MK_CHERI} != "no"
@@ -759,6 +800,29 @@ _worldtmp: .PHONY
 # Dependencies cannot cope with certain source tree changes, particularly
 # with respect to removing source files and replacing generated files.
 # Handle these cases here in an ad-hoc fashion.
+# 20160829 remove stale dependencies for ptrace stub, rewritten in C
+# in r305012
+.for f in ptrace
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+	@if egrep -q '/${f}.[sS]' \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+		echo Removing stale dependencies for ${f} syscall wrappers; \
+		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+	fi
+.endif
+.endfor
+# 20170607 remove stale dependencies for utimens* wrappers removed in r319663
+.for f in futimens utimensat
+.if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
+	@if egrep -q '/${f}.c' \
+	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
+		echo Removing stale dependencies for ${f} syscall wrappers; \
+		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
+		   ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*; \
+	fi
+.endif
+.endfor
 # 20170523 remove stale generated asm files for functions which are no longer
 # syscalls after r302092 (pipe) and r318736 (others)
 .for f in getdents lstat mknod pipe stat
@@ -779,10 +843,6 @@ _worldtmp: .PHONY
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.if ${MK_GROFF} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.groff.dist \
-	    -p ${WORLDTMP}/legacy/usr >/dev/null
-.endif
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/legacy/usr/include >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -886,12 +946,13 @@ _cross-tools:
 	@rm -f ${.OBJDIR}/compiler-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
-_compiler-metadata:
+_build-metadata:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 3.1: recording compiler metadata"
+	@echo ">>> stage 3.1: recording build metadata"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} compiler-metadata.mk
+	${_+_}cd ${.CURDIR}; ${WMAKE} host-osreldate.h
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -989,7 +1050,7 @@ WMAKE_TGTS+=	_cleanobj
 WMAKE_TGTS+=	_obj
 .endif
 WMAKE_TGTS+=	_build-tools _cross-tools
-WMAKE_TGTS+=	_compiler-metadata
+WMAKE_TGTS+=	_build-metadata
 WMAKE_TGTS+=	_includes
 .endif
 .if !defined(NO_LIBS)
@@ -1116,6 +1177,22 @@ __installcheck_UGID: .PHONY
 		false; \
 	fi
 .endfor
+.endif
+#
+# If installing over the running system (DESTDIR is / or unset) and the install
+# includes rescue, try running rescue from the objdir as a sanity check.  If
+# rescue is not functional (e.g., because it depends on a system call not
+# supported by the currently running kernel), abort the installation.
+#
+.if !make(distributeworld) && ${MK_RESCUE} != "no" && \
+    (empty(DESTDIR) || ${DESTDIR} == "/") && empty(BYPASS_INSTALLCHECK_SH)
+_installcheck_world: __installcheck_sh_check
+__installcheck_sh_check: .PHONY
+	@if [ "`${OBJTREE}${.CURDIR}/rescue/rescue/rescue sh -c 'echo OK'`" != \
+	    OK ]; then \
+		echo "rescue/sh check failed, installation aborted" >&2; \
+		false; \
+	fi
 .endif
 
 #
@@ -1821,11 +1898,6 @@ _strfile=	usr.bin/fortune/strfile
 _gperf=		gnu/usr.bin/gperf
 .endif
 
-.if ${MK_SHAREDOCS} != "no" && ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff \
-		usr.bin/soelim
-.endif
-
 .if ${MK_VT} != "no"
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
@@ -1932,7 +2004,6 @@ bootstrap-tools: .PHONY
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
     ${_gperf} \
-    ${_groff} \
     ${_dtc} \
     usr.bin/brandelf \
     ${_cat} \
@@ -2110,7 +2181,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \
 		SSP_CFLAGS= \
-		MK_HTML=no NO_LINT=yes MK_MAN=no \
+		MK_HTML=no NO_LINT=yes MK_MAN=no MK_MAN_UTILS=yes \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -2165,6 +2236,7 @@ native-xtools: .PHONY
     ${_gcc_tools} \
     ${_clang_libs} \
     ${_clang} \
+    ${_lld} \
     sbin/md5 \
     sbin/sysctl \
     usr.bin/diff \
@@ -2183,6 +2255,8 @@ native-xtools: .PHONY
     usr.bin/lex \
     usr.bin/limits \
     usr.bin/lorder \
+    ${_libopenbsd} \
+    ${_makewhatis} \
     usr.bin/mktemp \
     usr.bin/mt \
     usr.bin/patch \
@@ -2310,6 +2384,8 @@ gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 
 .if ${MK_CHERI} != "no"
 _prebuild_libs+=	lib/libcheri
+_prebuild_libs+=	lib/libpng
+lib/libpng__L: lib/libz__L
 .endif
 
 .if ${MK_DIALOG} != "no"
@@ -2680,8 +2756,8 @@ check-old: check-old-files check-old-libs check-old-dirs .PHONY
 # showconfig - show build configuration.
 #
 showconfig: .PHONY
-	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1; \
-	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1) 2>&1 | grep ^MK_ | sort -u
+	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes; \
+	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1 UPDATE_DEPENDFILE=no NO_OBJ=yes) 2>&1 | grep ^MK_ | sort -u
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/

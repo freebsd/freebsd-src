@@ -4224,7 +4224,8 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	ps_end = psb->ps_write;
 	do {
 #ifdef	INVARIANTS
-		if (ps->ps_pmc->pm_state != PMC_STATE_RUNNING)
+		if ((ps->ps_pmc == NULL) ||
+		    (ps->ps_pmc->pm_state != PMC_STATE_RUNNING))
 			nfree++;
 #endif
 		if (ps->ps_nsamples != PMC_SAMPLE_INUSE)
@@ -4262,9 +4263,11 @@ next:
 			ps = psb->ps_samples;
 	} while (ps != ps_end);
 
+#ifdef	INVARIANTS
 	KASSERT(ncallchains > 0 || nfree > 0,
 	    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
 		cpu));
+#endif
 
 	KASSERT(td->td_pinned == 1,
 	    ("[pmc,%d] invalid td_pinned value", __LINE__));

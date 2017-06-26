@@ -331,8 +331,6 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 
 		if (m->m_flags & M_AMPDU_MPDU) {
 			seqno = ni->ni_txseqs[tid];
-			/* NB: clear Fragment Number field. */
-			*(uint16_t *)wh->i_seq = 0;
 			ni->ni_txseqs[tid]++;
 		} else
 			seqno = M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE;

@@ -72,6 +72,7 @@ main(int argc, char **argv)
 	if (sock < 0)
 		err(EXIT_FAILURE, "socket");
 
+	memset(&srv, 0, sizeof(srv));
 	srv.sin_len = sizeof(srv);
 	srv.sin_family = AF_INET;
 	srv.sin_port = htons(port);

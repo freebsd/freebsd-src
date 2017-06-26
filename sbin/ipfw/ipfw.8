@@ -2896,6 +2896,11 @@ the packets are dropped.
 .Nm
 support in-kernel NAT using the kernel version of
 .Xr libalias 3 .
+The kernel module
+.Cm ipfw_nat
+should be loaded or kernel should have
+.Cm options IPFIREWALL_NAT
+to be able use NAT.
 .Pp
 The nat configuration command is the following:
 .Bd -ragged -offset indent

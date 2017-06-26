@@ -253,6 +253,10 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
+.if defined(PREFIX_SYMS)
+	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
+	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
+.endif
 .if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
