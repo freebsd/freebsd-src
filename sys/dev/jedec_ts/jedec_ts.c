@@ -114,7 +114,7 @@ ts_attach(device_t dev)
 		device_printf(dev, "failed to read Manufacturer ID\n");
 		return (ENXIO);
 	}
-	err = ts_readw_be(dev, 6, &devid);
+	err = ts_readw_be(dev, 7, &devid);
 	if (err != 0) {
 		device_printf(dev, "failed to read Device ID\n");
 		return (ENXIO);
