@@ -860,6 +860,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
 
   Builder.SetInsertPoint(EntryBB);
 
+  // If we're checking the return value, allocate space for a pointer to a
+  // precise source location of the checked return statement.
+  if (requiresReturnValueCheck()) {
+    ReturnLocation = CreateDefaultAlignTempAlloca(Int8PtrTy, "return.sloc.ptr");
+    InitTempAlloca(ReturnLocation, llvm::ConstantPointerNull::get(Int8PtrTy));
+  }
+
   // Emit subprogram debug descriptor.
   if (CGDebugInfo *DI = getDebugInfo()) {
     // Reconstruct the type from the argument list so that implicit parameters,
@@ -887,8 +894,10 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
   if (CGM.getCodeGenOpts().InstrumentForProfiling) {
     if (CGM.getCodeGenOpts().CallFEntry)
       Fn->addFnAttr("fentry-call", "true");
-    else
-      Fn->addFnAttr("counting-function", getTarget().getMCountName());
+    else {
+      if (!CurFuncDecl || !CurFuncDecl->hasAttr<NoInstrumentFunctionAttr>())
+        Fn->addFnAttr("counting-function", getTarget().getMCountName());
+    }
   }
 
   if (RetTy->isVoidType()) {

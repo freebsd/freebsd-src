@@ -111,6 +111,21 @@ public:
       : OSTargetInfo<Target>(Triple, Opts) {}
 };
 
+// Ananas target
+template<typename Target>
+class AnanasTargetInfo : public OSTargetInfo<Target> {
+protected:
+  void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
+                    MacroBuilder &Builder) const override {
+    // Ananas defines
+    Builder.defineMacro("__Ananas__");
+    Builder.defineMacro("__ELF__");
+  }
+public:
+  AnanasTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+      : OSTargetInfo<Target>(Triple, Opts) {}
+};
+
 static void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
                              const llvm::Triple &Triple,
                              StringRef &PlatformName,
@@ -6172,6 +6187,8 @@ class AArch64TargetInfo : public TargetInfo {
   unsigned Crypto;
   unsigned Unaligned;
   unsigned V8_1A;
+  unsigned V8_2A;
+  unsigned HasFullFP16;
 
   static const Builtin::Info BuiltinInfo[];
 
@@ -6303,6 +6320,8 @@ public:
 
     if (V8_1A)
       Builder.defineMacro("__ARM_FEATURE_QRDMX", "1");
+    if (V8_2A && FPU == NeonMode && HasFullFP16)
+      Builder.defineMacro("__ARM_FEATURE_FP16_VECTOR_ARITHMETIC", "1");
 
     // All of the __sync_(bool|val)_compare_and_swap_(1|2|4|8) builtins work.
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
@@ -6330,6 +6349,8 @@ public:
     Crypto = 0;
     Unaligned = 1;
     V8_1A = 0;
+    V8_2A = 0;
+    HasFullFP16 = 0;
 
     for (const auto &Feature : Features) {
       if (Feature == "+neon")
@@ -6342,6 +6363,10 @@ public:
         Unaligned = 0;
       if (Feature == "+v8.1a")
         V8_1A = 1;
+      if (Feature == "+v8.2a")
+        V8_2A = 1;
+      if (Feature == "+fullfp16")
+        HasFullFP16 = 1;
     }
 
     setDataLayout();
@@ -7493,7 +7518,7 @@ public:
     IntPtrType = SignedInt;
     PtrDiffType = SignedInt;
     SigAtomicType = SignedLong;
-    resetDataLayout("e-m:e-p:16:16-i32:16:32-a:16-n8:16");
+    resetDataLayout("e-m:e-p:16:16-i32:16-i64:16-f32:16-f64:16-a:8-n8:16-S16");
   }
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
@@ -9520,6 +9545,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinI386TargetInfo(Triple, Opts);
 
     switch (os) {
+    case llvm::Triple::Ananas:
+      return new AnanasTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::CloudABI:
       return new CloudABITargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Linux: {
@@ -9575,6 +9602,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinX86_64TargetInfo(Triple, Opts);
 
     switch (os) {
+    case llvm::Triple::Ananas:
+      return new AnanasTargetInfo<X86_64TargetInfo>(Triple, Opts);
     case llvm::Triple::CloudABI:
       return new CloudABITargetInfo<X86_64TargetInfo>(Triple, Opts);
     case llvm::Triple::Linux: {
