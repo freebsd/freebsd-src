@@ -1550,7 +1550,9 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 		goto aqueue_fail;
 	}
 
-	if (opcode != LIO_SYNC && job->uaiocb.aio_offset == -1LL) {
+	if ((opcode == LIO_READ || opcode == LIO_WRITE) &&
+	    job->uaiocb.aio_offset < 0 &&
+	    (fp->f_vnode == NULL || fp->f_vnode->v_type != VCHR)) {
 		error = EINVAL;
 		goto aqueue_fail;
 	}
