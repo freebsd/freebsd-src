@@ -91,20 +91,15 @@ main(int argc, char **argv)
 			exit(0);
 	}
 
-	/* Disable echo */
+	/* Disable echo, drain the input, and flush the output */
 	if (tcgetattr(fd, &old) == -1)
 		exit(1);
 
 	new = old;
 	new.c_cflag |= (CLOCAL | CREAD);
 	new.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-	if (tcsetattr(fd, TCSANOW, &new) == -1)
+	if (tcsetattr(fd, TCSAFLUSH, &new) == -1)
 		exit(1);
-
-	/* Discard input received so far */
-	error = tcflush(fd, TCIOFLUSH);
-	if (error != 0)
-		warn("tcflush");
 
 	if (write(fd, query, sizeof(query)) != sizeof(query)) {
 		error = 1;
