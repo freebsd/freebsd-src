@@ -24,16 +24,20 @@
 #include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 #include <algorithm>
 #include <cassert>
 #include <functional>
@@ -46,6 +50,9 @@
 #include <vector>
 
 namespace llvm {
+
+class Value;
+
 namespace orc {
 
 /// @brief Compile-on-demand layer.
@@ -77,15 +84,15 @@ private:
     return LambdaMaterializer<MaterializerFtor>(std::move(M));
   }
 
-  typedef typename BaseLayerT::ModuleSetHandleT BaseLayerModuleSetHandleT;
+  using BaseLayerModuleHandleT = typename BaseLayerT::ModuleHandleT;
 
   // Provide type-erasure for the Modules and MemoryManagers.
   template <typename ResourceT>
   class ResourceOwner {
   public:
     ResourceOwner() = default;
-    ResourceOwner(const ResourceOwner&) = delete;
-    ResourceOwner& operator=(const ResourceOwner&) = delete;
+    ResourceOwner(const ResourceOwner &) = delete;
+    ResourceOwner &operator=(const ResourceOwner &) = delete;
     virtual ~ResourceOwner() = default;
 
     virtual ResourceT& getResource() const = 0;
@@ -106,7 +113,7 @@ private:
   template <typename ResourceT, typename ResourcePtrT>
   std::unique_ptr<ResourceOwner<ResourceT>>
   wrapOwnership(ResourcePtrT ResourcePtr) {
-    typedef ResourceOwnerImpl<ResourceT, ResourcePtrT> RO;
+    using RO = ResourceOwnerImpl<ResourceT, ResourcePtrT>;
     return llvm::make_unique<RO>(std::move(ResourcePtr));
   }
 
@@ -130,21 +137,21 @@ private:
   };
 
   struct LogicalDylib {
-    typedef std::function<JITSymbol(const std::string&)> SymbolResolverFtor;
+    using SymbolResolverFtor = std::function<JITSymbol(const std::string&)>;
 
-    typedef std::function<typename BaseLayerT::ModuleSetHandleT(
-                            BaseLayerT&,
-                            std::unique_ptr<Module>,
-                            std::unique_ptr<JITSymbolResolver>)>
-      ModuleAdderFtor;
+    using ModuleAdderFtor =
+      std::function<typename BaseLayerT::ModuleHandleT(
+                    BaseLayerT&,
+                    std::unique_ptr<Module>,
+                    std::unique_ptr<JITSymbolResolver>)>;
 
     struct SourceModuleEntry {
       std::unique_ptr<ResourceOwner<Module>> SourceMod;
       std::set<Function*> StubsToClone;
     };
 
-    typedef std::vector<SourceModuleEntry> SourceModulesList;
-    typedef typename SourceModulesList::size_type SourceModuleHandle;
+    using SourceModulesList = std::vector<SourceModuleEntry>;
+    using SourceModuleHandle = typename SourceModulesList::size_type;
 
     SourceModuleHandle
     addSourceModule(std::unique_ptr<ResourceOwner<Module>> M) {
@@ -174,7 +181,7 @@ private:
 
     void removeModulesFromBaseLayer(BaseLayerT &BaseLayer) {
       for (auto &BLH : BaseLayerHandles)
-        BaseLayer.removeModuleSet(BLH);
+        BaseLayer.removeModule(BLH);
     }
 
     std::unique_ptr<JITSymbolResolver> ExternalSymbolResolver;
@@ -183,21 +190,21 @@ private:
     StaticGlobalRenamer StaticRenamer;
     ModuleAdderFtor ModuleAdder;
     SourceModulesList SourceModules;
-    std::vector<BaseLayerModuleSetHandleT> BaseLayerHandles;
+    std::vector<BaseLayerModuleHandleT> BaseLayerHandles;
   };
 
-  typedef std::list<LogicalDylib> LogicalDylibList;
+  using LogicalDylibList = std::list<LogicalDylib>;
 
 public:
-  /// @brief Handle to a set of loaded modules.
-  typedef typename LogicalDylibList::iterator ModuleSetHandleT;
+  /// @brief Handle to loaded module.
+  using ModuleHandleT = typename LogicalDylibList::iterator;
 
   /// @brief Module partitioning functor.
-  typedef std::function<std::set<Function*>(Function&)> PartitioningFtor;
+  using PartitioningFtor = std::function<std::set<Function*>(Function&)>;
 
   /// @brief Builder for IndirectStubsManagers.
-  typedef std::function<std::unique_ptr<IndirectStubsMgrT>()>
-    IndirectStubsManagerBuilderT;
+  using IndirectStubsManagerBuilderT =
+      std::function<std::unique_ptr<IndirectStubsMgrT>()>;
 
   /// @brief Construct a compile-on-demand layer instance.
   CompileOnDemandLayer(BaseLayerT &BaseLayer, PartitioningFtor Partition,
@@ -211,15 +218,14 @@ public:
 
   ~CompileOnDemandLayer() {
     while (!LogicalDylibs.empty())
-      removeModuleSet(LogicalDylibs.begin());
+      removeModule(LogicalDylibs.begin());
   }
-  
+
   /// @brief Add a module to the compile-on-demand layer.
-  template <typename ModuleSetT, typename MemoryManagerPtrT,
-            typename SymbolResolverPtrT>
-  ModuleSetHandleT addModuleSet(ModuleSetT Ms,
-                                MemoryManagerPtrT MemMgr,
-                                SymbolResolverPtrT Resolver) {
+  template <typename MemoryManagerPtrT, typename SymbolResolverPtrT>
+  ModuleHandleT addModule(std::shared_ptr<Module> M,
+                          MemoryManagerPtrT MemMgr,
+                          SymbolResolverPtrT Resolver) {
 
     LogicalDylibs.push_back(LogicalDylib());
     auto &LD = LogicalDylibs.back();
@@ -232,23 +238,25 @@ public:
     LD.ModuleAdder =
       [&MemMgrRef](BaseLayerT &B, std::unique_ptr<Module> M,
                    std::unique_ptr<JITSymbolResolver> R) {
-        std::vector<std::unique_ptr<Module>> Ms;
-        Ms.push_back(std::move(M));
-        return B.addModuleSet(std::move(Ms), &MemMgrRef, std::move(R));
+        return B.addModule(std::move(M), &MemMgrRef, std::move(R));
       };
 
     // Process each of the modules in this module set.
-    for (auto &M : Ms)
-      addLogicalModule(LogicalDylibs.back(), std::move(M));
+    addLogicalModule(LogicalDylibs.back(), std::move(M));
 
     return std::prev(LogicalDylibs.end());
+  }
+
+  /// @brief Add extra modules to an existing logical module.
+  void addExtraModule(ModuleHandleT H, std::shared_ptr<Module> M) {
+    addLogicalModule(*H, std::move(M));
   }
 
   /// @brief Remove the module represented by the given handle.
   ///
   ///   This will remove all modules in the layers below that were derived from
   /// the module represented by H.
-  void removeModuleSet(ModuleSetHandleT H) {
+  void removeModule(ModuleHandleT H) {
     H->removeModulesFromBaseLayer(BaseLayer);
     LogicalDylibs.erase(H);
   }
@@ -270,7 +278,7 @@ public:
 
   /// @brief Get the address of a symbol provided by this layer, or some layer
   ///        below this one.
-  JITSymbol findSymbolIn(ModuleSetHandleT H, const std::string &Name,
+  JITSymbol findSymbolIn(ModuleHandleT H, const std::string &Name,
                          bool ExportedSymbolsOnly) {
     return H->findSymbol(BaseLayer, Name, ExportedSymbolsOnly);
   }
@@ -303,7 +311,6 @@ public:
 private:
   template <typename ModulePtrT>
   void addLogicalModule(LogicalDylib &LD, ModulePtrT SrcMPtr) {
-
     // Rename all static functions / globals to $static.X :
     // This will unique the names across all modules in the logical dylib,
     // simplifying symbol lookup.
@@ -495,7 +502,7 @@ private:
   }
 
   template <typename PartitionT>
-  BaseLayerModuleSetHandleT
+  BaseLayerModuleHandleT
   emitPartition(LogicalDylib &LD,
                 typename LogicalDylib::SourceModuleHandle LMId,
                 const PartitionT &Part) {
@@ -581,6 +588,7 @@ private:
 };
 
 } // end namespace orc
+
 } // end namespace llvm
 
 #endif // LLVM_EXECUTIONENGINE_ORC_COMPILEONDEMANDLAYER_H

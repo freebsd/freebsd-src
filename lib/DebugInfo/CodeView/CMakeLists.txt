@@ -24,11 +24,10 @@ add_llvm_library(LLVMDebugInfoCodeView
   SymbolRecordMapping.cpp
   SymbolDumper.cpp
   SymbolSerializer.cpp
-  TypeDatabase.cpp
-  TypeDatabaseVisitor.cpp
   TypeDumpVisitor.cpp
   TypeIndex.cpp
   TypeIndexDiscovery.cpp
+  TypeName.cpp
   TypeRecordMapping.cpp
   TypeSerializer.cpp
   TypeStreamMerger.cpp

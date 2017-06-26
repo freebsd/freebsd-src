@@ -25,6 +25,7 @@
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
@@ -576,7 +577,12 @@ bool JumpThreadingPass::ComputeValueKnownInPredecessors(
   // Handle compare with phi operand, where the PHI is defined in this block.
   if (CmpInst *Cmp = dyn_cast<CmpInst>(I)) {
     assert(Preference == WantInteger && "Compares only produce integers");
-    PHINode *PN = dyn_cast<PHINode>(Cmp->getOperand(0));
+    Type *CmpType = Cmp->getType();
+    Value *CmpLHS = Cmp->getOperand(0);
+    Value *CmpRHS = Cmp->getOperand(1);
+    CmpInst::Predicate Pred = Cmp->getPredicate();
+
+    PHINode *PN = dyn_cast<PHINode>(CmpLHS);
     if (PN && PN->getParent() == BB) {
       const DataLayout &DL = PN->getModule()->getDataLayout();
       // We can do this simplification if any comparisons fold to true or false.
@@ -584,15 +590,15 @@ bool JumpThreadingPass::ComputeValueKnownInPredecessors(
       for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
         BasicBlock *PredBB = PN->getIncomingBlock(i);
         Value *LHS = PN->getIncomingValue(i);
-        Value *RHS = Cmp->getOperand(1)->DoPHITranslation(BB, PredBB);
+        Value *RHS = CmpRHS->DoPHITranslation(BB, PredBB);
 
-        Value *Res = SimplifyCmpInst(Cmp->getPredicate(), LHS, RHS, {DL});
+        Value *Res = SimplifyCmpInst(Pred, LHS, RHS, {DL});
         if (!Res) {
           if (!isa<Constant>(RHS))
             continue;
 
           LazyValueInfo::Tristate
-            ResT = LVI->getPredicateOnEdge(Cmp->getPredicate(), LHS,
+            ResT = LVI->getPredicateOnEdge(Pred, LHS,
                                            cast<Constant>(RHS), PredBB, BB,
                                            CxtI ? CxtI : Cmp);
           if (ResT == LazyValueInfo::Unknown)
@@ -609,25 +615,65 @@ bool JumpThreadingPass::ComputeValueKnownInPredecessors(
 
     // If comparing a live-in value against a constant, see if we know the
     // live-in value on any predecessors.
-    if (isa<Constant>(Cmp->getOperand(1)) && !Cmp->getType()->isVectorTy()) {
-      Constant *CmpConst = cast<Constant>(Cmp->getOperand(1));
+    if (isa<Constant>(CmpRHS) && !CmpType->isVectorTy()) {
+      Constant *CmpConst = cast<Constant>(CmpRHS);
 
-      if (!isa<Instruction>(Cmp->getOperand(0)) ||
-          cast<Instruction>(Cmp->getOperand(0))->getParent() != BB) {
+      if (!isa<Instruction>(CmpLHS) ||
+          cast<Instruction>(CmpLHS)->getParent() != BB) {
         for (BasicBlock *P : predecessors(BB)) {
           // If the value is known by LazyValueInfo to be a constant in a
           // predecessor, use that information to try to thread this block.
           LazyValueInfo::Tristate Res =
-            LVI->getPredicateOnEdge(Cmp->getPredicate(), Cmp->getOperand(0),
+            LVI->getPredicateOnEdge(Pred, CmpLHS,
                                     CmpConst, P, BB, CxtI ? CxtI : Cmp);
           if (Res == LazyValueInfo::Unknown)
             continue;
 
-          Constant *ResC = ConstantInt::get(Cmp->getType(), Res);
+          Constant *ResC = ConstantInt::get(CmpType, Res);
           Result.push_back(std::make_pair(ResC, P));
         }
 
         return !Result.empty();
+      }
+
+      // InstCombine can fold some forms of constant range checks into
+      // (icmp (add (x, C1)), C2). See if we have we have such a thing with
+      // x as a live-in.
+      {
+        using namespace PatternMatch;
+        Value *AddLHS;
+        ConstantInt *AddConst;
+        if (isa<ConstantInt>(CmpConst) &&
+            match(CmpLHS, m_Add(m_Value(AddLHS), m_ConstantInt(AddConst)))) {
+          if (!isa<Instruction>(AddLHS) ||
+              cast<Instruction>(AddLHS)->getParent() != BB) {
+            for (BasicBlock *P : predecessors(BB)) {
+              // If the value is known by LazyValueInfo to be a ConstantRange in
+              // a predecessor, use that information to try to thread this
+              // block.
+              ConstantRange CR = LVI->getConstantRangeOnEdge(
+                  AddLHS, P, BB, CxtI ? CxtI : cast<Instruction>(CmpLHS));
+              // Propagate the range through the addition.
+              CR = CR.add(AddConst->getValue());
+
+              // Get the range where the compare returns true.
+              ConstantRange CmpRange = ConstantRange::makeExactICmpRegion(
+                  Pred, cast<ConstantInt>(CmpConst)->getValue());
+
+              Constant *ResC;
+              if (CmpRange.contains(CR))
+                ResC = ConstantInt::getTrue(CmpType);
+              else if (CmpRange.inverse().contains(CR))
+                ResC = ConstantInt::getFalse(CmpType);
+              else
+                continue;
+
+              Result.push_back(std::make_pair(ResC, P));
+            }
+
+            return !Result.empty();
+          }
+        }
       }
 
       // Try to find a constant value for the LHS of a comparison,
@@ -638,8 +684,7 @@ bool JumpThreadingPass::ComputeValueKnownInPredecessors(
 
       for (const auto &LHSVal : LHSVals) {
         Constant *V = LHSVal.first;
-        Constant *Folded = ConstantExpr::getCompare(Cmp->getPredicate(),
-                                                    V, CmpConst);
+        Constant *Folded = ConstantExpr::getCompare(Pred, V, CmpConst);
         if (Constant *KC = getKnownConstant(Folded, WantInteger))
           Result.push_back(std::make_pair(KC, LHSVal.second));
       }
@@ -752,6 +797,37 @@ bool JumpThreadingPass::ProcessBlock(BasicBlock *BB) {
       LVI->eraseBlock(SinglePred);
       MergeBasicBlockIntoOnlyPred(BB);
 
+      // Now that BB is merged into SinglePred (i.e. SinglePred Code followed by
+      // BB code within one basic block `BB`), we need to invalidate the LVI
+      // information associated with BB, because the LVI information need not be
+      // true for all of BB after the merge. For example,
+      // Before the merge, LVI info and code is as follows:
+      // SinglePred: <LVI info1 for %p val>
+      // %y = use of %p
+      // call @exit() // need not transfer execution to successor.
+      // assume(%p) // from this point on %p is true
+      // br label %BB
+      // BB: <LVI info2 for %p val, i.e. %p is true>
+      // %x = use of %p
+      // br label exit
+      //
+      // Note that this LVI info for blocks BB and SinglPred is correct for %p
+      // (info2 and info1 respectively). After the merge and the deletion of the
+      // LVI info1 for SinglePred. We have the following code:
+      // BB: <LVI info2 for %p val>
+      // %y = use of %p
+      // call @exit()
+      // assume(%p)
+      // %x = use of %p <-- LVI info2 is correct from here onwards.
+      // br label exit
+      // LVI info2 for BB is incorrect at the beginning of BB.
+
+      // Invalidate LVI information for BB if the LVI is not provably true for
+      // all of BB.
+      if (any_of(*BB, [](Instruction &I) {
+            return !isGuaranteedToTransferExecutionToSuccessor(&I);
+          }))
+        LVI->eraseBlock(BB);
       return true;
     }
   }

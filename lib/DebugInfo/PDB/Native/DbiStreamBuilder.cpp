@@ -90,10 +90,14 @@ Error DbiStreamBuilder::addModuleSourceFile(StringRef Module, StringRef File) {
   if (ModIter == ModiMap.end())
     return make_error<RawError>(raw_error_code::no_entry,
                                 "The specified module was not found");
+  return addModuleSourceFile(*ModIter->second, File);
+}
+
+Error DbiStreamBuilder::addModuleSourceFile(DbiModuleDescriptorBuilder &Module,
+                                            StringRef File) {
   uint32_t Index = SourceFileNames.size();
   SourceFileNames.insert(std::make_pair(File, Index));
-  auto &ModEntry = *ModIter;
-  ModEntry.second->addSourceFile(File);
+  Module.addSourceFile(File);
   return Error::success();
 }
 
@@ -233,6 +237,7 @@ Error DbiStreamBuilder::finalize() {
     return EC;
 
   DbiStreamHeader *H = Allocator.Allocate<DbiStreamHeader>();
+  ::memset(H, 0, sizeof(DbiStreamHeader));
   H->VersionHeader = *VerHeader;
   H->VersionSignature = -1;
   H->Age = Age;
