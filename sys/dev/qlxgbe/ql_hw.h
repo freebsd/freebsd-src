@@ -748,6 +748,7 @@ typedef struct _q80_rcv_stats {
 	uint64_t	lro_flows_deleted;
 	uint64_t	lro_flows_active;
 	uint64_t	pkts_droped_unknown;
+	uint64_t	pkts_cnt_oversized;
 } __packed q80_rcv_stats_t;
 
 typedef struct _q80_xmt_stats {
