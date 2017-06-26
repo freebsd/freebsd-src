@@ -30,3 +30,5 @@ options         CPU_QEMU_MALTA
 
 nooptions	INVARIANTS
 nooptions	INVARIANT_SUPPORT
+
+makeoptions	CONF_CFLAGS="-target cheri-unknown-freebsd"
