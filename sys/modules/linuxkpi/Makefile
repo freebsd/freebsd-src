@@ -5,6 +5,7 @@ KMOD=	linuxkpi
 SRCS=	linux_kmod.c \
 	linux_compat.c \
 	linux_current.c \
+	linux_hrtimer.c \
 	linux_kthread.c \
 	linux_lock.c \
 	linux_page.c \
