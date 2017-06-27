@@ -622,11 +622,10 @@ init_iwarp_socket(struct socket *so, void *arg)
 	struct sockopt sopt;
 	int on = 1;
 
-	/* Note that SOCK_LOCK(so) is same as SOCKBUF_LOCK(&so->so_rcv) */
-	SOCK_LOCK(so);
+	SOCKBUF_LOCK(&so->so_rcv);
 	soupcall_set(so, SO_RCV, c4iw_so_upcall, arg);
 	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = IPPROTO_TCP;
 	sopt.sopt_name = TCP_NODELAY;
