@@ -1545,7 +1545,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 		break;
 
 	case METEORGBRIG:	/* get brightness */
-		*(u_char *)arg = INB(bktr, BKTR_BRIGHT);
+		*(u_char *)arg = INB(bktr, BKTR_BRIGHT) + 128;
 		break;
 
 	case METEORSCSAT:	/* set chroma saturation */
