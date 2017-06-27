@@ -2672,7 +2672,7 @@ nfsrv_getgrpscred(struct ucred *oldcred)
 	cnt = 0;
 	uid = oldcred->cr_uid;
 tryagain:
-	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
+	if (nfsrv_dnsnamelen > 0) {
 		hp = NFSUSERHASH(uid);
 		mtx_lock(&hp->mtx);
 		TAILQ_FOREACH(usrp, &hp->lughead, lug_numhash) {
