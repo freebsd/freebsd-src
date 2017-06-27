@@ -926,7 +926,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	    shmfd->shm_object, foff, FALSE, td);
 	if (error != 0)
 		vm_object_deallocate(shmfd->shm_object);
-	return (0);
+	return (error);
 }
 
 static int
