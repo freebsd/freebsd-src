@@ -881,7 +881,7 @@ static int enable_tcp_window_scaling = 1;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, enable_tcp_window_scaling, CTLFLAG_RWTUN, &enable_tcp_window_scaling, 0,
 		"Enable tcp window scaling (default = 1)");
 
-int c4iw_debug = 1;
+int c4iw_debug = 0;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, c4iw_debug, CTLFLAG_RWTUN, &c4iw_debug, 0,
 		"Enable debug logging (default = 0)");
 
