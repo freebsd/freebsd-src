@@ -21,7 +21,7 @@ OTHERSRCS+= yp_passwd.c yp_update.c
 
 RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
-INCDIRS= -I${DESTDIR}/usr/include/rpcsvc
+INCDIRS= -I${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc
 
 CFLAGS+= -DYP ${INCDIRS}
 

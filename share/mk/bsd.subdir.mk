@@ -53,7 +53,7 @@ STANDALONE_SUBDIR_TARGETS+= \
 		maninstall manlint obj objlink
 
 # It is safe to install in parallel when staging.
-.if defined(NO_ROOT)
+.if defined(NO_ROOT) || !empty(SYSROOT)
 STANDALONE_SUBDIR_TARGETS+= realinstall
 .endif
 

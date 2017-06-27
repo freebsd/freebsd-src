@@ -125,6 +125,10 @@ CFLAGS.gcc+= --param large-function-growth=1000
 CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
+.if ${LINKER_FEATURES:Mbuild-id}
+LDFLAGS+=	-Wl,--build-id=sha1
+.endif
+
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
@@ -209,18 +213,8 @@ ${PROG}.debug: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-.if ${MACHINE_CPUARCH} != "aarch64"
-	${LD} -m ${LD_EMULATION} -Bshareable ${_LDFLAGS} -o ${.TARGET} \
-	    ${KMOD}.kld
-.else
-#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
-#       not work.  The linker corrupts the references to the external
-#       symbols which are defined by other object in the linking set
-#       and should therefore loose the GOT entry.  The problem seems
-#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
-#       below allows to get partially functioning modules for now.
-	${LD} -m ${LD_EMULATION} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
-.endif
+	${LD} -m ${LD_EMULATION} -Bshareable -znotext ${_LDFLAGS} \
+	    -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif

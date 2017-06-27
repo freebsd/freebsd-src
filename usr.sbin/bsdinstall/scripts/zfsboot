@@ -1446,7 +1446,7 @@ zfs_create_boot()
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		f_eval_catch $funcname echo "$ECHO_APPEND" \
 	             'vfs.zfs.min_auto_ashift=12' \
-	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+	             $BSDINSTALL_TMPETC/sysctl.conf.zfs || return $FAILURE
 	fi
 
 	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then

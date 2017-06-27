@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2017 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,24 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
-#include "sun6i-a31s-sinovoip-bpi-m2.dts"
+#ifndef	_ARM_ARM_NEXUSVAR_H_
+#define	_ARM_ARM_NEXUSVAR_H_
 
-&mmc2 {
-	status = "disabled";
-};
+/* Set a platform busdma tag to be inherited by all busses and devices. */
+void nexus_set_dma_tag(bus_dma_tag_t _tag);
 
-&p2wi {
-	status = "okay";
-	axp22x: pmic@68 {
-		compatible = "x-powers,axp221";
-		reg = <0x68>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-	};
-};
+#endif
 
-#include "axp22x.dtsi"

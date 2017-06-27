@@ -370,7 +370,7 @@ int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
 int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
-int nfsrv_atroot(vnode_t, long *);
+int nfsrv_atroot(vnode_t, uint64_t *);
 void newnfs_timer(void *);
 int nfs_supportsnfsv4acls(vnode_t);
 
@@ -490,7 +490,7 @@ int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
     int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,
     NFSPROC_T *, void *);
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
-int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
+int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t, int,
     struct ucred *, NFSPROC_T *);
 int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
     struct nfsclflayout **);

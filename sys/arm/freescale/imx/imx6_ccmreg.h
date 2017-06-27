@@ -79,7 +79,10 @@
 #define		CCGR0_ABPHDMA			(0x3 << 4)
 #define	CCM_CCGR1			0x06C
 #define		CCGR1_ENET			(0x3 << 10)
+#define		CCGR1_EPIT1			(0x3 << 12)
+#define		CCGR1_EPIT2			(0x3 << 14)
 #define		CCGR1_GPT			(0x3 << 20)
+#define		CCGR1_GPT_SERIAL		(0x3 << 22)
 #define	CCM_CCGR2			0x070
 #define		CCGR2_HDMI_TX			(0x3 << 0)
 #define		CCGR2_HDMI_TX_ISFR		(0x3 << 4)

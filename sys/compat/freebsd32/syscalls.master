@@ -667,10 +667,12 @@
 361	AUE_GETRESGID	NOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				    gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
-363	AUE_KEVENT	STD	{ int freebsd32_kevent(int fd, \
-				    const struct kevent32 *changelist, \
+363	AUE_KEVENT	COMPAT11 { int freebsd32_kevent(int fd, \
+				    const struct kevent32_freebsd11 * \
+				    changelist, \
 				    int nchanges, \
-				    struct kevent32 *eventlist, int nevents, \
+				    struct kevent32_freebsd11 *eventlist, \
+				    int nevents, \
 				    const struct timespec32 *timeout); }
 364	AUE_NULL	UNIMPL	__cap_get_proc
 365	AUE_NULL	UNIMPL	__cap_set_proc
@@ -1111,3 +1113,9 @@
 				    struct statfs32 *buf); }
 559	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, char *path, mode_t mode, \
 				    dev_t dev); }
+560	AUE_KEVENT	STD	{ int freebsd32_kevent(int fd, \
+				    const struct kevent32 *changelist, \
+				    int nchanges, \
+				    struct kevent32 *eventlist, \
+				    int nevents, \
+				    const struct timespec32 *timeout); }

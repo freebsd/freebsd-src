@@ -152,7 +152,13 @@ DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
 
-LIBDIR?=	/usr/lib
+# Use make.conf / environment LIBDIR as default if set...
+.if !empty(_PREMK_LIBDIR)
+LIBDIR_BASE?=	${_PREMK_LIBDIR}
+.endif
+# otherwise use our expected default value.
+LIBDIR_BASE?=	/usr/lib
+LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec

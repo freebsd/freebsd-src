@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,54 +22,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include "am335x-boneblack.dts"
-#include "beaglebone-common.dtsi"
+#include "namespace.h"
+#include <sys/param.h>
+#include <sys/syscall.h>
+#include "compat-ino64.h"
+#include <unistd.h>
 
-&am33xx_pinmux {
-	i2c1_pins: pinmux_i2c1_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_d1.i2c1_sda */
-			AM33XX_IOPAD(0x95c, PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_cs0.i2c1_scl */
-		>;
-	};
+#include "libc_private.h"
 
-	spi1_pins: pinmux_spi1_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x964, PIN_INPUT_PULLUP | MUX_MODE2)	/* eCAP0_in_PWM0_out.spi1_cs1 */
-			AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_aclkx.spi1_sclk */
-			AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_fsx.spi1_d0 - miso */
-			AM33XX_IOPAD(0x998, PIN_INPUT_PULLUP | MUX_MODE3)	/* mcasp0_axr0.spi1_d1  - mosi */
-			AM33XX_IOPAD(0x99c, PIN_INPUT_PULLUP | MUX_MODE3)	/* mcasp0_ahclkr.spi1_cs0 */
-		>;
-	};
-};
+#undef fstatfs
+__weak_reference(_fstatfs, fstatfs);
 
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
+#pragma weak _fstatfs
+int
+_fstatfs(int fd, struct statfs *buf)
+{
+	struct freebsd11_statfs statfs11;
+	int rv;
 
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-
-	status = "okay";
-};
-
-&spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins>;
-
-	status = "okay";
-};
-
-&lcdc {
-	hdmi = <&tda19988>;
-};
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_fstatfs(fd, buf));
+	rv = syscall(SYS_freebsd11_fstatfs, fd, &statfs11);
+	if (rv == 0)
+		__statfs11_to_statfs(&statfs11, buf);
+	return (rv);
+}

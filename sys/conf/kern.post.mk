@@ -199,12 +199,15 @@ _meta_filemon=	1
 # Skip reading .depend when not needed to speed up tree-walks and simple
 # lookups.  For install, only do this if no other targets are specified.
 # Also skip generating or including .depend.* files if in meta+filemon mode
-# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used.
-.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
+# for _meta_filemon but not for _SKIP_DEPEND.
+.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(*obj) || \
+    ${.TARGETS:M*clean*} == ${.TARGETS} || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
-    make(kernel-obj) || make(kernel-clean*) || \
-    make(kernel-install*) || defined(_meta_filemon)
-_SKIP_READ_DEPEND=	1
+    defined(_meta_filemon)
+_SKIP_DEPEND=	1
+.endif
+.if defined(_SKIP_DEPEND) || defined(_meta_filemon)
 .MAKE.DEPENDFILE=	/dev/null
 .endif
 
@@ -218,6 +221,15 @@ DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
 .endif
+.if defined(_SKIP_DEPEND)
+# Don't bother reading any .meta files
+${DEPENDOBJS}:	.NOMETA
+.depend:	.NOMETA
+# Unset these to avoid looping/statting on them later.
+.undef DEPENDSRCS
+.undef DEPENDOBJS
+.undef DEPENDFILES_OBJS
+.endif	# defined(_SKIP_DEPEND)
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if !defined(_meta_filemon)
@@ -229,7 +241,6 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
 .endif
-.if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
@@ -237,7 +248,6 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .dinclude "${.OBJDIR}/${__depend_obj}"
 .endif
 .endfor
-.endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
 
 # Always run 'make depend' to generate dependencies early and to avoid the

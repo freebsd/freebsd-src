@@ -148,6 +148,7 @@ struct pl310_softc {
 	struct mtx	sc_mtx;
 	u_int		sc_rtl_revision;
 	struct intr_config_hook *sc_ich;
+	boolean_t	sc_io_coherent;
 };
 
 /**

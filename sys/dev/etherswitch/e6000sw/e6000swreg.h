@@ -42,6 +42,15 @@ struct atu_opt {
  * Definitions for the Marvell 88E6000 series Ethernet Switch.
  */
 
+/* Switch IDs. */
+#define	MV88E6141	0x3400
+#define	MV88E6341	0x3410
+#define	MV88E6352	0x3520
+#define	MV88E6172	0x1720
+#define	MV88E6176	0x1760
+
+#define	MVSWITCH(_sc, id)	((_sc)->swid == (id))
+
 /*
  * Switch Registers
  */
@@ -64,6 +73,17 @@ struct atu_opt {
 #define	PORT_STATUS_PHY_DETECT_MASK	(1 << 12)
 
 #define PSC_CONTROL			0x1
+#define	PSC_CONTROL_FORCED_SPD		(1 << 13)
+#define	PSC_CONTROL_EEE_ON		(1 << 9)
+#define	PSC_CONTROL_FORCED_EEE		(1 << 8)
+#define	PSC_CONTROL_FC_ON		(1 << 7)
+#define	PSC_CONTROL_FORCED_FC		(1 << 6)
+#define	PSC_CONTROL_LINK_UP		(1 << 5)
+#define	PSC_CONTROL_FORCED_LINK		(1 << 4)
+#define	PSC_CONTROL_FULLDPX		(1 << 3)
+#define	PSC_CONTROL_FORCED_DPX		(1 << 2)
+#define	PSC_CONTROL_SPD2500		0x3
+#define	PSC_CONTROL_SPD1000		0x2
 #define SWITCH_ID			0x3
 #define PORT_CONTROL			0x4
 #define PORT_CONTROL_1			0x5

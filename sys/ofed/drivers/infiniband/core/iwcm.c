@@ -50,6 +50,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/wait.h>
 #include <netinet/tcp.h>
 #include <sys/mutex.h>
 

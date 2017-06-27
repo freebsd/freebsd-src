@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2017
+.Dd June 22, 2017
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -69,7 +69,7 @@ current) offsets in the object.
 In particular, the
 .Fa offset
 value cannot be negative.
-If the object is truncated and the process later accesses a pages that
+If the object is truncated and the process later accesses a page that
 is wholly within the truncated region, the access is aborted and a
 .Dv SIGBUS
 signal is delivered to the process.
@@ -199,9 +199,21 @@ In contrast, if
 .Dv MAP_EXCL
 is specified, the request will fail if a mapping
 already exists within the range.
-.It Dv MAP_HASSEMAPHORE
-Notify the kernel that the region may contain semaphores and that special
-handling may be necessary.
+.It Dv MAP_GUARD
+Instead of a mapping, create a guard of the specified size.
+Guards allow a process to create reservations in its address space,
+which can later be replaced by actual mappings.
+.Pp
+.Fa mmap
+will not create mappings in the address range of a guard unless
+the request specifies
+.Dv MAP_FIXED .
+Guards can be destroyed with
+.Xr munmap 2 .
+Any memory access by a thread to the guarded range results
+in the delivery of a
+.Dv SIGSEGV
+signal to that thread.
 .It Dv MAP_NOCORE
 Region is not included in a core file.
 .It Dv MAP_NOSYNC
@@ -306,6 +318,7 @@ must include at least
 .Dv PROT_READ
 and
 .Dv PROT_WRITE .
+.Pp
 This option creates
 a memory region that grows to at most
 .Fa len
@@ -316,6 +329,10 @@ stack top is the starting address returned by the call, plus
 bytes.
 The bottom of the stack at maximum growth is the starting
 address returned by the call.
+The system uses guards to prevent the inadvertent use of
+regions into which stacks created with
+.Dv MAP_STACK
+will automatically grow, without mapping the whole stack in advance.
 .El
 .Pp
 The
@@ -409,6 +426,7 @@ were specified.
 .It Bq Er EINVAL
 None of
 .Dv MAP_ANON ,
+.Dv MAP_GUARD ,
 .Dv MAP_PRIVATE ,
 .Dv MAP_SHARED ,
 or
@@ -458,6 +476,25 @@ were specified, but the requested region is already used by a mapping.
 was specified, but
 .Dv MAP_FIXED
 was not.
+.It Bq Er EINVAL
+.Dv MAP_GUARD
+was specified, but the
+.Fa offset
+argument was not zero, the
+.Fa fd
+argument was not -1, or the
+.Fa prot
+argument was not
+.Dv PROT_NONE .
+.It Bq Er EINVAL
+.Dv MAP_GUARD
+was specified together with one of the flags
+.Dv MAP_ANON ,
+.Dv MAP_PREFAULT ,
+.Dv MAP_PREFAULT_READ ,
+.Dv MAP_PRIVATE ,
+.Dv MAP_SHARED ,
+.Dv MAP_STACK .
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and

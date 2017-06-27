@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,9 +22,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
 
-#include "sun4i-a10-cubieboard.dts"
-#include "xpowers-axp209.dtsi"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "namespace.h"
+#include <sys/param.h>
+#include <sys/syscall.h>
+#include "compat-ino64.h"
+#include <unistd.h>
+
+#include "libc_private.h"
+
+int
+statfs(const char *path, struct statfs *buf)
+{
+	struct freebsd11_statfs statfs11;
+	int rv;
+
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_statfs(path, buf));
+	rv = syscall(SYS_freebsd11_statfs, path, &statfs11);
+	if (rv == 0)
+		__statfs11_to_statfs(&statfs11, buf);
+	return (rv);
+}

@@ -56,6 +56,46 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Please see the 20141231 entry below for information about prerequisites
 	and upgrading, if you are not already using clang 3.5.0 or higher.
 
+20170625:
+	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
+	a very major ABI incompatible change, so users of FreeBSD/powerpc must
+	be careful when performing source upgrades.  It is best to run
+	'make installworld' from an alternate root system, either a live
+	CD/memory stick, or a temporary root partition.  Additionally, all ports
+	must be recompiled.  powerpc64 is largely unaffected, except in the case
+	of 32-bit compatibility.  All 32-bit binaries will be affected.
+
+20170623:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
+
+20170620:
+	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
+	if you require the GPL compiler.
+
+20170618:
+	The internal ABI used for communication between the NFS kernel modules
+	was changed by r320085, so __FreeBSD_version was bumped to
+	ensure all the NFS related modules are updated together.
+
+20170617:
+	The ABI of struct event was changed by extending the data
+	member to 64bit and adding ext fields.  For upgrade, same
+	precautions as for the entry 20170523 "ino64" must be
+	followed.
+
+20170531:
+	The GNU roff toolchain has been removed from base. To render manpages
+	which are not supported by mandoc(1), man(1) can fallback on GNU roff
+	from ports (and recommends to install it).
+	To render roff(7) documents, consider using GNU roff from ports or the
+	heirloom doctools roff toolchain from ports via pkg install groff or
+	via pkg install heirloom-doctools.
+
 20170524:
 	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
 	smaller runtime footprint builds.  This is useful for embedded systems
@@ -80,14 +120,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	  bus bind type - this is where probe/attach is done.
 
 	For further comments/feedback, poke adrian@ .
-
-20170531:
-	The GNU roff toolchain has been removed from base. To render manpages
-	which are not supported by mandoc(1), man(1) can fallback on GNU roff
-	from ports (and recommends to install it).
-	To render roff(7) documents, consider using GNU roff from ports or the
-	heirloom doctools roff toolchain from ports via pkg install groff or
-	via pkg install heirloom-doctools.
 
 20170523:
 	The "ino64" 64-bit inode project has been committed, which extends

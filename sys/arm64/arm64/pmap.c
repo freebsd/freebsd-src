@@ -504,7 +504,11 @@ pmap_l3_valid(pt_entry_t l3)
 
 CTASSERT(L1_BLOCK == L2_BLOCK);
 
+#if 0
 #define	PTE_SYNC(pte)	cpu_dcache_wb_range((vm_offset_t)pte, sizeof(*pte))
+#else
+#define	PTE_SYNC(pte)	(void)0
+#endif
 
 /*
  * Checks if the page is dirty. We currently lack proper tracking of this on

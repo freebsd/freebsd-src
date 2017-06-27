@@ -180,13 +180,18 @@ kevent_to_str(struct kevent *kev)
     char buf[512];
 
     snprintf(&buf[0], sizeof(buf), 
-            "[ident=%d, filter=%d, %s, %s, data=%d, udata=%p]",
-            (u_int) kev->ident,
+            "[ident=%ju, filter=%d, %s, %s, data=%jd, udata=%p, "
+	    "ext=[%jx %jx %jx %jx]",
+            (uintmax_t) kev->ident,
             kev->filter,
             kevent_flags_dump(kev),
             kevent_fflags_dump(kev),
-            (int) kev->data,
-            kev->udata);
+            (uintmax_t)kev->data,
+            kev->udata,
+	    (uintmax_t)kev->ext[0],
+	    (uintmax_t)kev->ext[1],
+	    (uintmax_t)kev->ext[2],
+	    (uintmax_t)kev->ext[3]);
 
     return (strdup(buf));
 }
@@ -218,7 +223,11 @@ kevent_cmp(struct kevent *k1, struct kevent *k2)
     if (k1->flags & EV_ADD)
         k2->flags |= EV_ADD;
 #endif
-    if (memcmp(k1, k2, sizeof(*k1)) != 0) {
+    if (k1->ident != k2->ident || k1->filter != k2->filter ||
+      k1->flags != k2->flags || k1->fflags != k2->fflags ||
+      k1->data != k2->data || k1->udata != k2->udata ||
+      k1->ext[0] != k2->ext[0] || k1->ext[1] != k2->ext[1] ||
+      k1->ext[0] != k2->ext[2] || k1->ext[0] != k2->ext[3]) {
         printf("kevent_cmp: mismatch:\n  %s !=\n  %s\n", 
               kevent_to_str(k1), kevent_to_str(k2));
         abort();

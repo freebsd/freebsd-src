@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <linux/compat.h>
+#include <linux/completion.h>
 #include <linux/mm.h>
 #include <linux/kthread.h>
 
@@ -68,6 +69,8 @@ linux_alloc_current(struct thread *td, int flags)
 	ts->pid = td->td_tid;
 	atomic_set(&ts->usage, 1);
 	ts->state = TASK_RUNNING;
+	init_completion(&ts->parked);
+	init_completion(&ts->exited);
 
 	proc = td->td_proc;
 

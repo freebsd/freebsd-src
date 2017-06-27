@@ -565,24 +565,38 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 	ret = 0;
 
 	/* Getting all prop for configuring pins */
-	pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins", &pinlist);
-	if (pins_nb <= 0)
-		return (ENOENT);
-	if (OF_getprop_alloc(node, "allwinner,function",
+	pins_nb = ofw_bus_string_list_to_array(node, "pins", &pinlist);
+	if (pins_nb <= 0) {
+		pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins",
+		    &pinlist);
+		if (pins_nb <= 0)
+			return (ENOENT);
+	}
+	if (OF_getprop_alloc(node, "function",
 			     sizeof(*pin_function),
 			     (void **)&pin_function) == -1) {
-		ret = ENOENT;
-		goto out;
+		if (OF_getprop_alloc(node, "allwinner,function",
+		    sizeof(*pin_function),
+		    (void **)&pin_function) == -1) {
+			ret = ENOENT;
+			goto out;
+		}
 	}
-	if (OF_getencprop(node, "allwinner,drive",
+	if (OF_getencprop(node, "drive",
 			  &pin_drive, sizeof(pin_drive)) == -1) {
-		ret = ENOENT;
-		goto out;
+		if (OF_getencprop(node, "allwinner,drive",
+		    &pin_drive, sizeof(pin_drive)) == -1) {
+			ret = ENOENT;
+			goto out;
+		}
 	}
-	if (OF_getencprop(node, "allwinner,pull",
+	if (OF_getencprop(node, "pull",
 			  &pin_pull, sizeof(pin_pull)) == -1) {
-		ret = ENOENT;
-		goto out;
+		if (OF_getencprop(node, "allwinner,pull",
+		    &pin_pull, sizeof(pin_pull)) == -1) {
+			ret = ENOENT;
+			goto out;
+		}
 	}
 
 	/* Configure each pin to the correct function, drive and pull */
@@ -697,6 +711,8 @@ a10_gpio_attach(device_t dev)
 	/*
 	 * Register as a pinctrl device
 	 */
+	fdt_pinctrl_register(dev, "pins");
+	fdt_pinctrl_configure_tree(dev);
 	fdt_pinctrl_register(dev, "allwinner,pins");
 	fdt_pinctrl_configure_tree(dev);
 
