@@ -1,4 +1,4 @@
-//===-- AddressSanitizerRuntime.cpp -----------------------------*- C++ -*-===//
+//===-- ASanRuntime.cpp -----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AddressSanitizerRuntime.h"
+#include "ASanRuntime.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 #include "lldb/Core/Debugger.h"
@@ -307,13 +307,6 @@ void AddressSanitizerRuntime::Activate() {
                           true);
   breakpoint->SetBreakpointKind("address-sanitizer-report");
   SetBreakpointID(breakpoint->GetID());
-
-  StreamFileSP stream_sp(process_sp->GetTarget().GetDebugger().GetOutputFile());
-  if (stream_sp) {
-    stream_sp->Printf("AddressSanitizer debugger support is active. Memory "
-                      "error breakpoint has been installed and you can now use "
-                      "the 'memory history' command.\n");
-  }
 
   SetActive(true);
 }

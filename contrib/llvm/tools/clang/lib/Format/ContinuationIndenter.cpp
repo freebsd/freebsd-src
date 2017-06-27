@@ -453,7 +453,8 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
   State.Column += Spaces;
   if (Current.isNot(tok::comment) && Previous.is(tok::l_paren) &&
       Previous.Previous &&
-      Previous.Previous->isOneOf(tok::kw_if, tok::kw_for)) {
+      (Previous.Previous->isOneOf(tok::kw_if, tok::kw_for) ||
+       Previous.Previous->endsSequence(tok::kw_constexpr, tok::kw_if))) {
     // Treat the condition inside an if as if it was a second function
     // parameter, i.e. let nested calls have a continuation indent.
     State.Stack.back().LastSpace = State.Column;
@@ -1049,7 +1050,9 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
         (Current.is(TT_ArrayInitializerLSquare) && EndsInComma) ||
         Current.is(TT_DictLiteral) ||
         Style.Language == FormatStyle::LK_Proto || !Style.BinPackArguments ||
-        (NextNoComment && NextNoComment->is(TT_DesignatedInitializerPeriod));
+        (NextNoComment &&
+         NextNoComment->isOneOf(TT_DesignatedInitializerPeriod,
+                                TT_DesignatedInitializerLSquare));
     if (Current.ParameterCount > 1)
       NestedBlockIndent = std::max(NestedBlockIndent, State.Column + 1);
   } else {

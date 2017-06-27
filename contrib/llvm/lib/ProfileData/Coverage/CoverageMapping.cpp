@@ -1,4 +1,4 @@
-//===- CoverageMapping.cpp - Code coverage mapping support ------*- C++ -*-===//
+//===- CoverageMapping.cpp - Code coverage mapping support ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -200,6 +200,9 @@ Error CoverageMapping::loadFunctionRecord(
     const CoverageMappingRecord &Record,
     IndexedInstrProfReader &ProfileReader) {
   StringRef OrigFuncName = Record.FunctionName;
+  if (OrigFuncName.empty())
+    return make_error<CoverageMapError>(coveragemap_error::malformed);
+
   if (Record.Filenames.empty())
     OrigFuncName = getFuncNameWithoutPrefix(OrigFuncName);
   else
@@ -300,8 +303,8 @@ namespace {
 /// An instantiation set is a collection of functions that have the same source
 /// code, ie, template functions specializations.
 class FunctionInstantiationSetCollector {
-  typedef DenseMap<std::pair<unsigned, unsigned>,
-                   std::vector<const FunctionRecord *>> MapT;
+  using MapT = DenseMap<std::pair<unsigned, unsigned>,
+                        std::vector<const FunctionRecord *>>;
   MapT InstantiatedFunctions;
 
 public:
@@ -315,7 +318,6 @@ public:
   }
 
   MapT::iterator begin() { return InstantiatedFunctions.begin(); }
-
   MapT::iterator end() { return InstantiatedFunctions.end(); }
 };
 

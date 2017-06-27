@@ -29,10 +29,11 @@ namespace llvm {
 /// Writer for instrumentation based profile data.
 class InstrProfRecordWriterTrait;
 class ProfOStream;
+class raw_fd_ostream;
 
 class InstrProfWriter {
 public:
-  typedef SmallDenseMap<uint64_t, InstrProfRecord, 1> ProfilingData;
+  using ProfilingData = SmallDenseMap<uint64_t, InstrProfRecord, 1>;
   enum ProfKind { PF_Unknown = 0, PF_FE, PF_IRLevel };
 
 private:
@@ -58,7 +59,7 @@ public:
   void write(raw_fd_ostream &OS);
 
   /// Write the profile in text format to \c OS
-  void writeText(raw_fd_ostream &OS);
+  Error writeText(raw_fd_ostream &OS);
 
   /// Write \c Record in text format to \c OS
   static void writeRecordInText(const InstrProfRecord &Record,
