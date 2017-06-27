@@ -2510,6 +2510,12 @@ struct ptrace_lwpinfo *
 procstat_getptlwpinfo(struct procstat *procstat, unsigned int *cntp)
 {
 	switch (procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		warnx("sysctl method is not supported");
+		return (NULL);
 	case PROCSTAT_CORE:
 	 	return (procstat_getptlwpinfo_core(procstat->core, cntp));
 	default:
