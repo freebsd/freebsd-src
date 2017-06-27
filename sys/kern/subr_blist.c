@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #define	bitcount64(x)	__bitcount64((uint64_t)(x))
 #define malloc(a,b,c)	calloc(a, 1)
@@ -125,17 +126,17 @@ static daddr_t	blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count,
 		    daddr_t radix, daddr_t skip, daddr_t cursor);
 static void blst_leaf_free(blmeta_t *scan, daddr_t relblk, int count);
 static void blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, 
-					daddr_t radix, int skip, daddr_t blk);
+		    daddr_t radix, daddr_t skip, daddr_t blk);
 static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix, 
 				daddr_t skip, blist_t dest, daddr_t count);
 static daddr_t blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
 static daddr_t blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
-				daddr_t radix, int skip, daddr_t blk);
-static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, 
-						int skip, daddr_t count);
+		    daddr_t radix, daddr_t skip, daddr_t blk);
+static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, daddr_t skip,
+		    daddr_t count);
 #ifndef _KERNEL
-static void	blst_radix_print(blmeta_t *scan, daddr_t blk, 
-					daddr_t radix, int skip, int tab);
+static void	blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix,
+		    daddr_t skip, int tab);
 #endif
 
 #ifdef _KERNEL
@@ -157,18 +158,18 @@ blist_t
 blist_create(daddr_t blocks, int flags)
 {
 	blist_t bl;
-	daddr_t nodes, radix;
-	int skip = 0;
+	daddr_t nodes, radix, skip;
 
 	/*
 	 * Calculate radix and skip field used for scanning.
 	 */
 	radix = BLIST_BMAP_RADIX;
-
+	skip = 0;
 	while (radix < blocks) {
 		radix *= BLIST_META_RADIX;
 		skip = (skip + 1) * BLIST_META_RADIX;
 	}
+	nodes = 1 + blst_radix_init(NULL, radix, skip, blocks);
 
 	bl = malloc(sizeof(struct blist), M_SWAP, flags);
 	if (bl == NULL)
@@ -178,13 +179,12 @@ blist_create(daddr_t blocks, int flags)
 	bl->bl_radix = radix;
 	bl->bl_skip = skip;
 	bl->bl_cursor = 0;
-	nodes = 1 + blst_radix_init(NULL, radix, bl->bl_skip, blocks);
 	bl->bl_root = malloc(nodes * sizeof(blmeta_t), M_SWAP, flags);
 	if (bl->bl_root == NULL) {
 		free(bl, M_SWAP);
 		return (NULL);
 	}
-	blst_radix_init(bl->bl_root, radix, bl->bl_skip, blocks);
+	blst_radix_init(bl->bl_root, radix, skip, blocks);
 
 #if defined(BLIST_DEBUG)
 	printf(
@@ -569,16 +569,11 @@ blst_leaf_free(
  */
 
 static void 
-blst_meta_free(
-	blmeta_t *scan, 
-	daddr_t freeBlk,
-	daddr_t count,
-	daddr_t radix, 
-	int skip,
-	daddr_t blk
-) {
-	int i;
-	int next_skip = ((u_int)skip / BLIST_META_RADIX);
+blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count, daddr_t radix,
+    daddr_t skip, daddr_t blk)
+{
+	daddr_t i, next_skip, v;
+	int child;
 
 #if 0
 	printf("free (%llx,%lld) FROM (%llx,%lld)\n",
@@ -586,6 +581,7 @@ blst_meta_free(
 	    (long long)blk, (long long)radix
 	);
 #endif
+	next_skip = skip / BLIST_META_RADIX;
 
 	if (scan->u.bmu_avail == 0) {
 		/*
@@ -630,13 +626,10 @@ blst_meta_free(
 
 	radix /= BLIST_META_RADIX;
 
-	i = (freeBlk - blk) / radix;
-	blk += i * radix;
-	i = i * next_skip + 1;
-
+	child = (freeBlk - blk) / radix;
+	blk += child * radix;
+	i = 1 + child * next_skip;
 	while (i <= skip && blk < freeBlk + count) {
-		daddr_t v;
-
 		v = blk + radix - freeBlk;
 		if (v > count)
 			v = count;
@@ -673,8 +666,7 @@ static void blst_copy(
 	blist_t dest,
 	daddr_t count
 ) {
-	int next_skip;
-	int i;
+	daddr_t i, next_skip;
 
 	/*
 	 * Leaf node
@@ -719,7 +711,7 @@ static void blst_copy(
 
 
 	radix /= BLIST_META_RADIX;
-	next_skip = ((u_int)skip / BLIST_META_RADIX);
+	next_skip = skip / BLIST_META_RADIX;
 
 	for (i = 1; count && i <= skip; i += next_skip) {
 		if (scan[i].bm_bighint == (daddr_t)-1)
@@ -786,17 +778,11 @@ blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
  *	number of blocks allocated by the call.
  */
 static daddr_t
-blst_meta_fill(
-	blmeta_t *scan,
-	daddr_t allocBlk,
-	daddr_t count,
-	daddr_t radix, 
-	int skip,
-	daddr_t blk
-) {
-	int i;
-	int next_skip = ((u_int)skip / BLIST_META_RADIX);
-	daddr_t nblks = 0;
+blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count, daddr_t radix,
+    daddr_t skip, daddr_t blk)
+{
+	daddr_t i, nblks, next_skip, v;
+	int child;
 
 	if (count > radix) {
 		/*
@@ -814,6 +800,7 @@ blst_meta_fill(
 		scan->bm_bighint = 0;
 		return nblks;
 	}
+	next_skip = skip / BLIST_META_RADIX;
 
 	/*
 	 * An ALL-FREE meta node requires special handling before allocating
@@ -839,13 +826,11 @@ blst_meta_fill(
 		radix /= BLIST_META_RADIX;
 	}
 
-	i = (allocBlk - blk) / radix;
-	blk += i * radix;
-	i = i * next_skip + 1;
-
+	nblks = 0;
+	child = (allocBlk - blk) / radix;
+	blk += child * radix;
+	i = 1 + child * next_skip;
 	while (i <= skip && blk < allocBlk + count) {
-		daddr_t v;
-
 		v = blk + radix - allocBlk;
 		if (v > count)
 			v = count;
@@ -878,11 +863,11 @@ blst_meta_fill(
  */
 
 static daddr_t	
-blst_radix_init(blmeta_t *scan, daddr_t radix, int skip, daddr_t count)
+blst_radix_init(blmeta_t *scan, daddr_t radix, daddr_t skip, daddr_t count)
 {
-	int i;
-	int next_skip;
-	daddr_t memindex = 0;
+	daddr_t i, memindex, next_skip;
+
+	memindex = 0;
 
 	/*
 	 * Leaf node
@@ -908,7 +893,7 @@ blst_radix_init(blmeta_t *scan, daddr_t radix, int skip, daddr_t count)
 	}
 
 	radix /= BLIST_META_RADIX;
-	next_skip = ((u_int)skip / BLIST_META_RADIX);
+	next_skip = skip / BLIST_META_RADIX;
 
 	for (i = 1; i <= skip; i += next_skip) {
 		if (count >= radix) {
@@ -950,11 +935,10 @@ blst_radix_init(blmeta_t *scan, daddr_t radix, int skip, daddr_t count)
 #ifdef BLIST_DEBUG
 
 static void	
-blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int skip, int tab)
+blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, daddr_t skip,
+    int tab)
 {
-	int i;
-	int next_skip;
-	int lastState = 0;
+	daddr_t i, next_skip;
 
 	if (radix == BLIST_BMAP_RADIX) {
 		printf(
@@ -996,7 +980,7 @@ blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int skip, int tab)
 	);
 
 	radix /= BLIST_META_RADIX;
-	next_skip = ((u_int)skip / BLIST_META_RADIX);
+	next_skip = skip / BLIST_META_RADIX;
 	tab += 4;
 
 	for (i = 1; i <= skip; i += next_skip) {
@@ -1006,7 +990,6 @@ blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix, int skip, int tab)
 			    tab, tab, "",
 			    (long long)blk, (long long)radix
 			);
-			lastState = 0;
 			break;
 		}
 		blst_radix_print(
