@@ -9,7 +9,6 @@
 
 #include "Error.h"
 #include "InputFiles.h"
-#include "Memory.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
@@ -58,6 +57,7 @@ ARM::ARM() {
   GotPltEntrySize = 4;
   PltEntrySize = 16;
   PltHeaderSize = 20;
+  TrapInstr = 0xd4d4d4d4;
   // ARM uses Variant 1 TLS
   TcbSize = 8;
   NeedsThunks = true;
@@ -429,4 +429,7 @@ int64_t ARM::getImplicitAddend(const uint8_t *Buf, uint32_t Type) const {
   }
 }
 
-TargetInfo *elf::createARMTargetInfo() { return make<ARM>(); }
+TargetInfo *elf::getARMTargetInfo() {
+  static ARM Target;
+  return &Target;
+}

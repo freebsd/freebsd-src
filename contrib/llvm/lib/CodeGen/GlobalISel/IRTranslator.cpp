@@ -582,7 +582,7 @@ bool IRTranslator::translateOverflowIntrinsic(const CallInst &CI, unsigned Op,
     MIB.addUse(Zero);
   }
 
-  MIRBuilder.buildSequence(getOrCreateVReg(CI), Res, 0, Overflow, Width);
+  MIRBuilder.buildSequence(getOrCreateVReg(CI), {Res, Overflow}, {0, Width});
   return true;
 }
 
@@ -685,6 +685,13 @@ bool IRTranslator::translateKnownIntrinsic(const CallInst &CI, Intrinsic::ID ID,
         .addDef(getOrCreateVReg(CI))
         .addUse(getOrCreateVReg(*CI.getArgOperand(0)))
         .addUse(getOrCreateVReg(*CI.getArgOperand(1)));
+    return true;
+  case Intrinsic::fma:
+    MIRBuilder.buildInstr(TargetOpcode::G_FMA)
+        .addDef(getOrCreateVReg(CI))
+        .addUse(getOrCreateVReg(*CI.getArgOperand(0)))
+        .addUse(getOrCreateVReg(*CI.getArgOperand(1)))
+        .addUse(getOrCreateVReg(*CI.getArgOperand(2)));
     return true;
   case Intrinsic::memcpy:
   case Intrinsic::memmove:

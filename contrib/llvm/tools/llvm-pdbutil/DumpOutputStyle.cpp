@@ -1,4 +1,4 @@
-//===- RawOutputStyle.cpp ------------------------------------ *- C++ --*-===//
+//===- DumpOutputStyle.cpp ------------------------------------ *- C++ --*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,9 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "RawOutputStyle.h"
+#include "DumpOutputStyle.h"
 
-#include "CompactTypeDumpVisitor.h"
 #include "FormatUtil.h"
 #include "MinimalSymbolDumper.h"
 #include "MinimalTypeDumper.h"
@@ -65,96 +64,84 @@ using namespace llvm::codeview;
 using namespace llvm::msf;
 using namespace llvm::pdb;
 
-RawOutputStyle::RawOutputStyle(PDBFile &File)
+DumpOutputStyle::DumpOutputStyle(PDBFile &File)
     : File(File), P(2, false, outs()) {}
 
-Error RawOutputStyle::dump() {
-  if (opts::raw::DumpSummary) {
+Error DumpOutputStyle::dump() {
+  if (opts::dump::DumpSummary) {
     if (auto EC = dumpFileSummary())
       return EC;
     P.NewLine();
   }
 
-  if (opts::raw::DumpStreams) {
+  if (opts::dump::DumpStreams) {
     if (auto EC = dumpStreamSummary())
       return EC;
     P.NewLine();
   }
 
-  if (opts::raw::DumpBlockRange.hasValue()) {
-    if (auto EC = dumpBlockRanges())
-      return EC;
-    P.NewLine();
-  }
-
-  if (!opts::raw::DumpStreamData.empty()) {
-    if (auto EC = dumpStreamBytes())
-      return EC;
-    P.NewLine();
-  }
-
-  if (opts::raw::DumpStringTable) {
+  if (opts::dump::DumpStringTable) {
     if (auto EC = dumpStringTable())
       return EC;
     P.NewLine();
   }
 
-  if (opts::raw::DumpModules) {
+  if (opts::dump::DumpModules) {
     if (auto EC = dumpModules())
       return EC;
   }
 
-  if (opts::raw::DumpModuleFiles) {
+  if (opts::dump::DumpModuleFiles) {
     if (auto EC = dumpModuleFiles())
       return EC;
   }
 
-  if (opts::raw::DumpLines) {
+  if (opts::dump::DumpLines) {
     if (auto EC = dumpLines())
       return EC;
   }
 
-  if (opts::raw::DumpInlineeLines) {
+  if (opts::dump::DumpInlineeLines) {
     if (auto EC = dumpInlineeLines())
       return EC;
   }
 
-  if (opts::raw::DumpXmi) {
+  if (opts::dump::DumpXmi) {
     if (auto EC = dumpXmi())
       return EC;
   }
 
-  if (opts::raw::DumpXme) {
+  if (opts::dump::DumpXme) {
     if (auto EC = dumpXme())
       return EC;
   }
 
-  if (opts::raw::DumpTypes || opts::raw::DumpTypeExtras) {
+  if (opts::dump::DumpTypes || opts::dump::DumpTypeExtras) {
     if (auto EC = dumpTpiStream(StreamTPI))
       return EC;
   }
 
-  if (opts::raw::DumpIds || opts::raw::DumpIdExtras) {
+  if (opts::dump::DumpIds || opts::dump::DumpIdExtras) {
     if (auto EC = dumpTpiStream(StreamIPI))
       return EC;
   }
 
-  if (opts::raw::DumpPublics) {
+  if (opts::dump::DumpPublics) {
     if (auto EC = dumpPublics())
       return EC;
   }
 
-  if (opts::raw::DumpSymbols) {
+  if (opts::dump::DumpSymbols) {
     if (auto EC = dumpModuleSyms())
       return EC;
   }
 
-  if (opts::raw::DumpSectionContribs) {
+  if (opts::dump::DumpSectionContribs) {
     if (auto EC = dumpSectionContribs())
       return EC;
   }
 
-  if (opts::raw::DumpSectionMap) {
+  if (opts::dump::DumpSectionMap) {
     if (auto EC = dumpSectionMap())
       return EC;
   }
@@ -168,7 +155,7 @@ static void printHeader(LinePrinter &P, const Twine &S) {
   P.formatLine("{0}", fmt_repeat('=', 60));
 }
 
-Error RawOutputStyle::dumpFileSummary() {
+Error DumpOutputStyle::dumpFileSummary() {
   printHeader(P, "Summary");
 
   ExitOnError Err("Invalid PDB Format");
@@ -198,7 +185,7 @@ Error RawOutputStyle::dumpFileSummary() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpStreamSummary() {
+Error DumpOutputStyle::dumpStreamSummary() {
   printHeader(P, "Streams");
 
   if (StreamPurposes.empty())
@@ -212,105 +199,15 @@ Error RawOutputStyle::dumpStreamSummary() {
         "Stream {0}: [{1}] ({2} bytes)",
         fmt_align(StreamIdx, AlignStyle::Right, NumDigits(StreamCount)),
         StreamPurposes[StreamIdx], File.getStreamByteSize(StreamIdx));
-  }
-
-  return Error::success();
-}
-
-Error RawOutputStyle::dumpBlockRanges() {
-  printHeader(P, "MSF Blocks");
-
-  auto &R = *opts::raw::DumpBlockRange;
-  uint32_t Max = R.Max.getValueOr(R.Min);
-
-  AutoIndent Indent(P);
-  if (Max < R.Min)
-    return make_error<StringError>(
-        "Invalid block range specified.  Max < Min",
-        std::make_error_code(std::errc::bad_address));
-  if (Max >= File.getBlockCount())
-    return make_error<StringError>(
-        "Invalid block range specified.  Requested block out of bounds",
-        std::make_error_code(std::errc::bad_address));
-
-  for (uint32_t I = R.Min; I <= Max; ++I) {
-    auto ExpectedData = File.getBlockData(I, File.getBlockSize());
-    if (!ExpectedData)
-      return ExpectedData.takeError();
-    std::string Label = formatv("Block {0}", I).str();
-    P.formatBinary(Label, *ExpectedData, 0);
-  }
-
-  return Error::success();
-}
-
-static Error parseStreamSpec(StringRef Str, uint32_t &SI, uint32_t &Offset,
-                             uint32_t &Size) {
-  if (Str.consumeInteger(0, SI))
-    return make_error<RawError>(raw_error_code::invalid_format,
-                                "Invalid Stream Specification");
-  if (Str.consume_front(":")) {
-    if (Str.consumeInteger(0, Offset))
-      return make_error<RawError>(raw_error_code::invalid_format,
-                                  "Invalid Stream Specification");
-  }
-  if (Str.consume_front("@")) {
-    if (Str.consumeInteger(0, Size))
-      return make_error<RawError>(raw_error_code::invalid_format,
-                                  "Invalid Stream Specification");
-  }
-  if (!Str.empty())
-    return make_error<RawError>(raw_error_code::invalid_format,
-                                "Invalid Stream Specification");
-  return Error::success();
-}
-
-Error RawOutputStyle::dumpStreamBytes() {
-  if (StreamPurposes.empty())
-    discoverStreamPurposes(File, StreamPurposes);
-
-  printHeader(P, "Stream Data");
-  ExitOnError Err("Unexpected error reading stream data");
-
-  for (auto &Str : opts::raw::DumpStreamData) {
-    uint32_t SI = 0;
-    uint32_t Begin = 0;
-    uint32_t Size = 0;
-    uint32_t End = 0;
-
-    if (auto EC = parseStreamSpec(Str, SI, Begin, Size))
-      return EC;
-
-    AutoIndent Indent(P);
-    if (SI >= File.getNumStreams()) {
-      P.formatLine("Stream {0}: Not present", SI);
-      continue;
+    if (opts::dump::DumpStreamBlocks) {
+      auto Blocks = File.getStreamBlockList(StreamIdx);
+      std::vector<uint32_t> BV(Blocks.begin(), Blocks.end());
+      P.formatLine("       {0}  Blocks: [{1}]",
+                   fmt_repeat(' ', NumDigits(StreamCount)),
+                   make_range(BV.begin(), BV.end()));
     }
-
-    auto S = MappedBlockStream::createIndexedStream(
-        File.getMsfLayout(), File.getMsfBuffer(), SI, File.getAllocator());
-    if (!S) {
-      P.NewLine();
-      P.formatLine("Stream {0}: Not present", SI);
-      continue;
-    }
-
-    if (Size == 0)
-      End = S->getLength();
-    else
-      End = std::min(Begin + Size, S->getLength());
-
-    P.formatLine("Stream {0} ({1:N} bytes): {2}", SI, S->getLength(),
-                 StreamPurposes[SI]);
-    AutoIndent Indent2(P);
-
-    BinaryStreamReader R(*S);
-    ArrayRef<uint8_t> StreamData;
-    Err(R.readBytes(StreamData, S->getLength()));
-    Size = End - Begin;
-    StreamData = StreamData.slice(Begin, Size);
-    P.formatBinary("Data", StreamData, Begin);
   }
+
   return Error::success();
 }
 
@@ -494,7 +391,7 @@ static void iterateModuleSubsections(
       });
 }
 
-Error RawOutputStyle::dumpModules() {
+Error DumpOutputStyle::dumpModules() {
   printHeader(P, "Modules");
 
   AutoIndent Indent(P);
@@ -522,7 +419,7 @@ Error RawOutputStyle::dumpModules() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpModuleFiles() {
+Error DumpOutputStyle::dumpModuleFiles() {
   printHeader(P, "Files");
 
   ExitOnError Err("Unexpected error processing modules");
@@ -574,7 +471,7 @@ static void typesetLinesAndColumns(PDBFile &File, LinePrinter &P,
   }
 }
 
-Error RawOutputStyle::dumpLines() {
+Error DumpOutputStyle::dumpLines() {
   printHeader(P, "Lines");
 
   uint32_t LastModi = UINT32_MAX;
@@ -610,7 +507,7 @@ Error RawOutputStyle::dumpLines() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpInlineeLines() {
+Error DumpOutputStyle::dumpInlineeLines() {
   printHeader(P, "Inlinee Lines");
 
   iterateModuleSubsections<DebugInlineeLinesSubsectionRef>(
@@ -629,7 +526,7 @@ Error RawOutputStyle::dumpInlineeLines() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpXmi() {
+Error DumpOutputStyle::dumpXmi() {
   printHeader(P, "Cross Module Imports");
   iterateModuleSubsections<DebugCrossModuleImportsSubsectionRef>(
       File, P, 2,
@@ -664,7 +561,7 @@ Error RawOutputStyle::dumpXmi() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpXme() {
+Error DumpOutputStyle::dumpXme() {
   printHeader(P, "Cross Module Exports");
 
   iterateModuleSubsections<DebugCrossModuleExportsSubsectionRef>(
@@ -681,7 +578,7 @@ Error RawOutputStyle::dumpXme() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpStringTable() {
+Error DumpOutputStyle::dumpStringTable() {
   printHeader(P, "String Table");
 
   AutoIndent Indent(P);
@@ -723,25 +620,30 @@ Error RawOutputStyle::dumpStringTable() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpTpiStream(uint32_t StreamIdx) {
+Error DumpOutputStyle::dumpTpiStream(uint32_t StreamIdx) {
   assert(StreamIdx == StreamTPI || StreamIdx == StreamIPI);
 
   bool Present = false;
   bool DumpTypes = false;
   bool DumpBytes = false;
   bool DumpExtras = false;
+  std::vector<uint32_t> Indices;
   if (StreamIdx == StreamTPI) {
     printHeader(P, "Types (TPI Stream)");
     Present = File.hasPDBTpiStream();
-    DumpTypes = opts::raw::DumpTypes;
-    DumpBytes = opts::raw::DumpTypeData;
-    DumpExtras = opts::raw::DumpTypeExtras;
+    DumpTypes = opts::dump::DumpTypes;
+    DumpBytes = opts::dump::DumpTypeData;
+    DumpExtras = opts::dump::DumpTypeExtras;
+    Indices.assign(opts::dump::DumpTypeIndex.begin(),
+                   opts::dump::DumpTypeIndex.end());
   } else if (StreamIdx == StreamIPI) {
     printHeader(P, "Types (IPI Stream)");
     Present = File.hasPDBIpiStream();
-    DumpTypes = opts::raw::DumpIds;
-    DumpBytes = opts::raw::DumpIdData;
-    DumpExtras = opts::raw::DumpIdExtras;
+    DumpTypes = opts::dump::DumpIds;
+    DumpBytes = opts::dump::DumpIdData;
+    DumpExtras = opts::dump::DumpIdExtras;
+    Indices.assign(opts::dump::DumpIdIndex.begin(),
+                   opts::dump::DumpIdIndex.end());
   }
 
   AutoIndent Indent(P);
@@ -755,7 +657,7 @@ Error RawOutputStyle::dumpTpiStream(uint32_t StreamIdx) {
   auto &Stream = Err((StreamIdx == StreamTPI) ? File.getPDBTpiStream()
                                               : File.getPDBIpiStream());
 
-  auto &Types = Err(initializeTypeDatabase(StreamIdx));
+  auto &Types = Err(initializeTypes(StreamIdx));
 
   if (DumpTypes) {
     P.formatLine("Showing {0:N} records", Stream.getNumTypeRecords());
@@ -765,10 +667,19 @@ Error RawOutputStyle::dumpTpiStream(uint32_t StreamIdx) {
     MinimalTypeDumpVisitor V(P, Width + 2, DumpBytes, DumpExtras, Types,
                              Stream.getHashValues());
 
-    Optional<TypeIndex> I = Types.getFirst();
-    if (auto EC = codeview::visitTypeStream(Types, V)) {
-      P.formatLine("An error occurred dumping type records: {0}",
-                   toString(std::move(EC)));
+    if (Indices.empty()) {
+      if (auto EC = codeview::visitTypeStream(Types, V)) {
+        P.formatLine("An error occurred dumping type records: {0}",
+                     toString(std::move(EC)));
+      }
+    } else {
+      for (const auto &I : Indices) {
+        TypeIndex TI(I);
+        CVType Type = Types.getType(TI);
+        if (auto EC = codeview::visitTypeRecord(Type, TI, V))
+          P.formatLine("An error occurred dumping type record {0}: {1}", TI,
+                       toString(std::move(EC)));
+      }
     }
   }
 
@@ -801,7 +712,7 @@ Error RawOutputStyle::dumpTpiStream(uint32_t StreamIdx) {
 }
 
 Expected<codeview::LazyRandomTypeCollection &>
-RawOutputStyle::initializeTypeDatabase(uint32_t SN) {
+DumpOutputStyle::initializeTypes(uint32_t SN) {
   auto &TypeCollection = (SN == StreamTPI) ? TpiTypes : IpiTypes;
   auto Tpi =
       (SN == StreamTPI) ? File.getPDBTpiStream() : File.getPDBIpiStream();
@@ -819,7 +730,7 @@ RawOutputStyle::initializeTypeDatabase(uint32_t SN) {
   return *TypeCollection;
 }
 
-Error RawOutputStyle::dumpModuleSyms() {
+Error DumpOutputStyle::dumpModuleSyms() {
   printHeader(P, "Symbols");
 
   AutoIndent Indent(P);
@@ -832,7 +743,7 @@ Error RawOutputStyle::dumpModuleSyms() {
 
   auto &Stream = Err(File.getPDBDbiStream());
 
-  auto &Types = Err(initializeTypeDatabase(StreamTPI));
+  auto &Types = Err(initializeTypes(StreamTPI));
 
   const DbiModuleList &Modules = Stream.modules();
   uint32_t Count = Modules.getModuleCount();
@@ -859,7 +770,7 @@ Error RawOutputStyle::dumpModuleSyms() {
 
     SymbolVisitorCallbackPipeline Pipeline;
     SymbolDeserializer Deserializer(nullptr, CodeViewContainer::Pdb);
-    MinimalSymbolDumper Dumper(P, opts::raw::DumpSymRecordBytes, Types);
+    MinimalSymbolDumper Dumper(P, opts::dump::DumpSymRecordBytes, Types);
 
     Pipeline.addCallbackToPipeline(Deserializer);
     Pipeline.addCallbackToPipeline(Dumper);
@@ -873,7 +784,7 @@ Error RawOutputStyle::dumpModuleSyms() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpPublics() {
+Error DumpOutputStyle::dumpPublics() {
   printHeader(P, "Public Symbols");
 
   AutoIndent Indent(P);
@@ -884,11 +795,11 @@ Error RawOutputStyle::dumpPublics() {
 
   ExitOnError Err("Error dumping publics stream");
 
-  auto &Types = Err(initializeTypeDatabase(StreamTPI));
+  auto &Types = Err(initializeTypes(StreamTPI));
   auto &Publics = Err(File.getPDBPublicsStream());
   SymbolVisitorCallbackPipeline Pipeline;
   SymbolDeserializer Deserializer(nullptr, CodeViewContainer::Pdb);
-  MinimalSymbolDumper Dumper(P, opts::raw::DumpSymRecordBytes, Types);
+  MinimalSymbolDumper Dumper(P, opts::dump::DumpSymRecordBytes, Types);
 
   Pipeline.addCallbackToPipeline(Deserializer);
   Pipeline.addCallbackToPipeline(Dumper);
@@ -988,7 +899,7 @@ static std::string formatSegMapDescriptorFlag(uint32_t IndentLevel,
   return typesetItemList(Opts, IndentLevel, 4, " | ");
 }
 
-Error RawOutputStyle::dumpSectionContribs() {
+Error DumpOutputStyle::dumpSectionContribs() {
   printHeader(P, "Section Contributions");
   ExitOnError Err("Error dumping publics stream");
 
@@ -1034,7 +945,7 @@ Error RawOutputStyle::dumpSectionContribs() {
   return Error::success();
 }
 
-Error RawOutputStyle::dumpSectionMap() {
+Error DumpOutputStyle::dumpSectionMap() {
   printHeader(P, "Section Map");
   ExitOnError Err("Error dumping section map");
 

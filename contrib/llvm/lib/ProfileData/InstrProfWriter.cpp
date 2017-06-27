@@ -69,8 +69,7 @@ public:
           write(P[K].D[I]);
       }
     } else {
-      raw_string_ostream &SOStream =
-          static_cast<llvm::raw_string_ostream &>(OS);
+      raw_string_ostream &SOStream = static_cast<raw_string_ostream &>(OS);
       std::string &Data = SOStream.str(); // with flush
       for (int K = 0; K < NItems; K++) {
         for (int I = 0; I < P[K].N; I++) {
@@ -91,14 +90,14 @@ public:
 
 class InstrProfRecordWriterTrait {
 public:
-  typedef StringRef key_type;
-  typedef StringRef key_type_ref;
+  using key_type = StringRef;
+  using key_type_ref = StringRef;
 
-  typedef const InstrProfWriter::ProfilingData *const data_type;
-  typedef const InstrProfWriter::ProfilingData *const data_type_ref;
+  using data_type = const InstrProfWriter::ProfilingData *const;
+  using data_type_ref = const InstrProfWriter::ProfilingData *const;
 
-  typedef uint64_t hash_value_type;
-  typedef uint64_t offset_type;
+  using hash_value_type = uint64_t;
+  using offset_type = uint64_t;
 
   support::endianness ValueProfDataEndianness = support::little;
   InstrProfSummaryBuilder *SummaryBuilder;
@@ -363,17 +362,19 @@ void InstrProfWriter::writeRecordInText(const InstrProfRecord &Func,
   OS << "\n";
 }
 
-void InstrProfWriter::writeText(raw_fd_ostream &OS) {
+Error InstrProfWriter::writeText(raw_fd_ostream &OS) {
   if (ProfileKind == PF_IRLevel)
     OS << "# IR level Instrumentation Flag\n:ir\n";
   InstrProfSymtab Symtab;
   for (const auto &I : FunctionData)
     if (shouldEncodeData(I.getValue()))
-      Symtab.addFuncName(I.getKey());
+      if (Error E = Symtab.addFuncName(I.getKey()))
+        return E;
   Symtab.finalizeSymtab();
 
   for (const auto &I : FunctionData)
     if (shouldEncodeData(I.getValue()))
       for (const auto &Func : I.getValue())
         writeRecordInText(Func.second, Symtab, OS);
+  return Error::success();
 }

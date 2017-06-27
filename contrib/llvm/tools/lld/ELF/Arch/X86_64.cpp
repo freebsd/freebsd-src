@@ -9,7 +9,6 @@
 
 #include "Error.h"
 #include "InputFiles.h"
-#include "Memory.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
@@ -52,6 +51,7 @@ private:
 } // namespace
 
 template <class ELFT> X86_64<ELFT>::X86_64() {
+  GotBaseSymOff = -1;
   CopyRel = R_X86_64_COPY;
   GotRel = R_X86_64_GLOB_DAT;
   PltRel = R_X86_64_JUMP_SLOT;
@@ -65,13 +65,11 @@ template <class ELFT> X86_64<ELFT>::X86_64() {
   PltEntrySize = 16;
   PltHeaderSize = 16;
   TlsGdRelaxSkip = 2;
+  TrapInstr = 0xcccccccc; // 0xcc = INT3
 
   // Align to the large page size (known as a superpage or huge page).
   // FreeBSD automatically promotes large, superpage-aligned allocations.
   DefaultImageBase = 0x200000;
-
-  // 0xCC is the "int3" (call debug exception handler) instruction.
-  TrapInstr = 0xcccccccc;
 }
 
 template <class ELFT>
@@ -464,5 +462,12 @@ void X86_64<ELFT>::relaxGot(uint8_t *Loc, uint64_t Val) const {
   write32le(Loc - 1, Val + 1);
 }
 
-TargetInfo *elf::createX32TargetInfo() { return make<X86_64<ELF32LE>>(); }
-TargetInfo *elf::createX86_64TargetInfo() { return make<X86_64<ELF64LE>>(); }
+TargetInfo *elf::getX32TargetInfo() {
+  static X86_64<ELF32LE> Target;
+  return &Target;
+}
+
+TargetInfo *elf::getX86_64TargetInfo() {
+  static X86_64<ELF64LE> Target;
+  return &Target;
+}

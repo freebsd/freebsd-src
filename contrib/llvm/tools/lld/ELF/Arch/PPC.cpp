@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Error.h"
-#include "Memory.h"
 #include "Symbols.h"
 #include "Target.h"
 #include "llvm/Support/Endian.h"
@@ -22,7 +21,7 @@ using namespace lld::elf;
 namespace {
 class PPC final : public TargetInfo {
 public:
-  PPC() {}
+  PPC() { GotBaseSymOff = 0x8000; }
   void relocateOne(uint8_t *Loc, uint32_t Type, uint64_t Val) const override;
   RelExpr getRelExpr(uint32_t Type, const SymbolBody &S,
                      const uint8_t *Loc) const override;
@@ -60,4 +59,7 @@ RelExpr PPC::getRelExpr(uint32_t Type, const SymbolBody &S,
   }
 }
 
-TargetInfo *elf::createPPCTargetInfo() { return make<PPC>(); }
+TargetInfo *elf::getPPCTargetInfo() {
+  static PPC Target;
+  return &Target;
+}

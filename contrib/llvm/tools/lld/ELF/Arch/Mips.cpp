@@ -9,7 +9,6 @@
 
 #include "Error.h"
 #include "InputFiles.h"
-#include "Memory.h"
 #include "OutputSections.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
@@ -55,6 +54,7 @@ template <class ELFT> MIPS<ELFT>::MIPS() {
   CopyRel = R_MIPS_COPY;
   PltRel = R_MIPS_JUMP_SLOT;
   NeedsThunks = true;
+  TrapInstr = 0xefefefef;
 
   if (ELFT::Is64Bits) {
     RelativeRel = (R_MIPS_64 << 8) | R_MIPS_REL32;
@@ -412,11 +412,12 @@ bool MIPS<ELFT>::usesOnlyLowPageBits(uint32_t Type) const {
   return Type == R_MIPS_LO16 || Type == R_MIPS_GOT_OFST;
 }
 
-template <class ELFT> TargetInfo *elf::createMipsTargetInfo() {
-  return make<MIPS<ELFT>>();
+template <class ELFT> TargetInfo *elf::getMipsTargetInfo() {
+  static MIPS<ELFT> Target;
+  return &Target;
 }
 
-template TargetInfo *elf::createMipsTargetInfo<ELF32LE>();
-template TargetInfo *elf::createMipsTargetInfo<ELF32BE>();
-template TargetInfo *elf::createMipsTargetInfo<ELF64LE>();
-template TargetInfo *elf::createMipsTargetInfo<ELF64BE>();
+template TargetInfo *elf::getMipsTargetInfo<ELF32LE>();
+template TargetInfo *elf::getMipsTargetInfo<ELF32BE>();
+template TargetInfo *elf::getMipsTargetInfo<ELF64LE>();
+template TargetInfo *elf::getMipsTargetInfo<ELF64BE>();

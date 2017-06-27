@@ -92,6 +92,7 @@ public:
 
 protected:
   std::unique_ptr<InstrProfSymtab> Symtab;
+
   /// Set the current error and return same.
   Error error(instrprof_error Err) {
     LastError = Err;
@@ -202,7 +203,7 @@ private:
 
 public:
   RawInstrProfReader(std::unique_ptr<MemoryBuffer> DataBuffer)
-      : DataBuffer(std::move(DataBuffer)) { }
+      : DataBuffer(std::move(DataBuffer)) {}
   RawInstrProfReader(const RawInstrProfReader &) = delete;
   RawInstrProfReader &operator=(const RawInstrProfReader &) = delete;
 
@@ -268,8 +269,8 @@ private:
   }
 };
 
-typedef RawInstrProfReader<uint32_t> RawInstrProfReader32;
-typedef RawInstrProfReader<uint64_t> RawInstrProfReader64;
+using RawInstrProfReader32 = RawInstrProfReader<uint32_t>;
+using RawInstrProfReader64 = RawInstrProfReader<uint64_t>;
 
 namespace IndexedInstrProf {
 
@@ -292,12 +293,12 @@ public:
   InstrProfLookupTrait(IndexedInstrProf::HashT HashType, unsigned FormatVersion)
       : HashType(HashType), FormatVersion(FormatVersion) {}
 
-  typedef ArrayRef<InstrProfRecord> data_type;
+  using data_type = ArrayRef<InstrProfRecord>;
 
-  typedef StringRef internal_key_type;
-  typedef StringRef external_key_type;
-  typedef uint64_t hash_value_type;
-  typedef uint64_t offset_type;
+  using internal_key_type = StringRef;
+  using external_key_type = StringRef;
+  using hash_value_type = uint64_t;
+  using offset_type = uint64_t;
 
   static bool EqualKey(StringRef A, StringRef B) { return A == B; }
   static StringRef GetInternalKey(StringRef K) { return K; }
@@ -343,15 +344,14 @@ struct InstrProfReaderIndexBase {
   virtual void setValueProfDataEndianness(support::endianness Endianness) = 0;
   virtual uint64_t getVersion() const = 0;
   virtual bool isIRLevelProfile() const = 0;
-  virtual void populateSymtab(InstrProfSymtab &) = 0;
+  virtual Error populateSymtab(InstrProfSymtab &) = 0;
 };
 
-typedef OnDiskIterableChainedHashTable<InstrProfLookupTrait>
-    OnDiskHashTableImplV3;
+using OnDiskHashTableImplV3 =
+    OnDiskIterableChainedHashTable<InstrProfLookupTrait>;
 
 template <typename HashTableImpl>
 class InstrProfReaderIndex : public InstrProfReaderIndexBase {
-
 private:
   std::unique_ptr<HashTableImpl> HashTable;
   typename HashTableImpl::data_iterator RecordIterator;
@@ -383,8 +383,8 @@ public:
     return (FormatVersion & VARIANT_MASK_IR_PROF) != 0;
   }
 
-  void populateSymtab(InstrProfSymtab &Symtab) override {
-    Symtab.create(HashTable->keys());
+  Error populateSymtab(InstrProfSymtab &Symtab) override {
+    return Symtab.create(HashTable->keys());
   }
 };
 

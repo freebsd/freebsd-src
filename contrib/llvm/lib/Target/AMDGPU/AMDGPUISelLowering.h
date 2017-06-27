@@ -216,10 +216,25 @@ public:
   /// \brief Helper function that adds Reg to the LiveIn list of the DAG's
   /// MachineFunction.
   ///
-  /// \returns a RegisterSDNode representing Reg.
-  virtual SDValue CreateLiveInRegister(SelectionDAG &DAG,
-                                       const TargetRegisterClass *RC,
-                                       unsigned Reg, EVT VT) const;
+  /// \returns a RegisterSDNode representing Reg if \p RawReg is true, otherwise
+  /// a copy from the register.
+  SDValue CreateLiveInRegister(SelectionDAG &DAG,
+                               const TargetRegisterClass *RC,
+                               unsigned Reg, EVT VT,
+                               const SDLoc &SL,
+                               bool RawReg = false) const;
+  SDValue CreateLiveInRegister(SelectionDAG &DAG,
+                               const TargetRegisterClass *RC,
+                               unsigned Reg, EVT VT) const {
+    return CreateLiveInRegister(DAG, RC, Reg, VT, SDLoc(DAG.getEntryNode()));
+  }
+
+  // Returns the raw live in register rather than a copy from it.
+  SDValue CreateLiveInRegisterRaw(SelectionDAG &DAG,
+                                  const TargetRegisterClass *RC,
+                                  unsigned Reg, EVT VT) const {
+    return CreateLiveInRegister(DAG, RC, Reg, VT, SDLoc(DAG.getEntryNode()), true);
+  }
 
   enum ImplicitParameter {
     FIRST_IMPLICIT,
@@ -388,6 +403,8 @@ enum NodeType : unsigned {
   STORE_MSKOR,
   LOAD_CONSTANT,
   TBUFFER_STORE_FORMAT,
+  TBUFFER_STORE_FORMAT_X3,
+  TBUFFER_LOAD_FORMAT,
   ATOMIC_CMP_SWAP,
   ATOMIC_INC,
   ATOMIC_DEC,
