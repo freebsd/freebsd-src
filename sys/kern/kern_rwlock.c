@@ -269,7 +269,8 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED() ||
+	    !TD_IS_IDLETHREAD(curthread),
 	    ("rw_wlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -305,7 +306,7 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
 	    ("rw_try_wlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -615,7 +616,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	td = curthread;
 	rw = rwlock2rw(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
+	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED_TD(td) ||
+	    !TD_IS_IDLETHREAD(td),
 	    ("rw_rlock() by idle thread %p on rwlock %s @ %s:%d",
 	    td, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -815,7 +817,6 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 
 	TD_LOCKS_DEC(curthread);
 }
-
 
 /*
  * This function is called when we are unable to obtain a write lock on the

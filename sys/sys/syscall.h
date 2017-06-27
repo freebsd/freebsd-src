@@ -305,7 +305,7 @@
 #define	SYS_getresuid	360
 #define	SYS_getresgid	361
 #define	SYS_kqueue	362
-#define	SYS_kevent	363
+#define	SYS_freebsd11_kevent	363
 #define	SYS_extattr_set_fd	371
 #define	SYS_extattr_get_fd	372
 #define	SYS_extattr_delete_fd	373
@@ -477,4 +477,5 @@
 #define	SYS_getfsstat	557
 #define	SYS_fhstatfs	558
 #define	SYS_mknodat	559
-#define	SYS_MAXSYSCALL	560
+#define	SYS_kevent	560
+#define	SYS_MAXSYSCALL	561

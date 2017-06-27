@@ -89,8 +89,7 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 {
 	struct r92c_softc *rs = sc->sc_priv;
 	const struct rtwn_r88e_txpwr *rt = rs->rs_txpwr;
-	const struct rtwn_r88e_txagc *base = rs->rs_txagc;
-	uint16_t cckpow, ofdmpow, bw20pow, htpow;
+	uint8_t cckpow, ofdmpow, bw20pow, htpow = 0;
 	int max_mcs, ridx, group;
 
 	/* Determine channel group. */
@@ -106,35 +105,24 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
 
 	memset(power, 0, max_mcs * sizeof(power[0]));
-	if (rs->regulatory == 0) {
-		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
-			power[ridx] = base->pwr[0][ridx];
-	}
-	for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++) {
-		if (rs->regulatory == 3)
-			power[ridx] = base->pwr[0][ridx];
-		else if (rs->regulatory == 1) {
-			if (!IEEE80211_IS_CHAN_HT40(c))
-				power[ridx] = base->pwr[group][ridx];
-		} else if (rs->regulatory != 2)
-			power[ridx] = base->pwr[0][ridx];
-	}
 
 	/* Compute per-CCK rate Tx power. */
 	cckpow = rt->cck_tx_pwr[group];
-	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
-		power[ridx] += cckpow;
+	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++) {
+		power[ridx] = (ridx == RTWN_RIDX_CCK2) ? cckpow - 9 : cckpow;
+	}
 
-	htpow = rt->ht40_tx_pwr[group];
+	if (group < 5)
+		htpow = rt->ht40_tx_pwr[group];
 
 	/* Compute per-OFDM rate Tx power. */
 	ofdmpow = htpow + rt->ofdm_tx_pwr_diff;
 	for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
-		power[ridx] += ofdmpow;
+		power[ridx] = ofdmpow;
 
 	bw20pow = htpow + rt->bw20_tx_pwr_diff;
 	for (ridx = RTWN_RIDX_MCS(0); ridx <= max_mcs; ridx++)
-		power[ridx] += bw20pow;
+		power[ridx] = bw20pow;
 
 	/* Apply max limit. */
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {

@@ -972,7 +972,7 @@ video_open( bktr_ptr_t bktr )
 	bktr->flags |= METEOR_OPEN;
 
 #ifdef BT848_DUMP
-	dump_bt848( bt848 );
+	dump_bt848(bktr);
 #endif
 
         bktr->clr_on_start = FALSE;
@@ -1545,7 +1545,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 		break;
 
 	case METEORGBRIG:	/* get brightness */
-		*(u_char *)arg = INB(bktr, BKTR_BRIGHT);
+		*(u_char *)arg = INB(bktr, BKTR_BRIGHT) + 128;
 		break;
 
 	case METEORSCSAT:	/* set chroma saturation */
@@ -1688,7 +1688,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 			                    BT848_INT_VSYNC      |
 					    BT848_INT_FMTCHG);
 #ifdef BT848_DUMP
-			dump_bt848( bt848 );
+			dump_bt848(bktr);
 #endif
 			break;
 		
@@ -2522,7 +2522,7 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 /*
  * 
  */
-#ifdef BT848_DEBUG 
+#if defined(BT848_DEBUG) || defined(BT848_DUMP)
 static int
 dump_bt848( bktr_ptr_t bktr )
 {
@@ -2542,7 +2542,7 @@ dump_bt848( bktr_ptr_t bktr )
 		       r[i], INL(bktr, r[i]),
 		       r[i+1], INL(bktr, r[i+1]),
 		       r[i+2], INL(bktr, r[i+2]),
-		       r[i+3], INL(bktr, r[i+3]]));
+		       r[i+3], INL(bktr, r[i+3]));
 	}
 
 	printf("%s: INT STAT %x \n", bktr_name(bktr),
@@ -3705,28 +3705,26 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 
 
 /*
- * 
+ * Set the temporal decimation register to get the desired frame rate.
+ * We use the 'skip frame' modus always and always start dropping on an
+ * odd field.
  */
 static void
 set_fps( bktr_ptr_t bktr, u_short fps )
 {
 	struct format_params	*fp;
-	int i_flag;
 
 	fp = &format_params[bktr->format_params];
 
 	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
 		bktr->flags |= METEOR_WANT_EVEN;
-		i_flag = 1;
 		break;
 	case METEOR_ONLY_ODD_FIELDS:
 		bktr->flags |= METEOR_WANT_ODD;
-		i_flag = 1;
 		break;
 	default:
 		bktr->flags |= METEOR_WANT_MASK;
-		i_flag = 2;
 		break;
 	}
 
@@ -3737,7 +3735,7 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 	OUTB(bktr, BKTR_TDEC, 0);
 
 	if (fps < fp->frame_rate)
-		OUTB(bktr, BKTR_TDEC, i_flag*(fp->frame_rate - fps) & 0x3f);
+		OUTB(bktr, BKTR_TDEC, (fp->frame_rate - fps) & 0x3f);
 	else
 		OUTB(bktr, BKTR_TDEC, 0);
 	return;

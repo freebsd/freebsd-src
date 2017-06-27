@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,22 +22,44 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
 
-#include "sun7i-a20-bananapi.dts"
-#include "sun7i-a20-hdmi.dtsi"
-#include "xpowers-axp209.dtsi"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/ {
-	soc@01c00000 {
-		hdmi@01c16000 {
-			status = "okay";
-		};
+#include "namespace.h"
+#include <sys/param.h>
+#include "compat-ino64.h"
+#include <sys/errno.h>
+#include <sys/syscall.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-		hdmiaudio {
-			status = "okay";
-		};
-	};
-};
+#include "libc_private.h"
+
+int
+getfsstat(struct statfs *buf, long bufsize, int flags)
+{
+	struct freebsd11_statfs *statfs11 = NULL;
+	ssize_t len = 0;
+	int rv, i;
+
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_getfsstat(buf, bufsize, flags));
+	if (buf != NULL) {
+		len = sizeof(struct freebsd11_statfs) *	/* Round down on purpose to avoid */
+		    (bufsize / sizeof(struct statfs));	/* overflow on translation.	  */
+		statfs11 = malloc(len);
+		if (statfs11 == NULL) {
+			errno = ENOMEM;
+			return (-1);
+		}
+	}
+	rv = syscall(SYS_freebsd11_getfsstat, statfs11, len, flags);
+	if (rv != -1 && buf != NULL) {
+		for (i = 0; i < rv; i++)
+			__statfs11_to_statfs(&statfs11[i], &buf[i]);
+	}
+	free(statfs11);
+	return (rv);
+}

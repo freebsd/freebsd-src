@@ -206,6 +206,10 @@ pl310_cache_sync(void)
 	if ((pl310_softc == NULL) || !pl310_softc->sc_enabled)
 		return;
 
+	/* Do not sync outer cache on IO coherent platform */
+	if (pl310_softc->sc_io_coherent)
+		return;
+
 #ifdef PL310_ERRATA_753970
 	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		/* Write uncached PL310 register */
@@ -444,6 +448,7 @@ pl310_attach(device_t dev)
 	struct pl310_softc *sc = device_get_softc(dev);
 	int rid;
 	uint32_t cache_id, debug_ctrl;
+	phandle_t node;
 
 	sc->sc_dev = dev;
 	rid = 0;
@@ -469,6 +474,15 @@ pl310_attach(device_t dev)
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
+
+	/*
+	 * Test for "arm,io-coherent" property and disable sync operation if
+	 * platform is I/O coherent. Outer sync operations are not needed
+	 * on coherent platform and may be harmful in certain situations.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "arm,io-coherent"))
+		sc->sc_io_coherent = true;
 
 	/*
 	 * If L2 cache is already enabled then something has violated the rules,

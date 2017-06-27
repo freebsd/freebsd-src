@@ -167,8 +167,7 @@ void	sbflush_locked(struct sockbuf *sb);
 void	sbrelease(struct sockbuf *sb, struct socket *so);
 void	sbrelease_internal(struct sockbuf *sb, struct socket *so);
 void	sbrelease_locked(struct sockbuf *sb, struct socket *so);
-int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
-	    struct thread *td);
+int	sbsetopt(struct socket *so, int cmd, u_long cc);
 int	sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 struct mbuf *

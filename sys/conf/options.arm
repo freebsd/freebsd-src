@@ -4,7 +4,7 @@ ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
-NKPT2PG			opt_pmap.h
+ARM_USE_V6_BUSDMA	opt_global.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPSW_ETHERSWITCH	opt_cpsw.h
@@ -35,6 +35,7 @@ KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
 MULTIDELAY		opt_global.h
+NKPT2PG			opt_pmap.h
 PHYSADDR		opt_global.h
 PLATFORM		opt_global.h
 PLATFORM_SMP		opt_global.h
@@ -49,6 +50,7 @@ SOC_ALLWINNER_A31	opt_global.h
 SOC_ALLWINNER_A31S	opt_global.h
 SOC_ALLWINNER_A33	opt_global.h
 SOC_ALLWINNER_A83T	opt_global.h
+SOC_ALLWINNER_H2PLUS	opt_global.h
 SOC_ALLWINNER_H3	opt_global.h
 SOC_ALTERA_ARRIA10	opt_global.h
 SOC_ALTERA_CYCLONE5	opt_global.h

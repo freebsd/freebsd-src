@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2015 Emmanuel Vadot <manu@bidouilliste.com>
+/*
+ * Copyright (c) 2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,9 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
-#include "sun4i-a10-olinuxino-lime.dts"
-#include "xpowers-axp209.dtsi"
+off_t mkuz_get_insize(struct mkuz_cfg *);

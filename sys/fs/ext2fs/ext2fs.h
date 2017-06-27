@@ -259,6 +259,9 @@ struct csum {
 #define	EXT2F_COMPAT_SUPP		EXT2F_COMPAT_DIRHASHINDEX
 #define	EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
 					 EXT2F_ROCOMPAT_LARGEFILE | \
+					 EXT2F_ROCOMPAT_GDT_CSUM | \
+					 EXT2F_ROCOMPAT_DIR_NLINK | \
+					 EXT2F_ROCOMPAT_HUGE_FILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
 #define	EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
 #define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
@@ -293,6 +296,10 @@ struct csum {
 #define	E2FS_SIGNED_HASH	0x0001
 #define	E2FS_UNSIGNED_HASH	0x0002
 
+#define	EXT2_BG_INODE_UNINIT	0x0001	/* Inode table/bitmap not in use */
+#define	EXT2_BG_BLOCK_UNINIT	0x0002	/* Block bitmap not in use */
+#define	EXT2_BG_INODE_ZEROED	0x0004	/* On-disk itable initialized to zero */
+
 /* ext2 file system block group descriptor */
 
 struct ext2_gd {
@@ -310,9 +317,8 @@ struct ext2_gd {
 	uint16_t ext4bgd_csum;		/* group descriptor checksum */
 };
 
-
-/* EXT2FS metadatas are stored in little-endian byte order. These macros
- * helps reading these metadatas
+/* EXT2FS metadata is stored in little-endian byte order. These macros
+ * help reading it.
  */
 
 #define	e2fs_cgload(old, new, size) memcpy((new), (old), (size));

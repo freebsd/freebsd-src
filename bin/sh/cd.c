@@ -164,8 +164,17 @@ docd(char *dest, int print, int phys)
 	if ((phys || (rc = cdlogical(dest)) < 0) && (rc = cdphysical(dest)) < 0)
 		return (-1);
 
-	if (print && iflag && curdir)
+	if (print && iflag && curdir) {
 		out1fmt("%s\n", curdir);
+		/*
+		 * Ignore write errors to preserve the invariant that the
+		 * current directory is changed iff the exit status is 0
+		 * (or 1 if -e was given and the full pathname could not be
+		 * determined).
+		 */
+		flushout(out1);
+		outclearerror(out1);
+	}
 
 	return (rc);
 }

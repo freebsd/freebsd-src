@@ -25,8 +25,8 @@ arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/bus_space_base.c	optional	fdt
 arm/arm/bus_space_generic.c	standard
-arm/arm/busdma_machdep-v4.c 	optional	!armv6
-arm/arm/busdma_machdep-v6.c 	optional	armv6
+arm/arm/busdma_machdep-v4.c 	optional	!armv6 !ARM_USE_V6_BUSDMA
+arm/arm/busdma_machdep-v6.c 	optional	armv6 | ARM_USE_V6_BUSDMA
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard

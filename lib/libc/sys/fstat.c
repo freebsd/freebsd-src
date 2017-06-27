@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,9 +22,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
 
-#include "am335x-bone.dts"
-#include "beaglebone-common.dtsi"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "namespace.h"
+#include <sys/param.h>
+#include <sys/syscall.h>
+#include "compat-ino64.h"
+#include <unistd.h>
+
+#include "libc_private.h"
+
+#undef fstat
+__weak_reference(_fstat, fstat);
+
+#pragma weak _fstat
+int
+_fstat(int fd, struct stat *sb)
+{
+	struct freebsd11_stat stat11;
+	int rv;
+
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_fstat(fd, sb));
+	rv = syscall(SYS_freebsd11_fstat, fd, &stat11);
+	if (rv == 0)
+		__stat11_to_stat(&stat11, sb);
+	return (rv);
+}

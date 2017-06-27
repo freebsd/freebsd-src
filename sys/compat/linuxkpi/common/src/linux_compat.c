@@ -497,7 +497,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	VM_OBJECT_WUNLOCK(vm_obj);
 
 	down_write(&vmap->vm_mm->mmap_sem);
-	if (unlikely(vmap->vm_ops == NULL)) {
+	if (unlikely(vmap->vm_ops == NULL || vmap->vm_ops->fault == NULL)) {
 		err = VM_FAULT_SIGBUS;
 	} else {
 		vmap->vm_pfn_count = 0;
@@ -1173,8 +1173,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	if (vmap->vm_ops != NULL) {
 		void *vm_private_data;
 
-		if (vmap->vm_ops->fault == NULL ||
-		    vmap->vm_ops->open == NULL ||
+		if (vmap->vm_ops->open == NULL ||
 		    vmap->vm_ops->close == NULL ||
 		    vmap->vm_private_data == NULL) {
 			linux_cdev_handle_free(vmap);
@@ -2027,6 +2026,8 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
+	mtx_destroy(&vmmaplock);
+	spin_lock_destroy(&pci_lock);
 	rw_destroy(&linux_vma_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);

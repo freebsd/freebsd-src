@@ -49,7 +49,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
 #include <linux/log2.h> 
 #include <asm/byteorder.h>
 
@@ -260,6 +259,8 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 })
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
+
+#define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
 
 static inline unsigned long long
 simple_strtoull(const char *cp, char **endp, unsigned int base)

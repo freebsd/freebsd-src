@@ -121,7 +121,6 @@ FBSD_1.0 {
 	jail;
 	jail_attach;
 	kenv;
-	kevent;
 	kill;
 	kldfind;
 	kldfirstmod;
@@ -393,6 +392,7 @@ FBSD_1.5 {
 	getdents;
 	getdirentries;
 	getfsstat;
+	kevent;
 	lstat;
 	mknod;
 	mknodat;

@@ -43,12 +43,12 @@
 	do { (dst).fld = PTROUT((src).fld); } while (0)
 
 /*
- * Being a newer port, 32-bit FreeBSD/MIPS uses 64-bit time_t.
+ * i386 is the only arch with a 32-bit time_t
  */
-#ifdef __mips__
-typedef	int64_t	time32_t;
-#else
+#ifdef __amd64__
 typedef	int32_t	time32_t;
+#else
+typedef	int64_t	time32_t;
 #endif
 
 struct timeval32 {
@@ -137,12 +137,13 @@ struct statfs32 {
 };
 
 struct kevent32 {
-	u_int32_t	ident;		/* identifier for this event */
+	uint32_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-	int32_t		data;
-	u_int32_t	udata;		/* opaque user data identifier */
+	int32_t		data1, data2;
+	uint32_t	udata;		/* opaque user data identifier */
+	uint32_t	ext64[8];
 };
 
 struct iovec32 {

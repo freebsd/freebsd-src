@@ -1554,6 +1554,8 @@ qla_rcv_stats(qla_host_t *ha, q80_rcv_stats_t *rstat)
 		rstat->lro_flows_active);
 	device_printf(dev, "%s: pkts_droped_unknown\t\t%" PRIu64 "\n",
 		__func__, rstat->pkts_droped_unknown);
+	device_printf(dev, "%s: pkts_cnt_oversized\t\t%" PRIu64 "\n",
+		__func__, rstat->pkts_cnt_oversized);
 }
 
 static void

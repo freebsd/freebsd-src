@@ -82,6 +82,7 @@ typedef struct blist {
 	daddr_t		bl_blocks;	/* area of coverage		*/
 	daddr_t		bl_radix;	/* coverage radix		*/
 	daddr_t		bl_skip;	/* starting skip		*/
+	daddr_t		bl_cursor;	/* next-fit search starts at	*/
 	blmeta_t	*bl_root;	/* root of radix tree		*/
 } *blist_t;
 

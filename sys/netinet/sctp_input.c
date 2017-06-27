@@ -2441,6 +2441,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	cookie_offset = offset + sizeof(struct sctp_chunkhdr);
 	cookie_len = ntohs(cp->ch.chunk_length);
 
+	if (cookie_len < sizeof(struct sctp_cookie_echo_chunk) +
+	    sizeof(struct sctp_init_chunk) +
+	    sizeof(struct sctp_init_ack_chunk) + SCTP_SIGNATURE_SIZE) {
+		/* cookie too small */
+		return (NULL);
+	}
 	if ((cookie->peerport != sh->src_port) ||
 	    (cookie->myport != sh->dest_port) ||
 	    (cookie->my_vtag != sh->v_tag)) {
@@ -2451,12 +2457,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		 * This maintains the match even though it may be in the
 		 * opposite byte order of the machine :->
 		 */
-		return (NULL);
-	}
-	if (cookie_len < sizeof(struct sctp_cookie_echo_chunk) +
-	    sizeof(struct sctp_init_chunk) +
-	    sizeof(struct sctp_init_ack_chunk) + SCTP_SIGNATURE_SIZE) {
-		/* cookie too small */
 		return (NULL);
 	}
 	/*
@@ -3617,7 +3617,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
     struct sctp_stream_reset_response *respin)
 {
 	uint16_t type;
-	int lparm_len;
+	int lparam_len;
 	struct sctp_association *asoc = &stcb->asoc;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_stream_reset_request *req_param;
@@ -3634,12 +3634,12 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 		if (req_param != NULL) {
 			stcb->asoc.str_reset_seq_out++;
 			type = ntohs(req_param->ph.param_type);
-			lparm_len = ntohs(req_param->ph.param_length);
+			lparam_len = ntohs(req_param->ph.param_length);
 			if (type == SCTP_STR_RESET_OUT_REQUEST) {
 				int no_clear = 0;
 
 				req_out_param = (struct sctp_stream_reset_out_request *)req_param;
-				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
+				number_entries = (lparam_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
 				asoc->stream_reset_out_is_outstanding = 0;
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
@@ -3665,7 +3665,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 				}
 			} else if (type == SCTP_STR_RESET_IN_REQUEST) {
 				req_in_param = (struct sctp_stream_reset_in_request *)req_param;
-				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t);
+				number_entries = (lparam_len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t);
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
@@ -5194,7 +5194,7 @@ process_control_chunks:
 					return (NULL);
 				}
 			}
-			/*
+			/*-
 			 * First are we accepting? We do this again here
 			 * since it is possible that a previous endpoint WAS
 			 * listening responded to a INIT-ACK and then

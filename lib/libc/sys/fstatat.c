@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Emmanuel Vadot <manu@bidouilliste.com>
+ * Copyright (c) 2017 M. Warner Losh <imp@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,64 +22,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include "sun7i-a20-olimex-som-evb.dts"
-#include "sun7i-a20-hdmi.dtsi"
-#include "xpowers-axp209.dtsi"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/ {
-	soc@01c00000 {
-		hdmi@01c16000 {
-			status = "okay";
-		};
+#include "namespace.h"
+#include <sys/param.h>
+#include <sys/syscall.h>
+#include "compat-ino64.h"
+#include <unistd.h>
 
-		hdmiaudio {
-			status = "okay";
-		};
-	};
-};
+#include "libc_private.h"
 
-&cpu0 {
-	cpu-supply = <&reg_dcdc2>;
-};
+int
+fstatat(int fd, const char *path, struct stat *sb, int flag)
+{
+	struct freebsd11_stat stat11;
+	int rv;
 
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
-};
-
-&spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins_a>,
-		    <&spi1_cs0_pins_a>;
-	status = "okay";
-};
-
-&spi2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
-	status = "okay";
-};
-
-&uart6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart6_pins_a>;
-	status = "okay";
-};
-
-&uart7 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
-	status = "okay";
-};
+	if (__getosreldate() >= INO64_FIRST)
+		return (__sys_fstatat(fd, path, sb, flag));
+	rv = syscall(SYS_freebsd11_fstatat, fd, path, &stat11, flag);
+	if (rv == 0)
+		__stat11_to_stat(&stat11, sb);
+	return (rv);
+}
