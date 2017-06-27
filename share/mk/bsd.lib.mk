@@ -76,9 +76,9 @@ CTFFLAGS+= -g
 
 .include <bsd.libnames.mk>
 
-# prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
+# prefer .s to a .c, add .covo and .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES: .out .o .bc .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .bc .covo .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -88,7 +88,13 @@ PICFLAG=-fpic
 .endif
 .endif
 
+COV_FLAG=--coverage -g
+
 PO_FLAG=-pg
+
+.c.covo:
+	${CC} ${COV_FLAG} ${STATIC_CFLAGS} ${COV_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
 .c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -97,6 +103,9 @@ PO_FLAG=-pg
 .c.pico:
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
+
+.cc.covo .C.covo .cpp.covo .cxx.covo:
+	${CXX} ${COV_FLAG} ${STATIC_CXXFLAGS} ${COV_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -112,8 +121,13 @@ PO_FLAG=-pg
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.pico:
+.s.covo .s.po .s.pico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+	${CTFCONVERT_CMD}
+
+.asm.covo:
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DCOV ${COV_CFLAGS} \
+	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.po:
@@ -124,6 +138,11 @@ PO_FLAG=-pg
 .asm.pico:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
+.S.covo:
+	${CC:N${CCACHE_BIN}} -DCOV ${COV_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.po:
@@ -184,6 +203,22 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 .endif
 
 .if !defined(INTERNALLIB)
+
+.if ${MK_COVERAGE} != "no" && defined(LIB) && !empty(LIB)
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_c.a
+COV_OBJS+=	${OBJS:.o=.covo} ${STATICOBJS:.o=.covo}
+DEPENDOBJS+=	${COV_OBJS}
+CLEANFILES+=	${COV_OBJS}
+# XXX (ngie): tighten this down
+CLEANFILES+=	*.gcda *.gcno
+
+lib${LIB_PRIVATE}${LIB}_c.a: ${COV_OBJS}
+	@${ECHO} building coverage instrumented ${LIB} library
+	@rm -f ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' \
+	    ${LORDER} ${COV_OBJS} | ${TSORT} ${TSORTFLAGS}` ${ARADD}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
+.endif
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
