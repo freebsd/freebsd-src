@@ -94,7 +94,7 @@ install-zoneinfo:
 .for f in ${TZS}
 	${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${TZBUILDDIR:C,^${.OBJDIR}/,,}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
+	    ${TZBUILDDIR}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
 .endfor
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
