@@ -104,7 +104,7 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme, int add_prot)
 #endif
 	if ((addr = mmap(taddr, sme->sme_len, sme->sme_prot | add_prot,
 	    sme->sme_flags, sme->sme_fd, sme->sme_file_offset)) ==
-	    sandbox_map_entry_mmap) {
+	    MAP_FAILED) {
 		warn("%s: mmap", __func__);
 		return (addr);
 	}
