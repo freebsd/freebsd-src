@@ -19,6 +19,7 @@
 # the auto-generated Kyuafile to recurse into these directories.
 TESTS_SUBDIRS+=	atf
 TESTS_SUBDIRS+=	plain
+TESTS_SUBDIRS+=	tap
 
 # We leave KYUAFILE unset so that bsd.test.mk auto-generates a Kyuafile
 # for us based on the contents of the TESTS_SUBDIRS line above.  The
