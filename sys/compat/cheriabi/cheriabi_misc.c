@@ -2117,7 +2117,12 @@ cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 
 	if (cheriabi_mmap_honor_prot) {
 		perms = cheri_getperm(addr);
-		addr = cheri_andperm(addr, cheriabi_mmap_prot2perms(prot) | ~PERM_RWX);
+		/*
+		 * Set the permissions to PROT_MAX to allow a full
+		 * range of access subject to page permissions.
+		 */
+		addr = cheri_andperm(addr, ~PERM_RWX |
+		    cheriabi_mmap_prot2perms(EXTRACT_PROT_MAX(prot)));
 	}
 
 	if (flags & MAP_FIXED) {
