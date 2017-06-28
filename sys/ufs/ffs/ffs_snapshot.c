@@ -888,17 +888,8 @@ cgaccount(cg, vp, nbp, passno)
 
 	ip = VTOI(vp);
 	fs = ITOFS(ip);
-	error = bread(ITODEVVP(ip), fsbtodb(fs, cgtod(fs, cg)),
-	    (int)fs->fs_cgsize, KERNCRED, &bp);
-	if (error) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, ITODEVVP(ip), cg, &bp, &cgp)) != 0)
 		return (error);
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return (EIO);
-	}
 	UFS_LOCK(ITOUMP(ip));
 	ACTIVESET(fs, cg);
 	/*
