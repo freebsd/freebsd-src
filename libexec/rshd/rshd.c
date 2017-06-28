@@ -338,8 +338,7 @@ doit(struct sockaddr *fromp)
 	pam_err = pam_authenticate(pamh, 0);
 	if (pam_err == PAM_SUCCESS) {
 		if ((pam_err = pam_get_user(pamh, &cp, NULL)) == PAM_SUCCESS) {
-			strncpy(luser, cp, sizeof(luser));
-			luser[sizeof(luser) - 1] = '\0';
+			strlcpy(luser, cp, sizeof(luser));
 			/* XXX truncation! */
 		}
 		pam_err = pam_acct_mgmt(pamh, 0);
@@ -386,9 +385,7 @@ doit(struct sockaddr *fromp)
 	if (lc != NULL && fromp->sa_family == AF_INET) {	/*XXX*/
 		char	remote_ip[MAXHOSTNAMELEN];
 
-		strncpy(remote_ip, numericname,
-			sizeof(remote_ip) - 1);
-		remote_ip[sizeof(remote_ip) - 1] = 0;
+		strlcpy(remote_ip, numericname, sizeof(remote_ip));
 		/* XXX truncation! */
 		if (!auth_hostok(lc, rhost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
