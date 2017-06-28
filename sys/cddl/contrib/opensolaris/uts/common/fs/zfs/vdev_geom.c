@@ -989,13 +989,6 @@ vdev_geom_io_intr(struct bio *bp)
 		break;
 	}
 
-	if (zio->io_type == ZIO_TYPE_READ) {
-		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
-	} else if (zio->io_type == ZIO_TYPE_WRITE) {
-		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
-	}
-
-	g_destroy_bio(bp);
 	zio_delay_interrupt(zio);
 }
 
@@ -1087,6 +1080,7 @@ sendreq:
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;
+	zio->io_bio = bp;
 
 	g_io_request(bp, cp);
 }
@@ -1094,6 +1088,15 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
+	struct bio *bp = zio->io_bio;
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
+	} else if (zio->io_type == ZIO_TYPE_WRITE) {
+		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
+	}
+
+	g_destroy_bio(bp);
 }
 
 static void
