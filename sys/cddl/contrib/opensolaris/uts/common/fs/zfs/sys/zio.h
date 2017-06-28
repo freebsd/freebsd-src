@@ -453,6 +453,10 @@ struct zio {
 	avl_node_t	io_alloc_node;
 	zio_alloc_list_t 	io_alloc_list;
 
+#ifdef __FreeBSD__
+	struct bio	*io_bio;
+#endif
+
 	/* Internal pipeline state */
 	enum zio_flag	io_flags;
 	enum zio_stage	io_stage;
