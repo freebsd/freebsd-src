@@ -322,7 +322,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 		wakeup(&sb->sb_acc);
 	}
 	KNOTE_LOCKED(&sb->sb_sel->si_note, 0);
-	if (sb->sb_upcall != NULL && !(so->so_state & SS_ISDISCONNECTED)) {
+	if (sb->sb_upcall != NULL) {
 		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_NOWAIT);
 		if (ret == SU_ISCONNECTED) {
 			KASSERT(sb == &so->so_rcv,
@@ -334,7 +334,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	if (sb->sb_flags & SB_AIO)
 		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
-	if (ret == SU_ISCONNECTED)
+	if (ret == SU_ISCONNECTED && !(so->so_state & SS_ISDISCONNECTED))
 		soisconnected(so);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
