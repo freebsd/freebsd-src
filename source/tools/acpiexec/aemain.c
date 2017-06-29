@@ -792,5 +792,6 @@ NormalExit:
 
 ErrorExit:
     (void) AcpiOsTerminate ();
+    AcDeleteTableList (ListHead);
     return (ExitCode);
 }

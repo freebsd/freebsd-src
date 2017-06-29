@@ -196,9 +196,37 @@ ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
     {NULL, NULL, "Converter db :", "Converter debug Output"}
 };
 
+/* Table below must match the defines with the same names in actypes.h */
+
+const char                          *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS] =
+{
+    "OP_VISITED",
+    "OP_AML_PACKAGE",
+    "OP_IS_TARGET",
+    "OP_IS_RESOURCE_DESC",
+    "OP_IS_RESOURCE_FIELD",
+    "OP_HAS_NO_EXIT",
+    "OP_IF_HAS_NO_EXIT",
+    "OP_NAME_INTERNALIZED",
+    "OP_METHOD_NO_RETVAL",
+    "OP_METHOD_SOME_NO_RETVAL",
+    "OP_RESULT_NOT_USED",
+    "OP_METHOD_TYPED",
+    "OP_COULD_NOT_REDUCE",
+    "OP_COMPILE_TIME_CONST",
+    "OP_IS_TERM_ARG",
+    "OP_WAS_ONES_OP",
+    "OP_IS_NAME_DECLARATION",
+    "OP_COMPILER_EMITTED",
+    "OP_IS_DUPLICATE",
+    "OP_IS_RESOURCE_DATA",
+    "OP_IS_NULL_RETURN"
+};
+
 #else
 extern UINT32                       Gbl_ExceptionCount[ASL_NUM_REPORT_LEVELS];
 extern ASL_FILE_INFO                Gbl_Files [ASL_NUM_FILES];
+extern const char                   *Gbl_OpFlagNames[ACPI_NUM_OP_FLAGS];
 #endif
 
 
@@ -387,9 +415,9 @@ ASL_EXTERN ASL_COMMENT_STATE        Gbl_CommentState;
  * Determines if an inline comment should be saved in the InlineComment or NodeEndComment
  *  field of ACPI_PARSE_OBJECT.
  */
-ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_Comment_List_Head, NULL);
-ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_Comment_List_Tail, NULL);
-ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_Inline_Comment_Buffer, NULL);
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_CommentListHead, NULL);
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_CommentListTail, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_InlineCommentBuffer, NULL);
 
 /* Static structures */
 

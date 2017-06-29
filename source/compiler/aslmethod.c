@@ -380,7 +380,7 @@ MtMethodAnalysisWalkBegin (
          * If the local is being used as a target, mark the local
          * initialized
          */
-        if (Op->Asl.CompileFlags & NODE_IS_TARGET)
+        if (Op->Asl.CompileFlags & OP_IS_TARGET)
         {
             MethodInfo->LocalInitialized[RegisterNumber] = TRUE;
         }
@@ -425,7 +425,7 @@ MtMethodAnalysisWalkBegin (
          * If the Arg is being used as a target, mark the local
          * initialized
          */
-        if (Op->Asl.CompileFlags & NODE_IS_TARGET)
+        if (Op->Asl.CompileFlags & OP_IS_TARGET)
         {
             MethodInfo->ArgInitialized[RegisterNumber] = TRUE;
         }
@@ -464,7 +464,7 @@ MtMethodAnalysisWalkBegin (
 
         /*
          * A child indicates a possible return value. A simple Return or
-         * Return() is marked with NODE_IS_NULL_RETURN by the parser so
+         * Return() is marked with OP_IS_NULL_RETURN by the parser so
          * that it is not counted as a "real" return-with-value, although
          * the AML code that is actually emitted is Return(0). The AML
          * definition of Return has a required parameter, so we are
@@ -472,7 +472,7 @@ MtMethodAnalysisWalkBegin (
          */
         if ((Op->Asl.Child) &&
             (Op->Asl.Child->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG) &&
-            (!(Op->Asl.Child->Asl.CompileFlags & NODE_IS_NULL_RETURN)))
+            (!(Op->Asl.Child->Asl.CompileFlags & OP_IS_NULL_RETURN)))
         {
             MethodInfo->NumReturnWithValue++;
         }
@@ -704,7 +704,7 @@ MtMethodAnalysisWalkEnd (
          * of the method can possibly terminate without a return statement.
          */
         if ((!AnLastStatementIsReturn (Op)) &&
-            (!(Op->Asl.CompileFlags & NODE_HAS_NO_EXIT)))
+            (!(Op->Asl.CompileFlags & OP_HAS_NO_EXIT)))
         {
             /*
              * No return statement, and execution can possibly exit
@@ -736,11 +736,11 @@ MtMethodAnalysisWalkEnd (
         {
             if (MethodInfo->NumReturnWithValue)
             {
-                Op->Asl.CompileFlags |= NODE_METHOD_SOME_NO_RETVAL;
+                Op->Asl.CompileFlags |= OP_METHOD_SOME_NO_RETVAL;
             }
             else
             {
-                Op->Asl.CompileFlags |= NODE_METHOD_NO_RETVAL;
+                Op->Asl.CompileFlags |= OP_METHOD_NO_RETVAL;
             }
         }
 
@@ -784,7 +784,7 @@ MtMethodAnalysisWalkEnd (
          * The parent block does not "exit" and continue execution -- the
          * method is terminated here with the Return() statement.
          */
-        Op->Asl.Parent->Asl.CompileFlags |= NODE_HAS_NO_EXIT;
+        Op->Asl.Parent->Asl.CompileFlags |= OP_HAS_NO_EXIT;
 
         /* Used in the "typing" pass later */
 
@@ -804,7 +804,7 @@ MtMethodAnalysisWalkEnd (
 
     case PARSEOP_IF:
 
-        if ((Op->Asl.CompileFlags & NODE_HAS_NO_EXIT) &&
+        if ((Op->Asl.CompileFlags & OP_HAS_NO_EXIT) &&
             (Op->Asl.Next) &&
             (Op->Asl.Next->Asl.ParseOpcode == PARSEOP_ELSE))
         {
@@ -813,32 +813,32 @@ MtMethodAnalysisWalkEnd (
              * (it contains an unconditional Return)
              * mark the ELSE block to remember this fact.
              */
-            Op->Asl.Next->Asl.CompileFlags |= NODE_IF_HAS_NO_EXIT;
+            Op->Asl.Next->Asl.CompileFlags |= OP_IF_HAS_NO_EXIT;
         }
         break;
 
     case PARSEOP_ELSE:
 
-        if ((Op->Asl.CompileFlags & NODE_HAS_NO_EXIT) &&
-            (Op->Asl.CompileFlags & NODE_IF_HAS_NO_EXIT))
+        if ((Op->Asl.CompileFlags & OP_HAS_NO_EXIT) &&
+            (Op->Asl.CompileFlags & OP_IF_HAS_NO_EXIT))
         {
             /*
              * This ELSE block has no exit and the corresponding IF block
              * has no exit either. Therefore, the parent node has no exit.
              */
-            Op->Asl.Parent->Asl.CompileFlags |= NODE_HAS_NO_EXIT;
+            Op->Asl.Parent->Asl.CompileFlags |= OP_HAS_NO_EXIT;
         }
         break;
 
 
     default:
 
-        if ((Op->Asl.CompileFlags & NODE_HAS_NO_EXIT) &&
+        if ((Op->Asl.CompileFlags & OP_HAS_NO_EXIT) &&
             (Op->Asl.Parent))
         {
             /* If this node has no exit, then the parent has no exit either */
 
-            Op->Asl.Parent->Asl.CompileFlags |= NODE_HAS_NO_EXIT;
+            Op->Asl.Parent->Asl.CompileFlags |= OP_HAS_NO_EXIT;
         }
         break;
     }
