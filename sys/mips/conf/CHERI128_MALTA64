@@ -8,7 +8,7 @@ include		"std.MALTA"
  
 machine		mips mips64	# Malta supports both, so it isn't in std.malta
  
-makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
+makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64 -mcpu=cheri128"
  
 makeoptions 	KERNLOADADDR=0xffffffff80100000
 
