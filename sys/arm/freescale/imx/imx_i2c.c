@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
@@ -61,11 +62,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iic_recover_bus.h>
 #include "iicbus_if.h"
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/fdt/fdt_pinctrl.h>
+#include <dev/gpio/gpiobusvar.h>
 
 #define I2C_ADDR_REG		0x00 /* I2C slave address register */
 #define I2C_FDR_REG		0x04 /* I2C frequency divider register */
@@ -130,6 +135,9 @@ struct i2c_softc {
 	struct resource		*res;
 	int			rid;
 	sbintime_t		byte_time_sbt;
+	int			rb_pinctl_idx;
+	gpio_pin_t		rb_sclpin;
+	gpio_pin_t 		rb_sdapin;
 };
 
 static phandle_t i2c_get_node(device_t, device_t);
@@ -274,6 +282,68 @@ i2c_error_handler(struct i2c_softc *sc, int error)
 }
 
 static int
+i2c_recover_getsda(void *ctx)
+{
+	bool active;
+
+	gpio_pin_is_active(((struct i2c_softc *)ctx)->rb_sdapin, &active);
+	return (active);
+}
+
+static void
+i2c_recover_setsda(void *ctx, int value)
+{
+
+	gpio_pin_set_active(((struct i2c_softc *)ctx)->rb_sdapin, value);
+}
+
+static int
+i2c_recover_getscl(void *ctx)
+{
+	bool active;
+
+	gpio_pin_is_active(((struct i2c_softc *)ctx)->rb_sclpin, &active);
+	return (active);
+
+}
+
+static void
+i2c_recover_setscl(void *ctx, int value)
+{
+
+	gpio_pin_set_active(((struct i2c_softc *)ctx)->rb_sclpin, value);
+}
+
+static int
+i2c_recover_bus(struct i2c_softc *sc)
+{
+	struct iicrb_pin_access pins;
+	int err;
+
+	/*
+	 * If we have gpio pinmux config, reconfigure the pins to gpio mode,
+	 * invoke iic_recover_bus which checks for a hung bus and bitbangs a
+	 * recovery sequence if necessary, then configure the pins back to i2c
+	 * mode (idx 0).
+	 */
+	if (sc->rb_pinctl_idx == 0)
+		return (0);
+
+	fdt_pinctrl_configure(sc->dev, sc->rb_pinctl_idx);
+
+	pins.ctx = sc;
+	pins.getsda = i2c_recover_getsda;
+	pins.setsda = i2c_recover_setsda;
+	pins.getscl = i2c_recover_getscl;
+	pins.setscl = i2c_recover_setscl;
+	err = iic_recover_bus(&pins);
+
+	fdt_pinctrl_configure(sc->dev, 0);
+
+	return (err);
+}
+
+static int
 i2c_probe(device_t dev)
 {
 
@@ -291,7 +361,10 @@ i2c_probe(device_t dev)
 static int
 i2c_attach(device_t dev)
 {
+	char wrkstr[16];
 	struct i2c_softc *sc;
+	phandle_t node;
+	int err, cfgidx;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -309,6 +382,49 @@ i2c_attach(device_t dev)
 		device_printf(dev, "could not add iicbus child");
 		return (ENXIO);
 	}
+
+	/*
+	 * Set up for bus recovery using gpio pins, if the pinctrl and gpio
+	 * properties are present.  This is optional.  If all the config data is
+	 * not in place, we just don't do gpio bitbang bus recovery.
+	 */
+	node = ofw_bus_get_node(sc->dev);
+
+	err = gpio_pin_get_by_ofw_property(dev, node, "scl-gpios",
+	    &sc->rb_sclpin);
+	if (err != 0)
+		goto no_recovery;
+	err = gpio_pin_get_by_ofw_property(dev, node, "sda-gpios",
+	    &sc->rb_sdapin);
+	if (err != 0)
+		goto no_recovery;
+
+	/*
+	 * Preset the gpio pins to output high (idle bus state).  The signal
+	 * won't actually appear on the pins until the bus recovery code changes
+	 * the pinmux config from i2c to gpio.
+	 */
+	gpio_pin_setflags(sc->rb_sclpin, GPIO_PIN_OUTPUT);
+	gpio_pin_setflags(sc->rb_sdapin, GPIO_PIN_OUTPUT);
+	gpio_pin_set_active(sc->rb_sclpin, true);
+	gpio_pin_set_active(sc->rb_sdapin, true);
+
+	/*
+	 * Obtain the index of pinctrl node for bus recovery using gpio pins,
+	 * then confirm that pinctrl properties exist for that index and for the
+	 * default pinctrl-0.  If sc->rb_pinctl_idx is non-zero, the reset code
+	 * will also do a bus recovery, so setting this value must be last.
+	 */
+	err = ofw_bus_find_string_index(node, "pinctrl-names", "gpio", &cfgidx);
+	if (err == 0) {
+		snprintf(wrkstr, sizeof(wrkstr), "pinctrl-%d", cfgidx);
+		if (OF_hasprop(node, "pinctrl-0") && OF_hasprop(node, wrkstr))
+			sc->rb_pinctl_idx = cfgidx;
+	}
+
+no_recovery:
+
+	/* We don't do a hardware reset here because iicbus_attach() does it. */
 
 	bus_generic_attach(dev);
 	return (0);
@@ -339,7 +455,7 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 }
 
 static int
-i2c_start(device_t dev, u_char slave, int timeout)
+i2c_start_ll(device_t dev, u_char slave, int timeout)
 {
 	struct i2c_softc *sc;
 	int error;
@@ -358,6 +474,31 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
 	error = wait_for_xfer(sc, true);
 	return (i2c_error_handler(sc, error));
+}
+
+static int
+i2c_start(device_t dev, u_char slave, int timeout)
+{
+	struct i2c_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Invoke the low-level code to put the bus into master mode and address
+	 * the given slave.  If that fails, idle the controller and attempt a
+	 * bus recovery, and then try again one time.  Signaling a start and
+	 * addressing the slave is the only operation that a low-level driver
+	 * can safely retry without any help from the upper layers that know
+	 * more about the slave device.
+	 */
+	if ((error = i2c_start_ll(dev, slave, timeout)) != 0) {
+		i2c_write_reg(sc, I2C_CONTROL_REG, 0x0);
+		if ((error = i2c_recover_bus(sc)) != 0)
+			return (error);
+		error = i2c_start_ll(dev, slave, timeout);
+	}
+	return (error);
 }
 
 static int
@@ -409,7 +550,12 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	i2c_write_reg(sc, I2C_CONTROL_REG, 0x0);
 	i2c_write_reg(sc, I2C_FDR_REG, (uint8_t)clkdiv_table[i].regcode);
-	return (IIC_NOERR);
+
+	/*
+	 * Now that the controller is idle, perform bus recovery.  If the bus
+	 * isn't hung, this a fairly fast no-op.
+	 */
+	return (i2c_recover_bus(sc));
 }
 
 static int
