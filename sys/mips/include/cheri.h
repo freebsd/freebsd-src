@@ -119,6 +119,10 @@ struct cheri_frame {
 };
 
 #ifdef _KERNEL
+#if __has_feature(capabilities)
+CTASSERT(sizeof(void * __capability) == CHERICAP_SIZE);
+CTASSERT(offsetof(struct cheri_frame, cf_c1) == sizeof(void * __capability));
+#endif
 /* 28 capability registers + capcause + padding. */
 CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
 #endif
