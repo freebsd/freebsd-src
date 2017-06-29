@@ -259,21 +259,16 @@ AeExceptionHandler (
 
 Cleanup:
 
-    /* Global overrides */
-
     if (AcpiGbl_IgnoreErrors)
     {
+        /* Global option to ignore all method errors, just return OK */
+
         NewAmlStatus = AE_OK;
     }
-    else if (AmlStatus == AE_AML_INTERNAL)
+    if (NewAmlStatus != AmlStatus)
     {
-        NewAmlStatus = AE_AML_INTERNAL;
-        AcpiOsPrintf (AE_PREFIX
-            "Cannot override status %s\n\n",
-            AcpiFormatException (NewAmlStatus));
-    }
-    else if (NewAmlStatus != AmlStatus)
-    {
+        /* Request to override actual status with a different status */
+
         AcpiOsPrintf (AE_PREFIX
             "Exception override, new status %s\n\n",
             AcpiFormatException (NewAmlStatus));

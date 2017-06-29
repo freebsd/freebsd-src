@@ -602,7 +602,7 @@ TrDoSwitch (
             {
                 /* Add an ELSE to complete the previous CASE */
 
-                NewOp = TrCreateLeafNode (PARSEOP_ELSE);
+                NewOp = TrCreateLeafOp (PARSEOP_ELSE);
                 NewOp->Asl.Parent = Conditional->Asl.Parent;
                 TrAmlInitLineNumbers (NewOp, NewOp->Asl.Parent);
 
@@ -627,49 +627,49 @@ TrDoSwitch (
                  * If (LNotEqual (Match (Package(<size>){<data>},
                  *                       MEQ, _T_x, MTR, Zero, Zero), Ones))
                  */
-                NewOp2              = TrCreateLeafNode (PARSEOP_MATCHTYPE_MEQ);
+                NewOp2              = TrCreateLeafOp (PARSEOP_MATCHTYPE_MEQ);
                 Predicate->Asl.Next = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Conditional);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
+                NewOp2              = TrCreateValuedLeafOp (PARSEOP_NAMESTRING,
                                         (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateLeafNode (PARSEOP_MATCHTYPE_MTR);
+                NewOp2              = TrCreateLeafOp (PARSEOP_MATCHTYPE_MTR);
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateLeafNode (PARSEOP_ZERO);
+                NewOp2              = TrCreateLeafOp (PARSEOP_ZERO);
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateLeafNode (PARSEOP_ZERO);
+                NewOp2              = TrCreateLeafOp (PARSEOP_ZERO);
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
-                NewOp2              = TrCreateLeafNode (PARSEOP_MATCH);
+                NewOp2              = TrCreateLeafOp (PARSEOP_MATCH);
                 NewOp2->Asl.Child   = Predicate;  /* PARSEOP_PACKAGE */
                 TrAmlInitLineNumbers (NewOp2, Conditional);
                 TrAmlSetSubtreeParent (Predicate, NewOp2);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateLeafNode (PARSEOP_ONES);
+                NewOp2              = TrCreateLeafOp (PARSEOP_ONES);
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Conditional);
 
-                NewOp2              = TrCreateLeafNode (PARSEOP_LEQUAL);
+                NewOp2              = TrCreateLeafOp (PARSEOP_LEQUAL);
                 NewOp2->Asl.Child   = NewOp;
                 NewOp->Asl.Parent   = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Conditional);
                 TrAmlSetSubtreeParent (NewOp, NewOp2);
 
                 NewOp               = NewOp2;
-                NewOp2              = TrCreateLeafNode (PARSEOP_LNOT);
+                NewOp2              = TrCreateLeafOp (PARSEOP_LNOT);
                 NewOp2->Asl.Child   = NewOp;
                 NewOp2->Asl.Parent  = Conditional;
                 NewOp->Asl.Parent   = NewOp2;
@@ -690,12 +690,12 @@ TrDoSwitch (
                  * CaseOp->Child is the case value
                  * CaseOp->Child->Peer is the beginning of the case block
                  */
-                NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
+                NewOp = TrCreateValuedLeafOp (PARSEOP_NAMESTRING,
                     (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next = Predicate;
                 TrAmlInitLineNumbers (NewOp, Predicate);
 
-                NewOp2              = TrCreateLeafNode (PARSEOP_LEQUAL);
+                NewOp2              = TrCreateLeafOp (PARSEOP_LEQUAL);
                 NewOp2->Asl.Parent  = Conditional;
                 NewOp2->Asl.Child   = NewOp;
                 TrAmlInitLineNumbers (NewOp2, Conditional);
@@ -792,7 +792,7 @@ TrDoSwitch (
     /* Create the Name node */
 
     Predicate = StartNode->Asl.Child;
-    NewOp = TrCreateLeafNode (PARSEOP_NAME);
+    NewOp = TrCreateLeafOp (PARSEOP_NAME);
     TrAmlInitLineNumbers (NewOp, StartNode);
 
     /* Find the parent method */
@@ -805,7 +805,7 @@ TrDoSwitch (
     }
     MethodOp = Next;
 
-    NewOp->Asl.CompileFlags |= NODE_COMPILER_EMITTED;
+    NewOp->Asl.CompileFlags |= OP_COMPILER_EMITTED;
     NewOp->Asl.Parent = Next;
 
     /* Insert name after the method name and arguments */
@@ -836,10 +836,10 @@ TrDoSwitch (
 
     /* Create the NameSeg child for the Name node */
 
-    NewOp2 = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
+    NewOp2 = TrCreateValuedLeafOp (PARSEOP_NAMESEG,
         (UINT64) ACPI_TO_INTEGER (PredicateValueName));
     TrAmlInitLineNumbers (NewOp2, NewOp);
-    NewOp2->Asl.CompileFlags |= NODE_IS_NAME_DECLARATION;
+    NewOp2->Asl.CompileFlags |= OP_IS_NAME_DECLARATION;
     NewOp->Asl.Child  = NewOp2;
 
     /* Create the initial value for the Name. Btype was already validated above */
@@ -848,31 +848,32 @@ TrDoSwitch (
     {
     case ACPI_BTYPE_INTEGER:
 
-        NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_ZERO,
+        NewOp2->Asl.Next = TrCreateValuedLeafOp (PARSEOP_ZERO,
             (UINT64) 0);
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_STRING:
 
-        NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
+        NewOp2->Asl.Next = TrCreateValuedLeafOp (PARSEOP_STRING_LITERAL,
             (UINT64) ACPI_TO_INTEGER (""));
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_BUFFER:
 
-        (void) TrLinkPeerNode (NewOp2, TrCreateValuedLeafNode (PARSEOP_BUFFER,
+        (void) TrLinkPeerOp (NewOp2, TrCreateValuedLeafOp (PARSEOP_BUFFER,
             (UINT64) 0));
         Next = NewOp2->Asl.Next;
         TrAmlInitLineNumbers (Next, NewOp2);
-        (void) TrLinkChildren (Next, 1, TrCreateValuedLeafNode (PARSEOP_ZERO,
+
+        (void) TrLinkOpChildren (Next, 1, TrCreateValuedLeafOp (PARSEOP_ZERO,
             (UINT64) 1));
         TrAmlInitLineNumbers (Next->Asl.Child, Next);
 
-        BufferOp = TrCreateValuedLeafNode (PARSEOP_DEFAULT_ARG, (UINT64) 0);
+        BufferOp = TrCreateValuedLeafOp (PARSEOP_DEFAULT_ARG, (UINT64) 0);
         TrAmlInitLineNumbers (BufferOp, Next->Asl.Child);
-        (void) TrLinkPeerNode (Next->Asl.Child, BufferOp);
+        (void) TrLinkPeerOp (Next->Asl.Child, BufferOp);
 
         TrAmlSetSubtreeParent (Next->Asl.Child, Next);
         break;
@@ -891,7 +892,7 @@ TrDoSwitch (
      * where _T_x is the temp variable.
      */
     TrAmlInitNode (StartNode, PARSEOP_WHILE);
-    NewOp = TrCreateLeafNode (PARSEOP_ONE);
+    NewOp = TrCreateLeafOp (PARSEOP_ONE);
     TrAmlInitLineNumbers (NewOp, StartNode);
     NewOp->Asl.Next = Predicate->Asl.Next;
     NewOp->Asl.Parent = StartNode;
@@ -899,7 +900,7 @@ TrDoSwitch (
 
     /* Create a Store() node */
 
-    StoreOp = TrCreateLeafNode (PARSEOP_STORE);
+    StoreOp = TrCreateLeafOp (PARSEOP_STORE);
     TrAmlInitLineNumbers (StoreOp, NewOp);
     StoreOp->Asl.Parent = StartNode;
     TrAmlInsertPeer (NewOp, StoreOp);
@@ -909,7 +910,7 @@ TrDoSwitch (
     StoreOp->Asl.Child = Predicate;
     Predicate->Asl.Parent = StoreOp;
 
-    NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
+    NewOp = TrCreateValuedLeafOp (PARSEOP_NAMESEG,
         (UINT64) ACPI_TO_INTEGER (PredicateValueName));
     TrAmlInitLineNumbers (NewOp, StoreOp);
     NewOp->Asl.Parent    = StoreOp;
@@ -923,7 +924,7 @@ TrDoSwitch (
         Conditional = Conditional->Asl.Next;
     }
 
-    BreakOp = TrCreateLeafNode (PARSEOP_BREAK);
+    BreakOp = TrCreateLeafOp (PARSEOP_BREAK);
     TrAmlInitLineNumbers (BreakOp, NewOp);
     BreakOp->Asl.Parent = StartNode;
     TrAmlInsertPeer (Conditional, BreakOp);

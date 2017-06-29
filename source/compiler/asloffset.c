@@ -211,7 +211,7 @@ LsAmlOffsetWalk (
 
     /* Ignore actual data blocks for resource descriptors */
 
-    if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DATA)
+    if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DATA)
     {
         return (AE_OK); /* Do NOT update the global AML offset */
     }
@@ -228,7 +228,7 @@ LsAmlOffsetWalk (
     /* Named resource descriptor (has a descriptor tag) */
 
     if ((Node->Type == ACPI_TYPE_LOCAL_RESOURCE) &&
-        (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC))
+        (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC))
     {
         LsEmitOffsetTableEntry (FileId, Node, 0, Gbl_CurrentAmlOffset,
             Op->Asl.ParseOpName, 0, Op->Asl.Extra, AML_BUFFER_OP);

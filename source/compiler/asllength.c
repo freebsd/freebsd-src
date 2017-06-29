@@ -338,7 +338,7 @@ CgGenerateAmlOpcodeLength (
     /* Does this opcode have an associated "PackageLength" field? */
 
     Op->Asl.AmlPkgLenBytes = 0;
-    if (Op->Asl.CompileFlags & NODE_AML_PACKAGE)
+    if (Op->Asl.CompileFlags & OP_AML_PACKAGE)
     {
         Op->Asl.AmlPkgLenBytes = CgGetPackageLenByteCount (
             Op, Op->Asl.AmlSubtreeLength);
@@ -459,7 +459,7 @@ CgGenerateAmlLengths (
     case PARSEOP_NAMESTRING:
     case PARSEOP_METHODCALL:
 
-        if (Op->Asl.CompileFlags & NODE_NAME_INTERNALIZED)
+        if (Op->Asl.CompileFlags & OP_NAME_INTERNALIZED)
         {
             break;
         }
@@ -475,7 +475,7 @@ CgGenerateAmlLengths (
 
         Op->Asl.ExternalName = Op->Asl.Value.String;
         Op->Asl.Value.String = Buffer;
-        Op->Asl.CompileFlags |= NODE_NAME_INTERNALIZED;
+        Op->Asl.CompileFlags |= OP_NAME_INTERNALIZED;
         Op->Asl.AmlLength = strlen (Buffer);
 
         /*
