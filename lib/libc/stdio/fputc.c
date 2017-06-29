@@ -46,10 +46,10 @@ int
 fputc(int c, FILE *fp)
 {
 	int retval;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	/* Orientation set by __sputc() when buffer is full. */
 	/* ORIENT(fp, -1); */
 	retval = __sputc(c, fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

@@ -94,10 +94,10 @@ ungetc(int c, FILE *fp)
 
 	if (!__sdidinit)
 		__sinit();
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	ret = __ungetc(c, fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 

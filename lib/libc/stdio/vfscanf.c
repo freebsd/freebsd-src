@@ -443,9 +443,9 @@ __vfscanf(FILE *fp, char const *fmt0, va_list ap)
 {
 	int ret;
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = __svfscanf(fp, __get_locale(), fmt0, ap);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 int
@@ -454,9 +454,9 @@ vfscanf_l(FILE *fp, locale_t locale, char const *fmt0, va_list ap)
 	int ret;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = __svfscanf(fp, locale, fmt0, ap);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 
