@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_DCBX_H__
 #define __ECORE_DCBX_H__
 

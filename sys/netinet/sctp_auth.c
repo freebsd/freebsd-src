@@ -1434,7 +1434,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(random_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)random_store, min(plen, sizeof(random_store)));
+			    (struct sctp_paramhdr *)random_store, plen);
 			if (phdr == NULL)
 				return;
 			/* save the random and length for the key */
@@ -1447,7 +1447,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(hmacs_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)hmacs_store, min(plen, sizeof(hmacs_store)));
+			    (struct sctp_paramhdr *)hmacs_store, plen);
 			if (phdr == NULL)
 				return;
 			/* save the hmacs list and num for the key */
@@ -1469,7 +1469,7 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			if (plen > sizeof(chunks_store))
 				break;
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)chunks_store, min(plen, sizeof(chunks_store)));
+			    (struct sctp_paramhdr *)chunks_store, plen);
 			if (phdr == NULL)
 				return;
 			chunks = (struct sctp_auth_chunk_list *)phdr;
@@ -1814,7 +1814,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 int
 sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 {
-	struct sctp_paramhdr *phdr, parm_buf;
+	struct sctp_paramhdr *phdr, param_buf;
 	uint16_t ptype, plen;
 	int peer_supports_asconf = 0;
 	int peer_supports_auth = 0;
@@ -1823,7 +1823,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 	uint8_t saw_asconf_ack = 0;
 
 	/* go through each of the params. */
-	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
+	phdr = sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
 	while (phdr) {
 		ptype = ntohs(phdr->param_type);
 		plen = ntohs(phdr->param_length);
@@ -1837,11 +1837,15 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 		if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
 			struct sctp_supported_chunk_types_param *pr_supported;
-			uint8_t local_store[SCTP_PARAM_BUFFER_SIZE];
+			uint8_t local_store[SCTP_SMALL_CHUNK_STORE];
 			int num_ent, i;
 
+			if (plen > sizeof(local_store)) {
+				break;
+			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)&local_store, min(plen, sizeof(local_store)));
+			    (struct sctp_paramhdr *)&local_store,
+			    plen);
 			if (phdr == NULL) {
 				return (-1);
 			}
@@ -1859,7 +1863,6 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				}
 			}
 		} else if (ptype == SCTP_RANDOM) {
-			got_random = 1;
 			/* enforce the random length */
 			if (plen != (sizeof(struct sctp_auth_random) +
 			    SCTP_AUTH_RANDOM_SIZE_REQUIRED)) {
@@ -1867,20 +1870,23 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				    "SCTP: invalid RANDOM len\n");
 				return (-1);
 			}
+			got_random = 1;
 		} else if (ptype == SCTP_HMAC_LIST) {
-			uint8_t store[SCTP_PARAM_BUFFER_SIZE];
 			struct sctp_auth_hmac_algo *hmacs;
+			uint8_t store[SCTP_PARAM_BUFFER_SIZE];
 			int num_hmacs;
 
-			if (plen > sizeof(store))
+			if (plen > sizeof(store)) {
 				break;
+			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)store, min(plen, sizeof(store)));
-			if (phdr == NULL)
+			    (struct sctp_paramhdr *)store,
+			    plen);
+			if (phdr == NULL) {
 				return (-1);
+			}
 			hmacs = (struct sctp_auth_hmac_algo *)phdr;
-			num_hmacs = (plen - sizeof(*hmacs)) /
-			    sizeof(hmacs->hmac_ids[0]);
+			num_hmacs = (plen - sizeof(*hmacs)) / sizeof(hmacs->hmac_ids[0]);
 			/* validate the hmac list */
 			if (sctp_verify_hmac_param(hmacs, num_hmacs)) {
 				SCTPDBG(SCTP_DEBUG_AUTH1,
@@ -1889,18 +1895,19 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 			}
 			got_hmacs = 1;
 		} else if (ptype == SCTP_CHUNK_LIST) {
-			int i, num_chunks;
+			struct sctp_auth_chunk_list *chunks;
 			uint8_t chunks_store[SCTP_SMALL_CHUNK_STORE];
+			int i, num_chunks;
 
-			/* did the peer send a non-empty chunk list? */
-			struct sctp_auth_chunk_list *chunks = NULL;
-
+			if (plen > sizeof(chunks_store)) {
+				break;
+			}
 			phdr = sctp_get_next_param(m, offset,
 			    (struct sctp_paramhdr *)chunks_store,
-			    min(plen, sizeof(chunks_store)));
-			if (phdr == NULL)
+			    plen);
+			if (phdr == NULL) {
 				return (-1);
-
+			}
 			/*-
 			 * Flip through the list and mark that the
 			 * peer supports asconf/asconf_ack.
@@ -1922,8 +1929,8 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 		if (offset >= limit) {
 			break;
 		}
-		phdr = sctp_get_next_param(m, offset, &parm_buf,
-		    sizeof(parm_buf));
+		phdr = sctp_get_next_param(m, offset, &param_buf,
+		    sizeof(param_buf));
 	}
 	/* validate authentication required parameters */
 	if (got_random && got_hmacs) {

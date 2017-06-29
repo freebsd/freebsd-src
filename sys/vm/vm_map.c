@@ -1190,6 +1190,8 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    ("vm_map_insert: kmem or kernel object and COW"));
 	KASSERT(object == NULL || (cow & MAP_NOFAULT) == 0,
 	    ("vm_map_insert: paradoxical MAP_NOFAULT request"));
+	KASSERT((prot & ~max) == 0,
+	    ("prot %#x is not subset of max_prot %#x", prot, max));
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -3237,6 +3239,10 @@ vm_map_copy_entry(
 				fake_entry->next = curthread->td_map_def_user;
 				curthread->td_map_def_user = fake_entry;
 			}
+
+			pmap_copy(dst_map->pmap, src_map->pmap,
+			    dst_entry->start, dst_entry->end - dst_entry->start,
+			    src_entry->start);
 		} else {
 			dst_entry->object.vm_object = NULL;
 			dst_entry->offset = 0;
@@ -3246,9 +3252,6 @@ vm_map_copy_entry(
 				*fork_charge += size;
 			}
 		}
-
-		pmap_copy(dst_map->pmap, src_map->pmap, dst_entry->start,
-		    dst_entry->end - dst_entry->start, src_entry->start);
 	} else {
 		/*
 		 * We don't want to make writeable wired pages copy-on-write.
@@ -3891,9 +3894,7 @@ Retry:
 		vm_map_wire(map,
 		    (stack_entry == next_entry) ? addr : addr - grow_amount,
 		    (stack_entry == next_entry) ? stack_entry->start : addr,
-		    (p->p_flag & P_SYSTEM)
-		    ? VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES
-		    : VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 	}
 
 out:

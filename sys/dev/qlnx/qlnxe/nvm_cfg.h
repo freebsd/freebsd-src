@@ -36,20 +36,20 @@
  * Description: NVM config file - Generated file from nvm cfg excel.
  *              DO NOT MODIFY !!!
  *
- * Created:     2/4/2017
+ * Created:     3/15/2017
  *
  ****************************************************************************/
 
 #ifndef NVM_CFG_H
 #define NVM_CFG_H
 
-#define NVM_CFG_version 0x81812
+#define NVM_CFG_version 0x83000
 
-#define NVM_CFG_new_option_seq 20
+#define NVM_CFG_new_option_seq 22
 
 #define NVM_CFG_removed_option_seq 1
 
-#define NVM_CFG_updated_value_seq 3
+#define NVM_CFG_updated_value_seq 4
 
 struct nvm_cfg_mac_address
 {
@@ -535,6 +535,10 @@ struct nvm_cfg1_glob
 		#define NVM_CFG1_GLOB_PF_MAPPING_OFFSET                         26
 		#define NVM_CFG1_GLOB_PF_MAPPING_CONTINUOUS                     0x0
 		#define NVM_CFG1_GLOB_PF_MAPPING_FIXED                          0x1
+		#define NVM_CFG1_GLOB_VOLTAGE_REGULATOR_TYPE_MASK               0x30000000
+		#define NVM_CFG1_GLOB_VOLTAGE_REGULATOR_TYPE_OFFSET             28
+		#define NVM_CFG1_GLOB_VOLTAGE_REGULATOR_TYPE_DISABLED           0x0
+		#define NVM_CFG1_GLOB_VOLTAGE_REGULATOR_TYPE_TI                 0x1
 	u32 led_global_settings;                                           /* 0x74 */
 		#define NVM_CFG1_GLOB_LED_SWAP_0_MASK                           0x0000000F
 		#define NVM_CFG1_GLOB_LED_SWAP_0_OFFSET                         0
@@ -1323,6 +1327,8 @@ struct nvm_cfg1_port
 		#define NVM_CFG1_PORT_RESERVED65_OFFSET                         0
 		#define NVM_CFG1_PORT_RESERVED66_MASK                           0x00010000
 		#define NVM_CFG1_PORT_RESERVED66_OFFSET                         16
+		#define NVM_CFG1_PORT_PREBOOT_LINK_UP_DELAY_MASK                0x01FE0000
+		#define NVM_CFG1_PORT_PREBOOT_LINK_UP_DELAY_OFFSET              17
 	u32 vf_cfg;                                                        /* 0x30 */
 		#define NVM_CFG1_PORT_RESERVED8_MASK                            0x0000FFFF
 		#define NVM_CFG1_PORT_RESERVED8_OFFSET                          0
@@ -1945,3 +1951,4 @@ struct nvm_cfg
 };
 
 #endif /* NVM_CFG_H */
+

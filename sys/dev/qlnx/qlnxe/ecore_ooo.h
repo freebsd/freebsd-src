@@ -85,33 +85,25 @@ void ecore_ooo_setup(struct ecore_hwfn *p_hwfn);
 
 void ecore_ooo_free(struct ecore_hwfn *p_hwfn);
 
-void ecore_ooo_save_history_entry(struct ecore_hwfn       *p_hwfn,
-				       struct ecore_ooo_info *p_ooo_info,
-				       struct ooo_opaque *p_cqe);
+void ecore_ooo_save_history_entry(struct ecore_ooo_info *p_ooo_info,
+				  struct ooo_opaque *p_cqe);
 
-void ecore_ooo_release_connection_isles(struct ecore_hwfn       *p_hwfn,
-				       struct ecore_ooo_info *p_ooo_info,
-				       u32 cid);
+void ecore_ooo_release_connection_isles(struct ecore_ooo_info *p_ooo_info,
+					u32 cid);
 
-void ecore_ooo_release_all_isles(struct ecore_hwfn       *p_hwfn,
-				struct ecore_ooo_info *p_ooo_info);
+void ecore_ooo_release_all_isles(struct ecore_ooo_info *p_ooo_info);
 
-void ecore_ooo_put_free_buffer(struct ecore_hwfn	*p_hwfn,
-			      struct ecore_ooo_info	*p_ooo_info,
-			      struct ecore_ooo_buffer	*p_buffer);
+void ecore_ooo_put_free_buffer(struct ecore_ooo_info *p_ooo_info,
+			       struct ecore_ooo_buffer *p_buffer);
 
 struct ecore_ooo_buffer *
-	ecore_ooo_get_free_buffer(struct ecore_hwfn	*p_hwfn,
-				 struct ecore_ooo_info *p_ooo_info);
+ecore_ooo_get_free_buffer(struct ecore_ooo_info *p_ooo_info);
 
-void ecore_ooo_put_ready_buffer(struct ecore_hwfn	*p_hwfn,
-			      struct ecore_ooo_info	*p_ooo_info,
-			      struct ecore_ooo_buffer	*p_buffer,
-			      u8 on_tail);
+void ecore_ooo_put_ready_buffer(struct ecore_ooo_info *p_ooo_info,
+				struct ecore_ooo_buffer *p_buffer, u8 on_tail);
 
 struct ecore_ooo_buffer *
-	ecore_ooo_get_ready_buffer(struct ecore_hwfn	*p_hwfn,
-				  struct ecore_ooo_info *p_ooo_info);
+ecore_ooo_get_ready_buffer(struct ecore_ooo_info *p_ooo_info);
 
 void ecore_ooo_delete_isles(struct ecore_hwfn	*p_hwfn,
 			   struct ecore_ooo_info *p_ooo_info,

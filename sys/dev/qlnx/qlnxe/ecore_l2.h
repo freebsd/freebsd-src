@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_L2_H__
 #define __ECORE_L2_H__
 
@@ -163,32 +162,4 @@ ecore_eth_txq_start_ramrod(struct ecore_hwfn *p_hwfn,
 			   u16 pq_id);
 
 u8 ecore_mcast_bin_from_mac(u8 *mac);
-
-/**
- * @brief - ecore_configure_rfs_ntuple_filter
- *
- * This ramrod should be used to add or remove arfs hw filter
- *
- * @params p_hwfn
- * @params p_ptt
- * @params p_cb		Used for ECORE_SPQ_MODE_CB,where client would initialize
-			it with cookie and callback function address, if not
-			using this mode then client must pass NULL.
- * @params p_addr	p_addr is an actual packet header that needs to be
- *			filter. It has to mapped with IO to read prior to
- *			calling this, [contains 4 tuples- src ip, dest ip,
- *			src port, dest port].
- * @params length	length of p_addr header up to past the transport header.
- * @params qid		receive packet will be directed to this queue.
- * @params vport_id
- * @params b_is_add	flag to add or remove filter.
- *
- */
-enum _ecore_status_t
-ecore_configure_rfs_ntuple_filter(struct ecore_hwfn *p_hwfn,
-				  struct ecore_ptt *p_ptt,
-				  struct ecore_spq_comp_cb *p_cb,
-				  dma_addr_t p_addr, u16 length,
-				  u16 qid, u8 vport_id,
-				  bool b_is_add);
 #endif

@@ -454,18 +454,23 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	RIB_RLOCK(rh);
+	if ((ignflags & RTF_RNH_LOCKED) == 0)
+		RIB_RLOCK(rh);
+#ifdef INVARIANTS
+	else
+		RIB_LOCK_ASSERT(rh);
+#endif
 	rn = rh->rnh_matchaddr(dst, &rh->head);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		newrt = RNTORT(rn);
 		RT_LOCK(newrt);
 		RT_ADDREF(newrt);
-		RIB_RUNLOCK(rh);
+		if ((ignflags & RTF_RNH_LOCKED) == 0)
+			RIB_RUNLOCK(rh);
 		return (newrt);
 
-	} else
+	} else if ((ignflags & RTF_RNH_LOCKED) == 0)
 		RIB_RUNLOCK(rh);
-	
 	/*
 	 * Either we hit the root or could not find any match,
 	 * which basically means: "cannot get there from here".
@@ -748,7 +753,9 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 	if (ifa == NULL)
 		ifa = ifa_ifwithnet(gateway, 0, fibnum);
 	if (ifa == NULL) {
-		struct rtentry *rt = rtalloc1_fib(gateway, 0, 0, fibnum);
+		struct rtentry *rt;
+
+		rt = rtalloc1_fib(gateway, 0, flags, fibnum);
 		if (rt == NULL)
 			return (NULL);
 		/*
@@ -1838,8 +1845,13 @@ rtrequest1_fib_change(struct rib_head *rnh, struct rt_addrinfo *info,
 	    info->rti_info[RTAX_IFP] != NULL ||
 	    (info->rti_info[RTAX_IFA] != NULL &&
 	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_ifa->ifa_addr))) {
-
+		/*
+		 * XXX: Temporarily set RTF_RNH_LOCKED flag in the rti_flags
+		 *	to avoid rlock in the ifa_ifwithroute().
+		 */
+		info->rti_flags |= RTF_RNH_LOCKED;
 		error = rt_getifa_fib(info, fibnum);
+		info->rti_flags &= ~RTF_RNH_LOCKED;
 		if (info->rti_ifa != NULL)
 			free_ifa = 1;
 

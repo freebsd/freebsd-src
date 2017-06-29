@@ -574,6 +574,8 @@ new_pcichild_device(struct hv_pcibus *hbus, struct pci_func_desc *desc)
 	hpdev->desc = *desc;
 
 	mtx_lock(&hbus->device_list_lock);
+	if (TAILQ_EMPTY(&hbus->children))
+		hbus->pci_domain = desc->ser & 0xFFFF;
 	TAILQ_INSERT_TAIL(&hbus->children, hpdev, link);
 	mtx_unlock(&hbus->device_list_lock);
 	return (hpdev);

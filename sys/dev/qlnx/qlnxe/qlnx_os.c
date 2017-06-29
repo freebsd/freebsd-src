@@ -210,6 +210,11 @@ char qlnx_name_str[NAME_SIZE];
 #define QLOGIC_PCI_DEVICE_ID_1654	0x1654
 #endif
 
+/* 10G/25G/40G Adapter QLE41xxx*/
+#ifndef QLOGIC_PCI_DEVICE_ID_8070
+#define QLOGIC_PCI_DEVICE_ID_8070	0x8070
+#endif
+
 static int
 qlnx_valid_device(device_t dev)
 {
@@ -220,7 +225,8 @@ qlnx_valid_device(device_t dev)
         if ((device_id == QLOGIC_PCI_DEVICE_ID_1634) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_1644) ||
                 (device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
-                (device_id == QLOGIC_PCI_DEVICE_ID_1654))
+                (device_id == QLOGIC_PCI_DEVICE_ID_1654) ||
+                (device_id == QLOGIC_PCI_DEVICE_ID_8070))
                 return 0;
 
         return -1;
@@ -278,6 +284,16 @@ qlnx_pci_probe(device_t dev)
                 device_set_desc_copy(dev, qlnx_dev_str);
 
                 break;
+
+	case QLOGIC_PCI_DEVICE_ID_8070:
+		snprintf(qlnx_dev_str, sizeof(qlnx_dev_str), "%s v%d.%d.%d",
+			"Qlogic 10GbE/25GbE/40GbE PCI CNA (AH) "
+			"Adapter-Ethernet Function",
+			QLNX_VERSION_MAJOR, QLNX_VERSION_MINOR,
+			QLNX_VERSION_BUILD);
+		device_set_desc_copy(dev, qlnx_dev_str);
+
+		break;
 
         default:
                 return (ENXIO);
@@ -381,7 +397,7 @@ qlnx_fp_taskqueue(void *context, int pending)
         struct ifnet		*ifp;
         struct mbuf		*mp;
         int			ret;
-	int			lro_enable, tc;
+	int			lro_enable;
 	int			rx_int = 0, total_rx_count = 0;
 	struct thread		*cthread;
 
@@ -461,9 +477,9 @@ qlnx_fp_taskqueue(void *context, int pending)
                 goto qlnx_fp_taskqueue_exit;
         }
 
-	for (tc = 0; tc < ha->num_tc; tc++) {
-		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
-	}
+//	for (tc = 0; tc < ha->num_tc; tc++) {
+//		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
+//	}
 
         mp = drbr_peek(ifp, fp->tx_br);
 
@@ -500,9 +516,9 @@ qlnx_fp_taskqueue(void *context, int pending)
                 mp = drbr_peek(ifp, fp->tx_br);
         }
 
-	for (tc = 0; tc < ha->num_tc; tc++) {
-		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
-	}
+//	for (tc = 0; tc < ha->num_tc; tc++) {
+//		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
+//	}
 
         mtx_unlock(&fp->tx_mtx);
 
@@ -1911,7 +1927,8 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
         if (device_id == QLOGIC_PCI_DEVICE_ID_1634) 
 		ifp->if_baudrate = IF_Gbps(40);
-        else if (device_id == QLOGIC_PCI_DEVICE_ID_1656)
+        else if ((device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
+			(device_id == QLOGIC_PCI_DEVICE_ID_8070))
 		ifp->if_baudrate = IF_Gbps(25);
         else if (device_id == QLOGIC_PCI_DEVICE_ID_1654)
 		ifp->if_baudrate = IF_Gbps(50);
@@ -1974,7 +1991,8 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_40G_LR4), 0, NULL);
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_40G_SR4), 0, NULL);
 		ifmedia_add(&ha->media, (IFM_ETHER | IFM_40G_CR4), 0, NULL);
-        } else if (device_id == QLOGIC_PCI_DEVICE_ID_1656) {
+        } else if ((device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
+			(device_id == QLOGIC_PCI_DEVICE_ID_8070)) {
 		ifmedia_add(&ha->media, (IFM_ETHER | QLNX_IFM_25G_SR), 0, NULL);
 		ifmedia_add(&ha->media, (IFM_ETHER | QLNX_IFM_25G_CR), 0, NULL);
         } else if (device_id == QLOGIC_PCI_DEVICE_ID_1654) {
@@ -3216,6 +3234,11 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 			ifm_type = IFM_40G_SR4;
 		else if (if_link->speed == (25 * 1000))
 			ifm_type = QLNX_IFM_25G_SR;
+		else if (if_link->speed == (10 * 1000))
+			ifm_type = (IFM_10G_LR | IFM_10G_SR);
+		else if (if_link->speed == (1 * 1000))
+			ifm_type = (IFM_1000_SX | IFM_1000_LX);
+
 		break;
 
 	case MEDIA_DA_TWINAX:
@@ -3225,6 +3248,9 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 			ifm_type = IFM_40G_CR4;
 		else if (if_link->speed == (25 * 1000))
 			ifm_type = QLNX_IFM_25G_CR;
+		else if (if_link->speed == (10 * 1000))
+			ifm_type = IFM_10G_TWINAX;
+
 		break;
 
 	default :
@@ -4748,6 +4774,19 @@ qlnx_direct_reg_wr32(void *p_hwfn, void *reg_addr, uint32_t value)
 	return;
 }
 
+void
+qlnx_direct_reg_wr64(void *p_hwfn, void *reg_addr, uint64_t value)
+{
+	uint32_t		offset;
+	struct ecore_dev	*cdev;
+
+	cdev = ((struct ecore_hwfn *)p_hwfn)->p_dev;
+	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)(cdev->regview));
+
+	bus_write_8(((qlnx_host_t *)cdev)->pci_reg, offset, value);
+	return;
+}
+
 void *
 qlnx_zalloc(uint32_t size)
 {
@@ -5201,7 +5240,7 @@ qlnx_sb_init(struct ecore_dev *cdev, struct ecore_sb_info *sb_info,
 static int
 qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info, u16 sb_id)
 {
-        struct status_block	*sb_virt;
+        struct status_block_e4	*sb_virt;
         bus_addr_t		sb_phys;
         int			rc;
 	uint32_t		size;

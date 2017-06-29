@@ -2095,6 +2095,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	struct vmscsi_req *vm_srb = &reqp->vstor_packet.u.vm_srb;
 	bus_dma_segment_t *ori_sglist = NULL;
 	int ori_sg_count = 0;
+	const struct scsi_generic *cmd;
 
 	/* destroy bounce buffer if it is used */
 	if (reqp->bounce_sgl_count) {
@@ -2145,16 +2146,14 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		callout_drain(&reqp->callout);
 	}
 #endif
+	cmd = (const struct scsi_generic *)
+	    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	int srb_status = SRB_STATUS(vm_srb->srb_status);
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
-		const struct scsi_generic *cmd;
-
-		cmd = (const struct scsi_generic *)
-		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
 		if (srb_status != SRB_STATUS_SUCCESS) {
 			/*
 			 * If there are errors, for example, invalid LUN,
@@ -2252,11 +2251,23 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 			}
 		}
 	} else {
-		mtx_lock(&sc->hs_lock);
-		xpt_print(ccb->ccb_h.path,
-			"storvsc scsi_status = %d\n",
-			vm_srb->scsi_status);
-		mtx_unlock(&sc->hs_lock);
+		/**
+		 * On Some Windows hosts TEST_UNIT_READY command can return
+		 * SRB_STATUS_ERROR and sense data, for example, asc=0x3a,1
+		 * "(Medium not present - tray closed)". This error can be
+		 * ignored since it will be sent to host periodically.
+		 */
+		boolean_t unit_not_ready = \
+		    vm_srb->scsi_status == SCSI_STATUS_CHECK_COND &&
+		    cmd->opcode == TEST_UNIT_READY &&
+		    srb_status == SRB_STATUS_ERROR;
+		if (!unit_not_ready && bootverbose) {
+			mtx_lock(&sc->hs_lock);
+			xpt_print(ccb->ccb_h.path,
+				"storvsc scsi_status = %d, srb_status = %d\n",
+				vm_srb->scsi_status, srb_status);
+			mtx_unlock(&sc->hs_lock);
+		}
 		ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 	}
 

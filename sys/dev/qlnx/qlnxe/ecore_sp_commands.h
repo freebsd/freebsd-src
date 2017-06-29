@@ -28,6 +28,7 @@
  *
  */
 
+
 #ifndef __ECORE_SP_COMMANDS_H__
 #define __ECORE_SP_COMMANDS_H__
 
@@ -81,6 +82,7 @@ enum _ecore_status_t ecore_sp_init_request(struct ecore_hwfn *p_hwfn,
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
  * @param p_hwfn
+ * @param p_ptt
  * @param p_tunn - pf start tunneling configuration
  * @param mode
  * @param allow_npar_tx_switch - npar tx switching to be used
@@ -90,6 +92,7 @@ enum _ecore_status_t ecore_sp_init_request(struct ecore_hwfn *p_hwfn,
  */
 
 enum _ecore_status_t ecore_sp_pf_start(struct ecore_hwfn *p_hwfn,
+				       struct ecore_ptt *p_ptt,
 				       struct ecore_tunnel_info *p_tunn,
 				       enum ecore_mf_mode mode,
 				       bool allow_npar_tx_switch);
@@ -107,7 +110,7 @@ enum _ecore_status_t ecore_sp_pf_start(struct ecore_hwfn *p_hwfn,
  * @return enum _ecore_status_t
  */
 
-enum _ecore_status_t ecore_sp_pf_update(struct ecore_hwfn *p_hwfn);
+enum _ecore_status_t ecore_sp_pf_update_dcbx(struct ecore_hwfn *p_hwfn);
 
 /**
  * @brief ecore_sp_pf_stop - PF Function Stop Ramrod
@@ -164,5 +167,15 @@ struct ecore_rl_update_params {
  */
 enum _ecore_status_t ecore_sp_rl_update(struct ecore_hwfn *p_hwfn,
 					struct ecore_rl_update_params *params);
+
+/**
+ * @brief ecore_sp_pf_update_stag - PF STAG value update Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return enum _ecore_status_t
+ */
+
+enum _ecore_status_t ecore_sp_pf_update_stag(struct ecore_hwfn *p_hwfn);
 
 #endif /*__ECORE_SP_COMMANDS_H__*/

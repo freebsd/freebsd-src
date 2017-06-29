@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "bcm_osal.h"
 #include "ecore.h"
 #include "ecore_sp_commands.h"
@@ -61,13 +60,13 @@ __FBSDID("$FreeBSD$");
 
 static bool ecore_dcbx_app_ethtype(u32 app_info_bitmap)
 {
-	return !!(ECORE_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF) ==
+	return !!(GET_MFW_FIELD(app_info_bitmap, DCBX_APP_SF) ==
 		  DCBX_APP_SF_ETHTYPE);
 }
 
 static bool ecore_dcbx_ieee_app_ethtype(u32 app_info_bitmap)
 {
-	u8 mfw_val = ECORE_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
+	u8 mfw_val = GET_MFW_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
 
 	/* Old MFW */
 	if (mfw_val == DCBX_APP_SF_IEEE_RESERVED)
@@ -78,13 +77,13 @@ static bool ecore_dcbx_ieee_app_ethtype(u32 app_info_bitmap)
 
 static bool ecore_dcbx_app_port(u32 app_info_bitmap)
 {
-	return !!(ECORE_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF) ==
+	return !!(GET_MFW_FIELD(app_info_bitmap, DCBX_APP_SF) ==
 		  DCBX_APP_SF_PORT);
 }
 
 static bool ecore_dcbx_ieee_app_port(u32 app_info_bitmap, u8 type)
 {
-	u8 mfw_val = ECORE_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
+	u8 mfw_val = GET_MFW_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
 
 	/* Old MFW */
 	if (mfw_val == DCBX_APP_SF_IEEE_RESERVED)
@@ -240,7 +239,6 @@ ecore_dcbx_update_app_info(struct ecore_dcbx_results *p_data,
 {
 	enum ecore_pci_personality personality;
 	enum dcbx_protocol_type id;
-	char *name;
 	int i;
 
 	for (i = 0; i < OSAL_ARRAY_SIZE(ecore_dcbx_app_update); i++) {
@@ -250,7 +248,6 @@ ecore_dcbx_update_app_info(struct ecore_dcbx_results *p_data,
 			continue;
 
 		personality = ecore_dcbx_app_update[i].personality;
-		name = ecore_dcbx_app_update[i].name;
 
 		ecore_dcbx_set_params(p_data, p_hwfn, enable,
 				      prio, tc, type, personality);
@@ -338,10 +335,9 @@ ecore_dcbx_process_tlv(struct ecore_hwfn *p_hwfn,
 	ieee = (dcbx_version == DCBX_CONFIG_VERSION_IEEE);
 	/* Parse APP TLV */
 	for (i = 0; i < count; i++) {
-		protocol_id = ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-						  DCBX_APP_PROTOCOL_ID);
-		priority_map = ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-						   DCBX_APP_PRI_MAP);
+		protocol_id = GET_MFW_FIELD(p_tbl[i].entry,
+					    DCBX_APP_PROTOCOL_ID);
+		priority_map = GET_MFW_FIELD(p_tbl[i].entry, DCBX_APP_PRI_MAP);
 		DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "Id = 0x%x pri_map = %u\n",
 			   protocol_id, priority_map);
 		rc = ecore_dcbx_get_app_priority(priority_map, &priority);
@@ -394,17 +390,17 @@ static enum _ecore_status_t
 ecore_dcbx_process_mib_info(struct ecore_hwfn *p_hwfn)
 {
 	struct dcbx_app_priority_feature *p_app;
-	enum _ecore_status_t rc = ECORE_SUCCESS;
-	struct ecore_dcbx_results data = { 0 };
 	struct dcbx_app_priority_entry *p_tbl;
+	struct ecore_dcbx_results data = { 0 };
 	struct dcbx_ets_feature *p_ets;
 	struct ecore_hw_info *p_info;
 	u32 pri_tc_tbl, flags;
 	u8 dcbx_version;
 	int num_entries;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	flags = p_hwfn->p_dcbx_info->operational.flags;
-	dcbx_version = ECORE_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION);
+	dcbx_version = GET_MFW_FIELD(flags, DCBX_CONFIG_VERSION);
 
 	p_app = &p_hwfn->p_dcbx_info->operational.features.app;
 	p_tbl = p_app->app_pri_tbl;
@@ -413,15 +409,15 @@ ecore_dcbx_process_mib_info(struct ecore_hwfn *p_hwfn)
 	pri_tc_tbl = p_ets->pri_tc_tbl[0];
 
 	p_info = &p_hwfn->hw_info;
-	num_entries = ECORE_MFW_GET_FIELD(p_app->flags, DCBX_APP_NUM_ENTRIES);
+	num_entries = GET_MFW_FIELD(p_app->flags, DCBX_APP_NUM_ENTRIES);
 
 	rc = ecore_dcbx_process_tlv(p_hwfn, &data, p_tbl, pri_tc_tbl,
 				    num_entries, dcbx_version);
 	if (rc != ECORE_SUCCESS)
 		return rc;
 
-	p_info->num_active_tc = ECORE_MFW_GET_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
-	p_hwfn->qm_info.ooo_tc = ECORE_MFW_GET_FIELD(p_ets->flags, DCBX_OOO_TC);
+	p_info->num_active_tc = GET_MFW_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
+	p_hwfn->qm_info.ooo_tc = GET_MFW_FIELD(p_ets->flags, DCBX_OOO_TC);
 	data.pf_id = p_hwfn->rel_pf_id;
 	data.dcbx_enabled = !!dcbx_version;
 
@@ -439,9 +435,9 @@ ecore_dcbx_copy_mib(struct ecore_hwfn *p_hwfn,
 		    struct ecore_dcbx_mib_meta_data *p_data,
 		    enum ecore_mib_read_type type)
 {
-	enum _ecore_status_t rc = ECORE_SUCCESS;
 	u32 prefix_seq_num, suffix_seq_num;
 	int read_count = 0;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	/* The data is considered to be valid only if both sequence numbers are
 	 * the same.
@@ -526,26 +522,24 @@ ecore_dcbx_get_app_data(struct ecore_hwfn *p_hwfn,
 	u8 pri_map;
 	int i;
 
-	p_params->app_willing = ECORE_MFW_GET_FIELD(p_app->flags,
-						    DCBX_APP_WILLING);
-	p_params->app_valid = ECORE_MFW_GET_FIELD(p_app->flags,
-						  DCBX_APP_ENABLED);
-	p_params->app_error = ECORE_MFW_GET_FIELD(p_app->flags, DCBX_APP_ERROR);
-	p_params->num_app_entries = ECORE_MFW_GET_FIELD(p_app->flags,
-							DCBX_APP_NUM_ENTRIES);
+	p_params->app_willing = GET_MFW_FIELD(p_app->flags, DCBX_APP_WILLING);
+	p_params->app_valid = GET_MFW_FIELD(p_app->flags, DCBX_APP_ENABLED);
+	p_params->app_error = GET_MFW_FIELD(p_app->flags, DCBX_APP_ERROR);
+	p_params->num_app_entries = GET_MFW_FIELD(p_app->flags,
+						  DCBX_APP_NUM_ENTRIES);
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_params->app_entry[i];
 		if (ieee) {
 			u8 sf_ieee;
 			u32 val;
 
-			sf_ieee = ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-						      DCBX_APP_SF_IEEE);
+			sf_ieee = GET_MFW_FIELD(p_tbl[i].entry,
+						DCBX_APP_SF_IEEE);
 			switch (sf_ieee) {
 			case DCBX_APP_SF_IEEE_RESERVED:
 				/* Old MFW */
-				val = ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-							    DCBX_APP_SF);
+				val = GET_MFW_FIELD(p_tbl[i].entry,
+						    DCBX_APP_SF);
 				entry->sf_ieee = val ?
 					ECORE_DCBX_SF_IEEE_TCP_UDP_PORT :
 					ECORE_DCBX_SF_IEEE_ETHTYPE;
@@ -564,14 +558,14 @@ ecore_dcbx_get_app_data(struct ecore_hwfn *p_hwfn,
 				break;
 			}
 		} else {
-			entry->ethtype = !(ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-							       DCBX_APP_SF));
+			entry->ethtype = !(GET_MFW_FIELD(p_tbl[i].entry,
+							 DCBX_APP_SF));
 		}
 
-		pri_map = ECORE_MFW_GET_FIELD(p_tbl[i].entry, DCBX_APP_PRI_MAP);
+		pri_map = GET_MFW_FIELD(p_tbl[i].entry, DCBX_APP_PRI_MAP);
 		ecore_dcbx_get_app_priority(pri_map, &entry->prio);
-		entry->proto_id = ECORE_MFW_GET_FIELD(p_tbl[i].entry,
-						      DCBX_APP_PROTOCOL_ID);
+		entry->proto_id = GET_MFW_FIELD(p_tbl[i].entry,
+						DCBX_APP_PROTOCOL_ID);
 		ecore_dcbx_get_app_protocol_type(p_hwfn, p_tbl[i].entry,
 						 entry->proto_id,
 						 &entry->proto_type, ieee);
@@ -589,10 +583,10 @@ ecore_dcbx_get_pfc_data(struct ecore_hwfn *p_hwfn,
 {
 	u8 pfc_map;
 
-	p_params->pfc.willing = ECORE_MFW_GET_FIELD(pfc, DCBX_PFC_WILLING);
-	p_params->pfc.max_tc = ECORE_MFW_GET_FIELD(pfc, DCBX_PFC_CAPS);
-	p_params->pfc.enabled = ECORE_MFW_GET_FIELD(pfc, DCBX_PFC_ENABLED);
-	pfc_map = ECORE_MFW_GET_FIELD(pfc, DCBX_PFC_PRI_EN_BITMAP);
+	p_params->pfc.willing = GET_MFW_FIELD(pfc, DCBX_PFC_WILLING);
+	p_params->pfc.max_tc = GET_MFW_FIELD(pfc, DCBX_PFC_CAPS);
+	p_params->pfc.enabled = GET_MFW_FIELD(pfc, DCBX_PFC_ENABLED);
+	pfc_map = GET_MFW_FIELD(pfc, DCBX_PFC_PRI_EN_BITMAP);
 	p_params->pfc.prio[0] = !!(pfc_map & DCBX_PFC_PRI_EN_BITMAP_PRI_0);
 	p_params->pfc.prio[1] = !!(pfc_map & DCBX_PFC_PRI_EN_BITMAP_PRI_1);
 	p_params->pfc.prio[2] = !!(pfc_map & DCBX_PFC_PRI_EN_BITMAP_PRI_2);
@@ -616,13 +610,10 @@ ecore_dcbx_get_ets_data(struct ecore_hwfn *p_hwfn,
 	u32 bw_map[2], tsa_map[2], pri_map;
 	int i;
 
-	p_params->ets_willing = ECORE_MFW_GET_FIELD(p_ets->flags,
-						    DCBX_ETS_WILLING);
-	p_params->ets_enabled = ECORE_MFW_GET_FIELD(p_ets->flags,
-						    DCBX_ETS_ENABLED);
-	p_params->ets_cbs = ECORE_MFW_GET_FIELD(p_ets->flags, DCBX_ETS_CBS);
-	p_params->max_ets_tc = ECORE_MFW_GET_FIELD(p_ets->flags,
-						   DCBX_ETS_MAX_TCS);
+	p_params->ets_willing = GET_MFW_FIELD(p_ets->flags, DCBX_ETS_WILLING);
+	p_params->ets_enabled = GET_MFW_FIELD(p_ets->flags, DCBX_ETS_ENABLED);
+	p_params->ets_cbs = GET_MFW_FIELD(p_ets->flags, DCBX_ETS_CBS);
+	p_params->max_ets_tc = GET_MFW_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
 	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB,
 		   "ETS params: willing %d, enabled = %d ets_cbs %d pri_tc_tbl_0 %x max_ets_tc %d\n",
 		   p_params->ets_willing, p_params->ets_enabled,
@@ -669,7 +660,6 @@ ecore_dcbx_get_common_params(struct ecore_hwfn *p_hwfn,
 
 static void
 ecore_dcbx_get_local_params(struct ecore_hwfn *p_hwfn,
-			    struct ecore_ptt *p_ptt,
 			    struct ecore_dcbx_get *params)
 {
 	struct dcbx_features *p_feat;
@@ -683,7 +673,6 @@ ecore_dcbx_get_local_params(struct ecore_hwfn *p_hwfn,
 
 static void
 ecore_dcbx_get_remote_params(struct ecore_hwfn *p_hwfn,
-			     struct ecore_ptt *p_ptt,
 			     struct ecore_dcbx_get *params)
 {
 	struct dcbx_features *p_feat;
@@ -698,7 +687,6 @@ ecore_dcbx_get_remote_params(struct ecore_hwfn *p_hwfn,
 
 static enum _ecore_status_t
 ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
-				  struct ecore_ptt *p_ptt,
 				  struct ecore_dcbx_get *params)
 {
 	struct ecore_dcbx_operational_params *p_operational;
@@ -714,7 +702,7 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 	 * was successfuly performed
 	 */
 	p_operational = &params->operational;
-	enabled = !!(ECORE_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) !=
+	enabled = !!(GET_MFW_FIELD(flags, DCBX_CONFIG_VERSION) !=
 		     DCBX_CONFIG_VERSION_DISABLED);
 	if (!enabled) {
 		p_operational->enabled = enabled;
@@ -726,15 +714,15 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 	p_feat = &p_hwfn->p_dcbx_info->operational.features;
 	p_results = &p_hwfn->p_dcbx_info->results;
 
-	val = !!(ECORE_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) ==
+	val = !!(GET_MFW_FIELD(flags, DCBX_CONFIG_VERSION) ==
 		 DCBX_CONFIG_VERSION_IEEE);
 	p_operational->ieee = val;
 
-	val = !!(ECORE_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) ==
+	val = !!(GET_MFW_FIELD(flags, DCBX_CONFIG_VERSION) ==
 		 DCBX_CONFIG_VERSION_CEE);
 	p_operational->cee = val;
 
-	val = !!(ECORE_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) ==
+	val = !!(GET_MFW_FIELD(flags, DCBX_CONFIG_VERSION) ==
 		 DCBX_CONFIG_VERSION_STATIC);
 	p_operational->local = val;
 
@@ -749,7 +737,7 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 				     p_operational->ieee);
 	ecore_dcbx_get_priority_info(p_hwfn, &p_operational->app_prio,
 				     p_results);
-	err = ECORE_MFW_GET_FIELD(p_feat->app.flags, DCBX_APP_ERROR);
+	err = GET_MFW_FIELD(p_feat->app.flags, DCBX_APP_ERROR);
 	p_operational->err = err;
 	p_operational->enabled = enabled;
 	p_operational->valid = true;
@@ -757,10 +745,8 @@ ecore_dcbx_get_operational_params(struct ecore_hwfn *p_hwfn,
 	return ECORE_SUCCESS;
 }
 
-static void
-ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
-			   struct ecore_ptt *p_ptt,
-			   struct ecore_dcbx_get *params)
+static void  ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
+					struct ecore_dcbx_get *params)
 {
 	struct ecore_dcbx_dscp_params *p_dscp;
 	struct dcb_dscp_map *p_dscp_map;
@@ -769,8 +755,8 @@ ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
 
 	p_dscp = &params->dscp;
 	p_dscp_map = &p_hwfn->p_dcbx_info->dscp_map;
-	p_dscp->enabled = ECORE_MFW_GET_FIELD(p_dscp_map->flags,
-					      DCB_DSCP_ENABLE);
+	p_dscp->enabled = GET_MFW_FIELD(p_dscp_map->flags, DCB_DSCP_ENABLE);
+
 	/* MFW encodes 64 dscp entries into 8 element array of u32 entries,
 	 * where each entry holds the 4bit priority map for 8 dscp entries.
 	 */
@@ -784,10 +770,8 @@ ecore_dcbx_get_dscp_params(struct ecore_hwfn *p_hwfn,
 	}
 }
 
-static void
-ecore_dcbx_get_local_lldp_params(struct ecore_hwfn *p_hwfn,
-				 struct ecore_ptt *p_ptt,
-				 struct ecore_dcbx_get *params)
+static void ecore_dcbx_get_local_lldp_params(struct ecore_hwfn *p_hwfn,
+					     struct ecore_dcbx_get *params)
 {
 	struct lldp_config_params_s *p_local;
 
@@ -800,10 +784,8 @@ ecore_dcbx_get_local_lldp_params(struct ecore_hwfn *p_hwfn,
 		    OSAL_ARRAY_SIZE(p_local->local_port_id));
 }
 
-static void
-ecore_dcbx_get_remote_lldp_params(struct ecore_hwfn *p_hwfn,
-				  struct ecore_ptt *p_ptt,
-				  struct ecore_dcbx_get *params)
+static void ecore_dcbx_get_remote_lldp_params(struct ecore_hwfn *p_hwfn,
+					      struct ecore_dcbx_get *params)
 {
 	struct lldp_status_params_s *p_remote;
 
@@ -817,34 +799,32 @@ ecore_dcbx_get_remote_lldp_params(struct ecore_hwfn *p_hwfn,
 }
 
 static enum _ecore_status_t
-ecore_dcbx_get_params(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
+ecore_dcbx_get_params(struct ecore_hwfn *p_hwfn,
 		      struct ecore_dcbx_get *p_params,
 		      enum ecore_mib_read_type type)
 {
-	enum _ecore_status_t rc = ECORE_SUCCESS;
-
 	switch (type) {
 	case ECORE_DCBX_REMOTE_MIB:
-		ecore_dcbx_get_remote_params(p_hwfn, p_ptt, p_params);
+		ecore_dcbx_get_remote_params(p_hwfn, p_params);
 		break;
 	case ECORE_DCBX_LOCAL_MIB:
-		ecore_dcbx_get_local_params(p_hwfn, p_ptt, p_params);
+		ecore_dcbx_get_local_params(p_hwfn, p_params);
 		break;
 	case ECORE_DCBX_OPERATIONAL_MIB:
-		ecore_dcbx_get_operational_params(p_hwfn, p_ptt, p_params);
+		ecore_dcbx_get_operational_params(p_hwfn, p_params);
 		break;
 	case ECORE_DCBX_REMOTE_LLDP_MIB:
-		ecore_dcbx_get_remote_lldp_params(p_hwfn, p_ptt, p_params);
+		ecore_dcbx_get_remote_lldp_params(p_hwfn, p_params);
 		break;
 	case ECORE_DCBX_LOCAL_LLDP_MIB:
-		ecore_dcbx_get_local_lldp_params(p_hwfn, p_ptt, p_params);
+		ecore_dcbx_get_local_lldp_params(p_hwfn, p_params);
 		break;
 	default:
 		DP_ERR(p_hwfn, "MIB read err, unknown mib type %d\n", type);
 		return ECORE_INVAL;
 	}
 
-	return rc;
+	return ECORE_SUCCESS;
 }
 
 static enum _ecore_status_t
@@ -993,25 +973,17 @@ ecore_dcbx_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		return rc;
 
 	if (type == ECORE_DCBX_OPERATIONAL_MIB) {
-		ecore_dcbx_get_dscp_params(p_hwfn, p_ptt,
-					   &p_hwfn->p_dcbx_info->get);
+		ecore_dcbx_get_dscp_params(p_hwfn, &p_hwfn->p_dcbx_info->get);
 
 		rc = ecore_dcbx_process_mib_info(p_hwfn);
 		if (!rc) {
-			bool enabled;
-
 			/* reconfigure tcs of QM queues according
 			 * to negotiation results
 			 */
 			ecore_qm_reconf(p_hwfn, p_ptt);
 
 			/* update storm FW with negotiation results */
-			ecore_sp_pf_update(p_hwfn);
-
-			/* set eagle enigne 1 flow control workaround
-			 * according to negotiation results
-			 */
-			enabled = p_hwfn->p_dcbx_info->results.dcbx_enabled;
+			ecore_sp_pf_update_dcbx(p_hwfn);
 
 #ifdef CONFIG_ECORE_ROCE
 			/* for roce PFs, we may want to enable/disable DPM
@@ -1023,7 +995,7 @@ ecore_dcbx_mib_update_event(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt,
 		}
 	}
 
-	ecore_dcbx_get_params(p_hwfn, p_ptt, &p_hwfn->p_dcbx_info->get, type);
+	ecore_dcbx_get_params(p_hwfn, &p_hwfn->p_dcbx_info->get, type);
 
 	if (type == ECORE_DCBX_OPERATIONAL_MIB) {
 		struct ecore_dcbx_results *p_data;
@@ -1153,7 +1125,7 @@ enum _ecore_status_t ecore_dcbx_query_params(struct ecore_hwfn *p_hwfn,
 	if (rc != ECORE_SUCCESS)
 		goto out;
 
-	rc = ecore_dcbx_get_params(p_hwfn, p_ptt, p_get, type);
+	rc = ecore_dcbx_get_params(p_hwfn, p_get, type);
 
 out:
 	ecore_ptt_release(p_hwfn, p_ptt);
@@ -1180,13 +1152,13 @@ ecore_dcbx_set_pfc_data(struct ecore_hwfn *p_hwfn,
 		*pfc &= ~DCBX_PFC_ENABLED_MASK;
 
 	*pfc &= ~DCBX_PFC_CAPS_MASK;
-	*pfc |= (u32)p_params->pfc.max_tc << DCBX_PFC_CAPS_SHIFT;
+	*pfc |= (u32)p_params->pfc.max_tc << DCBX_PFC_CAPS_OFFSET;
 
 	for (i = 0; i < ECORE_MAX_PFC_PRIORITIES; i++)
 		if (p_params->pfc.prio[i])
 			pfc_map |= (1 << i);
 	*pfc &= ~DCBX_PFC_PRI_EN_BITMAP_MASK;
-	*pfc |= (pfc_map << DCBX_PFC_PRI_EN_BITMAP_SHIFT);
+	*pfc |= (pfc_map << DCBX_PFC_PRI_EN_BITMAP_OFFSET);
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "pfc = 0x%x\n", *pfc);
 }
@@ -1216,7 +1188,7 @@ ecore_dcbx_set_ets_data(struct ecore_hwfn *p_hwfn,
 		p_ets->flags &= ~DCBX_ETS_ENABLED_MASK;
 
 	p_ets->flags &= ~DCBX_ETS_MAX_TCS_MASK;
-	p_ets->flags |= (u32)p_params->max_ets_tc << DCBX_ETS_MAX_TCS_SHIFT;
+	p_ets->flags |= (u32)p_params->max_ets_tc << DCBX_ETS_MAX_TCS_OFFSET;
 
 	bw_map = (u8 *)&p_ets->tc_bw_tbl[0];
 	tsa_map = (u8 *)&p_ets->tc_tsa_tbl[0];
@@ -1262,7 +1234,7 @@ ecore_dcbx_set_app_data(struct ecore_hwfn *p_hwfn,
 
 	p_app->flags &= ~DCBX_APP_NUM_ENTRIES_MASK;
 	p_app->flags |= (u32)p_params->num_app_entries <<
-					DCBX_APP_NUM_ENTRIES_SHIFT;
+			DCBX_APP_NUM_ENTRIES_OFFSET;
 
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
@@ -1272,44 +1244,44 @@ ecore_dcbx_set_app_data(struct ecore_hwfn *p_hwfn,
 			switch (p_params->app_entry[i].sf_ieee) {
 			case ECORE_DCBX_SF_IEEE_ETHTYPE:
 				*entry  |= ((u32)DCBX_APP_SF_IEEE_ETHTYPE <<
-					    DCBX_APP_SF_IEEE_SHIFT);
+					    DCBX_APP_SF_IEEE_OFFSET);
 				*entry  |= ((u32)DCBX_APP_SF_ETHTYPE <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 				break;
 			case ECORE_DCBX_SF_IEEE_TCP_PORT:
 				*entry  |= ((u32)DCBX_APP_SF_IEEE_TCP_PORT <<
-					    DCBX_APP_SF_IEEE_SHIFT);
+					    DCBX_APP_SF_IEEE_OFFSET);
 				*entry  |= ((u32)DCBX_APP_SF_PORT <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 				break;
 			case ECORE_DCBX_SF_IEEE_UDP_PORT:
 				*entry  |= ((u32)DCBX_APP_SF_IEEE_UDP_PORT <<
-					    DCBX_APP_SF_IEEE_SHIFT);
+					    DCBX_APP_SF_IEEE_OFFSET);
 				*entry  |= ((u32)DCBX_APP_SF_PORT <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 				break;
 			case ECORE_DCBX_SF_IEEE_TCP_UDP_PORT:
 				*entry  |= (u32)DCBX_APP_SF_IEEE_TCP_UDP_PORT <<
-					    DCBX_APP_SF_IEEE_SHIFT;
+					    DCBX_APP_SF_IEEE_OFFSET;
 				*entry  |= ((u32)DCBX_APP_SF_PORT <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 				break;
 			}
 		} else {
 			*entry &= ~DCBX_APP_SF_MASK;
 			if (p_params->app_entry[i].ethtype)
 				*entry  |= ((u32)DCBX_APP_SF_ETHTYPE <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 			else
 				*entry  |= ((u32)DCBX_APP_SF_PORT <<
-					    DCBX_APP_SF_SHIFT);
+					    DCBX_APP_SF_OFFSET);
 		}
 		*entry &= ~DCBX_APP_PROTOCOL_ID_MASK;
 		*entry |= ((u32)p_params->app_entry[i].proto_id <<
-				DCBX_APP_PROTOCOL_ID_SHIFT);
+			   DCBX_APP_PROTOCOL_ID_OFFSET);
 		*entry &= ~DCBX_APP_PRI_MAP_MASK;
 		*entry |= ((u32)(p_params->app_entry[i].prio) <<
-				DCBX_APP_PRI_MAP_SHIFT);
+			   DCBX_APP_PRI_MAP_OFFSET);
 	}
 
 	DP_VERBOSE(p_hwfn, ECORE_MSG_DCB, "flags = 0x%x\n", p_app->flags);
@@ -1422,12 +1394,10 @@ enum _ecore_status_t ecore_dcbx_config_params(struct ecore_hwfn *p_hwfn,
 	}
 
 	rc = ecore_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_DCBX,
-			   1 << DRV_MB_PARAM_LLDP_SEND_SHIFT, &resp, &param);
-	if (rc != ECORE_SUCCESS) {
+			   1 << DRV_MB_PARAM_LLDP_SEND_OFFSET, &resp, &param);
+	if (rc != ECORE_SUCCESS)
 		DP_NOTICE(p_hwfn, false,
 			  "Failed to send DCBX update request\n");
-		return rc;
-	}
 
 	return rc;
 }
