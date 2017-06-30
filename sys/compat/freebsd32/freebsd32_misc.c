@@ -119,7 +119,11 @@ CTASSERT(sizeof(struct statfs32) == 256);
 CTASSERT(sizeof(struct rusage32) == 72);
 #endif
 CTASSERT(sizeof(struct sigaltstack32) == 12);
+#ifdef __powerpc__
+CTASSERT(sizeof(struct kevent32) == 64);
+#else
 CTASSERT(sizeof(struct kevent32) == 56);
+#endif
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
 #ifdef __amd64__
