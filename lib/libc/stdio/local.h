@@ -148,11 +148,11 @@ void __stdio_cancel_cleanup(void *);
 		struct _pthread_cleanup_info __cleanup_info__;		\
 		if (__isthreaded) {					\
 			_FLOCKFILE(fp);					\
-			__pthread_cleanup_push_imp(			\
+			___pthread_cleanup_push_imp(			\
 			    __stdio_cancel_cleanup, (fp), 		\
 			    &__cleanup_info__);				\
 		} else {						\
-			__pthread_cleanup_push_imp(			\
+			___pthread_cleanup_push_imp(			\
 			    __stdio_cancel_cleanup, NULL, 		\
 			    &__cleanup_info__);				\
 		}							\
@@ -160,7 +160,7 @@ void __stdio_cancel_cleanup(void *);
 #define	FUNLOCKFILE_CANCELSAFE()					\
 			(void)0;					\
 		}							\
-		__pthread_cleanup_pop_imp(1);				\
+		___pthread_cleanup_pop_imp(1);				\
 	}
 
 #endif /* _STDIO_LOCAL_H */
