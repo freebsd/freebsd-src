@@ -1,8 +1,8 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 21e401ac..f977c5f5 100644
+index 21e401ac..c26f9f4a 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
-@@ -53,11 +53,21 @@
+@@ -53,11 +53,22 @@
      <para>This manual describes jemalloc @jemalloc_version@.  More information
      can be found at the <ulink
      url="http://jemalloc.net/">jemalloc website</ulink>.</para>
@@ -10,7 +10,8 @@ index 21e401ac..f977c5f5 100644
 +    <para>The following configuration options are enabled in libc's built-in
 +    jemalloc: <option>--enable-fill</option>,
 +    <option>--enable-lazy-lock</option>, <option>--enable-stats</option>,
-+    <option>--enable-utrace</option>, and <option>--enable-xmalloc</option>.
++    <option>--enable-utrace</option>, <option>--enable-xmalloc</option>, and
++    <option>--with-malloc-conf=abort_conf:false</option>.
 +    Additionally, <option>--enable-debug</option> is enabled in development
 +    versions of FreeBSD (controlled by the
 +    <constant>MALLOC_PRODUCTION</constant> make variable).</para>
@@ -25,7 +26,7 @@ index 21e401ac..f977c5f5 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -3252,4 +3262,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
+@@ -3252,4 +3263,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
      <para>The <function>posix_memalign()</function> function conforms
      to IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).</para>
    </refsect1>
