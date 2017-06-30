@@ -96,6 +96,7 @@ do_extract_helper() {
 
 do_autogen() {
   ./autogen.sh --enable-xmalloc --enable-utrace \
+    --with-malloc-conf=abort_conf:false \
     --with-xslroot=/usr/local/share/xsl/docbook --with-private-namespace=__ \
     --with-lg-page-sizes=12,13,14,16
 }
