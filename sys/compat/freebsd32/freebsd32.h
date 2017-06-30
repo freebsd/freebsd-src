@@ -141,8 +141,14 @@ struct kevent32 {
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
+#ifdef __powerpc__
+	uint32_t	pad0;
+#endif
 	int32_t		data1, data2;
 	uint32_t	udata;		/* opaque user data identifier */
+#ifdef __powerpc__
+	uint32_t	pad1;
+#endif
 	uint32_t	ext64[8];
 };
 
