@@ -448,7 +448,6 @@ atomic_thread_fence_acq(void)
 {
 
 	dmb(ld);
-
 }
 
 static __inline void
