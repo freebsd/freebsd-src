@@ -44,14 +44,14 @@ check()
 		if ! ldd ${SRCDIR}/${tc} > /dev/null 2>&1; then
 			atf_skip "Statically linked ${SRCDIR}/${tc} can't load encoders"
 		fi
-		LIBXO_OPTIONS="warn,encoder=test"
+		libxo_options=" warn,encoder=test"
 	else
-		LIBXO_OPTIONS=":W${xo_fmt}"
+		libxo_options=":W${xo_fmt}"
 	fi
 
 	atf_check -s exit:0 -e file:${err_file} -o file:${out_file} \
 	    env LC_ALL=en_US.UTF-8 \
-	        LIBXO_OPTIONS="${LIBXO_OPTIONS}" TZ="EST" "${SRCDIR}/${tc}" \
+	        TZ="EST" "${SRCDIR}/${tc}" --libxo${libxo_options}\
 
 }
 
