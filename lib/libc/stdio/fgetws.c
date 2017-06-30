@@ -116,7 +116,7 @@ ok:
 	ret = ws;
 end:
 	FUNLOCKFILE_CANCELSAFE();
-	return (ws);
+	return (ret);
 
 error:
 	ret = NULL;
