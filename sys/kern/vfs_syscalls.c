@@ -2106,7 +2106,7 @@ cvtstat(struct stat *st, struct ostat *ost)
 }
 #endif /* COMPAT_43 */
 
-#if defined(COMPAT_FREEBSD11)
+#if defined(COMPAT_43) || defined(COMPAT_FREEBSD11)
 int ino64_trunc_error;
 SYSCTL_INT(_vfs, OID_AUTO, ino64_trunc_error, CTLFLAG_RW,
     &ino64_trunc_error, 0,
