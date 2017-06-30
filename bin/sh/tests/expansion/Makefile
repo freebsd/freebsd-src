@@ -43,6 +43,7 @@ FILES+=		cmdsubst19.0
 FILES+=		cmdsubst20.0
 FILES+=		cmdsubst21.0
 FILES+=		cmdsubst22.0
+FILES+=		cmdsubst23.0
 FILES+=		export1.0
 FILES+=		export2.0
 FILES+=		export3.0
