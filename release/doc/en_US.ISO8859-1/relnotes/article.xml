@@ -795,12 +795,6 @@
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
 
-    <sect2 xml:id="storage-general">
-      <title>General Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="storage-net">
       <title>Networked Storage</title>
 
@@ -828,12 +822,6 @@
 	&man.loader.conf.5;, whereas
 	<literal>vfs.zfs.debug_flags</literal> could not.</para>
     </sect2>
-
-    <sect2 xml:id="storage-geom">
-      <title><literal>geom(4)</literal></title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="boot">
@@ -853,12 +841,6 @@
 	<acronym>EFI</acronym> loader has been updated to support
 	<acronym>TFTPFS</acronym>, providing netboot support without
 	requiring an <acronym>NFS</acronym> server.</para>
-    </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 
