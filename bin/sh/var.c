@@ -506,7 +506,7 @@ bltinunsetlocale(void)
 		if (localevar(lp->text)) {
 			setlocale(LC_ALL, "");
 			updatecharset();
-			return;
+			break;
 		}
 	}
 	INTON;
