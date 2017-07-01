@@ -55,7 +55,7 @@ usage(void)
 	exit (1);
 }
 
-static int opt_c, opt_i, opt_t, opt_v;
+static int opt_c, opt_i, opt_p, opt_s, opt_t, opt_v;
 
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
@@ -74,7 +74,7 @@ main(int argc, char **argv)
 	u_int	sectorsize, fwsectors, fwheads, zoned = 0;
 	uint32_t zone_mode;
 
-	while ((ch = getopt(argc, argv, "citv")) != -1) {
+	while ((ch = getopt(argc, argv, "cipstv")) != -1) {
 		switch (ch) {
 		case 'c':
 			opt_c = 1;
@@ -83,6 +83,12 @@ main(int argc, char **argv)
 		case 'i':
 			opt_i = 1;
 			opt_v = 1;
+			break;
+		case 'p':
+			opt_p = 1;
+			break;
+		case 's':
+			opt_s = 1;
 			break;
 		case 't':
 			opt_t = 1;
@@ -100,6 +106,11 @@ main(int argc, char **argv)
 
 	if (argc < 1)
 		usage();
+
+	if ((opt_p && opt_s) || ((opt_p || opt_s) && (opt_c || opt_i || opt_t || opt_v))) {
+		warnx("-p or -s cannot be used with other options");
+		usage();
+	}
 
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], O_RDONLY | O_DIRECT);
@@ -124,7 +135,27 @@ main(int argc, char **argv)
 			fwheads = 0;
 			stripesize = sb.st_blksize;
 			stripeoffset = 0;
+			if (opt_p || opt_s) {
+				warnx("-p and -s only operate on physical devices: %s", argv[i]);
+				goto out;
+			}
 		} else {
+			if (opt_p) {
+				if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0) {
+					printf("%s\n", physpath);
+				} else {
+					warnx("Failed to determine physpath for: %s", argv[i]);
+				}
+				goto out;
+			}
+			if (opt_s) {
+				if (ioctl(fd, DIOCGIDENT, ident) == 0) {
+					printf("%s\n", ident);
+				} else {
+					warnx("Failed to determine serial number for: %s", argv[i]);
+				}
+				goto out;
+			}
 			error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
 			if (error) {
 				warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
