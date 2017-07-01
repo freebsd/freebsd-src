@@ -100,6 +100,7 @@ FILES+=		local4.0
 .if ${MK_NLS} != "no"
 FILES+=		locale1.0
 .endif
+FILES+=		locale2.0
 FILES+=		printf1.0
 FILES+=		printf2.0
 FILES+=		printf3.0
