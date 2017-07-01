@@ -1,5 +1,9 @@
-// RUN: %clang_cc1 -O2 -fprofile-sample-use=%S/Inputs/pgo-sample-thinlto-summary.prof %s -emit-llvm -o - 2>&1 | FileCheck %s -check-prefix=O2
+// RUN: %clang_cc1 -O2 -fprofile-sample-use=%S/Inputs/pgo-sample-thinlto-summary.prof %s -emit-llvm -o - 2>&1 | FileCheck %s -check-prefix=SAMPLEPGO
 // RUN: %clang_cc1 -O2 -fprofile-sample-use=%S/Inputs/pgo-sample-thinlto-summary.prof %s -emit-llvm -flto=thin -o - 2>&1 | FileCheck %s -check-prefix=THINLTO
+// RUN: %clang_cc1 -O2 -fexperimental-new-pass-manager -fprofile-sample-use=%S/Inputs/pgo-sample-thinlto-summary.prof %s -emit-llvm -o - 2>&1 | FileCheck %s -check-prefix=SAMPLEPGO
+// FIXME: Run the following command once LTOPreLinkDefaultPipeline is
+//        customized.
+// %clang_cc1 -O2 -fexperimental-new-pass-manager -fprofile-sample-use=%S/Inputs/pgo-sample-thinlto-summary.prof %s -emit-llvm -flto=thin -o - 2>&1 | FileCheck %s -check-prefix=THINLTO
 // Checks if hot call is inlined by normal compile, but not inlined by
 // thinlto compile.
 
@@ -11,9 +15,9 @@ void foo(int n) {
     g += baz(i);
 }
 
-// O2-LABEL: define void @bar
+// SAMPLEPGO-LABEL: define void @bar
 // THINLTO-LABEL: define void @bar
-// O2-NOT: call{{.*}}foo
+// SAMPLEPGO-NOT: call{{.*}}foo
 // THINLTO: call{{.*}}foo
 void bar(int n) {
   for (int i = 0; i < n; i++)
@@ -21,10 +25,10 @@ void bar(int n) {
 }
 
 // Checks if loop unroll is invoked by normal compile, but not thinlto compile.
-// O2-LABEL: define void @unroll
+// SAMPLEPGO-LABEL: define void @unroll
 // THINLTO-LABEL: define void @unroll
-// O2: call{{.*}}baz
-// O2: call{{.*}}baz
+// SAMPLEPGO: call{{.*}}baz
+// SAMPLEPGO: call{{.*}}baz
 // THINLTO: call{{.*}}baz
 // THINLTO-NOT: call{{.*}}baz
 void unroll() {
@@ -32,11 +36,13 @@ void unroll() {
     baz(i);
 }
 
-// Check that icp is not invoked (both -O2 and ThinLTO).
-// O2-LABEL: define void @icp
+// Checks that icp is not invoked for ThinLTO, but invoked for normal samplepgo.
+// SAMPLEPGO-LABEL: define void @icp
 // THINLTO-LABEL: define void @icp
-// O2-NOT: if.true.direct_targ
-// ThinLTO-NOT: if.true.direct_targ
+// SAMPLEPGO: if.true.direct_targ
+// FIXME: the following condition needs to be reversed once
+//        LTOPreLinkDefaultPipeline is customized.
+// THINLTO-NOT: if.true.direct_targ
 void icp(void (*p)()) {
   p();
 }

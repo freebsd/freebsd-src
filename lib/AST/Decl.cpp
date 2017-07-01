@@ -1251,7 +1251,9 @@ static LinkageInfo computeLVForDecl(const NamedDecl *D,
 
     case Decl::EnumConstant:
       // C++ [basic.link]p4: an enumerator has the linkage of its enumeration.
-      return getLVForDecl(cast<EnumDecl>(D->getDeclContext()), computation);
+      if (D->getASTContext().getLangOpts().CPlusPlus)
+        return getLVForDecl(cast<EnumDecl>(D->getDeclContext()), computation);
+      return LinkageInfo::visible_none();
 
     case Decl::Typedef:
     case Decl::TypeAlias:
@@ -2630,7 +2632,7 @@ bool FunctionDecl::isReservedGlobalPlacementOperator() const {
   return (proto->getParamType(1).getCanonicalType() == Context.VoidPtrTy);
 }
 
-bool FunctionDecl::isReplaceableGlobalAllocationFunction() const {
+bool FunctionDecl::isReplaceableGlobalAllocationFunction(bool *IsAligned) const {
   if (getDeclName().getNameKind() != DeclarationName::CXXOperatorName)
     return false;
   if (getDeclName().getCXXOverloadedOperator() != OO_New &&
@@ -2676,8 +2678,11 @@ bool FunctionDecl::isReplaceableGlobalAllocationFunction() const {
 
   // In C++17, the next parameter can be a 'std::align_val_t' for aligned
   // new/delete.
-  if (Ctx.getLangOpts().AlignedAllocation && !Ty.isNull() && Ty->isAlignValT())
+  if (Ctx.getLangOpts().AlignedAllocation && !Ty.isNull() && Ty->isAlignValT()) {
+    if (IsAligned)
+      *IsAligned = true;
     Consume();
+  }
 
   // Finally, if this is not a sized delete, the final parameter can
   // be a 'const std::nothrow_t&'.

@@ -3294,13 +3294,15 @@ def warn_iboutletcollection_property_assign : Warning<
   "IBOutletCollection properties should be copy/strong and not assign">,
   InGroup<ObjCInvalidIBOutletProperty>;
   
-def err_attribute_overloadable_missing : Error<
-  "%select{overloaded function|redeclaration of}0 %1 must have the "
-  "'overloadable' attribute">;
+def err_attribute_overloadable_mismatch : Error<
+  "redeclaration of %0 must %select{not |}1have the 'overloadable' attribute">;
 def note_attribute_overloadable_prev_overload : Note<
-  "previous overload of function is here">;
+  "previous %select{unmarked |}0overload of function is here">;
 def err_attribute_overloadable_no_prototype : Error<
   "'overloadable' function %0 must have a prototype">;
+def err_attribute_overloadable_multiple_unmarked_overloads : Error<
+  "at most one overload for a given name may lack the 'overloadable' "
+  "attribute">;
 def warn_ns_attribute_wrong_return_type : Warning<
   "%0 attribute only applies to %select{functions|methods|properties}1 that "
   "return %select{an Objective-C object|a pointer|a non-retainable pointer}2">,
@@ -6405,6 +6407,12 @@ def warn_overaligned_type : Warning<
   "type %0 requires %1 bytes of alignment and the default allocator only "
   "guarantees %2 bytes">,
   InGroup<OveralignedType>, DefaultIgnore;
+def warn_aligned_allocation_unavailable :Warning<
+  "aligned %select{allocation|deallocation}0 function of type '%1' possibly "
+  "unavailable on %2">, InGroup<AlignedAllocationUnavailable>, DefaultError;
+def note_silence_unligned_allocation_unavailable : Note<
+  "if you supply your own aligned allocation functions, use "
+  "-Wno-aligned-allocation-unavailable to silence this diagnostic">;
 
 def err_conditional_void_nonvoid : Error<
   "%select{left|right}1 operand to ? is void, but %select{right|left}1 operand "
@@ -8402,7 +8410,7 @@ def warn_opencl_attr_deprecated_ignored : Warning <
 def err_opencl_variadic_function : Error<
   "invalid prototype, variadic arguments are not allowed in OpenCL">;
 def err_opencl_requires_extension : Error<
-  "use of %select{type |declaration}0%1 requires %2 extension to be enabled">;
+  "use of %select{type|declaration}0 %1 requires %2 extension to be enabled">;
 
 // OpenCL v2.0 s6.13.6 -- Builtin Pipe Functions
 def err_opencl_builtin_pipe_first_arg : Error<

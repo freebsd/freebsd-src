@@ -44,7 +44,6 @@
 
 using clang::format::FormatStyle;
 
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::string)
 LLVM_YAML_IS_SEQUENCE_VECTOR(clang::format::FormatStyle::IncludeCategory)
 
 namespace llvm {
@@ -414,7 +413,9 @@ template <> struct MappingTraits<FormatStyle::BraceWrappingFlags> {
     IO.mapOptional("BeforeCatch", Wrapping.BeforeCatch);
     IO.mapOptional("BeforeElse", Wrapping.BeforeElse);
     IO.mapOptional("IndentBraces", Wrapping.IndentBraces);
-    IO.mapOptional("SplitEmptyFunctionBody", Wrapping.SplitEmptyFunctionBody);
+    IO.mapOptional("SplitEmptyFunction", Wrapping.SplitEmptyFunction);
+    IO.mapOptional("SplitEmptyRecord", Wrapping.SplitEmptyRecord);
+    IO.mapOptional("SplitEmptyNamespace", Wrapping.SplitEmptyNamespace);
   }
 };
 
@@ -490,7 +491,8 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
     return Style;
   FormatStyle Expanded = Style;
   Expanded.BraceWrapping = {false, false, false, false, false, false,
-                            false, false, false, false, false, true};
+                            false, false, false, false, false, true,
+                            true,  true};
   switch (Style.BreakBeforeBraces) {
   case FormatStyle::BS_Linux:
     Expanded.BraceWrapping.AfterClass = true;
@@ -503,7 +505,8 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
     Expanded.BraceWrapping.AfterFunction = true;
     Expanded.BraceWrapping.AfterStruct = true;
     Expanded.BraceWrapping.AfterUnion = true;
-    Expanded.BraceWrapping.SplitEmptyFunctionBody = false;
+    Expanded.BraceWrapping.SplitEmptyFunction = false;
+    Expanded.BraceWrapping.SplitEmptyRecord = false;
     break;
   case FormatStyle::BS_Stroustrup:
     Expanded.BraceWrapping.AfterFunction = true;
@@ -523,7 +526,8 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
     break;
   case FormatStyle::BS_GNU:
     Expanded.BraceWrapping = {true, true, true, true, true, true,
-                              true, true, true, true, true, true};
+                              true, true, true, true, true, true,
+                              true, true};
     break;
   case FormatStyle::BS_WebKit:
     Expanded.BraceWrapping.AfterFunction = true;
@@ -560,7 +564,8 @@ FormatStyle getLLVMStyle() {
   LLVMStyle.BreakBeforeTernaryOperators = true;
   LLVMStyle.BreakBeforeBraces = FormatStyle::BS_Attach;
   LLVMStyle.BraceWrapping = {false, false, false, false, false, false,
-                             false, false, false, false, false, true};
+                             false, false, false, false, false, true,
+                             true,  true};
   LLVMStyle.BreakAfterJavaFieldAnnotations = false;
   LLVMStyle.BreakConstructorInitializers = FormatStyle::BCIS_BeforeColon;
   LLVMStyle.BreakBeforeInheritanceComma = false;
@@ -579,9 +584,9 @@ FormatStyle getLLVMStyle() {
   LLVMStyle.ForEachMacros.push_back("Q_FOREACH");
   LLVMStyle.ForEachMacros.push_back("BOOST_FOREACH");
   LLVMStyle.IncludeCategories = {{"^\"(llvm|llvm-c|clang|clang-c)/", 2},
-                                 {"^(<|\"(gtest|isl|json)/)", 3},
+                                 {"^(<|\"(gtest|gmock|isl|json)/)", 3},
                                  {".*", 1}};
-  LLVMStyle.IncludeIsMainRegex = "$";
+  LLVMStyle.IncludeIsMainRegex = "(Test)?$";
   LLVMStyle.IndentCaseLabels = false;
   LLVMStyle.IndentWrappedFunctionNames = false;
   LLVMStyle.IndentWidth = 2;
@@ -1409,7 +1414,7 @@ public:
       : Style(Style), FileName(FileName) {
     FileStem = llvm::sys::path::stem(FileName);
     for (const auto &Category : Style.IncludeCategories)
-      CategoryRegexs.emplace_back(Category.Regex);
+      CategoryRegexs.emplace_back(Category.Regex, llvm::Regex::IgnoreCase);
     IsMainFile = FileName.endswith(".c") || FileName.endswith(".cc") ||
                  FileName.endswith(".cpp") || FileName.endswith(".c++") ||
                  FileName.endswith(".cxx") || FileName.endswith(".m") ||
@@ -1437,9 +1442,11 @@ private:
       return false;
     StringRef HeaderStem =
         llvm::sys::path::stem(IncludeName.drop_front(1).drop_back(1));
-    if (FileStem.startswith(HeaderStem)) {
+    if (FileStem.startswith(HeaderStem) ||
+        FileStem.startswith_lower(HeaderStem)) {
       llvm::Regex MainIncludeRegex(
-          (HeaderStem + Style.IncludeIsMainRegex).str());
+          (HeaderStem + Style.IncludeIsMainRegex).str(),
+          llvm::Regex::IgnoreCase);
       if (MainIncludeRegex.match(FileStem))
         return true;
     }
