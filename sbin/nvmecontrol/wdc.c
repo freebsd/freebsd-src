@@ -105,7 +105,7 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 	int fd2;
 	uint8_t *buf;
 	uint32_t len, offset;
-	ssize_t resid;
+	size_t resid;
 
 	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
 
@@ -142,7 +142,7 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 				resid = len;
 			first = 0;
 		}
-		if (write(fd2, buf, resid) != resid)
+		if (write(fd2, buf, resid) != (ssize_t)resid)
 			err(1, "write");
 		offset += resid;
 		len -= resid;
