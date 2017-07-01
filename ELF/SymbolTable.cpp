@@ -195,14 +195,8 @@ template <class ELFT> void SymbolTable<ELFT>::applySymbolRenames() {
   for (auto &KV : Config->RenamedSymbols) {
     Symbol *Dst = KV.first;
     Symbol *Src = KV.second.Target;
+    Dst->body()->copy(Src->body());
     Dst->Binding = KV.second.OriginalBinding;
-
-    // We rename symbols by replacing the old symbol's SymbolBody with
-    // the new symbol's SymbolBody. The only attribute we want to keep
-    // is the symbol name, so that two symbols don't have the same name.
-    StringRef S = Dst->body()->getName();
-    memcpy(Dst->Body.buffer, Src->Body.buffer, sizeof(Symbol::Body));
-    Dst->body()->setName(S);
   }
 }
 
@@ -718,15 +712,31 @@ void SymbolTable<ELFT>::assignWildcardVersion(SymbolVersion Ver,
       B->symbol()->VersionId = VersionId;
 }
 
+static bool isDefaultVersion(SymbolBody *B) {
+  return B->isInCurrentDSO() && B->getName().find("@@") != StringRef::npos;
+}
+
 // This function processes version scripts by updating VersionId
 // member of symbols.
 template <class ELFT> void SymbolTable<ELFT>::scanVersionScript() {
   // Symbol themselves might know their versions because symbols
   // can contain versions in the form of <name>@<version>.
-  // Let them parse their names.
-  if (!Config->VersionDefinitions.empty())
-    for (Symbol *Sym : SymVector)
-      Sym->body()->parseSymbolVersion();
+  // Let them parse and update their names to exclude version suffix.
+  for (Symbol *Sym : SymVector) {
+    SymbolBody *Body = Sym->body();
+    bool IsDefault = isDefaultVersion(Body);
+    Body->parseSymbolVersion();
+
+    if (!IsDefault)
+      continue;
+
+    // <name>@@<version> means the symbol is the default version. If that's the
+    // case, the symbol is not used only to resolve <name> of version <version>
+    // but also undefined unversioned symbols with name <name>.
+    SymbolBody *S = find(Body->getName());
+    if (S && S->isUndefined())
+      S->copy(Body);
+  }
 
   // Handle edge cases first.
   handleAnonymousVersion();
