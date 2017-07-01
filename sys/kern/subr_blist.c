@@ -121,7 +121,8 @@ void panic(const char *ctl, ...);
  * static support functions
  */
 
-static daddr_t blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count);
+static daddr_t	blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count,
+		    daddr_t cursor);
 static daddr_t	blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count,
 		    daddr_t radix, daddr_t skip, daddr_t cursor);
 static void blst_leaf_free(blmeta_t *scan, daddr_t relblk, int count);
@@ -227,7 +228,8 @@ blist_alloc(blist_t bl, daddr_t count)
 	 */
 	while (count <= bl->bl_root->bm_bighint) {
 		if (bl->bl_radix == BLIST_BMAP_RADIX)
-			blk = blst_leaf_alloc(bl->bl_root, 0, count);
+			blk = blst_leaf_alloc(bl->bl_root, 0, count,
+			    bl->bl_cursor);
 		else
 			blk = blst_meta_alloc(bl->bl_root, 0, count,
 			    bl->bl_radix, bl->bl_skip, bl->bl_cursor);
@@ -352,77 +354,92 @@ blist_print(blist_t bl)
 /*
  * blist_leaf_alloc() -	allocate at a leaf in the radix tree (a bitmap).
  *
- *	This is the core of the allocator and is optimized for the 1 block
- *	and the BLIST_BMAP_RADIX block allocation cases.  Other cases are
- *	somewhat slower.  The 1 block allocation case is log2 and extremely
- *	quick.
+ *	This is the core of the allocator and is optimized for the
+ *	BLIST_BMAP_RADIX block allocation case.  Otherwise, execution
+ *	time is proportional to log2(count) + log2(BLIST_BMAP_RADIX).
  */
 
 static daddr_t
-blst_leaf_alloc(
-	blmeta_t *scan,
-	daddr_t blk,
-	int count
-) {
-	u_daddr_t orig = scan->u.bmu_bitmap;
+blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count, daddr_t cursor)
+{
+	u_daddr_t mask;
+	int count1, hi, lo, mid, num_shifts, range1, range_ext;
 
-	if (orig == 0) {
+	if (count == BLIST_BMAP_RADIX) {
 		/*
-		 * Optimize bitmap all-allocated case.  Also, count = 1
-		 * case assumes at least 1 bit is free in the bitmap, so
-		 * we have to take care of this case here.
+		 * Optimize allocation of BLIST_BMAP_RADIX bits.  If this wasn't
+		 * a special case, then forming the final value of 'mask' below
+		 * would require special handling to avoid an invalid left shift
+		 * when count equals the number of bits in mask.
 		 */
+		if (~scan->u.bmu_bitmap != 0) {
+			scan->bm_bighint = BLIST_BMAP_RADIX - 1;
+			return (SWAPBLK_NONE);
+		}
+		if (cursor != blk)
+			return (SWAPBLK_NONE);
+		scan->u.bmu_bitmap = 0;
 		scan->bm_bighint = 0;
-		return(SWAPBLK_NONE);
+		return (blk);
 	}
-	if (count == 1) {
+	range1 = 0;
+	count1 = count - 1;
+	num_shifts = fls(count1);
+	mask = scan->u.bmu_bitmap;
+	while (mask != 0 && num_shifts > 0) {
 		/*
-		 * Optimized code to allocate one bit out of the bitmap
+		 * If bit i is set in mask, then bits in [i, i+range1] are set
+		 * in scan->u.bmu_bitmap.  The value of range1 is equal to
+		 * count1 >> num_shifts.  Grow range and reduce num_shifts to 0,
+		 * while preserving these invariants.  The updates to mask leave
+		 * fewer bits set, but each bit that remains set represents a
+		 * longer string of consecutive bits set in scan->u.bmu_bitmap.
 		 */
-		u_daddr_t mask;
-		int j = BLIST_BMAP_RADIX/2;
-		int r = 0;
-
-		mask = (u_daddr_t)-1 >> (BLIST_BMAP_RADIX/2);
-
-		while (j) {
-			if ((orig & mask) == 0) {
-			    r += j;
-			    orig >>= j;
-			}
-			j >>= 1;
-			mask >>= j;
-		}
-		scan->u.bmu_bitmap &= ~((u_daddr_t)1 << r);
-		return(blk + r);
+		num_shifts--;
+		range_ext = range1 + ((count1 >> num_shifts) & 1);
+		mask &= mask >> range_ext;
+		range1 += range_ext;
 	}
-	if (count <= BLIST_BMAP_RADIX) {
+	if (mask == 0) {
 		/*
-		 * non-optimized code to allocate N bits out of the bitmap.
-		 * The more bits, the faster the code runs.  It will run
-		 * the slowest allocating 2 bits, but since there aren't any
-		 * memory ops in the core loop (or shouldn't be, anyway),
-		 * you probably won't notice the difference.
+		 * Update bighint.  There is no allocation bigger than range1
+		 * available in this leaf.
 		 */
-		int j;
-		int n = BLIST_BMAP_RADIX - count;
-		u_daddr_t mask;
-
-		mask = (u_daddr_t)-1 >> n;
-
-		for (j = 0; j <= n; ++j) {
-			if ((orig & mask) == mask) {
-				scan->u.bmu_bitmap &= ~mask;
-				return(blk + j);
-			}
-			mask = (mask << 1);
-		}
+		scan->bm_bighint = range1;
+		return (SWAPBLK_NONE);
 	}
+
 	/*
-	 * We couldn't allocate count in this subtree, update bighint.
+	 * Discard any candidates that appear before the cursor.
 	 */
-	scan->bm_bighint = count - 1;
-	return(SWAPBLK_NONE);
+	lo = cursor - blk;
+	mask &= ~(u_daddr_t)0 << lo;
+
+	if (mask == 0)
+		return (SWAPBLK_NONE);
+
+	/*
+	 * The least significant set bit in mask marks the start of the first
+	 * available range of sufficient size.  Clear all the bits but that one,
+	 * and then perform a binary search to find its position.
+	 */
+	mask &= -mask;
+	hi = BLIST_BMAP_RADIX - count1;
+	while (lo + 1 < hi) {
+		mid = (lo + hi) >> 1;
+		if ((mask >> mid) != 0)
+			lo = mid;
+		else
+			hi = mid;
+	}
+
+	/*
+	 * Set in mask exactly the bits being allocated, and clear them from
+	 * the set of available bits.
+	 */
+	mask = (mask << count) - mask;
+	scan->u.bmu_bitmap &= ~mask;
+	return (blk + lo);
 }
 
 /*
@@ -491,7 +508,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t blk, daddr_t count, daddr_t radix,
 			 * The allocation might fit in the i'th subtree.
 			 */
 			if (next_skip == 1) {
-				r = blst_leaf_alloc(&scan[i], blk, count);
+				r = blst_leaf_alloc(&scan[i], blk, count,
+				    cursor > blk ? cursor : blk);
 			} else {
 				r = blst_meta_alloc(&scan[i], blk, count,
 				    radix, next_skip - 1, cursor > blk ?
