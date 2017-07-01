@@ -35,6 +35,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/YAMLParser.h"
 
 #ifdef LLVM_ON_UNIX
@@ -127,6 +128,13 @@ forAllAssociatedToolChains(Compilation &C, const JobAction &JA,
   if (JA.isHostOffloading(Action::OFK_Cuda))
     Work(*C.getSingleOffloadToolChain<Action::OFK_Cuda>());
   else if (JA.isDeviceOffloading(Action::OFK_Cuda))
+    Work(*C.getSingleOffloadToolChain<Action::OFK_Host>());
+
+  if (JA.isHostOffloading(Action::OFK_OpenMP)) {
+    auto TCs = C.getOffloadToolChains<Action::OFK_OpenMP>();
+    for (auto II = TCs.first, IE = TCs.second; II != IE; ++II)
+      Work(*II->second);
+  } else if (JA.isDeviceOffloading(Action::OFK_OpenMP))
     Work(*C.getSingleOffloadToolChain<Action::OFK_Host>());
 
   //
@@ -781,15 +789,14 @@ static void addPGOAndCoverageFlags(Compilation &C, const Driver &D,
     CmdArgs.push_back("-femit-coverage-data");
 
   if (Args.hasFlag(options::OPT_fcoverage_mapping,
-                   options::OPT_fno_coverage_mapping, false) &&
-      !ProfileGenerateArg)
-    D.Diag(clang::diag::err_drv_argument_only_allowed_with)
-        << "-fcoverage-mapping"
-        << "-fprofile-instr-generate";
+                   options::OPT_fno_coverage_mapping, false)) {
+    if (!ProfileGenerateArg)
+      D.Diag(clang::diag::err_drv_argument_only_allowed_with)
+          << "-fcoverage-mapping"
+          << "-fprofile-instr-generate";
 
-  if (Args.hasFlag(options::OPT_fcoverage_mapping,
-                   options::OPT_fno_coverage_mapping, false))
     CmdArgs.push_back("-fcoverage-mapping");
+  }
 
   if (C.getArgs().hasArg(options::OPT_c) ||
       C.getArgs().hasArg(options::OPT_S)) {
@@ -1309,43 +1316,13 @@ void Clang::AddARMTargetArgs(const llvm::Triple &Triple, const ArgList &Args,
   // FIXME: Support -meabi.
   // FIXME: Parts of this are duplicated in the backend, unify this somehow.
   const char *ABIName = nullptr;
-  if (Arg *A = Args.getLastArg(options::OPT_mabi_EQ)) {
+  if (Arg *A = Args.getLastArg(options::OPT_mabi_EQ))
     ABIName = A->getValue();
-  } else if (Triple.isOSBinFormatMachO()) {
-    if (arm::useAAPCSForMachO(Triple)) {
-      ABIName = "aapcs";
-    } else if (Triple.isWatchABI()) {
-      ABIName = "aapcs16";
-    } else {
-      ABIName = "apcs-gnu";
-    }
-  } else if (Triple.isOSWindows()) {
-    // FIXME: this is invalid for WindowsCE
-    ABIName = "aapcs";
-  } else {
-    // Select the default based on the platform.
-    switch (Triple.getEnvironment()) {
-    case llvm::Triple::Android:
-    case llvm::Triple::GNUEABI:
-    case llvm::Triple::GNUEABIHF:
-    case llvm::Triple::MuslEABI:
-    case llvm::Triple::MuslEABIHF:
-      ABIName = "aapcs-linux";
-      break;
-    case llvm::Triple::EABIHF:
-    case llvm::Triple::EABI:
-      ABIName = "aapcs";
-      break;
-    default:
-      if (Triple.getOS() == llvm::Triple::NetBSD)
-        ABIName = "apcs-gnu";
-      else if (Triple.getOS() == llvm::Triple::OpenBSD)
-        ABIName = "aapcs-linux";
-      else
-        ABIName = "aapcs";
-      break;
-    }
+  else {
+    std::string CPU = getCPUName(Args, Triple, /*FromAs*/ false);
+    ABIName = llvm::ARM::computeDefaultTargetABI(Triple, CPU).data();
   }
+
   CmdArgs.push_back("-target-abi");
   CmdArgs.push_back(ABIName);
 
@@ -1989,6 +1966,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                              ->getTriple()
                              .normalize();
 
+    CmdArgs.push_back("-aux-triple");
+    CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
+  }
+
+  if (IsOpenMPDevice) {
+    // We have to pass the triple of the host if compiling for an OpenMP device.
+    std::string NormalizedTriple =
+        C.getSingleOffloadToolChain<Action::OFK_Host>()
+            ->getTriple()
+            .normalize();
     CmdArgs.push_back("-aux-triple");
     CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
   }
@@ -4056,6 +4043,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_diagnostics_show_hotness, false))
     CmdArgs.push_back("-fdiagnostics-show-hotness");
 
+  if (const Arg *A =
+          Args.getLastArg(options::OPT_fdiagnostics_hotness_threshold_EQ)) {
+    std::string Opt = std::string("-fdiagnostics-hotness-threshold=") + A->getValue();
+    CmdArgs.push_back(Args.MakeArgString(Opt));
+  }
+
   if (const Arg *A = Args.getLastArg(options::OPT_fdiagnostics_format_EQ)) {
     CmdArgs.push_back("-fdiagnostics-format");
     CmdArgs.push_back(A->getValue());
@@ -4139,11 +4132,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fslp_vectorize, SLPVectAliasOption,
                    options::OPT_fno_slp_vectorize, EnableSLPVec))
     CmdArgs.push_back("-vectorize-slp");
-
-  // -fno-slp-vectorize-aggressive is default.
-  if (Args.hasFlag(options::OPT_fslp_vectorize_aggressive,
-                   options::OPT_fno_slp_vectorize_aggressive, false))
-    CmdArgs.push_back("-vectorize-slp-aggressive");
 
   if (Arg *A = Args.getLastArg(options::OPT_fshow_overloads_EQ))
     A->render(Args, CmdArgs);
@@ -4413,10 +4401,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // device declarations can be identified. Also, -fopenmp-is-device is passed
   // along to tell the frontend that it is generating code for a device, so that
   // only the relevant declarations are emitted.
-  if (IsOpenMPDevice && Inputs.size() == 2) {
+  if (IsOpenMPDevice) {
     CmdArgs.push_back("-fopenmp-is-device");
-    CmdArgs.push_back("-fopenmp-host-ir-file-path");
-    CmdArgs.push_back(Args.MakeArgString(Inputs.back().getFilename()));
+    if (Inputs.size() == 2) {
+      CmdArgs.push_back("-fopenmp-host-ir-file-path");
+      CmdArgs.push_back(Args.MakeArgString(Inputs.back().getFilename()));
+    }
   }
 
   // For all the host OpenMP offloading compile jobs we need to pass the targets

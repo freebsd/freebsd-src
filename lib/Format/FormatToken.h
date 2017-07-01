@@ -465,7 +465,8 @@ struct FormatToken {
     return is(TT_ArrayInitializerLSquare) ||
            (is(tok::l_brace) &&
             (BlockKind == BK_Block || is(TT_DictLiteral) ||
-             (!Style.Cpp11BracedListStyle && NestingLevel == 0)));
+             (!Style.Cpp11BracedListStyle && NestingLevel == 0))) ||
+           (is(tok::less) && Style.Language == FormatStyle::LK_Proto);
   }
 
   /// \brief Same as opensBlockOrBlockTypeList, but for the closing token.
@@ -473,6 +474,19 @@ struct FormatToken {
     if (is(TT_TemplateString) && closesScope())
       return true;
     return MatchingParen && MatchingParen->opensBlockOrBlockTypeList(Style);
+  }
+
+  /// \brief Return the actual namespace token, if this token starts a namespace
+  /// block.
+  const FormatToken *getNamespaceToken() const {
+    const FormatToken *NamespaceTok = this;
+    if (is(tok::comment))
+      NamespaceTok = NamespaceTok->getNextNonComment();
+    // Detect "(inline)? namespace" in the beginning of a line.
+    if (NamespaceTok && NamespaceTok->is(tok::kw_inline))
+      NamespaceTok = NamespaceTok->getNextNonComment();
+    return NamespaceTok && NamespaceTok->is(tok::kw_namespace) ? NamespaceTok
+                                                               : nullptr;
   }
 
 private:
