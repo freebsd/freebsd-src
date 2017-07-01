@@ -3685,7 +3685,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	struct vmspace *vm;
 	struct ucred *cred;
 	vm_offset_t gap_end, gap_start, grow_start;
-	size_t grow_amount, max_grow;
+	size_t grow_amount, guard, max_grow;
 	rlim_t lmemlim, stacklim, vmemlim;
 	int rv, rv1;
 	bool gap_deleted, grow_down, is_procstack;
@@ -3701,6 +3701,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	MPASS(map == &p->p_vmspace->vm_map);
 	MPASS(!map->system_map);
 
+	guard = stack_guard_page * PAGE_SIZE;
 	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
 	stacklim = lim_cur(curthread, RLIMIT_STACK);
 	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
@@ -3727,8 +3728,10 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
-	max_grow = gap_entry->end - gap_entry->start - stack_guard_page *
-	    PAGE_SIZE;
+	max_grow = gap_entry->end - gap_entry->start;
+	if (guard > max_grow)
+		return (KERN_NO_SPACE);
+	max_grow -= guard;
 	if (grow_amount > max_grow)
 		return (KERN_NO_SPACE);
 
