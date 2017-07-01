@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 #ifndef _BNXT_H
 #define _BNXT_H
 
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <sys/bus_dma.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <machine/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>

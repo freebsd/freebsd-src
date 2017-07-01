@@ -67,6 +67,7 @@
 #define _ARM_BUS_DMA_H
 
 #include <sys/bus_dma.h>
+#include <sys/bus_dma_internal.h>
 
 /* Bus Space DMA macros */
 

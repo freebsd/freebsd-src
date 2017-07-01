@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Scott Long
+ * Copyright (c) 2017 Jason A. Harmening.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,34 @@
  * $FreeBSD$
  */
 
-#ifndef _AMD64_BUS_DMA_H_
-#define _AMD64_BUS_DMA_H_
+#ifndef _BUS_DMA_INTERNAL_H_
+#define _BUS_DMA_INTERNAL_H_
 
-#include <x86/bus_dma.h> 
+/*
+ * The following functions define the interface between the MD and MI
+ * busdma layers.  These are not intended for consumption by driver
+ * software.
+ */
 
-#endif /* _AMD64_BUS_DMA_H_ */
+bus_dma_segment_t	*_bus_dmamap_complete(bus_dma_tag_t dmat,
+			    bus_dmamap_t map, bus_dma_segment_t *segs,
+			    int nsegs, int error);
+
+int	_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    void *buf, bus_size_t buflen, struct pmap *pmap,
+	    int flags, bus_dma_segment_t *segs, int *segp);
+
+int	_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    struct vm_page **ma, bus_size_t tlen, int ma_offs,
+	    int flags, bus_dma_segment_t *segs, int *segp);
+
+int	_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    vm_paddr_t paddr, bus_size_t buflen,
+	    int flags, bus_dma_segment_t *segs, int *segp);
+
+void	_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    struct memdesc *mem, bus_dmamap_callback_t *callback,
+	    void *callback_arg);
+
+#endif /* !_BUS_DMA_INTERNAL_H_ */
+
