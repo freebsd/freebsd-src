@@ -173,6 +173,11 @@ static unsigned getAltOpcode(unsigned Op) {
   }
 }
 
+/// true if the \p Value is odd, false otherwise.
+static bool isOdd(unsigned Value) {
+  return Value & 1;
+}
+
 ///\returns bool representing if Opcode \p Op can be part
 /// of an alternate sequence which can later be merged as
 /// a ShuffleVector instruction.
@@ -190,7 +195,7 @@ static unsigned isAltInst(ArrayRef<Value *> VL) {
   unsigned AltOpcode = getAltOpcode(Opcode);
   for (int i = 1, e = VL.size(); i < e; i++) {
     Instruction *I = dyn_cast<Instruction>(VL[i]);
-    if (!I || I->getOpcode() != ((i & 1) ? AltOpcode : Opcode))
+    if (!I || I->getOpcode() != (isOdd(i) ? AltOpcode : Opcode))
       return 0;
   }
   return Instruction::ShuffleVector;
@@ -504,7 +509,7 @@ private:
     Last->NeedToGather = !Vectorized;
     if (Vectorized) {
       for (int i = 0, e = VL.size(); i != e; ++i) {
-        assert(!ScalarToTreeEntry.count(VL[i]) && "Scalar already in tree!");
+        assert(!getTreeEntry(VL[i]) && "Scalar already in tree!");
         ScalarToTreeEntry[VL[i]] = idx;
       }
     } else {
@@ -520,6 +525,20 @@ private:
   /// -- Vectorization State --
   /// Holds all of the tree entries.
   std::vector<TreeEntry> VectorizableTree;
+
+  TreeEntry *getTreeEntry(Value *V) {
+    auto I = ScalarToTreeEntry.find(V);
+    if (I != ScalarToTreeEntry.end())
+      return &VectorizableTree[I->second];
+    return nullptr;
+  }
+
+  const TreeEntry *getTreeEntry(Value *V) const {
+    auto I = ScalarToTreeEntry.find(V);
+    if (I != ScalarToTreeEntry.end())
+      return &VectorizableTree[I->second];
+    return nullptr;
+  }
 
   /// Maps a specific scalar to its tree entry.
   SmallDenseMap<Value*, int> ScalarToTreeEntry;
@@ -1048,13 +1067,13 @@ void BoUpSLP::buildTree(ArrayRef<Value *> Roots,
   for (TreeEntry &EIdx : VectorizableTree) {
     TreeEntry *Entry = &EIdx;
 
+    // No need to handle users of gathered values.
+    if (Entry->NeedToGather)
+      continue;
+
     // For each lane:
     for (int Lane = 0, LE = Entry->Scalars.size(); Lane != LE; ++Lane) {
       Value *Scalar = Entry->Scalars[Lane];
-
-      // No need to handle users of gathered values.
-      if (Entry->NeedToGather)
-        continue;
 
       // Check if the scalar is externally used as an extra arg.
       auto ExtI = ExternallyUsedValues.find(Scalar);
@@ -1072,9 +1091,7 @@ void BoUpSLP::buildTree(ArrayRef<Value *> Roots,
           continue;
 
         // Skip in-tree scalars that become vectors
-        if (ScalarToTreeEntry.count(U)) {
-          int Idx = ScalarToTreeEntry[U];
-          TreeEntry *UseEntry = &VectorizableTree[Idx];
+        if (TreeEntry *UseEntry = getTreeEntry(U)) {
           Value *UseScalar = UseEntry->Scalars[0];
           // Some in-tree scalars will remain as scalar in vectorized
           // instructions. If that is the case, the one in Lane 0 will
@@ -1083,7 +1100,7 @@ void BoUpSLP::buildTree(ArrayRef<Value *> Roots,
               !InTreeUserNeedToExtract(Scalar, UserInst, TLI)) {
             DEBUG(dbgs() << "SLP: \tInternal user will be removed:" << *U
                          << ".\n");
-            assert(!VectorizableTree[Idx].NeedToGather && "Bad state");
+            assert(!UseEntry->NeedToGather && "Bad state");
             continue;
           }
         }
@@ -1156,9 +1173,7 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth,
   }
 
   // Check if this is a duplicate of another entry.
-  if (ScalarToTreeEntry.count(VL[0])) {
-    int Idx = ScalarToTreeEntry[VL[0]];
-    TreeEntry *E = &VectorizableTree[Idx];
+  if (TreeEntry *E = getTreeEntry(VL[0])) {
     for (unsigned i = 0, e = VL.size(); i != e; ++i) {
       DEBUG(dbgs() << "SLP: \tChecking bundle: " << *VL[i] << ".\n");
       if (E->Scalars[i] != VL[i]) {
@@ -1997,7 +2012,7 @@ int BoUpSLP::getSpillCost() {
     // Update LiveValues.
     LiveValues.erase(PrevInst);
     for (auto &J : PrevInst->operands()) {
-      if (isa<Instruction>(&*J) && ScalarToTreeEntry.count(&*J))
+      if (isa<Instruction>(&*J) && getTreeEntry(&*J))
         LiveValues.insert(cast<Instruction>(&*J));
     }
 
@@ -2393,9 +2408,7 @@ Value *BoUpSLP::Gather(ArrayRef<Value *> VL, VectorType *Ty) {
       CSEBlocks.insert(Insrt->getParent());
 
       // Add to our 'need-to-extract' list.
-      if (ScalarToTreeEntry.count(VL[i])) {
-        int Idx = ScalarToTreeEntry[VL[i]];
-        TreeEntry *E = &VectorizableTree[Idx];
+      if (TreeEntry *E = getTreeEntry(VL[i])) {
         // Find which lane we need to extract.
         int FoundLane = -1;
         for (unsigned Lane = 0, LE = VL.size(); Lane != LE; ++Lane) {
@@ -2415,11 +2428,7 @@ Value *BoUpSLP::Gather(ArrayRef<Value *> VL, VectorType *Ty) {
 }
 
 Value *BoUpSLP::alreadyVectorized(ArrayRef<Value *> VL) const {
-  SmallDenseMap<Value*, int>::const_iterator Entry
-    = ScalarToTreeEntry.find(VL[0]);
-  if (Entry != ScalarToTreeEntry.end()) {
-    int Idx = Entry->second;
-    const TreeEntry *En = &VectorizableTree[Idx];
+  if (const TreeEntry *En = getTreeEntry(VL[0])) {
     if (En->isSame(VL) && En->VectorizedValue)
       return En->VectorizedValue;
   }
@@ -2427,12 +2436,9 @@ Value *BoUpSLP::alreadyVectorized(ArrayRef<Value *> VL) const {
 }
 
 Value *BoUpSLP::vectorizeTree(ArrayRef<Value *> VL) {
-  if (ScalarToTreeEntry.count(VL[0])) {
-    int Idx = ScalarToTreeEntry[VL[0]];
-    TreeEntry *E = &VectorizableTree[Idx];
+  if (TreeEntry *E = getTreeEntry(VL[0]))
     if (E->isSame(VL))
       return vectorizeTree(E);
-  }
 
   Type *ScalarTy = VL[0]->getType();
   if (StoreInst *SI = dyn_cast<StoreInst>(VL[0]))
@@ -2667,9 +2673,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       // The pointer operand uses an in-tree scalar so we add the new BitCast to
       // ExternalUses list to make sure that an extract will be generated in the
       // future.
-      if (ScalarToTreeEntry.count(LI->getPointerOperand()))
-        ExternalUses.push_back(
-            ExternalUser(LI->getPointerOperand(), cast<User>(VecPtr), 0));
+      Value *PO = LI->getPointerOperand();
+      if (getTreeEntry(PO))
+        ExternalUses.push_back(ExternalUser(PO, cast<User>(VecPtr), 0));
 
       unsigned Alignment = LI->getAlignment();
       LI = Builder.CreateLoad(VecPtr);
@@ -2700,9 +2706,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       // The pointer operand uses an in-tree scalar so we add the new BitCast to
       // ExternalUses list to make sure that an extract will be generated in the
       // future.
-      if (ScalarToTreeEntry.count(SI->getPointerOperand()))
-        ExternalUses.push_back(
-            ExternalUser(SI->getPointerOperand(), cast<User>(VecPtr), 0));
+      Value *PO = SI->getPointerOperand();
+      if (getTreeEntry(PO))
+        ExternalUses.push_back(ExternalUser(PO, cast<User>(VecPtr), 0));
 
       if (!Alignment) {
         Alignment = DL->getABITypeAlignment(SI->getValueOperand()->getType());
@@ -2783,7 +2789,7 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       // The scalar argument uses an in-tree scalar so we add the new vectorized
       // call to ExternalUses list to make sure that an extract will be
       // generated in the future.
-      if (ScalarArg && ScalarToTreeEntry.count(ScalarArg))
+      if (ScalarArg && getTreeEntry(ScalarArg))
         ExternalUses.push_back(ExternalUser(ScalarArg, cast<User>(V), 0));
 
       E->VectorizedValue = V;
@@ -2819,7 +2825,7 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       unsigned e = E->Scalars.size();
       SmallVector<Constant *, 8> Mask(e);
       for (unsigned i = 0; i < e; ++i) {
-        if (i & 1) {
+        if (isOdd(i)) {
           Mask[i] = Builder.getInt32(e + i);
           OddScalars.push_back(E->Scalars[i]);
         } else {
@@ -2897,10 +2903,8 @@ BoUpSLP::vectorizeTree(ExtraValueToDebugLocsMap &ExternallyUsedValues) {
     // has multiple uses of the same value.
     if (User && !is_contained(Scalar->users(), User))
       continue;
-    assert(ScalarToTreeEntry.count(Scalar) && "Invalid scalar");
-
-    int Idx = ScalarToTreeEntry[Scalar];
-    TreeEntry *E = &VectorizableTree[Idx];
+    TreeEntry *E = getTreeEntry(Scalar);
+    assert(E && "Invalid scalar");
     assert(!E->NeedToGather && "Extracting from a gather list");
 
     Value *Vec = E->VectorizedValue;
@@ -2986,7 +2990,7 @@ BoUpSLP::vectorizeTree(ExtraValueToDebugLocsMap &ExternallyUsedValues) {
         for (User *U : Scalar->users()) {
           DEBUG(dbgs() << "SLP: \tvalidating user:" << *U << ".\n");
 
-          assert((ScalarToTreeEntry.count(U) ||
+          assert((getTreeEntry(U) ||
                   // It is legal to replace users in the ignorelist by undef.
                   is_contained(UserIgnoreList, U)) &&
                  "Replacing out-of-tree value with undef");
@@ -3449,7 +3453,7 @@ void BoUpSLP::scheduleBlock(BlockScheduling *BS) {
        I = I->getNextNode()) {
     ScheduleData *SD = BS->getScheduleData(I);
     assert(
-        SD->isPartOfBundle() == (ScalarToTreeEntry.count(SD->Inst) != 0) &&
+        SD->isPartOfBundle() == (getTreeEntry(SD->Inst) != nullptr) &&
         "scheduler and vectorizer have different opinion on what is a bundle");
     SD->FirstInBundle->SchedulingPriority = Idx++;
     if (SD->isSchedulingEntity()) {

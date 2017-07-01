@@ -180,17 +180,17 @@ struct BlockScalarTraits {
 /// to/from a YAML sequence.  For example:
 ///
 ///    template<>
-///    struct SequenceTraits< std::vector<MyType>> {
-///      static size_t size(IO &io, std::vector<MyType> &seq) {
+///    struct SequenceTraits<MyContainer> {
+///      static size_t size(IO &io, MyContainer &seq) {
 ///        return seq.size();
 ///      }
-///      static MyType& element(IO &, std::vector<MyType> &seq, size_t index) {
+///      static MyType& element(IO &, MyContainer &seq, size_t index) {
 ///        if ( index >= seq.size() )
 ///          seq.resize(index+1);
 ///        return seq[index];
 ///      }
 ///    };
-template<typename T>
+template<typename T, typename EnableIf = void>
 struct SequenceTraits {
   // Must provide:
   // static size_t size(IO &io, T &seq);
@@ -199,6 +199,14 @@ struct SequenceTraits {
   // The following is option and will cause generated YAML to use
   // a flow sequence (e.g. [a,b,c]).
   // static const bool flow = true;
+};
+
+/// This class should be specialized by any type for which vectors of that
+/// type need to be converted to/from a YAML sequence.
+template<typename T, typename EnableIf = void>
+struct SequenceElementTraits {
+  // Must provide:
+  // static const bool flow;
 };
 
 /// This class should be specialized by any type that needs to be converted
@@ -1148,7 +1156,7 @@ private:
     HNode(Node *n) : _node(n) { }
     virtual ~HNode() = default;
 
-    static inline bool classof(const HNode *) { return true; }
+    static bool classof(const HNode *) { return true; }
 
     Node *_node;
   };
@@ -1159,11 +1167,9 @@ private:
   public:
     EmptyHNode(Node *n) : HNode(n) { }
 
-    static inline bool classof(const HNode *n) {
-      return NullNode::classof(n->_node);
-    }
+    static bool classof(const HNode *n) { return NullNode::classof(n->_node); }
 
-    static inline bool classof(const EmptyHNode *) { return true; }
+    static bool classof(const EmptyHNode *) { return true; }
   };
 
   class ScalarHNode : public HNode {
@@ -1174,12 +1180,12 @@ private:
 
     StringRef value() const { return _value; }
 
-    static inline bool classof(const HNode *n) {
+    static bool classof(const HNode *n) {
       return ScalarNode::classof(n->_node) ||
              BlockScalarNode::classof(n->_node);
     }
 
-    static inline bool classof(const ScalarHNode *) { return true; }
+    static bool classof(const ScalarHNode *) { return true; }
 
   protected:
     StringRef _value;
@@ -1191,11 +1197,11 @@ private:
   public:
     MapHNode(Node *n) : HNode(n) { }
 
-    static inline bool classof(const HNode *n) {
+    static bool classof(const HNode *n) {
       return MappingNode::classof(n->_node);
     }
 
-    static inline bool classof(const MapHNode *) { return true; }
+    static bool classof(const MapHNode *) { return true; }
 
     using NameToNode = StringMap<std::unique_ptr<HNode>>;
 
@@ -1209,11 +1215,11 @@ private:
   public:
     SequenceHNode(Node *n) : HNode(n) { }
 
-    static inline bool classof(const HNode *n) {
+    static bool classof(const HNode *n) {
       return SequenceNode::classof(n->_node);
     }
 
-    static inline bool classof(const SequenceHNode *) { return true; }
+    static bool classof(const SequenceHNode *) { return true; }
 
     std::vector<std::unique_ptr<HNode>> Entries;
   };
@@ -1544,16 +1550,57 @@ operator<<(Output &yout, T &seq) {
   return yout;
 }
 
-template <typename T> struct SequenceTraitsImpl {
-  using _type = typename T::value_type;
+template <bool B> struct IsFlowSequenceBase {};
+template <> struct IsFlowSequenceBase<true> { static const bool flow = true; };
 
+template <typename T, bool Flow>
+struct SequenceTraitsImpl : IsFlowSequenceBase<Flow> {
+private:
+  using type = typename T::value_type;
+
+public:
   static size_t size(IO &io, T &seq) { return seq.size(); }
 
-  static _type &element(IO &io, T &seq, size_t index) {
+  static type &element(IO &io, T &seq, size_t index) {
     if (index >= seq.size())
       seq.resize(index + 1);
     return seq[index];
   }
+};
+
+// Simple helper to check an expression can be used as a bool-valued template
+// argument.
+template <bool> struct CheckIsBool { static const bool value = true; };
+
+// If T has SequenceElementTraits, then vector<T> and SmallVector<T, N> have
+// SequenceTraits that do the obvious thing.
+template <typename T>
+struct SequenceTraits<std::vector<T>,
+                      typename std::enable_if<CheckIsBool<
+                          SequenceElementTraits<T>::flow>::value>::type>
+    : SequenceTraitsImpl<std::vector<T>, SequenceElementTraits<T>::flow> {};
+template <typename T, unsigned N>
+struct SequenceTraits<SmallVector<T, N>,
+                      typename std::enable_if<CheckIsBool<
+                          SequenceElementTraits<T>::flow>::value>::type>
+    : SequenceTraitsImpl<SmallVector<T, N>, SequenceElementTraits<T>::flow> {};
+
+// Sequences of fundamental types use flow formatting.
+template <typename T>
+struct SequenceElementTraits<
+    T, typename std::enable_if<std::is_fundamental<T>::value>::type> {
+  static const bool flow = true;
+};
+
+// Sequences of strings use block formatting.
+template<> struct SequenceElementTraits<std::string> {
+  static const bool flow = false;
+};
+template<> struct SequenceElementTraits<StringRef> {
+  static const bool flow = false;
+};
+template<> struct SequenceElementTraits<std::pair<std::string, std::string>> {
+  static const bool flow = false;
 };
 
 /// Implementation of CustomMappingTraits for std::map<std::string, T>.
@@ -1573,42 +1620,29 @@ template <typename T> struct StdMapStringCustomMappingTraitsImpl {
 } // end namespace yaml
 } // end namespace llvm
 
-/// Utility for declaring that a std::vector of a particular type
-/// should be considered a YAML sequence.
-#define LLVM_YAML_IS_SEQUENCE_VECTOR(_type)                                    \
+#define LLVM_YAML_IS_SEQUENCE_VECTOR_IMPL(TYPE, FLOW)                          \
   namespace llvm {                                                             \
   namespace yaml {                                                             \
-  template <>                                                                  \
-  struct SequenceTraits<std::vector<_type>>                                    \
-      : public SequenceTraitsImpl<std::vector<_type>> {};                      \
-  template <unsigned N>                                                        \
-  struct SequenceTraits<SmallVector<_type, N>>                                 \
-      : public SequenceTraitsImpl<SmallVector<_type, N>> {};                   \
+  static_assert(                                                               \
+      !std::is_fundamental<TYPE>::value &&                                     \
+      !std::is_same<TYPE, std::string>::value &&                               \
+      !std::is_same<TYPE, llvm::StringRef>::value,                             \
+      "only use LLVM_YAML_IS_SEQUENCE_VECTOR for types you control");          \
+  template <> struct SequenceElementTraits<TYPE> {                             \
+    static const bool flow = FLOW;                                             \
+  };                                                                           \
   }                                                                            \
   }
 
 /// Utility for declaring that a std::vector of a particular type
+/// should be considered a YAML sequence.
+#define LLVM_YAML_IS_SEQUENCE_VECTOR(type)                                     \
+  LLVM_YAML_IS_SEQUENCE_VECTOR_IMPL(type, false)
+
+/// Utility for declaring that a std::vector of a particular type
 /// should be considered a YAML flow sequence.
-/// We need to do a partial specialization on the vector version, not a full.
-/// If this is a full specialization, the compiler is a bit too "smart" and
-/// decides to warn on -Wunused-const-variable.  This workaround can be
-/// removed and we can do a full specialization on std::vector<T> once
-/// PR28878 is fixed.
-#define LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(_type)                               \
-  namespace llvm {                                                             \
-  namespace yaml {                                                             \
-  template <unsigned N>                                                        \
-  struct SequenceTraits<SmallVector<_type, N>>                                 \
-      : public SequenceTraitsImpl<SmallVector<_type, N>> {                     \
-    static const bool flow = true;                                             \
-  };                                                                           \
-  template <typename Allocator>                                                \
-  struct SequenceTraits<std::vector<_type, Allocator>>                         \
-      : public SequenceTraitsImpl<std::vector<_type, Allocator>> {             \
-    static const bool flow = true;                                             \
-  };                                                                           \
-  }                                                                            \
-  }
+#define LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(type)                                \
+  LLVM_YAML_IS_SEQUENCE_VECTOR_IMPL(type, true)
 
 #define LLVM_YAML_DECLARE_MAPPING_TRAITS(Type)                                 \
   namespace llvm {                                                             \
@@ -1655,10 +1689,10 @@ template <typename T> struct StdMapStringCustomMappingTraitsImpl {
   namespace yaml {                                                             \
   template <unsigned N>                                                        \
   struct DocumentListTraits<SmallVector<_type, N>>                             \
-      : public SequenceTraitsImpl<SmallVector<_type, N>> {};                   \
+      : public SequenceTraitsImpl<SmallVector<_type, N>, false> {};            \
   template <>                                                                  \
   struct DocumentListTraits<std::vector<_type>>                                \
-      : public SequenceTraitsImpl<std::vector<_type>> {};                      \
+      : public SequenceTraitsImpl<std::vector<_type>, false> {};               \
   }                                                                            \
   }
 
