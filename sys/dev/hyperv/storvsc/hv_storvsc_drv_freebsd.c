@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sglist.h>
 #include <sys/eventhandler.h>
 #include <machine/bus.h>
-#include <sys/bus_dma.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

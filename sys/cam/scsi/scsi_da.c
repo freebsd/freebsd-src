@@ -5804,6 +5804,7 @@ scsi_zbc_in(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_cmd = (struct scsi_zbc_in *)&csio->cdb_io.cdb_bytes;
 	scsi_cmd->opcode = ZBC_IN;
 	scsi_cmd->service_action = service_action;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 	scsi_u64to8b(zone_start_lba, scsi_cmd->zone_start_lba);
 	scsi_cmd->zone_options = zone_options;
 

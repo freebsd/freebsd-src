@@ -449,3 +449,6 @@ ath_hal_modevent(module_t mod __unused, int type, void *data __unused)
 
 DEV_MODULE(ath_hal, ath_hal_modevent, NULL);
 MODULE_VERSION(ath_hal, 1);
+#if	defined(AH_DEBUG_ALQ)
+MODULE_DEPEND(ath_hal, alq, 1, 1, 1);
+#endif

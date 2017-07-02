@@ -743,7 +743,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * The name space ID is the lun, save it for later I/O
 	 */
-	softc->nsid = (uint16_t)xpt_path_lun_id(periph->path);
+	softc->nsid = (uint32_t)xpt_path_lun_id(periph->path);
 
 	/*
 	 * Register this media as a disk

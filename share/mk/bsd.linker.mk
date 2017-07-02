@@ -47,9 +47,9 @@ ${var}=	${${var}.${${X_}_ld_hash}}
 
 .if ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 .if !defined(${X_}LINKER_TYPE) || !defined(${X_}LINKER_VERSION)
-_ld_version!=	${${ld}} --version 2>/dev/null | head -n 1 || echo none
+_ld_version!=	(${${ld}} --version || echo none) | head -n 1
 .if ${_ld_version} == "none"
-.error Unable to determine linker type from ${ld}=${${ld}}
+.warning Unable to determine linker type from ${ld}=${${ld}}
 .endif
 .if ${_ld_version:[1..2]} == "GNU ld"
 ${X_}LINKER_TYPE=	bfd
@@ -58,7 +58,9 @@ _v=	${_ld_version:M[1-9].[0-9]*:[1]}
 ${X_}LINKER_TYPE=	lld
 _v=	${_ld_version:[2]}
 .else
-.error Unknown linker from ${ld}=${${ld}}: ${_ld_version}
+.warning Unknown linker from ${ld}=${${ld}}: ${_ld_version}, defaulting to bfd
+${X_}LINKER_TYPE=	bfd
+_v=	2.17.50
 .endif
 ${X_}LINKER_VERSION!=	echo "${_v:M[1-9].[0-9]*}" | \
 			  awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'

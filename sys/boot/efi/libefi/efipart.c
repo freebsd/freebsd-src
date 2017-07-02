@@ -888,6 +888,7 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	char *blkbuf;
 	size_t blkoff, blksz;
 	int error;
+	size_t diskend, readstart;
 
 	if (dev == NULL || blk < 0)
 		return (EINVAL);
@@ -925,7 +926,15 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 
 	/* make sure we don't read past disk end */
 	if ((off + size) / blkio->Media->BlockSize > d_offset + disk_blocks) {
-		size = d_offset + disk_blocks - off / blkio->Media->BlockSize;
+		diskend = d_offset + disk_blocks;
+		readstart = off / blkio->Media->BlockSize;
+
+		if (diskend <= readstart) {
+			*rsize = 0;
+
+			return (EIO);
+		}
+		size = diskend - readstart;
 		size = size * blkio->Media->BlockSize;
 	}
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/open/16.t 219621 2011-03-13 19:35:13Z pjd $
 
 dir=`dirname $0`

@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <cam/scsi/scsi_enc.h>
+#include <libxo/xo.h>
 
 #include "eltsub.h"
 

@@ -1602,15 +1602,8 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		return (0);
 	}
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
-	    (int)fs->fs_cgsize, NOCRED, &bp);
-	if (error)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0)
 		goto fail;
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp))
-		goto fail;
-	bp->b_xflags |= BX_BKGRDWRITE;
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	bno = dtogd(fs, bprev);
 	blksfree = cg_blksfree(cgp);
 	for (i = numfrags(fs, osize); i < frags; i++)
@@ -1680,16 +1673,9 @@ ffs_alloccg(ip, cg, bpref, size, rsize)
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
-	    (int)fs->fs_cgsize, NOCRED, &bp);
-	if (error)
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0 ||
+	   (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize))
 		goto fail;
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp) ||
-	    (cgp->cg_cs.cs_nbfree == 0 && size == fs->fs_bsize))
-		goto fail;
-	bp->b_xflags |= BX_BKGRDWRITE;
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	if (size == fs->fs_bsize) {
 		UFS_LOCK(ump);
 		blkno = ffs_alloccgblk(ip, bp, bpref, rsize);
@@ -1857,7 +1843,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	struct cg *cgp;
 	struct buf *bp;
 	struct ufsmount *ump;
-	int i, run, bit, map, got;
+	int i, run, bit, map, got, error;
 	ufs2_daddr_t bno;
 	u_char *mapp;
 	int32_t *lp;
@@ -1868,13 +1854,10 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	if (fs->fs_maxcluster[cg] < len)
 		return (0);
 	UFS_UNLOCK(ump);
-	if (bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
-	    NOCRED, &bp))
-		goto fail_lock;
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp))
-		goto fail_lock;
-	bp->b_xflags |= BX_BKGRDWRITE;
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0) {
+		UFS_LOCK(ump);
+		return (0);
+	}
 	/*
 	 * Check to see if a cluster of the needed size (or bigger) is
 	 * available in this cylinder group.
@@ -1897,7 +1880,8 @@ ffs_clusteralloc(ip, cg, bpref, len)
 				break;
 		UFS_LOCK(ump);
 		fs->fs_maxcluster[cg] = i;
-		goto fail;
+		brelse(bp);
+		return (0);
 	}
 	/*
 	 * Search the cluster map to find a big enough cluster.
@@ -1933,8 +1917,11 @@ ffs_clusteralloc(ip, cg, bpref, len)
 			bit = 1;
 		}
 	}
-	if (got >= cgp->cg_nclusterblks)
-		goto fail_lock;
+	if (got >= cgp->cg_nclusterblks) {
+		UFS_LOCK(ump);
+		brelse(bp);
+		return (0);
+	}
 	/*
 	 * Allocate the cluster that we have found.
 	 */
@@ -1954,12 +1941,6 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	UFS_UNLOCK(ump);
 	bdwrite(bp);
 	return (bno);
-
-fail_lock:
-	UFS_LOCK(ump);
-fail:
-	brelse(bp);
-	return (0);
 }
 
 static inline struct buf *
@@ -2005,21 +1986,16 @@ check_nifree:
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
 		return (0);
 	UFS_UNLOCK(ump);
-	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		(int)fs->fs_cgsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp)) != 0) {
 		UFS_LOCK(ump);
 		return (0);
 	}
-	cgp = (struct cg *)bp->b_data;
 restart:
-	if (!cg_chkmagic(cgp) || cgp->cg_cs.cs_nifree == 0) {
+	if (cgp->cg_cs.cs_nifree == 0) {
 		brelse(bp);
 		UFS_LOCK(ump);
 		return (0);
 	}
-	bp->b_xflags |= BX_BKGRDWRITE;
 	inosused = cg_inosused(cgp);
 	if (ipref) {
 		ipref %= fs->fs_ipg;
@@ -2103,21 +2079,16 @@ gotit:
 		 * to it, then leave it unchanged as the other thread
 		 * has already set it correctly.
 		 */
-		error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
-		    (int)fs->fs_cgsize, NOCRED, &bp);
+		error = ffs_getcg(fs, ump->um_devvp, cg, &bp, &cgp);
 		UFS_LOCK(ump);
 		ACTIVECLEAR(fs, cg);
 		UFS_UNLOCK(ump);
-		if (error != 0) {
-			brelse(bp);
+		if (error != 0)
 			return (error);
-		}
-		cgp = (struct cg *)bp->b_data;
 		if (cgp->cg_initediblk == old_initediblk)
 			cgp->cg_initediblk += INOPB(fs);
 		goto restart;
 	}
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	cgp->cg_irotor = ipref;
 	UFS_LOCK(ump);
 	ACTIVECLEAR(fs, cg);
@@ -2160,7 +2131,7 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	struct buf *bp;
 	ufs1_daddr_t fragno, cgbno;
 	ufs2_daddr_t cgblkno;
-	int i, blk, frags, bbase;
+	int i, blk, frags, bbase, error;
 	u_int cg;
 	u_int8_t *blksfree;
 	struct cdev *dev;
@@ -2193,17 +2164,8 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		ffs_fserr(fs, inum, "bad block");
 		return;
 	}
-	if (bread(devvp, cgblkno, (int)fs->fs_cgsize, NOCRED, &bp)) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
 		return;
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return;
-	}
-	bp->b_xflags |= BX_BKGRDWRITE;
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	cgbno = dtogd(fs, bno);
 	blksfree = cg_blksfree(cgp);
 	UFS_LOCK(ump);
@@ -2408,14 +2370,9 @@ ffs_checkblk(ip, bno, size)
 	}
 	if ((u_int)bno >= fs->fs_size)
 		panic("ffs_checkblk: bad block %jd", (intmax_t)bno);
-	error = bread(ITODEVVP(ip), fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
-		(int)fs->fs_cgsize, NOCRED, &bp);
+	error = ffs_getcg(fs, ITODEVVP(ip), dtog(fs, bno), &bp, &cgp);
 	if (error)
-		panic("ffs_checkblk: cg bread failed");
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp))
-		panic("ffs_checkblk: cg magic mismatch");
-	bp->b_xflags |= BX_BKGRDWRITE;
+		panic("ffs_checkblk: cylinder group read failed");
 	blksfree = cg_blksfree(cgp);
 	cgbno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
@@ -2492,17 +2449,8 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_freefile: range: dev = %s, ino = %ju, fs = %s",
 		    devtoname(dev), (uintmax_t)ino, fs->fs_fsmnt);
-	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
 		return (error);
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return (0);
-	}
-	bp->b_xflags |= BX_BKGRDWRITE;
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
 	if (isclr(inosused, ino)) {
@@ -2535,6 +2483,7 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 
 /*
  * Check to see if a file is free.
+ * Used to check for allocated files in snapshots.
  */
 int
 ffs_checkfreefile(fs, devvp, ino)
@@ -2545,7 +2494,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	struct cg *cgp;
 	struct buf *bp;
 	ufs2_daddr_t cgbno;
-	int ret;
+	int ret, error;
 	u_int cg;
 	u_int8_t *inosused;
 
@@ -2561,15 +2510,8 @@ ffs_checkfreefile(fs, devvp, ino)
 	}
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
 		return (1);
-	if (bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp)) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
 		return (1);
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return (1);
-	}
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
 	ret = isclr(inosused, ino);
@@ -2642,6 +2584,39 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
 	printf("bno = %lu, fs = %s\n", (u_long)bno, fs->fs_fsmnt);
 	panic("ffs_alloccg: block not in map");
 	return (-1);
+}
+
+/*
+ * Fetch and verify a cylinder group.
+ */
+int
+ffs_getcg(fs, devvp, cg, bpp, cgpp)
+	struct fs *fs;
+	struct vnode *devvp;
+	u_int cg;
+	struct buf **bpp;
+	struct cg **cgpp;
+{
+	struct buf *bp;
+	struct cg *cgp;
+	int error;
+
+	*bpp = NULL;
+	*cgpp = NULL;
+	error = bread(devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NOCRED, &bp);
+	if (error != 0)
+		return (error);
+	cgp = (struct cg *)bp->b_data;
+	if (!cg_chkmagic(cgp) || cgp->cg_cgx != cg) {
+		brelse(bp);
+		return (EIO);
+	}
+	bp->b_xflags |= BX_BKGRDWRITE;
+	cgp->cg_old_time = cgp->cg_time = time_second;
+	*bpp = bp;
+	*cgpp = cgp;
+	return (0);
 }
 
 /*

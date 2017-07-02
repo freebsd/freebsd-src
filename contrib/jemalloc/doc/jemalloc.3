@@ -2,12 +2,12 @@
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 06/14/2017
+.\"      Date: 06/29/2017
 .\"    Manual: User Manual
 .\"    Source: jemalloc 5.0.0-4-g84f6c2cae0fb1399377ef6aea9368444c4987cc6
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "06/14/2017" "jemalloc 5.0.0-4-g84f6c2cae0fb" "User Manual"
+.TH "JEMALLOC" "3" "06/29/2017" "jemalloc 5.0.0-4-g84f6c2cae0fb" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,8 +38,9 @@ The following configuration options are enabled in libc\*(Aqs built\-in jemalloc
 \fB\-\-enable\-fill\fR,
 \fB\-\-enable\-lazy\-lock\fR,
 \fB\-\-enable\-stats\fR,
-\fB\-\-enable\-utrace\fR, and
-\fB\-\-enable\-xmalloc\fR\&. Additionally,
+\fB\-\-enable\-utrace\fR,
+\fB\-\-enable\-xmalloc\fR, and
+\fB\-\-with\-malloc\-conf=abort_conf:false\fR\&. Additionally,
 \fB\-\-enable\-debug\fR
 is enabled in development versions of FreeBSD (controlled by the
 \fBMALLOC_PRODUCTION\fR

@@ -71,7 +71,10 @@ struct relocate_data {
 
 extern void relocater(void);
 
-extern uint32_t relocater_data;
+/*
+ * The relocater_data[] is fixed size array allocated in relocater_tramp.S
+ */
+extern struct relocate_data relocater_data[];
 extern uint32_t relocater_size;
 
 extern uint16_t relocator_ip;
