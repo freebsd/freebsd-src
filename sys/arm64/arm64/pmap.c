@@ -270,8 +270,10 @@ static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
 static pt_entry_t *pmap_demote_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
+static int pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
+    pd_entry_t l1e, struct spglist *free, struct rwlock **lockp);
 static int pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
-    pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
+    pd_entry_t l2e, struct spglist *free, struct rwlock **lockp);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
@@ -280,7 +282,8 @@ static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex,
 
 static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
-static int pmap_unuse_l3(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
+static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
+static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 
 /*
  * These load the old table data and store the new value.
@@ -1373,11 +1376,11 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 }
 
 /*
- * After removing an l3 entry, this routine is used to
+ * After removing a page table entry, this routine is used to
  * conditionally free the page, and manage the hold/wire counts.
  */
 static int
-pmap_unuse_l3(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
+pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
     struct spglist *free)
 {
 	vm_page_t mpte;
@@ -1873,7 +1876,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 					}
 				}
 				pc->pc_map[field] |= 1UL << bit;
-				pmap_unuse_l3(pmap, va, pmap_load(pde), &free);
+				pmap_unuse_pt(pmap, va, pmap_load(pde), &free);
 				freed++;
 			}
 		}
@@ -2231,6 +2234,55 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 }
 
 /*
+ * pmap_remove_l2: do the things to unmap a level 2 superpage in a process
+ */
+static int
+pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
+    pd_entry_t l1e, struct spglist *free, struct rwlock **lockp)
+{
+	struct md_page *pvh;
+	pt_entry_t old_l2;
+	vm_offset_t eva, va;
+	vm_page_t m, ml3;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT((sva & L2_OFFSET) == 0, ("pmap_remove_l2: sva is not aligned"));
+	old_l2 = pmap_load_clear(l2);
+	pmap_invalidate_range(pmap, sva, sva + L2_SIZE);
+	if (old_l2 & ATTR_SW_WIRED)
+		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
+	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
+	if (old_l2 & ATTR_SW_MANAGED) {
+		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, old_l2 & ~ATTR_MASK);
+		pvh = pa_to_pvh(old_l2 & ~ATTR_MASK);
+		pmap_pvh_free(pvh, pmap, sva);
+		eva = sva + L2_SIZE;
+		for (va = sva, m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
+		    va < eva; va += PAGE_SIZE, m++) {
+			if (pmap_page_dirty(old_l2))
+				vm_page_dirty(m);
+			if (old_l2 & ATTR_AF)
+				vm_page_aflag_set(m, PGA_REFERENCED);
+			if (TAILQ_EMPTY(&m->md.pv_list) &&
+			    TAILQ_EMPTY(&pvh->pv_list))
+				vm_page_aflag_clear(m, PGA_WRITEABLE);
+		}
+	}
+	KASSERT(pmap != kernel_pmap,
+	    ("Attempting to remove an l2 kernel page"));
+	ml3 = pmap_remove_pt_page(pmap, sva);
+	if (ml3 != NULL) {
+		pmap_resident_count_dec(pmap, 1);
+		KASSERT(ml3->wire_count == NL3PG,
+		    ("pmap_remove_pages: l3 page wire count error"));
+		ml3->wire_count = 0;
+		pmap_add_delayed_free_list(ml3, free, FALSE);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+	}
+	return (pmap_unuse_pt(pmap, sva, l1e, free));
+}
+
+/*
  * pmap_remove_l3: do the things to unmap a page in a process
  */
 static int
@@ -2262,7 +2314,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
 	}
-	return (pmap_unuse_l3(pmap, va, l2e, free));
+	return (pmap_unuse_pt(pmap, va, l2e, free));
 }
 
 /*
@@ -2328,9 +2380,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		l3_paddr = pmap_load(l2);
 
 		if ((l3_paddr & ATTR_DESCR_MASK) == L2_BLOCK) {
-			/* TODO: Add pmap_remove_l2 */
-			if (pmap_demote_l2_locked(pmap, l2, sva & ~L2_OFFSET,
-			    &lock) == NULL)
+			if (sva + L2_SIZE == va_next && eva >= va_next) {
+				pmap_remove_l2(pmap, l2, sva, pmap_load(l1),
+				    &free, &lock);
+				continue;
+			} else if (pmap_demote_l2_locked(pmap, l2,
+			    sva &~L2_OFFSET, &lock) == NULL)
 				continue;
 			l3_paddr = pmap_load(l2);
 		}
@@ -2474,7 +2529,7 @@ retry:
 		 */
 		if (pmap_page_dirty(tpte))
 			vm_page_dirty(m);
-		pmap_unuse_l3(pmap, pv->pv_va, tpde, &free);
+		pmap_unuse_pt(pmap, pv->pv_va, tpde, &free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		free_pv_entry(pmap, pv);
@@ -3664,7 +3719,7 @@ pmap_remove_pages(pmap_t pmap)
 					}
 					break;
 				}
-				pmap_unuse_l3(pmap, pv->pv_va, pmap_load(pde),
+				pmap_unuse_pt(pmap, pv->pv_va, pmap_load(pde),
 				    &free);
 				freed++;
 			}
