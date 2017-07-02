@@ -1553,6 +1553,7 @@ typedef struct {
 #define	SNS_GNN_ID	0x113
 #define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
+#define	SNS_GID_PT	0x1A1
 #define	SNS_RFT_ID	0x217
 #define	SNS_RSPN_ID	0x218
 #define	SNS_RFF_ID	0x21F
@@ -1667,7 +1668,6 @@ typedef struct {
 	} snscb_ports[1];
 } sns_gid_ft_rsp_t;
 #define	SNS_GID_FT_RESP_SIZE(x)	((sizeof (sns_gid_ft_rsp_t)) + ((x - 1) << 2))
-#define	SNS_RFT_ID_RESP_SIZE	(sizeof (ct_hdr_t))
 
 /*
  * Other Misc Structures
