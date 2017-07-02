@@ -1542,6 +1542,10 @@ public:
 
   bool hasVisibleMergedDefinition(NamedDecl *Def);
 
+  /// Determine if \p D and \p Suggested have a structurally compatible
+  /// layout as described in C11 6.2.7/1.
+  bool hasStructuralCompatLayout(Decl *D, Decl *Suggested);
+
   /// Determine if \p D has a visible definition. If not, suggest a declaration
   /// that should be made visible to expose the definition.
   bool hasVisibleDefinition(NamedDecl *D, NamedDecl **Suggested,
@@ -1629,9 +1633,13 @@ public:
   //
 
   struct SkipBodyInfo {
-    SkipBodyInfo() : ShouldSkip(false), Previous(nullptr) {}
+    SkipBodyInfo()
+        : ShouldSkip(false), CheckSameAsPrevious(false), Previous(nullptr),
+          New(nullptr) {}
     bool ShouldSkip;
+    bool CheckSameAsPrevious;
     NamedDecl *Previous;
+    NamedDecl *New;
   };
 
   DeclGroupPtrTy ConvertDeclToDeclGroup(Decl *Ptr, Decl *OwnedType = nullptr);
@@ -2145,13 +2153,11 @@ public:
   };
 
   Decl *ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
-                 SourceLocation KWLoc, CXXScopeSpec &SS,
-                 IdentifierInfo *Name, SourceLocation NameLoc,
-                 AttributeList *Attr, AccessSpecifier AS,
-                 SourceLocation ModulePrivateLoc,
-                 MultiTemplateParamsArg TemplateParameterLists,
-                 bool &OwnedDecl, bool &IsDependent,
-                 SourceLocation ScopedEnumKWLoc,
+                 SourceLocation KWLoc, CXXScopeSpec &SS, IdentifierInfo *Name,
+                 SourceLocation NameLoc, AttributeList *Attr,
+                 AccessSpecifier AS, SourceLocation ModulePrivateLoc,
+                 MultiTemplateParamsArg TemplateParameterLists, bool &OwnedDecl,
+                 bool &IsDependent, SourceLocation ScopedEnumKWLoc,
                  bool ScopedEnumUsesClassTag, TypeResult UnderlyingType,
                  bool IsTypeSpecifier, bool IsTemplateParamOrArg,
                  SkipBodyInfo *SkipBody = nullptr);
@@ -2219,6 +2225,12 @@ public:
   /// struct, or union).
   void ActOnTagStartDefinition(Scope *S, Decl *TagDecl);
 
+  /// Perform ODR-like check for C/ObjC when merging tag types from modules.
+  /// Differently from C++, actually parse the body and reject / error out
+  /// in case of a structural mismatch.
+  bool ActOnDuplicateDefinition(DeclSpec &DS, Decl *Prev,
+                                SkipBodyInfo &SkipBody);
+
   typedef void *SkippedDefinitionContext;
 
   /// \brief Invoked when we enter a tag definition that we're skipping.
@@ -2272,8 +2284,8 @@ public:
 
   Decl *ActOnEnumConstant(Scope *S, Decl *EnumDecl, Decl *LastEnumConstant,
                           SourceLocation IdLoc, IdentifierInfo *Id,
-                          AttributeList *Attrs,
-                          SourceLocation EqualLoc, Expr *Val);
+                          AttributeList *Attrs, SourceLocation EqualLoc,
+                          Expr *Val);
   void ActOnEnumBody(SourceLocation EnumLoc, SourceRange BraceRange,
                      Decl *EnumDecl,
                      ArrayRef<Decl *> Elements,
@@ -3233,7 +3245,7 @@ public:
   void ProcessPragmaWeak(Scope *S, Decl *D);
   // Decl attributes - this routine is the top level dispatcher.
   void ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD);
-  // Helper for delayed proccessing of attributes.
+  // Helper for delayed processing of attributes.
   void ProcessDeclAttributeDelayed(Decl *D, const AttributeList *AttrList);
   void ProcessDeclAttributeList(Scope *S, Decl *D, const AttributeList *AL,
                                 bool IncludeCXX11Attributes = true);
@@ -8432,7 +8444,7 @@ public:
   /// is disabled due to required OpenCL extensions being disabled. If so,
   /// emit diagnostics.
   /// \return true if type is disabled.
-  bool checkOpenCLDisabledDecl(const Decl &D, const Expr &E);
+  bool checkOpenCLDisabledDecl(const NamedDecl &D, const Expr &E);
 
   //===--------------------------------------------------------------------===//
   // OpenMP directives and clauses.
@@ -10276,6 +10288,7 @@ private:
   void CheckFloatComparison(SourceLocation Loc, Expr* LHS, Expr* RHS);
   void CheckImplicitConversions(Expr *E, SourceLocation CC = SourceLocation());
   void CheckBoolLikeConversion(Expr *E, SourceLocation CC);
+  void CheckForIntOverflow(Expr *E);
   void CheckUnsequencedOperations(Expr *E);
 
   /// \brief Perform semantic checks on a completed expression. This will either

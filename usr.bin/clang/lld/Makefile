@@ -26,6 +26,7 @@ SRCS+=		ELF/Arch/Mips.cpp
 SRCS+=		ELF/Arch/MipsArchTree.cpp
 SRCS+=		ELF/Arch/PPC.cpp
 SRCS+=		ELF/Arch/PPC64.cpp
+SRCS+=		ELF/Arch/SPARCV9.cpp
 SRCS+=		ELF/Arch/X86.cpp
 SRCS+=		ELF/Arch/X86_64.cpp
 SRCS+=		ELF/Driver.cpp

@@ -1297,7 +1297,7 @@ static void CreateCoercedStore(llvm::Value *Src,
 
   // If store is legal, just bitcast the src pointer.
   if (SrcSize <= DstSize) {
-    Dst = CGF.Builder.CreateBitCast(Dst, llvm::PointerType::getUnqual(SrcTy));
+    Dst = CGF.Builder.CreateElementBitCast(Dst, SrcTy);
     BuildAggStore(CGF, Src, Dst, DstIsVolatile);
   } else {
     // Otherwise do coercion through memory. This is stupid, but
@@ -2412,8 +2412,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
 
         Address AddrToStoreInto = Address::invalid();
         if (SrcSize <= DstSize) {
-          AddrToStoreInto =
-            Builder.CreateBitCast(Ptr, llvm::PointerType::getUnqual(STy));
+          AddrToStoreInto = Builder.CreateElementBitCast(Ptr, STy);
         } else {
           AddrToStoreInto =
             CreateTempAlloca(STy, Alloca.getAlignment(), "coerce");
@@ -3389,6 +3388,14 @@ void CodeGenFunction::EmitCallArgs(
     unsigned Idx = LeftToRight ? I : E - I - 1;
     CallExpr::const_arg_iterator Arg = ArgRange.begin() + Idx;
     unsigned InitialArgSize = Args.size();
+    // If *Arg is an ObjCIndirectCopyRestoreExpr, check that either the types of
+    // the argument and parameter match or the objc method is parameterized.
+    assert((!isa<ObjCIndirectCopyRestoreExpr>(*Arg) ||
+            getContext().hasSameUnqualifiedType((*Arg)->getType(),
+                                                ArgTypes[Idx]) ||
+            (isa<ObjCMethodDecl>(AC.getDecl()) &&
+             isObjCMethodWithTypeParams(cast<ObjCMethodDecl>(AC.getDecl())))) &&
+           "Argument and parameter types don't match");
     EmitCallArg(Args, *Arg, ArgTypes[Idx]);
     // In particular, we depend on it being the last arg in Args, and the
     // objectsize bits depend on there only being one arg if !LeftToRight.
@@ -3449,7 +3456,6 @@ void CodeGenFunction::EmitCallArg(CallArgList &args, const Expr *E,
   if (const ObjCIndirectCopyRestoreExpr *CRE
         = dyn_cast<ObjCIndirectCopyRestoreExpr>(E)) {
     assert(getLangOpts().ObjCAutoRefCount);
-    assert(getContext().hasSameUnqualifiedType(E->getType(), type));
     return emitWritebackArg(*this, args, CRE);
   }
 

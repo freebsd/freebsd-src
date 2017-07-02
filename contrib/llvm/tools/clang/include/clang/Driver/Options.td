@@ -723,6 +723,9 @@ def fdiagnostics_print_source_range_info : Flag<["-"], "fdiagnostics-print-sourc
     HelpText<"Print source range spans in numeric form">;
 def fdiagnostics_show_hotness : Flag<["-"], "fdiagnostics-show-hotness">, Group<f_Group>,
     Flags<[CC1Option]>, HelpText<"Enable profile hotness information in diagnostic line">;
+def fdiagnostics_hotness_threshold_EQ : Joined<["-"], "fdiagnostics-hotness-threshold=">,
+    Group<f_Group>, Flags<[CC1Option]>, MetaVarName<"<number>">,
+    HelpText<"Prevent optimization remarks from being output if they do not have at least this profile count">;
 def fdiagnostics_show_option : Flag<["-"], "fdiagnostics-show-option">, Group<f_Group>,
     Flags<[CC1Option]>, HelpText<"Print option name with mappable diagnostics">;
 def fdiagnostics_show_note_include_stack : Flag<["-"], "fdiagnostics-show-note-include-stack">,
@@ -1405,9 +1408,6 @@ def : Flag<["-"], "fno-tree-vectorize">, Alias<fno_vectorize>;
 def fslp_vectorize : Flag<["-"], "fslp-vectorize">, Group<f_Group>,
   HelpText<"Enable the superword-level parallelism vectorization passes">;
 def fno_slp_vectorize : Flag<["-"], "fno-slp-vectorize">, Group<f_Group>;
-def fslp_vectorize_aggressive : Flag<["-"], "fslp-vectorize-aggressive">, Group<f_Group>,
-  HelpText<"Enable the BB vectorization passes">;
-def fno_slp_vectorize_aggressive : Flag<["-"], "fno-slp-vectorize-aggressive">, Group<f_Group>;
 def : Flag<["-"], "ftree-slp-vectorize">, Alias<fslp_vectorize>;
 def : Flag<["-"], "fno-tree-slp-vectorize">, Alias<fno_slp_vectorize>;
 def Wlarge_by_value_copy_def : Flag<["-"], "Wlarge-by-value-copy">,

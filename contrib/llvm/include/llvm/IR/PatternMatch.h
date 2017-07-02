@@ -378,7 +378,7 @@ struct bind_const_intval_ty {
 
   template <typename ITy> bool match(ITy *V) {
     if (const auto *CV = dyn_cast<ConstantInt>(V))
-      if (CV->getBitWidth() <= 64) {
+      if (CV->getValue().ule(UINT64_MAX)) {
         VR = CV->getZExtValue();
         return true;
       }
@@ -399,10 +399,7 @@ struct specific_intval {
       if (const auto *C = dyn_cast<Constant>(V))
         CI = dyn_cast_or_null<ConstantInt>(C->getSplatValue());
 
-    if (CI && CI->getBitWidth() <= 64)
-      return CI->getZExtValue() == Val;
-
-    return false;
+    return CI && CI->getValue() == Val;
   }
 };
 
@@ -1362,6 +1359,11 @@ m_Intrinsic(const T0 &Op0, const T1 &Op1, const T2 &Op2, const T3 &Op3) {
 }
 
 // Helper intrinsic matching specializations.
+template <typename Opnd0>
+inline typename m_Intrinsic_Ty<Opnd0>::Ty m_BitReverse(const Opnd0 &Op0) {
+  return m_Intrinsic<Intrinsic::bitreverse>(Op0);
+}
+
 template <typename Opnd0>
 inline typename m_Intrinsic_Ty<Opnd0>::Ty m_BSwap(const Opnd0 &Op0) {
   return m_Intrinsic<Intrinsic::bswap>(Op0);

@@ -1646,6 +1646,27 @@ static bool isLegalArrayNewInitializer(CXXNewExpr::InitializationStyle Style,
   return false;
 }
 
+// Emit a diagnostic if an aligned allocation/deallocation function that is not
+// implemented in the standard library is selected.
+static void diagnoseUnavailableAlignedAllocation(const FunctionDecl &FD,
+                                                 SourceLocation Loc, bool IsDelete,
+                                                 Sema &S) {
+  if (!S.getLangOpts().AlignedAllocationUnavailable)
+    return;
+
+  // Return if there is a definition.
+  if (FD.isDefined())
+    return;
+
+  bool IsAligned = false;
+  if (FD.isReplaceableGlobalAllocationFunction(&IsAligned) && IsAligned) {
+    S.Diag(Loc, diag::warn_aligned_allocation_unavailable)
+         << IsDelete << FD.getType().getAsString()
+         << S.getASTContext().getTargetInfo().getTriple().str();
+    S.Diag(Loc, diag::note_silence_unligned_allocation_unavailable);
+  }
+}
+
 ExprResult
 Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
                   SourceLocation PlacementLParen,
@@ -2023,11 +2044,13 @@ Sema::BuildCXXNew(SourceRange Range, bool UseGlobal,
     if (DiagnoseUseOfDecl(OperatorNew, StartLoc))
       return ExprError();
     MarkFunctionReferenced(StartLoc, OperatorNew);
+    diagnoseUnavailableAlignedAllocation(*OperatorNew, StartLoc, false, *this);
   }
   if (OperatorDelete) {
     if (DiagnoseUseOfDecl(OperatorDelete, StartLoc))
       return ExprError();
     MarkFunctionReferenced(StartLoc, OperatorDelete);
+    diagnoseUnavailableAlignedAllocation(*OperatorDelete, StartLoc, true, *this);
   }
 
   // C++0x [expr.new]p17:
@@ -3243,6 +3266,9 @@ Sema::ActOnCXXDelete(SourceLocation StartLoc, bool UseGlobal,
                       PDiag(diag::err_access_dtor) << PointeeElem);
       }
     }
+
+    diagnoseUnavailableAlignedAllocation(*OperatorDelete, StartLoc, true,
+                                         *this);
   }
 
   CXXDeleteExpr *Result = new (Context) CXXDeleteExpr(
@@ -4093,15 +4119,9 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsStandardLayout:
   case UTT_IsPOD:
   case UTT_IsLiteral:
-    ArgTy = QualType(ArgTy->getBaseElementTypeUnsafe(), 0);
-    LLVM_FALLTHROUGH;
-
-  // C++1z [meta.unary.prop]:
-  //   T shall be a complete type, cv void, or an array of unknown bound.
-  case UTT_IsDestructible:
-  case UTT_IsNothrowDestructible:
-  case UTT_IsTriviallyDestructible:
-  // Per the GCC type traits documentation, the same constraints apply to these.
+  // Per the GCC type traits documentation, T shall be a complete type, cv void,
+  // or an array of unknown bound. But GCC actually imposes the same constraints
+  // as above.
   case UTT_HasNothrowAssign:
   case UTT_HasNothrowMoveAssign:
   case UTT_HasNothrowConstructor:
@@ -4113,6 +4133,14 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_HasTrivialCopy:
   case UTT_HasTrivialDestructor:
   case UTT_HasVirtualDestructor:
+    ArgTy = QualType(ArgTy->getBaseElementTypeUnsafe(), 0);
+    LLVM_FALLTHROUGH;
+
+  // C++1z [meta.unary.prop]:
+  //   T shall be a complete type, cv void, or an array of unknown bound.
+  case UTT_IsDestructible:
+  case UTT_IsNothrowDestructible:
+  case UTT_IsTriviallyDestructible:
     if (ArgTy->isIncompleteArrayType() || ArgTy->isVoidType())
       return true;
 
