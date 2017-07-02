@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/time.h>
@@ -54,9 +55,22 @@ __FBSDID("$FreeBSD$");
 #include "rfb.h"
 #include "sockstream.h"
 
+#ifndef NO_OPENSSL
+#include <openssl/des.h>
+#endif
+
 static int rfb_debug = 0;
 #define	DPRINTF(params) if (rfb_debug) printf params
 #define	WPRINTF(params) printf params
+
+#define AUTH_LENGTH	16
+#define PASSWD_LENGTH	8
+
+#define SECURITY_TYPE_NONE 1
+#define SECURITY_TYPE_VNC_AUTH 2
+
+#define AUTH_FAILED_UNAUTH 1
+#define AUTH_FAILED_ERROR 2
 
 struct rfb_softc {
 	int		sfd;
@@ -66,9 +80,11 @@ struct rfb_softc {
 
 	int		width, height;
 
-	bool		enc_raw_ok;
-	bool		enc_zlib_ok;
-	bool		enc_resize_ok;
+	char		*password;
+
+	bool	enc_raw_ok;
+	bool	enc_zlib_ok;
+	bool	enc_resize_ok;
 
 	z_stream	zstream;
 	uint8_t		*zbuf;
@@ -202,7 +218,7 @@ static void
 rfb_send_resize_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_srvr_updt_msg supdt_msg;
-        struct rfb_srvr_rect_hdr srect_hdr;
+	struct rfb_srvr_rect_hdr srect_hdr;
 
 	/* Number of rectangles: 1 */
 	supdt_msg.type = 0;
@@ -733,9 +749,21 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 {
 	const char *vbuf = "RFB 003.008\n";
 	unsigned char buf[80];
+	unsigned char *message = NULL;
+
+#ifndef NO_OPENSSL
+	unsigned char challenge[AUTH_LENGTH];
+	unsigned char keystr[PASSWD_LENGTH];
+	unsigned char crypt_expected[AUTH_LENGTH];
+
+	DES_key_schedule ks;
+	int i;
+#endif
+
 	pthread_t tid;
-        uint32_t sres;
+	uint32_t sres = 0;
 	int len;
+	int perror = 1;
 
 	rc->cfd = cfd;
 
@@ -745,18 +773,92 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	/* 1b. Read client version */
 	len = read(cfd, buf, sizeof(buf));
 
-	/* 2a. Send security type 'none' */
+	/* 2a. Send security type */
 	buf[0] = 1;
-	buf[1] = 1; /* none */
-	stream_write(cfd, buf, 2);
+#ifndef NO_OPENSSL
+	if (rc->password) 
+		buf[1] = SECURITY_TYPE_VNC_AUTH;
+	else
+		buf[1] = SECURITY_TYPE_NONE;
+#else
+	buf[1] = SECURITY_TYPE_NONE;
+#endif
 
+	stream_write(cfd, buf, 2);
 
 	/* 2b. Read agreed security type */
 	len = stream_read(cfd, buf, 1);
 
-	/* 2c. Write back a status of 0 */
-	sres = 0;
+	/* 2c. Do VNC authentication */
+	switch (buf[0]) {
+	case SECURITY_TYPE_NONE:
+		sres = 0;
+		break;
+	case SECURITY_TYPE_VNC_AUTH:
+		/*
+		 * The client encrypts the challenge with DES, using a password
+		 * supplied by the user as the key.
+		 * To form the key, the password is truncated to
+		 * eight characters, or padded with null bytes on the right.
+		 * The client then sends the resulting 16-bytes response.
+		 */
+#ifndef NO_OPENSSL
+		strncpy(keystr, rc->password, PASSWD_LENGTH);
+
+		/* VNC clients encrypts the challenge with all the bit fields
+		 * in each byte of the password mirrored.
+		 * Here we flip each byte of the keystr.
+		 */
+		for (i = 0; i < PASSWD_LENGTH; i++) {
+			keystr[i] = (keystr[i] & 0xF0) >> 4
+				  | (keystr[i] & 0x0F) << 4;
+			keystr[i] = (keystr[i] & 0xCC) >> 2
+				  | (keystr[i] & 0x33) << 2;
+			keystr[i] = (keystr[i] & 0xAA) >> 1
+				  | (keystr[i] & 0x55) << 1;
+		}
+
+		/* Initialize a 16-byte random challenge */
+		arc4random_buf(challenge, sizeof(challenge));
+		stream_write(cfd, challenge, AUTH_LENGTH);
+
+		/* Receive the 16-byte challenge response */
+		stream_read(cfd, buf, AUTH_LENGTH);
+
+		memcpy(crypt_expected, challenge, AUTH_LENGTH);
+
+		/* Encrypt the Challenge with DES */
+		DES_set_key((const_DES_cblock *)keystr, &ks);
+		DES_ecb_encrypt((const_DES_cblock *)challenge,
+				(const_DES_cblock *)crypt_expected,
+				&ks, DES_ENCRYPT);
+		DES_ecb_encrypt((const_DES_cblock *)(challenge + PASSWD_LENGTH),
+				(const_DES_cblock *)(crypt_expected +
+				PASSWD_LENGTH),
+				&ks, DES_ENCRYPT);
+
+		if (memcmp(crypt_expected, buf, AUTH_LENGTH) != 0) {
+			message = "Auth Failed: Invalid Password.";
+			sres = htonl(1);
+		} else
+			sres = 0;
+#else
+		sres = 0;
+		WPRINTF(("Auth not supported, no OpenSSL in your system"));
+#endif
+
+		break;
+	}
+
+	/* 2d. Write back a status */
 	stream_write(cfd, &sres, 4);
+
+	if (sres) {
+		be32enc(buf, strlen(message));
+		stream_write(cfd, buf, 4);
+		stream_write(cfd, message, strlen(message));
+		goto done;
+	}
 
 	/* 3a. Read client shared-flag byte */
 	len = stream_read(cfd, buf, 1);
@@ -771,8 +873,9 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 
 	rfb_send_screen(rc, cfd, 1);
 
-	pthread_create(&tid, NULL, rfb_wr_thr, rc);
-	pthread_set_name_np(tid, "rfbout");
+	perror = pthread_create(&tid, NULL, rfb_wr_thr, rc);
+	if (perror == 0)
+		pthread_set_name_np(tid, "rfbout");
 
         /* Now read in client requests. 1st byte identifies type */
 	for (;;) {
@@ -808,7 +911,8 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	}
 done:
 	rc->cfd = -1;
-	pthread_join(tid, NULL);
+	if (perror == 0)
+		pthread_join(tid, NULL);
 	if (rc->enc_zlib_ok)
 		deflateEnd(&rc->zstream);
 }
@@ -863,7 +967,7 @@ sse42_supported(void)
 }
 
 int
-rfb_init(char *hostname, int port, int wait)
+rfb_init(char *hostname, int port, int wait, char *password)
 {
 	struct rfb_softc *rc;
 	struct sockaddr_in sin;
@@ -877,6 +981,8 @@ rfb_init(char *hostname, int port, int wait)
 	                     sizeof(uint32_t));
 	rc->crc_width = RFB_MAX_WIDTH;
 	rc->crc_height = RFB_MAX_HEIGHT;
+
+	rc->password = password;
 
 	rc->sfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (rc->sfd < 0) {
