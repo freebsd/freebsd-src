@@ -372,9 +372,8 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
  * prioritizes writers before readers.
  */
 #define	RW_CAN_READ(td, _rw)						\
-    (((td)->td_rw_rlocks && (_rw) & RW_LOCK_READ) || ((_rw) &	\
-    (RW_LOCK_READ | RW_LOCK_WRITE_WAITERS | RW_LOCK_WRITE_SPINNER)) ==	\
-    RW_LOCK_READ)
+    (((_rw) & (RW_LOCK_READ | RW_LOCK_WRITE_WAITERS | RW_LOCK_WRITE_SPINNER)) ==\
+    RW_LOCK_READ || ((td)->td_rw_rlocks && (_rw) & RW_LOCK_READ))
 
 static bool __always_inline
 __rw_rlock_try(struct rwlock *rw, struct thread *td, uintptr_t *vp,
