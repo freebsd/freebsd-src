@@ -100,6 +100,7 @@ CLEANFILES+=	loader.help
 CFLAGS+=	-ffreestanding -msoft-float
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+LDFLAGS+=	-Wl,-znotext
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../uboot/common

@@ -125,7 +125,7 @@ nptv6_getlasthdr(struct nptv6_cfg *cfg, struct mbuf *m, int *offset)
 		if (m->m_len < hlen)
 			return (-1);
 		proto = hbh->ip6h_nxt;
-		hlen += hbh->ip6h_len << 3;
+		hlen += (hbh->ip6h_len + 1) << 3;
 	}
 	if (offset != NULL)
 		*offset = hlen;

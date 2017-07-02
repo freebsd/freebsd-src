@@ -2,16 +2,39 @@
 
 ntest=1
 
-case "${dir}" in
-/*)
-	maindir="${dir}/../.."
-	;;
-*)
-	maindir="`pwd`/${dir}/../.."
-	;;
-esac
+confdir=${dir:-$(dirname "$0")}
+maindir=${dir:-$(dirname "$0")}
+while [ ! -r "$confdir/conf" -a "$confdir" != / ]; do
+	confdir=$(cd $confdir/..; pwd)
+done
+while [ "$maindir" != / ]; do
+	if [ -f "$maindir/pjdfstest" -a -x "$maindir/pjdfstest" ]; then
+		break
+	fi
+	maindir=$(cd $maindir/../; pwd)
+done
 fstest="${maindir}/pjdfstest"
-. ${maindir}/tests/conf
+if ! . ${confdir}/conf; then
+	echo "not ok - could not source configuration file"
+	exit 1
+fi
+if [ ! -x $fstest ]; then
+	echo "not ok - could not find pjdfstest app"
+	exit 1
+fi
+
+requires_root()
+{
+	case "$(id -u)" in
+	0)
+		return 0
+		;;
+	*)
+		echo "not ok ${ntest} not root"
+		return 1
+		;;
+	esac
+}
 
 expect()
 {
@@ -41,8 +64,9 @@ jexpect()
 	s="${1}"
 	d="${2}"
 	e="${3}"
+
 	shift 3
-	r=`jail -s ${s} / pjdfstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
+	r=`jail -s ${s} / pjdfstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" 2>/dev/null | tail -1`
 	echo "${r}" | ${GREP} -Eq '^'${e}'$'
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
@@ -163,6 +187,27 @@ supported()
 			return 1
 		fi
 		;;
+	posix_fallocate)
+		if [ "${os}" != "FreeBSD" ]; then
+			return 1
+		fi
+		;;
+	stat_st_birthtime)
+		case "${os}" in
+		Darwin|FreeBSD)
+			;;
+		*)
+			return 1
+			;;
+		esac
+		;;
+	utimensat)
+		case ${os} in
+		Darwin)
+			return 1
+			;;
+		esac
+		;;
 	esac
 	return 0
 }
@@ -174,6 +219,63 @@ require()
 	fi
 	quick_exit
 }
+
+if [ "${os}" = "FreeBSD" ]; then
+mountpoint()
+{
+	df $1 | tail -1 | awk '{ print $6 }'
+}
+
+mount_options()
+{
+	mount -p | awk '$2 == "'$(mountpoint .)'" { print $4 }' | sed -e 's/,/ /g'
+}
+
+nfsv4acls()
+{
+	if mount_options | grep -q nfsv4acls; then
+		return 0
+	fi
+	return 1
+}
+
+noexec()
+{
+	if mount_options | grep -q noexec; then
+		return 0
+	fi
+	return 1
+}
+
+nosuid()
+{
+	if mount_options | grep -q nosuid; then
+		return 0
+	fi
+	return 1
+}
+else
+mountpoint()
+{
+	return 1
+}
+mount_options()
+{
+	return 1
+}
+nfsv4acls()
+{
+	return 1
+}
+noexec()
+{
+	return 1
+}
+nosuid()
+{
+	return 1
+}
+fi
 
 # usage:
 #	create_file <type> <name>
@@ -211,12 +313,20 @@ create_file() {
 		;;
 	esac
 	if [ -n "${3}" -a -n "${4}" -a -n "${5}" ]; then
-		expect 0 lchmod ${name} ${3}
+		if [ "${type}" = symlink ]; then
+			expect 0 lchmod ${name} ${3}
+		else
+			expect 0 chmod ${name} ${3}
+		fi
 		expect 0 lchown ${name} ${4} ${5}
 	elif [ -n "${3}" -a -n "${4}" ]; then
 		expect 0 lchown ${name} ${3} ${4}
 	elif [ -n "${3}" ]; then
-		expect 0 lchmod ${name} ${3}
+		if [ "${type}" = symlink ]; then
+			expect 0 lchmod ${name} ${3}
+		else
+			expect 0 chmod ${name} ${3}
+		fi
 	fi
 }
 

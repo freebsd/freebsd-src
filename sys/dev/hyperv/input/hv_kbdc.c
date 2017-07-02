@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
-#include <dev/kbd/kbdtables.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/utilities/hv_utilreg.h>

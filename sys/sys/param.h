@@ -54,11 +54,11 @@
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
- *		x.0-CURRENT before RELENG_*_0 is created, otherwise 'R' is
+ *		X.0-CURRENT before releng/X.0 is created, otherwise 'R' is
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1200036	/* Master, propagated to newvers */
+#define __FreeBSD_version 1200037	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,

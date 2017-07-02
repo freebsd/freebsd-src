@@ -1556,6 +1556,25 @@ again:
 	return (result);
 }
 
+int
+vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr, vm_size_t length, vm_offset_t min_addr,
+    vm_offset_t max_addr, int find_space, vm_prot_t prot, vm_prot_t max,
+    int cow)
+{
+	vm_offset_t hint;
+	int rv;
+
+	hint = *addr;
+	for (;;) {
+		rv = vm_map_find(map, object, offset, addr, length, max_addr,
+		    find_space, prot, max, cow);
+		if (rv == KERN_SUCCESS || min_addr >= hint)
+			return (rv);
+		*addr = min_addr;
+	}
+}
+
 /*
  *	vm_map_simplify_entry:
  *
@@ -3538,25 +3557,23 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 	return (vm2);
 }
 
+/*
+ * Create a process's stack for exec_new_vmspace().  This function is never
+ * asked to wire the newly created stack.
+ */
 int
 vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
     vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_size_t growsize, init_ssize;
-	rlim_t lmemlim, vmemlim;
+	rlim_t vmemlim;
 	int rv;
 
+	MPASS((map->flags & MAP_WIREFUTURE) == 0);
 	growsize = sgrowsiz;
 	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 	vm_map_lock(map);
-	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
 	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
-	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
-			rv = KERN_NO_SPACE;
-			goto out;
-		}
-	}
 	/* If we would blow our VMEM resource limit, no go */
 	if (map->size + init_ssize > vmemlim) {
 		rv = KERN_NO_SPACE;
@@ -3668,7 +3685,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	struct vmspace *vm;
 	struct ucred *cred;
 	vm_offset_t gap_end, gap_start, grow_start;
-	size_t grow_amount, max_grow;
+	size_t grow_amount, guard, max_grow;
 	rlim_t lmemlim, stacklim, vmemlim;
 	int rv, rv1;
 	bool gap_deleted, grow_down, is_procstack;
@@ -3684,6 +3701,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	MPASS(map == &p->p_vmspace->vm_map);
 	MPASS(!map->system_map);
 
+	guard = stack_guard_page * PAGE_SIZE;
 	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
 	stacklim = lim_cur(curthread, RLIMIT_STACK);
 	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
@@ -3710,8 +3728,10 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
-	max_grow = gap_entry->end - gap_entry->start - stack_guard_page *
-	    PAGE_SIZE;
+	max_grow = gap_entry->end - gap_entry->start;
+	if (guard > max_grow)
+		return (KERN_NO_SPACE);
+	max_grow -= guard;
 	if (grow_amount > max_grow)
 		return (KERN_NO_SPACE);
 

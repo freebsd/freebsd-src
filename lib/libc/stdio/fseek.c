@@ -60,9 +60,9 @@ fseek(FILE *fp, long offset, int whence)
 	if (!__sdidinit)
 		__sinit();
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = _fseeko(fp, (off_t)offset, whence, 1);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	if (ret == 0)
 		errno = serrno;
 	return (ret);
@@ -78,9 +78,9 @@ fseeko(FILE *fp, off_t offset, int whence)
 	if (!__sdidinit)
 		__sinit();
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = _fseeko(fp, offset, whence, 0);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	if (ret == 0)
 		errno = serrno;
 	return (ret);

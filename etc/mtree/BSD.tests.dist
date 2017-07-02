@@ -396,6 +396,8 @@
                 ..
                 plain
                 ..
+                tap
+                ..
             ..
         ..
     ..
@@ -492,6 +494,8 @@
             truncate
             ..
             unlink
+            ..
+            utimensat
             ..
         ..
         posixshm

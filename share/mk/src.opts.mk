@@ -144,7 +144,6 @@ __DEFAULT_YES_OPTIONS = \
     PPP \
     QUOTAS \
     RADIUS_SUPPORT \
-    RCMDS \
     RBOOTD \
     RESCUE \
     ROUTED \
@@ -185,6 +184,7 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENLDAP \
+    RCMDS \
     REPRODUCIBLE_BUILD \
     RPCBIND_WARMSTART_SUPPORT \
     SHARED_TOOLCHAIN \
@@ -222,7 +222,7 @@ __TT=${MACHINE}
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
-.elif ${COMPILER_FEATURES:Mc++11} && ${__T} != "riscv64" && ${__T} != "sparc64"
+.elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mriscv*} == "" && ${__T} != "sparc64"
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but GCC is installed as the
 # default /usr/bin/cc.
