@@ -2301,10 +2301,10 @@ static Instruction *foldXorToXor(BinaryOperator &I) {
   // (~B | A) ^ (~A | B) -> A ^ B
   // (~A | B) ^ (A | ~B) -> A ^ B
   // (B | ~A) ^ (A | ~B) -> A ^ B
-  if ((match(Op0, m_c_Or(m_Value(A), m_Not(m_Value(B)))) &&
-       match(Op1, m_Or(m_Not(m_Specific(A)), m_Specific(B)))) ||
-      (match(Op0, m_c_Or(m_Not(m_Value(A)), m_Value(B))) &&
-       match(Op1, m_Or(m_Specific(A), m_Not(m_Specific(B)))))) {
+  if ((match(Op0, m_Or(m_Value(A), m_Not(m_Value(B)))) &&
+       match(Op1, m_c_Or(m_Not(m_Specific(A)), m_Specific(B)))) ||
+      (match(Op0, m_Or(m_Not(m_Value(A)), m_Value(B))) &&
+       match(Op1, m_c_Or(m_Specific(A), m_Not(m_Specific(B)))))) {
     I.setOperand(0, A);
     I.setOperand(1, B);
     return &I;
@@ -2314,10 +2314,10 @@ static Instruction *foldXorToXor(BinaryOperator &I) {
   // (~B & A) ^ (~A & B) -> A ^ B
   // (~A & B) ^ (A & ~B) -> A ^ B
   // (B & ~A) ^ (A & ~B) -> A ^ B
-  if ((match(Op0, m_c_And(m_Value(A), m_Not(m_Value(B)))) &&
-       match(Op1, m_And(m_Not(m_Specific(A)), m_Specific(B)))) ||
-      (match(Op0, m_c_And(m_Not(m_Value(A)), m_Value(B))) &&
-       match(Op1, m_And(m_Specific(A), m_Not(m_Specific(B)))))) {
+  if ((match(Op0, m_And(m_Value(A), m_Not(m_Value(B)))) &&
+       match(Op1, m_c_And(m_Not(m_Specific(A)), m_Specific(B)))) ||
+      (match(Op0, m_And(m_Not(m_Value(A)), m_Value(B))) &&
+       match(Op1, m_c_And(m_Specific(A), m_Not(m_Specific(B)))))) {
     I.setOperand(0, A);
     I.setOperand(1, B);
     return &I;
@@ -2456,10 +2456,9 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
     }
   }
 
-  // xor (cmp A, B), true = not (cmp A, B) = !cmp A, B
+  // not (cmp A, B) = !cmp A, B
   ICmpInst::Predicate Pred;
-  if (match(Op0, m_OneUse(m_Cmp(Pred, m_Value(), m_Value()))) &&
-      match(Op1, m_AllOnes())) {
+  if (match(&I, m_Not(m_OneUse(m_Cmp(Pred, m_Value(), m_Value()))))) {
     cast<CmpInst>(Op0)->setPredicate(CmpInst::getInversePredicate(Pred));
     return replaceInstUsesWith(I, Op0);
   }

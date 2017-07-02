@@ -56,10 +56,6 @@ RunSLPVectorization("vectorize-slp", cl::Hidden,
                     cl::desc("Run the SLP vectorization passes"));
 
 static cl::opt<bool>
-RunBBVectorization("vectorize-slp-aggressive", cl::Hidden,
-                    cl::desc("Run the BB vectorization passes"));
-
-static cl::opt<bool>
 UseGVNAfterVectorization("use-gvn-after-vectorization",
   cl::init(false), cl::Hidden,
   cl::desc("Run GVN instead of Early CSE after vectorization passes"));
@@ -138,8 +134,8 @@ static cl::opt<int> PreInlineThreshold(
              "(default = 75)"));
 
 static cl::opt<bool> EnableEarlyCSEMemSSA(
-    "enable-earlycse-memssa", cl::init(false), cl::Hidden,
-    cl::desc("Enable the EarlyCSE w/ MemorySSA pass (default = off)"));
+    "enable-earlycse-memssa", cl::init(true), cl::Hidden,
+    cl::desc("Enable the EarlyCSE w/ MemorySSA pass (default = on)"));
 
 static cl::opt<bool> EnableGVNHoist(
     "enable-gvn-hoist", cl::init(false), cl::Hidden,
@@ -166,7 +162,6 @@ PassManagerBuilder::PassManagerBuilder() {
     Inliner = nullptr;
     DisableUnitAtATime = false;
     DisableUnrollLoops = false;
-    BBVectorize = RunBBVectorization;
     SLPVectorize = RunSLPVectorization;
     LoopVectorize = RunLoopVectorization;
     RerollLoops = RunLoopRerolling;
@@ -263,11 +258,12 @@ void PassManagerBuilder::populateFunctionPassManager(
 
 // Do PGO instrumentation generation or use pass as the option specified.
 void PassManagerBuilder::addPGOInstrPasses(legacy::PassManagerBase &MPM) {
-  if (!EnablePGOInstrGen && PGOInstrUse.empty())
+  if (!EnablePGOInstrGen && PGOInstrUse.empty() && PGOSampleUse.empty())
     return;
   // Perform the preinline and cleanup passes for O1 and above.
   // And avoid doing them if optimizing for size.
-  if (OptLevel > 0 && SizeLevel == 0 && !DisablePreInliner) {
+  if (OptLevel > 0 && SizeLevel == 0 && !DisablePreInliner &&
+      PGOSampleUse.empty()) {
     // Create preinline pass. We construct an InlineParams object and specify
     // the threshold here to avoid the command line options of the regular
     // inliner to influence pre-inlining. The only fields of InlineParams we
@@ -383,26 +379,8 @@ void PassManagerBuilder::addFunctionSimplificationPasses(
 
   if (RerollLoops)
     MPM.add(createLoopRerollPass());
-  if (!RunSLPAfterLoopVectorization) {
-    if (SLPVectorize)
-      MPM.add(createSLPVectorizerPass());   // Vectorize parallel scalar chains.
-
-    if (BBVectorize) {
-      MPM.add(createBBVectorizePass());
-      addInstructionCombiningPass(MPM);
-      addExtensionsToPM(EP_Peephole, MPM);
-      if (OptLevel > 1 && UseGVNAfterVectorization)
-        MPM.add(NewGVN
-                    ? createNewGVNPass()
-                    : createGVNPass(DisableGVNLoadPRE)); // Remove redundancies
-      else
-        MPM.add(createEarlyCSEPass());      // Catch trivial redundancies
-
-      // BBVectorize may have significantly shortened a loop body; unroll again.
-      if (!DisableUnrollLoops)
-        MPM.add(createLoopUnrollPass(OptLevel));
-    }
-  }
+  if (!RunSLPAfterLoopVectorization && SLPVectorize)
+    MPM.add(createSLPVectorizerPass()); // Vectorize parallel scalar chains.
 
   MPM.add(createAggressiveDCEPass());         // Delete dead instructions
   MPM.add(createCFGSimplificationPass()); // Merge & remove BBs
@@ -634,28 +612,10 @@ void PassManagerBuilder::populateModulePassManager(
     addInstructionCombiningPass(MPM);
   }
 
-  if (RunSLPAfterLoopVectorization) {
-    if (SLPVectorize) {
-      MPM.add(createSLPVectorizerPass());   // Vectorize parallel scalar chains.
-      if (OptLevel > 1 && ExtraVectorizerPasses) {
-        MPM.add(createEarlyCSEPass());
-      }
-    }
-
-    if (BBVectorize) {
-      MPM.add(createBBVectorizePass());
-      addInstructionCombiningPass(MPM);
-      addExtensionsToPM(EP_Peephole, MPM);
-      if (OptLevel > 1 && UseGVNAfterVectorization)
-        MPM.add(NewGVN
-                    ? createNewGVNPass()
-                    : createGVNPass(DisableGVNLoadPRE)); // Remove redundancies
-      else
-        MPM.add(createEarlyCSEPass());      // Catch trivial redundancies
-
-      // BBVectorize may have significantly shortened a loop body; unroll again.
-      if (!DisableUnrollLoops)
-        MPM.add(createLoopUnrollPass(OptLevel));
+  if (RunSLPAfterLoopVectorization && SLPVectorize) {
+    MPM.add(createSLPVectorizerPass()); // Vectorize parallel scalar chains.
+    if (OptLevel > 1 && ExtraVectorizerPasses) {
+      MPM.add(createEarlyCSEPass());
     }
   }
 

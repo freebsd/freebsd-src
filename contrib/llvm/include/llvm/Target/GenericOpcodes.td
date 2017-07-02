@@ -49,6 +49,12 @@ def G_TRUNC : Instruction {
   let hasSideEffects = 0;
 }
 
+def G_IMPLICIT_DEF : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins);
+  let hasSideEffects = 0;
+}
+
 def G_FRAME_INDEX : Instruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins unknown:$src2);
@@ -413,6 +419,34 @@ def G_FREM : Instruction {
 def G_FPOW : Instruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+}
+
+// Floating point base-e exponential of a value.
+def G_FEXP : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point base-2 exponential of a value.
+def G_FEXP2 : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point base-2 logarithm of a value.
+def G_FLOG : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+}
+
+// Floating point base-2 logarithm of a value.
+def G_FLOG2 : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1);
   let hasSideEffects = 0;
 }
 

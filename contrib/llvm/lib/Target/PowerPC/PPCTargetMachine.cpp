@@ -93,6 +93,7 @@ extern "C" void LLVMInitializePowerPCTarget() {
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   initializePPCBoolRetToIntPass(PR);
   initializePPCExpandISELPass(PR);
+  initializePPCTLSDynamicCallPass(PR);
 }
 
 /// Return the datalayout string of a subtarget.
@@ -336,7 +337,7 @@ bool PPCPassConfig::addPreISel() {
     addPass(createPPCLoopPreIncPrepPass(getPPCTargetMachine()));
 
   if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)
-    addPass(createPPCCTRLoops(getPPCTargetMachine()));
+    addPass(createPPCCTRLoops());
 
   return false;
 }
@@ -352,7 +353,7 @@ bool PPCPassConfig::addILPOpts() {
 
 bool PPCPassConfig::addInstSelector() {
   // Install an instruction selector.
-  addPass(createPPCISelDag(getPPCTargetMachine()));
+  addPass(createPPCISelDag(getPPCTargetMachine(), getOptLevel()));
 
 #ifndef NDEBUG
   if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)

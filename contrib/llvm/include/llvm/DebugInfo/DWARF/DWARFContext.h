@@ -45,12 +45,6 @@ class DataExtractor;
 class MemoryBuffer;
 class raw_ostream;
 
-/// Reads a value from data extractor and applies a relocation to the result if
-/// one exists for the given offset.
-uint64_t getRelocatedValue(const DataExtractor &Data, uint32_t Size,
-                           uint32_t *Off, const RelocAddrMap *Relocs,
-                           uint64_t *SecNdx = nullptr);
-
 /// DWARFContext
 /// This data structure is the top level entity that deals with dwarf debug
 /// information parsing. The actual data is supplied through pure virtual
@@ -289,6 +283,11 @@ private:
   DWARFCompileUnit *getCompileUnitForAddress(uint64_t Address);
 };
 
+/// Used as a return value for a error callback passed to DWARF context.
+/// Callback should return Halt if client application wants to stop
+/// object parsing, or should return Continue otherwise.
+enum class ErrorPolicy { Halt, Continue };
+
 /// DWARFContextInMemory is the simplest possible implementation of a
 /// DWARFContext. It assumes all content is available in memory and stores
 /// pointers to it.
@@ -346,9 +345,14 @@ class DWARFContextInMemory : public DWARFContext {
   Error maybeDecompress(const object::SectionRef &Sec, StringRef Name,
                         StringRef &Data);
 
+  /// Function used to handle default error reporting policy. Prints a error
+  /// message and returns Continue, so DWARF context ignores the error.
+  static ErrorPolicy defaultErrorHandler(Error E);
+
 public:
-  DWARFContextInMemory(const object::ObjectFile &Obj,
-    const LoadedObjectInfo *L = nullptr);
+  DWARFContextInMemory(
+      const object::ObjectFile &Obj, const LoadedObjectInfo *L = nullptr,
+      function_ref<ErrorPolicy(Error)> HandleError = defaultErrorHandler);
 
   DWARFContextInMemory(const StringMap<std::unique_ptr<MemoryBuffer>> &Sections,
                        uint8_t AddrSize,

@@ -1,4 +1,4 @@
-//===---- lib/CodeGen/GlobalISel/LegalizerInfo.cpp - Legalizer -------==//
+//===- lib/CodeGen/GlobalISel/LegalizerInfo.cpp - Legalizer ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,16 +18,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
-
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/IR/Type.h"
+#include "llvm/MC/MCInstrDesc.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/LowLevelTypeImpl.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetOpcodes.h"
+#include <algorithm>
+#include <cassert>
+#include <tuple>
+#include <utility>
+
 using namespace llvm;
 
-LegalizerInfo::LegalizerInfo() : TablesInitialized(false) {
+LegalizerInfo::LegalizerInfo() {
+  DefaultActions[TargetOpcode::G_IMPLICIT_DEF] = NarrowScalar;
+
   // FIXME: these two can be legalized to the fundamental load/store Jakob
   // proposed. Once loads & stores are supported.
   DefaultActions[TargetOpcode::G_ANYEXT] = Legal;
@@ -42,6 +51,7 @@ LegalizerInfo::LegalizerInfo() : TablesInitialized(false) {
 
   DefaultActions[TargetOpcode::G_BRCOND] = WidenScalar;
   DefaultActions[TargetOpcode::G_INSERT] = NarrowScalar;
+  DefaultActions[TargetOpcode::G_EXTRACT] = NarrowScalar;
   DefaultActions[TargetOpcode::G_FNEG] = Lower;
 }
 
@@ -75,8 +85,7 @@ LegalizerInfo::getAction(const InstrAspect &Aspect) const {
 
   // FIXME: the long-term plan calls for expansion in terms of load/store (if
   // they're not legal).
-  if (Aspect.Opcode == TargetOpcode::G_EXTRACT ||
-      Aspect.Opcode == TargetOpcode::G_MERGE_VALUES ||
+  if (Aspect.Opcode == TargetOpcode::G_MERGE_VALUES ||
       Aspect.Opcode == TargetOpcode::G_UNMERGE_VALUES)
     return std::make_pair(Legal, Aspect.Type);
 
@@ -172,21 +181,21 @@ Optional<LLT> LegalizerInfo::findLegalType(const InstrAspect &Aspect,
   case Custom:
     return Aspect.Type;
   case NarrowScalar: {
-    return findLegalType(Aspect,
-                         [](LLT Ty) -> LLT { return Ty.halfScalarSize(); });
+    return findLegalizableSize(
+        Aspect, [&](LLT Ty) -> LLT { return Ty.halfScalarSize(); });
   }
   case WidenScalar: {
-    return findLegalType(Aspect, [](LLT Ty) -> LLT {
+    return findLegalizableSize(Aspect, [&](LLT Ty) -> LLT {
       return Ty.getSizeInBits() < 8 ? LLT::scalar(8) : Ty.doubleScalarSize();
     });
   }
   case FewerElements: {
-    return findLegalType(Aspect,
-                         [](LLT Ty) -> LLT { return Ty.halfElements(); });
+    return findLegalizableSize(
+        Aspect, [&](LLT Ty) -> LLT { return Ty.halfElements(); });
   }
   case MoreElements: {
-    return findLegalType(Aspect,
-                         [](LLT Ty) -> LLT { return Ty.doubleElements(); });
+    return findLegalizableSize(
+        Aspect, [&](LLT Ty) -> LLT { return Ty.doubleElements(); });
   }
   }
 }

@@ -56,7 +56,7 @@ void X86LegalizerInfo::setLegalizerInfo32bit() {
   const LLT s32 = LLT::scalar(32);
   const LLT s64 = LLT::scalar(64);
 
-  for (unsigned BinOp : {G_ADD, G_SUB, G_MUL})
+  for (unsigned BinOp : {G_ADD, G_SUB, G_MUL, G_AND, G_OR, G_XOR})
     for (auto Ty : {s8, s16, s32})
       setAction({BinOp, Ty}, Legal);
 
@@ -117,7 +117,7 @@ void X86LegalizerInfo::setLegalizerInfo64bit() {
   const LLT s32 = LLT::scalar(32);
   const LLT s64 = LLT::scalar(64);
 
-  for (unsigned BinOp : {G_ADD, G_SUB, G_MUL})
+  for (unsigned BinOp : {G_ADD, G_SUB, G_MUL, G_AND, G_OR, G_XOR})
     for (auto Ty : {s8, s16, s32, s64})
       setAction({BinOp, Ty}, Legal);
 
@@ -228,10 +228,14 @@ void X86LegalizerInfo::setLegalizerInfoAVX() {
     for (auto Ty : {v8s32, v4s64})
       setAction({MemOp, Ty}, Legal);
 
-  for (auto Ty : {v32s8, v16s16, v8s32, v4s64})
+  for (auto Ty : {v32s8, v16s16, v8s32, v4s64}) {
     setAction({G_INSERT, Ty}, Legal);
-  for (auto Ty : {v16s8, v8s16, v4s32, v2s64})
+    setAction({G_EXTRACT, 1, Ty}, Legal);
+  }
+  for (auto Ty : {v16s8, v8s16, v4s32, v2s64}) {
     setAction({G_INSERT, 1, Ty}, Legal);
+    setAction({G_EXTRACT, Ty}, Legal);
+  }
 }
 
 void X86LegalizerInfo::setLegalizerInfoAVX2() {
@@ -280,10 +284,14 @@ void X86LegalizerInfo::setLegalizerInfoAVX512() {
     for (auto Ty : {v16s32, v8s64})
       setAction({MemOp, Ty}, Legal);
 
-  for (auto Ty : {v64s8, v32s16, v16s32, v8s64})
+  for (auto Ty : {v64s8, v32s16, v16s32, v8s64}) {
     setAction({G_INSERT, Ty}, Legal);
-  for (auto Ty : {v32s8, v16s16, v8s32, v4s64, v16s8, v8s16, v4s32, v2s64})
+    setAction({G_EXTRACT, 1, Ty}, Legal);
+  }
+  for (auto Ty : {v32s8, v16s16, v8s32, v4s64, v16s8, v8s16, v4s32, v2s64}) {
     setAction({G_INSERT, 1, Ty}, Legal);
+    setAction({G_EXTRACT, Ty}, Legal);
+  }
 
   /************ VLX *******************/
   if (!Subtarget.hasVLX())

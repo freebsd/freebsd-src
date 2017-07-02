@@ -243,10 +243,14 @@ void RenameIndependentSubregs::rewriteOperands(const IntEqClasses &Classes,
 
     unsigned VReg = Intervals[ID]->reg;
     MO.setReg(VReg);
-    if (MO.isTied()) {
+
+    if (MO.isTied() && Reg != VReg) {
       /// Undef use operands are not tracked in the equivalence class but need
       /// to be update if they are tied.
       MO.getParent()->substituteRegister(Reg, VReg, 0, TRI);
+
+      // substituteRegister breaks the iterator, so restart.
+      I = MRI->reg_nodbg_begin(Reg);
     }
   }
   // TODO: We could attempt to recompute new register classes while visiting
