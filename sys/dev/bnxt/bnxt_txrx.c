@@ -264,6 +264,7 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 	uint8_t flid;
 	uint64_t *paddrs;
 	caddr_t *vaddrs;
+	qidx_t	*frag_idxs;
 
 	rxqid = iru->iru_qsidx;
 	count = iru->iru_count;
@@ -272,6 +273,7 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 	flid = iru->iru_flidx;
 	vaddrs = iru->iru_vaddrs;
 	paddrs = iru->iru_paddrs;
+	frag_idxs = iru->iru_idxs;
 
 	if (flid == 0) {
 		rx_ring = &softc->rx_rings[rxqid];
@@ -287,8 +289,8 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 		rxbd[pidx].flags_type = htole16(type);
 		rxbd[pidx].len = htole16(len);
 		/* No need to byte-swap the opaque value */
-		rxbd[pidx].opaque = ((rxqid & 0xff) << 24) | (flid << 16)
-		    | pidx;
+		rxbd[pidx].opaque = (((rxqid & 0xff) << 24) | (flid << 16)
+		    | (frag_idxs[i]));
 		rxbd[pidx].addr = htole64(paddrs[i]);
 		if (++pidx == rx_ring->ring_size)
 			pidx = 0;
@@ -329,7 +331,6 @@ bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->rx_cp_rings[rxqid];
 	struct rx_pkt_cmpl *rcp;
-	struct rx_tpa_start_cmpl *rtpa;
 	struct rx_tpa_end_cmpl *rtpae;
 	struct cmpl_base *cmp = (struct cmpl_base *)cpr->ring.vaddr;
 	int avail = 0;
@@ -338,7 +339,6 @@ bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	uint8_t ags;
 	int i;
 	uint16_t type;
-	uint8_t agg_id;
 
 	for (;;) {
 		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
@@ -388,18 +388,11 @@ bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 			avail++;
 			break;
 		case CMPL_BASE_TYPE_RX_TPA_START:
-			rtpa = (void *)&cmp[cons];
-			agg_id = (rtpa->agg_id &
-			    RX_TPA_START_CMPL_AGG_ID_MASK) >>
-			    RX_TPA_START_CMPL_AGG_ID_SFT;
-			softc->tpa_start[agg_id].low = *rtpa;
 			NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
 			CMPL_PREFETCH_NEXT(cpr, cons);
 
 			if (!CMP_VALID(&cmp[cons], v_bit))
 				goto cmpl_invalid;
-			softc->tpa_start[agg_id].high =
-			    ((struct rx_tpa_start_cmpl_hi *)cmp)[cons];
 			break;
 		case CMPL_BASE_TYPE_RX_AGG:
 			break;
@@ -549,7 +542,7 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Get the agg_id */
 	agg_id = (agend->agg_id & RX_TPA_END_CMPL_AGG_ID_MASK) >>
 	    RX_TPA_END_CMPL_AGG_ID_SFT;
-	tpas = &softc->tpa_start[agg_id];
+	tpas = &(softc->rx_rings[ri->iri_qsidx].tpa_start[agg_id]);
 
 	/* Extract from the first 16-byte BD */
 	if (le16toh(tpas->low.flags_type) & RX_TPA_START_CMPL_FLAGS_RSS_VALID) {
@@ -563,8 +556,8 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	    RX_TPA_END_CMPL_AGG_BUFS_SFT;
 	ri->iri_nfrags = ags + 1;
 	/* No need to byte-swap the opaque value */
-	ri->iri_frags[0].irf_flid = (tpas->low.opaque >> 16) & 0xff;
-	ri->iri_frags[0].irf_idx = tpas->low.opaque & 0xffff;
+	ri->iri_frags[0].irf_flid = ((tpas->low.opaque >> 16) & 0xff);
+	ri->iri_frags[0].irf_idx = (tpas->low.opaque & 0xffff);
 	ri->iri_frags[0].irf_len = le16toh(tpas->low.len);
 	ri->iri_len = le16toh(tpas->low.len);
 
@@ -600,8 +593,8 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 		acp = &((struct rx_abuf_cmpl *)cpr->ring.vaddr)[cpr->cons];
 
 		/* No need to byte-swap the opaque value */
-		ri->iri_frags[i].irf_flid = (acp->opaque >> 16) & 0xff;
-		ri->iri_frags[i].irf_idx = acp->opaque & 0xffff;
+		ri->iri_frags[i].irf_flid = ((acp->opaque >> 16) & 0xff);
+		ri->iri_frags[i].irf_idx = (acp->opaque & 0xffff);
 		ri->iri_frags[i].irf_len = le16toh(acp->len);
 		ri->iri_len += le16toh(acp->len);
 	}
@@ -609,8 +602,8 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* And finally, the empty BD at the end... */
 	ri->iri_nfrags++;
 	/* No need to byte-swap the opaque value */
-	ri->iri_frags[i].irf_flid = (agend->opaque >> 16) % 0xff;
-	ri->iri_frags[i].irf_idx = agend->opaque & 0xffff;
+	ri->iri_frags[i].irf_flid = ((agend->opaque >> 16) & 0xff);
+	ri->iri_frags[i].irf_idx = (agend->opaque & 0xffff);
 	ri->iri_frags[i].irf_len = le16toh(agend->len);
 	ri->iri_len += le16toh(agend->len);
 
@@ -623,9 +616,12 @@ bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->rx_cp_rings[ri->iri_qsidx];
+	struct cmpl_base *cmp_q = (struct cmpl_base *)cpr->ring.vaddr;
 	struct cmpl_base *cmp;
+	struct rx_tpa_start_cmpl *rtpa;
 	uint16_t flags_type;
 	uint16_t type;
+	uint8_t agg_id;
 
 	for (;;) {
 		NEXT_CP_CONS_V(&cpr->ring, cpr->cons, cpr->v_bit);
@@ -642,9 +638,18 @@ bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri)
 		case CMPL_BASE_TYPE_RX_TPA_END:
 			return bnxt_pkt_get_tpa(softc, ri, cpr, flags_type);
 		case CMPL_BASE_TYPE_RX_TPA_START:
+			rtpa = (void *)&cmp_q[cpr->cons];
+			agg_id = (rtpa->agg_id &
+			    RX_TPA_START_CMPL_AGG_ID_MASK) >>
+			    RX_TPA_START_CMPL_AGG_ID_SFT;
+			softc->rx_rings[ri->iri_qsidx].tpa_start[agg_id].low = *rtpa;
+
 			NEXT_CP_CONS_V(&cpr->ring, cpr->cons, cpr->v_bit);
 			ri->iri_cidx = RING_NEXT(&cpr->ring, ri->iri_cidx);
 			CMPL_PREFETCH_NEXT(cpr, cpr->cons);
+
+			softc->rx_rings[ri->iri_qsidx].tpa_start[agg_id].high =
+			    ((struct rx_tpa_start_cmpl_hi *)cmp_q)[cpr->cons];
 			break;
 		default:
 			device_printf(softc->dev,
