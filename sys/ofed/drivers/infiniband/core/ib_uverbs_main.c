@@ -43,6 +43,7 @@
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 
@@ -1117,6 +1118,44 @@ static int find_overflow_devnum(void)
 	return ret;
 }
 
+static ssize_t
+show_dev_device(struct device *device, struct device_attribute *attr, char *buf)
+{
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+
+	if (!dev || !dev->ib_dev->dma_device)
+		return -ENODEV;
+
+	return sprintf(buf, "0x%04x\n",
+	    ((struct pci_dev *)dev->ib_dev->dma_device)->device);
+}
+static DEVICE_ATTR(device, S_IRUGO, show_dev_device, NULL);
+
+static ssize_t
+show_dev_vendor(struct device *device, struct device_attribute *attr, char *buf)
+{
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+
+	if (!dev || !dev->ib_dev->dma_device)
+		return -ENODEV;
+
+	return sprintf(buf, "0x%04x\n",
+	    ((struct pci_dev *)dev->ib_dev->dma_device)->vendor);
+}
+static DEVICE_ATTR(vendor, S_IRUGO, show_dev_vendor, NULL);
+
+struct attribute *device_attrs[] =
+{
+	&dev_attr_device.attr,
+	&dev_attr_vendor.attr,
+	NULL
+};
+
+static struct attribute_group device_group = {
+        .name  = "device",
+        .attrs  = device_attrs
+};
+
 static void ib_uverbs_add_one(struct ib_device *device)
 {
 	int devnum;
@@ -1185,6 +1224,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_ibdev))
 		goto err_class;
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
+		goto err_class;
+	if (sysfs_create_group(&uverbs_dev->dev->kobj, &device_group))
 		goto err_class;
 
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
@@ -1288,6 +1329,7 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 	if (!uverbs_dev)
 		return;
 
+	sysfs_remove_group(&uverbs_dev->dev->kobj, &device_group);
 	dev_set_drvdata(uverbs_dev->dev, NULL);
 	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
 	cdev_del(&uverbs_dev->cdev);

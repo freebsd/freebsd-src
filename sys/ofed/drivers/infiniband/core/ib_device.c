@@ -756,6 +756,29 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 }
 
 /**
+ * ib_cache_gid_del_all_by_netdev - delete GIDs belonging a netdevice
+ *
+ * @ndev: Pointer to netdevice
+ */
+void ib_cache_gid_del_all_by_netdev(struct net_device *ndev)
+{
+	struct ib_device *ib_dev;
+	u8 port;
+
+	down_read(&lists_rwsem);
+	list_for_each_entry(ib_dev, &device_list, core_list) {
+		for (port = rdma_start_port(ib_dev);
+		     port <= rdma_end_port(ib_dev);
+		     port++) {
+			if (rdma_protocol_roce(ib_dev, port) == 0)
+				continue;
+			(void) ib_cache_gid_del_all_netdev_gids(ib_dev, port, ndev);
+		}
+	}
+	up_read(&lists_rwsem);
+}
+
+/**
  * ib_query_pkey - Get P_Key table entry
  * @device:Device to query
  * @port_num:Port number to query

@@ -34,7 +34,11 @@
 #ifndef IB_USER_CM_H
 #define IB_USER_CM_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
+#else
+#include <infiniband/types.h>
+#endif
 #include <rdma/ib_user_sa.h>
 
 #define IB_USER_CM_ABI_VERSION 5

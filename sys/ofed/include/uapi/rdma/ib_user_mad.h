@@ -34,8 +34,13 @@
 #ifndef IB_USER_MAD_H
 #define IB_USER_MAD_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#else
+#include <infiniband/types.h>
+#include <sys/ioccom.h>
+#endif
 
 /*
  * Increment this value if any changes that break userspace ABI
