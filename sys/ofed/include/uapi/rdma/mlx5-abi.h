@@ -33,7 +33,11 @@
 #ifndef MLX5_ABI_USER_H
 #define MLX5_ABI_USER_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
+#else
+#include <infiniband/types.h>
+#endif
 
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
