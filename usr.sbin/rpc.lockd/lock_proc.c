@@ -283,7 +283,10 @@ get_client(host_addr, vers)
 
 	/* Regain root privileges, for bindresvport. */
 	old_euid = geteuid();
-	seteuid(0);
+	if (seteuid(0) != 0) {
+		syslog(LOG_ERR, "seteuid(0) failed");
+		return NULL;
+	}
 
 	/*
 	 * Bind the client FD to a reserved port.
@@ -292,7 +295,10 @@ get_client(host_addr, vers)
 	bindresvport(clnt_fd, NULL);
 
 	/* Drop root privileges again. */
-	seteuid(old_euid);
+	if (seteuid(old_euid) != 0) {
+		syslog(LOG_ERR, "seteuid(%d) failed", old_euid);
+		return NULL;
+	}
 
 	/* Success - update the cache entry */
 	clnt_cache_ptr[clnt_cache_next_to_use] = client;
