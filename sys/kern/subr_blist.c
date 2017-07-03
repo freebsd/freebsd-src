@@ -127,8 +127,8 @@ static void blst_meta_free(blmeta_t *scan, daddr_t freeBlk, daddr_t count,
 					daddr_t radix, int skip, daddr_t blk);
 static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix, 
 				daddr_t skip, blist_t dest, daddr_t count);
-static int blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
-static int blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
+static daddr_t blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count);
+static daddr_t blst_meta_fill(blmeta_t *scan, daddr_t allocBlk, daddr_t count,
 				daddr_t radix, int skip, daddr_t blk);
 static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, 
 						int skip, daddr_t count);
@@ -156,7 +156,7 @@ blist_t
 blist_create(daddr_t blocks, int flags)
 {
 	blist_t bl;
-	int radix;
+	daddr_t nodes, radix;
 	int skip = 0;
 
 	/*
@@ -170,13 +170,19 @@ blist_create(daddr_t blocks, int flags)
 	}
 
 	bl = malloc(sizeof(struct blist), M_SWAP, flags | M_ZERO);
+	if (bl == NULL)
+		return (NULL);
 
 	bl->bl_blocks = blocks;
 	bl->bl_radix = radix;
 	bl->bl_skip = skip;
-	bl->bl_rootblks = 1 +
-	    blst_radix_init(NULL, bl->bl_radix, bl->bl_skip, blocks);
-	bl->bl_root = malloc(sizeof(blmeta_t) * bl->bl_rootblks, M_SWAP, flags);
+	nodes = 1 + blst_radix_init(NULL, radix, bl->bl_skip, blocks);
+	bl->bl_root = malloc(nodes * sizeof(blmeta_t), M_SWAP, flags);
+	if (bl->bl_root == NULL) {
+		free(bl, M_SWAP);
+		return (NULL);
+	}
+	blst_radix_init(bl->bl_root, radix, bl->bl_skip, blocks);
 
 #if defined(BLIST_DEBUG)
 	printf(
@@ -184,14 +190,13 @@ blist_create(daddr_t blocks, int flags)
 		", requiring %lldK of ram\n",
 		(long long)bl->bl_blocks,
 		(long long)bl->bl_blocks * 4 / 1024,
-		(long long)(bl->bl_rootblks * sizeof(blmeta_t) + 1023) / 1024
+		(long long)(nodes * sizeof(blmeta_t) + 1023) / 1024
 	);
 	printf("BLIST raw radix tree contains %lld records\n",
-	    (long long)bl->bl_rootblks);
+	    (long long)nodes);
 #endif
-	blst_radix_init(bl->bl_root, bl->bl_radix, bl->bl_skip, blocks);
 
-	return(bl);
+	return (bl);
 }
 
 void 
@@ -248,10 +253,10 @@ blist_free(blist_t bl, daddr_t blkno, daddr_t count)
  *			actually filled that were free before the call.
  */
 
-int
+daddr_t
 blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
 {
-	int filled;
+	daddr_t filled;
 
 	if (bl) {
 		if (bl->bl_radix == BLIST_BMAP_RADIX)
@@ -419,7 +424,7 @@ blst_meta_alloc(
 		/*
 		 * ALL-ALLOCATED special case
 		 */
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return(SWAPBLK_NONE);
 	}
 
@@ -726,11 +731,11 @@ static void blst_copy(
  *	the number of blocks allocated by the call.
  */
 
-static int
+static daddr_t
 blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
 {
 	int n = blk & (BLIST_BMAP_RADIX - 1);
-	int nblks;
+	daddr_t nblks;
 	u_daddr_t mask, bitmap;
 
 	mask = ((u_daddr_t)-1 << n) &
@@ -753,7 +758,7 @@ blst_leaf_fill(blmeta_t *scan, daddr_t blk, int count)
  *	range must be within the extent of this node.  Returns the
  *	number of blocks allocated by the call.
  */
-static int
+static daddr_t
 blst_meta_fill(
 	blmeta_t *scan,
 	daddr_t allocBlk,
@@ -764,7 +769,7 @@ blst_meta_fill(
 ) {
 	int i;
 	int next_skip = ((u_int)skip / BLIST_META_RADIX);
-	int nblks = 0;
+	daddr_t nblks = 0;
 
 	if (count > radix)
 		panic("blist_meta_fill: allocation too large");
@@ -774,7 +779,7 @@ blst_meta_fill(
 		 */
 		nblks = scan->u.bmu_avail;
 		scan->u.bmu_avail = 0;
-		scan->bm_bighint = count;
+		scan->bm_bighint = 0;
 		return nblks;
 	}
 
@@ -1047,8 +1052,8 @@ main(int ac, char **av)
 			break;
 		case 'l':
 			if (sscanf(buf + 1, "%llx %lld", &da, &count) == 2) {
-				printf("    n=%d\n",
-				    blist_fill(bl, da, count));
+				printf("    n=%jd\n",
+				    (intmax_t)blist_fill(bl, da, count));
 			} else {
 				printf("?\n");
 			}
