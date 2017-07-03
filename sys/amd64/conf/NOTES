@@ -414,7 +414,6 @@ device		arcmsr		# Areca SATA II RAID
 # The driver is implemented as a SIM, and so, needs the CAM infrastructure.
 #
 options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
-options 	TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
