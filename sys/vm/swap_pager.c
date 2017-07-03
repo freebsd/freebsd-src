@@ -1906,6 +1906,11 @@ static void
 cheri_restore_tag(void *cp)
 {
 	size_t base, len, offset, perm, sealed, type;
+	void * __capability *cc;
+	void * __capability newcap;
+	void * __capability sealcap;
+
+	cc = (void * __capability *)cp;
 
 	/*
 	 * XXX: This currently assumes precise capabilities, but the order
@@ -1913,24 +1918,25 @@ cheri_restore_tag(void *cp)
 	 * sys/mips/cheri/cheri.c) to avoid loss of precision in
 	 * anticipation of the addition of a future CSetBounds instruction.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cp, 0);
-	CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
-	CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
-	CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
-	CHERI_CGETPERM(perm, CHERI_CR_CTEMP0);
-	CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-	CHERI_CGETTYPE(type, CHERI_CR_CTEMP0);
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, base);
-	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, len);
-	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, perm);
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, offset);
+	base = cheri_getbase(*cc);
+	len = cheri_getlen(*cc);
+	offset = cheri_getoffset(*cc);
+	perm = cheri_getperm(*cc);
+	sealed = cheri_getsealed(*cc);
+	type = cheri_gettype(*cc);
+
+	newcap = cheri_getkdc();
+	newcap = cheri_setoffset(newcap, base);
+	newcap = cheri_csetbounds(newcap, len);
+	newcap = cheri_andperm(newcap, perm);
+	newcap = cheri_incoffset(newcap, offset);
+
 	if (sealed) {
-		CHERI_CMOVE(CHERI_CR_CTEMP1, CHERI_CR_KDC);
-		CHERI_CSETOFFSET(CHERI_CR_CTEMP1, CHERI_CR_CTEMP1, type);
-		CHERI_CSEAL(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    CHERI_CR_CTEMP1);
+		sealcap = cheri_setoffset(newcap, type);
+		newcap = cheri_seal(newcap, sealcap);
 	}
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cp, 0);
+
+	*cc = newcap;
 }
 
 /*
