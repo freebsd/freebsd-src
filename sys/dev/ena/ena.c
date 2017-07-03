@@ -2276,8 +2276,11 @@ ena_init(void *arg)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
-	if (adapter->up == false)
+	if (adapter->up == false) {
+		sx_xlock(&adapter->ioctl_sx);
 		ena_up(adapter);
+		sx_unlock(&adapter->ioctl_sx);
+	}
 
 	return;
 }
