@@ -48,7 +48,7 @@ enum gid_op_type {
 	GID_ADD
 };
 
-struct roce_gid_scan_event_work {
+struct roce_netdev_event_work {
 	struct work_struct work;
 	struct net_device *ndev;
 };
@@ -288,8 +288,8 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 static void
 roce_gid_queue_scan_event_handler(struct work_struct *_work)
 {
-	struct roce_gid_scan_event_work *work =
-		container_of(_work, struct roce_gid_scan_event_work, work);
+	struct roce_netdev_event_work *work =
+		container_of(_work, struct roce_netdev_event_work, work);
 
 	ib_enum_all_roce_netdevs(roce_gid_match_netdev, work->ndev,
 	    roce_gid_update_addr_callback, NULL);
@@ -301,7 +301,7 @@ roce_gid_queue_scan_event_handler(struct work_struct *_work)
 static void
 roce_gid_queue_scan_event(struct net_device *ndev)
 {
-	struct roce_gid_scan_event_work *work;
+	struct roce_netdev_event_work *work;
 
 retry:
 	if (is_eth_ipoib_intf(ndev))
@@ -330,14 +330,44 @@ retry:
 	queue_work(roce_gid_mgmt_wq, &work->work);
 }
 
+static void
+roce_gid_delete_all_event_handler(struct work_struct *_work)
+{
+	struct roce_netdev_event_work *work =
+		container_of(_work, struct roce_netdev_event_work, work);
+
+	ib_cache_gid_del_all_by_netdev(work->ndev);
+	dev_put(work->ndev);
+	kfree(work);
+}
+
+static void
+roce_gid_delete_all_event(struct net_device *ndev)
+{
+	struct roce_netdev_event_work *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work) {
+		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+		return;
+	}
+
+	INIT_WORK(&work->work, roce_gid_delete_all_event_handler);
+	dev_hold(ndev);
+	work->ndev = ndev;
+	queue_work(roce_gid_mgmt_wq, &work->work);
+}
+
 static int
 inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *ndev = ptr;
 
 	switch (event) {
-	case NETDEV_REGISTER:
 	case NETDEV_UNREGISTER:
+		roce_gid_delete_all_event(ndev);
+		break;
+	case NETDEV_REGISTER:
 	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGEIFADDR:
 		roce_gid_queue_scan_event(ndev);
