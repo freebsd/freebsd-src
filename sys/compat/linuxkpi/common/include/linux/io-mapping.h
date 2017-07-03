@@ -53,8 +53,13 @@ io_mapping_init_wc(struct io_mapping *mapping, resource_size_t base,
 
 	mapping->base = base;
 	mapping->size = size;
+#ifdef VM_MEMATTR_WRITE_COMBINING
 	mapping->mem = ioremap_wc(base, size);
 	mapping->attr = VM_MEMATTR_WRITE_COMBINING;
+#else
+	mapping->mem = ioremap_nocache(base, size);
+	mapping->attr = VM_MEMATTR_UNCACHEABLE;
+#endif
 	return (mapping);
 }
 
