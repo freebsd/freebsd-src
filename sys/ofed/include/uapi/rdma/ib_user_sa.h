@@ -33,7 +33,11 @@
 #ifndef IB_USER_SA_H
 #define IB_USER_SA_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
+#else
+#include <infiniband/types.h>
+#endif
 
 enum {
 	IB_PATH_GMP		= 1,

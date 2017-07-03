@@ -33,9 +33,15 @@
 #ifndef RDMA_USER_CM_H
 #define RDMA_USER_CM_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in6.h>
+#else
+#include <infiniband/types.h>
+#include <netinet/in.h>
+#endif
+
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_user_sa.h>
 

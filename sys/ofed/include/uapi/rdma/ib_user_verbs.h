@@ -36,7 +36,11 @@
 #ifndef IB_USER_VERBS_H
 #define IB_USER_VERBS_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
+#else
+#include <infiniband/types.h>
+#endif
 
 /*
  * Increment this value if any changes that break userspace ABI
