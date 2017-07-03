@@ -1,4 +1,5 @@
 /*-
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -1742,7 +1743,7 @@ isp_put_gid_ft_request(ispsoftc_t *isp, sns_gid_ft_req_t *src, sns_gid_ft_req_t 
 }
 
 void
-isp_put_gxn_id_request(ispsoftc_t *isp, sns_gxn_id_req_t *src, sns_gxn_id_req_t *dst)
+isp_put_gid_pt_request(ispsoftc_t *isp, sns_gid_pt_req_t *src, sns_gid_pt_req_t *dst)
 {
 	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
 	ISP_IOXPUT_16(isp, src->snscb_reserved0, &dst->snscb_reserved0);
@@ -1753,48 +1754,46 @@ isp_put_gxn_id_request(ispsoftc_t *isp, sns_gxn_id_req_t *src, sns_gxn_id_req_t 
 	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
 	ISP_IOXPUT_16(isp, src->snscb_reserved1, &dst->snscb_reserved1);
 	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
-	ISP_IOXPUT_16(isp, src->snscb_reserved2, &dst->snscb_reserved2);
+	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
+	ISP_IOXPUT_32(isp, src->snscb_reserved3, &dst->snscb_reserved3);
+	ISP_IOXPUT_8(isp, src->snscb_port_type, &dst->snscb_port_type);
+	ISP_IOXPUT_8(isp, src->snscb_domain, &dst->snscb_domain);
+	ISP_IOXPUT_8(isp, src->snscb_area, &dst->snscb_area);
+	ISP_IOXPUT_8(isp, src->snscb_flags, &dst->snscb_flags);
+}
+
+void
+isp_put_gxx_id_request(ispsoftc_t *isp, sns_gxx_id_req_t *src, sns_gxx_id_req_t *dst)
+{
+	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
+	ISP_IOXPUT_16(isp, src->snscb_reserved0, &dst->snscb_reserved0);
+	ISP_IOXPUT_16(isp, src->snscb_addr[0], &dst->snscb_addr[0]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[1], &dst->snscb_addr[1]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[2], &dst->snscb_addr[2]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[3], &dst->snscb_addr[3]);
+	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
+	ISP_IOXPUT_16(isp, src->snscb_reserved1, &dst->snscb_reserved1);
+	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
+	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
 	ISP_IOXPUT_32(isp, src->snscb_reserved3, &dst->snscb_reserved3);
 	ISP_IOXPUT_32(isp, src->snscb_portid, &dst->snscb_portid);
 }
 
-/*
- * Generic SNS response - not particularly useful since the per-command data
- * isn't always 16 bit words.
- */
 void
-isp_get_sns_response(ispsoftc_t *isp, sns_scrsp_t *src, sns_scrsp_t *dst, int nwords)
+isp_get_gid_xx_response(ispsoftc_t *isp, sns_gid_xx_rsp_t *src, sns_gid_xx_rsp_t *dst, int nwords)
 {
-	int i;
-	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
-	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
-	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_port_id[i],
-		    dst->snscb_port_id[i]);
-	}
-	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_portname[i],
-		    dst->snscb_portname[i]);
-	}
-	for (i = 0; i < nwords; i++) {
-		ISP_IOXGET_16(isp, &src->snscb_data[i], dst->snscb_data[i]);
-	}
-}
+	int i, j;
 
-void
-isp_get_gid_ft_response(ispsoftc_t *isp, sns_gid_ft_rsp_t *src, sns_gid_ft_rsp_t *dst, int nwords)
-{
-	int i;
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < nwords; i++) {
-		int j;
-		ISP_IOXGET_8(isp, &src->snscb_ports[i].control, dst->snscb_ports[i].control);
+		ISP_IOZGET_8(isp, &src->snscb_ports[i].control,
+		    dst->snscb_ports[i].control);
 		for (j = 0; j < 3; j++) {
-			ISP_IOXGET_8(isp, &src->snscb_ports[i].portid[j], dst->snscb_ports[i].portid[j]);
+			ISP_IOZGET_8(isp, &src->snscb_ports[i].portid[j],
+			    dst->snscb_ports[i].portid[j]);
 		}
-		if (dst->snscb_ports[i].control & 0x80) {
+		if (dst->snscb_ports[i].control & 0x80)
 			break;
-		}
 	}
 }
 
@@ -1802,9 +1801,21 @@ void
 isp_get_gxn_id_response(ispsoftc_t *isp, sns_gxn_id_rsp_t *src, sns_gxn_id_rsp_t *dst)
 {
 	int i;
+
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < 8; i++)
+		ISP_IOZGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+}
+
+void
+isp_get_gft_id_response(ispsoftc_t *isp, sns_gft_id_rsp_t *src, sns_gft_id_rsp_t *dst)
+{
+	int i;
+
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+		ISP_IOZGET_32(isp, &src->snscb_fc4_types[i],
+		    dst->snscb_fc4_types[i]);
 	}
 }
 
@@ -1812,9 +1823,11 @@ void
 isp_get_gff_id_response(ispsoftc_t *isp, sns_gff_id_rsp_t *src, sns_gff_id_rsp_t *dst)
 {
 	int i;
+
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < 32; i++) {
-		ISP_IOXGET_32(isp, &src->snscb_fc4_features[i], dst->snscb_fc4_features[i]);
+		ISP_IOZGET_32(isp, &src->snscb_fc4_features[i],
+		    dst->snscb_fc4_features[i]);
 	}
 }
 
@@ -1823,42 +1836,42 @@ isp_get_ga_nxt_response(ispsoftc_t *isp, sns_ga_nxt_rsp_t *src, sns_ga_nxt_rsp_t
 {
 	int i;
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
-	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
+	ISP_IOZGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
 	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_port_id[i], dst->snscb_port_id[i]);
+		ISP_IOZGET_8(isp, &src->snscb_port_id[i], dst->snscb_port_id[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_portname[i], dst->snscb_portname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_portname[i], dst->snscb_portname[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_pnlen, dst->snscb_pnlen);
+	ISP_IOZGET_8(isp, &src->snscb_pnlen, dst->snscb_pnlen);
 	for (i = 0; i < 255; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_pname[i], dst->snscb_pname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_pname[i], dst->snscb_pname[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_nodename[i], dst->snscb_nodename[i]);
+		ISP_IOZGET_8(isp, &src->snscb_nodename[i], dst->snscb_nodename[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_nnlen, dst->snscb_nnlen);
+	ISP_IOZGET_8(isp, &src->snscb_nnlen, dst->snscb_nnlen);
 	for (i = 0; i < 255; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_nname[i], dst->snscb_nname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_nname[i], dst->snscb_nname[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_ipassoc[i], dst->snscb_ipassoc[i]);
+		ISP_IOZGET_8(isp, &src->snscb_ipassoc[i], dst->snscb_ipassoc[i]);
 	}
 	for (i = 0; i < 16; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_ipaddr[i], dst->snscb_ipaddr[i]);
+		ISP_IOZGET_8(isp, &src->snscb_ipaddr[i], dst->snscb_ipaddr[i]);
 	}
 	for (i = 0; i < 4; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_svc_class[i], dst->snscb_svc_class[i]);
+		ISP_IOZGET_8(isp, &src->snscb_svc_class[i], dst->snscb_svc_class[i]);
 	}
 	for (i = 0; i < 32; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_fc4_types[i], dst->snscb_fc4_types[i]);
+		ISP_IOZGET_8(isp, &src->snscb_fc4_types[i], dst->snscb_fc4_types[i]);
 	}
 	for (i = 0; i < 8; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_fpname[i], dst->snscb_fpname[i]);
+		ISP_IOZGET_8(isp, &src->snscb_fpname[i], dst->snscb_fpname[i]);
 	}
-	ISP_IOXGET_8(isp, &src->snscb_reserved, dst->snscb_reserved);
+	ISP_IOZGET_8(isp, &src->snscb_reserved, dst->snscb_reserved);
 	for (i = 0; i < 3; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_hardaddr[i], dst->snscb_hardaddr[i]);
+		ISP_IOZGET_8(isp, &src->snscb_hardaddr[i], dst->snscb_hardaddr[i]);
 	}
 }
 
