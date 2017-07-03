@@ -398,7 +398,7 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 	/*
 	 * Turn on VDD1 power.  Note that at least some Intel controllers can
 	 * fail to enable bus power on the first try after transiting from D3
-	 * to D0, so we give them up to 20 ms.
+	 * to D0, so we give them up to 2 ms.
 	 */
 	pwr |= SDHCI_POWER_ON;
 	for (i = 0; i < 20; i++) {
