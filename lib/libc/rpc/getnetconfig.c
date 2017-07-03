@@ -692,7 +692,7 @@ static struct netconfig *
 dup_ncp(struct netconfig *ncp)
 {
     struct netconfig	*p;
-    char	*tmp, *tmp2;
+    char	*tmp;
     u_int	i;
 
     if ((tmp=malloc(MAXNETCONFIGLINE)) == NULL)
@@ -701,7 +701,6 @@ dup_ncp(struct netconfig *ncp)
 	free(tmp);
 	return(NULL);
     }
-    tmp2 = tmp;
     /*
      * First we dup all the data from matched netconfig buffer.  Then we
      * adjust some of the member pointer to a pre-allocated buffer where
@@ -723,7 +722,6 @@ dup_ncp(struct netconfig *ncp)
     if (p->nc_lookups == NULL) {
 	free(p->nc_netid);
 	free(p);
-	free(tmp2);
 	return(NULL);
     }
     for (i=0; i < p->nc_nlookups; i++) {
