@@ -455,8 +455,13 @@ static int __ib_cache_gid_get(struct ib_device *ib_dev, u8 port, int index,
 	memcpy(gid, &table->data_vec[index].gid, sizeof(*gid));
 	if (attr) {
 		memcpy(attr, &table->data_vec[index].attr, sizeof(*attr));
-		if (attr->ndev)
+		/* make sure network device is valid and attached */
+		if (attr->ndev != NULL &&
+		    (attr->ndev->if_flags & IFF_DYING) == 0 &&
+		    attr->ndev->if_addr != NULL)
 			dev_hold(attr->ndev);
+		else
+			attr->ndev = NULL;
 	}
 
 	return 0;
