@@ -145,6 +145,14 @@ static struct resource_spec arm_gic_spec[] = {
 	{ -1, 0 }
 };
 
+
+#if defined(__arm__) && defined(INVARIANTS)
+static int gic_debug_spurious = 1;
+#else
+static int gic_debug_spurious = 0;
+#endif
+TUNABLE_INT("hw.gic.debug_spurious", &gic_debug_spurious);
+
 static u_int arm_gic_map[MAXCPU];
 
 static struct arm_gic_softc *gic_sc = NULL;
@@ -671,11 +679,10 @@ arm_gic_intr(void *arg)
 	 */
 
 	if (irq >= sc->nirqs) {
-#ifdef GIC_DEBUG_SPURIOUS
-		device_printf(sc->gic_dev,
-		    "Spurious interrupt detected: last irq: %d on CPU%d\n",
-		    sc->last_irq[PCPU_GET(cpuid)], PCPU_GET(cpuid));
-#endif
+		if (gic_debug_spurious)
+			device_printf(sc->gic_dev,
+			    "Spurious interrupt detected: last irq: %d on CPU%d\n",
+			    sc->last_irq[PCPU_GET(cpuid)], PCPU_GET(cpuid));
 		return (FILTER_HANDLED);
 	}
 
@@ -700,9 +707,8 @@ dispatch_irq:
 #endif
 	}
 
-#ifdef GIC_DEBUG_SPURIOUS
-	sc->last_irq[PCPU_GET(cpuid)] = irq;
-#endif
+	if (gic_debug_spurious)
+		sc->last_irq[PCPU_GET(cpuid)] = irq;
 	if ((gi->gi_flags & GI_FLAG_EARLY_EOI) == GI_FLAG_EARLY_EOI)
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 
