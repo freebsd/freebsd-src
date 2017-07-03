@@ -65,6 +65,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-mmc", 1},
 	{"allwinner,sun5i-a13-mmc", 1},
 	{"allwinner,sun7i-a20-mmc", 1},
+	{"allwinner,sun50i-a64-mmc", 1},
 	{NULL,             0}
 };
 
