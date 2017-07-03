@@ -1,4 +1,5 @@
 /*-
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -117,7 +118,7 @@ static uint64_t isp_get_wwn(ispsoftc_t *, int, int, int);
 static int isp_fclink_test(ispsoftc_t *, int, int);
 static int isp_pdb_sync(ispsoftc_t *, int);
 static int isp_scan_loop(ispsoftc_t *, int);
-static int isp_gid_ft(ispsoftc_t *, int);
+static int isp_gid_pt(ispsoftc_t *, int);
 static int isp_scan_fabric(ispsoftc_t *, int);
 static int isp_login_device(ispsoftc_t *, int, uint32_t, isp_pdb_t *, uint16_t *);
 static int isp_send_change_request(ispsoftc_t *, int);
@@ -3496,7 +3497,7 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 	isp_get_ct_pt(isp, (isp_ct_pt_t *)resp, &pt);
 	if (pt.ctp_status && pt.ctp_status != RQCS_DATA_UNDERRUN) {
 		isp_prt(isp, ISP_LOGWARN,
-		    "Chan %d GID_FT CT Passthrough returned 0x%x",
+		    "Chan %d CT pass-through returned 0x%x",
 		    chan, pt.ctp_status);
 		return (-1);
 	}
@@ -3510,7 +3511,8 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 /*
  * Scan the fabric for devices and add them to our port database.
  *
- * Use the GID_FT command to get all Port IDs for FC4 SCSI devices it knows.
+ * Use the GID_PT command to get list of all Nx_Port IDs SNS knows.
+ * Use GFF_ID and GFT_ID to check port type (FCP) and features (target).
  *
  * For 2100-23XX cards, we use the SNS mailbox command to pass simple name
  * server commands to the switch management server via the QLogic f/w.
@@ -3521,15 +3523,14 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 #define	NGENT	((GIDLEN - 16) >> 2)
 
 static int
-isp_gid_ft(ispsoftc_t *isp, int chan)
+isp_gid_pt(ispsoftc_t *isp, int chan)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	ct_hdr_t ct;
-	sns_gid_ft_req_t rq;
-	uint32_t *rp;
+	sns_gid_pt_req_t rq;
 	uint8_t *scp = fcp->isp_scratch;
 
-	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GID_FT", chan);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GID_PT", chan);
 	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
 		isp_prt(isp, ISP_LOGERR, sacq);
 		return (-1);
@@ -3541,11 +3542,13 @@ isp_gid_ft(ispsoftc_t *isp, int chan)
 		ct.ct_revision = CT_REVISION;
 		ct.ct_fcs_type = CT_FC_TYPE_FC;
 		ct.ct_fcs_subtype = CT_FC_SUBTYPE_NS;
-		ct.ct_cmd_resp = SNS_GID_FT;
+		ct.ct_cmd_resp = SNS_GID_PT;
 		ct.ct_bcnt_resid = (GIDLEN - 16) >> 2;
 		isp_put_ct_hdr(isp, &ct, (ct_hdr_t *)scp);
-		rp = (uint32_t *) &scp[sizeof(ct)];
-		ISP_IOZPUT_32(isp, FC4_SCSI, rp);
+		scp[sizeof(ct)] = 0x7f;		/* Port Type = Nx_Port */
+		scp[sizeof(ct)+1] = 0;		/* Domain_ID = any */
+		scp[sizeof(ct)+2] = 0;		/* Area_ID = any */
+		scp[sizeof(ct)+3] = 0;		/* Flags = no Area_ID */
 
 		if (isp_ct_passthru(isp, chan, sizeof(ct) + sizeof(uint32_t), GIDLEN)) {
 			FC_SCRATCH_RELEASE(isp, chan);
@@ -3553,17 +3556,20 @@ isp_gid_ft(ispsoftc_t *isp, int chan)
 		}
 	} else {
 		/* Build the SNS request and execute via firmware. */
-		ISP_MEMZERO(&rq, SNS_GID_FT_REQ_SIZE);
+		ISP_MEMZERO(&rq, SNS_GID_PT_REQ_SIZE);
 		rq.snscb_rblen = GIDLEN >> 1;
 		rq.snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma);
 		rq.snscb_addr[RQRSP_ADDR1631] = DMA_WD1(fcp->isp_scdma);
 		rq.snscb_addr[RQRSP_ADDR3247] = DMA_WD2(fcp->isp_scdma);
 		rq.snscb_addr[RQRSP_ADDR4863] = DMA_WD3(fcp->isp_scdma);
 		rq.snscb_sblen = 6;
-		rq.snscb_cmd = SNS_GID_FT;
+		rq.snscb_cmd = SNS_GID_PT;
 		rq.snscb_mword_div_2 = NGENT;
-		rq.snscb_fc4_type = FC4_SCSI;
-		isp_put_gid_ft_request(isp, &rq, (sns_gid_ft_req_t *)scp);
+		rq.snscb_port_type = 0x7f;	/* Port Type = Nx_Port */
+		rq.snscb_domain = 0;		/* Domain_ID = any */
+		rq.snscb_area = 0;		/* Area_ID = any */
+		rq.snscb_flags = 0;		/* Flags = no Area_ID */
+		isp_put_gid_pt_request(isp, &rq, (sns_gid_pt_req_t *)scp);
 
 		if (isp_ct_sns(isp, chan, sizeof(rq), NGENT)) {
 			FC_SCRATCH_RELEASE(isp, chan);
@@ -3571,10 +3577,144 @@ isp_gid_ft(ispsoftc_t *isp, int chan)
 		}
 	}
 
-	isp_get_gid_ft_response(isp, (sns_gid_ft_rsp_t *)scp,
-	    (sns_gid_ft_rsp_t *)fcp->isp_scanscratch, NGENT);
+	isp_get_gid_xx_response(isp, (sns_gid_xx_rsp_t *)scp,
+	    (sns_gid_xx_rsp_t *)fcp->isp_scanscratch, NGENT);
 	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
+}
+
+static int
+isp_gff_id(ispsoftc_t *isp, int chan, uint32_t portid)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	ct_hdr_t ct;
+	uint32_t *rp;
+	uint8_t *scp = fcp->isp_scratch;
+	sns_gff_id_rsp_t rsp;
+	int i, res = -1;
+
+	if (!fcp->isp_use_gff_id)	/* User may block GFF_ID use. */
+		return (res);
+
+	if (!IS_24XX(isp))	/* Old chips can't request GFF_ID. */
+		return (res);
+
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GFF_ID", chan);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (res);
+	}
+
+	/* Build the CT command and execute via pass-through. */
+	ISP_MEMZERO(&ct, sizeof (ct));
+	ct.ct_revision = CT_REVISION;
+	ct.ct_fcs_type = CT_FC_TYPE_FC;
+	ct.ct_fcs_subtype = CT_FC_SUBTYPE_NS;
+	ct.ct_cmd_resp = SNS_GFF_ID;
+	ct.ct_bcnt_resid = (SNS_GFF_ID_RESP_SIZE - sizeof(ct)) / 4;
+	isp_put_ct_hdr(isp, &ct, (ct_hdr_t *)scp);
+	rp = (uint32_t *) &scp[sizeof(ct)];
+	ISP_IOZPUT_32(isp, portid, rp);
+
+	if (isp_ct_passthru(isp, chan, sizeof(ct) + sizeof(uint32_t),
+	    SNS_GFF_ID_RESP_SIZE)) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (res);
+	}
+
+	isp_get_gff_id_response(isp, (sns_gff_id_rsp_t *)scp, &rsp);
+	if (rsp.snscb_cthdr.ct_cmd_resp == LS_ACC) {
+		for (i = 0; i < 32; i++) {
+			if (rsp.snscb_fc4_features[i] != 0) {
+				res = 0;
+				break;
+			}
+		}
+		if (((rsp.snscb_fc4_features[FC4_SCSI / 8] >>
+		    ((FC4_SCSI % 8) * 4)) & 0x01) != 0)
+			res = 1;
+		/* Workaround for broken Brocade firmware. */
+		if (((ISP_SWAP32(isp, rsp.snscb_fc4_features[FC4_SCSI / 8]) >>
+		    ((FC4_SCSI % 8) * 4)) & 0x01) != 0)
+			res = 1;
+	}
+	FC_SCRATCH_RELEASE(isp, chan);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GFF_ID result is %d", chan, res);
+	return (res);
+}
+
+static int
+isp_gft_id(ispsoftc_t *isp, int chan, uint32_t portid)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	ct_hdr_t ct;
+	sns_gxx_id_req_t rq;
+	uint32_t *rp;
+	uint8_t *scp = fcp->isp_scratch;
+	sns_gft_id_rsp_t rsp;
+	int i, res = -1;
+
+	if (!fcp->isp_use_gft_id)	/* User may block GFT_ID use. */
+		return (res);
+
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GFT_ID", chan);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (res);
+	}
+
+	if (IS_24XX(isp)) {
+		/* Build the CT command and execute via pass-through. */
+		ISP_MEMZERO(&ct, sizeof (ct));
+		ct.ct_revision = CT_REVISION;
+		ct.ct_fcs_type = CT_FC_TYPE_FC;
+		ct.ct_fcs_subtype = CT_FC_SUBTYPE_NS;
+		ct.ct_cmd_resp = SNS_GFT_ID;
+		ct.ct_bcnt_resid = (SNS_GFT_ID_RESP_SIZE - sizeof(ct)) / 4;
+		isp_put_ct_hdr(isp, &ct, (ct_hdr_t *)scp);
+		rp = (uint32_t *) &scp[sizeof(ct)];
+		ISP_IOZPUT_32(isp, portid, rp);
+
+		if (isp_ct_passthru(isp, chan, sizeof(ct) + sizeof(uint32_t),
+		    SNS_GFT_ID_RESP_SIZE)) {
+			FC_SCRATCH_RELEASE(isp, chan);
+			return (res);
+		}
+	} else {
+		/* Build the SNS request and execute via firmware. */
+		ISP_MEMZERO(&rq, SNS_GXX_ID_REQ_SIZE);
+		rq.snscb_rblen = SNS_GFT_ID_RESP_SIZE >> 1;
+		rq.snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma);
+		rq.snscb_addr[RQRSP_ADDR1631] = DMA_WD1(fcp->isp_scdma);
+		rq.snscb_addr[RQRSP_ADDR3247] = DMA_WD2(fcp->isp_scdma);
+		rq.snscb_addr[RQRSP_ADDR4863] = DMA_WD3(fcp->isp_scdma);
+		rq.snscb_sblen = 6;
+		rq.snscb_cmd = SNS_GFT_ID;
+		rq.snscb_mword_div_2 = (SNS_GFT_ID_RESP_SIZE - sizeof(ct)) / 4;
+		rq.snscb_portid = portid;
+		isp_put_gxx_id_request(isp, &rq, (sns_gxx_id_req_t *)scp);
+
+		if (isp_ct_sns(isp, chan, sizeof(rq), SNS_GFT_ID_RESP_SIZE)) {
+			FC_SCRATCH_RELEASE(isp, chan);
+			return (res);
+		}
+	}
+
+	isp_get_gft_id_response(isp, (sns_gft_id_rsp_t *)scp, &rsp);
+	if (rsp.snscb_cthdr.ct_cmd_resp == LS_ACC) {
+		for (i = 0; i < 8; i++) {
+			if (rsp.snscb_fc4_types[i] != 0) {
+				res = 0;
+				break;
+			}
+		}
+		if (((rsp.snscb_fc4_types[FC4_SCSI / 32] >>
+		    (FC4_SCSI % 32)) & 0x01) != 0)
+			res = 1;
+	}
+	FC_SCRATCH_RELEASE(isp, chan);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GFT_ID result is %d", chan, res);
+	return (res);
 }
 
 static int
@@ -3586,7 +3726,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 	uint16_t nphdl;
 	isp_pdb_t pdb;
 	int portidx, portlim, r;
-	sns_gid_ft_rsp_t *rs;
+	sns_gid_xx_rsp_t *rs;
 
 	if (fcp->isp_loopstate < LOOP_LSCAN_DONE)
 		return (-1);
@@ -3627,7 +3767,7 @@ fail:
 	}
 
 	/* Get list of port IDs from SNS. */
-	r = isp_gid_ft(isp, chan);
+	r = isp_gid_pt(isp, chan);
 	if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC)
 		goto abort;
 	if (r > 0) {
@@ -3638,7 +3778,7 @@ fail:
 		return (-1);
 	}
 
-	rs = (sns_gid_ft_rsp_t *) fcp->isp_scanscratch;
+	rs = (sns_gid_xx_rsp_t *) fcp->isp_scanscratch;
 	if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC)
 		goto abort;
 	if (rs->snscb_cthdr.ct_cmd_resp != LS_ACC) {
@@ -3648,7 +3788,7 @@ fail:
 		} else {
 			level = ISP_LOGWARN;
 		}
-		isp_prt(isp, level, "Chan %d Fabric Nameserver rejected GID_FT"
+		isp_prt(isp, level, "Chan %d Fabric Nameserver rejected GID_PT"
 		    " (Reason=0x%x Expl=0x%x)", chan,
 		    rs->snscb_cthdr.ct_reason,
 		    rs->snscb_cthdr.ct_explanation);
@@ -3777,6 +3917,20 @@ relogin:
 		if ((fcp->role & ISP_ROLE_INITIATOR) == 0) {
 			isp_prt(isp, ISP_LOG_SANCFG,
 			    "Chan %d Port 0x%06x is not logged in", chan, portid);
+			continue;
+		}
+
+		r = isp_gff_id(isp, chan, portid);
+		if (r == 0) {
+			isp_prt(isp, ISP_LOG_SANCFG,
+			    "Chan %d Port 0x%06x is not an FCP target", chan, portid);
+			continue;
+		}
+		if (r < 0)
+			r = isp_gft_id(isp, chan, portid);
+		if (r == 0) {
+			isp_prt(isp, ISP_LOG_SANCFG,
+			    "Chan %d Port 0x%06x is not FCP", chan, portid);
 			continue;
 		}
 
