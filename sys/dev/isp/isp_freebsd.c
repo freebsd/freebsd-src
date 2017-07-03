@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 1997-2009 by Matthew Jacob
  * All rights reserved.
  *
@@ -169,6 +170,8 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
+		fcp->isp_use_gft_id = 1;
+		fcp->isp_use_gff_id = 1;
 
 		callout_init_mtx(&fc->gdt, &isp->isp_lock, 0);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
@@ -235,6 +238,12 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "topo", CTLFLAG_RD, &fcp->isp_topo, 0,
 		    "Connection topology");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "use_gft_id", CTLFLAG_RWTUN, &fcp->isp_use_gft_id, 0,
+		    "Use GFT_ID during fabric scan");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "use_gff_id", CTLFLAG_RWTUN, &fcp->isp_use_gff_id, 0,
+		    "Use GFF_ID during fabric scan");
 	}
 	return (0);
 }
