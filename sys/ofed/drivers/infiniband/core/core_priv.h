@@ -115,6 +115,7 @@ int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 
 int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
 				     struct net_device *ndev);
+void ib_cache_gid_del_all_by_netdev(struct net_device *ndev);
 
 int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);
