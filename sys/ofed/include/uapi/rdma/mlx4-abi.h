@@ -34,7 +34,11 @@
 #ifndef MLX4_ABI_USER_H
 #define MLX4_ABI_USER_H
 
+#ifdef _KERNEL
 #include <linux/types.h>
+#else
+#include <infiniband/types.h>
+#endif
 
 /*
  * Increment this value if any changes that break userspace ABI
