@@ -218,7 +218,7 @@ platform_delay(int usec, void *arg __unused)
 }
 #endif
 
-#if defined(SMP) && defined(PLATFORM_SMP)
+#if defined(SMP)
 void
 platform_mp_setmaxid(void)
 {

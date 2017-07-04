@@ -25,7 +25,6 @@ include 	"../qemu/std.virt"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
-options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
 options 	MULTIDELAY
 
