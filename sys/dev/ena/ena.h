@@ -226,8 +226,8 @@ struct ena_stats_tx {
 	counter_u64_t doorbells;
 	counter_u64_t missing_tx_comp;
 	counter_u64_t bad_req_id;
-	counter_u64_t defragment;
-	counter_u64_t defragment_err;
+	counter_u64_t collapse;
+	counter_u64_t collapse_err;
 };
 
 struct ena_stats_rx {

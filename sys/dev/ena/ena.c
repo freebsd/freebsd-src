@@ -156,6 +156,8 @@ static void	ena_update_hwassist(struct ena_adapter *);
 static int	ena_setup_ifnet(device_t, struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static void	ena_tx_csum(struct ena_com_tx_ctx *, struct mbuf *);
+static int	ena_check_and_collapse_mbuf(struct ena_ring *tx_ring,
+    struct mbuf **mbuf);
 static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf **);
 static void	ena_start_xmit(struct ena_ring *);
 static int	ena_mq_start(if_t, struct mbuf *);
@@ -2623,10 +2625,10 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 }
 
 static int
-ena_check_and_defragment_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
+ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 {
 	struct ena_adapter *adapter;
-	struct mbuf *defrag_mbuf;
+	struct mbuf *collapsed_mbuf;
 	int num_frags;
 
 	adapter = tx_ring->adapter;
@@ -2635,16 +2637,17 @@ ena_check_and_defragment_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* One segment must be reserved for configuration descriptor. */
 	if (num_frags < adapter->max_tx_sgl_size)
 		return (0);
-	counter_u64_add(tx_ring->tx_stats.defragment, 1);
+	counter_u64_add(tx_ring->tx_stats.collapse, 1);
 
-	defrag_mbuf = m_defrag(*mbuf, M_NOWAIT);
-	if (defrag_mbuf == NULL) {
-		counter_u64_add(tx_ring->tx_stats.defragment_err, 1);
+	collapsed_mbuf = m_collapse(*mbuf, M_NOWAIT,
+	    adapter->max_tx_sgl_size - 1);
+	if (collapsed_mbuf == NULL) {
+		counter_u64_add(tx_ring->tx_stats.collapse_err, 1);
 		return (ENOMEM);
 	}
 
-	/* If mbuf was defragmented succesfully, original mbuf is released. */
-	*mbuf = defrag_mbuf;
+	/* If mbuf was collapsed succesfully, original mbuf is released. */
+	*mbuf = collapsed_mbuf;
 
 	return (0);
 }
@@ -2675,10 +2678,10 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	ENA_ASSERT(*mbuf, "mbuf is NULL\n");
 
-	rc = ena_check_and_defragment_mbuf(tx_ring, mbuf);
+	rc = ena_check_and_collapse_mbuf(tx_ring, mbuf);
 	if (rc) {
 		ena_trace(ENA_WARNING,
-		    "Failed to defragment mbuf! err: %d", rc);
+		    "Failed to collapse mbuf! err: %d", rc);
 		return (rc);
 	}
 
