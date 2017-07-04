@@ -69,6 +69,7 @@ device		md
 device		random			# Entropy device
 
 options 	INTRNG
+options 	PLATFORM
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
