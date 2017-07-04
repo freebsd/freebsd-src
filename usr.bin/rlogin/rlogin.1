@@ -28,7 +28,7 @@
 .\"	@(#)rlogin.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2003
+.Dd July 3, 2017
 .Dt RLOGIN 1
 .Os
 .Sh NAME
@@ -41,6 +41,15 @@
 .Op Fl i Ar localname
 .Op Fl l Ar username
 .Ar host
+.Sh DEPRECATION NOTICE
+.Nm
+is deprecated and will be removed from future versions of the
+.Fx
+base system.
+If
+.Nm
+is still required, it can be installed from ports or packages
+(net/bsdrcmds).
 .Sh DESCRIPTION
 The
 .Nm
