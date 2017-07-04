@@ -330,8 +330,8 @@ typedef struct {
 
 struct ccb_hdr {
 	cam_pinfo	pinfo;		/* Info for priority scheduling */
-	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
-	camq_entry	sim_links;	/* For chaining in the SIM layer */	
+	camq_entry	xpt_links;	/* For chaining in the XPT layer */
+	camq_entry	sim_links;	/* For chaining in the SIM layer */
 	camq_entry	periph_links;	/* For chaining in the type driver */
 	u_int32_t	retry_count;
 	void		(*cbfcnp)(struct cam_periph *, union ccb *);
@@ -367,7 +367,7 @@ struct ccb_getdev {
 /* Device Statistics CCB */
 struct ccb_getdevstats {
 	struct	ccb_hdr	ccb_h;
-	int	dev_openings;	/* Space left for more work on device*/	
+	int	dev_openings;	/* Space left for more work on device*/
 	int	dev_active;	/* Transactions running on the device */
 	int	allocated;	/* CCBs allocated for the device */
 	int	queued;		/* CCBs queued to be sent to the device */
@@ -441,7 +441,7 @@ struct device_match_pattern {
 	union {
 		struct scsi_static_inquiry_pattern	inq_pat;
 		struct device_id_match_pattern		devid_pat;
-	} data;	
+	} data;
 };
 
 typedef enum {
@@ -541,7 +541,7 @@ typedef enum {
 
 struct ccb_dm_cookie {
 	void 	*bus;
-	void	*target;	
+	void	*target;
 	void	*device;
 	void	*periph;
 	void	*pdrv;
@@ -724,7 +724,7 @@ struct ccb_scsiio {
 	u_int8_t   *req_map;		/* Ptr to mapping info */
 	u_int8_t   *data_ptr;		/* Ptr to the data buf/SG list */
 	u_int32_t  dxfer_len;		/* Data transfer length */
-					/* Autosense storage */	
+					/* Autosense storage */
 	struct     scsi_sense_data sense_data;
 	u_int8_t   sense_len;		/* Number of bytes to autosense */
 	u_int8_t   cdb_len;		/* Number of bytes for the CDB */
@@ -863,7 +863,7 @@ struct ac_device_changed {
 /* Set Asynchronous Callback CCB */
 struct ccb_setasync {
 	struct ccb_hdr	 ccb_h;
-	u_int32_t	 event_enable;	/* Async Event enables */	
+	u_int32_t	 event_enable;	/* Async Event enables */
 	ac_callback_t	*callback;
 	void		*callback_arg;
 };
@@ -1040,7 +1040,7 @@ struct ccb_calc_geometry {
 	struct	  ccb_hdr ccb_h;
 	u_int32_t block_size;
 	u_int64_t volume_size;
-	u_int32_t cylinders;		
+	u_int32_t cylinders;
 	u_int8_t  heads;
 	u_int8_t  secs_per_track;
 };
@@ -1262,8 +1262,8 @@ union ccb {
 	struct	ccb_getdevstats		cgds;
 	struct	ccb_dev_match		cdm;
 	struct	ccb_trans_settings	cts;
-	struct	ccb_calc_geometry	ccg;	
-	struct	ccb_sim_knob		knob;	
+	struct	ccb_calc_geometry	ccg;
+	struct	ccb_sim_knob		knob;
 	struct	ccb_abort		cab;
 	struct	ccb_resetbus		crb;
 	struct	ccb_resetdev		crd;
@@ -1320,7 +1320,7 @@ cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 	      u_int32_t timeout);
 
 static __inline void
-cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
+cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
 	       uint8_t *smp_request, int smp_request_len,
 	       uint8_t *smp_response, int smp_response_len,
@@ -1337,7 +1337,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->ccb_h.func_code = XPT_SCSI_IO;
 	csio->ccb_h.flags = flags;
 	csio->ccb_h.xflags = 0;
-	csio->ccb_h.retry_count = retries;	
+	csio->ccb_h.retry_count = retries;
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
 	csio->data_ptr = data_ptr;
@@ -1360,7 +1360,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	csio->ccb_h.flags = flags;
 	csio->ccb_h.xflags = 0;
-	csio->ccb_h.retry_count = retries;	
+	csio->ccb_h.retry_count = retries;
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
 	csio->data_ptr = data_ptr;
@@ -1389,7 +1389,7 @@ cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 }
 
 static __inline void
-cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
+cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
 	       uint8_t *smp_request, int smp_request_len,
 	       uint8_t *smp_response, int smp_response_len,
