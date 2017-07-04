@@ -56,8 +56,9 @@
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
-        uint32_t	subvendor;
+	uint32_t	subvendor;
 	uint32_t	subdevice;
+	uint32_t	class;
 	uint32_t	class_mask;
 	uintptr_t	driver_data;
 };
@@ -202,7 +203,8 @@ struct pci_dev {
 	uint16_t		vendor;
 	unsigned int		irq;
 	unsigned int		devfn;
-	u8			revision;
+	uint32_t		class;
+	uint8_t			revision;
 };
 
 static inline struct resource_list_entry *
