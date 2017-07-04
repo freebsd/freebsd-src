@@ -642,7 +642,9 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->next_to_clean = 0;
 
 	/* Make sure that drbr is empty */
+	ENA_RING_MTX_LOCK(tx_ring);
 	drbr_flush(adapter->ifp, tx_ring->br);
+	ENA_RING_MTX_UNLOCK(tx_ring);
 
 	/* ... and create the buffer DMA maps */
 	for (i = 0; i < tx_ring->ring_size; i++) {
@@ -709,11 +711,11 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	taskqueue_free(tx_ring->enqueue_tq);
 
+	ENA_RING_MTX_LOCK(tx_ring);
 	/* Flush buffer ring, */
 	drbr_flush(adapter->ifp, tx_ring->br);
 
 	/* Free buffer DMA maps, */
-	ENA_RING_MTX_LOCK(tx_ring);
 	for (int i = 0; i < tx_ring->ring_size; i++) {
 		m_freem(tx_ring->tx_buffer_info[i].mbuf);
 		tx_ring->tx_buffer_info[i].mbuf = NULL;
