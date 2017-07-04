@@ -108,7 +108,7 @@ linux_pci_probe(device_t dev)
 
 	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
 		return (ENXIO);
-	if (device_get_driver(dev) != &pdrv->driver)
+	if (device_get_driver(dev) != &pdrv->bsddriver)
 		return (ENXIO);
 	device_set_desc(dev, pdrv->name);
 	return (0);
@@ -235,13 +235,14 @@ pci_register_driver(struct pci_driver *pdrv)
 	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
 	spin_unlock(&pci_lock);
-	pdrv->driver.name = pdrv->name;
-	pdrv->driver.methods = pci_methods;
-	pdrv->driver.size = sizeof(struct pci_dev);
+	pdrv->bsddriver.name = pdrv->name;
+	pdrv->bsddriver.methods = pci_methods;
+	pdrv->bsddriver.size = sizeof(struct pci_dev);
+
 	mtx_lock(&Giant);
 	if (bus != NULL) {
-		error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
-		    &pdrv->bsdclass);
+		error = devclass_add_driver(bus, &pdrv->bsddriver,
+		    BUS_PASS_DEFAULT, &pdrv->bsdclass);
 	}
 	mtx_unlock(&Giant);
 	return (-error);
@@ -259,7 +260,7 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	spin_unlock(&pci_lock);
 	mtx_lock(&Giant);
 	if (bus != NULL)
-		devclass_delete_driver(bus, &pdrv->driver);
+		devclass_delete_driver(bus, &pdrv->bsddriver);
 	mtx_unlock(&Giant);
 }
 
