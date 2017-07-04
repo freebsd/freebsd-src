@@ -79,6 +79,15 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
+struct device_driver {
+	const char	*name;
+	const struct dev_pm_ops *pm;
+};
+
+struct device_type {
+	const char	*name;
+};
+
 struct device {
 	struct device	*parent;
 	struct list_head irqents;
@@ -91,6 +100,8 @@ struct device {
 	 * done somewhere else.
 	 */
 	bool		bsddev_attached_here;
+	struct device_driver *driver;
+	struct device_type *type;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
