@@ -2805,10 +2805,11 @@ ena_start_xmit(struct ena_ring *tx_ring)
 			break;
 		}
 
+		drbr_advance(adapter->ifp, tx_ring->br);
+
 		if ((adapter->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			return;
 
-		drbr_advance(adapter->ifp, tx_ring->br);
 		acum_pkts++;
 
 		BPF_MTAP(adapter->ifp, mbuf);
