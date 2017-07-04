@@ -83,4 +83,4 @@ static platform_method_t vf_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(vf, "vybrid", 0, "freescale,vybrid", 0);
+FDT_PLATFORM_DEF(vf, "vybrid", 0, "freescale,vybrid", 200);
