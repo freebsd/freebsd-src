@@ -476,7 +476,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		    device_get_nameunit(adapter->pdev), i);
 
 		mtx_init(&txr->ring_mtx, txr->mtx_name, NULL, MTX_DEF);
-		mtx_init(&rxr->ring_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
 		que = &adapter->que[i];
 		que->adapter = adapter;
@@ -509,7 +508,6 @@ ena_free_io_ring_resources(struct ena_adapter *adapter, unsigned int qid)
 	    sizeof(rxr->rx_stats));
 
 	mtx_destroy(&txr->ring_mtx);
-	mtx_destroy(&rxr->ring_mtx);
 
 	drbr_free(txr->br, M_DEVBUF);
 
@@ -947,10 +945,8 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	if (rx_info->mbuf != NULL)
 		return (0);
 
-	ENA_RING_MTX_LOCK(rx_ring);
 	/* Get mbuf using UMA allocator */
 	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
-	ENA_RING_MTX_UNLOCK(rx_ring);
 
 	if (!rx_info->mbuf) {
 		counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
