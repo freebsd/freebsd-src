@@ -226,16 +226,16 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	if (dma_space_addr == 0)
 		dma_space_addr = BUS_SPACE_MAXADDR;
 	error = bus_dma_tag_create(bus_get_dma_tag(dmadev), /* parent */
-	    8, 0,	      /* alignment, bounds */
-	    dma_space_addr,   /* lowaddr */
-	    dma_space_addr,   /* highaddr */
-	    NULL, NULL,	      /* filter, filterarg */
-	    maxsize,	      /* maxsize */
-	    1,		      /* nsegments */
-	    maxsize,	      /* maxsegsize */
-	    BUS_DMA_ALLOCNOW, /* flags */
-	    NULL,	      /* lockfunc */
-	    NULL,	      /* lockarg */
+	    8, 0,	      /* alignment, bounds 		*/
+	    dma_space_addr,   /* lowaddr of exclusion window	*/
+	    BUS_SPACE_MAXADDR,/* highaddr of exclusion window	*/
+	    NULL, NULL,	      /* filter, filterarg 		*/
+	    maxsize,	      /* maxsize 			*/
+	    1,		      /* nsegments 			*/
+	    maxsize,	      /* maxsegsize 			*/
+	    BUS_DMA_ALLOCNOW, /* flags 				*/
+	    NULL,	      /* lockfunc 			*/
+	    NULL,	      /* lockarg 			*/
 	    &dma->tag);
 	if (error) {
 		device_printf(dmadev,
@@ -530,16 +530,16 @@ ena_setup_tx_dma_tag(struct ena_adapter *adapter)
 
 	/* Create DMA tag for Tx buffers */
 	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev),
-	    1, 0,				  /* alignment, bounds 	*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr 		*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* highaddr 		*/
-	    NULL, NULL,				  /* filter, filterarg 	*/
-	    ENA_TSO_MAXSIZE,			  /* maxsize 		*/
-	    adapter->max_tx_sgl_size,		  /* nsegments 		*/
-	    ENA_TSO_MAXSIZE,			  /* maxsegsize 	*/
-	    0,					  /* flags 		*/
-	    NULL,				  /* lockfunc 		*/
-	    NULL,				  /* lockfuncarg 	*/
+	    1, 0,				  /* alignment, bounds 	     */
+	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
+	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
+	    NULL, NULL,				  /* filter, filterarg 	     */
+	    ENA_TSO_MAXSIZE,			  /* maxsize 		     */
+	    adapter->max_tx_sgl_size - 1,	  /* nsegments 		     */
+	    ENA_TSO_MAXSIZE,			  /* maxsegsize 	     */
+	    0,					  /* flags 		     */
+	    NULL,				  /* lockfunc 		     */
+	    NULL,				  /* lockfuncarg 	     */
 	    &adapter->tx_buf_tag);
 
 	if (ret != 0)
@@ -567,17 +567,17 @@ ena_setup_rx_dma_tag(struct ena_adapter *adapter)
 	int ret;
 
 	/* Create DMA tag for Rx buffers*/
-	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev), /* parent */
-	    1, 0,				  /* alignment, bounds 	*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr 		*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* highaddr 		*/
-	    NULL, NULL,				  /* filter, filterarg 	*/
-	    MJUM16BYTES,			  /* maxsize 		*/
-	    1,					  /* nsegments 		*/
-	    MJUM16BYTES,			  /* maxsegsize 	*/
-	    0,					  /* flags 		*/
-	    NULL,				  /* lockfunc 		*/
-	    NULL,				  /* lockarg 		*/
+	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev), /* parent   */
+	    1, 0,				  /* alignment, bounds 	     */
+	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
+	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
+	    NULL, NULL,				  /* filter, filterarg 	     */
+	    MJUM16BYTES,			  /* maxsize 		     */
+	    1,					  /* nsegments 		     */
+	    MJUM16BYTES,			  /* maxsegsize 	     */
+	    0,					  /* flags 		     */
+	    NULL,				  /* lockfunc 		     */
+	    NULL,				  /* lockarg 		     */
 	    &adapter->rx_buf_tag);
 
 	if (ret != 0)
@@ -2479,9 +2479,10 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	if_setcapabilitiesbit(ifp, caps, 0);
 
 	/* TSO parameters */
-	ifp->if_hw_tsomax = ENA_TSO_MAXSIZE;
-	ifp->if_hw_tsomaxsegcount = ENA_TSO_NSEGS;
-	ifp->if_hw_tsomaxsegsize = MCLBYTES;
+	ifp->if_hw_tsomax = ENA_TSO_MAXSIZE -
+	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = adapter->max_tx_sgl_size - 1;
+	ifp->if_hw_tsomaxsegsize = ENA_TSO_MAXSIZE;
 
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setcapenable(ifp, if_getcapabilities(ifp));
