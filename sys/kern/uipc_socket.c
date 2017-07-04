@@ -858,6 +858,9 @@ solisten_proto(struct socket *so, int backlog)
 	so->sol_accept_filter_arg = NULL;
 	so->sol_accept_filter_str = NULL;
 
+	so->sol_upcall = NULL;
+	so->sol_upcallarg = NULL;
+
 	so->so_options |= SO_ACCEPTCONN;
 
 listening:
