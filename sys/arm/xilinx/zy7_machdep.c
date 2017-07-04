@@ -96,4 +96,4 @@ static platform_method_t zynq7_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(zynq7, "zynq7", 0, "xlnx,zynq-7000", 0);
+FDT_PLATFORM_DEF(zynq7, "zynq7", 0, "xlnx,zynq-7000", 200);
