@@ -183,32 +183,47 @@ linux_pci_detach(device_t dev)
 static int
 linux_pci_suspend(device_t dev)
 {
+	const struct dev_pm_ops *pmops;
 	struct pm_message pm = { };
 	struct pci_dev *pdev;
-	int err;
+	int error;
 
+	error = 0;
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
+	pmops = pdev->pdrv->driver.pm;
+
 	if (pdev->pdrv->suspend != NULL)
-		err = -pdev->pdrv->suspend(pdev, pm);
-	else
-		err = 0;
-	return (err);
+		error = -pdev->pdrv->suspend(pdev, pm);
+	else if (pmops != NULL && pmops->suspend != NULL) {
+		error = -pmops->suspend(&pdev->dev);
+		if (error == 0 && pmops->suspend_late != NULL)
+			error = -pmops->suspend_late(&pdev->dev);
+	}
+	return (error);
 }
 
 static int
 linux_pci_resume(device_t dev)
 {
+	const struct dev_pm_ops *pmops;
 	struct pci_dev *pdev;
-	int err;
+	int error;
 
+	error = 0;
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
+	pmops = pdev->pdrv->driver.pm;
+
 	if (pdev->pdrv->resume != NULL)
-		err = -pdev->pdrv->resume(pdev);
-	else
-		err = 0;
-	return (err);
+		error = -pdev->pdrv->resume(pdev);
+	else if (pmops != NULL && pmops->resume != NULL) {
+		if (pmops->resume_early != NULL)
+			error = -pmops->resume_early(&pdev->dev);
+		if (error == 0 && pmops->resume != NULL)
+			error = -pmops->resume(&pdev->dev);
+	}
+	return (error);
 }
 
 static int
@@ -266,4 +281,3 @@ pci_unregister_driver(struct pci_driver *pdrv)
 		devclass_delete_driver(bus, &pdrv->bsddriver);
 	mtx_unlock(&Giant);
 }
-
