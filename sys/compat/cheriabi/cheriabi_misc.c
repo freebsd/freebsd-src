@@ -196,7 +196,7 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 	if (error)
 		goto fail;
 
-	error = kern_openat(td, uap->fd, path, UIO_SYSSPACE,
+	error = kern_openat_c(td, uap->fd, (char * __capability)path, UIO_SYSSPACE,
 	    uap->flag, uap->mode);
 fail:
 	return (error);
