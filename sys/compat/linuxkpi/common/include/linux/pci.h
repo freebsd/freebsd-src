@@ -185,7 +185,8 @@ struct pci_driver {
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			bsddriver;
 	devclass_t			bsdclass;
-        const struct pci_error_handlers       *err_handler;
+	struct device_driver		driver;
+	const struct pci_error_handlers       *err_handler;
 };
 
 extern struct list_head pci_drivers;
