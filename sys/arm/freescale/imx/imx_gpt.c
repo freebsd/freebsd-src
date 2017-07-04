@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
-#ifdef MULTIDELAY
 #include <machine/machdep.h> /* For arm_set_delay */
-#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -91,20 +89,6 @@ struct imx_gpt_softc {
 	uint32_t		ir_reg;
 	struct eventtimer 	et;
 };
-
-#ifndef MULTIDELAY
-/* Global softc pointer for use in DELAY(). */
-static struct imx_gpt_softc *imx_gpt_sc;
-
-/*
- * Hand-calibrated delay-loop counter.  This was calibrated on an i.MX6 running
- * at 792mhz.  It will delay a bit too long on slower processors -- that's
- * better than not delaying long enough.  In practice this is unlikely to get
- * used much since the clock driver is one of the first to start up, and once
- * we're attached the delay loop switches to using the timer hardware.
- */
-static const int imx_gpt_delay_count = 78;
-#endif
 
 /* Try to divide down an available fast clock to this frequency. */
 #define	TARGET_FREQUENCY	1000000000
@@ -293,11 +277,7 @@ imx_gpt_attach(device_t dev)
 
 	/* If this is the first unit, store the softc for use in DELAY. */
 	if (device_get_unit(dev) == 0) {
-#ifdef MULTIDELAY
 		arm_set_delay(imx_gpt_do_delay, sc);
-#else
-		imx_gpt_sc = sc;
-#endif
 	}
 
 	return (0);
@@ -441,21 +421,3 @@ imx_gpt_do_delay(int usec, void *arg)
 			curcnt += 1ULL << 32;
 	}
 }
-
-#ifndef MULTIDELAY
-void
-DELAY(int usec)
-{
-	uint64_t ticks;
-
-	/* If the timer hardware is not accessible, just use a loop. */
-	if (imx_gpt_sc == NULL) {
-		while (usec-- > 0)
-			for (ticks = 0; ticks < imx_gpt_delay_count; ++ticks)
-				cpufunc_nullop();
-		return;
-	} else
-		imx_gpt_do_delay(usec, imx_gpt_sc);
-
-}
-#endif
