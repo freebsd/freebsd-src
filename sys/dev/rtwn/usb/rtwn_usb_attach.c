@@ -155,7 +155,7 @@ rtwn_usb_alloc_tx_list(struct rtwn_softc *sc)
 	int error, i;
 
 	error = rtwn_usb_alloc_list(sc, uc->uc_tx, RTWN_USB_TX_LIST_COUNT,
-	    RTWN_TXBUFSZ);
+	    RTWN_USB_TXBUFSZ);
 	if (error != 0)
 		return (error);
 
