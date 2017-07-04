@@ -175,7 +175,7 @@ struct pci_driver {
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
-	driver_t			driver;
+	driver_t			bsddriver;
 	devclass_t			bsdclass;
         const struct pci_error_handlers       *err_handler;
 };
