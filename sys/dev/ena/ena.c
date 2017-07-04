@@ -2097,7 +2097,6 @@ ena_up_complete(struct ena_adapter *adapter)
 
 	ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
 	ena_refill_all_rx_bufs(adapter);
-	ena_unmask_all_io_irqs(adapter);
 
 	return (0);
 }
@@ -2170,6 +2169,8 @@ ena_up(struct ena_adapter *adapter)
 		taskqueue_enqueue(adapter->stats_tq, &adapter->stats_task);
 
 		adapter->up = true;
+
+		ena_unmask_all_io_irqs(adapter);
 	}
 
 	return (0);
