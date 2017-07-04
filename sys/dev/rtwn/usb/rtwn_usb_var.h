@@ -21,6 +21,8 @@
 #ifndef RTWN_USBVAR_H
 #define RTWN_USBVAR_H
 
+#define RTWN_USB_TXBUFSZ		(16 * 1024)
+
 #define RTWN_IFACE_INDEX		0
 
 #define RTWN_USB_RX_LIST_COUNT		1

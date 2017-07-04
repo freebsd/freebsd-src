@@ -233,6 +233,9 @@ rtwn_usb_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 
 	RTWN_ASSERT_LOCKED(sc);
 
+	if (m->m_pkthdr.len + sc->txdesc_len > RTWN_USB_TXBUFSZ)
+		return (EINVAL);
+
 	data = rtwn_usb_getbuf(uc);
 	if (data == NULL)
 		return (ENOBUFS);
