@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
- * Copyright (c) 2015 Semihalf.
+ * Copyright (c) 2017 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -24,49 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _ANNAPURNA_ALPINE_MP_H_
+#define	_ANNAPURNA_ALPINE_MP_H_
 
-#include "opt_platform.h"
+void alpine_mp_start_ap(platform_t plat);
+void alpine_mp_setmaxid(platform_t plat);
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
-#include <machine/fdt.h>
-#include <machine/intr.h>
-
-#ifndef INTRNG
-static int alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr,
-    int *interrupt, int *trig, int *pol);
-
-static int
-alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
-    int *trig, int *pol)
-{
-	int rv = 0;
-
-	rv = gic_decode_fdt(iparent, intr, interrupt, trig, pol);
-	if (rv == 0) {
-		/* This was recognized as our PIC and decoded. */
-		interrupt = FDT_MAP_IRQ(iparent, interrupt);
-
-		/* Configure the interrupt if callback provided */
-		if (arm_config_irq)
-			(*arm_config_irq)(*interrupt, *trig, *pol);
-	}
-	return (rv);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&alpine_pic_decode_fdt,
-	NULL
-};
-#endif
+#endif /* _ANNAPURNA_ALPINE_MP_H_ */
