@@ -70,6 +70,7 @@ device		random			# Entropy device
 
 options 	INTRNG
 options 	PLATFORM
+options 	MULTIDELAY
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
