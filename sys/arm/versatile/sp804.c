@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
+
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#ifdef MULTIDELAY
 #include <machine/machdep.h> /* For arm_set_delay */
-#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -292,9 +290,7 @@ sp804_timer_attach(device_t dev)
 		     (sp804_timer_tc_read_4(SP804_PRIMECELL_ID0 + i*4) & 0xff);
 	}
 
-#ifdef MULTIDELAY
 	arm_set_delay(sp804_timer_delay, sc);
-#endif
 
 	device_printf(dev, "PrimeCell ID: %08x\n", id);
 
@@ -343,35 +339,3 @@ sp804_timer_delay(int usec, void *arg)
 		first = last;
 	}
 }
-
-#ifndef MULTIDELAY
-void
-DELAY(int usec)
-{
-	int32_t counts;
-	device_t timer_dev;
-	struct sp804_timer_softc *sc;
-	int timer_initialized = 0;
-
-	timer_dev = devclass_get_device(sp804_timer_devclass, 0);
-
-	if (timer_dev) {
-		sc = device_get_softc(timer_dev);
-
-		if (sc)
-			timer_initialized = sc->timer_initialized;
-	}
-
-	if (!timer_initialized) {
-		/*
-		 * Timer is not initialized yet
-		 */
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				/* Prevent gcc from optimizing  out the loop */
-				cpufunc_nullop();
-	} else {
-		sp804_timer_delay(usec, sc);
-	}
-}
-#endif
