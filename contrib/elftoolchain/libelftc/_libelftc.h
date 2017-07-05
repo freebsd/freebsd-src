@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: _libelftc.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: _libelftc.h 3531 2017-06-05 05:08:43Z kaiwang27 $
  */
 
 #ifndef	__LIBELFTC_H_
@@ -82,6 +82,8 @@ bool	vector_str_init(struct vector_str *_vs);
 bool	vector_str_pop(struct vector_str *_vs);
 bool	vector_str_push(struct vector_str *_vs, const char *_str,
     size_t _len);
+bool	vector_str_push_vector(struct vector_str *_dst,
+    struct vector_str *_org);
 bool	vector_str_push_vector_head(struct vector_str *_dst,
     struct vector_str *_org);
 char	*vector_str_substr(const struct vector_str *_vs, size_t _begin,
