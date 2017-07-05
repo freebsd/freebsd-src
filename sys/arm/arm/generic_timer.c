@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/md_var.h>
 
-#ifdef MULTIDELAY
+#if defined(__arm__)
 #include <machine/machdep.h> /* For arm_set_delay */
 #endif
 
@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#endif
+
+#if defined(__arm__) && !defined(MULTIDELAY)
+#error The generic timer requires MULTIDELAY on 32bit arm
 #endif
 
 #define	GT_CTRL_ENABLE		(1 << 0)
@@ -427,7 +431,7 @@ arm_tmr_attach(device_t dev)
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
-#ifdef MULTIDELAY
+#if defined(__arm__)
 	arm_set_delay(arm_tmr_do_delay, sc);
 #endif
 
@@ -505,7 +509,7 @@ arm_tmr_do_delay(int usec, void *arg)
 	}
 }
 
-#ifndef MULTIDELAY
+#if defined(__aarch64__)
 void
 DELAY(int usec)
 {
