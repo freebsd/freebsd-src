@@ -1641,8 +1641,8 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .for flavor in "" -debug
-create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}
-create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
+create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
+create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} \
