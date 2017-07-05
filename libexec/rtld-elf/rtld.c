@@ -5300,14 +5300,14 @@ open_binary_fd(const char *argv0, bool search_in_path)
 		fd = -1;
 		errno = ENOENT;
 		while ((pe = strsep(&pathenv, ":")) != NULL) {
-			if (strlcpy(binpath, pe, sizeof(binpath)) >
+			if (strlcpy(binpath, pe, sizeof(binpath)) >=
 			    sizeof(binpath))
 				continue;
 			if (binpath[0] != '\0' &&
-			    strlcat(binpath, "/", sizeof(binpath)) >
+			    strlcat(binpath, "/", sizeof(binpath)) >=
 			    sizeof(binpath))
 				continue;
-			if (strlcat(binpath, argv0, sizeof(binpath)) >
+			if (strlcat(binpath, argv0, sizeof(binpath)) >=
 			    sizeof(binpath))
 				continue;
 			fd = open(binpath, O_RDONLY | O_CLOEXEC | O_VERIFY);
