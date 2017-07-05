@@ -79,7 +79,7 @@ usage(prog)
 	fprintf(stderr, "\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
 	fprintf(stderr, "\t-f <file> [-dnuv]\n");
 	fprintf(stderr, "\t-F [-dv] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>]\n");
+	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]\n");
 	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
 	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
