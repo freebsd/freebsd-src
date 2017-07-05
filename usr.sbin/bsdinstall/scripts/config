@@ -35,6 +35,11 @@ rm $BSDINSTALL_TMPETC/rc.conf.*
 cat $BSDINSTALL_CHROOT/etc/sysctl.conf $BSDINSTALL_TMPETC/sysctl.conf.* >> $BSDINSTALL_TMPETC/sysctl.conf
 rm $BSDINSTALL_TMPETC/sysctl.conf.*
 
+if [ -f $BSDINSTALL_TMPTEC/ttys.hardening ]; then
+	cat $BSDINSTALL_TMPTEC/ttys.hardening > $BSDINSTALL_TMPTEC/ttys
+	rm $BSDINSTALL_TMPTEC/ttys.hardening
+fi
+
 cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc
 
 cat $BSDINSTALL_TMPBOOT/loader.conf.* >> $BSDINSTALL_TMPBOOT/loader.conf
