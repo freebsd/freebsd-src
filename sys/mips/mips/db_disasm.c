@@ -342,6 +342,7 @@ md_printins(int ins, int mdbdot)
 			operands[1] = c2_reg[i.CType.r2];
 			break;
 		case 6:
+			ops = 0;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			break;
 		case 7:
