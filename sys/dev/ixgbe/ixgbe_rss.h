@@ -32,23 +32,33 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_82598_H_
-#define _IXGBE_82598_H_
+#ifndef _IXGBE_RSS_H_
+#define _IXGBE_RSS_H_
 
-u32 ixgbe_get_pcie_msix_count_82598(struct ixgbe_hw *hw);
-s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw);
-void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw);
-s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
-			 bool vlvf_bypass);
-s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val);
-s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val);
-s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
-				u8 *eeprom_data);
-u64 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw);
-s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw);
-void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw);
-void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw);
-s32 ixgbe_enable_rx_dma_82598(struct ixgbe_hw *hw, u32 regval);
-#endif /* _IXGBE_82598_H_ */
+#ifdef RSS
+
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+
+#else
+
+#define RSS_HASHTYPE_RSS_IPV4          (1 << 1)
+#define RSS_HASHTYPE_RSS_TCP_IPV4      (1 << 2)
+#define RSS_HASHTYPE_RSS_IPV6          (1 << 3)
+#define RSS_HASHTYPE_RSS_TCP_IPV6      (1 << 4)
+#define RSS_HASHTYPE_RSS_IPV6_EX       (1 << 5)
+#define RSS_HASHTYPE_RSS_TCP_IPV6_EX   (1 << 6)
+#define RSS_HASHTYPE_RSS_UDP_IPV4      (1 << 7)
+#define RSS_HASHTYPE_RSS_UDP_IPV4_EX   (1 << 8)
+#define RSS_HASHTYPE_RSS_UDP_IPV6      (1 << 9)
+#define RSS_HASHTYPE_RSS_UDP_IPV6_EX   (1 << 10)
+
+#define rss_getcpu(_a) 0
+#define rss_getnumbuckets() 1
+#define rss_getkey(_a)
+#define rss_get_indirection_to_bucket(_a) 0
+#define rss_gethashconfig() 0x7E
+#define rss_hash2bucket(_a,_b,_c) -1
+
+#endif
+#endif /* _IXGBE_RSS_H_ */

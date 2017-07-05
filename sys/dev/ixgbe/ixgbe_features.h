@@ -32,23 +32,46 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_82598_H_
-#define _IXGBE_82598_H_
 
-u32 ixgbe_get_pcie_msix_count_82598(struct ixgbe_hw *hw);
-s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw);
-void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw);
-s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
-			 bool vlvf_bypass);
-s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val);
-s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val);
-s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
-				u8 *eeprom_data);
-u64 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw);
-s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw);
-void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw);
-void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw);
-s32 ixgbe_enable_rx_dma_82598(struct ixgbe_hw *hw, u32 regval);
-#endif /* _IXGBE_82598_H_ */
+#ifndef _IXGBE_FEATURES_H_
+#define _IXGBE_FEATURES_H_
+
+/*
+ * Feature defines.  Eventually, we'd like to get to a point where we
+ * can remove MAC/Phy type checks scattered throughout the code in
+ * favor of checking these feature flags. If the feature expects OS
+ * support, make sure to add an #undef below if expected to run on
+ * OSs that don't support said feature.
+ */
+#define IXGBE_FEATURE_VF                        (u32)(1 << 0)
+#define IXGBE_FEATURE_SRIOV                     (u32)(1 << 1)
+#define IXGBE_FEATURE_RSS                       (u32)(1 << 2)
+#define IXGBE_FEATURE_NETMAP                    (u32)(1 << 3)
+#define IXGBE_FEATURE_FAN_FAIL                  (u32)(1 << 4)
+#define IXGBE_FEATURE_TEMP_SENSOR               (u32)(1 << 5)
+#define IXGBE_FEATURE_BYPASS                    (u32)(1 << 6)
+#define IXGBE_FEATURE_LEGACY_TX                 (u32)(1 << 7)
+#define IXGBE_FEATURE_FDIR                      (u32)(1 << 8)
+#define IXGBE_FEATURE_MSI                       (u32)(1 << 9)
+#define IXGBE_FEATURE_MSIX                      (u32)(1 << 10)
+#define IXGBE_FEATURE_EEE                       (u32)(1 << 11)
+#define IXGBE_FEATURE_LEGACY_IRQ                (u32)(1 << 12)
+#define IXGBE_FEATURE_NEEDS_CTXD                (u32)(1 << 13)
+
+/* Check for OS support.  Undefine features if not included in the OS */
+#ifndef PCI_IOV
+#undef  IXGBE_FEATURE_SRIOV
+#define IXGBE_FEATURE_SRIOV                     0
+#endif
+
+#ifndef RSS
+#undef  IXGBE_FEATURE_RSS
+#define IXGBE_FEATURE_RSS                       0
+#endif
+
+#ifndef DEV_NETMAP
+#undef  IXGBE_FEATURE_NETMAP
+#define IXGBE_FEATURE_NETMAP                    0
+#endif
+
+#endif /* _IXGBE_FEATURES_H_ */
