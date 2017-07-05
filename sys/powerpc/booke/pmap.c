@@ -3850,7 +3850,6 @@ tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
 
 /*
  * Write given entry to TLB1 hardware.
- * Use 32 bit pa, clear 4 high-order bits of RPN (mas7).
  */
 static void
 tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
