@@ -103,7 +103,6 @@ struct vm_map_entry {
 	struct vm_map_entry *right;	/* right child in binary search tree */
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
-	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
 	vm_offset_t next_read;		/* vaddr of the next sequential read */
 	vm_size_t adj_free;		/* amount of adjacent free space */
 	vm_size_t max_free;		/* max free space in subtree */
@@ -142,6 +141,9 @@ struct vm_map_entry {
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x4000
 #define	MAP_ENTRY_VN_WRITECNT		0x8000	/* writeable vnode mapping */
+#define	MAP_ENTRY_GUARD			0x10000
+#define	MAP_ENTRY_STACK_GAP_DN		0x20000
+#define	MAP_ENTRY_STACK_GAP_UP		0x40000
 
 #ifdef	_KERNEL
 static __inline u_char
@@ -315,6 +317,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define MAP_PREFAULT_PARTIAL	0x0010
 #define MAP_DISABLE_SYNCER	0x0020
 #define	MAP_CHECK_EXCL		0x0040
+#define	MAP_CREATE_GUARD	0x0080
 #define MAP_DISABLE_COREDUMP	0x0100
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
 #define	MAP_VN_WRITECOUNT	0x0400
@@ -322,6 +325,8 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_STACK_GROWS_UP	0x2000
 #define	MAP_ACC_CHARGED		0x4000
 #define	MAP_ACC_NO_CHARGE	0x8000
+#define	MAP_CREATE_STACK_GAP_UP	0x10000
+#define	MAP_CREATE_STACK_GAP_DN	0x20000
 
 /*
  * vm_fault option flags
@@ -367,6 +372,8 @@ vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t);
 int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
     vm_offset_t, int, vm_prot_t, vm_prot_t, int);
+int vm_map_find_min(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *,
+    vm_size_t, vm_offset_t, vm_offset_t, int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,
     vm_prot_t, vm_prot_t, int);
 int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);
@@ -387,7 +394,6 @@ int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_sync(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
-int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags);
 int vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
