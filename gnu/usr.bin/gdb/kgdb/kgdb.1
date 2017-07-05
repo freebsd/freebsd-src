@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2006
+.Dd July 5, 2017
 .Dt KGDB 1
 .Os
 .Sh NAME
@@ -40,6 +40,16 @@
 .Op Fl d Ar crashdir
 .Op Fl c Ar core | Fl n Ar dumpnr | Fl r Ar device
 .Op Ar kernel Op Ar core
+.Sh DEPRECATION NOTICE
+This version of
+.Nm
+is deprecated and will be removed from future versions of the
+.Fx
+base system.
+A newer version of
+.Nm
+is available from ports or packages
+(devel/gdb).
 .Sh DESCRIPTION
 The
 .Nm
