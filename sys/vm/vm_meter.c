@@ -204,7 +204,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	mtx_unlock(&vm_object_list_mtx);
-	total.t_free = vm_cnt.v_free_count + vm_cnt.v_cache_count;
+	total.t_free = vm_cnt.v_free_count;
 	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
 }
 
