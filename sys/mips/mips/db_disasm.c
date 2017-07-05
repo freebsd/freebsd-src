@@ -351,6 +351,12 @@ md_printins(int ins, int mdbdot)
 		case 6:
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			break;
+		case 9:
+			db_printf("cbtu\t%s,", c2_reg[i.BC2FType.cd]);
+			goto pr_displ;
+		case 10:
+			db_printf("cbts\t%s,", c2_reg[i.BC2FType.cd]);
+			goto pr_displ;
 		case 12:
 			ops = 3;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
