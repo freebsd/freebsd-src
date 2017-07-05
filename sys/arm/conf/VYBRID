@@ -26,6 +26,7 @@ makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM		# Platform based SoC
+options 	MULTIDELAY
 #options 	NANDFS			# NAND Filesystem
 #options 	SMP			# Enable multiple cores
 
