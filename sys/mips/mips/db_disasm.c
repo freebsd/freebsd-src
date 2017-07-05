@@ -313,6 +313,13 @@ md_printins(int ins, int mdbdot)
 				operands[1] = c2_reg[i.CType.r2];
 			}
 			break;
+		case 3:
+			ops = 3;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = c2_reg[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			operands[2] = c2_reg[i.CType.r3];
+			break;
 		case 4:
 			opcode = cheri_cap_modify_name[i.CType.fmt2];
 			if (i.CType.fmt2 == 5) {
@@ -334,12 +341,8 @@ md_printins(int ins, int mdbdot)
 			operands[0] = c2_reg[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 3:
-			ops = 3;
+		case 6:
 			opcode = cheri_flow_control_opname[i.CType.fmt];
-			operands[0] = c2_reg[i.CType.r1];
-			operands[1] = c2_reg[i.CType.r2];
-			operands[2] = c2_reg[i.CType.r3];
 			break;
 		case 7:
 		case 8:
@@ -347,9 +350,6 @@ md_printins(int ins, int mdbdot)
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			operands[0] = c2_reg[i.CType.r2];
 			operands[1] = reg_name[i.CType.r3];
-			break;
-		case 6:
-			opcode = cheri_flow_control_opname[i.CType.fmt];
 			break;
 		case 9:
 			db_printf("cbtu\t%s,", c2_reg[i.BC2FType.cd]);
