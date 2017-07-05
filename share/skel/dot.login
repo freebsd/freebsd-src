@@ -5,4 +5,5 @@
 # see also csh(1), environ(7).
 #
 
+if ( -x /usr/bin/resizewin ) /usr/bin/resizewin -z
 if ( -x /usr/bin/fortune ) /usr/bin/fortune freebsd-tips
