@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/arm/mpcore_timervar.h>
 
+#if defined(PLATFORM) && !defined(MULTIDELAY)
+#error The MPCore Timer driver requires MULTIDELAY when building with PLATFORM
+#endif
+
 /* Private (per-CPU) timer register map */
 #define PRV_TIMER_LOAD                 0x0000
 #define PRV_TIMER_COUNT                0x0004
