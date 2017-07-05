@@ -386,7 +386,7 @@ after_sack_rexmit:
 	 */
 	if (sack_rxmit == 0) {
 		if (sack_bytes_rxmt == 0)
-			len = ((int32_t)ulmin(sbavail(&so->so_snd), sendwin) -
+			len = ((int32_t)min(sbavail(&so->so_snd), sendwin) -
 			    off);
 		else {
 			int32_t cwin;
