@@ -260,6 +260,22 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 	return (0);
 }
 
+#include <cheri/cheric.h>
+
+static int
+copyinstrcap(const void * __capability uaddr, void *kaddr, size_t len, size_t *done)
+{
+	size_t length, offset;
+
+	/*
+	 * XXX-BD: rely on fill_uap to have ensured the cap is valid and
+	 * has some data in it;
+	 */
+	length = cheri_getlen(uaddr);
+	offset = cheri_getoffset(uaddr);
+	return (copyinstr((const void *)uaddr, kaddr, MAX(length - offset, len), done));
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -321,10 +337,10 @@ namei(struct nameidata *ndp)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
-		error = copystr((const void *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		error = copystr((const char *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 	else
-		error = copyinstr((const void *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		error = copyinstrcap(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 
 	/*
