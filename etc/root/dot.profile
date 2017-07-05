@@ -13,4 +13,4 @@ export PAGER
 if [ -x /usr/bin/resizewin ] ; then /usr/bin/resizewin -z ; fi
 
 # Uncomment to display a random cookie on each login.
-# if [ -x /usr/bin/resizewin ] ; then /usr/bin/fortune -s ; fi
+# if [ -x /usr/bin/fortune ] ; then /usr/bin/fortune -s ; fi
