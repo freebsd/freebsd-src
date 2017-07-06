@@ -667,13 +667,6 @@ cheri_capability_load(u_int crn_to, struct chericap *cp)
 }
 
 static inline void
-cheri_capability_store(u_int crn_from, struct chericap *cp)
-{
-
-        CHERI_CSC(crn_from, CHERI_CR_KDC, cp, 0);
-}
-
-static inline void
 cheri_capability_set_null(struct chericap *cp)
 {
 
