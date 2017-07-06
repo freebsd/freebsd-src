@@ -269,7 +269,7 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	touch ${.TARGET}
 
 pkg-stage:
-.if !defined(NOPKG)
+.if !defined(NOPKG) || empty(NOPKG)
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
 		sh ${.CURDIR}/scripts/pkg-stage.sh
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
