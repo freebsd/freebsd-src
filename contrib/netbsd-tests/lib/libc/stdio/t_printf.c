@@ -127,6 +127,10 @@ ATF_TC_HEAD(snprintf_float, tc)
 
 	atf_tc_set_md_var(tc, "descr", "test that floating conversions don't"
 	    " leak memory");
+#ifdef	__FreeBSD__
+	atf_tc_set_md_var(tc, "require.memory", "64m");
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(snprintf_float, tc)
@@ -141,13 +145,16 @@ ATF_TC_BODY(snprintf_float, tc)
 	struct rlimit rl;
 
 #ifdef	__FreeBSD__
-	atf_tc_expect_signal(SIGSEGV, "test segfaults; PR # 220502");
-#endif
-
+	rl.rlim_cur = rl.rlim_max = 32 * 1024 * 1024;
+	ATF_CHECK(setrlimit(RLIMIT_AS, &rl) != -1);
+	rl.rlim_cur = rl.rlim_max = 32 * 1024 * 1024;
+	ATF_CHECK(setrlimit(RLIMIT_DATA, &rl) != -1);
+#else
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
 	ATF_CHECK(setrlimit(RLIMIT_AS, &rl) != -1);
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
 	ATF_CHECK(setrlimit(RLIMIT_DATA, &rl) != -1);
+#endif
 
 	time(&now);
 	srand(now);
