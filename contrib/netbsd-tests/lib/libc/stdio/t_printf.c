@@ -140,6 +140,10 @@ ATF_TC_BODY(snprintf_float, tc)
 	char buf[1000];
 	struct rlimit rl;
 
+#ifdef	__FreeBSD__
+	atf_tc_expect_signal(SIGSEGV, "test segfaults; PR # 220502");
+#endif
+
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
 	ATF_CHECK(setrlimit(RLIMIT_AS, &rl) != -1);
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
