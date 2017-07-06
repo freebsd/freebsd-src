@@ -100,7 +100,9 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef CPU_CHERI
 #include <cheri/cheric.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
