@@ -270,6 +270,10 @@ acpi_walk_subtables(ACPI_TABLE_HEADER *table, void *first,
 	end = (char *)table + table->Length;
 	while ((char *)subtable < end) {
 		printf("\n");
+		if (subtable->Length < sizeof(ACPI_SUBTABLE_HEADER)) {
+			warnx("invalid subtable length %u", subtable->Length);
+			return;
+		}
 		action(subtable);
 		subtable = (ACPI_SUBTABLE_HEADER *)((char *)subtable +
 		    subtable->Length);
