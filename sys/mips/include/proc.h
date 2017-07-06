@@ -75,7 +75,6 @@ struct mdthread {
 #endif
 #ifdef CPU_CHERI
 	void * __capability	md_tls_cap;
-	char		md_cheriabi_pathbuf[MAXPATHLEN];
 #endif
 };
 
