@@ -123,7 +123,6 @@ void
 cheri_trapframe_to_cheriframe(struct trapframe *frame,
     struct cheri_frame *cfp)
 {
-	register_t tag;
 
 	/*
 	 * Handle the layout of the target structure very explicitly, to avoid
