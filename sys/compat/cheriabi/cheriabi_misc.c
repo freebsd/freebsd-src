@@ -1532,7 +1532,7 @@ cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd)
 
 #define sucap(uaddr, base, offset, length, perms)			\
 	do {								\
-		struct chericap	_tmpcap;				\
+		void * __capability _tmpcap;				\
 		cheri_capability_set(&_tmpcap, (perms), (base),		\
 		    (length), (offset));				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\

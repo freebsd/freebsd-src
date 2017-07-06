@@ -667,14 +667,6 @@ cheri_capability_load(u_int crn_to, struct chericap *cp)
 }
 
 static inline void
-cheri_capability_set_null(struct chericap *cp)
-{
-
-	CHERI_CFROMPTR(CHERI_CR_CTEMP0, CHERI_CR_KDC, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
-}
-
-static inline void
 cheri_capability_setoffset(struct chericap *cp, register_t offset)
 {
 

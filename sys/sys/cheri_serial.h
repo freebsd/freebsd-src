@@ -123,7 +123,7 @@ struct cheri_serial {
 #if defined(_KERNEL) && defined(CPU_CHERI)
 struct chericap;
 
-void	cheri_serialize(struct cheri_serial *csp, struct chericap *cap);
+void	cheri_serialize(struct cheri_serial *csp, void * __capability cap);
 #endif
 
 #endif /* _SYS_CHERI_SERIAL_H_ */

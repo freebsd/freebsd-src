@@ -97,18 +97,18 @@ static int	cheri_test_int;
 /*
  * Various pre-initialised capabilities to test with.
  */
-static struct chericap	cheri_test_nullcap;
-static struct chericap	cheri_test_finecap;
-static struct chericap	cheri_test_untaggedcap;
-static struct chericap	cheri_test_nilboundscap;
-static struct chericap	cheri_test_readonlycap;
+static void * __capability	cheri_test_nullcap;
+static void * __capability	cheri_test_finecap;
+static void * __capability	cheri_test_untaggedcap;
+static void * __capability	cheri_test_nilboundscap;
+static void * __capability	cheri_test_readonlycap;
 
 static void
 cheri_test_init(void)
 {
 
 	/* NULL capability. */
-	cheri_capability_set_null(&cheri_test_nullcap);
+	cheri_test_nullcap = NULL;
 
 	/*
 	 * Valid capability to cheri_test_int -- which should be read-write.
