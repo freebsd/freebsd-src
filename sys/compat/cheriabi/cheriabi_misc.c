@@ -1023,7 +1023,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 			return (error);
 		tag = cheri_gettag(sa_c.sa_u);
 		if (!tag) {
-			sa.sa_handler = (int)sa_c.sa_u;
+			sa.sa_handler = (void (*)(int))(uintptr_t)(__intcap_t)sa_c.sa_u;
 			if (sa.sa_handler != SIG_DFL &&
 			    sa.sa_handler != SIG_IGN) {
 				SYSERRCAUSE("untagged sa_handler and not "
