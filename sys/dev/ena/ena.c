@@ -141,6 +141,7 @@ static void	ena_free_irqs(struct ena_adapter*);
 static void	ena_disable_msix(struct ena_adapter *);
 static void	ena_unmask_all_io_irqs(struct ena_adapter *);
 static int	ena_rss_configure(struct ena_adapter *);
+static void	ena_update_hw_stats(void *, int);
 static int	ena_up_complete(struct ena_adapter *);
 static int	ena_up(struct ena_adapter *);
 static void	ena_down(struct ena_adapter *);
@@ -2062,6 +2063,25 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	return 0;
 }
 
+static void
+ena_update_hw_stats(void *arg, int pending)
+{
+	struct ena_adapter *adapter = arg;
+	int rc;
+
+	for (;;) {
+		if (!adapter->up)
+			return;
+
+		rc = ena_update_stats_counters(adapter);
+		if (rc)
+			ena_trace(ENA_WARNING,
+			    "Error updating stats counters, rc = %d", rc);
+
+		pause("ena update hw stats", hz);
+	}
+}
+
 static int
 ena_up_complete(struct ena_adapter *adapter)
 {
@@ -2144,6 +2164,8 @@ ena_up(struct ena_adapter *adapter)
 		callout_reset_sbt(&adapter->timer_service, SBT_1S, SBT_1S,
 		    ena_timer_service, (void *)adapter, 0);
 
+		taskqueue_enqueue(adapter->stats_tq, &adapter->stats_task);
+
 		adapter->up = true;
 
 		ena_unmask_all_io_irqs(adapter);
@@ -2198,24 +2220,8 @@ ena_get_counter(if_t ifp, ift_counter cnt)
 {
 	struct ena_adapter *adapter;
 	struct ena_hw_stats *stats;
-	int rc;
 
 	adapter = if_getsoftc(ifp);
-
-	/*
-	 * Update only when asking for first counter and interface is up.
-	 * Usually asks for all statistics in sequence.
-	 */
-	if (adapter->up) {
-		if (cnt == 0) {
-			rc = ena_update_stats_counters(adapter);
-			if (rc) {
-				ena_trace(ENA_WARNING,
-				    "Error updating stats counters, rc = %d",
-				    rc);
-			}
-		}
-	}
 	stats = &adapter->hw_stats;
 
 	switch (cnt) {
@@ -2509,6 +2515,10 @@ ena_down(struct ena_adapter *adapter)
 		adapter->up = false;
 		if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE,
 		    IFF_DRV_RUNNING);
+
+		/* Drain task responsible for updating hw stats */
+		while (taskqueue_cancel(adapter->stats_tq, &adapter->stats_task, NULL))
+			taskqueue_drain(adapter->stats_tq, &adapter->stats_task);
 
 		ena_free_io_irq(adapter);
 
@@ -3627,6 +3637,18 @@ ena_attach(device_t pdev)
 	taskqueue_start_threads(&adapter->reset_tq, 1, PI_NET,
 	    "%s rstq", device_get_nameunit(adapter->pdev));
 
+	/* Initialize task queue responsible for updating hw stats */
+	TASK_INIT(&adapter->stats_task, 0, ena_update_hw_stats, adapter);
+	adapter->stats_tq = taskqueue_create_fast("ena_stats_update",
+	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->stats_tq);
+	if (adapter->stats_tq == NULL) {
+		device_printf(adapter->pdev,
+		    "Unable to create taskqueue for updating hw stats\n");
+		goto err_stats_tq;
+	}
+	taskqueue_start_threads(&adapter->stats_tq, 1, PI_REALTIME,
+	    "%s stats tq", device_get_nameunit(adapter->pdev));
+
 	/* Initialize statistics */
 	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
 	    sizeof(struct ena_stats_dev));
@@ -3639,6 +3661,8 @@ ena_attach(device_t pdev)
 	adapter->running = true;
 	return (0);
 
+err_stats_tq:
+	taskqueue_free(adapter->reset_tq);
 err_reset_tq:
 	ena_free_mgmnt_irq(adapter);
 	ena_disable_msix(adapter);
@@ -3693,6 +3717,8 @@ ena_detach(device_t pdev)
 	sx_xlock(&adapter->ioctl_sx);
 	ena_down(adapter);
 	sx_unlock(&adapter->ioctl_sx);
+
+	taskqueue_free(adapter->stats_tq);
 
 	if (adapter->ifp != NULL) {
 		ether_ifdetach(adapter->ifp);
