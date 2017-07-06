@@ -696,7 +696,7 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 
 int
 kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
-    struct sigaction *oact, int flags, void * __capability *cap)
+    struct sigaction *oact, int flags, void * __CAPABILITY *cap)
 {
 	struct sigacts *ps;
 	struct proc *p = td->td_proc;

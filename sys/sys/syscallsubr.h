@@ -58,6 +58,13 @@ struct stat;
 struct thr_param;
 struct sched_param;
 struct __wrusage;
+#ifndef __CAPABILITY
+#if __has_feature(capabilities)
+#define	__CAPABILITY	__capability
+#else
+#define	__CAPABILITY
+#endif
+#endif
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
@@ -245,7 +252,7 @@ int	kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaction_cap(struct thread *td, int sig,
 	    const struct sigaction *act, struct sigaction *oact, int flags,
-	    void * __capability *cap);
+	    void * __CAPABILITY *cap);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
 int	kern_sigprocmask(struct thread *td, int how,
 	    sigset_t *set, sigset_t *oset, int flags);
