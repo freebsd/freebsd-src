@@ -470,8 +470,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	int error, i, tag;
-	register_t perms;
+	int error, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -486,15 +485,11 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 * XXX-BD: this is quite awkward.  ident could be anything.
 		 * If it's a capabilty, we'll hang on to it in udata.
 		 */
-		tag = cheri_gettag(ks_c[i].ident);
-		if (!tag)
-			kevp[i].ident = (void *)ks_c[i].ident;
-		else {
-			perms = cheri_getperm(ks_c[i].ident);
-			if (!(perms | CHERI_PERM_GLOBAL))
+		if (cheri_gettag(ks_c[i].ident)) {
+			if (!(cheri_getperm(ks_c[i].ident) | CHERI_PERM_GLOBAL))
 				return (EPROT);
-			kevp[i].ident = (void *)ks_c[i].ident;
 		}
+		kevp[i].ident = (uintptr_t)(__uintcap_t)ks_c[i].ident;
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
@@ -503,10 +498,8 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		if (ks_c[i].flags & EV_DELETE)
 			continue;
 
-		tag = cheri_gettag(ks_c[i].udata);
-		if (tag) {
-			perms = cheri_getperm(ks_c[i].udata);
-			if (!(perms & CHERI_PERM_GLOBAL))
+		if (cheri_gettag(ks_c[i].udata)) {
+			if (!(cheri_getperm(ks_c[i].udata) & CHERI_PERM_GLOBAL))
 				return (EPROT);
 		}
 		/*
