@@ -52,6 +52,19 @@ nonexistent_body() {
 		-x "cat /some/name/that/does/not/exist"
 }
 
+# Begin FreeBSD
+atf_test_case b_output
+b_output_head() {
+	atf_set "descr" "Test that cat(1) prints out numbers on non-blank "\
+			"lines with '-b'"
+}
+
+b_output_body() {
+	atf_check -o file:$(atf_get_srcdir)/d_b_output.out \
+		cat -b $(atf_get_srcdir)/d_b_output.in
+}
+# End FreeBSD
+
 atf_test_case se_output
 se_output_head() {
 	atf_set "descr" "Test that cat(1) prints a $ sign " \
@@ -103,6 +116,9 @@ atf_init_test_cases()
 {
 	atf_add_test_case align
 	atf_add_test_case nonexistent
+# Begin FreeBSD
+	atf_add_test_case b_output
+# End FreeBSD
 	atf_add_test_case se_output
 # Begin FreeBSD
 	atf_add_test_case s_output

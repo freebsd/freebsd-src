@@ -3,15 +3,17 @@
 NETBSD_ATF_TESTS_SH=		cat_test
 
 FILESDIR=	${TESTSDIR}
-${PACKAGE}FILES+=		d_s_output.in
-${PACKAGE}FILES+=		d_s_output.out
-${PACKAGE}FILES+=		d_vt_output.in
-${PACKAGE}FILES+=		d_vt_output.out
 
 FILES+=		d_align.in
 FILES+=		d_align.out
+FILES+=		d_b_output.in
+FILES+=		d_b_output.out
 FILES+=		d_se_output.in
 FILES+=		d_se_output.out
+FILES+=		d_s_output.in
+FILES+=		d_s_output.out
+FILES+=		d_vt_output.in
+FILES+=		d_vt_output.out
 
 .include <netbsd-tests.test.mk>
 
