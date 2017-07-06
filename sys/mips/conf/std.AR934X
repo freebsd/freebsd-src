@@ -51,7 +51,16 @@ options 	NO_FFS_SNAPSHOT		# We don't require snapshot support
 include 	"std.AR_MIPS_BASE"
 makeoptions 	MODULES_OVERRIDE+="hwpmc_mips24k"
 
+# EEPROM caldata for AHB connected device
+options 	AR71XX_ATH_EEPROM
+device 		ar71xx_caldata
+device 		firmware
+
+# Support AR9340 support in AR9300 HAL
 options 	AH_SUPPORT_AR9340
+
+# Support EEPROM caldata in AHB devices
+options 	ATH_EEPROM_FIRMWARE
 
 device		pci
 device		ar724x_pci
