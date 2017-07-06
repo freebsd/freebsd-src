@@ -1085,6 +1085,7 @@ event_loop(void)
 		if (FD_ISSET(seqpacket_fd, &fds))
 			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
+	cfg.remove_pidfile();
 	close(seqpacket_fd);
 	close(stream_fd);
 	close(fd);
