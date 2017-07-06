@@ -510,7 +510,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * If it turns out we will be delivering to the alternative signal
 	 * stack, we'll recalculate stackbase later.
 	 */
-	stackbase = (void *)td->td_pcb->pcb_regs.stc;
+	stackbase = (vaddr_t)td->td_pcb->pcb_regs.stc;
 	oonstack = sigonstack(stackbase + regs->sp);
 
 	/*
