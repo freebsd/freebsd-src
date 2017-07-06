@@ -2722,6 +2722,7 @@ while (0)
 	nop\n\
 1:	.cpload $31\n\
 	.set reorder\n\
+	.local " USER_LABEL_PREFIX #FUNC "\n\
 	jal " USER_LABEL_PREFIX #FUNC "\n\
 	" TEXT_SECTION_ASM_OP);
 #endif /* Switch to #elif when we're no longer limited by K&R C.  */
@@ -2734,6 +2735,7 @@ while (0)
 	nop\n\
 1:	.set reorder\n\
 	.cpsetup $31, $2, 1b\n\
+	.local " USER_LABEL_PREFIX #FUNC "\n\
 	dla $t9, " USER_LABEL_PREFIX #FUNC "\n\
 	jalr $t9\n\
 	" TEXT_SECTION_ASM_OP);

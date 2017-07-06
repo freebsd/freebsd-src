@@ -43,10 +43,6 @@ FBSDprivate_1.0 {
 
 	_set_tp;
 	___longjmp;
-	__umodsi3;
-	__modsi3;
-	__udivsi3;
-	__divsi3;
 	__makecontext;
 	__longjmp;
 	signalcontext;

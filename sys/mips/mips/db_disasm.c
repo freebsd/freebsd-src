@@ -313,6 +313,13 @@ md_printins(int ins, int mdbdot)
 				operands[1] = c2_reg[i.CType.r2];
 			}
 			break;
+		case 3:
+			ops = 3;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = c2_reg[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			operands[2] = c2_reg[i.CType.r3];
+			break;
 		case 4:
 			opcode = cheri_cap_modify_name[i.CType.fmt2];
 			if (i.CType.fmt2 == 5) {
@@ -334,12 +341,9 @@ md_printins(int ins, int mdbdot)
 			operands[0] = c2_reg[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 3:
-			ops = 3;
+		case 6:
+			ops = 0;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
-			operands[0] = c2_reg[i.CType.r1];
-			operands[1] = c2_reg[i.CType.r2];
-			operands[2] = c2_reg[i.CType.r3];
 			break;
 		case 7:
 		case 8:
@@ -348,9 +352,12 @@ md_printins(int ins, int mdbdot)
 			operands[0] = c2_reg[i.CType.r2];
 			operands[1] = reg_name[i.CType.r3];
 			break;
-		case 6:
-			opcode = cheri_flow_control_opname[i.CType.fmt];
-			break;
+		case 9:
+			db_printf("cbtu\t%s,", c2_reg[i.BC2FType.cd]);
+			goto pr_displ;
+		case 10:
+			db_printf("cbts\t%s,", c2_reg[i.BC2FType.cd]);
+			goto pr_displ;
 		case 12:
 			ops = 3;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
@@ -391,14 +398,14 @@ md_printins(int ins, int mdbdot)
 		const char *opcode = i.JType.op == OP_LWC2 ?
 			cheri_cap_load_opname[i.CMType.fmt] :
 			cheri_cap_store_opname[i.CMType.fmt];
-		db_printf("%s\t%s, %s, %d(%s)", opcode, reg_name[i.CMType.rd],
+		db_printf("%s\t%s,%s,%d(%s)", opcode, reg_name[i.CMType.rd],
 				reg_name[i.CMType.rt], i.CMType.offset, c2_reg[i.CMType.cb]);
 		break;
 	}
 	case OP_LDC2:
 	case OP_SDC2: {
 		const char *opcode = i.JType.op == OP_LDC2 ? "clc" : "csc";
-		db_printf("%s\t%s, %s, %d(%s)", opcode, c2_reg[i.CCMType.cs],
+		db_printf("%s\t%s,%s,%d(%s)", opcode, c2_reg[i.CCMType.cs],
 				reg_name[i.CCMType.rt], i.CCMType.offset, c2_reg[i.CCMType.cb]);
 		break;
 	}

@@ -69,6 +69,7 @@
 #
 
 	.text
+	.option pic0
 	.global cheri_invoke
 	.ent	cheri_invoke
 cheri_invoke:
