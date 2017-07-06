@@ -3,6 +3,10 @@
 NETBSD_ATF_TESTS_SH=		cat_test
 
 FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		d_s_output.in
+${PACKAGE}FILES+=		d_s_output.out
+${PACKAGE}FILES+=		d_vt_output.in
+${PACKAGE}FILES+=		d_vt_output.out
 
 FILES+=		d_align.in
 FILES+=		d_align.out
