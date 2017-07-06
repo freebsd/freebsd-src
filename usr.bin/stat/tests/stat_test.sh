@@ -165,7 +165,7 @@ t_flag_body()
 
 x_output_date()
 {
-	local date_format='%a %b %d %H:%M:%S %Y'
+	local date_format='%a %b %e %H:%M:%S %Y'
 
 	stat -t "$date_format" "$@"
 }
