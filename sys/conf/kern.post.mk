@@ -183,10 +183,13 @@ lint: ${LNFILES}
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.
+.if ${COMPILER_TYPE} == "clang"
+HACK_IAS=	-integrated-as
+.endif
 HACK_EXTRA_FLAGS?= -shared
 hack.pico: Makefile
 	:> hack.c
-	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.pico
+	${CC} ${HACK_EXTRA_FLAGS} ${HACK_IAS} -nostdlib hack.c -o hack.pico
 	rm -f hack.c
 
 assym.s: $S/kern/genassym.sh genassym.o
