@@ -400,6 +400,8 @@
                 ..
             ..
         ..
+        zoneinfo
+        ..
     ..
     sys
         acl
