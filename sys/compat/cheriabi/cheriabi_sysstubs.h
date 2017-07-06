@@ -3012,13 +3012,13 @@ SYS_STUB(497, int, mkfifoat,
 )
 
 SYS_STUB_VA(499, int, openat, flag,
-    /* _protoargs */ (int fd, const char * path, int flag, mode_t mode),
-    /* _vprotoargs */ (int fd, const char * path, int flag, ...),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const char * __capability  path, int flag, mode_t mode),
-    /* _protoargs_err */ (__capability int *stub_errno, int fd, const char * __capability  path, int flag, mode_t mode),
-    /* _callargs */ (fd, (const char *)path, flag, mode),
+    /* _protoargs */ (int fd, const char *__capability path, int flag, mode_t mode),
+    /* _vprotoargs */ (int fd, const char *__capability path, int flag, ...),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, const char * __capability __capability path, int flag, mode_t mode),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, const char * __capability __capability path, int flag, mode_t mode),
+    /* _callargs */ (fd, (const char *__capability)path, flag, mode),
     /* _callargs_chk */ (&ret, stub_errno, fd, path, flag, mode),
-    /* _callargs_err */ (&errno, fd, (const char *)path, flag, mode),
+    /* _callargs_err */ (&errno, fd, (const char *__capability)path, flag, mode),
     /* _localcheck */ {if (!(cheri_getperm(path) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

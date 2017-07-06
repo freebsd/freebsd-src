@@ -302,7 +302,7 @@ struct cheriabi_fexecve_args {
 };
 struct cheriabi_openat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char path_l_[PADL_(const char *__capability)]; const char *__capability path; char path_r_[PADR_(const char *__capability)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };

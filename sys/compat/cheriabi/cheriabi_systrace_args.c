@@ -2581,7 +2581,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 499: {
 		struct cheriabi_openat_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->path; /* const char *__capability */
 		iarg[2] = p->flag; /* int */
 		iarg[3] = p->mode; /* mode_t */
 		*n_args = 4;
@@ -7350,7 +7350,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 2:
 			p = "int";

@@ -186,19 +186,10 @@ cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 int
 cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 {
-	char *path;
-	size_t slen;
 	int error;
 
-	path = td->td_md.md_cheriabi_pathbuf;
-	error = cheriabi_copyinstrarg(td, CHERIABI_SYS_cheriabi_openat, 1,
-	    path, MAXPATHLEN, &slen, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-	if (error)
-		goto fail;
-
-	error = kern_openat_c(td, uap->fd, (char * __capability)path, UIO_SYSSPACE,
+	error = kern_openat_c(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flag, uap->mode);
-fail:
 	return (error);
 }
 

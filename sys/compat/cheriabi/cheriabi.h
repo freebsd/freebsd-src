@@ -89,6 +89,41 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 }
 
 static inline int
+cheriabi_cap_validate(void * __capability cap, size_t reqlen,
+    register_t reqperms, int may_be_null)
+{
+	register_t tag;
+	register_t perms;
+	register_t sealed;
+	size_t length, offset;
+
+	tag = cheri_gettag(cap);
+	if (!tag) {
+		if (!may_be_null)
+			return (EFAULT);
+		if (cap != NULL)
+			return (EFAULT);
+	} else {
+		sealed = cheri_getsealed(cap);
+		if (sealed)
+			return (EPROT);
+
+		perms = cheri_getperm(cap);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		length = cheri_getlen(cap);
+		offset = cheri_getoffset(cap);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < reqlen)
+			return (EPROT);
+	}
+	return (0);
+}
+
+static inline int
 cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
 {
 
