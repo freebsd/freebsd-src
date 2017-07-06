@@ -58,6 +58,7 @@ struct componentname {
 struct nameicap_tracker;
 TAILQ_HEAD(nameicap_tracker_head, nameicap_tracker);
 
+#ifdef _KERNEL
 /*
  * Encapsulation of namei parameters.
  */
@@ -100,7 +101,6 @@ struct nameidata {
 	struct nameicap_tracker_head ni_cap_tracker;
 };
 
-#ifdef _KERNEL
 /*
  * namei operations
  */
