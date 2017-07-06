@@ -195,6 +195,7 @@ db_inputchar(c)
 		    db_delete(1, DEL_FWD);
 		break;
 	    case CTRL('u'):
+	    case CTRL('c'):
 		/* kill entire line: */
 		/* at first, delete to beginning of line */
 		if (db_lc > db_lbuf_start)
