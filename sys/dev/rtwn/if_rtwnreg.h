@@ -48,6 +48,55 @@ struct rtwn_tx_desc_common {
 	} txdw7;
 } __packed __attribute__((aligned(4)));
 
+/* Common part of Rx descriptor. */
+struct rtwn_rx_stat_common {
+	uint32_t	rxdw0;
+#define RTWN_RXDW0_PKTLEN_M	0x00003fff
+#define RTWN_RXDW0_PKTLEN_S	0
+#define RTWN_RXDW0_CRCERR	0x00004000
+#define RTWN_RXDW0_ICVERR	0x00008000
+#define RTWN_RXDW0_INFOSZ_M	0x000f0000
+#define RTWN_RXDW0_INFOSZ_S	16
+#define RTWN_RXDW0_CIPHER_M	0x00700000
+#define RTWN_RXDW0_CIPHER_S	20
+#define RTWN_RXDW0_QOS		0x00800000
+#define RTWN_RXDW0_SHIFT_M	0x03000000
+#define RTWN_RXDW0_SHIFT_S	24
+#define RTWN_RXDW0_PHYST	0x04000000
+#define RTWN_RXDW0_SWDEC	0x08000000
+#define RTWN_RXDW0_LS		0x10000000
+#define RTWN_RXDW0_FS		0x20000000
+#define RTWN_RXDW0_EOR		0x40000000
+#define RTWN_RXDW0_OWN		0x80000000
+
+	uint32_t	rxdw1;
+#define RTWN_RXDW1_AMSDU	0x00002000
+#define RTWN_RXDW1_MC		0x40000000
+#define RTWN_RXDW1_BC		0x80000000
+
+	uint32_t	rxdw2;
+	uint32_t	rxdw3;
+#define RTWN_RXDW3_HTC		0x00000400
+#define RTWN_RXDW3_BSSID01_FIT_M 0x00003000
+#define RTWN_RXDW3_BSSID01_FIT_S 12
+
+	uint32_t	rxdw4;
+	uint32_t	tsf_low;
+} __packed __attribute__((aligned(4)));
+
+/* Rx descriptor for PCIe devices. */
+struct rtwn_rx_stat_pci {
+	uint32_t	rxdw0;
+	uint32_t	rxdw1;
+	uint32_t	rxdw2;
+	uint32_t	rxdw3;
+	uint32_t	rxdw4;
+	uint32_t	tsf_low;
+
+	uint32_t	rxbufaddr;
+	uint32_t	rxbufaddr64;
+} __packed __attribute__((aligned(4)));
+
 /*
  * Macros to access subfields in registers.
  */
