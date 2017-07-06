@@ -1547,6 +1547,12 @@ dev/e1000/e1000_mbx.c		optional em | igb \
 dev/e1000/e1000_osdep.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
+dev/ena/ena.c			optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
+dev/ena/ena_sysctl.c 		optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
+contrib/ena-com/ena_com.c	optional ena
+contrib/ena-com/ena_eth_com.c	optional ena
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
 dev/ep/if_ep.c			optional ep
