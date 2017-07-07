@@ -28,7 +28,6 @@ makeoptions	WERROR="-Werror"
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
-options 	MULTIDELAY
 
 # Interrupt controller
 device		gic

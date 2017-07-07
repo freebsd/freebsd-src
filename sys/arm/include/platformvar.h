@@ -90,15 +90,9 @@ typedef struct fdt_platform_class fdt_platform_def_t;
 
 extern platform_method_t fdt_platform_methods[];
 
-#ifdef MULTIDELAY
-#define	FDT_PLATFORM_CTASSERT(delay)	CTASSERT(delay > 0)
-#else
-#define	FDT_PLATFORM_CTASSERT(delay)
-#endif
-
 #define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, size, compatible,	\
     delay)								\
-FDT_PLATFORM_CTASSERT(delay);						\
+CTASSERT(delay > 0);							\
 static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
 	.name = NAME_STR,						\
 	.methods = fdt_platform_methods,				\
