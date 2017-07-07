@@ -80,3 +80,6 @@
 
 <!-- The marker for MFCs. -->
 <!ENTITY merged "MERGED">
+
+<!-- Manual page references added after the doc tag -->
+<!ENTITY man.ena.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>ena</refentrytitle><manvolnum>4</manvolnum></citerefentry>">

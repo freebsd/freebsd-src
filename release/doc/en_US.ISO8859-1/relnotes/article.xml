@@ -785,6 +785,11 @@
       <para revision="312790">The &os; virtual machines provided on
 	Amazon&reg; EC2&trade; now enable <acronym>IPv6</acronym> by
 	default.</para>
+
+      <para revision="320760" contrib="sponsor" sponsor="&amazon;">The
+	&man.ena.4; driver has been added, providing support for
+	&quot;next generation&quot; Enhanced Networking on the
+	Amazon&reg;&nbsp;EC2&trade; platform.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
