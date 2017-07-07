@@ -219,6 +219,9 @@ CHERI_FLAGS=	-DDB_FROM_SRC \
 		LOCAL_DIRS="ctsrd tools/tools/atsectl" \
 		LOCAL_LIB_DIRS=ctsrd/lib \
 		LOCAL_MTREE=ctsrd/ctsrd.mtree
+.if !defined(CHERI_CC) && defined(XCC)
+CHERI_CC=	${XCC}
+.endif
 .if ${CHERI} == "128"
 CHERI_FLAGS+=	-DWITH_CHERI128
 .elif ${CHERI} == "256" || ${CHERI} == "1"
