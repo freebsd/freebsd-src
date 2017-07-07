@@ -672,7 +672,7 @@ p_re(struct parse *p,
 		bc.terminate = false;
 		if (p->pre_parse != NULL)
 			p->pre_parse(p, &bc);
-		while (MORE() && !SEESPEC('|') && !SEEEND()) {
+		while (MORE() && (!p->allowbranch || !SEESPEC('|')) && !SEEEND()) {
 			bc.terminate = p->parse_expr(p, &bc);
 			++bc.nchain;
 		}
