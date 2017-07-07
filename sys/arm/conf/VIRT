@@ -26,7 +26,6 @@ include 	"../qemu/std.virt"
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
 options 	SMP			# Enable multiple cores
-options 	MULTIDELAY
 
 # Interrupt controller
 device		gic

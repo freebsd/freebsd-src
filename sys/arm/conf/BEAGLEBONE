@@ -29,7 +29,6 @@ include 	"../ti/am335x/std.am335x"
 makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
 
 options 	INTRNG
-options 	MULTIDELAY
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM

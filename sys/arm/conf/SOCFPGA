@@ -29,7 +29,6 @@ makeoptions	WERROR="-Werror"
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM		# Platform based SoC
 options 	SMP			# Enable multiple cores
-options 	MULTIDELAY
 
 options 	SOC_ALTERA_ARRIA10
 options 	SOC_ALTERA_CYCLONE5
