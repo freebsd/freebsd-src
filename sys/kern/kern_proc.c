@@ -1317,22 +1317,14 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 #endif	/* COMPAT_FREEBSD32 */
 
 #ifdef COMPAT_CHERIABI
-static void
-ptr2cap(void * __capability *cap, void *ptr)
-{
-
-	/*
-	 * Convert pointers to NULL capabilities with the offset of the
-	 * virtual address to avoid leaking kernel capbilities.  One
-	 * alternative to consider is sealed capabilities, but would seem
-	 * to complicate attempts to impose hardware enforced flow control.
-	 */
-	*cap = NULL;
-	*cap = cheri_setoffset(*cap, (vaddr_t)ptr);
-}
-
+/*
+ * Convert pointers to NULL capabilities with the offset of the
+ * virtual address to avoid leaking kernel capbilities.  One
+ * alternative to consider is sealed capabilities, but would seem
+ * to complicate attempts to impose hardware enforced flow control.
+ */
 #define PTREXPAND_CP(src,dst,fld) \
-	do { ptr2cap(&(dst).fld, (src).fld); } while (0)
+	do { (dst).fld = (void * __capability)(__intcap_t)(src).fld; } while (0)
 
 static void
 cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
@@ -1420,6 +1412,7 @@ cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
 	PTREXPAND_CP(*ki, *ki_c, ki_pcb);
 	PTREXPAND_CP(*ki, *ki_c, ki_kstack);
 	PTREXPAND_CP(*ki, *ki_c, ki_udata);
+	PTREXPAND_CP(*ki, *ki_c, ki_tdaddr);
 	CP(*ki, *ki_c, ki_sflag);
 	CP(*ki, *ki_c, ki_tdflags);
 }
