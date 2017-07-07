@@ -451,8 +451,9 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		 * Retrieve the ident and udata capabilities stashed by
 		 * cheriabi_kevent_copyin().
 		 */
-		ks_c[i].ident = *((void * __capability *)kevp[i].udata);
-		ks_c[i].udata = *((void * __capability *)kevp[i].udata + 1);
+		void * __capability * udata = kevp[i].udata;
+		ks_c[i].ident = (__intcap_t)udata[0];
+		ks_c[i].udata = udata[1];
 	}
 	error = copyoutcap(ks_c, uap->eventlist, count * sizeof(*ks_c));
 	if (error == 0)
@@ -504,10 +505,12 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 * We stash the real ident and udata capabilities in
 		 * a malloced array in udata.
 		 */
-		kevp[i].udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
+		void * __capability * udata;
+		udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
 		    M_WAITOK);
-		*((void * __capability *)kevp[i].udata) = ks_c[i].ident;
-		*((void * __capability *)kevp[i].udata + 1) = ks_c[i].udata;
+		kevp[i].udata = udata;
+		udata[0] = (void * __capability)ks_c[i].ident;
+		udata[1] = ks_c[i].udata;
 	}
 done:
 	return (error);
