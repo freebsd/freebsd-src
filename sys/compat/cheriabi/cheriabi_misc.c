@@ -120,9 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
-#define CHERIABI_SYS_argmap a_hack_to_work_around_a_duplicated_symbol_problem
 #include <compat/cheriabi/cheriabi_sysargmap.h>
-#undef CHERIABI_SYS_argmap
 
 #include <sys/cheriabi.h>
 

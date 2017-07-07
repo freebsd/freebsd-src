@@ -201,11 +201,6 @@ sed -e '
 
 		printf "#ifndef %s\n", sysargmap_h > sysargmap
 		printf "#define\t%s\n\n", sysargmap_h > sysargmap
-		printf "struct {\n" > sysargmap
-		printf "\tu_char sam_return_ptr;\n" > sysargmap
-		printf "\tconst u_char sam_ptrmask;\n} " > sysargmap
-		printf("%sargmap[%sMAXSYSCALL] = {\n",
-		    syscallprefix, syscallprefix) > sysargmap
 
 		printf "#ifndef %s\n", cheriabi_fill_uap_h > cheriabi_fill_uap
 		printf "#define\t%s\n\n", cheriabi_fill_uap_h > cheriabi_fill_uap
@@ -731,36 +726,13 @@ sed -e '
 			    argalias) > sysarg
 
 		if (argc != 0 && !flag("NOARGS") && !flag("NODEF")) {
-			printf("\t[%s%s] = {\n",
-			     syscallprefix, funcalias) > sysargmap
-			if (isptrtype(syscallret))
-				printf "\t\t.sam_return_ptr = 1,\n" > sysargmap
-			pointers = 0
-			for (i = 1; i <= argc; i++)
-				if (isptrtype(argtype[i]))
-					pointers++
-			if (pointers > 0) {
-				printf "\t\t.sam_ptrmask =" > sysargmap
-				or_space = ""
-				for (i = 1; i <= argc; i++)
-					if (isptrtype(argtype[i])) {
-						printf(" %s0x%x",
-						    or_space,
-						    2 ^ (i - 1)) > sysargmap
-						or_space = "| "
-					}
-				printf "\n" > sysargmap
-			}
 			printf("#define	%s%s_PTRMASK	(0x0", syscallprefix, funcalias) > sysargmap
 			for (i = 1; i <= argc; i++)
 				if (isptrtype(argtype[i])) {
-					printf(" %s0x%x",
-					    or_space,
+					printf(" | 0x%x",
 					    2 ^ (i - 1)) > sysargmap
-					or_space = "| "
 				}
 			printf ")\n" > sysargmap
-			printf "\t},\n" > sysargmap
 		}
 
 		if (argc != 0)
@@ -1236,7 +1208,6 @@ sed -e '
 		printf("\n#endif /* !%s */\n", sysproto_h) > sysprotoend
 
 		printf("\n") > sysmk
-		printf("};\n") > sysargmap
 		printf("#endif /* !%s */\n", sysargmap_h) > sysargmap
 
 		printf("#endif /* !%s */\n", cheriabi_fill_uap_h) > cheriabi_fill_uap
