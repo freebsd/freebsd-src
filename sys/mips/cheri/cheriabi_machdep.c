@@ -353,9 +353,6 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 		locr0->v1 = td->td_retval[1];
 		locr0->a3 = 0;
 
-		if (!CHERIABI_SYS_argmap[code].sam_return_ptr)
-			break;
-
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
 			error = cheriabi_mmap_set_retcap(td, &locr0->c3,
@@ -376,8 +373,7 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			break;
 
 		default:
-			panic("%s: unsupported syscall (%u) returning pointer",
-			    __func__, code);
+			return;
 		}
 		break;
 	case ERESTART:
