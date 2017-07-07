@@ -262,10 +262,47 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 
 #include <cheri/cheric.h>
 
+static inline int
+cheriabi_cap_validate(void * __capability cap, size_t reqlen,
+    register_t reqperms, int may_be_null)
+{
+	register_t tag;
+	register_t perms;
+	register_t sealed;
+	size_t length, offset;
+
+	tag = cheri_gettag(cap);
+	if (!tag) {
+		if (!may_be_null)
+			return (EFAULT);
+		if (cap != NULL)
+			return (EFAULT);
+	} else {
+		sealed = cheri_getsealed(cap);
+		if (sealed)
+			return (EPROT);
+
+		perms = cheri_getperm(cap);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		length = cheri_getlen(cap);
+		offset = cheri_getoffset(cap);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < reqlen)
+			return (EPROT);
+	}
+	return (0);
+}
+
 static int
 copyinstrcap(const void * __capability uaddr, void *kaddr, size_t len, size_t *done)
 {
+	register_t reqperms = (CHERI_PERM_LOAD);
 	size_t length, offset;
+	int error;
 
 	/*
 	 * XXX-BD: rely on fill_uap to have ensured the cap is valid and
@@ -273,7 +310,14 @@ copyinstrcap(const void * __capability uaddr, void *kaddr, size_t len, size_t *d
 	 */
 	length = cheri_getlen(uaddr);
 	offset = cheri_getoffset(uaddr);
-	return (copyinstr((const void *)uaddr, kaddr, MAX(length - offset, len), done));
+
+	length = MIN(length - offset, len);
+	error = cheriabi_cap_validate(uaddr, length, reqperms, 0);
+	if (error != 0)
+		return (error);
+
+
+	return (copyinstr((const void *)uaddr, kaddr, length, done));
 }
 
 /*

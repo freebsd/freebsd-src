@@ -745,15 +745,7 @@ CHERIABI_SYS_cheriabi_openat_fill_uap(struct thread *td,
 	uap->mode = (register_t)tmpcap;
 
 	/* [1] _In_z_ const char * path */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg_x(td, &uap->path, CHERIABI_SYS_cheriabi_openat, 1, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-		error = cheriabi_cap_validate(uap->path, sizeof(*uap->path) /* XXX: ? */, reqperms, 0);
-		if (error != 0)
-			return (error);
-	}
+	cheriabi_fetch_syscall_arg_x(td, &uap->path, CHERIABI_SYS_cheriabi_openat, 1, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 
 	return (0);
 }

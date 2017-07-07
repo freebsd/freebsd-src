@@ -186,11 +186,9 @@ cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 int
 cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 {
-	int error;
 
-	error = kern_openat_c(td, uap->fd, uap->path, UIO_USERSPACE,
-	    uap->flag, uap->mode);
-	return (error);
+	return (kern_openat_c(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
+	    uap->mode));
 }
 
 int
