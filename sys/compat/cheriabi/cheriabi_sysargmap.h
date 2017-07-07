@@ -72,7 +72,8 @@ struct {
 #define	CHERIABI_SYS_setuid_PTRMASK	(0x0)
 	},
 	[CHERIABI_SYS_ptrace] = {
-#define	CHERIABI_SYS_ptrace_PTRMASK	(0x0)
+		.sam_ptrmask = 0x4
+#define	CHERIABI_SYS_ptrace_PTRMASK	(0x0 | 0x4)
 	},
 	[CHERIABI_SYS_cheriabi_recvmsg] = {
 		.sam_ptrmask = 0x2

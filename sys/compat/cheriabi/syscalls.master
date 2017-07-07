@@ -108,7 +108,7 @@
 24	AUE_GETUID	NOPROTO	{ uid_t getuid(void); }
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
 26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
-				    vaddr_t addr, int data); }
+				    _Inout_opt_ caddr_t addr, int data); }
 27	AUE_RECVMSG	STD	{ ssize_t cheriabi_recvmsg(int s, \
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
