@@ -131,6 +131,7 @@ struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 struct vm_vmem_stat;
+struct vmcx_state;
 enum snapshot_req;
 
 struct mem_seg {
@@ -170,6 +171,8 @@ typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
 typedef int	(*vmi_snapshot_t)(void *vmi, void *buffer, size_t buf_size,
 				  size_t *snapshot_size);
 typedef int	(*vmi_restore_t)(void *vmi, void *buffer, size_t buf_size);
+typedef int	(*vmi_snapshot_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
+typedef int	(*vmi_restore_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -193,6 +196,8 @@ struct vmm_ops {
 	/* checkpoint operations */
 	vmi_snapshot_t		vmsnapshot;
 	vmi_restore_t		vmrestore;
+	vmi_snapshot_vmcx_t	vmcx_snapshot;
+	vmi_restore_vmcx_t	vmcx_restore;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -689,6 +694,57 @@ struct vm_exit {
 		} suspended;
 		struct vm_task_switch task_switch;
 	} u;
+};
+
+/* Used when saving and restoring vmcs for Intel or vmcb for AMD processors. */
+struct vmcx_state {
+	uint64_t guest_cr0;
+	uint64_t guest_cr3;
+	uint64_t guest_cr4;
+	uint64_t guest_dr7;
+
+	uint64_t guest_rsp;
+	uint64_t guest_rip;
+	uint64_t guest_rflags;
+
+	uint64_t guest_es;
+	uint64_t guest_cs;
+	uint64_t guest_ss;
+	uint64_t guest_ds;
+	uint64_t guest_fs;
+	uint64_t guest_gs;
+
+	struct seg_desc guest_es_desc;
+	struct seg_desc guest_cs_desc;
+	struct seg_desc guest_ss_desc;
+	struct seg_desc guest_ds_desc;
+	struct seg_desc guest_fs_desc;
+	struct seg_desc guest_gs_desc;
+
+	uint64_t guest_tr;
+	uint64_t guest_ldtr;
+	uint64_t guest_efer;
+
+	struct seg_desc guest_tr_desc;
+	struct seg_desc guest_ldtr_desc;
+	struct seg_desc guest_idtr_desc;
+	struct seg_desc guest_gdtr_desc;
+
+	uint64_t guest_pdpte0;
+	uint64_t guest_pdpte1;
+	uint64_t guest_pdpte2;
+	uint64_t guest_pdpte3;
+
+	uint64_t guest_ia32_sysenter_cs;
+	uint64_t guest_ia32_sysenter_esp;
+	uint64_t guest_ia32_sysenter_eip;
+	uint64_t guest_ia32_efer;
+
+	uint64_t guest_interruptibility;
+	uint64_t guest_activity;
+
+	uint64_t vmcs_entry_ctls;
+	uint64_t vmcs_exit_ctls;
 };
 
 /* APIs to inject faults into the guest */

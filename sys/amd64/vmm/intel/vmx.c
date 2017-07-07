@@ -3742,7 +3742,7 @@ vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 }
 
 static int
-vmx_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+vmx_snapshot_vmi(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
 {
 	struct vmx *vmx = arg;
 	int error;
@@ -3767,136 +3767,153 @@ vmx_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
 }
 
 static int
-vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
+vmx_snapshot_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
 {
-	uint64_t val;
-	int error = 0;
-	struct seg_desc desc;
+	struct vmcs *vmcs;
+	struct vmx *vmx = (struct vmx *)arg;
+	int err = 0, running, hostcpu;
 
-	if (vmclear(new_vmcs)) {
-		printf("%s: Error when vmclear new vmcs.\n", __func__);
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcs = &vmx->vmcs[vcpu];
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		return (EINVAL);
 	}
-	if (vmclear(old_vmcs)) {
-		printf("%s: Error when vmclear old vmcs.\n", __func__);
-	}
 
-	/* Restore guest registers */
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR0, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR0, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR3, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR3, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR4, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR4, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_DR7, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_DR7, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RSP, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RSP, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RIP, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RIP, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RFLAGS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RFLAGS, val);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_CR0, &vmcx->guest_cr0);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_CR3, &vmcx->guest_cr3);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_CR4, &vmcx->guest_cr4);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_DR7, &vmcx->guest_dr7);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_RSP, &vmcx->guest_rsp);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_RIP, &vmcx->guest_rip);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_RFLAGS, &vmcx->guest_rflags);
 
 	/* Guest segments */
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_ES, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_ES, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_ES, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_ES, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_ES, &vmcx->guest_es);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CS, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_CS, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_CS, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_CS, &vmcx->guest_cs);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_SS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_SS, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_SS, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_SS, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_SS, &vmcx->guest_ss);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_DS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_DS, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_DS, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_DS, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_DS, &vmcx->guest_ds);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_FS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_FS, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_FS, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_FS, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_FS, &vmcx->guest_fs);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_GS, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_GS, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_GS, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_GS, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_GS, &vmcx->guest_gs);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_TR, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_TR, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_TR, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_TR, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_TR, &vmcx->guest_tr);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_LDTR, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_LDTR, val);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_LDTR, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_LDTR, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
 
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_IDTR, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_IDTR, &desc);
-	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_GDTR, &desc);
-	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_GDTR, &desc);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_EFER, &vmcx->guest_efer);
 
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_EFER, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_EFER, val);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcs_getdesc(vmcs, running, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
 
 	/* Guest page tables */
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE0, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE0, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE1, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE1, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE2, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE2, val);
-
-	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE3, &val);
-	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE3, val);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_PDPTE0, &vmcx->guest_pdpte0);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_PDPTE1, &vmcx->guest_pdpte1);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_PDPTE2, &vmcx->guest_pdpte2);
+	err += vmcs_getreg(vmcs, running, VM_REG_GUEST_PDPTE3, &vmcx->guest_pdpte3);
 
 	/* Other guest state */
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_CS, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_CS, val);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_CS, &vmcx->guest_ia32_sysenter_cs);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_ESP, &vmcx->guest_ia32_sysenter_esp);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_EIP, &vmcx->guest_ia32_sysenter_eip);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_INTERRUPTIBILITY, &vmcx->guest_interruptibility);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_ACTIVITY, &vmcx->guest_activity);
+	err += vmcs_getany(vmcs, running, VMCS_GUEST_IA32_EFER, &vmcx->guest_ia32_efer);
+	err += vmcs_getany(vmcs, running, VMCS_ENTRY_CTLS, &vmcx->vmcs_entry_ctls);
+	err += vmcs_getany(vmcs, running, VMCS_EXIT_CTLS, &vmcx->vmcs_exit_ctls);
 
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_ESP, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_ESP, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_EIP, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_EIP, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_INTERRUPTIBILITY, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_INTERRUPTIBILITY, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_ACTIVITY, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_ACTIVITY, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_EFER, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_EFER, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_ENTRY_CTLS, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_ENTRY_CTLS, val);
-
-	error += vmcs_getany(old_vmcs, 0, VMCS_EXIT_CTLS, &val);
-	error += vmcs_setany(new_vmcs, 0, VMCS_EXIT_CTLS, val);
-
-	if (error)
-		printf("%s: error num: %d\n", __func__, error);
-
-	return (error);
+	return (err);
 }
 
 static int
-vmx_restore_vmx(void *arg, void *buffer, size_t size)
+vmx_restore_vmcx(void *arg, struct vmcx_state *vmcx, int vcpu)
+{
+	struct vmcs *vmcs;
+	struct vmx *vmx = (struct vmx *)arg;
+	int err = 0, running, hostcpu;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcs = &vmx->vmcs[vcpu];
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		return (EINVAL);
+	}
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_CR0, vmcx->guest_cr0);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_CR3, vmcx->guest_cr3);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_CR4, vmcx->guest_cr4);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_DR7, vmcx->guest_dr7);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_RSP, vmcx->guest_rsp);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_RIP, vmcx->guest_rip);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_RFLAGS, vmcx->guest_rflags);
+
+	/* Guest segments */
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_ES, vmcx->guest_es);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_ES, &vmcx->guest_es_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_CS, vmcx->guest_cs);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_CS, &vmcx->guest_cs_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_SS, vmcx->guest_ss);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_SS, &vmcx->guest_ss_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_DS, vmcx->guest_ds);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_DS, &vmcx->guest_ds_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_FS, vmcx->guest_fs);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_FS, &vmcx->guest_fs_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_GS, vmcx->guest_gs);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_GS, &vmcx->guest_gs_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_TR, vmcx->guest_tr);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_TR, &vmcx->guest_tr_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_LDTR, vmcx->guest_ldtr);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_LDTR, &vmcx->guest_ldtr_desc);
+
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_EFER, vmcx->guest_efer);
+
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_IDTR, &vmcx->guest_idtr_desc);
+	err += vmcs_setdesc(vmcs, running, VM_REG_GUEST_GDTR, &vmcx->guest_gdtr_desc);
+
+	/* Guest page tables */
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_PDPTE0, vmcx->guest_pdpte0);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_PDPTE1, vmcx->guest_pdpte1);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_PDPTE2, vmcx->guest_pdpte2);
+	err += vmcs_setreg(vmcs, running, VM_REG_GUEST_PDPTE3, vmcx->guest_pdpte3);
+
+	/* Other guest state */
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_CS, vmcx->guest_ia32_sysenter_cs);
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_ESP, vmcx->guest_ia32_sysenter_esp);
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_IA32_SYSENTER_EIP, vmcx->guest_ia32_sysenter_eip);
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_INTERRUPTIBILITY, vmcx->guest_interruptibility);
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_ACTIVITY, vmcx->guest_activity);
+	err += vmcs_setany(vmcs, running, VMCS_GUEST_IA32_EFER, vmcx->guest_ia32_efer);
+	err += vmcs_setany(vmcs, running, VMCS_ENTRY_CTLS, vmcx->vmcs_entry_ctls);
+	err += vmcs_setany(vmcs, running, VMCS_EXIT_CTLS, vmcx->vmcs_exit_ctls);
+
+	return (err);
+}
+
+static int
+vmx_restore_vmi(void *arg, void *buffer, size_t size)
 {
 	struct vmx *from_vmx = (struct vmx *)buffer;
 	struct vmx *vmx = (struct vmx *)arg;
@@ -3907,12 +3924,6 @@ vmx_restore_vmx(void *arg, void *buffer, size_t size)
 	KASSERT(buffer != NULL, ("%s: buffer was NULL", __func__));
 
 	for (i = 0; i < VM_MAXCPU; i++) {
-		if (vmx_restore_vmcs(&vmx->vmcs[i], &from_vmx->vmcs[i])) {
-			printf("%s: error restoring vmcs: vcpuid: %d\n",
-					__func__, i);
-			return (EINVAL);
-		}
-
 		vmx->apic_page[i] = from_vmx->apic_page[i];
 
 //		vmx->pir_desc[i] = from_vmx->pir_desc[i];
@@ -3952,6 +3963,8 @@ struct vmm_ops vmm_ops_intel = {
 	ept_vmspace_free,
 	vmx_vlapic_init,
 	vmx_vlapic_cleanup,
-	vmx_snapshot,
-	vmx_restore_vmx,
+	vmx_snapshot_vmi,
+	vmx_restore_vmi,
+	vmx_snapshot_vmcx,
+	vmx_restore_vmcx,
 };

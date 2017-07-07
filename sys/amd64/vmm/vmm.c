@@ -210,6 +210,10 @@ static struct vmm_ops *ops;
 #define	VM_SNAPSHOT_VMI(vmi, buffer, buf_size, snapshot_size) \
 	(ops != NULL ? (*ops->vmsnapshot)(vmi, buffer, buf_size, \
 			snapshot_size) : ENXIO)
+#define	VM_SNAPSHOT_VMCX(vmi, vmcx_state, vcpuid) \
+	(ops != NULL ? (*ops->vmcx_snapshot)(vmi, vmcx_state, vcpuid) : ENXIO)
+#define	VM_RESTORE_VMCX(vmi, vmcx_state, vcpuid) \
+	(ops != NULL ? (*ops->vmcx_restore)(vmi, vmcx_state, vcpuid) : ENXIO)
 #define	VM_RESTORE_VMI(vmi, buffer, buf_size) \
 	(ops != NULL ? (*ops->vmrestore)(vmi, buffer, buf_size) : ENXIO)
 
@@ -2836,6 +2840,40 @@ vm_snapshot_vhpet(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot
 	return vhpet_snapshot(vm_hpet(vm), buffer, buf_size, snapshot_size);
 }
 
+static int
+vm_snapshot_vmcx(struct vm *vm, void *buffer, size_t buf_size,
+		 size_t *snapshot_size)
+{
+	int i, error;
+	struct vmcx_state vmcx;
+
+	if (buf_size < VM_MAXCPU * sizeof(vmcx)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(vmcx));
+		return (EINVAL);
+	}
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		bzero(&vmcx, sizeof(vmcx));
+		error = VM_SNAPSHOT_VMCX(vm->cookie, &vmcx, i);
+		if (error) {
+			printf("%s: failed to snapshot vmcs/vmcb data for "
+			       "vCPU: %d; error: %d\n", __func__, i, error);
+			return (error);
+		}
+		error = copyout(&vmcx, (char *)buffer + i * sizeof(vmcx),
+				sizeof(vmcx));
+		if (error) {
+			printf("%s: failed to copy vmcs/vmcb data to user "
+			       "buffer\n", __func__);
+			*snapshot_size = 0;
+			return (error);
+		}
+	}
+	*snapshot_size = VM_MAXCPU * sizeof(vmcx);
+	return (0);
+}
+
 /*
  * Save kernel-side structures to user-space for snapshotting.
  */
@@ -2848,6 +2886,9 @@ vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
 	switch (req) {
 	case STRUCT_VMX:
 		ret = VM_SNAPSHOT_VMI(vm->cookie, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VMCX:
+		ret = vm_snapshot_vmcx(vm, buffer, buf_size, snapshot_size);
 		break;
 	case STRUCT_VM:
 		ret = vm_snapshot(vm, buffer, buf_size, snapshot_size);
@@ -2947,6 +2988,31 @@ vm_restore_vhpet(struct vm *vm, void *buffer, size_t buf_size)
 	return vhpet_restore(vm_hpet(vm), buffer, buf_size);
 }
 
+static int
+vm_restore_vmcx(struct vm *vm, void *buffer, size_t buf_size)
+{
+	int i, error;
+	struct vmcx_state *vmcx;
+
+	if (buf_size != VM_MAXCPU * sizeof(*vmcx)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+				__func__, buf_size, VM_MAXCPU * sizeof(*vmcx));
+		return (EINVAL);
+	}
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		vmcx = (struct vmcx_state *)buffer + i;
+		error = VM_RESTORE_VMCX(vm->cookie, vmcx, i);
+		if (error) {
+			printf("%s: failed to restore vmcs/vmcb data for "
+			       "vCPU: %d; error: %d\n", __func__, i, error);
+			return (error);
+		}
+	}
+
+	return (0);
+}
+
 int
 vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_size)
 {
@@ -2965,6 +3031,9 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 	switch (req) {
 	case STRUCT_VMX:
 		ret = VM_RESTORE_VMI(vm->cookie, kbuf, buf_size);
+		break;
+	case STRUCT_VMCX:
+		ret = vm_restore_vmcx(vm, kbuf, buf_size);
 		break;
 	case STRUCT_VM:
 		ret = vm_restore_vm(vm, kbuf, buf_size);
