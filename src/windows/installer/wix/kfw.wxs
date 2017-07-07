@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+  Copyright (C) 2004,2005, 2006 by the Massachusetts Institute of Technology.
+  All rights reserved.
+ 
+  Export of this software from the United States of America may
+    require a specific license from the United States Government.
+    It is the responsibility of any person or organization contemplating
+    export to obtain such a license before exporting.
+ 
+  WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+  distribute this software and its documentation for any purpose and
+  without fee is hereby granted, provided that the above copyright
+  notice appear in all copies and that both that copyright notice and
+  this permission notice appear in supporting documentation, and that
+  the name of M.I.T. not be used in advertising or publicity pertaining
+  to distribution of the software without specific, written prior
+  permission.  Furthermore if you modify this software you must label
+  your software as modified software and not distribute it in such a
+  fashion that it might be confused with the original M.I.T. software.
+  M.I.T. makes no representations about the suitability of
+  this software for any purpose.  It is provided "as is" without express
+  or implied warranty.
+  
+  -->
+
+<!-- configuration -->
+<?include config.wxi?>
+<?include platform.wxi?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product 
+        Id="$(var.ProductCode)"
+        Codepage="$(var.CodePage)"
+        Language="$(var.Language)"
+        Manufacturer="!(loc.Manufacturer)"
+        Name="$(var.ProductName)"
+        UpgradeCode="$(var.UpgradeCode)"
+        Version="$(var.VersionString)">
+    
+        <!-- The weird package code results in a new one being generated each time we compile -->
+        <Package 
+            Id="????????-????-????-????-????????????"
+            Keywords="Installer,MSI,Database"
+            Description="$(var.ProductName)"
+            Comments="$(var.ProductFullName)"
+            Manufacturer="!(loc.Manufacturer)"
+            InstallerVersion="$(var.InstallerVersion)"
+            Languages="$(var.Language)"
+            Compressed="yes"
+            SummaryCodepage="$(var.CodePage)"
+            Platforms="$(var.Platform)" 
+            />
+        
+        <?include lang\ui_$(var.BuildLang).wxi?>
+        <?include files.wxi?>
+        <?include features.wxi?>
+        <?include property.wxi?>
+        
+        <!-- Launch conditions -->
+        <Condition Message="!(loc.AdminRequired)">Privileged</Condition>
+        <Condition Message="!(loc.OsVersionRequired)">VersionNT &gt;= 501</Condition>
+        <Condition Message="!(loc.OsXPSP3)">(Not (VersionNT = 501)) Or (ServicePackLevel &gt;= 3)</Condition>
+        <Condition Message="!(loc.OsVistaSP2)">(Not (VersionNT = 600)) Or (ServicePackLevel &gt;= 2)</Condition>
+        <Condition Message="!(loc.CMNotSelected)">USELEASH Or USENETIDMGR</Condition>
+        <Condition Message="!(loc.CMDupSelected)">Not (USELEASH And USENETIDMGR)</Condition>
+        <?if $(var.Platform) = "x64" ?>
+            <Condition Message="!(loc.StrPlatform64)">
+                <![CDATA[VersionNT64]]>
+            </Condition>
+        <?endif?>
+
+        <!-- Custom actions -->
+        <Binary Id="binCustom" SourceFile="custom\custom.dll" />
+        
+        <CustomAction 
+            Id="EnableTgtSessionKey"
+            BinaryKey="binCustom"
+            DllEntry="EnableAllowTgtSessionKey"
+            Execute="deferred"
+            Impersonate="no"
+            Return="check" />
+        <Property Id="EnableTgtSessionKey" Value="$(var.VersionString)" />
+
+        <CustomAction 
+            Id="RevertTgtSessionKey"
+            BinaryKey="binCustom"
+            DllEntry="RevertAllowTgtSessionKey"
+            Execute="deferred"
+            Impersonate="no"
+            Return="check" />
+        <Property Id="RevertTgtSessionKey" Value="$(var.VersionString)" />
+
+        <CustomAction 
+            Id="RollbackTgtSessionKey"
+            BinaryKey="binCustom"
+            DllEntry="RevertAllowTgtSessionKey"
+            Execute="rollback"
+            Impersonate="no"
+            Return="check" />
+        <Property Id="RollbackTgtSessionKey" Value="$(var.VersionString)" />
+
+	<CustomAction 
+            Id="RemoveNsisInstallation" 
+            BinaryKey="binCustom"
+            DllEntry="UninstallNsisInstallation"
+            Execute="immediate" />
+
+	<CustomAction
+            Id="AbortCantRemoveNSIS" 
+            Value="[CantRemoveNSISError]" 
+            Property="CantRemoveNSISError" />
+
+	<CustomAction
+            Id="AbortNoIE"
+            Value="[NoIE501Error]" 
+            Property="NoIE501Error" />
+            
+        <CustomAction
+            Id="ListRunningProcesses"
+            BinaryKey="binCustom"
+            DllEntry="ListRunningProcesses"
+            Execute="immediate"
+            Return="ignore" />
+            
+        <CustomAction
+            Id="KillRunningProcesses"
+            BinaryKey="binCustom"
+            DllEntry="KillRunningProcesses"
+            Execute="immediate"
+            Return="ignore" />
+
+        <CustomAction
+          Id="InstallNetProvider"
+          BinaryKey="binCustom"
+          DllEntry="InstallNetProvider"
+          Impersonate="no"
+          Execute="deferred" />
+
+        <CustomAction
+          Id="RemoveNetProvider"
+          BinaryKey="binCustom"
+          DllEntry="UninstallNetProvider"
+          Impersonate="no"
+          Return="ignore"
+          Execute="deferred" />
+
+        <CustomAction Id="RenameKrb5Ini_Cmd"
+         Property="RenameKrb5Ini"
+         Value="&quot;cmd.exe&quot; /c rename &quot;[WindowsFolder]\krb5.ini&quot; krb5-ini-pre-kfw4"
+         Execute="immediate" />
+        <CustomAction
+         Id="RenameKrb5Ini"
+         BinaryKey="WixCA"
+         DllEntry="CAQuietExec"
+         Execute="deferred"
+         Impersonate="no"
+         Return="ignore" />
+
+        <CustomAction
+         Id="RollbackNetProvider"
+         BinaryKey="binCustom"
+         DllEntry="UninstallNetProvider"
+         Return="ignore"
+         Execute="rollback" />
+	
+	<!-- Installation Sequences -->
+	<AdminExecuteSequence />
+        <InstallExecuteSequence>
+	<Custom Action="ListRunningProcesses" Before="KillRunningProcesses" />
+	<Custom Action="KillRunningProcesses" Before="InstallValidate"/>
+	<RemoveExistingProducts After="InstallValidate">(Not Installed) And (UPGRADEPISMERE Or UPGRADEKFW Or UPGRADEKFW64)</RemoveExistingProducts>
+	<Custom Action="RenameKrb5Ini_Cmd" Before="RenameKrb5Ini"/>
+	<Custom Action="RenameKrb5Ini" Before="InstallFinalize">SYSTEMKRB5INI &lt;&gt; ""</Custom>
+	<!-- When running with a UI, CCP_Success property is not passed down to the server. -->
+	<Custom Action="AbortNoIE" Before="RemoveNsisInstallation">UILevel = 0 And (Not Installed) And (CCP_Success &lt;&gt; 1)</Custom>
+	<Custom Action="RemoveNsisInstallation" Before="AbortCantRemoveNSIS">UPGRADENSIS &lt;&gt; "" And UILevel &gt;= 4</Custom>
+	<Custom Action="AbortCantRemoveNSIS" Before="CostInitialize">UPGRADENSIS &lt;&gt; "" And UILevel &lt; 4</Custom>
+        <Custom Action="RollbackTgtSessionKey" After="WriteRegistryValues">VersionNT &gt;= 500 And &amp;feaKfwClient=3</Custom>
+        <Custom Action="EnableTgtSessionKey" After="RollbackTgtSessionKey">VersionNT &gt;= 500 And &amp;feaKfwClient=3</Custom>
+        <Custom Action="RevertTgtSessionKey" Before="RemoveRegistryValues">VersionNT &gt;= 500 And &amp;feaKfwClient=2</Custom>
+
+        <Custom Action="RollbackNetProvider" After="EnableTgtSessionKey">&amp;feaKfwClient=3</Custom>
+        <Custom Action="InstallNetProvider" After="RollbackNetProvider">&amp;feaKfwClient=3</Custom>
+        <Custom Action="RemoveNetProvider" After="InstallNetProvider">&amp;feaKfwClient=2</Custom>
+        <ScheduleReboot After="InstallFinalize" />
+        </InstallExecuteSequence>
+
+        <!-- Upgrade paths -->
+
+        <!-- MIT Project Pismere MSI -->
+        <Upgrade Id="83977767-388D-4DF8-BB08-3BF2401635BD">
+            <UpgradeVersion IgnoreRemoveFailure="no" IncludeMinimum="no" Maximum="4.0.0" MigrateFeatures="no" Property="UPGRADEPISMERE"/>
+        </Upgrade>
+        
+        <!-- KfW MSI -->
+        <Upgrade Id="61211594-AAA1-4A98-A299-757326763CC7">
+            <UpgradeVersion IgnoreRemoveFailure="no" IncludeMinimum="no" Maximum="$(var.VersionString)" IncludeMaximum="yes" MigrateFeatures="yes" Property="UPGRADEKFW" />
+        </Upgrade>
+
+        <!-- KfW 64-bit MSI -->
+        <Upgrade Id="6DA9CD86-6028-4852-8C94-452CAC229244">
+            <UpgradeVersion IgnoreRemoveFailure="no" IncludeMinimum="no" Maximum="$(var.VersionString)" IncludeMaximum="yes" MigrateFeatures="yes" Property="UPGRADEKFW64" />
+        </Upgrade>
+
+        <!-- NSIS installation -->
+        <!-- The NSIS installation, being non-MSI, is detected and removed through other means. -->
+        
+        <!-- Check and warn if we don't have the right version of IE installed -->
+        <ComplianceCheck>
+            <DirectorySearch Id="ccd_iphlpapi" Depth="1" Path="[SystemFolder]">
+                <FileSearch Id="cc_iphlp" MinDate="1999-04-23T00:00:00-05:00" Name="iphlpapi.dll" />
+            </DirectorySearch>
+        </ComplianceCheck>
+        
+        <!-- We embed all the files in a single cabinet. -->
+        <Media Id="1" Cabinet="Disk1" CompressionLevel="high" EmbedCab="yes" />
+        
+        <!-- Custom table used by KillProcesses custom action -->
+        <CustomTable Id="KillProcess">
+            <Column Id="Id" PrimaryKey="yes" Nullable="no" Type="string" Width="32" />
+            <Column Id="Image" Nullable="no" Type="string" Width="255" />
+            <Column Id="Desc" Nullable="yes" Type="string" Width="255" />
+            
+            <Row>
+                <Data Column="Id">kpLeash</Data>
+                <Data Column="Image">leash32.exe</Data>
+                <Data Column="Desc">Leash Ticket Manager</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpNetIDMgr</Data>
+                <Data Column="Image">netidmgr.exe</Data>
+                <Data Column="Desc">Network Identity Manager</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpKrbcc</Data>
+                <Data Column="Image">krbcc32s.exe</Data>
+                <Data Column="Desc">Kerberos Credential Cache</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpKrbcc64</Data>
+                <Data Column="Image">krbcc64s.exe</Data>
+                <Data Column="Desc">Kerberos Credential Cache</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpK95</Data>
+                <Data Column="Image">k95.exe</Data>
+                <Data Column="Desc">Kermit 95</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpK95g</Data>
+                <Data Column="Image">k95g.exe</Data>
+                <Data Column="Desc">Kermit 95 GUI</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpkrb5</Data>
+                <Data Column="Image">krb5.exe</Data>
+                <Data Column="Desc">Kerberos Client</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpgss</Data>
+                <Data Column="Image">gss.exe</Data>
+                <Data Column="Desc">GSSAPI Test Client</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kpafscreds</Data>
+                <Data Column="Image">afscreds.exe</Data>
+                <Data Column="Desc">AFS Credentials Manager</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kccapiserver</Data>
+                <Data Column="Image">ccapiserver.exe</Data>
+                <Data Column="Desc">Credentials Cache API Server</Data>
+            </Row>
+            <Row>
+                <Data Column="Id">kMITKerberos</Data>
+                <Data Column="Image">MIT Kerberos.exe</Data>
+                <Data Column="Desc">MIT Kerberos Ticket Manager</Data>
+            </Row>
+        </CustomTable>
+    </Product>
+</Wix>
+ 

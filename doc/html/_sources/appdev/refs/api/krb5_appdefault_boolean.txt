@@ -1,0 +1,57 @@
+krb5_appdefault_boolean -  Retrieve a boolean value from the appdefaults section of krb5.conf. 
+===============================================================================================
+
+..
+
+.. c:function:: void krb5_appdefault_boolean(krb5_context context, const char * appname, const krb5_data * realm, const char * option, int default_value, int * ret_value)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **appname** - Application name
+
+	          **[in]** **realm** - Realm name
+
+	          **[in]** **option** - Option to be checked
+
+	          **[in]** **default_value** - Default value to return if no match is found
+
+	          **[out]** **ret_value** - Boolean value of *option*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function gets the application defaults for *option* based on the given *appname* and/or *realm* .
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_appdefault_string()` 
+ 
+
+
+
+

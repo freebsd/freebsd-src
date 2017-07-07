@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-preauthtype-struct:
+
+krb5_preauthtype
+================
+
+..
+.. c:type:: krb5_preauthtype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_preauthtype
+
+

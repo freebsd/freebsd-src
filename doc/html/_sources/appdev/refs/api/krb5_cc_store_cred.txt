@@ -1,0 +1,54 @@
+krb5_cc_store_cred -  Store credentials in a credential cache. 
+===============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_store_cred(krb5_context context, krb5_ccache cache, krb5_creds * creds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[in]** **creds** - Credentials to be stored in cache
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Permission errors; storage failure errors; Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function stores *creds* into *cache* . If *creds->server* and the server in the decoded ticket *creds->ticket* differ, the credentials will be stored under both server principal names.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

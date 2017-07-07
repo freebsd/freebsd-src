@@ -1,0 +1,203 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "destroy 1"
+
+proc test1 {} {
+	global test
+	begin_dump
+	if {! [cmd {
+	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+	}]} {
+		perror "$test: unexpected failure in init"
+		return
+	}
+	one_line_succeed_test {kadm5_destroy $server_handle}
+	end_dump_compare "no-diffs"
+}
+test1
+
+#test "destroy 2"
+#
+#proc test2 {} {
+#	global test
+#	begin_dump
+#	if {! [cmd {
+#	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+#		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+#		    server_handle
+#	}]} {
+#	    perror "$test: unexpected failure on init"
+#	    return
+#	}
+#	if {! [cmd {kadm5_destroy $server_handle}]} {
+#		error_and_restart "$test: couldn't close database"
+#		return
+#	}
+#	one_line_fail_test \
+#		{kadm5_get_principal $server_handle admin principal} \
+#		"NOT_INIT"
+#	end_dump_compare "no-diffs"
+#}
+#test2
+
+#test "destroy 3"
+#proc test3 {} {
+#	global test
+#
+#	begin_dump
+#	if {! (( ! [principal_exists "$test/a"]) || [delete_principal "$test/a"])} {
+#	    error_and_restart "$test couldn't delete principal \"$test/a\""
+#	    return
+#	}
+#	if {! [cmd {
+#	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+#		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+#		    server_handle
+#	}]} {
+#	    perror "$test: unexpected failure on init"
+#	    return
+#	}
+#	if {! [cmd {kadm5_destroy $server_handle}]} {
+#		error_and_restart "$test: couldn't close database"
+#		return
+#	}
+#	one_line_fail_test [format {
+#	    kadm5_create_principal $server_handle \
+#		    [simple_principal "%s/a"] {KADM5_PRINCIPAL} "%s/a"
+#	} $test $test] "NOT_INIT"
+#	end_dump_compare "no-diffs"
+#}
+#test3
+
+#test "destroy 4"
+#proc test4 {} {
+#	global test prompt
+#
+#	if {! (([principal_exists "$test/a"]) || [create_principal "$test/a"])} {
+#		error_and_restart "$test: couldn't create principal \"$test/a\""
+#		return
+#	}
+#	begin_dump
+#	if {! ([cmd {
+#	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+#		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+#		    server_handle
+#	}] &&
+#	    [cmd [format {
+#		kadm5_get_principal $server_handle "%s/a" principal
+#	    } $test]])} {
+#		error_and_restart "$test: error getting principal"
+#		return;
+#	}
+#	if {! [cmd {kadm5_destroy $server_handle}]} {
+#		error_and_restart "$test: couldn't close database"
+#		return
+#	}
+#	one_line_fail_test [format {
+#	    kadm5_modify_principal $server_handle \
+#		    {"%s/a" 0 0 0 0 0 0 0 %d 0 0 0} {KADM5_KVNO}
+#	} $test "77"] "NOT_INIT"
+#	end_dump_compare "no-diffs"
+#}
+#test4
+
+#test "destroy 5"
+#
+#proc test5 {} {
+#	global test
+#
+#	if {! ([principal_exists "$test/a"] || [create_principal "$test/a"])} {
+#		error_and_restart "$test: couldn't create principal \"$test/a\""
+#		return
+#	}
+#	begin_dump
+#	if {! [cmd {
+#	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+#		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+#		    server_handle
+#	}]} {
+#	    perror "$test: unexpected failure on init"
+#	    return
+#	}
+#	if {! [cmd {kadm5_destroy $server_handle}]} {
+#		error_and_restart "$test: couldn't close database"
+#		return
+#	}
+#	one_line_fail_test [format {
+#	    kadm5_delete_principal $server_handle "%s/a"
+#	} $test] "NOT_INIT"
+#	end_dump_compare "no-diffs"
+#}
+#test5
+
+#test	"destroy 6"
+#
+#proc test6 {} {
+#	global test
+#	begin_dump	
+#	one_line_fail_test {kadm5_destroy $server_handle} "NOT_INIT"
+#	end_dump_compare "no-diffs"	
+#}
+#test6
+
+
+#test	"destroy 7"
+#
+#proc test7 {} {
+#	global test
+#	begin_dump	
+#	if {! [cmd {
+#	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+#		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+#		    server_handle
+#	}]} {
+#		perror "$test: unexpected failure in init"
+#		return
+#	}
+#	if {! [cmd {kadm5_destroy $server_handle}]} {
+#		error_and_restart "$test: couldn't close database"
+#	}
+#	one_line_fail_test {kadm5_destroy $server_handle} "NOT_INIT"
+#	end_dump_compare "no-diffs"	
+#}
+#test7
+
+test	"destroy 8"
+proc test8 {} {
+	global test
+	begin_dump	
+	if {! [cmd {
+	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		    server_handle
+	}]} {
+		perror "$test: unexpected failure in init"
+		return
+	}
+	if {! [cmd {kadm5_destroy $server_handle}]} {
+		error_and_restart "$test: couldn't close database"
+	}
+	one_line_succeed_test {
+	    kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		    server_handle
+	}
+	if {! [cmd {kadm5_destroy $server_handle}]} {
+		error_and_restart "$test: couldn't close database"
+	}
+	end_dump_compare "no-diffs"		
+}
+test8
+
+test "destroy 9"
+proc test9 {} {
+	global test
+	one_line_fail_test {kadm5_destroy null} "BAD_SERVER_HANDLE"
+}
+test9
+
+return ""

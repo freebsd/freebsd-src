@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ADDRTYPE-IS-LOCAL-data:
+
+ADDRTYPE_IS_LOCAL
+=================
+
+..
+.. data:: ADDRTYPE_IS_LOCAL
+..
+
+
+
+
+================================== ======================
+``ADDRTYPE_IS_LOCAL (addrtype)``       ``(addrtype & 0x8000)``
+================================== ======================

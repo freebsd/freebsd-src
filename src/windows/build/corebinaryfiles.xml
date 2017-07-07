@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+	<Files>
+		<!-- File from	paths are relative to <src>/pismere.	-->
+		<!-- File to			paths are relative to <out>.					-->
+		<File dummy="foo" /> <!-- Forces XML::Simple behavior -->
+			<!-- Without this, XML::Simple does not make an anonymous array and I can't figure out how to iterate over it. -->
+
+		<File name="netidmgr_userdoc.pdf" from="staging\doc"    to="doc" />
+		<File name="leash_userdoc.pdf" from="staging\doc"       to="doc" />
+		<File name="relnotes.html"  from="doc\kerberos"         to="doc" />
+
+		<File name="comerr32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="comerr32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss-client.exe" from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss-client.pdb" from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss-server.exe" from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss-server.pdb" from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss.exe"        from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gss.pdb"        from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gssapi32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="gssapi32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="k524init.exe"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="k524init.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="k5sprt32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="k5sprt32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kclnt32.dll"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kclnt32.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kcpytkt.exe"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kcpytkt.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kdeltkt.exe"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kdeltkt.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kdestroy.exe"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kdestroy.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kfwcpcc.exe"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kfwcpcc.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kfwlogon.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kfwlogon.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kinit.exe"      from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kinit.pdb"      from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="klist.exe"      from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="klist.pdb"      from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kpasswd.exe"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kpasswd.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb4cred.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb4cred.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb4cred_en_us.dll" from="staging\bin\i386" to="\bin\i386\" />
+		<File name="krb524.dll"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb524.pdb"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb5cred.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb5cred.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb5cred_en_us.dll" from="staging\bin\i386" to="\bin\i386\" />
+		<File name="krb5_32.dll"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krb5_32.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbcc32.dll"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbcc32.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbcc32s.exe"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbcc32s.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbv4w32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="krbv4w32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kvno.exe"       from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="kvno.pdb"       from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="leash32.chm"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="leash32.exe"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="leash32.pdb"    from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="leashw32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="leashw32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="mit2ms.exe"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="mit2ms.pdb"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="ms2mit.exe"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="ms2mit.pdb"     from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="netidmgr.chm"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="netidmgr.exe"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="netidmgr.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="nidmgr32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="nidmgr32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="wshelp32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="wshelp32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="xpprof32.dll"   from="staging\bin\i386"     to="\bin\i386\" />
+		<File name="xpprof32.pdb"   from="staging\bin\i386"     to="\bin\i386\" />
+
+		<File name="netidmgr.exe"   from="staging\bin\i386\w2k"     to="\bin\i386\w2k" />
+		<File name="netidmgr.pdb"   from="staging\bin\i386\w2k"     to="\bin\i386\w2k" />
+		<File name="nidmgr32.dll"   from="staging\bin\i386\w2k"     to="\bin\i386\w2k" />
+		<File name="nidmgr32.pdb"   from="staging\bin\i386\w2k"     to="\bin\i386\w2k" />
+	</Files>

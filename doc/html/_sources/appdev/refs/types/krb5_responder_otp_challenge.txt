@@ -1,0 +1,34 @@
+.. highlightlang:: c
+
+.. _krb5-responder-otp-challenge-struct:
+
+krb5_responder_otp_challenge
+============================
+
+..
+.. c:type:: krb5_responder_otp_challenge
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_responder_otp_challenge  krb5_responder_otp_challenge
+
+
+Members
+---------
+
+
+.. c:member:: char *	krb5_responder_otp_challenge.service
+
+                                             
+                                             
+
+.. c:member:: krb5_responder_otp_tokeninfo  **	krb5_responder_otp_challenge.tokeninfo
+
+                                             
+                                             
+

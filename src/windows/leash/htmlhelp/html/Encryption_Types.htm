@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Encryption_Types</title></head>
+
+<body>
+<h1>Encryption Types</h1>
+<p>
+Kerberos supports several types of encryption for securing session keys
+and the tickets. The type used for a particular ticket or session key
+is automatically negotiated when you request a ticket or a service. </p>
+<ul>
+<li>When encrypting tickets, the Key Distribution Center (KDC) for your
+Kerberos installation checks for an encryption type that is shared by
+both the KDC and the service you are attempting to use.</li>
+<li> When encrypting session keys, the KDC checks for an encryption
+type shared by the KDC, the service, and the client requesting the
+session (you). </li>
+</ul>
+
+<table>
+<tbody><tr>
+<th id="th2">How to...</th> <th id="th2">Learn about...</th></tr>
+<tr>
+<td>
+<ul id="helpul">
+<li><a href="#view"> View encryption types</a></li>
+</ul>
+</td>
+<td>
+<ul id="helpul">
+<li><a href="#weak"> Weak encryption types</a></li>
+<li><a href="#supported"> Supported encryption types</a></li>
+<li><a href="#related-help"> Related help</a></li>
+</ul>
+</td>
+</tr>
+</tbody></table>
+
+<p></p>
+<h2><a name="weak"> Weak Encryption Types </a></h2>
+<p>
+In the table of Encryption Types below, some encryption types are noted as <b>weak</b>.
+Most of them are encryption types that used to be strong but now, with
+more computing power available, are considered weak and therefore
+undesirable. However, they are still sometimes used for backwards
+compatibility. If Kerberos is installed in a network that contains some
+older machines running operating systems that do not support the newer
+encryption types, administrators can choose to allow the weaker
+encryption when connecting to the older machines.</p>
+<p>
+<a href="#top">Back to Top</a> </p>
+<h2><a name="view">View Encryption Types</a></h2>
+<ol>
+<li>Click the Options tab and find the View Options panel. </li>
+<li>Click the Encryption Type checkbox to select it. This opens the
+Encryption Type column in the main window, showing the encryption type
+associated with each of your tickets and session keys. <br>
+<a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use Ticket Options  Panel</a></li>
+<li>Click and drag the line to the right of the Encryption Type column
+header to widen the column enough to see both the ticket and session
+key.</li>
+<li> Click the blue triangle to the left of a principal name to see all
+tickets and session keys issued to that principal. Each ticket and key
+will have an entry in the Encryption type column. <br>
+<a href="HTML/View_Tickets.htm">How to: View Tickets </a>
+</li></ol>
+
+
+<p>
+<a href="#top">Back to Top</a> </p>
+
+<a name="supported"><p></p></a>
+<h2>Supported Encryption Types </h2>
+<table>
+<tbody><tr>
+<th>Encryption Type </th>
+<th>Description</th>
+</tr>
+<tr>
+<th id="th2">  des-  </th>
+  <td> The DES (Data Encryption Standard)
+family is a symmetric block cipher. It was designed to handle only
+56-bit keys which is not enough for modern computing power. It is now
+considered to be weak encryption. <ul id="helpul">
+<li> des-cbc-crc (<b>weak</b>) </li>
+<li>des-cbc-md5 (<b>weak</b>)  </li>
+<li> des-cbc-md4  (<b>weak</b>) </li>
+
+</ul>
+</td>
+</tr><tr>
+<th id="th2"> des3- </th>
+   <td> The triple DES family improves on
+the original DES (Data Encryption Standard) by using 3 separate 56-bit
+keys. Some modes of 3DES are considered weak while others are strong
+(if slow). <ul id="helpul">
+<li> des3-cbc-sha1</li>
+<li> des3-cbc-raw  (<b>weak</b>) </li>
+<li>des3-hmac-sha1 </li>
+<li>des3-cbc-sha1-kd </li>
+</ul>
+</td>
+ </tr>
+<tr>
+<th id="th2"> aes </th>
+     <td>The AES Advanced Encryption Standard
+family, like DES and 3DES, is a symmetric block cipher and was designed
+to replace them. It can use multiple key sizes. Kerberos specifies use
+for 256-bit and 128-bit keys.
+<ul id="helpul">
+<li> aes256-cts-hmac-sha1-96 </li>
+<li> aes128-cts-hmac-sha1-96 </li>
+</ul>
+</td>
+</tr>
+<tr>
+<th id="th2"> rc4 or <br> arcfour</th>
+<td>The RC4 (Rivest Cipher 4) is a symmetric stream cipher that can use
+multiple key sizes. The exportable variations are considered weak, but
+other variations are strong.
+<ul id="helpul">
+<li> arcfour-hmac </li>
+<li> rc4-hmac </li>
+<li> arcfour-hmac-md5</li>
+<li> arcfour-hmac-exp (<b>weak</b>) </li>
+<li> rc4-hmac-exp (<b>weak</b>) </li>
+<li> arcfour-hmac-md5-exp(<b>weak</b>) </li>
+</ul>
+</td>
+</tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+<h2><a name="related-help">Related Help</a></h2>
+<ul id="helpul">
+<li><a href="HTML/View_Tickets.htm">View tickets</a></li>
+<li><a href="HTML/Kerberos_Terminology.htm#ticket">Kerberos Terminology: Tickets</a></li>
+</ul>
+
+
+<script language="JavaScript">
+popfont="Arial,.825,"
+popupRealm=" Kerberos realms  are a way of logically grouping resources and identities that use Kerberos. Your realm is the home of your Kerberos identity and your point of entry to the network resources controlled by Kerberos."
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+
+</body></html>

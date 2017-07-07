@@ -1,0 +1,107 @@
+LIBRARY   LEASHW32
+
+DESCRIPTION 'DLL for Kerberos ticket initialization'
+
+HEAPSIZE  8092
+STACKSIZE 36864
+
+EXPORTS
+;		DllMain	@1
+	;	Leash_kinit_dlg			@3
+	;	Leash_changepwd_dlg		@4
+	;	Leash_kinit                     @48
+	;	Leash_kdestroy                  @49
+	;	Leash_klist                     @50
+	;	Leash_checkpwd                  @51
+	;	Leash_changepwd                 @52
+	;	Leash_get_lsh_errno             @61
+	;	initialize_lsh_error_table	@80
+	;	lsh_com_err_proc		@81
+	;	Leash_initialize_krb_error_func      @82
+	;	Leash_initialize_kadm_error_table    @83
+	;	Leash_krb_err_func                   @84
+	;	Leash_load_com_err_callback	@85
+	;	Leash_set_help_file		@86
+	;	Leash_get_help_file		@87
+	;	Leash_timesync			@88
+;		Leash_WhichOS			@89
+
+	Leash_kinit_dlg
+    Leash_kinit_dlg_ex
+	Leash_changepwd_dlg
+	Leash_changepwd_dlg_ex
+	Leash_kinit
+    Leash_kinit_ex
+	Leash_kdestroy
+	Leash_klist
+	Leash_checkpwd
+	Leash_changepwd
+	Leash_get_lsh_errno
+	initialize_lsh_error_table
+	lsh_com_err_proc
+	Leash_initialize_krb_error_func
+	Leash_initialize_kadm_error_table
+	Leash_krb_err_func
+	Leash_load_com_err_callback
+	Leash_set_help_file
+	Leash_get_help_file
+	Leash_timesync
+	Leash_get_default_lifetime
+	Leash_set_default_lifetime
+    Leash_reset_default_lifetime
+	Leash_get_default_renew_till
+	Leash_set_default_renew_till
+    Leash_reset_default_renew_till
+	Leash_get_default_forwardable
+	Leash_set_default_forwardable
+    Leash_reset_default_forwardable
+	Leash_get_default_renewable
+	Leash_set_default_renewable
+    Leash_reset_default_renewable
+	Leash_get_default_noaddresses
+	Leash_set_default_noaddresses
+    Leash_reset_default_noaddresses
+	Leash_get_default_proxiable
+	Leash_set_default_proxiable
+    Leash_reset_default_proxiable
+	Leash_get_default_publicip
+	Leash_set_default_publicip
+    Leash_reset_default_publicip
+	Leash_get_default_use_krb4
+	Leash_set_default_use_krb4
+    Leash_reset_default_use_krb4
+	Leash_get_default_life_min
+	Leash_set_default_life_min
+    Leash_reset_default_life_min
+	Leash_get_default_life_max
+	Leash_set_default_life_max
+    Leash_reset_default_life_max
+	Leash_get_default_renew_min
+	Leash_set_default_renew_min
+    Leash_reset_default_renew_min
+	Leash_get_default_renew_max
+	Leash_set_default_renew_max
+    Leash_reset_default_renew_max
+	Leash_get_lock_file_locations
+	Leash_set_lock_file_locations
+    Leash_reset_lock_file_locations
+	Leash_get_default_uppercaserealm
+	Leash_set_default_uppercaserealm
+    Leash_reset_default_uppercaserealm
+	Leash_get_default_mslsa_import
+	Leash_set_default_mslsa_import
+    Leash_reset_default_mslsa_import
+	Leash_get_default_preserve_kinit_settings
+	Leash_set_default_preserve_kinit_settings
+    Leash_reset_default_preserve_kinit_settings
+    Leash_import
+    Leash_importable
+    Leash_renew
+    Leash_reset_defaults
+
+	; XXX - These have to go...
+	not_an_API_LeashAFSGetToken
+	not_an_API_LeashFreeTicketList
+	not_an_API_LeashKRB4GetTickets
+	not_an_API_LeashGetTimeServerName
+    not_an_API_Leash_AcquireInitialTicketsIfNeeded

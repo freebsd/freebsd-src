@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _AP-OPTS-RESERVED-data:
+
+AP_OPTS_RESERVED
+================
+
+..
+.. data:: AP_OPTS_RESERVED
+..
+
+
+
+
+======================= ======================
+``AP_OPTS_RESERVED``       ``0x80000000``
+======================= ======================

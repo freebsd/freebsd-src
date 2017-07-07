@@ -1,0 +1,44 @@
+krb5_checksum_size
+==================
+
+..
+
+.. c:function:: size_t krb5_checksum_size(krb5_context context, krb5_cksumtype ctype)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **ctype**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED See krb5_c_checksum_length() 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

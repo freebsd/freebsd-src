@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AP-REQ-AUTH-data:
+
+KRB5_KEYUSAGE_AP_REQ_AUTH
+=========================
+
+..
+.. data:: KRB5_KEYUSAGE_AP_REQ_AUTH
+..
+
+
+
+
+================================ ======================
+``KRB5_KEYUSAGE_AP_REQ_AUTH``       ``11``
+================================ ======================

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KDC-OPT-POSTDATED-data:
+
+KDC_OPT_POSTDATED
+=================
+
+..
+.. data:: KDC_OPT_POSTDATED
+..
+
+
+
+
+======================== ======================
+``KDC_OPT_POSTDATED``       ``0x02000000``
+======================== ======================

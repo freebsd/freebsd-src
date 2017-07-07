@@ -1,0 +1,37 @@
+#
+# Generated makefile dependencies follow.
+#
+hash.so hash.po $(OUTPRE)hash.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  extern.h hash.c hash.h page.h
+hash_bigkey.so hash_bigkey.po $(OUTPRE)hash_bigkey.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h hash.h hash_bigkey.c \
+  page.h
+hash_debug.so hash_debug.po $(OUTPRE)hash_debug.$(OBJEXT): \
+  hash_debug.c
+hash_func.so hash_func.po $(OUTPRE)hash_func.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h hash.h hash_func.c \
+  page.h
+hash_log2.so hash_log2.po $(OUTPRE)hash_log2.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h hash.h hash_log2.c \
+  page.h
+hash_page.so hash_page.po $(OUTPRE)hash_page.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h hash.h hash_page.c \
+  page.h
+hsearch.so hsearch.po $(OUTPRE)hsearch.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  hsearch.c search.h
+dbm.so dbm.po $(OUTPRE)dbm.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-dbm.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-ndbm.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  dbm.c hash.h

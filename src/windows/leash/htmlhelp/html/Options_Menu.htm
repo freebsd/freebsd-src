@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Options Panel</Title>
+</HEAD>
+<BODY>
+<H1>Using the Options  Panel</H1>
+<p>
+Use the Options panel to manage general MIT Kerberos settings.
+</p>
+<H3>Find the Options panel </H3>
+<p> Look to the right of the buttons and View panel. If your Kerberos window is wide enough, you will see the Option checkboxes. If the window is too small to display them, you will see an Options button.  Click the Options button to reach the option checkboxes. </p>
+
+<H3>Turning Options on and off</H3>
+<p>
+A checkmark indicates that the option is currently turned on. Click an Option checkbox to turn the option on or off.
+</p>
+<p></p>
+<table>
+<tr>
+<th>
+Option</th>
+<th>
+Turn this on to...</th>
+<th>
+Details</th>
+</tr>
+<tr>
+<th id="th2">Destroy Tickets on Exit </th>
+<td> <a name="destroy-tickets">Have MIT Kerberos destroy your tickets when you exit the program. </a>
+<p></p>
+<b>Note: </b>MIT Kerberos cannot permanently destroy tickets you've obtained by logging into a Windows domain, even if you've imported them. Those tickets are destroyed when you log out of the domain.</td>
+<td>Turning this option on provides greater security. However, you will need to turn this off if you want to exit MIT Kerberos but  leave processes running which require your valid tickets.  </td></tr>
+<tr>
+<th id="th2">Automatic Ticket Renewal</th>
+<td>
+Automatically renew tickets flagged as renewable, without promptings or requiring a password,  until the renewal lifetime is reached. </td>
+<td>
+<a name="automatic-renewal">Renewing your tickets allows you to run batch jobs without interruption and to work through a long session without continually reentering your
+password. </a> <a href="HTML/Tickets.htm#renewable">About renewable tickets</a>
+<p></p>
+<b>Note: </b>Automatic ticket renewal will not work if you exit MIT Kerberos or if your machine is in hibernation mode.
+ </td></tr>
+<tr>
+<th id="th2">Expiration Alarm</th>
+<td >Have Kerberos provide an audible alarm 15, 10, and 5 minutes before your tickets expire.</td>
+<td ><a name="expiration-alarm">Regardless of whether this option is on, Kerberos alerts you to expiring tickets at the same intervals with pop up window. </a>However, the pop up
+window will not always be visible on a busy desktop.  <a href="HTML/Tickets.htm#expiration">About ticket expiration</a></td></tr>
+
+</table>
+<H2> Related help</H2>
+<ul id="helpul">
+<li><a href="HTML/Renew_Tickets.htm">Renew Tickets</a></li>
+<li><a href="HTML/Destroy_Tickets.htm">Destroy Tickets</a></li>
+<li><a href="HTML/Tickets.htm#renewable">About Renewable Tickets </a></li>
+<li><a href="HTML/Tickets.htm#expiration">About Ticket Expiration</a></li>
+</ul>
+
+</BODY>
+</HTML>

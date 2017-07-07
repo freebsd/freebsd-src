@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _AD-TYPE-FIELD-TYPE-MASK-data:
+
+AD_TYPE_FIELD_TYPE_MASK
+=======================
+
+..
+.. data:: AD_TYPE_FIELD_TYPE_MASK
+..
+
+
+
+
+============================== ======================
+``AD_TYPE_FIELD_TYPE_MASK``       ``0x1fff``
+============================== ======================

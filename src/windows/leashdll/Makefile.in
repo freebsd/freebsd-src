@@ -1,0 +1,84 @@
+BUILDTOP=..\..
+
+##FIX ME: Enable proper compilation with AFS
+NO_AFS=1
+
+!ifndef NO_AFS
+###AFS_BASE=
+AFS_INCLUDES=-I$(AFS_BASE)\Include
+AFS_LIB=$(AFS_BASE)\lib
+AFS_LIBS=$(AFS_LIB)\afsauthent.lib
+!else
+AFS_INCLUDES=
+AFS_LIBS=
+!endif
+
+DLL_NAME=leashw32
+
+# Use 64-bit DLL_NAME and DEF_FILE on 64-bit platforms
+!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64")
+DLL_NAME=leashw64
+!endif
+
+DEF_FILE=leashw32.def
+
+OBJS=	$(OUTPRE)AFSroutines.$(OBJEXT) \
+	$(OUTPRE)krb5routines.$(OBJEXT) \
+	$(OUTPRE)leashdll.$(OBJEXT) \
+	$(OUTPRE)leasherr.$(OBJEXT) \
+	$(OUTPRE)lsh_pwd.$(OBJEXT) \
+	$(OUTPRE)lshcallb.$(OBJEXT) \
+	$(OUTPRE)lshfunc.$(OBJEXT) \
+	$(OUTPRE)lshutil.$(OBJEXT) \
+	$(OUTPRE)timesync.$(OBJEXT) \
+	$(OUTPRE)winerr.$(OBJEXT) \
+	$(OUTPRE)winutil.$(OBJEXT) \
+	$(OUTPRE)registry.$(OBJEXT)
+
+#TODO: Fix resource compilation
+RESFILE = $(OUTPRE)lsh_pwd.res
+XOBJS	= $(RESFILE)
+
+RCFLAGS = -I$(BUILDTOP)\include -I$(BUILDTOP) -DLEASHDLL_LIB
+
+###From another project inside K 1.9:
+###VERSIONRC = $(BUILDTOP)\windows\version.rc
+###RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+
+# Set NODEBUG if building release instead of debug
+
+LOCALINCLUDES = -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include -I.\include\krb4 $(AFS_INCLUDES)
+
+WINLIBS = kernel32.lib advapi32.lib user32.lib gdi32.lib Version.lib \
+	  ws2_32.lib dnsapi.lib $(BUILDTOP)\ccapi\lib\win\srctmp\$(CCLIB).lib $(AFS_LIBS)
+
+WINDLLFLAGS = /nologo /dll /incremental:no /release $(LOPTS)
+
+
+DEFINES = -DWINSOCK -DWIN32 -DWINDOWS -DNO_KRB4 -DUSE_MESSAGE_BOX
+!ifdef NODEBUG
+DEFINES = $(DEFINES)
+!else
+DEFINES = $(DEFINES) -DDBG
+!endif
+
+!ifdef NO_AFS
+DEFINES = $(DEFINES) -DNO_AFS
+!endif
+
+all-windows:
+all-windows: $(OUTPRE)$(DLL_NAME).dll
+
+clean-windows::
+	$(RM) $(OUTPRE)$(DLL_NAME).dll
+
+$(OUTPRE)$(DLL_NAME).dll: $(DEF_FILE) $(OBJS) $(XOBJS)
+	link $(WINDLLFLAGS) -def:$(DEF_FILE) -out:$*.dll \
+	$(OBJS) $(XOBJS) $(WINLIBS) ../lib/$(OUTPRE)libwin.lib $(SCLIB)
+	$(_VC_MANIFEST_EMBED_DLL)
+
+#TODO: Add dependencies on include files here
+
+$(RESFILE): lsh_pwd.rc ../version.rc ../kerberos.ver
+

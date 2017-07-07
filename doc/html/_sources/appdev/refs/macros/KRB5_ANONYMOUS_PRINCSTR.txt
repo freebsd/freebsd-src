@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-ANONYMOUS-PRINCSTR-data:
+
+KRB5_ANONYMOUS_PRINCSTR
+=======================
+
+..
+.. data:: KRB5_ANONYMOUS_PRINCSTR
+..
+
+Anonymous principal name.
+
+
+
+============================== ======================
+``KRB5_ANONYMOUS_PRINCSTR``       ``"ANONYMOUS"``
+============================== ======================

@@ -1,0 +1,65 @@
+krb5_k_encrypt -  Encrypt data using a key (operates on opaque key). 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_encrypt(krb5_context context, krb5_key key, krb5_keyusage usage, const krb5_data * cipher_state, const krb5_data * input, krb5_enc_data * output)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Encryption key
+
+	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+
+	          **[inout]** **cipher_state** - Cipher state; specify NULL if not needed
+
+	          **[in]** **input** - Data to be encrypted
+
+	          **[out]** **output** - Encrypted data
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function encrypts the data block *input* and stores the output into *output* . The actual encryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the encryption operation, and is updated with the state to be passed as input to the next operation.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The caller must initialize *output* and allocate at least enough space for the result (using :c:func:`krb5_c_encrypt_length()` to determine the amount of space needed). *output->length* will be set to the actual length of the ciphertext.
+ 
+
+
+

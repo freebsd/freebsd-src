@@ -1,0 +1,40 @@
+# The test programs here are not built or run by default.  You can
+# build a specific test program with "make gss-perf" or similar.
+# "make run-t_rcache" will run the replay cache test program in the
+# proper environment.
+
+mydir=tests$(S)threads
+BUILDTOP=$(REL)..$(S)..
+
+SRCS=$(srcdir)/t_rcache.c \
+	$(srcdir)/gss-perf.c \
+	$(srcdir)/init_ctx.c \
+	$(srcdir)/profread.c \
+	$(srcdir)/prof1.c
+
+all:
+
+run-t_rcache: t_rcache
+	$(RUN_TEST) ./t_rcache
+
+t_rcache: t_rcache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_rcache t_rcache.o $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+prof1: prof1.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o prof1 prof1.o $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+prof1.o: prof1.c
+
+gss-perf: gss-perf.o $(KRB5_BASE_DEPLIBS) $(GSS_DEPLIBS)
+	$(CC_LINK) $(PTHREAD_CFLAGS) -o gss-perf gss-perf.o $(GSS_LIBS) $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+init_ctx: init_ctx.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) $(PTHREAD_CFLAGS) -o init_ctx init_ctx.o $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+profread: profread.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) $(PTHREAD_CFLAGS) -o profread profread.o $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+install:
+
+clean:
+	$(RM) *.o t_rcache syms prof1 gss-perf

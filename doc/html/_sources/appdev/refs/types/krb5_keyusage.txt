@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-keyusage-struct:
+
+krb5_keyusage
+=============
+
+..
+.. c:type:: krb5_keyusage
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_keyusage
+
+

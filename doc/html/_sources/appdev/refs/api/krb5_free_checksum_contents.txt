@@ -1,0 +1,42 @@
+krb5_free_checksum_contents -  Free the contents of a krb5_checksum structure. 
+===============================================================================
+
+..
+
+.. c:function:: void krb5_free_checksum_contents(krb5_context context, register krb5_checksum * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Checksum structure to free contents of
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *val* , but not the structure itself.
+
+
+
+
+
+
+..
+
+
+
+
+

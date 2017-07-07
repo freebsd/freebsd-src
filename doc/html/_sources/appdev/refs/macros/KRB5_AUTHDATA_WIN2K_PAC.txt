@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-WIN2K-PAC-data:
+
+KRB5_AUTHDATA_WIN2K_PAC
+=======================
+
+..
+.. data:: KRB5_AUTHDATA_WIN2K_PAC
+..
+
+
+
+
+============================== ======================
+``KRB5_AUTHDATA_WIN2K_PAC``       ``128``
+============================== ======================

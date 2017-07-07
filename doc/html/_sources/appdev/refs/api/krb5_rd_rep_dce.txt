@@ -1,0 +1,53 @@
+krb5_rd_rep_dce -  Parse and decrypt a KRB_AP_REP message for DCE RPC. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_rd_rep_dce(krb5_context context, krb5_auth_context auth_context, const krb5_data * inbuf, krb5_ui_4 * nonce)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **inbuf** - AP-REP message
+
+	          **[out]** **nonce** - Sequence number from the decrypted reply
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function parses, decrypts and verifies a message from *inbuf* and fills in *nonce* with a decrypted reply sequence number.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

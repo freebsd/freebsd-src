@@ -1,0 +1,50 @@
+mydir=appl$(S)gss-sample
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DUSE_AUTOCONF_H -DGSSAPI_V2
+
+SRCS= $(srcdir)/gss-client.c $(srcdir)/gss-misc.c $(srcdir)/gss-server.c
+
+OBJS= gss-client.o gss-misc.o gss-server.o
+
+all-unix: gss-server gss-client
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##GSSCLIENT=$(OUTPRE)gss-client.exe
+##WIN32##GSSSERVER=$(OUTPRE)gss-server.exe
+
+##WIN32##CLIENTRES=$(GSSCLIENT:.exe=.res)
+##WIN32##SERVERRES=$(GSSSERVER:.exe=.res)
+
+##WIN32##$(CLIENTRES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DGSS_CLIENT_APP -fo $@ -r $**
+##WIN32##$(SERVERRES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DGSS_SERVER_APP -fo $@ -r $**
+
+
+##WIN32##all-windows: $(OUTPRE)gss-server.exe $(OUTPRE)gss-client.exe
+
+gss-server: gss-server.o gss-misc.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o gss-server gss-server.o gss-misc.o $(GSS_LIBS) $(KRB5_BASE_LIBS)
+
+gss-client: gss-client.o gss-misc.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o gss-client gss-client.o gss-misc.o $(GSS_LIBS) $(KRB5_BASE_LIBS)
+
+##WIN32##$(GSSSERVER): $(OUTPRE)gss-server.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB) $(SERVERRES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+##WIN32##$(GSSCLIENT): $(OUTPRE)gss-client.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB) $(CLIENTRES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) gss-server gss-client
+
+check-pytests:
+	$(RUNPYTEST) $(srcdir)/t_gss_sample.py $(PYTESTFLAGS)
+
+install-unix:
+	$(INSTALL_PROGRAM) gss-client $(DESTDIR)$(CLIENT_BINDIR)/gss-client
+	$(INSTALL_PROGRAM) gss-server $(DESTDIR)$(SERVER_BINDIR)/gss-server

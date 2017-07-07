@@ -1,0 +1,20 @@
+mydir=lib$(S)crypto$(S)openssl$(S)des
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../../krb -I$(srcdir)/..
+
+STLIBOBJS= des_keys.o
+
+OBJS= $(OUTPRE)des_keys.$(OBJEXT)
+
+SRCS= $(srcdir)/des_keys.c
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

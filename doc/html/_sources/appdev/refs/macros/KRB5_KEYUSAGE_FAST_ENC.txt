@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-FAST-ENC-data:
+
+KRB5_KEYUSAGE_FAST_ENC
+======================
+
+..
+.. data:: KRB5_KEYUSAGE_FAST_ENC
+..
+
+
+
+
+============================= ======================
+``KRB5_KEYUSAGE_FAST_ENC``       ``51``
+============================= ======================

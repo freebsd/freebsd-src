@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Button Panel</Title>
+</HEAD>
+<BODY>
+<H1>Using the Button Panel</H1>
+
+<p>
+Use the main buttons in the riboon menu to work with tickets and passwords.  Several button functions can also be reached with <a href="HTML/Keyboard_Shortcuts.htm">keyboard shortcuts. </a>
+</p>
+<p></p>
+<table>
+<tr>
+<th>Button</th>
+<th>Click to...</th>
+<th>Details</th>
+</tr>
+
+ <tr><th id="th2">Get Ticket </th>
+ <td>Get a new Kerberos ticket. </td>
+<td>Click this button to open the Get Ticket window. Enter or select your Kerberos <a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principal</a> and password.  To verify or change ticket settings and flags, click  Show Advanced. When you are finished, click Okay. <br>
+<a href="HTML/Get_Tickets.htm">More Get Tickets help</a></td></tr>
+
+
+
+</tr>
+
+ <tr><th id="th2">Renew Ticket</th>
+<td>Renew tickets.<p></p>
+If you have multiple <a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principals</a>, renew tickets for the selected principal(s). <p></p>
+ </td>
+<td>All of the renewable tickets for the selected principal(s) will have their useable lifetimes extended.  Each ticket will be reset to the length of the original ticket's lifespan. Note that you cannot renew tickets that have already expired. <br>
+<a href="HTML/Renew_Tickets.htm">How to renew tickets</a></td>
+</tr>
+
+ <tr><th id="th2">Destroy Ticket</th>
+<td>Destroy all existing tickets.
+
+
+<p></p>
+This button is greyed out and not accessible if the Automatically Import option is selected and you have Windows domain tickets imported  from your Windows Logon session. <br>
+<a href="HTML/Tickets.htm#importable">About importable (Windows domain) tickets</a>
+</td>
+ <td>
+Imported  Windows domain tickets are obtained and renewed by the Windows Logon session, so if you destroy them in  MIT Kerberos they are not destroyed in the Windows session. Kerberos would immediately import them again.  <br>
+<a href="HTML/Destroy_Tickets.htm">How to destroy tickets </a></td>
+</tr>
+
+ <tr><th id="th2">Export Ticket</th>
+ <td> Export tickets to use in your Windows Logon session to a Windows domain.</td>
+<td>Click this button to export a ticket you've obtained with the Get Ticket window into your Windows Logon Session. This allows you to use a computer that is not part of a Kerberos <a href="JavaScript:popup.TextPopup(popupRealm, popfont,9,9,-1,-1)"> realm</a> (or Windows domain) to access that realm. <br>
+<a href="HTML/Export_Tickets.htm">How to export tickets </a></td>
+</tr>
+
+ <tr><th id="th2"> Make Default </th>
+ <td>Make the selected principal the default principal.
+<p></p>
+You won't need to use this button if  you have only one principal. </td>
+<td> Select a principal by clicking it and then click Make Default to make the selected principal the default one. The default principal is the one whose tickets are used when an application or service asks for tickets without specifying which principal is being authenticated.
+
+<a href="HTML/Make_Default.htm"> How to Make Default Principal </a>
+</td></tr>
+
+ <tr><th id="th2">Change Password</th>
+ <td> Change your Kerberos password.</td>
+<td> If you have multiple <a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principals</a>,  you can enter or select the appropriate one in the Change Password window. Or you can click a principal to select it before using the Change Password button.<br>
+<a href="HTML/Change_Password.htm">How to change your password </a></td>
+</tr>
+</table>
+<H3> Related help</H3>
+<ul id="helpul">
+<li><a href="HTML/Get_Tickets.htm">Get Tickets</a></li>
+<li><a href="HTML/Renew_Tickets.htm">Renew Tickets</a></li>
+<li><a href="HTML/Destroy_Tickets.htm">Destroy Tickets</a></li>
+<li><a href="HTML/Tickets.htm#renewable">About Renewable Tickets </a></li>
+<li><a href="HTML/Change_Password.htm">Change Password</a></li>
+</ul>
+
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725;"
+popupRealm="Kerberos realms are a way of logically grouping resources and identities that use Kerberos. Your realm is the home of your Kerberos identity and your point of entry to the network resources controlled by Kerberos. Windows calls realms 'domains.' "
+</SCRIPT>
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725,"
+popupPrincipal="Your principal is your Kerberos identity. It is your user name combined with the Kerberos realm you are using. For example: 'jdoe@SALES.WIDGET.COM' "
+popupKeyboardShortcut="To use a keyboard shortcut, hold down the [Ctrl] key on your computer keyboard and press the appropriate letter.  "
+</SCRIPT>
+
+
+<OBJECT id=popup type="application/x-oleobject"
+classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</OBJECT>
+</BODY>
+</HTML>

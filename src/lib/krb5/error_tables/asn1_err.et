@@ -1,0 +1,16 @@
+error_table asn1
+error_code ASN1_BAD_TIMEFORMAT, "ASN.1 failed call to system time library"
+error_code ASN1_MISSING_FIELD, "ASN.1 structure is missing a required field"
+error_code ASN1_MISPLACED_FIELD, "ASN.1 unexpected field number"
+error_code ASN1_TYPE_MISMATCH, "ASN.1 type numbers are inconsistent"
+error_code ASN1_OVERFLOW, "ASN.1 value too large"
+error_code ASN1_OVERRUN, "ASN.1 encoding ended unexpectedly"
+error_code ASN1_BAD_ID, "ASN.1 identifier doesn't match expected value"
+error_code ASN1_BAD_LENGTH, "ASN.1 length doesn't match expected value"
+error_code ASN1_BAD_FORMAT, "ASN.1 badly-formatted encoding"
+error_code ASN1_PARSE_ERROR, "ASN.1 parse error"
+error_code ASN1_BAD_GMTIME, "ASN.1 bad return from gmtime"
+error_code ASN1_MISMATCH_INDEF, "ASN.1 non-constructed indefinite encoding"
+error_code ASN1_MISSING_EOC, "ASN.1 missing expected EOC"
+error_code ASN1_OMITTED, "ASN.1 object omitted in sequence"
+end

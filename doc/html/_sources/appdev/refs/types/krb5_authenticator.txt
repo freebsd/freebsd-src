@@ -1,0 +1,65 @@
+.. highlightlang:: c
+
+.. _krb5-authenticator-struct:
+
+krb5_authenticator
+==================
+
+..
+.. c:type:: krb5_authenticator
+..
+
+Ticket authenticator.
+
+The C representation of an unencrypted authenticator.
+
+Declaration
+------------
+
+typedef struct _krb5_authenticator  krb5_authenticator
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_authenticator.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_principal	krb5_authenticator.client
+
+                                             client name/realm
+                                             
+
+.. c:member:: krb5_checksum  *	krb5_authenticator.checksum
+
+                                             checksum, includes type, optional
+                                             
+
+.. c:member:: krb5_int32	krb5_authenticator.cusec
+
+                                             client usec portion
+                                             
+
+.. c:member:: krb5_timestamp	krb5_authenticator.ctime
+
+                                             client sec portion
+                                             
+
+.. c:member:: krb5_keyblock  *	krb5_authenticator.subkey
+
+                                             true session key, optional
+                                             
+
+.. c:member:: krb5_ui_4	krb5_authenticator.seq_number
+
+                                             sequence #, optional
+                                             
+
+.. c:member:: krb5_authdata  **	krb5_authenticator.authorization_data
+
+                                             authoriazation data
+                                             
+

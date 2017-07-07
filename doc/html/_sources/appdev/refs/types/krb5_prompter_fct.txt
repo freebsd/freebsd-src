@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-prompter-fct-struct:
+
+krb5_prompter_fct
+=================
+
+..
+.. c:type:: krb5_prompter_fct
+..
+
+Pointer to a prompter callback function.
+
+
+
+Declaration
+------------
+
+typedef krb5_error_code( \* krb5_prompter_fct)(krb5_context context, void \*data, const char \*name, const char \*banner, int num_prompts, krb5_prompt prompts[])
+
+

@@ -1,0 +1,172 @@
+mydir=lib$(S)gssapi$(S)generic
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I. -I$(srcdir) -I$(srcdir)/..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=generic
+##DOS##OBJFILE=..\$(OUTPRE)generic.lst
+
+##DOS##DLL_EXP_TYPE=GSS
+
+ETSRCS= gssapi_err_generic.c
+ETOBJS= $(OUTPRE)gssapi_err_generic.$(OBJEXT)
+ETHDRS= gssapi_err_generic.h
+
+EHDRDIR= $(BUILDTOP)$(S)include$(S)gssapi
+
+HDRS=	$(EHDRDIR)$(S)gssapi.h \
+	$(EHDRDIR)$(S)gssapi_generic.h \
+	$(EHDRDIR)$(S)gssapi_alloc.h \
+	$(EHDRDIR)$(S)gssapi_ext.h
+
+MK_EHDRDIR=if test -d $(EHDRDIR); then :; else (set -x; mkdir $(EHDRDIR)); fi
+##DOS##MK_EHDRDIR=rem
+
+gssapi-include: $(EHDRDIR)$(S)gssapi.h
+
+$(EHDRDIR)$(S)gssapi.h: $(EHDRDIR)$(S)timestamp gssapi.h
+	$(CP) gssapi.h $@
+$(EHDRDIR)$(S)gssapi_generic.h: $(EHDRDIR)$(S)timestamp $(srcdir)$(S)gssapi_generic.h
+	$(CP) $(srcdir)$(S)gssapi_generic.h $@
+$(EHDRDIR)$(S)gssapi_alloc.h: $(EHDRDIR)$(S)timestamp $(srcdir)$(S)gssapi_alloc.h
+	$(CP) $(srcdir)$(S)gssapi_alloc.h $@
+$(EHDRDIR)$(S)gssapi_ext.h: $(EHDRDIR)$(S)timestamp $(srcdir)$(S)gssapi_ext.h
+	$(CP) $(srcdir)$(S)gssapi_ext.h $@
+
+$(EHDRDIR)$(S)timestamp:
+	$(MK_EHDRDIR)
+	echo timestamp > $(EHDRDIR)$(S)timestamp
+
+$(OUTPRE)gssapi_err_generic.$(OBJEXT): gssapi_err_generic.c
+gssapi_err_generic.h: gssapi_err_generic.et
+gssapi_err_generic.c: gssapi_err_generic.et
+
+##DOS##!if 0
+include_xom=@include_xom@
+##DOS##include_xom=rem
+gssapi.h: gssapi.hin
+	@echo "Creating gssapi.h" ; \
+	h=gss$$$$; $(RM) $$h; \
+	(echo "/* This is the gssapi.h prologue. */"; \
+	$(include_xom) && \
+	echo "/* End of gssapi.h prologue. */"&& \
+	cat $(srcdir)/gssapi.hin )> $$h && \
+	(set -x; $(MV) $$h $@) ; e=$$?; $(RM) $$h; exit $$e
+##DOS##!endif
+##DOS##gssapi.h: gssapi.hin
+##DOS##	$(CP) $** $@
+
+SRCS = \
+	$(srcdir)/disp_com_err_status.c \
+	$(srcdir)/disp_major_status.c \
+	$(srcdir)/gssapi_generic.c \
+	$(srcdir)/oid_ops.c \
+	$(srcdir)/rel_buffer.c \
+	$(srcdir)/rel_oid_set.c \
+	$(srcdir)/util_buffer.c \
+	$(srcdir)/util_buffer_set.c \
+	$(srcdir)/util_errmap.c \
+	$(srcdir)/util_set.c \
+	$(srcdir)/util_seqstate.c \
+	$(srcdir)/util_token.c \
+	gssapi_err_generic.c
+
+EXTRADEPSRCS = t_seqstate.c
+
+OBJS = \
+	$(OUTPRE)disp_com_err_status.$(OBJEXT) \
+	$(OUTPRE)disp_major_status.$(OBJEXT) \
+	$(OUTPRE)gssapi_generic.$(OBJEXT) \
+	$(OUTPRE)oid_ops.$(OBJEXT) \
+	$(OUTPRE)rel_buffer.$(OBJEXT) \
+	$(OUTPRE)rel_oid_set.$(OBJEXT) \
+	$(OUTPRE)util_buffer.$(OBJEXT) \
+	$(OUTPRE)util_buffer_set.$(OBJEXT) \
+	$(OUTPRE)util_errmap.$(OBJEXT) \
+	$(OUTPRE)util_set.$(OBJEXT) \
+	$(OUTPRE)util_seqstate.$(OBJEXT) \
+	$(OUTPRE)util_token.$(OBJEXT) \
+	$(OUTPRE)gssapi_err_generic.$(OBJEXT)
+
+STLIBOBJS = \
+	disp_com_err_status.o \
+	disp_major_status.o \
+	gssapi_generic.o \
+	oid_ops.o \
+	rel_buffer.o \
+	rel_oid_set.o \
+	util_buffer.o \
+	util_buffer_set.o \
+	util_errmap.o \
+	util_set.o \
+	util_seqstate.o \
+	util_token.o \
+	gssapi_err_generic.o
+
+EXPORTED_HEADERS= gssapi_generic.h  gssapi_ext.h
+EXPORTED_BUILT_HEADERS= gssapi.h
+
+$(OBJS): $(EXPORTED_HEADERS) $(ETHDRS)
+
+all-unix: $(EXPORTED_HEADERS) $(ETHDRS) $(HDRS)
+all-unix: all-libobjs
+
+errmap.h: $(top_srcdir)/util/gen.pl $(top_srcdir)/util/t_array.pm \
+		$(top_srcdir)/util/t_bimap.pm
+	$(PERL) -w -I$(top_srcdir)/util $(top_srcdir)/util/gen.pl bimap \
+		errmap.h \
+		NAME=mecherrmap LEFT=OM_uint32 RIGHT="struct mecherror" \
+		LEFTPRINT=print_OM_uint32 RIGHTPRINT=mecherror_print \
+		LEFTCMP=cmp_OM_uint32 RIGHTCMP=mecherror_cmp
+
+maptest.h: $(top_srcdir)/util/gen.pl $(top_srcdir)/util/t_array.pm \
+		$(top_srcdir)/util/t_bimap.pm
+	$(PERL) -w -I$(top_srcdir)/util $(top_srcdir)/util/gen.pl bimap \
+		maptest.h \
+		NAME=foo LEFT=int RIGHT=elt LEFTPRINT=intprt \
+		RIGHTPRINT=eltprt LEFTCMP=intcmp RIGHTCMP=eltcmp
+maptest.o: maptest.c maptest.h
+maptest: maptest.o
+	$(CC_LINK) -o maptest maptest.o
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-windows: win-create-ehdrdir
+all-windows: $(HDRS)
+
+win-create-ehdrdir:
+	if not exist $(EHDRDIR)\nul mkdir $(EHDRDIR)
+
+clean-unix:: clean-libobjs
+	$(RM) $(ETHDRS) $(ETSRCS) $(HDRS) $(EXPORTED_BUILT_HEADERS) \
+		$(EHDRDIR)$(S)timestamp errmap.h maptest.h
+	$(RM) t_seqstate.o t_seqstate
+
+clean-windows::
+	$(RM) $(HDRS) maptest.h
+	-if exist $(EHDRDIR)\nul rmdir $(EHDRDIR)
+
+t_seqstate: t_seqstate.o util_seqstate.o $(SUPPORT_DEPLIB)
+	$(CC_LINK) $(ALL_CFLAGS) -o $@ t_seqstate.o util_seqstate.o \
+		$(SUPPORT_LIB)
+
+check-unix: t_seqstate
+	$(RUN_TEST) ./t_seqstate
+
+generate-files-mac: gssapi.h errmap.h
+
+# Krb5InstallHeaders($(EXPORTED_HEADERS), $(KRB5_INCDIR)/krb5)
+install-headers-unix install: gssapi.h
+	@set -x; for f in $(EXPORTED_HEADERS) ; \
+	do $(INSTALL_DATA) $(srcdir)/$$f	\
+		$(DESTDIR)$(KRB5_INCDIR)/gssapi/$$f ; \
+	done
+	@set -x; for f in $(EXPORTED_BUILT_HEADERS) ; \
+	do $(INSTALL_DATA) $$f	\
+		$(DESTDIR)$(KRB5_INCDIR)/gssapi/$$f ; \
+	done
+
+depend: $(ETSRCS) $(ETHDRS) $(HDRS) errmap.h maptest.h
+
+@libobj_frag@
+

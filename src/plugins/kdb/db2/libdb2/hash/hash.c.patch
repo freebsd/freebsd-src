@@ -1,0 +1,109 @@
+*** /tmp/,RCSt1a21714	Wed Apr  3 11:49:15 1996
+--- hash.c	Wed Apr  3 08:43:04 1996
+***************
+*** 399,405
+  	/* Create pages for these buckets */
+  	/*
+  	for (i = 0; i <= hashp->hdr.max_bucket; i++) {
+! 		if (__new_page(hashp, i, A_BUCKET) != 0)
+  			return (-1);
+  	}
+  	*/
+
+--- 399,405 -----
+  	/* Create pages for these buckets */
+  	/*
+  	for (i = 0; i <= hashp->hdr.max_bucket; i++) {
+! 		if (__new_page(hashp, (u_int32_t)i, A_BUCKET) != 0)
+  			return (-1);
+  	}
+  	*/
+***************
+*** 560,567
+  	 * XXX
+  	 * Check success/failure conditions.
+  	 */
+! 	mpool_sync(hashp->mp);
+! 	return (0);
+  }
+  
+  /*
+
+--- 560,566 -----
+  	 * XXX
+  	 * Check success/failure conditions.
+  	 */
+! 	return (flush_meta(hashp) || mpool_sync(hashp->mp));
+  }
+  
+  /*
+***************
+*** 585,591
+  	hput_header(hashp);
+  
+  	for (i = 0; i < NCACHED; i++)
+! 		if (hashp->mapp[i])
+  			if (__put_page(hashp,
+  			    (PAGE16 *)hashp->mapp[i], A_BITMAP, 1))
+  				return (-1);
+
+--- 584,590 -----
+  	hput_header(hashp);
+  
+  	for (i = 0; i < NCACHED; i++)
+! 		if (hashp->mapp[i]) {
+  			if (__put_page(hashp,
+  			    (PAGE16 *)hashp->mapp[i], A_BITMAP, 1))
+  				return (-1);
+***************
+*** 589,594
+  			if (__put_page(hashp,
+  			    (PAGE16 *)hashp->mapp[i], A_BITMAP, 1))
+  				return (-1);
+  	return (0);
+  }
+  
+
+--- 588,595 -----
+  			if (__put_page(hashp,
+  			    (PAGE16 *)hashp->mapp[i], A_BITMAP, 1))
+  				return (-1);
++ 			hashp->mapp[i] = NULL;
++ 		}
+  	return (0);
+  }
+  
+***************
+*** 726,732
+  #ifdef HASH_STATISTICS
+  	hash_collisions++;
+  #endif
+- 
+  	__get_item_done(hashp, &cursor);
+  
+  	/*
+
+--- 727,732 -----
+  #ifdef HASH_STATISTICS
+  	hash_collisions++;
+  #endif
+  	__get_item_done(hashp, &cursor);
+  
+  	/*
+***************
+*** 773,778
+  		if (__delpair(hashp, &cursor, &item_info) ||
+  		    __addel(hashp, &item_info, key, val, UNKNOWN, 0))
+  			return (ERROR);
+  		if (item_info.caused_expand)
+  			__expand_table(hashp);
+  		break;
+
+--- 773,779 -----
+  		if (__delpair(hashp, &cursor, &item_info) ||
+  		    __addel(hashp, &item_info, key, val, UNKNOWN, 0))
+  			return (ERROR);
++ 		__get_item_done(hashp, &cursor);
+  		if (item_info.caused_expand)
+  			__expand_table(hashp);
+  		break;

@@ -1,0 +1,560 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kdb5_ldap_util &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="Administration programs" href="index.html" />
+    <link rel="next" title="krb5kdc" href="krb5kdc.html" />
+    <link rel="prev" title="kdb5_util" href="kdb5_util.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            accesskey="P">previous</a> |
+        <a href="krb5kdc.html" title="krb5kdc"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_ldap_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="kdb5-ldap-util">
+<span id="kdb5-ldap-util-8"></span><h1>kdb5_ldap_util<a class="headerlink" href="#kdb5-ldap-util" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p id="kdb5-ldap-util-synopsis"><strong>kdb5_ldap_util</strong>
+[<strong>-D</strong> <em>user_dn</em> [<strong>-w</strong> <em>passwd</em>]]
+[<strong>-H</strong> <em>ldapuri</em>]
+<strong>command</strong>
+[<em>command_options</em>]</p>
+</div>
+<div class="section" id="description">
+<span id="kdb5-ldap-util-synopsis-end"></span><h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kdb5_ldap_util allows an administrator to manage realms, Kerberos
+services and ticket policies.</p>
+</div>
+<div class="section" id="command-line-options">
+<h2>COMMAND-LINE OPTIONS<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils" id="kdb5-ldap-util-options">
+<dt><strong>-D</strong> <em>user_dn</em></dt>
+<dd>Specifies the Distinguished Name (DN) of the user who has
+sufficient rights to perform the operation on the LDAP server.</dd>
+<dt><strong>-w</strong> <em>passwd</em></dt>
+<dd>Specifies the password of <em>user_dn</em>.  This option is not
+recommended.</dd>
+<dt><strong>-H</strong> <em>ldapuri</em></dt>
+<dd>Specifies the URI of the LDAP server.  It is recommended to use
+<tt class="docutils literal"><span class="pre">ldapi://</span></tt> or <tt class="docutils literal"><span class="pre">ldaps://</span></tt> to connect to the LDAP server.</dd>
+</dl>
+</div>
+<div class="section" id="commands">
+<span id="kdb5-ldap-util-options-end"></span><h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="create">
+<h3>create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-create">
+<div><strong>create</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-k</strong> <em>mkeytype</em>]
+[<strong>-kv</strong> <em>mkeyVNO</em>]
+[<strong>-m|-P</strong> <em>password</em>|<strong>-sf</strong> <em>stashfilename</em>]
+[<strong>-s</strong>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</div></blockquote>
+<p>Creates realm in directory. Options:</p>
+<dl class="docutils">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt>
+<dd>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<tt class="docutils literal"><span class="pre">:</span></tt>).</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt>
+<dd>Specifies the scope for searching the principals under the
+subtree.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em></dt>
+<dd>Specifies the DN of the container object in which the principals
+of a realm will be created.  If the container reference is not
+configured for a realm, the principals will be created in the
+realm container.</dd>
+<dt><strong>-k</strong> <em>mkeytype</em></dt>
+<dd>Specifies the key type of the master key in the database.  The
+default is given by the <strong>master_key_type</strong> variable in
+<a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</dd>
+<dt><strong>-kv</strong> <em>mkeyVNO</em></dt>
+<dd>Specifies the version number of the master key in the database;
+the default is 1.  Note that 0 is not allowed.</dd>
+<dt><strong>-m</strong></dt>
+<dd>Specifies that the master database password should be read from
+the TTY rather than fetched from a file on the disk.</dd>
+<dt><strong>-P</strong> <em>password</em></dt>
+<dd>Specifies the master database password. This option is not
+recommended.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-sf</strong> <em>stashfilename</em></dt>
+<dd>Specifies the stash file of the master database password.</dd>
+<dt><strong>-s</strong></dt>
+<dd>Specifies that the stash file is to be created.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals in this realm.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    create -subtrees o=org -sscope SUB -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Initializing database for realm &#39;ATHENA.MIT.EDU&#39;
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+Enter KDC database master key:
+Re-enter KDC database master key to verify:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modify">
+<span id="kdb5-ldap-util-create-end"></span><h3>modify<a class="headerlink" href="#modify" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-modify">
+<div><strong>modify</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</div></blockquote>
+<p>Modifies the attributes of a realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt>
+<dd>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<tt class="docutils literal"><span class="pre">:</span></tt>).  This list replaces the existing list.</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt>
+<dd>Specifies the scope for searching the principals under the
+subtrees.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em> Specifies the DN of the</dt>
+<dd>container object in which the principals of a realm will be
+created.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals in this realm.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu modify +requires_preauth -r
+    ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="view">
+<span id="kdb5-ldap-util-modify-end"></span><h3>view<a class="headerlink" href="#view" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-view">
+<div><strong>view</strong> [<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Displays the attributes of a realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    view -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Realm Name: ATHENA.MIT.EDU
+Subtree: ou=users,o=org
+Subtree: ou=servers,o=org
+SearchScope: ONE
+Maximum ticket life: 0 days 01:00:00
+Maximum renewable life: 0 days 10:00:00
+Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
+</pre></div>
+</div>
+</div>
+<div class="section" id="destroy">
+<span id="kdb5-ldap-util-view-end"></span><h3>destroy<a class="headerlink" href="#destroy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-destroy">
+<div><strong>destroy</strong> [<strong>-f</strong>] [<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Destroys an existing realm. Options:</p>
+<dl class="docutils">
+<dt><strong>-f</strong></dt>
+<dd>If specified, will not prompt the user for confirmation.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu destroy -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Deleting KDC database of &#39;ATHENA.MIT.EDU&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+OK, deleting database of &#39;ATHENA.MIT.EDU&#39;...
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="list">
+<span id="kdb5-ldap-util-destroy-end"></span><h3>list<a class="headerlink" href="#list" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-list">
+<div><strong>list</strong></div></blockquote>
+<p>Lists the name of realms.</p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu list
+Password for &quot;cn=admin,o=org&quot;:
+ATHENA.MIT.EDU
+OPENLDAP.MIT.EDU
+MEDIA-LAB.MIT.EDU
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="stashsrvpw">
+<span id="kdb5-ldap-util-list-end"></span><h3>stashsrvpw<a class="headerlink" href="#stashsrvpw" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-stashsrvpw">
+<div><strong>stashsrvpw</strong>
+[<strong>-f</strong> <em>filename</em>]
+<em>name</em></div></blockquote>
+<p>Allows an administrator to store the password for service object in a
+file so that KDC and Administration server can use it to authenticate
+to the LDAP server.  Options:</p>
+<dl class="docutils">
+<dt><strong>-f</strong> <em>filename</em></dt>
+<dd>Specifies the complete path of the service password file. By
+default, <tt class="docutils literal"><span class="pre">/usr/local/var/service_passwd</span></tt> is used.</dd>
+<dt><em>name</em></dt>
+<dd>Specifies the name of the object whose password is to be stored.
+If <a class="reference internal" href="krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a> or <a class="reference internal" href="kadmind.html#kadmind-8"><em>kadmind</em></a> are configured for
+simple binding, this should be the distinguished name it will
+use as given by the <strong>ldap_kdc_dn</strong> or <strong>ldap_kadmind_dn</strong>
+variable in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.  If the KDC or kadmind is
+configured for SASL binding, this should be the authentication
+name it will use as given by the <strong>ldap_kdc_sasl_authcid</strong> or
+<strong>ldap_kadmind_sasl_authcid</strong> variable.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util stashsrvpw -f /home/andrew/conf_keyfile
+    cn=service-kdc,o=org
+Password for &quot;cn=service-kdc,o=org&quot;:
+Re-enter password for &quot;cn=service-kdc,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="create-policy">
+<span id="kdb5-ldap-util-stashsrvpw-end"></span><h3>create_policy<a class="headerlink" href="#create-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-create-policy">
+<div><strong>create_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></div></blockquote>
+<p>Creates a ticket policy in the directory.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies the ticket flags.  If this option is not specified, by
+default, no restriction will be set by the policy.  Allowable
+flags are documented in the description of the <strong>add_principal</strong>
+command in <a class="reference internal" href="kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    create_policy -r ATHENA.MIT.EDU -maxtktlife &quot;1 day&quot;
+    -maxrenewlife &quot;1 week&quot; -allow_postdated +needchange
+    -allow_forwardable tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modify-policy">
+<span id="kdb5-ldap-util-create-policy-end"></span><h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-modify-policy">
+<div><strong>modify_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></div></blockquote>
+<p>Modifies the attributes of a ticket policy.  Options are same as for
+<strong>create_policy</strong>.</p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu modify_policy -r ATHENA.MIT.EDU
+    -maxtktlife &quot;60 minutes&quot; -maxrenewlife &quot;10 hours&quot;
+    +allow_postdated -requires_preauth tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="view-policy">
+<span id="kdb5-ldap-util-modify-policy-end"></span><h3>view_policy<a class="headerlink" href="#view-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-view-policy">
+<div><strong>view_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+<em>policy_name</em></div></blockquote>
+<p>Displays the attributes of a ticket policy.  Options:</p>
+<dl class="docutils">
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    view_policy -r ATHENA.MIT.EDU tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+Ticket policy: tktpolicy
+Maximum ticket life: 0 days 01:00:00
+Maximum renewable life: 0 days 10:00:00
+Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
+</pre></div>
+</div>
+</div>
+<div class="section" id="destroy-policy">
+<span id="kdb5-ldap-util-view-policy-end"></span><h3>destroy_policy<a class="headerlink" href="#destroy-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-destroy-policy">
+<div><strong>destroy_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-force</strong>]
+<em>policy_name</em></div></blockquote>
+<p>Destroys an existing ticket policy.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-force</strong></dt>
+<dd>Forces the deletion of the policy object.  If not specified, the
+user will be prompted for confirmation before deleting the policy.</dd>
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    destroy_policy -r ATHENA.MIT.EDU tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+This will delete the policy object &#39;tktpolicy&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+** policy object &#39;tktpolicy&#39; deleted.
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-policy">
+<span id="kdb5-ldap-util-destroy-policy-end"></span><h3>list_policy<a class="headerlink" href="#list-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote id="kdb5-ldap-util-list-policy">
+<div><strong>list_policy</strong>
+[<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Lists the ticket policies in realm if specified or in the default
+realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    list_policy -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+tktpolicy
+tmppolicy
+userpolicy
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="see-also">
+<span id="kdb5-ldap-util-list-policy-end"></span><h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kadmin_local.html#kadmin-1"><em>kadmin</em></a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kdb5_ldap_util</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#command-line-options">COMMAND-LINE OPTIONS</a></li>
+<li><a class="reference internal" href="#commands">COMMANDS</a><ul>
+<li><a class="reference internal" href="#create">create</a></li>
+<li><a class="reference internal" href="#modify">modify</a></li>
+<li><a class="reference internal" href="#view">view</a></li>
+<li><a class="reference internal" href="#destroy">destroy</a></li>
+<li><a class="reference internal" href="#list">list</a></li>
+<li><a class="reference internal" href="#stashsrvpw">stashsrvpw</a></li>
+<li><a class="reference internal" href="#create-policy">create_policy</a></li>
+<li><a class="reference internal" href="#modify-policy">modify_policy</a></li>
+<li><a class="reference internal" href="#view-policy">view_policy</a></li>
+<li><a class="reference internal" href="#destroy-policy">destroy_policy</a></li>
+<li><a class="reference internal" href="#list-policy">list_policy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kdb5_util.html" title="kdb5_util"
+            >previous</a> |
+        <a href="krb5kdc.html" title="krb5kdc"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kdb5_ldap_util">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

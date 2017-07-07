@@ -1,0 +1,44 @@
+.. highlightlang:: c
+
+.. _krb5-enc-data-struct:
+
+krb5_enc_data
+=============
+
+..
+.. c:type:: krb5_enc_data
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_enc_data  krb5_enc_data
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_enc_data.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_enctype	krb5_enc_data.enctype
+
+                                             
+                                             
+
+.. c:member:: krb5_kvno	krb5_enc_data.kvno
+
+                                             
+                                             
+
+.. c:member:: krb5_data	krb5_enc_data.ciphertext
+
+                                             
+                                             
+

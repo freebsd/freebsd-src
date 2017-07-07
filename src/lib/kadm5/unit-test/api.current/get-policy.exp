@@ -1,0 +1,199 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "get-policy 3"
+proc test3 {} {
+    global test
+#    set prms_id 744
+#    setup_xfail {*-*-*} $prms_id
+
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+	    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+	server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test {kadm5_get_policy $server_handle "" p} "BAD_POLICY"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test3
+
+test "get-policy 6"
+proc test6 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/none admin $KADM5_ADMIN_SERVICE null \
+	    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+	    server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test {kadm5_get_policy $server_handle test-pol p} \
+	    "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } test6
+
+test "get-policy 7"
+proc test7 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/add admin $KADM5_ADMIN_SERVICE null \
+	    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+	    server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test {kadm5_get_policy $server_handle test-pol p} \
+	    "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } test7
+
+test "get-policy 11"
+proc test11 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/get-pol StupidAdmin $KADM5_ADMIN_SERVICE \
+		null $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_policy $server_handle test-pol p}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test11
+
+test "get-policy 12"
+proc test12 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/get-pol StupidAdmin \
+		$KADM5_CHANGEPW_SERVICE null $KADM5_STRUCT_VERSION \
+		$KADM5_API_VERSION_3 server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test \
+	    {kadm5_get_policy $server_handle test-pol-nopw p}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test12
+
+test "get-policy 15"
+proc test15 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/pol StupidAdmin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test \
+	    {kadm5_get_policy $server_handle test-pol-nopw p}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test15
+
+test "get-policy 16"
+proc test16 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/pol StupidAdmin $KADM5_CHANGEPW_SERVICE \
+		null $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test \
+	    {kadm5_get_policy $server_handle test-pol-nopw p}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test16
+
+test "get-policy 17"
+proc test17 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_ADMIN_SERVICE null \
+	    $KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+	    server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_policy $server_handle test-pol p}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test17
+
+test "get-policy 18"
+proc test18 {} {
+    global test
+
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test {kadm5_get_policy $server_handle test-pol p} \
+	    "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } test18
+
+test "get-policy 21"
+proc test21 {} {
+    global test
+
+    one_line_fail_test {kadm5_get_policy null "pol1" p} "BAD_SERVER_HANDLE"
+}
+test21

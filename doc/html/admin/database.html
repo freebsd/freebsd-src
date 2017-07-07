@@ -1,0 +1,1858 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Database administration &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="For administrators" href="index.html" />
+    <link rel="next" title="Account lockout" href="lockout.html" />
+    <link rel="prev" title="Realm configuration decisions" href="realm_config.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="realm_config.html" title="Realm configuration decisions"
+            accesskey="P">previous</a> |
+        <a href="lockout.html" title="Account lockout"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Database administration">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="database-administration">
+<h1>Database administration<a class="headerlink" href="#database-administration" title="Permalink to this headline">¶</a></h1>
+<p>A Kerberos database contains all of a realm&#8217;s Kerberos principals,
+their passwords, and other administrative information about each
+principal.  For the most part, you will use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>
+program to manipulate the Kerberos database as a whole, and the
+<a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> program to make changes to the entries in the
+database.  (One notable exception is that users will use the
+<a class="reference internal" href="../user/user_commands/kpasswd.html#kpasswd-1"><em>kpasswd</em></a> program to change their own passwords.)  The kadmin
+program has its own command-line interface, to which you type the
+database administrating commands.</p>
+<p><a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> provides a means to create, delete, load, or dump
+a Kerberos database.  It also contains commands to roll over the
+database master key, and to stash a copy of the key so that the
+<a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a> and <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a> daemons can use the database
+without manual input.</p>
+<p><a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> provides for the maintenance of Kerberos principals,
+password policies, and service key tables (keytabs).  Normally it
+operates as a network client using Kerberos authentication to
+communicate with <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a>, but there is also a variant, named
+kadmin.local, which directly accesses the Kerberos database on the
+local filesystem (or through LDAP).  kadmin.local is necessary to set
+up enough of the database to be able to use the remote version.</p>
+<p>kadmin can authenticate to the admin server using the service
+principal <tt class="docutils literal"><span class="pre">kadmin/HOST</span></tt> (where <em>HOST</em> is the hostname of the admin
+server) or <tt class="docutils literal"><span class="pre">kadmin/admin</span></tt>.  If the credentials cache contains a
+ticket for either service principal and the <strong>-c</strong> ccache option is
+specified, that ticket is used to authenticate to KADM5.  Otherwise,
+the <strong>-p</strong> and <strong>-k</strong> options are used to specify the client Kerberos
+principal name used to authenticate.  Once kadmin has determined the
+principal name, it requests a <tt class="docutils literal"><span class="pre">kadmin/admin</span></tt> Kerberos service ticket
+from the KDC, and uses that service ticket to authenticate to KADM5.</p>
+<p>See <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> for the available kadmin and kadmin.local
+commands and options.</p>
+<div class="section" id="kadmin-options">
+<h2>kadmin options<a class="headerlink" href="#kadmin-options" title="Permalink to this headline">¶</a></h2>
+<p>You can invoke <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> or kadmin.local with any of the
+following options:</p>
+<p><strong>kadmin</strong>
+[<strong>-O</strong>|<strong>-N</strong>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-p</strong> <em>principal</em>]
+[<strong>-q</strong> <em>query</em>]
+[[<strong>-c</strong> <em>cache_name</em>]|[<strong>-k</strong> [<strong>-t</strong> <em>keytab</em>]]|<strong>-n</strong>]
+[<strong>-w</strong> <em>password</em>]
+[<strong>-s</strong> <em>admin_server</em>[:<em>port</em>]]
+[command args...]</p>
+<p><strong>kadmin.local</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-p</strong> <em>principal</em>]
+[<strong>-q</strong> <em>query</em>]
+[<strong>-d</strong> <em>dbname</em>]
+[<strong>-e</strong> <em>enc</em>:<em>salt</em> ...]
+[<strong>-m</strong>]
+[<strong>-x</strong> <em>db_args</em>]
+[command args...]</p>
+<p><strong>OPTIONS</strong></p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Use <em>realm</em> as the default database realm.</dd>
+<dt><strong>-p</strong> <em>principal</em></dt>
+<dd>Use <em>principal</em> to authenticate.  Otherwise, kadmin will append
+<tt class="docutils literal"><span class="pre">/admin</span></tt> to the primary principal name of the default ccache,
+the value of the <strong>USER</strong> environment variable, or the username as
+obtained with getpwuid, in order of preference.</dd>
+<dt><strong>-k</strong></dt>
+<dd>Use a keytab to decrypt the KDC response instead of prompting for
+a password.  In this case, the default principal will be
+<tt class="docutils literal"><span class="pre">host/hostname</span></tt>.  If there is no keytab specified with the
+<strong>-t</strong> option, then the default keytab will be used.</dd>
+<dt><strong>-t</strong> <em>keytab</em></dt>
+<dd>Use <em>keytab</em> to decrypt the KDC response.  This can only be used
+with the <strong>-k</strong> option.</dd>
+<dt><strong>-n</strong></dt>
+<dd>Requests anonymous processing.  Two types of anonymous principals
+are supported.  For fully anonymous Kerberos, configure PKINIT on
+the KDC and configure <strong>pkinit_anchors</strong> in the client&#8217;s
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>.  Then use the <strong>-n</strong> option with a principal
+of the form <tt class="docutils literal"><span class="pre">&#64;REALM</span></tt> (an empty principal name followed by the
+at-sign and a realm name).  If permitted by the KDC, an anonymous
+ticket will be returned.  A second form of anonymous tickets is
+supported; these realm-exposed tickets hide the identity of the
+client but not the client&#8217;s realm.  For this mode, use <tt class="docutils literal"><span class="pre">kinit</span>
+<span class="pre">-n</span></tt> with a normal principal name.  If supported by the KDC, the
+principal (but not realm) will be replaced by the anonymous
+principal.  As of release 1.8, the MIT Kerberos KDC only supports
+fully anonymous operation.</dd>
+<dt><strong>-c</strong> <em>credentials_cache</em></dt>
+<dd>Use <em>credentials_cache</em> as the credentials cache.  The
+cache should contain a service ticket for the <tt class="docutils literal"><span class="pre">kadmin/ADMINHOST</span></tt>
+(where <em>ADMINHOST</em> is the fully-qualified hostname of the admin
+server) or <tt class="docutils literal"><span class="pre">kadmin/admin</span></tt> service; it can be acquired with the
+<a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><em>kinit</em></a> program.  If this option is not specified, kadmin
+requests a new service ticket from the KDC, and stores it in its
+own temporary ccache.</dd>
+<dt><strong>-w</strong> <em>password</em></dt>
+<dd>Use <em>password</em> instead of prompting for one.  Use this option with
+care, as it may expose the password to other users on the system
+via the process list.</dd>
+<dt><strong>-q</strong> <em>query</em></dt>
+<dd>Perform the specified query and then exit.</dd>
+<dt><strong>-d</strong> <em>dbname</em></dt>
+<dd>Specifies the name of the KDC database.  This option does not
+apply to the LDAP database module.</dd>
+<dt><strong>-s</strong> <em>admin_server</em>[:<em>port</em>]</dt>
+<dd>Specifies the admin server which kadmin should contact.</dd>
+<dt><strong>-m</strong></dt>
+<dd>If using kadmin.local, prompt for the database master password
+instead of reading it from a stash file.</dd>
+<dt><strong>-e</strong> &#8220;<em>enc</em>:<em>salt</em> ...&#8221;</dt>
+<dd>Sets the keysalt list to be used for any new keys created.  See
+<a class="reference internal" href="conf_files/kdc_conf.html#keysalt-lists"><em>Keysalt lists</em></a> in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a list of possible
+values.</dd>
+<dt><strong>-O</strong></dt>
+<dd>Force use of old AUTH_GSSAPI authentication flavor.</dd>
+<dt><strong>-N</strong></dt>
+<dd>Prevent fallback to AUTH_GSSAPI authentication flavor.</dd>
+<dt><strong>-x</strong> <em>db_args</em></dt>
+<dd>Specifies the database specific arguments.  See the next section
+for supported options.</dd>
+</dl>
+</div>
+<div class="section" id="date-format">
+<h2>Date Format<a class="headerlink" href="#date-format" title="Permalink to this headline">¶</a></h2>
+<p>For the supported date-time formats see <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> section
+in <a class="reference internal" href="../basic/date_format.html#datetime"><em>Supported date and time formats</em></a>.</p>
+</div>
+<div class="section" id="principals">
+<h2>Principals<a class="headerlink" href="#principals" title="Permalink to this headline">¶</a></h2>
+<p>Each entry in the Kerberos database contains a Kerberos principal and
+the attributes and policies associated with that principal.</p>
+<div class="section" id="adding-modifying-and-deleting-principals">
+<span id="add-mod-del-princs"></span><h3>Adding, modifying and deleting principals<a class="headerlink" href="#adding-modifying-and-deleting-principals" title="Permalink to this headline">¶</a></h3>
+<p>To add a principal to the database, use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>
+<strong>add_principal</strong> command.</p>
+<p>To modify attributes of a principal, use the kadmin
+<strong>modify_principal</strong> command.</p>
+<p>To delete a principal, use the kadmin <strong>delete_principal</strong> command.</p>
+</div>
+<div class="section" id="add-principal">
+<h3>add_principal<a class="headerlink" href="#add-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>add_principal</strong> [<em>options</em>] <em>newprinc</em></div></blockquote>
+<p>Creates the principal <em>newprinc</em>, prompting twice for a password.  If
+no password policy is specified with the <strong>-policy</strong> option, and the
+policy named <tt class="docutils literal"><span class="pre">default</span></tt> is assigned to the principal if it exists.
+However, creating a policy named <tt class="docutils literal"><span class="pre">default</span></tt> will not automatically
+assign this policy to previously existing principals.  This policy
+assignment can be suppressed with the <strong>-clearpolicy</strong> option.</p>
+<p>This command requires the <strong>add</strong> privilege.</p>
+<p>Aliases: <strong>addprinc</strong>, <strong>ank</strong></p>
+<p>Options:</p>
+<dl class="docutils">
+<dt><strong>-expire</strong> <em>expdate</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) The expiration date of the principal.</dd>
+<dt><strong>-pwexpire</strong> <em>pwexpdate</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) The password expiration date.</dd>
+<dt><strong>-maxlife</strong> <em>maxlife</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) The maximum ticket life
+for the principal.</dd>
+<dt><strong>-maxrenewlife</strong> <em>maxrenewlife</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) The maximum renewable
+life of tickets for the principal.</dd>
+<dt><strong>-kvno</strong> <em>kvno</em></dt>
+<dd>The initial key version number.</dd>
+<dt><strong>-policy</strong> <em>policy</em></dt>
+<dd>The password policy used by this principal.  If not specified, the
+policy <tt class="docutils literal"><span class="pre">default</span></tt> is used if it exists (unless <strong>-clearpolicy</strong>
+is specified).</dd>
+<dt><strong>-clearpolicy</strong></dt>
+<dd>Prevents any policy from being assigned when <strong>-policy</strong> is not
+specified.</dd>
+<dt>{-|+}<strong>allow_postdated</strong></dt>
+<dd><strong>-allow_postdated</strong> prohibits this principal from obtaining
+postdated tickets.  <strong>+allow_postdated</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_forwardable</strong></dt>
+<dd><strong>-allow_forwardable</strong> prohibits this principal from obtaining
+forwardable tickets.  <strong>+allow_forwardable</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_renewable</strong></dt>
+<dd><strong>-allow_renewable</strong> prohibits this principal from obtaining
+renewable tickets.  <strong>+allow_renewable</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_proxiable</strong></dt>
+<dd><strong>-allow_proxiable</strong> prohibits this principal from obtaining
+proxiable tickets.  <strong>+allow_proxiable</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_dup_skey</strong></dt>
+<dd><strong>-allow_dup_skey</strong> disables user-to-user authentication for this
+principal by prohibiting this principal from obtaining a session
+key for another user.  <strong>+allow_dup_skey</strong> clears this flag.</dd>
+<dt>{-|+}<strong>requires_preauth</strong></dt>
+<dd><strong>+requires_preauth</strong> requires this principal to preauthenticate
+before being allowed to kinit.  <strong>-requires_preauth</strong> clears this
+flag.  When <strong>+requires_preauth</strong> is set on a service principal,
+the KDC will only issue service tickets for that service principal
+if the client&#8217;s initial authentication was performed using
+preauthentication.</dd>
+<dt>{-|+}<strong>requires_hwauth</strong></dt>
+<dd><strong>+requires_hwauth</strong> requires this principal to preauthenticate
+using a hardware device before being allowed to kinit.
+<strong>-requires_hwauth</strong> clears this flag.  When <strong>+requires_hwauth</strong> is
+set on a service principal, the KDC will only issue service tickets
+for that service principal if the client&#8217;s initial authentication was
+performed using a hardware device to preauthenticate.</dd>
+<dt>{-|+}<strong>ok_as_delegate</strong></dt>
+<dd><strong>+ok_as_delegate</strong> sets the <strong>okay as delegate</strong> flag on tickets
+issued with this principal as the service.  Clients may use this
+flag as a hint that credentials should be delegated when
+authenticating to the service.  <strong>-ok_as_delegate</strong> clears this
+flag.</dd>
+<dt>{-|+}<strong>allow_svr</strong></dt>
+<dd><strong>-allow_svr</strong> prohibits the issuance of service tickets for this
+principal.  <strong>+allow_svr</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_tgs_req</strong></dt>
+<dd><strong>-allow_tgs_req</strong> specifies that a Ticket-Granting Service (TGS)
+request for a service ticket for this principal is not permitted.
+<strong>+allow_tgs_req</strong> clears this flag.</dd>
+<dt>{-|+}<strong>allow_tix</strong></dt>
+<dd><strong>-allow_tix</strong> forbids the issuance of any tickets for this
+principal.  <strong>+allow_tix</strong> clears this flag.</dd>
+<dt>{-|+}<strong>needchange</strong></dt>
+<dd><strong>+needchange</strong> forces a password change on the next initial
+authentication to this principal.  <strong>-needchange</strong> clears this
+flag.</dd>
+<dt>{-|+}<strong>password_changing_service</strong></dt>
+<dd><strong>+password_changing_service</strong> marks this principal as a password
+change service principal.</dd>
+<dt>{-|+}<strong>ok_to_auth_as_delegate</strong></dt>
+<dd><strong>+ok_to_auth_as_delegate</strong> allows this principal to acquire
+forwardable tickets to itself from arbitrary users, for use with
+constrained delegation.</dd>
+<dt>{-|+}<strong>no_auth_data_required</strong></dt>
+<dd><strong>+no_auth_data_required</strong> prevents PAC or AD-SIGNEDPATH data from
+being added to service tickets for the principal.</dd>
+<dt>{-|+}<strong>lockdown_keys</strong></dt>
+<dd><strong>+lockdown_keys</strong> prevents keys for this principal from leaving
+the KDC via kadmind.  The chpass and extract operations are denied
+for a principal with this attribute.  The chrand operation is
+allowed, but will not return the new keys.  The delete and rename
+operations are also denied if this attribute is set, in order to
+prevent a malicious administrator from replacing principals like
+krbtgt/* or kadmin/* with new principals without the attribute.
+This attribute can be set via the network protocol, but can only
+be removed using kadmin.local.</dd>
+<dt><strong>-randkey</strong></dt>
+<dd>Sets the key of the principal to a random value.</dd>
+<dt><strong>-nokey</strong></dt>
+<dd>Causes the principal to be created with no key.  New in release
+1.12.</dd>
+<dt><strong>-pw</strong> <em>password</em></dt>
+<dd>Sets the password of the principal to the specified string and
+does not prompt for a password.  Note: using this option in a
+shell script may expose the password to other users on the system
+via the process list.</dd>
+<dt><strong>-e</strong> <em>enc</em>:<em>salt</em>,...</dt>
+<dd>Uses the specified keysalt list for setting the keys of the
+principal.  See <a class="reference internal" href="conf_files/kdc_conf.html#keysalt-lists"><em>Keysalt lists</em></a> in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a
+list of possible values.</dd>
+<dt><strong>-x</strong> <em>db_princ_args</em></dt>
+<dd><p class="first">Indicates database-specific options.  The options for the LDAP
+database module are:</p>
+<dl class="docutils">
+<dt><strong>-x dn=</strong><em>dn</em></dt>
+<dd>Specifies the LDAP object that will contain the Kerberos
+principal being created.</dd>
+<dt><strong>-x linkdn=</strong><em>dn</em></dt>
+<dd>Specifies the LDAP object to which the newly created Kerberos
+principal object will point.</dd>
+<dt><strong>-x containerdn=</strong><em>container_dn</em></dt>
+<dd>Specifies the container object under which the Kerberos
+principal is to be created.</dd>
+<dt><strong>-x tktpolicy=</strong><em>policy</em></dt>
+<dd>Associates a ticket policy to the Kerberos principal.</dd>
+</dl>
+<div class="last admonition note">
+<p class="first admonition-title">Note</p>
+<ul class="last simple">
+<li>The <strong>containerdn</strong> and <strong>linkdn</strong> options cannot be
+specified with the <strong>dn</strong> option.</li>
+<li>If the <em>dn</em> or <em>containerdn</em> options are not specified while
+adding the principal, the principals are created under the
+principal container configured in the realm or the realm
+container.</li>
+<li><em>dn</em> and <em>containerdn</em> should be within the subtrees or
+principal container configured in the realm.</li>
+</ul>
+</div>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: addprinc jennifer
+WARNING: no policy specified for &quot;jennifer@ATHENA.MIT.EDU&quot;;
+defaulting to no policy.
+Enter password for principal jennifer@ATHENA.MIT.EDU:
+Re-enter password for principal jennifer@ATHENA.MIT.EDU:
+Principal &quot;jennifer@ATHENA.MIT.EDU&quot; created.
+kadmin:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modify-principal">
+<h3>modify_principal<a class="headerlink" href="#modify-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>modify_principal</strong> [<em>options</em>] <em>principal</em></div></blockquote>
+<p>Modifies the specified principal, changing the fields as specified.
+The options to <strong>add_principal</strong> also apply to this command, except
+for the <strong>-randkey</strong>, <strong>-pw</strong>, and <strong>-e</strong> options.  In addition, the
+option <strong>-clearpolicy</strong> will clear the current policy of a principal.</p>
+<p>This command requires the <em>modify</em> privilege.</p>
+<p>Alias: <strong>modprinc</strong></p>
+<p>Options (in addition to the <strong>addprinc</strong> options):</p>
+<dl class="docutils">
+<dt><strong>-unlock</strong></dt>
+<dd>Unlocks a locked principal (one which has received too many failed
+authentication attempts without enough time between them according
+to its password policy) so that it can successfully authenticate.</dd>
+</dl>
+</div>
+<div class="section" id="delete-principal">
+<h3>delete_principal<a class="headerlink" href="#delete-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>delete_principal</strong> [<strong>-force</strong>] <em>principal</em></div></blockquote>
+<p>Deletes the specified <em>principal</em> from the database.  This command
+prompts for deletion, unless the <strong>-force</strong> option is given.</p>
+<p>This command requires the <strong>delete</strong> privilege.</p>
+<p>Alias: <strong>delprinc</strong></p>
+<div class="section" id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h4>
+<p>If you want to create a principal which is contained by a LDAP object,
+all you need to do is:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: addprinc -x dn=cn=jennifer,dc=example,dc=com jennifer
+WARNING: no policy specified for &quot;jennifer@ATHENA.MIT.EDU&quot;;
+defaulting to no policy.
+Enter password for principal jennifer@ATHENA.MIT.EDU:  &lt;= Type the password.
+Re-enter password for principal jennifer@ATHENA.MIT.EDU:  &lt;=Type it again.
+Principal &quot;jennifer@ATHENA.MIT.EDU&quot; created.
+kadmin:
+</pre></div>
+</div>
+<p>If you want to create a principal under a specific LDAP container and
+link to an existing LDAP object, all you need to do is:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: addprinc -x containerdn=dc=example,dc=com -x linkdn=cn=david,dc=example,dc=com david
+WARNING: no policy specified for &quot;david@ATHENA.MIT.EDU&quot;;
+defaulting to no policy.
+Enter password for principal david@ATHENA.MIT.EDU:  &lt;= Type the password.
+Re-enter password for principal david@ATHENA.MIT.EDU:  &lt;=Type it again.
+Principal &quot;david@ATHENA.MIT.EDU&quot; created.
+kadmin:
+</pre></div>
+</div>
+<p>If you want to associate a ticket policy to a principal, all you need
+to do is:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: modprinc -x tktpolicy=userpolicy david
+Principal &quot;david@ATHENA.MIT.EDU&quot; modified.
+kadmin:
+</pre></div>
+</div>
+<p>If, on the other hand, you want to set up an account that expires on
+January 1, 2000, that uses a policy called &#8220;stduser&#8221;, with a temporary
+password (which you want the user to change immediately), you would
+type the following:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: addprinc david -expire &quot;1/1/2000 12:01am EST&quot; -policy stduser +needchange
+Enter password for principal david@ATHENA.MIT.EDU:  &lt;= Type the password.
+Re-enter password for principal
+david@ATHENA.MIT.EDU:  &lt;= Type it again.
+Principal &quot;david@ATHENA.MIT.EDU&quot; created.
+kadmin:
+</pre></div>
+</div>
+<p>If you want to delete a principal:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: delprinc jennifer
+Are you sure you want to delete the principal
+&quot;jennifer@ATHENA.MIT.EDU&quot;? (yes/no): yes
+Principal &quot;jennifer@ATHENA.MIT.EDU&quot; deleted.
+Make sure that you have removed this principal from
+all ACLs before reusing.
+kadmin:
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="retrieving-information-about-a-principal">
+<h3>Retrieving information about a principal<a class="headerlink" href="#retrieving-information-about-a-principal" title="Permalink to this headline">¶</a></h3>
+<p>To retrieve a listing of the attributes and/or policies associated
+with a principal, use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> <strong>get_principal</strong> command.</p>
+<p>To generate a listing of principals, use the kadmin
+<strong>list_principals</strong> command.</p>
+</div>
+<div class="section" id="get-principal">
+<h3>get_principal<a class="headerlink" href="#get-principal" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>get_principal</strong> [<strong>-terse</strong>] <em>principal</em></div></blockquote>
+<p>Gets the attributes of principal.  With the <strong>-terse</strong> option, outputs
+fields as quoted tab-separated strings.</p>
+<p>This command requires the <strong>inquire</strong> privilege, or that the principal
+running the the program to be the same as the one being listed.</p>
+<p>Alias: <strong>getprinc</strong></p>
+<p>Examples:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: getprinc tlyu/admin
+Principal: tlyu/admin@BLEEP.COM
+Expiration date: [never]
+Last password change: Mon Aug 12 14:16:47 EDT 1996
+Password expiration date: [none]
+Maximum ticket life: 0 days 10:00:00
+Maximum renewable life: 7 days 00:00:00
+Last modified: Mon Aug 12 14:16:47 EDT 1996 (bjaspan/admin@BLEEP.COM)
+Last successful authentication: [never]
+Last failed authentication: [never]
+Failed password attempts: 0
+Number of keys: 2
+Key: vno 1, des-cbc-crc
+Key: vno 1, des-cbc-crc:v4
+Attributes:
+Policy: [none]
+
+kadmin: getprinc -terse systest
+systest@BLEEP.COM   3    86400     604800    1
+785926535 753241234 785900000
+tlyu/admin@BLEEP.COM     786100034 0    0
+kadmin:
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-principals">
+<h3>list_principals<a class="headerlink" href="#list-principals" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>list_principals</strong> [<em>expression</em>]</div></blockquote>
+<p>Retrieves all or some principal names.  <em>expression</em> is a shell-style
+glob expression that can contain the wild-card characters <tt class="docutils literal"><span class="pre">?</span></tt>,
+<tt class="docutils literal"><span class="pre">*</span></tt>, and <tt class="docutils literal"><span class="pre">[]</span></tt>.  All principal names matching the expression are
+printed.  If no expression is provided, all principal names are
+printed.  If the expression does not contain an <tt class="docutils literal"><span class="pre">&#64;</span></tt> character, an
+<tt class="docutils literal"><span class="pre">&#64;</span></tt> character followed by the local realm is appended to the
+expression.</p>
+<p>This command requires the <strong>list</strong> privilege.</p>
+<p>Alias: <strong>listprincs</strong>, <strong>get_principals</strong>, <strong>get_princs</strong></p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin:  listprincs test*
+test3@SECURE-TEST.OV.COM
+test2@SECURE-TEST.OV.COM
+test1@SECURE-TEST.OV.COM
+testuser@SECURE-TEST.OV.COM
+kadmin:
+</pre></div>
+</div>
+</div>
+<div class="section" id="changing-passwords">
+<h3>Changing passwords<a class="headerlink" href="#changing-passwords" title="Permalink to this headline">¶</a></h3>
+<p>To change a principal&#8217;s password use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>
+<strong>change_password</strong> command.</p>
+</div>
+<div class="section" id="change-password">
+<h3>change_password<a class="headerlink" href="#change-password" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>change_password</strong> [<em>options</em>] <em>principal</em></div></blockquote>
+<p>Changes the password of <em>principal</em>.  Prompts for a new password if
+neither <strong>-randkey</strong> or <strong>-pw</strong> is specified.</p>
+<p>This command requires the <strong>changepw</strong> privilege, or that the
+principal running the program is the same as the principal being
+changed.</p>
+<p>Alias: <strong>cpw</strong></p>
+<p>The following options are available:</p>
+<dl class="docutils">
+<dt><strong>-randkey</strong></dt>
+<dd>Sets the key of the principal to a random value.</dd>
+<dt><strong>-pw</strong> <em>password</em></dt>
+<dd>Set the password to the specified string.  Using this option in a
+script may expose the password to other users on the system via
+the process list.</dd>
+<dt><strong>-e</strong> <em>enc</em>:<em>salt</em>,...</dt>
+<dd>Uses the specified keysalt list for setting the keys of the
+principal.  See <a class="reference internal" href="conf_files/kdc_conf.html#keysalt-lists"><em>Keysalt lists</em></a> in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a
+list of possible values.</dd>
+<dt><strong>-keepold</strong></dt>
+<dd>Keeps the existing keys in the database.  This flag is usually not
+necessary except perhaps for <tt class="docutils literal"><span class="pre">krbtgt</span></tt> principals.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: cpw systest
+Enter password for principal systest@BLEEP.COM:
+Re-enter password for principal systest@BLEEP.COM:
+Password for systest@BLEEP.COM changed.
+kadmin:
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Password changes through kadmin are subject to the same
+password policies as would apply to password changes through
+<a class="reference internal" href="../user/user_commands/kpasswd.html#kpasswd-1"><em>kpasswd</em></a>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="policies">
+<span id="id1"></span><h2>Policies<a class="headerlink" href="#policies" title="Permalink to this headline">¶</a></h2>
+<p>A policy is a set of rules governing passwords.  Policies can dictate
+minimum and maximum password lifetimes, minimum number of characters
+and character classes a password must contain, and the number of old
+passwords kept in the database.</p>
+<div class="section" id="adding-modifying-and-deleting-policies">
+<h3>Adding, modifying and deleting policies<a class="headerlink" href="#adding-modifying-and-deleting-policies" title="Permalink to this headline">¶</a></h3>
+<p>To add a new policy, use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> <strong>add_policy</strong> command.</p>
+<p>To modify attributes of a principal, use the kadmin <strong>modify_policy</strong>
+command.</p>
+<p>To delete a policy, use the kadmin <strong>delete_policy</strong> command.</p>
+</div>
+<div class="section" id="add-policy">
+<h3>add_policy<a class="headerlink" href="#add-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>add_policy</strong> [<em>options</em>] <em>policy</em></div></blockquote>
+<p>Adds a password policy named <em>policy</em> to the database.</p>
+<p>This command requires the <strong>add</strong> privilege.</p>
+<p>Alias: <strong>addpol</strong></p>
+<p>The following options are available:</p>
+<dl class="docutils">
+<dt><strong>-maxlife</strong> <em>time</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Sets the maximum
+lifetime of a password.</dd>
+<dt><strong>-minlife</strong> <em>time</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Sets the minimum
+lifetime of a password.</dd>
+<dt><strong>-minlength</strong> <em>length</em></dt>
+<dd>Sets the minimum length of a password.</dd>
+<dt><strong>-minclasses</strong> <em>number</em></dt>
+<dd>Sets the minimum number of character classes required in a
+password.  The five character classes are lower case, upper case,
+numbers, punctuation, and whitespace/unprintable characters.</dd>
+<dt><strong>-history</strong> <em>number</em></dt>
+<dd>Sets the number of past keys kept for a principal.  This option is
+not supported with the LDAP KDC database module.</dd>
+</dl>
+<dl class="docutils" id="policy-maxfailure">
+<dt><strong>-maxfailure</strong> <em>maxnumber</em></dt>
+<dd>Sets the number of authentication failures before the principal is
+locked.  Authentication failures are only tracked for principals
+which require preauthentication.  The counter of failed attempts
+resets to 0 after a successful attempt to authenticate.  A
+<em>maxnumber</em> value of 0 (the default) disables lockout.</dd>
+</dl>
+<dl class="docutils" id="policy-failurecountinterval">
+<dt><strong>-failurecountinterval</strong> <em>failuretime</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Sets the allowable time
+between authentication failures.  If an authentication failure
+happens after <em>failuretime</em> has elapsed since the previous
+failure, the number of authentication failures is reset to 1.  A
+<em>failuretime</em> value of 0 (the default) means forever.</dd>
+</dl>
+<dl class="docutils" id="policy-lockoutduration">
+<dt><strong>-lockoutduration</strong> <em>lockouttime</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#duration"><em>Time duration</em></a> or <a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Sets the duration for
+which the principal is locked from authenticating if too many
+authentication failures occur without the specified failure count
+interval elapsing.  A duration of 0 (the default) means the
+principal remains locked out until it is administratively unlocked
+with <tt class="docutils literal"><span class="pre">modprinc</span> <span class="pre">-unlock</span></tt>.</dd>
+<dt><strong>-allowedkeysalts</strong></dt>
+<dd>Specifies the key/salt tuples supported for long-term keys when
+setting or changing a principal&#8217;s password/keys.  See
+<a class="reference internal" href="conf_files/kdc_conf.html#keysalt-lists"><em>Keysalt lists</em></a> in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a list of the
+accepted values, but note that key/salt tuples must be separated
+with commas (&#8216;,&#8217;) only.  To clear the allowed key/salt policy use
+a value of &#8216;-&#8216;.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: add_policy -maxlife &quot;2 days&quot; -minlength 5 guests
+kadmin:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modify-policy">
+<h3>modify_policy<a class="headerlink" href="#modify-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>modify_policy</strong> [<em>options</em>] <em>policy</em></div></blockquote>
+<p>Modifies the password policy named <em>policy</em>.  Options are as described
+for <strong>add_policy</strong>.</p>
+<p>This command requires the <strong>modify</strong> privilege.</p>
+<p>Alias: <strong>modpol</strong></p>
+</div>
+<div class="section" id="delete-policy">
+<h3>delete_policy<a class="headerlink" href="#delete-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>delete_policy</strong> [<strong>-force</strong>] <em>policy</em></div></blockquote>
+<p>Deletes the password policy named <em>policy</em>.  Prompts for confirmation
+before deletion.  The command will fail if the policy is in use by any
+principals.</p>
+<p>This command requires the <strong>delete</strong> privilege.</p>
+<p>Alias: <strong>delpol</strong></p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: del_policy guests
+Are you sure you want to delete the policy &quot;guests&quot;?
+(yes/no): yes
+kadmin:
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You must cancel the policy from <em>all</em> principals before
+deleting it.  The <em>delete_policy</em> command will fail if the policy
+is in use by any principals.</p>
+</div>
+</div>
+<div class="section" id="retrieving-policies">
+<h3>Retrieving policies<a class="headerlink" href="#retrieving-policies" title="Permalink to this headline">¶</a></h3>
+<p>To retrieve a policy, use the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> <strong>get_policy</strong> command.</p>
+<p>You can retrieve the list of policies with the kadmin
+<strong>list_policies</strong> command.</p>
+</div>
+<div class="section" id="get-policy">
+<h3>get_policy<a class="headerlink" href="#get-policy" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>get_policy</strong> [ <strong>-terse</strong> ] <em>policy</em></div></blockquote>
+<p>Displays the values of the password policy named <em>policy</em>.  With the
+<strong>-terse</strong> flag, outputs the fields as quoted strings separated by
+tabs.</p>
+<p>This command requires the <strong>inquire</strong> privilege.</p>
+<p>Alias: getpol</p>
+<p>Examples:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: get_policy admin
+Policy: admin
+Maximum password life: 180 days 00:00:00
+Minimum password life: 00:00:00
+Minimum password length: 6
+Minimum number of password character classes: 2
+Number of old keys kept: 5
+Reference count: 17
+
+kadmin: get_policy -terse admin
+admin     15552000  0    6    2    5    17
+kadmin:
+</pre></div>
+</div>
+<p>The &#8220;Reference count&#8221; is the number of principals using that policy.
+With the LDAP KDC database module, the reference count field is not
+meaningful.</p>
+</div>
+<div class="section" id="list-policies">
+<h3>list_policies<a class="headerlink" href="#list-policies" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><strong>list_policies</strong> [<em>expression</em>]</div></blockquote>
+<p>Retrieves all or some policy names.  <em>expression</em> is a shell-style
+glob expression that can contain the wild-card characters <tt class="docutils literal"><span class="pre">?</span></tt>,
+<tt class="docutils literal"><span class="pre">*</span></tt>, and <tt class="docutils literal"><span class="pre">[]</span></tt>.  All policy names matching the expression are
+printed.  If no expression is provided, all existing policy names are
+printed.</p>
+<p>This command requires the <strong>list</strong> privilege.</p>
+<p>Aliases: <strong>listpols</strong>, <strong>get_policies</strong>, <strong>getpols</strong>.</p>
+<p>Examples:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin:  listpols
+test-pol
+dict-only
+once-a-min
+test-pol-nopw
+
+kadmin:  listpols t*
+test-pol
+test-pol-nopw
+kadmin:
+</pre></div>
+</div>
+</div>
+<div class="section" id="policies-and-principals">
+<h3>Policies and principals<a class="headerlink" href="#policies-and-principals" title="Permalink to this headline">¶</a></h3>
+<p>Policies can be applied to principals as they are created by using
+the <strong>-policy</strong> flag to <a class="reference internal" href="admin_commands/kadmin_local.html#add-principal"><em>add_principal</em></a>. Existing principals can
+be modified by using the <strong>-policy</strong> or <strong>-clearpolicy</strong> flag to
+<a class="reference internal" href="admin_commands/kadmin_local.html#modify-principal"><em>modify_principal</em></a>.</p>
+</div>
+<div class="section" id="updating-the-history-key">
+<h3>Updating the history key<a class="headerlink" href="#updating-the-history-key" title="Permalink to this headline">¶</a></h3>
+<p>If a policy specifies a number of old keys kept of two or more, the
+stored old keys are encrypted in a history key, which is found in the
+key data of the <tt class="docutils literal"><span class="pre">kadmin/history</span></tt> principal.</p>
+<p>Currently there is no support for proper rollover of the history key,
+but you can change the history key (for example, to use a better
+encryption type) at the cost of invalidating currently stored old
+keys.  To change the history key, run:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: change_password -randkey kadmin/history
+</pre></div>
+</div>
+<p>This command will fail if you specify the <strong>-keepold</strong> flag.  Only one
+new history key will be created, even if you specify multiple key/salt
+combinations.</p>
+<p>In the future, we plan to migrate towards encrypting old keys in the
+master key instead of the history key, and implementing proper
+rollover support for stored old keys.</p>
+</div>
+</div>
+<div class="section" id="privileges">
+<span id="id2"></span><h2>Privileges<a class="headerlink" href="#privileges" title="Permalink to this headline">¶</a></h2>
+<p>Administrative privileges for the Kerberos database are stored in the
+file <a class="reference internal" href="conf_files/kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">A common use of an admin instance is so you can grant
+separate permissions (such as administrator access to the
+Kerberos database) to a separate Kerberos principal. For
+example, the user <tt class="docutils literal"><span class="pre">joeadmin</span></tt> might have a principal for
+his administrative use, called <tt class="docutils literal"><span class="pre">joeadmin/admin</span></tt>.  This
+way, <tt class="docutils literal"><span class="pre">joeadmin</span></tt> would obtain <tt class="docutils literal"><span class="pre">joeadmin/admin</span></tt> tickets
+only when he actually needs to use those permissions.</p>
+</div>
+</div>
+<div class="section" id="operations-on-the-kerberos-database">
+<span id="db-operations"></span><h2>Operations on the Kerberos database<a class="headerlink" href="#operations-on-the-kerberos-database" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> command is the primary tool for administrating
+the Kerberos database.</p>
+<p><strong>kdb5_util</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-d</strong> <em>dbname</em>]
+[<strong>-k</strong> <em>mkeytype</em>]
+[<strong>-M</strong> <em>mkeyname</em>]
+[<strong>-kv</strong> <em>mkeyVNO</em>]
+[<strong>-sf</strong> <em>stashfilename</em>]
+[<strong>-m</strong>]
+<em>command</em> [<em>command_options</em>]</p>
+<p><strong>OPTIONS</strong></p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>specifies the Kerberos realm of the database.</dd>
+<dt><strong>-d</strong> <em>dbname</em></dt>
+<dd>specifies the name under which the principal database is stored;
+by default the database is that listed in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.  The
+password policy database and lock files are also derived from this
+value.</dd>
+<dt><strong>-k</strong> <em>mkeytype</em></dt>
+<dd>specifies the key type of the master key in the database.  The
+default is given by the <strong>master_key_type</strong> variable in
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</dd>
+<dt><strong>-kv</strong> <em>mkeyVNO</em></dt>
+<dd>Specifies the version number of the master key in the database;
+the default is 1.  Note that 0 is not allowed.</dd>
+<dt><strong>-M</strong> <em>mkeyname</em></dt>
+<dd>principal name for the master key in the database.  If not
+specified, the name is determined by the <strong>master_key_name</strong>
+variable in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</dd>
+<dt><strong>-m</strong></dt>
+<dd>specifies that the master database password should be read from
+the keyboard rather than fetched from a file on disk.</dd>
+<dt><strong>-sf</strong> <em>stash_file</em></dt>
+<dd>specifies the stash filename of the master database password.  If
+not specified, the filename is determined by the
+<strong>key_stash_file</strong> variable in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</dd>
+<dt><strong>-P</strong> <em>password</em></dt>
+<dd>specifies the master database password.  Using this option may
+expose the password to other users on the system via the process
+list.</dd>
+</dl>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<div class="section" id="dumping-a-kerberos-database-to-a-file">
+<h3>Dumping a Kerberos database to a file<a class="headerlink" href="#dumping-a-kerberos-database-to-a-file" title="Permalink to this headline">¶</a></h3>
+<p>To dump a Kerberos database into a file, use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>
+<strong>dump</strong> command on one of the KDCs.</p>
+<blockquote>
+<div><strong>dump</strong> [<strong>-b7</strong>|<strong>-ov</strong>|<strong>-r13</strong>] [<strong>-verbose</strong>]
+[<strong>-mkey_convert</strong>] [<strong>-new_mkey_file</strong> <em>mkey_file</em>] [<strong>-rev</strong>]
+[<strong>-recurse</strong>] [<em>filename</em> [<em>principals</em>...]]</div></blockquote>
+<p>Dumps the current Kerberos and KADM5 database into an ASCII file.  By
+default, the database is dumped in current format, &#8220;kdb5_util
+load_dump version 7&#8221;.  If filename is not specified, or is the string
+&#8220;-&#8221;, the dump is sent to standard output.  Options:</p>
+<dl class="docutils">
+<dt><strong>-b7</strong></dt>
+<dd>causes the dump to be in the Kerberos 5 Beta 7 format (&#8220;kdb5_util
+load_dump version 4&#8221;).  This was the dump format produced on
+releases prior to 1.2.2.</dd>
+<dt><strong>-ov</strong></dt>
+<dd>causes the dump to be in &#8220;ovsec_adm_export&#8221; format.</dd>
+<dt><strong>-r13</strong></dt>
+<dd>causes the dump to be in the Kerberos 5 1.3 format (&#8220;kdb5_util
+load_dump version 5&#8221;).  This was the dump format produced on
+releases prior to 1.8.</dd>
+<dt><strong>-r18</strong></dt>
+<dd>causes the dump to be in the Kerberos 5 1.8 format (&#8220;kdb5_util
+load_dump version 6&#8221;).  This was the dump format produced on
+releases prior to 1.11.</dd>
+<dt><strong>-verbose</strong></dt>
+<dd>causes the name of each principal and policy to be printed as it
+is dumped.</dd>
+<dt><strong>-mkey_convert</strong></dt>
+<dd>prompts for a new master key.  This new master key will be used to
+re-encrypt principal key data in the dumpfile.  The principal keys
+themselves will not be changed.</dd>
+<dt><strong>-new_mkey_file</strong> <em>mkey_file</em></dt>
+<dd>the filename of a stash file.  The master key in this stash file
+will be used to re-encrypt the key data in the dumpfile.  The key
+data in the database will not be changed.</dd>
+<dt><strong>-rev</strong></dt>
+<dd>dumps in reverse order.  This may recover principals that do not
+dump normally, in cases where database corruption has occurred.</dd>
+<dt><strong>-recurse</strong></dt>
+<dd><p class="first">causes the dump to walk the database recursively (btree only).
+This may recover principals that do not dump normally, in cases
+where database corruption has occurred.  In cases of such
+corruption, this option will probably retrieve more principals
+than the <strong>-rev</strong> option will.</p>
+<div class="versionchanged">
+<p><span class="versionmodified">Changed in version 1.15: </span>Release 1.15 restored the functionality of the <strong>-recurse</strong>
+option.</p>
+</div>
+<div class="last versionchanged">
+<p><span class="versionmodified">Changed in version 1.5: </span>The <strong>-recurse</strong> option ceased working until release 1.15,
+doing a normal dump instead of a recursive traversal.</p>
+</div>
+</dd>
+</dl>
+<div class="section" id="id3">
+<h4>Examples<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util dump dumpfile
+shell%
+
+shell% kbd5_util dump -verbose dumpfile
+kadmin/admin@ATHENA.MIT.EDU
+krbtgt/ATHENA.MIT.EDU@ATHENA.MIT.EDU
+kadmin/history@ATHENA.MIT.EDU
+K/M@ATHENA.MIT.EDU
+kadmin/changepw@ATHENA.MIT.EDU
+shell%
+</pre></div>
+</div>
+<p>If you specify which principals to dump, you must use the full
+principal, as in the following example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util dump -verbose dumpfile K/M@ATHENA.MIT.EDU kadmin/admin@ATHENA.MIT.EDU
+kadmin/admin@ATHENA.MIT.EDU
+K/M@ATHENA.MIT.EDU
+shell%
+</pre></div>
+</div>
+<p>Otherwise, the principals will not match those in the database and
+will not be dumped:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util dump -verbose dumpfile K/M kadmin/admin
+shell%
+</pre></div>
+</div>
+<p>If you do not specify a dump file, kdb5_util will dump the database to
+the standard output.</p>
+</div>
+</div>
+<div class="section" id="restoring-a-kerberos-database-from-a-dump-file">
+<span id="restore-from-dump"></span><h3>Restoring a Kerberos database from a dump file<a class="headerlink" href="#restoring-a-kerberos-database-from-a-dump-file" title="Permalink to this headline">¶</a></h3>
+<p>To restore a Kerberos database dump from a file, use the
+<a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> <strong>load</strong> command on one of the KDCs.</p>
+<blockquote>
+<div><strong>load</strong> [<strong>-b7</strong>|<strong>-ov</strong>|<strong>-r13</strong>] [<strong>-hash</strong>]
+[<strong>-verbose</strong>] [<strong>-update</strong>] <em>filename</em> [<em>dbname</em>]</div></blockquote>
+<p>Loads a database dump from the named file into the named database.  If
+no option is given to determine the format of the dump file, the
+format is detected automatically and handled as appropriate.  Unless
+the <strong>-update</strong> option is given, <strong>load</strong> creates a new database
+containing only the data in the dump file, overwriting the contents of
+any previously existing database.  Note that when using the LDAP KDC
+database module, the <strong>-update</strong> flag is required.</p>
+<p>Options:</p>
+<dl class="docutils">
+<dt><strong>-b7</strong></dt>
+<dd>requires the database to be in the Kerberos 5 Beta 7 format
+(&#8220;kdb5_util load_dump version 4&#8221;).  This was the dump format
+produced on releases prior to 1.2.2.</dd>
+<dt><strong>-ov</strong></dt>
+<dd>requires the database to be in &#8220;ovsec_adm_import&#8221; format.  Must be
+used with the <strong>-update</strong> option.</dd>
+<dt><strong>-r13</strong></dt>
+<dd>requires the database to be in Kerberos 5 1.3 format (&#8220;kdb5_util
+load_dump version 5&#8221;).  This was the dump format produced on
+releases prior to 1.8.</dd>
+<dt><strong>-r18</strong></dt>
+<dd>requires the database to be in Kerberos 5 1.8 format (&#8220;kdb5_util
+load_dump version 6&#8221;).  This was the dump format produced on
+releases prior to 1.11.</dd>
+<dt><strong>-hash</strong></dt>
+<dd>requires the database to be stored as a hash.  If this option is
+not specified, the database will be stored as a btree.  This
+option is not recommended, as databases stored in hash format are
+known to corrupt data and lose principals.</dd>
+<dt><strong>-verbose</strong></dt>
+<dd>causes the name of each principal and policy to be printed as it
+is dumped.</dd>
+<dt><strong>-update</strong></dt>
+<dd>records from the dump file are added to or updated in the existing
+database.  Otherwise, a new database is created containing only
+what is in the dump file and the old one destroyed upon successful
+completion.</dd>
+</dl>
+<p>If specified, <em>dbname</em> overrides the value specified on the command
+line or the default.</p>
+<div class="section" id="id4">
+<h4>Examples<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<p>To load a single principal, either replacing or updating the database:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util load dumpfile principal
+shell%
+
+shell% kdb5_util load -update dumpfile principal
+shell%
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If the database file exists, and the <em>-update</em> flag was not
+given, <em>kdb5_util</em> will overwrite the existing database.</p>
+</div>
+<p>Using kdb5_util to upgrade a master KDC from krb5 1.1.x:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util dump old-kdb-dump
+shell% kdb5_util dump -ov old-kdb-dump.ov
+  [Create a new KDC installation, using the old stash file/master password]
+shell% kdb5_util load old-kdb-dump
+shell% kdb5_util load -update old-kdb-dump.ov
+</pre></div>
+</div>
+<p>The use of old-kdb-dump.ov for an extra dump and load is necessary
+to preserve per-principal policy information, which is not included in
+the default dump format of krb5 1.1.x.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Using kdb5_util to dump and reload the principal database is
+only necessary when upgrading from versions of krb5 prior
+to 1.2.0&#8212;newer versions will use the existing database as-is.</p>
+</div>
+</div>
+</div>
+<div class="section" id="creating-a-stash-file">
+<span id="create-stash"></span><h3>Creating a stash file<a class="headerlink" href="#creating-a-stash-file" title="Permalink to this headline">¶</a></h3>
+<p>A stash file allows a KDC to authenticate itself to the database
+utilities, such as <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a>, <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a>, and
+<a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>.</p>
+<p>To create a stash file, use the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> <strong>stash</strong> command.</p>
+<blockquote>
+<div><strong>stash</strong> [<strong>-f</strong> <em>keyfile</em>]</div></blockquote>
+<p>Stores the master principal&#8217;s keys in a stash file.  The <strong>-f</strong>
+argument can be used to override the <em>keyfile</em> specified in
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</p>
+<div class="section" id="example">
+<h4>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div>shell% kdb5_util stash
+kdb5_util: Cannot find/read stored master key while reading master key
+kdb5_util: Warning: proceeding without master key
+Enter KDC database master key:  &lt;= Type the KDC database master password.
+shell%</div></blockquote>
+<p>If you do not specify a stash file, kdb5_util will stash the key in
+the file specified in your <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> file.</p>
+</div>
+</div>
+<div class="section" id="creating-and-destroying-a-kerberos-database">
+<h3>Creating and destroying a Kerberos database<a class="headerlink" href="#creating-and-destroying-a-kerberos-database" title="Permalink to this headline">¶</a></h3>
+<p>If you need to create a new Kerberos database, use the
+<a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> <strong>create</strong> command.</p>
+<blockquote>
+<div><strong>create</strong> [<strong>-s</strong>]</div></blockquote>
+<p>Creates a new database.  If the <strong>-s</strong> option is specified, the stash
+file is also created.  This command fails if the database already
+exists.  If the command is successful, the database is opened just as
+if it had already existed when the program was first run.</p>
+<p>If you need to destroy the current Kerberos database, use the
+<a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> <strong>destroy</strong> command.</p>
+<blockquote>
+<div><strong>destroy</strong> [<strong>-f</strong>]</div></blockquote>
+<p>Destroys the database, first overwriting the disk sectors and then
+unlinking the files, after prompting the user for confirmation.  With
+the <strong>-f</strong> argument, does not prompt the user.</p>
+<div class="section" id="id5">
+<h4>Examples<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_util -r ATHENA.MIT.EDU create -s
+Loading random data
+Initializing database &#39;/usr/local/var/krb5kdc/principal&#39; for realm &#39;ATHENA.MIT.EDU&#39;,
+master key name &#39;K/M@ATHENA.MIT.EDU&#39;
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+Enter KDC database master key:  &lt;= Type the master password.
+Re-enter KDC database master key to verify:  &lt;= Type it again.
+shell%
+
+shell% kdb5_util -r ATHENA.MIT.EDU destroy
+Deleting KDC database stored in &#39;/usr/local/var/krb5kdc/principal&#39;, are you sure?
+(type &#39;yes&#39; to confirm)?  &lt;= yes
+OK, deleting database &#39;/usr/local/var/krb5kdc/principal&#39;...
+** Database &#39;/usr/local/var/krb5kdc/principal&#39; destroyed.
+shell%
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="updating-the-master-key">
+<h3>Updating the master key<a class="headerlink" href="#updating-the-master-key" title="Permalink to this headline">¶</a></h3>
+<p>Starting with release 1.7, <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a> allows the master key
+to be changed using a rollover process, with minimal loss of
+availability.  To roll over the master key, follow these steps:</p>
+<ol class="arabic">
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">list_mkeys</span></tt> to view the current
+master key version number (KVNO).  If you have never rolled over
+the master key before, this will likely be version 1:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ kdb5_util list_mkeys
+Master keys for Principal: K/M@KRBTEST.COM
+KVNO: 1, Enctype: des-cbc-crc, Active on: Wed Dec 31 19:00:00 EST 1969 *
+</pre></div>
+</div>
+</li>
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">use_mkey</span> <span class="pre">1</span></tt> to ensure that a
+master key activation list is present in the database.  This step
+is unnecessary in release 1.11.4 or later, or if the database was
+initially created with release 1.7 or later.</p>
+</li>
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">add_mkey</span> <span class="pre">-s</span></tt> to create a new
+master key and write it to the stash file.  Enter a secure password
+when prompted.  If this is the first time you are changing the
+master key, the new key will have version 2.  The new master key
+will not be used until you make it active.</p>
+</li>
+<li><p class="first">Propagate the database to all slave KDCs, either manually or by
+waiting until the next scheduled propagation.  If you do not have
+any slave KDCs, you can skip this and the next step.</p>
+</li>
+<li><p class="first">On each slave KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">list_mkeys</span></tt> to verify that the
+new master key is present, and then <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">stash</span></tt> to write
+the new master key to the slave KDC&#8217;s stash file.</p>
+</li>
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">use_mkey</span> <span class="pre">2</span></tt> to begin using the
+new master key.  Replace <tt class="docutils literal"><span class="pre">2</span></tt> with the version of the new master
+key, as appropriate.  You can optionally specify a date for the new
+master key to become active; by default, it will become active
+immediately.  Prior to release 1.12, <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a> must be
+restarted for this change to take full effect.</p>
+</li>
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">update_princ_encryption</span></tt>.  This
+command will iterate over the database and re-encrypt all keys in
+the new master key.  If the database is large and uses DB2, the
+master KDC will become unavailable while this command runs, but
+clients should fail over to slave KDCs (if any are present) during
+this time period.  In release 1.13 and later, you can instead run
+<tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">-x</span> <span class="pre">unlockiter</span> <span class="pre">update_princ_encryption</span></tt> to use unlocked
+iteration; this variant will take longer, but will keep the
+database available to the KDC and kadmind while it runs.</p>
+</li>
+<li><p class="first">On the master KDC, run <tt class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">purge_mkeys</span></tt> to clean up the
+old master key.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="operations-on-the-ldap-database">
+<span id="ops-on-ldap"></span><h2>Operations on the LDAP database<a class="headerlink" href="#operations-on-the-ldap-database" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> is the primary tool for administrating
+the Kerberos LDAP database.  It allows an administrator to manage
+realms, Kerberos services (KDC and Admin Server) and ticket policies.</p>
+<p><strong>kdb5_ldap_util</strong>
+[<strong>-D</strong> <em>user_dn</em> [<strong>-w</strong> <em>passwd</em>]]
+[<strong>-H</strong> <em>ldapuri</em>]
+<strong>command</strong>
+[<em>command_options</em>]</p>
+<p><strong>OPTIONS</strong></p>
+<dl class="docutils">
+<dt><strong>-D</strong> <em>user_dn</em></dt>
+<dd>Specifies the Distinguished Name (DN) of the user who has
+sufficient rights to perform the operation on the LDAP server.</dd>
+<dt><strong>-w</strong> <em>passwd</em></dt>
+<dd>Specifies the password of <em>user_dn</em>.  This option is not
+recommended.</dd>
+<dt><strong>-H</strong> <em>ldapuri</em></dt>
+<dd>Specifies the URI of the LDAP server.  It is recommended to use
+<tt class="docutils literal"><span class="pre">ldapi://</span></tt> or <tt class="docutils literal"><span class="pre">ldaps://</span></tt> to connect to the LDAP server.</dd>
+</dl>
+<div class="section" id="creating-a-kerberos-realm">
+<span id="ldap-create-realm"></span><h3>Creating a Kerberos realm<a class="headerlink" href="#creating-a-kerberos-realm" title="Permalink to this headline">¶</a></h3>
+<p>If you need to create a new realm, use the <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a>
+<strong>create</strong> command as follows.</p>
+<blockquote>
+<div><strong>create</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-k</strong> <em>mkeytype</em>]
+[<strong>-kv</strong> <em>mkeyVNO</em>]
+[<strong>-m|-P</strong> <em>password</em>|<strong>-sf</strong> <em>stashfilename</em>]
+[<strong>-s</strong>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</div></blockquote>
+<p>Creates realm in directory. Options:</p>
+<dl class="docutils">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt>
+<dd>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<tt class="docutils literal"><span class="pre">:</span></tt>).</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt>
+<dd>Specifies the scope for searching the principals under the
+subtree.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em></dt>
+<dd>Specifies the DN of the container object in which the principals
+of a realm will be created.  If the container reference is not
+configured for a realm, the principals will be created in the
+realm container.</dd>
+<dt><strong>-k</strong> <em>mkeytype</em></dt>
+<dd>Specifies the key type of the master key in the database.  The
+default is given by the <strong>master_key_type</strong> variable in
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.</dd>
+<dt><strong>-kv</strong> <em>mkeyVNO</em></dt>
+<dd>Specifies the version number of the master key in the database;
+the default is 1.  Note that 0 is not allowed.</dd>
+<dt><strong>-m</strong></dt>
+<dd>Specifies that the master database password should be read from
+the TTY rather than fetched from a file on the disk.</dd>
+<dt><strong>-P</strong> <em>password</em></dt>
+<dd>Specifies the master database password. This option is not
+recommended.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-sf</strong> <em>stashfilename</em></dt>
+<dd>Specifies the stash file of the master database password.</dd>
+<dt><strong>-s</strong></dt>
+<dd>Specifies that the stash file is to be created.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals in this realm.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    create -subtrees o=org -sscope SUB -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Initializing database for realm &#39;ATHENA.MIT.EDU&#39;
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+Enter KDC database master key:
+Re-enter KDC database master key to verify:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modifying-a-kerberos-realm">
+<span id="ldap-mod-realm"></span><h3>Modifying a Kerberos realm<a class="headerlink" href="#modifying-a-kerberos-realm" title="Permalink to this headline">¶</a></h3>
+<p>If you need to modify a realm, use the <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a>
+<strong>modify</strong> command as follows.</p>
+<blockquote>
+<div><strong>modify</strong>
+[<strong>-subtrees</strong> <em>subtree_dn_list</em>]
+[<strong>-sscope</strong> <em>search_scope</em>]
+[<strong>-containerref</strong> <em>container_reference_dn</em>]
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]</div></blockquote>
+<p>Modifies the attributes of a realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-subtrees</strong> <em>subtree_dn_list</em></dt>
+<dd>Specifies the list of subtrees containing the principals of a
+realm.  The list contains the DNs of the subtree objects separated
+by colon (<tt class="docutils literal"><span class="pre">:</span></tt>).  This list replaces the existing list.</dd>
+<dt><strong>-sscope</strong> <em>search_scope</em></dt>
+<dd>Specifies the scope for searching the principals under the
+subtrees.  The possible values are 1 or one (one level), 2 or sub
+(subtrees).</dd>
+<dt><strong>-containerref</strong> <em>container_reference_dn</em> Specifies the DN of the</dt>
+<dd>container object in which the principals of a realm will be
+created.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals in this realm.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals in this realm.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies global ticket flags for the realm.  Allowable flags are
+documented in the description of the <strong>add_principal</strong> command in
+<a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu modify +requires_preauth -r
+    ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="destroying-a-kerberos-realm">
+<h3>Destroying a Kerberos realm<a class="headerlink" href="#destroying-a-kerberos-realm" title="Permalink to this headline">¶</a></h3>
+<p>If you need to destroy a Kerberos realm, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>destroy</strong> command as follows.</p>
+<blockquote>
+<div><strong>destroy</strong> [<strong>-f</strong>] [<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Destroys an existing realm. Options:</p>
+<dl class="docutils">
+<dt><strong>-f</strong></dt>
+<dd>If specified, will not prompt the user for confirmation.</dd>
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu destroy -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Deleting KDC database of &#39;ATHENA.MIT.EDU&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+OK, deleting database of &#39;ATHENA.MIT.EDU&#39;...
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="retrieving-information-about-a-kerberos-realm">
+<h3>Retrieving information about a Kerberos realm<a class="headerlink" href="#retrieving-information-about-a-kerberos-realm" title="Permalink to this headline">¶</a></h3>
+<p>If you need to display the attributes of a realm, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>view</strong> command as follows.</p>
+<blockquote>
+<div><strong>view</strong> [<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Displays the attributes of a realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    view -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+Realm Name: ATHENA.MIT.EDU
+Subtree: ou=users,o=org
+Subtree: ou=servers,o=org
+SearchScope: ONE
+Maximum ticket life: 0 days 01:00:00
+Maximum renewable life: 0 days 10:00:00
+Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
+</pre></div>
+</div>
+</div>
+<div class="section" id="listing-available-kerberos-realms">
+<h3>Listing available Kerberos realms<a class="headerlink" href="#listing-available-kerberos-realms" title="Permalink to this headline">¶</a></h3>
+<p>If you need to display the list of the realms, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>list</strong> command as follows.</p>
+<blockquote>
+<div><strong>list</strong></div></blockquote>
+<p>Lists the name of realms.</p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell% kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu list
+Password for &quot;cn=admin,o=org&quot;:
+ATHENA.MIT.EDU
+OPENLDAP.MIT.EDU
+MEDIA-LAB.MIT.EDU
+shell%
+</pre></div>
+</div>
+</div>
+<div class="section" id="stashing-service-object-s-password">
+<span id="stash-ldap"></span><h3>Stashing service object&#8217;s password<a class="headerlink" href="#stashing-service-object-s-password" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>stashsrvpw</strong> command allows an
+administrator to store the password of service object in a file.  The
+KDC and Administration server uses this password to authenticate to
+the LDAP server.</p>
+<blockquote>
+<div><strong>stashsrvpw</strong>
+[<strong>-f</strong> <em>filename</em>]
+<em>name</em></div></blockquote>
+<p>Allows an administrator to store the password for service object in a
+file so that KDC and Administration server can use it to authenticate
+to the LDAP server.  Options:</p>
+<dl class="docutils">
+<dt><strong>-f</strong> <em>filename</em></dt>
+<dd>Specifies the complete path of the service password file. By
+default, <tt class="docutils literal"><span class="pre">/usr/local/var/service_passwd</span></tt> is used.</dd>
+<dt><em>name</em></dt>
+<dd>Specifies the name of the object whose password is to be stored.
+If <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a> or <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a> are configured for
+simple binding, this should be the distinguished name it will
+use as given by the <strong>ldap_kdc_dn</strong> or <strong>ldap_kadmind_dn</strong>
+variable in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>.  If the KDC or kadmind is
+configured for SASL binding, this should be the authentication
+name it will use as given by the <strong>ldap_kdc_sasl_authcid</strong> or
+<strong>ldap_kadmind_sasl_authcid</strong> variable.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util stashsrvpw -f /home/andrew/conf_keyfile
+    cn=service-kdc,o=org
+Password for &quot;cn=service-kdc,o=org&quot;:
+Re-enter password for &quot;cn=service-kdc,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="ticket-policy-operations">
+<h3>Ticket Policy operations<a class="headerlink" href="#ticket-policy-operations" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="creating-a-ticket-policy">
+<h4>Creating a Ticket Policy<a class="headerlink" href="#creating-a-ticket-policy" title="Permalink to this headline">¶</a></h4>
+<p>To create a new ticket policy in directory , use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>create_policy</strong> command.  Ticket policy
+objects are created under the realm container.</p>
+<blockquote>
+<div><strong>create_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></div></blockquote>
+<p>Creates a ticket policy in the directory.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-maxtktlife</strong> <em>max_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum ticket life for
+principals.</dd>
+<dt><strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em></dt>
+<dd>(<a class="reference internal" href="../basic/date_format.html#getdate"><em>getdate time</em></a> string) Specifies maximum renewable life of
+tickets for principals.</dd>
+<dt><em>ticket_flags</em></dt>
+<dd>Specifies the ticket flags.  If this option is not specified, by
+default, no restriction will be set by the policy.  Allowable
+flags are documented in the description of the <strong>add_principal</strong>
+command in <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>.</dd>
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    create_policy -r ATHENA.MIT.EDU -maxtktlife &quot;1 day&quot;
+    -maxrenewlife &quot;1 week&quot; -allow_postdated +needchange
+    -allow_forwardable tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="modifying-a-ticket-policy">
+<h4>Modifying a Ticket Policy<a class="headerlink" href="#modifying-a-ticket-policy" title="Permalink to this headline">¶</a></h4>
+<p>To modify a ticket policy in directory, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>modify_policy</strong> command.</p>
+<blockquote>
+<div><strong>modify_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-maxtktlife</strong> <em>max_ticket_life</em>]
+[<strong>-maxrenewlife</strong> <em>max_renewable_ticket_life</em>]
+[<em>ticket_flags</em>]
+<em>policy_name</em></div></blockquote>
+<p>Modifies the attributes of a ticket policy.  Options are same as for
+<strong>create_policy</strong>.</p>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H
+    ldaps://ldap-server1.mit.edu modify_policy -r ATHENA.MIT.EDU
+    -maxtktlife &quot;60 minutes&quot; -maxrenewlife &quot;10 hours&quot;
+    +allow_postdated -requires_preauth tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+</pre></div>
+</div>
+</div>
+<div class="section" id="retrieving-information-about-a-ticket-policy">
+<h4>Retrieving Information About a Ticket Policy<a class="headerlink" href="#retrieving-information-about-a-ticket-policy" title="Permalink to this headline">¶</a></h4>
+<p>To display the attributes of a ticket policy, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>view_policy</strong> command.</p>
+<blockquote>
+<div><strong>view_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+<em>policy_name</em></div></blockquote>
+<p>Displays the attributes of a ticket policy.  Options:</p>
+<dl class="docutils">
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    view_policy -r ATHENA.MIT.EDU tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+Ticket policy: tktpolicy
+Maximum ticket life: 0 days 01:00:00
+Maximum renewable life: 0 days 10:00:00
+Ticket flags: DISALLOW_FORWARDABLE REQUIRES_PWCHANGE
+</pre></div>
+</div>
+</div>
+<div class="section" id="destroying-a-ticket-policy">
+<h4>Destroying a Ticket Policy<a class="headerlink" href="#destroying-a-ticket-policy" title="Permalink to this headline">¶</a></h4>
+<p>To destroy an existing ticket policy, use the <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a>
+<strong>destroy_policy</strong> command.</p>
+<blockquote>
+<div><strong>destroy_policy</strong>
+[<strong>-r</strong> <em>realm</em>]
+[<strong>-force</strong>]
+<em>policy_name</em></div></blockquote>
+<p>Destroys an existing ticket policy.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+<dt><strong>-force</strong></dt>
+<dd>Forces the deletion of the policy object.  If not specified, the
+user will be prompted for confirmation before deleting the policy.</dd>
+<dt><em>policy_name</em></dt>
+<dd>Specifies the name of the ticket policy.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    destroy_policy -r ATHENA.MIT.EDU tktpolicy
+Password for &quot;cn=admin,o=org&quot;:
+This will delete the policy object &#39;tktpolicy&#39;, are you sure?
+(type &#39;yes&#39; to confirm)? yes
+** policy object &#39;tktpolicy&#39; deleted.
+</pre></div>
+</div>
+</div>
+<div class="section" id="listing-available-ticket-policies">
+<h4>Listing available Ticket Policies<a class="headerlink" href="#listing-available-ticket-policies" title="Permalink to this headline">¶</a></h4>
+<p>To list the name of ticket policies in a realm, use the
+<a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><em>kdb5_ldap_util</em></a> <strong>list_policy</strong> command.</p>
+<blockquote>
+<div><strong>list_policy</strong>
+[<strong>-r</strong> <em>realm</em>]</div></blockquote>
+<p>Lists the ticket policies in realm if specified or in the default
+realm.  Options:</p>
+<dl class="docutils">
+<dt><strong>-r</strong> <em>realm</em></dt>
+<dd>Specifies the Kerberos realm of the database.</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,o=org -H ldaps://ldap-server1.mit.edu
+    list_policy -r ATHENA.MIT.EDU
+Password for &quot;cn=admin,o=org&quot;:
+tktpolicy
+tmppolicy
+userpolicy
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="cross-realm-authentication">
+<span id="xrealm-authn"></span><h2>Cross-realm authentication<a class="headerlink" href="#cross-realm-authentication" title="Permalink to this headline">¶</a></h2>
+<p>In order for a KDC in one realm to authenticate Kerberos users in a
+different realm, it must share a key with the KDC in the other realm.
+In both databases, there must be krbtgt service principals for both realms.
+For example, if you need to do cross-realm authentication between the realms
+<tt class="docutils literal"><span class="pre">ATHENA.MIT.EDU</span></tt> and <tt class="docutils literal"><span class="pre">EXAMPLE.COM</span></tt>, you would need to add the
+principals <tt class="docutils literal"><span class="pre">krbtgt/EXAMPLE.COM&#64;ATHENA.MIT.EDU</span></tt> and
+<tt class="docutils literal"><span class="pre">krbtgt/ATHENA.MIT.EDU&#64;EXAMPLE.COM</span></tt> to both databases.
+These principals must all have the same passwords, key version
+numbers, and encryption types; this may require explicitly setting
+the key version number with the <strong>-kvno</strong> option.</p>
+<p>In the ATHENA.MIT.EDU and EXAMPLE.COM cross-realm case, the administrators
+would run the following commands on the KDCs in both realms:</p>
+<div class="highlight-python"><div class="highlight"><pre>shell%: kadmin.local -e &quot;aes256-cts:normal&quot;
+kadmin: addprinc -requires_preauth krbtgt/ATHENA.MIT.EDU@EXAMPLE.COM
+Enter password for principal krbtgt/ATHENA.MIT.EDU@EXAMPLE.COM:
+Re-enter password for principal krbtgt/ATHENA.MIT.EDU@EXAMPLE.COM:
+kadmin: addprinc -requires_preauth krbtgt/EXAMPLE.COM@ATHENA.MIT.EDU
+Enter password for principal krbtgt/EXAMPLE.COM@ATHENA.MIT.EDU:
+Enter password for principal krbtgt/EXAMPLE.COM@ATHENA.MIT.EDU:
+kadmin:
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Even if most principals in a realm are generally created
+with the <strong>requires_preauth</strong> flag enabled, this flag is not
+desirable on cross-realm authentication keys because doing
+so makes it impossible to disable preauthentication on a
+service-by-service basis.  Disabling it as in the example
+above is recommended.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is very important that these principals have good
+passwords.  MIT recommends that TGT principal passwords be
+at least 26 characters of random ASCII text.</p>
+</div>
+</div>
+<div class="section" id="changing-the-krbtgt-key">
+<span id="changing-krbtgt-key"></span><h2>Changing the krbtgt key<a class="headerlink" href="#changing-the-krbtgt-key" title="Permalink to this headline">¶</a></h2>
+<p>A Kerberos Ticket Granting Ticket (TGT) is a service ticket for the
+principal <tt class="docutils literal"><span class="pre">krbtgt/REALM</span></tt>.  The key for this principal is created
+when the Kerberos database is initialized and need not be changed.
+However, it will only have the encryption types supported by the KDC
+at the time of the initial database creation.  To allow use of newer
+encryption types for the TGT, this key has to be changed.</p>
+<p>Changing this key using the normal <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>
+<strong>change_password</strong> command would invalidate any previously issued
+TGTs.  Therefore, when changing this key, normally one should use the
+<strong>-keepold</strong> flag to change_password to retain the previous key in the
+database as well as the new key.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>kadmin: change_password -randkey -keepold krbtgt/ATHENA.MIT.EDU@ATHENA.MIT.EDU
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">After issuing this command, the old key is still valid
+and is still vulnerable to (for instance) brute force
+attacks.  To completely retire an old key or encryption
+type, run the kadmin <strong>purgekeys</strong> command to delete keys
+with older kvnos, ideally first making sure that all
+tickets issued with the old keys have expired.</p>
+</div>
+<p>Only the first krbtgt key of the newest key version is used to encrypt
+ticket-granting tickets.  However, the set of encryption types present
+in the krbtgt keys is used by default to determine the session key
+types supported by the krbtgt service (see
+<a class="reference internal" href="enctypes.html#session-key-selection"><em>Session key selection</em></a>).  Because non-MIT Kerberos clients
+sometimes send a limited set of encryption types when making AS
+requests, it can be important to for the krbtgt service to support
+multiple encryption types.  This can be accomplished by giving the
+krbtgt principal multiple keys, which is usually as simple as not
+specifying any <strong>-e</strong> option when changing the krbtgt key, or by
+setting the <strong>session_enctypes</strong> string attribute on the krbtgt
+principal (see <a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><em>set_string</em></a>).</p>
+<p>Due to a bug in releases 1.8 through 1.13, renewed and forwarded
+tickets may not work if the original ticket was obtained prior to a
+krbtgt key change and the modified ticket is obtained afterwards.
+Upgrading the KDC to release 1.14 or later will correct this bug.</p>
+</div>
+<div class="section" id="incremental-database-propagation">
+<span id="incr-db-prop"></span><h2>Incremental database propagation<a class="headerlink" href="#incremental-database-propagation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p>At some very large sites, dumping and transmitting the database can
+take more time than is desirable for changes to propagate from the
+master KDC to the slave KDCs.  The incremental propagation support
+added in the 1.7 release is intended to address this.</p>
+<p>With incremental propagation enabled, all programs on the master KDC
+that change the database also write information about the changes to
+an &#8220;update log&#8221; file, maintained as a circular buffer of a certain
+size.  A process on each slave KDC connects to a service on the master
+KDC (currently implemented in the <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a> server) and
+periodically requests the changes that have been made since the last
+check.  By default, this check is done every two minutes.  If the
+database has just been modified in the previous several seconds
+(currently the threshold is hard-coded at 10 seconds), the slave will
+not retrieve updates, but instead will pause and try again soon after.
+This reduces the likelihood that incremental update queries will cause
+delays for an administrator trying to make a bunch of changes to the
+database at the same time.</p>
+<p>Incremental propagation uses the following entries in the per-realm
+data in the KDC config file (See <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="4%" />
+<col width="3%" />
+<col width="94%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>iprop_enable</td>
+<td><em>boolean</em></td>
+<td>If <em>true</em>, then incremental propagation is enabled, and (as noted below) normal kprop propagation is disabled. The default is <em>false</em>.</td>
+</tr>
+<tr class="row-even"><td>iprop_master_ulogsize</td>
+<td><em>integer</em></td>
+<td>Indicates the number of entries that should be retained in the update log. The default is 1000; the maximum number is 2500.</td>
+</tr>
+<tr class="row-odd"><td>iprop_slave_poll</td>
+<td><em>time interval</em></td>
+<td>Indicates how often the slave should poll the master KDC for changes to the database. The default is two minutes.</td>
+</tr>
+<tr class="row-even"><td>iprop_port</td>
+<td><em>integer</em></td>
+<td>Specifies the port number to be used for incremental propagation. This is required in both master and slave configuration files.</td>
+</tr>
+<tr class="row-odd"><td>iprop_resync_timeout</td>
+<td><em>integer</em></td>
+<td>Specifies the number of seconds to wait for a full propagation to complete. This is optional on slave configurations.  Defaults to 300 seconds (5 minutes).</td>
+</tr>
+<tr class="row-even"><td>iprop_logfile</td>
+<td><em>file name</em></td>
+<td>Specifies where the update log file for the realm database is to be stored. The default is to use the <em>database_name</em> entry from the realms section of the config file <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>, with <em>.ulog</em> appended. (NOTE: If database_name isn&#8217;t specified in the realms section, perhaps because the LDAP database back end is being used, or the file name is specified in the <em>dbmodules</em> section, then the hard-coded default for <em>database_name</em> is used. Determination of the <em>iprop_logfile</em>  default value will not use values from the <em>dbmodules</em> section.)</td>
+</tr>
+</tbody>
+</table>
+<p>Both master and slave sides must have a principal named
+<tt class="docutils literal"><span class="pre">kiprop/hostname</span></tt> (where <em>hostname</em> is the lowercase,
+fully-qualified, canonical name for the host) registered in the
+Kerberos database, and have keys for that principal stored in the
+default keytab file (<a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFKTNAME</em></a>).  In release 1.13, the
+<tt class="docutils literal"><span class="pre">kiprop/hostname</span></tt> principal is created automatically for the master
+KDC, but it must still be created for slave KDCs.</p>
+<p>On the master KDC side, the <tt class="docutils literal"><span class="pre">kiprop/hostname</span></tt> principal must be
+listed in the kadmind ACL file <a class="reference internal" href="conf_files/kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a>, and given the
+<strong>p</strong> privilege (see <a class="reference internal" href="#privileges"><em>Privileges</em></a>).</p>
+<p>On the slave KDC side, <a class="reference internal" href="admin_commands/kpropd.html#kpropd-8"><em>kpropd</em></a> should be run.  When
+incremental propagation is enabled, it will connect to the kadmind on
+the master KDC and start requesting updates.</p>
+<p>The normal kprop mechanism is disabled by the incremental propagation
+support.  However, if the slave has been unable to fetch changes from
+the master KDC for too long (network problems, perhaps), the log on
+the master may wrap around and overwrite some of the updates that the
+slave has not yet retrieved.  In this case, the slave will instruct
+the master KDC to dump the current database out to a file and invoke a
+one-time kprop propagation, with special options to also convey the
+point in the update log at which the slave should resume fetching
+incremental updates.  Thus, all the keytab and ACL setup previously
+described for kprop propagation is still needed.</p>
+<p>If an environment has a large number of slaves, it may be desirable to
+arrange them in a hierarchy instead of having the master serve updates
+to every slave.  To do this, run <tt class="docutils literal"><span class="pre">kadmind</span> <span class="pre">-proponly</span></tt> on each
+intermediate slave, and <tt class="docutils literal"><span class="pre">kpropd</span> <span class="pre">-A</span> <span class="pre">upstreamhostname</span></tt> on downstream
+slaves to direct each one to the appropriate upstream slave.</p>
+<p>There are several known restrictions in the current implementation:</p>
+<ul class="simple">
+<li>The incremental update protocol does not transport changes to policy
+objects.  Any policy changes on the master will result in full
+resyncs to all slaves.</li>
+<li>The slave&#8217;s KDB module must support locking; it cannot be using the
+LDAP KDB module.</li>
+<li>The master and slave must be able to initiate TCP connections in
+both directions, without an intervening NAT.</li>
+</ul>
+</div>
+<div class="section" id="sun-mit-incremental-propagation-differences">
+<h3>Sun/MIT incremental propagation differences<a class="headerlink" href="#sun-mit-incremental-propagation-differences" title="Permalink to this headline">¶</a></h3>
+<p>Sun donated the original code for supporting incremental database
+propagation to MIT.  Some changes have been made in the MIT source
+tree that will be visible to administrators.  (These notes are based
+on Sun&#8217;s patches.  Changes to Sun&#8217;s implementation since then may not
+be reflected here.)</p>
+<p>The Sun config file support looks for <tt class="docutils literal"><span class="pre">sunw_dbprop_enable</span></tt>,
+<tt class="docutils literal"><span class="pre">sunw_dbprop_master_ulogsize</span></tt>, and <tt class="docutils literal"><span class="pre">sunw_dbprop_slave_poll</span></tt>.</p>
+<p>The incremental propagation service is implemented as an ONC RPC
+service.  In the Sun implementation, the service is registered with
+rpcbind (also known as portmapper) and the client looks up the port
+number to contact.  In the MIT implementation, where interaction with
+some modern versions of rpcbind doesn&#8217;t always work well, the port
+number must be specified in the config file on both the master and
+slave sides.</p>
+<p>The Sun implementation hard-codes pathnames in <tt class="docutils literal"><span class="pre">/var/krb5</span></tt> for the
+update log and the per-slave kprop dump files.  In the MIT
+implementation, the pathname for the update log is specified in the
+config file, and the per-slave dump files are stored in
+<a class="reference internal" href="../mitK5defaults.html#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/slave_datatrans_hostname</span></tt>.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Database administration</a><ul>
+<li><a class="reference internal" href="#kadmin-options">kadmin options</a></li>
+<li><a class="reference internal" href="#date-format">Date Format</a></li>
+<li><a class="reference internal" href="#principals">Principals</a><ul>
+<li><a class="reference internal" href="#adding-modifying-and-deleting-principals">Adding, modifying and deleting principals</a></li>
+<li><a class="reference internal" href="#add-principal">add_principal</a></li>
+<li><a class="reference internal" href="#modify-principal">modify_principal</a></li>
+<li><a class="reference internal" href="#delete-principal">delete_principal</a><ul>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#retrieving-information-about-a-principal">Retrieving information about a principal</a></li>
+<li><a class="reference internal" href="#get-principal">get_principal</a></li>
+<li><a class="reference internal" href="#list-principals">list_principals</a></li>
+<li><a class="reference internal" href="#changing-passwords">Changing passwords</a></li>
+<li><a class="reference internal" href="#change-password">change_password</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#policies">Policies</a><ul>
+<li><a class="reference internal" href="#adding-modifying-and-deleting-policies">Adding, modifying and deleting policies</a></li>
+<li><a class="reference internal" href="#add-policy">add_policy</a></li>
+<li><a class="reference internal" href="#modify-policy">modify_policy</a></li>
+<li><a class="reference internal" href="#delete-policy">delete_policy</a></li>
+<li><a class="reference internal" href="#retrieving-policies">Retrieving policies</a></li>
+<li><a class="reference internal" href="#get-policy">get_policy</a></li>
+<li><a class="reference internal" href="#list-policies">list_policies</a></li>
+<li><a class="reference internal" href="#policies-and-principals">Policies and principals</a></li>
+<li><a class="reference internal" href="#updating-the-history-key">Updating the history key</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#privileges">Privileges</a></li>
+<li><a class="reference internal" href="#operations-on-the-kerberos-database">Operations on the Kerberos database</a><ul>
+<li><a class="reference internal" href="#dumping-a-kerberos-database-to-a-file">Dumping a Kerberos database to a file</a><ul>
+<li><a class="reference internal" href="#id3">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#restoring-a-kerberos-database-from-a-dump-file">Restoring a Kerberos database from a dump file</a><ul>
+<li><a class="reference internal" href="#id4">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#creating-a-stash-file">Creating a stash file</a><ul>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#creating-and-destroying-a-kerberos-database">Creating and destroying a Kerberos database</a><ul>
+<li><a class="reference internal" href="#id5">Examples</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#updating-the-master-key">Updating the master key</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#operations-on-the-ldap-database">Operations on the LDAP database</a><ul>
+<li><a class="reference internal" href="#creating-a-kerberos-realm">Creating a Kerberos realm</a></li>
+<li><a class="reference internal" href="#modifying-a-kerberos-realm">Modifying a Kerberos realm</a></li>
+<li><a class="reference internal" href="#destroying-a-kerberos-realm">Destroying a Kerberos realm</a></li>
+<li><a class="reference internal" href="#retrieving-information-about-a-kerberos-realm">Retrieving information about a Kerberos realm</a></li>
+<li><a class="reference internal" href="#listing-available-kerberos-realms">Listing available Kerberos realms</a></li>
+<li><a class="reference internal" href="#stashing-service-object-s-password">Stashing service object&#8217;s password</a></li>
+<li><a class="reference internal" href="#ticket-policy-operations">Ticket Policy operations</a><ul>
+<li><a class="reference internal" href="#creating-a-ticket-policy">Creating a Ticket Policy</a></li>
+<li><a class="reference internal" href="#modifying-a-ticket-policy">Modifying a Ticket Policy</a></li>
+<li><a class="reference internal" href="#retrieving-information-about-a-ticket-policy">Retrieving Information About a Ticket Policy</a></li>
+<li><a class="reference internal" href="#destroying-a-ticket-policy">Destroying a Ticket Policy</a></li>
+<li><a class="reference internal" href="#listing-available-ticket-policies">Listing available Ticket Policies</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cross-realm-authentication">Cross-realm authentication</a></li>
+<li><a class="reference internal" href="#changing-the-krbtgt-key">Changing the krbtgt key</a></li>
+<li><a class="reference internal" href="#incremental-database-propagation">Incremental database propagation</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#sun-mit-incremental-propagation-differences">Sun/MIT incremental propagation differences</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Database administration</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="realm_config.html" title="Realm configuration decisions"
+            >previous</a> |
+        <a href="lockout.html" title="Account lockout"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Database administration">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

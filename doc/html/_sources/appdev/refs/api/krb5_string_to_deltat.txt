@@ -1,0 +1,45 @@
+krb5_string_to_deltat -  Convert a string to a delta time value. 
+=================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_deltat(char * string, krb5_deltat * deltatp)
+
+..
+
+
+:param:
+
+	          **[in]** **string** - String to be converted
+
+	          **[out]** **deltatp** - Delta time to be filled in
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - KRB5_DELTAT_BADFORMAT
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,84 @@
+#
+# $Id: bidiapi.txt,v 1.2 1999/11/19 15:24:29 mleisher Exp $
+#
+
+                       "Pretty Good Bidi Algorithm" API
+
+The PGBA (Pretty Good Bidi Algorithm) is an effective alternative to the
+Unicode BiDi algorithm.  It currently provides only implicit reordering and
+does not yet support explicit reordering codes that the Unicode BiDi algorithm
+supports.  In addition to reordering, the PGBA includes cursor movement
+support for both visual and logical navigation.
+
+-----------------------------------------------------------------------------
+
+#define UCPGBA_LTR 0
+#define UCPGBA_RTL 1
+
+  These macros appear in the `direction' field of the data structures.
+
+#define UCPGBA_CURSOR_VISUAL  0
+#define UCPGBA_CURSOR_LOGICAL 1
+
+  These macros are used to set the cursor movement for each reordered string.
+
+-----------------------------------------------------------------------------
+
+ucstring_t *ucstring_create(unsigned long *source, unsigned long start,
+                            unsigned long end, int default_direction,
+                            int cursor_motion)
+
+  This function will create a reordered string by using the implicit
+  directionality of the characters in the specified substring.
+
+  The `default_direction' parameter should be one of UCPGBA_LTR or UCPGBA_RTL
+  and is used only in cases where a string contains no characters with strong
+  directionality.
+
+  The `cursor_motion' parameter should be one of UCPGBA_CURSOR_VISUAL or
+  UCPGBA_CURSOR_LOGICAL, and is used to specify the initial cursor motion
+  behavior.  This behavior can be switched at any time using
+  ustring_set_cursor_motion().
+
+-----------------------------------------------------------------------------
+
+void ucstring_free(ucstring_t *string)
+
+  This function will deallocate the memory used by the string, incuding the
+  string itself.
+
+-----------------------------------------------------------------------------
+
+void ucstring_cursor_info(ustring_t *string, int *direction,
+                          unsigned long *position)
+
+  This function will return the text position of the internal cursor and the
+  directionality of the text at that position.  The position returned is the
+  original text position of the character.
+
+-----------------------------------------------------------------------------
+
+int ucstring_set_cursor_motion(ucstring_t *string, int cursor_motion)
+
+  This function will change the cursor motion type and return the previous
+  cursor motion type.
+
+-----------------------------------------------------------------------------
+
+int ucstring_cursor_right(ucstring_t *string, int count)
+
+  This function will move the internal cursor to the right according to the
+  type of cursor motion set for the string.
+
+  If no cursor motion is performed, it returns 0.  Otherwise it will return a
+  1.
+
+-----------------------------------------------------------------------------
+
+int ucstring_cursor_left(ucstring_t *string, int count)
+
+  This function will move the internal cursor to the left according to the
+  type of cursor motion set for the string.
+
+  If no cursor motion is performed, it returns 0.  Otherwise it will return a
+  1.

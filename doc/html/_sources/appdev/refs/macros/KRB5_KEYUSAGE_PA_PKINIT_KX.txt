@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-PA-PKINIT-KX-data:
+
+KRB5_KEYUSAGE_PA_PKINIT_KX
+==========================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_PKINIT_KX
+..
+
+
+
+
+================================= ======================
+``KRB5_KEYUSAGE_PA_PKINIT_KX``       ``44``
+================================= ======================

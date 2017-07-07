@@ -1,0 +1,153 @@
+# Password-changing Kerberos test.
+# This is a DejaGnu test script.
+
+# We are about to start up a couple of daemon processes.  We do all
+# the rest of the tests inside a proc, so that we can easily kill the
+# processes when the procedure ends.
+
+proc setup_slave {} {
+    global tmppwd hostname REALMNAME
+    file delete $tmppwd/slave-stash $tmppwd/slave-acl
+    file copy -force $tmppwd/stash:foo $tmppwd/slave-stash
+    file copy -force $tmppwd/acl $tmppwd/slave-acl
+    if ![file exists $tmppwd/kpropdacl] {
+	set aclfile [open $tmppwd/kpropd-acl w]
+	puts $aclfile "host/$hostname@$REALMNAME"
+	close $aclfile
+    }
+    file copy -force $tmppwd/adb.lock $tmppwd/slave-adb.lock
+    foreach suffix { {} .kadm5 .kadm5.lock .ok } {
+	file copy -force $tmppwd/kdc-db$suffix $tmppwd/slave-db$suffix
+    }
+}
+
+proc scan_kpropd_output {} {
+    global kpropd_spawn_id kpropd_pid
+
+    # See if kpropd logged anything.  It should exit after processing
+    # one kprop connection.
+    expect {
+	-i $kpropd_spawn_id
+	eof {
+	    wait -i $kpropd_spawn_id
+	    unset kpropd_spawn_id kpropd_pid
+	}
+	timeout { }
+	-re "Connection from \[a-zA-Z.-\]*" { exp_continue }
+	-re "krb5_recvauth" { exp_continue }
+	-re "authenticated client" { exp_continue }
+	-re "calling kdb5_util to load database\r\n" { exp_continue }
+	-re "Child PID is \[0-9\]*\r\n" { exp_continue }
+	-re "Rejected connection" {
+	    fail "kprop (rejected)"
+	}
+    }
+}
+
+proc doit { } {
+    global KLIST KDESTROY
+    global REALMNAME KEY
+    global KADMIN_LOCAL KTUTIL KDB5_UTIL KPROPLOG KPROP kpropd_spawn_id
+    global hostname tmppwd spawn_id timeout
+    global KRBIV supported_enctypes portbase mode ulog des3_krbtgt
+
+    # Delete any db, ulog files
+    delete_db
+
+    # Initialize the Kerberos database.  The argument tells
+    # setup_kerberos_db that it is being called from here.
+    if ![setup_kerberos_db 0] {
+	return
+    }
+    setup_slave
+    if ![start_kerberos_daemons 0] {
+	return
+    }
+    if ![add_random_key host/$hostname 0] {
+	fail "kprop (host key)"
+	return
+    }
+    if ![setup_srvtab 0] {
+	fail "kprop (srvtab)"
+	return
+    }
+
+    # Get kprop server up and running.
+    envstack_push
+    setup_kerberos_env slave
+    start_kpropd
+    envstack_pop
+
+    # Use kadmin to add a key.
+    if ![add_kerberos_key wakawaka 0] {
+	return
+    }
+
+    # Dump master database.
+    envstack_push
+    setup_kerberos_env kdc
+    spawn $KDB5_UTIL dump $tmppwd/slave_datatrans
+    expect eof
+    if ![check_exit_status "kprop (kdb5_util dump)"] { return }
+
+    # Just in case kpropd is a little slow in starting up...
+    sleep 1
+
+    # Try a propagation.
+    spawn $KPROP -f $tmppwd/slave_datatrans -P [expr 10 + $portbase] -s $tmppwd/srvtab $hostname
+    expect eof
+    set kprop_exit [check_exit_status "kprop (exit status)"]
+    # log output for debugging
+    scan_kpropd_output
+    if !$kprop_exit { return }
+
+    # Examine new database.
+    setup_kerberos_env slave
+    spawn $KADMIN_LOCAL -r $REALMNAME -q listprincs
+    expect {
+	wakawaka@ {
+	    expect eof
+	}
+	eof {
+	    fail "kprop (updated slave data)"
+	    return
+	}
+	timeout {
+	    fail "kprop (examining new db)"
+	    return
+	}
+    }
+    pass "kprop"
+}
+
+run_once kprop {
+    catch "unset kpropd_pid"
+    catch "unset kpropd_spawn_id"
+
+    # Set up the Kerberos files and environment.
+    if {![get_hostname] || ![setup_kerberos_files] || ![setup_kerberos_env]} {
+	return
+    }
+
+    set status [catch doit msg]
+
+    stop_kerberos_daemons
+
+    # if kpropd is running, kill it
+    if [info exists kpropd_pid] {
+	catch {
+	    exec kill $kpropd_pid
+	    expect -i $kpropd_spawn_id eof
+	    wait -i $kpropd_spawn_id
+	    unset kpropd_pid kpropd_spawn_id
+	}
+    }
+
+    delete_db
+
+    if { $status != 0 } {
+	send_error "ERROR: error in kprop.exp\n"
+	send_error "$msg\n"
+	exit 1
+    }
+}

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Export_Tickets</Title>
+</HEAD>
+<BODY>
+<H1>Export Tickets</H1>
+<p>
+You can export tickets into your Windows Logon session so they can be used with  Windows services.   This is useful when you want to you use a computer that is not part of a Kerberos <a href="JavaScript:popup.TextPopup(popupRealm, popfont,9,9,-1,-1)"> realm</a> (or Windows domain)  to access that realm (or domain).    </p>
+<p>
+<b>Note: </b>Exporting tickets will destroy any tickets you already have for your Windows Logon session. If you have unexpired tickets when you run the Export Ticket command, MIT Kerberos will warn you and give you the option to cancel the command.</p>
+<p>
+To export  tickets you have already obtained with the Get Ticket window into your Windows Logon session:</p>
+<ol>
+<li>Click the Export Ticket button in the Home tab.</li>
+<li>Click Okay to confirm that you want to export the tickets and destroy any you already have for  your Windows Logon session.
+</ol>
+
+
+<H2>Related help</H2>
+<ul id="helpul">
+<li><a href="HTML/Tickets.htm">About tickets</a></li>
+<li><a href="HTML/Destroy_Tickets.htm">Destroy Tickets</a></li>
+</ul>
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725,"
+popupRealm="Kerberos realms are a way of logically grouping resources and identities that use Kerberos. Your realm is the home of your Kerberos identity and your point of entry to the network resources controlled by Kerberos. Windows calls realms 'domains.' "
+</SCRIPT>
+
+<OBJECT id=popup type="application/x-oleobject"
+classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</OBJECT>
+</BODY>
+</HTML>

@@ -1,0 +1,51 @@
+krb5_auth_con_getkey_k -  Retrieve the session key from an auth context. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getkey_k(krb5_context context, krb5_auth_context auth_context, krb5_key * key)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **key** - Session key
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+This function sets *key* to the session key from *auth_context* . Use :c:func:`krb5_k_free_key()` to release *key* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

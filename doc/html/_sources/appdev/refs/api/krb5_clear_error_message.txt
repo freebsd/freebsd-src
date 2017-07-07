@@ -1,0 +1,40 @@
+krb5_clear_error_message -  Clear the extended error message in a context. 
+===========================================================================
+
+..
+
+.. c:function:: void krb5_clear_error_message(krb5_context ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function unsets the extended error message in a context, to ensure that it is not mistakenly applied to another occurrence of the same error code.
+
+
+
+
+
+
+..
+
+
+
+
+

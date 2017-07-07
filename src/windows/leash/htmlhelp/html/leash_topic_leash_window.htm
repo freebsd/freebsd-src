@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Leash Screen Display (Kerberometer and Dash Notification)</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="display">
+</object>
+<p></p>
+<h2><a name="id_help_meter"></a>Leash Screen Display (Kerberometer and Dash Notification)</h2>
+<p></p>
+<p class="MsoBodyTextIndent2" style="text-indent: 0in;">The window
+title contains
+the name “Leash” followed by the current date and time.<span style="">&nbsp;
+</span>Below the title are a menu bar; a tool bar
+(optional); a tree view; and a status bar (optional).</p>
+<p class="MsoNormal"><b><o:p><img style="width: 718px; height: 453px;"
+ alt="Leash Display Window" title="Leash Display Window"
+ src="..%5CImages%5CLeash_display_window.jpg"><br>
+</o:p></b></p>
+<p class="MsoNormal"></p>
+<p class="MsoNormal">The root of the Leash tree view shows the active
+user
+principal name (user@REALM).<span style="">&nbsp; </span>This entry
+appears with a "+" icon and a Kerberos icon to its left.<span style="">&nbsp;
+</span>Click on this plus icon of a line to expand
+the branch, displaying a "-" icon.<span style="">&nbsp;
+</span>To retract the branch click on the minus sign.</p>
+<p class="MsoNormal">Below user principal, the tree contains ticket
+categories.<span style="">&nbsp; </span>Below each ticket category
+are the current tickets belonging to the group.<span style="">&nbsp;
+</span>Each ticket entry contains the current ticket status, the time
+it was
+issued, the time it will expire, and the service principal and flags.<span
+ style="">&nbsp; </span>For Kerberos 5 tickets, encryption types and
+network address information are listed below each ticket.</p>
+<p class="MsoNormal">The tree updates once per minute.<span style="">&nbsp;
+</span>If you need an immediate update of your
+ticket status, you can either click in the window or the press the
+Update
+Display button on the toolbar.</p>
+<p class="MsoNormal"><o:p></o:p>On the right of the status bar is a
+display of the remaining
+time of your tickets (both Kerberos 4 and Kerberos 5, as some programs
+obtain
+only Kerberos 4 tickets, these are not necessarily the same) in hours,
+minutes,
+and seconds.<span style="">&nbsp; </span>This used to be known as
+the <b>Kerberometer</b>.<span style="">&nbsp; </span></p>
+<p class="MsoNormal">Each ticket is described and represented by an
+icon of a
+little ticket. The color of the ticket changes based on its viability: </p>
+<p class="MsoNormal" style="margin-left: 1.5in;">green = normal</p>
+<p class="MsoNormal" style="margin-left: 1.5in;">yellow = tickets are
+within 15
+minutes of expiration</p>
+<p class="MsoNormal" style="margin-left: 1.5in;">red = tickets have
+expired, or you
+have no tickets</p>
+<p class="MsoNormal" style="margin-left: 1.5in;">gray = these tickets
+are not available
+to you</p>
+<p class="MsoNormal"><o:p></o:p><span
+ style="font-family: &quot;Times New Roman&quot;;"></span>At 15, 10, and 5
+minutes before your Kerberos tickets expire, a screen pops up to warn
+that your Kerberos tickets will expire soon and to give you the
+opportunity to renew them.&nbsp; This used to be known as Dash-style
+notification.</p>
+<p class="MsoNormal">Andrew File System (AFS) tokens information is
+displayed
+only on machines that have either OpenAFS for Windows <a
+ href="http://www.openafs.org/">http://www.openafs.org</a> or Transarc
+AFS 3.6
+for Windows.<o:p></o:p></p>
+<p class="MsoNormal"></p>
+</body>
+</html>

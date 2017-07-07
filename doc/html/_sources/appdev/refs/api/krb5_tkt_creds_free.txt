@@ -1,0 +1,46 @@
+krb5_tkt_creds_free -  Free a TGS request context. 
+===================================================
+
+..
+
+.. c:function:: void krb5_tkt_creds_free(krb5_context context, krb5_tkt_creds_context ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - TGS request context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

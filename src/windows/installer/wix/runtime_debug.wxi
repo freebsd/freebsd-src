@@ -1,0 +1,14 @@
+﻿<?xml version="1.0"?>
+<Include>
+  <?ifdef Debug?>
+    <?ifdef CL1310 ?>
+        <ComponentRef Id="cmf_runtime_debug1310" />
+    <?endif?>
+    <?ifdef CL1300 ?>
+        <ComponentRef Id="cmf_runtime_debug1300" />
+    <?endif?>
+    <?ifdef CL1200 ?>
+        <ComponentRef Id="cmf_runtime_debug1200" />
+    <?endif?>
+  <?endif?>
+</Include>

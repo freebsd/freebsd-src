@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-RECVAUTH-BADAUTHVERS-data:
+
+KRB5_RECVAUTH_BADAUTHVERS
+=========================
+
+..
+.. data:: KRB5_RECVAUTH_BADAUTHVERS
+..
+
+
+
+
+================================ ======================
+``KRB5_RECVAUTH_BADAUTHVERS``       ``0x0002``
+================================ ======================

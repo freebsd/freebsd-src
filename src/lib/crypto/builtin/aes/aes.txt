@@ -1,0 +1,70 @@
+
+An AES (Rijndael) Implementation in C/C++ (as specified in FIPS-197)
+--------------------------------------------------------------------
+
+The source code files are as follows:
+
+1. aes.h:       the header file required to use AES in C
+2. aescpp.h     the header file required to use AES in C++
+3. aescrypt.c   the main C source code file for encryption and decryption
+4. aeskey.c     the main C source code file for the key schedule
+5. aestab.c     the main file for the AES tables
+6. aesopt.h     the file for common code and for setting build options
+7. aescrypt.asm a faster alternative to 3 above in assembler (using NASM)
+8. uitypes.h    a file for defining fixed length unsigned integer types
+9. aescrypp.c   an alternative to 3 for all Rijndael block and key sizes 
+10.aeskeypp.c   an alternative to 4 for all Rijndael block and key sizes 
+11.aesxam.c     an example of AES use
+
+Source files 9 and 10 are much slower than 4 and 5 for normal use and
+should not be used unless support for 20 and 28 byte blocks and keys
+is necessary.  Files 4 and 5 provide support for block and key sizes
+of 16, 24 and 32 bytes (fixed or variable) but the assemler code in 
+file 7 only supports the 16 byte AES block length. It does, however,
+offer the three key sizes when used with file 4. The use of files 4
+and 5 (or 9 and 10) with variable block size should be avoided since 
+the code is much faster when the block size is fixed.
+
+The VC++ AES Development Project
+--------------------------------
+
+The VC++ SOlution contains the following sub-projects
+
+1. aes_asm      this project tests the assembler code implementation
+2. aes_dll      this project builds the DLL version
+3. aes_gav      this project re-creates the test vector files and
+                optionally checks them against a reference set
+4. aes_rav      this project checks the values produced by the code
+                against the values in the test vector files
+5. aes_tmr      this project measures the speed of the code
+6. aes_tst      this project is set up to test the extended version
+                of Rijndael with block and key sizes of 16, 20, 24,
+                28 and 32 bytes
+7. aes_xam      this project builds the example of AES use in a 
+                simple file encryption program
+                
+Note that the paths for the various directories have to be set up in 
+aestst.h
+
+The AES and Rijndael Test Vector Files
+--------------------------------------
+
+These files fall in the following groups (where <nn> is a two digit
+number):
+
+1. ecbvk<nn>.txt  ECB vectors with variable key
+2. ecbvt<nn>.txt  ECB vectors with variable text
+3. ecbnk<nn>.txt  new ECB vectors with variable key 
+4. ecbnt<nn>.txt  new ECB vectors with variable text
+5. ecbme<nn>.txt  ECB monte carlo encryption test vectors
+6. ecbmd<nn>.txt  ECB monte carlo decryption test vectors
+7. cbcme<nn>.txt  CBC monte carlo encryption test vectors
+8. cbcmd<nn>.txt  CBC monte carlo decryption test vectors
+
+The first digit of the numeric suffix on the filename gives the 
+block size in 32bit units and the second numeric digit gives the
+key size.  For example, the file ecbvk44.txt provides the test 
+vectors for ECB encryption with a 128 bit block size and a 128 
+bit key size.
+
+   Brian Gladman <brg@gladman.uk.net>

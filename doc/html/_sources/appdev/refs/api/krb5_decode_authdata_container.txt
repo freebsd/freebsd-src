@@ -1,0 +1,52 @@
+krb5_decode_authdata_container -  Unwrap authorization data. 
+=============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_decode_authdata_container(krb5_context context, krb5_authdatatype type, const krb5_authdata * container, krb5_authdata *** authdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **type** - :data:`KRB5_AUTHDATA` type of *container*
+
+	          **[in]** **container** - Authorization data to be decoded
+
+	          **[out]** **authdata** - List of decoded authorization data
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_encode_authdata_container()` 
+ 
+
+
+
+

@@ -1,0 +1,115 @@
+mydir=tests$(S)gssapi
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DUSE_AUTOCONF_H
+
+# For t_prf.c
+LOCALINCLUDES = -I$(srcdir)/../../lib/gssapi/mechglue \
+	-I$(srcdir)/../../lib/gssapi/krb5 \
+	-I$(srcdir)/../../lib/gssapi/generic -I../../lib/gssapi/krb5 \
+	-I../../lib/gssapi/generic
+
+SRCS=	$(srcdir)/ccinit.c $(srcdir)/ccrefresh.c $(srcdir)/common.c \
+	$(srcdir)/t_accname.c $(srcdir)/t_ccselect.c $(srcdir)/t_ciflags.c \
+	$(srcdir)/t_credstore.c $(srcdir)/t_enctypes.c $(srcdir)/t_err.c \
+	$(srcdir)/t_export_cred.c $(srcdir)/t_export_name.c \
+	$(srcdir)/t_gssexts.c $(srcdir)/t_imp_cred.c $(srcdir)/t_imp_name.c \
+	$(srcdir)/t_invalid.c $(srcdir)/t_inq_cred.c $(srcdir)/t_inq_ctx.c \
+	$(srcdir)/t_inq_mechs_name.c $(srcdir)/t_iov.c \
+	$(srcdir)/t_namingexts.c $(srcdir)/t_oid.c $(srcdir)/t_pcontok.c \
+	$(srcdir)/t_prf.c $(srcdir)/t_s4u.c $(srcdir)/t_s4u2proxy_krb5.c \
+	$(srcdir)/t_saslname.c $(srcdir)/t_spnego.c $(srcdir)/t_srcattrs.c
+
+OBJS=	ccinit.o ccrefresh.o common.o t_accname.o t_ccselect.o t_ciflags.o \
+	t_credstore.o t_enctypes.o t_err.o t_export_cred.o t_export_name.o \
+	t_gssexts.o t_imp_cred.o t_imp_name.o t_invalid.o t_inq_cred.o \
+	t_inq_ctx.o t_inq_mechs_name.o t_iov.o t_namingexts.o t_oid.o \
+	t_pcontok.o t_prf.o t_s4u.o t_s4u2proxy_krb5.o t_saslname.o \
+	t_spnego.o t_srcattrs.o
+
+COMMON_DEPS= common.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+COMMON_LIBS= common.o $(GSS_LIBS) $(KRB5_BASE_LIBS)
+
+all: ccinit ccrefresh t_accname t_ccselect t_ciflags t_credstore t_enctypes \
+	t_err t_export_cred t_export_name t_gssexts t_imp_cred t_imp_name \
+	t_invalid t_inq_cred t_inq_ctx t_inq_mechs_name t_iov t_namingexts \
+	t_oid t_pcontok t_prf t_s4u t_s4u2proxy_krb5 t_saslname t_spnego \
+	t_srcattrs
+
+check-unix: t_oid
+	$(RUN_TEST) ./t_invalid
+	$(RUN_TEST) ./t_oid
+	$(RUN_TEST) ./t_prf
+
+check-pytests: ccinit ccrefresh t_accname t_ccselect t_ciflags t_credstore \
+	t_enctypes t_err t_export_cred t_export_name t_imp_cred t_inq_cred \
+	t_inq_ctx t_inq_mechs_name t_iov t_pcontok t_s4u t_s4u2proxy_krb5 \
+	t_spnego t_srcattrs
+	$(RUNPYTEST) $(srcdir)/t_gssapi.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_ccselect.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_client_keytab.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_enctypes.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_export_cred.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_s4u.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_authind.py $(PYTESTFLAGS)
+
+ccinit: ccinit.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o ccinit ccinit.o $(KRB5_BASE_LIBS)
+ccrefresh: ccrefresh.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o ccrefresh ccrefresh.o $(KRB5_BASE_LIBS)
+t_accname: t_accname.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_accname.o $(COMMON_LIBS)
+t_ccselect: t_ccselect.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_ccselect.o $(COMMON_LIBS)
+t_ciflags: t_ciflags.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_ciflags.o $(COMMON_LIBS)
+t_credstore: t_credstore.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_credstore.o $(COMMON_LIBS)
+t_enctypes: t_enctypes.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_enctypes.o $(COMMON_LIBS)
+t_err: t_err.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_err.o $(COMMON_LIBS)
+t_export_cred: t_export_cred.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_export_cred.o $(COMMON_LIBS)
+t_export_name: t_export_name.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_export_name.o $(COMMON_LIBS)
+t_gssexts: t_gssexts.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_gssexts.o $(COMMON_LIBS)
+t_imp_cred: t_imp_cred.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_imp_cred.o $(COMMON_LIBS)
+t_imp_name: t_imp_name.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_imp_name.o $(COMMON_LIBS)
+t_invalid: t_invalid.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_invalid.o $(COMMON_LIBS)
+t_inq_cred: t_inq_cred.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_inq_cred.o $(COMMON_LIBS)
+t_inq_ctx: t_inq_ctx.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_inq_ctx.o $(COMMON_LIBS)
+t_inq_mechs_name: t_inq_mechs_name.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_inq_mechs_name.o $(COMMON_LIBS)
+t_iov: t_iov.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_iov.o $(COMMON_LIBS)
+t_namingexts: t_namingexts.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_namingexts.o $(COMMON_LIBS)
+t_pcontok: t_pcontok.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_pcontok.o $(COMMON_LIBS)
+t_oid: t_oid.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_oid.o $(COMMON_LIBS)
+t_prf: t_prf.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_prf.o $(COMMON_LIBS)
+t_s4u: t_s4u.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_s4u.o $(COMMON_LIBS)
+t_s4u2proxy_krb5: t_s4u2proxy_krb5.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_s4u2proxy_krb5.o $(COMMON_LIBS)
+t_saslname: t_saslname.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_saslname.o $(COMMON_LIBS)
+t_spnego: t_spnego.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_spnego.o $(COMMON_LIBS)
+t_srcattrs: t_srcattrs.o $(COMMON_DEPS)
+	$(CC_LINK) -o $@ t_srcattrs.o $(COMMON_LIBS)
+
+clean:
+	$(RM) ccinit ccrefresh t_accname t_ccselect t_ciflags t_credstore
+	$(RM) t_enctypes t_err t_export_cred t_export_name t_gssexts t_imp_cred
+	$(RM) t_imp_name t_invalid t_inq_cred t_inq_ctx t_inq_mechs_name t_iov
+	$(RM) t_namingexts t_oid t_pcontok t_prf t_s4u t_s4u2proxy_krb5
+	$(RM) t_saslname t_spnego t_srcattrs

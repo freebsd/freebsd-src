@@ -1,0 +1,70 @@
+krb5_k_decrypt_iov -  Decrypt data in place supporting AEAD (operates on opaque key). 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_decrypt_iov(krb5_context context, krb5_key key, krb5_keyusage usage, const krb5_data * cipher_state, krb5_crypto_iov * data, size_t num_data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Encryption key
+
+	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+
+	          **[in]** **cipher_state** - Cipher state; specify NULL if not needed
+
+	          **[inout]** **data** - IOV array. Modified in-place.
+
+	          **[in]** **num_data** - Size of *data*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function decrypts the data block *data* and stores the output in-place. The actual decryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the decryption operation, and is updated with the state to be passed as input to the next operation. The caller must allocate the right number of krb5_crypto_iov structures before calling into this API.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_k_encrypt_iov()` 
+ 
+
+
+
+
+
+.. note::
+
+	 On return from a :c:func:`krb5_c_decrypt_iov()` call, the *data->length* in the iov structure are adjusted to reflect actual lengths of the ciphertext used. For example, if the padding length is too large, the length will be reduced. Lengths are never increased.
+
+	 This function is similar to :c:func:`krb5_c_decrypt_iov()` , but operates on opaque key *key* .
+ 
+
+
+

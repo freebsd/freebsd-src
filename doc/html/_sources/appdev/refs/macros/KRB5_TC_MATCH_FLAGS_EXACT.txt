@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-FLAGS-EXACT-data:
+
+KRB5_TC_MATCH_FLAGS_EXACT
+=========================
+
+..
+.. data:: KRB5_TC_MATCH_FLAGS_EXACT
+..
+
+All the flags must match exactly.
+
+
+
+================================ ======================
+``KRB5_TC_MATCH_FLAGS_EXACT``       ``0x00000010``
+================================ ======================

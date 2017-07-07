@@ -1,0 +1,74 @@
+mydir=lib$(S)krb5
+BUILDTOP=$(REL)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/ccache -I$(srcdir)/keytab -I$(srcdir)/rcache -I$(srcdir)/os -I$(srcdir)/unicode
+SUBDIRS= error_tables asn.1 ccache keytab krb os rcache unicode
+WINSUBDIRS= $(SUBDIRS) posix
+DEFINES=-DLOCALEDIR=\"$(KRB5_LOCALEDIR)\"
+
+##DOSBUILDTOP = ..\..
+##DOSLIBNAME=$(OUTPRE)krb5.lib
+##DOSOBJFILEDEP=$(OUTPRE)asn1.lst $(OUTPRE)ccache.lst $(OUTPRE)err_tbls.lst $(OUTPRE)keytab.lst $(OUTPRE)krb.lst $(OUTPRE)os.lst $(OUTPRE)posix.lst $(OUTPRE)rcache.lst $(OUTPRE)krb5.lst $(OUTPRE)unicode.lst
+##DOSOBJFILELIST=@$(OUTPRE)asn1.lst @$(OUTPRE)ccache.lst @$(OUTPRE)err_tbls.lst @$(OUTPRE)keytab.lst @$(OUTPRE)krb.lst @$(OUTPRE)os.lst @$(OUTPRE)posix.lst @$(OUTPRE)rcache.lst @$(OUTPRE)krb5.lst @$(OUTPRE)unicode.lst
+##DOSOBJFILE=$(OUTPRE)krb5.lst
+##DOSLIBOBJS=$(OBJS)
+##DOSLOCALINCLUDES=-Iccache\ccapi -I..\..\windows\lib -Iccache -Ikeytab -Ircache -Ios
+
+TST=if test -n "`cat DONE`" ; then
+
+STLIBOBJS=krb5_libinit.o
+
+LIBBASE=krb5
+LIBMAJOR=3
+LIBMINOR=3
+LIBINITFUNC=profile_library_initializer krb5int_lib_init
+LIBFINIFUNC=profile_library_finalizer krb5int_lib_fini
+
+STOBJLISTS= \
+	OBJS.ST \
+	error_tables/OBJS.ST \
+	asn.1/OBJS.ST \
+	ccache/OBJS.ST \
+	keytab/OBJS.ST \
+	krb/OBJS.ST \
+	rcache/OBJS.ST \
+	unicode/OBJS.ST \
+	os/OBJS.ST \
+	$(BUILDTOP)/util/profile/OBJS.ST
+
+SUBDIROBJLISTS= \
+	error_tables/OBJS.ST \
+	asn.1/OBJS.ST \
+	ccache/OBJS.ST \
+	keytab/OBJS.ST \
+	krb/OBJS.ST \
+	rcache/OBJS.ST \
+	unicode/OBJS.ST \
+	os/OBJS.ST \
+	$(BUILDTOP)/util/profile/OBJS.ST
+
+OBJS=\
+	$(OUTPRE)krb5_libinit.$(OBJEXT)
+
+SRCS=\
+	$(srcdir)/krb5_libinit.c
+
+RELDIR=krb5
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS=-lk5crypto -lcom_err $(SUPPORT_LIB) @GEN_LIB@ $(LIBS)
+
+all-unix: all-liblinks
+
+all-windows:
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean-windows::
+	$(RM) $(OUTPRE)krb5.lib krb5.bak
+
+install-unix: install-libs
+
+@lib_frag@
+@libobj_frag@
+

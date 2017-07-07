@@ -1,0 +1,48 @@
+krb5_cccol_have_content -  Check if the credential cache collection contains any credentials. 
+==============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_have_content(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+:retval:
+         -   0   Credentials are available in the collection
+         -   KRB5_CC_NOTFOUND   The collection contains no credentials
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

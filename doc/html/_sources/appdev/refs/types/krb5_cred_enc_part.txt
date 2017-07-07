@@ -1,0 +1,60 @@
+.. highlightlang:: c
+
+.. _krb5-cred-enc-part-struct:
+
+krb5_cred_enc_part
+==================
+
+..
+.. c:type:: krb5_cred_enc_part
+..
+
+Cleartext credentials information.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_cred_enc_part  krb5_cred_enc_part
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_cred_enc_part.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_int32	krb5_cred_enc_part.nonce
+
+                                             Nonce (optional)
+                                             
+
+.. c:member:: krb5_timestamp	krb5_cred_enc_part.timestamp
+
+                                             Generation time, seconds portion.
+                                             
+
+.. c:member:: krb5_int32	krb5_cred_enc_part.usec
+
+                                             Generation time, microseconds portion.
+                                             
+
+.. c:member:: krb5_address  *	krb5_cred_enc_part.s_address
+
+                                             Sender address (optional)
+                                             
+
+.. c:member:: krb5_address  *	krb5_cred_enc_part.r_address
+
+                                             Recipient address (optional)
+                                             
+
+.. c:member:: krb5_cred_info  **	krb5_cred_enc_part.ticket_info
+
+                                             
+                                             
+

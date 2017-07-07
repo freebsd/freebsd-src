@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-TGS-REP-ENCPART-SESSKEY-data:
+
+KRB5_KEYUSAGE_TGS_REP_ENCPART_SESSKEY
+=====================================
+
+..
+.. data:: KRB5_KEYUSAGE_TGS_REP_ENCPART_SESSKEY
+..
+
+
+
+
+============================================ ======================
+``KRB5_KEYUSAGE_TGS_REP_ENCPART_SESSKEY``       ``8``
+============================================ ======================

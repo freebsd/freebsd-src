@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-trace-callback-struct:
+
+krb5_trace_callback
+===================
+
+..
+.. c:type:: krb5_trace_callback
+..
+
+
+
+
+Declaration
+------------
+
+typedef void( \* krb5_trace_callback)(krb5_context context, const krb5_trace_info \*info, void \*cb_data)
+
+

@@ -1,0 +1,121 @@
+#
+# $Id: README,v 1.1 1999/09/21 15:45:17 mleisher Exp $
+#
+# Copyright 1997, 1998, 1999 Computing Research Labs,
+# New Mexico State University
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE COMPUTING RESEARCH LAB OR NEW MEXICO STATE UNIVERSITY BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+# OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+
+                       Unicode and Boyer-Moore Searching
+                                 Version 0.2
+
+UTBM (Unicode Tuned Boyer-Moore) is a simple package that provides tuned
+Boyer-Moore searches on Unicode UCS2 text (handles high and low surrogates).
+
+---------------------------------------------------------------------------
+
+Assumptions:
+
+  o  Search pattern and text already normalized in some fasion.
+
+  o  Upper, lower, and title case conversions are one-to-one.
+
+  o  For conversions between upper, lower, and title case, UCS2 characters
+     always convert to other UCS2 characters, and UTF-16 characters always
+     convert to other UTF-16 characters.
+
+Flags:
+
+  UTBM provides three processing flags:
+
+  o  UTBM_CASEFOLD          - search in a case-insensitive manner.
+
+  o  UTBM_IGNORE_NONSPACING - ignore non-spacing characters in the pattern and
+                              the text.
+
+  o  UTBM_SPACE_COMPRESS    - view as a *single space*, sequential groups of
+                              U+2028, U+2029, '\n', '\r', '\t', and any
+                              character identified as a space by the Unicode
+                              support on the platform.
+
+                              This flag also causes all characters identified
+                              as control by the Unicode support on the
+                              platform to be ignored (except for '\n', '\r',
+                              and '\t').
+
+---------------------------------------------------------------------------
+
+Before using UTBM
+-----------------
+Before UTBM is used, some functions need to be created.  The "utbmstub.c" file
+contains stubs that need to be rewritten so they work with the Unicode support
+on the platform on which this package is being used.
+
+Using UTBM
+----------
+
+Sample pseudo-code fragment.
+
+  utbm_pattern_t pat;
+  ucs2_t *pattern, *text;
+  unsigned long patternlen, textlen;
+  unsigned long flags, match_start, match_end;
+
+  /*
+   * Allocate the dynamic storage needed for a search pattern.
+   */
+  pat = utbm_create_pattern();
+
+  /*
+   * Set the search flags desired.
+   */
+  flags = UTBM_CASEFOLD|UTBM_IGNORE_NONSPACING;
+
+  /*
+   * Compile the search pattern.
+   */
+  utbm_compile(pattern, patternlen, flags, pat);
+
+  /*
+   * Find the first occurance of the search pattern in the text.
+   */
+  if (utbm_exec(pat, text, textlen, &match_start, &match_end))
+    printf("MATCH: %ld %ld\n", match_start, match_end);
+
+  /*
+   * Free the dynamic storage used for the search pattern.
+   */
+  ure_free_pattern(pat);
+
+---------------------------------------------------------------------------
+
+Mark Leisher <mleisher@crl.nmsu.edu>
+2 May 1997
+
+===========================================================================
+
+CHANGES
+-------
+
+Version: 0.2
+Date   : 21 September 1999
+==========================
+  1. Added copyright stuff and put in CVS.
+

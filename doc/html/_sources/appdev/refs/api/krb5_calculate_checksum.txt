@@ -1,0 +1,54 @@
+krb5_calculate_checksum
+=======================
+
+..
+
+.. c:function:: krb5_error_code krb5_calculate_checksum(krb5_context context, krb5_cksumtype ctype, krb5_const_pointer in, size_t in_length, krb5_const_pointer seed, size_t seed_length, krb5_checksum * outcksum)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **ctype**
+
+	          **in**
+
+	          **in_length**
+
+	          **seed**
+
+	          **seed_length**
+
+	          **outcksum**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED See krb5_c_make_checksum() 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _TKT-FLG-POSTDATED-data:
+
+TKT_FLG_POSTDATED
+=================
+
+..
+.. data:: TKT_FLG_POSTDATED
+..
+
+
+
+
+======================== ======================
+``TKT_FLG_POSTDATED``       ``0x02000000``
+======================== ======================

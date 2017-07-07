@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-TGS-REQ-AD-SESSKEY-data:
+
+KRB5_KEYUSAGE_TGS_REQ_AD_SESSKEY
+================================
+
+..
+.. data:: KRB5_KEYUSAGE_TGS_REQ_AD_SESSKEY
+..
+
+
+
+
+======================================= ======================
+``KRB5_KEYUSAGE_TGS_REQ_AD_SESSKEY``       ``4``
+======================================= ======================

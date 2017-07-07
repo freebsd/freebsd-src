@@ -1,0 +1,21 @@
+#include "patchlevel.h"
+
+r_major = KRB5_MAJOR_RELEASE
+r_minor = KRB5_MINOR_RELEASE
+r_patch = KRB5_PATCHLEVEL
+
+#ifdef KRB5_RELTAIL
+r_tail = KRB5_RELTAIL
+#else
+r_tail = None
+#endif
+#ifdef KRB5_RELDATE
+r_date = KRB5_RELDATE
+#else
+r_date = None
+#endif
+#ifdef KRB5_RELTAG
+r_tag = KRB5_RELTAG
+#else
+r_date = None
+#endif

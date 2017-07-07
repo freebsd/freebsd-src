@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Leash Properties Command</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="properties, Leash"> <param name="Keyword"
+ value="key, Ctrl+L">
+</object>
+<h3><a name="hid_leash_properties_command"></a><b>Leash Properties… Command, Ctrl+L</b></h3>
+<p>
+</p>
+<p class="MsoNormal">The Leash Properties dialog, located on the
+Options menu,
+allows you to configure operational properties specific to the Leash
+application which are not accessible directly via the Options menu.</p>
+<p><br>
+<img style="width: 578px; height: 377px;" alt="Leash Properties"
+ title="Leash Properties" src="..%5CImages%5CLeash_properties_leash.jpg"></p>
+<p class="MsoNormal">Here you can set a time server from which Leash
+will obtain
+the correct time.<span style="">&nbsp; </span>Leash needs the
+correct time because of the time dependencies in Kerberos tickets.<span
+ style="">&nbsp; </span>When you specify a time server, Leash tries
+to get the time from that server when you next run the Synchronize Time
+command.<span style="">&nbsp; </span>The default value for the time
+server is "time".<span style="">&nbsp; </span>If access to
+a time server were to fail, Leash would notify you, and revert to the
+server
+"time".<span style="">&nbsp; </span>Whichever server
+succeeds, Leash would tell you where it found the time.<span style="">&nbsp;
+</span>See the Synchronize Time command for more
+information.</p>
+<p class="MsoNormal">
+</p>
+<p class="MsoNormal">The <b style="">Automatic MSLSA
+Ticket Importation</b> radio buttons allow you to configure how Leash
+interacts
+with the Microsoft Kerberos Authentication Provider.<span style="">&nbsp;
+</span>Leash will automatically import Kerberos
+Tickets from the Microsoft LSA at startup depending upon the selected
+option
+and whether or not the Kerberos Authentication Provider was used for
+Windows
+Logon authorization.<span style="">&nbsp; </span><b style="">Never</b>
+means do not import tickets from
+the MSLSA; <b style="">Always</b> means do import
+tickets from the MSLSA; and <b style="">When MSLSA
+Principal matches Default Realm</b> means import tickets from the MSLSA
+only if
+the Kerberos principal belongs to the Kerberos Realm specified within
+the <u style="">Kerberos Properties Dialog.</u><o:p></o:p></p>
+<p class="MsoNormal"><o:p></o:p></p>
+<p class="MsoNormal">When <b>Request Kerberos 4 credentials</b> is
+checked, Leash
+will attempt to retrieve Kerberos 4 credentials when ticket
+initialization,
+renewal, or importation is performed.<span style="">&nbsp;
+</span>Leash will attempt a Kerberos 5 to Kerberos 4 conversion and if
+that
+fails an initial Kerberos 4 ticket request will be generated.<span
+ style="">&nbsp; </span>Kerberos realms are increasingly configured
+to support on Kerberos 5.<span style="">&nbsp; </span>If the realms
+you use do not support Kerberos 4 it is suggested that this button be
+unchecked.</p>
+<p class="MsoNormal">The <b>Restore Leash Defaults</b> button is used
+to restore
+user configurable Leash settings to the defaults as configured either
+by the
+local machine system administrator or by the Kerberos for Windows
+distribution.<br>
+<br>
+</p>
+</body>
+</html>

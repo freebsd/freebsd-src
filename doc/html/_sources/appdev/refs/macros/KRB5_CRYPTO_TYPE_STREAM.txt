@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-CRYPTO-TYPE-STREAM-data:
+
+KRB5_CRYPTO_TYPE_STREAM
+=======================
+
+..
+.. data:: KRB5_CRYPTO_TYPE_STREAM
+..
+
+[in] entire message without decomposing the structure into header, data and trailer buffers
+
+
+
+============================== ======================
+``KRB5_CRYPTO_TYPE_STREAM``       ``7``
+============================== ======================

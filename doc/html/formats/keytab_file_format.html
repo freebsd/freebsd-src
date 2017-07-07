@@ -1,0 +1,187 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Keytab file format &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="Protocols and file formats" href="index.html" />
+    <link rel="next" title="KDC cookie format" href="cookie.html" />
+    <link rel="prev" title="Credential cache file format" href="ccache_file_format.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="ccache_file_format.html" title="Credential cache file format"
+            accesskey="P">previous</a> |
+        <a href="cookie.html" title="KDC cookie format"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Keytab file format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="keytab-file-format">
+<span id="id1"></span><h1>Keytab file format<a class="headerlink" href="#keytab-file-format" title="Permalink to this headline">¶</a></h1>
+<p>There are two versions of the file format used by the FILE keytab
+type.  The first byte of the file always has the value 5, and the
+value of the second byte contains the version number (1 or 2).
+Version 1 of the file format uses native byte order for integer
+representations.  Version 2 always uses big-endian byte order.</p>
+<p>After the two-byte version indicator, the file contains a sequence of
+signed 32-bit record lengths followed by key records or holes.  A
+positive record length indicates a valid key entry whose size is equal
+to or less than the record length.  A negative length indicates a
+zero-filled hole whose size is the inverse of the length.  A length of
+0 indicates the end of the file.</p>
+<div class="section" id="key-entry-format">
+<h2>Key entry format<a class="headerlink" href="#key-entry-format" title="Permalink to this headline">¶</a></h2>
+<p>A key entry may be smaller in size than the record length which
+precedes it, because it may have replaced a hole which is larger than
+the key entry.  Key entries use the following informal grammar:</p>
+<div class="highlight-python"><div class="highlight"><pre>entry ::=
+    principal
+    timestamp (32 bits)
+    key version (8 bits)
+    enctype (16 bits)
+    key length (16 bits)
+    key contents
+    key version (32 bits) [in release 1.14 and later]
+
+principal ::=
+    count of components (16 bits) [includes realm in version 1]
+    realm (data)
+    component1 (data)
+    component2 (data)
+    ...
+    name type (32 bits) [omitted in version 1]
+
+data ::=
+    length (16 bits)
+    value (length bytes)
+</pre></div>
+</div>
+<p>The 32-bit key version overrides the 8-bit key version.  To determine
+if it is present, the implementation must check that at least 4 bytes
+remain in the record after the other fields are read, and that the
+value of the 32-bit integer contained in those bytes is non-zero.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Keytab file format</a><ul>
+<li><a class="reference internal" href="#key-entry-format">Key entry format</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Keytab file format</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cookie.html">KDC cookie format</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="ccache_file_format.html" title="Credential cache file format"
+            >previous</a> |
+        <a href="cookie.html" title="KDC cookie format"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Keytab file format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

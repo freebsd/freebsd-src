@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-cccol-cursor-struct:
+
+krb5_cccol_cursor
+=================
+
+..
+.. c:type:: krb5_cccol_cursor
+..
+
+Cursor for iterating over all ccaches.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_cccol_cursor\* krb5_cccol_cursor
+
+

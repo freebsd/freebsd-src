@@ -1,0 +1,26 @@
+mydir=lib$(S)krb5$(S)ccache$(S)ccapi
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = $(WIN_INCLUDES)
+DEFINES= -DUSE_CCAPI -DUSE_CCAPI_V3
+
+##DOS##WIN_INCLUDES = -I$(top_srcdir)\windows\lib
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = ccache\file
+##DOS##OBJFILE = $(OUTPRE)file.lst
+
+STLIBOBJS 	= \
+	stdcc.o \
+	stdcc_util.o \
+	winccld.o
+
+OBJS 	= $(OUTPRE)stdcc.$(OBJEXT) $(OUTPRE)stdcc_util.$(OBJEXT) $(OUTPRE)winccld.$(OBJEXT)
+
+SRCS 	= $(srcdir)/stdcc.c $(srcdir)/stdcc_util.c $(srcdir)/winccld.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+@libobj_frag@

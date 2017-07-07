@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-AUTHDATA-data:
+
+KRB5_TC_MATCH_AUTHDATA
+======================
+
+..
+.. data:: KRB5_TC_MATCH_AUTHDATA
+..
+
+The authorization data must match.
+
+
+
+============================= ======================
+``KRB5_TC_MATCH_AUTHDATA``       ``0x00000020``
+============================= ======================

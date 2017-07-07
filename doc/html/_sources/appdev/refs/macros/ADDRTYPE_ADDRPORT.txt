@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ADDRTYPE-ADDRPORT-data:
+
+ADDRTYPE_ADDRPORT
+=================
+
+..
+.. data:: ADDRTYPE_ADDRPORT
+..
+
+
+
+
+======================== ======================
+``ADDRTYPE_ADDRPORT``       ``0x0100``
+======================== ======================

@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-PA-SAM-CHALLENGE-TRACKID-data:
+
+KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID
+======================================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID
+..
+
+Note conflict with :c:data:`KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST` .
+
+
+
+============================================= ======================
+``KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID``       ``26``
+============================================= ======================

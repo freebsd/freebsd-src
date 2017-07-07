@@ -1,0 +1,44 @@
+krb5_encrypt_size
+=================
+
+..
+
+.. c:function:: size_t krb5_encrypt_size(size_t length, krb5_enctype crypto)
+
+..
+
+
+:param:
+
+	          **length**
+
+	          **crypto**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

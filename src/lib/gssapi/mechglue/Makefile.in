@@ -1,0 +1,224 @@
+mydir=lib$(S)gssapi$(S)mechglue
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I. -I$(srcdir) -I$(srcdir)/.. -I../generic -I$(srcdir)/../generic -I../krb5 -I$(srcdir)/../krb5 -I../spnego -I$(srcdir)/../spnego
+DEFINES=-D_GSS_STATIC_LINK=1
+
+##DOSBUILDTOP = ..\..\..
+##DOS##PREFIXDIR=mechglue
+##DOS##OBJFILE=..\$(OUTPRE)mechglue.lst
+
+##DOS##DLL_EXP_TYPE=GSS
+
+SRCS = \
+	$(srcdir)/g_accept_sec_context.c \
+	$(srcdir)/g_acquire_cred.c \
+	$(srcdir)/g_acquire_cred_with_pw.c \
+	$(srcdir)/g_acquire_cred_imp_name.c \
+	$(srcdir)/g_authorize_localname.c \
+	$(srcdir)/g_buffer_set.c \
+	$(srcdir)/g_canon_name.c \
+	$(srcdir)/g_compare_name.c \
+	$(srcdir)/g_complete_auth_token.c \
+	$(srcdir)/g_context_time.c \
+	$(srcdir)/g_decapsulate_token.c \
+	$(srcdir)/g_delete_sec_context.c \
+	$(srcdir)/g_del_name_attr.c \
+	$(srcdir)/g_dsp_name.c \
+	$(srcdir)/g_dsp_name_ext.c \
+	$(srcdir)/g_dsp_status.c \
+	$(srcdir)/g_dup_name.c \
+	$(srcdir)/g_encapsulate_token.c \
+	$(srcdir)/g_exp_sec_context.c \
+	$(srcdir)/g_export_cred.c \
+	$(srcdir)/g_export_name.c \
+	$(srcdir)/g_export_name_comp.c \
+	$(srcdir)/g_get_name_attr.c \
+	$(srcdir)/g_glue.c \
+	$(srcdir)/g_imp_cred.c \
+	$(srcdir)/g_imp_name.c \
+	$(srcdir)/g_imp_sec_context.c \
+	$(srcdir)/g_init_sec_context.c \
+	$(srcdir)/g_initialize.c \
+	$(srcdir)/g_inq_context.c \
+	$(srcdir)/g_inq_context_oid.c \
+	$(srcdir)/g_inq_cred.c \
+	$(srcdir)/g_inq_cred_oid.c \
+	$(srcdir)/g_inq_name.c \
+	$(srcdir)/g_inq_names.c \
+	$(srcdir)/g_map_name_to_any.c \
+	$(srcdir)/g_mech_invoke.c \
+	$(srcdir)/g_mechattr.c \
+	$(srcdir)/g_mechname.c \
+	$(srcdir)/g_oid_ops.c \
+	$(srcdir)/g_prf.c \
+	$(srcdir)/g_process_context.c \
+	$(srcdir)/g_rel_buffer.c \
+	$(srcdir)/g_rel_cred.c \
+	$(srcdir)/g_rel_name.c \
+	$(srcdir)/g_rel_name_mapping.c \
+	$(srcdir)/g_rel_oid_set.c \
+	$(srcdir)/g_saslname.c \
+	$(srcdir)/g_seal.c \
+	$(srcdir)/g_set_context_option.c \
+	$(srcdir)/g_set_cred_option.c \
+	$(srcdir)/g_set_name_attr.c \
+	$(srcdir)/g_set_neg_mechs.c \
+	$(srcdir)/g_sign.c \
+	$(srcdir)/g_store_cred.c \
+	$(srcdir)/g_unseal.c \
+	$(srcdir)/g_unwrap_aead.c \
+	$(srcdir)/g_unwrap_iov.c \
+	$(srcdir)/g_verify.c \
+	$(srcdir)/g_wrap_aead.c \
+	$(srcdir)/g_wrap_iov.c \
+	$(srcdir)/gssd_pname_to_uid.c
+
+OBJS = \
+	$(OUTPRE)g_accept_sec_context.$(OBJEXT) \
+	$(OUTPRE)g_acquire_cred.$(OBJEXT) \
+	$(OUTPRE)g_acquire_cred_with_pw.$(OBJEXT) \
+	$(OUTPRE)g_acquire_cred_imp_name.$(OBJEXT) \
+	$(OUTPRE)g_authorize_localname.$(OBJEXT) \
+	$(OUTPRE)g_buffer_set.$(OBJEXT) \
+	$(OUTPRE)g_canon_name.$(OBJEXT) \
+	$(OUTPRE)g_compare_name.$(OBJEXT) \
+	$(OUTPRE)g_complete_auth_token.$(OBJEXT) \
+	$(OUTPRE)g_context_time.$(OBJEXT) \
+	$(OUTPRE)g_decapsulate_token.$(OBJEXT) \
+	$(OUTPRE)g_delete_sec_context.$(OBJEXT) \
+	$(OUTPRE)g_del_name_attr.$(OBJEXT) \
+	$(OUTPRE)g_dsp_name.$(OBJEXT) \
+	$(OUTPRE)g_dsp_name_ext.$(OBJEXT) \
+	$(OUTPRE)g_dsp_status.$(OBJEXT) \
+	$(OUTPRE)g_dup_name.$(OBJEXT) \
+	$(OUTPRE)g_encapsulate_token.$(OBJEXT) \
+	$(OUTPRE)g_exp_sec_context.$(OBJEXT) \
+	$(OUTPRE)g_export_cred.$(OBJEXT) \
+	$(OUTPRE)g_export_name.$(OBJEXT) \
+	$(OUTPRE)g_export_name_comp.$(OBJEXT) \
+	$(OUTPRE)g_get_name_attr.$(OBJEXT) \
+	$(OUTPRE)g_glue.$(OBJEXT) \
+	$(OUTPRE)g_imp_cred.$(OBJEXT) \
+	$(OUTPRE)g_imp_name.$(OBJEXT) \
+	$(OUTPRE)g_imp_sec_context.$(OBJEXT) \
+	$(OUTPRE)g_init_sec_context.$(OBJEXT) \
+	$(OUTPRE)g_initialize.$(OBJEXT) \
+	$(OUTPRE)g_inq_context.$(OBJEXT) \
+	$(OUTPRE)g_inq_context_oid.$(OBJEXT) \
+	$(OUTPRE)g_inq_cred.$(OBJEXT) \
+	$(OUTPRE)g_inq_cred_oid.$(OBJEXT) \
+	$(OUTPRE)g_inq_name.$(OBJEXT) \
+	$(OUTPRE)g_inq_names.$(OBJEXT) \
+	$(OUTPRE)g_map_name_to_any.$(OBJEXT) \
+	$(OUTPRE)g_mech_invoke.$(OBJEXT) \
+	$(OUTPRE)g_mechattr.$(OBJEXT) \
+	$(OUTPRE)g_mechname.$(OBJEXT) \
+	$(OUTPRE)g_oid_ops.$(OBJEXT) \
+	$(OUTPRE)g_prf.$(OBJEXT) \
+	$(OUTPRE)g_process_context.$(OBJEXT) \
+	$(OUTPRE)g_rel_buffer.$(OBJEXT) \
+	$(OUTPRE)g_rel_cred.$(OBJEXT) \
+	$(OUTPRE)g_rel_name.$(OBJEXT) \
+	$(OUTPRE)g_rel_name_mapping.$(OBJEXT) \
+	$(OUTPRE)g_rel_oid_set.$(OBJEXT) \
+	$(OUTPRE)g_saslname.$(OBJEXT) \
+	$(OUTPRE)g_seal.$(OBJEXT) \
+	$(OUTPRE)g_set_context_option.$(OBJEXT) \
+	$(OUTPRE)g_set_cred_option.$(OBJEXT) \
+	$(OUTPRE)g_set_name_attr.$(OBJEXT) \
+	$(OUTPRE)g_set_neg_mechs.$(OBJEXT) \
+	$(OUTPRE)g_sign.$(OBJEXT) \
+	$(OUTPRE)g_store_cred.$(OBJEXT) \
+	$(OUTPRE)g_unseal.$(OBJEXT) \
+	$(OUTPRE)g_unwrap_aead.$(OBJEXT) \
+	$(OUTPRE)g_unwrap_iov.$(OBJEXT) \
+	$(OUTPRE)g_verify.$(OBJEXT) \
+	$(OUTPRE)g_wrap_aead.$(OBJEXT) \
+	$(OUTPRE)g_wrap_iov.$(OBJEXT) \
+	$(OUTPRE)gssd_pname_to_uid.$(OBJEXT)
+
+STLIBOBJS = \
+	g_accept_sec_context.o \
+	g_acquire_cred.o \
+	g_acquire_cred_with_pw.o \
+	g_acquire_cred_imp_name.o \
+	g_authorize_localname.o \
+	g_buffer_set.o \
+	g_canon_name.o \
+	g_compare_name.o \
+	g_complete_auth_token.o \
+	g_context_time.o \
+	g_decapsulate_token.o \
+	g_delete_sec_context.o \
+	g_del_name_attr.o \
+	g_dsp_name.o \
+	g_dsp_name_ext.o \
+	g_dsp_status.o \
+	g_dup_name.o \
+	g_encapsulate_token.o \
+	g_exp_sec_context.o \
+	g_export_cred.o \
+	g_export_name.o \
+	g_export_name_comp.o \
+	g_get_name_attr.o \
+	g_glue.o \
+	g_imp_cred.o \
+	g_imp_name.o \
+	g_imp_sec_context.o \
+	g_init_sec_context.o \
+	g_initialize.o \
+	g_inq_context.o \
+	g_inq_context_oid.o \
+	g_inq_cred.o \
+	g_inq_cred_oid.o \
+	g_inq_name.o \
+	g_inq_names.o \
+	g_map_name_to_any.o \
+	g_mech_invoke.o \
+	g_mechattr.o \
+	g_mechname.o \
+	g_oid_ops.o \
+	g_prf.o \
+	g_process_context.o \
+	g_rel_buffer.o \
+	g_rel_cred.o \
+	g_rel_name.o \
+	g_rel_name_mapping.o \
+	g_rel_oid_set.o \
+	g_saslname.o \
+	g_seal.o \
+	g_set_context_option.o \
+	g_set_cred_option.o \
+	g_set_name_attr.o \
+	g_set_neg_mechs.o \
+	g_sign.o \
+	g_store_cred.o \
+	g_unseal.o \
+	g_unwrap_aead.o \
+	g_unwrap_iov.o \
+	g_verify.o \
+	g_wrap_aead.o \
+	g_wrap_iov.o \
+	gssd_pname_to_uid.o
+
+EHDRDIR= $(BUILDTOP)$(S)include$(S)gssapi
+EXPORTED_HEADERS = mechglue.h
+
+$(OBJS): $(EXPORTED_HEADERS)
+
+all-unix: all-libobjs
+
+##DOS##LIBOBJS = $(OBJS)
+
+clean-unix:: clean-libobjs
+
+# Krb5InstallHeaders($(EXPORTED_HEADERS), $(KRB5_INCDIR)/krb5)
+install:
+	@set -x; for f in $(EXPORTED_HEADERS) ; \
+	do $(INSTALL_DATA) $(srcdir)$(S)$$f     \
+		$(DESTDIR)$(KRB5_INCDIR)$(S)gssapi$(S)$$f ; \
+	done
+
+includes:
+
+@libobj_frag@

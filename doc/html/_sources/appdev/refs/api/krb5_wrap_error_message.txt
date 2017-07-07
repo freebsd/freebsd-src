@@ -1,0 +1,46 @@
+krb5_wrap_error_message -  Add a prefix to a different error code's message. 
+=============================================================================
+
+..
+
+.. c:function:: void krb5_wrap_error_message(krb5_context ctx, krb5_error_code old_code, krb5_error_code code, const char * fmt, ... )
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **old_code** - Previous error code
+
+	          **[in]** **code** - Error code
+
+	          **[in]** **fmt** - Format string for error message prefix
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Format a message and prepend it to the message for *old_code* . The prefix will be separated from the old message with a colon and space. Set the resulting message as the extended error message for *code* .
+
+
+
+
+
+
+..
+
+
+
+
+

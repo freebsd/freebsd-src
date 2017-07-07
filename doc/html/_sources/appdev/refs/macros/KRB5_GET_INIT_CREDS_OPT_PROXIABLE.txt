@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-PROXIABLE-data:
+
+KRB5_GET_INIT_CREDS_OPT_PROXIABLE
+=================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_PROXIABLE
+..
+
+
+
+
+======================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_PROXIABLE``       ``0x0008``
+======================================== ======================

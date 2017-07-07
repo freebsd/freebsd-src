@@ -1,0 +1,25 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Kerberos Error 57</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="error, 57">
+</object>
+<p><h2><a name="krb_unknown_realm"></a><span style="font-weight: bold;">Kerberos Error 57: Cannot contact the Kerberos server for the selected realm.</span></h2></p>
+<p>This error has three common causes:</p>
+<p>1.The realm is misspelled, e.g. pbh@AHTENA.MIT.EDU instead of
+pbh@ATHENA.MIT.EDU (realms are case sensitive).</p>
+<p>2.Your krb.con file contains an entry for ATHENA.MIT.EDU but not
+athena.mit.edu.</p>
+<p>3.The realm is missing from your KRB.CON file, which should be
+located in your \net\kerb directory. If you suspect the problem is with
+your KRB.CON file, either call the Network Help Desk, 3-4101, or copy
+the /etc/krb.conf file from a nearby UNIX workstation to your
+\net\kerb\krb.con file.</p>
+</body>
+</html>

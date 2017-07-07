@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Configuration interface (profile) &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="For plugin module developers" href="index.html" />
+    <link rel="next" title="GSSAPI mechanism interface" href="gssapi.html" />
+    <link rel="prev" title="Server location interface (locate)" href="locate.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="locate.html" title="Server location interface (locate)"
+            accesskey="P">previous</a> |
+        <a href="gssapi.html" title="GSSAPI mechanism interface"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Configuration interface (profile)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="configuration-interface-profile">
+<span id="profile-plugin"></span><h1>Configuration interface (profile)<a class="headerlink" href="#configuration-interface-profile" title="Permalink to this headline">¶</a></h1>
+<p>The profile interface allows a module to control how krb5
+configuration information is obtained by the Kerberos library and
+applications.  For a detailed description of the profile interface,
+see the header file <tt class="docutils literal"><span class="pre">&lt;profile.h&gt;</span></tt>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The profile interface does not follow the normal conventions
+for MIT krb5 pluggable interfaces, because it is part of a
+lower-level component of the krb5 library.</p>
+</div>
+<p>As with other types of plugin modules, a profile module is a Unix
+shared object or Windows DLL, built separately from the krb5 tree.
+The krb5 library will dynamically load and use a profile plugin module
+if it reads a <tt class="docutils literal"><span class="pre">module</span></tt> directive at the beginning of krb5.conf, as
+described in <a class="reference internal" href="../admin/host_config.html#profile-plugin-config"><em>Configuration profile modules</em></a>.</p>
+<p>A profile module exports a function named <tt class="docutils literal"><span class="pre">profile_module_init</span></tt>
+matching the signature of the profile_module_init_fn type.  This
+function accepts a residual string, which may be used to help locate
+the configuration source.  The function fills in a vtable and may also
+create a per-profile state object.  If the module uses state objects,
+it should implement the <strong>copy</strong> and <strong>cleanup</strong> methods to manage
+them.</p>
+<p>A basic read-only profile module need only implement the
+<strong>get_values</strong> and <strong>free_values</strong> methods.  The <strong>get_values</strong> method
+accepts a null-terminated list of C string names (e.g., an array
+containing &#8220;libdefaults&#8221;, &#8220;clockskew&#8221;, and NULL for the <strong>clockskew</strong>
+variable in the <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a> section) and returns a
+null-terminated list of values, which will be cleaned up with the
+<strong>free_values</strong> method when the caller is done with them.</p>
+<p>Iterable profile modules must also define the <strong>iterator_create</strong>,
+<strong>iterator</strong>, <strong>iterator_free</strong>, and <strong>free_string</strong> methods.  The
+core krb5 code does not require profiles to be iterable, but some
+applications may iterate over the krb5 profile object in order to
+present configuration interfaces.</p>
+<p>Writable profile modules must also define the <strong>writable</strong>,
+<strong>modified</strong>, <strong>update_relation</strong>, <strong>rename_section</strong>,
+<strong>add_relation</strong>, and <strong>flush</strong> methods.  The core krb5 code does not
+require profiles to be writable, but some applications may write to
+the krb5 profile in order to present configuration interfaces.</p>
+<p>The following is an example of a very basic read-only profile module
+which returns a hardcoded value for the <strong>default_realm</strong> variable in
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>, and provides no other configuration information.
+(For conciseness, the example omits code for checking the return
+values of malloc and strdup.)</p>
+<div class="highlight-python"><div class="highlight"><pre>#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;profile.h&gt;
+
+static long
+get_values(void *cbdata, const char *const *names, char ***values)
+{
+    if (names[0] != NULL &amp;&amp; strcmp(names[0], &quot;libdefaults&quot;) == 0 &amp;&amp;
+        names[1] != NULL &amp;&amp; strcmp(names[1], &quot;default_realm&quot;) == 0) {
+        *values = malloc(2 * sizeof(char *));
+        (*values)[0] = strdup(&quot;ATHENA.MIT.EDU&quot;);
+        (*values)[1] = NULL;
+        return 0;
+    }
+    return PROF_NO_RELATION;
+}
+
+static void
+free_values(void *cbdata, char **values)
+{
+    char **v;
+
+    for (v = values; *v; v++)
+        free(*v);
+    free(values);
+}
+
+long
+profile_module_init(const char *residual, struct profile_vtable *vtable,
+                    void **cb_ret);
+
+long
+profile_module_init(const char *residual, struct profile_vtable *vtable,
+                    void **cb_ret)
+{
+    *cb_ret = NULL;
+    vtable-&gt;get_values = get_values;
+    vtable-&gt;free_values = free_values;
+    return 0;
+}
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Configuration interface (profile)</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Configuration interface (profile)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="locate.html" title="Server location interface (locate)"
+            >previous</a> |
+        <a href="gssapi.html" title="GSSAPI mechanism interface"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Configuration interface (profile)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

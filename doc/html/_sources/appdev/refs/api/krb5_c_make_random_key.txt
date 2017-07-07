@@ -1,0 +1,51 @@
+krb5_c_make_random_key -  Generate an enctype-specific random encryption key. 
+==============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_make_random_key(krb5_context context, krb5_enctype enctype, krb5_keyblock * k5_random_key)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type of the generated key
+
+	          **[out]** **k5_random_key** - An allocated and initialized keyblock
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Use :c:func:`krb5_free_keyblock_contents()` to free *k5_random_key* when no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

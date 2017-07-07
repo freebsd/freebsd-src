@@ -1,0 +1,45 @@
+krb5_decode_ticket -  Decode an ASN.1-formatted ticket. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_decode_ticket(const krb5_data * code, krb5_ticket ** rep)
+
+..
+
+
+:param:
+
+	          **[in]** **code** - ASN.1-formatted ticket
+
+	          **[out]** **rep** - Decoded ticket information
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

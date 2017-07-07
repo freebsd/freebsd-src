@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-WELLKNOWN-NAMESTR-data:
+
+KRB5_WELLKNOWN_NAMESTR
+======================
+
+..
+.. data:: KRB5_WELLKNOWN_NAMESTR
+..
+
+First component of NT_WELLKNOWN principals.
+
+
+
+============================= ======================
+``KRB5_WELLKNOWN_NAMESTR``       ``"WELLKNOWN"``
+============================= ======================

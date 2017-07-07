@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-CAMMAC-data:
+
+KRB5_AUTHDATA_CAMMAC
+====================
+
+..
+.. data:: KRB5_AUTHDATA_CAMMAC
+..
+
+
+
+
+=========================== ======================
+``KRB5_AUTHDATA_CAMMAC``       ``96``
+=========================== ======================

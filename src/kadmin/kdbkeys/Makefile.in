@@ -1,0 +1,16 @@
+mydir=.
+BUILDTOP=$(REL)..$(S)..
+
+PROG = kdbkeys
+OBJS = kdbkeys.o
+
+all: $(PROG)
+
+$(PROG): $(OBJS)
+	$(CC) $(LDFLAGS) -o $(PROG) $(OBJS) $(LIBS)
+
+install:
+	$(INSTALL_PROGRAM) $(PROG) ${DESTDIR}$(ADMIN_BINDIR)/$(PROG)
+
+clean:
+	$(RM) $(PROG) $(OBJS)

@@ -1,0 +1,29 @@
+#ifdef APSTUDIO_INVOKED
+#error this file is not editable by App Studio
+#endif // APSTUDIO_INVOKED
+
+#include <hesiod.h>
+#include <mitwhich.h>
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE
+BEGIN
+    IDS_DEF_HES_RHS             DEF_RHS
+    IDS_DEF_HES_LHS             DEF_LHS
+    IDS_DEF_HES_CONFIG_FILE     HESIOD_CONF
+    IDS_DEF_RESCONF_PATH        _PATH_RESCONF
+    IDS_DEF_DNS1                DNS1
+    IDS_DEF_DNS2                DNS2
+    IDS_DEF_DNS3	        DNS3
+    IDS_TCPIP_PATH_NT           NT_TCP_PATH
+    IDS_TCPIP_PATH_95           W95_TCP_PATH
+    IDS_NT_DOMAIN_KEY           NT_DOMAIN_KEY
+    IDS_NT_NS_KEY               NT_NS_KEY
+    IDS_W95_DOMAIN_KEY          W95_DOMAIN_KEY
+    IDS_W95_NS_KEY              W95_NS_KEY
+    IDS_TCPIP_PATH_NT_TRANSIENT NT_TCP_PATH_TRANS
+END

@@ -1,0 +1,46 @@
+krb5_auth_con_getlocalsubkey
+============================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getlocalsubkey(krb5_context context, krb5_auth_context auth_context, krb5_keyblock ** keyblock)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **auth_context**
+
+	          **keyblock**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_auth_con_getsendsubkey() . 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

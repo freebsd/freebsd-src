@@ -1,0 +1,49 @@
+krb5_get_init_creds_opt_alloc -  Allocate a new initial credential options structure. 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_alloc(krb5_context context, krb5_get_init_creds_opt ** opt)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **opt** - New options structure
+
+
+..
+
+
+:retval:
+         -   0   - Success; Kerberos errors otherwise.
+
+
+..
+
+
+
+
+
+
+
+This function is the preferred way to create an options structure for getting initial credentials, and is required to make use of certain options. Use :c:func:`krb5_get_init_creds_opt_free()` to free *opt* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

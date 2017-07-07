@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AS-REP-ENCPART-data:
+
+KRB5_KEYUSAGE_AS_REP_ENCPART
+============================
+
+..
+.. data:: KRB5_KEYUSAGE_AS_REP_ENCPART
+..
+
+
+
+
+=================================== ======================
+``KRB5_KEYUSAGE_AS_REP_ENCPART``       ``3``
+=================================== ======================

@@ -1,0 +1,23 @@
+mydir=plugins$(S)kadm5_hook$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=kadm5_hook_test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kadm5_hook/test
+# Depends on libk5crypto and libkrb5
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(SUPPORT_LIB) $(LIBS)
+
+STLIBOBJS=main.o
+
+SRCS= $(srcdir)/main.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

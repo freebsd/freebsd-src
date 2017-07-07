@@ -1,0 +1,40 @@
+krb5_verify_init_creds_opt_init -  Initialize a credential verification options structure. 
+===========================================================================================
+
+..
+
+.. c:function:: void krb5_verify_init_creds_opt_init(krb5_verify_init_creds_opt * k5_vic_options)
+
+..
+
+
+:param:
+
+	          **[in]** **k5_vic_options** - Verification options structure
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

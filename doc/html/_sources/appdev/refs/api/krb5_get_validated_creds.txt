@@ -1,0 +1,67 @@
+krb5_get_validated_creds -  Get validated credentials from the KDC. 
+====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_validated_creds(krb5_context context, krb5_creds * creds, krb5_principal client, krb5_ccache ccache, const char * in_tkt_service)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **creds** - Validated credentials
+
+	          **[in]** **client** - Client principal name
+
+	          **[in]** **ccache** - Credential cache
+
+	          **[in]** **in_tkt_service** - Server principal string (or NULL)
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5_NO_2ND_TKT   Request missing second ticket
+         -   KRB5_NO_TKT_SUPPLIED   Request did not supply a ticket
+         -   KRB5_PRINC_NOMATCH   Requested principal and ticket do not match
+         -   KRB5_KDCREP_MODIFIED   KDC reply did not match expectations
+         -   KRB5_KDCREP_SKEW   Clock skew too great in KDC reply
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function gets a validated credential using a postdated credential from *ccache* . If *in_tkt_service* is specified, it is parsed (with the realm part ignored) and used as the server principal of the credential; otherwise, the ticket-granting service is used.
+
+
+
+If successful, the validated credential is placed in *creds* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

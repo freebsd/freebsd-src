@@ -1,0 +1,15 @@
+#
+# Generated makefile dependencies follow.
+#
+$(OUTPRE)gss-client.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssapi/gssapi_generic.h \
+  $(top_srcdir)/include/fake-addrinfo.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h gss-client.c gss-misc.h
+$(OUTPRE)gss-misc.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssapi/gssapi_generic.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  gss-misc.c gss-misc.h
+$(OUTPRE)gss-server.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/gssapi/gssapi.h $(BUILDTOP)/include/gssapi/gssapi_generic.h \
+  $(top_srcdir)/include/port-sockets.h gss-misc.h gss-server.c

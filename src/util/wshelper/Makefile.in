@@ -1,0 +1,64 @@
+BUILDTOP=..\..
+
+DLL_NAME=wshelp32
+DEF_FILE=wshelp32.def
+
+# Use 64-bit DLL_NAME and DEF_FILE on 64-bit platforms
+!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64")
+DLL_NAME=wshelp64
+DEF_FILE=wshelp64.def
+!endif
+
+
+OBJS=	$(OUTPRE)dllmain.$(OBJEXT) \
+	$(OUTPRE)gethna.$(OBJEXT) \
+	$(OUTPRE)hesiod.$(OBJEXT) \
+	$(OUTPRE)hesmailh.$(OBJEXT) \
+	$(OUTPRE)hespwnam.$(OBJEXT) \
+	$(OUTPRE)hesservb.$(OBJEXT) \
+	$(OUTPRE)inetaton.$(OBJEXT) \
+	$(OUTPRE)res_comp.$(OBJEXT) \
+	$(OUTPRE)res_init.$(OBJEXT) \
+	$(OUTPRE)res_quer.$(OBJEXT)
+
+RESFILE = $(OUTPRE)resource.res
+XOBJS	= $(RESFILE)
+
+RCFLAGS = -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include -I$(BUILDTOP) -DWSHELPER_LIB
+
+###From another project inside K 1.9:
+###VERSIONRC = $(BUILDTOP)\windows\version.rc
+###RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+
+# Set NODEBUG if building release instead of debug
+
+LOCALINCLUDES = -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include
+
+WINLIBS = advapi32.lib user32.lib ws2_32.lib dnsapi.lib
+
+WINDLLFLAGS = /nologo /dll /incremental:no /release $(LOPTS)
+
+DEFINES =
+!ifdef NODEBUG
+DEFINES = $(DEFINES)
+!else
+DEFINES = $(DEFINES) -DDBG
+!endif
+
+all-windows:
+all-windows: $(OUTPRE)$(DLL_NAME).dll
+
+clean-windows::
+	$(RM) $(OUTPRE)$(DLL_NAME).dll
+
+$(OUTPRE)$(DLL_NAME).dll: $(DEF_FILE) $(OBJS) $(XOBJS)
+	link $(WINDLLFLAGS) -def:$(DEF_FILE) -out:$*.dll \
+	$(OBJS) $(XOBJS) $(WINLIBS) $(SCLIB)
+	$(_VC_MANIFEST_EMBED_DLL)
+
+$(OUTPRE)dllmain.$(OBJEXT): pwd.h
+$(OUTPRE)hespwnam.$(OBJEXT): pwd.h
+$(OUTPRE)dllmain.$(OBJEXT): wsh-int.h
+$(OUTPRE)res_init.$(OBJEXT): wsh-int.h
+$(RESFILE): resource.rc  ../../windows/version.rc ../../windows/kerberos.ver

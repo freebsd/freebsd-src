@@ -1,0 +1,117 @@
+# Standalone Kerberos test.
+# This is a DejaGnu test script.
+# This script tests that the Kerberos tools can talk to each other.
+
+# This mostly just calls procedures in testsuite/config/default.exp.
+
+# We are about to start up a couple of daemon processes.  We do all
+# the rest of the tests inside a proc, so that we can easily kill the
+# processes when the procedure ends.
+
+proc doit { } {
+    global REALMNAME
+    global KLIST
+    global KDESTROY
+    global KEY
+    global KADMIN_LOCAL
+    global KTUTIL
+    global hostname
+    global tmppwd
+    global spawn_id
+    global supported_enctypes
+    global KRBIV
+    global portbase
+    global mode
+
+    # Start up the kerberos and kadmind daemons.
+    if ![start_kerberos_daemons 1] {
+	return
+    }
+
+    # Use kadmin to add an host key.
+    if ![add_random_key host/$hostname 1] {
+	return
+    }
+
+    # Use ksrvutil to create a srvtab entry.
+#    if ![setup_srvtab 1] {
+#	return
+#    }
+
+    # Use kinit to get a ticket.
+    if ![kinit krbtest/admin adminpass$KEY 1] {
+	return
+    }
+
+    # Make sure that klist can see the ticket.
+    if ![do_klist "krbtest/admin@$REALMNAME" "krbtgt/$REALMNAME@$REALMNAME" "klist"] {
+	return
+    }
+
+    # Destroy the ticket.
+    spawn $KDESTROY -5
+    if ![check_exit_status "kdestroy"] {
+	return
+    }
+    pass "kdestroy"
+
+    set response {}
+    set got_response 0
+    set kdcsock ""
+    catch {
+	send_log "connecting to $hostname [expr 3 + $portbase]\n"
+	set kdcsock [socket $hostname [expr 3 + $portbase]]
+	fconfigure $kdcsock -encoding binary -blocking 0 -buffering none
+	puts -nonewline $kdcsock [binary format H* ffffffff]
+	# XXX
+	sleep 3
+	set response [read $kdcsock]
+	set got_response 1
+    } msg
+    if [string length $kdcsock] { catch "close $kdcsock" }
+    if $got_response {
+#	send_log [list sent length -1, got back $response]
+#	send_log "\n"
+	if [string length $response]>10 {
+	    pass "too-long TCP request"
+	} else {
+	    send_log "response too short\n"
+	    fail "too-long TCP request"
+	}
+    } else {
+	send_log "too-long connect/exchange failure: $msg\n"
+	fail "too-long TCP request"
+    }
+}
+
+set status 0
+run_once tcp {
+    # Set up the Kerberos files and environment.
+    set mode tcp
+    reset_kerberos_files
+    if {![get_hostname] || ![setup_kerberos_files] || ![setup_kerberos_env]} {
+	set mode udp
+	reset_kerberos_files
+	return
+    }
+    # Reset now, for next time we write the config files.
+    set mode udp
+
+    # Initialize the Kerberos database.  The argument tells
+    # setup_kerberos_db that it is being called from here.
+    if ![setup_kerberos_db 1] {
+	reset_kerberos_files
+	return
+    }
+
+    set status [catch doit msg]
+}
+
+reset_kerberos_files
+stop_kerberos_daemons
+
+if { $status != 0 } {
+    send_error "ERROR: error in standalone.exp\n"
+    send_error "$msg\n"
+    exit 1
+}

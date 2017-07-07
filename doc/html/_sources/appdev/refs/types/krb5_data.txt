@@ -1,0 +1,39 @@
+.. highlightlang:: c
+
+.. _krb5-data-struct:
+
+krb5_data
+=========
+
+..
+.. c:type:: krb5_data
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_data  krb5_data
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_data.magic
+
+                                             
+                                             
+
+.. c:member:: unsigned int	krb5_data.length
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_data.data
+
+                                             
+                                             
+

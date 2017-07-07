@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _krb5-princ-component-data:
+
+krb5_princ_component
+====================
+
+..
+.. data:: krb5_princ_component
+..
+
+
+
+
+============================================== ======================
+``krb5_princ_component (context, princ, i)``       ``(((i) < krb5_princ_size(context, princ)) ? (princ)->data + (i) : NULL)``
+============================================== ======================

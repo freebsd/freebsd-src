@@ -1,0 +1,346 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "get-principal 1"
+proc test1 {} {
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test \
+	    {kadm5_get_principal $server_handle null p KADM5_PRINCIPAL_NORMAL_MASK} "EINVAL"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test1
+
+test "get-principal 2"
+proc test2 {} {
+    global test
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "UNK_PRINC"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test2
+
+test "get-principal 3"
+proc test3 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/none admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test3 }
+    
+test "get-principal 4"
+proc test4 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/add admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test4 }
+
+test "get-principal 5"
+proc test5 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/modify admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test5 }
+
+test "get-principal 6"
+proc test6 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/delete admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test6 }
+
+test "get-principal 7"
+proc test7 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/delete admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test7 }
+
+    
+test "get-principal 8"
+proc test8 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	error_and_restart "$test: couldn't create principal \"$test/a\""
+	return
+    }
+
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_get_principal $server_handle "%s/a" p KADM5_PRINCIPAL_NORMAL_MASK
+    } $test] "AUTH_GET"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test8 }
+
+    
+test "get-principal 9"
+proc test9 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/none admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test \
+	    {kadm5_get_principal $server_handle admin/none p KADM5_PRINCIPAL_NORMAL_MASK} 
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test9
+
+test "get-principal 10"
+proc test10 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/none admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test \
+	    {kadm5_get_principal $server_handle admin/none p KADM5_PRINCIPAL_NORMAL_MASK}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test10
+
+test "get-principal 11"
+proc test11 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_principal $server_handle admin/get p KADM5_PRINCIPAL_NORMAL_MASK}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test11
+
+test "get-principal 12"
+proc test12 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_principal $server_handle admin/get p KADM5_PRINCIPAL_NORMAL_MASK}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test12
+
+test "get-principal 13"
+proc test13 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/get admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_principal $server_handle admin/add p KADM5_PRINCIPAL_NORMAL_MASK} 
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test13
+
+test "get-principal 14"
+proc test14 {} {
+    global test
+    if {! [cmd {
+	kadm5_init admin/get-mod admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test {kadm5_get_principal $server_handle admin/add p KADM5_PRINCIPAL_NORMAL_MASK}
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test14
+
+test "get-principal 15"
+proc test15 {} {
+    one_line_fail_test \
+	    {kadm5_get_principal null "admin" p KADM5_PRINCIPAL_NORMAL_MASK} "BAD_SERVER_HANDLE"
+}
+test15
+
+return ""
+
+
+
+

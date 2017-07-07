@@ -1,0 +1,51 @@
+krb5_copy_creds -  Copy a krb5_creds structure. 
+================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_creds(krb5_context context, const krb5_creds * incred, krb5_creds ** outcred)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **incred** - Credentials structure to be copied
+
+	          **[out]** **outcred** - Copy of *incred*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new credential with the contents of *incred* . Use :c:func:`krb5_free_creds()` to free *outcred* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

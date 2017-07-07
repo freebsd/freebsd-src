@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-VERIFY-INIT-CREDS-OPT-AP-REQ-NOFAIL-data:
+
+KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL
+========================================
+
+..
+.. data:: KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL
+..
+
+
+
+
+=============================================== ======================
+``KRB5_VERIFY_INIT_CREDS_OPT_AP_REQ_NOFAIL``       ``0x0001``
+=============================================== ======================

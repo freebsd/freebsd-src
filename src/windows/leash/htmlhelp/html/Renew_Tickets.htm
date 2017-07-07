@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+
+<title>Renew_Tickets</title><link rel="stylesheet" type="text/css" href="Leash.css"></head>
+
+<body>
+<a name="top"><h1>Renew Tickets</h1></a>
+<p>
+Renew a ticket to extend its usable lifetime. Each time a ticket is
+renewed, its lifespan is reset to the original length of the ticket. It
+can then be used until the new time listed in the "Valid Until" column
+in the main window. </p>
+
+<table>
+<tbody><tr>
+ <th id="th2">Learn about...</th><th id="th2">How to...</th></tr>
+<tr>
+<td>
+<ul id="helpul">
+<li><a href="#conditions"> What's necessary to renew tickets</a></li>
+<li><a href="#related-help"> Related help</a></li>
+</ul>
+</td>
+<td>
+<ul id="helpul">
+<li><a href="#renew-once"> Renew ticket once</a></li>
+<li><a href="#renew-automatically"> Renew tickets automatically</a></li>
+<li><a href="#renewable-until">Find  how long a ticket can be renewed</a></li>
+</ul>
+</td>
+
+</tr>
+</tbody></table>
+
+
+
+<a name="renew-once"><p></p></a>
+<h2>Renew ticket once</h2>
+
+<ol>
+<li>If you have more than one <a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principal</a>, click to select all principals with tickets you want to renew. </li>
+<li>Click the Renew Ticket button in the Home tab or use the <a href="JavaScript:popup.TextPopup(popupKeyboardShortcut, popfont,9,9,-1,-1)">keyboard shortcut</a>  [Ctrl + r].</li>
+</ol>
+<p>
+The ticket lifetime is reset for all of the selected principal's renewable tickets.</p>
+<p>
+<a href="#top">Back to Top</a> </p>
+
+
+<a name="renew-automatically"><p></p></a>
+<h2>Renew tickets automatically</h2>
+<ol>
+<li>Open the Options tab in the main window.</li>
+<li> In the Ticket  Options panel, select the Automatic Ticket Renewal checkbox if it is not already checked.</li>
+</ol>
+<p>
+Your renewable  tickets will automatically reset their lifetimes
+before they expire, until the renewable lifetime of the tickets is
+reached. </p>
+<p>
+<b>Note: </b>This feature only works while MIT Kerberos is active and
+running. This means that if your machine is in hibernation mode or if
+Kerberos is not running when it is time to renew your tickets, your
+tickets will not be renewed and will expire instead. </p>
+<p>
+<a href="#top">Back to Top</a> </p>
+<a name="conditions"><p></p></a>
+<h2>What's necessary to renew tickets</h2>
+<p>
+You can renew a ticket if the following conditions are met:</p>
+<ul>
+<li> When you obtained the ticket, the Renewable flag was selected. <br> <a href="HTML/Ticket_Settings.htm">About: Ticket Settings and Flags </a></li>
+<li> The "Renewable Until" deadline has not been reached. Show or hide
+the Renewable Until column with the View Options panel in the Options
+tab. <br> <a href="Options_Tab.htm#using-view-options">How to: Use View Options Panel</a></li>
+<li> The ticket has not already expired. </li>
+<li>MIT Kerberos is running and your computer is not in hibernation mode.</li>
+</ul>
+<p>
+<a href="#top">Back to Top</a> </p>
+<a name="renewable-until"><p></p></a>
+<h2>Find  how long a ticket can be renewed</h2>
+<ol>
+<li>Open the Options tab in the main window.</li>
+<li> In the View  Options panel, select the Renewable Until checkbox.</li>
+</ol>
+<p> The Renewable Until column will appear. You can renew your ticket
+repeatedly until the date and time in this column is reached. </p>
+<p>
+<a href="#top">Back to Top</a> </p>
+<a name="related-help"><p></p></a>
+<h2>Related help</h2>
+<ul id="helpul">
+<li><a href="HTML/Tickets.htm#renewable">About renewable  tickets</a></li>
+<li><a href="HTML/Ticket_Settings.htm">Ticket settings and flags</a></li>
+<li><a href="HTML/Get_Tickets.htm">Get  tickets</a></li>
+</ul>
+<p>
+<a href="#top">Back to Top</a> </p>
+<script language="JavaScript">
+popfont="Arial,.725,"
+popupPrincipal="Your principal is your Kerberos identity. It is your user name combined with the Kerberos realm you are using. For example: 'jdoe@SALES.WIDGET.COM' "
+popupKeyboardShortcut="To use a keyboard shortcut, hold down the [Ctrl] key on your computer keyboard and press the appropriate letter.  "
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+</body></html>

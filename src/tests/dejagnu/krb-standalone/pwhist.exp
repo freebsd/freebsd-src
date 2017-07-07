@@ -1,0 +1,217 @@
+# password history tests
+
+# one *non-interactive* kadmin.local request
+proc onerq { rq pname str {flags ""} } {
+    global REALMNAME
+    global KADMIN_LOCAL
+
+    spawn $KADMIN_LOCAL -r $REALMNAME -q "$rq $flags $pname"
+    expect_after {
+	timeout {
+	    verbose "kadmin.local $rq $flags $pname timed out"
+	    catch expect_after
+	    kill [exp_pid]
+	    close
+	    expect eof
+	    wait
+	    return 0
+	} eof {
+	    verbose "kadmin.local $rq $flags $pname got EOF"
+	    catch expect_after
+	    wait
+	    return 0
+	}
+    }
+    expect $str
+    expect_after
+    expect eof
+    wait
+    return 1
+}
+
+proc addprinc { pname pw } {
+    global REALMNAME
+
+    return [onerq addprinc $pname \
+		"Principal \"$pname@$REALMNAME\" created." "-pw $pw"]
+}
+
+proc delprinc { pname } {
+    global REALMNAME
+    return [onerq delprinc $pname \
+		"Principal \"$pname@$REALMNAME\" deleted." "-force"]
+}
+
+proc cpw { pname pw } {
+    global REALMNAME
+
+    return [onerq cpw $pname \
+		"Password for \"$pname@$REALMNAME\" changed." "-pw $pw"]
+}
+
+proc modprinc { pname flags } {
+    global REALMNAME
+
+    return [onerq modprinc $pname \
+		"Principal \"$pname@$REALMNAME\" modified." $flags]
+}
+
+proc addpol { pname } {
+    if ![onerq addpol $pname ""] {
+	return 0
+    }
+    return [onerq getpol $pname "Policy: $pname"]
+}
+
+proc delpol { pname } {
+    onerq delpol $pname "" -force
+    return [onerq getpol $pname \
+		"Policy does not exist while retrieving policy \"$pname\"."]
+}
+
+proc modpol { pname flags } {
+    return [onerq modpol $pname "" $flags]
+}
+
+# Mandatory command must return true.
+# Issues a break in its parent on failure.
+proc mustrun { cmd } {
+    if ![eval $cmd] {
+	perror "mandatory command failed: $cmd"
+	uplevel break
+    }
+}
+
+# Fail test if command fails.
+# Issues a break in its parent on failure.
+proc chkpass { cmd } {
+    upvar test test
+    if ![eval $cmd] {
+	verbose "unexpected failure: $cmd"
+	fail $test
+	uplevel break
+    }
+}
+
+# Fail test if command succeeds.
+# Issues a break in its parent on failure.
+proc chkfail { cmd } {
+    upvar test test
+    if [eval $cmd] {
+	verbose "unexpected success: $cmd"
+	fail $test
+	uplevel break
+    }
+}
+
+# wrapper to run command (actually usually sequence of commands)
+#
+# If any part of CMD throws an exception, set failall, otherwise pass.
+# If failall is already true, report unresolved.
+proc wraptest { test cmd } {
+    upvar failall failall
+    if $failall {
+	unresolved $test
+	return
+    }
+    if [catch $cmd] {
+	set failall 1
+    } else {
+	pass $test
+    }
+}
+
+run_once pwhist {
+    # Set up the kerberos database.
+    if {![get_hostname] \
+	    || ![setup_kerberos_files] \
+	    || ![setup_kerberos_env kdc] \
+	    || ![setup_kerberos_db 0]} {
+	return
+    }
+
+    set failall 0
+    wraptest "nkeys=1, nhist=3" {
+	mustrun { addpol crashpol }
+	mustrun { modpol crashpol "-history 3"}
+	mustrun { addprinc crash 1111 }
+	mustrun { modprinc crash "-policy crashpol" }
+	chkpass { cpw crash 2222 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+    }
+    verbose {old_keys [ 1111 ->[] ]}
+
+    # The following will result in reading/writing past array bounds if
+    # add_to_history() is not patched.
+    #
+    # NOTE: A pass from this test does not mean the bug isn't present;
+    # check with Purify, valgrind, etc.
+    wraptest "array bounds ok on nkeys=1, nhist 3->2" {
+	mustrun { modpol crashpol "-history 2" }
+	chkpass { cpw crash 3333 }
+    }
+    verbose {old_keys [ ->2222 ]}
+
+    wraptest "verify nhist=2" {
+	mustrun { delprinc crash }
+	mustrun { addprinc crash 1111 }
+	mustrun { modprinc crash "-policy crashpol" }
+	chkpass { cpw crash 2222 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+    }
+    verbose {old_keys [ ->1111 ]}
+
+    # The following will fail if growing the history array causes an extra
+    # key to be lost due to failure to shift entries.
+    wraptest "grow nhist 2->3" {
+	mustrun { modpol crashpol "-history 3" }
+	chkpass { cpw crash 3333 }
+	chkfail { cpw crash 3333 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+    }
+    verbose {old_keys [ 2222 ->1111 ]}
+
+    wraptest "grow nhist 3->4" {
+	mustrun { modpol crashpol "-history 4" }
+	chkfail { cpw crash 3333 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+	chkpass { cpw crash 4444 }
+	chkfail { cpw crash 3333 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+    }
+    verbose {old_keys [ 2222 3333 ->1111 ]}
+    wraptest "shrink nhist 4->3" {
+	mustrun { modpol crashpol "-history 3" }
+	chkfail { cpw crash 4444 }
+	chkfail { cpw crash 3333 }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 1111 }
+	chkpass { cpw crash 5555 }
+    }
+    verbose {old_keys [ 4444 ->3333 ]}
+    wraptest "verify nhist=3" {
+	chkfail { cpw crash 5555 }
+	chkfail { cpw crash 4444 }
+	chkfail { cpw crash 3333 }
+	chkpass { cpw crash 2222 }
+    }
+    verbose {old_keys [ ->4444 5555 ]}
+    wraptest "shrink nhist 3->2" {
+	mustrun { modpol crashpol "-history 2" }
+	chkfail { cpw crash 2222 }
+	chkfail { cpw crash 5555 }
+	chkfail { cpw crash 4444 }
+	chkpass { cpw crash 3333 }
+    }
+    verbose {old_keys [ ->2222 ]}
+
+    delprinc crash
+    delpol crashpol
+
+    stop_kerberos_daemons
+}

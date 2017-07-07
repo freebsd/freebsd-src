@@ -1,0 +1,49 @@
+mydir=lib$(S)crypto$(S)openssl
+BUILDTOP=$(REL)..$(S)..$(S)..
+SUBDIRS=camellia des aes md4 md5  sha1 sha2 enc_provider hash_provider
+LOCALINCLUDES = -I$(srcdir)/../krb -I$(srcdir)
+
+STLIBOBJS=\
+	hmac.o	\
+	init.o	\
+	pbkdf2.o \
+	sha256.o \
+	stubs.o
+
+OBJS=\
+	$(OUTPRE)hmac.$(OBJEXT)	\
+	$(OUTPRE)init.$(OBJEXT)	\
+	$(OUTPRE)pbkdf2.$(OBJEXT) \
+	$(OUTPRE)sha256.$(OBJEXT) \
+	$(OUTPRE)stubs.$(OBJEXT)
+
+SRCS=\
+	$(srcdir)/hmac.c	\
+	$(srcdir)/init.c	\
+	$(srcdir)/pbkdf2.c	\
+	$(srcdir)/sha256.c	\
+	$(srcdir)/stubs.c
+
+STOBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
+	md5/OBJS.ST sha1/OBJS.ST sha2/OBJS.ST 	\
+	enc_provider/OBJS.ST 		\
+	hash_provider/OBJS.ST 		\
+	aes/OBJS.ST 			\
+	OBJS.ST
+
+SUBDIROBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
+		md5/OBJS.ST sha1/OBJS.ST sha2/OBJS.ST 	\
+		enc_provider/OBJS.ST 		\
+		hash_provider/OBJS.ST 		\
+		aes/OBJS.ST 
+
+all-unix: all-libobjs
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@lib_frag@
+@libobj_frag@
+

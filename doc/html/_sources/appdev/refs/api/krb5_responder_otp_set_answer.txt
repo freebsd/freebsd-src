@@ -1,0 +1,52 @@
+krb5_responder_otp_set_answer -  Answer the KRB5_RESPONDER_QUESTION_OTP question. 
+==================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_responder_otp_set_answer(krb5_context ctx, krb5_responder_context rctx, size_t ti, const char * value, const char * pin)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+	          **[in]** **ti** - The index of the tokeninfo selected
+
+	          **[in]** **value** - The value to set, or NULL for none
+
+	          **[in]** **pin** - The pin to set, or NULL for none
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

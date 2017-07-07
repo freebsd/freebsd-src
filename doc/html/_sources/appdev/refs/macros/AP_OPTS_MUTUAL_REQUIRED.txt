@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _AP-OPTS-MUTUAL-REQUIRED-data:
+
+AP_OPTS_MUTUAL_REQUIRED
+=======================
+
+..
+.. data:: AP_OPTS_MUTUAL_REQUIRED
+..
+
+Perform a mutual authentication exchange.
+
+
+
+============================== ======================
+``AP_OPTS_MUTUAL_REQUIRED``       ``0x20000000``
+============================== ======================

@@ -1,0 +1,91 @@
+set timeout 120
+
+load_lib "helpers.exp"
+
+global spawn_id
+global server_id
+global server_started
+
+if { !$server_started } {return} 
+
+# Start the client and do a full run
+start_client "full run" fullrun testuser notathena 8h 1026
+set client_id $spawn_id
+
+#
+# test: did we get 11 dots?
+#
+verbose "Starting RPC echo test.  This will take about 50 seconds.\n"
+
+set ver_line "rpc_test server: bad verifier\[^\r\n\]*\[\r\n]+"
+
+set dots 0
+set server_lines 0
+while {1} {
+	expect {
+		-i $server_id
+		-re $ver_line {
+			verbose "Got line from server."
+			incr server_lines
+		}
+		default {
+			exp_continue
+		}
+
+		-i $client_id
+		. { 
+			incr dots
+			verbose "$expect_out(buffer)" 1
+			if ($dots==11) { break }
+		}
+		eof {
+			#
+			# test: was the exit status right?
+			#
+			wait_client "full run" fullrun $client_id 0
+			break
+		}
+
+		timeout { 
+			verbose "Timeout waiting for dot\n" 1
+			fail "full run: timeout waiting for dot"
+			break
+		}
+	}
+}
+if {$dots==11} {
+	pass "fullrun: echo test"
+} else {
+	fail "fullrun: echo test: expected 11 dots, got $dots"
+}
+
+#
+# test: server logged four bad verifiers?
+#
+verbose "full run: checking server output"
+
+# Small timeout, since the server should have already printed everything
+set timeout 5
+
+while {$server_lines < 4} {
+	expect {
+		-i $server_id
+		-re $ver_line {
+			incr server_lines
+		}
+		-re ".+\r\n" {
+			verbose "Unexpected server output: $expect_out(buffer)"
+		}
+		default {
+			break
+		}
+	}
+}
+
+if {$server_lines == 4} {
+	pass "fullrun: bad verifiers"
+} else {
+	fail "fullrun: expected four bad verifiers, got $server_lines"
+}
+
+flush_server

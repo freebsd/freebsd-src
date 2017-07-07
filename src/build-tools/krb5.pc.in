@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+vendor=MIT
+
+defccname=@DEFCCNAME@
+defktname=@DEFKTNAME@
+defcktname=@DEFCKTNAME@
+
+Name: krb5
+Description: An implementation of Kerberos network authentication
+Version: @KRB5_VERSION@
+Requires: mit-krb5

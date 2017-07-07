@@ -1,0 +1,1299 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>krb5.conf &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="Configuration Files" href="index.html" />
+    <link rel="next" title="kdc.conf" href="kdc_conf.html" />
+    <link rel="prev" title="Configuration Files" href="index.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="Configuration Files"
+            accesskey="P">previous</a> |
+        <a href="kdc_conf.html" title="kdc.conf"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5.conf">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="krb5-conf">
+<span id="krb5-conf-5"></span><h1>krb5.conf<a class="headerlink" href="#krb5-conf" title="Permalink to this headline">¶</a></h1>
+<p>The krb5.conf file contains Kerberos configuration information,
+including the locations of KDCs and admin servers for the Kerberos
+realms of interest, defaults for the current realm and for Kerberos
+applications, and mappings of hostnames onto Kerberos realms.
+Normally, you should install your krb5.conf file in the directory
+<tt class="docutils literal"><span class="pre">/etc</span></tt>.  You can override the default location by setting the
+environment variable <strong>KRB5_CONFIG</strong>.  Multiple colon-separated
+filenames may be specified in <strong>KRB5_CONFIG</strong>; all files which are
+present will be read.  Starting in release 1.14, directory names can
+also be specified in <strong>KRB5_CONFIG</strong>; all files within the directory
+whose names consist solely of alphanumeric characters, dashes, or
+underscores will be read.</p>
+<div class="section" id="structure">
+<h2>Structure<a class="headerlink" href="#structure" title="Permalink to this headline">¶</a></h2>
+<p>The krb5.conf file is set up in the style of a Windows INI file.
+Sections are headed by the section name, in square brackets.  Each
+section may contain zero or more relations, of the form:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">foo</span> <span class="o">=</span> <span class="n">bar</span>
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-python"><div class="highlight"><pre>fubar = {
+    foo = bar
+    baz = quux
+}
+</pre></div>
+</div>
+<p>Placing a &#8216;*&#8217; at the end of a line indicates that this is the <em>final</em>
+value for the tag.  This means that neither the remainder of this
+configuration file nor any other configuration file will be checked
+for any other values for this tag.</p>
+<p>For example, if you have the following lines:</p>
+<div class="highlight-python"><div class="highlight"><pre>foo = bar*
+foo = baz
+</pre></div>
+</div>
+<p>then the second value of <tt class="docutils literal"><span class="pre">foo</span></tt> (<tt class="docutils literal"><span class="pre">baz</span></tt>) would never be read.</p>
+<p>The krb5.conf file can include other files using either of the
+following directives at the beginning of a line:</p>
+<div class="highlight-python"><div class="highlight"><pre>include FILENAME
+includedir DIRNAME
+</pre></div>
+</div>
+<p><em>FILENAME</em> or <em>DIRNAME</em> should be an absolute path. The named file or
+directory must exist and be readable.  Including a directory includes
+all files within the directory whose names consist solely of
+alphanumeric characters, dashes, or underscores.  Starting in release
+1.15, files with names ending in &#8221;.conf&#8221; are also included.  Included
+profile files are syntactically independent of their parents, so each
+included file must begin with a section header.</p>
+<p>The krb5.conf file can specify that configuration should be obtained
+from a loadable module, rather than the file itself, using the
+following directive at the beginning of a line before any section
+headers:</p>
+<div class="highlight-python"><div class="highlight"><pre>module MODULEPATH:RESIDUAL
+</pre></div>
+</div>
+<p><em>MODULEPATH</em> may be relative to the library path of the krb5
+installation, or it may be an absolute path.  <em>RESIDUAL</em> is provided
+to the module at initialization time.  If krb5.conf uses a module
+directive, <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> should also use one if it exists.</p>
+</div>
+<div class="section" id="sections">
+<h2>Sections<a class="headerlink" href="#sections" title="Permalink to this headline">¶</a></h2>
+<p>The krb5.conf file may contain the following sections:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#libdefaults"><em>[libdefaults]</em></a></td>
+<td>Settings used by the Kerberos V5 library</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#realms"><em>[realms]</em></a></td>
+<td>Realm-specific contact information and settings</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#domain-realm"><em>[domain_realm]</em></a></td>
+<td>Maps server hostnames to Kerberos realms</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#capaths"><em>[capaths]</em></a></td>
+<td>Authentication paths for non-hierarchical cross-realm</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#appdefaults"><em>[appdefaults]</em></a></td>
+<td>Settings used by some Kerberos V5 applications</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#plugins"><em>[plugins]</em></a></td>
+<td>Controls plugin module registration</td>
+</tr>
+</tbody>
+</table>
+<p>Additionally, krb5.conf may include any of the relations described in
+<a class="reference internal" href="kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>, but it is not a recommended practice.</p>
+<div class="section" id="libdefaults">
+<span id="id1"></span><h3>[libdefaults]<a class="headerlink" href="#libdefaults" title="Permalink to this headline">¶</a></h3>
+<p>The libdefaults section may contain any of the following relations:</p>
+<dl class="docutils">
+<dt><strong>allow_weak_crypto</strong></dt>
+<dd>If this flag is set to false, then weak encryption types (as noted
+in <a class="reference internal" href="kdc_conf.html#encryption-types"><em>Encryption types</em></a> in <a class="reference internal" href="kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a>) will be filtered
+out of the lists <strong>default_tgs_enctypes</strong>,
+<strong>default_tkt_enctypes</strong>, and <strong>permitted_enctypes</strong>.  The default
+value for this tag is false, which may cause authentication
+failures in existing Kerberos infrastructures that do not support
+strong crypto.  Users in affected environments should set this tag
+to true until their infrastructure adopts stronger ciphers.</dd>
+<dt><strong>ap_req_checksum_type</strong></dt>
+<dd>An integer which specifies the type of AP-REQ checksum to use in
+authenticators.  This variable should be unset so the appropriate
+checksum for the encryption key in use will be used.  This can be
+set if backward compatibility requires a specific checksum type.
+See the <strong>kdc_req_checksum_type</strong> configuration option for the
+possible values and their meanings.</dd>
+<dt><strong>canonicalize</strong></dt>
+<dd>If this flag is set to true, initial ticket requests to the KDC
+will request canonicalization of the client principal name, and
+answers with different client principals than the requested
+principal will be accepted.  The default value is false.</dd>
+<dt><strong>ccache_type</strong></dt>
+<dd>This parameter determines the format of credential cache types
+created by <a class="reference internal" href="../../user/user_commands/kinit.html#kinit-1"><em>kinit</em></a> or other programs.  The default value
+is 4, which represents the most current format.  Smaller values
+can be used for compatibility with very old implementations of
+Kerberos which interact with credential caches on the same host.</dd>
+<dt><strong>clockskew</strong></dt>
+<dd><p class="first">Sets the maximum allowable amount of clockskew in seconds that the
+library will tolerate before assuming that a Kerberos message is
+invalid.  The default value is 300 seconds, or five minutes.</p>
+<p class="last">The clockskew setting is also used when evaluating ticket start
+and expiration times.  For example, tickets that have reached
+their expiration time can still be used (and renewed if they are
+renewable tickets) if they have been expired for a shorter
+duration than the <strong>clockskew</strong> setting.</p>
+</dd>
+<dt><strong>default_ccache_name</strong></dt>
+<dd>This relation specifies the name of the default credential cache.
+The default is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCCNAME</em></a>.  This relation is subject to parameter
+expansion (see below).  New in release 1.11.</dd>
+<dt><strong>default_client_keytab_name</strong></dt>
+<dd>This relation specifies the name of the default keytab for
+obtaining client credentials.  The default is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCKTNAME</em></a>.  This
+relation is subject to parameter expansion (see below).
+New in release 1.11.</dd>
+<dt><strong>default_keytab_name</strong></dt>
+<dd>This relation specifies the default keytab name to be used by
+application servers such as sshd.  The default is <a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFKTNAME</em></a>.  This
+relation is subject to parameter expansion (see below).</dd>
+<dt><strong>default_realm</strong></dt>
+<dd>Identifies the default Kerberos realm for the client.  Set its
+value to your Kerberos realm.  If this value is not set, then a
+realm must be specified with every Kerberos principal when
+invoking programs such as <a class="reference internal" href="../../user/user_commands/kinit.html#kinit-1"><em>kinit</em></a>.</dd>
+<dt><strong>default_tgs_enctypes</strong></dt>
+<dd><p class="first">Identifies the supported list of session key encryption types that
+the client should request when making a TGS-REQ, in order of
+preference from highest to lowest.  The list may be delimited with
+commas or whitespace.  See <a class="reference internal" href="kdc_conf.html#encryption-types"><em>Encryption types</em></a> in
+<a class="reference internal" href="kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a> for a list of the accepted values for this tag.
+The default value is <tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types
+will be implicitly removed from this list if the value of
+<strong>allow_weak_crypto</strong> is false.</p>
+<p class="last">Do not set this unless required for specific backward
+compatibility purposes; stale values of this setting can prevent
+clients from taking advantage of new stronger enctypes when the
+libraries are upgraded.</p>
+</dd>
+<dt><strong>default_tkt_enctypes</strong></dt>
+<dd><p class="first">Identifies the supported list of session key encryption types that
+the client should request when making an AS-REQ, in order of
+preference from highest to lowest.  The format is the same as for
+default_tgs_enctypes.  The default value for this tag is
+<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
+removed from this list if the value of <strong>allow_weak_crypto</strong> is
+false.</p>
+<p class="last">Do not set this unless required for specific backward
+compatibility purposes; stale values of this setting can prevent
+clients from taking advantage of new stronger enctypes when the
+libraries are upgraded.</p>
+</dd>
+<dt><strong>dns_canonicalize_hostname</strong></dt>
+<dd>Indicate whether name lookups will be used to canonicalize
+hostnames for use in service principal names.  Setting this flag
+to false can improve security by reducing reliance on DNS, but
+means that short hostnames will not be canonicalized to
+fully-qualified hostnames.  The default value is true.</dd>
+<dt><strong>dns_lookup_kdc</strong></dt>
+<dd><p class="first">Indicate whether DNS SRV records should be used to locate the KDCs
+and other servers for a realm, if they are not listed in the
+krb5.conf information for the realm.  (Note that the admin_server
+entry must be in the krb5.conf realm information in order to
+contact kadmind, because the DNS implementation for kadmin is
+incomplete.)</p>
+<p class="last">Enabling this option does open up a type of denial-of-service
+attack, if someone spoofs the DNS records and redirects you to
+another server.  However, it&#8217;s no worse than a denial of service,
+because that fake KDC will be unable to decode anything you send
+it (besides the initial ticket request, which has no encrypted
+data), and anything the fake KDC sends will not be trusted without
+verification using some secret that it won&#8217;t know.</p>
+</dd>
+<dt><strong>dns_uri_lookup</strong></dt>
+<dd>Indicate whether DNS URI records should be used to locate the KDCs
+and other servers for a realm, if they are not listed in the
+krb5.conf information for the realm.  SRV records are used as a
+fallback if no URI records were found.  The default value is true.
+New in release 1.15.</dd>
+<dt><strong>err_fmt</strong></dt>
+<dd>This relation allows for custom error message formatting.  If a
+value is set, error messages will be formatted by substituting a
+normal error message for %M and an error code for %C in the value.</dd>
+<dt><strong>extra_addresses</strong></dt>
+<dd>This allows a computer to use multiple local addresses, in order
+to allow Kerberos to work in a network that uses NATs while still
+using address-restricted tickets.  The addresses should be in a
+comma-separated list.  This option has no effect if
+<strong>noaddresses</strong> is true.</dd>
+<dt><strong>forwardable</strong></dt>
+<dd>If this flag is true, initial tickets will be forwardable by
+default, if allowed by the KDC.  The default value is false.</dd>
+<dt><strong>ignore_acceptor_hostname</strong></dt>
+<dd>When accepting GSSAPI or krb5 security contexts for host-based
+service principals, ignore any hostname passed by the calling
+application, and allow clients to authenticate to any service
+principal in the keytab matching the service name and realm name
+(if given).  This option can improve the administrative
+flexibility of server applications on multihomed hosts, but could
+compromise the security of virtual hosting environments.  The
+default value is false.  New in release 1.10.</dd>
+<dt><strong>k5login_authoritative</strong></dt>
+<dd>If this flag is true, principals must be listed in a local user&#8217;s
+k5login file to be granted login access, if a <a class="reference internal" href="../../user/user_config/k5login.html#k5login-5"><em>.k5login</em></a>
+file exists.  If this flag is false, a principal may still be
+granted login access through other mechanisms even if a k5login
+file exists but does not list the principal.  The default value is
+true.</dd>
+<dt><strong>k5login_directory</strong></dt>
+<dd>If set, the library will look for a local user&#8217;s k5login file
+within the named directory, with a filename corresponding to the
+local username.  If not set, the library will look for k5login
+files in the user&#8217;s home directory, with the filename .k5login.
+For security reasons, .k5login files must be owned by
+the local user or by root.</dd>
+<dt><strong>kcm_mach_service</strong></dt>
+<dd>On OS X only, determines the name of the bootstrap service used to
+contact the KCM daemon for the KCM credential cache type.  If the
+value is <tt class="docutils literal"><span class="pre">-</span></tt>, Mach RPC will not be used to contact the KCM
+daemon.  The default value is <tt class="docutils literal"><span class="pre">org.h5l.kcm</span></tt>.</dd>
+<dt><strong>kcm_socket</strong></dt>
+<dd>Determines the path to the Unix domain socket used to access the
+KCM daemon for the KCM credential cache type.  If the value is
+<tt class="docutils literal"><span class="pre">-</span></tt>, Unix domain sockets will not be used to contact the KCM
+daemon.  The default value is
+<tt class="docutils literal"><span class="pre">/var/run/.heim_org.h5l.kcm-socket</span></tt>.</dd>
+<dt><strong>kdc_default_options</strong></dt>
+<dd>Default KDC options (Xored for multiple values) when requesting
+initial tickets.  By default it is set to 0x00000010
+(KDC_OPT_RENEWABLE_OK).</dd>
+<dt><strong>kdc_timesync</strong></dt>
+<dd>Accepted values for this relation are 1 or 0.  If it is nonzero,
+client machines will compute the difference between their time and
+the time returned by the KDC in the timestamps in the tickets and
+use this value to correct for an inaccurate system clock when
+requesting service tickets or authenticating to services.  This
+corrective factor is only used by the Kerberos library; it is not
+used to change the system clock.  The default value is 1.</dd>
+<dt><strong>kdc_req_checksum_type</strong></dt>
+<dd><p class="first">An integer which specifies the type of checksum to use for the KDC
+requests, for compatibility with very old KDC implementations.
+This value is only used for DES keys; other keys use the preferred
+checksum type for those keys.</p>
+<p>The possible values and their meanings are as follows.</p>
+<table border="1" class="last docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>1</td>
+<td>CRC32</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>RSA MD4</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>RSA MD4 DES</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>DES CBC</td>
+</tr>
+<tr class="row-odd"><td>7</td>
+<td>RSA MD5</td>
+</tr>
+<tr class="row-even"><td>8</td>
+<td>RSA MD5 DES</td>
+</tr>
+<tr class="row-odd"><td>9</td>
+<td>NIST SHA</td>
+</tr>
+<tr class="row-even"><td>12</td>
+<td>HMAC SHA1 DES3</td>
+</tr>
+<tr class="row-odd"><td>-138</td>
+<td>Microsoft MD5 HMAC checksum type</td>
+</tr>
+</tbody>
+</table>
+</dd>
+<dt><strong>noaddresses</strong></dt>
+<dd>If this flag is true, requests for initial tickets will not be
+made with address restrictions set, allowing the tickets to be
+used across NATs.  The default value is true.</dd>
+<dt><strong>permitted_enctypes</strong></dt>
+<dd>Identifies all encryption types that are permitted for use in
+session key encryption.  The default value for this tag is
+<tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt>, but single-DES encryption types will be implicitly
+removed from this list if the value of <strong>allow_weak_crypto</strong> is
+false.</dd>
+<dt><strong>plugin_base_dir</strong></dt>
+<dd>If set, determines the base directory where krb5 plugins are
+located.  The default value is the <tt class="docutils literal"><span class="pre">krb5/plugins</span></tt> subdirectory
+of the krb5 library directory.</dd>
+<dt><strong>preferred_preauth_types</strong></dt>
+<dd>This allows you to set the preferred preauthentication types which
+the client will attempt before others which may be advertised by a
+KDC.  The default value for this setting is &#8220;17, 16, 15, 14&#8221;,
+which forces libkrb5 to attempt to use PKINIT if it is supported.</dd>
+<dt><strong>proxiable</strong></dt>
+<dd>If this flag is true, initial tickets will be proxiable by
+default, if allowed by the KDC.  The default value is false.</dd>
+<dt><strong>rdns</strong></dt>
+<dd>If this flag is true, reverse name lookup will be used in addition
+to forward name lookup to canonicalizing hostnames for use in
+service principal names.  If <strong>dns_canonicalize_hostname</strong> is set
+to false, this flag has no effect.  The default value is true.</dd>
+<dt><strong>realm_try_domains</strong></dt>
+<dd>Indicate whether a host&#8217;s domain components should be used to
+determine the Kerberos realm of the host.  The value of this
+variable is an integer: -1 means not to search, 0 means to try the
+host&#8217;s domain itself, 1 means to also try the domain&#8217;s immediate
+parent, and so forth.  The library&#8217;s usual mechanism for locating
+Kerberos realms is used to determine whether a domain is a valid
+realm, which may involve consulting DNS if <strong>dns_lookup_kdc</strong> is
+set.  The default is not to search domain components.</dd>
+<dt><strong>renew_lifetime</strong></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Sets the default renewable lifetime
+for initial ticket requests.  The default value is 0.</dd>
+<dt><strong>safe_checksum_type</strong></dt>
+<dd>An integer which specifies the type of checksum to use for the
+KRB-SAFE requests.  By default it is set to 8 (RSA MD5 DES).  For
+compatibility with applications linked against DCE version 1.1 or
+earlier Kerberos libraries, use a value of 3 to use the RSA MD4
+DES instead.  This field is ignored when its value is incompatible
+with the session key type.  See the <strong>kdc_req_checksum_type</strong>
+configuration option for the possible values and their meanings.</dd>
+<dt><strong>ticket_lifetime</strong></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Sets the default lifetime for initial
+ticket requests.  The default value is 1 day.</dd>
+<dt><strong>udp_preference_limit</strong></dt>
+<dd>When sending a message to the KDC, the library will try using TCP
+before UDP if the size of the message is above
+<strong>udp_preference_limit</strong>.  If the message is smaller than
+<strong>udp_preference_limit</strong>, then UDP will be tried before TCP.
+Regardless of the size, both protocols will be tried if the first
+attempt fails.</dd>
+<dt><strong>verify_ap_req_nofail</strong></dt>
+<dd>If this flag is true, then an attempt to verify initial
+credentials will fail if the client machine does not have a
+keytab.  The default value is false.</dd>
+</dl>
+</div>
+<div class="section" id="realms">
+<span id="id2"></span><h3>[realms]<a class="headerlink" href="#realms" title="Permalink to this headline">¶</a></h3>
+<p>Each tag in the [realms] section of the file is the name of a Kerberos
+realm.  The value of the tag is a subsection with relations that
+define the properties of that particular realm.  For each realm, the
+following tags may be specified in the realm&#8217;s subsection:</p>
+<dl class="docutils">
+<dt><strong>admin_server</strong></dt>
+<dd>Identifies the host where the administration server is running.
+Typically, this is the master Kerberos server.  This tag must be
+given a value in order to communicate with the <a class="reference internal" href="../admin_commands/kadmind.html#kadmind-8"><em>kadmind</em></a>
+server for the realm.</dd>
+<dt><strong>auth_to_local</strong></dt>
+<dd><p class="first">This tag allows you to set a general rule for mapping principal
+names to local user names.  It will be used if there is not an
+explicit mapping for the principal name that is being
+translated. The possible values are:</p>
+<dl class="docutils">
+<dt><strong>RULE:</strong><em>exp</em></dt>
+<dd><p class="first">The local name will be formulated from <em>exp</em>.</p>
+<p class="last">The format for <em>exp</em> is <strong>[</strong><em>n</em><strong>:</strong><em>string</em><strong>](</strong><em>regexp</em><strong>)s/</strong><em>pattern</em><strong>/</strong><em>replacement</em><strong>/g</strong>.
+The integer <em>n</em> indicates how many components the target
+principal should have.  If this matches, then a string will be
+formed from <em>string</em>, substituting the realm of the principal
+for <tt class="docutils literal"><span class="pre">$0</span></tt> and the <em>n</em>&#8216;th component of the principal for
+<tt class="docutils literal"><span class="pre">$n</span></tt> (e.g., if the principal was <tt class="docutils literal"><span class="pre">johndoe/admin</span></tt> then
+<tt class="docutils literal"><span class="pre">[2:$2$1foo]</span></tt> would result in the string
+<tt class="docutils literal"><span class="pre">adminjohndoefoo</span></tt>).  If this string matches <em>regexp</em>, then
+the <tt class="docutils literal"><span class="pre">s//[g]</span></tt> substitution command will be run over the
+string.  The optional <strong>g</strong> will cause the substitution to be
+global over the <em>string</em>, instead of replacing only the first
+match in the <em>string</em>.</p>
+</dd>
+<dt><strong>DEFAULT</strong></dt>
+<dd>The principal name will be used as the local user name.  If
+the principal has more than one component or is not in the
+default realm, this rule is not applicable and the conversion
+will fail.</dd>
+</dl>
+<p>For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>[realms]
+    ATHENA.MIT.EDU = {
+        auth_to_local = RULE:[2:$1](johndoe)s/^.*$/guest/
+        auth_to_local = RULE:[2:$1;$2](^.*;admin$)s/;admin$//
+        auth_to_local = RULE:[2:$2](^.*;root)s/^.*$/root/
+        auto_to_local = DEFAULT
+    }
+</pre></div>
+</div>
+<p class="last">would result in any principal without <tt class="docutils literal"><span class="pre">root</span></tt> or <tt class="docutils literal"><span class="pre">admin</span></tt> as the
+second component to be translated with the default rule.  A
+principal with a second component of <tt class="docutils literal"><span class="pre">admin</span></tt> will become its
+first component.  <tt class="docutils literal"><span class="pre">root</span></tt> will be used as the local name for any
+principal with a second component of <tt class="docutils literal"><span class="pre">root</span></tt>.  The exception to
+these two rules are any principals <tt class="docutils literal"><span class="pre">johndoe/*</span></tt>, which will
+always get the local name <tt class="docutils literal"><span class="pre">guest</span></tt>.</p>
+</dd>
+<dt><strong>auth_to_local_names</strong></dt>
+<dd>This subsection allows you to set explicit mappings from principal
+names to local user names.  The tag is the mapping name, and the
+value is the corresponding local user name.</dd>
+<dt><strong>default_domain</strong></dt>
+<dd>This tag specifies the domain used to expand hostnames when
+translating Kerberos 4 service principals to Kerberos 5 principals
+(for example, when converting <tt class="docutils literal"><span class="pre">rcmd.hostname</span></tt> to
+<tt class="docutils literal"><span class="pre">host/hostname.domain</span></tt>).</dd>
+<dt><strong>http_anchors</strong></dt>
+<dd><p class="first">When KDCs and kpasswd servers are accessed through HTTPS proxies, this tag
+can be used to specify the location of the CA certificate which should be
+trusted to issue the certificate for a proxy server.  If left unspecified,
+the system-wide default set of CA certificates is used.</p>
+<p>The syntax for values is similar to that of values for the
+<strong>pkinit_anchors</strong> tag:</p>
+<p><strong>FILE:</strong> <em>filename</em></p>
+<p><em>filename</em> is assumed to be the name of an OpenSSL-style ca-bundle file.</p>
+<p><strong>DIR:</strong> <em>dirname</em></p>
+<p><em>dirname</em> is assumed to be an directory which contains CA certificates.
+All files in the directory will be examined; if they contain certificates
+(in PEM format), they will be used.</p>
+<p><strong>ENV:</strong> <em>envvar</em></p>
+<p class="last"><em>envvar</em> specifies the name of an environment variable which has been set
+to a value conforming to one of the previous values.  For example,
+<tt class="docutils literal"><span class="pre">ENV:X509_PROXY_CA</span></tt>, where environment variable <tt class="docutils literal"><span class="pre">X509_PROXY_CA</span></tt> has
+been set to <tt class="docutils literal"><span class="pre">FILE:/tmp/my_proxy.pem</span></tt>.</p>
+</dd>
+<dt><strong>kdc</strong></dt>
+<dd>The name or address of a host running a KDC for that realm.  An
+optional port number, separated from the hostname by a colon, may
+be included.  If the name or address contains colons (for example,
+if it is an IPv6 address), enclose it in square brackets to
+distinguish the colon from a port separator.  For your computer to
+be able to communicate with the KDC for each realm, this tag must
+be given a value in each realm subsection in the configuration
+file, or there must be DNS SRV records specifying the KDCs.</dd>
+<dt><strong>kpasswd_server</strong></dt>
+<dd>Points to the server where all the password changes are performed.
+If there is no such entry, the port 464 on the <strong>admin_server</strong>
+host will be tried.</dd>
+<dt><strong>master_kdc</strong></dt>
+<dd>Identifies the master KDC(s).  Currently, this tag is used in only
+one case: If an attempt to get credentials fails because of an
+invalid password, the client software will attempt to contact the
+master KDC, in case the user&#8217;s password has just been changed, and
+the updated database has not been propagated to the slave servers
+yet.</dd>
+<dt><strong>v4_instance_convert</strong></dt>
+<dd>This subsection allows the administrator to configure exceptions
+to the <strong>default_domain</strong> mapping rule.  It contains V4 instances
+(the tag name) which should be translated to some specific
+hostname (the tag value) as the second component in a Kerberos V5
+principal name.</dd>
+<dt><strong>v4_realm</strong></dt>
+<dd>This relation is used by the krb524 library routines when
+converting a V5 principal name to a V4 principal name.  It is used
+when the V4 realm name and the V5 realm name are not the same, but
+still share the same principal names and passwords. The tag value
+is the Kerberos V4 realm name.</dd>
+</dl>
+</div>
+<div class="section" id="domain-realm">
+<span id="id3"></span><h3>[domain_realm]<a class="headerlink" href="#domain-realm" title="Permalink to this headline">¶</a></h3>
+<p>The [domain_realm] section provides a translation from a domain name
+or hostname to a Kerberos realm name.  The tag name can be a host name
+or domain name, where domain names are indicated by a prefix of a
+period (<tt class="docutils literal"><span class="pre">.</span></tt>).  The value of the relation is the Kerberos realm name
+for that particular host or domain.  A host name relation implicitly
+provides the corresponding domain name relation, unless an explicit domain
+name relation is provided.  The Kerberos realm may be
+identified either in the <a class="reference internal" href="#realms">realms</a> section or using DNS SRV records.
+Host names and domain names should be in lower case.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>[domain_realm]
+    crash.mit.edu = TEST.ATHENA.MIT.EDU
+    .dev.mit.edu = TEST.ATHENA.MIT.EDU
+    mit.edu = ATHENA.MIT.EDU
+</pre></div>
+</div>
+<p>maps the host with the name <tt class="docutils literal"><span class="pre">crash.mit.edu</span></tt> into the
+<tt class="docutils literal"><span class="pre">TEST.ATHENA.MIT.EDU</span></tt> realm.  The second entry maps all hosts under the
+domain <tt class="docutils literal"><span class="pre">dev.mit.edu</span></tt> into the <tt class="docutils literal"><span class="pre">TEST.ATHENA.MIT.EDU</span></tt> realm, but not
+the host with the name <tt class="docutils literal"><span class="pre">dev.mit.edu</span></tt>.  That host is matched
+by the third entry, which maps the host <tt class="docutils literal"><span class="pre">mit.edu</span></tt> and all hosts
+under the domain <tt class="docutils literal"><span class="pre">mit.edu</span></tt> that do not match a preceding rule
+into the realm <tt class="docutils literal"><span class="pre">ATHENA.MIT.EDU</span></tt>.</p>
+<p>If no translation entry applies to a hostname used for a service
+principal for a service ticket request, the library will try to get a
+referral to the appropriate realm from the client realm&#8217;s KDC.  If
+that does not succeed, the host&#8217;s realm is considered to be the
+hostname&#8217;s domain portion converted to uppercase, unless the
+<strong>realm_try_domains</strong> setting in [libdefaults] causes a different
+parent domain to be used.</p>
+</div>
+<div class="section" id="capaths">
+<span id="id4"></span><h3>[capaths]<a class="headerlink" href="#capaths" title="Permalink to this headline">¶</a></h3>
+<p>In order to perform direct (non-hierarchical) cross-realm
+authentication, configuration is needed to determine the
+authentication paths between realms.</p>
+<p>A client will use this section to find the authentication path between
+its realm and the realm of the server.  The server will use this
+section to verify the authentication path used by the client, by
+checking the transited field of the received ticket.</p>
+<p>There is a tag for each participating client realm, and each tag has
+subtags for each of the server realms.  The value of the subtags is an
+intermediate realm which may participate in the cross-realm
+authentication.  The subtags may be repeated if there is more then one
+intermediate realm.  A value of &#8221;.&#8221; means that the two realms share
+keys directly, and no intermediate realms should be allowed to
+participate.</p>
+<p>Only those entries which will be needed on the client or the server
+need to be present.  A client needs a tag for its local realm with
+subtags for all the realms of servers it will need to authenticate to.
+A server needs a tag for each realm of the clients it will serve, with
+a subtag of the server realm.</p>
+<p>For example, <tt class="docutils literal"><span class="pre">ANL.GOV</span></tt>, <tt class="docutils literal"><span class="pre">PNL.GOV</span></tt>, and <tt class="docutils literal"><span class="pre">NERSC.GOV</span></tt> all wish to
+use the <tt class="docutils literal"><span class="pre">ES.NET</span></tt> realm as an intermediate realm.  ANL has a sub
+realm of <tt class="docutils literal"><span class="pre">TEST.ANL.GOV</span></tt> which will authenticate with <tt class="docutils literal"><span class="pre">NERSC.GOV</span></tt>
+but not <tt class="docutils literal"><span class="pre">PNL.GOV</span></tt>.  The [capaths] section for <tt class="docutils literal"><span class="pre">ANL.GOV</span></tt> systems
+would look like this:</p>
+<div class="highlight-python"><div class="highlight"><pre>[capaths]
+    ANL.GOV = {
+        TEST.ANL.GOV = .
+        PNL.GOV = ES.NET
+        NERSC.GOV = ES.NET
+        ES.NET = .
+    }
+    TEST.ANL.GOV = {
+        ANL.GOV = .
+    }
+    PNL.GOV = {
+        ANL.GOV = ES.NET
+    }
+    NERSC.GOV = {
+        ANL.GOV = ES.NET
+    }
+    ES.NET = {
+        ANL.GOV = .
+    }
+</pre></div>
+</div>
+<p>The [capaths] section of the configuration file used on <tt class="docutils literal"><span class="pre">NERSC.GOV</span></tt>
+systems would look like this:</p>
+<div class="highlight-python"><div class="highlight"><pre>[capaths]
+    NERSC.GOV = {
+        ANL.GOV = ES.NET
+        TEST.ANL.GOV = ES.NET
+        TEST.ANL.GOV = ANL.GOV
+        PNL.GOV = ES.NET
+        ES.NET = .
+    }
+    ANL.GOV = {
+        NERSC.GOV = ES.NET
+    }
+    PNL.GOV = {
+        NERSC.GOV = ES.NET
+    }
+    ES.NET = {
+        NERSC.GOV = .
+    }
+    TEST.ANL.GOV = {
+        NERSC.GOV = ANL.GOV
+        NERSC.GOV = ES.NET
+    }
+</pre></div>
+</div>
+<p>When a subtag is used more than once within a tag, clients will use
+the order of values to determine the path.  The order of values is not
+important to servers.</p>
+</div>
+<div class="section" id="appdefaults">
+<span id="id5"></span><h3>[appdefaults]<a class="headerlink" href="#appdefaults" title="Permalink to this headline">¶</a></h3>
+<p>Each tag in the [appdefaults] section names a Kerberos V5 application
+or an option that is used by some Kerberos V5 application[s].  The
+value of the tag defines the default behaviors for that application.</p>
+<p>For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>[appdefaults]
+    telnet = {
+        ATHENA.MIT.EDU = {
+            option1 = false
+        }
+    }
+    telnet = {
+        option1 = true
+        option2 = true
+    }
+    ATHENA.MIT.EDU = {
+        option2 = false
+    }
+    option2 = true
+</pre></div>
+</div>
+<p>The above four ways of specifying the value of an option are shown in
+order of decreasing precedence. In this example, if telnet is running
+in the realm EXAMPLE.COM, it should, by default, have option1 and
+option2 set to true.  However, a telnet program in the realm
+<tt class="docutils literal"><span class="pre">ATHENA.MIT.EDU</span></tt> should have <tt class="docutils literal"><span class="pre">option1</span></tt> set to false and
+<tt class="docutils literal"><span class="pre">option2</span></tt> set to true.  Any other programs in ATHENA.MIT.EDU should
+have <tt class="docutils literal"><span class="pre">option2</span></tt> set to false by default.  Any programs running in
+other realms should have <tt class="docutils literal"><span class="pre">option2</span></tt> set to true.</p>
+<p>The list of specifiable options for each application may be found in
+that application&#8217;s man pages.  The application defaults specified here
+are overridden by those specified in the <a class="reference internal" href="#realms">realms</a> section.</p>
+</div>
+<div class="section" id="plugins">
+<span id="id6"></span><h3>[plugins]<a class="headerlink" href="#plugins" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="#pwqual">pwqual</a> interface</li>
+<li><a class="reference internal" href="#kadm5-hook">kadm5_hook</a> interface</li>
+<li><a class="reference internal" href="#clpreauth">clpreauth</a> and <a class="reference internal" href="#kdcpreauth">kdcpreauth</a> interfaces</li>
+</ul>
+</div></blockquote>
+<p>Tags in the [plugins] section can be used to register dynamic plugin
+modules and to turn modules on and off.  Not every krb5 pluggable
+interface uses the [plugins] section; the ones that do are documented
+here.</p>
+<p>New in release 1.9.</p>
+<p>Each pluggable interface corresponds to a subsection of [plugins].
+All subsections support the same tags:</p>
+<dl class="docutils">
+<dt><strong>disable</strong></dt>
+<dd>This tag may have multiple values. If there are values for this
+tag, then the named modules will be disabled for the pluggable
+interface.</dd>
+<dt><strong>enable_only</strong></dt>
+<dd>This tag may have multiple values. If there are values for this
+tag, then only the named modules will be enabled for the pluggable
+interface.</dd>
+<dt><strong>module</strong></dt>
+<dd>This tag may have multiple values.  Each value is a string of the
+form <tt class="docutils literal"><span class="pre">modulename:pathname</span></tt>, which causes the shared object
+located at <em>pathname</em> to be registered as a dynamic module named
+<em>modulename</em> for the pluggable interface.  If <em>pathname</em> is not an
+absolute path, it will be treated as relative to the
+<strong>plugin_base_dir</strong> value from <a class="reference internal" href="#libdefaults"><em>[libdefaults]</em></a>.</dd>
+</dl>
+<p>For pluggable interfaces where module order matters, modules
+registered with a <strong>module</strong> tag normally come first, in the order
+they are registered, followed by built-in modules in the order they
+are documented below.  If <strong>enable_only</strong> tags are used, then the
+order of those tags overrides the normal module order.</p>
+<p>The following subsections are currently supported within the [plugins]
+section:</p>
+<div class="section" id="ccselect-interface">
+<span id="ccselect"></span><h4>ccselect interface<a class="headerlink" href="#ccselect-interface" title="Permalink to this headline">¶</a></h4>
+<p>The ccselect subsection controls modules for credential cache
+selection within a cache collection.  In addition to any registered
+dynamic modules, the following built-in modules exist (and may be
+disabled with the disable tag):</p>
+<dl class="docutils">
+<dt><strong>k5identity</strong></dt>
+<dd>Uses a .k5identity file in the user&#8217;s home directory to select a
+client principal</dd>
+<dt><strong>realm</strong></dt>
+<dd>Uses the service realm to guess an appropriate cache from the
+collection</dd>
+</dl>
+</div>
+<div class="section" id="pwqual-interface">
+<span id="pwqual"></span><h4>pwqual interface<a class="headerlink" href="#pwqual-interface" title="Permalink to this headline">¶</a></h4>
+<p>The pwqual subsection controls modules for the password quality
+interface, which is used to reject weak passwords when passwords are
+changed.  The following built-in modules exist for this interface:</p>
+<dl class="docutils">
+<dt><strong>dict</strong></dt>
+<dd>Checks against the realm dictionary file</dd>
+<dt><strong>empty</strong></dt>
+<dd>Rejects empty passwords</dd>
+<dt><strong>hesiod</strong></dt>
+<dd>Checks against user information stored in Hesiod (only if Kerberos
+was built with Hesiod support)</dd>
+<dt><strong>princ</strong></dt>
+<dd>Checks against components of the principal name</dd>
+</dl>
+</div>
+<div class="section" id="kadm5-hook-interface">
+<span id="kadm5-hook"></span><h4>kadm5_hook interface<a class="headerlink" href="#kadm5-hook-interface" title="Permalink to this headline">¶</a></h4>
+<p>The kadm5_hook interface provides plugins with information on
+principal creation, modification, password changes and deletion.  This
+interface can be used to write a plugin to synchronize MIT Kerberos
+with another database such as Active Directory.  No plugins are built
+in for this interface.</p>
+</div>
+<div class="section" id="clpreauth-and-kdcpreauth-interfaces">
+<span id="kdcpreauth"></span><span id="clpreauth"></span><h4>clpreauth and kdcpreauth interfaces<a class="headerlink" href="#clpreauth-and-kdcpreauth-interfaces" title="Permalink to this headline">¶</a></h4>
+<p>The clpreauth and kdcpreauth interfaces allow plugin modules to
+provide client and KDC preauthentication mechanisms.  The following
+built-in modules exist for these interfaces:</p>
+<dl class="docutils">
+<dt><strong>pkinit</strong></dt>
+<dd>This module implements the PKINIT preauthentication mechanism.</dd>
+<dt><strong>encrypted_challenge</strong></dt>
+<dd>This module implements the encrypted challenge FAST factor.</dd>
+<dt><strong>encrypted_timestamp</strong></dt>
+<dd>This module implements the encrypted timestamp mechanism.</dd>
+</dl>
+</div>
+<div class="section" id="hostrealm-interface">
+<span id="hostrealm"></span><h4>hostrealm interface<a class="headerlink" href="#hostrealm-interface" title="Permalink to this headline">¶</a></h4>
+<p>The hostrealm section (introduced in release 1.12) controls modules
+for the host-to-realm interface, which affects the local mapping of
+hostnames to realm names and the choice of default realm.  The following
+built-in modules exist for this interface:</p>
+<dl class="docutils">
+<dt><strong>profile</strong></dt>
+<dd>This module consults the [domain_realm] section of the profile for
+authoritative host-to-realm mappings, and the <strong>default_realm</strong>
+variable for the default realm.</dd>
+<dt><strong>dns</strong></dt>
+<dd>This module looks for DNS records for fallback host-to-realm
+mappings and the default realm.  It only operates if the
+<strong>dns_lookup_realm</strong> variable is set to true.</dd>
+<dt><strong>domain</strong></dt>
+<dd>This module applies heuristics for fallback host-to-realm
+mappings.  It implements the <strong>realm_try_domains</strong> variable, and
+uses the uppercased parent domain of the hostname if that does not
+produce a result.</dd>
+</dl>
+</div>
+<div class="section" id="localauth-interface">
+<span id="localauth"></span><h4>localauth interface<a class="headerlink" href="#localauth-interface" title="Permalink to this headline">¶</a></h4>
+<p>The localauth section (introduced in release 1.12) controls modules
+for the local authorization interface, which affects the relationship
+between Kerberos principals and local system accounts.  The following
+built-in modules exist for this interface:</p>
+<dl class="docutils">
+<dt><strong>default</strong></dt>
+<dd>This module implements the <strong>DEFAULT</strong> type for <strong>auth_to_local</strong>
+values.</dd>
+<dt><strong>rule</strong></dt>
+<dd>This module implements the <strong>RULE</strong> type for <strong>auth_to_local</strong>
+values.</dd>
+<dt><strong>names</strong></dt>
+<dd>This module looks for an <strong>auth_to_local_names</strong> mapping for the
+principal name.</dd>
+<dt><strong>auth_to_local</strong></dt>
+<dd>This module processes <strong>auth_to_local</strong> values in the default
+realm&#8217;s section, and applies the default method if no
+<strong>auth_to_local</strong> values exist.</dd>
+<dt><strong>k5login</strong></dt>
+<dd>This module authorizes a principal to a local account according to
+the account&#8217;s <a class="reference internal" href="../../user/user_config/k5login.html#k5login-5"><em>.k5login</em></a> file.</dd>
+<dt><strong>an2ln</strong></dt>
+<dd>This module authorizes a principal to a local account if the
+principal name maps to the local account name.</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="section" id="pkinit-options">
+<h2>PKINIT options<a class="headerlink" href="#pkinit-options" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The following are PKINIT-specific options.  These values may
+be specified in [libdefaults] as global defaults, or within
+a realm-specific subsection of [libdefaults], or may be
+specified as realm-specific values in the [realms] section.
+A realm-specific value overrides, not adds to, a generic
+[libdefaults] specification.  The search order is:</p>
+</div>
+<ol class="arabic">
+<li><p class="first">realm-specific subsection of [libdefaults]:</p>
+<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
+    EXAMPLE.COM = {
+        pkinit_anchors = FILE:/usr/local/example.com.crt
+    }
+</pre></div>
+</div>
+</li>
+<li><p class="first">realm-specific value in the [realms] section:</p>
+<div class="highlight-python"><div class="highlight"><pre>[realms]
+    OTHERREALM.ORG = {
+        pkinit_anchors = FILE:/usr/local/otherrealm.org.crt
+    }
+</pre></div>
+</div>
+</li>
+<li><p class="first">generic value in the [libdefaults] section:</p>
+<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
+    pkinit_anchors = DIR:/usr/local/generic_trusted_cas/
+</pre></div>
+</div>
+</li>
+</ol>
+<div class="section" id="specifying-pkinit-identity-information">
+<span id="pkinit-identity"></span><h3>Specifying PKINIT identity information<a class="headerlink" href="#specifying-pkinit-identity-information" title="Permalink to this headline">¶</a></h3>
+<p>The syntax for specifying Public Key identity, trust, and revocation
+information for PKINIT is as follows:</p>
+<dl class="docutils">
+<dt><strong>FILE:</strong><em>filename</em>[<strong>,</strong><em>keyfilename</em>]</dt>
+<dd><p class="first">This option has context-specific behavior.</p>
+<p>In <strong>pkinit_identity</strong> or <strong>pkinit_identities</strong>, <em>filename</em>
+specifies the name of a PEM-format file containing the user&#8217;s
+certificate.  If <em>keyfilename</em> is not specified, the user&#8217;s
+private key is expected to be in <em>filename</em> as well.  Otherwise,
+<em>keyfilename</em> is the name of the file containing the private key.</p>
+<p class="last">In <strong>pkinit_anchors</strong> or <strong>pkinit_pool</strong>, <em>filename</em> is assumed to
+be the name of an OpenSSL-style ca-bundle file.</p>
+</dd>
+<dt><strong>DIR:</strong><em>dirname</em></dt>
+<dd><p class="first">This option has context-specific behavior.</p>
+<p>In <strong>pkinit_identity</strong> or <strong>pkinit_identities</strong>, <em>dirname</em>
+specifies a directory with files named <tt class="docutils literal"><span class="pre">*.crt</span></tt> and <tt class="docutils literal"><span class="pre">*.key</span></tt>
+where the first part of the file name is the same for matching
+pairs of certificate and private key files.  When a file with a
+name ending with <tt class="docutils literal"><span class="pre">.crt</span></tt> is found, a matching file ending with
+<tt class="docutils literal"><span class="pre">.key</span></tt> is assumed to contain the private key.  If no such file
+is found, then the certificate in the <tt class="docutils literal"><span class="pre">.crt</span></tt> is not used.</p>
+<p>In <strong>pkinit_anchors</strong> or <strong>pkinit_pool</strong>, <em>dirname</em> is assumed to
+be an OpenSSL-style hashed CA directory where each CA cert is
+stored in a file named <tt class="docutils literal"><span class="pre">hash-of-ca-cert.#</span></tt>.  This infrastructure
+is encouraged, but all files in the directory will be examined and
+if they contain certificates (in PEM format), they will be used.</p>
+<p class="last">In <strong>pkinit_revoke</strong>, <em>dirname</em> is assumed to be an OpenSSL-style
+hashed CA directory where each revocation list is stored in a file
+named <tt class="docutils literal"><span class="pre">hash-of-ca-cert.r#</span></tt>.  This infrastructure is encouraged,
+but all files in the directory will be examined and if they
+contain a revocation list (in PEM format), they will be used.</p>
+</dd>
+<dt><strong>PKCS12:</strong><em>filename</em></dt>
+<dd><em>filename</em> is the name of a PKCS #12 format file, containing the
+user&#8217;s certificate and private key.</dd>
+<dt><strong>PKCS11:</strong>[<strong>module_name=</strong>]<em>modname</em>[<strong>:slotid=</strong><em>slot-id</em>][<strong>:token=</strong><em>token-label</em>][<strong>:certid=</strong><em>cert-id</em>][<strong>:certlabel=</strong><em>cert-label</em>]</dt>
+<dd>All keyword/values are optional.  <em>modname</em> specifies the location
+of a library implementing PKCS #11.  If a value is encountered
+with no keyword, it is assumed to be the <em>modname</em>.  If no
+module-name is specified, the default is <tt class="docutils literal"><span class="pre">opensc-pkcs11.so</span></tt>.
+<tt class="docutils literal"><span class="pre">slotid=</span></tt> and/or <tt class="docutils literal"><span class="pre">token=</span></tt> may be specified to force the use of
+a particular smard card reader or token if there is more than one
+available.  <tt class="docutils literal"><span class="pre">certid=</span></tt> and/or <tt class="docutils literal"><span class="pre">certlabel=</span></tt> may be specified to
+force the selection of a particular certificate on the device.
+See the <strong>pkinit_cert_match</strong> configuration option for more ways
+to select a particular certificate to use for PKINIT.</dd>
+<dt><strong>ENV:</strong><em>envvar</em></dt>
+<dd><em>envvar</em> specifies the name of an environment variable which has
+been set to a value conforming to one of the previous values.  For
+example, <tt class="docutils literal"><span class="pre">ENV:X509_PROXY</span></tt>, where environment variable
+<tt class="docutils literal"><span class="pre">X509_PROXY</span></tt> has been set to <tt class="docutils literal"><span class="pre">FILE:/tmp/my_proxy.pem</span></tt>.</dd>
+</dl>
+</div>
+<div class="section" id="pkinit-krb5-conf-options">
+<h3>PKINIT krb5.conf options<a class="headerlink" href="#pkinit-krb5-conf-options" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>pkinit_anchors</strong></dt>
+<dd>Specifies the location of trusted anchor (root) certificates which
+the client trusts to sign KDC certificates.  This option may be
+specified multiple times.  These values from the config file are
+not used if the user specifies X509_anchors on the command line.</dd>
+<dt><strong>pkinit_cert_match</strong></dt>
+<dd><p class="first">Specifies matching rules that the client certificate must match
+before it is used to attempt PKINIT authentication.  If a user has
+multiple certificates available (on a smart card, or via other
+media), there must be exactly one certificate chosen before
+attempting PKINIT authentication.  This option may be specified
+multiple times.  All the available certificates are checked
+against each rule in order until there is a match of exactly one
+certificate.</p>
+<p>The Subject and Issuer comparison strings are the <span class="target" id="index-0"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc2253.html"><strong>RFC 2253</strong></a>
+string representations from the certificate Subject DN and Issuer
+DN values.</p>
+<p>The syntax of the matching rules is:</p>
+<blockquote>
+<div>[<em>relation-operator</em>]<em>component-rule</em> ...</div></blockquote>
+<p>where:</p>
+<dl class="docutils">
+<dt><em>relation-operator</em></dt>
+<dd>can be either <tt class="docutils literal"><span class="pre">&amp;&amp;</span></tt>, meaning all component rules must match,
+or <tt class="docutils literal"><span class="pre">||</span></tt>, meaning only one component rule must match.  The
+default is <tt class="docutils literal"><span class="pre">&amp;&amp;</span></tt>.</dd>
+<dt><em>component-rule</em></dt>
+<dd><p class="first">can be one of the following.  Note that there is no
+punctuation or whitespace between component rules.</p>
+<blockquote>
+<div><div class="line-block">
+<div class="line"><strong>&lt;SUBJECT&gt;</strong><em>regular-expression</em></div>
+<div class="line"><strong>&lt;ISSUER&gt;</strong><em>regular-expression</em></div>
+<div class="line"><strong>&lt;SAN&gt;</strong><em>regular-expression</em></div>
+<div class="line"><strong>&lt;EKU&gt;</strong><em>extended-key-usage-list</em></div>
+<div class="line"><strong>&lt;KU&gt;</strong><em>key-usage-list</em></div>
+</div>
+</div></blockquote>
+<p><em>extended-key-usage-list</em> is a comma-separated list of
+required Extended Key Usage values.  All values in the list
+must be present in the certificate.  Extended Key Usage values
+can be:</p>
+<ul class="simple">
+<li>pkinit</li>
+<li>msScLogin</li>
+<li>clientAuth</li>
+<li>emailProtection</li>
+</ul>
+<p><em>key-usage-list</em> is a comma-separated list of required Key
+Usage values.  All values in the list must be present in the
+certificate.  Key Usage values can be:</p>
+<ul class="last simple">
+<li>digitalSignature</li>
+<li>keyEncipherment</li>
+</ul>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="last highlight-python"><div class="highlight"><pre>pkinit_cert_match = ||&lt;SUBJECT&gt;.*DoE.*&lt;SAN&gt;.*@EXAMPLE.COM
+pkinit_cert_match = &amp;&amp;&lt;EKU&gt;msScLogin,clientAuth&lt;ISSUER&gt;.*DoE.*
+pkinit_cert_match = &lt;EKU&gt;msScLogin,clientAuth&lt;KU&gt;digitalSignature
+</pre></div>
+</div>
+</dd>
+<dt><strong>pkinit_eku_checking</strong></dt>
+<dd><p class="first">This option specifies what Extended Key Usage value the KDC
+certificate presented to the client must contain.  (Note that if
+the KDC certificate has the pkinit SubjectAlternativeName encoded
+as the Kerberos TGS name, EKU checking is not necessary since the
+issuing CA has certified this as a KDC certificate.)  The values
+recognized in the krb5.conf file are:</p>
+<dl class="last docutils">
+<dt><strong>kpKDC</strong></dt>
+<dd>This is the default value and specifies that the KDC must have
+the id-pkinit-KPKdc EKU as defined in <span class="target" id="index-1"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.</dd>
+<dt><strong>kpServerAuth</strong></dt>
+<dd>If <strong>kpServerAuth</strong> is specified, a KDC certificate with the
+id-kp-serverAuth EKU will be accepted.  This key usage value
+is used in most commercially issued server certificates.</dd>
+<dt><strong>none</strong></dt>
+<dd>If <strong>none</strong> is specified, then the KDC certificate will not be
+checked to verify it has an acceptable EKU.  The use of this
+option is not recommended.</dd>
+</dl>
+</dd>
+<dt><strong>pkinit_dh_min_bits</strong></dt>
+<dd>Specifies the size of the Diffie-Hellman key the client will
+attempt to use.  The acceptable values are 1024, 2048, and 4096.
+The default is 2048.</dd>
+<dt><strong>pkinit_identities</strong></dt>
+<dd>Specifies the location(s) to be used to find the user&#8217;s X.509
+identity information.  This option may be specified multiple
+times.  Each value is attempted in order until identity
+information is found and authentication is attempted.  Note that
+these values are not used if the user specifies
+<strong>X509_user_identity</strong> on the command line.</dd>
+<dt><strong>pkinit_kdc_hostname</strong></dt>
+<dd>The presense of this option indicates that the client is willing
+to accept a KDC certificate with a dNSName SAN (Subject
+Alternative Name) rather than requiring the id-pkinit-san as
+defined in <span class="target" id="index-2"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a>.  This option may be specified multiple
+times.  Its value should contain the acceptable hostname for the
+KDC (as contained in its certificate).</dd>
+<dt><strong>pkinit_pool</strong></dt>
+<dd>Specifies the location of intermediate certificates which may be
+used by the client to complete the trust chain between a KDC
+certificate and a trusted anchor.  This option may be specified
+multiple times.</dd>
+<dt><strong>pkinit_require_crl_checking</strong></dt>
+<dd><p class="first">The default certificate verification process will always check the
+available revocation information to see if a certificate has been
+revoked.  If a match is found for the certificate in a CRL,
+verification fails.  If the certificate being verified is not
+listed in a CRL, or there is no CRL present for its issuing CA,
+and <strong>pkinit_require_crl_checking</strong> is false, then verification
+succeeds.</p>
+<p>However, if <strong>pkinit_require_crl_checking</strong> is true and there is
+no CRL information available for the issuing CA, then verification
+fails.</p>
+<p class="last"><strong>pkinit_require_crl_checking</strong> should be set to true if the
+policy is such that up-to-date CRLs must be present for every CA.</p>
+</dd>
+<dt><strong>pkinit_revoke</strong></dt>
+<dd>Specifies the location of Certificate Revocation List (CRL)
+information to be used by the client when verifying the validity
+of the KDC certificate presented.  This option may be specified
+multiple times.</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="parameter-expansion">
+<span id="id7"></span><h2>Parameter expansion<a class="headerlink" href="#parameter-expansion" title="Permalink to this headline">¶</a></h2>
+<p>Starting with release 1.11, several variables, such as
+<strong>default_keytab_name</strong>, allow parameters to be expanded.
+Valid parameters are:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="75%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>%{TEMP}</td>
+<td>Temporary directory</td>
+</tr>
+<tr class="row-even"><td>%{uid}</td>
+<td>Unix real UID or Windows SID</td>
+</tr>
+<tr class="row-odd"><td>%{euid}</td>
+<td>Unix effective user ID or Windows SID</td>
+</tr>
+<tr class="row-even"><td>%{USERID}</td>
+<td>Same as %{uid}</td>
+</tr>
+<tr class="row-odd"><td>%{null}</td>
+<td>Empty string</td>
+</tr>
+<tr class="row-even"><td>%{LIBDIR}</td>
+<td>Installation library directory</td>
+</tr>
+<tr class="row-odd"><td>%{BINDIR}</td>
+<td>Installation binary directory</td>
+</tr>
+<tr class="row-even"><td>%{SBINDIR}</td>
+<td>Installation admin binary directory</td>
+</tr>
+<tr class="row-odd"><td>%{username}</td>
+<td>(Unix) Username of effective user ID</td>
+</tr>
+<tr class="row-even"><td>%{APPDATA}</td>
+<td>(Windows) Roaming application data for current user</td>
+</tr>
+<tr class="row-odd"><td>%{COMMON_APPDATA}</td>
+<td>(Windows) Application data for all users</td>
+</tr>
+<tr class="row-even"><td>%{LOCAL_APPDATA}</td>
+<td>(Windows) Local application data for current user</td>
+</tr>
+<tr class="row-odd"><td>%{SYSTEM}</td>
+<td>(Windows) Windows system folder</td>
+</tr>
+<tr class="row-even"><td>%{WINDOWS}</td>
+<td>(Windows) Windows folder</td>
+</tr>
+<tr class="row-odd"><td>%{USERCONFIG}</td>
+<td>(Windows) Per-user MIT krb5 config file directory</td>
+</tr>
+<tr class="row-even"><td>%{COMMONCONFIG}</td>
+<td>(Windows) Common MIT krb5 config file directory</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="sample-krb5-conf-file">
+<h2>Sample krb5.conf file<a class="headerlink" href="#sample-krb5-conf-file" title="Permalink to this headline">¶</a></h2>
+<p>Here is an example of a generic krb5.conf file:</p>
+<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
+    default_realm = ATHENA.MIT.EDU
+    dns_lookup_kdc = true
+    dns_lookup_realm = false
+
+[realms]
+    ATHENA.MIT.EDU = {
+        kdc = kerberos.mit.edu
+        kdc = kerberos-1.mit.edu
+        kdc = kerberos-2.mit.edu
+        admin_server = kerberos.mit.edu
+        master_kdc = kerberos.mit.edu
+    }
+    EXAMPLE.COM = {
+        kdc = kerberos.example.com
+        kdc = kerberos-1.example.com
+        admin_server = kerberos.example.com
+    }
+
+[domain_realm]
+    mit.edu = ATHENA.MIT.EDU
+
+[capaths]
+    ATHENA.MIT.EDU = {
+           EXAMPLE.COM = .
+    }
+    EXAMPLE.COM = {
+           ATHENA.MIT.EDU = .
+    }
+</pre></div>
+</div>
+</div>
+<div class="section" id="files">
+<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">/etc/krb5.conf</span></tt></p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>syslog(3)</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5.conf</a><ul>
+<li><a class="reference internal" href="#structure">Structure</a></li>
+<li><a class="reference internal" href="#sections">Sections</a><ul>
+<li><a class="reference internal" href="#libdefaults">[libdefaults]</a></li>
+<li><a class="reference internal" href="#realms">[realms]</a></li>
+<li><a class="reference internal" href="#domain-realm">[domain_realm]</a></li>
+<li><a class="reference internal" href="#capaths">[capaths]</a></li>
+<li><a class="reference internal" href="#appdefaults">[appdefaults]</a></li>
+<li><a class="reference internal" href="#plugins">[plugins]</a><ul>
+<li><a class="reference internal" href="#ccselect-interface">ccselect interface</a></li>
+<li><a class="reference internal" href="#pwqual-interface">pwqual interface</a></li>
+<li><a class="reference internal" href="#kadm5-hook-interface">kadm5_hook interface</a></li>
+<li><a class="reference internal" href="#clpreauth-and-kdcpreauth-interfaces">clpreauth and kdcpreauth interfaces</a></li>
+<li><a class="reference internal" href="#hostrealm-interface">hostrealm interface</a></li>
+<li><a class="reference internal" href="#localauth-interface">localauth interface</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pkinit-options">PKINIT options</a><ul>
+<li><a class="reference internal" href="#specifying-pkinit-identity-information">Specifying PKINIT identity information</a></li>
+<li><a class="reference internal" href="#pkinit-krb5-conf-options">PKINIT krb5.conf options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parameter-expansion">Parameter expansion</a></li>
+<li><a class="reference internal" href="#sample-krb5-conf-file">Sample krb5.conf file</a></li>
+<li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Configuration Files</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="">krb5.conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdc_conf.html">kdc.conf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadm5_acl.html">kadm5.acl</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="Configuration Files"
+            >previous</a> |
+        <a href="kdc_conf.html" title="kdc.conf"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5.conf">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

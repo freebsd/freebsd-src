@@ -1,0 +1,87 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Renew_Tickets</Title>
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+</HEAD>
+<BODY>
+<a name="top"><H1>Renew Tickets</H1></a>
+<p>
+Renewing your tickets allows you to run batch jobs without interruption and to work through a long session without continually reentering your password. Each time you renew your ticket, Kerberos resets the ticket lifetime to the length of the orginal ticket. </p>
+
+
+
+
+<H2 id="helph2">How to...</H2>
+<div style="margin-left:3 em; padding-left: 0";>
+
+<ul style="text-indent: -3em; list-style:none;
+font-family : Verdana, Geneva, sans-serif;
+	font-size: .8em;
+	margin-top: 0;
+	margin-left:0;">
+<li><a href="#get">Get renewable tickets</a></li>
+<li><a href="#renewable-flag">See which of your tickets are renewable</li>
+<li><a href="#renewable-flag">Find  how long a ticket can be renewed</a></li>
+<li><a href="#renew-once">Renew a ticket once</a></li>
+<li><a href="#renew-automatically">Renew tickets automatically</a></li>
+</ul>
+</div>
+<a name="get"><p></p></a>
+<H2>Get renewable tickets</H2>
+<p>
+In most configurations of Kerberos, you can choose to get renewable tickets. In some installations they will even be the default ticket setting.
+<ol>
+<li>Click the Get Ticket button on the top of the window.</li>
+<li> Enter your user name and password in the Get Ticket window. If the advanced settings are not visible, click Show Advanced Settings. </li>
+<li> Under "Flag this ticket as, " select <b>Renewable</b> if it is not already checked.
+<li> Use the Renewable Until slider if you want to adjust how many days (or hours) you will be able to renew this ticket.</li>
+<li> Click OK.</li>
+</ol>
+</p>
+
+<a name="renewable-flag"><p></p></a>
+<H2>See which of your tickets are renewable</H2>
+<p>
+In the main Kerberos window, click the Flags checkbox. The Flags column is added to your view. Renewable tickets have the word "renewbale" in this column.
+</p>
+<a name="renewable-until"><p></p></a>
+<H2>Find  how long a ticket can be renewed</H2>
+<p>
+In the main Kerberos window, click the Renewable Until checkbox. The Renewable Until column will appear. Your can renew your ticket repeatedly until the date and time in this column is reached, as long as you renew it while it is still valid.
+</p>
+<a name="renew-once"><p></p></a>
+<H2>Renew ticket once</H2>
+<p>
+To renew your existing Kerberos ticket(s) just once, click the Renew Ticket button at the top of the window. Your ticket(s) will be renewed with the same lifespan as the original ticket. The new expiration time is listed in the "Valid Until" column.
+</p>
+
+<a name="renew-automatically"><p></p></a>
+<H2>Renew ticket automatically</H2>
+<p>To set your Kerberos tickets to automatically renew for the entire renewable lifetime of the tickets, click the <b> Options</b> drop down button and select <b>Automatic Ticket Renewal</b>. If this option is already checked, selecting it will uncheck it and turn automatic renewal off. </p>
+<p>
+<b>Note: </b>MIT Kerberos can only automatically renew tickets while MIT Kerberos is active and running. This means that if your machine is in hibernation mode or if MIT Kerberos is not running when it is time to renew your tickets, your tickets will not be renewed. </p>
+<p>
+
+<H2>Renew Ticket Errors</H2>
+If any of the conditions listed below is not met, you will see an error message and then the Get Tickets window will open, allowing you to get a new ticket.</p>
+<p>
+You can renew your existing Kerberos tickets if all of the following are true:
+<ul>
+<li>The "Get tickets that  can be renewed" box was selected when you obtained the ticket; <br>
+<b>and</b></li>
+<li>The " renewable by" deadline has not been reached ; <br>
+<b>and</b></li>
+<li>Your ticket has not already expired.</li>
+</ul>
+
+
+
+<b>Related help</b>
+<ul>
+<li><a href="HTML/Ticket_Settings.htm">Ticket settings and flags</a></li>
+<li><a href="HTML/Get_Tickets.htm">Get  tickets</a></li>
+</ul>
+</BODY>
+</HTML>

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _AD-TYPE-REGISTERED-data:
+
+AD_TYPE_REGISTERED
+==================
+
+..
+.. data:: AD_TYPE_REGISTERED
+..
+
+
+
+
+========================= ======================
+``AD_TYPE_REGISTERED``       ``0x2000``
+========================= ======================

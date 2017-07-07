@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Tickets</title></head>
+
+<body>
+ <h1><a name="top">About Tickets</a></h1>
+<p>
+The MIT Kerberos program helps you manage your Kerberos tickets. Click
+the Get Ticket button and enter your principal (your Kerberos identity)
+and password to obtain a ticket. The ticket allows you to securely
+access all of the computers and services set up to authenticate you
+through Kerberos, until the ticket expires, without requiring you to
+enter your password again. </p>
+
+<table>
+<tbody><tr><th>On this page</th><th>On other pages</th></tr>
+<tr>
+<td><b>Learn about...</b>
+<ul id="helpul">
+<li><a href="#expiration"> Ticket expiration </a></li>
+<li><a href="#renewable"> Renewable tickets</a></li>
+<li><a href="#forwardable"> Forwardable tickets </a></li>
+</ul>
+</td>
+<td>
+<b>How to...</b>
+<ul id="helpul">
+<li><a href="HTML/Get_Tickets.htm">Get tickets</a></li>
+<li><a href="HTML/Renew_Tickets.htm">Renew tickets</a></li>
+<li><a href="HTML/View_Tickets.htm">View tickets</a></li>
+<li><a href="HTML/Ticket_Settings.htm">Work with ticket settings and flags</a>
+</li><li><a href="HTML/Destroy_Tickets.htm">Destroy tickets</a></li>
+</ul>
+</td>
+</tr>
+</tbody></table>
+<p></p>
+
+
+<table>
+<tbody><tr><th colspan="2"><a name="expiration">Ticket Expiration</a></th></tr>
+<tr><td colspan="2">Your tickets are valid for a set amount of time
+before they expire and cannot be used again. Usually tickets are valid
+for around the length of a work day (e.g., 8 hours). A pop up window
+warns you 15, 10, and 5 minutes before your tickets expire. To add an
+audible alarm at the same intervals, go to the Options tab and select
+Expiration Alarm in the Ticket Options panel.</td></tr>
+<tr> <th id="th2">Adjust</th><th id="th2">View</th></tr>
+<tr>
+<td>When you get your ticket, click Show Advanced to view and adjust
+the ticket's lifetime. Note that some Kerberos installations will not
+allow you to adjust the ticket lifetime. <br> <a href="HTML/Get_Tickets.htm">How to: Get Tickets </a></td>
+<td>The main window includes a <b>Valid Until</b> column for each of
+your tickets. After the time listed in this column, the ticket will
+expire and you must get a new ticket to access network resources that
+use Kerberos. <br> <a href="HTML/View_Tickets.htm">How to: View Tickets </a></td>
+</tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+<p></p>
+<table>
+<tbody><tr><th colspan="2"><a name="renewable">Renewable Tickets </a> </th></tr>
+<tr><td colspan="2">When you get your ticket, you have the option of
+flagging the ticket as renewable. Renewable tickets allow you to run
+batch jobs without interruption and to work through a long session
+without continually reentering your password. <p></p>
+</td></tr><tr> <th id="th2">Renewable Ticket Expiration</th>
+<td>Renewable tickets have a normal ticket lifetime, but they also have
+a renewable lifetime that is much longer (usually several days). Each
+time you renew your ticket, Kerberos resets the ticket lifetime to the
+length of the original ticket. You can renew the ticket as often as you
+need to (once at time or automatically) until the renewable lifetime is
+reached. Then you must obtain a new ticket. </td></tr>
+<tr> <th id="th2">Obtain Renewable Tickets</th>
+<td>When you get your ticket, click Show Advanced and then select
+Renewable under "Flag this ticket as." Use the Renewable Until slider
+to adjust the ticket's renewable lifetime. <br>
+<a href="HTML/Get_Tickets.htm">How to: Get Tickets </a></td>
+</tr>
+<tr> <th id="th2">Renew Once</th>
+<td> Click the Renew button. Note that you cannot renew expired tickets even if the ticket is still within its renewable lifespan.  <br>
+ <a href="HTML/Renew_Tickets.htm#renew-once">How to: Renew Ticket Once </a></td></tr>
+<tr><th id="th2">Renew Automatically</th>
+<td>Go to the Options tab and select Automatic Ticket Renewal in the
+Ticket Options panel. Note that MIT Kerberos must be active and running
+in order to renew tickets. This means that if your machine is in
+hibernation mode or if MIT Kerberos is not running when it is time to
+renew your tickets, your tickets will not be renewed. <br>
+<a href="HTML/Renew_Tickets.htm#renew-once">How to: Renew Tickets Automatically </a> </td>
+</tr><tr>
+<th id="th2">View </th>
+<td>
+In the Options tab, the View Options panel checkboxes control what
+information is displayed for your tickets. Two columns relate to
+renewable tickets: Renewable Until and Flags.
+<p></p>To see the date and time your renewable tickets expire and can
+no longer be renewed, go to the Options tab and select the Renewable
+Until checkbox in the View Options panel. To see which of your tickets
+are renewable, select Flags.
+<br>
+ <a href="HTML/View_Tickets.htm">How to: View Tickets </a> </td>
+</tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+<p></p>
+<table>
+<tbody><tr><th colspan="2"><a name="forwardable">Forwardable Tickets </a></th></tr>
+<tr><td colspan="2">When you get your ticket, you have the option of
+flagging the ticket as forwardable and proxiable. Forwardable and
+proxiable tickets can be forwarded to the remote host when you connect
+via telnet, ssh, ftp, rlogin, or similar applications, so you will not
+need to get new tickets to use remote services.</td></tr>
+<tr> <th id="th2">Obtain Forwardable Tickets</th><th id="th2"> View</th></tr>
+<tr>
+<td>When you get your ticket, click Show Advanced and  then select Forwardable and Proxiable under "Flag this ticket as."   <br>
+<a href="HTML/Get_Tickets.htm">How to: Get Tickets </a></td>
+<td> In the Options tab, the View Options panel checkboxes control what
+information is displayed for your tickets. Select the Flags checkbox to
+open a column indicating which of your tickets are forwardable. <br> <a href="HTML/View_Tickets.htm">How to: View Tickets </a> </td>
+</tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+
+
+<script language="JavaScript">
+popfont="Arial,.825,,"
+popupTicket="A Kerberos ticket is an encrypted block of data that includes authentication for the user and an expiration time."
+
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+</body></html>

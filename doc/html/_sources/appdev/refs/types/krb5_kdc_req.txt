@@ -1,0 +1,105 @@
+.. highlightlang:: c
+
+.. _krb5-kdc-req-struct:
+
+krb5_kdc_req
+============
+
+..
+.. c:type:: krb5_kdc_req
+..
+
+C representation of KDC-REQ protocol message, including KDC-REQ-BODY.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_kdc_req  krb5_kdc_req
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_kdc_req.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_msgtype	krb5_kdc_req.msg_type
+
+                                             KRB5_AS_REQ or KRB5_TGS_REQ.
+                                             
+
+.. c:member:: krb5_pa_data  **	krb5_kdc_req.padata
+
+                                             Preauthentication data.
+                                             
+
+.. c:member:: krb5_flags	krb5_kdc_req.kdc_options
+
+                                             Requested options.
+                                             
+
+.. c:member:: krb5_principal	krb5_kdc_req.client
+
+                                             Client principal and realm.
+                                             
+
+.. c:member:: krb5_principal	krb5_kdc_req.server
+
+                                             Server principal and realm.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_kdc_req.from
+
+                                             Requested start time.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_kdc_req.till
+
+                                             Requested end time.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_kdc_req.rtime
+
+                                             Requested renewable end time.
+                                             
+
+.. c:member:: krb5_int32	krb5_kdc_req.nonce
+
+                                             Nonce to match request and response.
+                                             
+
+.. c:member:: int	krb5_kdc_req.nktypes
+
+                                             Number of enctypes.
+                                             
+
+.. c:member:: krb5_enctype *	krb5_kdc_req.ktype
+
+                                             Requested enctypes.
+                                             
+
+.. c:member:: krb5_address  **	krb5_kdc_req.addresses
+
+                                             Requested addresses (optional)
+                                             
+
+.. c:member:: krb5_enc_data	krb5_kdc_req.authorization_data
+
+                                             Encrypted authz data (optional)
+                                             
+
+.. c:member:: krb5_authdata  **	krb5_kdc_req.unenc_authdata
+
+                                             Unencrypted authz data.
+                                             
+
+.. c:member:: krb5_ticket  **	krb5_kdc_req.second_ticket
+
+                                             Second ticket array (optional)
+                                             
+

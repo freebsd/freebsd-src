@@ -1,0 +1,55 @@
+mydir=plugins$(S)preauth$(S)pkinit
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
+LOCALINCLUDES = $(PKINIT_CRYPTO_IMPL_CFLAGS)
+
+LIBBASE=pkinit
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/preauth/pkinit
+# Depends on libk5crypto and libkrb5
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(PKINIT_CRYPTO_IMPL_LIBS) $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
+DEFINES=-DPKINIT_DYNOBJEXT=\""$(PKINIT_DYNOBJEXT)"\"
+
+STLIBOBJS= \
+	pkinit_accessor.o \
+	pkinit_srv.o \
+	pkinit_lib.o \
+	pkinit_clnt.o \
+	pkinit_kdf_constants.o \
+	pkinit_profile.o \
+	pkinit_identity.o \
+	pkinit_matching.o \
+	pkinit_crypto_$(PKINIT_CRYPTO_IMPL).o
+
+SRCS= \
+	$(srcdir)/pkinit_accessor.c \
+	$(srcdir)/pkinit_srv.c \
+	$(srcdir)/pkinit_lib.c \
+	$(srcdir)/pkinit_kdf_test.c \
+	$(srcdir)/pkinit_kdf_constants.c \
+	$(srcdir)/pkinit_clnt.c \
+	$(srcdir)/pkinit_profile.c \
+	$(srcdir)/pkinit_identity.c \
+	$(srcdir)/pkinit_matching.c \
+	$(srcdir)/pkinit_crypto_$(PKINIT_CRYPTO_IMPL).c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean:
+	$(RM) pkinit_kdf_test pkinit_kdf_test.o
+
+check-unix: pkinit_kdf_test
+	$(RUN_TEST) ./pkinit_kdf_test
+
+pkinit_kdf_test: pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPDEPS)
+	$(CC_LINK) -o $@ pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPLIBS)
+
+@libnover_frag@
+@libobj_frag@
+

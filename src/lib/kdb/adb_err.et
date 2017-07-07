@@ -1,0 +1,16 @@
+error_table adb
+error_code OSA_ADB_NOERR,		"No Error"
+error_code OSA_ADB_DUP,			"Principal or policy already exists"
+error_code OSA_ADB_NOENT,		"Principal or policy does not exist"
+error_code OSA_ADB_DBINIT,		"Database not initialized"
+error_code OSA_ADB_BAD_POLICY,		"Invalid policy name"
+error_code OSA_ADB_BAD_PRINC,		"Invalid principal name"
+error_code OSA_ADB_BAD_DB,		"Database inconsistency detected"
+error_code OSA_ADB_XDR_FAILURE,		"XDR encoding error"
+error_code OSA_ADB_FAILURE,		"Failure!"
+error_code OSA_ADB_BADLOCKMODE,		"Bad lock mode"
+error_code OSA_ADB_CANTLOCK_DB,		"Cannot lock database"
+error_code OSA_ADB_NOTLOCKED,		"Database not locked"
+error_code OSA_ADB_NOLOCKFILE,		"KADM5 administration database lock file missing"
+error_code OSA_ADB_NOEXCL_PERM,		"Insufficient permission to lock file"
+end

@@ -1,0 +1,51 @@
+krb5_auth_con_getsendsubkey_k -  Retrieve the send subkey from an auth context. 
+================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getsendsubkey_k(krb5_context ctx, krb5_auth_context ac, krb5_key * key)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **ac** - Authentication context
+
+	          **[out]** **key** - Send subkey
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets *key* to the send subkey from *auth_context* . Use :c:func:`krb5_k_free_key()` to release *key* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

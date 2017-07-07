@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-KTYPE-data:
+
+KRB5_TC_MATCH_KTYPE
+===================
+
+..
+.. data:: KRB5_TC_MATCH_KTYPE
+..
+
+The encryption key type must match.
+
+
+
+========================== ======================
+``KRB5_TC_MATCH_KTYPE``       ``0x00000100``
+========================== ======================

@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" Content="text/html; charset=Windows-1252">
+<TITLE>KDESTROY Command</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000">
+
+<OBJECT TYPE="application/x-oleobject" CLASSID="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e">
+	<PARAM NAME="Keyword" VALUE="kdestroy, man">
+</OBJECT>
+
+<P><h2><A NAME="id_help_kdestroy"></A>KDESTROY Command</h2></P>
+
+<P>(from UNIX man page)</P>
+
+<PRE><CODE>User Commands  KDESTROY ( 1 )
+
+NAME
+ kdestroy - destroy Kerberos tickets
+
+SYNOPSIS
+ kdestroy [-5] [-4] [-q] [-c cache_name]
+
+DESCRIPTION
+
+ The kdestroy utility destroys the user's active Kerberos
+ authorization tickets by writing zeros to the specified credentials
+ cache that contains them.  If the credentials cache is not specified,
+ the default credentials cache is destroyed.  If kdestroy was built with
+ Kerberos 4 support, the default behavior is to destroy both Kerberos 5
+ and Kerberos 4 credentials.  Otherwise, kdestroy will default to
+ destroying only Kerberos 5 credentials.
+
+OPTIONS
+
+ -5 destroy Kerberos 5 credentials.  This overrides whatever the
+    default built-in behavior may be.  This option may be used with -4
+
+ -4 destroy Kerberos 4 credentials.  This overrides whatever the
+    default built-in behavior may be.  This option is only available
+    if kinit was built with Kerberos 4 compatibility.  This option may
+    be used with -5
+
+ -q Run quietly.  Normally kdestroy beeps if it fails to destroy the
+    user's tickets.  The -q flag suppresses this behavior.
+
+ -c cache_name
+    use cache_name as the credentials (ticket) cache name and
+    location; if this option is not used, the default cache name and
+    location are used.
+
+ The default credentials cache may vary between systems.  If the
+ KRB5CCNAME environment variable is set, its value is used to name the
+ default ticket cache.
+
+ Most installations recommend that you place the kdestroy command in
+ your .logout file, so that your tickets are destroyed automatically
+ when you log out.
+
+ENVIRONMENT
+ Kdestroy uses the following environment variables:
+
+ KRB5CCNAME Location of the Kerberos 5 credentials (ticket) cache.
+
+ KRBTKFILE Filename of the Kerberos 4 credentials (ticket) cache.
+
+FILES
+ /tmp/krb5cc_[uid] default location of Kerberos 5 credentials cache
+ ([uid] is the decimal UID of the user).
+
+ /tmp/tkt[uid] default location of Kerberos 4 credentials cache ([uid]
+ is the decimal UID of the user).
+
+SEE  ALSO
+ kinit(1), klist(1), krb5(3)
+
+BUGS
+ Only the tickets in the specified credentials cache are
+ destroyed.  Separate ticket caches are used to hold root instance and
+ password changing tickets.  These should probably be destroyed too,
+ or all of a user's tickets kept in a single credentials cache.</CODE></PRE>
+
+</BODY>
+</HTML>

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-SESAME-data:
+
+KRB5_AUTHDATA_SESAME
+====================
+
+..
+.. data:: KRB5_AUTHDATA_SESAME
+..
+
+
+
+
+=========================== ======================
+``KRB5_AUTHDATA_SESAME``       ``65``
+=========================== ======================

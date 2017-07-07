@@ -1,0 +1,359 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MIT Kerberos defaults &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="copyright" title="Copyright" href="copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="index.html" />
+    <link rel="up" title="For administrators" href="admin/index.html" />
+    <link rel="next" title="Environment variables" href="admin/env_variables.html" />
+    <link rel="prev" title="sserver" href="admin/admin_commands/sserver.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="admin/admin_commands/sserver.html" title="sserver"
+            accesskey="P">previous</a> |
+        <a href="admin/env_variables.html" title="Environment variables"
+            accesskey="N">next</a> |
+        <a href="genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__MIT Kerberos defaults">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="mit-kerberos-defaults">
+<span id="mitk5defaults"></span><h1>MIT Kerberos defaults<a class="headerlink" href="#mit-kerberos-defaults" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="general-defaults">
+<h2>General defaults<a class="headerlink" href="#general-defaults" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="31%" />
+<col width="24%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Description</th>
+<th class="head">Default</th>
+<th class="head">Environment</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference internal" href="basic/keytab_def.html#keytab-definition"><em>keytab</em></a> file</td>
+<td><a class="reference internal" href="#paths"><em>DEFKTNAME</em></a></td>
+<td><strong>KRB5_KTNAME</strong></td>
+</tr>
+<tr class="row-odd"><td>Client <a class="reference internal" href="basic/keytab_def.html#keytab-definition"><em>keytab</em></a> file</td>
+<td><a class="reference internal" href="#paths"><em>DEFCKTNAME</em></a></td>
+<td><strong>KRB5_CLIENT_KTNAME</strong></td>
+</tr>
+<tr class="row-even"><td>Kerberos config file <a class="reference internal" href="admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a></td>
+<td><tt class="docutils literal"><span class="pre">/etc/krb5.conf</span></tt><tt class="docutils literal"><span class="pre">:</span></tt><a class="reference internal" href="#paths"><em>SYSCONFDIR</em></a><tt class="docutils literal"><span class="pre">/krb5.conf</span></tt></td>
+<td><strong>KRB5_CONFIG</strong></td>
+</tr>
+<tr class="row-odd"><td>KDC config file <a class="reference internal" href="admin/conf_files/kdc_conf.html#kdc-conf-5"><em>kdc.conf</em></a></td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kdc.conf</span></tt></td>
+<td><strong>KRB5_KDC_PROFILE</strong></td>
+</tr>
+<tr class="row-even"><td>KDC database path (DB2)</td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/principal</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Master key <a class="reference internal" href="basic/stash_file_def.html#stash-definition"><em>stash file</em></a></td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/.k5.</span></tt><em>realm</em></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Admin server ACL file <a class="reference internal" href="admin/conf_files/kadm5_acl.html#kadm5-acl-5"><em>kadm5.acl</em></a></td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kadm5.acl</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>OTP socket directory</td>
+<td><a class="reference internal" href="#paths"><em>RUNSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Plugin base directory</td>
+<td><a class="reference internal" href="#paths"><em>LIBDIR</em></a><tt class="docutils literal"><span class="pre">/krb5/plugins</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="basic/rcache_def.html#rcache-definition"><em>replay cache</em></a> directory</td>
+<td><tt class="docutils literal"><span class="pre">/var/tmp</span></tt></td>
+<td><strong>KRB5RCACHEDIR</strong></td>
+</tr>
+<tr class="row-even"><td>Master key default enctype</td>
+<td><tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Default <a class="reference internal" href="admin/conf_files/kdc_conf.html#keysalt-lists"><em>keysalt list</em></a></td>
+<td><tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96:normal</span> <span class="pre">aes128-cts-hmac-sha1-96:normal</span> <span class="pre">des3-cbc-sha1:normal</span> <span class="pre">arcfour-hmac-md5:normal</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Permitted enctypes</td>
+<td><tt class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span> <span class="pre">aes128-cts-hmac-sha1-96</span> <span class="pre">des3-cbc-sha1</span> <span class="pre">arcfour-hmac-md5</span> <span class="pre">camellia256-cts-cmac</span> <span class="pre">camellia128-cts-cmac</span> <span class="pre">des-cbc-crc</span> <span class="pre">des-cbc-md5</span> <span class="pre">des-cbc-md4</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>KDC default port</td>
+<td>88</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Admin server port</td>
+<td>749</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Password change port</td>
+<td>464</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="slave-kdc-propagation-defaults">
+<h2>Slave KDC propagation defaults<a class="headerlink" href="#slave-kdc-propagation-defaults" title="Permalink to this headline">¶</a></h2>
+<p>This table shows defaults used by the <a class="reference internal" href="admin/admin_commands/kprop.html#kprop-8"><em>kprop</em></a> and
+<a class="reference internal" href="admin/admin_commands/kpropd.html#kpropd-8"><em>kpropd</em></a> programs.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="39%" />
+<col width="45%" />
+<col width="16%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Description</th>
+<th class="head">Default</th>
+<th class="head">Environment</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>kprop database dump file</td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/slave_datatrans</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>kpropd temporary dump file</td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/from_master</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>kdb5_util location</td>
+<td><a class="reference internal" href="#paths"><em>SBINDIR</em></a><tt class="docutils literal"><span class="pre">/kdb5_util</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>kprop location</td>
+<td><a class="reference internal" href="#paths"><em>SBINDIR</em></a><tt class="docutils literal"><span class="pre">/kprop</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>kpropd ACL file</td>
+<td><a class="reference internal" href="#paths"><em>LOCALSTATEDIR</em></a><tt class="docutils literal"><span class="pre">/krb5kdc</span></tt><tt class="docutils literal"><span class="pre">/kpropd.acl</span></tt></td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>kprop port</td>
+<td>754</td>
+<td>KPROP_PORT</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="default-paths-for-unix-like-systems">
+<span id="paths"></span><h2>Default paths for Unix-like systems<a class="headerlink" href="#default-paths-for-unix-like-systems" title="Permalink to this headline">¶</a></h2>
+<p>On Unix-like systems, some paths used by MIT krb5 depend on parameters
+chosen at build time.  For a custom build, these paths default to
+subdirectories of <tt class="docutils literal"><span class="pre">/usr/local</span></tt>.  When MIT krb5 is integrated into an
+operating system, the paths are generally chosen to match the
+operating system&#8217;s filesystem layout.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="28%" />
+<col width="14%" />
+<col width="29%" />
+<col width="29%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Description</th>
+<th class="head">Symbolic name</th>
+<th class="head">Custom build path</th>
+<th class="head">Typical OS path</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>User programs</td>
+<td>BINDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/bin</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/usr/bin</span></tt></td>
+</tr>
+<tr class="row-odd"><td>Libraries and plugins</td>
+<td>LIBDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/lib</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/usr/lib</span></tt></td>
+</tr>
+<tr class="row-even"><td>Parent of KDC state dir</td>
+<td>LOCALSTATEDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/var</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/var</span></tt></td>
+</tr>
+<tr class="row-odd"><td>Parent of KDC runtime dir</td>
+<td>RUNSTATEDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/var/run</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/run</span></tt></td>
+</tr>
+<tr class="row-even"><td>Administrative programs</td>
+<td>SBINDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/sbin</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/usr/sbin</span></tt></td>
+</tr>
+<tr class="row-odd"><td>Alternate krb5.conf dir</td>
+<td>SYSCONFDIR</td>
+<td><tt class="docutils literal"><span class="pre">/usr/local/etc</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">/etc</span></tt></td>
+</tr>
+<tr class="row-even"><td>Default ccache name</td>
+<td>DEFCCNAME</td>
+<td><tt class="docutils literal"><span class="pre">FILE:/tmp/krb5cc_%{uid}</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">FILE:/tmp/krb5cc_%{uid}</span></tt></td>
+</tr>
+<tr class="row-odd"><td>Default keytab name</td>
+<td>DEFKTNAME</td>
+<td><tt class="docutils literal"><span class="pre">FILE:/etc/krb5.keytab</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">FILE:/etc/krb5.keytab</span></tt></td>
+</tr>
+</tbody>
+</table>
+<p>The default client keytab name (DEFCKTNAME) typically defaults to
+<tt class="docutils literal"><span class="pre">FILE:/usr/local/var/krb5/user/%{euid}/client.keytab</span></tt> for a custom
+build.  A native build will typically use a path which will vary
+according to the operating system&#8217;s layout of <tt class="docutils literal"><span class="pre">/var</span></tt>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">MIT Kerberos defaults</a><ul>
+<li><a class="reference internal" href="#general-defaults">General defaults</a></li>
+<li><a class="reference internal" href="#slave-kdc-propagation-defaults">Slave KDC propagation defaults</a></li>
+<li><a class="reference internal" href="#default-paths-for-unix-like-systems">Default paths for Unix-like systems</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="admin/index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="admin/install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">MIT Kerberos defaults</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="admin/env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin/various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="admin/admin_commands/sserver.html" title="sserver"
+            >previous</a> |
+        <a href="admin/env_variables.html" title="Environment variables"
+            >next</a> |
+        <a href="genindex.html" title="General Index"
+            >index</a> |
+        <a href="search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__MIT Kerberos defaults">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

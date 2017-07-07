@@ -1,0 +1,534 @@
+                   Kerberos Version 5, Release 1.15
+
+                            Release Notes
+                        The MIT Kerberos Team
+
+Copyright and Other Notices
+---------------------------
+
+Copyright (C) 1985-2017 by the Massachusetts Institute of Technology
+and its contributors.  All rights reserved.
+
+Please see the file named NOTICE for additional notices.
+
+Documentation
+-------------
+
+Unified documentation for Kerberos V5 is available in both HTML and
+PDF formats.  The table of contents of the HTML format documentation
+is at doc/html/index.html, and the PDF format documentation is in the
+doc/pdf directory.
+
+Additionally, you may find copies of the HTML format documentation
+online at
+
+    http://web.mit.edu/kerberos/krb5-latest/doc/
+
+for the most recent supported release, or at
+
+    http://web.mit.edu/kerberos/krb5-devel/doc/
+
+for the release under development.
+
+More information about Kerberos may be found at
+
+    http://web.mit.edu/kerberos/
+
+and at the MIT Kerberos Consortium web site
+
+    http://kerberos.org/
+
+Building and Installing Kerberos 5
+----------------------------------
+
+Build documentation is in doc/html/build/index.html or
+doc/pdf/build.pdf.
+
+The installation guide is in doc/html/admin/install.html or
+doc/pdf/install.pdf.
+
+If you are attempting to build under Windows, please see the
+src/windows/README file.
+
+Reporting Bugs
+--------------
+
+Please report any problems/bugs/comments by sending email to
+krb5-bugs@mit.edu.
+
+You may view bug reports by visiting
+
+http://krbdev.mit.edu/rt/
+
+and using the "Guest Login" button.  Please note that the web
+interface to our bug database is read-only for guests, and the primary
+way to interact with our bug database is via email.
+
+DES transition
+--------------
+
+The Data Encryption Standard (DES) is widely recognized as weak.  The
+krb5-1.7 release contains measures to encourage sites to migrate away
+from using single-DES cryptosystems.  Among these is a configuration
+variable that enables "weak" enctypes, which defaults to "false"
+beginning with krb5-1.8.
+
+Major changes in 1.15.1 (2017-03-01)
+------------------------------------
+
+This is a bug fix release.
+
+* Allow KDB modules to determine how the e_data field of principal
+  fields is freed
+
+* Fix udp_preference_limit when the KDC location is configured with
+  SRV records
+
+* Fix KDC and kadmind startup on some IPv4-only systems
+
+* Fix the processing of PKINIT certificate matching rules which have
+  two components and no explicit relation
+
+* Improve documentation
+
+krb5-1.15.1 changes by ticket ID
+--------------------------------
+
+7940    PKINIT docs only work for one-component client principals
+8523    Add krbPwdPolicy attributes to kerberos.ldif
+8524    Add caveats to krbtgt change documentation
+8525    Fix error handling in PKINIT decode_data()
+8530    KDC/kadmind explicit wildcard listener addresses do not use pktinfo
+8531    KDC/kadmind may fail to start on IPv4-only systems
+8532    Fix GSSAPI authind attribute name in docs
+8538    Need a way to free KDB module e_data
+8540    Document default realm and login authorization
+8552    Add GSSAPI S4U documentation
+8553    Fix PKINIT two-component matching rule parsing
+8554    udp_preference_limit fails with SRV records
+
+
+Major changes in 1.15 (2016-12-01)
+----------------------------------
+
+Administrator experience:
+
+* Improve support for multihomed Kerberos servers by adding options
+  for specifying restricted listening addresses for the KDC and
+  kadmind.
+
+* Add support to kadmin for remote extraction of current keys without
+  changing them (requires a special kadmin permission that is excluded
+  from the wildcard permission), with the exception of highly
+  protected keys.
+
+* Add a lockdown_keys principal attribute to prevent retrieval of the
+  principal's keys (old or new) via the kadmin protocol.  In newly
+  created databases, this attribute is set on the krbtgt and kadmin
+  principals.
+
+* Restore recursive dump capability for DB2 back end, so sites can
+  more easily recover from database corruption resulting from power
+  failure events.
+
+* Add DNS auto-discovery of KDC and kpasswd servers from URI records,
+ in addition to SRV records.  URI records can convey TCP and UDP
+ servers and master KDC status in a single DNS lookup, and can also
+ point to HTTPS proxy servers.
+
+* Add support for password history to the LDAP back end.
+
+* Add support for principal renaming to the LDAP back end.
+
+* Use the getrandom system call on supported Linux kernels to avoid
+  blocking problems when getting entropy from the operating system.
+
+* In the PKINIT client, use the correct DigestInfo encoding for PKCS
+  #1 signatures, so that some especially strict smart cards will work.
+
+Code quality:
+
+* Clean up numerous compilation warnings.
+
+* Remove various infrequently built modules, including some preauth
+  modules that were not built by default.
+
+Developer experience:
+
+* Add support for building with OpenSSL 1.1.
+
+* Use SHA-256 instead of MD5 for (non-cryptographic) hashing of
+  authenticators in the replay cache.  This helps sites that must
+  build with FIPS 140 conformant libraries that lack MD5.
+
+* Eliminate util/reconf and allow the use of autoreconf alone to
+  regenerate the configure script.
+
+Protocol evolution:
+
+* Add support for the AES-SHA2 enctypes, which allows sites to conform
+  to Suite B crypto requirements.
+
+krb5-1.15 changes by ticket ID
+------------------------------
+
+1093    KDC could use feature to limit listening interfaces
+5889    password history doesn't work with LDAP KDB
+6666    some non-default plugin directories don't build in 1.8 branch
+7852    kadmin.local's ktadd -norandkey does not handle multiple kvnos
+        in the KDB
+7985    Add krb5_get_init_creds_opt_set_pac_request
+8065    Renaming principals with LDAP KDB deletes the principal
+8277    iprop can choose wrong realm
+8278    Add krb5_expand_hostname() API
+8280    Fix impersonate_name to work with interposers
+8295    kdb5_ldap_stash_service_password() stash file logic needs tweaking
+8297    jsonwalker.py test fails
+8298    Audit Test fails when system has IPV6 address
+8299    Remove util/reconf
+8329    Only run export-check.pl in maintainer mode
+8344    Create KDC and kadmind log files with mode 0640
+8345    Remove nss libk5crypto implementation
+8348    Remove workaround when binding to udp addresses and pktinfo
+        isn't supported by the system
+8353    Replace MD5 use in rcache with SHA-256
+8354    Only store latest keys in key history entry
+8355    Add kadm5_setkey_principal_4 RPC to kadmin
+8364    Add get_principal_keys RPC to kadmin
+8365    Add the ability to lock down principal keys
+8366    Increase initial DNS buffer size
+8368    Remove hdb KDB module
+8371    Improve libkadm5 client RPC thread safety
+8372    Use cached S4U2Proxy tickets in GSSAPI
+8374    Interoperate with incomplete SPNEGO responses
+8375    Allow zero cksumtype in krb5_k_verify_checksum()
+8379    Add auth indicator handling to libkdb_ldap
+8381    Don't fall back to master on password read error
+8386    Add KDC pre-send and post-receive KDC hooks
+8388    Remove port 750 from the KDC default ports
+8389    Make profile includedir accept all *.conf files
+8391    Add kinit long option support for all platforms
+8393    Password Expiration "Never" Inconsistently Applied
+8394    Add debug message filtering to krb5_klog_syslog
+8396    Skip password prompt when running ksu as root
+8398    Add libk5crypto support for OpenSSL 1.1.0
+8399    Unconstify some krb5 GSS OIDs
+8403    kinit documentation page
+8404    Remove non-DFSG documentation
+8405    Work around python-ldap bug in kerberos.ldif
+8412    Link correct VS2015 C libraries for debug builds
+8414    Use library malloc for principal, policy entries
+8418    Add libkdb function to specialize principal's salt
+8419    Do not indicate deprecated GSS mechanisms
+8423    Add SPNEGO special case for NTLMSSP+MechListMIC
+8425    Add auth-indicator authdata module
+8426    test_check_allowed_to_delegate() should free unparsed princ output
+8428    Minimize timing leaks in PKINIT decryption
+8429    Fix Makefile for paths containing '+' character
+8434    Fix memory leak in old gssrpc authentication
+8436    Update libev sources to 4.22
+8446    Fix leak in key change operations
+8451    Add hints for -A flag to kdestroy
+8456    Add the kprop-port option to kadmind
+8462    Better handle failures to resolve client keytab
+8464    Set prompt type for OTP preauth prompt
+8465    Improve bad password inference in kinit
+8466    Rename k5-queue.h macros
+8471    Change KDC error for encrypted timestamp preauth
+8476    Restore recursive dump functionality
+8478    usability improvements for bttest
+8488    Stop generating doc/CHANGES
+8490    Add aes-sha2 enctype support
+8494    Add krb5_db_register_keytab()
+8496    Add KDC discovery from URI records
+8498    Potential memory leak in prepare_error_as()
+8499    Use getrandom system call on recent Linux kernels
+8500    Document krb5_kt_next_entry() requirement
+8502    ret_boolean in profile_get_boolean() should be krb5_boolean *
+        instead of int *
+8504    Properly handle EOF condition on libkrad sockets
+8506    PKINIT fails with PKCS#11 middlware that implements PKCS#1 V2.1
+8507    Suggest unlocked iteration for mkey rollover
+8508    Clarify krb5_kt_resolve() API documentation
+8509    Leak in krb5_cccol_have_content with truncated ccache
+8510    Update features list for 1.15
+8512    Fix detection of libaceclnt for securid_sam2
+8513    Add doxygen comments for RFC 8009, RFC 4757
+8514    Make zap() more reliable
+8516    Fix declaration without type in t_shs3.c
+8520    Relicense ccapi/common/win/OldCC/autolock.hxx
+8521    Allow slapd path configuration in t_kdb.py
+
+
+Acknowledgements
+----------------
+
+Past Sponsors of the MIT Kerberos Consortium:
+
+    Apple
+    Carnegie Mellon University
+    Centrify Corporation
+    Columbia University
+    Cornell University
+    The Department of Defense of the United States of America (DoD)
+    Fidelity Investments
+    Google
+    Iowa State University
+    MIT
+    Michigan State University
+    Microsoft
+    MITRE Corporation
+    Morgan-Stanley
+    The National Aeronautics and Space Administration
+        of the United States of America (NASA)
+    Network Appliance (NetApp)
+    Nippon Telephone and Telegraph (NTT)
+    US Government Office of the National Coordinator for Health
+        Information Technology (ONC)
+    Oracle
+    Pennsylvania State University
+    Red Hat
+    Stanford University
+    TeamF1, Inc.
+    The University of Alaska
+    The University of Michigan
+    The University of Pennsylvania
+
+Past and present members of the Kerberos Team at MIT:
+
+    Danilo Almeida
+    Jeffrey Altman
+    Justin Anderson
+    Richard Basch
+    Mitch Berger
+    Jay Berkenbilt
+    Andrew Boardman
+    Bill Bryant
+    Steve Buckley
+    Joe Calzaretta
+    John Carr
+    Mark Colan
+    Don Davis
+    Sarah Day
+    Alexandra Ellwood
+    Carlos Garay
+    Dan Geer
+    Nancy Gilman
+    Matt Hancher
+    Thomas Hardjono
+    Sam Hartman
+    Paul Hill
+    Marc Horowitz
+    Eva Jacobus
+    Miroslav Jurisic
+    Barry Jaspan
+    Benjamin Kaduk
+    Geoffrey King
+    Kevin Koch
+    John Kohl
+    HaoQi Li
+    Jonathan Lin
+    Peter Litwack
+    Scott McGuire
+    Steve Miller
+    Kevin Mitchell
+    Cliff Neuman
+    Paul Park
+    Ezra Peisach
+    Chris Provenzano
+    Ken Raeburn
+    Jon Rochlis
+    Jeff Schiller
+    Jen Selby
+    Robert Silk
+    Bill Sommerfeld
+    Jennifer Steiner
+    Ralph Swick
+    Brad Thompson
+    Harry Tsai
+    Zhanna Tsitkova
+    Ted Ts'o
+    Marshall Vale
+    Tom Yu
+
+The following external contributors have provided code, patches, bug
+reports, suggestions, and valuable resources:
+
+    Ian Abbott
+    Brandon Allbery
+    Russell Allbery
+    Brian Almeida
+    Michael B Allen
+    Heinz-Ado Arnolds
+    Derek Atkins
+    Mark Bannister
+    David Bantz
+    Alex Baule
+    David Benjamin
+    Thomas Bernard
+    Adam Bernstein
+    Arlene Berry
+    Jeff Blaine
+    Radoslav Bodo
+    Sumit Bose
+    Emmanuel Bouillon
+    Philip Brown
+    Michael Calmer
+    Andrea Campi
+    Julien Chaffraix
+    Ravi Channavajhala
+    Srinivas Cheruku
+    Leonardo Chiquitto
+    Seemant Choudhary
+    Howard Chu
+    Andrea Cirulli
+    Christopher D. Clausen
+    Kevin Coffman
+    Simon Cooper
+    Sylvain Cortes
+    Ian Crowther
+    Arran Cudbard-Bell
+    Jeff D'Angelo
+    Nalin Dahyabhai
+    Mark Davies
+    Dennis Davis
+    Alex Dehnert
+    Mark Deneen
+    Günther Deschner
+    John Devitofranceschi
+    Roland Dowdeswell
+    Viktor Dukhovni
+    Jason Edgecombe
+    Mark Eichin
+    Shawn M. Emery
+    Douglas E. Engert
+    Peter Eriksson
+    Juha Erkkilä
+    Gilles Espinasse
+    Ronni Feldt
+    Bill Fellows
+    JC Ferguson
+    Remi Ferrand
+    Paul Fertser
+    William Fiveash
+    Jacques Florent
+    Ákos Frohner
+    Sebastian Galiano
+    Marcus Granado
+    Scott Grizzard
+    Helmut Grohne
+    Steve Grubb
+    Philip Guenther
+    Dominic Hargreaves
+    Robbie Harwood
+    Jakob Haufe
+    Matthieu Hautreux
+    Jochen Hein
+    Paul B. Henson
+    Jeff Hodges
+    Christopher Hogan
+    Love Hörnquist Åstrand
+    Ken Hornstein
+    Henry B. Hotz
+    Luke Howard
+    Jakub Hrozek
+    Shumon Huque
+    Jeffrey Hutzelman
+    Wyllys Ingersoll
+    Holger Isenberg
+    Spencer Jackson
+    Diogenes S. Jesus
+    Pavel Jindra
+    Brian Johannesmeyer
+    Joel Johnson
+    Anders Kaseorg
+    W. Trevor King
+    Patrik Kis
+    Mikkel Kruse
+    Reinhard Kugler
+    Tomas Kuthan
+    Pierre Labastie
+    Volker Lendecke
+    Jan iankko Lieskovsky
+    Todd Lipcon
+    Oliver Loch
+    Kevin Longfellow
+    Jon Looney
+    Nuno Lopes
+    Ryan Lynch
+    Roland Mainz
+    Andrei Maslennikov
+    Michael Mattioli
+    Nathaniel McCallum
+    Greg McClement
+    Cameron Meadors
+    Alexey Melnikov
+    Franklyn Mendez
+    Markus Moeller
+    Kyle Moffett
+    Paul Moore
+    Keiichi Mori
+    Michael Morony
+    Zbysek Mraz
+    Edward Murrell
+    Nikos Nikoleris
+    Felipe Ortega
+    Michael Osipov
+    Andrej Ota
+    Dmitri Pal
+    Javier Palacios
+    Tom Parker
+    Ezra Peisach
+    Zoran Pericic
+    W. Michael Petullo
+    Mark Phalan
+    Brett Randall
+    Jonathan Reams
+    Jonathan Reed
+    Robert Relyea
+    Martin Rex
+    Jason Rogers
+    Matt Rogers
+    Nate Rosenblum
+    Solly Ross
+    Mike Roszkowski
+    Guillaume Rousse
+    Andreas Schneider
+    Tom Shaw
+    Jim Shi
+    Peter Shoults
+    Simo Sorce
+    Michael Spang
+    Michael Ströder
+    Bjørn Tore Sund
+    Joe Travaglini
+    Tim Uglow
+    Rathor Vipin
+    Denis Vlasenko
+    Jorgen Wahlsten
+    Stef Walter
+    Max (Weijun) Wang
+    John Washington
+    Stef Walter
+    Xi Wang
+    Kevin Wasserman
+    Margaret Wasserman
+    Marcus Watts
+    Andreas Wiese
+    Simon Wilkinson
+    Nicolas Williams
+    Ross Wilper
+    Augustin Wolf
+    David Woodhouse
+    Tsu-Phong Wu
+    Xu Qiang
+    Neng Xue
+    Zhaomo Yang
+    Nickolai Zeldovich
+    Hanz van Zijst
+    Gertjan Zwartjes
+
+The above is not an exhaustive list; many others have contributed in
+various ways to the MIT Kerberos development effort over the years.
+Other acknowledgments (for bug reports and patches) are in the
+doc/CHANGES file.

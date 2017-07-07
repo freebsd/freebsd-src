@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-ETYPE-NEGOTIATION-data:
+
+KRB5_AUTHDATA_ETYPE_NEGOTIATION
+===============================
+
+..
+.. data:: KRB5_AUTHDATA_ETYPE_NEGOTIATION
+..
+
+RFC 4537.
+
+
+
+====================================== ======================
+``KRB5_AUTHDATA_ETYPE_NEGOTIATION``       ``129``
+====================================== ======================

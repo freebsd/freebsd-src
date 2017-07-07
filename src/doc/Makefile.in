@@ -1,0 +1,135 @@
+mydir=doc
+BUILDTOP=$(REL)..
+
+SPHINX_ARGS=@MAINT@-W
+SPHINX_BUILD=sphinx-build $(SPHINX_ARGS)
+DOXYGEN=doxygen
+
+docsrc=$(top_srcdir)/../doc
+localstatedir=@localstatedir@
+runstatedir=@runstatedir@
+sysconfdir=@sysconfdir@
+DEFCCNAME=@DEFCCNAME@
+DEFKTNAME=@DEFKTNAME@
+DEFCKTNAME=@DEFCKTNAME@
+
+RST_SOURCES= _static \
+	_templates \
+	conf.py \
+	index.rst \
+	admin \
+	appdev \
+	basic \
+	build \
+	formats \
+	plugindev \
+	user \
+	about.rst \
+	build_this.rst \
+	copyright.rst \
+	mitK5defaults.rst \
+	mitK5features.rst \
+	mitK5license.rst \
+	notice.rst \
+	resources.rst
+
+PDFDIR=$(docsrc)/pdf
+PDFDOCS= admin appdev basic build plugindev user
+LATEXOPTS=
+
+# Create HTML documentation in $(docsrc)/html suitable for a
+# release tarball or the web site (that is, without substitutions for
+# configured paths).  This can be done in an unconfigured source tree
+# as:
+#     make -f Makefile.in SPHINX_ARGS= htmlsrc
+html: composite
+	rm -rf $(docsrc)/html
+	$(SPHINX_BUILD) -q rst_composite $(docsrc)/html
+
+# Dummy target for use in an unconfigured source tree.
+htmlsrc:
+	$(MAKE) -f Makefile.in srcdir=. top_srcdir=.. PYTHON=python html clean
+
+# Create HTML documentation in html_subst suitable for
+# installation by an OS package, with substitutions for configured
+# paths.
+substhtml: composite paths.py
+	rm -rf html_subst
+	cp paths.py rst_composite
+	$(SPHINX_BUILD) -t pathsubs -q rst_composite html_subst
+
+# Create an ASCII (okay, UTF-8) version of the NOTICE file
+notice.txt: $(docsrc)/conf.py $(docsrc)/notice.rst $(docsrc)/version.py
+	$(SPHINX_BUILD) -b text -t notice -q $(docsrc) .
+
+NOTICE: notice.txt
+	cp notice.txt $(top_srcdir)/../NOTICE
+
+$(PDFDIR): composite
+	$(SPHINX_BUILD) -b latex -q rst_composite $(PDFDIR)
+	# sphinx-build generates a gmake-specific Makefile that we don't use
+	mv $(PDFDIR)/Makefile $(PDFDIR)/GMakefile
+
+# Not pretty.  Can't use a suffix rule .tex.pdf without a Makefile in
+# $(PDFDIR) because pdflatex looks for include files in the current
+# working directory.  The sphinx-build Makefile is quite conservative
+# and runs pdflatex five times; we can be slightly less conservative.
+pdf: $(PDFDIR)
+	(cd $(PDFDIR) && \
+	 for i in $(PDFDOCS); do \
+		texfile=`echo $${i}.tex` && \
+		idxfile=`echo $${i}.idx` && \
+		pdflatex $(LATEXOPTS) $$texfile && \
+		pdflatex $(LATEXOPTS) $$texfile && \
+		makeindex -s python.ist $$idxfile || true; \
+		pdflatex $(LATEXOPTS) $$texfile && \
+		pdflatex $(LATEXOPTS) $$texfile; done && \
+	 rm -f *.dvi *.log *.ind *.aux *.toc *.syn *.idx *.out *.ilg *.pla \
+	)
+
+# Use doxygen to generate API documentation, translate it into RST
+# format, and then create a composite of $(docsrc)'s RST and the
+# generated files in rst_composite.  Used by the html and substhtml targets.
+composite: Doxyfile $(docsrc)/version.py
+	rm -rf doxy rst_apiref rst_composite
+	$(DOXYGEN)
+	(cwd=`pwd`; cd $(docsrc)/tools && \
+		$(PYTHON) doxy.py -i $$cwd/doxy/xml -o $$cwd/rst_apiref)
+	mkdir -p rst_composite
+	do_subdirs="$(RST_SOURCES)" ; \
+	for i in $$do_subdirs; do \
+		cp -r $(docsrc)/$$i rst_composite; \
+	done
+	cp rst_apiref/*.rst rst_composite/appdev/refs/api
+	cp rst_apiref/types/*.rst rst_composite/appdev/refs/types
+	cp rst_apiref/macros/*.rst rst_composite/appdev/refs/macros
+	cp $(docsrc)/version.py rst_composite
+
+Doxyfile: $(srcdir)/Doxyfile.in
+	sed -e 's|@SRC@|$(top_srcdir)|g' \
+	    -e 's|@DOC@|$(top_srcdir)/../doc|g' $(srcdir)/Doxyfile.in > $@
+
+paths.py:
+	rm -f $@
+	echo 'bindir = "``$(CLIENT_BINDIR)``"' > $@
+	echo 'sbindir = "``$(SERVER_BINDIR)``"' >> $@
+	echo 'libdir = "``$(KRB5_LIBDIR)``"' >> $@
+	echo 'localstatedir = "``$(localstatedir)``"' >> $@
+	echo 'runstatedir = "``$(runstatedir)``"' >> $@
+	echo 'sysconfdir = "``$(sysconfdir)``"' >> $@
+	echo 'ccache = "``$(DEFCCNAME)``"' >> $@
+	echo 'keytab = "``$(DEFKTNAME)``"' >> $@
+	echo 'ckeytab = "``$(DEFCKTNAME)``"' >> $@
+
+# Dummy rule that man/Makefile can invoke
+version.py: $(docsrc)/version.py
+
+$(docsrc)/version.py: $(top_srcdir)/patchlevel.h $(srcdir)/version.py.in
+	rm -f $@
+	$(CC) -E -I$(top_srcdir) - < $(srcdir)/version.py.in > $@
+
+clean:
+	rm -rf doxy rst_apiref rst_composite rst_notice html_subst \
+		Doxyfile paths.py $(docsrc)/version.py notice.txt \
+		$(docsrc)/html/.doctrees $(docsrc)/pdf/.doctrees \
+		$(docsrc)/tools/*.pyc

@@ -1,0 +1,76 @@
+krb5_rd_priv -  Process a KRB-PRIV message. 
+============================================
+
+..
+
+.. c:function:: krb5_error_code krb5_rd_priv(krb5_context context, krb5_auth_context auth_context, const krb5_data * inbuf, krb5_data * outbuf, krb5_replay_data * outdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication structure
+
+	          **[in]** **inbuf** - **KRB-PRIV** message to be parsed
+
+	          **[out]** **outbuf** - Data parsed from **KRB-PRIV** message
+
+	          **[out]** **outdata** - Replay data. Specify NULL if not needed
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function parses a **KRB-PRIV** message, verifies its integrity, and stores its unencrypted data into *outbuf* .
+
+
+
+If the :data:`KRB5_AUTH_CONTEXT_DO_SEQUENCE` flag is set in *auth_context* , the sequence number of the KRB-SAFE message is checked against the remote sequence number field of *auth_context* . Otherwise, the sequence number is not used.
+
+
+
+If the :data:`KRB5_AUTH_CONTEXT_DO_TIME` flag is set in *auth_context* , then two additional checks are performed: 
+ 
+	 - The timestamp in the message must be within the permitted clock skew (which is usually five minutes).
+ 
+ 
+	 - The message must not be a replayed message field in *auth_context* .
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If the :data:`KRB5_AUTH_CONTEXT_RET_TIME` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` flag is set in *auth_context* , *outdata* is required.
+
+	 *auth_context* must have a remote address set. This address will be used to verify the sender address in the KRB-PRIV message. If *auth_context* has a local address set, it will be used to verify the receiver address in the KRB-PRIV message if the message contains one. Both addresses must use type **ADDRTYPE_ADDRPORT** .
+ 
+
+
+

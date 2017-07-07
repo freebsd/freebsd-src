@@ -1,0 +1,21 @@
+mydir=plugins$(S)authdata$(S)greet_server
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=greet_server
+LIBMAJOR=1
+LIBMINOR=0
+SHLIB_EXPDEPS = $(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= -lkrb5 -lcom_err -lk5crypto $(SUPPORT_LIB) $(LIBS)
+
+STLIBOBJS= greet_auth.o
+
+SRCS=	greet_auth.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@
+

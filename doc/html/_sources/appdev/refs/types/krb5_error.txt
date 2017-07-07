@@ -1,0 +1,75 @@
+.. highlightlang:: c
+
+.. _krb5-error-struct:
+
+krb5_error
+==========
+
+..
+.. c:type:: krb5_error
+..
+
+Error message structure.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_error  krb5_error
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_error.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_timestamp	krb5_error.ctime
+
+                                             Client sec portion; optional.
+                                             
+
+.. c:member:: krb5_int32	krb5_error.cusec
+
+                                             Client usec portion; optional.
+                                             
+
+.. c:member:: krb5_int32	krb5_error.susec
+
+                                             Server usec portion.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_error.stime
+
+                                             Server sec portion.
+                                             
+
+.. c:member:: krb5_ui_4	krb5_error.error
+
+                                             Error code (protocol error #'s)
+                                             
+
+.. c:member:: krb5_principal	krb5_error.client
+
+                                             Client principal and realm.
+                                             
+
+.. c:member:: krb5_principal	krb5_error.server
+
+                                             Server principal and realm.
+                                             
+
+.. c:member:: krb5_data	krb5_error.text
+
+                                             Descriptive text.
+                                             
+
+.. c:member:: krb5_data	krb5_error.e_data
+
+                                             Additional error-describing data.
+                                             
+

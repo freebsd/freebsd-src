@@ -1,0 +1,53 @@
+krb5_cccol_last_change_time -  Return a timestamp of the last modification of any known credential cache. 
+==========================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_last_change_time(krb5_context context, krb5_timestamp * change_time)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **change_time** - Last modification timestamp
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function returns the most recent modification time of any known credential cache, ignoring any caches which cannot supply a last modification time.
+
+
+
+If there are no known credential caches, *change_time* is set to 0.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

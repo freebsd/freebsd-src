@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+	<Files>
+		<!-- File from	paths are relative to <src>/pismere.	-->
+		<!-- File to	paths are relative to <out>.			-->
+		<File dummy="foo" /> <!-- Forces XML::Simple behavior   -->
+			<!-- Without this, XML::Simple does not make an anonymous array and I can't figure out how to iterate over it. -->
+
+		<File name="relnotes.html"  from="doc\kerberos"                 to="doc" />
+		<File name="kclient.rtf"    from="athena\auth\krb4\kclient\doc" to="doc" />
+        <File name="msi-deployment-guide.txt" from="athena\auth\krb5\src\windows\installer\wix\"   to="\doc" />
+
+		<File  name="*.*"           from="staging\inc"                  to="inc" />
+		<!-- loadfuncs.c is deliberately here.  Otherwise, *.h would work. -->
+
+		<File  name="*.*"           from="staging\install\nsis"         to="install\nsis\" />
+        <!-- We'll clean up the exes in the target directory in a later step.  -->
+
+		<File  name="*.*"           from="staging\install\wix"          to="install\wix\" />
+        <!-- We'll clean up the msi in the target directory in a later step.  -->
+
+		<File  name="*.lib"         from="staging\lib\i386"             to="lib\i386\" />
+	
+	</Files>

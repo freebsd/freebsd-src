@@ -1,0 +1,44 @@
+.. highlightlang:: c
+
+.. _krb5-checksum-struct:
+
+krb5_checksum
+=============
+
+..
+.. c:type:: krb5_checksum
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_checksum  krb5_checksum
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_checksum.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_cksumtype	krb5_checksum.checksum_type
+
+                                             
+                                             
+
+.. c:member:: unsigned int	krb5_checksum.length
+
+                                             
+                                             
+
+.. c:member:: krb5_octet *	krb5_checksum.contents
+
+                                             
+                                             
+

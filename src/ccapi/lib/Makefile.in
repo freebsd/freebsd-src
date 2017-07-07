@@ -1,0 +1,61 @@
+mydir=ccapi$(S)lib
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS=unix
+LOCALINCLUDES=-I$(srcdir)/../common -I.
+
+SHLIB_EXPDEPS= $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS=-lcom_err $(SUPPORT_LIB)
+RELDIR=../ccapi/lib
+
+LIBBASE=krb5-ccapi
+LIBMAJOR=1
+LIBMINOR=0
+
+STOBJLISTS= \
+	OBJS.ST \
+	unix/OBJS.ST
+
+STLIBOBJS= \
+	ccapi_ccache.o \
+	ccapi_ccache_iterator.o \
+	ccapi_context.o \
+	ccapi_context_change_time.o \
+	ccapi_credentials.o \
+	ccapi_credentials_iterator.o \
+	ccapi_err.o \
+	ccapi_ipc.o \
+	ccapi_string.o \
+	ccapi_v2.o
+
+OBJS= \
+	$(OUTPRE)ccapi_ccache.$(OUTPRE) \
+	$(OUTPRE)ccapi_ccache_iterator.$(OUTPRE) \
+	$(OUTPRE)ccapi_context.$(OUTPRE) \
+	$(OUTPRE)ccapi_context_change_time.$(OUTPRE) \
+	$(OUTPRE)ccapi_credentials.$(OUTPRE) \
+	$(OUTPRE)ccapi_credentials_iterator.$(OUTPRE) \
+	$(OUTPRE)ccapi_err.$(OUTPRE) \
+	$(OUTPRE)ccapi_ipc.$(OUTPRE) \
+	$(OUTPRE)ccapi_string.$(OUTPRE) \
+	$(OUTPRE)ccapi_v2.$(OUTPRE)
+
+SRCS= \
+	ccapi_ccache.c \
+	ccapi_ccache_iterator.c \
+	ccapi_context.c \
+	ccapi_context_change_time.c \
+	ccapi_credentials.c \
+	ccapi_credentials_iterator.c \
+	ccapi_err.c \
+	ccapi_ipc.c \
+	ccapi_string.c \
+	ccapi_v2.c
+
+ccapi_err.c ccapi_err.h : ccapi_err.et
+
+all-unix: all-libobjs all-liblinks
+clean-unix:: clean-libobjs clean-liblinks clean-libs
+
+@lib_frag@
+@libobj_frag@
+

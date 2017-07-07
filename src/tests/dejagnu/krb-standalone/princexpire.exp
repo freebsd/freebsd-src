@@ -1,0 +1,105 @@
+proc doit { } {
+    global REALMNAME
+    global KLIST
+    global KINIT
+    global KDESTROY
+    global KEY
+    global KADMIN_LOCAL
+    global KTUTIL
+    global hostname
+    global tmppwd
+    global spawn_id
+    global supported_enctypes
+    global KRBIV
+    global portbase
+    global mode
+
+    set princ "expiredprinc"
+
+    # Start up the kerberos and kadmind daemons.
+    if ![start_kerberos_daemons 0] {
+	return 1
+    }
+
+    # Use kadmin to add a key.
+    if ![add_kerberos_key $princ 0] {
+	return 1
+    }
+
+    setup_kerberos_env kdc
+
+    set test "kadmin.local modprinc -expire"
+    spawn $KADMIN_LOCAL -q "modprinc -expire \"2 days ago\" $princ"
+    catch expect_after
+    expect {
+	timeout {
+	    fail $test
+	}
+	eof {
+	    pass $test
+	}
+    }
+    set k_stat [wait -i $spawn_id]
+    verbose "wait -i $spawn_id returned $k_stat ($test)"
+    catch "close -i $spawn_id"
+
+    set test "kadmin.local -pwexpire"
+    spawn $KADMIN_LOCAL -q "modprinc -pwexpire \"2 days ago\" $princ"
+    catch expect_after
+    expect {
+	timeout {
+	    fail $test
+	}
+	eof {
+	    pass $test
+	}
+    }
+    set k_stat [wait -i $spawn_id]
+    verbose "wait -i $spawn_id returned $k_stat ($test)"
+    catch "close -i $spawn_id"
+
+    setup_kerberos_env client
+    spawn $KINIT -5 -k -t /dev/null $princ
+    expect {
+	"entry in database has expired" {
+	    pass $test
+	}
+	"Password has expired" {
+	    fail "$test (inappropriate password expiration message)"
+	}
+	timeout {
+	    expect eof
+	    fail "$test (timeout)"
+	    return 0
+	}
+	eof {
+	    fail "$test (eof)"
+	    return 0
+	}
+    }
+    expect eof
+    return 0
+}
+
+run_once princexpire {
+    # Set up the Kerberos files and environment.
+    if {![get_hostname] || ![setup_kerberos_files] || ![setup_kerberos_env]} {
+	return
+    }
+    # Initialize the Kerberos database.  The argument tells
+    # setup_kerberos_db that it is not being called from
+    # standalone.exp.
+    if ![setup_kerberos_db 0] {
+	return
+    }
+
+    set status [catch doit msg]
+
+    stop_kerberos_daemons
+
+    if { $status != 0 } {
+	send_error "ERROR: error in pwchange.exp\n"
+	send_error "$msg\n"
+	exit 1
+    }
+}

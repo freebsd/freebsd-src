@@ -1,0 +1,246 @@
+.\" Copyright (c) 1990, 1993, 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_btree.3	8.11 (Berkeley) 8/1/95
+.\"
+.TH DB_BTREE 3 "August 1, 1995"
+.UC 7
+.SH NAME
+db_btree \- btree database access method
+.SH DESCRIPTION
+.so db.so
+.GN
+specific details of the btree access method.
+.PP
+The btree data structure is a sorted, balanced tree structure storing
+associated key/data pairs.
+Searches, insertions, and deletions in the btree will all complete in
+O lg base N where base is the average fill factor.
+Often, inserting ordered data into btrees results in a low fill factor.
+This implementation has been modified to make ordered insertion the best
+case, resulting in a much better than normal page fill factor.
+.SH "ACCESS METHOD SPECIFIC INFORMATION"
+The btree access method specific data structure provided to
+.I db_open
+is typedef'd and named BTREEINFO.
+A BTREEINFO structure has at least the following fields,
+which may be initialized before calling
+.IR db_open :
+.TP 5
+u_int cachesize;
+A suggested maximum size (in bytes) of the memory cache.
+This value is
+.B only
+advisory, and the access method will allocate more memory rather than fail.
+Since every search examines the root page of the tree, caching the most
+recently used pages substantially improves access time.
+In addition, physical writes are delayed as long as possible, so a moderate
+cache can reduce the number of I/O operations significantly.
+Obviously, using a cache increases (but only increases) the likelihood of
+corruption or lost data if the system crashes while a tree is being modified.
+If
+.I cachesize
+is 0 (no size is specified) a default cache is used.
+.TP 5
+int (*compare)(const DBT *, const DBT *);
+Compare is the key comparison function.
+It must return an integer less than, equal to, or greater than zero if the
+first key argument is considered to be respectively less than, equal to,
+or greater than the second key argument.
+The same comparison function must be used on a given tree every time it
+is opened.
+If
+.I compare
+is NULL (no comparison function is specified), the keys are compared
+lexically, with shorter keys considered less than longer keys.
+.TP 5
+u_long flags;
+The flag value is specified by
+.IR or 'ing
+any of the following values:
+.RS
+.TP 5
+R_DUP
+Permit duplicate keys in the tree, i.e. permit insertion if the key to be
+inserted already exists in the tree.
+The default behavior, as described in
+.IR db_open (3),
+is to overwrite a matching key when inserting a new key or to fail if
+the R_NOOVERWRITE flag is specified.
+The R_DUP flag is overridden by the R_NOOVERWRITE flag, and if the
+R_NOOVERWRITE flag is specified, attempts to insert duplicate keys into
+the tree will fail.
+.IP
+If the database contains duplicate keys, the order of retrieval of
+key/data pairs is undefined if the
+.I get
+function is used, however,
+.I seq
+function calls with the R_CURSOR flag set will always return the logical
+``first'' of any group of duplicate keys.
+.RE
+.TP 5
+int lorder;
+The byte order for integers in the stored database metadata.
+The number should represent the order as an integer; for example, 
+big endian order would be the number 4,321.
+If
+.I lorder
+is 0 (no order is specified) the current host order is used.
+.TP 5
+int maxkeypage;
+The maximum number of keys which will be stored on any single page.
+This functionality is not currently implemented.
+.\" The maximum number of keys which will be stored on any single page.
+.\" Because of the way the btree data structure works,
+.\" .I maxkeypage
+.\" must always be greater than or equal to 2.
+.\" If
+.\" .I maxkeypage
+.\" is 0 (no maximum number of keys is specified) the page fill factor is
+.\" made as large as possible (which is almost invariably what is wanted).
+.TP 5
+int minkeypage;
+The minimum number of keys which will be stored on any single page.
+This value is used to determine which keys will be stored on overflow
+pages, i.e. if a key or data item is longer than the pagesize divided
+by the minkeypage value, it will be stored on overflow pages instead
+of in the page itself.
+If
+.I minkeypage
+is 0 (no minimum number of keys is specified) a value of 2 is used.
+.TP 5
+size_t (*prefix)(const DBT *, const DBT *);
+Prefix is the prefix comparison function.
+If specified, this function must return the number of bytes of the second key
+argument which are necessary to determine that it is greater than the first
+key argument.
+If the keys are equal, the key length should be returned.
+Note, the usefulness of this function is very data dependent, but, in some
+data sets can produce significantly reduced tree sizes and search times.
+If
+.I prefix
+is NULL (no prefix function is specified),
+.B and
+no comparison function is specified, a default lexical comparison function
+is used.
+If
+.I prefix
+is NULL and a comparison function is specified, no prefix comparison is
+done.
+.TP 5
+u_int psize;
+Page size is the size (in bytes) of the pages used for nodes in the tree.
+The minimum page size is 512 bytes and the maximum page size is 64K.
+If
+.I psize
+is 0 (no page size is specified) a page size is chosen based on the
+underlying file system I/O block size.
+.PP
+If the file already exists (and the O_TRUNC flag is not specified), the
+values specified for the parameters flags, lorder and psize are ignored
+in favor of the values used when the tree was created.
+.SH "DB OPERATIONS"
+The functions returned by
+.I db_open
+for the btree access method are as described in
+.IR db_open (3),
+with the following exceptions and additions:
+.TP 5
+type
+The type is DB_BTREE.
+.TP 5
+del
+Space freed up by deleting key/data pairs from the tree is never reclaimed,
+although it is reused where possible.
+This means that the btree storage structure is grow-only.
+The only solutions are to avoid excessive deletions, or to create a fresh
+tree periodically from a scan of an existing one.
+.TP 5
+put
+The
+.I put
+function takes the following additional flags:
+.RS
+.TP 5
+R_SETCURSOR
+Store the key/data pair, setting or initializing the position of the
+cursor to reference it.
+.RE
+.TP 5
+seq
+Forward sequential scans of a tree are from the least key to the greatest.
+.IP
+The returned key for the
+.I seq
+function is not necessarily an exact match for the specified key in
+the btree access method.
+The returned key is the smallest key greater than or equal to the
+specified key, permitting partial key matches and range searches.
+.IP
+The
+.I seq
+function takes the following additional flags:
+.RS
+.TP 5
+R_LAST
+The last key/data pair of the database is returned, and the cursor
+is set or initialized to reference it.
+.TP 5
+R_PREV
+Retrieve the key/data pair immediately before the cursor.
+If the cursor is not yet set, this is the same as the R_LAST flag.
+.RE
+.SH ERRORS
+The
+.I btree
+access method functions may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR db_open (3).
+.SH "SEE ALSO"
+.IR db_hash (3),
+.IR db_lock (3),
+.IR db_log (3),
+.IR db_mpool (3),
+.IR db_open (3),
+.IR db_recno (3),
+.IR db_txn (3)
+.sp
+.IR "The Ubiquitous B-tree" ,
+Douglas Comer, ACM Comput. Surv. 11, 2 (June 1979), 121-138.
+.sp
+.IR "Prefix B-trees" ,
+Bayer and Unterauer, ACM Transactions on Database Systems, Vol. 2, 1
+(March 1977), 11-26.
+.sp
+.IR "The Art of Computer Programming Vol. 3: Sorting and Searching" , 
+D.E. Knuth, 1968, pp 471-480.

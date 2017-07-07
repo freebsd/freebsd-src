@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+
+    <!-- User configurable options -->
+
+	<!-- Items enclosed in double percent marks will be substituted by 
+	    the build script. -->
+    
+    <!-- TargetDir should point to build target directory and must end with 
+         a backslash.  If not specified, assume we are in TargetDir\install -->
+
+    <?define TargetDir="%TARGETDIR%\"?>
+
+    <!-- ConfigDir should point to directory containing configuration files 
+         (krb5.ini, krb.con, krbrealm.con) to be bundled with the installer.
+         The directory name should end with a backslash. -->
+
+    <?define ConfigDir="%CONFIGDIR-WIX%\"?>
+    
+    <!-- VersionMajor, VersionMinor and VersionPatch must all be specified, or 
+         none should be specified (in which case, the defaults will be
+         selected below. -->
+
+    <!-- version defs go here -->
+        <?define VersionMajor="%VERSION_MAJOR%"?>
+        <?define VersionMinor="%VERSION_MINOR%"?>
+        <?define VersionPatch="%VERSION_PATCH%"?>
+
+    <!-- BuildLang is the language code for the installation.  If you are
+         changing this, you should also change the ProductCode below. -->  
+    <?ifndef BuildLang?>
+        <?define BuildLang="1033"?>
+    <?endif?>
+
+    <!-- ProductCode is an uppercase GUID.  Each release should have its
+         own ProductCode.  If one is not defined, we generate a random one. -->
+    <?ifndef ProductCode?>
+	    <?define ProductCode="????????-????-????-????-????????????"?>    
+    <?endif?>
+    
+    <!-- DefaultRealm, is your default realm.  Must be uppercase -->
+    <?define DefaultRealm="ATHENA.MIT.EDU"?>
+    
+    <!-- One of the following must be defined and must correspond to the
+         version of compiler used for building Kerberos for Windows -->
+
+    <!-- <?define CL1200?> -->
+    <!-- <?define CL1300?> -->
+    <?define CL1310?>
+    <!-- <?define CL1400?> -->
+
+    <!-- At most one of the following could be defined and must correspond
+         to the type of build performed. -->
+    <!-- <?define Debug?> -->
+    <?define Release?>
+
+    <!-- We are including debug symbols anyway.  Undefine this for a leaner 
+         installer without debug syms. -->
+    <?define DebugSyms?>
+
+    <!-- Optional defines -->
+    <!-- <?define Beta="1"?>  --> <!-- Numeric Beta identifier -->
+    <!-- <?define OldHelp?> --> <!-- Specifies the use of the old leash32.hlp file 
+                           instead of the new leash32.chm file -->
+
+
+    <!-- End of user configurable options -->
+    
+    <!-- Assert that required options are defined, or select defaults if
+         they weren't -->
+
+    <?ifndef TargetDir?>
+        <?define TargetDir="$(sys.SOURCEFILEDIR)..\"?>
+    <?endif?>
+    
+    <?ifndef ConfigDir?>
+        <?define ConfigDir="$(env.SystemRoot)\"?>
+    <?endif?>
+
+    <?ifndef VersionMajor?>
+        <?define VersionMajor="3"?>
+        <?define VersionMinor="2"?>
+        <?define VersionPatch="0"?>
+    <?else?>
+        <?if Not ($(var.VersionMinor) And $(var.VersionPatch))?>
+            <?error VersionMajor, VersionMinor and VersionPatch should be specified together?>
+        <?endif?>
+    <?endif?>
+    
+    <?ifndef ProductCode?>
+        <?error Must define ProductCode?>
+    <?endif?>
+    
+    <?ifndef BuildLang?>
+        <?error Must define BuildLang?>
+    <?endif?>
+
+    <!-- DefaultRealm.  Must be uppercase. -->
+    <?ifndef DefaultRealm?>
+        <?error Must define DefaultRealm?>
+    <?endif?>
+    
+    <!-- The build makefile defines 'Date' and 'Time' which are strings that 
+         identify the time at which the build was performed. -->
+</Include>

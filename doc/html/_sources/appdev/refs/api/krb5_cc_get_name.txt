@@ -1,0 +1,53 @@
+krb5_cc_get_name -  Retrieve the name, but not type of a credential cache. 
+===========================================================================
+
+..
+
+.. c:function:: const char * krb5_cc_get_name(krb5_context context, krb5_ccache cache)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+
+..
+
+
+
+:return:
+         -  On success - the name of the credential cache. 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+.. warning::
+
+	 Returns the name of the credential cache. The result is an alias into *cache* and should not be freed or modified by the caller. This name does not include the cache type, so should not be used as input to :c:func:`krb5_cc_resolve()` .
+ 
+
+
+
+

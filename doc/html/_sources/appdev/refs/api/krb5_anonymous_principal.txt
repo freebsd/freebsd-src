@@ -1,0 +1,47 @@
+krb5_anonymous_principal -  Build an anonymous principal. 
+==========================================================
+
+..
+
+.. c:function:: krb5_const_principal krb5_anonymous_principal(void None)
+
+..
+
+
+:param:
+
+	          **None**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function returns constant storage that must not be freed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :data:`KRB5_ANONYMOUS_PRINCSTR` 
+ 
+
+
+
+

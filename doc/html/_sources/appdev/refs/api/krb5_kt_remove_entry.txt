@@ -1,0 +1,51 @@
+krb5_kt_remove_entry -  Remove an entry from a key table. 
+==========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_remove_entry(krb5_context context, krb5_keytab id, krb5_keytab_entry * entry)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **id** - Key table handle
+
+	          **[in]** **entry** - Entry to remove from key table
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5_KT_NOWRITE   Key table is not writable
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

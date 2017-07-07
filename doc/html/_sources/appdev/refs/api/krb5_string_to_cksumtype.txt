@@ -1,0 +1,45 @@
+krb5_string_to_cksumtype -  Convert a string to a checksum type. 
+=================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_cksumtype(char * string, krb5_cksumtype * cksumtypep)
+
+..
+
+
+:param:
+
+	          **[in]** **string** - String to be converted
+
+	          **[out]** **cksumtypep** - Checksum type to be filled in
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - EINVAL
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

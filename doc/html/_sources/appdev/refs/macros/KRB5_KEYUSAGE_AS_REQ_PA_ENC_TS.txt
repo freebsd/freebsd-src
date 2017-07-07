@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AS-REQ-PA-ENC-TS-data:
+
+KRB5_KEYUSAGE_AS_REQ_PA_ENC_TS
+==============================
+
+..
+.. data:: KRB5_KEYUSAGE_AS_REQ_PA_ENC_TS
+..
+
+
+
+
+===================================== ======================
+``KRB5_KEYUSAGE_AS_REQ_PA_ENC_TS``       ``1``
+===================================== ======================

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _LR-TYPE-INTERPRETATION-MASK-data:
+
+LR_TYPE_INTERPRETATION_MASK
+===========================
+
+..
+.. data:: LR_TYPE_INTERPRETATION_MASK
+..
+
+
+
+
+================================== ======================
+``LR_TYPE_INTERPRETATION_MASK``       ``0x7fff``
+================================== ======================

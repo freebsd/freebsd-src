@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Usage: start_servers [hostname [path]]
+#
+# This script turns a host into a OpenV*Secure primary server for the
+# realm SECURE-TEST.OV.COM.  If no arguments are specified,
+# the local host is affected.  Otherwise, the host hostname is
+# affected; the path argument is the top of the Secure install tree on
+# that host, and if it is not specified the current canonical value of
+# TOP is used.
+
+DUMMY=${TESTDIR=$TOP/testing}
+DUMMY=${STESTDIR=$STOP/testing}
+DUMMY=${START_SERVERS_LOCAL=$STESTDIR/scripts/start_servers_local}
+# This'll be wrong sometimes
+DUMMY=${RSH_CMD=rsh}
+
+local=1
+
+if [ $# -gt 0 ]; then
+	if [ $# != 1 -a $# != 2 ]; then
+		echo "Usage: $0 [hostname [path]]" 1>&2
+		exit 1
+	fi
+
+	local=0
+	hostname=$1
+	if [ $# = 1 ]; then
+		rempath=`sh -c "cd $TOP && pwd"`
+	else
+		rempath=$2
+	fi
+fi
+
+if [ $local = 0 ]; then
+
+	# Fix up the local krb5.conf to point to the remote 
+	localname=`$QUALNAME`
+	sed -e "s/__REALM__/$REALM/g" -e "s#__K5ROOT__#$K5ROOT#g" \
+		-e "s/__KDCHOST__/$hostname/g" \
+		-e "s/__LOCALHOST__/$localname/g" \
+		-e "s#__MODDIR__#$TOP/../plugins/kdb#g"\
+		-e "s#__PLUGIN_DIR__#$TOP/../plugins#g"\
+		< $STESTDIR/proto/krb5.conf.proto > $K5ROOT/krb5.conf
+
+# Using /usr/ucb/rsh and getting rid of "-k $REALM" until we get
+# around to fixing the fact that Kerberos rsh doesn't strip out "-k
+# REALM" when falling back.
+
+	START_SERVERS_LOCAL=`echo $START_SERVERS_LOCAL|sed "s%$TOP%$rempath%"`
+	CMD="$RSH_CMD $hostname -n \
+	  \"sh -c 'VERBOSE_TEST=$VERBOSE_TEST TOP=$rempath \
+	    $rempath/testing/scripts/env-setup.sh \
+		$START_SERVERS_LOCAL $rempath'\""
+
+	if $VERBOSE; then
+		echo "+++"
+		echo "+++ Begin execution of start_servers_local on $hostname"
+		echo "+++"
+		echo $CMD
+	fi
+	eval $CMD
+	if $VERBOSE; then
+		echo "+++"
+		echo "+++ End execution of start_servers_local on $hostname"
+		echo "+++"
+	fi
+else
+	$START_SERVERS_LOCAL
+fi
+

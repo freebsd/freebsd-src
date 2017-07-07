@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-PA-SAM-CHALLENGE-CKSUM-data:
+
+KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM
+====================================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM
+..
+
+
+
+
+=========================================== ======================
+``KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM``       ``25``
+=========================================== ======================

@@ -1,0 +1,31 @@
+mydir=kadmin$(S)testing$(S)scripts
+BUILDTOP=$(REL)..$(S)..$(S)..
+PERL_PATH=@PERL_PATH@
+
+.SUFFIXES: .plin .pl
+
+GEN_SCRIPTS = compare_dump.pl make-host-keytab.pl \
+	simple_dump.pl verify_xrunner_report.pl qualname.pl
+
+all: env-setup.sh $(GEN_SCRIPTS)
+
+# Should only rebuild env_setup.sh here (use CONFIG_FILES=), but the weird krb5
+# makefile post-processing is unconditional and would trash the makefile.
+env-setup.sh: env-setup.stamp
+env-setup.stamp: $(srcdir)/env-setup.shin $(BUILDTOP)/config.status \
+		Makefile 
+	(cd $(BUILDTOP) && \
+		CONFIG_FILES=$(mydir)/env-setup.sh:$(mydir)/env-setup.shin $(SHELL) \
+		config.status)
+	chmod +x env-setup.sh
+	touch env-setup.stamp
+
+.plin.pl: 
+	-rm -f $@.tmp
+	echo "#!$(PERL_PATH)" > $@.tmp
+	sed 1d $< >> $@.tmp
+	chmod +x $@.tmp
+	mv $@.tmp $@
+
+clean:
+	-rm -f $(GEN_SCRIPTS) *.tmp env-setup.sh env-setup.stamp

@@ -1,0 +1,31 @@
+mydir=plugins$(S)preauth$(S)otp
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
+
+LIBBASE=otp
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/preauth/otp
+
+SHLIB_EXPDEPS = $(VERTO_DEPLIBS) $(KRB5_BASE_DEPLIBS) \
+	$(TOPLIBD)/libkrad$(SHLIBEXT)
+
+SHLIB_EXPLIBS= -lkrad $(VERTO_LIBS) $(KRB5_BASE_LIBS)
+
+STLIBOBJS = \
+	otp_state.o \
+	main.o
+
+SRCS = \
+	$(srcdir)/otp_state.c \
+	$(srcdir)/main.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean:
+	$(RM) lib$(LIBBASE)$(SO_EXT)
+
+@libnover_frag@
+@libobj_frag@

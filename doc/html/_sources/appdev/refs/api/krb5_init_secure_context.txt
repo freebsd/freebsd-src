@@ -1,0 +1,54 @@
+krb5_init_secure_context -  Create a krb5 library context using only configuration files. 
+==========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_secure_context(krb5_context * context)
+
+..
+
+
+:param:
+
+	          **[out]** **context** - Library context
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Create a context structure, using only system configuration files. All information passed through the environment variables is ignored.
+
+
+
+The *context* must be released by calling :c:func:`krb5_free_context()` when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PRINCIPAL-UNPARSE-NO-REALM-data:
+
+KRB5_PRINCIPAL_UNPARSE_NO_REALM
+===============================
+
+..
+.. data:: KRB5_PRINCIPAL_UNPARSE_NO_REALM
+..
+
+Omit realm always.
+
+
+
+====================================== ======================
+``KRB5_PRINCIPAL_UNPARSE_NO_REALM``       ``0x2``
+====================================== ======================

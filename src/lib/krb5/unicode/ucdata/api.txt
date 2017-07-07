@@ -1,0 +1,401 @@
+#
+# $Id: api.txt,v 1.3 2001/01/02 18:46:20 mleisher Exp $
+#
+
+                             The MUTT UCData API
+                             -------------------
+
+
+####
+NOTE: This library has been customized for use with OpenLDAP. The character
+data tables are hardcoded into the library and the load/unload/reload
+functions are no-ops. Also, the MUTT API claimed to be compatible with
+John Cowan's library but its ucnumber behavior was broken. This has been
+fixed in the OpenLDAP release.
+
+By default, the implementation specific properties in MUTTUCData.txt are
+not incorporated into the OpenLDAP build. You can supply them to ucgendat
+and recreate uctable.h if you need them.
+  -- hyc@openldap.org
+####
+
+
+-----------------------------------------------------------------------------
+
+Macros that combine to select data tables for ucdata_load(), ucdata_unload(),
+and ucdata_reload().
+
+#define UCDATA_CASE   0x01
+#define UCDATA_CTYPE  0x02
+#define UCDATA_DECOMP 0x04
+#define UCDATA_CMBCL  0x08
+#define UCDATA_NUM    0x10
+#define UCDATA_COMP   0x20
+#define UCATA_ALL (UCDATA_CASE|UCDATA_CTYPE|UCDATA_DECOMP|\
+                   UCDATA_CMBCL|UCDATA_NUM|UCDATA_COMP)
+-----------------------------------------------------------------------------
+
+void ucdata_load(char *paths, int masks)
+
+  This function initializes the UCData library by locating the data files in
+  one of the colon-separated directories in the `paths' parameter.  The data
+  files to be loaded are specified in the `masks' parameter as a bitwise
+  combination of the macros listed above.
+
+  This should be called before using any of the other functions.
+
+  NOTE: the ucdata_setup(char *paths) function is now a macro that expands
+        into this function at compile time.
+
+-----------------------------------------------------------------------------
+
+void ucdata_unload(int masks)
+
+  This function unloads the data tables specified in the `masks' parameter.
+
+  This function should be called when the application is done using the UCData
+  package.
+
+  NOTE: the ucdata_cleanup() function is now a macro that expands into this
+        function at compile time.
+
+-----------------------------------------------------------------------------
+
+void ucdata_reload(char *paths, int masks)
+
+  This function reloads the data files from one of the colon-separated
+  directories in the `paths' parameter.  The data files to be reloaded are
+  specified in the `masks' parameter as a bitwise combination of the macros
+  listed above.
+
+  If the data files have already been loaded, they are unloaded before the
+  data files are loaded again.
+
+-----------------------------------------------------------------------------
+
+int ucdecomp(unsigned long code, unsigned long *num, unsigned long **decomp)
+
+  This function determines if a character has a decomposition and returns the
+  decomposition information if it exists.
+
+  If a zero is returned, there is no decomposition.  If a non-zero is
+  returned, then the `num' and `decomp' variables are filled in with the
+  appropriate values.
+
+  Example call:
+
+    unsigned long i, num, *decomp;
+
+    if (ucdecomp(0x1d5, &num, &decomp) != 0) {
+       for (i = 0; i < num; i++)
+         printf("0x%08lX,", decomp[i]);
+       putchar('\n');
+    }
+
+int uccanondecomp(const unsigned long *in, int inlen, unsigned long **out,
+                  int *outlen)
+
+  This function decomposes an input string and does canonical reordering of
+  the characters at the same time.
+
+  If a -1 is returned, memory allocation was not successful.  If a zero is
+  returned, no decomposition occured.  Any other value means the output string
+  contains the fully decomposed string in canonical order.
+
+  If the "outlen" parameter comes back with a value > 0, then the string
+  returned in the "out" parameter needs to be deallocated by the caller. 
+
+-----------------------------------------------------------------------------
+
+int ucdecomp_hangul(unsigned long code, unsigned long *num,
+                    unsigned long decomp[])
+
+  This function determines if a Hangul syllable has a decomposition and
+  returns the decomposition information.
+
+  An array of at least size 3 should be passed to the function for the
+  decomposition of the syllable.
+
+  If a zero is returned, the character is not a Hangul syllable.  If a
+  non-zero is returned, the `num' field will be 2 or 3 and the syllable will
+  be decomposed into the `decomp' array arithmetically.
+
+  Example call:
+
+    unsigned long i, num, decomp[3];
+
+    if (ucdecomp_hangul(0xb1ba, &num, &decomp) != 0) {
+       for (i = 0; i < num; i++)
+         printf("0x%08lX,", decomp[i]);
+       putchar('\n');
+    }
+
+-----------------------------------------------------------------------------
+
+int uccomp(unsigned long ch1, unsigned long ch2, unsigned long *comp)
+
+  This function takes a pair of characters and determines if they combine to
+  form another character.
+
+  If a zero is returned, no composition is formed by the character pair.  Any
+  other value indicates the "comp" parameter has a value.
+
+int uccomp_hangul(unsigned long *str, int len)
+
+  This function composes the Hangul Jamo in the string.  The composition is
+  done in-place.
+
+  The return value provides the new length of the string.  This will be
+  smaller than "len" if compositions occured.
+
+int uccanoncomp(unsigned long *str, int len)
+
+  This function does a canonical composition of characters in the string.
+
+  The return value is the new length of the string.
+
+-----------------------------------------------------------------------------
+
+struct ucnumber {
+  int numerator;
+  int denominator;
+};
+
+int ucnumber_lookup(unsigned long code, struct ucnumber *num)
+
+  This function determines if the code is a number and fills in the `num'
+  field with the numerator and denominator.  If the code happens to be a
+  single digit, the denominator field will be 1.
+
+####
+The original code would set numerator = denominator for regular digits.
+However, the Readme also claimed to be compatible with John Cowan's uctype
+library, but this behavior is both nonsensical and incompatible with the
+Cowan library. As such, it has been fixed here as described above.
+  -- hyc@openldap.org
+####
+
+  If the function returns 0, the code is not a number.  Any other return
+  value means the code is a number.
+
+int ucdigit_lookup(unsigned long code, int *digit)
+
+  This function determines if the code is a digit and fills in the `digit'
+  field with the digit value.
+
+  If the function returns 0, the code is not a number.  Any other return
+  value means the code is a number.
+
+struct ucnumber ucgetnumber(unsigned long code)
+
+  This is a compatibility function with John Cowan's "uctype" package.  It
+  uses ucnumber_lookup().
+
+int ucgetdigit(unsigned long code)
+
+  This is a compatibility function with John Cowan's "uctype" package.  It
+  uses ucdigit_lookup().
+
+-----------------------------------------------------------------------------
+
+unsigned long uctoupper(unsigned long code)
+
+  This function returns the code unchanged if it is already upper case or has
+  no upper case equivalent.  Otherwise the upper case equivalent is returned.
+
+-----------------------------------------------------------------------------
+
+unsigned long uctolower(unsigned long code)
+
+  This function returns the code unchanged if it is already lower case or has
+  no lower case equivalent.  Otherwise the lower case equivalent is returned.
+
+-----------------------------------------------------------------------------
+
+unsigned long uctotitle(unsigned long code)
+
+  This function returns the code unchanged if it is already title case or has
+  no title case equivalent.  Otherwise the title case equivalent is returned.
+
+-----------------------------------------------------------------------------
+
+int ucisalpha(unsigned long code)
+int ucisalnum(unsigned long code)
+int ucisdigit(unsigned long code)
+int uciscntrl(unsigned long code)
+int ucisspace(unsigned long code)
+int ucisblank(unsigned long code)
+int ucispunct(unsigned long code)
+int ucisgraph(unsigned long code)
+int ucisprint(unsigned long code)
+int ucisxdigit(unsigned long code)
+
+int ucisupper(unsigned long code)
+int ucislower(unsigned long code)
+int ucistitle(unsigned long code)
+
+  These functions (actually macros) determine if a character has these
+  properties.  These behave in a fashion very similar to the venerable ctype
+  package.
+
+-----------------------------------------------------------------------------
+
+int ucisisocntrl(unsigned long code)
+
+  Is the character a C0 control character (< 32) ?
+
+int ucisfmtcntrl(unsigned long code)
+
+  Is the character a format control character?
+
+int ucissymbol(unsigned long code)
+
+  Is the character a symbol?
+
+int ucisnumber(unsigned long code)
+
+  Is the character a number or digit?
+
+int ucisnonspacing(unsigned long code)
+
+  Is the character non-spacing?
+
+int ucisopenpunct(unsigned long code)
+
+  Is the character an open/left punctuation (i.e. '[')
+
+int ucisclosepunct(unsigned long code)
+
+  Is the character an close/right punctuation (i.e. ']')
+
+int ucisinitialpunct(unsigned long code)
+
+  Is the character an initial punctuation (i.e. U+2018 LEFT SINGLE QUOTATION
+  MARK)
+
+int ucisfinalpunct(unsigned long code)
+
+  Is the character a final punctuation (i.e. U+2019 RIGHT SINGLE QUOTATION
+  MARK)
+
+int uciscomposite(unsigned long code)
+
+  Can the character be decomposed into a set of other characters?
+
+int ucisquote(unsigned long code)
+
+  Is the character one of the many quotation marks?
+
+int ucissymmetric(unsigned long code)
+
+  Is the character one that has an opposite form (i.e. <>)
+
+int ucismirroring(unsigned long code)
+
+  Is the character mirroring (superset of symmetric)?
+
+int ucisnonbreaking(unsigned long code)
+
+  Is the character non-breaking (i.e. non-breaking space)?
+
+int ucisrtl(unsigned long code)
+
+  Does the character have strong right-to-left directionality (i.e. Arabic
+  letters)?
+
+int ucisltr(unsigned long code)
+
+  Does the character have strong left-to-right directionality (i.e. Latin
+  letters)?
+
+int ucisstrong(unsigned long code)
+
+  Does the character have strong directionality?
+
+int ucisweak(unsigned long code)
+
+  Does the character have weak directionality (i.e. numbers)?
+
+int ucisneutral(unsigned long code)
+
+  Does the character have neutral directionality (i.e. whitespace)?
+
+int ucisseparator(unsigned long code)
+
+  Is the character a block or segment separator?
+
+int ucislsep(unsigned long code)
+
+  Is the character a line separator?
+
+int ucispsep(unsigned long code)
+
+  Is the character a paragraph separator?
+
+int ucismark(unsigned long code)
+
+  Is the character a mark of some kind?
+
+int ucisnsmark(unsigned long code)
+
+  Is the character a non-spacing mark?
+
+int ucisspmark(unsigned long code)
+
+  Is the character a spacing mark?
+
+int ucismodif(unsigned long code)
+
+  Is the character a modifier letter?
+
+int ucismodifsymbol(unsigned long code)
+
+  Is the character a modifier symbol?
+
+int ucisletnum(unsigned long code)
+
+  Is the character a number represented by a letter?
+
+int ucisconnect(unsigned long code)
+
+  Is the character connecting punctuation?
+
+int ucisdash(unsigned long code)
+
+  Is the character dash punctuation?
+
+int ucismath(unsigned long code)
+
+  Is the character a math character?
+
+int uciscurrency(unsigned long code)
+
+  Is the character a currency character?
+
+int ucisenclosing(unsigned long code)
+
+  Is the character enclosing (i.e. enclosing box)?
+
+int ucisprivate(unsigned long code)
+
+  Is the character from the Private Use Area?
+
+int ucissurrogate(unsigned long code)
+
+  Is the character one of the surrogate codes?
+
+int ucisdefined(unsigned long code)
+
+  Is the character defined (appeared in one of the data files)?
+
+int ucisundefined(unsigned long code)
+
+  Is the character not defined (non-Unicode)?
+
+int ucishan(unsigned long code)
+
+  Is the character a Han ideograph?
+
+int ucishangul(unsigned long code)
+
+  Is the character a pre-composed Hangul syllable?

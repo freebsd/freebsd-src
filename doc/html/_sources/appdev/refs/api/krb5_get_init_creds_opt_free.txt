@@ -1,0 +1,45 @@
+krb5_get_init_creds_opt_free -  Free initial credential options. 
+=================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_free(krb5_context context, krb5_get_init_creds_opt * opt)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options structure to free
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_get_init_creds_opt_alloc()` 
+ 
+
+
+
+

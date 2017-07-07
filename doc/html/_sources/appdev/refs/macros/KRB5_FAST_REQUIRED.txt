@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-FAST-REQUIRED-data:
+
+KRB5_FAST_REQUIRED
+==================
+
+..
+.. data:: KRB5_FAST_REQUIRED
+..
+
+Require KDC to support FAST.
+
+
+
+========================= ======================
+``KRB5_FAST_REQUIRED``       ``0x0001``
+========================= ======================

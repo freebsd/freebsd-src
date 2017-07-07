@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-NT-ENT-PRINCIPAL-AND-ID-data:
+
+KRB5_NT_ENT_PRINCIPAL_AND_ID
+============================
+
+..
+.. data:: KRB5_NT_ENT_PRINCIPAL_AND_ID
+..
+
+NT 4 style name and SID.
+
+
+
+=================================== ======================
+``KRB5_NT_ENT_PRINCIPAL_AND_ID``       ``-130``
+=================================== ======================

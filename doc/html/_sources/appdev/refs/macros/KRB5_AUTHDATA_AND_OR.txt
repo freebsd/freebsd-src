@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-AND-OR-data:
+
+KRB5_AUTHDATA_AND_OR
+====================
+
+..
+.. data:: KRB5_AUTHDATA_AND_OR
+..
+
+
+
+
+=========================== ======================
+``KRB5_AUTHDATA_AND_OR``       ``5``
+=========================== ======================

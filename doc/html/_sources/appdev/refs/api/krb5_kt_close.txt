@@ -1,0 +1,45 @@
+krb5_kt_close -  Close a key table handle. 
+===========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_close(krb5_context context, krb5_keytab keytab)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keytab** - Key table handle
+
+
+..
+
+
+:retval:
+         -   0   None
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

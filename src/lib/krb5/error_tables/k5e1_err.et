@@ -1,0 +1,45 @@
+#
+# lib/krb5/error_tables/k5e1_err.et
+#
+# Copyright 2010 by the Massachusetts Institute of Technology.
+# All Rights Reserved.
+#
+# Export of this software from the United States of America may
+#   require a specific license from the United States Government.
+#   It is the responsibility of any person or organization contemplating
+#   export to obtain such a license before exporting.
+# 
+# WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+# distribute this software and its documentation for any purpose and
+# without fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright notice and
+# this permission notice appear in supporting documentation, and that
+# the name of M.I.T. not be used in advertising or publicity pertaining
+# to distribution of the software without specific, written prior
+# permission.  Furthermore if you modify this software you must label
+# your software as modified software and not distribute it in such a
+# fashion that it might be confused with the original M.I.T. software.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is" without express
+# or implied warranty.
+# 
+#
+# The Kerberos v5 library error code expansion table (#1).
+# This table exists to hold new libkrb5 error codes since the
+# original krb5 error table is full.
+#
+error_table k5e1
+
+error_code KRB5_PLUGIN_VER_NOTSUPP, "Plugin does not support interface version"
+error_code KRB5_PLUGIN_BAD_MODULE_SPEC, "Invalid module specifier"
+error_code KRB5_PLUGIN_NAME_NOTFOUND, "Plugin module name not found"
+error_code KRB5KDC_ERR_DISCARD, "The KDC should discard this request"
+error_code KRB5_DCC_CANNOT_CREATE, "Can't create new subsidiary cache"
+error_code KRB5_KCC_INVALID_ANCHOR, "Invalid keyring anchor name"
+error_code KRB5_KCC_UNKNOWN_VERSION, "Unknown keyring collection version"
+error_code KRB5_KCC_INVALID_UID, "Invalid UID in persistent keyring name"
+error_code KRB5_KCM_MALFORMED_REPLY, "Malformed reply from KCM daemon"
+error_code KRB5_KCM_RPC_ERROR, "Mach RPC error communicating with KCM daemon"
+error_code KRB5_KCM_REPLY_TOO_BIG, "KCM daemon reply too big"
+error_code KRB5_KCM_NO_SERVER, "No KCM server found"
+end

@@ -1,0 +1,133 @@
+;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+; Help Project File for KERBNET 
+;
+;  You may edit this file.
+;
+;  It's probably best not to change the CONTENTS= value 
+;  unless you rename the IDH_CONTENTS context string in 
+;  the KERBNET.DOC file.
+;
+
+[OPTIONS]
+; The optional ROOT= entry sets the working directory for the Help Compiler 
+; ROOT=C:\PROJECT
+
+; The optional BMROOT= entry sets forth the directories which the
+; help compiler will search for bitmaps used in the Help system.
+;
+;BMROOT=C:\ROBOHELP
+
+; The CONTENTS= tells the help Engine which topic contains the contents 
+CONTENTS=IDH_CONTENTS
+
+; Title is Displayed in the Title Bar of WINHELP.EXE
+TITLE=Kerb*Net
+
+; The BUILD= setting allows complex Help systems which require
+; different versions to use the same source.  This is similar to #ifdef's 
+; in the 'C' language.  Everything to the right of the = sign in the 
+; BUILD= statement is an EXPRESSION.  See the Help compiler 
+; documentation for more information about build expressions.
+BUILD=WINDOWS
+
+; The Warning Level is used by the Help Compiler (HC.EXE)
+; WARNING=1  - Only the most severe warnings are reported
+; WARNING=2  - Intermediate Level of warnings
+; WARNING=3  - Most stringent error reporting
+
+; The Compress option is used by the Help Compiler to make 
+; smaller, faster loading .HLP files.  However, using compression
+; increases Compile times.
+; COMPRESS=YES, ON, OFF, NO, TRUE or FALSE
+
+
+OLDKEYPHRASE=NO
+OPTCDROM=0
+NOTES=1
+REPORT=YES
+COMPRESS=12
+ERRORLOG=C:\windows\desktop\kerberos 5\win95 gui\cns help\KERBNET.ERR
+[BUILDTAGS]
+; The Build Tags section specifies to the Help Compiler the names
+; of all the valid build tags used in this Help project.  The [BUILDTAGS]
+; section is optional.
+WINDOWS
+
+
+[CONFIG]
+; The config section allows you to define some macros which will be
+; executed when the help system is first executed.
+;
+; The next line gives you browse buttons:
+;
+BrowseButtons()
+
+;
+; To create a glossary button which displays a list of defined terms
+; in a secondary window, remove the semi colon at the start of the next
+; line and do the same with the Glossary window in the [WINDOWS] section
+;CreateButton("Glossary_Btn","&Glossary","JI(`bubble.hlp>Gloss',`IDH_Glossary')")
+;
+ 
+
+[FILES]
+; The files section is where you specify to the Help Compiler which
+; Rich Text Format (.RTF) (your help source) files will be used in the
+; Help system.  RoboHELP generates and maintains the main .RTF 
+; file for your Help System.  If you desire to have multiple .RTF files,
+; simply add the additonal names to the [FILES] section.
+
+KERBNET.RTF
+[ALIAS]
+; The Alias  section allows you to set up aliases for context strings 
+; in your help system.  
+; 
+; Brief example:
+; 
+;    IDH_UserID = IDH_RoboGenerated_Id
+;    IDH_WMP_MenuID = IDH_RoboGenerated_Id
+;    IDH_Any = IDH_AnyOther
+
+[MAP]
+; 
+; The Map Section is where the C language #defines are translated 
+; or mapped into the Help System Context Strings.  Standard C syntax
+; can be employed.  The .HH file is meant to be #include(d) into your 
+; Windows application source code.
+; 
+
+[BITMAPS]
+; 
+; The [BITMAPS] section is where you list any Bitmaps which have
+; been placed by reference in the Help System.  See the Help compiler
+; documentation for more information about placing bitmaps.
+; 
+; The [BITMAPS] section is not really required under Windows 3.1,
+; with the advent of the BMROOT item in the [OPTIONS] section.
+; 
+;FOO1.BMP
+;FOO2.BMP
+;C:\FOO\FOO3.BMP
+;And So On
+
+[WINDOWS]
+; Windows Help can display help in one of 5 secondary windows.
+; Before using a secondary window, the window must be defined
+; in this section:
+; 
+;Gloss = "Glossary",(100,100,350,350),0,(255,255,255),(255,255,255)
+main=,,0,,
+
+[BAGGAGE]
+; 
+; The Baggage section allows the user to include files which
+; will be placed in the internal file system for WinHelp.  
+; Using files from Baggage is a little faster for CDROM, since
+; the CDROM drive table does not need to be read from disk.
+;
+; Baggage files are referred to as regular bitmaps, except
+; that you prefix the filename with '!'.
+;
+;    For Instance:
+;       {bmc !bitmap.bmp} instead of {bmc bitmap.bmp}
+;

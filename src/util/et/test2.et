@@ -1,0 +1,9 @@
+	error_table	quux
+
+	ec	FOO_ERR, "foo"
+
+	ec	BAR_ERR, "bar"
+
+	ec	BAZ_ERR, "meow"
+
+	end

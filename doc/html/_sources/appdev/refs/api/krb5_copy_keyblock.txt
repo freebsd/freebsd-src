@@ -1,0 +1,51 @@
+krb5_copy_keyblock -  Copy a keyblock. 
+=======================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_keyblock(krb5_context context, const krb5_keyblock * from, krb5_keyblock ** to)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **from** - Keyblock to be copied
+
+	          **[out]** **to** - Copy of keyblock *from*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new keyblock with the same contents as *from* . Use :c:func:`krb5_free_keyblock()` to free *to* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PRINCIPAL-UNPARSE-SHORT-data:
+
+KRB5_PRINCIPAL_UNPARSE_SHORT
+============================
+
+..
+.. data:: KRB5_PRINCIPAL_UNPARSE_SHORT
+..
+
+Omit realm if it is the local realm.
+
+
+
+=================================== ======================
+``KRB5_PRINCIPAL_UNPARSE_SHORT``       ``0x1``
+=================================== ======================

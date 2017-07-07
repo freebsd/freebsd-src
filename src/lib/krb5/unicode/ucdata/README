@@ -1,0 +1,313 @@
+#
+# $Id: README,v 1.33 2001/01/02 18:46:19 mleisher Exp $
+#
+
+                           MUTT UCData Package 2.5
+                           -----------------------
+
+This is a package that supports ctype-like operations for Unicode UCS-2 text
+(and surrogates), case mapping, decomposition lookup, and provides a
+bidirectional reordering algorithm.  To use it, you will need to get the
+latest "UnicodeData-*.txt" (or later) file from the Unicode Web or FTP site.
+
+The character information portion of the package consists of three parts:
+
+  1. A program called "ucgendat" which generates five data files from the
+     UnicodeData-*.txt file.  The files are:
+
+     A. case.dat   - the case mappings.
+     B. ctype.dat  - the character property tables.
+     C. comp.dat   - the character composition pairs.
+     D. decomp.dat - the character decompositions.
+     E. cmbcl.dat  - the non-zero combining classes.
+     F. num.dat    - the codes representing numbers.
+
+  2. The "ucdata.[ch]" files which implement the functions needed to
+     check to see if a character matches groups of properties, to map between
+     upper, lower, and title case, to look up the decomposition of a
+     character, look up the combining class of a character, and get the number
+     value of a character.
+
+  3. The UCData.java class which provides the same API (with minor changes for
+     the numbers) and loads the same binary data files as the C code.
+
+A short reference to the functions available is in the "api.txt" file.
+
+Techie Details
+==============
+
+The "ucgendat" program parses files from the command line which are all in the
+Unicode Character Database (UCDB) format.  An additional properties file,
+"MUTTUCData.txt", provides some extra properties for some characters.
+
+The program looks for the two character properties fields (2 and 4), the
+combining class field (3), the decomposition field (5), the numeric value
+field (8), and the case mapping fields (12, 13, and 14).  The decompositions
+are recursively expanded before being written out.
+
+The decomposition table contains all the canonical decompositions.  This means
+all decompositions that do not have tags such as "<compat>" or "<font>".
+
+The data is almost all stored as unsigned longs (32-bits assumed) and the
+routines that load the data take care of endian swaps when necessary.  This
+also means that supplementary characters (>= 0x10000) can be placed in the
+data files the "ucgendat" program parses.
+
+The data is written as external files and broken into six parts so it can be
+selectively updated at runtime if necessary.
+
+The data files currently generated from the "ucgendat" program total about 56K
+in size all together.
+
+The format of the binary data files is documented in the "format.txt" file.
+
+==========================================================================
+
+                       The "Pretty Good Bidi Algorithm"
+                       --------------------------------
+
+This routine provides an alternative to the Unicode Bidi algorithm.  The
+difference is that this version of the PGBA does not handle the explicit
+directional codes (LRE, RLE, LRO, RLO, PDF).  It should now produce the same
+results as the Unicode BiDi algorithm for implicit reordering.  Included are
+functions for doing cursor motion in both logical and visual order.
+
+This implementation is provided to demonstrate an effective alternate method
+for implicit reordering.  To make this useful for an application, it probably
+needs some changes to the memory allocation and deallocation, as well as data
+structure additions for rendering.
+
+Mark Leisher <mleisher@crl.nmsu.edu>
+19 November 1999
+
+-----------------------------------------------------------------------------
+
+CHANGES
+=======
+Version 2.5
+-----------
+1. Changed the number lookup to set the denominator to 1 in cases of digits.
+   This restores functional compatibility with John Cowan's UCType package.
+
+2. Added support for the AL property.
+
+3. Modified load and reload functions to return error codes.
+
+Version 2.4
+-----------
+1. Improved some bidi algorithm documentation in the code.
+
+2. Fixed a code mixup that produced a non-working version.
+
+Version 2.3
+-----------
+1. Fixed a misspelling in the ucpgba.h header file.
+
+2. Fixed a bug which caused trailing weak non-digit sequences to be left out of
+   the reordered string in the bidi algorithm.
+
+3. Fixed a problem with weak sequences containing non-spacing marks in the
+   bidi algorithm.
+
+4. Fixed a problem with text runs of the opposite direction of the string
+   surrounding a weak + neutral text run appearing in the wrong order in the
+   bidi algorithm.
+
+5. Added a default overall direction parameter to the reordering function for
+   cases of strings with no strong directional characters in the bidi
+   algorithm.
+
+6. The bidi API documentation was improved.
+
+7. Added a man page for the bidi API.
+
+Version 2.2
+-----------
+1. Fixed a problem with the bidi algorithm locating directional section
+   boundaries.
+
+2. Fixed a problem with the bidi algorithm starting the reordering correctly.
+
+3. Fixed a problem with the bidi algorithm determining end boundaries for LTR
+   segments.
+
+4. Fixed a problem with the bidi algorithm reordering weak (digits and number
+   separators) segments.
+
+5. Added automatic switching of symmetrically paired characters when
+   reversing RTL segments.
+
+6. Added a missing symmetric character to the extra character properties in
+   MUTTUCData.txt.
+
+7. Added support for doing logical and visual cursor traversal.
+
+Version 2.1
+-----------
+1. Updated the ucgendat program to handle the Unicode 3.0 character database
+   properties.  The AL and BM bidi properties gets marked as strong RTL and
+   Other Neutral, the NSM, LRE, RLE, PDF, LRO, and RLO controls all get marked
+   as Other Neutral.
+
+2. Fixed some problems with testing against signed values in the UCData.java
+   code and some minor cleanup.
+
+3. Added the "Pretty Good Bidi Algorithm."
+
+Version 2.0
+-----------
+1. Removed the old Java stuff for a new class that loads directly from the
+   same data files as the C code does.
+
+2. Fixed a problem with choosing the correct field when mapping case.
+
+3. Adjust some search routines to start their search in the correct position.
+
+4. Moved the copyright year to 1999.
+
+Version 1.9
+-----------
+1. Fixed a problem with an incorrect amount of storage being allocated for the
+   combining class nodes.
+
+2. Fixed an invalid initialization in the number code.
+
+3. Changed the Java template file formatting a bit.
+
+4. Added tables and function for getting decompositions in the Java class.
+
+Version 1.8
+-----------
+1. Fixed a problem with adding certain ranges.
+
+2. Added two more macros for testing for identifiers.
+
+3. Tested with the UnicodeData-2.1.5.txt file.
+
+Version 1.7
+-----------
+1. Fixed a problem with looking up decompositions in "ucgendat."
+
+Version 1.6
+-----------
+1. Added two new properties introduced with UnicodeData-2.1.4.txt.
+
+2. Changed the "ucgendat.c" program a little to automatically align the
+   property data on a 4-byte boundary when new properties are added.
+
+3. Changed the "ucgendat.c" programs to only generate canonical
+   decompositions.
+
+4. Added two new macros ucisinitialpunct() and ucisfinalpunct() to check for
+   initial and final punctuation characters.
+
+5. Minor additions and changes to the documentation.
+
+Version 1.5
+-----------
+1. Changed all file open calls to include binary mode with "b" for DOS/WIN
+   platforms.
+
+2. Wrapped the unistd.h include so it won't be included when compiled under
+   Win32.
+
+3. Fixed a bad range check for hex digits in ucgendat.c.
+
+4. Fixed a bad endian swap for combining classes.
+
+5. Added code to make a number table and associated lookup functions.
+   Functions added are ucnumber(), ucdigit(), and ucgetnumber().  The last
+   function is to maintain compatibility with John Cowan's "uctype" package.
+
+Version 1.4
+-----------
+1. Fixed a bug with adding a range.
+
+2. Fixed a bug with inserting a range in order.
+
+3. Fixed incorrectly specified ucisdefined() and ucisundefined() macros.
+
+4. Added the missing unload for the combining class data.
+
+5. Fixed a bad macro placement in ucisweak().
+
+Version 1.3
+-----------
+1. Bug with case mapping calculations fixed.
+
+2. Bug with empty character property entries fixed.
+
+3. Bug with incorrect type in the combining class lookup fixed.
+
+4. Some corrections done to api.txt.
+
+5. Bug in certain character property lookups fixed.
+
+6. Added a character property table that records the defined characters.
+
+7. Replaced ucisunknown() with ucisdefined() and ucisundefined().
+
+Version 1.2
+-----------
+1. Added code to ucgendat to generate a combining class table.
+
+2. Fixed an endian problem with the byte count of decompositions.
+
+3. Fixed some minor problems in the "format.txt" file.
+
+4. Removed some bogus "Ss" values from MUTTUCData.txt file.
+
+5. Added API function to get combining class.
+
+6. Changed the open mode to "rb" so binary data files will be opened correctly
+   on DOS/WIN as well as other platforms.
+
+7. Added the "api.txt" file.
+
+Version 1.1
+-----------
+1. Added ucisxdigit() which I overlooked.
+
+2. Added UC_LT to the ucisalpha() macro which I overlooked.
+
+3. Change uciscntrl() to include UC_CF.
+
+4. Added ucisocntrl() and ucfntcntrl() macros.
+
+5. Added a ucisblank() which I overlooked.
+
+6. Added missing properties to ucissymbol() and ucisnumber().
+
+7. Added ucisgraph() and ucisprint().
+
+8. Changed the "Mr" property to "Sy" to mark this subset of mirroring
+   characters as symmetric to avoid trampling the Unicode/ISO10646 sense of
+   mirroring.
+
+9. Added another property called "Ss" which includes control characters
+   traditionally seen as spaces in the isspace() macro.
+
+10. Added a bunch of macros to be API compatible with John Cowan's package.
+
+ACKNOWLEDGEMENTS
+================
+
+Thanks go to John Cowan <cowan@locke.ccil.org> for pointing out lots of
+missing things and giving me stuff, particularly a bunch of new macros.
+
+Thanks go to Bob Verbrugge <bob_verbrugge@nl.compuware.com> for pointing out
+various bugs.
+
+Thanks go to Christophe Pierret <cpierret@businessobjects.com> for pointing
+out that file modes need to have "b" for DOS/WIN machines, pointing out
+unistd.h is not a Win 32 header, and pointing out a problem with ucisalnum().
+
+Thanks go to Kent Johnson <kent@pondview.mv.com> for finding a bug that caused
+incomplete decompositions to be generated by the "ucgendat" program.
+
+Thanks go to Valeriy E. Ushakov <uwe@ptc.spbu.ru> for spotting an allocation
+error and an initialization error.
+
+Thanks go to Stig Venaas <Stig.Venaas@uninett.no> for providing a patch to
+support return types on load and reload, and for major updates to handle
+canonical composition and decomposition.

@@ -1,0 +1,92 @@
+#
+# Generated makefile dependencies follow.
+#
+threads.so threads.po $(OUTPRE)threads.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/fake-addrinfo.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h cache-addrinfo.h \
+  supp-int.h threads.c
+init-addrinfo.so init-addrinfo.po $(OUTPRE)init-addrinfo.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/fake-addrinfo.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cache-addrinfo.h init-addrinfo.c
+plugins.so plugins.po $(OUTPRE)plugins.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-plugin.h $(top_srcdir)/include/k5-thread.h \
+  plugins.c
+errors.so errors.po $(OUTPRE)errors.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-err.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h errors.c supp-int.h
+k5buf.so k5buf.po $(OUTPRE)k5buf.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h k5buf.c
+gmt_mktime.so gmt_mktime.po $(OUTPRE)gmt_mktime.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-gmt_mktime.h \
+  gmt_mktime.c
+fake-addrinfo.so fake-addrinfo.po $(OUTPRE)fake-addrinfo.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/fake-addrinfo.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/port-sockets.h $(top_srcdir)/include/socket-utils.h \
+  cache-addrinfo.h fake-addrinfo.c supp-int.h
+utf8.so utf8.po $(OUTPRE)utf8.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-utf8.h supp-int.h utf8.c
+utf8_conv.so utf8_conv.po $(OUTPRE)utf8_conv.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/k5-utf8.h \
+  supp-int.h utf8_conv.c
+gettimeofday.so gettimeofday.po $(OUTPRE)gettimeofday.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h gettimeofday.c
+strlcpy.so strlcpy.po $(OUTPRE)strlcpy.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  strlcpy.c
+fnmatch.so fnmatch.po $(OUTPRE)fnmatch.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  fnmatch.c
+printf.so printf.po $(OUTPRE)printf.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  printf.c
+mkstemp.so mkstemp.po $(OUTPRE)mkstemp.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  mkstemp.c
+t_k5buf.so t_k5buf.po $(OUTPRE)t_k5buf.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-buf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h t_k5buf.c
+t_unal.so t_unal.po $(OUTPRE)t_unal.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  t_unal.c
+t_path.so t_path.po $(OUTPRE)t_path.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  t_path.c
+t_json.so t_json.po $(OUTPRE)t_json.$(OBJEXT): $(top_srcdir)/include/k5-json.h \
+  t_json.c
+zap.so zap.po $(OUTPRE)zap.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  zap.c
+path.so path.po $(OUTPRE)path.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  path.c
+base64.so base64.po $(OUTPRE)base64.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-base64.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h base64.c
+json.so json.po $(OUTPRE)json.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-base64.h $(top_srcdir)/include/k5-buf.h \
+  $(top_srcdir)/include/k5-json.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h json.c
+bcmp.so bcmp.po $(OUTPRE)bcmp.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  bcmp.c
+strerror_r.so strerror_r.po $(OUTPRE)strerror_r.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h strerror_r.c
+t_utf8.so t_utf8.po $(OUTPRE)t_utf8.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(top_srcdir)/include/k5-utf8.h t_utf8.c
+getopt.so getopt.po $(OUTPRE)getopt.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  getopt.c
+getopt_long.so getopt_long.po $(OUTPRE)getopt_long.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h getopt_long.c

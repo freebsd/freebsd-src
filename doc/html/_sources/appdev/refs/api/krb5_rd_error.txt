@@ -1,0 +1,51 @@
+krb5_rd_error -  Decode a KRB-ERROR message. 
+=============================================
+
+..
+
+.. c:function:: krb5_error_code krb5_rd_error(krb5_context context, const krb5_data * enc_errbuf, krb5_error ** dec_error)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enc_errbuf** - Encoded error message
+
+	          **[out]** **dec_error** - Decoded error message
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function processes **KRB-ERROR** message *enc_errbuf* and returns an allocated structure *dec_error* containing the error message. Use :c:func:`krb5_free_error()` to free *dec_error* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

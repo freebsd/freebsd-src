@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Kerberos: How does the other guy know who I am?</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="guide">
+</object>
+<p><b><a name="id_help_sipb"></a>Kerberos: How Does the Other Guy Know
+Who I Am?</b></p>
+<p>A portion of the text below was copied with permission from <i>An
+Inessential Guide to Athena</i> (5th edition) published by the MIT
+Student Information Processing Board.</p>
+<p>MIT's Athena Project developed a system known as Kerberos to provide
+for security on a physically insecure network. A complete description
+of the mechanisms used by Kerberos to provide this security is beyond
+the scope of this document. This section describes why Kerberos is
+necessary in a distributed computing environment, the theory behind
+Kerberos (with pointers to further information), and the user commands
+which interface to Kerberos. It also gives hints for using Kerberos
+more effectively.</p>
+<p><b>Why</b> <b>Kerberos</b> <b>is </b><a name="id_help_authentic"></a><b>needed</b>.
+Most moderately-sized to large computer systems use some form of
+password protection scheme to <i>authenticate </i>users; that is,
+they require a user who wishes to log in to give both his name and a
+secret password which only he and the computer system know. Anyone who
+happens to know the password can claim to be that user. It is therefore
+desirable to prevent people from listening in on the conversation
+between the computer and the user's terminal or workstation.</p>
+<p>This is relatively easy in the case of terminals directly connected
+to the machine, since each terminal has its own cable. In a local-area
+network, several (typically between 10 and 200) computers share one
+cable, and any computer can listen in on any network traffic. With the
+advent of network monitoring packages for IBM PC's and similar
+machines, it is relatively easy for a determined user to set up a
+program to listen in on a network for any and all passwords being sent
+over. This would allow an intruder to masquerade as someone else,
+violating their privacy and perhaps stealing information (academic or
+otherwise). <b>Note that THE ELECTRONIC COMMUNICATIONS PRIVACY ACT of
+1986 makes this a Federal crime</b> punishable by lots of nasty stuff
+(ask your lawyer for details).</p>
+<p>In addition, since Athena (like the Internet) uses a
+workstation-based model of computation, with most operations taking
+place on a single-user workstation with occasional requests (for files,
+etc.) going to other "server" machines, Athena needed to set up some
+way to allow users to <i>prove</i> their identity to such server
+machines.</p>
+<p><b>A few definitions</b>. Knowledge of the following terms is not
+essential for use of Kerberos but is helpful in understanding what is
+going on:</p>
+<p><b>user:</b>A human being who wishes to use a computer system. A
+user, through his workstation, may make a series of requests to several
+servers in the course of a session, and would like to avoid (due to
+sheer laziness, among other things) having to type his password to each
+machine in question.</p>
+<p><b>service:</b>A program or set of programs running on a computer
+which is accessible over the network. The service would like to know
+with certainty that the workstation to which it is providing the
+service is really being used by the <b>user</b> who claims to be
+logged in on the workstation. Note that workstations are <i>not </i>services,
+and thus one may not use Kerberos to log into them over the network.</p>
+<p><a name="id_help_principal"></a><b>principal:</b>An entity which can
+both prove its identity and verify the identities of other principals
+who wish to communicate with it; each <b>user</b> and each <b>service</b>
+registered with Kerberos is thus a principal.</p>
+<p><b>ticket:</b> A block of data which, when given to a user, enables
+her to prove her identity to a service. Tickets are stored in RAM in an
+area of memory reserved by the Kerberos cache. They are automatically
+erased when the computer is rebooted or when the user issues the
+destroy tickets command from Leash. They may also be destroyed from a
+Command Prompt by executing the command: kdestroy. Tickets contain
+information which must be considered private to the user, and thus
+should be protected. As they contain a time stamp, they cease to be
+valid after a limited time. One ticket is needed for each service;
+tickets are used to build <b>authenticators</b>, which are sent over
+the network to the service.</p>
+<p><b>authenticator:</b> A block of data which a user's workstation
+sends over the network to a specific service to prove that the
+workstation really is in use by that user. An authenticator expires
+after five minutes. One authenticator is typically built per session of
+use of a service; once the service decodes the authenticator, it
+generally permits the user to operate for as long as she wants. This
+behavior is not in any way mandated by the Kerberos suite of programs
+and libraries (it is just a detail of the implementation), but it is
+convenient and considered secure enough for most environments.</p>
+<p><b>How It Works...</b></p>
+<p>Kerberos uses a standard encryption-based authentication technique
+with a few variations designed to increase ease of use across
+administrative entities and reduce the number of possible "attacks" on
+the system. The system uses cryptographically sealed <i>tickets</i>
+and <i>authenticators</i>} which may be passed over the network and
+decrypted only by a user or machine which knows the appropriate
+encryption/decryption key.</p>
+<p><b>Using Kerberos...</b></p>
+<p>After obtaining your initial ticket getting ticket either by logging
+onto your workstation or by utilizing a Kerberos Ticket Manager (e.g.,
+Leash), Kerberos aware applications will generate authenticators and
+obtain service tickets without further end user interaction.&nbsp;
+Examples of programs which utilize Kerberos authentication include
+e-mail, distributed file systems, remote login tools, and browsers.<br>
+</p>
+<p><b>Registering with Kerberos...</b></p>
+<p>To use Kerberos you must have an account registered in a REALM
+associated with the service(s) you wish to access.&nbsp; Contact your
+network administrator to determine the registration procedures for your
+organization.<br>
+</p>
+<p>Once registered with Kerberos, tickets are obtained by the login
+program every time you log onto a workstation. You can also manually
+obtain new tickets (which you usually do only if your old ones have
+expired, 10 hours after you log in) by running the program<code> kinit</code>.
+It prompts for a username, requests an initial ticket from Kerberos,
+and then asks for your password. If you are not registered with
+Kerberos, it will print<code> Principal unknown (Kerberos)</code>.
+Unless you mistype your username, this should not happen. To correct
+this, or any other errors, contact the appropriate Help Desk personnel
+for your organization.<br>
+<br>
+</p>
+</body>
+</html>

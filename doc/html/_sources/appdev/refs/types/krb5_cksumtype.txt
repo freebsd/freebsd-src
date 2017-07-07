@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-cksumtype-struct:
+
+krb5_cksumtype
+==============
+
+..
+.. c:type:: krb5_cksumtype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_cksumtype
+
+

@@ -1,0 +1,102 @@
+#if $function.short_description is not None
+	#set $title = $function.name + ' - ' + $function.short_description
+#else
+	#set $title = $function.name
+#end if
+$title
+#echo ''.join(['=']*len($title)) #
+
+..
+
+.. c:function:: $signature
+
+..
+
+
+:param:
+
+#for $param in $function.parameters:
+	#if $param.name is ''
+		#continue
+	#end if
+	#if $param.direction is not None
+	    #set name_description = '**[%s]** **%s**' % ($param.direction, $param.name)
+	#else
+	   #set name_description = '**%s**' % $param.name
+	#end if
+	#if $param.description is not None
+	   #set $description= ' - ' + $param.description
+	#else
+	   #set $description=''
+	#end if
+	          $name_description$description
+
+#end for
+
+..
+
+#if len($function.retval_description) > 0
+
+:retval:
+#for $retval in $function.retval_description:
+         - $retval
+#end for
+#end if
+
+#if len($function.return_description) > 0
+
+:return:
+#for $retval in $function.return_description:
+         - $retval
+#end for
+#end if
+
+..
+
+#if $function.deprecated_description is not None
+
+$function.deprecated_description
+#end if
+
+
+
+
+#if $function.long_description is not None
+
+
+$function.long_description
+
+#end if
+
+
+..
+
+#if $function.sa_description is not None
+.. seealso::
+        $function.sa_description
+#end if
+
+
+#if $function.warn_description is not None or  $function.notes_description is not None
+
+
+#if $function.warn_description is not None
+.. warning::
+
+	$function.warn_description
+#end if
+
+#if $function.notes_description is not None
+.. note::
+
+	$function.notes_description
+#end if
+
+#end if
+
+#if $function.version_num is not None
+.. note::
+
+	$function.version_num
+#end if
+

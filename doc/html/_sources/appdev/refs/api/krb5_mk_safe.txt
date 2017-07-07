@@ -1,0 +1,83 @@
+krb5_mk_safe -  Format a KRB-SAFE message. 
+===========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_safe(krb5_context context, krb5_auth_context auth_context, const krb5_data * userdata, krb5_data * outbuf, krb5_replay_data * outdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **userdata** - User data in the message
+
+	          **[out]** **outbuf** - Formatted **KRB-SAFE** buffer
+
+	          **[out]** **outdata** - Replay data. Specify NULL if not needed
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates an integrity protected **KRB-SAFE** message using data supplied by the application.
+
+
+
+Fields in *auth_context* specify the checksum type, the keyblock that can be used to seed the checksum, full addresses (host and port) for the sender and receiver, and :data:`KRB5_AUTH_CONTEXT` flags.
+
+
+
+The local address in *auth_context* must be set, and is used to form the sender address used in the KRB-SAFE message. The remote address is optional; if specified, it will be used to form the receiver address used in the message.
+
+
+
+If :data:`KRB5_AUTH_CONTEXT_DO_TIME` flag is set in the *auth_context* , an entry describing the message is entered in the replay cache *auth_context->rcache* which enables the caller to detect if this message is reflected by an attacker. If :data:`KRB5_AUTH_CONTEXT_DO_TIME` is not set, the replay cache is not used.
+
+
+
+If either :data:`KRB5_AUTH_CONTEXT_DO_SEQUENCE` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` is set, the *auth_context* local sequence number will be placed in *outdata* as its sequence number.
+
+
+
+Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The *outdata* argument is required if :data:`KRB5_AUTH_CONTEXT_RET_TIME` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` flag is set in the *auth_context* .
+ 
+
+
+

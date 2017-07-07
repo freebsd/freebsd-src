@@ -1,0 +1,41 @@
+krb5_k_key_keyblock -  Retrieve a copy of the keyblock from a krb5_key structure. 
+==================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_key_keyblock(krb5_context context, krb5_key key, krb5_keyblock ** key_data)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **key**
+
+	          **key_data**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

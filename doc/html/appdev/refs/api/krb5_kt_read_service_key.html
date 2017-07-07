@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>krb5_kt_read_service_key - Retrieve a service key from a key table. &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
+    <link rel="up" title="krb5 API" href="index.html" />
+    <link rel="next" title="krb5_kt_remove_entry - Remove an entry from a key table." href="krb5_kt_remove_entry.html" />
+    <link rel="prev" title="krb5_kt_next_entry - Retrieve the next entry from the key table." href="krb5_kt_next_entry.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_kt_next_entry.html" title="krb5_kt_next_entry - Retrieve the next entry from the key table."
+            accesskey="P">previous</a> |
+        <a href="krb5_kt_remove_entry.html" title="krb5_kt_remove_entry - Remove an entry from a key table."
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_kt_read_service_key -  Retrieve a service key from a key table.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="krb5-kt-read-service-key-retrieve-a-service-key-from-a-key-table">
+<h1>krb5_kt_read_service_key -  Retrieve a service key from a key table.<a class="headerlink" href="#krb5-kt-read-service-key-retrieve-a-service-key-from-a-key-table" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="c.krb5_kt_read_service_key">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_kt_read_service_key</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_pointer.html#c.krb5_pointer" title="krb5_pointer">krb5_pointer</a><em>&nbsp;keyprocarg</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;principal</em>, <a class="reference internal" href="../types/krb5_kvno.html#c.krb5_kvno" title="krb5_kvno">krb5_kvno</a><em>&nbsp;vno</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a><em>&nbsp;enctype</em>, <a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a> **<em>&nbsp;key</em><big>)</big><a class="headerlink" href="#c.krb5_kt_read_service_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p><strong>[in]</strong> <strong>keyprocarg</strong> - Name of a key table (NULL to use default name)</p>
+<p><strong>[in]</strong> <strong>principal</strong> - Service principal</p>
+<p><strong>[in]</strong> <strong>vno</strong> - Key version number (0 for highest available)</p>
+<p><strong>[in]</strong> <strong>enctype</strong> - Encryption type (0 for any type)</p>
+<p class="last"><strong>[out]</strong> <strong>key</strong> - Service key from key table</p>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first simple">
+<li>0   Success</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">return:</th><td class="field-body"><ul class="first last simple">
+<li>Kerberos error code if not found or keyprocarg is invalid.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Open and search the specified key table for the entry identified by <em>principal</em> , <em>enctype</em> , and <em>vno</em> . If no key is found, return an error code.</p>
+<p>The default key table is used, unless <em>keyprocarg</em> is non-null. <em>keyprocarg</em> designates a specific key table.</p>
+<p>Use <a class="reference internal" href="krb5_free_keyblock.html#c.krb5_free_keyblock" title="krb5_free_keyblock"><tt class="xref c c-func docutils literal"><span class="pre">krb5_free_keyblock()</span></tt></a> to free <em>key</em> when it is no longer needed.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_kt_read_service_key -  Retrieve a service key from a key table.</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_kt_next_entry.html" title="krb5_kt_next_entry - Retrieve the next entry from the key table."
+            >previous</a> |
+        <a href="krb5_kt_remove_entry.html" title="krb5_kt_remove_entry - Remove an entry from a key table."
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_kt_read_service_key -  Retrieve a service key from a key table.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

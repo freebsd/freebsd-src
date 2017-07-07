@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-pac-struct:
+
+krb5_pac
+========
+
+..
+.. c:type:: krb5_pac
+..
+
+PAC data structure to convey authorization information.
+
+
+
+Declaration
+------------
+
+typedef struct krb5_pac_data\* krb5_pac
+
+

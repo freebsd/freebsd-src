@@ -1,0 +1,100 @@
+mydir=tests$(S)asn.1
+BUILDTOP=$(REL)..$(S)..
+LDAP=@LDAP@
+
+SRCS= $(srcdir)/krb5_encode_test.c $(srcdir)/krb5_decode_test.c \
+	$(srcdir)/krb5_decode_leak.c $(srcdir)/ktest.c \
+	$(srcdir)/ktest_equal.c $(srcdir)/utility.c \
+	$(srcdir)/trval.c $(srcdir)/t_trval.c
+
+ASN1SRCS= $(srcdir)/krb5.asn1 $(srcdir)/pkix.asn1 $(srcdir)/otp.asn1 \
+	$(srcdir)/pkinit.asn1 $(srcdir)/pkinit-agility.asn1 \
+	$(srcdir)/cammac.asn1
+
+all: krb5_encode_test krb5_decode_test krb5_decode_leak t_trval
+
+LOCALINCLUDES = -I$(srcdir)/../../lib/krb5/asn.1
+
+ENCOBJS = krb5_encode_test.o ktest.o ktest_equal.o utility.o trval.o
+
+krb5_encode_test: $(ENCOBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o krb5_encode_test $(ENCOBJS) $(KRB5_BASE_LIBS)
+
+DECOBJS = krb5_decode_test.o ktest.o ktest_equal.o utility.o
+
+krb5_decode_test: $(DECOBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o krb5_decode_test $(DECOBJS) $(KRB5_BASE_LIBS)
+
+LEAKOBJS = krb5_decode_leak.o ktest.o ktest_equal.o utility.o
+
+krb5_decode_leak: $(LEAKOBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o krb5_decode_leak $(LEAKOBJS) $(KRB5_BASE_LIBS)
+
+t_trval: t_trval.o
+	$(CC) -o t_trval $(ALL_CFLAGS) t_trval.o
+
+check: check-encode check-encode-trval check-decode check-leak
+
+# Does not actually test for leaks unless using valgrind or a similar
+# tool, but does exercise a bunch of code.
+check-leak: krb5_decode_leak
+	$(RUN_TEST) ./krb5_decode_leak
+
+check-decode: krb5_decode_test
+	$(RUN_TEST) ./krb5_decode_test
+
+PKINIT_ENCODE_OUT=$(PKINIT_ENCODE_OUT-@PKINIT@)
+PKINIT_ENCODE_OUT-yes=$(srcdir)/pkinit_encode.out
+PKINIT_ENCODE_OUT-no=
+LDAP_ENCODE_OUT=$(LDAP_ENCODE_OUT-@LDAP@)
+LDAP_ENCODE_OUT-yes=$(srcdir)/ldap_encode.out
+LDAP_ENCODE_OUT-no=
+expected_encode.out: reference_encode.out pkinit_encode.out ldap_encode.out
+	cat $(srcdir)/reference_encode.out $(PKINIT_ENCODE_OUT) \
+		$(LDAP_ENCODE_OUT) > $@
+
+PKINIT_TRVAL_OUT=$(PKINIT_TRVAL_OUT-@PKINIT@)
+PKINIT_TRVAL_OUT-yes=$(srcdir)/pkinit_trval.out
+PKINIT_TRVAL_OUT-no=
+LDAP_TRVAL_OUT=$(LDAP_TRVAL_OUT-@LDAP@)
+LDAP_TRVAL_OUT-yes=$(srcdir)/ldap_trval.out
+LDAP_TRVAL_OUT-no=
+expected_trval.out: trval_reference.out pkinit_trval.out ldap_trval.out
+	cat $(srcdir)/trval_reference.out $(PKINIT_TRVAL_OUT) \
+		$(LDAP_TRVAL_OUT) > $@
+
+check-encode: krb5_encode_test expected_encode.out
+	$(RUN_TEST) ./krb5_encode_test > test.out
+	cmp test.out expected_encode.out
+
+check-encode-trval: krb5_encode_test expected_trval.out
+	$(RUN_TEST) ./krb5_encode_test -t > trval.out
+	cmp trval.out expected_trval.out
+
+# This target uses asn1c to generate encodings of sample objects, to
+# help ensure that our implementation is correct.  asn1c must be in the
+# path for this to work.
+test-vectors:
+	$(RM) -r vectors
+	mkdir vectors
+	cp $(ASN1SRCS) $(srcdir)/make-vectors.c vectors
+	(cd vectors && asn1c *.asn1 && rm converter-sample.c)
+	(cd vectors && $(CC) -I. -w *.c -o make-vectors)
+	(cd vectors && ./make-vectors)
+
+install:
+
+clean:
+	rm -f *~ *.o krb5_encode_test krb5_decode_test krb5_decode_leak test.out trval t_trval expected_encode.out expected_trval.out trval.out
+
+
+################ Dependencies ################
+krb5_decode_test.o: ktest.h utility.h ktest_equal.h debug.h
+krb5_encode_test.o: utility.h ktest.h debug.h
+trval.o: trval.c
+ktest.o: ktest.h utility.h
+ktest_equal.o: ktest_equal.h
+#utility.o: utility.h
+#utility.h: krbasn1.h asn1buf.h
+##############################################
+

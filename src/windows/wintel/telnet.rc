@@ -1,0 +1,247 @@
+//Microsoft Developer Studio generated resource script.
+//
+// XXX since modified by hand...
+
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "dialog.h"
+#include "screen.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+OPENTELNETDLG DIALOG DISCARDABLE  63, 65, 175, 129
+#ifdef _WIN32
+STYLE DS_ABSALIGN | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
+#else
+STYLE DS_ABSALIGN | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+#endif
+CAPTION "Open New Telnet Connection"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "To Host:",IDC_STATIC,3,10,33,10,NOT WS_GROUP
+    COMBOBOX        TEL_CONNECT_NAME,37,9,128,76,CBS_DROPDOWN | WS_VSCROLL | 
+                    WS_GROUP | WS_TABSTOP
+    CONTROL         "Forward credentials",IDC_FORWARD,"Button",
+                    BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,37,28,77,10
+    CONTROL         "Forward remote credentials",IDC_FORWARDFORWARD,"Button",
+                    BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,37,44,101,10
+    CONTROL         "Enable encryption",IDC_ENCRYPT,"Button",BS_AUTOCHECKBOX | 
+                    WS_DISABLED | WS_TABSTOP,37,60,73,10
+    CONTROL         "Connect as userid",IDC_STATIC,"Static",
+                    SS_LEFTNOWORDWRAP,15,84,58,8
+    EDITTEXT        TEL_CONNECT_USERID,77,82,80,13,ES_AUTOHSCROLL | 
+                    WS_DISABLED
+    DEFPUSHBUTTON   "OK",TEL_OK,20,106,51,14,WS_GROUP
+    PUSHBUTTON      "Cancel",TEL_CANCEL,106,106,51,14
+END
+
+ABOUTBOX DIALOG DISCARDABLE  69, 33, 175, 148
+STYLE DS_ABSALIGN | DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
+CAPTION "About TCPwin"
+BEGIN
+    ICON            "NCSA",-1,15,12,16,16
+    CTEXT           "Microsoft Windows",-1,48,11,93,8
+    CTEXT           "NCSA TCP/IP Networking Kernel",-1,38,21,120,8
+    CTEXT           "Version 1.0b2",-1,20,31,144,8
+    PUSHBUTTON      "OK",IDOK,72,126,39,14,WS_GROUP | NOT WS_TABSTOP
+    CTEXT           "Written By:",606,20,50,144,8
+    CTEXT           "Jon Mittelhauser (jonm@ncsa.uiuc.edu)",607,20,61,144,8
+    CTEXT           "Chris Wilson (cwilson@ncsa.uiuc.edu)",608,20,71,144,8
+    CTEXT           "Special Thanks to:",609,21,97,143,8
+    CTEXT           "Joe Lepore for DPMI interface code",610,20,107,144,8
+    CTEXT           "Keberized by: Cygnus Support",611,20,82,144,8
+END
+
+CONFIG_DLG DIALOG DISCARDABLE  6, 18, 160, 130
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Configure Session"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Session Name:",301,1,5,54,8
+    LTEXT           "Default Session",CON_SESSIONNAME,55,5,105,8
+    LTEXT           "Window Title:",303,1,17,49,8
+    EDITTEXT        CON_WINDOWTITLE,53,15,102,12,ES_AUTOHSCROLL
+    CONTROL         "132",CON_COLUMNS132,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,53,33,39,10
+    CONTROL         "80",CON_COLUMNS80,"Button",BS_AUTORADIOBUTTON,110,33,39,
+                    10
+    CONTROL         "Backspace",CON_BACKSPACE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,53,46,49,10
+    CONTROL         "Delete",CON_DELETE,"Button",BS_AUTORADIOBUTTON,110,46,
+                    39,10
+    CONTROL         "CRLF",CON_CRLF,"Button",BS_AUTORADIOBUTTON | WS_GROUP,
+                    53,59,39,10
+    CONTROL         "CR-NUL",CON_CRNUL,"Button",BS_AUTORADIOBUTTON,110,59,39,
+                    10
+    CONTROL         "Buffers",CON_BUFFERS,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,53,72,39,10
+    CONTROL         "Sends",CON_SENDS,"Button",BS_AUTORADIOBUTTON,110,72,39,
+                    10
+    LTEXT           "Columns",313,1,33,49,8
+    LTEXT           "Backspace is",314,1,46,51,8
+    LTEXT           "Return Sends",315,1,59,49,8
+    LTEXT           "Echo Mode",316,1,72,49,8
+    CONTROL         "Scrollback",CON_SCRLBCK,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,1,86,50,10
+    EDITTEXT        CON_NUMLINES,53,85,28,12,ES_AUTOHSCROLL
+    LTEXT           "lines",319,85,86,33,8
+    DEFPUSHBUTTON   "OK",CON_OK,20,108,50,14,WS_GROUP
+    PUSHBUTTON      "Use Defaults",CON_USEDEFAULTS,90,108,50,14
+END
+
+IDM_PRINTQUEUE DIALOG DISCARDABLE  69, 25, 160, 80
+STYLE WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | 
+    WS_VSCROLL | WS_HSCROLL | WS_SYSMENU
+CAPTION "Print Queue"
+FONT 8, "MS Sans Serif"
+BEGIN
+END
+
+IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 183, 92
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,126,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,126,24,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+NCSA                    ICON    DISCARDABLE     "ncsa.ico"
+TERMINAL                ICON    DISCARDABLE     "terminal.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+SCREENMENU MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit     Alt+F4",            IDM_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Copy     Cltr+Ins",          IDM_COPY
+        MENUITEM "&Paste    Shift+Ins",         IDM_PASTE
+    END
+    POPUP "&Options"
+    BEGIN
+        MENUITEM "&Backspace",                  IDM_BACKSPACE
+        MENUITEM "&Delete",                     IDM_DELETE, CHECKED
+        MENUITEM SEPARATOR
+        MENUITEM "&Font...",                    IDM_FONT
+    END
+#if 0
+    POPUP "&Send", GRAYED
+    BEGIN
+        MENUITEM "&Interrupt Process",          IDM_SEND_IP
+        MENUITEM "&Are You There?",             IDM_SEND_AYT
+        MENUITEM "A&bort Process",              IDM_SEND_ABORT
+    END
+#endif
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Index...",                   IDM_HELP_INDEX
+        MENUITEM SEPARATOR
+        MENUITEM "&About...",                   IDM_ABOUT
+    END
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""dialog.h""\r\n"
+    "#include ""screen.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 176
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 85
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
+#include "..\version.rc"

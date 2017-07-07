@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-OPENCLOSE-data:
+
+KRB5_TC_OPENCLOSE
+=================
+
+..
+.. data:: KRB5_TC_OPENCLOSE
+..
+
+Open and close the file for each cache operation.
+
+
+
+======================== ======================
+``KRB5_TC_OPENCLOSE``       ``0x00000001``
+======================== ======================

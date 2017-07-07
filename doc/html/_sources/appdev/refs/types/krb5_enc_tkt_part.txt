@@ -1,0 +1,65 @@
+.. highlightlang:: c
+
+.. _krb5-enc-tkt-part-struct:
+
+krb5_enc_tkt_part
+=================
+
+..
+.. c:type:: krb5_enc_tkt_part
+..
+
+Encrypted part of ticket.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_enc_tkt_part  krb5_enc_tkt_part
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_enc_tkt_part.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_flags	krb5_enc_tkt_part.flags
+
+                                             flags
+                                             
+
+.. c:member:: krb5_keyblock  *	krb5_enc_tkt_part.session
+
+                                             session key: includes enctype
+                                             
+
+.. c:member:: krb5_principal	krb5_enc_tkt_part.client
+
+                                             client name/realm
+                                             
+
+.. c:member:: krb5_transited	krb5_enc_tkt_part.transited
+
+                                             list of transited realms
+                                             
+
+.. c:member:: krb5_ticket_times	krb5_enc_tkt_part.times
+
+                                             auth, start, end, renew_till
+                                             
+
+.. c:member:: krb5_address  **	krb5_enc_tkt_part.caddrs
+
+                                             array of ptrs to addresses
+                                             
+
+.. c:member:: krb5_authdata  **	krb5_enc_tkt_part.authorization_data
+
+                                             auth data
+                                             
+

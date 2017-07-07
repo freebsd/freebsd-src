@@ -1,0 +1,988 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>An Authentication Service for Open Network Systems</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="Kerberos">
+</object>
+<p><b><a name="id_help_usenix88"></a><i>Kerberos</i>: An Authentication
+Service for Open Network Systems</b></p>
+<p style="text-align: center;"><i>Jennifer G. Steiner</i></p>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Project Athena </address>
+</div>
+<div></div>
+<div style="text-align: center;">
+<address>Massachusetts Institute of Technology</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Cambridge, MA 02139 </address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>steiner@ATHENA.MIT.EDU</address>
+</div>
+<div style="text-align: center;"></div>
+<p style="text-align: center;"><i>Clifford Neuman</i> *</p>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Department of Computer Science, FR-35</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>University of Washington</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Seattle, WA 98195</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>bcn@CS.WASHINGTON.EDU</address>
+</div>
+<div style="text-align: center;"></div>
+<p style="text-align: center;">Jeffrey I. Schiller</p>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Project Athena</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Massachusetts Institute of Technology</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>Cambridge, MA 02139</address>
+</div>
+<div style="text-align: center;"></div>
+<div style="text-align: center;">
+<address>jis@ATHENA.MIT.EDU</address>
+</div>
+<p>* Clifford Neuman was a member of the Project Athena staff during
+the design and initial implementation phase of <i>Kerberos.</i></p>
+<p></p>
+<p style="text-align: center;"><i>ABSTRACT</i></p>
+<p style="text-align: center;">In an open network computing
+environment, a workstation cannot be trusted to identify its users
+correctly to network services. <i>Kerberos</i> provides an alternative
+approach whereby a trusted third-party authentication service is used
+to verify users' identities. This paper gives an overview of the <i>Kerberos</i>
+authentication model as implemented for MIT's Project Athena. It
+describes the protocols used by clients, servers, and <i>Kerberos</i>
+to achieve authentication. It also describes the management and
+replication of the database required. The views of <i>Kerberos</i> as
+seen by the user, programmer, and administrator are described. Finally,
+the role of <i>Kerberos</i> in the larger Athena picture is given,
+along with a list of applications that presently use <i>Kerberos</i>
+for user authentication. We describe the addition of <i>Kerberos</i>
+authentication to the Sun Network File System as a case study for
+integrating <i>Kerberos</i> with an existing application.</p>
+<p><b>Introduction</b></p>
+<p>This paper gives an overview of <i>Kerberos,</i> an authentication
+system designed by Miller and Neumanfor open network computing
+environments, and describes our experience using it at MIT's Project
+Athena. In the first section of the paper, we explain why a new
+authentication model is needed for open networks, and what its
+requirements are. The second section lists the components of the <i>Kerberos</i>
+software and describes how they interact in providing the
+authentication service. In Section 3, we describe the <i>Kerberos</i>
+naming scheme.</p>
+<p>Section 4 presents the building blocks of <i>Kerberos</i>
+authentication - the <i>ticket</i> and the <i>authenticator.</i> This
+leads to a discussion of the two authentication protocols: the initial
+authentication of a user to <i>Kerberos</i> (analogous to logging in),
+and the protocol for mutual authentication of a potential consumer and
+a potential producer of a network service.</p>
+<p><i>Kerberos</i> requires a database of information about its
+clients; Section 5 describes the database, its management, and the
+protocol for its modification. Section 6 describes the <i>Kerberos</i>
+interface to its users, applications programmers, and administrators.
+In Section 7, we describe how the Project Athena <i>Kerberos</i> fits
+into the rest of the Athena environment. We also describe the
+interaction of different <i>Kerberos</i> authentication domains, or <i>realms
+;</i> in our case, the relation between the Project Athena <i>Kerberos</i>
+and the <i>Kerberos</i> running at MIT's Laboratory for Computer
+Science.</p>
+<p>In Section 8, we mention open issues and problems as yet unsolved.
+The last section gives the current status of <i>Kerberos</i> at
+Project Athena. In the appendix, we describe in detail how <i>Kerberos</i>
+is applied to a network file service to authenticate users who wish to
+gain access to remote file systems. </p>
+<p><b>Conventions.</b> Throughout this paper we use terms that may be
+ambiguous, new to the reader, or used differently elsewhere. Below we
+state our use of those terms. </p>
+<p><i>User, Client, Server.</i> By <i>user,</i> we mean a human being
+who uses a program or service. A <i>client</i> also uses something,
+but is not necessarily a person; it can be a program. Often network
+applications consist of two parts; one program which runs on one
+machine and requests a remote service, and another program which runs
+on the remote machine and performs that service. We call those the <i>client</i>
+side and <i>server</i> side of the application, respectively. Often, a
+<i>client</i> will contact a <i>server</i> on behalf of a <i>user.</i></p>
+<p>Each entity that uses the <i>Kerberos</i> system, be it a user or a
+network server, is in one sense a client, since it uses the <i>Kerberos</i>
+service. So to distinguish <i>Kerberos</i> clients from clients of
+other services, we use the term <i>principal</i> to indicate such an
+entity. Note that a <i>Kerberos</i> principal can be either a user or
+a server. (We describe the naming of <i>Kerberos</i> principals in a
+later section.) </p>
+<p><i>Service vs. Server.</i> We use <i>service</i> as an abstract
+specification of some actions to be performed. A process which performs
+those actions is called a <i>server.</i> At a given time, there may be
+several <i>servers</i> (usually running on different machines)
+performing a given <i>service.</i> For example, at Athena there is one
+BSD UNIX <i>rlog-in</i> server running on each of our timesharing
+machines. </p>
+<p><i>Key, Private Key, Password. Kerberos</i> uses private key
+encryption. Each <i>Kerberos</i> principal is assigned a large number,
+its private key, known only to that principal and <i>Kerberos.</i> In
+the case of a user, the private key is the result of a one-way function
+applied to the user's <i>password.</i> We use <i>key</i> as shorthand
+for <i>private key.</i> </p>
+<p><i>Credentials.</i> Unfortunately, this word has a special meaning
+for both the Sun Network File System and the <i>Kerberos</i> system.
+We explicitly state whether we mean NFS credentials or <i>Kerberos</i>
+credentials, otherwise the term is used in the normal English language
+sense. </p>
+<p><i>Master and Slave.</i> It is possible to run <i>Kerberos</i>
+authentication software on more than one machine. However, there is
+always only one definitive copy of the <i>Kerberos</i> database. The
+machine which houses this database is called the <i>master</i>
+machine, or just the <i>master.</i> Other machines may possess
+read-only copies of the <i>Kerberos</i> database, and these are called
+<i>slaves.</i></p>
+<p><b>1. Motivation</b></p>
+<p>In a non-networked personal computing environment, resources and
+information can be protected by physically securing the personal
+computer. In a timesharing computing environment, the operating system
+protects users from one another and controls resources. In order to
+determine what each user is able to read or modify, it is necessary for
+the timesharing system to identify each user. This is accomplished when
+the user logs in.</p>
+<p>In a network of users requiring services from many separate
+computers, there are three approaches one can take to access control:
+One can do nothing, relying on the machine to which the user is logged
+in to prevent unauthorized access; one can require the host to prove
+its identity, but trust the host's word as to who the user is; or one
+can require the user to prove her/his identity for each required
+service.</p>
+<p>In a closed environment where all the machines are under strict
+control, one can use the first approach. When the organization controls
+all the hosts communicating over the network, this is a reasonable
+approach.</p>
+<p>In a more open environment, one might selectively trust only those
+hosts under organizational control. In this case, each host must be
+required to prove its identity. The rlog-in and rsh programs use this
+approach. In those protocols, authentication is done by checking the
+Internet address from which a connection has been established.</p>
+<p>In the Athena environment, we must be able to honor requests from
+hosts that are not under organizational control. Users have complete
+control of their workstations: they can reboot them, bring them up
+standalone, or even boot off their own tapes. As such, the third
+approach must be taken; the user must prove her/his identity for each
+desired service. The server must also prove its identity. It is not
+sufficient to physically secure the host running a network server;
+someone elsewhere on the network may be masquerading as the given
+server.</p>
+<p>Our environment places several requirements on an identification
+mechanism. First, it must be secure. Circumventing it must be difficult
+enough that a potential attacker does not find the authentication
+mechanism to be the weak link. Someone watching the network should not
+be able to obtain the information necessary to impersonate another
+user. Second, it must be reliable. Access to many services will depend
+on the authentication service. If it is not reliable, the system of
+services as a whole will not be. Third, it should be transparent.
+Ideally, the user should not be aware of authentication taking place.
+Finally, it should be scalable. Many systems can communicate with
+Athena hosts. Not all of these will support our mechanism, but software
+should not break if they did.</p>
+<p>Kerberos is the result of our work to satisfy the above
+requirements. When a user walks up to a workstation s/he "logs in". As
+far as the user can tell, this initial identification is sufficient to
+prove her/his identity to all the required network servers for the
+duration of the log-in session. The security of Kerberos relies on the
+security of several authentication servers, but not on the system from
+which users log in, nor on the security of the end servers that will be
+used. The authentication server provides a properly authenticated user
+with a way to prove her/his identity to servers scattered across the
+network.</p>
+<p>Authentication is a fundamental building block for a secure
+networked environment. If, for example, a server knows for certain the
+identity of a client, it can decide whether to provide the service,
+whether the user should be given special privileges, who should receive
+the bill for the service, and so forth. In other words, authorization
+and accounting schemes can be built on top of the authentication that
+Kerberos provides, resulting in equivalent security to the lone
+personal computer or the timesharing system.</p>
+<p><b>2. What is <i>Kerberos</i> ?</b></p>
+<p><i>Kerberos</i> is a trusted third-party authentication service
+based on the model presented by Needham and Schroeder.It is trusted in
+the sense that each of its clients believes <i>Kerberos'</i> judgement
+as to the identity of each of its other clients to be accurate. Time
+stamps (large numbers representing the current date and time) have been
+added to the original model to aid in the detection of <i>replay.</i>
+Replay occurs when a message is stolen off the network and resent
+later. For a more complete description of replay, and other issues of
+authentication, see Voydock and Kent.</p>
+<p><b>2.1. What Does It Do?</b></p>
+<p><i>Kerberos</i> keeps a database of its clients and their <i>private
+keys. </i>The private key is a large number known only to <i>Kerberos</i>
+and the client it belongs to. In the case that the client is a user, it
+is an encrypted password. Network services requiring authentication
+register with <i>Kerberos,</i> as do clients wishing to use those
+services. The private keys are negotiated at registration.</p>
+<p>Because <i>Kerberos</i> knows these private keys, it can create
+messages which convince one client that another is really who it claims
+to be. <i>Kerberos</i> also generates temporary private keys, called <i>session
+keys,</i> which are given to two clients and no one else. A session key
+can be used to encrypt messages between two parties.</p>
+<p><i>Kerberos</i> provides three distinct levels of protection. The
+application programmer determines which is appropriate, according to
+the requirements of the application. For example, some applications
+require only that authenticity be established at the initiation of a
+network connection, and can assume that further messages from a given
+network address originate from the authenticated party. Our
+authenticated network file system uses this level of security.</p>
+<p>Other applications require authentication of each message, but do
+not care whether the content of the message is disclosed or not. For
+these, <i>Kerberos</i> provides <i>safe messages.</i> Yet a higher
+level of security is provided by <i>private messages,</i> where each
+message is not only authenticated, but also encrypted. Private messages
+are used, for example, by the <i>Kerberos</i> server itself for
+sending passwords over the network</p>
+<p><b>2.2. Software Components</b></p>
+<p>The Athena implementation comprises several modules (see Figure 1).
+The <i>Kerberos</i> applications library provides an interface for
+application clients and application servers. It contains, among others,
+routines for creating or reading authentication requests, and the
+routines for creating safe or private messages.<br>
+</p>
+<ul style="margin-left: 40px;">
+  <li><span style="font-style: italic;">Kerberos</span> applications
+library</li>
+  <li>encryption library</li>
+  <li>database library</li>
+  <li>database administration programs</li>
+  <li>administration server</li>
+  <li>authentication server</li>
+  <li>propogation software</li>
+  <li>user programs</li>
+  <li>applications</li>
+</ul>
+<p style="text-align: left; margin-left: 40px;"><b>Figure 1. </b>Kerberos
+Software Components</p>
+<p>Encryption in <i>Kerberos</i> is based on DES, the Data Encryption
+Standard.The encryption library implements those routines. Several
+methods of encryption are provided, with tradeoffs between speed and
+security. An extension to the DES Cypher Block Chaining (CBC) mode,
+called the Propagating CBC mode, is also provided. In CBC, an error is
+propagated only through the current block of the cipher, whereas in
+PCBC, the error is propagated throughout the message. This renders the
+entire message useless if an error occurs, rather than just a portion
+of it. The encryption library is an independent module, and may be
+replaced with other DES implementations or a different encryption
+library.</p>
+<p>Another replaceable module is the database management system. The
+current Athena implementation of the database library uses <i>ndbm,</i>
+although INGRES was originally used. Other database management
+libraries could be used as well.</p>
+<p>The <i>Kerberos</i> database needs are straightforward; a record is
+held for each principal, containing the name, private key, and
+expiration date of the principal, along with some administrative
+information. (The expiration date is the date after which an entry is
+no longer valid. It is usually set to a few years into the future at
+registration.)</p>
+<p>Other user information, such as real name, phone number, and so
+forth, is kept by another server, the <i>Hesiod</i> nameserver. This
+way, sensitive information, namely passwords, can be handled by <i>Kerberos,</i>
+using fairly high security measures; while the non-sensitive
+information kept by <i>Hesiod</i> is dealt with differently; it can,
+for example, be sent unencrypted over the network.</p>
+<p>The <i>Kerberos</i> servers use the database library, as do the
+tools for administering the database.</p>
+<p>The <i>administration server</i> (or KDBM server) provides a
+read-write network interface to the database. The client side of the
+program may be run on any machine on the network. The server side,
+however, must run on the machine housing the <i>Kerberos</i> database
+in order to make changes to the database.</p>
+<p>The <i>authentication server </i>(or <i>Kerberos</i> server), on
+the other hand, performs read-only operations on the <i>Kerberos</i>
+database, namely, the authentication of principals, and generation of
+session keys. Since this server does not modify the <i>Kerberos</i>
+database, it may run on a machine housing a read-only copy of the
+master <i>Kerberos</i> database.</p>
+<p>Database propagation software manages replication of the <i>Kerberos</i>
+database. It is possible to have copies of the database on several
+different machines, with a copy of the authentication server running on
+each machine. Each of these <i>slave</i> machines receives an update
+of the <i>Kerberos</i> database from the <i>master</i> machine at
+given intervals.</p>
+<p>Finally, there are end-user programs for logging in to <i>Kerberos,</i>
+changing a <i>Kerberos</i> password, and displaying or destroying <i>Kerberos</i>
+<i>tickets</i> (tickets are explained later on).</p>
+<p><b>3. <i>Kerberos</i> Names</b></p>
+<p>Part of authenticating an entity is naming it. The process of
+authentication is the verification that the client is the one named in
+a request. What does a name consist of? In <i>Kerberos,</i> both users
+and servers are named. As far as the authentication server is
+concerned, they are equivalent. A name consists of a primary name, an
+instance, and a realm, expressed as <i>name.instance@realm</i> (see
+Figure 2).</p>
+<p style="margin-left: 80px;">bcn</p>
+<p style="margin-left: 80px;">treese.root</p>
+<p style="margin-left: 80px;">jis@LCS.MIT.EDU</p>
+<p style="margin-left: 80px;">rlog-in.priam@ATHENA.MIT.EDU</p>
+<p style="margin-left: 40px;"><b>Figure 2.</b> <i>Kerberos</i> Names</p>
+<p>The <i>primary name</i> is the name of the user or the service. The
+<i>instance</i> is used to distinguish among variations on the primary
+name. For users, an instance may entail special privileges, such as the
+"root" or "admin" instances. For services in the Athena environment,
+the instance is usually the name of the machine on which the server
+runs. For example, the <i>rlog-in</i> service has different instances
+on different hosts: <i>rlog-in.priam</i> is the <i>rlog-in</i> server
+on the host named priam. A <i>Kerberos</i> ticket is only good for a
+single named server. As such, a separate ticket is required to gain
+access to different instances of the same service. The <i>realm</i> is
+the name of an administrative entity that maintains authentication
+data. For example, different institutions may each have their own <i>Kerberos</i>
+machine, housing a different database. They have different <i>Kerberos</i>
+realms. (Realms are discussed further in section 8.2.).</p>
+<p><b>4. How It Works</b></p>
+<p>This section describes the <i>Kerberos</i> authentication
+protocols. The following abbreviations are used in the figures.<br>
+</p>
+<div style="margin-left: 40px;">
+<pre>c&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp; -&gt; &nbsp;&nbsp;  client<br>s&nbsp;&nbsp;  &nbsp;&nbsp;&nbsp; -&gt;&nbsp;&nbsp;&nbsp; &nbsp;server<br>addr &nbsp;&nbsp;  -&gt;	client's network address<br>life	 -&gt; 	lifetime of ticket<br>tgs, TGS -&gt; 	ticket-granting ticket<br>Kerberos -&gt; 	authentication server<br>KDBM	 -&gt; 	administration server<br>K<sub>x</sub>	 -&gt; 	x's private key<br>K<sub>x,y</sub>	  -&gt; 	session key for x and y<br>{abc}K<sub>x</sub>	 -&gt;	abc encrypted in x's key<br>T<sub>x,y</sub>	  -&gt;	x's ticket to use y<br>A<sub>x</sub>	 -&gt; 	authenticator for x<br>WS	 -&gt; 	workstation<br></pre>
+<span style="font-weight: bold;"></span></div>
+<p>As mentioned above, the <i>Kerberos</i> authentication model is
+based on the Needham and Schroeder key distribution protocol. When a
+user requests a service, her/his identity must be established. To do
+this, a ticket is presented to the server, along with proof that the
+ticket was originally issued to the user, not stolen. There are three
+phases to authentication through <i>Kerberos.</i> In the first phase,
+the user obtains credentials to be used to request access to other
+services. In the second phase, the user requests authentication for a
+specific service. In the final phase, the user presents those
+credentials to the end server.</p>
+<p><b>4.1 Credentials</b></p>
+<p>There are two types of credentials used in the <i>Kerberos</i>
+authentication model: <i>tickets</i> and <i>authenticators.</i> Both
+are based on private key encryption, but they are encrypted using
+different keys. A ticket is used to securely pass the identity of the
+person to whom the ticket was issued between the authentication server
+and the end server. A ticket also passes information that can be used
+to make sure that the person using the ticket is the same person to
+which it was issued. The authenticator contains the additional
+information which, when compared against that in the ticket proves that
+the client presenting the ticket is the same one to which the ticket
+was issued.</p>
+<p>A ticket is good for a single server and a single client. It
+contains the name of the server, the name of the client, the Internet
+address of the client, a time stamp, a lifetime, and a random session
+key. This information is encrypted using the key of the server for
+which the ticket will be used. Once the ticket has been issued, it may
+be used multiple times by the named client to gain access to the named
+server, until the ticket expires. Note that because the ticket is
+encrypted in the key of the server, it is safe to allow the user to
+pass the ticket on to the server without having to worry about the user
+modifying the ticket (see Figure 3).<br>
+</p>
+<p style="margin-left: 40px;">{s, c, addr, timestamp, life, K<sub>s,c</sub>}
+K<sub>s</sub><br>
+</p>
+<p style="margin-left: 40px;"><b>Figure 3.</b> Kerberos Ticket.</p>
+<p>Unlike the ticket, the authenticator can only be used once. A new
+one must be generated each time a client wants to use a service. This
+does not present a problem because the client is able to build the
+authenticator itself. An authenticator contains the name of the client,
+the workstation's IP address, and the current workstation time. The
+authenticator is encrypted in the session key that is part of the
+ticket (see Figure 4).</p>
+<div style="margin-left: 40px;">{ c, addr, timestamp } K<sub>s,c</sub><br>
+</div>
+<p style="margin-left: 40px;"><b>Figure 4.</b> A <i>Kerberos</i>
+Authenticator</p>
+<p><b>4.2. Getting the Initial Ticket</b></p>
+<p>When the user walks up to a workstation, only one piece of
+information can prove her/his identity: the user's password. The
+initial exchange with the authentication server is designed to minimize
+the chance that the password will be compromised, while at the same
+time not allowing a user to properly authenticate her/himself without
+knowledge of that password. The process of logging in appears to the
+user to be the same as logging in to a timesharing system. Behind the
+scenes, though, it is quite different (see Figure 5).</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 447px; height: 170px;" alt=""
+ src="../Images/Kerberos_auth_serv_fig_5.jpg"><br>
+Figure 5.</b> Getting the Initial Ticket.</p>
+<p>The user is prompted for her/his username. Once it has been entered,
+a request is sent to the authentication server containing the user's
+name and the name of a special service known as the <i>ticket-granting
+service.</i></p>
+<p>The authentication server checks that it knows about the client. If
+so, it generates a random session key which will later be used between
+the client and the ticket-granting server. It then creates a ticket for
+the ticket-granting server which contains the client's name, the name
+of the ticket-granting server, the current time, a lifetime for the
+ticket, the client's IP address, and the random session key just
+created. This is all encrypted in a key known only to the
+ticket-granting server and the authentication server.</p>
+<p>The authentication server then sends the ticket, along with a copy
+of the random session key and some additional information, back to the
+client. This response is encrypted in the client's private key, known
+only to <i>Kerberos</i> and the client, which is derived from the
+user's password.</p>
+<p>Once the response has been received by the client, the user is asked
+for her/his password. The password is converted to a DES key and used
+to decrypt the response from the authentication server. The ticket and
+the session key, along with some of the other information, are stored
+for future use, and the user's password and DES key are erased from
+memory.</p>
+<p>Once the exchange has been completed, the workstation possesses
+information that it can use to prove the identity of its user for the
+lifetime of the ticket-granting ticket. As long as the software on the
+workstation had not been previously tampered with, no information
+exists that will allow someone else to impersonate the user beyond the
+life of the ticket.</p>
+<p><b>4.3. Requesting a Service</b></p>
+<p>For the moment, let us pretend that the user already has a ticket
+for the desired server. In order to gain access to the server, the
+application builds an authenticator containing the client's name and IP
+address, and the current time. The authenticator is then encrypted in
+the session key that was received with the ticket for the server. The
+client then sends the authenticator along with the ticket to the server
+in a manner defined by the individual application.</p>
+<p>Once the authenticator and ticket have been received by the server,
+the server decrypts the ticket, uses the session key included in the
+ticket to decrypt the authenticator, compares the information in the
+ticket with that in the authenticator, the IP address from which the
+request was received, and the present time. If everything matches, it
+allows the request to proceed (see Figure 6).</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 434px; height: 101px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_6.jpg"><br>
+Figure 6.</b> Requesting a Service</p>
+<p>It is assumed that clocks are synchronized to within several
+minutes. If the time in the request is too far in the future or the
+past, the server treats the request as an attempt to replay a previous
+request. The server is also allowed to keep track of all past requests
+with time stamps that are still valid. In order to further foil replay
+attacks, a request received with the same ticket and time stamp as one
+already received can be discarded.</p>
+<p>Finally, if the client specifies that it wants the server to prove
+its identity too, the server adds one to the time stamp the client sent
+in the authenticator, encrypts the result in the session key, and sends
+the result back to the client (see Figure 7).</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 421px; height: 108px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_7.jpg"><br>
+Figure 7.</b> Mutual Authentication</p>
+<p>At the end of this exchange, the server is certain that, according
+to <i>Kerberos,</i> the client is who it says it is. If mutual
+authentication occurs, the client is also convinced that the server is
+authentic. Moreover, the client and server share a key which no one
+else knows, and can safely assume that a reasonably recent message
+encrypted in that key originated with the other party.</p>
+<p><b>4.4 Getting Server Tickets</b></p>
+<p>Recall that a ticket is only good for a single server. As such, it
+is necessary to obtain a separate ticket for each service the client
+wants to use. Tickets for individual servers can be obtained from the
+ticket-granting service. Since the ticket-granting service is itself a
+service, it makes use of the service access protocol described in the
+previous section.</p>
+<p>When a program requires a ticket that has not already been
+requested, it sends a request to the ticket-granting server (see Figure
+8). The request contains the name of the server for which a ticket is
+requested, along with the ticket-granting ticket and an authenticator
+built as described in the previous section.</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 482px; height: 183px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_8.jpg"><br>
+Figure 8.</b> Getting a Server Ticket</p>
+<p>The ticket-granting server then checks the authenticator and
+ticket-granting ticket as described above. If valid, the
+ticket-granting server generates a new random session key to be used
+between the client and the new server. It then builds a ticket for the
+new server containing the client's name, the server name, the current
+time, the client's IP address and the new session key it just
+generated. The lifetime of the new ticket is the minimum of the
+remaining life for the ticket-granting ticket and the default for the
+service.</p>
+<p>The ticket-granting server then sends the ticket, along with the
+session key and other information, back to the client. This time,
+however, the reply is encrypted in the session key that was part of the
+ticket-granting ticket. This way, there is no need for the user to
+enter her/his password again. Figure 9 summarizes the authentication
+protocols.</p>
+<p></p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 702px; height: 334px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_9.jpg"><br>
+Figure 9. </b><i>Kerberos</i> Authentication Protocols.</p>
+<p><b>5. <i>Kerberos</i> Database</b></p>
+<p>Up to this point, we have discussed operations requiring read-only
+access to the <i>Kerberos</i> database. These operations are performed
+by the authentication service, which can run on both master and slave
+machines (see Figure 10).</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 416px; height: 271px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_10.jpg"><br>
+Figure 10.</b> Authentication Requests.</p>
+<p>In this section, we discuss operations that require write access to
+the database. These operations are performed by the administration
+service, called the <i>Kerberos</i> Database Management Service <i>(KDBM).</i>
+The current implementation stipulates that changes may only be made to
+the master <i>Kerberos</i> database; slave copies are read-only.
+Therefore, the KDBM server may only run on the master <i>Kerberos</i>
+machine (see Figure 11).</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 401px; height: 273px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_11.jpg"><br>
+Figure 11.</b> Administration Requests</p>
+<p>Note that, while authentication can still occur (on slaves),
+administration requests cannot be serviced if the master machine is
+down. In our experience, this has not presented a problem, as
+administration requests are infrequent.</p>
+<p>The KDBM handles requests from users to change their passwords. The
+client side of this program, which sends requests to the KDBM over the
+network, is the <i>kpasswd</i> program. The KDBM also accepts requests
+from <i>Kerberos</i> administrators, who may add principals to the
+database, as well as change passwords for existing principals. The
+client side of the administration program, which also sends requests to
+the KDBM over the network, is the <i>kadmin</i> program.</p>
+<p><b>5.1. The KDBM Server</b></p>
+<p>The KDBM server accepts requests to add principals to the database
+or change the passwords for existing principals. This service is unique
+in that the ticket-granting service will not issue tickets for it.
+Instead, the authentication service itself must be used (the same
+service that is used to get a ticket-granting ticket). The purpose of
+this is to require the user to enter a password. If this were not so,
+then if a user left her/his workstation unattended, a passerby could
+walk up and change her/his password for them, something which should be
+prevented. Likewise, if an administrator left her/his workstation
+unguarded, a passerby could change any password in the system.</p>
+<p>When the KDBM server receives a request, it authorizes it by
+comparing the authenticated principal name of the requester of the
+change to the principal name of the target of the request. If they are
+the same, the request is permitted. If they are not the same, the KDBM
+server consults an access control list (stored in a file on the master <i>Kerberos</i>
+system). If the requester's principal name is found in this file, the
+request is permitted, otherwise it is denied.</p>
+<p>By convention, names with a. <b>NULL</b> instance (the default
+instance) do not appear in the access control list file; instead, an <b>admin</b>
+instance is used. Therefore, for a user to become an administrator of <i>Kerberos</i>
+an <b>admin</b> instance for that username must be created, and added
+to the access control list. This convention allows an administrator to
+use a different password for <i>Kerberos</i> administration then s/he
+would use for normal log-in.</p>
+<p>All requests to the KDBM program, whether permitted or denied, are
+logged.</p>
+<p><b>5.2. The <i>kadmin</i> and <i>kpasswd</i> Programs</b></p>
+<p>Administrators of <i>Kerberos</i> use the <i>kadmin</i> program to
+add principals to the database, or change the passwords of existing
+principals. An administrator is required to enter the password for
+their <i>admin</i> instance name when they invoke the <i>kadmin</i>
+program. This password is used to fetch a ticket for the KDBM server
+(see Figure 12).</p>
+<p></p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 642px; height: 304px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_12.jpg"><br>
+Figure 12.</b> Kerberos Administration Protocol.</p>
+<p>Users may change their <i>Kerberos</i> passwords using the <i>kpasswd</i>
+program. They are required to enter their old password when they invoke
+the program. This password is used to fetch a ticket for the KDBM
+server.</p>
+<p><b>5.3. Database Replication</b></p>
+<p>Each <i>Kerberos</i> realm has a <i>master</i> <i>Kerberos</i>
+machine, which houses the master copy of the authentication database.
+It is possible (although not necessary) to have additional, read-only
+copies of the database on <i>slave</i> machines elsewhere in the
+system. The advantages of having multiple copies of the database are
+those usually cited for replication: higher availability and better
+performance. If the master machine is down, authentication can still be
+achieved on one of the slave machines. The ability to perform
+authentication on any one of several machines reduces the probability
+of a bottleneck at the master machine.</p>
+<p>Keeping multiple copies of the database introduces the problem of
+data consistency. We have found that very simple methods suffice for
+dealing with inconsistency. The master database is dumped every hour.
+The database is sent, in its entirety, to the slave machines, which
+then update their own databases. A program on the master host, called <i>kprop,</i>
+sends the update to a peer program, called <i>kpropd,</i> running on
+each of the slave machines (see Figure 13). First <i>kprop</i> sends a
+checksum of the new database it is about to send. The checksum is
+encrypted in the <i>Kerberos</i> master database key, which both the
+master and slave <i>Kerberos</i> machines possess. The data is then
+transferred over the network to the <i>kpropd</i> on the slave
+machine. The slave propagation server calculates a checksum of the data
+it has received, and if it matches the checksum sent by the master, the
+new information is used to update the slave's database.</p>
+<p style="margin-left: 40px;"><b><img
+ style="width: 387px; height: 247px;" alt=""
+ src="..%5CImages%5CKerberos_auth_serv_fig_13.jpg"><br>
+Figure 13. </b>Database Propagation</p>
+<p>All passwords in the <i>Kerberos</i> database are encrypted in the
+master database key Therefore, the information passed from master to
+slave over the network is not useful to an eavesdropper. However, it is
+essential that only information from the master host be accepted by the
+slaves, and that tampering of data be detected, thus the checksum.</p>
+<p><b>6. <i>Kerberos</i> From the Outside Looking In</b></p>
+<p>The section will describe <i>Kerberos</i> from the practical point
+of view, first as seen by the user, then from the application
+programmer's viewpoint, and finally, through the tasks of the <i>Kerberos</i>
+administrator.</p>
+<p><b>6.1. User's Eye View</b></p>
+<p>If all goes well, the user will hardly notice that <i>Kerberos</i>
+is present. In our UNIX implementation, the ticket-granting ticket is
+obtained from <i>Kerberos</i> as part of the <i>log-in</i> process.
+The changing of a user's <i>Kerberos</i> password is part of the <i>passwd</i>
+program. And <i>Kerberos</i> tickets are automatically destroyed when
+a user logs out.</p>
+<p>If the user's log-in session lasts longer than the lifetime of the
+ticket-granting ticket (currently 8 hours), the user will notice <i>Kerberos'</i>
+presence because the next time a <i>Kerberos -authenticated</i>
+application is executed, it will fail. The <i>Kerberos</i> ticket for
+it will have expired. At that point, the user can run the <i>kinit</i>
+program to obtain a new ticket for the ticket-granting server. As when
+logging in, a password must be provided in order to get it. A user
+executing the <i>klist</i> command out of curiosity may be surprised
+at all the tickets which have silently been obtained on her/his behalf
+for services which require <i>Kerberos</i> authentication.</p>
+<p><b>6.2. From the Programmer's Viewpoint</b></p>
+<p>A programmer writing a <i>Kerberos</i> application will often be
+adding authentication to an already existing network application
+consisting of a client and server side. We call this process
+"Kerberizing" a program. Kerberizing usually involves making a call to
+the <i>Kerberos</i> library in order to perform authentication at the
+initial request for service. It may also involve calls to the DES
+library to encrypt messages and data which are subsequently sent
+between application client and application server.</p>
+<p>The most commonly used library functions are <i>krb_mk_req</i> on
+the client side, and <i>krb_rd_req</i> on the server side. The <i>krb_mk_req</i>
+routine takes as parameters the name, instance, and realm of the target
+server, which will be requested, and possibly a checksum of the data to
+be sent. The client then sends the message returned by the <i>krb_mk_req</i>
+call over the network to the server side of the application. When the
+server receives this message, it makes a call to the library routine <i>krb_rd_req.</i>
+The routine returns a judgement about the authenticity of the sender's
+alleged identity.</p>
+<p>If the application requires that messages sent between client and
+server be secret, then library calls can be made to <i>krb_mk_priv
+(krb_rd_priv)</i> to encrypt (decrypt) messages in the session key
+which both sides now share.</p>
+<p><b>6.3. The <i>Kerberos</i> Administrator's Job</b></p>
+<p>The <i>Kerberos</i> administrator's job begins with running a
+program to initialize the database. Another program must be run to
+register essential principals in the database, such as the <i>Kerberos</i>
+administrator's name with an <b>admin </b>instance. The <i>Kerberos</i>
+authentication server and the administration server must be started up.
+If there are slave databases, the administrator must arrange that the
+programs to propagate database updates from master to slaves be kicked
+off periodically.</p>
+<p>After these initial steps have been taken, the administrator
+manipulates the database over the network, using the <i>kadmin</i>
+program. Through that program, new principals can be added, and
+passwords can be changed.</p>
+<p>In particular, when a new <i>Kerberos</i> application is added to
+the system, the <i>Kerberos</i> administrator must take a few steps to
+get it working. The server must be registered in the database, and
+assigned a private key (usually this is an automatically generated
+random key). Then, some data (including the server's key) must be
+extracted from the database and installed in a file on the server's
+machine. The default file is <i>/etc/srvtab.</i> The <i>krb_rd_req</i>
+library routine called by the server (see the previous section) uses
+the information in that file to decrypt messages sent encrypted in the
+server's private key. The <i>/etc/srvtab</i> file authenticates the
+server as a password typed at a terminal authenticates the user.</p>
+<p>The <i>Kerberos</i> administrator must also ensure that <i>Kerberos</i>
+machines are physically secure, and would also be wise to maintain
+backups of the Master database.</p>
+<p><b>7. The Bigger Picture</b></p>
+<p>In this section, we describe how <i>Kerberos</i> fits into the
+Athena environment, including its use by other network services and
+applications, and how it interacts with remote <i>Kerberos</i> realms.
+For a more complete description of the Athena environment, please see
+G. W. Treese.</p>
+<p><b>7.1. Other Network Services' Use of <i>Kerberos</i></b></p>
+<p>Several network applications have been modified to use <i>Kerberos.</i>
+The <i>rlog-in</i> and <i>rsh</i> commands first try to authenticate
+using <i>Kerberos.</i> A user with valid <i>Kerberos</i> tickets can
+rlog-in to another Athena machine without having to set up.<i>rhosts</i>
+files. If the <i>Kerberos</i> authentication fails, the programs fall
+back on their usual methods of authorization, in this case, the.<i>rhosts</i>
+files.</p>
+<p>We have modified the Post Office Protocol to use <i>Kerberos</i>
+for authenticating users who wish to retrieve their electronic mail
+from the "post office". A message delivery program, called <i>Zephyr,</i>
+has been recently developed at Athena, and it uses <i>Kerberos</i> for
+authentication as well.</p>
+<p>The program for signing up new users, called <i>register,</i> uses
+both the Service Management System (SMS) and <i>Kerberos.</i> From
+SMS, it determines whether the information entered by the would-be new
+Athena user, such as name and MIT identification number, is valid. It
+then checks with <i>Kerberos</i> to see if the requested username is
+unique. If all goes well, a new entry is made to the <i>Kerberos</i>
+database, containing the username and password.</p>
+<p>For a detailed discussion of the use of <i>Kerberos</i> to secure
+Sun's Network File System, please refer to the appendix..</p>
+<p><b>7.2. Interaction with Other Kerberi</b></p>
+<p>It is expected that different administrative organizations will want
+to use <i>Kerberos</i> for user authentication. It is also expected
+that in many cases, users in one organization will want to use services
+in another. <i>Kerberos</i> supports multiple administrative domains.
+The specification of names in <i>Kerberos</i> includes a field called
+the <i>realm.</i> This field contains the name of the administrative
+domain within which the user is to be authenticated.</p>
+<p>Services are usually registered in a single realm and will only
+accept credentials issued by an authentication server for that realm. A
+user is usually registered in a single realm (the local realm), but it
+is possible for her/him to obtain credentials issued by another realm
+(the remote realm), on the strength of the authentication provided by
+the local realm. Credentials valid in a remote realm indicate the realm
+in which the user was originally authenticated. Services in the remote
+realm can choose whether to honor those credentials, depending on the
+degree of security required and the level of trust in the realm that
+initially authenticated the user.</p>
+<p>In order to perform cross-realm authentication, it is necessary that
+the administrators of each pair of realms select a key to be shared
+between their realms. A user in the local realm can then request a
+ticket-granting ticket from the local authentication server for the
+ticket-granting server in the remote realm. When that ticket is used,
+the remote ticket-granting server recognizes that the request is not
+from its own realm, and it uses the previously exchanged key to decrypt
+the ticket-granting ticket. It then issues a ticket as it normally
+would, except that the realm field for the client contains the name of
+the realm in which the client was originally authenticated.</p>
+<p>This approach could be extended to allow one to authenticate oneself
+through a series of realms until reaching the realm with the desired
+service. In order to do this, though, it would be necessary to record
+the entire path that was taken, and not just the name of the initial
+realm in which the user was authenticated. In such a situation, all
+that is known by the server is that A says that B says that C says that
+the user is so-and-so. This statement can only be trusted if everyone
+along the path is also trusted.</p>
+<p><b>8. Issues and Open Problems</b></p>
+<p>There are a number of issues and open problems associated with the <i>Kerberos</i>
+authentication mechanism. Among the issues are how to decide the
+correct lifetime for a ticket, how to allow proxies, and how to
+guarantee workstation integrity.</p>
+<p>The ticket lifetime problem is a matter of choosing the proper
+tradeoff between security and convenience. If the life of a ticket is
+long, then if a ticket and its associated session key are stolen or
+misplaced, they can be used for a longer period of time. Such
+information can be stolen if a user forgets to log out of a public
+workstation. Alternatively, if a user has been authenticated on a
+system that allows multiple users, another user with access to root
+might be able to find the information needed to use stolen tickets. The
+problem with giving a ticket a short lifetime, however, is that when it
+expires, the user will have to obtain a new one which requires the user
+to enter the password again.</p>
+<p>An open problem is the proxy problem. How can an authenticated user
+allow a server to acquire other network services on her/his behalf? An
+example where this would be important is the use of a service that will
+gain access to protected files directly from a fileserver. Another
+example of this problem is what we call <i>authentication forwarding.</i>
+If a user is logged into a workstation and logs in to a remote host, it
+would be nice if the user had access to the same services available
+locally, while running a program on the remote host. What makes this
+difficult is that the user might not trust the remote host, thus
+authentication forwarding is not desirable in all cases. We do not
+presently have a solution to this problem.</p>
+<p>Another problem, and one that is important in the Athena
+environment, is how to guarantee the integrity of the software running
+on a workstation. This is not so much of a problem on private
+workstations since the user that will be using it has control over it.
+On public workstations, however, someone might have come along and
+modified the <i>log-in</i> program to save the user's password. The
+only solution presently available in our environment is to make it
+difficult for people to modify software running on the public
+workstations. A better solution would require that the user's key never
+leave a system that the user knows can be trusted. One way this could
+be done would be if the user possessed a <i>smartcard</i> capable of
+doing the encryptions required in the authentication protocol.</p>
+<p><b>9. Status</b></p>
+<p>A prototype version of <i>Kerberos</i> went into production in
+September of 1986. Since January of 1987, <i>Kerberos</i> has been
+Project Athena's sole means of authenticating its 5,000 users, 650
+workstations, and 65 servers. In addition, <i>Kerberos</i> is now
+being used in place of.<i>rhosts</i> files for controlling access in
+several of Athena's timesharing systems.</p>
+<p><b>10. Acknowledgments</b></p>
+<p><i>Kerberos</i> was initially designed by Steve Miller and Clifford
+Neuman with suggestions from Jeff Schiller and Jerry Saltzer. Since
+that time, numerous other people have been involved with the project.
+Among them are Jim Aspnes, Bob Baldwin, John Barba, Richard Basch, Jim
+Bloom, Bill Bryant, Mark Colan, Rob French, Dan Geer, John Kohl, John
+Kubiatowicz, Bob Mckie, Brian Murphy, John Ostlund Ken Raeburn, Chris
+Reed, Jon Rochlis, Mike Shanzer, Bill Sommerfeld, Ted T'so, Win Treese,
+and Stan Zanarotti.</p>
+<p>We are grateful to Dan Geer, Kathy Lieben, Josh Lubarr, Ken Raeburn,
+Jerry Saltzer, Ed Steiner, Robbert van Renesse, and Win Treese whose
+suggestions much improved earlier drafts of this paper.</p>
+<p>The illustration on the title page is by Betsy Bruemmer.</p>
+<p><b>Appendix</b></p>
+<p><b><i>Kerberos</i> Application to Sun's Network File System (NFS)</b></p>
+<p>A key component of the Project Athena workstation system is the
+interposing of the network between the user's workstation and her/his
+private file storage (home directory). All private storage resides on a
+set of computers (currently VAX 11/750s) that are dedicated to this
+purpose. This allows us to offer services on publicly available UNIX
+workstations. When a user logs in to one of these publicly available
+workstations, rather then validate her/his name and password against a
+locally resident password file, we use <i>Kerberos</i> to determine
+her/his authenticity. The <i>log-in</i> program prompts for a username
+(as on any UNIX system). This username is used to fetch a <i>Kerberos</i>
+ticket-granting ticket. The <i>log-in</i> program uses the password to
+generate a DES key for decrypting the ticket. If decryption is
+successful, the user's home directory is located by consulting the <i>Hesiod</i>
+naming service and mounted through NFS. The <i>log-in</i> program then
+turns control over to the user's shell, which then can run the
+traditional per-user customization files because the home directory is
+now "attached" to the workstation. The <i>Hesiod</i> service is also
+used to construct an entry in the local password file. (This is for the
+benefit of programs that look up information in <i>/etc/passwd.)</i></p>
+<p>From several options for delivery of remote file service, we chose
+Sun's Network File System. However this system fails to mesh with our
+needs in a crucial way. NFS assumes that all workstations fall into two
+categories (as viewed from a file server's point of view): trusted and
+untrusted. Untrusted systems cannot access any files at all, trusted
+can. Trusted systems are completely trusted. It is assumed that a
+trusted system is managed by friendly management. Specifically, it is
+possible from a trusted workstation to masquerade as any valid user of
+the file service system and thus gain access to just about every file
+on the system. (Only files owned by "root" are exempted.).</p>
+<p>In our environment, the management of a workstation (in the
+traditional sense of UNIX system management) is in the hands of the
+user currently using it. We make no secret of the root password on our
+workstations, as we realize that a truly unfriendly user can break in
+by the very fact that s/he is sitting in the same physical location as
+the machine and has access to all console functions. Therefore we
+cannot truly trust our workstations in the NFS interpretation of trust.
+To allow proper access controls in our environment we had to make some
+modifications to the base NFS software, and integrate <i>Kerberos</i>
+into the scheme.</p>
+<p><b>Unmodified NFS</b></p>
+<p>In the implementation of NFS that we started with (from the
+University of Wisconsin), authentication was provided in the form of a
+piece of data included in each NFS request (called a "credential" in
+NFS terminology). This credential contains information about the unique
+user identifier (UID) of the requester and a list of the group
+identifiers (GIDs) of the requester's membership. This information is
+then used by the NFS server for access checking. The difference between
+a trusted and a non-trusted workstation is whether or not its
+credentials are accepted by the NFS server.</p>
+<p><b>Modified NFS</b></p>
+<p>In our environment, NFS servers must accept credentials from a
+workstation if and only if the credentials indicate the UID of the
+workstation's user, and no other.</p>
+<p>One obvious solution would be to change the nature of credentials
+from mere indicators of UID and GIDs to full blown <i>Kerberos</i>
+authenticated data. However a significant performance penalty would be
+paid if this solution were adopted. Credentials are exchanged on every
+NFS operation including all disk read and write activities. Including a
+<i>Kerberos</i> authentication on each disk transaction would add a
+fair number of full-blown encryptions (done in software) per
+transaction and, according to our envelope calculations, would have
+delivered unacceptable performance. (It would also have required
+placing the <i>Kerberos</i> library routines in the kernel address
+space.)</p>
+<p>We needed a hybrid approach, described below. The basic idea is to
+have the NFS server map credentials received from client workstations,
+to a valid (and possibly different) credential on the server system.
+This mapping is performed in the server's kernel on each NFS
+transaction and is setup at "mount" time by a user-level process that
+engages in <i>Kerberos -</i> moderated authentication prior to
+establishing a valid kernel credential mapping.</p>
+<p>To implement this we added a new system call to the kernel (required
+only on server systems, not on client systems) that provides for the
+control of the mapping function that maps incoming credentials from
+client workstations to credentials valid for use on the server (if
+any). The basic mapping function maps the tuple:</p>
+<p>&lt;CLIENT-IP-ADDRESS, UID-ON-CLIENT&gt;</p>
+<p>to a valid NFS credential on the server system. The
+CLIENT-IP-ADDRESS is extracted from the NFS request packet and the
+UID-ON-CLIENT is extracted from the credential supplied by the client
+system. Note: all information in the client-generated credential except
+the UID-ON-CLIENT is discarded.</p>
+<p>If no mapping exists, the server reacts in one of two ways,
+depending it is configured. In our friendly configuration we default
+the unmappable requests into the credentials for the user "nobody" who
+has no privileged access and has a unique UID. Unfriendly servers
+return an NFS access error when no valid mapping can be found for an
+incoming NFS credential.</p>
+<p>Our new system call is used to add and delete entries from the
+kernel resident map. It also provides the ability to flush all entries
+that map to a specific UID on the server system, or flush all entries
+from a given CLIENT-IP-ADDRESS.</p>
+<p>We modified the mount daemon (which handles NFS mount requests on
+server systems) to accept a new transaction type, the <i>Kerberos</i>
+authentication mapping request. Basically, as part of the mounting
+process, the client system provides a <i>Kerberos</i> authenticator
+along with an indication of her/his UID-ON-CLIENT (encrypted in the <i>Kerberos</i>
+authenticator) on the workstation. The server's mount daemon converts
+the <i>Kerberos</i> principal name into a local username. This
+username is then looked up in a special file to yield the user's UID
+and GIDs list. For efficiency, this file is a <i>ndbm</i> database
+file with the username as the key. From this information, an NFS
+credential is constructed and handed to the kernel as the valid mapping
+of the &lt;CLIENT-IP-ADDRESS, CLIENT-UID&gt; tuple for this request.</p>
+<p>At unmount time a request is sent to the mount daemon to remove the
+previously added mapping from the kernel. It is also possible to send a
+request at log-out time to invalidate all mapping for the current user
+on the server in question, thus cleaning up any remaining mappings that
+exist (though they shouldn't) before the workstation is made available
+for the next user.</p>
+<p><b>Security Implications of the Modified NFS</b></p>
+<p>This implementation is not completely secure. For starters, user
+data is still sent across the network in an unencrypted, and therefore
+interceptable, form. The low-level, per-transaction authentication is
+based on a &lt;CLIENT-IP-ADDRESS, CLIENT-UID&gt; pair provided
+unencrypted in the request packet. This information could be forged and
+thus security compromised. However, it should be noted that only while
+a user is actively using her/his files (i.e., while logged in) are
+valid mappings in place and therefore this form of attack is limited to
+when the user in question is logged in. When a user is not logged in,
+no amount of IP address forgery will permit unauthorized access to
+her/his files.</p>
+<p><b>References</b></p>
+<p>1.S. P. Miller, B. C. Neuman, J. I. Schiller, and J. H. Saltzer, <i>Section
+E.2.1: Kerberos Authentication and Authorization System</i>, M.I.T.
+Project Athena, Cambridge, Massachusetts (December 21, 1987). </p>
+<p>2.E. Balkovich, S. R. Lerman, and R. P. Parmelee, "Computing in
+Higher Education: The Athena Experience," <i>Communications of the ACM.</i>
+<b>28</b>(11), pp. 1214-1224, ACM (November, 1985).</p>
+<p>3.R. M. Needham and M. D. Schroeder, "Using Encryption for
+Authentication in Large Networks of Computers," <i>Communications of
+the ACM</i> <b>21</b>(12), pp. 993-999 (December, 1978). </p>
+<p>4.V. L. Voydock and S. T. Kent, "Security Mechanisms in High-Level
+Network Protocols," <i>Computing Surveys</i> <b>15</b>(2), ACM (June
+1983).</p>
+<p>5.National Bureau of Standards, "Data Encryption Standard," Federal
+Information Processing Standards Publication 46, Government Printing
+Office, Washington, D.C. (1977). </p>
+<p>6.S. P. Dyer, "Hesiod," in <i>Usenix Conference Proceedings</i>
+(Winter, 1988). </p>
+<p>7.W. J. Bryant, <i>Kerberos Programmer's Tutorial</i>, M.I.T.
+Project Athena (In preparation). </p>
+<p>8.W. J. Bryant, <i>Kerberos Administrator's Manual</i>, M.I.T.
+Project Athena (In preparation).</p>
+<p>9.G. W. Treese, "Berkeley Unix on 1000 Workstations: Athena Changes
+to 4.3BSD," in <i>Usenix Conference Proceedings</i> (Winter, 1988)</p>
+<p>10.C. A. DellaFera, M. W. Eichin, R. S. French, D. C. Jedlinsky, J.
+T. Kohl, and W. E. Sommerfeld, "The Zephyr Notification System," in <i>Usenix
+Conference Proceedings</i> (Winter, 1988).</p>
+<p>11.M. A. Rosenstein, D. E. Geer, and P. J. Levine, in <i>Usenix
+Conference Proceedings</i> (Winter, 1988).</p>
+<p>12.R. Sandberg, D. Goldberg, S. Kleiman, D. Walsh, and B. Lyon,
+"Design and Implementation of the Sun Network Filesystem," in <i>Usenix
+Conference Proceedings </i>(Summer, 1985).</p>
+</body>
+</html>

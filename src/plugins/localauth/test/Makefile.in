@@ -1,0 +1,20 @@
+mydir=plugins$(S)localauth$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=localauth_test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/localauth/test
+SHLIB_EXPDEPS=$(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS=$(SUPPORT_LIB) $(LIBS)
+
+STLIBOBJS=main.o
+
+SRCS=$(srcdir)/main.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

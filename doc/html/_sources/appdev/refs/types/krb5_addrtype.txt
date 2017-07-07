@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-addrtype-struct:
+
+krb5_addrtype
+=============
+
+..
+.. c:type:: krb5_addrtype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_addrtype
+
+

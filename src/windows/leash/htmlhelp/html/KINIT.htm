@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+
+<title>KINIT</title></head>
+
+<body>
+<h1>KINIT Command</h1>
+<table>
+<tbody><tr><th id="th2"> The following information reproduces the information from UNIX man page for the KINIT command.</th>
+</tr>
+</tbody></table>
+
+
+
+
+<h2>SYNOPSIS</h2><table>
+<tbody><tr>
+<th id="th2">kinit</th>
+<td>
+<span class="command">  [<b>-V</b>] </span>
+<span class="command">[<b>-l</b> <i>lifetime</i>]</span>
+<span class="command">  [<b>-s</b> <i>start</i><b>_</b><i>time</i>] </span>
+<span class="command"> [<b>-r</b>&nbsp;<i>renewable</i><b>_</b><i>life</i>] </span>
+<span class="command"> [<b>-p</b> | <b>-P</b>]</span>
+<span class="command">  [<b>-f</b> | <b>-F</b>]</span>
+<span class="command">  [<b>-a</b>]</span>
+<span class="command">  [<b>-A</b>] </span>
+<span class="command"> [<b>-C</b>] </span>
+<span class="command"> [<b>-E</b>] </span>
+<span class="command"> [<b>-v</b>]</span>
+<span class="command">  [<b>-R</b>] </span>
+<span class="command">[<b>-k</b> [<b>-t</b> <i>keytab</i><b>_</b><i>file</i>]] </span>
+<span class="command">  [<b>-c</b> <i>cache</i><b>_</b><i>name</i>] </span>
+<span class="command"> [<b>-n</b>]</span>
+<span class="command">  [<b>-S</b> <i>service</i><b>_</b><i>name</i>]</span>
+<span class="command"> [<b>-T</b> <i>armor</i><b>_</b><i>ccache</i>] </span>
+<span class="command"> [<b>-X</b>  <i>attribute</i>[=<i>value</i>]] </span>
+<span class="command"> [<i>principal</i>] </span>
+</td>
+</tr>
+</tbody></table>
+<h2>DESCRIPTION</h2>
+<p>
+       <i>kinit</i> obtains and caches an initial ticket-granting ticket for  <i>principal</i>.
+</p>
+
+
+<h2>OPTIONS</h2>
+<table>
+<tbody><tr>
+<th id="th2"> <span class="command">-V</span></th>
+<td>display verbose output.</td></tr>
+<tr>
+<th id="th2"><span class="command">-l</span></th>
+<td> <i>lifetime</i>
+              requests  a  ticket  with  the lifetime <i>lifetime</i>.  The value for
+              <i>lifetime</i> must be followed immediately by one  of  the  following
+              delimiters:
+<ul id="helpul">
+<li> <b>s</b>  seconds </li>
+<li><b>m</b>  minutes</li>
+ <li><b>h</b>  hours</li>
+<li><b>d</b>  days</li>
+</ul>
+              as  in "kinit -l 90m".  You cannot mix units; a value of `3h30m'
+              will result in an error.
+
+              If the <b>-l</b> option is not specified, the default  ticket  lifetime
+              (configured by each site) is used.  Specifying a ticket lifetime
+              longer than the maximum  ticket  lifetime  (configured  by  each
+              site) results in a ticket with the maximum lifetime.
+</td>
+</tr>
+<tr><th id="th2"> <span class="command">-s <i>start</i><b>_</b><i>time</i></span> </th>
+<td> requests  a  postdated  ticket,  valid  starting  at <span class="command">-<i>start</i><b>_</b><i>time</i>.</span> Postdated tickets are issued with the <i>invalid</i> flag set, and need to be fed back to the kdc before use.</td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-r</b> <i>renewable</i><b>_</b><i>life</i></span></th>
+<td> requests  renewable  tickets,  with  a  total lifetime of <span class="command">-<i>renewable</i><b>_</b><i>life</i>.</span>  The duration is in the same format as the <b>-l</b> option, with the same delimiters.</td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-f </b></span></th>
+<td> request forwardable tickets.</td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-F</b></span></th>
+<td> do not request forwardable tickets. </td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-p</b></span></th>
+<td> request proxiable tickets. </td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-P </b></span></th>
+<td> do not request proxiable tickets.</td></tr>
+<tr>
+<th id="th2"> <span class="command"><b>-a</b></span></th>
+<td> request tickets with the local address[es].</td></tr>
+<tr>
+  <th id="th2"> <span class="command"><b>-A</b></span></th>
+<td> request address-less tickets.</td></tr>
+<tr>
+<th id="th2"> <span class="command">   <b>-k</b> [<b>-t</b> <i>keytab</i><b>_</b><i>file</i>] </span></th>
+<td> requests a ticket, obtained from  a  key  in  the  local  host's
+              <i>keytab</i>  file.   The  name and location of the keytab file may be
+              specified with the <span class="command">  <b>-t</b> <i>keytab</i><b>_</b><i>file</i> </span> option; otherwise the  default
+              name  and  location  will  be used.  By default a host ticket is
+              requested but any principal may be specified. On a KDC, the special
+              keytab  location  <b>KDB:</b>  can be used to indicate that kinit
+              should open the KDC database and look up the key directly.  This
+              permits an administrator to obtain tickets as any principal that
+              supports password-based authentication.</td></tr>
+<tr>
+<th id="th2"> <span class="command"> <b>-n</b></span></th>
+<td> Requests anonymous processing. Two types of anonymous principals
+are supported. For fully anonymous Kerberos, configure pkinit on the
+KDC and configure <span class="command"> <i>pkinit</i><b>_</b><i>anchors</i></span> in  the  client's
+              krb5.conf.   Then use the <b>-n</b> option with a principal of the form
+              <i>@REALM</i> (an empty principal name followed by the  at-sign  and  a
+              realm  name).  If permitted by the KDC, an anonymous ticket will
+              be returned.  A second form of anonymous tickets  is  supported;
+              these  realm-exposed tickets hide the identity of the client but
+              not the client's realm.  For this mode, use <b>kinit</b> <b>-n</b> with a normal principal name.  If supported by the KDC, the principal (but
+              not realm) will be replaced by the anonymous principal.   As  of
+              release  1.8, the MIT Kerberos KDC only supports fully anonymous
+              operation.</td></tr>
+<tr>
+  <th id="th2"> <span class="command"><b>-T</b> <i>armor</i><b>_</b><i>ccache</i></span></th>
+<td>  Specifies the name of a credential cache that already contains a
+              ticket.   If  supported  by the KDC, This ccache will be used to
+              armor the request so that an attacker would have  to  know  both
+              the  key  of  the armor ticket and the key of the principal used
+              for authentication in order to attack the request. Armoring also
+              makes  sure  that  the  response from the KDC is not modified in
+              transit.</td></tr>
+<tr>
+  <th id="th2"> <span class="command"> <b>-c</b> <i>cache</i><b>_</b><i>name</i> </span></th>
+<td>  use <span class="command"><i>cache</i><b>_</b><i>name</i></span>
+as the Kerberos 5 credentials (ticket) cache name and location; if this
+option is not used, the default cache name and location are used. The
+default credentials cache may vary between systems. If the <b>KRB5CCNAME</b>  environment  variable  is  set, its value is used to
+              name the default ticket cache.  If a principal name is specified
+              and the type of the default credentials cache supports a collection
+              (such as the DIR type), an existing cache  containing  credentials
+              for  the principal is selected or a new one is created
+              and becomes the new primary cache.  Otherwise, any existing contents
+              of the default cache are destroyed by <i>kinit</i>.</td></tr>
+<tr>
+  <th id="th2"> <span class="command"> <b>-S</b> <i>service</i><b>_</b><i>name</i></span></th>
+<td> specify  an  alternate  service name to use when getting initial
+              tickets.</td></tr>
+ <tr>
+  <th id="th2"> <span class="command"> <b>flag_RSA_PROTOCOL</b>[=yes] </span></th>
+<td> specify use of RSA, rather than the default Diffie-Hellman protocol. </td></tr>
+</tbody></table>
+
+<h2>ENVIRONMENT</h2>
+<p>
+       <b>Kinit</b> uses the following environment variables:
+</p>
+<table>
+<tbody><tr>
+  <th id="th2">   KRB5CCNAME </th>
+<td>       Location of the default Kerberos 5 credentials (ticket)
+                       cache, in the form<span class="command"> <i>type</i>:<i>residual</i>.</span>  If no type prefix is
+                       present,  the  <b>FILE</b>  type  is assumed.  The type of the
+                       default cache may determine the availability of a cache
+                       collection;  for  instance, a default cache of type <b>DIR</b>
+                       causes caches within the directory to be present in the
+                       collection.</td>
+</tr>
+</tbody></table>
+
+<h2>FILES</h2>
+<table>
+<tbody><tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid] </span></th>
+<td>       default  location  of  Kerberos  5 credentials cache ([uid] is the decimal UID of the user). </td></tr>
+<tr>
+  <th id="th2">     <span class="command">    /etc/krb5.keytab  </span></th>
+<td>    default location for the local host's <b>keytab</b> file.</td></tr>
+</tbody></table>
+
+<h2>SEE ALSO</h2>
+<ul id="helpul">
+<li><a href="HTML/KLIST.htm"><b>klist(1)</b></a></li>
+<li> <a href="HTML/KDESTROY.htm"><b>kdestroy(1)</b></a></li>
+<li><a href="HTML/KSWITCH.htm"><b>kswitch(1)</b></a></li>
+
+<li><b>kerberos(1)</b></li>
+</ul>
+
+
+
+
+</body></html>

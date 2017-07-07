@@ -1,0 +1,51 @@
+krb5_auth_con_set_req_cksumtype -  Set checksum type in an an auth context. 
+============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_set_req_cksumtype(krb5_context context, krb5_auth_context auth_context, krb5_cksumtype cksumtype)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **cksumtype** - Checksum type
+
+
+..
+
+
+:retval:
+         -   0   Success. Otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets the checksum type in *auth_context* to be used by :c:func:`krb5_mk_req()` for the authenticator checksum.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

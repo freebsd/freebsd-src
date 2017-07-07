@@ -1,0 +1,19 @@
+Description of the Intermediate Value Known Answer Test
+--------------------------------------------------------
+
+The test encrypts one plaintext with a variable number of rounds.
+In ECB encryption mode, the output PTi is the output after the 
+initial key addition and i rounds (a round ends with a key
+addition). 
+
+As explained in the documentation, in ECB decryption mode 
+there are several definitions of a `round' possible. In order
+to make visual inspection more intuitive, we output the
+intermediate values that correspond with the output of the
+encryption mode. 
+These values might actually not occur in a practical decryption,
+especially in an optimised implementation, where various operations
+of different rounds are interchanged.
+
+This explains also why the Java and the C code output different
+files for this test.

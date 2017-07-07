@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PRINCIPAL-PARSE-REQUIRE-REALM-data:
+
+KRB5_PRINCIPAL_PARSE_REQUIRE_REALM
+==================================
+
+..
+.. data:: KRB5_PRINCIPAL_PARSE_REQUIRE_REALM
+..
+
+Error if realm is not present.
+
+
+
+========================================= ======================
+``KRB5_PRINCIPAL_PARSE_REQUIRE_REALM``       ``0x2``
+========================================= ======================

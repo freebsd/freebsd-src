@@ -1,0 +1,74 @@
+krb5_mk_req_extended -  Create a KRB_AP_REQ message using supplied credentials. 
+================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_req_extended(krb5_context context, krb5_auth_context * auth_context, krb5_flags ap_req_options, krb5_data * in_data, krb5_creds * in_creds, krb5_data * outbuf)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[inout]** **auth_context** - Pre-existing or newly created auth context
+
+	          **[in]** **ap_req_options** - :data:`AP_OPTS` options
+
+	          **[in]** **in_data** - Application data to be checksummed in the authenticator, or NULL
+
+	          **[in]** **in_creds** - Credentials for the service with valid ticket and key
+
+	          **[out]** **outbuf** - **AP-REQ** message
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Valid *ap_req_options* are: 
+ 
+	 - :data:`AP_OPTS_USE_SESSION_KEY` - Use the session key when creating the request used for user to user authentication.
+ 
+ 
+	 - :data:`AP_OPTS_MUTUAL_REQUIRED` - Request a mutual authentication packet from the reciever.
+ 
+ 
+	 - :data:`AP_OPTS_USE_SUBKEY` - Generate a subsession key from the current session key obtained from the credentials.
+ 
+ This function creates a KRB_AP_REQ message using supplied credentials *in_creds* . *auth_context* may point to an existing auth context or to NULL, in which case a new one will be created. If *in_data* is non-null, a checksum of it will be included in the authenticator contained in the KRB_AP_REQ message. Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+
+
+
+On successful return, the authenticator is stored in *auth_context* with the *client* and *checksum* fields nulled out. (This is to prevent pointer-sharing problems; the caller should not need these fields anyway, since the caller supplied them.)
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_mk_req()` 
+ 
+
+
+
+

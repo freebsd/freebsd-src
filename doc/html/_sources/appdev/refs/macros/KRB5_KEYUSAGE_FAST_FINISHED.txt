@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-FAST-FINISHED-data:
+
+KRB5_KEYUSAGE_FAST_FINISHED
+===========================
+
+..
+.. data:: KRB5_KEYUSAGE_FAST_FINISHED
+..
+
+
+
+
+================================== ======================
+``KRB5_KEYUSAGE_FAST_FINISHED``       ``53``
+================================== ======================

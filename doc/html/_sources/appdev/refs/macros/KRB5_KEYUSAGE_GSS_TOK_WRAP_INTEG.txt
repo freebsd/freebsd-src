@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-GSS-TOK-WRAP-INTEG-data:
+
+KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG
+================================
+
+..
+.. data:: KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG
+..
+
+
+
+
+======================================= ======================
+``KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG``       ``23``
+======================================= ======================

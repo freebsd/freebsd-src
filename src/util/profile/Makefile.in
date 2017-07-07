@@ -1,0 +1,161 @@
+mydir=util$(S)profile
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS=testmod
+PROG_LIBPATH=-L$(TOPLIBD) $(TCL_LIBPATH) -L.
+PROG_RPATH=$(KRB5_LIBDIR)$(TCL_RPATH)
+##DOS##BUILDTOP = ..\..
+##DOS##OBJFILE=$(OUTPRE)profile.lst
+##DOS##LIBNAME=$(OUTPRE)profile.lib
+
+LOCALINCLUDES=-I. $(TCL_INCLUDES)
+# for tcl.h
+DEFINES=-DHAS_STDARG -DLIBDIR=\"$(KRB5_LIBDIR)\"
+
+STLIBOBJS = \
+	prof_tree.o \
+	prof_file.o \
+	prof_parse.o \
+	prof_get.o \
+	prof_set.o \
+	prof_err.o \
+	prof_init.o
+
+OBJS = $(OUTPRE)prof_tree.$(OBJEXT) \
+	$(OUTPRE)prof_file.$(OBJEXT) \
+	$(OUTPRE)prof_parse.$(OBJEXT) \
+	$(OUTPRE)prof_get.$(OBJEXT) \
+	$(OUTPRE)prof_set.$(OBJEXT) \
+	$(OUTPRE)prof_err.$(OBJEXT) \
+	$(OUTPRE)prof_init.$(OBJEXT)
+
+SRCS = $(srcdir)/prof_tree.c \
+	$(srcdir)/prof_file.c \
+	$(srcdir)/prof_parse.c \
+	$(srcdir)/prof_get.c \
+	$(srcdir)/prof_set.c \
+	prof_err.c \
+	$(srcdir)/prof_init.c
+
+EXTRADEPSRCS=$(srcdir)/test_load.c $(srcdir)/test_parse.c \
+	$(srcdir)/test_profile.c $(srcdir)/test_vtable.c \
+	$(srcdir)/profile_tcl.c
+
+DEPLIBS = $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+MLIBS = -lcom_err $(SUPPORT_LIB) $(LIBS)
+
+LIBBASE=profile
+LIBMAJOR=1
+LIBMINOR=1
+SHLIB_EXPDEPS = $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS = -lcom_err $(SUPPORT_LIB) $(LIBS)
+
+PROFILE_HDR=$(BUILDTOP)$(S)include$(S)profile.h
+
+all-unix: includes
+all-unix: all-libs
+all-windows: $(PROFILE_HDR)
+
+install-headers-unix: includes
+
+generate-files-mac: profile.h
+
+$(PROFILE_HDR): profile.h
+	$(CP) profile.h "$@"
+
+includes: $(PROFILE_HDR)
+
+clean-unix::
+	$(RM) $(BUILDTOP)/include/profile.h test2.ini test3.ini test2.ini.bak
+
+##DOS##LIBOBJS = $(OBJS)
+
+
+awk-windows:
+	$(AWK) -f $(BUILDTOP)/util/et/et_h.awk outfile=prof_err.h prof_err.et
+	$(AWK) -f $(BUILDTOP)/util/et/et_c.awk outfile=prof_err.c prof_err.et
+	if exist prof_err.h copy profile.hin+prof_err.h profile.h
+	if exist profile.h copy profile.h $(BUILDTOP)\include\profile.h
+
+test_parse: test_parse.$(OBJEXT) $(OBJS) $(DEPLIBS)
+	$(CC_LINK) -o test_parse test_parse.$(OBJEXT) $(OBJS) $(MLIBS)
+
+test_profile: test_profile.$(OBJEXT) argv_parse.$(OBJEXT) $(OBJS) $(DEPLIBS)
+	$(CC_LINK) -o test_profile test_profile.$(OBJEXT) \
+		argv_parse.$(OBJEXT) $(OBJS) $(MLIBS)
+
+test_vtable: test_vtable.$(OBJEXT) $(OBJS) $(DEPLIBS)
+	$(CC_LINK) -o test_vtable test_vtable.$(OBJEXT) $(OBJS) $(MLIBS)
+
+test_load: test_load.$(OBJEXT) $(OBJS) $(DEPLIBS)
+	$(CC_LINK) -o test_load test_load.$(OBJEXT) $(OBJS) $(MLIBS)
+
+modtest.conf:
+	echo "module `pwd`/testmod/proftest$(DYNOBJEXT):teststring" > $@
+
+.d: includes
+
+# NEED TO FIX!!
+$(OUTPRE)test_parse.exe: 
+	$(CC) $(CFLAGS2) -o test_parse.exe test_parse.c \
+		prof_parse.c prof_tree.c /link /stack:16384
+
+# NEED TO FIX!!
+$(OUTPRE)test_profile.exe: 
+	$(CC) $(CFLAGS2) -o test_profile.exe test_profile.c prof_init.c \
+		prof_file.c prof_parse.c prof_tree.c /link /stack:16384
+
+##DOS##!if 0
+profile.h: prof_err.h profile.hin
+	cat $(srcdir)/profile.hin prof_err.h > $@
+##DOS##!endif
+##DOS##profile.h: prof_err.h profile.hin
+##DOS##	copy /b profile.hin+prof_err.h $@
+
+prof_err.h: $(srcdir)/prof_err.et
+
+prof_err.c: $(srcdir)/prof_err.et
+
+prof_err.o: prof_err.c
+
+# not built by default, but may be useful for testing
+$(srcdir)/profile_tcl.c: profile.swg
+#	(cd $(srcdir) && swig -tcl8 -nosafe -o profile_tcl.c profile.swg)
+profile_tcl.o: $(srcdir)/profile_tcl.c profile.h
+profile_tcl: profile_tcl.o $(PROF_DEPLIB) $(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o profile_tcl profile_tcl.o \
+		$(TCL_MAYBE_RPATH) \
+		-L../et -L../.. -lprofile $(TCL_LIBS) $(MLIBS)
+
+clean-unix:: clean-libs clean-libobjs
+	$(RM) $(PROGS) *.o *~ core prof_err.h profile.h prof_err.c
+	$(RM) test_load test_parse test_profile test_vtable profile_tcl
+	$(RM) modtest.conf testinc.ini testinc2.ini
+	$(RM) -r test_include_dir
+
+clean-windows::
+	$(RM) $(PROFILE_HDR)
+
+check-unix: test_parse test_profile test_vtable test_load modtest.conf
+	$(RUN_TEST) ./test_vtable
+	$(RUN_TEST) ./test_load
+
+DO_TCL=@DO_TCL@
+check-unix: check-unix-tcl-$(DO_TCL)
+
+check-unix-tcl-:
+	@echo "+++"
+	@echo "+++ Tcl not available, some profile tests not run."
+	@echo "+++"
+
+check-unix-tcl-ok: profile_tcl
+	cp $(srcdir)/test.ini test2.ini
+	$(RUN_TEST) ./profile_tcl $(srcdir)/prof_test1
+
+check-windows: $(OUTPRE)test_profile.exe $(OUTPRE)test_parse.exe
+	$(RM) $(OUTPRE)*.obj
+	$(OUTPRE)test_parse test.ini
+
+
+@lib_frag@
+@libobj_frag@
+

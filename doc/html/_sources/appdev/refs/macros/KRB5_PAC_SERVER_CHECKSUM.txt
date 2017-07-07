@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PAC-SERVER-CHECKSUM-data:
+
+KRB5_PAC_SERVER_CHECKSUM
+========================
+
+..
+.. data:: KRB5_PAC_SERVER_CHECKSUM
+..
+
+Server checksum.
+
+
+
+=============================== ======================
+``KRB5_PAC_SERVER_CHECKSUM``       ``6``
+=============================== ======================

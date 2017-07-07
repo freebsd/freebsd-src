@@ -1,0 +1,43 @@
+#
+# Generated makefile dependencies follow.
+#
+rec_close.so rec_close.po $(OUTPRE)rec_close.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../btree/btree.h \
+  $(srcdir)/../btree/extern.h $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h rec_close.c recno.h
+rec_delete.so rec_delete.po $(OUTPRE)rec_delete.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../btree/btree.h \
+  $(srcdir)/../btree/extern.h $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h rec_delete.c recno.h
+rec_get.so rec_get.po $(OUTPRE)rec_get.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../btree/btree.h $(srcdir)/../btree/extern.h \
+  $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  extern.h rec_get.c recno.h
+rec_open.so rec_open.po $(OUTPRE)rec_open.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../btree/btree.h \
+  $(srcdir)/../btree/extern.h $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h rec_open.c recno.h
+rec_put.so rec_put.po $(OUTPRE)rec_put.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../btree/btree.h $(srcdir)/../btree/extern.h \
+  $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  extern.h rec_put.c recno.h
+rec_search.so rec_search.po $(OUTPRE)rec_search.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../btree/btree.h \
+  $(srcdir)/../btree/extern.h $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h rec_search.c recno.h
+rec_seq.so rec_seq.po $(OUTPRE)rec_seq.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../btree/btree.h $(srcdir)/../btree/extern.h \
+  $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  extern.h rec_seq.c recno.h
+rec_utils.so rec_utils.po $(OUTPRE)rec_utils.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../btree/btree.h \
+  $(srcdir)/../btree/extern.h $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h extern.h rec_utils.c recno.h

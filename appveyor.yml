@@ -1,0 +1,16 @@
+build_script:
+  - call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86
+  - mkdir C:\kfw
+  - set KRB_INSTALL_DIR=C:\kfw
+  - set CPU=i386
+  - set NO_LEASH=1
+  - set
+  - cd %APPVEYOR_BUILD_FOLDER%\src
+  - nmake -f Makefile.in prep-windows
+  - nmake
+  - nmake install
+  - set CPU=AMD64
+  - setenv /x64
+  - nmake clean
+  - nmake
+  - nmake install

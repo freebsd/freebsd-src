@@ -1,0 +1,80 @@
+.. highlightlang:: c
+
+.. _krb5-creds-struct:
+
+krb5_creds
+==========
+
+..
+.. c:type:: krb5_creds
+..
+
+Credentials structure including ticket, session key, and lifetime info.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_creds  krb5_creds
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_creds.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_principal	krb5_creds.client
+
+                                             client's principal identifier
+                                             
+
+.. c:member:: krb5_principal	krb5_creds.server
+
+                                             server's principal identifier
+                                             
+
+.. c:member:: krb5_keyblock	krb5_creds.keyblock
+
+                                             session encryption key info
+                                             
+
+.. c:member:: krb5_ticket_times	krb5_creds.times
+
+                                             lifetime info
+                                             
+
+.. c:member:: krb5_boolean	krb5_creds.is_skey
+
+                                             true if ticket is encrypted in another ticket's skey
+                                             
+
+.. c:member:: krb5_flags	krb5_creds.ticket_flags
+
+                                             flags in ticket
+                                             
+
+.. c:member:: krb5_address  **	krb5_creds.addresses
+
+                                             addrs in ticket
+                                             
+
+.. c:member:: krb5_data	krb5_creds.ticket
+
+                                             ticket string itself
+                                             
+
+.. c:member:: krb5_data	krb5_creds.second_ticket
+
+                                             second ticket, if related to ticket (via DUPLICATE-SKEY or ENC-TKT-IN-SKEY)
+                                             
+
+.. c:member:: krb5_authdata  **	krb5_creds.authdata
+
+                                             authorization data
+                                             
+

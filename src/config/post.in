@@ -1,0 +1,230 @@
+############################################################
+## config/post.in
+##
+
+# in case there is no default target (very unlikely)
+all:
+
+check-windows:
+
+##############################
+# dependency generation
+#
+
+depend: depend-postrecurse
+depend-postrecurse: depend-recurse
+depend-recurse: depend-prerecurse
+
+depend-prerecurse:
+depend-postrecurse:
+
+depend-postrecurse: depend-update-makefile
+
+ALL_DEP_SRCS= $(SRCS) $(EXTRADEPSRCS)
+
+# be sure to check ALL_DEP_SRCS against *what it would be if SRCS and
+# EXTRADEPSRCS are both empty*
+$(BUILDTOP)/.depend-verify-srcdir:
+	@if test "$(srcdir)" = "." ; then \
+		echo 1>&2 error: cannot build dependencies with srcdir=. ; \
+		echo 1>&2 "(can't distinguish generated files from source files)" ; \
+		echo 1>&2 "Run 'make distclean' and create a separate build dir" ; \
+		exit 1 ; \
+	elif test -f "$(top_srcdir)/include/autoconf.h"; then \
+		echo 1>&2 "error: generated headers found in source tree" ; \
+		echo 1>&2 "Run 'make distclean' in source tree first" ; \
+		exit 1 ; \
+	else \
+		if test -r $(BUILDTOP)/.depend-verify-srcdir; then :; \
+			else (set -x; touch $(BUILDTOP)/.depend-verify-srcdir); fi \
+	fi
+$(BUILDTOP)/.depend-verify-et: depend-verify-et-$(COM_ERR_VERSION)
+depend-verify-et-k5:
+	@if test -r $(BUILDTOP)/.depend-verify-et; then :; \
+		else (set -x; touch $(BUILDTOP)/.depend-verify-et); fi
+depend-verify-et-sys depend-verify-et-intlsys:
+	@echo 1>&2 error: cannot build dependencies using system et package
+	@exit 1
+$(BUILDTOP)/.depend-verify-ss: depend-verify-ss-$(SS_VERSION)
+depend-verify-ss-k5:
+	@if test -r $(BUILDTOP)/.depend-verify-ss; then :; \
+		else (set -x; touch $(BUILDTOP)/.depend-verify-ss); fi
+depend-verify-ss-sys:
+	@echo 1>&2 error: cannot build dependencies using system ss package
+	@exit 1
+$(BUILDTOP)/.depend-verify-verto: depend-verify-verto-$(VERTO_VERSION)
+depend-verify-verto-k5:
+	@if test -r $(BUILDTOP)/.depend-verify-verto; then :; \
+		else (set -x; touch $(BUILDTOP)/.depend-verify-verto); fi
+depend-verify-verto-sys:
+	@echo 1>&2 error: cannot build dependencies using system verto package
+	@echo 1>&2 Please configure with --without-system-verto
+	@exit 1
+$(BUILDTOP)/.depend-verify-gcc: depend-verify-gcc-@HAVE_GCC@
+depend-verify-gcc-yes:
+	@if test -r $(BUILDTOP)/.depend-verify-gcc; then :; \
+		else (set -x; touch $(BUILDTOP)/.depend-verify-gcc); fi
+depend-verify-gcc-no:
+	@echo 1>&2 error: The '"depend"' rules are written for gcc.
+	@echo 1>&2 Please use gcc, or update the rules to handle your compiler.
+	@exit 1
+
+DEP_CFG_VERIFY = $(BUILDTOP)/.depend-verify-srcdir \
+	$(BUILDTOP)/.depend-verify-et $(BUILDTOP)/.depend-verify-ss \
+	$(BUILDTOP)/.depend-verify-verto
+DEP_VERIFY = $(DEP_CFG_VERIFY) $(BUILDTOP)/.depend-verify-gcc
+
+.d: $(ALL_DEP_SRCS) $(DEP_CFG_VERIFY) depend-dependencies
+	if test "$(ALL_DEP_SRCS)" != " " ; then \
+		$(RM) .dtmp && $(MAKE) .dtmp && mv -f .dtmp .d ; \
+	else \
+		touch .d ; \
+	fi
+
+# These are dependencies of the depend target that do not get fed to
+# the compiler.  Examples include generated header files.
+depend-dependencies:
+
+# .dtmp must *always* be out of date so that $? can be used to perform
+# VPATH searches on the sources.
+#
+# NOTE: This will fail when using Make programs whose VPATH support is
+# broken.
+.dtmp: $(ALL_DEP_SRCS)
+	$(CC) -M -DDEPEND $(ALL_CFLAGS) $? > .dtmp
+
+# NOTE: This will also generate spurious $(OUTPRE) and $(OBJEXT)
+# references in rules for non-library objects in a directory where
+# library objects happen to be built.  It's mostly harmless.
+.depend: .d $(top_srcdir)/util/depfix.pl
+	perl $(top_srcdir)/util/depfix.pl '$(top_srcdir)' '$(mydir)' \
+		'$(srcdir)' '$(BUILDTOP)' '$(STLIBOBJS)' < .d > .depend
+
+# Temporarily keep the rule for removing the dependency line eater
+# until we're sure we've gotten everything converted and excised the
+# old stuff from Makefile.in files.
+depend-update-makefile: .depend depend-recurse
+	if test "$(ALL_DEP_SRCS)" != " " ; then \
+		$(CP) .depend $(srcdir)/deps.new ; \
+	else \
+		echo "# No dependencies here." > $(srcdir)/deps.new ; \
+	fi
+	$(top_srcdir)/config/move-if-changed $(srcdir)/deps.new $(srcdir)/deps
+	sed -e '/^# +++ Dependency line eater +++/,$$d' \
+		< $(srcdir)/Makefile.in > $(srcdir)/Makefile.in.new
+	$(top_srcdir)/config/move-if-changed $(srcdir)/Makefile.in.new \
+		$(srcdir)/Makefile.in
+
+DEPTARGETS = .depend .d .dtmp $(DEP_VERIFY)
+DEPTARGETS_CLEAN = .depend .d .dtmp $(DEPTARGETS_@srcdir@_@CONFIG_RELTOPDIR@)
+DEPTARGETS_@top_srcdir@_. = $(DEP_VERIFY)
+
+# Clear out dependencies.  Should only be used temporarily, e.g., while
+# moving or renaming headers and then rebuilding dependencies.
+undepend: undepend-postrecurse
+undepend-recurse:
+undepend-postrecurse: undepend-recurse
+	if test -n "$(SRCS)" ; then \
+		sed -e '/^# +++ Dependency line eater +++/,$$d' \
+			< $(srcdir)/Makefile.in \
+			> $(srcdir)/Makefile.in.new ;\
+		echo "# +++ Dependency line eater +++" >> $(srcdir)/Makefile.in.new ;\
+		echo "# (dependencies temporarily removed)" >> $(srcdir)/Makefile.in.new ;\
+		$(top_srcdir)/config/move-if-changed $(srcdir)/Makefile.in.new $(srcdir)/Makefile.in;\
+	else :; fi
+
+#
+# end dependency generation
+##############################
+
+# Python tests
+check-unix: check-pytests-@HAVE_PYTHON@
+
+# Makefile.in should add rules to check-pytests to execute Python tests.
+check-pytests-yes: check-pytests
+check-pytests-no:
+check-pytests:
+
+# cmocka tests
+check-unix: check-cmocka-@HAVE_CMOCKA@
+
+check-cmocka-yes: check-cmocka
+check-cmocka-no:
+check-cmocka:
+
+clean: clean-$(WHAT)
+
+clean-unix::
+	$(RM) $(OBJS) $(DEPTARGETS_CLEAN) $(EXTRA_FILES)
+	$(RM) et-[ch]-*.et et-[ch]-*.[ch] testlog
+	-$(RM) -r testdir
+
+clean-windows::
+	$(RM) *.$(OBJEXT)
+	$(RM) msvc.pdb *.err
+
+distclean: distclean-$(WHAT)
+
+distclean-normal-clean:
+	$(MAKE) NORECURSE=true clean
+distclean-prerecurse: distclean-normal-clean
+distclean-nuke-configure-state:
+	$(RM) config.log config.cache config.status Makefile
+distclean-postrecurse: distclean-nuke-configure-state
+
+Makefiles-prerecurse: Makefile
+
+# mydir = relative path from top to this Makefile
+Makefile: $(srcdir)/Makefile.in $(srcdir)/deps $(BUILDTOP)/config.status \
+		$(top_srcdir)/config/pre.in $(top_srcdir)/config/post.in
+	(cd $(BUILDTOP) && $(SHELL) config.status $(mydir)/Makefile)
+$(BUILDTOP)/config.status: $(top_srcdir)/configure
+	(cd $(BUILDTOP) && $(SHELL) config.status --recheck)
+$(top_srcdir)/configure: @MAINT@ \
+		$(top_srcdir)/configure.in \
+		$(top_srcdir)/patchlevel.h \
+		$(top_srcdir)/aclocal.m4
+	(cd $(top_srcdir) && \
+		$(AUTOCONF) --include=$(CONFIG_RELTOPDIR) $(AUTOCONFFLAGS))
+
+RECURSE_TARGETS=all-recurse clean-recurse distclean-recurse install-recurse \
+	generate-files-mac-recurse \
+	check-recurse depend-recurse undepend-recurse \
+	Makefiles-recurse install-headers-recurse
+
+# MY_SUBDIRS overrides any setting of SUBDIRS generated by the
+# configure script that generated this Makefile.  This is needed when
+# the configure script that produced this Makefile creates multiple
+# Makefiles in different directories; the setting of SUBDIRS will be
+# the same in each.
+#
+# LOCAL_SUBDIRS seems to account for the case where the configure
+# script doesn't call any other subsidiary configure scripts, but
+# generates multiple Makefiles.
+$(RECURSE_TARGETS):
+	@case "`echo 'x$(MFLAGS)'|sed -e 's/^x//' -e 's/ --.*$$//'`" \
+		in *[ik]*) e="status=1" ;; *) e="exit 1";; esac; \
+	do_subdirs="$(SUBDIRS)" ; \
+	status=0; \
+	if test -n "$$do_subdirs" && test -z "$(NORECURSE)"; then \
+	for i in $$do_subdirs ; do \
+		if test -d $$i && test -r $$i/Makefile ; then \
+		case $$i in .);; *) \
+			target=`echo $@|sed s/-recurse//`; \
+			echo "making $$target in $(CURRENT_DIR)$$i..."; \
+			if (cd $$i ; $(MAKE) \
+			    CURRENT_DIR=$(CURRENT_DIR)$$i/ $$target) then :; \
+			else eval $$e; fi; \
+			;; \
+		esac; \
+		else \
+			echo "Skipping missing directory $(CURRENT_DIR)$$i" ; \
+		fi; \
+	done; \
+	else :; \
+	fi;\
+	exit $$status
+
+##
+## end of post.in
+############################################################

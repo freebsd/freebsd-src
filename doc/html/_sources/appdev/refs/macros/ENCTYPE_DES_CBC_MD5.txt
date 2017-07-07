@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-DES-CBC-MD5-data:
+
+ENCTYPE_DES_CBC_MD5
+===================
+
+..
+.. data:: ENCTYPE_DES_CBC_MD5
+..
+
+DES cbc mode with RSA-MD5.
+
+
+
+========================== ======================
+``ENCTYPE_DES_CBC_MD5``       ``0x0003``
+========================== ======================

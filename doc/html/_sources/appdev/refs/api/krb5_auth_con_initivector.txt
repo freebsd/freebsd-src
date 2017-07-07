@@ -1,0 +1,48 @@
+krb5_auth_con_initivector
+=========================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_initivector(krb5_context context, krb5_auth_context auth_context)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **auth_context**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Not replaced. 
+
+
+
+
+
+
+
+
+
+
+RFC 4120 doesn't have anything like the initvector concept; only really old protocols may need this API.
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PADATA-PK-AS-REQ-OLD-data:
+
+KRB5_PADATA_PK_AS_REQ_OLD
+=========================
+
+..
+.. data:: KRB5_PADATA_PK_AS_REQ_OLD
+..
+
+PKINIT.
+
+
+
+================================ ======================
+``KRB5_PADATA_PK_AS_REQ_OLD``       ``14``
+================================ ======================

@@ -1,0 +1,7 @@
+#
+# Generated makefile dependencies follow.
+#
+testmod_main.so testmod_main.po $(OUTPRE)testmod_main.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/profile.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h testmod_main.c

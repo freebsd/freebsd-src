@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PRINCIPAL-UNPARSE-DISPLAY-data:
+
+KRB5_PRINCIPAL_UNPARSE_DISPLAY
+==============================
+
+..
+.. data:: KRB5_PRINCIPAL_UNPARSE_DISPLAY
+..
+
+Don't escape special characters.
+
+
+
+===================================== ======================
+``KRB5_PRINCIPAL_UNPARSE_DISPLAY``       ``0x4``
+===================================== ======================

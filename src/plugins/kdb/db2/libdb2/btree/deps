@@ -1,0 +1,56 @@
+#
+# Generated makefile dependencies follow.
+#
+bt_close.so bt_close.po $(OUTPRE)bt_close.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_close.c btree.h extern.h
+bt_conv.so bt_conv.po $(OUTPRE)bt_conv.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  bt_conv.c btree.h extern.h
+bt_debug.so bt_debug.po $(OUTPRE)bt_debug.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_debug.c btree.h extern.h
+bt_delete.so bt_delete.po $(OUTPRE)bt_delete.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_delete.c btree.h extern.h
+bt_get.so bt_get.po $(OUTPRE)bt_get.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  bt_get.c btree.h extern.h
+bt_open.so bt_open.po $(OUTPRE)bt_open.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  bt_open.c btree.h extern.h
+bt_overflow.so bt_overflow.po $(OUTPRE)bt_overflow.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_overflow.c btree.h extern.h
+bt_page.so bt_page.po $(OUTPRE)bt_page.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  bt_page.c btree.h extern.h
+bt_put.so bt_put.po $(OUTPRE)bt_put.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  bt_put.c btree.h extern.h
+bt_search.so bt_search.po $(OUTPRE)bt_search.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_search.c btree.h extern.h
+bt_seq.so bt_seq.po $(OUTPRE)bt_seq.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  $(srcdir)/../include/db-queue.h $(srcdir)/../mpool/mpool.h \
+  bt_seq.c btree.h extern.h
+bt_split.so bt_split.po $(OUTPRE)bt_split.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_split.c btree.h extern.h
+bt_utils.so bt_utils.po $(OUTPRE)bt_utils.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(DB_DEPS) $(srcdir)/../include/config.h \
+  $(srcdir)/../include/db-int.h $(srcdir)/../include/db-queue.h \
+  $(srcdir)/../mpool/mpool.h bt_utils.c btree.h extern.h

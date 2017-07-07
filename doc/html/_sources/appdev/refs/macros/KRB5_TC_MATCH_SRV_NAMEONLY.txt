@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-SRV-NAMEONLY-data:
+
+KRB5_TC_MATCH_SRV_NAMEONLY
+==========================
+
+..
+.. data:: KRB5_TC_MATCH_SRV_NAMEONLY
+..
+
+Only the name portion of the principal name must match.
+
+
+
+================================= ======================
+``KRB5_TC_MATCH_SRV_NAMEONLY``       ``0x00000040``
+================================= ======================

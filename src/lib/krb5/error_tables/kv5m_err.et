@@ -1,0 +1,93 @@
+#
+# src/lib/krb5/kv5m_err.et
+#
+# Copyright 1994 by the Massachusetts Institute of Technology.
+# All Rights Reserved.
+#
+# Export of this software from the United States of America may
+#   require a specific license from the United States Government.
+#   It is the responsibility of any person or organization contemplating
+#   export to obtain such a license before exporting.
+# 
+# WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+# distribute this software and its documentation for any purpose and
+# without fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright notice and
+# this permission notice appear in supporting documentation, and that
+# the name of M.I.T. not be used in advertising or publicity pertaining
+# to distribution of the software without specific, written prior
+# permission.  Furthermore if you modify this software you must label
+# your software as modified software and not distribute it in such a
+# fashion that it might be confused with the original M.I.T. software.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is" without express
+# or implied warranty.
+# 
+#
+# The Kerberos v5 magic numbers errorcode table
+
+error_table kv5m
+
+error_code KV5M_NONE,		"Kerberos V5 magic number table"
+error_code KV5M_PRINCIPAL,	"Bad magic number for krb5_principal structure"
+error_code KV5M_DATA,		"Bad magic number for krb5_data structure"
+error_code KV5M_KEYBLOCK,	"Bad magic number for krb5_keyblock structure"
+error_code KV5M_CHECKSUM,	"Bad magic number for krb5_checksum structure"
+error_code KV5M_ENCRYPT_BLOCK,	"Bad magic number for krb5_encrypt_block structure"
+error_code KV5M_ENC_DATA,	"Bad magic number for krb5_enc_data structure"
+error_code KV5M_CRYPTOSYSTEM_ENTRY,	"Bad magic number for krb5_cryptosystem_entry structure"
+error_code KV5M_CS_TABLE_ENTRY,	"Bad magic number for krb5_cs_table_entry structure"
+error_code KV5M_CHECKSUM_ENTRY,	"Bad magic number for krb5_checksum_entry structure"
+
+error_code KV5M_AUTHDATA,	"Bad magic number for krb5_authdata structure"
+error_code KV5M_TRANSITED,	"Bad magic number for krb5_transited structure"
+error_code KV5M_ENC_TKT_PART,	"Bad magic number for krb5_enc_tkt_part structure"
+error_code KV5M_TICKET,		"Bad magic number for krb5_ticket structure"
+error_code KV5M_AUTHENTICATOR,	"Bad magic number for krb5_authenticator structure"
+error_code KV5M_TKT_AUTHENT,	"Bad magic number for krb5_tkt_authent structure"
+error_code KV5M_CREDS,		"Bad magic number for krb5_creds structure"
+error_code KV5M_LAST_REQ_ENTRY,	"Bad magic number for krb5_last_req_entry structure"
+error_code KV5M_PA_DATA,		"Bad magic number for krb5_pa_data structure"
+error_code KV5M_KDC_REQ,		"Bad magic number for krb5_kdc_req structure"
+error_code KV5M_ENC_KDC_REP_PART, "Bad magic number for krb5_enc_kdc_rep_part structure"
+error_code KV5M_KDC_REP,		"Bad magic number for krb5_kdc_rep structure"
+error_code KV5M_ERROR,		"Bad magic number for krb5_error structure"
+error_code KV5M_AP_REQ,		"Bad magic number for krb5_ap_req structure"
+error_code KV5M_AP_REP,		"Bad magic number for krb5_ap_rep structure"
+error_code KV5M_AP_REP_ENC_PART,	"Bad magic number for krb5_ap_rep_enc_part structure"
+error_code KV5M_RESPONSE,	"Bad magic number for krb5_response structure"
+error_code KV5M_SAFE,		"Bad magic number for krb5_safe structure"
+error_code KV5M_PRIV,		"Bad magic number for krb5_priv structure"
+error_code KV5M_PRIV_ENC_PART,	"Bad magic number for krb5_priv_enc_part structure"
+error_code KV5M_CRED,		"Bad magic number for krb5_cred structure"
+error_code KV5M_CRED_INFO,	"Bad magic number for krb5_cred_info structure"
+error_code KV5M_CRED_ENC_PART,	"Bad magic number for krb5_cred_enc_part structure"
+error_code KV5M_PWD_DATA,	"Bad magic number for krb5_pwd_data structure"
+error_code KV5M_ADDRESS,	"Bad magic number for krb5_address structure"
+error_code KV5M_KEYTAB_ENTRY,	"Bad magic number for krb5_keytab_entry structure"
+error_code KV5M_CONTEXT,	"Bad magic number for krb5_context structure"
+error_code KV5M_OS_CONTEXT,	"Bad magic number for krb5_os_context structure"
+error_code KV5M_ALT_METHOD,	"Bad magic number for krb5_alt_method structure"
+error_code KV5M_ETYPE_INFO_ENTRY, "Bad magic number for krb5_etype_info_entry structure"
+error_code KV5M_DB_CONTEXT,	"Bad magic number for krb5_db_context structure"
+error_code KV5M_AUTH_CONTEXT,	"Bad magic number for krb5_auth_context structure"
+error_code KV5M_KEYTAB,		"Bad magic number for krb5_keytab structure"
+error_code KV5M_RCACHE,		"Bad magic number for krb5_rcache structure"
+error_code KV5M_CCACHE,		"Bad magic number for krb5_ccache structure"
+error_code KV5M_PREAUTH_OPS,	"Bad magic number for krb5_preauth_ops"
+error_code KV5M_SAM_CHALLENGE,	"Bad magic number for krb5_sam_challenge"
+error_code KV5M_SAM_CHALLENGE_2,	"Bad magic number for krb5_sam_challenge_2"
+error_code KV5M_SAM_KEY,	"Bad magic number for krb5_sam_key"
+error_code KV5M_ENC_SAM_RESPONSE_ENC,	"Bad magic number for krb5_enc_sam_response_enc"
+error_code KV5M_ENC_SAM_RESPONSE_ENC_2,	"Bad magic number for krb5_enc_sam_response_enc"
+error_code KV5M_SAM_RESPONSE,	"Bad magic number for krb5_sam_response"
+error_code KV5M_SAM_RESPONSE_2,	"Bad magic number for krb5_sam_response 2"
+error_code KV5M_PREDICTED_SAM_RESPONSE,	"Bad magic number for krb5_predicted_sam_response"
+error_code KV5M_PASSWD_PHRASE_ELEMENT,	"Bad magic number for passwd_phrase_element"
+error_code KV5M_GSS_OID,	"Bad magic number for GSSAPI OID"
+error_code KV5M_GSS_QUEUE,	"Bad magic number for GSSAPI QUEUE"
+error_code KV5M_FAST_ARMORED_REQ, "Bad magic number for fast armored request"
+error_code KV5M_FAST_REQ, "Bad magic number for FAST request"
+error_code KV5M_FAST_RESPONSE, "Bad magic number for FAST response"
+error_code KV5M_AUTHDATA_CONTEXT,  "Bad magic number for krb5_authdata_context"
+end

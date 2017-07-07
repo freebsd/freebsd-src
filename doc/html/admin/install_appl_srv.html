@@ -1,0 +1,235 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>UNIX Application Servers &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="Installation guide" href="install.html" />
+    <link rel="next" title="Configuration Files" href="conf_files/index.html" />
+    <link rel="prev" title="Installing and configuring UNIX client machines" href="install_clients.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="install_clients.html" title="Installing and configuring UNIX client machines"
+            accesskey="P">previous</a> |
+        <a href="conf_files/index.html" title="Configuration Files"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__UNIX Application Servers">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="unix-application-servers">
+<h1>UNIX Application Servers<a class="headerlink" href="#unix-application-servers" title="Permalink to this headline">¶</a></h1>
+<p>An application server is a host that provides one or more services
+over the network.  Application servers can be &#8220;secure&#8221; or &#8220;insecure.&#8221;
+A &#8220;secure&#8221; host is set up to require authentication from every client
+connecting to it.  An &#8220;insecure&#8221; host will still provide Kerberos
+authentication, but will also allow unauthenticated clients to
+connect.</p>
+<p>If you have Kerberos V5 installed on all of your client machines, MIT
+recommends that you make your hosts secure, to take advantage of the
+security that Kerberos authentication affords.  However, if you have
+some clients that do not have Kerberos V5 installed, you can run an
+insecure server, and still take advantage of Kerberos V5&#8217;s single
+sign-on capability.</p>
+<div class="section" id="the-keytab-file">
+<span id="keytab-file"></span><h2>The keytab file<a class="headerlink" href="#the-keytab-file" title="Permalink to this headline">¶</a></h2>
+<p>All Kerberos server machines need a keytab file to authenticate to the
+KDC.  By default on UNIX-like systems this file is named <a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFKTNAME</em></a>.
+The keytab file is an local copy of the host&#8217;s key.  The keytab file
+is a potential point of entry for a break-in, and if compromised,
+would allow unrestricted access to its host.  The keytab file should
+be readable only by root, and should exist only on the machine&#8217;s local
+disk.  The file should not be part of any backup of the machine,
+unless access to the backup data is secured as tightly as access to
+the machine&#8217;s root password.</p>
+<p>In order to generate a keytab for a host, the host must have a
+principal in the Kerberos database.  The procedure for adding hosts to
+the database is described fully in <a class="reference internal" href="database.html#add-mod-del-princs"><em>Adding, modifying and deleting principals</em></a>.  (See
+<a class="reference internal" href="install_kdc.html#slave-host-key"><em>Create host keytabs for slave KDCs</em></a> for a brief description.)  The keytab is
+generated by running <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> and issuing the <a class="reference internal" href="admin_commands/kadmin_local.html#ktadd"><em>ktadd</em></a>
+command.</p>
+<p>For example, to generate a keytab file to allow the host
+<tt class="docutils literal"><span class="pre">trillium.mit.edu</span></tt> to authenticate for the services host, ftp, and
+pop, the administrator <tt class="docutils literal"><span class="pre">joeadmin</span></tt> would issue the command (on
+<tt class="docutils literal"><span class="pre">trillium.mit.edu</span></tt>):</p>
+<div class="highlight-python"><div class="highlight"><pre>trillium% kadmin
+kadmin5: ktadd host/trillium.mit.edu ftp/trillium.mit.edu
+    pop/trillium.mit.edu
+kadmin: Entry for principal host/trillium.mit.edu@ATHENA.MIT.EDU with
+    kvno 3, encryption type DES-CBC-CRC added to keytab
+    FILE:/etc/krb5.keytab.
+kadmin: Entry for principal ftp/trillium.mit.edu@ATHENA.MIT.EDU with
+    kvno 3, encryption type DES-CBC-CRC added to keytab
+    FILE:/etc/krb5.keytab.
+kadmin: Entry for principal pop/trillium.mit.edu@ATHENA.MIT.EDU with
+    kvno 3, encryption type DES-CBC-CRC added to keytab
+    FILE:/etc/krb5.keytab.
+kadmin5: quit
+trillium%
+</pre></div>
+</div>
+<p>If you generate the keytab file on another host, you need to get a
+copy of the keytab file onto the destination host (<tt class="docutils literal"><span class="pre">trillium</span></tt>, in
+the above example) without sending it unencrypted over the network.</p>
+</div>
+<div class="section" id="some-advice-about-secure-hosts">
+<h2>Some advice about secure hosts<a class="headerlink" href="#some-advice-about-secure-hosts" title="Permalink to this headline">¶</a></h2>
+<p>Kerberos V5 can protect your host from certain types of break-ins, but
+it is possible to install Kerberos V5 and still leave your host
+vulnerable to attack.  Obviously an installation guide is not the
+place to try to include an exhaustive list of countermeasures for
+every possible attack, but it is worth noting some of the larger holes
+and how to close them.</p>
+<p>We recommend that backups of secure machines exclude the keytab file
+(<a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFKTNAME</em></a>).  If this is not possible, the backups should at least be
+done locally, rather than over a network, and the backup tapes should
+be physically secured.</p>
+<p>The keytab file and any programs run by root, including the Kerberos
+V5 binaries, should be kept on local disk.  The keytab file should be
+readable only by root.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">UNIX Application Servers</a><ul>
+<li><a class="reference internal" href="#the-keytab-file">The keytab file</a></li>
+<li><a class="reference internal" href="#some-advice-about-secure-hosts">Some advice about secure hosts</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="install.html">Installation guide</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="install_kdc.html">Installing KDCs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="install_clients.html">Installing and configuring UNIX client machines</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">UNIX Application Servers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="install_clients.html" title="Installing and configuring UNIX client machines"
+            >previous</a> |
+        <a href="conf_files/index.html" title="Configuration Files"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__UNIX Application Servers">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

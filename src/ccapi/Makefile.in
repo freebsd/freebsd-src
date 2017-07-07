@@ -1,0 +1,5 @@
+mydir=ccapi
+BUILDTOP=$(REL)..
+
+SUBDIRS= lib server test
+WINSUBDIRS= lib\win server\win test

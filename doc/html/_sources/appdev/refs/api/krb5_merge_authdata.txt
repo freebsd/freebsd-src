@@ -1,0 +1,61 @@
+krb5_merge_authdata -  Merge two authorization data lists into a new list. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_merge_authdata(krb5_context context, krb5_authdata *const * inauthdat1, krb5_authdata *const * inauthdat2, krb5_authdata *** outauthdat)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **inauthdat1** - First list of *krb5_authdata* structures
+
+	          **[in]** **inauthdat2** - Second list of *krb5_authdata* structures
+
+	          **[out]** **outauthdat** - Merged list of *krb5_authdata* structures
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Merge two authdata arrays, such as the array from a ticket and authenticator. Use :c:func:`krb5_free_authdata()` to free *outauthdat* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The last array entry in *inauthdat1* and *inauthdat2* must be a NULL pointer.
+ 
+
+
+

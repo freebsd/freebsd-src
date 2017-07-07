@@ -1,0 +1,56 @@
+krb5_kt_client_default -  Resolve the default client key table. 
+================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_client_default(krb5_context context, krb5_keytab * keytab_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **keytab_out** - Key table handle
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Fill *keytab_out* with a handle to the default client key table.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-cryptotype-struct:
+
+krb5_cryptotype
+===============
+
+..
+.. c:type:: krb5_cryptotype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_cryptotype
+
+

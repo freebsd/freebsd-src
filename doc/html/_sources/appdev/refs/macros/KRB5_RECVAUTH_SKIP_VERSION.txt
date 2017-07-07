@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-RECVAUTH-SKIP-VERSION-data:
+
+KRB5_RECVAUTH_SKIP_VERSION
+==========================
+
+..
+.. data:: KRB5_RECVAUTH_SKIP_VERSION
+..
+
+
+
+
+================================= ======================
+``KRB5_RECVAUTH_SKIP_VERSION``       ``0x0001``
+================================= ======================

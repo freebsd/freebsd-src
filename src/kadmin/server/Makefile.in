@@ -1,0 +1,22 @@
+mydir=kadmin$(S)server
+BUILDTOP=$(REL)..$(S)..
+KDB_DEP_LIB=$(DL_LIB) $(THREAD_LINKOPTS)
+
+LOCALINCLUDES = -I$(top_srcdir)/lib/gssapi/generic \
+	-I$(top_srcdir)/lib/gssapi/krb5 -I$(BUILDTOP)/lib/gssapi/generic \
+	-I$(BUILDTOP)/lib/gssapi/krb5 -I$(top_srcdir)/lib/kadm5/srv
+
+PROG = kadmind
+OBJS = kadm_rpc_svc.o server_stubs.o ovsec_kadmd.o schpw.o misc.o ipropd_svc.o
+SRCS = kadm_rpc_svc.c server_stubs.c ovsec_kadmd.c schpw.c misc.c ipropd_svc.c
+
+all: $(PROG)
+
+$(PROG): $(OBJS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS) $(APPUTILS_DEPLIB) $(VERTO_DEPLIB)
+	$(CC_LINK) -o $(PROG) $(OBJS) $(APPUTILS_LIB) $(KADMSRV_LIBS) $(KDB_DEP_LIB) $(KRB5_BASE_LIBS) $(VERTO_LIBS)
+
+install:
+	$(INSTALL_PROGRAM) $(PROG) ${DESTDIR}$(SERVER_BINDIR)/$(PROG)
+
+clean:
+	$(RM) $(PROG) $(OBJS)

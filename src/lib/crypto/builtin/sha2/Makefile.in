@@ -1,0 +1,25 @@
+mydir=lib$(S)crypto$(S)builtin$(S)sha2
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\sha2
+##DOS##OBJFILE = ..\..\$(OUTPRE)sha2.lst
+
+STLIBOBJS= sha256.o sha512.o
+
+OBJS= $(OUTPRE)sha256.$(OBJEXT) $(OUTPRE)sha512.$(OBJEXT)
+
+SRCS= $(srcdir)/sha256.c $(srcdir)/sha512.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

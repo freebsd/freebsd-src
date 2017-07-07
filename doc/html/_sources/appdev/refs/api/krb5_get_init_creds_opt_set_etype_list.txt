@@ -1,0 +1,44 @@
+krb5_get_init_creds_opt_set_etype_list -  Set allowable encryption types in initial credential options. 
+========================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_etype_list(krb5_get_init_creds_opt * opt, krb5_enctype * etype_list, int etype_list_length)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **etype_list** - Array of encryption types
+
+	          **[in]** **etype_list_length** - Length of *etype_list*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Why use Leash?</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="why">
+</object>
+<h1><a name="id_help_purpose"></a><a name="hid_why_use_leash32"></a>Why
+Use Leash?</h1>
+<p class="MsoNormal">Leash is a graphical system-tray tool designed to
+manage for
+Kerberos tickets on Microsoft Windows. <span style="">&nbsp;</span>Leash
+is used to obtain Kerberos tickets,
+change your Kerberos password, and obtain Andrew File System (AFS)
+tokens.</p>
+<p>Leash combines the functionality of several command line tools a
+user would use to manage Kerberos functions: <a
+ href="leash_external_kinit.htm">kinit</a>, <a
+ href="leash_external_klist.htm">klist</a>, <a
+ href="leash_external_kdestroy.htm">kdestroy</a>, ms2mit, aklog, and
+passwd or kpasswd. Leash combines all of these functions into one user
+interface and supports&nbsp; auto-renewal or <a
+ href="leash_topic_leash_window.htm">user notification</a> when tickets
+are approaching expiration.</p>
+<p class="MsoNormal">There are many ways to execute Leash. In addition
+to
+clicking on a Leash shortcut, you can start Leash from the Windows
+command
+Prompt or Run... option. <span style="">&nbsp;</span>Command-line
+options may be specified.<span style="">&nbsp; </span>If you run Leash
+with the options -i or -kinit, it will display the ticket
+initialization dialog
+and exit; -m or –ms2mit or –import will import tickets from the
+Microsoft
+Windows logon session (if available) and exit; -d or -destroy will
+destroy all
+existing tickets and exit; -r or –renew will renew existing Kerberos
+tickets
+(if possible) and exit; -a or –autoinit will display the ticket
+initialization
+dialog if you have no Kerberos tickets.<o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">You may create a shortcut to Leash within your
+Windows
+Startup folder (Start Menu-&gt;Programs-&gt;Startup).<span style="">&nbsp;
+</span><span style="">&nbsp;</span>A
+shortcut to “Leash32.exe –autoinit” ensures that Kerberos tickets are
+available
+for the use of Kerberized applications throughout your Windows logon
+session.</p>
+<p class="MsoNormal">If Leash is not executed before using a Kerberized
+application, the application may prompt you for your password. Some
+applications, like lpr, never prompt you for a password. These
+applications
+simply terminate with a message indicating that you are not
+authenticated. Before
+these applications can successfully be used a separate program, such as
+Leash
+or kinit, must be used to first authenticate you using Kerberos.<b><o:p>&nbsp;</o:p></b></p>
+<p class="MsoNormal">Leash does not perform a logon in the sense of the
+Windows
+Logon Service.<span style="">&nbsp; </span>A logon service would do
+more than manage Kerberos tickets. A logon service would authenticate
+you to
+the local machine, validate access to your local file system and
+performs
+additional set-up tasks. These are beyond the scope of Leash. Leash
+simply
+allows you to manage Kerberos tickets on behalf of compatible
+applications and
+to change your Kerberos password. <o:p></o:p></p>
+</body>
+</html>

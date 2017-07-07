@@ -1,0 +1,45 @@
+.. highlightlang:: c
+
+.. _krb5-ticket-times-struct:
+
+krb5_ticket_times
+=================
+
+..
+.. c:type:: krb5_ticket_times
+..
+
+Ticket start time, end time, and renewal duration.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_ticket_times  krb5_ticket_times
+
+
+Members
+---------
+
+
+.. c:member:: krb5_timestamp	krb5_ticket_times.authtime
+
+                                             Time at which KDC issued the initial ticket that corresponds to this ticket.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_ticket_times.starttime
+
+                                             optional in ticket, if not present, use *authtime* 
+                                             
+
+.. c:member:: krb5_timestamp	krb5_ticket_times.endtime
+
+                                             Ticket expiration time.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_ticket_times.renew_till
+
+                                             Latest time at which renewal of ticket can be valid.
+                                             
+

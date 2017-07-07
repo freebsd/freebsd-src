@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-GC-CACHED-data:
+
+KRB5_GC_CACHED
+==============
+
+..
+.. data:: KRB5_GC_CACHED
+..
+
+Want cached ticket only.
+
+
+
+===================== ======================
+``KRB5_GC_CACHED``       ``2``
+===================== ======================

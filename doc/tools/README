@@ -1,0 +1,62 @@
+How to deploy the Doxygen output in Sphinx project.
+====================================================
+
+The text below is meant to give the instructions on how to incorporate MIT Kerberos API reference documentation into Sphinx document hierarchy.  The Sphinx API documentation can be constructed with (Part B) or without (Part A) the bridge to the original Doxygen HTML output.
+
+Pre-requisites:
+- python 2.5+ with Cheetah, lxml and  xml extension modules installed;
+- For part B only:
+    -    Sphinx "doxylink" extension;
+    -    Doxygen HTML output
+
+
+Part A:    Transforming Doxygen XML output into reStructuredText (rst)  without the bridge to Doxygen HTML output.
+
+1.    Delete lines containing text "Doxygen reference" from the template files func_document.tmpl and type_document.tmpl;
+
+2.    In the Doxygen configuration file set GENERATE_XML to YES. Generate Doxygen XML output;
+
+3.    Suppose the Doxygen XML output is located in doxy_xml_dir  and the desired output directory is rst_dir.
+      Run:
+      python doxy.py -i  doxy_xml_dir -o rst_dir -t func
+      This will result in the storing of the API function documentation files in rst format in the rst_dir. The file names are constructed based on the function name. For example, the file for krb5_build_principal() will be krb5_build_principal.rst
+
+      Run:
+      python doxy.py -i  doxy_xml_dir -o rst_dir -t typedef
+      It is similar to the API function conversion, but for data types. The result will be stored under rst_dir/types directory
+
+      Alternatively, running
+      python doxy.py -i  doxy_xml_dir -o rst_dir
+      or
+      python doxy.py -i  doxy_xml_dir -o rst_dir -t all
+      converts Doxygen XML output into reStructuredText format files both for API functions and data types;
+
+4.    In appdev/index.rst add the following section to point to the API references:
+
+      .. toctree::
+          :maxdepth: 1
+
+          refs/index.rst
+
+5.    Copy the content of rst_dir into appdev/refs/api/ directory and rst_dir/types into appdev/refs/types directory;
+
+6.    Rebuild Sphinx source:
+      sphinx-build source_dir build_dir
+
+
+
+
+Part B:    Bridge to Doxygen HTML output.
+
+1. Transform Doxygen XML output into reStructuredText.
+   In src/Doxygen configuration file request generation of the tag file and XML output:
+       GENERATE_TAGFILE       = krb5doxy.tag
+       GENERATE_XML           = YES
+
+2. Modify Sphinx conf.py file to point to the "doxylink" extension and Doxygen tag file:
+      extensions = ['sphinx.ext.autodoc', 'sphinxcontrib.doxylink']
+      doxylink = { ' krb5doxy' : ('/tmp/krb5doxy.tag, ' doxy_html_dir ') }
+
+   where doxy_html_dir is the location of the Doxygen HTML output
+
+3.  Continue with steps 3 - 6 of Part A.

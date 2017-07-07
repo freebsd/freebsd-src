@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-PREAUTH-LIST-data:
+
+KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST
+====================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST
+..
+
+
+
+
+=========================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST``       ``0x0040``
+=========================================== ======================

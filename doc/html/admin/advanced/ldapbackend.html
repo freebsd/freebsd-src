@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDAP backend on Ubuntu 10.4 (lucid) &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="Advanced topics" href="index.html" />
+    <link rel="next" title="Retiring DES" href="retiring-des.html" />
+    <link rel="prev" title="Advanced topics" href="index.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="Advanced topics"
+            accesskey="P">previous</a> |
+        <a href="retiring-des.html" title="Retiring DES"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__LDAP backend on Ubuntu 10.4 (lucid)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="ldap-backend-on-ubuntu-10-4-lucid">
+<span id="ldap-be-ubuntu"></span><h1>LDAP backend on Ubuntu 10.4 (lucid)<a class="headerlink" href="#ldap-backend-on-ubuntu-10-4-lucid" title="Permalink to this headline">¶</a></h1>
+<p>Setting up Kerberos v1.9 with LDAP backend on Ubuntu 10.4 (Lucid Lynx)</p>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<p>Install the following packages: <em>slapd, ldap-utils</em> and <em>libldap2-dev</em></p>
+<p>You can install the necessary packages with these commands:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo apt-get install slapd
+sudo apt-get install ldap-utils
+sudo apt-get install libldap2-dev
+</pre></div>
+</div>
+<p>Extend the user schema using schemas from standart OpenLDAP
+distribution: <em>cosine, mics, nis, inetcomperson</em></p>
+<div class="highlight-python"><div class="highlight"><pre>ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/cosine.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/mics.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/nis.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/inetcomperson.ldif
+</pre></div>
+</div>
+</div>
+<div class="section" id="building-kerberos-from-source">
+<h2>Building Kerberos from source<a class="headerlink" href="#building-kerberos-from-source" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre>./configure --with-ldap
+make
+sudo make install
+</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-kerberos">
+<h2>Setting up Kerberos<a class="headerlink" href="#setting-up-kerberos" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="configuration">
+<h3>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h3>
+<p>Update kdc.conf with the LDAP back-end information:</p>
+<div class="highlight-python"><div class="highlight"><pre>[realms]
+    EXAMPLE.COM = {
+        database_module = LDAP
+    }
+
+[dbmodules]
+    LDAP = {
+        db_library = kldap
+        ldap_kerberos_container_dn = cn=krbContainer,dc=example,dc=com
+        ldap_kdc_dn = cn=admin,dc=example,dc=com
+        ldap_kadmind_dn = cn=admin,dc=example,dc=com
+        ldap_service_password_file = /usr/local/var/krb5kdc/admin.stash
+        ldap_servers = ldapi:///
+    }
+</pre></div>
+</div>
+</div>
+<div class="section" id="schema">
+<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline">¶</a></h3>
+<p>From the source tree copy
+<tt class="docutils literal"><span class="pre">src/plugins/kdb/ldap/libkdb_ldap/kerberos.schema</span></tt> into
+<tt class="docutils literal"><span class="pre">/etc/ldap/schema</span></tt></p>
+<p>Warning: this step should be done after slapd is installed to avoid
+problems with slapd installation.</p>
+<p>To convert kerberos.schema to run-time configuration (<tt class="docutils literal"><span class="pre">cn=config</span></tt>)
+do the following:</p>
+<ol class="arabic">
+<li><p class="first">Create a temporary file <tt class="docutils literal"><span class="pre">/tmp/schema_convert.conf</span></tt> with the
+following content:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">include</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">ldap</span><span class="o">/</span><span class="n">schema</span><span class="o">/</span><span class="n">kerberos</span><span class="o">.</span><span class="n">schema</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Create a temporary directory <tt class="docutils literal"><span class="pre">/tmp/krb5_ldif</span></tt>.</p>
+</li>
+<li><p class="first">Run:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">slaptest</span> <span class="o">-</span><span class="n">f</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">schema_convert</span><span class="o">.</span><span class="n">conf</span> <span class="o">-</span><span class="n">F</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5_ldif</span>
+</pre></div>
+</div>
+<p>This should in a new file named
+<tt class="docutils literal"><span class="pre">/tmp/krb5_ldif/cn=config/cn=schema/cn={0}kerberos.ldif</span></tt>.</p>
+</li>
+<li><p class="first">Edit <tt class="docutils literal"><span class="pre">/tmp/krb5_ldif/cn=config/cn=schema/cn={0}kerberos.ldif</span></tt> by
+replacing the lines:</p>
+<div class="highlight-python"><div class="highlight"><pre>dn: cn={0}kerberos
+cn: {0}kerberos
+</pre></div>
+</div>
+<p>with</p>
+<blockquote>
+<div><p>dn: cn=kerberos,cn=schema,cn=config
+cn: kerberos</p>
+</div></blockquote>
+<p>Also, remove following attribute-value pairs:</p>
+<div class="highlight-python"><div class="highlight"><pre>structuralObjectClass: olcSchemaConfig
+entryUUID: ...
+creatorsName: cn=config
+createTimestamp: ...
+entryCSN: ...
+modifiersName: cn=config
+modifyTimestamp: ...
+</pre></div>
+</div>
+</li>
+<li><p class="first">Load the new schema with ldapadd (with the proper authentication):</p>
+<div class="highlight-python"><div class="highlight"><pre>ldapadd -Y EXTERNAL -H ldapi:/// -f  /tmp/krb5_ldif/cn=config/cn=schema/cn={0}kerberos.ldif
+</pre></div>
+</div>
+<p>which should result the message <tt class="docutils literal"><span class="pre">adding</span> <span class="pre">new</span> <span class="pre">entry</span>
+<span class="pre">&quot;cn=kerberos,cn=schema,cn=config&quot;</span></tt>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="create-kerberos-database">
+<h2>Create Kerberos database<a class="headerlink" href="#create-kerberos-database" title="Permalink to this headline">¶</a></h2>
+<p>Using LDAP administrator credentials, create Kerberos database and
+master key stash:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,dc=example,dc=com -H ldapi:/// create -s
+</pre></div>
+</div>
+<p>Stash the LDAP administrative passwords:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,dc=example,dc=com -H ldapi:/// stashsrvpw cn=admin,dc=example,dc=com
+</pre></div>
+</div>
+<p>Start <a class="reference internal" href="../admin_commands/krb5kdc.html#krb5kdc-8"><em>krb5kdc</em></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">krb5kdc</span>
+</pre></div>
+</div>
+<p>To destroy database run:</p>
+<div class="highlight-python"><div class="highlight"><pre>kdb5_ldap_util -D cn=admin,dc=example,dc=com -H ldapi:/// destroy -f
+</pre></div>
+</div>
+</div>
+<div class="section" id="useful-references">
+<h2>Useful references<a class="headerlink" href="#useful-references" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="https://help.ubuntu.com/10.04/serverguide/C/kerberos-ldap.html">Kerberos and LDAP</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">LDAP backend on Ubuntu 10.4 (lucid)</a><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#building-kerberos-from-source">Building Kerberos from source</a></li>
+<li><a class="reference internal" href="#setting-up-kerberos">Setting up Kerberos</a><ul>
+<li><a class="reference internal" href="#configuration">Configuration</a></li>
+<li><a class="reference internal" href="#schema">Schema</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#create-kerberos-database">Create Kerberos database</a></li>
+<li><a class="reference internal" href="#useful-references">Useful references</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced topics</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="">LDAP backend on Ubuntu 10.4 (lucid)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="retiring-des.html">Retiring DES</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="Advanced topics"
+            >previous</a> |
+        <a href="retiring-des.html" title="Retiring DES"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__LDAP backend on Ubuntu 10.4 (lucid)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

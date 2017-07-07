@@ -1,0 +1,56 @@
+krb5_get_default_realm -  Retrieve the default realm. 
+======================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_default_realm(krb5_context context, char ** lrealm)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **lrealm** - Default realm name
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Retrieves the default realm to be used if no user-specified realm is available.
+
+
+
+Use :c:func:`krb5_free_default_realm()` to free *lrealm* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

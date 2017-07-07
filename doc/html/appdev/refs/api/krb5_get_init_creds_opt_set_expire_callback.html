@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>krb5_get_init_creds_opt_set_expire_callback - Set an expiration callback in initial credential options. &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
+    <link rel="up" title="krb5 API" href="index.html" />
+    <link rel="next" title="krb5_get_init_creds_opt_set_fast_ccache - Set FAST armor cache in initial credential options." href="krb5_get_init_creds_opt_set_fast_ccache.html" />
+    <link rel="prev" title="krb5_get_init_creds_opt_set_etype_list - Set allowable encryption types in initial credential options." href="krb5_get_init_creds_opt_set_etype_list.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_get_init_creds_opt_set_etype_list.html" title="krb5_get_init_creds_opt_set_etype_list - Set allowable encryption types in initial credential options."
+            accesskey="P">previous</a> |
+        <a href="krb5_get_init_creds_opt_set_fast_ccache.html" title="krb5_get_init_creds_opt_set_fast_ccache - Set FAST armor cache in initial credential options."
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_get_init_creds_opt_set_expire_callback -  Set an expiration callback in initial credential options.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="krb5-get-init-creds-opt-set-expire-callback-set-an-expiration-callback-in-initial-credential-options">
+<h1>krb5_get_init_creds_opt_set_expire_callback -  Set an expiration callback in initial credential options.<a class="headerlink" href="#krb5-get-init-creds-opt-set-expire-callback-set-an-expiration-callback-in-initial-credential-options" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="c.krb5_get_init_creds_opt_set_expire_callback">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_get_init_creds_opt_set_expire_callback</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt">krb5_get_init_creds_opt</a> *<em>&nbsp;opt</em>, <a class="reference internal" href="../types/krb5_expire_callback_func.html#c.krb5_expire_callback_func" title="krb5_expire_callback_func">krb5_expire_callback_func</a><em>&nbsp;cb</em>, void *<em>&nbsp;data</em><big>)</big><a class="headerlink" href="#c.krb5_get_init_creds_opt_set_expire_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p><strong>[in]</strong> <strong>opt</strong> - Options structure</p>
+<p><strong>[in]</strong> <strong>cb</strong> - Callback function</p>
+<p class="last"><strong>[in]</strong> <strong>data</strong> - Callback argument</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Set a callback to receive password and account expiration times.</p>
+<p>This option only applies to <a class="reference internal" href="krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><tt class="xref c c-func docutils literal"><span class="pre">krb5_get_init_creds_password()</span></tt></a> . <em>cb</em> will be invoked if and only if credentials are successfully acquired. The callback will receive the <em>context</em> from the <a class="reference internal" href="krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><tt class="xref c c-func docutils literal"><span class="pre">krb5_get_init_creds_password()</span></tt></a> call and the <em>data</em> argument supplied with this API. The remaining arguments should be interpreted as follows:</p>
+<p>If <em>is_last_req</em> is true, then the KDC reply contained last-req entries which unambiguously indicated the password expiration, account expiration, or both. (If either value was not present, the corresponding argument will be 0.) Furthermore, a non-zero <em>password_expiration</em> should be taken as a suggestion from the KDC that a warning be displayed.</p>
+<p>If <em>is_last_req</em> is false, then <em>account_expiration</em> will be 0 and <em>password_expiration</em> will contain the expiration time of either the password or account, or 0 if no expiration time was indicated in the KDC reply. The callback should independently decide whether to display a password expiration warning.</p>
+<p>Note that <em>cb</em> may be invoked even if credentials are being acquired for the kadmin/changepw service in order to change the password. It is the caller&#8217;s responsibility to avoid displaying a password expiry warning in this case.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Setting an expire callback with this API will cause <a class="reference internal" href="krb5_get_init_creds_password.html#c.krb5_get_init_creds_password" title="krb5_get_init_creds_password"><tt class="xref c c-func docutils literal"><span class="pre">krb5_get_init_creds_password()</span></tt></a> not to send password expiry warnings to the prompter, as it ordinarily may.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">New in 1.9</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_get_init_creds_opt_set_expire_callback -  Set an expiration callback in initial credential options.</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_get_init_creds_opt_set_etype_list.html" title="krb5_get_init_creds_opt_set_etype_list - Set allowable encryption types in initial credential options."
+            >previous</a> |
+        <a href="krb5_get_init_creds_opt_set_fast_ccache.html" title="krb5_get_init_creds_opt_set_fast_ccache - Set FAST armor cache in initial credential options."
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_get_init_creds_opt_set_expire_callback -  Set an expiration callback in initial credential options.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

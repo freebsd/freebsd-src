@@ -1,0 +1,56 @@
+krb5_auth_con_setports -  Set local and remote port fields in an auth context. 
+===============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_setports(krb5_context context, krb5_auth_context auth_context, krb5_address * local_port, krb5_address * remote_port)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **local_port** - Local port
+
+	          **[in]** **remote_port** - Remote port
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function releases the storage assigned to the contents of the local and remote ports of *auth_context* and then sets them to *local_port* and *remote_port* respectively.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_auth_con_genaddrs()` 
+ 
+
+
+
+

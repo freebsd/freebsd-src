@@ -1,0 +1,4 @@
+The manual page files in this directory are generated from
+reStructuredText format from doc/.  Edits made here will not
+survive a run of "make rstman" from the doc directory, except for the
+files that implement "shadow manpages".

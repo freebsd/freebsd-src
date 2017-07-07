@@ -1,0 +1,262 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Principal names and DNS &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="For administrators" href="index.html" />
+    <link rel="next" title="Encryption types" href="enctypes.html" />
+    <link rel="prev" title="OTP Preauthentication" href="otp.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="otp.html" title="OTP Preauthentication"
+            accesskey="P">previous</a> |
+        <a href="enctypes.html" title="Encryption types"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Principal names and DNS">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="principal-names-and-dns">
+<h1>Principal names and DNS<a class="headerlink" href="#principal-names-and-dns" title="Permalink to this headline">¶</a></h1>
+<p>Kerberos clients can do DNS lookups to canonicalize service principal
+names.  This can cause difficulties when setting up Kerberos
+application servers, especially when the client&#8217;s name for the service
+is different from what the service thinks its name is.</p>
+<div class="section" id="service-principal-names">
+<h2>Service principal names<a class="headerlink" href="#service-principal-names" title="Permalink to this headline">¶</a></h2>
+<p>A frequently used kind of principal name is the host-based service
+principal name.  This kind of principal name has two components: a
+service name and a hostname.  For example, <tt class="docutils literal"><span class="pre">imap/imap.example.com</span></tt>
+is the principal name of the &#8220;imap&#8221; service on the host
+&#8220;imap.example.com&#8221;.  Other possible service names for the first
+component include &#8220;host&#8221; (remote login services such as ssh), &#8220;HTTP&#8221;,
+and &#8220;nfs&#8221; (Network File System).</p>
+<p>Service administrators often publish well-known hostname aliases that
+they would prefer users to use instead of the canonical name of the
+service host.  This gives service administrators more flexibility in
+deploying services.  For example, a shell login server might be named
+&#8220;long-vanity-hostname.example.com&#8221;, but users will naturally prefer to
+type something like &#8220;login.example.com&#8221;.  Hostname aliases also allow
+for administrators to set up load balancing for some sorts of services
+based on rotating <tt class="docutils literal"><span class="pre">CNAME</span></tt> records in DNS.</p>
+</div>
+<div class="section" id="service-principal-canonicalization">
+<h2>Service principal canonicalization<a class="headerlink" href="#service-principal-canonicalization" title="Permalink to this headline">¶</a></h2>
+<p>MIT Kerberos clients currently always do forward resolution (looking
+up the IPv4 and possibly IPv6 addresses using <tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt>) of
+the hostname part of a host-based service principal to canonicalize
+the hostname.  They obtain the &#8220;canonical&#8221; name of the host when doing
+so.  By default, MIT Kerberos clients will also then do reverse DNS
+resolution (looking up the hostname associated with the IPv4 or IPv6
+address using <tt class="docutils literal"><span class="pre">getnameinfo()</span></tt>) of the hostname.  Using the
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> setting:</p>
+<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
+    rdns = false
+</pre></div>
+</div>
+<p>will disable reverse DNS lookup on clients.  The default setting is
+&#8220;true&#8221;.</p>
+<p>Operating system bugs may prevent a setting of <tt class="docutils literal"><span class="pre">rdns</span> <span class="pre">=</span> <span class="pre">false</span></tt> from
+disabling reverse DNS lookup.  Some versions of GNU libc have a bug in
+<tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt> that cause them to look up <tt class="docutils literal"><span class="pre">PTR</span></tt> records even when
+not required.  MIT Kerberos releases krb5-1.10.2 and newer have a
+workaround for this problem, as does the krb5-1.9.x series as of
+release krb5-1.9.4.</p>
+</div>
+<div class="section" id="reverse-dns-mismatches">
+<h2>Reverse DNS mismatches<a class="headerlink" href="#reverse-dns-mismatches" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes, an enterprise will have control over its forward DNS but
+not its reverse DNS.  The reverse DNS is sometimes under the control
+of the Internet service provider of the enterprise, and the enterprise
+may not have much influence in setting up reverse DNS records for its
+address space.  If there are difficulties with getting forward and
+reverse DNS to match, it is best to set <tt class="docutils literal"><span class="pre">rdns</span> <span class="pre">=</span> <span class="pre">false</span></tt> on client
+machines.</p>
+</div>
+<div class="section" id="overriding-application-behavior">
+<h2>Overriding application behavior<a class="headerlink" href="#overriding-application-behavior" title="Permalink to this headline">¶</a></h2>
+<p>Applications can choose to use a default hostname component in their
+service principal name when accepting authentication, which avoids
+some sorts of hostname mismatches.  Because not all relevant
+applications do this yet, using the <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> setting:</p>
+<div class="highlight-python"><div class="highlight"><pre>[libdefaults]
+    ignore_acceptor_hostname = true
+</pre></div>
+</div>
+<p>will allow the Kerberos library to override the application&#8217;s choice
+of service principal hostname and will allow a server program to
+accept incoming authentications using any key in its keytab that
+matches the service name and realm name (if given).  This setting
+defaults to &#8220;false&#8221; and is available in releases krb5-1.10 and later.</p>
+</div>
+<div class="section" id="provisioning-keytabs">
+<h2>Provisioning keytabs<a class="headerlink" href="#provisioning-keytabs" title="Permalink to this headline">¶</a></h2>
+<p>One service principal entry that should be in the keytab is a
+principal whose hostname component is the canonical hostname that
+<tt class="docutils literal"><span class="pre">getaddrinfo()</span></tt> reports for all known aliases for the host.  If the
+reverse DNS information does not match this canonical hostname, an
+additional service principal entry should be in the keytab for this
+different hostname.</p>
+</div>
+<div class="section" id="specific-application-advice">
+<h2>Specific application advice<a class="headerlink" href="#specific-application-advice" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="secure-shell-ssh">
+<h3>Secure shell (ssh)<a class="headerlink" href="#secure-shell-ssh" title="Permalink to this headline">¶</a></h3>
+<p>Setting <tt class="docutils literal"><span class="pre">GSSAPIStrictAcceptorCheck</span> <span class="pre">=</span> <span class="pre">no</span></tt> in the configuration file
+of modern versions of the openssh daemon will allow the daemon to try
+any key in its keytab when accepting a connection, rather than looking
+for the keytab entry that matches the host&#8217;s own idea of its name
+(typically the name that <tt class="docutils literal"><span class="pre">gethostname()</span></tt> returns).  This requires
+krb5-1.10 or later.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Principal names and DNS</a><ul>
+<li><a class="reference internal" href="#service-principal-names">Service principal names</a></li>
+<li><a class="reference internal" href="#service-principal-canonicalization">Service principal canonicalization</a></li>
+<li><a class="reference internal" href="#reverse-dns-mismatches">Reverse DNS mismatches</a></li>
+<li><a class="reference internal" href="#overriding-application-behavior">Overriding application behavior</a></li>
+<li><a class="reference internal" href="#provisioning-keytabs">Provisioning keytabs</a></li>
+<li><a class="reference internal" href="#specific-application-advice">Specific application advice</a><ul>
+<li><a class="reference internal" href="#secure-shell-ssh">Secure shell (ssh)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">Principal names and DNS</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="otp.html" title="OTP Preauthentication"
+            >previous</a> |
+        <a href="enctypes.html" title="Encryption types"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Principal names and DNS">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

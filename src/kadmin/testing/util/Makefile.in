@@ -1,0 +1,42 @@
+mydir=kadmin$(S)testing$(S)util
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = $(TCL_INCLUDES) -I$(BUILDTOP)/lib/kdb/
+# Force Tcl headers to use stdarg.h, because krb5 does too, and if
+# Tcl uses varargs.h it'll just mess things up.
+DEFINES= -DHAS_STDARG
+KRB5_PTHREAD_LIB=$(THREAD_LINKOPTS) 
+
+PROG_LIBPATH=-L$(TOPLIBD) $(TCL_LIBPATH)
+PROG_RPATH=$(KRB5_LIBDIR)$(TCL_RPATH)
+
+SRCS	=	$(srcdir)/tcl_kadm5.c $(srcdir)/test.c
+OBJS	=	tcl_kadm5.o test.o
+
+CLNTPROG=	kadm5_clnt_tcl
+SRVPROG	=	kadm5_srv_tcl
+
+DO_ALL=@DO_ALL@
+
+all: all-$(DO_ALL)
+
+all-:
+	@echo "+++"
+	@echo "+++ WARNING: Tcl not available.  The kadm5 tests will not be run."
+	@echo "+++"
+	@echo 'Skipped kadm5 tests: Tcl not found' >> $(SKIPTESTS)
+
+all-tcl: $(CLNTPROG) $(SRVPROG)
+
+$(SRVPROG): $(OBJS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $(SRVPROG) $(OBJS) $(TCL_MAYBE_RPATH) \
+		$(KADMSRV_LIBS) $(KRB5_PTHREAD_LIB) $(KRB5_BASE_LIBS) $(TCL_LIBS)
+
+$(CLNTPROG): $(OBJS) $(KADMCLNT_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $(CLNTPROG) $(OBJS) $(TCL_MAYBE_RPATH) \
+		$(KRB5_PTHREAD_LIB) $(KADMCLNT_LIBS) $(KRB5_BASE_LIBS) $(TCL_LIBS)
+
+bsddb_dump: bsddb_dump.o
+	$(CC_LINK) -o bsddb_dump bsddb_dump.o $(KADMSRV_LIBS)
+
+clean:
+	$(RM) $(CLNTPROG) $(SRVPROG)

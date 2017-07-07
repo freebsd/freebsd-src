@@ -1,0 +1,36 @@
+mydir=plugins$(S)kdb$(S)ldap
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_DB_MODULE_DIR)
+
+SUBDIRS= libkdb_ldap
+
+LOCALINCLUDES = -I../../../lib/kdb -I$(srcdir)/../../../lib/kdb \
+	-I$(srcdir)/libkdb_ldap
+
+LIBBASE=kldap
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kdb/ldap
+# Depends on libk5crypto and libkrb5
+# Also on gssrpc, for xdr stuff.
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libkdb_ldap$(SHLIBEXT) \
+	$(GSSRPC_DEPLIBS) \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
+	$(TOPLIBD)/lib$(SUPPORT_LIBNAME)$(SHLIBEXT)
+SHLIB_EXPLIBS= -lkdb_ldap $(GSSRPC_LIBS) -lkrb5 -lcom_err -lk5crypto -lkrb5support $(LIBS)
+
+SRCS= 	$(srcdir)/ldap_exp.c
+
+$(TOPLIBD)/libkdb_ldap$(SHLIBEXT) : all-recurse
+
+STLIBOBJS= ldap_exp.o
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@
+

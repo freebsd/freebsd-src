@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _TKT-FLG-MAY-POSTDATE-data:
+
+TKT_FLG_MAY_POSTDATE
+====================
+
+..
+.. data:: TKT_FLG_MAY_POSTDATE
+..
+
+
+
+
+=========================== ======================
+``TKT_FLG_MAY_POSTDATE``       ``0x04000000``
+=========================== ======================

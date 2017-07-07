@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>kinit &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="User commands" href="index.html" />
+    <link rel="next" title="klist" href="klist.html" />
+    <link rel="prev" title="kdestroy" href="kdestroy.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kdestroy.html" title="kdestroy"
+            accesskey="P">previous</a> |
+        <a href="klist.html" title="klist"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kinit">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="kinit">
+<span id="kinit-1"></span><h1>kinit<a class="headerlink" href="#kinit" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>kinit</strong>
+[<strong>-V</strong>]
+[<strong>-l</strong> <em>lifetime</em>]
+[<strong>-s</strong> <em>start_time</em>]
+[<strong>-r</strong> <em>renewable_life</em>]
+[<strong>-p</strong> | -<strong>P</strong>]
+[<strong>-f</strong> | -<strong>F</strong>]
+[<strong>-a</strong>]
+[<strong>-A</strong>]
+[<strong>-C</strong>]
+[<strong>-E</strong>]
+[<strong>-v</strong>]
+[<strong>-R</strong>]
+[<strong>-k</strong> [-<strong>t</strong> <em>keytab_file</em>]]
+[<strong>-c</strong> <em>cache_name</em>]
+[<strong>-n</strong>]
+[<strong>-S</strong> <em>service_name</em>]
+[<strong>-I</strong> <em>input_ccache</em>]
+[<strong>-T</strong> <em>armor_ccache</em>]
+[<strong>-X</strong> <em>attribute</em>[=<em>value</em>]]
+[<em>principal</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>kinit obtains and caches an initial ticket-granting ticket for
+<em>principal</em>.  If <em>principal</em> is absent, kinit chooses an appropriate
+principal name based on existing credential cache contents or the
+local username of the user invoking kinit.  Some options modify the
+choice of principal name.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>-V</strong></dt>
+<dd>display verbose output.</dd>
+<dt><strong>-l</strong> <em>lifetime</em></dt>
+<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests a ticket with the lifetime
+<em>lifetime</em>.</p>
+<p>For example, <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5:30</span></tt> or <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-l</span> <span class="pre">5h30m</span></tt>.</p>
+<p class="last">If the <strong>-l</strong> option is not specified, the default ticket lifetime
+(configured by each site) is used.  Specifying a ticket lifetime
+longer than the maximum ticket lifetime (configured by each site)
+will not override the configured maximum ticket lifetime.</p>
+</dd>
+<dt><strong>-s</strong> <em>start_time</em></dt>
+<dd><p class="first">(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests a postdated ticket.  Postdated
+tickets are issued with the <strong>invalid</strong> flag set, and need to be
+resubmitted to the KDC for validation before use.</p>
+<p class="last"><em>start_time</em> specifies the duration of the delay before the ticket
+can become valid.</p>
+</dd>
+<dt><strong>-r</strong> <em>renewable_life</em></dt>
+<dd>(<a class="reference internal" href="../../basic/date_format.html#duration"><em>Time duration</em></a> string.)  Requests renewable tickets, with a total
+lifetime of <em>renewable_life</em>.</dd>
+<dt><strong>-f</strong></dt>
+<dd>requests forwardable tickets.</dd>
+<dt><strong>-F</strong></dt>
+<dd>requests non-forwardable tickets.</dd>
+<dt><strong>-p</strong></dt>
+<dd>requests proxiable tickets.</dd>
+<dt><strong>-P</strong></dt>
+<dd>requests non-proxiable tickets.</dd>
+<dt><strong>-a</strong></dt>
+<dd>requests tickets restricted to the host&#8217;s local address[es].</dd>
+<dt><strong>-A</strong></dt>
+<dd>requests tickets not restricted by address.</dd>
+<dt><strong>-C</strong></dt>
+<dd>requests canonicalization of the principal name, and allows the
+KDC to reply with a different client principal from the one
+requested.</dd>
+<dt><strong>-E</strong></dt>
+<dd>treats the principal name as an enterprise name (implies the
+<strong>-C</strong> option).</dd>
+<dt><strong>-v</strong></dt>
+<dd>requests that the ticket-granting ticket in the cache (with the
+<strong>invalid</strong> flag set) be passed to the KDC for validation.  If the
+ticket is within its requested time range, the cache is replaced
+with the validated ticket.</dd>
+<dt><strong>-R</strong></dt>
+<dd><p class="first">requests renewal of the ticket-granting ticket.  Note that an
+expired ticket cannot be renewed, even if the ticket is still
+within its renewable life.</p>
+<p class="last">Note that renewable tickets that have expired as reported by
+<a class="reference internal" href="klist.html#klist-1"><em>klist</em></a> may sometimes be renewed using this option,
+because the KDC applies a grace period to account for client-KDC
+clock skew.  See <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a> <strong>clockskew</strong> setting.</p>
+</dd>
+<dt><strong>-k</strong> [<strong>-i</strong> | <strong>-t</strong> <em>keytab_file</em>]</dt>
+<dd>requests a ticket, obtained from a key in the local host&#8217;s keytab.
+The location of the keytab may be specified with the <strong>-t</strong>
+<em>keytab_file</em> option, or with the <strong>-i</strong> option to specify the use
+of the default client keytab; otherwise the default keytab will be
+used.  By default, a host ticket for the local host is requested,
+but any principal may be specified.  On a KDC, the special keytab
+location <tt class="docutils literal"><span class="pre">KDB:</span></tt> can be used to indicate that kinit should open
+the KDC database and look up the key directly.  This permits an
+administrator to obtain tickets as any principal that supports
+authentication based on the key.</dd>
+<dt><strong>-n</strong></dt>
+<dd><p class="first">Requests anonymous processing.  Two types of anonymous principals
+are supported.</p>
+<p>For fully anonymous Kerberos, configure pkinit on the KDC and
+configure <strong>pkinit_anchors</strong> in the client&#8217;s <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>.
+Then use the <strong>-n</strong> option with a principal of the form <tt class="docutils literal"><span class="pre">&#64;REALM</span></tt>
+(an empty principal name followed by the at-sign and a realm
+name).  If permitted by the KDC, an anonymous ticket will be
+returned.</p>
+<p>A second form of anonymous tickets is supported; these
+realm-exposed tickets hide the identity of the client but not the
+client&#8217;s realm.  For this mode, use <tt class="docutils literal"><span class="pre">kinit</span> <span class="pre">-n</span></tt> with a normal
+principal name.  If supported by the KDC, the principal (but not
+realm) will be replaced by the anonymous principal.</p>
+<p class="last">As of release 1.8, the MIT Kerberos KDC only supports fully
+anonymous operation.</p>
+</dd>
+</dl>
+<p><strong>-I</strong> <em>input_ccache</em></p>
+<blockquote>
+<div>Specifies the name of a credentials cache that already contains a
+ticket.  When obtaining that ticket, if information about how that
+ticket was obtained was also stored to the cache, that information
+will be used to affect how new credentials are obtained, including
+preselecting the same methods of authenticating to the KDC.</div></blockquote>
+<dl class="docutils">
+<dt><strong>-T</strong> <em>armor_ccache</em></dt>
+<dd>Specifies the name of a credentials cache that already contains a
+ticket.  If supported by the KDC, this cache will be used to armor
+the request, preventing offline dictionary attacks and allowing
+the use of additional preauthentication mechanisms.  Armoring also
+makes sure that the response from the KDC is not modified in
+transit.</dd>
+<dt><strong>-c</strong> <em>cache_name</em></dt>
+<dd><p class="first">use <em>cache_name</em> as the Kerberos 5 credentials (ticket) cache
+location.  If this option is not used, the default cache location
+is used.</p>
+<p class="last">The default cache location may vary between systems.  If the
+<strong>KRB5CCNAME</strong> environment variable is set, its value is used to
+locate the default cache.  If a principal name is specified and
+the type of the default cache supports a collection (such as the
+DIR type), an existing cache containing credentials for the
+principal is selected or a new one is created and becomes the new
+primary cache.  Otherwise, any existing contents of the default
+cache are destroyed by kinit.</p>
+</dd>
+<dt><strong>-S</strong> <em>service_name</em></dt>
+<dd>specify an alternate service name to use when getting initial
+tickets.</dd>
+<dt><strong>-X</strong> <em>attribute</em>[=<em>value</em>]</dt>
+<dd><p class="first">specify a pre-authentication <em>attribute</em> and <em>value</em> to be
+interpreted by pre-authentication modules.  The acceptable
+attribute and value values vary from module to module.  This
+option may be specified multiple times to specify multiple
+attributes.  If no value is specified, it is assumed to be &#8220;yes&#8221;.</p>
+<p>The following attributes are recognized by the PKINIT
+pre-authentication mechanism:</p>
+<dl class="last docutils">
+<dt><strong>X509_user_identity</strong>=<em>value</em></dt>
+<dd>specify where to find user&#8217;s X509 identity information</dd>
+<dt><strong>X509_anchors</strong>=<em>value</em></dt>
+<dd>specify where to find trusted X509 anchor information</dd>
+<dt><strong>flag_RSA_PROTOCOL</strong>[<strong>=yes</strong>]</dt>
+<dd>specify use of RSA, rather than the default Diffie-Hellman
+protocol</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="section" id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>kinit uses the following environment variables:</p>
+<dl class="docutils">
+<dt><strong>KRB5CCNAME</strong></dt>
+<dd>Location of the default Kerberos 5 credentials cache, in the form
+<em>type</em>:<em>residual</em>.  If no <em>type</em> prefix is present, the <strong>FILE</strong>
+type is assumed.  The type of the default cache may determine the
+availability of a cache collection; for instance, a default cache
+of type <strong>DIR</strong> causes caches within the directory to be present
+in the collection.</dd>
+</dl>
+</div>
+<div class="section" id="files">
+<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCCNAME</em></a></dt>
+<dd>default location of Kerberos 5 credentials cache</dd>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFKTNAME</em></a></dt>
+<dd>default location for the local host&#8217;s keytab.</dd>
+</dl>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="klist.html#klist-1"><em>klist</em></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><em>kdestroy</em></a>, kerberos(1)</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kinit</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tkt_mgmt.html">Ticket management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_config/index.html">User config files</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">User commands</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kdestroy.html">kdestroy</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">kinit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="klist.html">klist</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ksu.html">ksu</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kswitch.html">kswitch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kvno.html">kvno</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sclient.html">sclient</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kdestroy.html" title="kdestroy"
+            >previous</a> |
+        <a href="klist.html" title="klist"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kinit">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,52 @@
+krb5_get_init_creds_opt_set_in_ccache -  Set an input credential cache in initial credential options. 
+======================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_in_ccache(krb5_context context, krb5_get_init_creds_opt * opt, krb5_ccache ccache)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options
+
+	          **[in]** **ccache** - Credential cache handle
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+If an input credential cache is set, then the krb5_get_init_creds family of APIs will read settings from it. Setting an input ccache is desirable when the application wishes to perform authentication in the same way (using the same preauthentication mechanisms, and making the same non-security- sensitive choices) as the previous authentication attempt, which stored information in the passed-in ccache.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

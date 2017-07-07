@@ -1,0 +1,40 @@
+.. highlightlang:: c
+
+.. _krb5-prompt-struct:
+
+krb5_prompt
+===========
+
+..
+.. c:type:: krb5_prompt
+..
+
+Text for prompt used in prompter callback function.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_prompt  krb5_prompt
+
+
+Members
+---------
+
+
+.. c:member:: char *	krb5_prompt.prompt
+
+                                             The prompt to show to the user.
+                                             
+
+.. c:member:: int	krb5_prompt.hidden
+
+                                             Boolean; informative prompt or hidden (e.g.
+                                             PIN)
+
+.. c:member:: krb5_data  *	krb5_prompt.reply
+
+                                             Must be allocated before call to prompt routine.
+                                             
+

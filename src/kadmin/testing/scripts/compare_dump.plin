@@ -1,0 +1,242 @@
+#!/usr/local/bin/perl
+
+#
+# $Id$
+#
+
+# $debug = 1;
+
+sub usage { die "usage: $0 before after changes\n";}
+
+sub unique {
+    local(@list) = @_;
+    local(%ary);
+
+    print "unique? ",join(" ",@list),"\n" if $debug;
+
+    foreach (@list) {
+	return(0) if $ary{$_}++;
+    }
+
+    1;
+}
+
+$before = shift(@ARGV) || &usage;
+$debug++ if $before =~ /^-d/;
+$before = shift(@ARGV) || &usage if $debug;
+$after = shift(@ARGV) || &usage;
+$changes = shift(@ARGV) || &usage;
+@ARGV && &usage;
+
+%policy =
+    (
+     "FIRST",2,
+     "pw_min_life",2,
+     "pw_max_life",3,
+     "pw_min_length",4,
+     "pw_min_classes",5,
+     "pw_history_num",6,
+     "policy_refcnt",7,
+     "LAST",7,
+     );
+
+%princ =
+    (
+     "FIRST",2,
+     "kvno",2,
+     "mod_name",3,
+     "max_life",4,
+     "princ_expire_time",5,
+     "expiration",5,
+     "pw_expiration",6,
+     "attributes",7,
+     "policy",8,
+     "aux_attributes",9,
+     "LAST",9,
+     );
+
+%keytab =
+    (
+     "LAST",-1,
+     );
+
+sub re { # @_ = ($cnt, $line)
+    local($cnt, $line) = @_;
+    local(@fields) = split(' ',$line);
+
+    @list = ('\S+') x $cnt;
+    for $f (@fields[3..$#fields]) {
+	($f =~ /=/) || die "Bad field: $f in $_";
+	if (!defined($this{$`})) { die "Bad parameter $` in $_"; }
+
+        if (($list[$this{$`}] = $') eq '\S+') {
+	    $list[$this{$`}] = '[^\s]+';
+	}
+    }
+    
+    join('\s+',@list)."\$";
+}
+
+open(CHANGES, $changes) || die "Couldn't open $changes: $!\n";
+
+while(<CHANGES>) {
+    next if s/^\s*\#\#\!\s*\#//;
+    next if !s/^\s*\#\#\!\s*//;
+
+    split;
+
+    if ($_[1] =~ /princ/) {
+	%this = %princ;
+	$this = "princ";
+    } elsif ($_[1] =~ /policy/) {
+	%this = %policy;
+	$this = "policy";
+    } elsif ($_[1] =~ /keytab/) {
+	%this = %keytab;
+	$this = $_[1];
+    } else {
+	die "Bad line: $_";
+    }
+
+    $cnt = $this{"LAST"}+1;
+
+    if ($_[0] =~ /add/) {
+	$diff{"+$this\t$_[2]"} = &re($cnt,$_);
+    } elsif ($_[0] =~ /delete/) {
+	$diff{"-$this\t$_[2]"} = &re($cnt,$_);
+    } elsif ($_[0] =~ /changefrom/) {
+	$diff{"-$this\t$_[2]"} = &re($cnt,$_);
+    } elsif ($_[0] =~ /changeto/) {
+	$ndiff{"-$this\t$_[2]"} = &re($cnt,$_);
+    } else {
+	die "Bad line: $_";
+    }
+}
+
+close(CHANGES);
+
+if ($debug) {
+    for (keys %diff) {
+	print " %diff: \"$_\" /$diff{$_}/\n";
+    }
+
+    for (keys %ndiff) {
+	print "%ndiff: \"$_\" /$ndiff{$_}/\n";
+    }
+
+    print "\n";
+}
+
+open(DIFF,"gdiff -u0 $before $after|") || die "Couldn't diff: $!\n";
+
+$warnings = 0;
+
+while(<DIFF>) {
+    next if /^\+{3}/;
+    next if /^\-{3}/;
+    next if /^@@/;
+
+    print "LINE: $_" if $debug;
+
+    split;
+
+    $key = "$_[0]\t$_[1]";
+    $re = $diff{$key};
+
+    delete $diff{$key};
+
+    print "%diff: \"$key\" /$re/\n" if $debug;
+
+    if (!$re) {
+	warn "Unexpected: \"$key\"\n";
+	$warnings++;
+	next;
+    }
+
+    if (!/$re/) {
+	warn "Failed: $key\n";
+	$warnings++;
+	next;
+    }
+
+    if ($new = $ndiff{$key}) {
+	delete $ndiff{$key};
+
+	@new = split(/\\s\+/, $new);
+	for ($i=1;$i<@new;$i++) {
+	    print "NEW: $new[$i]\n" if $debug;
+
+	    if ($new[$i] ne '\S+') {
+		$_[$i] = $new[$i];
+	    }
+	}
+	$_[0] =~ s/^\-//;
+	$key =~ s/^\-/\+/;
+
+	$diff{$key} = join("\t",@_);
+    }
+}
+
+close(DIFF);
+
+open(BEFORE, $before) || die "Couldn't open $before: $!\n";
+
+while(<BEFORE>) {
+    next if !/^keytab/;
+
+    split;
+
+    if (!$seen{$key = $_[0]." ".$_[1]}++) {
+	$key =~ s/-\d+$//;
+	$ktkeys{$key} .= " ".$_[2];
+	$kttimes{$key} .= " ".$_[3];
+    }
+}
+
+close(BEFORE);
+
+open(AFTER, $after) || die "Couldn't open $after: $!\n";
+
+while(<AFTER>) {
+    next if !/^keytab/;
+
+    split;
+
+    if (!$seen{$key = $_[0]." ".$_[1]}++) {
+	$key =~ s/-\d+$//;
+	$ktkeys{$key} .= " ".$_[2];
+	$kttimes{$key} .= " ".$_[3];
+    }
+}
+
+close(AFTER);
+
+for (keys %diff) {
+    warn "Unseen: \"$_\" /$diff{$_}/\n";
+    $warnings++;
+}
+
+for (keys %ndiff) {
+    warn "Unseen changes: \"$_\" /$ndiff{$_}/\n";
+    $warnings++;
+}
+
+for (keys %ktkeys) {
+    if (!&unique(split(' ',$ktkeys{$_}))) {
+	warn "Some keys not unique for $_\n";
+	$warnings++;
+    }
+}
+
+for (keys %kttimes) {
+    if (!&unique(split(' ',$kttimes{$_}))) {
+	warn "Some timestamps not unique for $_\n";
+	$warnings++;
+    }
+}
+
+if ($warnings) {
+    warn "$warnings warnings.\n";
+}
+
+exit($warnings);

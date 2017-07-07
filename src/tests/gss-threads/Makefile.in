@@ -1,0 +1,34 @@
+# Derived from appl/gss-sample, January 2005.
+
+mydir=tests$(S)gss-threads
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DUSE_AUTOCONF_H -DGSSAPI_V2
+PTHREAD_LIBS=@PTHREAD_LIBS@
+
+SRCS= $(srcdir)/gss-client.c $(srcdir)/gss-misc.c $(srcdir)/gss-server.c
+
+OBJS= gss-client.o gss-misc.o gss-server.o
+
+all-unix: all-unix-@THREAD_SUPPORT@
+all-unix-1: gss-server gss-client
+all-unix-0:
+all-windows: $(OUTPRE)gss-server.exe $(OUTPRE)gss-client.exe
+
+gss-server: gss-server.o gss-misc.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) $(PTHREAD_CFLAGS) -o gss-server gss-server.o gss-misc.o $(GSS_LIBS) $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+gss-client: gss-client.o gss-misc.o $(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) $(PTHREAD_CFLAGS) -o gss-client gss-client.o gss-misc.o $(GSS_LIBS) $(KRB5_BASE_LIBS) $(THREAD_LINKOPTS)
+
+$(OUTPRE)gss-server.exe: $(OUTPRE)gss-server.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB)
+	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
+
+$(OUTPRE)gss-client.exe: $(OUTPRE)gss-client.obj $(OUTPRE)gss-misc.obj $(GLIB) $(KLIB)
+	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib
+
+clean-unix::
+	$(RM) gss-server gss-client
+
+install-unix:
+#	$(INSTALL_PROGRAM) gss-client $(DESTDIR)$(CLIENT_BINDIR)/gss-tclient
+#	$(INSTALL_PROGRAM) gss-server $(DESTDIR)$(SERVER_BINDIR)/gss-tserver

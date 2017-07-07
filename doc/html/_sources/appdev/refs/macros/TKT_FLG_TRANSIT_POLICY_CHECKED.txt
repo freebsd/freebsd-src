@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _TKT-FLG-TRANSIT-POLICY-CHECKED-data:
+
+TKT_FLG_TRANSIT_POLICY_CHECKED
+==============================
+
+..
+.. data:: TKT_FLG_TRANSIT_POLICY_CHECKED
+..
+
+
+
+
+===================================== ======================
+``TKT_FLG_TRANSIT_POLICY_CHECKED``       ``0x00080000``
+===================================== ======================

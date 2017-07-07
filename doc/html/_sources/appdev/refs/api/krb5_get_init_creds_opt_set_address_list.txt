@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_address_list -  Set address restrictions in initial credential options. 
+====================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_address_list(krb5_get_init_creds_opt * opt, krb5_address ** addresses)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **addresses** - Null-terminated array of addresses
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

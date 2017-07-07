@@ -1,0 +1,44 @@
+krb5_prepend_error_message -  Add a prefix to the message for an error code. 
+=============================================================================
+
+..
+
+.. c:function:: void krb5_prepend_error_message(krb5_context ctx, krb5_error_code code, const char * fmt, ... )
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **code** - Error code
+
+	          **[in]** **fmt** - Format string for error message prefix
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Format a message and prepend it to the current message for *code* . The prefix will be separated from the old message with a colon and space.
+
+
+
+
+
+
+..
+
+
+
+
+

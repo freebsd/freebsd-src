@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-cc-cursor-struct:
+
+krb5_cc_cursor
+==============
+
+..
+.. c:type:: krb5_cc_cursor
+..
+
+Cursor for sequential lookup.
+
+
+
+Declaration
+------------
+
+typedef krb5_pointer krb5_cc_cursor
+
+

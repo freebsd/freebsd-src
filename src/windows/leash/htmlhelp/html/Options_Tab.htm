@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Options Tab</title></head>
+
+<body>
+<h1><a name="top">Using the Options Tab </a> </h1>
+<img src="Images/Options_Tab.PNG" alt="Home Tab "   width="583" height="115" />
+<p>
+Click the Options tab to reach the checkboxes that control ticket and
+view options. The Options tab has two panels. Use the View Options
+panel to choose which information is displayed for your tickets. Use
+the Ticket Options panel to turn MIT Kerberos's automatic features on
+or off. </p>
+<p>
+Scroll down to browse information about both panels, or jump to a section by clicking a link below.</p>
+<table>
+<tbody><tr>
+<th id="th2">Learn about....</th><th id="th2">How to....</th></tr>
+<tr><td>
+<ul id="helpul">
+<li><a href="#view-options">View Options </a></li>
+<li><a href="#ticket-options">Ticket Options </a></li>
+</ul></td>
+<td>
+<ul id="helpul">
+<li><a href="#using-view-options">Use the View Options Panel</a></li>
+<li><a href="#using-ticket-options">Use the Ticket Options Panel</a></li>
+
+</ul></td>
+</tr>
+</tbody></table>
+
+<h2> <a name="using-view-options">Using the View Options Panel</a></h2>
+<p>
+Click the Options tab at the top of the ribbon menu and look to the
+left to find the View Options panel. View Options control which ticket information columns are  displayed in the main window.</p>
+<p>
+Select a checkbox to show the information column in the main window.
+Deselect it to hide the column. Some options are selected by default.
+For example, "Valid Until" is selected by default, so the main window
+shows the Valid Until column showing when your tickets will expire. <br>
+<a href="HTML/View_Tickets.htm">How to: View Tickets </a> </p>
+
+<h2><a name="#view-options">View Options </a></h2>
+
+<table>
+<tbody><tr>
+<th>
+Checkbox </th>
+<th>
+Select to...</th>
+
+</tr>
+<tr>
+ <tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner"><a name="issued">Issued  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </a></td> </th> </tr>
+</table>
+<td> See the date and time your ticket was originally obtained. </td>
+ </tr>
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Renewable Until </td> </th> </tr>
+</table>
+<td><a name="renewable-until">See the date and time that your renewable tickets expire completely and cannot be renewed. </a> After this time you must get new tickets to access services authenticated by Kerberos.
+<p></p>
+ If this column shows <em>Not Renewable</em>, the ticket was not flagged as renewable when you obtained it.
+<p></p>
+<b>Related Help:</b>
+<ul id="helpul">
+<li> <a href="HTML/Tickets.htm#renewable"> About: Renewable Tickets</a> </li>
+<li><a href="HTML/Renew_Tickets.htm"> How to: Renew Tickets</a></li>
+<li><a href="HTML/Ticket_Settings.htm"> About: Ticket Settings and Flags</a></li>
+</ul>
+</td></tr>
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Valid Until </td> </th> </tr>
+</table>
+<td> <a name="valid-until">
+See when your ticket will expire. </a>Note that you cannot renew a ticket if you let it expire.
+<p></p>
+Kerberos alerts you to expiring tickets with a warning in a pop up window.
+To add an audible warning, select the Expiration Alarm checkbox in the Ticket Options panel. <br><a href="#using-ticket-options">How to: Use Ticket Options Panel</a>
+ </td></tr>
+ <tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Encryption Type </td> </th> </tr>
+</table>
+<td><a name="encryption-type">See the encryption type used to encrypt each session key and ticket. </a> This can be useful when troubleshooting.
+<p></p>
+ Kerberos supports multiple  types of encryption. The type used for a particular  ticket or session key is automatically negotiated when you request a ticket or a service. <br>
+<a href="HTML/Encryption_Types.htm#supported-types">About: Encryption Types</a> </td></tr>
+<tr>
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Flags   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; </td> </th> </tr>
+</table>
+<td> <a name="flags">See how the tickets were flagged (renewable and/or fowardable) when you obtained them. </a>
+<p></p>
+ You cannot change the flags on existing tickets. If you need a ticket with different flags, you must get a new ticket. <br>
+<a href="HTML/Ticket_Settings.htm">About: Ticket Settings and Flags </a>
+</td>
+</tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+
+
+<h2> <a name="using-ticket-options">Using the Ticket Options Panel</a></h2>
+<p>
+Click the Options tab at the top of the ribbon menu and look to the
+right to find the Ticket Options panel. Ticket Options control MIT
+Kerberos's automatic features.</p>
+<p>
+Select a Ticket Option checkbox to turn that feature on. Deselect it to turn the feature off. </p>
+
+<h2><a name="#ticket-options">Ticket Options </a></h2>
+<table>
+<tbody><tr>
+<th>
+Checkbox</th>
+<th>
+Select to...</th>
+</tr>
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+ <img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Automatic Ticket Renewal </td> </th> </tr>
+</table>
+<td>
+<a name="automatic-renewal">Automatically renew tickets flagged as renewable, without promptings or requiring a password, until the renewal lifetime is reached. </a>
+<p></p>
+ Renewing your tickets allows you to run
+batch jobs without interruption and to work through a long session
+without continually reentering your
+password.  <br>
+ <a href="HTML/Tickets.htm#renewable">About: Renewable Tickets</a>
+<p></p>
+<b>Note: </b>Automatic ticket renewal will not work if you exit MIT Kerberos or if your machine is in hibernation mode.
+ </td></tr>
+
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Expiration Alarm</td> </th> </tr>
+</table>
+<td><a name="expiration-alarm">Have MIT Kerberos provide an audible alarm 15, 10, and 5 minutes before your tickets expire.</a>
+<p></p>
+ Regardless of whether this option is on, MIT Kerberos alerts you to expiring tickets at the same intervals with pop up window. However, the pop up
+window will not always be visible on a busy desktop. <br>
+ <a href="HTML/Tickets.htm#expiration">About: Ticket Expiration</a></td></tr>
+ <tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner"> Destroy Tickets on Exit  </td> </th> </tr>
+</table>
+<td> <a name="destroy-tickets">Have MIT Kerberos destroy your tickets when you exit the program. </a>
+<p></p>
+Turning this option on provides greater security. However, you will
+need to turn this off if you want to exit MIT Kerberos while leaving
+processes running which require your valid tickets. </td></tr>
+
+
+<tr><th id="th2">
+<table id="table-inner"><tr id="table-inner"><td id="table-inner">
+<img src="Images/checkbox.PNG" alt="checkbox image"   width="20" height="20" /> </td> <td id="table-inner">Allow Mixed Case Realm Name</td> </th> </tr>
+</table>
+<td><a name="mixed-case-realm"> Use a Kerberos realm with lower case letters in its name.</a>
+<p></p>
+Kerberos <em>realms</em> are a way of logically grouping resources and identities that use Kerberos.
+By convention, realm names use all upper case letters. This helps
+distinguish a realm from the DNS domain it corresponds to. Realm names
+are case sensitive. So for convenience, anything you enter in the realm
+field of the Get Ticket window is converted to upper case, unless you
+turn this option on. </td></tr>
+</tbody></table>
+<p>
+<a href="#top">Back to Top</a> </p>
+
+
+</body></html>

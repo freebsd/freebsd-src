@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-DES-HMAC-SHA1-data:
+
+ENCTYPE_DES_HMAC_SHA1
+=====================
+
+..
+.. data:: ENCTYPE_DES_HMAC_SHA1
+..
+
+
+
+
+============================ ======================
+``ENCTYPE_DES_HMAC_SHA1``       ``0x0008``
+============================ ======================

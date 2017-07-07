@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-deltat-struct:
+
+krb5_deltat
+===========
+
+..
+.. c:type:: krb5_deltat
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_deltat
+
+

@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# This program takes a shell script and configures for the following
+# variables:	@DIR@
+#		@AWK@
+#		@SED@
+#
+# Usage: config_script <filename> [<dir>] [<awk>] [<sed>]
+#
+
+FILE=$1
+DIR=$2
+AWK=$3
+SED=$4
+
+if test "${DIR}x" = "x" ; then
+	DIR=.
+fi
+DIR=`cd ${DIR}; pwd`
+if test "${AWK}x" = "x" ; then
+	AWK=awk
+fi
+if test "${SED}x" = "x" ; then
+	SED=sed
+fi
+
+
+sed -e "s;@DIR@;${DIR};" -e "s;@AWK@;${AWK};" -e "s;@SED@;${SED};" $FILE

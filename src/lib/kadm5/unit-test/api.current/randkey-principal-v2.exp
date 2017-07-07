@@ -1,0 +1,62 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "randkey-principal 100"
+proc test100 {} {
+    global test prompt
+
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [create_principal "$test/a"]} {
+	error_and_restart "$test: creating principal"
+	return
+    }
+
+    # I'd like to specify a long list of keysalt tuples and make sure
+    # that randkey does the right thing, but we can only use those
+    # enctypes that krbtgt has a key for: des-cbc-crc:normal and
+    # des-cbc-crc:v4, according to the prototype kdc.conf.
+    if {! [cmd [format {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    if {! [cmd [format {
+	kadm5_randkey_principal $server_handle "%s/a" keys num_keys
+    } $test]]} {
+	perror "$test: unexpected failure in randkey_principal"
+    }
+    send "puts \$num_keys\n"
+    expect {
+	-re "(\[0-9\]+)\n$prompt" { set num_keys $expect_out(1,string) }
+	timeout {
+	    error_and_restart "$test: timeout getting num_keys"
+	    return
+	}
+	eof {
+	    error_and_restart "$test: eof getting num_keys"
+	    return
+	}
+    }
+
+    # XXX Perhaps I should actually check the key type returned.
+    if {$num_keys == 2} {
+	pass "$test"
+    } else {
+	fail "$test: $num_keys keys, should be 2"
+    }
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test100
+
+return ""

@@ -1,0 +1,217 @@
+# Test for the sample clients
+# This is a DejaGnu test script.
+# This script tests that sample user-user communication works.
+
+# This mostly just calls procedures in test/dejagnu/config/default.exp.
+
+if ![info exists KLIST] {
+    set KLIST [findfile $objdir/../../clients/klist/klist]
+}
+
+if ![info exists KDESTROY] {
+    set KDESTROY [findfile $objdir/../../clients/kdestroy/kdestroy]
+}
+
+if ![info exists SSERVER] {
+    set SSERVER [findfile $objdir/../../appl/sample/sserver/sserver]
+}
+if ![info exists SCLIENT] {
+    set SCLIENT [findfile $objdir/../../appl/sample/sclient/sclient]
+}
+
+# Set up the Kerberos files and environment.
+if {![get_hostname] || ![setup_kerberos_files] || ![setup_kerberos_env]} {
+    return
+}
+
+# Initialize the Kerberos database.  The argument tells
+# setup_kerberos_db that it is being called from here.
+if ![setup_kerberos_db 0] {
+    return
+}
+
+proc start_sserver_daemon { inetd } {
+    global spawn_id
+    global sserver_pid
+    global sserver_spawn_id
+    global SSERVER
+    global T_INETD
+    global tmppwd
+    global portbase
+
+    # if inetd = 0, then we are running stand-alone
+    if !{$inetd} {
+	    # Start the sserver
+	    spawn $SSERVER -p [expr 8 + $portbase] -S $tmppwd/srvtab
+	    set sserver_pid [exp_pid]
+	    set sserver_spawn_id $spawn_id
+
+	    verbose "sserver_spawn is $sserver_spawn_id" 1
+
+	    # Give sserver some time to start
+	    sleep 2
+    } else {
+	    # Start the sserver
+	    spawn $T_INETD [expr 8 + $portbase] $SSERVER sserver -S $tmppwd/srvtab
+	    set sserver_pid [exp_pid]
+	    set sserver_spawn_id $spawn_id
+
+	    verbose "sserver_spawn (t_inetd) is $sserver_spawn_id" 1
+
+	    expect {
+		-ex "Ready!"	{ }
+		eof		{ error "couldn't start t_inetd helper" }
+	    }
+    }
+
+    return 1
+}
+
+
+proc stop_sserver_daemon { } {
+    global sserver_pid
+    global sserver_spawn_id
+
+    if [info exists sserver_pid] {
+	catch "close -i $sserver_spawn_id"
+	catch "exec kill $sserver_pid"
+	wait -i $sserver_spawn_id
+	unset sserver_pid
+    }
+
+    return 1
+}
+
+proc stop_check_sserver_daemon { } {
+    global sserver_spawn_id
+    global sserver_pid
+
+    # Check the exit status of sserver - should exit here
+    set status_list [wait -i $sserver_spawn_id]
+    verbose "wait -i $sserver_spawn_id returned $status_list (sserver)"
+    catch "close -i $sserver_spawn_id"
+    if { [lindex $status_list 2] != 0 || [lindex $status_list 3] != 0 } {
+	send_log "exit status: $status_list\n"
+	verbose "exit status: $status_list"
+	fail "sserver"
+    } else {
+	pass "sserver"
+    }
+    # In either case the server shutdown
+    unset sserver_pid
+}
+
+proc test_sclient { msg } {
+    global REALMNAME
+    global SCLIENT
+    global hostname
+    global spawn_id
+    global portbase
+
+    # Test the client
+    spawn $SCLIENT $hostname [expr 8 + $portbase]
+    verbose "sclient_spawn is  $spawn_id" 1
+
+    expect {
+	"sendauth succeeded, reply is:" {
+		verbose "Start proper message"
+	}
+	timeout {
+		fail $msg 
+		return 0
+	}
+	eof {
+		fail $msg 
+		return 0
+	}	
+     }
+
+    expect {
+	"You are krbtest/admin@$REALMNAME\r" {
+		verbose "received valid sample message"}
+	eof {
+		fail $msg 
+		return 0
+	    }
+    }
+    # This last expect seems useless, but without it the test hangs on
+    # NETBSD.
+    expect {
+        "\r" { }
+    }
+
+    if ![check_exit_status "ssample"] {
+	return 0
+    }
+
+    return 1
+}
+# We are about to start up a couple of daemon processes.  We do all
+# the rest of the tests inside a proc, so that we can easily kill the
+# processes when the procedure ends.
+
+proc doit { } {
+    global hostname
+    global KEY
+    global sserver_pid
+    global sserver_spawn_id
+
+    # Start up the kerberos and kadmind daemons.
+    if ![start_kerberos_daemons 0] {
+	return
+    }
+
+    # Use kadmin to add an host key.
+    if ![add_random_key sample/$hostname 1] {
+	return
+    }
+
+    # Use ksrvutil to create a srvtab entry for sample
+    if ![setup_srvtab 1 sample] {
+	return
+    }
+
+    # Use kinit to get a ticket.
+    if ![kinit krbtest/admin adminpass$KEY 1] {
+	return
+    }
+
+    run_once sample_standalone {
+	if ![start_sserver_daemon 0 ] {
+	    return 
+	}
+
+	if ![test_sclient sclient] {
+	    return
+	}
+    
+	pass "sample - standalone"
+
+	stop_check_sserver_daemon
+    }
+    
+    if ![start_sserver_daemon 1 ] {
+	return 
+    }
+
+    if ![test_sclient sclient-inetd] {
+	return
+    }
+    
+    pass "sample - inetd"
+
+    stop_check_sserver_daemon
+    return
+}
+
+set status [catch doit msg]
+
+stop_sserver_daemon
+
+stop_kerberos_daemons
+
+if { $status != 0 } {
+    send_error "ERROR: error in sample.exp\n"
+    send_error "$msg\n"
+    exit 1
+}

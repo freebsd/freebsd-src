@@ -1,0 +1,46 @@
+# Makefile for the Kerberos for Windows telnet client
+# Works for both k4 and k5 releases.
+#
+OBJS	= $(OUTPRE)telnet.obj $(OUTPRE)negotiat.obj $(OUTPRE)auth.obj \
+	  $(OUTPRE)edit.obj $(OUTPRE)emul.obj $(OUTPRE)font.obj \
+	  $(OUTPRE)intern.obj $(OUTPRE)screen.obj $(OUTPRE)encrypt.obj \
+	  $(OUTPRE)genget.obj
+
+##### Options
+# Set NODEBUG if building release instead of debug
+!IF ! defined(KVERSION)
+KRBOPT	=-DFORWARD -DAUTHENTICATION -DENCRYPTION -DDES_ENCRYPTION
+KVERSION= 5
+!endif
+KRB	= KRB$(KVERSION)
+
+BUILDTOP=..\..
+LOCALINCLUDES= /I$(BUILDTOP) /I$(BUILDTOP)\include /I$(BUILDTOP)\include\krb5 \
+	   /I$(BUILDTOP)\lib\crypto\des
+RESFILE	= $(OUTPRE)telnet.res
+XOBJS	= $(RESFILE) $(OUTPRE)k5stream.obj $(OUTPRE)enc_des.obj
+
+DEFINES	= /D$(KRB)=1 $(KRBOPT)
+RFLAGS	= $(LOCALINCLUDES)
+RCFLAGS	= $(RFLAGS) -D_WIN32 -DTELNET_APP
+
+##### Linker
+LINK	= link
+LIBS	= $(KLIB) $(CLIB) $(WLIB)
+SYSLIBS	= kernel32.lib ws2_32.lib user32.lib gdi32.lib comdlg32.lib
+LFLAGS	= /nologo $(LOPTS)
+
+all: Makefile $(OUTPRE)telnet.exe
+
+$(OUTPRE)telnet.exe: telnet.def $(OBJS) $(XOBJS) $(LIBS)
+	$(LINK) $(LFLAGS) /map:$*.map /out:$@ $(OBJS) $(XOBJS) \
+	  $(LIBS) $(SYSLIBS) $(SCLIB)
+	$(_VC_MANIFEST_EMBED_EXE)
+
+install:
+	copy $(OUTPRE)telnet.exe $(DESTDIR)
+
+clean:
+	$(RM) $(OUTPRE)*.exe $(OUTPRE)*.res $(OUTPRE)*.map
+
+$(RESFILE): ..\version.rc

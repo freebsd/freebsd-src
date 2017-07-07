@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AD-ITE-data:
+
+KRB5_KEYUSAGE_AD_ITE
+====================
+
+..
+.. data:: KRB5_KEYUSAGE_AD_ITE
+..
+
+
+
+
+=========================== ======================
+``KRB5_KEYUSAGE_AD_ITE``       ``21``
+=========================== ======================

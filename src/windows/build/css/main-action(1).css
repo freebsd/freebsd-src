@@ -1,0 +1,54 @@
+.sidebar {
+	BACKGROUND-COLOR: #f0f0f0
+}
+#logodiv {
+	PADDING-RIGHT: 15px; PADDING-LEFT: 10px; PADDING-BOTTOM: 10px; PADDING-TOP: 10px; TEXT-ALIGN: center
+}
+#menu {
+	WIDTH: 150px
+}
+.leftnav H1 {
+	PADDING-RIGHT: 4px; BORDER-TOP: white 1px solid; PADDING-LEFT: 4px; FONT-WEIGHT: bold; FONT-SIZE: 11px; PADDING-BOTTOM: 4px; MARGIN: 0px; PADDING-TOP: 4px; BORDER-BOTTOM: #ccc 1px solid
+}
+.leftnav H5 {
+	PADDING-RIGHT: 0px; BORDER-TOP: white 1px solid; PADDING-LEFT: 0px; FONT-WEIGHT: bold; FONT-SIZE: 11px; PADDING-BOTTOM: 0px; MARGIN: 0px; PADDING-TOP: 0px; BORDER-BOTTOM: #ccc 1px solid
+}
+.leftnav H5 A {
+	BORDER-TOP-WIDTH: 0px; PADDING-RIGHT: 5px; DISPLAY: block; PADDING-LEFT: 5px; BORDER-LEFT-WIDTH: 0px; BORDER-BOTTOM-WIDTH: 0px; PADDING-BOTTOM: 5px; PADDING-TOP: 5px; BORDER-RIGHT-WIDTH: 0px; TEXT-DECORATION: none
+}
+.leftnav H5 A:hover {
+	BORDER-TOP-WIDTH: 0px; DISPLAY: block; BORDER-LEFT-WIDTH: 0px; BORDER-BOTTOM-WIDTH: 0px; BACKGROUND-COLOR: white; BORDER-RIGHT-WIDTH: 0px; TEXT-DECORATION: none
+}
+.leftnav UL {
+	PADDING-RIGHT: 0px; DISPLAY: inline; PADDING-LEFT: 0px; PADDING-BOTTOM: 0px; MARGIN: 0px; PADDING-TOP: 0px; LIST-STYLE-TYPE: none
+}
+.leftnav LI {
+	PADDING-RIGHT: 0px; DISPLAY: inline; PADDING-LEFT: 0px; PADDING-BOTTOM: 0px; MARGIN: 0px; PADDING-TOP: 0px
+}
+.leftnav LI A {
+	PADDING-RIGHT: 2px; DISPLAY: block; PADDING-LEFT: 5px; PADDING-BOTTOM: 2px; MARGIN: 0px; COLOR: white; PADDING-TOP: 2px; TEXT-DECORATION: none
+}
+.leftnav LI A.current {
+	COLOR: white; BACKGROUND-COLOR: #003366
+}
+.leftnav LI A:active {
+	COLOR: white
+}
+.leftnav LI A:visited {
+	COLOR: white
+}
+.leftnav LI A:hover {
+	COLOR: white; BACKGROUND-COLOR: #003366
+}
+.leftnav LI.current {
+	BACKGROUND-COLOR: #487bb7
+}
+.leftnav LI.current A {
+	COLOR: #3c78b5
+}
+#PageContent {
+	PADDING-RIGHT: 0px; PADDING-LEFT: 0px; PADDING-BOTTOM: 0px; MARGIN: 0px; PADDING-TOP: 0px; BACKGROUND-COLOR: #fff; TEXT-ALIGN: left
+}
+H1 {
+	PADDING-RIGHT: 0px; PADDING-LEFT: 0px; FONT-WEIGHT: bold; FONT-SIZE: 22px; BORDER-BOTTOM-WIDTH: 0px; PADDING-BOTTOM: 0px; MARGIN: 27px 0px 4px; COLOR: #660000; PADDING-TOP: 0px; FONT-FAMILY: Arial, sans-serif; BACKGROUND-COLOR: #fff
+}

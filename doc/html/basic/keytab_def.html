@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>keytab &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="Kerberos V5 concepts" href="index.html" />
+    <link rel="next" title="replay cache" href="rcache_def.html" />
+    <link rel="prev" title="Credential cache" href="ccache_def.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="ccache_def.html" title="Credential cache"
+            accesskey="P">previous</a> |
+        <a href="rcache_def.html" title="replay cache"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__keytab">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="keytab">
+<span id="keytab-definition"></span><h1>keytab<a class="headerlink" href="#keytab" title="Permalink to this headline">¶</a></h1>
+<p>A keytab (short for &#8220;key table&#8221;) stores long-term keys for one or more
+principals.  Keytabs are normally represented by files in a standard
+format, although in rare cases they can be represented in other ways.
+Keytabs are used most often to allow server applications to accept
+authentications from clients, but can also be used to obtain initial
+credentials for client applications.</p>
+<p>Keytabs are named using the format <em>type</em><tt class="docutils literal"><span class="pre">:</span></tt><em>value</em>.  Usually
+<em>type</em> is <tt class="docutils literal"><span class="pre">FILE</span></tt> and <em>value</em> is the absolute pathname of the file.
+Other possible values for <em>type</em> are <tt class="docutils literal"><span class="pre">SRVTAB</span></tt>, which indicates a
+file in the deprecated Kerberos 4 srvtab format, and <tt class="docutils literal"><span class="pre">MEMORY</span></tt>, which
+indicates a temporary keytab stored in the memory of the current
+process.</p>
+<p>A keytab contains one or more entries, where each entry consists of a
+timestamp (indicating when the entry was written to the keytab), a
+principal name, a key version number, an encryption type, and the
+encryption key itself.</p>
+<p>A keytab can be displayed using the <a class="reference internal" href="../user/user_commands/klist.html#klist-1"><em>klist</em></a> command with the
+<tt class="docutils literal"><span class="pre">-k</span></tt> option.  Keytabs can be created or appended to by extracting
+keys from the KDC database using the <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a> <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#ktadd"><em>ktadd</em></a>
+command.  Keytabs can be manipulated using the <a class="reference internal" href="../admin/admin_commands/ktutil.html#ktutil-1"><em>ktutil</em></a> and
+<a class="reference internal" href="../admin/admin_commands/k5srvutil.html#k5srvutil-1"><em>k5srvutil</em></a> commands.</p>
+<div class="section" id="default-keytab">
+<h2>Default keytab<a class="headerlink" href="#default-keytab" title="Permalink to this headline">¶</a></h2>
+<p>The default keytab is used by server applications if the application
+does not request a specific keytab.  The name of the default keytab is
+determined by the following, in decreasing order of preference:</p>
+<ol class="arabic simple">
+<li>The <strong>KRB5_KTNAME</strong> environment variable.</li>
+<li>The <strong>default_keytab_name</strong> profile variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>.</li>
+<li>The hardcoded default, <a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFKTNAME</em></a>.</li>
+</ol>
+</div>
+<div class="section" id="default-client-keytab">
+<h2>Default client keytab<a class="headerlink" href="#default-client-keytab" title="Permalink to this headline">¶</a></h2>
+<p>The default client keytab is used, if it is present and readable, to
+automatically obtain initial credentials for GSSAPI client
+applications.  The principal name of the first entry in the client
+keytab is used by default when obtaining initial credentials.  The
+name of the default client keytab is determined by the following, in
+decreasing order of preference:</p>
+<ol class="arabic simple">
+<li>The <strong>KRB5_CLIENT_KTNAME</strong> environment variable.</li>
+<li>The <strong>default_client_keytab_name</strong> profile variable in
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><em>[libdefaults]</em></a>.</li>
+<li>The hardcoded default, <a class="reference internal" href="../mitK5defaults.html#paths"><em>DEFCKTNAME</em></a>.</li>
+</ol>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">keytab</a><ul>
+<li><a class="reference internal" href="#default-keytab">Default keytab</a></li>
+<li><a class="reference internal" href="#default-client-keytab">Default client keytab</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_def.html">Credential cache</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="">keytab</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_def.html">replay cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="date_format.html">Supported date and time formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="ccache_def.html" title="Credential cache"
+            >previous</a> |
+        <a href="rcache_def.html" title="replay cache"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__keytab">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

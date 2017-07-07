@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>FAQ</title></head>
+
+<body>
+<h1><a name="top">Frequently Asked Questions (FAQ)</a></h1>
+<ul id="helpul">
+
+<li> <a href="#get-tickets">How do I get tickets? </a> </li>
+<li> <a href="#expiration-warning"> Will I be warned when my tickets are about to expire? </a> </li>
+<li>  <a href="#automatic-destroy"> Are my tickets destroyed automatically when I exit MIT Kerberos? </a> </li>
+<li> <a href="#renewable">Why should I use renewable tickets?</a> </li>
+<li> <a href="#renewable-closed"> If I set my tickets to renew automatically, will the renewals keep happening if I close MIT Kerberos?</a> </li>
+<li> <a href="#forwardable">How do I forward my forwardable tickets?</a></li>
+<li> <a href="#RSA-SecurID">How do I use my RSA SecurID token with Kerberos?</a></li>
+
+<li><a href="#Command-line">Can I use Kerberos with the command line prompt? </a> </li>
+<li><a href="#properties">Where can I set Kerberos properties?  </a></li>
+
+</ul>
+
+<h3> <a name="get-tickets">How do I get tickets?</a> </h3>
+
+<p>Click the Get Ticket  button in the Home tab. In the Get Ticket window, enter your principal (your Kerberos identity) and password and click Okay.  <a href="HTML/Get_Tickets.htm">How to: Get Tickets</a>
+</p>
+
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3> <a name="expiration-warning">Will I be warned when my tickets are about to expire?</a> </h3>
+<p>Yes. A pop up window warns you 15, 10, and 5 minutes before your
+ticket expires. If you would also like an audible alarm at these
+intervals, go to the Options tab and select Expiration Alarm in the
+Ticket Options panel.
+<br> <a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use Ticket Options Panel</a> </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3><a name="automatic-destroy">Are my tickets destroyed automatically when I exit MIT Kerberos?</a></h3>
+<p>
+Only if Destroy Tickets on Exit is selected in Ticket Options panel in the Options tab. <br>
+<a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use Ticket Options Panel</a> </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3><a name="renewable">Why should I use renewable tickets?</a> </h3>
+<p>
+Renewable tickets add convenience, especially if you turn on the option
+to automatically renew them. They allow you to run a batch job without
+interruption and to work through a long session without continually
+reentering your password. <br>
+<a href="HTML/Tickets.htm#renewable">About: Renewable Tickets</a> </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3><a name="renewable-closed"> If I set my tickets to renew automatically, will the renewals keep happening if I exit MIT Kerberos?</a> </h3>
+<p>
+No. MIT Kerberos can only renew your tickets if the program is running
+and active. It cannot renew your tickets if you exit the program or if
+your computer is turned off or in hibernation mode.</p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3> <a name="forwardable">How to I forward my forwardable tickets?</a></h3>
+<p>That depends. Often they are forwarded automatically as needed. Ask
+your help desk or administrator for information specific to your
+installation.</p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3><a name="RSA-SecurID">How do I use my RSA SecurID token with Kerberos?</a></h3>
+<p>
+If your company uses RSA SecurID to control access to Kerberos, you
+will be prompted to enter your SecurID password after you request a
+ticket. <br>
+<a href="HTML/Get_Tickets.htm">How to: Get Tickets</a> </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+
+<h3><a name="Command-line">Can I use Kerberos with the command line prompt? </a> </h3>
+<p>
+Yes. Click <a href="HTML/Command_Line.htm">here</a> for a list of available commands. </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+
+<h3><a name="properties">Where can I set Kerberos properties?  </a> </h3>
+<p>
+You cannot use the MIT Kerberos program to set preferences such as
+default ticket lifetimes. Instead, edit the appropriate configuration
+file. For more information, visit the <a href="http://web.mit.edu/kerberos/krb5-latest/doc/krb_admins/conf_files/index.html" target="new"> MIT Kerberos documentation site. </a>
+
+ </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+
+
+
+
+</body></html>

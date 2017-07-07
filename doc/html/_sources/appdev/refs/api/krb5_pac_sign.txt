@@ -1,0 +1,60 @@
+krb5_pac_sign -  Sign a PAC. 
+=============================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_sign(krb5_context context, krb5_pac pac, krb5_timestamp authtime, krb5_const_principal principal, const krb5_keyblock * server_key, const krb5_keyblock * privsvr_key, krb5_data * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC handle
+
+	          **[in]** **authtime** - Expected timestamp
+
+	          **[in]** **principal** - Expected principal name (or NULL)
+
+	          **[in]** **server_key** - Key for server checksum
+
+	          **[in]** **privsvr_key** - Key for KDC checksum
+
+	          **[out]** **data** - Signed PAC encoding
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function signs *pac* using the keys *server_key* and *privsvr_key* and returns the signed encoding in *data* . *pac* is modified to include the server and KDC checksum buffers. Use :c:func:`krb5_free_data_contents()` to free *data* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

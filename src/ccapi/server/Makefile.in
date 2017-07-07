@@ -1,0 +1,59 @@
+mydir=ccapi$(S)server
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS=unix
+
+LOCALINCLUDES= -I$(srcdir)/../common
+
+STLIBOBJS= \
+	ccs_array.o \
+	ccs_cache_collection.o \
+	ccs_callback.o \
+	ccs_ccache.o \
+	ccs_ccache_iterator.o \
+	ccs_client.o \
+	ccs_credentials.o \
+	ccs_credentials_iterator.o \
+	ccs_list.o \
+	ccs_list_internal.o \
+	ccs_lock.o \
+	ccs_lock_state.o \
+	ccs_pipe.o \
+	ccs_server.o
+
+OBJS= \
+	$(OUTPRE)ccs_array.$(OBJEXT) \
+	$(OUTPRE)ccs_cache_collection.$(OBJEXT) \
+	$(OUTPRE)ccs_callback.$(OBJEXT) \
+	$(OUTPRE)ccs_ccache.$(OBJEXT) \
+	$(OUTPRE)ccs_ccache_iterator.$(OBJEXT) \
+	$(OUTPRE)ccs_client.$(OBJEXT) \
+	$(OUTPRE)ccs_credentials.$(OBJEXT) \
+	$(OUTPRE)ccs_credentials_iterator.$(OBJEXT) \
+	$(OUTPRE)ccs_list.$(OBJEXT) \
+	$(OUTPRE)ccs_list_internal.$(OBJEXT) \
+	$(OUTPRE)ccs_lock.$(OBJEXT) \
+	$(OUTPRE)ccs_lock_state.$(OBJEXT) \
+	$(OUTPRE)ccs_pipe.$(OBJEXT) \
+	$(OUTPRE)ccs_server.$(OBJEXT)
+
+SRCS= \
+	ccs_array.c \
+	ccs_cache_collection.c \
+	ccs_callback.c \
+	ccs_ccache.c \
+	ccs_ccache_iterator.c \
+	ccs_client.c \
+	ccs_credentials.c \
+	ccs_credentials_iterator.c \
+	ccs_list.c \
+	ccs_list_internal.c \
+	ccs_lock.c \
+	ccs_lock_state.c \
+	ccs_pipe.c \
+	ccs_server.c
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

@@ -1,0 +1,157 @@
+mydir=include
+BUILDTOP=$(REL)..
+KRB5RCTMPDIR= @KRB5_RCTMPDIR@
+##DOSBUILDTOP = ..
+NO_OUTPRE=1
+
+all-unix: krb5/krb5.h
+
+all-unix: maybe-make-db.h-@DB_HEADER_VERSION@
+
+generate-files-mac: krb5/krb5.h
+
+maybe-make-db.h-k5:
+	: db.h will be installed by util/db2
+maybe-make-db.h-sys:
+	: fall back to system db.h 
+maybe-make-db.h-redirect:
+	test -r db.h || echo '#include <@DB_HEADER@>' > db.h
+
+ET_HEADERS = adm_err.h asn1_err.h kdb5_err.h krb5_err.h k5e1_err.h
+K5_ET_HEADERS = \
+	../lib/krb5/error_tables/krb5_err.h \
+	../lib/krb5/error_tables/k5e1_err.h \
+	../lib/krb5/error_tables/kdb5_err.h \
+	../lib/krb5/error_tables/kv5m_err.h \
+	../lib/krb5/error_tables/krb524_err.h \
+	../lib/krb5/error_tables/asn1_err.h
+BUILT_HEADERS = osconf.h
+
+all-unix: autoconf.h $(BUILT_HEADERS)
+all-windows: autoconf.h $(BUILT_HEADERS) verify-calling-conventions-krb5
+
+all-unix: @MAINT@ verify-calling-conventions-krb5
+
+$(srcdir)/autoconf.h.in: @MAINT@ $(srcdir)/autoconf.stmp
+$(srcdir)/autoconf.stmp: $(top_srcdir)/configure.in $(top_srcdir)/aclocal.m4
+	(cd $(top_srcdir) && $(AUTOHEADER) --include=$(CONFIG_RELTOPDIR) $(AUTOHEADERFLAGS))
+	touch $(srcdir)/autoconf.stmp
+
+##DOS##autoconf.h: win-mac.h
+##DOS##	$(CP) win-mac.h $@
+##DOS##osconf.h: osconf.hin
+##DOS##	$(CP) osconf.hin $@
+
+###############################################################################
+##DOS##!if 0
+# config.status will now update autoconf.stamp itself.
+autoconf.h: autoconf.stamp
+autoconf.stamp: $(srcdir)/autoconf.h.in $(BUILDTOP)/config.status
+	(cd $(BUILDTOP) && $(SHELL) config.status $(mydir)/autoconf.h)
+
+SYSCONFDIR = @sysconfdir@
+LOCALSTATEDIR = @localstatedir@
+RUNSTATEDIR = @runstatedir@
+BINDIR = @bindir@
+SBINDIR = @sbindir@
+LIBDIR  = @libdir@
+SYSCONFCONF = @SYSCONFCONF@
+
+PROCESS_REPLACE = -e "s\"@KRB5RCTMPDIR\"$(KRB5RCTMPDIR)\"" \
+		  -e "s\"@PREFIX\"$(INSTALL_PREFIX)\"" \
+		  -e "s\"@EXEC_PREFIX\"$(INSTALL_EXEC_PREFIX)\"" \
+		  -e "s\"@BINDIR\"$(BINDIR)\"" \
+		  -e "s\"@LIBDIR\"$(LIBDIR)\"" \
+		  -e "s\"@SBINDIR\"$(SBINDIR)\"" \
+		  -e "s\"@MODULEDIR\"$(MODULE_DIR)\"" \
+		  -e "s\"@GSSMODULEDIR\"$(GSS_MODULE_DIR)\"" \
+		  -e "s\"@LOCALSTATEDIR\"$(LOCALSTATEDIR)\"" \
+		  -e "s\"@RUNSTATEDIR\"$(RUNSTATEDIR)\"" \
+		  -e "s\"@SYSCONFDIR\"$(SYSCONFDIR)\"" \
+		  -e "s\"@DYNOBJEXT\"$(DYNOBJEXT)\"" \
+		  -e "s\"@SYSCONFCONF\"$(SYSCONFCONF)\""
+
+OSCONFSRC = $(srcdir)/osconf.hin
+
+osconf.h: $(OSCONFSRC) Makefile
+	cat $(OSCONFSRC) | sed $(PROCESS_REPLACE) > osconf.new
+	$(MOVEIFCHANGED) osconf.new osconf.h
+##DOS##!endif
+###############################################################################
+
+krb5/krb5.h: krb5.stamp; : krb5.h
+krb5.stamp: $(srcdir)/krb5/krb5.hin $(K5_ET_HEADERS)
+	test -d krb5 || mkdir krb5
+	if test -r krb5.h; then \
+	  if cmp -s krb5.h $(srcdir)/krb5.h; then :; else rm -f krb5.h; fi; \
+	else :; fi
+	echo "/* This file is generated, please don't edit it directly.  */" > krb5/krb5.new
+	echo "#ifndef KRB5_KRB5_H_INCLUDED" >> krb5/krb5.new
+	echo "#define KRB5_KRB5_H_INCLUDED" >> krb5/krb5.new
+	cat $(srcdir)/krb5/krb5.hin $(K5_ET_HEADERS) >> krb5/krb5.new
+	echo "#endif /* KRB5_KRB5_H_INCLUDED */" >> krb5/krb5.new
+	$(MOVEIFCHANGED) krb5/krb5.new krb5/krb5.h
+	touch krb5.stamp
+
+verify-calling-conventions-krb5: private-and-public-decls
+	$(PERL) -w $(top_srcdir)/util/def-check.pl private-and-public-decls $(top_srcdir)/lib/krb5_32.def
+
+##DOS##!if 0
+HEADERS_TO_CHECK = krb5/krb5.h $(srcdir)/k5-int.h $(srcdir)/krb5/clpreauth_plugin.h
+
+private-and-public-decls: $(HEADERS_TO_CHECK)
+	cat $(HEADERS_TO_CHECK) > $@
+##DOS##!endif
+##DOS##private-and-public-decls:
+##DOS##	copy /y krb5\krb5.h+k5-int.h+krb5\clpreauth_plugin.h $@
+
+#
+# Build the error table include files:
+# asn1_err.h kdb5_err.h krb5_err.h k5e1_err.h kv5m_err.h krb524_err.h
+
+$(K5_ET_HEADERS): rebuild-error-tables
+	: $@
+rebuild-error-tables:
+	(cd ../lib/krb5/error_tables && $(MAKE) includes)
+
+.PHONY: force rebuild-error-tables
+force:
+
+clean-unix::
+	$(RM) krb5/krb5.h krb5_err.h k5e1_err.h kdb5_err.h kv5m_err.h \
+		krb524_err.h asn1_err.h private-and-public-decls krb5.stamp
+	$(RM) $(ET_HEADERS) autoconf.stamp
+
+clean-windows::
+	$(RM) com_err.h profile.h
+	$(RM) gssapi\gssapi.h gssapi\gssapi_generic.h gssapi\gssapi_krb5.h
+	$(RM) gssapi\gssapi_alloc.h gssapi\gssapi_ext.h gssapi\timestamp
+	if exist gssapi\nul rmdir /s /q gssapi
+	$(RM) osconf.h autoconf.h autoconf.stamp
+	@echo Making clean in include
+
+clean:
+	$(RM) osconf.new $(BUILT_HEADERS)
+
+distclean:
+	$(RM) autoconf.h $(srcdir)/autoconf.stmp
+
+install-headers-unix install: krb5/krb5.h profile.h
+	$(INSTALL_DATA) $(srcdir)/krb5.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5.h
+	$(INSTALL_DATA) $(srcdir)/kdb.h $(DESTDIR)$(KRB5_INCDIR)$(S)kdb.h
+	$(INSTALL_DATA) krb5/krb5.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)krb5.h
+	$(INSTALL_DATA) $(srcdir)/krb5/ccselect_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)ccselect_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/clpreauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)clpreauth_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/hostrealm_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)hostrealm_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/kdcpreauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kdcpreauth_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/localauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)localauth_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/locate_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)locate_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/preauth_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)preauth_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/pwqual_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)pwqual_plugin.h
+	$(INSTALL_DATA) $(srcdir)/krb5/kadm5_hook_plugin.h $(DESTDIR)$(KRB5_INCDIR)$(S)krb5$(S)kadm5_hook_plugin.h
+	$(INSTALL_DATA) profile.h $(DESTDIR)$(KRB5_INCDIR)$(S)profile.h
+	$(INSTALL_DATA) $(srcdir)/gssapi.h $(DESTDIR)$(KRB5_INCDIR)$(S)gssapi.h
+	$(INSTALL_DATA) $(srcdir)/krad.h $(DESTDIR)$(KRB5_INCDIR)/krad.h
+
+depend: krb5/krb5.h $(BUILT_HEADERS)

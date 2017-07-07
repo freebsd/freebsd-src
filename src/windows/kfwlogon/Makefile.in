@@ -1,0 +1,51 @@
+# Makefile for the KFW Network Provider
+#
+
+mydir=.
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DNO_KRB4
+LOCALINCLUDES = -I$(BUILDTOP) -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include
+PROG_LIBPATH=-L$(TOPLIBD) -L$(KRB5_LIBDIR)
+
+!if defined(VISUALSTUDIOVERSION)
+!if $(VISUALSTUDIOVERSION:.=) >= 140
+!ifdef NODEBUG
+WINCRTEXTRA = ucrt.lib vcruntime.lib
+!else
+WINCRTEXTRA = ucrtd.lib vcruntimed.lib
+!endif
+!endif
+!endif
+SYSLIBS = kernel32.lib user32.lib advapi32.lib wsock32.lib secur32.lib userenv.lib $(WINCRTEXTRA)
+
+VERSIONRC = $(BUILDTOP)\windows\version.rc
+RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+KFWLOGON=$(OUTPRE)kfwlogon.dll
+KFWCPCC=$(OUTPRE)kfwcpcc.exe
+
+LIBRES=$(KFWLOGON:.dll=.res)
+EXERES=$(KFWCPCC:.exe=.res)
+
+$(LIBRES): $(VERSIONRC)
+        $(RC) $(RCFLAGS) -DKFWLOGON_LIB -fo $@ -r $**
+$(EXERES): $(VERSIONRC)
+        $(RC) $(RCFLAGS) -DKFWCPCC_APP -fo $@ -r $**
+
+all-windows: $(OUTPRE)kfwlogon.dll $(OUTPRE)kfwcpcc.exe
+
+$(KFWLOGON): $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj $(LIBRES)
+    link $(DLL_LINKOPTS) -out:$@ $(OUTPRE)kfwlogon.obj $(OUTPRE)kfwcommon.obj -entry:DllEntryPoint -def:kfwlogon.def $(SYSLIBS) $(KLIB) $(CLIB) $(SCLIB) ../lib/$(OUTPRE)libwin.lib $(LIBRES)
+    $(_VC_MANIFEST_EMBED_DLL)
+
+$(KFWCPCC): $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(EXERES)
+    link $(EXE_LINKOPTS) -out:$@ $(OUTPRE)kfwcpcc.obj $(OUTPRE)kfwcommon.obj $(SYSLIBS) $(KLIB) $(CLIB) $(SCLIB) ../lib/$(OUTPRE)libwin.lib $(EXERES)
+    $(_VC_MANIFEST_EMBED_EXE)
+
+install:
+        copy $(OUTPRE)kfwlogon.dll $(DESTDIR)
+        copy $(OUTPRE)kfwcpcc.exe  $(DESTDIR)
+
+clean:
+        $(RM) $(OUTPRE)*.exe $(OUTPRE)*.dll $(OUTPRE)*.res
+

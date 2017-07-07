@@ -1,0 +1,11 @@
+krb5_get_default_realm() returned 'DEFAULT.REALM.TST'
+krb5_set_default_realm(NEW.DEFAULT.REALM)
+krb5_get_default_realm() returned 'NEW.DEFAULT.REALM'
+krb5_get_realm_domain(DEFAULT_REALM.TST) returned 'MIT.EDU'
+krb_get_host_realm(bad.idea) returned: 'US.GOV'
+krb_get_host_realm(itar.bad.idea) returned: 'NSA.GOV'
+krb_get_host_realm(really.BAD.IDEA.) returned: 'NSA.GOV'
+krb_get_host_realm(clipper.bad.idea) returned: 'NIST.GOV'
+krb_get_host_realm(KeYEsCrOW.BaD.IDea) returned: 'NSA.GOV'
+krb_get_host_realm(pgp.good.idea) returned: ''
+krb_get_host_realm(no_domain) returned: ''

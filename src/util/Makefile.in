@@ -1,0 +1,28 @@
+mydir=util
+# Windows NMAKE doesn't like @ in make variable names, and on
+# Windows we don't do the @FOO@ substitutions we do with UNIX
+# configure scripts, so hide this.
+##WIN32##!if 0
+SUBDIRS=support $(MAYBE_ET_@COM_ERR_VERSION@) $(MAYBE_SS_@SS_VERSION@) \
+	profile $(MAYBE_VERTO_@VERTO_VERSION@)
+##WIN32##!endif
+WINSUBDIRS=windows support et profile wshelper
+BUILDTOP=$(REL)..
+
+MAYBE_ET_k5 = et
+MAYBE_SS_k5 = ss
+MAYBE_ET_sys =
+MAYBE_ET_intlsys =
+MAYBE_SS_sys =
+MAYBE_VERTO_sys =
+MAYBE_VERTO_k5 = verto
+
+all-recurse:
+
+NO_OUTDIR=1
+
+install:
+	$(INSTALL_SCRIPT) $(srcdir)/krb5-send-pr.sh $(DESTDIR)$(ADMIN_BINDIR)/krb5-send-pr
+
+clean-unix::
+	$(RM) *.pyc

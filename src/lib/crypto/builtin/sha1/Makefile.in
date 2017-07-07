@@ -1,0 +1,44 @@
+mydir=lib$(S)crypto$(S)builtin$(S)sha1
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\sha1
+##DOS##OBJFILE = ..\..\$(OUTPRE)sha1.lst
+
+STLIBOBJS= shs.o
+
+OBJS= $(OUTPRE)shs.$(OBJEXT) 
+
+SRCS= $(srcdir)/shs.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+t_shs: t_shs.o shs.o $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o t_shs t_shs.o shs.o $(SUPPORT_LIB)
+
+$(OUTPRE)t_shs.exe: $(OUTPRE)t_shs.obj $(OUTPRE)shs.obj
+	link -out:$@ $**
+
+t_shs3: t_shs3.o shs.o $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o t_shs3 t_shs3.o shs.o $(SUPPORT_LIB)
+
+check-unix: t_shs t_shs3
+	$(RUN_TEST) $(C)t_shs -x
+	$(RUN_TEST) $(C)t_shs3
+
+check-windows: $(OUTPRE)t_shs.exe $(OUTPRE)t_shs3.exe
+	$(OUTPRE)$(C)t_shs.exe -x
+	$(OUTPRE)$(C)t_shs3.exe
+
+clean:
+	$(RM) t_shs$(EXEEXT) t_shs.$(OBJEXT) t_shs3$(EXEEXT) t_shs3.$(OBJEXT)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

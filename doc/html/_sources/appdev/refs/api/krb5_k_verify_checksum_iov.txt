@@ -1,0 +1,70 @@
+krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates on opaque key). 
+=================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_verify_checksum_iov(krb5_context context, krb5_cksumtype cksumtype, krb5_key key, krb5_keyusage usage, const krb5_crypto_iov * data, size_t num_data, krb5_boolean * valid)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cksumtype** - Checksum type (0 for mandatory type)
+
+	          **[in]** **key** - Encryption key for a keyed checksum
+
+	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+
+	          **[in]** **data** - IOV array
+
+	          **[in]** **num_data** - Size of *data*
+
+	          **[out]** **valid** - Non-zero for success, zero for failure
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Confirm that the checksum in the :data:`KRB5_CRYPTO_TYPE_CHECKSUM` element is a valid checksum of the :data:`KRB5_CRYPTO_TYPE_DATA` and :data:`KRB5_CRYPTO_TYPE_SIGN_ONLY` regions in the iov.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         :c:func:`krb5_k_make_checksum_iov()` 
+ 
+
+
+
+
+
+.. note::
+
+	 This function is similar to :c:func:`krb5_c_verify_checksum_iov()` , but operates on opaque *key* .
+ 
+
+
+

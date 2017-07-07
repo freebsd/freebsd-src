@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PADATA-FOR-USER-data:
+
+KRB5_PADATA_FOR_USER
+====================
+
+..
+.. data:: KRB5_PADATA_FOR_USER
+..
+
+username protocol transition request
+
+
+
+=========================== ======================
+``KRB5_PADATA_FOR_USER``       ``129``
+=========================== ======================

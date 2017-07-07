@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AS-REQ-data:
+
+KRB5_KEYUSAGE_AS_REQ
+====================
+
+..
+.. data:: KRB5_KEYUSAGE_AS_REQ
+..
+
+
+
+
+=========================== ======================
+``KRB5_KEYUSAGE_AS_REQ``       ``56``
+=========================== ======================

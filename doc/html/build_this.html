@@ -1,0 +1,211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How to build this documentation from the source &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="copyright" title="Copyright" href="copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="index.html" />
+    <link rel="next" title="Contributing to the MIT Kerberos Documentation" href="about.html" />
+    <link rel="prev" title="Copyright" href="copyright.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="copyright.html" title="Copyright"
+            accesskey="P">previous</a> |
+        <a href="about.html" title="Contributing to the MIT Kerberos Documentation"
+            accesskey="N">next</a> |
+        <a href="genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__How to build this documentation from the source">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="how-to-build-this-documentation-from-the-source">
+<h1>How to build this documentation from the source<a class="headerlink" href="#how-to-build-this-documentation-from-the-source" title="Permalink to this headline">¶</a></h1>
+<p>Pre-requisites for a simple build, or to update man pages:</p>
+<ul class="simple">
+<li>Sphinx 1.0.4 or higher (See <a class="reference external" href="http://sphinx.pocoo.org">http://sphinx.pocoo.org</a>) with the autodoc
+extension installed.</li>
+</ul>
+<p>Additional prerequisites to include the API reference based on Doxygen
+markup:</p>
+<ul class="simple">
+<li>Python 2.5 with the Cheetah, lxml, and xml modules</li>
+<li>Doxygen</li>
+</ul>
+<div class="section" id="simple-build-without-api-reference">
+<h2>Simple build without API reference<a class="headerlink" href="#simple-build-without-api-reference" title="Permalink to this headline">¶</a></h2>
+<p>To test simple changes to the RST sources, you can build the
+documentation without the Doxygen reference by running, from the doc
+directory:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">sphinx</span><span class="o">-</span><span class="n">build</span> <span class="o">.</span> <span class="n">test_html</span>
+</pre></div>
+</div>
+<p>You will see a number of warnings about missing files.  This is
+expected.  If there is not already a <tt class="docutils literal"><span class="pre">doc/version.py</span></tt> file, you will
+need to create one by first running <tt class="docutils literal"><span class="pre">make</span> <span class="pre">version.py</span></tt> in the
+<tt class="docutils literal"><span class="pre">src/doc</span></tt> directory of a configured build tree.</p>
+</div>
+<div class="section" id="updating-man-pages">
+<h2>Updating man pages<a class="headerlink" href="#updating-man-pages" title="Permalink to this headline">¶</a></h2>
+<p>Man pages are generated from the RST sources and checked into the
+<tt class="docutils literal"><span class="pre">src/man</span></tt> directory of the repository.  This allows man pages to be
+installed without requiring Sphinx when using a source checkout.  To
+regenerate these files, run <tt class="docutils literal"><span class="pre">make</span> <span class="pre">man</span></tt> from the man subdirectory
+of a configured build tree.  You can also do this from an unconfigured
+source tree with:</p>
+<div class="highlight-python"><div class="highlight"><pre>cd src/man
+make -f Makefile.in top_srcdir=.. srcdir=. man
+make clean
+</pre></div>
+</div>
+<p>As with the simple build, it is normal to see warnings about missing
+files when rebuilding the man pages.</p>
+</div>
+<div class="section" id="building-for-a-release-tarball-or-web-site">
+<h2>Building for a release tarball or web site<a class="headerlink" href="#building-for-a-release-tarball-or-web-site" title="Permalink to this headline">¶</a></h2>
+<p>To generate documentation in HTML format, run <tt class="docutils literal"><span class="pre">make</span> <span class="pre">html</span></tt> in the
+<tt class="docutils literal"><span class="pre">doc</span></tt> subdirectory of a configured build tree (the build directory
+corresponding to <tt class="docutils literal"><span class="pre">src/doc</span></tt>, not the top-level <tt class="docutils literal"><span class="pre">doc</span></tt> directory).
+The output will be placed in the top-level <tt class="docutils literal"><span class="pre">doc/html</span></tt> directory.
+This build will include the API reference generated from Doxygen
+markup in the source tree.</p>
+<p>Documentation generated this way will use symbolic names for paths
+(like <tt class="docutils literal"><span class="pre">BINDIR</span></tt> for the directory containing user programs), with the
+symbolic names being links to a table showing typical values for those
+paths.</p>
+<p>You can also do this from an unconfigured source tree with:</p>
+<div class="highlight-python"><div class="highlight"><pre>cd src/doc
+make -f Makefile.in SPHINX_ARGS= htmlsrc
+</pre></div>
+</div>
+</div>
+<div class="section" id="building-for-an-os-package-or-site-documentation">
+<h2>Building for an OS package or site documentation<a class="headerlink" href="#building-for-an-os-package-or-site-documentation" title="Permalink to this headline">¶</a></h2>
+<p>To generate documentation specific to a build of MIT krb5 as you have
+configured it, run <tt class="docutils literal"><span class="pre">make</span> <span class="pre">substhtml</span></tt> in the <tt class="docutils literal"><span class="pre">doc</span></tt> subdirectory of a
+configured build tree (the build directory corresponding to
+<tt class="docutils literal"><span class="pre">src/doc</span></tt>, not the top-level <tt class="docutils literal"><span class="pre">doc</span></tt> directory).  The output will be
+placed in the <tt class="docutils literal"><span class="pre">html_subst</span></tt> subdirectory of that build directory.
+This build will include the API reference.</p>
+<p>Documentation generated this way will use concrete paths (like
+<tt class="docutils literal"><span class="pre">/usr/local/bin</span></tt> for the directory containing user programs, for a
+default custom build).</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">How to build this documentation from the source</a><ul>
+<li><a class="reference internal" href="#simple-build-without-api-reference">Simple build without API reference</a></li>
+<li><a class="reference internal" href="#updating-man-pages">Updating man pages</a></li>
+<li><a class="reference internal" href="#building-for-a-release-tarball-or-web-site">Building for a release tarball or web site</a></li>
+<li><a class="reference internal" href="#building-for-an-os-package-or-site-documentation">Building for an OS package or site documentation</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">How to build this documentation from the source</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="copyright.html" title="Copyright"
+            >previous</a> |
+        <a href="about.html" title="Contributing to the MIT Kerberos Documentation"
+            >next</a> |
+        <a href="genindex.html" title="General Index"
+            >index</a> |
+        <a href="search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__How to build this documentation from the source">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

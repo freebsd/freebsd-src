@@ -1,0 +1,367 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
+<!-- saved from url=(0066)https://confab.mit.edu/confluence/display/ISDA/lore-bkw-automation --><HTML><HEAD>
+        <TITLE>lore-bkw-automation - Confluence</TITLE>
+        <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <META http-equiv="Pragma" content="no-cache">
+        <META http-equiv="Expires" content="-1">
+        <LINK href="css/main-action.css" type="text/css" rel="stylesheet">
+            <LINK href="css\main-action(1).css" type="text/css" rel="stylesheet">
+                <META content="MSHTML 6.00.2900.3059" name="GENERATOR">
+</HEAD>
+    <BODY>
+        <DIV style="MARGIN-LEFT: 10px; MARGIN-RIGHT: 10px" align="left">
+            <DIV class="wiki-content" style="MARGIN-TOP: 5px; MARGIN-BOTTOM: 5px" align="left">The 
+                Kerberos for Windows (KfW) build is automated.&nbsp; A script will fetch the 
+                sources from a repository and then build, sign and package all the KfW 
+                distribution components.
+            </DIV>
+            <DIV class="wiki-content" style="MARGIN-TOP: 5px; MARGIN-BOTTOM: 5px" align="left">This 
+                description consists of
+            </DIV>
+            <UL>
+                <LI>
+                    <A href="#Environment">Setting up the build environment</A>
+                <LI>
+                    <A href="#Running">Running the script</A>
+                <LI>
+                    <A href="Details">Script internal details</A>
+                <LI>
+                    <A href="#Remainingwork">Remaining work / bug list</A>
+                <LI>
+                    <A href="#Troubleshooting">Troubleshooting</A>
+                </LI>
+            </UL>
+            <H2>Setting Up the Build Environment</H2>
+            <P>KfW is built on a Windows PC, in the default Windows shell (cmd.exe). These 
+                components must be installed:</P>
+            <UL>
+                <LI>
+                    Visual Studio 2003<BR>
+                Versions of Visual Studio before or after 2003 are not supported.
+                <LI>
+                    A recent release of the
+                    <SPAN class="nobr">
+                        <A href="http://www.microsoft.com/downloads/details.aspx?FamilyId=0BAF2B35-C656-4969-ACE8-E4C0C0716ADB&amp;displaylang=en">
+                            Microsoft Platform SDK</A></SPAN>
+                &nbsp;
+                <LI>
+                    <SPAN class="nobr">
+                        <A title="Visit page outside Confluence" href="http://www.activestate.com" rel="nofollow">
+                            ActiveState Perl 5.8 or more recent</A></SPAN><BR>
+                Build 631 is known to work.
+                <LI>
+                    <SPAN class="nobr">
+                        <A title="Visit page outside Confluence" href="http://www.doxygen.org/" rel="nofollow">
+                            Doxygen</A></SPAN>
+                <LI>
+                    sed, awk, cat, rm and find<BR>
+                    These can be obtained from the
+                    <SPAN class="nobr">
+                        <A title="Visit page outside Confluence" href="http://cygwin.com/" rel="nofollow">Cygwin 
+                            distribution</A></SPAN>.
+                    <BR clear="all">
+                    <BR clear="all">
+                    find must be in C:\tools\cygwin\bin, so install Cygwin in C:\tools\cygwin.
+                    <BR>
+                    <BR>
+                    The cygwin awk is a link and the MS shell doesn't deal well with that.&nbsp; <TT>C</TT>
+                    opy <TT>c:\tools\cygwin\bin\gawk</TT> to <TT>c:\tools\cygwin\bin\awk</TT>.
+                <LI>
+                    <SPAN class="nobr">
+                        <A title="Visit page outside Confluence" href="http://sourceforge.net/project/showfiles.php?group_id=105970"
+                            rel="nofollow">Wix</A></SPAN>
+                <LI>
+                    <SPAN class="nobr">
+                        <A title="Visit page outside Confluence" href="http://nsis.sourceforge.net" rel="nofollow">
+                            NSIS</A></SPAN></LI></UL>
+            <H3>Environment variables</H3>
+            <P>
+                All the components above must be in PATH. Installing ActivePerl puts perl in 
+                the PATH. Doxygen, Cygwin, hhc, wix and&nbsp;nsis need to be added.</P>
+            <P>perl must be installed so that .pl files are automatically executed with perl. 
+                The ActivePerl installation will do this for you.</P>
+            <P>In the INCLUDE path, the Microsoft Platform SDK must come before the Microsoft 
+                Visual C++ include files. In the PATH path, the Platform SDK bin area must come before the Visual Studio VC\bin area. Using a Platform SDK Build Environment window will 
+                set this up the right way.&nbsp; Make sure to use a Platform SDK Windows XP Build Environment shell. </P>
+            <P>If you make your path modifications permanent via Control Panel / System / 
+                Advanced / Environment Variables:&nbsp; If you use a Platform SDK Build 
+                Environment window, it appears that you need to put your PATH components in the 
+                System PATH, not the User PATH.</P>
+            <P>Visual Studio installs hhc in C:\Program Files\HTML Help Workshop.</P>
+            <P>nmake must be in PATH. If you use a Platform SDK build environment window, it is 
+                already done for you.</P>
+            <h2>Running the Script<A name="Running"></A></h2>
+            <P>
+                The build is a perl script controlled by command line switches and an XML 
+                configuration file. The config file is required. Settings in the config file 
+                can be overridden by optional command line switches.&nbsp;</P>
+            <P>There are options for controlling most steps of the build process.&nbsp; The 
+                steps are</P>
+            <UL>
+                <LI>
+                Verifying the environment
+                <LI>
+                Fetching the sources from repositories
+                <LI>
+                Building the sources
+                <LI>
+                Setting up the packaging environment
+                <LI>
+                Building the installers
+                <LI>
+                    Building the rest of the components
+                </LI>
+            </UL>
+            <P>The usage message shows the switches that control these steps:</P>
+            <P><TT>C:\Projects\KfW&gt;perl bkw.pl /?</TT><BR>
+                <TT>Usage: bkw.pl [options] NMAKE-options</TT></P>
+            <P><TT>&nbsp; Options are case insensitive. </TT>
+            </P>
+            <P><TT>&nbsp; Options:&nbsp;
+                    <BR>
+                </TT><TT>&nbsp; /help /?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    usage information (what you now see).
+                    <BR>
+                    &nbsp; /config /f path&nbsp;&nbsp; Path to config file. Default is 
+                    bkwconfig.xml.
+                    <BR>
+                    &nbsp; /src /s dir&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Source directory to use. 
+                    Should contain
+                    <BR>
+                    &nbsp;&nbsp;&nbsp; 
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    pismere/athena. If cvstag or svntag is&nbsp;null,
+                    <BR>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    the directory should be prepopulated.
+                    <BR>
+                    &nbsp; /out /o dir&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Directory to be created 
+                    where build results will go
+                    <BR>
+                </TT><TT>&nbsp; /repository checkout | co \ What repository action to take.
+                    <BR>
+                    &nbsp;&nbsp;&nbsp; &nbsp;/r&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    update&nbsp;&nbsp; | up&nbsp;\ Options are to checkout, update, export<BR>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;export&nbsp;&nbsp; 
+                    | ex \ or take no action [skip].&nbsp;<BR>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    skip<BR>
+                    &nbsp; /username /u name username used to access svn if checking out.
+                    <BR>
+                    &nbsp; /cvstag /c tag&nbsp;&nbsp;&nbsp; use -r &lt;tag&gt;
+                    <TAG>in cvs 
+command <BR>&nbsp; /svnbranch /b tag use 
+/branches/&lt;tag&gt;<TAG>&nbsp;instead of /trunk.<BR>&nbsp; /svntag /t tag&nbsp;&nbsp;&nbsp; use 
+/tags/&lt;tag&gt;<TAG>&nbsp;instead of /trunk.<BR>&nbsp; /debug 
+/d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Do&nbsp;debug make instead of 
+release make. <BR>&nbsp; 
+/[no]make&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+Control the make 
+step. <BR>&nbsp; 
+/clean&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Build 
+clean target. <BR>&nbsp; 
+/[no]package&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control the packaging step. <BR>&nbsp; 
+/[no]sign&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control 
+signing 
+of executable&nbsp;files. <BR>&nbsp; /verbose 
+/v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Debug mode - verbose output. <BR>&nbsp; /logfile /l path&nbsp; Where to write output. 
+Default is bkw.pl.log. <BR>&nbsp; 
+                    /nolog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Don't 
+                    save output. </TT>
+            </P>
+            <P><TT>&nbsp; Other:
+                    <BR>
+                    &nbsp;&nbsp;&nbsp; NMAKE-options any options you want to pass to NMAKE, which 
+                    can be:
+                    <BR>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                    (note: /nologo is always used)<BR>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NODEBUG=1</TT></P>
+            <P><TT>NMAKE-options any options you want to pass to NMAKE, which can be:</TT><BR>
+                <TT>(note: /nologo is always used)</TT><BR>
+                <TT>[ nmake options follow ]</TT></P>
+            <P><BR>
+                Notes on the script steps:</P>
+            <P><STRONG>Verifying the environment</STRONG>:&nbsp;
+                <BR>
+                The script tests for each program that it needs and warns if the program isn't 
+                found.</P>
+            <P><STRONG>Fetching sources from repositories</STRONG>:&nbsp;
+                <BR>
+                If building from a source distribution kit, this section does not apply.</P>
+            <P>CVSROOT and SVNURL must be specified in the configuration file.</P>
+            <P>A source zip file can only be produced if checking out fresh sources from a 
+                repository.&nbsp;</P>
+            <P>If checking out, the entire pismere directory will be deleted.&nbsp; A warning 
+                message requires that you confirm this action.</P>
+            <P><STRONG>Building the sources:</STRONG><BR>
+                /DEBUG controls whether a debug or release build is done.&nbsp; /CLEAN will 
+                build the CLEAN target.</P>
+            <P><STRONG>Setting up the packaging environment :<BR>
+                </STRONG>The pre-package steps gathers up build results and puts them in a <FONT face="Courier">
+                    staging</FONT> area.&nbsp;
+            </P>
+            <P>If /SIGN is specified, <FONT face="Courier">.exe</FONT>s, <FONT face="Courier">.dll</FONT>s 
+                and <FONT face="Courier">.cpl</FONT>s are signed.&nbsp; The signing command 
+                template is in the configuration file.</P>
+            <P><STRONG>Building the installers:</STRONG><BR>
+                The <FONT face="Courier">staging </FONT>area is copied into a fresh area for 
+                each of the installers.&nbsp; The installer results are copied back to the <FONT face="Courier">
+                    staging </FONT>area.</P>
+            <P><STRONG>Building the rest of the components:</STRONG><BR>
+                Zip files are built in temporary areas and copied to <FONT face="Courier">outdir</FONT>.&nbsp; 
+                The installers and assorted files are copied from <FONT face="Courier">staging</FONT>
+                to <FONT face="Courier">outdir</FONT>.&nbsp; If /SIGN is specified, the 
+                installers will be signed.</P>
+            <P>&nbsp;</P>
+            <H2><A name="Details"></A>Script Internal Details</H2>
+            <H3><A name="Copylists"></A>Copy Lists</H3>
+            <P>CopyLists are used in many places.&nbsp;&nbsp;For example, files to be put into 
+                a .zip are copied to a fresh directory which is then zipped up.&nbsp; There is 
+                an optional Configuration section and a required Files section.&nbsp;</P>
+            <P>The configuration section defines the roots of the from and to paths and can 
+                optionally define path substitutions.&nbsp;
+            </P>
+            <P>The to and from paths are forced by the script rather than being set in the 
+                config file.&nbsp; Comments in the copyfile xml indicate this.</P>
+            <P>Lengthy copy lists can be kept in separate files and included with the Include 
+                directive.&nbsp; Example:</P>
+            <P><TT>&lt;Include path="sdkfiles.xml" /&gt;</TT></P>
+            <H3>Substitution tags</H3>
+            <P>Filenames in copylists can contain variable 'tags' that are replaced before the 
+                file is copied.&nbsp; Some configuration files contain substitution tags which 
+                customize the configuration.&nbsp; The supported tags are</P>
+            <P>
+                <TABLE id="Table3" height="0" cellSpacing="1" cellPadding="1" border="1">
+                    <TR>
+                        <TD width="136">%VERSION_MAJOR%</TD>
+                        <TD height="21">KfW Version from pismere/athena/include/kerberos.ver.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%VERSION_MINOR%</TD>
+                        <TD height="9">KfW Version from pismere/athena/include/kerberos.ver.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%VERSION_PATCH%</TD>
+                        <TD height="17">KfW Version from pismere/athena/include/kerberos.ver.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%filestem%</TD>
+                        <TD height="17">Defined as kfw-%VERSION_MAJOR%-%VERSION_MINOR%-%VERSION_PATCH%.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%debug%</TD>
+                        <TD>'dbg.'&nbsp; Only substituted during a debug build.&nbsp;</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%release%</TD>
+                        <TD>'rel.'&nbsp; Only substituted during a release build.&nbsp;
+                        </TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%bldtype%</TD>
+                        <TD>Always substituted, to 'dbg' or 'rel,' depending on the type of build.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%-DEBUG%</TD>
+                        <TD>'-DEBUG' during a debug build; otherwise empty.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%BUILDDIR%</TD>
+                        <TD>SRCDIR\pismere.&nbsp; Used in site-local installer configuration files.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%TARGETDIR%</TD>
+                        <TD>SRCDIR\pismere\staging.&nbsp; Used in site-local installer configuration files.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%CONFIGDIR-WIX%</TD>
+                        <TD>SRCDIR\pismere\staging\sample.&nbsp; Used in site-local installer configuration 
+                            files.</TD>
+                    </TR>
+                    <TR>
+                        <TD width="136">%CONFIGDIR-NSI%</TD>
+                        <TD>SRCDIR\pismere\staging.&nbsp; Used in site-local installer configuration files.</TD>
+                    </TR>
+                </TABLE>
+            </P>
+            <P>The overall build configuration specifies a debug or release build.&nbsp; Debug 
+                and release results are put in different places.&nbsp; Files whose location 
+                depend on the build type can use %bldtype% in their names.&nbsp; The script 
+                will substitute %bldtype% with either dbg or rel, depending on the build 
+                type.&nbsp;<STRONG></P>
+        </DIV>
+    <DIV style="MARGIN-LEFT: 10px; MARGIN-RIGHT: 10px" align="left">
+            <H3>Example</H3>
+            </STRONG>
+            <P>Here is&nbsp;a copylist entry.&nbsp; Each segment of the file's path that comes 
+                from a different place is in a different color.</P>
+            <P>Release build.&nbsp; Config file:
+            </P>
+            <P>
+          <TABLE id="Table2" cellSpacing="1" cellPadding="1" border="0">
+                    <TR>
+                        <TD colSpan="4"><FONT face="courier">&lt;BKW_Config&gt;</FONT></TD>
+                    </TR>
+                    <TR>
+                        <TD width="23"></TD>
+                        <TD colSpan="3"><FONT face="courier">&lt;Config&gt;</FONT></TD>
+                    </TR>
+                    <TR>
+                        <TD width="23"></TD>
+                        <TD width="20"></TD>
+                        <TD><FONT face="courier">&lt;src&nbsp;value ="<FONT color="#000099">C:\bkw"</FONT> /&gt;</FONT>
+                        </TD>
+                    </TR>
+          </TABLE>
+            </P>
+            <P>Copylist comments:</P>
+            <P><tt>&lt;!-- File from paths are relative to
+                    <src>\<FONT color="#ff00cc">pismere\athena</FONT> --&gt; <BR>&lt;!-- File to paths are relative to <src>\<FONT color="#00ff00">
+                                pismere\staging</FONT>
+                    --&gt; </tt>
+            </P>
+            <P>When the script processes this copylist, it will force the from and to paths as 
+                indicated.</P>
+            <P>This line
+            </P>
+            <P><tt>&lt;File name="<FONT color="#00ffff">comerr32.dll</FONT>" from="<FONT color="#ff9933">..\target\bin\i386</FONT>\<FONT color="#ff0000">%bldtype%</FONT>\" 
+                    to="\<FONT color="#9966ff">bin\i386</FONT>" /&gt;</tt></P>
+            <P>will result in <FONT face="Courier"><FONT color="#000099">C:\bkw</FONT>\<FONT color="#ff00cc">pismere\athena</FONT>\<FONT color="#ff9933">..\target\bin\i386</FONT>\<FONT color="#ff0000">rel</FONT>\<FONT color="#00ffff">comerr32.dll</FONT></FONT></P>
+            <P>being copied to <FONT face="Courier"><FONT color="#000099">C:\bkw</FONT>\<FONT color="#00ff00">pismere\staging</FONT>\<FONT color="#9966ff">bin\i386</FONT>\<FONT color="#00ffff">comerr32.dll</FONT></FONT>.</P>
+            <P>Other possible attributes in a copylist entry:</P>
+            <UL>
+                <LI>
+                    <TT>notrequired</TT>
+                <LI>
+                    <TT>newname="filename"</TT>
+                </LI>
+            </UL>
+            <P>By default, copylist entries are required and the script will die if they aren't 
+                present. To ignore missing files, add <TT>notrequired</TT>.</P>
+            <P>To rename the file, set the <TT>newname</TT> attribute.</P>
+            <H2><FONT face="Verdana"><A name="Remainingwork"></A>Remaining Work / Bug List</FONT></H2>
+            <P>Implement RETAIL, OFFICIAL, PRERELEASE, PRIVATE, SPECIAL.</P>
+            <P>Figure out what MIT_ONLY, BUILD_KFW, DEBUG_SYMBOL should be.</P>
+            <P>TARGET, APPVER.</P>
+            <P>NODEBUG=1.&nbsp; Set if release build.</P>
+            <H2><FONT face="Verdana"><A name="Troubleshooting"></A>Troubleshooting</FONT>
+            </H2>
+            <P><STRONG>Can't clean directory; can't delete file or directory</STRONG><BR>
+                Make sure a file in the named directory isn't open in another application.</P>
+        <P><STRONG>Can't find kerberos.ver</STRONG><BR>
+            You skipped the repository step and are trying to build in an empty directory.</P>
+        <P><strong>Directories don't exist or can't be created <br>
+        </strong>This can be a symptom of the Platform SDK bin area not being before the Visual Studio bin areas, such that the version of nmake running is version 8.x.<strong>  <br>
+        </strong>[This explanation courtesy of Jeff Altman]: <br>
+        nmake V8 appears to favor executables over shell commands. As a result, using 'mkdir' instead of 'md' in Makefiles, as a command for creating directory trees, fails when the Cygwin mkdir.exe is present in the PATH. Changing the</P>
+        <P>MKDIR=mkdir<br>
+        RMDIR=rmdir</P>
+        <P>macros in the Makefiles to</P>
+        <P>MKDIR=md<br>
+        RMDIR=rd</P>
+        <P>should make the shell versions execute in all cases.</P>
+    </DIV>
+    </BODY>
+</HTML>

@@ -1,0 +1,3 @@
+mydir=appl$(S)simple
+SUBDIRS = client server
+BUILDTOP=$(REL)..$(S)..

@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>klist &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="User commands" href="index.html" />
+    <link rel="next" title="kpasswd" href="kpasswd.html" />
+    <link rel="prev" title="kinit" href="kinit.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kinit.html" title="kinit"
+            accesskey="P">previous</a> |
+        <a href="kpasswd.html" title="kpasswd"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__klist">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="klist">
+<span id="klist-1"></span><h1>klist<a class="headerlink" href="#klist" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>klist</strong>
+[<strong>-e</strong>]
+[[<strong>-c</strong>] [<strong>-l</strong>] [<strong>-A</strong>] [<strong>-f</strong>] [<strong>-s</strong>] [<strong>-a</strong> [<strong>-n</strong>]]]
+[<strong>-C</strong>]
+[<strong>-k</strong> [<strong>-t</strong>] [<strong>-K</strong>]]
+[<strong>-V</strong>]
+[<em>cache_name</em>|<em>keytab_name</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>klist lists the Kerberos principal and Kerberos tickets held in a
+credentials cache, or the keys held in a keytab file.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>-e</strong></dt>
+<dd>Displays the encryption types of the session key and the ticket
+for each credential in the credential cache, or each key in the
+keytab file.</dd>
+<dt><strong>-l</strong></dt>
+<dd>If a cache collection is available, displays a table summarizing
+the caches present in the collection.</dd>
+<dt><strong>-A</strong></dt>
+<dd>If a cache collection is available, displays the contents of all
+of the caches in the collection.</dd>
+<dt><strong>-c</strong></dt>
+<dd>List tickets held in a credentials cache. This is the default if
+neither <strong>-c</strong> nor <strong>-k</strong> is specified.</dd>
+<dt><strong>-f</strong></dt>
+<dd><p class="first">Shows the flags present in the credentials, using the following
+abbreviations:</p>
+<div class="last highlight-python"><div class="highlight"><pre>F    Forwardable
+f    forwarded
+P    Proxiable
+p    proxy
+D    postDateable
+d    postdated
+R    Renewable
+I    Initial
+i    invalid
+H    Hardware authenticated
+A    preAuthenticated
+T    Transit policy checked
+O    Okay as delegate
+a    anonymous
+</pre></div>
+</div>
+</dd>
+<dt><strong>-s</strong></dt>
+<dd>Causes klist to run silently (produce no output).  klist will exit
+with status 1 if the credentials cache cannot be read or is
+expired, and with status 0 otherwise.</dd>
+<dt><strong>-a</strong></dt>
+<dd>Display list of addresses in credentials.</dd>
+<dt><strong>-n</strong></dt>
+<dd>Show numeric addresses instead of reverse-resolving addresses.</dd>
+<dt><strong>-C</strong></dt>
+<dd>List configuration data that has been stored in the credentials
+cache when klist encounters it.  By default, configuration data
+is not listed.</dd>
+<dt><strong>-k</strong></dt>
+<dd>List keys held in a keytab file.</dd>
+<dt><strong>-i</strong></dt>
+<dd>In combination with <strong>-k</strong>, defaults to using the default client
+keytab instead of the default acceptor keytab, if no name is
+given.</dd>
+<dt><strong>-t</strong></dt>
+<dd>Display the time entry timestamps for each keytab entry in the
+keytab file.</dd>
+<dt><strong>-K</strong></dt>
+<dd>Display the value of the encryption key in each keytab entry in
+the keytab file.</dd>
+<dt><strong>-V</strong></dt>
+<dd>Display the Kerberos version number and exit.</dd>
+</dl>
+<p>If <em>cache_name</em> or <em>keytab_name</em> is not specified, klist will display
+the credentials in the default credentials cache or keytab file as
+appropriate.  If the <strong>KRB5CCNAME</strong> environment variable is set, its
+value is used to locate the default ticket cache.</p>
+</div>
+<div class="section" id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>klist uses the following environment variable:</p>
+<dl class="docutils">
+<dt><strong>KRB5CCNAME</strong></dt>
+<dd>Location of the default Kerberos 5 credentials (ticket) cache, in
+the form <em>type</em>:<em>residual</em>.  If no <em>type</em> prefix is present, the
+<strong>FILE</strong> type is assumed.  The type of the default cache may
+determine the availability of a cache collection; for instance, a
+default cache of type <strong>DIR</strong> causes caches within the directory
+to be present in the collection.</dd>
+</dl>
+</div>
+<div class="section" id="files">
+<h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFCCNAME</em></a></dt>
+<dd>Default location of Kerberos 5 credentials cache</dd>
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><em>DEFKTNAME</em></a></dt>
+<dd>Default location for the local host&#8217;s keytab file.</dd>
+</dl>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kinit.html#kinit-1"><em>kinit</em></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><em>kdestroy</em></a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">klist</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#files">FILES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tkt_mgmt.html">Ticket management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_config/index.html">User config files</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">User commands</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kdestroy.html">kdestroy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kinit.html">kinit</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="">klist</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpasswd.html">kpasswd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5-config.html">krb5-config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ksu.html">ksu</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kswitch.html">kswitch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kvno.html">kvno</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sclient.html">sclient</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kinit.html" title="kinit"
+            >previous</a> |
+        <a href="kpasswd.html" title="kpasswd"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__klist">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

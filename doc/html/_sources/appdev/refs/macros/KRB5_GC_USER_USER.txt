@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-GC-USER-USER-data:
+
+KRB5_GC_USER_USER
+=================
+
+..
+.. data:: KRB5_GC_USER_USER
+..
+
+Want user-user ticket.
+
+
+
+======================== ======================
+``KRB5_GC_USER_USER``       ``1``
+======================== ======================

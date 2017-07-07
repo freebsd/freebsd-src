@@ -1,0 +1,47 @@
+krb5_get_init_creds_opt_get_fast_flags -  Retrieve FAST flags from initial credential options. 
+===============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_get_fast_flags(krb5_context context, krb5_get_init_creds_opt * opt, krb5_flags * out_flags)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options
+
+	          **[out]** **out_flags** - FAST flags
+
+
+..
+
+
+:retval:
+         -   0   - Success; Kerberos errors otherwise.
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

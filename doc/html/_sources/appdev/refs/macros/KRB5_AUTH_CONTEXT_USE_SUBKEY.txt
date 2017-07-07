@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTH-CONTEXT-USE-SUBKEY-data:
+
+KRB5_AUTH_CONTEXT_USE_SUBKEY
+============================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_USE_SUBKEY
+..
+
+
+
+
+=================================== ======================
+``KRB5_AUTH_CONTEXT_USE_SUBKEY``       ``0x00000020``
+=================================== ======================

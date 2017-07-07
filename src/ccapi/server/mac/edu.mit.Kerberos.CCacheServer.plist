@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>edu.mit.Kerberos.CCacheServer</string>
+	<key>LimitLoadToSessionType</key>
+	<string>Background</string>
+	<key>Program</key>
+	<string>/System/Library/CoreServices/CCacheServer.app/Contents/MacOS/CCacheServer</string>
+	<key>MachServices</key>
+	<dict>
+		<key>edu.mit.Kerberos.CCacheServer.ipcLookup</key>
+		<dict>
+			<key>HideUntilCheckIn</key>
+			<true/>
+			<key>ResetAtClose</key>
+			<true/>
+		</dict>
+		<key>edu.mit.Kerberos.CCacheServer.ipcService</key>
+		<true/>
+	</dict>
+	<key>EnableTransactions</key>
+	<true/>
+	<key>OnDemand</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>0</integer>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>CFFIXED_USER_HOME</key>
+		<string>/var/empty</string>
+	</dict>
+</dict>
+</plist>

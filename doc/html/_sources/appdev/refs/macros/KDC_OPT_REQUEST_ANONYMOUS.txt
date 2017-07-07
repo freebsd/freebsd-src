@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KDC-OPT-REQUEST-ANONYMOUS-data:
+
+KDC_OPT_REQUEST_ANONYMOUS
+=========================
+
+..
+.. data:: KDC_OPT_REQUEST_ANONYMOUS
+..
+
+
+
+
+================================ ======================
+``KDC_OPT_REQUEST_ANONYMOUS``       ``0x00008000``
+================================ ======================

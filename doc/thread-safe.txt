@@ -1,0 +1,248 @@
+[May be out of date.  Last significant update: Jan 2005.]
+
+In general, it's assumed that the library initialization function (if
+initialization isn't delayed) and the library finalization function
+are run in some thread-safe fashion, with no other parts of the
+library in question in use.  (If dlopen or dlsym in one thread starts
+running the initializer, and then dlopen/dlsym in another thread
+returns and lets you start accessing functions or data in the library
+before the initializer is finished, that really seems like a
+dlopen/dlsym bug.)
+
+It's also assumed that if library A depends on library B, then library
+B's initializer runs first, and its finalizer last, whether loading
+dynamically at run time or at process startup/exit.  (It appears that
+AIX 4.3.3 may violate this, at least when we use gcc's
+constructor/destructor attributes in shared libraries.)
+
+Support for freeing the heap storage allocated by a library has NOT,
+in general, been written.  There are hooks, but often they ignore some
+of the library's local storage, mutexes, etc.
+
+If shared library finalization code doesn't get run at all at dlclose
+time, or if we can't use it because the execution order is wrong, then
+you'll get memory leaks.  Deal with it.
+
+Several debugging variables that are not part of our official API are
+not protected by mutexes.  In general, the only way to set them is by
+changing the sources and recompiling, which obviously has no run-time
+thread safety issues, or by stopping the process under a debugger,
+which we blithely assert is "safe enough".
+
+Debug code that we don't normally enable may be less thread safe than
+might be desired.  For example, multiple printf calls may be made,
+with the assumption that the output will not be intermixed with output
+from some other thread.  Offhand, I'm not aware of any cases where
+debugging code is "really" unsafe, as in likely to crash the program
+or produce insecure results.
+
+Various libraries may call assert() and abort().  This should only be
+for "can't happen" cases, and indicate programming errors.  In some
+cases, the compiler may be able to infer that the "can't happen" cases
+really can't happen, and drop the calls, but in many cases, this is
+not possible.
+
+There are cases (e.g., in the com_err library) where errors arising
+when dealing with other errors are handled by calling abort, for lack
+of anything better.  We should probably clean those up someday.
+
+Various libraries call getenv().  This is perfectly safe, as long as
+nothing is calling setenv or putenv or what have you, while multiple
+threads are executing.  Of course, that severely curtails the ability
+to control our libraries through that "interface".
+
+Various libraries call the ctype functions/macros (isupper, etc).  It
+is assumed that the program does not call setlocale, or does so only
+while the program is still single-threaded or while calls into the
+Kerberos libraries are not in progress.
+
+The Windows thread safety support is unfinished.
+
+I'm assuming that structure fields that are never written to (e.g.,
+after a structure has been initialized and *then* made possibly
+visible to multiple threads) are safe to read from one thread while
+another field is being updated by another thread.  If that's not the
+case, some more work is needed (and I'd like details on why it's not
+safe).
+
+----------------
+
+libcom_err
+
+Issues:
+
+The callback hook support (set_com_err_hook, reset_com_err_hook, and
+calls to com_err and com_err_va) uses a mutex to protect the handle on
+the hook function.  As a side effect of this, if a callback function
+is registered which pops up a window and waits for the users'
+acknowledgement, then other errors cannot be reported by other threads
+until after the acknowledgement.  This could be fixed with
+multiple-reader-one-writer type locks, but that's a bit more
+complicated.
+
+The string returned by error_message may be per-thread storage.  It
+can be passed off between threads, but it shouldn't be in use by any
+thread by the time the originating thread calls error_message again.
+
+Error tables must no longer be in use (including pointers returned by
+error_message) when the library containing them is unloaded.
+
+Temporary: A flag variable has been created in error_message.c which
+is used to try to catch cases where remove_error_table is called after
+the library finalization function.  This generally indicates
+out-of-order execution of the library finalization functions.  The
+handling of this flag is not thread-safe, but if the finalization
+function is called, other threads should in theory be finished with
+this library anyways.
+
+Statics: error_message.c, com_err.c, covered above.
+
+----------------
+
+libprofile (and its use in libkrb5)
+
+Does no checks to see if it's opened multiple instances of the same
+file under different names.  Does not guard against trying to open a
+file while another thread or process is in the process of replacing
+it, or two threads trying to update a file at the same time.  The
+former should be pretty safe on UNIX with atomic rename, but on
+Windows there's a race condition; there's a window (so to speak) where
+the filename does not correspond to an actual file.
+
+Statics: prof_file.c, a list of opened config files and their parse
+trees, and a mutex to protect it.
+
+----------------
+
+libk5crypto
+
+Uses of the Yarrow code from the krb5 crypto interface are protected
+by a single mutex.  Initialization of the Yarrow state will be done
+once, the first time these routines are called.  Calls directly to the
+Yarrow functions are not protected.
+
+Uses ctype macros; what happens if the locale is changed in a
+multi-threaded program?
+
+Debug var in pbkdf2.c.
+
+Statics: pbkdf2.c: debug variable.
+
+Statics: prng.c: Global Yarrow data and mutex.
+
+Statics: crypto_libinit.c: library initializer aux data.
+
+----------------
+
+libkrb5
+
+(TBD)
+
+Uses: ctype macros
+
+Uses: getaddrinfo, getnameinfo.  According to current specifications,
+getaddrinfo should be thread-safe; some implementations are not, and
+we're not attempting to figure out which ones.  NetBSD 1.6, for
+example, had an unsafe implementation.
+
+Uses: res_ninit, res_nsearch.  If these aren't available, the non-'n'
+versions will be used, and they are sometimes not thread-safe.
+
+Uses: mkstemp, mktemp -- Are these, or our uses of them, likely to be
+thread-safe?
+
+Uses: sigaction
+
+The use of sigaction is in the code prompting for a password; we try
+to catch the keyboard interrupt character being used and turn it into
+an error return from that function.  THIS IS NOT THREAD-SAFE.
+
+Uses: tcgetattr, tcsetattr.  This is also in the password-prompting
+code.  These are fine as long as no other threads are accessing the
+same terminal at the same time.
+
+Uses: fopen.  This is thread-safe, actually, but a multi-threaded
+server is likely to be using lots of file descriptors.  On 32-bit
+Solaris platforms, fopen will not work if the next available file
+descriptor number is 256 or higher.  This can cause the keytab code to
+fail.
+
+Statics: prompter.c: interrupt flag
+
+Statics: ccdefops.c: default operations table pointer
+
+Statics: ktdefname.c: variable to override default keytab name, NO
+LOCKING.  DON'T TOUCH THESE VARIABLES, at least in threaded programs.
+
+Statics: conv_creds.c: debug variable
+
+Statics: sendto_kdc.c: debug variable, in export list for KDC
+
+Statics: parse.c: default realm cache, changed to not cache
+
+Statics: krb5_libinit.c: lib init aux data
+
+Statics: osconfig.c: various internal variables, probably should be const
+
+Statics: init_ctx.c: "brand" string; not written.
+
+Statics: cc_memory.c: list of caches, with mutex.
+
+Statics: c_ustime.c: last timestamp, to implement "microseconds must
+always increment"
+
+Statics: ktbase.c, ccbase.c, rc_base.c: type registries and mutexes.
+
+----------------
+
+libgssapi_krb5
+
+(TBD)
+
+Uses: ctype macros
+
+Statics: acquire_cred.c: name of keytab to use, and mutex.
+
+Statics: gssapi_krb5.c:
+
+Statics: init_sec_context.c:
+
+Statics: set_ccache.c:
+
+Statics: gssapi_generic.c: OID definitions, non-const by
+specification.  We probably could make them const anyways.
+
+The keytab name saved away by krb5_gss_register_acceptor_identity is
+global and protected by a mutex; the ccache name stored by
+gss_krb5_ccache_name is per-thread.  This inconsistency is due to the
+anticipated usage patterns.
+
+The old ccache name returned by gss_krb5_ccache_name if the last
+parameter is not a null pointer is also stored per-thread, and will be
+discarded at the next call to that routine from the same thread, or at
+thread termination.
+
+Needs work: check various objects for thread safety
+
+----------------
+
+libgssrpc
+
+New version is in place.  Ignore it for now?
+
+----------------
+
+libkadm5*
+libkdb5
+
+Skip these for now.  We may want the KDC libraries to be thread-safe
+eventually, so the KDC can take better advantage of hyperthreaded or
+multiprocessor systems.
+
+----------------
+
+libapputils
+libss
+
+Used by single-threaded programs only (but see above re KDC).  Don't
+bother for now.

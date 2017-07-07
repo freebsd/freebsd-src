@@ -1,0 +1,35 @@
+.. highlightlang:: c
+
+.. _krb5-gic-opt-pa-data-struct:
+
+krb5_gic_opt_pa_data
+====================
+
+..
+.. c:type:: krb5_gic_opt_pa_data
+..
+
+Generic preauth option attribute/value pairs.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_gic_opt_pa_data  krb5_gic_opt_pa_data
+
+
+Members
+---------
+
+
+.. c:member:: char *	krb5_gic_opt_pa_data.attr
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_gic_opt_pa_data.value
+
+                                             
+                                             
+

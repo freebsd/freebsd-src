@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Troubleshooting</title></head>
+
+<body>
+<h1> <a name="" top="">Troubleshooting</a></h1>
+<ul id="helpul">
+<li> <a href="#renew">  When I try to renew my ticket, why do I get an error message and see the Get Ticket window? </a></li>
+<li><a href="#expire">   Why did my tickets expire even though I had Automatically Renew Tickets turned on?  </a></li>
+
+<li> <a href="#ticket-lifetime">  Why doesn't my ticket lifetime match the lifetime I selected with the slider in the Get Ticket window?  </a></li>
+
+
+
+<li> <a href="#set-preferences">  How do I set properties like the default ticket lifetime?  </a></li>
+<li> <a href="#set-preferences"> I have multiple principals and have
+tickets for all of them, but sometimes an application that requires
+Kerberos doesn't work. What's going on? </a></li>
+</ul>
+
+
+<a name="renew">  <h3> When I try to renew my ticket, why do I get an error message and see the Get Ticket window? </h3> </a>
+<p>
+The ticket cannot be renewed. This could be because the ticket was not
+flagged as renewable when you obtained it, or because it expired before
+you could renew it, or because the ticket's renewable lifetime has been
+reached. <a href="HTML/Tickets.htm#renewable">About: Renewable Tickets</a> </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<a name="expire">  </a><h3><a name=" expire">  Why did my tickets expire even though I had Automatically Renew Tickets turned on?  </a></h3>
+<p> MIT Kerberos can only renew your tickets if the program is running
+and active. It cannot renew your tickets if you exit the program or if
+your computer is turned off or in hibernation mode.</p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<a name="ticket-lifetime">  </a><h3><a name="ticket-lifetime"> Why doesn't my ticket lifetime match the lifetime I selected with the slider in the Get Ticket window?  </a></h3>
+<p> Your Kerberos installation is configured for a maximum ticket
+lifetime length that is determined by the administrators. If your
+installation uses a shorter maximum ticket lifetime than the default,
+the Ticket Lifetime slider might show the default maximum instead of
+the actual maximum.</p>
+<p> For example, if your Kerberos installation has been configured to
+issue tickets that expire in 5 hours or less, you might be able to move
+the slider to show 12 hours but you would still be issued a ticket with
+a lifetime of only 5 hours.</p>
+<p>
+<a href="#top">Back to top</a></p>
+
+
+<h3> <a name="set-preferences"> How do I set properties like the default ticket lifetime?</a></h3>
+<p>
+You cannot use the MIT Kerberos program to set properties such as
+default ticket lifetimes. Instead, edit the appropriate configuration
+file. For more information, visit the <a href="http://web.mit.edu/kerberos/krb5-latest/doc/krb_admins/conf_files/index.html" target="new"> MIT Kerberos documentation site. </a>
+ </p>
+<p>
+<a href="#top">Back to top</a></p>
+
+<h3>  <a name="default-principal"> I have multiple principals and have
+tickets for all of them, but sometimes an application that requires
+Kerberos doesn't work. What's going on? </a></h3>
+<p>
+When you try to use a Keberized application, it requests your
+credentials from Kerberos. Some applications do this by asking for a
+specific principal's credentials, but others ask generically. When
+applications make a generic request, Kerberos does not know which
+principal is being authenticated and checks the default principal for
+tickets. If the default principal is not the one being authenticated,
+the application will usually simply fail to work with no warning or
+notice. <a href="HTML/Make_Default.htm">How to: Make Default Principal</a>
+
+
+ </p>
+<p>
+<a href="#top">Back to top</a></p>
+</body></html>

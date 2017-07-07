@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+<title>Import Status</title></head>
+
+<body>
+
+<h1>Import Status </h1>
+<p>
+The Import Status column in the main window shows whether tickets were
+obtained with the Get Ticket function in MIT Kerberos or if they were
+obtained by a Windows Logon session when you logged on to a domain, and
+whether they have been imported or exported to the other application. </p>
+<p>
+To show or hide this column, open the Options tab and use the Import
+Status checkbox in the View Options panel. Note that Import Status is
+only available if you have obtained tickets through a Windows Logon
+session. <br>
+<a href="HTML/Options_Tab.htm#using-view-options">How to: Use View Options Panel </a></p>
+
+<table>
+<tbody><tr><th> Import Status </th>
+<th>Meaning</th>
+</tr>
+<tr>
+<th id="th2">imported</th>
+<td>The tickets were obtained when you started a Windows Logon session by logging in to a domain.
+
+They have been imported into MIT Kerberos. </td>
+
+</tr><tr>
+<th id="th2">importable</th>
+<td>The tickets were obtained when you started a Windows Logon session  by logging in to a domain.
+<p></p>
+They have not been imported into MIT Kerberos because Automatic Import
+has been turned off. To import them, select Automatic Import in the
+Ticket Options panel of the Options tab, or click the Import button in the Home tab.<br>
+ <a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use Ticket Options Panel</a><br>
+<a href="HTML/Import_Tickets.htm">How to: Import Tickets</a></li></td>
+</tr><tr>
+<th id="th2">protected</th>
+<td>The tickets were obtained when you started a Windows Logon session  by logging in to a domain.
+<p></p>
+They have not been imported into Windows for Kerberos because User
+Access Control (UAC) in Windows is preventing that action. If you want
+to allow the tickets to be imported, turn off your computer's UAC. </td>
+
+</tr><tr>
+<th id="th2">exportable</th>
+<td> You used the Get Ticket window to obtain these tickets.
+<p></p>
+They have not been exported.  <p></p>
+To export these tickets for use with Windows services, click the Export
+Ticket button. Note that exporting your tickets replaces rather than
+adds to any existing tickets in your Windows Logon session. </td>
+
+</tr><tr>
+<th id="th2">exported</th>
+<td>You used the Get Ticket window to obtain these tickets.
+<p></p>
+They have been exported into your Windows Logon session and can be used with Windows services. </td>
+
+</tr></tbody></table>
+
+<h2>Related Help</h2>
+<ul id="helpul">
+<li><a href="HTML/Options_Tab.htm#using-view-options">Using the View Options panel</a></li>
+<li><a href="HTML/Options_Tab.htm#using-ticket-options">Using theTicket Options panel</a></li>
+<li><a href="HTML/Export_Tickets.htm">Export tickets</a></li>
+<li><a href="HTML/Import_Tickets.htm">Import tickets</a></li>
+<li><a href="HTML/Windows_Logon_Tickets.htm">Windows Logon session tickets</a></li>
+</ul>
+
+</body></html>

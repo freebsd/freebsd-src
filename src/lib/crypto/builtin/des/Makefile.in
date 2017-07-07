@@ -1,0 +1,80 @@
+mydir=lib$(S)crypto$(S)builtin$(S)des
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/.. -I$(srcdir)/../../krb
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\des
+##DOS##OBJFILE = ..\..\$(OUTPRE)des.lst
+
+STLIBOBJS=\
+	d3_aead.o	\
+	d3_kysched.o	\
+	des_keys.o	\
+	f_aead.o 	\
+	f_cksum.o	\
+	f_parity.o 	\
+	f_sched.o 	\
+	f_tables.o	\
+	key_sched.o	\
+	weak_key.o
+
+OBJS=	$(OUTPRE)d3_aead.$(OBJEXT)	\
+	$(OUTPRE)d3_kysched.$(OBJEXT)	\
+	$(OUTPRE)des_keys.$(OBJEXT)	\
+	$(OUTPRE)f_aead.$(OBJEXT) 	\
+	$(OUTPRE)f_cksum.$(OBJEXT)	\
+	$(OUTPRE)f_parity.$(OBJEXT) 	\
+	$(OUTPRE)f_sched.$(OBJEXT) 	\
+	$(OUTPRE)f_tables.$(OBJEXT)	\
+	$(OUTPRE)key_sched.$(OBJEXT)	\
+	$(OUTPRE)weak_key.$(OBJEXT)
+
+SRCS=	$(srcdir)/d3_aead.c	\
+	$(srcdir)/d3_kysched.c	\
+	$(srcdir)/des_keys.c	\
+	$(srcdir)/f_aead.c	\
+	$(srcdir)/f_cksum.c	\
+	$(srcdir)/f_parity.c	\
+	$(srcdir)/f_sched.c	\
+	$(srcdir)/f_tables.c	\
+	$(srcdir)/key_sched.c	\
+	$(srcdir)/weak_key.c
+
+EXTRADEPSRCS = $(srcdir)/destest.c $(srcdir)/f_cbc.c $(srcdir)/t_verify.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+TOBJS = $(OUTPRE)key_sched.$(OBJEXT) $(OUTPRE)f_sched.$(OBJEXT) \
+	$(OUTPRE)f_cbc.$(OBJEXT) $(OUTPRE)f_tables.$(OBJEXT) \
+	$(OUTPRE)f_cksum.$(OBJEXT)
+
+verify$(EXEEXT): t_verify.$(OBJEXT) $(TOBJS) f_parity.$(OBJEXT) \
+	$(COM_ERR_DEPLIB) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o $@ t_verify.$(OBJEXT) $(TOBJS) f_parity.$(OBJEXT) \
+		-lcom_err $(SUPPORT_LIB)
+
+destest$(EXEEXT): destest.$(OBJEXT) $(TOBJS) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o $@ destest.$(OBJEXT) $(TOBJS) $(SUPPORT_LIB)
+
+all-unix: all-libobjs
+
+check-unix: verify destest
+	$(RUN_TEST) ./verify -z
+	$(RUN_TEST) ./verify -m
+	$(RUN_TEST) ./verify
+	$(RUN_TEST) ./destest < $(srcdir)/keytest.data
+
+includes: depend
+
+depend: $(SRCS)
+
+check-windows:
+
+clean:
+	$(RM) destest.$(OBJEXT) destest$(EXEEXT) verify$(EXEEXT) \
+	t_verify.$(OBJEXT) $(TOBJS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

@@ -1,0 +1,65 @@
+krb5_mk_req -  Create a KRB_AP_REQ message. 
+============================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_req(krb5_context context, krb5_auth_context * auth_context, krb5_flags ap_req_options, char * service, char * hostname, krb5_data * in_data, krb5_ccache ccache, krb5_data * outbuf)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[inout]** **auth_context** - Pre-existing or newly created auth context
+
+	          **[in]** **ap_req_options** - :data:`AP_OPTS` options
+
+	          **[in]** **service** - Service name, or NULL to use **"host"**
+
+	          **[in]** **hostname** - Host name, or NULL to use local hostname
+
+	          **[in]** **in_data** - Application data to be checksummed in the authenticator, or NULL
+
+	          **[in]** **ccache** - Credential cache used to obtain credentials for the desired service.
+
+	          **[out]** **outbuf** - **AP-REQ** message
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function is similar to :c:func:`krb5_mk_req_extended()` except that it uses a given *hostname* , *service* , and *ccache* to construct a service principal name and obtain credentials.
+
+
+
+Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

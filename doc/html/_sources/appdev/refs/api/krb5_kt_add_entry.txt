@@ -1,0 +1,52 @@
+krb5_kt_add_entry -  Add a new entry to a key table. 
+=====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_add_entry(krb5_context context, krb5_keytab id, krb5_keytab_entry * entry)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **id** - Key table handle
+
+	          **[in]** **entry** - Entry to be added
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+         -   KRB5_KT_NOWRITE   Key table is not writeable
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

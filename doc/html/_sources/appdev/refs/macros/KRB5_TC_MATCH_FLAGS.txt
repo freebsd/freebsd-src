@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-FLAGS-data:
+
+KRB5_TC_MATCH_FLAGS
+===================
+
+..
+.. data:: KRB5_TC_MATCH_FLAGS
+..
+
+All the flags set in the match credentials must be set.
+
+
+
+========================== ======================
+``KRB5_TC_MATCH_FLAGS``       ``0x00000004``
+========================== ======================

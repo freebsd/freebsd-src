@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-KPASSWD-ACCESSDENIED-data:
+
+KRB5_KPASSWD_ACCESSDENIED
+=========================
+
+..
+.. data:: KRB5_KPASSWD_ACCESSDENIED
+..
+
+Not authorized.
+
+
+
+================================ ======================
+``KRB5_KPASSWD_ACCESSDENIED``       ``5``
+================================ ======================

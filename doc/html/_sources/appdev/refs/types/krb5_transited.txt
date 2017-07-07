@@ -1,0 +1,40 @@
+.. highlightlang:: c
+
+.. _krb5-transited-struct:
+
+krb5_transited
+==============
+
+..
+.. c:type:: krb5_transited
+..
+
+Structure for transited encoding.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_transited  krb5_transited
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_transited.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_octet	krb5_transited.tr_type
+
+                                             Transited encoding type.
+                                             
+
+.. c:member:: krb5_data	krb5_transited.tr_contents
+
+                                             Contents.
+                                             
+

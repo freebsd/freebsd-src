@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-RESPONDER-OTP-FORMAT-ALPHANUMERIC-data:
+
+KRB5_RESPONDER_OTP_FORMAT_ALPHANUMERIC
+======================================
+
+..
+.. data:: KRB5_RESPONDER_OTP_FORMAT_ALPHANUMERIC
+..
+
+
+
+
+============================================= ======================
+``KRB5_RESPONDER_OTP_FORMAT_ALPHANUMERIC``       ``2``
+============================================= ======================

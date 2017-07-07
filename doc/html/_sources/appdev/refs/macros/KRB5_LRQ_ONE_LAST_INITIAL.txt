@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-LRQ-ONE-LAST-INITIAL-data:
+
+KRB5_LRQ_ONE_LAST_INITIAL
+=========================
+
+..
+.. data:: KRB5_LRQ_ONE_LAST_INITIAL
+..
+
+
+
+
+================================ ======================
+``KRB5_LRQ_ONE_LAST_INITIAL``       ``(-2)``
+================================ ======================

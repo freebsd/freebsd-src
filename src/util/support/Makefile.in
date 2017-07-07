@@ -1,0 +1,241 @@
+mydir=util$(S)support
+BUILDTOP=$(REL)..$(S)..
+RELDIR=../util/support
+
+##DOS##BUILDTOP = ..\..
+##DOS##LIBNAME=$(OUTPRE)k5sprt32.lib
+##DOS##WIN64LIBNAME=$(OUTPRE)k5sprt64.lib
+##DOS##XTRA=
+##DOS##OBJFILE=$(OUTPRE)k5sprt32.lst
+##DOS##WIN64OBJFILE=$(OUTPRE)k5sprt64.lst
+
+SED = sed
+
+LIBBASE=krb5support
+LIBMAJOR=@SUPPORTLIB_MAJOR@
+LIBMINOR=1
+
+LIBINITFUNC=krb5int_thread_support_init
+LIBFINIFUNC=krb5int_thread_support_fini
+
+GETTIMEOFDAY_ST_OBJ= @GETTIMEOFDAY_ST_OBJ@
+GETTIMEOFDAY_OBJ= @GETTIMEOFDAY_OBJ@
+##DOS##GETTIMEOFDAY_ST_OBJ= gettimeofday.o
+##DOS##GETTIMEOFDAY_OBJ= $(OUTPRE)gettimeofday.$(OBJEXT)
+
+MKSTEMP_ST_OBJ= @MKSTEMP_ST_OBJ@
+MKSTEMP_OBJ= @MKSTEMP_OBJ@
+##DOS##MKSTEMP_ST_OBJ= mkstemp.o
+##DOS##MKSTEMP_OBJ= $(OUTPRE)mkstemp.$(OBJEXT)
+
+STRLCPY_ST_OBJ=@STRLCPY_ST_OBJ@
+STRLCPY_OBJ=@STRLCPY_OBJ@
+##DOS##STRLCPY_ST_OBJ= strlcpy.o
+##DOS##STRLCPY_OBJ= $(OUTPRE)strlcpy.$(OBJEXT)
+
+FNMATCH_ST_OBJ= @FNMATCH_ST_OBJ@
+FNMATCH_OBJ= @FNMATCH_OBJ@
+##DOS##FNMATCH_ST_OBJ= fnmatch.o
+##DOS##FNMATCH_OBJ= $(OUTPRE)fnmatch.$(OBJEXT)
+
+PRINTF_ST_OBJ= @PRINTF_ST_OBJ@
+PRINTF_OBJ= @PRINTF_OBJ@
+##DOS##PRINTF_ST_OBJ= printf.o
+##DOS##PRINTF_OBJ= $(OUTPRE)printf.$(OBJEXT)
+
+GETOPT_ST_OBJ= @GETOPT_ST_OBJ@
+GETOPT_OBJ= @GETOPT_OBJ@
+##DOS##GETOPT_ST_OBJ= getopt.o
+##DOS##GETOPT_OBJ= $(OUTPRE)getopt.$(OBJEXT)
+
+GETOPT_LONG_ST_OBJ= @GETOPT_LONG_ST_OBJ@
+GETOPT_LONG_OBJ= @GETOPT_LONG_OBJ@
+##DOS##GETOPT_LONG_ST_OBJ= getopt_long.o
+##DOS##GETOPT_LONG_OBJ= $(OUTPRE)getopt_long.$(OBJEXT)
+
+IPC_ST_OBJ=
+IPC_OBJ=
+##DOS##IPC_ST_OBJ= ipc_stream.o
+##DOS##IPC_OBJ= $(OUTPRE)ipc_stream.$(OBJEXT)
+IPC_SYMS= \
+	krb5int_ipc_stream_data krb5int_ipc_stream_new \
+	krb5int_ipc_stream_write krb5int_ipc_stream_read \
+	krb5int_ipc_stream_read_int32 krb5int_ipc_stream_write_int32 \
+	krb5int_ipc_stream_read_int64 krb5int_ipc_stream_write_int64 \
+	krb5int_ipc_stream_read_uint32 krb5int_ipc_stream_write_uint32 \
+	krb5int_ipc_stream_read_string krb5int_ipc_stream_write_string \
+	krb5int_ipc_stream_release krb5int_ipc_stream_size \
+	krb5int_ipc_stream_free_string
+
+STLIBOBJS= \
+	threads.o \
+	init-addrinfo.o \
+	plugins.o \
+	errors.o \
+	k5buf.o \
+	gmt_mktime.o \
+	fake-addrinfo.o \
+	utf8.o \
+	utf8_conv.o \
+	zap.o \
+	path.o \
+	base64.o \
+	json.o \
+	bcmp.o \
+	strerror_r.o \
+	$(GETTIMEOFDAY_ST_OBJ) \
+	$(IPC_ST_OBJ) \
+	$(STRLCPY_ST_OBJ) \
+	$(FNMATCH_ST_OBJ) \
+	$(PRINTF_ST_OBJ) \
+	$(MKSTEMP_ST_OBJ) \
+	$(GETOPT_ST_OBJ) \
+	$(GETOPT_LONG_ST_OBJ)
+
+LIBOBJS= \
+	$(OUTPRE)threads.$(OBJEXT) \
+	$(OUTPRE)init-addrinfo.$(OBJEXT) \
+	$(OUTPRE)plugins.$(OBJEXT) \
+	$(OUTPRE)errors.$(OBJEXT) \
+	$(OUTPRE)k5buf.$(OBJEXT) \
+	$(OUTPRE)gmt_mktime.$(OBJEXT) \
+	$(OUTPRE)fake-addrinfo.$(OBJEXT) \
+	$(OUTPRE)utf8.$(OBJEXT) \
+	$(OUTPRE)utf8_conv.$(OBJEXT) \
+	$(OUTPRE)zap.$(OBJEXT) \
+	$(OUTPRE)path.$(OBJEXT) \
+	$(OUTPRE)base64.$(OBJEXT) \
+	$(OUTPRE)json.$(OBJEXT) \
+	$(OUTPRE)bcmp.$(OBJEXT) \
+	$(OUTPRE)strerror_r.$(OBJEXT) \
+	$(GETTIMEOFDAY_OBJ) \
+	$(IPC_OBJ) \
+	$(STRLCPY_OBJ) \
+	$(FNMATCH_OBJ) \
+	$(PRINTF_OBJ) \
+	$(MKSTEMP_OBJ) \
+	$(GETOPT_OBJ) \
+	$(GETOPT_LONG_OBJ)
+
+SRCS=\
+	$(srcdir)/threads.c \
+	$(srcdir)/init-addrinfo.c \
+	$(srcdir)/plugins.c \
+	$(srcdir)/errors.c \
+	$(srcdir)/k5buf.c \
+	$(srcdir)/gmt_mktime.c \
+	$(srcdir)/fake-addrinfo.c \
+	$(srcdir)/utf8.c \
+	$(srcdir)/utf8_conv.c \
+	$(srcdir)/gettimeofday.c \
+	$(srcdir)/strlcpy.c \
+	$(srcdir)/fnmatch.c \
+	$(srcdir)/printf.c \
+	$(srcdir)/mkstemp.c \
+	$(srcdir)/t_k5buf.c \
+	$(srcdir)/t_unal.c \
+	$(srcdir)/t_path.c \
+	$(srcdir)/t_json.c \
+	$(srcdir)/zap.c \
+	$(srcdir)/path.c \
+	$(srcdir)/base64.c \
+	$(srcdir)/json.c \
+	$(srcdir)/bcmp.c \
+	$(srcdir)/strerror_r.c \
+	$(srcdir)/t_utf8.c \
+	$(srcdir)/getopt.c \
+	$(srcdir)/getopt_long.c
+
+SHLIB_EXPDEPS =
+# Add -lm if dumping thread stats, for sqrt.
+SHLIB_EXPLIBS= $(LIBS) $(DL_LIB)
+
+DEPLIBS=
+
+#
+all-unix: all-liblinks
+
+install-unix: install-libs
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+##DOS##!if 0
+$(BUILDTOP)/include/autoconf.h: $(top_srcdir)/include/autoconf.h.in
+	(cd $(BUILDTOP)/include; $(MAKE) autoconf.h)
+##DOS##!endif
+
+t_mktime: gmt_mktime.c
+	$(CC) $(ALL_CFLAGS) -DTEST_LEAP -o t_mktime $(srcdir)/gmt_mktime.c
+
+SHLIB_EXPORT_FILE=libkrb5support.exports
+##DOS##all-windows: libkrb5support.exports
+
+EXTRA_SUPPORT_SYMS= @EXTRA_SUPPORT_SYMS@
+##DOS##EXTRA_SUPPORT_SYMS= krb5int_mkstemp krb5int_strlcpy krb5int_strlcat \
+##DOS##		k5_optind k5_optarg k5_opterr k5_optopt k5_getopt k5_getopt_long \
+##DOS##		krb5int_vasprintf krb5int_asprintf krb5int_gettimeofday $(IPC_SYMS)
+
+##DOS##!if 0
+libkrb5support.exports: $(srcdir)/libkrb5support-fixed.exports Makefile
+	cat $(srcdir)/libkrb5support-fixed.exports > new-exports
+	for i in $(EXTRA_SUPPORT_SYMS) .; do \
+	  if test "$$i" != .; then echo $$i >> new-exports; else :; fi ; \
+	done
+	$(MV) new-exports libkrb5support.exports
+##DOS##!endif
+##DOS##libkrb5support.exports: libkrb5support-fixed.exports Makefile
+##DOS##	$(CP) libkrb5support-fixed.exports new-exports
+##DOS##	for %%x in ($(EXTRA_SUPPORT_SYMS) .) do if not %%x==. echo %%x >> new-exports
+##DOS##	$(RM) libkrb5support.exports
+##DOS##	$(MV) new-exports libkrb5support.exports
+
+T_K5BUF_OBJS= t_k5buf.o k5buf.o $(PRINTF_ST_OBJ)
+
+t_k5buf: $(T_K5BUF_OBJS)
+	$(CC_LINK) -o t_k5buf $(T_K5BUF_OBJS)
+
+t_path: t_path.o path.o $(PRINTF_ST_OBJ)
+	$(CC_LINK) -o $@ t_path.o path.o $(PRINTF_ST_OBJ)
+
+t_path_win: t_path_win.o path_win.o $(PRINTF_ST_OBJ)
+	$(CC_LINK) -o $@ t_path_win.o path_win.o $(PRINTF_ST_OBJ)
+
+t_path_win.o: $(srcdir)/t_path.c
+	$(CC) $(ALL_CFLAGS) -DWINDOWS_PATHS -c $(srcdir)/t_path.c -o $@
+
+path_win.o: $(srcdir)/path.c
+	$(CC) $(ALL_CFLAGS) -DWINDOWS_PATHS -c $(srcdir)/path.c -o $@
+
+t_base64: t_base64.o base64.o
+	$(CC_LINK) -o $@ t_base64.o base64.o
+
+T_JSON_OBJS= t_json.o json.o base64.o k5buf.o $(PRINTF_ST_OBJ)
+
+t_json: $(T_JSON_OBJS)
+	$(CC_LINK) -o $@ $(T_JSON_OBJS)
+
+t_unal: t_unal.o
+	$(CC_LINK) -o t_unal t_unal.o
+
+t_utf8: t_utf8.o utf8.o
+	$(CC_LINK) -o t_utf8 t_utf8.o utf8.o
+
+TEST_PROGS= t_k5buf t_path t_path_win t_base64 t_json t_unal t_utf8
+
+check-unix: $(TEST_PROGS)
+	./t_k5buf
+	./t_path
+	./t_path_win
+	./t_base64
+	./t_json
+	./t_unal
+	./t_utf8
+
+clean:
+	$(RM) t_k5buf.o t_k5buf t_unal.o t_unal path_win.o path_win
+	$(RM) t_path_win.o t_path_win t_path.o t_path t_base64.o t_base64
+	$(RM) t_json.o t_json libkrb5support.exports t_utf8.o t_utf8
+
+@lib_frag@
+@libobj_frag@
+

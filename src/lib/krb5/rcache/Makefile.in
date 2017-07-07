@@ -1,0 +1,50 @@
+mydir=lib$(S)krb5$(S)rcache
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=rcache
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+STLIBOBJS = \
+	rc_base.o	\
+	rc_dfl.o 	\
+	rc_io.o		\
+	rcdef.o		\
+	rc_none.o	\
+	rc_conv.o	\
+	ser_rc.o	\
+	rcfns.o
+
+OBJS=	\
+	$(OUTPRE)rc_base.$(OBJEXT)	\
+	$(OUTPRE)rc_dfl.$(OBJEXT) 	\
+	$(OUTPRE)rc_io.$(OBJEXT)	\
+	$(OUTPRE)rcdef.$(OBJEXT)	\
+	$(OUTPRE)rc_none.$(OBJEXT)	\
+	$(OUTPRE)rc_conv.$(OBJEXT)	\
+	$(OUTPRE)ser_rc.$(OBJEXT)	\
+	$(OUTPRE)rcfns.$(OBJEXT)
+
+SRCS=	\
+	$(srcdir)/rc_base.c	\
+	$(srcdir)/rc_dfl.c 	\
+	$(srcdir)/rc_io.c	\
+	$(srcdir)/rcdef.c	\
+	$(srcdir)/rc_none.c	\
+	$(srcdir)/rc_conv.c	\
+	$(srcdir)/ser_rc.c	\
+	$(srcdir)/rcfns.c	\
+	$(srcdir)/t_replay.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+T_REPLAY_OBJS= t_replay.o
+
+t_replay: $(T_REPLAY_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_replay $(T_REPLAY_OBJS) $(KRB5_BASE_LIBS)
+
+@libobj_frag@
+

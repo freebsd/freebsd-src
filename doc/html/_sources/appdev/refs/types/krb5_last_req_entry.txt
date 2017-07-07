@@ -1,0 +1,40 @@
+.. highlightlang:: c
+
+.. _krb5-last-req-entry-struct:
+
+krb5_last_req_entry
+===================
+
+..
+.. c:type:: krb5_last_req_entry
+..
+
+Last request entry.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_last_req_entry  krb5_last_req_entry
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_last_req_entry.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_int32	krb5_last_req_entry.lr_type
+
+                                             LR type.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_last_req_entry.value
+
+                                             Timestamp.
+                                             
+

@@ -1,0 +1,51 @@
+krb5_c_random_add_entropy -  Add entropy to the pseudo-random number generator. 
+================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_random_add_entropy(krb5_context context, unsigned int randsource, const krb5_data * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **randsource** - Entropy source (see KRB5_RANDSOURCE types)
+
+	          **[in]** **data** - Data
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Contribute entropy to the PRNG used by krb5 crypto operations. This may or may not affect the output of the next crypto operation requiring random data.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

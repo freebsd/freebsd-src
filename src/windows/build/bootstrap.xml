@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- BKW: Build Kerberos for Windows -->
+<BKW_Config>
+    <Config>
+        <!-- Options: -->
+        <repository def="1" value="skip" options="skip checkout|co update|up" />
+        <src        def="A" value="C:\KfW" />        <!-- Must be absolute path. -->
+
+        <!-- Repository settings: -->
+        <cvstag     def="0" value="" />
+        <svntag     def="0" value="" />
+        <svnbranch  def="0" value="" />
+        <CVSROOT    def="A" value=":kserver:cvs.mit.edu:/cvs/pismere" />
+        <SVNURL     def="A" value="svn.mit.edu" />   <!-- NB:  No protocol or slashes!! -->
+        <username   def="0" value="" />  <!-- Needed for svn/plink.  Override from command line -->
+
+        </Config>
+
+</BKW_Config>

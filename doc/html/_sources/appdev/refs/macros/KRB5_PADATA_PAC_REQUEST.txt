@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PADATA-PAC-REQUEST-data:
+
+KRB5_PADATA_PAC_REQUEST
+=======================
+
+..
+.. data:: KRB5_PADATA_PAC_REQUEST
+..
+
+include Windows PAC
+
+
+
+============================== ======================
+``KRB5_PADATA_PAC_REQUEST``       ``128``
+============================== ======================

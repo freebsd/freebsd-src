@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-RSA-ENV-data:
+
+ENCTYPE_RSA_ENV
+===============
+
+..
+.. data:: ENCTYPE_RSA_ENV
+..
+
+RSA encryption, CMS enveloped data.
+
+
+
+====================== ======================
+``ENCTYPE_RSA_ENV``       ``0x000d``
+====================== ======================

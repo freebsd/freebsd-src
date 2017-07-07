@@ -1,0 +1,51 @@
+krb5_copy_addresses -  Copy an array of addresses. 
+===================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_addresses(krb5_context context, krb5_address *const * inaddr, krb5_address *** outaddr)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **inaddr** - Array of addresses to be copied
+
+	          **[out]** **outaddr** - Copy of array of addresses
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new address array containing a copy of *inaddr* . Use :c:func:`krb5_free_addresses()` to free *outaddr* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,79 @@
+mydir=lib$(S)kadm5$(S)clnt
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I$(BUILDTOP)/include/kadm5
+
+LIBBASE=kadm5clnt_mit
+LIBMAJOR=11
+LIBMINOR=0
+STOBJLISTS=../OBJS.ST OBJS.ST
+SHLIB_EXPDEPS=\
+	$(TOPLIBD)/libgssrpc$(SHLIBEXT) \
+	$(TOPLIBD)/libgssapi_krb5$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(COM_ERR_DEPLIB) $(SUPPORT_LIBDEP)
+SHLIB_EXPLIBS=-lgssrpc -lgssapi_krb5 -lkrb5 -lk5crypto $(SUPPORT_LIB) -lcom_err $(LIBS)
+RELDIR=kadm5/clnt
+
+##DOSBUILDTOP = ..\..\..
+##DOSLIBNAME = libkadm5clnt.lib
+
+SRCS =	$(srcdir)/clnt_policy.c \
+	$(srcdir)/client_rpc.c \
+	$(srcdir)/client_principal.c \
+	$(srcdir)/client_init.c \
+	$(srcdir)/clnt_privs.c \
+	$(srcdir)/clnt_chpass_util.c
+
+OBJS =	\
+	clnt_policy.$(OBJEXT) \
+	client_rpc.$(OBJEXT) \
+	client_principal.$(OBJEXT) \
+	client_init.$(OBJEXT) \
+	clnt_privs.$(OBJEXT) \
+	clnt_chpass_util.$(OBJEXT)
+
+STLIBOBJS = \
+	clnt_policy.o \
+	client_rpc.o \
+	client_principal.o \
+	client_init.o \
+	clnt_privs.o \
+	clnt_chpass_util.o
+
+all-unix: includes
+all-unix: all-liblinks
+all-windows: $(OBJS)
+
+generate-files-mac: includes darwin.exports
+
+includes: client_internal.h
+	if cmp $(srcdir)/client_internal.h \
+	$(BUILDTOP)/include/kadm5/client_internal.h >/dev/null 2>&1; then :; \
+	else \
+		(set -x; $(RM) $(BUILDTOP)/include/kadm5/client_internal.h; \
+		 $(CP) $(srcdir)/client_internal.h \
+			$(BUILDTOP)/include/kadm5/client_internal.h) ; \
+	fi
+
+clean-unix::
+	$(RM) $(BUILDTOP)/include/kadm5/client_internal.h
+
+check-windows:
+
+clean-windows::
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+install: install-libs
+
+install-unix:
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/libkadm5clnt$(DEPLIBEXT)
+	(cd $(DESTDIR)$(KRB5_LIBDIR) && $(LN_S) lib$(LIBBASE)$(DEPLIBEXT) \
+		libkadm5clnt$(DEPLIBEXT))
+
+depend: includes
+
+@lib_frag@
+@libobj_frag@
+

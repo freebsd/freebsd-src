@@ -1,0 +1,59 @@
+Proposed approach for passing more detailed error messages across the
+kadm5 API:
+
+We've already got too many init functions and too many options.
+Multiplying the number of init functions isn't feasible.
+
+Create an (opaque to application) init-options type, create/destroy
+functions for it, set-creds/set-keytab/set-password functions, and a
+kadm5-init-with-options function.  (Optional: Reimplement the current
+init functions as wrappers around these.)
+
+Add a set-context function which saves away in the init-options object
+a krb5_context to be used in the new server handle instead of creating
+a new one.  (Destroying a server handle with such a "borrowed" krb5
+context should probably not destroy the context.)  Calls within the
+library should store any error messages in the context contained in
+the server handle.  Error messages produced during initialization
+should also be stored in this context.
+
+The caller of these functions can use krb5_get_error_message to
+extract the text of the error message from the supplied context.
+
+Unless we determine it's safe, we should probably assert (for now)
+that each server handle must have a different context.  (That's aside
+from the thread safety issues.)
+
+These contexts should have been created with kadm5_init_krb5_context,
+which will decide whether to look at the KDC config file depending on
+whether you're using the client-side or server-side version of the
+library.  (Same as for kadmin vs kadmin.local.)
+
+Notes:
+
+ * The existing API must continue to work, without changes.  There is
+   external code we need to continue to support.
+
+ * We considered a variant where the application could retrieve the
+   error message from the server handle using a new
+   kadm5_get_error_message function.  However, the initialization code
+   is one likely place where the errors would occur (can't
+   authenticate, etc), and in that case, there is no server handle
+   from which to extract the context.
+
+   A function to retrieve the library-created krb5_context from the
+   server handle would have the same problem.
+
+   Using a separate approach to deal with errors at initialization
+   time, in combination with the above, might work.  But we still wind
+   up either creating the init-with-options interface or adding
+   error-message-return variants of multiple existing init functions.
+
+To do:
+
+ * Write up specifics (including function names -- the names used here
+   aren't meant to be definitive) and discuss on krbdev.
+
+ * Implement library part.
+
+ * Change kadmin and kdc to use it.

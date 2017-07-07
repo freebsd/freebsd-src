@@ -1,0 +1,52 @@
+krb5_kt_default -  Resolve the default key table. 
+==================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_default(krb5_context context, krb5_keytab * id)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **id** - Key table handle
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Set *id* to a handle to the default key table. The key table is not opened.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

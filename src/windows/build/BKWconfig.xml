@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- BKW: Build Kerberos for Windows -->
+<BKW_Config>
+    <Config>
+        <!-- All the parameters are specified here.  Most can be over-ridden
+                on the command line.
+
+            Parameters are grouped into Options, Directories, Repository and Environment.
+
+            Attributes a parameter can have:
+            abbr: A one character abbreviation.
+            def:  defined or not.  A value of 'A' for 'always' means the    
+               option can't be negated on the command line.                 
+            value:  string value, if the option can have a value.  If the option
+               can't take a value, omit the value attribute.
+            options:  space-delimited list, the 1st element is the default.
+               Synonyms for a valid option are concatenated with '|'.      
+            env: an environment variable will be set to value or deleted,  
+                depending on def.  If set and no value is given, '1' is used.                                 
+            -->
+        <!-- Options: -->
+        <clean      def="0" />
+        <config     def="1" abbr="f" value="bkwconfig.xml" />
+        <debug      def="0" abbr="d" />
+        <help       def="0" abbr="h|?" />
+        <logfile    def="1" abbr="l" value="bkw.pl.log" />
+        <make       def="0" />
+        <nolog      def="0" />
+        <package    def="1" />
+        <repository def="A" abbr="r" value="skip" options="skip checkout|co export|ex update|up" />
+        <sign       def="0" />
+        <verbose    def="1" abbr="v" />
+        <vverbose   def="0" />
+
+        <!-- Directory settings: -->
+        <!--    Sources will be checked out of repositories into <src>.  The structure
+                of the repositories will cause pismere/athena to be created under <src>.    -->
+        <src        def="A" abbr="s" value="C:\MinGW\kfw-updates\src" />    <!-- Must be absolute path. -->
+        <out        def="A" abbr="o" value="C:\MinGW\kfw-updates\public" /> <!-- Must be absolute path. -->
+
+        <!-- Repository settings: -->
+        <cvstag     def="0" abbr="c" value="" />
+        <svntag     def="0" abbr="t" value="" />
+        <svnbranch  def="0" abbr="b" value="" />
+        <username   def="0" abbr="u" value="" />    <!-- Needed for svn/plink.  Override from command line -->
+        <CVSROOT    def="A" value=":kserver:cvs.mit.edu:/cvs/pismere" />
+        <SVNURL     def="A" value="svn.mit.edu" />  <!-- NB:  No protocol or slashes!! -->
+
+        <!-- Environment variables: -->
+        <KH_RELEASE def="1" env="1" value="OFFICIAL" options="OFFICIAL PRERELEASE PRIVATE" />
+        <NODEBUG    def="1" env="1" />  <!-- Interacts with /DEBUG -->
+        </Config>
+    <Stages>
+        <FetchSources>
+            <Zips>
+                <Zip dummy="foo" /> <!-- To force desired XML::Simple behavior    -->
+                <Zip name="SRC" filename="%filestem%-src.zip" topdir="%filestem%-final">
+                    <CopyList>
+                        <Files>
+                            <!-- File from    paths are relative to <src>/pismere.  -->
+                            <!-- File to      paths are relative to <out>.          -->
+                            <File dummy="foo" /> <!-- Forces XML::Simple behavior   -->
+                            <!-- Without this, XML::Simple does not make an anonymous array and I can't figure out how to iterate over it. -->
+                            <File name="*.*" from="athena"  to="src\athena" />
+                            <File name="*.*" from="doc"     to="src\doc" />
+                            <File name="*.*" from="scripts" to="src\scripts" />
+                            </Files>
+                    </CopyList>
+                    <Prunes> <!-- Files to be removed from current build to match what is in the 3.1 distribution:    -->
+                        <Prune name="CVS" />
+                        <Prune name=".cvsignore" flags="i" />
+                        <Prune name="Changelog"  flags="i" />
+                        </Prunes>
+                    <Requires>
+                        <Switch dummy="foo" />
+                        <Switch name="REPOSITORY" value="CHECKOUT|EXPORT"/>
+                        <ErrorMsg text="Can't build source zip unless /REPOSITORY CHECKOUT or /REPOSITORY EXPORT is specified." />
+                        </Requires>
+                    </Zip>
+                </Zips>
+            </FetchSources>
+        <Make>
+            <!-- Script checks for prunes. -->
+            </Make>
+        <PrePackage>
+            <CopyList>
+                <Config>
+                    <!--    Debug and Release build results go in different places.
+                            The otherwise identical paths differ in one section.  For example:
+                            .../target/bin/i386/bin/rel/filename and .../target/bin/i386/dbg/filename.
+                            Here we define the two differing sections:    -->
+                    <DebugArea value="dbg" />
+                    <ReleaseArea value="rel" />
+                    <!--    Paths in the file list that include <AlwaysTag> will always have the tag replaced 
+                            with <DebugArea> or <ReleaseArea>, depending on the type of build.
+                            Paths that include <DebugTag> (or <ReleaseTag>) will only have the tag substituted 
+                            and be copied when doing a debug (or release) build.  Examples:
+                            Will always be copied, from a build-dependent directory:
+                            <File name="kfwlogon.dll"                 from="..\target\bin\i386\%bldtype%\" to="\bin\i386" /> 
+                            Will only be copied in debug build:
+                            <File name="netidmgr.exe.static.manifest" from="..\target\bin\i386\%debug%\"   to="\bin\i386" notrequired="true" />
+                            Will always be copied, from a build-independent directory:
+                            <File name="des.h"                        from="auth\krb4\include\"            to="\inc\krb4" newname="foo.h"/>
+                            -->
+                    <AlwaysTag  value="%bldtype%" />    <!-- Pick a string that won't appear in a path. -->
+                    <DebugTag   value="%debug%" />      <!-- Pick a string that won't appear in a path. -->
+                    <ReleaseTag value="%release%" />    <!-- Pick a string that won't appear in a path. -->
+                    </Config>
+                <Files>
+                    <Include path="copyfiles.xml" />
+                    </Files> <!-- Relative to location of bkw.pl. -->
+            </CopyList>
+        </PrePackage>
+        <Package>
+            <Config>
+                <Paths>    
+                    <Versions path="kerberos.ver" /> <!-- Relative to <src>. -->
+                    </Paths>
+                </Config>
+            <MSI></MSI>
+            <NSIS></NSIS> <!-- NB:  Most config is done in site-local.nsi.  -->
+        </Package>
+        <PostPackage>
+            <Config>    <!-- This config info will be copied into each CopyList in PostPackage. -->
+                <FileStem name="kfw-%VERSION_MAJOR%-%VERSION_MINOR%-%VERSION_PATCH%" /> <!-- <FileStem> will be substituted for %filestem%. -->
+                <Signing>
+                    <CommandTemplate    value="signtool sign /a /d &quot;MIT Kerberos for Windows&quot; /du &quot;http://web.mit.edu/kerberos&quot; /t TIMESTAMPSERVERGOESHERE %filename%" />
+                    <FilePatterns       value="*.exe *.dll *.cpl *.msi" />
+                    </Signing>
+                </Config>
+            <Zips>
+                <Zip dummy="foo" /> <!-- To force desired XML::Simple behavior    -->
+                <!--    Files will be copied into directory <topdir>; <topdir> will appear in the paths of the files.    -->
+                <!-- File from  paths are relative to <src>/pismere.    -->
+                <!-- File to    paths are relative to <out>.            -->
+                <Zip name="Core Binaries" filename="%filestem%.zip" topdir="%filestem%-final">
+                    <CopyList>
+                        <Config>
+                            <DebugArea   value="dbg" />
+                            <ReleaseArea value="rel" />
+                            <AlwaysTag   value="%bldtype%" /> <!-- Pick a string that won't appear in a path. -->
+                            <DebugTag    value="%debug%" />   <!-- Pick a string that won't appear in a path. -->
+                            <ReleaseTag  value="%release%" /> <!-- Pick a string that won't appear in a path. -->
+                            </Config>
+                        <Files>
+                            <Include path="corebinaryfiles.xml" />  <!-- Included file is relative to location of bkw.pl. -->
+                            </Files> 
+                        </CopyList>
+                </Zip>
+                <Zip name="SDK" filename="%filestem%-sdk.zip" topdir="%filestem%-final">
+                    <CopyList>
+                        <Files>
+                            <Include path="sdkfiles.xml" />         <!-- Included file is relative to location of bkw.pl. -->
+                            </Files>
+                        </CopyList>
+                    </Zip>
+                </Zips>            
+            <CopyList>            <!-- Copied at end of post-package step.  -->
+                <Files>
+                    <File dummy="foo" />
+                    <!-- File from    paths are relative to <src/pismere>.  -->
+                    <!-- File to      paths are relative to <out>.          -->
+                    <File name="msi-deployment-guide.txt"   from="staging\install\wix\" to="" />
+                    <File name="netidmgr_userdoc.pdf"       from="staging\doc"          to="" />
+                    <File name="kfw.msi"                    from="buildwix"             to="" newname="%filestem%.msi" />
+                    <File name="MITKerberosForWindows%-DEBUG%.exe" from="buildnsi"      to="" newname="%filestem%%-DEBUG%.exe" />
+                    <File name="relnotes.html"              from="staging\doc"          to="" />
+                    </Files>
+                </CopyList>
+            </PostPackage>
+    </Stages>
+</BKW_Config>

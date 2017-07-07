@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-MD5-RSA-CMS-data:
+
+ENCTYPE_MD5_RSA_CMS
+===================
+
+..
+.. data:: ENCTYPE_MD5_RSA_CMS
+..
+
+MD5 with RSA, CMS signature.
+
+
+
+========================== ======================
+``ENCTYPE_MD5_RSA_CMS``       ``0x000a``
+========================== ======================

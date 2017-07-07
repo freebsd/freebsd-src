@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" Content="text/html; charset=Windows-1252">
+<TITLE>KLIST Command</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000">
+
+<OBJECT TYPE="application/x-oleobject" CLASSID="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e">
+	<PARAM NAME="Keyword" VALUE="klist, man">
+</OBJECT>
+
+<P><h2><A NAME="id_help_klist"></A>KLIST Command</h2></P>
+
+<P>(from UNIX man page)</P>
+
+<PRE><CODE>User Commands  KLIST ( 1 )
+
+NAME
+ klist - list cached Kerberos tickets
+
+SYNOPSIS
+ klist [-5] [-4] [-e] [[-c] [-f] [-s] [-a [-n]]] [-k [-t] [-K]]
+ [cache_name | keytab_name]
+
+DESCRIPTION
+
+ Klist lists the Kerberos principal and Kerberos tickets held in a
+ credentials cache, or the keys held in a keytab file.  If klist was
+ built with Kerberos 4 support, the default behavior is to list both
+ Kerberos 5 and Kerberos 4 credentials.  Otherwise, klist will default
+ to listing only Kerberos 5 credentials.
+
+OPTIONS
+ -5 list Kerberos 5 credentials.  This overrides whatever the default
+ built-in behavior may be.  This option may be used with -4
+
+ -4 list Kerberos 4 credentials.  This overrides whatever the default
+ built-in behavior may be.  This option is only available if kinit was
+ built with Kerberos 4 compatibility.  This option may be used with -5
+
+ -e displays the encryption types of the session key and the ticket
+ for each credential in the credential cache, or each key in the
+ keytab file.
+
+ -c List tickets held in a credentials cache.  This is the default if
+ neither -c nor -k is specified.
+
+ -f shows the flags present in the credentials, using the following
+ abbreviations:
+
+ F Forwardable
+ f forwarded
+ P Proxiable
+ p proxy
+ D postDateable
+ d postdated
+ R Renewable
+ I Initial
+ i invalid
+
+ -s causes klist to run silently (produce no output), but to still set
+ the exit status according to whether it finds the credentials cache.
+ The exit status is `0' if klist finds a credentials cache, and `1' if
+ it does not.
+
+ -a display list of addresses in credentials.
+
+ -n show numeric addresses instead of reverse-resolving addresses.
+
+ -k List keys held in a keytab file.
+
+ -t display the time entry timestamps for each keytab entry in the
+ keytab file.
+
+ -K display the value of the encryption key in each keytab entry in
+ the keytab file.
+
+ If cache_name or keytab_name is not specified, klist will display the
+ credentials in the default credentials cache or keytab file as
+ appropriate.  If the KRB5CCNAME environment variable is set, its
+ value is used to name the default ticket cache.
+
+ENVIRONMENT
+ Klist uses the following environment variables:
+
+ KRB5CCNAME Location of the Kerberos 5 credentials (ticket) cache.
+
+ KRBTKFILE Filename of the Kerberos 4 credentials (ticket) cache.
+
+FILES
+ /tmp/krb5cc_[uid] default location of Kerberos 5 credentials cache
+ ([uid] is the decimal UID of the user).
+
+ /tmp/tkt[uid] default location of Kerberos 4 credentials cache ([uid]
+ is the decimal UID of the user).
+
+ /etc/krb5.keytab
+ default location for the local host's keytab file.
+
+SEE  ALSO
+ kinit(1), kdestroy(1), krb5(3)</CODE></PRE>
+
+</BODY>
+</HTML>

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-IF-RELEVANT-data:
+
+KRB5_AUTHDATA_IF_RELEVANT
+=========================
+
+..
+.. data:: KRB5_AUTHDATA_IF_RELEVANT
+..
+
+
+
+
+================================ ======================
+``KRB5_AUTHDATA_IF_RELEVANT``       ``1``
+================================ ======================

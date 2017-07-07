@@ -1,0 +1,12 @@
+mydir=ccapi$(S)server$(S)unix
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+STLIBOBJS=
+OBJS=
+SRCS=
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

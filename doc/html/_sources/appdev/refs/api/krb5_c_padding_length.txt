@@ -1,0 +1,53 @@
+krb5_c_padding_length -  Return a number of padding octets. 
+============================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_padding_length(krb5_context context, krb5_enctype enctype, size_t data_length, unsigned int * size)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[in]** **data_length** - Length of the plaintext to pad
+
+	          **[out]** **size** - Number of padding octets
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - KRB5_BAD_ENCTYPE
+
+
+..
+
+
+
+
+
+
+
+This function returns the number of the padding octets required to pad *data_length* octets of plaintext.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

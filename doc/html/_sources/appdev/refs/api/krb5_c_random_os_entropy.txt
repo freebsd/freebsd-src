@@ -1,0 +1,51 @@
+krb5_c_random_os_entropy -  Collect entropy from the OS if possible. 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_random_os_entropy(krb5_context context, int strong, int * success)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **strong** - Strongest available source of entropy
+
+	          **[out]** **success** - 1 if OS provides entropy, 0 otherwise
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+If *strong* is non-zero, this function attempts to use the strongest available source of entropy. Setting this flag may cause the function to block on some operating systems. Good uses include seeding the PRNG for kadmind and realm setup.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

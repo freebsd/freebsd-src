@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-SAFE-data:
+
+KRB5_SAFE
+=========
+
+..
+.. data:: KRB5_SAFE
+..
+
+Safe application message.
+
+
+
+================ ======================
+``KRB5_SAFE``       ``((krb5_msgtype)20)``
+================ ======================

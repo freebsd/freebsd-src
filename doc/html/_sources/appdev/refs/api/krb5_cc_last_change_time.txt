@@ -1,0 +1,44 @@
+krb5_cc_last_change_time -  Return a timestamp of the last modification to a credential cache. 
+===============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_last_change_time(krb5_context context, krb5_ccache ccache, krb5_timestamp * change_time)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ccache** - Credential cache handle
+
+	          **[out]** **change_time** - The last change time of *ccache*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+If an error occurs, *change_time* is set to 0.
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTH-CONTEXT-GENERATE-REMOTE-FULL-ADDR-data:
+
+KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR
+===========================================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR
+..
+
+Generate the remote network address and the remote port.
+
+
+
+================================================== ======================
+``KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR``       ``0x00000008``
+================================================== ======================

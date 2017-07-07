@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-DES3-CBC-SHA-data:
+
+ENCTYPE_DES3_CBC_SHA
+====================
+
+..
+.. data:: ENCTYPE_DES3_CBC_SHA
+..
+
+
+
+
+=========================== ======================
+``ENCTYPE_DES3_CBC_SHA``       ``0x0005``
+=========================== ======================

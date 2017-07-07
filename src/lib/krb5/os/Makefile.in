@@ -1,0 +1,263 @@
+mydir=lib$(S)krb5$(S)os
+BUILDTOP=$(REL)..$(S)..$(S)..
+DEFINES=-DLIBDIR=\"$(KRB5_LIBDIR)\" -DBINDIR=\"$(CLIENT_BINDIR)\" \
+	-DSBINDIR=\"$(ADMIN_BINDIR)\"
+LOCALINCLUDES= -I$(top_srcdir)/util/profile
+
+# Like RUN_TEST, but use td_krb5.conf from this directory.
+RUN_TEST_LOCAL_CONF=$(RUN_SETUP) KRB5_CONFIG=$(srcdir)/td_krb5.conf LC_ALL=C \
+	$(VALGRIND)
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=os
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+STLIBOBJS= \
+	accessor.o	\
+	c_ustime.o	\
+	ccdefname.o	\
+	changepw.o	\
+	dnsglue.o	\
+	dnssrv.o	\
+	expand_path.o	\
+	full_ipadr.o	\
+	gen_port.o	\
+	genaddrs.o	\
+	gen_rname.o	\
+	hostaddr.o	\
+	hostrealm.o	\
+	hostrealm_dns.o \
+	hostrealm_domain.o \
+	hostrealm_profile.o \
+	hostrealm_registry.o \
+	init_os_ctx.o	\
+	krbfileio.o	\
+	ktdefname.o	\
+	mk_faddr.o	\
+	localaddr.o	\
+	localauth.o	\
+	localauth_an2ln.o \
+	localauth_k5login.o \
+	localauth_names.o \
+	localauth_rule.o \
+	locate_kdc.o	\
+	lock_file.o	\
+	net_read.o	\
+	net_write.o	\
+	port2ip.o	\
+	prompter.o	\
+	read_msg.o	\
+	read_pwd.o	\
+	realm_dom.o	\
+	sendto_kdc.o	\
+	sn2princ.o	\
+        thread_safe.o   \
+	timeofday.o	\
+	toffset.o	\
+	trace.o		\
+	unlck_file.o	\
+	ustime.o	\
+	write_msg.o
+
+OBJS= \
+	$(OUTPRE)accessor.$(OBJEXT)	\
+	$(OUTPRE)c_ustime.$(OBJEXT)	\
+	$(OUTPRE)ccdefname.$(OBJEXT)	\
+	$(OUTPRE)changepw.$(OBJEXT)	\
+	$(OUTPRE)dnsglue.$(OBJEXT)	\
+	$(OUTPRE)dnssrv.$(OBJEXT)	\
+	$(OUTPRE)expand_path.$(OBJEXT)	\
+	$(OUTPRE)full_ipadr.$(OBJEXT)	\
+	$(OUTPRE)gen_port.$(OBJEXT)	\
+	$(OUTPRE)genaddrs.$(OBJEXT)	\
+	$(OUTPRE)gen_rname.$(OBJEXT)	\
+	$(OUTPRE)hostaddr.$(OBJEXT)	\
+	$(OUTPRE)hostrealm.$(OBJEXT)	\
+	$(OUTPRE)hostrealm_dns.$(OBJEXT) \
+	$(OUTPRE)hostrealm_domain.$(OBJEXT) \
+	$(OUTPRE)hostrealm_profile.$(OBJEXT) \
+	$(OUTPRE)hostrealm_registry.$(OBJEXT) \
+	$(OUTPRE)init_os_ctx.$(OBJEXT)	\
+	$(OUTPRE)krbfileio.$(OBJEXT)	\
+	$(OUTPRE)ktdefname.$(OBJEXT)	\
+	$(OUTPRE)mk_faddr.$(OBJEXT)	\
+	$(OUTPRE)localaddr.$(OBJEXT)	\
+	$(OUTPRE)localauth.$(OBJEXT)	\
+	$(OUTPRE)localauth_an2ln.$(OBJEXT) \
+	$(OUTPRE)localauth_k5login.$(OBJEXT) \
+	$(OUTPRE)localauth_names.$(OBJEXT) \
+	$(OUTPRE)localauth_rule.$(OBJEXT) \
+	$(OUTPRE)locate_kdc.$(OBJEXT)	\
+	$(OUTPRE)lock_file.$(OBJEXT)	\
+	$(OUTPRE)net_read.$(OBJEXT)	\
+	$(OUTPRE)net_write.$(OBJEXT)	\
+	$(OUTPRE)port2ip.$(OBJEXT)	\
+	$(OUTPRE)prompter.$(OBJEXT)	\
+	$(OUTPRE)read_msg.$(OBJEXT)	\
+	$(OUTPRE)read_pwd.$(OBJEXT)	\
+	$(OUTPRE)realm_dom.$(OBJEXT)	\
+	$(OUTPRE)sendto_kdc.$(OBJEXT)	\
+	$(OUTPRE)sn2princ.$(OBJEXT)	\
+        $(OUTPRE)thread_safe.$(OBJEXT)  \
+	$(OUTPRE)timeofday.$(OBJEXT)	\
+	$(OUTPRE)toffset.$(OBJEXT)	\
+	$(OUTPRE)trace.$(OBJEXT)	\
+	$(OUTPRE)unlck_file.$(OBJEXT)	\
+	$(OUTPRE)ustime.$(OBJEXT)	\
+	$(OUTPRE)write_msg.$(OBJEXT)
+
+SRCS= \
+	$(srcdir)/accessor.c    \
+	$(srcdir)/c_ustime.c	\
+	$(srcdir)/ccdefname.c	\
+	$(srcdir)/changepw.c	\
+	$(srcdir)/dnsglue.c	\
+	$(srcdir)/dnssrv.c	\
+	$(srcdir)/expand_path.c	\
+	$(srcdir)/full_ipadr.c	\
+	$(srcdir)/gen_port.c	\
+	$(srcdir)/genaddrs.c	\
+	$(srcdir)/gen_rname.c	\
+	$(srcdir)/hostaddr.c	\
+	$(srcdir)/hostrealm.c	\
+	$(srcdir)/hostrealm_dns.c \
+	$(srcdir)/hostrealm_domain.c \
+	$(srcdir)/hostrealm_profile.c \
+	$(srcdir)/hostrealm_registry.c \
+	$(srcdir)/init_os_ctx.c	\
+	$(srcdir)/krbfileio.c	\
+	$(srcdir)/ktdefname.c	\
+	$(srcdir)/mk_faddr.c	\
+	$(srcdir)/localaddr.c	\
+	$(srcdir)/localauth.c	\
+	$(srcdir)/localauth_an2ln.c \
+	$(srcdir)/localauth_k5login.c \
+	$(srcdir)/localauth_names.c \
+	$(srcdir)/localauth_rule.c \
+	$(srcdir)/locate_kdc.c	\
+	$(srcdir)/lock_file.c	\
+	$(srcdir)/net_read.c	\
+	$(srcdir)/net_write.c	\
+	$(srcdir)/prompter.c	\
+	$(srcdir)/read_msg.c	\
+	$(srcdir)/read_pwd.c	\
+	$(srcdir)/realm_dom.c	\
+	$(srcdir)/port2ip.c	\
+	$(srcdir)/sendto_kdc.c	\
+	$(srcdir)/sn2princ.c	\
+        $(srcdir)/thread_safe.c \
+	$(srcdir)/timeofday.c	\
+	$(srcdir)/toffset.c	\
+	$(srcdir)/trace.c	\
+	$(srcdir)/unlck_file.c	\
+	$(srcdir)/ustime.c	\
+	$(srcdir)/write_msg.c
+
+EXTRADEPSRCS = \
+	t_expand_path.c t_gifconf.c t_locate_kdc.c t_std_conf.c t_trace.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+shared:
+	mkdir shared
+
+TEST_PROGS= t_std_conf t_locate_kdc t_trace t_expand_path
+
+T_STD_CONF_OBJS= t_std_conf.o 
+
+T_TRACE_OBJS = t_trace.o
+
+t_std_conf: $(T_STD_CONF_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_std_conf $(T_STD_CONF_OBJS) $(KRB5_BASE_LIBS)
+
+t_localaddr: localaddr.c
+	$(CC_LINK) $(ALL_CFLAGS) -DTEST -o t_localaddr $(srcdir)/localaddr.c $(KRB5_BASE_LIBS) $(LIBS)
+
+t_locate_kdc: t_locate_kdc.o
+	$(CC_LINK) $(ALL_CFLAGS) -o t_locate_kdc t_locate_kdc.o \
+		$(KRB5_BASE_LIBS)
+t_locate_kdc.o: t_locate_kdc.c locate_kdc.c dnssrv.c dnsglue.c
+$(OUTPRE)t_locate_kdc.exe: $(OUTPRE)t_locate_kdc.obj \
+		$(KLIB) $(PLIB) $(CLIB) $(SLIB)
+	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(DNSLIBS)
+
+t_trace: $(T_TRACE_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_trace $(T_TRACE_OBJS) $(KRB5_BASE_LIBS)
+
+t_expand_path: t_expand_path.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_expand_path.o $(KRB5_BASE_LIBS)
+
+LCLINT=lclint
+LCLINTOPTS= -warnposix \
+	-usedef +charintliteral +ignoresigns -predboolint +boolint \
+	-exportlocal -retvalint \
+	+mod-uncon +modinternalstrict +modfilesys
+lclint-localaddr: localaddr.c
+	$(LCLINT) $(LCLINTOPTS) $(CPPFLAGS) $(LOCALINCLUDES) $(DEFS) \
+		-DTEST $(srcdir)/localaddr.c
+
+check-unix: check-unix-stdconf check-unix-locate check-unix-trace \
+	check-unix-expand check-unix-uri
+
+check-unix-stdconf: t_std_conf
+	$(RUN_TEST_LOCAL_CONF) ./t_std_conf  -d -s NEW.DEFAULT.REALM -d \
+		-D DEFAULT_REALM.TST -r bad.idea -r itar.bad.idea \
+		-r really.BAD.IDEA. -r clipper.bad.idea -r KeYEsCrOW.BaD.IDea \
+		-r pgp.good.idea -r no_domain > test.out
+	cmp test.out $(srcdir)/ref_std_conf.out
+	$(RM) test.out
+
+# The following can be overriden on the make command line if needed:
+LOCREALM = ATHENA.MIT.EDU
+SRVNAME = _kerberos._udp.athena.mit.edu.
+DIGPAT = '^_kerberos.*srv'
+NSPAT = '^_kerberos.*service'
+DIG = @DIG@
+NSLOOKUP = @NSLOOKUP@
+
+check-unix-locate: t_locate_kdc
+	if [ "$(OFFLINE)" = no ]; then \
+	    if $(DIG) $(SRVNAME) srv | grep -i $(DIGPAT) || \
+		$(NSLOOKUP) -q=srv $(SRVNAME) | grep -i $(NSPAT); then \
+		$(RUN_TEST) ./t_locate_kdc $(LOCREALM); \
+	    else \
+		echo '*** WARNING: skipped t_locate_kdc test: known DNS name not found'; \
+		echo 'Skipped t_locate_kdc test: known DNS name found' >> $(SKIPTESTS); \
+	    fi; \
+	else \
+		echo '*** WARNING: skipped t_locate_kdc test: OFFLINE'; \
+		echo 'Skipped t_locate_kdc test: OFFLINE' >> $(SKIPTESTS); \
+	fi
+
+check-unix-uri: t_locate_kdc
+	if [ $(HAVE_RESOLV_WRAPPER) = 1 ]; then \
+	    $(RUNPYTEST) $(srcdir)/t_discover_uri.py $(PYTESTFLAGS); \
+	else \
+	    echo '*** WARNING: skipped t_discover_uri.py due to not using resolv_wrapper'; \
+	    echo 'Skipped URI discovery tests: resolv_wrapper 1.1.5 not found' >> $(SKIPTESTS); \
+	fi
+
+check-unix-trace: t_trace
+	rm -f t_trace.out
+	KRB5_TRACE=t_trace.out ; export KRB5_TRACE ; \
+	$(RUN_TEST) ./t_trace
+	sed -e 's/^[^:]*: //' t_trace.out | cmp - $(srcdir)/t_trace.ref
+	rm -f t_trace.out
+
+check-unix-expand: t_expand_path
+	$(RUN_TEST) ./t_expand_path '%{null}' ''
+	$(RUN_TEST) ./t_expand_path ' %{BINDIR}%{LIBDIR} ' \
+		' $(CLIENT_BINDIR)$(KRB5_LIBDIR) '
+	$(RUN_TEST) ./t_expand_path \
+		'the %{animal}%{s} on the %{place}%{s}' \
+		'the frogs on the pads'
+
+clean:
+	$(RM) $(TEST_PROGS) test.out t_std_conf.o t_locate_kdc.o t_trace.o
+	$(RM) t_expand_path.o
+
+@libobj_frag@
+

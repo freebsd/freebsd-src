@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TGS-REQ-data:
+
+KRB5_TGS_REQ
+============
+
+..
+.. data:: KRB5_TGS_REQ
+..
+
+Ticket granting server request.
+
+
+
+=================== ======================
+``KRB5_TGS_REQ``       ``((krb5_msgtype)12)``
+=================== ======================

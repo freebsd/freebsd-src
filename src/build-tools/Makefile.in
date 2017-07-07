@@ -1,0 +1,50 @@
+mydir=build-tools
+BUILDTOP=$(REL)..
+
+PKGCONFIG_FILES = \
+	kadm-client.pc \
+	kadm-server.pc \
+	kdb.pc \
+	mit-krb5.pc \
+	krb5.pc \
+	mit-krb5-gssapi.pc \
+	krb5-gssapi.pc \
+	gssrpc.pc
+
+all-unix: krb5-config $(PKGCONFIG_FILES)
+
+krb5-config $(PKGCONFIG_FILES): $(BUILDTOP)/config.status
+	(cd $(BUILDTOP) && $(SHELL) config.status $(mydir)/$@)
+krb5-config: $(srcdir)/krb5-config.in
+kadm-client.pc: $(srcdir)/kadm-client.pc.in
+kadm-server.pc: $(srcdir)/kadm-server.pc.in
+kdb.pc: $(srcdir)/kdb.pc.in
+mit-krb5.pc: $(srcdir)/mit-krb5.pc.in
+krb5.pc: $(srcdir)/krb5.pc.in
+mit-krb5-gssapi.pc: $(srcdir)/mit-krb5-gssapi.pc.in
+krb5-gssapi.pc: $(srcdir)/krb5-gssapi.pc.in
+gssrpc.pc: $(srcdir)/gssrpc.pc.in
+
+install-unix:
+	$(INSTALL_SCRIPT) krb5-config $(DESTDIR)$(CLIENT_BINDIR)/krb5-config
+	$(INSTALL_DATA) kadm-client.pc \
+		$(DESTDIR)$(PKGCONFIG_DIR)/kadm-client.pc
+	$(INSTALL_DATA) kadm-server.pc \
+		$(DESTDIR)$(PKGCONFIG_DIR)/kadm-server.pc
+	$(INSTALL_DATA) kdb.pc $(DESTDIR)$(PKGCONFIG_DIR)/kdb.pc
+	$(INSTALL_DATA) mit-krb5.pc $(DESTDIR)$(PKGCONFIG_DIR)/mit-krb5.pc
+	$(INSTALL_DATA) krb5.pc $(DESTDIR)$(PKGCONFIG_DIR)/krb5.pc
+	$(INSTALL_DATA) mit-krb5-gssapi.pc \
+		$(DESTDIR)$(PKGCONFIG_DIR)/mit-krb5-gssapi.pc
+	$(INSTALL_DATA) krb5-gssapi.pc \
+		$(DESTDIR)$(PKGCONFIG_DIR)/krb5-gssapi.pc
+	$(INSTALL_DATA) gssrpc.pc \
+		$(DESTDIR)$(PKGCONFIG_DIR)/gssrpc.pc
+
+# Test to ensure that krb5-config does not spit out things like
+# $(PURE) or $(LDFLAGS) in case someone changes config/shlib.conf
+check-unix: krb5-config
+	$(SHELL) $(srcdir)/t_krbconf
+
+distclean-unix:
+	$(RM) $(PKGCONFIG_FILES) krb5-config

@@ -1,0 +1,33 @@
+LIBRARY 	WSHELP64
+
+HEAPSIZE        1024
+EXPORTS
+;		WEP                     @1 RESIDENTNAME
+		res_init                @2
+		res_query               @3
+		res_search              @4
+		res_querydomain         @5
+		res_mkquery             @6
+		res_send                @7
+		dn_comp                 @8
+		rdn_expand              @9
+		rgethostbyname          @10
+		rgethostbyaddr          @11
+		hes_to_bind             @12
+		hes_resolve             @13
+		hes_error               @14
+		hes_getmailhost         @15
+		hes_getservbyname       @16
+		hes_getpwnam            @17
+		res_getopts             @18
+		res_setopts             @19
+		inet_aton               @20
+		gethinfobyname          @21
+		getmxbyname             @22
+		getrecordbyname         @23
+		rrhost                  @24
+		rgetservbyname          @25
+		hes_getpwuid            @26
+		wsh_gethostname
+		wsh_getdomainname
+		hes_free

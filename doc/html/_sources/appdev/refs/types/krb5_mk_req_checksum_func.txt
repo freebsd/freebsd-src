@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-mk-req-checksum-func-struct:
+
+krb5_mk_req_checksum_func
+=========================
+
+..
+.. c:type:: krb5_mk_req_checksum_func
+..
+
+Type of function used as a callback to generate checksum data for mk_req.
+
+
+
+Declaration
+------------
+
+typedef krb5_error_code( \* krb5_mk_req_checksum_func)(krb5_context, krb5_auth_context, void \*, krb5_data \*\*)
+
+

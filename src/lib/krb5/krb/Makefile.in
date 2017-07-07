@@ -1,0 +1,531 @@
+mydir=lib$(S)krb5$(S)krb
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../os -I$(top_srcdir)
+DEFINES=-DLIBDIR=\"$(KRB5_LIBDIR)\" -DDYNOBJEXT=\"$(DYNOBJEXT)\"
+
+# Like RUN_TEST, but use t_krb5.conf from this directory.
+RUN_TEST_LOCAL_CONF=$(RUN_SETUP) KRB5_CONFIG=$(srcdir)/t_krb5.conf LC_ALL=C \
+	$(VALGRIND)
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=krb
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+STLIBOBJS= \
+	addr_comp.o	\
+	addr_order.o	\
+	addr_srch.o	\
+	allow_weak.o	\
+	appdefault.o	\
+	ai_authdata.o   \
+	auth_con.o	\
+	cammac_util.o	\
+	authdata.o	\
+	authdata_exp.o	\
+	authdata_enc.o	\
+	authdata_dec.o	\
+	bld_pr_ext.o	\
+	bld_princ.o	\
+	chk_trans.o	\
+	chpw.o		\
+	conv_creds.o	\
+	conv_princ.o	\
+	copy_addrs.o	\
+	copy_auth.o	\
+	copy_athctr.o	\
+	copy_cksum.o    \
+	copy_creds.o	\
+	copy_data.o	\
+	copy_key.o	\
+	copy_princ.o	\
+	copy_tick.o	\
+	cp_key_cnt.o	\
+	decode_kdc.o	\
+	decrypt_tk.o	\
+	deltat.o	\
+        enc_helper.o	\
+        enc_keyhelper.o	\
+	encode_kdc.o	\
+	encrypt_tk.o	\
+	etype_list.o	\
+	fast.o \
+	fwd_tgt.o	\
+	gc_via_tkt.o	\
+	gen_seqnum.o	\
+	gen_subkey.o	\
+	gen_save_subkey.o	\
+	get_creds.o	\
+	get_in_tkt.o	\
+	gic_keytab.o	\
+	gic_opt.o	\
+	gic_pwd.o	\
+	in_tkt_sky.o	\
+	init_ctx.o	\
+	copy_ctx.o	\
+	init_keyblock.o \
+	kdc_rep_dc.o	\
+	kerrs.o		\
+	kfree.o		\
+	libdef_parse.o	\
+	mk_cred.o	\
+	mk_error.o	\
+	mk_priv.o	\
+	mk_rep.o	\
+	mk_req.o	\
+	mk_req_ext.o	\
+	mk_safe.o	\
+	pac.o		\
+	pac_sign.o	\
+	parse.o		\
+	parse_host_string.o	\
+	plugin.o	\
+	pr_to_salt.o	\
+	preauth2.o	\
+	preauth_ec.o	\
+	preauth_encts.o	\
+	preauth_otp.o	\
+	preauth_pkinit.o	\
+	preauth_sam2.o	\
+	princ_comp.o	\
+	privsafe.o	\
+	random_str.o	\
+	rd_cred.o	\
+	rd_error.o	\
+	rd_priv.o	\
+	rd_rep.o	\
+	rd_req.o	\
+	rd_req_dec.o	\
+	rd_safe.o	\
+	recvauth.o	\
+	response_items.o	\
+	s4u_authdata.o	\
+	s4u_creds.o	\
+	sendauth.o	\
+	send_tgs.o	\
+	ser_actx.o	\
+	ser_adata.o	\
+	ser_addr.o	\
+	ser_auth.o	\
+	ser_cksum.o	\
+	ser_ctx.o	\
+	ser_key.o	\
+	ser_princ.o	\
+	serialize.o	\
+	set_realm.o	\
+	sname_match.o	\
+	srv_dec_tkt.o	\
+	srv_rcache.o	\
+	str_conv.o	\
+	tgtname.o	\
+	unparse.o	\
+	val_renew.o	\
+	valid_times.o	\
+	vfy_increds.o	\
+	vic_opt.o	\
+	walk_rtree.o
+
+OBJS=	$(OUTPRE)addr_comp.$(OBJEXT)	\
+	$(OUTPRE)addr_order.$(OBJEXT)	\
+	$(OUTPRE)addr_srch.$(OBJEXT)	\
+	$(OUTPRE)allow_weak.$(OBJEXT)	\
+	$(OUTPRE)appdefault.$(OBJEXT)	\
+	$(OUTPRE)ai_authdata.$(OBJEXT)  \
+	$(OUTPRE)auth_con.$(OBJEXT)	\
+	$(OUTPRE)cammac_util.$(OBJEXT)	\
+	$(OUTPRE)authdata.$(OBJEXT)	\
+	$(OUTPRE)authdata_exp.$(OBJEXT)	\
+	$(OUTPRE)authdata_enc.$(OBJEXT)	\
+	$(OUTPRE)authdata_dec.$(OBJEXT)	\
+	$(OUTPRE)bld_pr_ext.$(OBJEXT)	\
+	$(OUTPRE)bld_princ.$(OBJEXT)	\
+	$(OUTPRE)chk_trans.$(OBJEXT)	\
+	$(OUTPRE)chpw.$(OBJEXT)		\
+	$(OUTPRE)conv_creds.$(OBJEXT)	\
+	$(OUTPRE)conv_princ.$(OBJEXT)	\
+	$(OUTPRE)copy_addrs.$(OBJEXT)	\
+	$(OUTPRE)copy_auth.$(OBJEXT)	\
+	$(OUTPRE)copy_athctr.$(OBJEXT)	\
+	$(OUTPRE)copy_cksum.$(OBJEXT)    \
+	$(OUTPRE)copy_creds.$(OBJEXT)	\
+	$(OUTPRE)copy_data.$(OBJEXT)	\
+	$(OUTPRE)copy_key.$(OBJEXT)	\
+	$(OUTPRE)copy_princ.$(OBJEXT)	\
+	$(OUTPRE)copy_tick.$(OBJEXT)	\
+	$(OUTPRE)cp_key_cnt.$(OBJEXT)	\
+	$(OUTPRE)decode_kdc.$(OBJEXT)	\
+	$(OUTPRE)decrypt_tk.$(OBJEXT)	\
+	$(OUTPRE)deltat.$(OBJEXT)	\
+        $(OUTPRE)enc_helper.$(OBJEXT)	\
+        $(OUTPRE)enc_keyhelper.$(OBJEXT)	\
+	$(OUTPRE)encode_kdc.$(OBJEXT)	\
+	$(OUTPRE)encrypt_tk.$(OBJEXT)	\
+	$(OUTPRE)etype_list.$(OBJEXT)	\
+	$(OUTPRE)fast.$(OBJEXT) \
+	$(OUTPRE)fwd_tgt.$(OBJEXT)	\
+	$(OUTPRE)gc_via_tkt.$(OBJEXT)	\
+	$(OUTPRE)gen_seqnum.$(OBJEXT)	\
+	$(OUTPRE)gen_subkey.$(OBJEXT)	\
+	$(OUTPRE)gen_save_subkey.$(OBJEXT)	\
+	$(OUTPRE)get_creds.$(OBJEXT)	\
+	$(OUTPRE)get_in_tkt.$(OBJEXT)	\
+	$(OUTPRE)gic_keytab.$(OBJEXT)	\
+	$(OUTPRE)gic_opt.$(OBJEXT)	\
+	$(OUTPRE)gic_pwd.$(OBJEXT)	\
+	$(OUTPRE)in_tkt_sky.$(OBJEXT)	\
+	$(OUTPRE)init_ctx.$(OBJEXT)	\
+	$(OUTPRE)copy_ctx.$(OBJEXT)	\
+	$(OUTPRE)init_keyblock.$(OBJEXT) \
+	$(OUTPRE)kdc_rep_dc.$(OBJEXT)	\
+	$(OUTPRE)kerrs.$(OBJEXT)	\
+	$(OUTPRE)kfree.$(OBJEXT)	\
+	$(OUTPRE)libdef_parse.$(OBJEXT)	\
+	$(OUTPRE)mk_cred.$(OBJEXT)	\
+	$(OUTPRE)mk_error.$(OBJEXT)	\
+	$(OUTPRE)mk_priv.$(OBJEXT)	\
+	$(OUTPRE)mk_rep.$(OBJEXT)	\
+	$(OUTPRE)mk_req.$(OBJEXT)	\
+	$(OUTPRE)mk_req_ext.$(OBJEXT)	\
+	$(OUTPRE)mk_safe.$(OBJEXT)	\
+	$(OUTPRE)pac.$(OBJEXT)		\
+	$(OUTPRE)pac_sign.$(OBJEXT)	\
+	$(OUTPRE)parse.$(OBJEXT)	\
+	$(OUTPRE)parse_host_string.$(OBJEXT)	\
+	$(OUTPRE)plugin.$(OBJEXT)	\
+	$(OUTPRE)pr_to_salt.$(OBJEXT)	\
+	$(OUTPRE)preauth2.$(OBJEXT)	\
+	$(OUTPRE)preauth_ec.$(OBJEXT)	\
+	$(OUTPRE)preauth_encts.$(OBJEXT)	\
+	$(OUTPRE)preauth_otp.$(OBJEXT)	\
+	$(OUTPRE)preauth_pkinit.$(OBJEXT)	\
+	$(OUTPRE)preauth_sam2.$(OBJEXT)	\
+	$(OUTPRE)princ_comp.$(OBJEXT)	\
+	$(OUTPRE)privsafe.$(OBJEXT)	\
+	$(OUTPRE)random_str.$(OBJEXT)	\
+	$(OUTPRE)rd_cred.$(OBJEXT)	\
+	$(OUTPRE)rd_error.$(OBJEXT)	\
+	$(OUTPRE)rd_priv.$(OBJEXT)	\
+	$(OUTPRE)rd_rep.$(OBJEXT)	\
+	$(OUTPRE)rd_req.$(OBJEXT)	\
+	$(OUTPRE)rd_req_dec.$(OBJEXT)	\
+	$(OUTPRE)rd_safe.$(OBJEXT)	\
+	$(OUTPRE)recvauth.$(OBJEXT)	\
+	$(OUTPRE)response_items.$(OBJEXT)	\
+	$(OUTPRE)s4u_authdata.$(OBJEXT)	\
+	$(OUTPRE)s4u_creds.$(OBJEXT)	\
+	$(OUTPRE)sendauth.$(OBJEXT)	\
+	$(OUTPRE)send_tgs.$(OBJEXT)	\
+	$(OUTPRE)ser_actx.$(OBJEXT)	\
+	$(OUTPRE)ser_adata.$(OBJEXT)	\
+	$(OUTPRE)ser_addr.$(OBJEXT)	\
+	$(OUTPRE)ser_auth.$(OBJEXT)	\
+	$(OUTPRE)ser_cksum.$(OBJEXT)	\
+	$(OUTPRE)ser_ctx.$(OBJEXT)	\
+	$(OUTPRE)ser_key.$(OBJEXT)	\
+	$(OUTPRE)ser_princ.$(OBJEXT)	\
+	$(OUTPRE)serialize.$(OBJEXT)	\
+	$(OUTPRE)set_realm.$(OBJEXT)	\
+	$(OUTPRE)sname_match.$(OBJEXT)	\
+	$(OUTPRE)srv_dec_tkt.$(OBJEXT)	\
+	$(OUTPRE)srv_rcache.$(OBJEXT)	\
+	$(OUTPRE)str_conv.$(OBJEXT)	\
+	$(OUTPRE)tgtname.$(OBJEXT)	\
+	$(OUTPRE)unparse.$(OBJEXT)	\
+	$(OUTPRE)val_renew.$(OBJEXT)	\
+	$(OUTPRE)valid_times.$(OBJEXT)	\
+	$(OUTPRE)vfy_increds.$(OBJEXT)	\
+	$(OUTPRE)vic_opt.$(OBJEXT)	\
+	$(OUTPRE)walk_rtree.$(OBJEXT)
+
+SRCS=	$(srcdir)/addr_comp.c	\
+	$(srcdir)/addr_order.c	\
+	$(srcdir)/addr_srch.c	\
+	$(srcdir)/appdefault.c	\
+	$(srcdir)/auth_con.c	\
+	$(srcdir)/cammac_util.c	\
+	$(srcdir)/ai_authdata.c \
+	$(srcdir)/authdata.c	\
+	$(srcdir)/authdata_exp.c	\
+	$(srcdir)/authdata_enc.c	\
+	$(srcdir)/authdata_dec.c	\
+	$(srcdir)/bld_pr_ext.c	\
+	$(srcdir)/bld_princ.c	\
+	$(srcdir)/brand.c	\
+	$(srcdir)/chk_trans.c	\
+	$(srcdir)/chpw.c	\
+	$(srcdir)/conv_creds.c	\
+	$(srcdir)/conv_princ.c	\
+	$(srcdir)/copy_addrs.c	\
+	$(srcdir)/copy_auth.c	\
+	$(srcdir)/copy_athctr.c	\
+	$(srcdir)/copy_cksum.c   \
+	$(srcdir)/copy_creds.c	\
+	$(srcdir)/copy_data.c	\
+	$(srcdir)/copy_key.c	\
+	$(srcdir)/copy_princ.c	\
+	$(srcdir)/copy_tick.c	\
+	$(srcdir)/cp_key_cnt.c	\
+	$(srcdir)/decode_kdc.c	\
+	$(srcdir)/decrypt_tk.c	\
+	$(srcdir)/deltat.c	\
+	$(srcdir)/enc_helper.c	\
+	$(srcdir)/enc_keyhelper.c	\
+	$(srcdir)/encode_kdc.c	\
+	$(srcdir)/encrypt_tk.c	\
+	$(srcdir)/etype_list.c	\
+	$(srcdir)/fast.c \
+	$(srcdir)/fwd_tgt.c	\
+	$(srcdir)/gc_via_tkt.c	\
+	$(srcdir)/gen_seqnum.c	\
+	$(srcdir)/gen_subkey.c	\
+	$(srcdir)/gen_save_subkey.c	\
+	$(srcdir)/get_creds.c	\
+	$(srcdir)/get_in_tkt.c	\
+	$(srcdir)/gic_keytab.c	\
+	$(srcdir)/gic_opt.c	\
+	$(srcdir)/gic_pwd.c	\
+	$(srcdir)/in_tkt_sky.c	\
+	$(srcdir)/init_ctx.c	\
+	$(srcdir)/copy_ctx.c	\
+	$(srcdir)/init_keyblock.c \
+	$(srcdir)/kdc_rep_dc.c	\
+	$(srcdir)/kerrs.c	\
+	$(srcdir)/kfree.c	\
+	$(srcdir)/libdef_parse.c \
+	$(srcdir)/mk_cred.c	\
+	$(srcdir)/mk_error.c	\
+	$(srcdir)/mk_priv.c	\
+	$(srcdir)/mk_rep.c	\
+	$(srcdir)/mk_req.c	\
+	$(srcdir)/mk_req_ext.c	\
+	$(srcdir)/mk_safe.c	\
+	$(srcdir)/pac.c		\
+	$(srcdir)/pac_sign.c	\
+	$(srcdir)/parse.c	\
+	$(srcdir)/parse_host_string.c	\
+	$(srcdir)/plugin.c	\
+	$(srcdir)/pr_to_salt.c	\
+	$(srcdir)/preauth2.c	\
+	$(srcdir)/preauth_ec.c	\
+	$(srcdir)/preauth_encts.c	\
+	$(srcdir)/preauth_otp.c	\
+	$(srcdir)/preauth_pkinit.c	\
+	$(srcdir)/preauth_sam2.c	\
+	$(srcdir)/princ_comp.c	\
+	$(srcdir)/privsafe.c	\
+	$(srcdir)/random_str.c	\
+	$(srcdir)/rd_cred.c	\
+	$(srcdir)/rd_error.c	\
+	$(srcdir)/rd_priv.c	\
+	$(srcdir)/rd_rep.c	\
+	$(srcdir)/rd_req.c	\
+	$(srcdir)/rd_req_dec.c	\
+	$(srcdir)/rd_safe.c	\
+	$(srcdir)/recvauth.c	\
+	$(srcdir)/response_items.c	\
+	$(srcdir)/s4u_authdata.c\
+	$(srcdir)/s4u_creds.c	\
+	$(srcdir)/sendauth.c	\
+	$(srcdir)/send_tgs.c	\
+	$(srcdir)/ser_actx.c	\
+	$(srcdir)/ser_adata.c	\
+	$(srcdir)/ser_addr.c	\
+	$(srcdir)/ser_auth.c	\
+	$(srcdir)/ser_cksum.c	\
+	$(srcdir)/ser_ctx.c	\
+	$(srcdir)/ser_key.c	\
+	$(srcdir)/ser_princ.c	\
+	$(srcdir)/serialize.c	\
+	$(srcdir)/set_realm.c	\
+	$(srcdir)/sname_match.c	\
+	$(srcdir)/srv_dec_tkt.c	\
+	$(srcdir)/srv_rcache.c	\
+	$(srcdir)/str_conv.c	\
+	$(srcdir)/t_ad_fx_armor.c \
+	$(srcdir)/tgtname.c	\
+	$(srcdir)/unparse.c	\
+	$(srcdir)/val_renew.c	\
+	$(srcdir)/valid_times.c	\
+	$(srcdir)/vfy_increds.c \
+	$(srcdir)/vic_opt.c	\
+	$(srcdir)/walk_rtree.c	\
+	$(srcdir)/t_walk_rtree.c \
+	$(srcdir)/t_kerb.c	\
+	$(srcdir)/t_ser.c	\
+	$(srcdir)/t_deltat.c	\
+	$(srcdir)/t_expand.c	\
+	$(srcdir)/t_pac.c	\
+	$(srcdir)/t_parse_host_string.c	\
+	$(srcdir)/t_princ.c	\
+	$(srcdir)/t_etypes.c    \
+	$(srcdir)/t_expire_warn.c \
+	$(srcdir)/t_authdata.c	\
+	$(srcdir)/t_cc_config.c	\
+	$(srcdir)/t_copy_context.c \
+	$(srcdir)/t_in_ccache.c	\
+	$(srcdir)/t_response_items.c \
+	$(srcdir)/t_sname_match.c \
+	$(srcdir)/t_vfy_increds.c
+
+# Someday, when we have a "maintainer mode", do this right:
+BISON=bison
+BISONFLAGS= # -v -> .output; -d -> .h
+DELTAT_DEP=@MAINT@ x-deltat.y
+##WIN32##DELTAT_DEP=
+
+$(srcdir)/deltat.c : $(DELTAT_DEP)
+	(cd $(srcdir) && $(BISON) $(BISONFLAGS) -o deltat.c x-deltat.y)
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+COMERRLIB=$(TOPLIBD)/libcom_err.a
+
+T_WALK_RTREE_OBJS= t_walk_rtree.o walk_rtree.o tgtname.o unparse.o \
+	bld_pr_ext.o copy_data.o
+
+T_KERB_OBJS= t_kerb.o conv_princ.o unparse.o set_realm.o str_conv.o
+
+T_SER_OBJS= t_ser.o ser_actx.o ser_adata.o ser_addr.o ser_auth.o ser_cksum.o \
+	ser_ctx.o ser_key.o ser_princ.o serialize.o authdata.o pac.o \
+	pac_sign.o ai_authdata.o authdata_exp.o s4u_authdata.o copy_data.o etype_list.o
+
+T_DELTAT_OBJS= t_deltat.o deltat.o
+
+T_PAC_OBJS= t_pac.o pac.o pac_sign.o copy_data.o
+
+T_PRINC_OBJS= t_princ.o parse.o unparse.o
+
+T_ETYPES_OBJS= t_etypes.o init_ctx.o etype_list.o plugin.o
+
+T_PARSE_HOST_STRING_OBJS= t_parse_host_string.o parse_host_string.o
+
+t_walk_rtree: $(T_WALK_RTREE_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_walk_rtree $(T_WALK_RTREE_OBJS) $(KRB5_BASE_LIBS)
+t_ad_fx_armor: t_ad_fx_armor.o
+	$(CC_LINK) -o $@ t_ad_fx_armor.o $(KRB5_BASE_LIBS)
+
+t_authdata: t_authdata.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_authdata.o $(KRB5_BASE_LIBS)
+
+t_kerb: $(T_KERB_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_kerb $(T_KERB_OBJS) $(KRB5_BASE_LIBS)
+
+t_ser: $(T_SER_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_ser $(T_SER_OBJS) $(KRB5_BASE_LIBS)
+
+t_deltat : $(T_DELTAT_OBJS) $(SUPPORT_DEPLIB)
+	$(CC_LINK) -o t_deltat $(T_DELTAT_OBJS) $(SUPPORT_LIB)
+
+T_EXPAND_OBJS=t_expand.o
+t_expand.o : t_expand.c
+t_expand : $(T_EXPAND_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_expand $(T_EXPAND_OBJS) $(KRB5_BASE_LIBS)
+
+t_pac: $(T_PAC_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_pac $(T_PAC_OBJS) $(KRB5_BASE_LIBS)
+
+t_princ: $(T_PRINC_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_princ $(T_PRINC_OBJS) $(KRB5_BASE_LIBS)
+
+t_etypes: $(T_ETYPES_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_etypes $(T_ETYPES_OBJS) $(KRB5_BASE_LIBS)
+
+t_parse_host_string: $(T_PARSE_HOST_STRING_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(T_PARSE_HOST_STRING_OBJS) $(CMOCKA_LIBS) \
+		$(KRB5_BASE_LIBS)
+
+t_expire_warn: t_expire_warn.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_expire_warn.o $(KRB5_BASE_LIBS)
+
+t_vfy_increds: t_vfy_increds.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_vfy_increds.o $(KRB5_BASE_LIBS)
+
+t_in_ccache: t_in_ccache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_in_ccache.o $(KRB5_BASE_LIBS)
+
+t_cc_config: t_cc_config.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_cc_config.o $(KRB5_BASE_LIBS)
+
+t_copy_context: t_copy_context.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_copy_context.o $(KRB5_BASE_LIBS)
+
+t_response_items: t_response_items.o response_items.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_response_items.o response_items.o $(KRB5_BASE_LIBS)
+
+t_sname_match: t_sname_match.o sname_match.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_sname_match.o sname_match.o $(KRB5_BASE_LIBS)
+
+TEST_PROGS= t_walk_rtree t_kerb t_ser t_deltat t_expand t_authdata t_pac \
+	t_in_ccache t_cc_config t_copy_context \
+	t_princ t_etypes t_vfy_increds t_response_items t_sname_match
+
+check-unix: $(TEST_PROGS)
+	$(RUN_TEST_LOCAL_CONF) ./t_kerb \
+		parse_name tytso \
+		parse_name tytso@SHAZAAM \
+		parse_name tytso/root@VEGGIE.COM \
+		parse_name tytso/tuber/carrot@VEGGIE.COM \
+		parse_name tytso/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t \
+		parse_name tytso/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t@FOO \
+		parse_name tytso\\\\0/\\0@B\\n\\t\\\\GAG \
+		parse_name tytso/\\n/\\b\\t@B\\0hacky-test \
+		parse_name \\/slash/\\@atsign/octa\\/thorpe@\\/slash\\@at\\/sign \
+		425_conv_principal rcmd e40-po ATHENA.MIT.EDU \
+		425_conv_principal rcmd mit ATHENA.MIT.EDU \
+		425_conv_principal rcmd lithium ATHENA.MIT.EDU \
+		425_conv_principal rcmd tweedledumb CYGNUS.COM \
+		425_conv_principal rcmd uunet UU.NET \
+		425_conv_principal zephyr zephyr ATHENA.MIT.EDU \
+		425_conv_principal kadmin ATHENA.MIT.EDU ATHENA.MIT.EDU \
+		524_conv_principal host/e40-po.mit.edu@ATHENA.MIT.EDU \
+		524_conv_principal host/foobar.stanford.edu@stanford.edu \
+		set_realm marc@MIT.EDU CYGNUS.COM \
+		> test.out
+	cmp test.out $(srcdir)/t_ref_kerb.out
+	$(RM) test.out
+	$(RUN_TEST) ./t_ser
+	$(RUN_TEST) ./t_deltat
+	$(RUN_TEST) sh $(srcdir)/transit-tests
+	$(RUN_TEST_LOCAL_CONF) sh $(srcdir)/walktree-tests
+	$(RUN_TEST) ./t_authdata
+	$(RUN_TEST) ./t_pac
+	$(RUN_TEST) ./t_princ
+	$(RUN_TEST) ./t_etypes
+	$(RUN_TEST) ./t_response_items
+	$(RUN_TEST) ./t_copy_context
+	$(RUN_TEST) ./t_sname_match
+
+check-pytests: t_expire_warn t_vfy_increds
+	$(RUNPYTEST) $(srcdir)/t_expire_warn.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_vfy_increds.py $(PYTESTFLAGS)
+	$(RUNPYTEST) $(srcdir)/t_in_ccache_patypes.py $(PYTESTFLAGS)
+
+check-cmocka: t_parse_host_string
+	$(RUN_TEST) ./t_parse_host_string > /dev/null
+
+clean:
+	$(RM) $(OUTPRE)t_walk_rtree$(EXEEXT) $(OUTPRE)t_walk_rtree.$(OBJEXT) \
+		$(OUTPRE)t_kerb$(EXEEXT) $(OUTPRE)t_kerb.$(OBJEXT)	\
+		$(OUTPRE)t_ser$(EXEEXT) $(OUTPRE)t_ser.$(OBJEXT)	\
+		$(OUTPRE)t_deltat$(EXEEXT) $(OUTPRE)t_deltat.$(OBJEXT) \
+		$(OUTPRE)t_expand$(EXEEXT) $(OUTPRE)t_expand.$(OBJEXT)  \
+	$(OUTPRE)t_expire_warn$(EXEEXT) $(OUTPRE)t_expire_warn.$(OBJEXT)  \
+		$(OUTPRE)t_etypes$(EXEEXT) $(OUTPRE)t_etypes.$(OBJEXT)	\
+		$(OUTPRE)t_pac$(EXEEXT) $(OUTPRE)t_pac.$(OBJEXT)	\
+		$(OUTPRE)t_princ$(EXEEXT) $(OUTPRE)t_princ.$(OBJEXT)	\
+	$(OUTPRE)t_authdata$(EXEEXT) $(OUTPRE)t_authdata.$(OBJEXT)	\
+	$(OUTPRE)t_cc_config$(EXEEXT) $(OUTPRE)t_cc_config.$(OBJEXT)	\
+	$(OUTPRE)t_copy_context$(EXEEXT) $(OUTPRE)t_copy_context.$(OBJEXT) \
+	$(OUTPRE)t_in_ccache$(EXEEXT) $(OUTPRE)t_in_ccache.$(OBJEXT)	\
+	$(OUTPRE)t_ad_fx_armor$(EXEEXT) $(OUTPRE)t_ad_fx_armor.$(OBJEXT) \
+	$(OUTPRE)t_vfy_increds$(EXEEXT) $(OUTPRE)t_vfy_increds.$(OBJEXT) \
+	$(OUTPRE)t_response_items$(EXEEXT) \
+	$(OUTPRE)t_response_items.$(OBJEXT) $(OUTPRE)t_sname_match$(EXEEXT) \
+	$(OUTPRE)t_sname_match.$(OBJEXT) \
+	$(OUTPRE)t_parse_host_string$(EXEEXT) \
+	$(OUTPRE)t_parse_host_string.$(OBJEXT)
+
+@libobj_frag@
+

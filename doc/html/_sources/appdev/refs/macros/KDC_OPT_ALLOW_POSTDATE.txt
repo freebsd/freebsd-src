@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KDC-OPT-ALLOW-POSTDATE-data:
+
+KDC_OPT_ALLOW_POSTDATE
+======================
+
+..
+.. data:: KDC_OPT_ALLOW_POSTDATE
+..
+
+
+
+
+============================= ======================
+``KDC_OPT_ALLOW_POSTDATE``       ``0x04000000``
+============================= ======================

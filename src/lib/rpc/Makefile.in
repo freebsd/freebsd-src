@@ -1,0 +1,235 @@
+mydir=lib$(S)rpc
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DGSSAPI_KRB5 -DDEBUG_GSSAPI=0 -DGSSRPC__IMPL
+
+SUBDIRS=unit-test
+
+##DOSBUILDTOP = ..\..
+##DOSLIBNAME=libgssrpc.lib
+
+LIBBASE=gssrpc
+LIBMAJOR=4
+LIBMINOR=2
+SHLIB_EXPDEPS= \
+	$(TOPLIBD)/libgssapi_krb5$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT) \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(COM_ERR_DEPLIB)
+SHLIB_EXPLIBS=-lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err $(LIBS)
+RELDIR=rpc
+
+SRCS = $(srcdir)/auth_none.c \
+	$(srcdir)/auth_unix.c \
+	$(srcdir)/authgss_prot.c \
+	$(srcdir)/authunix_prot.c \
+	$(srcdir)/auth_gss.c \
+	$(srcdir)/auth_gssapi.c \
+	$(srcdir)/auth_gssapi_misc.c \
+	$(srcdir)/bindresvport.c \
+	$(srcdir)/clnt_generic.c \
+	$(srcdir)/clnt_perror.c \
+	$(srcdir)/clnt_raw.c \
+	$(srcdir)/clnt_simple.c \
+	$(srcdir)/clnt_tcp.c \
+	$(srcdir)/clnt_udp.c \
+	$(srcdir)/dyn.c \
+	$(srcdir)/rpc_dtablesize.c \
+	$(srcdir)/get_myaddress.c \
+	$(srcdir)/getrpcport.c \
+	$(srcdir)/pmap_clnt.c \
+	$(srcdir)/pmap_getmaps.c \
+	$(srcdir)/pmap_getport.c \
+	$(srcdir)/pmap_prot.c \
+	$(srcdir)/pmap_prot2.c \
+	$(srcdir)/pmap_rmt.c \
+	$(srcdir)/rpc_prot.c \
+	$(srcdir)/rpc_commondata.c \
+	$(srcdir)/rpc_callmsg.c \
+	$(srcdir)/svc.c \
+	$(srcdir)/svc_auth.c \
+	$(srcdir)/svc_auth_gss.c \
+	$(srcdir)/svc_auth_none.c \
+	$(srcdir)/svc_auth_unix.c \
+	$(srcdir)/svc_auth_gssapi.c \
+	$(srcdir)/svc_raw.c \
+	$(srcdir)/svc_run.c \
+	$(srcdir)/svc_simple.c \
+	$(srcdir)/svc_tcp.c \
+	$(srcdir)/svc_udp.c \
+	$(srcdir)/xdr.c \
+	$(srcdir)/xdr_array.c \
+	$(srcdir)/xdr_float.c \
+	$(srcdir)/xdr_mem.c \
+	$(srcdir)/xdr_rec.c \
+	$(srcdir)/xdr_reference.c \
+	$(srcdir)/xdr_stdio.c \
+	$(srcdir)/xdr_sizeof.c \
+	$(srcdir)/xdr_alloc.c
+
+OBJS = auth_none.$(OBJEXT) \
+	auth_unix.$(OBJEXT) \
+	authunix_prot.$(OBJEXT) \
+	authgss_prot.$(OBJEXT) \
+	auth_gss.$(OBJEXT) \
+	auth_gssapi.$(OBJEXT) \
+	auth_gssapi_misc.$(OBJEXT) \
+	bindresvport.$(OBJEXT) \
+	clnt_generic.$(OBJEXT) \
+	clnt_perror.$(OBJEXT) \
+	clnt_raw.$(OBJEXT) \
+	clnt_simple.$(OBJEXT) \
+	clnt_tcp.$(OBJEXT) \
+	clnt_udp.$(OBJEXT) \
+	dyn.$(OBJEXT) \
+	rpc_dtablesize.$(OBJEXT) \
+	get_myaddress.$(OBJEXT) \
+	getrpcport.$(OBJEXT) \
+	pmap_clnt.$(OBJEXT) \
+	pmap_getmaps.$(OBJEXT) \
+	pmap_getport.$(OBJEXT) \
+	pmap_prot.$(OBJEXT) \
+	pmap_prot2.$(OBJEXT) \
+	pmap_rmt.$(OBJEXT) \
+	rpc_prot.$(OBJEXT) \
+	rpc_commondata.$(OBJEXT) \
+	rpc_callmsg.$(OBJEXT) \
+	svc.$(OBJEXT) \
+	svc_auth.$(OBJEXT) \
+	svc_auth_gss.$(OBJEXT) \
+	svc_auth_none.$(OBJEXT) \
+	svc_auth_unix.$(OBJEXT) \
+	svc_auth_gssapi.$(OBJEXT) \
+	svc_raw.$(OBJEXT) \
+	svc_run.$(OBJEXT) \
+	svc_simple.$(OBJEXT) \
+	svc_tcp.$(OBJEXT) \
+	svc_udp.$(OBJEXT) \
+	xdr.$(OBJEXT) \
+	xdr_array.$(OBJEXT) \
+	xdr_float.$(OBJEXT) \
+	xdr_mem.$(OBJEXT) \
+	xdr_rec.$(OBJEXT) \
+	xdr_reference.$(OBJEXT) \
+	xdr_stdio.$(OBJEXT) \
+	xdr_sizeof.$(OBJEXT) \
+	xdr_alloc.$(OBJEXT)
+
+STLIBOBJS = \
+	auth_none.o \
+	auth_unix.o \
+	authgss_prot.o \
+	authunix_prot.o \
+	auth_gss.o \
+	auth_gssapi.o \
+	auth_gssapi_misc.o \
+	bindresvport.o \
+	clnt_generic.o \
+	clnt_perror.o \
+	clnt_raw.o \
+	clnt_simple.o \
+	clnt_tcp.o \
+	clnt_udp.o \
+	dyn.o \
+	rpc_dtablesize.o \
+	get_myaddress.o \
+	getrpcport.o \
+	pmap_clnt.o \
+	pmap_getmaps.o \
+	pmap_getport.o \
+	pmap_prot.o \
+	pmap_prot2.o \
+	pmap_rmt.o \
+	rpc_prot.o \
+	rpc_commondata.o \
+	rpc_callmsg.o \
+	svc.o \
+	svc_auth.o \
+	svc_auth_gss.o \
+	svc_auth_gssapi.o \
+	svc_auth_none.o \
+	svc_auth_unix.o \
+	svc_raw.o \
+	svc_run.o \
+	svc_simple.o \
+	svc_tcp.o \
+	svc_udp.o \
+	xdr.o \
+	xdr_array.o \
+	xdr_float.o \
+	xdr_mem.o \
+	xdr_rec.o \
+	xdr_reference.o \
+	xdr_stdio.o \
+	xdr_sizeof.o \
+	xdr_alloc.o
+
+HDRDIR=$(BUILDTOP)/include/gssrpc
+
+all-prerecurse: all-liblinks
+
+all-windows: $(OBJS)
+
+generate-files-mac: darwin.exports
+
+install-unix: install-libs
+
+install-unix:
+	for i in $(SRC_HDRS); do \
+		(set -x; $(INSTALL_DATA) $(srcdir)/../../include/gssrpc/$$i $(DESTDIR)$(KRB5_INCDIR)$(S)gssrpc$(S)$$i) ; \
+	done
+	for i in $(BUILD_HDRS); do \
+		(set -x; $(INSTALL_DATA) ../../include/gssrpc/$$i $(DESTDIR)$(KRB5_INCDIR)$(S)gssrpc$(S)$$i) ; \
+	done
+
+BUILD_HDRS = types.h
+SRC_HDRS = auth.h auth_gss.h auth_gssapi.h auth_unix.h clnt.h \
+	netdb.h pmap_clnt.h pmap_prot.h pmap_rmt.h rename.h \
+	rpc.h rpc_msg.h svc.h svc_auth.h xdr.h
+
+check-windows:
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean-windows::
+
+# stuff picked up from old "dyn" library
+#check-unix: run-dyntest
+run-dyntest: dyntest
+	./dyntest
+dyntest: dyntest.o dyn.o
+	$(CC) -o dyntest dyntest.o dyn.o
+clean-unix:: clean-dyntest
+clean-dyntest:
+	$(RM) dyntest dyntest.o
+
+LCLINT=		lclint
+# +posixlib     gets more complete errno list than ansilib
+# -usedef       turns off bogus warnings from poor dataflow analysis (should be
+#               redundant with gcc warnings anyways)
+# -warnposix
+# +charintliteral
+# +ignoresigns
+# -predboolint
+# -exportlocal
+# -retvalint    allow ignoring of int return values (e.g., fputs)
+LCLINTOPTS=+posixlib \
+        +ignoresigns -predboolint \
+        +mod-uncon +modinternalstrict +modfilesys \
+        -expect 2
+do-dyn-lclint:
+	$(LCLINT) $(LCLINTOPTS) $(LOCALINCLUDES) $(DEFS) dyn.c dyntest.c
+
+$(BUILDTOP)/include/gssrpc/types.h: types.stamp
+types.stamp: $(top_srcdir)/include/gssrpc/types.hin $(BUILDTOP)/config.status
+	(cd $(BUILDTOP) && $(SHELL) config.status include/gssrpc/types.h)
+	touch types.stamp
+
+clean-unix::
+	$(RM) types.stamp $(BUILDTOP)/include/gssrpc/types.h
+clean-windows::
+	$(RM) types.stamp
+
+
+@lib_frag@
+@libobj_frag@
+

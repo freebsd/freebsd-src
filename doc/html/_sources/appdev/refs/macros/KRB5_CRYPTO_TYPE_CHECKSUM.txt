@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-CRYPTO-TYPE-CHECKSUM-data:
+
+KRB5_CRYPTO_TYPE_CHECKSUM
+=========================
+
+..
+.. data:: KRB5_CRYPTO_TYPE_CHECKSUM
+..
+
+[out] checksum for MIC
+
+
+
+================================ ======================
+``KRB5_CRYPTO_TYPE_CHECKSUM``       ``6``
+================================ ======================

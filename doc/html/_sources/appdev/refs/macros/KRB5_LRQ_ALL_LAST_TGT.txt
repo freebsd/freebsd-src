@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-LRQ-ALL-LAST-TGT-data:
+
+KRB5_LRQ_ALL_LAST_TGT
+=====================
+
+..
+.. data:: KRB5_LRQ_ALL_LAST_TGT
+..
+
+
+
+
+============================ ======================
+``KRB5_LRQ_ALL_LAST_TGT``       ``1``
+============================ ======================

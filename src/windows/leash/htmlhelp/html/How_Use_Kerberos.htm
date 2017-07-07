@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>How_Use_Kerberos</Title>
+</HEAD>
+<BODY>
+<H1>How Do I Use Kerberos? </H1>
+<p>It is simple to use Kerberos through the MIT Kerberos program. Click the Get Ticket button and log on to get a Kerberos ticket. This ticket is proof of your identity and allows you to access all of the network resources you are pemitted to use. For the most part, your tickets are passed on through the network without needing anything more from you. </p>
+<p>
+Kerberos tickets do expire, usually after about the length of a working day. </p>
+
+<H2 id="helph2">Related Help</H2>
+<ul id="helpul">
+<li><a href="HTML/Tickets.htm">Tickets</a></li>
+
+</ul>
+
+
+
+It is helpful to understand three concepts before using Kerberos; realms, principals, and tickets.
+<table>
+<tr>
+<th>Tickets</th>
+</tr>
+<tr>
+<td>
+To keep passwords from being transmitted in the clear and to provide users the convenience of a single log-on to access multiple services and hosts, Kerberos uses the concept of <i>tickets.</i> Once a user provides a valid identity and password, Kerberos  issues the user a ticket with a limited lifetime.  In most cases the ticket then allows the user to access all of the servers and hosts he or she should be able to access, for the lifetime of the ticket.
+When you get tickets through Leash, Kerberos verfies that you are who you say you are by checking your user name and password and then gives you an initial ticket.  When you access a service in your Kerberos realm, Leash passes your initial Kerberos ticket to the service. The service verifies the ticket and then issues you a service ticket that allows you access to that service.  You don't have to worry about obtaining these new service tickets; they are automatically given to you. You can view service tickets with Leash but cannot directly obtain or destroy them.
+</td>
+</tr>
+
+<H2> Realm  </H2>
+ A Kerberos <b>realm</b> is the group of network resources that that you gain access to when you log on with a Kerberos identity and password. For example, a university might have a Kerberos realm that includes all of the servers that students should be allowed to access. Some companies or universities might  maintain more than one realm, potentially overlapping them. If you have access to more than one realm, you must log on to each one separately. By definition, each network resource in a Kerberos realm uses the same Kerberos installation  for authentication.
+
+<H2> Principal </H2>
+A Kerberos <b>principal</b>  is  the identity you use to log on through Kerberos. Some people will have more than one principal. For example, an administrator might have a regular principal and a seperate one with admin rights, like root access.
+
+<H2> Tickets </H2>
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,12 @@
+BUILDTOP = ..\..
+
+all-windows: $(OUTPRE)libecho.exe
+
+$(OUTPRE)libecho.exe: $(OUTPRE)libecho.obj
+	link -out:$@ $** $(SCLIB)
+	$(_VC_MANIFEST_EMBED_EXE)
+	
+install-windows:
+
+clean-windows::
+	$(RM) $(OUTPRE)*.res $(OUTPRE)*.map $(OUTPRE)*.obj $(OUTPRE)*.exe $(OUTPRE)*.manifest

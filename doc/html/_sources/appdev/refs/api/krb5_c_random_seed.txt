@@ -1,0 +1,44 @@
+krb5_c_random_seed
+==================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_random_seed(krb5_context context, krb5_data * data)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **data**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

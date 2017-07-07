@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+  Copyright (C) 2004 by the Massachusetts Institute of Technology.
+  All rights reserved.
+ 
+  Export of this software from the United States of America may
+    require a specific license from the United States Government.
+    It is the responsibility of any person or organization contemplating
+    export to obtain such a license before exporting.
+ 
+  WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+  distribute this software and its documentation for any purpose and
+  without fee is hereby granted, provided that the above copyright
+  notice appear in all copies and that both that copyright notice and
+  this permission notice appear in supporting documentation, and that
+  the name of M.I.T. not be used in advertising or publicity pertaining
+  to distribution of the software without specific, written prior
+  permission.  Furthermore if you modify this software you must label
+  your software as modified software and not distribute it in such a
+  fashion that it might be confused with the original M.I.T. software.
+  M.I.T. makes no representations about the suitability of
+  this software for any purpose.  It is provided "as is" without express
+  or implied warranty.
+  
+  -->
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+    
+    <?define VersionString="$(var.VersionMajor).$(var.VersionMinor).$(var.VersionPatch)"?>
+    <?if $(var.Platform) = "x64" ?>
+        <?define BaseProductName="!(loc.ProductName64)"?>
+        <?define BaseProductNameShort="!(loc.ProductNameShort64)"?>
+    <?elseif $(var.Platform) = "Intel" ?>
+        <?define BaseProductName="!(loc.ProductName)"?>
+        <?define BaseProductNameShort="!(loc.ProductNameShort)"?>
+    <?else?>
+        <?error Unknown build type?>
+    <?endif?>
+    
+    <?ifdef var.Beta?> 
+        <?ifndef var.Debug?>
+            <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString) !(loc.ProductBeta) $(var.Beta) "?>
+        <?else?>
+            <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString) !(loc.ProductBeta) $(var.Beta) !(loc.ProductDebug)"?>
+        <?endif?>
+    <?else?>
+        <?ifdef var.Release?>
+            <?ifndef var.Debug?>
+                <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString)"?>
+            <?else?>
+                <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString) !(loc.ProductDebug)"?>
+            <?endif?>
+        <?else?>
+            <?ifndef var.Date?>
+                <?error Date string must be specified?>
+            <?endif?>
+            
+            <?ifndef var.Time?>
+                <?error Time string must be specified?>
+            <?endif?>
+            
+            <?ifndef var.Debug?>
+                <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString) $(var.Date) $(var.Time)"?>
+            <?else?>
+                <?define ProductFullName="!(loc.ProductMIT) $(var.BaseProductName) $(var.VersionString) $(var.Date) $(var.Time) !(loc.ProductDebug)"?>
+            <?endif?>
+        <?endif?>
+    <?endif?>
+
+    <!-- Language specific configuration (English) -->
+    <?define ProductName="$(var.ProductFullName)"?>
+    <?define CodePage="1252"?>
+    <?define Language="1033"?>
+
+    <?define ARPComments="!(loc.ARPComments) $(var.Date) $(var.Time)"?>
+</Include>

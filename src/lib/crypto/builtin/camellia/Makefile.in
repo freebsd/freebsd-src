@@ -1,0 +1,41 @@
+thisconfigdir=../../../..
+myfulldir=lib/crypto/builtin/camellia
+mydir=lib$(S)crypto$(S)builtin$(S)camellia
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../aes
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\camellia
+##DOS##OBJFILE = ..\..\$(OUTPRE)camellia.lst
+
+STLIBOBJS= camellia.o
+
+OBJS= $(OUTPRE)camellia.$(OBJEXT)
+
+SRCS= $(srcdir)/camellia.c
+
+GEN_OBJS= $(OUTPRE)camellia.$(OBJEXT)
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs # camellia-gen
+
+includes: depend
+
+depend: $(SRCS)
+
+camellia-gen: camellia-gen.o $(GEN_OBJS)
+	$(CC_LINK) -o camellia-gen camellia-gen.o $(GEN_OBJS)
+
+run-camellia-gen: camellia-gen
+	./camellia-gen > kresults.out
+
+check: run-camellia-gen
+
+
+clean-unix:: clean-libobjs
+
+clean:
+	-$(RM) camellia-gen camellia-gen.o kresults.out
+
+@libobj_frag@

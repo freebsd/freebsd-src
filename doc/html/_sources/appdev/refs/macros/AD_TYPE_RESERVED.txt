@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _AD-TYPE-RESERVED-data:
+
+AD_TYPE_RESERVED
+================
+
+..
+.. data:: AD_TYPE_RESERVED
+..
+
+
+
+
+======================= ======================
+``AD_TYPE_RESERVED``       ``0x8000``
+======================= ======================

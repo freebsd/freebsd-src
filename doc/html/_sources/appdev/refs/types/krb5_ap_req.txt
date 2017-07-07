@@ -1,0 +1,45 @@
+.. highlightlang:: c
+
+.. _krb5-ap-req-struct:
+
+krb5_ap_req
+===========
+
+..
+.. c:type:: krb5_ap_req
+..
+
+Authentication header.
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_ap_req  krb5_ap_req
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_ap_req.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_flags	krb5_ap_req.ap_options
+
+                                             Requested options.
+                                             
+
+.. c:member:: krb5_ticket  *	krb5_ap_req.ticket
+
+                                             Ticket.
+                                             
+
+.. c:member:: krb5_enc_data	krb5_ap_req.authenticator
+
+                                             Encrypted authenticator.
+                                             
+

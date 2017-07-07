@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTH-CONTEXT-DO-TIME-data:
+
+KRB5_AUTH_CONTEXT_DO_TIME
+=========================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_DO_TIME
+..
+
+Prevent replays with timestamps and replay cache.
+
+
+
+================================ ======================
+``KRB5_AUTH_CONTEXT_DO_TIME``       ``0x00000001``
+================================ ======================

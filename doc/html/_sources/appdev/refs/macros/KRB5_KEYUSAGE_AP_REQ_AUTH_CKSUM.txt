@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AP-REQ-AUTH-CKSUM-data:
+
+KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM
+===============================
+
+..
+.. data:: KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM
+..
+
+
+
+
+====================================== ======================
+``KRB5_KEYUSAGE_AP_REQ_AUTH_CKSUM``       ``10``
+====================================== ======================

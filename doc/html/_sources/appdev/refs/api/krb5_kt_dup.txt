@@ -1,0 +1,52 @@
+krb5_kt_dup -  Duplicate keytab handle. 
+========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_dup(krb5_context context, krb5_keytab in, krb5_keytab * out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **in** - Key table handle to be duplicated
+
+	          **[out]** **out** - Key table handle
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Create a new handle referring to the same key table as *in* . The new handle and *in* can be closed independently.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.12
+ 
+

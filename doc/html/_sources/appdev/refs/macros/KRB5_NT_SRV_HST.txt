@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-NT-SRV-HST-data:
+
+KRB5_NT_SRV_HST
+===============
+
+..
+.. data:: KRB5_NT_SRV_HST
+..
+
+Service with host name as instance (telnet, rcommands)
+
+
+
+====================== ======================
+``KRB5_NT_SRV_HST``       ``3``
+====================== ======================

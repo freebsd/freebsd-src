@@ -1,0 +1,42 @@
+krb5_free_data -  Free a krb5_data structure. 
+==============================================
+
+..
+
+.. c:function:: void krb5_free_data(krb5_context context, krb5_data * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Data structure to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *val* and the structure itself.
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _krb5-princ-size-data:
+
+krb5_princ_size
+===============
+
+..
+.. data:: krb5_princ_size
+..
+
+
+
+
+====================================== ======================
+``krb5_princ_size (context, princ)``       ``(princ)->length``
+====================================== ======================

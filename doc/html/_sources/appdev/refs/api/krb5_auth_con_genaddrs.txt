@@ -1,0 +1,66 @@
+krb5_auth_con_genaddrs -  Generate auth context addresses from a connected socket. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_genaddrs(krb5_context context, krb5_auth_context auth_context, int infd, int flags)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **infd** - Connected socket descriptor
+
+	          **[in]** **flags** - Flags
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets the local and/or remote addresses in *auth_context* based on the local and remote endpoints of the socket *infd* . The following flags determine the operations performed:
+
+
+
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR` Generate local address.
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR` Generate remote address.
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR` Generate local address and port.
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_GENERATE_REMOTE_FULL_ADDR` Generate remote address and port.
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+

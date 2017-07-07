@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ADDRTYPE-CHAOS-data:
+
+ADDRTYPE_CHAOS
+==============
+
+..
+.. data:: ADDRTYPE_CHAOS
+..
+
+
+
+
+===================== ======================
+``ADDRTYPE_CHAOS``       ``0x0005``
+===================== ======================

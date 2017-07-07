@@ -1,0 +1,40 @@
+mydir=lib$(S)crypto$(S)builtin$(S)hash_provider
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/.. -I$(srcdir)/../../krb -I$(srcdir)/../md4 \
+	-I$(srcdir)/../md5 -I$(srcdir)/../sha1 -I$(srcdir)/../sha2
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\hash_provider
+##DOS##OBJFILE = ..\..\$(OUTPRE)hash_provider.lst
+
+STLIBOBJS= \
+	hash_crc32.o 	\
+	hash_md4.o 	\
+	hash_md5.o 	\
+	hash_sha1.o	\
+	hash_sha2.o
+
+OBJS=   $(OUTPRE)hash_crc32.$(OBJEXT) 	\
+	$(OUTPRE)hash_md4.$(OBJEXT) 	\
+	$(OUTPRE)hash_md5.$(OBJEXT) 	\
+	$(OUTPRE)hash_sha1.$(OBJEXT)	\
+	$(OUTPRE)hash_sha2.$(OBJEXT)
+
+SRCS=	$(srcdir)/hash_crc32.c	\
+	$(srcdir)/hash_md4.c 	\
+	$(srcdir)/hash_md5.c 	\
+	$(srcdir)/hash_sha1.c	\
+	$(srcdir)/hash_sha2.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

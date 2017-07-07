@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Kerberos Properties Command</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="properties, Kerberos"> <param name="Keyword"
+ value="key, Ctrl+K">
+</object>
+<h3><a name="hid_kerberos_properties_command"></a><b>Kerberos Properties Command, Ctrl+K</b></h3>
+<p>When you select this from the Options menu, Leash will display a
+tabbed window. The box within this window has four tabs: <br>
+</p>
+<ul>
+  <li>Default Realm Configuration</li>
+  <li>Ticket Lifetime and Other Initialization Options<br>
+  </li>
+  <li>Realm/Server Mapping<br>
+  </li>
+  <li>DNS/Realm Mapping.</li>
+</ul>
+<p><i>Default Realm Configuration:<br>
+<img style="width: 623px; height: 558px;"
+ alt="Default Realm Configuration" title="Default Realm Configuration"
+ src="..%5CImages%5CLeash_properties_krb_1.jpg"><br>
+</i></p>
+<p>There are two groups, the <span style="font-weight: bold;">Kerberos
+Realm/Host Server</span> and the <span style="font-weight: bold;">Computer
+Host/Domain Name</span>. </p>
+<p>Kerberos Realm/Host Server: In the <span style="font-weight: bold;">Your
+Kerberos Realm</span> field, select a Kerberos realm from the dropdown
+list. The list is editable using the Realm/Server Mapping tab. Leash
+automatically fills in your Kerberos server with the first server in
+the "Servers Hosting a KDC" list on the Realm/Server Mappings tab. </p>
+<p>Computer Host/Domain Name: The field labeled <span
+ style="font-weight: bold;">Your Computer's Host Name</span> displays
+the name of your local machine.&nbsp; The <span
+ style="font-weight: bold;">Your Computer's Domain Name</span> field
+displays the domain to which your local machine currently belongs.<br>
+</p>
+<p><i>Ticket Lifetime and Other Initialization Options:<br>
+<img style="width: 623px; height: 558px;" alt="Ticket Lifetime"
+ title="Ticket Lifetime" src="..%5CImages%5CLeash_properties_krb_2.jpg"><br>
+</i></p>
+<p>
+</p>
+<>There are two expiration times associated with Kerberos
+tickets.&nbsp; The first specifies the length of the time period during
+which the tickets are valid for use.&nbsp; The second specifies the
+length of the renewable lifetime.&nbsp; Valid Kerberos tickets may have
+their valid use lifetime repeatedly extended up until the renewable
+lifetime expires.&nbsp; The settings on this page are used to configure
+default lifetime values for Leash to use when requesting Kerberos
+tickets from the Kerberos server (key distribution center).&nbsp; The
+Kerberos server may issue tickets with shorter lifetimes than were
+requested.<br>
+<br>
+The minimum and maximum values are used by the ticket initialization
+dialog box when constructing the Lifetime and Renewable Lifetime
+sliders.&nbsp; These sliders can be used to modify the requested ticket
+lifetimes when Kerberos tickets are initialized.<br>
+<br>
+When the <b>Request Kerberos 4
+credentials</b> button is checked, Leash will attempt to retrieve
+Kerberos 4
+credentials when ticket initialization, renewal, or importation is
+performed.<span style="">&nbsp; </span>Leash will attempt a Kerberos
+5 to Kerberos 4 conversion and if that fails an initial Kerberos 4
+ticket
+request will be generated.<span style="">&nbsp; </span>Kerberos
+realms are increasingly configured to support on Kerberos 5.<span
+ style="">&nbsp; </span>If the realms you use do not support Kerberos
+4 it is suggested that this button be unchecked.</>
+<><o:p>&nbsp;</o:p><br>
+<br>
+When the <b style="">Preserve Ticket Initialization Options</b> button
+is checked, changes
+to the Lifetime, Renewable Lifetime, and Kerberos 5 ticket properties
+on the
+Ticket Initialization Dialog will be saved as the new default values
+for the
+current user. <o:p></o:p></>
+<p>
+</p>
+<p><i>Realm/Server Mapping</i>:<br>
+<img style="width: 623px; height: 558px;" alt="Realm / Server Mapping"
+ title="Realm / Server Mapping"
+ src="..%5CImages%5CLeash_properties_krb_3.jpg"><br>
+</p>
+The <span style="font-weight: bold;">Kerberos Realms</span> list box
+is used to add, remove or rename realms from the local Kerberos
+configuration files. To add a new realm, click on the Insert button
+beneath the Kerberos Realms list box.&nbsp; In the dialog, type the
+name of the new realm and click OK.&nbsp; However, for the realm to be
+inserted, it needs one or more servers.&nbsp; Immediately after you
+enter the new realm name, you will be prompted for the names of one
+Kerberos server in that realm.&nbsp; If you do not enter a server name,
+Leash will not insert the realm.<br>
+<br>
+To add servers to an existing realm, select the realm from the Kerberos
+Realms list box and click the Insert button under Servers Hosting a KDC
+list box.&nbsp; You will be prompted for the name of the new
+server.&nbsp; You can also remove servers, and designate either one or
+none as the administrative server.&nbsp; (The administrative server is
+the preferred server for performing password changes.) &nbsp;<br>
+<br>
+By clicking and dragging on the server that you want to move, you can
+change their order; this is important because the server listed at the
+top appears in this window under the <span style="font-weight: bold;">Default
+Realm Configuration</span> tab as the value for <span
+ style="font-weight: bold;">Your Kerberos Server</span>.<br>
+<br>
+The <span style="font-weight: bold;">Use DNS KDC Lookup</span>
+checkbox is used to specify whether or not Kerberos should utilize the
+domain name service to attempt to find Kerberos Servers when the
+existing listed servers are not available.<br>
+<br>
+<p><i>DNS/Realm Mapping</i>:<br>
+<img style="width: 623px; height: 558px;" alt="DNS / Realm Mapping"
+ title="DNS / Realm Mapping"
+ src="..%5CImages%5CLeash_properties_krb_4.jpg"><br>
+</p>
+<p>Each entry here consists of two portions: the domain name (such as
+.mit.edu) or hostname (such as dialup.athena.mit.edu) followed by a
+space and the Kerberos realm (such as ATHENA.MIT.EDU) which is used by
+that domain or machine.&nbsp; You can insert new entries, edit existing
+ones, or delete old entries.</p>
+</body>
+</html>

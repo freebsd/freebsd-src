@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-APP-DATA-ENCRYPT-data:
+
+KRB5_KEYUSAGE_APP_DATA_ENCRYPT
+==============================
+
+..
+.. data:: KRB5_KEYUSAGE_APP_DATA_ENCRYPT
+..
+
+
+
+
+===================================== ======================
+``KRB5_KEYUSAGE_APP_DATA_ENCRYPT``       ``16``
+===================================== ======================

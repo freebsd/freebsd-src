@@ -1,0 +1,65 @@
+krb5_c_decrypt -  Decrypt data using a key (operates on keyblock). 
+===================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_decrypt(krb5_context context, const krb5_keyblock * key, krb5_keyusage usage, const krb5_data * cipher_state, const krb5_enc_data * input, krb5_data * output)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Encryption key
+
+	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+
+	          **[inout]** **cipher_state** - Cipher state; specify NULL if not needed
+
+	          **[in]** **input** - Encrypted data
+
+	          **[out]** **output** - Decrypted data
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function decrypts the data block *input* and stores the output into *output* . The actual decryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the decryption operation, and is updated with the state to be passed as input to the next operation.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The caller must initialize *output* and allocate at least enough space for the result. The usual practice is to allocate an output buffer as long as the ciphertext, and let :c:func:`krb5_c_decrypt()` trim *output->length* . For some enctypes, the resulting *output->length* may include padding bytes.
+ 
+
+
+

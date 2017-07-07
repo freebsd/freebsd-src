@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-KRB-ERROR-CKSUM-data:
+
+KRB5_KEYUSAGE_KRB_ERROR_CKSUM
+=============================
+
+..
+.. data:: KRB5_KEYUSAGE_KRB_ERROR_CKSUM
+..
+
+
+
+
+==================================== ======================
+``KRB5_KEYUSAGE_KRB_ERROR_CKSUM``       ``18``
+==================================== ======================

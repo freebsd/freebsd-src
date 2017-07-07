@@ -1,0 +1,58 @@
+krb5_init_context -  Create a krb5 library context. 
+====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_context(krb5_context * context)
+
+..
+
+
+:param:
+
+	          **[out]** **context** - Library context
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+The *context* must be released by calling :c:func:`krb5_free_context()` when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+.. warning::
+
+	 Any program or module that needs the Kerberos code to not trust the environment must use :c:func:`krb5_init_secure_context()` , or clean out the environment.
+ 
+
+
+
+

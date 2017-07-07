@@ -1,0 +1,77 @@
+krb5_parse_name_flags -  Convert a string principal name to a krb5_principal with flags. 
+=========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_parse_name_flags(krb5_context context, const char * name, int flags, krb5_principal * principal_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **name** - String representation of a principal name
+
+	          **[in]** **flags** - Flag
+
+	          **[out]** **principal_out** - New principal
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Similar to :c:func:`krb5_parse_name()` , this function converts a single-string representation of a principal name to a krb5_principal structure.
+
+
+
+The following flags are valid: 
+ 
+	 - :data:`KRB5_PRINCIPAL_PARSE_NO_REALM` - no realm must be present in *name* 
+ 
+ 
+	 - :data:`KRB5_PRINCIPAL_PARSE_REQUIRE_REALM` - realm must be present in *name* 
+ 
+ 
+	 - :data:`KRB5_PRINCIPAL_PARSE_ENTERPRISE` - create single-component enterprise principal
+ 
+ 
+	 - :data:`KRB5_PRINCIPAL_PARSE_IGNORE_REALM` - ignore realm if present in *name* 
+ 
+ If **KRB5_PRINCIPAL_PARSE_NO_REALM** or **KRB5_PRINCIPAL_PARSE_IGNORE_REALM** is specified in *flags* , the realm of the new principal will be empty. Otherwise, the default realm for *context* will be used if *name* does not specify a realm.
+
+
+
+Use :c:func:`krb5_free_principal()` to free *principal_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

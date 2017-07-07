@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-SALT-data:
+
+KRB5_GET_INIT_CREDS_OPT_SALT
+============================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_SALT
+..
+
+
+
+
+=================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_SALT``       ``0x0080``
+=================================== ======================

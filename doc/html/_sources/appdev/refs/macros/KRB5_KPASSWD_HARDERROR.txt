@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-KPASSWD-HARDERROR-data:
+
+KRB5_KPASSWD_HARDERROR
+======================
+
+..
+.. data:: KRB5_KPASSWD_HARDERROR
+..
+
+Server error.
+
+
+
+============================= ======================
+``KRB5_KPASSWD_HARDERROR``       ``2``
+============================= ======================

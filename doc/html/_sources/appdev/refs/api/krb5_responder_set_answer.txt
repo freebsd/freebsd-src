@@ -1,0 +1,57 @@
+krb5_responder_set_answer -  Answer a named question in the responder context. 
+===============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_responder_set_answer(krb5_context ctx, krb5_responder_context rctx, const char * question, const char * answer)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+	          **[in]** **question** - Question name
+
+	          **[in]** **answer** - The string to set (MUST be printable UTF-8)
+
+
+..
+
+
+:retval:
+         -   EINVAL    question is not present within rctx 
+
+
+..
+
+
+
+
+
+
+
+This function supplies an answer to *question* within *rctx* . The appropriate form of the answer depends on the question name.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

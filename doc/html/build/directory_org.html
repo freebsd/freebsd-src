@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Organization of the source directory &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="Building Kerberos V5" href="index.html" />
+    <link rel="next" title="Doing the build" href="doing_build.html" />
+    <link rel="prev" title="Building Kerberos V5" href="index.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="Building Kerberos V5"
+            accesskey="P">previous</a> |
+        <a href="doing_build.html" title="Doing the build"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Organization of the source directory">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="organization-of-the-source-directory">
+<h1>Organization of the source directory<a class="headerlink" href="#organization-of-the-source-directory" title="Permalink to this headline">¶</a></h1>
+<p>Below is a brief overview of the organization of the complete source
+directory.  More detailed descriptions follow.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="12%" />
+<col width="88%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>appl</td>
+<td>Kerberos application client and server programs</td>
+</tr>
+<tr class="row-even"><td>ccapi</td>
+<td>Credential cache services</td>
+</tr>
+<tr class="row-odd"><td>clients</td>
+<td>Kerberos V5 user programs (See <a class="reference internal" href="../user/user_commands/index.html#user-commands"><em>User commands</em></a>)</td>
+</tr>
+<tr class="row-even"><td>config</td>
+<td>Configure scripts</td>
+</tr>
+<tr class="row-odd"><td>config-files</td>
+<td>Sample Kerberos configuration files</td>
+</tr>
+<tr class="row-even"><td>include</td>
+<td>include files needed to build the Kerberos system</td>
+</tr>
+<tr class="row-odd"><td>kadmin</td>
+<td>Administrative interface to the Kerberos master database: <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><em>kadmin</em></a>, <a class="reference internal" href="../admin/admin_commands/kdb5_util.html#kdb5-util-8"><em>kdb5_util</em></a>, <a class="reference internal" href="../admin/admin_commands/ktutil.html#ktutil-1"><em>ktutil</em></a>.</td>
+</tr>
+<tr class="row-even"><td>kdc</td>
+<td>Kerberos V5 Authentication Service and Key Distribution Center</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#lib">lib</a></td>
+<td>Libraries for use with/by Kerberos V5</td>
+</tr>
+<tr class="row-even"><td>plugins</td>
+<td>Kerberos plugins directory</td>
+</tr>
+<tr class="row-odd"><td>po</td>
+<td>Localization infrastructure</td>
+</tr>
+<tr class="row-even"><td>prototype</td>
+<td>Templates files containing the MIT copyright message and a placeholder for the title and description of the file.</td>
+</tr>
+<tr class="row-odd"><td>slave</td>
+<td>Utilities for propagating the database to slave KDCs <a class="reference internal" href="../admin/admin_commands/kprop.html#kprop-8"><em>kprop</em></a> and <a class="reference internal" href="../admin/admin_commands/kpropd.html#kpropd-8"><em>kpropd</em></a></td>
+</tr>
+<tr class="row-even"><td>tests</td>
+<td>Test suite</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#util">util</a></td>
+<td>Various utilities for building/configuring the code, sending bug reports, etc.</td>
+</tr>
+<tr class="row-even"><td>windows</td>
+<td>Source code for building Kerberos V5 on Windows (see windows/README)</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="lib">
+<span id="id1"></span><h2>lib<a class="headerlink" href="#lib" title="Permalink to this headline">¶</a></h2>
+<p>The lib directory contain several subdirectories as well as some
+definition and glue files.</p>
+<blockquote>
+<div><ul class="simple">
+<li>The apputils directory contains the code for the generic network
+servicing.</li>
+<li>The crypto subdirectory contains the Kerberos V5 encryption
+library.</li>
+<li>The gssapi library contains the Generic Security Services API,
+which is a library of commands to be used in secure client-server
+communication.</li>
+<li>The kadm5 directory contains the libraries for the KADM5
+administration utilities.</li>
+<li>The Kerberos 5 database libraries are contained in kdb.</li>
+<li>The krb5 directory contains Kerberos 5 API.</li>
+<li>The rpc directory contains the API for the Kerberos Remote
+Procedure Call protocol.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="util">
+<span id="id2"></span><h2>util<a class="headerlink" href="#util" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt>The util directory contains several utility programs and libraries.</dt>
+<dd><ul class="first last simple">
+<li>the programs used to configure and build the code, such as
+autoconf, lndir, kbuild, reconf, and makedepend, are in this
+directory.</li>
+<li>the profile directory contains most of the functions which parse
+the Kerberos configuration files (krb5.conf and kdc.conf).</li>
+<li>the Kerberos error table library and utilities (et);</li>
+<li>the Sub-system library and utilities (ss);</li>
+<li>database utilities (db2);</li>
+<li>pseudo-terminal utilities (pty);</li>
+<li>bug-reporting program send-pr;</li>
+<li>a generic support library support used by several of our other
+libraries;</li>
+<li>the build infrastructure for building lightweight Kerberos client
+(collected-client-lib)</li>
+<li>the tool for validating Kerberos configuration files
+(confvalidator);</li>
+<li>the toolkit for kernel integrators for building krb5 code subsets
+(gss-kernel-lib);</li>
+<li>source code for building Kerberos V5 on MacOS (mac)</li>
+<li>Windows getopt operations (windows)</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Organization of the source directory</a><ul>
+<li><a class="reference internal" href="#lib">lib</a></li>
+<li><a class="reference internal" href="#util">util</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Building Kerberos V5</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="">Organization of the source directory</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
+<li class="toctree-l2"><a class="reference internal" href="osconf.html">osconf.hin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="Building Kerberos V5"
+            >previous</a> |
+        <a href="doing_build.html" title="Doing the build"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Organization of the source directory">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

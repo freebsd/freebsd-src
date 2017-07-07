@@ -1,0 +1,15 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+defccname=@DEFCCNAME@
+defktname=@DEFKTNAME@
+defcktname=@DEFCKTNAME@
+
+Name: mit-krb5
+Description: An implementation of Kerberos network authentication
+Version: @KRB5_VERSION@
+Cflags: -I${includedir}
+Libs: -L${libdir} -lkrb5 -lk5crypto -lcom_err
+Libs.private: -lkrb5support

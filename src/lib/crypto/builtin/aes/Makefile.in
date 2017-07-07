@@ -1,0 +1,62 @@
+mydir=lib$(S)crypto$(S)builtin$(S)aes
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\aes
+##DOS##OBJFILE = ..\..\$(OUTPRE)aes.lst
+
+YASM=@YASM@
+AESNI_OBJ=@AESNI_OBJ@
+AESNI_FLAGS=@AESNI_FLAGS@
+
+STLIBOBJS=\
+	aescrypt.o	\
+	aestab.o	\
+	aeskey.o	\
+	@AESNI_OBJ@
+
+OBJS=\
+	$(OUTPRE)aescrypt.$(OBJEXT)	\
+	$(OUTPRE)aestab.$(OBJEXT)	\
+	$(OUTPRE)aeskey.$(OBJEXT)
+
+SRCS=\
+	$(srcdir)/aescrypt.c	\
+	$(srcdir)/aestab.c	\
+	$(srcdir)/aeskey.c	\
+
+GEN_OBJS=\
+	$(OUTPRE)aescrypt.$(OBJEXT)	\
+	$(OUTPRE)aestab.$(OBJEXT)	\
+	$(OUTPRE)aeskey.$(OBJEXT)
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs # aes-gen
+
+iaesx64@SHOBJEXT@: $(srcdir)/iaesx64.s
+	$(YASM) $(AESNI_FLAGS) -o $@ $(srcdir)/iaesx64.s
+
+iaesx86@SHOBJEXT@: $(srcdir)/iaesx86.s
+	$(YASM) $(AESNI_FLAGS) -o $@ $(srcdir)/iaesx86.s
+
+includes: depend
+
+depend: $(SRCS)
+
+aes-gen: aes-gen.o $(GEN_OBJS)
+	$(CC_LINK) -o aes-gen aes-gen.o $(GEN_OBJS)
+
+run-aes-gen: aes-gen
+	./aes-gen > kresults.out
+
+check: run-aes-gen
+
+
+clean-unix:: clean-libobjs
+
+clean:
+	-$(RM) aes-gen aes-gen.o kresults.out
+
+@libobj_frag@
+

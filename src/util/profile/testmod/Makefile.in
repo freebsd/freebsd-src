@@ -1,0 +1,21 @@
+mydir=util$(S)profile$(S)testmod
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LOCALINCLUDES = -I.. -I$(srcdir)/..
+
+LIBBASE=proftest
+LIBMAJOR=0
+LIBMINOR=0
+
+SHLIB_EXPLIBS=$(SUPPORT_LIB) $(LIBS)
+SHLIB_EXPDEPS=$(SUPPORT_DEPLIB)
+
+STLIBOBJS=testmod_main.o
+
+SRCS=$(srcdir)/testmod_main.c
+
+check-unix: proftest$(DYNOBJEXT)
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

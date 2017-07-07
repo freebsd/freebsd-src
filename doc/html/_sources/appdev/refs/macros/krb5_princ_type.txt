@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _krb5-princ-type-data:
+
+krb5_princ_type
+===============
+
+..
+.. data:: krb5_princ_type
+..
+
+
+
+
+====================================== ======================
+``krb5_princ_type (context, princ)``       ``(princ)->type``
+====================================== ======================

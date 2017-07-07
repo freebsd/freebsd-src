@@ -1,0 +1,115 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "modify-principal 100-105"
+proc test100_104 {} {
+    global test
+    global prompt
+    
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+
+    set origtest "$test"
+
+    test "modify-principal 100"
+    one_line_succeed_test [format {
+	kadm5_modify_principal $server_handle [simple_principal "%s/a"] \
+		{KADM5_MAX_RLIFE}
+    } $origtest]
+
+    test "modify-principal 101"
+    one_line_fail_test [format {
+	kadm5_modify_principal $server_handle [simple_principal "%s/a"] \
+		{KADM5_LAST_SUCCESS}
+    } $origtest] "BAD_MASK"
+
+    test "modify-principal 102"
+    one_line_fail_test [format {
+	kadm5_modify_principal $server_handle [simple_principal "%s/a"] \
+		{KADM5_LAST_FAILED}
+    } $origtest] "BAD_MASK"
+
+#    This is now permitted to reset lockout count
+#    test "modify-principal 103"
+#    one_line_fail_test [format {
+#	kadm5_modify_principal $server_handle [simple_principal "%s/a"] \
+#		{KADM5_FAIL_AUTH_COUNT}
+#    } $origtest] "BAD_MASK"
+
+    test "modify-principal 103.5"
+    one_line_fail_test [format {
+	kadm5_modify_principal $server_handle [simple_principal "%s/a"] \
+		{KADM5_KEY_DATA}
+    } $origtest] "BAD_MASK"
+
+    test "modify-principal 105"
+    one_line_fail_test [format {
+	kadm5_modify_principal $server_handle \
+            "{%s/a} 0 0 0 0 {%s/a} 0 0 0 0 null 0 0 0 0 0 0 1 {} {{1 1 x}}" \
+		{KADM5_TL_DATA}
+    } $origtest $origtest] "BAD_TL_TYPE"
+
+    test "modify-principal 100,104"
+    if { ! [cmd [format {
+	kadm5_modify_principal $server_handle \
+		"{%s/a} 0 0 0 0 {%s/a} 0 0 0 0 null 0 88 0 0 0 0 1 {} {{990 6 foobar}}" \
+		{KADM5_MAX_RLIFE KADM5_TL_DATA}
+    } $origtest $origtest]]} {
+	fail "$test: cannot set MAX_RLIFE or TL_DATA"
+	return
+    }
+    if {! [cmd [format {
+	kadm5_get_principal $server_handle "%s/a" principal {KADM5_PRINCIPAL_NORMAL_MASK KADM5_TL_DATA}
+    } $origtest]]} {
+	error_and_restart "$test: could not retrieve principal"
+	return
+    }
+    send "lindex \$principal 12\n"
+    expect {
+	-re "(\[0-9\]+)\n$prompt$" {set rlife $expect_out(1,string) }
+	timeout {
+	    error_and_restart "$test: timeout getting rlife"
+	    return
+	}
+	eof {
+	    error_and_restart "$test: eof getting rlife"
+	    return
+	}
+    }
+    send "lindex \$principal 19\n"
+    expect {
+	-re "\(\{.*\}\)\n$prompt$" {set tl $expect_out(1,string) }
+	timeout {
+	    error_and_restart "$test: timeout getting tl_data"
+	    return
+	}
+	eof {
+	    error_and_restart "$test: eof getting tl_data"
+	    return
+	}
+    }
+    if {($rlife == 88) && ($tl == "{{990 6 foobar}}")} {
+	pass "$test"
+    } else {
+	fail "$test: $rlife should be 88, $tl should be {{990 6 foobar}}"
+    }
+
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test100_104

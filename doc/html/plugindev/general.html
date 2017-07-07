@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>General plugin concepts &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../index.html" />
+    <link rel="up" title="For plugin module developers" href="index.html" />
+    <link rel="next" title="Client preauthentication interface (clpreauth)" href="clpreauth.html" />
+    <link rel="prev" title="For plugin module developers" href="index.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="For plugin module developers"
+            accesskey="P">previous</a> |
+        <a href="clpreauth.html" title="Client preauthentication interface (clpreauth)"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__General plugin concepts">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="general-plugin-concepts">
+<h1>General plugin concepts<a class="headerlink" href="#general-plugin-concepts" title="Permalink to this headline">¶</a></h1>
+<p>A krb5 dynamic plugin module is a Unix shared object or Windows DLL.
+Typically, the source code for a dynamic plugin module should live in
+its own project with a build system using <a class="reference external" href="http://www.gnu.org/software/automake/">automake</a> and <a class="reference external" href="http://www.gnu.org/software/libtool/">libtool</a>, or
+tools with similar functionality.</p>
+<p>A plugin module must define a specific symbol name, which depends on
+the pluggable interface and module name.  For most pluggable
+interfaces, the exported symbol is a function named
+<tt class="docutils literal"><span class="pre">INTERFACE_MODULE_initvt</span></tt>, where <em>INTERFACE</em> is the name of the
+pluggable interface and <em>MODULE</em> is the name of the module.  For these
+interfaces, it is possible for one shared object or DLL to implement
+multiple plugin modules, either for the same pluggable interface or
+for different ones.  For example, a shared object could implement both
+KDC and client preauthentication mechanisms, by exporting functions
+named <tt class="docutils literal"><span class="pre">kdcpreauth_mymech_initvt</span></tt> and <tt class="docutils literal"><span class="pre">clpreauth_mymech_initvt</span></tt>.</p>
+<p>A plugin module implementation should include the header file
+<tt class="docutils literal"><span class="pre">&lt;krb5/INTERFACE_plugin.h&gt;</span></tt>, where <em>INTERFACE</em> is the name of the
+pluggable interface.  For instance, a ccselect plugin module
+implementation should use <tt class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;krb5/ccselect_plugin.h&gt;</span></tt>.</p>
+<p>initvt functions have the following prototype:</p>
+<div class="highlight-python"><div class="highlight"><pre>krb5_error_code interface_modname_initvt(krb5_context context,
+                                         int maj_ver, int min_ver,
+                                         krb5_plugin_vtable vtable);
+</pre></div>
+</div>
+<p>and should do the following:</p>
+<ol class="arabic simple">
+<li>Check that the supplied maj_ver argument is supported by the
+module.  If it is not supported, the function should return
+KRB5_PLUGIN_VER_NOTSUPP.</li>
+<li>Cast the supplied vtable pointer to the structure type
+corresponding to the major version, as documented in the pluggable
+interface header file.</li>
+<li>Fill in the structure fields with pointers to method functions and
+static data, stopping at the field indicated by the supplied minor
+version.  Fields for unimplemented optional methods can be left
+alone; it is not necessary to initialize them to NULL.</li>
+</ol>
+<p>In most cases, the context argument will not be used.  The initvt
+function should not allocate memory; think of it as a glorified
+structure initializer.  Each pluggable interface defines methods for
+allocating and freeing module state if doing so is necessary for the
+interface.</p>
+<p>Pluggable interfaces typically include a <strong>name</strong> field in the vtable
+structure, which should be filled in with a pointer to a string
+literal containing the module name.</p>
+<p>Here is an example of what an initvt function might look like for a
+fictional pluggable interface named fences, for a module named
+&#8220;wicker&#8221;:</p>
+<div class="highlight-python"><div class="highlight"><pre>krb5_error_code
+fences_wicker_initvt(krb5_context context, int maj_ver,
+                     int min_ver, krb5_plugin_vtable vtable)
+{
+    krb5_ccselect_vtable vt;
+
+    if (maj_ver == 1) {
+        krb5_fences_vtable vt = (krb5_fences_vtable)vtable;
+        vt-&gt;name = &quot;wicker&quot;;
+        vt-&gt;slats = wicker_slats;
+        vt-&gt;braces = wicker_braces;
+    } else if (maj_ver == 2) {
+        krb5_fences_vtable_v2 vt = (krb5_fences_vtable_v2)vtable;
+        vt-&gt;name = &quot;wicker&quot;;
+        vt-&gt;material = wicker_material;
+        vt-&gt;construction = wicker_construction;
+        if (min_ver &lt; 2)
+            return 0;
+        vt-&gt;footing = wicker_footing;
+        if (min_ver &lt; 3)
+            return 0;
+        vt-&gt;appearance = wicker_appearance;
+    } else {
+        return KRB5_PLUGIN_VER_NOTSUPP;
+    }
+    return 0;
+}
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">General plugin concepts</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="For plugin module developers"
+            >previous</a> |
+        <a href="clpreauth.html" title="Client preauthentication interface (clpreauth)"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__General plugin concepts">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

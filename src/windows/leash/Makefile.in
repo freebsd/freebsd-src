@@ -1,0 +1,122 @@
+# makefile: Leash executable
+#
+
+#TODO Fix later:
+NO_AFS=1
+
+!ifndef NO_AFS
+###AFS_BASE=
+AFS_INCLUDES=-I$(AFS_BASE)\Include
+AFS_LIB=$(AFS_BASE)\lib
+AFS_LIBS=$(AFS_LIB)\afsauthent.lib
+!else
+AFS_INCLUDES=
+AFS_LIBS=
+!endif
+
+!if defined(VISUALSTUDIOVERSION)
+MFC_VERSION=$(VISUALSTUDIOVERSION:.=)
+!else
+MFC_VERSION=100
+!endif
+
+!if defined(NODEBUG)
+MFCLIB=MFC$(MFC_VERSION).LIB
+!else
+MFCLIB=MFC$(MFC_VERSION)D.LIB
+!endif
+EXE_NAME=leash
+WSHELPER=wshelp32
+
+!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64")
+WSHELPER=wshelp64
+!endif
+
+SUBDIRS= htmlhelp
+
+OBJS=   \
+	$(OUTPRE)Krb4EditDomainRealmList.obj \
+	$(OUTPRE)CLeashDragListBox.obj \
+	$(OUTPRE)Krb5Properties.obj \
+	$(OUTPRE)KrbAddHostServer.obj \
+	$(OUTPRE)KrbAddRealm.obj \
+	$(OUTPRE)KrbConfigOptions.obj \
+	$(OUTPRE)KrbDomainRealmMaintenance.obj \
+	$(OUTPRE)KrbEditHostServer.obj \
+	$(OUTPRE)KrbEditRealm.obj \
+	$(OUTPRE)KrbProperties.obj \
+	$(OUTPRE)KrbRealmHostMaintenance.obj \
+	$(OUTPRE)Leash.obj \
+	$(OUTPRE)LeashAboutBox.obj \
+	$(OUTPRE)LeashDebugWindow.obj \
+	$(OUTPRE)LeashDoc.obj \
+	$(OUTPRE)LeashFileDialog.obj \
+	$(OUTPRE)LeashFrame.obj \
+	$(OUTPRE)LeashMessageBox.obj \
+	$(OUTPRE)LeashProperties.obj \
+	$(OUTPRE)LeashUIApplication.obj \
+	$(OUTPRE)LeashUICommandHandler.obj \
+	$(OUTPRE)LeashView.obj \
+	$(OUTPRE)lglobals.obj \
+	$(OUTPRE)MainFrm.obj \
+	$(OUTPRE)out2con.obj \
+	$(OUTPRE)StdAfx.obj \
+	$(OUTPRE)AfsProperties.obj \
+	$(OUTPRE)VSroutines.obj \
+	$(OUTPRE)KrbMiscConfigOpt.obj \
+	$(OUTPRE)KrbListTickets.obj
+
+RESFILE = $(OUTPRE)Leash.res
+XOBJS	= $(RESFILE)
+
+##### Options
+# Set NODEBUG if building release instead of debug
+BUILDTOP=..\..
+
+LOCALINCLUDES= -I$(BUILDTOP) -I$(BUILDTOP)\include -I$(BUILDTOP)\windows\include
+
+##### RC Compiler
+RFLAGS	= $(LOCALINCLUDES)
+RCFLAGS	= $(RFLAGS) -D_WIN32 -DLEASH_APP
+
+DEFINES = -DWINSOCK -DWIN32 -DWINDOWS -D_AFXDLL -DNO_KRB4 -DNO_STATUS_BAR -DUSE_MESSAGE_BOX
+!ifdef NODEBUG
+DEFINES = $(DEFINES)
+!else
+DEFINES = $(DEFINES) -DDBG
+!endif
+
+!ifdef NO_AFS
+DEFINES = $(DEFINES) -DNO_AFS
+!endif
+
+##### Linker
+LINK	= link
+LIBS	= $(GLIB) $(CLIB) $(WLIB)
+SYSLIBS	= kernel32.lib Iphlpapi.lib ws2_32.lib user32.lib gdi32.lib comdlg32.lib comctl32.lib version.lib
+LFLAGS	= /nologo $(LOPTS)
+
+all: Makefile $(OUTPRE)$(EXE_NAME).exe
+
+$(OUTPRE)$(EXE_NAME).exe: $(OBJS) $(XOBJS) $(LIBS)
+	$(LINK) $(LFLAGS) /out:$@ /ENTRY:WinMainCRTStartup $(OBJS) $(XOBJS) \
+	  $(LIBS) $(SYSLIBS) $(BUILDTOP)\util\wshelper\$(OUTPRE)$(WSHELPER).lib \
+	  ../lib/$(OUTPRE)libwin.lib $(MFCLIB) $(SCLIB)
+	copy $@ "$(OUTPRE)MIT Kerberos.exe"
+
+kfwribbon.bml kfwribbon.h kfwribbon.rc: kfwribbon.xml
+	uicc.exe kfwribbon.xml kfwribbon.bml /res:kfwribbon.rc /header:kfwribbon.h /name:KFW_RIBBON
+
+$(RESFILE): Leash.rc res/Leash.rc2 kfwribbon.rc ver.rc ../version.rc ../kerberos.ver
+
+$(OUTPRE)LeashUIApplication.obj $(OUTPRE)LeashUICommandHandler.obj: kfwribbon.h
+
+clean:
+	if exist $(OUTPRE)*.exe del $(OUTPRE)*.exe
+	if exist $(OUTPRE)*.obj del $(OUTPRE)*.obj
+	if exist $(OUTPRE)*.res del $(OUTPRE)*.res
+	if exist $(OUTPRE)*.pdb del $(OUTPRE)*.pdb
+	if exist *.err del *.err
+	if exist *.bml del *.bml
+	if exist kfwribbon.h del kfwribbon.h
+	if exist kfwribbon.rc del kfwribbon.rc

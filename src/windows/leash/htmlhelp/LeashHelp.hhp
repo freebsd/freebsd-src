@@ -1,0 +1,184 @@
+[OPTIONS]
+Binary Index=No
+Compatibility=1.1 or later
+Compiled file=LeashHelp.chm
+Contents file=TOC.hhc
+Default Window=Leash Help
+Default topic=Html\Getting_Started.htm
+Display compile progress=No
+Full text search stop list file=stoplist.stp
+Full-text search=Yes
+Index file=Index.hhk
+Language=0x409 English (United States)
+
+[WINDOWS]
+Leash Help="MIT Kerberos Help","TOC.hhc","Index.hhk",,,,,,,0x62420,,0x100e,[0,0,800,800],,,,,,,0
+
+
+[FILES]
+Html\Getting_Started.htm
+Html\Change_Password.htm
+Html\Forget_Password.htm
+Html\Kerberos.htm
+Html\Password_Tips.htm
+Html\Passwords.htm
+Html\Using_Leash_Menus.htm
+Html\Tickets.htm
+Html\Destroy_Tickets.htm
+Html\Get_Tickets.htm
+Html\Import_Tickets.htm
+Html\Renew_Tickets.htm
+Html\Ticket_Settings.htm
+Html\View_Tickets.htm
+Leash.css
+HTML\FAQ.htm
+HTML\Options_Menu.htm
+HTML\Command_Line.htm
+HTML\MS2MIT.htm
+HTML\KDESTROY.htm
+HTML\KLIST.htm
+HTML\KINIT.htm
+HTML\Troubleshooting.htm
+HTML\Kerberos_Terminology.htm
+HTML\Report_Bugs.htm
+HTML\Encryption_Types.htm
+HTML\KCPYTKT.htm
+HTML\KVNO.htm
+HTML\KSWITCH.htm
+HTML\KPASSWD.htm
+HTML\Export_Tickets.htm
+HTML\View_Menu.htm
+HTML\Glossary.htm
+HTML\Import_Status.htm
+HTML\Debugging.htm
+HTML\Keyboard_Shortcuts.htm
+HTML\Windows_Logon_Tickets.htm
+HTML\How_Kerberos_Works.htm
+HTML\Principals.htm
+HTML\Make_Default.htm
+HTML\Manage_Multiple_Principals.htm
+HTML\Forget_Principals.htm
+HTML\More_Menu.htm
+HTML\Home_Tab.htm
+HTML\Options_Tab.htm
+
+[ALIAS]
+HID_ABOUT_KERBEROS = html\How_Kerberos_Works.htm
+HID_CHANGE_PASSWORD_COMMAND = html\Change_Password.htm
+HID_DESTROY_TICKETS_COMMAND = html\Destroy_Tickets.htm
+HID_DESTROY_TICKETS_ON_EXIT = html\Options_Tab.htm
+HID_EXIT_COMMAND = html\leash_file_exit.htm
+HID_GET_TICKETS_COMMAND = html\Get_Tickets.htm
+HID_RENEW_TICKETS_COMMAND = html\Renew_Tickets.htm
+HID_IMPORT_TICKETS_COMMAND = html\Import_Tickets.htm
+HID_HELP_CONTENTS = html\Getting_Started.htm
+HID_KERBEROS_PROPERTIES_ADDDOM = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_ADDHOST = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_ADDHOST = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_ADDRLM = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_COMMAND = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_EDIT = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_EDITDOM = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_EDITHOST = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_LISTDOM = html\leash_option_kerberos_properties.htm
+HID_KERBEROS_PROPERTIES_LISTRLM = html\leash_option_kerberos_properties.htm
+HID_KRB5_PROPERTIES_COMMAND	= html\leash_option_krb5_properties.htm
+HID_KRB5_PROPERTIES_EDIT = html\leash_option_krb5_properties.htm
+HID_KRB5_PROPERTIES_FORWARDING = html\leash_option_krb5_properties.htm
+HID_LARGE_ICONS_OPTION = html\leash_view_large_icons.htm
+HID_LEASH_COMMANDS = html\Getting_Started.htm
+HID_LEASH_PROGRAM = html\Getting_Started.htm
+HID_LEASH_PROPERTIES_COMMAND = html\leash_option_leash_properties.htm
+HID_LEASH_PROPERTIES_EDIT = html\leash_option_leash_properties.htm
+HID_LOW_TICKET_ALARM_OPTION	= html\leash_option_expiration_alarm.htm
+HID_RESET_WINDOW_OPTION = html\leash_command_reset_window.htm
+HID_SCNCHRONIZE_TIME_OPTION = html\leash_command_sync_time.htm
+HID_STATUS_BAR_OPTION = html\leash_view_status_bar.htm
+HID_TOOLBAR_OPTION = html\leash_view_toolbar.htm
+HID_UPDATE_DISPLAY_COMMAND = html\leash_command_update_display.htm
+HID_UPPERCASE_REALM_OPTION = html\leash_option_upper_case_realm.htm
+HID_WHY_USE_LEASH32	= html\leash_topic_why_use.htm
+ID_CHANGEPASSWORD = html\leash_command_change_password.htm
+ID_COUNTDOWN = html\leash_option_expiration_alarm.htm
+ID_DESTROY = html\leash_command_destroy_tickets.htm
+ID_EXIT = html\leash_file_exit.htm
+ID_HELP_CHOOSE_PASSWORD = html\leash_topic_password_choice.htm
+ID_HELP_KERBEROS = html\leash_topic_kerberos_help_topics.htm
+ID_HELP_LEASH = html\leash_topic_leash_help_topics.htm
+ID_HELP_PURPOSE = html\leash_topic_why_use.htm
+ID_INITTICKETS = html\leash_command_get_tickets.htm
+hid_app_about = html\hid_app_about.htm
+hid_app_exit = html\hid_app_exit.htm
+hid_help_index = html\hid_help_index.htm
+hid_help_using = html\hid_help_using.htm
+hid_context_help = html\hid_context_help.htm
+hid_sc_size = html\hid_sc_size.htm
+hid_sc_move = html\hid_sc_move.htm
+hid_sc_minimize = html\hid_sc_minimize.htm
+hid_sc_maximize = html\hid_sc_maximize.htm
+hid_sc_close = html\hid_sc_close.htm
+hid_sc_restore = html\hid_sc_restore.htm
+
+[MAP]
+#define HID_ABOUT_KERBEROS              98320
+#define HID_ABOUT_LEASH32_COMMAND       123200
+#define HID_ABOUT_LEASH32_MODULES       131225
+#define HID_AFS_PROPERTIES_COMMAND		98327
+#define HID_CHANGE_PASSWORD_COMMAND		98315
+#define HID_DEBUG_WINDOW				131229
+#define HID_DEBUG_WINDOW_OPTION			98317
+#define HID_DESTROY_TICKETS_COMMAND     98313
+#define HID_DESTROY_TICKETS_ON_EXIT		98321
+#define HID_EXIT_COMMAND                123201
+#define HID_GET_TICKETS_COMMAND			98343
+#define HID_RENEW_TICKETS_COMMAND       98312
+#define HID_IMPORT_TICKETS_COMMAND      98342
+#define HID_HELP_CONTENTS				98340
+#define HID_KERBEROS_PROPERTIES_ADDDOM  131255
+#define HID_KERBEROS_PROPERTIES_ADDHOST 131254
+#define HID_KERBEROS_PROPERTIES_ADDHOST 131269
+#define HID_KERBEROS_PROPERTIES_ADDRLM  131253
+#define HID_KERBEROS_PROPERTIES_COMMAND 98337
+#define HID_KERBEROS_PROPERTIES_EDIT	131233
+#define HID_KERBEROS_PROPERTIES_EDITDOM 131256
+#define HID_KERBEROS_PROPERTIES_EDITHOST 131271
+#define HID_KERBEROS_PROPERTIES_LISTDOM 131279
+#define HID_KERBEROS_PROPERTIES_LISTRLM 131250
+#define HID_KRB4_PROPERTIES_COMMAND		98329
+#define HID_KRB4_PROPERTIES_EDIT		131232
+#define HID_KRB5_PROPERTIES_COMMAND		98330
+#define HID_KRB5_PROPERTIES_EDIT		131241
+#define HID_KRB5_PROPERTIES_FORWARDING  131240
+#define HID_KRBCHECK_OPTION				98335
+#define HID_LARGE_ICONS_OPTION          98322
+#define HID_LEASH_COMMANDS              131200
+#define HID_LEASH_PROGRAM               98319
+#define HID_LEASH_PROPERTIES_COMMAND	98331
+#define HID_LEASH_PROPERTIES_EDIT		131239
+#define HID_LOW_TICKET_ALARM_OPTION		98334
+#define HID_RESET_WINDOW_OPTION			98326
+#define HID_SCNCHRONIZE_TIME_OPTION     98314
+#define HID_STATUS_BAR_OPTION           124929
+#define HID_TOOLBAR_OPTION				124928
+#define HID_UPDATE_DISPLAY_COMMAND      98316
+#define HID_UPPERCASE_REALM_OPTION      98323
+#define HID_WHY_USE_LEASH32				98341
+#define ID_CHANGEPASSWORD               112
+#define ID_COUNTDOWN                    101
+#define ID_DESTROY                      111
+#define ID_EXIT                         200
+#define ID_HELP_CHOOSE_PASSWORD         2511841056
+#define ID_HELP_KERBEROS                211
+#define ID_HELP_LEASH                   210
+#define ID_HELP_PURPOSE                 115
+#define ID_INITTICKETS                  113
+#define KRB_BAD_NAME		            39525457
+#define KRB_BAD_TIME		            39525413
+#DEFINE KRB_ERROR_78		            39525454
+#define KRB_INCORR_PASSWD	            39525438
+#define KRB_NO_TKT_FILE 	            39525446
+#define KRB_UNKNOWN_REALM	            39525433
+#define KRB_UNKNOWN_USER	            39525384
+#define LSH_INVINSTANCE 	            40591875
+
+[INFOTYPES]

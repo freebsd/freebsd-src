@@ -1,0 +1,32 @@
+mydir=kvno
+BUILDTOP=$(REL)..$(S)..
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KDELTKT=$(OUTPRE)kdeltkt.exe
+
+##WIN32##EXERES=$(KDELTKT:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKDELTKT_APP -fo $@ -r $**
+
+all-unix: kdeltkt
+##WIN32##all-windows: $(KDELTKT)
+all-mac:
+
+kdeltkt: kdeltkt.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kdeltkt.o $(KRB5_BASE_LIBS)
+
+##WIN32##$(KDELTKT): $(OUTPRE)kdeltkt.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) /out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kdeltkt.o kdeltkt
+
+install-unix:
+	for f in kdeltkt; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

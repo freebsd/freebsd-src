@@ -1,0 +1,215 @@
+//Microsoft Developer Studio generated resource script.
+//
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "cns.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_KWIN                ICON    PRELOAD DISCARDABLE "cns.ico"
+IDI_0_MIN               ICON    PRELOAD DISCARDABLE "clock00.ico"
+IDI_5_MIN               ICON    PRELOAD DISCARDABLE "clock05.ico"
+IDI_10_MIN              ICON    PRELOAD DISCARDABLE "clock10.ico"
+IDI_15_MIN              ICON    PRELOAD DISCARDABLE "clock15.ico"
+IDI_20_MIN              ICON    PRELOAD DISCARDABLE "clock20.ico"
+IDI_25_MIN              ICON    PRELOAD DISCARDABLE "clock25.ico"
+IDI_30_MIN              ICON    PRELOAD DISCARDABLE "clock30.ico"
+IDI_35_MIN              ICON    PRELOAD DISCARDABLE "clock35.ico"
+IDI_40_MIN              ICON    PRELOAD DISCARDABLE "clock40.ico"
+IDI_45_MIN              ICON    PRELOAD DISCARDABLE "clock45.ico"
+IDI_50_MIN              ICON    PRELOAD DISCARDABLE "clock50.ico"
+IDI_55_MIN              ICON    PRELOAD DISCARDABLE "clock55.ico"
+IDI_60_MIN              ICON    PRELOAD DISCARDABLE "clock60.ico"
+IDI_EXPIRED             ICON    PRELOAD DISCARDABLE "clockexp.ico"
+IDI_TICKET              ICON    PRELOAD DISCARDABLE "clocktkt.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDM_KWIN MENU PRELOAD DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Options...",                 IDM_OPTIONS
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_EXIT
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Index\tF1",                  IDM_HELP_INDEX
+        MENUITEM SEPARATOR
+        MENUITEM "&About Kerberos...",          IDM_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDA_KWIN ACCELERATORS PRELOAD MOVEABLE PURE 
+BEGIN
+    VK_F1,          IDM_HELP_INDEX,         VIRTKEY 
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+ID_KWIN DIALOG PRELOAD DISCARDABLE  0, 0, 336, 115
+STYLE WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+#ifdef CYGNUS
+CAPTION "KerbNet"
+#else
+CAPTION "Kerberos"
+#endif
+MENU IDM_KWIN
+CLASS "KERBEROS"
+FONT 8, "Arial"
+BEGIN
+    CONTROL         "        Start Time            End Time            Ticket",
+                    IDD_TICKET_LIST_TITLE,"Static",SS_LEFTNOWORDWRAP | 
+                    WS_GROUP,16,7,311,8
+    LISTBOX         IDD_TICKET_LIST,8,18,319,52,LBS_OWNERDRAWFIXED | 
+                    LBS_DISABLENOSCROLL | WS_VSCROLL
+    LTEXT           "&Name",IDD_LOGIN_NAME_TITLE,6,69,27,8
+    LTEXT           "&Password",IDD_LOGIN_PASSWORD_TITLE,125,69,42,8
+    LTEXT           "&Realm",IDD_LOGIN_REALM_TITLE,239,69,26,8
+    EDITTEXT        IDD_LOGIN_NAME,6,79,84,12,ES_AUTOHSCROLL
+    EDITTEXT        IDD_LOGIN_PASSWORD,126,78,84,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDD_LOGIN_REALM,239,79,84,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "&Change Password...",IDD_CHANGE_PASSWORD,6,96,84,14
+    PUSHBUTTON      "&Delete",IDD_TICKET_DELETE,141,96,52,14
+    DEFPUSHBUTTON   "&Login",IDD_LOGIN,271,96,52,14
+    PUSHBUTTON      "",IDD_PASSWORD_CR2,5000,5000,6,6,NOT WS_TABSTOP
+END
+
+ID_PASSWORD DIALOG DISCARDABLE  96, 50, 143, 112
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Change Password"
+FONT 8, "Arial"
+BEGIN
+    LTEXT           "&Name:",-1,5,9,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_PASSWORD_NAME,61,6,76,12,ES_AUTOHSCROLL | WS_GROUP
+    LTEXT           "&Realm:",-1,5,26,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_PASSWORD_REALM,61,23,76,12,ES_AUTOHSCROLL
+    LTEXT           "&Old Password:",-1,5,43,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_OLD_PASSWORD,61,40,76,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    LTEXT           "&New Password:",-1,5,60,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_NEW_PASSWORD1,61,57,76,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    LTEXT           "&New Password:",-1,5,77,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_NEW_PASSWORD2,61,74,76,12,ES_PASSWORD | 
+                    ES_AUTOHSCROLL
+    PUSHBUTTON      "",IDD_PASSWORD_CR,5000,5000,0,0,NOT WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,13,93,52,14,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,77,93,52,14
+END
+
+ID_OPTS DIALOG DISCARDABLE  97, 52, 169, 138
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+#ifdef CYGNUS
+CAPTION "KerbNet Options"
+#else
+CAPTION "Kerberos Options"
+#endif
+FONT 8, "Arial"
+BEGIN
+    LTEXT           "&Config file:",-1,5,9,40,8,NOT WS_GROUP
+    EDITTEXT        IDD_CONF,70,6,92,12,ES_AUTOHSCROLL
+    LTEXT           "Cre&dential cache:",-1,5,26,58,8,NOT WS_GROUP
+    EDITTEXT        IDD_CCACHE,70,23,92,12,ES_AUTOHSCROLL
+    LTEXT           "&Ticket lifetime:",-1,5,43,53,8,NOT WS_GROUP
+    EDITTEXT        IDD_LIFETIME,70,40,32,12,ES_AUTOHSCROLL
+    LTEXT           "minutes",-1,109,42,46,8,NOT WS_GROUP
+    GROUPBOX        "Action when login expires",IDD_ACTIONS,5,56,158,23,
+                    WS_GROUP
+    CONTROL         "&Alert ",IDD_ALERT,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,41,65,28,12
+    CONTROL         "&Beep",IDD_BEEP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
+                    95,65,39,12
+    GROUPBOX        "Ticket options",IDD_TKOPT,5,86,158,23,WS_GROUP
+    CONTROL         "&Forwardable",IDD_FORWARDABLE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,25,95,65,12
+    CONTROL         "&NoAddresses",IDD_NOADDRESSES,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,90,95,65,12
+    DEFPUSHBUTTON   "OK",IDOK,19,117,52,14
+    PUSHBUTTON      "Cancel",IDCANCEL,95,117,52,14
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""cns.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
+#include "..\version.rc"

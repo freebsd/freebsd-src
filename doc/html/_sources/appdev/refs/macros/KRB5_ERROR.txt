@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-ERROR-data:
+
+KRB5_ERROR
+==========
+
+..
+.. data:: KRB5_ERROR
+..
+
+Error response.
+
+
+
+================= ======================
+``KRB5_ERROR``       ``((krb5_msgtype)30)``
+================= ======================

@@ -1,0 +1,25 @@
+validator.py is a command line tool for identifying invalid attributes, values and some formating problems in Kerberos configuration files.
+The list of the valid attributes is created based on the “configuration variables” section in k5-int.h and user defined attributes from the rules file.
+
+Usage:
+
+validator.py path [-d defPath] [-r rulesPath] [-c validatorConfPath]
+
+Options:
+
+path – the path to the configuration file to validate
+
+-d defPath – path to the k5-int.h file. Starting from the 1.7 release this header holds the profile attribute names in the form #define KRB5_CONF_xxx ”ZZZ”.
+
+-r rulesPath - path the rules file in yaml format. It may be used to manage the list of the valid attributes and to define the additional validation rules.
+
+-c validatorConfPath – the same as -r and -d options, but in validator configuration file format.
+
+Example:
+
+python validator.py src/config-files/krb5.conf -r rules.yml -d src/include/k5-int.h
+or
+python validator.py src/config-files/krb5.conf -c validator.conf
+
+For more details please refer to the sample files validator.conf and rules.yml
+

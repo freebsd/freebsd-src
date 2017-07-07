@@ -1,0 +1,51 @@
+krb5_get_server_rcache -  Generate a replay cache object for server use and open it. 
+=====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_server_rcache(krb5_context context, const krb5_data * piece, krb5_rcache * rcptr)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **piece** - Unique identifier for replay cache
+
+	          **[out]** **rcptr** - Handle to an open rcache
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function generates a replay cache name based on *piece* and opens a handle to it. Typically *piece* is the first component of the service principal name. Use krb5_rc_close() to close *rcptr* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

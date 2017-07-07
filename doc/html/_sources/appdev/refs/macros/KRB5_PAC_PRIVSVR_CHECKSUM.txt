@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PAC-PRIVSVR-CHECKSUM-data:
+
+KRB5_PAC_PRIVSVR_CHECKSUM
+=========================
+
+..
+.. data:: KRB5_PAC_PRIVSVR_CHECKSUM
+..
+
+KDC checksum.
+
+
+
+================================ ======================
+``KRB5_PAC_PRIVSVR_CHECKSUM``       ``7``
+================================ ======================

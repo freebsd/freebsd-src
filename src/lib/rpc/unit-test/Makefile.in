@@ -1,0 +1,66 @@
+mydir=lib$(S)rpc$(S)unit-test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+OBJS= client.o rpc_test_clnt.o rpc_test_svc.o server.o
+SRCS= client.c rpc_test_clnt.c rpc_test_svc.c server.c
+
+all: client server
+
+client: client.o rpc_test_clnt.o $(GSSRPC_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o client client.o rpc_test_clnt.o \
+		$(GSSRPC_LIBS) $(KRB5_BASE_LIBS)
+
+server: server.o rpc_test_svc.o $(GSSRPC_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o server server.o rpc_test_svc.o \
+		$(GSSRPC_LIBS) $(KRB5_BASE_LIBS)
+
+client.o server.o: rpc_test.h
+
+# If rpc_test.h and rpc_test_*.c do not work on your system, you can
+# try using rpcgen by uncommenting these lines (be sure to uncomment
+# then in the generated not Makefile.in).
+# rpc_test.h rpc_test_clnt.c rpc_test_svc.c: rpc_test.x
+# 	-rm -f rpc_test_clnt.c rpc_test_svc.c rpc_test.h
+# 	-ln -s $(srcdir)/rpc_test.x .
+# 	rpcgen -l rpc_test.x -o rpc_test_clnt.c
+# 	rpcgen -m rpc_test.x -o rpc_test_svc.c
+# 	rpcgen -h rpc_test.x -o rpc_test.h
+# 
+# clean:
+# 	rm -f rpc_test.h rpc_test_clnt.c rpc_test_svc.c
+# 
+
+check unit-test: unit-test-@DO_TEST@
+
+unit-test-:
+	@echo "+++"
+	@echo "+++ WARNING: lib/rpc unit tests not run."
+	@echo "+++ Either tcl, runtest, or Perl is unavailable."
+	@echo "+++"
+	@echo 'Skipped rpc tests: runtest or Perl not found' >> $(SKIPTESTS)
+
+unit-test-ok: unit-test-body
+
+PASS=@PASS@
+unit-test-body:
+	$(RM) krb5cc_rpc_test_*
+	$(ENV_SETUP) $(VALGRIND) $(START_SERVERS)
+	RPC_TEST_SRVTAB=/tmp/rpc_test_v5srvtab.$$$$ ; export RPC_TEST_SRVTAB ; \
+	trap "echo Failed, cleaning up... ; rm -f $$RPC_TEST_SRVTAB ; $(ENV_SETUP) $(STOP_SERVERS) ; trap '' 0 ; exit 1" 0 1 2 3 14 15 ; \
+	if $(ENV_SETUP) \
+		$(RUNTEST) SERVER=./server CLIENT=./client \
+		KINIT=$(BUILDTOP)/clients/kinit/kinit \
+		KDESTROY=$(BUILDTOP)/clients/kdestroy/kdestroy \
+		PRIOCNTL_HACK=@PRIOCNTL_HACK@ VALGRIND="$(VALGRIND)" \
+		PASS="$(PASS)" --tool rpc_test $(RUNTESTFLAGS) ; \
+	then \
+		echo Cleaning up... ; \
+		rm -f $$RPC_TEST_SRVTAB krb5cc_rpc_test_* ; \
+		$(ENV_SETUP) $(STOP_SERVERS) ; \
+		trap 0 ; exit 0 ; \
+	else exit 1 ; fi
+
+clean:
+	$(RM) server client
+	$(RM) dbg.log rpc_test.log rpc_test.sum
+

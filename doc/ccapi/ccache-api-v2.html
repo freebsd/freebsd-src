@@ -1,0 +1,1217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
+			"http://www.w3.org/TR/REC-html40/loose.dtd">
+<HTML>
+<HEAD> 
+	<TITLE>Credentials Cache API v2 Specification</TITLE> 
+</HEAD>
+<BODY>
+<H1>Credentials Cache API v2 Specification</H1>
+<H3>This version of the API is deprecated.  <BR>
+Please refer to CCAPI version 3 or later for the current API.</H3>
+
+<UL>
+   <LI><A HREF="#TypeDefinitions">Type Definitions</A>
+   
+   <UL CLASS=small>
+      <LI><A HREF="#cc_int32">cc_int32 &amp; cc_uint32</A>
+      
+      <LI><A HREF="#cc_time_t">cc_time_t</A>
+      
+      <LI><A HREF="#cc_nc_flags">cc_nc_flags</A>
+      
+      <LI><A HREF="#typedefCC_Cred">cc_cred</A>
+      
+      <LI><A HREF="#typedefCC_Data">cc_data</A>
+      
+      <LI><A HREF="#typedefV4Cred_type">V4Cred_type</A>
+      
+      <LI><A HREF="#enumStringToKey_Type">StringToKey_Type</A>
+      
+      <LI><A HREF="#enumCc_cred_vers">cc_cred_vers</A>
+      
+      <LI><A HREF="#unionCred_ptr_union">cred_ptr_union</A>
+      
+      <LI><A HREF="#unionCred_union">cred_union</A>
+      
+      <LI><A HREF="#typdefInfoNC">infoNC</A>
+      
+      <LI><A HREF="#opaque_types">opaque types</A>
+   </UL>
+   
+   <LI><A HREF="#ErrorCodeDefinitions">Error Code Definitions</A>
+   
+   <LI><A HREF="#ImplementationNotes">Implementation Notes</A>
+   
+   <LI><A HREF="#FunctionDefinitions">Function Definitions</A>
+   
+   <UL>
+      <LI><A HREF="#MainCacheFunctions">Main Cache Functions</A>
+      
+      <UL CLASS=small>
+         <LI><A HREF="#cc_initialize">cc_initialize</A>
+         
+         <LI><A HREF="#cc_create">cc_create</A>
+         
+         <LI><A HREF="#cc_open">cc_open</A>
+         
+         <LI><A HREF="#cc_close">cc_close</A>
+         
+         <LI><A HREF="#cc_destroy">cc_destroy</A>
+         
+         <LI><A HREF="#cc_shutdown">cc_shutdown</A>
+         
+         <LI><A HREF="#cc_initialize">cc_initialize</A>
+         
+         <LI><A HREF="#cc_get_change_time">cc_get_change_time</A>
+         
+         <LI><A HREF="#cc_get_NC_info">cc_get_NC_info</A>
+         
+         <LI><A HREF="#cc_seq_fetch_NCs_begin">cc_seq_fetch_NCs_begin</A>
+         
+         <LI><A HREF="#cc_seq_fetch_NCs_next">cc_seq_fetch_NCs_next</A>
+         
+         <LI><A HREF="#cc_seq_fetch_NCs_end">cc_seq_fetch_NCs_end</A>
+      
+      </UL>
+      
+      <LI><A HREF="#NCFunctions">NC Functions</A>
+      
+      <UL CLASS=small>
+         <LI><A HREF="#cc_get_name">cc_get_name</A>
+         
+         <LI><A HREF="#cc_get_cred_version">cc_get_cred_version</A>
+         
+         <LI><A HREF="#cc_get_principal">cc_get_principal</A>
+         
+         <LI><A HREF="#cc_get_instance">cc_get_instance</A>
+         
+         <LI><A HREF="#cc_remove_cred">cc_remove_cred</A>
+         
+         <LI><A HREF="#cc_store">cc_store</A>
+         
+         <LI><A HREF="#cc_get_instance">cc_get_instance</A>
+         
+         <LI><A HREF="#cc_seq_fetch_creds_begin">cc_seq_fetch_creds_begin</A>
+         
+         <LI><A HREF="#cc_seq_fetch_creds_next">cc_seq_fetch_creds_next</A>
+         
+         <LI><A HREF="#cc_seq_fetch_creds_end">cc_seq_fetch_creds_end</A>
+         
+         <LI><A HREF="#cc_lock_request">cc_lock_request</A>
+      </UL>
+      
+      <LI><A HREF="#LiberationFunctions">Liberation Functions</A>
+      
+      <UL CLASS=small>
+         <LI><A HREF="#cc_free_principal">cc_free_principal</A>
+         
+         <LI><A HREF="#cc_free_name">cc_free_name</A>
+         
+         <LI><A HREF="#cc_free_creds">cc_free_creds</A>
+         
+         <LI><A HREF="#cc_free_NC_info">cc_free_NC_info</A>
+      </UL>
+   </UL>
+   
+   <LI><A HREF="#RevisionNotes">Revision History/Notes</A>
+   
+   <UL>
+      <LI><A HREF="#ChangesRev3">Changes made during revsion 3</A>
+   </UL>
+   
+   <LI><A HREF="#FutureIdeas">Ideas for Future Versions</A>
+   
+   <LI><A HREF="#Abstract">Abstract</A>
+</UL>
+
+<P>
+<HR>
+<A NAME="Abstract"></A>
+
+<H2>Abstract</H2>
+
+<P>This is the specification for an API which provides Credentials
+Cache services for both
+<A HREF="http://web.mit.edu/kerberos/www/">Kerberos V5</A> and V4.
+The idea behind this API is that multiple Kerberos implementations
+can share a single Credentials Cache, mediated by this API
+specification. On the Microsoft Windows platform this will allow
+single-signon, even when more than one Kerberos DLL is in use on a
+particular system. Ideally, this problem could be solved by
+standardizing the Kerberos V5 API library interface. However, the
+Kerberos API is complicated enough that this would be hard to
+accomplish. Standardizing the interface for credentials cache access
+is much simpler. This API has also been adopted in the MIT Kerberos
+for the Macintosh implementation.
+
+<P>This specification has been revised to allow storage and
+manipulation of both V4 and V5 tickets. A cache contains one or more
+"Named Cache"s. It is assumed that V4 and V5 credentials would each
+be stored in separate "Named Cache"s and not mixed in a single "Named
+Cache".
+
+<P>Below, "NC" refers to "Named Cache".<BR>
+
+
+
+<P>
+<HR>
+<A NAME="RevisionNotes"></A>
+
+<H2><B>Revision History/Notes</B></H2>
+
+<H4>Original version (Draft Version 1)</H4>
+
+<P>1/27/96 by
+<A HREF="http://web.mit.edu/tytso/www/home.html">Theodore Ts'o</A>
+
+<H4>Revision 2 (Draft Version 1)</H4>
+
+<P>970628 by <A HREF="http://www.umich.edu/~sgr">Steve Rothwell</A>
+for the V4Cache Team (Paul Hill, Jenny Khuon, Jean Luker, Dave
+Detlefs, Allan Bjorklund, &amp; Steve Rothwell)
+
+<P><A NAME="ChangesRev3"></A>
+
+<H4>Revision 3 (Draft Version 1)</H4>
+
+<P>970725 by Steve Rothwell after initial implementation and alpha
+release. The term "credentials cache" was previously used to mean
+both "the main cache" and individual "named cache"s within the main
+cache. I have started using the term "NC" for "named cache" to make
+the distinction clearer and to reduce the overloading of the word
+"cache".
+
+<H5>Changes made for revision 3 of this API:</H5>
+
+<UL>
+   <LI>Added cred version type to cc_create() &amp; cc_open()
+   
+   <LI>New functions
+   
+   <UL>
+      <LI>cc_get_NC_info(), returns NC_info list for all NCs
+      
+      <LI>cc_free_NC_info(), frees NC_info list
+      
+      <LI>cc_get_cred_version(), returns version type of NC
+      
+      <LI>cc_get_name(), returns name of NC
+      
+      <LI>cc_free_name(), frees name aquired via cc_get_name()
+      
+      <LI>cc_seq_fetch_NCs(), iterate over all NCs
+   </UL>
+   
+   <LI>New return codes
+   
+   <UL>
+      <LI>CC_BAD_PARM
+      
+      <LI>CC_ERR_CACHE_ATTACH
+      
+      <LI>CC_ERR_CACHE_RELEASE
+      
+      <LI>CC_ERR_CACHE_FULL
+      
+      <LI>CC_ERR_CRED_VERSION
+   </UL>
+   
+   <LI>Modified functions
+   
+   <UL>
+      <LI>cc_create(), cc_open(), pass version type of NC
+      
+      <LI>cc_store(), cc_remove(), cc_
+   </UL>
+   
+   <LI>New &amp; Modified typedefs &amp; data structures
+   
+   <UL>
+      <LI>cc_cred_vers { CC_CRED_VUNKNOWN, CC_CRED_V4, CC_CRED_V5 }
+      
+      <LI>cred_ptr_union : contains pointer to credentials (either V4
+      or V5)
+      
+      <LI>cred_union : contains version type and cred_ptr_union
+      
+      <LI>modified V4Cred_type
+      
+      <LI>enum StringToKey_Type { STK_AFS or STK_DES }
+      
+      <LI>copies of the maximum V4 string size indicators
+      KRB_PRINCIPAL_SZ, KRB_SERVICE_SZ, KRB_INSTANCE_SZ,
+      KRB_REALM_SZ, ADDR_SZ
+   </UL>
+</UL>
+
+<H4>Revision 4 (Draft Version 1)</H4>
+
+<P>970908 by Steve Rothwell to incorporate changes initiated by Ted
+Tso. Further changes are expected in the comments for cc_create() and
+cc_get_change_time().
+
+<H4>Revision 4a (Final Version 1)</H4>
+
+<P>980603 by <A HREF="mailto:smcguire@mit.edu">Scott McGuire</A> to
+correct typographical errors, HTML errors, and minor clarifications.
+Final API Version 1 spec.
+
+<H4>Revision 5 (Draft Version 2)</H4>
+
+<P>990201 by <A HREF="mailto:smcguire@mit.edu">Scott McGuire</A>.
+
+<UL>
+   <LI>Increased API version number to 2.
+   
+   <LI>Added enum's defining version numbers.
+   
+   <LI>Changes to cc_initialize() to specify how to deal with
+   different API version numbers.
+   
+   <LI>Added description of cc_int32 and cc_uint32 types.
+   
+   <LI>Change some cc_int32's to cc_uint32's.
+   
+   <LI>Changed way cc_create() will behave when called on an existing
+   cache.
+   
+   <LI>Replaced cc_seq_fetch_NCs() with cc_seq_fetch_NCs_begin(),
+   cc_seq_fetch_NCs_next(), and cc_seq_fetch_NCs_end();
+   
+   <LI>Replaced cc_seq_fetch_creds() with cc_seq_fetch_creds_begin(),
+   cc_seq_fetch_creds_next(), and cc_seq_fetch_creds_end();
+   
+   <LI>Replaced enum type references in structs and function
+   paramenters with cc_int32 references;
+   
+   <LI>Replaced int type references in function parameters with
+   cc_int32;
+   
+   <LI>Added return type of cc_int32 to all functions;
+   
+   <LI>Removed #ifdef from cred_union structure;
+   
+   <LI>Constant definitions and changes to V4Cred_type structure;
+   
+   <LI>Removed incorrect const ccache_p * parameters from cc_store()
+   and cc_remove_cred();
+   
+   <LI>Added CC_NOERROR and CC_BAD_PARM as possible return codes from
+   all functions (except no CC_BAD_PARM from cc_shutdown() );
+   
+   <LI>Added CC_ERR_CRED_VERSION as possible return code from
+   cc_open() and cc_create();
+   
+   <LI>Moved infoNC structure definition up to be with rest of
+   structure definitions;
+   
+   <LI>Changed "struct _infoNC" to "infoNC" in parameter type
+   references.
+   
+   <LI>cc_free_principal() and cc_free_name() now take char **
+   instead of char * for final parameter. (This change was made
+   between rev 4a and rev 5, but I'm re-emphasizing it here.)
+   
+   <LI>Added Implementation Notes section with requirement that all
+   functions must be atomic and name requirements for Windows DLL's.
+   
+   <LI>Renamed "the proposed changes to this API are" section to
+   "Ideas for Future Versions" -- but removed all items but one
+   because they'd all been done.
+   
+   <LI>Removed most of the notes about differences with the Win NT/95
+   implementation of the API -- the differences have been reconciled.
+   
+   <LI>Removed unnecessary and inconsistent italicizing.
+</UL>
+
+<H4>Revsion 5a (Final Version 2)</H4>
+
+<P>990723 by <A HREF="mailto:smcguire@mit.edu">Scott McGuire</A>.
+
+<UL>
+   <LI>cc_create(): Removed text about "expected" form of name.
+   Removed note about "the alpha version does not do this."
+   
+   <LI>cc_destroy(): Clarified that you do not need to call
+   cc_close() on the cache_pointer after calling this function.
+   
+   <LI>Removed note about Windows cc_get_instance() and
+   cc_set_instance() functions, they are no longer part of the
+   Windows code!
+</UL>
+
+<H2><A NAME="FutureIdeas"></A>Ideas for Future Versions</H2>
+
+<UL>
+   <LI>Define Get/Set functions for all components of _cc_creds?
+   (This will allow future changes to the data structure to be
+   transparent to the caller. This also makes backward compatibility
+   much easier to maintain.)
+</UL>
+
+<P><!-- -----------------------------------------------------------------------------------><!-- type definitions                                                                 --><!-- -----------------------------------------------------------------------------------><BR>
+
+
+<HR>
+<A NAME="TypeDefinitions"></A>
+
+<H2>Type definitions</H2>
+
+<PRE>// enums for API versions used in cc_initialize()
+enum {
+   CC_API_VER_1 = 1,
+   CC_API_VER_2 = 2
+};
+&nbsp;
+<A NAME="cc_int32"></A>
+// cc_int32 and cc_uint32 are not exactly defined in this API due
+// to a lack of standard 32-bit integer size between platforms
+// (although there is the C9X standard).
+// However, we will place the following constraints:
+//
+// cc_int32 is a signed integer that is at least 32 bits wide.
+// cc_uint32 is an unsigned integer that is at least 32 bits wide
+&nbsp;
+<A NAME="cc_time_t"></A>
+typedef cc_int32 cc_time_t;  //see <A HREF="#cc_time_t_Note">notes below</A>
+<A NAME="cc_nc_flags"></A>
+typedef cc_uint32 cc_nc_flags;
+&nbsp;
+&nbsp;
+<A NAME="opaque_types"></A>
+typedef struct opaque_dll_control_block_type* apiCB;
+typedef struct opaque_ccache_pointer_type* ccache_p;
+typedef struct opaque_credential_iterator_type* ccache_cit;
+&nbsp;
+// These really are intended to be opaque. All implementations of the cache API must have
+// them but what they are is implementation specific. In the case of SGR's implementation,
+// the cc_ctx returned available after a call to cc_initialize, is a CCache_ctx class object. The&nbsp;
+// code that normally calls the cc_initialize function is straight C, which means the calling
+// application doesn't have a chance in hell of manipulating this directly. The API is designed
+// so that it does not have to. It does have to pass the pointer to the class around, one reason&nbsp;
+// being so that the destructor can eventually be called.
+&nbsp;
+&nbsp;
+<A NAME="typedefCC_Data"></A>
+typedef struct _cc_data {
+&nbsp;&nbsp;&nbsp; cc_uint32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; type;
+&nbsp;&nbsp;&nbsp; cc_uint32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; length;
+&nbsp;&nbsp;&nbsp; unsigned char*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data;
+} cc_data;
+&nbsp;
+<A NAME="typedefCC_Cred"></A>
+typedef struct _cc_creds {
+&nbsp;&nbsp;&nbsp; char*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; client; /* client's principal identifier */
+&nbsp;&nbsp;&nbsp; char*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; server; /* server's principal identifier */
+&nbsp;&nbsp;&nbsp; cc_data&nbsp;&nbsp;&nbsp;&nbsp; keyblock;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* session encryption key info */
+&nbsp;&nbsp;&nbsp; cc_time_t&nbsp;&nbsp; authtime;
+&nbsp;&nbsp;&nbsp; cc_time_t&nbsp;&nbsp; starttime;
+&nbsp;&nbsp;&nbsp; cc_time_t&nbsp;&nbsp; endtime;
+&nbsp;&nbsp;&nbsp; cc_time_t&nbsp;&nbsp; renew_till;
+&nbsp;&nbsp;&nbsp; cc_uint32&nbsp;&nbsp;&nbsp; is_skey;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* true if ticket is encrypted in
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; another ticket's skey */
+&nbsp;&nbsp;&nbsp; cc_uint32&nbsp;&nbsp;&nbsp; ticket_flags;&nbsp;&nbsp; /* flags in ticket */
+&nbsp;&nbsp;&nbsp; cc_data**&nbsp;&nbsp; addresses;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* addrs in ticket */
+&nbsp;&nbsp;&nbsp; cc_data&nbsp;&nbsp;&nbsp;&nbsp; ticket;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* ticket string itself */
+&nbsp;&nbsp;&nbsp; cc_data&nbsp;&nbsp;&nbsp;&nbsp; second_ticket;&nbsp; /* second ticket, if related to
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ticket (via DUPLICATE-SKEY or
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ENC-TKT-IN-SKEY) */
+&nbsp;&nbsp;&nbsp; cc_data**&nbsp;&nbsp; authdata;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* authorization data */
+} cc_creds;
+&nbsp;
+&nbsp;
+// use an enumerated type so all callers infer the same meaning
+// these values are what krbv4win uses internally.
+<A NAME="enumStringToKey_Type"></A>
+enum StringToKey_Type { STK_AFS = 0, STK_DES = 1 };
+&nbsp;
+enum { MAX_V4_CRED_LEN = 1250 };
+&nbsp;
+&nbsp;
+// V4 Credentials
+<A NAME="typedefV4Cred_type"></A>
+enum {
+&nbsp;&nbsp;KRB_NAME_SZ = 40,
+&nbsp;&nbsp;KRB_INSTANCE_SZ = 40,
+&nbsp;&nbsp;KRB_REALM_SZ = 40
+};
+&nbsp;
+typedef struct _V4credential {
+&nbsp;&nbsp;&nbsp; unsigned char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;      kversion;
+&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     principal[KRB_NAME_SZ+1];
+&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     principal_instance[KRB_INSTANCE_SZ+1];
+&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     service[KRB_NAME_SZ+1];
+&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  &nbsp;&nbsp;     service_instance[KRB_INSTANCE_SZ+1];
+&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;     realm[KRB_REALM_SZ+1];
+&nbsp;&nbsp;&nbsp; unsigned char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        session_key[8];
+&nbsp;&nbsp;&nbsp; cc_int32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        kvno;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // k95 used BYTE skvno
+&nbsp;&nbsp;&nbsp; cc_int32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; str_to_key;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// k4 infers dynamically, k95 stores; of type enum StringToKey_Type
+&nbsp;&nbsp;&nbsp; long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     issue_date;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // k95 called this issue_time
+&nbsp;&nbsp;&nbsp; cc_int32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        lifetime;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // k95 used LONG expiration_time
+&nbsp;&nbsp;&nbsp; cc_uint32    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;address;&nbsp;&nbsp;   &nbsp;&nbsp;&nbsp;&nbsp;       // IP Address of local host as an unsigned 32-bit integer
+&nbsp;&nbsp;&nbsp; cc_int32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        ticket_sz;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // k95 used BYTE, k4 ktext uses int to hold up to 1250
+&nbsp;&nbsp;&nbsp; unsigned char&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        ticket[MAX_V4_CRED_LEN];
+&nbsp;&nbsp;&nbsp; unsigned long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        oops;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // zero to catch runaways
+} V4Cred_type;
+&nbsp;
+<A NAME="enumCc_cred_vers"></A>
+enum cc_cred_vers {&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; CC_CRED_VUNKNOWN = 0,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // For validation
+&nbsp;&nbsp;&nbsp; CC_CRED_V4 = 1,
+&nbsp;&nbsp;&nbsp; CC_CRED_V5 = 2,
+&nbsp;&nbsp;&nbsp; CC_CRED_VMAX = 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // For validation
+};
+&nbsp;
+<A NAME="unionCred_ptr_union"></A>
+typedef union cred_ptr_union_type {
+&nbsp;&nbsp;&nbsp; V4Cred_type* pV4Cred;
+&nbsp;&nbsp;&nbsp; cc_creds*&nbsp;&nbsp;&nbsp; pV5Cred;
+} cred_ptr_union;
+&nbsp;
+<A NAME="unionCred_union"></A>
+typedef struct cred_union_type {
+&nbsp;&nbsp;&nbsp; cc_int32 cred_type;  // cc_cred_vers
+&nbsp;&nbsp;&nbsp; <A HREF="#unionCred_ptr_union">cred_ptr_union</A> cred;
+} cred_union;
+&nbsp;
+<A NAME="typdefInfoNC"></A>
+typedef struct _infoNC {
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; char*&nbsp;&nbsp; name;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; char*&nbsp;&nbsp; principal;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cc_int32 vers;   // cc_cred_vers
+} infoNC;</PRE>
+
+<H4>The cc_data structure</H4>
+
+<P>The cc_data structure is used to store the following elements:
+
+<UL>
+   <LI>keyblock
+   
+   <LI>addresses
+   
+   <LI>ticket (and second_ticket)
+   
+   <LI>authorization data
+</UL>
+
+<P>For cc_creds.ticket and cc_creds.second_ticket, the cc_data.type
+field MUST be zero. For the cc_creds.addresses, cc_creds.authdata,
+and cc_data.keyblock, the cc_data.type field should be the address
+type, authorization data type, and encryption type, as defined by the
+Kerberos V5 protocol definition.
+
+<H4><A NAME="cc_time_t_Note"></A>cc_time_t</H4>
+
+<P>The cc_time_t fields are used to represent time. The time must be
+stored as the number of seconds since midnight GMT on January 1,
+1970.
+
+<H4>Principal names</H4>
+
+<P>Principal names are stored as C strings in this API. The C strings
+may contain UTF-8 encoded strings for internationalization
+purposes.<BR>
+
+
+<HR>
+<A NAME="ErrorCodeDefinitions"></A>
+
+<H2>Error Codes Definition</H2>
+
+<P><TABLE BORDER=1>
+   <TR>
+      <TD>
+         <P>0&nbsp;
+      </TD><TD>
+         <P>CC_NOERROR&nbsp;
+      </TD><TD>
+         <P>"Successful return"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>1&nbsp;
+      </TD><TD>
+         <P>CC_BADNAME&nbsp;
+      </TD><TD>
+         <P>"Bad credential cache name format"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>2&nbsp;
+      </TD><TD>
+         <P>CC_NOTFOUD&nbsp;
+      </TD><TD>
+         <P>"Matching credential not found"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>3&nbsp;
+      </TD><TD>
+         <P>CC_END&nbsp;
+      </TD><TD>
+         <P>"End of credential cache reached"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>4&nbsp;
+      </TD><TD>
+         <P>CC_IO&nbsp;
+      </TD><TD>
+         <P>"Credentials cache I/O operation failed"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>5&nbsp;
+      </TD><TD>
+         <P>CC_WRITE&nbsp;
+      </TD><TD>
+         <P>"Error writing to credentials cache file"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>6&nbsp;
+      </TD><TD>
+         <P>CC_NOMEM&nbsp;
+      </TD><TD>
+         <P>"No memory"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>7&nbsp;
+      </TD><TD>
+         <P>CC_FORMAT&nbsp;
+      </TD><TD>
+         <P>"Corrupted credentials cache"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>8&nbsp;
+      </TD><TD>
+         <P>CC_LOCKED&nbsp;
+      </TD><TD>
+         <P>"The credentials cache or NC is locked"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>9&nbsp;
+      </TD><TD>
+         <P>CC_BAD_API_VERSION&nbsp;
+      </TD><TD>
+         <P>"Unsupported API version"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>10&nbsp;
+      </TD><TD>
+         <P>CC_NO_EXIST&nbsp;
+      </TD><TD>
+         <P>"Credentials cache or NC does not exist"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>11&nbsp;
+      </TD><TD>
+         <P>CC_NOT_SUPP&nbsp;
+      </TD><TD>
+         <P>"Function not supported"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>12&nbsp;
+      </TD><TD>
+         <P>CC_BAD_PARM&nbsp;
+      </TD><TD>
+         <P>"Bad Paramter Passed"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>13&nbsp;
+      </TD><TD>
+         <P>CC_ERR_CACHE_ATTACH&nbsp;
+      </TD><TD>
+         <P>"Failed to attach cache"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>14&nbsp;
+      </TD><TD>
+         <P>CC_ERR_CACHE_RELEASE&nbsp;
+      </TD><TD>
+         <P>"Failed to release cache"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>15&nbsp;
+      </TD><TD>
+         <P>CC_ERR_CACHE_FULL&nbsp;
+      </TD><TD>
+         <P>"Cache FULL"&nbsp;
+      </TD></TR>
+   <TR>
+      <TD>
+         <P>16&nbsp;
+      </TD><TD>
+         <P>CC_ERR_CRED_VERSION&nbsp;
+      </TD><TD>
+         <P>"Wrong Cred Version"&nbsp;
+      </TD></TR>
+</TABLE>
+
+<P>
+<HR>
+<A NAME="ImplementationNotes"></A>
+
+<H2>Implementation Notes</H2>
+
+<H4>All functions are atomic</H4>
+
+<P>All Credentials Cache API functions must be atomic.
+
+<P><B>Windows</B>
+
+<P>DLLs should be named KrbCC16.dll and KrbCC32.dll.
+
+<P>
+<HR>
+<A NAME="FunctionDefinitions"></A>
+
+<H2>Function definitions</H2>
+
+<P><A NAME="MainCacheFunctions"></A>
+
+<H3>Main Cache Functions</H3>
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_initialize                                                                    --><!-- ----------------------------------------------------------------------------------->
+
+
+<P><A NAME="cc_initialize"></A>
+
+<H4>cc_initialize</H4>
+
+<PRE>cc_int32 cc_initialize(apiCB** cc_ctx, cc_int32 api_version, cc_int32* api_supported, char** vendor)</PRE>
+
+<P>This function performs any initialization required by the
+<I>API</I>. It must be called before any other function in the
+<I>API</I> is called. The cc_ctx returned by this function must be
+passed to all other <I>API</I> functions as the first argument.
+
+<P>The application must pass in the maximum version number of the API
+it supports in the <B>api_version</B> parameter.
+
+<P>If <B>api_supported</B> non-NULL, then cc_initialize will store
+the maximum API version number supported by the library implementing
+the API there.
+
+<P>If the version requested by <B>api_version</B> is not equal to the
+version supported by the library, CC_BAD_API_VERSION will be returned
+as the error code (along with the version the library does support in
+<B>api_supported</B>) and cc_initialize should not allocate any
+memory.
+
+<P>If the <B>vendor</B> is non-NULL, then cc_initialize will store a
+pointer to a read/only C string which contains a string describing
+the vendor which implemented the credentials cache <I>API</I>.
+
+<P>Possible error codes: CC_NOERROR, CC_NOMEM, CC_BAD_API_VERSION,
+CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_shutdown  		                                                              --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_shutdown"></A>
+
+<H4>cc_shutdown</H4>
+
+<PRE>cc_int32 cc_shutdown(apiCB** cc_ctx)</PRE>
+
+<P>This function performs any cleanup required by the <I>API</I>.
+cc_ctx will be NULL on return. The application program must call
+cc_initialize() again before making any credentials cache <I>API</I>
+calls.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_get_change_time                                                               --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_get_change_time"></A>
+
+<H4>cc_get_change_time</H4>
+
+<PRE>cc_int32 cc_get_change_time(apiCB* cc_ctx, cc_time_t* time)</PRE>
+
+<P>This function returns the time of the most recent change for the
+entire cache. There is ONE timestamp maintained for the entire cache.
+By maintaining a local copy the caller can deduce whether "something
+changed" or not.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_NOMEM,
+CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_get_NC_info  	                                                              --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_get_NC_info"></A>
+
+<H4>cc_get_NC_info</H4>
+
+<PRE>cc_int32 cc_get_NC_info(apiCB* cc_ctx, infoNC*** ppNCi)</PRE>
+
+<P>cc_get_NC_info() is a wrapper for cc_seq_fetch_NCs(),
+cc_get_name() cc_get_cred_version(), and cc_get_principal(). It
+returns all the information needed to uniquely identify each NC in
+the cache (name and cred_version) and the associated principal.
+Specifically it returns a null terminated list of pointers to infoNC
+structs. Each infoNC struct contain a pointer to the NC's name, a
+pointer to the the principal associated with the NC, and the version
+number (as an enumerated type) of the credentials stored in this NC.
+
+<P>The ppNCi (the entire data structure) aquired by this routine
+should be freed with cc_free_NC_info().
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_NOMEM,
+CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_open      		                                                              --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_open"></A>
+
+<H4>cc_open</H4>
+
+<PRE>cc_int32 cc_open(apiCB* cc_ctx, const char* name, cc_int32 cred_vers, cc_uint32 cc_flags,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ccache_p** ccache_pointer)</PRE>
+
+<P>Opens an already exising NC identified by both <B>name</B>, and
+<B>cred_vers</B>. It fills in the parameter **ccache_pointer with a
+pointer to the NC.
+
+<P>The list of cache names, principals, and credentials versions may
+be retrieved via cc_seq_fetch_NCs(), cc_get_name(),
+cc_get_cred_version(), &amp; cc_get_principal() OR via
+cc_get_NC_info().
+
+<P>Possible error codes: CC_NOERROR, CC_BADNAME, CC_NO_EXIST,
+CC_NOMEM, CC_ERR_CRED_VERSION, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_create                                                                        --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_create"></A>
+
+<H4>cc_create</H4>
+
+<PRE>cc_int32 cc_create(apiCB* cc_ctx, const char* name, const char* principal,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cc_int32 cred_vers, cc_uint32 cc_flags, ccache_p** ccache_pointer)</PRE>
+
+<P>Create a new NC. The NC is uniquely identified by the combination
+of it's name and the "cc_creds_vers" (i.e. which credentials version
+it holds). The principal given is also associated with the NC. A NULL
+<B>name</B> is not allowed (and CC_BADNAME should be returned if one
+is passed in). If <B>name</B> is non-null and there is already a NC
+named <B>name</B>, all credentials in the cache are removed, and
+handle for the existing cache is returned. If there is already a NC
+named name, all existing handles for this cache remain valid. The NC
+is created with a primary principal specified by <B>principal</B>.
+
+<P><I>(Removed text about the "expected" form of the NC name.)</I>
+
+<P>An NC is intended to hold credentials for a single principal in a
+single realm, and for a single credentials version (i.e. V4 or V5).
+The cache can contain credentials for other credential versions,
+other realms, and even other principals, but each in a separate NC.
+This rule will allow callers that can only handle a single principal
+in a single realm to continue to work by dealing with only one NC.
+Callers that can deal with multiple principals, multiple realms,
+and/or multiple credentials versions can do so by dealing with
+multiple NCs. By doing it this way, the callers that are able to
+handle multiple principals, realms, and/or versions can do so without
+interfering with "differently abled" code.
+
+<P>The list of cache names, principals, &amp; cred_versions may be
+retrieved via cc_get_NC_info().
+
+<P>Possible error codes: CC_NOERROR, CC_BADNAME, CC_BAD_PARM,
+CC_NO_EXIST, CC_NOMEM, CC_ERR_CRED_VERSION
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_close                                                                         --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_close"></A>
+
+<H4>cc_close</H4>
+
+<PRE>cc_int32 cc_close(apiCB* cc_ctx, ccache_p** ccache_pointer)</PRE>
+
+<P>Close the NC. The <B>ccache_pointer</B> related memory is
+deallocated, and ccache_pointer is set to NULL before being returned
+to caller.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_destroy                                                                       --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_destroy"></A>
+
+<H4>cc_destroy</H4>
+
+<PRE>cc_int32 cc_destroy(apiCB* cc_ctx, ccache_p** ccache_pointer)</PRE>
+
+<P>Destroy the NC pointed to by <B>ccache_pointer</B>. The
+<B>ccache_pointer</B> related memory is deallocated, and
+ccache_pointer is set to NULL before being returned to caller. The
+caller does not need to call cc_close() on the <B>cache_pointer</B>
+afterwards.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_seq_fetch_NCs                                                                 --><!-- -----------------------------------------------------------------------------------><BR>
+
+
+
+<P><A NAME="cc_seq_fetch_NCs_begin"></A>
+
+<H4>cc_seq_fetch_NCs_begin</H4>
+
+<PRE>cc_int32 cc_seq_fetch_NCs_begin(apiCB* cc_ctx, ccache_cit** itNCs)</PRE>
+
+<P>Used to allocate memory and initialize the iterator *itNCs. Use
+cc_seq_fetch_NCs_end() to deallocate the memory used by *itNCs.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM,
+CC_NOMEM
+
+<H4><A NAME="cc_seq_fetch_NCs_next"></A></H4>
+
+<H4>cc_seq_fetch_NCs_next</H4>
+
+<PRE>cc_int32 cc_seq_fetch_NCs_next(apiCB* cc_ctx, ccache_p** ccache_pointer, ccache_cit* itNCs)</PRE>
+
+<P>Used to sequentially open every NC in the cache.
+
+<P>Ccache_pointer must be a pointer to a ccache_p*. The
+ccache_pointer returned may be used to get information about the NC
+by calling cc_get_name(), cc_get_cred_version(), and
+cc_get_principal(). Ccache_pointer's returned must be freed via
+cc_close() between calls to cc_seq_fetch_NCs_next().
+
+<P>itNCs must be a pointer to a ccache_cit* variable provided by the
+calling application and which is used by cc_seq_fetch_NCs_next() to
+determine the next NC to return. It must have been initialized by
+cc_seq_fetch_NCs_begin().
+
+<P>If changes are made to the credentials cache while it iterator is
+being used, it must return at least the intersection, and at most the
+union, of the set of NC's that were in the cache when the iteration
+began and the set of NC's that are in the cache when it ends.
+
+<P>When the last NC in the sequence is returned, the return code from
+cc_seq_fetch_NCs_next() will be CC_END.
+
+<P>Possible error codes: CC_NOERROR, CC_END, CC_NO_EXIST.
+CC_BAD_PARM, CC_NOMEM
+
+<H4>&nbsp;</H4>
+
+<H4><A NAME="cc_seq_fetch_NCs_end"></A></H4>
+
+<H4>cc_seq_fetch_NCs_end</H4>
+
+<PRE>cc_int32 cc_seq_fetch_NCs_end(apiCB* cc_ctx, ccache_cit** itNCs)</PRE>
+
+<P>Deallocates the memory used by *itNCs, and sets *itNCs to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P>&nbsp;
+
+<P><A NAME="NCFunctions"></A>
+
+<H3>NC Functions</H3>
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_get_name                                                                      --><!-- -----------------------------------------------------------------------------------><A NAME="cc_get_name"></A>
+
+
+<H4>cc_get_name</H4>
+
+<PRE>cc_int32 cc_get_name(apiCB* cc_ctx, const ccache_p* ccache_pointer, char** name)</PRE>
+
+<P>cc_get_name() returns the name of the NC indicated by
+ccache_pointer. The name can be used in cc_open() or cc_create(). The
+combination of the name and the credentials version uniqeuly identify
+an NC. The returned name should be freed via cc_free_name().
+
+<P>Possible error codes: CC_NOERROR, CC_NOMEM, CC_NO_EXIST,
+CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_get_cred_version                                                              --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_get_cred_version"></A>
+
+<H4>cc_get_cred_version</H4>
+
+<PRE>cc_int32 cc_get_cred_version(apiCB* cc_ctx, const ccache_p* ccache_pointer, cc_int32* cred_vers)</PRE>
+
+<P>cc_get_cred_version() returns one of the enumerated type
+cc_cred_vers in cred_vers. The expected values are CC_CRED_V4, or
+CC_CRED_V5. The combination of the name and the credentials version
+uniquely identify an NC.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_set_principal                                                                 --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_set_principal"></A>
+
+<H4>cc_set_principal</H4>
+
+<PRE>cc_int32 cc_set_principal(apiCB* cc_ctx, const ccache_p* ccache_pointer, const cc_int32 cred_vers,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char* principal)</PRE>
+
+<P>Set the primary principal for the NC indicated by ccache_pointer.
+This is the complement to cc_get_principal().
+
+<P>cred_vers is used as a double check.
+
+<P>principal points to a null terminated string that will be copied
+into the NC. This new principal will be returned if you call
+cc_get_principal() for this NC.
+
+<P>Possible error codes: CC_NOERROR, CC_NOMEM, CC_NO_EXIST,
+CC_ERR_CRED_VERSION, CC_BAD_PARM<BR>
+
+&nbsp;
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_get_principal                                                                 --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_get_principal"></A>
+
+<H4>cc_get_principal</H4>
+
+<PRE>cc_int32 cc_get_principal(apiCB* cc_ctx, const ccache_p* ccache_pointer, char** principal)</PRE>
+
+<P>Return the primary principal for the NC that was set via
+cc_create() or cc_set_principal(). The returned principal should be
+freed via cc_free_principal() .
+
+<P>Possible error codes: CC_NOERROR, CC_NOMEM, CC_NO_EXIST,
+CC_BAD_PARM<BR>
+
+
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_store                                                                         --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_store"></A>
+
+<H4>cc_store</H4>
+
+<PRE>cc_int32 cc_store(apiCB* cc_ctx, ccache_p* ccache_pointer, const&nbsp;<A HREF="#unionCred_union">cred_union</A> cred)</PRE>
+
+<P>Store (make a copy of) <B>cred</B> in the NC indicated by
+<B>ccache_pointer</B>.
+
+<P>A cred_union contains a cred_type indicator and a cred_ptr_union.
+A cred_ptr_union can contain either a V4Cred_type pointer or a
+cc_creds (V5 creds) pointer. Cred_type indicates which type of
+pointer is in the cred_ptr_union. This also allows the <I>API</I> to
+enforce the credentials version declared in cc_create() or cc_open().
+
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_ERR_CACHE_FULL,
+CC_ERR_CRED_VERSION, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_remove_cred                                                                   --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_remove_cred"></A>
+
+<H4>cc_remove_cred</H4>
+
+<PRE>cc_int32 cc_remove_cred(apiCB* cc_ctx, ccache_p* ccache_pointer, const <A HREF="#unionCred_union">cred_union</A> cred)</PRE>
+
+<P>Removes the credential <B>cred</B> from <B>ccache_pointer</B>. The
+credentials in the NC indicated by ccache_pointer are searched to
+find a matching credential. If found, that credential is removed from
+the NC. The cred parameter is not modified and should be freed via
+cc_free_creds(). It is legitimate to call this function during a
+sequential fetch, and the deletion of a credential already returned
+by cc_seq_fetch_creds() should not disturb sequence of credentials
+returned by cc_seq_fetch_creds().
+
+<P>Use of cred_union is the same as is explained in cc_store().
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_NOTFOUND,
+CC_ERR_CRED_VERSION, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_seq_fetch_creds                                                               --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_seq_fetch_creds_begin"></A>
+
+<H4>cc_seq_fetch_creds_begin</H4>
+
+<PRE>cc_int32 cc_seq_fetch_creds_begin(apiCB* cc_ctx, const ccache_p* ccache_pointer, ccache_cit** itCreds)</PRE>
+
+<P>Allocates memory for and initializes *itCreds. This memory must be
+deallocated using cc_seq_fetch_creds_end().
+
+<P>Ccache_pointer must be a valid pointer to the NC containing the
+creds to be returned by the iterator.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM,
+CC_NOMEM
+
+<P>&nbsp;
+
+<P><A NAME="cc_seq_fetch_creds_next"></A>
+
+<H4>cc_seq_fetch_creds_next</H4>
+
+<PRE>cc_int32 cc_seq_fetch_creds_next(apiCB* cc_ctx, cred_union** cred, ccache_cit* itCreds)</PRE>
+
+<P>cc_seq_fetch_creds_next() is used to sequentially read every set
+of credentials in an NC. The NC has been indicated in the call to
+cc_seq_fetch_creds_begin().
+
+<P>itCreds must be a pointer to a ccache_cit* variable provided by
+the calling application and which is used by
+cc_seq_fetch_creds_next() to determine the next cached credential to
+return. The ccache_cit* variable must be initialized by calling
+cc_seq_fetch_creds_begin().
+
+<P>The credentials are filled into the cred_union pointed to by
+creds. Note that the cred_union contains elements which are
+dynamically allocated, so must be freed using cc_free_creds() between
+calls to cc_seq_fetch_creds_next().
+
+<P>If changes are made to the NC while it iterator is being used, it
+must return at least the intersection, and at most the union, of the
+set of credentials that were in the NC when the iteration began and
+the set of credentials that are in the NC when it ends.
+
+<P>When the last credential in the sequence is returned, the return
+code from cc_seq_fetch_creds_next() will be CC_END.
+
+<P>Possible error codes: CC_NOERROR, CC_END, CC_NO_EXIST,
+CC_BAD_PARM, CC_NOMEM
+
+<P>&nbsp;
+
+<P><A NAME="cc_seq_fetch_creds_end"></A>
+
+<H4>cc_seq_fetch_creds_end</H4>
+
+<PRE>cc_int32 cc_seq_fetch_creds_end(apiCB* cc_ctx, ccache_cit** itCreds)</PRE>
+
+<P>Deallocates memory used by *itCreds and sets *itCreds to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_lock_request                                                                  --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_lock_request"></A>
+
+<H4>cc_lock_request</H4>
+
+<PRE>cc_int32 cc_lock_request(apiCB* cc_ctx, const ccache_p* ccache_pointer, cc_int32 lock_type)</PRE>
+
+<DL>
+   <DD>99/02/11 - smcguire
+   
+   <DD><B>As of&nbsp;this date there is no locking in the Win NT/95
+   or Machintosh implementations. The description below may not be
+   completely accurate as to how this function should be
+   implemented.</B>
+</DL>
+
+<P>This function is currently NOT IMPLEMENTED. All functions attach
+to the cache, take action, and detach from the cache before returning
+to the caller.
+
+<P>This function will lock or unlock the NC based on the argument
+value of lock_type:
+
+<PRE>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC_LOCK_UNLOCK&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Unlock the NC
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC_LOCK_READER&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Lock the NC for reading
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC_LOCK_WRITER&nbsp; 3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Lock the NC for writing
+&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC_LOCK_NOBLOCK 16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Don't block, but return an error code if
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; the request cannot be satisfied.
+&nbsp;</PRE>
+
+<P>Locking is done on a per-thread basis. At most one thread may have
+the credentials locked for writing; if so, there must not be any
+threads that have the credentials locked for reading.
+
+<P>Multiple threads may have the cache locked for reading, as long as
+there is not a writer lock asserted on the cache.
+
+<P>If a thread has a cache locked for reading, that lock may be
+upgraded to a writer lock by calling cc_lock_request() with a
+lock_type of CC_LOCK_WRITER. If a thread has the cache locked for
+reading or writing, a request to cc_lock_request() for a reader or
+writer lock, respectively, is a no-op. If a thread does not have the
+cache locked, and calls cc_lock_request() with a lock_type of
+CC_LOCK_UNLOCK, this is also a no-op.
+
+<P>A request for CC_LOCK_READER and CC_LOCK_WRITER may be made
+non-blocking by logical or'ing the value CC_LOCK_NOBLOCK. In that
+case, if it is not possible to satisfy the lock request, the error
+CC_LOCKED will be returned.
+
+<P>&nbsp;
+
+<P><A NAME="LiberationFunctions"></A>
+
+<H3>Liberation Functions</H3>
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_free_principal                                                                --><!-- -----------------------------------------------------------------------------------><A NAME="cc_free_principal"></A>
+
+
+<H4>cc_free_principal</H4>
+
+<PRE>cc_int32 cc_free_principal(apiCB* cc_ctx, char** principal)</PRE>
+
+<P>This function frees the <B>principal</B> returned by
+cc_get_principal() and sets *principal to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_free_name                                                                     --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_free_name"></A>
+
+<H4>cc_free_name</H4>
+
+<PRE>cc_int32 cc_free_name(apiCB* cc_ctx, char** name)</PRE>
+
+<P>This function frees the <B>name</B> returned by cc_get_name() and
+sets *name to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_free_creds                                                                    --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_free_creds"></A>
+
+<H4>cc_free_creds</H4>
+
+<PRE>cc_int32 cc_free_creds(apiCB* cc_ctx, cred_union** creds)</PRE>
+
+<P>This function frees all storage associated with creds returned by
+cc_seq_fetch_creds() and sets the creds pointer to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<P><!-- -----------------------------------------------------------------------------------><!-- cc_free_NC_info                                                                  --><!-- -----------------------------------------------------------------------------------><BR>
+
+<A NAME="cc_free_NC_info"></A>
+
+<H4>cc_free_NC_info</H4>
+
+<PRE>cc_int32 cc_free_NC_info(apiCB* cc_ctx, infoNC*** ppNCi)</PRE>
+
+<P>This routine frees all storage aquired by cc_get_NC_info() and
+sets ppNCi to NULL.
+
+<P>Possible error codes: CC_NOERROR, CC_NO_EXIST, CC_BAD_PARM
+
+<!-- Begin MIT-use only web reporting counter -->
+	<IMG SRC="http://counter.mit.edu/tally" WIDTH=1 HEIGHT=1 ALT="">
+<!-- End MIT-use only web reporting counter -->
+</BODY></HTML>

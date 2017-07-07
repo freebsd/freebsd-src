@@ -1,0 +1,4 @@
+Issues to be addressed for src/lib/crypto/md5: -*- text -*-
+
+
+Assumes int is >= 32 bits.

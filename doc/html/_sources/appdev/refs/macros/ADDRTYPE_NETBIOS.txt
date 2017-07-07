@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ADDRTYPE-NETBIOS-data:
+
+ADDRTYPE_NETBIOS
+================
+
+..
+.. data:: ADDRTYPE_NETBIOS
+..
+
+
+
+
+======================= ======================
+``ADDRTYPE_NETBIOS``       ``0x0014``
+======================= ======================

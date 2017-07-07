@@ -1,0 +1,59 @@
+krb5_cc_start_seq_get -  Prepare to sequentially read every credential in a credential cache. 
+==============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_start_seq_get(krb5_context context, krb5_ccache cache, krb5_cc_cursor * cursor)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[out]** **cursor** - Cursor
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+ :c:func:`krb5_cc_end_seq_get()` must be called to complete the retrieve operation.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If *cache* is modified between the time of the call to this function and the time of the final :c:func:`krb5_cc_end_seq_get()` , the results are undefined.
+ 
+
+
+

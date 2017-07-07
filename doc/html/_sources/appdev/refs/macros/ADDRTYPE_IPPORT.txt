@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _ADDRTYPE-IPPORT-data:
+
+ADDRTYPE_IPPORT
+===============
+
+..
+.. data:: ADDRTYPE_IPPORT
+..
+
+
+
+
+====================== ======================
+``ADDRTYPE_IPPORT``       ``0x0101``
+====================== ======================

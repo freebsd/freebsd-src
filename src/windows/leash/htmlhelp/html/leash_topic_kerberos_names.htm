@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" Content="text/html; charset=Windows-1252">
+<TITLE>Kerberos Names</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000">
+
+<OBJECT TYPE="application/x-oleobject" CLASSID="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e">
+	<PARAM NAME="Keyword" VALUE="names">
+</OBJECT>
+
+<P><H2><A NAME="id_help_names"></A>Kerberos Names</H2></P>
+
+<P>A Kerberos name contains three parts. The first is the principal name, which is usually a user's or service's name. The second is the instance, which in the case of a user is usually null. Some users may have privileged instances, however, such as "root" or "admin." In the case of a service, the instance is the name of the machine on which it runs; i.e. there can be an <B>rlogin</B> service running on the machine ABC, which is different from the rlogin service running on the machine XYZ. The third part of a Kerberos name is the realm. The realm corresponds to the Kerberos service providing authentication for the principal. For example, at MIT there is a Kerberos running at the Laboratory for Computer Science and one running at Project Athena.</P>
+
+<P>When writing a Kerberos name, the principal name is separated from the instance (if not null) by a period, and the realm (if not the local realm) follows, preceded by an "@" sign. The following are examples of valid Kerberos names:</P>
+
+<P>billb</P>
+
+<P>jis.admin</P>
+
+<P>srz@LCS.MIT.EDU</P>
+
+<P>treese.root@ATHENA.MIT.EDU</P>
+
+</BODY>
+</HTML>

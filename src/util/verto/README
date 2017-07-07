@@ -1,0 +1,40 @@
+This directory builds a verto library with only a private built-in
+module, for use when the system has no installed verto library.  The
+bundled verto cannot dynamically load modules.  From the upstream
+libverto, we take only verto.c and verto-libev.c, and we only build
+the former; the latter is stored here for comparison purposes.  We use
+a stub implementation of module.c to disable dynamic loading support.
+
+This private module uses an embedded libev with renamed symbols (so we
+don't leak libev symbols into the namespace on platforms where we
+can't control the export list).  libev has built-in support for this
+kind of embedding, so we don't have to modify the libev sources.
+Following libev's documentation, the following files have been copied
+from the ev sources:
+
+  ev.h
+  ev_vars.h
+  ev_wrap.h
+  ev.c
+  ev_select.c
+  ev_poll.c
+  ev_win32.c
+  Symbols.ev
+
+(Symbols.ev wasn't included in the 4.04 tar file due to an oversight,
+so it is taken from the appropriate tag in libev's source repository.)
+
+To rename the exported symbols, we create rename.h from Symbols.ev.
+We also use Symbols.ev to construct the library export list.
+(Renaming libev's symbols would be unnecessary if libev's embedding
+had support for making its API symbols static, but it currently does
+not.)  The source file verto-k5ev.c wraps ev.c with appropriate
+embedding defines, and then defines the libverto module functions
+using the slightly modified contents of libverto's verto-libev.c.  The
+resulting module table is embedded into verto.c using the
+BUILTIN_MODULE define.
+
+The libverto and libev upstream project pages are at:
+
+  https://fedorahosted.org/libverto/
+  http://software.schmorp.de/pkg/libev.html

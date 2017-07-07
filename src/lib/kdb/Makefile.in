@@ -1,0 +1,84 @@
+mydir=lib$(S)kdb
+BUILDTOP=$(REL)..$(S)..
+DEFINES= -DKDB5_USE_LIB_KDB_DB2
+LOCALINCLUDES= -I.
+
+# Keep LIBMAJOR in sync with KRB5_KDB_API_VERSION in include/kdb.h.
+LIBBASE=kdb5
+LIBMAJOR=8
+LIBMINOR=0
+LIBINITFUNC=kdb_init_lock_list
+LIBFINIFUNC=kdb_fini_lock_list
+RELDIR=kdb
+# Depends on libk5crypto and libkrb5
+
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libgssrpc$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS=-lgssrpc -lkrb5 -lk5crypto -lcom_err $(SUPPORT_LIB) $(DL_LIB) $(LIBS)
+
+adb_err.$(OBJEXT): adb_err.c
+adb_err.c adb_err.h: $(srcdir)/adb_err.et
+
+SRCS= \
+	$(srcdir)/kdb5.c \
+	$(srcdir)/encrypt_key.c \
+	$(srcdir)/decrypt_key.c \
+	$(srcdir)/kdb_default.c \
+	$(srcdir)/kdb_cpw.c \
+	adb_err.c \
+	$(srcdir)/iprop_xdr.c \
+	$(srcdir)/kdb_convert.c \
+	$(srcdir)/kdb_log.c \
+	$(srcdir)/keytab.c
+
+STLIBOBJS= \
+	kdb5.o \
+	encrypt_key.o \
+	decrypt_key.o \
+	kdb_default.o \
+	kdb_cpw.o \
+	adb_err.o \
+	iprop_xdr.o \
+	kdb_convert.o \
+	kdb_log.o \
+	keytab.o
+
+EXTRADEPSRCS= t_stringattr.c t_ulog.c t_sort_key_data.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+	$(RM) adb_err.c adb_err.h t_stringattr.o t_stringattr
+	$(RM) t_ulog.o t_ulog test.ulog
+	$(RM) t_sort_key_data.o t_sort_key_data
+
+check-unix: t_ulog
+	$(RUN_TEST) ./t_ulog test.ulog
+
+check-pytests: t_stringattr
+	$(RUNPYTEST) $(srcdir)/t_stringattr.py $(PYTESTFLAGS)
+
+check-cmocka: t_sort_key_data
+	$(RUN_TEST) ./t_sort_key_data > /dev/null
+
+generate-files-mac: darwin.exports
+
+depend: adb_err.h
+
+t_stringattr: t_stringattr.o $(KDB5_DEPLIBS) $(KADM_COMM_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_stringattr.o $(KDB5_LIBS) $(KADM_COMM_LIBS) \
+		$(KRB5_BASE_LIBS)
+
+t_ulog: t_ulog.o $(KDB5_DEPLIBS) $(KADM_COMM_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_ulog.o $(KDB5_LIBS) $(KADM_COMM_LIBS) \
+		$(KRB5_BASE_LIBS)
+
+t_sort_key_data: t_sort_key_data.o $(KDB5_DEPLIBS) $(KADM_COMM_DEPLIBS) \
+		 $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_sort_key_data.o \
+	$(KDB5_LIBS) $(KADM_COMM_LIBS) $(CMOCKA_LIBS) $(KRB5_BASE_LIBS)
+@lib_frag@
+@libobj_frag@
+

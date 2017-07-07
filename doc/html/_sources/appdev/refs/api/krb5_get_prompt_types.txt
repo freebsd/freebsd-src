@@ -1,0 +1,43 @@
+krb5_get_prompt_types -  Get prompt types array from a context. 
+================================================================
+
+..
+
+.. c:function:: krb5_prompt_type * krb5_get_prompt_types(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+
+:return:
+         -  Pointer to an array of prompt types corresponding to the prompter's prompts arguments. Each type has one of the following values: KRB5_PROMPT_TYPE_PASSWORD KRB5_PROMPT_TYPE_NEW_PASSWORD KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN KRB5_PROMPT_TYPE_PREAUTH 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

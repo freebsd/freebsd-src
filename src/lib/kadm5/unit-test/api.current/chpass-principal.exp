@@ -1,0 +1,176 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "chpass-principal 180"
+proc test180 {} {
+    global test
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [create_principal_pol "$test/a" once-a-min]} {
+	error_and_restart "$test: creating principal"
+	return
+    }
+    
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test [format {
+	kadm5_chpass_principal $server_handle "%s/a" FoobarBax
+    } $test]
+
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } { test180 }
+
+test "chpass-principal 180.5"
+proc test1805 {} {
+    global test
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [create_principal_pol "$test/a" once-a-min]} {
+	error_and_restart "$test: creating principal"
+	return
+    }
+    
+    if {! [cmd {
+	kadm5_init admin/modify admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_succeed_test [format {
+	kadm5_chpass_principal $server_handle "%s/a" FoobarBax
+    } $test]
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } { test1805 }
+
+#
+# admin with changepw service tickets try to change other principals
+# password, failes with AUTH error
+test "chpass-principal 180.625"
+proc test180625 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_chpass_principal $server_handle "%s/a" password
+    } $test] "AUTH"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if {$RPC} { test180625 }
+
+test "chpass-principal 180.75"
+proc test18075 {} {
+    global test
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [create_principal_pol "$test/a" once-a-min]} {
+	error_and_restart "$test: creating principal"
+	return
+    }
+    
+    if {! [cmd {
+	kadm5_init admin admin $KADM5_CHANGEPW_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_chpass_principal $server_handle "%s/a" Foobar
+    } $test] "AUTH_CHANGEPW"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+if { $RPC } { test18075 }
+
+test "chpass-principal 182"
+proc test182 {} {
+    global test
+
+    if { ! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test {
+	kadm5_chpass_principal $server_handle kadmin/history password
+    } "PROTECT"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test182
+
+test "chpass-principal 183"
+proc test183 {} {
+    global test
+    if {! ((  [principal_exists "$test/a"]) ||
+	   [create_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if { ! [cmd {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    one_line_fail_test [format {
+	kadm5_chpass_principal null "%s/a" password
+    } $test] "BAD_SERVER_HANDLE"
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test183
+
+return ""

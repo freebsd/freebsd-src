@@ -1,0 +1,574 @@
+.\" Copyright (c) 1990, 1993, 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_open.3	8.15 (Berkeley) 8/1/95
+.\"
+.TH DB_OPEN 3 "August 1, 1995"
+.UC 7
+.SH NAME
+db_open \- database access methods
+.SH SYNOPSIS
+.nf
+.ft B
+#include <db.h>
+
+DB *
+db_open(const char *file, int flags, int mode,
+.ti +5
+DBTYPE type, DBINFO *dbinfo, const void *openinfo);
+.ft R
+.fi
+.SH DESCRIPTION
+.so db.so
+.GN
+the overall structure of the available access methods.
+.PP
+The currently supported file formats are btree, hashed, log and recno
+(i.e. flat-file oriented).
+The btree format is a representation of a sorted, balanced tree structure.
+The hashed format is an extensible, dynamic hashing scheme.
+The log format is a general-purpose logging facility.
+The recno format is a byte stream file with fixed or variable length
+records.
+The formats and other, format specific information are described in detail
+in their respective manual pages:
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_log (3),
+and
+.IR db_recno (3).
+.PP
+Db_open opens
+.I file
+for reading and/or writing.
+Files never intended to be preserved on disk may be created by setting
+the file parameter to NULL.
+(Note, while most of the access methods use
+.I file
+as the name of an underlying file on disk, this is not guaranteed.
+See the manual pages for the individual access methods for more
+information.)
+.PP
+The
+.I flags
+and
+.I mode arguments
+are as specified to the
+.IR open (2)
+function, however, only the O_CREAT, O_EXCL, O_EXLOCK, O_NONBLOCK,
+O_RDONLY, O_RDWR, O_SHLOCK and O_TRUNC flags are meaningful.
+(Note, opening a database file O_WRONLY is not possible.)
+.\"Three additional options may be specified by
+.\".IR or 'ing
+.\"them into the
+.\".I flags
+.\"argument.
+.\".TP
+.\"DB_LOCK
+.\"Do the necessary locking in the database to support concurrent access.
+.\"If concurrent access isn't needed or the database is read-only this
+.\"flag should not be set, as it tends to have an associated performance
+.\"penalty.
+.\".TP
+.\"DB_SHMEM
+.\"Place the underlying memory pool used by the database in shared
+.\"memory.
+.\"Necessary for concurrent access.
+.\".TP
+.\"DB_TXN
+.\"Support transactions in the database.
+.\"The DB_LOCK and DB_SHMEM flags must be set as well.
+.PP
+The
+.I type
+argument is of type DBTYPE (as defined in the <db.h> include file) and
+may be set to DB_BTREE, DB_HASH, DB_LOG or DB_RECNO.
+.PP
+The
+.I dbinfo 
+argument is a pointer to a structure containing references to locking,
+logging, transaction, and shared-memory buffer pool information.
+If 
+.I dbinfo
+is NULL, then the access method may still use these subsystems,
+but the usage will be private to the application and managed by DB.
+If
+.I dbinfo
+is non-NULL,
+then the module referenced by each of the non-NULL fields is used by DB
+as necessary.
+The fields of the DBINFO structure are defined as follows:
+.TP 5
+const char *errpfx;
+A prefix to prepend to error messages; used only if
+.I errfile
+is non-NULL.
+.TP 5
+FILE *errfile;
+The
+.IR stdio (3)
+file stream to which error messages are logged.
+.sp
+When any error occurs in the
+.I db_open
+function, or in any function called using a field of the returned DB
+structure, an error value is returned by the function,
+and the global variable
+.I errno
+is set appropriately.
+In some cases, however, the
+.I errno
+value may be insufficient to describe the cause of the error.
+In these cases, if
+.I errfile
+is non-NULL, additional error information will be written to the file
+stream it represents, preceded by the string, if any, specified by
+.IR errpfx .
+This error logging facility should not be required for normal operation,
+but may be useful in debugging applications.
+.TP 5
+char *errbuf;
+The buffer to which error messages are copied.
+If non-NULL,
+.I errbuf
+behaves as described for
+.IR errfile ,
+except that the
+.I errpfx
+field is ignored and the error message is copied into the specified
+buffer instead of being written to the FILE stream.
+The DB routines assume that the associated buffer is at least 1024 bytes
+in length.
+.TP 5
+LOCK_TABLE_T *lockinfo;
+If locking is required for the file being opened (as in the case of
+buffers being maintained in a shared memory buffer pool),
+the
+.I lockinfo
+field contains a return value from the function
+.I lock_open
+that should be used
+(see
+.IR db_lock (3)).
+If
+.I lockinfo
+is NULL, no locking is done.
+.TP 5
+DB *loginfo;
+If modifications to the file being opened should be logged, the
+.I loginfo
+field contains a return value from the function
+.IR dbopen ,
+when opening a DB file of type DB_LOG.
+If
+.I loginfo
+is NULL, no logging is done.
+.TP 5
+MPOOL *mpoolinfo;
+If the cache for the file being opened should be maintained in a shared
+buffer pool, the
+.I mpoolinfo
+field contains a return value from the function 
+.I mpool_open
+that should be used
+(see
+.IR db_mpool (3)).
+If
+.I mpoolinfo
+is NULL, a memory pool may still be created,
+but it will be private to the application and managed by DB.
+.TP 5
+TXNMGR *txninfo;
+If the accesses to the file being opened should take place in the context
+of transactions (providing atomicity and complete error recovery), the
+.I txninfo
+field contains a return value from the function
+.I txn_open
+(see
+.IR db_txn (3)).
+If transactions are specified,
+the application is responsible for making suitable calls to 
+.IR txn_begin ,
+.IR txn_abort ,
+and
+.IR txn_commit .
+If
+.I txninfo
+is NULL, no transaction support is done.
+.PP
+The
+.I openinfo
+argument is a pointer to an access method specific structure described
+in the access method's manual page.
+If
+.I openinfo
+is NULL, each access method will use defaults appropriate for the system
+and the access method.
+.SH "KEY/DATA PAIRS"
+Access to all access methods is based on key/data pairs.
+Both keys and data are represented by the following data structure:
+.PP
+typedef struct {
+.RS
+void *data;
+.br
+size_t size;
+.RE
+} DBT;
+.PP
+The elements of the DBT structure are defined as follows:
+.TP 5
+data
+A pointer to a byte string.
+.ns
+.br
+.TP 5
+size
+The length of
+.IR data ,
+in bytes.
+.PP
+Key and data byte strings may reference strings of essentially unlimited
+length, although any two of them must fit into available memory at the
+same time.
+.PP
+The access methods provide no guarantees about byte string alignment,
+and applications are responsible for maintaining any necessary alignment.
+.SH "DB OPERATIONS"
+.I Db_open
+returns a pointer to a DB structure (as defined in the <db.h> include file)
+on success, and NULL on error.
+The DB structure describes a database type, and includes a set of functions
+to perform various actions, as described below.
+Each of these functions takes a pointer to a DB structure, and may take
+one or more DBT *'s and a flag value as well.
+Individual access methods specify additional functions and flags which
+are specific to the method.
+The fields of the DB structure are as follows:
+.TP 5
+DBTYPE type;
+The type of the underlying access method (and file format).
+.TP 5
+int (*close)(const DB *db);
+A pointer to a function to flush any cached information to disk,
+free any allocated resources, and close any underlying files.
+Since key/data pairs are cached in memory, failing to sync the
+file with the
+.I close
+or
+.I sync
+function may result in inconsistent or lost information.
+.IP
+The
+.I close
+functions return -1 on failure, setting
+.IR errno ,
+and 0 on success.
+.TP 5
+int (*del)(const DB *db, TXN *txnid,
+.ti +5
+const DBT *key, u_int flags);
+.br
+A pointer to a function to remove key/data pairs from the database.
+The key/data pair associated with the specified
+.I key
+are discarded from the database.
+.IP
+The
+.I txnid
+parameter contains a transaction ID returned from
+.IR txn_begin ,
+if the file is being accessed under transaction protection,
+or NULL if transactions are not in effect.
+.IP
+The parameter
+.I flag
+must be set to 0 or exactly one of the following values:
+.RS
+.TP 5
+R_CURSOR
+Delete the record referenced by the cursor.
+The cursor must have previously been initialized.
+.RE
+.IP
+The
+.I delete
+functions return -1 on error, setting
+.IR errno ,
+0 on success, and 1 if the specified
+.I key
+did not exist in the file.
+.TP 5
+int (*fd)(const DB *db);
+A pointer to a function which returns a file descriptor representative
+of the underlying database.
+A file descriptor referencing the same file will be returned to all
+processes which call
+.I db_open
+with the same
+.I file
+name.
+This file descriptor may be safely used as an argument to the
+.IR fcntl (2)
+and
+.IR flock (2)
+locking functions.
+The file descriptor is not necessarily associated with any of the
+underlying files used by the access method.
+No file descriptor is available for in memory databases.
+.IP
+The
+.I fd
+functions return -1 on error, setting
+.IR errno ,
+and the file descriptor on success.
+.TP 5
+int (*get)(const DB *db, TXN *txnid,
+.ti +5
+const DBT *key, DBT *data, u_int flags);
+.br
+A pointer to a function which is the interface for keyed retrieval from
+the database.
+The address and length of the data associated with the specified
+.I key
+are returned in the structure referenced by
+.IR data .
+.IP
+The
+.I txnid
+parameter contains a transaction ID returned from
+.IR txn_begin ,
+if the file is being accessed under transaction protection,
+or NULL if transactions are not in effect.
+.IP
+The
+.I get
+functions return -1 on error, setting
+.IR errno ,
+0 on success, and 1 if the
+.I key
+was not found.
+.TP 5
+int (*put)(const DB *db, TXN *txnid,
+.ti +5
+DBT *key, const DBT *data, u_int flags);
+.br
+A pointer to a function to store key/data pairs in the database.
+.IP
+The
+.I txnid
+parameter contains a transaction ID returned from
+.IR txn_begin ,
+if the file is being accessed under transaction protection,
+or NULL if transactions are not in effect.
+.IP
+The parameter
+.I flag
+must be set to 0 or exactly one of the following values:
+.RS
+.TP 5
+R_CURSOR
+Replace the key/data pair referenced by the cursor.
+The cursor must have previously been initialized.
+.TP 5
+R_NOOVERWRITE
+Enter the new key/data pair only if the key does not previously exist.
+.RE
+.IP
+The default behavior of the
+.I put
+functions is to enter the new key/data pair, replacing any previously
+existing key.
+.IP
+The
+.I put
+functions return -1 on error, setting
+.IR errno ,
+0 on success, and 1 if the R_NOOVERWRITE
+.I flag
+was set and the key already exists in the file.
+.TP 5
+int (*seq)(const DB *db, TXN *txnid,
+.ti +5
+DBT *key, DBT *data, u_int flags);
+.br
+A pointer to a function which is the interface for sequential
+retrieval from the database.
+The address and length of the key are returned in the structure
+referenced by
+.IR key ,
+and the address and length of the data are returned in the
+structure referenced
+by
+.IR data .
+.IP
+The
+.I txnid
+parameter contains a transaction ID returned from
+.IR txn_begin ,
+if the file is being accessed under transaction protection,
+or NULL if transactions are not in effect.
+.IP
+Sequential key/data pair retrieval may begin at any time, and the
+logical position of the ``cursor'' is not affected by calls to the
+.IR del ,
+.IR get ,
+.IR put ,
+or
+.I sync
+functions.
+Modifications to the database during a sequential scan will be reflected
+in the scan, i.e. records inserted behind the cursor will not be returned
+while records inserted in front of the cursor will be returned.
+.IP
+The parameter
+.I flag
+must be set to 0 or exactly one of the following values:
+.RS
+.TP 5
+R_CURSOR
+The data associated with the specified key is returned.
+This differs from the
+.I get
+functions in that it sets or initializes the cursor to the location of
+the key as well.
+.TP 5
+R_FIRST
+The first key/data pair of the database is returned, and the cursor
+is set or initialized to reference it.
+.TP 5
+R_NEXT
+Retrieve the key/data pair immediately after the cursor.
+If the cursor is not yet set, this is the same as the R_FIRST flag.
+.RE
+.IP
+The
+.I seq
+functions return -1 on error, setting
+.IR errno ,
+0 on success,
+and 1 if there are no key/data pairs less than or greater than the
+specified or current key.
+.TP 5
+int (*sync)(const DB *db, u_int flags);
+A pointer to a function to flush any cached information to disk.
+If the database is in memory only, the
+.I sync
+function has no effect and will always succeed.
+.IP
+The parameter
+.I flag
+must be set to 0 or a value specified by an access method specific
+manual page.
+.IP
+The
+.I sync
+functions return -1 on failure, setting
+.IR errno ,
+and 0 on success.
+.SH ERRORS
+The
+.I db_open
+function may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR open (2),
+.IR malloc (3)
+or the following:
+.TP 5
+[EFTYPE]
+A file is incorrectly formatted.
+.TP 5
+[EINVAL]
+A parameter has been specified (hash function, recno pad byte etc.)
+that is incompatible with the current file specification or, a flag
+to a function which is not meaningful for the function (for example,
+use of the cursor without prior initialization) or there is a mismatch
+between the version number of file and the software.
+.PP
+The
+.I close
+functions may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR close (2),
+.IR read (2),
+.IR write (2),
+.IR free (3),
+or
+.IR fsync (2).
+.PP
+The
+.IR del ,
+.IR get ,
+.I put
+and
+.I seq
+functions may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR read (2),
+.IR write (2),
+.IR free (3)
+or
+.IR malloc (3).
+.PP
+The
+.I fd
+functions will fail and set
+.I errno
+to ENOENT for in memory databases.
+.PP
+The
+.I sync
+functions may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR fsync (2).
+.SH "SEE ALSO"
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_lock (3),
+.IR db_log (3),
+.IR db_mpool (3),
+.IR db_recno (3),
+.IR db_txn (3)
+.SH BUGS
+The name DBT is a mnemonic for ``data base thang'', and was used
+because noone could think of a reasonable name that wasn't already
+in use somewhere else.
+.PP
+The
+.I fd
+function interface is a kluge,
+and will be deleted in a future version of the interface.
+.PP
+Only big and little endian byte order is supported.

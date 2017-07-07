@@ -1,0 +1,36 @@
+mydir=clients$(S)kvno
+BUILDTOP=$(REL)..$(S)..
+
+##WIN32##LOCALINCLUDES=-I$(BUILDTOP)\util\windows\
+
+SRCS=kvno.c
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KVNO=$(OUTPRE)kvno.exe
+
+##WIN32##EXERES=$(KVNO:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKVNO_APP -fo $@ -r $**
+
+all-unix: kvno
+
+##WIN32##all-windows: $(KVNO)
+
+kvno: kvno.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kvno.o $(KRB5_BASE_LIBS)
+
+##WIN32##$(KVNO): $(OUTPRE)kvno.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) /out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kvno.o kvno
+
+install-unix:
+	for f in kvno; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

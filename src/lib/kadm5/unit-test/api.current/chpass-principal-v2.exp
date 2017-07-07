@@ -1,0 +1,68 @@
+load_lib lib.t
+api_exit
+api_start
+
+test "chpass-principal 200"
+proc test200 {} {
+    global test prompt
+
+    if {! (( ! [principal_exists "$test/a"]) ||
+	   [delete_principal "$test/a"])} {
+	    error_and_restart "$test: couldn't create principal \"$test/a\""
+	    return
+    }
+    if {! [create_principal "$test/a"]} {
+	error_and_restart "$test: creating principal"
+	return
+    }
+
+    # I'd like to specify a long list of keysalt tuples and make sure
+    # that chpass does the right thing, but we can only use those
+    # enctypes that krbtgt has a key for: des-cbc-crc:normal and
+    # des-cbc-crc:v4, according to the prototype kdc.conf.
+    if {! [cmd [format {
+	kadm5_init admin admin $KADM5_ADMIN_SERVICE null \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 \
+		server_handle
+    }]]} {
+	perror "$test: unexpected failure in init"
+	return
+    }
+    if {! [cmd [format {
+	kadm5_chpass_principal $server_handle "%s/a" newpassword
+    } $test]]} {
+	perror "$test: unexpected failure in chpass_principal"
+    }
+    if {! [cmd [format {
+	kadm5_get_principal $server_handle  "%s/a" p \
+		{KADM5_PRINCIPAL_NORMAL_MASK KADM5_KEY_DATA}
+    } $test]]} {
+	perror "$test: unexpected failure in get_principal"
+    }
+    send "lindex \$p 16\n"
+    expect {
+	-re "(\[0-9\]+)\n$prompt" { set num_keys $expect_out(1,string) }
+	timeout {
+	    error_and_restart "$test: timeout getting num_keys"
+	    return
+	}
+	eof {
+	    error_and_restart "$test: eof getting num_keys"
+	    return
+	}
+    }
+
+    # XXX Perhaps I should actually check the key type returned.
+    if {$num_keys == 3} {
+	pass "$test"
+    } else {
+	fail "$test: $num_keys keys, should be 3"
+    }
+    if { ! [cmd {kadm5_destroy $server_handle}]} {
+	perror "$test: unexpected failure in destroy"
+	return
+    }
+}
+test200
+
+return ""

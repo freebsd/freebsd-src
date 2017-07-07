@@ -1,0 +1,50 @@
+mydir=util$(S)verto
+BUILDTOP=$(REL)..$(S)..
+RELDIR=../util/verto
+
+LIBBASE=verto
+LIBMAJOR=0
+LIBMINOR=0
+
+LOCALINCLUDES=-I$(srcdir) -I.
+DEFINES=-DDEFAULT_LIBRARY=\"k5ev\" -DBUILTIN_MODULE=k5ev
+SED=sed
+
+# Turn off extra warnings since we're not going to clean up libverto's code.
+WARN_CFLAGS=
+
+STLIBOBJS=verto.o module.o verto-k5ev.o
+LIBOBJS=$(OUTPRE)verto.$(OBJEXT) \
+	$(OUTPRE)module.$(OBJEXT) \
+	$(OUTPRE)verto-k5ev.$(OBJEXT)
+SRCS=verto.c module.c verto-k5ev.c
+
+SHLIB_EXPLIBS= $(LIBS) -lm    # libm needed for ceil() currently.
+
+VERTO_HDR=$(BUILDTOP)$(S)include$(S)verto.h
+
+rename.h: $(srcdir)/Symbols.ev
+	$(RM) $@
+	$(SED) -e 's/.*/#define & k5&/' < $(srcdir)/Symbols.ev > $@
+
+all-unix: all-liblinks includes
+
+install-unix: install-libs
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+	$(RM) $(VERTO_HDR) rename.h
+
+includes: $(VERTO_HDR)
+depend: $(VERTO_HDR) rename.h
+
+$(VERTO_HDR): $(srcdir)/verto.h
+	$(RM) $@
+	$(CP) $(srcdir)/verto.h $@
+
+install:
+	$(INSTALL_DATA) $(srcdir)/verto.h $(DESTDIR)$(KRB5_INCDIR)/verto.h
+	$(INSTALL_DATA) $(srcdir)/verto-module.h \
+		$(DESTDIR)$(KRB5_INCDIR)/verto-module.h
+
+@lib_frag@
+@libobj_frag@

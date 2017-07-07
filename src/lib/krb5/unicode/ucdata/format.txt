@@ -1,0 +1,267 @@
+#
+# $Id: format.txt,v 1.2 2001/01/02 18:46:20 mleisher Exp $
+#
+
+CHARACTER DATA
+==============
+
+This package generates some data files that contain character properties useful
+for text processing.
+
+CHARACTER PROPERTIES
+====================
+
+The first data file is called "ctype.dat" and contains a compressed form of
+the character properties found in the Unicode Character Database (UCDB).
+Additional properties can be specified in limited UCDB format in another file
+to avoid modifying the original UCDB.
+
+The following is a property name and code table to be used with the character
+data:
+
+NAME CODE DESCRIPTION
+---------------------
+Mn   0    Mark, Non-Spacing
+Mc   1    Mark, Spacing Combining
+Me   2    Mark, Enclosing
+Nd   3    Number, Decimal Digit
+Nl   4    Number, Letter
+No   5    Number, Other
+Zs   6    Separator, Space
+Zl   7    Separator, Line
+Zp   8    Separator, Paragraph
+Cc   9    Other, Control
+Cf   10   Other, Format
+Cs   11   Other, Surrogate
+Co   12   Other, Private Use
+Cn   13   Other, Not Assigned
+Lu   14   Letter, Uppercase
+Ll   15   Letter, Lowercase
+Lt   16   Letter, Titlecase
+Lm   17   Letter, Modifier
+Lo   18   Letter, Other
+Pc   19   Punctuation, Connector
+Pd   20   Punctuation, Dash
+Ps   21   Punctuation, Open
+Pe   22   Punctuation, Close
+Po   23   Punctuation, Other
+Sm   24   Symbol, Math
+Sc   25   Symbol, Currency
+Sk   26   Symbol, Modifier
+So   27   Symbol, Other
+L    28   Left-To-Right
+R    29   Right-To-Left
+EN   30   European Number
+ES   31   European Number Separator
+ET   32   European Number Terminator
+AN   33   Arabic Number
+CS   34   Common Number Separator
+B    35   Block Separator
+S    36   Segment Separator
+WS   37   Whitespace
+ON   38   Other Neutrals
+Pi   47   Punctuation, Initial
+Pf   48   Punctuation, Final
+#
+# Implementation specific properties.
+#
+Cm   39   Composite
+Nb   40   Non-Breaking
+Sy   41   Symmetric (characters which are part of open/close pairs)
+Hd   42   Hex Digit
+Qm   43   Quote Mark
+Mr   44   Mirroring
+Ss   45   Space, Other (controls viewed as spaces in ctype isspace())
+Cp   46   Defined character
+
+The actual binary data is formatted as follows:
+
+  Assumptions: unsigned short is at least 16-bits in size and unsigned long
+               is at least 32-bits in size.
+
+    unsigned short ByteOrderMark
+    unsigned short OffsetArraySize
+    unsigned long  Bytes
+    unsigned short Offsets[OffsetArraySize + 1]
+    unsigned long  Ranges[N], N = value of Offsets[OffsetArraySize]
+
+  The Bytes field provides the total byte count used for the Offsets[] and
+  Ranges[] arrays.  The Offsets[] array is aligned on a 4-byte boundary and
+  there is always one extra node on the end to hold the final index of the
+  Ranges[] array.  The Ranges[] array contains pairs of 4-byte values
+  representing a range of Unicode characters.  The pairs are arranged in
+  increasing order by the first character code in the range.
+
+  Determining if a particular character is in the property list requires a
+  simple binary search to determine if a character is in any of the ranges
+  for the property.
+
+  If the ByteOrderMark is equal to 0xFFFE, then the data was generated on a
+  machine with a different endian order and the values must be byte-swapped.
+
+  To swap a 16-bit value:
+     c = (c >> 8) | ((c & 0xff) << 8)
+
+  To swap a 32-bit value:
+     c = ((c & 0xff) << 24) | (((c >> 8) & 0xff) << 16) |
+         (((c >> 16) & 0xff) << 8) | (c >> 24)
+
+CASE MAPPINGS
+=============
+
+The next data file is called "case.dat" and contains three case mapping tables
+in the following order: upper, lower, and title case.  Each table is in
+increasing order by character code and each mapping contains 3 unsigned longs
+which represent the possible mappings.
+
+The format for the binary form of these tables is:
+
+  unsigned short ByteOrderMark
+  unsigned short NumMappingNodes, count of all mapping nodes
+  unsigned short CaseTableSizes[2], upper and lower mapping node counts
+  unsigned long  CaseTables[NumMappingNodes]
+
+  The starting indexes of the case tables are calculated as following:
+
+    UpperIndex = 0;
+    LowerIndex = CaseTableSizes[0] * 3;
+    TitleIndex = LowerIndex + CaseTableSizes[1] * 3;
+
+  The order of the fields for the three tables are:
+
+    Upper case
+    ----------
+    unsigned long upper;
+    unsigned long lower;
+    unsigned long title;
+
+    Lower case
+    ----------
+    unsigned long lower;
+    unsigned long upper;
+    unsigned long title;
+
+    Title case
+    ----------
+    unsigned long title;
+    unsigned long upper;
+    unsigned long lower;
+
+  If the ByteOrderMark is equal to 0xFFFE, endian swapping is required in the
+  same way as described in the CHARACTER PROPERTIES section.
+
+  Because the tables are in increasing order by character code, locating a
+  mapping requires a simple binary search on one of the 3 codes that make up
+  each node.
+
+  It is important to note that there can only be 65536 mapping nodes which
+  divided into 3 portions allows 21845 nodes for each case mapping table.  The
+  distribution of mappings may be more or less than 21845 per table, but only
+  65536 are allowed.
+
+COMPOSITIONS
+============
+
+This data file is called "comp.dat" and contains data that tracks character
+pairs that have a single Unicode value representing the combination of the two
+characters.
+
+The format for the binary form of this table is:
+
+  unsigned short ByteOrderMark
+  unsigned short NumCompositionNodes, count of composition nodes
+  unsigned long  Bytes, total number of bytes used for composition nodes
+  unsigned long  CompositionNodes[NumCompositionNodes * 4]
+
+  If the ByteOrderMark is equal to 0xFFFE, endian swapping is required in the
+  same way as described in the CHARACTER PROPERTIES section.
+
+  The CompositionNodes[] array consists of groups of 4 unsigned longs.  The
+  first of these is the character code representing the combination of two
+  other character codes, the second records the number of character codes that
+  make up the composition (not currently used), and the last two are the pair
+  of character codes whose combination is represented by the character code in
+  the first field.
+
+DECOMPOSITIONS
+==============
+
+The next data file is called "decomp.dat" and contains the decomposition data
+for all characters with decompositions containing more than one character and
+are *not* compatibility decompositions.  Compatibility decompositions are
+signaled in the UCDB format by the use of the <compat> tag in the
+decomposition field.  Each list of character codes represents a full
+decomposition of a composite character.  The nodes are arranged in increasing
+order by character code.
+
+The format for the binary form of this table is:
+
+  unsigned short ByteOrderMark
+  unsigned short NumDecompNodes, count of all decomposition nodes
+  unsigned long  Bytes
+  unsigned long  DecompNodes[(NumDecompNodes * 2) + 1]
+  unsigned long  Decomp[N], N = sum of all counts in DecompNodes[]
+
+  If the ByteOrderMark is equal to 0xFFFE, endian swapping is required in the
+  same way as described in the CHARACTER PROPERTIES section.
+
+  The DecompNodes[] array consists of pairs of unsigned longs, the first of
+  which is the character code and the second is the initial index of the list
+  of character codes representing the decomposition.
+
+  Locating the decomposition of a composite character requires a binary search
+  for a character code in the DecompNodes[] array and using its index to
+  locate the start of the decomposition.  The length of the decomposition list
+  is the index in the following element in DecompNode[] minus the current
+  index.
+
+COMBINING CLASSES
+=================
+
+The fourth data file is called "cmbcl.dat" and contains the characters with
+non-zero combining classes.
+
+The format for the binary form of this table is:
+
+  unsigned short ByteOrderMark
+  unsigned short NumCCLNodes
+  unsigned long  Bytes
+  unsigned long  CCLNodes[NumCCLNodes * 3]
+
+  If the ByteOrderMark is equal to 0xFFFE, endian swapping is required in the
+  same way as described in the CHARACTER PROPERTIES section.
+
+  The CCLNodes[] array consists of groups of three unsigned longs.  The first
+  and second are the beginning and ending of a range and the third is the
+  combining class of that range.
+
+  If a character is not found in this table, then the combining class is
+  assumed to be 0.
+
+  It is important to note that only 65536 distinct ranges plus combining class
+  can be specified because the NumCCLNodes is usually a 16-bit number.
+
+NUMBER TABLE
+============
+
+The final data file is called "num.dat" and contains the characters that have
+a numeric value associated with them.
+
+The format for the binary form of the table is:
+
+  unsigned short ByteOrderMark
+  unsigned short NumNumberNodes
+  unsigned long  Bytes
+  unsigned long  NumberNodes[NumNumberNodes]
+  unsigned short ValueNodes[(Bytes - (NumNumberNodes * sizeof(unsigned long)))
+                            / sizeof(short)]
+
+  If the ByteOrderMark is equal to 0xFFFE, endian swapping is required in the
+  same way as described in the CHARACTER PROPERTIES section.
+
+  The NumberNodes array contains pairs of values, the first of which is the
+  character code and the second an index into the ValueNodes array.  The
+  ValueNodes array contains pairs of integers which represent the numerator
+  and denominator of the numeric value of the character.  If the character
+  happens to map to an integer, both the values in ValueNodes will be the
+  same.

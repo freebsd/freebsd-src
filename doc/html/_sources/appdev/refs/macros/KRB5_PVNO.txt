@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PVNO-data:
+
+KRB5_PVNO
+=========
+
+..
+.. data:: KRB5_PVNO
+..
+
+Protocol version number.
+
+
+
+================ ======================
+``KRB5_PVNO``       ``5``
+================ ======================

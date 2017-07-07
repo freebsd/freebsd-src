@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _CKSUMTYPE-HMAC-SHA1-DES3-data:
+
+CKSUMTYPE_HMAC_SHA1_DES3
+========================
+
+..
+.. data:: CKSUMTYPE_HMAC_SHA1_DES3
+..
+
+
+
+
+=============================== ======================
+``CKSUMTYPE_HMAC_SHA1_DES3``       ``0x000c``
+=============================== ======================

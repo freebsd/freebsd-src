@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_salt -  Set salt for optimistic preauthentication in initial credential options. 
+=============================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_salt(krb5_get_init_creds_opt * opt, krb5_data * salt)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **salt** - Salt data
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+When getting initial credentials with a password, a salt string it used to convert the password to a key. Normally this salt is obtained from the first KDC reply, but when performing optimistic preauthentication, the client may need to supply the salt string with this function.
+
+
+
+
+
+
+..
+
+
+
+
+

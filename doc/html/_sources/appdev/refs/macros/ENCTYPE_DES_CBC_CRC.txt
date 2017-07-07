@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _ENCTYPE-DES-CBC-CRC-data:
+
+ENCTYPE_DES_CBC_CRC
+===================
+
+..
+.. data:: ENCTYPE_DES_CBC_CRC
+..
+
+DES cbc mode with CRC-32.
+
+
+
+========================== ======================
+``ENCTYPE_DES_CBC_CRC``       ``0x0001``
+========================== ======================

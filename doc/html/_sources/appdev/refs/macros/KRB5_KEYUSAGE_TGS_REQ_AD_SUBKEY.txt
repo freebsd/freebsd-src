@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-TGS-REQ-AD-SUBKEY-data:
+
+KRB5_KEYUSAGE_TGS_REQ_AD_SUBKEY
+===============================
+
+..
+.. data:: KRB5_KEYUSAGE_TGS_REQ_AD_SUBKEY
+..
+
+
+
+
+====================================== ======================
+``KRB5_KEYUSAGE_TGS_REQ_AD_SUBKEY``       ``5``
+====================================== ======================

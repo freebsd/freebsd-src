@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KDC-OPT-CANONICALIZE-data:
+
+KDC_OPT_CANONICALIZE
+====================
+
+..
+.. data:: KDC_OPT_CANONICALIZE
+..
+
+
+
+
+=========================== ======================
+``KDC_OPT_CANONICALIZE``       ``0x00010000``
+=========================== ======================

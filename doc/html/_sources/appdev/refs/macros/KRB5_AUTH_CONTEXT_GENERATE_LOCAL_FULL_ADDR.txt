@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTH-CONTEXT-GENERATE-LOCAL-FULL-ADDR-data:
+
+KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR
+==========================================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR
+..
+
+Generate the local network address and the local port.
+
+
+
+================================================= ======================
+``KRB5_AUTH_CONTEXT_GENERATE_LOCAL_FULL_ADDR``       ``0x00000004``
+================================================= ======================

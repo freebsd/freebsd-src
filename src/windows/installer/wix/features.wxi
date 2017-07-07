@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+  Copyright (C) 2004, 2005, 2006 by the Massachusetts Institute of Technology.
+  All rights reserved.
+ 
+  Export of this software from the United States of America may
+    require a specific license from the United States Government.
+    It is the responsibility of any person or organization contemplating
+    export to obtain such a license before exporting.
+ 
+  WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+  distribute this software and its documentation for any purpose and
+  without fee is hereby granted, provided that the above copyright
+  notice appear in all copies and that both that copyright notice and
+  this permission notice appear in supporting documentation, and that
+  the name of M.I.T. not be used in advertising or publicity pertaining
+  to distribution of the software without specific, written prior
+  permission.  Furthermore if you modify this software you must label
+  your software as modified software and not distribute it in such a
+  fashion that it might be confused with the original M.I.T. software.
+  M.I.T. makes no representations about the suitability of
+  this software for any purpose.  It is provided "as is" without express
+  or implied warranty.
+  
+  -->
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+    <Feature 
+        Id="feaKfw"
+        AllowAdvertise="no"
+        Description="!(loc.KerberosDesc)"
+        InstallDefault="local"
+        Title="!(loc.KerberosTitle)"
+        ConfigurableDirectory="KERBEROSDIR"
+        Level="30">
+        <Feature
+            Id="feaKfwClient"
+            AllowAdvertise="no"
+            Description="!(loc.KerberosClientDesc)"
+            InstallDefault="local"
+            Title="!(loc.KerberosClientTitle)"
+            Level="30">
+
+            <?ifdef DebugSyms?>
+	    	<Feature 
+                    Id="feaKfwClientDebug" 
+                    AllowAdvertise="no" 
+                    Description="!(loc.StrKerberosClientDebugDesc)"
+                    Display="expand"
+		    InstallDefault="$(var.DebugSymInstallDefault)" 
+                    Level="$(var.DebugSymLowLevel)" 
+                    Title="!(loc.StrKerberosClientDebugTitle)">
+                    <ComponentRef Id="cmf_bin_debug"/>
+		    <ComponentRef Id="cmp_ClientSystemDebug"/>
+                    <?include runtime_debug.wxi?>
+	        </Feature>
+	    <?endif?>
+      <?if $(var.Platform)="x64"?>
+          <ComponentRef Id="cmf_comerr64_dll" />
+          <ComponentRef Id="cmf_gssapi64_dll" />
+          <ComponentRef Id="cmf_k5sprt64_dll" />
+          <ComponentRef Id="cmf_krb5_64_dll" />
+          <ComponentRef Id="cmf_krbcc64_dll" />
+          <ComponentRef Id="cmf_leashw64_dll" />
+          <ComponentRef Id="cmf_wshelp64_dll" />
+          <ComponentRef Id="cmf_xpprof64_dll" />
+       <?endif?>
+
+            <ComponentRef Id="cmf_comerr32_dll" />
+            <ComponentRef Id="cmf_gss_client_exe" />
+            <ComponentRef Id="cmf_gss_server_exe" />
+            <ComponentRef Id="cmf_gssapi32_dll" />
+            <ComponentRef Id="cmf_kdestroy_exe" />
+            <ComponentRef Id="cmf_kcpytkt_exe" />
+            <ComponentRef Id="cmf_kdeltkt_exe" />
+            <ComponentRef Id="cmf_kinit_exe" />
+            <ComponentRef Id="cmf_klist_exe" />
+            <ComponentRef Id="cmf_kpasswd_exe" />
+            <ComponentRef Id="cmf_kswitch_exe" />
+            <ComponentRef Id="cmf_kvno_exe" />
+            <ComponentRef Id="cmf_krb5_32_dll" />
+            <ComponentRef Id="cmf_k5sprt32_dll" />
+            <ComponentRef Id="cmf_krbcc32_dll" />
+            <ComponentRef Id="cmf_ccapiserver_exe" />
+            <ComponentRef Id="cmf_ms2mit_exe" />
+            <ComponentRef Id="cmf_mit2ms_exe" />
+            <ComponentRef Id="cmf_wshelp32_dll" />
+            <ComponentRef Id="cmf_xpprof32_dll" />
+
+            <ComponentRef Id="cmf_leashw32_dll" />
+
+            <ComponentRef Id="cmf_leash_exe" />
+<!--            <ComponentRef Id="csc_leash32_exe" /> -->
+	    <ComponentRef Id="cmf_kfwlogon_DLL" />
+            <ComponentRef Id="cmf_kfwcpcc_EXE" />
+
+            <!-- Kerberos V options -->
+            <ComponentRef Id="rcm_krb5_1" />
+            <ComponentRef Id="rcm_krb5_2" />
+            <ComponentRef Id="rcm_krb5_3" />
+
+            <!-- Leash config options -->
+            <ComponentRef Id="rcm_leash_1" />
+            <ComponentRef Id="rcm_leash_2" />
+            <ComponentRef Id="rcm_leash_3" />
+            <ComponentRef Id="rcm_leash_5" />
+            <ComponentRef Id="rcm_leash_6" />
+            
+            <ComponentRef Id="cmf_leash32_chm" />
+            
+            <!-- Leash dll options -->
+            <ComponentRef Id="rcm_leashdll_1" />
+            <ComponentRef Id="rcm_leashdll_2" />
+            <ComponentRef Id="rcm_leashdll_3" />
+            <ComponentRef Id="rcm_leashdll_4" />
+            <ComponentRef Id="rcm_leashdll_5" />
+            <ComponentRef Id="rcm_leashdll_6" />
+            <ComponentRef Id="rcm_leashdll_7" />
+            <ComponentRef Id="rcm_leashdll_8" />
+            <ComponentRef Id="rcm_leashdll_9" />
+            <ComponentRef Id="rcm_leashdll_10" />
+            <ComponentRef Id="rcm_leashdll_11" />
+            <ComponentRef Id="rcm_leashdll_12" />
+            <ComponentRef Id="rcm_leashdll_13" />
+            <ComponentRef Id="rcm_leashdll_15" />
+            <ComponentRef Id="rcm_leashdll_16" />
+            <ComponentRef Id="rcm_leashdll_17" />
+            
+            <ComponentRef Id="cmf_krb5_ini" />
+            
+            <ComponentRef Id="rcm_common" />
+            <ComponentRef Id="rcm_client" />
+            
+            <Feature Id="feaKfwLeashStartup" AllowAdvertise="no" Display="hidden" Level="130">
+                <Condition Level="30">LEASHAUTOSTART = 1</Condition>
+                <ComponentRef Id="csc_LeashStartup" />
+            </Feature>
+            <ComponentRef Id="SMshortcut" />
+            <ComponentRef Id="Dshortcut" />
+            <?include runtime.wxi?>
+        </Feature> <!-- /feaKfwClient -->
+        
+        <Feature
+            Id="feaKfwSDK" 
+            AllowAdvertise="no" 
+            Description="!(loc.KerberosSDKDesc)"
+            InstallDefault="local" 
+            Level="130" 
+            Title="!(loc.KerberosSDKTitle)">
+            
+        <?if $(var.Platform) = "Intel" ?>
+            <ComponentRef Id="cmp_dirlib_i386" />
+        <?else?>
+            <ComponentRef Id="cmp_dirlib_amd64" />
+        <?endif?>
+            <ComponentRef Id="cmp_dirinc_krb5_gssapi" />
+            <ComponentRef Id="cmp_dirinc_krb5_krb5" />
+            <ComponentRef Id="cmp_dirinc_krb5" />
+<!--            <ComponentRef Id="cmp_dirinc_krbcc" /> -->
+            <ComponentRef Id="cmp_dirinc_leash" />
+            <ComponentRef Id="cmp_dirinc_loadfuncs" />
+            <ComponentRef Id="cmp_dirinc_wshelper" />
+            <ComponentRef Id="cmp_dirinc_wshelper_arpa" />
+            <ComponentRef Id="rcm_common" />
+            <ComponentRef Id="rcm_sdk" />
+        </Feature> <!-- /feaKfwSDK -->
+        
+        <Feature
+            Id="feaKfwDocs" 
+            AllowAdvertise="no" 
+            Description="!(loc.KerberosDocDesc)"
+            InstallDefault="local" 
+            Level="30" 
+            Title="!(loc.KerberosDocTitle)">
+
+<!--            <?if $(var.Platform) = "Intel"?>
+                    <ComponentRef Id="efl_leash_userdoc_pdf" />
+            <?endif?> -->
+            
+            <ComponentRef Id="rcm_common" />
+            <ComponentRef Id="rcm_docs" />
+        </Feature>
+        
+    </Feature>
+</Include>

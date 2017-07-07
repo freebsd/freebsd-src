@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-PA-SAM-RESPONSE-data:
+
+KRB5_KEYUSAGE_PA_SAM_RESPONSE
+=============================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_SAM_RESPONSE
+..
+
+Note conflict with :c:data:`KRB5_KEYUSAGE_PA_S4U_X509_USER_REPLY` .
+
+
+
+==================================== ======================
+``KRB5_KEYUSAGE_PA_SAM_RESPONSE``       ``27``
+==================================== ======================

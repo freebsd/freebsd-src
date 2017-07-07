@@ -1,0 +1,29 @@
+.. highlightlang:: c
+
+.. _krb5-pa-svr-referral-data-struct:
+
+krb5_pa_svr_referral_data
+=========================
+
+..
+.. c:type:: krb5_pa_svr_referral_data
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_pa_svr_referral_data  krb5_pa_svr_referral_data
+
+
+Members
+---------
+
+
+.. c:member:: krb5_principal	krb5_pa_svr_referral_data.principal
+
+                                             Referred name, only realm is required.
+                                             
+

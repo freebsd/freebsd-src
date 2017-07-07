@@ -1,0 +1,459 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MIT Kerberos features &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="copyright" title="Copyright" href="copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="index.html" />
+    <link rel="next" title="MIT Kerberos License information" href="mitK5license.html" />
+    <link rel="prev" title="KDC cookie format" href="formats/cookie.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="formats/cookie.html" title="KDC cookie format"
+            accesskey="P">previous</a> |
+        <a href="mitK5license.html" title="MIT Kerberos License information"
+            accesskey="N">next</a> |
+        <a href="genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__MIT Kerberos features">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="toctree-wrapper compound">
+</div>
+<div class="section" id="mit-kerberos-features">
+<span id="mitk5features"></span><h1>MIT Kerberos features<a class="headerlink" href="#mit-kerberos-features" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="http://web.mit.edu/kerberos">http://web.mit.edu/kerberos</a></p>
+<div class="section" id="quick-facts">
+<h2>Quick facts<a class="headerlink" href="#quick-facts" title="Permalink to this headline">¶</a></h2>
+<p>License - <a class="reference internal" href="mitK5license.html#mitk5license"><em>MIT Kerberos License information</em></a></p>
+<dl class="docutils">
+<dt>Releases:</dt>
+<dd><ul class="first last simple">
+<li>Latest stable: <a class="reference external" href="http://web.mit.edu/kerberos/krb5-1.15/">http://web.mit.edu/kerberos/krb5-1.15/</a></li>
+<li>Supported: <a class="reference external" href="http://web.mit.edu/kerberos/krb5-1.14/">http://web.mit.edu/kerberos/krb5-1.14/</a></li>
+<li>Release cycle: 9 &#8211; 12 months</li>
+</ul>
+</dd>
+<dt>Supported platforms / OS distributions:</dt>
+<dd><ul class="first last simple">
+<li>Windows (KfW 4.0): Windows 7, Vista, XP</li>
+<li>Solaris: SPARC, x86_64/x86</li>
+<li>GNU/Linux: Debian x86_64/x86, Ubuntu x86_64/x86, RedHat x86_64/x86</li>
+<li>BSD: NetBSD x86_64/x86</li>
+</ul>
+</dd>
+<dt>Crypto backends:</dt>
+<dd><ul class="first last simple">
+<li>builtin - MIT Kerberos native crypto library</li>
+<li>OpenSSL (1.0+) - <a class="reference external" href="http://www.openssl.org">http://www.openssl.org</a></li>
+</ul>
+</dd>
+</dl>
+<p>Database backends: LDAP, DB2</p>
+<p>krb4 support: Kerberos 5 release &lt; 1.8</p>
+<p>DES support: configurable (See <a class="reference internal" href="admin/advanced/retiring-des.html#retiring-des"><em>Retiring DES</em></a>)</p>
+</div>
+<div class="section" id="interoperability">
+<h2>Interoperability<a class="headerlink" href="#interoperability" title="Permalink to this headline">¶</a></h2>
+<p><cite>Microsoft</cite></p>
+<p>Starting from release 1.7:</p>
+<ul class="simple">
+<li>Follow client principal referrals in the client library when
+obtaining initial tickets.</li>
+<li>KDC can issue realm referrals for service principals based on domain names.</li>
+<li>Extensions supporting DCE RPC, including three-leg GSS context setup
+and unencapsulated GSS tokens inside SPNEGO.</li>
+<li>Microsoft GSS_WrapEX, implemented using the gss_iov API, which is
+similar to the equivalent SSPI functionality.  This is needed to
+support some instances of DCE RPC.</li>
+<li>NTLM recognition support in GSS-API, to facilitate dropping in an
+NTLM implementation for improved compatibility with older releases
+of Microsoft Windows.</li>
+<li>KDC support for principal aliases, if the back end supports them.
+Currently, only the LDAP back end supports aliases.</li>
+<li>Support Microsoft set/change password (<span class="target" id="index-0"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc3244.html"><strong>RFC 3244</strong></a>) protocol in
+kadmind.</li>
+<li>Implement client and KDC support for GSS_C_DELEG_POLICY_FLAG, which
+allows a GSS application to request credential delegation only if
+permitted by KDC policy.</li>
+</ul>
+<p>Starting from release 1.8:</p>
+<ul class="simple">
+<li>Microsoft Services for User (S4U) compatibility</li>
+</ul>
+<p><cite>Heimdal</cite></p>
+<ul class="simple">
+<li>Support for KCM credential cache starting from release 1.13</li>
+</ul>
+</div>
+<div class="section" id="feature-list">
+<h2>Feature list<a class="headerlink" href="#feature-list" title="Permalink to this headline">¶</a></h2>
+<p>For more information on the specific project see <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects">http://k5wiki.kerberos.org/wiki/Projects</a></p>
+<dl class="docutils">
+<dt>Release 1.7</dt>
+<dd><ul class="first last simple">
+<li>Credentials delegation                   <span class="target" id="index-1"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc5896.html"><strong>RFC 5896</strong></a></li>
+<li>Cross-realm authentication and referrals <span class="target" id="index-2"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a></li>
+<li>Master key migration</li>
+<li>PKINIT                                   <span class="target" id="index-3"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a> <a class="reference internal" href="admin/pkinit.html#pkinit"><em>PKINIT configuration</em></a></li>
+</ul>
+</dd>
+<dt>Release 1.8</dt>
+<dd><ul class="first last simple">
+<li>Anonymous PKINIT         <span class="target" id="index-4"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6112.html"><strong>RFC 6112</strong></a> <a class="reference internal" href="admin/pkinit.html#anonymous-pkinit"><em>Anonymous PKINIT</em></a></li>
+<li>Constrained delegation</li>
+<li>IAKERB                   <a class="reference external" href="http://tools.ietf.org/html/draft-ietf-krb-wg-iakerb-02">http://tools.ietf.org/html/draft-ietf-krb-wg-iakerb-02</a></li>
+<li>Heimdal bridge plugin for KDC backend</li>
+<li>GSS-API S4U extensions   <a class="reference external" href="http://msdn.microsoft.com/en-us/library/cc246071">http://msdn.microsoft.com/en-us/library/cc246071</a></li>
+<li>GSS-API naming extensions                            <span class="target" id="index-5"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6680.html"><strong>RFC 6680</strong></a></li>
+<li>GSS-API extensions for storing delegated credentials <span class="target" id="index-6"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc5588.html"><strong>RFC 5588</strong></a></li>
+</ul>
+</dd>
+<dt>Release 1.9</dt>
+<dd><ul class="first last simple">
+<li>Advance warning on password expiry</li>
+<li>Camellia encryption (CTS-CMAC mode)       <span class="target" id="index-7"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6803.html"><strong>RFC 6803</strong></a></li>
+<li>KDC support for SecurID preauthentication</li>
+<li>kadmin over IPv6</li>
+<li>Trace logging                             <a class="reference internal" href="admin/troubleshoot.html#trace-logging"><em>Trace logging</em></a></li>
+<li>GSSAPI/KRB5 multi-realm support</li>
+<li>Plugin to test password quality           <a class="reference internal" href="plugindev/pwqual.html#pwqual-plugin"><em>Password quality interface (pwqual)</em></a></li>
+<li>Plugin to synchronize password changes    <a class="reference internal" href="plugindev/kadm5_hook.html#kadm5-hook-plugin"><em>KADM5 hook interface (kadm5_hook)</em></a></li>
+<li>Parallel KDC</li>
+<li>GSS-API extentions for SASL GS2 bridge    <span class="target" id="index-8"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc5801.html"><strong>RFC 5801</strong></a> <span class="target" id="index-9"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc5587.html"><strong>RFC 5587</strong></a></li>
+<li>Purging old keys</li>
+<li>Naming extensions for delegation chain</li>
+<li>Password expiration API</li>
+<li>Windows client support   (build-only)</li>
+<li>IPv6 support in iprop</li>
+</ul>
+</dd>
+<dt>Release 1.10</dt>
+<dd><ul class="first last simple">
+<li>Plugin interface for configuration        <a class="reference internal" href="plugindev/profile.html#profile-plugin"><em>Configuration interface (profile)</em></a></li>
+<li>Credentials for multiple identities       <a class="reference internal" href="plugindev/ccselect.html#ccselect-plugin"><em>Credential cache selection interface (ccselect)</em></a></li>
+</ul>
+</dd>
+<dt>Release 1.11</dt>
+<dd><ul class="first last simple">
+<li>Client support for FAST OTP               <span class="target" id="index-10"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6560.html"><strong>RFC 6560</strong></a></li>
+<li>GSS-API extensions for credential locations</li>
+<li>Responder mechanism</li>
+</ul>
+</dd>
+<dt>Release 1.12</dt>
+<dd><ul class="first last simple">
+<li>Plugin to control krb5_aname_to_localname and krb5_kuserok behavior   <a class="reference internal" href="plugindev/localauth.html#localauth-plugin"><em>Local authorization interface (localauth)</em></a></li>
+<li>Plugin to control hostname-to-realm mappings and the default realm    <a class="reference internal" href="plugindev/hostrealm.html#hostrealm-plugin"><em>Host-to-realm interface (hostrealm)</em></a></li>
+<li>GSSAPI extensions for constructing MIC tokens using IOV lists         <a class="reference internal" href="appdev/gssapi.html#gssapi-mic-token"><em>IOV MIC tokens</em></a></li>
+<li>Principal may refer to nonexistent policies <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects/Policy_refcount_elimination">Policy Refcount project</a></li>
+<li>Support for having no long-term keys for a principal <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects/Principals_without_keys">Principals Without Keys project</a></li>
+<li>Collection support to the KEYRING credential cache type on Linux <a class="reference internal" href="basic/ccache_def.html#ccache-definition"><em>Credential cache</em></a></li>
+<li>FAST OTP preauthentication module for the KDC which uses RADIUS to validate OTP token values <a class="reference internal" href="admin/otp.html#otp-preauth"><em>OTP Preauthentication</em></a></li>
+<li>Experimental Audit plugin for KDC processing <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects/Audit">Audit project</a></li>
+</ul>
+</dd>
+</dl>
+<p>Release 1.13</p>
+<blockquote>
+<div><ul class="simple">
+<li>Add support for accessing KDCs via an HTTPS proxy server using
+the <a class="reference external" href="http://msdn.microsoft.com/en-us/library/hh553774.aspx">MS-KKDCP</a>
+protocol.</li>
+<li>Add support for <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects/Hierarchical_iprop">hierarchical incremental propagation</a>,
+where slaves can act as intermediates between an upstream master
+and other downstream slaves.</li>
+<li>Add support for configuring GSS mechanisms using
+<tt class="docutils literal"><span class="pre">/etc/gss/mech.d/*.conf</span></tt> files in addition to
+<tt class="docutils literal"><span class="pre">/etc/gss/mech</span></tt>.</li>
+<li>Add support to the LDAP KDB module for <a class="reference external" href="http://k5wiki.kerberos.org/wiki/Projects/LDAP_SASL_support">binding to the LDAP
+server using SASL</a>.</li>
+<li>The KDC listens for TCP connections by default.</li>
+<li>Fix a minor key disclosure vulnerability where using the
+&#8220;keepold&#8221; option to the kadmin randkey operation could return the
+old keys. <a class="reference external" href="http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-5351">[CVE-2014-5351]</a></li>
+<li>Add client support for the Kerberos Cache Manager protocol. If
+the host is running a Heimdal kcm daemon, caches served by the
+daemon can be accessed with the KCM: cache type.</li>
+<li>When built on OS X 10.7 and higher, use &#8220;KCM:&#8221; as the default
+cachetype, unless overridden by command-line options or
+krb5-config values.</li>
+<li>Add support for doing unlocked database dumps for the DB2 KDC
+back end, which would allow the KDC and kadmind to continue
+accessing the database during lengthy database dumps.</li>
+</ul>
+</div></blockquote>
+<p>Release 1.14</p>
+<blockquote>
+<div><ul class="simple">
+<li>Administrator experience<ul>
+<li>Add a new kdb5_util tabdump command to provide reporting-friendly
+tabular dump formats (tab-separated or CSV) for the KDC database.
+Unlike the normal dump format, each output table has a fixed number
+of fields.  Some tables include human-readable forms of data that
+are opaque in ordinary dump files.  This format is also suitable for
+importing into relational databases for complex queries.</li>
+<li>Add support to kadmin and kadmin.local for specifying a single
+command line following any global options, where the command
+arguments are split by the shell&#8211;for example, &#8220;kadmin getprinc
+principalname&#8221;.  Commands issued this way do not prompt for
+confirmation or display warning messages, and exit with non-zero
+status if the operation fails.</li>
+<li>Accept the same principal flag names in kadmin as we do for the
+default_principal_flags kdc.conf variable, and vice versa.  Also
+accept flag specifiers in the form that kadmin prints, as well as
+hexadecimal numbers.</li>
+<li>Remove the triple-DES and RC4 encryption types from the default
+value of supported_enctypes, which determines the default key and
+salt types for new password-derived keys.  By default, keys will
+only created only for AES128 and AES256.  This mitigates some types
+of password guessing attacks.</li>
+<li>Add support for directory names in the KRB5_CONFIG and
+KRB5_KDC_PROFILE environment variables.</li>
+<li>Add support for authentication indicators, which are ticket
+annotations to indicate the strength of the initial authentication.
+Add support for the &#8220;require_auth&#8221; string attribute, which can be
+set on server principal entries to require an indicator when
+authenticating to the server.</li>
+<li>Add support for key version numbers larger than 255 in keytab files,
+and for version numbers up to 65535 in KDC databases.</li>
+<li>Transmit only one ETYPE-INFO and/or ETYPE-INFO2 entry from the KDC
+during pre-authentication, corresponding to the client&#8217;s most
+preferred encryption type.</li>
+<li>Add support for server name identification (SNI) when proxying KDC
+requests over HTTPS.</li>
+<li>Add support for the err_fmt profile parameter, which can be used to
+generate custom-formatted error messages.</li>
+</ul>
+</li>
+<li>Developer experience:<ul>
+<li>Change gss_acquire_cred_with_password() to acquire credentials into
+a private memory credential cache.  Applications can use
+gss_store_cred() to make the resulting credentials visible to other
+processes.</li>
+<li>Change gss_acquire_cred() and SPNEGO not to acquire credentials for
+IAKERB or for non-standard variants of the krb5 mechanism OID unless
+explicitly requested.  (SPNEGO will still accept the Microsoft
+variant of the krb5 mechanism OID during negotiation.)</li>
+<li>Change gss_accept_sec_context() not to accept tokens for IAKERB or
+for non-standard variants of the krb5 mechanism OID unless an
+acceptor credential is acquired for those mechanisms.</li>
+<li>Change gss_acquire_cred() to immediately resolve credentials if the
+time_rec parameter is not NULL, so that a correct expiration time
+can be returned.  Normally credential resolution is delayed until
+the target name is known.</li>
+<li>Add krb5_prepend_error_message() and krb5_wrap_error_message() APIs,
+which can be used by plugin modules or applications to add prefixes
+to existing detailed error messages.</li>
+<li>Add krb5_c_prfplus() and krb5_c_derive_prfplus() APIs, which
+implement the RFC 6113 PRF+ operation and key derivation using PRF+.</li>
+<li>Add support for pre-authentication mechanisms which use multiple
+round trips, using the the KDC_ERR_MORE_PREAUTH_DATA_REQUIRED error
+code.  Add get_cookie() and set_cookie() callbacks to the kdcpreauth
+interface; these callbacks can be used to save marshalled state
+information in an encrypted cookie for the next request.</li>
+<li>Add a client_key() callback to the kdcpreauth interface to retrieve
+the chosen client key, corresponding to the ETYPE-INFO2 entry sent
+by the KDC.</li>
+<li>Add an add_auth_indicator() callback to the kdcpreauth interface,
+allowing pre-authentication modules to assert authentication
+indicators.</li>
+<li>Add support for the GSS_KRB5_CRED_NO_CI_FLAGS_X cred option to
+suppress sending the confidentiality and integrity flags in GSS
+initiator tokens unless they are requested by the caller.  These
+flags control the negotiated SASL security layer for the Microsoft
+GSS-SPNEGO SASL mechanism.</li>
+<li>Make the FILE credential cache implementation less prone to
+corruption issues in multi-threaded programs, especially on
+platforms with support for open file description locks.</li>
+</ul>
+</li>
+<li>Performance:<ul>
+<li>On slave KDCs, poll the master KDC immediately after processing a
+full resync, and do not require two full resyncs after the master
+KDC&#8217;s log file is reset.</li>
+</ul>
+</li>
+</ul>
+</div></blockquote>
+<p>Release 1.15</p>
+<ul class="simple">
+<li>Administrator experience:<ul>
+<li>Add support to kadmin for remote extraction of current keys
+without changing them (requires a special kadmin permission that
+is excluded from the wildcard permission), with the exception of
+highly protected keys.</li>
+<li>Add a lockdown_keys principal attribute to prevent retrieval of
+the principal&#8217;s keys (old or new) via the kadmin protocol.  In
+newly created databases, this attribute is set on the krbtgt and
+kadmin principals.</li>
+<li>Restore recursive dump capability for DB2 back end, so sites can
+more easily recover from database corruption resulting from power
+failure events.</li>
+<li>Add DNS auto-discovery of KDC and kpasswd servers from URI
+records, in addition to SRV records.  URI records can convey TCP
+and UDP servers and master KDC status in a single DNS lookup, and
+can also point to HTTPS proxy servers.</li>
+<li>Add support for password history to the LDAP back end.</li>
+<li>Add support for principal renaming to the LDAP back end.</li>
+<li>Use the getrandom system call on supported Linux kernels to avoid
+blocking problems when getting entropy from the operating system.</li>
+</ul>
+</li>
+<li>Code quality:<ul>
+<li>Clean up numerous compilation warnings.</li>
+<li>Remove various infrequently built modules, including some preauth
+modules that were not built by default.</li>
+</ul>
+</li>
+<li>Developer experience:<ul>
+<li>Add support for building with OpenSSL 1.1.</li>
+<li>Use SHA-256 instead of MD5 for (non-cryptographic) hashing of
+authenticators in the replay cache.  This helps sites that must
+build with FIPS 140 conformant libraries that lack MD5.</li>
+</ul>
+</li>
+<li>Protocol evolution:<ul>
+<li>Add support for the AES-SHA2 enctypes, which allows sites to
+conform to Suite B crypto requirements.</li>
+</ul>
+</li>
+</ul>
+<p><cite>Pre-authentication mechanisms</cite></p>
+<ul class="simple">
+<li>PW-SALT                                         <span class="target" id="index-11"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4120.html#section-5.2.7.3"><strong>RFC 4120</strong></a></li>
+<li>ENC-TIMESTAMP                                   <span class="target" id="index-12"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4120.html#section-5.2.7.2"><strong>RFC 4120</strong></a></li>
+<li>SAM-2</li>
+<li>FAST negotiation framework   (release 1.8)      <span class="target" id="index-13"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a></li>
+<li>PKINIT with FAST on client   (release 1.10)     <span class="target" id="index-14"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a></li>
+<li>PKINIT                                          <span class="target" id="index-15"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc4556.html"><strong>RFC 4556</strong></a></li>
+<li>FX-COOKIE                                       <span class="target" id="index-16"></span><a class="rfc reference external" href="http://tools.ietf.org/html/rfc6113.html#section-5.2"><strong>RFC 6113</strong></a></li>
+<li>S4U-X509-USER                (release 1.8)      <a class="reference external" href="http://msdn.microsoft.com/en-us/library/cc246091">http://msdn.microsoft.com/en-us/library/cc246091</a></li>
+<li>OTP                          (release 1.12)     <a class="reference internal" href="admin/otp.html#otp-preauth"><em>OTP Preauthentication</em></a></li>
+</ul>
+<p><cite>PRNG</cite></p>
+<ul class="simple">
+<li>modularity       (release 1.9)</li>
+<li>Yarrow PRNG      (release &lt; 1.10)</li>
+<li>Fortuna PRNG     (release 1.9)       <a class="reference external" href="http://www.schneier.com/book-practical.html">http://www.schneier.com/book-practical.html</a></li>
+<li>OS PRNG          (release 1.10)      OS&#8217;s native PRNG</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">MIT Kerberos features</a><ul>
+<li><a class="reference internal" href="#quick-facts">Quick facts</a></li>
+<li><a class="reference internal" href="#interoperability">Interoperability</a></li>
+<li><a class="reference internal" href="#feature-list">Feature list</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">MIT Kerberos features</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="formats/cookie.html" title="KDC cookie format"
+            >previous</a> |
+        <a href="mitK5license.html" title="MIT Kerberos License information"
+            >next</a> |
+        <a href="genindex.html" title="General Index"
+            >index</a> |
+        <a href="search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__MIT Kerberos features">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

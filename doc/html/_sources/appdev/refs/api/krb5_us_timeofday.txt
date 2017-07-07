@@ -1,0 +1,54 @@
+krb5_us_timeofday -  Retrieve the system time of day, in sec and ms, since the epoch. 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_us_timeofday(krb5_context context, krb5_timestamp * seconds, krb5_int32 * microseconds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **seconds** - System timeofday, seconds portion
+
+	          **[out]** **microseconds** - System timeofday, microseconds portion
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function retrieves the system time of day with the context specific time offset adjustment.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

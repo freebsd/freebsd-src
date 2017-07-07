@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>.k5login &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../index.html" />
+    <link rel="up" title="User config files" href="index.html" />
+    <link rel="next" title=".k5identity" href="k5identity.html" />
+    <link rel="prev" title="User config files" href="index.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="User config files"
+            accesskey="P">previous</a> |
+        <a href="k5identity.html" title=".k5identity"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__.k5login">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="k5login">
+<span id="k5login-5"></span><h1>.k5login<a class="headerlink" href="#k5login" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The .k5login file, which resides in a user&#8217;s home directory, contains
+a list of the Kerberos principals.  Anyone with valid tickets for a
+principal in the file is allowed host access with the UID of the user
+in whose home directory the file resides.  One common use is to place
+a .k5login file in root&#8217;s home directory, thereby granting system
+administrators remote root access to the host via Kerberos.</p>
+</div>
+<div class="section" id="examples">
+<h2>EXAMPLES<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>Suppose the user <tt class="docutils literal"><span class="pre">alice</span></tt> had a .k5login file in her home directory
+containing just the following line:</p>
+<div class="highlight-python"><div class="highlight"><pre>bob@FOOBAR.ORG
+</pre></div>
+</div>
+<p>This would allow <tt class="docutils literal"><span class="pre">bob</span></tt> to use Kerberos network applications, such as
+ssh(1), to access <tt class="docutils literal"><span class="pre">alice</span></tt>&#8216;s account, using <tt class="docutils literal"><span class="pre">bob</span></tt>&#8216;s Kerberos
+tickets.  In a default configuration (with <strong>k5login_authoritative</strong> set
+to true in <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><em>krb5.conf</em></a>), this .k5login file would not let
+<tt class="docutils literal"><span class="pre">alice</span></tt> use those network applications to access her account, since
+she is not listed!  With no .k5login file, or with <strong>k5login_authoritative</strong>
+set to false, a default rule would permit the principal <tt class="docutils literal"><span class="pre">alice</span></tt> in the
+machine&#8217;s default realm to access the <tt class="docutils literal"><span class="pre">alice</span></tt> account.</p>
+<p>Let us further suppose that <tt class="docutils literal"><span class="pre">alice</span></tt> is a system administrator.
+Alice and the other system administrators would have their principals
+in root&#8217;s .k5login file on each host:</p>
+<div class="highlight-python"><div class="highlight"><pre>alice@BLEEP.COM
+
+joeadmin/root@BLEEP.COM
+</pre></div>
+</div>
+<p>This would allow either system administrator to log in to these hosts
+using their Kerberos tickets instead of having to type the root
+password.  Note that because <tt class="docutils literal"><span class="pre">bob</span></tt> retains the Kerberos tickets for
+his own principal, <tt class="docutils literal"><span class="pre">bob&#64;FOOBAR.ORG</span></tt>, he would not have any of the
+privileges that require <tt class="docutils literal"><span class="pre">alice</span></tt>&#8216;s tickets, such as root access to
+any of the site&#8217;s hosts, or the ability to change <tt class="docutils literal"><span class="pre">alice</span></tt>&#8216;s
+password.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>kerberos(1)</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">.k5login</a><ul>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#examples">EXAMPLES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tkt_mgmt.html">Ticket management</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">User config files</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="">.k5login</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5identity.html">.k5identity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_commands/index.html">User commands</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="User config files"
+            >previous</a> |
+        <a href="k5identity.html" title=".k5identity"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__.k5login">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

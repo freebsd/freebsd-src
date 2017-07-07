@@ -1,0 +1,60 @@
+.. highlightlang:: c
+
+.. _krb5-cred-info-struct:
+
+krb5_cred_info
+==============
+
+..
+.. c:type:: krb5_cred_info
+..
+
+Credentials information inserted into *EncKrbCredPart* .
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_cred_info  krb5_cred_info
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_cred_info.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_keyblock  *	krb5_cred_info.session
+
+                                             Session key used to encrypt ticket.
+                                             
+
+.. c:member:: krb5_principal	krb5_cred_info.client
+
+                                             Client principal and realm.
+                                             
+
+.. c:member:: krb5_principal	krb5_cred_info.server
+
+                                             Server principal and realm.
+                                             
+
+.. c:member:: krb5_flags	krb5_cred_info.flags
+
+                                             Ticket flags.
+                                             
+
+.. c:member:: krb5_ticket_times	krb5_cred_info.times
+
+                                             Auth, start, end, renew_till.
+                                             
+
+.. c:member:: krb5_address  **	krb5_cred_info.caddrs
+
+                                             Array of pointers to addrs (optional)
+                                             
+

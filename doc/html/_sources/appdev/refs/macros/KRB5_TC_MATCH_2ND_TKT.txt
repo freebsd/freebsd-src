@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-TC-MATCH-2ND-TKT-data:
+
+KRB5_TC_MATCH_2ND_TKT
+=====================
+
+..
+.. data:: KRB5_TC_MATCH_2ND_TKT
+..
+
+The second ticket must match.
+
+
+
+============================ ======================
+``KRB5_TC_MATCH_2ND_TKT``       ``0x00000080``
+============================ ======================

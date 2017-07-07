@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-pointer-struct:
+
+krb5_pointer
+============
+
+..
+.. c:type:: krb5_pointer
+..
+
+
+
+
+Declaration
+------------
+
+typedef void\* krb5_pointer
+
+

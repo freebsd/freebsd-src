@@ -1,0 +1,161 @@
+#!/bin/sh
+
+DUMMY=${TESTDIR=$TOP/testing}
+DUMMY=${STESTDIR=$STOP/testing}
+DUMMY=${INITDB=$STESTDIR/scripts/init_db}
+DUMMY=${SRVTCL=$TESTDIR/util/kadm5_srv_tcl}; export SRVTCL
+DUMMY=${LOCAL_MAKE_KEYTAB=$TESTDIR/scripts/make-host-keytab.pl}
+DUMMY=${STOP_SERVERS_LOCAL=$STESTDIR/scripts/stop_servers_local}
+DUMMY=${KRB5RCACHEDIR=$TESTDIR} ; export KRB5RCACHEDIR
+
+if [ -d /usr/tmp ]; then
+	usrtmp=/usr/tmp
+else
+	usrtmp=/var/tmp
+fi
+
+$STOP_SERVERS_LOCAL -start_servers
+
+if $VERBOSE; then
+	REDIRECT=
+else
+	REDIRECT='>/dev/null'
+fi
+
+while :; do
+	case $1 in
+	-keysalt)
+		shift
+		if [ $# -gt 0 ]; then
+			keysalts="$keysalts $1"
+		else
+			break
+		fi
+		;;
+	-kdcport)
+		shift
+		if [ $# -gt 0 ]; then
+			kdcport=$1
+		else
+			break
+		fi
+		;;
+	*)
+		break
+		;;
+	esac
+	shift
+done
+
+if [ $# -gt 1 ]; then
+	echo "Usage: $0 [-kdcport port] [-keysalts tuple] ... [top]" 1>&2
+	exit 1
+elif [ $# = 1 ]; then
+	TOP=$1
+	export TOP
+fi
+
+# create a fresh db
+
+$INITDB "$keysalts" || exit 1
+
+# Post-process the config files based on our arguments
+if [ "$keysalts" != "" ]; then
+	sedcmd="s/\([ 	]*supported_enctypes =\).*/\1 $keysalts/"
+	sed -e "$sedcmd" < $K5ROOT/kdc.conf > $K5ROOT/kdc.conf.new
+	mv $K5ROOT/kdc.conf.new $K5ROOT/kdc.conf
+fi
+if [ "$kdcport" != "" ] ; then
+	sedcmd="s/\(kdc_ports = .*\)[ 	]*/\1, $kdcport/"
+	sed -e "$sedcmd" < $K5ROOT/kdc.conf > $K5ROOT/kdc.conf.new
+	mv $K5ROOT/kdc.conf.new $K5ROOT/kdc.conf
+fi
+
+# allow admin to krlogin as root (for cleanup)
+DUMMY=${REALM=SECURE-TEST.OV.COM}; export REALM
+hostname=`hostname`
+QUALNAME=`$TOP/testing/scripts/qualname.pl $hostname`; export QUALNAME
+
+cat - > /tmp/start_servers_local$$ <<\EOF
+if { [catch {
+	source $env(STOP)/testing/tcl/util.t
+	set r $env(REALM)
+	set q $env(QUALNAME)
+	puts stdout [kadm5_init $env(SRVTCL) mrroot null \
+		[config_params {KADM5_CONFIG_REALM} $r] \
+		$KADM5_STRUCT_VERSION $KADM5_API_VERSION_3 server_handle]
+	puts stdout [kadm5_create_principal $server_handle \
+		[simple_principal host/$q@$r] {KADM5_PRINCIPAL} notathena]
+	puts stdout [kadm5_destroy $server_handle]
+} err]} {
+	puts stderr "initialization error: $err"
+	exit 1
+}
+exit 0
+EOF
+eval "$SRVTCL < /tmp/start_servers_local$$ $REDIRECT"
+x=$?
+rm /tmp/start_servers_local$$
+if test $x != 0 ; then exit 1 ; fi
+
+# rm -f /etc/v5srvtab
+# eval $LOCAL_MAKE_KEYTAB -princ host/xCANONHOSTx /etc/v5srvtab $REDIRECT
+
+# run the servers (from the build tree)
+
+adm_start_file=/tmp/adm_server_start.$$
+kdc_start_file=/tmp/kdc_server_start.$$
+
+rm -f $kdc_start_file
+
+if test "x$USER" = x ; then
+  USER=$LOGNAME ; export USER
+fi
+
+kdc_args="-R dfl:kdc_rcache.$USER"
+
+(trap "" 2; cd $TOP/../kdc; ./krb5kdc $kdc_args; touch $kdc_start_file) \
+	< /dev/null > $usrtmp/kdc-log.$USER 2>&1 &
+
+s=1
+max_s=60
+sofar_s=0
+timewait_s=300
+
+ovadm_args=-W
+
+rm -f $adm_start_file
+
+(sleep 1; cd $TOP/server; ./kadmind $ovadm_args; \
+	touch $adm_start_file) < /dev/null > $usrtmp/kadm-log.$USER 2>&1 &
+
+# wait until they start
+
+while [ $sofar_s -le $max_s ]; do
+	if $VERBOSE; then
+		echo "Sleeping for $s seconds to allow servers" \
+			"to start..."
+	fi
+
+	sofar_s=`expr $sofar_s + $s`
+
+	sleep $s
+
+	if [ -f $adm_start_file -a -f $kdc_start_file ]; then
+		break
+	fi
+done
+
+if [ $sofar_s -gt $max_s ]; then
+	echo "Admin server or KDC failed to start after $sofar_s" \
+		"seconds." 1>&2
+	if [ ! -f $adm_start_file ]; then
+	    echo "  No admin server start file $adm_start_file." 1>&2
+	fi
+	if [ ! -f $kdc_start_file ]; then
+	    echo "  No KDC start file $adm_start_file." 1>&2
+	fi
+	exit 1
+fi
+
+rm -f $kdc_start_file $adm_start_file

@@ -1,0 +1,216 @@
+# Test for the simple clients
+# This is a DejaGnu test script.
+# This script tests that krb-safe and krb-priv messages work.
+
+# This mostly just calls procedures in test/dejagnu/config/default.exp.
+
+if ![info exists KLIST] {
+    set KLIST [findfile $objdir/../../clients/klist/klist]
+}
+
+if ![info exists KDESTROY] {
+    set KDESTROY [findfile $objdir/../../clients/kdestroy/kdestroy]
+}
+
+if ![info exists SIM_SERVER] {
+    set SIM_SERVER [findfile $objdir/../../appl/simple/server/sim_server]
+}
+if ![info exists SIM_CLIENT] {
+    set SIM_CLIENT [findfile $objdir/../../appl/simple/client/sim_client]
+}
+
+# Set up the Kerberos files and environment.
+if {![get_hostname] || ![setup_kerberos_files] || ![setup_kerberos_env]} {
+    return
+}
+
+# Initialize the Kerberos database.  The argument tells
+# setup_kerberos_db that it is being called from here.
+if ![setup_kerberos_db 0] {
+    return
+}
+
+proc start_sim_server_daemon { } {
+    global spawn_id
+    global sim_server_pid
+    global sim_server_spawn_id
+    global SIM_SERVER
+    global T_INETD
+    global tmppwd
+    global portbase
+
+    # Start the sim_server
+    spawn $SIM_SERVER -p [expr 8 + $portbase] -S $tmppwd/srvtab
+    set sim_server_pid [exp_pid]
+    set sim_server_spawn_id $spawn_id
+
+    verbose "sim_server_spawn is $sim_server_spawn_id" 1
+
+    expect {
+	"starting"	{ }
+	eof		{ perror "sim_server failed to start" }
+    }
+
+    return 1
+}
+
+
+proc stop_sim_server_daemon { } {
+    global sim_server_pid
+    global sim_server_spawn_id
+
+    if [info exists sim_server_pid] {
+	catch "close -i $sim_server_spawn_id"
+	catch "exec kill $sim_server_pid"
+	wait -i $sim_server_spawn_id
+	unset sim_server_pid
+    }
+
+    return 1
+}
+
+proc stop_check_sim_server_daemon { } {
+    global sim_server_spawn_id
+    global sim_server_pid
+
+    # Check the exit status of sim_server - should exit here
+    set status_list [wait -i $sim_server_spawn_id]
+    verbose "wait -i $sim_server_spawn_id returned $status_list (sim_server)"
+    catch "close -i $sim_server_spawn_id"
+    if { [lindex $status_list 2] != 0 || [lindex $status_list 3] != 0 } {
+	send_log "exit status: $status_list\n"
+	verbose "exit status: $status_list"
+	fail "sim_server"
+    } else {
+	pass "sim_server"
+    }
+    # In either case the server shutdown
+    unset sim_server_pid
+}
+
+proc test_sim_client { msg } {
+    global REALMNAME
+    global SIM_CLIENT
+    global hostname
+    global spawn_id
+    global portbase
+    global sim_server_spawn_id
+
+    # Test the client
+    spawn $SIM_CLIENT -p [expr 8 + $portbase] $hostname
+    verbose "sim_client_spawn is  $spawn_id" 1
+
+    expect {
+	"Sent checksummed message: " {
+		verbose "received safe message"
+	}
+	timeout {
+		fail $msg 
+		return 0
+	}
+	eof {
+		fail $msg 
+		return 0
+	}	
+     }
+
+    expect {
+	"Sent encrypted message: " {
+		verbose "received private message"
+	}
+	eof {
+		fail $msg 
+		return 0
+	    }
+    }
+    expect {
+        "\r" { }
+    }
+
+    expect {
+	-i $sim_server_spawn_id
+	"Safe message is: 'hi there!'" { }
+	timeout {
+	    fail $msg
+	    return 0
+	}
+	eof {
+	    fail $msg
+	    return 0
+	}
+    }
+
+    expect {
+	-i $sim_server_spawn_id
+	"Decrypted message is: 'hi there!'" { }
+	timeout {
+	    fail $msg
+	    return 0
+	}
+	eof {
+	    fail $msg
+	    return 0
+	}
+    }
+
+    if ![check_exit_status "simple"] {
+	return 0
+    }
+
+    return 1
+}
+# We are about to start up a couple of daemon processes.  We do all
+# the rest of the tests inside a proc, so that we can easily kill the
+# processes when the procedure ends.
+
+proc doit { } {
+    global hostname
+    global KEY
+    global sim_server_pid
+    global sim_server_spawn_id
+
+    # Start up the kerberos and kadmind daemons.
+    if ![start_kerberos_daemons 0] {
+	return
+    }
+
+    # Use kadmin to add an host key.
+    if ![add_random_key sample/$hostname 1] {
+	return
+    }
+
+    # Use ksrvutil to create a srvtab entry for sample
+    if ![setup_srvtab 1 sample] {
+	return
+    }
+
+    # Use kinit to get a ticket.
+    if ![kinit krbtest/admin adminpass$KEY 1] {
+	return
+    }
+
+    if ![start_sim_server_daemon] {
+	return 
+    }
+
+    if ![test_sim_client sim_client] {
+	return
+    }
+    
+    pass "simple - standalone"
+
+    stop_check_sim_server_daemon
+    return
+}
+
+set status [catch doit msg]
+
+stop_sim_server_daemon
+
+stop_kerberos_daemons
+
+if { $status != 0 } {
+    send_error "ERROR: error in simple.exp\n"
+    send_error "$msg\n"
+    exit 1
+}

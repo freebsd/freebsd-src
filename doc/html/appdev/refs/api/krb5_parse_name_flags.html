@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>krb5_parse_name_flags - Convert a string principal name to a krb5_principal with flags. &mdash; MIT Kerberos Documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.15.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="top" title="MIT Kerberos Documentation" href="../../../index.html" />
+    <link rel="up" title="krb5 API" href="index.html" />
+    <link rel="next" title="krb5_principal_compare - Compare two principals." href="krb5_principal_compare.html" />
+    <link rel="prev" title="krb5_parse_name - Convert a string principal name to a krb5_principal structure." href="krb5_parse_name.html" /> 
+  </head>
+  <body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_parse_name.html" title="krb5_parse_name - Convert a string principal name to a krb5_principal structure."
+            accesskey="P">previous</a> |
+        <a href="krb5_principal_compare.html" title="krb5_principal_compare - Compare two principals."
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_parse_name_flags -  Convert a string principal name to a krb5_principal with flags.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="krb5-parse-name-flags-convert-a-string-principal-name-to-a-krb5-principal-with-flags">
+<h1>krb5_parse_name_flags -  Convert a string principal name to a krb5_principal with flags.<a class="headerlink" href="#krb5-parse-name-flags-convert-a-string-principal-name-to-a-krb5-principal-with-flags" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="c.krb5_parse_name_flags">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <tt class="descname">krb5_parse_name_flags</tt><big>(</big><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, const char *<em>&nbsp;name</em>, int<em>&nbsp;flags</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a> *<em>&nbsp;principal_out</em><big>)</big><a class="headerlink" href="#c.krb5_parse_name_flags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p><strong>[in]</strong> <strong>name</strong> - String representation of a principal name</p>
+<p><strong>[in]</strong> <strong>flags</strong> - Flag</p>
+<p class="last"><strong>[out]</strong> <strong>principal_out</strong> - New principal</p>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first simple">
+<li>0   Success</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">return:</th><td class="field-body"><ul class="first last simple">
+<li>Kerberos error codes</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Similar to <a class="reference internal" href="krb5_parse_name.html#c.krb5_parse_name" title="krb5_parse_name"><tt class="xref c c-func docutils literal"><span class="pre">krb5_parse_name()</span></tt></a> , this function converts a single-string representation of a principal name to a krb5_principal structure.</p>
+<p>The following flags are valid:</p>
+<blockquote>
+<div><blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="../macros/KRB5_PRINCIPAL_PARSE_NO_REALM.html#KRB5_PRINCIPAL_PARSE_NO_REALM" title="KRB5_PRINCIPAL_PARSE_NO_REALM"><tt class="xref py py-data docutils literal"><span class="pre">KRB5_PRINCIPAL_PARSE_NO_REALM</span></tt></a> - no realm must be present in <em>name</em></li>
+<li><a class="reference internal" href="../macros/KRB5_PRINCIPAL_PARSE_REQUIRE_REALM.html#KRB5_PRINCIPAL_PARSE_REQUIRE_REALM" title="KRB5_PRINCIPAL_PARSE_REQUIRE_REALM"><tt class="xref py py-data docutils literal"><span class="pre">KRB5_PRINCIPAL_PARSE_REQUIRE_REALM</span></tt></a> - realm must be present in <em>name</em></li>
+<li><a class="reference internal" href="../macros/KRB5_PRINCIPAL_PARSE_ENTERPRISE.html#KRB5_PRINCIPAL_PARSE_ENTERPRISE" title="KRB5_PRINCIPAL_PARSE_ENTERPRISE"><tt class="xref py py-data docutils literal"><span class="pre">KRB5_PRINCIPAL_PARSE_ENTERPRISE</span></tt></a> - create single-component enterprise principal</li>
+<li><a class="reference internal" href="../macros/KRB5_PRINCIPAL_PARSE_IGNORE_REALM.html#KRB5_PRINCIPAL_PARSE_IGNORE_REALM" title="KRB5_PRINCIPAL_PARSE_IGNORE_REALM"><tt class="xref py py-data docutils literal"><span class="pre">KRB5_PRINCIPAL_PARSE_IGNORE_REALM</span></tt></a> - ignore realm if present in <em>name</em></li>
+</ul>
+</div></blockquote>
+<p>If <strong>KRB5_PRINCIPAL_PARSE_NO_REALM</strong> or <strong>KRB5_PRINCIPAL_PARSE_IGNORE_REALM</strong> is specified in <em>flags</em> , the realm of the new principal will be empty. Otherwise, the default realm for <em>context</em> will be used if <em>name</em> does not specify a realm.</p>
+</div></blockquote>
+<p>Use <a class="reference internal" href="krb5_free_principal.html#c.krb5_free_principal" title="krb5_free_principal"><tt class="xref c c-func docutils literal"><span class="pre">krb5_free_principal()</span></tt></a> to free <em>principal_out</em> when it is no longer needed.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_parse_name_flags -  Convert a string principal name to a krb5_principal with flags.</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.15.1</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2017, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_parse_name.html" title="krb5_parse_name - Convert a string principal name to a krb5_principal structure."
+            >previous</a> |
+        <a href="krb5_principal_compare.html" title="krb5_principal_compare - Compare two principals."
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_parse_name_flags -  Convert a string principal name to a krb5_principal with flags.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

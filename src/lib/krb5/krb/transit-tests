@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# Test the chk_trans.c code.
+# BUG: Currently only tests expansion, not validation.
+
+trap "echo Failed. ; exit 1" 0
+
+check='echo Running test "($1) ($2) ($3)" ... ; ./t_expand -x >tmpout1 "$@" || exit 1 ; grep -v : <tmpout1 >tmpout2 && sort <tmpout2 >tmpout1 && echo Got: `cat tmpout1` && (for i in $expected ; do echo $i ; done) | sort > tmpout2 && echo Exp: `cat tmpout2` && echo "" && cmp >/dev/null 2>&1 tmpout1 tmpout2 || exit 1'
+checkerror='echo Running test "($1) ($2) ($3)", expecting error ... ; if ./t_expand -x >tmpout1 "$@" ; then echo Error was expected, but not reported. ; exit 1; else echo Expected error found. ; echo ""; fi'
+
+#
+# Note: Expected realm expansion order is not important; program output
+# and expected values will each be sorted before comparison.
+#
+
+set ATHENA.MIT.EDU HACK.FOOBAR.COM ,EDU,BLORT.COM,COM,
+expected="MIT.EDU EDU BLORT.COM COM FOOBAR.COM"
+eval $check
+
+set ATHENA.MIT.EDU EDU ,
+expected="MIT.EDU"
+eval $check
+
+set EDU ATHENA.MIT.EDU ,
+expected="MIT.EDU"
+eval $check
+
+set x x "/COM,/HP,/APOLLO, /COM/DEC"
+expected="/COM /COM/HP /COM/HP/APOLLO /COM/DEC"
+eval $check
+
+set x x EDU,MIT.,ATHENA.,WASHINGTON.EDU,CS.
+expected="EDU MIT.EDU ATHENA.MIT.EDU WASHINGTON.EDU CS.WASHINGTON.EDU"
+eval $check
+
+set ATHENA.MIT.EDU /COM/HP/APOLLO ,EDU,/COM,
+eval $checkerror
+
+set ATHENA.MIT.EDU /COM/HP/APOLLO ",EDU, /COM,"
+expected="EDU MIT.EDU /COM /COM/HP"
+eval $check
+
+set ATHENA.MIT.EDU CS.CMU.EDU ,EDU,
+expected="EDU MIT.EDU CMU.EDU"
+eval $check
+
+set XYZZY.ATHENA.MIT.EDU XYZZY.CS.CMU.EDU ,EDU,
+expected="EDU MIT.EDU ATHENA.MIT.EDU CMU.EDU CS.CMU.EDU"
+eval $check
+
+rm tmpout1 tmpout2
+trap "" 0
+echo Success.
+exit 0

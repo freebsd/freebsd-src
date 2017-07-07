@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-IAKERB-FINISHED-data:
+
+KRB5_KEYUSAGE_IAKERB_FINISHED
+=============================
+
+..
+.. data:: KRB5_KEYUSAGE_IAKERB_FINISHED
+..
+
+
+
+
+==================================== ======================
+``KRB5_KEYUSAGE_IAKERB_FINISHED``       ``42``
+==================================== ======================

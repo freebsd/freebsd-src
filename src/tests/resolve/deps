@@ -1,0 +1,13 @@
+#
+# Generated makefile dependencies follow.
+#
+$(OUTPRE)resolve.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  resolve.c
+$(OUTPRE)addrinfo-test.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  addrinfo-test.c
+$(OUTPRE)fake-addrinfo-test.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(top_srcdir)/include/fake-addrinfo.h $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/port-sockets.h \
+  $(top_srcdir)/include/socket-utils.h addrinfo-test.c \
+  fake-addrinfo-test.c

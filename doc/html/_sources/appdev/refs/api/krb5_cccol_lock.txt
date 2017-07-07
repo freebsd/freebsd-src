@@ -1,0 +1,51 @@
+krb5_cccol_lock -  Acquire a global lock for credential caches. 
+================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_lock(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function locks the global credential cache collection, ensuring that no ccaches are added to or removed from it until the collection lock is released.
+
+
+
+Use :c:func:`krb5_cccol_unlock()` to unlock the lock.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

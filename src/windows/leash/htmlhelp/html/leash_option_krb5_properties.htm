@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type"
+ content="text/html; charset=Windows-1252">
+  <title>Kerberos Five Properties Command</title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<object type="application/x-oleobject"
+ classid="clsid:1e2a7bd0-dab9-11d0-b93a-00c04fc99f9e"> <param
+ name="Keyword" value="properties, Kerberos5"> <param name="Keyword"
+ value="key, Ctrl+5">
+</object>
+<h3><a name="hid_krb5_properties_command"></a><b>Kerberos v5 Properties Command, Ctrl+5</b></h3>
+The Kerberos v5 Properties dialog is accessible from the Options menu.
+This dialog has two tabs: <span style="font-weight: bold;">File
+Location</span> and <span style="font-weight: bold;">Configuration
+Options</span>.<br>
+<br>
+<span style="font-style: italic;">File Location:</span><br>
+<br>
+<img style="width: 633px; height: 477px;"
+ alt="Kerberos Five Properties: File Location"
+ title="Kerberos Five Properties: File Location"
+ src="..%5CImages%5CLeash_properties_krb5_1.jpg"><br>
+<br>
+<p class="MsoBodyTextIndent2" style="text-indent: 0in;">The <b>File
+Location</b>
+tab allows you to specify the location of the default Kerberos 5 ticket
+cache and
+configuration file.<span style="">&nbsp; </span>The <b style="">Ticket
+File </b>field specifies the name of
+the in-memory cache (Ticket File) used to store the Kerberos 5 tickets.<span
+ style="">&nbsp; </span>The format of the name is “API:” followed by
+the cache name or "MSLSA:".<span style="">&nbsp; </span>Disk caches
+(type "FILE:") are not
+supported by Kerberos for Windows.<span style="">&nbsp; </span>The <b
+ style="">Configuration File </b>field specifies the
+path to the Kerberos 5 configuration file, krb5.ini.<span style="">&nbsp;
+</span>If <b style="">Confirm
+that new configuration file exists</b> is checked when the
+configuration file
+location is changed, then Leash will not accept values which are not
+pre-existing Kerberos 5 configuration files.<br>
+</p>
+<p class="MsoBodyTextIndent2" style="text-indent: 0in;"><span
+ style="font-style: italic;"><br>
+Configuration Options:</span><br>
+</p>
+<p class="MsoBodyTextIndent2" style="text-indent: 0in;"><img
+ style="width: 633px; height: 477px;"
+ alt="Kerberos Five Properties: Configuration Options"
+ title="Kerberos Five Properties: Configuration Options"
+ src="..%5CImages%5CLeash_properties_krb5_2.jpg"><br>
+</p>
+<p class="MsoBodyTextIndent2" style="text-indent: 0in;"></p>
+<p class="MsoNormal">On the <b style="">Configuration
+Options</b> page, you provide default attribute values to be used when
+requesting Kerberos 5 tickets from the Kerberos server.<span style="">&nbsp;
+</span></p>
+<p class="MsoNormal">When <b style="">Forwardable </b>tickets
+are received from the Kerberos Server, these tickets can be forwarded
+to a
+remote host when you connect via telnet, ssh, ftp, rlogin, or similar
+applications.<span style="">&nbsp; </span>When tickets are
+forwarded, there is no need to obtain Kerberos tickets again to access
+Kerberized
+services on the remote host. </p>
+<p class="MsoNormal">When <b style="">Proxiable </b>tickets
+are received from the Kerberos Server, these tickets can be passed onto
+Kerberized services which can in turn act on your behalf.<span style="">&nbsp;</span><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">When <b style="">Renewable</b>
+tickets are received from the Kerberos Server, the ticket lifetimes may
+be
+renewed without prompting the user for her password.<span style="">&nbsp;
+</span>This allows Kerberos tickets to be issued
+with short lifetimes allowing compromised accounts to be disabled on
+short
+notice without requiring the user to enter a password every few hours.<span
+ style="">&nbsp; </span>When combined with <b style="">Automatic
+Ticket Renewal </b>(Option menu), Leash can maintain valid
+tickets for a week, a month, or longer by automatically renewing
+tickets prior
+to their expiration.<span style="">&nbsp; </span>The ability to
+renew tickets without a password is limited by the ticket’s renewable
+lifetime as
+issued by the Kerberos Server.<o:p></o:p></p>
+<p class="MsoNormal">Traditionally, Kerberos tickets have included a
+list of
+network addresses within the tickets.<span style="">&nbsp;
+</span>This address list restricts the use of the tickets to the
+computers
+which are assigned those addresses.<span style="">&nbsp; </span>The
+use of address lists has become a headache for many users of Kerberos
+on
+network connections which use either Network Address Translation
+(Cable/DSL
+routers) or Network Address Hiding (VPN) capabilities.<span style="">&nbsp;
+</span>On these networks the address of the client
+machine appears to be different to the network service than it does to
+the
+client.<span style="">&nbsp; </span>The result is the Kerberos
+ticket is deemed to be invalid by the service even though it has not been
+stolen.<span style="">&nbsp; </span>When <b style="">No Addresses </b>is
+checked, Kerberos will not insert an address list
+into the Kerberos tickets.<span style="">&nbsp; </span>For
+Kerberized services which do not require address lists, this will
+enable
+Kerberos to be used across NAT and VPN based connections.<span style="">&nbsp;</span><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">Note 1:<span style="">&nbsp; </span>As of
+Kerberos 5 release 1.3, the library default is to disable the use of
+address
+lists.<span style="">&nbsp; </span>Leash will detect the setting
+from the Kerberos 5 configuration and check the <b style="">No
+Addresses</b> box.<span style="">&nbsp; </span>If you
+attempt to re-enable address lists while the library is configured to
+disable
+them , Leash will warn you that the Kerberos 5 configuration file must
+be
+altered. <span style="">&nbsp;</span><o:p>&nbsp;</o:p></p>
+<p class="MsoNormal">Note 2: Distributed Computing Environment (DCE)
+servers
+require the use of address lists.</p>
+<br>
+</body>
+</html>

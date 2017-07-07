@@ -1,0 +1,62 @@
+krb5_get_error_message -  Get the (possibly extended) error message for a code. 
+================================================================================
+
+..
+
+.. c:function:: const char * krb5_get_error_message(krb5_context ctx, krb5_error_code code)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **code** - Error code
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+The behavior of :c:func:`krb5_get_error_message()` is only defined the first time it is called after a failed call to a krb5 function using the same context, and only when the error code passed in is the same as that returned by the krb5 function.
+
+
+
+This function never returns NULL, so its result may be used unconditionally as a C string.
+
+
+
+The string returned by this function must be freed using :c:func:`krb5_free_error_message()` 
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 Future versions may return the same string for the second and following calls.
+ 
+
+
+

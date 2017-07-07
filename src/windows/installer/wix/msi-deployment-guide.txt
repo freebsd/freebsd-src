@@ -1,0 +1,946 @@
+
+Kerberos for Windows
+
+                         MSI Deployment Guide
+
+----------------------------------------------------------------------
+
+     Contents
+
+     1.    Introduction
+     1.1     Requirements
+     1.2     Authoring a Transform
+     2.	   Configuration Options
+     2.1     Configurable Properties
+     2.1.1     Setting Properties
+     2.1.2     Leash GUI Properties
+     2.1.3     Leash DLL Properties
+     2.1.4     Kerberos IV Properties
+     2.1.5     Kerberos V Properties
+     2.2     Existing Registry Entries
+     2.3     Replacing Configuration Files
+     3.    Network Identity Manager Settings
+     3.1     Common Settings for NetIDMgr
+     3.1.1     General Settings
+     3.1.2     Common Plug-in Settings
+     3.1.3     Settings for the Kerberos 5 Credentials Provider Plug-in
+     3.1.4     Settings for the kerberos 4 Credentials Provider Plug-in
+     4.	   Additional Resources
+     5.	   Upgrades
+     6.	   FAQ
+
+----------------------------------------------------------------------
+
+1.  Introduction
+
+    Beginning with "Kerberos for Windows" version 2.6.5, a MSI installer
+    option is available for those who wish to use "Windows Installer"
+    for installing Kerberos and for organizations that wish to deploy
+    Kerberos through Group Policy.
+
+    This document provides a guide for authoring transforms used to
+    customize the MSI package for a particular organization.  Although
+    many settings can be deployed via transforms, in an Active
+    Directory environment it is advisable to deploy registry settings
+    and configuration files through group policy and/or startup
+    scripts so that machines where "Kerberos for Windows" is already
+    installed will pick up these customizations.
+
+1.1 Requirements
+
+    The information in this document applies to MSI packages
+    distributed with "Kerberos for Windows" releases from 2.6.5 and
+    onwards or MSI packages built from corresponding source
+    releases.  Not all releases support all the configuration options
+    documented here.
+
+    Authoring a "Windows Installer" transform requires additional
+    software for editing the MSI database tables and generating the
+    transform from the modified MSI package.  ORCA.EXE and MSITRAN.EXE
+    which are included in the Windows Platform SDK ("Windows Installer"
+    SDK) can be used for this purpose.
+
+    For reference, the schema for the MSI package is based on
+    SCHEMA.MSI distributed with the Platform SDK.
+
+    For general information about "Windows Installer", refer to :
+
+    http://msdn.microsoft.com/library/en-us/msi/setup/windows_installer_start_page.asp
+
+    For general information about authoring MSI transforms, refer to :
+
+    http://msdn.microsoft.com/library/en-us/msi/setup/transforms.asp
+
+    The remainder of this document assumes some familiarity with
+    authoring transforms.  While the MSDN documentation for Windows
+    Installer is a bit dense, it is recommended that you read through
+    the guide on MSI transforms found at the second link above.  Also
+    MSDN includes a step-by-step example for creating a transform at:
+
+    http://msdn.microsoft.com/library/en-us/msi/setup/a_customization_transform_example.asp
+
+1.2  Authoring a Transform
+
+    Transforms describe a set of modifications to be performed on an
+    existing MSI for the purpose of customizing it.  This is
+    ordinarily done by making a copy of the MSI to be customized,
+    modifying the copy and then using the old and the new MSI to
+    generate a transform.
+
+    E.g:
+       > copy kfw.msi kfw-modified.msi
+       
+       (edit the kfw-modified.msi to include the necessary changes)
+
+       > msitran -g kfw.msi kfw-modified.msi kfw-transform.mst
+
+       (generates kfw-transform.mst, which is the transform)
+
+    Transforms have an extension of .mst.  'msitran' is a tool
+    distributed as part of the "Windows Installer" SDK (which in turn is
+    a part of the Windows Platform SDK).
+
+    You can test a transform by :
+
+       > copy kfw.msi kfw-test.msi
+       > msitran -a kfw-transform.mst kfw-test.msi
+
+    and then checking the resulting kfw-test.msi to see if all the
+    changes you have made above to kfw-modified.msi is present in
+    kfw-test.msi.  'msitran' will complain if some modification in the
+    transform can not be successfully applied.
+
+    As mentioned above, you can use a tool like ORCA.EXE to edit the
+    MSI databases directly when editing kfw-modified.msi.  More
+    details are given below.
+
+----------------------------------------------------------------------
+
+2.  Configuration Options
+
+    The logic necessary to implement all of the settings described in
+    the release notes are present in the MSI.  Most of these can be
+    controlled by setting the corresponding properties to the desired
+    value.  Some settings may require modifying existing registry
+    entries (though not recommended) or adding new resources (like
+    files or registry keys).  Instructions for performing these tasks
+    are below.
+
+2.1 Configurable Properties
+
+    Most configurable properties correspond to registry keys or
+    values.  Please refer to the release notes for more information
+    about how these registry settings are used.
+
+    Due to the logic invoked based on the existence of these registry
+    keys or values, they are only set if the associated property is
+    defined to have a non null value.  If the associated property is
+    not defined in the MSI, the registry key or value will not be
+    touched.  By default, the MSI does not contain these properties
+    and hence will not set the registry keys.  You will need to add
+    properties as needed to the MSI.
+
+    When one of the configurable properties is set, the installer will
+    use the property value to set the corresponding setting in the
+    HKEY_LOCAL_MACHINE registry hive.  HKEY_CURRENT_USER hive is not
+    touched by the installer.
+
+    For each property, the associated registry setting is referenced
+    by the same text used in the release notes ('Registry and
+    Environment Settings' section).
+
+    Strings are quoted using single quotes (e.g. 'a string'). An empty
+    string is denoted as ''.  Note that you can't author null values
+    into the 'Property' table.
+
+    Numeric values should be authored as decimal strings.
+
+2.1.1  Setting Properties
+
+    In order to set a property,
+
+    a.  Open the MSI in ORCA.EXE
+
+    b.  Select the 'Property' table from the list of tables on the left.
+
+    c.  Find the property in the list of properties on the right,
+        double click the value and type the new value.
+
+    d.  If the property does not exist in the property list, right
+        click the list and select 'Add Row', type the property name
+        and the desired value.
+
+2.1.2    Leash GUI properties
+
+    LEASHAFSSTATUS
+	Setting: afs token retrieval
+	Values : '0' or '1'
+
+    LEASHCREATEMISSINGCONFIG
+	Setting: automatic generation of missing configuration files
+	Values : '0' or '1'
+
+    LEASHAUTORENEWTICKETS
+	Setting: automatic ticket renewal
+	Values : '0' or '1'
+
+    LEASHLOCKFILELOCATIONS
+	Setting: lock configuration files location
+	Values : '0' or '1'
+
+    LEASHMSLSAIMPORT
+	Setting: automatic importation of MSLSA credentials
+	Values : '0', '1' or '2'
+
+2.1.3    Leash32 DLL properties
+
+    LEASHLIFETIME
+	Setting: default lifetime (minutes)
+	Values : numeric
+
+    LEASHRENEWTILL
+	Setting: default renew till time (minutes)
+	Values : numeric
+
+    LEASHRENEWABLE
+	Setting: default renewable tickets setting
+	Values : '0' or '1'
+
+    LEASHFORWARDABLE
+	Setting: default forwardable tickets setting
+	Values : '0' or '1'
+
+    LEASHNOADDRESSES
+	Setting: default addressless tickets setting
+	Values : '0' or '1'
+
+    LEASHPROXIABLE
+	Setting: default proxiable tickets setting
+	Values : '0' or '1'
+
+    LEASHPUBLICIP
+	Setting: default public ipv4 address
+	Values : numeric
+
+    LEASHUSEKRB4
+	Setting: request kerberos iv tickets
+	Values : '0' or '1'
+
+    LEASHHIDEKINITOPTIONS
+	Setting: hide advanced kinit options in dialog
+	Values : '0' or '1'
+
+    LEASHLIFEMIN
+	Setting: minimum kinit dialog lifetime
+	Values : numeric
+
+    LEASHLIFEMAX
+	Setting: maximum kinit dialog lifetime
+	Values : numeric
+
+    LEASHRENEWMIN
+	Setting: minimum kinit dialog renew till time
+	Values : numeric
+
+    LEASHRENEWMAX
+	Setting: maximum kinit dialog renew till time
+	Values : numeric
+
+    LEASHUPPERCASEREALM
+	Setting: upper case realm
+	Values : '0' or '1'
+
+    LEASHTIMEHOST
+	Setting: timesync host
+	Values : string
+
+    LEASHPRESERVEKINITOPTIONS
+	Setting: Preserve ticket initialization dialog options
+	Values : numeric
+
+2.1.4  Kerberos 4 properties
+
+    KRB4KRBREALMS   (realms full pathname)
+    KRB4KRBCONF     (config full pathname)
+    KRB4KRBCONFIDIR (dir for both files)
+	Setting: location of krbrealm & krbconf
+	Values : string
+        (note that the three registry settings are conditioned
+        independently. I.e. If you only set KRB4KRBCONF, only the
+        krb.conf setting will be written.)
+
+    KRB4TICKETFILE
+	Setting: ticket file
+	Values : string
+
+2.1.5  Kerberos 5 properties
+
+    KRB5CONFIG
+	Setting: location of krb5.ini
+	Values : string
+
+    KRB5CCNAME
+	Setting: Default credentials cache name
+	Values : string
+
+    KRB5PRESERVEIDENTITY
+	Setting: MSLSA: credential cache client principal identity generation
+	Values : '0' or '1'
+
+2.2 Existing Registry Entries
+
+    You can change existing registry values subject to the
+    restrictions mentioned in the Windows Platform SDK.  Pay special
+    attention to component keypaths and try to only change the 'Value'
+    column in the 'Registry' table.  If you want to add additional
+    registry keys please refer to section 3 (Additional Resources).
+
+2.3 Replacing Configuration Files
+
+    The Kerberos configuration files (krb5.ini, krb.con, krbrealm.con)
+    can be replaced by your own configuration files.  These files are
+    contained in separate MSI components so that you can disable them
+    individually.
+
+    The recommended method for replacing these files is to first
+    disable the components containing the configuration files that you
+    want to replace, and then add new components for the replacement
+    files.  This is outlined below (assuming you are using ORCA.EXE to
+    author the transform).
+
+    Note that transforms are not a good way to add a new file as an
+    embedded stream.  The method outlined here places the file in the
+    same directory as the MSI for deployment.
+
+    The walkthrough below is to add a custom 'krb5.ini' file.
+
+    1) Disable the component that contains the configuration file that
+       you want to replace.
+
+       1.1) Locate and select the 'Component' table in the 'Tables'
+            list.
+
+       1.2) In the Component table, locate the component you need to
+            change ( Ctrl-F invokes the 'Find' dialog).  The component
+            names are listed below in section 2.3.1.  For this
+            example, the component name is 'cmf_krb5_ini'.
+
+       1.3) Go to the 'Condition' column of the component.
+
+       1.4) Enter a condition that evaluates to
+            false. I.e. 'DONOTINSTALL'. (Note that an undefined
+            property always evaluates to false).
+
+       Note that you can also use this step to disable other
+       configuration files without providing replacements.
+
+    2) Add a new component containing the new configuration file.
+
+       2.1) Select the 'Component' table in the 'Tables' list.
+
+       2.2) Select 'Tables'->'Add Row' (Ctrl-R).
+
+       2.3) Enter the following :
+
+            Component     : cmf_my_krb5_ini
+	    ComponentId   : {835BAAC6-5E54-BFFE-DBCB2F240711}
+	    Directory_	  : WindowsFolder
+	    Attributes	  : 144
+	    Condition	  :
+	    KeyPath	  : fil_my_krb5_ini
+
+	    Note that the ComponentId is an uppercase GUID.  You can
+	    generate one using GUIDGEN.EXE or UUIDGEN.EXE, both of
+	    which are included in the Platform SDK.
+
+	    The Attributes value of 144 is a sum of
+	    msidbComponentAttributesPermanent (16) and
+	    msidbComponentAttributesNeverOverwrite (128).  This
+	    ensures that local modifications are not overwritten or
+	    lost during an installation or uninstallation.  These are
+	    the same settings used on the default configuration files.
+
+	    'fil_my_krb5_ini' is a key into the 'File' table which we
+	    will fill later.
+
+    3) Add a new feature to hold the new component.
+
+       3.1) Select the 'Feature' table.
+
+       3.2) Add a new row (Ctrl-R or 'Tables'->'Add Row') with the
+            following values:
+
+	    Feature       : fea_my_krb5_ini
+	    Feature_Parent: feaKfwClient
+	    Title	  :
+	    Description	  :
+	    Display	  : 0
+	    Level	  : 30
+	    Directory_	  :
+	    Attributes	  : 8
+
+	    It is important to create the new feature under the
+	    'feaKfwClient' feature, which will ensure that the
+	    configuration file will be installed when the client
+	    binaries are installed.
+
+	    Setting 'Display' to 0 will hide this feature from the
+	    feature selection dialog during an interactive
+	    installation.  A value of 30 for 'Level' allows this
+	    feature to be installed by default (on a 'Typical'
+	    installation).
+
+	    The 'Attributes' value is
+	    msidbFeatureAttributesDisallowAdvertise (8), which is set
+	    on all features in the KfW MSI.  The KfW MSI is not
+	    designed for an advertised installation.
+
+    4) Join the component and the feature.
+
+       4.1) Select the 'FeatureComponents' table.
+
+       4.2) Add a new row with the following values:
+
+	    Feature    : fea_my_krb5_ini
+	    Component  : cmf_my_krb5_ini
+
+    5) Add an entry to the 'File' table.
+
+       5.1) Select the 'File' table.
+
+       5.2) Add a new row with the following values:
+
+	    File        : fil_my_krb5_ini
+	    Component_	: cmf_my_krb5_ini
+	    FileName	: krb5.ini
+	    FileSize	: (enter file size here)
+	    ...
+	    Attributes	: 8192
+	    Sequence	: 1000
+	    (leave other fields blank)
+
+	    The 'Attributes' value is msidbFileAttributesNonCompressed
+	    (8192).  This is because we will be placing this file in
+	    the same directory as the MSI instead of embedding the
+	    file in it.  Transforms do not support updating compressed
+	    sources or adding new cabinet streams.
+
+	    Finally, the 'Sequence' value of 1000 will be used later
+	    to distinguish the file as being in a separate source
+	    location than the other files in the MSI.
+
+    6) Set a media source for the file.
+
+       6.1) Select the 'Media' table.
+
+       6.2) Add a row with the following values :
+
+	    DiskId       : 2
+	    LastSequence : 1000
+	    ...
+	    (leave other fields blank)
+
+	    The sequence number of 1000 designates this as the media
+	    source for the newly added file.
+
+2.3.1 Components for Configuration Files
+
+      krb5.ini : 'cmf_krb5_ini' (ID {C1AF0670-BBF1-4AA6-B2A6-6C8B1584A1F4})
+      krb.con  : 'cmf_krb_con'  (ID {5391A051-CF14-45FF-BF64-CEE78A7A90C2})
+      krbrealm.con: 'cmf_krbrealm_con' (ID {D667B54F-1C98-43FB-87C6-0F0517623B90})
+
+----------------------------------------------------------------------
+
+3.   Network Identity Manager Settings
+
+    Configuration options for Network Identity Manager (NetIDMgr) are
+    stored in the Windows registry.  Each option can exist in the user
+    registry hive or the machine registry hive or both.  The value
+    defined in the user hive always overrides the value defined in the
+    machine registry hive.
+
+    All registry keys used by NetIDMgr exist under the key
+    'Software\MIT\NetIDMgr' under the user and machine hive.
+    Deploying a specific configuration option can be achieved by
+    setting the corresponding registry value either by authoring the
+    keys into the MSI via a transform or by deploying a registry based
+    Group Policy Object.  For deployment purposes, it is advisable to
+    deploy values to the machine hive instead of the user hive.
+    Deploying per user settings via the MSI is not supported at this
+    time.
+
+3.1    Common settings for NetIDMgr
+
+    The following sections describe a partial list of options that can
+    be specified for NetIDMgr.  Each set of options is described as a
+    set of registry values.  Each section is preceded by the registry
+    key under which the values of that section must be specified.
+
+3.1.1    General settings
+
+    Registry key : 'Software\MIT\NetIDMgr\CredWindow'
+    --------------
+
+    Value   : AllowAutoRenew
+    Type    : DWORD (Boolean)
+    Default : 1
+
+        Enables automatic credential renewal.
+
+
+    Value   : AllowCritical
+    Type    : DWORD (Boolean)
+    Default : 1	
+
+        Enables critical warning notifications.
+
+
+    Value   : AllowWarn	
+    Type    : DWORD (Boolean)
+    Default : 1	
+
+        Enables warning notifications.
+
+
+    Value   : AutoDetectNet
+    Type    : DWORD  (0 or 1)
+    Default : 1
+
+        If '1', automatically detects network connectivity changes.
+        Network connectivity change notifications are then sent out to
+        individual plug-ins which can perform actions such as renewing
+        credentials or obtaining new credentials.
+
+
+    Value   : AutoImport
+    Type    : DWORD  (0 or 1)
+    Default : 1
+
+        If '1', imports credentials from the Windows LSA cache when
+        NetIDMgr starts.
+
+
+    Value   : AutoInit
+    Type    : DWORD  (0 or 1)
+    Default : 0
+
+        If this value is '1', shows the new credentials dialog if
+        there are no credentials when NetIDMgr starts.
+
+
+    Value   : AutoStart	
+    Type    : DWORD (0 or 1)
+    Default : 0	
+
+        Start NetIDMgr when Windows starts
+
+
+    Value   : AutoRenewThreshold
+    Type    : DWORD (seconds)
+    Default : 600
+
+        Specifies the time period before credential expiration that will
+        trigger a credential renewal.  Requires AllowAutoRenew to be enabled.
+
+
+    Value   : CriticalThreshold	
+    Type    : DWORD (seconds)
+    Default : 300
+
+        Specifies the time period before credential expiration that will
+        trigger the second and final warning balloon.  Requires AllowCritical
+        to be enabled.
+        
+
+    Value   : DefaultAllowAutoRenew
+    Type    : DWORD (Boolean)
+    Default : 1
+
+	Specifies the Default AllowAutoRenew value for new identities.
+
+
+    Value   : DefaultSticky
+    Type    : DWORD  (0 or 1)
+    Default : 1
+
+        If '0', new identities will not be pinned to the display by default.
+        If '1', new identities will be pinned to the display by default.
+
+
+    Value   : DefaultWindowMode
+    Type    : DWORD  (0 or 1)
+    Default : 1
+
+        If '0', Advanced mode is used
+        If '1', Basic mode is used
+
+    Value   : DestroyCredsOnExit
+    Type    : DWORD  (0 or 1)
+    Default : 0
+
+        If '1', all credentials will be destroyed when NetIDMgr exits.
+
+    Value   : KeepRunning
+    Type    : DWORD  (0 or 1)
+    Default : 1
+
+        If '1', when NetIDMgr application is closed, it will continue
+        to run in the Windows System Notification Area (System Tray).
+        The application can be exited by choosing the 'Exit' menu
+        option.  If '0', closing the application will cause it to
+        exit completely.
+
+    Value   : LogToFile
+    Type    : DWORD  (0 or 1)
+    Default : 0
+
+        If '1', debugging information is logged to %TEMP%\nidmdbg.log
+
+
+    Value   : NotificationAction
+    Type    : DWORD  (50008 or 50025)
+    Default : 50025
+
+        If '50025', the default notification icon menu action will be to
+        Show the Network Identity Manager application windows.
+        If '50008', the default notification icon menu action will be to 
+        display the Obtain New Credentials dialog.
+
+
+    Value   : RefreshTimeout	
+    Type    : DWORD (seconds)
+    Default : 60
+
+        Specifies how often the credential list is refreshed.
+
+
+    Value   : RenewAtHalfLife
+    Type    : DWORD (Boolean)
+    Default : 1
+
+	Enables the use of a half-life algorithm for credential renewals.
+
+
+    Value   : WarnThreshold
+    Type    : DWORD (seconds)
+    Default : 900
+
+        Specifies the time period before credential expiration that will
+        trigger the first warning balloon.  Requires AllowWarn to be enabled.
+
+
+3.1.2    Common Plug-in settings
+
+    Registry key : 'Software\MIT\NetIDMgr\PluginManager\Plugins\<plug-in name>'
+    --------------
+
+    The '<plug-in name>' is one of the following for the standard plug-ins :
+
+    Krb5Cred : Kerberos 5 credentials provider
+    Krb5Ident: Kerberos 5 Identity provider
+    Krb4Cred : Kerberos 4 credentials provider
+
+    Consult the vendors for the plug-in names of other third party
+    plug-ins.  Additionally, the plug-ins configuration panel in the
+    NetIDMgr application provides a list of currently registered
+    plug-ins.
+
+    Value   : Disabled
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        If '1', the plug-in will not be loaded.
+
+    Value   : NoUnload
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        If '1', the plug-in will not be unloaded from memory when the
+        NetIDMgr application exits or if the plug-in is stopped.  The
+        plug-in binary will remain loaded until NetIDMgr terminates.
+
+3.1.3    Settings for the Kerberos 5 credentials provider plug-in
+
+    Registry key : 'Software\MIT\NetIDMgr\PluginManager\Plugins\Krb5Cred\Parameters'
+    --------------
+
+    Value   : AutoRenewTickets
+    Type    : DWORD (0 or 1)
+    Default : 1
+
+        If '1', automatically renews expiring tickets.  The thresholds
+        at which renewals happen are controlled in general NetIDMgr
+        settings.
+
+    Value   : CreateMissingConfig
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        If '1', creates any missing configuration files.
+
+    Value   : MsLsaImport
+    Type    : DWORD (0, 1 or 2)
+    Default : 1
+
+        Controls how credentials are imported from the MSLSA cache.
+        This setting can be one of the following.
+
+        0 : Never
+        1 : Always
+        2 : Only if the principal matches
+
+        Note that this setting only controls how the Kerberos 5
+        plug-in handles importing of credentials from the MSLSA cache.
+        Whether or not credentials are imported at start-up is
+        controlled via general NetIDMgr settings as described in
+        section 3.1.1.
+
+    Value   : MsLsaList
+    Type    : DWORD (0 or 1)
+    Default : 1
+
+        If '1', includes credentials from the MSLSA cache in the
+        credentials listing.
+
+
+    Value   : UseFullRealmList
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        If '1', uses the full realms list as determined by parsing the
+        krb5.ini configuration file in the new credentials dialog box.
+        If this is '0', only the last recently used list of realms
+        will be used.
+
+
+3.1.3.1    Per-identity settings
+
+    Registry key 1: 'Software\MIT\NetIDMgr\KCDB\Identity\<principal name>\Krb5Cred'
+    Registry key 2: 'Software\MIT\NetIDMgr\PluginManager\Plugins\Krb5Cred\Parameters\Realms\<realm>'
+    Registry key 3: 'Software\MIT\NetIDMgr\PluginManager\Plugins\Krb5Cred\Parameters'
+    --------------
+
+    These settings are generally maintained per-identity.  However, if
+    a particular setting is not specified for an identity or if the
+    identity is new, then the values will be looked up in the
+    per-realm configuration key and in the global parameters key in
+    turn.  Global defaults should be set in the global parameters key
+    (key 3).
+
+    Value   : Addressless
+    Type    : DWORD (boolean)
+    Default : 1
+
+        Determines if addressless tickets will be obtained for new identities.
+
+
+    Value   : DefaultLifetime
+    Type    : DWORD
+    Default : 36000
+
+        Default ticket lifetime, in seconds.
+
+    Value   : DefaultRenewLifetime
+    Type    : DWORD
+    Default : 604800
+
+        Default renewable lifetime, in seconds.
+
+    Value   : FileCCList
+    Type    : SZ
+    Default : <not specified>
+
+        Specifies a comma delimited list of FILE credential caches to monitor
+        for credentials.
+
+    Value   : Forwardable
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        Obtain forwardable tickets.
+
+    Value   : MaxLifetime
+    Type    : DWORD
+    Default : 86400
+
+        Maximum lifetime, in seconds.  This value is used to set the
+        range of the user interface controls that allow setting the
+        lifetime of a ticket.
+
+    Value   : MaxRenewLifetime
+    Type    : DWORD
+    Default : 2592000
+
+        Maximum renewable lifetime, in seconds.  The value is used to
+        set the range of the user interface controls that allow
+        setting the renewable lifetime of a ticket.
+
+    Value   : MinLifetime
+    Type    : DWORD
+    Default : 60
+
+        Minimum lifetime, in seconds.  This value is used to set the
+        range of the user interface controls that allow setting the
+        lifetime of a ticket.
+
+    Value   : MinRenewLifetime
+    Type    : DWORD
+    Default : 60
+
+        Minimum renewable lifetime, in seconds.  This value is used to
+        set the range of the user interface controls that allow
+        setting the renewable lifetime of a ticket.
+
+    Value   : Proxiable
+    Type    : DWORD (0 or 1)
+    Default : 0
+
+        Obtain proxiable tickets.
+
+    Value   : Renewable
+    Type    : DWORD (0 or 1)
+    Default : 1
+
+        Obtain renewable tickets.
+
+
+3.1.4   Settings for the Kerberos 4 Credentials Provider Plug-in
+
+    Registry key 1: 'Software\MIT\NetIDMgr\KCDB\Identity\<principal name>\Krb4Cred'
+    Registry key 2: 'Software\MIT\NetIDMgr\PluginManager\Plugins\Krb4Cred\Parameters'
+    ---------------
+
+    Theses settings are also maintained per identity.  However, if the
+    setting is not specified for some identity or if the identity is
+    new, then the global default will be used (registry key 2).
+    Global defaults should be set in the second registry key.
+
+    Value   : Krb4NewCreds
+    Type    : DWORD (0 or 1)
+    Default : 1
+
+        If '1', obtains Kerberos 4 credentials.  Note that currently,
+        only one identity can have Kerberos 4 credentials at one time.
+
+    Value   : Krb4Method
+    Type    : DWORD (0, 1 or 2)
+    Default : 0
+
+        Method for obtaining Kerberos 4 credentials.  The values are
+        as follows:
+
+        0 : Automatically determine method
+        1 : Use password
+        2 : Use Kerberos 5 to 4 translation
+
+    Value   : DefaultLifetime
+    Type    : DWORD
+    Default : 36000
+
+        The default ticket lifetime, in seconds.
+
+    Value   : MaxLifetime
+    Type    : DWORD
+    Default : 86400
+
+        Maximum lifetime, in seconds.  This value is used to set the
+        range of the user interface controls that allow setting the
+        lifetime.
+
+    Value   : MinLifetime
+    Type    : DWORD
+    Default : 60
+
+        Minimum lifetime, in seconds.  This value is used to set the
+        range of the user interface controls that allow setting the
+        lifetime.
+
+----------------------------------------------------------------------
+
+4.   Additional Resources
+
+    If you want to add registry keys or files you need to create new
+    components and features for those.
+
+    Add new features under the 'feaKfwClient' feature and set the
+    'Level' column for those features to equal the 'Level' for their
+    parent features for consistency.  Note that none of the features
+    in the "Kerberos for Windows" MSI package are designed to be
+    installed to run from 'source' or 'advertised'.  It is recommended
+    that you set 'msidbFeatureAttributesFavorLocal' (0),
+    'msidbFeatureAttributesFollowParent' (2) and
+    'msidbFeatureAttributesDisallowAdvertise' (8) attributes for new
+    features.
+
+    If you are creating new components, retain the same component GUID
+    when creating new transforms against new releases of the Kerberos
+    MSI package.
+
+    It is beyond the scope of this document to provide a comprehensive
+    overview of how to add new resources through a transform.  Please
+    refer to the "Windows Installer" documentation for details.  The
+    relevant section is at :
+
+    http://msdn.microsoft.com/library/en-us/msi/setup/using_transforms_to_add_resources.asp
+
+    A sample walkthrough of adding a new configuration file is in
+    section 2.3.
+
+----------------------------------------------------------------------
+
+5.  Upgrades
+
+    The MSI package is designed to uninstall previous versions of
+    "Kerberos for Windows" during installation.  Note that it doesn't
+    directly upgrade an existing installation.  This is intentional
+    and ensures that development releases which do not have strictly
+    increasing version numbers are properly upgraded.
+
+    Versions of Kerberos that are upgraded by the MSI package are :
+
+    1) "Kerberos for Windows" 32-bit i386 MSI package
+
+       Upgrade code {61211594-AAA1-4A98-A299-757326763CC7}
+       Upto current release
+
+    2) "Kerberos for Windows" 64-bit amd64 MSI package
+
+       Upgrade code {6DA9CD86-6028-4852-8C94-452CAC229244}
+       Upto current release
+
+    2) "MIT Project Pismere Kerberos for Windows" MSI package and 
+       "MIT SWRT Kerberos for Windows" MSI
+
+       Upgrade code {83977767-388D-4DF8-BB08-3BF2401635BD}
+       All versions
+
+    3) "Kerberos for Windows" NSIS package
+
+       All versions
+
+       Note that versions of the "Kerberos for Windows" NSIS package had
+       a bug where it couldn't be uninstalled properly in unattended
+       mode.  Therefore the MSI package will not try to uninstall an
+       "Kerberos for Windows" NSIS package if running unattended.  This
+       means that group policy based deployments will fail on machines
+       that have the "Kerberos for Windows" NSIS package installed.
+
+       Note that the NSIS package is only available for 32-bit i386.
+       You cannot install both the 32-bit NSIS and 64-bit amd64 MSI 
+       packages on the same machine.  To install both 32-bit and 64-bit
+       KFW, you must use the MSI packages of both.
+
+    If you have used a different MSI package to install Kerberos for
+    Windows and wish to upgrade it you can author rows into the
+    'Upgrade' table to have the "Kerberos for Windows" MSI replace these
+    installations for you.
+
+----------------------------------------------------------------------
+
+6.  FAQ
+
+    (Q/A's will be added here as needed)
+
+----------------------------------------------------------------------
+$Id$
+

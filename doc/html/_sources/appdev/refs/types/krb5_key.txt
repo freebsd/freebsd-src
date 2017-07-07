@@ -1,0 +1,21 @@
+.. highlightlang:: c
+
+.. _krb5-key-struct:
+
+krb5_key
+========
+
+..
+.. c:type:: krb5_key
+..
+
+Opaque identifier for a key.
+
+Use with the krb5_k APIs for better performance for repeated operations with the same key and usage. Key identifiers must not be used simultaneously within multiple threads, as they may contain mutable internal state and are not mutex-protected.
+
+Declaration
+------------
+
+typedef struct krb5_key_st\* krb5_key
+
+

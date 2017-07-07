@@ -1,0 +1,2317 @@
+# Basic expect script for Kerberos tests.
+# This is a DejaGnu test script.
+# Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>.
+# This script is automatically run by DejaGnu before running any of
+# the Kerberos test scripts.
+
+# This file provides several functions which deal with a local
+# Kerberos database.  We have to do this such that we don't interfere
+# with any existing Kerberos database.  We will create all the files
+# in the directory $tmppwd, which will have been created by the
+# testsuite default script.  We will use $REALMNAME as our Kerberos
+# realm name, defaulting to KRBTEST.COM.
+
+set timeout 100
+set stty_init {erase \^h kill \^u}
+set env(TERM) dumb
+
+set des3_krbtgt 0
+set tgt_support_desmd5 0
+
+# The names of the individual passes must be unique; lots of things
+# depend on it.  The PASSES variable may not contain comments; only
+# small pieces get evaluated, so comments will do strange things.
+
+# Most of the purpose of using multiple passes is to exercise the
+# dependency of various bugs on configuration file settings,
+# particularly with regards to encryption types.
+
+# The des.no-kdc-md5 pass will fail if the KDC does not constrain
+# session key enctypes to those in its permitted_enctypes list.  It
+# works by assuming enctype similarity, thus allowing the client to
+# request a des-cbc-md4 session key.  Since only des-cbc-crc is in the
+# KDC's permitted_enctypes list, the TGT will be unusable.
+
+# KLUDGE for tracking down leaking ptys
+if 0 {
+    rename spawn oldspawn
+    rename wait oldwait
+    proc spawn { args } {
+	upvar 1 spawn_id spawn_id
+	verbose "spawn: args=$args"
+	set pid [eval oldspawn $args]
+	verbose "spawn: pid=$pid spawn_id=$spawn_id"
+	return $pid
+    }
+    proc wait { args } {
+	upvar 1 spawn_id spawn_id
+	verbose "wait: args=$args"
+	set ret [eval oldwait $args]
+	verbose "wait: $ret"
+	return $ret
+    }
+}
+
+if { [string length $VALGRIND] } {
+    rename spawn valgrind_aux_spawn
+    proc spawn { args } {
+	global VALGRIND
+	upvar 1 spawn_id spawn_id
+	set newargs {}
+	set inflags 1
+	set eatnext 0
+	foreach arg $args {
+	    if { $arg == "-ignore" \
+		     || $arg == "-open" \
+		     || $arg == "-leaveopen" } {
+		lappend newargs $arg
+		set eatnext 1
+		continue
+	    }
+	    if [string match "-*" $arg] {
+		lappend newargs $arg
+		continue
+	    }
+	    if { $eatnext } {
+		set eatnext 0
+		lappend newargs $arg
+		continue
+	    }
+	    if { $inflags } {
+		set inflags 0
+		# Only run valgrind for local programs, not
+		# system ones.
+#&&![string match "/bin/sh" $arg] sh is used to start kadmind!
+		if [string match "/" [string index $arg 0]]&&![string match "/bin/ls" $arg]&&![regexp {/kshd$} $arg] {
+		    set newargs [concat $newargs $VALGRIND]
+		}
+	    }
+	    lappend newargs $arg
+	}
+	set pid [eval valgrind_aux_spawn $newargs]
+	return $pid
+    }
+}
+
+# Hack around Solaris 9 kernel race condition that causes last output
+# from a pty to get dropped.
+if { $PRIOCNTL_HACK } {
+    catch {exec priocntl -s -c FX -m 30 -p 30 -i pid [getpid]}
+    rename spawn oldspawn
+    proc spawn { args } {
+	upvar 1 spawn_id spawn_id
+	set newargs {}
+	set inflags 1
+	set eatnext 0
+	foreach arg $args {
+	    if { $arg == "-ignore" \
+		     || $arg == "-open" \
+		     || $arg == "-leaveopen" } {
+		lappend newargs $arg
+		set eatnext 1
+		continue
+	    }
+	    if [string match "-*" $arg] {
+		lappend newargs $arg
+		continue
+	    }
+	    if { $eatnext } {
+		set eatnext 0
+		lappend newargs $arg
+		continue
+	    }
+	    if { $inflags } {
+		set inflags 0
+		set newargs [concat $newargs {priocntl -e -c FX -p 0}]
+	    }
+	    lappend newargs $arg
+	}
+	set pid [eval oldspawn $newargs]
+	return $pid
+    }
+}
+
+# The des.des3-tgt.no-kdc-des3 pass will fail if the KDC doesn't
+# constrain ticket key enctypes to those in permitted_enctypes.  It
+# does this by not putting des3 in the permitted_enctypes, while
+# creating a TGT princpal that has a des3 key as well as a des key.
+
+# XXX -- master_key_type is fragile w.r.t. permitted_enctypes; it is
+# possible to configure things such that you have a master_key_type
+# that is not permitted, and the error message used to be cryptic.
+
+set passes {
+    {
+	des
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=des-cbc-crc:normal}
+	{dummy=[verbose -log "DES TGT, DES enctype"]}
+    }
+    {
+	des.des3tgt
+	mode=udp
+	des3_krbtgt=1
+	{supported_enctypes=des-cbc-crc:normal}
+	{dummy=[verbose -log "DES3 TGT, DES enctype"]}
+    }
+    {
+	des3
+	mode=udp
+	des3_krbtgt=1
+	{supported_enctypes=des3-cbc-sha1:normal des-cbc-crc:normal}
+	{dummy=[verbose -log "DES3 TGT, DES3 + DES enctypes"]}
+    }
+    {
+	aes-des
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=aes256-cts-hmac-sha1-96:normal des-cbc-crc:normal}
+	{permitted_enctypes(kdc)=aes256-cts-hmac-sha1-96 des-cbc-crc}
+	{permitted_enctypes(client)=aes256-cts-hmac-sha1-96 des-cbc-crc}
+	{permitted_enctypes(server)=aes256-cts-hmac-sha1-96 des-cbc-crc}
+	{master_key_type=aes256-cts-hmac-sha1-96}
+	{dummy=[verbose -log "AES + DES enctypes"]}
+    }
+    {
+	aes-only
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=aes256-cts-hmac-sha1-96:normal}
+	{permitted_enctypes(kdc)=aes256-cts-hmac-sha1-96}
+	{permitted_enctypes(client)=aes256-cts-hmac-sha1-96}
+	{permitted_enctypes(server)=aes256-cts-hmac-sha1-96}
+	{allow_weak_crypto(kdc)=false}
+	{allow_weak_crypto(slave)=false}
+	{allow_weak_crypto(client)=false}
+	{allow_weak_crypto(server)=false}
+	{master_key_type=aes256-cts-hmac-sha1-96}
+	{dummy=[verbose -log "AES enctypes"]}
+    }
+    {
+	aes-sha2-only
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=aes256-sha2:normal}
+	{permitted_enctypes(kdc)=aes256-sha2}
+	{permitted_enctypes(slave)=aes256-sha2}
+	{permitted_enctypes(client)=aes256-sha2}
+	{permitted_enctypes(server)=aes256-sha2}
+	{default_tgs_enctypes(kdc)=aes256-sha2}
+	{default_tgs_enctypes(slave)=aes256-sha2}
+	{default_tgs_enctypes(client)=aes256-sha2}
+	{default_tgs_enctypes(server)=aes256-sha2}
+	{default_tkt_enctypes(kdc)=aes256-sha2}
+	{default_tkt_enctypes(slave)=aes256-sha2}
+	{default_tkt_enctypes(client)=aes256-sha2}
+	{default_tkt_enctypes(server)=aes256-sha2}
+	{allow_weak_crypto(kdc)=false}
+	{allow_weak_crypto(slave)=false}
+	{allow_weak_crypto(client)=false}
+	{allow_weak_crypto(server)=false}
+	{master_key_type=aes256-sha2}
+	{dummy=[verbose -log "aes256-sha2 enctype"]}
+    }
+    {
+	camellia-only
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=camellia256-cts:normal}
+	{permitted_enctypes(kdc)=camellia256-cts}
+	{permitted_enctypes(slave)=camellia256-cts}
+	{permitted_enctypes(client)=camellia256-cts}
+	{permitted_enctypes(server)=camellia256-cts}
+	{default_tgs_enctypes(kdc)=camellia256-cts}
+	{default_tgs_enctypes(slave)=camellia256-cts}
+	{default_tgs_enctypes(client)=camellia256-cts}
+	{default_tgs_enctypes(server)=camellia256-cts}
+	{default_tkt_enctypes(kdc)=camellia256-cts}
+	{default_tkt_enctypes(slave)=camellia256-cts}
+	{default_tkt_enctypes(client)=camellia256-cts}
+	{default_tkt_enctypes(server)=camellia256-cts}
+	{allow_weak_crypto(kdc)=false}
+	{allow_weak_crypto(slave)=false}
+	{allow_weak_crypto(client)=false}
+	{allow_weak_crypto(server)=false}
+	{master_key_type=camellia256-cts}
+	{dummy=[verbose -log "Camellia-256 enctype"]}
+    }
+    {
+	aes-des3
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=aes256-cts-hmac-sha1-96:normal des3-cbc-sha1:normal des-cbc-crc:normal}
+	{permitted_enctypes(kdc)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{permitted_enctypes(client)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{permitted_enctypes(server)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{master_key_type=aes256-cts-hmac-sha1-96}
+	{dummy=[verbose -log "AES + DES3 + DES enctypes"]}
+    }
+    {
+	aes-des3tgt
+	mode=udp
+	des3_krbtgt=1
+	{supported_enctypes=aes256-cts-hmac-sha1-96:normal des3-cbc-sha1:normal des-cbc-crc:normal}
+	{permitted_enctypes(kdc)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{permitted_enctypes(client)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{permitted_enctypes(server)=aes256-cts-hmac-sha1-96 des3-cbc-sha1 des-cbc-crc}
+	{master_key_type=aes256-cts-hmac-sha1-96}
+	{dummy=[verbose -log "AES + DES enctypes, DES3 TGT"]}
+    }
+    {
+	des-v4
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=des-cbc-crc:v4}
+	{default_tkt_enctypes(client)=des-cbc-crc}
+	{dummy=[verbose -log "DES TGT, DES-CRC enctype, V4 salt"]}
+    }
+    {
+	des-md5-v4
+	mode=udp
+	des3_krbtgt=0
+	{supported_enctypes=des-cbc-md5:v4 des-cbc-crc:v4}
+	{default_tkt_enctypes(client)=des-cbc-md5 des-cbc-crc}
+	{dummy=[verbose -log "DES TGT, DES-MD5 and -CRC enctypes, V4 salt"]}
+    }
+    {
+	all-enctypes
+	mode=udp
+	des3_krbtgt=0
+	{allow_weak_crypto(kdc)=false}
+	{allow_weak_crypto(slave)=false}
+	{allow_weak_crypto(client)=false}
+	{allow_weak_crypto(server)=false}
+	{dummy=[verbose -log "all default enctypes"]}
+    }
+    {
+	des.no-kdc-md5
+	mode=udp
+	des3_krbtgt=0
+	tgt_support_desmd5=0
+	{permitted_enctypes(kdc)=des-cbc-crc}
+	{default_tgs_enctypes(client)=des-cbc-md5 des-cbc-md4 des-cbc-crc}
+	{default_tkt_enctypes(client)=des-cbc-md5 des-cbc-md4 des-cbc-crc}
+	{supported_enctypes=des-cbc-crc:normal}
+	{master_key_type=des-cbc-crc}
+	{dummy=[verbose -log \
+		"DES TGT, KDC permitting only des-cbc-crc"]}
+    }
+    {
+	des.des3-tgt.no-kdc-des3
+	mode=udp
+	tgt_support_desmd5=0
+	{permitted_enctypes(kdc)=des-cbc-crc}
+	{default_tgs_enctypes(client)=des-cbc-crc}
+	{default_tkt_enctypes(client)=des-cbc-crc}
+	{supported_enctypes=des3-cbc-sha1:normal des-cbc-crc:normal}
+	{master_key_type=des-cbc-crc}
+	{dummy=[verbose -log \
+		"DES3 TGT, KDC permitting only des-cbc-crc"]}
+    }
+}
+
+# des.md5-tgt is set as unused, since it won't trigger the error case
+# if SUPPORT_DESMD5 isn't honored.
+
+# The des.md5-tgt pass will fail if enctype similarity is inconsisent;
+# between 1.0.x and 1.1, the decrypt functions became more strict
+# about matching enctypes, while the KDB retrieval functions didn't
+# coerce the enctype to match what was requested.  It works by setting
+# SUPPORT_DESMD5 on the TGT principal, forcing an enctype of
+# des-cbc-md5 on the TGT key.  Since the database only contains a
+# des-cbc-crc key, the decrypt will fail if enctypes are not coerced.
+
+# des.no-kdc-md5.client-md4-skey is retained in unsed_passes, even
+# though des.no-kdc-md5 is roughly equivalent, since the associated
+# comment needs additional investigation at some point re the kadmin
+# client.
+
+# The des.no-kdc-md5.client-md4-skey will fail on TGS requests due to
+# the KDC issuing session keys that it won't accept.  It will also
+# fail for a kadmin client, but for different reasons, since the kadm5
+# library does some curious filtering of enctypes, and also uses
+# get_in_tkt() rather than get_init_creds(); the former does an
+# intersection of the enctypes provided by the caller and those listed
+# in the config file!
+
+set unused_passes {
+    {
+	des.md5-tgt
+	des3_krbtgt=0
+	tgt_support_desmd5=1
+	supported_enctypes=des-cbc-crc:normal
+	{permitted_enctypes(kdc)=des-cbc-md5 des-cbc-md4 des-cbc-crc}
+	{permitted_enctypes(client)=des-cbc-md5 des-cbc-md4 des-cbc-crc}
+	{dummy=[verbose -log "DES TGT, SUPPORTS_DESMD5"]}
+    }
+    {
+	des.md5-tgt.no-kdc-md5
+	des3_krbtgt=0
+	tgt_support_desmd5=1
+	{permitted_enctypes(kdc)=des-cbc-crc}
+	{default_tgs_enctypes(client)=des-cbc-crc}
+	{default_tkt_enctypes(client)=des-cbc-crc}
+	{supported_enctypes=des-cbc-crc:normal}
+	{master_key_type=des-cbc-crc}
+	{dummy=[verbose -log \
+		"DES TGT, SUPPORTS_DESMD5, KDC permitting only des-cbc-crc"]}
+    }
+    {
+	des.no-kdc-md5.client-md4-skey
+	des3_krbtgt=0
+	{permitted_enctypes(kdc)=des-cbc-crc}
+	{permitted_enctypes(client)=des-cbc-crc des-cbc-md4}
+	{default_tgs_enctypes(client)=des-cbc-crc des-cbc-md4}
+	{default_tkt_enctypes(client)=des-cbc-md4}
+	{supported_enctypes=des-cbc-crc:normal}
+	{dummy=[verbose -log \
+		"DES TGT, DES enctype, KDC permitting only des-cbc-crc, client requests des-cbc-md4 session key"]}
+    }
+    {
+	all-enctypes
+	des3_krbtgt=1
+	{supported_enctypes=\
+	aes256-cts-hmac-sha1-96:normal aes256-cts-hmac-sha1-96:norealm \
+	aes128-cts-hmac-sha1-96:normal aes128-cts-hmac-sha1-96:norealm \
+	des3-cbc-sha1:normal des3-cbc-sha1:none \
+	des-cbc-md5:normal des-cbc-md4:normal des-cbc-crc:normal \
+	des-cbc-md5:v4 des-cbc-md4:v4 des-cbc-crc:v4 \
+	}
+	{dummy=[verbose -log "DES3 TGT, default enctypes"]}
+    }
+    {
+	aes-tcp
+	mode=tcp
+	des3_krbtgt=0
+	{supported_enctypes=aes256-cts-hmac-sha1-96:normal}
+	{permitted_enctypes(kdc)=aes256-cts-hmac-sha1-96}
+	{permitted_enctypes(client)=aes256-cts-hmac-sha1-96}
+	{permitted_enctypes(server)=aes256-cts-hmac-sha1-96}
+	{master_key_type=aes256-cts-hmac-sha1-96}
+	{dummy=[verbose -log "AES via TCP"]}
+    }
+}
+#	{supported_enctypes=des-cbc-md5:normal des-cbc-crc:normal twofish256-hmac-sha1:normal }
+
+# This shouldn't be necessary on dejagnu-1.4 and later, but 1.3 seems
+# to need it because its runtest.exp doesn't deal with PASS at all.
+if [info exists PASS] {
+    foreach pass $passes {
+	if { [lsearch -exact $PASS [lindex $pass 0]] >= 0 } {
+	    lappend MULTIPASS $pass
+	}
+    }
+} else {
+    set MULTIPASS $passes
+}
+
+set last_passname_conf ""
+set last_passname_db ""
+
+# We do everything in a temporary directory.
+if ![info exists TMPDIR] {
+    set tmppwd "[pwd]/tmpdir"
+    if ![file isdirectory $tmppwd] {
+	catch "exec mkdir $tmppwd" status
+    }
+} else {
+    set tmppwd $TMPDIR
+}
+verbose "tmppwd=$tmppwd"
+
+# On Ultrix, use /bin/sh5 in preference to /bin/sh.
+if ![info exists BINSH] {
+    if [file exists /bin/sh5] {
+	set BINSH /bin/sh5
+    } else {
+	set BINSH /bin/sh
+    }
+}
+
+# For security, we must not use generally known passwords.  This is
+# because some of the tests may be run as root.  If the passwords were
+# generally know, then somebody could work out the appropriate
+# Kerberos ticket to use, and come in when, say, the telnetd daemon
+# was being tested by root.  The window for doing this is very very
+# small, so the password does not have to be perfect, it just can't be
+# constant.
+if ![info exists KEY] {
+    catch {exec $BINSH -c "echo $$"} KEY
+    verbose "KEY is $KEY"
+    set keyfile [open $tmppwd/KEY w]
+    puts $keyfile "$KEY"
+    close $keyfile
+}
+
+# Clear away any files left over from a previous run.
+# We can't use them now because we don't know the right KEY.
+# krb5.conf might change if running tests on another host
+file delete $tmppwd/krb5.conf $tmppwd/kdc.conf $tmppwd/slave.conf \
+    $tmppwd/krb5.client.conf $tmppwd/krb5.server.conf \
+    $tmppwd/krb5.kdc.conf $tmppwd/krb5.slave.conf
+
+proc delete_db {} {
+    global tmppwd
+    # Master and slave db files
+    file delete $tmppwd/kdc-db $tmppwd/kdc-db.ok $tmppwd/kdc-db.kadm5 \
+	$tmppwd/kdc-db.kadm5.lock \
+	$tmppwd/kdc-db.ulog \
+	$tmppwd/slave-db $tmppwd/slave-db.ok $tmppwd/slave-db.kadm5 $tmppwd/slave-db.kadm5.lock \
+	$tmppwd/slave-db~ $tmppwd/slave-db~.ok $tmppwd/slave-db~.kadm5 $tmppwd/slave-db~.kadm5.lock
+    # Creating a new database means we need a new srvtab.
+    file delete $tmppwd/srvtab $tmppwd/cpw_srvtab
+}
+
+delete_db
+
+# Put the installed kerberos directories on PATH.
+# This needs to be fixed for V5.
+# set env(PATH) $env(PATH):/usr/kerberos/bin:/usr/kerberos/etc
+# verbose "PATH=$env(PATH)"
+
+# Some of the tests expect $env(USER) to be set.
+if ![info exists env(USER)] {
+    if [info exists env(LOGNAME)] {
+	set env(USER) $env(LOGNAME)
+    } else {
+	if [info exists logname] {
+	    set env(USER) $logname
+	} else {
+	    catch "exec whoami" env(USER)
+	}
+    }
+}
+
+# set the realm. The user can override this on the runtest line.
+if ![info exists REALMNAME] {
+    set REALMNAME "KRBTEST.COM"
+}
+verbose "Test realm is $REALMNAME"
+
+# Find some programs we need.  We use the binaries from the build tree
+# if they exist.  If they do not, then they must be in PATH.  We
+# expect $objdir to be ...tests/dejagnu.
+
+foreach i {
+    {KDB5_UTIL $objdir/../../kadmin/dbutil/kdb5_util}
+    {KRB5KDC $objdir/../../kdc/krb5kdc}
+    {KADMIND $objdir/../../kadmin/server/kadmind}
+    {KADMIN $objdir/../../kadmin/cli/kadmin}
+    {KADMIN_LOCAL $objdir/../../kadmin/cli/kadmin.local}
+    {KINIT $objdir/../../clients/kinit/kinit}
+    {KTUTIL $objdir/../../kadmin/ktutil/ktutil}
+    {KLIST $objdir/../../clients/klist/klist}
+    {KDESTROY $objdir/../../clients/kdestroy/kdestroy}
+    {RESOLVE $objdir/../resolve/resolve}
+    {T_INETD $objdir/t_inetd}
+    {KPROPLOG $objdir/../../slave/kproplog}
+    {KPASSWD $objdir/../../clients/kpasswd/kpasswd}
+    {KPROPD $objdir/../../slave/kpropd}
+    {KPROP $objdir/../../slave/kprop}
+} {
+    set varname [lindex $i 0]
+    if ![info exists $varname] {
+	eval set varval [lindex $i 1]
+	set varval [findfile $varval]
+	set $varname $varval
+	verbose "$varname=$varval"
+    } {
+	eval set varval \$$varname
+	verbose "$varname already set to $varval"
+    }
+}
+
+verbose "setting up onexit handler (old handler=[exit -onexit])"
+exit -onexit [concat {
+    verbose "calling stop_kerberos_daemons (onexit handler)"
+    stop_kerberos_daemons;
+} [exit -onexit]]
+
+# run_once
+
+# Many tests are independent of the actual enctypes used, which is
+# what our passes are (currently) all about.  Use this to prevent
+# multiple invocations.  If a test depends on, say, the master key
+# type but nothing else, you could also use the master key type in the
+# tag name, and avoid redundant tests in additional passes using the
+# same master key type.
+
+proc run_once { tag body } {
+    global run_once_tags
+    if ![info exists run_once_tags($tag)] {
+	set run_once_tags($tag) 1
+	uplevel 1 $body
+    }
+}
+
+# check_exit_status
+# Check the exit status of a spawned program (using the caller's value
+# of spawn_id).  Returns 1 if the program succeeded, 0 if it failed.
+
+proc check_exit_status { testname } {
+    upvar 1 spawn_id spawn_id
+
+    verbose "about to wait ($testname)"
+    set status_list [wait -i $spawn_id]
+    verbose "wait -i $spawn_id returned $status_list ($testname)"
+    catch "close -i $spawn_id"
+    if { [lindex $status_list 2] != 0 || [lindex $status_list 3] != 0 } {
+	verbose -log "exit status: $status_list"
+	fail "$testname"
+	return 0
+    } else {
+	return 1
+    }
+}
+
+#
+# ENVSTACK
+#
+
+# These procedures implement an environment variable stack.  They use
+# the global variable $envvars_tosave for the purpose of identifying
+# which environment variables to save.  They also track which ones are
+# unset at any particular point.  The stack pointer is $envstackp,
+# which is an integer.  The arrays $envstack$envstackp and
+# $unenvstack$envstackp store respectively the set of old environment
+# variables/values pushed onto the stack and the set of old unset
+# environment variables for a given value of $envstackp.
+
+# Changing the value of $envvars_tosave after performing the first
+# push operation may result in strangeness.
+
+#
+# envstack_push
+#
+# Push set of current environment variables.
+#
+proc envstack_push { } {
+    global env
+    global envvars_tosave
+    global envstackp
+    global envstack$envstackp
+    global unenvstack$envstackp
+
+    verbose "envstack_push: starting, sp=$envstackp"
+    foreach i $envvars_tosave {
+	if [info exists env($i)] {
+	    verbose "envstack_push: saving $i=$env($i)"
+	    set envstack${envstackp}($i) $env($i)
+	} {
+	    verbose "envstack_push: marking $i as unset"
+	    set unenvstack${envstackp}($i) unset
+	}
+    }
+    incr envstackp
+    verbose "envstack_push: exiting, sp=$envstackp"
+}
+
+#
+# envstack_pop
+#
+# Pop set of current environment variables.
+#
+proc envstack_pop { } {
+    global env
+    global envstackp
+
+    verbose "envstack_pop: starting, sp=$envstackp"
+    incr envstackp -1
+    global envstack$envstackp	# YUCK!!! no obvious better way though...
+    global unenvstack$envstackp
+    if {$envstackp < 0} {
+	perror "envstack_pop: stack underflow!"
+	return
+    }
+    if [info exists envstack$envstackp] {
+	foreach i [array names envstack$envstackp] {
+	    if [info exists env($i)] {
+		verbose "envstack_pop: $i was $env($i)"
+	    }
+	    eval set env($i) \$envstack${envstackp}($i)
+	    verbose "envstack_pop: restored $i to $env($i)"
+	}
+	unset envstack$envstackp
+    }
+    if [info exists unenvstack$envstackp] {
+	foreach i [array names unenvstack$envstackp] {
+	    if [info exists env($i)] {
+		verbose "envstack_pop: $i was $env($i)"
+		unset env($i)
+		verbose "envstack_pop: $i unset"
+	    } {
+		verbose "envstack_pop: ignoring already unset $i"
+	    }
+	}
+	unset unenvstack$envstackp
+    }
+    verbose "envstack_pop: exiting, sp=$envstackp"
+}
+
+#
+# Initialize the envstack
+#
+set envvars_tosave {
+    KRB5_CONFIG KRB5CCNAME KRB5_CLIENT_KTNAME KRB5RCACHEDIR KRB5_KDC_PROFILE
+}
+set krb5_init_vars [list ]
+# XXX -- fix me later!
+foreach i $runvarlist {
+    verbose "processing $i"
+    if {[regexp "^(\[^=\]*)=(.*)" $i foo evar evalue]} {
+	verbose "adding $evar to savelist"
+	lappend envvars_tosave $evar
+	verbose "savelist $envvars_tosave"
+	lappend krb5_init_vars $i
+    }
+    # Make sure we don't get confused by translated messages
+    # or localized times.
+    lappend envvars_tosave "LC_ALL"
+    lappend krb5_init_vars "LC_ALL=C"
+}
+set envstackp 0
+envstack_push
+
+# setup_runtime_flags
+# Sets the proper flags for shared libraries. 
+# Configuration is through a site.exp and the runvarlist variable
+# Returns 1 if variables were already set, otherwise 0
+proc setup_runtime_env { } {
+    global env
+    global krb5_init_vars
+
+    # Set the variables
+    foreach i $krb5_init_vars {
+	regexp "^(\[^=\]*)=(.*)" $i foo evar evalue
+	set env($evar) "$evalue"
+	verbose "$evar=$evalue"
+    }
+    return 0
+}
+
+# get_hostname
+# This procedure sets the global variale hostname to the local
+# hostname as seen by krb5_sname_to_principal.  Returns 1 on success,
+# 0 on failure.
+
+proc get_hostname { } {
+    global RESOLVE
+    global hostname
+    global tmppwd
+
+    if {[info exists hostname]} {
+	return 1
+    }
+
+    envstack_push
+    setup_runtime_env
+    catch "exec $RESOLVE -q >$tmppwd/hostname" exec_output
+    envstack_pop
+    if ![string match "" $exec_output] {
+	verbose -log $exec_output
+	perror "can't get hostname"
+	return 0
+    }
+    set file [open $tmppwd/hostname r]
+    if { [ gets $file hostname ] == -1 } {
+	perror "no output from hostname"
+	return 0
+    }
+    close $file
+    file delete $tmppwd/hostname
+
+    set hostname [string tolower $hostname]
+
+    return 1
+}
+
+# modify_principal name options...
+
+proc modify_principal { name args } {
+    global KADMIN_LOCAL
+    global REALMNAME
+
+    envstack_push
+    setup_kerberos_env kdc
+    spawn $KADMIN_LOCAL -r $REALMNAME
+    envstack_pop
+    expect_after {
+	eof {
+	    fail "modprinc (kadmin.local)"
+	    return 0
+	}
+	timeout {
+	    fail "modprinc (kadmin.local)"
+	    return 0
+	}
+    }
+    expect "kadmin.local: "
+    send "modprinc $args $name\r"
+    expect -re "modprinc \[^\n\r\]* $name"
+    expect -re "Principal .* modified."
+    send "quit\r"
+    expect eof
+    catch expect_after
+    if ![check_exit_status "kadmin.local modprinc"] {
+	perror "kadmin.local modprinc exited abnormally"
+    }
+    return 1
+}
+
+# kdc listens on +0..+3, depending whether we're testing reachable or not
+# client tries +1 and +6
+# kadmind +4
+# kpasswd +5
+# (nothing) +6
+# application servers (krlogind, telnetd, krshd, ftpd, etc) +8
+# iprop +9 (if enabled)
+# kpropd +10
+if [info exists PORTBASE] {
+    set portbase $PORTBASE
+} else {
+    set portbase 3085
+}
+
+set ulog 0
+
+# setup_kerberos_files
+# This procedure will create some Kerberos files which must be created
+# manually before trying to run any Kerberos programs.  Returns 1 on
+# success, 0 on failure.
+
+proc setup_kerberos_files { } {
+    global REALMNAME
+    global hostname
+    global tmppwd
+    global supported_enctypes
+    global last_passname_conf
+    global multipass_name
+    global master_key_type
+    global mode
+    global portbase
+    global ulog
+
+    if ![get_hostname] { 
+	return 0
+    }
+
+    setup_krb5_conf client
+    setup_krb5_conf server
+    setup_krb5_conf kdc
+    setup_krb5_conf slave
+
+    # Create a kdc.conf file.
+    if { ![file exists $tmppwd/kdc.conf] \
+	    || $last_passname_conf != $multipass_name } {
+	set conffile [open $tmppwd/kdc.conf w]
+	puts $conffile "\[kdcdefaults\]"
+	puts $conffile "	kdc_listen = $portbase,[expr 1 + $portbase],[expr 2 + $portbase]"
+	puts $conffile "	kdc_tcp_listen = $portbase,[expr 1 + $portbase],[expr 2 + $portbase]"
+	puts $conffile ""
+	puts $conffile "\[realms\]"
+	puts $conffile "	$REALMNAME = \{"
+	# Testing with a colon in the name exercises default handling
+	# for pathnames.
+	puts $conffile "		key_stash_file = $tmppwd/stash:foo"
+	puts $conffile "		acl_file = $tmppwd/acl"
+	puts $conffile "		kadmind_port = [expr 4 + $portbase]"
+	puts $conffile "		kpasswd_port = [expr 5 + $portbase]"
+	puts $conffile "		max_life = 1:00:00"
+	puts $conffile "		max_renewable_life = 3:00:00"
+	if [info exists master_key_type] {
+	    puts $conffile "		master_key_type = $master_key_type"
+	}
+	puts $conffile "		master_key_name = master/key"
+	if [info exists supported_enctypes] {
+	    puts $conffile "		supported_enctypes = $supported_enctypes"
+	}
+	if { $mode == "tcp" } {
+	    puts $conffile "		kdc_listen = [expr 3 + $portbase]"
+	    puts $conffile "		kdc_tcp_listen = [expr 1 + $portbase],[expr 3 + $portbase]"
+	} else {
+	    puts $conffile "		kdc_listen = [expr 1 + $portbase]"
+	    puts $conffile "		kdc_tcp_listen = [expr 3 + $portbase]"
+	}
+	puts $conffile "		default_principal_expiration = 2037.12.31.23.59.59"
+	puts $conffile "		default_principal_flags = -postdateable forwardable"
+	puts $conffile "		dict_file = $tmppwd/dictfile"
+	if { $ulog != 0 } {
+	    puts $conffile "		iprop_enable = true"
+	    puts $conffile "		iprop_port = [expr 9 + $portbase]"
+	    puts $conffile "		iprop_logfile = $tmppwd/db.ulog"
+	} else {
+	    puts $conffile "# no ulog"
+	}
+	puts $conffile "	\}"
+	puts $conffile ""
+	close $conffile
+    }
+
+    # Create a config file for the slave KDC (kpropd only, no normal
+    # KDC processes).
+    if { ![file exists $tmppwd/slave.conf] \
+	    || $last_passname_conf != $multipass_name } {
+	set conffile [open $tmppwd/slave.conf w]
+	puts $conffile "\[kdcdefaults\]"
+	puts $conffile "	kdc_listen = $portbase,[expr 1 + $portbase],[expr 2 + $portbase]"
+	puts $conffile "	kdc_tcp_listen = $portbase,[expr 1 + $portbase],[expr 2 + $portbase]"
+	puts $conffile ""
+	puts $conffile "\[realms\]"
+	puts $conffile "	$REALMNAME = \{"
+	# Testing with a colon in the name exercises default handling
+	# for pathnames.
+	puts $conffile "		key_stash_file = $tmppwd/slave-stash"
+	puts $conffile "		acl_file = $tmppwd/slave-acl"
+	puts $conffile "		kadmind_port = [expr 4 + $portbase]"
+	puts $conffile "		kpasswd_port = [expr 5 + $portbase]"
+	puts $conffile "		max_life = 1:00:00"
+	puts $conffile "		max_renewable_life = 3:00:00"
+	if [info exists master_key_type] {
+	    puts $conffile "		master_key_type = $master_key_type"
+	}
+	puts $conffile "		master_key_name = master/key"
+	if [info exists supported_enctypes] {
+	    puts $conffile "		supported_enctypes = $supported_enctypes"
+	}
+	if { $mode == "tcp" } {
+	    puts $conffile "		kdc_listen = [expr 3 + $portbase]"
+	    puts $conffile "		kdc_tcp_listen = [expr 1 + $portbase],[expr 3 + $portbase]"
+	} else {
+	    puts $conffile "		kdc_listen = [expr 1 + $portbase]"
+	    puts $conffile "		kdc_tcp_listen = [expr 3 + $portbase]"
+	}
+	puts $conffile "		default_principal_expiration = 2037.12.31.23.59.59"
+	puts $conffile "		default_principal_flags = -postdateable forwardable"
+	puts $conffile "		dict_file = $tmppwd/dictfile"
+	if { $ulog != 0 } {
+	    puts $conffile "		iprop_enable = true"
+	    puts $conffile "		iprop_port = [expr 9 + $portbase]"
+	    puts $conffile "		iprop_logfile = $tmppwd/slave-db.ulog"
+	} else {
+	    puts $conffile "# no ulog"
+	}
+	puts $conffile "	\}"
+	puts $conffile ""
+	close $conffile
+    }
+
+    # Create ACL file.
+    set aclfile [open $tmppwd/acl w]
+    puts $aclfile "krbtest/admin@$REALMNAME *"
+    puts $aclfile "kiprop/$hostname@$REALMNAME p"
+    close $aclfile
+
+    # Create dictfile file.
+    if ![file exists $tmppwd/dictfile] {
+	set dictfile [open $tmppwd/dictfile w]
+	puts $dictfile "weak_password"
+	close $dictfile
+    }
+
+    set last_passname_conf $multipass_name
+    return 1
+}
+
+proc reset_kerberos_files { } {
+    global tmppwd
+    file delete $tmppwd/kdc.conf $tmppwd/slave.conf $tmppwd/krb5.client.conf \
+	$tmppwd/krb5.server.conf $tmppwd/krb5.kdc.conf
+    setup_kerberos_files
+}
+
+proc setup_krb5_conf { {type client} } {
+    global tmppwd
+    global hostname
+    global REALMNAME
+    global last_passname_conf
+    global multipass_name
+    global default_tgs_enctypes
+    global default_tkt_enctypes
+    global permitted_enctypes
+    global allow_weak_crypto
+    global mode
+    global portbase
+    global srcdir
+
+    set pkinit_certs [findfile "[pwd]/$srcdir/pkinit-certs" "[pwd]/$srcdir/pkinit-certs" "$srcdir/pkinit-certs"]
+    # Create a krb5.conf file.
+    if { ![file exists $tmppwd/krb5.$type.conf] \
+	    || $last_passname_conf != $multipass_name } {
+	set conffile [open $tmppwd/krb5.$type.conf w]
+	puts $conffile "\[libdefaults\]"
+	puts $conffile "	default_realm = $REALMNAME"
+	puts $conffile "	dns_lookup_kdc = false"
+	if [info exists allow_weak_crypto($type)] {
+	    puts $conffile "	allow_weak_crypto = $allow_weak_crypto($type)"
+	} else {
+	    puts $conffile "	allow_weak_crypto = true"
+	}
+	puts $conffile "	pkinit_anchors = FILE:$pkinit_certs/ca.pem"
+	if [info exists default_tgs_enctypes($type)] {
+	    puts $conffile \
+		    "	default_tgs_enctypes = $default_tgs_enctypes($type)"
+	}
+	if [info exists default_tkt_enctypes($type)] {
+	    puts $conffile \
+		    "	default_tkt_enctypes = $default_tkt_enctypes($type)"
+	}
+	if [info exists permitted_enctypes($type)] {
+	    puts $conffile \
+		    "	permitted_enctypes = $permitted_enctypes($type)"
+	}
+	if { $mode == "tcp" } {
+	    puts $conffile "	udp_preference_limit = 1"
+	}
+	puts $conffile "	plugin_base_dir = $tmppwd/../../../plugins"
+	puts $conffile ""
+	puts $conffile "\[realms\]"
+	puts $conffile "	$REALMNAME = \{"
+	# There's probably nothing listening here.  It would be a good
+	# test for the handling of a non-responsive KDC address.  However,
+	# on some systems, like Tru64, we often wind up with the client's
+	# socket bound to this address, causing our request to appear in
+	# our incoming queue as if it were a response, which causes test
+	# failures.  If we were running the client and KDC on different
+	# hosts, this would be okay....
+	#puts $conffile "		kdc = $hostname:[expr 6 + $portbase]"
+	puts $conffile "		pkinit_identity = FILE:$pkinit_certs/kdc.pem,$pkinit_certs/privkey.pem"
+	puts $conffile "		pkinit_anchors = FILE:$pkinit_certs/ca.pem"
+	puts $conffile "		kdc = $hostname:[expr 1 + $portbase]"
+	puts $conffile "		admin_server = $hostname:[expr 4 + $portbase]"
+	puts $conffile "		kpasswd_server = $hostname:[expr 5 + $portbase]"
+	puts $conffile "		database_module = foo_db2"
+	puts $conffile "	\}"
+	puts $conffile ""
+	puts $conffile "\[domain_realm\]"
+	puts $conffile "	$hostname = $REALMNAME"
+	puts $conffile ""
+	puts $conffile "\[logging\]"
+	puts $conffile "	admin_server = FILE:$tmppwd/kadmind5.log"
+	puts $conffile "	kdc = FILE:$tmppwd/kdc.log"
+	puts $conffile "	default = FILE:$tmppwd/others.log"
+	puts $conffile ""
+	puts $conffile "\[dbmodules\]"
+	puts $conffile "	db_module_dir = $tmppwd/../../../plugins/kdb"
+	puts $conffile "	foo_db2 = {"
+	puts $conffile "		db_library = db2"
+	puts $conffile "		database_name = $tmppwd/$type-db"
+	puts $conffile "	}"
+	close $conffile
+    }
+}
+
+# Save the original values of the environment variables we are going
+# to muck with.
+
+# XXX deal with envstack later.
+
+if [info exists env(KRB5_CONFIG)] {
+    set orig_krb5_conf $env(KRB5_CONFIG)
+} else {
+    catch "unset orig_krb5_config"
+}
+
+if [info exists env(KRB5CCNAME)] {
+    set orig_krb5ccname $env(KRB5CCNAME)
+} else {
+    catch "unset orig_krb5ccname"
+}
+
+if [info exists env(KRB5_CLIENT_KTNAME)] {
+    set orig_krb5clientktname $env(KRB5_CLIENT_KTNAME)
+} else {
+    catch "unset orig_krb5clientktname"
+}
+
+if [ info exists env(KRB5RCACHEDIR)] {
+    set orig_krb5rcachedir $env(KRB5RCACHEDIR)
+} else {
+    catch "unset orig_krb5rcachedir"
+}
+
+# setup_kerberos_env
+# Set the environment variables needed to run Kerberos programs.
+
+proc setup_kerberos_env { {type client} } {
+    global REALMNAME
+    global env
+    global tmppwd
+    global hostname
+    global krb5_init_vars
+    global portbase
+
+    # Set the environment variable KRB5_CONFIG to point to our krb5.conf file.
+    # All the Kerberos tools check KRB5_CONFIG.
+    # Actually, V5 doesn't currently use this.
+    set env(KRB5_CONFIG) $tmppwd/krb5.$type.conf
+    verbose "KRB5_CONFIG=$env(KRB5_CONFIG)"
+
+    # Direct the Kerberos programs at a local ticket file.
+    set env(KRB5CCNAME) $tmppwd/tkt
+    verbose "KRB5CCNAME=$env(KRB5CCNAME)"
+
+    # Direct the Kerberos programs at a local client keytab.
+    set env(KRB5_CLIENT_KTNAME) $tmppwd/client_keytab
+    verbose "KRB5_CLIENT_KTNAME=$env(KRB5_CLIENT_KTNAME)"
+
+    # Direct the Kerberos server at a cache file stored in the
+    # temporary directory.
+    set env(KRB5RCACHEDIR) $tmppwd
+    verbose "KRB5RCACHEDIR=$env(KRB5RCACHEDIR)"
+
+    # Get the run time environment variables... (including LD_LIBRARY_PATH)
+    setup_runtime_env
+
+    # Set our kdc config file, if needed.
+    switch $type {
+	client	-
+	server	{ catch {unset env(KRB5_KDC_PROFILE)} }
+	kdc	{ set env(KRB5_KDC_PROFILE) $tmppwd/kdc.conf }
+	slave	{ set env(KRB5_KDC_PROFILE) $tmppwd/slave.conf }
+	default	{ error "unknown config file type $type" }
+    }
+    if [info exists env(KRB5_KDC_PROFILE)] {
+	verbose "KRB5_KDC_PROFILE=$env(KRB5_KDC_PROFILE)"
+    }
+
+    # Create an environment setup script.  (For convenience)
+    if ![file exists $tmppwd/$type-env.sh] {
+	set envfile [open $tmppwd/$type-env.sh w]
+	puts $envfile "KRB5_CONFIG=$env(KRB5_CONFIG)"
+	puts $envfile "KRB5CCNAME=$env(KRB5CCNAME)"
+	puts $envfile "KRB5_CLIENT_KTNAME=$env(KRB5_CLIENT_KTNAME)"
+	puts $envfile "KRB5RCACHEDIR=$env(KRB5RCACHEDIR)"
+	if [info exists env(KRB5_KDC_PROFILE)] {
+	    puts $envfile "KRB5_KDC_PROFILE=$env(KRB5_KDC_PROFILE)"
+	} else {
+	    puts $envfile "unset KRB5_KDC_PROFILE"
+	}
+	puts $envfile "export KRB5_CONFIG KRB5CCNAME KRB5RCACHEDIR"
+	puts $envfile "export KRB5_KDC_PROFILE KRB5_CLIENT_KTNAME"
+	foreach i $krb5_init_vars {
+		regexp "^(\[^=\]*)=(.*)" $i foo evar evalue
+		puts $envfile "$evar=$env($evar)"
+		puts $envfile "export $evar"
+	}
+	close $envfile
+    }
+    if ![file exists $tmppwd/$type-env.csh] {
+	set envfile [open $tmppwd/$type-env.csh w]
+	puts $envfile "setenv KRB5_CONFIG $env(KRB5_CONFIG)"
+	puts $envfile "setenv KRB5CCNAME $env(KRB5CCNAME)"
+	puts $envfile "setenv KRB5_CLIENT_KTNAME $env(KRB5_CLIENT_KTNAME)"
+	puts $envfile "setenv KRB5RCACHEDIR $env(KRB5RCACHEDIR)"
+	if [info exists env(KRB5_KDC_PROFILE)] {
+	    puts $envfile "setenv KRB5_KDC_PROFILE $env(KRB5_KDC_PROFILE)"
+	} else {
+	    puts $envfile "unsetenv KRB5_KDC_PROFILE"
+	}
+	foreach i $krb5_init_vars {
+		regexp "^(\[^=\]*)=(.*)" $i foo evar evalue
+		puts $envfile "setenv $evar $env($evar)"
+	}
+	close $envfile
+    }
+    return 1
+}
+
+# setup_kerberos_db
+# Initialize the Kerberos database.  If the argument is non-zero, call
+# pass at relevant points.  Returns 1 on success, 0 on failure.
+
+proc setup_kerberos_db { standalone } {
+    global REALMNAME KDB5_UTIL KADMIN_LOCAL KEY
+    global tmppwd hostname
+    global spawn_id
+    global des3_krbtgt tgt_support_desmd5
+    global multipass_name last_passname_db
+
+    set failall 0
+
+    if {!$standalone && [file exists $tmppwd/kdc-db.ok] \
+	&& $last_passname_db == $multipass_name} {
+	return 1
+    }
+
+    delete_db
+
+    envstack_push
+    if { ![setup_kerberos_files] || ![setup_kerberos_env kdc] } {
+	set failall 1
+    }
+
+    # Set up a common expect_after for use in multiple places.
+    set def_exp_after {
+	timeout {
+	    set test "$test (timeout)"
+	    break
+	}
+	eof {
+	    set test "$test (eof)"
+	    break
+	}
+    }
+
+    set test "kdb5_util create"
+    set body {
+	if $failall {
+	    break
+	}
+	#exec xterm
+	verbose "starting $test"
+	spawn $KDB5_UTIL -r $REALMNAME create -W
+	expect_after $def_exp_after
+
+	expect "Enter KDC database master key:"
+
+	set test "kdb5_util create (verify)"
+	send "masterkey$KEY\r"
+	expect "Re-enter KDC database master key to verify:"
+
+	set test "kdb5_util create"
+	send "masterkey$KEY\r"
+	expect {
+	    -re "\[Cc\]ouldn't" {
+		expect eof
+		break
+	    }
+	    "Cannot find/read stored" exp_continue
+	    "Warning: proceeding without master key" exp_continue
+	    eof { }
+	}
+	catch expect_after
+	if ![check_exit_status kdb5_util] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch expect_after
+    if $ret {
+	set failall 1
+	if $standalone {
+	    fail $test
+	}
+    } else {
+	if $standalone {
+	    pass $test
+	}
+    }
+
+    # Stash the master key in a file.
+    set test "kdb5_util stash"
+    set body {
+	if $failall {
+	    break
+	}
+	spawn $KDB5_UTIL  -r $REALMNAME stash
+	verbose "starting $test"
+	expect_after $def_exp_after
+	expect "Enter KDC database master key:"
+	send "masterkey$KEY\r"
+	expect eof
+	catch expect_after
+	if ![check_exit_status kdb5_util] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch "expect eof"
+    catch expect_after
+    if $ret {
+	set failall 1
+	if $standalone {
+	    fail $test
+	} else {
+	    delete_db
+	}
+    } else {
+	if $standalone {
+	    pass $test
+	}
+    }
+
+    # Add an admin user.
+    set test "kadmin.local ank krbtest/admin"
+    set body {
+	if $failall {
+	    break
+	}
+	spawn $KADMIN_LOCAL -r $REALMNAME
+	verbose "starting $test"
+	expect_after $def_exp_after
+
+	expect "kadmin.local: "
+	send "ank krbtest/admin@$REALMNAME\r"
+	# It echos...
+	expect "ank krbtest/admin@$REALMNAME\r"
+	expect "Enter password for principal \"krbtest/admin@$REALMNAME\":"
+	send "adminpass$KEY\r"
+	expect "Re-enter password for principal \"krbtest/admin@$REALMNAME\":"
+	send "adminpass$KEY\r"
+	expect {
+	    "Principal \"krbtest/admin@$REALMNAME\" created" { }
+	    "Principal or policy already exists while creating*" { }
+	}
+	expect "kadmin.local: "
+	send "quit\r"
+	expect eof
+	catch expect_after
+	if ![check_exit_status kadmin_local] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch "expect eof"
+    catch expect_after
+    if $ret {
+	set failall 1
+	if $standalone {
+	    fail $test
+	} else {
+	    delete_db
+	}
+    } else {
+	if $standalone {
+	    pass $test
+	}
+    }
+
+    # Add an incremental-propagation service.
+    set test "kadmin.local ank krbtest/fast"
+    set body {
+	if $failall {
+	    break
+	}
+	spawn $KADMIN_LOCAL -r $REALMNAME
+	verbose "starting $test"
+	expect_after $def_exp_after
+
+	expect "kadmin.local: "
+	send "ank +requires_preauth krbtest/fast@$REALMNAME\r"
+	expect "Enter password for principal \"krbtest/fast@$REALMNAME\":"
+	send "adminpass$KEY\r"
+	expect "Re-enter password for principal \"krbtest/fast@$REALMNAME\":"
+	send "adminpass$KEY\r"
+	expect {
+	    "Principal \"krbtest/fast@$REALMNAME\" created" { }
+	    "Principal or policy already exists while creating*" { }
+	}
+	expect "kadmin.local: "
+	send "quit\r"
+	expect eof
+	catch expect_after
+	if ![check_exit_status kadmin_local] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch "expect eof"
+    catch expect_after
+    if $ret {
+	set failall 1
+	if $standalone {
+	    fail $test
+	} else {
+	    delete_db
+	}
+    } else {
+	if $standalone {
+	    pass $test
+	}
+    }
+
+    if $des3_krbtgt {
+	# Set the TGT key to DES3.
+	set test "kadmin.local TGT to DES3"
+	set body {
+	    if $failall {
+		break
+	    }
+	    spawn $KADMIN_LOCAL -r $REALMNAME -e des3-cbc-sha1:normal
+	    verbose "starting $test"
+	    expect_after $def_exp_after
+
+	    expect "kadmin.local: "
+	    send "cpw -randkey krbtgt/$REALMNAME@$REALMNAME\r"
+	    # It echos...
+	    expect "cpw -randkey krbtgt/$REALMNAME@$REALMNAME\r"
+	    expect {
+		"Key for \"krbtgt/$REALMNAME@$REALMNAME\" randomized." { }
+	    }
+	    expect "kadmin.local: "
+	    send "quit\r"
+	    expect eof
+	    catch expect_after
+	    if ![check_exit_status kadmin_local] {
+		break
+	    }
+	}
+	set ret [catch $body]
+	catch "expect eof"
+	catch expect_after
+	if $ret {
+	    set failall 1
+	    if $standalone {
+		fail $test
+	    } else {
+		delete_db
+	    }
+	} else {
+	    if $standalone {
+		pass $test
+	    }
+	}
+    }
+    if $tgt_support_desmd5 {
+	# Make TGT support des-cbc-md5
+	set test "kadmin.local TGT to SUPPORT_DESMD5"
+	set body {
+	    if $failall {
+		break
+	    }
+	    spawn $KADMIN_LOCAL -r $REALMNAME
+	    verbose "starting $test"
+	    expect_after $def_exp_after
+
+	    expect "kadmin.local: "
+	    send "modprinc +support_desmd5 krbtgt/$REALMNAME@$REALMNAME\r"
+	    # It echos...
+	    expect "modprinc +support_desmd5 krbtgt/$REALMNAME@$REALMNAME\r"
+	    expect {
+		"Principal \"krbtgt/$REALMNAME@$REALMNAME\" modified.\r\n" { }
+	    }
+	    expect "kadmin.local: "
+	    send "quit\r"
+	    expect eof
+	    catch expect_after
+	    if ![check_exit_status kadmin_local] {
+		break
+	    }
+	}
+	set ret [catch $body]
+	catch "expect eof"
+	catch expect_after
+	if $ret {
+	    set failall 1
+	    if $standalone {
+		fail $test
+	    } else {
+		delete_db
+	    }
+	} else {
+	    if $standalone {
+		pass $test
+	    }
+	}
+    }
+    envstack_pop
+
+    # create the admin database lock file
+    catch "exec touch $tmppwd/adb.lock"
+
+    set last_passname_db $multipass_name
+    return 1
+}
+
+# setup_slave_db
+# Initialize the slave Kerberos database.  Returns 1 on success, 0 on
+# failure.
+
+proc setup_slave_db { } {
+    global REALMNAME
+    global KDB5_UTIL
+    global KADMIN_LOCAL
+    global KEY
+    global tmppwd
+    global spawn_id
+
+    set failall 0
+
+    envstack_push
+    if { ![setup_kerberos_files] || ![setup_kerberos_env slave] } {
+	set failall 1
+    }
+
+    # Set up a common expect_after for use in multiple places.
+    set def_exp_after {
+	timeout {
+	    set test "$test (timeout)"
+	    break
+	}
+	eof {
+	    set test "$test (eof)"
+	    break
+	}
+    }
+
+    set test "slave kdb5_util create "
+    set body {
+	if $failall {
+	    break
+	}
+	#exec xterm
+	verbose "starting $test"
+	spawn $KDB5_UTIL -r $REALMNAME create -W
+	expect_after $def_exp_after
+
+	expect "Enter KDC database master key:"
+
+	set test "slave kdb5_util create (verify)"
+	send "masterkey$KEY\r"
+	expect "Re-enter KDC database master key to verify:"
+
+	set test "slave kdb5_util create"
+	send "masterkey$KEY\r"
+	expect {
+	    -re "\[Cc\]ouldn't" {
+		expect eof
+		break
+	    }
+	    "Cannot find/read stored" exp_continue
+	    "Warning: proceeding without master key" exp_continue
+	    eof { }
+	}
+	catch expect_after
+	if ![check_exit_status kdb5_util] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch expect_after
+    if $ret {
+	set failall 1
+    }
+
+    # Stash the master key in a file.
+    set test "slave kdb5_util stash"
+    set body {
+	if $failall {
+	    break
+	}
+	spawn $KDB5_UTIL  -r $REALMNAME stash
+	verbose "starting $test"
+	expect_after $def_exp_after
+	expect "Enter KDC database master key:"
+	send "masterkey$KEY\r"
+	expect eof
+	catch expect_after
+	if ![check_exit_status kdb5_util] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch "expect eof"
+    catch expect_after
+    if $ret {
+	set failall 1
+	delete_db
+    }
+
+    if !$failall {
+	# create the admin database lock file
+	catch "exec touch $tmppwd/slave-adb.lock"
+    }
+
+    return [expr !$failall]
+}
+
+proc start_kpropd {} {
+    global kpropd_pid kpropd_spawn_id KPROPD T_INETD KDB5_UTIL portbase tmppwd
+    global spawn_id
+
+    envstack_push
+    setup_kerberos_env slave
+    spawn $KPROPD -S -d -t -P [expr 10 + $portbase] -s $tmppwd/srvtab -f $tmppwd/incoming-slave-datatrans -p $KDB5_UTIL -a $tmppwd/kpropd-acl
+    set kpropd_pid [exp_pid]
+    set kpropd_spawn_id $spawn_id
+#    send_user [list $KPROPD -S -d -P [expr 10 + $portbase] -s $tmppwd/srvtab -f $tmppwd/incoming-slave-datatrans -p $KDB5_UTIL -a $tmppwd/kpropd-acl]\n
+#    spawn_shell
+    envstack_pop
+}
+
+# start_kerberos_daemons
+# A procedure to build a Kerberos database and start up the kerberos
+# and kadmind daemons.  This sets the global variables kdc_pid,
+# kdc_spawn_id, kadmind_pid, and kadmind_spawn_id.  The procedure
+# stop_kerberos_daemons should be used to stop the daemons.  If the
+# argument is non-zero, call pass at relevant points.  Returns 1 on
+# success, 0 on failure.
+
+proc start_kerberos_daemons { standalone } {
+    global BINSH
+    global REALMNAME
+    global KRB5KDC
+    global KADMIND
+    global KEY
+    global kdc_pid
+    global kdc_spawn_id
+    global kadmind_pid
+    global kadmind_spawn_id
+    global tmppwd
+    global env
+    global timeout
+
+    if ![setup_kerberos_db 0] {
+	return 0
+    }
+
+    if {$standalone} {
+        file delete $tmppwd/krb.log $tmppwd/kadmind.log $tmppwd/krb5kdc_rcache
+    }
+
+    # Start up the kerberos daemon
+    # Why are we doing all this with the log file you may ask.
+    #   We need a handle on when the server starts. If we log the output
+    #   of the server to say stderr, then if we stop looking for output,
+    #   buffers will fill and the server will stop working....
+    #   So, we look to see when a line is added to the log file and then
+    #   check it..
+    # The same thing is done a little later for the kadmind
+    set kdc_lfile $tmppwd/kdc.log
+    set kadmind_lfile $tmppwd/kadmind5.log
+    set kdc_pidfile $tmppwd/kdc.pid
+    set kadmind_pidfile $tmppwd/kadmind.pid
+
+    envstack_push
+    setup_kerberos_env kdc
+    # Nuke pid file - to test if setup
+    file delete $kdc_pidfile
+    spawn $KRB5KDC -r $REALMNAME -n -P $kdc_pidfile
+    envstack_pop
+    set kdc_pid [exp_pid]
+    set kdc_spawn_id $spawn_id
+
+    expect {
+	"starting" { }
+	eof {
+	    if {$standalone} {
+		verbose -log "krb5kdc failed to start"
+		fail "krb5kdc"
+	    } else {
+		perror "krb5kdc failed to start"
+	    }
+	    stop_kerberos_daemons
+	    return 0
+	}
+    }
+
+    if (![file exists $kdc_pidfile]) {
+	fail "krb5kdc pidfile"
+	stop_kerberos_daemons
+	return 0
+    }
+    set f [open $kdc_pidfile "r"]
+    if {[gets $f foundpid] < 0 || ![string equal $kdc_pid $foundpid]} {
+	fail "krb5kdc pid file contents"
+	close $f
+	stop_kerberos_daemons
+	return 0
+    }
+    close $f
+
+    if {$standalone} {
+	pass "krb5kdc"
+    }
+
+    # Give the kerberos daemon a few seconds to get set up.
+#    sleep 2
+
+    #
+    # Save setting of KRB5_KTNAME. We do not want to override kdc.conf
+    # file during kadmind startup. (this is in case user has KRB5_KTNAME
+    # set before starting make check)
+    #
+    if [info exists env(KRB5_KTNAME)] {
+	set start_save_ktname $env(KRB5_KTNAME)
+    }
+    catch "unset env(KRB5_KTNAME)"
+
+    # Start up the kadmind daemon
+    envstack_push
+    setup_kerberos_env kdc
+    file delete $kadmind_pidfile
+    spawn $BINSH -c "exec $KADMIND -r $REALMNAME -W -nofork -P $kadmind_pidfile"
+    envstack_pop
+    set kadmind_pid [exp_pid]
+    set kadmind_spawn_id $spawn_id
+
+    # Restore KRB5_KTNAME
+    if [info exists start_save_ktname] {
+        set env(KRB5_KTNAME) $start_save_ktname
+        unset start_save_ktname
+    }
+
+    expect {
+	"Seeding random number" exp_continue
+	"No principal in keytab matches desired name" {
+	    dump_db
+	    exp_continue
+	}
+	"starting" { }
+	eof {
+	    verbose -log "kadmind failed to start"
+	    if {$standalone} {
+		fail "kadmind"
+	    } else {
+		perror "kadmind failed to start"
+	    }
+	    stop_kerberos_daemons
+	    return 0
+	}
+    }
+
+    if (![file exists $kadmind_pidfile]) {
+	fail "kadmind pidfile"
+	stop_kerberos_daemons
+	return 0
+    }
+    set f [open $kadmind_pidfile "r"]
+    if {[gets $f foundpid] < 0 || ![string equal $kadmind_pid $foundpid]} {
+	fail "kadmind pid file contents"
+	close $f
+	stop_kerberos_daemons
+	return 0
+    }
+    close $f
+
+    if {$standalone} {
+	pass "kadmind"
+    }
+
+    # Give the kadmind daemon a few seconds to get set up.
+#    sleep 2
+
+    return 1
+}
+
+# stop_kerberos_daemons
+# Stop the kerberos daemons.  Returns 1 on success, 0 on failure.
+
+proc stop_kerberos_daemons { } {
+    global kdc_pid
+    global kdc_spawn_id
+    global kadmind_pid
+    global kadmind_spawn_id
+
+    verbose "entered stop_kerberos_daemons"
+
+    if [info exists kdc_pid] {
+	if [catch "exec kill $kdc_pid" msg] {
+	    verbose "kill kdc: $msg"
+	}
+	if [catch "expect -i $kdc_spawn_id eof" msg] {
+	    verbose "expect kdc eof: $msg"
+	}
+	set kdc_list [wait -i $kdc_spawn_id]
+	verbose "wait -i $kdc_spawn_id returned $kdc_list (kdc)"
+	unset kdc_pid
+	unset kdc_list
+    }
+
+    if [info exists kadmind_pid] {
+	if [catch "exec kill $kadmind_pid" msg] {
+	    verbose "kill kadmind: $msg"
+	}
+	if [catch "expect -i $kadmind_spawn_id eof" msg] {
+	    verbose "expect kadmind eof: $msg"
+	}
+	set kadmind_list [wait -i $kadmind_spawn_id]
+	verbose "wait -i $kadmind_spawn_id returned $kadmind_list (kadmind5)"
+	unset kadmind_pid
+	unset kadmind_list
+    }
+
+    verbose "exiting stop_kerberos_daemons"
+
+    return 1
+}
+
+# add_kerberos_key
+# Add an key to the Kerberos database.  start_kerberos_daemons must be
+# called before this procedure.  If the standalone argument is
+# non-zero, call pass at relevant points.  Returns 1 on success, 0 on
+# failure.
+
+proc add_kerberos_key { kkey standalone } {
+    global REALMNAME
+    global KADMIN
+    global KEY
+    global spawn_id
+
+    # Use kadmin to add an key.
+    set test "kadmin ank $kkey"
+    set body {
+	envstack_push
+	setup_kerberos_env client
+	spawn $KADMIN -p krbtest/admin@$REALMNAME -q "ank $kkey@$REALMNAME"
+	envstack_pop
+	verbose "starting $test"
+	expect_after {
+	    "Cannot contact any KDC" {
+		set test "$test (lost KDC)"
+		break
+	    }
+	    timeout {
+		set test "$test (timeout)"
+		break
+	    }
+	    eof {
+		set test "$test (eof)"
+		break
+	    }
+	}
+	expect -re "assword\[^\r\n\]*: *"
+	send "adminpass$KEY\r"
+	expect "Enter password for principal \"$kkey@$REALMNAME\":"
+	send "$kkey"
+	send "$KEY\r"
+	expect "Re-enter password for principal \"$kkey@$REALMNAME\":"
+	send "$kkey"
+	send "$KEY\r"
+	expect {
+	    "Principal \"$kkey@$REALMNAME\" created" { }
+	    "Principal or policy already exists while creating*" { }
+	}
+	expect eof
+	if ![check_exit_status kadmin] {
+	    break
+	}
+    }
+    set ret [catch $body]
+    catch "expect eof"
+    catch expect_after
+    if $ret {
+	if $standalone {
+	    fail $test
+	}
+	return 0
+    } else {
+	if $standalone {
+	    pass $test
+	}
+	return 1
+    }
+}
+
+# dump_db
+proc dump_db { } {
+    global KADMIN_LOCAL
+    global REALMNAME
+
+    spawn $KADMIN_LOCAL -r $REALMNAME
+    expect_after {
+	eof {
+	    perror "failed to get debugging dump of database (eof)"
+	}
+	timeout {
+	    perror "failed to get debugging dump of database (timeout)"
+	}
+    }
+    expect "kadmin.local: "
+    send "getprincs\r"
+    expect "kadmin.local: "
+    send "quit\r"
+    expect eof
+    catch expect_after
+}
+
+# add_random_key
+# Add a key with a random password to the Kerberos database.
+# start_kerberos_daemons must be called before this procedure.  If the
+# standalone argument is non-zero, call pass at relevant points.
+# Returns 1 on success, 0 on failure.
+
+proc add_random_key { kkey standalone } {
+    global REALMNAME
+    global KADMIN
+    global KEY
+    global spawn_id
+
+    # Use kadmin to add an key.
+    set test "kadmin ark $kkey"
+    set body {
+	envstack_push
+	setup_kerberos_env client
+	spawn $KADMIN -p krbtest/admin@$REALMNAME -q "ank -randkey $kkey@$REALMNAME"
+	envstack_pop
+	expect_after {
+	    timeout {
+		set test "$test (timeout)"
+		break
+	    }
+	    eof {
+		set test "$test (eof)"
+		break
+	    }
+	}
+	expect -re "assword\[^\r\n\]*: *"
+	send "adminpass$KEY\r"
+	expect {
+	    "Principal \"$kkey@$REALMNAME\" created" { }
+	    "Principal or policy already exists while creating*" { }
+	}
+	expect eof
+	if ![check_exit_status kadmin] {
+	    break
+	}
+    }
+    if [catch $body] {
+	catch expect_after
+	if $standalone {
+	    fail $test
+	}
+	return 0
+    } else {
+	catch expect_after
+	if $standalone {
+	    pass $test
+	}
+	return 1
+    }
+}
+
+# setup_srvtab
+# Set up a srvtab file.  start_kerberos_daemons and add_random_key
+# $id/$hostname must be called before this procedure.  If the
+# argument is non-zero, call pass at relevant points.  Returns 1 on
+# success, 0 on failure. If the id field is not provided, host is used.
+
+proc setup_srvtab { standalone {id host} } {
+    global REALMNAME
+    global KADMIN_LOCAL
+    global KEY
+    global tmppwd
+    global hostname
+    global spawn_id
+    global last_service
+
+    if {!$standalone && [file exists $tmppwd/srvtab] && $last_service == $id} {
+	return 1
+    }
+
+    file delete $tmppwd/srvtab $tmppwd/srvtab.old
+
+    if ![get_hostname] {
+	return 0
+    }
+
+    file delete $hostname-new-srvtab
+
+    envstack_push
+    setup_kerberos_env kdc
+    spawn $KADMIN_LOCAL -r $REALMNAME
+    envstack_pop
+    expect_after {
+	-re "(.*)\r\nkadmin.local:  " {
+	    fail "kadmin.local srvtab (unmatched output: $expect_out(1,string))"
+	    if {!$standalone} {
+		file delete $tmppwd/srvtab
+	    }
+	    catch "expect_after"
+	    return 0
+	}
+	timeout {
+	    fail "kadmin.local srvtab"
+	    if {!$standalone} {
+		file delete $tmppwd/srvtab
+	    }
+	    catch "expect_after"
+	    return 0
+	}
+	eof {
+	    fail "kadmin.local srvtab"
+	    if {!$standalone} {
+		file delete $tmppwd/srvtab
+	    }
+	    catch "expect_after"
+	    return 0
+	}
+    }
+    expect "kadmin.local:  "
+    send "xst -k $hostname-new-srvtab $id/$hostname kiprop/$hostname\r"
+    expect "xst -k $hostname-new-srvtab $id/$hostname kiprop/$hostname\r\n"
+    expect {
+	-re ".*Entry for principal $id/$hostname.* added to keytab WRFILE:$hostname-new-srvtab." { }
+	-re "\r\nkadmin.local:  " {
+	    if {$standalone} {
+		fail "kadmin.local srvtab"
+	    } else {
+		file delete $tmppwd/srvtab
+	    }
+	    catch expect_after
+	    return 0
+	}
+    }
+    expect "kadmin.local:  "
+    send "quit\r"
+    expect eof
+    catch expect_after
+    if ![check_exit_status "kadmin.local srvtab"] {
+	if {!$standalone} {
+	    file delete $tmppwd/srvtab
+	}
+	return 0
+    }
+
+    catch "exec mv -f $hostname-new-srvtab $tmppwd/srvtab" exec_output
+    if ![string match "" $exec_output] {
+	verbose -log "$exec_output"
+	perror "can't mv new srvtab"
+	return 0
+    }
+
+    if {$standalone} {
+	pass "kadmin.local srvtab"
+    }
+
+    # Make the srvtab file globally readable in case we are using a
+    # root shell and the srvtab is NFS mounted.
+    catch "exec chmod a+r $tmppwd/srvtab"
+
+    # Remember what we just extracted
+    set last_service $id
+
+    return 1
+}
+
+# kinit
+# Use kinit to get a ticket.  If the argument is non-zero, call pass
+# at relevant points.  Returns 1 on success, 0 on failure.
+
+proc kinit { name pass standalone } {
+    global REALMNAME
+    global KINIT
+    global spawn_id
+
+    # Use kinit to get a ticket.
+	#
+	# For now always get forwardable tickets. Later when we need to make
+	# tests that distiguish between forwardable tickets and otherwise
+	# we should but another option to this proc. --proven
+	#
+    spawn $KINIT -5 -f $name@$REALMNAME
+    expect {
+	"Password for $name@$REALMNAME:" {
+	    verbose "kinit started"
+	}
+	timeout {
+	    fail "kinit"
+	    return 0
+	}
+	eof {
+	    fail "kinit"
+	    return 0
+	}
+    }
+    send "$pass\r"
+    expect eof
+    if ![check_exit_status kinit] {
+	return 0
+    }
+
+    if {$standalone} {
+	pass "kinit"
+    }
+
+    return 1
+}
+
+proc kinit_renew { name pass standalone } {
+    global REALMNAME
+    global KINIT
+    global spawn_id
+
+    spawn $KINIT -5 -f $name@$REALMNAME
+    expect {
+	"Password for $name@$REALMNAME:" {
+	    verbose "kinit started"
+	}
+	timeout {
+	    fail "kinit"
+	    return 0
+	}
+	eof {
+	    fail "kinit"
+	    return 0
+	}
+    }
+    send "$pass\r"
+    expect eof
+    if ![check_exit_status kinit] {
+	return 0
+    }
+
+    spawn $KINIT -R
+    expect eof
+    if ![check_exit_status "kinit_renew"] {
+	return 0
+    }
+
+    return 1
+}
+
+# Retrieve a ticket using FAST armor
+proc kinit_fast { name pass standalone } {
+    global REALMNAME
+    global KINIT
+    global spawn_id
+    global env
+
+    # Use kinit to get a ticket.
+	#
+    spawn $KINIT -5 -f -T $env(KRB5CCNAME) $name@$REALMNAME
+    expect {
+	"Password for $name@$REALMNAME:" {
+	    verbose "kinit started"
+	}
+	timeout {
+	    fail "kinit_fast"
+	    return 0
+	}
+	eof {
+	    fail "kinit_fast"
+	    return 0
+	}
+    }
+    send "$pass\r"
+    expect eof
+    if ![check_exit_status kinit] {
+	return 0
+    }
+
+    if {$standalone} {
+	pass "kinit_fast"
+    }
+
+    return 1
+}
+
+proc kinit_anonymous { name  } {
+    global REALMNAME
+    global KINIT
+    global spawn_id
+
+    # Use kinit to get a ticket.
+    #
+    spawn $KINIT -5 -f -n $name@$REALMNAME
+    expect {
+	"Password for $name@$REALMNAME:" {
+	    fail "kinit_anonymous (password requested)"
+	    return 0
+	}
+	timeout {
+	    fail "kinit_anonymous (timeout)"
+	    return 0
+	}
+	eof { }
+    }
+    if ![check_exit_status kinit] {
+	fail "kinit anonymous"
+    }
+
+    pass "kinit anonymous"
+    return 1
+}
+
+proc kinit_kt { name keytab standalone testname } {
+    global REALMNAME
+    global KINIT
+    global spawn_id
+
+    # Use kinit to get a ticket.
+	#
+	# For now always get forwardable tickets. Later when we need to make
+	# tests that distiguish between forwardable tickets and otherwise
+	# we should but another option to this proc. --proven
+	#
+    spawn $KINIT -5 -f -k -t $keytab $name@$REALMNAME
+    expect {
+	timeout {
+	    fail "kinit $testname"
+	    return 0
+	}
+	eof { }
+    }
+    if ![check_exit_status "kinit $testname"] {
+	return 0
+    }
+
+    if {$standalone} {
+	pass "kinit $testname"
+    }
+
+    return 1
+}
+
+# List tickets.  Requires client and server names, and test name.
+# Checks that klist exist status is zero.
+# Records pass or fail, and returns 1 or 0.
+proc do_klist { myname servname testname } {
+    global KLIST
+    global tmppwd
+
+    spawn $KLIST -5 -e
+    expect {
+	-re "Ticket cache:\[ 	\]*(.+:)?$tmppwd/tkt.*Default principal:\[ 	\]*$myname.*$servname\r\n" {
+	    verbose "klist started"
+	}
+	timeout {
+	    fail $testname
+	    return 0
+	}
+	eof {
+	    fail $testname
+	    return 0
+	}
+    }
+
+    expect eof
+
+    if ![check_exit_status $testname] {
+	return 0
+    }
+    pass $testname
+    return 1
+}
+
+proc do_klist_kt { keytab testname } {
+    global KLIST
+    global tmppwd
+
+    spawn $KLIST -5 -e -k $keytab
+    expect {
+	-re "Keytab name:\[ 	\]*(.+:)?.*KVNO Principal\r\n---- -*\r\n" {
+	    verbose "klist started"
+	}
+	timeout {
+	    fail $testname
+	    return 0
+	}
+	eof {
+	    fail $testname
+	    return 0
+	}
+    }
+    set more 1
+    while {$more} {
+	expect {
+	    -re { *[0-9][0-9]* *[a-zA-Z/@.-]* \([/a-zA-Z 0-9-]*\) *\r\n} {
+		verbose -log "key: $expect_out(buffer)"
+	    }
+	    eof { set more 0 }
+	}
+    }
+
+    if ![check_exit_status $testname] {
+	return 0
+    }
+    pass $testname
+    return 1
+}
+
+proc do_klist_err { testname } {
+    global KLIST
+    global spawn_id
+
+    spawn $KLIST -5
+    # Might say "credentials cache" or "credentials cache file".
+    expect {
+	-re "klist: No credentials cache found.*\r\n" {
+	    verbose "klist started"
+	}
+	timeout {
+	    fail $testname
+	    return 0
+	}
+	eof {
+	    fail $testname
+	    return 0
+	}
+    }
+    # We can't use check_exit_status, because we expect an exit status
+    # of 1.
+    catch "expect eof"
+    set status_list [wait -i $spawn_id]
+    verbose "wait -i $spawn_id returned $status_list ($testname)"
+    if { [lindex $status_list 2] != 0 } {
+	fail "$testname (bad exit status) $status_list"
+	return 0
+    } else { if { [lindex $status_list 3] != 1 } {
+	fail "$testname (bad exit status) $status_list"
+	return 0
+    } else {
+	pass $testname
+    } }
+    return 1
+}
+
+proc do_kdestroy { testname } {
+    global KDESTROY
+    global spawn_id
+
+    spawn $KDESTROY -5
+    if ![check_exit_status $testname] {
+	fail $testname
+	return 0
+    }
+    pass $testname
+    return 1
+}
+
+proc xst { keytab name } {
+    global KADMIN_LOCAL
+    global REALMNAME
+
+    envstack_push
+    setup_kerberos_env kdc
+    spawn $KADMIN_LOCAL -r $REALMNAME
+    envstack_pop
+    catch expect_after
+    expect_after {
+	-re "(.*)\r\nkadmin.local:  " {
+	    fail "kadmin.local xst $keytab (unmatched output: $expect_out(1,string)"
+	    catch "expect_after"
+	    return 0
+	}
+	timeout {
+	    fail "kadmin.local xst $keytab (timeout)"
+	    catch "expect_after"
+	    return 0
+	}
+	eof {
+	    fail "kadmin.local xst $keytab (eof)"
+	    catch "expect_after"
+	    return 0
+	}
+    }
+    expect "kadmin.local:  "
+    send "xst -k $keytab $name\r"
+    expect -re "xst -k \[^\r\n\]*\r\n.*Entry for principal .* added to keytab WRFILE:.*\r\nkadmin.local:  "
+    send "quit\r"
+    expect eof
+    catch expect_after
+    if ![check_exit_status "kadmin.local $keytab"] {
+	perror "kadmin.local xst $keytab exited abnormally"
+	return 0
+    }
+    return 1
+}
+
+# helpful sometimes for debugging the test suite
+proc export_debug_envvars { } {
+    global env
+    foreach i {KDB5_UTIL KRB5KDC KADMIND KADMIN KADMIN_LOCAL KINIT KTUTIL KLIST KPASSWD REALMNAME GSSCLIENT KPROPLOG} {
+	global $i
+	if [info exists $i] { set env($i) [set $i] }
+    }
+}
+proc spawn_xterm { } {
+    export_debug_envvars
+    exec "xterm"
+}
+proc spawn_shell { } {
+    export_debug_envvars
+    spawn "sh"
+    exp_interact
+}

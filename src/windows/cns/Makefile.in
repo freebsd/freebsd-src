@@ -1,0 +1,76 @@
+# Makefile for the Kerberos for Windows ticket manager
+# Works for both k4 and k5 releases.
+#
+NAME 	 = krb5
+OBJS 	 = $(OUTPRE)cns.obj $(OUTPRE)tktlist.obj $(OUTPRE)password.obj $(OUTPRE)options.obj
+
+##### Options
+# Set NODEBUG if building release instead of debug
+!IF ! defined(KVERSION)
+KVERSION = 5
+!endif
+KRB 	 = KRB$(KVERSION)
+
+!if $(KVERSION) == 4
+BUILDTOP = ..
+LIBDIR 	 = $(BUILDTOP)\lib\krb
+KLIB 	 = $(LIBDIR)\kerberos.lib 
+RESFILE  = $(OUTPRE)cnsres4.res
+XOBJS    = $(RESFILE)
+LOCALINCLUDES = /I$(BUILDTOP) /I$(BUILDTOP)\include
+!endif
+
+!if $(KVERSION) == 5
+BUILDTOP =..\..
+LIBDIR	 = $(BUILDTOP)\lib
+RESFILE  = $(OUTPRE)cnsres5.res
+XOBJS    = $(RESFILE) $(OUTPRE)kpasswd.obj $(OUTPRE)cns_reg.obj
+LOCALINCLUDES = /I$(BUILDTOP) /I$(BUILDTOP)\include /I$(BUILDTOP)\include\krb5
+!endif
+
+##### C Compiler
+#CC 	 = cl
+!ifdef NODEBUG
+DEFINES  = /D$(KRB)=1
+!else
+DEFINES  = /D$(KRB)=1 /DDEBUG
+!endif
+
+##### RC Compiler
+#RC 	 = rc
+RFLAGS 	 = /D$(KRB)=1 $(LOCALINCLUDES)
+RCFLAGS  = $(RFLAGS) -DKRB5_APP
+
+##### CVSRES -- .res -> .obj converter
+CVTRES = cvtres
+
+##### Linker
+LINK 	 = link
+LIBS 	 = $(KLIB) $(CLIB) $(WLIB) ../lib/$(OUTPRE)libwin.lib
+SYSLIBS = kernel32.lib ws2_32.lib user32.lib gdi32.lib advapi32.lib
+LFLAGS = /nologo $(LOPTS)
+
+all: Makefile $(OUTPRE)$(NAME).exe
+
+$(OUTPRE)$(NAME).exe: $(NAME).def $(OBJS) $(XOBJS) $(LIBS)
+	$(LINK) $(LFLAGS) /map:$*.map /out:$@ $(OBJS) $(XOBJS) \
+	  $(LIBS) $(SYSLIBS) $(SCLIB)
+				$(_VC_MANIFEST_EMBED_EXE)
+
+install:
+	$(CP) $(OUTPRE)$(NAME).exe $(DESTDIR)
+	$(CP) krb5.hlp $(DESTDIR)
+
+clean:
+	$(RM) $(OUTPRE)*.exe
+	$(RM) $(OUTPRE)*.res
+	$(RM) $(OUTPRE)*.map
+
+$(OBJS): cns.h tktlist.h
+
+$(RESFILE): cns.h ..\version.rc
+
+$(RESFILE): clock00.ico clock05.ico clock10.ico clock15.ico clock20.ico \
+	 clock25.ico clock30.ico clock35.ico clock40.ico clock45.ico \
+	 clock50.ico clock55.ico clock60.ico clockexp.ico clocktkt.ico \
+	 cns.ico

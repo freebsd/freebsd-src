@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Get Tickets</Title>
+</HEAD>
+<BODY>
+
+ <H1>Get Tickets</H1>
+
+
+<p>
+Before you can access services that use Kerberos for authentication, you must obtain a Kerberos ticket. If your company uses RSA SecurID to control access to Kerberos, you will be prompted to enter your SecurID password after you request a ticket.</p>
+<p>
+To get a ticket:
+<ol>
+<li>Click the Get Ticket button in the Home tab or use the <a href="JavaScript:popup.TextPopup(popupKeyboardShortcut, popfont,9,9,-1,-1)">keyboard shortcut</a>  [Ctrl + t].</li>
+<li>Your principal is your user name combined with the Kerberos <a href="JavaScript:popup.TextPopup(popupRealm, popfont,9,9,-1,-1)">realm</a> you are part of. For example, <span class="typed">jdoe@SALES.WIDGET.COM.</span> Enter your principal.  Principals you have previously entered and saved will auto-complete. </li>
+
+
+
+<li>Enter your password. </li>
+
+<li>To save this principal so Kerberos will auto-complete it for you in the future, select the "Remember this principal" checkbox. If you have multiple principals, Kerberos can remember all of them.</li>
+
+<li>To verify or change ticket settings, click <font id="button"> Show Advanced </font> at the bottom of the window and then make any necessary changes.  </li> <ul >
+<li><b>To change the ticket lifetime</b>, click and drag the Ticket Lifetime slider.  </li>
+<li><b>To get a forwardable ticket</b>, select  the Forwardable and Proxiable checkbox.</li>
+<li><b>To get a renewable ticket</b>, select  the Renewable checkbox.</li>
+</ul>
+<a href="HTML/Ticket_Settings.htm">About: Ticket Settings and Flags</a>
+
+
+<li>Click <font id="button"> Okay</font>.
+<p></p>
+If your company uses RSA SecurID, a popup window will open requiring you to enter your SecurID password. Enter that password (your PIN plus the code currently displayed on your RSA SecurID token) and click Okay.</li>
+</ol>
+<p>
+Your new ticket is listed in the main window.
+
+</p>
+
+<H2>Related Help</H2>
+<ul id="helpul">
+<li><a href="HTML/Tickets.htm">About tickets</a></li>
+<li><a href="HTML/Ticket_Settings.htm">Ticket settings and flags</a></li>
+<li><a href="HTML/Forget_Principals.htm">Clear principal history</a></li>
+</ul>
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725,"
+popupRealm="The Kerberos realm is the group of network resources that you gain access to when you log on with a Kerberos username and password. Often it is named after the DNS domain it corrosponds to. In Windows, realms are called 'domains.' "
+popupKeyboardShortcut="To use a keyboard shortcut, hold down the [Ctrl] key on your computer keyboard and press the appropriate letter.  "
+</SCRIPT>
+
+<OBJECT id=popup type="application/x-oleobject"
+classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</OBJECT>
+</BODY>
+</HTML>

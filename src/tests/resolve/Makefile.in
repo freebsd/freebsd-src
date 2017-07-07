@@ -1,0 +1,28 @@
+mydir=tests$(S)resolve
+BUILDTOP=$(REL)..$(S)..
+
+OBJS=resolve.o addrinfo-test.o fake-addrinfo-test.o
+SRCS=$(srcdir)/resolve.c $(srcdir)/addrinfo-test.c \
+	$(srcdir)/fake-addrinfo-test.c
+
+all: resolve addrinfo-test fake-addrinfo-test
+
+resolve: resolve.o
+	$(CC_LINK) -o $@ resolve.o $(LIBS)
+
+addrinfo-test: addrinfo-test.o
+	$(CC_LINK) -o $@ addrinfo-test.o $(SUPPORT_LIB) $(LIBS)
+
+fake-addrinfo-test: fake-addrinfo-test.o
+	$(CC_LINK) -o $@ fake-addrinfo-test.o $(SUPPORT_LIB) $(LIBS)
+
+check: resolve addrinfo-test fake-addrinfo-test
+	$(RUN_TEST) ./resolve
+	$(RUN_TEST) ./addrinfo-test -p telnet
+	$(RUN_TEST) ./fake-addrinfo-test -p telnet
+
+install:
+
+clean:
+	$(RM) resolve addrinfo-test fake-addrinfo-test
+

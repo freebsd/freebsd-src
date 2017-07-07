@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-TGS-REQ-AUTH-CKSUM-data:
+
+KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM
+================================
+
+..
+.. data:: KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM
+..
+
+
+
+
+======================================= ======================
+``KRB5_KEYUSAGE_TGS_REQ_AUTH_CKSUM``       ``6``
+======================================= ======================

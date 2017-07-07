@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-GSS-TOK-WRAP-PRIV-data:
+
+KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV
+===============================
+
+..
+.. data:: KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV
+..
+
+
+
+
+====================================== ======================
+``KRB5_KEYUSAGE_GSS_TOK_WRAP_PRIV``       ``24``
+====================================== ======================

@@ -1,0 +1,57 @@
+krb5_c_fx_cf2_simple -  Compute the KRB-FX-CF2 combination of two keys and pepper strings. 
+===========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_fx_cf2_simple(krb5_context context, const krb5_keyblock * k1, const char * pepper1, const krb5_keyblock * k2, const char * pepper2, krb5_keyblock ** out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **k1** - KDC contribution key
+
+	          **[in]** **pepper1** - String"PKINIT"
+
+	          **[in]** **k2** - Reply key
+
+	          **[in]** **pepper2** - String"KeyExchange"
+
+	          **[out]** **out** - Output key
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function computes the KRB-FX-CF2 function over its inputs and places the results in a newly allocated keyblock. This function is simple in that it assumes that *pepper1* and *pepper2* are C strings with no internal nulls and that the enctype of the result will be the same as that of *k1* . *k1* and *k2* may be of different enctypes.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

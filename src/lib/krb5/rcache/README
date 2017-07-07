@@ -1,0 +1,82 @@
+/*
+Copyright 1990, Daniel J. Bernstein. All rights reserved.
+
+Please address any questions or comments to the author at brnstnd@acf10.nyu.edu.
+*/
+
+The #include's should be rewritten.
+
+All functions return 0 on success.
+
+Environment variables: KRB5RCACHETYPE, KRB5RCACHENAME, KRB5RCACHEDIR,
+and TMPDIR. Obsolete: KRB5RCACHE.
+
+All header files are both ANSI-compatible and K&R-compatible. The .c files
+are only ANSI compatible. Everything passes gcc -Wall -ansi -pedantic.
+
+Strings are freed using FREE(), which is defined in terms of free(). 
+
+The error header files should be redone.
+
+The header files don't use __ because that's reserved.
+
+Each .c file assumes <malloc.h>. rc_io.c assumes fsync() and a gaggle of
+error codes. These assumptions are not as portable as the code itself.
+
+
+rcache.c:
+
+The rcache.c compatibility interface's type registration is a no-op; it
+simply passes the type name on to rc_base.h. rcache.h is obsolete; use
+rc_base.h if possible.
+
+There are some slight differences between rcache.c and the prototypes I
+saw in krb/func-proto.h. Don't look at me, it's your interface.
+
+rcache.c's get_name doesn't fill with zeros unless strncpy does.
+
+
+rc_base.c:
+
+It doesn't take linker magic to preregister types. Just change the
+typehead initialization in rc_base.c, with an appropriate include file
+setting the ops.
+
+
+rc_dfl.c:
+
+If NOIOSTUFF is defined when rc_dfl.c is compiled, all dfl rcaches will
+be per-process. This is untested.
+
+Provided that separate threads use separate rcaches, rc_dfl.c is safe
+for multithreading.
+
+Getting the name of a cache is only valid after it is created and before
+it is closed. Recovering a cache is only valid after it has been created.
+
+krb5_unparse_name had better produce a zero-terminated string.
+
+rc_dfl.c isn't smart enough to try expunge/retry upon a malloc error.
+Then again, such an error indicates that the whole system's about to die;
+without real memory management there's no good solution.
+
+HASHSIZE can be defined at compile time. It defaults to 997 in rc_dfl.c.
+EXCESSREPS can be defined at compile time. It defaults to 30 in rc_dfl.c.
+
+Hopefully adding a deltat to a time to compare to another time cannot
+overflow.
+
+In rc_dfl's struct dfl_data, the name field is never freed, even though
+it may be malloced by io_creat on a generate-name call. This should not
+be a problem: a single process should not be opening and closing many
+rcaches. One fix would be another field to indicate whether the string
+was malloced or not; normally this is an unstated characteristic of a
+char pointer, but here it would have to be explicit.
+
+
+rc_io.c:
+
+rc_io.c assumes that siginterrupt() is not set. If siginterrupt() is set
+and a signal occurs during, say, close(), then the close will fail.
+
+On a machine without fsync() you might as well not use the disk at all.

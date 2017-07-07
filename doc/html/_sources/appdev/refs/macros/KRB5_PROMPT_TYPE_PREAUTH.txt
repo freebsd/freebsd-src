@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-PROMPT-TYPE-PREAUTH-data:
+
+KRB5_PROMPT_TYPE_PREAUTH
+========================
+
+..
+.. data:: KRB5_PROMPT_TYPE_PREAUTH
+..
+
+Prompt for preauthentication data (such as an OTP value)
+
+
+
+=============================== ======================
+``KRB5_PROMPT_TYPE_PREAUTH``       ``0x4``
+=============================== ======================

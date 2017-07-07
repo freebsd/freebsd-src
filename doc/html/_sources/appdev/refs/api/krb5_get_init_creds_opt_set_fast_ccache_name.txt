@@ -1,0 +1,48 @@
+krb5_get_init_creds_opt_set_fast_ccache_name -  Set location of FAST armor ccache in initial credential options. 
+=================================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_fast_ccache_name(krb5_context context, krb5_get_init_creds_opt * opt, const char * fast_ccache_name)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options
+
+	          **[in]** **fast_ccache_name** - Credential cache name
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Sets the location of a credential cache containing an armor ticket to protect an initial credential exchange using the FAST protocol extension.
+
+
+
+In version 1.7, setting an armor ccache requires that FAST be used for the exchange. In version 1.8 or later, setting the armor ccache causes FAST to be used if the KDC supports it; :c:func:`krb5_get_init_creds_opt_set_fast_flags()` must be used to require that FAST be used.
+
+
+
+
+
+
+..
+
+
+
+
+

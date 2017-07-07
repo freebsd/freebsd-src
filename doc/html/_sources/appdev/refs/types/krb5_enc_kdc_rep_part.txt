@@ -1,0 +1,80 @@
+.. highlightlang:: c
+
+.. _krb5-enc-kdc-rep-part-struct:
+
+krb5_enc_kdc_rep_part
+=====================
+
+..
+.. c:type:: krb5_enc_kdc_rep_part
+..
+
+C representation of *EncKDCRepPart* protocol message.
+
+This is the cleartext message that is encrypted and inserted in *KDC-REP* .
+
+Declaration
+------------
+
+typedef struct _krb5_enc_kdc_rep_part  krb5_enc_kdc_rep_part
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_enc_kdc_rep_part.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_msgtype	krb5_enc_kdc_rep_part.msg_type
+
+                                             krb5 message type
+                                             
+
+.. c:member:: krb5_keyblock  *	krb5_enc_kdc_rep_part.session
+
+                                             Session key.
+                                             
+
+.. c:member:: krb5_last_req_entry  **	krb5_enc_kdc_rep_part.last_req
+
+                                             Array of pointers to entries.
+                                             
+
+.. c:member:: krb5_int32	krb5_enc_kdc_rep_part.nonce
+
+                                             Nonce from request.
+                                             
+
+.. c:member:: krb5_timestamp	krb5_enc_kdc_rep_part.key_exp
+
+                                             Expiration date.
+                                             
+
+.. c:member:: krb5_flags	krb5_enc_kdc_rep_part.flags
+
+                                             Ticket flags.
+                                             
+
+.. c:member:: krb5_ticket_times	krb5_enc_kdc_rep_part.times
+
+                                             Lifetime info.
+                                             
+
+.. c:member:: krb5_principal	krb5_enc_kdc_rep_part.server
+
+                                             Server's principal identifier.
+                                             
+
+.. c:member:: krb5_address  **	krb5_enc_kdc_rep_part.caddrs
+
+                                             Array of ptrs to addrs, optional.
+                                             
+
+.. c:member:: krb5_pa_data  **	krb5_enc_kdc_rep_part.enc_padata
+
+                                             Encrypted preauthentication data.
+                                             
+

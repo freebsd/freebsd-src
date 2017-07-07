@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>View Panel</Title>
+</HEAD>
+<BODY>
+<H1>Using the View  Panel </H1>
+<p>
+Use the View panel to choose which information columns are displayed in the main window. The View panel is to the right of the buttons in the top of the Kerberos window.</p>
+<H3>Show or Hide View Columns</H3>
+<p>
+A checkmark next to a View option indicates that the View column is currently shown in the main window. For example, "Valid Until" is selected by default, so the main window shows the Valid Until column unless you unselect that checkbox. </p>
+
+<H3>Viewing Ticket Information</H3>
+<p>
+The columns selected in the View panel show in the main window.
+Click and drag the line separating two column headings to make a column wider or narrower. Click the blue triangle next to a principal to see information for all of the principal's tickets. <a href="HTML/View_Tickets.htm">More help about viewing tickets </a> </p>
+</p>
+<p></p>
+<H3> Column Descriptions</H3>
+
+<table>
+<tr>
+<th>
+Checkbox Name </th>
+<th>
+Select this checkbox to...</th>
+<th>
+Details</th>
+</tr>
+<tr>
+<th id="th2"><a name="issued">Issued  </a></th>
+<td> See the date and time your ticket was originally obtained. </td>
+<td>If the ticket is imported, this is the time it was originally obtained when you logged on to a Windows domain with a Windows Logon session.</td> </tr>
+<tr>
+<th id="th2">
+ Renewable Until</th>
+<td>See the date and time that your renewable tickets cannot be renewed any more. After this time you must get a new ticket to access services authenticated by Kerberos.</td>
+<td>
+ <a name="renewable-until">If this column shows <em>Not Renewable</em>, the ticket was not flagged as renewable when you obtained it.</a>
+<p></p>
+<b>Related Help:</b><ul id="helpul">
+<li> <a href="HTML/Tickets.htm#renewable"> About renewable tickets</a> </li>
+<li><a href="HTML/Renew_Tickets.htm"> Renew tickets</a></li>
+<li><a href="HTML/Ticket_Settings.htm"> Ticket settings and flags</a></li>
+</ul>
+</td></tr>
+<tr>
+<th id="th2"> Valid Until  </th>
+<td>
+See when your ticket will expire. Note that you cannot renew a ticket if you let it expire. </td>
+<td>
+ <a name="valid-until">Kerberos alerts you to expiring tickets with a warning in a pop up window. </a>
+To add an audible warning, select <b>Expiration Alarm</b> in the Options panel. <br><a href="HTML/Options_Menu.htm">Using the Options Panel</a>
+ </td></tr>
+<tr>
+<th id="th2">  Encryption Type  </th>
+<td >See the encryption type used to encrypt each session key and ticket. This can be useful when troubleshooting.</td>
+<td > <a name="encryption-type">Kerberos supports multiple  types of encryption.</a> The type used for a particular  ticket or session key is automatically negotiated when you request a ticket or a service. <br>
+<a href="HTML/Encryption_Types.htm#supported-types">More About Encryption Types</a> </td></tr>
+<tr>
+<th id="th2"> Flags</th>
+<td>See how the tickets were flagged (renewable and/or fowardable) when you obtained them.
+<td> <a name="flags"> You cannot change how an existing flag is set. If you need a ticket with different flags, you must get a new ticket. <br></a>
+<a href="HTML/Ticket_Settings.htm">About ticket settings and flags </a>
+</td>
+</tr>
+<tr><th id="th2"> Import Status</th>
+<td>  See which of your tickets have been imported (or can be imported), from a Windows Logon session, and which have been exported (or can be exported) into a Windows Logon session.
+
+<p></p>
+This column is only available when you have  Kerberos tickets obtained by logging into Windows Logon session to enter a Windows domain.
+<p></p>
+<a href="HTML/Tickets.htm#importable">About importable (Windows domain) tickets</a>
+</td>
+<td><a name="import-status">The import status tells you what  application was used to obtain the ticket, and what application can fully use it now.</a>  Tickets originally obtained by starting  a Windows Logon session in a domain are <em> imported</em> or <em>importable</em> to MIT Kerberos, or they are <em>protected</em> from being imported. <p></p> Tickets obtained with the Get Ticket window are eithe <em>exportable</em> or <em>exported</em> to the Windows Logon session. <a href="HTML/Import_Status.htm">Import Status meanings</a>
+
+ </td>
+</td>
+
+</tr>
+
+
+</table>
+<H2> Related help</H2>
+<ul id="helpul">
+<li><a href="HTML/View_Tickets.htm">View tickets</a></li>
+<li><a href="HTML/Renew_Tickets.htm">Renew tickets</a></li>
+<li><a href="HTML/Destroy_Tickets.htm">Destroy tickets</a></li>
+<li><a href="HTML/Tickets.htm#renewable">About renewable tickets</a></li>
+<li><a href="HTML/Tickets.htm#importable">About importable (Windows domain) tickets </a></li>
+<li><a href="HTML/Tickets.htm#expiration">About ticket expiration</a></li>
+<li><a href="HTML/Import_Status.htm">Import Status</a></li>
+</ul>
+
+</BODY>
+</HTML>

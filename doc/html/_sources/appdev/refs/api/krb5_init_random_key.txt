@@ -1,0 +1,48 @@
+krb5_init_random_key
+====================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_random_key(krb5_context context, const krb5_encrypt_block * eblock, const krb5_keyblock * keyblock, krb5_pointer * ptr)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **eblock**
+
+	          **keyblock**
+
+	          **ptr**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

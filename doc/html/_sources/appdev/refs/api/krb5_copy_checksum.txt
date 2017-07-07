@@ -1,0 +1,51 @@
+krb5_copy_checksum -  Copy a krb5_checksum structure. 
+======================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_checksum(krb5_context context, const krb5_checksum * ckfrom, krb5_checksum ** ckto)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ckfrom** - Checksum to be copied
+
+	          **[out]** **ckto** - Copy of krb5_checksum structure
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new krb5_checksum structure with the contents of *ckfrom* . Use :c:func:`krb5_free_checksum()` to free *ckto* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

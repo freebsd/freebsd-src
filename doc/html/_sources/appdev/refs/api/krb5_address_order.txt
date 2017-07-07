@@ -1,0 +1,49 @@
+krb5_address_order -  Return an ordering of the specified addresses. 
+=====================================================================
+
+..
+
+.. c:function:: int krb5_address_order(krb5_context context, const krb5_address * addr1, const krb5_address * addr2)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **addr1** - First address
+
+	          **[in]** **addr2** - Second address
+
+
+..
+
+
+:retval:
+         -   0   The two addresses are the same
+         -   \<   0 First address is less than second
+         -   \>   0 First address is greater than second
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

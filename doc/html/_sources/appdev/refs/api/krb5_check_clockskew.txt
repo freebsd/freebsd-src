@@ -1,0 +1,54 @@
+krb5_check_clockskew -  Check if a timestamp is within the allowed clock skew of the current time. 
+===================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_check_clockskew(krb5_context context, krb5_timestamp date)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **date** - Timestamp to check
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5KRB_AP_ERR_SKEW    date is not within allowable clock skew
+
+
+..
+
+
+
+
+
+
+
+This function checks if *date* is close enough to the current time according to the configured allowable clock skew.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

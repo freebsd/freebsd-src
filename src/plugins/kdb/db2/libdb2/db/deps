@@ -1,0 +1,6 @@
+#
+# Generated makefile dependencies follow.
+#
+db.so db.po $(OUTPRE)db.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(DB_DEPS) $(srcdir)/../include/config.h $(srcdir)/../include/db-int.h \
+  db.c

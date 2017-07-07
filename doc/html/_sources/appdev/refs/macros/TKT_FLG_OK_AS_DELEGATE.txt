@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _TKT-FLG-OK-AS-DELEGATE-data:
+
+TKT_FLG_OK_AS_DELEGATE
+======================
+
+..
+.. data:: TKT_FLG_OK_AS_DELEGATE
+..
+
+
+
+
+============================= ======================
+``TKT_FLG_OK_AS_DELEGATE``       ``0x00040000``
+============================= ======================

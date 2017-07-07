@@ -1,0 +1,34 @@
+mydir=lib$(S)crypto$(S)openssl$(S)enc_provider
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../../krb -I$(srcdir)/..
+
+STLIBOBJS= \
+	des.o 	\
+	des3.o 	\
+	rc4.o 	\
+	aes.o   \
+	camellia.o
+
+OBJS= \
+	$(OUTPRE)des.$(OBJEXT) 	\
+	$(OUTPRE)des3.$(OBJEXT) 	\
+	$(OUTPRE)aes.$(OBJEXT) 	\
+	$(OUTPRE)camellia.$(OBJEXT) 	\
+	$(OUTPRE)rc4.$(OBJEXT)
+
+SRCS= \
+	$(srcdir)/des.c 	\
+	$(srcdir)/des3.c 	\
+	$(srcdir)/aes.c 	\
+	$(srcdir)/camellia.c 	\
+	$(srcdir)/rc4.c
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@

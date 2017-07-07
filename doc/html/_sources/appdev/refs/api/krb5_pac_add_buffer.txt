@@ -1,0 +1,75 @@
+krb5_pac_add_buffer -  Add a buffer to a PAC handle. 
+=====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_add_buffer(krb5_context context, krb5_pac pac, krb5_ui_4 type, const krb5_data * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC handle
+
+	          **[in]** **type** - Buffer type
+
+	          **[in]** **data** - contents
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function adds a buffer of type *type* and contents *data* to *pac* if there isn't already a buffer of this type present.
+
+
+
+The valid values of *type* is one of the following: 
+ 
+	 - :data:`KRB5_PAC_LOGON_INFO` - Logon information
+ 
+ 
+	 - :data:`KRB5_PAC_CREDENTIALS_INFO` - Credentials information
+ 
+ 
+	 - :data:`KRB5_PAC_SERVER_CHECKSUM` - Server checksum
+ 
+ 
+	 - :data:`KRB5_PAC_PRIVSVR_CHECKSUM` - KDC checksum
+ 
+ 
+	 - :data:`KRB5_PAC_CLIENT_INFO` - Client name and ticket information
+ 
+ 
+	 - :data:`KRB5_PAC_DELEGATION_INFO` - Constrained delegation information
+ 
+ 
+	 - :data:`KRB5_PAC_UPN_DNS_INFO` - User principal name and DNS information
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+

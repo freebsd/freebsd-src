@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _MSEC-VAL-MASK-data:
+
+MSEC_VAL_MASK
+=============
+
+..
+.. data:: MSEC_VAL_MASK
+..
+
+
+
+
+==================== ======================
+``MSEC_VAL_MASK``       ``0x7fff``
+==================== ======================

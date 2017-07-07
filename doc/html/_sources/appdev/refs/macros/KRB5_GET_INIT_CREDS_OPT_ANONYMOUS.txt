@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-ANONYMOUS-data:
+
+KRB5_GET_INIT_CREDS_OPT_ANONYMOUS
+=================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_ANONYMOUS
+..
+
+
+
+
+======================================== ======================
+``KRB5_GET_INIT_CREDS_OPT_ANONYMOUS``       ``0x0400``
+======================================== ======================

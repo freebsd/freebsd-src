@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-AUTHDATA-FX-ARMOR-data:
+
+KRB5_AUTHDATA_FX_ARMOR
+======================
+
+..
+.. data:: KRB5_AUTHDATA_FX_ARMOR
+..
+
+
+
+
+============================= ======================
+``KRB5_AUTHDATA_FX_ARMOR``       ``71``
+============================= ======================

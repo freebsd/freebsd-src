@@ -1,0 +1,33 @@
+prefix=@prefix@
+bindir=@bindir@
+datadir=@datadir@
+mydatadir=$(datadir)/apputils
+mydir=lib$(S)apputils
+BUILDTOP=$(REL)..$(S)..
+RELDIR=../lib/apputils
+SED = sed
+
+##DOS##BUILDTOP = ..\..
+##DOS##LIBNAME=$(OUTPRE)apputils.lib
+##DOS##XTRA=
+##DOS##OBJFILE=$(OUTPRE)apputils.lst
+
+STLIBOBJS=net-server.o udppktinfo.o @LIBOBJS@
+LIBBASE=apputils
+
+all-unix: all-liblinks
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+install-unix: install-libs
+
+LINTFLAGS=-uhvb 
+LINTFILES= daemon.c
+LIBOBJS=$(OUTPRE)daemon.$(OBJEXT)
+
+SRCS=	$(srcdir)/daemon.c \
+	$(srcdir)/net-server.c \
+	$(srcdir)/udppktinfo.c
+
+@libpriv_frag@
+@lib_frag@
+@libobj_frag@
+

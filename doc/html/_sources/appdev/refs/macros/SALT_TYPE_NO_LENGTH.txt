@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _SALT-TYPE-NO-LENGTH-data:
+
+SALT_TYPE_NO_LENGTH
+===================
+
+..
+.. data:: SALT_TYPE_NO_LENGTH
+..
+
+
+
+
+========================== ======================
+``SALT_TYPE_NO_LENGTH``       ``UINT_MAX``
+========================== ======================

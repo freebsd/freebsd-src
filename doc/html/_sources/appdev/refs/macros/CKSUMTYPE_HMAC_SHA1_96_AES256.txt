@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _CKSUMTYPE-HMAC-SHA1-96-AES256-data:
+
+CKSUMTYPE_HMAC_SHA1_96_AES256
+=============================
+
+..
+.. data:: CKSUMTYPE_HMAC_SHA1_96_AES256
+..
+
+RFC 3962.
+
+Used with ENCTYPE_AES256_CTS_HMAC_SHA1_96
+
+==================================== ======================
+``CKSUMTYPE_HMAC_SHA1_96_AES256``       ``0x0010``
+==================================== ======================

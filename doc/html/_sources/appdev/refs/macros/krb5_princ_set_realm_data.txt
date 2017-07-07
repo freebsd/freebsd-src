@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _krb5-princ-set-realm-data-data:
+
+krb5_princ_set_realm_data
+=========================
+
+..
+.. data:: krb5_princ_set_realm_data
+..
+
+
+
+
+======================================================= ======================
+``krb5_princ_set_realm_data (context, princ, value)``       ``(princ)->realm.data = (value)``
+======================================================= ======================

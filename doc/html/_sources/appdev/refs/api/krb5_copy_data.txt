@@ -1,0 +1,51 @@
+krb5_copy_data -  Copy a krb5_data object. 
+===========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_data(krb5_context context, const krb5_data * indata, krb5_data ** outdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **indata** - Data object to be copied
+
+	          **[out]** **outdata** - Copy of *indata*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new krb5_data object with the contents of *indata* . Use :c:func:`krb5_free_data()` to free *outdata* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

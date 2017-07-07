@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-timestamp-struct:
+
+krb5_timestamp
+==============
+
+..
+.. c:type:: krb5_timestamp
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_timestamp
+
+

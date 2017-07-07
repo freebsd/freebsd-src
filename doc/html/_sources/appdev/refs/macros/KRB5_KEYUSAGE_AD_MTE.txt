@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AD-MTE-data:
+
+KRB5_KEYUSAGE_AD_MTE
+====================
+
+..
+.. data:: KRB5_KEYUSAGE_AD_MTE
+..
+
+
+
+
+=========================== ======================
+``KRB5_KEYUSAGE_AD_MTE``       ``20``
+=========================== ======================

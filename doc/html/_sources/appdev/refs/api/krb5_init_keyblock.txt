@@ -1,0 +1,61 @@
+krb5_init_keyblock -  Initialize an empty krb5_keyblock . 
+==========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_keyblock(krb5_context context, krb5_enctype enctype, size_t length, krb5_keyblock ** out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[in]** **length** - Length of keyblock (or 0)
+
+	          **[out]** **out** - New keyblock structure
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Initialize a new keyblock and allocate storage for the contents of the key. It is legal to pass in a length of 0, in which case contents are left unallocated. Use :c:func:`krb5_free_keyblock()` to free *out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If *length* is set to 0, contents are left unallocated.
+ 
+
+
+

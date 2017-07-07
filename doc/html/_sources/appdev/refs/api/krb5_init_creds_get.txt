@@ -1,0 +1,49 @@
+krb5_init_creds_get -  Acquire credentials using an initial credentials context. 
+=================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_creds_get(krb5_context context, krb5_init_creds_context ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - Initial credentials context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function synchronously obtains credentials using a context created by :c:func:`krb5_init_creds_init()` . On successful return, the credentials can be retrieved with :c:func:`krb5_init_creds_get_creds()` .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

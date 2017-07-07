@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _CKSUMTYPE-DESCBC-data:
+
+CKSUMTYPE_DESCBC
+================
+
+..
+.. data:: CKSUMTYPE_DESCBC
+..
+
+
+
+
+======================= ======================
+``CKSUMTYPE_DESCBC``       ``0x0004``
+======================= ======================

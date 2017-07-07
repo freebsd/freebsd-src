@@ -1,0 +1,144 @@
+#!/usr/local/bin/perl 
+
+$server = undef;
+@princs = ();
+$top = undef;
+
+($whoami = $0) =~ s,.*/,,;
+$usage = "Usage: $whoami [ -server server ] [ -princ principal ]
+		[ -top dirname ] [ -verbose ] filename
+	Server defaults to the local host.
+	Default principals are host/hostname\@SECURE-TEST.OV.COM and
+	  test/hostname\@SECURE-TEST.OV.COM.
+	If any principals are specified, the default principals are
+	  not added to the srvtab.
+	The string \"xCANONHOSTx\" in a principal specification will be
+	  replaced by the canonical host name of the local host.";
+
+@ORIG_ARGV = @ARGV;
+
+while (($_ = $ARGV[0]) && /^-/) {
+    shift;
+    if (/^-server$/) {
+	($server = shift) || die "Missing argument to $_ option.\n$usage\n";
+    }
+    elsif (/^-princ$/) {
+	($princ = shift) || die "Missing argument to $_ option.\n$usage\n";
+	push(@princs, $princ);
+    }
+    elsif (/^-top$/) {
+	($top = shift) || die "Missing argument to $_ option.\n$usage\n";
+    }
+    elsif (/^-verbose$/) {
+	$verbose++;
+    }
+    elsif (/^--$/) {
+	last;
+    }
+    else {
+	die "Unknown option $_.\n$usage\n";
+    }
+}
+
+@princs = ("host/xCANONHOSTx\@SECURE-TEST.OV.COM",
+	   "test/xCANONHOSTx\@SECURE-TEST.OV.COM")
+    if (! @princs);
+
+$ktfile = shift(@ARGV) || die "need a keytab file\n";
+
+$verbose++ if ($ENV{'VERBOSE_TEST'});
+
+print "In $0 @ORIG_ARGV...\n" if ($verbose);
+
+chop ($canonhost = `hostname`);
+
+($canonhost,$aliases,$addrtype,$length,@addrs) = gethostbyname($canonhost);
+die "couldn't get canonical hostname\n" if !($canonhost && @addrs);
+($canonhost2) = gethostbyaddr($addrs[0],$addrtype);
+if ($canonhost2) { $canonhost = $canonhost2; }
+
+for (@princs) {
+    s/xCANONHOSTx/$canonhost/g;
+}
+
+die "Neither \$TOP nor \$TESTDIR is set, and -top not specified.\n"
+    if (! ($top || $ENV{'TOP'} || $ENV{'TESTDIR'}));
+
+$top = $ENV{'TOP'} if (! $top);
+$TESTDIR = ($ENV{'TESTDIR'} || "$top/testing");
+$MAKE_KEYTAB = ($ENV{'MAKE_KEYTAB'} || "$TESTDIR/scripts/$whoami");
+$SRVTCL = ($ENV{'SRVTCL'} || "$TESTDIR/util/kadm5_srv_tcl");
+$TCLUTIL = ($ENV{'TCLUTIL'} || "$TESTDIR/tcl/util.t");
+# This'll be wrong sometimes
+$RSH_CMD = ($ENV{'RSH_CMD'} || '/usr/ucb/rsh');
+$KADMIN = ($ENV{'KADMIN'} || "$top/cli/kadmin.local");
+
+if ($server) {
+# XXX Using /usr/ucb/rsh for now.
+
+# Strip command line options because we're adding our own.
+
+    $MAKE_KEYTAB =~ s/ .*//;
+
+    if ($ENV{'TOP'} && ($top ne $ENV{'TOP'})) {
+# Replace the old TOP with the new one where necessary
+	for ('TESTDIR', 'SRVTCL', 'TCLUTIL', 'MAKE_KEYTAB') {
+	    eval "\$$_ =~ s/^\$ENV{'TOP'}/\$top/;";
+	}
+
+# Make the paths as short as possible so our command line isn't too long.
+#	for ('SRVTCL', 'TCLUTIL', 'MAKE_KEYTAB') {
+#	    eval "\$$_ =~ s/^\$TESTDIR/\\\\\\\$TESTDIR/;";
+#	}
+#	for ('TESTDIR', 'SRVTCL', 'TCLUTIL', 'MAKE_KEYTAB') {
+#	    eval "\$$_ =~ s/^\$top/\\\\\\\$TOP/;";
+#	}
+    }
+
+    $cmd = "cd $top; \\`testing/scripts/find-make.sh\\` execute TOP=$top ";
+    $cmd .= "VERBOSE_TEST=$verbose " if ($verbose);
+    $cmd .= "TESTDIR=$TESTDIR ";
+    $cmd .= "SRVTCL=$SRVTCL ";
+    $cmd .= "TCLUTIL=$TCLUTIL ";
+
+    $cmd .= "CMD='$MAKE_KEYTAB ";
+    for (@princs) {
+	$cmd .= "-princ $_ ";
+    }
+    $cmd .= " /tmp/make-keytab.$canonhost.$$'";#';
+
+    $cmd = "$RSH_CMD $server -l root -n \"$cmd\"";
+
+    $cmd2 = "$RSH_CMD $server -l root -n \"cat /tmp/make-keytab.$canonhost.$$\" > $ktfile";
+
+    $cmd3 = "$RSH_CMD $server -l root -n \"rm /tmp/make-keytab.$canonhost.$$\"";
+
+    for ($cmd, $cmd2, $cmd3) {
+	print "$_\n" if ($verbose);
+
+	system($_) && die "Couldn't run $_: $!.\n";
+    }
+}
+else {
+    $redirect = "> /dev/null" if (! $verbose);
+
+    # We can ignore errors here, because the ktadd below will fail if
+    # this fails for any reason other than "principal exists"
+    for (@princs) {
+	next if (/^kadmin/);
+	$cmd = "$KADMIN -q 'ank -randkey $_' $redirect 2>&1";
+	system($cmd);
+    }
+    
+    $cmd = "$KADMIN -q 'ktadd -k $ktfile ";
+    $cmd .= " -q " if (! $verbose);
+    $cmd .= "@princs' $redirect";
+    if (system "$cmd") {
+	sleep(1);
+	die "Error in system($cmd)\n";
+    }
+}
+
+if (! -f $ktfile) {
+    die "$ktfile not created.\n";
+}

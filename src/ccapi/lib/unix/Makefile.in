@@ -1,0 +1,12 @@
+mydir=ccapi$(S)lib$(S)unix
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES= -I$(srcdir)/.. -I$(srcdir)/../../common
+
+STLIBOBJS= stubs.o
+OBJS= $(OUTPRE)stubs.$(OBJEXT)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

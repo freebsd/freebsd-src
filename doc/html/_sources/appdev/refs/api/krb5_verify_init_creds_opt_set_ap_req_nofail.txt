@@ -1,0 +1,46 @@
+krb5_verify_init_creds_opt_set_ap_req_nofail -  Set whether credential verification is required. 
+=================================================================================================
+
+..
+
+.. c:function:: void krb5_verify_init_creds_opt_set_ap_req_nofail(krb5_verify_init_creds_opt * k5_vic_options, int ap_req_nofail)
+
+..
+
+
+:param:
+
+	          **[in]** **k5_vic_options** - Verification options structure
+
+	          **[in]** **ap_req_nofail** - Whether to require successful verification
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function determines how :c:func:`krb5_verify_init_creds()` behaves if no keytab information is available. If *ap_req_nofail* is **FALSE** , verification will be skipped in this case and :c:func:`krb5_verify_init_creds()` will return successfully. If *ap_req_nofail* is **TRUE** , :c:func:`krb5_verify_init_creds()` will not return successfully unless verification can be performed.
+
+
+
+If this function is not used, the behavior of :c:func:`krb5_verify_init_creds()` is determined through configuration.
+
+
+
+
+
+
+..
+
+
+
+
+

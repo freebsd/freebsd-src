@@ -1,0 +1,18 @@
+.. highlightlang:: c
+
+.. _KRB5-CRED-data:
+
+KRB5_CRED
+=========
+
+..
+.. data:: KRB5_CRED
+..
+
+Cred forwarding message.
+
+
+
+================ ======================
+``KRB5_CRED``       ``((krb5_msgtype)22)``
+================ ======================

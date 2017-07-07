@@ -1,0 +1,72 @@
+krb5_mk_ncred -  Format a KRB-CRED message for an array of credentials. 
+========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_ncred(krb5_context context, krb5_auth_context auth_context, krb5_creds ** ppcreds, krb5_data ** ppdata, krb5_replay_data * outdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **ppcreds** - Null-terminated array of credentials
+
+	          **[out]** **ppdata** - Encoded credentials
+
+	          **[out]** **outdata** - Replay cache information (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+         -   KRB5_RC_REQUIRED   Message replay detection requires rcache parameter
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function takes an array of credentials *ppcreds* and formats a **KRB-CRED** message *ppdata* to pass to :c:func:`krb5_rd_cred()` .
+
+
+
+The message will be encrypted using the send subkey of *auth_context* if it is present, or the session key otherwise.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If the :data:`KRB5_AUTH_CONTEXT_RET_TIME` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` flag is set in *auth_context* , *outdata* is required.
+ 
+
+
+

@@ -1,0 +1,20 @@
+.. highlightlang:: c
+
+.. _krb5-kt-cursor-struct:
+
+krb5_kt_cursor
+==============
+
+..
+.. c:type:: krb5_kt_cursor
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_pointer krb5_kt_cursor
+
+

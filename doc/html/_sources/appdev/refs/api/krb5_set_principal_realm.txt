@@ -1,0 +1,54 @@
+krb5_set_principal_realm -  Set the realm field of a principal. 
+================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_principal_realm(krb5_context context, krb5_principal principal, const char * realm)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **principal** - Principal name
+
+	          **[in]** **realm** - Realm name
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Set the realm name part of *principal* to *realm* , overwriting the previous realm.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

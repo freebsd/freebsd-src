@@ -1,0 +1,34 @@
+mydir=clients$(S)kinit
+BUILDTOP=$(REL)..$(S)..
+
+SRCS=kinit.c kinit_kdb.c
+##WIN32##LOCALINCLUDES=-I$(BUILDTOP)\util\windows -I$(BUILDTOP)\util\support
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KINIT=$(OUTPRE)kinit.exe
+
+##WIN32##EXERES=$(KINIT:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKINIT_APP -fo $@ -r $**
+
+all-unix: kinit
+##WIN32##all-windows: $(KINIT)
+
+kinit: kinit.o kinit_kdb.o $(KRB5_BASE_DEPLIBS) $(KADMSRV_DEPLIBS)
+	$(CC_LINK) -o $@ kinit.o kinit_kdb.o $(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+
+##WIN32##$(KINIT): $(OUTPRE)kinit.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** advapi32.lib
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kinit.o kinit_kdb.o kinit
+
+install-unix:
+	for f in kinit; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _THREEPARAMOPEN-data:
+
+THREEPARAMOPEN
+==============
+
+..
+.. data:: THREEPARAMOPEN
+..
+
+
+
+
+============================== ======================
+``THREEPARAMOPEN (x, y, z)``       ``open(x,y,z)``
+============================== ======================

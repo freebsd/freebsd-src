@@ -1,0 +1,47 @@
+krb5_principal2salt -  Convert a principal name into the default salt for that principal. 
+==========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_principal2salt(krb5_context context, register krb5_const_principal pr, krb5_data * ret)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pr** - Principal name
+
+	          **[out]** **ret** - Default salt for *pr* to be filled in
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

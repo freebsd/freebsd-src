@@ -1,0 +1,208 @@
+
+	How to use the Kerberos encryption library.
+
+			Revised		10/15/85	spm
+
+1)	The following include file is needed:
+	
+	/projects/auth/include/des.h	(VAX)
+	---------------					(PC8086)
+
+2)	The encryption library that should be linked to is:
+	
+	/projects/auth/lib/libdes.a		(VAX)
+|	/projects/auth/ibm/lib/libdes.a	(PC8086 cross-compilation environment)
+
+3)	For each key that may be simultaneously active,
+	allocate (either compile or malloc) a "Key_schedule" struct, 
+	defined in "des.h"
+
+4)	Create key schedules, as needed, prior to using the encryption
+	routines, via "des_set_key()".
+
+5)  Setup the input and output areas.  Make sure to note the restrictions
+	on lengths being multiples of eight bytes.
+
+6)	Invoke the encryption/decryption routines, "ecb_encrypt()"
+	 or "cbc_encrypt()"
+
+7)	To generate a cryptographic checksum, use "cbc_cksum()"
+/*	----------------------------------------------------------------	*/
+	
+	Routine Interfaces--
+
+/*	-----------------------------------------------------------------	*/
+
+int
+	des_set_key(k,schedule)
+		C_Block			*k;
+		Key_schedule	schedule;
+
+	Calculates a key schedule from (all) eight bytes of the input key, and
+	puts it into the indicated "Key_schedule" struct;
+
+	Make sure to pass valid eight bytes, no padding or other processing
+	it done.
+
+	The key schedule is then used in subsequent encryption/decryption
+	operations.  Many key schedules may be created and cached for later
+	use.
+
+	The user is responsible to clear keys and schedules no longer needed
+	to prevent their disclosure.
+
+|	Checks the parity of the key provided, to make sure it is odd per
+|	FIPS spec.  Returns 0 value for key ok, 1 for key_parity error.
+
+/*	----------------------------------------------------------------	*/
+	
+int
+	ecb_encrypt(input,output,schedule,encrypt)
+		C_Block			*input;		/* ptr to eight byte input value */
+		C_Block			*output;	/* ptr to eight byte output value */
+		int				encrypt;	/* 0 ==> decrypt, else encrypt */
+		Key_schedule	schedule;	/* addr of key schedule */
+
+This is the low level routine that encrypts or decrypts a single 8-byte
+block in electronic code book mode.  Always transforms the input
+data into the output data.
+
+If encrypt is non-zero, the input (cleartext) is encrypted into the
+output (ciphertext) using the specified key_schedule, pre-set via "des_set_key".
+
+If encrypt is zero, the input (now ciphertext) is decrypted into
+the output (now cleartext).
+
+Input and output may be the same space.
+
+Does not return any meaningful value.  Void is not used for compatibility
+with other compilers.
+
+/*	--------------------------------------------------------------	*/
+
+int	
+	cbc_encrypt(input,output,length,schedule,ivec,encrypt)
+
+		C_Block			*input;		/* ptr to input data */
+		C_Block			*output;	/* ptr to output data */
+		int				length;		/* desired length, in bytes */
+		Key_schedule	schedule;		/* addr of precomputed schedule */
+		C_Block			*ivec;		/* pointer to 8 byte initialization
+									 * vector
+									 */
+		int				encrypt		/* 0 ==> decrypt; else encrypt*/
+
+
+	If encrypt is non-zero, the routine cipher-block-chain encrypts
+	the INPUT (cleartext) into the OUTPUT (ciphertext) using the provided
+	key schedule and initialization vector.  If the length is not an integral
+	multiple of eight bytes, the last block is copied to a temp and zero 
+	filled (highest addresses).  The output is ALWAYS an integral multiple
+	of eight bytes.
+
+	If encrypt is zero, the routine cipher-block chain decrypts the INPUT
+	(ciphertext) into the OUTPUT (cleartext) using the provided key schedule
+	and	initialization vector.	Decryption ALWAYS operates on integral
+	multiples of 8 bytes, so will round the length provided up to the
+	appropriate	multiple. Consequently,	it will always produce the rounded-up
+	number of bytes of output cleartext. The application must determine if
+	the output cleartext was zero-padded due to cleartext lengths not integral
+	multiples of 8.
+
+	No errors or meaningful value are returned.  Void is not used for
+	compatibility with other compilers.
+
+
+/* cbc checksum (MAC) only routine  ---------------------------------------- */
+int	
+	cbc_cksum(input,output,length,schedule,ivec)
+
+	C_Block		 	*input;		/* >= length bytes of inputtext	 */
+	C_Block		 	*output;	/* >= length bytes of outputtext */
+	int				length;		/* in bytes						*/
+	Key_schedule	schedule;	/* precomputed key schedule	   */
+	C_Block			*ivec;		/* 8 bytes of ivec			   */
+
+
+	Produces a cryptographic checksum, 8 bytes, by cipher-block-chain
+	encrypting the input, discarding the ciphertext output, and only retaining
+	the last ciphertext 8-byte block.  Uses the provided key schedule and ivec.
+	The input is effectively zero-padded to an integral multiple of
+	eight bytes, though the original input is not modified.
+
+	No meaningful value is returned.  Void is not used for compatibility
+	with other compilers.
+
+
+/*	random_key ----------------------------------------*/
+int
+	random_key(key)
+
+	C_Block	*key;
+
+	The start for the random number generated is set from the current time
+	in microseconds, then the random number generator is invoked
+	to create an eight byte output key (not a schedule).  The key
+	generated is set to odd parity per FIPS spec.
+
+	The caller must	supply space for the output key, pointed to 
+	by "*key", then after getting a new key, call the des_set_key() 
+	routine when needed.
+
+	No meaningfull value is returned.  Void is not used for compatibility
+	with other compilers.
+
+
+/* string_to_key --------------------------------------------*/
+
+int
+	string_to_key(str,key)
+	register char		*str;
+	register C_Block	*key;
+
+	This routines converts an arbitrary length, null terminated string
+	to an 8 byte DES key, with each byte parity set to odd, per FIPS spec.
+
+	The algorithm is as follows:
+
+|	Take the first 8 bytes and remove the parity (leaving 56 bits).
+|	Do the same for the second 8 bytes, and the third, etc.  Do this for
+|	as many sets of 8 bytes as necessary, filling in the remainder of the
+|	last set with nulls.  Fold the second set back on the first (i.e. bit
+|	0 over bit 55, and bit 55 over bit 0).  Fold the third over the second
+|	(bit 0 of the third set is now over bit 0 of the first set).  Repeat
+|	until you have done this to all sets.  Xor the folded sets.  Break the
+|	result into 8 7 bit bytes, and generate odd parity for each byte.  You
+|	now have 64 bits.  Note that DES takes a 64 bit key, and uses only the
+|	non parity bits.
+
+
+/* read_password -------------------------------------------*/
+
+read_password(k,prompt,verify)
+	C_Block	*k;
+	char *prompt;
+	int	verify;
+
+This routine issues the supplied prompt, turns off echo, if possible, and
+reads an input string.  If verify is non-zero, it does it again, for use
+in applications such as changing a password. If verify is non-zero, both
+versions are compared, and the input is requested repeatedly until they
+match.  Then, the input string is mapped into a valid DES key, internally
+using the string_to_key routine.  The newly created key is copied to the
+area pointed to by parameter "k".  
+
+No meaningful value is returned.  If an error occurs trying to manipulate
+the terminal echo, the routine forces the process to exit.
+
+/* get_line ------------------------*/
+long get_line(p,max)
+	char	*p;
+	long	max;
+
+Reads input characters from standard input until either a newline appears or
+else the max length is reached.  The characters read are stuffed into
+the string pointed to, which will always be null terminated.  The newline
+is not inserted in the string.  The max parameter includes the byte needed
+for the null terminator, so allocate and pass one more than the maximum
+string length desired.

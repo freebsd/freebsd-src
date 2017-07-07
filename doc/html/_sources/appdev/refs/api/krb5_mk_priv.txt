@@ -1,0 +1,82 @@
+krb5_mk_priv -  Format a KRB-PRIV message. 
+===========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_mk_priv(krb5_context context, krb5_auth_context auth_context, const krb5_data * userdata, krb5_data * outbuf, krb5_replay_data * outdata)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **userdata** - User data for **KRB-PRIV** message
+
+	          **[out]** **outbuf** - Formatted **KRB-PRIV** message
+
+	          **[out]** **outdata** - Replay cache handle (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function is similar to :c:func:`krb5_mk_safe()` , but the message is encrypted and integrity-protected, not just integrity-protected.
+
+
+
+The local address in *auth_context* must be set, and is used to form the sender address used in the KRB-SAFE message. The remote address is optional; if specified, it will be used to form the receiver address used in the message.
+
+
+
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_DO_TIME` - Use timestamps in *outdata* 
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_RET_TIME` - Copy timestamp to *outdata* .
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_DO_SEQUENCE` - Use local sequence numbers from *auth_context* in replay cache.
+ 
+ 
+	 - :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` - Use local sequence numbers from *auth_context* as a sequence number in the encrypted message *outbuf* .
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If the :data:`KRB5_AUTH_CONTEXT_RET_TIME` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` flag is set in *auth_context* , the *outdata* is required.
+
+	 The flags from *auth_context* specify whether sequence numbers or timestamps will be used to identify the message. Valid values are:
+ 
+
+
+

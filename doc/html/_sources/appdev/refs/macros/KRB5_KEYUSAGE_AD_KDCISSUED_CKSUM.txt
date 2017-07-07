@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _KRB5-KEYUSAGE-AD-KDCISSUED-CKSUM-data:
+
+KRB5_KEYUSAGE_AD_KDCISSUED_CKSUM
+================================
+
+..
+.. data:: KRB5_KEYUSAGE_AD_KDCISSUED_CKSUM
+..
+
+
+
+
+======================================= ======================
+``KRB5_KEYUSAGE_AD_KDCISSUED_CKSUM``       ``19``
+======================================= ======================

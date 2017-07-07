@@ -1,0 +1,16 @@
+[kdcdefaults]
+	kdc_listen = 1750
+	kdc_tcp_listen = 1750
+
+[realms]
+	__REALM__ = {
+		profile = __K5ROOT__/krb5.conf
+		database_name = __K5ROOT__/kdb5
+		key_stash_file = __K5ROOT__/.k5.__REALM__
+		acl_file = __K5ROOT__/ovsec_adm.acl
+		dict_file = __K5ROOT__/ovsec_adm.dict
+		kadmind_port = 1751
+		kpasswd_port = 1752
+		master_key_type = des3-hmac-sha1
+		supported_enctypes = des3-hmac-sha1:normal des-cbc-crc:normal des-cbc-crc:v4 des-cbc-md5:normal des-cbc-raw:normal
+	}

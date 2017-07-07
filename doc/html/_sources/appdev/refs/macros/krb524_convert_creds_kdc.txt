@@ -1,0 +1,17 @@
+.. highlightlang:: c
+
+.. _krb524-convert-creds-kdc-data:
+
+krb524_convert_creds_kdc
+========================
+
+..
+.. data:: krb524_convert_creds_kdc
+..
+
+
+
+
+=============================== ======================
+``krb524_convert_creds_kdc``       ``krb5_524_convert_creds``
+=============================== ======================
