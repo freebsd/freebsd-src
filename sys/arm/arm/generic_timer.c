@@ -72,10 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #endif
 
-#if defined(__arm__) && !defined(MULTIDELAY)
-#error The generic timer requires MULTIDELAY on 32bit arm
-#endif
-
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
 #define	GT_CTRL_INT_STAT	(1 << 2)

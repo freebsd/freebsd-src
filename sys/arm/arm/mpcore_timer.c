@@ -59,9 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#ifdef MULTIDELAY
 #include <machine/machdep.h> /* For arm_set_delay */
-#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -70,10 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm/arm/mpcore_timervar.h>
-
-#if defined(PLATFORM) && !defined(MULTIDELAY)
-#error The MPCore Timer driver requires MULTIDELAY when building with PLATFORM
-#endif
 
 /* Private (per-CPU) timer register map */
 #define PRV_TIMER_LOAD                 0x0000
@@ -442,7 +436,7 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef MULTIDELAY
+#ifdef PLATFORM
 	/*
 	 * We can register as the DELAY() implementation only if we successfully
 	 * set up the global timer.
@@ -533,7 +527,7 @@ arm_tmr_delay(int usec, void *arg)
 	}
 }
 
-#ifndef MULTIDELAY
+#ifndef PLATFORM
 /**
  *	DELAY - Delay for at least usec microseconds.
  *	@usec: number of microseconds to delay by

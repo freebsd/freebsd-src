@@ -31,7 +31,6 @@ options 	SCHED_ULE		# ULE scheduler
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	PLATFORM
 options 	SMP			# Enable multiple cores
-options 	MULTIDELAY
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
