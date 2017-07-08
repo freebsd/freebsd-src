@@ -329,10 +329,12 @@ stack top is the starting address returned by the call, plus
 bytes.
 The bottom of the stack at maximum growth is the starting
 address returned by the call.
-The system uses guards to prevent the inadvertent use of
-regions into which stacks created with
+.Pp
+Stacks created with
 .Dv MAP_STACK
-will automatically grow, without mapping the whole stack in advance.
+automatically grow.
+Guards prevent inadvertent use of the regions into which those
+stacks can grow without requiring mapping the whole stack in advance.
 .El
 .Pp
 The
