@@ -126,7 +126,7 @@ fdesc_unmount(struct mount *mp, int mntflags)
 	int error, flags;
 
 	flags = 0;
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (mntflags & MNT_FORCE) {
 		/* The hash mutex protects the private mount flags. */
 		mtx_lock(&fdesc_hashmtx);
