@@ -99,7 +99,7 @@ fdesc_mount(struct mount *mp)
 	 * We need to initialize a few bits of our local mount point struct to
 	 * avoid confusion in allocvp.
 	 */
-	mp->mnt_data = (qaddr_t) fmp;
+	mp->mnt_data = fmp;
 	fmp->flags = 0;
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
