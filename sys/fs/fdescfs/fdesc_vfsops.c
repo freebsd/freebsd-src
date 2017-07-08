@@ -123,7 +123,6 @@ static int
 fdesc_unmount(struct mount *mp, int mntflags)
 {
 	struct fdescmount *fmp;
-	caddr_t data;
 	int error, flags;
 
 	flags = 0;
@@ -148,15 +147,10 @@ fdesc_unmount(struct mount *mp, int mntflags)
 		return (error);
 
 	/*
-	 * Finally, throw away the fdescmount structure. Hold the hashmtx to
-	 * protect the fdescmount structure.
+	 * Finally, throw away the fdescmount structure.
 	 */
-	mtx_lock(&fdesc_hashmtx);
-	data = mp->mnt_data;
 	mp->mnt_data = NULL;
-	mtx_unlock(&fdesc_hashmtx);
-	free(data, M_FDESCMNT);	/* XXX */
-
+	free(fmp, M_FDESCMNT);
 	return (0);
 }
 
