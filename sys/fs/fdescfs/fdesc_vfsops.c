@@ -68,6 +68,7 @@ static vfs_root_t	fdesc_root;
 int
 fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
+
 	return kernel_mount(ma, flags);
 }
 
