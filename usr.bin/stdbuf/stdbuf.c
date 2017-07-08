@@ -40,7 +40,7 @@ static void
 usage(int s)
 {
 
-	fprintf(stderr, "Usage: %s [-e 0|L|<sz>] [-i 0|L|<sz>] [-o 0|L|<sz>] "
+	fprintf(stderr, "Usage: %s [-e 0|L|B|<sz>] [-i 0|L|B|<sz>] [-o 0|L|B|<sz>] "
 	    "<cmd> [args ...]\n", __progname);
 	exit(s);
 }
