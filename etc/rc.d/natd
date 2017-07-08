@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: natd
-# KEYWORD: nostart nojail
+# KEYWORD: nostart nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr

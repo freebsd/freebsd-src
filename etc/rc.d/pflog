@@ -5,7 +5,7 @@
 
 # PROVIDE: pflog
 # REQUIRE: FILESYSTEMS netif
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
