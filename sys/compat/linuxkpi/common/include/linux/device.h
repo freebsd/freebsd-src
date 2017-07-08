@@ -359,13 +359,20 @@ device_create_with_groups(struct class *class,
 	return dev;
 }
 
+static inline bool
+device_is_registered(struct device *dev)
+{
+
+	return (dev->bsddev != NULL);
+}
+
 static inline int
 device_register(struct device *dev)
 {
 	device_t bsddev = NULL;
 	int unit = -1;
 
-	if (dev->bsddev != NULL)
+	if (device_is_registered(dev))
 		goto done;
 
 	if (dev->devt) {
