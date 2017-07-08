@@ -78,10 +78,10 @@ fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 static int
 fdesc_mount(struct mount *mp)
 {
-	int error = 0;
 	struct fdescmount *fmp;
 	struct thread *td = curthread;
 	struct vnode *rvp;
+	int error;
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_FDESCFS))
 		return (EPERM);
