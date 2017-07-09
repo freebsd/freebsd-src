@@ -1571,7 +1571,7 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    find_space, prot, max, cow);
 		if (rv == KERN_SUCCESS || min_addr >= hint)
 			return (rv);
-		*addr = min_addr;
+		*addr = hint = min_addr;
 	}
 }
 
