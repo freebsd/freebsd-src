@@ -174,6 +174,7 @@ struct mmc_host {
 	struct mmc_ios ios;	/* Current state of the host */
 };
 
+#ifdef _KERNEL
 extern driver_t   mmc_driver;
 extern devclass_t mmc_devclass;
 
@@ -184,5 +185,6 @@ extern devclass_t mmc_devclass;
     MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
 #define	MMC_DEPEND(name)						\
     MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
+#endif /* _KERNEL */
 
 #endif /* DEV_MMC_BRIDGE_H */

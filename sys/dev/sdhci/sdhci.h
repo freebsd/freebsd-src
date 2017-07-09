@@ -367,6 +367,13 @@ struct sdhci_slot {
 #define	SDHCI_USE_DMA		4	/* Use DMA for this req. */
 #define	PLATFORM_DATA_STARTED	8	/* Data xfer is handled by platform */
 	struct mtx	mtx;		/* Slot mutex */
+
+	/* CAM stuff */
+	union ccb	*ccb;
+	struct cam_devq		*devq;
+	struct cam_sim		*sim;
+	struct mtx		sim_mtx;
+	u_char			card_present; /* XXX Maybe derive this from elsewhere? */
 };
 
 int sdhci_generic_read_ivar(device_t bus, device_t child, int which,
@@ -393,4 +400,6 @@ bool sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot);
 void sdhci_generic_set_uhs_timing(device_t brdev, struct sdhci_slot *slot);
 void sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present);
 
+/* CAM-related */
+void sdhci_cam_start_slot(struct sdhci_slot *slot);
 #endif	/* __SDHCI_H__ */
