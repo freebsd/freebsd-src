@@ -176,6 +176,7 @@ device		aw_rsb		# Allwinner Reduced Serial Bus
 device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 device		iic
+device		twsi		# Allwinner I2C controller
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
