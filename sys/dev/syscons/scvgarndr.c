@@ -344,6 +344,46 @@ static int vga_aspect_scale= 100;
 SYSCTL_INT(_machdep, OID_AUTO, vga_aspect_scale, CTLFLAG_RW,
     &vga_aspect_scale, 0, "Aspect scale ratio (3:4):actual times 100");
 
+static u_short
+vga_flipattr(u_short a, int blink)
+{
+	if (blink)
+		a = (a & 0x8800) | ((a & 0x7000) >> 4) |
+		    ((a & 0x0700) << 4);
+	else
+		a = ((a & 0xf000) >> 4) | ((a & 0x0f00) << 4);
+	return (a);
+}
+
+static u_short
+vga_cursorattr_adj(u_short a, int blink)
+{
+	/*
+	 * !blink means pixel mode, and the cursor attribute in that case
+	 * is simplistic reverse video.
+	 */
+	if (!blink)
+		return (vga_flipattr(a, blink));
+
+	/*
+	 * The cursor attribute is usually that of the underlying char
+	 * with the bg changed to white.  If the bg is already white,
+	 * then the bg is changed to black.  The fg is usually not
+	 * changed, but if it is the same as the new bg then it is
+	 * changed to the inverse of the new bg.
+	 */
+	if ((a & 0x7000) == 0x7000) {
+		a &= 0x8f00;
+		if ((a & 0x0700) == 0)
+			a |= 0x0700;
+	} else {
+		a |= 0x7000;
+		if ((a & 0x0700) == 0x0700)
+			a &= 0xf000;
+	}
+	return (a);
+}
+
 static void
 vga_setmdp(scr_stat *scp)
 {
@@ -436,8 +476,7 @@ vga_txtdraw(scr_stat *scp, int from, int count, int flip)
 		for (p = sc_vtb_pointer(&scp->scr, from); count-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
 			a = sc_vtb_geta(&scp->vtb, from);
-			a = (a & 0x8800) | ((a & 0x7000) >> 4) 
-				| ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
 			p = sc_vtb_putchar(&scp->scr, p, c, a);
 		}
 	} else {
@@ -482,8 +521,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 		if (scp->curs_attr.base >= h)
 			return;
 		if (flip)
-			a = (a & 0x8800)
-				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
 		bcopy(font + c*h, font + sc->cursor_char*h, h);
 		font = font + sc->cursor_char*h;
 		for (i = imax(h - scp->curs_attr.base - scp->curs_attr.height, 0);
@@ -496,18 +534,9 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	} else
 #endif /* SC_NO_FONT_LOADING */
 	{
-		if ((a & 0x7000) == 0x7000) {
-			a &= 0x8f00;
-			if ((a & 0x0700) == 0)
-				a |= 0x0700;
-		} else {
-			a |= 0x7000;
-			if ((a & 0x0700) == 0x0700)
-				a &= 0xf000;
-		}
+		a = vga_cursorattr_adj(a, TRUE);
 		if (flip)
-			a = (a & 0x8800)
-				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
 		sc_vtb_putc(&scp->scr, at, c, a);
 	}
 }
@@ -544,9 +573,7 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		} else {
 			cursor_attr = sc_vtb_geta(&scp->vtb, at);
 			if (flip)
-				cursor_attr = (cursor_attr & 0x8800)
-					| ((cursor_attr & 0x7000) >> 4)
-					| ((cursor_attr & 0x0700) << 4);
+				cursor_attr = vga_flipattr(cursor_attr, TRUE);
 			if (scp->status & VR_CURSOR_ON)
 				sc_vtb_putc(&scp->scr, at,
 					    sc_vtb_getc(&scp->vtb, at),
@@ -875,13 +902,10 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 	for (i = from; count-- > 0; ++i) {
 		a = sc_vtb_geta(&scp->vtb, i);
 
-		if (flip) {
-			col1 = (((a & 0x7000) >> 4) | (a & 0x0800)) >> 8;
-			col2 = (((a & 0x8000) >> 4) | (a & 0x0700)) >> 8;
-		} else {
-			col1 = (a & 0x0f00) >> 8;
-			col2 = (a & 0xf000) >> 12;
-		}
+		if (flip)
+			a = vga_flipattr(a, TRUE);	/* XXX */
+		col1 = (a & 0x0f00) >> 8;
+		col2 = (a & 0xf000) >> 12;
 
 		e = d;
 		f = &(scp->font[sc_vtb_getc(&scp->vtb, i) * scp->font_size]);
@@ -932,13 +956,10 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		count = scp->xsize*scp->ysize - from;
 	for (i = from; count-- > 0; ++i) {
 		a = sc_vtb_geta(&scp->vtb, i);
-		if (flip) {
-			col1 = ((a & 0x7000) >> 4) | (a & 0x0800);
-			col2 = ((a & 0x8000) >> 4) | (a & 0x0700);
-		} else {
-			col1 = (a & 0x0f00);
-			col2 = (a & 0xf000) >> 4;
-		}
+		if (flip)
+			a = vga_flipattr(a, TRUE);	/* XXX */
+		col1 = a & 0x0f00;
+		col2 = (a & 0xf000) >> 4;
 		/* set background color in EGA/VGA latch */
 		if (bg != col2) {
 			bg = col2;
@@ -1002,13 +1023,12 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 
 	a = sc_vtb_geta(&scp->vtb, at);
 
-	if (flip) {
-		col1 = ((on) ? (a & 0x0f00) : ((a & 0xf000) >> 4)) >> 8;
-		col2 = ((on) ? ((a & 0xf000) >> 4) : (a & 0x0f00)) >> 8;
-	} else {
-		col1 = ((on) ? ((a & 0xf000) >> 4) : (a & 0x0f00)) >> 8;
-		col2 = ((on) ? (a & 0x0f00) : ((a & 0xf000) >> 4)) >> 8;
-	}
+	if (flip)
+		a = vga_flipattr(a, FALSE);
+	if (on)
+		a = vga_cursorattr_adj(a, FALSE);
+	col1 = (a & 0x0f00) >> 8;
+	col2 = a >> 12;
 
 	f = &(scp->font[sc_vtb_getc(&scp->vtb, at) * scp->font_size +
 	      scp->font_size - scp->curs_attr.base - 1]);
@@ -1048,18 +1068,16 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 	/* set background color in EGA/VGA latch */
 	a = sc_vtb_geta(&scp->vtb, at);
 	if (flip)
-		col = (on) ? ((a & 0xf000) >> 4) : (a & 0x0f00);
-	else
-		col = (on) ? (a & 0x0f00) : ((a & 0xf000) >> 4);
+		a = vga_flipattr(a, FALSE);
+	if (on)
+		a = vga_cursorattr_adj(a, FALSE);
+	col = (a & 0xf000) >> 4;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	writeb(d, 0);
 	c = readb(d);			/* set bg color in the latch */
 	/* foreground color */
-	if (flip)
-		col = (on) ? (a & 0x0f00) : ((a & 0xf000) >> 4);
-	else
-		col = (on) ? ((a & 0xf000) >> 4) : (a & 0x0f00);
+	col = a & 0x0f00;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	f = &(scp->font[sc_vtb_getc(&scp->vtb, at)*scp->font_size
 		+ scp->font_size - scp->curs_attr.base - 1]);
