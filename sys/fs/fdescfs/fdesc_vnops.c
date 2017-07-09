@@ -162,7 +162,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		return (-1);
@@ -207,7 +207,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		vgone(vp);
