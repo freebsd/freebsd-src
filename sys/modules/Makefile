@@ -251,6 +251,8 @@ SUBDIR=	\
 	${_mlx5} \
 	${_mlx5en} \
 	${_mly} \
+	mmc \
+	mmcsd \
 	mpr \
 	mps \
 	mpt \
