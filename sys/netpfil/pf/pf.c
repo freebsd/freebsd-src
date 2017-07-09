@@ -132,6 +132,9 @@ VNET_DEFINE(int,			 pf_tcp_iss_off);
 VNET_DECLARE(int,			 pf_vnet_active);
 #define	V_pf_vnet_active		 VNET(pf_vnet_active)
 
+static VNET_DEFINE(uint32_t, pf_purge_idx);
+#define V_pf_purge_idx	VNET(pf_purge_idx)
+
 /*
  * Queue for pf_intr() sends.
  */
@@ -1427,7 +1430,6 @@ void
 pf_purge_thread(void *unused __unused)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	u_int idx = 0;
 
 	sx_xlock(&pf_end_lock);
 	while (pf_end_threads == 0) {
@@ -1448,14 +1450,15 @@ pf_purge_thread(void *unused __unused)
 			 *  Process 1/interval fraction of the state
 			 * table every run.
 			 */
-			idx = pf_purge_expired_states(idx, pf_hashmask /
+			V_pf_purge_idx =
+			    pf_purge_expired_states(V_pf_purge_idx, pf_hashmask /
 			    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
 
 			/*
 			 * Purge other expired types every
 			 * PFTM_INTERVAL seconds.
 			 */
-			if (idx == 0) {
+			if (V_pf_purge_idx == 0) {
 				/*
 				 * Order is important:
 				 * - states and src nodes reference rules
