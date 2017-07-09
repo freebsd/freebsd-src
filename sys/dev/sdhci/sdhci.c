@@ -268,7 +268,7 @@ sdhci_init(struct sdhci_slot *slot)
 	    SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
 	    SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
 	    SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE |
-	    SDHCI_INT_ACMD12ERR | SDHCI_INT_CARD_INT;
+	    SDHCI_INT_ACMD12ERR;
 
 	if (!(slot->quirks & SDHCI_QUIRK_POLL_CARD_PRESENT) &&
 	    !(slot->opt & SDHCI_NON_REMOVABLE)) {
@@ -1826,10 +1826,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 		    "Card is consuming too much power!\n");
 		intmask &= ~SDHCI_INT_BUS_POWER;
 	}
-	/* Handle card interrupt. */
-	if (intmask & SDHCI_INT_CARD_INT) {
-		
-	}
+
 	/* The rest is unknown. */
 	if (intmask) {
 		WR4(slot, SDHCI_INT_STATUS, intmask);
