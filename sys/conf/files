@@ -110,6 +110,9 @@ cam/ctl/ctl_tpc_local.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
 cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
+cam/mmc/mmc_xpt.c		optional scbus mmccam
+cam/mmc/mmc_da.c		optional scbus mmccam da
+cam/mmc/mmc_sdio.c		optional scbus mmccam
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
@@ -2240,11 +2243,12 @@ dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci
 dev/mly/mly.c			optional mly
-dev/mmc/mmc_subr.c		optional mmc | mmcsd
-dev/mmc/mmc.c			optional mmc
+dev/mmc/mmc_subr.c		optional mmc | mmcsd !mmccam
+dev/mmc/mmc.c			optional mmc !mmccam
 dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
-dev/mmc/mmcsd.c			optional mmcsd
+dev/mmc/mmcsd.c			optional mmcsd !mmccam
+dev/mmcnull/mmcnull.c		optional mmcnull
 dev/mn/if_mn.c			optional mn pci
 dev/mpr/mpr.c			optional mpr
 dev/mpr/mpr_config.c		optional mpr

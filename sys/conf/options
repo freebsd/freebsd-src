@@ -996,5 +996,7 @@ UINPUT_DEBUG	opt_evdev.h
 # Hyper-V network driver
 HN_DEBUG	opt_hn.h
 
+# CAM-based MMC stack
+MMCCAM
 # Encrypted kernel crash dumps
 EKCD		opt_ekcd.h
