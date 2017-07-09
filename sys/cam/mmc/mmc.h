@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2006 Bernd Walter.  All rights reserved.
- * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2014-2016 Ilya Bakulin.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,76 +48,47 @@
  * or the SD Card Association to disclose or distribute any technical
  * information, know-how or other confidential information to any third party.
  *
+ * Inspired coded in sys/dev/mmc. Thanks to Warner Losh <imp@FreeBSD.org>,
+ * Bernd Walter <tisco@FreeBSD.org>, and other authors.
+ *
  * $FreeBSD$
  */
 
-#ifndef DEV_MMC_MMCBRVAR_H
-#define	DEV_MMC_MMCBRVAR_H
+#ifndef CAM_MMC_H
+#define CAM_MMC_H
 
 #include <dev/mmc/mmcreg.h>
-#include "mmcbr_if.h"
-
-enum mmcbr_device_ivars {
-    MMCBR_IVAR_BUS_MODE,
-    MMCBR_IVAR_BUS_WIDTH,
-    MMCBR_IVAR_CHIP_SELECT,
-    MMCBR_IVAR_CLOCK,
-    MMCBR_IVAR_F_MIN,
-    MMCBR_IVAR_F_MAX,
-    MMCBR_IVAR_HOST_OCR,
-    MMCBR_IVAR_MODE,
-    MMCBR_IVAR_OCR,
-    MMCBR_IVAR_POWER_MODE,
-    MMCBR_IVAR_VDD,
-    MMCBR_IVAR_VCCQ,
-    MMCBR_IVAR_CAPS,
-    MMCBR_IVAR_TIMING,
-    MMCBR_IVAR_MAX_DATA,
-    MMCBR_IVAR_MAX_BUSY_TIMEOUT
-};
-
 /*
- * Simplified accessors for bridge devices
+ * This structure describes an MMC/SD card
  */
-#define	MMCBR_ACCESSOR(var, ivar, type)					\
-	__BUS_ACCESSOR(mmcbr, var, MMCBR, ivar, type)
+struct mmc_params {
+        u_int8_t	model[40]; /* Card model */
 
-MMCBR_ACCESSOR(bus_mode, BUS_MODE, int)
-MMCBR_ACCESSOR(bus_width, BUS_WIDTH, int)
-MMCBR_ACCESSOR(chip_select, CHIP_SELECT, int)
-MMCBR_ACCESSOR(clock, CLOCK, int)
-MMCBR_ACCESSOR(f_max, F_MAX, int)
-MMCBR_ACCESSOR(f_min, F_MIN, int)
-MMCBR_ACCESSOR(host_ocr, HOST_OCR, int)
-MMCBR_ACCESSOR(mode, MODE, int)
-MMCBR_ACCESSOR(ocr, OCR, int)
-MMCBR_ACCESSOR(power_mode, POWER_MODE, int)
-MMCBR_ACCESSOR(vdd, VDD, int)
-MMCBR_ACCESSOR(vccq, VCCQ, int)
-MMCBR_ACCESSOR(caps, CAPS, int)
-MMCBR_ACCESSOR(timing, TIMING, int)
-MMCBR_ACCESSOR(max_data, MAX_DATA, int)
-MMCBR_ACCESSOR(max_busy_timeout, MAX_BUSY_TIMEOUT, u_int)
+        /* Card OCR */
+        uint32_t card_ocr;
 
-static int __inline
-mmcbr_update_ios(device_t dev)
-{
+        /* OCR of the IO portion of the card */
+        uint32_t io_ocr;
 
-	return (MMCBR_UPDATE_IOS(device_get_parent(dev), dev));
-}
+        /* Card CID -- raw and parsed */
+        uint32_t card_cid[4];
+        struct mmc_cid  cid;
 
-static int __inline
-mmcbr_switch_vccq(device_t dev)
-{
+        /* Card CSD -- raw */
+        uint32_t card_csd[4];
 
-	return (MMCBR_SWITCH_VCCQ(device_get_parent(dev), dev));
-}
+        /* Card RCA */
+        uint16_t card_rca;
 
-static int __inline
-mmcbr_get_ro(device_t dev)
-{
+        /* What kind of card is it */
+        uint32_t card_features;
+#define CARD_FEATURE_MEMORY 0x1
+#define CARD_FEATURE_SDHC   0x1 << 1
+#define CARD_FEATURE_SDIO   0x1 << 2
+#define CARD_FEATURE_SD20   0x1 << 3
+#define CARD_FEATURE_MMC    0x1 << 4
 
-	return (MMCBR_GET_RO(device_get_parent(dev), dev));
-}
+        uint8_t sdio_func_count;
+} __packed;
 
-#endif /* DEV_MMC_MMCBRVAR_H */
+#endif
