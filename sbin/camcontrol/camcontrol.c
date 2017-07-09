@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/smp_all.h>
 #include <cam/ata/ata_all.h>
+#include <cam/mmc/mmc_all.h>
 #include <camlib.h>
 #include "camcontrol.h"
 
@@ -104,7 +105,8 @@ typedef enum {
 	CAM_CMD_REPROBE		= 0x00000025,
 	CAM_CMD_ZONE		= 0x00000026,
 	CAM_CMD_EPC		= 0x00000027,
-	CAM_CMD_TIMESTAMP	= 0x00000028
+	CAM_CMD_TIMESTAMP	= 0x00000028,
+	CAM_CMD_MMCSD_CMD	= 0x00000029
 } cam_cmdmask;
 
 typedef enum {
@@ -205,6 +207,7 @@ static struct camcontrol_opts option_table[] = {
 	{"reset", CAM_CMD_RESET, CAM_ARG_NONE, NULL},
 #ifndef MINIMALISTIC
 	{"cmd", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
+	{"mmcsdcmd", CAM_CMD_MMCSD_CMD, CAM_ARG_NONE, "c:a:f:Wb:l:41S:I"},
 	{"command", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
 	{"smpcmd", CAM_CMD_SMP_CMD, CAM_ARG_NONE, "r:R:"},
 	{"smprg", CAM_CMD_SMP_RG, CAM_ARG_NONE, smprg_opts},
@@ -299,6 +302,8 @@ static int scsicmd(struct cam_device *device, int argc, char **argv,
 		   char *combinedopt, int task_attr, int retry_count,
 		   int timeout);
 static int smpcmd(struct cam_device *device, int argc, char **argv,
+		  char *combinedopt, int retry_count, int timeout);
+static int mmcsdcmd(struct cam_device *device, int argc, char **argv,
 		  char *combinedopt, int retry_count, int timeout);
 static int smpreportgeneral(struct cam_device *device, int argc, char **argv,
 			    char *combinedopt, int retry_count, int timeout);
@@ -592,6 +597,13 @@ getdevtree(int argc, char **argv, char *combinedopt)
 					   sizeof(revision));
 				    sprintf(tmpstr, "<%s %s>", product,
 					revision);
+				} else if (dev_result->protocol == PROTO_MMCSD) {
+                                        if (strlen(dev_result->mmc_ident_data.model) > 0) {
+                                                sprintf(tmpstr, "<%s>", dev_result->mmc_ident_data.model);
+                                        } else {
+                                                sprintf(tmpstr, "<%s card>",
+                                                        dev_result->mmc_ident_data.card_features & CARD_FEATURE_SDIO ? "SDIO" : "unknown");
+                                        }
 				} else if (dev_result->protocol == PROTO_SEMB) {
 					struct sep_identify_data *sid;
 
@@ -7335,6 +7347,291 @@ smpcmd_bailout:
 }
 
 static int
+mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
+       int retry_count, int timeout)
+{
+	int c, error = 0;
+	union ccb *ccb;
+        int32_t mmc_opcode = 0, mmc_arg = 0;
+        int32_t mmc_flags = -1;
+	int retval;
+        int is_write = 0;
+        int is_bw_4 = 0, is_bw_1 = 0;
+        int is_highspeed = 0, is_stdspeed = 0;
+	int is_info_request = 0;
+	int flags = 0;
+        uint8_t mmc_data_byte;
+
+        /* For IO_RW_EXTENDED command */
+	uint8_t *mmc_data = NULL;
+        struct mmc_data mmc_d;
+	int mmc_data_len = 0;
+
+	/*
+	 * Note that at the moment we don't support sending SMP CCBs to
+	 * devices that aren't probed by CAM.
+	 */
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("%s: error allocating CCB", __func__);
+		return (1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+                case '4':
+                        is_bw_4 = 1;
+                        break;
+                case '1':
+                        is_bw_1 = 1;
+                        break;
+                case 'S':
+                        if (!strcmp(optarg, "high"))
+                                is_highspeed = 1;
+                        else
+                                is_stdspeed = 1;
+                        break;
+		case 'I':
+			is_info_request = 1;
+			break;
+                case 'c':
+                        mmc_opcode = strtol(optarg, NULL, 0);
+			if (mmc_opcode < 0) {
+				warnx("invalid MMC opcode %d",
+				      mmc_opcode);
+				error = 1;
+				goto mmccmd_bailout;
+			}
+                        break;
+                case 'a':
+                        mmc_arg = strtol(optarg, NULL, 0);
+			if (mmc_arg < 0) {
+				warnx("invalid MMC arg %d",
+				      mmc_arg);
+				error = 1;
+				goto mmccmd_bailout;
+			}
+                        break;
+                case 'f':
+                        mmc_flags = strtol(optarg, NULL, 0);
+			if (mmc_flags < 0) {
+				warnx("invalid MMC flags %d",
+				      mmc_flags);
+				error = 1;
+				goto mmccmd_bailout;
+			}
+                        break;
+                case 'l':
+                        mmc_data_len = strtol(optarg, NULL, 0);
+			if (mmc_data_len <= 0) {
+				warnx("invalid MMC data len %d",
+				      mmc_data_len);
+				error = 1;
+				goto mmccmd_bailout;
+			}
+                        break;
+                case 'W':
+                        is_write = 1;
+                        break;
+                case 'b':
+                        mmc_data_byte = strtol(optarg, NULL, 0);
+                        break;
+		default:
+			break;
+		}
+	}
+	flags |= CAM_DEV_QFRZDIS; /* masks are broken?! */
+
+        /* If flags are left default, supply the right flags */
+        if (mmc_flags < 0)
+                switch (mmc_opcode) {
+                case MMC_GO_IDLE_STATE:
+                        mmc_flags = MMC_RSP_NONE | MMC_CMD_BC;
+                        break;
+                case IO_SEND_OP_COND:
+                        mmc_flags = MMC_RSP_R4;
+                        break;
+                case SD_SEND_RELATIVE_ADDR:
+                        mmc_flags = MMC_RSP_R6 | MMC_CMD_BCR;
+                        break;
+                case MMC_SELECT_CARD:
+                        mmc_flags = MMC_RSP_R1B | MMC_CMD_AC;
+                        mmc_arg = mmc_arg << 16;
+                        break;
+                case SD_IO_RW_DIRECT:
+                        mmc_flags = MMC_RSP_R5 | MMC_CMD_AC;
+                        mmc_arg = SD_IO_RW_ADR(mmc_arg);
+                        if (is_write)
+                                mmc_arg |= SD_IO_RW_WR | SD_IO_RW_RAW | SD_IO_RW_DAT(mmc_data_byte);
+                        break;
+                case SD_IO_RW_EXTENDED:
+                        mmc_flags = MMC_RSP_R5 | MMC_CMD_ADTC;
+                        mmc_arg = SD_IO_RW_ADR(mmc_arg);
+                        int len_arg = mmc_data_len;
+                        if (mmc_data_len == 512)
+                                len_arg = 0;
+
+                        // Byte mode
+                        mmc_arg |= SD_IOE_RW_LEN(len_arg) | SD_IO_RW_INCR;
+                        // Block mode
+//                        mmc_arg |= SD_IOE_RW_BLK | SD_IOE_RW_LEN(len_arg) | SD_IO_RW_INCR;
+                        break;
+                default:
+                        mmc_flags = MMC_RSP_R1;
+                        break;
+                }
+
+        // Switch bus width instead of sending IO command
+        if (is_bw_4 || is_bw_1) {
+                struct ccb_trans_settings_mmc *cts;
+                ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+                ccb->ccb_h.flags = 0;
+                cts = &ccb->cts.proto_specific.mmc;
+                cts->ios.bus_width = is_bw_4 == 1 ? bus_width_4 : bus_width_1;
+                cts->ios_valid = MMC_BW;
+                if (((retval = cam_send_ccb(device, ccb)) < 0)
+                    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+                        warn("Error sending command");
+                } else {
+                        printf("Parameters set OK\n");
+                }
+                cam_freeccb(ccb);
+                return (retval);
+        }
+
+        // Switch bus speed instead of sending IO command
+        if (is_stdspeed || is_highspeed) {
+                struct ccb_trans_settings_mmc *cts;
+                ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+                ccb->ccb_h.flags = 0;
+                cts = &ccb->cts.proto_specific.mmc;
+                cts->ios.timing = is_highspeed == 1 ? bus_timing_hs : bus_timing_normal;
+                cts->ios_valid = MMC_BT;
+                if (((retval = cam_send_ccb(device, ccb)) < 0)
+                    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+                        warn("Error sending command");
+                } else {
+                        printf("Speed set OK (HS: %d)\n", is_highspeed);
+                }
+                cam_freeccb(ccb);
+                return (retval);
+        }
+
+	// Get information about controller and its settings
+	if (is_info_request) {
+		ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		ccb->ccb_h.flags = 0;
+		struct ccb_trans_settings_mmc *cts;
+		cts = &ccb->cts.proto_specific.mmc;
+		if (((retval = cam_send_ccb(device, ccb)) < 0)
+		    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+			warn("Error sending command");
+			return (retval);
+		}
+		printf("Host controller information\n");
+		printf("Host OCR: 0x%x\n", cts->host_ocr);
+		printf("Min frequency: %u KHz\n", cts->host_f_min / 1000);
+		printf("Max frequency: %u MHz\n", cts->host_f_max / 1000000);
+		printf("Supported bus width: ");
+		if (cts->host_caps & MMC_CAP_4_BIT_DATA)
+			printf(" 4 bit\n");
+		if (cts->host_caps & MMC_CAP_8_BIT_DATA)
+			printf(" 8 bit\n");
+		printf("\nCurrent settings:\n");
+		printf("Bus width: ");
+		switch (cts->ios.bus_width) {
+		case bus_width_1:
+			printf("1 bit\n");
+			break;
+		case bus_width_4:
+			printf("4 bit\n");
+			break;
+		case bus_width_8:
+			printf("8 bit\n");
+			break;
+		}
+		printf("Freq: %d.%03d MHz%s\n",
+		       cts->ios.clock / 1000000,
+		       (cts->ios.clock / 1000) % 1000,
+		       cts->ios.timing == bus_timing_hs ? "(high-speed timing)" : "");
+		return (0);
+	}
+
+        printf("CMD %d arg %d flags %02x\n", mmc_opcode, mmc_arg, mmc_flags);
+
+        if (mmc_data_len > 0) {
+                flags |= CAM_DIR_IN;
+                mmc_data = malloc(mmc_data_len);
+                memset(mmc_data, 0, mmc_data_len);
+                mmc_d.len = mmc_data_len;
+                mmc_d.data = mmc_data;
+                mmc_d.flags = MMC_DATA_READ;
+        } else flags |= CAM_DIR_NONE;
+
+	cam_fill_mmcio(&ccb->mmcio,
+		       /*retries*/ retry_count,
+		       /*cbfcnp*/ NULL,
+		       /*flags*/ flags,
+		       /*mmc_opcode*/ mmc_opcode,
+		       /*mmc_arg*/ mmc_arg,
+		       /*mmc_flags*/ mmc_flags,
+		       /*mmc_data*/ mmc_data_len > 0 ? &mmc_d : NULL,
+		       /*timeout*/ timeout ? timeout : 5000);
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		const char warnstr[] = "error sending command";
+
+		if (retval < 0)
+			warn(warnstr);
+		else
+			warnx(warnstr);
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+	}
+
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+                printf("MMCIO: error %d, %08x %08x %08x %08x\n",
+                       ccb->mmcio.cmd.error, ccb->mmcio.cmd.resp[0],
+                       ccb->mmcio.cmd.resp[1],
+                       ccb->mmcio.cmd.resp[2],
+                       ccb->mmcio.cmd.resp[3]);
+
+                switch (mmc_opcode) {
+                case SD_IO_RW_DIRECT:
+                        printf("IO_RW_DIRECT: resp byte %02x, cur state %d\n",
+                               SD_R5_DATA(ccb->mmcio.cmd.resp),
+                               (ccb->mmcio.cmd.resp[0] >> 12) & 0x3
+                                );
+                        break;
+                case SD_IO_RW_EXTENDED:
+                        printf("IO_RW_EXTENDED: read %d bytes w/o error:\n", mmc_data_len);
+                        hexdump(mmc_data, mmc_data_len, NULL, 0);
+                        break;
+                case SD_SEND_RELATIVE_ADDR:
+                        printf("SEND_RELATIVE_ADDR: published RCA %02x\n", ccb->mmcio.cmd.resp[0] >> 16);
+                        break;
+                default:
+                        printf("No command-specific decoder for CMD %d\n", mmc_opcode);
+                }
+	}
+mmccmd_bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+
+        if (mmc_data_len > 0 && mmc_data != NULL)
+                free(mmc_data);
+
+	return (error);
+}
+
+static int
 smpreportgeneral(struct cam_device *device, int argc, char **argv,
 		 char *combinedopt, int retry_count, int timeout)
 {
@@ -9628,6 +9925,10 @@ main(int argc, char **argv)
 			error = scsicmd(cam_dev, argc, argv, combinedopt,
 					task_attr, retry_count, timeout);
 			break;
+        case CAM_CMD_MMCSD_CMD:
+                error = mmcsdcmd(cam_dev, argc, argv, combinedopt,
+					retry_count, timeout);
+                break;
 		case CAM_CMD_SMP_CMD:
 			error = smpcmd(cam_dev, argc, argv, combinedopt,
 				       retry_count, timeout);
