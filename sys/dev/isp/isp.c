@@ -3783,7 +3783,10 @@ fail:
 		goto abort;
 	if (rs->snscb_cthdr.ct_cmd_resp != LS_ACC) {
 		int level;
-		if (rs->snscb_cthdr.ct_reason == 9 && rs->snscb_cthdr.ct_explanation == 7) {
+		/* FC-4 Type and Port Type not registered are not errors. */
+		if (rs->snscb_cthdr.ct_reason == 9 &&
+		    (rs->snscb_cthdr.ct_explanation == 0x07 ||
+		     rs->snscb_cthdr.ct_explanation == 0x0a)) {
 			level = ISP_LOG_SANCFG;
 		} else {
 			level = ISP_LOGWARN;
