@@ -534,9 +534,9 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	} else
 #endif /* SC_NO_FONT_LOADING */
 	{
-		a = vga_cursorattr_adj(a, TRUE);
 		if (flip)
 			a = vga_flipattr(a, TRUE);
+		a = vga_cursorattr_adj(a, TRUE);
 		sc_vtb_putc(&scp->scr, at, c, a);
 	}
 }
@@ -903,7 +903,7 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 		a = sc_vtb_geta(&scp->vtb, i);
 
 		if (flip)
-			a = vga_flipattr(a, TRUE);	/* XXX */
+			a = vga_flipattr(a, FALSE);
 		col1 = (a & 0x0f00) >> 8;
 		col2 = (a & 0xf000) >> 12;
 
@@ -957,7 +957,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 	for (i = from; count-- > 0; ++i) {
 		a = sc_vtb_geta(&scp->vtb, i);
 		if (flip)
-			a = vga_flipattr(a, TRUE);	/* XXX */
+			a = vga_flipattr(a, FALSE);
 		col1 = a & 0x0f00;
 		col2 = (a & 0xf000) >> 4;
 		/* set background color in EGA/VGA latch */
