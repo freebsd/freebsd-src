@@ -1032,7 +1032,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 		    &rx_ring->rx_buffer_info[next_to_use];
 
 		rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
-		if (rc < 0) {
+		if (rc != 0) {
 			device_printf(adapter->pdev,
 			    "failed to alloc buffer for rx queue\n");
 			break;
