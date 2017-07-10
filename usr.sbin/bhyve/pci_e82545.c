@@ -31,6 +31,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/limits.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
@@ -38,12 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <pthread_np.h>
@@ -2202,6 +2207,9 @@ static void
 e82545_open_tap(struct e82545_softc *sc, char *opts)
 {
 	char tbuf[80];
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 	
 	if (opts == NULL) {
 		sc->esc_tapfd = -1;
@@ -2228,6 +2236,12 @@ e82545_open_tap(struct e82545_softc *sc, char *opts)
 		sc->esc_tapfd = -1;
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(sc->esc_tapfd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+	
 	sc->esc_mevp = mevent_add(sc->esc_tapfd,
 				  EVF_READ,
 				  e82545_tap_callback,

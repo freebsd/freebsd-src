@@ -30,6 +30,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/queue.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -45,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <pthread_np.h>
 #include <signal.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <machine/atomic.h>
@@ -400,6 +404,10 @@ blockif_open(const char *optstr, const char *ident)
 	off_t size, psectsz, psectoff;
 	int extra, fd, i, sectsz;
 	int nocache, sync, ro, candelete, geom, ssopt, pssopt;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+#endif
 
 	pthread_once(&blockif_once, blockif_init);
 
@@ -457,6 +465,16 @@ blockif_open(const char *optstr, const char *ident)
 		goto err;
         }
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_FSYNC, CAP_IOCTL, CAP_READ, CAP_SEEK,
+	    CAP_WRITE);
+	if (ro)
+		cap_rights_clear(&rights, CAP_FSYNC, CAP_WRITE);
+
+	if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
         /*
 	 * Deal with raw devices
 	 */
@@ -482,6 +500,11 @@ blockif_open(const char *optstr, const char *ident)
 			geom = 1;
 	} else
 		psectsz = sbuf.st_blksize;
+
+#ifndef WITHOUT_CAPSICUM
+	if (cap_ioctls_limit(fd, cmds, nitems(cmds)) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	if (ssopt != 0) {
 		if (!powerof2(ssopt) || !powerof2(pssopt) || ssopt < 512 ||
