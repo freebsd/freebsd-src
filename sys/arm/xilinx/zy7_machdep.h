@@ -25,10 +25,10 @@
  * $FreeBSD$
  */
 
-#ifndef _ZY7_MP_H_
-#define	_ZY7_MP_H_
+#ifndef _ZY7_MACHDEP_H_
+#define	_ZY7_MACHDEP_H_
 
 void zynq7_mp_setmaxid(platform_t);
 void zynq7_mp_start_ap(platform_t);
 
-#endif /* _ZY7_MP_H_ */
+#endif /* _ZY7_MACHDEP_H_ */

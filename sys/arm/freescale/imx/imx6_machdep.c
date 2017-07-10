@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#include <arm/freescale/imx/imx6_mp.h>
+#include <arm/freescale/imx/imx6_machdep.h>
 
 #include "platform_if.h"
 
