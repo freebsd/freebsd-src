@@ -26,10 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef IMX6_MP_H
-#define	IMX6_MP_H
+#ifndef IMX6_MACHDEP_H
+#define	IMX6_MACHDEP_H
 
 void imx6_mp_start_ap(platform_t);
 void imx6_mp_setmaxid(platform_t);
 
-#endif /* IMX6_MP_H */
+#endif /* IMX6_MACHDEP_H */
