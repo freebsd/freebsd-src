@@ -91,6 +91,7 @@ static void sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data);
 static void sdhci_card_poll(void *);
 static void sdhci_card_task(void *, int);
 
+#ifdef MMCCAM
 /* CAM-related */
 int sdhci_cam_get_possible_host_clock(struct sdhci_slot *slot, int proposed_clock);
 static int sdhci_cam_update_ios(struct sdhci_slot *slot);
@@ -98,6 +99,7 @@ static int sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb);
 static void sdhci_cam_action(struct cam_sim *sim, union ccb *ccb);
 static void sdhci_cam_poll(struct cam_sim *sim);
 static int sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb);
+#endif
 
 /* helper routines */
 static void sdhci_dumpregs(struct sdhci_slot *slot);
@@ -1021,10 +1023,6 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	struct mmc_ios *ios = &slot->host.ios;
 
-	device_printf(brdev,  "This is a bridge device\n");
-	device_printf(reqdev, "This is a request device\n");
-
-	slot_printf(slot, " <--- The locking slot is this\n");
 	SDHCI_LOCK(slot);
 	/* Do full reset on bus power down to clear from any state. */
 	if (ios->power_mode == power_off) {
@@ -1121,8 +1119,9 @@ static void
 sdhci_req_done(struct sdhci_slot *slot)
 {
         union ccb *ccb;
+
 	if (sdhci_debug > 1)
-		slot_printf(slot, "sdhci_req_done()\n");
+		slot_printf(slot, "%s\n", __func__);
 	if (slot->ccb != NULL && slot->curcmd != NULL) {
 		callout_stop(&slot->timeout_callout);
                 ccb = slot->ccb;
@@ -1139,7 +1138,7 @@ sdhci_req_done(struct sdhci_slot *slot)
 	}
 }
 #else
-static void 
+static void
 sdhci_req_done(struct sdhci_slot *slot)
 {
 	struct mmc_request *req;
@@ -1320,7 +1319,7 @@ sdhci_finish_command(struct sdhci_slot *slot)
 
 	if (sdhci_debug > 1)
 		slot_printf(slot, "%s: called, err %d flags %d\n",
-			    __func__, slot->curcmd->error, slot->curcmd->flags);
+		    __func__, slot->curcmd->error, slot->curcmd->flags);
 	slot->cmd_done = 1;
 	/*
 	 * Interrupt aggregation: Restore command interrupt.
@@ -1356,8 +1355,8 @@ sdhci_finish_command(struct sdhci_slot *slot)
 	}
 	if (sdhci_debug > 1)
 		printf("Resp: %02x %02x %02x %02x\n",
-		       slot->curcmd->resp[0], slot->curcmd->resp[1],
-		       slot->curcmd->resp[2], slot->curcmd->resp[3]);
+		    slot->curcmd->resp[0], slot->curcmd->resp[1],
+		    slot->curcmd->resp[2], slot->curcmd->resp[3]);
 
 	/* If data ready - finish. */
 	if (slot->data_done)
@@ -1441,8 +1440,8 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	WR2(slot, SDHCI_BLOCK_COUNT, (data->len + 511) / 512);
 
 	if (sdhci_debug > 1)
-		slot_printf(slot, "Block size: %02x, count %lu\n", (unsigned int)
-		    SDHCI_MAKE_BLKSZ(DMA_BOUNDARY, (data->len < 512)?data->len:512),
+		slot_printf(slot, "Block size: %02x, count %lu\n",
+		    (unsigned int)SDHCI_MAKE_BLKSZ(DMA_BOUNDARY, (data->len < 512) ? data->len : 512),
 		    (unsigned long)(data->len + 511) / 512);
 }
 
@@ -1657,6 +1656,7 @@ static void
 sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 {
 	struct mmc_data *data;
+	size_t left;
 
 	if (!slot->curcmd) {
 		slot_printf(slot, "Got data interrupt 0x%08x, but "
@@ -1702,7 +1702,6 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	/* Handle DMA border. */
 	if (intmask & SDHCI_INT_DMA_END) {
 		data = slot->curcmd->data;
-		size_t left;
 
 		/* Unload DMA buffer ... */
 		left = data->len - slot->offset;
@@ -1910,7 +1909,8 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
 	uint32_t clock, max_clock;
 	int i;
 
-	slot_printf(slot, "sdhci_generic_write_ivar, var=%d\n", which);
+	if (sdhci_debug > 1)
+		slot_printf(slot, "%s: var=%d\n", __func__, which);
 	switch (which) {
 	default:
 		return (EINVAL);
@@ -1976,6 +1976,7 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
 	return (0);
 }
 
+#ifdef MMCCAM
 /* CAM-related functions */
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -2294,5 +2295,6 @@ sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb)
 	}
 	return (0);
 }
+#endif /* MMCCAM */
 
 MODULE_VERSION(sdhci, 1);
