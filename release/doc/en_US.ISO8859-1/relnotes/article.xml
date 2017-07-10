@@ -258,6 +258,12 @@
 	&man.rshd.8;, and &man.rwhod.8; utilities have been marked as
 	deprecated, and planned for removal in
 	&os;&nbsp;12.0-RELEASE.</para>
+
+      <para revision="320874">The &man.gdb.1; and &man.kgdb.1;
+	utilities have been marked as deprecated, and planned for
+	removal from the base system in the future.  A newer version
+	is available in the <filename
+	  role="package">devel/gdb</filename> port.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
