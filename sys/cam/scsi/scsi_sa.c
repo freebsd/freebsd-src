@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 
-#include <opt_sa.h>
+#include "opt_sa.h"
 
 #ifndef SA_IO_TIMEOUT
 #define SA_IO_TIMEOUT		32

@@ -104,7 +104,7 @@ struct drm_file;
 #include "dev/drm/drm_internal.h"
 #include "dev/drm/drm_linux_list.h"
 
-#include <opt_drm.h>
+#include "opt_drm.h"
 #ifdef DRM_DEBUG
 #undef DRM_DEBUG
 #define DRM_DEBUG_DEFAULT_ON 1
