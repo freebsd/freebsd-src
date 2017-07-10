@@ -819,8 +819,6 @@ xpt_scanner_thread(void *dummy)
 			TAILQ_REMOVE(&xsoftc.ccb_scanq, &ccb->ccb_h, sim_links.tqe);
 			xpt_unlock_buses();
 
-                        printf("xpt_scanner_thread is firing on path ");
-                        xpt_print_path(ccb->ccb_h.path);printf("\n");
 			/*
 			 * Since lock can be dropped inside and path freed
 			 * by completion callback even before return here,
