@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
+#include <arm/ti/omap4/omap4_machdep.h>
 #include <arm/ti/omap4/omap4_reg.h>
-#include <arm/ti/omap4/omap4_mp.h>
 #include <arm/ti/ti_cpuid.h>
 
 #include "platform_if.h"

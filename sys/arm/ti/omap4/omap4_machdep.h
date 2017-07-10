@@ -25,9 +25,10 @@
  * $FreeBSD$
  */
 
-#ifndef _OMAP4_MP_H_
-#define _OMAP4_MP_H_
+#ifndef _OMAP4_MACHDEP_H_
+#define _OMAP4_MACHDEP_H_
+
 void omap4_mp_setmaxid(platform_t plat);
 void omap4_mp_start_ap(platform_t plat);
-#endif /* _OMAP4_MP_H_ */
 
+#endif /* _OMAP4_MACHDEP_H_ */
