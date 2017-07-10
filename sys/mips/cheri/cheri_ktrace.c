@@ -73,7 +73,7 @@ void
 ktrcexception_mdfill(struct trapframe *frame,
     struct ktr_cexception *ke)
 {
-	void * __capability cp;
+	void * __capability *cp;
 	register_t cause;
 
 	/* XXXCHERI: Should translate to MI exception code? */
@@ -83,37 +83,37 @@ ktrcexception_mdfill(struct trapframe *frame,
 	ke->ktr_regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
 
 	cp =
-	    ke->ktr_regnum == CHERI_CR_DDC ? frame->ddc :
-	    ke->ktr_regnum == CHERI_CR_C1 ? frame->c1 :
-	    ke->ktr_regnum == CHERI_CR_C2 ? frame->c2 :
-	    ke->ktr_regnum == CHERI_CR_C3 ? frame->c3 :
-	    ke->ktr_regnum == CHERI_CR_C4 ? frame->c4 :
-	    ke->ktr_regnum == CHERI_CR_C5 ? frame->c5 :
-	    ke->ktr_regnum == CHERI_CR_C6 ? frame->c6 :
-	    ke->ktr_regnum == CHERI_CR_C7 ? frame->c7 :
-	    ke->ktr_regnum == CHERI_CR_C8 ? frame->c8 :
-	    ke->ktr_regnum == CHERI_CR_C9 ? frame->c9 :
-	    ke->ktr_regnum == CHERI_CR_C10 ? frame->c10 :
-	    ke->ktr_regnum == CHERI_CR_STC ? frame->stc :
-	    ke->ktr_regnum == CHERI_CR_C12 ? frame->c12 :
-	    ke->ktr_regnum == CHERI_CR_C13 ? frame->c13 :
-	    ke->ktr_regnum == CHERI_CR_C14 ? frame->c14 :
-	    ke->ktr_regnum == CHERI_CR_C15 ? frame->c15 :
-	    ke->ktr_regnum == CHERI_CR_C16 ? frame->c16 :
-	    ke->ktr_regnum == CHERI_CR_C17 ? frame->c17 :
-	    ke->ktr_regnum == CHERI_CR_C18 ? frame->c18 :
-	    ke->ktr_regnum == CHERI_CR_C19 ? frame->c19 :
-	    ke->ktr_regnum == CHERI_CR_C20 ? frame->c20 :
-	    ke->ktr_regnum == CHERI_CR_C21 ? frame->c21 :
-	    ke->ktr_regnum == CHERI_CR_C22 ? frame->c22 :
-	    ke->ktr_regnum == CHERI_CR_C23 ? frame->c23 :
-	    ke->ktr_regnum == CHERI_CR_C24 ? frame->c24 :
-	    ke->ktr_regnum == CHERI_CR_C25 ? frame->c25 :
-	    ke->ktr_regnum == CHERI_CR_IDC ? frame->idc :
-	    ke->ktr_regnum == 0xff ? frame->pcc :
+	    ke->ktr_regnum == CHERI_CR_DDC ? &frame->ddc :
+	    ke->ktr_regnum == CHERI_CR_C1 ? &frame->c1 :
+	    ke->ktr_regnum == CHERI_CR_C2 ? &frame->c2 :
+	    ke->ktr_regnum == CHERI_CR_C3 ? &frame->c3 :
+	    ke->ktr_regnum == CHERI_CR_C4 ? &frame->c4 :
+	    ke->ktr_regnum == CHERI_CR_C5 ? &frame->c5 :
+	    ke->ktr_regnum == CHERI_CR_C6 ? &frame->c6 :
+	    ke->ktr_regnum == CHERI_CR_C7 ? &frame->c7 :
+	    ke->ktr_regnum == CHERI_CR_C8 ? &frame->c8 :
+	    ke->ktr_regnum == CHERI_CR_C9 ? &frame->c9 :
+	    ke->ktr_regnum == CHERI_CR_C10 ? &frame->c10 :
+	    ke->ktr_regnum == CHERI_CR_STC ? &frame->stc :
+	    ke->ktr_regnum == CHERI_CR_C12 ? &frame->c12 :
+	    ke->ktr_regnum == CHERI_CR_C13 ? &frame->c13 :
+	    ke->ktr_regnum == CHERI_CR_C14 ? &frame->c14 :
+	    ke->ktr_regnum == CHERI_CR_C15 ? &frame->c15 :
+	    ke->ktr_regnum == CHERI_CR_C16 ? &frame->c16 :
+	    ke->ktr_regnum == CHERI_CR_C17 ? &frame->c17 :
+	    ke->ktr_regnum == CHERI_CR_C18 ? &frame->c18 :
+	    ke->ktr_regnum == CHERI_CR_C19 ? &frame->c19 :
+	    ke->ktr_regnum == CHERI_CR_C20 ? &frame->c20 :
+	    ke->ktr_regnum == CHERI_CR_C21 ? &frame->c21 :
+	    ke->ktr_regnum == CHERI_CR_C22 ? &frame->c22 :
+	    ke->ktr_regnum == CHERI_CR_C23 ? &frame->c23 :
+	    ke->ktr_regnum == CHERI_CR_C24 ? &frame->c24 :
+	    ke->ktr_regnum == CHERI_CR_C25 ? &frame->c25 :
+	    ke->ktr_regnum == CHERI_CR_IDC ? &frame->idc :
+	    ke->ktr_regnum == 0xff ? &frame->pcc :
 	    NULL;
 	if (cp != NULL)
-		cheri_serialize(&ke->ktr_cap, cp);
+		cheri_serialize(&ke->ktr_cap, *cp);
 	else
 		bzero(&ke->ktr_cap, sizeof(ke->ktr_cap));
 }
