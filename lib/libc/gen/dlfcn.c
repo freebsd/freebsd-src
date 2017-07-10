@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if !defined(IN_LIBDL) || defined(PIC)
+
 /*
  * Linkage to services provided by the dynamic linker.
  */
@@ -157,6 +159,7 @@ _rtld_thread_init(void *li __unused)
 	_rtld_error(sorry);
 }
 
+#ifndef IN_LIBDL
 static pthread_once_t dl_phdr_info_once = PTHREAD_ONCE_INIT;
 static struct dl_phdr_info phdr_info;
 
@@ -192,6 +195,7 @@ dl_init_phdr_info(void)
 	}
 	phdr_info.dlpi_adds = 1;
 }
+#endif
 
 #pragma weak dl_iterate_phdr
 int
@@ -199,11 +203,15 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
     void *data __unused)
 {
 
+#ifndef IN_LIBDL
 	__init_elf_aux_vector();
 	if (__elf_aux_vector == NULL)
 		return (1);
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
 	return (callback(&phdr_info, sizeof(phdr_info), data));
+#else
+	return (0);
+#endif
 }
 
 #pragma weak fdlopen
@@ -251,3 +259,5 @@ _rtld_is_dlopened(void *arg __unused)
 
 	return (0);
 }
+
+#endif /* !defined(IN_LIBDL) || defined(PIC) */
