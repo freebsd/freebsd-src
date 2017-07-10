@@ -7360,7 +7360,7 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
         int is_highspeed = 0, is_stdspeed = 0;
 	int is_info_request = 0;
 	int flags = 0;
-        uint8_t mmc_data_byte;
+        uint8_t mmc_data_byte = 0;
 
         /* For IO_RW_EXTENDED command */
 	uint8_t *mmc_data = NULL;
