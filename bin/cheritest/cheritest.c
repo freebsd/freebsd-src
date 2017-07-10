@@ -1285,6 +1285,49 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_cheriabi_mmap_unrepresentable",
 	  .ct_desc = "Test CheriABI mmap() with unrepresentable lengths",
 	  .ct_func = test_cheriabi_mmap_unrepresentable },
+
+	/*
+	 * Tests for pathname handling in open(2).
+	 */
+	{ .ct_name = "test_open_ordinary",
+	  .ct_desc = "Smoke test for open(2)",
+	  .ct_func = test_open_ordinary, },
+
+	{ .ct_name = "test_open_offset",
+	  .ct_desc = "Path with non-zero offset",
+	  .ct_func = test_open_offset, },
+
+	{ .ct_name = "test_open_shortened",
+	  .ct_desc = "Path shorter than its capability bounds",
+	  .ct_func = test_open_shortened, },
+
+	{ .ct_name = "test_open_bad_addr",
+	  .ct_desc = "Path with nonsensical address",
+	  .ct_func = test_open_bad_addr, },
+
+	{ .ct_name = "test_open_bad_addr_2",
+	  .ct_desc = "Path with nonsensical address in kernel range",
+	  .ct_func = test_open_bad_addr_2, },
+
+	{ .ct_name = "test_open_bad_len",
+	  .ct_desc = "Path too long for the capaility bounds",
+	  .ct_func = test_open_bad_len, },
+
+	{ .ct_name = "test_open_bad_len_2",
+	  .ct_desc = "Path with offset past its bounds",
+	  .ct_func = test_open_bad_len_2, },
+
+	{ .ct_name = "test_open_bad_tag",
+	  .ct_desc = "Path with tag bit missing",
+	  .ct_func = test_open_bad_tag, },
+
+	{ .ct_name = "test_open_bad_perm",
+	  .ct_desc = "Path with CHERI_PERM_LOAD permission missing",
+	  .ct_func = test_open_bad_perm, },
+
+	{ .ct_name = "test_open_sealed",
+	  .ct_desc = "Sealed path",
+	  .ct_func = test_open_sealed, },
 #endif
 #ifdef CHERI_C_TESTS
 #define	DECLARE_TEST(name, desc)			\
