@@ -146,6 +146,7 @@ MAN=	aac.4 \
 	ehci.4 \
 	em.4 \
 	en.4 \
+	ena.4 \
 	enc.4 \
 	epair.4 \
 	esp.4 \
