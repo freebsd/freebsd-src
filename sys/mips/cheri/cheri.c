@@ -41,6 +41,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/cherireg.h>
@@ -127,20 +128,13 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
  * explicit base/length/offset arguments is quite the right thing.
  */
 void
-cheri_capability_set(void * __capability *capp, uint32_t perms, void *basep,
+cheri_capability_set(void * __capability *cp, uint32_t perms, void *basep,
     size_t length, off_t off)
 {
-#ifdef INVARIANTS
-	register_t r;
-#endif
-	struct chericap *cp = (struct chericap *)capp;
-
 	/* 'basep' is relative to $kdc. */
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
-	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-	    (register_t)length);
-	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
+	*cp = cheri_setoffset(cheri_andperm(cheri_csetbounds(
+	    cheri_incoffset(cheri_getkdc(), (vaddr_t)basep), length), perms),
+	    off);
 
 	/*
 	 * NB: With imprecise bounds, we want to assert that the results will
@@ -151,30 +145,20 @@ cheri_capability_set(void * __capability *capp, uint32_t perms, void *basep,
 	 * '+= off' above.
 	 */
 #ifdef INVARIANTS
-	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
-	KASSERT(r != 0, ("%s: capability untagged", __func__));
-	CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)perms,
+	KASSERT(cheri_gettag(*cp) != 0, ("%s: capability untagged", __func__));
+	KASSERT(cheri_getperm(*cp) == (register_t)perms,
 	    ("%s: permissions 0x%x rather than 0x%x", __func__,
-	    (unsigned int)r, perms));
-	CHERI_CGETBASE(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)basep,
-	    ("%s: base %p rather than %p", __func__, (void *)r, basep));
-	CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)length,
+	    (unsigned int)cheri_getperm(*cp), perms));
+	KASSERT(cheri_getbase(*cp) == (register_t)basep,
+	    ("%s: base %p rather than %p", __func__,
+	     (void *)cheri_getbase(*cp), basep));
+	KASSERT(cheri_getlen(*cp) == (register_t)length,
 	    ("%s: length 0x%x rather than %p", __func__,
-	    (unsigned int)r, (void *)length));
-	CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)off,
-	    ("%s: offset %p rather than %p", __func__, (void *)r,
-	    (void *)off));
-#if 0
-	CHERI_CGETTYPE(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)otypep,
-	    ("%s: otype %p rather than %p", __func__, (void *)r, otypep));
+	    (unsigned int)cheri_getlen(*cp), (void *)length));
+	KASSERT(cheri_getoffset(*cp) == (register_t)off,
+	    ("%s: offset %p rather than %p", __func__,
+	    (void *)cheri_getoffset(*cp), (void *)off));
 #endif
-#endif
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 /*
