@@ -103,6 +103,7 @@ struct vm_map_entry {
 	struct vm_map_entry *right;	/* right child in binary search tree */
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
+	vm_offset_t pad0;
 	vm_offset_t next_read;		/* vaddr of the next sequential read */
 	vm_size_t adj_free;		/* amount of adjacent free space */
 	vm_size_t max_free;		/* max free space in subtree */
