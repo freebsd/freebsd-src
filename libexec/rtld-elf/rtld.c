@@ -1658,6 +1658,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     const Elf_Sym *ref;
     const Elf_Sym *def;
     const Obj_Entry *defobj;
+    const Ver_Entry *ve;
     SymLook req;
     const char *name;
     int res;
@@ -1677,6 +1678,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     name = refobj->strtab + ref->st_name;
     def = NULL;
     defobj = NULL;
+    ve = NULL;
 
     /*
      * We don't have to do a full scale lookup if the symbol is local.
@@ -1693,7 +1695,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 	}
 	symlook_init(&req, name);
 	req.flags = flags;
-	req.ventry = fetch_ventry(refobj, symnum);
+	ve = req.ventry = fetch_ventry(refobj, symnum);
 	req.lockstate = lockstate;
 	res = symlook_default(&req, refobj);
 	if (res == 0) {
@@ -1723,7 +1725,8 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 	}
     } else {
 	if (refobj != &obj_rtld)
-	    _rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
+	    _rtld_error("%s: Undefined symbol \"%s%s%s\"", refobj->path, name,
+	      ve != NULL ? "@" : "", ve != NULL ? ve->name : "");
     }
     return def;
 }
@@ -3488,7 +3491,8 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	return (sym);
     }
 
-    _rtld_error("Undefined symbol \"%s\"", name);
+    _rtld_error("Undefined symbol \"%s%s%s\"", name, ve != NULL ? "@" : "",
+      ve != NULL ? ve->name : "");
     lock_release(rtld_bind_lock, &lockstate);
     LD_UTRACE(UTRACE_DLSYM_STOP, handle, NULL, 0, 0, name);
     return NULL;
