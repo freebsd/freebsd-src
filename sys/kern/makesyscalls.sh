@@ -432,7 +432,7 @@ sed -e '
 
 		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
 		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    tmpcap, %s, reqperms, %s);\n",
 		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
@@ -507,7 +507,7 @@ sed -e '
 
 		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
 		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    tmpcap, %s, %s, %s);\n",
 		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap

@@ -51,7 +51,7 @@
  * not create a spurious pointer. -- BD
  */
 static inline int
-cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
+cheriabi_cap_to_ptr(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
 	register_t tag;
@@ -89,7 +89,7 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 }
 
 static inline int
-cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
+cheriabi_strcap_to_ptr(char **strp, void * __capability cap, int may_be_null)
 {
 
 	/*
@@ -99,7 +99,7 @@ cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
 	 * that out from under us.  Completely safe string handling
 	 * requires pushing the length down to the copyinstr().
 	 */
-	return (cheriabi_cap_to_ptr_x(strp, cap, 1,
+	return (cheriabi_cap_to_ptr(strp, cap, 1,
 	    CHERI_PERM_LOAD, may_be_null));
 }
 

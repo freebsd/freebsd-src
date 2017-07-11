@@ -248,7 +248,7 @@ cheriabi_sigaltstack(struct thread *td,
 		CP(s_c, ss, ss_size);
 		CP(s_c, ss, ss_flags);
 		/* XXX-BD: what perms to enforce? */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&ss.ss_sp, s_c.ss_sp,
+		error = cheriabi_cap_to_ptr((caddr_t *)&ss.ss_sp, s_c.ss_sp,
 		    s_c.ss_size, CHERI_PERM_GLOBAL, 1);
 		if (error)
 			return (error);
@@ -337,7 +337,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		tag = cheri_gettag(*argcap);
 		if (!tag)
 			break;
-		error = cheriabi_strcap_to_ptr_x(&argp, *argcap, 0);
+		error = cheriabi_strcap_to_ptr(&argp, *argcap, 0);
 		if (error)
 			goto err_exit;
 		/* Lose any stray caps in arg strings. */
@@ -366,7 +366,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 			tag = cheri_gettag(*argcap);
 			if (!tag)
 				break;
-			error = cheriabi_strcap_to_ptr_x(&envp, *argcap, 0);
+			error = cheriabi_strcap_to_ptr(&envp, *argcap, 0);
 			if (error)
 				goto err_exit;
 			/* Lose any stray caps in env strings. */
@@ -560,7 +560,7 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 			return (error);
 		}
 		iov[i].iov_len = iov_c.iov_len;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&iov[i].iov_base,
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
 		    iov_c.iov_base, iov[i].iov_len,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error) {
@@ -662,7 +662,7 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 			return (error);
 		}
 		iov[i].iov_len = iov_c.iov_len;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&iov[i].iov_base,
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
 		    iov_c.iov_base, iov[i].iov_len,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 0);
 		if (error) {
@@ -684,18 +684,18 @@ cheriabi_copyinmsghdr(const struct msghdr_c *msg_cp, struct msghdr *msg,
 	error = copyincap(msg_cp, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_name, msg_c.msg_name,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_name, msg_c.msg_name,
 	    msg_c.msg_namelen, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 	if (error)
 		return (error);
 	msg->msg_namelen = msg_c.msg_namelen;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_iov, msg_c.msg_iov,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_iov, msg_c.msg_iov,
 	    sizeof(struct iovec_c) * msg_c.msg_iovlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP, 0);
 	if (error)
 		return (error);
 	msg->msg_iovlen = msg_c.msg_iovlen;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_control,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_control,
 	    msg_c.msg_control, msg_c.msg_controllen,
 	    CHERI_PERM_GLOBAL | (out ? CHERI_PERM_STORE : CHERI_PERM_LOAD), 1);
 	if (error)
@@ -853,12 +853,12 @@ cheriabi_do_sendfile(struct thread *td,
 		error = copyincap(uap->hdtr, &hdtr_c, sizeof(hdtr_c));
 		if (error)
 			goto out;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&headers,
+		error = cheriabi_cap_to_ptr((caddr_t *)&headers,
 		    hdtr_c.headers, sizeof(struct iovec_c) * hdtr_c.hdr_cnt,
 		    reqperms, 1);
 		if (error)
 			goto out;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&trailers,
+		error = cheriabi_cap_to_ptr((caddr_t *)&trailers,
 		    hdtr_c.trailers, sizeof(struct iovec_c) * hdtr_c.trl_cnt,
 		    reqperms, 1);
 		if (error)
@@ -932,17 +932,17 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		if (error)
 			return (error);
 		CP(j_c, j, version);
-		cheriabi_strcap_to_ptr_x(&j.path, j_c.path, 1);
-		cheriabi_strcap_to_ptr_x(&j.hostname, j_c.hostname, 1);
-		cheriabi_strcap_to_ptr_x(&j.jailname, j_c.jailname, 1);
+		cheriabi_strcap_to_ptr(&j.path, j_c.path, 1);
+		cheriabi_strcap_to_ptr(&j.hostname, j_c.hostname, 1);
+		cheriabi_strcap_to_ptr(&j.jailname, j_c.jailname, 1);
 		CP(j_c, j, ip4s);
 		CP(j_c, j, ip6s);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&j.ip4, j_c.ip4,
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip4, j_c.ip4,
 		    sizeof(*j.ip4) * j.ip4s,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error)
 			return (error);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&j.ip6, j_c.ip6,
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip6, j_c.ip6,
 		    sizeof(*j.ip6) * j.ip6s,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error)
@@ -1032,12 +1032,12 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 				return (EPROT);
 			}
 		} else {
-			error = cheriabi_cap_to_ptr_x((caddr_t *)&sa.sa_handler,
+			error = cheriabi_cap_to_ptr((caddr_t *)&sa.sa_handler,
 			    sa_c.sa_u,
 			    8 /* XXX-BD: at least two instructions */,
 		            CHERI_PERM_LOAD | CHERI_PERM_EXECUTE, 0);
 			if (error) {
-				SYSERRCAUSE("in cheriabi_cap_to_ptr_x");
+				SYSERRCAUSE("in cheriabi_cap_to_ptr");
 				return (error);
 			}
 		}
@@ -1197,12 +1197,12 @@ cheriabi_thr_new_initthr(struct thread *td, void *thunk)
 	int error;
 
 	param = thunk;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&child_tidp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&child_tidp,
 	    param->child_tid, sizeof(*child_tidp),
 	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
 	if (error)
 		return (error);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&parent_tidp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&parent_tidp,
 	    param->parent_tid, sizeof(*parent_tidp),
 	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
 	if (error)
@@ -1236,7 +1236,7 @@ cheriabi_thr_new(struct thread *td, struct cheriabi_thr_new_args *uap)
 	 */
 	cheriabi_thr_new_md(td, &param_c);
 	rtpp = NULL;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&rtpup, param_c.rtp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&rtpup, param_c.rtp,
 	    sizeof(rtp), CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 	if (error)
 		return (error);

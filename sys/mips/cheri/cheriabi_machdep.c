@@ -856,7 +856,7 @@ cheriabi_set_user_tls(struct thread *td, void * __capability tls_base)
 	 * Don't require any particular permissions or size and allow NULL.
 	 * If the caller passes nonsense, they just get nonsense results.
 	 */
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&td->td_md.md_tls, tls_base,
+	error = cheriabi_cap_to_ptr((caddr_t *)&td->td_md.md_tls, tls_base,
 	    0, 0, 1);
 	if (error)
 		return (error);
@@ -970,7 +970,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (EINVAL);
 	}
 	if (parms_from_cap) {
-		error = cheriabi_cap_to_ptr_x(&uap->parms, regs->c3,
+		error = cheriabi_cap_to_ptr(&uap->parms, regs->c3,
 		    reqsize, reqperms, 0);
 		if (error != 0)
 			return (error);
