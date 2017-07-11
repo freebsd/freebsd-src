@@ -116,6 +116,7 @@ device		pty
 device		snp
 device		md			# Memory "disks"
 device		random			# Entropy device
+device		pl310			# PL310 L2 cache controller
 device		psci
 
 # I2C support
