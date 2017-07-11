@@ -189,8 +189,8 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 	int error;
 
 	path = td->td_md.md_cheriabi_pathbuf;
-	error = cheriabi_copyinstrarg(td, CHERIABI_SYS_cheriabi_openat, 1,
-	    path, MAXPATHLEN, &slen, CHERIABI_SYS_cheriabi_openat_PTRMASK);
+	error = cheriabi_copyinstrarg(td, 1, path, MAXPATHLEN, &slen,
+	    CHERIABI_SYS_cheriabi_openat_PTRMASK);
 	if (error)
 		goto fail;
 
@@ -1297,8 +1297,8 @@ cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
 	union sigval	sv;
 	int		flags = 0, tag;
 
-	cheriabi_fetch_syscall_arg_x(td, &value_union.sival_ptr,
-	    CHERIABI_SYS_cheriabi_sigqueue, 2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &value_union.sival_ptr,
+	    2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	if (uap->pid == td->td_proc->p_pid) {
 		sv.sival_ptr = malloc(sizeof(value_union), M_TEMP, M_WAITOK);
 		*((void * __capability *)sv.sival_ptr) = value_union.sival_ptr;
@@ -1839,8 +1839,8 @@ cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 	 * CHERI_PERM_CHERIABI_VMMAP.
 	 */
 	if (uap->behav == MADV_FREE) {
-		cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-		    CHERIABI_SYS_cheriabi_madvise, 0, CHERIABI_SYS_cheriabi_madvise_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &addr_cap,
+		    0, CHERIABI_SYS_cheriabi_madvise_PTRMASK);
 		perms = cheri_getperm(addr_cap);
 		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
 			return (EPROT);
@@ -1864,8 +1864,8 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		return (EINVAL);
 	}
 
-	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mmap_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    0, CHERIABI_SYS_cheriabi_mmap_PTRMASK);
 	usertag = cheri_gettag(addr_cap);
 	if (!usertag) {
 		if (flags & MAP_FIXED) {
@@ -2018,8 +2018,8 @@ cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
 	void * __capability addr_cap;
 	register_t perms, reqperms;
 
-	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mprotect_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    0, CHERIABI_SYS_cheriabi_mprotect_PTRMASK);
 	perms = cheri_getperm(addr_cap);
 	/*
 	 * Requested prot much be allowed by capability.

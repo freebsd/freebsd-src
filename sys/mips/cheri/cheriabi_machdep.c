@@ -227,8 +227,8 @@ cheriabi_elf_header_supported(struct image_params *imgp)
 
 __attribute__((always_inline))
 inline void
-cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
-    int syscall_no, int argnum, int ptrmask)
+cheriabi_fetch_syscall_arg(struct thread *td, void * __capability *argp,
+    int argnum, int ptrmask)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct sysentvec *se;
@@ -236,13 +236,8 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
 
 	se = td->td_proc->p_sysent;
 
-	KASSERT(syscall_no >= 0, ("Negative syscall number %d\n", syscall_no));
-	KASSERT(syscall_no < se->sv_size,
-	    ("Syscall number too large %d >= %d\n", syscall_no, se->sv_size));
 	KASSERT(argnum >= 0, ("Negative argument number %d\n", argnum));
-	KASSERT(argnum <= se->sv_table[syscall_no].sy_narg,
-	    ("Argument number out of range %d > %d\n", argnum,
-	    se->sv_table[syscall_no].sy_narg));
+	KASSERT(argnum < 8, ("Argument number %d >= 8\n", argnum));
 
 	/* XXX: O(1) possible with more bit twiddling. */
 	intreg_offset = ptrreg_offset = -1;

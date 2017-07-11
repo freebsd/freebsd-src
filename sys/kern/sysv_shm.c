@@ -492,8 +492,8 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 			return (EINVAL);
 #ifdef COMPAT_CHERIABI
 		if (SV_CURPROC_FLAG(SV_CHERI)) {
-			cheriabi_fetch_syscall_arg_x(td, &shmaddr_cap,
-			    CHERIABI_SYS_shmat, 1, CHERIABI_SYS_shmat_PTRMASK);
+			cheriabi_fetch_syscall_arg(td, &shmaddr_cap, 1,
+			    CHERIABI_SYS_shmat_PTRMASK);
 		}
 #endif
 	} else {
