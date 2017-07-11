@@ -366,6 +366,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 static void
 sdhci_set_power(struct sdhci_slot *slot, u_char power)
 {
+	int i;
 	uint8_t pwr;
 
 	if (slot->power == power)
@@ -394,9 +395,20 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 		break;
 	}
 	WR1(slot, SDHCI_POWER_CONTROL, pwr);
-	/* Turn on the power. */
+	/*
+	 * Turn on VDD1 power.  Note that at least some Intel controllers can
+	 * fail to enable bus power on the first try after transiting from D3
+	 * to D0, so we give them up to 2 ms.
+	 */
 	pwr |= SDHCI_POWER_ON;
-	WR1(slot, SDHCI_POWER_CONTROL, pwr);
+	for (i = 0; i < 20; i++) {
+		WR1(slot, SDHCI_POWER_CONTROL, pwr);
+		if (RD1(slot, SDHCI_POWER_CONTROL) & SDHCI_POWER_ON)
+			break;
+		DELAY(100);
+	}
+	if (!(RD1(slot, SDHCI_POWER_CONTROL) & SDHCI_POWER_ON))
+		slot_printf(slot, "Bus power failed to enable");
 
 	if (slot->quirks & SDHCI_QUIRK_INTEL_POWER_UP_RESET) {
 		WR1(slot, SDHCI_POWER_CONTROL, pwr | 0x10);
