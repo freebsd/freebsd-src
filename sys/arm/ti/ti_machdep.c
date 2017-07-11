@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "platform_if.h"
 
 #if defined(SOC_OMAP4)
+#include "platform_pl310_if.h"
+
 static platform_attach_t omap4_attach;
 static platform_devmap_init_t ti_omap4_devmap_init;
 #endif
@@ -139,6 +141,11 @@ static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
 #endif
+
+	PLATFORMMETHOD(platform_pl310_init,	omap4_pl310_init),
+	PLATFORMMETHOD(platform_pl310_write_ctrl, omap4_pl310_write_ctrl),
+	PLATFORMMETHOD(platform_pl310_write_debug, omap4_pl310_write_debug),
+
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);

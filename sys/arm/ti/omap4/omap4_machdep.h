@@ -28,7 +28,13 @@
 #ifndef _OMAP4_MACHDEP_H_
 #define _OMAP4_MACHDEP_H_
 
+struct pl310_softc;
+
 void omap4_mp_setmaxid(platform_t plat);
 void omap4_mp_start_ap(platform_t plat);
+
+void omap4_pl310_init(platform_t, struct pl310_softc *);
+void omap4_pl310_write_ctrl(platform_t, struct pl310_softc *, uint32_t);
+void omap4_pl310_write_debug(platform_t, struct pl310_softc *, uint32_t);
 
 #endif /* _OMAP4_MACHDEP_H_ */

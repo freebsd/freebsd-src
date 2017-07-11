@@ -29,7 +29,10 @@
 #ifndef IMX6_MACHDEP_H
 #define	IMX6_MACHDEP_H
 
+struct pl310_softc;
+
 void imx6_mp_start_ap(platform_t);
 void imx6_mp_setmaxid(platform_t);
+void imx6_pl310_init(platform_t, struct pl310_softc *);
 
 #endif /* IMX6_MACHDEP_H */

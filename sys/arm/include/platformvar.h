@@ -114,6 +114,11 @@ DATA_SET(platform_set, VAR_NAME ## _platform)
 
 #endif
 
+/*
+ * Helper to get the platform object
+ */
+platform_t platform_obj(void);
+
 bool arm_tmr_timed_wait(platform_t, int);
 
 #endif /* _MACHINE_PLATFORMVAR_H_ */

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/xilinx/zy7_reg.h>
 
 #include "platform_if.h"
+#include "platform_pl310_if.h"
 
 void (*zynq7_cpu_reset)(void);
 
@@ -92,6 +93,8 @@ static platform_method_t zynq7_methods[] = {
 	PLATFORMMETHOD(platform_mp_setmaxid,	zynq7_mp_setmaxid),
 	PLATFORMMETHOD(platform_mp_start_ap,	zynq7_mp_start_ap),
 #endif
+
+	PLATFORMMETHOD(platform_pl310_init,	zynq7_pl310_init),
 
 	PLATFORMMETHOD_END,
 };
