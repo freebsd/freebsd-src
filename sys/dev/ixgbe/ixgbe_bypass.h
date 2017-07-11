@@ -32,23 +32,20 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_82598_H_
-#define _IXGBE_82598_H_
+#ifndef _IXGBE_BYPASS_H_
+#define _IXGBE_BYPASS_H_
 
-u32 ixgbe_get_pcie_msix_count_82598(struct ixgbe_hw *hw);
-s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw);
-void ixgbe_enable_relaxed_ordering_82598(struct ixgbe_hw *hw);
-s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on,
-			 bool vlvf_bypass);
-s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val);
-s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val);
-s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
-				u8 *eeprom_data);
-u64 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw);
-s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw);
-void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw);
-void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw);
-s32 ixgbe_enable_rx_dma_82598(struct ixgbe_hw *hw, u32 regval);
-#endif /* _IXGBE_82598_H_ */
+
+/*
+ * The bypass driver needs to set FW to a epoc of the number of
+ * seconds we are into this year.  This macro's help support that.
+ */
+#define SEC_PER_DAY     (60 * 60 * 24)
+#define SEC_PER_YEAR    (SEC_PER_DAY * 365)
+#define SEC_PER_LYEAR   (SEC_PER_DAY * 366)
+#define LEAP_YR(y)      ((y % 400 == 0) || ((y % 4 == 0) && (y % 100 != 0)))
+#define SEC_THIS_YEAR(y)        (LEAP_YR(y) ? SEC_PER_LYEAR : SEC_PER_YEAR)
+
+void ixgbe_bypass_init(struct adapter *);
+
+#endif /* _IXGBE_BYPASS_H_ */
