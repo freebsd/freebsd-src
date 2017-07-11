@@ -2236,21 +2236,6 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 
 	error = 0;
 	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		break;
-	case _PC_NAME_MAX:
-		*ap->a_retval = NAME_MAX;
-		break;
-	case _PC_PATH_MAX:
-		*ap->a_retval = PATH_MAX;
-		break;
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		break;
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		break;
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		break;
@@ -2273,7 +2258,7 @@ nandfs_pathconf(struct vop_pathconf_args *ap)
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
 	default:
-		error = EINVAL;
+		error = vop_stdpathconf(ap);
 		break;
 	}
 	return (error);
