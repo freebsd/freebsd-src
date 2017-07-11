@@ -54,25 +54,19 @@ static inline int
 cheriabi_cap_to_ptr(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
-	register_t tag;
-	register_t perms;
-	register_t sealed;
 	size_t length, offset;
 
-	tag = cheri_gettag(cap);
-	if (!tag) {
+	if (!cheri_gettag(cap)) {
 		if (!may_be_null)
 			return (EFAULT);
 		*ptrp = (caddr_t)cap;
 		if (*ptrp != NULL)
 			return (EFAULT);
 	} else {
-		sealed = cheri_getsealed(cap);
-		if (sealed)
+		if (cheri_getsealed(cap))
 			return (EPROT);
 
-		perms = cheri_getperm(cap);
-		if ((perms & reqperms) != reqperms)
+		if ((cheri_getperm(cap) & reqperms) != reqperms)
 			return (EPROT);
 
 		length = cheri_getlen(cap);
