@@ -9,7 +9,6 @@ WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
-.ifndef LIBCHERI
 VERSION_MAP=	${.CURDIR}/Version.map
 
 .include "../libcompiler_rt/Makefile.inc"
@@ -38,9 +37,6 @@ SRCS+=		s_scalbnf.c
 SRCS+=		s_fmaxl.c
 SRCS+=		s_logbl.c
 SRCS+=		s_scalbnl.c
-.endif
-.else
-SRCS+=		empty.c
 .endif
 
 .include <bsd.lib.mk>
