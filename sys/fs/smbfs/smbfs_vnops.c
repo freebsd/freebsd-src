@@ -907,7 +907,7 @@ smbfs_pathconf (ap)
 		*retval = 800;	/* XXX: a correct one ? */
 		break;
 	    default:
-		error = EINVAL;
+		error = vop_stdpathconf(ap);
 	}
 	return error;
 }
