@@ -109,7 +109,7 @@
 									\
 	if ((rw)->rw_recurse)						\
 		(rw)->rw_recurse--;					\
-	else if ((rw)->rw_lock != _tid || !_rw_write_unlock((rw), _tid))\
+	else if (!_rw_write_unlock((rw), _tid))				\
 		_rw_wunlock_hard((rw), _tid, (file), (line));		\
 } while (0)
 
