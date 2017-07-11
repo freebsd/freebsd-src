@@ -525,7 +525,7 @@ fin:
 	vector_sort(_nsmod, _nsmodsize, sizeof(*_nsmod), string_compare);
 }
 
-
+static int exiting = 0;
 
 static void
 ns_mod_free(ns_mod *mod)
@@ -536,11 +536,9 @@ ns_mod_free(ns_mod *mod)
 		return;
 	if (mod->unregister != NULL)
 		mod->unregister(mod->mtab, mod->mtabsize);
-	if (mod->handle != nss_builtin_handle)
+	if (mod->handle != nss_builtin_handle && !exiting)
 		(void)dlclose(mod->handle);
 }
-
-
 
 /*
  * Cleanup
@@ -550,6 +548,7 @@ nss_atexit(void)
 {
 	int isthreaded;
 
+	exiting = 1;
 	isthreaded = __isthreaded;
 	if (isthreaded)
 		(void)_pthread_rwlock_wrlock(&nss_lock);
@@ -560,8 +559,6 @@ nss_atexit(void)
 	if (isthreaded)
 		(void)_pthread_rwlock_unlock(&nss_lock);
 }
-
-
 
 /*
  * Finally, the actual implementation.
