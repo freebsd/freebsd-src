@@ -42,10 +42,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#ifdef PLATFORM
+#include <machine/platformvar.h>
+#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#ifdef PLATFORM
+#include "platform_pl310_if.h"
+#endif
 
 /*
  * Define this if you need to disable PL310 for debugging purpose
@@ -88,6 +95,29 @@ static struct ofw_compat_data compat_data[] = {
 	{"arm,pl310-cache",	true},
 	{NULL,			false}
 };
+
+#ifdef PLATFORM
+static void
+platform_pl310_init(struct pl310_softc *sc)
+{
+
+	PLATFORM_PL310_INIT(platform_obj(), sc);
+}
+
+static void
+platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_CTRL(platform_obj(), sc, val);
+}
+
+static void
+platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_DEBUG(platform_obj(), sc, val);
+}
+#endif
 
 static void
 pl310_print_config(struct pl310_softc *sc)

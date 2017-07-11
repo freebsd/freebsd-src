@@ -77,6 +77,13 @@ SET_DECLARE(platform_set, platform_def_t);
 
 static delay_func platform_delay;
 
+platform_t
+platform_obj(void)
+{
+
+	return (plat_obj);
+}
+
 void
 platform_probe_and_attach(void)
 {

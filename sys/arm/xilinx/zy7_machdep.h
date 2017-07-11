@@ -28,7 +28,11 @@
 #ifndef _ZY7_MACHDEP_H_
 #define	_ZY7_MACHDEP_H_
 
+struct pl310_softc;
+
 void zynq7_mp_setmaxid(platform_t);
 void zynq7_mp_start_ap(platform_t);
+
+void zynq7_pl310_init(platform_t, struct pl310_softc *);
 
 #endif /* _ZY7_MACHDEP_H_ */
