@@ -83,7 +83,7 @@ restore_domain(void)
 		n += r;
 	if (r < 0)
 		err(1, "read");
-	if (setdomainname(domain, strlen(domain)) != 0)
+	if (setdomainname(domain, n) != 0)
 		err(1, "setdomainname");
 	close(fd);
 }
