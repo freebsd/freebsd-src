@@ -82,3 +82,46 @@ return:
 	jr	ra
 	nop
 END(cheri_memcpy)
+
+LEAF(copystrcap)
+	move		t0, a1
+	li		t1, 1
+	beq		a1, zero, 4f
+1:
+	clbu		v0, zero, 0($c3)
+	PTR_SUBU	a1, a1, 1
+	beq		v0, zero, 2f
+	sb		v0, 0(a0)		# each byte until NIL
+	cincoffset	$c3, $c3, t1
+	bne		a1, zero, 1b		# less than maxlen
+	PTR_ADDU	a0, a0, 1
+4:
+	li		v0, ENAMETOOLONG	# run out of space
+2:
+	beq		a2, zero, 3f		# return num. of copied bytes
+	PTR_SUBU	a1, t0, a1		# if the 4th arg was non-NULL
+	PTR_S		a1, 0(a2)
+3:
+	j		ra			# v0 is 0 or ENAMETOOLONG
+	nop
+END(copystrcap)
+
+NESTED(copyinstrcap, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
+	# XXX
+	#blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
+	REG_S	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_LA	t9, _C_LABEL(copystrcap)
+	jalr	t9
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	j	ra
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+END(copyinstrcap)

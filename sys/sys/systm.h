@@ -274,6 +274,9 @@ int	copystr(const void * _Nonnull __restrict kfaddr,
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
+int	copyinstrcap(const void * __capability __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied);
 int	copyin(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
 #ifdef CPU_CHERI

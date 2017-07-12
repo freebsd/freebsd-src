@@ -1063,6 +1063,12 @@ dofault:
 		break;
 #ifdef CPU_CHERI
 	case T_C2E:
+		if (td->td_pcb->pcb_onfault != NULL) {
+			pc = (register_t)(intptr_t)td->td_pcb->pcb_onfault;
+			td->td_pcb->pcb_onfault = NULL;
+			return (pc);
+		}
+
 		goto err;
 		break;
 
