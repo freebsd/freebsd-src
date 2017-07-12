@@ -206,6 +206,8 @@ mcd_attach(struct mcd_softc *sc)
 				 UID_ROOT, GID_OPERATOR, 0640, "mcd%d", unit);
 
 	sc->mcd_dev_t->si_drv1 = (void *)sc;
+	device_printf(sc->dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return (0);
 }

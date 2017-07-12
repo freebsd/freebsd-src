@@ -575,6 +575,8 @@ wlattach(device_t device)
 
     if (bootverbose)
 	wldump(sc);
+    device_printf(device,
+	"WARNING: This driver is deprecated and will be removed.\n");
     return (0);
 }
 

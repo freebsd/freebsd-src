@@ -1458,6 +1458,8 @@ digi_attach(struct digi_softc *sc)
 	digi_loadmoduledata(sc);
 	digi_init(sc);
 	digi_freemoduledata(sc);
+	device_printf(dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return (0);
 }

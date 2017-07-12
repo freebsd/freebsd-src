@@ -172,6 +172,8 @@ scd_attach(struct scd_softc *sc)
 	sc->scd_dev_t = make_dev(&scd_cdevsw, 8 * unit,
 		UID_ROOT, GID_OPERATOR, 0640, "scd%d", unit);
 	sc->scd_dev_t->si_drv1 = (void *)sc;
+	device_printf(sc->dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return (0);
 }

@@ -326,6 +326,8 @@ ie_attach(device_t dev)
 		mtx_destroy(&sc->lock);
 		return (error);
 	}
+	device_printf(dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return (0);
 }
