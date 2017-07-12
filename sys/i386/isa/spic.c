@@ -346,6 +346,8 @@ spic_attach(device_t dev)
 
 	/* There can be only one */
 	make_dev(&spic_cdevsw, 0, 0, 0, 0600, "jogdial");
+	device_printf(dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return 0;
 }
