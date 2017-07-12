@@ -333,7 +333,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rxd, CTLFLAG_RDTUN, &ixgbe_rxd, 0,
  * doing so you are on your own :)
  */
 static int allow_unsupported_sfp = FALSE;
-SYSCTL_INT(_hw_ix, OID_AUTO, allow_unsupported_sfp, CTLFLAG_RDTUN,
+SYSCTL_INT(_hw_ix, OID_AUTO, unsupported_sfp, CTLFLAG_RDTUN,
     &allow_unsupported_sfp, 0,
     "Allow unsupported SFP modules...use at your own risk");
 
