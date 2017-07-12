@@ -249,9 +249,9 @@ struct vstor_packet {
 /**
  * SRB Status Masks (can be combined with above status codes)
  */
-#define SRB_STATUS_QUEUE_FROZEN		0x40
-#define SRB_STATUS_AUTOSENSE_VALID	0x80
-
+#define SRB_STATUS_QUEUE_FROZEN         0x40
+#define SRB_STATUS_AUTOSENSE_VALID      0x80
+#define SRB_STATUS_INVALID_LUN          0X20
 
 /**
  *  Packet flags

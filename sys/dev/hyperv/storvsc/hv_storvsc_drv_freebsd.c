@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sema.h>
 #include <sys/sglist.h>
+#include <sys/eventhandler.h>
 #include <machine/bus.h>
 #include <sys/bus_dma.h>
 
@@ -198,6 +199,7 @@ static struct storvsc_driver_props g_drv_props_table[] = {
 	 STORVSC_RINGBUFFER_SIZE}
 };
 
+static eventhandler_tag storvsc_handler_tag;
 /*
  * Sense buffer size changed in win8; have a run-time
  * variable to track the size we should use.
@@ -818,6 +820,7 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 	 * because the fields will be used later in storvsc_io_done().
 	 */
 	request->vstor_packet.u.vm_srb.scsi_status = vm_srb->scsi_status;
+	request->vstor_packet.u.vm_srb.srb_status = vm_srb->srb_status;
 	request->vstor_packet.u.vm_srb.transfer_len = vm_srb->transfer_len;
 
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
@@ -966,20 +969,13 @@ hv_storvsc_on_channel_callback(void *context)
 static int
 storvsc_probe(device_t dev)
 {
-	int ata_disk_enable = 0;
 	int ret	= ENXIO;
 	
 	switch (storvsc_get_storage_type(dev)) {
 	case DRIVER_BLKVSC:
 		if(bootverbose)
-			device_printf(dev, "DRIVER_BLKVSC-Emulated ATA/IDE probe\n");
-		if (!getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
-			if(bootverbose)
-				device_printf(dev,
-					"Enlightened ATA/IDE detected\n");
-			ret = BUS_PROBE_DEFAULT;
-		} else if(bootverbose)
-			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
+			device_printf(dev, "Enlightened ATA/IDE detected\n");
+		ret = BUS_PROBE_DEFAULT;
 		break;
 	case DRIVER_STORVSC:
 		if(bootverbose)
@@ -1967,28 +1963,17 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	return(0);
 }
 
-/*
- * SCSI Inquiry checks qualifier and type.
- * If qualifier is 011b, means the device server is not capable
- * of supporting a peripheral device on this logical unit, and
- * the type should be set to 1Fh.
- * 
- * Return 1 if it is valid, 0 otherwise.
- */
-static inline int
-is_inquiry_valid(const struct scsi_inquiry_data *inq_data)
+static uint32_t
+is_scsi_valid(const struct scsi_inquiry_data *inq_data)
 {
-	uint8_t type;
-	if (SID_QUAL(inq_data) != SID_QUAL_LU_CONNECTED) {
-		return (0);
-	}
+	u_int8_t type;
 	type = SID_TYPE(inq_data);
-	if (type == T_NODEVICE) {
+	if (type == T_NODEVICE)
 		return (0);
-	}
+	if (SID_QUAL(inq_data) == SID_QUAL_BAD_LU)
+		return (0);
 	return (1);
 }
-
 /**
  * @brief completion function before returning to CAM
  *
@@ -2057,74 +2042,107 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		callout_drain(&reqp->callout);
 	}
 #endif
-
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
-		/*
-		 * Check whether the data for INQUIRY cmd is valid or
-		 * not.  Windows 10 and Windows 2016 send all zero
-		 * inquiry data to VM even for unpopulated slots.
-		 */
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
-		if (cmd->opcode == INQUIRY) {
-		    /*
-		     * The host of Windows 10 or 2016 server will response
-		     * the inquiry request with invalid data for unexisted device:
-			[0x7f 0x0 0x5 0x2 0x1f ... ]
-		     * But on windows 2012 R2, the response is:
-			[0x7f 0x0 0x0 0x0 0x0 ]
-		     * That is why here wants to validate the inquiry response.
-		     * The validation will skip the INQUIRY whose response is short,
-		     * which is less than SHORT_INQUIRY_LENGTH (36).
-		     *
-		     * For more information about INQUIRY, please refer to:
-		     *  ftp://ftp.avc-pioneer.com/Mtfuji_7/Proposal/Jun09/INQUIRY.pdf
-		     */
-		    const struct scsi_inquiry_data *inq_data =
-			(const struct scsi_inquiry_data *)csio->data_ptr;
-		    uint8_t* resp_buf = (uint8_t*)csio->data_ptr;
-		    /* Get the buffer length reported by host */
-		    int resp_xfer_len = vm_srb->transfer_len;
-		    /* Get the available buffer length */
-		    int resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
-		    int data_len = (resp_buf_len < resp_xfer_len) ? resp_buf_len : resp_xfer_len;
-		    if (data_len < SHORT_INQUIRY_LENGTH) {
-			ccb->ccb_h.status |= CAM_REQ_CMP;
-			if (bootverbose && data_len >= 5) {
-				mtx_lock(&sc->hs_lock);
-				xpt_print(ccb->ccb_h.path,
-				    "storvsc skips the validation for short inquiry (%d)"
-				    " [%x %x %x %x %x]\n",
-				    data_len,resp_buf[0],resp_buf[1],resp_buf[2],
-				    resp_buf[3],resp_buf[4]);
-				mtx_unlock(&sc->hs_lock);
-			}
-		    } else if (is_inquiry_valid(inq_data) == 0) {
-			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
-			if (bootverbose && data_len >= 5) {
-				mtx_lock(&sc->hs_lock);
-				xpt_print(ccb->ccb_h.path,
-				    "storvsc uninstalled invalid device"
-				    " [%x %x %x %x %x]\n",
-				resp_buf[0],resp_buf[1],resp_buf[2],resp_buf[3],resp_buf[4]);
-				mtx_unlock(&sc->hs_lock);
-			}
-		    } else {
-			ccb->ccb_h.status |= CAM_REQ_CMP;
+		if (vm_srb->srb_status != SRB_STATUS_SUCCESS) {
+			/*
+			 * If there are errors, for example, invalid LUN,
+			 * host will inform VM through SRB status.
+			 */
 			if (bootverbose) {
-				mtx_lock(&sc->hs_lock);
-				xpt_print(ccb->ccb_h.path,
-				    "storvsc has passed inquiry response (%d) validation\n",
-				    data_len);
-				mtx_unlock(&sc->hs_lock);
+				if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
+					xpt_print(ccb->ccb_h.path,
+					    "invalid LUN %d for op: %s\n",
+					    vm_srb->lun,
+					    scsi_op_desc(cmd->opcode, NULL));
+				} else {
+					xpt_print(ccb->ccb_h.path,
+					    "Unknown SRB flag: %d for op: %s\n",
+					    vm_srb->srb_status,
+					    scsi_op_desc(cmd->opcode, NULL));
+				}
 			}
-		    }
+
+			/*
+			 * XXX For a selection timeout, all of the LUNs
+			 * on the target will be gone.  It works for SCSI
+			 * disks, but does not work for IDE disks.
+			 *
+			 * For CAM_DEV_NOT_THERE, CAM will only get
+			 * rid of the device(s) specified by the path.
+			 */
+			if (storvsc_get_storage_type(sc->hs_dev->device) ==
+			    DRIVER_STORVSC)
+				ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
+			else
+				ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
+		}
+
+		if (cmd->opcode == INQUIRY &&
+		    vm_srb->srb_status == SRB_STATUS_SUCCESS) {
+			int resp_xfer_len, resp_buf_len, data_len;
+			struct scsi_inquiry_data *inq_data =
+			    (struct scsi_inquiry_data *)csio->data_ptr;
+			/* Get the buffer length reported by host */
+			resp_xfer_len = vm_srb->transfer_len;
+			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
+
+			/* Get the available buffer length */
+			resp_buf_len = resp_xfer_len >= 5 ? resp_buf[4] + 5 : 0;
+			data_len = (resp_buf_len < resp_xfer_len) ?
+			    resp_buf_len : resp_xfer_len;
+			if (bootverbose && data_len >= 5) {
+				xpt_print(ccb->ccb_h.path, "storvsc inquiry "
+				    "(%d) [%x %x %x %x %x ... ]\n", data_len,
+				    resp_buf[0], resp_buf[1], resp_buf[2],
+				    resp_buf[3], resp_buf[4]);
+			}
+			/*
+			 * XXX: Manually fix the wrong response returned from WS2012
+			 */
+			if (!is_scsi_valid(inq_data) &&
+			    (vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8_1 ||
+			    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN8 ||
+			    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN7)) {
+				if (data_len >= 4 &&
+				    (resp_buf[2] == 0 || resp_buf[3] == 0)) {
+					resp_buf[2] = 5; // verion=5 means SPC-3
+					resp_buf[3] = 2; // resp fmt must be 2
+					if (bootverbose)
+						xpt_print(ccb->ccb_h.path,
+						    "fix version and resp fmt for 0x%x\n",
+						    vmstor_proto_version);
+				}
+			} else if (data_len >= SHORT_INQUIRY_LENGTH) {
+				char vendor[16];
+
+				cam_strvis(vendor, inq_data->vendor,
+				    sizeof(inq_data->vendor), sizeof(vendor));
+				/*
+				 * XXX: Upgrade SPC2 to SPC3 if host is WIN8 or
+				 * WIN2012 R2 in order to support UNMAP feature.
+				 */
+				if (!strncmp(vendor, "Msft", 4) &&
+				    SID_ANSI_REV(inq_data) == SCSI_REV_SPC2 &&
+				    (vmstor_proto_version ==
+				     VMSTOR_PROTOCOL_VERSION_WIN8_1 ||
+				     vmstor_proto_version ==
+				     VMSTOR_PROTOCOL_VERSION_WIN8)) {
+					inq_data->version = SCSI_REV_SPC3;
+					if (bootverbose) {
+						xpt_print(ccb->ccb_h.path,
+						    "storvsc upgrades "
+						    "SPC2 to SPC3\n");
+					}
+				}
+			}
 		}
 	} else {
 		mtx_lock(&sc->hs_lock);
@@ -2193,3 +2211,51 @@ storvsc_get_storage_type(device_t dev)
 	return (DRIVER_UNKNOWN);
 }
 
+#define	PCI_VENDOR_INTEL	0x8086
+#define	PCI_PRODUCT_PIIX4	0x7111
+
+static void
+storvsc_ada_probe_veto(void *arg __unused, struct cam_path *path,
+    struct ata_params *ident_buf __unused, int *veto)
+{
+	/*
+	 * Hyper-V should ignore ATA
+	 */
+	if (path->device->protocol == PROTO_ATA) {
+		struct ccb_pathinq cpi;
+
+		bzero(&cpi, sizeof(cpi));
+		xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
+		cpi.ccb_h.func_code = XPT_PATH_INQ;
+		xpt_action((union ccb *)&cpi);
+		if (cpi.ccb_h.status == CAM_REQ_CMP &&
+		    cpi.hba_vendor == PCI_VENDOR_INTEL &&
+		    cpi.hba_device == PCI_PRODUCT_PIIX4) {
+			(*veto)++;
+			xpt_print(path,
+			    "Disable ATA for vendor: %x, device: %x\n",
+			    cpi.hba_vendor, cpi.hba_device);
+		}
+	}
+}
+
+static void
+storvsc_sysinit(void *arg __unused)
+{
+	if (vm_guest == VM_GUEST_HV) {
+		storvsc_handler_tag = EVENTHANDLER_REGISTER(ada_probe_veto,
+		    storvsc_ada_probe_veto, NULL, EVENTHANDLER_PRI_ANY);
+	}
+}
+SYSINIT(storvsc_sys_init, SI_SUB_DRIVERS, SI_ORDER_SECOND, storvsc_sysinit,
+    NULL);
+
+static void
+storvsc_sysuninit(void *arg __unused)
+{
+	if (storvsc_handler_tag != NULL) {
+		EVENTHANDLER_DEREGISTER(ada_probe_veto, storvsc_handler_tag);
+	}
+}
+SYSUNINIT(storvsc_sys_uninit, SI_SUB_DRIVERS, SI_ORDER_SECOND,
+    storvsc_sysuninit, NULL);

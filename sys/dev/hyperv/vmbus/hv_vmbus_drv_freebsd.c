@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <machine/apicvar.h>
 
+#include <dev/hyperv/include/hyperv.h>
 #include "hv_vmbus_priv.h"
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -298,6 +299,23 @@ vmbus_write_ivar(
 	return (ENOENT);
 }
 
+static int
+vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
+{
+	char guidbuf[40];
+	struct hv_device *dev_ctx = device_get_ivars(child);
+
+	strlcat(buf, "classid=", buflen);
+	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
+	strlcat(buf, guidbuf, buflen);
+
+	strlcat(buf, " deviceid=", buflen);
+	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->device_id);
+	strlcat(buf, guidbuf, buflen);
+
+	return (0);
+}
+
 struct hv_device*
 hv_vmbus_child_device_create(
 	hv_guid		type,
@@ -324,15 +342,17 @@ hv_vmbus_child_device_create(
 	return (child_dev);
 }
 
-static void
-print_dev_guid(struct hv_device *dev)
+int
+snprintf_hv_guid(char *buf, size_t sz, const hv_guid *guid)
 {
-	int i;
-	unsigned char guid_name[100];
-	for (i = 0; i < 32; i += 2)
-		sprintf(&guid_name[i], "%02x", dev->class_id.data[i / 2]);
-	if(bootverbose)
-		printf("VMBUS: Class ID: %s\n", guid_name);
+	int cnt;
+	const unsigned char *d = guid->data;
+
+	cnt = snprintf(buf, sz,
+		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		d[3], d[2], d[1], d[0], d[5], d[4], d[7], d[6],
+		d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
+	return (cnt);
 }
 
 int
@@ -341,8 +361,11 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 	device_t child;
 	int ret = 0;
 
-	print_dev_guid(child_dev);
-
+	if (bootverbose) {
+		char name[40];
+		snprintf_hv_guid(name, sizeof(name), &child_dev->class_id);
+		printf("VMBUS: Class ID: %s\n", name);
+	}
 
 	child = device_add_child(vmbus_devp, NULL, -1);
 	child_dev->device = child;
@@ -747,6 +770,7 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar, vmbus_read_ivar),
 	DEVMETHOD(bus_write_ivar, vmbus_write_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str, vmbus_child_pnpinfo_str),
 
 	{ 0, 0 } };
 

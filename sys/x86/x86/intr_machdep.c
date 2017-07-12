@@ -535,6 +535,9 @@ intr_shuffle_irqs(void *arg __unused)
 	if (mp_ncpus == 1)
 		return;
 
+	/* Does not work properly on Hyper-V. */
+	if (vm_guest == VM_GUEST_HV)
+		return;
 	/* Round-robin assign a CPU to each enabled source. */
 	mtx_lock(&intr_table_lock);
 	assign_cpu = 1;
