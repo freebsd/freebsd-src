@@ -203,8 +203,7 @@ _meta_filemon=	1
 # for _meta_filemon but not for _SKIP_DEPEND.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(*obj) || \
     ${.TARGETS:M*clean*} == ${.TARGETS} || \
-    ${.TARGETS:M*install*} == ${.TARGETS} || \
-    defined(_meta_filemon)
+    ${.TARGETS:M*install*} == ${.TARGETS}
 _SKIP_DEPEND=	1
 .endif
 .if defined(_SKIP_DEPEND) || defined(_meta_filemon)
