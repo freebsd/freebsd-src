@@ -53,8 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
 
+/*
+ * clock_lock protects low-level access to individual hardware registers.
+ * atrtc_time_lock protects the entire sequence of accessing multiple registers
+ * to read or write the date and time.
+ */
 #define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
 #define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
+
+struct mtx atrtc_time_lock;
+MTX_SYSINIT(atrtc_lock_init, &atrtc_time_lock, "atrtc", MTX_DEF);
 
 int	atrtcclock_disable = 0;
 
@@ -163,6 +171,8 @@ atrtc_set(struct timespec *ts)
 
 	clock_ts_to_ct(ts, &ct);
 
+	mtx_lock(&atrtc_time_lock);
+
 	/* Disable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
@@ -181,6 +191,8 @@ atrtc_set(struct timespec *ts)
 	/* Re-enable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, rtc_statusb);
 	rtcin(RTC_INTR);
+
+	mtx_unlock(&atrtc_time_lock);
 }
 
 /**********************************************************************
@@ -352,6 +364,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	 * to make sure that no more than 240us pass after we start reading,
 	 * and try again if so.
 	 */
+	mtx_lock(&atrtc_time_lock);
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
 	critical_enter();
@@ -369,6 +382,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	ct.year += (ct.year < 80 ? 2000 : 1900);
 #endif
 	critical_exit();
+	mtx_unlock(&atrtc_time_lock);
 	/* Set dow = -1 because some clocks don't set it correctly. */
 	ct.dow = -1;
 	return (clock_ct_to_ts(&ct, ts));
