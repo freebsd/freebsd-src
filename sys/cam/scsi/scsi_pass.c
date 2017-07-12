@@ -2202,7 +2202,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 */
 	fc = ccb->ccb_h.func_code;
 	if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO) || (fc == XPT_SMP_IO)
-	 || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO)) {
+            || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO) || (fc == XPT_MMC_IO)) {
 		bzero(&mapinfo, sizeof(mapinfo));
 
 		/*

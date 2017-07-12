@@ -655,7 +655,8 @@ LIBCOMPAT= SOFT
 # when the ABI breaks though that we want to force rebuilding WORLDTMP
 # to get updated host tools.
 .if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
-    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS)
+    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS) && \
+    !make(showconfig)
 # r318736 - ino64 major ABI breakage
 META_MODE_BAD_ABI_VERS+=	1200031
 
@@ -761,7 +762,15 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-.endif
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
+.endif	# !defined(NO_CLEAN)
 
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and

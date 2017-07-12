@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
+#include "opt_mmccam.h"
+
 #include "bcm2835_dma.h"
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include "bcm2835_vcbus.h"
@@ -253,7 +255,11 @@ bcm_sdhci_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
+#ifdef MMCCAM
+	sdhci_cam_start_slot(&sc->sc_slot);
+#else
 	sdhci_start_slot(&sc->sc_slot);
+#endif
 
 	return (0);
 

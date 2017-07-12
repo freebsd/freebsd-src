@@ -56,7 +56,6 @@
 #define	DEV_MMC_MMCBRVAR_H
 
 #include <dev/mmc/mmcreg.h>
-
 #include "mmcbr_if.h"
 
 enum mmcbr_device_ivars {

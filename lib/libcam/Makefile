@@ -38,6 +38,7 @@ MLINKS+=	cam.3 cam_open_device.3 \
 
 .PATH:		${SRCTOP}/sys/cam \
 		${SRCTOP}/sys/cam/ata \
+		${SRCTOP}/sys/cam/mmc \
 		${SRCTOP}/sys/cam/scsi
 
 CFLAGS+=	-I${.CURDIR} -I${SRCTOP}/sys

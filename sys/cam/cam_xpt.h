@@ -141,6 +141,8 @@ void			xpt_copy_path(struct cam_path *new_path,
 
 void			xpt_release_path(struct cam_path *path);
 
+const char *		xpt_action_name(uint32_t action);
+
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
