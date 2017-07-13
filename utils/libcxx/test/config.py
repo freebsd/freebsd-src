@@ -440,6 +440,9 @@ class Configuration(object):
             # C++17 aligned allocation.
             self.config.available_features.add('no-aligned-allocation')
 
+        if self.cxx.hasCompileFlag('-fdelayed-template-parsing'):
+            self.config.available_features.add('fdelayed-template-parsing')
+
         if self.get_lit_bool('has_libatomic', False):
             self.config.available_features.add('libatomic')
 
@@ -888,6 +891,7 @@ class Configuration(object):
         self.cxx.addWarningFlagIfSupported('-Wno-c++11-extensions')
         self.cxx.addWarningFlagIfSupported('-Wno-user-defined-literals')
         self.cxx.addWarningFlagIfSupported('-Wno-noexcept-type')
+        self.cxx.addWarningFlagIfSupported('-Wno-aligned-allocation-unavailable')
         # These warnings should be enabled in order to support the MSVC
         # team using the test suite; They enable the warnings below and
         # expect the test suite to be clean.
@@ -1015,6 +1019,7 @@ class Configuration(object):
         cxx_path = pipes.quote(self.cxx.path)
         # Configure compiler substitutions
         sub.append(('%cxx', cxx_path))
+        sub.append(('%libcxx_src_root', self.libcxx_src_root))
         # Configure flags substitutions
         flags_str = ' '.join([pipes.quote(f) for f in self.cxx.flags])
         compile_flags_str = ' '.join([pipes.quote(f) for f in self.cxx.compile_flags])
