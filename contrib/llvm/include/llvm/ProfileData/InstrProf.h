@@ -249,9 +249,8 @@ void annotateValueSite(Module &M, Instruction &Inst,
 
 /// Same as the above interface but using an ArrayRef, as well as \p Sum.
 void annotateValueSite(Module &M, Instruction &Inst,
-                       ArrayRef<InstrProfValueData> VDs,
-                       uint64_t Sum, InstrProfValueKind ValueKind,
-                       uint32_t MaxMDCount);
+                       ArrayRef<InstrProfValueData> VDs, uint64_t Sum,
+                       InstrProfValueKind ValueKind, uint32_t MaxMDCount);
 
 /// Extract the value profile data from \p Inst which is annotated with
 /// value profile meta data. Return false if there is no value data annotated,
@@ -582,34 +581,27 @@ struct InstrProfValueSiteRecord {
 
   /// Merge data from another InstrProfValueSiteRecord
   /// Optionally scale merged counts by \p Weight.
-  void merge(SoftInstrProfErrors &SIPE, InstrProfValueSiteRecord &Input,
-             uint64_t Weight = 1);
+  void merge(InstrProfValueSiteRecord &Input, uint64_t Weight,
+             function_ref<void(instrprof_error)> Warn);
   /// Scale up value profile data counts.
-  void scale(SoftInstrProfErrors &SIPE, uint64_t Weight);
+  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
 };
 
 /// Profiling information for a single function.
 struct InstrProfRecord {
-  StringRef Name;
-  uint64_t Hash;
   std::vector<uint64_t> Counts;
-  SoftInstrProfErrors SIPE;
 
   InstrProfRecord() = default;
-  InstrProfRecord(StringRef Name, uint64_t Hash, std::vector<uint64_t> Counts)
-      : Name(Name), Hash(Hash), Counts(std::move(Counts)) {}
+  InstrProfRecord(std::vector<uint64_t> Counts) : Counts(std::move(Counts)) {}
   InstrProfRecord(InstrProfRecord &&) = default;
   InstrProfRecord(const InstrProfRecord &RHS)
-      : Name(RHS.Name), Hash(RHS.Hash), Counts(RHS.Counts), SIPE(RHS.SIPE),
+      : Counts(RHS.Counts),
         ValueData(RHS.ValueData
                       ? llvm::make_unique<ValueProfData>(*RHS.ValueData)
                       : nullptr) {}
   InstrProfRecord &operator=(InstrProfRecord &&) = default;
   InstrProfRecord &operator=(const InstrProfRecord &RHS) {
-    Name = RHS.Name;
-    Hash = RHS.Hash;
     Counts = RHS.Counts;
-    SIPE = RHS.SIPE;
     if (!RHS.ValueData) {
       ValueData = nullptr;
       return *this;
@@ -626,7 +618,6 @@ struct InstrProfRecord {
   /// Return the number of value profile kinds with non-zero number
   /// of profile sites.
   inline uint32_t getNumValueKinds() const;
-
   /// Return the number of instrumented sites for ValueKind.
   inline uint32_t getNumValueSites(uint32_t ValueKind) const;
 
@@ -661,11 +652,12 @@ struct InstrProfRecord {
 
   /// Merge the counts in \p Other into this one.
   /// Optionally scale merged counts by \p Weight.
-  void merge(InstrProfRecord &Other, uint64_t Weight = 1);
+  void merge(InstrProfRecord &Other, uint64_t Weight,
+             function_ref<void(instrprof_error)> Warn);
 
   /// Scale up profile counts (including value profile data) by
   /// \p Weight.
-  void scale(uint64_t Weight);
+  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
 
   /// Sort value profile data (per site) by count.
   void sortValueData() {
@@ -682,9 +674,6 @@ struct InstrProfRecord {
 
   /// Clear value data entries
   void clearValueData() { ValueData = nullptr; }
-
-  /// Get the error contained within the record's soft error counter.
-  Error takeError() { return SIPE.takeError(); }
 
 private:
   struct ValueProfData {
@@ -737,11 +726,23 @@ private:
 
   // Merge Value Profile data from Src record to this record for ValueKind.
   // Scale merged value counts by \p Weight.
-  void mergeValueProfData(uint32_t ValueKind, InstrProfRecord &Src,
-                          uint64_t Weight);
+  void mergeValueProfData(uint32_t ValkeKind, InstrProfRecord &Src,
+                          uint64_t Weight,
+                          function_ref<void(instrprof_error)> Warn);
 
   // Scale up value profile data count.
-  void scaleValueProfData(uint32_t ValueKind, uint64_t Weight);
+  void scaleValueProfData(uint32_t ValueKind, uint64_t Weight,
+                          function_ref<void(instrprof_error)> Warn);
+};
+
+struct NamedInstrProfRecord : InstrProfRecord {
+  StringRef Name;
+  uint64_t Hash;
+
+  NamedInstrProfRecord() = default;
+  NamedInstrProfRecord(StringRef Name, uint64_t Hash,
+                       std::vector<uint64_t> Counts)
+      : InstrProfRecord(std::move(Counts)), Name(Name), Hash(Hash) {}
 };
 
 uint32_t InstrProfRecord::getNumValueKinds() const {
@@ -753,11 +754,8 @@ uint32_t InstrProfRecord::getNumValueKinds() const {
 
 uint32_t InstrProfRecord::getNumValueData(uint32_t ValueKind) const {
   uint32_t N = 0;
-  const std::vector<InstrProfValueSiteRecord> &SiteRecords =
-      getValueSitesForKind(ValueKind);
-  for (auto &SR : SiteRecords) {
+  for (auto &SR : getValueSitesForKind(ValueKind))
     N += SR.ValueData.size();
-  }
   return N;
 }
 

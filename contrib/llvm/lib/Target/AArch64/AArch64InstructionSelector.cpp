@@ -33,6 +33,8 @@
 
 #define DEBUG_TYPE "aarch64-isel"
 
+#include "llvm/CodeGen/GlobalISel/InstructionSelectorImpl.h"
+
 using namespace llvm;
 
 #ifndef LLVM_BUILD_GLOBAL_ISEL
@@ -212,6 +214,7 @@ static unsigned selectBinaryOp(unsigned GenericOpc, unsigned RegBankID,
         return GenericOpc;
       }
     }
+    break;
   case AArch64::FPRRegBankID:
     switch (OpSize) {
     case 32:
@@ -243,7 +246,8 @@ static unsigned selectBinaryOp(unsigned GenericOpc, unsigned RegBankID,
         return GenericOpc;
       }
     }
-  };
+    break;
+  }
   return GenericOpc;
 }
 
@@ -267,6 +271,7 @@ static unsigned selectLoadStoreUIOp(unsigned GenericOpc, unsigned RegBankID,
     case 64:
       return isStore ? AArch64::STRXui : AArch64::LDRXui;
     }
+    break;
   case AArch64::FPRRegBankID:
     switch (OpSize) {
     case 8:
@@ -278,7 +283,8 @@ static unsigned selectLoadStoreUIOp(unsigned GenericOpc, unsigned RegBankID,
     case 64:
       return isStore ? AArch64::STRDui : AArch64::LDRDui;
     }
-  };
+    break;
+  }
   return GenericOpc;
 }
 
@@ -1319,6 +1325,9 @@ bool AArch64InstructionSelector::select(MachineInstr &I) const {
   case TargetOpcode::G_VASTART:
     return STI.isTargetDarwin() ? selectVaStartDarwin(I, MF, MRI)
                                 : selectVaStartAAPCS(I, MF, MRI);
+  case TargetOpcode::G_IMPLICIT_DEF:
+    I.setDesc(TII.get(TargetOpcode::IMPLICIT_DEF));
+    return true;
   }
 
   return false;

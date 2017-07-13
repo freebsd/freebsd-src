@@ -263,8 +263,8 @@ public:
   /// \param Pattern - combiner pattern
   bool isThroughputPattern(MachineCombinerPattern Pattern) const override;
   /// Return true when there is potentially a faster code sequence
-  /// for an instruction chain ending in <Root>. All potential patterns are
-  /// listed in the <Patterns> array.
+  /// for an instruction chain ending in ``Root``. All potential patterns are
+  /// listed in the ``Patterns`` array.
   bool getMachineCombinerPatterns(MachineInstr &Root,
                   SmallVectorImpl<MachineCombinerPattern> &Patterns)
       const override;
@@ -289,6 +289,8 @@ public:
   getSerializableDirectMachineOperandTargetFlags() const override;
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableBitmaskMachineOperandTargetFlags() const override;
+  ArrayRef<std::pair<MachineMemOperand::Flags, const char *>>
+  getSerializableMachineMemOperandTargetFlags() const override;
 
   bool isFunctionSafeToOutlineFrom(MachineFunction &MF) const override;
   unsigned getOutliningBenefit(size_t SequenceSize, size_t Occurrences,

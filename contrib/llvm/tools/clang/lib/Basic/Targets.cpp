@@ -499,6 +499,10 @@ public:
     switch (Triple.getArch()) {
     default:
       break;
+    case llvm::Triple::mips:
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64:
+    case llvm::Triple::mips64el:
     case llvm::Triple::ppc:
     case llvm::Triple::ppc64:
     case llvm::Triple::ppc64le:
@@ -2049,7 +2053,7 @@ ArrayRef<const char *> NVPTXTargetInfo::getGCCRegNames() const {
   return llvm::makeArrayRef(GCCRegNames);
 }
 
-static const LangAS::Map AMDGPUNonOpenCLPrivateIsZeroMap = {
+static const LangAS::Map AMDGPUPrivIsZeroDefIsGenMap = {
     4, // Default
     1, // opencl_global
     3, // opencl_local
@@ -2059,7 +2063,7 @@ static const LangAS::Map AMDGPUNonOpenCLPrivateIsZeroMap = {
     2, // cuda_constant
     3  // cuda_shared
 };
-static const LangAS::Map AMDGPUNonOpenCLGenericIsZeroMap = {
+static const LangAS::Map AMDGPUGenIsZeroDefIsGenMap = {
     0, // Default
     1, // opencl_global
     3, // opencl_local
@@ -2069,7 +2073,7 @@ static const LangAS::Map AMDGPUNonOpenCLGenericIsZeroMap = {
     2, // cuda_constant
     3  // cuda_shared
 };
-static const LangAS::Map AMDGPUOpenCLPrivateIsZeroMap = {
+static const LangAS::Map AMDGPUPrivIsZeroDefIsPrivMap = {
     0, // Default
     1, // opencl_global
     3, // opencl_local
@@ -2079,7 +2083,7 @@ static const LangAS::Map AMDGPUOpenCLPrivateIsZeroMap = {
     2, // cuda_constant
     3  // cuda_shared
 };
-static const LangAS::Map AMDGPUOpenCLGenericIsZeroMap = {
+static const LangAS::Map AMDGPUGenIsZeroDefIsPrivMap = {
     5, // Default
     1, // opencl_global
     3, // opencl_local
@@ -2184,18 +2188,35 @@ public:
                     : DataLayoutStringR600);
     assert(DataLayout->getAllocaAddrSpace() == AS.Private);
 
+    setAddressSpaceMap(Triple.getOS() == llvm::Triple::Mesa3D ||
+                       Triple.getEnvironment() == llvm::Triple::OpenCL ||
+                       Triple.getEnvironmentName() == "amdgizcl" ||
+                       !isAMDGCN(Triple));
     UseAddrSpaceMapMangling = true;
+
+    // Set pointer width and alignment for target address space 0.
+    PointerWidth = PointerAlign = DataLayout->getPointerSizeInBits();
+    if (getMaxPointerWidth() == 64) {
+      LongWidth = LongAlign = 64;
+      SizeType = UnsignedLong;
+      PtrDiffType = SignedLong;
+      IntPtrType = SignedLong;
+    }
+  }
+
+  void setAddressSpaceMap(bool DefaultIsPrivate) {
+    if (isGenericZero(getTriple())) {
+      AddrSpaceMap = DefaultIsPrivate ? &AMDGPUGenIsZeroDefIsPrivMap
+                                      : &AMDGPUGenIsZeroDefIsGenMap;
+    } else {
+      AddrSpaceMap = DefaultIsPrivate ? &AMDGPUPrivIsZeroDefIsPrivMap
+                                      : &AMDGPUPrivIsZeroDefIsGenMap;
+    }
   }
 
   void adjust(LangOptions &Opts) override {
     TargetInfo::adjust(Opts);
-    if (isGenericZero(getTriple())) {
-      AddrSpaceMap = Opts.OpenCL ? &AMDGPUOpenCLGenericIsZeroMap
-                                 : &AMDGPUNonOpenCLGenericIsZeroMap;
-    } else {
-      AddrSpaceMap = Opts.OpenCL ? &AMDGPUOpenCLPrivateIsZeroMap
-                                 : &AMDGPUNonOpenCLPrivateIsZeroMap;
-    }
+    setAddressSpaceMap(Opts.OpenCL || !isAMDGCN(getTriple()));
   }
 
   uint64_t getPointerWidthV(unsigned AddrSpace) const override {
@@ -2206,6 +2227,10 @@ public:
       return 32;
     }
     return 64;
+  }
+
+  uint64_t getPointerAlignV(unsigned AddrSpace) const override {
+    return getPointerWidthV(AddrSpace);
   }
 
   uint64_t getMaxPointerWidth() const override {
@@ -2383,13 +2408,12 @@ public:
     return LangAS::opencl_constant;
   }
 
-  /// \returns Target specific vtbl ptr address space.
-  unsigned getVtblPtrAddressSpace() const override {
-    // \todo: We currently have address spaces defined in AMDGPU Backend. It
-    // would be nice if we could use it here instead of using bare numbers (same
-    // applies to getDWARFAddressSpace).
-    return 2; // constant.
+  llvm::Optional<unsigned> getConstantAddressSpace() const override {
+    return LangAS::FirstTargetAddressSpace + AS.Constant;
   }
+
+  /// \returns Target specific vtbl ptr address space.
+  unsigned getVtblPtrAddressSpace() const override { return AS.Constant; }
 
   /// \returns If a target requires an address within a target specific address
   /// space \p AddressSpace to be converted in order to be used, then return the
@@ -3874,7 +3898,7 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
   case CK_PentiumMMX:
     Builder.defineMacro("__pentium_mmx__");
     Builder.defineMacro("__tune_pentium_mmx__");
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_i586:
   case CK_Pentium:
     defineCPUMacros(Builder, "i586");
@@ -3884,15 +3908,15 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
   case CK_Pentium3M:
   case CK_PentiumM:
     Builder.defineMacro("__tune_pentium3__");
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_Pentium2:
   case CK_C3_2:
     Builder.defineMacro("__tune_pentium2__");
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_PentiumPro:
     Builder.defineMacro("__tune_i686__");
     Builder.defineMacro("__tune_pentiumpro__");
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_i686:
     Builder.defineMacro("__i686");
     Builder.defineMacro("__i686__");
@@ -3948,7 +3972,7 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
   case CK_K6_2:
     Builder.defineMacro("__k6_2__");
     Builder.defineMacro("__tune_k6_2__");
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_K6_3:
     if (CPU != CK_K6_2) {  // In case of fallthrough
       // FIXME: GCC may be enabling these in cases where some other k6
@@ -3957,7 +3981,7 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
       Builder.defineMacro("__k6_3__");
       Builder.defineMacro("__tune_k6_3__");
     }
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case CK_K6:
     defineCPUMacros(Builder, "k6");
     break;
@@ -6310,9 +6334,6 @@ public:
                         MacroBuilder &Builder) const {
     // Also include the ARMv8.1 defines
     getTargetDefinesARMV81A(Opts, Builder);
-
-    if (FPU == NeonMode && HasFullFP16)
-      Builder.defineMacro("__ARM_FEATURE_FP16_VECTOR_ARITHMETIC", "1");
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -7408,13 +7429,14 @@ class SystemZTargetInfo : public TargetInfo {
   static const Builtin::Info BuiltinInfo[];
   static const char *const GCCRegNames[];
   std::string CPU;
+  int ISARevision;
   bool HasTransactionalExecution;
   bool HasVector;
 
 public:
   SystemZTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
-      : TargetInfo(Triple), CPU("z10"), HasTransactionalExecution(false),
-        HasVector(false) {
+      : TargetInfo(Triple), CPU("z10"), ISARevision(8),
+        HasTransactionalExecution(false), HasVector(false) {
     IntMaxType = SignedLong;
     Int64Type = SignedLong;
     TLSSupported = true;
@@ -7436,14 +7458,7 @@ public:
     Builder.defineMacro("__zarch__");
     Builder.defineMacro("__LONG_DOUBLE_128__");
 
-    const std::string ISARev = llvm::StringSwitch<std::string>(CPU)
-                                   .Cases("arch8", "z10", "8")
-                                   .Cases("arch9", "z196", "9")
-                                   .Cases("arch10", "zEC12", "10")
-                                   .Cases("arch11", "z13", "11")
-                                   .Default("");
-    if (!ISARev.empty())
-      Builder.defineMacro("__ARCH__", ISARev);
+    Builder.defineMacro("__ARCH__", Twine(ISARevision));
 
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2");
@@ -7476,37 +7491,35 @@ public:
   BuiltinVaListKind getBuiltinVaListKind() const override {
     return TargetInfo::SystemZBuiltinVaList;
   }
+  int getISARevision(const StringRef &Name) const {
+    return llvm::StringSwitch<int>(Name)
+      .Cases("arch8", "z10", 8)
+      .Cases("arch9", "z196", 9)
+      .Cases("arch10", "zEC12", 10)
+      .Cases("arch11", "z13", 11)
+      .Default(-1);
+  }
   bool setCPU(const std::string &Name) override {
     CPU = Name;
-    bool CPUKnown = llvm::StringSwitch<bool>(Name)
-      .Case("z10", true)
-      .Case("arch8", true)
-      .Case("z196", true)
-      .Case("arch9", true)
-      .Case("zEC12", true)
-      .Case("arch10", true)
-      .Case("z13", true)
-      .Case("arch11", true)
-      .Default(false);
-
-    return CPUKnown;
+    ISARevision = getISARevision(CPU);
+    return ISARevision != -1;
   }
   bool
   initFeatureMap(llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags,
                  StringRef CPU,
                  const std::vector<std::string> &FeaturesVec) const override {
-    if (CPU == "zEC12" || CPU == "arch10")
+    int ISARevision = getISARevision(CPU);
+    if (ISARevision >= 10)
       Features["transactional-execution"] = true;
-    if (CPU == "z13" || CPU == "arch11") {
-      Features["transactional-execution"] = true;
+    if (ISARevision >= 11)
       Features["vector"] = true;
-    }
     return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
   }
 
   bool handleTargetFeatures(std::vector<std::string> &Features,
                             DiagnosticsEngine &Diags) override {
     HasTransactionalExecution = false;
+    HasVector = false;
     for (const auto &Feature : Features) {
       if (Feature == "+transactional-execution")
         HasTransactionalExecution = true;
@@ -7525,6 +7538,10 @@ public:
   bool hasFeature(StringRef Feature) const override {
     return llvm::StringSwitch<bool>(Feature)
         .Case("systemz", true)
+        .Case("arch8", ISARevision >= 8)
+        .Case("arch9", ISARevision >= 9)
+        .Case("arch10", ISARevision >= 10)
+        .Case("arch11", ISARevision >= 11)
         .Case("htm", HasTransactionalExecution)
         .Case("vx", HasVector)
         .Default(false);

@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/LowLevelType.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugLoc.h"
 
@@ -59,6 +60,21 @@ class MachineIRBuilder {
   }
 
   void validateTruncExt(unsigned Dst, unsigned Src, bool IsExtend);
+  MachineInstrBuilder buildBinaryOp(unsigned Opcode, unsigned Res, unsigned Op0, unsigned Op1);
+
+  unsigned getDestFromArg(unsigned Reg) { return Reg; }
+  unsigned getDestFromArg(LLT Ty) {
+    return getMF().getRegInfo().createGenericVirtualRegister(Ty);
+  }
+  unsigned getDestFromArg(const TargetRegisterClass *RC) {
+    return getMF().getRegInfo().createVirtualRegister(RC);
+  }
+
+  unsigned getRegFromArg(unsigned Reg) { return Reg; }
+
+  unsigned getRegFromArg(const MachineInstrBuilder &MIB) {
+    return MIB->getOperand(0).getReg();
+  }
 
 public:
   /// Getter for the function we currently build.
@@ -119,6 +135,22 @@ public:
   ///
   /// \return a MachineInstrBuilder for the newly created instruction.
   MachineInstrBuilder buildInstr(unsigned Opcode);
+
+  /// DAG like Generic method for building arbitrary instructions as above.
+  /// \Opc opcode for the instruction.
+  /// \Ty Either LLT/TargetRegisterClass/unsigned types for Dst
+  /// \Args Variadic list of uses of types(unsigned/MachineInstrBuilder)
+  /// Uses of type MachineInstrBuilder will perform
+  /// getOperand(0).getReg() to convert to register.
+  template <typename DstTy, typename... UseArgsTy>
+  MachineInstrBuilder buildInstr(unsigned Opc, DstTy &&Ty,
+                                 UseArgsTy &&... Args) {
+    auto MIB = buildInstr(Opc).addDef(getDestFromArg(Ty));
+    unsigned It[] = {(getRegFromArg(Args))...};
+    for (const auto &i : It)
+      MIB.addUse(i);
+    return MIB;
+  }
 
   /// Build but don't insert <empty> = \p Opcode <empty>.
   ///
@@ -188,6 +220,11 @@ public:
   /// \return a MachineInstrBuilder for the newly created instruction.
   MachineInstrBuilder buildAdd(unsigned Res, unsigned Op0,
                                unsigned Op1);
+  template <typename DstTy, typename... UseArgsTy>
+  MachineInstrBuilder buildAdd(DstTy &&Ty, UseArgsTy &&... UseArgs) {
+    unsigned Res = getDestFromArg(Ty);
+    return buildAdd(Res, (getRegFromArg(UseArgs))...);
+  }
 
   /// Build and insert \p Res<def> = G_SUB \p Op0, \p Op1
   ///
@@ -294,6 +331,18 @@ public:
   /// \return a MachineInstrBuilder for the newly created instruction.
   MachineInstrBuilder buildAnd(unsigned Res, unsigned Op0,
                                unsigned Op1);
+
+  /// Build and insert \p Res<def> = G_OR \p Op0, \p Op1
+  ///
+  /// G_OR sets \p Res to the bitwise or of integer parameters \p Op0 and \p
+  /// Op1.
+  ///
+  /// \pre setBasicBlock or setMI must have been called.
+  /// \pre \p Res, \p Op0 and \p Op1 must be generic virtual registers
+  ///      with the same (scalar or vector) type).
+  ///
+  /// \return a MachineInstrBuilder for the newly created instruction.
+  MachineInstrBuilder buildOr(unsigned Res, unsigned Op0, unsigned Op1);
 
   /// Build and insert \p Res<def> = G_ANYEXT \p Op0
   ///
@@ -416,6 +465,10 @@ public:
   /// \return The newly created instruction.
   MachineInstrBuilder buildConstant(unsigned Res, int64_t Val);
 
+  template <typename DstType>
+  MachineInstrBuilder buildConstant(DstType &&Res, int64_t Val) {
+    return buildConstant(getDestFromArg(Res), Val);
+  }
   /// Build and insert \p Res = G_FCONSTANT \p Val
   ///
   /// G_FCONSTANT is a floating-point constant with the specified size and

@@ -114,6 +114,8 @@ class ModuleBitcodeWriter : public BitcodeWriterBase {
   /// True if a module hash record should be written.
   bool GenerateHash;
 
+  SHA1 Hasher;
+
   /// If non-null, when GenerateHash is true, the resulting hash is written
   /// into ModHash. When GenerateHash is false, that specified value
   /// is used as the hash instead of computing from the generated bitcode.
@@ -175,6 +177,8 @@ public:
 
 private:
   uint64_t bitcodeStartBit() { return BitcodeStartBit; }
+
+  size_t addToStrtab(StringRef Str);
 
   void writeAttributeGroupTable();
   void writeAttributeTable();
@@ -262,6 +266,7 @@ private:
                                     const GlobalObject &GO);
   void writeModuleMetadataKinds();
   void writeOperandBundleTags();
+  void writeSyncScopeNames();
   void writeConstants(unsigned FirstVal, unsigned LastVal, bool isGlobal);
   void writeModuleConstants();
   bool pushValueAndType(const Value *V, unsigned InstID,
@@ -312,6 +317,10 @@ private:
     return VE.getValueID(VI.getValue());
   }
   std::map<GlobalValue::GUID, unsigned> &valueIds() { return GUIDToValueIdMap; }
+
+  unsigned getEncodedSyncScopeID(SyncScope::ID SSID) {
+    return unsigned(SSID);
+  }
 };
 
 /// Class to manage the bitcode writing for a combined index.
@@ -479,14 +488,6 @@ static unsigned getEncodedOrdering(AtomicOrdering Ordering) {
   case AtomicOrdering::SequentiallyConsistent: return bitc::ORDERING_SEQCST;
   }
   llvm_unreachable("Invalid ordering");
-}
-
-static unsigned getEncodedSynchScope(SynchronizationScope SynchScope) {
-  switch (SynchScope) {
-  case SingleThread: return bitc::SYNCHSCOPE_SINGLETHREAD;
-  case CrossThread: return bitc::SYNCHSCOPE_CROSSTHREAD;
-  }
-  llvm_unreachable("Invalid synch scope");
 }
 
 static void writeStringRecord(BitstreamWriter &Stream, unsigned Code,
@@ -947,11 +948,17 @@ static unsigned getEncodedUnnamedAddr(const GlobalValue &GV) {
   llvm_unreachable("Invalid unnamed_addr");
 }
 
+size_t ModuleBitcodeWriter::addToStrtab(StringRef Str) {
+  if (GenerateHash)
+    Hasher.update(Str);
+  return StrtabBuilder.add(Str);
+}
+
 void ModuleBitcodeWriter::writeComdats() {
   SmallVector<unsigned, 64> Vals;
   for (const Comdat *C : VE.getComdats()) {
     // COMDAT: [strtab offset, strtab size, selection_kind]
-    Vals.push_back(StrtabBuilder.add(C->getName()));
+    Vals.push_back(addToStrtab(C->getName()));
     Vals.push_back(C->getName().size());
     Vals.push_back(getEncodedComdatSelectionKind(*C));
     Stream.EmitRecord(bitc::MODULE_CODE_COMDAT, Vals, /*AbbrevToUse=*/0);
@@ -1122,7 +1129,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //             linkage, alignment, section, visibility, threadlocal,
     //             unnamed_addr, externally_initialized, dllstorageclass,
     //             comdat, attributes]
-    Vals.push_back(StrtabBuilder.add(GV.getName()));
+    Vals.push_back(addToStrtab(GV.getName()));
     Vals.push_back(GV.getName().size());
     Vals.push_back(VE.getTypeID(GV.getValueType()));
     Vals.push_back(GV.getType()->getAddressSpace() << 2 | 2 | GV.isConstant());
@@ -1161,7 +1168,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //             linkage, paramattrs, alignment, section, visibility, gc,
     //             unnamed_addr, prologuedata, dllstorageclass, comdat,
     //             prefixdata, personalityfn]
-    Vals.push_back(StrtabBuilder.add(F.getName()));
+    Vals.push_back(addToStrtab(F.getName()));
     Vals.push_back(F.getName().size());
     Vals.push_back(VE.getTypeID(F.getFunctionType()));
     Vals.push_back(F.getCallingConv());
@@ -1191,7 +1198,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
   for (const GlobalAlias &A : M.aliases()) {
     // ALIAS: [strtab offset, strtab size, alias type, aliasee val#, linkage,
     //         visibility, dllstorageclass, threadlocal, unnamed_addr]
-    Vals.push_back(StrtabBuilder.add(A.getName()));
+    Vals.push_back(addToStrtab(A.getName()));
     Vals.push_back(A.getName().size());
     Vals.push_back(VE.getTypeID(A.getValueType()));
     Vals.push_back(A.getType()->getAddressSpace());
@@ -1210,7 +1217,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
   for (const GlobalIFunc &I : M.ifuncs()) {
     // IFUNC: [strtab offset, strtab size, ifunc type, address space, resolver
     //         val#, linkage, visibility]
-    Vals.push_back(StrtabBuilder.add(I.getName()));
+    Vals.push_back(addToStrtab(I.getName()));
     Vals.push_back(I.getName().size());
     Vals.push_back(VE.getTypeID(I.getValueType()));
     Vals.push_back(I.getType()->getAddressSpace());
@@ -2032,6 +2039,24 @@ void ModuleBitcodeWriter::writeOperandBundleTags() {
   Stream.ExitBlock();
 }
 
+void ModuleBitcodeWriter::writeSyncScopeNames() {
+  SmallVector<StringRef, 8> SSNs;
+  M.getContext().getSyncScopeNames(SSNs);
+  if (SSNs.empty())
+    return;
+
+  Stream.EnterSubblock(bitc::SYNC_SCOPE_NAMES_BLOCK_ID, 2);
+
+  SmallVector<uint64_t, 64> Record;
+  for (auto SSN : SSNs) {
+    Record.append(SSN.begin(), SSN.end());
+    Stream.EmitRecord(bitc::SYNC_SCOPE_NAME, Record, 0);
+    Record.clear();
+  }
+
+  Stream.ExitBlock();
+}
+
 static void emitSignedInt64(SmallVectorImpl<uint64_t> &Vals, uint64_t V) {
   if ((int64_t)V >= 0)
     Vals.push_back(V << 1);
@@ -2648,7 +2673,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(cast<LoadInst>(I).isVolatile());
     if (cast<LoadInst>(I).isAtomic()) {
       Vals.push_back(getEncodedOrdering(cast<LoadInst>(I).getOrdering()));
-      Vals.push_back(getEncodedSynchScope(cast<LoadInst>(I).getSynchScope()));
+      Vals.push_back(getEncodedSyncScopeID(cast<LoadInst>(I).getSyncScopeID()));
     }
     break;
   case Instruction::Store:
@@ -2662,7 +2687,8 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(cast<StoreInst>(I).isVolatile());
     if (cast<StoreInst>(I).isAtomic()) {
       Vals.push_back(getEncodedOrdering(cast<StoreInst>(I).getOrdering()));
-      Vals.push_back(getEncodedSynchScope(cast<StoreInst>(I).getSynchScope()));
+      Vals.push_back(
+          getEncodedSyncScopeID(cast<StoreInst>(I).getSyncScopeID()));
     }
     break;
   case Instruction::AtomicCmpXchg:
@@ -2674,7 +2700,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(
         getEncodedOrdering(cast<AtomicCmpXchgInst>(I).getSuccessOrdering()));
     Vals.push_back(
-        getEncodedSynchScope(cast<AtomicCmpXchgInst>(I).getSynchScope()));
+        getEncodedSyncScopeID(cast<AtomicCmpXchgInst>(I).getSyncScopeID()));
     Vals.push_back(
         getEncodedOrdering(cast<AtomicCmpXchgInst>(I).getFailureOrdering()));
     Vals.push_back(cast<AtomicCmpXchgInst>(I).isWeak());
@@ -2688,12 +2714,12 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(cast<AtomicRMWInst>(I).isVolatile());
     Vals.push_back(getEncodedOrdering(cast<AtomicRMWInst>(I).getOrdering()));
     Vals.push_back(
-        getEncodedSynchScope(cast<AtomicRMWInst>(I).getSynchScope()));
+        getEncodedSyncScopeID(cast<AtomicRMWInst>(I).getSyncScopeID()));
     break;
   case Instruction::Fence:
     Code = bitc::FUNC_CODE_INST_FENCE;
     Vals.push_back(getEncodedOrdering(cast<FenceInst>(I).getOrdering()));
-    Vals.push_back(getEncodedSynchScope(cast<FenceInst>(I).getSynchScope()));
+    Vals.push_back(getEncodedSyncScopeID(cast<FenceInst>(I).getSyncScopeID()));
     break;
   case Instruction::Call: {
     const CallInst &CI = cast<CallInst>(I);
@@ -3648,7 +3674,6 @@ void ModuleBitcodeWriter::writeModuleHash(size_t BlockStartPos) {
   // Emit the module's hash.
   // MODULE_CODE_HASH: [5*i32]
   if (GenerateHash) {
-    SHA1 Hasher;
     uint32_t Vals[5];
     Hasher.update(ArrayRef<uint8_t>((const uint8_t *)&(Buffer)[BlockStartPos],
                                     Buffer.size() - BlockStartPos));
@@ -3707,6 +3732,7 @@ void ModuleBitcodeWriter::write() {
     writeUseListBlock(nullptr);
 
   writeOperandBundleTags();
+  writeSyncScopeNames();
 
   // Emit function bodies.
   DenseMap<const Function *, uint64_t> FunctionToBitcodeIndex;

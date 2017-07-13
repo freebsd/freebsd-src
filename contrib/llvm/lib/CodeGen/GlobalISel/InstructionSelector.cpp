@@ -16,7 +16,11 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/MC/MCInstrDesc.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -25,6 +29,9 @@
 #define DEBUG_TYPE "instructionselector"
 
 using namespace llvm;
+
+InstructionSelector::MatcherState::MatcherState(unsigned MaxRenderers)
+    : Renderers(MaxRenderers, nullptr), MIs() {}
 
 InstructionSelector::InstructionSelector() = default;
 

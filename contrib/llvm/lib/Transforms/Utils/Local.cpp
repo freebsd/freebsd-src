@@ -1662,9 +1662,10 @@ void llvm::removeUnwindEdge(BasicBlock *BB) {
   TI->eraseFromParent();
 }
 
-/// removeUnreachableBlocksFromFn - Remove blocks that are not reachable, even
+/// removeUnreachableBlocks - Remove blocks that are not reachable, even
 /// if they are in a dead cycle.  Return true if a change was made, false
-/// otherwise.
+/// otherwise. If `LVI` is passed, this function preserves LazyValueInfo
+/// after modifying the CFG.
 bool llvm::removeUnreachableBlocks(Function &F, LazyValueInfo *LVI) {
   SmallPtrSet<BasicBlock*, 16> Reachable;
   bool Changed = markAliveBlocks(F, Reachable);
@@ -2168,6 +2169,9 @@ bool llvm::canReplaceOperandWithVariable(const Instruction *I, unsigned OpIdx) {
     return true;
   case Instruction::Call:
   case Instruction::Invoke:
+    // Can't handle inline asm. Skip it.
+    if (isa<InlineAsm>(ImmutableCallSite(I).getCalledValue()))
+      return false;
     // Many arithmetic intrinsics have no issue taking a
     // variable, however it's hard to distingish these from
     // specials such as @llvm.frameaddress that require a constant.
@@ -2182,12 +2186,18 @@ bool llvm::canReplaceOperandWithVariable(const Instruction *I, unsigned OpIdx) {
   case Instruction::ShuffleVector:
     // Shufflevector masks are constant.
     return OpIdx != 2;
+  case Instruction::Switch:
   case Instruction::ExtractValue:
-  case Instruction::InsertValue:
     // All operands apart from the first are constant.
     return OpIdx == 0;
+  case Instruction::InsertValue:
+    // All operands apart from the first and the second are constant.
+    return OpIdx < 2;
   case Instruction::Alloca:
-    return false;
+    // Static allocas (constant size in the entry block) are handled by
+    // prologue/epilogue insertion so they're free anyway. We definitely don't
+    // want to make them non-constant.
+    return !dyn_cast<AllocaInst>(I)->isStaticAlloca();
   case Instruction::GetElementPtr:
     if (OpIdx == 0)
       return true;

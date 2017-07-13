@@ -50,6 +50,8 @@ void MipsTargetStreamer::emitDirectiveSetMacro() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetNoMacro() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetMsa() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetNoMsa() { forbidModuleDirective(); }
+void MipsTargetStreamer::emitDirectiveSetMt() {}
+void MipsTargetStreamer::emitDirectiveSetNoMt() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetAt() { forbidModuleDirective(); }
 void MipsTargetStreamer::emitDirectiveSetAtWithArg(unsigned RegNo) {
   forbidModuleDirective();
@@ -118,6 +120,7 @@ void MipsTargetStreamer::emitDirectiveModuleOddSPReg() {
 }
 void MipsTargetStreamer::emitDirectiveModuleSoftFloat() {}
 void MipsTargetStreamer::emitDirectiveModuleHardFloat() {}
+void MipsTargetStreamer::emitDirectiveModuleMT() {}
 void MipsTargetStreamer::emitDirectiveSetFp(
     MipsABIFlagsSection::FpABIKind Value) {
   forbidModuleDirective();
@@ -188,6 +191,21 @@ void MipsTargetStreamer::emitRRI(unsigned Opcode, unsigned Reg0, unsigned Reg1,
                                  int16_t Imm, SMLoc IDLoc,
                                  const MCSubtargetInfo *STI) {
   emitRRX(Opcode, Reg0, Reg1, MCOperand::createImm(Imm), IDLoc, STI);
+}
+
+void MipsTargetStreamer::emitRRIII(unsigned Opcode, unsigned Reg0,
+                                   unsigned Reg1, int16_t Imm0, int16_t Imm1,
+                                   int16_t Imm2, SMLoc IDLoc,
+                                   const MCSubtargetInfo *STI) {
+  MCInst TmpInst;
+  TmpInst.setOpcode(Opcode);
+  TmpInst.addOperand(MCOperand::createReg(Reg0));
+  TmpInst.addOperand(MCOperand::createReg(Reg1));
+  TmpInst.addOperand(MCOperand::createImm(Imm0));
+  TmpInst.addOperand(MCOperand::createImm(Imm1));
+  TmpInst.addOperand(MCOperand::createImm(Imm2));
+  TmpInst.setLoc(IDLoc);
+  getStreamer().EmitInstruction(TmpInst, *STI);
 }
 
 void MipsTargetStreamer::emitAddu(unsigned DstReg, unsigned SrcReg,
@@ -390,6 +408,16 @@ void MipsTargetAsmStreamer::emitDirectiveSetMsa() {
 void MipsTargetAsmStreamer::emitDirectiveSetNoMsa() {
   OS << "\t.set\tnomsa\n";
   MipsTargetStreamer::emitDirectiveSetNoMsa();
+}
+
+void MipsTargetAsmStreamer::emitDirectiveSetMt() {
+  OS << "\t.set\tmt\n";
+  MipsTargetStreamer::emitDirectiveSetMt();
+}
+
+void MipsTargetAsmStreamer::emitDirectiveSetNoMt() {
+  OS << "\t.set\tnomt\n";
+  MipsTargetStreamer::emitDirectiveSetNoMt();
 }
 
 void MipsTargetAsmStreamer::emitDirectiveSetAt() {
@@ -654,6 +682,10 @@ void MipsTargetAsmStreamer::emitDirectiveModuleSoftFloat() {
 
 void MipsTargetAsmStreamer::emitDirectiveModuleHardFloat() {
   OS << "\t.module\thardfloat\n";
+}
+
+void MipsTargetAsmStreamer::emitDirectiveModuleMT() {
+  OS << "\t.module\tmt\n";
 }
 
 // This part is for ELF object output.

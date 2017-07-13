@@ -415,7 +415,8 @@ public:
   virtual bool mergeStoresAfterLegalization() const { return false; }
 
   /// Returns if it's reasonable to merge stores to MemVT size.
-  virtual bool canMergeStoresTo(unsigned AddressSpace, EVT MemVT) const {
+  virtual bool canMergeStoresTo(unsigned AS, EVT MemVT,
+                                const SelectionDAG &DAG) const {
     return true;
   }
 
@@ -2726,6 +2727,18 @@ public:
     return true;
   }
 
+  // Return true if it is profitable to combine a BUILD_VECTOR to a TRUNCATE.
+  // Example of such a combine:
+  // v4i32 build_vector((extract_elt V, 0),
+  //                    (extract_elt V, 2),
+  //                    (extract_elt V, 4),
+  //                    (extract_elt V, 6))
+  //  -->
+  // v4i32 truncate (bitcast V to v4i64)
+  virtual bool isDesirableToCombineBuildVectorToTruncate() const {
+    return false;
+  }
+
   /// Return true if the target has native support for the specified value type
   /// and it is 'desirable' to use the type for the given node type. e.g. On x86
   /// i16 is legal, but undesirable since i16 instruction encodings are longer
@@ -2814,6 +2827,9 @@ public:
     // IsTailCall should be modified by implementations of
     // TargetLowering::LowerCall that perform tail call conversions.
     bool IsTailCall = false;
+
+    // Is Call lowering done post SelectionDAG type legalization.
+    bool IsPostTypeLegalization = false;
 
     unsigned NumFixedArgs = -1;
     CallingConv::ID CallConv = CallingConv::C;
@@ -2937,6 +2953,11 @@ public:
       return *this;
     }
 
+    CallLoweringInfo &setIsPostTypeLegalization(bool Value=true) {
+      IsPostTypeLegalization = Value;
+      return *this;
+    }
+
     ArgListTy &getArgs() {
       return Args;
     }
@@ -3053,6 +3074,13 @@ public:
   virtual SDValue prepareVolatileOrAtomicLoad(SDValue Chain, const SDLoc &DL,
                                               SelectionDAG &DAG) const {
     return Chain;
+  }
+
+  /// This callback is used to inspect load/store instructions and add
+  /// target-specific MachineMemOperand flags to them.  The default
+  /// implementation does nothing.
+  virtual MachineMemOperand::Flags getMMOFlags(const Instruction &I) const {
+    return MachineMemOperand::MONone;
   }
 
   /// This callback is invoked by the type legalizer to legalize nodes with an

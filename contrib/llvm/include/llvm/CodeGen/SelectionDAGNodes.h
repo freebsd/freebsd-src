@@ -1213,8 +1213,8 @@ public:
   /// Returns the Ranges that describes the dereference.
   const MDNode *getRanges() const { return MMO->getRanges(); }
 
-  /// Return the synchronization scope for this memory operation.
-  SynchronizationScope getSynchScope() const { return MMO->getSynchScope(); }
+  /// Returns the synchronization scope ID for this memory operation.
+  SyncScope::ID getSyncScopeID() const { return MMO->getSyncScopeID(); }
 
   /// Return the atomic ordering requirements for this memory operation. For
   /// cmpxchg atomic operations, return the atomic ordering requirements when
@@ -1432,8 +1432,8 @@ public:
   int64_t getSExtValue() const { return Value->getSExtValue(); }
 
   bool isOne() const { return Value->isOne(); }
-  bool isNullValue() const { return Value->isNullValue(); }
-  bool isAllOnesValue() const { return Value->isAllOnesValue(); }
+  bool isNullValue() const { return Value->isZero(); }
+  bool isAllOnesValue() const { return Value->isMinusOne(); }
 
   bool isOpaque() const { return ConstantSDNodeBits.IsOpaque; }
 

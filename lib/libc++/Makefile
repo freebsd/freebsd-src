@@ -92,7 +92,6 @@ STD_HEADERS+=	__libcpp_version
 STD_HEADERS+=	__locale
 STD_HEADERS+=	__mutex_base
 STD_HEADERS+=	__nullptr
-STD_HEADERS+=	__refstring
 STD_HEADERS+=	__split_buffer
 STD_HEADERS+=	__sso_allocator
 STD_HEADERS+=	__std_stream

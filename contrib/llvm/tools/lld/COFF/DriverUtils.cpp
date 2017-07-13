@@ -85,6 +85,7 @@ MachineTypes getMachineType(StringRef S) {
                         .Cases("x64", "amd64", AMD64)
                         .Cases("x86", "i386", I386)
                         .Case("arm", ARMNT)
+                        .Case("arm64", ARM64)
                         .Default(IMAGE_FILE_MACHINE_UNKNOWN);
   if (MT != IMAGE_FILE_MACHINE_UNKNOWN)
     return MT;
@@ -95,6 +96,8 @@ StringRef machineToStr(MachineTypes MT) {
   switch (MT) {
   case ARMNT:
     return "arm";
+  case ARM64:
+    return "arm64";
   case AMD64:
     return "x64";
   case I386:
@@ -378,13 +381,11 @@ static std::string createManifestXml() {
 
 static std::unique_ptr<MemoryBuffer>
 createMemoryBufferForManifestRes(size_t ManifestSize) {
-  size_t ResSize = alignTo(object::WIN_RES_MAGIC_SIZE +
-                           object::WIN_RES_NULL_ENTRY_SIZE +
-                           sizeof(object::WinResHeaderPrefix) +
-                           sizeof(object::WinResIDs) +
-                           sizeof(object::WinResHeaderSuffix) +
-                           ManifestSize,
-                           object::WIN_RES_DATA_ALIGNMENT);
+  size_t ResSize = alignTo(
+      object::WIN_RES_MAGIC_SIZE + object::WIN_RES_NULL_ENTRY_SIZE +
+          sizeof(object::WinResHeaderPrefix) + sizeof(object::WinResIDs) +
+          sizeof(object::WinResHeaderSuffix) + ManifestSize,
+      object::WIN_RES_DATA_ALIGNMENT);
   return MemoryBuffer::getNewMemBuffer(ResSize);
 }
 

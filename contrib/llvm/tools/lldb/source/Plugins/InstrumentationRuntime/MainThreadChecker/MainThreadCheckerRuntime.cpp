@@ -141,7 +141,7 @@ MainThreadCheckerRuntime::RetrieveReportData(ExecutionContextRef exe_ctx_ref) {
   d->AddStringItem("class_name", className);
   d->AddStringItem("selector", selector);
   d->AddStringItem("description",
-                   apiName + " must be called from main thread only");
+                   apiName + " must be used from main thread only");
   d->AddIntegerItem("tid", thread_sp->GetIndexID());
   d->AddItem("trace", trace_sp);
   return dict_sp;
@@ -161,6 +161,9 @@ bool MainThreadCheckerRuntime::NotifyBreakpointHit(
   ThreadSP thread_sp = context->exe_ctx_ref.GetThreadSP();
   if (!process_sp || !thread_sp ||
       process_sp != context->exe_ctx_ref.GetProcessSP())
+    return false;
+
+  if (process_sp->GetModIDRef().IsLastResumeForUserExpression())
     return false;
 
   StructuredData::ObjectSP report =

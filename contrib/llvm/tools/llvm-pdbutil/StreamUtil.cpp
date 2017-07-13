@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "StreamUtil.h"
+#include "FormatUtil.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
@@ -18,11 +19,12 @@
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
 
-namespace llvm {
-namespace pdb {
-void discoverStreamPurposes(PDBFile &File,
-                            SmallVectorImpl<std::string> &Purposes) {
+using namespace llvm;
+using namespace llvm::pdb;
 
+void llvm::pdb::discoverStreamPurposes(
+    PDBFile &File,
+    SmallVectorImpl<std::pair<StreamPurpose, std::string>> &Purposes) {
   // It's OK if we fail to load some of these streams, we still attempt to print
   // what we can.
   auto Dbi = File.getPDBDbiStream();
@@ -52,74 +54,72 @@ void discoverStreamPurposes(PDBFile &File,
 
   Purposes.resize(StreamCount);
   for (uint16_t StreamIdx = 0; StreamIdx < StreamCount; ++StreamIdx) {
-    std::string Value;
+    std::pair<StreamPurpose, std::string> Value;
     if (StreamIdx == OldMSFDirectory)
-      Value = "Old MSF Directory";
+      Value = std::make_pair(StreamPurpose::Other, "Old MSF Directory");
     else if (StreamIdx == StreamPDB)
-      Value = "PDB Stream";
+      Value = std::make_pair(StreamPurpose::Other, "PDB Stream");
     else if (StreamIdx == StreamDBI)
-      Value = "DBI Stream";
+      Value = std::make_pair(StreamPurpose::Other, "DBI Stream");
     else if (StreamIdx == StreamTPI)
-      Value = "TPI Stream";
+      Value = std::make_pair(StreamPurpose::Other, "TPI Stream");
     else if (StreamIdx == StreamIPI)
-      Value = "IPI Stream";
+      Value = std::make_pair(StreamPurpose::Other, "IPI Stream");
     else if (Dbi && StreamIdx == Dbi->getGlobalSymbolStreamIndex())
-      Value = "Global Symbol Hash";
+      Value = std::make_pair(StreamPurpose::Other, "Global Symbol Hash");
     else if (Dbi && StreamIdx == Dbi->getPublicSymbolStreamIndex())
-      Value = "Public Symbol Hash";
+      Value = std::make_pair(StreamPurpose::Other, "Public Symbol Hash");
     else if (Dbi && StreamIdx == Dbi->getSymRecordStreamIndex())
-      Value = "Public Symbol Records";
+      Value = std::make_pair(StreamPurpose::Other, "Public Symbol Records");
     else if (Tpi && StreamIdx == Tpi->getTypeHashStreamIndex())
-      Value = "TPI Hash";
+      Value = std::make_pair(StreamPurpose::Other, "TPI Hash");
     else if (Tpi && StreamIdx == Tpi->getTypeHashStreamAuxIndex())
-      Value = "TPI Aux Hash";
+      Value = std::make_pair(StreamPurpose::Other, "TPI Aux Hash");
     else if (Ipi && StreamIdx == Ipi->getTypeHashStreamIndex())
-      Value = "IPI Hash";
+      Value = std::make_pair(StreamPurpose::Other, "IPI Hash");
     else if (Ipi && StreamIdx == Ipi->getTypeHashStreamAuxIndex())
-      Value = "IPI Aux Hash";
+      Value = std::make_pair(StreamPurpose::Other, "IPI Aux Hash");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::Exception))
-      Value = "Exception Data";
+      Value = std::make_pair(StreamPurpose::Other, "Exception Data");
     else if (Dbi && StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::Fixup))
-      Value = "Fixup Data";
+      Value = std::make_pair(StreamPurpose::Other, "Fixup Data");
     else if (Dbi && StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::FPO))
-      Value = "FPO Data";
+      Value = std::make_pair(StreamPurpose::Other, "FPO Data");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::NewFPO))
-      Value = "New FPO Data";
+      Value = std::make_pair(StreamPurpose::Other, "New FPO Data");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::OmapFromSrc))
-      Value = "Omap From Source Data";
+      Value = std::make_pair(StreamPurpose::Other, "Omap From Source Data");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::OmapToSrc))
-      Value = "Omap To Source Data";
+      Value = std::make_pair(StreamPurpose::Other, "Omap To Source Data");
     else if (Dbi && StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::Pdata))
-      Value = "Pdata";
+      Value = std::make_pair(StreamPurpose::Other, "Pdata");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::SectionHdr))
-      Value = "Section Header Data";
+      Value = std::make_pair(StreamPurpose::Other, "Section Header Data");
     else if (Dbi &&
              StreamIdx ==
                  Dbi->getDebugStreamIndex(DbgHeaderType::SectionHdrOrig))
-      Value = "Section Header Original Data";
+      Value =
+          std::make_pair(StreamPurpose::Other, "Section Header Original Data");
     else if (Dbi &&
              StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::TokenRidMap))
-      Value = "Token Rid Data";
+      Value = std::make_pair(StreamPurpose::Other, "Token Rid Data");
     else if (Dbi && StreamIdx == Dbi->getDebugStreamIndex(DbgHeaderType::Xdata))
-      Value = "Xdata";
+      Value = std::make_pair(StreamPurpose::Other, "Xdata");
     else {
       auto ModIter = ModStreams.find(StreamIdx);
       auto NSIter = NamedStreams.find(StreamIdx);
       if (ModIter != ModStreams.end()) {
-        Value = "Module \"";
-        Value += ModIter->second.getModuleName();
-        Value += "\"";
+        Value = std::make_pair(StreamPurpose::ModuleStream,
+                               ModIter->second.getModuleName());
       } else if (NSIter != NamedStreams.end()) {
-        Value = "Named Stream \"";
-        Value += NSIter->second;
-        Value += "\"";
+        Value = std::make_pair(StreamPurpose::NamedStream, NSIter->second);
       } else {
-        Value = "???";
+        Value = std::make_pair(StreamPurpose::Other, "???");
       }
     }
     Purposes[StreamIdx] = Value;
@@ -135,5 +135,18 @@ void discoverStreamPurposes(PDBFile &File,
   if (!Info)
     consumeError(Info.takeError());
 }
-}
+
+void llvm::pdb::discoverStreamPurposes(PDBFile &File,
+                                       SmallVectorImpl<std::string> &Purposes) {
+  SmallVector<std::pair<StreamPurpose, std::string>, 24> SP;
+  discoverStreamPurposes(File, SP);
+  Purposes.reserve(SP.size());
+  for (const auto &P : SP) {
+    if (P.first == StreamPurpose::NamedStream)
+      Purposes.push_back(formatv("Named Stream \"{0}\"", P.second));
+    else if (P.first == StreamPurpose::ModuleStream)
+      Purposes.push_back(formatv("Module \"{0}\"", P.second));
+    else
+      Purposes.push_back(P.second);
+  }
 }
