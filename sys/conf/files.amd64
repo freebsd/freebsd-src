@@ -253,7 +253,7 @@ dev/ixl/ixl_pf_main.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_qmgr.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixl_pf_iov.c		optional	ixl pci \
+dev/ixl/ixl_pf_iov.c		optional	ixl pci  pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_i2c.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
