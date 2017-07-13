@@ -6,6 +6,7 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_common.cc
   sanitizer_deadlock_detector1.cc
   sanitizer_deadlock_detector2.cc
+  sanitizer_errno.cc
   sanitizer_flags.cc
   sanitizer_flag_parser.cc
   sanitizer_libc.cc
@@ -57,6 +58,7 @@ set(SANITIZER_LIBCDEP_SOURCES
   sanitizer_coverage_libcdep_new.cc
   sanitizer_coverage_win_sections.cc
   sanitizer_linux_libcdep.cc
+  sanitizer_mac_libcdep.cc
   sanitizer_posix_libcdep.cc
   sanitizer_stacktrace_libcdep.cc
   sanitizer_stoptheworld_linux_libcdep.cc
@@ -92,6 +94,8 @@ set(SANITIZER_HEADERS
   sanitizer_common_syscalls.inc
   sanitizer_deadlock_detector.h
   sanitizer_deadlock_detector_interface.h
+  sanitizer_errno.h
+  sanitizer_errno_codes.h
   sanitizer_flag_parser.h
   sanitizer_flags.h
   sanitizer_flags.inc

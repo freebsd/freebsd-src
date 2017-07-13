@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_atomic.h"
+#include "sanitizer_common/sanitizer_errno.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_linux.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
@@ -34,13 +35,11 @@
 using namespace __tsan;  // NOLINT
 
 #if SANITIZER_FREEBSD || SANITIZER_MAC
-#define __errno_location __error
 #define stdout __stdoutp
 #define stderr __stderrp
 #endif
 
 #if SANITIZER_ANDROID
-#define __errno_location __errno
 #define mallopt(a, b)
 #endif
 
@@ -84,7 +83,6 @@ DECLARE_REAL_AND_INTERCEPTOR(void *, malloc, uptr size)
 DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
 extern "C" void *pthread_self();
 extern "C" void _exit(int status);
-extern "C" int *__errno_location();
 extern "C" int fileno_unlocked(void *stream);
 extern "C" int dirfd(void *dirp);
 #if !SANITIZER_FREEBSD && !SANITIZER_ANDROID
@@ -98,9 +96,6 @@ const int PTHREAD_MUTEX_RECURSIVE_NP = 1;
 const int PTHREAD_MUTEX_RECURSIVE = 2;
 const int PTHREAD_MUTEX_RECURSIVE_NP = 2;
 #endif
-const int EINVAL = 22;
-const int EBUSY = 16;
-const int EOWNERDEAD = 130;
 #if !SANITIZER_FREEBSD && !SANITIZER_MAC
 const int EPOLL_CTL_ADD = 1;
 #endif
@@ -129,8 +124,6 @@ typedef long long_t;  // NOLINT
 # define F_LOCK  1      /* Lock a region for exclusive use.  */
 # define F_TLOCK 2      /* Test and lock a region for exclusive use.  */
 # define F_TEST  3      /* Test a region for other processes locks.  */
-
-#define errno (*__errno_location())
 
 typedef void (*sighandler_t)(int sig);
 typedef void (*sigactionhandler_t)(int sig, my_siginfo_t *siginfo, void *uctx);
@@ -268,7 +261,7 @@ ScopedInterceptor::~ScopedInterceptor() {
 
 void ScopedInterceptor::EnableIgnores() {
   if (ignoring_) {
-    ThreadIgnoreBegin(thr_, pc_, false);
+    ThreadIgnoreBegin(thr_, pc_, /*save_stack=*/false);
     if (flags()->ignore_noninstrumented_modules) thr_->suppress_reports++;
     if (in_ignored_lib_) {
       DCHECK(!thr_->in_ignored_lib);
@@ -466,8 +459,14 @@ static void SetJmp(ThreadState *thr, uptr sp, uptr mangled_sp) {
 static void LongJmp(ThreadState *thr, uptr *env) {
 #ifdef __powerpc__
   uptr mangled_sp = env[0];
-#elif SANITIZER_FREEBSD || SANITIZER_MAC
+#elif SANITIZER_FREEBSD
   uptr mangled_sp = env[2];
+#elif SANITIZER_MAC
+# ifdef __aarch64__
+    uptr mangled_sp = env[13];
+# else
+    uptr mangled_sp = env[2];
+# endif
 #elif defined(SANITIZER_LINUX)
 # ifdef __aarch64__
   uptr mangled_sp = env[13];
@@ -665,7 +664,7 @@ static bool fix_mmap_addr(void **addr, long_t sz, int flags) {
   if (*addr) {
     if (!IsAppMem((uptr)*addr) || !IsAppMem((uptr)*addr + sz - 1)) {
       if (flags & MAP_FIXED) {
-        errno = EINVAL;
+        errno = errno_EINVAL;
         return false;
       } else {
         *addr = 0;
@@ -1122,7 +1121,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_init, void *m, void *a) {
 TSAN_INTERCEPTOR(int, pthread_mutex_destroy, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_destroy, m);
   int res = REAL(pthread_mutex_destroy)(m);
-  if (res == 0 || res == EBUSY) {
+  if (res == 0 || res == errno_EBUSY) {
     MutexDestroy(thr, pc, (uptr)m);
   }
   return res;
@@ -1131,9 +1130,9 @@ TSAN_INTERCEPTOR(int, pthread_mutex_destroy, void *m) {
 TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_trylock, m);
   int res = REAL(pthread_mutex_trylock)(m);
-  if (res == EOWNERDEAD)
+  if (res == errno_EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
-  if (res == 0 || res == EOWNERDEAD)
+  if (res == 0 || res == errno_EOWNERDEAD)
     MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   return res;
 }
@@ -1311,7 +1310,7 @@ TSAN_INTERCEPTOR(int, pthread_barrier_wait, void *b) {
 TSAN_INTERCEPTOR(int, pthread_once, void *o, void (*f)()) {
   SCOPED_INTERCEPTOR_RAW(pthread_once, o, f);
   if (o == 0 || f == 0)
-    return EINVAL;
+    return errno_EINVAL;
   atomic_uint32_t *a;
   if (!SANITIZER_MAC)
     a = static_cast<atomic_uint32_t*>(o);
