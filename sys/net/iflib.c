@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/busdma_dmar.h>
 #endif
 
+#include <sys/bitstring.h>
 /*
  * enable accounting of every mbuf as it comes in to and goes out of
  * iflib's software descriptor references
@@ -381,6 +382,8 @@ struct iflib_fl {
 #endif
 	/* implicit pad */
 
+	bitstr_t 	*ifl_rx_bitmap;
+	qidx_t		ifl_fragidx;
 	/* constant */
 	qidx_t		ifl_size;
 	uint16_t	ifl_buf_size;
@@ -1797,7 +1800,8 @@ static void
 _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 {
 	struct mbuf *m;
-	int idx, pidx = fl->ifl_pidx;
+	int idx, frag_idx = fl->ifl_fragidx;
+        int pidx = fl->ifl_pidx;
 	caddr_t cl, *sd_cl;
 	struct mbuf **sd_m;
 	uint8_t *sd_flags;
@@ -1840,8 +1844,11 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		 *
 		 * If the cluster is still set then we know a minimum sized packet was received
 		 */
-		if ((cl = sd_cl[idx]) == NULL) {
-			if ((cl = sd_cl[idx] = m_cljget(NULL, M_NOWAIT, fl->ifl_buf_size)) == NULL)
+		bit_ffc_at(fl->ifl_rx_bitmap, frag_idx, fl->ifl_size,  &frag_idx);
+		if ((frag_idx < 0) || (frag_idx >= fl->ifl_size))
+                	bit_ffc(fl->ifl_rx_bitmap, fl->ifl_size, &frag_idx);
+		if ((cl = sd_cl[frag_idx]) == NULL) {
+                       if ((cl = sd_cl[frag_idx] = m_cljget(NULL, M_NOWAIT, fl->ifl_buf_size)) == NULL)
 				break;
 #if MEMORY_LOGGING
 			fl->ifl_cl_enqueued++;
@@ -1867,10 +1874,11 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			cb_arg.error = 0;
 			q = fl->ifl_rxq;
 			MPASS(sd_map != NULL);
-			MPASS(sd_map[idx] != NULL);
-			err = bus_dmamap_load(fl->ifl_desc_tag, sd_map[idx],
+			MPASS(sd_map[frag_idx] != NULL);
+			err = bus_dmamap_load(fl->ifl_desc_tag, sd_map[frag_idx],
 		         cl, fl->ifl_buf_size, _rxq_refill_cb, &cb_arg, 0);
-			bus_dmamap_sync(fl->ifl_desc_tag, sd_map[idx], BUS_DMASYNC_PREREAD);
+			bus_dmamap_sync(fl->ifl_desc_tag, sd_map[frag_idx],
+					BUS_DMASYNC_PREREAD);
 
 			if (err != 0 || cb_arg.error) {
 				/*
@@ -1884,12 +1892,13 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			}
 			bus_addr = cb_arg.seg.ds_addr;
 		}
-		sd_flags[idx] |= RX_SW_DESC_INUSE;
+                bit_set(fl->ifl_rx_bitmap, frag_idx);
+		sd_flags[frag_idx] |= RX_SW_DESC_INUSE;
 
-		MPASS(sd_m[idx] == NULL);
-		sd_cl[idx] = cl;
-		sd_m[idx] = m;
-		fl->ifl_rxd_idxs[i] = idx;
+		MPASS(sd_m[frag_idx] == NULL);
+		sd_cl[frag_idx] = cl;
+		sd_m[frag_idx] = m;
+		fl->ifl_rxd_idxs[i] = frag_idx;
 		fl->ifl_bus_addrs[i] = bus_addr;
 		fl->ifl_vm_addrs[i] = cl;
 		fl->ifl_credits++;
@@ -1905,8 +1914,8 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
 			i = 0;
 			pidx = idx;
+			fl->ifl_pidx = idx;
 		}
-		fl->ifl_pidx = idx;
 
 	}
 done:
@@ -1920,6 +1929,7 @@ done:
 		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 				BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id, fl->ifl_id, pidx);
+	fl->ifl_fragidx = frag_idx;
 }
 
 static __inline void
@@ -1983,7 +1993,7 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 	/*
 	 * Reset free list values
 	 */
-	fl->ifl_credits = fl->ifl_cidx = fl->ifl_pidx = fl->ifl_gen = 0;;
+	fl->ifl_credits = fl->ifl_cidx = fl->ifl_pidx = fl->ifl_gen = fl->ifl_fragidx = 0;
 	bzero(idi->idi_vaddr, idi->idi_size);
 }
 
@@ -1999,6 +2009,7 @@ iflib_fl_setup(iflib_fl_t fl)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 
+	bit_nclear(fl->ifl_rx_bitmap, 0, fl->ifl_size);
 	/*
 	** Free current RX buffer structs and their mbufs
 	*/
@@ -2348,6 +2359,7 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, int unload, if_rxsd_t sd)
 	if (map != NULL)
 		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 			BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+        bit_clear(fl->ifl_rx_bitmap, cidx);
 }
 
 static struct mbuf *
@@ -2880,7 +2892,7 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 	if_ctx_t ctx;
 	if_shared_ctx_t		sctx;
 	if_softc_ctx_t		scctx;
-	int i, next, pidx, err, maxsegsz, ntxd, count;
+	int i, next, pidx, err, ntxd, count;
 	struct mbuf *m, *tmp, **ifsd_m;
 
 	m = *m0;
@@ -2923,13 +2935,17 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 			m = m->m_next;
 		} while (m != NULL);
 	} else {
-		int buflen, sgsize, max_sgsize;
+		int buflen, sgsize, maxsegsz, max_sgsize;
 		vm_offset_t vaddr;
 		vm_paddr_t curaddr;
 
 		count = i = 0;
-		maxsegsz = sctx->isc_tx_maxsize;
 		m = *m0;
+		if (m->m_pkthdr.csum_flags & CSUM_TSO)
+			maxsegsz = scctx->isc_tx_tso_segsize_max;
+		else
+			maxsegsz = sctx->isc_tx_maxsegsize;
+
 		do {
 			if (__predict_false(m->m_len <= 0)) {
 				tmp = m;
@@ -4243,8 +4259,9 @@ iflib_device_deregister(if_ctx_t ctx)
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
 	device_t dev = ctx->ifc_dev;
-	int i;
+	int i, j;
 	struct taskqgroup *tqg;
+	iflib_fl_t fl;
 
 	/* Make sure VLANS are not using driver */
 	if (if_vlantrunkinuse(ifp)) {
@@ -4279,6 +4296,10 @@ iflib_device_deregister(if_ctx_t ctx)
 	for (i = 0, rxq = ctx->ifc_rxqs; i < NRXQSETS(ctx); i++, rxq++) {
 		if (rxq->ifr_task.gt_uniq != NULL)
 			taskqgroup_detach(tqg, &rxq->ifr_task);
+
+		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
+			free(fl->ifl_rx_bitmap, M_IFLIB);
+			
 	}
 	tqg = qgroup_if_config_tqg;
 	if (ctx->ifc_admin_task.gt_uniq != NULL)
@@ -4672,6 +4693,9 @@ iflib_queues_alloc(if_ctx_t ctx)
 			err = ENOMEM;
 			goto err_rx_desc;
 		}
+
+		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) 
+			fl->ifl_rx_bitmap = bit_alloc(fl->ifl_size, M_IFLIB, M_WAITOK|M_ZERO);
 	}
 
 	/* TXQs */

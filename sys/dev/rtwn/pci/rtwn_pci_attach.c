@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/pci/rtwn_pci_tx.h>
 
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
-#include <dev/rtwn/rtl8192c/pci/r92ce_rx_desc.h>
 
 
 static device_probe_t	rtwn_pci_probe;
@@ -133,7 +132,7 @@ rtwn_pci_alloc_rx_list(struct rtwn_softc *sc)
 	int i, error;
 
 	/* Allocate Rx descriptors. */
-	size = sizeof(struct r92ce_rx_stat) * RTWN_PCI_RX_LIST_COUNT;
+	size = sizeof(struct rtwn_rx_stat_pci) * RTWN_PCI_RX_LIST_COUNT;
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    size, 1, size, 0, NULL, NULL, &rx_ring->desc_dmat);

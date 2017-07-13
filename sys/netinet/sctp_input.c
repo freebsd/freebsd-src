@@ -2149,23 +2149,23 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		 * cookie was in flight. Only recourse is to abort the
 		 * association.
 		 */
-		atomic_add_int(&stcb->asoc.refcnt, 1);
 		op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
 		sctp_abort_association(inp, (struct sctp_tcb *)NULL, m, iphlen,
 		    src, dst, sh, op_err,
 		    mflowtype, mflowid,
 		    vrf_id, port);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_SOCKET_LOCK(so, 1);
 		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_18);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		return (NULL);
 	}
 	/* process the INIT-ACK info (my info) */
@@ -2186,36 +2186,36 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	else
 		retval = 0;
 	if (retval < 0) {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_SOCKET_LOCK(so, 1);
 		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_19);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		return (NULL);
 	}
 	/* load all addresses */
 	if (sctp_load_addresses_from_init(stcb, m,
 	    init_offset + sizeof(struct sctp_init_chunk), initack_offset,
 	    src, dst, init_src, port)) {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_SOCKET_LOCK(so, 1);
 		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_20);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		return (NULL);
 	}
 	/*
@@ -2234,35 +2234,24 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 			/* auth HMAC failed, dump the assoc and packet */
 			SCTPDBG(SCTP_DEBUG_AUTH1,
 			    "COOKIE-ECHO: AUTH failed\n");
-			atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			atomic_add_int(&stcb->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_SOCKET_LOCK(so, 1);
 			SCTP_TCB_LOCK(stcb);
+			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 			(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 			    SCTP_FROM_SCTP_INPUT + SCTP_LOC_21);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			return (NULL);
 		} else {
 			/* remaining chunks checked... good to go */
 			stcb->asoc.authenticated = 1;
 		}
 	}
-	/* update current state */
-	SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
-	SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
-	if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-		    stcb->sctp_ep, stcb, asoc->primary_destination);
-	}
-	sctp_stop_all_cookie_timers(stcb);
-	SCTP_STAT_INCR_COUNTER32(sctps_passiveestab);
-	SCTP_STAT_INCR_GAUGE32(sctps_currestab);
-
 	/*
 	 * if we're doing ASCONFs, check to see if we have any new local
 	 * addresses that need to get added to the peer (eg. addresses
@@ -2295,20 +2284,31 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		break;
 #endif
 	default:
-		atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_SOCKET_LOCK(so, 1);
 		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_22);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		return (NULL);
 	}
+
+	/* update current state */
+	SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
+	SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
+	if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
+		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
+		    stcb->sctp_ep, stcb, asoc->primary_destination);
+	}
+	sctp_stop_all_cookie_timers(stcb);
+	SCTP_STAT_INCR_COUNTER32(sctps_passiveestab);
+	SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 
 	/* set up to notify upper layer */
 	*notification = SCTP_NOTIFY_ASSOC_UP;

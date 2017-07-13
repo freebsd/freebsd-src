@@ -30,7 +30,6 @@ options 	SOC_ALLWINNER_A13
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
-options 	MULTIDELAY
 
 # NFS root from boopt/dhcp
 #options 	BOOTP

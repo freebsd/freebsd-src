@@ -26,66 +26,137 @@
  *
  */
 
+#include "opt_ddb.h"
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
-#include <machine/machdep.h>
-#include <machine/platform.h>
 #include <machine/fdt.h>
+#include <machine/platformvar.h>
 
-#include "opt_ddb.h"
-#include "opt_platform.h"
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 
-#define	DEVMAP_MAX_VA_ADDRESS		0xF0000000
+#include <arm/annapurna/alpine/alpine_mp.h>
+
+#include "platform_if.h"
+
+#define	WDTLOAD		0x000
+#define	LOAD_MIN	0x00000001
+#define	LOAD_MAX	0xFFFFFFFF
+#define	WDTVALUE	0x004
+#define	WDTCONTROL	0x008
+/* control register masks */
+#define	INT_ENABLE	(1 << 0)
+#define	RESET_ENABLE	(1 << 1)
+#define	WDTLOCK		0xC00
+#define	UNLOCK		0x1ACCE551
+#define	LOCK		0x00000001
+
 bus_addr_t al_devmap_pa;
 bus_addr_t al_devmap_size;
 
-int alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size);
-
-vm_offset_t
-platform_lastaddr(void)
+static int
+alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size)
 {
+	phandle_t node;
 
-	return (DEVMAP_MAX_VA_ADDRESS);
+	if ((node = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+		return (ENXIO);
+
+	return fdt_get_range(node, 0, pa, size);
 }
 
-void
-platform_probe_and_attach(void)
+static int
+alpine_get_wdt_base(uint32_t *pbase, uint32_t *psize)
 {
+	phandle_t node;
+	u_long base = 0;
+	u_long size = 0;
 
-}
+	if (pbase == NULL || psize == NULL)
+		return (EINVAL);
 
-void
-platform_gpio_init(void)
-{
+	if ((node = OF_finddevice("/")) == -1)
+		return (EFAULT);
 
-}
+	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+		return (EFAULT);
 
-void
-platform_late_init(void)
-{
+	if ((node =
+	    fdt_find_compatible(node, "arm,sp805", 1)) == 0)
+		return (EFAULT);
 
+	if (fdt_regsize(node, &base, &size))
+		return (EFAULT);
+
+	*pbase = base;
+	*psize = size;
+
+	return (0);
 }
 
 /*
  * Construct devmap table with DT-derived config data.
  */
-int
-platform_devmap_init(void)
+static int
+alpine_devmap_init(platform_t plat)
 {
 	alpine_get_devmap_base(&al_devmap_pa, &al_devmap_size);
 	devmap_add_entry(al_devmap_pa, al_devmap_size);
 	return (0);
 }
+
+static void
+alpine_cpu_reset(platform_t plat)
+{
+	uint32_t wdbase, wdsize;
+	bus_addr_t wdbaddr;
+	int ret;
+
+	ret = alpine_get_wdt_base(&wdbase, &wdsize);
+	if (ret) {
+		printf("Unable to get WDT base, do power down manually...");
+		goto infinite;
+	}
+
+	ret = bus_space_map(fdtbus_bs_tag, al_devmap_pa + wdbase,
+	    wdsize, 0, &wdbaddr);
+	if (ret) {
+		printf("Unable to map WDT base, do power down manually...");
+		goto infinite;
+	}
+
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOCK, UNLOCK);
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOAD, LOAD_MIN);
+	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTCONTROL,
+	    INT_ENABLE | RESET_ENABLE);
+
+infinite:
+	while (1) {}
+}
+
+static platform_method_t alpine_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	alpine_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	alpine_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	alpine_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	alpine_mp_setmaxid),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(alpine, "alpine", 0, "annapurna,alpine", 200);

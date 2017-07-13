@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Andrew Turner <andrew@FreeBSD.org>
+ * Copyright (c) 2016 Olivier Houchard <cognet@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,16 @@
  * $FreeBSD$
  */
 
-#ifndef _ZY7_MP_H_
-#define	_ZY7_MP_H_
+#ifndef _OMAP4_MACHDEP_H_
+#define _OMAP4_MACHDEP_H_
 
-void zynq7_mp_setmaxid(platform_t);
-void zynq7_mp_start_ap(platform_t);
+struct pl310_softc;
 
-#endif /* _ZY7_MP_H_ */
+void omap4_mp_setmaxid(platform_t plat);
+void omap4_mp_start_ap(platform_t plat);
+
+void omap4_pl310_init(platform_t, struct pl310_softc *);
+void omap4_pl310_write_ctrl(platform_t, struct pl310_softc *, uint32_t);
+void omap4_pl310_write_debug(platform_t, struct pl310_softc *, uint32_t);
+
+#endif /* _OMAP4_MACHDEP_H_ */

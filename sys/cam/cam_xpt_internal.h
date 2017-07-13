@@ -125,6 +125,7 @@ struct cam_ed {
 	uint32_t	 rcap_len;
 	uint8_t		 *rcap_buf;
 	struct		 ata_params ident_data;
+        struct		 mmc_params mmc_ident_data;
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
 					 * This allows us to override settings

@@ -79,6 +79,15 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
+struct device_driver {
+	const char	*name;
+	const struct dev_pm_ops *pm;
+};
+
+struct device_type {
+	const char	*name;
+};
+
 struct device {
 	struct device	*parent;
 	struct list_head irqents;
@@ -91,6 +100,8 @@ struct device {
 	 * done somewhere else.
 	 */
 	bool		bsddev_attached_here;
+	struct device_driver *driver;
+	struct device_type *type;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
@@ -348,13 +359,20 @@ device_create_with_groups(struct class *class,
 	return dev;
 }
 
+static inline bool
+device_is_registered(struct device *dev)
+{
+
+	return (dev->bsddev != NULL);
+}
+
 static inline int
 device_register(struct device *dev)
 {
 	device_t bsddev = NULL;
 	int unit = -1;
 
-	if (dev->bsddev != NULL)
+	if (device_is_registered(dev))
 		goto done;
 
 	if (dev->devt) {

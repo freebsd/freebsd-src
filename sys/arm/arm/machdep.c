@@ -146,7 +146,7 @@ static struct pv_addr kernelstack;
 #endif /* __ARM_ARCH >= 6 */
 #endif /* FDT */
 
-#ifdef MULTIDELAY
+#ifdef PLATFORM
 static delay_func *delay_impl;
 static void *delay_arg;
 #endif
@@ -331,7 +331,7 @@ cpu_initclocks(void)
 }
 #endif
 
-#ifdef MULTIDELAY
+#ifdef PLATFORM
 void
 arm_set_delay(delay_func *impl, void *arg)
 {

@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/platformvar.h>
 
-#include <arm/xilinx/zy7_mp.h>
+#include <arm/xilinx/zy7_machdep.h>
 #include <arm/xilinx/zy7_reg.h>
 
 #define	ZYNQ7_CPU1_ENTRY	0xfffffff0

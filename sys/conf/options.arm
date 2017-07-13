@@ -34,11 +34,9 @@ KERNBASE		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
-MULTIDELAY		opt_global.h
 NKPT2PG			opt_pmap.h
 PHYSADDR		opt_global.h
 PLATFORM		opt_global.h
-PLATFORM_SMP		opt_global.h
 SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h

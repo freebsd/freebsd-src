@@ -400,4 +400,7 @@ static devclass_t sdhci_acpi_devclass;
 DRIVER_MODULE(sdhci_acpi, acpi, sdhci_acpi_driver, sdhci_acpi_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_acpi, sdhci, 1, 1, 1);
+
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_acpi);
+#endif

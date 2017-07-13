@@ -45,7 +45,6 @@ AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 ADW_ALLOW_MEMIO		opt_adw.h
 
 TWA_DEBUG		opt_twa.h
-TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Debugging options.
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
@@ -997,5 +996,7 @@ UINPUT_DEBUG	opt_evdev.h
 # Hyper-V network driver
 HN_DEBUG	opt_hn.h
 
+# CAM-based MMC stack
+MMCCAM
 # Encrypted kernel crash dumps
 EKCD		opt_ekcd.h

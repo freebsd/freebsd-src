@@ -400,6 +400,8 @@
                 ..
             ..
         ..
+        zoneinfo
+        ..
     ..
     sys
         acl
@@ -641,6 +643,8 @@
         grep
         ..
         gzip
+        ..
+        hexdump
         ..
         ident
         ..

@@ -62,8 +62,6 @@ options		SOC_OMAP4
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
-options 	PLATFORM_SMP
-options 	MULTIDELAY
 options 	LINUX_BOOT_ABI
 
 # EXT_RESOURCES pseudo devices
@@ -118,6 +116,7 @@ device		pty
 device		snp
 device		md			# Memory "disks"
 device		random			# Entropy device
+device		pl310			# PL310 L2 cache controller
 device		psci
 
 # I2C support

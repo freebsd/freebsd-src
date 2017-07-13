@@ -54,7 +54,6 @@
  */
 extern int tz_minuteswest;
 extern int tz_dsttime;
-extern struct mtx resettodr_lock;
 
 int utc_offset(void);
 
@@ -76,7 +75,34 @@ struct clocktime {
 
 int clock_ct_to_ts(struct clocktime *, struct timespec *);
 void clock_ts_to_ct(struct timespec *, struct clocktime *);
-void clock_register(device_t, long);
+
+/*
+ * Time-of-day clock register/unregister functions, and associated flags.  These
+ * functions can sleep.  Upon return from unregister, the clock's methods are
+ * not running and will not be called again.
+ *
+ * Flags:
+ *
+ *  CLOCKF_SETTIME_NO_TS
+ *    Do not pass a timespec to clock_settime(), the driver obtains its own time
+ *    and applies its own adjustments (this flag implies CLOCKF_SETTIME_NO_ADJ).
+ *
+ *  CLOCKF_SETTIME_NO_ADJ
+ *    Do not apply utc offset and resolution/accuracy adjustments to the value
+ *    passed to clock_settime(), the driver applies them itself.
+ *
+ *  CLOCKF_GETTIME_NO_ADJ
+ *    Do not apply utc offset and resolution/accuracy adjustments to the value
+ *    returned from clock_gettime(), the driver has already applied them.
+ */
+
+#define	CLOCKF_SETTIME_NO_TS	0x00000001
+#define	CLOCKF_SETTIME_NO_ADJ	0x00000002
+#define	CLOCKF_GETTIME_NO_ADJ	0x00000004
+
+void clock_register(device_t _clockdev, long _resolution_us);
+void clock_register_flags(device_t _clockdev, long _resolution_us, int _flags);
+void clock_unregister(device_t _clockdev);
 
 /*
  * BCD to decimal and decimal to BCD.
