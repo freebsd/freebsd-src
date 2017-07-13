@@ -110,7 +110,6 @@ struct MemoryRegion {
   std::string Name;
   uint64_t Origin;
   uint64_t Length;
-  uint64_t Offset;
   uint32_t Flags;
   uint32_t NegFlags;
 };
@@ -140,6 +139,10 @@ struct OutputSectionCommand : BaseCommand {
   template <class ELFT> void writeTo(uint8_t *Buf);
   template <class ELFT> void maybeCompress();
   uint32_t getFiller();
+
+  void sort(std::function<int(InputSectionBase *S)> Order);
+  void sortInitFini();
+  void sortCtorsDtors();
 };
 
 // This struct represents one section match pattern in SECTIONS() command.
@@ -222,6 +225,17 @@ struct ScriptConfiguration {
 };
 
 class LinkerScript final {
+  // Temporary state used in processCommands() and assignAddresses()
+  // that must be reinitialized for each call to the above functions, and must
+  // not be used outside of the scope of a call to the above functions.
+  struct AddressState {
+    uint64_t ThreadBssOffset = 0;
+    OutputSection *OutSec = nullptr;
+    MemoryRegion *MemRegion = nullptr;
+    llvm::DenseMap<const MemoryRegion *, uint64_t> MemRegionOffset;
+    std::function<uint64_t()> LMAOffset;
+    AddressState(const ScriptConfiguration &Opt);
+  };
   llvm::DenseMap<OutputSection *, OutputSectionCommand *> SecToCommand;
   llvm::DenseMap<StringRef, OutputSectionCommand *> NameToOutputSectionCommand;
 
@@ -234,7 +248,7 @@ class LinkerScript final {
   std::vector<InputSectionBase *>
   createInputSectionList(OutputSectionCommand &Cmd);
 
-  std::vector<size_t> getPhdrIndices(OutputSection *Sec);
+  std::vector<size_t> getPhdrIndices(OutputSectionCommand *Cmd);
   size_t getPhdrIndex(const Twine &Loc, StringRef PhdrName);
 
   MemoryRegion *findMemoryRegion(OutputSectionCommand *Cmd);
@@ -244,14 +258,10 @@ class LinkerScript final {
   void output(InputSection *Sec);
   void process(BaseCommand &Base);
 
+  AddressState *CurAddressState = nullptr;
   OutputSection *Aether;
 
   uint64_t Dot;
-  uint64_t ThreadBssOffset = 0;
-
-  std::function<uint64_t()> LMAOffset;
-  OutputSection *CurOutSec = nullptr;
-  MemoryRegion *CurMemRegion = nullptr;
 
 public:
   bool ErrorOnMissingSection = false;
@@ -276,13 +286,11 @@ public:
   std::vector<PhdrEntry> createPhdrs();
   bool ignoreInterpSection();
 
-  bool hasLMA(OutputSection *Sec);
   bool shouldKeep(InputSectionBase *S);
   void assignOffsets(OutputSectionCommand *Cmd);
-  void createOrphanCommands();
   void processNonSectionCommands();
-  void assignAddresses(std::vector<PhdrEntry> &Phdrs);
-
+  void assignAddresses();
+  void allocateHeaders(std::vector<PhdrEntry> &Phdrs);
   void addSymbol(SymbolAssignment *Cmd);
   void processCommands(OutputSectionFactory &Factory);
 
