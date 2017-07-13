@@ -661,6 +661,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung 845 SSDs
+		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 845*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * Samsung 850 SSDs
 		 * 4k optimised, NCQ TRIM broken (normal TRIM fine)
 		 */
