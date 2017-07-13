@@ -162,6 +162,7 @@ imx_usbmisc_set_ctrl(device_t dev, u_int index, uint32_t bits)
 	bus_write_4(sc->mmio, index * sizeof(uint32_t), reg | bits);
 }
 
+#ifdef notyet
 static void
 imx_usbmisc_clr_ctrl(device_t dev, u_int index, uint32_t bits)
 {
@@ -172,6 +173,7 @@ imx_usbmisc_clr_ctrl(device_t dev, u_int index, uint32_t bits)
 	reg = bus_read_4(sc->mmio, index * sizeof(uint32_t));
 	bus_write_4(sc->mmio, index * sizeof(uint32_t), reg & ~bits);
 }
+#endif
 
 static int
 imx_usbmisc_probe(device_t dev)
