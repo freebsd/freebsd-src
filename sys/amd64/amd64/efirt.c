@@ -194,8 +194,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	uint64_t idx;
 	int bits, i, mode;
 
-	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, 1 + NPML4EPG +
-	    NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG,
+	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
+	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
 	    VM_PROT_ALL, 0, NULL);
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_pml4_page = efi_1t1_page(0);
