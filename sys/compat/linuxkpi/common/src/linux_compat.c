@@ -463,6 +463,8 @@ void
 linux_file_free(struct linux_file *filp)
 {
 	if (filp->_file == NULL) {
+		if (filp->f_shmem != NULL)
+			vm_object_deallocate(filp->f_shmem);
 		kfree(filp);
 	} else {
 		/*
@@ -474,11 +476,57 @@ linux_file_free(struct linux_file *filp)
 }
 
 static int
+linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
+    vm_page_t *mres)
+{
+	struct vm_area_struct *vmap;
+
+	vmap = linux_cdev_handle_find(vm_obj->handle);
+
+	MPASS(vmap != NULL);
+	MPASS(vmap->vm_private_data == vm_obj->handle);
+
+	if (likely(vmap->vm_ops != NULL && offset < vmap->vm_len)) {
+		vm_paddr_t paddr = IDX_TO_OFF(vmap->vm_pfn) + offset;
+		vm_page_t page;
+
+		if (((*mres)->flags & PG_FICTITIOUS) != 0) {
+			/*
+			 * If the passed in result page is a fake
+			 * page, update it with the new physical
+			 * address.
+			 */
+			page = *mres;
+			vm_page_updatefake(page, paddr, vm_obj->memattr);
+		} else {
+			/*
+			 * Replace the passed in "mres" page with our
+			 * own fake page and free up the all of the
+			 * original pages.
+			 */
+			VM_OBJECT_WUNLOCK(vm_obj);
+			page = vm_page_getfake(paddr, vm_obj->memattr);
+			VM_OBJECT_WLOCK(vm_obj);
+
+			vm_page_replace_checked(page, vm_obj,
+			    (*mres)->pindex, *mres);
+
+			vm_page_lock(*mres);
+			vm_page_free(*mres);
+			vm_page_unlock(*mres);
+			*mres = page;
+		}
+		page->valid = VM_PAGE_BITS_ALL;
+		return (VM_PAGER_OK);
+	}
+	return (VM_PAGER_FAIL);
+}
+
+static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_area_struct *vmap;
-	struct vm_fault vmf;
 	int err;
 
 	linux_set_current(curthread);
@@ -488,18 +536,20 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	MPASS(vmap != NULL);
 	MPASS(vmap->vm_private_data == vm_obj->handle);
 
-	/* fill out VM fault structure */
-	vmf.virtual_address = (void *)((uintptr_t)pidx << PAGE_SHIFT);
-	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
-	vmf.pgoff = 0;
-	vmf.page = NULL;
-
 	VM_OBJECT_WUNLOCK(vm_obj);
 
 	down_write(&vmap->vm_mm->mmap_sem);
-	if (unlikely(vmap->vm_ops == NULL || vmap->vm_ops->fault == NULL)) {
+	if (unlikely(vmap->vm_ops == NULL)) {
 		err = VM_FAULT_SIGBUS;
 	} else {
+		struct vm_fault vmf;
+
+		/* fill out VM fault structure */
+		vmf.virtual_address = (void *)((uintptr_t)pidx << PAGE_SHIFT);
+		vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+		vmf.pgoff = 0;
+		vmf.page = NULL;
+
 		vmap->vm_pfn_count = 0;
 		vmap->vm_pfn_pcount = &vmap->vm_pfn_count;
 		vmap->vm_obj = vm_obj;
@@ -631,10 +681,19 @@ linux_cdev_pager_dtor(void *handle)
 	linux_cdev_handle_free(vmap);
 }
 
-static struct cdev_pager_ops linux_cdev_pager_ops = {
+static struct cdev_pager_ops linux_cdev_pager_ops[2] = {
+  {
+	/* OBJT_MGTDEVICE */
 	.cdev_pg_populate	= linux_cdev_pager_populate,
 	.cdev_pg_ctor	= linux_cdev_pager_ctor,
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
+  },
+  {
+	/* OBJT_DEVICE */
+	.cdev_pg_fault	= linux_cdev_pager_fault,
+	.cdev_pg_ctor	= linux_cdev_pager_ctor,
+	.cdev_pg_dtor	= linux_cdev_pager_dtor
+  },
 };
 
 static int
@@ -1184,8 +1243,15 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 		vmap = linux_cdev_handle_insert(vm_private_data, vmap);
 
-		*object = cdev_pager_allocate(vm_private_data, OBJT_MGTDEVICE,
-		    &linux_cdev_pager_ops, size, nprot, *offset, curthread->td_ucred);
+		if (vmap->vm_ops->fault == NULL) {
+			*object = cdev_pager_allocate(vm_private_data, OBJT_DEVICE,
+			    &linux_cdev_pager_ops[1], size, nprot, *offset,
+			    curthread->td_ucred);
+		} else {
+			*object = cdev_pager_allocate(vm_private_data, OBJT_MGTDEVICE,
+			    &linux_cdev_pager_ops[0], size, nprot, *offset,
+			    curthread->td_ucred);
+		}
 
 		if (*object == NULL) {
 			linux_cdev_handle_remove(vmap);
@@ -1196,7 +1262,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		struct sglist *sg;
 
 		sg = sglist_alloc(1, M_WAITOK);
-		sglist_append_phys(sg, (vm_paddr_t)vmap->vm_pfn << PAGE_SHIFT, vmap->vm_len);
+		sglist_append_phys(sg,
+		    (vm_paddr_t)vmap->vm_pfn << PAGE_SHIFT, vmap->vm_len);
 
 		*object = vm_pager_allocate(OBJT_SG, sg, vmap->vm_len,
 		    nprot, 0, curthread->td_ucred);

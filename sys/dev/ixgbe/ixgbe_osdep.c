@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,35 +32,25 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include "ixgbe_osdep.h"
 #include "ixgbe.h"
-
-inline device_t
-ixgbe_dev_from_hw(struct ixgbe_hw *hw)
-{
-	return ((struct adapter *)hw->back)->dev;
-}
 
 inline u16
 ixgbe_read_pci_cfg(struct ixgbe_hw *hw, u32 reg)
 {
-	return pci_read_config(((struct adapter *)hw->back)->dev,
-	    reg, 2);
+	return pci_read_config(((struct adapter *)hw->back)->dev, reg, 2);
 }
 
 inline void
 ixgbe_write_pci_cfg(struct ixgbe_hw *hw, u32 reg, u16 value)
 {
-	pci_write_config(((struct adapter *)hw->back)->dev,
-	    reg, value, 2);
+	pci_write_config(((struct adapter *)hw->back)->dev, reg, value, 2);
 }
 
 inline u32
 ixgbe_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
 	return bus_space_read_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
-	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
-	    reg);
+	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle, reg);
 }
 
 inline void

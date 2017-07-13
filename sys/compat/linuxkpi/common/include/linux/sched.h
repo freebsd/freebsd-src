@@ -56,6 +56,8 @@
 #define	TASK_WAKING		0x0100
 #define	TASK_PARKED		0x0200
 
+#define	TASK_COMM_LEN		(MAXCOMLEN + 1)
+
 struct task_struct {
 	struct thread *task_thread;
 	struct mm_struct *mm;

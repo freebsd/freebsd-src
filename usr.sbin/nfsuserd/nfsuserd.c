@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <nfs/nfssvc.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 
 #include <fs/nfs/rpcv2.h>
 #include <fs/nfs/nfsproto.h>
@@ -73,6 +75,9 @@ static bool_t	xdr_getid(XDR *, caddr_t);
 static bool_t	xdr_getname(XDR *, caddr_t);
 static bool_t	xdr_retval(XDR *, caddr_t);
 
+#ifndef _PATH_NFSUSERDSOCK
+#define _PATH_NFSUSERDSOCK	"/var/run/nfsuserd.sock"
+#endif
 #define	MAXNAME		1024
 #define	MAXNFSUSERD	20
 #define	DEFNFSUSERD	4
@@ -92,6 +97,7 @@ uid_t defaultuid = 65534;
 u_char *defaultgroup = "nogroup";
 gid_t defaultgid = 65533;
 int verbose = 0, im_a_slave = 0, nfsuserdcnt = -1, forcestart = 0;
+int use_udpsock = 0;
 int defusertimeout = DEFUSERTIMEOUT, manage_gids = 0;
 pid_t slaves[MAXNFSUSERD];
 
@@ -103,15 +109,17 @@ main(int argc, char *argv[])
 	struct nfsd_idargs nid;
 	struct passwd *pwd;
 	struct group *grp;
-	int sock, one = 1;
+	int oldmask, one = 1, sock;
 	SVCXPRT *udptransp;
 	u_short portnum;
+	SVCXPRT *xprt;
 	sigset_t signew;
 	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
 	static uid_t check_dups[MAXUSERMAX];
 	gid_t grps[NGROUPS];
 	int ngroup;
+	struct sockaddr_un sun;
 
 	if (modfind("nfscommon") < 0) {
 		/* Not present in kernel, try loading it */
@@ -164,6 +172,8 @@ main(int argc, char *argv[])
 			forcestart = 1;
 		} else if (!strcmp(*argv, "-manage-gids")) {
 			manage_gids = 1;
+		} else if (!strcmp(*argv, "-use-udpsock")) {
+			use_udpsock = 1;
 		} else if (!strcmp(*argv, "-usermax")) {
 			if (argc == 1)
 				usage();
@@ -207,6 +217,9 @@ main(int argc, char *argv[])
 	}
 	if (nfsuserdcnt < 1)
 		nfsuserdcnt = DEFNFSUSERD;
+	if (use_udpsock == 0)
+		/* For AF_LOCAL socket, only allow one server daemon. */
+		nfsuserdcnt = 1;
 
 	/*
 	 * Strip off leading and trailing '.'s in domain name and map
@@ -245,49 +258,93 @@ main(int argc, char *argv[])
 	for (i = 0; i < nfsuserdcnt; i++)
 		slaves[i] = (pid_t)-1;
 
-	/*
-	 * Set up the service port to accept requests via UDP from
-	 * localhost (127.0.0.1).
-	 */
-	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		err(1, "cannot create udp socket");
-
-	/*
-	 * Not sure what this does, so I'll leave it here for now.
-	 */
-	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	if (use_udpsock != 0) {
+		/*
+		 * Set up the service port to accept requests via UDP from
+		 * localhost (127.0.0.1).
+		 */
+		if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+			err(1, "cannot create udp socket");
 	
-	if ((udptransp = svcudp_create(sock)) == NULL)
-		err(1, "Can't set up socket");
-
-	/*
-	 * By not specifying a protocol, it is linked into the
-	 * dispatch queue, but not registered with portmapper,
-	 * which is just what I want.
-	 */
-	if (!svc_register(udptransp, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS,
-	    nfsuserdsrv, 0))
-		err(1, "Can't register nfsuserd");
-
-	/*
-	 * Tell the kernel what my port# is.
-	 */
-	portnum = htons(udptransp->xp_port);
+		/*
+		 * Not sure what this does, so I'll leave it here for now.
+		 */
+		setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+		
+		if ((udptransp = svcudp_create(sock)) == NULL)
+			err(1, "Can't set up socket");
+	
+		/*
+		 * By not specifying a protocol, it is linked into the
+		 * dispatch queue, but not registered with portmapper,
+		 * which is just what I want.
+		 */
+		if (!svc_register(udptransp, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS,
+		    nfsuserdsrv, 0))
+			err(1, "Can't register nfsuserd");
+	
+		/*
+		 * Tell the kernel what my port# is.
+		 */
+		portnum = htons(udptransp->xp_port);
 #ifdef DEBUG
-	printf("portnum=0x%x\n", portnum);
+		printf("portnum=0x%x\n", portnum);
 #else
-	if (nfssvc(NFSSVC_NFSUSERDPORT, (caddr_t)&portnum) < 0) {
-		if (errno == EPERM) {
-			fprintf(stderr,
-			    "Can't start nfsuserd when already running");
-			fprintf(stderr,
-			    " If not running, use the -force option.\n");
-		} else {
-			fprintf(stderr, "Can't do nfssvc() to add port\n");
+		if (nfssvc(NFSSVC_NFSUSERDPORT, (caddr_t)&portnum) < 0) {
+			if (errno == EPERM)
+				fprintf(stderr, "Can't start nfsuserd when"
+				    " already running\nIf not running,"
+				    " use the -force option.\n");
+			else
+				fprintf(stderr,
+				    "Can't do nfssvc() to add socket\n");
+			exit(1);
 		}
-		exit(1);
-	}
 #endif
+	} else {
+		/* Use the AF_LOCAL socket. */
+		memset(&sun, 0, sizeof sun);
+		sun.sun_family = AF_LOCAL;
+		unlink(_PATH_NFSUSERDSOCK);
+		strcpy(sun.sun_path, _PATH_NFSUSERDSOCK);
+		sun.sun_len = SUN_LEN(&sun);
+		sock = socket(AF_LOCAL, SOCK_STREAM, 0);
+		if (sock < 0)
+			err(1, "Can't create local nfsuserd socket");
+		oldmask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
+		if (bind(sock, (struct sockaddr *)&sun, sun.sun_len) < 0)
+			err(1, "Can't bind local nfsuserd socket");
+		umask(oldmask);
+		if (listen(sock, SOMAXCONN) < 0)
+			err(1, "Can't listen on local nfsuserd socket");
+		xprt = svc_vc_create(sock, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+		if (xprt == NULL)
+			err(1,
+			    "Can't create transport for local nfsuserd socket");
+		if (!svc_reg(xprt, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS,
+		    nfsuserdsrv, NULL))
+			err(1,
+			    "Can't register service for local nfsuserd socket");
+	
+		/*
+		 * Tell the kernel what the socket's path is.
+		 */
+#ifdef DEBUG
+		printf("sockpath=%s\n", _PATH_NFSUSERDSOCK);
+#else
+		if (nfssvc(NFSSVC_NFSUSERDPORT | NFSSVC_NEWSTRUCT,
+		    _PATH_NFSUSERDSOCK) < 0) {
+			if (errno == EPERM)
+				fprintf(stderr, "Can't start nfsuserd when"
+				    " already running\nIf not running,"
+				    " use the -force option.\n");
+			else
+				fprintf(stderr,
+				    "Can't do nfssvc() to add socket\n");
+			exit(1);
+		}
+#endif
+	}
 
 	pwd = getpwnam(defaultuser);
 	if (pwd)
@@ -462,21 +519,25 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 	gid_t grps[NGROUPS];
 	int ngroup;
 
-	/*
-	 * Only handle requests from 127.0.0.1 on a reserved port number.
-	 * (Since a reserved port # at localhost implies a client with
-	 *  local root, there won't be a security breach. This is about
-	 *  the only case I can think of where a reserved port # means
-	 *  something.)
-	 */
-	sport = ntohs(transp->xp_raddr.sin_port);
-	saddr = ntohl(transp->xp_raddr.sin_addr.s_addr);
-	if ((rqstp->rq_proc != NULLPROC && sport >= IPPORT_RESERVED) ||
-	    saddr != 0x7f000001) {
-		syslog(LOG_ERR, "req from ip=0x%x port=%d\n", saddr, sport);
-		svcerr_weakauth(transp);
-		return;
+	if (use_udpsock != 0) {
+		/*
+		 * Only handle requests from 127.0.0.1 on a reserved port
+		 * number.  (Since a reserved port # at localhost implies a
+		 * client with local root, there won't be a security breach.
+		 * This is about the only case I can think of where a reserved
+		 * port # means something.)
+		 */
+		sport = ntohs(transp->xp_raddr.sin_port);
+		saddr = ntohl(transp->xp_raddr.sin_addr.s_addr);
+		if ((rqstp->rq_proc != NULLPROC && sport >= IPPORT_RESERVED) ||
+		    saddr != 0x7f000001) {
+			syslog(LOG_ERR, "req from ip=0x%x port=%d, consider"
+			    " using an AF_LOCAL socket\n", saddr, sport);
+			svcerr_weakauth(transp);
+			return;
+		}
 	}
+
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_void, NULL))
@@ -720,6 +781,7 @@ static void
 usage(void)
 {
 
-	errx(1,
-	    "usage: nfsuserd [-usermax cache_size] [-usertimeout minutes] [-verbose] [-manage-gids] [-domain domain_name] [n]");
+	errx(1, "usage: nfsuserd [-usermax cache_size] [-usertimeout minutes]"
+	    " [-verbose] [-manage-gids] [-use-udpsock] [-domain domain_name]"
+	    " [n]");
 }

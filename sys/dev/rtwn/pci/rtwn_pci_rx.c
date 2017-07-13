@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/pci/rtwn_pci_var.h>
 #include <dev/rtwn/pci/rtwn_pci_rx.h>
 
-#include <dev/rtwn/rtl8192c/pci/r92ce_rx_desc.h>
-
 
 void
 rtwn_pci_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs,
@@ -71,21 +69,21 @@ rtwn_pci_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs,
 }
 
 void
-rtwn_pci_setup_rx_desc(struct rtwn_pci_softc *pc, struct r92ce_rx_stat *desc,
-    bus_addr_t addr, size_t len, int idx)
+rtwn_pci_setup_rx_desc(struct rtwn_pci_softc *pc,
+    struct rtwn_rx_stat_pci *desc, bus_addr_t addr, size_t len, int idx)
 {
 
 	memset(desc, 0, sizeof(*desc));
-	desc->rxdw0 = htole32(SM(R92C_RXDW0_PKTLEN, len) |
-		((idx == RTWN_PCI_RX_LIST_COUNT - 1) ? R92C_RXDW0_EOR : 0));
+	desc->rxdw0 = htole32(SM(RTWN_RXDW0_PKTLEN, len) |
+		((idx == RTWN_PCI_RX_LIST_COUNT - 1) ? RTWN_RXDW0_EOR : 0));
 	desc->rxbufaddr = htole32(addr);
 	bus_space_barrier(pc->pc_st, pc->pc_sh, 0, pc->pc_mapsize,
 	    BUS_SPACE_BARRIER_WRITE);
-	desc->rxdw0 |= htole32(R92C_RXDW0_OWN);
+	desc->rxdw0 |= htole32(RTWN_RXDW0_OWN);
 }
 
 static void
-rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
+rtwn_pci_rx_frame(struct rtwn_softc *sc, struct rtwn_rx_stat_pci *rx_desc,
     int desc_idx)
 {
 	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
@@ -107,18 +105,18 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 	    le32toh(rx_desc->rxbufaddr), le32toh(rx_desc->rxbufaddr64));
 
 	rxdw0 = le32toh(rx_desc->rxdw0);
-	if (__predict_false(rxdw0 & (R92C_RXDW0_CRCERR | R92C_RXDW0_ICVERR))) {
+	if (__predict_false(rxdw0 & (RTWN_RXDW0_CRCERR | RTWN_RXDW0_ICVERR))) {
 		/*
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
 		RTWN_DPRINTF(sc, RTWN_DEBUG_RECV,
 		    "%s: RX flags error (%s)\n", __func__,
-		    rxdw0 & R92C_RXDW0_CRCERR ? "CRC" : "ICV");
+		    rxdw0 & RTWN_RXDW0_CRCERR ? "CRC" : "ICV");
 		goto fail;
 	}
 
-	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
+	pktlen = MS(rxdw0, RTWN_RXDW0_PKTLEN);
 	if (__predict_false(pktlen < sizeof(struct ieee80211_frame_ack) ||
 	    pktlen > MJUMPAGESIZE)) {
 		RTWN_DPRINTF(sc, RTWN_DEBUG_RECV,
@@ -126,8 +124,8 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct r92ce_rx_stat *rx_desc,
 		goto fail;
 	}
 
-	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
-	shift = MS(rxdw0, R92C_RXDW0_SHIFT);
+	infosz = MS(rxdw0, RTWN_RXDW0_INFOSZ) * 8;
+	shift = MS(rxdw0, RTWN_RXDW0_SHIFT);
 
 	m1 = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (__predict_false(m1 == NULL)) {
@@ -268,9 +266,9 @@ rtwn_pci_rx_done(struct rtwn_softc *sc)
 	bus_dmamap_sync(ring->desc_dmat, ring->desc_map, BUS_DMASYNC_POSTREAD);
 
 	for (;;) {
-		struct r92ce_rx_stat *rx_desc = &ring->desc[ring->cur];
+		struct rtwn_rx_stat_pci *rx_desc = &ring->desc[ring->cur];
 
-		if (le32toh(rx_desc->rxdw0) & R92C_RXDW0_OWN)
+		if (le32toh(rx_desc->rxdw0) & RTWN_RXDW0_OWN)
 			break;
 
 		rtwn_pci_rx_frame(sc, rx_desc, ring->cur);

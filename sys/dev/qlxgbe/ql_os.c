@@ -980,8 +980,7 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				ret = ql_set_max_mtu(ha, ha->max_frame_size,
-					ha->hw.rcv_cntxt_id);
+				qla_init_locked(ha);
 			}
 
 			if (ifp->if_mtu > ETHERMTU)
@@ -1014,11 +1013,9 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					ret = ql_set_allmulti(ha);
 				}
 			} else {
-				qla_init_locked(ha);
 				ha->max_frame_size = ifp->if_mtu +
 					ETHER_HDR_LEN + ETHER_CRC_LEN;
-				ret = ql_set_max_mtu(ha, ha->max_frame_size,
-					ha->hw.rcv_cntxt_id);
+				qla_init_locked(ha);
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1522,8 +1519,11 @@ qla_stop(qla_host_t *ha)
 
 	ha->flags.qla_watchdog_pause = 1;
 
-	while (!ha->qla_watchdog_paused)
+	while (!ha->qla_watchdog_paused) {
+		QLA_UNLOCK(ha);
 		qla_mdelay(__func__, 1);
+		QLA_LOCK(ha);
+	}
 
 	ha->flags.qla_interface_up = 0;
 
@@ -1918,7 +1918,10 @@ qla_error_recovery(void *context, int pending)
 	if (ha->flags.qla_interface_up) {
 
 		ha->hw.imd_compl = 1;
+
+		QLA_UNLOCK(ha);
 		qla_mdelay(__func__, 300);
+		QLA_LOCK(ha);
 
 	        ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 

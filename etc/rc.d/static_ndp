@@ -31,7 +31,7 @@
 
 # PROVIDE: static_ndp
 # REQUIRE: netif
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-#include <opt_ddb.h>
+#include "opt_ddb.h"
 
 /*
  * Multiple symbol tables

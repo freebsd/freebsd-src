@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
-#include <arm/freescale/imx/imx6_mp.h>
+#include <arm/freescale/imx/imx6_machdep.h>
 
 #define	SCU_PHYSBASE			0x00a00000
 #define	SCU_SIZE			0x00001000

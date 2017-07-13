@@ -6,7 +6,7 @@
 # PROVIDE: rarpd
 # REQUIRE: DAEMON FILESYSTEMS
 # BEFORE:  LOGIN
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 

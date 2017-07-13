@@ -119,7 +119,7 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h, const char *devic
 	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}", ctime(&t));
 	xo_emit_h(xo, "{P:  }{Lwc:Hostname}{:hostname/%s}\n", h->hostname);
 	xo_emit_h(xo, "{P:  }{Lwc:Magic}{:magic/%s}\n", h->magic);
-	xo_emit_h(xo, "{P:  }{Lwc:Version String}{:version_string/%s}", h->versionstring);
+	xo_emit_h(xo, "{P:  }{Lwc:Version String}{:version_string/%s}\n", h->versionstring);
 	xo_emit_h(xo, "{P:  }{Lwc:Panic String}{:panic_string/%s}\n", h->panicstring);
 	xo_emit_h(xo, "{P:  }{Lwc:Dump Parity}{:dump_parity/%u}\n", h->parity);
 	xo_emit_h(xo, "{P:  }{Lwc:Bounds}{:bounds/%d}\n", bounds);
@@ -332,6 +332,13 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 		syslog(LOG_WARNING,
 		    "dump performed, but free space threshold crossed");
 	return (1);
+}
+
+static bool
+compare_magic(const struct kerneldumpheader *kdh, const char *magic)
+{
+
+	return (strncmp(kdh->magic, magic, sizeof(kdh->magic)) == 0);
 }
 
 #define BLOCKSIZE (1<<12)
@@ -564,7 +571,7 @@ DoFile(const char *savedir, const char *device)
 	}
 	memcpy(&kdhl, temp, sizeof(kdhl));
 	istextdump = 0;
-	if (strncmp(kdhl.magic, TEXTDUMPMAGIC, sizeof kdhl) == 0) {
+	if (compare_magic(&kdhl, TEXTDUMPMAGIC)) {
 		if (verbose)
 			printf("textdump magic on last dump header on %s\n",
 			    device);
@@ -578,8 +585,7 @@ DoFile(const char *savedir, const char *device)
 			if (force == 0)
 				goto closefd;
 		}
-	} else if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic) ==
-	    0) {
+	} else if (compare_magic(&kdhl, KERNELDUMPMAGIC)) {
 		if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
@@ -598,8 +604,7 @@ DoFile(const char *savedir, const char *device)
 		if (force == 0)
 			goto closefd;
 
-		if (memcmp(kdhl.magic, KERNELDUMPMAGIC_CLEARED,
-			    sizeof kdhl.magic) == 0) {
+		if (compare_magic(&kdhl, KERNELDUMPMAGIC_CLEARED)) {
 			if (verbose)
 				printf("forcing magic on %s\n", device);
 			memcpy(kdhl.magic, KERNELDUMPMAGIC,

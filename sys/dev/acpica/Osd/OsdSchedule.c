@@ -128,7 +128,7 @@ acpi_taskq_init(void *arg)
     acpi_taskq_started = 1;
 }
 
-SYSINIT(acpi_taskq, SI_SUB_CONFIGURE, SI_ORDER_SECOND, acpi_taskq_init, NULL);
+SYSINIT(acpi_taskq, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, acpi_taskq_init, NULL);
 
 /*
  * Bounce through this wrapper function since ACPI-CA doesn't understand

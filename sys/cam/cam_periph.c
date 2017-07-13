@@ -827,6 +827,18 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
+	case XPT_MMC_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return(0);
+		/* Two mappings: one for cmd->data and one for cmd->data->data */
+		data_ptrs[0] = (unsigned char **)&ccb->mmcio.cmd.data;
+		lengths[0] = sizeof(struct mmc_data *);
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		data_ptrs[1] = (unsigned char **)&ccb->mmcio.cmd.data->data;
+		lengths[1] = ccb->mmcio.cmd.data->len;
+		dirs[1] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 2;
+		break;
 	case XPT_SMP_IO:
 		data_ptrs[0] = &ccb->smpio.smp_request;
 		lengths[0] = ccb->smpio.smp_request_len;

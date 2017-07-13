@@ -501,6 +501,8 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
 			break;
+		else if (g_handleattr_str(bp, "GEOM::descr", dp->d_descr))
+			break;
 		else if (g_handleattr_uint16_t(bp, "GEOM::hba_vendor",
 		    dp->d_hba_vendor))
 			break;

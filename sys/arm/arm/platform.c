@@ -75,9 +75,14 @@ SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, plat_nam
  */
 SET_DECLARE(platform_set, platform_def_t);
 
-#ifdef MULTIDELAY
 static delay_func platform_delay;
-#endif
+
+platform_t
+platform_obj(void)
+{
+
+	return (plat_obj);
+}
 
 void
 platform_probe_and_attach(void)
@@ -152,10 +157,8 @@ platform_probe_and_attach(void)
 
 	strlcpy(plat_name, plat_def_impl->name, sizeof(plat_name));
 
-#ifdef MULTIDELAY
 	/* Set a default delay function */
 	arm_set_delay(platform_delay, NULL);
-#endif
 
 	PLATFORM_ATTACH(plat_obj);
 }
@@ -202,7 +205,6 @@ cpu_reset(void)
 	}
 }
 
-#ifdef MULTIDELAY
 static void
 platform_delay(int usec, void *arg __unused)
 {
@@ -216,9 +218,8 @@ platform_delay(int usec, void *arg __unused)
 			 */
 			cpufunc_nullop();
 }
-#endif
 
-#if defined(SMP) && defined(PLATFORM_SMP)
+#if defined(SMP)
 void
 platform_mp_setmaxid(void)
 {

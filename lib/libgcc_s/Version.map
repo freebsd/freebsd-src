@@ -48,9 +48,9 @@ global:
 	__moddi3;
 	__modti3;
 	__muldi3;
+	__multi3;
 	__mulvdi3;
 	__mulvsi3;
-	__multi3;
 	__negdi2;
 	__negti2;
 	__negvdi2;

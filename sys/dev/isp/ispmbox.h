@@ -1,5 +1,6 @@
 /* $FreeBSD$ */
 /*-
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
@@ -1551,8 +1552,10 @@ typedef struct {
 #define	SNS_GA_NXT	0x100
 #define	SNS_GPN_ID	0x112
 #define	SNS_GNN_ID	0x113
+#define	SNS_GFT_ID	0x117
 #define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
+#define	SNS_GID_PT	0x1A1
 #define	SNS_RFT_ID	0x217
 #define	SNS_RSPN_ID	0x218
 #define	SNS_RFF_ID	0x21F
@@ -1579,18 +1582,18 @@ typedef struct {
 } sns_ga_nxt_req_t;
 #define	SNS_GA_NXT_REQ_SIZE	(sizeof (sns_ga_nxt_req_t))
 
-typedef struct {
+typedef struct {			/* Used for GFT_ID, GFF_ID, etc. */
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
 	uint16_t	snscb_reserved0;
 	uint16_t	snscb_addr[4];	/* response buffer address */
 	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
 	uint16_t	snscb_reserved1;
 	uint16_t	snscb_cmd;
-	uint16_t	snscb_reserved2;
+	uint16_t	snscb_mword_div_2;
 	uint32_t	snscb_reserved3;
 	uint32_t	snscb_portid;
-} sns_gxn_id_req_t;
-#define	SNS_GXN_ID_REQ_SIZE	(sizeof (sns_gxn_id_req_t))
+} sns_gxx_id_req_t;
+#define	SNS_GXX_ID_REQ_SIZE	(sizeof (sns_gxx_id_req_t))
 
 typedef struct {
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
@@ -1604,6 +1607,22 @@ typedef struct {
 	uint32_t	snscb_fc4_type;
 } sns_gid_ft_req_t;
 #define	SNS_GID_FT_REQ_SIZE	(sizeof (sns_gid_ft_req_t))
+
+typedef struct {
+	uint16_t	snscb_rblen;	/* response buffer length (words) */
+	uint16_t	snscb_reserved0;
+	uint16_t	snscb_addr[4];	/* response buffer address */
+	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
+	uint16_t	snscb_reserved1;
+	uint16_t	snscb_cmd;
+	uint16_t	snscb_mword_div_2;
+	uint32_t	snscb_reserved3;
+	uint8_t		snscb_port_type;
+	uint8_t		snscb_domain;
+	uint8_t		snscb_area;
+	uint8_t		snscb_flags;
+} sns_gid_pt_req_t;
+#define	SNS_GID_PT_REQ_SIZE	(sizeof (sns_gid_pt_req_t))
 
 typedef struct {
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
@@ -1655,19 +1674,24 @@ typedef struct {
 
 typedef struct {
 	ct_hdr_t	snscb_cthdr;
+	uint32_t	snscb_fc4_types[8];
+} sns_gft_id_rsp_t;
+#define	SNS_GFT_ID_RESP_SIZE	(sizeof (sns_gft_id_rsp_t))
+
+typedef struct {
+	ct_hdr_t	snscb_cthdr;
 	uint32_t	snscb_fc4_features[32];
 } sns_gff_id_rsp_t;
 #define	SNS_GFF_ID_RESP_SIZE	(sizeof (sns_gff_id_rsp_t))
 
-typedef struct {
+typedef struct {			/* Used for GID_FT, GID_PT, etc. */
 	ct_hdr_t	snscb_cthdr;
 	struct {
 		uint8_t		control;
 		uint8_t		portid[3];
 	} snscb_ports[1];
-} sns_gid_ft_rsp_t;
-#define	SNS_GID_FT_RESP_SIZE(x)	((sizeof (sns_gid_ft_rsp_t)) + ((x - 1) << 2))
-#define	SNS_RFT_ID_RESP_SIZE	(sizeof (ct_hdr_t))
+} sns_gid_xx_rsp_t;
+#define	SNS_GID_XX_RESP_SIZE(x)	((sizeof (sns_gid_xx_rsp_t)) + ((x - 1) << 2))
 
 /*
  * Other Misc Structures

@@ -91,4 +91,4 @@ static platform_method_t exynos5_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(exynos5, "exynos5", 0, "samsung,exynos5", 0);
+FDT_PLATFORM_DEF(exynos5, "exynos5", 0, "samsung,exynos5", 200);
