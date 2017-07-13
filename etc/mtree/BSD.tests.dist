@@ -644,6 +644,8 @@
         ..
         gzip
         ..
+        hexdump
+        ..
         ident
         ..
         indent
