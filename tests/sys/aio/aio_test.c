@@ -32,10 +32,11 @@
  * size buffer with pseudo-random data, writing it to one fd using AIO, then
  * reading it from a second descriptor using AIO.  For some targets, the same
  * fd is used for write and read (i.e., file, md device), but for others the
- * operation is performed on a peer (pty, socket, fifo, etc).  A timeout is
- * initiated to detect undue blocking.  This test does not attempt to exercise
- * error cases or more subtle asynchronous behavior, just make sure that the
- * basic operations work on some basic object types.
+ * operation is performed on a peer (pty, socket, fifo, etc).  For each file
+ * descriptor type, several completion methods are tested.  This test program
+ * does not attempt to exercise error cases or more subtle asynchronous
+ * behavior, just make sure that the basic operations work on some basic object
+ * types.
  */
 
 #include <sys/param.h>
@@ -85,41 +86,8 @@ struct aio_context {
 	char		 ac_buffer[GLOBAL_MAX];
 	int		 ac_buflen;
 	int		 ac_seconds;
-	void		 (*ac_cleanup)(void *arg);
-	void		*ac_cleanup_arg;
 };
 
-static int	aio_timedout;
-
-/*
- * Each test run specifies a timeout in seconds.  Use the somewhat obsoleted
- * signal(3) and alarm(3) APIs to set this up.
- */
-static void
-aio_timeout_signal(int sig __unused)
-{
-
-	aio_timedout = 1;
-}
-
-static void
-aio_timeout_start(int seconds)
-{
-
-	aio_timedout = 0;
-	ATF_REQUIRE_MSG(signal(SIGALRM, aio_timeout_signal) != SIG_ERR,
-	    "failed to set SIGALRM handler: %s", strerror(errno));
-	alarm(seconds);
-}
-
-static void
-aio_timeout_stop(void)
-{
-
-	ATF_REQUIRE_MSG(signal(SIGALRM, NULL) != SIG_ERR,
-	    "failed to reset SIGALRM handler to default: %s", strerror(errno));
-	alarm(0);
-}
 
 /*
  * Fill a buffer given a seed that can be fed into srandom() to initialize
@@ -163,8 +131,7 @@ aio_test_buffer(char *buffer, int len, long seed)
  */
 static void
 aio_context_init(struct aio_context *ac, int read_fd,
-    int write_fd, int buflen, int seconds, void (*cleanup)(void *),
-    void *cleanup_arg)
+    int write_fd, int buflen)
 {
 
 	ATF_REQUIRE_MSG(buflen <= BUFFER_MAX,
@@ -179,9 +146,6 @@ aio_context_init(struct aio_context *ac, int read_fd,
 	aio_fill_buffer(ac->ac_buffer, buflen, ac->ac_seed);
 	ATF_REQUIRE_MSG(aio_test_buffer(ac->ac_buffer, buflen,
 	    ac->ac_seed) != 0, "aio_test_buffer: internal error");
-	ac->ac_seconds = seconds;
-	ac->ac_cleanup = cleanup;
-	ac->ac_cleanup_arg = cleanup_arg;
 }
 
 static ssize_t
@@ -189,7 +153,7 @@ poll(struct aiocb *aio)
 {
 	int error;
 
-	while ((error = aio_error(aio)) == EINPROGRESS && !aio_timedout)
+	while ((error = aio_error(aio)) == EINPROGRESS)
 		usleep(25000);
 	switch (error) {
 		case EINPROGRESS:
@@ -227,23 +191,6 @@ waitcomplete(struct aiocb *aio)
 }
 
 /*
- * Each tester can register a callback to clean up in the event the test
- * fails.  Preserve the value of errno so that subsequent calls to errx()
- * work properly.
- */
-static void
-aio_cleanup(struct aio_context *ac)
-{
-	int error;
-
-	if (ac->ac_cleanup == NULL)
-		return;
-	error = errno;
-	(ac->ac_cleanup)(ac->ac_cleanup_arg);
-	errno = error;
-}
-
-/*
  * Perform a simple write test of our initialized data buffer to the provided
  * file descriptor.
  */
@@ -259,37 +206,15 @@ aio_write_test(struct aio_context *ac, completion comp)
 	aio.aio_fildes = ac->ac_write_fd;
 	aio.aio_offset = 0;
 
-	aio_timeout_start(ac->ac_seconds);
-
-	if (aio_write(&aio) < 0) {
-		if (errno == EINTR) {
-			if (aio_timedout) {
-				aio_cleanup(ac);
-				atf_tc_fail("aio_write timed out");
-			}
-		}
-		aio_cleanup(ac);
+	if (aio_write(&aio) < 0)
 		atf_tc_fail("aio_write failed: %s", strerror(errno));
-	}
 
 	len = comp(&aio);
-	if (len < 0) {
-		if (errno == EINTR) {
-			if (aio_timedout) {
-				aio_cleanup(ac);
-				atf_tc_fail("aio timed out");
-			}
-		}
-		aio_cleanup(ac);
+	if (len < 0)
 		atf_tc_fail("aio failed: %s", strerror(errno));
-	}
 
-	aio_timeout_stop();
-
-	if (len != ac->ac_buflen) {
-		aio_cleanup(ac);
+	if (len != ac->ac_buflen)
 		atf_tc_fail("aio short write (%jd)", (intmax_t)len);
-	}
 }
 
 /*
@@ -309,43 +234,18 @@ aio_read_test(struct aio_context *ac, completion comp)
 	aio.aio_fildes = ac->ac_read_fd;
 	aio.aio_offset = 0;
 
-	aio_timeout_start(ac->ac_seconds);
-
-	if (aio_read(&aio) < 0) {
-		if (errno == EINTR) {
-			if (aio_timedout) {
-				aio_cleanup(ac);
-				atf_tc_fail("aio_read timed out");
-			}
-		}
-		aio_cleanup(ac);
+	if (aio_read(&aio) < 0)
 		atf_tc_fail("aio_read failed: %s", strerror(errno));
-	}
 
 	len = comp(&aio);
-	if (len < 0) {
-		if (errno == EINTR) {
-			if (aio_timedout) {
-				aio_cleanup(ac);
-				atf_tc_fail("aio timed out");
-			}
-		}
-		aio_cleanup(ac);
+	if (len < 0)
 		atf_tc_fail("aio failed: %s", strerror(errno));
-	}
 
-	aio_timeout_stop();
+	ATF_REQUIRE_EQ_MSG(len, ac->ac_buflen,
+	    "aio short read (%jd)", (intmax_t)len);
 
-	if (len != ac->ac_buflen) {
-		aio_cleanup(ac);
-		atf_tc_fail("aio short read (%jd)",
-		    (intmax_t)len);
-	}
-
-	if (aio_test_buffer(ac->ac_buffer, ac->ac_buflen, ac->ac_seed) == 0) {
-		aio_cleanup(ac);
+	if (aio_test_buffer(ac->ac_buffer, ac->ac_buflen, ac->ac_seed) == 0)
 		atf_tc_fail("buffer mismatched");
-	}
 }
 
 /*
@@ -360,25 +260,10 @@ aio_read_test(struct aio_context *ac, completion comp)
  */
 #define	FILE_LEN	GLOBAL_MAX
 #define	FILE_PATHNAME	"testfile"
-#define	FILE_TIMEOUT	30
-struct aio_file_arg {
-	int	 afa_fd;
-};
-
-static void
-aio_file_cleanup(void *arg)
-{
-	struct aio_file_arg *afa;
-
-	afa = arg;
-	close(afa->afa_fd);
-	unlink(FILE_PATHNAME);
-}
 
 static void
 aio_file_test(completion comp)
 {
-	struct aio_file_arg arg;
 	struct aio_context ac;
 	int fd;
 
@@ -388,14 +273,10 @@ aio_file_test(completion comp)
 	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
-	arg.afa_fd = fd;
-
-	aio_context_init(&ac, fd, fd, FILE_LEN,
-	    FILE_TIMEOUT, aio_file_cleanup, &arg);
+	aio_context_init(&ac, fd, fd, FILE_LEN);
 	aio_write_test(&ac, comp);
 	aio_read_test(&ac, comp);
-
-	aio_file_cleanup(&arg);
+	close(fd);
 }
 
 ATF_TC_WITHOUT_HEAD(file_poll);
@@ -418,30 +299,11 @@ ATF_TC_BODY(file_waitcomplete, tc)
 
 #define	FIFO_LEN	256
 #define	FIFO_PATHNAME	"testfifo"
-#define	FIFO_TIMEOUT	30
-struct aio_fifo_arg {
-	int	 afa_read_fd;
-	int	 afa_write_fd;
-};
-
-static void
-aio_fifo_cleanup(void *arg)
-{
-	struct aio_fifo_arg *afa;
-
-	afa = arg;
-	if (afa->afa_read_fd != -1)
-		close(afa->afa_read_fd);
-	if (afa->afa_write_fd != -1)
-		close(afa->afa_write_fd);
-	unlink(FIFO_PATHNAME);
-}
 
 static void
 aio_fifo_test(completion comp)
 {
 	int error, read_fd = -1, write_fd = -1;
-	struct aio_fifo_arg arg;
 	struct aio_context ac;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
@@ -449,35 +311,29 @@ aio_fifo_test(completion comp)
 
 	ATF_REQUIRE_MSG(mkfifo(FIFO_PATHNAME, 0600) != -1,
 	    "mkfifo failed: %s", strerror(errno));
-	arg.afa_read_fd = -1;
-	arg.afa_write_fd = -1;
 
 	read_fd = open(FIFO_PATHNAME, O_RDONLY | O_NONBLOCK);
 	if (read_fd == -1) {
 		error = errno;
-		aio_fifo_cleanup(&arg);
 		errno = error;
 		atf_tc_fail("read_fd open failed: %s",
 		    strerror(errno));
 	}
-	arg.afa_read_fd = read_fd;
 
 	write_fd = open(FIFO_PATHNAME, O_WRONLY);
 	if (write_fd == -1) {
 		error = errno;
-		aio_fifo_cleanup(&arg);
 		errno = error;
 		atf_tc_fail("write_fd open failed: %s",
 		    strerror(errno));
 	}
-	arg.afa_write_fd = write_fd;
 
-	aio_context_init(&ac, read_fd, write_fd, FIFO_LEN,
-	    FIFO_TIMEOUT, aio_fifo_cleanup, &arg);
+	aio_context_init(&ac, read_fd, write_fd, FIFO_LEN);
 	aio_write_test(&ac, comp);
 	aio_read_test(&ac, comp);
 
-	aio_fifo_cleanup(&arg);
+	close(read_fd);
+	close(write_fd);
 }
 
 ATF_TC_WITHOUT_HEAD(fifo_poll);
@@ -489,7 +345,7 @@ ATF_TC_BODY(fifo_poll, tc)
 ATF_TC_WITHOUT_HEAD(fifo_suspend);
 ATF_TC_BODY(fifo_suspend, tc)
 {
-	aio_fifo_test(waitcomplete);
+	aio_fifo_test(suspend);
 }
 
 ATF_TC_WITHOUT_HEAD(fifo_waitcomplete);
@@ -498,26 +354,10 @@ ATF_TC_BODY(fifo_waitcomplete, tc)
 	aio_fifo_test(waitcomplete);
 }
 
-struct aio_unix_socketpair_arg {
-	int	asa_sockets[2];
-};
-
-static void
-aio_unix_socketpair_cleanup(void *arg)
-{
-	struct aio_unix_socketpair_arg *asa;
-
-	asa = arg;
-	close(asa->asa_sockets[0]);
-	close(asa->asa_sockets[1]);
-}
-
 #define	UNIX_SOCKETPAIR_LEN	256
-#define	UNIX_SOCKETPAIR_TIMEOUT	30
 static void
 aio_unix_socketpair_test(completion comp)
 {
-	struct aio_unix_socketpair_arg arg;
 	struct aio_context ac;
 	struct rusage ru_before, ru_after;
 	int sockets[2];
@@ -527,11 +367,7 @@ aio_unix_socketpair_test(completion comp)
 	ATF_REQUIRE_MSG(socketpair(PF_UNIX, SOCK_STREAM, 0, sockets) != -1,
 	    "socketpair failed: %s", strerror(errno));
 
-	arg.asa_sockets[0] = sockets[0];
-	arg.asa_sockets[1] = sockets[1];
-	aio_context_init(&ac, sockets[0],
-	    sockets[1], UNIX_SOCKETPAIR_LEN, UNIX_SOCKETPAIR_TIMEOUT,
-	    aio_unix_socketpair_cleanup, &arg);
+	aio_context_init(&ac, sockets[0], sockets[1], UNIX_SOCKETPAIR_LEN);
 	ATF_REQUIRE_MSG(getrusage(RUSAGE_SELF, &ru_before) != -1,
 	    "getrusage failed: %s", strerror(errno));
 	aio_write_test(&ac, comp);
@@ -544,7 +380,8 @@ aio_unix_socketpair_test(completion comp)
 	    "getrusage failed: %s", strerror(errno));
 	ATF_REQUIRE(ru_after.ru_msgrcv == ru_before.ru_msgrcv + 1);
 
-	aio_unix_socketpair_cleanup(&arg);
+	close(sockets[0]);
+	close(sockets[1]);
 }
 
 ATF_TC_WITHOUT_HEAD(socket_poll);
@@ -570,22 +407,10 @@ struct aio_pty_arg {
 	int	apa_write_fd;
 };
 
-static void
-aio_pty_cleanup(void *arg)
-{
-	struct aio_pty_arg *apa;
-
-	apa = arg;
-	close(apa->apa_read_fd);
-	close(apa->apa_write_fd);
-};
-
 #define	PTY_LEN		256
-#define	PTY_TIMEOUT	30
 static void
 aio_pty_test(completion comp)
 {
-	struct aio_pty_arg arg;
 	struct aio_context ac;
 	int read_fd, write_fd;
 	struct termios ts;
@@ -597,29 +422,25 @@ aio_pty_test(completion comp)
 	ATF_REQUIRE_MSG(openpty(&read_fd, &write_fd, NULL, NULL, NULL) == 0,
 	    "openpty failed: %s", strerror(errno));
 
-	arg.apa_read_fd = read_fd;
-	arg.apa_write_fd = write_fd;
 
 	if (tcgetattr(write_fd, &ts) < 0) {
 		error = errno;
-		aio_pty_cleanup(&arg);
 		errno = error;
 		atf_tc_fail("tcgetattr failed: %s", strerror(errno));
 	}
 	cfmakeraw(&ts);
 	if (tcsetattr(write_fd, TCSANOW, &ts) < 0) {
 		error = errno;
-		aio_pty_cleanup(&arg);
 		errno = error;
 		atf_tc_fail("tcsetattr failed: %s", strerror(errno));
 	}
-	aio_context_init(&ac, read_fd, write_fd, PTY_LEN,
-	    PTY_TIMEOUT, aio_pty_cleanup, &arg);
+	aio_context_init(&ac, read_fd, write_fd, PTY_LEN);
 
 	aio_write_test(&ac, comp);
 	aio_read_test(&ac, comp);
 
-	aio_pty_cleanup(&arg);
+	close(read_fd);
+	close(write_fd);
 }
 
 ATF_TC_WITHOUT_HEAD(pty_poll);
@@ -640,17 +461,7 @@ ATF_TC_BODY(pty_waitcomplete, tc)
 	aio_pty_test(waitcomplete);
 }
 
-static void
-aio_pipe_cleanup(void *arg)
-{
-	int *pipes = arg;
-
-	close(pipes[0]);
-	close(pipes[1]);
-}
-
 #define	PIPE_LEN	256
-#define	PIPE_TIMEOUT	30
 static void
 aio_pipe_test(completion comp)
 {
@@ -663,12 +474,12 @@ aio_pipe_test(completion comp)
 	ATF_REQUIRE_MSG(pipe(pipes) != -1,
 	    "pipe failed: %s", strerror(errno));
 
-	aio_context_init(&ac, pipes[0], pipes[1], PIPE_LEN,
-	    PIPE_TIMEOUT, aio_pipe_cleanup, pipes);
+	aio_context_init(&ac, pipes[0], pipes[1], PIPE_LEN);
 	aio_write_test(&ac, comp);
 	aio_read_test(&ac, comp);
 
-	aio_pipe_cleanup(pipes);
+	close(pipes[0]);
+	close(pipes[1]);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_poll);
@@ -689,50 +500,45 @@ ATF_TC_BODY(pipe_waitcomplete, tc)
 	aio_pipe_test(waitcomplete);
 }
 
-struct aio_md_arg {
-	int	ama_mdctl_fd;
-	int	ama_unit;
-	int	ama_fd;
-};
+#define	MD_LEN		GLOBAL_MAX
+#define	MDUNIT_LINK	"mdunit_link"
 
 static void
-aio_md_cleanup(void *arg)
+aio_md_cleanup(void)
 {
-	struct aio_md_arg *ama;
 	struct md_ioctl mdio;
-	int error;
+	int mdctl_fd, error, n, unit;
+	char buf[80];
 
-	ama = arg;
-
-	if (ama->ama_fd != -1)
-		close(ama->ama_fd);
-
-	if (ama->ama_unit != -1) {
-		bzero(&mdio, sizeof(mdio));
-		mdio.md_version = MDIOVERSION;
-		mdio.md_unit = ama->ama_unit;
-		if (ioctl(ama->ama_mdctl_fd, MDIOCDETACH, &mdio) == -1) {
-			error = errno;
-			close(ama->ama_mdctl_fd);
-			errno = error;
-			atf_tc_fail("ioctl MDIOCDETACH failed: %s",
-			    strerror(errno));
+	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
+	ATF_REQUIRE(mdctl_fd >= 0);
+	n = readlink(MDUNIT_LINK, buf, sizeof(buf));
+	if (n > 0) {
+		if (sscanf(buf, "%d", &unit) == 1 && unit >= 0) {
+			bzero(&mdio, sizeof(mdio));
+			mdio.md_version = MDIOVERSION;
+			mdio.md_unit = unit;
+			if (ioctl(mdctl_fd, MDIOCDETACH, &mdio) == -1) {
+				error = errno;
+				close(mdctl_fd);
+				errno = error;
+				atf_tc_fail("ioctl MDIOCDETACH failed: %s",
+				    strerror(errno));
+			}
 		}
 	}
-
-	close(ama->ama_mdctl_fd);
+		
+	close(mdctl_fd);
 }
 
-#define	MD_LEN		GLOBAL_MAX
-#define	MD_TIMEOUT	30
 static void
 aio_md_test(completion comp)
 {
 	int error, fd, mdctl_fd, unit;
 	char pathname[PATH_MAX];
-	struct aio_md_arg arg;
 	struct aio_context ac;
 	struct md_ioctl mdio;
+	char buf[80];
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_UNSAFE_AIO();
@@ -748,32 +554,30 @@ aio_md_test(completion comp)
 	mdio.md_mediasize = GLOBAL_MAX;
 	mdio.md_sectorsize = 512;
 
-	arg.ama_mdctl_fd = mdctl_fd;
-	arg.ama_unit = -1;
-	arg.ama_fd = -1;
 	if (ioctl(mdctl_fd, MDIOCATTACH, &mdio) < 0) {
 		error = errno;
-		aio_md_cleanup(&arg);
 		errno = error;
 		atf_tc_fail("ioctl MDIOCATTACH failed: %s", strerror(errno));
 	}
+	close(mdctl_fd);
 
-	arg.ama_unit = unit = mdio.md_unit;
+	/* Store the md unit number in a symlink for future cleanup */
+	unit = mdio.md_unit;
+	snprintf(buf, sizeof(buf), "%d", unit);
+	ATF_REQUIRE_EQ(0, symlink(buf, MDUNIT_LINK));
 	snprintf(pathname, PATH_MAX, "/dev/md%d", unit);
 	fd = open(pathname, O_RDWR);
 	ATF_REQUIRE_MSG(fd != -1,
 	    "opening %s failed: %s", pathname, strerror(errno));
-	arg.ama_fd = fd;
 
-	aio_context_init(&ac, fd, fd, MD_LEN, MD_TIMEOUT,
-	    aio_md_cleanup, &arg);
+	aio_context_init(&ac, fd, fd, MD_LEN);
 	aio_write_test(&ac, comp);
 	aio_read_test(&ac, comp);
-
-	aio_md_cleanup(&arg);
+	
+	close(fd);
 }
 
-ATF_TC(md_poll);
+ATF_TC_WITH_CLEANUP(md_poll);
 ATF_TC_HEAD(md_poll, tc)
 {
 
@@ -783,8 +587,12 @@ ATF_TC_BODY(md_poll, tc)
 {
 	aio_md_test(poll);
 }
+ATF_TC_CLEANUP(md_poll, tc)
+{
+	aio_md_cleanup();
+}
 
-ATF_TC(md_suspend);
+ATF_TC_WITH_CLEANUP(md_suspend);
 ATF_TC_HEAD(md_suspend, tc)
 {
 
@@ -794,8 +602,12 @@ ATF_TC_BODY(md_suspend, tc)
 {
 	aio_md_test(suspend);
 }
+ATF_TC_CLEANUP(md_suspend, tc)
+{
+	aio_md_cleanup();
+}
 
-ATF_TC(md_waitcomplete);
+ATF_TC_WITH_CLEANUP(md_waitcomplete);
 ATF_TC_HEAD(md_waitcomplete, tc)
 {
 
@@ -804,6 +616,10 @@ ATF_TC_HEAD(md_waitcomplete, tc)
 ATF_TC_BODY(md_waitcomplete, tc)
 {
 	aio_md_test(waitcomplete);
+}
+ATF_TC_CLEANUP(md_waitcomplete, tc)
+{
+	aio_md_cleanup();
 }
 
 ATF_TC_WITHOUT_HEAD(aio_large_read_test);
