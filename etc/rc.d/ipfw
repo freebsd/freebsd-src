@@ -17,7 +17,9 @@ start_cmd="ipfw_start"
 start_precmd="ipfw_prestart"
 start_postcmd="ipfw_poststart"
 stop_cmd="ipfw_stop"
+status_cmd="ipfw_status"
 required_modules="ipfw"
+extra_commands="status"
 
 set_rcvar_obsolete ipv6_firewall_enable
 
@@ -107,6 +109,18 @@ ipfw_stop()
 			${_coscript} quietstop
 		fi
 	done
+}
+
+ipfw_status()
+{
+    status=$(sysctl -n net.inet.ip.fw.enable)
+    if [ ${status} -eq 0 ]; then
+	echo "ipfw is not enabled"
+	exit 1
+    else
+	echo "ipfw is enabled"
+	exit 0
+    fi
 }
 
 load_rc_config $name
