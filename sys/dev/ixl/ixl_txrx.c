@@ -1578,6 +1578,18 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		else
 			vtag = 0;
 
+		/* Remove device access to the rx buffers. */
+		if (rbuf->m_head != NULL) {
+			bus_dmamap_sync(rxr->htag, rbuf->hmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->htag, rbuf->hmap);
+		}
+		if (rbuf->m_pack != NULL) {
+			bus_dmamap_sync(rxr->ptag, rbuf->pmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->ptag, rbuf->pmap);
+		}
+
 		/*
 		** Make sure bad packets are discarded,
 		** note that only EOP descriptor has valid
