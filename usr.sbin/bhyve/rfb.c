@@ -897,11 +897,11 @@ rfb_init(char *hostname, int port, int wait)
 
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
+	sin.sin_port = port ? htons(port) : htons(5900);
 	if (hostname && strlen(hostname) > 0)
 		inet_pton(AF_INET, hostname, &(sin.sin_addr));
 	else
-		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 	if (bind(rc->sfd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		perror("bind");

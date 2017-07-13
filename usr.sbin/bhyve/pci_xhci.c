@@ -28,7 +28,7 @@
     -s <n>,xhci,{devices}
 
    devices:
-     ums             USB tablet mouse
+     tablet             USB tablet mouse
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
