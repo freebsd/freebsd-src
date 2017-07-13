@@ -90,6 +90,14 @@
 	<entry>27&nbsp;April&nbsp;2017</entry>
 	<entry><para>Fix fragment handling panic</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-17:05.heimdal.asc">FreeBSD-SA-17:05.heimdal</link></entry>
+	<entry>12&nbsp;July&nbsp;2017</entry>
+	<entry><para>Fix KDC-REP service name validation
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
