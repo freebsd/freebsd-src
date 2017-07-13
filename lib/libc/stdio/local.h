@@ -38,6 +38,9 @@
  * $FreeBSD$
  */
 
+#ifndef _STDIO_LOCAL_H
+#define	_STDIO_LOCAL_H
+
 #include <sys/types.h>	/* for off_t */
 #include <pthread.h>
 #include <string.h>
@@ -138,3 +141,26 @@ __fgetwc(FILE *fp, locale_t locale)
 	if ((fp)->_orientation == 0)			\
 		(fp)->_orientation = (o);		\
 } while (0)
+
+void __stdio_cancel_cleanup(void *);
+#define	FLOCKFILE_CANCELSAFE(fp)					\
+	{								\
+		struct _pthread_cleanup_info __cleanup_info__;		\
+		if (__isthreaded) {					\
+			_FLOCKFILE(fp);					\
+			___pthread_cleanup_push_imp(			\
+			    __stdio_cancel_cleanup, (fp), 		\
+			    &__cleanup_info__);				\
+		} else {						\
+			___pthread_cleanup_push_imp(			\
+			    __stdio_cancel_cleanup, NULL, 		\
+			    &__cleanup_info__);				\
+		}							\
+		{
+#define	FUNLOCKFILE_CANCELSAFE()					\
+			(void)0;					\
+		}							\
+		___pthread_cleanup_pop_imp(1);				\
+	}
+
+#endif /* _STDIO_LOCAL_H */
