@@ -302,7 +302,7 @@ options 	SX_NOINLINE
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
 # UMTX_PROFILING enables rudimentary profiling of the hash table used 
-	  to hold active lock queues.
+#	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_KDB causes the witness code to drop into the kernel debugger if
