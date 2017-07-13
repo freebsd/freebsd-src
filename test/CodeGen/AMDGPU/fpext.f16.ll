@@ -1,6 +1,6 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=SI -check-prefix=SIVI %s
-; RUN: llc -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=VI -check-prefix=GFX89 %s
-; RUN: llc -march=amdgcn -mcpu=gfx901 -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=GFX9 -check-prefix=GFX89 %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=SI -check-prefix=SIVI %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=VI -check-prefix=GFX89 %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=gfx901 -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN -check-prefix=GFX9 -check-prefix=GFX89 %s
 
 ; GCN-LABEL: {{^}}fpext_f16_to_f32
 ; GCN: buffer_load_ushort v[[A_F16:[0-9]+]]
@@ -154,7 +154,7 @@ entry:
 ; GCN: {{buffer|flat}}_load_ushort [[A:v[0-9]+]]
 ; GCN-DAG: v_cvt_f32_f16_e64 [[CVTA_NEG:v[0-9]+]], -[[A]]
 ; SI-DAG: v_cvt_f32_f16_e32 [[CVTA:v[0-9]+]], [[A]]
-; SI: v_mul_f32_e32 [[MUL_F32:v[0-9]+]], [[CVTA]], [[CVTA_NEG]]
+; SI: v_mul_f32_e32 [[MUL_F32:v[0-9]+]], [[CVTA_NEG]], [[CVTA]]
 ; SI: v_cvt_f16_f32_e32 [[MUL:v[0-9]+]], [[MUL_F32]]
 
 ; GFX89-DAG: v_cvt_f32_f16_e64 [[CVT_NEGA:v[0-9]+]], -[[A]]

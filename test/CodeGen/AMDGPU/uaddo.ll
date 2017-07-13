@@ -1,6 +1,6 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,SI,FUNC %s
-; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,VI,FUNC %s
-; RUN: llc -march=r600 -mcpu=cypress -verify-machineinstrs < %s | FileCheck -check-prefixes=EG,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,SI,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,VI,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=r600 -mcpu=cypress -verify-machineinstrs < %s | FileCheck -check-prefixes=EG,FUNC %s
 
 ; FUNC-LABEL: {{^}}s_uaddo_i64_zext:
 ; GCN: s_add_u32
@@ -58,8 +58,8 @@ define amdgpu_kernel void @v_uaddo_i32(i32 addrspace(1)* %out, i1 addrspace(1)* 
 }
 
 ; FUNC-LABEL: {{^}}v_uaddo_i32_novcc:
-; GCN: v_add_i32_e64 v{{[0-9]+}}, [[COND:s\[[0-9]+:[0-9]+\]]], v{{[0-9]+}}, v{{[0-9]+}}
-; GCN: v_cndmask_b32_e64 v{{[0-9]+}}, 0, 1, [[COND]]
+; GCN: v_add_i32_e32 v{{[0-9]+}}, vcc, v{{[0-9]+}}, v{{[0-9]+}}
+; GCN: v_cndmask_b32_e64 v{{[0-9]+}}, 0, 1, vcc
 
 ; EG: ADDC_UINT
 ; EG: ADD_INT

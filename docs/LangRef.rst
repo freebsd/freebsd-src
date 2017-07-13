@@ -2209,12 +2209,21 @@ For a simpler introduction to the ordering constraints, see the
     same address in this global order. This corresponds to the C++0x/C1x
     ``memory_order_seq_cst`` and Java volatile.
 
-.. _singlethread:
+.. _syncscope:
 
-If an atomic operation is marked ``singlethread``, it only *synchronizes
-with* or participates in modification and seq\_cst total orderings with
-other operations running in the same thread (for example, in signal
-handlers).
+If an atomic operation is marked ``syncscope("singlethread")``, it only
+*synchronizes with* and only participates in the seq\_cst total orderings of
+other operations running in the same thread (for example, in signal handlers).
+
+If an atomic operation is marked ``syncscope("<target-scope>")``, where
+``<target-scope>`` is a target specific synchronization scope, then it is target
+dependent if it *synchronizes with* and participates in the seq\_cst total
+orderings of other operations.
+
+Otherwise, an atomic operation that is not marked ``syncscope("singlethread")``
+or ``syncscope("<target-scope>")`` *synchronizes with* and participates in the
+seq\_cst total orderings of other operations that are not marked
+``syncscope("singlethread")`` or ``syncscope("<target-scope>")``.
 
 .. _fastmath:
 
@@ -5034,7 +5043,7 @@ which is the string ``llvm.loop.licm_versioning.disable``. For example:
 
 Loop distribution allows splitting a loop into multiple loops.  Currently,
 this is only performed if the entire loop cannot be vectorized due to unsafe
-memory dependencies.  The transformation will atempt to isolate the unsafe
+memory dependencies.  The transformation will attempt to isolate the unsafe
 dependencies into their own loop.
 
 This metadata can be used to selectively enable or disable distribution of the
@@ -7380,7 +7389,7 @@ Syntax:
 ::
 
       <result> = load [volatile] <ty>, <ty>* <pointer>[, align <alignment>][, !nontemporal !<index>][, !invariant.load !<index>][, !invariant.group !<index>][, !nonnull !<index>][, !dereferenceable !<deref_bytes_node>][, !dereferenceable_or_null !<deref_bytes_node>][, !align !<align_node>]
-      <result> = load atomic [volatile] <ty>, <ty>* <pointer> [singlethread] <ordering>, align <alignment> [, !invariant.group !<index>]
+      <result> = load atomic [volatile] <ty>, <ty>* <pointer> [syncscope("<target-scope>")] <ordering>, align <alignment> [, !invariant.group !<index>]
       !<index> = !{ i32 1 }
       !<deref_bytes_node> = !{i64 <dereferenceable_bytes>}
       !<align_node> = !{ i64 <value_alignment> }
@@ -7401,14 +7410,14 @@ modify the number or order of execution of this ``load`` with other
 :ref:`volatile operations <volatile>`.
 
 If the ``load`` is marked as ``atomic``, it takes an extra :ref:`ordering
-<ordering>` and optional ``singlethread`` argument. The ``release`` and
-``acq_rel`` orderings are not valid on ``load`` instructions. Atomic loads
-produce :ref:`defined <memmodel>` results when they may see multiple atomic
-stores. The type of the pointee must be an integer, pointer, or floating-point
-type whose bit width is a power of two greater than or equal to eight and less
-than or equal to a target-specific size limit.  ``align`` must be explicitly
-specified on atomic loads, and the load has undefined behavior if the alignment
-is not set to a value which is at least the size in bytes of the
+<ordering>` and optional ``syncscope("<target-scope>")`` argument. The
+``release`` and ``acq_rel`` orderings are not valid on ``load`` instructions.
+Atomic loads produce :ref:`defined <memmodel>` results when they may see
+multiple atomic stores. The type of the pointee must be an integer, pointer, or
+floating-point type whose bit width is a power of two greater than or equal to
+eight and less than or equal to a target-specific size limit.  ``align`` must be
+explicitly specified on atomic loads, and the load has undefined behavior if the
+alignment is not set to a value which is at least the size in bytes of the
 pointee. ``!nontemporal`` does not have any defined semantics for atomic loads.
 
 The optional constant ``align`` argument specifies the alignment of the
@@ -7509,7 +7518,7 @@ Syntax:
 ::
 
       store [volatile] <ty> <value>, <ty>* <pointer>[, align <alignment>][, !nontemporal !<index>][, !invariant.group !<index>]        ; yields void
-      store atomic [volatile] <ty> <value>, <ty>* <pointer> [singlethread] <ordering>, align <alignment> [, !invariant.group !<index>] ; yields void
+      store atomic [volatile] <ty> <value>, <ty>* <pointer> [syncscope("<target-scope>")] <ordering>, align <alignment> [, !invariant.group !<index>] ; yields void
 
 Overview:
 """""""""
@@ -7529,14 +7538,14 @@ allowed to modify the number or order of execution of this ``store`` with other
 structural type <t_opaque>`) can be stored.
 
 If the ``store`` is marked as ``atomic``, it takes an extra :ref:`ordering
-<ordering>` and optional ``singlethread`` argument. The ``acquire`` and
-``acq_rel`` orderings aren't valid on ``store`` instructions. Atomic loads
-produce :ref:`defined <memmodel>` results when they may see multiple atomic
-stores. The type of the pointee must be an integer, pointer, or floating-point
-type whose bit width is a power of two greater than or equal to eight and less
-than or equal to a target-specific size limit.  ``align`` must be explicitly
-specified on atomic stores, and the store has undefined behavior if the
-alignment is not set to a value which is at least the size in bytes of the
+<ordering>` and optional ``syncscope("<target-scope>")`` argument. The
+``acquire`` and ``acq_rel`` orderings aren't valid on ``store`` instructions.
+Atomic loads produce :ref:`defined <memmodel>` results when they may see
+multiple atomic stores. The type of the pointee must be an integer, pointer, or
+floating-point type whose bit width is a power of two greater than or equal to
+eight and less than or equal to a target-specific size limit.  ``align`` must be
+explicitly specified on atomic stores, and the store has undefined behavior if
+the alignment is not set to a value which is at least the size in bytes of the
 pointee. ``!nontemporal`` does not have any defined semantics for atomic stores.
 
 The optional constant ``align`` argument specifies the alignment of the
@@ -7597,7 +7606,7 @@ Syntax:
 
 ::
 
-      fence [singlethread] <ordering>                   ; yields void
+      fence [syncscope("<target-scope>")] <ordering>  ; yields void
 
 Overview:
 """""""""
@@ -7631,17 +7640,17 @@ A ``fence`` which has ``seq_cst`` ordering, in addition to having both
 ``acquire`` and ``release`` semantics specified above, participates in
 the global program order of other ``seq_cst`` operations and/or fences.
 
-The optional ":ref:`singlethread <singlethread>`" argument specifies
-that the fence only synchronizes with other fences in the same thread.
-(This is useful for interacting with signal handlers.)
+A ``fence`` instruction can also take an optional
+":ref:`syncscope <syncscope>`" argument.
 
 Example:
 """"""""
 
 .. code-block:: llvm
 
-      fence acquire                          ; yields void
-      fence singlethread seq_cst             ; yields void
+      fence acquire                                        ; yields void
+      fence syncscope("singlethread") seq_cst              ; yields void
+      fence syncscope("agent") seq_cst                     ; yields void
 
 .. _i_cmpxchg:
 
@@ -7653,7 +7662,7 @@ Syntax:
 
 ::
 
-      cmpxchg [weak] [volatile] <ty>* <pointer>, <ty> <cmp>, <ty> <new> [singlethread] <success ordering> <failure ordering> ; yields  { ty, i1 }
+      cmpxchg [weak] [volatile] <ty>* <pointer>, <ty> <cmp>, <ty> <new> [syncscope("<target-scope>")] <success ordering> <failure ordering> ; yields  { ty, i1 }
 
 Overview:
 """""""""
@@ -7682,10 +7691,8 @@ must be at least ``monotonic``, the ordering constraint on failure must be no
 stronger than that on success, and the failure ordering cannot be either
 ``release`` or ``acq_rel``.
 
-The optional "``singlethread``" argument declares that the ``cmpxchg``
-is only atomic with respect to code (usually signal handlers) running in
-the same thread as the ``cmpxchg``. Otherwise the cmpxchg is atomic with
-respect to all other code in the system.
+A ``cmpxchg`` instruction can also take an optional
+":ref:`syncscope <syncscope>`" argument.
 
 The pointer passed into cmpxchg must have alignment greater than or
 equal to the size in memory of the operand.
@@ -7739,7 +7746,7 @@ Syntax:
 
 ::
 
-      atomicrmw [volatile] <operation> <ty>* <pointer>, <ty> <value> [singlethread] <ordering>                   ; yields ty
+      atomicrmw [volatile] <operation> <ty>* <pointer>, <ty> <value> [syncscope("<target-scope>")] <ordering>                   ; yields ty
 
 Overview:
 """""""""
@@ -7772,6 +7779,9 @@ be a pointer to that type. If the ``atomicrmw`` is marked as
 ``volatile``, then the optimizer is not allowed to modify the number or
 order of execution of this ``atomicrmw`` with other :ref:`volatile
 operations <volatile>`.
+
+A ``atomicrmw`` instruction can also take an optional
+":ref:`syncscope <syncscope>`" argument.
 
 Semantics:
 """"""""""
@@ -10272,6 +10282,8 @@ overlap. It copies "len" bytes of memory over. If the argument is known
 to be aligned to some boundary, this can be specified as the fourth
 argument, otherwise it should be set to 0 or 1 (both meaning no alignment).
 
+.. _int_memmove:
+
 '``llvm.memmove``' Intrinsic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -10326,6 +10338,8 @@ source location to the destination location, which may overlap. It
 copies "len" bytes of memory over. If the argument is known to be
 aligned to some boundary, this can be specified as the fourth argument,
 otherwise it should be set to 0 or 1 (both meaning no alignment).
+
+.. _int_memset:
 
 '``llvm.memset.*``' Intrinsics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -14168,4 +14182,154 @@ In the most general case call to the '``llvm.memcpy.element.unordered.atomic.*``
 lowered to a call to the symbol ``__llvm_memcpy_element_unordered_atomic_*``. Where '*'
 is replaced with an actual element size.
 
+Optimizer is allowed to inline memory copy when it's profitable to do so.
+
+'``llvm.memmove.element.unordered.atomic``' Intrinsic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Syntax:
+"""""""
+
+This is an overloaded intrinsic. You can use
+``llvm.memmove.element.unordered.atomic`` on any integer bit width and for
+different address spaces. Not all targets support all bit widths however.
+
+::
+
+      declare void @llvm.memmove.element.unordered.atomic.p0i8.p0i8.i32(i8* <dest>,
+                                                                        i8* <src>,
+                                                                        i32 <len>,
+                                                                        i32 <element_size>)
+      declare void @llvm.memmove.element.unordered.atomic.p0i8.p0i8.i64(i8* <dest>,
+                                                                        i8* <src>,
+                                                                        i64 <len>,
+                                                                        i32 <element_size>)
+
+Overview:
+"""""""""
+
+The '``llvm.memmove.element.unordered.atomic.*``' intrinsic is a specialization
+of the '``llvm.memmove.*``' intrinsic. It differs in that the ``dest`` and
+``src`` are treated as arrays with elements that are exactly ``element_size``
+bytes, and the copy between buffers uses a sequence of
+:ref:`unordered atomic <ordering>` load/store operations that are a positive
+integer multiple of the ``element_size`` in size.
+
+Arguments:
+""""""""""
+
+The first three arguments are the same as they are in the
+:ref:`@llvm.memmove <int_memmove>` intrinsic, with the added constraint that
+``len`` is required to be a positive integer multiple of the ``element_size``.
+If ``len`` is not a positive integer multiple of ``element_size``, then the
+behaviour of the intrinsic is undefined.
+
+``element_size`` must be a compile-time constant positive power of two no
+greater than a target-specific atomic access size limit.
+
+For each of the input pointers the ``align`` parameter attribute must be
+specified. It must be a power of two no less than the ``element_size``. Caller
+guarantees that both the source and destination pointers are aligned to that
+boundary.
+
+Semantics:
+""""""""""
+
+The '``llvm.memmove.element.unordered.atomic.*``' intrinsic copies ``len`` bytes
+of memory from the source location to the destination location. These locations
+are allowed to overlap. The memory copy is performed as a sequence of load/store
+operations where each access is guaranteed to be a multiple of ``element_size``
+bytes wide and aligned at an ``element_size`` boundary. 
+
+The order of the copy is unspecified. The same value may be read from the source
+buffer many times, but only one write is issued to the destination buffer per
+element. It is well defined to have concurrent reads and writes to both source
+and destination provided those reads and writes are unordered atomic when
+specified.
+
+This intrinsic does not provide any additional ordering guarantees over those
+provided by a set of unordered loads from the source location and stores to the
+destination.
+
+Lowering:
+"""""""""
+
+In the most general case call to the
+'``llvm.memmove.element.unordered.atomic.*``' is lowered to a call to the symbol
+``__llvm_memmove_element_unordered_atomic_*``. Where '*' is replaced with an
+actual element size.
+
 The optimizer is allowed to inline the memory copy when it's profitable to do so.
+
+.. _int_memset_element_unordered_atomic:
+
+'``llvm.memset.element.unordered.atomic``' Intrinsic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Syntax:
+"""""""
+
+This is an overloaded intrinsic. You can use ``llvm.memset.element.unordered.atomic`` on
+any integer bit width and for different address spaces. Not all targets
+support all bit widths however.
+
+::
+
+      declare void @llvm.memset.element.unordered.atomic.p0i8.i32(i8* <dest>,
+                                                                  i8 <value>,
+                                                                  i32 <len>,
+                                                                  i32 <element_size>)
+      declare void @llvm.memset.element.unordered.atomic.p0i8.i64(i8* <dest>,
+                                                                  i8 <value>,
+                                                                  i64 <len>,
+                                                                  i32 <element_size>)
+
+Overview:
+"""""""""
+
+The '``llvm.memset.element.unordered.atomic.*``' intrinsic is a specialization of the
+'``llvm.memset.*``' intrinsic. It differs in that the ``dest`` is treated as an array
+with elements that are exactly ``element_size`` bytes, and the assignment to that array
+uses uses a sequence of :ref:`unordered atomic <ordering>` store operations
+that are a positive integer multiple of the ``element_size`` in size.
+
+Arguments:
+""""""""""
+
+The first three arguments are the same as they are in the :ref:`@llvm.memset <int_memset>`
+intrinsic, with the added constraint that ``len`` is required to be a positive integer
+multiple of the ``element_size``. If ``len`` is not a positive integer multiple of
+``element_size``, then the behaviour of the intrinsic is undefined.
+
+``element_size`` must be a compile-time constant positive power of two no greater than
+target-specific atomic access size limit.
+
+The ``dest`` input pointer must have the ``align`` parameter attribute specified. It
+must be a power of two no less than the ``element_size``. Caller guarantees that
+the destination pointer is aligned to that boundary.
+
+Semantics:
+""""""""""
+
+The '``llvm.memset.element.unordered.atomic.*``' intrinsic sets the ``len`` bytes of
+memory starting at the destination location to the given ``value``. The memory is
+set with a sequence of store operations where each access is guaranteed to be a
+multiple of ``element_size`` bytes wide and aligned at an ``element_size`` boundary. 
+
+The order of the assignment is unspecified. Only one write is issued to the
+destination buffer per element. It is well defined to have concurrent reads and
+writes to the destination provided those reads and writes are unordered atomic
+when specified.
+
+This intrinsic does not provide any additional ordering guarantees over those
+provided by a set of unordered stores to the destination.
+
+Lowering:
+"""""""""
+
+In the most general case call to the '``llvm.memset.element.unordered.atomic.*``' is
+lowered to a call to the symbol ``__llvm_memset_element_unordered_atomic_*``. Where '*'
+is replaced with an actual element size.
+
+The optimizer is allowed to inline the memory assignment when it's profitable to do so.
+

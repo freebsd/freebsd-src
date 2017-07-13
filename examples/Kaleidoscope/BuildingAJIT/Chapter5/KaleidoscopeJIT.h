@@ -97,6 +97,15 @@ public:
       : TM(EngineBuilder().selectTarget(Triple(Remote.getTargetTriple()), "",
                                         "", SmallVector<std::string, 0>())),
         DL(TM->createDataLayout()),
+        ObjectLayer([&Remote]() {
+            std::unique_ptr<MyRemote::RCMemoryManager> MemMgr;
+            if (auto Err = Remote.createRemoteMemoryManager(MemMgr)) {
+              logAllUnhandledErrors(std::move(Err), errs(),
+                                    "Error creating remote memory manager:");
+              exit(1);
+            }
+            return MemMgr;
+          }),
         CompileLayer(ObjectLayer, SimpleCompiler(*TM)),
         OptimizeLayer(CompileLayer,
                       [this](std::shared_ptr<Module> M) {
@@ -146,18 +155,10 @@ public:
           return JITSymbol(nullptr);
         });
 
-    std::unique_ptr<MyRemote::RCMemoryManager> MemMgr;
-    if (auto Err = Remote.createRemoteMemoryManager(MemMgr)) {
-      logAllUnhandledErrors(std::move(Err), errs(),
-                            "Error creating remote memory manager:");
-      exit(1);
-    }
-
     // Add the set to the JIT with the resolver we created above and a newly
     // created SectionMemoryManager.
-    return OptimizeLayer.addModule(std::move(M),
-                                   std::move(MemMgr),
-                                   std::move(Resolver));
+    return cantFail(OptimizeLayer.addModule(std::move(M),
+                                            std::move(Resolver)));
   }
 
   Error addFunctionAST(std::unique_ptr<FunctionAST> FnAST) {
@@ -203,7 +204,7 @@ public:
         addModule(std::move(M));
         auto Sym = findSymbol(SharedFnAST->getName() + "$impl");
         assert(Sym && "Couldn't find compiled function?");
-        JITTargetAddress SymAddr = Sym.getAddress();
+        JITTargetAddress SymAddr = cantFail(Sym.getAddress());
         if (auto Err =
               IndirectStubsMgr->updatePointer(mangle(SharedFnAST->getName()),
                                               SymAddr)) {
@@ -227,7 +228,7 @@ public:
   }
 
   void removeModule(ModuleHandle H) {
-    OptimizeLayer.removeModule(H);
+    cantFail(OptimizeLayer.removeModule(H));
   }
 
 private:

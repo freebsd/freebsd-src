@@ -591,10 +591,10 @@ void DWARFContext::parseCompileUnits() {
 void DWARFContext::parseTypeUnits() {
   if (!TUs.empty())
     return;
-  for (const auto &I : getTypesSections()) {
+  forEachTypesSections([&](const DWARFSection &S) {
     TUs.emplace_back();
-    TUs.back().parse(*this, I.second);
-  }
+    TUs.back().parse(*this, S);
+  });
 }
 
 void DWARFContext::parseDWOCompileUnits() {
@@ -604,10 +604,10 @@ void DWARFContext::parseDWOCompileUnits() {
 void DWARFContext::parseDWOTypeUnits() {
   if (!DWOTUs.empty())
     return;
-  for (const auto &I : getTypesDWOSections()) {
+  forEachTypesDWOSections([&](const DWARFSection &S) {
     DWOTUs.emplace_back();
-    DWOTUs.back().parseDWO(*this, I.second);
-  }
+    DWOTUs.back().parseDWO(*this, S);
+  });
 }
 
 DWARFCompileUnit *DWARFContext::getCompileUnitForOffset(uint32_t Offset) {
@@ -937,27 +937,23 @@ DWARFContextInMemory::DWARFContextInMemory(
     : FileName(Obj.getFileName()), IsLittleEndian(Obj.isLittleEndian()),
       AddressSize(Obj.getBytesInAddress()) {
   for (const SectionRef &Section : Obj.sections()) {
-    StringRef name;
-    Section.getName(name);
+    StringRef Name;
+    Section.getName(Name);
     // Skip BSS and Virtual sections, they aren't interesting.
-    bool IsBSS = Section.isBSS();
-    if (IsBSS)
+    if (Section.isBSS() || Section.isVirtual())
       continue;
-    bool IsVirtual = Section.isVirtual();
-    if (IsVirtual)
-      continue;
-    StringRef data;
 
+    StringRef Data;
     section_iterator RelocatedSection = Section.getRelocatedSection();
     // Try to obtain an already relocated version of this section.
     // Else use the unrelocated section from the object file. We'll have to
     // apply relocations ourselves later.
-    if (!L || !L->getLoadedSectionContents(*RelocatedSection, data))
-      Section.getContents(data);
+    if (!L || !L->getLoadedSectionContents(*RelocatedSection, Data))
+      Section.getContents(Data);
 
-    if (auto Err = maybeDecompress(Section, name, data)) {
+    if (auto Err = maybeDecompress(Section, Name, Data)) {
       ErrorPolicy EP = HandleError(
-          createError("failed to decompress '" + name + "', ", std::move(Err)));
+          createError("failed to decompress '" + Name + "', ", std::move(Err)));
       if (EP == ErrorPolicy::Halt)
         return;
       continue;
@@ -965,26 +961,26 @@ DWARFContextInMemory::DWARFContextInMemory(
 
     // Compressed sections names in GNU style starts from ".z",
     // at this point section is decompressed and we drop compression prefix.
-    name = name.substr(
-        name.find_first_not_of("._z")); // Skip ".", "z" and "_" prefixes.
-
-    if (StringRef *SectionData = MapSectionToMember(name)) {
-      *SectionData = data;
-      if (name == "debug_ranges") {
-        // FIXME: Use the other dwo range section when we emit it.
-        RangeDWOSection.Data = data;
-      }
-    } else if (name == "debug_types") {
-      // Find debug_types data by section rather than name as there are
-      // multiple, comdat grouped, debug_types sections.
-      TypesSections[Section].Data = data;
-    } else if (name == "debug_types.dwo") {
-      TypesDWOSections[Section].Data = data;
-    }
+    Name = Name.substr(
+        Name.find_first_not_of("._z")); // Skip ".", "z" and "_" prefixes.
 
     // Map platform specific debug section names to DWARF standard section
     // names.
-    name = Obj.mapDebugSectionName(name);
+    Name = Obj.mapDebugSectionName(Name);
+
+    if (StringRef *SectionData = mapSectionToMember(Name)) {
+      *SectionData = Data;
+      if (Name == "debug_ranges") {
+        // FIXME: Use the other dwo range section when we emit it.
+        RangeDWOSection.Data = Data;
+      }
+    } else if (Name == "debug_types") {
+      // Find debug_types data by section rather than name as there are
+      // multiple, comdat grouped, debug_types sections.
+      TypesSections[Section].Data = Data;
+    } else if (Name == "debug_types.dwo") {
+      TypesDWOSections[Section].Data = Data;
+    }
 
     if (RelocatedSection == Obj.section_end())
       continue;
@@ -1012,21 +1008,8 @@ DWARFContextInMemory::DWARFContextInMemory(
 
     // TODO: Add support for relocations in other sections as needed.
     // Record relocations for the debug_info and debug_line sections.
-    RelocAddrMap *Map =
-        StringSwitch<RelocAddrMap *>(RelSecName)
-            .Case("debug_info", &InfoSection.Relocs)
-            .Case("debug_loc", &LocSection.Relocs)
-            .Case("debug_info.dwo", &InfoDWOSection.Relocs)
-            .Case("debug_line", &LineSection.Relocs)
-            .Case("debug_str_offsets", &StringOffsetSection.Relocs)
-            .Case("debug_ranges", &RangeSection.Relocs)
-            .Case("debug_addr", &AddrSection.Relocs)
-            .Case("apple_names", &AppleNamesSection.Relocs)
-            .Case("apple_types", &AppleTypesSection.Relocs)
-            .Case("apple_namespaces", &AppleNamespacesSection.Relocs)
-            .Case("apple_namespac", &AppleNamespacesSection.Relocs)
-            .Case("apple_objc", &AppleObjCSection.Relocs)
-            .Default(nullptr);
+    DWARFSection *Sec = mapNameToDWARFSection(RelSecName);
+    RelocAddrMap *Map = Sec ? &Sec->Relocs : nullptr;
     if (!Map) {
       // Find debug_types relocs by section rather than name as there are
       // multiple, comdat grouped, debug_types sections.
@@ -1059,10 +1042,10 @@ DWARFContextInMemory::DWARFContextInMemory(
       object::RelocVisitor V(Obj);
       uint64_t Val = V.visit(Reloc.getType(), Reloc, SymInfoOrErr->Address);
       if (V.error()) {
-        SmallString<32> Name;
-        Reloc.getTypeName(Name);
+        SmallString<32> Type;
+        Reloc.getTypeName(Type);
         ErrorPolicy EP = HandleError(
-            createError("failed to compute relocation: " + Name + ", ",
+            createError("failed to compute relocation: " + Type + ", ",
                         errorCodeToError(object_error::parse_failed)));
         if (EP == ErrorPolicy::Halt)
           return;
@@ -1079,40 +1062,47 @@ DWARFContextInMemory::DWARFContextInMemory(
     bool isLittleEndian)
     : IsLittleEndian(isLittleEndian), AddressSize(AddrSize) {
   for (const auto &SecIt : Sections) {
-    if (StringRef *SectionData = MapSectionToMember(SecIt.first()))
+    if (StringRef *SectionData = mapSectionToMember(SecIt.first()))
       *SectionData = SecIt.second->getBuffer();
   }
 }
 
-StringRef *DWARFContextInMemory::MapSectionToMember(StringRef Name) {
+DWARFSection *DWARFContextInMemory::mapNameToDWARFSection(StringRef Name) {
+  return StringSwitch<DWARFSection *>(Name)
+      .Case("debug_info", &InfoSection)
+      .Case("debug_loc", &LocSection)
+      .Case("debug_line", &LineSection)
+      .Case("debug_str_offsets", &StringOffsetSection)
+      .Case("debug_ranges", &RangeSection)
+      .Case("debug_info.dwo", &InfoDWOSection)
+      .Case("debug_loc.dwo", &LocDWOSection)
+      .Case("debug_line.dwo", &LineDWOSection)
+      .Case("debug_str_offsets.dwo", &StringOffsetDWOSection)
+      .Case("debug_addr", &AddrSection)
+      .Case("apple_names", &AppleNamesSection)
+      .Case("apple_types", &AppleTypesSection)
+      .Case("apple_namespaces", &AppleNamespacesSection)
+      .Case("apple_namespac", &AppleNamespacesSection)
+      .Case("apple_objc", &AppleObjCSection)
+      .Default(nullptr);
+}
+
+StringRef *DWARFContextInMemory::mapSectionToMember(StringRef Name) {
+  if (DWARFSection *Sec = mapNameToDWARFSection(Name))
+    return &Sec->Data;
   return StringSwitch<StringRef *>(Name)
-      .Case("debug_info", &InfoSection.Data)
       .Case("debug_abbrev", &AbbrevSection)
-      .Case("debug_loc", &LocSection.Data)
-      .Case("debug_line", &LineSection.Data)
       .Case("debug_aranges", &ARangeSection)
       .Case("debug_frame", &DebugFrameSection)
       .Case("eh_frame", &EHFrameSection)
       .Case("debug_str", &StringSection)
-      .Case("debug_str_offsets", &StringOffsetSection.Data)
-      .Case("debug_ranges", &RangeSection.Data)
       .Case("debug_macinfo", &MacinfoSection)
       .Case("debug_pubnames", &PubNamesSection)
       .Case("debug_pubtypes", &PubTypesSection)
       .Case("debug_gnu_pubnames", &GnuPubNamesSection)
       .Case("debug_gnu_pubtypes", &GnuPubTypesSection)
-      .Case("debug_info.dwo", &InfoDWOSection.Data)
       .Case("debug_abbrev.dwo", &AbbrevDWOSection)
-      .Case("debug_loc.dwo", &LocDWOSection.Data)
-      .Case("debug_line.dwo", &LineDWOSection.Data)
       .Case("debug_str.dwo", &StringDWOSection)
-      .Case("debug_str_offsets.dwo", &StringOffsetDWOSection.Data)
-      .Case("debug_addr", &AddrSection.Data)
-      .Case("apple_names", &AppleNamesSection.Data)
-      .Case("apple_types", &AppleTypesSection.Data)
-      .Case("apple_namespaces", &AppleNamespacesSection.Data)
-      .Case("apple_namespac", &AppleNamespacesSection.Data)
-      .Case("apple_objc", &AppleObjCSection.Data)
       .Case("debug_cu_index", &CUIndexSection)
       .Case("debug_tu_index", &TUIndexSection)
       .Case("gdb_index", &GdbIndexSection)

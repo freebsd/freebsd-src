@@ -1,6 +1,6 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,SI,FUNC %s
-; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,VI,FUNC %s
-; RUN: llc -march=r600 -mcpu=cypress -verify-machineinstrs < %s | FileCheck -check-prefixes=EG,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,SI,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -check-prefixes=GCN,VI,FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=r600 -mcpu=cypress -verify-machineinstrs < %s | FileCheck -check-prefixes=EG,FUNC %s
 
 ; FUNC-LABEL: {{^}}s_usubo_i64_zext:
 ; GCN: s_sub_u32
@@ -58,8 +58,8 @@ define amdgpu_kernel void @v_usubo_i32(i32 addrspace(1)* %out, i1 addrspace(1)* 
 }
 
 ; FUNC-LABEL: {{^}}v_usubo_i32_novcc:
-; GCN: v_sub_i32_e64 v{{[0-9]+}}, [[COND:s\[[0-9]+:[0-9]+\]]], v{{[0-9]+}}, v{{[0-9]+}}
-; GCN: v_cndmask_b32_e64 v{{[0-9]+}}, 0, 1, [[COND]]
+; GCN: v_sub_i32_e32 v{{[0-9]+}}, vcc, v{{[0-9]+}}, v{{[0-9]+}}
+; GCN: v_cndmask_b32_e64 v{{[0-9]+}}, 0, 1, vcc
 
 ; EG-DAG: SUBB_UINT
 ; EG-DAG: SUB_INT
@@ -120,7 +120,7 @@ define amdgpu_kernel void @v_usubo_i64(i64 addrspace(1)* %out, i1 addrspace(1)* 
 }
 
 ; FUNC-LABEL: {{^}}v_usubo_i16:
-; VI: v_subrev_u16_e32
+; VI: v_sub_u16_e32
 ; VI: v_cmp_gt_u16_e32
 define amdgpu_kernel void @v_usubo_i16(i16 addrspace(1)* %out, i1 addrspace(1)* %carryout, i16 addrspace(1)* %a.ptr, i16 addrspace(1)* %b.ptr) #0 {
   %tid = call i32 @llvm.amdgcn.workitem.id.x()

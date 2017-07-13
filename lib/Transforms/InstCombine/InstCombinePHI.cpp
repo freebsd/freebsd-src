@@ -636,10 +636,10 @@ static bool PHIsEqualValue(PHINode *PN, Value *NonPhiInVal,
 /// Return an existing non-zero constant if this phi node has one, otherwise
 /// return constant 1.
 static ConstantInt *GetAnyNonZeroConstInt(PHINode &PN) {
-  assert(isa<IntegerType>(PN.getType()) && "Expect only intger type phi");
+  assert(isa<IntegerType>(PN.getType()) && "Expect only integer type phi");
   for (Value *V : PN.operands())
     if (auto *ConstVA = dyn_cast<ConstantInt>(V))
-      if (!ConstVA->isZeroValue())
+      if (!ConstVA->isZero())
         return ConstVA;
   return ConstantInt::get(cast<IntegerType>(PN.getType()), 1);
 }
@@ -836,12 +836,12 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
         }
 
         // Otherwise, do an extract in the predecessor.
-        Builder->SetInsertPoint(Pred->getTerminator());
+        Builder.SetInsertPoint(Pred->getTerminator());
         Value *Res = InVal;
         if (Offset)
-          Res = Builder->CreateLShr(Res, ConstantInt::get(InVal->getType(),
+          Res = Builder.CreateLShr(Res, ConstantInt::get(InVal->getType(),
                                                           Offset), "extract");
-        Res = Builder->CreateTrunc(Res, Ty, "extract.t");
+        Res = Builder.CreateTrunc(Res, Ty, "extract.t");
         PredVal = Res;
         EltPHI->addIncoming(Res, Pred);
 

@@ -4270,6 +4270,7 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
   Value *Consensus = nullptr;
   unsigned NumUsesConsensus = 0;
   bool IsNumUsesConsensusValid = false;
+  bool PhiSeen = false;
   SmallVector<Instruction*, 16> AddrModeInsts;
   ExtAddrMode AddrMode;
   TypePromotionTransaction TPT(RemovedInsts);
@@ -4289,6 +4290,7 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
     if (PHINode *P = dyn_cast<PHINode>(V)) {
       for (Value *IncValue : P->incoming_values())
         worklist.push_back(IncValue);
+      PhiSeen = true;
       continue;
     }
 
@@ -4342,9 +4344,10 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
   TPT.commit();
 
   // If all the instructions matched are already in this BB, don't do anything.
-  if (none_of(AddrModeInsts, [&](Value *V) {
+  // If we saw Phi node then it is not local definitely.
+  if (!PhiSeen && none_of(AddrModeInsts, [&](Value *V) {
         return IsNonLocalValue(V, MemoryInst->getParent());
-      })) {
+                  })) {
     DEBUG(dbgs() << "CGP: Found      local addrmode: " << AddrMode << "\n");
     return false;
   }
@@ -4388,6 +4391,20 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
 
       ResultPtr = AddrMode.ScaledReg;
       AddrMode.Scale = 0;
+    }
+
+    // It is only safe to sign extend the BaseReg if we know that the math
+    // required to create it did not overflow before we extend it. Since
+    // the original IR value was tossed in favor of a constant back when
+    // the AddrMode was created we need to bail out gracefully if widths
+    // do not match instead of extending it.
+    //
+    // (See below for code to add the scale.)
+    if (AddrMode.Scale) {
+      Type *ScaledRegTy = AddrMode.ScaledReg->getType();
+      if (cast<IntegerType>(IntPtrTy)->getBitWidth() >
+          cast<IntegerType>(ScaledRegTy)->getBitWidth())
+        return false;
     }
 
     if (AddrMode.BaseGV) {
@@ -4440,19 +4457,11 @@ bool CodeGenPrepare::optimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
         Value *V = AddrMode.ScaledReg;
         if (V->getType() == IntPtrTy) {
           // done.
-        } else if (cast<IntegerType>(IntPtrTy)->getBitWidth() <
-                   cast<IntegerType>(V->getType())->getBitWidth()) {
-          V = Builder.CreateTrunc(V, IntPtrTy, "sunkaddr");
         } else {
-          // It is only safe to sign extend the BaseReg if we know that the math
-          // required to create it did not overflow before we extend it. Since
-          // the original IR value was tossed in favor of a constant back when
-          // the AddrMode was created we need to bail out gracefully if widths
-          // do not match instead of extending it.
-          Instruction *I = dyn_cast_or_null<Instruction>(ResultIndex);
-          if (I && (ResultIndex != AddrMode.BaseReg))
-            I->eraseFromParent();
-          return false;
+          assert(cast<IntegerType>(IntPtrTy)->getBitWidth() <
+                 cast<IntegerType>(V->getType())->getBitWidth() &&
+                 "We can't transform if ScaledReg is too narrow");
+          V = Builder.CreateTrunc(V, IntPtrTy, "sunkaddr");
         }
 
         if (AddrMode.Scale != 1)
