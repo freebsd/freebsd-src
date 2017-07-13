@@ -23,7 +23,7 @@ TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
-DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
+# DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
 AM_CFLAGS=$(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
@@ -850,6 +850,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_zip_winzip_aes256.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256_large.zip.uu \
 	libarchive/test/test_read_format_zip_winzip_aes256_stored.zip.uu \
+	libarchive/test/test_read_format_zip_with_invalid_traditional_eocd.zip.uu \
 	libarchive/test/test_read_format_zip_zip64a.zip.uu \
 	libarchive/test/test_read_format_zip_zip64b.zip.uu \
 	libarchive/test/test_read_large_splitted_rar_aa.uu \
