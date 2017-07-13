@@ -638,6 +638,13 @@
 	sponsor="&chelsio;">&man.devctl.8; now supports a &quot;clear
 	driver&quot; command as a complement to &quot;set
 	driver&quot;.</para>
+
+      <para revision="320954">The &man.digi.4;, &man.ie.4;,
+	&man.mcd.4;, &man.scd.4;, &man.si.4;, &man.spic.4;, and
+	&man.wl.4; drivers have been marked as deprecated, and removed
+	in &os;&nbsp;12.0.  The associated &man.sicontrol.8; and
+	&man.wlconfig.8; utilities have been deprecated, as
+	well.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
