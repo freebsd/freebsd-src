@@ -21,6 +21,7 @@
 #include "clang/Format/Format.h"
 #include "clang/Lex/Lexer.h"
 #include <memory>
+#include <unordered_set>
 
 namespace clang {
 namespace format {
@@ -466,7 +467,8 @@ struct FormatToken {
            (is(tok::l_brace) &&
             (BlockKind == BK_Block || is(TT_DictLiteral) ||
              (!Style.Cpp11BracedListStyle && NestingLevel == 0))) ||
-           (is(tok::less) && Style.Language == FormatStyle::LK_Proto);
+           (is(tok::less) && (Style.Language == FormatStyle::LK_Proto ||
+                              Style.Language == FormatStyle::LK_TextProto));
   }
 
   /// \brief Same as opensBlockOrBlockTypeList, but for the closing token.
@@ -639,6 +641,7 @@ struct AdditionalKeywords {
     kw_is = &IdentTable.get("is");
     kw_let = &IdentTable.get("let");
     kw_module = &IdentTable.get("module");
+    kw_readonly = &IdentTable.get("readonly");
     kw_set = &IdentTable.get("set");
     kw_type = &IdentTable.get("type");
     kw_var = &IdentTable.get("var");
@@ -671,6 +674,15 @@ struct AdditionalKeywords {
     kw_qsignals = &IdentTable.get("Q_SIGNALS");
     kw_slots = &IdentTable.get("slots");
     kw_qslots = &IdentTable.get("Q_SLOTS");
+
+    // Keep this at the end of the constructor to make sure everything here is
+    // already initialized.
+    JsExtraKeywords = std::unordered_set<IdentifierInfo *>(
+        {kw_as, kw_async, kw_await, kw_declare, kw_finally, kw_from,
+         kw_function, kw_get, kw_import, kw_is, kw_let, kw_module, kw_readonly,
+         kw_set, kw_type, kw_var, kw_yield,
+         // Keywords from the Java section.
+         kw_abstract, kw_extends, kw_implements, kw_instanceof, kw_interface});
   }
 
   // Context sensitive keywords.
@@ -699,6 +711,7 @@ struct AdditionalKeywords {
   IdentifierInfo *kw_is;
   IdentifierInfo *kw_let;
   IdentifierInfo *kw_module;
+  IdentifierInfo *kw_readonly;
   IdentifierInfo *kw_set;
   IdentifierInfo *kw_type;
   IdentifierInfo *kw_var;
@@ -732,6 +745,18 @@ struct AdditionalKeywords {
   IdentifierInfo *kw_qsignals;
   IdentifierInfo *kw_slots;
   IdentifierInfo *kw_qslots;
+
+  /// \brief Returns \c true if \p Tok is a true JavaScript identifier, returns
+  /// \c false if it is a keyword or a pseudo keyword.
+  bool IsJavaScriptIdentifier(const FormatToken &Tok) const {
+    return Tok.is(tok::identifier) &&
+           JsExtraKeywords.find(Tok.Tok.getIdentifierInfo()) ==
+               JsExtraKeywords.end();
+  }
+
+private:
+  /// \brief The JavaScript keywords beyond the C++ keyword set.
+  std::unordered_set<IdentifierInfo *> JsExtraKeywords;
 };
 
 } // namespace format
