@@ -1416,3 +1416,45 @@ vm_restart_instruction(void *arg, int vcpu)
 
 	return (ioctl(ctx->fd, VM_RESTART_INSTRUCTION, &vcpu));
 }
+
+int
+vm_get_device_fd(struct vmctx *ctx)
+{
+
+	return (ctx->fd);
+}
+
+const cap_ioctl_t *
+vm_get_ioctls(size_t *len)
+{
+	cap_ioctl_t *cmds;
+	/* keep in sync with machine/vmm_dev.h */
+	static const cap_ioctl_t vm_ioctl_cmds[] = { VM_RUN, VM_SUSPEND, VM_REINIT,
+	    VM_ALLOC_MEMSEG, VM_GET_MEMSEG, VM_MMAP_MEMSEG, VM_MMAP_MEMSEG,
+	    VM_MMAP_GETNEXT, VM_SET_REGISTER, VM_GET_REGISTER,
+	    VM_SET_SEGMENT_DESCRIPTOR, VM_GET_SEGMENT_DESCRIPTOR,
+	    VM_INJECT_EXCEPTION, VM_LAPIC_IRQ, VM_LAPIC_LOCAL_IRQ,
+	    VM_LAPIC_MSI, VM_IOAPIC_ASSERT_IRQ, VM_IOAPIC_DEASSERT_IRQ,
+	    VM_IOAPIC_PULSE_IRQ, VM_IOAPIC_PINCOUNT, VM_ISA_ASSERT_IRQ,
+	    VM_ISA_DEASSERT_IRQ, VM_ISA_PULSE_IRQ, VM_ISA_SET_IRQ_TRIGGER,
+	    VM_SET_CAPABILITY, VM_GET_CAPABILITY, VM_BIND_PPTDEV,
+	    VM_UNBIND_PPTDEV, VM_MAP_PPTDEV_MMIO, VM_PPTDEV_MSI,
+	    VM_PPTDEV_MSIX, VM_INJECT_NMI, VM_STATS, VM_STAT_DESC,
+	    VM_SET_X2APIC_STATE, VM_GET_X2APIC_STATE,
+	    VM_GET_HPET_CAPABILITIES, VM_GET_GPA_PMAP, VM_GLA2GPA,
+	    VM_ACTIVATE_CPU, VM_GET_CPUS, VM_SET_INTINFO, VM_GET_INTINFO,
+	    VM_RTC_WRITE, VM_RTC_READ, VM_RTC_SETTIME, VM_RTC_GETTIME,
+	    VM_RESTART_INSTRUCTION };
+
+	if (len == NULL) {
+		cmds = malloc(sizeof(vm_ioctl_cmds));
+		if (cmds == NULL)
+			return (NULL);
+		bcopy(vm_ioctl_cmds, cmds, sizeof(vm_ioctl_cmds));
+		return (cmds);
+	}
+
+	*len = nitems(vm_ioctl_cmds);
+	return (NULL);
+}
+

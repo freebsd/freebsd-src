@@ -30,6 +30,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/mman.h>
 #include <sys/time.h>
 
@@ -40,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include <errno.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
@@ -48,8 +52,15 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 #include <sysexits.h>
 #include <stdbool.h>
+#ifndef WITHOUT_CAPSICUM
+#include <nl_types.h>
+#include <termios.h>
+#endif
 
 #include <machine/vmm.h>
+#ifndef WITHOUT_CAPSICUM
+#include <machine/vmm_dev.h>
+#endif
 #include <vmmapi.h>
 
 #include "bhyverun.h"
@@ -151,6 +162,43 @@ usage(int code)
 
 	exit(code);
 }
+
+#ifndef WITHOUT_CAPSICUM
+/*
+ * 11-stable capsicum helpers
+ */
+static void
+bhyve_caph_cache_catpages(void)
+{
+
+	(void)catopen("libc", NL_CAT_LOCALE);
+}
+
+static int
+bhyve_caph_limit_stdoe(void)
+{
+	cap_rights_t rights;
+	unsigned long cmds[] = { TIOCGETA, TIOCGWINSZ };
+	int i, fds[] = { STDOUT_FILENO, STDERR_FILENO };
+
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL);
+	cap_rights_set(&rights, CAP_WRITE);
+
+	for (i = 0; i < nitems(fds); i++) {
+		if (cap_rights_limit(fds[i], &rights) < 0 && errno != ENOSYS)
+			return (-1);
+
+		if (cap_ioctls_limit(fds[i], cmds, nitems(cmds)) < 0 && errno != ENOSYS)
+			return (-1);
+
+		if (cap_fcntls_limit(fds[i], CAP_FCNTL_GETFL) < 0 && errno != ENOSYS)
+			return (-1);
+	}
+
+	return (0);
+}
+
+#endif
 
 static int
 pincpu_parse(const char *opt)
@@ -706,6 +754,11 @@ do_open(const char *vmname)
 	struct vmctx *ctx;
 	int error;
 	bool reinit, romboot;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	const cap_ioctl_t *cmds;	
+	size_t ncmds;
+#endif
 
 	reinit = romboot = false;
 
@@ -744,6 +797,21 @@ do_open(const char *vmname)
 		exit(1);
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_IOCTL, CAP_MMAP_RW);
+	if (cap_rights_limit(vm_get_device_fd(ctx), &rights) == -1 &&
+	    errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	vm_get_ioctls(&ncmds);
+	cmds = vm_get_ioctls(NULL);
+	if (cmds == NULL)
+		errx(EX_OSERR, "out of memory");
+	if (cap_ioctls_limit(vm_get_device_fd(ctx), cmds, ncmds) == -1 &&
+	    errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	free((cap_ioctl_t *)cmds);
+#endif
+ 
 	if (reinit) {
 		error = vm_reinit(ctx);
 		if (error) {
@@ -951,6 +1019,16 @@ main(int argc, char *argv[])
 
 	if (lpc_bootrom())
 		fwctl_init();
+
+#ifndef WITHOUT_CAPSICUM
+	
+
+	if (bhyve_caph_limit_stdoe() == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+
+	if (cap_enter() == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "cap_enter() failed");
+#endif
 
 	/*
 	 * Change the proc title to include the VM name.
