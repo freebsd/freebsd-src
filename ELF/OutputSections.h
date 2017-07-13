@@ -80,10 +80,6 @@ public:
   uint32_t ShName = 0;
 
   void addSection(InputSection *S);
-  void sort(std::function<int(InputSectionBase *S)> Order);
-  void sortInitFini();
-  void sortCtorsDtors();
-  void assignOffsets();
   std::vector<InputSection *> Sections;
 
   // Used for implementation of --compress-debug-sections option.
@@ -135,7 +131,7 @@ namespace elf {
 // linker scripts.
 class OutputSectionFactory {
 public:
-  OutputSectionFactory(std::vector<OutputSection *> &OutputSections);
+  OutputSectionFactory();
   ~OutputSectionFactory();
 
   void addInputSec(InputSectionBase *IS, StringRef OutsecName);
@@ -144,7 +140,6 @@ public:
 
 private:
   llvm::SmallDenseMap<SectionKey, OutputSection *> Map;
-  std::vector<OutputSection *> &OutputSections;
 };
 
 uint64_t getHeaderSize();
