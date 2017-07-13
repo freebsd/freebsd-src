@@ -136,6 +136,10 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
     addRegisterClass(MVT::f64, &PPC::F8RCRegClass);
   }
 
+  // Match BITREVERSE to customized fast code sequence in the td file.
+  setOperationAction(ISD::BITREVERSE, MVT::i32, Legal);
+  setOperationAction(ISD::BITREVERSE, MVT::i64, Legal);
+
   // PowerPC has an i16 but no i8 (or i1) SEXTLOAD.
   for (MVT VT : MVT::integer_valuetypes()) {
     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i1, Promote);
@@ -1168,6 +1172,7 @@ const char *PPCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case PPCISD::LXSIZX:          return "PPCISD::LXSIZX";
   case PPCISD::STXSIX:          return "PPCISD::STXSIX";
   case PPCISD::VEXTS:           return "PPCISD::VEXTS";
+  case PPCISD::SExtVElems:      return "PPCISD::SExtVElems";
   case PPCISD::LXVD2X:          return "PPCISD::LXVD2X";
   case PPCISD::STXVD2X:         return "PPCISD::STXVD2X";
   case PPCISD::COND_BRANCH:     return "PPCISD::COND_BRANCH";
@@ -2028,17 +2033,17 @@ int PPC::isQVALIGNIShuffleMask(SDNode *N) {
 /// or 64-bit immediate, and if the value can be accurately represented as a
 /// sign extension from a 16-bit value.  If so, this returns true and the
 /// immediate.
-static bool isIntS16Immediate(SDNode *N, short &Imm) {
+bool llvm::isIntS16Immediate(SDNode *N, int16_t &Imm) {
   if (!isa<ConstantSDNode>(N))
     return false;
 
-  Imm = (short)cast<ConstantSDNode>(N)->getZExtValue();
+  Imm = (int16_t)cast<ConstantSDNode>(N)->getZExtValue();
   if (N->getValueType(0) == MVT::i32)
     return Imm == (int32_t)cast<ConstantSDNode>(N)->getZExtValue();
   else
     return Imm == (int64_t)cast<ConstantSDNode>(N)->getZExtValue();
 }
-static bool isIntS16Immediate(SDValue Op, short &Imm) {
+bool llvm::isIntS16Immediate(SDValue Op, int16_t &Imm) {
   return isIntS16Immediate(Op.getNode(), Imm);
 }
 
@@ -2048,7 +2053,7 @@ static bool isIntS16Immediate(SDValue Op, short &Imm) {
 bool PPCTargetLowering::SelectAddressRegReg(SDValue N, SDValue &Base,
                                             SDValue &Index,
                                             SelectionDAG &DAG) const {
-  short imm = 0;
+  int16_t imm = 0;
   if (N.getOpcode() == ISD::ADD) {
     if (isIntS16Immediate(N.getOperand(1), imm))
       return false;    // r+i
@@ -2138,7 +2143,7 @@ bool PPCTargetLowering::SelectAddressRegImm(SDValue N, SDValue &Disp,
     return false;
 
   if (N.getOpcode() == ISD::ADD) {
-    short imm = 0;
+    int16_t imm = 0;
     if (isIntS16Immediate(N.getOperand(1), imm) &&
         (!Aligned || (imm & 3) == 0)) {
       Disp = DAG.getTargetConstant(imm, dl, N.getValueType());
@@ -2162,7 +2167,7 @@ bool PPCTargetLowering::SelectAddressRegImm(SDValue N, SDValue &Disp,
       return true;  // [&g+r]
     }
   } else if (N.getOpcode() == ISD::OR) {
-    short imm = 0;
+    int16_t imm = 0;
     if (isIntS16Immediate(N.getOperand(1), imm) &&
         (!Aligned || (imm & 3) == 0)) {
       // If this is an or of disjoint bitfields, we can codegen this as an add
@@ -2190,7 +2195,7 @@ bool PPCTargetLowering::SelectAddressRegImm(SDValue N, SDValue &Disp,
 
     // If this address fits entirely in a 16-bit sext immediate field, codegen
     // this as "d, 0"
-    short Imm;
+    int16_t Imm;
     if (isIntS16Immediate(CN, Imm) && (!Aligned || (Imm & 3) == 0)) {
       Disp = DAG.getTargetConstant(Imm, dl, CN->getValueType(0));
       Base = DAG.getRegister(Subtarget.isPPC64() ? PPC::ZERO8 : PPC::ZERO,
@@ -2235,10 +2240,15 @@ bool PPCTargetLowering::SelectAddressRegRegOnly(SDValue N, SDValue &Base,
   if (SelectAddressRegReg(N, Base, Index, DAG))
     return true;
 
-  // If the operand is an addition, always emit this as [r+r], since this is
-  // better (for code size, and execution, as the memop does the add for free)
-  // than emitting an explicit add.
-  if (N.getOpcode() == ISD::ADD) {
+  // If the address is the result of an add, we will utilize the fact that the
+  // address calculation includes an implicit add.  However, we can reduce
+  // register pressure if we do not materialize a constant just for use as the
+  // index register.  We only get rid of the add if it is not an add of a
+  // value and a 16-bit signed constant and both have a single use.
+  int16_t imm = 0;
+  if (N.getOpcode() == ISD::ADD &&
+      (!isIntS16Immediate(N.getOperand(1), imm) ||
+       !N.getOperand(1).hasOneUse() || !N.getOperand(0).hasOneUse())) {
     Base = N.getOperand(0);
     Index = N.getOperand(1);
     return true;
@@ -6422,7 +6432,7 @@ PPCTargetLowering::LowerGET_DYNAMIC_AREA_OFFSET(SDValue Op,
                                                 SelectionDAG &DAG) const {
   SDLoc dl(Op);
 
-  // Get the corect type for integers.
+  // Get the correct type for integers.
   EVT IntVT = Op.getValueType();
 
   // Get the inputs.
@@ -6439,7 +6449,7 @@ SDValue PPCTargetLowering::LowerSTACKRESTORE(SDValue Op,
   // When we pop the dynamic allocation we need to restore the SP link.
   SDLoc dl(Op);
 
-  // Get the corect type for pointers.
+  // Get the correct type for pointers.
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
 
   // Construct the stack pointer operand.
@@ -6514,7 +6524,7 @@ SDValue PPCTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
   SDValue Size  = Op.getOperand(1);
   SDLoc dl(Op);
 
-  // Get the corect type for pointers.
+  // Get the correct type for pointers.
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
   // Negate the size.
   SDValue NegSize = DAG.getNode(ISD::SUB, dl, PtrVT,
@@ -6645,6 +6655,7 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
     default: break;       // SETUO etc aren't handled by fsel.
     case ISD::SETNE:
       std::swap(TV, FV);
+      LLVM_FALLTHROUGH;
     case ISD::SETEQ:
       if (LHS.getValueType() == MVT::f32)   // Comparison is always 64-bits
         LHS = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, LHS);
@@ -6656,6 +6667,7 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
     case ISD::SETULT:
     case ISD::SETLT:
       std::swap(TV, FV);  // fsel is natively setge, swap operands for setlt
+      LLVM_FALLTHROUGH;
     case ISD::SETOGE:
     case ISD::SETGE:
       if (LHS.getValueType() == MVT::f32)   // Comparison is always 64-bits
@@ -6664,6 +6676,7 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
     case ISD::SETUGT:
     case ISD::SETGT:
       std::swap(TV, FV);  // fsel is natively setge, swap operands for setlt
+      LLVM_FALLTHROUGH;
     case ISD::SETOLE:
     case ISD::SETLE:
       if (LHS.getValueType() == MVT::f32)   // Comparison is always 64-bits
@@ -6677,6 +6690,7 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
   default: break;       // SETUO etc aren't handled by fsel.
   case ISD::SETNE:
     std::swap(TV, FV);
+    LLVM_FALLTHROUGH;
   case ISD::SETEQ:
     Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, LHS, RHS, Flags);
     if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
@@ -11311,6 +11325,132 @@ static SDValue combineBVOfConsecutiveLoads(SDNode *N, SelectionDAG &DAG) {
   return SDValue();
 }
 
+// This function adds the required vector_shuffle needed to get
+// the elements of the vector extract in the correct position
+// as specified by the CorrectElems encoding.
+static SDValue addShuffleForVecExtend(SDNode *N, SelectionDAG &DAG,
+                                      SDValue Input, uint64_t Elems,
+                                      uint64_t CorrectElems) {
+  SDLoc dl(N);
+
+  unsigned NumElems = Input.getValueType().getVectorNumElements();
+  SmallVector<int, 16> ShuffleMask(NumElems, -1);
+
+  // Knowing the element indices being extracted from the original
+  // vector and the order in which they're being inserted, just put
+  // them at element indices required for the instruction.
+  for (unsigned i = 0; i < N->getNumOperands(); i++) {
+    if (DAG.getDataLayout().isLittleEndian())
+      ShuffleMask[CorrectElems & 0xF] = Elems & 0xF;
+    else
+      ShuffleMask[(CorrectElems & 0xF0) >> 4] = (Elems & 0xF0) >> 4;
+    CorrectElems = CorrectElems >> 8;
+    Elems = Elems >> 8;
+  }
+
+  SDValue Shuffle =
+      DAG.getVectorShuffle(Input.getValueType(), dl, Input,
+                           DAG.getUNDEF(Input.getValueType()), ShuffleMask);
+
+  EVT Ty = N->getValueType(0);
+  SDValue BV = DAG.getNode(PPCISD::SExtVElems, dl, Ty, Shuffle);
+  return BV;
+}
+
+// Look for build vector patterns where input operands come from sign
+// extended vector_extract elements of specific indices. If the correct indices
+// aren't used, add a vector shuffle to fix up the indices and create a new
+// PPCISD:SExtVElems node which selects the vector sign extend instructions
+// during instruction selection.
+static SDValue combineBVOfVecSExt(SDNode *N, SelectionDAG &DAG) {
+  // This array encodes the indices that the vector sign extend instructions
+  // extract from when extending from one type to another for both BE and LE.
+  // The right nibble of each byte corresponds to the LE incides.
+  // and the left nibble of each byte corresponds to the BE incides.
+  // For example: 0x3074B8FC  byte->word
+  // For LE: the allowed indices are: 0x0,0x4,0x8,0xC
+  // For BE: the allowed indices are: 0x3,0x7,0xB,0xF
+  // For example: 0x000070F8  byte->double word
+  // For LE: the allowed indices are: 0x0,0x8
+  // For BE: the allowed indices are: 0x7,0xF
+  uint64_t TargetElems[] = {
+      0x3074B8FC, // b->w
+      0x000070F8, // b->d
+      0x10325476, // h->w
+      0x00003074, // h->d
+      0x00001032, // w->d
+  };
+
+  uint64_t Elems = 0;
+  int Index;
+  SDValue Input;
+
+  auto isSExtOfVecExtract = [&](SDValue Op) -> bool {
+    if (!Op)
+      return false;
+    if (Op.getOpcode() != ISD::SIGN_EXTEND)
+      return false;
+
+    SDValue Extract = Op.getOperand(0);
+    if (Extract.getOpcode() != ISD::EXTRACT_VECTOR_ELT)
+      return false;
+
+    ConstantSDNode *ExtOp = dyn_cast<ConstantSDNode>(Extract.getOperand(1));
+    if (!ExtOp)
+      return false;
+
+    Index = ExtOp->getZExtValue();
+    if (Input && Input != Extract.getOperand(0))
+      return false;
+
+    if (!Input)
+      Input = Extract.getOperand(0);
+
+    Elems = Elems << 8;
+    Index = DAG.getDataLayout().isLittleEndian() ? Index : Index << 4;
+    Elems |= Index;
+
+    return true;
+  };
+
+  // If the build vector operands aren't sign extended vector extracts,
+  // of the same input vector, then return.
+  for (unsigned i = 0; i < N->getNumOperands(); i++) {
+    if (!isSExtOfVecExtract(N->getOperand(i))) {
+      return SDValue();
+    }
+  }
+
+  // If the vector extract indicies are not correct, add the appropriate
+  // vector_shuffle.
+  int TgtElemArrayIdx;
+  int InputSize = Input.getValueType().getScalarSizeInBits();
+  int OutputSize = N->getValueType(0).getScalarSizeInBits();
+  if (InputSize + OutputSize == 40)
+    TgtElemArrayIdx = 0;
+  else if (InputSize + OutputSize == 72)
+    TgtElemArrayIdx = 1;
+  else if (InputSize + OutputSize == 48)
+    TgtElemArrayIdx = 2;
+  else if (InputSize + OutputSize == 80)
+    TgtElemArrayIdx = 3;
+  else if (InputSize + OutputSize == 96)
+    TgtElemArrayIdx = 4;
+  else
+    return SDValue();
+
+  uint64_t CorrectElems = TargetElems[TgtElemArrayIdx];
+  CorrectElems = DAG.getDataLayout().isLittleEndian()
+                     ? CorrectElems & 0x0F0F0F0F0F0F0F0F
+                     : CorrectElems & 0xF0F0F0F0F0F0F0F0;
+  if (Elems != CorrectElems) {
+    return addShuffleForVecExtend(N, DAG, Input, Elems, CorrectElems);
+  }
+
+  // Regular lowering will catch cases where a shuffle is not needed.
+  return SDValue();
+}
+
 SDValue PPCTargetLowering::DAGCombineBuildVector(SDNode *N,
                                                  DAGCombinerInfo &DCI) const {
   assert(N->getOpcode() == ISD::BUILD_VECTOR &&
@@ -11337,6 +11477,15 @@ SDValue PPCTargetLowering::DAGCombineBuildVector(SDNode *N,
   SDValue Reduced = combineBVOfConsecutiveLoads(N, DAG);
   if (Reduced)
     return Reduced;
+
+  // If we're building a vector out of extended elements from another vector
+  // we have P9 vector integer extend instructions.
+  if (Subtarget.hasP9Altivec()) {
+    Reduced = combineBVOfVecSExt(N, DAG);
+    if (Reduced)
+      return Reduced;
+  }
+
 
   if (N->getValueType(0) != MVT::v2f64)
     return SDValue();

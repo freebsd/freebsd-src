@@ -736,9 +736,9 @@ llvm::Value *CodeGenFunction::EmitBlockLiteral(const CGBlockInfo &blockInfo) {
   llvm::Constant *isa =
       (!CGM.getContext().getLangOpts().OpenCL)
           ? CGM.getNSConcreteStackBlock()
-          : CGM.getNullPointer(cast<llvm::PointerType>(
-                                   CGM.getNSConcreteStackBlock()->getType()),
-                               QualType(getContext().VoidPtrTy));
+          : CGM.getNullPointer(VoidPtrPtrTy,
+                               CGM.getContext().getPointerType(
+                                   QualType(CGM.getContext().VoidPtrTy)));
   isa = llvm::ConstantExpr::getBitCast(isa, VoidPtrTy);
 
   // Build the block descriptor.
@@ -1141,12 +1141,11 @@ static llvm::Constant *buildGlobalBlock(CodeGenModule &CGM,
   auto fields = builder.beginStruct();
 
   // isa
-  fields.add(
-      (!CGM.getContext().getLangOpts().OpenCL)
-          ? CGM.getNSConcreteGlobalBlock()
-          : CGM.getNullPointer(cast<llvm::PointerType>(
-                                   CGM.getNSConcreteGlobalBlock()->getType()),
-                               QualType(CGM.getContext().VoidPtrTy)));
+  fields.add((!CGM.getContext().getLangOpts().OpenCL)
+                 ? CGM.getNSConcreteGlobalBlock()
+                 : CGM.getNullPointer(CGM.VoidPtrPtrTy,
+                                      CGM.getContext().getPointerType(QualType(
+                                          CGM.getContext().VoidPtrTy))));
 
   // __flags
   BlockFlags flags = BLOCK_IS_GLOBAL | BLOCK_HAS_SIGNATURE;
@@ -1255,7 +1254,7 @@ CodeGenFunction::GenerateBlockFunction(GlobalDecl GD,
 
   // For OpenCL passed block pointer can be private AS local variable or
   // global AS program scope variable (for the case with and without captures).
-  // Generic AS is used therefore to be able to accomodate both private and
+  // Generic AS is used therefore to be able to accommodate both private and
   // generic AS in one implementation.
   if (getLangOpts().OpenCL)
     selfTy = getContext().getPointerType(getContext().getAddrSpaceQualType(

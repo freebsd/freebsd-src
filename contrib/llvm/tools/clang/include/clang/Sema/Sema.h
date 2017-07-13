@@ -1266,6 +1266,7 @@ public:
 
   void emitAndClearUnusedLocalTypedefWarnings();
 
+  void ActOnStartOfTranslationUnit();
   void ActOnEndOfTranslationUnit();
 
   void CheckDelegatingCtorCycles();
@@ -1541,6 +1542,7 @@ public:
                                  llvm::SmallVectorImpl<Module *> *Modules);
 
   bool hasVisibleMergedDefinition(NamedDecl *Def);
+  bool hasMergedDefinitionInCurrentModule(NamedDecl *Def);
 
   /// Determine if \p D and \p Suggested have a structurally compatible
   /// layout as described in C11 6.2.7/1.
@@ -3358,9 +3360,10 @@ public:
 
   /// DefaultSynthesizeProperties - This routine default synthesizes all
   /// properties which must be synthesized in the class's \@implementation.
-  void DefaultSynthesizeProperties (Scope *S, ObjCImplDecl* IMPDecl,
-                                    ObjCInterfaceDecl *IDecl);
-  void DefaultSynthesizeProperties(Scope *S, Decl *D);
+  void DefaultSynthesizeProperties(Scope *S, ObjCImplDecl *IMPDecl,
+                                   ObjCInterfaceDecl *IDecl,
+                                   SourceLocation AtEnd);
+  void DefaultSynthesizeProperties(Scope *S, Decl *D, SourceLocation AtEnd);
 
   /// IvarBacksCurrentMethodAccessor - This routine returns 'true' if 'IV' is
   /// an ivar synthesized for 'Method' and 'Method' is a property accessor
@@ -3878,7 +3881,9 @@ public:
 
   void redelayDiagnostics(sema::DelayedDiagnosticPool &pool);
 
-  void EmitAvailabilityWarning(AvailabilityResult AR, NamedDecl *D,
+  void EmitAvailabilityWarning(AvailabilityResult AR,
+                               const NamedDecl *ReferringDecl,
+                               const NamedDecl *OffendingDecl,
                                StringRef Message, SourceLocation Loc,
                                const ObjCInterfaceDecl *UnknownObjCClass,
                                const ObjCPropertyDecl *ObjCProperty,
@@ -3895,8 +3900,9 @@ public:
 
   bool CanUseDecl(NamedDecl *D, bool TreatUnavailableAsInvalid);
   bool DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc,
-                         const ObjCInterfaceDecl *UnknownObjCClass=nullptr,
-                         bool ObjCPropertyAccess=false);
+                         const ObjCInterfaceDecl *UnknownObjCClass = nullptr,
+                         bool ObjCPropertyAccess = false,
+                         bool AvoidPartialAvailabilityChecks = false);
   void NoteDeletedFunction(FunctionDecl *FD);
   void NoteDeletedInheritingConstructor(CXXConstructorDecl *CD);
   std::string getDeletedOrUnavailableSuffix(const FunctionDecl *FD);
@@ -3938,7 +3944,7 @@ public:
   void MarkFunctionReferenced(SourceLocation Loc, FunctionDecl *Func,
                               bool MightBeOdrUse = true);
   void MarkVariableReferenced(SourceLocation Loc, VarDecl *Var);
-  void MarkDeclRefReferenced(DeclRefExpr *E);
+  void MarkDeclRefReferenced(DeclRefExpr *E, const Expr *Base = nullptr);
   void MarkMemberReferenced(MemberExpr *E);
 
   void UpdateMarkingForLValueToRValue(Expr *E);
@@ -10410,16 +10416,14 @@ public:
     return OriginalLexicalContext ? OriginalLexicalContext : CurContext;
   }
 
-  /// \brief The diagnostic we should emit for \c D, or \c AR_Available.
+  /// The diagnostic we should emit for \c D, and the declaration that
+  /// originated it, or \c AR_Available.
   ///
-  /// \param D The declaration to check. Note that this may be altered to point
-  /// to another declaration that \c D gets it's availability from. i.e., we
-  /// walk the list of typedefs to find an availability attribute.
-  ///
+  /// \param D The declaration to check.
   /// \param Message If non-null, this will be populated with the message from
   /// the availability attribute that is selected.
-  AvailabilityResult ShouldDiagnoseAvailabilityOfDecl(NamedDecl *&D,
-                                                      std::string *Message);
+  std::pair<AvailabilityResult, const NamedDecl *>
+  ShouldDiagnoseAvailabilityOfDecl(const NamedDecl *D, std::string *Message);
 
   const DeclContext *getCurObjCLexicalContext() const {
     const DeclContext *DC = getCurLexicalContext();

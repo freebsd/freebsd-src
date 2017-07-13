@@ -194,6 +194,16 @@ def clang_ignored_f_Group : OptionGroup<"<clang ignored f group>">,
 def clang_ignored_m_Group : OptionGroup<"<clang ignored m group>">,
   Group<m_Group>, Flags<[Ignored]>;
 
+// Group for clang options in the process of deprecation.
+// Please include the version that deprecated the flag as comment to allow
+// easier garbage collection.
+def clang_ignored_legacy_options_Group : OptionGroup<"<clang legacy flags>">,
+  Group<f_Group>, Flags<[Ignored]>;
+
+// Retired with clang-5.0
+def : Flag<["-"], "fslp-vectorize-aggressive">, Group<clang_ignored_legacy_options_Group>;
+def : Flag<["-"], "fno-slp-vectorize-aggressive">, Group<clang_ignored_legacy_options_Group>;
+
 // Group that ignores all gcc optimizations that won't be implemented
 def clang_ignored_gcc_optimization_f_Group : OptionGroup<
   "<clang_ignored_gcc_optimization_f_Group>">, Group<f_Group>, Flags<[Ignored]>;
@@ -2017,6 +2027,10 @@ def mmsa : Flag<["-"], "mmsa">, Group<m_Group>,
   HelpText<"Enable MSA ASE (MIPS only)">;
 def mno_msa : Flag<["-"], "mno-msa">, Group<m_Group>,
   HelpText<"Disable MSA ASE (MIPS only)">;
+def mmt : Flag<["-"], "mmt">, Group<m_Group>,
+  HelpText<"Enable MT ASE (MIPS only)">;
+def mno_mt : Flag<["-"], "mno-mt">, Group<m_Group>,
+  HelpText<"Disable MT ASE (MIPS only)">;
 def mfp64 : Flag<["-"], "mfp64">, Group<m_Group>,
   HelpText<"Use 64-bit floating point registers (MIPS only)">;
 def mfp32 : Flag<["-"], "mfp32">, Group<m_Group>,

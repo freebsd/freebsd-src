@@ -87,24 +87,9 @@ static void DiagnoseUnusedOfDecl(Sema &S, NamedDecl *D, SourceLocation Loc) {
   }
 }
 
-static bool HasRedeclarationWithoutAvailabilityInCategory(const Decl *D) {
-  const auto *OMD = dyn_cast<ObjCMethodDecl>(D);
-  if (!OMD)
-    return false;
-  const ObjCInterfaceDecl *OID = OMD->getClassInterface();
-  if (!OID)
-    return false;
-
-  for (const ObjCCategoryDecl *Cat : OID->visible_categories())
-    if (ObjCMethodDecl *CatMeth =
-            Cat->getMethod(OMD->getSelector(), OMD->isInstanceMethod()))
-      if (!CatMeth->hasAttr<AvailabilityAttr>())
-        return true;
-  return false;
-}
-
-AvailabilityResult
-Sema::ShouldDiagnoseAvailabilityOfDecl(NamedDecl *&D, std::string *Message) {
+std::pair<AvailabilityResult, const NamedDecl *>
+Sema::ShouldDiagnoseAvailabilityOfDecl(const NamedDecl *D,
+                                       std::string *Message) {
   AvailabilityResult Result = D->getAvailability(Message);
 
   // For typedefs, if the typedef declaration appears available look
@@ -121,78 +106,61 @@ Sema::ShouldDiagnoseAvailabilityOfDecl(NamedDecl *&D, std::string *Message) {
   }
 
   // Forward class declarations get their attributes from their definition.
-  if (ObjCInterfaceDecl *IDecl = dyn_cast<ObjCInterfaceDecl>(D)) {
+  if (const ObjCInterfaceDecl *IDecl = dyn_cast<ObjCInterfaceDecl>(D)) {
     if (IDecl->getDefinition()) {
       D = IDecl->getDefinition();
       Result = D->getAvailability(Message);
     }
   }
 
-  if (const EnumConstantDecl *ECD = dyn_cast<EnumConstantDecl>(D))
+  if (const auto *ECD = dyn_cast<EnumConstantDecl>(D))
     if (Result == AR_Available) {
       const DeclContext *DC = ECD->getDeclContext();
-      if (const EnumDecl *TheEnumDecl = dyn_cast<EnumDecl>(DC))
+      if (const auto *TheEnumDecl = dyn_cast<EnumDecl>(DC)) {
         Result = TheEnumDecl->getAvailability(Message);
+        D = TheEnumDecl;
+      }
     }
 
-  if (Result == AR_NotYetIntroduced) {
-    // Don't do this for enums, they can't be redeclared.
-    if (isa<EnumConstantDecl>(D) || isa<EnumDecl>(D))
-      return AR_Available;
-
-    bool Warn = !D->getAttr<AvailabilityAttr>()->isInherited();
-    // Objective-C method declarations in categories are not modelled as
-    // redeclarations, so manually look for a redeclaration in a category
-    // if necessary.
-    if (Warn && HasRedeclarationWithoutAvailabilityInCategory(D))
-      Warn = false;
-    // In general, D will point to the most recent redeclaration. However,
-    // for `@class A;` decls, this isn't true -- manually go through the
-    // redecl chain in that case.
-    if (Warn && isa<ObjCInterfaceDecl>(D))
-      for (Decl *Redecl = D->getMostRecentDecl(); Redecl && Warn;
-           Redecl = Redecl->getPreviousDecl())
-        if (!Redecl->hasAttr<AvailabilityAttr>() ||
-            Redecl->getAttr<AvailabilityAttr>()->isInherited())
-          Warn = false;
-
-    return Warn ? AR_NotYetIntroduced : AR_Available;
-  }
-
-  return Result;
+  return {Result, D};
 }
 
 static void
 DiagnoseAvailabilityOfDecl(Sema &S, NamedDecl *D, SourceLocation Loc,
                            const ObjCInterfaceDecl *UnknownObjCClass,
-                           bool ObjCPropertyAccess) {
+                           bool ObjCPropertyAccess,
+                           bool AvoidPartialAvailabilityChecks = false) {
   std::string Message;
+  AvailabilityResult Result;
+  const NamedDecl* OffendingDecl;
   // See if this declaration is unavailable, deprecated, or partial.
-  if (AvailabilityResult Result =
-          S.ShouldDiagnoseAvailabilityOfDecl(D, &Message)) {
+  std::tie(Result, OffendingDecl) = S.ShouldDiagnoseAvailabilityOfDecl(D, &Message);
+  if (Result == AR_Available)
+    return;
 
-    if (Result == AR_NotYetIntroduced) {
-      if (S.getCurFunctionOrMethodDecl()) {
-        S.getEnclosingFunction()->HasPotentialAvailabilityViolations = true;
-        return;
-      } else if (S.getCurBlock() || S.getCurLambda()) {
-        S.getCurFunction()->HasPotentialAvailabilityViolations = true;
-        return;
-      }
+  if (Result == AR_NotYetIntroduced) {
+    if (AvoidPartialAvailabilityChecks)
+      return;
+    if (S.getCurFunctionOrMethodDecl()) {
+      S.getEnclosingFunction()->HasPotentialAvailabilityViolations = true;
+      return;
+    } else if (S.getCurBlock() || S.getCurLambda()) {
+      S.getCurFunction()->HasPotentialAvailabilityViolations = true;
+      return;
     }
-
-    const ObjCPropertyDecl *ObjCPDecl = nullptr;
-    if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-      if (const ObjCPropertyDecl *PD = MD->findPropertyDecl()) {
-        AvailabilityResult PDeclResult = PD->getAvailability(nullptr);
-        if (PDeclResult == Result)
-          ObjCPDecl = PD;
-      }
-    }
-
-    S.EmitAvailabilityWarning(Result, D, Message, Loc, UnknownObjCClass,
-                              ObjCPDecl, ObjCPropertyAccess);
   }
+
+  const ObjCPropertyDecl *ObjCPDecl = nullptr;
+  if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
+    if (const ObjCPropertyDecl *PD = MD->findPropertyDecl()) {
+      AvailabilityResult PDeclResult = PD->getAvailability(nullptr);
+      if (PDeclResult == Result)
+        ObjCPDecl = PD;
+    }
+  }
+
+  S.EmitAvailabilityWarning(Result, D, OffendingDecl, Message, Loc,
+                            UnknownObjCClass, ObjCPDecl, ObjCPropertyAccess);
 }
 
 /// \brief Emit a note explaining that this function is deleted.
@@ -310,7 +278,8 @@ void Sema::MaybeSuggestAddingStaticToDecl(const FunctionDecl *Cur) {
 ///
 bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc,
                              const ObjCInterfaceDecl *UnknownObjCClass,
-                             bool ObjCPropertyAccess) {
+                             bool ObjCPropertyAccess,
+                             bool AvoidPartialAvailabilityChecks) {
   if (getLangOpts().CPlusPlus && isa<FunctionDecl>(D)) {
     // If there were any diagnostics suppressed by template argument deduction,
     // emit them now.
@@ -395,7 +364,8 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc,
   }
 
   DiagnoseAvailabilityOfDecl(*this, D, Loc, UnknownObjCClass,
-                             ObjCPropertyAccess);
+                             ObjCPropertyAccess,
+                             AvoidPartialAvailabilityChecks);
 
   DiagnoseUnusedOfDecl(*this, D, Loc);
 
@@ -14695,24 +14665,24 @@ static void MarkExprReferenced(Sema &SemaRef, SourceLocation Loc,
                           ME->performsVirtualDispatch(SemaRef.getLangOpts());
   if (!IsVirtualCall)
     return;
-  const Expr *Base = ME->getBase();
-  const CXXRecordDecl *MostDerivedClassDecl = Base->getBestDynamicClassType();
-  if (!MostDerivedClassDecl)
-    return;
-  CXXMethodDecl *DM = MD->getCorrespondingMethodInClass(MostDerivedClassDecl);
-  if (!DM || DM->isPure())
-    return;
-  SemaRef.MarkAnyDeclReferenced(Loc, DM, MightBeOdrUse);
+
+  // If it's possible to devirtualize the call, mark the called function
+  // referenced.
+  CXXMethodDecl *DM = MD->getDevirtualizedMethod(
+      ME->getBase(), SemaRef.getLangOpts().AppleKext);
+  if (DM)
+    SemaRef.MarkAnyDeclReferenced(Loc, DM, MightBeOdrUse);
 } 
 
 /// \brief Perform reference-marking and odr-use handling for a DeclRefExpr.
-void Sema::MarkDeclRefReferenced(DeclRefExpr *E) {
+void Sema::MarkDeclRefReferenced(DeclRefExpr *E, const Expr *Base) {
   // TODO: update this with DR# once a defect report is filed.
   // C++11 defect. The address of a pure member should not be an ODR use, even
   // if it's a qualified reference.
   bool OdrUse = true;
-  if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(E->getDecl()))
-    if (Method->isVirtual())
+  if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(E->getDecl()))
+    if (Method->isVirtual() &&
+        !Method->getDevirtualizedMethod(Base, getLangOpts().AppleKext))
       OdrUse = false;
   MarkExprReferenced(*this, E->getLocation(), E->getDecl(), E, OdrUse);
 }

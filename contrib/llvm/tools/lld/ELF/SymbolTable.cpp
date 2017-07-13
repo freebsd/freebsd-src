@@ -211,6 +211,13 @@ static uint8_t getMinVisibility(uint8_t VA, uint8_t VB) {
 // Find an existing symbol or create and insert a new one.
 template <class ELFT>
 std::pair<Symbol *, bool> SymbolTable<ELFT>::insert(StringRef Name) {
+  // <name>@@<version> means the symbol is the default version. In that
+  // case symbol <name> must exist and <name>@@<version> will be used to
+  // resolve references to <name>.
+  size_t Pos = Name.find("@@");
+  if (Pos != StringRef::npos)
+    Name = Name.take_front(Pos);
+
   auto P = Symtab.insert(
       {CachedHashStringRef(Name), SymIndex((int)SymVector.size(), false)});
   SymIndex &V = P.first->second;
@@ -319,7 +326,7 @@ static int compareDefined(Symbol *S, bool WasInserted, uint8_t Binding) {
   if (WasInserted)
     return 1;
   SymbolBody *Body = S->body();
-  if (Body->isLazy() || !Body->isInCurrentDSO())
+  if (!Body->isInCurrentDSO())
     return 1;
   if (Binding == STB_WEAK)
     return -1;
@@ -689,6 +696,12 @@ void SymbolTable<ELFT>::assignExactVersion(SymbolVersion Ver, uint16_t VersionId
 
   // Assign the version.
   for (SymbolBody *B : Syms) {
+    // Skip symbols containing version info because symbol versions
+    // specified by symbol names take precedence over version scripts.
+    // See parseSymbolVersion().
+    if (B->getName().find('@') != StringRef::npos)
+      continue;
+
     Symbol *Sym = B->symbol();
     if (Sym->InVersionScript)
       warn("duplicate symbol '" + Ver.Name + "' in version script");
@@ -702,12 +715,11 @@ void SymbolTable<ELFT>::assignWildcardVersion(SymbolVersion Ver,
                                               uint16_t VersionId) {
   if (!Ver.HasWildcard)
     return;
-  std::vector<SymbolBody *> Syms = findAllByVersion(Ver);
 
   // Exact matching takes precendence over fuzzy matching,
   // so we set a version to a symbol only if no version has been assigned
   // to the symbol. This behavior is compatible with GNU.
-  for (SymbolBody *B : Syms)
+  for (SymbolBody *B : findAllByVersion(Ver))
     if (B->symbol()->VersionId == Config->DefaultSymbolVersion)
       B->symbol()->VersionId = VersionId;
 }
@@ -715,18 +727,9 @@ void SymbolTable<ELFT>::assignWildcardVersion(SymbolVersion Ver,
 // This function processes version scripts by updating VersionId
 // member of symbols.
 template <class ELFT> void SymbolTable<ELFT>::scanVersionScript() {
-  // Symbol themselves might know their versions because symbols
-  // can contain versions in the form of <name>@<version>.
-  // Let them parse their names.
-  if (!Config->VersionDefinitions.empty())
-    for (Symbol *Sym : SymVector)
-      Sym->body()->parseSymbolVersion();
-
   // Handle edge cases first.
   handleAnonymousVersion();
 
-  if (Config->VersionDefinitions.empty())
-    return;
 
   // Now we have version definitions, so we need to set version ids to symbols.
   // Each version definition has a glob pattern, and all symbols that match
@@ -745,6 +748,12 @@ template <class ELFT> void SymbolTable<ELFT>::scanVersionScript() {
   for (VersionDefinition &V : llvm::reverse(Config->VersionDefinitions))
     for (SymbolVersion &Ver : V.Globals)
       assignWildcardVersion(Ver, V.Id);
+
+  // Symbol themselves might know their versions because symbols
+  // can contain versions in the form of <name>@<version>.
+  // Let them parse and update their names to exclude version suffix.
+  for (Symbol *Sym : SymVector)
+    Sym->body()->parseSymbolVersion();
 }
 
 template class elf::SymbolTable<ELF32LE>;

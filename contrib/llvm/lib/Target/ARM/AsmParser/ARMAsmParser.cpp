@@ -5249,6 +5249,7 @@ bool ARMAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
     // Fall though for the Identifier case that is not a register or a
     // special name.
+    LLVM_FALLTHROUGH;
   }
   case AsmToken::LParen:  // parenthesized expressions like (_strcmp-4)
   case AsmToken::Integer: // things like 1f and 2b as a branch targets
@@ -8992,6 +8993,8 @@ unsigned ARMAsmParser::MatchInstruction(OperandVector &Operands, MCInst &Inst,
   return PlainMatchResult;
 }
 
+std::string ARMMnemonicSpellCheck(StringRef S, uint64_t FBS);
+
 static const char *getSubtargetFeatureName(uint64_t Val);
 bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                            OperandVector &Operands,
@@ -9085,9 +9088,13 @@ bool ARMAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
     return Error(ErrorLoc, "invalid operand for instruction");
   }
-  case Match_MnemonicFail:
-    return Error(IDLoc, "invalid instruction",
+  case Match_MnemonicFail: {
+    uint64_t FBS = ComputeAvailableFeatures(getSTI().getFeatureBits());
+    std::string Suggestion = ARMMnemonicSpellCheck(
+      ((ARMOperand &)*Operands[0]).getToken(), FBS);
+    return Error(IDLoc, "invalid instruction" + Suggestion,
                  ((ARMOperand &)*Operands[0]).getLocRange());
+  }
   case Match_RequiresNotITBlock:
     return Error(IDLoc, "flag setting instruction only valid outside IT block");
   case Match_RequiresITBlock:

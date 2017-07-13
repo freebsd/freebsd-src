@@ -419,25 +419,6 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
       .getNode();
 }
 
-/// isIntS16Immediate - This method tests to see if the node is either a 32-bit
-/// or 64-bit immediate, and if the value can be accurately represented as a
-/// sign extension from a 16-bit value.  If so, this returns true and the
-/// immediate.
-static bool isIntS16Immediate(SDNode *N, short &Imm) {
-  if (N->getOpcode() != ISD::Constant)
-    return false;
-
-  Imm = (short)cast<ConstantSDNode>(N)->getZExtValue();
-  if (N->getValueType(0) == MVT::i32)
-    return Imm == (int32_t)cast<ConstantSDNode>(N)->getZExtValue();
-  else
-    return Imm == (int64_t)cast<ConstantSDNode>(N)->getZExtValue();
-}
-
-static bool isIntS16Immediate(SDValue Op, short &Imm) {
-  return isIntS16Immediate(Op.getNode(), Imm);
-}
-
 /// isInt32Immediate - This method tests to see if the node is a 32-bit constant
 /// operand. If so Imm will receive the 32-bit value.
 static bool isInt32Immediate(SDNode *N, unsigned &Imm) {
@@ -728,7 +709,10 @@ static uint64_t Rot64(uint64_t Imm, unsigned R) {
 
 static unsigned getInt64Count(int64_t Imm) {
   unsigned Count = getInt64CountDirect(Imm);
-  if (Count == 1)
+
+  // If the instruction count is 1 or 2, we do not need further analysis
+  // since rotate + load constant requires at least 2 instructions.
+  if (Count <= 2)
     return Count;
 
   for (unsigned r = 1; r < 63; ++r) {
@@ -838,7 +822,10 @@ static SDNode *getInt64Direct(SelectionDAG *CurDAG, const SDLoc &dl,
 
 static SDNode *getInt64(SelectionDAG *CurDAG, const SDLoc &dl, int64_t Imm) {
   unsigned Count = getInt64CountDirect(Imm);
-  if (Count == 1)
+
+  // If the instruction count is 1 or 2, we do not need further analysis
+  // since rotate + load constant requires at least 2 instructions.
+  if (Count <= 2)
     return getInt64Direct(CurDAG, dl, Imm);
 
   unsigned RMin = 0;
@@ -2126,7 +2113,7 @@ SDValue PPCDAGToDAGISel::SelectCC(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                                               getI32Imm(Imm & 0xFFFF, dl)), 0);
       Opc = PPC::CMPLW;
     } else {
-      short SImm;
+      int16_t SImm;
       if (isIntS16Immediate(RHS, SImm))
         return SDValue(CurDAG->getMachineNode(PPC::CMPWI, dl, MVT::i32, LHS,
                                               getI32Imm((int)SImm & 0xFFFF,
@@ -2173,7 +2160,7 @@ SDValue PPCDAGToDAGISel::SelectCC(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                                               getI64Imm(Imm & 0xFFFF, dl)), 0);
       Opc = PPC::CMPLD;
     } else {
-      short SImm;
+      int16_t SImm;
       if (isIntS16Immediate(RHS, SImm))
         return SDValue(CurDAG->getMachineNode(PPC::CMPDI, dl, MVT::i64, LHS,
                                               getI64Imm(SImm & 0xFFFF, dl)),
@@ -3323,7 +3310,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     if (tryLogicOpOfCompares(N))
       return;
 
-    short Imm;
+    int16_t Imm;
     if (N->getOperand(0)->getOpcode() == ISD::FrameIndex &&
         isIntS16Immediate(N->getOperand(1), Imm)) {
       KnownBits LHSKnown;
@@ -3346,7 +3333,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     break;
   }
   case ISD::ADD: {
-    short Imm;
+    int16_t Imm;
     if (N->getOperand(0)->getOpcode() == ISD::FrameIndex &&
         isIntS16Immediate(N->getOperand(1), Imm)) {
       selectFrameIndex(N, N->getOperand(0).getNode(), (int)Imm);
@@ -4034,11 +4021,13 @@ void PPCDAGToDAGISel::foldBoolExts(SDValue &Res, SDNode *&N) {
                                             O0.getNode(), O1.getNode());
     };
 
+    // FIXME: When the semantics of the interaction between select and undef
+    // are clearly defined, it may turn out to be unnecessary to break here.
     SDValue TrueRes = TryFold(ConstTrue);
-    if (!TrueRes)
+    if (!TrueRes || TrueRes.isUndef())
       break;
     SDValue FalseRes = TryFold(ConstFalse);
-    if (!FalseRes)
+    if (!FalseRes || FalseRes.isUndef())
       break;
 
     // For us to materialize these using one instruction, we must be able to

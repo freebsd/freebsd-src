@@ -1500,12 +1500,10 @@ void computeKnownBits(const Value *V, KnownBits &Known, unsigned Depth,
   assert(Depth <= MaxDepth && "Limit Search Depth");
   unsigned BitWidth = Known.getBitWidth();
 
-  assert((V->getType()->isIntOrIntVectorTy() ||
-          V->getType()->getScalarType()->isPointerTy()) &&
+  assert((V->getType()->isIntOrIntVectorTy(BitWidth) ||
+          V->getType()->isPtrOrPtrVectorTy()) &&
          "Not integer or pointer type!");
-  assert((Q.DL.getTypeSizeInBits(V->getType()->getScalarType()) == BitWidth) &&
-         (!V->getType()->isIntOrIntVectorTy() ||
-          V->getType()->getScalarSizeInBits() == BitWidth) &&
+  assert(Q.DL.getTypeSizeInBits(V->getType()->getScalarType()) == BitWidth &&
          "V and Known should have same BitWidth");
   (void)BitWidth;
 
@@ -1952,7 +1950,7 @@ bool isKnownNonZero(const Value *V, unsigned Depth, const Query &Q) {
     }
     // Check if all incoming values are non-zero constant.
     bool AllNonZeroConstants = all_of(PN->operands(), [](Value *V) {
-      return isa<ConstantInt>(V) && !cast<ConstantInt>(V)->isZeroValue();
+      return isa<ConstantInt>(V) && !cast<ConstantInt>(V)->isZero();
     });
     if (AllNonZeroConstants)
       return true;
@@ -4393,7 +4391,7 @@ isImpliedCondMatchingImmOperands(CmpInst::Predicate APred, const Value *ALHS,
 }
 
 Optional<bool> llvm::isImpliedCondition(const Value *LHS, const Value *RHS,
-                                        const DataLayout &DL, bool InvertAPred,
+                                        const DataLayout &DL, bool LHSIsFalse,
                                         unsigned Depth, AssumptionCache *AC,
                                         const Instruction *CxtI,
                                         const DominatorTree *DT) {
@@ -4402,26 +4400,51 @@ Optional<bool> llvm::isImpliedCondition(const Value *LHS, const Value *RHS,
     return None;
 
   Type *OpTy = LHS->getType();
-  assert(OpTy->getScalarType()->isIntegerTy(1));
+  assert(OpTy->isIntOrIntVectorTy(1));
 
   // LHS ==> RHS by definition
-  if (!InvertAPred && LHS == RHS)
-    return true;
+  if (LHS == RHS)
+    return !LHSIsFalse;
 
   if (OpTy->isVectorTy())
     // TODO: extending the code below to handle vectors
     return None;
   assert(OpTy->isIntegerTy(1) && "implied by above");
 
-  ICmpInst::Predicate APred, BPred;
-  Value *ALHS, *ARHS;
   Value *BLHS, *BRHS;
-
-  if (!match(LHS, m_ICmp(APred, m_Value(ALHS), m_Value(ARHS))) ||
-      !match(RHS, m_ICmp(BPred, m_Value(BLHS), m_Value(BRHS))))
+  ICmpInst::Predicate BPred;
+  // We expect the RHS to be an icmp.
+  if (!match(RHS, m_ICmp(BPred, m_Value(BLHS), m_Value(BRHS))))
     return None;
 
-  if (InvertAPred)
+  Value *ALHS, *ARHS;
+  ICmpInst::Predicate APred;
+  // The LHS can be an 'or', 'and', or 'icmp'.
+  if (!match(LHS, m_ICmp(APred, m_Value(ALHS), m_Value(ARHS)))) {
+    // The remaining tests are all recursive, so bail out if we hit the limit.
+    if (Depth == MaxDepth)
+      return None;
+    // If the result of an 'or' is false, then we know both legs of the 'or' are
+    // false.  Similarly, if the result of an 'and' is true, then we know both
+    // legs of the 'and' are true.
+    if ((LHSIsFalse && match(LHS, m_Or(m_Value(ALHS), m_Value(ARHS)))) ||
+        (!LHSIsFalse && match(LHS, m_And(m_Value(ALHS), m_Value(ARHS))))) {
+      if (Optional<bool> Implication = isImpliedCondition(
+              ALHS, RHS, DL, LHSIsFalse, Depth + 1, AC, CxtI, DT))
+        return Implication;
+      if (Optional<bool> Implication = isImpliedCondition(
+              ARHS, RHS, DL, LHSIsFalse, Depth + 1, AC, CxtI, DT))
+        return Implication;
+      return None;
+    }
+    return None;
+  }
+  // All of the below logic assumes both LHS and RHS are icmps.
+  assert(isa<ICmpInst>(LHS) && isa<ICmpInst>(RHS) && "Expected icmps.");
+
+  // The rest of the logic assumes the LHS condition is true.  If that's not the
+  // case, invert the predicate to make it so.
+  if (LHSIsFalse)
     APred = CmpInst::getInversePredicate(APred);
 
   // Can we infer anything when the two compares have matching operands?

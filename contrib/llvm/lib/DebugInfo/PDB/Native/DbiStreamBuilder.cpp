@@ -49,9 +49,17 @@ void DbiStreamBuilder::setSectionMap(ArrayRef<SecMapEntry> SecMap) {
   SectionMap = SecMap;
 }
 
+void DbiStreamBuilder::setSymbolRecordStreamIndex(uint32_t Index) {
+  SymRecordStreamIndex = Index;
+}
+
+void DbiStreamBuilder::setPublicsStreamIndex(uint32_t Index) {
+  PublicsStreamIndex = Index;
+}
+
 Error DbiStreamBuilder::addDbgStream(pdb::DbgHeaderType Type,
                                      ArrayRef<uint8_t> Data) {
-  if (DbgStreams[(int)Type].StreamNumber)
+  if (DbgStreams[(int)Type].StreamNumber != kInvalidStreamIndex)
     return make_error<RawError>(raw_error_code::duplicate_entry,
                                 "The specified stream type already exists");
   auto ExpectedIndex = Msf.addStream(Data.size());
@@ -63,11 +71,16 @@ Error DbiStreamBuilder::addDbgStream(pdb::DbgHeaderType Type,
   return Error::success();
 }
 
+uint32_t DbiStreamBuilder::addECName(StringRef Name) {
+  return ECNamesBuilder.insert(Name);
+}
+
 uint32_t DbiStreamBuilder::calculateSerializedLength() const {
   // For now we only support serializing the header.
   return sizeof(DbiStreamHeader) + calculateFileInfoSubstreamSize() +
          calculateModiSubstreamSize() + calculateSectionContribsStreamSize() +
-         calculateSectionMapStreamSize() + calculateDbgStreamsSize();
+         calculateSectionMapStreamSize() + calculateDbgStreamsSize() +
+         ECNamesBuilder.calculateSerializedSize();
 }
 
 Expected<DbiModuleDescriptorBuilder &>
@@ -247,15 +260,15 @@ Error DbiStreamBuilder::finalize() {
   H->PdbDllVersion = PdbDllVersion;
   H->MachineType = static_cast<uint16_t>(MachineType);
 
-  H->ECSubstreamSize = 0;
+  H->ECSubstreamSize = ECNamesBuilder.calculateSerializedSize();
   H->FileInfoSize = FileInfoBuffer.getLength();
   H->ModiSubstreamSize = calculateModiSubstreamSize();
   H->OptionalDbgHdrSize = DbgStreams.size() * sizeof(uint16_t);
   H->SecContrSubstreamSize = calculateSectionContribsStreamSize();
   H->SectionMapSize = calculateSectionMapStreamSize();
   H->TypeServerSize = 0;
-  H->SymRecordStreamIndex = kInvalidStreamIndex;
-  H->PublicSymbolStreamIndex = kInvalidStreamIndex;
+  H->SymRecordStreamIndex = SymRecordStreamIndex;
+  H->PublicSymbolStreamIndex = PublicsStreamIndex;
   H->MFCTypeServerIndex = kInvalidStreamIndex;
   H->GlobalSymbolStreamIndex = kInvalidStreamIndex;
 
@@ -381,6 +394,9 @@ Error DbiStreamBuilder::commit(const msf::MSFLayout &Layout,
   }
 
   if (auto EC = Writer.writeStreamRef(FileInfoBuffer))
+    return EC;
+
+  if (auto EC = ECNamesBuilder.commit(Writer))
     return EC;
 
   for (auto &Stream : DbgStreams)

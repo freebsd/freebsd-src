@@ -2544,7 +2544,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    AsynchronousUnwindTables))
     CmdArgs.push_back("-munwind-tables");
 
-  getToolChain().addClangTargetOptions(Args, CmdArgs);
+  getToolChain().addClangTargetOptions(Args, CmdArgs,
+                                       JA.getOffloadingDeviceKind());
 
   if (Arg *A = Args.getLastArg(options::OPT_flimited_precision_EQ)) {
     CmdArgs.push_back("-mlimit-float-precision");
@@ -2971,6 +2972,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   for (const Arg *A :
        Args.filtered(options::OPT_clang_ignored_gcc_optimization_f_Group)) {
     D.Diag(diag::warn_ignored_gcc_optimization) << A->getAsString(Args);
+    A->claim();
+  }
+
+  for (const Arg *A :
+       Args.filtered(options::OPT_clang_ignored_legacy_options_Group)) {
+    D.Diag(diag::warn_ignored_clang_option) << A->getAsString(Args);
     A->claim();
   }
 

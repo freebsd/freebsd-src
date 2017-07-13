@@ -548,7 +548,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     if (ConstantInt *Rem = dyn_cast<ConstantInt>(I->getOperand(1))) {
       // X % -1 demands all the bits because we don't want to introduce
       // INT_MIN % -1 (== undef) by accident.
-      if (Rem->isAllOnesValue())
+      if (Rem->isMinusOne())
         break;
       APInt RA = Rem->getValue().abs();
       if (RA.isPowerOf2()) {
@@ -1627,10 +1627,10 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       for (unsigned I = 0, E = II->getNumArgOperands(); I != E; ++I)
         Args.push_back(II->getArgOperand(I));
 
-      IRBuilderBase::InsertPointGuard Guard(*Builder);
-      Builder->SetInsertPoint(II);
+      IRBuilderBase::InsertPointGuard Guard(Builder);
+      Builder.SetInsertPoint(II);
 
-      CallInst *NewCall = Builder->CreateCall(NewIntrin, Args);
+      CallInst *NewCall = Builder.CreateCall(NewIntrin, Args);
       NewCall->takeName(II);
       NewCall->copyMetadata(*II);
 
@@ -1657,15 +1657,15 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
 
 
       if (NewNumElts == 1) {
-        return Builder->CreateInsertElement(UndefValue::get(V->getType()),
-                                            NewCall, static_cast<uint64_t>(0));
+        return Builder.CreateInsertElement(UndefValue::get(V->getType()),
+                                           NewCall, static_cast<uint64_t>(0));
       }
 
       SmallVector<uint32_t, 8> EltMask;
       for (unsigned I = 0; I < VWidth; ++I)
         EltMask.push_back(I);
 
-      Value *Shuffle = Builder->CreateShuffleVector(
+      Value *Shuffle = Builder.CreateShuffleVector(
         NewCall, UndefValue::get(NewTy), EltMask);
 
       MadeChange = true;

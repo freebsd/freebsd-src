@@ -1282,6 +1282,7 @@ static UsedNZCV getUsedNZCV(AArch64CC::CondCode CC) {
     case AArch64CC::HI: // Z clear and C set
     case AArch64CC::LS: // Z set   or  C clear
       UsedFlags.Z = true;
+      LLVM_FALLTHROUGH;
     case AArch64CC::HS: // C set
     case AArch64CC::LO: // C clear
       UsedFlags.C = true;
@@ -1300,6 +1301,7 @@ static UsedNZCV getUsedNZCV(AArch64CC::CondCode CC) {
     case AArch64CC::GT: // Z clear, N and V the same
     case AArch64CC::LE: // Z set,   N and V differ
       UsedFlags.Z = true;
+      LLVM_FALLTHROUGH;
     case AArch64CC::GE: // N and V the same
     case AArch64CC::LT: // N and V differ 
       UsedFlags.N = true;
@@ -3669,12 +3671,17 @@ enum class FMAInstKind { Default, Indexed, Accumulator };
 ///  F|MUL I=A,B,0
 ///  F|ADD R,I,C
 ///  ==> F|MADD R,A,B,C
+/// \param MF Containing MachineFunction
+/// \param MRI Register information
+/// \param TII Target information
 /// \param Root is the F|ADD instruction
 /// \param [out] InsInstrs is a vector of machine instructions and will
 /// contain the generated madd instruction
 /// \param IdxMulOpd is index of operand in Root that is the result of
 /// the F|MUL. In the example above IdxMulOpd is 1.
 /// \param MaddOpc the opcode fo the f|madd instruction
+/// \param RC Register class of operands
+/// \param kind of fma instruction (addressing mode) to be generated
 static MachineInstr *
 genFusedMultiply(MachineFunction &MF, MachineRegisterInfo &MRI,
                  const TargetInstrInfo *TII, MachineInstr &Root,
@@ -3733,6 +3740,9 @@ genFusedMultiply(MachineFunction &MF, MachineRegisterInfo &MRI,
 ///   ADD R,I,Imm
 ///   ==> ORR  V, ZR, Imm
 ///   ==> MADD R,A,B,V
+/// \param MF Containing MachineFunction
+/// \param MRI Register information
+/// \param TII Target information
 /// \param Root is the ADD instruction
 /// \param [out] InsInstrs is a vector of machine instructions and will
 /// contain the generated madd instruction
@@ -3741,6 +3751,7 @@ genFusedMultiply(MachineFunction &MF, MachineRegisterInfo &MRI,
 /// \param MaddOpc the opcode fo the madd instruction
 /// \param VR is a virtual register that holds the value of an ADD operand
 /// (V in the example above).
+/// \param RC Register class of operands
 static MachineInstr *genMaddR(MachineFunction &MF, MachineRegisterInfo &MRI,
                               const TargetInstrInfo *TII, MachineInstr &Root,
                               SmallVectorImpl<MachineInstr *> &InsInstrs,
@@ -4216,26 +4227,36 @@ void AArch64InstrInfo::genAlternativeCodeSequence(
 /// \brief Replace csincr-branch sequence by simple conditional branch
 ///
 /// Examples:
-/// 1.
+/// 1. \code
 ///   csinc  w9, wzr, wzr, <condition code>
 ///   tbnz   w9, #0, 0x44
+///    \endcode
 /// to
+///    \code
 ///   b.<inverted condition code>
+///    \endcode
 ///
-/// 2.
+/// 2. \code
 ///   csinc w9, wzr, wzr, <condition code>
 ///   tbz   w9, #0, 0x44
+///    \endcode
 /// to
+///    \code
 ///   b.<condition code>
+///    \endcode
 ///
 /// Replace compare and branch sequence by TBZ/TBNZ instruction when the
 /// compare's constant operand is power of 2.
 ///
 /// Examples:
+///    \code
 ///   and  w8, w8, #0x400
 ///   cbnz w8, L1
+///    \endcode
 /// to
+///    \code
 ///   tbnz w8, #10, L1
+///    \endcode
 ///
 /// \param  MI Conditional Branch
 /// \return True when the simple conditional branch is generated
@@ -4406,6 +4427,13 @@ AArch64InstrInfo::getSerializableBitmaskMachineOperandTargetFlags() const {
       {MO_GOT, "aarch64-got"},
       {MO_NC, "aarch64-nc"},
       {MO_TLS, "aarch64-tls"}};
+  return makeArrayRef(TargetFlags);
+}
+
+ArrayRef<std::pair<MachineMemOperand::Flags, const char *>>
+AArch64InstrInfo::getSerializableMachineMemOperandTargetFlags() const {
+  static const std::pair<MachineMemOperand::Flags, const char *> TargetFlags[] =
+      {{MOSuppressPair, "aarch64-suppress-pair"}};
   return makeArrayRef(TargetFlags);
 }
 

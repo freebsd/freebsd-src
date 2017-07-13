@@ -47,7 +47,13 @@ template <typename T> struct MappingTraits;
 
 /// \brief Class to accumulate and hold information about a callee.
 struct CalleeInfo {
-  enum class HotnessType : uint8_t { Unknown = 0, Cold = 1, None = 2, Hot = 3 };
+  enum class HotnessType : uint8_t {
+    Unknown = 0,
+    Cold = 1,
+    None = 2,
+    Hot = 3,
+    Critical = 4
+  };
   HotnessType Hotness = HotnessType::Unknown;
 
   CalleeInfo() = default;
@@ -516,7 +522,7 @@ using ModulePathStringTableTy = StringMap<std::pair<uint64_t, ModuleHash>>;
 
 /// Map of global value GUID to its summary, used to identify values defined in
 /// a particular module, and provide efficient access to their summary.
-using GVSummaryMapTy = std::map<GlobalValue::GUID, GlobalValueSummary *>;
+using GVSummaryMapTy = DenseMap<GlobalValue::GUID, GlobalValueSummary *>;
 
 /// Class to hold module path string table and global value map,
 /// and encapsulate methods for operating on them.
