@@ -141,6 +141,8 @@ class MIParser {
   StringMap<unsigned> Names2DirectTargetFlags;
   /// Maps from direct target flag names to the bitmask target flag values.
   StringMap<unsigned> Names2BitmaskTargetFlags;
+  /// Maps from MMO target flag names to MMO target flag values.
+  StringMap<MachineMemOperand::Flags> Names2MMOTargetFlags;
 
 public:
   MIParser(PerFunctionMIParsingState &PFS, SMDiagnostic &Error,
@@ -229,6 +231,7 @@ public:
   bool parseMemoryOperandFlag(MachineMemOperand::Flags &Flags);
   bool parseMemoryPseudoSourceValue(const PseudoSourceValue *&PSV);
   bool parseMachinePointerInfo(MachinePointerInfo &Dest);
+  bool parseOptionalScope(LLVMContext &Context, SyncScope::ID &SSID);
   bool parseOptionalAtomicOrdering(AtomicOrdering &Order);
   bool parseMachineMemoryOperand(MachineMemOperand *&Dest);
 
@@ -318,6 +321,18 @@ private:
   ///
   /// Return true if the name isn't a name of a bitmask target flag.
   bool getBitmaskTargetFlag(StringRef Name, unsigned &Flag);
+
+  void initNames2MMOTargetFlags();
+
+  /// Try to convert a name of a MachineMemOperand target flag to the
+  /// corresponding target flag.
+  ///
+  /// Return true if the name isn't a name of a target MMO flag.
+  bool getMMOTargetFlag(StringRef Name, MachineMemOperand::Flags &Flag);
+
+  /// parseStringConstant
+  ///   ::= StringConstant
+  bool parseStringConstant(std::string &Result);
 };
 
 } // end anonymous namespace
@@ -2034,7 +2049,14 @@ bool MIParser::parseMemoryOperandFlag(MachineMemOperand::Flags &Flags) {
   case MIToken::kw_invariant:
     Flags |= MachineMemOperand::MOInvariant;
     break;
-  // TODO: parse the target specific memory operand flags.
+  case MIToken::StringConstant: {
+    MachineMemOperand::Flags TF;
+    if (getMMOTargetFlag(Token.stringValue(), TF))
+      return error("use of undefined target MMO flag '" + Token.stringValue() +
+                   "'");
+    Flags |= TF;
+    break;
+  }
   default:
     llvm_unreachable("The current token should be a memory operand flag");
   }
@@ -2135,6 +2157,26 @@ bool MIParser::parseMachinePointerInfo(MachinePointerInfo &Dest) {
   return false;
 }
 
+bool MIParser::parseOptionalScope(LLVMContext &Context,
+                                  SyncScope::ID &SSID) {
+  SSID = SyncScope::System;
+  if (Token.is(MIToken::Identifier) && Token.stringValue() == "syncscope") {
+    lex();
+    if (expectAndConsume(MIToken::lparen))
+      return error("expected '(' in syncscope");
+
+    std::string SSN;
+    if (parseStringConstant(SSN))
+      return true;
+
+    SSID = Context.getOrInsertSyncScopeID(SSN);
+    if (expectAndConsume(MIToken::rparen))
+      return error("expected ')' in syncscope");
+  }
+
+  return false;
+}
+
 bool MIParser::parseOptionalAtomicOrdering(AtomicOrdering &Order) {
   Order = AtomicOrdering::NotAtomic;
   if (Token.isNot(MIToken::Identifier))
@@ -2174,12 +2216,10 @@ bool MIParser::parseMachineMemoryOperand(MachineMemOperand *&Dest) {
     Flags |= MachineMemOperand::MOStore;
   lex();
 
-  // Optional "singlethread" scope.
-  SynchronizationScope Scope = SynchronizationScope::CrossThread;
-  if (Token.is(MIToken::Identifier) && Token.stringValue() == "singlethread") {
-    Scope = SynchronizationScope::SingleThread;
-    lex();
-  }
+  // Optional synchronization scope.
+  SyncScope::ID SSID;
+  if (parseOptionalScope(MF.getFunction()->getContext(), SSID))
+    return true;
 
   // Up to two atomic orderings (cmpxchg provides guarantees on failure).
   AtomicOrdering Order, FailureOrder;
@@ -2244,7 +2284,7 @@ bool MIParser::parseMachineMemoryOperand(MachineMemOperand *&Dest) {
   if (expectAndConsume(MIToken::rparen))
     return true;
   Dest = MF.getMachineMemOperand(Ptr, Flags, Size, BaseAlignment, AAInfo, Range,
-                                 Scope, Order, FailureOrder);
+                                 SSID, Order, FailureOrder);
   return false;
 }
 
@@ -2454,6 +2494,35 @@ bool MIParser::getBitmaskTargetFlag(StringRef Name, unsigned &Flag) {
   if (FlagInfo == Names2BitmaskTargetFlags.end())
     return true;
   Flag = FlagInfo->second;
+  return false;
+}
+
+void MIParser::initNames2MMOTargetFlags() {
+  if (!Names2MMOTargetFlags.empty())
+    return;
+  const auto *TII = MF.getSubtarget().getInstrInfo();
+  assert(TII && "Expected target instruction info");
+  auto Flags = TII->getSerializableMachineMemOperandTargetFlags();
+  for (const auto &I : Flags)
+    Names2MMOTargetFlags.insert(
+        std::make_pair(StringRef(I.second), I.first));
+}
+
+bool MIParser::getMMOTargetFlag(StringRef Name,
+                                MachineMemOperand::Flags &Flag) {
+  initNames2MMOTargetFlags();
+  auto FlagInfo = Names2MMOTargetFlags.find(Name);
+  if (FlagInfo == Names2MMOTargetFlags.end())
+    return true;
+  Flag = FlagInfo->second;
+  return false;
+}
+
+bool MIParser::parseStringConstant(std::string &Result) {
+  if (Token.isNot(MIToken::StringConstant))
+    return error("expected string constant");
+  Result = Token.stringValue();
+  lex();
   return false;
 }
 

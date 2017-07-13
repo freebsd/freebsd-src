@@ -25,6 +25,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -80,6 +81,7 @@ namespace {
                               bool IsSigned);
     bool eliminateSDiv(BinaryOperator *SDiv);
     bool strengthenOverflowingOperation(BinaryOperator *OBO, Value *IVOperand);
+    bool strengthenRightShift(BinaryOperator *BO, Value *IVOperand);
   };
 }
 
@@ -154,6 +156,7 @@ Value *SimplifyIndvar::foldIVUser(Instruction *UseInst, Instruction *IVOperand) 
 void SimplifyIndvar::eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand) {
   unsigned IVOperIdx = 0;
   ICmpInst::Predicate Pred = ICmp->getPredicate();
+  ICmpInst::Predicate OriginalPred = Pred;
   if (IVOperand != ICmp->getOperand(0)) {
     // Swapped
     assert(IVOperand == ICmp->getOperand(1) && "Can't find IVOperand");
@@ -262,6 +265,16 @@ void SimplifyIndvar::eliminateIVComparison(ICmpInst *ICmp, Value *IVOperand) {
     ICmp->setPredicate(InvariantPredicate);
     ICmp->setOperand(0, NewLHS);
     ICmp->setOperand(1, NewRHS);
+  } else if (ICmpInst::isSigned(OriginalPred) &&
+             SE->isKnownNonNegative(S) && SE->isKnownNonNegative(X)) {
+    // If we were unable to make anything above, all we can is to canonicalize
+    // the comparison hoping that it will open the doors for other
+    // optimizations. If we find out that we compare two non-negative values,
+    // we turn the instruction's predicate to its unsigned version. Note that
+    // we cannot rely on Pred here unless we check if we have swapped it.
+    assert(ICmp->getPredicate() == OriginalPred && "Predicate changed?");
+    DEBUG(dbgs() << "INDVARS: Turn to unsigned comparison: " << *ICmp << '\n');
+    ICmp->setPredicate(ICmpInst::getUnsignedPredicate(OriginalPred));
   } else
     return;
 
@@ -583,6 +596,35 @@ bool SimplifyIndvar::strengthenOverflowingOperation(BinaryOperator *BO,
   return Changed;
 }
 
+/// Annotate the Shr in (X << IVOperand) >> C as exact using the
+/// information from the IV's range. Returns true if anything changed, false
+/// otherwise.
+bool SimplifyIndvar::strengthenRightShift(BinaryOperator *BO,
+                                          Value *IVOperand) {
+  using namespace llvm::PatternMatch;
+
+  if (BO->getOpcode() == Instruction::Shl) {
+    bool Changed = false;
+    ConstantRange IVRange = SE->getUnsignedRange(SE->getSCEV(IVOperand));
+    for (auto *U : BO->users()) {
+      const APInt *C;
+      if (match(U,
+                m_AShr(m_Shl(m_Value(), m_Specific(IVOperand)), m_APInt(C))) ||
+          match(U,
+                m_LShr(m_Shl(m_Value(), m_Specific(IVOperand)), m_APInt(C)))) {
+        BinaryOperator *Shr = cast<BinaryOperator>(U);
+        if (!Shr->isExact() && IVRange.getUnsignedMin().uge(*C)) {
+          Shr->setIsExact(true);
+          Changed = true;
+        }
+      }
+    }
+    return Changed;
+  }
+
+  return false;
+}
+
 /// Add all uses of Def to the current IV's worklist.
 static void pushIVUsers(
   Instruction *Def,
@@ -675,8 +717,9 @@ void SimplifyIndvar::simplifyUsers(PHINode *CurrIV, IVVisitor *V) {
     }
 
     if (BinaryOperator *BO = dyn_cast<BinaryOperator>(UseOper.first)) {
-      if (isa<OverflowingBinaryOperator>(BO) &&
-          strengthenOverflowingOperation(BO, IVOperand)) {
+      if ((isa<OverflowingBinaryOperator>(BO) &&
+           strengthenOverflowingOperation(BO, IVOperand)) ||
+          (isa<ShlOperator>(BO) && strengthenRightShift(BO, IVOperand))) {
         // re-queue uses of the now modified binary operator and fall
         // through to the checks that remain.
         pushIVUsers(IVOperand, Simplified, SimpleIVUsers);

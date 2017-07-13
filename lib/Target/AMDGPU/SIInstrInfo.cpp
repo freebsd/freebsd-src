@@ -2022,10 +2022,12 @@ MachineInstr *SIInstrInfo::convertToThreeAddress(MachineFunction::iterator &MBB,
     return nullptr;
   case AMDGPU::V_MAC_F16_e64:
     IsF16 = true;
+    LLVM_FALLTHROUGH;
   case AMDGPU::V_MAC_F32_e64:
     break;
   case AMDGPU::V_MAC_F16_e32:
     IsF16 = true;
+    LLVM_FALLTHROUGH;
   case AMDGPU::V_MAC_F32_e32: {
     int Src0Idx = AMDGPU::getNamedOperandIdx(MI.getOpcode(),
                                              AMDGPU::OpName::src0);
@@ -4318,6 +4320,24 @@ SIInstrInfo::CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
 ScheduleHazardRecognizer *
 SIInstrInfo::CreateTargetPostRAHazardRecognizer(const MachineFunction &MF) const {
   return new GCNHazardRecognizer(MF);
+}
+
+std::pair<unsigned, unsigned>
+SIInstrInfo::decomposeMachineOperandsTargetFlags(unsigned TF) const {
+  return std::make_pair(TF & MO_MASK, TF & ~MO_MASK);
+}
+
+ArrayRef<std::pair<unsigned, const char *>>
+SIInstrInfo::getSerializableDirectMachineOperandTargetFlags() const {
+  static const std::pair<unsigned, const char *> TargetFlags[] = {
+    { MO_GOTPCREL, "amdgpu-gotprel" },
+    { MO_GOTPCREL32_LO, "amdgpu-gotprel32-lo" },
+    { MO_GOTPCREL32_HI, "amdgpu-gotprel32-hi" },
+    { MO_REL32_LO, "amdgpu-rel32-lo" },
+    { MO_REL32_HI, "amdgpu-rel32-hi" }
+  };
+
+  return makeArrayRef(TargetFlags);
 }
 
 bool SIInstrInfo::isBasicBlockPrologue(const MachineInstr &MI) const {

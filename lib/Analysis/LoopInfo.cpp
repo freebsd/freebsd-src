@@ -131,13 +131,13 @@ PHINode *Loop::getCanonicalInductionVariable() const {
     PHINode *PN = cast<PHINode>(I);
     if (ConstantInt *CI =
         dyn_cast<ConstantInt>(PN->getIncomingValueForBlock(Incoming)))
-      if (CI->isNullValue())
+      if (CI->isZero())
         if (Instruction *Inc =
             dyn_cast<Instruction>(PN->getIncomingValueForBlock(Backedge)))
           if (Inc->getOpcode() == Instruction::Add &&
                 Inc->getOperand(0) == PN)
             if (ConstantInt *CI = dyn_cast<ConstantInt>(Inc->getOperand(1)))
-              if (CI->equalsInt(1))
+              if (CI->isOne())
                 return PN;
   }
   return nullptr;
@@ -460,7 +460,7 @@ protected:
 void UnloopUpdater::updateBlockParents() {
   if (Unloop.getNumBlocks()) {
     // Perform a post order CFG traversal of all blocks within this loop,
-    // propagating the nearest loop from sucessors to predecessors.
+    // propagating the nearest loop from successors to predecessors.
     LoopBlocksTraversal Traversal(DFS, LI);
     for (BasicBlock *POI : Traversal) {
 

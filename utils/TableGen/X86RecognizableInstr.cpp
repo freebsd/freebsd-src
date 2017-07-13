@@ -10,7 +10,7 @@
 // This file is part of the X86 Disassembler Emitter.
 // It contains the implementation of a single recognizable instruction.
 // Documentation for the disassembler emitter in general can be found in
-//  X86DisasemblerEmitter.h.
+//  X86DisassemblerEmitter.h.
 //
 //===----------------------------------------------------------------------===//
 
@@ -367,7 +367,7 @@ void RecognizableInstr::handleOperand(bool optional, unsigned &operandIndex,
     ++operandIndex;
   }
 
-  const std::string &typeName = (*Operands)[operandIndex].Rec->getName();
+  StringRef typeName = (*Operands)[operandIndex].Rec->getName();
 
   OperandEncoding encoding = encodingFromString(typeName, OpSize);
   // Adjust the encoding type for an operand based on the instruction.

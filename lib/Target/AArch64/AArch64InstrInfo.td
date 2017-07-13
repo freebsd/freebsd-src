@@ -313,9 +313,6 @@ def AArch64umaxv    : SDNode<"AArch64ISD::UMAXV", SDT_AArch64UnaryVec>;
 //===----------------------------------------------------------------------===//
 
 // AArch64 Instruction Predicate Definitions.
-def IsDarwin  : Predicate<"Subtarget->isTargetDarwin()">;
-def IsNotDarwin: Predicate<"!Subtarget->isTargetDarwin()">;
-
 // We could compute these on a per-module basis but doing so requires accessing
 // the Function object through the <Target>Subtarget and objections were raised
 // to that (see post-commit review comments for r301750).
@@ -714,10 +711,10 @@ def : InstAlias<"negs $dst, $src$shift",
 defm UDIV : Div<0, "udiv", udiv>;
 defm SDIV : Div<1, "sdiv", sdiv>;
 
-def : Pat<(int_aarch64_udiv GPR32:$Rn, GPR32:$Rm), (UDIVWr $Rn, $Rm)>;
-def : Pat<(int_aarch64_udiv GPR64:$Rn, GPR64:$Rm), (UDIVXr $Rn, $Rm)>;
-def : Pat<(int_aarch64_sdiv GPR32:$Rn, GPR32:$Rm), (SDIVWr $Rn, $Rm)>;
-def : Pat<(int_aarch64_sdiv GPR64:$Rn, GPR64:$Rm), (SDIVXr $Rn, $Rm)>;
+def : Pat<(int_aarch64_udiv GPR32:$Rn, GPR32:$Rm), (UDIVWr GPR32:$Rn, GPR32:$Rm)>;
+def : Pat<(int_aarch64_udiv GPR64:$Rn, GPR64:$Rm), (UDIVXr GPR64:$Rn, GPR64:$Rm)>;
+def : Pat<(int_aarch64_sdiv GPR32:$Rn, GPR32:$Rm), (SDIVWr GPR32:$Rn, GPR32:$Rm)>;
+def : Pat<(int_aarch64_sdiv GPR64:$Rn, GPR64:$Rm), (SDIVXr GPR64:$Rn, GPR64:$Rm)>;
 
 // Variable shift
 defm ASRV : Shift<0b10, "asr", sra>;

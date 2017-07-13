@@ -20,6 +20,8 @@
 
 #define DEBUG_TYPE "arm-isel"
 
+#include "llvm/CodeGen/GlobalISel/InstructionSelectorImpl.h"
+
 using namespace llvm;
 
 #ifndef LLVM_BUILD_GLOBAL_ISEL
@@ -42,13 +44,32 @@ public:
 private:
   bool selectImpl(MachineInstr &I) const;
 
-  bool selectICmp(MachineInstrBuilder &MIB, const ARMBaseInstrInfo &TII,
-                  MachineRegisterInfo &MRI, const TargetRegisterInfo &TRI,
-                  const RegisterBankInfo &RBI) const;
+  struct CmpConstants;
+  struct InsertInfo;
 
-  bool selectSelect(MachineInstrBuilder &MIB, const ARMBaseInstrInfo &TII,
-                    MachineRegisterInfo &MRI, const TargetRegisterInfo &TRI,
-                    const RegisterBankInfo &RBI) const;
+  bool selectCmp(CmpConstants Helper, MachineInstrBuilder &MIB,
+                 MachineRegisterInfo &MRI) const;
+
+  // Helper for inserting a comparison sequence that sets \p ResReg to either 1
+  // if \p LHSReg and \p RHSReg are in the relationship defined by \p Cond, or
+  // \p PrevRes otherwise. In essence, it computes PrevRes OR (LHS Cond RHS).
+  bool insertComparison(CmpConstants Helper, InsertInfo I, unsigned ResReg,
+                        ARMCC::CondCodes Cond, unsigned LHSReg, unsigned RHSReg,
+                        unsigned PrevRes) const;
+
+  // Set \p DestReg to \p Constant.
+  void putConstant(InsertInfo I, unsigned DestReg, unsigned Constant) const;
+
+  bool selectSelect(MachineInstrBuilder &MIB, MachineRegisterInfo &MRI) const;
+
+  // Check if the types match and both operands have the expected size and
+  // register bank.
+  bool validOpRegPair(MachineRegisterInfo &MRI, unsigned LHS, unsigned RHS,
+                      unsigned ExpectedSize, unsigned ExpectedRegBankID) const;
+
+  // Check if the register has the expected size and register bank.
+  bool validReg(MachineRegisterInfo &MRI, unsigned Reg, unsigned ExpectedSize,
+                unsigned ExpectedRegBankID) const;
 
   const ARMBaseInstrInfo &TII;
   const ARMBaseRegisterInfo &TRI;
@@ -251,120 +272,233 @@ static unsigned selectLoadStoreOpCode(unsigned Opc, unsigned RegBank,
   return Opc;
 }
 
-static ARMCC::CondCodes getComparePred(CmpInst::Predicate Pred) {
+// When lowering comparisons, we sometimes need to perform two compares instead
+// of just one. Get the condition codes for both comparisons. If only one is
+// needed, the second member of the pair is ARMCC::AL.
+static std::pair<ARMCC::CondCodes, ARMCC::CondCodes>
+getComparePreds(CmpInst::Predicate Pred) {
+  std::pair<ARMCC::CondCodes, ARMCC::CondCodes> Preds = {ARMCC::AL, ARMCC::AL};
   switch (Pred) {
-  // Needs two compares...
   case CmpInst::FCMP_ONE:
+    Preds = {ARMCC::GT, ARMCC::MI};
+    break;
   case CmpInst::FCMP_UEQ:
-  default:
-    // AL is our "false" for now. The other two need more compares.
-    return ARMCC::AL;
+    Preds = {ARMCC::EQ, ARMCC::VS};
+    break;
   case CmpInst::ICMP_EQ:
   case CmpInst::FCMP_OEQ:
-    return ARMCC::EQ;
+    Preds.first = ARMCC::EQ;
+    break;
   case CmpInst::ICMP_SGT:
   case CmpInst::FCMP_OGT:
-    return ARMCC::GT;
+    Preds.first = ARMCC::GT;
+    break;
   case CmpInst::ICMP_SGE:
   case CmpInst::FCMP_OGE:
-    return ARMCC::GE;
+    Preds.first = ARMCC::GE;
+    break;
   case CmpInst::ICMP_UGT:
   case CmpInst::FCMP_UGT:
-    return ARMCC::HI;
+    Preds.first = ARMCC::HI;
+    break;
   case CmpInst::FCMP_OLT:
-    return ARMCC::MI;
+    Preds.first = ARMCC::MI;
+    break;
   case CmpInst::ICMP_ULE:
   case CmpInst::FCMP_OLE:
-    return ARMCC::LS;
+    Preds.first = ARMCC::LS;
+    break;
   case CmpInst::FCMP_ORD:
-    return ARMCC::VC;
+    Preds.first = ARMCC::VC;
+    break;
   case CmpInst::FCMP_UNO:
-    return ARMCC::VS;
+    Preds.first = ARMCC::VS;
+    break;
   case CmpInst::FCMP_UGE:
-    return ARMCC::PL;
+    Preds.first = ARMCC::PL;
+    break;
   case CmpInst::ICMP_SLT:
   case CmpInst::FCMP_ULT:
-    return ARMCC::LT;
+    Preds.first = ARMCC::LT;
+    break;
   case CmpInst::ICMP_SLE:
   case CmpInst::FCMP_ULE:
-    return ARMCC::LE;
+    Preds.first = ARMCC::LE;
+    break;
   case CmpInst::FCMP_UNE:
   case CmpInst::ICMP_NE:
-    return ARMCC::NE;
+    Preds.first = ARMCC::NE;
+    break;
   case CmpInst::ICMP_UGE:
-    return ARMCC::HS;
+    Preds.first = ARMCC::HS;
+    break;
   case CmpInst::ICMP_ULT:
-    return ARMCC::LO;
+    Preds.first = ARMCC::LO;
+    break;
+  default:
+    break;
   }
+  assert(Preds.first != ARMCC::AL && "No comparisons needed?");
+  return Preds;
 }
 
-bool ARMInstructionSelector::selectICmp(MachineInstrBuilder &MIB,
-                                        const ARMBaseInstrInfo &TII,
-                                        MachineRegisterInfo &MRI,
-                                        const TargetRegisterInfo &TRI,
-                                        const RegisterBankInfo &RBI) const {
-  auto &MBB = *MIB->getParent();
-  auto InsertBefore = std::next(MIB->getIterator());
-  auto &DebugLoc = MIB->getDebugLoc();
+struct ARMInstructionSelector::CmpConstants {
+  CmpConstants(unsigned CmpOpcode, unsigned FlagsOpcode, unsigned OpRegBank,
+               unsigned OpSize)
+      : ComparisonOpcode(CmpOpcode), ReadFlagsOpcode(FlagsOpcode),
+        OperandRegBankID(OpRegBank), OperandSize(OpSize) {}
 
-  // Move 0 into the result register.
-  auto Mov0I = BuildMI(MBB, InsertBefore, DebugLoc, TII.get(ARM::MOVi))
-                   .addDef(MRI.createVirtualRegister(&ARM::GPRRegClass))
-                   .addImm(0)
-                   .add(predOps(ARMCC::AL))
-                   .add(condCodeOp());
-  if (!constrainSelectedInstRegOperands(*Mov0I, TII, TRI, RBI))
+  // The opcode used for performing the comparison.
+  const unsigned ComparisonOpcode;
+
+  // The opcode used for reading the flags set by the comparison. May be
+  // ARM::INSTRUCTION_LIST_END if we don't need to read the flags.
+  const unsigned ReadFlagsOpcode;
+
+  // The assumed register bank ID for the operands.
+  const unsigned OperandRegBankID;
+
+  // The assumed size in bits for the operands.
+  const unsigned OperandSize;
+};
+
+struct ARMInstructionSelector::InsertInfo {
+  InsertInfo(MachineInstrBuilder &MIB)
+      : MBB(*MIB->getParent()), InsertBefore(std::next(MIB->getIterator())),
+        DbgLoc(MIB->getDebugLoc()) {}
+
+  MachineBasicBlock &MBB;
+  const MachineBasicBlock::instr_iterator InsertBefore;
+  const DebugLoc &DbgLoc;
+};
+
+void ARMInstructionSelector::putConstant(InsertInfo I, unsigned DestReg,
+                                         unsigned Constant) const {
+  (void)BuildMI(I.MBB, I.InsertBefore, I.DbgLoc, TII.get(ARM::MOVi))
+      .addDef(DestReg)
+      .addImm(Constant)
+      .add(predOps(ARMCC::AL))
+      .add(condCodeOp());
+}
+
+bool ARMInstructionSelector::validOpRegPair(MachineRegisterInfo &MRI,
+                                            unsigned LHSReg, unsigned RHSReg,
+                                            unsigned ExpectedSize,
+                                            unsigned ExpectedRegBankID) const {
+  return MRI.getType(LHSReg) == MRI.getType(RHSReg) &&
+         validReg(MRI, LHSReg, ExpectedSize, ExpectedRegBankID) &&
+         validReg(MRI, RHSReg, ExpectedSize, ExpectedRegBankID);
+}
+
+bool ARMInstructionSelector::validReg(MachineRegisterInfo &MRI, unsigned Reg,
+                                      unsigned ExpectedSize,
+                                      unsigned ExpectedRegBankID) const {
+  if (MRI.getType(Reg).getSizeInBits() != ExpectedSize) {
+    DEBUG(dbgs() << "Unexpected size for register");
     return false;
+  }
 
-  // Perform the comparison.
-  auto LHSReg = MIB->getOperand(2).getReg();
-  auto RHSReg = MIB->getOperand(3).getReg();
-  assert(MRI.getType(LHSReg) == MRI.getType(RHSReg) &&
-         MRI.getType(LHSReg).getSizeInBits() == 32 &&
-         MRI.getType(RHSReg).getSizeInBits() == 32 &&
-         "Unsupported types for comparison operation");
-  auto CmpI = BuildMI(MBB, InsertBefore, DebugLoc, TII.get(ARM::CMPrr))
-                  .addUse(LHSReg)
-                  .addUse(RHSReg)
-                  .add(predOps(ARMCC::AL));
-  if (!constrainSelectedInstRegOperands(*CmpI, TII, TRI, RBI))
+  if (RBI.getRegBank(Reg, MRI, TRI)->getID() != ExpectedRegBankID) {
+    DEBUG(dbgs() << "Unexpected register bank for register");
     return false;
+  }
 
-  // Move 1 into the result register if the flags say so.
+  return true;
+}
+
+bool ARMInstructionSelector::selectCmp(CmpConstants Helper,
+                                       MachineInstrBuilder &MIB,
+                                       MachineRegisterInfo &MRI) const {
+  const InsertInfo I(MIB);
+
   auto ResReg = MIB->getOperand(0).getReg();
+  if (!validReg(MRI, ResReg, 1, ARM::GPRRegBankID))
+    return false;
+
   auto Cond =
       static_cast<CmpInst::Predicate>(MIB->getOperand(1).getPredicate());
-  auto ARMCond = getComparePred(Cond);
-  if (ARMCond == ARMCC::AL)
+  if (Cond == CmpInst::FCMP_TRUE || Cond == CmpInst::FCMP_FALSE) {
+    putConstant(I, ResReg, Cond == CmpInst::FCMP_TRUE ? 1 : 0);
+    MIB->eraseFromParent();
+    return true;
+  }
+
+  auto LHSReg = MIB->getOperand(2).getReg();
+  auto RHSReg = MIB->getOperand(3).getReg();
+  if (!validOpRegPair(MRI, LHSReg, RHSReg, Helper.OperandSize,
+                      Helper.OperandRegBankID))
     return false;
 
-  auto Mov1I = BuildMI(MBB, InsertBefore, DebugLoc, TII.get(ARM::MOVCCi))
-                   .addDef(ResReg)
-                   .addUse(Mov0I->getOperand(0).getReg())
-                   .addImm(1)
-                   .add(predOps(ARMCond, ARM::CPSR));
-  if (!constrainSelectedInstRegOperands(*Mov1I, TII, TRI, RBI))
-    return false;
+  auto ARMConds = getComparePreds(Cond);
+  auto ZeroReg = MRI.createVirtualRegister(&ARM::GPRRegClass);
+  putConstant(I, ZeroReg, 0);
+
+  if (ARMConds.second == ARMCC::AL) {
+    // Simple case, we only need one comparison and we're done.
+    if (!insertComparison(Helper, I, ResReg, ARMConds.first, LHSReg, RHSReg,
+                          ZeroReg))
+      return false;
+  } else {
+    // Not so simple, we need two successive comparisons.
+    auto IntermediateRes = MRI.createVirtualRegister(&ARM::GPRRegClass);
+    if (!insertComparison(Helper, I, IntermediateRes, ARMConds.first, LHSReg,
+                          RHSReg, ZeroReg))
+      return false;
+    if (!insertComparison(Helper, I, ResReg, ARMConds.second, LHSReg, RHSReg,
+                          IntermediateRes))
+      return false;
+  }
 
   MIB->eraseFromParent();
   return true;
 }
 
+bool ARMInstructionSelector::insertComparison(CmpConstants Helper, InsertInfo I,
+                                              unsigned ResReg,
+                                              ARMCC::CondCodes Cond,
+                                              unsigned LHSReg, unsigned RHSReg,
+                                              unsigned PrevRes) const {
+  // Perform the comparison.
+  auto CmpI =
+      BuildMI(I.MBB, I.InsertBefore, I.DbgLoc, TII.get(Helper.ComparisonOpcode))
+          .addUse(LHSReg)
+          .addUse(RHSReg)
+          .add(predOps(ARMCC::AL));
+  if (!constrainSelectedInstRegOperands(*CmpI, TII, TRI, RBI))
+    return false;
+
+  // Read the comparison flags (if necessary).
+  if (Helper.ReadFlagsOpcode != ARM::INSTRUCTION_LIST_END) {
+    auto ReadI = BuildMI(I.MBB, I.InsertBefore, I.DbgLoc,
+                         TII.get(Helper.ReadFlagsOpcode))
+                     .add(predOps(ARMCC::AL));
+    if (!constrainSelectedInstRegOperands(*ReadI, TII, TRI, RBI))
+      return false;
+  }
+
+  // Select either 1 or the previous result based on the value of the flags.
+  auto Mov1I = BuildMI(I.MBB, I.InsertBefore, I.DbgLoc, TII.get(ARM::MOVCCi))
+                   .addDef(ResReg)
+                   .addUse(PrevRes)
+                   .addImm(1)
+                   .add(predOps(Cond, ARM::CPSR));
+  if (!constrainSelectedInstRegOperands(*Mov1I, TII, TRI, RBI))
+    return false;
+
+  return true;
+}
+
 bool ARMInstructionSelector::selectSelect(MachineInstrBuilder &MIB,
-                                          const ARMBaseInstrInfo &TII,
-                                          MachineRegisterInfo &MRI,
-                                          const TargetRegisterInfo &TRI,
-                                          const RegisterBankInfo &RBI) const {
+                                          MachineRegisterInfo &MRI) const {
   auto &MBB = *MIB->getParent();
   auto InsertBefore = std::next(MIB->getIterator());
-  auto &DebugLoc = MIB->getDebugLoc();
+  auto &DbgLoc = MIB->getDebugLoc();
 
   // Compare the condition to 0.
   auto CondReg = MIB->getOperand(1).getReg();
-  assert(MRI.getType(CondReg).getSizeInBits() == 1 &&
-         RBI.getRegBank(CondReg, MRI, TRI)->getID() == ARM::GPRRegBankID &&
+  assert(validReg(MRI, CondReg, 1, ARM::GPRRegBankID) &&
          "Unsupported types for select operation");
-  auto CmpI = BuildMI(MBB, InsertBefore, DebugLoc, TII.get(ARM::CMPri))
+  auto CmpI = BuildMI(MBB, InsertBefore, DbgLoc, TII.get(ARM::CMPri))
                   .addUse(CondReg)
                   .addImm(0)
                   .add(predOps(ARMCC::AL));
@@ -376,13 +510,10 @@ bool ARMInstructionSelector::selectSelect(MachineInstrBuilder &MIB,
   auto ResReg = MIB->getOperand(0).getReg();
   auto TrueReg = MIB->getOperand(2).getReg();
   auto FalseReg = MIB->getOperand(3).getReg();
-  assert(MRI.getType(ResReg) == MRI.getType(TrueReg) &&
-         MRI.getType(TrueReg) == MRI.getType(FalseReg) &&
-         MRI.getType(FalseReg).getSizeInBits() == 32 &&
-         RBI.getRegBank(TrueReg, MRI, TRI)->getID() == ARM::GPRRegBankID &&
-         RBI.getRegBank(FalseReg, MRI, TRI)->getID() == ARM::GPRRegBankID &&
+  assert(validOpRegPair(MRI, ResReg, TrueReg, 32, ARM::GPRRegBankID) &&
+         validOpRegPair(MRI, TrueReg, FalseReg, 32, ARM::GPRRegBankID) &&
          "Unsupported types for select operation");
-  auto Mov1I = BuildMI(MBB, InsertBefore, DebugLoc, TII.get(ARM::MOVCCr))
+  auto Mov1I = BuildMI(MBB, InsertBefore, DbgLoc, TII.get(ARM::MOVCCr))
                    .addDef(ResReg)
                    .addUse(TrueReg)
                    .addUse(FalseReg)
@@ -494,10 +625,32 @@ bool ARMInstructionSelector::select(MachineInstr &I) const {
     I.setDesc(TII.get(COPY));
     return selectCopy(I, TII, MRI, TRI, RBI);
   }
-  case G_ICMP:
-    return selectICmp(MIB, TII, MRI, TRI, RBI);
   case G_SELECT:
-    return selectSelect(MIB, TII, MRI, TRI, RBI);
+    return selectSelect(MIB, MRI);
+  case G_ICMP: {
+    CmpConstants Helper(ARM::CMPrr, ARM::INSTRUCTION_LIST_END,
+                        ARM::GPRRegBankID, 32);
+    return selectCmp(Helper, MIB, MRI);
+  }
+  case G_FCMP: {
+    assert(TII.getSubtarget().hasVFP2() && "Can't select fcmp without VFP");
+
+    unsigned OpReg = I.getOperand(2).getReg();
+    unsigned Size = MRI.getType(OpReg).getSizeInBits();
+
+    if (Size == 64 && TII.getSubtarget().isFPOnlySP()) {
+      DEBUG(dbgs() << "Subtarget only supports single precision");
+      return false;
+    }
+    if (Size != 32 && Size != 64) {
+      DEBUG(dbgs() << "Unsupported size for G_FCMP operand");
+      return false;
+    }
+
+    CmpConstants Helper(Size == 32 ? ARM::VCMPS : ARM::VCMPD, ARM::FMSTAT,
+                        ARM::FPRRegBankID, Size);
+    return selectCmp(Helper, MIB, MRI);
+  }
   case G_GEP:
     I.setDesc(TII.get(ARM::ADDrr));
     MIB.add(predOps(ARMCC::AL)).add(condCodeOp());
@@ -510,11 +663,10 @@ bool ARMInstructionSelector::select(MachineInstr &I) const {
     break;
   case G_CONSTANT: {
     unsigned Reg = I.getOperand(0).getReg();
-    if (MRI.getType(Reg).getSizeInBits() != 32)
+
+    if (!validReg(MRI, Reg, 32, ARM::GPRRegBankID))
       return false;
 
-    assert(RBI.getRegBank(Reg, MRI, TRI)->getID() == ARM::GPRRegBankID &&
-           "Expected constant to live in a GPR");
     I.setDesc(TII.get(ARM::MOVi));
     MIB.add(predOps(ARMCC::AL)).add(condCodeOp());
 

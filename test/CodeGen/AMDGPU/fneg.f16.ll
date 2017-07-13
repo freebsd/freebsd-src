@@ -1,6 +1,6 @@
-; RUN: llc -march=amdgcn -mcpu=kaveri -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=CI -check-prefix=CIVI -check-prefix=GCN %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=VI -check-prefix=CIVI -check-prefix=GCN -check-prefix=GFX89 %s
-; RUN: llc -march=amdgcn -mcpu=gfx901 -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=GFX9 -check-prefix=GCN -check-prefix=GFX89 %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=kaveri -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=CI -check-prefix=CIVI -check-prefix=GCN %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=VI -check-prefix=CIVI -check-prefix=GCN -check-prefix=GFX89 %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=gfx901 -mtriple=amdgcn--amdhsa -verify-machineinstrs < %s | FileCheck -check-prefix=GFX9 -check-prefix=GCN -check-prefix=GFX89 %s
 
 ; FIXME: Should be able to do scalar op
 ; GCN-LABEL: {{^}}s_fneg_f16:
@@ -46,7 +46,7 @@ define amdgpu_kernel void @fneg_free_f16(half addrspace(1)* %out, i16 %in) #0 {
 
 ; CI-DAG: v_cvt_f32_f16_e32 [[CVT_VAL:v[0-9]+]], [[NEG_VALUE]]
 ; CI-DAG: v_cvt_f32_f16_e64 [[NEG_CVT0:v[0-9]+]], -[[NEG_VALUE]]
-; CI: v_mul_f32_e32 [[MUL:v[0-9]+]], [[CVT_VAL]], [[NEG_CVT0]]
+; CI: v_mul_f32_e32 [[MUL:v[0-9]+]], [[NEG_CVT0]], [[CVT_VAL]]
 ; CI: v_cvt_f16_f32_e32 [[CVT1:v[0-9]+]], [[MUL]]
 ; CI: flat_store_short v{{\[[0-9]+:[0-9]+\]}}, [[CVT1]]
 

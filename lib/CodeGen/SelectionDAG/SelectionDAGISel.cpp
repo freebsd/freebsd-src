@@ -1483,7 +1483,6 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
         // Try to select the instruction with FastISel.
         if (FastIS->selectInstruction(Inst)) {
-          FastISelFailed = true;
           --NumFastIselRemaining;
           ++NumFastIselSuccess;
           // If fast isel succeeded, skip over all the folded instructions, and
@@ -1506,8 +1505,14 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
           continue;
         }
 
+        FastISelFailed = true;
+
         // Then handle certain instructions as single-LLVM-Instruction blocks.
-        if (isa<CallInst>(Inst)) {
+        // We cannot separate out GCrelocates to their own blocks since we need
+        // to keep track of gc-relocates for a particular gc-statepoint. This is
+        // done by SelectionDAGBuilder::LowerAsSTATEPOINT, called before
+        // visitGCRelocate.
+        if (isa<CallInst>(Inst) && !isStatepoint(Inst) && !isGCRelocate(Inst)) {
           OptimizationRemarkMissed R("sdagisel", "FastISelFailure",
                                      Inst->getDebugLoc(), LLVMBB);
 

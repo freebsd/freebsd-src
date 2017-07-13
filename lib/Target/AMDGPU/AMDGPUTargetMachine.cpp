@@ -19,9 +19,7 @@
 #include "AMDGPUCallLowering.h"
 #include "AMDGPUInstructionSelector.h"
 #include "AMDGPULegalizerInfo.h"
-#ifdef LLVM_BUILD_GLOBAL_ISEL
-#include "AMDGPURegisterBankInfo.h"
-#endif
+#include "AMDGPUMacroFusion.h"
 #include "AMDGPUTargetObjectFile.h"
 #include "AMDGPUTargetTransformInfo.h"
 #include "GCNIterativeScheduler.h"
@@ -85,7 +83,7 @@ static cl::opt<bool> EnableLoadStoreVectorizer(
 static cl::opt<bool> ScalarizeGlobal(
   "amdgpu-scalarize-global-loads",
   cl::desc("Enable global load scalarization"),
-  cl::init(false),
+  cl::init(true),
   cl::Hidden);
 
 // Option to run internalize pass.
@@ -176,6 +174,7 @@ createGCNMaxOccupancyMachineScheduler(MachineSchedContext *C) {
     new GCNScheduleDAGMILive(C, make_unique<GCNMaxOccupancySchedStrategy>(C));
   DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
   DAG->addMutation(createStoreClusterDAGMutation(DAG->TII, DAG->TRI));
+  DAG->addMutation(createAMDGPUMacroFusionDAGMutation());
   return DAG;
 }
 
@@ -389,31 +388,6 @@ const R600Subtarget *R600TargetMachine::getSubtargetImpl(
 // GCN Target Machine (SI+)
 //===----------------------------------------------------------------------===//
 
-#ifdef LLVM_BUILD_GLOBAL_ISEL
-namespace {
-
-struct SIGISelActualAccessor : public GISelAccessor {
-  std::unique_ptr<AMDGPUCallLowering> CallLoweringInfo;
-  std::unique_ptr<InstructionSelector> InstSelector;
-  std::unique_ptr<LegalizerInfo> Legalizer;
-  std::unique_ptr<RegisterBankInfo> RegBankInfo;
-  const AMDGPUCallLowering *getCallLowering() const override {
-    return CallLoweringInfo.get();
-  }
-  const InstructionSelector *getInstructionSelector() const override {
-    return InstSelector.get();
-  }
-  const LegalizerInfo *getLegalizerInfo() const override {
-    return Legalizer.get();
-  }
-  const RegisterBankInfo *getRegBankInfo() const override {
-    return RegBankInfo.get();
-  }
-};
-
-} // end anonymous namespace
-#endif
-
 GCNTargetMachine::GCNTargetMachine(const Target &T, const Triple &TT,
                                    StringRef CPU, StringRef FS,
                                    TargetOptions Options,
@@ -435,21 +409,6 @@ const SISubtarget *GCNTargetMachine::getSubtargetImpl(const Function &F) const {
     // function that reside in TargetOptions.
     resetTargetOptions(F);
     I = llvm::make_unique<SISubtarget>(TargetTriple, GPU, FS, *this);
-
-#ifndef LLVM_BUILD_GLOBAL_ISEL
-    GISelAccessor *GISel = new GISelAccessor();
-#else
-    SIGISelActualAccessor *GISel = new SIGISelActualAccessor();
-    GISel->CallLoweringInfo.reset(
-      new AMDGPUCallLowering(*I->getTargetLowering()));
-    GISel->Legalizer.reset(new AMDGPULegalizerInfo());
-
-    GISel->RegBankInfo.reset(new AMDGPURegisterBankInfo(*I->getRegisterInfo()));
-    GISel->InstSelector.reset(new AMDGPUInstructionSelector(*I,
-				*static_cast<AMDGPURegisterBankInfo*>(GISel->RegBankInfo.get())));
-#endif
-
-    I->setGISelAccessor(*GISel);
   }
 
   I->setScalarizeGlobalBehavior(ScalarizeGlobal);

@@ -1,15 +1,15 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=SI %s
-; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=CI %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=FUNC %s
-; RUN: llc -march=amdgcn -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN-UNSAFE -check-prefix=GCN %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN-UNSAFE -check-prefix=GCN %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=SI %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=bonaire -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=CI %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN-SAFE -check-prefix=GCN -check-prefix=FUNC %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN-UNSAFE -check-prefix=GCN %s
+; RUN:  llc -amdgpu-scalarize-global-loads=false  -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck -check-prefix=GCN-UNSAFE -check-prefix=GCN %s
 
 declare float @llvm.fabs.f32(float) #0
 declare float @llvm.floor.f32(float) #0
 
 ; GCN-LABEL: {{^}}fract_f32:
 ; GCN-SAFE: v_floor_f32_e32 [[FLR:v[0-9]+]], [[INPUT:v[0-9]+]]
-; GCN-SAFE: v_subrev_f32_e32 [[RESULT:v[0-9]+]], [[FLR]], [[INPUT]]
+; GCN-SAFE: v_sub_f32_e32 [[RESULT:v[0-9]+]], [[INPUT]], [[FLR]]
 
 ; GCN-UNSAFE: v_fract_f32_e32 [[RESULT:v[0-9]+]], [[INPUT:v[0-9]+]]
 

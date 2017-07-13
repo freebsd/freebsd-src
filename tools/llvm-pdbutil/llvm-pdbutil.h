@@ -168,6 +168,13 @@ extern llvm::cl::opt<bool> DumpModuleFiles;
 extern llvm::cl::list<ModuleSubsection> DumpModuleSubsections;
 extern llvm::cl::opt<bool> DumpModuleSyms;
 } // namespace pdb2yaml
+
+namespace diff {
+extern llvm::cl::opt<bool> PrintValueColumns;
+extern llvm::cl::opt<bool> PrintResultColumn;
+extern llvm::cl::opt<std::string> LeftRoot;
+extern llvm::cl::opt<std::string> RightRoot;
+} // namespace diff
 }
 
 #endif

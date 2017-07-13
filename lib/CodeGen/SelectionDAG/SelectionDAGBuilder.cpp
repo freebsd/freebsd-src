@@ -3220,7 +3220,13 @@ void SelectionDAGBuilder::visitShuffleVector(const User &I) {
   setValue(&I, DAG.getBuildVector(VT, DL, Ops));
 }
 
-void SelectionDAGBuilder::visitInsertValue(const InsertValueInst &I) {
+void SelectionDAGBuilder::visitInsertValue(const User &I) {
+  ArrayRef<unsigned> Indices;
+  if (const InsertValueInst *IV = dyn_cast<InsertValueInst>(&I))
+    Indices = IV->getIndices();
+  else
+    Indices = cast<ConstantExpr>(&I)->getIndices();
+
   const Value *Op0 = I.getOperand(0);
   const Value *Op1 = I.getOperand(1);
   Type *AggTy = I.getType();
@@ -3228,7 +3234,7 @@ void SelectionDAGBuilder::visitInsertValue(const InsertValueInst &I) {
   bool IntoUndef = isa<UndefValue>(Op0);
   bool FromUndef = isa<UndefValue>(Op1);
 
-  unsigned LinearIndex = ComputeLinearIndex(AggTy, I.getIndices());
+  unsigned LinearIndex = ComputeLinearIndex(AggTy, Indices);
 
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   SmallVector<EVT, 4> AggValueVTs;
@@ -3268,13 +3274,19 @@ void SelectionDAGBuilder::visitInsertValue(const InsertValueInst &I) {
                            DAG.getVTList(AggValueVTs), Values));
 }
 
-void SelectionDAGBuilder::visitExtractValue(const ExtractValueInst &I) {
+void SelectionDAGBuilder::visitExtractValue(const User &I) {
+  ArrayRef<unsigned> Indices;
+  if (const ExtractValueInst *EV = dyn_cast<ExtractValueInst>(&I))
+    Indices = EV->getIndices();
+  else
+    Indices = cast<ConstantExpr>(&I)->getIndices();
+
   const Value *Op0 = I.getOperand(0);
   Type *AggTy = Op0->getType();
   Type *ValTy = I.getType();
   bool OutOfUndef = isa<UndefValue>(Op0);
 
-  unsigned LinearIndex = ComputeLinearIndex(AggTy, I.getIndices());
+  unsigned LinearIndex = ComputeLinearIndex(AggTy, Indices);
 
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   SmallVector<EVT, 4> ValValueVTs;
@@ -3559,6 +3571,7 @@ void SelectionDAGBuilder::visitLoad(const LoadInst &I) {
       MMOFlags |= MachineMemOperand::MOInvariant;
     if (isDereferenceable)
       MMOFlags |= MachineMemOperand::MODereferenceable;
+    MMOFlags |= TLI.getMMOFlags(I);
 
     SDValue L = DAG.getLoad(ValueVTs[i], dl, Root, A,
                             MachinePointerInfo(SV, Offsets[i]), Alignment,
@@ -3688,6 +3701,7 @@ void SelectionDAGBuilder::visitStore(const StoreInst &I) {
     MMOFlags |= MachineMemOperand::MOVolatile;
   if (I.getMetadata(LLVMContext::MD_nontemporal) != nullptr)
     MMOFlags |= MachineMemOperand::MONonTemporal;
+  MMOFlags |= TLI.getMMOFlags(I);
 
   // An aggregate load cannot wrap around the address space, so offsets to its
   // parts don't wrap either.
@@ -3978,7 +3992,7 @@ void SelectionDAGBuilder::visitAtomicCmpXchg(const AtomicCmpXchgInst &I) {
   SDLoc dl = getCurSDLoc();
   AtomicOrdering SuccessOrder = I.getSuccessOrdering();
   AtomicOrdering FailureOrder = I.getFailureOrdering();
-  SynchronizationScope Scope = I.getSynchScope();
+  SyncScope::ID SSID = I.getSyncScopeID();
 
   SDValue InChain = getRoot();
 
@@ -3988,7 +4002,7 @@ void SelectionDAGBuilder::visitAtomicCmpXchg(const AtomicCmpXchgInst &I) {
       ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS, dl, MemVT, VTs, InChain,
       getValue(I.getPointerOperand()), getValue(I.getCompareOperand()),
       getValue(I.getNewValOperand()), MachinePointerInfo(I.getPointerOperand()),
-      /*Alignment=*/ 0, SuccessOrder, FailureOrder, Scope);
+      /*Alignment=*/ 0, SuccessOrder, FailureOrder, SSID);
 
   SDValue OutChain = L.getValue(2);
 
@@ -4014,7 +4028,7 @@ void SelectionDAGBuilder::visitAtomicRMW(const AtomicRMWInst &I) {
   case AtomicRMWInst::UMin: NT = ISD::ATOMIC_LOAD_UMIN; break;
   }
   AtomicOrdering Order = I.getOrdering();
-  SynchronizationScope Scope = I.getSynchScope();
+  SyncScope::ID SSID = I.getSyncScopeID();
 
   SDValue InChain = getRoot();
 
@@ -4025,7 +4039,7 @@ void SelectionDAGBuilder::visitAtomicRMW(const AtomicRMWInst &I) {
                   getValue(I.getPointerOperand()),
                   getValue(I.getValOperand()),
                   I.getPointerOperand(),
-                  /* Alignment=*/ 0, Order, Scope);
+                  /* Alignment=*/ 0, Order, SSID);
 
   SDValue OutChain = L.getValue(1);
 
@@ -4040,7 +4054,7 @@ void SelectionDAGBuilder::visitFence(const FenceInst &I) {
   Ops[0] = getRoot();
   Ops[1] = DAG.getConstant((unsigned)I.getOrdering(), dl,
                            TLI.getFenceOperandTy(DAG.getDataLayout()));
-  Ops[2] = DAG.getConstant(I.getSynchScope(), dl,
+  Ops[2] = DAG.getConstant(I.getSyncScopeID(), dl,
                            TLI.getFenceOperandTy(DAG.getDataLayout()));
   DAG.setRoot(DAG.getNode(ISD::ATOMIC_FENCE, dl, MVT::Other, Ops));
 }
@@ -4048,7 +4062,7 @@ void SelectionDAGBuilder::visitFence(const FenceInst &I) {
 void SelectionDAGBuilder::visitAtomicLoad(const LoadInst &I) {
   SDLoc dl = getCurSDLoc();
   AtomicOrdering Order = I.getOrdering();
-  SynchronizationScope Scope = I.getSynchScope();
+  SyncScope::ID SSID = I.getSyncScopeID();
 
   SDValue InChain = getRoot();
 
@@ -4066,7 +4080,7 @@ void SelectionDAGBuilder::visitAtomicLoad(const LoadInst &I) {
                            VT.getStoreSize(),
                            I.getAlignment() ? I.getAlignment() :
                                               DAG.getEVTAlignment(VT),
-                           AAMDNodes(), nullptr, Scope, Order);
+                           AAMDNodes(), nullptr, SSID, Order);
 
   InChain = TLI.prepareVolatileOrAtomicLoad(InChain, dl, DAG);
   SDValue L =
@@ -4083,7 +4097,7 @@ void SelectionDAGBuilder::visitAtomicStore(const StoreInst &I) {
   SDLoc dl = getCurSDLoc();
 
   AtomicOrdering Order = I.getOrdering();
-  SynchronizationScope Scope = I.getSynchScope();
+  SyncScope::ID SSID = I.getSyncScopeID();
 
   SDValue InChain = getRoot();
 
@@ -4100,7 +4114,7 @@ void SelectionDAGBuilder::visitAtomicStore(const StoreInst &I) {
                   getValue(I.getPointerOperand()),
                   getValue(I.getValueOperand()),
                   I.getPointerOperand(), I.getAlignment(),
-                  Order, Scope);
+                  Order, SSID);
 
   DAG.setRoot(OutChain);
 }
@@ -4967,6 +4981,83 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     uint64_t ElementSizeConstant = MI.getElementSizeInBytes();
     RTLIB::Libcall LibraryCall =
         RTLIB::getMEMCPY_ELEMENT_UNORDERED_ATOMIC(ElementSizeConstant);
+    if (LibraryCall == RTLIB::UNKNOWN_LIBCALL)
+      report_fatal_error("Unsupported element size");
+
+    TargetLowering::CallLoweringInfo CLI(DAG);
+    CLI.setDebugLoc(sdl).setChain(getRoot()).setLibCallee(
+        TLI.getLibcallCallingConv(LibraryCall),
+        Type::getVoidTy(*DAG.getContext()),
+        DAG.getExternalSymbol(TLI.getLibcallName(LibraryCall),
+                              TLI.getPointerTy(DAG.getDataLayout())),
+        std::move(Args));
+
+    std::pair<SDValue, SDValue> CallResult = TLI.LowerCallTo(CLI);
+    DAG.setRoot(CallResult.second);
+    return nullptr;
+  }
+  case Intrinsic::memmove_element_unordered_atomic: {
+    auto &MI = cast<ElementUnorderedAtomicMemMoveInst>(I);
+    SDValue Dst = getValue(MI.getRawDest());
+    SDValue Src = getValue(MI.getRawSource());
+    SDValue Length = getValue(MI.getLength());
+
+    // Emit a library call.
+    TargetLowering::ArgListTy Args;
+    TargetLowering::ArgListEntry Entry;
+    Entry.Ty = DAG.getDataLayout().getIntPtrType(*DAG.getContext());
+    Entry.Node = Dst;
+    Args.push_back(Entry);
+
+    Entry.Node = Src;
+    Args.push_back(Entry);
+
+    Entry.Ty = MI.getLength()->getType();
+    Entry.Node = Length;
+    Args.push_back(Entry);
+
+    uint64_t ElementSizeConstant = MI.getElementSizeInBytes();
+    RTLIB::Libcall LibraryCall =
+        RTLIB::getMEMMOVE_ELEMENT_UNORDERED_ATOMIC(ElementSizeConstant);
+    if (LibraryCall == RTLIB::UNKNOWN_LIBCALL)
+      report_fatal_error("Unsupported element size");
+
+    TargetLowering::CallLoweringInfo CLI(DAG);
+    CLI.setDebugLoc(sdl).setChain(getRoot()).setLibCallee(
+        TLI.getLibcallCallingConv(LibraryCall),
+        Type::getVoidTy(*DAG.getContext()),
+        DAG.getExternalSymbol(TLI.getLibcallName(LibraryCall),
+                              TLI.getPointerTy(DAG.getDataLayout())),
+        std::move(Args));
+
+    std::pair<SDValue, SDValue> CallResult = TLI.LowerCallTo(CLI);
+    DAG.setRoot(CallResult.second);
+    return nullptr;
+  }
+  case Intrinsic::memset_element_unordered_atomic: {
+    auto &MI = cast<ElementUnorderedAtomicMemSetInst>(I);
+    SDValue Dst = getValue(MI.getRawDest());
+    SDValue Val = getValue(MI.getValue());
+    SDValue Length = getValue(MI.getLength());
+
+    // Emit a library call.
+    TargetLowering::ArgListTy Args;
+    TargetLowering::ArgListEntry Entry;
+    Entry.Ty = DAG.getDataLayout().getIntPtrType(*DAG.getContext());
+    Entry.Node = Dst;
+    Args.push_back(Entry);
+
+    Entry.Ty = Type::getInt8Ty(*DAG.getContext());
+    Entry.Node = Val;
+    Args.push_back(Entry);
+
+    Entry.Ty = MI.getLength()->getType();
+    Entry.Node = Length;
+    Args.push_back(Entry);
+
+    uint64_t ElementSizeConstant = MI.getElementSizeInBytes();
+    RTLIB::Libcall LibraryCall =
+        RTLIB::getMEMSET_ELEMENT_UNORDERED_ATOMIC(ElementSizeConstant);
     if (LibraryCall == RTLIB::UNKNOWN_LIBCALL)
       report_fatal_error("Unsupported element size");
 
@@ -7842,6 +7933,22 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
   auto &DL = CLI.DAG.getDataLayout();
   ComputeValueVTs(*this, DL, CLI.RetTy, RetTys, &Offsets);
 
+  if (CLI.IsPostTypeLegalization) {
+    // If we are lowering a libcall after legalization, split the return type.
+    SmallVector<EVT, 4> OldRetTys = std::move(RetTys);
+    SmallVector<uint64_t, 4> OldOffsets = std::move(Offsets);
+    for (size_t i = 0, e = OldRetTys.size(); i != e; ++i) {
+      EVT RetVT = OldRetTys[i];
+      uint64_t Offset = OldOffsets[i];
+      MVT RegisterVT = getRegisterType(CLI.RetTy->getContext(), RetVT);
+      unsigned NumRegs = getNumRegisters(CLI.RetTy->getContext(), RetVT);
+      unsigned RegisterVTSize = RegisterVT.getSizeInBits();
+      RetTys.append(NumRegs, RegisterVT);
+      for (unsigned j = 0; j != NumRegs; ++j)
+        Offsets.push_back(Offset + j * RegisterVTSize);
+    }
+  }
+
   SmallVector<ISD::OutputArg, 4> Outs;
   GetReturnInfo(CLI.RetTy, getReturnAttrs(CLI), Outs, *this, DL);
 
@@ -7924,6 +8031,7 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
   for (unsigned i = 0, e = Args.size(); i != e; ++i) {
     SmallVector<EVT, 4> ValueVTs;
     ComputeValueVTs(*this, DL, Args[i].Ty, ValueVTs);
+    // FIXME: Split arguments if CLI.IsPostTypeLegalization
     Type *FinalType = Args[i].Ty;
     if (Args[i].IsByVal)
       FinalType = cast<PointerType>(Args[i].Ty)->getElementType();

@@ -33,7 +33,7 @@ class raw_fd_ostream;
 
 class InstrProfWriter {
 public:
-  using ProfilingData = SmallDenseMap<uint64_t, InstrProfRecord, 1>;
+  using ProfilingData = SmallDenseMap<uint64_t, InstrProfRecord>;
   enum ProfKind { PF_Unknown = 0, PF_FE, PF_IRLevel };
 
 private:
@@ -50,10 +50,15 @@ public:
   /// Add function counts for the given function. If there are already counts
   /// for this function and the hash and number of counts match, each counter is
   /// summed. Optionally scale counts by \p Weight.
-  Error addRecord(InstrProfRecord &&I, uint64_t Weight = 1);
+  void addRecord(NamedInstrProfRecord &&I, uint64_t Weight,
+                 function_ref<void(Error)> Warn);
+  void addRecord(NamedInstrProfRecord &&I, function_ref<void(Error)> Warn) {
+    addRecord(std::move(I), 1, Warn);
+  }
 
   /// Merge existing function counts from the given writer.
-  Error mergeRecordsFromWriter(InstrProfWriter &&IPW);
+  void mergeRecordsFromWriter(InstrProfWriter &&IPW,
+                              function_ref<void(Error)> Warn);
 
   /// Write the profile to \c OS
   void write(raw_fd_ostream &OS);
@@ -62,7 +67,8 @@ public:
   Error writeText(raw_fd_ostream &OS);
 
   /// Write \c Record in text format to \c OS
-  static void writeRecordInText(const InstrProfRecord &Record,
+  static void writeRecordInText(StringRef Name, uint64_t Hash,
+                                const InstrProfRecord &Counters,
                                 InstrProfSymtab &Symtab, raw_fd_ostream &OS);
 
   /// Write the profile, returning the raw data. For testing.
@@ -85,6 +91,8 @@ public:
   void setOutputSparse(bool Sparse);
 
 private:
+  void addRecord(StringRef Name, uint64_t Hash, InstrProfRecord &&I,
+                 uint64_t Weight, function_ref<void(Error)> Warn);
   bool shouldEncodeData(const ProfilingData &PD);
   void writeImpl(ProfOStream &OS);
 };
