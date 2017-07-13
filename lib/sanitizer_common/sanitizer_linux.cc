@@ -59,6 +59,14 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#if SANITIZER_LINUX
+#include <sys/utsname.h>
+#endif
+
+#if SANITIZER_LINUX && !SANITIZER_ANDROID
+#include <sys/personality.h>
+#endif
+
 #if SANITIZER_FREEBSD
 #include <sys/exec.h>
 #include <sys/sysctl.h>
@@ -209,7 +217,6 @@ static void stat64_to_stat(struct stat64 *in, struct stat *out) {
   out->st_atime = in->st_atime;
   out->st_mtime = in->st_mtime;
   out->st_ctime = in->st_ctime;
-  out->st_ino = in->st_ino;
 }
 #endif
 
@@ -229,7 +236,6 @@ static void kernel_stat_to_stat(struct kernel_stat *in, struct stat *out) {
   out->st_atime = in->st_atime_nsec;
   out->st_mtime = in->st_mtime_nsec;
   out->st_ctime = in->st_ctime_nsec;
-  out->st_ino = in->st_ino;
 }
 #endif
 
@@ -813,6 +819,72 @@ bool ThreadLister::GetDirectoryEntries() {
   }
   entry_ = (struct linux_dirent *)buffer_.data();
   return true;
+}
+
+#if SANITIZER_WORDSIZE == 32
+// Take care of unusable kernel area in top gigabyte.
+static uptr GetKernelAreaSize() {
+#if SANITIZER_LINUX && !SANITIZER_X32
+  const uptr gbyte = 1UL << 30;
+
+  // Firstly check if there are writable segments
+  // mapped to top gigabyte (e.g. stack).
+  MemoryMappingLayout proc_maps(/*cache_enabled*/true);
+  MemoryMappedSegment segment;
+  while (proc_maps.Next(&segment)) {
+    if ((segment.end >= 3 * gbyte) && segment.IsWritable()) return 0;
+  }
+
+#if !SANITIZER_ANDROID
+  // Even if nothing is mapped, top Gb may still be accessible
+  // if we are running on 64-bit kernel.
+  // Uname may report misleading results if personality type
+  // is modified (e.g. under schroot) so check this as well.
+  struct utsname uname_info;
+  int pers = personality(0xffffffffUL);
+  if (!(pers & PER_MASK)
+      && uname(&uname_info) == 0
+      && internal_strstr(uname_info.machine, "64"))
+    return 0;
+#endif  // SANITIZER_ANDROID
+
+  // Top gigabyte is reserved for kernel.
+  return gbyte;
+#else
+  return 0;
+#endif  // SANITIZER_LINUX && !SANITIZER_X32
+}
+#endif  // SANITIZER_WORDSIZE == 32
+
+uptr GetMaxVirtualAddress() {
+#if SANITIZER_WORDSIZE == 64
+# if defined(__powerpc64__) || defined(__aarch64__)
+  // On PowerPC64 we have two different address space layouts: 44- and 46-bit.
+  // We somehow need to figure out which one we are using now and choose
+  // one of 0x00000fffffffffffUL and 0x00003fffffffffffUL.
+  // Note that with 'ulimit -s unlimited' the stack is moved away from the top
+  // of the address space, so simply checking the stack address is not enough.
+  // This should (does) work for both PowerPC64 Endian modes.
+  // Similarly, aarch64 has multiple address space layouts: 39, 42 and 47-bit.
+  return (1ULL << (MostSignificantSetBitIndex(GET_CURRENT_FRAME()) + 1)) - 1;
+# elif defined(__mips64)
+  return (1ULL << 40) - 1;  // 0x000000ffffffffffUL;
+# elif defined(__s390x__)
+  return (1ULL << 53) - 1;  // 0x001fffffffffffffUL;
+# else
+  return (1ULL << 47) - 1;  // 0x00007fffffffffffUL;
+# endif
+#else  // SANITIZER_WORDSIZE == 32
+# if defined(__s390__)
+  return (1ULL << 31) - 1;  // 0x7fffffff;
+# else
+  uptr res = (1ULL << 32) - 1;  // 0xffffffff;
+  if (!common_flags()->full_address_space)
+    res -= GetKernelAreaSize();
+  CHECK_LT(reinterpret_cast<uptr>(&res), res);
+  return res;
+# endif
+#endif  // SANITIZER_WORDSIZE
 }
 
 uptr GetPageSize() {
@@ -1599,7 +1671,8 @@ void CheckNoDeepBind(const char *filename, int flag) {
 #endif
 }
 
-uptr FindAvailableMemoryRange(uptr size, uptr alignment, uptr left_padding) {
+uptr FindAvailableMemoryRange(uptr size, uptr alignment, uptr left_padding,
+                              uptr *largest_gap_found) {
   UNREACHABLE("FindAvailableMemoryRange is not available");
   return 0;
 }

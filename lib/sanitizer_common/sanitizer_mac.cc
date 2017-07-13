@@ -191,7 +191,8 @@ void internal_sigfillset(__sanitizer_sigset_t *set) { sigfillset(set); }
 
 uptr internal_sigprocmask(int how, __sanitizer_sigset_t *set,
                           __sanitizer_sigset_t *oldset) {
-  return sigprocmask(how, set, oldset);
+  // Don't use sigprocmask here, because it affects all threads.
+  return pthread_sigmask(how, set, oldset);
 }
 
 // Doesn't call pthread_atfork() handlers (but not available on 10.6).
@@ -799,9 +800,48 @@ char **GetArgv() {
   return *_NSGetArgv();
 }
 
+#if defined(__aarch64__) && SANITIZER_IOS && !SANITIZER_IOSSIM
+// The task_vm_info struct is normally provided by the macOS SDK, but we need
+// fields only available in 10.12+. Declare the struct manually to be able to
+// build against older SDKs.
+struct __sanitizer_task_vm_info {
+  uptr _unused[(SANITIZER_WORDSIZE == 32) ? 20 : 19];
+  uptr min_address;
+  uptr max_address;
+};
+
+uptr GetTaskInfoMaxAddress() {
+  __sanitizer_task_vm_info vm_info = {{0}, 0, 0};
+  mach_msg_type_number_t count = sizeof(vm_info) / sizeof(int);
+  int err = task_info(mach_task_self(), TASK_VM_INFO, (int *)&vm_info, &count);
+  if (err == 0) {
+    return vm_info.max_address - 1;
+  } else {
+    // xnu cannot provide vm address limit
+    return 0x200000000 - 1;
+  }
+}
+#endif
+
+uptr GetMaxVirtualAddress() {
+#if SANITIZER_WORDSIZE == 64
+# if defined(__aarch64__) && SANITIZER_IOS && !SANITIZER_IOSSIM
+  // Get the maximum VM address
+  static uptr max_vm = GetTaskInfoMaxAddress();
+  CHECK(max_vm);
+  return max_vm;
+# else
+  return (1ULL << 47) - 1;  // 0x00007fffffffffffUL;
+# endif
+#else  // SANITIZER_WORDSIZE == 32
+  return (1ULL << 32) - 1;  // 0xffffffff;
+#endif  // SANITIZER_WORDSIZE
+}
+
 uptr FindAvailableMemoryRange(uptr shadow_size,
                               uptr alignment,
-                              uptr left_padding) {
+                              uptr left_padding,
+                              uptr *largest_gap_found) {
   typedef vm_region_submap_short_info_data_64_t RegionInfo;
   enum { kRegionInfoSize = VM_REGION_SUBMAP_SHORT_INFO_COUNT_64 };
   // Start searching for available memory region past PAGEZERO, which is
@@ -812,6 +852,7 @@ uptr FindAvailableMemoryRange(uptr shadow_size,
   mach_vm_address_t address = start_address;
   mach_vm_address_t free_begin = start_address;
   kern_return_t kr = KERN_SUCCESS;
+  if (largest_gap_found) *largest_gap_found = 0;
   while (kr == KERN_SUCCESS) {
     mach_vm_size_t vmsize = 0;
     natural_t depth = 0;
@@ -821,10 +862,15 @@ uptr FindAvailableMemoryRange(uptr shadow_size,
                                 (vm_region_info_t)&vminfo, &count);
     if (free_begin != address) {
       // We found a free region [free_begin..address-1].
-      uptr shadow_address = RoundUpTo((uptr)free_begin + left_padding,
-                                      alignment);
-      if (shadow_address + shadow_size < (uptr)address) {
-        return shadow_address;
+      uptr gap_start = RoundUpTo((uptr)free_begin + left_padding, alignment);
+      uptr gap_end = RoundDownTo((uptr)address, alignment);
+      uptr gap_size = gap_end > gap_start ? gap_end - gap_start : 0;
+      if (shadow_size < gap_size) {
+        return gap_start;
+      }
+
+      if (largest_gap_found && *largest_gap_found < gap_size) {
+        *largest_gap_found = gap_size;
       }
     }
     // Move to the next region.
