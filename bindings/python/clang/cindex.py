@@ -782,7 +782,7 @@ CursorKind.CONVERSION_FUNCTION = CursorKind(26)
 # A C++ template type parameter
 CursorKind.TEMPLATE_TYPE_PARAMETER = CursorKind(27)
 
-# A C++ non-type template paramater.
+# A C++ non-type template parameter.
 CursorKind.TEMPLATE_NON_TYPE_PARAMETER = CursorKind(28)
 
 # A C++ template template parameter.
@@ -1477,6 +1477,11 @@ class Cursor(Structure):
         function template that is declared 'virtual'.
         """
         return conf.lib.clang_CXXMethod_isVirtual(self)
+
+    def is_scoped_enum(self):
+        """Returns True if the cursor refers to a scoped enum declaration.
+        """
+        return conf.lib.clang_EnumDecl_isScoped(self)
 
     def get_definition(self):
         """
@@ -3311,6 +3316,10 @@ functionList = [
    bool),
 
   ("clang_CXXMethod_isVirtual",
+   [Cursor],
+   bool),
+
+  ("clang_EnumDecl_isScoped",
    [Cursor],
    bool),
 

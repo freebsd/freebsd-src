@@ -930,6 +930,14 @@ TEST_F(FormatTestJS, WrapRespectsAutomaticSemicolonInsertion) {
                "  aaa\n"
                "];",
                getGoogleJSStyleWithColumns(12));
+  verifyFormat("class X {\n"
+               "  readonly ratherLongField =\n"
+               "      1;\n"
+               "}",
+               "class X {\n"
+               "  readonly ratherLongField = 1;\n"
+               "}",
+               getGoogleJSStyleWithColumns(20));
 }
 
 TEST_F(FormatTestJS, AutomaticSemicolonInsertionHeuristic) {
@@ -1622,6 +1630,7 @@ TEST_F(FormatTestJS, NestedTemplateStrings) {
 
 TEST_F(FormatTestJS, TaggedTemplateStrings) {
   verifyFormat("var x = html`<ul>`;");
+  verifyFormat("yield `hello`;");
 }
 
 TEST_F(FormatTestJS, CastSyntax) {

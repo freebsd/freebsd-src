@@ -52,6 +52,9 @@ Major New Features
 Improvements to Clang's diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+-  -Wcast-qual was implemented for C++. C-style casts are now properly
+   diagnosed.
+
 -  -Wunused-lambda-capture warns when a variable explicitly captured
    by a lambda is not used in the body of the lambda.
 
@@ -59,6 +62,16 @@ New Compiler Flags
 ------------------
 
 The option ....
+
+Deprecated Compiler Flags
+-------------------------
+
+The following options are deprecated and ignored. They will be removed in
+future versions of Clang.
+
+- -fslp-vectorize-aggressive used to enable the BB vectorizing pass. They have been superseeded
+  by the normal SLP vectorizer.
+- -fno-slp-vectorize-aggressive used to be the default behavior of clang.
 
 New Pragmas in Clang
 -----------------------

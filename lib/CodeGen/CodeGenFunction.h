@@ -1479,6 +1479,9 @@ public:
 
   const TargetInfo &getTarget() const { return Target; }
   llvm::LLVMContext &getLLVMContext() { return CGM.getLLVMContext(); }
+  const TargetCodeGenInfo &getTargetHooks() const {
+    return CGM.getTargetCodeGenInfo();
+  }
 
   //===--------------------------------------------------------------------===//
   //                                  Cleanups
@@ -1748,11 +1751,6 @@ public:
   /// Emit a type checked load from the given vtable.
   llvm::Value *EmitVTableTypeCheckedLoad(const CXXRecordDecl *RD, llvm::Value *VTable,
                                          uint64_t VTableByteOffset);
-
-  /// CanDevirtualizeMemberFunctionCalls - Checks whether virtual calls on given
-  /// expr can be devirtualized.
-  bool CanDevirtualizeMemberFunctionCall(const Expr *Base,
-                                         const CXXMethodDecl *MD);
 
   /// EnterDtorCleanups - Enter the cleanups necessary to complete the
   /// given phase of destruction for a destructor.  The end result
@@ -3819,10 +3817,6 @@ public:
 
 private:
   QualType getVarArgType(const Expr *Arg);
-
-  const TargetCodeGenInfo &getTargetHooks() const {
-    return CGM.getTargetCodeGenInfo();
-  }
 
   void EmitDeclMetadata();
 
