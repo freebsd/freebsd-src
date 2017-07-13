@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2017
+.Dd July 7, 2017
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm BIT_EMPTY ,
 .Nm BIT_ISFULLSET ,
 .Nm BIT_FFS ,
+.Nm BIT_FLS ,
 .Nm BIT_COUNT ,
 .Nm BIT_SUBSET ,
 .Nm BIT_OVERLAP ,
@@ -84,6 +85,8 @@
 .Fn BIT_ISFULLSET "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft int
 .Fn BIT_FFS "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft int
+.Fn BIT_FLS "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft int
 .Fn BIT_COUNT "const SETSIZE" "struct STRUCTNAME *bitset"
 .\"
@@ -275,6 +278,23 @@ Like with
 .Xr ffs 3 ,
 to use the non-zero result of
 .Fn BIT_FFS
+as a
+.Fa bit
+index parameter to any other
+.Nm
+macro, you must subtract one from the result.
+.Pp
+The
+.Fn BIT_FLS
+macro returns the 1-index of the last (highest) set bit in
+.Fa bitset ,
+or zero if
+.Fa bitset
+is empty.
+Like with
+.Xr fls 3 ,
+to use the non-zero result of
+.Fn BIT_FLS
 as a
 .Fa bit
 index parameter to any other
@@ -499,4 +519,6 @@ argument to all of these macros must match the value given to
 .Pp
 Unlike every other reference to individual set members, which are zero-indexed,
 .Fn BIT_FFS
-returns a one-indexed result (or zero if the set is empty).
+and
+.Fn BIT_FLS
+return a one-indexed result (or zero if the set is empty).
