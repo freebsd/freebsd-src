@@ -207,7 +207,7 @@ typedef enum {
 				/* Serial Management Protocol */
 
 	XPT_NVME_IO		= 0x1c | XPT_FC_DEV_QUEUED,
-				/* Execiute the requestred NVMe I/O operation */
+				/* Execute the requested NVMe I/O operation */
 
 	XPT_MMC_IO		= 0x1d | XPT_FC_DEV_QUEUED,
 				/* Placeholder for MMC / SD / SDIO I/O stuff */
@@ -215,6 +215,9 @@ typedef enum {
 	XPT_SCAN_TGT		= 0x1e | XPT_FC_QUEUED | XPT_FC_USER_CCB
 				       | XPT_FC_XPT_ONLY,
 				/* Scan Target */
+
+	XPT_NVME_ADMIN		= 0x1f | XPT_FC_DEV_QUEUED,
+				/* Execute the requested NVMe Admin operation */
 
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
@@ -819,7 +822,7 @@ struct ccb_relsim {
 };
 
 /*
- * NVMe I/O Request CCB used for the XPT_NVME_IO function code.
+ * NVMe I/O Request CCB used for the XPT_NVME_IO and XPT_NVME_ADMIN function codes.
  */
 struct ccb_nvmeio {
 	struct	   ccb_hdr ccb_h;
@@ -1508,6 +1511,21 @@ cam_fill_nvmeio(struct ccb_nvmeio *nvmeio, u_int32_t retries,
 	      u_int32_t timeout)
 {
 	nvmeio->ccb_h.func_code = XPT_NVME_IO;
+	nvmeio->ccb_h.flags = flags;
+	nvmeio->ccb_h.retry_count = retries;
+	nvmeio->ccb_h.cbfcnp = cbfcnp;
+	nvmeio->ccb_h.timeout = timeout;
+	nvmeio->data_ptr = data_ptr;
+	nvmeio->dxfer_len = dxfer_len;
+}
+
+static __inline void
+cam_fill_nvmeadmin(struct ccb_nvmeio *nvmeio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout)
+{
+	nvmeio->ccb_h.func_code = XPT_NVME_ADMIN;
 	nvmeio->ccb_h.flags = flags;
 	nvmeio->ccb_h.retry_count = retries;
 	nvmeio->ccb_h.cbfcnp = cbfcnp;
