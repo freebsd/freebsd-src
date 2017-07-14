@@ -162,7 +162,7 @@ printwalk(const posix_tnode * node, VISIT v, int __unused0)
 {
 
 	if (v == postorder || v == leaf) {
-		printf("node: %s\n\\", *(char **)node);
+		printf("node: %s\en", *(char **)node);
 	}
 }
 
@@ -181,7 +181,7 @@ main(void)
 	tsearch(three, &root, comp);
 	tsearch(four, &root, comp);
 	tsearch(four, &root, comp);
-	printf("four: %s\n", *(char **)tfind(four, &root, comp));
+	printf("four: %s\en", *(char **)tfind(four, &root, comp));
 	tdelete(four, &root, comp);
 
 	twalk(root, printwalk);
