@@ -342,11 +342,13 @@
 #define	NFSPROC_WRITEDS		51
 #define	NFSPROC_READDS		52
 #define	NFSPROC_COMMITDS	53
+#define	NFSPROC_OPENLAYGET	54
+#define	NFSPROC_CREATELAYGET	55
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		54
+#define	NFSV41_NPROCS		56
 
 #endif	/* NFS_V3NPROCS */
 
