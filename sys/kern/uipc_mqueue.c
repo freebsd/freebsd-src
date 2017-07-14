@@ -2708,10 +2708,10 @@ static struct vfsconf mqueuefs_vfsconf = {
 
 static struct syscall_helper_data mq_syscalls[] = {
 	SYSCALL_INIT_HELPER(kmq_open),
-	SYSCALL_INIT_HELPER(kmq_setattr),
-	SYSCALL_INIT_HELPER(kmq_timedsend),
-	SYSCALL_INIT_HELPER(kmq_timedreceive),
-	SYSCALL_INIT_HELPER(kmq_notify),
+	SYSCALL_INIT_HELPER_F(kmq_setattr, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(kmq_timedsend, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(kmq_timedreceive, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(kmq_notify, SYF_CAPENABLED),
 	SYSCALL_INIT_HELPER(kmq_unlink),
 	SYSCALL_INIT_LAST
 };
@@ -2870,10 +2870,10 @@ freebsd32_kmq_notify(struct thread *td, struct freebsd32_kmq_notify_args *uap)
 
 static struct syscall_helper_data mq32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_open),
-	SYSCALL32_INIT_HELPER(freebsd32_kmq_setattr),
-	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedsend),
-	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedreceive),
-	SYSCALL32_INIT_HELPER(freebsd32_kmq_notify),
+	SYSCALL32_INIT_HELPER_F(freebsd32_kmq_setattr, SYF_CAPENABLED),
+	SYSCALL32_INIT_HELPER_F(freebsd32_kmq_timedsend, SYF_CAPENABLED),
+	SYSCALL32_INIT_HELPER_F(freebsd32_kmq_timedreceive, SYF_CAPENABLED),
+	SYSCALL32_INIT_HELPER_F(freebsd32_kmq_notify, SYF_CAPENABLED),
 	SYSCALL32_INIT_HELPER_COMPAT(kmq_unlink),
 	SYSCALL_INIT_LAST
 };
