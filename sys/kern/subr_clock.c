@@ -72,7 +72,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
     "Local offset from UTC in seconds");
 
 static int ct_debug;
-SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RWTUN,
     &ct_debug, 0, "Enable printing of clocktime debugging");
 
 static int wall_cmos_clock;
@@ -171,7 +171,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	ts->tv_nsec = ct->nsec;
 
 	if (ct_debug)
-		printf(" = %ld.%09ld\n", (long)ts->tv_sec, (long)ts->tv_nsec);
+		printf(" = %jd.%09ld\n", (intmax_t)ts->tv_sec, ts->tv_nsec);
 	return (0);
 }
 
@@ -209,8 +209,8 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	ct->sec  = rsec;
 	ct->nsec = ts->tv_nsec;
 	if (ct_debug) {
-		printf("ts_to_ct(%ld.%09ld) = ",
-		    (long)ts->tv_sec, (long)ts->tv_nsec);
+		printf("ts_to_ct(%jd.%09ld) = ",
+		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 		print_ct(ct);
 		printf("\n");
 	}
