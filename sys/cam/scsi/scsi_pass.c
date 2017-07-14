@@ -1146,6 +1146,11 @@ passiocleanup(struct pass_softc *softc, struct pass_io_req *io_req)
 		numbufs = min(io_req->num_bufs, 1);
 		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
 		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		numbufs = min(io_req->num_bufs, 1);
+		break;
 	default:
 		/* allow ourselves to be swapped once again */
 		return;
@@ -1383,6 +1388,25 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 		lengths[0] = ccb->cdai.bufsiz;
 		dirs[0] = CAM_DIR_IN;
 		numbufs = 1;
+		break;
+	case XPT_NVME_ADMIN:
+	case XPT_NVME_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return (0);
+
+		io_req->data_flags = ccb->ccb_h.flags & CAM_DATA_MASK;
+
+		/*
+		 * We only support a single virtual address for NVMe
+		 */
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
+
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		lengths[0] = ccb->nvmeio.dxfer_len;
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 1;
+		maxmap = softc->maxio;
 		break;
 	default:
 		return(EINVAL);
@@ -1957,7 +1981,8 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		 */
 		if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO)
 		 || (fc == XPT_SMP_IO) || (fc == XPT_DEV_MATCH)
-		 || (fc == XPT_DEV_ADVINFO)) {
+		 || (fc == XPT_DEV_ADVINFO)
+		 || (fc == XPT_NVME_ADMIN) || (fc == XPT_NVME_IO)) {
 			error = passmemsetup(periph, io_req);
 			if (error != 0)
 				goto camioqueue_error;
