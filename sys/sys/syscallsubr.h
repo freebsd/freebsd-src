@@ -58,13 +58,6 @@ struct stat;
 struct thr_param;
 struct sched_param;
 struct __wrusage;
-#ifndef __CAPABILITY
-#if __has_feature(capabilities)
-#define	__CAPABILITY	__capability
-#else
-#define	__CAPABILITY
-#endif
-#endif
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);

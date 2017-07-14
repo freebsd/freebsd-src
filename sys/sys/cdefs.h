@@ -904,4 +904,10 @@
 	_Pragma("GCC error \"This file requires a capability-aware compiler\"")
 #endif
 
+#if __has_feature(capabilities)
+#define	__CAPABILITY	__capability
+#else
+#define	__CAPABILITY
+#endif
+
 #endif /* !_SYS_CDEFS_H_ */
