@@ -230,24 +230,30 @@ struct syscall_helper_data {
 	int syscall_no;
 	int registered;
 };
-#define SYSCALL_INIT_HELPER(syscallname) {			\
+#define SYSCALL_INIT_HELPER_F(syscallname, flags) {		\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
 	    / sizeof(register_t)),				\
 	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
-	.sy_auevent = SYS_AUE_##syscallname			\
+	.sy_auevent = SYS_AUE_##syscallname,			\
+	.sy_flags = (flags)					\
     },								\
     .syscall_no = SYS_##syscallname				\
 }
-#define SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
+#define SYSCALL_INIT_HELPER_COMPAT_F(syscallname, flags) {	\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
 	    / sizeof(register_t)),				\
 	.sy_call = (sy_call_t *)& syscallname,			\
-	.sy_auevent = SYS_AUE_##syscallname			\
+	.sy_auevent = SYS_AUE_##syscallname,			\
+	.sy_flags = (flags)					\
     },								\
     .syscall_no = SYS_##syscallname				\
 }
+#define SYSCALL_INIT_HELPER(syscallname)			\
+    SYSCALL_INIT_HELPER_F(syscallname, 0)
+#define SYSCALL_INIT_HELPER_COMPAT(syscallname)			\
+    SYSCALL_INIT_HELPER_COMPAT_F(syscallname, 0)
 #define SYSCALL_INIT_LAST {					\
     .syscall_no = NO_SYSCALL					\
 }
