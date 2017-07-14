@@ -82,10 +82,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_peeloff.h>
 
 static struct syscall_helper_data sctp_syscalls[] = {
-	SYSCALL_INIT_HELPER(sctp_peeloff),
-	SYSCALL_INIT_HELPER(sctp_generic_sendmsg),
-	SYSCALL_INIT_HELPER(sctp_generic_sendmsg_iov),
-	SYSCALL_INIT_HELPER(sctp_generic_recvmsg),
+	SYSCALL_INIT_HELPER_F(sctp_peeloff, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(sctp_generic_sendmsg, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(sctp_generic_sendmsg_iov, SYF_CAPENABLED),
+	SYSCALL_INIT_HELPER_F(sctp_generic_recvmsg, SYF_CAPENABLED),
 	SYSCALL_INIT_LAST
 };
 
