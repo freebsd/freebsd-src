@@ -559,8 +559,8 @@
 #define	MIPS_COP_0_DATA_HI	_(29)
 #define	MIPS_COP_0_DESAVE	_(31)
 
-/* BERI */
-#if defined(CPU_BERI)
+/* BERI (and CHERI_MALTA) */
+#if defined(CPU_BERI) || defined(CPU_CHERI)
 #define	MIPS_COP_0_EXC_INS	_(8)	/* sel 1 encoding of instruction causing exception */
 #endif
 
