@@ -98,9 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
 #include <compat/cheriabi/cheriabi_util.h>
-#define CHERIABI_SYS_argmap a_hack_to_work_around_a_duplicated_symbol_problem_2
 #include <compat/cheriabi/cheriabi_sysargmap.h>
-#undef CHERIABI_SYS_argmap
 #endif
 
 #include <security/audit/audit.h>
