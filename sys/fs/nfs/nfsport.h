@@ -357,11 +357,13 @@
 #define	NFSPROC_WRITEDS		51
 #define	NFSPROC_READDS		52
 #define	NFSPROC_COMMITDS	53
+#define	NFSPROC_OPENLAYGET	54
+#define	NFSPROC_CREATELAYGET	55
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		54
+#define	NFSV41_NPROCS		56
 
 #endif	/* NFS_V3NPROCS */
 
@@ -390,7 +392,7 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV41_NPROCS + 15];
+	uint64_t	rpccnt[NFSV41_NPROCS + 13];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS];
 	uint64_t	srvrpc_errs;
