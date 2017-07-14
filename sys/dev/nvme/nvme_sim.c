@@ -110,7 +110,10 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 
 	memcpy(&req->cmd, &ccb->nvmeio.cmd, sizeof(ccb->nvmeio.cmd));
 
-	nvme_ctrlr_submit_io_request(ctrlr, req);
+	if (ccb->ccb_h.func_code == XPT_NVME_IO)
+		nvme_ctrlr_submit_io_request(ctrlr, req);
+	else
+		nvme_ctrlr_submit_admin_request(ctrlr, req);
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 }
@@ -225,6 +228,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_NVME_IO:		/* Execute the requested I/O operation */
+	case XPT_NVME_ADMIN:		/* or Admin operation */
 		nvme_sim_nvmeio(sim, ccb);
 		return;			/* no done */
 	default:

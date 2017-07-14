@@ -2689,8 +2689,8 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ataio.resid = 0;
 		/* FALLTHROUGH */
 	case XPT_NVME_IO:
-		if (start_ccb->ccb_h.func_code == XPT_NVME_IO)
-			start_ccb->nvmeio.resid = 0;
+		/* FALLTHROUGH */
+	case XPT_NVME_ADMIN:
 		/* FALLTHROUGH */
 	case XPT_MMC_IO:
 		/* XXX just like nmve_io? */
@@ -5548,6 +5548,7 @@ static struct kv map[] = {
 	{ XPT_MMC_IO, "XPT_MMC_IO" },
 	{ XPT_SMP_IO, "XPT_SMP_IO" },
 	{ XPT_SCAN_TGT, "XPT_SCAN_TGT" },
+	{ XPT_NVME_ADMIN, "XPT_NVME_ADMIN" },
 	{ XPT_ENG_INQ, "XPT_ENG_INQ" },
 	{ XPT_ENG_EXEC, "XPT_ENG_EXEC" },
 	{ XPT_EN_LUN, "XPT_EN_LUN" },
