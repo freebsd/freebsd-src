@@ -222,7 +222,7 @@ setup_signal(void)
  * separate process
  */
 static struct sigevent*
-setup_thread()
+setup_thread(void)
 {
 	static struct sigevent sev;
 
