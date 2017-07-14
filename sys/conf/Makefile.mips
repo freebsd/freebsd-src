@@ -59,9 +59,6 @@ TRAMP_ELFSIZE=64
 .else
 TRAMP_ELFSIZE=32
 .endif
-.if ${COMPILER_TYPE} == "clang"
-TRAMP_EXTRA_FLAGS+=	-integrated-as
-.endif
 
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
 
