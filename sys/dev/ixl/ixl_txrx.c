@@ -63,8 +63,6 @@ static inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
 
 static inline bool ixl_tso_detect_sparse(struct mbuf *mp);
-static int	ixl_tx_setup_offload(struct ixl_queue *que,
-    struct mbuf *mp, u32 *cmd, u32 *off);
 static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
