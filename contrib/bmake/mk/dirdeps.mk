@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.88 2017/04/24 20:34:59 sjg Exp $
+# $Id: dirdeps.mk,v 1.89 2017/05/17 17:41:47 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -636,6 +636,11 @@ _build_all_dirs := ${_build_all_dirs:O:u}
 x!= { echo; echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; \
 	echo 'dirdeps: ${_build_all_dirs:${M_oneperline}}'; echo; } >&3; echo
 x!= { ${_build_all_dirs:@x@${target($x):?:echo '$x: _DIRDEP_USE';}@} echo; } >&3; echo
+.if !empty(DEP_EXPORT_VARS)
+# Discouraged, but there are always exceptions.
+# Handle it here rather than explain how.
+x!= { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3; echo
+.endif
 .else
 # this makes it all happen
 dirdeps: ${_build_all_dirs}
@@ -644,6 +649,11 @@ ${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs}
+.endif
+
+.if !empty(DEP_EXPORT_VARS)
+.export ${DEP_EXPORT_VARS}
+DEP_EXPORT_VARS=
 .endif
 
 # this builds the dependency graph

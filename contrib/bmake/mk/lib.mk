@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.61 2017/05/06 17:30:09 sjg Exp $
+# $Id: lib.mk,v 1.62 2017/06/11 03:24:04 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -268,8 +268,7 @@ ${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
 
 .S.o .s.o:
-	@echo ${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC}
-	@${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} 
+	${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} 
 
 .if (${LD_X} == "")
 .c.po:
@@ -282,21 +281,18 @@ ${CXX_SUFFIXES:%=%.po}:
 	${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 .c.po:
-	@echo ${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}.o
+	${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 ${CXX_SUFFIXES:%=%.po}:
-	@echo ${COMPILE.cc} ${CXX_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.cc} ${CXX_PG} ${.IMPSRC} -o ${.TARGET}.o
-	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
+	${COMPILE.cc} ${CXX_PG} ${.IMPSRC} -o ${.TARGET}.o
+	${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 .S${PICO} .s${PICO}:
-	@echo ${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
-	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
+	${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
+	${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 .endif
 
@@ -312,21 +308,18 @@ ${CXX_SUFFIXES:%=%${PICO}}:
 .else
 
 .c${PICO}:
-	@echo ${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
-	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
+	${COMPILE.c} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
+	${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 ${CXX_SUFFIXES:%=%${PICO}}:
-	@echo ${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
-	@${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
+	${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}.o
+	${LD} ${LD_x} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 .S.po .s.po:
-	@echo ${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
-	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
+	${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
+	${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 .endif
@@ -418,7 +411,7 @@ lib${LIB}.${LD_so}:: lib${LIB}.a
 .else  # MK_LIBTOOL=yes
 
 lib${LIB}.a:: ${OBJS}
-	@echo building standard ${LIB} library
+	@${META_NOECHO} building standard ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_objs}
 	${RANLIB} ${.TARGET}
@@ -426,7 +419,7 @@ lib${LIB}.a:: ${OBJS}
 POBJS+=	${OBJS:.o=.po}
 .NOPATH:	${POBJS}
 lib${LIB}_p.a:: ${POBJS}
-	@echo building profiled ${LIB} library
+	@${META_NOECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_pobjs}
 	${RANLIB} ${.TARGET}
@@ -434,7 +427,7 @@ lib${LIB}_p.a:: ${POBJS}
 SOBJS+=	${OBJS:.o=${PICO}}
 .NOPATH:	${SOBJS}
 lib${LIB}_pic.a:: ${SOBJS}
-	@echo building shared object ${LIB} library
+	@${META_NOECHO} building shared object ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_sobjs}
 	${RANLIB} ${.TARGET}
@@ -444,7 +437,7 @@ lib${LIB}_pic.a:: ${SOBJS}
 # bound to be non-portable...
 # this is known to work for NetBSD 1.6 and FreeBSD 4.2
 lib${LIB}.${LD_so}: ${SOLIB} ${DPADD}
-	@echo building shared ${LIB} library \(version ${SHLIB_FULLVERSION}\)
+	@${META_NOECHO} building shared ${LIB} library \(version ${SHLIB_FULLVERSION}\)
 	@rm -f ${.TARGET}
 .if ${TARGET_OSNAME} == "NetBSD" || ${TARGET_OSNAME} == "FreeBSD"
 .if ${OBJECT_FMT} == "ELF"
@@ -468,7 +461,7 @@ LOBJS+=	${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
 .NOPATH:	${LOBJS}
 LLIBS?=	-lc
 llib-l${LIB}.ln: ${LOBJS}
-	@echo building llib-l${LIB}.ln
+	@${META_NOECHO} building llib-l${LIB}.ln
 	@rm -f llib-l${LIB}.ln
 	@${LINT} -C${LIB} ${LOBJS} ${LLIBS}
 
@@ -508,10 +501,8 @@ LIB_INSTALL_OWN ?= -o ${LIBOWN} -g ${LIBGRP}
 
 .include <links.mk>
 
-.if !target(realinstall) && !empty(LIB)
+.if !target(libinstall) && !empty(LIB)
 realinstall: libinstall
-.endif
-.if !target(libinstall)
 libinstall:
 	[ -d ${DESTDIR}/${LIBDIR} ] || \
 	${INSTALL} -d ${LIB_INSTALL_OWN} -m 775 ${DESTDIR}${LIBDIR}

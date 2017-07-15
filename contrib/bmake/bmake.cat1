@@ -6,8 +6,8 @@ NNAAMMEE
 SSYYNNOOPPSSIISS
      bbmmaakkee [--BBeeiikkNNnnqqrrssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
-           [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [_v_a_r_i_a_b_l_e_=_v_a_l_u_e]
-           [_t_a_r_g_e_t _._._.]
+           [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [--vv _v_a_r_i_a_b_l_e]
+           [_v_a_r_i_a_b_l_e_=_v_a_l_u_e] [_t_a_r_g_e_t _._._.]
 
 DDEESSCCRRIIPPTTIIOONN
      bbmmaakkee is a program designed to simplify the maintenance of other pro-
@@ -118,7 +118,9 @@ DDEESSCCRRIIPPTTIIOONN
              _t       Print debugging information about target list mainte-
                      nance.
 
-             _V       Force the --VV option to print raw values of variables.
+             _V       Force the --VV option to print raw values of variables,
+                     overriding the default behavior set via
+                     _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S.
 
              _v       Print debugging information about variable assignment.
 
@@ -209,12 +211,25 @@ DDEESSCCRRIIPPTTIIOONN
              to-date.
 
      --VV _v_a_r_i_a_b_l_e
-             Print bbmmaakkee's idea of the value of _v_a_r_i_a_b_l_e, in the global con-
-             text.  Do not build any targets.  Multiple instances of this
-             option may be specified; the variables will be printed one per
-             line, with a blank line for each null or undefined variable.  If
-             _v_a_r_i_a_b_l_e contains a `$' then the value will be expanded before
-             printing.
+             Print the value of _v_a_r_i_a_b_l_e.  Do not build any targets.  Multiple
+             instances of this option may be specified; the variables will be
+             printed one per line, with a blank line for each null or unde-
+             fined variable.  The value printed is extracted from the global
+             context after all makefiles have been read.  By default, the raw
+             variable contents (which may include additional unexpanded vari-
+             able references) are shown.  If _v_a_r_i_a_b_l_e contains a `$' then the
+             value will be recursively expanded to its complete resultant text
+             before printing.  The expanded value will also be printed if
+             _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S is set to true and the --ddVV option has not
+             been used to override it.  Note that loop-local and target-local
+             variables, as well as values taken temporarily by global vari-
+             ables during makefile processing, are not accessible via this
+             option.  The --ddvv debug mode can be used to see these at the cost
+             of generating substantial extraneous output.
+
+     --vv _v_a_r_i_a_b_l_e
+             Like --VV but the variable is always expanded to its complete
+             value.
 
      --WW      Treat any warnings during makefile parsing as errors.
 
@@ -488,7 +503,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S
                      A boolean that controls the default behavior of the --VV
-                     option.
+                     option.  If true, variable values printed with --VV are
+                     fully expanded; if false, the raw variable contents
+                     (which may include additional unexpanded variable refer-
+                     ences) are shown.
 
      _._M_A_K_E_._E_X_P_O_R_T_E_D  The list of variables exported by bbmmaakkee.
 
@@ -1523,4 +1541,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 7.1_RC1                 February 1, 2017                 NetBSD 7.1_RC1
+NetBSD 7.1_RC1                   June 22, 2017                  NetBSD 7.1_RC1
