@@ -185,6 +185,7 @@ DIRDEPS= \
       sbin/growfs/tests \
       sbin/ifconfig/tests \
       sbin/mdconfig/tests \
+      sbin/pfctl/tests \
       sbin/tests \
       secure/lib/tests \
       secure/libexec/tests \
