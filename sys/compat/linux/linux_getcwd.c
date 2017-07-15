@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
 #include <security/mac/mac_framework.h>
@@ -423,14 +424,14 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 
 	len = args->bufsize;
 
-	if (len > MAXPATHLEN*4)
-		len = MAXPATHLEN*4;
+	if (len > LINUX_PATH_MAX)
+		len = LINUX_PATH_MAX;
 	else if (len < 2)
 		return ERANGE;
 
 	path = malloc(len, M_TEMP, M_WAITOK);
 
-	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
+	error = kern___getcwd(td, path, UIO_SYSSPACE, len, LINUX_PATH_MAX);
 	if (!error) {
 		lenused = strlen(path) + 1;
 		if (lenused <= args->bufsize) {
