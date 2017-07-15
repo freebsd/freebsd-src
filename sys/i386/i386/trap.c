@@ -550,11 +550,7 @@ user_trctrap_out:
 					vm86_trap((struct vm86frame *)frame);
 				goto out;
 			}
-			if (type == T_STKFLT)
-				break;
-
 			/* FALL THROUGH */
-
 		case T_SEGNPFLT:	/* segment not present fault */
 			if (curpcb->pcb_flags & PCB_VM86CALL)
 				break;
@@ -595,6 +591,9 @@ user_trctrap_out:
 				frame->tf_eip = (int)doreti_iret_fault;
 				goto out;
 			}
+			if (type == T_STKFLT)
+				break;
+
 			if (frame->tf_eip == (int)doreti_popl_ds) {
 				frame->tf_eip = (int)doreti_popl_ds_fault;
 				goto out;
