@@ -1828,7 +1828,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 			mtx_unlock(&Giant);
@@ -1966,7 +1966,7 @@ svr4_do_getmsg(td, uap, fp)
 
 	if (error) {
 		if (afp) {
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 		}
