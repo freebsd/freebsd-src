@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.272 2017/06/19 19:58:24 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.272 2017/06/19 19:58:24 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.265 2017/05/10 22:26:14 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.272 2017/06/19 19:58:24 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -159,7 +159,9 @@ Boolean			deleteOnError;	/* .DELETE_ON_ERROR: set */
 
 static Boolean		noBuiltins;	/* -r flag */
 static Lst		makefiles;	/* ordered list of makefiles to read */
-static Boolean		printVars;	/* print value of one or more vars */
+static int		printVars;	/* -[vV] argument */
+#define COMPAT_VARS 1
+#define EXPAND_VARS 2
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
 static int		maxJobTokens;	/* -j argument */
@@ -421,7 +423,7 @@ MainParseArgs(int argc, char **argv)
 	Boolean inOption, dashDash = FALSE;
 	char found_path[MAXPATHLEN + 1];	/* for searching for sys.mk */
 
-#define OPTFLAGS "BC:D:I:J:NST:V:WXd:ef:ij:km:nqrstw"
+#define OPTFLAGS "BC:D:I:J:NST:V:WXd:ef:ij:km:nqrstv:w"
 /* Can't actually use getopt(3) because rescanning is not portable */
 
 	getopt_def = OPTFLAGS;
@@ -546,8 +548,9 @@ rearg:
 			Var_Append(MAKEFLAGS, argvalue, VAR_GLOBAL);
 			break;
 		case 'V':
+		case 'v':
 			if (argvalue == NULL) goto noarg;
-			printVars = TRUE;
+			printVars = c == 'v' ? EXPAND_VARS : COMPAT_VARS;
 			(void)Lst_AtEnd(variables, argvalue);
 			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, argvalue, VAR_GLOBAL);
@@ -877,6 +880,89 @@ MakeMode(const char *mode)
     free(mp);
 }
 
+static void
+doPrintVars(void)
+{
+	LstNode ln;
+	Boolean expandVars;
+
+	if (printVars == EXPAND_VARS)
+		expandVars = TRUE;
+	else if (debugVflag)
+		expandVars = FALSE;
+	else
+		expandVars = getBoolean(".MAKE.EXPAND_VARIABLES", FALSE);
+
+	for (ln = Lst_First(variables); ln != NULL;
+	    ln = Lst_Succ(ln)) {
+		char *var = (char *)Lst_Datum(ln);
+		char *value;
+		char *p1;
+		
+		if (strchr(var, '$')) {
+			value = p1 = Var_Subst(NULL, var, VAR_GLOBAL,
+			    VARF_WANTRES);
+		} else if (expandVars) {
+			char tmp[128];
+			int len = snprintf(tmp, sizeof(tmp), "${%s}", var);
+							
+			if (len >= (int)sizeof(tmp))
+				Fatal("%s: variable name too big: %s",
+				    progname, var);
+			value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL,
+			    VARF_WANTRES);
+		} else {
+			value = Var_Value(var, VAR_GLOBAL, &p1);
+		}
+		printf("%s\n", value ? value : "");
+		free(p1);
+	}
+}
+
+static Boolean
+runTargets(void)
+{
+	Lst targs;	/* target nodes to create -- passed to Make_Init */
+	Boolean outOfDate; 	/* FALSE if all targets up to date */
+
+	/*
+	 * Have now read the entire graph and need to make a list of
+	 * targets to create. If none was given on the command line,
+	 * we consult the parsing module to find the main target(s)
+	 * to create.
+	 */
+	if (Lst_IsEmpty(create))
+		targs = Parse_MainName();
+	else
+		targs = Targ_FindList(create, TARG_CREATE);
+
+	if (!compatMake) {
+		/*
+		 * Initialize job module before traversing the graph
+		 * now that any .BEGIN and .END targets have been read.
+		 * This is done only if the -q flag wasn't given
+		 * (to prevent the .BEGIN from being executed should
+		 * it exist).
+		 */
+		if (!queryFlag) {
+			Job_Init();
+			jobsRunning = TRUE;
+		}
+
+		/* Traverse the graph, checking on all the targets */
+		outOfDate = Make_Run(targs);
+	} else {
+		/*
+		 * Compat_Init will take care of creating all the
+		 * targets as well as initializing the module.
+		 */
+		Compat_Run(targs);
+		outOfDate = FALSE;
+	}
+	Lst_Destroy(targs, NULL);
+	return outOfDate;
+}
+
 /*-
  * main --
  *	The main function, for obvious reasons. Initializes variables
@@ -897,8 +983,7 @@ MakeMode(const char *mode)
 int
 main(int argc, char **argv)
 {
-	Lst targs;	/* target nodes to create -- passed to Make_Init */
-	Boolean outOfDate = FALSE; 	/* FALSE if all targets up to date */
+	Boolean outOfDate; 	/* FALSE if all targets up to date */
 	struct stat sb, sa;
 	char *p1, *path;
 	char mdpath[MAXPATHLEN];
@@ -1027,7 +1112,7 @@ main(int argc, char **argv)
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
-	printVars = FALSE;
+	printVars = 0;
 	debugVflag = FALSE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
@@ -1406,73 +1491,13 @@ main(int argc, char **argv)
 
 	/* print the values of any variables requested by the user */
 	if (printVars) {
-		LstNode ln;
-		Boolean expandVars;
-
-		if (debugVflag)
-			expandVars = FALSE;
-		else
-			expandVars = getBoolean(".MAKE.EXPAND_VARIABLES", FALSE);
-		for (ln = Lst_First(variables); ln != NULL;
-		    ln = Lst_Succ(ln)) {
-			char *var = (char *)Lst_Datum(ln);
-			char *value;
-			
-			if (strchr(var, '$')) {
-			    value = p1 = Var_Subst(NULL, var, VAR_GLOBAL,
-						   VARF_WANTRES);
-			} else if (expandVars) {
-				char tmp[128];
-								
-				if (snprintf(tmp, sizeof(tmp), "${%s}", var) >= (int)(sizeof(tmp)))
-					Fatal("%s: variable name too big: %s",
-					      progname, var);
-				value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL,
-						       VARF_WANTRES);
-			} else {
-				value = Var_Value(var, VAR_GLOBAL, &p1);
-			}
-			printf("%s\n", value ? value : "");
-			free(p1);
-		}
+		doPrintVars();
+		outOfDate = FALSE;
 	} else {
-		/*
-		 * Have now read the entire graph and need to make a list of
-		 * targets to create. If none was given on the command line,
-		 * we consult the parsing module to find the main target(s)
-		 * to create.
-		 */
-		if (Lst_IsEmpty(create))
-			targs = Parse_MainName();
-		else
-			targs = Targ_FindList(create, TARG_CREATE);
-
-		if (!compatMake) {
-			/*
-			 * Initialize job module before traversing the graph
-			 * now that any .BEGIN and .END targets have been read.
-			 * This is done only if the -q flag wasn't given
-			 * (to prevent the .BEGIN from being executed should
-			 * it exist).
-			 */
-			if (!queryFlag) {
-				Job_Init();
-				jobsRunning = TRUE;
-			}
-
-			/* Traverse the graph, checking on all the targets */
-			outOfDate = Make_Run(targs);
-		} else {
-			/*
-			 * Compat_Init will take care of creating all the
-			 * targets as well as initializing the module.
-			 */
-			Compat_Run(targs);
-		}
+		outOfDate = runTargets();
 	}
 
 #ifdef CLEANUP
-	Lst_Destroy(targs, NULL);
 	Lst_Destroy(variables, NULL);
 	Lst_Destroy(makefiles, NULL);
 	Lst_Destroy(create, (FreeProc *)free);
@@ -1931,7 +1956,8 @@ usage(void)
 "usage: %s [-BeikNnqrstWwX] \n\
             [-C directory] [-D variable] [-d flags] [-f makefile]\n\
             [-I directory] [-J private] [-j max_jobs] [-m directory] [-T file]\n\
-            [-V variable] [variable=value] [target ...]\n", progname);
+            [-V variable] [-v variable] [variable=value] [target ...]\n",
+	    progname);
 	exit(2);
 }
 

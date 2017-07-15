@@ -1,3 +1,22 @@
+2017-06-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20170630
+
+	* meta.stage.mk: avoid triggering stage_* targets with nothing to do.
+
+2017-05-23  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta2deps.py: take special care of '..'
+
+2017-05-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20170515
+
+	* dirdeps.mk (DEP_EXPORT_VARS): on rare occasions it is
+	useful/necessary for a Makefile.depend file to export some knobs.
+	This is complicated when we are doing DIRDEPS_CACHE, so we will
+	handle export of any variables listed in DEP_EXPORT_VARS.
+
 2017-05-08  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20170505
