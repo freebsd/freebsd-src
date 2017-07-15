@@ -983,7 +983,7 @@ fail2:
 	uma_zfree(proc_zone, newproc);
 #ifdef PROCDESC
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
+		fdclose(td, fp_procdesc, *procdescp);
 		fdrop(fp_procdesc, td);
 	}
 #endif
