@@ -248,7 +248,7 @@ sys_sctp_generic_sendmsg (td, uap)
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
+	error = getsock_cap(td, uap->sd, &rights, &fp, NULL);
 	if (error != 0)
 		goto sctp_bad;
 #ifdef KTRACE
@@ -361,7 +361,7 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
+	error = getsock_cap(td, uap->sd, &rights, &fp, NULL);
 	if (error != 0)
 		goto sctp_bad1;
 
@@ -476,8 +476,8 @@ sys_sctp_generic_recvmsg(td, uap)
 	int error, fromlen, i, msg_flags;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd,
-	    cap_rights_init(&rights, CAP_RECV), &fp, NULL);
+	error = getsock_cap(td, uap->sd, cap_rights_init(&rights, CAP_RECV),
+	    &fp, NULL);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
