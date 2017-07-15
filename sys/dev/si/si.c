@@ -604,6 +604,8 @@ try_next2:
 	if (unit == 0)
 		make_dev(&si_Scdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 		    "si_control");
+	device_printf(dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 	return (0);
 }
 

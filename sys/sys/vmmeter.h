@@ -118,7 +118,7 @@ struct vmmeter {
 
 extern struct vmmeter vm_cnt;
 
-extern int vm_pageout_wakeup_thresh;
+extern u_int vm_pageout_wakeup_thresh;
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
@@ -130,8 +130,7 @@ static inline int
 vm_page_count_severe(void)
 {
 
-	return (vm_cnt.v_free_severe > vm_cnt.v_free_count +
-	    vm_cnt.v_cache_count);
+	return (vm_cnt.v_free_severe > vm_cnt.v_free_count);
 }
 
 /*
@@ -147,7 +146,7 @@ static inline int
 vm_page_count_min(void)
 {
 
-	return (vm_cnt.v_free_min > vm_cnt.v_free_count + vm_cnt.v_cache_count);
+	return (vm_cnt.v_free_min > vm_cnt.v_free_count);
 }
 
 /*
@@ -158,8 +157,7 @@ static inline int
 vm_page_count_target(void)
 {
 
-	return (vm_cnt.v_free_target > vm_cnt.v_free_count +
-	    vm_cnt.v_cache_count);
+	return (vm_cnt.v_free_target > vm_cnt.v_free_count);
 }
 
 /*
@@ -170,8 +168,7 @@ static inline int
 vm_paging_target(void)
 {
 
-	return (vm_cnt.v_free_target - (vm_cnt.v_free_count +
-	    vm_cnt.v_cache_count));
+	return (vm_cnt.v_free_target - vm_cnt.v_free_count);
 }
 
 /*
@@ -181,8 +178,7 @@ static inline int
 vm_paging_needed(void)
 {
 
-	return (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-	    (u_int)vm_pageout_wakeup_thresh);
+	return (vm_cnt.v_free_count < vm_pageout_wakeup_thresh);
 }
 
 /*

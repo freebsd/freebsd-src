@@ -58,7 +58,7 @@
 #define	NFS_MAXNAMLEN	255
 /*
  * Calculating the maximum XDR overhead for an NFS RPC isn't easy.
- * NFS_MAXPKTHDR is antiquated and assume AUTH_SYS over UDP.
+ * NFS_MAXPKTHDR is antiquated and assumes AUTH_SYS over UDP.
  * NFS_MAXXDR should be sufficient for all NFS versions over TCP.
  * It includes:
  * - Maximum RPC message header. It can include 2 400byte authenticators plus
@@ -346,11 +346,13 @@
 #define	NFSPROC_WRITEDS		51
 #define	NFSPROC_READDS		52
 #define	NFSPROC_COMMITDS	53
+#define	NFSPROC_OPENLAYGET	54
+#define	NFSPROC_CREATELAYGET	55
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		54
+#define	NFSV41_NPROCS		56
 
 #endif	/* NFS_V3NPROCS */
 

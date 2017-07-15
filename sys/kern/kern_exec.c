@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact_elf.h>
 #include <sys/wait.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
@@ -1055,9 +1057,9 @@ exec_unmap_first_page(imgp)
 }
 
 /*
- * Destroy old address space, and allocate a new stack
- *	The new stack is only SGROWSIZ large because it is grown
- *	automatically in trap.c.
+ * Destroy old address space, and allocate a new stack.
+ *	The new stack is only sgrowsiz large because it is grown
+ *	automatically on a page fault.
  */
 int
 exec_new_vmspace(imgp, sv)
@@ -1111,9 +1113,9 @@ exec_new_vmspace(imgp, sv)
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
-		if (error) {
+		if (error != KERN_SUCCESS) {
 			vm_object_deallocate(obj);
-			return (error);
+			return (vm_mmap_to_errno(error));
 		}
 	}
 
@@ -1137,10 +1139,9 @@ exec_new_vmspace(imgp, sv)
 	stack_addr = sv->sv_usrstack - ssiz;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
 	    obj != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
-		sv->sv_stackprot,
-	    VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
-	if (error)
-		return (error);
+	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
+	if (error != KERN_SUCCESS)
+		return (vm_mmap_to_errno(error));
 
 	/*
 	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
@@ -1315,17 +1316,124 @@ err_exit:
 	return (error);
 }
 
+struct exec_args_kva {
+	vm_offset_t addr;
+	u_int gen;
+	SLIST_ENTRY(exec_args_kva) next;
+};
+
+static DPCPU_DEFINE(struct exec_args_kva *, exec_args_kva);
+
+static SLIST_HEAD(, exec_args_kva) exec_args_kva_freelist;
+static struct mtx exec_args_kva_mtx;
+static u_int exec_args_gen;
+
+static void
+exec_prealloc_args_kva(void *arg __unused)
+{
+	struct exec_args_kva *argkva;
+	u_int i;
+
+	SLIST_INIT(&exec_args_kva_freelist);
+	mtx_init(&exec_args_kva_mtx, "exec args kva", NULL, MTX_DEF);
+	for (i = 0; i < exec_map_entries; i++) {
+		argkva = malloc(sizeof(*argkva), M_PARGS, M_WAITOK);
+		argkva->addr = kmap_alloc_wait(exec_map, exec_map_entry_size);
+		argkva->gen = exec_args_gen;
+		SLIST_INSERT_HEAD(&exec_args_kva_freelist, argkva, next);
+	}
+}
+SYSINIT(exec_args_kva, SI_SUB_EXEC, SI_ORDER_ANY, exec_prealloc_args_kva, NULL);
+
+static vm_offset_t
+exec_alloc_args_kva(void **cookie)
+{
+	struct exec_args_kva *argkva;
+
+	argkva = (void *)atomic_readandclear_ptr(
+	    (uintptr_t *)DPCPU_PTR(exec_args_kva));
+	if (argkva == NULL) {
+		mtx_lock(&exec_args_kva_mtx);
+		while ((argkva = SLIST_FIRST(&exec_args_kva_freelist)) == NULL)
+			(void)mtx_sleep(&exec_args_kva_freelist,
+			    &exec_args_kva_mtx, 0, "execkva", 0);
+		SLIST_REMOVE_HEAD(&exec_args_kva_freelist, next);
+		mtx_unlock(&exec_args_kva_mtx);
+	}
+	*(struct exec_args_kva **)cookie = argkva;
+	return (argkva->addr);
+}
+
+static void
+exec_release_args_kva(struct exec_args_kva *argkva, u_int gen)
+{
+	vm_offset_t base;
+
+	base = argkva->addr;
+	if (argkva->gen != gen) {
+		vm_map_madvise(exec_map, base, base + exec_map_entry_size,
+		    MADV_FREE);
+		argkva->gen = gen;
+	}
+	if (!atomic_cmpset_ptr((uintptr_t *)DPCPU_PTR(exec_args_kva),
+	    (uintptr_t)NULL, (uintptr_t)argkva)) {
+		mtx_lock(&exec_args_kva_mtx);
+		SLIST_INSERT_HEAD(&exec_args_kva_freelist, argkva, next);
+		wakeup_one(&exec_args_kva_freelist);
+		mtx_unlock(&exec_args_kva_mtx);
+	}
+}
+
+static void
+exec_free_args_kva(void *cookie)
+{
+
+	exec_release_args_kva(cookie, exec_args_gen);
+}
+
+static void
+exec_args_kva_lowmem(void *arg __unused)
+{
+	SLIST_HEAD(, exec_args_kva) head;
+	struct exec_args_kva *argkva;
+	u_int gen;
+	int i;
+
+	gen = atomic_fetchadd_int(&exec_args_gen, 1) + 1;
+
+	/*
+	 * Force an madvise of each KVA range. Any currently allocated ranges
+	 * will have MADV_FREE applied once they are freed.
+	 */
+	SLIST_INIT(&head);
+	mtx_lock(&exec_args_kva_mtx);
+	SLIST_SWAP(&head, &exec_args_kva_freelist, exec_args_kva);
+	mtx_unlock(&exec_args_kva_mtx);
+	while ((argkva = SLIST_FIRST(&head)) != NULL) {
+		SLIST_REMOVE_HEAD(&head, next);
+		exec_release_args_kva(argkva, gen);
+	}
+
+	CPU_FOREACH(i) {
+		argkva = (void *)atomic_readandclear_ptr(
+		    (uintptr_t *)DPCPU_ID_PTR(i, exec_args_kva));
+		if (argkva != NULL)
+			exec_release_args_kva(argkva, gen);
+	}
+}
+EVENTHANDLER_DEFINE(vm_lowmem, exec_args_kva_lowmem, NULL,
+    EVENTHANDLER_PRI_ANY);
+
 /*
  * Allocate temporary demand-paged, zero-filled memory for the file name,
- * argument, and environment strings.  Returns zero if the allocation succeeds
- * and ENOMEM otherwise.
+ * argument, and environment strings.
  */
 int
 exec_alloc_args(struct image_args *args)
 {
 
-	args->buf = (char *)kmap_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
-	return (args->buf != NULL ? 0 : ENOMEM);
+	args->buf = (char *)exec_alloc_args_kva(&args->bufkva);
+	return (0);
 }
 
 void
@@ -1333,8 +1441,7 @@ exec_free_args(struct image_args *args)
 {
 
 	if (args->buf != NULL) {
-		kmap_free_wakeup(exec_map, (vm_offset_t)args->buf,
-		    PATH_MAX + ARG_MAX);
+		exec_free_args_kva(args->bufkva);
 		args->buf = NULL;
 	}
 	if (args->fname_buf != NULL) {

@@ -209,6 +209,8 @@ mcd_attach(struct mcd_softc *sc)
 
 	sc->mcd_dev_t->si_drv1 = (void *)sc;
 	callout_init_mtx(&sc->timer, &sc->mtx, 0);
+	device_printf(sc->dev,
+	    "WARNING: This driver is deprecated and will be removed.\n");
 
 	return (0);
 }
