@@ -277,6 +277,10 @@ sys_sctp_generic_sendmsg (td, uap)
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
+#endif /* KTRACE */
 	len = auio.uio_resid = uap->mlen;
 	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio, (struct mbuf *)NULL,
@@ -400,6 +404,10 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 			goto sctp_bad;
 		}
 	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
+#endif /* KTRACE */
 	len = auio.uio_resid;
 	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio,
