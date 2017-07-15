@@ -36,10 +36,14 @@
 #error	This code requires a capability aware compiler.
 #endif
 #define	__CAPSUFFIX(func)	func ## _c
+#ifndef __CAPABILITY
 #define	__CAPABILITY		__capability
+#endif
 #else
 #define	__CAPSUFFIX(func)	func
+#ifndef __CAPABILITY
 #define	__CAPABILITY
+#endif
 #endif
 
 #endif /* __LIBC_CHERI_PRIVATE_H__ */
