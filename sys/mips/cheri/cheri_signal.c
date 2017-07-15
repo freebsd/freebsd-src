@@ -38,6 +38,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/pcb.h>
@@ -73,10 +74,10 @@ cheri_sendsig(struct thread *td)
 
 	frame = &td->td_pcb->pcb_regs;
 	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_copy(&frame->ddc, &csigp->csig_ddc);
-	cheri_capability_copy(&frame->stc, &csigp->csig_stc);
-	cheri_capability_copy(&frame->idc, &csigp->csig_idc);
-	cheri_capability_copy(&frame->pcc, &csigp->csig_pcc);
+	frame->ddc = csigp->csig_ddc;
+	frame->stc = csigp->csig_stc;
+	frame->idc = csigp->csig_idc;
+	frame->pcc = csigp->csig_pcc;
 }
 
 /*
@@ -92,9 +93,7 @@ cheri_signal_sandboxed(struct thread *td)
 {
 	uintmax_t c_perms;
 
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.pcc,
-	    0);
-	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
+	c_perms = cheri_getperm(td->td_pcb->pcb_regs.pcc);
 	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_sandboxed_signals, 1);
 		return (ECAPMODE);

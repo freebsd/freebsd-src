@@ -1317,22 +1317,14 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 #endif	/* COMPAT_FREEBSD32 */
 
 #ifdef COMPAT_CHERIABI
-static void
-ptr2cap(struct chericap *cap, void *ptr)
-{
-
-	/*
-	 * Convert pointers to NULL capabilities with the offset of the
-	 * virtual address to avoid leaking kernel capbilities.  One
-	 * alternative to consider is sealed capabilities, but would seem
-	 * to complicate attempts to impose hardware enforced flow control.
-	 */
-	cheri_capability_set_null(cap);
-	cheri_capability_setoffset(cap, (vaddr_t)ptr);
-}
-
+/*
+ * Convert pointers to NULL capabilities with the offset of the
+ * virtual address to avoid leaking kernel capbilities.  One
+ * alternative to consider is sealed capabilities, but would seem
+ * to complicate attempts to impose hardware enforced flow control.
+ */
 #define PTREXPAND_CP(src,dst,fld) \
-	do { ptr2cap(&(dst).fld, (src).fld); } while (0)
+	do { (dst).fld = (void * __capability)(__intcap_t)(src).fld; } while (0)
 
 static void
 cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
@@ -1420,6 +1412,7 @@ cheriabi_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc_c *ki_c)
 	PTREXPAND_CP(*ki, *ki_c, ki_pcb);
 	PTREXPAND_CP(*ki, *ki_c, ki_kstack);
 	PTREXPAND_CP(*ki, *ki_c, ki_udata);
+	PTREXPAND_CP(*ki, *ki_c, ki_tdaddr);
 	CP(*ki, *ki_c, ki_sflag);
 	CP(*ki, *ki_c, ki_tdflags);
 }
@@ -1841,17 +1834,6 @@ done:
 #endif
 
 #ifdef COMPAT_CHERIABI
-/* Get the cursor from a capability stored in memory. */
-static inline uintptr_t
-cap_ctoint(struct chericap *cap)
-{
-	register_t _cursor;
-
-	cheri_capability_load(CHERI_CR_CTEMP0, cap);
-	CHERI_CTOINT(_cursor, CHERI_CR_CTEMP0);
-	return (_cursor);
-}
-
 static int
 get_proc_vector_cheriabi(struct thread *td, struct proc *p,
     char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
@@ -1868,26 +1850,26 @@ get_proc_vector_cheriabi(struct thread *td, struct proc *p,
 		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_argvstr);
+		vptr = (vm_offset_t)pss.ps_argvstr;
 		vsize = pss.ps_nargvstr;
 		if (vsize > ARG_MAX)
 			return (ENOEXEC);
-		size = vsize * sizeof(struct chericap);
+		size = vsize * sizeof(void * __capability);
 		break;
 	case PROC_ENV:
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr);
+		vptr = (vm_offset_t)pss.ps_envstr;
 		vsize = pss.ps_nenvstr;
 		if (vsize > ARG_MAX)
 			return (ENOEXEC);
-		size = vsize * sizeof(struct chericap);
+		size = vsize * sizeof(void * __capability);
 		break;
 	case PROC_AUX:
 		/*
 		 * The aux array is just above env array on the stack. Check
 		 * that the address is naturally aligned.
 		 */
-		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr) +
-			(pss.ps_nenvstr + 1) * sizeof(struct chericap);
+		vptr = (vm_offset_t)pss.ps_envstr +
+			(pss.ps_nenvstr + 1) * sizeof(void * __capability);
 #if __ELF_WORD_SIZE == 64
 		if (vptr % sizeof(uint64_t) != 0)
 #else

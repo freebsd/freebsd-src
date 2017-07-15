@@ -50,8 +50,8 @@
  */
 struct cheri_frame {
 	/* DDC has special properties for MIPS load/store instructions. */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void	*cf_ddc;
+#if __has_feature(capabilities)
+	void * __capability	cf_ddc;
 #else
 	struct chericap	cf_ddc;
 #endif
@@ -60,13 +60,33 @@ struct cheri_frame {
 	 * General-purpose capabilities -- note, numbering is from v1.17 of
 	 * the CHERI ISA spec (ISAv5 draft).
 	 */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void *cf_c1, *cf_c2, *cf_c3, *cf_c4;
-	__capability void *cf_c5, *cf_c6, *cf_c7;
-	__capability void *cf_c8, *cf_c9, *cf_c10, *cf_stc, *cf_c12;
-	__capability void *cf_c13, *cf_c14, *cf_c15, *cf_c16, *cf_c17;
-	__capability void *cf_c18, *cf_c19, *cf_c20, *cf_c21, *cf_c22;
-	__capability void *cf_c23, *cf_c24, *cf_c25, *cf_idc;
+#if __has_feature(capabilities)
+	void * __capability	cf_c1;
+	void * __capability	cf_c2;
+	void * __capability	cf_c3;
+	void * __capability	cf_c4;
+	void * __capability	cf_c5;
+	void * __capability	cf_c6;
+	void * __capability	cf_c7;
+	void * __capability	cf_c8;
+	void * __capability	cf_c9;
+	void * __capability	cf_c10;
+	void * __capability	cf_stc;
+	void * __capability	cf_c12;
+	void * __capability	cf_c13;
+	void * __capability	cf_c14;
+	void * __capability	cf_c15;
+	void * __capability	cf_c16;
+	void * __capability	cf_c17;
+	void * __capability	cf_c18;
+	void * __capability	cf_c19;
+	void * __capability	cf_c20;
+	void * __capability	cf_c21;
+	void * __capability	cf_c22;
+	void * __capability	cf_c23;
+	void * __capability	cf_c24;
+	void * __capability	cf_c25;
+	void * __capability	cf_idc;
 #else
 	struct chericap	cf_c1, cf_c2, cf_c3, cf_c4;
 	struct chericap	cf_c5, cf_c6, cf_c7;
@@ -79,8 +99,8 @@ struct cheri_frame {
 	/*
 	 * Program counter capability -- extracted from exception frame EPCC.
 	 */
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void *cf_pcc;
+#if __has_feature(capabilities)
+	void * __capability	cf_pcc;
 #else
 	struct chericap	cf_pcc;
 #endif
@@ -99,6 +119,10 @@ struct cheri_frame {
 };
 
 #ifdef _KERNEL
+#if __has_feature(capabilities)
+CTASSERT(sizeof(void * __capability) == CHERICAP_SIZE);
+CTASSERT(offsetof(struct cheri_frame, cf_c1) == sizeof(void * __capability));
+#endif
 /* 28 capability registers + capcause + padding. */
 CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
 #endif
@@ -109,14 +133,14 @@ CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
  * voluntary context switches.  This is morally equivalent to pcb_context[].
  */
 struct cheri_kframe {
-	struct chericap	ckf_c17;
-	struct chericap	ckf_c18;
-	struct chericap ckf_c19;
-	struct chericap ckf_c20;
-	struct chericap ckf_c21;
-	struct chericap ckf_c22;
-	struct chericap ckf_c23;
-	struct chericap ckf_c24;
+	void * __capability	ckf_c17;
+	void * __capability	ckf_c18;
+	void * __capability	ckf_c19;
+	void * __capability	ckf_c20;
+	void * __capability	ckf_c21;
+	void * __capability	ckf_c22;
+	void * __capability	ckf_c23;
+	void * __capability	ckf_c24;
 };
 #endif
 
@@ -202,26 +226,6 @@ struct cheri_kframe {
 	    "ctoptr %0, $c%1, $c%2\n"					\
 	    ".set pop\n"						\
 	    : "=r" (v) : "i" (cb), "i" (ct));				\
-} while (0)
-
-/*
- * Implement a CToInt similar to CToPtr but without the tag check, which will
- * be useful to extract integer interpretations of untagged capabilities.  One
- * property of this conversion is that, since the capability might be
- * untagged, we can't assume that (base + offset) < (max capability address),
- * and so significant care should be taken -- ideally this variant would only
- * be used when we know that the capability is untagged and holds a value that
- * must be an integer (due to types or other compile-time information).
- *
- * This may someday be an instruction.  If so, it could directly return the
- * cursor, rather than extract (base, offset).
- */
-#define	CHERI_CTOINT(v, cb) do {					\
-	register_t _base, _offset;					\
-									\
-	CHERI_CGETBASE(_base, cb);					\
-	CHERI_CGETOFFSET(_offset, cb);					\
-	v = (__typeof__(v))(_base + _offset);				\
 } while (0)
 
 /*
@@ -660,39 +664,6 @@ cheri_capability_load(u_int crn_to, struct chericap *cp)
 {
 
        CHERI_CLC(crn_to, CHERI_CR_KDC, cp, 0);
-}
-
-static inline void
-cheri_capability_store(u_int crn_from, struct chericap *cp)
-{
-
-        CHERI_CSC(crn_from, CHERI_CR_KDC, cp, 0);
-}
-
-/*
- * Because contexts contain tagged capabilities, we can't just use memcpy()
- * on the data structure.  Once the C compiler knows about capabilities, then
- * direct structure assignment should be plausible.  In the mean time, an
- * explicit capability context copy routine is required.
- *
- * XXXRW: Compiler should know how to do copies of tagged capabilities.
- *
- * XXXRW: Compiler should be providing us with the temporary register.
- */
-static inline void
-cheri_capability_copy(struct chericap *cp_to, struct chericap *cp_from)
-{
-
-	cheri_capability_load(CHERI_CR_CTEMP0, cp_from);
-	cheri_capability_store(CHERI_CR_CTEMP0, cp_to);
-}
-
-static inline void
-cheri_capability_set_null(struct chericap *cp)
-{
-
-	CHERI_CFROMPTR(CHERI_CR_CTEMP0, CHERI_CR_KDC, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 static inline void

@@ -32,14 +32,14 @@
 #define _COMPAT_CHERIABI_CHERIABI_SIGNAL_H_
 
 struct sigaltstack_c {
-	struct chericap	ss_sp;		/* signal stack base */
+	void * __capability	ss_sp;		/* signal stack base */
 	size_t		ss_size;	/* signal stack length */
 	int		ss_flags;	/* SS_DISABLE and/or SS_ONSTACK */
 };
 
 union sigval_c {
 	int			sival_int;
-	struct chericap		sival_ptr;
+	void * __capability	sival_ptr;
 	/* XXX: no 6.0 compatibility (sigval_*) */
 };
 
@@ -50,7 +50,7 @@ struct siginfo_c {
 	__pid_t		si_pid;
 	__uid_t		si_uid;
 	int		si_status;
-	struct chericap	si_addr;	/* faulting instruction */
+	void * __capability	si_addr;	/* faulting instruction */
 	union sigval_c	si_value;
 	union   {
 		struct {
@@ -80,8 +80,8 @@ struct sigevent_c {
 	union {
 		__lwpid_t	_threadid;
 		struct {
-			struct chericap _function;	/* void (*)(union sigval); */
-			struct chericap	*_attribute;	/* void * */
+			void * __capability _function;	/* void (*)(union sigval); */
+			void * __capability	*_attribute;	/* void * */
 		} _sigev_thread;
 		unsigned short _kevent_flags;
 		long __spare__[8];
@@ -89,7 +89,7 @@ struct sigevent_c {
 };
 
 typedef struct {
-	struct chericap ss_sp;
+	void * __capability ss_sp;
 	size_t		ss_size;
 	int		ss_flag;
 } cheriabi_stack_t;

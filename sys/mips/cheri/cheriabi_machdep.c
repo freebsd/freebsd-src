@@ -82,6 +82,7 @@
 #include <netinet/sctp.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/cpuinfo.h>
 #include <machine/md_var.h>
@@ -224,28 +225,20 @@ cheriabi_elf_header_supported(struct image_params *imgp)
 	return FALSE;
 }
 
-
-void
-cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
-    int syscall_no, int argnum)
+__attribute__((always_inline))
+inline void
+cheriabi_fetch_syscall_arg(struct thread *td, void * __capability *argp,
+    int argnum, int ptrmask)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
-	struct chericap *arg_capp;
 	struct sysentvec *se;
-	int i, intreg_offset, ptrreg_offset, ptrmask, is_ptr_arg;
-	register_t arg_reg;
+	int i, intreg_offset, ptrreg_offset, is_ptr_arg;
 
 	se = td->td_proc->p_sysent;
 
-	KASSERT(syscall_no >= 0, ("Negative syscall number %d\n", syscall_no));
-	KASSERT(syscall_no < se->sv_size,
-	    ("Syscall number too large %d >= %d\n", syscall_no, se->sv_size));
 	KASSERT(argnum >= 0, ("Negative argument number %d\n", argnum));
-	KASSERT(argnum <= se->sv_table[syscall_no].sy_narg,
-	    ("Argument number out of range %d > %d\n", argnum,
-	    se->sv_table[syscall_no].sy_narg));
+	KASSERT(argnum < 8, ("Argument number %d >= 8\n", argnum));
 
-	ptrmask = CHERIABI_SYS_argmap[syscall_no].sam_ptrmask;
 	/* XXX: O(1) possible with more bit twiddling. */
 	intreg_offset = ptrreg_offset = -1;
 	for (i = 0; i <= argnum; i++) {
@@ -260,35 +253,32 @@ cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 
 	if (is_ptr_arg) {
 		switch (ptrreg_offset) {
-		case 0:	arg_capp = &locr0->c3;	break;
-		case 1:	arg_capp = &locr0->c4;	break;
-		case 2:	arg_capp = &locr0->c5;	break;
-		case 3:	arg_capp = &locr0->c6;	break;
-		case 4:	arg_capp = &locr0->c7;	break;
-		case 5:	arg_capp = &locr0->c8;	break;
-		case 6:	arg_capp = &locr0->c9;	break;
-		case 7:	arg_capp = &locr0->c10;	break;
+		case 0:	*argp = *((void * __capability *)&locr0->c3);	break;
+		case 1:	*argp = *((void * __capability *)&locr0->c4);	break;
+		case 2:	*argp = *((void * __capability *)&locr0->c5);	break;
+		case 3:	*argp = *((void * __capability *)&locr0->c6);	break;
+		case 4:	*argp = *((void * __capability *)&locr0->c7);	break;
+		case 5:	*argp = *((void * __capability *)&locr0->c8);	break;
+		case 6:	*argp = *((void * __capability *)&locr0->c9);	break;
+		case 7:	*argp = *((void * __capability *)&locr0->c10);	break;
 		default:
 			panic("%s: pointer argument %d out of range",
 			    __func__, ptrreg_offset);
 		}
-		cheri_capability_copy(arg, arg_capp);
 	} else {
 		switch (intreg_offset) {
-		case 0:	arg_reg = locr0->a0;	break;
-		case 1:	arg_reg = locr0->a1;	break;
-		case 2:	arg_reg = locr0->a2;	break;
-		case 3:	arg_reg = locr0->a3;	break;
-		case 4:	arg_reg = locr0->a4;	break;
-		case 5:	arg_reg = locr0->a5;	break;
-		case 6:	arg_reg = locr0->a6;	break;
-		case 7:	arg_reg = locr0->a7;	break;
+		case 0:	*argp = (void * __capability)locr0->a0;	break;
+		case 1:	*argp = (void * __capability)locr0->a1;	break;
+		case 2:	*argp = (void * __capability)locr0->a2;	break;
+		case 3:	*argp = (void * __capability)locr0->a3;	break;
+		case 4:	*argp = (void * __capability)locr0->a4;	break;
+		case 5:	*argp = (void * __capability)locr0->a5;	break;
+		case 6:	*argp = (void * __capability)locr0->a6;	break;
+		case 7:	*argp = (void * __capability)locr0->a7;	break;
 		default:
 			panic("%s: integer argument %d out of range",
 			    __func__, intreg_offset);
 		}
-		cheri_capability_set_null(arg);
-		cheri_capability_setoffset(arg, arg_reg);
 	}
 }
 
@@ -298,12 +288,6 @@ cheriabi_fetch_syscall_args(struct thread *td)
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct sysentvec *se;
 	struct syscall_args *sa;
-#ifdef OLD_ARG_HANDLING
-	register_t intargs[8];
-	uintptr_t ptrargs[8];
-	u_int tag;
-	int i, isaved, psaved, curint, curptr, nintargs, nptrargs;
-#endif
 	int error;
 
 	error = 0;
@@ -330,110 +314,7 @@ cheriabi_fetch_syscall_args(struct thread *td)
 
 	sa->narg = sa->callp->sy_narg;
 
-#ifndef OLD_ARG_HANDLING
 	error = cheriabi_dispatch_fill_uap(td, sa->code, sa->args);
-#else
-
-	intargs[0] = locr0->a0;
-	intargs[1] = locr0->a1;
-	intargs[2] = locr0->a2;
-	intargs[3] = locr0->a3;
-	intargs[4] = locr0->a4;
-	intargs[5] = locr0->a5;
-	intargs[6] = locr0->a6;
-	intargs[7] = locr0->a7;
-	isaved = 8;
-
-#if defined(CPU_CHERI_CHERI0) || defined (CPU_CHERI_CHERI8) || defined(CPU_CHERI_CHERI16)
-#error	CHERIABI does not support fewer than 8 argument registers
-#endif
-	/*
-	 * XXXBD: We should ideally use a user capability rather than $kdc
-	 * to generate the pointers, but then we have to answer: which one?
-	 *
-	 * XXXRW: The kernel cannot distinguish between pointers with tags vs.
-	 * untagged (possible) integers, which is problematic when a
-	 * system-call argument is an intptr_t.  We used to just use CToPtr
-	 * here, but this caused untagged integer arguments to be lost.  Now
-	 * we pick one of CToPtr and CToInt based on the tag -- but this is
-	 * not really ideal.  Instead, we'd prefer that the kernel could
-	 * differentiate between the two explicitly using tagged capabilities,
-	 * which we're not yet ready to do.
-	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c3, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[0], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c4, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[1], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c5, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[2], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c6, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[3], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c7, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[4], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c8, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[5], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c9, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[6], CHERI_CR_CTEMP0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &locr0->c10, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	if (tag)
-		CHERI_CTOPTR(ptrargs[7], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	else
-		CHERI_CTOINT(ptrargs[7], CHERI_CR_CTEMP0);
-	psaved = 8;
-
-#ifdef TRAP_DEBUG
-	if (trap_debug)
-		printf("SYSCALL #%d pid:%u\n", sa->code, td->td_proc->p_pid);
-#endif
-
-	nptrargs = bitcount(CHERIABI_SYS_argmap[sa->code].sam_ptrmask);
-	nintargs = sa->narg - nptrargs;
-	KASSERT(nintargs <= isaved,
-	    ("SYSCALL #%u pid:%u, nintargs (%u) > isaved (%u).\n",
-	     sa->code, td->td_proc->p_pid, nintargs, isaved));
-	KASSERT(nptrargs <= psaved,
-	    ("SYSCALL #%u pid:%u, nptrargs (%u) > psaved (%u).\n",
-	     sa->code, td->td_proc->p_pid, nptrargs, psaved));
-
-	/*
-	 * Check each argument to see if it is a pointer and pop an argument
-	 * off the appropriate list.
-	 */
-	curint = curptr = 0;
-	for (i = 0; i < sa->narg; i++)
-		sa->args[i] =
-		    (CHERIABI_SYS_argmap[sa->code].sam_ptrmask & 1 << i) ?
-		    ptrargs[curptr++] : intargs[curint++];
-#endif /* OLD_ARG_HANDLING */
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = locr0->v1;
@@ -467,9 +348,6 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 		locr0->v1 = td->td_retval[1];
 		locr0->a3 = 0;
 
-		if (!CHERIABI_SYS_argmap[code].sam_return_ptr)
-			break;
-
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
 			error = cheriabi_mmap_set_retcap(td, &locr0->c3,
@@ -484,14 +362,13 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			break;
 
 		case CHERIABI_SYS_shmat:
-			cheri_capability_copy(&locr0->c3, &td->td_retcap);
+			locr0->c3 = td->td_retcap;
 			locr0->v0 = 0;
 			locr0->a3 = 0;
 			break;
 
 		default:
-			panic("%s: unsupported syscall (%u) returning pointer",
-			    __func__, code);
+			return;
 		}
 		break;
 	case ERESTART:
@@ -530,13 +407,13 @@ cheriabi_get_mcontext(struct thread *td, mcontext_c_t *mcp, int flags)
 		mcp->mc_regs[V0] = 0;
 		mcp->mc_regs[V1] = 0;
 		mcp->mc_regs[A3] = 0;
-		cheri_capability_set_null(&mcp->mc_cheriframe.cf_c3);
+		mcp->mc_cheriframe.cf_c3 = NULL;
 	}
 
 	mcp->mc_pc = td->td_frame->pc;
 	mcp->mullo = td->td_frame->mullo;
 	mcp->mulhi = td->td_frame->mulhi;
-	cheri_capability_copy(&mcp->mc_tls, &td->td_md.md_tls_cap);
+	mcp->mc_tls = td->td_md.md_tls_cap;
 
 	return (0);
 }
@@ -563,11 +440,10 @@ cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
 
-	cheri_capability_copy(&td->td_md.md_tls_cap, &mcp->mc_tls);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &mcp->mc_tls, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	td->td_md.md_tls_cap =  mcp->mc_tls;
+	tag = cheri_gettag(mcp->mc_tls);
 	if (tag)
-		CHERI_CTOPTR(td->td_md.md_tls, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+		td->td_md.md_tls = (void *)mcp->mc_tls; // XXX: __capability?
 	else
 		td->td_md.md_tls = NULL;
 
@@ -625,9 +501,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * If it turns out we will be delivering to the alternative signal
 	 * stack, we'll recalculate stackbase later.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_pcb->pcb_regs.stc,
-	    0);
-	CHERI_CTOPTR(stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	stackbase = (vaddr_t)td->td_pcb->pcb_regs.stc;
 	oonstack = sigonstack(stackbase + regs->sp);
 
 	/*
@@ -694,8 +568,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs->pc;
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
-	cheri_capability_copy(&sf.sf_uc.uc_mcontext.mc_tls,
-	    &td->td_md.md_tls_cap);
+	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls_cap;
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
@@ -843,10 +716,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	regs->pc = (register_t)(intptr_t)catcher;
 	regs->sp = (register_t)((intptr_t)sfp - stackbase);
-
-	cheri_capability_copy(&regs->c12, &psp->ps_sigcap[_SIG_IDX(sig)]);
-	cheri_capability_copy(&regs->c17,
-	    &td->td_pcb->pcb_cherisignal.csig_sigcode);
+	regs->c12 = psp->ps_sigcap[_SIG_IDX(sig)];
+	regs->c17 = td->td_pcb->pcb_cherisignal.csig_sigcode;
 }
 
 static void
@@ -857,7 +728,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
-	KASSERT(stack % sizeof(struct chericap) == 0,
+	KASSERT(stack % sizeof(void * __capability) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
 	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
@@ -875,9 +746,9 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * Pass a pointer to the ELF auxiliary argument vector.
 	 */
 	auxv = stack +
-	    (imgp->args->argc + imgp->args->envc + 2) * sizeof(struct chericap);
+	    (imgp->args->argc + imgp->args->envc + 2) * sizeof(void * __capability);
 	cheri_capability_set(&td->td_frame->c3, CHERI_CAP_USER_DATA_PERMS,
-	    (void *)auxv, imgp->auxarg_size * 2 * sizeof(struct chericap), 0);
+	    (void *)auxv, imgp->auxarg_size * 2 * sizeof(void * __capability), 0);
 
 	/*
 	 * Restrict the stack capability to the maximum region allowed for
@@ -934,18 +805,17 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	 * We don't perform valiation on the new pcc or stack capabilities
 	 * and just let the caller fail on return if they are bogus.
 	 */
-	cheri_capability_copy(&frame->stc, &param->stack_base);
+	frame->stc = param->stack_base;
 	td->td_frame->sp = param->stack_size;
 	/*
 	 * XXX-BD: cpu_set_upcall() copies the cheri_signal struct.  Do we
 	 * want to point it at our stack instead?
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &param->start_func, 0);
-	CHERI_CGETOFFSET(frame->pc, CHERI_CR_CTEMP0);
-	cheri_capability_copy(&frame->ddc, &param->ddc);
-	cheri_capability_copy(&frame->pcc, &param->start_func);
-	cheri_capability_copy(&frame->c12, &param->start_func);
-	cheri_capability_copy(&frame->c3, &param->arg);
+	frame->pc = cheri_getoffset(param->start_func);
+	frame->ddc = param->ddc;
+	frame->pcc = param->start_func;
+	frame->c12 = param->start_func;
+	frame->c3 = param->arg;
 }
 
 /*
@@ -965,15 +835,13 @@ cheriabi_thr_new_md(struct thread *parent_td, struct thr_param_c *param)
 	 * set in the param, so that the parent thread can request a NULL DDC
 	 * if it wants to.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &param->ddc, 0);
-	CHERI_CGETTAG(tag_set, CHERI_CR_CTEMP0);
+	tag_set = cheri_gettag(param->ddc);
 	if (!tag_set)
-		cheri_capability_copy(&param->ddc,
-		    &parent_td->td_pcb->pcb_regs.ddc);
+		param->ddc = parent_td->td_pcb->pcb_regs.ddc;
 }
 
 int
-cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
+cheriabi_set_user_tls(struct thread *td, void * __capability tls_base)
 {
 	int error;
 	/* XXX-AR: add a TLS alignment check here */
@@ -987,7 +855,7 @@ cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
 	    0, 0, 1);
 	if (error)
 		return (error);
-	cheri_capability_copy(&td->td_md.md_tls_cap, tls_base);
+	td->td_md.md_tls_cap = tls_base;
 	/* XXX: should support a crdhwr version */
 	if (curthread == td && cpuinfo.userlocal_reg == true) {
 		/*
@@ -1010,12 +878,11 @@ cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
 	return (0);
 }
 
-
 void
-cheriabi_get_signal_stack_capability(struct thread *td, struct chericap *csig)
+cheriabi_get_signal_stack_capability(struct thread *td, void * __capability *csig)
 {
 
-	cheri_capability_copy(csig, &td->td_pcb->pcb_cherisignal.csig_stc);
+	*csig = td->td_pcb->pcb_cherisignal.csig_stc;
 }
 
 /*
@@ -1023,12 +890,11 @@ cheriabi_get_signal_stack_capability(struct thread *td, struct chericap *csig)
  * the default stack capability.
  */
 void
-cheriabi_set_signal_stack_capability(struct thread *td, struct chericap *csig)
+cheriabi_set_signal_stack_capability(struct thread *td, void * __capability *csig)
 {
 
-	cheri_capability_copy(&td->td_pcb->pcb_cherisignal.csig_stc,
-	    csig != NULL ? csig :
-	    &td->td_pcb->pcb_cherisignal.csig_default_stack);
+	td->td_pcb->pcb_cherisignal.csig_stc = csig != NULL ? *csig :
+	    td->td_pcb->pcb_cherisignal.csig_default_stack;
 }
 
 int
@@ -1055,12 +921,12 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	case MIPS_GET_TLS:
 	case CHERI_GET_STACK:
 	case CHERI_GET_SEALCAP:
-		reqsize = sizeof(struct chericap);
+		reqsize = sizeof(void * __capability);
 		reqperms = CHERI_PERM_STORE|CHERI_PERM_STORE_CAP;
 		break;
 
 	case CHERI_SET_STACK:
-		reqsize = sizeof(struct chericap);
+		reqsize = sizeof(void * __capability);
 		reqperms = CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP;
 		break;
 
@@ -1099,7 +965,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (EINVAL);
 	}
 	if (parms_from_cap) {
-		error = cheriabi_cap_to_ptr(&uap->parms, &regs->c3,
+		error = cheriabi_cap_to_ptr(&uap->parms, regs->c3,
 		    reqsize, reqperms, 0);
 		if (error != 0)
 			return (error);
@@ -1107,20 +973,18 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 
 	switch (uap->op) {
 	case MIPS_SET_TLS:
-		return (cheriabi_set_user_tls(td, &regs->c3));
+		return (cheriabi_set_user_tls(td, regs->c3));
 
 	case MIPS_GET_TLS:
 		error = copyoutcap(&td->td_md.md_tls_cap, uap->parms,
-		    sizeof(struct chericap));
+		    sizeof(void * __capability));
 		return (error);
 
 	case CHERI_MMAP_GETBASE: {
 		size_t base;
 
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
+		base = cheri_getbase(td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, base) != 0)
 			return (EFAULT);
@@ -1131,9 +995,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		size_t len;
 
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		len = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, len) != 0)
 			return (EFAULT);
@@ -1144,9 +1006,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		ssize_t offset;
 
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		offset = cheri_getoffset(td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, offset) != 0)
 			return (EFAULT);
@@ -1157,9 +1017,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		uint64_t perms;
 
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		perms = cheri_getperm(td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
@@ -1173,13 +1031,9 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (perms == -1)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    (register_t)perms);
-		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		td->td_proc->p_md.md_cheri_mmap_cap =
+		    cheri_andperm(td->td_proc->p_md.md_cheri_mmap_cap, perms);
+		perms = cheri_getperm(td->td_proc->p_md.md_cheri_mmap_cap);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
@@ -1195,18 +1049,15 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (offset == -1 || (offset & PAGE_MASK) != 0)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETLEN(len, CHERI_CR_CTEMP0);
+		len = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
 		/* Don't allow out of bounds offsets, they aren't useful */
 		if (offset < 0 || offset > len) {
 			PROC_UNLOCK(td->td_proc);
 			return (EINVAL);
 		}
-		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		td->td_proc->p_md.md_cheri_mmap_cap =
+		    cheri_setoffset(td->td_proc->p_md.md_cheri_mmap_cap,
 		    (register_t)offset);
-		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
 		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}
@@ -1220,19 +1071,16 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (len == (size_t)-1 || (len & PAGE_MASK) != 0)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		CHERI_CGETLEN(olen, CHERI_CR_CTEMP0);
-		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		olen = cheri_getlen(td->td_proc->p_md.md_cheri_mmap_cap);
+		offset = cheri_getoffset(td->td_proc->p_md.md_cheri_mmap_cap);
 		/* Don't try to set out of bounds lengths */
 		if (offset > olen || len > olen - offset) {
 			PROC_UNLOCK(td->td_proc);
 			return (EINVAL);
 		}
-		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		td->td_proc->p_md.md_cheri_mmap_cap =
+		    cheri_csetbounds(td->td_proc->p_md.md_cheri_mmap_cap,
 		    (register_t)len);
-		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
 		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}

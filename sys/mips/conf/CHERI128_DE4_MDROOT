@@ -9,7 +9,6 @@
 include		BERI_DE4_MDROOT
 ident		CHERI128_DE4_MDROOT
 
-include		"std.CHERI"
-options 	CPU_CHERI128
+include		"std.CHERI128"
 
 makeoptions	EMBED_CHERITEST_LIST=YES

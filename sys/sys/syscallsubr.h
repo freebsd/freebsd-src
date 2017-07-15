@@ -245,7 +245,7 @@ int	kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaction_cap(struct thread *td, int sig,
 	    const struct sigaction *act, struct sigaction *oact, int flags,
-	    void *cap);
+	    void * __CAPABILITY *cap);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
 int	kern_sigprocmask(struct thread *td, int how,
 	    sigset_t *set, sigset_t *oset, int flags);

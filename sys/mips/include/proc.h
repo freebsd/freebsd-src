@@ -64,7 +64,7 @@ struct mdthread {
 	int		md_pc_ctrl;	/* performance counter control */
 	int		md_pc_count;	/* performance counter */
 	int		md_pc_spill;	/* performance counter spill */
-	void		*md_tls;
+	void		*md_tls;	/* XXX: shouldn't this be __capability? */
 	size_t		md_tls_tcb_offset;	/* TCB offset */
 #ifdef	CPU_CNMIPS
 	struct octeon_cop2_state	*md_cop2; /* kernel context */
@@ -74,7 +74,7 @@ struct mdthread {
 	int		md_cop2owner;
 #endif
 #ifdef CPU_CHERI
-	struct chericap	md_tls_cap;
+	void * __capability	md_tls_cap;
 	char		md_cheriabi_pathbuf[MAXPATHLEN];
 #endif
 };
@@ -90,7 +90,7 @@ struct mdproc {
 #ifndef COMPAT_CHERIABI
 	/* empty */
 #else
-	struct chericap	md_cheri_mmap_cap;
+	void * __capability	md_cheri_mmap_cap;
 #endif
 };
 

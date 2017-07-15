@@ -100,6 +100,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef CPU_CHERI
+#include <cheri/cheric.h>
+#endif
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -1970,7 +1974,7 @@ swp_pager_meta_cheri_put_tags(vm_page_t page)
 {
 	size_t i, j, swidx;
 	uint64_t t, m;
-	struct chericap *scan;
+	void * __capability *scan;
 	struct swblock *swap;
 	int tag;
 
@@ -1984,8 +1988,7 @@ swp_pager_meta_cheri_put_tags(vm_page_t page)
 		t = 0;
 		m = 1;
 		for (j = 0; j < 8 * sizeof(uint64_t); j++) {
-			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, scan, 0);
-			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+			tag = cheri_gettag(*scan);
 			if (tag != 0)
 				t |= m;
 			m <<= 1;

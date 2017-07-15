@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CPU_CHERI
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 #endif
 
 #ifdef DDB
@@ -1367,12 +1368,9 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	 * $kdc-relative load via fuword().  Is this safe with respect to
 	 * alignment on $pcc, etc?
 	 */
-	register_t pcc_base;
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &framePtr->pcc, 0);
-	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
 	if (instptr)
-		instptr += pcc_base;
-	instPC += pcc_base;
+		instptr += cheri_getbase(framePtr->pcc);
+	instPC += cheri_getbase(framePtr->pcc);
 #endif
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
@@ -1818,7 +1816,6 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	int is_store = 0;
 	int sign_extend = 0;
 #ifdef CPU_CHERI
-	register_t pcc_base;
 
 	/*
 	 * XXXRW: This code isn't really post-CHERI ready.
@@ -1836,9 +1833,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * XXXRW: Should just use the CP0 'faulting instruction' register
 	 * available in CHERI (but not MIPS generally).
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
-	CHERI_CGETBASE(pcc_base, CHERI_CR_CTEMP0);
-	pc += pcc_base;
+	pc += cheri_getbase(frame->pcc);
 #endif
 	inst = *((u_int32_t *)(intptr_t)pc);;
 	src_regno = MIPS_INST_RT(inst);

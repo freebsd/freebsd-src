@@ -38,6 +38,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/pcb.h>
@@ -106,6 +107,14 @@ cheri_exccode_string(uint8_t exccode)
 	}
 }
 
+static inline void
+cheri_copy_and_validate(void * __capability *dst, void * __capability *src, register_t *capvalid, int which)
+{
+
+	*capvalid |= cheri_gettag(*src) << which;
+	*dst = *src;
+}
+
 /*
  * Externalise in-kernel trapframe state to the user<->kernel ABI, struct
  * cheri_frame.
@@ -114,125 +123,41 @@ void
 cheri_trapframe_to_cheriframe(struct trapframe *frame,
     struct cheri_frame *cfp)
 {
-	register_t tag;
 
 	/*
 	 * Handle the layout of the target structure very explicitly, to avoid
 	 * future surprises (e.g., relating to padding, rearrangements, etc).
 	 */
 	bzero(cfp, sizeof(*cfp));
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->ddc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_ddc, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c1, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c1, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 1);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c2, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c2, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 2);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c3, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c3, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 3);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c4, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c4, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 4);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c5, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c5, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 5);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c6, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c6, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 6);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c7, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c7, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 7);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c8, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c8, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 8);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c9, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c9, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 9);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c10, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c10, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 10);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->stc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_stc, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 11);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c12, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c12, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 12);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c13, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c13, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 13);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c14, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c14, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 14);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c15, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c15, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 15);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c16, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c16, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 16);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c17, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c17, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 17);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c18, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c18, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 18);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c19, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c19, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 19);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c20, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c20, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 20);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c21, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c21, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 21);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c22, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c22, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 22);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c23, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c23, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 23);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c24, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c24, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 24);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c25, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c25, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 25);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_idc, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 26);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_pcc, 0);
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
-	cfp->cf_capvalid |= (tag << 27);
+
+	cheri_copy_and_validate(&cfp->cf_ddc, &frame->ddc, &cfp->cf_capvalid, 0);
+	cheri_copy_and_validate(&cfp->cf_c1, &frame->c1, &cfp->cf_capvalid, 1);
+	cheri_copy_and_validate(&cfp->cf_c2, &frame->c2, &cfp->cf_capvalid, 2);
+	cheri_copy_and_validate(&cfp->cf_c3, &frame->c3, &cfp->cf_capvalid, 3);
+	cheri_copy_and_validate(&cfp->cf_c4, &frame->c4, &cfp->cf_capvalid, 4);
+	cheri_copy_and_validate(&cfp->cf_c5, &frame->c5, &cfp->cf_capvalid, 5);
+	cheri_copy_and_validate(&cfp->cf_c6, &frame->c6, &cfp->cf_capvalid, 6);
+	cheri_copy_and_validate(&cfp->cf_c7, &frame->c7, &cfp->cf_capvalid, 7);
+	cheri_copy_and_validate(&cfp->cf_c8, &frame->c8, &cfp->cf_capvalid, 8);
+	cheri_copy_and_validate(&cfp->cf_c9, &frame->c9, &cfp->cf_capvalid, 9);
+	cheri_copy_and_validate(&cfp->cf_c10, &frame->c10, &cfp->cf_capvalid, 10);
+	cheri_copy_and_validate(&cfp->cf_stc, &frame->stc, &cfp->cf_capvalid, 11);
+	cheri_copy_and_validate(&cfp->cf_c12, &frame->c12, &cfp->cf_capvalid, 12);
+	cheri_copy_and_validate(&cfp->cf_c13, &frame->c13, &cfp->cf_capvalid, 13);
+	cheri_copy_and_validate(&cfp->cf_c14, &frame->c14, &cfp->cf_capvalid, 14);
+	cheri_copy_and_validate(&cfp->cf_c15, &frame->c15, &cfp->cf_capvalid, 15);
+	cheri_copy_and_validate(&cfp->cf_c16, &frame->c16, &cfp->cf_capvalid, 16);
+	cheri_copy_and_validate(&cfp->cf_c17, &frame->c17, &cfp->cf_capvalid, 17);
+	cheri_copy_and_validate(&cfp->cf_c18, &frame->c18, &cfp->cf_capvalid, 18);
+	cheri_copy_and_validate(&cfp->cf_c19, &frame->c19, &cfp->cf_capvalid, 19);
+	cheri_copy_and_validate(&cfp->cf_c20, &frame->c20, &cfp->cf_capvalid, 20);
+	cheri_copy_and_validate(&cfp->cf_c21, &frame->c21, &cfp->cf_capvalid, 21);
+	cheri_copy_and_validate(&cfp->cf_c22, &frame->c22, &cfp->cf_capvalid, 22);
+	cheri_copy_and_validate(&cfp->cf_c23, &frame->c23, &cfp->cf_capvalid, 23);
+	cheri_copy_and_validate(&cfp->cf_c24, &frame->c24, &cfp->cf_capvalid, 24);
+	cheri_copy_and_validate(&cfp->cf_c25, &frame->c25, &cfp->cf_capvalid, 25);
+	cheri_copy_and_validate(&cfp->cf_idc, &frame->idc, &cfp->cf_capvalid, 26);
+	cheri_copy_and_validate(&cfp->cf_pcc, &frame->pcc, &cfp->cf_capvalid, 27);
 	cfp->cf_capcause = frame->capcause;
 }
 
@@ -245,62 +170,34 @@ cheri_trapframe_from_cheriframe(struct trapframe *frame,
     struct cheri_frame *cfp)
 {
 
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_ddc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->ddc, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c1, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c1, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c2, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c2, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c3, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c3, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c4, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c4, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c5, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c5, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c6, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c6, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c7, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c7, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c8, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c8, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c9, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c9, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c10, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c10, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_stc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->stc, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c12, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c12, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c13, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c13, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c14, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c14, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c15, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c15, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c16, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c16, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c17, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c17, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c18, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c18, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c19, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c19, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c20, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c20, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c21, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c21, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c22, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c22, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c23, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c23, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c24, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c24, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_c25, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->c25, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_idc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->idc, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cfp->cf_pcc, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &frame->pcc, 0);
+	frame->ddc = cfp->cf_ddc;
+	frame->c1 = cfp->cf_c1;
+	frame->c2 = cfp->cf_c2;
+	frame->c3 = cfp->cf_c3;
+	frame->c4 = cfp->cf_c4;
+	frame->c5 = cfp->cf_c5;
+	frame->c6 = cfp->cf_c6;
+	frame->c7 = cfp->cf_c7;
+	frame->c8 = cfp->cf_c8;
+	frame->c9 = cfp->cf_c9;
+	frame->c10 = cfp->cf_c10;
+	frame->stc = cfp->cf_stc;
+	frame->c12 = cfp->cf_c12;
+	frame->c13 = cfp->cf_c13;
+	frame->c14 = cfp->cf_c14;
+	frame->c15 = cfp->cf_c15;
+	frame->c16 = cfp->cf_c16;
+	frame->c17 = cfp->cf_c17;
+	frame->c18 = cfp->cf_c18;
+	frame->c19 = cfp->cf_c19;
+	frame->c20 = cfp->cf_c20;
+	frame->c21 = cfp->cf_c21;
+	frame->c22 = cfp->cf_c22;
+	frame->c23 = cfp->cf_c23;
+	frame->c24 = cfp->cf_c24;
+	frame->c25 = cfp->cf_c25;
+	frame->idc = cfp->cf_idc;
+	frame->pcc = cfp->cf_pcc;
 	frame->capcause = cfp->cf_capcause;
 }
 

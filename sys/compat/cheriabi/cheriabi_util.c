@@ -32,12 +32,13 @@
 #include <sys/systm.h>
 
 #include <compat/cheriabi/cheriabi_util.h>
+#include <cheri/cheric.h>
 
 int
-cheriabi_copyinstrarg(struct thread *td, int syscall, int arg, char *buf,
-    size_t len, size_t *done)
+cheriabi_copyinstrarg(struct thread *td, int arg, char *buf,
+    size_t len, size_t *done, int ptrmask)
 {
-	struct chericap tmpcap;
+	void * __capability tmpcap;
 	size_t length, offset;
 	char *uaddr;
 
@@ -45,10 +46,9 @@ cheriabi_copyinstrarg(struct thread *td, int syscall, int arg, char *buf,
 	 * XXX-BD: rely on fill_uap to have ensured the cap is valid and
 	 * has some data in it;
 	 */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, syscall, arg);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-	CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
-	CHERI_CTOPTR(uaddr, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, arg, ptrmask);
+	length = cheri_getlen(tmpcap);
+	offset = cheri_getoffset(tmpcap);
+	uaddr = (char *)tmpcap;
 	return (copyinstr(uaddr, buf, MAX(length - offset, len), done));
 }

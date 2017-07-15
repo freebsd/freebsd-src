@@ -108,7 +108,7 @@
 24	AUE_GETUID	NOPROTO	{ uid_t getuid(void); }
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
 26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
-				    vaddr_t addr, int data); }
+				    _Inout_opt_ caddr_t addr, int data); }
 27	AUE_RECVMSG	STD	{ ssize_t cheriabi_recvmsg(int s, \
 				    _In_ struct msghdr_c *msg, \
 				    int flags); }
@@ -179,8 +179,8 @@
 ; _In_ for now.
 59	AUE_EXECVE	STD	{ int cheriabi_execve( \
 				    _In_z_ const char *fname, \
-				    _In_ struct chericap *argv, \
-				    _In_ struct chericap *envv); }
+				    _In_ void * __capability *argv, \
+				    _In_ void * __capability *envv); }
 60	AUE_UMASK	NOPROTO	{ mode_t umask(mode_t newmask); }
 61	AUE_CHROOT	NOPROTO	{ int chroot(_In_z_ const char *path); }
 62	AUE_FSTAT	OBSOL	fstat
@@ -349,7 +349,7 @@
 154	AUE_NULL	NOSTD	{ int cheriabi_nlm_syscall(int debug_level, \
 				    int grace_period , int addr_count, \
 				    _In_reads_(addr_count) \
-				    struct chericap *addrs); }
+				    void * __capability *addrs); }
 ; 155 is initialized by the NFS code, if present.
 ; XXX-BD: argp is impractical to check except by hand
 155	AUE_NFS_SVC	NOSTD|NOPARSE	{ int cheriabi_nfssvc(int flag, \
@@ -616,7 +616,7 @@
 313	AUE_NULL	OBSOL	signanosleep
 314	AUE_AIO_RETURN	NOSTD	{ int cheriabi_aio_return( \
 				    _Inout_ struct aiocb_c *aiocbp); }
-; XXX-BD: aiobp more likely struct chericap *
+; XXX-BD: aiobp more likely void * __capability *
 315	AUE_AIO_SUSPEND	NOSTD	{ int cheriabi_aio_suspend( \
 				    _Inout_updates_(nent) \
 				    struct aiocb_c * const * aiocbp, int nent, \
@@ -839,8 +839,8 @@
 				    _In_z_ const char *attrname); }
 415	AUE_NULL	STD	{ int cheriabi___mac_execve( \
 				    _In_z_ char *fname, \
-				    _In_ struct chericap *argv, \
-				    _In_ struct chericap *envv, \
+				    _In_ void * __capability *argv, \
+				    _In_ void * __capability *envv, \
 				    _In_ struct mac_c *mac_p); }
 416	AUE_SIGACTION	STD	{ int cheriabi_sigaction(int sig, \
 				    _In_opt_ struct sigaction_c *act, \
@@ -966,7 +966,7 @@
 ; generate an argument handler.
 463	AUE_NULL	STD|NOSTUB	{ void cheriabi_abort2(_In_z_ const char *why, \
 				    int nargs, \
-				    _In_reads_(nargs) struct chericap *args); }
+				    _In_reads_(nargs) void * __capability *args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, \
 				    _In_z_ const char *name); }
 465	AUE_AIO_FSYNC	NOSTD	{ int cheriabi_aio_fsync(int op, \
@@ -1058,8 +1058,8 @@
 491	AUE_FCHOWNAT	NOPROTO	{ int fchownat(int fd, _In_z_ const char *path, \
 				    uid_t uid, gid_t gid, int flag); }
 492	AUE_FEXECVE	STD	{ int cheriabi_fexecve(int fd, \
-				    _In_ struct chericap *argv, \
-				    _In_ struct chericap *envv); }
+				    _In_ void * __capability *argv, \
+				    _In_ void * __capability *envv); }
 493	AUE_FSTATAT	OBSOL	fbsd11_fstatat
 494	AUE_FUTIMESAT	NOPROTO	{ int futimesat(int fd, \
 				    _In_z_ const char *path, \

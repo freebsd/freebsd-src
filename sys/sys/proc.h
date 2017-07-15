@@ -320,7 +320,7 @@ struct thread {
 		register_t	tdu_retval[2];
 		off_t		tdu_off;
 #ifdef CPU_CHERI
-		struct chericap	tdu_retcap;
+		void * __capability	tdu_retcap;
 #endif
 	} td_uretoff;			/* (k) Syscall aux returns. */
 #define td_retval	td_uretoff.tdu_retval

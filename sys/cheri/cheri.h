@@ -82,13 +82,13 @@ struct cheri_object {
  * pointer should (presumably) be relative to the $ddc/$stc defined here.
  */
 struct cheri_signal {
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void	*csig_pcc;
-	__capability void	*csig_ddc;
-	__capability void	*csig_stc;
-	__capability void	*csig_idc;
-	__capability void	*csig_default_stack;
-	__capability void	*csig_sigcode;
+#if __has_feature(capabilities)
+	void * __capability	csig_pcc;
+	void * __capability	csig_ddc;
+	void * __capability	csig_stc;
+	void * __capability	csig_idc;
+	void * __capability	csig_default_stack;
+	void * __capability	csig_sigcode;
 #else
 	struct chericap		 csig_pcc;
 	struct chericap		 csig_ddc;
@@ -118,9 +118,9 @@ struct cheri_stack_frame {
 	register_t	_csf_pad1;
 	register_t	_csf_pad2;
 	register_t	_csf_pad3;
-#if !defined(_KERNEL) && __has_feature(capabilities)
-	__capability void	*csf_pcc;
-	__capability void	*csf_idc;
+#if __has_feature(capabilities)
+	void * __capability	csf_pcc;
+	void * __capability	csf_idc;
 #else
 	struct chericap	csf_pcc;
 	struct chericap	csf_idc;
@@ -144,7 +144,7 @@ struct cheri_stack {
  * capabilities themselves.
  */
 #ifdef _KERNEL
-void	cheri_capability_set(struct chericap *cp, uint32_t uperms,
+void	cheri_capability_set(void * __capability *capp, uint32_t uperms,
 	    void *basep, size_t length, off_t off);
 
 /*

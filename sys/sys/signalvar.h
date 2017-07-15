@@ -73,7 +73,7 @@ struct sigacts {
 	u_int	ps_refcnt;
 	struct mtx ps_mtx;
 #ifdef COMPAT_CHERIABI
-	struct chericap	ps_sigcap[_SIG_MAXSIG];	/* CheriABI handlers */
+	void * __capability ps_sigcap[_SIG_MAXSIG];	/* CheriABI handlers */
 #endif
 };
 
@@ -314,9 +314,9 @@ ksiginfo_copy(ksiginfo_t *src, ksiginfo_t *dst)
 		 * header polution.
 		 */
 		dst->ksi_info.si_value.sival_ptr =
-		    malloc(sizeof(struct chericap), M_TEMP, M_WAITOK);
-		cheri_capability_copy(dst->ksi_info.si_value.sival_ptr,
-		    src->ksi_info.si_value.sival_ptr);
+		    malloc(sizeof(void * __capability), M_TEMP, M_WAITOK);
+		*((void * __capability *)dst->ksi_info.si_value.sival_ptr) = 
+		    *((void * __capability *)src->ksi_info.si_value.sival_ptr);
 	}
 #endif
 	(dst)->ksi_flags = (src->ksi_flags & KSI_COPYMASK);

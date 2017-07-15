@@ -201,11 +201,6 @@ sed -e '
 
 		printf "#ifndef %s\n", sysargmap_h > sysargmap
 		printf "#define\t%s\n\n", sysargmap_h > sysargmap
-		printf "struct {\n" > sysargmap
-		printf "\tu_char sam_return_ptr;\n" > sysargmap
-		printf "\tu_char sam_ptrmask;\n} " > sysargmap
-		printf("%sargmap[%sMAXSYSCALL] = {\n",
-		    syscallprefix, syscallprefix) > sysargmap
 
 		printf "#ifndef %s\n", cheriabi_fill_uap_h > cheriabi_fill_uap
 		printf "#define\t%s\n\n", cheriabi_fill_uap_h > cheriabi_fill_uap
@@ -435,10 +430,10 @@ sed -e '
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+		    pdeptab, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
-		printf("%s\t\t    &tmpcap, %s, reqperms, %s);\n",
+		printf("%s\t\t    tmpcap, %s, reqperms, %s);\n",
 		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
 		printf("%s\t\t\treturn (error);\n", pdeptab) > cheriabi_fill_uap
@@ -510,10 +505,10 @@ sed -e '
 			printf("%s %s has no length constraint",
 			    a_saltype, a_name) > "/dev/stderr"
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    pdeptab, syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+		    pdeptab, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
-		printf("%s\t\t    &tmpcap, %s, %s, %s);\n",
+		printf("%s\t\t    tmpcap, %s, %s, %s);\n",
 		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
 		printf("%s\t\t\treturn (error);\n", pdeptab) > cheriabi_fill_uap
@@ -731,27 +726,13 @@ sed -e '
 			    argalias) > sysarg
 
 		if (argc != 0 && !flag("NOARGS") && !flag("NODEF")) {
-			printf("\t[%s%s] = {\n",
-			     syscallprefix, funcalias) > sysargmap
-			if (isptrtype(syscallret))
-				printf "\t\t.sam_return_ptr = 1,\n" > sysargmap
-			pointers = 0
+			printf("#define	%s%s_PTRMASK	(0x0", syscallprefix, funcalias) > sysargmap
 			for (i = 1; i <= argc; i++)
-				if (isptrtype(argtype[i]))
-					pointers++
-			if (pointers > 0) {
-				printf "\t\t.sam_ptrmask =" > sysargmap
-				or_space = ""
-				for (i = 1; i <= argc; i++)
-					if (isptrtype(argtype[i])) {
-						printf(" %s0x%x",
-						    or_space,
-						    2 ^ (i - 1)) > sysargmap
-						or_space = "| "
-					}
-				printf "\n" > sysargmap
-			}
-			printf "\t},\n" > sysargmap
+				if (isptrtype(argtype[i])) {
+					printf(" | 0x%x",
+					    2 ^ (i - 1)) > sysargmap
+				}
+			printf ")\n" > sysargmap
 		}
 
 		if (argc != 0)
@@ -797,17 +778,16 @@ sed -e '
 			    syscallprefix, funcalias) > cheriabi_fill_uap
 			printf("    struct %s *uap)\n{\n",
 			    argalias) > cheriabi_fill_uap
-			printf("\tstruct chericap tmpcap;\n") > cheriabi_fill_uap
+			printf("\tvoid * __capability tmpcap;\n") > cheriabi_fill_uap
 			# Process all the integer arguments
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]))
 					continue
 				printf("\n\t/* [%d] %s %s */\n", i-1,
 				    argsaltype[i], argname[i]) > cheriabi_fill_uap
-				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-				    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
-				printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > cheriabi_fill_uap
-				printf("\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", argname[i]) > cheriabi_fill_uap
+				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+				    i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+				printf("\tuap->%s = (register_t)tmpcap;\n", argname[i]) > cheriabi_fill_uap
 			}
 			# Process pointer arguments that do not depend on
 			# dereferenced pointers.
@@ -1228,7 +1208,6 @@ sed -e '
 		printf("\n#endif /* !%s */\n", sysproto_h) > sysprotoend
 
 		printf("\n") > sysmk
-		printf("};\n") > sysargmap
 		printf("#endif /* !%s */\n", sysargmap_h) > sysargmap
 
 		printf("#endif /* !%s */\n", cheriabi_fill_uap_h) > cheriabi_fill_uap

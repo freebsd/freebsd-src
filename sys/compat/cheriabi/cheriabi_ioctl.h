@@ -84,7 +84,7 @@ struct ioc_read_toc_entry_c {
 	u_char	address_format;
 	u_char	starting_track;
 	u_short	data_len;
-	struct chericap data;		/* struct cd_toc_entry* */
+	void * __capability data;		/* struct cd_toc_entry* */
 };
 #define	CDIOREADTOCENTRYS_C \
     _IOC_NEWTYPE(CDIOREADTOCENTRYS, struct ioc_read_toc_entry_c)
@@ -93,7 +93,7 @@ struct md_ioctl_c {
 	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
 	enum md_types	md_type;	/* type of disk */
-	struct chericap	md_file;	/* pathname of file to mount */
+	void * __capability	md_file;	/* pathname of file to mount */
 	off_t		md_mediasize;	/* size of disk in bytes */
 	unsigned	md_sectorsize;	/* sectorsize */
 	unsigned	md_options;	/* options */
@@ -109,12 +109,12 @@ struct md_ioctl_c {
 
 struct fiodgname_arg_c {
 	int		len;
-	struct chericap	buf;
+	void * __capability	buf;
 };
 #define	FIODGNAME_C	_IOC_NEWTYPE(FIODGNAME, struct fiodgname_arg_c)
 
 struct mem_range_op_c {
-	struct chericap	mo_desc;
+	void * __capability	mo_desc;
 	int		mo_arg[2];
 };
 #define	MEMRANGE_GET_C	_IOC_NEWTYPE(MEMRANGE_GET, struct mem_range_op_c)
@@ -123,10 +123,10 @@ struct mem_range_op_c {
 struct pci_conf_io_c {
 	u_int32_t		pat_buf_len;	/* pattern buffer length */
 	u_int32_t		num_patterns;	/* number of patterns */
-	struct chericap		patterns;	/* struct pci_match_conf ptr */
+	void * __capability		patterns;	/* struct pci_match_conf ptr */
 	u_int32_t		match_buf_len;	/* match buffer length */
 	u_int32_t		num_matches;	/* number of matches returned */
-	struct chericap		matches;	/* struct pci_conf ptr */
+	void * __capability		matches;	/* struct pci_conf ptr */
 	u_int32_t		offset;		/* offset into device list */
 	u_int32_t		generation;	/* device list generation */
 	u_int32_t		status;		/* request status */
@@ -140,13 +140,13 @@ struct sg_io_hdr_c {
 	u_char		mx_sb_len;
 	u_short		iovec_count;
 	u_int		dxfer_len;
-	struct chericap	dxferp;
-	struct chericap	cmdp;
-	struct chericap	sbp;
+	void * __capability	dxferp;
+	void * __capability	cmdp;
+	void * __capability	sbp;
 	u_int		timeout;
 	u_int		flags;
 	int		pack_id;
-	struct chericap	usr_ptr;
+	void * __capability	usr_ptr;
 	u_char		status;
 	u_char		masked_status;
 	u_char		msg_status;
@@ -161,7 +161,7 @@ struct sg_io_hdr_c {
 
 struct bpf_program_c {
 	u_int bf_len;
-	struct chericap bf_insns;
+	void * __capability bf_insns;
 };
 #define BIOCSETF_C	_IOC_NEWTYPE(BIOCSETF, struct bpf_program_c)
 #define BIOCSETWF_C	_IOC_NEWTYPE(BIOCSETWF, struct bpf_program_c)
@@ -169,7 +169,7 @@ struct bpf_program_c {
 
 struct ifreq_buffer_c {
 	size_t	length;
-	struct chericap buffer;
+	void * __capability buffer;
 };
 
 struct ifreq_c {
@@ -186,7 +186,7 @@ struct ifreq_c {
 		int			ifru_mtu;
 		int			ifru_phys;
 		int			ifru_media;
-		struct chericap		ifru_data;
+		void * __capability		ifru_data;
 		int			ifru_cap[2];
 		u_int			ifru_fib;
 	} ifr_ifru;
@@ -369,7 +369,7 @@ struct ifgroupreq_c {
 	u_int	ifgr_len;
 	union {
 		char	ifgru_group[IFNAMSIZ];
-		struct chericap	ifgru_groups;	/* struct ifg_req * */
+		void * __capability	ifgru_groups;	/* struct ifg_req * */
 	} ifgr_ifgru;
 };
 
@@ -385,7 +385,7 @@ struct ifmediareq_c {
 	int		ifm_status;
 	int		ifm_active;
 	int		ifm_count;
-	struct chericap	ifm_ulist;	/* int * */
+	void * __capability	ifm_ulist;	/* int * */
 };
 
 #define	SIOCGIFMEDIA_C		_IOC_NEWTYPE(SIOCGIFMEDIA, struct ifmediareq_c)

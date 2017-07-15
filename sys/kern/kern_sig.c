@@ -696,12 +696,12 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 
 int
 kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
-    struct sigaction *oact, int flags, void *cap)
+    struct sigaction *oact, int flags, void * __CAPABILITY *cap)
 {
 	struct sigacts *ps;
 	struct proc *p = td->td_proc;
 #ifdef COMPAT_CHERIABI
-	struct chericap newhandler;
+	void * __capability newhandler;
 #endif
 
 	if (!_SIG_VALID(sig))
@@ -715,7 +715,7 @@ kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
 #ifdef COMPAT_CHERIABI
 	/* Save handler capability so we copy the old one out first. */
 	if (act != NULL && cap != NULL)
-		cheri_capability_copy(&newhandler, cap);
+		newhandler = *cap;
 #endif
 
 	PROC_LOCK(p);
@@ -741,8 +741,7 @@ kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
 		}
 #ifdef COMPAT_CHERIABI
 		if (cap != NULL)
-			cheri_capability_copy(cap,
-			    &ps->ps_sigcap[_SIG_IDX(sig)]);
+			*cap = ps->ps_sigcap[_SIG_IDX(sig)];
 #endif
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDSTOP)
 			oact->sa_flags |= SA_NOCLDSTOP;
@@ -773,8 +772,7 @@ kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
 		}
 #ifdef COMPAT_CHERIABI
 		if (cap != NULL)
-			cheri_capability_copy(&ps->ps_sigcap[_SIG_IDX(sig)],
-			    &newhandler);
+			ps->ps_sigcap[_SIG_IDX(sig)] = newhandler;
 #endif
 		if (!sigact_flag_test(act, SA_RESTART))
 			SIGADDSET(ps->ps_sigintr, sig);

@@ -168,7 +168,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct ptrace_args *p = params;
 		iarg[0] = p->req; /* int */
 		iarg[1] = p->pid; /* pid_t */
-		iarg[2] = p->addr; /* vaddr_t */
+		uarg[2] = (intptr_t) p->addr; /* caddr_t */
 		iarg[3] = p->data; /* int */
 		*n_args = 4;
 		break;
@@ -383,8 +383,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 59: {
 		struct cheriabi_execve_args *p = params;
 		uarg[0] = (intptr_t) p->fname; /* const char * */
-		uarg[1] = (intptr_t) p->argv; /* struct chericap * */
-		uarg[2] = (intptr_t) p->envv; /* struct chericap * */
+		uarg[1] = (intptr_t) p->argv; /* void *__capability * */
+		uarg[2] = (intptr_t) p->envv; /* void *__capability * */
 		*n_args = 3;
 		break;
 	}
@@ -799,7 +799,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->debug_level; /* int */
 		iarg[1] = p->grace_period; /* int */
 		iarg[2] = p->addr_count; /* int */
-		uarg[3] = (intptr_t) p->addrs; /* struct chericap * */
+		uarg[3] = (intptr_t) p->addrs; /* void *__capability * */
 		*n_args = 4;
 		break;
 	}
@@ -1944,8 +1944,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 415: {
 		struct cheriabi___mac_execve_args *p = params;
 		uarg[0] = (intptr_t) p->fname; /* char * */
-		uarg[1] = (intptr_t) p->argv; /* struct chericap * */
-		uarg[2] = (intptr_t) p->envv; /* struct chericap * */
+		uarg[1] = (intptr_t) p->argv; /* void *__capability * */
+		uarg[2] = (intptr_t) p->envv; /* void *__capability * */
 		uarg[3] = (intptr_t) p->mac_p; /* struct mac_c * */
 		*n_args = 4;
 		break;
@@ -2293,7 +2293,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cheriabi_abort2_args *p = params;
 		uarg[0] = (intptr_t) p->why; /* const char * */
 		iarg[1] = p->nargs; /* int */
-		uarg[2] = (intptr_t) p->args; /* struct chericap * */
+		uarg[2] = (intptr_t) p->args; /* void *__capability * */
 		*n_args = 3;
 		break;
 	}
@@ -2534,8 +2534,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 492: {
 		struct cheriabi_fexecve_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->argv; /* struct chericap * */
-		uarg[2] = (intptr_t) p->envv; /* struct chericap * */
+		uarg[1] = (intptr_t) p->argv; /* void *__capability * */
+		uarg[2] = (intptr_t) p->envv; /* void *__capability * */
 		*n_args = 3;
 		break;
 	}
@@ -3345,7 +3345,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "pid_t";
 			break;
 		case 2:
-			p = "vaddr_t";
+			p = "caddr_t";
 			break;
 		case 3:
 			p = "int";
@@ -3689,10 +3689,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		case 2:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		default:
 			break;
@@ -4383,7 +4383,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		default:
 			break;
@@ -6231,10 +6231,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		case 2:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		case 3:
 			p = "userland struct mac_c *";
@@ -6816,7 +6816,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		default:
 			break;
@@ -7264,10 +7264,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		case 2:
-			p = "userland struct chericap *";
+			p = "userland void *__capability *";
 			break;
 		default:
 			break;

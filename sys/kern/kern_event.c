@@ -586,11 +586,9 @@ knote_fork(struct knlist *list, int pid)
 		/* preserve udata */
 #ifdef CPU_CHERI
 		if (SV_CURPROC_FLAG(SV_CHERI)) {
-			kev.udata = malloc(sizeof(struct chericap), M_KQUEUE,
+			kev.udata = malloc(sizeof(void * __capability), M_KQUEUE,
 			    M_WAITOK);
-			cheri_capability_load(CHERI_CR_CTEMP0,
-			    kn->kn_kevent.udata);
-			cheri_capability_store(CHERI_CR_CTEMP0, kev.udata);
+			kev.udata = kn->kn_kevent.udata;
 		} else
 #endif
 			kev.udata = kn->kn_kevent.udata;

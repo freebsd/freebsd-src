@@ -41,6 +41,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/cherireg.h>
@@ -97,18 +98,18 @@ static int	cheri_test_int;
 /*
  * Various pre-initialised capabilities to test with.
  */
-static struct chericap	cheri_test_nullcap;
-static struct chericap	cheri_test_finecap;
-static struct chericap	cheri_test_untaggedcap;
-static struct chericap	cheri_test_nilboundscap;
-static struct chericap	cheri_test_readonlycap;
+static void * __capability	cheri_test_nullcap;
+static void * __capability	cheri_test_finecap;
+static void * __capability	cheri_test_untaggedcap;
+static void * __capability	cheri_test_nilboundscap;
+static void * __capability	cheri_test_readonlycap;
 
 static void
 cheri_test_init(void)
 {
 
 	/* NULL capability. */
-	cheri_capability_set_null(&cheri_test_nullcap);
+	cheri_test_nullcap = NULL;
 
 	/*
 	 * Valid capability to cheri_test_int -- which should be read-write.
@@ -119,19 +120,14 @@ cheri_test_init(void)
 	    sizeof(cheri_test_int), 0);
 
 	/* Valid capability to cheri_test_int -- but tag stripped. */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_finecap, 0);
-	CHERI_CCLEARTAG(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_untaggedcap, 0);
+	cheri_test_untaggedcap = cheri_cleartag(cheri_test_finecap);
 
 	/* Valid capability to cheri_test_int -- but bounds set to 0 length. */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_finecap, 0);
-	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, 0);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_nilboundscap, 0);
+	cheri_test_nilboundscap = cheri_csetbounds(cheri_test_finecap, 0);
 
 	/* Valid capability to cheri_test_int -- but read-only. */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_finecap, 0);
-	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, CHERI_PERM_LOAD);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheri_test_readonlycap, 0);
+	cheri_test_readonlycap = cheri_andperm(cheri_test_finecap,
+	    CHERI_PERM_LOAD);
 }
 SYSINIT(cheri_test_init, SI_SUB_CPU, SI_ORDER_ANY, cheri_test_init, NULL);
 

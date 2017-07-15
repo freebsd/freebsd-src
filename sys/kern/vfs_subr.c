@@ -3801,12 +3801,12 @@ vfsconf2x32(struct sysctl_req *req, struct vfsconf *vfsp)
 
 #ifdef COMPAT_CHERIABI
 struct xvfsconf_c {
-	struct chericap	vfc_vfsops;		/* struct vfsops * */
+	void * __capability vfc_vfsops;		/* struct vfsops * */
 	char		vfc_name[MFSNAMELEN];
 	int		vfc_typenum;
 	int		vfc_refcount;
 	int		vfc_flags;
-	struct chericap	vfc_next;		/* struct vfsconf * */
+	void * __capability vfc_next;		/* struct vfsconf * */
 };
 
 static int
