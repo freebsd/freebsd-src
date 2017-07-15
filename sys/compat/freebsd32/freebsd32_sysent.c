@@ -517,10 +517,10 @@ struct sysent freebsd32_sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 468 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 469 = __getpath_fromfd */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 470 = __getpath_fromaddr */
-	{ AS(sctp_peeloff_args), (sy_call_t *)sys_sctp_peeloff, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 471 = sctp_peeloff */
-	{ AS(sctp_generic_sendmsg_args), (sy_call_t *)sys_sctp_generic_sendmsg, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 472 = sctp_generic_sendmsg */
-	{ AS(sctp_generic_sendmsg_iov_args), (sy_call_t *)sys_sctp_generic_sendmsg_iov, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 473 = sctp_generic_sendmsg_iov */
-	{ AS(sctp_generic_recvmsg_args), (sy_call_t *)sys_sctp_generic_recvmsg, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 474 = sctp_generic_recvmsg */
+	{ AS(sctp_peeloff_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 471 = sctp_peeloff */
+	{ AS(sctp_generic_sendmsg_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 472 = sctp_generic_sendmsg */
+	{ AS(sctp_generic_sendmsg_iov_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 473 = sctp_generic_sendmsg_iov */
+	{ AS(sctp_generic_recvmsg_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 474 = sctp_generic_recvmsg */
 #ifdef PAD64_REQUIRED
 	{ AS(freebsd32_pread_args), (sy_call_t *)freebsd32_pread, AUE_PREAD, NULL, 0, 0, 0, SY_THR_STATIC },	/* 475 = freebsd32_pread */
 	{ AS(freebsd32_pwrite_args), (sy_call_t *)freebsd32_pwrite, AUE_PWRITE, NULL, 0, 0, 0, SY_THR_STATIC },	/* 476 = freebsd32_pwrite */
