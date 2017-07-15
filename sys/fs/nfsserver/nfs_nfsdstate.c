@@ -6599,7 +6599,8 @@ nfsrv_freedevid(struct nfsdevice *ds)
 	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
 	vrele(ds->nfsdev_dvp);
 	for (i = 0; i < nfsrv_dsdirsize; i++)
-		vrele(ds->nfsdev_dsdir[i]);
+		if (ds->nfsdev_dsdir[i] != NULL)
+			vrele(ds->nfsdev_dsdir[i]);
 	free(ds->nfsdev_fileaddr, M_NFSDSTATE);
 	free(ds->nfsdev_host, M_NFSDSTATE);
 	free(ds, M_NFSDSTATE);
