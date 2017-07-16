@@ -89,6 +89,7 @@ static int	debug = 0;
 #define NFS_VER3	 3
 #define NFS_VER4	 4
 static pid_t children[MAXNFSDCNT]; /* PIDs of children */
+static pid_t masterpid;		   /* PID of master/parent */
 static int nfsdcnt;		/* number of children */
 static int nfsdcnt_set;
 static int minthreads;
@@ -457,6 +458,7 @@ main(int argc, char **argv)
 		 * kernel nfsd thread. The kernel will add more
 		 * threads as needed.
 		 */
+		masterpid = getpid();
 		pid = fork();
 		if (pid == -1) {
 			syslog(LOG_ERR, "fork: %m");
@@ -1060,7 +1062,12 @@ start_server(int master, struct nfsd_nfsd_args *nfsdargp)
 		error = nfssvc(nfssvc_nfsd, nfsdargp);
 	}
 	if (error < 0) {
-		syslog(LOG_ERR, "nfssvc: %m");
+		if (errno == ENXIO) {
+			syslog(LOG_ERR, "Bad -p option, cannot run");
+			if (masterpid != 0 && master == 0)
+				kill(masterpid, SIGUSR1);
+		} else
+			syslog(LOG_ERR, "nfssvc: %m");
 		status = 1;
 	}
 	if (master)
