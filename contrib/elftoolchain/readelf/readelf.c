@@ -2636,10 +2636,8 @@ dyn_str(struct readelf *re, uint32_t stab, uint64_t d_val)
 }
 
 static void
-dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
+dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn)
 {
-	const char *name;
-
 	switch (re->ehdr.e_machine) {
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
@@ -2692,11 +2690,6 @@ dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 			break;
 		case DT_MIPS_IVERSION:
 		case DT_MIPS_PERF_SUFFIX:
-		case DT_AUXILIARY:
-		case DT_FILTER:
-			name = dyn_str(re, stab, dyn->d_un.d_val);
-			printf(" %s\n", name);
-			break;
 		case DT_MIPS_TIME_STAMP:
 			printf(" %s\n", timestamp(dyn->d_un.d_val));
 			break;
@@ -2713,14 +2706,16 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 {
 	const char *name;
 
-	if (dyn->d_tag >= DT_LOPROC && dyn->d_tag <= DT_HIPROC) {
-		dump_arch_dyn_val(re, dyn, stab);
+	if (dyn->d_tag >= DT_LOPROC && dyn->d_tag <= DT_HIPROC &&
+	    dyn->d_tag != DT_AUXILIARY && dyn->d_tag != DT_FILTER) {
+		dump_arch_dyn_val(re, dyn);
 		return;
 	}
 
 	/* These entry values are index into the string table. */
 	name = NULL;
-	if (dyn->d_tag == DT_NEEDED || dyn->d_tag == DT_SONAME ||
+	if (dyn->d_tag == DT_AUXILIARY || dyn->d_tag == DT_FILTER ||
+	    dyn->d_tag == DT_NEEDED || dyn->d_tag == DT_SONAME ||
 	    dyn->d_tag == DT_RPATH || dyn->d_tag == DT_RUNPATH)
 		name = dyn_str(re, stab, dyn->d_un.d_val);
 
@@ -2764,6 +2759,12 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 	case DT_VERDEFNUM:
 	case DT_VERNEEDNUM:
 		printf(" %ju\n", (uintmax_t) dyn->d_un.d_val);
+		break;
+	case DT_AUXILIARY:
+		printf(" Auxiliary library: [%s]\n", name);
+		break;
+	case DT_FILTER:
+		printf(" Filter library: [%s]\n", name);
 		break;
 	case DT_NEEDED:
 		printf(" Shared library: [%s]\n", name);
