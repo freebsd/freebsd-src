@@ -836,6 +836,13 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
+      <para revision="307265">A new &man.sysctl.8;,
+	<literal>vfs.zfs.compressed_arc_enabled</literal>, has been
+	added, which when enabled stores compressed, on-disk data in
+	the <acronym>ZFS</acronym> <acronym>ARC</acronym>, increasing
+	the amount of data that can be cached in physical memory.  It
+	is enabled by default.</para>
+
       <para revision="318785">The
 	<literal>vfs.zfs.debug_flags</literal> &man.sysctl.8; has been
 	deprecated in favor of
