@@ -97,6 +97,13 @@ static const int month_days[12] = {
 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 };
 
+/*
+ * Optimization: using a precomputed count of days between POSIX_BASE_YEAR and
+ * some recent year avoids lots of unnecessary loop iterations in conversion.
+ * recent_base_days is the number of days before the start of recent_base_year.
+ */
+static const int recent_base_year = 2017;
+static const int recent_base_days = 17167;
 
 /*
  * This inline avoids some unnecessary modulo operations
@@ -157,8 +164,14 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	 * Compute days since start of time
 	 * First from years, then from months.
 	 */
-	days = 0;
-	for (i = POSIX_BASE_YEAR; i < year; i++)
+	if (year >= recent_base_year) {
+		i = recent_base_year;
+		days = recent_base_days;
+	} else {
+		i = POSIX_BASE_YEAR;
+		days = 0;
+	}
+	for (; i < year; i++)
 		days += days_in_year(i);
 
 	/* Months */
@@ -188,8 +201,14 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 
 	ct->dow = day_of_week(days);
 
-	/* Subtract out whole years, counting them in i. */
-	for (year = POSIX_BASE_YEAR; days >= days_in_year(year); year++)
+	/* Subtract out whole years. */
+	if (days >= recent_base_days) {
+		year = recent_base_year;
+		days -= recent_base_days;
+	} else {
+		year = POSIX_BASE_YEAR;
+	}
+	for (; days >= days_in_year(year); year++)
 		days -= days_in_year(year);
 	ct->year = year;
 
