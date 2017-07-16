@@ -502,32 +502,36 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
-		nfsrv_createdevids(args, td);
-
-		/* An empty string implies AUTH_SYS only. */
-		if (principal[0] != '\0') {
-			ret2 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER2);
-			ret3 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER3);
-			ret4 = rpc_gss_set_svc_name_call(principal,
-			    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG, NFS_VER4);
-
-			if (!ret2 || !ret3 || !ret4)
-				printf("nfsd: can't register svc name\n");
+		error = nfsrv_createdevids(args, td);
+		if (error == 0) {
+			/* An empty string implies AUTH_SYS only. */
+			if (principal[0] != '\0') {
+				ret2 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER2);
+				ret3 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER3);
+				ret4 = rpc_gss_set_svc_name_call(principal,
+				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
+				    NFS_VER4);
+	
+				if (!ret2 || !ret3 || !ret4)
+					printf(
+					    "nfsd: can't register svc name\n");
+			}
+	
+			nfsrvd_pool->sp_minthreads = args->minthreads;
+			nfsrvd_pool->sp_maxthreads = args->maxthreads;
+				
+			svc_run(nfsrvd_pool);
+	
+			if (principal[0] != '\0') {
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
+				rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
+			}
 		}
-
-		nfsrvd_pool->sp_minthreads = args->minthreads;
-		nfsrvd_pool->sp_maxthreads = args->maxthreads;
-			
-		svc_run(nfsrvd_pool);
-
-		if (principal[0] != '\0') {
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER2);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER3);
-			rpc_gss_clear_svc_name_call(NFS_PROG, NFS_VER4);
-		}
-
 		NFSD_LOCK();
 		newnfs_numnfsd--;
 		nfsrvd_init(1);

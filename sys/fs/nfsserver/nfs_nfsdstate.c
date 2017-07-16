@@ -6775,8 +6775,10 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 
 /*
  * Create the device id list.
+ * Return 0 if the nfsd threads are to run and ENXIO if the "-p" argument
+ * is misconfigured.
  */
-void
+int
 nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 {
 	struct nfsdevice *ds;
@@ -6787,7 +6789,7 @@ nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 	dnshostp = args->dnshost;
 	dspathp = args->dspath;
 	if (addrp == NULL || dnshostp == NULL || dspathp == NULL)
-		return;
+		return (0);
 
 	/*
 	 * Loop around for each nul-terminated string in args->addr and
@@ -6800,13 +6802,14 @@ nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 		if (error != 0) {
 			/* Free all DS servers. */
 			nfsrv_freealldevids();
-			return;
+			return (ENXIO);
 		}
 		nfsrv_allocdevid(ds, addrp, dnshostp);
 		addrp += (strlen(addrp) + 1);
 		dnshostp += (strlen(dnshostp) + 1);
 		dspathp += (strlen(dspathp) + 1);
 	}
+	return (0);
 }
 
 /*

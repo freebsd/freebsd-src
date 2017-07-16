@@ -148,7 +148,7 @@ int nfsrv_layoutreturn(struct nfsrv_descript *, vnode_t, int, int, uint64_t,
     NFSPROC_T *);
 int nfsrv_getdevinfo(char *, int, uint32_t *, uint32_t *, int *, char **);
 void nfsrv_freealllayoutsanddevids(void);
-void nfsrv_createdevids(struct nfsd_nfsd_args *, NFSPROC_T *);
+int nfsrv_createdevids(struct nfsd_nfsd_args *, NFSPROC_T *);
 int nfsrv_checkdsattr(struct nfsrv_descript *, vnode_t, NFSPROC_T *);
 
 /* nfs_nfsdserv.c */
