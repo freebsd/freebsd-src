@@ -2603,7 +2603,8 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 
 	*bpp = NULL;
 	*cgpp = NULL;
-	error = bread(devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(devvp, devvp->v_type == VREG ?
+	    fragstoblks(fs, cgtod(fs, cg)) : fsbtodb(fs, cgtod(fs, cg)),
 	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error != 0)
 		return (error);
