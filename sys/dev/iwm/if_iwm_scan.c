@@ -179,7 +179,6 @@ iwm_mvm_scan_rx_chain(struct iwm_softc *sc)
 	return htole16(rx_chain);
 }
 
-#if 0
 static uint32_t
 iwm_mvm_scan_rxon_flags(struct ieee80211_channel *c)
 {
@@ -188,7 +187,6 @@ iwm_mvm_scan_rxon_flags(struct ieee80211_channel *c)
 	else
 		return htole32(IWM_PHY_BAND_5);
 }
-#endif
 
 static uint32_t
 iwm_mvm_scan_rate_n_flags(struct iwm_softc *sc, int flags, int no_cck)
@@ -728,10 +726,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 	if (iwm_mvm_rrm_scan_needed(sc))
 		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 
-	/* Note - IWM_PHY_BAND_5 is 0 anyway */
-	req->flags = htole32(IWM_PHY_BAND_24);
-	if (sc->nvm_data->sku_cap_band_52GHz_enable)
-		req->flags |= htole32(IWM_PHY_BAND_5);
+	req->flags = iwm_mvm_scan_rxon_flags(&sc->sc_ic.ic_channels[0]);
 
 	req->filter_flags =
 	    htole32(IWM_MAC_FILTER_ACCEPT_GRP | IWM_MAC_FILTER_IN_BEACON);
