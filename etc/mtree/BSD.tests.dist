@@ -622,6 +622,8 @@
             regress.multitest.out
             ..
         ..
+        stat
+        ..
         tail
         ..
         tar
