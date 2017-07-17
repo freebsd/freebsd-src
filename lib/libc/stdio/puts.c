@@ -62,9 +62,9 @@ puts(char const *s)
 	uio.uio_resid = c + 1;
 	uio.uio_iov = &iov[0];
 	uio.uio_iovcnt = 2;
-	FLOCKFILE(stdout);
+	FLOCKFILE_CANCELSAFE(stdout);
 	ORIENT(stdout, -1);
 	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
-	FUNLOCKFILE(stdout);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }
