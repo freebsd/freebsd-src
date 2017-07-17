@@ -37,15 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "cheri_private.h"
 
-__CAPABILITY char *
-__CAPSUFFIX(strchr)(__CAPABILITY const char *p, int ch)
+__CAP char *
+__CAPSUFFIX(strchr)(__CAP const char *p, int ch)
 {
 	char c;
 
 	c = ch;
 	for (;; ++p) {
 		if (*p == c)
-			return ((__CAPABILITY char *)p);
+			return ((__CAP char *)p);
 		if (*p == '\0')
 			return (NULL);
 	}

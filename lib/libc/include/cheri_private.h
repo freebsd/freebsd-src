@@ -36,13 +36,13 @@
 #error	This code requires a capability aware compiler.
 #endif
 #define	__CAPSUFFIX(func)	func ## _c
-#ifndef __CAPABILITY
-#define	__CAPABILITY		__capability
+#ifndef __CAP
+#define	__CAP		__capability
 #endif
 #else
 #define	__CAPSUFFIX(func)	func
-#ifndef __CAPABILITY
-#define	__CAPABILITY
+#ifndef __CAP
+#define	__CAP
 #endif
 #endif
 

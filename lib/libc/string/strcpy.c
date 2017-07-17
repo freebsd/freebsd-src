@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "cheri_private.h"
 
-__CAPABILITY char *
-__CAPSUFFIX(strcpy)(__CAPABILITY char * __restrict to,
-    __CAPABILITY const char * __restrict from)
+__CAP char *
+__CAPSUFFIX(strcpy)(__CAP char * __restrict to,
+    __CAP const char * __restrict from)
 {
-	__CAPABILITY char *save = to;
+	__CAP char *save = to;
 
 	for (; (*to = *from); ++from, ++to);
 	return(save);

@@ -43,13 +43,13 @@ __FBSDID("$FreeBSD$");
  * Copy src to dst, truncating or null-padding to always copy n bytes.
  * Return dst.
  */
-__CAPABILITY char *
-__CAPSUFFIX(strncpy)(__CAPABILITY char * __restrict dst,
-    __CAPABILITY const char * __restrict src, size_t n)
+__CAP char *
+__CAPSUFFIX(strncpy)(__CAP char * __restrict dst,
+    __CAP const char * __restrict src, size_t n)
 {
 	if (n != 0) {
-		__CAPABILITY char *d = dst;
-		__CAPABILITY const char *s = src;
+		__CAP char *d = dst;
+		__CAP const char *s = src;
 
 		do {
 			if ((*d++ = *s++) == '\0') {
