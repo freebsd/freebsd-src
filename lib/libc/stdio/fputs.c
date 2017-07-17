@@ -58,9 +58,9 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	uio.uio_resid = iov.iov_len = strlen(s);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

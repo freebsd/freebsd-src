@@ -76,10 +76,10 @@ ungetwc_l(wint_t wc, FILE *fp, locale_t locale)
 	wint_t r;
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 	r = __ungetwc(wc, fp, locale);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }
