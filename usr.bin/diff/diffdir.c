@@ -134,16 +134,20 @@ diffdir(char *p1, char *p2, int flags)
 			if (Nflag)
 				diffit(dent1, path1, dirlen1, path2, dirlen2,
 				    flags);
-			else
+			else {
 				print_only(path1, dirlen1, dent1->d_name);
+				status = 1;
+			}
 			dp1++;
 		} else {
 			/* file only in second dir, only diff if -N or -P */
 			if (Nflag || Pflag)
 				diffit(dent2, path1, dirlen1, path2, dirlen2,
 				    flags);
-			else
+			else {
 				print_only(path2, dirlen2, dent2->d_name);
+				status = 1;
+			}
 			dp2++;
 		}
 	}
