@@ -118,13 +118,26 @@ brief_format_body()
 	atf_check -x "echo 2 > B/test-file"
 
 	atf_check cp -Rf A C
+	atf_check cp -Rf A D
+
+	atf_check -x "echo 3 > D/another-test-file"
 
 	atf_check \
 	    -s exit:1 \
 	    -o inline:"Files A/test-file and B/test-file differ\n" \
-	    diff -Nrq A B
+	    diff -rq A B
 
-	atf_check diff -Nrq A C
+	atf_check diff -rq A C
+
+	atf_check \
+	    -s exit:1 \
+	    -o inline:"Only in D: another-test-file\n" \
+	    diff -rq A D
+
+	atf_check \
+	    -s exit:1 \
+	    -o inline:"Files A/another-test-file and D/another-test-file differ\n" \
+	    diff -Nrq A D
 }
 
 atf_init_test_cases()
