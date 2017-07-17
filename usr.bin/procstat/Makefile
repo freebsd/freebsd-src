@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	procstat
 MAN=	procstat.1
 SRCS=	procstat.c		\
@@ -19,5 +21,9 @@ SRCS=	procstat.c		\
 
 LDADD+=	-lutil -lprocstat -lkvm
 DPADD+=	${LIBUTIL} ${LIBPROCSTAT} ${LIBKVM}
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>
