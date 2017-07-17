@@ -399,16 +399,18 @@ struct trace_params {
 };
 
 struct link_config {
+	/* OS-specific code owns all the requested_* fields */
+	unsigned char  requested_aneg;   /* link aneg user has requested */
+	unsigned char  requested_fc;     /* flow control user has requested */
+	unsigned char  requested_fec;    /* FEC user has requested */
+	unsigned int   requested_speed;  /* speed user has requested */
+
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
 	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   requested_speed;  /* speed user has requested */
 	unsigned int   speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
-	unsigned char  requested_fec;    /* FEC user has requested */
 	unsigned char  fec;              /* actual FEC */
-	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
 };
@@ -766,6 +768,7 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 		      u32 *data);
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 const char *t4_link_down_rc_str(unsigned char link_down_rc);
+int t4_update_port_info(struct port_info *pi);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
 int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
