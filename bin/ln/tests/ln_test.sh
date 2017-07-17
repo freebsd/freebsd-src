@@ -160,10 +160,10 @@ sF_flag_head()
 
 sF_flag_body()
 {
-	atf_expect_fail "B isn't being unlinked (bug 219943)"
 	atf_check mkdir A B
 	atf_check ln -sF A B
 	atf_check -o inline:'Symbolic Link\n' stat -f %SHT B
+	atf_check -o inline:'A\n' readlink B
 }
 
 atf_test_case sf_flag
