@@ -616,6 +616,8 @@
         ..
         printf
         ..
+        procstat
+        ..
         sed
             regress.multitest.out
             ..
