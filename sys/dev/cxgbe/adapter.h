@@ -1036,10 +1036,10 @@ adap2pinfo(struct adapter *sc, int idx)
 }
 
 static inline void
-t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
+t4_os_set_hw_addr(struct port_info *pi, uint8_t hw_addr[])
 {
 
-	bcopy(hw_addr, sc->port[idx]->vi[0].hw_addr, ETHER_ADDR_LEN);
+	bcopy(hw_addr, pi->vi[0].hw_addr, ETHER_ADDR_LEN);
 }
 
 static inline bool
@@ -1089,24 +1089,6 @@ port_top_speed(const struct port_info *pi)
 }
 
 static inline int
-port_top_speed_raw(const struct port_info *pi)
-{
-
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
-		return (FW_PORT_CAP_SPEED_100G);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
-		return (FW_PORT_CAP_SPEED_40G);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
-		return (FW_PORT_CAP_SPEED_25G);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
-		return (FW_PORT_CAP_SPEED_10G);
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-		return (FW_PORT_CAP_SPEED_1G);
-
-	return (0);
-}
-
-static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
 
@@ -1142,8 +1124,8 @@ extern device_method_t cxgbe_methods[];
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
-void t4_os_portmod_changed(const struct adapter *, int);
-void t4_os_link_changed(struct adapter *, int, int);
+void t4_os_portmod_changed(struct port_info *, int, int, struct link_config *);
+void t4_os_link_changed(struct port_info *, struct link_config *);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 void t4_init_devnames(struct adapter *);
 void t4_add_adapter(struct adapter *);
