@@ -72,7 +72,19 @@ __FBSDID("$FreeBSD$");
  * Note that stdarg.h and the ANSI style va_start macro is used for both
  * ANSI and traditional C compilers.
  */
+#ifdef _KERNEL
 #include <machine/stdarg.h>
+#else
+#include <stdarg.h>
+#endif
+
+/*
+ * This is needed for sbuf_putbuf() when compiled into userland.  Due to the
+ * shared nature of this file, it's the only place to put it.
+ */
+#ifndef _KERNEL
+#include <stdio.h>
+#endif
 
 #ifdef _KERNEL
 
@@ -403,6 +415,23 @@ vprintf(const char *fmt, va_list ap)
 }
 
 static void
+prf_putbuf(char *bufr, int flags, int pri)
+{
+
+	if (flags & TOLOG)
+		msglogstr(bufr, pri, /*filter_cr*/1);
+
+	if (flags & TOCONS) {
+		if ((panicstr == NULL) && (constty != NULL))
+			msgbuf_addstr(&consmsgbuf, -1,
+			    bufr, /*filter_cr*/ 0);
+
+		if ((constty == NULL) ||(always_console_output))
+			cnputs(bufr);
+	}
+}
+
+static void
 putbuf(int c, struct putchar_arg *ap)
 {
 	/* Check if no console output buffer was provided. */
@@ -423,18 +452,7 @@ putbuf(int c, struct putchar_arg *ap)
 
 		/* Check if the buffer needs to be flushed. */
 		if (ap->remain == 2 || c == '\n') {
-
-			if (ap->flags & TOLOG)
-				msglogstr(ap->p_bufr, ap->pri, /*filter_cr*/1);
-
-			if (ap->flags & TOCONS) {
-				if ((panicstr == NULL) && (constty != NULL))
-					msgbuf_addstr(&consmsgbuf, -1,
-					    ap->p_bufr, /*filter_cr*/ 0);
-
-				if ((constty == NULL) ||(always_console_output))
-					cnputs(ap->p_bufr);
-			}
+			prf_putbuf(ap->p_bufr, ap->flags, ap->pri);
 
 			ap->p_next = ap->p_bufr;
 			ap->remain = ap->n_bufr;
@@ -1203,5 +1221,21 @@ counted_warning(unsigned *counter, const char *msg)
 			break;
 		}
 	}
+}
+#endif
+
+#ifdef _KERNEL
+void
+sbuf_putbuf(struct sbuf *sb)
+{
+
+	prf_putbuf(sbuf_data(sb), TOLOG | TOCONS, -1);
+}
+#else
+void
+sbuf_putbuf(struct sbuf *sb)
+{
+
+	printf("%s", sbuf_data(sb));
 }
 #endif

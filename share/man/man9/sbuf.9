@@ -54,7 +54,8 @@
 .Nm sbuf_delete ,
 .Nm sbuf_start_section ,
 .Nm sbuf_end_section ,
-.Nm sbuf_hexdump
+.Nm sbuf_hexdump ,
+.Nm sbuf_putbuf
 .Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
@@ -115,6 +116,8 @@
 .Fa "const char *hdr"
 .Fa "int flags"
 .Fc
+.Ft void
+.Fn sbuf_putbuf "struct sbuf *s"
 .In sys/sysctl.h
 .Ft struct sbuf *
 .Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
@@ -449,6 +452,12 @@ representation of the bytes if possible.
 See the
 .Xr hexdump 3
 man page for more details on the interface.
+.Pp
+The
+.Fn sbuf_putbuf
+function printfs the sbuf to stdout if in userland, and to the console
+and log if in the kernel.
+It does not drain the buffer or update any pointers.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
