@@ -762,7 +762,7 @@ ATF_TC_BODY(shutdown_send, tc)
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
 	const char *path = "sock";
 	const char *data = "data";
-	ssize_t ssize;
+	ssize_t datalen, ssize;
 	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
@@ -786,8 +786,9 @@ ATF_TC_BODY(shutdown_send, tc)
 	}
 
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
+	datalen = strlen(data) + 1;	/* +1 for the null */
 	/* USE MSG_NOSIGNAL so we don't get SIGPIPE */
-	ssize = send(s2, data, sizeof(data), MSG_EOR | MSG_NOSIGNAL);
+	ssize = send(s2, data, datalen, MSG_EOR | MSG_NOSIGNAL);
 	ATF_CHECK_EQ(EPIPE, errno);
 	ATF_CHECK_EQ(-1, ssize);
 	close(s);
@@ -802,6 +803,7 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
 	const char *path = "sock";
 	const char *data = "data";
+	ssize_t datalen;
 	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
@@ -826,7 +828,8 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
-	(void)send(s2, data, sizeof(data), MSG_EOR);
+	datalen = strlen(data) + 1;	/* +1 for the null */
+	(void)send(s2, data, sizeof(*data), MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
 	close(s);
 	close(s2);
