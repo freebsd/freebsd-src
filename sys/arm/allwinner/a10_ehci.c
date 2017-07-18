@@ -226,15 +226,12 @@ a10_ehci_attach(device_t self)
 	}
 
 	/* Enable USB PHY */
-	err = phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy);
-	if (err != 0) {
-		device_printf(self, "Could not get phy\n");
-		goto error;
-	}
-	err = phy_enable(self, aw_sc->phy);
-	if (err != 0) {
-		device_printf(self, "Could not enable phy\n");
-		goto error;
+	if (phy_get_by_ofw_name(self, 0, "usb", &aw_sc->phy) == 0) {
+		err = phy_enable(self, aw_sc->phy);
+		if (err != 0) {
+			device_printf(self, "Could not enable phy\n");
+			goto error;
+		}
 	}
 
 	/* Enable passby */
@@ -263,10 +260,6 @@ a10_ehci_attach(device_t self)
 	return (0);
 
 error:
-	if (aw_sc->clk != NULL) {
-		clk_disable(aw_sc->clk);
-		clk_release(aw_sc->clk);
-	}
 	a10_ehci_detach(self);
 	return (ENXIO);
 }
