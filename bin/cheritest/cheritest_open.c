@@ -126,6 +126,9 @@ test_open_bad_addr(const struct cheri_test *ctp __unused)
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
 
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+
 	cheritest_success();
 }
 
@@ -140,6 +143,9 @@ test_open_bad_addr_2(const struct cheri_test *ctp __unused)
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
+
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
 
 	cheritest_success();
 }
@@ -156,6 +162,9 @@ test_open_bad_len(const struct cheri_test *ctp __unused)
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
+
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
 
 	cheritest_success();
 }
@@ -174,6 +183,9 @@ test_open_bad_len_2(const struct cheri_test *ctp __unused)
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
 
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+
 	cheritest_success();
 }
 
@@ -191,6 +203,9 @@ test_open_bad_tag(const struct cheri_test *ctp __unused)
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
 
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+
 	cheritest_success();
 }
 
@@ -206,6 +221,9 @@ test_open_bad_perm(const struct cheri_test *ctp __unused)
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
+
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
 
 	cheritest_success();
 }
@@ -226,6 +244,9 @@ test_open_sealed(const struct cheri_test *ctp __unused)
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
+
+	if (errno != EFAULT)
+		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
 
 	cheritest_success();
 }
