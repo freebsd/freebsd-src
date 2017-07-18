@@ -104,7 +104,7 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
-        if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
+	if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
 		KASSERT(s->s_len <= s->s_size,
 		    ("wrote past end of sbuf (%jd >= %jd)",
 		    (intmax_t)s->s_len, (intmax_t)s->s_size));
