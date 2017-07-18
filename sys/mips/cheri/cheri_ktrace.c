@@ -56,8 +56,8 @@ void
 ktrccall_mdfill(struct pcb *pcb, struct ktr_ccall *kc)
 {
 
-	cheri_serialize(&kc->ktr_pcc, &pcb->pcb_regs.c1);
-	cheri_serialize(&kc->ktr_idc, &pcb->pcb_regs.c2);
+	cheri_serialize(&kc->ktr_pcc, pcb->pcb_regs.c1);
+	cheri_serialize(&kc->ktr_idc, pcb->pcb_regs.c2);
 	kc->ktr_method = pcb->pcb_regs.v0;
 }
 
@@ -65,7 +65,7 @@ void
 ktrcreturn_mdfill(struct pcb *pcb, struct ktr_creturn *kr)
 {
 
-	cheri_serialize(&kr->ktr_cret, &pcb->pcb_regs.c3);
+	cheri_serialize(&kr->ktr_cret, pcb->pcb_regs.c3);
 	kr->ktr_iret = pcb->pcb_regs.v0;
 }
 
@@ -73,7 +73,7 @@ void
 ktrcexception_mdfill(struct trapframe *frame,
     struct ktr_cexception *ke)
 {
-	struct chericap *cp;
+	void * __capability *cp;
 	register_t cause;
 
 	/* XXXCHERI: Should translate to MI exception code? */
@@ -113,7 +113,7 @@ ktrcexception_mdfill(struct trapframe *frame,
 	    ke->ktr_regnum == 0xff ? &frame->pcc :
 	    NULL;
 	if (cp != NULL)
-		cheri_serialize(&ke->ktr_cap, cp);
+		cheri_serialize(&ke->ktr_cap, *cp);
 	else
 		bzero(&ke->ktr_cap, sizeof(ke->ktr_cap));
 }

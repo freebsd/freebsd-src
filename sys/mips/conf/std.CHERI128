@@ -1,0 +1,12 @@
+#
+# std.CHERI -- Convert a BERI kernel to a CHERI128 kernel by including
+# this file.
+#
+# $FreeBSD$
+#
+include		"std.CHERI"
+
+nomakeoptions	ARCH_FLAGS
+makeoptions	ARCH_FLAGS="-target cheri-unknown-freebsd -march=mips64 -mabi=64 -mcpu=cheri128"
+
+options		CPU_CHERI128

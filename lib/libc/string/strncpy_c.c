@@ -36,7 +36,7 @@
 #include <cheri/cheric.h>
 
 char *
-strncpy_c_fromcap(char *dst, __CAPABILITY const char *src, size_t n)
+strncpy_c_fromcap(char *dst, __CAP const char *src, size_t n)
 {
 
 	/* XXX: restrict perms */
@@ -45,8 +45,8 @@ strncpy_c_fromcap(char *dst, __CAPABILITY const char *src, size_t n)
 	return (dst);
 }
 
-__CAPABILITY char *
-strncpy_c_tocap(__CAPABILITY char *dst, const char *src, size_t n)
+__CAP char *
+strncpy_c_tocap(__CAP char *dst, const char *src, size_t n)
 {
 
 	/* XXX: restrict perms */

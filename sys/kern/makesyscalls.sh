@@ -201,11 +201,6 @@ sed -e '
 
 		printf "#ifndef %s\n", sysargmap_h > sysargmap
 		printf "#define\t%s\n\n", sysargmap_h > sysargmap
-		printf "struct {\n" > sysargmap
-		printf "\tu_char sam_return_ptr;\n" > sysargmap
-		printf "\tconst u_char sam_ptrmask;\n} " > sysargmap
-		printf("%sargmap[%sMAXSYSCALL] = {\n",
-		    syscallprefix, syscallprefix) > sysargmap
 
 		printf "#ifndef %s\n", cheriabi_fill_uap_h > cheriabi_fill_uap
 		printf "#define\t%s\n\n", cheriabi_fill_uap_h > cheriabi_fill_uap
@@ -435,9 +430,9 @@ sed -e '
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
-		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+		    pdeptab, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    tmpcap, %s, reqperms, %s);\n",
 		    pdeptab, reqspace, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
@@ -510,9 +505,9 @@ sed -e '
 			printf("%s %s has no length constraint",
 			    a_saltype, a_name) > "/dev/stderr"
 
-		printf("%s\t\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
-		    pdeptab, syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
-		printf("%s\t\terror = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
+		printf("%s\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+		    pdeptab, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+		printf("%s\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", pdeptab, a_name) > cheriabi_fill_uap
 		printf("%s\t\t    tmpcap, %s, %s, %s);\n",
 		    pdeptab, reqspace, reqperm_str, may_be_null) > cheriabi_fill_uap
 		printf("%s\t\tif (error != 0)\n", pdeptab) > cheriabi_fill_uap
@@ -731,36 +726,13 @@ sed -e '
 			    argalias) > sysarg
 
 		if (argc != 0 && !flag("NOARGS") && !flag("NODEF")) {
-			printf("\t[%s%s] = {\n",
-			     syscallprefix, funcalias) > sysargmap
-			if (isptrtype(syscallret))
-				printf "\t\t.sam_return_ptr = 1,\n" > sysargmap
-			pointers = 0
-			for (i = 1; i <= argc; i++)
-				if (isptrtype(argtype[i]))
-					pointers++
-			if (pointers > 0) {
-				printf "\t\t.sam_ptrmask =" > sysargmap
-				or_space = ""
-				for (i = 1; i <= argc; i++)
-					if (isptrtype(argtype[i])) {
-						printf(" %s0x%x",
-						    or_space,
-						    2 ^ (i - 1)) > sysargmap
-						or_space = "| "
-					}
-				printf "\n" > sysargmap
-			}
 			printf("#define	%s%s_PTRMASK	(0x0", syscallprefix, funcalias) > sysargmap
 			for (i = 1; i <= argc; i++)
 				if (isptrtype(argtype[i])) {
-					printf(" %s0x%x",
-					    or_space,
+					printf(" | 0x%x",
 					    2 ^ (i - 1)) > sysargmap
-					or_space = "| "
 				}
 			printf ")\n" > sysargmap
-			printf "\t},\n" > sysargmap
 		}
 
 		if (argc != 0)
@@ -813,8 +785,8 @@ sed -e '
 					continue
 				printf("\n\t/* [%d] %s %s */\n", i-1,
 				    argsaltype[i], argname[i]) > cheriabi_fill_uap
-				printf("\tcheriabi_fetch_syscall_arg_x(td, &tmpcap, %s%s, %d, %s%s_PTRMASK);\n",
-				    syscallprefix, funcalias, i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %d, %s%s_PTRMASK);\n",
+				    i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 				printf("\tuap->%s = (register_t)tmpcap;\n", argname[i]) > cheriabi_fill_uap
 			}
 			# Process pointer arguments that do not depend on
@@ -1236,7 +1208,6 @@ sed -e '
 		printf("\n#endif /* !%s */\n", sysproto_h) > sysprotoend
 
 		printf("\n") > sysmk
-		printf("};\n") > sysargmap
 		printf("#endif /* !%s */\n", sysargmap_h) > sysargmap
 
 		printf("#endif /* !%s */\n", cheriabi_fill_uap_h) > cheriabi_fill_uap

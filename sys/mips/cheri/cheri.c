@@ -41,6 +41,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/cherireg.h>
@@ -63,17 +64,17 @@
  * call, and reload them afterwards.
  */
 
-static void	cheri_capability_set_user_ddc(struct chericap *);
-static void	cheri_capability_set_user_stc(struct chericap *);
-static void	cheri_capability_set_user_pcc(struct chericap *);
-static void	cheri_capability_set_user_entry(struct chericap *,
+static void	cheri_capability_set_user_ddc(void * __capability *);
+static void	cheri_capability_set_user_stc(void * __capability *);
+static void	cheri_capability_set_user_pcc(void * __capability *);
+static void	cheri_capability_set_user_entry(void * __capability *,
 		    unsigned long);
-static void	cheri_capability_set_user_sigcode(struct chericap *,
+static void	cheri_capability_set_user_sigcode(void * __capability *,
 		   struct sysentvec *);
 
 static union {
-	struct chericap	ct_cap;
-	uint8_t		ct_bytes[32];
+	void * __capability	ct_cap;
+	uint8_t			ct_bytes[32];
 } cheri_testunion __aligned(32);
 
 /*
@@ -100,7 +101,7 @@ cheri_cpu_startup(void)
 	 * early if our assumptions are wrong.
 	 */
 	memset(&cheri_testunion, 0xff, sizeof(cheri_testunion));
-	cheri_capability_set_null(&cheri_testunion.ct_cap);
+	cheri_testunion.ct_cap = NULL;
 #ifdef CPU_CHERI128
 	printf("CHERI: compiled for 128-bit capabilities\n");
 	if (cheri_testunion.ct_bytes[16] == 0)
@@ -127,19 +128,13 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
  * explicit base/length/offset arguments is quite the right thing.
  */
 void
-cheri_capability_set(struct chericap *cp, uint32_t perms, void *basep,
+cheri_capability_set(void * __capability *cp, uint32_t perms, void *basep,
     size_t length, off_t off)
 {
-#ifdef INVARIANTS
-	register_t r;
-#endif
-
 	/* 'basep' is relative to $kdc. */
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
-	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-	    (register_t)length);
-	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
+	*cp = cheri_setoffset(cheri_andperm(cheri_csetbounds(
+	    cheri_incoffset(cheri_getkdc(), (vaddr_t)basep), length), perms),
+	    off);
 
 	/*
 	 * NB: With imprecise bounds, we want to assert that the results will
@@ -150,30 +145,20 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *basep,
 	 * '+= off' above.
 	 */
 #ifdef INVARIANTS
-	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
-	KASSERT(r != 0, ("%s: capability untagged", __func__));
-	CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)perms,
+	KASSERT(cheri_gettag(*cp) != 0, ("%s: capability untagged", __func__));
+	KASSERT(cheri_getperm(*cp) == (register_t)perms,
 	    ("%s: permissions 0x%x rather than 0x%x", __func__,
-	    (unsigned int)r, perms));
-	CHERI_CGETBASE(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)basep,
-	    ("%s: base %p rather than %p", __func__, (void *)r, basep));
-	CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)length,
+	    (unsigned int)cheri_getperm(*cp), perms));
+	KASSERT(cheri_getbase(*cp) == (register_t)basep,
+	    ("%s: base %p rather than %p", __func__,
+	     (void *)cheri_getbase(*cp), basep));
+	KASSERT(cheri_getlen(*cp) == (register_t)length,
 	    ("%s: length 0x%x rather than %p", __func__,
-	    (unsigned int)r, (void *)length));
-	CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)off,
-	    ("%s: offset %p rather than %p", __func__, (void *)r,
-	    (void *)off));
-#if 0
-	CHERI_CGETTYPE(r, CHERI_CR_CTEMP0);
-	KASSERT(r == (register_t)otypep,
-	    ("%s: otype %p rather than %p", __func__, (void *)r, otypep));
+	    (unsigned int)cheri_getlen(*cp), (void *)length));
+	KASSERT(cheri_getoffset(*cp) == (register_t)off,
+	    ("%s: offset %p rather than %p", __func__,
+	    (void *)cheri_getoffset(*cp), (void *)off));
 #endif
-#endif
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 /*
@@ -182,7 +167,7 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *basep,
  */
 #ifdef _UNUSED
 static void
-cheri_capability_set_kern(struct chericap *cp)
+cheri_capability_set_kern(void * __capability *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_KERN_PERMS, CHERI_CAP_KERN_BASE,
@@ -191,7 +176,7 @@ cheri_capability_set_kern(struct chericap *cp)
 #endif
 
 static void
-cheri_capability_set_user_ddc(struct chericap *cp)
+cheri_capability_set_user_ddc(void * __capability *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
@@ -200,7 +185,7 @@ cheri_capability_set_user_ddc(struct chericap *cp)
 }
 
 static void
-cheri_capability_set_user_stc(struct chericap *cp)
+cheri_capability_set_user_stc(void * __capability *cp)
 {
 
 	/*
@@ -212,7 +197,7 @@ cheri_capability_set_user_stc(struct chericap *cp)
 }
 
 static void
-cheri_capability_set_user_idc(struct chericap *cp)
+cheri_capability_set_user_idc(void * __capability *cp)
 {
 
 	/*
@@ -222,7 +207,7 @@ cheri_capability_set_user_idc(struct chericap *cp)
 }
 
 static void
-cheri_capability_set_user_pcc(struct chericap *cp)
+cheri_capability_set_user_pcc(void * __capability *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
@@ -231,7 +216,8 @@ cheri_capability_set_user_pcc(struct chericap *cp)
 }
 
 static void
-cheri_capability_set_user_entry(struct chericap *cp, unsigned long entry_addr)
+cheri_capability_set_user_entry(void * __capability *cp,
+    unsigned long entry_addr)
 {
 
 	/*
@@ -243,7 +229,7 @@ cheri_capability_set_user_entry(struct chericap *cp, unsigned long entry_addr)
 }
 
 static void
-cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
+cheri_capability_set_user_sigcode(void * __capability *cp, struct sysentvec *se)
 {
 	uintptr_t base;
 	int szsigcode = *se->sv_szsigcode;
@@ -264,7 +250,7 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 }
 
 static void
-cheri_capability_set_user_sealcap(struct chericap *cp)
+cheri_capability_set_user_sealcap(void * __capability *cp)
 {
 
 	cheri_capability_set(cp, CHERI_SEALCAP_USERSPACE_PERMS,
@@ -342,10 +328,8 @@ cheri_newthread_setregs(struct thread *td)
 }
 
 void
-cheri_serialize(struct cheri_serial *csp, struct chericap *cap)
+cheri_serialize(struct cheri_serial *csp, void * __capability cap)
 {
-	register_t	r;
-	cheri_capability_load(CHERI_CR_CTEMP0, cap);
 
 #if CHERICAP_SIZE == 16
 	csp->cs_storage = 3;
@@ -363,21 +347,14 @@ cheri_serialize(struct cheri_serial *csp, struct chericap *cap)
 		return;
 	}
 
-	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
-	csp->cs_tag = r;
+	csp->cs_tag = __builtin_cheri_tag_get(cap);
 	if (csp->cs_tag) {
-		CHERI_CGETTYPE(r, CHERI_CR_CTEMP0);
-		csp->cs_type = r;
-		CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
-		csp->cs_perms = r;
-		CHERI_CGETSEALED(r, CHERI_CR_CTEMP0);
-		csp->cs_sealed = r;
-		CHERI_CGETBASE(r, CHERI_CR_CTEMP0);
-		csp->cs_base = r;
-		CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
-		csp->cs_length = r;
-		CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
-		csp->cs_offset = r;
+		csp->cs_type = __builtin_cheri_type_get(cap);
+		csp->cs_perms = __builtin_cheri_perms_get(cap);
+		csp->cs_sealed = __builtin_cheri_sealed_get(cap);
+		csp->cs_base = __builtin_cheri_base_get(cap);
+		csp->cs_length = __builtin_cheri_length_get(cap);
+		csp->cs_offset = __builtin_cheri_offset_get(cap);
 	} else
-		memcpy(&csp->cs_data, cap, CHERICAP_SIZE);
+		memcpy(&csp->cs_data, &cap, CHERICAP_SIZE);
 }

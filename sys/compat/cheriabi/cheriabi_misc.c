@@ -120,9 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
-#define CHERIABI_SYS_argmap a_hack_to_work_around_a_duplicated_symbol_problem
 #include <compat/cheriabi/cheriabi_sysargmap.h>
-#undef CHERIABI_SYS_argmap
 
 #include <sys/cheriabi.h>
 
@@ -239,7 +237,7 @@ cheriabi_sigaltstack(struct thread *td,
 		CP(s_c, ss, ss_size);
 		CP(s_c, ss, ss_flags);
 		/* XXX-BD: what perms to enforce? */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&ss.ss_sp, s_c.ss_sp,
+		error = cheriabi_cap_to_ptr((caddr_t *)&ss.ss_sp, s_c.ss_sp,
 		    s_c.ss_size, CHERI_PERM_GLOBAL, 1);
 		if (error)
 			return (error);
@@ -328,7 +326,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 		tag = cheri_gettag(*argcap);
 		if (!tag)
 			break;
-		error = cheriabi_strcap_to_ptr_x(&argp, *argcap, 0);
+		error = cheriabi_strcap_to_ptr(&argp, *argcap, 0);
 		if (error)
 			goto err_exit;
 		/* Lose any stray caps in arg strings. */
@@ -357,7 +355,7 @@ cheriabi_exec_copyin_args(struct image_args *args, const char *fname,
 			tag = cheri_gettag(*argcap);
 			if (!tag)
 				break;
-			error = cheriabi_strcap_to_ptr_x(&envp, *argcap, 0);
+			error = cheriabi_strcap_to_ptr(&envp, *argcap, 0);
 			if (error)
 				goto err_exit;
 			/* Lose any stray caps in env strings. */
@@ -442,8 +440,9 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		 * Retrieve the ident and udata capabilities stashed by
 		 * cheriabi_kevent_copyin().
 		 */
-		ks_c[i].ident = *((void * __capability *)kevp[i].udata);
-		ks_c[i].udata = *((void * __capability *)kevp[i].udata + 1);
+		void * __capability * udata = kevp[i].udata;
+		ks_c[i].ident = (__intcap_t)udata[0];
+		ks_c[i].udata = udata[1];
 	}
 	error = copyoutcap(ks_c, uap->eventlist, count * sizeof(*ks_c));
 	if (error == 0)
@@ -459,8 +458,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	int error, i, tag;
-	register_t perms;
+	int error, i;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -475,15 +473,11 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 * XXX-BD: this is quite awkward.  ident could be anything.
 		 * If it's a capabilty, we'll hang on to it in udata.
 		 */
-		tag = cheri_gettag(ks_c[i].ident);
-		if (!tag)
-			kevp[i].ident = (void *)ks_c[i].ident;
-		else {
-			perms = cheri_getperm(ks_c[i].ident);
-			if (!(perms | CHERI_PERM_GLOBAL))
+		if (cheri_gettag(ks_c[i].ident)) {
+			if (!(cheri_getperm(ks_c[i].ident) | CHERI_PERM_GLOBAL))
 				return (EPROT);
-			kevp[i].ident = (void *)ks_c[i].ident;
 		}
+		kevp[i].ident = (uintptr_t)(__uintcap_t)ks_c[i].ident;
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
@@ -492,20 +486,20 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		if (ks_c[i].flags & EV_DELETE)
 			continue;
 
-		tag = cheri_gettag(ks_c[i].udata);
-		if (tag) {
-			perms = cheri_getperm(ks_c[i].udata);
-			if (!(perms & CHERI_PERM_GLOBAL))
+		if (cheri_gettag(ks_c[i].udata)) {
+			if (!(cheri_getperm(ks_c[i].udata) & CHERI_PERM_GLOBAL))
 				return (EPROT);
 		}
 		/*
 		 * We stash the real ident and udata capabilities in
 		 * a malloced array in udata.
 		 */
-		kevp[i].udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
+		void * __capability * udata;
+		udata = malloc(2*sizeof(void * __capability), M_KQUEUE,
 		    M_WAITOK);
-		*((void * __capability *)kevp[i].udata) = ks_c[i].ident;
-		*((void * __capability *)kevp[i].udata + 1) = ks_c[i].udata;
+		kevp[i].udata = udata;
+		udata[0] = (void * __capability)ks_c[i].ident;
+		udata[1] = ks_c[i].udata;
 	}
 done:
 	return (error);
@@ -555,7 +549,7 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 			return (error);
 		}
 		iov[i].iov_len = iov_c.iov_len;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&iov[i].iov_base,
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
 		    iov_c.iov_base, iov[i].iov_len,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error) {
@@ -657,7 +651,7 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 			return (error);
 		}
 		iov[i].iov_len = iov_c.iov_len;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&iov[i].iov_base,
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
 		    iov_c.iov_base, iov[i].iov_len,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 0);
 		if (error) {
@@ -679,18 +673,18 @@ cheriabi_copyinmsghdr(const struct msghdr_c *msg_cp, struct msghdr *msg,
 	error = copyincap(msg_cp, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_name, msg_c.msg_name,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_name, msg_c.msg_name,
 	    msg_c.msg_namelen, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 	if (error)
 		return (error);
 	msg->msg_namelen = msg_c.msg_namelen;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_iov, msg_c.msg_iov,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_iov, msg_c.msg_iov,
 	    sizeof(struct iovec_c) * msg_c.msg_iovlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP, 0);
 	if (error)
 		return (error);
 	msg->msg_iovlen = msg_c.msg_iovlen;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&msg->msg_control,
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_control,
 	    msg_c.msg_control, msg_c.msg_controllen,
 	    CHERI_PERM_GLOBAL | (out ? CHERI_PERM_STORE : CHERI_PERM_LOAD), 1);
 	if (error)
@@ -848,12 +842,12 @@ cheriabi_do_sendfile(struct thread *td,
 		error = copyincap(uap->hdtr, &hdtr_c, sizeof(hdtr_c));
 		if (error)
 			goto out;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&headers,
+		error = cheriabi_cap_to_ptr((caddr_t *)&headers,
 		    hdtr_c.headers, sizeof(struct iovec_c) * hdtr_c.hdr_cnt,
 		    reqperms, 1);
 		if (error)
 			goto out;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&trailers,
+		error = cheriabi_cap_to_ptr((caddr_t *)&trailers,
 		    hdtr_c.trailers, sizeof(struct iovec_c) * hdtr_c.trl_cnt,
 		    reqperms, 1);
 		if (error)
@@ -927,17 +921,17 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		if (error)
 			return (error);
 		CP(j_c, j, version);
-		cheriabi_strcap_to_ptr_x(&j.path, j_c.path, 1);
-		cheriabi_strcap_to_ptr_x(&j.hostname, j_c.hostname, 1);
-		cheriabi_strcap_to_ptr_x(&j.jailname, j_c.jailname, 1);
+		cheriabi_strcap_to_ptr(&j.path, j_c.path, 1);
+		cheriabi_strcap_to_ptr(&j.hostname, j_c.hostname, 1);
+		cheriabi_strcap_to_ptr(&j.jailname, j_c.jailname, 1);
 		CP(j_c, j, ip4s);
 		CP(j_c, j, ip6s);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&j.ip4, j_c.ip4,
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip4, j_c.ip4,
 		    sizeof(*j.ip4) * j.ip4s,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error)
 			return (error);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&j.ip6, j_c.ip6,
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip6, j_c.ip6,
 		    sizeof(*j.ip6) * j.ip6s,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error)
@@ -1019,7 +1013,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 			return (error);
 		tag = cheri_gettag(sa_c.sa_u);
 		if (!tag) {
-			sa.sa_handler = (int)sa_c.sa_u;
+			sa.sa_handler = (void (*)(int))(uintptr_t)(__intcap_t)sa_c.sa_u;
 			if (sa.sa_handler != SIG_DFL &&
 			    sa.sa_handler != SIG_IGN) {
 				SYSERRCAUSE("untagged sa_handler and not "
@@ -1027,12 +1021,12 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 				return (EPROT);
 			}
 		} else {
-			error = cheriabi_cap_to_ptr_x((caddr_t *)&sa.sa_handler,
+			error = cheriabi_cap_to_ptr((caddr_t *)&sa.sa_handler,
 			    sa_c.sa_u,
 			    8 /* XXX-BD: at least two instructions */,
 		            CHERI_PERM_LOAD | CHERI_PERM_EXECUTE, 0);
 			if (error) {
-				SYSERRCAUSE("in cheriabi_cap_to_ptr_x");
+				SYSERRCAUSE("in cheriabi_cap_to_ptr");
 				return (error);
 			}
 		}
@@ -1192,12 +1186,12 @@ cheriabi_thr_new_initthr(struct thread *td, void *thunk)
 	int error;
 
 	param = thunk;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&child_tidp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&child_tidp,
 	    param->child_tid, sizeof(*child_tidp),
 	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
 	if (error)
 		return (error);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&parent_tidp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&parent_tidp,
 	    param->parent_tid, sizeof(*parent_tidp),
 	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
 	if (error)
@@ -1231,7 +1225,7 @@ cheriabi_thr_new(struct thread *td, struct cheriabi_thr_new_args *uap)
 	 */
 	cheriabi_thr_new_md(td, &param_c);
 	rtpp = NULL;
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&rtpup, param_c.rtp,
+	error = cheriabi_cap_to_ptr((caddr_t *)&rtpup, param_c.rtp,
 	    sizeof(rtp), CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 	if (error)
 		return (error);
@@ -1292,8 +1286,8 @@ cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
 	union sigval	sv;
 	int		flags = 0, tag;
 
-	cheriabi_fetch_syscall_arg_x(td, &value_union.sival_ptr,
-	    CHERIABI_SYS_cheriabi_sigqueue, 2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &value_union.sival_ptr,
+	    2, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	if (uap->pid == td->td_proc->p_pid) {
 		sv.sival_ptr = malloc(sizeof(value_union), M_TEMP, M_WAITOK);
 		*((void * __capability *)sv.sival_ptr) = value_union.sival_ptr;
@@ -1528,7 +1522,7 @@ cheriabi_syscall_helper_unregister(struct syscall_helper_data *sd)
 
 #define sucap(uaddr, base, offset, length, perms)			\
 	do {								\
-		struct chericap	_tmpcap;				\
+		void * __capability _tmpcap;				\
 		cheri_capability_set(&_tmpcap, (perms), (base),		\
 		    (length), (offset));				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
@@ -1834,8 +1828,8 @@ cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 	 * CHERI_PERM_CHERIABI_VMMAP.
 	 */
 	if (uap->behav == MADV_FREE) {
-		cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-		    CHERIABI_SYS_cheriabi_madvise, 0, CHERIABI_SYS_cheriabi_madvise_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &addr_cap,
+		    0, CHERIABI_SYS_cheriabi_madvise_PTRMASK);
 		perms = cheri_getperm(addr_cap);
 		if ((perms & CHERI_PERM_CHERIABI_VMMAP) == 0)
 			return (EPROT);
@@ -1859,8 +1853,8 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		return (EINVAL);
 	}
 
-	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mmap_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    0, CHERIABI_SYS_cheriabi_mmap_PTRMASK);
 	usertag = cheri_gettag(addr_cap);
 	if (!usertag) {
 		if (flags & MAP_FIXED) {
@@ -2013,8 +2007,8 @@ cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
 	void * __capability addr_cap;
 	register_t perms, reqperms;
 
-	cheriabi_fetch_syscall_arg_x(td, &addr_cap,
-	    CHERIABI_SYS_cheriabi_mmap, 0, CHERIABI_SYS_cheriabi_mprotect_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &addr_cap,
+	    0, CHERIABI_SYS_cheriabi_mprotect_PTRMASK);
 	perms = cheri_getperm(addr_cap);
 	/*
 	 * Requested prot much be allowed by capability.

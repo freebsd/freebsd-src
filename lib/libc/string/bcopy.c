@@ -60,13 +60,13 @@ typedef	int word;		/* "word" used for optimal copy speed */
 #if defined(MEMCOPY) || defined(MEMMOVE)
 #include <string.h>
 
-__CAPABILITY void *
+__CAP void *
 #ifdef MEMCOPY
 __CAPSUFFIX(memcpy)
 #else
 __CAPSUFFIX(memmove)
 #endif
-(__CAPABILITY void *dst0, __CAPABILITY const void *src0, size_t length)
+(__CAP void *dst0, __CAP const void *src0, size_t length)
 #else
 #include <strings.h>
 
@@ -74,8 +74,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	__CAPABILITY char *dst = dst0;
-	__CAPABILITY const char *src = src0;
+	__CAP char *dst = dst0;
+	__CAP const char *src = src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */

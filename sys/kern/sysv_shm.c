@@ -98,9 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
 #include <compat/cheriabi/cheriabi_util.h>
-#define CHERIABI_SYS_argmap a_hack_to_work_around_a_duplicated_symbol_problem_2
 #include <compat/cheriabi/cheriabi_sysargmap.h>
-#undef CHERIABI_SYS_argmap
 #endif
 
 #include <security/audit/audit.h>
@@ -492,8 +490,8 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 			return (EINVAL);
 #ifdef COMPAT_CHERIABI
 		if (SV_CURPROC_FLAG(SV_CHERI)) {
-			cheriabi_fetch_syscall_arg_x(td, &shmaddr_cap,
-			    CHERIABI_SYS_shmat, 1, CHERIABI_SYS_shmat_PTRMASK);
+			cheriabi_fetch_syscall_arg(td, &shmaddr_cap, 1,
+			    CHERIABI_SYS_shmat_PTRMASK);
 		}
 #endif
 	} else {

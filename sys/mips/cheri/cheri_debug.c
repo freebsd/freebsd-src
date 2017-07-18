@@ -128,17 +128,18 @@ db_show_cheri_trapframe(struct trapframe *frame)
 		db_printf("RegNum: invalid (%d) ", regnum);
 	db_printf("(%s)\n", cheri_exccode_string(exccode));
 
-	cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc);
+	cheri_capability_load(CHERI_CR_CTEMP0, (struct chericap *)&frame->ddc);
 	db_printf("$ddc ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	cheri_capability_load(CHERI_CR_CTEMP0, &frame->pcc);
+	cheri_capability_load(CHERI_CR_CTEMP0, (struct chericap *)&frame->pcc);
 	db_printf("$pcc ");
 	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 	db_printf("\n");
 
 	/* Laboriously load and print each trapframe capability. */
 	for (i = 1; i < 27; i++) {
-		cheri_capability_load(CHERI_CR_CTEMP0, &frame->ddc + i);
+		cheri_capability_load(CHERI_CR_CTEMP0,
+		    (struct chericap *)&frame->ddc + i);
 		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
 	}
 

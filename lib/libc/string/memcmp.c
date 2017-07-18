@@ -43,11 +43,11 @@ __FBSDID("$FreeBSD$");
  * Compare memory regions.
  */
 int
-__CAPSUFFIX(memcmp)(__CAPABILITY const void *s1, __CAPABILITY const void *s2,
+__CAPSUFFIX(memcmp)(__CAP const void *s1, __CAP const void *s2,
     size_t n)
 {
 	if (n != 0) {
-		__CAPABILITY const unsigned char *p1 = s1, *p2 = s2;
+		__CAP const unsigned char *p1 = s1, *p2 = s2;
 
 		do {
 			if (*p1++ != *p2++)

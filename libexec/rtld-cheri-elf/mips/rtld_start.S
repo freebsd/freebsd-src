@@ -36,6 +36,10 @@
 .globl _C_LABEL(_rtld_relocate_nonplt_self)
 .globl _C_LABEL(_rtld)
 
+/* XXXAR: This code currently requires non-PIC DLA expansions */
+.option pic0
+
+
 #define	PTR_SIZE	32
 
 /*

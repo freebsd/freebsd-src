@@ -151,7 +151,8 @@ CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
 .if ${MACHINE_CPUARCH} == mips
-CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
+CFLAGS+=	-G0 -fno-pic -mno-abicalls
+CFLAGS.gcc+=	-mlong-calls
 .endif
 
 .if defined(DEBUG) || defined(DEBUG_FLAGS)
@@ -372,7 +373,7 @@ ${_src}:
 .endif
 
 # Respect configuration-specific C flags.
-CFLAGS+=	${CONF_CFLAGS}
+CFLAGS+=	${ARCH_FLAGS} ${CONF_CFLAGS}
 
 .if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c

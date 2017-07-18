@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "cheri_private.h"
 
 int
-__CAPSUFFIX(strncmp)(__CAPABILITY const char *s1, __CAPABILITY const char *s2,
+__CAPSUFFIX(strncmp)(__CAP const char *s1, __CAP const char *s2,
     size_t n)
 {
 
@@ -45,8 +45,8 @@ __CAPSUFFIX(strncmp)(__CAPABILITY const char *s1, __CAPABILITY const char *s2,
 		return (0);
 	do {
 		if (*s1 != *s2)
-			return (*(__CAPABILITY const unsigned char *)s1 -
-				*(__CAPABILITY const unsigned char *)s2);
+			return (*(__CAP const unsigned char *)s1 -
+				*(__CAP const unsigned char *)s2);
 		s2++;
 		if (*s1++ == '\0')
 			break;

@@ -1959,6 +1959,9 @@ je_realloc(void *ptr, size_t size)
 	size_t old_usize = 0;
 	UNUSED size_t old_rzsize JEMALLOC_CC_SILENCE_INIT(0);
 
+	if (ptr != NULL)
+		ptr = UNBOUND_PTR(ptr);
+
 	if (unlikely(size == 0)) {
 		if (ptr != NULL) {
 			tsd_t *tsd;

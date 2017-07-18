@@ -227,8 +227,8 @@ cheriabi_elf_header_supported(struct image_params *imgp)
 
 __attribute__((always_inline))
 inline void
-cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
-    int syscall_no, int argnum, int ptrmask)
+cheriabi_fetch_syscall_arg(struct thread *td, void * __capability *argp,
+    int argnum, int ptrmask)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
 	struct sysentvec *se;
@@ -236,13 +236,8 @@ cheriabi_fetch_syscall_arg_x(struct thread *td, void * __capability *argp,
 
 	se = td->td_proc->p_sysent;
 
-	KASSERT(syscall_no >= 0, ("Negative syscall number %d\n", syscall_no));
-	KASSERT(syscall_no < se->sv_size,
-	    ("Syscall number too large %d >= %d\n", syscall_no, se->sv_size));
 	KASSERT(argnum >= 0, ("Negative argument number %d\n", argnum));
-	KASSERT(argnum <= se->sv_table[syscall_no].sy_narg,
-	    ("Argument number out of range %d > %d\n", argnum,
-	    se->sv_table[syscall_no].sy_narg));
+	KASSERT(argnum < 8, ("Argument number %d >= 8\n", argnum));
 
 	/* XXX: O(1) possible with more bit twiddling. */
 	intreg_offset = ptrreg_offset = -1;
@@ -353,9 +348,6 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 		locr0->v1 = td->td_retval[1];
 		locr0->a3 = 0;
 
-		if (!CHERIABI_SYS_argmap[code].sam_return_ptr)
-			break;
-
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
 			error = cheriabi_mmap_set_retcap(td, &locr0->c3,
@@ -376,8 +368,7 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			break;
 
 		default:
-			panic("%s: unsupported syscall (%u) returning pointer",
-			    __func__, code);
+			return;
 		}
 		break;
 	case ERESTART:
@@ -510,7 +501,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * If it turns out we will be delivering to the alternative signal
 	 * stack, we'll recalculate stackbase later.
 	 */
-	stackbase = (void *)td->td_pcb->pcb_regs.stc;
+	stackbase = (vaddr_t)td->td_pcb->pcb_regs.stc;
 	oonstack = sigonstack(stackbase + regs->sp);
 
 	/*
@@ -860,7 +851,7 @@ cheriabi_set_user_tls(struct thread *td, void * __capability tls_base)
 	 * Don't require any particular permissions or size and allow NULL.
 	 * If the caller passes nonsense, they just get nonsense results.
 	 */
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&td->td_md.md_tls, tls_base,
+	error = cheriabi_cap_to_ptr((caddr_t *)&td->td_md.md_tls, tls_base,
 	    0, 0, 1);
 	if (error)
 		return (error);
@@ -974,7 +965,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (EINVAL);
 	}
 	if (parms_from_cap) {
-		error = cheriabi_cap_to_ptr_x(&uap->parms, regs->c3,
+		error = cheriabi_cap_to_ptr(&uap->parms, regs->c3,
 		    reqsize, reqperms, 0);
 		if (error != 0)
 			return (error);

@@ -43,15 +43,15 @@ __FBSDID("$FreeBSD$");
  * XXX-BD: The capability version renders all strings read-only which
  * likely isn't what the caller wanted.
  */
-__CAPABILITY void *
-__CAPSUFFIX(memchr)(__CAPABILITY const void *s, int c, size_t n)
+__CAP void *
+__CAPSUFFIX(memchr)(__CAP const void *s, int c, size_t n)
 {
 	if (n != 0) {
-		__CAPABILITY const unsigned char *p = s;
+		__CAP const unsigned char *p = s;
 
 		do {
 			if (*p == (unsigned char)c)
-				return ((__CAPABILITY void *)p);
+				return ((__CAP void *)p);
 			else
 				p++;
 		} while (--n != 0);

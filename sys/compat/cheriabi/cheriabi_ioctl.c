@@ -120,7 +120,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		CP((*md_c), (*mdv), md_fwsectors);
 
 		/* _In_z_opt_ const char * md_file */
-		error = cheriabi_strcap_to_ptr_x(&mdv->md_file, md_c->md_file,
+		error = cheriabi_strcap_to_ptr(&mdv->md_file, md_c->md_file,
 		    1);
 		if (error != 0)
 			return (error);
@@ -141,7 +141,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		CP((*toce_c), (*toce), starting_track);
 		CP((*toce_c), (*toce), data_len);
 		/* _Out_writes_bytes_(data_len) const char * data */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&toce->data,
+		error = cheriabi_cap_to_ptr((caddr_t *)&toce->data,
 		    toce_c->data, toce->data_len, CHERI_PERM_STORE, 0);
 		if (error != 0)
 			return (error);
@@ -160,7 +160,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 
 		CP((*fgn_c), (*fgn), len);
 		/* _Out_writes_bytes_(fgn->len) const char * buf */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&fgn->buf, fgn_c->buf,
+		error = cheriabi_cap_to_ptr((caddr_t *)&fgn->buf, fgn_c->buf,
 		    fgn->len, CHERI_PERM_STORE, 0);
 		if (error != 0)
 			return (error);
@@ -194,7 +194,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 			ndesc = 1;
 			break;
 		}
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&mro->mo_desc,
+		error = cheriabi_cap_to_ptr((caddr_t *)&mro->mo_desc,
 		    mro_c->mo_desc, ndesc * sizeof(*mro->mo_desc),
 		    CHERI_PERM_STORE, 0);
 		if (error != 0)
@@ -220,11 +220,11 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		CP((*pci_c), (*pci), generation);
 		/* status is an output parameter */
 
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&pci->patterns,
+		error = cheriabi_cap_to_ptr((caddr_t *)&pci->patterns,
 		    pci_c->patterns, pci->pat_buf_len, CHERI_PERM_LOAD, 1);
 		if (error != 0)
 			return (error);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&pci->matches,
+		error = cheriabi_cap_to_ptr((caddr_t *)&pci->matches,
 		    pci_c->matches, pci->match_buf_len, CHERI_PERM_LOAD, 1);
 		if (error != 0)
 			return (error);
@@ -250,15 +250,15 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		 * XXX-BD: unclear if NULL is allowed, but the lower levels
 		 * will handle it, so let it through.
 		 */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&io->dxferp,
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->dxferp,
 		    io_c->dxferp, io->dxfer_len, CHERI_PERM_LOAD, 1);
 		if (error != 0)
 			return (error);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&io->cmdp,
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->cmdp,
 		    io_c->cmdp, io->cmd_len, CHERI_PERM_LOAD, 0);
 		if (error != 0)
 			return (error);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&io->sbp, io_c->sbp,
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->sbp, io_c->sbp,
 		    io->mx_sb_len, CHERI_PERM_LOAD, 1);
 		if (error != 0)
 			return (error);
@@ -303,7 +303,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 			reqperms = CHERI_PERM_STORE;
 			break;
 		}
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&ifr->ifr_buffer.buffer,
+		error = cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_buffer.buffer,
 		    ifr_c->ifr_buffer.buffer, ifr->ifr_buffer.length,
 		    reqperms, 0);
 		if (error != 0)
@@ -372,7 +372,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		reqsize = cheriabi_ioctl_iru_data_consumers[i].size;
 		reqperms = cheriabi_ioctl_iru_data_consumers[i].perms;
 
-		return (cheriabi_cap_to_ptr_x((caddr_t *)&ifr->ifr_data,
+		return (cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_data,
 		    ifr_c->ifr_data, reqsize, reqperms, 1));
 	}
 
@@ -455,7 +455,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		*t_comp = _IOC_NEWTYPE(com, struct bpf_program);
 
 		bfpp->bf_len = bfpp_c->bf_len;
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&bfpp->bf_insns,
+		error = cheriabi_cap_to_ptr((caddr_t *)&bfpp->bf_insns,
 		    bfpp_c->bf_insns, bfpp->bf_len, CHERI_PERM_LOAD, 0);
 		if (error != 0)
 			return(error);
@@ -485,7 +485,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 			break;
 		case SIOCGIFGROUP_C:
 		case SIOCGIFGMEMB_C:
-			error = cheriabi_cap_to_ptr_x(
+			error = cheriabi_cap_to_ptr(
 			    (caddr_t *)&ifgrp->ifgr_groups,
 			    ifgrp_c->ifgr_groups, ifgrp->ifgr_len,
 			    CHERI_PERM_STORE, 1);
@@ -513,7 +513,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		 * they just get written to.
 		 */
 		CP((*ifmp_c), (*ifmp), ifm_count);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&ifmp->ifm_ulist,
+		error = cheriabi_cap_to_ptr((caddr_t *)&ifmp->ifm_ulist,
 		    ifmp_c->ifm_ulist, ifmp->ifm_count * sizeof(int),
 		    CHERI_PERM_STORE, 1);
 		if (error != 0)

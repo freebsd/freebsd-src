@@ -37,15 +37,15 @@ CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
 	int error;
 
 	/* [0] int fd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_ioctl, 0, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
 	uap->fd = (register_t)tmpcap;
 
 	/* [1] u_long com */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_ioctl, 1, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
 	uap->com = (register_t)tmpcap;
 
 	/* [2] _Inout_opt_ caddr_t data */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_ioctl, 2, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_cheriabi_ioctl_PTRMASK);
 	if (uap->com & IOC_VOID) {
 		tag = cheri_gettag(tmpcap);
 		if (!tag)
@@ -69,7 +69,7 @@ CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
 		 * XXX-BD: not sure about may_be_null=1 here, but lower
 		 * levels will fail cleanly is it is a problem.
 		 */
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->data,
+		error = cheriabi_cap_to_ptr((caddr_t *)&uap->data,
 		    tmpcap, IOCPARM_LEN(uap->com), reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -89,11 +89,11 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	size_t addr_adjust;
 
 	/* [1] size_t len */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mincore, 1, CHERIABI_SYS_mincore_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_mincore_PTRMASK);
 	uap->len = (register_t)tmpcap;
 
 	/* [0] _Pagerange_opt_(len) const void * addr */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mincore, 0, CHERIABI_SYS_mincore_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_mincore_PTRMASK);
 	tag = cheri_gettag(tmpcap);
 	if (!tag) {
 		/*
@@ -134,8 +134,8 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	 * near the end of a page and len spans into the beginning of the
 	 * last page, then we may write another byte.
 	 */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mincore, 2, CHERIABI_SYS_mincore_PTRMASK);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->vec, tmpcap,
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_mincore_PTRMASK);
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->vec, tmpcap,
 	    roundup2(uap->len, PAGE_SIZE) / PAGE_SIZE,
 	    CHERI_PERM_STORE, 0);
 	if (error != 0)
@@ -152,11 +152,11 @@ CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
 	int error;
 
 	/* [0] int fd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_fcntl, 0, CHERIABI_SYS_fcntl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_fcntl_PTRMASK);
 	uap->fd = (register_t)tmpcap;
 
 	/* [1] int cmd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_fcntl, 1, CHERIABI_SYS_fcntl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_fcntl_PTRMASK);
 	uap->cmd = (register_t)tmpcap;
 
 	/* [2] intptr_t arg */
@@ -182,15 +182,15 @@ CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
 	case F_SETOWN:
 	case F_READAHEAD:
 	case F_RDAHEAD:
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_fcntl, 2, CHERIABI_SYS_fcntl_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_fcntl_PTRMASK);
 		uap->arg = (register_t)tmpcap;
 		break;
 
 	case F_GETLK:
 	case F_SETLK:
 	case F_SETLKW:
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_fcntl, 2, CHERIABI_SYS_fcntl_PTRMASK);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->arg,
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_fcntl_PTRMASK);
+		error = cheriabi_cap_to_ptr((caddr_t *)&uap->arg,
 		    tmpcap, sizeof(struct flock), CHERI_PERM_LOAD, 0);
 		if (error != 0)
 			return (error);
@@ -210,7 +210,7 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 	size_t reqlen;
 
 	/* [0] int nd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_select, 0, CHERIABI_SYS_select_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_select_PTRMASK);
 	uap->nd = (register_t)tmpcap;
 
 	/*
@@ -225,8 +225,8 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_select, 1, CHERIABI_SYS_select_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->in),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_select_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->in),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -237,8 +237,8 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_select, 2, CHERIABI_SYS_select_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->ou),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_select_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ou),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -249,8 +249,8 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_select, 3, CHERIABI_SYS_select_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->ex),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_select_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ex),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -261,8 +261,8 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_select, 4, CHERIABI_SYS_select_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->tv),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 4, CHERIABI_SYS_select_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->tv),
 		    tmpcap, sizeof(*uap->tv), reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -278,7 +278,7 @@ CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
 	void * __capability tmpcap;
 
 	/* [0] int flag */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_nfssvc, 0, CHERIABI_SYS_cheriabi_nfssvc_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_nfssvc_PTRMASK);
 	uap->flag = (register_t)tmpcap;
 
 	/* [1] void * argp */
@@ -295,7 +295,7 @@ CHERIABI_SYS_cheriabi_sysarch_fill_uap(struct thread *td,
 	void * __capability tmpcap;
 
 	/* [0] int op */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_sysarch, 0, CHERIABI_SYS_cheriabi_sysarch_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_sysarch_PTRMASK);
 	uap->op = (register_t)tmpcap;
 
 	/* [1] char * parms */
@@ -320,18 +320,18 @@ CHERIABI_SYS_mac_syscall_fill_uap(struct thread *td,
 	int error;
 
 	/* [1] int call */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mac_syscall, 1, CHERIABI_SYS_mac_syscall_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_mac_syscall_PTRMASK);
 	uap->call = (register_t)tmpcap;
 
 	/* [0] _In_z_ char * policy */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mac_syscall, 0, CHERIABI_SYS_mac_syscall_PTRMASK);
-	error = cheriabi_strcap_to_ptr_x(__DECONST(char **, &uap->policy),
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_mac_syscall_PTRMASK);
+	error = cheriabi_strcap_to_ptr(__DECONST(char **, &uap->policy),
 	    tmpcap, 0);
 	if (error != 0)
 		return (error);
 
 	/* [2] _In_opt_ void * arg */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_mac_syscall, 2, CHERIABI_SYS_mac_syscall_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_mac_syscall_PTRMASK);
 	tag = cheri_gettag(tmpcap);
 	if (!tag) {
 		/*
@@ -367,11 +367,11 @@ CHERIABI_SYS_auditon_fill_uap(struct thread *td,
 	register_t reqperms;
 
 	/* [0] int cmd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_auditon, 0, CHERIABI_SYS_auditon_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_auditon_PTRMASK);
 	uap->cmd = (register_t)tmpcap;
 
 	/* [2] u_int length */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_auditon, 2, CHERIABI_SYS_auditon_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_auditon_PTRMASK);
 	uap->length = (register_t)tmpcap;
 
 	/* [1] _Inout_updates_bytes_opt_(length) void * data */
@@ -415,8 +415,8 @@ CHERIABI_SYS_auditon_fill_uap(struct thread *td,
 		return (EINVAL);
 	}
 
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_auditon, 1, CHERIABI_SYS_auditon_PTRMASK);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->data, tmpcap,
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_auditon_PTRMASK);
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->data, tmpcap,
 	    uap->length, reqperms, 1);
 	if (error != 0)
 		return (error);
@@ -436,7 +436,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 	size_t reqsize;
 
 	/* [1] int op */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 1, CHERIABI_SYS__umtx_op_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS__umtx_op_PTRMASK);
 	uap->op = (register_t)tmpcap;
 
 	/* Short cut, blocking known unimplemted ops */
@@ -449,7 +449,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 	}
 
 	/* [2] u_long val */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 2, CHERIABI_SYS__umtx_op_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS__umtx_op_PTRMASK);
 	uap->val = (register_t)tmpcap;
 
 	/* [0] void * obj */
@@ -514,8 +514,8 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 	default:
 		return (EINVAL);
 	}
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 0, CHERIABI_SYS__umtx_op_PTRMASK);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->obj, tmpcap,
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS__umtx_op_PTRMASK);
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->obj, tmpcap,
 	    reqsize, reqperms,
 #ifdef UMTX_OP_SHM
 	    (uap->op == UMTX_OP_SHM));
@@ -552,7 +552,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 	case UMTX_OP_MUTEX_WAIT:		/* __umtx_op_wait_umutex */
 	case UMTX_OP_SEM2_WAIT:			/* __umtx_op_sem2_wait */
 		/* uaddr1 is a size_t to pass to umtx_copyin_umtx_time() */
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 3, CHERIABI_SYS__umtx_op_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS__umtx_op_PTRMASK);
 		tag = cheri_gettag(tmpcap);
 		if (!tag) {
 			/*
@@ -575,8 +575,8 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		/*
 		 * uaddr1 is a pointer to a writeable uint32_t and may be NULL
 		 */
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 3, CHERIABI_SYS__umtx_op_PTRMASK);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->uaddr1, tmpcap,
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS__umtx_op_PTRMASK);
+		error = cheriabi_cap_to_ptr((caddr_t *)&uap->uaddr1, tmpcap,
 		    sizeof(uint32_t), CHERI_PERM_STORE, 1);
 		if (error != 0)
 			return (error);
@@ -585,8 +585,8 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		return (0);
 
 	case UMTX_OP_CV_WAIT:			/* __umtx_op_cv_wait */
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 3, CHERIABI_SYS__umtx_op_PTRMASK);
-		error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->uaddr1, tmpcap,
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS__umtx_op_PTRMASK);
+		error = cheriabi_cap_to_ptr((caddr_t *)&uap->uaddr1, tmpcap,
 		    sizeof(struct umutex), CHERI_PERM_STORE, 0);
 		if (error != 0)
 			return (error);
@@ -601,7 +601,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		 * uaddr1 is an address.  The access requirements depend
 		 * on val.
 		 */
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 3, CHERIABI_SYS__umtx_op_PTRMASK);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS__umtx_op_PTRMASK);
 		tag = cheri_gettag(tmpcap);
 		if (!tag) {
 			return (EPROT);
@@ -654,8 +654,8 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		panic("%s: unexepected op made it to uaddr2 %d", __func__,
 		    uap->op);
 	}
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS__umtx_op, 4, CHERIABI_SYS__umtx_op_PTRMASK);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->uaddr2, tmpcap,
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 4, CHERIABI_SYS__umtx_op_PTRMASK);
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->uaddr2, tmpcap,
 	    reqsize, reqperms, 1);
 	if (error != 0)
 		return (error);
@@ -670,13 +670,13 @@ CHERIABI_SYS_cheriabi_sigqueue_fill_uap(struct thread *td,
 	void * __capability tmpcap;
 
 	/* [0] pid_t pid */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_sigqueue, 0, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    0, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	uap->pid = (register_t)tmpcap;
 
 	/* [1] int signum */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_sigqueue, 1, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    1, CHERIABI_SYS_cheriabi_sigqueue_PTRMASK);
 	uap->signum = (register_t)tmpcap;
 
 	/* [2] _In_opt_ union sigval_c value */
@@ -699,15 +699,15 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 	size_t base;
 
 	/* [1] int flags */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_shm_open, 1, CHERIABI_SYS_shm_open_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_shm_open_PTRMASK);
 	uap->flags = (register_t)tmpcap;
 
 	/* [2] mode_t mode */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_shm_open, 2, CHERIABI_SYS_shm_open_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_shm_open_PTRMASK);
 	uap->mode = (register_t)tmpcap;
 
 	/* [0] _In_z_ const char * path */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_shm_open, 0, CHERIABI_SYS_shm_open_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_shm_open_PTRMASK);
 	tag = cheri_gettag(tmpcap);
 	if (!tag) {
 		base = cheri_getbase(tmpcap);
@@ -717,7 +717,7 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 		if (uap->path != SHM_ANON)
 			return (EPROT);
 	} else {
-		error = cheriabi_strcap_to_ptr_x(__DECONST(char **, &uap->path),
+		error = cheriabi_strcap_to_ptr(__DECONST(char **, &uap->path),
 		    tmpcap, 0);
 		if (error != 0)
 			return (error);
@@ -733,19 +733,19 @@ CHERIABI_SYS_cheriabi_openat_fill_uap(struct thread *td,
 	void * __capability tmpcap;
 
 	/* [0] int fd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 0, CHERIABI_SYS_cheriabi_openat_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 	uap->fd = (register_t)tmpcap;
 
 	/* [2] int flag */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 2, CHERIABI_SYS_cheriabi_openat_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 	uap->flag = (register_t)tmpcap;
 
 	/* [3] mode_t mode */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 3, CHERIABI_SYS_cheriabi_openat_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 	uap->mode = (register_t)tmpcap;
 
 	/* [1] _In_z_ const char * path */
-	cheriabi_fetch_syscall_arg_x(td, &uap->path, CHERIABI_SYS_cheriabi_openat, 1, CHERIABI_SYS_cheriabi_openat_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, __DECONST(void * __capability *, &uap->path), 1, CHERIABI_SYS_cheriabi_openat_PTRMASK);
 
 	return (0);
 }
@@ -759,18 +759,18 @@ CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
 	register_t reqperms;
 
 	/* [0] int semid */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi___semctl, 0, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    0, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
 	uap->semid = (register_t)tmpcap;
 
 	/* [1] int semnum */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi___semctl, 1, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    1, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
 	uap->semnum = (register_t)tmpcap;
 
 	/* [2] int cmd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi___semctl, 2, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    2, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
 	uap->cmd = (register_t)tmpcap;
 
 	/* [3] _In_opt_ union semun_c * arg */
@@ -782,9 +782,9 @@ CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
 	case SETALL:
 		reqperms |= CHERI_PERM_LOAD_CAP;
 	}
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi___semctl, 3, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->arg, tmpcap,
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    3, CHERIABI_SYS_cheriabi___semctl_PTRMASK);
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->arg, tmpcap,
 	    sizeof(*uap->arg), reqperms, 1);
 	if (error != 0)
 		return (error);
@@ -800,7 +800,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 	size_t reqlen;
 
 	/* [0] int nd */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 0, CHERIABI_SYS_pselect_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_pselect_PTRMASK);
 	uap->nd = (register_t)tmpcap;
 
 	/*
@@ -813,8 +813,8 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 1, CHERIABI_SYS_pselect_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->in),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 1, CHERIABI_SYS_pselect_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->in),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -825,8 +825,8 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 2, CHERIABI_SYS_pselect_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->ou),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_pselect_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ou),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -837,8 +837,8 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 3, CHERIABI_SYS_pselect_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->ex),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_pselect_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ex),
 		    tmpcap, reqlen, reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -849,8 +849,8 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 4, CHERIABI_SYS_pselect_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->ts),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 4, CHERIABI_SYS_pselect_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ts),
 		    tmpcap, sizeof(*uap->ts), reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -861,8 +861,8 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
-		cheriabi_fetch_syscall_arg_x(td, &tmpcap, CHERIABI_SYS_pselect, 5, CHERIABI_SYS_pselect_PTRMASK);
-		error = cheriabi_cap_to_ptr_x(__DECONST(caddr_t *, &uap->sm),
+		cheriabi_fetch_syscall_arg(td, &tmpcap, 5, CHERIABI_SYS_pselect_PTRMASK);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->sm),
 		    tmpcap, sizeof(*uap->sm), reqperms, 1);
 		if (error != 0)
 			return (error);
@@ -881,24 +881,24 @@ CHERIABI_SYS_cheriabi_procctl_fill_uap(struct thread *td,
 	size_t reqsize;
 
 	/* [0] int idtype */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_procctl, 0, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    0, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
 	uap->idtype = (register_t)tmpcap;
 
 	/* [1] id_t id */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_procctl, 1, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    1, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
 	uap->id = (register_t)tmpcap;
 
 	/* [2] int com */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_procctl, 2, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    2, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
 	uap->com = (register_t)tmpcap;
 
 	/* [3] void * data */
 	/* May be _In_, _Inout_, _Out_, or NULL based on com */
-	cheriabi_fetch_syscall_arg_x(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_procctl, 3, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
+	cheriabi_fetch_syscall_arg(td, &tmpcap,
+	    3, CHERIABI_SYS_cheriabi_procctl_PTRMASK);
 	reqsize = SIZE_MAX;	/* Catch unhandled, non-NULL commands */
 	reqperms = 0;
 	switch(uap->com) {
@@ -925,7 +925,7 @@ CHERIABI_SYS_cheriabi_procctl_fill_uap(struct thread *td,
 		break;
 	/* PROC_REAP_RELEASE: no data */
 	}
-	error = cheriabi_cap_to_ptr_x((caddr_t *)&uap->data, tmpcap, reqsize,
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->data, tmpcap, reqsize,
 	    reqperms, 1);
 	if (error != 0)
 		return (error);

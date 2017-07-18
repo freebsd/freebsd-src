@@ -51,28 +51,22 @@
  * not create a spurious pointer. -- BD
  */
 static inline int
-cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
+cheriabi_cap_to_ptr(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
-	register_t tag;
-	register_t perms;
-	register_t sealed;
 	size_t length, offset;
 
-	tag = cheri_gettag(cap);
-	if (!tag) {
+	if (!cheri_gettag(cap)) {
 		if (!may_be_null)
 			return (EFAULT);
 		*ptrp = (caddr_t)cap;
 		if (*ptrp != NULL)
 			return (EFAULT);
 	} else {
-		sealed = cheri_getsealed(cap);
-		if (sealed)
+		if (cheri_getsealed(cap))
 			return (EPROT);
 
-		perms = cheri_getperm(cap);
-		if ((perms & reqperms) != reqperms)
+		if ((cheri_getperm(cap) & reqperms) != reqperms)
 			return (EPROT);
 
 		length = cheri_getlen(cap);
@@ -89,42 +83,7 @@ cheriabi_cap_to_ptr_x(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 }
 
 static inline int
-cheriabi_cap_validate(void * __capability cap, size_t reqlen,
-    register_t reqperms, int may_be_null)
-{
-	register_t tag;
-	register_t perms;
-	register_t sealed;
-	size_t length, offset;
-
-	tag = cheri_gettag(cap);
-	if (!tag) {
-		if (!may_be_null)
-			return (EFAULT);
-		if (cap != NULL)
-			return (EFAULT);
-	} else {
-		sealed = cheri_getsealed(cap);
-		if (sealed)
-			return (EPROT);
-
-		perms = cheri_getperm(cap);
-		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		length = cheri_getlen(cap);
-		offset = cheri_getoffset(cap);
-		if (offset >= length)
-			return (EPROT);
-		length -= offset;
-		if (length < reqlen)
-			return (EPROT);
-	}
-	return (0);
-}
-
-static inline int
-cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
+cheriabi_strcap_to_ptr(char **strp, void * __capability cap, int may_be_null)
 {
 
 	/*
@@ -134,43 +93,43 @@ cheriabi_strcap_to_ptr_x(char **strp, void * __capability cap, int may_be_null)
 	 * that out from under us.  Completely safe string handling
 	 * requires pushing the length down to the copyinstr().
 	 */
-	return (cheriabi_cap_to_ptr_x(strp, cap, 1,
+	return (cheriabi_cap_to_ptr(strp, cap, 1,
 	    CHERI_PERM_LOAD, may_be_null));
 }
 
 struct kevent_c {
-	void * __capability	ident;		/* identifier for this event */
-	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	int64_t		data;
-	void * __capability	udata;		/* opaque user data identifier */
+	__intcap_t		ident;	/* identifier for this event */
+	short			filter;	/* filter for event */
+	u_short			flags;
+	u_int			fflags;
+	int64_t			data;
+	void * __capability	udata;	/* opaque user data identifier */
 };
 
 struct iovec_c {
 	void * __capability	iov_base;
-	size_t		iov_len;
+	size_t			iov_len;
 };
 
 struct msghdr_c {
-	void * __capability	msg_name;
-	socklen_t	msg_namelen;
-	void * __capability	msg_iov;
-	int		msg_iovlen;
-	void * __capability	msg_control;
-	socklen_t	msg_controllen;
-	int		msg_flags;
+	void * __capability		msg_name;
+	socklen_t			msg_namelen;
+	struct iovec_c * __capability	msg_iov;
+	int				msg_iovlen;
+	void * __capability		msg_control;
+	socklen_t			msg_controllen;
+	int				msg_flags;
 };
 
 struct jail_c {
-	uint32_t	version;
-	void * __capability	path;
-	void * __capability	hostname;
-	void * __capability	jailname;
-	uint32_t	ip4s;
-	uint32_t	ip6s;
-	void * __capability	ip4;
-	void * __capability ip6;
+	uint32_t			version;
+	char * __capability		path;
+	char * __capability		hostname;
+	char * __capability		jailname;
+	uint32_t			ip4s;
+	uint32_t			ip6s;
+	struct in_addr * __capability	ip4;
+	struct in6_addr * __capability	ip6;
 };
 
 struct sigaction_c {
@@ -180,18 +139,18 @@ struct sigaction_c {
 };
 
 struct thr_param_c {
-	void * __capability	start_func;
-	void * __capability	arg;
-	void * __capability	stack_base;
-	size_t		stack_size;
-	void * __capability	tls_base;
-	size_t		tls_size;
-	void * __capability	child_tid;
-	void * __capability	parent_tid;
-	int		flags;
-	void * __capability	rtp;
-	void * __capability ddc;
-	void * __capability	spare[2];
+	void * __capability		start_func;
+	void * __capability		arg;
+	char * __capability		stack_base;
+	size_t				stack_size;
+	char * __capability		tls_base;
+	size_t				tls_size;
+	long * __capability		child_tid;
+	long * __capability		parent_tid;
+	int				flags;
+	struct rtprio * __capability	rtp;
+	void * __capability		ddc;
+	void * __capability		spare[2];
 };
 
 struct kinfo_proc_c {
@@ -278,10 +237,10 @@ struct kinfo_proc_c {
 	struct	rusage ki_rusage;
 	/* XXX - most fields in ki_rusage_ch are not (yet) filled in */
 	struct	rusage ki_rusage_ch;
-	void * __capability	ki_pcb;				/* struct pcb  */
-	void * __capability	ki_kstack;			/* void	*/
-	void * __capability	ki_udata;			/* void	*/
-	void * __capability	ki_tdaddr;			/* struct thread  */
+	void * __capability	ki_pcb;			/* struct pcb */
+	void * __capability	ki_kstack;		/* void	*/
+	void * __capability	ki_udata;		/* void	*/
+	void * __capability	ki_tdaddr;		/* struct thread  */
 	void * __capability	ki_spareptrs[KI_NSPARE_PTR];	/* void */
 	long	ki_sparelongs[KI_NSPARE_LONG];
 	long	ki_sflag;
@@ -290,27 +249,27 @@ struct kinfo_proc_c {
 
 struct mac_c {
 	size_t		m_buflen;
-	void * __capability	m_string;
+	char * __capability	m_string;
 };
 
 struct kld_sym_lookup_c {
 	int		version; /* set to sizeof(struct kld_sym_lookup_c) */
-	void * __capability symname; /* Symbol name we are looking up */
+	char * __capability symname; /* Symbol name we are looking up */
 	u_long		symvalue;
 	size_t		symsize;
 };
 
 struct sf_hdtr_c {
-	void * __capability	headers;	/* array of iovec_c */
-	int		hdr_cnt;
-	void * __capability	trailers;	/* array of iovec_c */
-	int		trl_cnt;
+	struct iovec_c * __capability	headers;
+	int				hdr_cnt;
+	struct iovec_c * __capability	trailers;
+	int				trl_cnt;
 };
 
 struct procctl_reaper_pids_c {
-	u_int   rp_count;
-	u_int   rp_pad0[15];
-	void * __capability rp_pids;	/* struct procctl_reaper_pidinfo * */
+	u_int						rp_count;
+	u_int						rp_pad0[15];
+	struct procctl_reaper_pidinfo * __capability	rp_pids;
 };
 
 union semun_c {
@@ -324,17 +283,17 @@ union semun_c {
 #include <sys/msg.h>
 
 struct msqid_ds_c {
-	struct ipc_perm	msg_perm;
-	void * __capability	msg_first;		/* struct msg * */
-	void * __capability	msg_last;		/* struct msg * */
-	msglen_t	msg_cbytes;
-	msgqnum_t	msg_qnum;
-	msglen_t	msg_qbytes;
-	pid_t		msg_lspid;
-	pid_t  		msg_lrpid;
-	time_t		msg_stime;
-	time_t 		msg_rtime;
-	time_t		msg_ctime;
+	struct ipc_perm			msg_perm;
+	struct msg_c * __capability	msg_first;
+	struct msg_c * __capability	msg_last;
+	msglen_t			msg_cbytes;
+	msgqnum_t			msg_qnum;
+	msglen_t			msg_qbytes;
+	pid_t				msg_lspid;
+	pid_t  				msg_lrpid;
+	time_t				msg_stime;
+	time_t 				msg_rtime;
+	time_t				msg_ctime;
 };
 
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */

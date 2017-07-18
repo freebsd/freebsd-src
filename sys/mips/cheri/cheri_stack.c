@@ -43,6 +43,7 @@
 #include <sys/kdb.h>
 
 #include <cheri/cheri.h>
+#include <cheri/cheric.h>
 
 #include <machine/atomic.h>
 #include <machine/pcb.h>
@@ -176,15 +177,13 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	/*
 	 * Pop $idc, $pcc.
 	 */
-	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_idc);
-	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.idc);
-	cheri_capability_load(CHERI_CR_CTEMP0, &csfp->csf_pcc);
-	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_regs.pcc);
+	pcb->pcb_regs.idc = csfp->csf_idc;
+	pcb->pcb_regs.pcc = csfp->csf_pcc;
 
 	/*
 	 * Extract $pcc.offset into $pc.
 	 */
-	CHERI_CGETOFFSET(pcb->pcb_regs.pc, CHERI_CR_CTEMP0);
+	pcb->pcb_regs.pc = cheri_getoffset(csfp->csf_pcc);
 
 	/*
 	 * Set 'v0' to -1, and 'v1' to the signal number so that the consumer
