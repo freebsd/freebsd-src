@@ -41,9 +41,9 @@ f_include $BSDCFG_SHARE/dialog.subr
 ############################################################ MAIN
 
 #
-# TODO: 
+# TODO:
 # - Add DHCPv6 support once FreeBSD ships with it.
-# 
+#
 
 INTERFACE=$1
 case "${INTERFACE}" in
