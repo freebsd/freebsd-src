@@ -60,9 +60,12 @@ db_show_regs(db_expr_t _1, bool _2, db_expr_t _3, char *_4)
 		db_printf("%-12s%#*lr", regp->name,
 		    (int)(sizeof(unsigned long) * 2 + 2), (unsigned long)value);
 		if (value >= VM_MAXUSER_ADDRESS) {
+#if __has_feature(capabilities)
 			if ((value % sizeof(void * __capability)) == 0)
 				db_printf("\t(capability-aligned)");
-			else if ((value % 8) == 0)
+			else
+#endif
+			if ((value % 8) == 0)
 				db_printf("\t(dword-aligned)");
 			else if ((value % 4) == 0)
 				db_printf("\t(word-aligned)");
