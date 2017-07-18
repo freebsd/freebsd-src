@@ -35,48 +35,48 @@ my $disk = "/tmp/disk-$$";
 my $mntpt_prefix = "/tmp/mount-$$";
 
 my %steps = (
-    "000" => "gctl",
-    "001" => "gctl verb=bogus",
-    "010" => "gctl verb=create",
-    "011" => "gctl verb=create provider=bogus",
+    "000" => "gctl class=PART",
+    "001" => "gctl class=PART verb=bogus",
+    "010" => "gctl class=PART verb=create",
+    "011" => "gctl class=PART verb=create provider=bogus",
     "020" => "mdcfg create pristine",
-    "021" => "gctl verb=create provider=%dev% entries=-1",
-    "022" => "gctl verb=create provider=%dev% entries=128",
-    "023" => "gctl verb=create provider=%dev%",
-    "024" => "gctl verb=modify geom=%dev%",
+    "021" => "gctl class=PART verb=create provider=%dev% entries=-1",
+    "022" => "gctl class=PART verb=create provider=%dev% entries=128",
+    "023" => "gctl class=PART verb=create provider=%dev%",
+    "024" => "gctl class=PART verb=modify geom=%dev%",
     "025" => "conf",
-    "030" => "gctl verb=add",
-    "031" => "gctl verb=add geom=bogus",
-    "032" => "gctl verb=add geom=%dev%",
-    "033" => "gctl verb=add geom=%dev% type=bogus",
-    "034" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace",
-    "035" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=1",
-    "036" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34",
-    "037" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=12345678",
-    "038" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=162 end=417 entry=129",
-    "039" => "gctl verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=162 end=417 entry:8=5",
-    "040" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=161 entry=5",
-    "041" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=546",
-    "042" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=162 end=417",
-    "043" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=100 end=300",
-    "044" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=300 end=500",
-    "045" => "gctl verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=161 entry:8",
-    "046" => "gctl verb=add geom=%dev% type=d2bd4509-c4ff-11da-b4cc-00306e39b62f start=418 end=546 entry:8",
+    "030" => "gctl class=PART verb=add",
+    "031" => "gctl class=PART verb=add geom=bogus",
+    "032" => "gctl class=PART verb=add geom=%dev%",
+    "033" => "gctl class=PART verb=add geom=%dev% type=bogus",
+    "034" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace",
+    "035" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=1",
+    "036" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34",
+    "037" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=34 end=12345678",
+    "038" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=162 end=417 entry=129",
+    "039" => "gctl class=PART verb=add geom=%dev% type=ed0101b0-2a71-11da-ba81-003048416ace start=162 end=417 entry:8=5",
+    "040" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=161 entry=5",
+    "041" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=546",
+    "042" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=162 end=417",
+    "043" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=100 end=300",
+    "044" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=300 end=500",
+    "045" => "gctl class=PART verb=add geom=%dev% type=83d34ed5-c4ff-11da-b65b-000347c5d7f3 start=34 end=161 entry:8",
+    "046" => "gctl class=PART verb=add geom=%dev% type=d2bd4509-c4ff-11da-b4cc-00306e39b62f start=418 end=546 entry:8",
     "047" => "conf",
-    "050" => "gctl verb=remove geom=%dev% entry=5",
-    "051" => "gctl verb=remove geom=%dev% entry=2",
-    "052" => "gctl verb=remove geom=%dev% entry=1",
-    "053" => "gctl verb=remove geom=%dev% entry=1",
+    "050" => "gctl class=PART verb=remove geom=%dev% entry=5",
+    "051" => "gctl class=PART verb=remove geom=%dev% entry=2",
+    "052" => "gctl class=PART verb=remove geom=%dev% entry=1",
+    "053" => "gctl class=PART verb=remove geom=%dev% entry=1",
     "054" => "conf",
-    "060" => "gctl verb=add geom=%dev% type=516e7cb6-6ecf-11d6-8ff8-00022d09712b start=34 end=546 entry:8=1",
+    "060" => "gctl class=PART verb=add geom=%dev% type=516e7cb6-6ecf-11d6-8ff8-00022d09712b start=34 end=546 entry:8=1",
     "061" => "mount %dev%p1",
-    "062" => "gctl verb=delete geom=%dev% entry=1",
+    "062" => "gctl class=PART verb=delete geom=%dev% entry=1",
     "063" => "umount %dev%p1",
-    "064" => "gctl verb=delete geom=%dev% entry=1",
+    "064" => "gctl class=PART verb=delete geom=%dev% entry=1",
     "065" => "conf",
     "100" => "mdcfg destroy",
     "110" => "mdcfg create corrupted",
-    "111" => "gctl verb=add geom=%dev%",
+    "111" => "gctl class=PART verb=add geom=%dev%",
     "120" => "mdcfg destroy",
 );
 
@@ -144,7 +144,17 @@ my $out = basename($cmd) . ".out";
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
     print "1..0 # SKIP insufficient permissions\n";
-    unlink $cmd;
+    exit 0;
+}
+
+my $debugflags_oid = 'kern.geom.debugflags';
+chomp(my $old_geom_debugflags = `sysctl -n $debugflags_oid`);
+if ($? != 0) {
+    print "1..0 # SKIP could not query $debugflags_oid\n";
+    exit 0;
+}
+if (system("sysctl $debugflags_oid=0") != 0) {
+    print "1..0 # SKIP could not set $debugflags_oid=0\n";
     exit 0;
 }
 
@@ -227,4 +237,7 @@ foreach my $key (sort keys %steps) {
     }
     $nr += 1;
 }
-exit 0;
+END {
+    system("sysctl $debugflags_oid=$old_geom_debugflags");
+    unlink($cmd);
+}
