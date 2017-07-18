@@ -3698,7 +3698,8 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 
 	p = curproc;
 	vm = p->p_vmspace;
-	MPASS(map == &p->p_vmspace->vm_map);
+	if (map != &p->p_vmspace->vm_map)
+		return (KERN_FAILURE);
 	MPASS(!map->system_map);
 
 	guard = stack_guard_page * PAGE_SIZE;
