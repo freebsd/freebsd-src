@@ -1047,9 +1047,10 @@ inm_merge(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 	/* Decrement ASM listener count on transition out of ASM mode. */
 	if (imf->imf_st[0] == MCAST_EXCLUDE && nsrc0 == 0) {
 		if ((imf->imf_st[1] != MCAST_EXCLUDE) ||
-		    (imf->imf_st[1] == MCAST_EXCLUDE && nsrc1 > 0))
+		    (imf->imf_st[1] == MCAST_EXCLUDE && nsrc1 > 0)) {
 			CTR1(KTR_IGMPV3, "%s: --asm on inm at t1", __func__);
 			--inm->inm_st[1].iss_asm;
+		}
 	}
 
 	/* Increment ASM listener count on transition to ASM mode. */
