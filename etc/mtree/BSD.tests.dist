@@ -8,7 +8,7 @@
     bin
         cat
         ..
-        chown
+        chmod
         ..
         date
         ..
@@ -684,6 +684,8 @@
         ..
     ..
     usr.sbin
+        chown
+        ..
         etcupdate
         ..
         extattr

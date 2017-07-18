@@ -40,6 +40,8 @@
 
 # 20170620: remove stale manpage
 OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
+# 20170610: chown-f_test replaced by chown_test
+OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
 # 20170531: remove pcap-int.h
 OLD_FILES+=usr/include/pcap-int.h
 # 20170402: new libc++ import which bumps version from 3.9.1 to 4.0.0.
