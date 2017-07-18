@@ -54,7 +54,7 @@ ipfw_netflow_status()
 ipfw_netflow_start()
 {
 	ipfw_netflow_is_running && err 1 "ipfw_netflow is already active"
-	ipfw add ${ipfw_netflow_rule} ngtee ${ipfw_netflow_hook} ip from any to any
+	ipfw add ${ipfw_netflow_rule} ngtee ${ipfw_netflow_hook} ip from any to any ${ipfw_netflow_fib:+fib ${ipfw_netflow_fib}}
 	ngctl -f - <<-EOF
 	mkpeer ipfw: netflow ${ipfw_netflow_hook} iface0
 	name ipfw:${ipfw_netflow_hook} netflow
