@@ -105,8 +105,8 @@ struct sctp_sndrcvinfo {
 The
 .Fa sinfo->sinfo_ppid
 argument is an opaque 32 bit value that is passed transparently
-through the stack to the peer endpoint. It will be available on
-reception of a message (see
+through the stack to the peer endpoint.
+It will be available on reception of a message (see
 .Xr sctp_recvmsg 3 ) .
 Note that the stack passes this value without regard to byte
 order.
