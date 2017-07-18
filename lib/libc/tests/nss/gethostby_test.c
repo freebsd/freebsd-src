@@ -776,24 +776,26 @@ hostent_test_getaddrinfo_eq(struct hostent *he, void *mdata __unused)
 		rv = getaddrinfo(he->h_name, NULL, &hints, &ai);
 		if (rv == 0) {
 			printf("not ok - shouldn't have been resolved\n");
-			return (-1);
-		}
+			rv = -1;
+		} else
+			rv = 0;
 	} else {
 		rv = getaddrinfo(he->h_name, NULL, &hints, &ai);
 		if (rv != 0) {
 			printf("not ok - should have been resolved\n");
-			return (-1);
+			rv = -1;
+			goto done;
 		}
-
 		rv = is_hostent_equal(he, ai);
 		if (rv != 0) {
 			printf("not ok - addrinfo and hostent are not equal\n");
-			return (-1);
+			rv = -1;
 		}
-
 	}
-
-	return (0);
+done:
+	if (ai != NULL)
+		freeaddrinfo(ai);
+	return (rv);
 }
 
 static int
@@ -884,7 +886,7 @@ hostent_test_getnameinfo_eq(struct hostent *he, void *mdata __unused)
 		 * An address might reverse resolve to hostname alias or the
 		 * official hostname, e.g. moon.vub.ac.be.
 		 */
-		bool found_a_match;
+		bool found_a_match = false;
 
 		if (strcmp(result->h_name, buffer) == 0) {
 			found_a_match = true;
@@ -924,9 +926,18 @@ static int
 run_tests(const char *hostlist_file, const char *snapshot_file, int _af_type,
     enum test_methods method, bool use_ipv6_mapping)
 {
+	char *snapshot_file_copy;
 	struct hostent_test_data td, td_addr, td_snap;
 	res_state statp;
 	int rv = -2;
+
+	if (snapshot_file == NULL)
+		snapshot_file_copy = NULL;
+	else {
+		snapshot_file_copy = strdup(snapshot_file);
+		ATF_REQUIRE(snapshot_file_copy != NULL);
+	}
+	snapshot_file = snapshot_file_copy;
 
 	switch (_af_type) {
 	case AF_INET:
@@ -946,8 +957,8 @@ run_tests(const char *hostlist_file, const char *snapshot_file, int _af_type,
 		if (statp == NULL || ((statp->options & RES_INIT) == 0 &&
 		    res_ninit(statp) == -1)) {
 			printf("error: can't init res_state\n");
-
-			return (-1);
+			rv = -1;
+			goto fin2;
 		}
 
 		if (use_ipv6_mapping)
@@ -1051,6 +1062,9 @@ fin:
 	TEST_DATA_DESTROY(hostent, &td_addr);
 	TEST_DATA_DESTROY(hostent, &td);
 
+fin2:
+	free(snapshot_file_copy);
+
 	return (rv);
 }
 
@@ -1059,30 +1073,24 @@ fin:
 #define	_RUN_TESTS(tc, snapshot_file, af_type, method, use_ipv6_mapping) \
 do {									\
 	char *_hostlist_file;						\
-	char *_snapshot_file;						\
 	ATF_REQUIRE(0 < asprintf(&_hostlist_file, "%s/%s",		\
 	    atf_tc_get_config_var(tc, "srcdir"), HOSTLIST_FILE));	\
-	if (snapshot_file == NULL)					\
-		_snapshot_file = NULL;					\
-	else {								\
-		_snapshot_file = strdup(snapshot_file); 		\
-		ATF_REQUIRE(_snapshot_file != NULL);			\
-	}								\
-	ATF_REQUIRE(run_tests(_hostlist_file, _snapshot_file, af_type,	\
+	ATF_REQUIRE(run_tests(_hostlist_file, snapshot_file, af_type,	\
 	    method, use_ipv6_mapping) == 0);				\
-} while(0)
+	free(_hostlist_file);						\
+} while (0)
 
 #define	RUN_HOST_TESTS(tc, snapshot_file, af_type, method, use_ipv6_mapping) \
 do {									\
 	use_ipnode_functions = false; 					\
 	_RUN_TESTS(tc, snapshot_file, af_type, method, use_ipv6_mapping); \
-} while(0)
+} while (0)
 
 #define	RUN_IPNODE_TESTS(tc, snapshot_file, af_type, method, use_ipv6_mapping) \
 do {									\
 	use_ipnode_functions = true; 					\
 	_RUN_TESTS(tc, snapshot_file, af_type, method, use_ipv6_mapping); \
-} while(0)
+} while (0)
 
 ATF_TC_WITHOUT_HEAD(gethostbyaddr_ipv4);
 ATF_TC_BODY(gethostbyaddr_ipv4, tc)

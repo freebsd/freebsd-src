@@ -410,10 +410,18 @@ addrinfo_read_hostlist_func(struct addrinfo *ai, char *line)
 }
 
 static void
-run_tests(char *hostlist_file, char *snapshot_file, int ai_family)
+run_tests(char *hostlist_file, const char *snapshot_file, int ai_family)
 {
 	struct addrinfo_test_data td, td_snap;
+	char *snapshot_file_copy;
 	int rv;
+
+	if (snapshot_file == NULL)
+		snapshot_file_copy = NULL;
+	else {
+		snapshot_file_copy = strdup(snapshot_file);
+		ATF_REQUIRE(snapshot_file_copy != NULL);
+	}
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = ai_family;
@@ -477,24 +485,17 @@ fin:
 	TEST_DATA_DESTROY(addrinfo, &td_snap);
 	TEST_DATA_DESTROY(addrinfo, &td);
 
-	free(hostlist_file);
-	free(snapshot_file);
+	free(snapshot_file_copy);
 }
 
 #define	HOSTLIST_FILE	"mach"
 #define	RUN_TESTS(tc, snapshot_file, ai_family) do {			\
 	char *_hostlist_file;						\
-	char *_snapshot_file;						\
 	ATF_REQUIRE(0 < asprintf(&_hostlist_file, "%s/%s",		\
 	    atf_tc_get_config_var(tc, "srcdir"), HOSTLIST_FILE));	\
-	if (snapshot_file == NULL)					\
-		_snapshot_file = NULL;					\
-	else {							\
-		_snapshot_file = strdup(snapshot_file); 		\
-		ATF_REQUIRE(_snapshot_file != NULL);			\
-	}								\
-	run_tests(_hostlist_file, _snapshot_file, ai_family);		\
-} while(0)
+	run_tests(_hostlist_file, snapshot_file, ai_family);		\
+	free(_hostlist_file);						\
+} while (0)
 
 ATF_TC_WITHOUT_HEAD(pf_unspec);
 ATF_TC_BODY(pf_unspec, tc)
