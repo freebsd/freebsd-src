@@ -57,6 +57,8 @@ enum {
 	T4_GET_TRACER,			/* get information about a tracer */
 	T4_SET_TRACER,			/* program a tracer */
 	T4_LOAD_CFG,			/* copy a config file to card's flash */
+	T4_LOAD_BOOT,			/* flash boot rom */
+	T4_LOAD_BOOTCFG,		/* flash bootcfg */
 };
 
 struct t4_reg {
@@ -74,6 +76,13 @@ struct t4_regdump {
 };
 
 struct t4_data {
+	uint32_t len;
+	uint8_t *data;
+};
+
+struct t4_bootrom {
+	uint32_t pf_offset;
+	uint32_t pfidx_addr;
 	uint32_t len;
 	uint8_t *data;
 };
@@ -346,4 +355,6 @@ struct t4_tracer {
 #define CHELSIO_T4_GET_TRACER	_IOWR('f', T4_GET_TRACER, struct t4_tracer)
 #define CHELSIO_T4_SET_TRACER	_IOW('f', T4_SET_TRACER, struct t4_tracer)
 #define CHELSIO_T4_LOAD_CFG	_IOW('f', T4_LOAD_CFG, struct t4_data)
+#define CHELSIO_T4_LOAD_BOOT	_IOW('f', T4_LOAD_BOOT, struct t4_bootrom)
+#define CHELSIO_T4_LOAD_BOOTCFG	_IOW('f', T4_LOAD_BOOTCFG, struct t4_data)
 #endif
