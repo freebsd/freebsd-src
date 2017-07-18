@@ -1036,11 +1036,11 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)
 {
 
-	return (kern_openat_c(td, fd, (char * __capability)path, pathseg, flags, mode));
+	return (kern_openat_c(td, fd, (char * __CAPABILITY)path, pathseg, flags, mode));
 }
 
 int
-kern_openat_c(struct thread *td, int fd, char * __capability path, enum uio_seg pathseg,
+kern_openat_c(struct thread *td, int fd, char const * __CAPABILITY path, enum uio_seg pathseg,
     int flags, int mode)
 {
 	struct proc *p = td->td_proc;

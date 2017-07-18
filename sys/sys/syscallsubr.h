@@ -176,7 +176,7 @@ int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	    long *ploff);
 int	kern_openat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int flags, int mode);
-int	kern_openat_c(struct thread *td, int fd, char * __capability path,
+int	kern_openat_c(struct thread *td, int fd, char const * __CAPABILITY path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);

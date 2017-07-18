@@ -66,7 +66,7 @@ struct nameidata {
 	/*
 	 * Arguments to namei/lookup.
 	 */
-	const char * __capability	ni_dirp;	/* pathname pointer */
+	const char * __CAPABILITY	ni_dirp;	/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
 	cap_rights_t ni_rightsneeded;	/* rights required to look up vnode */
 	/*
@@ -179,7 +179,7 @@ void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
     enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
     cap_rights_t *rightsp, struct thread *td);
 void NDINIT_ALL_C(struct nameidata *ndp, u_long op, u_long flags,
-    enum uio_seg segflg, const char * __capability namep, int dirfd, struct vnode *startdir,
+    enum uio_seg segflg, const char * __CAPABILITY namep, int dirfd, struct vnode *startdir,
     cap_rights_t *rightsp, struct thread *td);
 
 #define NDF_NO_DVP_RELE		0x00000001

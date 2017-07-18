@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#if __has_feature(capabilities)
+#include <cheri/cheric.h>
+#endif
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -259,8 +263,6 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 	vrefact(*dpp);
 	return (0);
 }
-
-#include <cheri/cheric.h>
 
 /*
  * Convert a pathname into a pointer to a locked vnode.
@@ -1255,13 +1257,13 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
     struct thread *td)
 {
 
-	NDINIT_ALL_C(ndp, op, flags, segflg, (const char * __capability)namep,
+	NDINIT_ALL_C(ndp, op, flags, segflg, (const char * __CAPABILITY)namep,
 	    dirfd, startdir, rightsp, td);
 }
 
 void
 NDINIT_ALL_C(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
-    const char * __capability namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
+    const char * __CAPABILITY namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
     struct thread *td)
 {
 
