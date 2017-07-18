@@ -594,6 +594,8 @@
         ..
         dirname
         ..
+        du
+        ..
         file2c
         ..
         getconf
