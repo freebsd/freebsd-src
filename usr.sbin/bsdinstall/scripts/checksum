@@ -32,7 +32,7 @@ percentage=0
 for dist in $DISTRIBUTIONS; do
 	distname=$(basename $dist .txz)
 	eval "status_$distname=7"
-	
+
 	items=""
 	for i in $DISTRIBUTIONS; do
 		items="$items $i `eval echo \\\${status_$(basename $i .txz):-Pending}`"
