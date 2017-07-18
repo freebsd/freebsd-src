@@ -191,16 +191,11 @@ options(int cmdline)
 		while ((c = *p++) != '\0') {
 			if (c == 'c' && cmdline) {
 				char *q;
-#ifdef NOHACK	/* removing this code allows sh -ce 'foo' for compat */
-				if (*p == '\0')
-#endif
-					q = *argptr++;
+
+				q = *argptr++;
 				if (q == NULL || minusc != NULL)
 					error("Bad -c option");
 				minusc = q;
-#ifdef NOHACK
-				break;
-#endif
 			} else if (c == 'o') {
 				minus_o(*argptr, val);
 				if (*argptr)
