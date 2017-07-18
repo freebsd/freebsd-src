@@ -325,16 +325,9 @@ namei(struct nameidata *ndp)
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr((const char *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
-	else {
-		size_t length, offset;
-
-		length = cheri_getlen(ndp->ni_dirp);
-		offset = cheri_getoffset(ndp->ni_dirp);
-		length = MIN(length - offset, MAXPATHLEN);
-
-		error = copyinstrcap(ndp->ni_dirp, cnp->cn_pnbuf, length,
+	else
+		error = copyinstrcap(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
-	}
 
 	/*
 	 * Don't allow empty pathnames.
