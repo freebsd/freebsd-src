@@ -58,10 +58,8 @@
 void
 test_open_ordinary(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char path[] = "/dev/null";
 	int error, fd;
-
-	path = (char * __capability)"/dev/null";
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
@@ -77,10 +75,11 @@ test_open_ordinary(const struct cheri_test *ctp __unused)
 void
 test_open_offset(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char pathbuf[] = "xxxx/dev/null";;
+	char *path;
 	int error, fd;
 
-	path = (char * __capability)"xxxx/dev/null";
+	path = pathbuf;
 	path += 4;
 
 	fd = open(path, O_RDONLY);
@@ -97,10 +96,9 @@ test_open_offset(const struct cheri_test *ctp __unused)
 void
 test_open_shortened(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char path[] = "/dev/null/xxxx";
 	int error, fd;
 
-	path = (char * __capability)"/dev/null/xxxx";
 	path[9] = '\0';
 
 	fd = open(path, O_RDONLY);
@@ -117,10 +115,10 @@ test_open_shortened(const struct cheri_test *ctp __unused)
 void
 test_open_bad_addr(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char *path;
 	int fd;
 
-	path = (char * __capability)90210;
+	path = (char *)(intptr_t)90210;
 
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
@@ -135,10 +133,10 @@ test_open_bad_addr(const struct cheri_test *ctp __unused)
 void
 test_open_bad_addr_2(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char *path;
 	int fd;
 
-	path = (char * __capability)-90210;
+	path = (char *)(intptr_t)-90210;
 
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
@@ -153,11 +151,11 @@ test_open_bad_addr_2(const struct cheri_test *ctp __unused)
 void
 test_open_bad_len(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char pathbuf[] = "/dev/null";
+	char *path;
 	int fd;
 
-	path = (char * __capability)"/dev/null";
-	path = cheri_csetbounds(path, strlen(path));
+	path = cheri_csetbounds(pathbuf, strlen(path));
 
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
@@ -172,11 +170,11 @@ test_open_bad_len(const struct cheri_test *ctp __unused)
 void
 test_open_bad_len_2(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char pathbuf[] = "xxxx/dev/null";;
+	char *path;
 	int fd;
 
-	path = (char * __capability)"xxxx/dev/null";
-	path = cheri_csetbounds(path, 3);
+	path = cheri_csetbounds(pathbuf, 3);
 	path += 4;
 
 	fd = open(path, O_RDONLY);
@@ -192,12 +190,11 @@ test_open_bad_len_2(const struct cheri_test *ctp __unused)
 void
 test_open_bad_tag(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char pathbuf[] = "/dev/null";
+	char *path;
 	int fd;
 
-
-	path = (char * __capability)"/dev/null";
-	path = cheri_cleartag(path);
+	path = cheri_cleartag(pathbuf);
 
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
@@ -212,11 +209,11 @@ test_open_bad_tag(const struct cheri_test *ctp __unused)
 void
 test_open_bad_perm(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
+	char pathbuf[] = "/dev/null";
+	char *path;
 	int fd;
 
-	path = (char * __capability)"/dev/null";
-	path = cheri_andperm(path, ~CHERI_PERM_LOAD);
+	path = cheri_andperm(pathbuf, ~CHERI_PERM_LOAD);
 
 	fd = open(path, O_RDONLY);
 	if (fd > 0)
@@ -231,17 +228,22 @@ test_open_bad_perm(const struct cheri_test *ctp __unused)
 void
 test_open_sealed(const struct cheri_test *ctp __unused)
 {
-	char * __capability path;
-	void * __capability sealer;
+	char *path;
+	void * sealer;
 	int fd;
 
 	if (sysarch(CHERI_GET_SEALCAP, &sealer) < 0)
 		cheritest_failure_err("CHERI_GET_SEALCAP");
 
-	path = (char * __capability)"/dev/null";
+	/* Allocate enough space that it's sealable for 128-bit */
+	path = calloc(1, 1<<12);
+	if (path == NULL)
+		cheritest_failure_err("calloc");
+	strcpy(path, "/dev/null");
 	path = cheri_seal(path, sealer);
 
 	fd = open(path, O_RDONLY);
+	free(path);
 	if (fd > 0)
 		cheritest_failure_errx("open succeeded");
 
