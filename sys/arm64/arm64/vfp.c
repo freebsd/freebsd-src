@@ -262,8 +262,28 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
+	KASSERT((flags & FPU_KERN_NOCTX) != 0 || ctx != NULL,
+	    ("ctx is required when !FPU_KERN_NOCTX"));
 	KASSERT(ctx == NULL || (ctx->flags & FPU_KERN_CTX_INUSE) == 0,
 	    ("using inuse ctx"));
+	KASSERT((pcb->pcb_fpflags & PCB_FP_NOSAVE) == 0,
+	    ("recursive fpu_kern_enter while in PCB_FP_NOSAVE state"));
+
+	if ((flags & FPU_KERN_NOCTX) != 0) {
+		critical_enter();
+		if (curthread == PCPU_GET(fpcurthread)) {
+			vfp_save_state(curthread, pcb);
+			PCPU_SET(fpcurthread, NULL);
+		} else {
+			KASSERT(PCPU_GET(fpcurthread) == NULL,
+			    ("invalid fpcurthread"));
+		}
+
+		vfp_enable();
+		pcb->pcb_fpflags |= PCB_FP_KERN | PCB_FP_NOSAVE |
+		    PCB_FP_STARTED;
+		return (0);
+	}
 
 	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
 		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
@@ -293,19 +313,30 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 
 	pcb = td->td_pcb;
 
-	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
-	    ("FPU context not inuse"));
-	ctx->flags &= ~FPU_KERN_CTX_INUSE;
+	if ((pcb->pcb_fpflags & PCB_FP_NOSAVE) != 0) {
+		KASSERT(ctx == NULL, ("non-null ctx after FPU_KERN_NOCTX"));
+		KASSERT(PCPU_GET(fpcurthread) == NULL,
+		    ("non-NULL fpcurthread for PCB_FP_NOSAVE"));
+		CRITICAL_ASSERT(td);
 
-	if (is_fpu_kern_thread(0) &&
-	    (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
-		return (0);
-	KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0, ("dummy ctx"));
-	critical_enter();
-	vfp_discard(td);
-	critical_exit();
-	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
-	pcb->pcb_fpusaved = ctx->prev;
+		vfp_disable();
+		pcb->pcb_fpflags &= ~(PCB_FP_NOSAVE | PCB_FP_STARTED);
+		critical_exit();
+	} else {
+		KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+		    ("FPU context not inuse"));
+		ctx->flags &= ~FPU_KERN_CTX_INUSE;
+
+		if (is_fpu_kern_thread(0) &&
+		    (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
+			return (0);
+		KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0, ("dummy ctx"));
+		critical_enter();
+		vfp_discard(td);
+		critical_exit();
+		pcb->pcb_fpflags &= ~PCB_FP_STARTED;
+		pcb->pcb_fpusaved = ctx->prev;
+	}
 
 	if (pcb->pcb_fpusaved == &pcb->pcb_fpustate) {
 		pcb->pcb_fpflags &= ~PCB_FP_KERN;
