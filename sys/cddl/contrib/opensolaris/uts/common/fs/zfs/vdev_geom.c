@@ -1090,6 +1090,14 @@ vdev_geom_io_done(zio_t *zio)
 {
 	struct bio *bp = zio->io_bio;
 
+	if (bp == NULL) {
+		ASSERT3S(zio->io_error, !=, 0);
+		IMPLY(zio->io_type == ZIO_TYPE_READ ||
+		    zio->io_type == ZIO_TYPE_WRITE,
+		    zio->io_error == ENXIO);
+		return;
+	}
+
 	if (zio->io_type == ZIO_TYPE_READ) {
 		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
 	} else if (zio->io_type == ZIO_TYPE_WRITE) {
