@@ -28,7 +28,7 @@
 .\"     @(#)getbsize.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2012
+.Dd June 11, 2017
 .Dt GETBSIZE 3
 .Os
 .Sh NAME
@@ -67,7 +67,8 @@ Sizes less than 512 bytes are rounded up to 512 bytes, and sizes
 greater than 1 GB are rounded down to 1 GB.
 In each case
 .Fn getbsize
-produces a warning message.
+produces a warning message via
+.Xr warnx 3 .
 .Pp
 The
 .Fn getbsize
