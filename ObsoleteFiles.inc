@@ -40,6 +40,8 @@
 
 # 20170620: remove stale manpage
 OLD_FILES+=usr/share/man/man2/cap_rights_get.2.gz
+# 20170610: chown-f_test replaced by chown_test
+OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
 # 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
 OLD_FILES+=usr/tests/usr.bin/col/col
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_config
