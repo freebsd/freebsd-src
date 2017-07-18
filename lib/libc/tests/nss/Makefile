@@ -18,7 +18,7 @@ ATF_TESTS_C+=	getusershell_test
 
 FILES+=		mach
 
-WARNS?=		1
+WARNS?=		3
 
 CFLAGS+=	-I${SRCTOP}/tests
 
