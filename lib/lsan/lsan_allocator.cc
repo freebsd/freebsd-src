@@ -15,7 +15,9 @@
 #include "lsan_allocator.h"
 
 #include "sanitizer_common/sanitizer_allocator.h"
+#include "sanitizer_common/sanitizer_allocator_checks.h"
 #include "sanitizer_common/sanitizer_allocator_interface.h"
+#include "sanitizer_common/sanitizer_errno.h"
 #include "sanitizer_common/sanitizer_internal_defs.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
@@ -86,6 +88,13 @@ void *Allocate(const StackTrace &stack, uptr size, uptr alignment,
   return p;
 }
 
+static void *Calloc(uptr nmemb, uptr size, const StackTrace &stack) {
+  if (UNLIKELY(CheckForCallocOverflow(size, nmemb)))
+    return Allocator::FailureHandler::OnBadRequest();
+  size *= nmemb;
+  return Allocate(stack, size, 1, true);
+}
+
 void Deallocate(void *p) {
   if (&__sanitizer_free_hook) __sanitizer_free_hook(p);
   RunFreeHooks(p);
@@ -118,11 +127,15 @@ uptr GetMallocUsableSize(const void *p) {
 }
 
 void *lsan_memalign(uptr alignment, uptr size, const StackTrace &stack) {
-  return Allocate(stack, size, alignment, kAlwaysClearMemory);
+  if (UNLIKELY(!IsPowerOfTwo(alignment))) {
+    errno = errno_EINVAL;
+    return Allocator::FailureHandler::OnBadRequest();
+  }
+  return SetErrnoOnNull(Allocate(stack, size, alignment, kAlwaysClearMemory));
 }
 
 void *lsan_malloc(uptr size, const StackTrace &stack) {
-  return Allocate(stack, size, 1, kAlwaysClearMemory);
+  return SetErrnoOnNull(Allocate(stack, size, 1, kAlwaysClearMemory));
 }
 
 void lsan_free(void *p) {
@@ -130,20 +143,16 @@ void lsan_free(void *p) {
 }
 
 void *lsan_realloc(void *p, uptr size, const StackTrace &stack) {
-  return Reallocate(stack, p, size, 1);
+  return SetErrnoOnNull(Reallocate(stack, p, size, 1));
 }
 
 void *lsan_calloc(uptr nmemb, uptr size, const StackTrace &stack) {
-  if (CheckForCallocOverflow(size, nmemb))
-    return Allocator::FailureHandler::OnBadRequest();
-  size *= nmemb;
-  return Allocate(stack, size, 1, true);
+  return SetErrnoOnNull(Calloc(nmemb, size, stack));
 }
 
 void *lsan_valloc(uptr size, const StackTrace &stack) {
-  if (size == 0)
-    size = GetPageSizeCached();
-  return Allocate(stack, size, GetPageSizeCached(), kAlwaysClearMemory);
+  return SetErrnoOnNull(
+      Allocate(stack, size, GetPageSizeCached(), kAlwaysClearMemory));
 }
 
 uptr lsan_mz_size(const void *p) {

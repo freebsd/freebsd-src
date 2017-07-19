@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 #include "asan_test_utils.h"
 
+#include <errno.h>
+
 NOINLINE void *malloc_fff(size_t size) {
   void *res = malloc/**/(size); break_optimization(0); return res;}
 NOINLINE void *malloc_eee(size_t size) {
@@ -74,9 +76,11 @@ TEST(AddressSanitizer, VariousMallocsTest) {
   delete c;
 
 #if SANITIZER_TEST_HAS_POSIX_MEMALIGN
-  int *pm;
-  int pm_res = posix_memalign((void**)&pm, kPageSize, kPageSize);
+  void *pm = 0;
+  // Valid allocation.
+  int pm_res = posix_memalign(&pm, kPageSize, kPageSize);
   EXPECT_EQ(0, pm_res);
+  EXPECT_NE(nullptr, pm);
   free(pm);
 #endif  // SANITIZER_TEST_HAS_POSIX_MEMALIGN
 
