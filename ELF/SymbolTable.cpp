@@ -172,8 +172,8 @@ template <class ELFT> void SymbolTable<ELFT>::addSymbolWrap(StringRef Name) {
 }
 
 // Creates alias for symbol. Used to implement --defsym=ALIAS=SYM.
-template <class ELFT> void SymbolTable<ELFT>::addSymbolAlias(StringRef Alias,
-                                                             StringRef Name) {
+template <class ELFT>
+void SymbolTable<ELFT>::addSymbolAlias(StringRef Alias, StringRef Name) {
   SymbolBody *B = find(Name);
   if (!B) {
     error("-defsym: undefined symbol: " + Name);
@@ -211,13 +211,6 @@ static uint8_t getMinVisibility(uint8_t VA, uint8_t VB) {
 // Find an existing symbol or create and insert a new one.
 template <class ELFT>
 std::pair<Symbol *, bool> SymbolTable<ELFT>::insert(StringRef Name) {
-  // <name>@@<version> means the symbol is the default version. In that
-  // case symbol <name> must exist and <name>@@<version> will be used to
-  // resolve references to <name>.
-  size_t Pos = Name.find("@@");
-  if (Pos != StringRef::npos)
-    Name = Name.take_front(Pos);
-
   auto P = Symtab.insert(
       {CachedHashStringRef(Name), SymIndex((int)SymVector.size(), false)});
   SymIndex &V = P.first->second;
@@ -400,9 +393,8 @@ static void warnOrError(const Twine &Msg) {
 }
 
 static void reportDuplicate(SymbolBody *Sym, InputFile *NewFile) {
-  warnOrError("duplicate symbol: " + toString(*Sym) +
-              "\n>>> defined in " + toString(Sym->File) +
-              "\n>>> defined in " + toString(NewFile));
+  warnOrError("duplicate symbol: " + toString(*Sym) + "\n>>> defined in " +
+              toString(Sym->File) + "\n>>> defined in " + toString(NewFile));
 }
 
 template <class ELFT>
@@ -680,7 +672,8 @@ template <class ELFT> void SymbolTable<ELFT>::handleAnonymousVersion() {
 // Set symbol versions to symbols. This function handles patterns
 // containing no wildcard characters.
 template <class ELFT>
-void SymbolTable<ELFT>::assignExactVersion(SymbolVersion Ver, uint16_t VersionId,
+void SymbolTable<ELFT>::assignExactVersion(SymbolVersion Ver,
+                                           uint16_t VersionId,
                                            StringRef VersionName) {
   if (Ver.HasWildcard)
     return;
@@ -724,12 +717,34 @@ void SymbolTable<ELFT>::assignWildcardVersion(SymbolVersion Ver,
       B->symbol()->VersionId = VersionId;
 }
 
+static bool isDefaultVersion(SymbolBody *B) {
+  return B->isInCurrentDSO() && B->getName().find("@@") != StringRef::npos;
+}
+
 // This function processes version scripts by updating VersionId
 // member of symbols.
 template <class ELFT> void SymbolTable<ELFT>::scanVersionScript() {
+  // Symbol themselves might know their versions because symbols
+  // can contain versions in the form of <name>@<version>.
+  // Let them parse and update their names to exclude version suffix.
+  for (Symbol *Sym : SymVector) {
+    SymbolBody *Body = Sym->body();
+    bool IsDefault = isDefaultVersion(Body);
+    Body->parseSymbolVersion();
+
+    if (!IsDefault)
+      continue;
+
+    // <name>@@<version> means the symbol is the default version. If that's the
+    // case, the symbol is not used only to resolve <name> of version <version>
+    // but also undefined unversioned symbols with name <name>.
+    SymbolBody *S = find(Body->getName());
+    if (S && S->isUndefined())
+      S->copy(Body);
+  }
+
   // Handle edge cases first.
   handleAnonymousVersion();
-
 
   // Now we have version definitions, so we need to set version ids to symbols.
   // Each version definition has a glob pattern, and all symbols that match

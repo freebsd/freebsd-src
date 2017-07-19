@@ -276,7 +276,7 @@ handleTlsRelocation(uint32_t Type, SymbolBody &Body, InputSectionBase &C,
     } else {
       C.Relocations.push_back(
           {Target->adjustRelaxExpr(Type, nullptr, R_RELAX_TLS_GD_TO_LE), Type,
-                Offset, Addend, &Body});
+           Offset, Addend, &Body});
     }
     return Target->TlsGdRelaxSkip;
   }
@@ -1000,16 +1000,20 @@ void ThunkCreator::mergeThunks() {
   }
 }
 
-ThunkSection *ThunkCreator::getOSThunkSec(OutputSection *OS,
+static uint32_t findEndOfFirstNonExec(OutputSectionCommand &Cmd) {
+  for (BaseCommand *Base : Cmd.Commands)
+    if (auto *ISD = dyn_cast<InputSectionDescription>(Base))
+      for (auto *IS : ISD->Sections)
+        if ((IS->Flags & SHF_EXECINSTR) == 0)
+          return IS->OutSecOff + IS->getSize();
+  return 0;
+}
+
+ThunkSection *ThunkCreator::getOSThunkSec(OutputSectionCommand *Cmd,
                                           std::vector<InputSection *> *ISR) {
   if (CurTS == nullptr) {
-    uint32_t Off = 0;
-    for (auto *IS : OS->Sections) {
-      Off = IS->OutSecOff + IS->getSize();
-      if ((IS->Flags & SHF_EXECINSTR) == 0)
-        break;
-    }
-    CurTS = addThunkSection(OS, ISR, Off);
+    uint32_t Off = findEndOfFirstNonExec(*Cmd);
+    CurTS = addThunkSection(Cmd->Sec, ISR, Off);
   }
   return CurTS;
 }
@@ -1024,7 +1028,7 @@ ThunkSection *ThunkCreator::getISThunkSec(InputSection *IS, OutputSection *OS) {
   OutputSectionCommand *C = Script->getCmd(TOS);
   std::vector<InputSection *> *Range = nullptr;
   for (BaseCommand *BC : C->Commands)
-    if (auto *ISD = dyn_cast<InputSectionDescription> (BC)) {
+    if (auto *ISD = dyn_cast<InputSectionDescription>(BC)) {
       InputSection *first = ISD->Sections.front();
       InputSection *last = ISD->Sections.back();
       if (IS->OutSecOff >= first->OutSecOff &&
@@ -1046,7 +1050,6 @@ ThunkSection *ThunkCreator::addThunkSection(OutputSection *OS,
   return TS;
 }
 
-
 std::pair<Thunk *, bool> ThunkCreator::getThunk(SymbolBody &Body,
                                                 uint32_t Type) {
   auto Res = ThunkedSymbols.insert({&Body, std::vector<Thunk *>()});
@@ -1066,7 +1069,7 @@ std::pair<Thunk *, bool> ThunkCreator::getThunk(SymbolBody &Body,
 // InputSectionDescription::Sections.
 void ThunkCreator::forEachExecInputSection(
     ArrayRef<OutputSectionCommand *> OutputSections,
-    std::function<void(OutputSection *, std::vector<InputSection *> *,
+    std::function<void(OutputSectionCommand *, std::vector<InputSection *> *,
                        InputSection *)>
         Fn) {
   for (OutputSectionCommand *Cmd : OutputSections) {
@@ -1077,7 +1080,7 @@ void ThunkCreator::forEachExecInputSection(
       if (auto *ISD = dyn_cast<InputSectionDescription>(BC)) {
         CurTS = nullptr;
         for (InputSection *IS : ISD->Sections)
-          Fn(OS, &ISD->Sections, IS);
+          Fn(Cmd, &ISD->Sections, IS);
       }
   }
 }
@@ -1103,32 +1106,32 @@ bool ThunkCreator::createThunks(
   // We separate the creation of ThunkSections from the insertion of the
   // ThunkSections back into the OutputSection as ThunkSections are not always
   // inserted into the same OutputSection as the caller.
-  forEachExecInputSection(
-      OutputSections, [&](OutputSection *OS,  std::vector<InputSection*> *ISR,
-                          InputSection *IS) {
-        for (Relocation &Rel : IS->Relocations) {
-          SymbolBody &Body = *Rel.Sym;
-          if (Thunks.find(&Body) != Thunks.end() ||
-              !Target->needsThunk(Rel.Expr, Rel.Type, IS->File, Body))
-            continue;
-          Thunk *T;
-          bool IsNew;
-          std::tie(T, IsNew) = getThunk(Body, Rel.Type);
-          if (IsNew) {
-            // Find or create a ThunkSection for the new Thunk
-            ThunkSection *TS;
-            if (auto *TIS = T->getTargetInputSection())
-              TS = getISThunkSec(TIS, OS);
-            else
-              TS = getOSThunkSec(OS, ISR);
-            TS->addThunk(T);
-            Thunks[T->ThunkSym] = T;
-          }
-          // Redirect relocation to Thunk, we never go via the PLT to a Thunk
-          Rel.Sym = T->ThunkSym;
-          Rel.Expr = fromPlt(Rel.Expr);
-        }
-      });
+  forEachExecInputSection(OutputSections, [&](OutputSectionCommand *Cmd,
+                                              std::vector<InputSection *> *ISR,
+                                              InputSection *IS) {
+    for (Relocation &Rel : IS->Relocations) {
+      SymbolBody &Body = *Rel.Sym;
+      if (Thunks.find(&Body) != Thunks.end() ||
+          !Target->needsThunk(Rel.Expr, Rel.Type, IS->File, Body))
+        continue;
+      Thunk *T;
+      bool IsNew;
+      std::tie(T, IsNew) = getThunk(Body, Rel.Type);
+      if (IsNew) {
+        // Find or create a ThunkSection for the new Thunk
+        ThunkSection *TS;
+        if (auto *TIS = T->getTargetInputSection())
+          TS = getISThunkSec(TIS, Cmd->Sec);
+        else
+          TS = getOSThunkSec(Cmd, ISR);
+        TS->addThunk(T);
+        Thunks[T->ThunkSym] = T;
+      }
+      // Redirect relocation to Thunk, we never go via the PLT to a Thunk
+      Rel.Sym = T->ThunkSym;
+      Rel.Expr = fromPlt(Rel.Expr);
+    }
+  });
   // Merge all created synthetic ThunkSections back into OutputSection
   mergeThunks();
   ++Pass;
