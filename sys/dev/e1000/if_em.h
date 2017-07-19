@@ -235,6 +235,27 @@
 #define EM_EEPROM_APME			0x400;
 #define EM_82544_APME			0x0004;
 
+
+/* Support AutoMediaDetect for Marvell M88 PHY in i354 */
+#define IGB_MEDIA_RESET			(1 << 0)
+
+/* Define the starting Interrupt rate per Queue */
+#define IGB_INTS_PER_SEC        8000
+#define IGB_DEFAULT_ITR         ((1000000/IGB_INTS_PER_SEC) << 2)
+
+#define IGB_LINK_ITR            2000
+#define I210_LINK_DELAY		1000
+
+#define IGB_MAX_SCATTER		40
+#define IGB_VFTA_SIZE		128
+#define IGB_BR_SIZE		4096	/* ring buf size */
+#define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
+#define IGB_TSO_SEG_SIZE	4096	/* Max dma segment size */
+#define IGB_TXPBSIZE		20408
+#define IGB_HDR_BUF		128
+#define IGB_PKTTYPE_MASK	0x0000FFF0
+#define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coalesce Flush */
+
 /*
  * Driver state logic for the detection of a hung state
  * in hardware.  Set TX_HUNG whenever a TX packet is used
@@ -455,11 +476,11 @@ struct adapter {
 	struct ifmedia	*media;
 	int		msix;
 	int		if_flags;
-	int		min_frame_size;
 	int		em_insert_vlan_header;
 	u32		ims;
 	bool		in_detach;
 
+	u32		flags;
 	/* Task for FAST handling */
 	struct grouptask link_task;
 
@@ -514,6 +535,7 @@ struct adapter {
 	unsigned long	watchdog_events;
 
 	struct e1000_hw_stats stats;
+	u16		vf_ifp;
 };
 
 /********************************************************************************
