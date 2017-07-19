@@ -72,14 +72,6 @@
 #include <dev/sbni/if_sbnireg.h>
 #include <dev/sbni/if_sbnivar.h>
 
-/*
- * Replace the length in an ioctl definition.  This reduces the risk of
- * copy and paste errors vs a fresh definition.
- */
-#define	_IOC_NEWLEN(ioc, len) \
-    (((~(IOCPARM_MASK << 16)) & (ioc)) | (((len) & IOCPARM_MASK) << 16))
-#define _IOC_NEWTYPE(ioc, type)	_IOC_NEWLEN((ioc), sizeof(type))
-
 struct ioc_read_toc_entry_c {
 	u_char	address_format;
 	u_char	starting_track;

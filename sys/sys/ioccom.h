@@ -60,6 +60,15 @@
 /* this should be _IORW, but stdio got there first */
 #define	_IOWR(g,n,t)	_IOC(IOC_INOUT,	(g), (n), sizeof(t))
 
+/*
+ * Replace the length in an ioctl definition.  This reduces the risk of
+ * copy and paste errors vs a fresh definition.
+ */
+#define	_IOC_NEWLEN(ioc, len) \
+    (((~(IOCPARM_MASK << 16)) & (ioc)) | (((len) & IOCPARM_MASK) << 16))
+#define _IOC_NEWTYPE(ioc, type)	_IOC_NEWLEN((ioc), sizeof(type))
+
+
 #ifdef _KERNEL
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
