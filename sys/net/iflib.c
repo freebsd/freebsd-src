@@ -2927,6 +2927,14 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 				m_free(tmp);
 				continue;
 			}
+			m = m->m_next;
+			count++;
+		} while (m != NULL);
+		if (count > *nsegs)
+			return (0);
+		m = *m0;
+		count = 0;
+		do {
 			next = (pidx + count) & (ntxd-1);
 			MPASS(ifsd_m[next] == NULL);
 			ifsd_m[next] = m;
