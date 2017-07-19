@@ -72,6 +72,8 @@
         ..
         ssl
         ..
+        syslog.d
+        ..
         zfs
         ..
     ..
