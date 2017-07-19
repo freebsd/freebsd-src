@@ -125,7 +125,7 @@ test_cheriabi_open_bad_addr(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -143,7 +143,7 @@ test_cheriabi_open_bad_addr_2(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -162,7 +162,7 @@ test_cheriabi_open_bad_len(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -182,7 +182,7 @@ test_cheriabi_open_bad_len_2(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -201,7 +201,7 @@ test_cheriabi_open_bad_tag(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -220,7 +220,7 @@ test_cheriabi_open_bad_perm(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
@@ -248,7 +248,7 @@ test_cheriabi_open_sealed(const struct cheri_test *ctp __unused)
 		cheritest_failure_errx("open succeeded");
 
 	if (errno != EFAULT)
-		cheritest_failure_errx("errno %d insted of NOFAULT", errno);
+		cheritest_failure_err("EFAULT expected");
 
 	cheritest_success();
 }
