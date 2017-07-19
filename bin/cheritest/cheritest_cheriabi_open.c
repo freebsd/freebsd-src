@@ -56,7 +56,7 @@
 #include "cheritest.h"
 
 void
-test_open_ordinary(const struct cheri_test *ctp __unused)
+test_cheriabi_open_ordinary(const struct cheri_test *ctp __unused)
 {
 	char path[] = "/dev/null";
 	int error, fd;
@@ -73,7 +73,7 @@ test_open_ordinary(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_offset(const struct cheri_test *ctp __unused)
+test_cheriabi_open_offset(const struct cheri_test *ctp __unused)
 {
 	char pathbuf[] = "xxxx/dev/null";;
 	char *path;
@@ -94,7 +94,7 @@ test_open_offset(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_shortened(const struct cheri_test *ctp __unused)
+test_cheriabi_open_shortened(const struct cheri_test *ctp __unused)
 {
 	char path[] = "/dev/null/xxxx";
 	int error, fd;
@@ -113,7 +113,7 @@ test_open_shortened(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_addr(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_addr(const struct cheri_test *ctp __unused)
 {
 	char *path;
 	int fd;
@@ -131,7 +131,7 @@ test_open_bad_addr(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_addr_2(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_addr_2(const struct cheri_test *ctp __unused)
 {
 	char *path;
 	int fd;
@@ -149,7 +149,7 @@ test_open_bad_addr_2(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_len(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_len(const struct cheri_test *ctp __unused)
 {
 	char pathbuf[] = "/dev/null";
 	char *path;
@@ -168,7 +168,7 @@ test_open_bad_len(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_len_2(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_len_2(const struct cheri_test *ctp __unused)
 {
 	char pathbuf[] = "xxxx/dev/null";;
 	char *path;
@@ -188,7 +188,7 @@ test_open_bad_len_2(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_tag(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_tag(const struct cheri_test *ctp __unused)
 {
 	char pathbuf[] = "/dev/null";
 	char *path;
@@ -207,7 +207,7 @@ test_open_bad_tag(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_bad_perm(const struct cheri_test *ctp __unused)
+test_cheriabi_open_bad_perm(const struct cheri_test *ctp __unused)
 {
 	char pathbuf[] = "/dev/null";
 	char *path;
@@ -226,7 +226,7 @@ test_open_bad_perm(const struct cheri_test *ctp __unused)
 }
 
 void
-test_open_sealed(const struct cheri_test *ctp __unused)
+test_cheriabi_open_sealed(const struct cheri_test *ctp __unused)
 {
 	char *path;
 	void * sealer;

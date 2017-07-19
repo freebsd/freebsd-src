@@ -260,6 +260,18 @@ void	test_cheriabi_mmap_nospace(const struct cheri_test *ctp);
 void	test_cheriabi_mmap_perms(const struct cheri_test *ctp);
 void	test_cheriabi_mmap_unrepresentable(const struct cheri_test *ctp);
 
+/* cheritest_cheriabi_open.c */
+void	test_cheriabi_open_ordinary(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_offset(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_shortened(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_bad_addr(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_bad_addr_2(const struct cheri_test *ctp __unused);;
+void	test_cheriabi_open_bad_len(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_bad_len_2(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_bad_tag(const struct cheri_test *ctp __unused);;
+void	test_cheriabi_open_bad_perm(const struct cheri_test *ctp __unused);
+void	test_cheriabi_open_sealed(const struct cheri_test *ctp __unused);
+
 /* cheritest_fault.c */
 void	test_fault_bounds(const struct cheri_test *ctp);
 void	test_fault_cgetcause(const struct cheri_test *ctp);
@@ -369,18 +381,6 @@ void	test_sandbox_var_data(const struct cheri_test *ctp);
 void	test_sandbox_var_data_getset(const struct cheri_test *ctp);
 void	test_2sandbox_var_data_getset(const struct cheri_test *ctp);
 void	test_sandbox_var_constructor(const struct cheri_test *ctp);
-
-/* cheritest_open.c */
-void	test_open_ordinary(const struct cheri_test *ctp __unused);
-void	test_open_offset(const struct cheri_test *ctp __unused);
-void	test_open_shortened(const struct cheri_test *ctp __unused);
-void	test_open_bad_addr(const struct cheri_test *ctp __unused);
-void	test_open_bad_addr_2(const struct cheri_test *ctp __unused);;
-void	test_open_bad_len(const struct cheri_test *ctp __unused);
-void	test_open_bad_len_2(const struct cheri_test *ctp __unused);
-void	test_open_bad_tag(const struct cheri_test *ctp __unused);;
-void	test_open_bad_perm(const struct cheri_test *ctp __unused);
-void	test_open_sealed(const struct cheri_test *ctp __unused);
 
 /* cheritest_sealcap.c */
 void	test_sealcap_sysarch(const struct cheri_test *ctp);
