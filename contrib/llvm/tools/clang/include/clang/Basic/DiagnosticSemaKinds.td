@@ -808,8 +808,10 @@ def warn_property_types_are_incompatible : Warning<
   "property type %0 is incompatible with type %1 inherited from %2">,
   InGroup<DiagGroup<"incompatible-property-type">>;
 def warn_protocol_property_mismatch : Warning<
-  "property of type %0 was selected for synthesis">,
+  "property %select{of type %1|with attribute '%1'|without attribute '%1'|with "
+  "getter %1|with setter %1}0 was selected for synthesis">,
   InGroup<DiagGroup<"protocol-property-synthesis-ambiguity">>;
+def err_protocol_property_mismatch: Error<warn_protocol_property_mismatch.Text>;
 def err_undef_interface : Error<"cannot find interface declaration for %0">;
 def err_category_forward_interface : Error<
   "cannot define %select{category|class extension}0 for undefined class %1">;
@@ -1088,7 +1090,9 @@ def err_category_property : Error<
 def note_property_declare : Note<
   "property declared here">;
 def note_protocol_property_declare : Note<
-  "it could also be property of type %0 declared here">;
+  "it could also be property "
+  "%select{of type %1|without attribute '%1'|with attribute '%1'|with getter "
+  "%1|with setter %1}0 declared here">;
 def note_property_synthesize : Note<
   "property synthesized here">;
 def err_synthesize_category_decl : Error<
@@ -4575,8 +4579,11 @@ def warn_deprecated_fwdclass_message : Warning<
     "%0 may be deprecated because the receiver type is unknown">,
     InGroup<DeprecatedDeclarations>;
 def warn_deprecated_def : Warning<
-    "Implementing deprecated %select{method|class|category}0">,
-    InGroup<DeprecatedImplementations>, DefaultIgnore;
+  "implementing deprecated %select{method|class|category}0">,
+  InGroup<DeprecatedImplementations>, DefaultIgnore;
+def warn_unavailable_def : Warning<
+  "implementing unavailable method">,
+  InGroup<DeprecatedImplementations>, DefaultIgnore;
 def err_unavailable : Error<"%0 is unavailable">;
 def err_property_method_unavailable :
     Error<"property access is using %0 method which is unavailable">;
@@ -8106,10 +8113,10 @@ def err_systemz_invalid_tabort_code : Error<
   "invalid transaction abort code">;
 def err_64_bit_builtin_32_bit_tgt : Error<
   "this builtin is only available on 64-bit targets">;
+def err_builtin_x64_aarch64_only : Error<
+  "this builtin is only available on x86-64 and aarch64 targets">;
 def err_ppc_builtin_only_on_pwr7 : Error<
   "this builtin is only valid on POWER7 or later CPUs">;
-def err_x86_builtin_64_only : Error<
-  "this builtin is only available on x86-64 targets">;
 def err_x86_builtin_invalid_rounding : Error<
   "invalid rounding argument">;
 def err_x86_builtin_invalid_scale : Error<
@@ -8648,11 +8655,11 @@ def err_omp_unknown_reduction_identifier : Error<
 def err_omp_not_resolved_reduction_identifier : Error<
   "unable to resolve declare reduction construct for type %0">;
 def err_omp_reduction_ref_type_arg : Error<
-  "argument of OpenMP clause 'reduction' must reference the same object in all threads">;
+  "argument of OpenMP clause '%0' must reference the same object in all threads">;
 def err_omp_clause_not_arithmetic_type_arg : Error<
-  "arguments of OpenMP clause 'reduction' for 'min' or 'max' must be of %select{scalar|arithmetic}0 type">;
+  "arguments of OpenMP clause '%0' for 'min' or 'max' must be of %select{scalar|arithmetic}1 type">;
 def err_omp_clause_floating_type_arg : Error<
-  "arguments of OpenMP clause 'reduction' with bitwise operators cannot be of floating type">;
+  "arguments of OpenMP clause '%0' with bitwise operators cannot be of floating type">;
 def err_omp_once_referenced : Error<
   "variable can appear only once in OpenMP '%0' clause">;
 def err_omp_once_referenced_in_target_update : Error<

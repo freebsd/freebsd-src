@@ -617,6 +617,8 @@ SRCS_MIN+=	MC/WinCOFFObjectWriter.cpp
 SRCS_MIN+=	Object/Archive.cpp
 SRCS_MIN+=	Object/ArchiveWriter.cpp
 SRCS_MIN+=	Object/Binary.cpp
+SRCS_EXT+=	Object/COFFImportFile.cpp
+SRCS_EXT+=	Object/COFFModuleDefinition.cpp
 SRCS_MIN+=	Object/COFFObjectFile.cpp
 SRCS_MIN+=	Object/Decompressor.cpp
 SRCS_MIN+=	Object/ELF.cpp
@@ -779,6 +781,7 @@ SRCS_MIN+=	Target/AArch64/AArch64ConditionOptimizer.cpp
 SRCS_MIN+=	Target/AArch64/AArch64ConditionalCompares.cpp
 SRCS_MIN+=	Target/AArch64/AArch64DeadRegisterDefinitionsPass.cpp
 SRCS_MIN+=	Target/AArch64/AArch64ExpandPseudoInsts.cpp
+SRCS_MIN+=	Target/AArch64/AArch64FalkorHWPFFix.cpp
 SRCS_MIN+=	Target/AArch64/AArch64FastISel.cpp
 SRCS_MIN+=	Target/AArch64/AArch64FrameLowering.cpp
 SRCS_MIN+=	Target/AArch64/AArch64ISelDAGToDAG.cpp
@@ -1011,6 +1014,7 @@ SRCS_MIN+=	Target/X86/X86AsmPrinter.cpp
 SRCS_MIN+=	Target/X86/X86CallFrameOptimization.cpp
 SRCS_MIN+=	Target/X86/X86CallLowering.cpp
 SRCS_MIN+=	Target/X86/X86CallingConv.cpp
+SRCS_MIN+=	Target/X86/X86CmovConversion.cpp
 SRCS_MIN+=	Target/X86/X86EvexToVex.cpp
 SRCS_MIN+=	Target/X86/X86ExpandPseudo.cpp
 SRCS_MIN+=	Target/X86/X86FastISel.cpp
@@ -1042,6 +1046,7 @@ SRCS_MIN+=	Target/X86/X86TargetTransformInfo.cpp
 SRCS_MIN+=	Target/X86/X86VZeroUpper.cpp
 SRCS_MIN+=	Target/X86/X86WinAllocaExpander.cpp
 SRCS_MIN+=	Target/X86/X86WinEHState.cpp
+SRCS_EXT+=	ToolDrivers/llvm-dlltool/DlltoolDriver.cpp
 SRCS_EXL+=	ToolDrivers/llvm-lib/LibDriver.cpp
 SRCS_MIN+=	Transforms/Coroutines/CoroCleanup.cpp
 SRCS_MIN+=	Transforms/Coroutines/CoroEarly.cpp
@@ -1283,11 +1288,19 @@ AttributesCompatFunc.inc: ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 	    ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 TGHDRS+=	AttributesCompatFunc.inc
 
-Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
+llvm-lib/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
-TGHDRS+=	Options.inc
+TGHDRS+=	llvm-lib/Options.inc
+CFLAGS.LibDriver.cpp+=	-I${.OBJDIR}/llvm-lib
+
+llvm-dlltool/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-dlltool/Options.td
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
+	    ${LLVM_SRCS}/lib/ToolDrivers/llvm-dlltool/Options.td
+TGHDRS+=	llvm-dlltool/Options.inc
+CFLAGS.DlltoolDriver.cpp+=	-I${.OBJDIR}/llvm-dlltool
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \

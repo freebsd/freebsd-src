@@ -112,7 +112,7 @@ protected:
 };
 
 // A chunk corresponding a section of an input file.
-class SectionChunk : public Chunk {
+class SectionChunk final : public Chunk {
   // Identical COMDAT Folding feature accesses section internal data.
   friend class ICF;
 
@@ -187,6 +187,9 @@ public:
   bool isCodeView() const {
     return SectionName == ".debug" || SectionName.startswith(".debug$");
   }
+
+  // True if this is a DWARF debug info chunk.
+  bool isDWARF() const { return SectionName.startswith(".debug_"); }
 
   // Allow iteration over the bodies of this chunk's relocated symbols.
   llvm::iterator_range<symbol_iterator> symbols() const {

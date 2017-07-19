@@ -41,6 +41,10 @@
 // |                                   |
 // |-----------------------------------|
 // |                                   |
+// | (Win64 only) varargs from reg     |
+// |                                   |
+// |-----------------------------------|
+// |                                   |
 // | prev_fp, prev_lr                  |
 // | (a.k.a. "frame record")           |
 // |-----------------------------------| <- fp(=x29)
@@ -950,7 +954,13 @@ static void computeCalleeSaveRegisterPairs(
           CC == CallingConv::PreserveMost ||
           (Count & 1) == 0) &&
          "Odd number of callee-saved regs to spill!");
-  unsigned Offset = AFI->getCalleeSavedStackSize();
+  int Offset = AFI->getCalleeSavedStackSize();
+
+  unsigned GPRSaveSize = AFI->getVarArgsGPRSize();
+  const AArch64Subtarget &Subtarget = MF.getSubtarget<AArch64Subtarget>();
+  bool IsWin64 = Subtarget.isCallingConvWin64(MF.getFunction()->getCallingConv());
+  if (IsWin64)
+    Offset -= alignTo(GPRSaveSize, 16);
 
   for (unsigned i = 0; i < Count; ++i) {
     RegPairInfo RPI;

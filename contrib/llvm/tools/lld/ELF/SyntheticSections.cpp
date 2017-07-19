@@ -662,7 +662,12 @@ bool GotSection::empty() const {
   return NumEntries == 0 && !HasGotOffRel;
 }
 
-void GotSection::writeTo(uint8_t *Buf) { relocateAlloc(Buf, Buf + Size); }
+void GotSection::writeTo(uint8_t *Buf) {
+  // Buf points to the start of this section's buffer,
+  // whereas InputSectionBase::relocateAlloc() expects its argument
+  // to point to the start of the output section.
+  relocateAlloc(Buf - OutSecOff, Buf - OutSecOff + Size);
+}
 
 MipsGotSection::MipsGotSection()
     : SyntheticSection(SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL, SHT_PROGBITS, 16,
@@ -812,9 +817,7 @@ unsigned MipsGotSection::getLocalEntriesNum() const {
          LocalEntries32.size();
 }
 
-void MipsGotSection::finalizeContents() {
-  updateAllocSize();
-}
+void MipsGotSection::finalizeContents() { updateAllocSize(); }
 
 void MipsGotSection::updateAllocSize() {
   PageEntriesNum = 0;
@@ -838,9 +841,7 @@ bool MipsGotSection::empty() const {
   return Config->Relocatable;
 }
 
-uint64_t MipsGotSection::getGp() const {
-  return ElfSym::MipsGp->getVA(0);
-}
+uint64_t MipsGotSection::getGp() const { return ElfSym::MipsGp->getVA(0); }
 
 static uint64_t readUint(uint8_t *Buf) {
   if (Config->Is64)
@@ -1019,6 +1020,8 @@ DynamicSection<ELFT>::DynamicSection()
 template <class ELFT> void DynamicSection<ELFT>::addEntries() {
   // Add strings to .dynstr early so that .dynstr's size will be
   // fixed early.
+  for (StringRef S : Config->FilterList)
+    add({DT_FILTER, InX::DynStrTab->addString(S)});
   for (StringRef S : Config->AuxiliaryList)
     add({DT_AUXILIARY, InX::DynStrTab->addString(S)});
   if (!Config->Rpath.empty())
@@ -1607,7 +1610,7 @@ HashTableSection<ELFT>::HashTableSection()
 template <class ELFT> void HashTableSection<ELFT>::finalizeContents() {
   getParent()->Link = InX::DynSymTab->getParent()->SectionIndex;
 
-  unsigned NumEntries = 2;                            // nbucket and nchain.
+  unsigned NumEntries = 2;                       // nbucket and nchain.
   NumEntries += InX::DynSymTab->getNumSymbols(); // The chain entries.
 
   // Create as many buckets as there are symbols.
@@ -1926,9 +1929,7 @@ void GdbIndexSection::writeTo(uint8_t *Buf) {
   StringPool.write(Buf);
 }
 
-bool GdbIndexSection::empty() const {
-  return !Out::DebugInfo;
-}
+bool GdbIndexSection::empty() const { return !Out::DebugInfo; }
 
 template <class ELFT>
 EhFrameHeader<ELFT>::EhFrameHeader()
@@ -2211,9 +2212,7 @@ void MergeSyntheticSection::finalizeContents() {
     finalizeNoTailMerge();
 }
 
-size_t MergeSyntheticSection::getSize() const {
-  return Builder.getSize();
-}
+size_t MergeSyntheticSection::getSize() const { return Builder.getSize(); }
 
 // This function decompresses compressed sections and scans over the input
 // sections to create mergeable synthetic sections. It removes
@@ -2312,7 +2311,7 @@ ThunkSection::ThunkSection(OutputSection *OS, uint64_t Off)
 }
 
 void ThunkSection::addThunk(Thunk *T) {
-  uint64_t Off = alignTo(Size, T->alignment);
+  uint64_t Off = alignTo(Size, T->Alignment);
   T->Offset = Off;
   Thunks.push_back(T);
   T->addSymbols(*this);

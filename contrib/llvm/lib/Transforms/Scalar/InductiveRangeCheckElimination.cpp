@@ -805,6 +805,25 @@ LoopStructure::parseLoopStructure(ScalarEvolution &SE, BranchProbabilityInfo &BP
   ConstantInt *One = ConstantInt::get(IndVarTy, 1);
   // TODO: generalize the predicates here to also match their unsigned variants.
   if (IsIncreasing) {
+    bool DecreasedRightValueByOne = false;
+    // Try to turn eq/ne predicates to those we can work with.
+    if (Pred == ICmpInst::ICMP_NE && LatchBrExitIdx == 1)
+      // while (++i != len) {         while (++i < len) {
+      //   ...                 --->     ...
+      // }                            }
+      Pred = ICmpInst::ICMP_SLT;
+    else if (Pred == ICmpInst::ICMP_EQ && LatchBrExitIdx == 0 &&
+             !CanBeSMin(SE, RightSCEV)) {
+      // while (true) {               while (true) {
+      //   if (++i == len)     --->     if (++i > len - 1)
+      //     break;                       break;
+      //   ...                          ...
+      // }                            }
+      Pred = ICmpInst::ICMP_SGT;
+      RightSCEV = SE.getMinusSCEV(RightSCEV, SE.getOne(RightSCEV->getType()));
+      DecreasedRightValueByOne = true;
+    }
+
     bool FoundExpectedPred =
         (Pred == ICmpInst::ICMP_SLT && LatchBrExitIdx == 1) ||
         (Pred == ICmpInst::ICMP_SGT && LatchBrExitIdx == 0);
@@ -829,16 +848,41 @@ LoopStructure::parseLoopStructure(ScalarEvolution &SE, BranchProbabilityInfo &BP
         return None;
       }
 
-      IRBuilder<> B(Preheader->getTerminator());
-      RightValue = B.CreateAdd(RightValue, One);
+      // We need to increase the right value unless we have already decreased
+      // it virtually when we replaced EQ with SGT.
+      if (!DecreasedRightValueByOne) {
+        IRBuilder<> B(Preheader->getTerminator());
+        RightValue = B.CreateAdd(RightValue, One);
+      }
     } else {
       if (!SE.isLoopEntryGuardedByCond(&L, CmpInst::ICMP_SLT, IndVarStart,
                                        RightSCEV)) {
         FailureReason = "Induction variable start not bounded by upper limit";
         return None;
       }
+      assert(!DecreasedRightValueByOne &&
+             "Right value can be decreased only for LatchBrExitIdx == 0!");
     }
   } else {
+    bool IncreasedRightValueByOne = false;
+    // Try to turn eq/ne predicates to those we can work with.
+    if (Pred == ICmpInst::ICMP_NE && LatchBrExitIdx == 1)
+      // while (--i != len) {         while (--i > len) {
+      //   ...                 --->     ...
+      // }                            }
+      Pred = ICmpInst::ICMP_SGT;
+    else if (Pred == ICmpInst::ICMP_EQ && LatchBrExitIdx == 0 &&
+             !CanBeSMax(SE, RightSCEV)) {
+      // while (true) {               while (true) {
+      //   if (--i == len)     --->     if (--i < len + 1)
+      //     break;                       break;
+      //   ...                          ...
+      // }                            }
+      Pred = ICmpInst::ICMP_SLT;
+      RightSCEV = SE.getAddExpr(RightSCEV, SE.getOne(RightSCEV->getType()));
+      IncreasedRightValueByOne = true;
+    }
+
     bool FoundExpectedPred =
         (Pred == ICmpInst::ICMP_SGT && LatchBrExitIdx == 1) ||
         (Pred == ICmpInst::ICMP_SLT && LatchBrExitIdx == 0);
@@ -863,14 +907,20 @@ LoopStructure::parseLoopStructure(ScalarEvolution &SE, BranchProbabilityInfo &BP
         return None;
       }
 
-      IRBuilder<> B(Preheader->getTerminator());
-      RightValue = B.CreateSub(RightValue, One);
+      // We need to decrease the right value unless we have already increased
+      // it virtually when we replaced EQ with SLT.
+      if (!IncreasedRightValueByOne) {
+        IRBuilder<> B(Preheader->getTerminator());
+        RightValue = B.CreateSub(RightValue, One);
+      }
     } else {
       if (!SE.isLoopEntryGuardedByCond(&L, CmpInst::ICMP_SGT, IndVarStart,
                                        RightSCEV)) {
         FailureReason = "Induction variable start not bounded by lower limit";
         return None;
       }
+      assert(!IncreasedRightValueByOne &&
+             "Right value can be increased only for LatchBrExitIdx == 0!");
     }
   }
 
@@ -922,14 +972,18 @@ LoopConstrainer::calculateSubRanges() const {
 
   bool Increasing = MainLoopStructure.IndVarIncreasing;
 
-  // We compute `Smallest` and `Greatest` such that [Smallest, Greatest) is the
-  // range of values the induction variable takes.
+  // We compute `Smallest` and `Greatest` such that [Smallest, Greatest), or
+  // [Smallest, GreatestSeen] is the range of values the induction variable
+  // takes.
 
-  const SCEV *Smallest = nullptr, *Greatest = nullptr;
+  const SCEV *Smallest = nullptr, *Greatest = nullptr, *GreatestSeen = nullptr;
 
+  const SCEV *One = SE.getOne(Ty);
   if (Increasing) {
     Smallest = Start;
     Greatest = End;
+    // No overflow, because the range [Smallest, GreatestSeen] is not empty.
+    GreatestSeen = SE.getMinusSCEV(End, One);
   } else {
     // These two computations may sign-overflow.  Here is why that is okay:
     //
@@ -947,9 +1001,9 @@ LoopConstrainer::calculateSubRanges() const {
     //    will be an empty range.  Returning an empty range is always safe.
     //
 
-    const SCEV *One = SE.getOne(Ty);
     Smallest = SE.getAddExpr(End, One);
     Greatest = SE.getAddExpr(Start, One);
+    GreatestSeen = Start;
   }
 
   auto Clamp = [this, Smallest, Greatest](const SCEV *S) {
@@ -964,7 +1018,7 @@ LoopConstrainer::calculateSubRanges() const {
     Result.LowLimit = Clamp(Range.getBegin());
 
   bool ProvablyNoPostLoop =
-      SE.isKnownPredicate(ICmpInst::ICMP_SLE, Greatest, Range.getEnd());
+      SE.isKnownPredicate(ICmpInst::ICMP_SLT, GreatestSeen, Range.getEnd());
   if (!ProvablyNoPostLoop)
     Result.HighLimit = Clamp(Range.getEnd());
 

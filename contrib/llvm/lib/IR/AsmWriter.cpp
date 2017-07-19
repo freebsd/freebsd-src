@@ -365,7 +365,7 @@ static void PrintCallingConv(unsigned cc, raw_ostream &Out) {
   case CallingConv::PTX_Kernel:    Out << "ptx_kernel"; break;
   case CallingConv::PTX_Device:    Out << "ptx_device"; break;
   case CallingConv::X86_64_SysV:   Out << "x86_64_sysvcc"; break;
-  case CallingConv::X86_64_Win64:  Out << "x86_64_win64cc"; break;
+  case CallingConv::Win64:         Out << "win64cc"; break;
   case CallingConv::SPIR_FUNC:     Out << "spir_func"; break;
   case CallingConv::SPIR_KERNEL:   Out << "spir_kernel"; break;
   case CallingConv::Swift:         Out << "swiftcc"; break;
@@ -1964,6 +1964,7 @@ static void writeDIImportedEntity(raw_ostream &Out, const DIImportedEntity *N,
   Printer.printString("name", N->getName());
   Printer.printMetadata("scope", N->getRawScope(), /* ShouldSkipNull */ false);
   Printer.printMetadata("entity", N->getRawEntity());
+  Printer.printMetadata("file", N->getRawFile());
   Printer.printInt("line", N->getLine());
   Out << ")";
 }

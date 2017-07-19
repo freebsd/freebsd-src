@@ -210,7 +210,15 @@ void SectionChunk::writeTo(uint8_t *Buf) const {
   memcpy(Buf + OutputSectionOff, A.data(), A.size());
 
   // Apply relocations.
+  size_t InputSize = getSize();
   for (const coff_relocation &Rel : Relocs) {
+    // Check for an invalid relocation offset. This check isn't perfect, because
+    // we don't have the relocation size, which is only known after checking the
+    // machine and relocation type. As a result, a relocation may overwrite the
+    // beginning of the following input section.
+    if (Rel.VirtualAddress >= InputSize)
+      fatal("relocation points beyond the end of its parent section");
+
     uint8_t *Off = Buf + OutputSectionOff + Rel.VirtualAddress;
 
     // Get the output section of the symbol for this relocation.  The output
@@ -227,7 +235,7 @@ void SectionChunk::writeTo(uint8_t *Buf) const {
     // sections are not GC roots and can end up with these kinds of relocations.
     // Skip these relocations.
     if (!OS && !isa<DefinedAbsolute>(Sym) && !isa<DefinedSynthetic>(Sym)) {
-      if (isCodeView())
+      if (isCodeView() || isDWARF())
         continue;
       fatal("relocation against symbol in discarded section: " +
             Sym->getName());
