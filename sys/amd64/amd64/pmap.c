@@ -629,6 +629,9 @@ static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
     struct spglist *free);
+static bool	pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+		    pd_entry_t *pde, struct spglist *free,
+		    struct rwlock **lockp);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
@@ -3736,6 +3739,44 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
 }
 
 /*
+ * Removes the specified range of addresses from the page table page.
+ */
+static bool
+pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    pd_entry_t *pde, struct spglist *free, struct rwlock **lockp)
+{
+	pt_entry_t PG_G, *pte;
+	vm_offset_t va;
+	bool anyvalid;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	PG_G = pmap_global_bit(pmap);
+	anyvalid = false;
+	va = eva;
+	for (pte = pmap_pde_to_pte(pde, sva); sva != eva; pte++,
+	    sva += PAGE_SIZE) {
+		if (*pte == 0) {
+			if (va != eva) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = eva;
+			}
+			continue;
+		}
+		if ((*pte & PG_G) == 0)
+			anyvalid = true;
+		else if (va == eva)
+			va = sva;
+		if (pmap_remove_pte(pmap, pte, sva, *pde, free, lockp)) {
+			sva += PAGE_SIZE;
+			break;
+		}
+	}
+	if (va != eva)
+		pmap_invalidate_range(pmap, va, sva);
+	return (anyvalid);
+}
+
+/*
  *	Remove the given range of addresses from the specified map.
  *
  *	It is assumed that the start and end are properly
@@ -3745,11 +3786,11 @@ void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct rwlock *lock;
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
-	pt_entry_t *pte, PG_G, PG_V;
+	pt_entry_t PG_G, PG_V;
 	struct spglist free;
 	int anyvalid;
 
@@ -3852,28 +3893,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (va_next > eva)
 			va_next = eva;
 
-		va = va_next;
-		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
-		    sva += PAGE_SIZE) {
-			if (*pte == 0) {
-				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva);
-					va = va_next;
-				}
-				continue;
-			}
-			if ((*pte & PG_G) == 0)
-				anyvalid = 1;
-			else if (va == va_next)
-				va = sva;
-			if (pmap_remove_pte(pmap, pte, sva, ptpaddr, &free,
-			    &lock)) {
-				sva += PAGE_SIZE;
-				break;
-			}
-		}
-		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
+		if (pmap_remove_ptes(pmap, sva, va_next, pde, &free, &lock))
+			anyvalid = 1;
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -4535,23 +4556,23 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	pd_entry_t *pde, newpde;
 	pt_entry_t PG_V;
-	vm_page_t mpde;
+	vm_page_t pdpg;
 	struct spglist free;
 
 	PG_V = pmap_valid_bit(pmap);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	if ((mpde = pmap_allocpde(pmap, va, NULL)) == NULL) {
+	if ((pdpg = pmap_allocpde(pmap, va, NULL)) == NULL) {
 		CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mpde));
+	pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
 	pde = &pde[pmap_pde_index(va)];
 	if ((*pde & PG_V) != 0) {
-		KASSERT(mpde->wire_count > 1,
-		    ("pmap_enter_pde: mpde's wire count is too low"));
-		mpde->wire_count--;
+		KASSERT(pdpg->wire_count > 1,
+		    ("pmap_enter_pde: pdpg's wire count is too low"));
+		pdpg->wire_count--;
 		CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return (FALSE);
@@ -4567,7 +4588,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (!pmap_pv_insert_pde(pmap, va, VM_PAGE_TO_PHYS(m),
 		    lockp)) {
 			SLIST_INIT(&free);
-			if (pmap_unwire_ptp(pmap, va, mpde, &free)) {
+			if (pmap_unwire_ptp(pmap, va, pdpg, &free)) {
 				/*
 				 * Although "va" is not mapped, paging-
 				 * structure caches could nonetheless have
@@ -4992,6 +5013,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t va_next;
+	vm_page_t dst_pdpg, dstmpte, srcmpte;
 	pt_entry_t PG_A, PG_M, PG_V;
 
 	if (dst_addr != src_addr)
@@ -5026,7 +5048,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 
 	for (addr = src_addr; addr < end_addr; addr = va_next) {
 		pt_entry_t *src_pte, *dst_pte;
-		vm_page_t dstmpde, dstmpte, srcmpte;
 		pml4_entry_t *pml4e;
 		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
@@ -5062,11 +5083,11 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (srcptepaddr & PG_PS) {
 			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
 				continue;
-			dstmpde = pmap_allocpde(dst_pmap, addr, NULL);
-			if (dstmpde == NULL)
+			dst_pdpg = pmap_allocpde(dst_pmap, addr, NULL);
+			if (dst_pdpg == NULL)
 				break;
 			pde = (pd_entry_t *)
-			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpde));
+			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dst_pdpg));
 			pde = &pde[pmap_pde_index(addr)];
 			if (*pde == 0 && ((srcptepaddr & PG_MANAGED) == 0 ||
 			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr &
@@ -5075,7 +5096,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				pmap_resident_count_inc(dst_pmap, NBPDR / PAGE_SIZE);
 				atomic_add_long(&pmap_pde_mappings, 1);
 			} else
-				dstmpde->wire_count--;
+				dst_pdpg->wire_count--;
 			continue;
 		}
 
@@ -6426,8 +6447,8 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	pdp_entry_t newpdpe, oldpdpe;
 	pd_entry_t *firstpde, newpde, *pde;
 	pt_entry_t PG_A, PG_M, PG_RW, PG_V;
-	vm_paddr_t mpdepa;
-	vm_page_t mpde;
+	vm_paddr_t pdpgpa;
+	vm_page_t pdpg;
 
 	PG_A = pmap_accessed_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
@@ -6438,15 +6459,15 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	oldpdpe = *pdpe;
 	KASSERT((oldpdpe & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pdpe: oldpdpe is missing PG_PS and/or PG_V"));
-	if ((mpde = vm_page_alloc(NULL, va >> PDPSHIFT, VM_ALLOC_INTERRUPT |
+	if ((pdpg = vm_page_alloc(NULL, va >> PDPSHIFT, VM_ALLOC_INTERRUPT |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		CTR2(KTR_PMAP, "pmap_demote_pdpe: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	mpdepa = VM_PAGE_TO_PHYS(mpde);
-	firstpde = (pd_entry_t *)PHYS_TO_DMAP(mpdepa);
-	newpdpe = mpdepa | PG_M | PG_A | (oldpdpe & PG_U) | PG_RW | PG_V;
+	pdpgpa = VM_PAGE_TO_PHYS(pdpg);
+	firstpde = (pd_entry_t *)PHYS_TO_DMAP(pdpgpa);
+	newpdpe = pdpgpa | PG_M | PG_A | (oldpdpe & PG_U) | PG_RW | PG_V;
 	KASSERT((oldpdpe & PG_A) != 0,
 	    ("pmap_demote_pdpe: oldpdpe is missing PG_A"));
 	KASSERT((oldpdpe & (PG_M | PG_RW)) != PG_RW,

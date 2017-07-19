@@ -31,4 +31,8 @@ YFLAGS=
 
 LIBADD=	m md
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=    tests
+.endif
+
 .include <bsd.prog.mk>

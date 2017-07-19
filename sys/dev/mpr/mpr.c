@@ -3286,9 +3286,17 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm, int timeout,
 	if (curthread->td_pflags & TDP_NOSLEEPING)
 #endif //__FreeBSD_version >= 1000029
 		sleep_flag = NO_SLEEP;
-	getmicrotime(&start_time);
+	getmicrouptime(&start_time);
 	if (mtx_owned(&sc->mpr_mtx) && sleep_flag == CAN_SLEEP) {
 		error = msleep(cm, &sc->mpr_mtx, 0, "mprwait", timeout*hz);
+		if (error == EWOULDBLOCK) {
+			/*
+			 * Record the actual elapsed time in the case of a
+			 * timeout for the message below.
+			 */
+			getmicrouptime(&cur_time);
+			timevalsub(&cur_time, &start_time);
+		}
 	} else {
 		while ((cm->cm_flags & MPR_CM_FLAGS_COMPLETE) == 0) {
 			mpr_intr_locked(sc);
@@ -3297,8 +3305,9 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm, int timeout,
 			else
 				DELAY(50000);
 		
-			getmicrotime(&cur_time);
-			if ((cur_time.tv_sec - start_time.tv_sec) > timeout) {
+			getmicrouptime(&cur_time);
+			timevalsub(&cur_time, &start_time);
+			if (cur_time.tv_sec > timeout) {
 				error = EWOULDBLOCK;
 				break;
 			}
@@ -3306,7 +3315,9 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm, int timeout,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
+		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s, timeout=%d,"
+		    " elapsed=%jd\n", __func__, timeout,
+		    (intmax_t)cur_time.tv_sec);
 		rc = mpr_reinit(sc);
 		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
 		    "failed");

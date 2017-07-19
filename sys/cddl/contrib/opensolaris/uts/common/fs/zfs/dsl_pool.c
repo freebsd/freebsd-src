@@ -167,7 +167,7 @@ static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_min_dirty_percent,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(int),
     sysctl_zfs_delay_min_dirty_percent, "I",
-    "The limit of outstanding dirty data before transations are delayed");
+    "The limit of outstanding dirty data before transactions are delayed");
 
 static int sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS);
 /* No zfs_delay_scale tunable due to limit requirements */
