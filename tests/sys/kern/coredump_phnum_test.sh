@@ -39,8 +39,6 @@ coredump_phnum_head()
 }
 coredump_phnum_body()
 {
-	atf_expect_fail "elftoolchain (base) readelf doesn't handle extended program header numbers; bug # 215019"
-
 	# Set up core dumping
 	cat > coredump_phnum_restore_state.sh <<-EOF
 	#!/bin/sh
