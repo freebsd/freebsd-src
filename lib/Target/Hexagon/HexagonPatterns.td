@@ -2250,6 +2250,12 @@ def: Storea_pat<SwapSt<atomic_store_16>, I32, addrgp, PS_storerhabs>;
 def: Storea_pat<SwapSt<atomic_store_32>, I32, addrgp, PS_storeriabs>;
 def: Storea_pat<SwapSt<atomic_store_64>, I64, addrgp, PS_storerdabs>;
 
+// Prefer this pattern to S2_asl_i_p_or for the special case of joining
+// two 32-bit words into a 64-bit word.
+let AddedComplexity = 200 in
+def: Pat<(or (shl (Aext64 I32:$a), (i32 32)), (Zext64 I32:$b)),
+         (A2_combinew I32:$a, I32:$b)>;
+
 def: Pat<(or (or (or (shl (i64 (zext (and I32:$b, (i32 65535)))), (i32 16)),
                      (i64 (zext (i32 (and I32:$a, (i32 65535)))))),
                  (shl (i64 (anyext (and I32:$c, (i32 65535)))), (i32 32))),
@@ -2971,45 +2977,40 @@ def: Pat<(v64i32 (HexagonVCOMBINE (v32i32 VecDblRegs:$Vs),
          (V6_vcombine_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
          Requires<[UseHVXDbl]>;
 
-def SDTHexagonVPACK: SDTypeProfile<1, 3, [SDTCisSameAs<1, 2>,
-                                          SDTCisInt<3>]>;
+def SDTHexagonVPACK: SDTypeProfile<1, 2, [SDTCisSameAs<1, 2>, SDTCisVec<1>]>;
 
-def HexagonVPACK: SDNode<"HexagonISD::VPACK", SDTHexagonVPACK>;
+def HexagonVPACKE: SDNode<"HexagonISD::VPACKE", SDTHexagonVPACK>;
+def HexagonVPACKO: SDNode<"HexagonISD::VPACKO", SDTHexagonVPACK>;
 
-// 0 as the last argument denotes vpacke. 1 denotes vpacko
-def: Pat<(v64i8 (HexagonVPACK (v64i8 VectorRegs:$Vs),
-                              (v64i8 VectorRegs:$Vt), (i32 0))),
-         (V6_vpackeb VectorRegs:$Vs, VectorRegs:$Vt)>,
-         Requires<[UseHVXSgl]>;
-def: Pat<(v64i8 (HexagonVPACK (v64i8 VectorRegs:$Vs),
-                              (v64i8 VectorRegs:$Vt), (i32 1))),
-         (V6_vpackob VectorRegs:$Vs, VectorRegs:$Vt)>,
-         Requires<[UseHVXSgl]>;
-def: Pat<(v32i16 (HexagonVPACK (v32i16 VectorRegs:$Vs),
-                               (v32i16 VectorRegs:$Vt), (i32 0))),
-         (V6_vpackeh VectorRegs:$Vs, VectorRegs:$Vt)>,
-         Requires<[UseHVXSgl]>;
-def: Pat<(v32i16 (HexagonVPACK (v32i16 VectorRegs:$Vs),
-                             (v32i16 VectorRegs:$Vt), (i32 1))),
-         (V6_vpackoh VectorRegs:$Vs, VectorRegs:$Vt)>,
-         Requires<[UseHVXSgl]>;
+let Predicates = [UseHVXSgl] in {
+  def: Pat<(v64i8 (HexagonVPACKE (v64i8 VectorRegs:$Vs),
+                                 (v64i8 VectorRegs:$Vt))),
+           (V6_vpackeb VectorRegs:$Vs, VectorRegs:$Vt)>;
+  def: Pat<(v64i8 (HexagonVPACKO (v64i8 VectorRegs:$Vs),
+                                 (v64i8 VectorRegs:$Vt))),
+           (V6_vpackob VectorRegs:$Vs, VectorRegs:$Vt)>;
+  def: Pat<(v32i16 (HexagonVPACKE (v32i16 VectorRegs:$Vs),
+                                  (v32i16 VectorRegs:$Vt))),
+           (V6_vpackeh VectorRegs:$Vs, VectorRegs:$Vt)>;
+  def: Pat<(v32i16 (HexagonVPACKO (v32i16 VectorRegs:$Vs),
+                                  (v32i16 VectorRegs:$Vt))),
+           (V6_vpackoh VectorRegs:$Vs, VectorRegs:$Vt)>;
+}
 
-def: Pat<(v128i8 (HexagonVPACK (v128i8 VecDblRegs:$Vs),
-                             (v128i8 VecDblRegs:$Vt), (i32 0))),
-         (V6_vpackeb_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
-         Requires<[UseHVXDbl]>;
-def: Pat<(v128i8 (HexagonVPACK (v128i8 VecDblRegs:$Vs),
-                             (v128i8 VecDblRegs:$Vt), (i32 1))),
-         (V6_vpackob_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
-         Requires<[UseHVXDbl]>;
-def: Pat<(v64i16 (HexagonVPACK (v64i16 VecDblRegs:$Vs),
-                             (v64i16 VecDblRegs:$Vt), (i32 0))),
-         (V6_vpackeh_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
-         Requires<[UseHVXDbl]>;
-def: Pat<(v64i16 (HexagonVPACK (v64i16 VecDblRegs:$Vs),
-                            (v64i16 VecDblRegs:$Vt), (i32 1))),
-        (V6_vpackoh_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
-        Requires<[UseHVXDbl]>;
+let Predicates = [UseHVXDbl] in {
+  def: Pat<(v128i8 (HexagonVPACKE (v128i8 VecDblRegs:$Vs),
+                                  (v128i8 VecDblRegs:$Vt))),
+           (V6_vpackeb_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>;
+  def: Pat<(v128i8 (HexagonVPACKO (v128i8 VecDblRegs:$Vs),
+                                  (v128i8 VecDblRegs:$Vt))),
+           (V6_vpackob_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>;
+  def: Pat<(v64i16 (HexagonVPACKE (v64i16 VecDblRegs:$Vs),
+                                  (v64i16 VecDblRegs:$Vt))),
+           (V6_vpackeh_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>;
+  def: Pat<(v64i16 (HexagonVPACKO (v64i16 VecDblRegs:$Vs),
+                                  (v64i16 VecDblRegs:$Vt))),
+          (V6_vpackoh_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>;
+}
 
 def V2I1:  PatLeaf<(v2i1  PredRegs:$R)>;
 def V4I1:  PatLeaf<(v4i1  PredRegs:$R)>;
@@ -3073,6 +3074,10 @@ def: Pat<(v4i8 (HexagonVSPLAT I32:$Rs)), (S2_vsplatrb I32:$Rs)>;
 // four halfwords of 64-bits destination register.
 def: Pat<(v4i16 (HexagonVSPLAT I32:$Rs)), (S2_vsplatrh I32:$Rs)>;
 
+def: Pat<(v2i32 (HexagonVSPLAT s8_0ImmPred:$s8)),
+         (A2_combineii imm:$s8, imm:$s8)>;
+def: Pat<(v2i32 (HexagonVSPLAT I32:$Rs)), (A2_combinew I32:$Rs, I32:$Rs)>;
+
 
 class VArith_pat <InstHexagon MI, SDNode Op, PatFrag Type>
   : Pat <(Op Type:$Rss, Type:$Rtt),
@@ -3099,14 +3104,11 @@ def: VArith_pat <A2_xorp,   xor, V8I8>;
 def: VArith_pat <A2_xorp,   xor, V4I16>;
 def: VArith_pat <A2_xorp,   xor, V2I32>;
 
-def: Pat<(v2i32 (sra V2I32:$b, (i64 (HexagonCOMBINE (i32 u5_0ImmPred:$c),
-                                                    (i32 u5_0ImmPred:$c))))),
+def: Pat<(v2i32 (sra V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c)))),
          (S2_asr_i_vw V2I32:$b, imm:$c)>;
-def: Pat<(v2i32 (srl V2I32:$b, (i64 (HexagonCOMBINE (i32 u5_0ImmPred:$c),
-                                                    (i32 u5_0ImmPred:$c))))),
+def: Pat<(v2i32 (srl V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c)))),
          (S2_lsr_i_vw V2I32:$b, imm:$c)>;
-def: Pat<(v2i32 (shl V2I32:$b, (i64 (HexagonCOMBINE (i32 u5_0ImmPred:$c),
-                                                    (i32 u5_0ImmPred:$c))))),
+def: Pat<(v2i32 (shl V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c)))),
          (S2_asl_i_vw V2I32:$b, imm:$c)>;
 
 def: Pat<(v4i16 (sra V4I16:$b, (v4i16 (HexagonVSPLAT u4_0ImmPred:$c)))),

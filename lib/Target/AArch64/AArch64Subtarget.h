@@ -70,6 +70,7 @@ protected:
   bool HasFullFP16 = false;
   bool HasSPE = false;
   bool HasLSLFast = false;
+  bool HasSVE = false;
 
   // HasZeroCycleRegMove - Has zero-cycle register mov instructions.
   bool HasZeroCycleRegMove = false;
@@ -251,6 +252,7 @@ public:
   bool hasFullFP16() const { return HasFullFP16; }
   bool hasSPE() const { return HasSPE; }
   bool hasLSLFast() const { return HasLSLFast; }
+  bool hasSVE() const { return HasSVE; }
 
   bool isLittleEndian() const { return IsLittle; }
 
@@ -304,6 +306,17 @@ public:
   bool enableEarlyIfConversion() const override;
 
   std::unique_ptr<PBQPRAConstraint> getCustomPBQPConstraints() const override;
+
+  bool isCallingConvWin64(CallingConv::ID CC) const {
+    switch (CC) {
+    case CallingConv::C:
+      return isTargetWindows();
+    case CallingConv::Win64:
+      return true;
+    default:
+      return false;
+    }
+  }
 };
 } // End llvm namespace
 

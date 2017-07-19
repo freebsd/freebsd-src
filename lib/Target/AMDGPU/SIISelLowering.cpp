@@ -1171,8 +1171,7 @@ static void allocateSystemSGPRs(CCState &CCInfo,
 static void reservePrivateMemoryRegs(const TargetMachine &TM,
                                      MachineFunction &MF,
                                      const SIRegisterInfo &TRI,
-                                     SIMachineFunctionInfo &Info,
-                                     bool NeedSP) {
+                                     SIMachineFunctionInfo &Info) {
   // Now that we've figured out where the scratch register inputs are, see if
   // should reserve the arguments and use them directly.
   MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -1233,15 +1232,6 @@ static void reservePrivateMemoryRegs(const TargetMachine &TM,
         = TRI.reservedPrivateSegmentWaveByteOffsetReg(MF);
       Info.setScratchWaveOffsetReg(ReservedOffsetReg);
     }
-  }
-
-  if (NeedSP) {
-    unsigned ReservedStackPtrOffsetReg = TRI.reservedStackPtrOffsetReg(MF);
-    Info.setStackPtrOffsetReg(ReservedStackPtrOffsetReg);
-
-    assert(Info.getStackPtrOffsetReg() != Info.getFrameOffsetReg());
-    assert(!TRI.isSubRegister(Info.getScratchRSrcReg(),
-                              Info.getStackPtrOffsetReg()));
   }
 }
 
@@ -1380,9 +1370,36 @@ SDValue SITargetLowering::LowerFormalArguments(
 
     unsigned Reg = VA.getLocReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg, VT);
+    EVT ValVT = VA.getValVT();
 
     Reg = MF.addLiveIn(Reg, RC);
     SDValue Val = DAG.getCopyFromReg(Chain, DL, Reg, VT);
+
+    // If this is an 8 or 16-bit value, it is really passed promoted
+    // to 32 bits. Insert an assert[sz]ext to capture this, then
+    // truncate to the right size.
+    switch (VA.getLocInfo()) {
+    case CCValAssign::Full:
+      break;
+    case CCValAssign::BCvt:
+      Val = DAG.getNode(ISD::BITCAST, DL, ValVT, Val);
+      break;
+    case CCValAssign::SExt:
+      Val = DAG.getNode(ISD::AssertSext, DL, VT, Val,
+                        DAG.getValueType(ValVT));
+      Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
+      break;
+    case CCValAssign::ZExt:
+      Val = DAG.getNode(ISD::AssertZext, DL, VT, Val,
+                        DAG.getValueType(ValVT));
+      Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
+      break;
+    case CCValAssign::AExt:
+      Val = DAG.getNode(ISD::TRUNCATE, DL, ValVT, Val);
+      break;
+    default:
+      llvm_unreachable("Unknown loc info!");
+    }
 
     if (IsShader && Arg.VT.isVector()) {
       // Build a vector from the registers
@@ -1410,25 +1427,13 @@ SDValue SITargetLowering::LowerFormalArguments(
     InVals.push_back(Val);
   }
 
-  const MachineFrameInfo &FrameInfo = MF.getFrameInfo();
-
-  // TODO: Could maybe omit SP if only tail calls?
-  bool NeedSP = FrameInfo.hasCalls() || FrameInfo.hasVarSizedObjects();
-
   // Start adding system SGPRs.
   if (IsEntryFunc) {
     allocateSystemSGPRs(CCInfo, MF, *Info, CallConv, IsShader);
-    reservePrivateMemoryRegs(getTargetMachine(), MF, *TRI, *Info, NeedSP);
   } else {
     CCInfo.AllocateReg(Info->getScratchRSrcReg());
     CCInfo.AllocateReg(Info->getScratchWaveOffsetReg());
     CCInfo.AllocateReg(Info->getFrameOffsetReg());
-
-    if (NeedSP) {
-      unsigned StackPtrReg = findFirstFreeSGPR(CCInfo);
-      CCInfo.AllocateReg(StackPtrReg);
-      Info->setStackPtrOffsetReg(StackPtrReg);
-    }
   }
 
   return Chains.empty() ? Chain :
@@ -4624,8 +4629,8 @@ static bool isKnownNeverSNan(SelectionDAG &DAG, SDValue Op) {
   return DAG.isKnownNeverNaN(Op);
 }
 
-static bool isCanonicalized(SDValue Op, const SISubtarget *ST,
-                            unsigned MaxDepth=5) {
+static bool isCanonicalized(SelectionDAG &DAG, SDValue Op,
+                            const SISubtarget *ST, unsigned MaxDepth=5) {
   // If source is a result of another standard FP operation it is already in
   // canonical form.
 
@@ -4663,7 +4668,7 @@ static bool isCanonicalized(SDValue Op, const SISubtarget *ST,
   case ISD::FNEG:
   case ISD::FABS:
     return (MaxDepth > 0) &&
-           isCanonicalized(Op.getOperand(0), ST, MaxDepth - 1);
+           isCanonicalized(DAG, Op.getOperand(0), ST, MaxDepth - 1);
 
   case ISD::FSIN:
   case ISD::FCOS:
@@ -4672,16 +4677,19 @@ static bool isCanonicalized(SDValue Op, const SISubtarget *ST,
 
   // In pre-GFX9 targets V_MIN_F32 and others do not flush denorms.
   // For such targets need to check their input recursively.
-  // TODO: on GFX9+ we could return true without checking provided no-nan
-  // mode, since canonicalization is also used to quiet sNaNs.
   case ISD::FMINNUM:
   case ISD::FMAXNUM:
   case ISD::FMINNAN:
   case ISD::FMAXNAN:
 
+    if (ST->supportsMinMaxDenormModes() &&
+        DAG.isKnownNeverNaN(Op.getOperand(0)) &&
+        DAG.isKnownNeverNaN(Op.getOperand(1)))
+      return true;
+
     return (MaxDepth > 0) &&
-           isCanonicalized(Op.getOperand(0), ST, MaxDepth - 1) &&
-           isCanonicalized(Op.getOperand(1), ST, MaxDepth - 1);
+           isCanonicalized(DAG, Op.getOperand(0), ST, MaxDepth - 1) &&
+           isCanonicalized(DAG, Op.getOperand(1), ST, MaxDepth - 1);
 
   case ISD::ConstantFP: {
     auto F = cast<ConstantFPSDNode>(Op)->getValueAPF();
@@ -4700,11 +4708,19 @@ SDValue SITargetLowering::performFCanonicalizeCombine(
 
   if (!CFP) {
     SDValue N0 = N->getOperand(0);
+    EVT VT = N0.getValueType().getScalarType();
+    auto ST = getSubtarget();
+
+    if (((VT == MVT::f32 && ST->hasFP32Denormals()) ||
+         (VT == MVT::f64 && ST->hasFP64Denormals()) ||
+         (VT == MVT::f16 && ST->hasFP16Denormals())) &&
+        DAG.isKnownNeverNaN(N0))
+      return N0;
 
     bool IsIEEEMode = Subtarget->enableIEEEBit(DAG.getMachineFunction());
 
     if ((IsIEEEMode || isKnownNeverSNan(DAG, N0)) &&
-        isCanonicalized(N0, getSubtarget()))
+        isCanonicalized(DAG, N0, ST))
       return N0;
 
     return SDValue();
@@ -5812,4 +5828,45 @@ SITargetLowering::getConstraintType(StringRef Constraint) const {
     }
   }
   return TargetLowering::getConstraintType(Constraint);
+}
+
+// Figure out which registers should be reserved for stack access. Only after
+// the function is legalized do we know all of the non-spill stack objects or if
+// calls are present.
+void SITargetLowering::finalizeLowering(MachineFunction &MF) const {
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+  SIMachineFunctionInfo *Info = MF.getInfo<SIMachineFunctionInfo>();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+  const SIRegisterInfo *TRI = ST.getRegisterInfo();
+
+  if (Info->isEntryFunction()) {
+    // Callable functions have fixed registers used for stack access.
+    reservePrivateMemoryRegs(getTargetMachine(), MF, *TRI, *Info);
+  }
+
+  // We have to assume the SP is needed in case there are calls in the function
+  // during lowering. Calls are only detected after the function is
+  // lowered. We're about to reserve registers, so don't bother using it if we
+  // aren't really going to use it.
+  bool NeedSP = !Info->isEntryFunction() ||
+    MFI.hasVarSizedObjects() ||
+    MFI.hasCalls();
+
+  if (NeedSP) {
+    unsigned ReservedStackPtrOffsetReg = TRI->reservedStackPtrOffsetReg(MF);
+    Info->setStackPtrOffsetReg(ReservedStackPtrOffsetReg);
+
+    assert(Info->getStackPtrOffsetReg() != Info->getFrameOffsetReg());
+    assert(!TRI->isSubRegister(Info->getScratchRSrcReg(),
+                               Info->getStackPtrOffsetReg()));
+    MRI.replaceRegWith(AMDGPU::SP_REG, Info->getStackPtrOffsetReg());
+  }
+
+  MRI.replaceRegWith(AMDGPU::PRIVATE_RSRC_REG, Info->getScratchRSrcReg());
+  MRI.replaceRegWith(AMDGPU::FP_REG, Info->getFrameOffsetReg());
+  MRI.replaceRegWith(AMDGPU::SCRATCH_WAVE_OFFSET_REG,
+                     Info->getScratchWaveOffsetReg());
+
+  TargetLoweringBase::finalizeLowering(MF);
 }
