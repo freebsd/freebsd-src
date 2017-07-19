@@ -1073,7 +1073,7 @@
 497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, \
 				    _In_z_ const char *path, mode_t mode); }
 498	AUE_MKNODAT	OBSOL	fbsd11_mknodat
-499	AUE_OPENAT_RWTC	STD|NOPARSE|VARARG	{ int cheriabi_openat(int fd, \
+499	AUE_OPENAT_RWTC	STD|VARARG	{ int cheriabi_openat(int fd, \
 				    _In_z_ const char * __capability path, \
 				    int flag, mode_t mode); }
 500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, \

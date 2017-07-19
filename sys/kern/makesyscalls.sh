@@ -337,6 +337,10 @@ sed -e '
 	function isptrtype(type) {
 		return (type ~ /\*/ || type ~ /caddr_t/ || type ~ /intptr_t/)
 	}
+	# Returns true if the given type is an explict capability type
+	function iscaptype(type) {
+		return (type ~ /__capability$/)
+	}
 	# Returns true if the flag "name" is set in the type field
 	function flag(name, flags, i, n) {
 		n = split($3, flags, /\|/)
@@ -789,10 +793,20 @@ sed -e '
 				    i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 				printf("\tuap->%s = (register_t)tmpcap;\n", argname[i]) > cheriabi_fill_uap
 			}
+			# Process capabilities we pass through
+			for (i = 1; i <= argc; i++) {
+				if (!iscaptype(argtype[i]))
+					continue
+				printf("\n\t/* [%d] %s %s */\n", i-1,
+				    argsaltype[i], argname[i]) > cheriabi_fill_uap
+				printf("\tcheriabi_fetch_syscall_arg(td,\n") > cheriabi_fill_uap
+				printf("\t    __DECONST(void * __capability *, &uap->%s),\n", argname[i]) > cheriabi_fill_uap
+				printf("\t    %d, %s%s_PTRMASK);\n", i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+			}
 			# Process pointer arguments that do not depend on
 			# dereferenced pointers.
 			for (i = 1; i <= argc; i++) {
-				if (!isptrtype(argtype[i]))
+				if (!isptrtype(argtype[i]) || iscaptype(argtype[i]))
 					continue
 				if (i in pdeps)
 					continue
@@ -808,7 +822,7 @@ sed -e '
 			# Process pointer arguments that DO depend on
 			# dereferenced pointers.
 			for (i = 1; i <= argc; i++) {
-				if (!isptrtype(argtype[i]))
+				if (!isptrtype(argtype[i]) || iscaptype(argtype[i]))
 					continue
 				if (!(i in pdeps))
 					continue

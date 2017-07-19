@@ -727,30 +727,6 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_cheriabi_openat_fill_uap(struct thread *td,
-    struct cheriabi_openat_args *uap)
-{
-	void * __capability tmpcap;
-
-	/* [0] int fd */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 0, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-	uap->fd = (register_t)tmpcap;
-
-	/* [2] int flag */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-	uap->flag = (register_t)tmpcap;
-
-	/* [3] mode_t mode */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, 3, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-	uap->mode = (register_t)tmpcap;
-
-	/* [1] _In_z_ const char * path */
-	cheriabi_fetch_syscall_arg(td, __DECONST(void * __capability *, &uap->path), 1, CHERIABI_SYS_cheriabi_openat_PTRMASK);
-
-	return (0);
-}
-
-static inline int
 CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
     struct cheriabi___semctl_args *uap)
 {
