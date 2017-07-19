@@ -218,7 +218,7 @@ void		set_cron_uid(void),
 		unget_char(int, FILE *),
 		free_entry(entry *),
 		skip_comments(FILE *),
-		log_it(char *, int, char *, char *),
+		log_it(char *, int, char *, const char *),
 		log_close(void);
 
 int		job_runqueue(void),
