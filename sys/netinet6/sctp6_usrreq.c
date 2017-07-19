@@ -305,7 +305,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 			return;
 		}
 		/* Copy out the port numbers and the verification tag. */
-		bzero(&sh, sizeof(sh));
+		memset(&sh, 0, sizeof(sh));
 		m_copydata(ip6cp->ip6c_m,
 		    ip6cp->ip6c_off,
 		    sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t),

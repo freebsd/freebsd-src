@@ -702,7 +702,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			return (NULL);
 		}
 		SCTP_INCR_LADDR_COUNT();
-		bzero(wi, sizeof(*wi));
+		memset(wi, 0, sizeof(*wi));
 		(void)SCTP_GETTIME_TIMEVAL(&wi->start_time);
 		wi->ifa = sctp_ifap;
 		wi->action = SCTP_ADD_IP_ADDRESS;
@@ -811,7 +811,7 @@ out_now:
 			return;
 		}
 		SCTP_INCR_LADDR_COUNT();
-		bzero(wi, sizeof(*wi));
+		memset(wi, 0, sizeof(*wi));
 		(void)SCTP_GETTIME_TIMEVAL(&wi->start_time);
 		wi->ifa = sctp_ifap;
 		wi->action = SCTP_DEL_IP_ADDRESS;
@@ -2429,7 +2429,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		return (ENOBUFS);
 	}
 	/* zap it */
-	bzero(inp, sizeof(*inp));
+	memset(inp, 0, sizeof(*inp));
 
 	/* bump generations */
 	/* setup socket pointers */
@@ -2715,7 +2715,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 				continue;
 			}
 			SCTP_INCR_LADDR_COUNT();
-			bzero(laddr, sizeof(*laddr));
+			memset(laddr, 0, sizeof(*laddr));
 			(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
 			laddr->ifa = oladdr->ifa;
 			atomic_add_int(&laddr->ifa->refcount, 1);
@@ -2765,7 +2765,7 @@ sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
 		return (EINVAL);
 	}
 	SCTP_INCR_LADDR_COUNT();
-	bzero(laddr, sizeof(*laddr));
+	memset(laddr, 0, sizeof(*laddr));
 	(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
 	laddr->ifa = ifa;
 	laddr->action = act;
@@ -3766,7 +3766,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				/* Invalid address */
 				return (-1);
 			}
-			/* zero out the bzero area */
+			/* zero out the zero area */
 			memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
 
 			/* assure len is set */
@@ -3849,7 +3849,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		return (-1);
 	}
 	SCTP_INCR_RADDR_COUNT();
-	bzero(net, sizeof(struct sctp_nets));
+	memset(net, 0, sizeof(struct sctp_nets));
 	(void)SCTP_GETTIME_TIMEVAL(&net->start_time);
 	memcpy(&net->ro._l_addr, newaddr, newaddr->sa_len);
 	switch (newaddr->sa_family) {
@@ -4285,7 +4285,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	}
 	SCTP_INCR_ASOC_COUNT();
 
-	bzero(stcb, sizeof(*stcb));
+	memset(stcb, 0, sizeof(*stcb));
 	asoc = &stcb->asoc;
 
 	asoc->assoc_id = sctp_aloc_a_assoc_id(inp, stcb);
@@ -5731,7 +5731,7 @@ sctp_pcb_init()
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 1;
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
-	bzero(&SCTP_BASE_SYSCTL(sctp_log), sizeof(struct sctp_log));
+	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_MALLOC(SCTP_BASE_STATS, struct sctpstat *,
@@ -5740,11 +5740,11 @@ sctp_pcb_init()
 #endif
 	(void)SCTP_GETTIME_TIMEVAL(&tv);
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-	bzero(SCTP_BASE_STATS, (sizeof(struct sctpstat) * (mp_maxid + 1)));
+	memset(SCTP_BASE_STATS, 0, sizeof(struct sctpstat) * (mp_maxid + 1));
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_sec = (uint32_t)tv.tv_sec;
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_usec = (uint32_t)tv.tv_usec;
 #else
-	bzero(&SCTP_BASE_STATS, sizeof(struct sctpstat));
+	memset(&SCTP_BASE_STATS, 0, sizeof(struct sctpstat));
 	SCTP_BASE_STAT(sctps_discontinuitytime).tv_sec = (uint32_t)tv.tv_sec;
 	SCTP_BASE_STAT(sctps_discontinuitytime).tv_usec = (uint32_t)tv.tv_usec;
 #endif
@@ -6656,17 +6656,17 @@ next_param:
 		/* copy in the RANDOM */
 		if (p_random != NULL) {
 			keylen = sizeof(*p_random) + random_len;
-			bcopy(p_random, new_key->key, keylen);
+			memcpy(new_key->key, p_random, keylen);
 		}
 		/* append in the AUTH chunks */
 		if (chunks != NULL) {
-			bcopy(chunks, new_key->key + keylen,
+			memcpy(new_key->key + keylen, chunks,
 			    sizeof(*chunks) + num_chunks);
 			keylen += sizeof(*chunks) + num_chunks;
 		}
 		/* append in the HMACs */
 		if (hmacs != NULL) {
-			bcopy(hmacs, new_key->key + keylen,
+			memcpy(new_key->key + keylen, hmacs,
 			    sizeof(*hmacs) + hmacs_len);
 		}
 	} else {
