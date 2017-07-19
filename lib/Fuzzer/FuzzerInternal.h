@@ -38,7 +38,6 @@ public:
   void Loop();
   void MinimizeCrashLoop(const Unit &U);
   void ShuffleAndMinimize(UnitVector *V);
-  void InitializeTraceState();
   void RereadOutputCorpus(size_t MaxSize);
 
   size_t secondsSinceProcessStartUp() {
@@ -100,18 +99,9 @@ private:
   void WriteToOutputCorpus(const Unit &U);
   void WriteUnitToFileWithPrefix(const Unit &U, const char *Prefix);
   void PrintStats(const char *Where, const char *End = "\n", size_t Units = 0);
-  void PrintStatusForNewUnit(const Unit &U);
+  void PrintStatusForNewUnit(const Unit &U, const char *Text);
   void ShuffleCorpus(UnitVector *V);
   void CheckExitOnSrcPosOrItem();
-
-  // Trace-based fuzzing: we run a unit with some kind of tracing
-  // enabled and record potentially useful mutations. Then
-  // We apply these mutations one by one to the unit and run it again.
-
-  // Start tracing; forget all previously proposed mutations.
-  void StartTraceRecording();
-  // Stop tracing.
-  void StopTraceRecording();
 
   static void StaticDeathCallback();
   void DumpCurrentUnit(const char *Prefix);
@@ -142,7 +132,7 @@ private:
   size_t MaxInputLen = 0;
   size_t MaxMutationLen = 0;
 
-  std::vector<uint32_t> FeatureSetTmp;
+  std::vector<uint32_t> UniqFeatureSetTmp;
 
   // Need to know our own thread.
   static thread_local bool IsMyThread;

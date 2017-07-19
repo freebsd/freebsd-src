@@ -48,6 +48,7 @@ set(LLVM_TEST_DEPENDS
           llvm-cvtres
           llvm-diff
           llvm-dis
+          llvm-dlltool
           llvm-dsymutil
           llvm-dwarfdump
           llvm-dwp
@@ -58,6 +59,7 @@ set(LLVM_TEST_DEPENDS
           llvm-mc
           llvm-mcmarkup
           llvm-modextract
+          llvm-mt
           llvm-nm
           llvm-objdump
           llvm-opt-report
@@ -65,6 +67,7 @@ set(LLVM_TEST_DEPENDS
           llvm-profdata
           llvm-ranlib
           llvm-readobj
+          llvm-readelf
           llvm-rtdyld
           llvm-size
           llvm-split

@@ -1286,16 +1286,6 @@ HexagonTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
                       MachinePointerInfo(SV));
 }
 
-// Creates a SPLAT instruction for a constant value VAL.
-static SDValue createSplat(SelectionDAG &DAG, const SDLoc &dl, EVT VT,
-                           SDValue Val) {
-  EVT T = VT.getVectorElementType();
-  if (T == MVT::i8 || T == MVT::i16)
-    return DAG.getNode(HexagonISD::VSPLAT, dl, VT, Val);
-
-  return SDValue();
-}
-
 static bool isSExtFree(SDValue N) {
   // A sign-extend of a truncate of a sign-extend is free.
   if (N.getOpcode() == ISD::TRUNCATE &&
@@ -1372,79 +1362,6 @@ HexagonTargetLowering::LowerVSELECT(SDValue Op, SelectionDAG &DAG) const {
   }
 
   return SDValue();
-}
-
-// Handle only specific vector loads.
-SDValue HexagonTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
-  EVT VT = Op.getValueType();
-  SDLoc DL(Op);
-  LoadSDNode *LoadNode = cast<LoadSDNode>(Op);
-  SDValue Chain = LoadNode->getChain();
-  SDValue Ptr = Op.getOperand(1);
-  SDValue LoweredLoad;
-  SDValue Result;
-  SDValue Base = LoadNode->getBasePtr();
-  ISD::LoadExtType Ext = LoadNode->getExtensionType();
-  unsigned Alignment = LoadNode->getAlignment();
-  SDValue LoadChain;
-
-  if(Ext == ISD::NON_EXTLOAD)
-    Ext = ISD::ZEXTLOAD;
-
-  if (VT == MVT::v4i16) {
-    if (Alignment == 2) {
-      SDValue Loads[4];
-      // Base load.
-      Loads[0] = DAG.getExtLoad(Ext, DL, MVT::i32, Chain, Base,
-                                LoadNode->getPointerInfo(), MVT::i16, Alignment,
-                                LoadNode->getMemOperand()->getFlags());
-      // Base+2 load.
-      SDValue Increment = DAG.getConstant(2, DL, MVT::i32);
-      Ptr = DAG.getNode(ISD::ADD, DL, Base.getValueType(), Base, Increment);
-      Loads[1] = DAG.getExtLoad(Ext, DL, MVT::i32, Chain, Ptr,
-                                LoadNode->getPointerInfo(), MVT::i16, Alignment,
-                                LoadNode->getMemOperand()->getFlags());
-      // SHL 16, then OR base and base+2.
-      SDValue ShiftAmount = DAG.getConstant(16, DL, MVT::i32);
-      SDValue Tmp1 = DAG.getNode(ISD::SHL, DL, MVT::i32, Loads[1], ShiftAmount);
-      SDValue Tmp2 = DAG.getNode(ISD::OR, DL, MVT::i32, Tmp1, Loads[0]);
-      // Base + 4.
-      Increment = DAG.getConstant(4, DL, MVT::i32);
-      Ptr = DAG.getNode(ISD::ADD, DL, Base.getValueType(), Base, Increment);
-      Loads[2] = DAG.getExtLoad(Ext, DL, MVT::i32, Chain, Ptr,
-                                LoadNode->getPointerInfo(), MVT::i16, Alignment,
-                                LoadNode->getMemOperand()->getFlags());
-      // Base + 6.
-      Increment = DAG.getConstant(6, DL, MVT::i32);
-      Ptr = DAG.getNode(ISD::ADD, DL, Base.getValueType(), Base, Increment);
-      Loads[3] = DAG.getExtLoad(Ext, DL, MVT::i32, Chain, Ptr,
-                                LoadNode->getPointerInfo(), MVT::i16, Alignment,
-                                LoadNode->getMemOperand()->getFlags());
-      // SHL 16, then OR base+4 and base+6.
-      Tmp1 = DAG.getNode(ISD::SHL, DL, MVT::i32, Loads[3], ShiftAmount);
-      SDValue Tmp4 = DAG.getNode(ISD::OR, DL, MVT::i32, Tmp1, Loads[2]);
-      // Combine to i64. This could be optimised out later if we can
-      // affect reg allocation of this code.
-      Result = DAG.getNode(HexagonISD::COMBINE, DL, MVT::i64, Tmp4, Tmp2);
-      LoadChain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other,
-                              Loads[0].getValue(1), Loads[1].getValue(1),
-                              Loads[2].getValue(1), Loads[3].getValue(1));
-    } else {
-      // Perform default type expansion.
-      Result = DAG.getLoad(MVT::i64, DL, Chain, Ptr, LoadNode->getPointerInfo(),
-                           LoadNode->getAlignment(),
-                           LoadNode->getMemOperand()->getFlags());
-      LoadChain = Result.getValue(1);
-    }
-  } else
-    llvm_unreachable("Custom lowering unsupported load");
-
-  Result = DAG.getNode(ISD::BITCAST, DL, VT, Result);
-  // Since we pretend to lower a load, we need the original chain
-  // info attached to the result.
-  SDValue Ops[] = { Result, LoadChain };
-
-  return DAG.getMergeValues(Ops, DL);
 }
 
 SDValue
@@ -1971,17 +1888,11 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
   // Handling of vector operations.
   //
 
-  // Custom lower v4i16 load only. Let v4i16 store to be
-  // promoted for now.
   promoteLdStType(MVT::v4i8,  MVT::i32);
   promoteLdStType(MVT::v2i16, MVT::i32);
   promoteLdStType(MVT::v8i8,  MVT::i64);
+  promoteLdStType(MVT::v4i16, MVT::i64);
   promoteLdStType(MVT::v2i32, MVT::i64);
-
-  setOperationAction(ISD::LOAD,  MVT::v4i16, Custom);
-  setOperationAction(ISD::STORE, MVT::v4i16, Promote);
-  AddPromotedToType(ISD::LOAD,  MVT::v4i16, MVT::i64);
-  AddPromotedToType(ISD::STORE, MVT::v4i16, MVT::i64);
 
   // Set the action for vector operations to "expand", then override it with
   // either "custom" or "legal" for specific cases.
@@ -2301,7 +2212,8 @@ const char* HexagonTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case HexagonISD::RET_FLAG:      return "HexagonISD::RET_FLAG";
   case HexagonISD::TC_RETURN:     return "HexagonISD::TC_RETURN";
   case HexagonISD::VCOMBINE:      return "HexagonISD::VCOMBINE";
-  case HexagonISD::VPACK:         return "HexagonISD::VPACK";
+  case HexagonISD::VPACKE:        return "HexagonISD::VPACKE";
+  case HexagonISD::VPACKO:        return "HexagonISD::VPACKO";
   case HexagonISD::VASL:          return "HexagonISD::VASL";
   case HexagonISD::VASR:          return "HexagonISD::VASR";
   case HexagonISD::VLSR:          return "HexagonISD::VLSR";
@@ -2394,7 +2306,7 @@ HexagonTargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG)
 
     // Test if V1 is a SCALAR_TO_VECTOR.
     if (Lane == 0 && V1.getOpcode() == ISD::SCALAR_TO_VECTOR)
-      return createSplat(DAG, dl, VT, V1.getOperand(0));
+      return DAG.getNode(HexagonISD::VSPLAT, dl, VT, V1.getOperand(0));
 
     // Test if V1 is a BUILD_VECTOR which is equivalent to a SCALAR_TO_VECTOR
     // (and probably will turn into a SCALAR_TO_VECTOR once legalization
@@ -2409,28 +2321,26 @@ HexagonTargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG)
         }
       }
       if (IsScalarToVector)
-        return createSplat(DAG, dl, VT, V1.getOperand(0));
+        return DAG.getNode(HexagonISD::VSPLAT, dl, VT, V1.getOperand(0));
     }
-    return createSplat(DAG, dl, VT, DAG.getConstant(Lane, dl, MVT::i32));
+    return DAG.getNode(HexagonISD::VSPLAT, dl, VT,
+                       DAG.getConstant(Lane, dl, MVT::i32));
   }
 
   if (UseHVX) {
     ArrayRef<int> Mask = SVN->getMask();
     size_t MaskLen = Mask.size();
-    int ElemSizeInBits = VT.getScalarSizeInBits();
-    if ((Subtarget.useHVXSglOps() && (ElemSizeInBits * MaskLen) == 64 * 8) ||
-        (Subtarget.useHVXDblOps() && (ElemSizeInBits * MaskLen) == 128 * 8)) {
-      // Return 1 for odd and 2 of even
-      StridedLoadKind Pattern = isStridedLoad(Mask);
+    unsigned SizeInBits = VT.getScalarSizeInBits() * MaskLen;
 
+    if ((Subtarget.useHVXSglOps() && SizeInBits == 64 * 8) ||
+        (Subtarget.useHVXDblOps() && SizeInBits == 128 * 8)) {
+      StridedLoadKind Pattern = isStridedLoad(Mask);
       if (Pattern == StridedLoadKind::NoPattern)
         return SDValue();
 
-      SDValue Vec0 = Op.getOperand(0);
-      SDValue Vec1 = Op.getOperand(1);
-      SDValue StridePattern = DAG.getConstant(Pattern, dl, MVT::i32);
-      SDValue Ops[] = { Vec1, Vec0, StridePattern };
-      return DAG.getNode(HexagonISD::VPACK, dl, VT, Ops);
+      unsigned Opc = Pattern == StridedLoadKind::Even ? HexagonISD::VPACKE
+                                                      : HexagonISD::VPACKO;
+      return DAG.getNode(Opc, dl, VT, {Op.getOperand(1), Op.getOperand(0)});
     }
     // We used to assert in the "else" part here, but that is bad for Halide
     // Halide creates intermediate double registers by interleaving two
@@ -2531,19 +2441,26 @@ HexagonTargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
   if (Size > 64)
     return SDValue();
 
-  APInt APSplatBits, APSplatUndef;
-  unsigned SplatBitSize;
-  bool HasAnyUndefs;
   unsigned NElts = BVN->getNumOperands();
 
   // Try to generate a SPLAT instruction.
-  if ((VT.getSimpleVT() == MVT::v4i8 || VT.getSimpleVT() == MVT::v4i16) &&
-      (BVN->isConstantSplat(APSplatBits, APSplatUndef, SplatBitSize,
-                            HasAnyUndefs, 0, true) && SplatBitSize <= 16)) {
-    unsigned SplatBits = APSplatBits.getZExtValue();
-    int32_t SextVal = ((int32_t) (SplatBits << (32 - SplatBitSize)) >>
-                       (32 - SplatBitSize));
-    return createSplat(DAG, dl, VT, DAG.getConstant(SextVal, dl, MVT::i32));
+  if (VT == MVT::v4i8 || VT == MVT::v4i16 || VT == MVT::v2i32) {
+    APInt APSplatBits, APSplatUndef;
+    unsigned SplatBitSize;
+    bool HasAnyUndefs;
+    if (BVN->isConstantSplat(APSplatBits, APSplatUndef, SplatBitSize,
+                             HasAnyUndefs, 0, false)) {
+      if (SplatBitSize == VT.getVectorElementType().getSizeInBits()) {
+        unsigned ZV = APSplatBits.getZExtValue();
+        assert(SplatBitSize <= 32 && "Can only handle up to i32");
+        // Sign-extend the splat value from SplatBitSize to 32.
+        int32_t SV = SplatBitSize < 32
+                        ? int32_t(ZV << (32-SplatBitSize)) >> (32-SplatBitSize)
+                        : int32_t(ZV);
+        return DAG.getNode(HexagonISD::VSPLAT, dl, VT,
+                           DAG.getConstant(SV, dl, MVT::i32));
+      }
+    }
   }
 
   // Try to generate COMBINE to build v2i32 vectors.
@@ -2974,8 +2891,6 @@ HexagonTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     case ISD::BlockAddress:         return LowerBlockAddress(Op, DAG);
     case ISD::GLOBAL_OFFSET_TABLE:  return LowerGLOBAL_OFFSET_TABLE(Op, DAG);
     case ISD::VASTART:              return LowerVASTART(Op, DAG);
-    // Custom lower some vector loads.
-    case ISD::LOAD:                 return LowerLOAD(Op, DAG);
     case ISD::DYNAMIC_STACKALLOC:   return LowerDYNAMIC_STACKALLOC(Op, DAG);
     case ISD::SETCC:                return LowerSETCC(Op, DAG);
     case ISD::VSELECT:              return LowerVSELECT(Op, DAG);

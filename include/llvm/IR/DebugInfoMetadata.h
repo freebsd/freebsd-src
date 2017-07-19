@@ -435,10 +435,10 @@ public:
 
   /// Return the raw underlying file.
   ///
-  /// A \a DIFile is a \a DIScope, but it doesn't point at a separate file
-  /// (it\em is the file).  If \c this is an \a DIFile, we need to return \c
-  /// this.  Otherwise, return the first operand, which is where all other
-  /// subclasses store their file pointer.
+  /// A \a DIFile is a \a DIScope, but it doesn't point at a separate file (it
+  /// \em is the file).  If \c this is an \a DIFile, we need to return \c this.
+  /// Otherwise, return the first operand, which is where all other subclasses
+  /// store their file pointer.
   Metadata *getRawFile() const {
     return isa<DIFile>(this) ? const_cast<DIScope *>(this)
                              : static_cast<Metadata *>(getOperand(0));
@@ -2551,32 +2551,32 @@ class DIImportedEntity : public DINode {
 
   static DIImportedEntity *getImpl(LLVMContext &Context, unsigned Tag,
                                    DIScope *Scope, DINodeRef Entity,
-                                   unsigned Line, StringRef Name,
+                                   DIFile *File, unsigned Line, StringRef Name,
                                    StorageType Storage,
                                    bool ShouldCreate = true) {
-    return getImpl(Context, Tag, Scope, Entity, Line,
+    return getImpl(Context, Tag, Scope, Entity, File, Line,
                    getCanonicalMDString(Context, Name), Storage, ShouldCreate);
   }
   static DIImportedEntity *getImpl(LLVMContext &Context, unsigned Tag,
                                    Metadata *Scope, Metadata *Entity,
-                                   unsigned Line, MDString *Name,
-                                   StorageType Storage,
+                                   Metadata *File, unsigned Line,
+                                   MDString *Name, StorageType Storage,
                                    bool ShouldCreate = true);
 
   TempDIImportedEntity cloneImpl() const {
     return getTemporary(getContext(), getTag(), getScope(), getEntity(),
-                        getLine(), getName());
+                        getFile(), getLine(), getName());
   }
 
 public:
   DEFINE_MDNODE_GET(DIImportedEntity,
                     (unsigned Tag, DIScope *Scope, DINodeRef Entity,
-                     unsigned Line, StringRef Name = ""),
-                    (Tag, Scope, Entity, Line, Name))
+                     DIFile *File, unsigned Line, StringRef Name = ""),
+                    (Tag, Scope, Entity, File, Line, Name))
   DEFINE_MDNODE_GET(DIImportedEntity,
                     (unsigned Tag, Metadata *Scope, Metadata *Entity,
-                     unsigned Line, MDString *Name),
-                    (Tag, Scope, Entity, Line, Name))
+                     Metadata *File, unsigned Line, MDString *Name),
+                    (Tag, Scope, Entity, File, Line, Name))
 
   TempDIImportedEntity clone() const { return cloneImpl(); }
 
@@ -2584,10 +2584,12 @@ public:
   DIScope *getScope() const { return cast_or_null<DIScope>(getRawScope()); }
   DINodeRef getEntity() const { return DINodeRef(getRawEntity()); }
   StringRef getName() const { return getStringOperand(2); }
+  DIFile *getFile() const { return cast_or_null<DIFile>(getRawFile()); }
 
   Metadata *getRawScope() const { return getOperand(0); }
   Metadata *getRawEntity() const { return getOperand(1); }
   MDString *getRawName() const { return getOperandAs<MDString>(2); }
+  Metadata *getRawFile() const { return getOperand(3); }
 
   static bool classof(const Metadata *MD) {
     return MD->getMetadataID() == DIImportedEntityKind;
