@@ -1025,7 +1025,7 @@ em_if_attach_post(if_ctx_t ctx)
 	/* Non-AMT based hardware can now take control from firmware */
 	if (adapter->has_manage && !adapter->has_amt)
 		em_get_hw_control(adapter);
-	
+
 	INIT_DEBUGOUT("em_if_attach_post: end");
 
 	return (error);
@@ -1691,8 +1691,9 @@ em_if_update_admin_status(if_ctx_t ctx)
 	struct e1000_hw *hw = &adapter->hw;
 	struct ifnet *ifp = iflib_get_ifp(ctx);
 	device_t dev = iflib_get_dev(ctx);
-	u32 link_check = 0;
+	u32 link_check, thstat, ctrl;
 
+	link_check = thstat = ctrl = 0;
 	/* Get the cached link value or read phy for real */
 	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
@@ -1717,9 +1718,19 @@ em_if_update_admin_status(if_ctx_t ctx)
 		e1000_check_for_link(hw);
 		link_check = adapter->hw.mac.serdes_has_link;
 		break;
-	default:
+	/* VF device is type_unknown */
 	case e1000_media_type_unknown:
+                e1000_check_for_link(hw);
+		link_check = !hw->mac.get_link_status;
+		/* Fall thru */
+	default:
 		break;
+	}
+
+	/* Check for thermal downshift or shutdown */
+	if (hw->mac.type == e1000_i350) {
+		thstat = E1000_READ_REG(hw, E1000_THSTAT);
+		ctrl = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	}
 
 	/* Now check for a transition */
@@ -1743,6 +1754,21 @@ em_if_update_admin_status(if_ctx_t ctx)
 		adapter->link_active = 1;
 		adapter->smartspeed = 0;
 		if_setbaudrate(ifp, adapter->link_speed * 1000000);
+		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_GMII) &&
+		    (thstat & E1000_THSTAT_LINK_THROTTLE))
+			device_printf(dev, "Link: thermal downshift\n");
+		/* Delay Link Up for Phy update */
+		if (((hw->mac.type == e1000_i210) ||
+		    (hw->mac.type == e1000_i211)) &&
+		    (hw->phy.id == I210_I_PHY_ID))
+			msec_delay(I210_LINK_DELAY);
+		/* Reset if the media type changed. */
+		if ((hw->dev_spec._82575.media_changed) &&
+			(adapter->hw.mac.type >= igb_mac_min)) {
+			hw->dev_spec._82575.media_changed = false;
+			adapter->flags |= IGB_MEDIA_RESET;
+			em_reset(ctx);
+		}
 		iflib_link_state_change(ctx, LINK_STATE_UP, ifp->if_baudrate);
 		printf("Link state changed to up\n");
 	} else if (!link_check && (adapter->link_active == 1)) {
@@ -2210,6 +2236,114 @@ lem_smartspeed(struct adapter *adapter)
 		adapter->smartspeed = 0;
 }
 
+/*********************************************************************
+ *
+ *  Initialize the DMA Coalescing feature
+ *
+ **********************************************************************/
+static void
+igb_init_dmac(struct adapter *adapter, u32 pba)
+{
+	device_t	dev = adapter->dev;
+	struct e1000_hw *hw = &adapter->hw;
+	u32 		dmac, reg = ~E1000_DMACR_DMAC_EN;
+	u16		hwm;
+	u16		max_frame_size;
+
+	if (hw->mac.type == e1000_i211)
+		return;
+
+	max_frame_size = adapter->shared->isc_max_frame_size;
+	if (hw->mac.type > e1000_82580) {
+
+		if (adapter->dmac == 0) { /* Disabling it */
+			E1000_WRITE_REG(hw, E1000_DMACR, reg);
+			return;
+		} else
+			device_printf(dev, "DMA Coalescing enabled\n");
+
+		/* Set starting threshold */
+		E1000_WRITE_REG(hw, E1000_DMCTXTH, 0);
+
+		hwm = 64 * pba - max_frame_size / 16;
+		if (hwm < 64 * (pba - 6))
+			hwm = 64 * (pba - 6);
+		reg = E1000_READ_REG(hw, E1000_FCRTC);
+		reg &= ~E1000_FCRTC_RTH_COAL_MASK;
+		reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
+		    & E1000_FCRTC_RTH_COAL_MASK);
+		E1000_WRITE_REG(hw, E1000_FCRTC, reg);
+
+
+		dmac = pba - max_frame_size / 512;
+		if (dmac < pba - 10)
+			dmac = pba - 10;
+		reg = E1000_READ_REG(hw, E1000_DMACR);
+		reg &= ~E1000_DMACR_DMACTHR_MASK;
+		reg = ((dmac << E1000_DMACR_DMACTHR_SHIFT)
+		    & E1000_DMACR_DMACTHR_MASK);
+
+		/* transition to L0x or L1 if available..*/
+		reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
+
+		/* Check if status is 2.5Gb backplane connection
+		* before configuration of watchdog timer, which is
+		* in msec values in 12.8usec intervals
+		* watchdog timer= msec values in 32usec intervals
+		* for non 2.5Gb connection
+		*/
+		if (hw->mac.type == e1000_i354) {
+			int status = E1000_READ_REG(hw, E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
+				reg |= ((adapter->dmac * 5) >> 6);
+			else
+				reg |= (adapter->dmac >> 5);
+		} else {
+			reg |= (adapter->dmac >> 5);
+		}
+
+		E1000_WRITE_REG(hw, E1000_DMACR, reg);
+
+		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
+
+		/* Set the interval before transition */
+		reg = E1000_READ_REG(hw, E1000_DMCTLX);
+		if (hw->mac.type == e1000_i350)
+			reg |= IGB_DMCTLX_DCFLUSH_DIS;
+		/*
+		** in 2.5Gb connection, TTLX unit is 0.4 usec
+		** which is 0x4*2 = 0xA. But delay is still 4 usec
+		*/
+		if (hw->mac.type == e1000_i354) {
+			int status = E1000_READ_REG(hw, E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
+				reg |= 0xA;
+			else
+				reg |= 0x4;
+		} else {
+			reg |= 0x4;
+		}
+
+		E1000_WRITE_REG(hw, E1000_DMCTLX, reg);
+
+		/* free space in tx packet buffer to wake from DMA coal */
+		E1000_WRITE_REG(hw, E1000_DMCTXTH, (IGB_TXPBSIZE -
+		    (2 * max_frame_size)) >> 6);
+
+		/* make low power state decision controlled by DMA coal */
+		reg = E1000_READ_REG(hw, E1000_PCIEMISC);
+		reg &= ~E1000_PCIEMISC_LX_DECISION;
+		E1000_WRITE_REG(hw, E1000_PCIEMISC, reg);
+
+	} else if (hw->mac.type == e1000_82580) {
+		u32 reg = E1000_READ_REG(hw, E1000_PCIEMISC);
+		E1000_WRITE_REG(hw, E1000_PCIEMISC,
+		    reg & ~E1000_PCIEMISC_LX_DECISION);
+		E1000_WRITE_REG(hw, E1000_DMACR, 0);
+	}
+}
 
 static void
 em_reset(if_ctx_t ctx)
@@ -2222,6 +2356,8 @@ em_reset(if_ctx_t ctx)
 	u32 pba;
 
 	INIT_DEBUGOUT("em_reset: begin");
+	/* Let the firmware know the OS is in control */
+	em_get_hw_control(adapter);
 
 	/* Set up smart power down as default off on newer adapters. */
 	if (!em_smart_pwr_down && (hw->mac.type == e1000_82571 ||
@@ -2417,13 +2553,24 @@ em_reset(if_ctx_t ctx)
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
-	E1000_WRITE_REG(hw, E1000_WUFC, 0);
-	em_disable_aspm(adapter);
+	if (adapter->hw.mac.type >= igb_mac_min) {
+		E1000_WRITE_REG(hw, E1000_WUC, 0);
+	} else {
+		E1000_WRITE_REG(hw, E1000_WUFC, 0);
+		em_disable_aspm(adapter);
+	}
+	if (adapter->flags & IGB_MEDIA_RESET) {
+		e1000_setup_init_funcs(hw, TRUE);
+		e1000_get_bus_info(hw);
+		adapter->flags &= ~IGB_MEDIA_RESET;
+	}
 	/* and a re-init */
 	if (e1000_init_hw(hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
 		return;
 	}
+	if (adapter->hw.mac.type >= igb_mac_min)
+		igb_init_dmac(adapter, pba);
 
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
 	e1000_get_phy_info(hw);
@@ -3307,6 +3454,9 @@ em_get_hw_control(struct adapter *adapter)
 {
 	u32 ctrl_ext, swsm;
 
+	if (adapter->vf_ifp)
+		return;
+
 	if (adapter->hw.mac.type == e1000_82573) {
 		swsm = E1000_READ_REG(&adapter->hw, E1000_SWSM);
 		E1000_WRITE_REG(&adapter->hw, E1000_SWSM,
@@ -3317,7 +3467,6 @@ em_get_hw_control(struct adapter *adapter)
 	ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
 	    ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
-	return;
 }
 
 /*
