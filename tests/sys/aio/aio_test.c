@@ -158,15 +158,10 @@ poll(struct aiocb *aio)
 
 	while ((error = aio_error(aio)) == EINPROGRESS)
 		usleep(25000);
-	switch (error) {
-		case EINPROGRESS:
-			errno = EINTR;
-			return (-1);
-		case 0:
-			return (aio_return(aio));
-		default:
-			return (error);
-	}
+	if (error)
+		return (error);
+	else
+		return (aio_return(aio));
 }
 
 static void
