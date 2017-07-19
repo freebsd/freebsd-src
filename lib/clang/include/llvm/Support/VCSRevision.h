@@ -1,2 +1,2 @@
 /* $FreeBSD$ */
-#define LLVM_REVISION "svn-r307894"
+#define LLVM_REVISION "svn-r308421"

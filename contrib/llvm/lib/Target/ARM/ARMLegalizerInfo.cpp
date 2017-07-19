@@ -66,14 +66,16 @@ ARMLegalizerInfo::ARMLegalizerInfo(const ARMSubtarget &ST) {
       setAction({Op, s32}, Libcall);
   }
 
-  // FIXME: Support s8 and s16 as well
-  for (unsigned Op : {G_SREM, G_UREM})
+  for (unsigned Op : {G_SREM, G_UREM}) {
+    for (auto Ty : {s8, s16})
+      setAction({Op, Ty}, WidenScalar);
     if (ST.hasDivideInARMMode())
       setAction({Op, s32}, Lower);
     else if (AEABI(ST))
       setAction({Op, s32}, Custom);
     else
       setAction({Op, s32}, Libcall);
+  }
 
   for (unsigned Op : {G_SEXT, G_ZEXT}) {
     setAction({Op, s32}, Legal);
@@ -87,6 +89,8 @@ ARMLegalizerInfo::ARMLegalizerInfo(const ARMSubtarget &ST) {
   setAction({G_SELECT, s32}, Legal);
   setAction({G_SELECT, p0}, Legal);
   setAction({G_SELECT, 1, s1}, Legal);
+
+  setAction({G_BRCOND, s1}, Legal);
 
   setAction({G_CONSTANT, s32}, Legal);
   for (auto Ty : {s1, s8, s16})

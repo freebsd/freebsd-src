@@ -138,6 +138,9 @@ static cl::opt<int> EnableGlobalISelAtO(
     cl::desc("Enable GlobalISel at or below an opt level (-1 to disable)"),
     cl::init(-1));
 
+static cl::opt<bool> EnableFalkorHWPFFix("aarch64-enable-falkor-hwpf-fix",
+                                         cl::init(true), cl::Hidden);
+
 extern "C" void LLVMInitializeAArch64Target() {
   // Register the target.
   RegisterTargetMachine<AArch64leTargetMachine> X(getTheAArch64leTarget());
@@ -158,6 +161,8 @@ extern "C" void LLVMInitializeAArch64Target() {
   initializeAArch64PromoteConstantPass(*PR);
   initializeAArch64RedundantCopyEliminationPass(*PR);
   initializeAArch64StorePairSuppressPass(*PR);
+  initializeFalkorHWPFFixPass(*PR);
+  initializeFalkorMarkStridedAccessesLegacyPass(*PR);
   initializeLDTLSCleanupPass(*PR);
 }
 
@@ -182,7 +187,7 @@ static std::string computeDataLayout(const Triple &TT,
   if (TT.isOSBinFormatMachO())
     return "e-m:o-i64:64-i128:128-n32:64-S128";
   if (TT.isOSBinFormatCOFF())
-    return "e-m:w-i64:64-i128:128-n32:64-S128";
+    return "e-m:w-p:64:64-i32:32-i64:64-i128:128-n32:64-S128";
   if (LittleEndian)
     return "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
   return "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
@@ -346,8 +351,12 @@ void AArch64PassConfig::addIRPasses() {
   //
   // Run this before LSR to remove the multiplies involved in computing the
   // pointer values N iterations ahead.
-  if (TM->getOptLevel() != CodeGenOpt::None && EnableLoopDataPrefetch)
-    addPass(createLoopDataPrefetchPass());
+  if (TM->getOptLevel() != CodeGenOpt::None) {
+    if (EnableLoopDataPrefetch)
+      addPass(createLoopDataPrefetchPass());
+    if (EnableFalkorHWPFFix)
+      addPass(createFalkorMarkStridedAccessesPass());
+  }
 
   TargetPassConfig::addIRPasses();
 
@@ -478,8 +487,12 @@ void AArch64PassConfig::addPreSched2() {
   // Expand some pseudo instructions to allow proper scheduling.
   addPass(createAArch64ExpandPseudoPass());
   // Use load/store pair instructions when possible.
-  if (TM->getOptLevel() != CodeGenOpt::None && EnableLoadStoreOpt)
-    addPass(createAArch64LoadStoreOptimizationPass());
+  if (TM->getOptLevel() != CodeGenOpt::None) {
+    if (EnableLoadStoreOpt)
+      addPass(createAArch64LoadStoreOptimizationPass());
+    if (EnableFalkorHWPFFix)
+      addPass(createFalkorHWPFFixPass());
+  }
 }
 
 void AArch64PassConfig::addPreEmitPass() {

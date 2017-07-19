@@ -2630,7 +2630,7 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_X86ThisCall: return "thiscall";
   case CC_X86Pascal: return "pascal";
   case CC_X86VectorCall: return "vectorcall";
-  case CC_X86_64Win64: return "ms_abi";
+  case CC_Win64: return "ms_abi";
   case CC_X86_64SysV: return "sysv_abi";
   case CC_X86RegCall : return "regcall";
   case CC_AAPCS: return "aapcs";
@@ -3023,6 +3023,7 @@ bool AttributedType::isQualifier() const {
   case AttributedType::attr_sptr:
   case AttributedType::attr_uptr:
   case AttributedType::attr_objc_kindof:
+  case AttributedType::attr_ns_returns_retained:
     return false;
   }
   llvm_unreachable("bad attributed type kind");
@@ -3056,6 +3057,7 @@ bool AttributedType::isCallingConv() const {
   case attr_objc_inert_unsafe_unretained:
   case attr_noreturn:
   case attr_nonnull:
+  case attr_ns_returns_retained:
   case attr_nullable:
   case attr_null_unspecified:
   case attr_objc_kindof:

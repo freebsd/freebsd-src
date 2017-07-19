@@ -229,6 +229,19 @@ bool LinkerScript::shouldKeep(InputSectionBase *S) {
   return false;
 }
 
+// If an input string is in the form of "foo.N" where N is a number,
+// return N. Otherwise, returns 65536, which is one greater than the
+// lowest priority.
+static int getPriority(StringRef S) {
+  size_t Pos = S.rfind('.');
+  if (Pos == StringRef::npos)
+    return 65536;
+  int V;
+  if (!to_integer(S.substr(Pos + 1), V, 10))
+    return 65536;
+  return V;
+}
+
 // A helper function for the SORT() command.
 static std::function<bool(InputSectionBase *, InputSectionBase *)>
 getComparator(SortSectionPolicy K) {
@@ -449,7 +462,7 @@ void LinkerScript::fabricateDefaultCommands() {
   // The Sections with -T<section> have been sorted in order of ascending
   // address. We must lower StartAddr if the lowest -T<section address> as
   // calls to setDot() must be monotonically increasing.
-  for (auto& KV : Config->SectionStartMap)
+  for (auto &KV : Config->SectionStartMap)
     StartAddr = std::min(StartAddr, KV.second);
 
   Commands.push_back(make<SymbolAssignment>(
@@ -739,7 +752,7 @@ void LinkerScript::adjustSectionsAfterSorting() {
       Cmd->MemRegion = findMemoryRegion(Cmd);
       // Handle align (e.g. ".foo : ALIGN(16) { ... }").
       if (Cmd->AlignExpr)
-	Cmd->Sec->updateAlignment(Cmd->AlignExpr().getValue());
+        Cmd->Sec->updateAlignment(Cmd->AlignExpr().getValue());
     }
   }
 
@@ -1071,7 +1084,7 @@ template <class ELFT> void OutputSectionCommand::finalize() {
       }
 
   if ((Sec->Flags & SHF_LINK_ORDER)) {
-    std::sort(Sections.begin(), Sections.end(), compareByFilePosition);
+    std::stable_sort(Sections.begin(), Sections.end(), compareByFilePosition);
     for (int I = 0, N = Sections.size(); I < N; ++I)
       *ScriptSections[I] = Sections[I];
 

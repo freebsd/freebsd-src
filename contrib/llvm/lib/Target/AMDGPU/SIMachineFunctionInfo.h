@@ -119,6 +119,11 @@ class SIMachineFunctionInfo final : public AMDGPUMachineFunction {
   unsigned WorkGroupInfoSystemSGPR;
   unsigned PrivateSegmentWaveByteOffsetSystemSGPR;
 
+  // VGPR inputs. These are always v0, v1 and v2 for entry functions.
+  unsigned WorkItemIDXVGPR;
+  unsigned WorkItemIDYVGPR;
+  unsigned WorkItemIDZVGPR;
+
   // Graphics info.
   unsigned PSInputAddr;
   unsigned PSInputEnable;
@@ -377,10 +382,13 @@ public:
   }
 
   void setStackPtrOffsetReg(unsigned Reg) {
-    assert(Reg != AMDGPU::NoRegister && "Should never be unset");
     StackPtrOffsetReg = Reg;
   }
 
+  // Note the unset value for this is AMDGPU::SP_REG rather than
+  // NoRegister. This is mostly a workaround for MIR tests where state that
+  // can't be directly computed from the function is not preserved in serialized
+  // MIR.
   unsigned getStackPtrOffsetReg() const {
     return StackPtrOffsetReg;
   }

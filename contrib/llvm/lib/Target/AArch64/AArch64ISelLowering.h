@@ -408,6 +408,19 @@ public:
 
   bool isIntDivCheap(EVT VT, AttributeList Attr) const override;
 
+  bool canMergeStoresTo(unsigned AddressSpace, EVT MemVT,
+                        const SelectionDAG &DAG) const override {
+    // Do not merge to float value size (128 bytes) if no implicit
+    // float attribute is set.
+
+    bool NoFloat = DAG.getMachineFunction().getFunction()->hasFnAttribute(
+        Attribute::NoImplicitFloat);
+
+    if (NoFloat)
+      return (MemVT.getSizeInBits() <= 64);
+    return true;
+  }
+
   bool isCheapToSpeculateCttz() const override {
     return true;
   }
@@ -454,6 +467,8 @@ public:
   /// lowering accesses of the given type.
   unsigned getNumInterleavedAccesses(VectorType *VecTy,
                                      const DataLayout &DL) const;
+
+  MachineMemOperand::Flags getMMOFlags(const Instruction &I) const override;
 
 private:
   bool isExtFreeImpl(const Instruction *Ext) const override;
@@ -541,6 +556,7 @@ private:
   SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerAAPCS_VASTART(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerDarwin_VASTART(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerWin64_VASTART(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVACOPY(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) const;
