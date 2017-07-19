@@ -89,6 +89,7 @@ OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_AT} == no
+OLD_FILES+=etc/pam.d/atrun
 OLD_FILES+=usr/bin/at
 OLD_FILES+=usr/bin/atq
 OLD_FILES+=usr/bin/atrm
@@ -1063,6 +1064,8 @@ OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 
 .if ${MK_FTP} == no
 OLD_FILES+=etc/ftpusers
+OLD_FILES+=etc/pam.d/ftp
+OLD_FILES+=etc/pam.d/ftpd
 OLD_FILES+=etc/rc.d/ftpd
 OLD_FILES+=usr/bin/ftp
 OLD_FILES+=usr/bin/gate-ftp
@@ -4778,6 +4781,7 @@ OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
 .endif
 
 .if ${MK_TELNET} == no
+OLD_FILES+=etc/pam.d/telnetd
 OLD_FILES+=usr/bin/telnet
 OLD_FILES+=usr/libexec/telnetd
 OLD_FILES+=usr/share/man/man1/telnet.1.gz
