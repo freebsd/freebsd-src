@@ -119,5 +119,19 @@ void		pctrie_remove(struct pctrie *ptree, uint64_t key,
 size_t		pctrie_node_size(void);
 int		pctrie_zone_init(void *mem, int size, int flags);
 
+static __inline void
+pctrie_init(struct pctrie *ptree)
+{
+
+	ptree->pt_root = 0;
+}
+
+static __inline boolean_t
+pctrie_is_empty(struct pctrie *ptree)
+{
+
+	return (ptree->pt_root == 0);
+}
+
 #endif /* _KERNEL */
 #endif /* !_SYS_PCTRIE_H_ */
