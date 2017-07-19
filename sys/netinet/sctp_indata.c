@@ -2071,12 +2071,12 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			return (0);
 		}
 		if ((chk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG) {
-			struct mbuf *m;
+			struct mbuf *mm;
 
 			control->data = dmbuf;
-			m = control->data;
-			for (m = control->data; m; m = m->m_next) {
-				control->length += SCTP_BUF_LEN(m);
+			mm = control->data;
+			for (mm = control->data; mm; mm = mm->m_next) {
+				control->length += SCTP_BUF_LEN(mm);
 			}
 			control->tail_mbuf = NULL;
 			control->end_added = 1;
