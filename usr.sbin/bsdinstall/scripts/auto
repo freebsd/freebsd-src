@@ -319,7 +319,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
 	fi
-		
+
 	export FTP_PASSIVE_MODE=YES
 	# Iterate through the distribution list and set a flag if debugging
 	# distributions have been selected.
@@ -413,7 +413,7 @@ finalconfig() {
 		finalconfig
 		;;
 	"Root Password")
-		bsdinstall rootpass 
+		bsdinstall rootpass
 		finalconfig
 		;;
 	"Hostname")

@@ -83,10 +83,12 @@ find_kernel()
 		}
 	}' $INFO)
 
-	# Look for a matching kernel version.
+	# Look for a matching kernel version, handling possible truncation
+	# of the version string recovered from the dump.
 	for k in `sysctl -n kern.bootfile` $(ls -t /boot/*/kernel); do
-		kvers=$(gdb_command $k 'printf "  Version String: %s", version' \
-		     2>/dev/null)
+		kvers=$(gdb_command $k 'printf "  Version String: %s", version' | \
+		    awk "{line=line\$0\"\n\"} END{print substr(line,1,${#ivers})}" \
+		    2>/dev/null)
 		if [ "$ivers" = "$kvers" ]; then
 			KERNEL=$k
 			break

@@ -7,6 +7,7 @@ atf_test_case header_ns
 atf_test_case ifdef
 atf_test_case group_format
 atf_test_case side_by_side
+atf_test_case brief_format
 
 simple_body()
 {
@@ -109,6 +110,36 @@ side_by_side_body()
 	    diff -W 65 -y --suppress-common-lines A B
 }
 
+brief_format_body()
+{
+	atf_check mkdir A B
+
+	atf_check -x "echo 1 > A/test-file"
+	atf_check -x "echo 2 > B/test-file"
+
+	atf_check cp -Rf A C
+	atf_check cp -Rf A D
+
+	atf_check -x "echo 3 > D/another-test-file"
+
+	atf_check \
+	    -s exit:1 \
+	    -o inline:"Files A/test-file and B/test-file differ\n" \
+	    diff -rq A B
+
+	atf_check diff -rq A C
+
+	atf_check \
+	    -s exit:1 \
+	    -o inline:"Only in D: another-test-file\n" \
+	    diff -rq A D
+
+	atf_check \
+	    -s exit:1 \
+	    -o inline:"Files A/another-test-file and D/another-test-file differ\n" \
+	    diff -Nrq A D
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -118,4 +149,5 @@ atf_init_test_cases()
 	atf_add_test_case ifdef
 	atf_add_test_case group_format
 	atf_add_test_case side_by_side
+	atf_add_test_case brief_format
 }

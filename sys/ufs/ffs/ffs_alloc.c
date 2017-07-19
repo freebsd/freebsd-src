@@ -2130,7 +2130,6 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	struct cg *cgp;
 	struct buf *bp;
 	ufs1_daddr_t fragno, cgbno;
-	ufs2_daddr_t cgblkno;
 	int i, blk, frags, bbase, error;
 	u_int cg;
 	u_int8_t *blksfree;
@@ -2141,11 +2140,9 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 		/* devvp is a snapshot */
 		MPASS(devvp->v_mount->mnt_data == ump);
 		dev = ump->um_devvp->v_rdev;
-		cgblkno = fragstoblks(fs, cgtod(fs, cg));
 	} else if (devvp->v_type == VCHR) {
 		/* devvp is a normal disk device */
 		dev = devvp->v_rdev;
-		cgblkno = fsbtodb(fs, cgtod(fs, cg));
 		ASSERT_VOP_LOCKED(devvp, "ffs_blkfree_cg");
 	} else
 		return;
@@ -2603,7 +2600,8 @@ ffs_getcg(fs, devvp, cg, bpp, cgpp)
 
 	*bpp = NULL;
 	*cgpp = NULL;
-	error = bread(devvp, fsbtodb(fs, cgtod(fs, cg)),
+	error = bread(devvp, devvp->v_type == VREG ?
+	    fragstoblks(fs, cgtod(fs, cg)) : fsbtodb(fs, cgtod(fs, cg)),
 	    (int)fs->fs_cgsize, NOCRED, &bp);
 	if (error != 0)
 		return (error);

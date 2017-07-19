@@ -50,7 +50,7 @@ SRCS+= device_if.h
 SRCS+= bus_if.h
 SRCS+= pci_if.h
 
-CWARNEXTRA += -Wno-cast-qual
+.include <bsd.kmod.mk>
 
 CFLAGS += -DQLNX_DEBUG
 CFLAGS += -DECORE_PACKAGE
@@ -66,6 +66,4 @@ CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 #CFLAGS += -DQLNX_QSORT_LRO
 #CFLAGS += -DQLNX_MAX_COALESCE
 
-
-.include <bsd.kmod.mk>
-
+CWARNFLAGS+= -Wno-cast-qual

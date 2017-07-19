@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.266 2017/02/01 18:39:27 sjg Exp $
+.\"	$NetBSD: make.1,v 1.271 2017/07/03 21:34:20 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd February 1, 2017
+.Dd June 22, 2017
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl m Ar directory
 .Op Fl T Ar file
 .Op Fl V Ar variable
+.Op Fl v Ar variable
 .Op Ar variable=value
 .Op Ar target ...
 .Sh DESCRIPTION
@@ -206,7 +207,9 @@ Print debugging information about target list maintenance.
 .It Ar V
 Force the
 .Fl V
-option to print raw values of variables.
+option to print raw values of variables, overriding the default behavior
+set via
+.Va .MAKE.EXPAND_VARIABLES .
 .It Ar v
 Print debugging information about variable assignment.
 .It Ar x
@@ -334,20 +337,39 @@ for each job started and completed.
 Rather than re-building a target as specified in the makefile, create it
 or update its modification time to make it appear up-to-date.
 .It Fl V Ar variable
-Print
-.Nm Ns 's
-idea of the value of
-.Ar variable ,
-in the global context.
+Print the value of
+.Ar variable .
 Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
+The value printed is extracted from the global context after all
+makefiles have been read.
+By default, the raw variable contents (which may
+include additional unexpanded variable references) are shown.
 If
 .Ar variable
 contains a
 .Ql \&$
-then the value will be expanded before printing.
+then the value will be recursively expanded to its complete resultant
+text before printing.
+The expanded value will also be printed if
+.Va .MAKE.EXPAND_VARIABLES
+is set to true and
+the
+.Fl dV
+option has not been used to override it.
+Note that loop-local and target-local variables, as well as values
+taken temporarily by global variables during makefile processing, are
+not accessible via this option.
+The
+.Fl dv
+debug mode can be used to see these at the cost of generating
+substantial extraneous output.
+.It Fl v Ar variable
+Like
+.Fl V
+but the variable is always expanded to its complete value.
 .It Fl W
 Treat any warnings during makefile parsing as errors.
 .It Fl w
@@ -657,7 +679,7 @@ The seven local variables are as follows:
 .Bl -tag -width ".ARCHIVE" -offset indent
 .It Va .ALLSRC
 The list of all sources for this target; also known as
-.Ql Va \&\*[Gt] .
+.Ql Va \&> .
 .It Va .ARCHIVE
 The name of the archive file; also known as
 .Ql Va \&! .
@@ -666,7 +688,7 @@ In suffix-transformation rules, the name/path of the source from which the
 target is to be transformed (the
 .Dq implied
 source); also known as
-.Ql Va \&\*[Lt] .
+.Ql Va \&< .
 It is not defined in explicit rules.
 .It Va .MEMBER
 The name of the archive member; also known as
@@ -691,9 +713,9 @@ in archive member rules.
 .El
 .Pp
 The shorter forms
-.Ql ( Va \*[Gt] ,
+.Ql ( Va > ,
 .Ql Va \&! ,
-.Ql Va \*[Lt] ,
+.Ql Va < ,
 .Ql Va % ,
 .Ql Va \&? ,
 .Ql Va * ,
@@ -776,6 +798,10 @@ from which generated dependencies are read.
 A boolean that controls the default behavior of the
 .Fl V
 option.
+If true, variable values printed with
+.Fl V
+are fully expanded; if false, the raw variable contents (which may
+include additional unexpanded variable references) are shown.
 .It Va .MAKE.EXPORTED
 The list of variables exported by
 .Nm .
@@ -1287,7 +1313,7 @@ it is anchored at the end of each word.
 Inside
 .Ar new_string ,
 an ampersand
-.Pq Ql \*[Am]
+.Pq Ql &
 is replaced by
 .Ar old_string
 (without any
@@ -1751,7 +1777,7 @@ may be any one of the following:
 .Bl -tag -width "Cm XX"
 .It Cm \&|\&|
 Logical OR.
-.It Cm \&\*[Am]\*[Am]
+.It Cm \&&&
 Logical
 .Tn AND ;
 of higher precedence than
@@ -1768,7 +1794,7 @@ The boolean operator
 may be used to logically negate an entire
 conditional.
 It is of higher precedence than
-.Ql Ic \&\*[Am]\*[Am] .
+.Ql Ic \&&& .
 .Pp
 The value of
 .Ar expression
