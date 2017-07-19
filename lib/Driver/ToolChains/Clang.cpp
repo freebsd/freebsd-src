@@ -2070,10 +2070,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     if (D.isUsingLTO()) {
       Args.AddLastArg(CmdArgs, options::OPT_flto, options::OPT_flto_EQ);
 
-      // The Darwin linker currently uses the legacy LTO API, which does not
-      // support LTO unit features (CFI, whole program vtable opt) under
-      // ThinLTO.
-      if (!getToolChain().getTriple().isOSDarwin() ||
+      // The Darwin and PS4 linkers currently use the legacy LTO API, which
+      // does not support LTO unit features (CFI, whole program vtable opt)
+      // under ThinLTO.
+      if (!(getToolChain().getTriple().isOSDarwin() ||
+            getToolChain().getTriple().isPS4()) ||
           D.getLTOMode() == LTOK_Full)
         CmdArgs.push_back("-flto-unit");
     }
@@ -3200,9 +3201,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
   Args.AddLastArg(CmdArgs, options::OPT_fno_operator_names);
-  // Emulated TLS is enabled by default on Android, and can be enabled manually
-  // with -femulated-tls.
-  bool EmulatedTLSDefault = Triple.isAndroid() || Triple.isWindowsCygwinEnvironment();
+  // Emulated TLS is enabled by default on Android and OpenBSD, and can be enabled
+  // manually with -femulated-tls.
+  bool EmulatedTLSDefault = Triple.isAndroid() || Triple.isOSOpenBSD() ||
+                            Triple.isWindowsCygwinEnvironment();
   if (Args.hasFlag(options::OPT_femulated_tls, options::OPT_fno_emulated_tls,
                    EmulatedTLSDefault))
     CmdArgs.push_back("-femulated-tls");
