@@ -30,6 +30,8 @@
         ..
         bluetooth
         ..
+        cron.d
+        ..
         defaults
         ..
         devd
