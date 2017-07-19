@@ -2,6 +2,7 @@
 
 PACKAGE=	tests
 
+ATF_TESTS_SH+=	sed2_test
 NETBSD_ATF_TESTS_SH+=	sed_test
 TAP_TESTS_SH=	legacy_test
 TAP_TESTS_SH+=	multi_test
