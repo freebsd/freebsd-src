@@ -59,7 +59,7 @@ usage() {
 #endif
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
-			"[-m mailto] [-n ] [-s] [-o] [-x debugflag[,...]]\n");
+			"[-m mailto] [-n] [-s] [-o] [-x debugflag[,...]]\n");
 #if DEBUGGING
 	fprintf(stderr, "\ndebugflags: ");
 
