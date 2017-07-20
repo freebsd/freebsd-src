@@ -11,9 +11,6 @@ ${TESTGROUP}= ${TESTFILES}
 ${TESTGROUP}EXE= ${TESTEXES}
 ${TESTGROUP}EXEMODE= 0555
 
-${TESTGROUP}DIR= ${TESTSDIR}
-${TESTGROUP}EXEDIR= ${TESTSDIR}
-
 TESTWRAPPER=	t_dtrace_contrib
 ATF_TESTS_SH+=	${TESTWRAPPER}
 TEST_METADATA.t_dtrace_contrib+= required_files="/usr/local/bin/ksh"
@@ -32,13 +29,14 @@ CLEANFILES+=	${TESTWRAPPER}.sh
 PROGS=		${CFILES:T:S/.c$/.exe/g}
 .for prog in ${PROGS}
 SRCS.${prog}+= ${prog:S/.exe$/.c/}
-BINDIR.${prog}= ${TESTSDIR}
-MAN.${prog}=
 
 .if exists(${prog:S/^tst.//:S/.exe$/.d/})
 SRCS.${prog}+=	${prog:S/^tst.//:S/.exe$/.d/}
 .endif
 .endfor
+
+BINDIR=		${TESTSDIR}
+MAN=
 
 # Some tests depend on the internals of their corresponding test programs,
 # so make sure the optimizer doesn't interfere with them.
