@@ -2,7 +2,7 @@
 
 PROG=	fifolog_create
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 LIBADD=	util fifolog
 
