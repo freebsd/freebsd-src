@@ -87,6 +87,7 @@
 
 #define	CHERI_CLASS_ASM(class)						\
 	.text;								\
+	.option pic0;							\
 	.global __cheri_ ## class ## _entry;				\
 	.type __cheri_ ## class ## _entry,@function;			\
 	.ent __cheri_ ## class ## _entry;				\
