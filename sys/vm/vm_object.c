@@ -204,7 +204,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	/* These are true for any object that has been freed */
 	object->type = OBJT_DEAD;
 	object->ref_count = 0;
-	object->rtree.rt_root = 0;
+	vm_radix_init(&object->rtree);
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
@@ -301,7 +301,7 @@ vm_object_init(void)
 #endif
 	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
-	vm_radix_init();
+	vm_radix_zinit();
 }
 
 void
