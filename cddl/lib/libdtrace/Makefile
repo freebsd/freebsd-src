@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/common
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libgen/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libgen/common
 
 LIB=		dtrace
 SRCS=		dt_aggregate.c \
@@ -58,9 +58,9 @@ DSRCS=		errno.d			\
 WARNS?=		1
 
 CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
-		-I${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH} \
-		-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+		-I${SRCTOP}/sys/cddl/dev/dtrace/${MACHINE_ARCH} \
+		-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \
@@ -69,22 +69,22 @@ CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
 #CFLAGS+=	-DYYDEBUG
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
+CFLAGS+=	-I${SRCTOP}/sys/cddl/dev/dtrace/x86
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/i386
-.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH}
-.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
+.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/i386
+.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/${MACHINE_ARCH}
+.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/x86
 .elif ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
+.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/sparc
 .elif ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
-.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/mips
+.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/mips
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
-.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/powerpc
+.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/powerpc
+.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/powerpc
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
