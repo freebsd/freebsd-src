@@ -5,7 +5,7 @@
 
 .include <bsd.own.mk>
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnetd
 
 PROG=		telnetd
@@ -27,7 +27,7 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-I${TELNETDIR}
 CFLAGS+=	-I${TELNETDIR}/telnet
 
-LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
+LIBTELNET=	${OBJTOP}/lib/libtelnet/libtelnet.a
 
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}

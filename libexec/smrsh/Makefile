@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/2/95
 # $FreeBSD$
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/smrsh
 
 PROG=	smrsh
