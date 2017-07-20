@@ -281,42 +281,42 @@ SYS_STUB_ARGHASPTRS(28, ssize_t, sendmsg,
 )
 
 SYS_STUB(29, ssize_t, recvfrom,
-    /* _protoargs */ (int s, void * buf, size_t len, int flags, struct sockaddr *__restrict from, socklen_t *__restrict fromlenaddr),
-    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, void * __capability  buf, size_t len, int flags, struct sockaddr * __capability __restrict from, socklen_t * __capability __restrict fromlenaddr),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, void * __capability  buf, size_t len, int flags, struct sockaddr * __capability __restrict from, socklen_t * __capability __restrict fromlenaddr),
-    /* _callargs */ (s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr),
+    /* _protoargs */ (int s, void * buf, size_t len, int flags, struct sockaddr *__restrict from, __socklen_t *__restrict fromlenaddr),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, void * __capability  buf, size_t len, int flags, struct sockaddr * __capability __restrict from, __socklen_t * __capability __restrict fromlenaddr),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, void * __capability  buf, size_t len, int flags, struct sockaddr * __capability __restrict from, __socklen_t * __capability __restrict fromlenaddr),
+    /* _callargs */ (s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (__socklen_t *__restrict)fromlenaddr),
     /* _callargs_chk */ (&ret, stub_errno, s, buf, len, flags, from, fromlenaddr),
-    /* _callargs_err */ (&errno, s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (socklen_t *__restrict)fromlenaddr),
+    /* _callargs_err */ (&errno, s, (void *)buf, len, flags, (struct sockaddr *__restrict)from, (__socklen_t *__restrict)fromlenaddr),
     /* _localcheck */ {if (!(cheri_getperm(buf) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((ssize_t)-1);} if (!(cheri_getperm(from) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((ssize_t)-1);} if (!(cheri_getperm(fromlenaddr) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((ssize_t)-1);} }
 )
 
 SYS_STUB(30, int, accept,
-    /* _protoargs */ (int s, struct sockaddr *__restrict name, socklen_t * anamelen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, socklen_t * __capability  anamelen),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, socklen_t * __capability  anamelen),
-    /* _callargs */ (s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen),
+    /* _protoargs */ (int s, struct sockaddr *__restrict name, __socklen_t * anamelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, __socklen_t * __capability  anamelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, __socklen_t * __capability  anamelen),
+    /* _callargs */ (s, (struct sockaddr *__restrict)name, (__socklen_t *)anamelen),
     /* _callargs_chk */ (&ret, stub_errno, s, name, anamelen),
-    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *)anamelen),
+    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (__socklen_t *)anamelen),
     /* _localcheck */ {if (!(cheri_getperm(name) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(anamelen) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
 SYS_STUB(31, int, getpeername,
-    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, socklen_t * alen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, socklen_t * __capability  alen),
-    /* _protoargs_err */ (__capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, socklen_t * __capability  alen),
-    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, __socklen_t * alen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, __socklen_t * __capability  alen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, __socklen_t * __capability  alen),
+    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (__socklen_t *)alen),
     /* _callargs_chk */ (&ret, stub_errno, fdes, asa, alen),
-    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (__socklen_t *)alen),
     /* _localcheck */ {if (!(cheri_getperm(asa) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(alen) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
 SYS_STUB(32, int, getsockname,
-    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, socklen_t * alen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, socklen_t * __capability  alen),
-    /* _protoargs_err */ (__capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, socklen_t * __capability  alen),
-    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _protoargs */ (int fdes, struct sockaddr *__restrict asa, __socklen_t * alen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, __socklen_t * __capability  alen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fdes, struct sockaddr * __capability __restrict asa, __socklen_t * __capability  alen),
+    /* _callargs */ (fdes, (struct sockaddr *__restrict)asa, (__socklen_t *)alen),
     /* _callargs_chk */ (&ret, stub_errno, fdes, asa, alen),
-    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (socklen_t *)alen),
+    /* _callargs_err */ (&errno, fdes, (struct sockaddr *__restrict)asa, (__socklen_t *)alen),
     /* _localcheck */ {if (!(cheri_getperm(asa) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(alen) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
@@ -742,9 +742,9 @@ SYS_STUB(97, int, socket,
 )
 
 SYS_STUB(98, int, connect,
-    /* _protoargs */ (int s, const struct sockaddr * name, socklen_t namelen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, const struct sockaddr * __capability  name, socklen_t namelen),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, const struct sockaddr * __capability  name, socklen_t namelen),
+    /* _protoargs */ (int s, const struct sockaddr * name, __socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
     /* _callargs */ (s, (const struct sockaddr *)name, namelen),
     /* _callargs_chk */ (&ret, stub_errno, s, name, namelen),
     /* _callargs_err */ (&errno, s, (const struct sockaddr *)name, namelen),
@@ -762,9 +762,9 @@ SYS_STUB(100, int, getpriority,
 )
 
 SYS_STUB(104, int, bind,
-    /* _protoargs */ (int s, const struct sockaddr * name, socklen_t namelen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, const struct sockaddr * __capability  name, socklen_t namelen),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, const struct sockaddr * __capability  name, socklen_t namelen),
+    /* _protoargs */ (int s, const struct sockaddr * name, __socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
     /* _callargs */ (s, (const struct sockaddr *)name, namelen),
     /* _callargs_chk */ (&ret, stub_errno, s, name, namelen),
     /* _callargs_err */ (&errno, s, (const struct sockaddr *)name, namelen),
@@ -772,9 +772,9 @@ SYS_STUB(104, int, bind,
 )
 
 SYS_STUB(105, int, setsockopt,
-    /* _protoargs */ (int s, int level, int name, const void * val, socklen_t valsize),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, const void * __capability  val, socklen_t valsize),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, const void * __capability  val, socklen_t valsize),
+    /* _protoargs */ (int s, int level, int name, const void * val, __socklen_t valsize),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, const void * __capability  val, __socklen_t valsize),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, const void * __capability  val, __socklen_t valsize),
     /* _callargs */ (s, level, name, (const void *)val, valsize),
     /* _callargs_chk */ (&ret, stub_errno, s, level, name, val, valsize),
     /* _callargs_err */ (&errno, s, level, name, (const void *)val, valsize),
@@ -812,12 +812,12 @@ SYS_STUB(117, int, getrusage,
 )
 
 SYS_STUB(118, int, getsockopt,
-    /* _protoargs */ (int s, int level, int name, void * val, socklen_t * avalsize),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, void * __capability  val, socklen_t * __capability  avalsize),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, void * __capability  val, socklen_t * __capability  avalsize),
-    /* _callargs */ (s, level, name, (void *)val, (socklen_t *)avalsize),
+    /* _protoargs */ (int s, int level, int name, void * val, __socklen_t * avalsize),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, int level, int name, void * __capability  val, __socklen_t * __capability  avalsize),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, int level, int name, void * __capability  val, __socklen_t * __capability  avalsize),
+    /* _callargs */ (s, level, name, (void *)val, (__socklen_t *)avalsize),
     /* _callargs_chk */ (&ret, stub_errno, s, level, name, val, avalsize),
-    /* _callargs_err */ (&errno, s, level, name, (void *)val, (socklen_t *)avalsize),
+    /* _callargs_err */ (&errno, s, level, name, (void *)val, (__socklen_t *)avalsize),
     /* _localcheck */ {if (!(cheri_getperm(val) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(avalsize) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
@@ -922,9 +922,9 @@ SYS_STUB(132, int, mkfifo,
 )
 
 SYS_STUB(133, ssize_t, sendto,
-    /* _protoargs */ (int s, const void * buf, size_t len, int flags, const struct sockaddr * to, socklen_t tolen),
-    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, const void * __capability  buf, size_t len, int flags, const struct sockaddr * __capability  to, socklen_t tolen),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, const void * __capability  buf, size_t len, int flags, const struct sockaddr * __capability  to, socklen_t tolen),
+    /* _protoargs */ (int s, const void * buf, size_t len, int flags, const struct sockaddr * to, __socklen_t tolen),
+    /* _protoargs_chk */ (ssize_t *retp , __capability int *stub_errno, int s, const void * __capability  buf, size_t len, int flags, const struct sockaddr * __capability  to, __socklen_t tolen),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, const void * __capability  buf, size_t len, int flags, const struct sockaddr * __capability  to, __socklen_t tolen),
     /* _callargs */ (s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen),
     /* _callargs_chk */ (&ret, stub_errno, s, buf, len, flags, to, tolen),
     /* _callargs_err */ (&errno, s, (const void *)buf, len, flags, (const struct sockaddr *)to, tolen),
@@ -3383,9 +3383,9 @@ SYS_STUB(537, int, cap_fcntls_get,
 )
 
 SYS_STUB(538, int, bindat,
-    /* _protoargs */ (int fd, int s, const struct sockaddr * name, socklen_t namelen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, socklen_t namelen),
-    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, socklen_t namelen),
+    /* _protoargs */ (int fd, int s, const struct sockaddr * name, __socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
     /* _callargs */ (fd, s, (const struct sockaddr *)name, namelen),
     /* _callargs_chk */ (&ret, stub_errno, fd, s, name, namelen),
     /* _callargs_err */ (&errno, fd, s, (const struct sockaddr *)name, namelen),
@@ -3393,9 +3393,9 @@ SYS_STUB(538, int, bindat,
 )
 
 SYS_STUB(539, int, connectat,
-    /* _protoargs */ (int fd, int s, const struct sockaddr * name, socklen_t namelen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, socklen_t namelen),
-    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, socklen_t namelen),
+    /* _protoargs */ (int fd, int s, const struct sockaddr * name, __socklen_t namelen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd, int s, const struct sockaddr * __capability  name, __socklen_t namelen),
     /* _callargs */ (fd, s, (const struct sockaddr *)name, namelen),
     /* _callargs_chk */ (&ret, stub_errno, fd, s, name, namelen),
     /* _callargs_err */ (&errno, fd, s, (const struct sockaddr *)name, namelen),
@@ -3413,12 +3413,12 @@ SYS_STUB(540, int, chflagsat,
 )
 
 SYS_STUB(541, int, accept4,
-    /* _protoargs */ (int s, struct sockaddr *__restrict name, socklen_t *__restrict anamelen, int flags),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, socklen_t * __capability __restrict anamelen, int flags),
-    /* _protoargs_err */ (__capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, socklen_t * __capability __restrict anamelen, int flags),
-    /* _callargs */ (s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags),
+    /* _protoargs */ (int s, struct sockaddr *__restrict name, __socklen_t *__restrict anamelen, int flags),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, __socklen_t * __capability __restrict anamelen, int flags),
+    /* _protoargs_err */ (__capability int *stub_errno, int s, struct sockaddr * __capability __restrict name, __socklen_t * __capability __restrict anamelen, int flags),
+    /* _callargs */ (s, (struct sockaddr *__restrict)name, (__socklen_t *__restrict)anamelen, flags),
     /* _callargs_chk */ (&ret, stub_errno, s, name, anamelen, flags),
-    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (socklen_t *__restrict)anamelen, flags),
+    /* _callargs_err */ (&errno, s, (struct sockaddr *__restrict)name, (__socklen_t *__restrict)anamelen, flags),
     /* _localcheck */ {if (!(cheri_getperm(name) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(anamelen) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
