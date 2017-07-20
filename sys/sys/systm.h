@@ -279,8 +279,6 @@ int	copyin(const void * _Nonnull __restrict udaddr,
 #ifdef CPU_CHERI
 int	copyincap(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
-int	copyoutcap(const void * _Nonnull __restrict kaddr,
-	    void * _Nonnull __restrict udaddr, size_t len);
 #endif
 int	copyin_nofault(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
