@@ -392,16 +392,25 @@ acpi_print_local_nmi(u_int lint, uint16_t mps_flags)
 	acpi_print_mps_flags(mps_flags);
 }
 
-static const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override",
-				    "NMI", "Local APIC NMI",
-				    "Local APIC Override", "IO SAPIC",
-				    "Local SAPIC", "Platform Interrupt",
-				    "Local X2APIC", "Local X2APIC NMI",
-				    "GIC CPU Interface Structure",
-				    "GIC Distributor Structure",
-				    "GICv2m MSI Frame",
-				    "GIC Redistributor Structure",
-				    "GIC ITS Structure" };
+static const char *apic_types[] = {
+    [ACPI_MADT_TYPE_LOCAL_APIC] = "Local APIC",
+    [ACPI_MADT_TYPE_IO_APIC] = "IO APIC",
+    [ACPI_MADT_TYPE_INTERRUPT_OVERRIDE] = "INT Override",
+    [ACPI_MADT_TYPE_NMI_SOURCE] = "NMI",
+    [ACPI_MADT_TYPE_LOCAL_APIC_NMI] = "Local APIC NMI",
+    [ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE] = "Local APIC Override",
+    [ACPI_MADT_TYPE_IO_SAPIC] = "IO SAPIC",
+    [ACPI_MADT_TYPE_LOCAL_SAPIC] = "Local SAPIC",
+    [ACPI_MADT_TYPE_INTERRUPT_SOURCE] = "Platform Interrupt",
+    [ACPI_MADT_TYPE_LOCAL_X2APIC] = "Local X2APIC",
+    [ACPI_MADT_TYPE_LOCAL_X2APIC_NMI] = "Local X2APIC NMI",
+    [ACPI_MADT_TYPE_GENERIC_INTERRUPT] = "GIC CPU Interface Structure",
+    [ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR] = "GIC Distributor Structure",
+    [ACPI_MADT_TYPE_GENERIC_MSI_FRAME] = "GICv2m MSI Frame",
+    [ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR] = "GIC Redistributor Structure",
+    [ACPI_MADT_TYPE_GENERIC_TRANSLATOR] = "GIC ITS Structure"
+};
+
 static const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
 					    "Corrected Platform Error" };
 
@@ -1076,7 +1085,12 @@ acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 	printf("\tProximity Domain=%d\n", mp->ProximityDomain);
 }
 
-static const char *srat_types[] = { "CPU", "Memory", "X2APIC", "GICC" };
+static const char *srat_types[] = {
+    [ACPI_SRAT_TYPE_CPU_AFFINITY] = "CPU",
+    [ACPI_SRAT_TYPE_MEMORY_AFFINITY] = "Memory",
+    [ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY] = "X2APIC",
+    [ACPI_SRAT_TYPE_GICC_AFFINITY] = "GICC"
+};
 
 static void
 acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
