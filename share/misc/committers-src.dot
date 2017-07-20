@@ -244,6 +244,7 @@ melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
 mizhka [label="Michael Zhilin\nmizhka@FreeBSD.org\n2016/07/19"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mjg [label="Mateusz Guzik\nmjg@FreeBSD.org\n2012/06/04"]
+mjoras [label="Matt Joras\nmjoras@FreeBSD.org\n2017/07/12"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
 mmel [label="Michal Meloun\nmmel@FreeBSD.org\n2015/11/01"]
 monthadar [label="Monthadar Al Jaberi\nmonthadar@FreeBSD.org\n2012/04/02"]
@@ -720,6 +721,7 @@ rrs -> jchandra
 rrs -> tuexen
 
 rstone -> markj
+rstone -> mjoras
 
 ru -> ceri
 ru -> cjc

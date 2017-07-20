@@ -39,15 +39,10 @@
 #include "sigev_thread.h"
 #include "un-namespace.h"
 
-__weak_reference(__aio_read, _aio_read);
 __weak_reference(__aio_read, aio_read);
-__weak_reference(__aio_write, _aio_write);
 __weak_reference(__aio_write, aio_write);
-__weak_reference(__aio_return, _aio_return);
 __weak_reference(__aio_return, aio_return);
-__weak_reference(__aio_waitcomplete, _aio_waitcomplete);
 __weak_reference(__aio_waitcomplete, aio_waitcomplete);
-__weak_reference(__aio_fsync, _aio_fsync);
 __weak_reference(__aio_fsync, aio_fsync);
 
 typedef void (*aio_func)(union sigval val, struct aiocb *iocb);
