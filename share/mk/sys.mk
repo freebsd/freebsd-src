@@ -234,7 +234,7 @@ LFLAGS		?=
 LD		?=	ld
 LDFLAGS		?=
 LDFLAGS		+=	-Wl,--no-warn-mismatch
-_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*}
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*:N-fuse-ld=*}
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
