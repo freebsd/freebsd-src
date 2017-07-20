@@ -18,10 +18,10 @@ RPCSRC= ${DESTDIR}/usr/include/rpcsvc/nlm_prot.x
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C
 
 nlm_prot_svc.c: ${RPCSRC}
-	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}
+	${RPCGEN} -m -o ${.TARGET} ${.ALLSRC}
 
 nlm_prot.h: ${RPCSRC}
-	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
+	${RPCGEN} -h -o ${.TARGET} ${.ALLSRC}
 
 test: ${.CURDIR}/test.c
 	cc -o test ${.CURDIR}/test.c -lrpcsvc
