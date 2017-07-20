@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
 
 SRCS=		drti.c
 FILES=		${SRCS:R:S/$/.o/g}
@@ -12,8 +12,8 @@ CLEANFILES=	${FILES}
 LIB=		drti-dummy
 INTERNALLIB=
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \

@@ -1,28 +1,28 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/Makefile.files"
+.include "${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/Makefile.files"
 
 # ZFS_COMMON_SRCS
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 # ZFS_SHARED_SRCS
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
 # KERNEL_SRCS
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
 # LIST_SRCS
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/os
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/os
 # ATOMIC_SRCS
-.if exists(${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
+.if exists(${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
 .if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 .else
-.PATH: ${.CURDIR}/../../../sys/cddl/compat/opensolaris/kern
+.PATH: ${SRCTOP}/sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
 .endif
 # UNICODE_SRCS
-.PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/unicode
+.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/unicode
 
 LIB=		zpool
 
@@ -37,24 +37,23 @@ SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${UNICODE_SRCS}
 
 WARNS?=		0
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris
-CFLAGS+=	-I${.CURDIR}/../../compat/opensolaris/include
-CFLAGS+=	-I${.CURDIR}/../../compat/opensolaris/lib/libumem
-CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/lib/libzpool/common
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/head
-CFLAGS+=	-I${.CURDIR}/../../lib/libumem
-CFLAGS+=	-I${.CURDIR}/../../contrib/opensolaris/lib/libnvpair
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris
+CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/include
+CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
+CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
+CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
+CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
+CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
+CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/head
+CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
 #      ZFS debugging tools needs.
 CFLAGS+=	-DWANTS_MUTEX_OWNED
-CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
-CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
-CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_CPUARCH}/include
+CFLAGS+=	-I${SRCTOP}/lib/libpthread/thread
+CFLAGS+=	-I${SRCTOP}/lib/libpthread/sys
+CFLAGS+=	-I${SRCTOP}/lib/libthr/arch/${MACHINE_CPUARCH}/include
 
 DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ} ${LIBNVPAIR} \
 		${LIBAVL} ${LIBUMEM}
