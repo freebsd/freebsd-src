@@ -203,7 +203,7 @@ static pci_vendor_info_t igb_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER_OEM1, "Intel(R) PRO/1000 PCI-Express Network Driver"),
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER_FLASHLESS, "Intel(R) PRO/1000 PCI-Express Network Driver"),
 	PVID(0x8086, E1000_DEV_ID_I210_SERDES_FLASHLESS, "Intel(R) PRO/1000 PCI-Express Network Driver"),
-	PVID(0x8086, E1000_DEV_ID_I210_FIBER, "Intel(R) PRO/1000 PCI-Express Network Driver"), 
+	PVID(0x8086, E1000_DEV_ID_I210_FIBER, "Intel(R) PRO/1000 PCI-Express Network Driver"),
 	PVID(0x8086, E1000_DEV_ID_I210_SERDES, "Intel(R) PRO/1000 PCI-Express Network Driver"),
 	PVID(0x8086, E1000_DEV_ID_I210_SGMII, "Intel(R) PRO/1000 PCI-Express Network Driver"),
 	PVID(0x8086, E1000_DEV_ID_I211_COPPER, "Intel(R) PRO/1000 PCI-Express Network Driver"),
@@ -231,8 +231,8 @@ static int	em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs
 static void	em_if_queues_free(if_ctx_t ctx);
 
 static uint64_t	em_if_get_counter(if_ctx_t, ift_counter);
-static void	em_if_init(if_ctx_t ctx); 
-static void	em_if_stop(if_ctx_t ctx); 
+static void	em_if_init(if_ctx_t ctx);
+static void	em_if_stop(if_ctx_t ctx);
 static void	em_if_media_status(if_ctx_t, struct ifmediareq *);
 static int	em_if_media_change(if_ctx_t ctx);
 static int	em_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
@@ -357,11 +357,11 @@ static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_detach, em_if_detach),
 	DEVMETHOD(ifdi_shutdown, em_if_shutdown),
 	DEVMETHOD(ifdi_suspend, em_if_suspend),
-	DEVMETHOD(ifdi_resume, em_if_resume), 
+	DEVMETHOD(ifdi_resume, em_if_resume),
 	DEVMETHOD(ifdi_init, em_if_init),
 	DEVMETHOD(ifdi_stop, em_if_stop),
 	DEVMETHOD(ifdi_msix_intr_assign, em_if_msix_intr_assign),
-	DEVMETHOD(ifdi_intr_enable, em_if_enable_intr), 
+	DEVMETHOD(ifdi_intr_enable, em_if_enable_intr),
 	DEVMETHOD(ifdi_intr_disable, em_if_disable_intr),
 	DEVMETHOD(ifdi_tx_queues_alloc, em_if_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, em_if_rx_queues_alloc),
@@ -1401,7 +1401,7 @@ em_msix_link(void *arg)
 	u32 reg_icr;
 
 	++adapter->link_irq;
-	MPASS(adapter->hw.back != NULL); 
+	MPASS(adapter->hw.back != NULL);
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
 	if (reg_icr & E1000_ICR_RXO)
@@ -1720,9 +1720,9 @@ em_if_update_admin_status(if_ctx_t ctx)
 		break;
 	/* VF device is type_unknown */
 	case e1000_media_type_unknown:
-                e1000_check_for_link(hw);
+		e1000_check_for_link(hw);
 		link_check = !hw->mac.get_link_status;
-		/* Fall thru */
+		/* FALLTHROUGH */
 	default:
 		break;
 	}
@@ -2536,15 +2536,15 @@ em_reset(if_ctx_t ctx)
 	case e1000_vfadapt_i350:
 		/* 16-byte granularity */
 		hw->fc.low_water = hw->fc.high_water - 16;
-		break; 
-        case e1000_ich9lan:
-        case e1000_ich10lan:
+		break;
+	case e1000_ich9lan:
+	case e1000_ich10lan:
 		if (if_getmtu(ifp) > ETHERMTU) {
 			hw->fc.high_water = 0x2800;
 			hw->fc.low_water = hw->fc.high_water - 8;
 			break;
 		}
-		/* else fall thru */
+		/* FALLTHROUGH */
 	default:
 		if (hw->mac.type == e1000_80003es2lan)
 			hw->fc.pause_time = 0xFFFF;
@@ -2611,7 +2611,7 @@ em_initialize_rss_mapping(struct adapter *adapter)
 	for (i = 0; i < 32; ++i)
 		E1000_WRITE_REG(hw, E1000_RETA(i), reta);
 
-	E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_RSS_ENABLE_2Q | 
+	E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_RSS_ENABLE_2Q |
 			E1000_MRQC_RSS_FIELD_IPV4_TCP |
 			E1000_MRQC_RSS_FIELD_IPV4 |
 			E1000_MRQC_RSS_FIELD_IPV6_TCP_EX |
@@ -2698,8 +2698,7 @@ igb_initialize_rss_mapping(struct adapter *adapter)
 	arc4rand(&rss_key, sizeof(rss_key), 0);
 #endif
 	for (i = 0; i < 10; i++)
-		E1000_WRITE_REG_ARRAY(hw,
-		    E1000_RSSRK(0), i, rss_key[i]);
+		E1000_WRITE_REG_ARRAY(hw, E1000_RSSRK(0), i, rss_key[i]);
 
 	/*
 	 * Configure the RSS fields to hash upon.
@@ -2766,7 +2765,7 @@ em_setup_interface(if_ctx_t ctx)
 	/* Enable only WOL MAGIC by default */
 	if (adapter->wol) {
 		if_setcapenablebit(ifp, IFCAP_WOL_MAGIC,
-			     IFCAP_WOL_MCAST| IFCAP_WOL_UCAST);
+			    IFCAP_WOL_MCAST| IFCAP_WOL_UCAST);
 	} else {
 		if_setcapenablebit(ifp, 0, IFCAP_WOL_MAGIC |
 			     IFCAP_WOL_MCAST| IFCAP_WOL_UCAST);
@@ -2838,7 +2837,7 @@ em_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs
 		txr->tx_base = (struct e1000_tx_desc *)vaddrs[i*ntxqs];
 		txr->tx_paddr = paddrs[i*ntxqs];
 	}
-	
+
 	device_printf(iflib_get_dev(ctx), "allocated for %d tx_queues\n", adapter->tx_num_queues);
 	return (0);
 fail:
@@ -2863,7 +2862,7 @@ em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs
 	    adapter->rx_num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(iflib_get_dev(ctx), "Unable to allocate queue memory\n");
 		error = ENOMEM;
-		goto fail; 
+		goto fail;
 	}
 
 	for (i = 0, que = adapter->rx_queues; i < nrxqsets; i++, que++) {
@@ -2903,7 +2902,7 @@ em_if_queues_free(if_ctx_t ctx)
 			txr->tx_rsq = NULL;
 		}
 		free(adapter->tx_queues, M_DEVBUF);
-		adapter->tx_queues = NULL; 
+		adapter->tx_queues = NULL;
 	}
 
 	if (rx_que != NULL) {
@@ -3178,7 +3177,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		u64 bus_addr = rxr->rx_paddr;
 #if 0
 		u32 rdt = adapter->rx_num_queues -1;  /* default */
-#endif		
+#endif
 
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 		    scctx->isc_nrxd[0] * sizeof(union e1000_rx_desc_extended));
@@ -3233,7 +3232,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 			rctl |= E1000_RCTL_SZ_2048;
 		}
-	
+
 		/*
 		 * If TX flow control is disabled and there's >1 queue defined,
 		 * enable DROP.
@@ -3271,7 +3270,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			rxdctl &= 0xFFF00000;
 			rxdctl |= IGB_RX_PTHRESH;
 			rxdctl |= IGB_RX_HTHRESH << 8;
-			rxdctl |= IGB_RX_WTHRESH << 16; 
+			rxdctl |= IGB_RX_WTHRESH << 16;
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}		
 	} else if (adapter->hw.mac.type >= e1000_pch2lan) {
@@ -3400,7 +3399,7 @@ em_if_disable_intr(if_ctx_t ctx)
 /*
  * Bit of a misnomer, what this really means is
  * to enable OS management of the system... aka
- * to disable special hardware management features 
+ * to disable special hardware management features
  */
 static void
 em_init_manageability(struct adapter *adapter)
@@ -3786,7 +3785,7 @@ static void
 em_if_led_func(if_ctx_t ctx, int onoff)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
- 
+
 	if (onoff) {
 		e1000_setup_led(&adapter->hw);
 		e1000_led_on(&adapter->hw);
@@ -3932,7 +3931,7 @@ static uint64_t
 em_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx); 
+	struct ifnet *ifp = iflib_get_ifp(ctx);
 
 	switch (cnt) {
 	case IFCOUNTER_COLLISIONS:
@@ -3969,7 +3968,7 @@ static void
 em_add_hw_stats(struct adapter *adapter)
 {
 	device_t dev = iflib_get_dev(adapter->ctx);
-        struct em_tx_queue *tx_que = adapter->tx_queues;
+	struct em_tx_queue *tx_que = adapter->tx_queues;
 	struct em_rx_queue *rx_que = adapter->rx_queues;
 
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
@@ -4214,7 +4213,7 @@ em_add_hw_stats(struct adapter *adapter)
 
 	/* Interrupt Stats */
 
-	int_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "interrupts", 
+	int_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "interrupts",
 				    CTLFLAG_RD, NULL, "Interrupt Statistics");
 	int_list = SYSCTL_CHILDREN(int_node);
 
@@ -4391,7 +4390,7 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	case e1000_fc_none:
 		adapter->hw.fc.requested_mode = input;
 		adapter->fc = input;
-                break;
+		break;
 	default:
 		/* Do nothing */
 		return (error);
@@ -4439,7 +4438,7 @@ em_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		adapter = (struct adapter *) arg1;
 		em_print_debug_info(adapter);
-        }
+	}
 
 	return (error);
 }
