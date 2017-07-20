@@ -23,7 +23,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2016</year>
+      <year>2017</year>
 
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
@@ -95,17 +95,6 @@
 
     <itemizedlist>
       <listitem>
-	<para>An issue was discovered with Amazon&reg; EC2&trade;
-	  images which would cause the virtual machine to hang during
-	  boot when upgrading from previous FreeBSD versions.  New
-	  EC2&trade; installations are not affected, but existing
-	  installations running earlier releases are advised to wait
-	  until the issue is resolved in an Errata Notice before
-	  upgrading.  An Errata Notice to address this is planned
-	  following the release.</para>
-      </listitem>
-
-      <listitem>
 	<para>&os;/&arch.i386; installed on ZFS may crash during boot
 	  when the ZFS pool mount is attempted while booting an
 	  unmodified <literal>GENERIC</literal> kernel.</para>
@@ -131,35 +120,6 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>A bug was diagnosed in interaction of the
-	  <literal>pmap_activate()</literal> function and
-	  <acronym>TLB</acronym> shootdown <acronym>IPI</acronym>
-	  handler on amd64 systems which have <acronym>PCID</acronym>
-	  features but do not implement the <acronym>INVPCID</acronym>
-	  instruction.  On such machines, such as SandyBridge&trade;
-	  and IvyBridge&trade; microarchitectures, set the loader
-	  tunable <literal>vm.pmap.pcid_enabled=0</literal> during
-	  boot:</para>
-
-	<screen>set vm.pmap.pcid_enabled=0
-boot</screen>
-
-	<para>Add this line to
-	  <filename>/boot/loader.conf</filename> for the change to
-	  persist across reboots:</para>
-
-	<para>To check if the system is affected, check
-	  &man.dmesg.8; for <acronym>PCID</acronym> listed in the
-	  &quot;Features2&quot;, and absence of
-	  <acronym>INVPCID</acronym> in the &quot;Structured Extended
-	  Features&quot;.  If the <acronym>PCID</acronym> feature is
-	  not present, or <acronym>INVPCID</acronym> is present,
-	  system is not affected.</para>
-
-	<programlisting>vm.pmap.pcid_enabled=0</programlisting>
-      </listitem>
-
-      <listitem>
 	<para>The Release Notes erroneously states the
 	  <literal>WITH_SYSTEM_COMPILER</literal> &man.src.conf.5;
 	  option is enabled by default, however this was disabled
@@ -167,89 +127,7 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>The release announcement stated &quot;Wireless support
-	  for 802.11n has been added.&quot;  This was intended to
-	  state &quot;Wireless support for 802.11n has been added for
-	  additional wireless network drivers.&quot;</para>
-      </listitem>
-
-      <listitem>
-	<para>Some release notes pertaining to the Cavium ThunderX
-	  platform (the &os;/&arch.arm64; reference platform) were
-	  omitted:</para>
-
-	<itemizedlist>
-	  <listitem>
-	    <para revision="289550" contrib="sponsor"
-	      sponsor="&cavium;">Support for the Cavium Virtualized
-	      NIC ethernet driver has been added.</para>
-	  </listitem>
-
-	  <listitem>
-	    <para revision="286919" contrib="sponsor"
-	      sponsor="&cavium;">Support for the GICv3 and ITS device
-	      drivers has been added.</para>
-	  </listitem>
-
-	  <listitem>
-	    <para revision="296308" contrib="sponsor"
-	      sponsor="&cavium;">Support for PCI Enhanced Allocation
-	      support has been added.</para>
-	  </listitem>
-	</itemizedlist>
-      </listitem>
-
-      <listitem>
-	<para revision="293860">[2016-10-20] Several recent Dell
-	  systems fail to find a bootable disk when the system boots
-	  in Legacy/BIOS/CSM mode, the boot disk is partitioned with
-	  <acronym>GPT</acronym>, and the Active flag in the
-	  Protective <acronym>MBR</acronym> is not set.  To work
-	  around this issue, either configure the system to boot in
-	  <acronym>UEFI</acronym> mode, or choose the &quot;GPT
-	  + Active&quot; scheme.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2016-10-21] Support for <literal>sha512</literal> and
-	  <literal>skein</literal> checksumming has been added to the
-	  <acronym>ZFS</acronym> filesystem.  This was not mentioned
-	  in the release notes.</para>
-
-	<para>Systems being upgraded from earlier &os; releases with
-	  <acronym>ZFS</acronym> will see a message in <literal>zpool
-	    status</literal> output noting the pool is not at the
-	  latest version, and some features may not be enabled.
-	  Additional instructions on how to update
-	  <acronym>ZFS</acronym> pools to the latest version and
-	  update the boot blocks for all boot drives in the pool will
-	  also be provided in the output.</para>
-
-	<para>This information is also documented in
-	  <filename>/usr/src/UPDATING</filename>, which is included if
-	  the <literal>src</literal> component is selected during
-	  installation.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2016-10-21] The size of the <acronym>GPT</acronym>
-	  enabled <acronym>ZFS</acronym> boot blocks
-	  (<filename>/boot/gptzfsboot</filename>) has increased past
-	  64K.  Systems upgraded from older releases may experience
-	  a problem where the size of the existing
-	  &quot;freebsd-boot&quot; partition is too small to hold the
-	  new <filename>gptzfsboot</filename>.</para>
-
-	<para>Systems where the boot partition is immediately followed
-	  by the swap partition, such as those installed via
-	  &man.bsdinstall.8;, can resize the swap partition slightly
-	  using the &man.gpart.8; <literal>resize</literal> command,
-	  so space can be reclaimed to increase the size of the
-	  freebsd-boot partition.</para>
-      </listitem>
-
-      <listitem>
-	<para>[2016-10-21] Due to a bug in earlier versions of
+	<para>[2017-07-21] Due to a bug in earlier versions of
 	  &man.clang.1; that is difficult to work around in the
 	  upgrade process, to upgrade the system from sources via
 	  buildworld to -CURRENT or &release;, it is necessary to
