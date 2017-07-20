@@ -2,7 +2,7 @@
 
 PROG=	fifolog_writer
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 MAN=
 

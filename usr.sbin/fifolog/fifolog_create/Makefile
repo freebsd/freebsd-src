@@ -2,7 +2,7 @@
 
 PROG=	fifolog_create
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 DPADD=	${LIBFIFOLOG} ${LIBUTIL}
 LDADD=	${LIBFIFOLOG} -lutil
