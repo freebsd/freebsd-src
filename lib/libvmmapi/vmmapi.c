@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #define	VM_MMAP_GUARD_SIZE	(4 * MB)
 
 #define	PROT_RW		(PROT_READ | PROT_WRITE)
-#define	PROT_ALL	(PROT_READ | PROT_WRITE | PROT_EXEC)
 
 struct vmctx {
 	int	fd;
