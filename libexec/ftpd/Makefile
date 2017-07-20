@@ -20,10 +20,9 @@ LDADD=	-lutil -lcrypt
 DPADD+=	${LIBOPIE} ${LIBMD}
 LDADD+=	-lopie -lmd
 
-LSDIR=	../../bin/ls
-.PATH:	${.CURDIR}/${LSDIR}
+.PATH:	${SRCTOP}/bin/ls
 SRCS+=	ls.c cmp.c print.c util.c
-CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
+CFLAGS+=-Dmain=ls_main -I${SRCTOP}/bin/ls
 DPADD+=	${LIBM}
 LDADD+=	-lm
 

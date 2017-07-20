@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../contrib/tcp_wrappers
+.PATH: ${SRCTOP}/contrib/tcp_wrappers
 
 PROG=	tcpd
 MAN=	tcpd.8
