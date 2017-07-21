@@ -90,8 +90,6 @@ int	mcount_lock;
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
 
-extern	struct pcpu __pcpu[];
-
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
 int bootAP;

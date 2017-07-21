@@ -274,8 +274,6 @@ pmap_modified_bit(pmap_t pmap)
 	return (mask);
 }
 
-extern	struct pcpu __pcpu[];
-
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -1063,8 +1061,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 			kernel_pmap->pm_pcids[i].pm_pcid = PMAP_PCID_KERN;
 			kernel_pmap->pm_pcids[i].pm_gen = 1;
 		}
-		__pcpu[0].pc_pcid_next = PMAP_PCID_KERN + 1;
-		__pcpu[0].pc_pcid_gen = 1;
+		PCPU_SET(pcid_next, PMAP_PCID_KERN + 1);
+		PCPU_SET(pcid_gen, 1);
 		/*
 		 * pcpu area for APs is zeroed during AP startup.
 		 * pc_pcid_next and pc_pcid_gen are initialized by AP
