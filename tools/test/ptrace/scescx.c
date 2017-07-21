@@ -181,12 +181,33 @@ get_pathname(pid_t pid)
 static void
 wait_info(int pid, int status, struct ptrace_lwpinfo *lwpinfo)
 {
+	long *args;
+	int error, i;
 
 	printf(TRACE "pid %d wait %s", pid,
 	    decode_wait_status(status));
 	if (lwpinfo != NULL) {
 		printf(" event %s flags %s",
 		    decode_pl_event(lwpinfo), decode_pl_flags(lwpinfo));
+		if ((lwpinfo->pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) != 0) {
+			printf(" sc%d", lwpinfo->pl_syscall_code);
+			args = calloc(lwpinfo->pl_syscall_narg, sizeof(long));
+			error = ptrace(PT_GET_SC_ARGS, lwpinfo->pl_lwpid,
+			    (caddr_t)args, lwpinfo->pl_syscall_narg *
+			    sizeof(long));
+			if (error == 0) {
+				for (i = 0; i < (int)lwpinfo->pl_syscall_narg;
+				    i++) {
+					printf("%c%#lx", i == 0 ? '(' : ',',
+					    args[i]);
+				}
+			} else {
+				fprintf(stderr, "PT_GET_SC_ARGS failed: %s",
+				    strerror(errno));
+			}
+			printf(")");
+			free(args);
+		}
 	}
 	printf("\n");
 }
