@@ -178,7 +178,7 @@ struct syscall_module_data {
 /* separate initialization vector so it can be used in a substructure */
 #define SYSENT_INIT_VALS(_syscallname) {			\
 	.sy_narg = (sizeof(struct _syscallname ## _args )	\
-	    / sizeof(register_t)),				\
+	    / sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)&sys_##_syscallname,		\
 	.sy_auevent = SYS_AUE_##_syscallname,			\
 	.sy_systrace_args_func = NULL,				\
@@ -194,7 +194,7 @@ static struct sysent syscallname##_sysent = SYSENT_INIT_VALS(syscallname);
 #define	MAKE_SYSENT_COMPAT(syscallname)				\
 static struct sysent syscallname##_sysent = {			\
 	(sizeof(struct syscallname ## _args )			\
-	    / sizeof(register_t)),				\
+	    / sizeof(syscallarg_t)),				\
 	(sy_call_t *)& syscallname,				\
 	SYS_AUE_##syscallname					\
 }
@@ -234,7 +234,7 @@ struct syscall_helper_data {
 #define SYSCALL_INIT_HELPER(syscallname) {			\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
+	    / sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
 	.sy_auevent = SYS_AUE_##syscallname			\
     },								\
@@ -243,7 +243,7 @@ struct syscall_helper_data {
 #define SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
+	    / sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& syscallname,			\
 	.sy_auevent = SYS_AUE_##syscallname			\
     },								\

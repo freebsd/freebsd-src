@@ -274,6 +274,20 @@ int	copystr(const void * _Nonnull __restrict kfaddr,
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
+#if __has_feature(capabilities)
+int	copyinstr_fc(const void * __CAPABILITY __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied);
+#else
+static inline
+int
+copyinstr_fc(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len,
+    size_t * __restrict lencopied) {
+
+	return (copyinstr(udaddr, kaddr, len, lencopied));
+}
+#endif
 int	copyin(const void * _Nonnull __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
 #ifdef CPU_CHERI

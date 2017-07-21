@@ -58,6 +58,7 @@ struct componentname {
 struct nameicap_tracker;
 TAILQ_HEAD(nameicap_tracker_head, nameicap_tracker);
 
+#ifdef _KERNEL
 /*
  * Encapsulation of namei parameters.
  */
@@ -65,7 +66,7 @@ struct nameidata {
 	/*
 	 * Arguments to namei/lookup.
 	 */
-	const	char *ni_dirp;		/* pathname pointer */
+	const char * __CAPABILITY	ni_dirp;	/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
 	cap_rights_t ni_rightsneeded;	/* rights required to look up vnode */
 	/*
@@ -100,7 +101,6 @@ struct nameidata {
 	struct nameicap_tracker_head ni_cap_tracker;
 };
 
-#ifdef _KERNEL
 /*
  * namei operations
  */
@@ -172,9 +172,14 @@ struct nameidata {
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
+#define	NDINIT_ATRIGHTS_C(ndp, op, flags, segflg, namep, dirfd, rightsp, td) \
+	NDINIT_ALL_C(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 
 void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
     enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
+    cap_rights_t *rightsp, struct thread *td);
+void NDINIT_ALL_C(struct nameidata *ndp, u_long op, u_long flags,
+    enum uio_seg segflg, const char * __CAPABILITY namep, int dirfd, struct vnode *startdir,
     cap_rights_t *rightsp, struct thread *td);
 
 #define NDF_NO_DVP_RELE		0x00000001

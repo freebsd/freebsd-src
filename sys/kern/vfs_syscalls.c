@@ -1035,6 +1035,14 @@ int
 kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flags, int mode)
 {
+
+	return (kern_openat_c(td, fd, (char * __CAPABILITY)path, pathseg, flags, mode));
+}
+
+int
+kern_openat_c(struct thread *td, int fd, char const * __CAPABILITY path, enum uio_seg pathseg,
+    int flags, int mode)
+{
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
@@ -1076,7 +1084,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	/* Set the flags early so the finit in devfs can pick them up. */
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode & ~fdp->fd_cmask) & ALLPERMS) & ~S_ISTXT;
-	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, fd,
+	NDINIT_ATRIGHTS_C(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, fd,
 	    &rights, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
 	error = vn_open(&nd, &flags, cmode, fp);

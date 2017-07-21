@@ -22,6 +22,16 @@ struct proc;
 
 struct thread;
 
+#ifdef CPU_CHERI
+#define	CHERI_PADL_(t)	(sizeof (t) > sizeof(register_t) ? \
+		0 : sizeof(register_t))
+#define	CHERI_PADR_(t)	(sizeof (t) > sizeof(register_t ) ? \
+		0 : sizeof(__intcap_t) - (CHERI_PADL_(t) + sizeof(register_t)))
+#else
+#define	CHERI_PADL_(t)	0
+#define	CHERI_PADR_(t)	0
+#endif
+
 #define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
 		0 : sizeof(register_t) - sizeof(t))
 
@@ -29,8 +39,8 @@ struct thread;
 #define	PADL_(t)	0
 #define	PADR_(t)	PAD_(t)
 #else
-#define	PADL_(t)	PAD_(t)
-#define	PADR_(t)	0
+#define	PADL_(t)	(CHERI_PADL_(t) + PAD_(t))
+#define	PADR_(t)	CHERI_PADR_(t)
 #endif
 
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
@@ -302,7 +312,7 @@ struct cheriabi_fexecve_args {
 };
 struct cheriabi_openat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char path_l_[PADL_(const char *__capability)]; const char *__capability path; char path_r_[PADR_(const char *__capability)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };

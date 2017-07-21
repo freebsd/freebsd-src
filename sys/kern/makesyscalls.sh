@@ -189,14 +189,21 @@ sed -e '
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "struct thread;\n\n" > sysarg
+		printf "#ifdef CPU_CHERI\n" > sysarg
+		printf "#define\tCHERI_PADL_(t)\t(sizeof (t) > sizeof(register_t) ? \\\n\t\t0 : sizeof(register_t))\n" > sysarg
+		printf "#define\tCHERI_PADR_(t)\t(sizeof (t) > sizeof(register_t ) ? \\\n\t\t0 : sizeof(__intcap_t) - (CHERI_PADL_(t) + sizeof(register_t)))\n" > sysarg
+		printf "#else\n" > sysarg
+		printf "#define\tCHERI_PADL_(t)\t0\n" > sysarg
+		printf "#define\tCHERI_PADR_(t)\t0\n" > sysarg
+		printf "#endif\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
 		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg
 		printf "#if BYTE_ORDER == LITTLE_ENDIAN\n"> sysarg
 		printf "#define\tPADL_(t)\t0\n" > sysarg
 		printf "#define\tPADR_(t)\tPAD_(t)\n" > sysarg
 		printf "#else\n" > sysarg
-		printf "#define\tPADL_(t)\tPAD_(t)\n" > sysarg
-		printf "#define\tPADR_(t)\t0\n" > sysarg
+		printf "#define\tPADL_(t)\t(CHERI_PADL_(t) + PAD_(t))\n" > sysarg
+		printf "#define\tPADR_(t)\tCHERI_PADR_(t)\n" > sysarg
 		printf "#endif\n\n" > sysarg
 
 		printf "#ifndef %s\n", sysargmap_h > sysargmap
@@ -336,6 +343,10 @@ sed -e '
 	# Returns true if the given type is a pointer type
 	function isptrtype(type) {
 		return (type ~ /\*/ || type ~ /caddr_t/ || type ~ /intptr_t/)
+	}
+	# Returns true if the given type is an explict capability type
+	function iscaptype(type) {
+		return (type ~ /__capability$/)
 	}
 	# Returns true if the flag "name" is set in the type field
 	function flag(name, flags, i, n) {
@@ -789,10 +800,20 @@ sed -e '
 				    i-1, syscallprefix, funcalias) > cheriabi_fill_uap
 				printf("\tuap->%s = (register_t)tmpcap;\n", argname[i]) > cheriabi_fill_uap
 			}
+			# Process capabilities we pass through
+			for (i = 1; i <= argc; i++) {
+				if (!iscaptype(argtype[i]))
+					continue
+				printf("\n\t/* [%d] %s %s */\n", i-1,
+				    argsaltype[i], argname[i]) > cheriabi_fill_uap
+				printf("\tcheriabi_fetch_syscall_arg(td,\n") > cheriabi_fill_uap
+				printf("\t    __DECONST(void * __capability *, &uap->%s),\n", argname[i]) > cheriabi_fill_uap
+				printf("\t    %d, %s%s_PTRMASK);\n", i-1, syscallprefix, funcalias) > cheriabi_fill_uap
+			}
 			# Process pointer arguments that do not depend on
 			# dereferenced pointers.
 			for (i = 1; i <= argc; i++) {
-				if (!isptrtype(argtype[i]))
+				if (!isptrtype(argtype[i]) || iscaptype(argtype[i]))
 					continue
 				if (i in pdeps)
 					continue
@@ -808,7 +829,7 @@ sed -e '
 			# Process pointer arguments that DO depend on
 			# dereferenced pointers.
 			for (i = 1; i <= argc; i++) {
-				if (!isptrtype(argtype[i]))
+				if (!isptrtype(argtype[i]) || iscaptype(argtype[i]))
 					continue
 				if (!(i in pdeps))
 					continue
@@ -1144,7 +1165,7 @@ sed -e '
 		exit 1
 	}
 	END {
-		printf "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n" > sysinc
+		printf "\n#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))\n" > sysinc
 
 		if (ncompat != 0 || ncompat4 != 0 || ncompat6 != 0 || ncompat7 != 0 || ncompat10 != 0 || ncompat11 != 0)
 			printf "#include \"opt_compat.h\"\n\n" > syssw

@@ -22,6 +22,16 @@ struct proc;
 
 struct thread;
 
+#ifdef CPU_CHERI
+#define	CHERI_PADL_(t)	(sizeof (t) > sizeof(register_t) ? \
+		0 : sizeof(register_t))
+#define	CHERI_PADR_(t)	(sizeof (t) > sizeof(register_t ) ? \
+		0 : sizeof(__intcap_t) - (CHERI_PADL_(t) + sizeof(register_t)))
+#else
+#define	CHERI_PADL_(t)	0
+#define	CHERI_PADR_(t)	0
+#endif
+
 #define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
 		0 : sizeof(register_t) - sizeof(t))
 
@@ -29,8 +39,8 @@ struct thread;
 #define	PADL_(t)	0
 #define	PADR_(t)	PAD_(t)
 #else
-#define	PADL_(t)	PAD_(t)
-#define	PADR_(t)	0
+#define	PADL_(t)	(CHERI_PADL_(t) + PAD_(t))
+#define	PADR_(t)	CHERI_PADR_(t)
 #endif
 
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))

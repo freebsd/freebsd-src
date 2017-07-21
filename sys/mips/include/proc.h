@@ -75,7 +75,6 @@ struct mdthread {
 #endif
 #ifdef CPU_CHERI
 	void * __capability	md_tls_cap;
-	char		md_cheriabi_pathbuf[MAXPATHLEN];
 #endif
 };
 
@@ -97,7 +96,7 @@ struct mdproc {
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
-	register_t args[8];
+	syscallarg_t args[8];
 	int narg;
 	struct trapframe *trapframe;
 };

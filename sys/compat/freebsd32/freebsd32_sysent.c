@@ -15,7 +15,7 @@
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-#define AS(name) (sizeof(struct name) / sizeof(register_t))
+#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))
 
 #ifdef COMPAT_43
 #define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)

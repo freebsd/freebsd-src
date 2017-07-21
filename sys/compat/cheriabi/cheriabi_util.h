@@ -97,7 +97,7 @@ CHERIABI_SYSCALL_MODULE(syscallname,					\
 #define CHERIABI_SYSCALL_INIT_HELPER(syscallname) {			\
 	.new_sysent = {							\
 	.sy_narg = (sizeof(struct syscallname ## _args )		\
-		/ sizeof(register_t)),					\
+		/ sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& syscallname,				\
 	},								\
 	.syscall_no = CHERIABI_SYS_##syscallname			\
@@ -106,7 +106,7 @@ CHERIABI_SYSCALL_MODULE(syscallname,					\
 #define CHERIABI_SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
 	.new_sysent = {							\
 	.sy_narg = (sizeof(struct syscallname ## _args )		\
-		/ sizeof(register_t)),					\
+		/ sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& sys_ ## syscallname,			\
 	},								\
 	.syscall_no = CHERIABI_SYS_##syscallname			\
@@ -137,8 +137,6 @@ void	cheriabi_set_signal_stack_capability(struct thread *td,
 
 void	cheriabi_fetch_syscall_arg(struct thread *td, void * __capability *arg,
 	    int argnum, int ptrmask);
-int	cheriabi_copyinstrarg(struct thread *td, int arg,
-	    char *buf, size_t len, size_t *done, int ptrmask);
 
 int	cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 	    void * __capability *addrp, size_t len, int prot, int flags);

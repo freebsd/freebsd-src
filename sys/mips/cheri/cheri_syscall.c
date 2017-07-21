@@ -55,7 +55,7 @@
  */
 int
 cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
-    register_t *args)
+    syscallarg_t *args)
 {
 	uintmax_t c_perms;
 
@@ -65,7 +65,7 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 * XXXRW: Now that we support a userspace cycle counter, we should
 	 * remove this.
 	 */
-	if (code == SYS_sysarch && args[0] == MIPS_GET_COUNT)
+	if (code == SYS_sysarch && (vaddr_t)args[0] == MIPS_GET_COUNT)
 		return (0);
 
 	/*
