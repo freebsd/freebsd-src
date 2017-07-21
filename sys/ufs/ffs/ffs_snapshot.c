@@ -2638,8 +2638,8 @@ try_free_snapdata(struct vnode *devvp)
 static struct snapdata *
 ffs_snapdata_acquire(struct vnode *devvp)
 {
-	struct snapdata *nsn;
-	struct snapdata *sn;
+	struct snapdata *nsn, *sn;
+	int error;
 
 	/*
 	 * Allocate a free snapdata.  This is done before acquiring the
@@ -2647,23 +2647,37 @@ ffs_snapdata_acquire(struct vnode *devvp)
 	 * held.
 	 */
 	nsn = ffs_snapdata_alloc();
-	/*
-	 * If there snapshots already exist on this filesystem grab a
-	 * reference to the shared lock.  Otherwise this is the first
-	 * snapshot on this filesystem and we need to use our
-	 * pre-allocated snapdata.
-	 */
-	VI_LOCK(devvp);
-	if (devvp->v_rdev->si_snapdata == NULL) {
-		devvp->v_rdev->si_snapdata = nsn;
-		nsn = NULL;
+
+	for (;;) {
+		VI_LOCK(devvp);
+		sn = devvp->v_rdev->si_snapdata;
+		if (sn == NULL) {
+			/*
+			 * This is the first snapshot on this
+			 * filesystem and we use our pre-allocated
+			 * snapdata.  Publish sn with the sn_lock
+			 * owned by us, to avoid the race.
+			 */
+			error = lockmgr(&nsn->sn_lock, LK_EXCLUSIVE |
+			    LK_NOWAIT, NULL);
+			if (error != 0)
+				panic("leaked sn, lockmgr error %d", error);
+			sn = devvp->v_rdev->si_snapdata = nsn;
+			VI_UNLOCK(devvp);
+			nsn = NULL;
+			break;
+		}
+
+		/*
+		 * There is a snapshots which already exists on this
+		 * filesystem, grab a reference to the common lock.
+		 */
+		error = lockmgr(&sn->sn_lock, LK_INTERLOCK |
+		    LK_EXCLUSIVE | LK_SLEEPFAIL, VI_MTX(devvp));
+		if (error == 0)
+			break;
 	}
-	sn = devvp->v_rdev->si_snapdata;
-	/*
-	 * Acquire the snapshot lock.
-	 */
-	lockmgr(&sn->sn_lock,
-	    LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, VI_MTX(devvp));
+
 	/*
 	 * Free any unused snapdata.
 	 */
