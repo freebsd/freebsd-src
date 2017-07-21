@@ -1598,7 +1598,7 @@ ffs_snapremove(vp)
 	struct buf *ibp;
 	struct fs *fs;
 	ufs2_daddr_t numblks, blkno, dblk;
-	int error, loc, last;
+	int error, i, last, loc;
 	struct snapdata *sn;
 
 	ip = VTOI(vp);
@@ -1618,10 +1618,14 @@ ffs_snapremove(vp)
 		ip->i_nextsnap.tqe_prev = 0;
 		VI_UNLOCK(devvp);
 		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+		for (i = 0; i < sn->sn_lock.lk_recurse; i++)
+			lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 			("ffs_snapremove: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
 		VI_LOCK(devvp);
+		while (sn->sn_lock.lk_recurse > 0)
+			lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 		try_free_snapdata(devvp);
 	} else
