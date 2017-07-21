@@ -1663,9 +1663,7 @@ em_if_timer(if_ctx_t ctx, uint16_t qid)
 	if (qid != 0)
 		return;
 
-	em_if_update_admin_status(ctx);
-	em_update_stats_counters(adapter);
-
+	iflib_admin_intr_deferred(ctx);
 	/* Reset LAA into RAR[0] on 82571 */
 	if ((adapter->hw.mac.type == e1000_82571) &&
 	    e1000_get_laa_state_82571(&adapter->hw))
@@ -1781,6 +1779,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, ifp->if_baudrate);
 		printf("link state changed to down\n");
 	}
+	em_update_stats_counters(adapter);
 
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 }
