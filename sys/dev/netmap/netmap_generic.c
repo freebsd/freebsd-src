@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h> /* sockaddrs */
 #include <sys/selinfo.h>
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/if_var.h>
 #include <machine/bus.h>        /* bus_dmamap_* in netmap_kern.h */
 
@@ -1197,6 +1198,13 @@ generic_netmap_attach(struct ifnet *ifp)
 	struct netmap_generic_adapter *gna;
 	int retval;
 	u_int num_tx_desc, num_rx_desc;
+
+#ifdef __FreeBSD__
+	if (ifp->if_type == IFT_LOOP) {
+		D("if_loop is not supported by %s", __func__);
+		return EINVAL;
+	}
+#endif
 
 	num_tx_desc = num_rx_desc = netmap_generic_ringsize; /* starting point */
 
