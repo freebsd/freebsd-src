@@ -189,14 +189,21 @@ sed -e '
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "struct thread;\n\n" > sysarg
+		printf "#ifdef CPU_CHERI\n" > sysarg
+		printf "#define\tCHERI_PADL_(t)\t(sizeof (t) > sizeof(register_t) ? \\\n\t\t0 : sizeof(register_t))\n" > sysarg
+		printf "#define\tCHERI_PADR_(t)\t(sizeof (t) > sizeof(register_t ) ? \\\n\t\t0 : sizeof(__intcap_t) - (CHERI_PADL_(t) + sizeof(register_t)))\n" > sysarg
+		printf "#else\n" > sysarg
+		printf "#define\tCHERI_PADL_(t)\t0\n" > sysarg
+		printf "#define\tCHERI_PADR_(t)\t0\n" > sysarg
+		printf "#endif\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
 		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg
 		printf "#if BYTE_ORDER == LITTLE_ENDIAN\n"> sysarg
 		printf "#define\tPADL_(t)\t0\n" > sysarg
 		printf "#define\tPADR_(t)\tPAD_(t)\n" > sysarg
 		printf "#else\n" > sysarg
-		printf "#define\tPADL_(t)\tPAD_(t)\n" > sysarg
-		printf "#define\tPADR_(t)\t0\n" > sysarg
+		printf "#define\tPADL_(t)\t(CHERI_PADL_(t) + PAD_(t))\n" > sysarg
+		printf "#define\tPADR_(t)\tCHERI_PADR_(t)\n" > sysarg
 		printf "#endif\n\n" > sysarg
 
 		printf "#ifndef %s\n", sysargmap_h > sysargmap
@@ -1158,7 +1165,7 @@ sed -e '
 		exit 1
 	}
 	END {
-		printf "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n" > sysinc
+		printf "\n#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))\n" > sysinc
 
 		if (ncompat != 0 || ncompat4 != 0 || ncompat6 != 0 || ncompat7 != 0 || ncompat10 != 0 || ncompat11 != 0)
 			printf "#include \"opt_compat.h\"\n\n" > syssw

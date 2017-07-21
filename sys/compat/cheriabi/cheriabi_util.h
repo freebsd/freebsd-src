@@ -97,7 +97,7 @@ CHERIABI_SYSCALL_MODULE(syscallname,					\
 #define CHERIABI_SYSCALL_INIT_HELPER(syscallname) {			\
 	.new_sysent = {							\
 	.sy_narg = (sizeof(struct syscallname ## _args )		\
-		/ sizeof(register_t)),					\
+		/ sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& syscallname,				\
 	},								\
 	.syscall_no = CHERIABI_SYS_##syscallname			\
@@ -106,7 +106,7 @@ CHERIABI_SYSCALL_MODULE(syscallname,					\
 #define CHERIABI_SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
 	.new_sysent = {							\
 	.sy_narg = (sizeof(struct syscallname ## _args )		\
-		/ sizeof(register_t)),					\
+		/ sizeof(syscallarg_t)),				\
 	.sy_call = (sy_call_t *)& sys_ ## syscallname,			\
 	},								\
 	.syscall_no = CHERIABI_SYS_##syscallname			\

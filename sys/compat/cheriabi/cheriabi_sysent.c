@@ -16,7 +16,7 @@
 #include <compat/cheriabi/cheriabi.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 
-#define AS(name) (sizeof(struct name) / sizeof(register_t))
+#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))
 
 #ifdef COMPAT_FREEBSD11
 #define compat11(n, name) n, (sy_call_t *)__CONCAT(freebsd11_,name)

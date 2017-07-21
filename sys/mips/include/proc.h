@@ -96,7 +96,7 @@ struct mdproc {
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
-	register_t args[8] __aligned(32); // XXX: Should really be CHERICAP_SIZE.
+	syscallarg_t args[8];
 	int narg;
 	struct trapframe *trapframe;
 };

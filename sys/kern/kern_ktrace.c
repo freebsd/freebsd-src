@@ -459,17 +459,22 @@ ktr_freeproc(struct proc *p, struct ucred **uc, struct vnode **vp)
 }
 
 void
-ktrsyscall(int code, int narg, register_t args[])
+ktrsyscall(int code, int narg, syscallarg_t args[])
 {
 	struct ktr_request *req;
 	struct ktr_syscall *ktp;
 	size_t buflen;
-	char *buf = NULL;
+	register_t *buf = NULL;
 
 	buflen = sizeof(register_t) * narg;
 	if (buflen > 0) {
 		buf = malloc(buflen, M_KTRACE, M_WAITOK);
+#ifdef CPU_CHERI
+		for (int i = 0; i < narg; i++)
+			buf[i] = (register_t)args[i];
+#else
 		bcopy(args, buf, buflen);
+#endif
 	}
 	req = ktr_getrequest(KTR_SYSCALL);
 	if (req == NULL) {
