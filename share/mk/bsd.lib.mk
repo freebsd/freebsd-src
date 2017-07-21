@@ -80,6 +80,12 @@ STATIC_CFLAGS+= -g
 STATIC_CXXFLAGS+= -g
 .endif
 
+# clang currently defaults to dynamic TLS for object files without -fPIC
+.if ${MACHINE:Mmips} && ${COMPILER_TYPE} == "clang"
+STATIC_CFLAGS+= -ftls-model=initial-exec
+STATIC_CXXFLAGS+= -ftls-model=initial-exec
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
