@@ -430,7 +430,7 @@ static daddr_t	swp_pager_getswapspace(int npages);
 static struct swblock **swp_pager_hash(vm_object_t object, vm_pindex_t index);
 static void swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
 #ifdef CPU_CHERI
-static void cheri_restore_tag(void *);
+static void cheri_restore_tag(void * __capability *);
 static void swp_pager_meta_cheri_get_tags(vm_page_t);
 static void swp_pager_meta_cheri_put_tags(vm_page_t);
 #endif
@@ -1903,27 +1903,21 @@ done:
  *	CSETTAG().
  */
 static void
-cheri_restore_tag(void *cp)
+cheri_restore_tag(void * __capability *cp)
 {
 	size_t base, len, offset, perm, sealed, type;
-	void * __capability *cc;
+	void * __capability cap;
 	void * __capability newcap;
 	void * __capability sealcap;
 
-	cc = (void * __capability *)cp;
+	cap = *cp;
 
-	/*
-	 * XXX: This currently assumes precise capabilities, but the order
-	 * has been carefully selected (matching that in
-	 * sys/mips/cheri/cheri.c) to avoid loss of precision in
-	 * anticipation of the addition of a future CSetBounds instruction.
-	 */
-	base = cheri_getbase(*cc);
-	len = cheri_getlen(*cc);
-	offset = cheri_getoffset(*cc);
-	perm = cheri_getperm(*cc);
-	sealed = cheri_getsealed(*cc);
-	type = cheri_gettype(*cc);
+	base = cheri_getbase(cap);
+	len = cheri_getlen(cap);
+	offset = cheri_getoffset(cap);
+	perm = cheri_getperm(cap);
+	sealed = cheri_getsealed(cap);
+	type = cheri_gettype(cap);
 
 	newcap = cheri_getkdc();
 	newcap = cheri_setoffset(newcap, base);
@@ -1932,11 +1926,16 @@ cheri_restore_tag(void *cp)
 	newcap = cheri_incoffset(newcap, offset);
 
 	if (sealed) {
-		sealcap = cheri_setoffset(newcap, type);
+		sealcap = cheri_setoffset(cheri_getkdc(), type);
 		newcap = cheri_seal(newcap, sealcap);
 	}
 
-	*cc = newcap;
+	/*
+	 * XXX: Does this guarantee a bit for bit indentical result?
+	 * We should check in the slow path.
+	 */
+
+	*cp = newcap;
 }
 
 /*
@@ -1950,7 +1949,8 @@ swp_pager_meta_cheri_get_tags(vm_page_t page)
 {
 	size_t i, j, swidx;
 	uint64_t t;
-	struct chericap *scan, *p;
+	void * __capability *scan;
+	void * __capability *p;
 	struct swblock *swap;
 
 	/* XXX: Uses details internal to swp_pager_hash. */
