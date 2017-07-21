@@ -10,7 +10,11 @@ WARNS?=		2
 CFLAGS+=	${PICFLAG}
 CFLAGS+=	-fvisibility=hidden
 CFLAGS+=	-DVISIBILITY_HIDDEN
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-I${SRCTOP}/contrib/cheri-libcxxrt
+.else
 CFLAGS+=	-I${SRCTOP}/contrib/libcxxrt
+.endif
 
 .if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS.gcc_personality_v0.c+= -Wno-typedef-redefinition

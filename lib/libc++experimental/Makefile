@@ -7,7 +7,7 @@ PACKAGE=	clibs
 WANT_CHERI?=	hybrid
 SRCDIR=		${SRCTOP}/contrib/cheri-libc++
 .else
-SRCDIR=		${SRCTOP}/contrib/libc++
+SRCDIR=		${SRCTOP}/contrib/cheri-libc++
 .endif
 
 LIB=		c++experimental

@@ -9,8 +9,8 @@ ALLOW_SHARED_TEXTREL=yes
 UNWINDINCDIR=   ${SRCTOP}/contrib/cheri-libunwind/include
 UNWINDSRCDIR=   ${SRCTOP}/contrib/cheri-libunwind/src
 .else
-UNWINDINCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/include
-UNWINDSRCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/src
+UNWINDINCDIR=   ${SRCTOP}/contrib/cheri-libunwind/include
+UNWINDSRCDIR=   ${SRCTOP}/contrib/cheri-libunwind/src
 .endif
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
@@ -43,6 +43,6 @@ STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
 .if ${MK_CHERI} != "no"
 CFLAGS+=	-I${SRCTOP}/contrib/cheri-libc++/include
 .else
-CFLAGS+=	-I${SRCTOP}/contrib/libc++/include
+CFLAGS+=	-I${SRCTOP}/contrib/cheri-libc++/include
 .endif
 .endif

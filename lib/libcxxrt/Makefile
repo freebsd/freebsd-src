@@ -8,7 +8,7 @@ WANT_CHERI?=	hybrid
 ALLOW_SHARED_TEXTREL=yes
 SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt/src
 .else
-SRCDIR=		${SRCTOP}/contrib/libcxxrt
+SRCDIR=		${SRCTOP}/contrib/cheri-libcxxrt/src
 .endif
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib
