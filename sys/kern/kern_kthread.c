@@ -276,6 +276,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	newtd->td_sleeptimo = 0;
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	newtd->td_sa = oldtd->td_sa;
 
 	/* set up arg0 for 'ps', et al */
 	va_start(ap, fmt);

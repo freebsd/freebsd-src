@@ -126,7 +126,7 @@ static boolean_t linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(void *param);
 static void	linux_vdso_deinstall(void *param);
 static void	linux_set_syscall_retval(struct thread *td, int error);
-static int	linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+static int	linux_fetch_syscall_args(struct thread *td);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    u_long stack);
 static int	linux_vsyscall(struct thread *td);
@@ -217,13 +217,15 @@ translate_traps(int signal, int trap_code)
 }
 
 static int
-linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+linux_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	struct trapframe *frame;
+	struct syscall_args *sa;
 
 	p = td->td_proc;
 	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	sa->args[0] = frame->tf_rdi;
 	sa->args[1] = frame->tf_rsi;
