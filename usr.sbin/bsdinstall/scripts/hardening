@@ -42,11 +42,10 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 	"3 read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-off} \
 	"4 proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-off} \
 	"5 random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
-	"6 stack_guard" "Set stack guard buffer size to 2MB" ${stack_guard:-off} \
-	"7 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
-	"8 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
-	"9 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
-	"10 secure_console" "Enable console password prompt" ${secure_console:-off} \
+	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
+	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
+	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
+	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
 2>&1 1>&3 )
 exec 3>&-
 
@@ -68,9 +67,6 @@ for feature in $FEATURES; do
 	fi
 	if [ "$feature" = "random_pid" ]; then
 		echo kern.randompid=$(jot -r 1 9999) >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "stack_guard" ]; then
-		echo security.bsd.stack_guard_page=512 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
 	fi
 	if [ "$feature" = "clear_tmp" ]; then
 		echo 'clear_tmp_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
