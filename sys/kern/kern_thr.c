@@ -235,6 +235,7 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	newtd->td_sleeptimo = 0;
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	newtd->td_sa = td->td_sa;
 	newtd->td_proc = td->td_proc;
 	newtd->td_rb_list = newtd->td_rbp_list = newtd->td_rb_inact = 0;
 	thread_cow_get(newtd, td);

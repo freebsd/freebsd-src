@@ -306,6 +306,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	newtd->td_sa = td->td_sa;
 
 	newtd->td_proc = p;
 	thread_cow_get(newtd, td);

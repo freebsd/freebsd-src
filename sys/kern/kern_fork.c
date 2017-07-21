@@ -478,6 +478,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+	td2->td_sa = td->td_sa;
 
 	bcopy(&p2->p_comm, &td2->td_name, sizeof(td2->td_name));
 	td2->td_sigstk = td->td_sigstk;
@@ -1103,7 +1104,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 		 */
 		PROC_LOCK(p);
 		td->td_dbgflags |= TDB_SCX;
-		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
+		_STOPEVENT(p, S_SCX, td->td_sa.code);
 		if ((p->p_ptevents & PTRACE_SCX) != 0 ||
 		    (td->td_dbgflags & TDB_BORN) != 0)
 			ptracestop(td, SIGTRAP, NULL);
