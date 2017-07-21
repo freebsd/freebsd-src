@@ -195,7 +195,8 @@ HAVE_MAKE=	bmake
 .else
 HAVE_MAKE=	fmake
 .endif
-.if ${HAVE_MAKE} != ${WANT_MAKE} || \
+.if defined(ALWAYS_BOOTSTRAP_MAKE) || \
+    ${HAVE_MAKE} != ${WANT_MAKE} || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 NEED_MAKE_UPGRADE= t
 .endif
