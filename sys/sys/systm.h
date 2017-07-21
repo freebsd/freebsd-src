@@ -275,13 +275,13 @@ int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
 #if __has_feature(capabilities)
-int	copyinstrcap(const void * __CAPABILITY __restrict udaddr,
+int	copyinstr_fc(const void * __CAPABILITY __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
 #else
 static inline
 int
-copyinstrcap(const void * __restrict udaddr,
+copyinstr_fc(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len,
     size_t * __restrict lencopied) {
 

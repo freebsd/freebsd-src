@@ -328,7 +328,7 @@ namei(struct nameidata *ndp)
 		error = copystr((const char *)ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 	else
-		error = copyinstrcap(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		error = copyinstr_fc(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 
 	/*
