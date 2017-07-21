@@ -257,16 +257,16 @@ typedef	__vm_size_t	vm_size_t;
 
 typedef __rman_res_t    rman_res_t;
 
-#ifdef _KERNEL
-typedef	int		boolean_t;
-typedef	struct device	*device_t;
-typedef	__intfptr_t	intfptr_t;
-
 #if __has_feature(capabilities)
 typedef __intcap_t	syscallarg_t;
 #else
 typedef register_t	syscallarg_t;
 #endif
+
+#ifdef _KERNEL
+typedef	int		boolean_t;
+typedef	struct device	*device_t;
+typedef	__intfptr_t	intfptr_t;
 
 /*
  * XXX this is fixed width for historical reasons.  It should have had type
