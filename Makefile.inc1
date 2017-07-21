@@ -678,7 +678,15 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-.endif
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
+.endif	# !defined(NO_CLEAN)
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
