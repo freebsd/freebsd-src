@@ -76,6 +76,8 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 SHARED_CFLAGS+= -g
 SHARED_CXXFLAGS+= -g
 CTFFLAGS+= -g
+STATIC_CFLAGS+= -g
+STATIC_CXXFLAGS+= -g
 .endif
 
 .include <bsd.libnames.mk>
