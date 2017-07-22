@@ -82,7 +82,6 @@ typedef struct blist {
 	daddr_t		bl_blocks;	/* area of coverage		*/
 	daddr_t		bl_radix;	/* coverage radix		*/
 	daddr_t		bl_skip;	/* starting skip		*/
-	daddr_t		bl_free;	/* number of free blocks	*/
 	blmeta_t	*bl_root;	/* root of radix tree		*/
 } *blist_t;
 
@@ -92,6 +91,7 @@ typedef struct blist {
 #define BLIST_MAX_ALLOC		BLIST_BMAP_RADIX
 
 daddr_t	blist_alloc(blist_t blist, daddr_t count);
+daddr_t	blist_avail(blist_t blist);
 blist_t	blist_create(daddr_t blocks, int flags);
 void	blist_destroy(blist_t blist);
 daddr_t	blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
