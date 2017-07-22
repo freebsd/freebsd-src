@@ -73,6 +73,7 @@ public:
 
 static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
                                      Token &PeekTok, bool ValueLive,
+                                     bool &IncludedUndefinedIds,
                                      Preprocessor &PP);
 
 /// DefinedTracker - This struct is used while parsing expressions to keep track
@@ -93,6 +94,7 @@ struct DefinedTracker {
   /// TheMacro - When the state is DefinedMacro or NotDefinedMacro, this
   /// indicates the macro that was checked.
   IdentifierInfo *TheMacro;
+  bool IncludedUndefinedIds = false;
 };
 
 /// EvaluateDefined - Process a 'defined(sym)' expression.
@@ -128,6 +130,7 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   MacroDefinition Macro = PP.getMacroDefinition(II);
   Result.Val = !!Macro;
   Result.Val.setIsUnsigned(false); // Result is signed intmax_t.
+  DT.IncludedUndefinedIds = !Macro;
 
   // If there is a macro, mark it used.
   if (Result.Val != 0 && ValueLive)
@@ -234,33 +237,32 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.setCodeCompletionReached();
     PP.LexNonComment(PeekTok);
   }
-      
-  // If this token's spelling is a pp-identifier, check to see if it is
-  // 'defined' or if it is a macro.  Note that we check here because many
-  // keywords are pp-identifiers, so we can't check the kind.
-  if (IdentifierInfo *II = PeekTok.getIdentifierInfo()) {
-    // Handle "defined X" and "defined(X)".
-    if (II->isStr("defined"))
-      return EvaluateDefined(Result, PeekTok, DT, ValueLive, PP);
-
-    // If this identifier isn't 'defined' or one of the special
-    // preprocessor keywords and it wasn't macro expanded, it turns
-    // into a simple 0, unless it is the C++ keyword "true", in which case it
-    // turns into "1".
-    if (ValueLive &&
-        II->getTokenID() != tok::kw_true &&
-        II->getTokenID() != tok::kw_false)
-      PP.Diag(PeekTok, diag::warn_pp_undef_identifier) << II;
-    Result.Val = II->getTokenID() == tok::kw_true;
-    Result.Val.setIsUnsigned(false);  // "0" is signed intmax_t 0.
-    Result.setIdentifier(II);
-    Result.setRange(PeekTok.getLocation());
-    PP.LexNonComment(PeekTok);
-    return false;
-  }
 
   switch (PeekTok.getKind()) {
-  default:  // Non-value token.
+  default:
+    // If this token's spelling is a pp-identifier, check to see if it is
+    // 'defined' or if it is a macro.  Note that we check here because many
+    // keywords are pp-identifiers, so we can't check the kind.
+    if (IdentifierInfo *II = PeekTok.getIdentifierInfo()) {
+      // Handle "defined X" and "defined(X)".
+      if (II->isStr("defined"))
+        return EvaluateDefined(Result, PeekTok, DT, ValueLive, PP);
+
+      if (!II->isCPlusPlusOperatorKeyword()) {
+        // If this identifier isn't 'defined' or one of the special
+        // preprocessor keywords and it wasn't macro expanded, it turns
+        // into a simple 0
+        if (ValueLive)
+          PP.Diag(PeekTok, diag::warn_pp_undef_identifier) << II;
+        Result.Val = 0;
+        Result.Val.setIsUnsigned(false); // "0" is signed intmax_t 0.
+        Result.setIdentifier(II);
+        Result.setRange(PeekTok.getLocation());
+        DT.IncludedUndefinedIds = true;
+        PP.LexNonComment(PeekTok);
+        return false;
+      }
+    }
     PP.Diag(PeekTok, diag::err_pp_expr_bad_token_start_expr);
     return true;
   case tok::eod:
@@ -400,7 +402,8 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       // Just use DT unmodified as our result.
     } else {
       // Otherwise, we have something like (x+y), and we consumed '(x'.
-      if (EvaluateDirectiveSubExpr(Result, 1, PeekTok, ValueLive, PP))
+      if (EvaluateDirectiveSubExpr(Result, 1, PeekTok, ValueLive,
+                                   DT.IncludedUndefinedIds, PP))
         return true;
 
       if (PeekTok.isNot(tok::r_paren)) {
@@ -475,6 +478,14 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       DT.State = DefinedTracker::DefinedMacro;
     return false;
   }
+  case tok::kw_true:
+  case tok::kw_false:
+    Result.Val = PeekTok.getKind() == tok::kw_true;
+    Result.Val.setIsUnsigned(false); // "0" is signed intmax_t 0.
+    Result.setIdentifier(PeekTok.getIdentifierInfo());
+    Result.setRange(PeekTok.getLocation());
+    PP.LexNonComment(PeekTok);
+    return false;
 
   // FIXME: Handle #assert
   }
@@ -532,6 +543,7 @@ static void diagnoseUnexpectedOperator(Preprocessor &PP, PPValue &LHS,
 /// evaluation, such as division by zero warnings.
 static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
                                      Token &PeekTok, bool ValueLive,
+                                     bool &IncludedUndefinedIds,
                                      Preprocessor &PP) {
   unsigned PeekPrec = getPrecedence(PeekTok.getKind());
   // If this token isn't valid, report the error.
@@ -571,6 +583,7 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
     // Parse the RHS of the operator.
     DefinedTracker DT;
     if (EvaluateValue(RHS, PeekTok, DT, RHSIsLive, PP)) return true;
+    IncludedUndefinedIds = DT.IncludedUndefinedIds;
 
     // Remember the precedence of this operator and get the precedence of the
     // operator immediately to the right of the RHS.
@@ -601,7 +614,8 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
       RHSPrec = ThisPrec+1;
 
     if (PeekPrec >= RHSPrec) {
-      if (EvaluateDirectiveSubExpr(RHS, RHSPrec, PeekTok, RHSIsLive, PP))
+      if (EvaluateDirectiveSubExpr(RHS, RHSPrec, PeekTok, RHSIsLive,
+                                   IncludedUndefinedIds, PP))
         return true;
       PeekPrec = getPrecedence(PeekTok.getKind());
     }
@@ -769,7 +783,8 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
       // Parse anything after the : with the same precedence as ?.  We allow
       // things of equal precedence because ?: is right associative.
       if (EvaluateDirectiveSubExpr(AfterColonVal, ThisPrec,
-                                   PeekTok, AfterColonLive, PP))
+                                   PeekTok, AfterColonLive,
+                                   IncludedUndefinedIds, PP))
         return true;
 
       // Now that we have the condition, the LHS and the RHS of the :, evaluate.
@@ -806,7 +821,8 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 /// EvaluateDirectiveExpression - Evaluate an integer constant expression that
 /// may occur after a #if or #elif directive.  If the expression is equivalent
 /// to "!defined(X)" return X in IfNDefMacro.
-bool Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
+Preprocessor::DirectiveEvalResult
+Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
   SaveAndRestore<bool> PPDir(ParsingIfOrElifDirective, true);
   // Save the current state of 'DisableMacroExpansion' and reset it to false. If
   // 'DisableMacroExpansion' is true, then we must be in a macro argument list
@@ -833,7 +849,7 @@ bool Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
     
     // Restore 'DisableMacroExpansion'.
     DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
-    return false;
+    return {false, DT.IncludedUndefinedIds};
   }
 
   // If we are at the end of the expression after just parsing a value, there
@@ -847,20 +863,20 @@ bool Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
 
     // Restore 'DisableMacroExpansion'.
     DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
-    return ResVal.Val != 0;
+    return {ResVal.Val != 0, DT.IncludedUndefinedIds};
   }
 
   // Otherwise, we must have a binary operator (e.g. "#if 1 < 2"), so parse the
   // operator and the stuff after it.
   if (EvaluateDirectiveSubExpr(ResVal, getPrecedence(tok::question),
-                               Tok, true, *this)) {
+                               Tok, true, DT.IncludedUndefinedIds, *this)) {
     // Parse error, skip the rest of the macro line.
     if (Tok.isNot(tok::eod))
       DiscardUntilEndOfDirective();
     
     // Restore 'DisableMacroExpansion'.
     DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
-    return false;
+    return {false, DT.IncludedUndefinedIds};
   }
 
   // If we aren't at the tok::eod token, something bad happened, like an extra
@@ -872,5 +888,5 @@ bool Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
 
   // Restore 'DisableMacroExpansion'.
   DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
-  return ResVal.Val != 0;
+  return {ResVal.Val != 0, DT.IncludedUndefinedIds};
 }

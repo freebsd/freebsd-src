@@ -43,7 +43,8 @@
 // will only be
 // used in cases where this is true.  This is a compile time dependecy, for now
 // selected per target Platform
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) ||       \
+    defined(__OpenBSD__)
 #define LLDB_EDITLINE_USE_WCHAR 1
 #include <codecvt>
 #else
@@ -64,8 +65,8 @@
 #include <vector>
 
 #include "lldb/Host/ConnectionFileDescriptor.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Predicate.h"
+#include "lldb/Utility/FileSpec.h"
 
 namespace lldb_private {
 namespace line_editor {
@@ -81,8 +82,14 @@ using EditLineStringStreamType = std::stringstream;
 using EditLineCharType = char;
 #endif
 
+#ifdef EL_CLIENTDATA	/* editline with wide support + wide char read function */
+using EditLineGetCharType = wchar_t;
+#else
+using EditLineGetCharType = char;
+#endif
+
 typedef int (*EditlineGetCharCallbackType)(::EditLine *editline,
-                                           EditLineCharType *c);
+                                           EditLineGetCharType *c);
 typedef unsigned char (*EditlineCommandCallbackType)(::EditLine *editline,
                                                      int ch);
 typedef const char *(*EditlinePromptCallbackType)(::EditLine *editline);
@@ -269,7 +276,7 @@ private:
 
   /// Character reading implementation for EditLine that supports our multi-line
   /// editing trickery.
-  int GetCharacter(EditLineCharType *c);
+  int GetCharacter(EditLineGetCharType *c);
 
   /// Prompt implementation for EditLine.
   const char *Prompt();
@@ -322,7 +329,7 @@ private:
   /// single or multi-line editing.
   void ConfigureEditor(bool multiline);
 
-  bool CompleteCharacter(char ch, EditLineCharType &out);
+  bool CompleteCharacter(char ch, EditLineGetCharType &out);
 
 private:
 #if LLDB_EDITLINE_USE_WCHAR

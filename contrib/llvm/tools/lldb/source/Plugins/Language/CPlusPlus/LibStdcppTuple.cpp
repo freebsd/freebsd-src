@@ -9,10 +9,10 @@
 
 #include "LibStdcpp.h"
 
-#include "lldb/Core/ConstString.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
+#include "lldb/Utility/ConstString.h"
 
 #include <memory>
 #include <vector>
@@ -73,9 +73,7 @@ bool LibStdcppTupleSyntheticFrontEnd::Update() {
         if (value_sp) {
           StreamString name;
           name.Printf("[%zd]", m_members.size());
-          value_sp->SetName(ConstString(name.GetString()));
-
-          m_members.push_back(value_sp);
+          m_members.push_back(value_sp->Clone(ConstString(name.GetString())));
         }
       }
     }

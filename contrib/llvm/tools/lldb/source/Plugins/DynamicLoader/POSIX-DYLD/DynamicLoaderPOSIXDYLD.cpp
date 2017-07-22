@@ -15,18 +15,19 @@
 
 // Other libraries and framework includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Target/MemoryRegionInfo.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/Log.h"
 
 // C++ Includes
 // C Includes
@@ -63,8 +64,9 @@ DynamicLoader *DynamicLoaderPOSIXDYLD::CreateInstance(Process *process,
   if (!create) {
     const llvm::Triple &triple_ref =
         process->GetTarget().GetArchitecture().GetTriple();
-    if (triple_ref.getOS() == llvm::Triple::Linux ||
-        triple_ref.getOS() == llvm::Triple::FreeBSD)
+    if (triple_ref.getOS() == llvm::Triple::FreeBSD ||
+        triple_ref.getOS() == llvm::Triple::Linux ||
+        triple_ref.getOS() == llvm::Triple::NetBSD)
       create = true;
   }
 
@@ -221,7 +223,7 @@ void DynamicLoaderPOSIXDYLD::DidLaunch() {
   }
 }
 
-Error DynamicLoaderPOSIXDYLD::CanLoadImage() { return Error(); }
+Status DynamicLoaderPOSIXDYLD::CanLoadImage() { return Status(); }
 
 void DynamicLoaderPOSIXDYLD::UpdateLoadedSections(ModuleSP module,
                                                   addr_t link_map_addr,
@@ -483,6 +485,27 @@ DynamicLoaderPOSIXDYLD::GetStepThroughTrampolinePlan(Thread &thread,
   return thread_plan_sp;
 }
 
+void DynamicLoaderPOSIXDYLD::LoadVDSO(ModuleList &modules) {
+  if (m_vdso_base == LLDB_INVALID_ADDRESS)
+    return;
+
+  FileSpec file("[vdso]", false);
+
+  MemoryRegionInfo info;
+  Status status = m_process->GetMemoryRegionInfo(m_vdso_base, info);
+  if (status.Fail()) {
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    LLDB_LOG(log, "Failed to get vdso region info: {0}", status);
+    return;
+  }
+
+  if (ModuleSP module_sp = m_process->ReadModuleFromMemory(
+          file, m_vdso_base, info.GetRange().GetByteSize())) {
+    UpdateLoadedSections(module_sp, LLDB_INVALID_ADDRESS, m_vdso_base, false);
+    m_process->GetTarget().GetImages().AppendIfNeeded(module_sp);
+  }
+}
+
 void DynamicLoaderPOSIXDYLD::LoadAllCurrentModules() {
   DYLDRendezvous::iterator I;
   DYLDRendezvous::iterator E;
@@ -501,14 +524,7 @@ void DynamicLoaderPOSIXDYLD::LoadAllCurrentModules() {
   // that ourselves here.
   ModuleSP executable = GetTargetExecutable();
   m_loaded_modules[executable] = m_rendezvous.GetLinkMapAddress();
-  if (m_vdso_base != LLDB_INVALID_ADDRESS) {
-    FileSpec file_spec("[vdso]", false);
-    ModuleSP module_sp = LoadModuleAtAddress(file_spec, LLDB_INVALID_ADDRESS,
-                                             m_vdso_base, false);
-    if (module_sp.get()) {
-      module_list.Append(module_sp);
-    }
-  }
+  LoadVDSO(module_list);
 
   std::vector<FileSpec> module_names;
   for (I = m_rendezvous.begin(), E = m_rendezvous.end(); I != E; ++I)
@@ -560,7 +576,7 @@ addr_t DynamicLoaderPOSIXDYLD::ComputeLoadOffset() {
 }
 
 void DynamicLoaderPOSIXDYLD::EvalVdsoStatus() {
-  AuxVector::iterator I = m_auxv->FindEntry(AuxVector::AT_SYSINFO_EHDR);
+  AuxVector::iterator I = m_auxv->FindEntry(AuxVector::AUXV_AT_SYSINFO_EHDR);
 
   if (I != m_auxv->end())
     m_vdso_base = I->value;
@@ -573,7 +589,7 @@ addr_t DynamicLoaderPOSIXDYLD::GetEntryPoint() {
   if (m_auxv.get() == NULL)
     return LLDB_INVALID_ADDRESS;
 
-  AuxVector::iterator I = m_auxv->FindEntry(AuxVector::AT_ENTRY);
+  AuxVector::iterator I = m_auxv->FindEntry(AuxVector::AUXV_AT_ENTRY);
 
   if (I == m_auxv->end())
     return LLDB_INVALID_ADDRESS;

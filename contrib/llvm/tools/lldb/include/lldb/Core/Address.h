@@ -10,13 +10,44 @@
 #ifndef liblldb_Address_h_
 #define liblldb_Address_h_
 
-// C Includes
-// C++ Includes
+#include "lldb/lldb-defines.h"      // for LLDB_INVALID_ADDRESS
+#include "lldb/lldb-enumerations.h" // for AddressClass::eAddressClassInvalid
+#include "lldb/lldb-forward.h"      // for SectionWP, SectionSP, ModuleSP
+#include "lldb/lldb-types.h"        // for addr_t
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Symbol/SymbolContextScope.h"
-#include "lldb/lldb-private.h"
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t, UINT32_MAX, int64_t
+
+namespace lldb_private {
+class Block;
+}
+namespace lldb_private {
+class CompileUnit;
+}
+namespace lldb_private {
+class ExecutionContextScope;
+}
+namespace lldb_private {
+class Function;
+}
+namespace lldb_private {
+class SectionList;
+}
+namespace lldb_private {
+class Stream;
+}
+namespace lldb_private {
+class Symbol;
+}
+namespace lldb_private {
+class SymbolContext;
+}
+namespace lldb_private {
+class Target;
+}
+namespace lldb_private {
+struct LineEntry;
+}
 
 namespace lldb_private {
 
@@ -391,6 +422,10 @@ public:
   ///     a section + offset. The Target's SectionLoadList object
   ///     is used to resolve the address.
   ///
+  /// @param[in] allow_section_end
+  ///     If true, treat an address pointing to the end of the module as
+  ///     belonging to that module.
+  ///
   /// @return
   ///     Returns \b true if the load address was resolved to be
   ///     section/offset, \b false otherwise. It is often ok for an
@@ -398,11 +433,13 @@ public:
   ///     happens for JIT'ed code, or any load addresses on the stack
   ///     or heap.
   //------------------------------------------------------------------
-  bool SetLoadAddress(lldb::addr_t load_addr, Target *target);
+  bool SetLoadAddress(lldb::addr_t load_addr, Target *target,
+                      bool allow_section_end = false);
 
   bool SetOpcodeLoadAddress(
       lldb::addr_t load_addr, Target *target,
-      lldb::AddressClass addr_class = lldb::eAddressClassInvalid);
+      lldb::AddressClass addr_class = lldb::eAddressClassInvalid,
+      bool allow_section_end = false);
 
   bool SetCallableLoadAddress(lldb::addr_t load_addr, Target *target);
 

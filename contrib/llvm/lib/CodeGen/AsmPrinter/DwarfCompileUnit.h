@@ -15,8 +15,8 @@
 #define LLVM_LIB_CODEGEN_ASMPRINTER_DWARFCOMPILEUNIT_H
 
 #include "DwarfUnit.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/Support/Dwarf.h"
 
 namespace llvm {
 
@@ -28,7 +28,7 @@ class DwarfFile;
 class MCSymbol;
 class LexicalScope;
 
-class DwarfCompileUnit : public DwarfUnit {
+class DwarfCompileUnit final : public DwarfUnit {
   /// A numeric ID unique among all CUs in the module
   unsigned UniqueID;
 
@@ -68,13 +68,26 @@ class DwarfCompileUnit : public DwarfUnit {
   // ranges/locs.
   const MCSymbol *BaseAddress;
 
+  DenseMap<const MDNode *, DIE *> AbstractSPDies;
+  DenseMap<const MDNode *, std::unique_ptr<DbgVariable>> AbstractVariables;
+
   /// \brief Construct a DIE for the given DbgVariable without initializing the
   /// DbgVariable's DIE reference.
   DIE *constructVariableDIEImpl(const DbgVariable &DV, bool Abstract);
 
   bool isDwoUnit() const override;
 
-  bool includeMinimalInlineScopes() const;
+  DenseMap<const MDNode *, DIE *> &getAbstractSPDies() {
+    if (isDwoUnit() && !DD->shareAcrossDWOCUs())
+      return AbstractSPDies;
+    return DU->getAbstractSPDies();
+  }
+
+  DenseMap<const MDNode *, std::unique_ptr<DbgVariable>> &getAbstractVariables() {
+    if (isDwoUnit() && !DD->shareAcrossDWOCUs())
+      return AbstractVariables;
+    return DU->getAbstractVariables();
+  }
 
 public:
   DwarfCompileUnit(unsigned UID, const DICompileUnit *Node, AsmPrinter *A,
@@ -85,6 +98,8 @@ public:
   DwarfCompileUnit *getSkeleton() const {
     return Skeleton;
   }
+
+  bool includeMinimalInlineScopes() const;
 
   void initStmtList();
 
@@ -112,10 +127,6 @@ public:
   void addLocalLabelAddress(DIE &Die, dwarf::Attribute Attribute,
                             const MCSymbol *Label);
 
-  /// addSectionDelta - Add a label delta attribute data and value.
-  DIE::value_iterator addSectionDelta(DIE &Die, dwarf::Attribute Attribute,
-                                      const MCSymbol *Hi, const MCSymbol *Lo);
-
   DwarfCompileUnit &getCU() override { return *this; }
 
   unsigned getOrCreateSourceID(StringRef FileName, StringRef DirName) override;
@@ -135,12 +146,6 @@ public:
   void addRange(RangeSpan Range);
 
   void attachLowHighPC(DIE &D, const MCSymbol *Begin, const MCSymbol *End);
-
-  /// addSectionLabel - Add a Dwarf section label attribute data and value.
-  ///
-  DIE::value_iterator addSectionLabel(DIE &Die, dwarf::Attribute Attribute,
-                                      const MCSymbol *Label,
-                                      const MCSymbol *Sec);
 
   /// \brief Find DIE for the given subprogram and attach appropriate
   /// DW_AT_low_pc and DW_AT_high_pc attributes. If there are global
@@ -189,6 +194,13 @@ public:
   DIE *constructImportedEntityDIE(const DIImportedEntity *Module);
 
   void finishSubprogramDefinition(const DISubprogram *SP);
+  void finishVariableDefinition(const DbgVariable &Var);
+  /// Find abstract variable associated with Var.
+  typedef DbgValueHistoryMap::InlinedVariable InlinedVariable;
+  DbgVariable *getExistingAbstractVariable(InlinedVariable IV,
+                                           const DILocalVariable *&Cleansed);
+  DbgVariable *getExistingAbstractVariable(InlinedVariable IV);
+  void createAbstractVariable(const DILocalVariable *DV, LexicalScope *Scope);
 
   /// Set the skeleton unit associated with this unit.
   void setSkeleton(DwarfCompileUnit &Skel) { Skeleton = &Skel; }
@@ -210,11 +222,18 @@ public:
   }
 
   /// Add a new global name to the compile unit.
-  void addGlobalName(StringRef Name, DIE &Die, const DIScope *Context) override;
+  void addGlobalName(StringRef Name, const DIE &Die,
+                     const DIScope *Context) override;
+
+  /// Add a new global name present in a type unit to this compile unit.
+  void addGlobalNameForTypeUnit(StringRef Name, const DIScope *Context);
 
   /// Add a new global type to the compile unit.
   void addGlobalType(const DIType *Ty, const DIE &Die,
                      const DIScope *Context) override;
+
+  /// Add a new global type present in a type unit to this compile unit.
+  void addGlobalTypeUnitType(const DIType *Ty, const DIScope *Context);
 
   const StringMap<const DIE *> &getGlobalNames() const { return GlobalNames; }
   const StringMap<const DIE *> &getGlobalTypes() const { return GlobalTypes; }

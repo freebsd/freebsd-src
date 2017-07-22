@@ -14,15 +14,14 @@
 #include <stdint.h>
 
 // C++ Includes
-#include <functional>
 #include <vector>
 
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/UUID.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/UUID.h"
 #include "lldb/lldb-private.h"
 
 #include "ELFHeader.h"
@@ -152,7 +151,7 @@ public:
   // Returns segment data for the given index.
   lldb_private::DataExtractor GetSegmentDataByIndex(lldb::user_id_t id);
 
-  std::string
+  llvm::StringRef
   StripLinkerSymbolAnnotations(llvm::StringRef symbol_name) const override;
 
 private:
@@ -182,9 +181,6 @@ private:
 
   typedef std::map<lldb::addr_t, lldb::AddressClass>
       FileAddressToAddressClassMap;
-  typedef std::function<lldb::offset_t(lldb_private::DataExtractor &,
-                                       lldb::offset_t, lldb::offset_t)>
-      SetDataFunction;
 
   /// Version of this reader common to all plugins based on this class.
   static const uint32_t m_plugin_version = 1;
@@ -230,7 +226,7 @@ private:
 
   // Parses the ELF program headers.
   static size_t GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
-                                     const SetDataFunction &set_data,
+                                     lldb_private::DataExtractor &object_data,
                                      const elf::ELFHeader &header);
 
   // Finds PT_NOTE segments and calculates their crc sum.
@@ -255,7 +251,7 @@ private:
   /// Parses the elf section headers and returns the uuid, debug link name, crc,
   /// archspec.
   static size_t GetSectionHeaderInfo(SectionHeaderColl &section_headers,
-                                     const SetDataFunction &set_data,
+                                     lldb_private::DataExtractor &object_data,
                                      const elf::ELFHeader &header,
                                      lldb_private::UUID &uuid,
                                      std::string &gnu_debuglink_file,
@@ -375,18 +371,10 @@ private:
 
   unsigned PLTRelocationType();
 
-  static lldb_private::Error
+  static lldb_private::Status
   RefineModuleDetailsFromNote(lldb_private::DataExtractor &data,
                               lldb_private::ArchSpec &arch_spec,
                               lldb_private::UUID &uuid);
-
-  static lldb::offset_t SetData(const lldb_private::DataExtractor &src,
-                                lldb_private::DataExtractor &dst,
-                                lldb::offset_t offset, lldb::offset_t length);
-
-  lldb::offset_t SetDataWithReadMemoryFallback(lldb_private::DataExtractor &dst,
-                                               lldb::offset_t offset,
-                                               lldb::offset_t length);
 };
 
 #endif // liblldb_ObjectFileELF_h_

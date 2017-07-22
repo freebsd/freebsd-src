@@ -19,16 +19,16 @@
 
 // C++ Includes
 
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Expression/ExpressionSourceCode.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb_private;
 
@@ -118,7 +118,7 @@ bool ClangUtilityFunction::Install(DiagnosticManager &diagnostic_manager,
 
   bool can_interpret = false; // should stay that way
 
-  Error jit_error = parser.PrepareForExecution(
+  Status jit_error = parser.PrepareForExecution(
       m_jit_start_addr, m_jit_end_addr, m_execution_unit_sp, exe_ctx,
       can_interpret, eExecutionPolicyAlways);
 

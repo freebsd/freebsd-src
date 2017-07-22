@@ -15,8 +15,8 @@
 #include <map>
 #include <vector>
 // Other libraries and framework includes
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Error.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Status.h"
 // Project includes
 
 namespace lldb_private {

@@ -9,19 +9,19 @@
 
 #include "lldb/Symbol/CompilerType.h"
 
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Scalar.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StreamString.h"
 
 #include <iterator>
 #include <mutex>
@@ -744,8 +744,7 @@ size_t CompilerType::ConvertStringToFloatValue(const char *s, uint8_t *dst,
 #define DEPTH_INCREMENT 2
 
 void CompilerType::DumpValue(ExecutionContext *exe_ctx, Stream *s,
-                             lldb::Format format,
-                             const lldb_private::DataExtractor &data,
+                             lldb::Format format, const DataExtractor &data,
                              lldb::offset_t data_byte_offset,
                              size_t data_byte_size, uint32_t bitfield_bit_size,
                              uint32_t bitfield_bit_offset, bool show_types,
@@ -759,7 +758,7 @@ void CompilerType::DumpValue(ExecutionContext *exe_ctx, Stream *s,
 }
 
 bool CompilerType::DumpTypeValue(Stream *s, lldb::Format format,
-                                 const lldb_private::DataExtractor &data,
+                                 const DataExtractor &data,
                                  lldb::offset_t byte_offset, size_t byte_size,
                                  uint32_t bitfield_bit_size,
                                  uint32_t bitfield_bit_offset,
@@ -772,7 +771,7 @@ bool CompilerType::DumpTypeValue(Stream *s, lldb::Format format,
 }
 
 void CompilerType::DumpSummary(ExecutionContext *exe_ctx, Stream *s,
-                               const lldb_private::DataExtractor &data,
+                               const DataExtractor &data,
                                lldb::offset_t data_byte_offset,
                                size_t data_byte_size) {
   if (IsValid())
@@ -1005,7 +1004,7 @@ bool CompilerType::ReadFromMemory(lldb_private::ExecutionContext *exe_ctx,
       if (exe_ctx)
         process = exe_ctx->GetProcessPtr();
       if (process) {
-        Error error;
+        Status error;
         return process->ReadMemory(addr, dst, byte_size, error) == byte_size;
       }
     }
@@ -1040,7 +1039,7 @@ bool CompilerType::WriteToMemory(lldb_private::ExecutionContext *exe_ctx,
       if (exe_ctx)
         process = exe_ctx->GetProcessPtr();
       if (process) {
-        Error error;
+        Status error;
         return process->WriteMemory(addr, new_value.GetData(), byte_size,
                                     error) == byte_size;
       }

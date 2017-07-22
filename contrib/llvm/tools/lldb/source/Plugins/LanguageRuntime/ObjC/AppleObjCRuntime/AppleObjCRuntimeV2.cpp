@@ -20,26 +20,20 @@
 
 // Project includes
 #include "lldb/Core/ClangForward.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/lldb-enumerations.h"
 
 #include "lldb/Core/ClangForward.h"
-#include "lldb/Core/ConstString.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Expression/UtilityFunction.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -55,6 +49,12 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StreamString.h"
+#include "lldb/Utility/Timer.h"
 
 #include "AppleObjCClassDescriptorV2.h"
 #include "AppleObjCDeclVendor.h"
@@ -338,7 +338,7 @@ __lldb_apple_objc_v2_get_shared_cache_class_info (void *objc_opt_ro_ptr,
 
 static uint64_t
 ExtractRuntimeGlobalSymbol(Process *process, ConstString name,
-                           const ModuleSP &module_sp, Error &error,
+                           const ModuleSP &module_sp, Status &error,
                            bool read_value = true, uint8_t byte_size = 0,
                            uint64_t default_value = LLDB_INVALID_ADDRESS,
                            SymbolType sym_type = lldb::eSymbolTypeData) {
@@ -483,9 +483,9 @@ public:
 
     ~CommandOptions() override = default;
 
-    Error SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
-                         ExecutionContext *execution_context) override {
-      Error error;
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override {
+      Status error;
       const int short_option = m_getopt_table[option_idx].val;
       switch (short_option) {
       case 'v':
@@ -600,14 +600,12 @@ protected:
             }
             iterator->second->Describe(
                 nullptr,
-                [objc_runtime, &std_out](const char *name,
-                                         const char *type) -> bool {
+                [&std_out](const char *name, const char *type) -> bool {
                   std_out.Printf("  instance method name = %s type = %s\n",
                                  name, type);
                   return false;
                 },
-                [objc_runtime, &std_out](const char *name,
-                                         const char *type) -> bool {
+                [&std_out](const char *name, const char *type) -> bool {
                   std_out.Printf("  class method name = %s type = %s\n", name,
                                  type);
                   return false;
@@ -678,7 +676,7 @@ protected:
           const char *arg_str = command.GetArgumentAtIndex(i);
           if (!arg_str)
             continue;
-          Error error;
+          Status error;
           lldb::addr_t arg_addr = Args::StringToAddress(
               &exe_ctx, arg_str, LLDB_INVALID_ADDRESS, &error);
           if (arg_addr == 0 || arg_addr == LLDB_INVALID_ADDRESS || error.Fail())
@@ -895,8 +893,9 @@ UtilityFunction *AppleObjCRuntimeV2::CreateObjectChecker(const char *name) {
   }
 
   assert(len < (int)sizeof(check_function_code));
+  UNUSED_IF_ASSERT_DISABLED(len);
 
-  Error error;
+  Status error;
   return GetTargetRef().GetUtilityFunctionForLanguage(
       check_function_code, eLanguageTypeObjC, name, error);
 }
@@ -928,7 +927,7 @@ size_t AppleObjCRuntimeV2::GetByteOffsetForIvar(CompilerType &parent_ast_type,
 
     addr_t ivar_offset_address = LLDB_INVALID_ADDRESS;
 
-    Error error;
+    Status error;
     SymbolContext ivar_offset_symbol;
     if (sc_list.GetSize() == 1 &&
         sc_list.GetContextAtIndex(0, ivar_offset_symbol)) {
@@ -985,7 +984,7 @@ public:
     m_map_pair_size = m_process->GetAddressByteSize() * 2;
     m_invalid_key =
         m_process->GetAddressByteSize() == 8 ? UINT64_MAX : UINT32_MAX;
-    Error err;
+    Status err;
 
     // This currently holds true for all platforms we support, but we might
     // need to change this to use get the actually byte size of "unsigned"
@@ -1078,7 +1077,7 @@ public:
       size_t map_pair_size = m_parent.m_map_pair_size;
       lldb::addr_t pair_ptr = pairs_ptr + (m_index * map_pair_size);
 
-      Error err;
+      Status err;
 
       lldb::addr_t key =
           m_parent.m_process->ReadPointerFromMemory(pair_ptr, err);
@@ -1107,7 +1106,7 @@ public:
       const lldb::addr_t pairs_ptr = m_parent.m_buckets_ptr;
       const size_t map_pair_size = m_parent.m_map_pair_size;
       const lldb::addr_t invalid_key = m_parent.m_invalid_key;
-      Error err;
+      Status err;
 
       while (m_index--) {
         lldb::addr_t pair_ptr = pairs_ptr + (m_index * map_pair_size);
@@ -1219,7 +1218,7 @@ AppleObjCRuntimeV2::GetClassDescriptor(ValueObject &valobj) {
 
       Process *process = exe_ctx.GetProcessPtr();
       if (process) {
-        Error error;
+        Status error;
         ObjCISA isa = process->ReadPointerFromMemory(isa_pointer, error);
         if (isa != LLDB_INVALID_ADDRESS) {
           objc_class_sp = GetClassDescriptorFromISA(isa);
@@ -1256,7 +1255,7 @@ lldb::addr_t AppleObjCRuntimeV2::GetISAHashTablePointer() {
           symbol->GetLoadAddress(&process->GetTarget());
 
       if (gdb_objc_realized_classes_ptr != LLDB_INVALID_ADDRESS) {
-        Error error;
+        Status error;
         m_isa_hash_table_ptr = process->ReadPointerFromMemory(
             gdb_objc_realized_classes_ptr, error);
       }
@@ -1296,7 +1295,7 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapDynamic(
 
   const uint32_t addr_size = process->GetAddressByteSize();
 
-  Error err;
+  Status err;
 
   // Read the total number of classes from the hash table
   const uint32_t num_classes = hash_table.GetCount();
@@ -1316,7 +1315,7 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapDynamic(
   FunctionCaller *get_class_info_function = nullptr;
 
   if (!m_get_class_info_code.get()) {
-    Error error;
+    Status error;
     m_get_class_info_code.reset(GetTargetRef().GetUtilityFunctionForLanguage(
         g_get_dynamic_class_info_body, eLanguageTypeObjC,
         g_get_dynamic_class_info_name, error));
@@ -1396,8 +1395,13 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapDynamic(
   arguments.GetValueAtIndex(0)->GetScalar() = hash_table.GetTableLoadAddress();
   arguments.GetValueAtIndex(1)->GetScalar() = class_infos_addr;
   arguments.GetValueAtIndex(2)->GetScalar() = class_infos_byte_size;
-  arguments.GetValueAtIndex(3)->GetScalar() =
-      (GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES) == nullptr ? 0 : 1);
+  
+  // Only dump the runtime classes from the expression evaluation if the
+  // log is verbose:
+  Log *type_log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES);
+  bool dump_log = type_log && type_log->GetVerbose();
+  
+  arguments.GetValueAtIndex(3)->GetScalar() = dump_log ? 1 : 0;
 
   bool success = false;
 
@@ -1543,7 +1547,7 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapSharedCache() {
 
   const uint32_t addr_size = process->GetAddressByteSize();
 
-  Error err;
+  Status err;
 
   uint32_t num_class_infos = 0;
 
@@ -1564,7 +1568,7 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapSharedCache() {
   FunctionCaller *get_shared_cache_class_info_function = nullptr;
 
   if (!m_get_shared_cache_class_info_code.get()) {
-    Error error;
+    Status error;
     m_get_shared_cache_class_info_code.reset(
         GetTargetRef().GetUtilityFunctionForLanguage(
             g_get_shared_cache_class_info_body, eLanguageTypeObjC,
@@ -1640,8 +1644,12 @@ AppleObjCRuntimeV2::UpdateISAToDescriptorMapSharedCache() {
   arguments.GetValueAtIndex(0)->GetScalar() = objc_opt_ptr;
   arguments.GetValueAtIndex(1)->GetScalar() = class_infos_addr;
   arguments.GetValueAtIndex(2)->GetScalar() = class_infos_byte_size;
-  arguments.GetValueAtIndex(3)->GetScalar() =
-      (GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES) == nullptr ? 0 : 1);
+  // Only dump the runtime classes from the expression evaluation if the
+  // log is verbose:
+  Log *type_log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_TYPES);
+  bool dump_log = type_log && type_log->GetVerbose();
+  
+  arguments.GetValueAtIndex(3)->GetScalar() = dump_log ? 1 : 0;
 
   bool success = false;
 
@@ -1795,7 +1803,8 @@ lldb::addr_t AppleObjCRuntimeV2::GetSharedCacheReadOnlyAddress() {
 void AppleObjCRuntimeV2::UpdateISAToDescriptorMapIfNeeded() {
   Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_TYPES));
 
-  Timer scoped_timer(LLVM_PRETTY_FUNCTION, LLVM_PRETTY_FUNCTION);
+  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
+  Timer scoped_timer(func_cat, LLVM_PRETTY_FUNCTION);
 
   // Else we need to check with our process to see when the map was updated.
   Process *process = GetProcess();
@@ -2011,7 +2020,7 @@ AppleObjCRuntimeV2::NonPointerISACache::CreateInstance(
     AppleObjCRuntimeV2 &runtime, const lldb::ModuleSP &objc_module_sp) {
   Process *process(runtime.GetProcess());
 
-  Error error;
+  Status error;
 
   auto objc_debug_isa_magic_mask = ExtractRuntimeGlobalSymbol(
       process, ConstString("objc_debug_isa_magic_mask"), objc_module_sp, error);
@@ -2042,7 +2051,7 @@ AppleObjCRuntimeV2::TaggedPointerVendorV2::CreateInstance(
     AppleObjCRuntimeV2 &runtime, const lldb::ModuleSP &objc_module_sp) {
   Process *process(runtime.GetProcess());
 
-  Error error;
+  Status error;
 
   auto objc_debug_taggedpointer_mask = ExtractRuntimeGlobalSymbol(
       process, ConstString("objc_debug_taggedpointer_mask"), objc_module_sp,
@@ -2254,7 +2263,7 @@ AppleObjCRuntimeV2::TaggedPointerVendorRuntimeAssisted::GetClassDescriptor(
     Process *process(m_runtime.GetProcess());
     uintptr_t slot_ptr = slot * process->GetAddressByteSize() +
                          m_objc_debug_taggedpointer_classes;
-    Error error;
+    Status error;
     uintptr_t slot_data = process->ReadPointerFromMemory(slot_ptr, error);
     if (error.Fail() || slot_data == 0 ||
         slot_data == uintptr_t(LLDB_INVALID_ADDRESS))
@@ -2341,7 +2350,7 @@ AppleObjCRuntimeV2::TaggedPointerVendorExtended::GetClassDescriptor(
     Process *process(m_runtime.GetProcess());
     uintptr_t slot_ptr = slot * process->GetAddressByteSize() +
                          m_objc_debug_taggedpointer_ext_classes;
-    Error error;
+    Status error;
     uintptr_t slot_data = process->ReadPointerFromMemory(slot_ptr, error);
     if (error.Fail() || slot_data == 0 ||
         slot_data == uintptr_t(LLDB_INVALID_ADDRESS))
