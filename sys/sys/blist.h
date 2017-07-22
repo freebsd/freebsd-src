@@ -67,7 +67,7 @@ typedef	uint64_t	u_daddr_t;	/* unsigned disk address */
 #define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
 
 /*
- * blmeta and bl_bitmap_t MUST be a power of 2 in size.
+ * Both blmeta and bmu_bitmap MUST be a power of 2 in size.
  */
 
 typedef struct blmeta {
@@ -91,13 +91,13 @@ typedef struct blist {
 
 #define BLIST_MAX_ALLOC		BLIST_BMAP_RADIX
 
-extern blist_t blist_create(daddr_t blocks, int flags);
-extern void blist_destroy(blist_t blist);
-extern daddr_t blist_alloc(blist_t blist, daddr_t count);
-extern void blist_free(blist_t blist, daddr_t blkno, daddr_t count);
-extern daddr_t blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
-extern void blist_print(blist_t blist);
-extern void blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
+daddr_t	blist_alloc(blist_t blist, daddr_t count);
+blist_t	blist_create(daddr_t blocks, int flags);
+void	blist_destroy(blist_t blist);
+daddr_t	blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
+void	blist_free(blist_t blist, daddr_t blkno, daddr_t count);
+void	blist_print(blist_t blist);
+void	blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
 
 #endif	/* _SYS_BLIST_H_ */
 
