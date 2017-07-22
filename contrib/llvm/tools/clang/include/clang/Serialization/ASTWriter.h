@@ -54,6 +54,7 @@ class MacroInfo;
 class OpaqueValueExpr;
 class OpenCLOptions;
 class ASTReader;
+class MemoryBufferCache;
 class Module;
 class ModuleFileExtension;
 class ModuleFileExtensionWriter;
@@ -105,6 +106,12 @@ private:
 
   /// \brief The bitstream writer used to emit this precompiled header.
   llvm::BitstreamWriter &Stream;
+
+  /// The buffer associated with the bitstream.
+  const SmallVectorImpl<char> &Buffer;
+
+  /// \brief The PCM manager which manages memory buffers for pcm files.
+  MemoryBufferCache &PCMCache;
 
   /// \brief The ASTContext we're writing.
   ASTContext *Context = nullptr;
@@ -365,6 +372,7 @@ private:
   /// IDs, since they will be written out to an EAGERLY_DESERIALIZED_DECLS
   /// record.
   SmallVector<uint64_t, 16> EagerlyDeserializedDecls;
+  SmallVector<uint64_t, 16> ModularCodegenDecls;
 
   /// \brief DeclContexts that have received extensions since their serialized
   /// form.
@@ -424,8 +432,16 @@ private:
   void WriteSubStmt(Stmt *S);
 
   void WriteBlockInfoBlock();
-  uint64_t WriteControlBlock(Preprocessor &PP, ASTContext &Context,
-                             StringRef isysroot, const std::string &OutputFile);
+  void WriteControlBlock(Preprocessor &PP, ASTContext &Context,
+                         StringRef isysroot, const std::string &OutputFile);
+
+  /// Write out the signature and diagnostic options, and return the signature.
+  ASTFileSignature writeUnhashedControlBlock(Preprocessor &PP,
+                                             ASTContext &Context);
+
+  /// Calculate hash of the pcm content.
+  static ASTFileSignature createSignature(StringRef Bytes);
+
   void WriteInputFiles(SourceManager &SourceMgr, HeaderSearchOptions &HSOpts,
                        bool Modules);
   void WriteSourceManagerBlock(SourceManager &SourceMgr,
@@ -469,6 +485,7 @@ private:
   void WriteOptimizePragmaOptions(Sema &SemaRef);
   void WriteMSStructPragmaOptions(Sema &SemaRef);
   void WriteMSPointersToMembersPragmaOptions(Sema &SemaRef);
+  void WritePackPragmaOptions(Sema &SemaRef);
   void WriteModuleFileExtension(Sema &SemaRef,
                                 ModuleFileExtensionWriter &Writer);
 
@@ -492,14 +509,15 @@ private:
   void WriteDeclAbbrevs();
   void WriteDecl(ASTContext &Context, Decl *D);
 
-  uint64_t WriteASTCore(Sema &SemaRef,
-                        StringRef isysroot, const std::string &OutputFile,
-                        Module *WritingModule);
+  ASTFileSignature WriteASTCore(Sema &SemaRef, StringRef isysroot,
+                                const std::string &OutputFile,
+                                Module *WritingModule);
 
 public:
   /// \brief Create a new precompiled header writer that outputs to
   /// the given bitstream.
-  ASTWriter(llvm::BitstreamWriter &Stream,
+  ASTWriter(llvm::BitstreamWriter &Stream, SmallVectorImpl<char> &Buffer,
+            MemoryBufferCache &PCMCache,
             ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
             bool IncludeTimestamps = true);
   ~ASTWriter() override;
@@ -525,9 +543,9 @@ public:
   ///
   /// \return the module signature, which eventually will be a hash of
   /// the module but currently is merely a random 32-bit number.
-  uint64_t WriteAST(Sema &SemaRef, const std::string &OutputFile,
-                    Module *WritingModule, StringRef isysroot,
-                    bool hasErrors = false);
+  ASTFileSignature WriteAST(Sema &SemaRef, const std::string &OutputFile,
+                            Module *WritingModule, StringRef isysroot,
+                            bool hasErrors = false);
 
   /// \brief Emit a token.
   void AddToken(const Token &Tok, RecordDataImpl &Record);
@@ -608,10 +626,6 @@ public:
 
   /// \brief Add a version tuple to the given record
   void AddVersionTuple(const VersionTuple &Version, RecordDataImpl &Record);
-
-  /// \brief Infer the submodule ID that contains an entity at the given
-  /// source location.
-  serialization::SubmoduleID inferSubmoduleIDFromLocation(SourceLocation Loc);
 
   /// \brief Retrieve or create a submodule ID for this module, or return 0 if
   /// the submodule is neither local (a submodle of the currently-written module)

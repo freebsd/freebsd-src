@@ -17,11 +17,8 @@
 #include <string>
 
 #include "Plugins/ExpressionParser/Clang/ClangPersistentVariables.h"
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/ExpressionSourceCode.h"
@@ -43,6 +40,9 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Target/ThreadPlanCallUserExpression.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb_private;
 
@@ -101,7 +101,7 @@ bool UserExpression::MatchesContext(ExecutionContext &exe_ctx) {
 
 lldb::addr_t UserExpression::GetObjectPointer(lldb::StackFrameSP frame_sp,
                                               ConstString &object_name,
-                                              Error &err) {
+                                              Status &err) {
   err.Clear();
 
   if (!frame_sp) {
@@ -140,7 +140,7 @@ lldb::addr_t UserExpression::GetObjectPointer(lldb::StackFrameSP frame_sp,
 lldb::ExpressionResults UserExpression::Evaluate(
     ExecutionContext &exe_ctx, const EvaluateExpressionOptions &options,
     llvm::StringRef expr, llvm::StringRef prefix,
-    lldb::ValueObjectSP &result_valobj_sp, Error &error, uint32_t line_offset,
+    lldb::ValueObjectSP &result_valobj_sp, Status &error, uint32_t line_offset,
     std::string *fixed_expression, lldb::ModuleSP *jit_module_sp_ptr) {
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EXPRESSIONS |
                                                   LIBLLDB_LOG_STEP));

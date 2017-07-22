@@ -194,6 +194,10 @@ void llvm::calculateDbgValueHistory(const MachineFunction *MF,
         // some variables.
         for (const MachineOperand &MO : MI.operands()) {
           if (MO.isReg() && MO.isDef() && MO.getReg()) {
+            // Ignore call instructions that claim to clobber SP. The AArch64
+            // backend does this for aggregate function arguments.
+            if (MI.isCall() && MO.getReg() == SP)
+              continue;
             // If this is a virtual register, only clobber it since it doesn't
             // have aliases.
             if (TRI->isVirtualRegister(MO.getReg()))
@@ -209,8 +213,7 @@ void llvm::calculateDbgValueHistory(const MachineFunction *MF,
           } else if (MO.isRegMask()) {
             // If this is a register mask operand, clobber all debug values in
             // non-CSRs.
-            for (int I = ChangingRegs.find_first(); I != -1;
-                 I = ChangingRegs.find_next(I)) {
+            for (unsigned I : ChangingRegs.set_bits()) {
               // Don't consider SP to be clobbered by register masks.
               if (unsigned(I) != SP && TRI->isPhysicalRegister(I) &&
                   MO.clobbersPhysReg(I)) {

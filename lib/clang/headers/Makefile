@@ -4,7 +4,7 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/4.0.0/include
+INCSDIR=	${LIBDIR}/clang/5.0.0/include
 
 GENINCS+=	arm_neon.h
 
@@ -37,10 +37,12 @@ INCS+=		avx512vlbwintrin.h
 INCS+=		avx512vlcdintrin.h
 INCS+=		avx512vldqintrin.h
 INCS+=		avx512vlintrin.h
+INCS+=		avx512vpopcntdqintrin.h
 INCS+=		avxintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
 INCS+=		clflushoptintrin.h
+INCS+=		clzerointrin.h
 INCS+=		cpuid.h
 INCS+=		emmintrin.h
 INCS+=		f16cintrin.h
@@ -51,6 +53,7 @@ INCS+=		htmintrin.h
 INCS+=		htmxlintrin.h
 INCS+=		ia32intrin.h
 INCS+=		immintrin.h
+INCS+=		lwpintrin.h
 INCS+=		lzcntintrin.h
 INCS+=		mm3dnow.h
 INCS+=		mm_malloc.h
@@ -83,6 +86,25 @@ INCS+=		xsaveoptintrin.h
 INCS+=		xsavesintrin.h
 INCS+=		xtestintrin.h
 INCS+=		${GENINCS}
+
+# Headers which possibly conflict with our own versions:
+.if defined(INSTALL_CONFLICTING_CLANG_HEADERS)
+INCS+=		float.h
+INCS+=		intrin.h
+INCS+=		inttypes.h
+INCS+=		iso646.h
+INCS+=		limits.h
+INCS+=		stdalign.h
+INCS+=		stdarg.h
+INCS+=		stdatomic.h
+INCS+=		stdbool.h
+INCS+=		stddef.h
+INCS+=		stdint.h
+INCS+=		stdnoreturn.h
+INCS+=		tgmath.h
+INCS+=		unwind.h
+INCS+=		varargs.h
+.endif
 
 arm_neon.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 	${CLANG_TBLGEN} -gen-arm-neon \
