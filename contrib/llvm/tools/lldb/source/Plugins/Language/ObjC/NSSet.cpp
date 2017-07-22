@@ -13,17 +13,18 @@
 // Project includes
 #include "NSSet.h"
 
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Stream.h"
+#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntime.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -84,11 +85,12 @@ private:
   std::vector<SetItemDescriptor> m_children;
 };
 
-class NSSetMSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
+template <typename D32, typename D64>
+class GenericNSSetMSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
 public:
-  NSSetMSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp);
+  GenericNSSetMSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp);
 
-  ~NSSetMSyntheticFrontEnd() override;
+  ~GenericNSSetMSyntheticFrontEnd() override;
 
   size_t CalculateNumChildren() override;
 
@@ -101,19 +103,6 @@ public:
   size_t GetIndexOfChildWithName(const ConstString &name) override;
 
 private:
-  struct DataDescriptor_32 {
-    uint32_t _used : 26;
-    uint32_t _size;
-    uint32_t _mutations;
-    uint32_t _objs_addr;
-  };
-
-  struct DataDescriptor_64 {
-    uint64_t _used : 58;
-    uint64_t _size;
-    uint64_t _mutations;
-    uint64_t _objs_addr;
-  };
 
   struct SetItemDescriptor {
     lldb::addr_t item_ptr;
@@ -122,11 +111,49 @@ private:
 
   ExecutionContextRef m_exe_ctx_ref;
   uint8_t m_ptr_size;
-  DataDescriptor_32 *m_data_32;
-  DataDescriptor_64 *m_data_64;
+  D32 *m_data_32;
+  D64 *m_data_64;
   std::vector<SetItemDescriptor> m_children;
 };
-
+  
+namespace Foundation1300 {
+  struct DataDescriptor_32 {
+    uint32_t _used : 26;
+    uint32_t _size;
+    uint32_t _mutations;
+    uint32_t _objs_addr;
+  };
+  
+  struct DataDescriptor_64 {
+    uint64_t _used : 58;
+    uint64_t _size;
+    uint64_t _mutations;
+    uint64_t _objs_addr;
+  };
+  
+  using NSSetMSyntheticFrontEnd =
+      GenericNSSetMSyntheticFrontEnd<DataDescriptor_32, DataDescriptor_64>;
+}
+  
+namespace Foundation1400 {
+  struct DataDescriptor_32 {
+    uint32_t _used : 26;
+    uint32_t _size;
+    uint32_t _objs_addr;
+    uint32_t _mutations;
+  };
+  
+  struct DataDescriptor_64 {
+    uint64_t _used : 58;
+    uint64_t _size;
+    uint64_t _objs_addr;
+    uint64_t _mutations;
+  };
+  
+  using NSSetMSyntheticFrontEnd =
+      GenericNSSetMSyntheticFrontEnd<DataDescriptor_32, DataDescriptor_64>;
+}
+  
 class NSSetCodeRunningSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
 public:
   NSSetCodeRunningSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp);
@@ -185,14 +212,14 @@ bool lldb_private::formatters::NSSetSummaryProvider(
     return false;
 
   if (!strcmp(class_name, "__NSSetI")) {
-    Error error;
+    Status error;
     value = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr + ptr_size,
                                                       ptr_size, 0, error);
     if (error.Fail())
       return false;
     value &= (is_64bit ? ~0xFC00000000000000UL : ~0xFC000000U);
   } else if (!strcmp(class_name, "__NSSetM")) {
-    Error error;
+    Status error;
     value = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr + ptr_size,
                                                       ptr_size, 0, error);
     if (error.Fail())
@@ -201,7 +228,7 @@ bool lldb_private::formatters::NSSetSummaryProvider(
   }
   /*else if (!strcmp(class_name,"__NSCFSet"))
    {
-   Error error;
+   Status error;
    value = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr + (is_64bit ?
    20 : 12), 4, 0, error);
    if (error.Fail())
@@ -211,7 +238,7 @@ bool lldb_private::formatters::NSSetSummaryProvider(
    }
    else if (!strcmp(class_name,"NSCountedSet"))
    {
-   Error error;
+   Status error;
    value = process_sp->ReadUnsignedIntegerFromMemory(valobj_addr + ptr_size,
    ptr_size, 0, error);
    if (error.Fail())
@@ -262,7 +289,7 @@ lldb_private::formatters::NSSetSyntheticFrontEndCreator(
   Flags flags(valobj_type.GetTypeInfo());
 
   if (flags.IsClear(eTypeIsPointer)) {
-    Error error;
+    Status error;
     valobj_sp = valobj_sp->AddressOf(error);
     if (error.Fail() || !valobj_sp)
       return nullptr;
@@ -283,7 +310,12 @@ lldb_private::formatters::NSSetSyntheticFrontEndCreator(
   if (!strcmp(class_name, "__NSSetI")) {
     return (new NSSetISyntheticFrontEnd(valobj_sp));
   } else if (!strcmp(class_name, "__NSSetM")) {
-    return (new NSSetMSyntheticFrontEnd(valobj_sp));
+    AppleObjCRuntime *apple_runtime =
+        llvm::dyn_cast_or_null<AppleObjCRuntime>(runtime);
+    if (apple_runtime && apple_runtime->GetFoundationVersion() >= 1400)
+      return (new Foundation1400::NSSetMSyntheticFrontEnd(valobj_sp));
+    else
+      return (new Foundation1300::NSSetMSyntheticFrontEnd(valobj_sp));
   } else {
     auto &map(NSSet_Additionals::GetAdditionalSynthetics());
     auto iter = map.find(class_name_cs), end = map.end();
@@ -338,7 +370,7 @@ bool lldb_private::formatters::NSSetISyntheticFrontEnd::Update() {
   if (!valobj_sp)
     return false;
   m_exe_ctx_ref = valobj_sp->GetExecutionContextRef();
-  Error error;
+  Status error;
   if (valobj_sp->IsPointerType()) {
     valobj_sp = valobj_sp->Dereference(error);
     if (error.Fail() || !valobj_sp)
@@ -391,7 +423,7 @@ lldb_private::formatters::NSSetISyntheticFrontEnd::GetChildAtIndex(size_t idx) {
       obj_at_idx = m_data_ptr + (test_idx * m_ptr_size);
       if (!process_sp)
         return lldb::ValueObjectSP();
-      Error error;
+      Status error;
       obj_at_idx = process_sp->ReadPointerFromMemory(obj_at_idx, error);
       if (error.Fail())
         return lldb::ValueObjectSP();
@@ -442,7 +474,9 @@ lldb_private::formatters::NSSetISyntheticFrontEnd::GetChildAtIndex(size_t idx) {
   return set_item.valobj_sp;
 }
 
-lldb_private::formatters::NSSetMSyntheticFrontEnd::NSSetMSyntheticFrontEnd(
+template <typename D32, typename D64>
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::GenericNSSetMSyntheticFrontEnd(
     lldb::ValueObjectSP valobj_sp)
     : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_ptr_size(8),
       m_data_32(nullptr), m_data_64(nullptr) {
@@ -450,15 +484,19 @@ lldb_private::formatters::NSSetMSyntheticFrontEnd::NSSetMSyntheticFrontEnd(
     Update();
 }
 
-lldb_private::formatters::NSSetMSyntheticFrontEnd::~NSSetMSyntheticFrontEnd() {
+template <typename D32, typename D64>
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::~GenericNSSetMSyntheticFrontEnd() {
   delete m_data_32;
   m_data_32 = nullptr;
   delete m_data_64;
   m_data_64 = nullptr;
 }
 
+template <typename D32, typename D64>
 size_t
-lldb_private::formatters::NSSetMSyntheticFrontEnd::GetIndexOfChildWithName(
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::GetIndexOfChildWithName(
     const ConstString &name) {
   const char *item_name = name.GetCString();
   uint32_t idx = ExtractIndexFromString(item_name);
@@ -467,14 +505,19 @@ lldb_private::formatters::NSSetMSyntheticFrontEnd::GetIndexOfChildWithName(
   return idx;
 }
 
+template <typename D32, typename D64>
 size_t
-lldb_private::formatters::NSSetMSyntheticFrontEnd::CalculateNumChildren() {
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::CalculateNumChildren() {
   if (!m_data_32 && !m_data_64)
     return 0;
   return (m_data_32 ? m_data_32->_used : m_data_64->_used);
 }
 
-bool lldb_private::formatters::NSSetMSyntheticFrontEnd::Update() {
+template <typename D32, typename D64>
+bool
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::Update() {
   m_children.clear();
   ValueObjectSP valobj_sp = m_backend.GetSP();
   m_ptr_size = 0;
@@ -487,7 +530,7 @@ bool lldb_private::formatters::NSSetMSyntheticFrontEnd::Update() {
   if (!valobj_sp)
     return false;
   m_exe_ctx_ref = valobj_sp->GetExecutionContextRef();
-  Error error;
+  Status error;
   if (valobj_sp->IsPointerType()) {
     valobj_sp = valobj_sp->Dereference(error);
     if (error.Fail() || !valobj_sp)
@@ -500,12 +543,12 @@ bool lldb_private::formatters::NSSetMSyntheticFrontEnd::Update() {
   m_ptr_size = process_sp->GetAddressByteSize();
   uint64_t data_location = valobj_sp->GetAddressOf() + m_ptr_size;
   if (m_ptr_size == 4) {
-    m_data_32 = new DataDescriptor_32();
-    process_sp->ReadMemory(data_location, m_data_32, sizeof(DataDescriptor_32),
+    m_data_32 = new D32();
+    process_sp->ReadMemory(data_location, m_data_32, sizeof(D32),
                            error);
   } else {
-    m_data_64 = new DataDescriptor_64();
-    process_sp->ReadMemory(data_location, m_data_64, sizeof(DataDescriptor_64),
+    m_data_64 = new D64();
+    process_sp->ReadMemory(data_location, m_data_64, sizeof(D64),
                            error);
   }
   if (error.Fail())
@@ -513,12 +556,17 @@ bool lldb_private::formatters::NSSetMSyntheticFrontEnd::Update() {
   return false;
 }
 
-bool lldb_private::formatters::NSSetMSyntheticFrontEnd::MightHaveChildren() {
+template <typename D32, typename D64>
+bool
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::MightHaveChildren() {
   return true;
 }
 
+template <typename D32, typename D64>
 lldb::ValueObjectSP
-lldb_private::formatters::NSSetMSyntheticFrontEnd::GetChildAtIndex(size_t idx) {
+lldb_private::formatters::
+  GenericNSSetMSyntheticFrontEnd<D32, D64>::GetChildAtIndex(size_t idx) {
   lldb::addr_t m_objs_addr =
       (m_data_32 ? m_data_32->_objs_addr : m_data_64->_objs_addr);
 
@@ -542,7 +590,7 @@ lldb_private::formatters::NSSetMSyntheticFrontEnd::GetChildAtIndex(size_t idx) {
       obj_at_idx = m_objs_addr + (test_idx * m_ptr_size);
       if (!process_sp)
         return lldb::ValueObjectSP();
-      Error error;
+      Status error;
       obj_at_idx = process_sp->ReadPointerFromMemory(obj_at_idx, error);
       if (error.Fail())
         return lldb::ValueObjectSP();

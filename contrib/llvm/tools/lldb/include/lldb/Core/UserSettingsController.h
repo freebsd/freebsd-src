@@ -10,21 +10,32 @@
 #ifndef liblldb_UserSettingsController_h_
 #define liblldb_UserSettingsController_h_
 
-// C Includes
-// C++ Includes
+#include "lldb/Utility/Status.h"            // for Status
+#include "lldb/lldb-forward.h"              // for OptionValuePropertiesSP
+#include "lldb/lldb-private-enumerations.h" // for VarSetOperationType
 
-#include <string>
+#include "llvm/ADT/StringRef.h" // for StringRef
+
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t
 
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Core/StringList.h"
-#include "lldb/Interpreter/OptionValue.h"
-#include "lldb/lldb-private.h"
+namespace lldb_private {
+class CommandInterpreter;
+}
+namespace lldb_private {
+class ConstString;
+}
+namespace lldb_private {
+class ExecutionContext;
+}
+namespace lldb_private {
+class Property;
+}
+namespace lldb_private {
+class Stream;
+}
 
 namespace lldb_private {
 
@@ -46,15 +57,16 @@ public:
   virtual lldb::OptionValueSP GetPropertyValue(const ExecutionContext *exe_ctx,
                                                llvm::StringRef property_path,
                                                bool will_modify,
-                                               Error &error) const;
+                                               Status &error) const;
 
-  virtual Error SetPropertyValue(const ExecutionContext *exe_ctx,
-                                 VarSetOperationType op,
-    llvm::StringRef property_path, llvm::StringRef value);
+  virtual Status SetPropertyValue(const ExecutionContext *exe_ctx,
+                                  VarSetOperationType op,
+                                  llvm::StringRef property_path,
+                                  llvm::StringRef value);
 
-  virtual Error DumpPropertyValue(const ExecutionContext *exe_ctx, Stream &strm,
-    llvm::StringRef property_path,
-                                  uint32_t dump_mask);
+  virtual Status DumpPropertyValue(const ExecutionContext *exe_ctx,
+                                   Stream &strm, llvm::StringRef property_path,
+                                   uint32_t dump_mask);
 
   virtual void DumpAllPropertyValues(const ExecutionContext *exe_ctx,
                                      Stream &strm, uint32_t dump_mask);

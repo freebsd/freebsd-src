@@ -17,16 +17,16 @@
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
 //#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Timer.h"
 
 #if defined(__APPLE__)
 #include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
 #endif
 
@@ -70,9 +70,10 @@ void SystemInitializerCommon::Initialize() {
 #endif
 
   llvm::EnablePrettyStackTrace();
-  Log::Initialize();
+  InitializeLog();
   HostInfo::Initialize();
-  Timer scoped_timer(LLVM_PRETTY_FUNCTION, LLVM_PRETTY_FUNCTION);
+  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
+  Timer scoped_timer(func_cat, LLVM_PRETTY_FUNCTION);
 
   process_gdb_remote::ProcessGDBRemoteLog::Initialize();
 
@@ -93,9 +94,8 @@ void SystemInitializerCommon::Initialize() {
 #if defined(__APPLE__)
   ObjectFileMachO::Initialize();
 #endif
-#if defined(__linux__)
-  static ConstString g_linux_log_name("linux");
-  ProcessPOSIXLog::Initialize(g_linux_log_name);
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
+  ProcessPOSIXLog::Initialize();
 #endif
 #if defined(_MSC_VER)
   ProcessWindowsLog::Initialize();
@@ -103,7 +103,8 @@ void SystemInitializerCommon::Initialize() {
 }
 
 void SystemInitializerCommon::Terminate() {
-  Timer scoped_timer(LLVM_PRETTY_FUNCTION, LLVM_PRETTY_FUNCTION);
+  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
+  Timer scoped_timer(func_cat, LLVM_PRETTY_FUNCTION);
   ObjectContainerBSDArchive::Terminate();
   ObjectFileELF::Terminate();
 //ObjectFilePECOFF::Terminate();
@@ -122,5 +123,5 @@ void SystemInitializerCommon::Terminate() {
 #endif
 
   HostInfo::Terminate();
-  Log::Terminate();
+  Log::DisableAllLogChannels();
 }

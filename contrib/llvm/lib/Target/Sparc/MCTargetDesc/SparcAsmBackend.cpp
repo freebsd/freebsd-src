@@ -7,9 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCAsmBackend.h"
 #include "MCTargetDesc/SparcFixupKinds.h"
 #include "MCTargetDesc/SparcMCTargetDesc.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
@@ -203,15 +203,15 @@ namespace {
       return InfosBE[Kind - FirstTargetFixupKind];
     }
 
-    void processFixupValue(const MCAssembler &Asm, const MCAsmLayout &Layout,
-                           const MCFixup &Fixup, const MCFragment *DF,
-                           const MCValue &Target, uint64_t &Value,
-                           bool &IsResolved) override {
+    bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
+                               const MCValue &Target) override {
       switch ((Sparc::Fixups)Fixup.getKind()) {
-      default: break;
+      default:
+        return false;
       case Sparc::fixup_sparc_wplt30:
         if (Target.getSymA()->getSymbol().isTemporary())
-          return;
+          return false;
+        LLVM_FALLTHROUGH;
       case Sparc::fixup_sparc_tls_gd_hi22:
       case Sparc::fixup_sparc_tls_gd_lo10:
       case Sparc::fixup_sparc_tls_gd_add:
@@ -229,7 +229,8 @@ namespace {
       case Sparc::fixup_sparc_tls_ie_ldx:
       case Sparc::fixup_sparc_tls_ie_add:
       case Sparc::fixup_sparc_tls_le_hix22:
-      case Sparc::fixup_sparc_tls_le_lox10:  IsResolved = false; break;
+      case Sparc::fixup_sparc_tls_le_lox10:
+        return true;
       }
     }
 
@@ -273,8 +274,9 @@ namespace {
     ELFSparcAsmBackend(const Target &T, Triple::OSType OSType) :
       SparcAsmBackend(T), OSType(OSType) { }
 
-    void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                    uint64_t Value, bool IsPCRel) const override {
+    void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                    const MCValue &Target, MutableArrayRef<char> Data,
+                    uint64_t Value, bool IsResolved) const override {
 
       Value = adjustFixupValue(Fixup.getKind(), Value);
       if (!Value) return;           // Doesn't change encoding.

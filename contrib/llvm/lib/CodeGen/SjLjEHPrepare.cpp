@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -64,6 +64,7 @@ public:
 
 private:
   bool setupEntryBlockAndCallSites(Function &F);
+  bool undoSwiftErrorSelect(Function &F);
   void substituteLPadValues(LandingPadInst *LPI, Value *ExnVal, Value *SelVal);
   Value *setupFunctionContext(Function &F, ArrayRef<LandingPadInst *> LPads);
   void lowerIncomingArguments(Function &F);
@@ -73,7 +74,7 @@ private:
 } // end anonymous namespace
 
 char SjLjEHPrepare::ID = 0;
-INITIALIZE_PASS(SjLjEHPrepare, "sjljehprepare", "Prepare SjLj exceptions",
+INITIALIZE_PASS(SjLjEHPrepare, DEBUG_TYPE, "Prepare SjLj exceptions",
                 false, false)
 
 // Public Interface To the SjLjEHPrepare pass.
@@ -92,8 +93,8 @@ bool SjLjEHPrepare::doInitialization(Module &M) {
                                       doubleUnderDataTy, // __data
                                       VoidPtrTy,         // __personality
                                       VoidPtrTy,         // __lsda
-                                      doubleUnderJBufTy, // __jbuf
-                                      nullptr);
+                                      doubleUnderJBufTy  // __jbuf
+                                      );
 
   return true;
 }
@@ -124,8 +125,11 @@ static void MarkBlocksLiveIn(BasicBlock *BB,
   if (!LiveBBs.insert(BB).second)
     return; // already been here.
 
-  for (BasicBlock *PredBB : predecessors(BB))
-    MarkBlocksLiveIn(PredBB, LiveBBs);
+  df_iterator_default_set<BasicBlock*> Visited;
+
+  for (BasicBlock *B : inverse_depth_first_ext(BB, Visited))
+    LiveBBs.insert(B);
+
 }
 
 /// substituteLPadValues - Substitute the values returned by the landingpad
@@ -174,8 +178,8 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
   // because the value needs to be added to the global context list.
   auto &DL = F.getParent()->getDataLayout();
   unsigned Align = DL.getPrefTypeAlignment(FunctionContextTy);
-  FuncCtx = new AllocaInst(FunctionContextTy, nullptr, Align, "fn_context",
-                           &EntryBB->front());
+  FuncCtx = new AllocaInst(FunctionContextTy, DL.getAllocaAddrSpace(),
+                           nullptr, Align, "fn_context", &EntryBB->front());
 
   // Fill in the function context structure.
   for (LandingPadInst *LPI : LPads) {
@@ -458,14 +462,33 @@ bool SjLjEHPrepare::setupEntryBlockAndCallSites(Function &F) {
   return true;
 }
 
+bool SjLjEHPrepare::undoSwiftErrorSelect(Function &F) {
+  // We have inserted dummy copies 'select true, arg, undef' in the entry block
+  // for arguments to simplify this pass.
+  // swifterror arguments cannot be used in this way. Undo the select for the
+  // swifterror argument.
+  for (auto &AI : F.args()) {
+    if (AI.isSwiftError()) {
+      assert(AI.hasOneUse() && "Must have converted the argument to a select");
+      auto *Select = dyn_cast<SelectInst>(AI.use_begin()->getUser());
+      assert(Select && "There must be single select user");
+      auto *OrigSwiftError = cast<Argument>(Select->getTrueValue());
+      Select->replaceAllUsesWith(OrigSwiftError);
+      Select->eraseFromParent();
+      return true;
+    }
+  }
+  return false;
+}
+
 bool SjLjEHPrepare::runOnFunction(Function &F) {
   Module &M = *F.getParent();
   RegisterFn = M.getOrInsertFunction(
       "_Unwind_SjLj_Register", Type::getVoidTy(M.getContext()),
-      PointerType::getUnqual(FunctionContextTy), nullptr);
+      PointerType::getUnqual(FunctionContextTy));
   UnregisterFn = M.getOrInsertFunction(
       "_Unwind_SjLj_Unregister", Type::getVoidTy(M.getContext()),
-      PointerType::getUnqual(FunctionContextTy), nullptr);
+      PointerType::getUnqual(FunctionContextTy));
   FrameAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::frameaddress);
   StackAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::stacksave);
   StackRestoreFn = Intrinsic::getDeclaration(&M, Intrinsic::stackrestore);
@@ -476,5 +499,7 @@ bool SjLjEHPrepare::runOnFunction(Function &F) {
   FuncCtxFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_functioncontext);
 
   bool Res = setupEntryBlockAndCallSites(F);
+  if (Res)
+    Res |= undoSwiftErrorSelect(F);
   return Res;
 }

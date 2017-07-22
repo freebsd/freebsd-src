@@ -12,7 +12,6 @@
 #include "ASTDumper.h"
 #include "ClangModulesDeclVendor.h"
 
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Symbol/ClangASTContext.h"
@@ -24,6 +23,7 @@
 #include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Log.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 
@@ -139,6 +139,7 @@ bool ClangASTSource::FindExternalVisibleDeclsByName(
   case DeclarationName::CXXConstructorName:
   case DeclarationName::CXXDestructorName:
   case DeclarationName::CXXConversionFunctionName:
+  case DeclarationName::CXXDeductionGuideName:
     SetNoExternalVisibleDeclsForName(decl_ctx, clang_decl_name);
     return false;
   }
@@ -347,7 +348,7 @@ void ClangASTSource::CompleteType(clang::ObjCInterfaceDecl *interface_decl) {
           GetCompleteObjCInterface(original_iface_decl);
 
       if (complete_iface_decl && (complete_iface_decl != original_iface_decl)) {
-        m_ast_importer_sp->SetDeclOrigin(interface_decl, original_iface_decl);
+        m_ast_importer_sp->SetDeclOrigin(interface_decl, complete_iface_decl);
       }
     }
   }
@@ -471,7 +472,7 @@ void ClangASTSource::FindExternalLexicalDecls(
       original_decl = complete_iface_decl;
       original_ctx = &complete_iface_decl->getASTContext();
 
-      m_ast_importer_sp->SetDeclOrigin(context_decl, original_iface_decl);
+      m_ast_importer_sp->SetDeclOrigin(context_decl, complete_iface_decl);
     }
   }
 

@@ -13,11 +13,13 @@
 #include "lldb/API/SBLaunchInfo.h"
 #include "lldb/API/SBUnixSignals.h"
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Host/File.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Status.h"
+
+#include "llvm/Support/FileSystem.h"
 
 #include <functional>
 
@@ -203,7 +205,7 @@ const char *SBPlatformShellCommand::GetOutput() {
 SBPlatform::SBPlatform() : m_opaque_sp() {}
 
 SBPlatform::SBPlatform(const char *platform_name) : m_opaque_sp() {
-  Error error;
+  Status error;
   if (platform_name && platform_name[0])
     m_opaque_sp = Platform::Create(ConstString(platform_name), error);
 }
@@ -363,7 +365,7 @@ SBError SBPlatform::Put(SBFileSpec &src, SBFileSpec &dst) {
     if (src.Exists()) {
       uint32_t permissions = src.ref().GetPermissions();
       if (permissions == 0) {
-        if (src.ref().GetFileType() == FileSpec::eFileTypeDirectory)
+        if (llvm::sys::fs::is_directory(src.ref().GetPath()))
           permissions = eFilePermissionsDirectoryDefault;
         else
           permissions = eFilePermissionsFileDefault;
@@ -372,7 +374,7 @@ SBError SBPlatform::Put(SBFileSpec &src, SBFileSpec &dst) {
       return platform_sp->PutFile(src.ref(), dst.ref(), permissions);
     }
 
-    Error error;
+    Status error;
     error.SetErrorStringWithFormat("'src' argument doesn't exist: '%s'",
                                    src.ref().GetPath().c_str());
     return error;
@@ -384,7 +386,7 @@ SBError SBPlatform::Install(SBFileSpec &src, SBFileSpec &dst) {
     if (src.Exists())
       return platform_sp->Install(src.ref(), dst.ref());
 
-    Error error;
+    Status error;
     error.SetErrorStringWithFormat("'src' argument doesn't exist: '%s'",
                                    src.ref().GetPath().c_str());
     return error;
@@ -395,7 +397,7 @@ SBError SBPlatform::Run(SBPlatformShellCommand &shell_command) {
   return ExecuteConnected([&](const lldb::PlatformSP &platform_sp) {
     const char *command = shell_command.GetCommand();
     if (!command)
-      return Error("invalid shell command (empty)");
+      return Status("invalid shell command (empty)");
 
     const char *working_dir = shell_command.GetWorkingDirectory();
     if (working_dir == NULL) {
@@ -425,7 +427,7 @@ SBError SBPlatform::Kill(const lldb::pid_t pid) {
 }
 
 SBError SBPlatform::ExecuteConnected(
-    const std::function<Error(const lldb::PlatformSP &)> &func) {
+    const std::function<Status(const lldb::PlatformSP &)> &func) {
   SBError sb_error;
   const auto platform_sp(GetSP());
   if (platform_sp) {

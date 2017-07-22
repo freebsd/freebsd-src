@@ -176,6 +176,9 @@ def warn_gcc_attribute_location : Warning<
 def warn_attribute_no_decl : Warning<
   "attribute %0 ignored, because it is not attached to a declaration">, 
   InGroup<IgnoredAttributes>;
+def err_ms_attributes_not_enabled : Error<
+  "'__declspec' attributes are not enabled; use '-fdeclspec' or "
+  "'-fms-extensions' to enable support for __declspec attributes">;
 def err_expected_method_body : Error<"expected method body">;
 def err_declspec_after_virtspec : Error<
   "'%0' qualifier may not appear after the virtual specifier '%1'">;
@@ -361,8 +364,6 @@ def ext_decomp_decl_empty : ExtWarn<
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
   "method type specifier must start with '-' or '+'">;
-def err_objc_no_attributes_on_category : Error<
-  "attributes may not be specified on a category">;
 def err_objc_missing_end : Error<"missing '@end'">;
 def note_objc_container_start : Note<
   "%select{class|protocol|category|class extension|implementation"
@@ -434,6 +435,13 @@ def err_expected_field_designator : Error<
 def err_declaration_does_not_declare_param : Error<
   "declaration does not declare a parameter">;
 def err_no_matching_param : Error<"parameter named %0 is missing">;
+
+/// Objective-C++ parser diagnostics
+def err_expected_token_instead_of_objcxx_keyword : Error<
+  "expected %0; %1 is a keyword in Objective-C++">;
+def err_expected_member_name_or_semi_objcxx_keyword : Error<
+  "expected member name or ';' after declaration specifiers; "
+  "%0 is a keyword in Objective-C++">;
 
 /// C++ parser diagnostics
 def err_invalid_operator_on_type : Error<
@@ -669,9 +677,6 @@ def warn_static_inline_explicit_inst_ignored : Warning<
 // Constructor template diagnostics.
 def err_out_of_line_constructor_template_id : Error<
   "out-of-line constructor for %0 cannot have template arguments">;
-def err_out_of_line_template_id_type_names_constructor : Error<
-  "qualified reference to %0 is a constructor name rather than a "
-  "%select{template name|type}1 wherever a constructor can be declared">;
 
 def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;
@@ -859,6 +864,12 @@ def err_availability_query_repeated_platform: Error<
 def err_availability_query_repeated_star : Error<
   "'*' query has already been specified">;
 
+// External source symbol attribute
+def err_external_source_symbol_expected_keyword : Error<
+  "expected 'language', 'defined_in', or 'generated_declaration'">;
+def err_external_source_symbol_duplicate_clause : Error<
+  "duplicate %0 clause in an 'external_source_symbol' attribute">;
+
 // Type safety attributes
 def err_type_safety_unknown_flag : Error<
   "invalid comparison flag %0; use 'layout_compatible' or 'must_be_null'">;
@@ -876,9 +887,18 @@ def warn_pragma_expected_rparen : Warning<
   "missing ')' after '#pragma %0' - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_expected_identifier : Warning<
   "expected identifier in '#pragma %0' - ignored">, InGroup<IgnoredPragmas>;
+
+// '#pragma clang section' related errors
+def err_pragma_expected_clang_section_name : Error<
+  "expected one of [bss|data|rodata|text] section kind in '#pragma %0'">;
+def err_pragma_clang_section_expected_equal : Error<
+  "expected '=' following '#pragma clang section %select{invalid|bss|data|rodata|text}0'">;
+def err_pragma_clang_section_expected_name_or_clear : Error<
+  "expected section name or '\"\"' following '#pragma clang section %select{invalid|bss|data|rodata|text}0'">;
 def warn_pragma_expected_section_name : Warning<
   "expected a string literal for the section name in '#pragma %0' - ignored">,
   InGroup<IgnoredPragmas>;
+
 def warn_pragma_expected_section_push_pop_or_name : Warning<
   "expected push, pop or a string literal for the section name in '#pragma %0' - ignored">,
   InGroup<IgnoredPragmas>;
@@ -968,6 +988,43 @@ def err_pragma_optimize_invalid_argument : Error<
   "expected 'on' or 'off'">;
 def err_pragma_optimize_extra_argument : Error<
   "unexpected extra argument '%0' to '#pragma clang optimize'">;
+// - #pragma clang attribute
+def err_pragma_attribute_expected_push_pop : Error<
+  "expected 'push' or 'pop' after '#pragma clang attribute'">;
+def err_pragma_attribute_invalid_argument : Error<
+  "unexpected argument '%0' to '#pragma clang attribute'; "
+  "expected 'push' or 'pop'">;
+def err_pragma_attribute_expected_attribute : Error<
+  "expected an attribute after '('">;
+def err_pragma_attribute_expected_attribute_name : Error<
+  "expected identifier that represents an attribute name">;
+def err_pragma_attribute_extra_tokens_after_attribute : Error<
+  "extra tokens after attribute in a '#pragma clang attribute push'">;
+def err_pragma_attribute_unsupported_attribute : Error<
+  "attribute %0 is not supported by '#pragma clang attribute'">;
+def err_pragma_attribute_multiple_attributes : Error<
+  "more than one attribute specified in '#pragma clang attribute push'">;
+def err_pragma_attribute_expected_attribute_syntax : Error<
+  "expected an attribute that is specified using the GNU, C++11 or '__declspec'"
+  " syntax">;
+def note_pragma_attribute_use_attribute_kw : Note<"use the GNU '__attribute__' "
+  "syntax">;
+def err_pragma_attribute_invalid_subject_set_specifier : Error<
+  "expected attribute subject set specifier 'apply_to'">;
+def err_pragma_attribute_expected_subject_identifier : Error<
+  "expected an identifier that corresponds to an attribute subject rule">;
+def err_pragma_attribute_unknown_subject_rule : Error<
+  "unknown attribute subject rule '%0'">;
+def err_pragma_attribute_expected_subject_sub_identifier : Error<
+  "expected an identifier that corresponds to an attribute subject matcher "
+  "sub-rule; '%0' matcher %select{does not support sub-rules|supports the "
+  "following sub-rules: %2|}1">;
+def err_pragma_attribute_unknown_subject_sub_rule : Error<
+  "%select{invalid use of|unknown}2 attribute subject matcher sub-rule '%0'; "
+  "'%1' matcher %select{does not support sub-rules|supports the following "
+  "sub-rules: %3}2">;
+def err_pragma_attribute_duplicate_subject : Error<
+  "duplicate attribute subject matcher '%0'">;
 
 def err_opencl_unroll_hint_on_non_loop : Error<
   "OpenCL only supports 'opencl_unroll_hint' attribute on for, while, and do statements">;
@@ -1036,6 +1093,16 @@ def err_pragma_loop_missing_argument : Error<
 def err_pragma_loop_invalid_option : Error<
   "%select{invalid|missing}0 option%select{ %1|}0; expected vectorize, "
   "vectorize_width, interleave, interleave_count, unroll, unroll_count, or distribute">;
+
+def err_pragma_fp_invalid_option : Error<
+  "%select{invalid|missing}0 option%select{ %1|}0; expected contract">;
+def err_pragma_fp_invalid_argument : Error<
+  "unexpected argument '%0' to '#pragma clang fp %1'; "
+  "expected 'on', 'fast' or 'off'">;
+def err_pragma_fp_scope : Error<
+  "'#pragma clang fp' can only appear at file scope or at the start of a "
+  "compound statement">;
+
 def err_pragma_invalid_keyword : Error<
   "invalid argument; expected 'enable'%select{|, 'full'}0%select{|, 'assume_safety'}1 or 'disable'">;
 
@@ -1056,14 +1123,12 @@ def err_pragma_cannot_end_force_cuda_host_device : Error<
 } // end of Parse Issue category.
 
 let CategoryName = "Modules Issue" in {
-def err_expected_module_interface_decl : Error<
-  "expected module declaration at start of module interface">;
 def err_unexpected_module_decl : Error<
-  "module declaration must be the first declaration in the translation unit">;
+  "module declaration can only appear at the top level">;
 def err_module_expected_ident : Error<
-  "expected a module name after module%select{| import}0">;
-def err_unexpected_module_kind : Error<
-  "unexpected module kind %0; expected 'implementation' or 'partition'">;
+  "expected a module name after '%select{module|import}0'">;
+def err_module_implementation_partition : Error<
+  "module partition must be declared 'export'">;
 def err_attribute_not_module_attr : Error<
   "%0 attribute cannot be applied to a module">;
 def err_attribute_not_import_attr : Error<

@@ -68,6 +68,7 @@ public:
                        const InvalidatedSymbols *,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
+                       const LocationContext *LCtx,
                        const CallEvent *Call) const;
 
   typedef void (CStringChecker::*FnCheck)(CheckerContext &,
@@ -119,6 +120,7 @@ public:
   void evalStdCopy(CheckerContext &C, const CallExpr *CE) const;
   void evalStdCopyBackward(CheckerContext &C, const CallExpr *CE) const;
   void evalStdCopyCommon(CheckerContext &C, const CallExpr *CE) const;
+  void evalMemset(CheckerContext &C, const CallExpr *CE) const;
 
   // Utility methods
   std::pair<ProgramStateRef , ProgramStateRef >
@@ -1943,8 +1945,12 @@ void CStringChecker::evalStrsep(CheckerContext &C, const CallExpr *CE) const {
     // Overwrite the search string pointer. The new value is either an address
     // further along in the same string, or NULL if there are no more tokens.
     State = State->bindLoc(*SearchStrLoc,
-                           SVB.conjureSymbolVal(getTag(), CE, LCtx, CharPtrTy,
-                                                C.blockCount()));
+                           SVB.conjureSymbolVal(getTag(),
+                                                CE,
+                                                LCtx,
+                                                CharPtrTy,
+                                                C.blockCount()),
+                           LCtx);
   } else {
     assert(SearchStrVal.isUnknown());
     // Conjure a symbolic value. It's the best we can do.
@@ -1994,6 +2000,54 @@ void CStringChecker::evalStdCopyCommon(CheckerContext &C,
   C.addTransition(State);
 }
 
+void CStringChecker::evalMemset(CheckerContext &C, const CallExpr *CE) const {
+  if (CE->getNumArgs() != 3)
+    return;
+
+  CurrentFunctionDescription = "memory set function";
+
+  const Expr *Mem = CE->getArg(0);
+  const Expr *Size = CE->getArg(2);
+  ProgramStateRef State = C.getState();
+
+  // See if the size argument is zero.
+  const LocationContext *LCtx = C.getLocationContext();
+  SVal SizeVal = State->getSVal(Size, LCtx);
+  QualType SizeTy = Size->getType();
+
+  ProgramStateRef StateZeroSize, StateNonZeroSize;
+  std::tie(StateZeroSize, StateNonZeroSize) =
+    assumeZero(C, State, SizeVal, SizeTy);
+
+  // Get the value of the memory area.
+  SVal MemVal = State->getSVal(Mem, LCtx);
+
+  // If the size is zero, there won't be any actual memory access, so
+  // just bind the return value to the Mem buffer and return.
+  if (StateZeroSize && !StateNonZeroSize) {
+    StateZeroSize = StateZeroSize->BindExpr(CE, LCtx, MemVal);
+    C.addTransition(StateZeroSize);
+    return;
+  }
+
+  // Ensure the memory area is not null.
+  // If it is NULL there will be a NULL pointer dereference.
+  State = checkNonNull(C, StateNonZeroSize, Mem, MemVal);
+  if (!State)
+    return;
+
+  State = CheckBufferAccess(C, State, Size, Mem);
+  if (!State)
+    return;
+  State = InvalidateBuffer(C, State, Mem, C.getSVal(Mem),
+                           /*IsSourceBuffer*/false, Size);
+  if (!State)
+    return;
+
+  State = State->BindExpr(CE, LCtx, MemVal);
+  C.addTransition(State);
+}
+
 static bool isCPPStdLibraryFunction(const FunctionDecl *FD, StringRef Name) {
   IdentifierInfo *II = FD->getIdentifier();
   if (!II)
@@ -2027,6 +2081,8 @@ bool CStringChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
     evalFunction =  &CStringChecker::evalMemcmp;
   else if (C.isCLibraryFunction(FDecl, "memmove"))
     evalFunction =  &CStringChecker::evalMemmove;
+  else if (C.isCLibraryFunction(FDecl, "memset"))
+    evalFunction =  &CStringChecker::evalMemset;
   else if (C.isCLibraryFunction(FDecl, "strcpy"))
     evalFunction =  &CStringChecker::evalStrcpy;
   else if (C.isCLibraryFunction(FDecl, "strncpy"))
@@ -2116,6 +2172,7 @@ CStringChecker::checkRegionChanges(ProgramStateRef state,
                                    const InvalidatedSymbols *,
                                    ArrayRef<const MemRegion *> ExplicitRegions,
                                    ArrayRef<const MemRegion *> Regions,
+                                   const LocationContext *LCtx,
                                    const CallEvent *Call) const {
   CStringLengthTy Entries = state->get<CStringLength>();
   if (Entries.isEmpty())

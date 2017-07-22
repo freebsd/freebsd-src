@@ -143,11 +143,12 @@ static ReportStack *SymbolizeStack(StackTrace trace) {
   return stack;
 }
 
-ScopedReport::ScopedReport(ReportType typ) {
+ScopedReport::ScopedReport(ReportType typ, uptr tag) {
   ctx->thread_registry->CheckLocked();
   void *mem = internal_alloc(MBlockReport, sizeof(ReportDesc));
   rep_ = new(mem) ReportDesc;
   rep_->typ = typ;
+  rep_->tag = tag;
   ctx->report_mtx.Lock();
   CommonSanitizerReportMutex.Lock();
 }
@@ -164,8 +165,8 @@ void ScopedReport::AddStack(StackTrace stack, bool suppressable) {
   (*rs)->suppressable = suppressable;
 }
 
-void ScopedReport::AddMemoryAccess(uptr addr, Shadow s, StackTrace stack,
-                                   const MutexSet *mset) {
+void ScopedReport::AddMemoryAccess(uptr addr, uptr external_tag, Shadow s,
+                                   StackTrace stack, const MutexSet *mset) {
   void *mem = internal_alloc(MBlockReportMop, sizeof(ReportMop));
   ReportMop *mop = new(mem) ReportMop;
   rep_->mops.PushBack(mop);
@@ -175,6 +176,7 @@ void ScopedReport::AddMemoryAccess(uptr addr, Shadow s, StackTrace stack,
   mop->write = s.IsWrite();
   mop->atomic = s.IsAtomic();
   mop->stack = SymbolizeStack(stack);
+  mop->external_tag = external_tag;
   if (mop->stack)
     mop->stack->suppressable = true;
   for (uptr i = 0; i < mset->Size(); i++) {
@@ -202,6 +204,7 @@ void ScopedReport::AddThread(const ThreadContext *tctx, bool suppressable) {
   rt->running = (tctx->status == ThreadStatusRunning);
   rt->name = internal_strdup(tctx->name);
   rt->parent_tid = tctx->parent_tid;
+  rt->workerthread = tctx->workerthread;
   rt->stack = 0;
   rt->stack = SymbolizeStackId(tctx->creation_stack_id);
   if (rt->stack)
@@ -311,7 +314,7 @@ void ScopedReport::AddLocation(uptr addr, uptr size) {
     return;
 #if !SANITIZER_GO
   int fd = -1;
-  int creat_tid = -1;
+  int creat_tid = kInvalidTid;
   u32 creat_stack = 0;
   if (FdLocation(addr, &fd, &creat_tid, &creat_stack)) {
     ReportLocation *loc = ReportLocation::New(ReportLocationFD);
@@ -336,6 +339,7 @@ void ScopedReport::AddLocation(uptr addr, uptr size) {
     ReportLocation *loc = ReportLocation::New(ReportLocationHeap);
     loc->heap_chunk_start = (uptr)allocator()->GetBlockBegin((void *)addr);
     loc->heap_chunk_size = b->siz;
+    loc->external_tag = b->tag;
     loc->tid = tctx ? tctx->tid : b->tid;
     loc->stack = SymbolizeStackId(b->stk);
     rep_->locs.PushBack(loc);
@@ -374,7 +378,7 @@ const ReportDesc *ScopedReport::GetReport() const {
 }
 
 void RestoreStack(int tid, const u64 epoch, VarSizeStackTrace *stk,
-                  MutexSet *mset) {
+                  MutexSet *mset, uptr *tag) {
   // This function restores stack trace and mutex set for the thread/epoch.
   // It does so by getting stack trace and mutex set at the beginning of
   // trace part, and then replaying the trace till the given epoch.
@@ -433,6 +437,7 @@ void RestoreStack(int tid, const u64 epoch, VarSizeStackTrace *stk,
     return;
   pos++;
   stk->Init(&stack[0], pos);
+  ExtractTagFromStack(stk, tag);
 }
 
 static bool HandleRacyStacks(ThreadState *thr, VarSizeStackTrace traces[2],
@@ -497,7 +502,7 @@ static void AddRacyStacks(ThreadState *thr, VarSizeStackTrace traces[2],
 }
 
 bool OutputReport(ThreadState *thr, const ScopedReport &srep) {
-  if (!flags()->report_bugs)
+  if (!flags()->report_bugs || thr->suppress_reports)
     return false;
   atomic_store_relaxed(&ctx->last_symbolize_time_ns, NanoTime());
   const ReportDesc *rep = srep.GetReport();
@@ -628,8 +633,9 @@ void ReportRace(ThreadState *thr) {
 
   const uptr kMop = 2;
   VarSizeStackTrace traces[kMop];
+  uptr tags[kMop] = {kExternalTagNone};
   const uptr toppc = TraceTopPC(thr);
-  ObtainCurrentStack(thr, toppc, &traces[0]);
+  ObtainCurrentStack(thr, toppc, &traces[0], &tags[0]);
   if (IsFiredSuppression(ctx, typ, traces[0]))
     return;
 
@@ -639,18 +645,29 @@ void ReportRace(ThreadState *thr) {
   MutexSet *mset2 = new(&mset_buffer[0]) MutexSet();
 
   Shadow s2(thr->racy_state[1]);
-  RestoreStack(s2.tid(), s2.epoch(), &traces[1], mset2);
+  RestoreStack(s2.tid(), s2.epoch(), &traces[1], mset2, &tags[1]);
   if (IsFiredSuppression(ctx, typ, traces[1]))
     return;
 
   if (HandleRacyStacks(thr, traces, addr_min, addr_max))
     return;
 
+  // If any of the accesses has a tag, treat this as an "external" race.
+  uptr tag = kExternalTagNone;
+  for (uptr i = 0; i < kMop; i++) {
+    if (tags[i] != kExternalTagNone) {
+      typ = ReportTypeExternalRace;
+      tag = tags[i];
+      break;
+    }
+  }
+
   ThreadRegistryLock l0(ctx->thread_registry);
-  ScopedReport rep(typ);
+  ScopedReport rep(typ, tag);
   for (uptr i = 0; i < kMop; i++) {
     Shadow s(thr->racy_state[i]);
-    rep.AddMemoryAccess(addr, s, traces[i], i == 0 ? &thr->mset : mset2);
+    rep.AddMemoryAccess(addr, tags[i], s, traces[i],
+                        i == 0 ? &thr->mset : mset2);
   }
 
   for (uptr i = 0; i < kMop; i++) {

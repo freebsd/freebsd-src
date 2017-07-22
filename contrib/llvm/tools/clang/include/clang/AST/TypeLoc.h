@@ -70,6 +70,13 @@ public:
     return t;
   }
 
+  /// \brief Convert to the specified TypeLoc type, returning a null TypeLoc if
+  /// this TypeLock is not of the desired type. It will consider type
+  /// adjustments from a type that wad written as a T to another type that is
+  /// still canonically a T (ignores parens, attributes, elaborated types, etc).
+  template <typename T>
+  T getAsAdjusted() const;
+
   /// The kinds of TypeLocs.  Equivalent to the Type::TypeClass enum,
   /// except it also defines a Qualified enum that corresponds to the
   /// QualifiedLoc class.
@@ -1537,7 +1544,11 @@ class DependentSizedArrayTypeLoc :
     public InheritingConcreteTypeLoc<ArrayTypeLoc,
                                      DependentSizedArrayTypeLoc,
                                      DependentSizedArrayType> {
-
+public:
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    ArrayTypeLoc::initializeLocal(Context, Loc);
+    setSizeExpr(getTypePtr()->getSizeExpr());
+  }
 };
 
 class VariableArrayTypeLoc :
@@ -1827,9 +1838,25 @@ public:
   }
 };
 
-class AutoTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
-                                                        AutoTypeLoc,
-                                                        AutoType> {
+class DeducedTypeLoc
+    : public InheritingConcreteTypeLoc<TypeSpecTypeLoc, DeducedTypeLoc,
+                                       DeducedType> {};
+
+class AutoTypeLoc
+    : public InheritingConcreteTypeLoc<DeducedTypeLoc, AutoTypeLoc, AutoType> {
+};
+
+class DeducedTemplateSpecializationTypeLoc
+    : public InheritingConcreteTypeLoc<DeducedTypeLoc,
+                                       DeducedTemplateSpecializationTypeLoc,
+                                       DeducedTemplateSpecializationType> {
+public:
+  SourceLocation getTemplateNameLoc() const {
+    return getNameLoc();
+  }
+  void setTemplateNameLoc(SourceLocation Loc) {
+    setNameLoc(Loc);
+  }
 };
 
 struct ElaboratedLocInfo {
@@ -2172,6 +2199,24 @@ public:
 
   QualType getInnerType() const { return this->getTypePtr()->getElementType(); }
 };
+
+template <typename T>
+inline T TypeLoc::getAsAdjusted() const {
+  TypeLoc Cur = *this;
+  while (!T::isKind(Cur)) {
+    if (auto PTL = Cur.getAs<ParenTypeLoc>())
+      Cur = PTL.getInnerLoc();
+    else if (auto ATL = Cur.getAs<AttributedTypeLoc>())
+      Cur = ATL.getModifiedLoc();
+    else if (auto ETL = Cur.getAs<ElaboratedTypeLoc>())
+      Cur = ETL.getNamedTypeLoc();
+    else if (auto ATL = Cur.getAs<AdjustedTypeLoc>())
+      Cur = ATL.getOriginalLoc();
+    else
+      break;
+  }
+  return Cur.getAs<T>();
+}
 }
 
 #endif

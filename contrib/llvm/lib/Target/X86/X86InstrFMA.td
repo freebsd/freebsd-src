@@ -191,13 +191,15 @@ multiclass fma3s_rm_int<bits<8> opc, string OpcodeStr,
 multiclass fma3s_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                        string OpStr, string PackTy, string Suff,
                        SDNode OpNode, RegisterClass RC,
-                       X86MemOperand x86memop> {
-  defm NAME#132#Suff : fma3s_rm<opc132, !strconcat(OpStr, "132", PackTy),
-                                x86memop, RC>;
-  defm NAME#213#Suff : fma3s_rm<opc213, !strconcat(OpStr, "213", PackTy),
-                                x86memop, RC, OpNode>;
-  defm NAME#231#Suff : fma3s_rm<opc231, !strconcat(OpStr, "231", PackTy),
-                                x86memop, RC>;
+                       X86MemOperand x86memop> { 
+  let Predicates = [HasFMA, NoAVX512] in {
+    defm NAME#132#Suff : fma3s_rm<opc132, !strconcat(OpStr, "132", PackTy),
+                                  x86memop, RC>;
+    defm NAME#213#Suff : fma3s_rm<opc213, !strconcat(OpStr, "213", PackTy),
+                                  x86memop, RC, OpNode>;
+    defm NAME#231#Suff : fma3s_rm<opc231, !strconcat(OpStr, "231", PackTy),
+                                  x86memop, RC>;
+  }
 }
 
 // The FMA 213 form is created for lowering of scalar FMA intrinscis
@@ -295,7 +297,7 @@ let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in
                (ins RC:$src1, RC:$src2, RC:$src3),
                !strconcat(OpcodeStr,
                "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>,
-               VEX_LIG;
+               VEX_LIG, FoldGenData<NAME#rr>;
 }
 
 multiclass fma4s_int<bits<8> opc, string OpcodeStr, Operand memop,
@@ -319,6 +321,12 @@ let isCodeGenOnly = 1 in {
                "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
                [(set VR128:$dst,
                  (Int VR128:$src1, mem_cpat:$src2, VR128:$src3))]>, VEX_LIG;
+let hasSideEffects = 0 in
+  def rr_Int_REV : FMA4<opc, MRMSrcReg, (outs VR128:$dst),
+               (ins VR128:$src1, VR128:$src2, VR128:$src3),
+               !strconcat(OpcodeStr,
+               "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
+               []>, VEX_LIG, FoldGenData<NAME#rr_Int>; 
 } // isCodeGenOnly = 1
 }
 
@@ -370,12 +378,13 @@ let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in {
   def rr_REV : FMA4<opc, MRMSrcReg, (outs VR128:$dst),
                (ins VR128:$src1, VR128:$src2, VR128:$src3),
                !strconcat(OpcodeStr,
-               "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>;
+               "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>,
+               FoldGenData<NAME#rr>;
   def Yrr_REV : FMA4<opc, MRMSrcReg, (outs VR256:$dst),
                 (ins VR256:$src1, VR256:$src2, VR256:$src3),
                 !strconcat(OpcodeStr,
                 "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>,
-                VEX_L;
+                VEX_L, FoldGenData<NAME#Yrr>;
 } // isCodeGenOnly = 1
 }
 
