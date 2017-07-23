@@ -328,6 +328,7 @@ extern u_int sdhci_quirk_clear;
 extern u_int sdhci_quirk_set;
 
 struct sdhci_slot {
+	struct mtx	mtx;		/* Slot mutex */
 	u_int		quirks;		/* Chip specific quirks */
 	u_int		caps;		/* Override SDHCI_CAPABILITIES */
 	u_int		caps2;		/* Override SDHCI_CAPABILITIES2 */
@@ -338,6 +339,9 @@ struct sdhci_slot {
 #define	SDHCI_HAVE_DMA			0x01
 #define	SDHCI_PLATFORM_TRANSFER		0x02
 #define	SDHCI_NON_REMOVABLE		0x04
+#define	SDHCI_TUNING_SUPPORTED		0x08
+#define	SDHCI_TUNING_ENABLED		0x10
+#define	SDHCI_SDR50_NEEDS_TUNING	0x20
 	u_char		version;
 	int		timeout;	/* Transfer timeout */
 	uint32_t	max_clk;	/* Max possible freq */
@@ -351,14 +355,27 @@ struct sdhci_slot {
 			card_delayed_task;/* Card insert delayed task */
 	struct callout	card_poll_callout;/* Card present polling callout */
 	struct callout	timeout_callout;/* Card command/data response timeout */
+	struct callout	retune_callout;	/* Re-tuning mode 1 callout */
 	struct mmc_host host;		/* Host parameters */
 	struct mmc_request *req;	/* Current request */
 	struct mmc_command *curcmd;	/* Current command of current request */
 
+	struct mmc_request *tune_req;	/* Tuning request */
+	struct mmc_command *tune_cmd;	/* Tuning command of tuning request */
+	struct mmc_data *tune_data;	/* Tuning data of tuning command */
+	uint32_t	retune_ticks;	/* Re-tuning callout ticks [hz] */
 	uint32_t	intmask;	/* Current interrupt mask */
 	uint32_t	clock;		/* Current clock freq. */
 	size_t		offset;		/* Data buffer offset */
 	uint8_t		hostctrl;	/* Current host control register */
+	uint8_t		retune_count;	/* Controller re-tuning count [s] */
+	uint8_t		retune_mode;	/* Controller re-tuning mode */
+#define	SDHCI_RETUNE_MODE_1	0x00
+#define	SDHCI_RETUNE_MODE_2	0x01
+#define	SDHCI_RETUNE_MODE_3	0x02
+	uint8_t		retune_req;	/* Re-tuning request status */
+#define	SDHCI_RETUNE_REQ_NEEDED	0x01	/* Re-tuning w/o circuit reset needed */
+#define	SDHCI_RETUNE_REQ_RESET	0x02	/* Re-tuning w/ circuit reset needed */
 	u_char		power;		/* Current power */
 	u_char		bus_busy;	/* Bus busy status */
 	u_char		cmd_done;	/* CMD command part done flag */
@@ -368,7 +385,6 @@ struct sdhci_slot {
 #define	STOP_STARTED		2
 #define	SDHCI_USE_DMA		4	/* Use DMA for this req. */
 #define	PLATFORM_DATA_STARTED	8	/* Data xfer is handled by platform */
-	struct mtx	mtx;		/* Slot mutex */
 
 #ifdef MMCCAM
 	/* CAM stuff */
@@ -392,7 +408,9 @@ int sdhci_cleanup_slot(struct sdhci_slot *slot);
 int sdhci_generic_suspend(struct sdhci_slot *slot);
 int sdhci_generic_resume(struct sdhci_slot *slot);
 int sdhci_generic_update_ios(device_t brdev, device_t reqdev);
+int sdhci_generic_tune(device_t brdev, device_t reqdev, bool hs400);
 int sdhci_generic_switch_vccq(device_t brdev, device_t reqdev);
+int sdhci_generic_retune(device_t brdev, device_t reqdev, bool reset);
 int sdhci_generic_request(device_t brdev, device_t reqdev,
     struct mmc_request *req);
 int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
