@@ -4070,13 +4070,13 @@ nfsrv_readdsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
     NFSPROC_T *p, struct nfsmount *nmp, struct mbuf **mpp, struct mbuf **mpendp)
 {
 	uint32_t *tl;
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	nfsv4stateid_t st;
 	struct mbuf *m, *m2;
 	int error = 0, retlen, tlen, trimlen;
 
 	NFSD_DEBUG(4, "in nfsrv_readdsrpc\n");
-	nd->nd_mrep = NULL;
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	*mpp = NULL;
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
@@ -4096,8 +4096,10 @@ nfsrv_readdsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	*(tl + 2) = txdr_unsigned(len);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error != 0)
+	if (error != 0) {
+		free(nd, M_TEMP);
 		return (error);
+	}
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		NFSM_STRSIZ(retlen, len);
@@ -4160,6 +4162,7 @@ nfsrv_readdsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 nfsmout:
 	/* If nd->nd_mrep is already NULL, this is a no-op. */
 	m_freem(nd->nd_mrep);
+	free(nd, M_TEMP);
 	NFSD_DEBUG(4, "nfsrv_readdsrpc error=%d\n", error);
 	return (error);
 }
@@ -4170,7 +4173,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
     char *cp)
 {
 	uint32_t *tl;
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	nfsv4stateid_t st;
 	struct mbuf *m;
 	struct nfsvattr na;
@@ -4179,7 +4182,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 
 	NFSD_DEBUG(4, "in nfsrv_writedsrpc\n");
 	KASSERT(*mpp != NULL, ("nfsrv_writedsrpc: NULL mbuf chain"));
-	nd->nd_mrep = NULL;
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
 	 * seqid is 0xffffffff.  This value is not defined as special by
@@ -4232,8 +4235,10 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error != 0)
+	if (error != 0) {
+		free(nd, M_TEMP);
 		return (error);
+	}
 	NFSD_DEBUG(4, "nfsrv_writedsrpc: aft writerpc=%d\n", nd->nd_repstat);
 	/* Get rid of weak cache consistency data for now. */
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
@@ -4280,6 +4285,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
 	NFSD_DEBUG(4, "nfsrv_writedsrpc: aft setextat=%d\n", error);
 nfsmout:
 	m_freem(nd->nd_mrep);
+	free(nd, M_TEMP);
 	NFSD_DEBUG(4, "nfsrv_writedsrpc error=%d\n", error);
 	return (error);
 }
@@ -4289,14 +4295,14 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount *nmp, struct nfsvattr *nap)
 {
 	uint32_t *tl;
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	nfsv4stateid_t st;
 	nfsattrbit_t attrbits;
 	struct nfsvattr na;
 	int error;
 
 	NFSD_DEBUG(4, "in nfsrv_setattrdsrpc\n");
-	nd->nd_mrep = NULL;
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
 	 * seqid is 0xffffffff.  This value is not defined as special by
@@ -4323,8 +4329,10 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error != 0)
+	if (error != 0) {
+		free(nd, M_TEMP);
 		return (error);
+	}
 	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setattrrpc=%d\n",
 	    nd->nd_repstat);
 	/* Get rid of weak cache consistency data for now. */
@@ -4365,6 +4373,7 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	NFSD_DEBUG(4, "nfsrv_setattrdsrpc: aft setextat=%d\n", error);
 nfsmout:
 	m_freem(nd->nd_mrep);
+	free(nd, M_TEMP);
 	NFSD_DEBUG(4, "nfsrv_setattrdsrpc error=%d\n", error);
 	return (error);
 }
@@ -4376,13 +4385,13 @@ static int
 nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount *nmp, struct acl *aclp)
 {
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	nfsv4stateid_t st;
 	nfsattrbit_t attrbits;
 	int error;
 
 	NFSD_DEBUG(4, "in nfsrv_setacldsrpc\n");
-	nd->nd_mrep = NULL;
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	/*
 	 * Use a stateid where other is an alternating 01010 pattern and
 	 * seqid is 0xffffffff.  This value is not defined as special by
@@ -4407,12 +4416,15 @@ nfsrv_setacldsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	    NULL, 0, 0, 0, 0, 0);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error != 0)
+	if (error != 0) {
+		free(nd, M_TEMP);
 		return (error);
+	}
 	NFSD_DEBUG(4, "nfsrv_setacldsrpc: aft setaclrpc=%d\n",
 	    nd->nd_repstat);
 	error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
+	free(nd, M_TEMP);
 	return (error);
 }
 
@@ -4423,12 +4435,12 @@ static int
 nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
     struct vnode *vp, struct nfsmount *nmp, struct nfsvattr *nap)
 {
-	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsrv_descript *nd;
 	int error;
 	nfsattrbit_t attrbits;
 	
 	NFSD_DEBUG(4, "in nfsrv_getattrdsrpc\n");
-	nd->nd_mrep = NULL;
+	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, (u_int8_t *)fhp,
 	    sizeof(fhandle_t), NULL, NULL);
 	NFSZERO_ATTRBIT(&attrbits);
@@ -4439,8 +4451,10 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error != 0)
+	if (error != 0) {
+		free(nd, M_TEMP);
 		return (error);
+	}
 	NFSD_DEBUG(4, "nfsrv_getattrdsrpc: aft getattrrpc=%d\n",
 	    nd->nd_repstat);
 	if (nd->nd_repstat == 0) {
@@ -4455,6 +4469,7 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	} else
 		error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
+	free(nd, M_TEMP);
 	NFSD_DEBUG(4, "nfsrv_getattrdsrpc error=%d\n", error);
 	return (error);
 }
