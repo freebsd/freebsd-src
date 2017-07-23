@@ -204,6 +204,7 @@ struct mmc_request {
 	void *done_data;		/* requestor set data */
 	uint32_t flags;
 #define	MMC_REQ_DONE	1
+#define	MMC_TUNE_DONE	2
 };
 
 /* Command definitions */
@@ -431,8 +432,8 @@ struct mmc_request {
 
 #define	EXT_CSD_HS_TIMING_BC		0
 #define	EXT_CSD_HS_TIMING_HS		1
-#define	EXT_CSD_HS_TIMING_DDR200	2
-#define	EXT_CSD_HS_TIMING_DDR400	3
+#define	EXT_CSD_HS_TIMING_HS200		2
+#define	EXT_CSD_HS_TIMING_HS400		3
 #define	EXT_CSD_HS_TIMING_DRV_STR_SHIFT	4
 
 #define	EXT_CSD_POWER_CLASS_8BIT_MASK	0xf0
@@ -448,7 +449,6 @@ struct mmc_request {
 #define	EXT_CSD_CARD_TYPE_HS200_1_2V	0x0020
 #define	EXT_CSD_CARD_TYPE_HS400_1_8V	0x0040
 #define	EXT_CSD_CARD_TYPE_HS400_1_2V	0x0080
-#define	EXT_CSD_CARD_TYPE_HS400ES	0x0100
 
 #define	EXT_CSD_BUS_WIDTH_1	0
 #define	EXT_CSD_BUS_WIDTH_4	1
@@ -456,6 +456,8 @@ struct mmc_request {
 #define	EXT_CSD_BUS_WIDTH_4_DDR	5
 #define	EXT_CSD_BUS_WIDTH_8_DDR	6
 #define	EXT_CSD_BUS_WIDTH_ES	0x80
+
+#define	EXT_CSD_STROBE_SUPPORT_EN	0x01
 
 #define	MMC_TYPE_HS_26_MAX		26000000
 #define	MMC_TYPE_HS_52_MAX		52000000
@@ -656,6 +658,10 @@ struct mmc_sd_status
 
 #define	MMC_PART_GP_MAX	4
 #define	MMC_PART_MAX	8
+
+#define	MMC_TUNING_MAX		64	/* Maximum tuning iterations */
+#define	MMC_TUNING_LEN		64	/* Size of tuning data */
+#define	MMC_TUNING_LEN_HS200	128	/* Size of tuning data in HS200 mode */
 
 /*
  * Older versions of the MMC standard had a variable sector size.  However,

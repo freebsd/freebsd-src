@@ -56,6 +56,7 @@
 #define	DEV_MMC_MMCBRVAR_H
 
 #include <dev/mmc/mmcreg.h>
+
 #include "mmcbr_if.h"
 
 enum mmcbr_device_ivars {
@@ -69,6 +70,7 @@ enum mmcbr_device_ivars {
     MMCBR_IVAR_MODE,
     MMCBR_IVAR_OCR,
     MMCBR_IVAR_POWER_MODE,
+    MMCBR_IVAR_RETUNE_REQ,
     MMCBR_IVAR_VDD,
     MMCBR_IVAR_VCCQ,
     MMCBR_IVAR_CAPS,
@@ -93,6 +95,7 @@ MMCBR_ACCESSOR(host_ocr, HOST_OCR, int)
 MMCBR_ACCESSOR(mode, MODE, int)
 MMCBR_ACCESSOR(ocr, OCR, int)
 MMCBR_ACCESSOR(power_mode, POWER_MODE, int)
+MMCBR_ACCESSOR(retune_req, RETUNE_REQ, int)
 MMCBR_ACCESSOR(vdd, VDD, int)
 MMCBR_ACCESSOR(vccq, VCCQ, int)
 MMCBR_ACCESSOR(caps, CAPS, int)
@@ -105,6 +108,20 @@ mmcbr_update_ios(device_t dev)
 {
 
 	return (MMCBR_UPDATE_IOS(device_get_parent(dev), dev));
+}
+
+static int __inline
+mmcbr_tune(device_t dev, bool hs400)
+{
+
+	return (MMCBR_TUNE(device_get_parent(dev), dev, hs400));
+}
+
+static int __inline
+mmcbr_retune(device_t dev, bool reset)
+{
+
+	return (MMCBR_RETUNE(device_get_parent(dev), dev, reset));
 }
 
 static int __inline
