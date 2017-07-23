@@ -137,6 +137,10 @@ enum mmc_card_mode {
 	mode_mmc, mode_sd
 };
 
+enum mmc_retune_req {
+	retune_req_none = 0, retune_req_normal, retune_req_reset
+};
+
 struct mmc_host {
 	int f_min;
 	int f_max;
@@ -178,7 +182,7 @@ struct mmc_host {
 extern driver_t   mmc_driver;
 extern devclass_t mmc_devclass;
 
-#define	MMC_VERSION	3
+#define	MMC_VERSION	4
 
 #define	MMC_DECLARE_BRIDGE(name)					\
     DRIVER_MODULE(mmc, name, mmc_driver, mmc_devclass, NULL, NULL);	\
