@@ -693,6 +693,8 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force);
 int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset);
 int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force);
+int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
+    unsigned int size);
 int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
