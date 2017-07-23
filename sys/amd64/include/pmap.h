@@ -408,6 +408,7 @@ void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);
+bool	pmap_ps_enabled(pmap_t pmap);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
