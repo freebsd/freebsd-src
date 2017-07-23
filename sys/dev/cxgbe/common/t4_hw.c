@@ -6745,6 +6745,31 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	return t4_fw_restart(adap, mbox, reset);
 }
 
+/*
+ * Card doesn't have a firmware, install one.
+ */
+int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
+    unsigned int size)
+{
+	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
+	unsigned int bootstrap =
+	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
+	int ret;
+
+	if (!t4_fw_matches_chip(adap, fw_hdr) || bootstrap)
+		return -EINVAL;
+
+	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, F_UPCRST);
+	t4_write_reg(adap, A_PCIE_FW, 0);	/* Clobber internal state */
+	ret = t4_load_fw(adap, fw_data, size);
+	if (ret < 0)
+		return ret;
+	t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
+	msleep(1000);
+
+	return (0);
+}
+
 /**
  *	t4_fw_initialize - ask FW to initialize the device
  *	@adap: the adapter
