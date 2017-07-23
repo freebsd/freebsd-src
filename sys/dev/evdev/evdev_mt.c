@@ -224,13 +224,9 @@ void
 evdev_push_nfingers(struct evdev_dev *evdev, int32_t nfingers)
 {
 
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_LOCK(evdev);
-	else
-		EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_ENTER(evdev);
 	evdev_send_nfingers(evdev, nfingers);
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_UNLOCK(evdev);
+	EVDEV_EXIT(evdev);
 }
 
 void
@@ -264,13 +260,9 @@ void
 evdev_push_mt_compat(struct evdev_dev *evdev)
 {
 
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_LOCK(evdev);
-	else
-		EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_ENTER(evdev);
 	evdev_send_mt_compat(evdev);
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_UNLOCK(evdev);
+	EVDEV_EXIT(evdev);
 }
 
 void
