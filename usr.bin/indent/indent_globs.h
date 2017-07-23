@@ -330,6 +330,5 @@ struct parser_state {
 }           ps;
 
 int         ifdef_level;
-int	    rparen_count;
 struct parser_state state_stack[5];
 struct parser_state match_state[5];

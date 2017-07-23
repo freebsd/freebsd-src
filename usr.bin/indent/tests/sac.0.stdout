@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-void 
+void
 t(void)
 {
 	int		a = (double) 8;

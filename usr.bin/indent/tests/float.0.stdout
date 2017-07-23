@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* See r303499 */
-void 
+void
 t(void)
 {
 	unsigned long	x = 314UL;
