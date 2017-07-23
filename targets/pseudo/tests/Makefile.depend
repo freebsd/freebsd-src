@@ -7,13 +7,17 @@
 # find . -name Makefile -exec grep -l '^\.include.*\.test.mk' {} + | grep -v '^\./contrib' | sed -e 's,/Makefile,,' -e 's,^\./,,' -e 's,^,	,' -e 's,$, \\,' | sort
 DIRDEPS= \
 	bin/cat/tests \
+	bin/chmod/tests \
 	bin/date/tests \
 	bin/dd/tests \
+	bin/echo/tests \
 	bin/expr/tests \
+	bin/ln/tests \
 	bin/ls/tests \
 	bin/mv/tests \
 	bin/pax/tests \
 	bin/pkill/tests \
+	bin/pwait/tests \
 	bin/sh/tests \
 	bin/sh/tests/builtins \
 	bin/sh/tests/errors \
@@ -113,6 +117,7 @@ DIRDEPS= \
 	cddl/usr.sbin/dtrace/tests/common/vars \
 	cddl/usr.sbin/dtrace/tests/common/version \
 	cddl/usr.sbin/tests \
+	cddl/usr.sbin/zfsd/tests \
 	gnu/lib/tests \
 	gnu/tests \
 	gnu/usr.bin/diff/tests \
@@ -131,6 +136,7 @@ DIRDEPS= \
 	lib/libc/tests/gen/execve \
 	lib/libc/tests/gen/posix_spawn \
 	lib/libc/tests/hash \
+	lib/libc/tests/iconv \
 	lib/libc/tests/inet \
 	lib/libc/tests/locale \
 	lib/libc/tests/net \
@@ -149,12 +155,16 @@ DIRDEPS= \
 	lib/libc/tests/time \
 	lib/libc/tests/tls \
 	lib/libc/tests/ttyio \
+	lib/libcam/tests \
 	lib/libcrypt/tests \
+	lib/libdevdctl/tests \
+	lib/libkvm/tests \
 	lib/libmp/tests \
 	lib/libnv/tests \
 	lib/libpam/libpam/tests \
 	lib/libproc/tests \
 	lib/librt/tests \
+	lib/libsbuf/tests \
 	lib/libthr/tests \
 	lib/libthr/tests/dlopen \
 	lib/libthr/tests/dlopen/dso \
@@ -166,8 +176,6 @@ DIRDEPS= \
 	libexec/atf/atf-sh/tests \
 	libexec/atf/tests \
 	libexec/rtld-elf/tests \
-	libexec/rtld-elf/tests/libpythagoras \
-	libexec/rtld-elf/tests/target \
 	libexec/tests \
 	sbin/devd/tests \
 	sbin/dhclient/tests \
@@ -193,6 +201,8 @@ DIRDEPS= \
 	tests/sys/aio \
 	tests/sys/fifo \
 	tests/sys/file \
+	tests/sys/fs \
+	tests/sys/fs/tmpfs \
 	tests/sys/geom \
 	tests/sys/geom/class \
 	tests/sys/geom/class/concat \
@@ -209,13 +219,13 @@ DIRDEPS= \
 	tests/sys/kern/execve \
 	tests/sys/kern/pipe \
 	tests/sys/kqueue \
+	tests/sys/kqueue/libkqueue \
 	tests/sys/mac \
 	tests/sys/mac/bsdextended \
 	tests/sys/mac/portacl \
 	tests/sys/mqueue \
 	tests/sys/netinet \
 	tests/sys/opencrypto \
-	tests/sys/pjdfstest/pjdfstest \
 	tests/sys/pjdfstest/tests \
 	tests/sys/pjdfstest/tests/chflags \
 	tests/sys/pjdfstest/tests/chmod \
@@ -292,10 +302,13 @@ DIRDEPS= \
 	usr.bin/cmp/tests \
 	usr.bin/col/tests \
 	usr.bin/comm/tests \
+	usr.bin/compress/tests \
 	usr.bin/cpio/tests \
 	usr.bin/cut/tests \
 	usr.bin/dirname/tests \
+	usr.bin/du/tests \
 	usr.bin/file2c/tests \
+	usr.bin/getconf/tests \
 	usr.bin/grep/tests \
 	usr.bin/gzip/tests \
 	usr.bin/ident/tests \
@@ -306,17 +319,21 @@ DIRDEPS= \
 	usr.bin/m4/tests \
 	usr.bin/mkimg/tests \
 	usr.bin/ncal/tests \
+	usr.bin/pr/tests \
 	usr.bin/printf/tests \
-	usr.bin/pwait/tests \
+	usr.bin/procstat/tests \
 	usr.bin/sdiff/tests \
 	usr.bin/sed/tests \
 	usr.bin/sed/tests/regress.multitest.out \
 	usr.bin/soelim/tests \
+	usr.bin/stat/tests \
+	usr.bin/tail/tests \
 	usr.bin/tar/tests \
 	usr.bin/tests \
 	usr.bin/timeout/tests \
 	usr.bin/tr/tests \
 	usr.bin/truncate/tests \
+	usr.bin/uniq/tests \
 	usr.bin/units/tests \
 	usr.bin/uudecode/tests \
 	usr.bin/uuencode/tests \
@@ -341,6 +358,7 @@ DIRDEPS= \
 DIRDEPS:=	${DIRDEPS:Ncddl/usr.sbin/dtrace/tests/common/nfs}
 DIRDEPS:=	${DIRDEPS:Ncddl/usr.sbin/dtrace/tests/common/sysevent}
 DIRDEPS:=	${DIRDEPS:Ncddl/usr.sbin/dtrace/tests/common/docsExamples}
+DIRDEPS:=	${DIRDEPS:Ncddl/usr.sbin/zfsd/tests}
 DIRDEPS:=	${DIRDEPS:Nlib/libc/tests/net/getaddrinfo}
 
 .include <dirdeps.mk>
