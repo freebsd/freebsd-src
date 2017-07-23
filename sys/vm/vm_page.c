@@ -3478,9 +3478,11 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 bool
 vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
 {
+	vm_object_t object;
 	int i, npages;
 
-	VM_OBJECT_ASSERT_LOCKED(m->object);
+	object = m->object;
+	VM_OBJECT_ASSERT_LOCKED(object);
 	npages = atop(pagesizes[m->psind]);
 
 	/*
@@ -3489,6 +3491,9 @@ vm_page_ps_test(vm_page_t m, int flags, vm_page_t skip_m)
 	 * occupy adjacent entries in vm_page_array[].
 	 */
 	for (i = 0; i < npages; i++) {
+		/* Always test object consistency, including "skip_m". */
+		if (m[i].object != object)
+			return (false);
 		if (&m[i] == skip_m)
 			continue;
 		if ((flags & PS_NONE_BUSY) != 0 && vm_page_busied(&m[i]))
