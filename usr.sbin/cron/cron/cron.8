@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2016
+.Dd July 19, 2017
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -138,7 +138,7 @@ set to a null string, usually specified in a shell as
 or
 .Li \*q\*q .
 .It Fl n
-Don't daemonize, run in foreground instead.
+Do not daemonize; run in foreground instead.
 .It Fl s
 Enable special handling of situations when the GMT offset of the local
 timezone changes, such as the switches between the standard time and
@@ -209,13 +209,17 @@ trace through the execution, but do not perform any actions
 .El
 .El
 .Sh FILES
-.Bl -tag -width /etc/pam.d/cron -compact
+.Bl -tag -width /usr/local/etc/cron.d -compact
 .It Pa /etc/crontab
 System crontab file
+.It Pa /etc/cron.d
+Directory for optional/modularized system crontab files.
 .It Pa /etc/pam.d/cron
 .Xr pam.conf 5
 configuration file for
 .Nm
+.It Pa /usr/local/etc/cron.d
+Directory for third-party package provided crontab files.
 .It Pa /var/cron/tabs
 Directory for personal crontab files
 .El
