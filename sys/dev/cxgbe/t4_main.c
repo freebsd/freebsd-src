@@ -2968,6 +2968,7 @@ install:
 
 	return (1);
 }
+
 /*
  * Establish contact with the firmware and determine if we are the master driver
  * or not, and whether we are responsible for chip initialization.
@@ -2983,28 +2984,6 @@ prep_firmware(struct adapter *sc)
 	const struct fw_hdr *kld_fw;	/* fw in the KLD */
 	const struct fw_hdr *drv_fw;	/* fw header the driver was compiled
 					   against */
-
-	/* Contact firmware. */
-	rc = t4_fw_hello(sc, sc->mbox, sc->mbox, MASTER_MAY, &state);
-	if (rc < 0 || state == DEV_STATE_ERR) {
-		rc = -rc;
-		device_printf(sc->dev,
-		    "failed to connect to the firmware: %d, %d.\n", rc, state);
-		return (rc);
-	}
-	pf = rc;
-	if (pf == sc->mbox)
-		sc->flags |= MASTER_PF;
-	else if (state == DEV_STATE_UNINIT) {
-		/*
-		 * We didn't get to be the master so we definitely won't be
-		 * configuring the chip.  It's a bug if someone else hasn't
-		 * configured it already.
-		 */
-		device_printf(sc->dev, "couldn't be master(%d), "
-		    "device not already initialized either(%d).\n", rc, state);
-		return (EDOOFUS);
-	}
 
 	/* This is the firmware whose headers the driver was compiled against */
 	fw_info = find_fw_info(chip_id(sc));
@@ -3022,18 +3001,6 @@ prep_firmware(struct adapter *sc)
 	 */
 	default_cfg = firmware_get(fw_info->kld_name);
 
-	/* Read the header of the firmware on the card */
-	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
-	rc = -t4_read_flash(sc, FLASH_FW_START,
-	    sizeof (*card_fw) / sizeof (uint32_t), (uint32_t *)card_fw, 1);
-	if (rc == 0)
-		card_fw_usable = fw_compatible(drv_fw, (const void*)card_fw);
-	else {
-		device_printf(sc->dev,
-		    "Unable to read card's firmware header: %d\n", rc);
-		card_fw_usable = 0;
-	}
-
 	/* This is the firmware in the KLD */
 	fw = firmware_get(fw_info->fw_mod_name);
 	if (fw != NULL) {
@@ -3042,6 +3009,74 @@ prep_firmware(struct adapter *sc)
 	} else {
 		kld_fw = NULL;
 		kld_fw_usable = 0;
+	}
+
+	/* Read the header of the firmware on the card */
+	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
+	rc = -t4_read_flash(sc, FLASH_FW_START,
+	    sizeof (*card_fw) / sizeof (uint32_t), (uint32_t *)card_fw, 1);
+	if (rc == 0) {
+		card_fw_usable = fw_compatible(drv_fw, (const void*)card_fw);
+		if (card_fw->fw_ver == be32toh(0xffffffff)) {
+			uint32_t d = be32toh(kld_fw->fw_ver);
+
+			if (!kld_fw_usable) {
+				device_printf(sc->dev,
+				    "no firmware on the card and no usable "
+				    "firmware bundled with the driver.\n");
+				rc = EIO;
+				goto done;
+			} else if (t4_fw_install == 0) {
+				device_printf(sc->dev,
+				    "no firmware on the card and the driver "
+				    "is prohibited from installing new "
+				    "firmware.\n");
+				rc = EIO;
+				goto done;
+			}
+
+			device_printf(sc->dev, "no firmware on the card, "
+			    "installing firmware %d.%d.%d.%d\n",
+			    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
+			    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d));
+			rc = t4_fw_forceinstall(sc, fw->data, fw->datasize);
+			if (rc < 0) {
+				rc = -rc;
+				device_printf(sc->dev,
+				    "firmware install failed: %d.\n", rc);
+				goto done;
+			}
+			memcpy(card_fw, kld_fw, sizeof(*card_fw));
+			card_fw_usable = 1;
+			need_fw_reset = 0;
+		}
+	} else {
+		device_printf(sc->dev,
+		    "Unable to read card's firmware header: %d\n", rc);
+		card_fw_usable = 0;
+	}
+
+	/* Contact firmware. */
+	rc = t4_fw_hello(sc, sc->mbox, sc->mbox, MASTER_MAY, &state);
+	if (rc < 0 || state == DEV_STATE_ERR) {
+		rc = -rc;
+		device_printf(sc->dev,
+		    "failed to connect to the firmware: %d, %d.\n", rc, state);
+		goto done;
+	}
+	pf = rc;
+	if (pf == sc->mbox)
+		sc->flags |= MASTER_PF;
+	else if (state == DEV_STATE_UNINIT) {
+		/*
+		 * We didn't get to be the master so we definitely won't be
+		 * configuring the chip.  It's a bug if someone else hasn't
+		 * configured it already.
+		 */
+		device_printf(sc->dev, "couldn't be master(%d), "
+		    "device not already initialized either(%d).\n", rc, state);
+		rc = EPROTO;
+		goto done;
 	}
 
 	if (card_fw_usable && card_fw->fw_ver == drv_fw->fw_ver &&
