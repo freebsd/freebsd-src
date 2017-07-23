@@ -57,7 +57,10 @@ include		"std.AR_MIPS_BASE"
 
 makeoptions	MODULES_OVERRIDE+="hwpmc_mips24k"
 
+# AR9330 support - everything shipping uses EEPROM for calibration data,
+# so always include this.
 option		AH_SUPPORT_AR9330	# Chipset support
+option 		ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 
 device		usb
 device		ehci
