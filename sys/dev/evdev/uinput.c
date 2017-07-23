@@ -29,25 +29,24 @@
 
 #include "opt_evdev.h"
 
-#include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/conf.h>
-#include <sys/uio.h>
-#include <sys/proc.h>
-#include <sys/poll.h>
-#include <sys/selinfo.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/selinfo.h>
+#include <sys/systm.h>
 #include <sys/sx.h>
+#include <sys/uio.h>
 
-#include <dev/evdev/input.h>
-#include <dev/evdev/uinput.h>
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/evdev_private.h>
+#include <dev/evdev/input.h>
+#include <dev/evdev/uinput.h>
 
 #ifdef UINPUT_DEBUG
 #define	debugf(state, fmt, args...)	printf("uinput: " fmt "\n", ##args)
