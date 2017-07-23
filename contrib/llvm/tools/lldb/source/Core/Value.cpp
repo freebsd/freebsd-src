@@ -9,16 +9,10 @@
 
 #include "lldb/Core/Value.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/DataExtractor.h"
+#include "lldb/Core/Address.h"  // for Address
+#include "lldb/Core/ArchSpec.h" // for ArchSpec
 #include "lldb/Core/Module.h"
 #include "lldb/Core/State.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -28,6 +22,20 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Endian.h"   // for InlHostByteOrder
+#include "lldb/Utility/FileSpec.h" // for FileSpec
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-defines.h" // for LLDB_INVALID_ADDRESS
+#include "lldb/lldb-forward.h" // for DataBufferSP, ModuleSP
+#include "lldb/lldb-types.h"   // for addr_t
+
+#include <memory> // for make_shared
+#include <string> // for string
+
+#include <inttypes.h> // for PRIx64
 
 using namespace lldb;
 using namespace lldb_private;
@@ -136,7 +144,7 @@ Type *Value::GetType() {
 
 size_t Value::AppendDataToHostBuffer(const Value &rhs) {
   size_t curr_size = m_data_buffer.GetByteSize();
-  Error error;
+  Status error;
   switch (rhs.GetValueType()) {
   case eValueTypeScalar: {
     const size_t scalar_size = rhs.m_value.GetByteSize();
@@ -199,7 +207,7 @@ bool Value::ValueOf(ExecutionContext *exe_ctx) {
   return false;
 }
 
-uint64_t Value::GetValueByteSize(Error *error_ptr, ExecutionContext *exe_ctx) {
+uint64_t Value::GetValueByteSize(Status *error_ptr, ExecutionContext *exe_ctx) {
   uint64_t byte_size = 0;
 
   switch (m_context_type) {
@@ -307,11 +315,11 @@ bool Value::GetData(DataExtractor &data) {
   return false;
 }
 
-Error Value::GetValueAsData(ExecutionContext *exe_ctx, DataExtractor &data,
-                            uint32_t data_offset, Module *module) {
+Status Value::GetValueAsData(ExecutionContext *exe_ctx, DataExtractor &data,
+                             uint32_t data_offset, Module *module) {
   data.Clear();
 
-  Error error;
+  Status error;
   lldb::addr_t address = LLDB_INVALID_ADDRESS;
   AddressType address_type = eAddressTypeFile;
   Address file_so_addr;
@@ -538,7 +546,8 @@ Error Value::GetValueAsData(ExecutionContext *exe_ctx, DataExtractor &data,
   // Make sure we have enough room within "data", and if we don't make
   // something large enough that does
   if (!data.ValidOffsetForDataOfSize(data_offset, byte_size)) {
-    DataBufferSP data_sp(new DataBufferHeap(data_offset + byte_size, '\0'));
+    auto data_sp =
+        std::make_shared<DataBufferHeap>(data_offset + byte_size, '\0');
     data.SetData(data_sp);
   }
 
@@ -614,7 +623,7 @@ Scalar &Value::ResolveValue(ExecutionContext *exe_ctx) {
     {
       DataExtractor data;
       lldb::addr_t addr = m_value.ULongLong(LLDB_INVALID_ADDRESS);
-      Error error(GetValueAsData(exe_ctx, data, 0, NULL));
+      Status error(GetValueAsData(exe_ctx, data, 0, NULL));
       if (error.Success()) {
         Scalar scalar;
         if (compiler_type.GetValueAsScalar(data, 0, data.GetByteSize(),

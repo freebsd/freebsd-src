@@ -46,10 +46,10 @@ int
 fgetc(FILE *fp)
 {
 	int retval;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	/* Orientation set by __sgetc() when buffer is empty. */
 	/* ORIENT(fp, -1); */
 	retval = __sgetc(fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

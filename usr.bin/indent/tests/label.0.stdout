@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* See r303489 */
-void 
+void
 t(void)
 {
         switch (1) {

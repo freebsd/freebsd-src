@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_rx.h>
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
-#include <dev/rtwn/rtl8192c/r92c_rx_desc.h>
 
 
 void
@@ -190,7 +189,8 @@ rtwn_get_tsf(struct rtwn_softc *sc, uint64_t *buf, int id)
 }
 
 static uint64_t
-rtwn_extend_rx_tsf(struct rtwn_softc *sc, const struct r92c_rx_stat *stat)
+rtwn_extend_rx_tsf(struct rtwn_softc *sc,
+    const struct rtwn_rx_stat_common *stat)
 {
 	uint64_t tsft;
 	uint32_t rxdw3, tsfl, tsfl_curr;
@@ -198,7 +198,7 @@ rtwn_extend_rx_tsf(struct rtwn_softc *sc, const struct r92c_rx_stat *stat)
 
 	rxdw3 = le32toh(stat->rxdw3);
 	tsfl = le32toh(stat->tsf_low);
-	id = MS(rxdw3, R92C_RXDW3_BSSID_FIT);
+	id = MS(rxdw3, RTWN_RXDW3_BSSID01_FIT);
 
 	switch (id) {
 	case 1:
@@ -241,7 +241,7 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 	struct ieee80211_frame_min *wh;
 	struct ieee80211_rx_stats rxs;
 	struct rtwn_node *un;
-	struct r92c_rx_stat *stat;
+	struct rtwn_rx_stat_common *stat;
 	void *physt;
 	uint32_t rxdw0;
 	int8_t rssi;
@@ -250,10 +250,10 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 	stat = desc;
 	rxdw0 = le32toh(stat->rxdw0);
 
-	cipher = MS(rxdw0, R92C_RXDW0_CIPHER);
-	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
-	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
-	shift = MS(rxdw0, R92C_RXDW0_SHIFT);
+	cipher = MS(rxdw0, RTWN_RXDW0_CIPHER);
+	infosz = MS(rxdw0, RTWN_RXDW0_INFOSZ) * 8;
+	pktlen = MS(rxdw0, RTWN_RXDW0_PKTLEN);
+	shift = MS(rxdw0, RTWN_RXDW0_SHIFT);
 
 	wh = (struct ieee80211_frame_min *)(mtodo(m, shift + infosz));
 	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
@@ -268,7 +268,7 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 		ni = NULL;
 	un = RTWN_NODE(ni);
 
-	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST))
+	if (infosz != 0 && (rxdw0 & RTWN_RXDW0_PHYST))
 		physt = (void *)mtodo(m, shift);
 	else
 		physt = (un != NULL) ? &un->last_physt : &sc->last_physt;
@@ -284,7 +284,7 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 
 	/* Add some common bits. */
 	/* NB: should not happen. */
-	if (rxdw0 & R92C_RXDW0_CRCERR)
+	if (rxdw0 & RTWN_RXDW0_CRCERR)
 		rxs.c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 
 	rxs.r_flags |= IEEE80211_R_TSF_START;	/* XXX undocumented */
@@ -298,7 +298,7 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 	/* XXX TODO: we really need a rate-to-string method */
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RSSI, "%s: rssi %d, rate %d\n",
 	    __func__, rssi, rxs.c_rate);
-	if (un != NULL && infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
+	if (un != NULL && infosz != 0 && (rxdw0 & RTWN_RXDW0_PHYST)) {
 		/* Update our average RSSI. */
 		rtwn_update_avgrssi(sc, un, rssi, is_cck);
 	}

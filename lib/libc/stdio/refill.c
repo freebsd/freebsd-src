@@ -53,9 +53,9 @@ lflush(FILE *fp)
 	int	ret = 0;
 
 	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR)) {
-		FLOCKFILE(fp);
+		FLOCKFILE_CANCELSAFE(fp);
 		ret = __sflush(fp);
-		FUNLOCKFILE(fp);
+		FUNLOCKFILE_CANCELSAFE();
 	}
 	return (ret);
 }

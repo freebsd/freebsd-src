@@ -15,15 +15,12 @@
 #include "ClangPersistentVariables.h"
 
 #include "lldb/Core/Address.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Expression/Materializer.h"
-#include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/CompilerDecl.h"
@@ -45,6 +42,9 @@
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Status.h"
 #include "lldb/lldb-private.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -191,7 +191,7 @@ bool ClangExpressionDeclMap::AddPersistentVariable(const NamedDecl *decl,
     return false;
 
   if (m_parser_vars->m_materializer && is_result) {
-    Error err;
+    Status err;
 
     ExecutionContext &exe_ctx = m_parser_vars->m_exe_ctx;
     Target *target = exe_ctx.GetTargetPtr();
@@ -364,7 +364,7 @@ bool ClangExpressionDeclMap::AddValueToStruct(const NamedDecl *decl,
   if (m_parser_vars->m_materializer) {
     uint32_t offset = 0;
 
-    Error err;
+    Status err;
 
     if (is_persistent_variable) {
       ExpressionVariableSP var_sp(var->shared_from_this());
@@ -591,103 +591,6 @@ addr_t ClangExpressionDeclMap::GetSymbolAddress(const ConstString &name,
                           symbol_type);
 }
 
-const Symbol *ClangExpressionDeclMap::FindGlobalDataSymbol(
-    Target &target, const ConstString &name, lldb_private::Module *module) {
-  SymbolContextList sc_list;
-
-  if (module)
-    module->FindSymbolsWithNameAndType(name, eSymbolTypeAny, sc_list);
-  else
-    target.GetImages().FindSymbolsWithNameAndType(name, eSymbolTypeAny,
-                                                  sc_list);
-
-  const uint32_t matches = sc_list.GetSize();
-  for (uint32_t i = 0; i < matches; ++i) {
-    SymbolContext sym_ctx;
-    sc_list.GetContextAtIndex(i, sym_ctx);
-    if (sym_ctx.symbol) {
-      const Symbol *symbol = sym_ctx.symbol;
-      const Address sym_address = symbol->GetAddress();
-
-      if (sym_address.IsValid()) {
-        switch (symbol->GetType()) {
-        case eSymbolTypeData:
-        case eSymbolTypeRuntime:
-        case eSymbolTypeAbsolute:
-        case eSymbolTypeObjCClass:
-        case eSymbolTypeObjCMetaClass:
-        case eSymbolTypeObjCIVar:
-          if (symbol->GetDemangledNameIsSynthesized()) {
-            // If the demangled name was synthesized, then don't use it
-            // for expressions. Only let the symbol match if the mangled
-            // named matches for these symbols.
-            if (symbol->GetMangled().GetMangledName() != name)
-              break;
-          }
-          return symbol;
-
-        case eSymbolTypeReExported: {
-          ConstString reexport_name = symbol->GetReExportedSymbolName();
-          if (reexport_name) {
-            ModuleSP reexport_module_sp;
-            ModuleSpec reexport_module_spec;
-            reexport_module_spec.GetPlatformFileSpec() =
-                symbol->GetReExportedSymbolSharedLibrary();
-            if (reexport_module_spec.GetPlatformFileSpec()) {
-              reexport_module_sp =
-                  target.GetImages().FindFirstModule(reexport_module_spec);
-              if (!reexport_module_sp) {
-                reexport_module_spec.GetPlatformFileSpec()
-                    .GetDirectory()
-                    .Clear();
-                reexport_module_sp =
-                    target.GetImages().FindFirstModule(reexport_module_spec);
-              }
-            }
-            // Don't allow us to try and resolve a re-exported symbol if it is
-            // the same
-            // as the current symbol
-            if (name == symbol->GetReExportedSymbolName() &&
-                module == reexport_module_sp.get())
-              return NULL;
-
-            return FindGlobalDataSymbol(target,
-                                        symbol->GetReExportedSymbolName(),
-                                        reexport_module_sp.get());
-          }
-        } break;
-
-        case eSymbolTypeCode: // We already lookup functions elsewhere
-        case eSymbolTypeVariable:
-        case eSymbolTypeLocal:
-        case eSymbolTypeParam:
-        case eSymbolTypeTrampoline:
-        case eSymbolTypeInvalid:
-        case eSymbolTypeException:
-        case eSymbolTypeSourceFile:
-        case eSymbolTypeHeaderFile:
-        case eSymbolTypeObjectFile:
-        case eSymbolTypeCommonBlock:
-        case eSymbolTypeBlock:
-        case eSymbolTypeVariableType:
-        case eSymbolTypeLineEntry:
-        case eSymbolTypeLineHeader:
-        case eSymbolTypeScopeBegin:
-        case eSymbolTypeScopeEnd:
-        case eSymbolTypeAdditional:
-        case eSymbolTypeCompiler:
-        case eSymbolTypeInstrumentation:
-        case eSymbolTypeUndefined:
-        case eSymbolTypeResolver:
-          break;
-        }
-      }
-    }
-  }
-
-  return NULL;
-}
-
 lldb::VariableSP ClangExpressionDeclMap::FindGlobalVariable(
     Target &target, ModuleSP &module, const ConstString &name,
     CompilerDeclContext *namespace_decl, TypeFromUser *type) {
@@ -814,9 +717,8 @@ void ClangExpressionDeclMap::FindExternalVisibleDecls(
     FindExternalVisibleDecls(context, lldb::ModuleSP(), namespace_decl,
                              current_id);
   }
-
-  if (!context.m_found.variable && !context.m_found.local_vars_nsp)
-    ClangASTSource::FindExternalVisibleDecls(context);
+  
+  ClangASTSource::FindExternalVisibleDecls(context);
 }
 
 void ClangExpressionDeclMap::FindExternalVisibleDecls(
@@ -1217,7 +1119,7 @@ void ClangExpressionDeclMap::FindExternalVisibleDecls(
             }
           }
 
-          if (var) {
+          if (var && !variable_found) {
             variable_found = true;
             valobj = ValueObjectVariable::Create(frame, var);
             AddOneVariable(context, var, valobj, current_id);
@@ -1248,303 +1150,306 @@ void ClangExpressionDeclMap::FindExternalVisibleDecls(
       }
     }
 
-    if (!context.m_found.variable) {
-      const bool include_inlines = false;
-      const bool append = false;
+    const bool include_inlines = false;
+    const bool append = false;
 
-      if (namespace_decl && module_sp) {
-        const bool include_symbols = false;
+    if (namespace_decl && module_sp) {
+      const bool include_symbols = false;
 
-        module_sp->FindFunctions(name, &namespace_decl, eFunctionNameTypeBase,
-                                 include_symbols, include_inlines, append,
-                                 sc_list);
-      } else if (target && !namespace_decl) {
-        const bool include_symbols = true;
+      module_sp->FindFunctions(name, &namespace_decl, eFunctionNameTypeBase,
+                               include_symbols, include_inlines, append,
+                               sc_list);
+    } else if (target && !namespace_decl) {
+      const bool include_symbols = true;
 
-        // TODO Fix FindFunctions so that it doesn't return
-        //   instance methods for eFunctionNameTypeBase.
+      // TODO Fix FindFunctions so that it doesn't return
+      //   instance methods for eFunctionNameTypeBase.
 
-        target->GetImages().FindFunctions(name, eFunctionNameTypeFull,
-                                          include_symbols, include_inlines,
-                                          append, sc_list);
-      }
+      target->GetImages().FindFunctions(name, eFunctionNameTypeFull,
+                                        include_symbols, include_inlines,
+                                        append, sc_list);
+    }
 
-      // If we found more than one function, see if we can use the
-      // frame's decl context to remove functions that are shadowed
-      // by other functions which match in type but are nearer in scope.
-      //
-      // AddOneFunction will not add a function whose type has already been
-      // added, so if there's another function in the list with a matching
-      // type, check to see if their decl context is a parent of the current
-      // frame's or was imported via a and using statement, and pick the
-      // best match according to lookup rules.
-      if (sc_list.GetSize() > 1) {
-        // Collect some info about our frame's context.
-        StackFrame *frame = m_parser_vars->m_exe_ctx.GetFramePtr();
-        SymbolContext frame_sym_ctx;
-        if (frame != nullptr)
-          frame_sym_ctx = frame->GetSymbolContext(lldb::eSymbolContextFunction |
-                                                  lldb::eSymbolContextBlock);
-        CompilerDeclContext frame_decl_context =
-            frame_sym_ctx.block != nullptr
-                ? frame_sym_ctx.block->GetDeclContext()
-                : CompilerDeclContext();
+    // If we found more than one function, see if we can use the
+    // frame's decl context to remove functions that are shadowed
+    // by other functions which match in type but are nearer in scope.
+    //
+    // AddOneFunction will not add a function whose type has already been
+    // added, so if there's another function in the list with a matching
+    // type, check to see if their decl context is a parent of the current
+    // frame's or was imported via a and using statement, and pick the
+    // best match according to lookup rules.
+    if (sc_list.GetSize() > 1) {
+      // Collect some info about our frame's context.
+      StackFrame *frame = m_parser_vars->m_exe_ctx.GetFramePtr();
+      SymbolContext frame_sym_ctx;
+      if (frame != nullptr)
+        frame_sym_ctx = frame->GetSymbolContext(lldb::eSymbolContextFunction |
+                                                lldb::eSymbolContextBlock);
+      CompilerDeclContext frame_decl_context =
+          frame_sym_ctx.block != nullptr ? frame_sym_ctx.block->GetDeclContext()
+                                         : CompilerDeclContext();
 
-        // We can't do this without a compiler decl context for our frame.
-        if (frame_decl_context) {
-          clang::DeclContext *frame_decl_ctx =
-              (clang::DeclContext *)frame_decl_context.GetOpaqueDeclContext();
-          ClangASTContext *ast = llvm::dyn_cast_or_null<ClangASTContext>(
-              frame_decl_context.GetTypeSystem());
+      // We can't do this without a compiler decl context for our frame.
+      if (frame_decl_context) {
+        clang::DeclContext *frame_decl_ctx =
+            (clang::DeclContext *)frame_decl_context.GetOpaqueDeclContext();
+        ClangASTContext *ast = llvm::dyn_cast_or_null<ClangASTContext>(
+            frame_decl_context.GetTypeSystem());
 
-          // Structure to hold the info needed when comparing function
-          // declarations.
-          struct FuncDeclInfo {
-            ConstString m_name;
-            CompilerType m_copied_type;
-            uint32_t m_decl_lvl;
-            SymbolContext m_sym_ctx;
-          };
+        // Structure to hold the info needed when comparing function
+        // declarations.
+        struct FuncDeclInfo {
+          ConstString m_name;
+          CompilerType m_copied_type;
+          uint32_t m_decl_lvl;
+          SymbolContext m_sym_ctx;
+        };
 
-          // First, symplify things by looping through the symbol contexts
-          // to remove unwanted functions and separate out the functions we
-          // want to compare and prune into a separate list.
-          // Cache the info needed about the function declarations in a
-          // vector for efficiency.
-          SymbolContextList sc_sym_list;
-          uint32_t num_indices = sc_list.GetSize();
-          std::vector<FuncDeclInfo> fdi_cache;
-          fdi_cache.reserve(num_indices);
-          for (uint32_t index = 0; index < num_indices; ++index) {
-            FuncDeclInfo fdi;
-            SymbolContext sym_ctx;
-            sc_list.GetContextAtIndex(index, sym_ctx);
-
-            // We don't know enough about symbols to compare them,
-            // but we should keep them in the list.
-            Function *function = sym_ctx.function;
-            if (!function) {
-              sc_sym_list.Append(sym_ctx);
-              continue;
-            }
-            // Filter out functions without declaration contexts, as well as
-            // class/instance methods, since they'll be skipped in the
-            // code that follows anyway.
-            CompilerDeclContext func_decl_context = function->GetDeclContext();
-            if (!func_decl_context ||
-                func_decl_context.IsClassMethod(nullptr, nullptr, nullptr))
-              continue;
-            // We can only prune functions for which we can copy the type.
-            CompilerType func_clang_type =
-                function->GetType()->GetFullCompilerType();
-            CompilerType copied_func_type = GuardedCopyType(func_clang_type);
-            if (!copied_func_type) {
-              sc_sym_list.Append(sym_ctx);
-              continue;
-            }
-
-            fdi.m_sym_ctx = sym_ctx;
-            fdi.m_name = function->GetName();
-            fdi.m_copied_type = copied_func_type;
-            fdi.m_decl_lvl = LLDB_INVALID_DECL_LEVEL;
-            if (fdi.m_copied_type && func_decl_context) {
-              // Call CountDeclLevels to get the number of parent scopes we
-              // have to look through before we find the function declaration.
-              // When comparing functions of the same type, the one with a
-              // lower count will be closer to us in the lookup scope and
-              // shadows the other.
-              clang::DeclContext *func_decl_ctx =
-                  (clang::DeclContext *)
-                      func_decl_context.GetOpaqueDeclContext();
-              fdi.m_decl_lvl =
-                  ast->CountDeclLevels(frame_decl_ctx, func_decl_ctx,
-                                       &fdi.m_name, &fdi.m_copied_type);
-            }
-            fdi_cache.emplace_back(fdi);
-          }
-
-          // Loop through the functions in our cache looking for matching types,
-          // then compare their scope levels to see which is closer.
-          std::multimap<CompilerType, const FuncDeclInfo *> matches;
-          for (const FuncDeclInfo &fdi : fdi_cache) {
-            const CompilerType t = fdi.m_copied_type;
-            auto q = matches.find(t);
-            if (q != matches.end()) {
-              if (q->second->m_decl_lvl > fdi.m_decl_lvl)
-                // This function is closer; remove the old set.
-                matches.erase(t);
-              else if (q->second->m_decl_lvl < fdi.m_decl_lvl)
-                // The functions in our set are closer - skip this one.
-                continue;
-            }
-            matches.insert(std::make_pair(t, &fdi));
-          }
-
-          // Loop through our matches and add their symbol contexts to our list.
-          SymbolContextList sc_func_list;
-          for (const auto &q : matches)
-            sc_func_list.Append(q.second->m_sym_ctx);
-
-          // Rejoin the lists with the functions in front.
-          sc_list = sc_func_list;
-          sc_list.Append(sc_sym_list);
-        }
-      }
-
-      if (sc_list.GetSize()) {
-        Symbol *extern_symbol = NULL;
-        Symbol *non_extern_symbol = NULL;
-
-        for (uint32_t index = 0, num_indices = sc_list.GetSize();
-             index < num_indices; ++index) {
+        // First, symplify things by looping through the symbol contexts
+        // to remove unwanted functions and separate out the functions we
+        // want to compare and prune into a separate list.
+        // Cache the info needed about the function declarations in a
+        // vector for efficiency.
+        SymbolContextList sc_sym_list;
+        uint32_t num_indices = sc_list.GetSize();
+        std::vector<FuncDeclInfo> fdi_cache;
+        fdi_cache.reserve(num_indices);
+        for (uint32_t index = 0; index < num_indices; ++index) {
+          FuncDeclInfo fdi;
           SymbolContext sym_ctx;
           sc_list.GetContextAtIndex(index, sym_ctx);
 
-          if (sym_ctx.function) {
-            CompilerDeclContext decl_ctx = sym_ctx.function->GetDeclContext();
-
-            if (!decl_ctx)
-              continue;
-
-            // Filter out class/instance methods.
-            if (decl_ctx.IsClassMethod(nullptr, nullptr, nullptr))
-              continue;
-
-            AddOneFunction(context, sym_ctx.function, NULL, current_id);
-            context.m_found.function_with_type_info = true;
-            context.m_found.function = true;
-          } else if (sym_ctx.symbol) {
-            if (sym_ctx.symbol->GetType() == eSymbolTypeReExported && target) {
-              sym_ctx.symbol = sym_ctx.symbol->ResolveReExportedSymbol(*target);
-              if (sym_ctx.symbol == NULL)
-                continue;
-            }
-
-            if (sym_ctx.symbol->IsExternal())
-              extern_symbol = sym_ctx.symbol;
-            else
-              non_extern_symbol = sym_ctx.symbol;
+          // We don't know enough about symbols to compare them,
+          // but we should keep them in the list.
+          Function *function = sym_ctx.function;
+          if (!function) {
+            sc_sym_list.Append(sym_ctx);
+            continue;
           }
+          // Filter out functions without declaration contexts, as well as
+          // class/instance methods, since they'll be skipped in the
+          // code that follows anyway.
+          CompilerDeclContext func_decl_context = function->GetDeclContext();
+          if (!func_decl_context ||
+              func_decl_context.IsClassMethod(nullptr, nullptr, nullptr))
+            continue;
+          // We can only prune functions for which we can copy the type.
+          CompilerType func_clang_type =
+              function->GetType()->GetFullCompilerType();
+          CompilerType copied_func_type = GuardedCopyType(func_clang_type);
+          if (!copied_func_type) {
+            sc_sym_list.Append(sym_ctx);
+            continue;
+          }
+
+          fdi.m_sym_ctx = sym_ctx;
+          fdi.m_name = function->GetName();
+          fdi.m_copied_type = copied_func_type;
+          fdi.m_decl_lvl = LLDB_INVALID_DECL_LEVEL;
+          if (fdi.m_copied_type && func_decl_context) {
+            // Call CountDeclLevels to get the number of parent scopes we
+            // have to look through before we find the function declaration.
+            // When comparing functions of the same type, the one with a
+            // lower count will be closer to us in the lookup scope and
+            // shadows the other.
+            clang::DeclContext *func_decl_ctx =
+                (clang::DeclContext *)func_decl_context.GetOpaqueDeclContext();
+            fdi.m_decl_lvl = ast->CountDeclLevels(
+                frame_decl_ctx, func_decl_ctx, &fdi.m_name, &fdi.m_copied_type);
+          }
+          fdi_cache.emplace_back(fdi);
         }
 
-        if (!context.m_found.function_with_type_info) {
-          for (clang::NamedDecl *decl : decls_from_modules) {
-            if (llvm::isa<clang::FunctionDecl>(decl)) {
-              clang::NamedDecl *copied_decl =
-                  llvm::cast_or_null<FunctionDecl>(m_ast_importer_sp->CopyDecl(
-                      m_ast_context, &decl->getASTContext(), decl));
-              if (copied_decl) {
-                context.AddNamedDecl(copied_decl);
-                context.m_found.function_with_type_info = true;
-              }
-            }
+        // Loop through the functions in our cache looking for matching types,
+        // then compare their scope levels to see which is closer.
+        std::multimap<CompilerType, const FuncDeclInfo *> matches;
+        for (const FuncDeclInfo &fdi : fdi_cache) {
+          const CompilerType t = fdi.m_copied_type;
+          auto q = matches.find(t);
+          if (q != matches.end()) {
+            if (q->second->m_decl_lvl > fdi.m_decl_lvl)
+              // This function is closer; remove the old set.
+              matches.erase(t);
+            else if (q->second->m_decl_lvl < fdi.m_decl_lvl)
+              // The functions in our set are closer - skip this one.
+              continue;
           }
+          matches.insert(std::make_pair(t, &fdi));
         }
 
-        if (!context.m_found.function_with_type_info) {
-          if (extern_symbol) {
-            AddOneFunction(context, NULL, extern_symbol, current_id);
-            context.m_found.function = true;
-          } else if (non_extern_symbol) {
-            AddOneFunction(context, NULL, non_extern_symbol, current_id);
-            context.m_found.function = true;
+        // Loop through our matches and add their symbol contexts to our list.
+        SymbolContextList sc_func_list;
+        for (const auto &q : matches)
+          sc_func_list.Append(q.second->m_sym_ctx);
+
+        // Rejoin the lists with the functions in front.
+        sc_list = sc_func_list;
+        sc_list.Append(sc_sym_list);
+      }
+    }
+
+    if (sc_list.GetSize()) {
+      Symbol *extern_symbol = NULL;
+      Symbol *non_extern_symbol = NULL;
+
+      for (uint32_t index = 0, num_indices = sc_list.GetSize();
+           index < num_indices; ++index) {
+        SymbolContext sym_ctx;
+        sc_list.GetContextAtIndex(index, sym_ctx);
+
+        if (sym_ctx.function) {
+          CompilerDeclContext decl_ctx = sym_ctx.function->GetDeclContext();
+
+          if (!decl_ctx)
+            continue;
+
+          // Filter out class/instance methods.
+          if (decl_ctx.IsClassMethod(nullptr, nullptr, nullptr))
+            continue;
+
+          AddOneFunction(context, sym_ctx.function, NULL, current_id);
+          context.m_found.function_with_type_info = true;
+          context.m_found.function = true;
+        } else if (sym_ctx.symbol) {
+          if (sym_ctx.symbol->GetType() == eSymbolTypeReExported && target) {
+            sym_ctx.symbol = sym_ctx.symbol->ResolveReExportedSymbol(*target);
+            if (sym_ctx.symbol == NULL)
+              continue;
+          }
+
+          if (sym_ctx.symbol->IsExternal())
+            extern_symbol = sym_ctx.symbol;
+          else
+            non_extern_symbol = sym_ctx.symbol;
+        }
+      }
+
+      if (!context.m_found.function_with_type_info) {
+        for (clang::NamedDecl *decl : decls_from_modules) {
+          if (llvm::isa<clang::FunctionDecl>(decl)) {
+            clang::NamedDecl *copied_decl =
+                llvm::cast_or_null<FunctionDecl>(m_ast_importer_sp->CopyDecl(
+                    m_ast_context, &decl->getASTContext(), decl));
+            if (copied_decl) {
+              context.AddNamedDecl(copied_decl);
+              context.m_found.function_with_type_info = true;
+            }
           }
         }
       }
 
       if (!context.m_found.function_with_type_info) {
-        // Try the modules next.
-
-        do {
-          if (ClangModulesDeclVendor *modules_decl_vendor =
-                  m_target->GetClangModulesDeclVendor()) {
-            bool append = false;
-            uint32_t max_matches = 1;
-            std::vector<clang::NamedDecl *> decls;
-
-            if (!modules_decl_vendor->FindDecls(name, append, max_matches,
-                                                decls))
-              break;
-
-            clang::NamedDecl *const decl_from_modules = decls[0];
-
-            if (llvm::isa<clang::FunctionDecl>(decl_from_modules)) {
-              if (log) {
-                log->Printf("  CAS::FEVD[%u] Matching function found for "
-                            "\"%s\" in the modules",
-                            current_id, name.GetCString());
-              }
-
-              clang::Decl *copied_decl = m_ast_importer_sp->CopyDecl(
-                  m_ast_context, &decl_from_modules->getASTContext(),
-                  decl_from_modules);
-              clang::FunctionDecl *copied_function_decl =
-                  copied_decl ? dyn_cast<clang::FunctionDecl>(copied_decl)
-                              : nullptr;
-
-              if (!copied_function_decl) {
-                if (log)
-                  log->Printf("  CAS::FEVD[%u] - Couldn't export a function "
-                              "declaration from the modules",
-                              current_id);
-
-                break;
-              }
-
-              MaybeRegisterFunctionBody(copied_function_decl);
-
-              context.AddNamedDecl(copied_function_decl);
-
-              context.m_found.function_with_type_info = true;
-              context.m_found.function = true;
-            } else if (llvm::isa<clang::VarDecl>(decl_from_modules)) {
-              if (log) {
-                log->Printf("  CAS::FEVD[%u] Matching variable found for "
-                            "\"%s\" in the modules",
-                            current_id, name.GetCString());
-              }
-
-              clang::Decl *copied_decl = m_ast_importer_sp->CopyDecl(
-                  m_ast_context, &decl_from_modules->getASTContext(),
-                  decl_from_modules);
-              clang::VarDecl *copied_var_decl =
-                  copied_decl ? dyn_cast_or_null<clang::VarDecl>(copied_decl)
-                              : nullptr;
-
-              if (!copied_var_decl) {
-                if (log)
-                  log->Printf("  CAS::FEVD[%u] - Couldn't export a variable "
-                              "declaration from the modules",
-                              current_id);
-
-                break;
-              }
-
-              context.AddNamedDecl(copied_var_decl);
-
-              context.m_found.variable = true;
-            }
-          }
-        } while (0);
-      }
-
-      if (target && !context.m_found.variable && !namespace_decl) {
-        // We couldn't find a non-symbol variable for this.  Now we'll hunt for
-        // a generic
-        // data symbol, and -- if it is found -- treat it as a variable.
-
-        const Symbol *data_symbol = FindGlobalDataSymbol(*target, name);
-
-        if (data_symbol) {
-          std::string warning("got name from symbols: ");
-          warning.append(name.AsCString());
-          const unsigned diag_id =
-              m_ast_context->getDiagnostics().getCustomDiagID(
-                  clang::DiagnosticsEngine::Level::Warning, "%0");
-          m_ast_context->getDiagnostics().Report(diag_id) << warning.c_str();
-          AddOneGenericVariable(context, *data_symbol, current_id);
-          context.m_found.variable = true;
+        if (extern_symbol) {
+          AddOneFunction(context, NULL, extern_symbol, current_id);
+          context.m_found.function = true;
+        } else if (non_extern_symbol) {
+          AddOneFunction(context, NULL, non_extern_symbol, current_id);
+          context.m_found.function = true;
         }
+      }
+    }
+
+    if (!context.m_found.function_with_type_info) {
+      // Try the modules next.
+
+      do {
+        if (ClangModulesDeclVendor *modules_decl_vendor =
+                m_target->GetClangModulesDeclVendor()) {
+          bool append = false;
+          uint32_t max_matches = 1;
+          std::vector<clang::NamedDecl *> decls;
+
+          if (!modules_decl_vendor->FindDecls(name, append, max_matches, decls))
+            break;
+
+          clang::NamedDecl *const decl_from_modules = decls[0];
+
+          if (llvm::isa<clang::FunctionDecl>(decl_from_modules)) {
+            if (log) {
+              log->Printf("  CAS::FEVD[%u] Matching function found for "
+                          "\"%s\" in the modules",
+                          current_id, name.GetCString());
+            }
+
+            clang::Decl *copied_decl = m_ast_importer_sp->CopyDecl(
+                m_ast_context, &decl_from_modules->getASTContext(),
+                decl_from_modules);
+            clang::FunctionDecl *copied_function_decl =
+                copied_decl ? dyn_cast<clang::FunctionDecl>(copied_decl)
+                            : nullptr;
+
+            if (!copied_function_decl) {
+              if (log)
+                log->Printf("  CAS::FEVD[%u] - Couldn't export a function "
+                            "declaration from the modules",
+                            current_id);
+
+              break;
+            }
+
+            MaybeRegisterFunctionBody(copied_function_decl);
+
+            context.AddNamedDecl(copied_function_decl);
+
+            context.m_found.function_with_type_info = true;
+            context.m_found.function = true;
+          } else if (llvm::isa<clang::VarDecl>(decl_from_modules)) {
+            if (log) {
+              log->Printf("  CAS::FEVD[%u] Matching variable found for "
+                          "\"%s\" in the modules",
+                          current_id, name.GetCString());
+            }
+
+            clang::Decl *copied_decl = m_ast_importer_sp->CopyDecl(
+                m_ast_context, &decl_from_modules->getASTContext(),
+                decl_from_modules);
+            clang::VarDecl *copied_var_decl =
+                copied_decl ? dyn_cast_or_null<clang::VarDecl>(copied_decl)
+                            : nullptr;
+
+            if (!copied_var_decl) {
+              if (log)
+                log->Printf("  CAS::FEVD[%u] - Couldn't export a variable "
+                            "declaration from the modules",
+                            current_id);
+
+              break;
+            }
+
+            context.AddNamedDecl(copied_var_decl);
+
+            context.m_found.variable = true;
+          }
+        }
+      } while (0);
+    }
+
+    if (target && !context.m_found.variable && !namespace_decl) {
+      // We couldn't find a non-symbol variable for this.  Now we'll hunt for
+      // a generic
+      // data symbol, and -- if it is found -- treat it as a variable.
+      Status error;
+      
+      const Symbol *data_symbol =
+          m_parser_vars->m_sym_ctx.FindBestGlobalDataSymbol(name, error);
+      
+      if (!error.Success()) {
+        const unsigned diag_id =
+            m_ast_context->getDiagnostics().getCustomDiagID(
+                clang::DiagnosticsEngine::Level::Error, "%0");
+        m_ast_context->getDiagnostics().Report(diag_id) << error.AsCString();
+      }
+                                          
+      if (data_symbol) {
+        std::string warning("got name from symbols: ");
+        warning.append(name.AsCString());
+        const unsigned diag_id =
+            m_ast_context->getDiagnostics().getCustomDiagID(
+                clang::DiagnosticsEngine::Level::Warning, "%0");
+        m_ast_context->getDiagnostics().Report(diag_id) << warning.c_str();
+        AddOneGenericVariable(context, *data_symbol, current_id);
+        context.m_found.variable = true;
       }
     }
   }
@@ -1637,7 +1542,7 @@ bool ClangExpressionDeclMap::GetVariableValue(VariableSP &var,
   DWARFExpression &var_location_expr = var->LocationExpression();
 
   Target *target = m_parser_vars->m_exe_ctx.GetTargetPtr();
-  Error err;
+  Status err;
 
   if (var->GetLocationIsConstantValueData()) {
     DataExtractor const_value_extractor;
@@ -1994,8 +1899,33 @@ void ClangExpressionDeclMap::AddOneFunction(NameSearchContext &context,
                 .GetOpaqueDeclContext();
         clang::FunctionDecl *src_function_decl =
             llvm::dyn_cast_or_null<clang::FunctionDecl>(src_decl_context);
-
-        if (src_function_decl) {
+        if (src_function_decl &&
+            src_function_decl->getTemplateSpecializationInfo()) {
+          clang::FunctionTemplateDecl *function_template =
+              src_function_decl->getTemplateSpecializationInfo()->getTemplate();
+          clang::FunctionTemplateDecl *copied_function_template =
+              llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(
+                 m_ast_importer_sp->CopyDecl(m_ast_context,
+                                             src_ast->getASTContext(),
+                                             function_template));
+          if (copied_function_template) {
+            if (log) {
+              ASTDumper ast_dumper((clang::Decl *)copied_function_template);
+              
+              StreamString ss;
+              
+              function->DumpSymbolContext(&ss);
+              
+              log->Printf("  CEDM::FEVD[%u] Imported decl for function template"
+                          " %s (description %s), returned %s",
+                          current_id,
+                          copied_function_template->getNameAsString().c_str(),
+                          ss.GetData(), ast_dumper.GetCString());
+            }
+            
+            context.AddNamedDecl(copied_function_template);
+          }
+        } else if (src_function_decl) {
           if (clang::FunctionDecl *copied_function_decl =
                   llvm::dyn_cast_or_null<clang::FunctionDecl>(
                       m_ast_importer_sp->CopyDecl(m_ast_context,

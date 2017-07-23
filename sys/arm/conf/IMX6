@@ -30,9 +30,7 @@ options 	SCHED_ULE		# ULE scheduler
 #options 	NFSD			# Network Filesystem Server
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	PLATFORM
-options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
-options 	MULTIDELAY
 
 # NFS root from boopt/dhcp
 #options 	BOOTP

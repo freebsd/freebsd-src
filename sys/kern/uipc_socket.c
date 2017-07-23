@@ -461,12 +461,6 @@ sodealloc(struct socket *so)
 	so->so_vnet->vnet_sockcnt--;
 #endif
 	mtx_unlock(&so_global_mtx);
-	if (so->so_rcv.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
-	if (so->so_snd.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uidinfo,
-		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
@@ -478,6 +472,12 @@ sodealloc(struct socket *so)
 		if (so->sol_accept_filter != NULL)
 			accept_filt_setopt(so, NULL);
 	} else {
+		if (so->so_rcv.sb_hiwat)
+			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
+		if (so->so_snd.sb_hiwat)
+			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 		sx_destroy(&so->so_snd.sb_sx);
 		sx_destroy(&so->so_rcv.sb_sx);
 		SOCKBUF_LOCK_DESTROY(&so->so_snd);
@@ -857,6 +857,9 @@ solisten_proto(struct socket *so, int backlog)
 	so->sol_accept_filter = NULL;
 	so->sol_accept_filter_arg = NULL;
 	so->sol_accept_filter_str = NULL;
+
+	so->sol_upcall = NULL;
+	so->sol_upcallarg = NULL;
 
 	so->so_options |= SO_ACCEPTCONN;
 
@@ -1613,8 +1616,14 @@ sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
-	    control, flags, td);
+	if (!SOLISTENING(so))
+		error = so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio,
+		    top, control, flags, td);
+	else {
+		m_freem(top);
+		m_freem(control);
+		error = ENOTCONN;
+	}
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -2544,8 +2553,11 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (so->so_proto->pr_usrreqs->pru_soreceive(so, psa, uio, mp0,
-	    controlp, flagsp));
+	if (!SOLISTENING(so))
+		error = (so->so_proto->pr_usrreqs->pru_soreceive(so, psa, uio,
+		    mp0, controlp, flagsp));
+	else
+		error = ENOTCONN;
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -2825,38 +2837,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				goto bad;
 			}
 
-			switch (sopt->sopt_name) {
-			case SO_SNDBUF:
-			case SO_RCVBUF:
-				if (sbreserve(sopt->sopt_name == SO_SNDBUF ?
-				    &so->so_snd : &so->so_rcv, (u_long)optval,
-				    so, curthread) == 0) {
-					error = ENOBUFS;
-					goto bad;
-				}
-				(sopt->sopt_name == SO_SNDBUF ? &so->so_snd :
-				    &so->so_rcv)->sb_flags &= ~SB_AUTOSIZE;
-				break;
-
-			/*
-			 * Make sure the low-water is never greater than the
-			 * high-water.
-			 */
-			case SO_SNDLOWAT:
-				SOCKBUF_LOCK(&so->so_snd);
-				so->so_snd.sb_lowat =
-				    (optval > so->so_snd.sb_hiwat) ?
-				    so->so_snd.sb_hiwat : optval;
-				SOCKBUF_UNLOCK(&so->so_snd);
-				break;
-			case SO_RCVLOWAT:
-				SOCKBUF_LOCK(&so->so_rcv);
-				so->so_rcv.sb_lowat =
-				    (optval > so->so_rcv.sb_hiwat) ?
-				    so->so_rcv.sb_hiwat : optval;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				break;
-			}
+			error = sbsetopt(so, sopt->sopt_name, optval);
 			break;
 
 		case SO_SNDTIMEO:
@@ -3039,19 +3020,23 @@ integer:
 			goto integer;
 
 		case SO_SNDBUF:
-			optval = so->so_snd.sb_hiwat;
+			optval = SOLISTENING(so) ? so->sol_sbsnd_hiwat :
+			    so->so_snd.sb_hiwat;
 			goto integer;
 
 		case SO_RCVBUF:
-			optval = so->so_rcv.sb_hiwat;
+			optval = SOLISTENING(so) ? so->sol_sbrcv_hiwat :
+			    so->so_rcv.sb_hiwat;
 			goto integer;
 
 		case SO_SNDLOWAT:
-			optval = so->so_snd.sb_lowat;
+			optval = SOLISTENING(so) ? so->sol_sbsnd_lowat :
+			    so->so_snd.sb_lowat;
 			goto integer;
 
 		case SO_RCVLOWAT:
-			optval = so->so_rcv.sb_lowat;
+			optval = SOLISTENING(so) ? so->sol_sbrcv_lowat :
+			    so->so_rcv.sb_lowat;
 			goto integer;
 
 		case SO_SNDTIMEO:

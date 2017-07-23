@@ -5,7 +5,7 @@
 
 # PROVIDE: bsnmpd
 # REQUIRE: NETWORKING syslogd
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 

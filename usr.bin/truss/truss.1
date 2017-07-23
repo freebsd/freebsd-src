@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2016
+.Dd July 24, 2017
 .Dt TRUSS 1
 .Os
 .Sh NAME
@@ -92,13 +92,16 @@ and
 options are mutually exclusive.)
 .El
 .Sh EXAMPLES
-# Follow the system calls used in echoing "hello"
+Follow the system calls used in echoing "hello":
 .Dl $ truss /bin/echo hello
-# Do the same, but put the output into a file
+.Pp
+Do the same, but put the output into a file:
 .Dl $ truss -o /tmp/truss.out /bin/echo hello
-# Follow an already-running process
+.Pp
+Follow an already-running process:
 .Dl $ truss -p 34
 .Sh SEE ALSO
+.Xr dtrace 1 ,
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
 .Xr ptrace 2 ,

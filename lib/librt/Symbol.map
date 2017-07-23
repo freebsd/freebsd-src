@@ -26,21 +26,12 @@ FBSD_1.0 {
 };
 
 FBSD_1.5 {
+	lio_listio;
 	mq_getfd_np;
 	timer_oshandle_np;
 };
 
 FBSDprivate_1.0 {
-	_aio_read;
-	_aio_write;
-	_aio_return;
-	_aio_waitcomplete;
-	_aio_fsync;
-	__aio_read;
-	__aio_write;
-	__aio_return;
-	__aio_waitcomplete;
-	__aio_fsync;
 	_mq_open;
 	_mq_close;
 	_mq_notify;

@@ -45,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/semaphore.h>
+#include <linux/wait.h>
 
 #include "mthca_provider.h"
 #include "mthca_doorbell.h"

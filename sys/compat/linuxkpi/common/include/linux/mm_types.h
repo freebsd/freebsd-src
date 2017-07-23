@@ -30,7 +30,6 @@
 #define	_LINUX_MM_TYPES_H_
 
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/page.h>
 #include <linux/rwsem.h>
 

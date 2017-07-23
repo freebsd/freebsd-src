@@ -67,7 +67,7 @@
         "message": "two more errors"
       },
       "__warning": {
-        "message": this is an warning
+        "message": "this is an warning"
       },
       "__warning": {
         "message": "two more warnings"

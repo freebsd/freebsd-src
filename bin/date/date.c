@@ -85,7 +85,7 @@ main(int argc, char *argv[])
 	int set_timezone;
 	struct vary *v;
 	const struct vary *badv;
-	struct tm lt;
+	struct tm *lt;
 	struct stat sb;
 
 	v = NULL;
@@ -174,8 +174,10 @@ main(int argc, char *argv[])
 	if (*argv && **argv == '+')
 		format = *argv + 1;
 
-	lt = *localtime(&tval);
-	badv = vary_apply(v, &lt);
+	lt = localtime(&tval);
+	if (lt == NULL)
+		errx(1, "invalid time");
+	badv = vary_apply(v, lt);
 	if (badv) {
 		fprintf(stderr, "%s: Cannot apply date adjustment\n",
 			badv->arg);
@@ -191,7 +193,7 @@ main(int argc, char *argv[])
 		 */
 		setlocale(LC_TIME, "C");
 
-	(void)strftime(buf, sizeof(buf), format, &lt);
+	(void)strftime(buf, sizeof(buf), format, lt);
 	(void)printf("%s\n", buf);
 	if (fflush(stdout))
 		err(1, "stdout");
@@ -210,6 +212,8 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 	int century;
 
 	lt = localtime(&tval);
+	if (lt == NULL)
+		errx(1, "invalid time");
 	lt->tm_isdst = -1;		/* divine correct DST */
 
 	if (fmt != NULL) {

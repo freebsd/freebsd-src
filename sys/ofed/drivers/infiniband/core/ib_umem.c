@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 #include <rdma/ib_umem_odp.h>
 
 #include "uverbs.h"

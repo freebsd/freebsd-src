@@ -82,6 +82,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun50i-a64",	CLOCK_CCU },
 	{ "allwinner,sun8i-a33",	CLOCK_CCU },
 	{ "allwinner,sun8i-a83t",	CLOCK_CCU|CLOCK_PRCM|CLOCK_SYSCTRL },
+	{ "allwinner,sun8i-h2-plus",	CLOCK_CCU|CLOCK_PRCM },
 	{ "allwinner,sun8i-h3",		CLOCK_CCU|CLOCK_PRCM },
 	{ NULL, 0 }
 };

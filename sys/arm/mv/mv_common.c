@@ -128,6 +128,7 @@ static uint32_t dev_mask = 0;
 static int cpu_wins_no = 0;
 static int eth_port = 0;
 static int usb_port = 0;
+static boolean_t platform_io_coherent = false;
 
 static struct decode_win cpu_win_tbl[MAX_CPU_WIN];
 
@@ -419,7 +420,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 static void
 soc_identify(void)
 {
-	uint32_t d, r, size, mode;
+	uint32_t d, r, size, mode, freq;
 	const char *dev;
 	const char *rev;
 
@@ -512,7 +513,11 @@ soc_identify(void)
 	printf("%s", dev);
 	if (*rev != '\0')
 		printf(" rev %s", rev);
-	printf(", TClock %dMHz\n", get_tclk() / 1000 / 1000);
+	printf(", TClock %dMHz", get_tclk() / 1000 / 1000);
+	freq = get_cpu_freq();
+	if (freq != 0)
+		printf(", Frequency %dMHz", freq / 1000 / 1000);
+	printf("\n");
 
 	mode = read_cpu_ctrl(CPU_CONFIG);
 	printf("  Instruction cache prefetch %s, data cache prefetch %s\n",
@@ -1060,7 +1065,7 @@ ddr_size(int i)
 uint32_t
 ddr_attr(int i)
 {
-	uint32_t dev, rev;
+	uint32_t dev, rev, attr;
 
 	soc_id(&dev, &rev);
 	if (dev == MV_DEV_88RC8180)
@@ -1068,10 +1073,14 @@ ddr_attr(int i)
 	if (dev == MV_DEV_88F6781)
 		return (0);
 
-	return (i == 0 ? 0xe :
+	attr = (i == 0 ? 0xe :
 	    (i == 1 ? 0xd :
 	    (i == 2 ? 0xb :
 	    (i == 3 ? 0x7 : 0xff))));
+	if (platform_io_coherent)
+		attr |= 0x10;
+
+	return (attr);
 }
 
 uint32_t
@@ -2474,6 +2483,10 @@ fdt_win_setup(void)
 	node = OF_finddevice("/");
 	if (node == -1)
 		panic("fdt_win_setup: no root node");
+
+	/* Allow for coherent transactions on the A38x MBUS */
+	if (ofw_bus_node_is_compatible(node, "marvell,armada380"))
+		platform_io_coherent = true;
 
 	/*
 	 * Traverse through all children of root and simple-bus nodes.

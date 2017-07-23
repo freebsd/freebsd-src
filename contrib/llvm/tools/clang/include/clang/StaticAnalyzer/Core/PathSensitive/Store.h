@@ -59,6 +59,30 @@ public:
   /// \return The value bound to the location \c loc.
   virtual SVal getBinding(Store store, Loc loc, QualType T = QualType()) = 0;
 
+  /// Return the default value bound to a region in a given store. The default
+  /// binding is the value of sub-regions that were not initialized separately
+  /// from their base region. For example, if the structure is zero-initialized
+  /// upon construction, this method retrieves the concrete zero value, even if
+  /// some or all fields were later overwritten manually. Default binding may be
+  /// an unknown, undefined, concrete, or symbolic value.
+  /// \param[in] store The store in which to make the lookup.
+  /// \param[in] R The region to find the default binding for.
+  /// \return The default value bound to the region in the store, if a default
+  /// binding exists.
+  virtual Optional<SVal> getDefaultBinding(Store store, const MemRegion *R) = 0;
+
+  /// Return the default value bound to a LazyCompoundVal. The default binding
+  /// is used to represent the value of any fields or elements within the
+  /// structure represented by the LazyCompoundVal which were not initialized
+  /// explicitly separately from the whole structure. Default binding may be an
+  /// unknown, undefined, concrete, or symbolic value.
+  /// \param[in] lcv The lazy compound value.
+  /// \return The default value bound to the LazyCompoundVal \c lcv, if a
+  /// default binding exists.
+  Optional<SVal> getDefaultBinding(nonloc::LazyCompoundVal lcv) {
+    return getDefaultBinding(lcv.getStore(), lcv.getRegion());
+  }
+
   /// Return a state with the specified value bound to the given location.
   /// \param[in] store The analysis state.
   /// \param[in] loc The symbolic memory location.
@@ -136,7 +160,7 @@ public:
   /// valid only if Failed flag is set to false.
   SVal attemptDownCast(SVal Base, QualType DerivedPtrType, bool &Failed);
 
-  const ElementRegion *GetElementZeroRegion(const MemRegion *R, QualType T);
+  const ElementRegion *GetElementZeroRegion(const SubRegion *R, QualType T);
 
   /// castRegion - Used by ExprEngine::VisitCast to handle casts from
   ///  a MemRegion* to a specific location type.  'R' is the region being
@@ -235,8 +259,9 @@ public:
   virtual void iterBindings(Store store, BindingsHandler& f) = 0;
 
 protected:
-  const MemRegion *MakeElementRegion(const MemRegion *baseRegion,
-                                     QualType pointeeTy, uint64_t index = 0);
+  const ElementRegion *MakeElementRegion(const SubRegion *baseRegion,
+                                         QualType pointeeTy,
+                                         uint64_t index = 0);
 
   /// CastRetrievedVal - Used by subclasses of StoreManager to implement
   ///  implicit casts that arise from loads from regions that are reinterpreted

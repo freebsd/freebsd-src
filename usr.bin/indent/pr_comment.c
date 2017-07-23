@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include "indent_globs.h"
+#include "indent_codes.h"
 #include "indent.h"
 /*
  * NAME:
@@ -187,7 +188,7 @@ pr_comment(void)
 	char       *t = e_com;
 	e_com = s_com + 2;
 	*e_com = 0;
-	if (blanklines_before_blockcomments)
+	if (blanklines_before_blockcomments && ps.last_token != lbrace)
 	    prefix_blankline_requested = 1;
 	dump_line();
 	e_com = s_com = t;

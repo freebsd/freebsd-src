@@ -309,16 +309,16 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  * ifname	(netmap:foo or vale:foo) is the port name
  *		a suffix can indicate the follwing:
  *		^		bind the host (sw) ring pair
- *		*		bind host and NIC ring pairs (transparent)
+ *		*		bind host and NIC ring pairs
  *		-NN		bind individual NIC ring pair
  *		{NN		bind master side of pipe NN
  *		}NN		bind slave side of pipe NN
  *		a suffix starting with / and the following flags,
  *		in any order:
  *		x		exclusive access
- *		z		zero copy monitor
- *		t		monitor tx side
- *		r		monitor rx side
+ *		z		zero copy monitor (both tx and rx)
+ *		t		monitor tx side (copy monitor)
+ *		r		monitor rx side (copy monitor)
  *		R		bind only RX ring(s)
  *		T		bind only TX ring(s)
  *
@@ -634,9 +634,10 @@ nm_open(const char *ifname, const struct nmreq *req,
 	const char *vpname = NULL;
 #define MAXERRMSG 80
 	char errmsg[MAXERRMSG] = "";
-	enum { P_START, P_RNGSFXOK, P_GETNUM, P_FLAGS, P_FLAGSOK } p_state;
+	enum { P_START, P_RNGSFXOK, P_GETNUM, P_FLAGS, P_FLAGSOK, P_MEMID } p_state;
 	int is_vale;
 	long num;
+	uint16_t nr_arg2 = 0;
 
 	if (strncmp(ifname, "netmap:", 7) &&
 			strncmp(ifname, NM_BDG_NAME, strlen(NM_BDG_NAME))) {
@@ -665,7 +666,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 	}
 
 	/* scan for a separator */
-	for (; *port && !index("-*^{}/", *port); port++)
+	for (; *port && !index("-*^{}/@", *port); port++)
 		;
 
 	if (is_vale && !nm_is_identifier(vpname, port)) {
@@ -707,6 +708,9 @@ nm_open(const char *ifname, const struct nmreq *req,
 			case '/': /* start of flags */
 				p_state = P_FLAGS;
 				break;
+			case '@': /* start of memid */
+				p_state = P_MEMID;
+				break;
 			default:
 				snprintf(errmsg, MAXERRMSG, "unknown modifier: '%c'", *port);
 				goto fail;
@@ -717,6 +721,9 @@ nm_open(const char *ifname, const struct nmreq *req,
 			switch (*port) {
 			case '/':
 				p_state = P_FLAGS;
+				break;
+			case '@':
+				p_state = P_MEMID;
 				break;
 			default:
 				snprintf(errmsg, MAXERRMSG, "unexpected character: '%c'", *port);
@@ -736,6 +743,11 @@ nm_open(const char *ifname, const struct nmreq *req,
 			break;
 		case P_FLAGS:
 		case P_FLAGSOK:
+			if (*port == '@') {
+				port++;
+				p_state = P_MEMID;
+				break;
+			}
 			switch (*port) {
 			case 'x':
 				nr_flags |= NR_EXCLUSIVE;
@@ -762,15 +774,23 @@ nm_open(const char *ifname, const struct nmreq *req,
 			port++;
 			p_state = P_FLAGSOK;
 			break;
+		case P_MEMID:
+			if (nr_arg2 != 0) {
+				snprintf(errmsg, MAXERRMSG, "double setting of memid");
+				goto fail;
+			}
+			num = strtol(port, (char **)&port, 10);
+			if (num <= 0) {
+				snprintf(errmsg, MAXERRMSG, "invalid memid %ld, must be >0", num);
+				goto fail;
+			}
+			nr_arg2 = num;
+			p_state = P_RNGSFXOK;
+			break;
 		}
 	}
 	if (p_state != P_START && p_state != P_RNGSFXOK && p_state != P_FLAGSOK) {
 		snprintf(errmsg, MAXERRMSG, "unexpected end of port name");
-		goto fail;
-	}
-	if ((nr_flags & NR_ZCOPY_MON) &&
-	   !(nr_flags & (NR_MONITOR_TX|NR_MONITOR_RX))) {
-		snprintf(errmsg, MAXERRMSG, "'z' used but neither 'r', nor 't' found");
 		goto fail;
 	}
 	ND("flags: %s %s %s %s",
@@ -799,6 +819,8 @@ nm_open(const char *ifname, const struct nmreq *req,
 	/* these fields are overridden by ifname and flags processing */
 	d->req.nr_ringid |= nr_ringid;
 	d->req.nr_flags |= nr_flags;
+	if (nr_arg2)
+		d->req.nr_arg2 = nr_arg2;
 	memcpy(d->req.nr_name, ifname, namelen);
 	d->req.nr_name[namelen] = '\0';
 	/* optionally import info from parent */
@@ -848,7 +870,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 
 	nr_reg = d->req.nr_flags & NR_REG_MASK;
 
-	if (nr_reg ==  NR_REG_SW) { /* host stack */
+	if (nr_reg == NR_REG_SW) { /* host stack */
 		d->first_tx_ring = d->last_tx_ring = d->req.nr_tx_rings;
 		d->first_rx_ring = d->last_rx_ring = d->req.nr_rx_rings;
 	} else if (nr_reg ==  NR_REG_ALL_NIC) { /* only nic */

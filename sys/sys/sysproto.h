@@ -962,14 +962,6 @@ struct getresgid_args {
 struct kqueue_args {
 	register_t dummy;
 };
-struct kevent_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char changelist_l_[PADL_(struct kevent *)]; struct kevent * changelist; char changelist_r_[PADR_(struct kevent *)];
-	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
-	char eventlist_l_[PADL_(struct kevent *)]; struct kevent * eventlist; char eventlist_r_[PADR_(struct kevent *)];
-	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
-	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
-};
 struct extattr_set_fd_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char attrnamespace_l_[PADL_(int)]; int attrnamespace; char attrnamespace_r_[PADR_(int)];
@@ -1761,6 +1753,14 @@ struct mknodat_args {
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char dev_l_[PADL_(dev_t)]; dev_t dev; char dev_r_[PADR_(dev_t)];
 };
+struct kevent_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char changelist_l_[PADL_(struct kevent *)]; struct kevent * changelist; char changelist_r_[PADR_(struct kevent *)];
+	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
+	char eventlist_l_[PADL_(struct kevent *)]; struct kevent * eventlist; char eventlist_r_[PADR_(struct kevent *)];
+	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -1976,7 +1976,6 @@ int	sys_aio_waitcomplete(struct thread *, struct aio_waitcomplete_args *);
 int	sys_getresuid(struct thread *, struct getresuid_args *);
 int	sys_getresgid(struct thread *, struct getresgid_args *);
 int	sys_kqueue(struct thread *, struct kqueue_args *);
-int	sys_kevent(struct thread *, struct kevent_args *);
 int	sys_extattr_set_fd(struct thread *, struct extattr_set_fd_args *);
 int	sys_extattr_get_fd(struct thread *, struct extattr_get_fd_args *);
 int	sys_extattr_delete_fd(struct thread *, struct extattr_delete_fd_args *);
@@ -2141,6 +2140,7 @@ int	sys_fstatfs(struct thread *, struct fstatfs_args *);
 int	sys_getfsstat(struct thread *, struct getfsstat_args *);
 int	sys_fhstatfs(struct thread *, struct fhstatfs_args *);
 int	sys_mknodat(struct thread *, struct mknodat_args *);
+int	sys_kevent(struct thread *, struct kevent_args *);
 
 #ifdef COMPAT_43
 
@@ -2519,6 +2519,14 @@ struct freebsd11_fhstat_args {
 	char u_fhp_l_[PADL_(const struct fhandle *)]; const struct fhandle * u_fhp; char u_fhp_r_[PADR_(const struct fhandle *)];
 	char sb_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * sb; char sb_r_[PADR_(struct freebsd11_stat *)];
 };
+struct freebsd11_kevent_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char changelist_l_[PADL_(struct kevent_freebsd11 *)]; struct kevent_freebsd11 * changelist; char changelist_r_[PADR_(struct kevent_freebsd11 *)];
+	char nchanges_l_[PADL_(int)]; int nchanges; char nchanges_r_[PADR_(int)];
+	char eventlist_l_[PADL_(struct kevent_freebsd11 *)]; struct kevent_freebsd11 * eventlist; char eventlist_r_[PADR_(struct kevent_freebsd11 *)];
+	char nevents_l_[PADL_(int)]; int nevents; char nevents_r_[PADR_(int)];
+	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
+};
 struct freebsd11_getfsstat_args {
 	char buf_l_[PADL_(struct freebsd11_statfs *)]; struct freebsd11_statfs * buf; char buf_r_[PADR_(struct freebsd11_statfs *)];
 	char bufsize_l_[PADL_(long)]; long bufsize; char bufsize_r_[PADR_(long)];
@@ -2558,6 +2566,7 @@ int	freebsd11_nstat(struct thread *, struct freebsd11_nstat_args *);
 int	freebsd11_nfstat(struct thread *, struct freebsd11_nfstat_args *);
 int	freebsd11_nlstat(struct thread *, struct freebsd11_nlstat_args *);
 int	freebsd11_fhstat(struct thread *, struct freebsd11_fhstat_args *);
+int	freebsd11_kevent(struct thread *, struct freebsd11_kevent_args *);
 int	freebsd11_getfsstat(struct thread *, struct freebsd11_getfsstat_args *);
 int	freebsd11_statfs(struct thread *, struct freebsd11_statfs_args *);
 int	freebsd11_fstatfs(struct thread *, struct freebsd11_fstatfs_args *);
@@ -2852,7 +2861,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_getresuid	AUE_GETRESUID
 #define	SYS_AUE_getresgid	AUE_GETRESGID
 #define	SYS_AUE_kqueue	AUE_KQUEUE
-#define	SYS_AUE_kevent	AUE_KEVENT
+#define	SYS_AUE_freebsd11_kevent	AUE_KEVENT
 #define	SYS_AUE_extattr_set_fd	AUE_EXTATTR_SET_FD
 #define	SYS_AUE_extattr_get_fd	AUE_EXTATTR_GET_FD
 #define	SYS_AUE_extattr_delete_fd	AUE_EXTATTR_DELETE_FD
@@ -3023,6 +3032,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_getfsstat	AUE_GETFSSTAT
 #define	SYS_AUE_fhstatfs	AUE_FHSTATFS
 #define	SYS_AUE_mknodat	AUE_MKNODAT
+#define	SYS_AUE_kevent	AUE_KEVENT
 
 #undef PAD_
 #undef PADL_

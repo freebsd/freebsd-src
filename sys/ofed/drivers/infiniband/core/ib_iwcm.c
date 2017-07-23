@@ -46,6 +46,7 @@
 #include <linux/completion.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/wait.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_addr.h>

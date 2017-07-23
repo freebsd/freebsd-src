@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.31 2016/09/10 00:44:46 sjg Exp $
+# $Id: meta.sys.mk,v 1.32 2017/06/11 03:24:04 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -120,6 +120,7 @@ MKDEP_MK = meta.autodep.mk
 # re-running needlessly
 META_COOKIE_TOUCH?= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET:T}}
 META_NOPHONY=
+META_NOECHO= :
 
 # some targets involve old pre-built targets
 # ignore mtime of shell
@@ -163,5 +164,6 @@ BUILD_AT_LEVEL0 ?= no
 META_COOKIE_TOUCH=
 # some targets need to be .PHONY in non-meta mode
 META_NOPHONY= .PHONY
+META_NOECHO= echo
 .endif
 .endif

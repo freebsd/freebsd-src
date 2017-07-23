@@ -71,12 +71,6 @@ CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 CFLAGS+=	-DNO_PCI -DEFI
 
-# make buildenv doesn't set DESTDIR, this means LIBSTAND
-# will be wrong when crossbuilding.
-.if exists(${.OBJDIR}/../../../../lib/libstand/libstand.a)
-LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
-.endif
-
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
 # Export serial numbers, UUID, and asset tag from loader.
 CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
@@ -122,7 +116,7 @@ FILES+=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
-LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
+LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
 
 CLEANFILES+=	loader.efi
 

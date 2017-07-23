@@ -33,6 +33,7 @@ FILES=	\
 	bsd.kmod.mk \
 	bsd.lib.mk \
 	bsd.libnames.mk \
+	bsd.linker.mk \
 	bsd.links.mk \
 	bsd.man.mk \
 	bsd.mkopt.mk \

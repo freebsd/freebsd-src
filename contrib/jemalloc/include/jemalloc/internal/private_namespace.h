@@ -69,6 +69,7 @@
 #define arena_prefork4 JEMALLOC_N(arena_prefork4)
 #define arena_prefork5 JEMALLOC_N(arena_prefork5)
 #define arena_prefork6 JEMALLOC_N(arena_prefork6)
+#define arena_prefork7 JEMALLOC_N(arena_prefork7)
 #define arena_prof_promote JEMALLOC_N(arena_prof_promote)
 #define arena_ralloc JEMALLOC_N(arena_ralloc)
 #define arena_ralloc_no_move JEMALLOC_N(arena_ralloc_no_move)

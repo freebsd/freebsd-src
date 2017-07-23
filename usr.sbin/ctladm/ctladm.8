@@ -35,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2017
+.Dd July 15, 2017
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -751,13 +751,13 @@ Modify a LUN size.
 The backend, the LUN number, and the size must be specified.
 .Bl -tag -width 14n
 .It Fl b Ar backend
-Specify the backend that owns the LUN to be removed.
+Specify the backend that owns the LUN to be modified.
 Examples are
 .Dq ramdisk
 and
 .Dq block .
 .It Fl l Ar lun_id
-Specify the LUN number to remove.
+Specify the LUN number to modify.
 .It Fl o Ar name=value
 Specify a backend-specific name/value pair.
 Multiple

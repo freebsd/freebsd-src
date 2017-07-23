@@ -1,31 +1,31 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -41,81 +41,63 @@
 
 #include "ixgbe.h"
 
-#ifdef	RSS
-#include <net/rss_config.h>
-#include <netinet/in_rss.h>
-#endif
-
-#ifdef DEV_NETMAP
-#include <net/netmap.h>
-#include <sys/selinfo.h>
-#include <dev/netmap/netmap_kern.h>
-
-extern int ix_crcstrip;
-#endif
-
 /*
-** HW RSC control:
-**  this feature only works with
-**  IPv4, and only on 82599 and later.
-**  Also this will cause IP forwarding to
-**  fail and that can't be controlled by
-**  the stack as LRO can. For all these
-**  reasons I've deemed it best to leave
-**  this off and not bother with a tuneable
-**  interface, this would need to be compiled
-**  to enable.
-*/
+ * HW RSC control:
+ *  this feature only works with
+ *  IPv4, and only on 82599 and later.
+ *  Also this will cause IP forwarding to
+ *  fail and that can't be controlled by
+ *  the stack as LRO can. For all these
+ *  reasons I've deemed it best to leave
+ *  this off and not bother with a tuneable
+ *  interface, this would need to be compiled
+ *  to enable.
+ */
 static bool ixgbe_rsc_enable = FALSE;
 
-#ifdef IXGBE_FDIR
 /*
-** For Flow Director: this is the
-** number of TX packets we sample
-** for the filter pool, this means
-** every 20th packet will be probed.
-**
-** This feature can be disabled by
-** setting this to 0.
-*/
+ * For Flow Director: this is the
+ * number of TX packets we sample
+ * for the filter pool, this means
+ * every 20th packet will be probed.
+ *
+ * This feature can be disabled by
+ * setting this to 0.
+ */
 static int atr_sample_rate = 20;
-#endif
 
-/*********************************************************************
+/************************************************************************
  *  Local Function prototypes
- *********************************************************************/
-static void	ixgbe_setup_transmit_ring(struct tx_ring *);
-static void     ixgbe_free_transmit_buffers(struct tx_ring *);
-static int	ixgbe_setup_receive_ring(struct rx_ring *);
-static void     ixgbe_free_receive_buffers(struct rx_ring *);
-
-static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
-static void	ixgbe_refresh_mbufs(struct rx_ring *, int);
-static int      ixgbe_xmit(struct tx_ring *, struct mbuf **);
-static int	ixgbe_tx_ctx_setup(struct tx_ring *,
-		    struct mbuf *, u32 *, u32 *);
-static int	ixgbe_tso_setup(struct tx_ring *,
-		    struct mbuf *, u32 *, u32 *);
-#ifdef IXGBE_FDIR
-static void	ixgbe_atr(struct tx_ring *, struct mbuf *);
-#endif
+ ************************************************************************/
+static void          ixgbe_setup_transmit_ring(struct tx_ring *);
+static void          ixgbe_free_transmit_buffers(struct tx_ring *);
+static int           ixgbe_setup_receive_ring(struct rx_ring *);
+static void          ixgbe_free_receive_buffers(struct rx_ring *);
+static void          ixgbe_rx_checksum(u32, struct mbuf *, u32);
+static void          ixgbe_refresh_mbufs(struct rx_ring *, int);
+static int           ixgbe_xmit(struct tx_ring *, struct mbuf **);
+static int           ixgbe_tx_ctx_setup(struct tx_ring *,
+                                        struct mbuf *, u32 *, u32 *);
+static int           ixgbe_tso_setup(struct tx_ring *,
+                                     struct mbuf *, u32 *, u32 *);
 static __inline void ixgbe_rx_discard(struct rx_ring *, int);
 static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
-		    struct mbuf *, u32);
+                                    struct mbuf *, u32);
+static int           ixgbe_dma_malloc(struct adapter *, bus_size_t,
+                                      struct ixgbe_dma_alloc *, int);
+static void          ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
 
-#ifdef IXGBE_LEGACY_TX
-/*********************************************************************
- *  Transmit entry point
+/************************************************************************
+ * ixgbe_legacy_start_locked - Transmit entry point
  *
- *  ixgbe_start is called by the stack to initiate a transmit.
- *  The driver will remain in this routine as long as there are
- *  packets to transmit and transmit resources are available.
- *  In case resources are not available stack is notified and
- *  the packet is requeued.
- **********************************************************************/
-
-void
-ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
+ *   Called by the stack to initiate a transmit.
+ *   The driver will remain in this routine as long as there are
+ *   packets to transmit and transmit resources are available.
+ *   In case resources are not available, the stack is notified
+ *   and the packet is requeued.
+ ************************************************************************/
+int
+ixgbe_legacy_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
 	struct mbuf    *m_head;
 	struct adapter *adapter = txr->adapter;
@@ -123,9 +105,9 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 	IXGBE_TX_LOCK_ASSERT(txr);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
+		return (ENETDOWN);
 	if (!adapter->link_active)
-		return;
+		return (ENETDOWN);
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		if (txr->tx_avail <= IXGBE_QUEUE_MIN_FREE)
@@ -143,44 +125,42 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
-	return;
-}
 
-/*
- * Legacy TX start - called by the stack, this
- * always uses the first tx ring, and should
- * not be used with multiqueue tx enabled.
- */
+	return IXGBE_SUCCESS;
+} /* ixgbe_legacy_start_locked */
+
+/************************************************************************
+ * ixgbe_legacy_start
+ *
+ *   Called by the stack, this always uses the first tx ring,
+ *   and should not be used with multiqueue tx enabled.
+ ************************************************************************/
 void
-ixgbe_start(struct ifnet *ifp)
+ixgbe_legacy_start(struct ifnet *ifp)
 {
 	struct adapter *adapter = ifp->if_softc;
-	struct tx_ring	*txr = adapter->tx_rings;
+	struct tx_ring *txr = adapter->tx_rings;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		IXGBE_TX_LOCK(txr);
-		ixgbe_start_locked(txr, ifp);
+		ixgbe_legacy_start_locked(ifp, txr);
 		IXGBE_TX_UNLOCK(txr);
 	}
-	return;
-}
+} /* ixgbe_legacy_start */
 
-#else /* ! IXGBE_LEGACY_TX */
-
-/*
-** Multiqueue Transmit Entry Point
-** (if_transmit function)
-*/
+/************************************************************************
+ * ixgbe_mq_start - Multiqueue Transmit Entry Point
+ *
+ *   (if_transmit function)
+ ************************************************************************/
 int
 ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
-	struct adapter	*adapter = ifp->if_softc;
-	struct ix_queue	*que;
-	struct tx_ring	*txr;
-	int 		i, err = 0;
-#ifdef	RSS
-	uint32_t bucket_id;
-#endif
+	struct adapter  *adapter = ifp->if_softc;
+	struct ix_queue *que;
+	struct tx_ring  *txr;
+	int             i, err = 0;
+	uint32_t        bucket_id;
 
 	/*
 	 * When doing RSS, map it to the same outbound queue
@@ -190,17 +170,17 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * same bucket that the current CPU we're on is.
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-#ifdef	RSS
-		if (rss_hash2bucket(m->m_pkthdr.flowid,
-		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
+		if ((adapter->feat_en & IXGBE_FEATURE_RSS) &&
+		    (rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+		    &bucket_id) == 0)) {
 			i = bucket_id % adapter->num_queues;
 #ifdef IXGBE_DEBUG
 			if (bucket_id > adapter->num_queues)
-				if_printf(ifp, "bucket_id (%d) > num_queues "
-				    "(%d)\n", bucket_id, adapter->num_queues);
+				if_printf(ifp,
+				    "bucket_id (%d) > num_queues (%d)\n",
+				    bucket_id, adapter->num_queues);
 #endif
-		} else 
-#endif
+		} else
 			i = m->m_pkthdr.flowid % adapter->num_queues;
 	} else
 		i = curcpu % adapter->num_queues;
@@ -222,17 +202,20 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 		taskqueue_enqueue(que->tq, &txr->txq_task);
 
 	return (0);
-}
+} /* ixgbe_mq_start */
 
+/************************************************************************
+ * ixgbe_mq_start_locked
+ ************************************************************************/
 int
 ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
-	struct adapter  *adapter = txr->adapter;
-        struct mbuf     *next;
-        int             enqueued = 0, err = 0;
+	struct mbuf    *next;
+	int            enqueued = 0, err = 0;
 
-	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    adapter->link_active == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return (ENETDOWN);
+	if (txr->adapter->link_active == 0)
 		return (ENETDOWN);
 
 	/* Process the queue */
@@ -244,12 +227,12 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 				err = drbr_enqueue(ifp, txr->br, next);
 #else
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
-		if ((err = ixgbe_xmit(txr, &next)) != 0) {
-			if (next == NULL) {
+		err = ixgbe_xmit(txr, &next);
+		if (err != 0) {
+			if (next == NULL)
 				drbr_advance(ifp, txr->br);
-			} else {
+			else
 				drbr_putback(ifp, txr->br, next);
-			}
 #endif
 			break;
 		}
@@ -257,16 +240,15 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		drbr_advance(ifp, txr->br);
 #endif
 		enqueued++;
-#if 0 // this is VF-only
 #if __FreeBSD_version >= 1100036
 		/*
 		 * Since we're looking at the tx ring, we can check
 		 * to see if we're a VF by examing our tail register
 		 * address.
 		 */
-		if (txr->tail < IXGBE_TDT(0) && next->m_flags & M_MCAST)
+		if ((txr->adapter->feat_en & IXGBE_FEATURE_VF) &&
+		    (next->m_flags & M_MCAST))
 			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-#endif
 #endif
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
@@ -277,37 +259,39 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 #endif
 	}
 
-	if (txr->tx_avail < IXGBE_TX_CLEANUP_THRESHOLD)
+	if (txr->tx_avail < IXGBE_TX_CLEANUP_THRESHOLD(txr->adapter))
 		ixgbe_txeof(txr);
 
 	return (err);
-}
+} /* ixgbe_mq_start_locked */
 
-/*
- * Called from a taskqueue to drain queued transmit packets.
- */
+/************************************************************************
+ * ixgbe_deferred_mq_start
+ *
+ *   Called from a taskqueue to drain queued transmit packets.
+ ************************************************************************/
 void
 ixgbe_deferred_mq_start(void *arg, int pending)
 {
 	struct tx_ring *txr = arg;
 	struct adapter *adapter = txr->adapter;
-	struct ifnet *ifp = adapter->ifp;
+	struct ifnet   *ifp = adapter->ifp;
 
 	IXGBE_TX_LOCK(txr);
 	if (!drbr_empty(ifp, txr->br))
 		ixgbe_mq_start_locked(ifp, txr);
 	IXGBE_TX_UNLOCK(txr);
-}
+} /* ixgbe_deferred_mq_start */
 
-/*
- * Flush all ring buffers
- */
+/************************************************************************
+ * ixgbe_qflush - Flush all ring buffers
+ ************************************************************************/
 void
 ixgbe_qflush(struct ifnet *ifp)
 {
-	struct adapter	*adapter = ifp->if_softc;
-	struct tx_ring	*txr = adapter->tx_rings;
-	struct mbuf	*m;
+	struct adapter *adapter = ifp->if_softc;
+	struct tx_ring *txr = adapter->tx_rings;
+	struct mbuf    *m;
 
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
 		IXGBE_TX_LOCK(txr);
@@ -316,47 +300,46 @@ ixgbe_qflush(struct ifnet *ifp)
 		IXGBE_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
-}
-#endif /* IXGBE_LEGACY_TX */
+} /* ixgbe_qflush */
 
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_xmit
  *
- *  This routine maps the mbufs to tx descriptors, allowing the
- *  TX engine to transmit the packets. 
- *  	- return 0 on success, positive on failure
+ *   Maps the mbufs to tx descriptors, allowing the
+ *   TX engine to transmit the packets.
  *
- **********************************************************************/
-
+ *   Return 0 on success, positive on failure
+ ************************************************************************/
 static int
 ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 {
-	struct adapter  *adapter = txr->adapter;
-	u32		olinfo_status = 0, cmd_type_len;
-	int             i, j, error, nsegs;
-	int		first;
-	bool		remap = TRUE;
-	struct mbuf	*m_head;
-	bus_dma_segment_t segs[adapter->num_segs];
-	bus_dmamap_t	map;
-	struct ixgbe_tx_buf *txbuf;
+	struct adapter          *adapter = txr->adapter;
+	struct ixgbe_tx_buf     *txbuf;
 	union ixgbe_adv_tx_desc *txd = NULL;
+	struct mbuf             *m_head;
+	int                     i, j, error, nsegs;
+	int                     first;
+	u32                     olinfo_status = 0, cmd_type_len;
+	bool                    remap = TRUE;
+	bus_dma_segment_t       segs[adapter->num_segs];
+	bus_dmamap_t            map;
 
 	m_head = *m_headp;
 
 	/* Basic descriptor defines */
-        cmd_type_len = (IXGBE_ADVTXD_DTYP_DATA |
+	cmd_type_len = (IXGBE_ADVTXD_DTYP_DATA |
 	    IXGBE_ADVTXD_DCMD_IFCS | IXGBE_ADVTXD_DCMD_DEXT);
 
 	if (m_head->m_flags & M_VLANTAG)
-        	cmd_type_len |= IXGBE_ADVTXD_DCMD_VLE;
+		cmd_type_len |= IXGBE_ADVTXD_DCMD_VLE;
 
-        /*
-         * Important to capture the first descriptor
-         * used because it will contain the index of
-         * the one we tell the hardware to report back
-         */
-        first = txr->next_avail_desc;
+	/*
+	 * Important to capture the first descriptor
+	 * used because it will contain the index of
+	 * the one we tell the hardware to report back
+	 */
+	first = txr->next_avail_desc;
 	txbuf = &txr->tx_buffers[first];
 	map = txbuf->map;
 
@@ -364,8 +347,8 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 * Map the packet for DMA.
 	 */
 retry:
-	error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
-	    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(txr->txtag, map, *m_headp, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
 
 	if (__predict_false(error)) {
 		struct mbuf *m;
@@ -420,16 +403,15 @@ retry:
 		return (error);
 	}
 
-#ifdef IXGBE_FDIR
 	/* Do the flow director magic */
-	if ((txr->atr_sample) && (!adapter->fdir_reinit)) {
+	if ((adapter->feat_en & IXGBE_FEATURE_FDIR) &&
+	    (txr->atr_sample) && (!adapter->fdir_reinit)) {
 		++txr->atr_count;
 		if (txr->atr_count >= atr_sample_rate) {
 			ixgbe_atr(txr, m_head);
 			txr->atr_count = 0;
 		}
 	}
-#endif
 
 	olinfo_status |= IXGBE_ADVTXD_CC;
 	i = txr->next_avail_desc;
@@ -444,15 +426,14 @@ retry:
 
 		txd->read.buffer_addr = segaddr;
 		txd->read.cmd_type_len = htole32(txr->txd_cmd |
-		    cmd_type_len |seglen);
+		    cmd_type_len | seglen);
 		txd->read.olinfo_status = htole32(olinfo_status);
 
 		if (++i == txr->num_desc)
 			i = 0;
 	}
 
-	txd->read.cmd_type_len |=
-	    htole32(IXGBE_TXD_CMD_EOP | IXGBE_TXD_CMD_RS);
+	txd->read.cmd_type_len |= htole32(IXGBE_TXD_CMD_EOP | IXGBE_TXD_CMD_RS);
 	txr->tx_avail -= nsegs;
 	txr->next_avail_desc = i;
 
@@ -467,12 +448,12 @@ retry:
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
 
-        /* Set the EOP descriptor that will be marked done */
-        txbuf = &txr->tx_buffers[first];
+	/* Set the EOP descriptor that will be marked done */
+	txbuf = &txr->tx_buffers[first];
 	txbuf->eop = txd;
 
-        bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
-            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	/*
 	 * Advance the Transmit Descriptor Tail (Tdt), this tells the
 	 * hardware that this frame is available to transmit.
@@ -485,53 +466,57 @@ retry:
 		txr->busy = 1;
 
 	return (0);
-}
+} /* ixgbe_xmit */
 
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_allocate_transmit_buffers
  *
- *  Allocate memory for tx_buffer structures. The tx_buffer stores all
- *  the information needed to transmit a packet on the wire. This is
- *  called only once at attach, setup is done every reset.
- *
- **********************************************************************/
-int
+ *   Allocate memory for tx_buffer structures. The tx_buffer stores all
+ *   the information needed to transmit a packet on the wire. This is
+ *   called only once at attach, setup is done every reset.
+ ************************************************************************/
+static int
 ixgbe_allocate_transmit_buffers(struct tx_ring *txr)
 {
-	struct adapter *adapter = txr->adapter;
-	device_t dev = adapter->dev;
+	struct adapter      *adapter = txr->adapter;
+	device_t            dev = adapter->dev;
 	struct ixgbe_tx_buf *txbuf;
-	int error, i;
+	int                 error, i;
 
 	/*
 	 * Setup DMA descriptor areas.
 	 */
-	if ((error = bus_dma_tag_create(
-			       bus_get_dma_tag(adapter->dev),	/* parent */
-			       1, 0,		/* alignment, bounds */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
-			       BUS_SPACE_MAXADDR,	/* highaddr */
-			       NULL, NULL,		/* filter, filterarg */
-			       IXGBE_TSO_SIZE,		/* maxsize */
-			       adapter->num_segs,	/* nsegments */
-			       PAGE_SIZE,		/* maxsegsize */
-			       0,			/* flags */
-			       NULL,			/* lockfunc */
-			       NULL,			/* lockfuncarg */
-			       &txr->txtag))) {
-		device_printf(dev,"Unable to allocate TX DMA tag\n");
+	error = bus_dma_tag_create(
+	         /*      parent */ bus_get_dma_tag(adapter->dev),
+	         /*   alignment */ 1,
+	         /*      bounds */ 0,
+	         /*     lowaddr */ BUS_SPACE_MAXADDR,
+	         /*    highaddr */ BUS_SPACE_MAXADDR,
+	         /*      filter */ NULL,
+	         /*   filterarg */ NULL,
+	         /*     maxsize */ IXGBE_TSO_SIZE,
+	         /*   nsegments */ adapter->num_segs,
+	         /*  maxsegsize */ PAGE_SIZE,
+	         /*       flags */ 0,
+	         /*    lockfunc */ NULL,
+	         /* lockfuncarg */ NULL,
+	                           &txr->txtag);
+	if (error != 0) {
+		device_printf(dev, "Unable to allocate TX DMA tag\n");
 		goto fail;
 	}
 
-	if (!(txr->tx_buffers =
-	    (struct ixgbe_tx_buf *) malloc(sizeof(struct ixgbe_tx_buf) *
-	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	txr->tx_buffers =
+	    (struct ixgbe_tx_buf *)malloc(sizeof(struct ixgbe_tx_buf) *
+	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (txr->tx_buffers == NULL) {
 		device_printf(dev, "Unable to allocate tx_buffer memory\n");
 		error = ENOMEM;
 		goto fail;
 	}
 
-        /* Create the descriptor buffer dma maps */
+	/* Create the descriptor buffer dma maps */
 	txbuf = txr->tx_buffers;
 	for (i = 0; i < adapter->num_tx_desc; i++, txbuf++) {
 		error = bus_dmamap_create(txr->txtag, 0, &txbuf->map);
@@ -545,41 +530,44 @@ ixgbe_allocate_transmit_buffers(struct tx_ring *txr)
 fail:
 	/* We free all, it handles case where we are in the middle */
 	ixgbe_free_transmit_structures(adapter);
-	return (error);
-}
 
-/*********************************************************************
- *
- *  Initialize a transmit ring.
- *
- **********************************************************************/
+	return (error);
+} /* ixgbe_allocate_transmit_buffers */
+
+/************************************************************************
+ * ixgbe_setup_transmit_ring - Initialize a transmit ring.
+ ************************************************************************/
 static void
 ixgbe_setup_transmit_ring(struct tx_ring *txr)
 {
-	struct adapter *adapter = txr->adapter;
-	struct ixgbe_tx_buf *txbuf;
+	struct adapter        *adapter = txr->adapter;
+	struct ixgbe_tx_buf   *txbuf;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
-	struct netmap_slot *slot;
+	struct netmap_slot    *slot;
 #endif /* DEV_NETMAP */
 
 	/* Clear the old ring contents */
 	IXGBE_TX_LOCK(txr);
+
 #ifdef DEV_NETMAP
-	/*
-	 * (under lock): if in netmap mode, do some consistency
-	 * checks and set slot to entry 0 of the netmap ring.
-	 */
-	slot = netmap_reset(na, NR_TX, txr->me, 0);
+	if (adapter->feat_en & IXGBE_FEATURE_NETMAP) {
+		/*
+		 * (under lock): if in netmap mode, do some consistency
+		 * checks and set slot to entry 0 of the netmap ring.
+		 */
+		slot = netmap_reset(na, NR_TX, txr->me, 0);
+	}
 #endif /* DEV_NETMAP */
+
 	bzero((void *)txr->tx_base,
-	      (sizeof(union ixgbe_adv_tx_desc)) * adapter->num_tx_desc);
+	    (sizeof(union ixgbe_adv_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
 	txr->next_avail_desc = 0;
 	txr->next_to_clean = 0;
 
 	/* Free any existing tx buffers. */
-        txbuf = txr->tx_buffers;
+	txbuf = txr->tx_buffers;
 	for (int i = 0; i < txr->num_desc; i++, txbuf++) {
 		if (txbuf->m_head != NULL) {
 			bus_dmamap_sync(txr->txtag, txbuf->map,
@@ -588,6 +576,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+
 #ifdef DEV_NETMAP
 		/*
 		 * In netmap mode, set the map for the packet buffer.
@@ -599,21 +588,20 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 * (not here) nkr_hwofs can be negative. Function
 		 * netmap_idx_n2k() handles wraparounds properly.
 		 */
-		if (slot) {
+		if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) && slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			netmap_load_map(na, txr->txtag,
 			    txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
+
 		/* Clear the EOP descriptor pointer */
 		txbuf->eop = NULL;
-        }
+	}
 
-#ifdef IXGBE_FDIR
 	/* Set the rate at which we sample packets */
-	if (adapter->hw.mac.type != ixgbe_mac_82598EB)
+	if (adapter->feat_en & IXGBE_FEATURE_FDIR)
 		txr->atr_sample = atr_sample_rate;
-#endif
 
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
@@ -621,13 +609,11 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	IXGBE_TX_UNLOCK(txr);
-}
+} /* ixgbe_setup_transmit_ring */
 
-/*********************************************************************
- *
- *  Initialize all transmit rings.
- *
- **********************************************************************/
+/************************************************************************
+ * ixgbe_setup_transmit_structures - Initialize all transmit rings.
+ ************************************************************************/
 int
 ixgbe_setup_transmit_structures(struct adapter *adapter)
 {
@@ -637,13 +623,11 @@ ixgbe_setup_transmit_structures(struct adapter *adapter)
 		ixgbe_setup_transmit_ring(txr);
 
 	return (0);
-}
+} /* ixgbe_setup_transmit_structures */
 
-/*********************************************************************
- *
- *  Free all transmit rings.
- *
- **********************************************************************/
+/************************************************************************
+ * ixgbe_free_transmit_structures - Free all transmit rings.
+ ************************************************************************/
 void
 ixgbe_free_transmit_structures(struct adapter *adapter)
 {
@@ -657,19 +641,19 @@ ixgbe_free_transmit_structures(struct adapter *adapter)
 		IXGBE_TX_LOCK_DESTROY(txr);
 	}
 	free(adapter->tx_rings, M_DEVBUF);
-}
+} /* ixgbe_free_transmit_structures */
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_free_transmit_buffers
  *
- *  Free transmit ring related data structures.
- *
- **********************************************************************/
+ *   Free transmit ring related data structures.
+ ************************************************************************/
 static void
 ixgbe_free_transmit_buffers(struct tx_ring *txr)
 {
-	struct adapter *adapter = txr->adapter;
+	struct adapter      *adapter = txr->adapter;
 	struct ixgbe_tx_buf *tx_buffer;
-	int             i;
+	int                 i;
 
 	INIT_DEBUGOUT("ixgbe_free_transmit_ring: begin");
 
@@ -681,27 +665,21 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 		if (tx_buffer->m_head != NULL) {
 			bus_dmamap_sync(txr->txtag, tx_buffer->map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(txr->txtag,
-			    tx_buffer->map);
+			bus_dmamap_unload(txr->txtag, tx_buffer->map);
 			m_freem(tx_buffer->m_head);
 			tx_buffer->m_head = NULL;
 			if (tx_buffer->map != NULL) {
-				bus_dmamap_destroy(txr->txtag,
-				    tx_buffer->map);
+				bus_dmamap_destroy(txr->txtag, tx_buffer->map);
 				tx_buffer->map = NULL;
 			}
 		} else if (tx_buffer->map != NULL) {
-			bus_dmamap_unload(txr->txtag,
-			    tx_buffer->map);
-			bus_dmamap_destroy(txr->txtag,
-			    tx_buffer->map);
+			bus_dmamap_unload(txr->txtag, tx_buffer->map);
+			bus_dmamap_destroy(txr->txtag, tx_buffer->map);
 			tx_buffer->map = NULL;
 		}
 	}
-#ifdef IXGBE_LEGACY_TX
 	if (txr->br != NULL)
 		buf_ring_free(txr->br, M_DEVBUF);
-#endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
 		txr->tx_buffers = NULL;
@@ -710,60 +688,59 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 		bus_dma_tag_destroy(txr->txtag);
 		txr->txtag = NULL;
 	}
-	return;
-}
+} /* ixgbe_free_transmit_buffers */
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_tx_ctx_setup
  *
- *  Advanced Context Descriptor setup for VLAN, CSUM or TSO
- *
- **********************************************************************/
-
+ *   Advanced Context Descriptor setup for VLAN, CSUM or TSO
+ ************************************************************************/
 static int
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
     u32 *cmd_type_len, u32 *olinfo_status)
 {
-	struct adapter *adapter = txr->adapter;
 	struct ixgbe_adv_tx_context_desc *TXD;
-	struct ether_vlan_header *eh;
+	struct ether_vlan_header         *eh;
 #ifdef INET
-	struct ip *ip;
+	struct ip                        *ip;
 #endif
 #ifdef INET6
-	struct ip6_hdr *ip6;
+	struct ip6_hdr                   *ip6;
 #endif
-	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
-	int	ehdrlen, ip_hlen = 0;
-	u16	etype;
-	u8	ipproto = 0;
-	int	offload = TRUE;
-	int	ctxd = txr->next_avail_desc;
-	u16	vtag = 0;
-	caddr_t l3d;
+	int                              ehdrlen, ip_hlen = 0;
+	int                              offload = TRUE;
+	int                              ctxd = txr->next_avail_desc;
+	u32                              vlan_macip_lens = 0;
+	u32                              type_tucmd_mlhl = 0;
+	u16                              vtag = 0;
+	u16                              etype;
+	u8                               ipproto = 0;
+	caddr_t                          l3d;
 
 
 	/* First check if TSO is to be used */
-	if (mp->m_pkthdr.csum_flags & (CSUM_IP_TSO|CSUM_IP6_TSO))
+	if (mp->m_pkthdr.csum_flags & (CSUM_IP_TSO | CSUM_IP6_TSO))
 		return (ixgbe_tso_setup(txr, mp, cmd_type_len, olinfo_status));
 
 	if ((mp->m_pkthdr.csum_flags & CSUM_OFFLOAD) == 0)
 		offload = FALSE;
 
 	/* Indicate the whole packet as payload when not doing TSO */
-       	*olinfo_status |= mp->m_pkthdr.len << IXGBE_ADVTXD_PAYLEN_SHIFT;
+	*olinfo_status |= mp->m_pkthdr.len << IXGBE_ADVTXD_PAYLEN_SHIFT;
 
 	/* Now ready a context descriptor */
-	TXD = (struct ixgbe_adv_tx_context_desc *) &txr->tx_base[ctxd];
+	TXD = (struct ixgbe_adv_tx_context_desc *)&txr->tx_base[ctxd];
 
 	/*
-	** In advanced descriptors the vlan tag must 
-	** be placed into the context descriptor. Hence
-	** we need to make one even if not doing offloads.
-	*/
+	 * In advanced descriptors the vlan tag must
+	 * be placed into the context descriptor. Hence
+	 * we need to make one even if not doing offloads.
+	 */
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
 		vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
-	} else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
+	} else if (!(txr->adapter->feat_en & IXGBE_FEATURE_NEEDS_CTXD) &&
+	           (offload == FALSE))
 		return (0);
 
 	/*
@@ -787,8 +764,10 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 		goto no_offloads;
 
 	/*
-	 * If the first mbuf only includes the ethernet header, jump to the next one
-	 * XXX: This assumes the stack splits mbufs containing headers on header boundaries
+	 * If the first mbuf only includes the ethernet header,
+	 * jump to the next one
+	 * XXX: This assumes the stack splits mbufs containing headers
+	 *      on header boundaries
 	 * XXX: And assumes the entire IP header is contained in one mbuf
 	 */
 	if (mp->m_len == ehdrlen && mp->m_next)
@@ -828,19 +807,22 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 	/* No support for offloads for non-L4 next headers */
 	switch (ipproto) {
 		case IPPROTO_TCP:
-			if (mp->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
+			if (mp->m_pkthdr.csum_flags &
+			    (CSUM_IP_TCP | CSUM_IP6_TCP))
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
 			else
 				offload = false;
 			break;
 		case IPPROTO_UDP:
-			if (mp->m_pkthdr.csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP))
+			if (mp->m_pkthdr.csum_flags &
+			    (CSUM_IP_UDP | CSUM_IP6_UDP))
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_UDP;
 			else
 				offload = false;
 			break;
 		case IPPROTO_SCTP:
-			if (mp->m_pkthdr.csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP))
+			if (mp->m_pkthdr.csum_flags &
+			    (CSUM_IP_SCTP | CSUM_IP6_SCTP))
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
 			else
 				offload = false;
@@ -868,32 +850,33 @@ no_offloads:
 	txr->next_avail_desc = ctxd;
 	--txr->tx_avail;
 
-        return (0);
-}
+	return (0);
+} /* ixgbe_tx_ctx_setup */
 
-/**********************************************************************
+/************************************************************************
+ * ixgbe_tso_setup
  *
- *  Setup work for hardware segmentation offload (TSO) on
- *  adapters using advanced tx descriptors
- *
- **********************************************************************/
+ *   Setup work for hardware segmentation offload (TSO) on
+ *   adapters using advanced tx descriptors
+ ************************************************************************/
 static int
-ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
-    u32 *cmd_type_len, u32 *olinfo_status)
+ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *cmd_type_len,
+    u32 *olinfo_status)
 {
 	struct ixgbe_adv_tx_context_desc *TXD;
-	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
-	u32 mss_l4len_idx = 0, paylen;
-	u16 vtag = 0, eh_type;
-	int ctxd, ehdrlen, ip_hlen, tcp_hlen;
-	struct ether_vlan_header *eh;
+	struct ether_vlan_header         *eh;
 #ifdef INET6
-	struct ip6_hdr *ip6;
+	struct ip6_hdr                   *ip6;
 #endif
 #ifdef INET
-	struct ip *ip;
+	struct ip                        *ip;
 #endif
-	struct tcphdr *th;
+	struct tcphdr                    *th;
+	int                              ctxd, ehdrlen, ip_hlen, tcp_hlen;
+	u32                              vlan_macip_lens = 0;
+	u32                              type_tucmd_mlhl = 0;
+	u32                              mss_l4len_idx = 0, paylen;
+	u16                              vtag = 0, eh_type;
 
 	/*
 	 * Determine where frame payload starts.
@@ -909,19 +892,6 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 	}
 
 	switch (ntohs(eh_type)) {
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
-		/* XXX-BZ For now we do not pretend to support ext. hdrs. */
-		if (ip6->ip6_nxt != IPPROTO_TCP)
-			return (ENXIO);
-		ip_hlen = sizeof(struct ip6_hdr);
-		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
-		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
-		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
-		break;
-#endif
 #ifdef INET
 	case ETHERTYPE_IP:
 		ip = (struct ip *)(mp->m_data + ehdrlen);
@@ -937,6 +907,18 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 		*olinfo_status |= IXGBE_TXD_POPTS_IXSM << 8;
 		break;
 #endif
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		/* XXX-BZ For now we do not pretend to support ext. hdrs. */
+		if (ip6->ip6_nxt != IPPROTO_TCP)
+			return (ENXIO);
+		ip_hlen = sizeof(struct ip6_hdr);
+		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
+		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
+		break;
+#endif
 	default:
 		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
 		    __func__, ntohs(eh_type));
@@ -944,7 +926,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 	}
 
 	ctxd = txr->next_avail_desc;
-	TXD = (struct ixgbe_adv_tx_context_desc *) &txr->tx_base[ctxd];
+	TXD = (struct ixgbe_adv_tx_context_desc *)&txr->tx_base[ctxd];
 
 	tcp_hlen = th->th_off << 2;
 
@@ -954,7 +936,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 	/* VLAN MACLEN IPLEN */
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
-                vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
+		vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
 	}
 
 	vlan_macip_lens |= ehdrlen << IXGBE_ADVTXD_MACLEN_SHIFT;
@@ -982,34 +964,33 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 	*olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
 	*olinfo_status |= paylen << IXGBE_ADVTXD_PAYLEN_SHIFT;
 	++txr->tso_tx;
+
 	return (0);
-}
+} /* ixgbe_tso_setup */
 
 
-/**********************************************************************
+/************************************************************************
+ * ixgbe_txeof
  *
- *  Examine each tx_buffer in the used queue. If the hardware is done
- *  processing the packet then free associated resources. The
- *  tx_buffer is put back on the free queue.
- *
- **********************************************************************/
+ *   Examine each tx_buffer in the used queue. If the hardware is done
+ *   processing the packet then free associated resources. The
+ *   tx_buffer is put back on the free queue.
+ ************************************************************************/
 void
 ixgbe_txeof(struct tx_ring *txr)
 {
-	struct adapter		*adapter = txr->adapter;
-#ifdef DEV_NETMAP
-	struct ifnet		*ifp = adapter->ifp;
-#endif
-	u32			work, processed = 0;
-	u32			limit = adapter->tx_process_limit;
-	struct ixgbe_tx_buf	*buf;
+	struct adapter          *adapter = txr->adapter;
+	struct ixgbe_tx_buf     *buf;
 	union ixgbe_adv_tx_desc *txd;
+	u32                     work, processed = 0;
+	u32                     limit = adapter->tx_process_limit;
 
 	mtx_assert(&txr->tx_mtx, MA_OWNED);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
+	if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) &&
+	    (adapter->ifp->if_capenable & IFCAP_NETMAP)) {
+		struct netmap_adapter *na = NA(adapter->ifp);
 		struct netmap_kring *kring = &na->tx_rings[txr->me];
 		txd = txr->tx_base;
 		bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
@@ -1030,8 +1011,8 @@ ixgbe_txeof(struct tx_ring *txr)
 		 */
 		if (!netmap_mitigate ||
 		    (kring->nr_kflags < kring->nkr_num_slots &&
-		    txd[kring->nr_kflags].wb.status & IXGBE_TXD_STAT_DD)) {
-			netmap_tx_irq(ifp, txr->me);
+		     txd[kring->nr_kflags].wb.status & IXGBE_TXD_STAT_DD)) {
+			netmap_tx_irq(adapter->ifp, txr->me);
 		}
 		return;
 	}
@@ -1047,8 +1028,8 @@ ixgbe_txeof(struct tx_ring *txr)
 	buf = &txr->tx_buffers[work];
 	txd = &txr->tx_base[work];
 	work -= txr->num_desc; /* The distance to ring end */
-        bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
-            BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
+	    BUS_DMASYNC_POSTREAD);
 
 	do {
 		union ixgbe_adv_tx_desc *eop = buf->eop;
@@ -1059,13 +1040,10 @@ ixgbe_txeof(struct tx_ring *txr)
 			break;	/* I/O not complete */
 
 		if (buf->m_head) {
-			txr->bytes +=
-			    buf->m_head->m_pkthdr.len;
-			bus_dmamap_sync(txr->txtag,
-			    buf->map,
+			txr->bytes += buf->m_head->m_pkthdr.len;
+			bus_dmamap_sync(txr->txtag, buf->map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(txr->txtag,
-			    buf->map);
+			bus_dmamap_unload(txr->txtag, buf->map);
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 		}
@@ -1084,13 +1062,10 @@ ixgbe_txeof(struct tx_ring *txr)
 				txd = txr->tx_base;
 			}
 			if (buf->m_head) {
-				txr->bytes +=
-				    buf->m_head->m_pkthdr.len;
-				bus_dmamap_sync(txr->txtag,
-				    buf->map,
+				txr->bytes += buf->m_head->m_pkthdr.len;
+				bus_dmamap_sync(txr->txtag, buf->map,
 				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(txr->txtag,
-				    buf->map);
+				bus_dmamap_unload(txr->txtag, buf->map);
 				m_freem(buf->m_head);
 				buf->m_head = NULL;
 			}
@@ -1121,19 +1096,19 @@ ixgbe_txeof(struct tx_ring *txr)
 	txr->next_to_clean = work;
 
 	/*
-	** Queue Hang detection, we know there's
-	** work outstanding or the first return
-	** would have been taken, so increment busy
-	** if nothing managed to get cleaned, then
-	** in local_timer it will be checked and 
-	** marked as HUNG if it exceeds a MAX attempt.
-	*/
+	 * Queue Hang detection, we know there's
+	 * work outstanding or the first return
+	 * would have been taken, so increment busy
+	 * if nothing managed to get cleaned, then
+	 * in local_timer it will be checked and
+	 * marked as HUNG if it exceeds a MAX attempt.
+	 */
 	if ((processed == 0) && (txr->busy != IXGBE_QUEUE_HUNG))
 		++txr->busy;
 	/*
-	** If anything gets cleaned we reset state to 1,
-	** note this will turn off HUNG if its set.
-	*/
+	 * If anything gets cleaned we reset state to 1,
+	 * note this will turn off HUNG if its set.
+	 */
 	if (processed)
 		txr->busy = 1;
 
@@ -1141,113 +1116,37 @@ ixgbe_txeof(struct tx_ring *txr)
 		txr->busy = 0;
 
 	return;
-}
+} /* ixgbe_txeof */
 
-
-#ifdef IXGBE_FDIR
-/*
-** This routine parses packet headers so that Flow
-** Director can make a hashed filter table entry 
-** allowing traffic flows to be identified and kept
-** on the same cpu.  This would be a performance
-** hit, but we only do it at IXGBE_FDIR_RATE of
-** packets.
-*/
-static void
-ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
-{
-	struct adapter			*adapter = txr->adapter;
-	struct ix_queue			*que;
-	struct ip			*ip;
-	struct tcphdr			*th;
-	struct udphdr			*uh;
-	struct ether_vlan_header	*eh;
-	union ixgbe_atr_hash_dword	input = {.dword = 0}; 
-	union ixgbe_atr_hash_dword	common = {.dword = 0}; 
-	int  				ehdrlen, ip_hlen;
-	u16				etype;
-
-	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		etype = eh->evl_proto;
-	} else {
-		ehdrlen = ETHER_HDR_LEN;
-		etype = eh->evl_encap_proto;
-	}
-
-	/* Only handling IPv4 */
-	if (etype != htons(ETHERTYPE_IP))
-		return;
-
-	ip = (struct ip *)(mp->m_data + ehdrlen);
-	ip_hlen = ip->ip_hl << 2;
-
-	/* check if we're UDP or TCP */
-	switch (ip->ip_p) {
-	case IPPROTO_TCP:
-		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-		/* src and dst are inverted */
-		common.port.dst ^= th->th_sport;
-		common.port.src ^= th->th_dport;
-		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_TCPV4;
-		break;
-	case IPPROTO_UDP:
-		uh = (struct udphdr *)((caddr_t)ip + ip_hlen);
-		/* src and dst are inverted */
-		common.port.dst ^= uh->uh_sport;
-		common.port.src ^= uh->uh_dport;
-		input.formatted.flow_type ^= IXGBE_ATR_FLOW_TYPE_UDPV4;
-		break;
-	default:
-		return;
-	}
-
-	input.formatted.vlan_id = htobe16(mp->m_pkthdr.ether_vtag);
-	if (mp->m_pkthdr.ether_vtag)
-		common.flex_bytes ^= htons(ETHERTYPE_VLAN);
-	else
-		common.flex_bytes ^= etype;
-	common.ip ^= ip->ip_src.s_addr ^ ip->ip_dst.s_addr;
-
-	que = &adapter->queues[txr->me];
-	/*
-	** This assumes the Rx queue and Tx
-	** queue are bound to the same CPU
-	*/
-	ixgbe_fdir_add_signature_filter_82599(&adapter->hw,
-	    input, common, que->msix);
-}
-#endif /* IXGBE_FDIR */
-
-/*
-** Used to detect a descriptor that has
-** been merged by Hardware RSC.
-*/
+/************************************************************************
+ * ixgbe_rsc_count
+ *
+ *   Used to detect a descriptor that has been merged by Hardware RSC.
+ ************************************************************************/
 static inline u32
 ixgbe_rsc_count(union ixgbe_adv_rx_desc *rx)
 {
 	return (le32toh(rx->wb.lower.lo_dword.data) &
 	    IXGBE_RXDADV_RSCCNT_MASK) >> IXGBE_RXDADV_RSCCNT_SHIFT;
-}
+} /* ixgbe_rsc_count */
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_setup_hw_rsc
  *
- *  Initialize Hardware RSC (LRO) feature on 82599
- *  for an RX ring, this is toggled by the LRO capability
- *  even though it is transparent to the stack.
+ *   Initialize Hardware RSC (LRO) feature on 82599
+ *   for an RX ring, this is toggled by the LRO capability
+ *   even though it is transparent to the stack.
  *
- *  NOTE: since this HW feature only works with IPV4 and 
- *        our testing has shown soft LRO to be as effective
- *        I have decided to disable this by default.
- *
- **********************************************************************/
+ *   NOTE: Since this HW feature only works with IPv4 and
+ *         testing has shown soft LRO to be as effective,
+ *         this feature will be disabled by default.
+ ************************************************************************/
 static void
 ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 {
-	struct	adapter 	*adapter = rxr->adapter;
-	struct	ixgbe_hw	*hw = &adapter->hw;
-	u32			rscctrl, rdrxctl;
+	struct adapter  *adapter = rxr->adapter;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32             rscctrl, rdrxctl;
 
 	/* If turning LRO/RSC off we need to disable it */
 	if ((adapter->ifp->if_capenable & IFCAP_LRO) == 0) {
@@ -1258,19 +1157,22 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
-#ifdef DEV_NETMAP /* crcstrip is optional in netmap */
-	if (adapter->ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
+#ifdef DEV_NETMAP
+	/* Always strip CRC unless Netmap disabled it */
+	if (!(adapter->feat_en & IXGBE_FEATURE_NETMAP) ||
+	    !(adapter->ifp->if_capenable & IFCAP_NETMAP) ||
+	    ix_crcstrip)
 #endif /* DEV_NETMAP */
-	rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
+		rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
 	rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
 
 	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(rxr->me));
 	rscctrl |= IXGBE_RSCCTL_RSCEN;
 	/*
-	** Limit the total number of descriptors that
-	** can be combined, so it does not exceed 64K
-	*/
+	 * Limit the total number of descriptors that
+	 * can be combined, so it does not exceed 64K
+	 */
 	if (rxr->mbuf_sz == MCLBYTES)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
 	else if (rxr->mbuf_sz == MJUMPAGESIZE)
@@ -1284,34 +1186,33 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 
 	/* Enable TCP header recognition */
 	IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0),
-	    (IXGBE_READ_REG(hw, IXGBE_PSRTYPE(0)) |
-	    IXGBE_PSRTYPE_TCPHDR));
+	    (IXGBE_READ_REG(hw, IXGBE_PSRTYPE(0)) | IXGBE_PSRTYPE_TCPHDR));
 
 	/* Disable RSC for ACK packets */
 	IXGBE_WRITE_REG(hw, IXGBE_RSCDBU,
 	    (IXGBE_RSCDBU_RSCACKDIS | IXGBE_READ_REG(hw, IXGBE_RSCDBU)));
 
 	rxr->hw_rsc = TRUE;
-}
+} /* ixgbe_setup_hw_rsc */
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_refresh_mbufs
  *
- *  Refresh mbuf buffers for RX descriptor rings
- *   - now keeps its own state so discards due to resource
- *     exhaustion are unnecessary, if an mbuf cannot be obtained
- *     it just returns, keeping its placeholder, thus it can simply
- *     be recalled to try again.
- *
- **********************************************************************/
+ *   Refresh mbuf buffers for RX descriptor rings
+ *    - now keeps its own state so discards due to resource
+ *      exhaustion are unnecessary, if an mbuf cannot be obtained
+ *      it just returns, keeping its placeholder, thus it can simply
+ *      be recalled to try again.
+ ************************************************************************/
 static void
 ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 {
-	struct adapter		*adapter = rxr->adapter;
-	bus_dma_segment_t	seg[1];
-	struct ixgbe_rx_buf	*rxbuf;
-	struct mbuf		*mp;
-	int			i, j, nsegs, error;
-	bool			refreshed = FALSE;
+	struct adapter      *adapter = rxr->adapter;
+	struct ixgbe_rx_buf *rxbuf;
+	struct mbuf         *mp;
+	bus_dma_segment_t   seg[1];
+	int                 i, j, nsegs, error;
+	bool                refreshed = FALSE;
 
 	i = j = rxr->next_to_refresh;
 	/* Control the loop with one beyond */
@@ -1321,8 +1222,8 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf == NULL) {
-			mp = m_getjcl(M_NOWAIT, MT_DATA,
-			    M_PKTHDR, rxr->mbuf_sz);
+			mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+			    rxr->mbuf_sz);
 			if (mp == NULL)
 				goto update;
 			if (adapter->max_frame_size <= (MCLBYTES - ETHER_ALIGN))
@@ -1338,11 +1239,10 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
 			/* Get the memory mapping */
 			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
-			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-			    rxbuf->pmap, mp, seg, &nsegs, BUS_DMA_NOWAIT);
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag, rxbuf->pmap,
+			    mp, seg, &nsegs, BUS_DMA_NOWAIT);
 			if (error != 0) {
-				printf("Refresh mbufs: payload dmamap load"
-				    " failure - %d\n", error);
+				printf("Refresh mbufs: payload dmamap load failure - %d\n", error);
 				m_free(mp);
 				rxbuf->buf = NULL;
 				goto update;
@@ -1364,50 +1264,55 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if (++j == rxr->num_desc)
 			j = 0;
 	}
+
 update:
 	if (refreshed) /* Update hardware tail index */
-		IXGBE_WRITE_REG(&adapter->hw,
-		    rxr->tail, rxr->next_to_refresh);
-	return;
-}
+		IXGBE_WRITE_REG(&adapter->hw, rxr->tail, rxr->next_to_refresh);
 
-/*********************************************************************
+	return;
+} /* ixgbe_refresh_mbufs */
+
+/************************************************************************
+ * ixgbe_allocate_receive_buffers
  *
- *  Allocate memory for rx_buffer structures. Since we use one
- *  rx_buffer per received packet, the maximum number of rx_buffer's
- *  that we'll need is equal to the number of receive descriptors
- *  that we've allocated.
- *
- **********************************************************************/
-int
+ *   Allocate memory for rx_buffer structures. Since we use one
+ *   rx_buffer per received packet, the maximum number of rx_buffer's
+ *   that we'll need is equal to the number of receive descriptors
+ *   that we've allocated.
+ ************************************************************************/
+static int
 ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 {
-	struct	adapter 	*adapter = rxr->adapter;
-	device_t 		dev = adapter->dev;
-	struct ixgbe_rx_buf 	*rxbuf;
-	int             	bsize, error;
+	struct adapter      *adapter = rxr->adapter;
+	device_t            dev = adapter->dev;
+	struct ixgbe_rx_buf *rxbuf;
+	int                 bsize, error;
 
 	bsize = sizeof(struct ixgbe_rx_buf) * rxr->num_desc;
-	if (!(rxr->rx_buffers =
-	    (struct ixgbe_rx_buf *) malloc(bsize,
-	    M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	rxr->rx_buffers = (struct ixgbe_rx_buf *)malloc(bsize, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (rxr->rx_buffers == NULL) {
 		device_printf(dev, "Unable to allocate rx_buffer memory\n");
 		error = ENOMEM;
 		goto fail;
 	}
 
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
-				   1, 0,	/* alignment, bounds */
-				   BUS_SPACE_MAXADDR,	/* lowaddr */
-				   BUS_SPACE_MAXADDR,	/* highaddr */
-				   NULL, NULL,		/* filter, filterarg */
-				   MJUM16BYTES,		/* maxsize */
-				   1,			/* nsegments */
-				   MJUM16BYTES,		/* maxsegsize */
-				   0,			/* flags */
-				   NULL,		/* lockfunc */
-				   NULL,		/* lockfuncarg */
-				   &rxr->ptag))) {
+	error = bus_dma_tag_create(
+	         /*      parent */ bus_get_dma_tag(dev),
+	         /*   alignment */ 1,
+	         /*      bounds */ 0,
+	         /*     lowaddr */ BUS_SPACE_MAXADDR,
+	         /*    highaddr */ BUS_SPACE_MAXADDR,
+	         /*      filter */ NULL,
+	         /*   filterarg */ NULL,
+	         /*     maxsize */ MJUM16BYTES,
+	         /*   nsegments */ 1,
+	         /*  maxsegsize */ MJUM16BYTES,
+	         /*       flags */ 0,
+	         /*    lockfunc */ NULL,
+	         /* lockfuncarg */ NULL,
+	                           &rxr->ptag);
+	if (error != 0) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
@@ -1426,37 +1331,40 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 fail:
 	/* Frees all, but can handle partial completion */
 	ixgbe_free_receive_structures(adapter);
-	return (error);
-}
 
-static void     
+	return (error);
+} /* ixgbe_allocate_receive_buffers */
+
+/************************************************************************
+ * ixgbe_free_receive_ring
+ ************************************************************************/
+static void
 ixgbe_free_receive_ring(struct rx_ring *rxr)
 {
-
 	for (int i = 0; i < rxr->num_desc; i++) {
 		ixgbe_rx_discard(rxr, i);
 	}
-}
+} /* ixgbe_free_receive_ring */
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_setup_receive_ring
  *
- *  Initialize a receive ring and its buffers.
- *
- **********************************************************************/
+ *   Initialize a receive ring and its buffers.
+ ************************************************************************/
 static int
 ixgbe_setup_receive_ring(struct rx_ring *rxr)
 {
-	struct	adapter 	*adapter;
-	struct ifnet		*ifp;
-	device_t		dev;
-	struct ixgbe_rx_buf	*rxbuf;
-	bus_dma_segment_t	seg[1];
-	struct lro_ctrl		*lro = &rxr->lro;
-	int			rsize, nsegs, error = 0;
+	struct adapter        *adapter;
+	struct ifnet          *ifp;
+	device_t              dev;
+	struct ixgbe_rx_buf   *rxbuf;
+	struct lro_ctrl       *lro = &rxr->lro;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(rxr->adapter->ifp);
-	struct netmap_slot *slot;
+	struct netmap_slot    *slot;
 #endif /* DEV_NETMAP */
+	bus_dma_segment_t     seg[1];
+	int                   rsize, nsegs, error = 0;
 
 	adapter = rxr->adapter;
 	ifp = adapter->ifp;
@@ -1464,10 +1372,12 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Clear the ring contents */
 	IXGBE_RX_LOCK(rxr);
+
 #ifdef DEV_NETMAP
-	/* same as in ixgbe_setup_transmit_ring() */
-	slot = netmap_reset(na, NR_RX, rxr->me, 0);
+	if (adapter->feat_en & IXGBE_FEATURE_NETMAP)
+		slot = netmap_reset(na, NR_RX, rxr->me, 0);
 #endif /* DEV_NETMAP */
+
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
@@ -1479,9 +1389,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Now replenish the mbufs */
 	for (int j = 0; j != rxr->num_desc; ++j) {
-		struct mbuf	*mp;
+		struct mbuf *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+
 #ifdef DEV_NETMAP
 		/*
 		 * In netmap mode, fill the map and set the buffer
@@ -1490,7 +1401,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 * ixgbe_setup_transmit_ring() ). No need to allocate
 		 * an mbuf, so end the block with a continue;
 		 */
-		if (slot) {
+		if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) && slot) {
 			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
@@ -1503,23 +1414,22 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			continue;
 		}
 #endif /* DEV_NETMAP */
-		rxbuf->flags = 0; 
-		rxbuf->buf = m_getjcl(M_NOWAIT, MT_DATA,
-		    M_PKTHDR, adapter->rx_mbuf_sz);
+
+		rxbuf->flags = 0;
+		rxbuf->buf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		    adapter->rx_mbuf_sz);
 		if (rxbuf->buf == NULL) {
 			error = ENOBUFS;
-                        goto fail;
+			goto fail;
 		}
 		mp = rxbuf->buf;
 		mp->m_pkthdr.len = mp->m_len = rxr->mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-		    rxbuf->pmap, mp, seg,
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag, rxbuf->pmap, mp, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
-                        goto fail;
-		bus_dmamap_sync(rxr->ptag,
-		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
+			goto fail;
+		bus_dmamap_sync(rxr->ptag, rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update the descriptor and the cached value */
 		rxr->rx_base[j].read.pkt_addr = htole64(seg[0].ds_addr);
 		rxbuf->addr = htole64(seg[0].ds_addr);
@@ -1538,8 +1448,8 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/*
-	** Now set up the LRO interface:
-	*/
+	 * Now set up the LRO interface
+	 */
 	if (ixgbe_rsc_enable)
 		ixgbe_setup_hw_rsc(rxr);
 	else if (ifp->if_capenable & IFCAP_LRO) {
@@ -1554,24 +1464,24 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	}
 
 	IXGBE_RX_UNLOCK(rxr);
+
 	return (0);
 
 fail:
 	ixgbe_free_receive_ring(rxr);
 	IXGBE_RX_UNLOCK(rxr);
-	return (error);
-}
 
-/*********************************************************************
- *
- *  Initialize all receive rings.
- *
- **********************************************************************/
+	return (error);
+} /* ixgbe_setup_receive_ring */
+
+/************************************************************************
+ * ixgbe_setup_receive_structures - Initialize all receive rings.
+ ************************************************************************/
 int
 ixgbe_setup_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
-	int j;
+	int            j;
 
 	for (j = 0; j < adapter->num_queues; j++, rxr++)
 		if (ixgbe_setup_receive_ring(rxr))
@@ -1592,14 +1502,12 @@ fail:
 	}
 
 	return (ENOBUFS);
-}
+} /* ixgbe_setup_receive_structures */
 
 
-/*********************************************************************
- *
- *  Free all receive rings.
- *
- **********************************************************************/
+/************************************************************************
+ * ixgbe_free_receive_structures - Free all receive rings.
+ ************************************************************************/
 void
 ixgbe_free_receive_structures(struct adapter *adapter)
 {
@@ -1608,28 +1516,25 @@ ixgbe_free_receive_structures(struct adapter *adapter)
 	INIT_DEBUGOUT("ixgbe_free_receive_structures: begin");
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		struct lro_ctrl		*lro = &rxr->lro;
 		ixgbe_free_receive_buffers(rxr);
 		/* Free LRO memory */
-		tcp_lro_free(lro);
+		tcp_lro_free(&rxr->lro);
 		/* Free the ring memory as well */
 		ixgbe_dma_free(adapter, &rxr->rxdma);
 	}
 
 	free(adapter->rx_rings, M_DEVBUF);
-}
+} /* ixgbe_free_receive_structures */
 
 
-/*********************************************************************
- *
- *  Free receive ring data structures
- *
- **********************************************************************/
-void
+/************************************************************************
+ * ixgbe_free_receive_buffers - Free receive ring data structures
+ ************************************************************************/
+static void
 ixgbe_free_receive_buffers(struct rx_ring *rxr)
 {
-	struct adapter		*adapter = rxr->adapter;
-	struct ixgbe_rx_buf	*rxbuf;
+	struct adapter      *adapter = rxr->adapter;
+	struct ixgbe_rx_buf *rxbuf;
 
 	INIT_DEBUGOUT("ixgbe_free_receive_buffers: begin");
 
@@ -1655,56 +1560,61 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 	}
 
 	return;
-}
+} /* ixgbe_free_receive_buffers */
 
+/************************************************************************
+ * ixgbe_rx_input
+ ************************************************************************/
 static __inline void
-ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype)
+ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m,
+    u32 ptype)
 {
-                 
-        /*
-         * ATM LRO is only for IP/TCP packets and TCP checksum of the packet
-         * should be computed by hardware. Also it should not have VLAN tag in
-         * ethernet header.  In case of IPv6 we do not yet support ext. hdrs.
-         */
-        if (rxr->lro_enabled &&
-            (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
-            (ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
-            ((ptype & (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
-            (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP) ||
-            (ptype & (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
-            (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) &&
-            (m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
-            (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
-                /*
-                 * Send to the stack if:
-                 **  - LRO not enabled, or
-                 **  - no LRO resources, or
-                 **  - lro enqueue fails
-                 */
-                if (rxr->lro.lro_cnt != 0)
-                        if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
-                                return;
-        }
+	/*
+	 * ATM LRO is only for IP/TCP packets and TCP checksum of the packet
+	 * should be computed by hardware. Also it should not have VLAN tag in
+	 * ethernet header.  In case of IPv6 we do not yet support ext. hdrs.
+	 */
+	if (rxr->lro_enabled &&
+	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+	    (ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
+	    ((ptype & (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
+	     (IXGBE_RXDADV_PKTTYPE_IPV4 | IXGBE_RXDADV_PKTTYPE_TCP) ||
+	     (ptype & (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) ==
+	     (IXGBE_RXDADV_PKTTYPE_IPV6 | IXGBE_RXDADV_PKTTYPE_TCP)) &&
+	    (m->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
+	    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
+		/*
+		 * Send to the stack if:
+		 *  - LRO not enabled, or
+		 *  - no LRO resources, or
+		 *  - lro enqueue fails
+		 */
+		if (rxr->lro.lro_cnt != 0)
+			if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
+				return;
+	}
 	IXGBE_RX_UNLOCK(rxr);
-        (*ifp->if_input)(ifp, m);
+	(*ifp->if_input)(ifp, m);
 	IXGBE_RX_LOCK(rxr);
-}
+} /* ixgbe_rx_input */
 
+/************************************************************************
+ * ixgbe_rx_discard
+ ************************************************************************/
 static __inline void
 ixgbe_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct ixgbe_rx_buf	*rbuf;
+	struct ixgbe_rx_buf *rbuf;
 
 	rbuf = &rxr->rx_buffers[i];
 
-
 	/*
-	** With advanced descriptors the writeback
-	** clobbers the buffer addrs, so its easier
-	** to just free the existing mbufs and take
-	** the normal refresh path to get new buffers
-	** and mapping.
-	*/
+	 * With advanced descriptors the writeback
+	 * clobbers the buffer addrs, so its easier
+	 * to just free the existing mbufs and take
+	 * the normal refresh path to get new buffers
+	 * and mapping.
+	 */
 
 	if (rbuf->fmp != NULL) {/* Partial chain ? */
 		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
@@ -1719,50 +1629,53 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	bus_dmamap_unload(rxr->ptag, rbuf->pmap);
 
 	rbuf->flags = 0;
- 
+
 	return;
-}
+} /* ixgbe_rx_discard */
 
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_rxeof
  *
- *  This routine executes in interrupt context. It replenishes
- *  the mbufs in the descriptor and sends data which has been
- *  dma'ed into host memory to upper layer.
+ *   Executes in interrupt context. It replenishes the
+ *   mbufs in the descriptor and sends data which has
+ *   been dma'ed into host memory to upper layer.
  *
- *  Return TRUE for more work, FALSE for all clean.
- *********************************************************************/
+ *   Return TRUE for more work, FALSE for all clean.
+ ************************************************************************/
 bool
 ixgbe_rxeof(struct ix_queue *que)
 {
-	struct adapter		*adapter = que->adapter;
-	struct rx_ring		*rxr = que->rxr;
-	struct ifnet		*ifp = adapter->ifp;
-	struct lro_ctrl		*lro = &rxr->lro;
-	int			i, nextp, processed = 0;
-	u32			staterr = 0;
-	u32			count = adapter->rx_process_limit;
-	union ixgbe_adv_rx_desc	*cur;
-	struct ixgbe_rx_buf	*rbuf, *nbuf;
-	u16			pkt_info;
+	struct adapter          *adapter = que->adapter;
+	struct rx_ring          *rxr = que->rxr;
+	struct ifnet            *ifp = adapter->ifp;
+	struct lro_ctrl         *lro = &rxr->lro;
+	union ixgbe_adv_rx_desc *cur;
+	struct ixgbe_rx_buf     *rbuf, *nbuf;
+	int                     i, nextp, processed = 0;
+	u32                     staterr = 0;
+	u32                     count = adapter->rx_process_limit;
+	u16                     pkt_info;
 
 	IXGBE_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	/* Same as the txeof routine: wakeup clients on intr. */
-	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
-		IXGBE_RX_UNLOCK(rxr);
-		return (FALSE);
+	if (adapter->feat_en & IXGBE_FEATURE_NETMAP) {
+		/* Same as the txeof routine: wakeup clients on intr. */
+		if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+			IXGBE_RX_UNLOCK(rxr);
+			return (FALSE);
+		}
 	}
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check; count != 0;) {
-		struct mbuf	*sendmp, *mp;
-		u32		rsc, ptype;
-		u16		len;
-		u16		vtag = 0;
-		bool		eop;
- 
+		struct mbuf *sendmp, *mp;
+		u32         rsc, ptype;
+		u16         len;
+		u16         vtag = 0;
+		bool        eop;
+
 		/* Sync the ring. */
 		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -1792,7 +1705,7 @@ ixgbe_rxeof(struct ix_queue *que)
 		/* Make sure bad packets are discarded */
 		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
 #if __FreeBSD_version >= 1100036
-			if (IXGBE_IS_VF(adapter))
+			if (adapter->feat_en & IXGBE_FEATURE_VF)
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 #endif
 			rxr->rx_discarded++;
@@ -1803,29 +1716,28 @@ ixgbe_rxeof(struct ix_queue *que)
 		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
 
 		/*
-		** On 82599 which supports a hardware
-		** LRO (called HW RSC), packets need
-		** not be fragmented across sequential
-		** descriptors, rather the next descriptor
-		** is indicated in bits of the descriptor.
-		** This also means that we might proceses
-		** more than one packet at a time, something
-		** that has never been true before, it
-		** required eliminating global chain pointers
-		** in favor of what we are doing here.  -jfv
-		*/
+		 * On 82599 which supports a hardware
+		 * LRO (called HW RSC), packets need
+		 * not be fragmented across sequential
+		 * descriptors, rather the next descriptor
+		 * is indicated in bits of the descriptor.
+		 * This also means that we might proceses
+		 * more than one packet at a time, something
+		 * that has never been true before, it
+		 * required eliminating global chain pointers
+		 * in favor of what we are doing here.  -jfv
+		 */
 		if (!eop) {
 			/*
-			** Figure out the next descriptor
-			** of this frame.
-			*/
+			 * Figure out the next descriptor
+			 * of this frame.
+			 */
 			if (rxr->hw_rsc == TRUE) {
 				rsc = ixgbe_rsc_count(cur);
 				rxr->rsc_num += (rsc - 1);
 			}
 			if (rsc) { /* Get hardware index */
-				nextp = ((staterr &
-				    IXGBE_RXDADV_NEXTP_MASK) >>
+				nextp = ((staterr & IXGBE_RXDADV_NEXTP_MASK) >>
 				    IXGBE_RXDADV_NEXTP_SHIFT);
 			} else { /* Just sequential */
 				nextp = i + 1;
@@ -1836,16 +1748,16 @@ ixgbe_rxeof(struct ix_queue *que)
 			prefetch(nbuf);
 		}
 		/*
-		** Rather than using the fmp/lmp global pointers
-		** we now keep the head of a packet chain in the
-		** buffer struct and pass this along from one
-		** descriptor to the next, until we get EOP.
-		*/
+		 * Rather than using the fmp/lmp global pointers
+		 * we now keep the head of a packet chain in the
+		 * buffer struct and pass this along from one
+		 * descriptor to the next, until we get EOP.
+		 */
 		mp->m_len = len;
 		/*
-		** See if there is a stored head
-		** that determines what we are
-		*/
+		 * See if there is a stored head
+		 * that determines what we are
+		 */
 		sendmp = rbuf->fmp;
 		if (sendmp != NULL) {  /* secondary frag */
 			rbuf->buf = rbuf->fmp = NULL;
@@ -1861,10 +1773,9 @@ ixgbe_rxeof(struct ix_queue *que)
 			if (eop && len <= IXGBE_RX_COPY_LEN) {
 				sendmp = m_gethdr(M_NOWAIT, MT_DATA);
 				if (sendmp != NULL) {
-					sendmp->m_data +=
-					    IXGBE_RX_COPY_ALIGN;
-					ixgbe_bcopy(mp->m_data,
-					    sendmp->m_data, len);
+					sendmp->m_data += IXGBE_RX_COPY_ALIGN;
+					ixgbe_bcopy(mp->m_data, sendmp->m_data,
+					    len);
 					sendmp->m_len = len;
 					rxr->rx_copies++;
 					rbuf->flags |= IXGBE_RX_COPY;
@@ -1893,8 +1804,7 @@ ixgbe_rxeof(struct ix_queue *que)
 			rxr->bytes += sendmp->m_pkthdr.len;
 			rxr->rx_bytes += sendmp->m_pkthdr.len;
 			/* Process vlan info */
-			if ((rxr->vtag_strip) &&
-			    (staterr & IXGBE_RXD_STAT_VP))
+			if ((rxr->vtag_strip) && (staterr & IXGBE_RXD_STAT_VP))
 				vtag = le16toh(cur->wb.upper.vlan);
 			if (vtag) {
 				sendmp->m_pkthdr.ether_vtag = vtag;
@@ -1903,59 +1813,59 @@ ixgbe_rxeof(struct ix_queue *que)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixgbe_rx_checksum(staterr, sendmp, ptype);
 
-                        /*
-                         * In case of multiqueue, we have RXCSUM.PCSD bit set
-                         * and never cleared. This means we have RSS hash
-                         * available to be used.   
-                         */
-                        if (adapter->num_queues > 1) {
-                                sendmp->m_pkthdr.flowid =
-                                    le32toh(cur->wb.lower.hi_dword.rss);
-                                switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {  
-                                    case IXGBE_RXDADV_RSSTYPE_IPV4:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_IPV4);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_TCP_IPV4);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_IPV6);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6_TCP:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_TCP_IPV6);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6_EX:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_IPV6_EX);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_TCP_IPV6_EX);
-                                        break;
+			/*
+			 * In case of multiqueue, we have RXCSUM.PCSD bit set
+			 * and never cleared. This means we have RSS hash
+			 * available to be used.
+			 */
+			if (adapter->num_queues > 1) {
+				sendmp->m_pkthdr.flowid =
+				    le32toh(cur->wb.lower.hi_dword.rss);
+				switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
+				case IXGBE_RXDADV_RSSTYPE_IPV4:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_IPV4);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_TCP_IPV4);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_IPV6);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6_TCP:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_TCP_IPV6);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6_EX:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_IPV6_EX);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_TCP_IPV6_EX);
+					break;
 #if __FreeBSD_version > 1100000
-                                    case IXGBE_RXDADV_RSSTYPE_IPV4_UDP:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_UDP_IPV4);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6_UDP:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_UDP_IPV6);
-                                        break;
-                                    case IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_RSS_UDP_IPV6_EX);
-                                        break;
+				case IXGBE_RXDADV_RSSTYPE_IPV4_UDP:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_UDP_IPV4);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6_UDP:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_UDP_IPV6);
+					break;
+				case IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_RSS_UDP_IPV6_EX);
+					break;
 #endif
-                                    default:
-                                        M_HASHTYPE_SET(sendmp,
-                                            M_HASHTYPE_OPAQUE_HASH);
-                                }
-                        } else {
-                                sendmp->m_pkthdr.flowid = que->msix;
+				default:
+					M_HASHTYPE_SET(sendmp,
+					    M_HASHTYPE_OPAQUE_HASH);
+				}
+			} else {
+				sendmp->m_pkthdr.flowid = que->msix;
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 			}
 		}
@@ -1974,7 +1884,7 @@ next_desc:
 			i = rxr->next_to_check;
 		}
 
-               /* Every 8 descriptors we go to refresh mbufs */
+		/* Every 8 descriptors we go to refresh mbufs */
 		if (processed == 8) {
 			ixgbe_refresh_mbufs(rxr, i);
 			processed = 0;
@@ -1995,28 +1905,28 @@ next_desc:
 	IXGBE_RX_UNLOCK(rxr);
 
 	/*
-	** Still have cleaning to do?
-	*/
+	 * Still have cleaning to do?
+	 */
 	if ((staterr & IXGBE_RXD_STAT_DD) != 0)
 		return (TRUE);
-	else
-		return (FALSE);
-}
+
+	return (FALSE);
+} /* ixgbe_rxeof */
 
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_rx_checksum
  *
- *  Verify that the hardware indicated that the checksum is valid.
- *  Inform the stack about the status of checksum so that stack
- *  doesn't spend time verifying the checksum.
- *
- *********************************************************************/
+ *   Verify that the hardware indicated that the checksum is valid.
+ *   Inform the stack about the status of checksum so that stack
+ *   doesn't spend time verifying the checksum.
+ ************************************************************************/
 static void
 ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 {
-	u16	status = (u16) staterr;
-	u8	errors = (u8) (staterr >> 24);
-	bool	sctp = false;
+	u16  status = (u16)staterr;
+	u8   errors = (u8)(staterr >> 24);
+	bool sctp = false;
 
 	if ((ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
 	    (ptype & IXGBE_RXDADV_PKTTYPE_SCTP) != 0)
@@ -2038,62 +1948,68 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 				mp->m_pkthdr.csum_data = htons(0xffff);
 		}
 	}
-}
+} /* ixgbe_rx_checksum */
 
-/********************************************************************
- * Manage DMA'able memory.
- *******************************************************************/
+/************************************************************************
+ * ixgbe_dmamap_cb - Manage DMA'able memory.
+ ************************************************************************/
 static void
 ixgbe_dmamap_cb(void *arg, bus_dma_segment_t * segs, int nseg, int error)
 {
 	if (error)
 		return;
-	*(bus_addr_t *) arg = segs->ds_addr;
-	return;
-}
+	*(bus_addr_t *)arg = segs->ds_addr;
 
-int
+	return;
+} /* ixgbe_dmamap_cb */
+
+/************************************************************************
+ * ixgbe_dma_malloc
+ ************************************************************************/
+static int
 ixgbe_dma_malloc(struct adapter *adapter, bus_size_t size,
-		struct ixgbe_dma_alloc *dma, int mapflags)
+                 struct ixgbe_dma_alloc *dma, int mapflags)
 {
 	device_t dev = adapter->dev;
-	int             r;
+	int      r;
 
-	r = bus_dma_tag_create(bus_get_dma_tag(adapter->dev),	/* parent */
-			       DBA_ALIGN, 0,	/* alignment, bounds */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
-			       BUS_SPACE_MAXADDR,	/* highaddr */
-			       NULL, NULL,	/* filter, filterarg */
-			       size,	/* maxsize */
-			       1,	/* nsegments */
-			       size,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
-			       NULL,	/* lockfunc */
-			       NULL,	/* lockfuncarg */
-			       &dma->dma_tag);
+	r = bus_dma_tag_create(
+	     /*      parent */ bus_get_dma_tag(adapter->dev),
+	     /*   alignment */ DBA_ALIGN,
+	     /*      bounds */ 0,
+	     /*     lowaddr */ BUS_SPACE_MAXADDR,
+	     /*    highaddr */ BUS_SPACE_MAXADDR,
+	     /*      filter */ NULL,
+	     /*   filterarg */ NULL,
+	     /*     maxsize */ size,
+	     /*   nsegments */ 1,
+	     /*  maxsegsize */ size,
+	     /*       flags */ BUS_DMA_ALLOCNOW,
+	     /*    lockfunc */ NULL,
+	     /* lockfuncarg */ NULL,
+	                       &dma->dma_tag);
 	if (r != 0) {
-		device_printf(dev,"ixgbe_dma_malloc: bus_dma_tag_create failed; "
-		       "error %u\n", r);
+		device_printf(dev,
+		    "ixgbe_dma_malloc: bus_dma_tag_create failed; error %u\n",
+		    r);
 		goto fail_0;
 	}
 	r = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
-			     BUS_DMA_NOWAIT, &dma->dma_map);
+	    BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
-		device_printf(dev,"ixgbe_dma_malloc: bus_dmamem_alloc failed; "
-		       "error %u\n", r);
+		device_printf(dev,
+		    "ixgbe_dma_malloc: bus_dmamem_alloc failed; error %u\n", r);
 		goto fail_1;
 	}
-	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
-			    size,
-			    ixgbe_dmamap_cb,
-			    &dma->dma_paddr,
-			    mapflags | BUS_DMA_NOWAIT);
+	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr, size,
+	    ixgbe_dmamap_cb, &dma->dma_paddr, mapflags | BUS_DMA_NOWAIT);
 	if (r != 0) {
-		device_printf(dev,"ixgbe_dma_malloc: bus_dmamap_load failed; "
-		       "error %u\n", r);
+		device_printf(dev,
+		    "ixgbe_dma_malloc: bus_dmamap_load failed; error %u\n", r);
 		goto fail_2;
 	}
 	dma->dma_size = size;
+
 	return (0);
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
@@ -2101,10 +2017,14 @@ fail_1:
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
 	dma->dma_tag = NULL;
-	return (r);
-}
 
-void
+	return (r);
+} /* ixgbe_dma_malloc */
+
+/************************************************************************
+ * ixgbe_dma_free
+ ************************************************************************/
+static void
 ixgbe_dma_free(struct adapter *adapter, struct ixgbe_dma_alloc *dma)
 {
 	bus_dmamap_sync(dma->dma_tag, dma->dma_map,
@@ -2112,79 +2032,69 @@ ixgbe_dma_free(struct adapter *adapter, struct ixgbe_dma_alloc *dma)
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
-}
+} /* ixgbe_dma_free */
 
 
-/*********************************************************************
+/************************************************************************
+ * ixgbe_allocate_queues
  *
- *  Allocate memory for the transmit and receive rings, and then
- *  the descriptors associated with each, called only once at attach.
- *
- **********************************************************************/
+ *   Allocate memory for the transmit and receive rings, and then
+ *   the descriptors associated with each, called only once at attach.
+ ************************************************************************/
 int
 ixgbe_allocate_queues(struct adapter *adapter)
 {
-	device_t	dev = adapter->dev;
-	struct ix_queue	*que;
-	struct tx_ring	*txr;
-	struct rx_ring	*rxr;
-	int rsize, tsize, error = IXGBE_SUCCESS;
-	int txconf = 0, rxconf = 0;
-#ifdef PCI_IOV
-	enum ixgbe_iov_mode iov_mode;
-#endif
+	device_t        dev = adapter->dev;
+	struct ix_queue *que;
+	struct tx_ring  *txr;
+	struct rx_ring  *rxr;
+	int             rsize, tsize, error = IXGBE_SUCCESS;
+	int             txconf = 0, rxconf = 0;
 
-        /* First allocate the top level queue structs */
-        if (!(adapter->queues =
-            (struct ix_queue *) malloc(sizeof(struct ix_queue) *
-            adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
-                device_printf(dev, "Unable to allocate queue memory\n");
-                error = ENOMEM;
-                goto fail;
-        }
+	/* First, allocate the top level queue structs */
+	adapter->queues = (struct ix_queue *)malloc(sizeof(struct ix_queue) *
+	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->queues == NULL) {
+		device_printf(dev, "Unable to allocate queue memory\n");
+		error = ENOMEM;
+		goto fail;
+	}
 
-	/* First allocate the TX ring struct memory */
-	if (!(adapter->tx_rings =
-	    (struct tx_ring *) malloc(sizeof(struct tx_ring) *
-	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	/* Second, allocate the TX ring struct memory */
+	adapter->tx_rings = (struct tx_ring *)malloc(sizeof(struct tx_ring) *
+	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->tx_rings == NULL) {
 		device_printf(dev, "Unable to allocate TX ring memory\n");
 		error = ENOMEM;
 		goto tx_fail;
 	}
 
-	/* Next allocate the RX */
-	if (!(adapter->rx_rings =
-	    (struct rx_ring *) malloc(sizeof(struct rx_ring) *
-	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	/* Third, allocate the RX ring */
+	adapter->rx_rings = (struct rx_ring *)malloc(sizeof(struct rx_ring) *
+	    adapter->num_queues, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->rx_rings == NULL) {
 		device_printf(dev, "Unable to allocate RX ring memory\n");
 		error = ENOMEM;
 		goto rx_fail;
 	}
 
 	/* For the ring itself */
-	tsize = roundup2(adapter->num_tx_desc *
-	    sizeof(union ixgbe_adv_tx_desc), DBA_ALIGN);
+	tsize = roundup2(adapter->num_tx_desc * sizeof(union ixgbe_adv_tx_desc),
+	    DBA_ALIGN);
 
-#ifdef PCI_IOV
-	iov_mode = ixgbe_get_iov_mode(adapter);
-	adapter->pool = ixgbe_max_vfs(iov_mode);
-#else
-	adapter->pool = 0;
-#endif
 	/*
 	 * Now set up the TX queues, txconf is needed to handle the
 	 * possibility that things fail midcourse and we need to
 	 * undo memory gracefully
-	 */ 
+	 */
 	for (int i = 0; i < adapter->num_queues; i++, txconf++) {
 		/* Set up some basics */
 		txr = &adapter->tx_rings[i];
 		txr->adapter = adapter;
-#ifdef PCI_IOV
-		txr->me = ixgbe_pf_que_index(iov_mode, i);
-#else
-		txr->me = i;
-#endif
+		txr->br = NULL;
+		/* In case SR-IOV is enabled, align the index properly */
+		txr->me = ixgbe_vf_que_index(adapter->iov_mode, adapter->pool,
+		    i);
 		txr->num_desc = adapter->num_tx_desc;
 
 		/* Initialize the TX side lock */
@@ -2192,8 +2102,8 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		    device_get_nameunit(dev), txr->me);
 		mtx_init(&txr->tx_mtx, txr->mtx_name, NULL, MTX_DEF);
 
-		if (ixgbe_dma_malloc(adapter, tsize,
-			&txr->txdma, BUS_DMA_NOWAIT)) {
+		if (ixgbe_dma_malloc(adapter, tsize, &txr->txdma,
+		    BUS_DMA_NOWAIT)) {
 			device_printf(dev,
 			    "Unable to allocate TX Descriptor memory\n");
 			error = ENOMEM;
@@ -2202,40 +2112,38 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		txr->tx_base = (union ixgbe_adv_tx_desc *)txr->txdma.dma_vaddr;
 		bzero((void *)txr->tx_base, tsize);
 
-        	/* Now allocate transmit buffers for the ring */
-        	if (ixgbe_allocate_transmit_buffers(txr)) {
+		/* Now allocate transmit buffers for the ring */
+		if (ixgbe_allocate_transmit_buffers(txr)) {
 			device_printf(dev,
 			    "Critical Failure setting up transmit buffers\n");
 			error = ENOMEM;
 			goto err_tx_desc;
-        	}
-#ifndef IXGBE_LEGACY_TX
-		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IXGBE_BR_SIZE, M_DEVBUF,
-		    M_WAITOK, &txr->tx_mtx);
-		if (txr->br == NULL) {
-			device_printf(dev,
-			    "Critical Failure setting up buf ring\n");
-			error = ENOMEM;
-			goto err_tx_desc;
-        	}
-#endif
+		}
+		if (!(adapter->feat_en & IXGBE_FEATURE_LEGACY_TX)) {
+			/* Allocate a buf ring */
+			txr->br = buf_ring_alloc(IXGBE_BR_SIZE, M_DEVBUF,
+			    M_WAITOK, &txr->tx_mtx);
+			if (txr->br == NULL) {
+				device_printf(dev,
+				    "Critical Failure setting up buf ring\n");
+				error = ENOMEM;
+				goto err_tx_desc;
+			}
+		}
 	}
 
 	/*
 	 * Next the RX queues...
-	 */ 
-	rsize = roundup2(adapter->num_rx_desc *
-	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
+	 */
+	rsize = roundup2(adapter->num_rx_desc * sizeof(union ixgbe_adv_rx_desc),
+	    DBA_ALIGN);
 	for (int i = 0; i < adapter->num_queues; i++, rxconf++) {
 		rxr = &adapter->rx_rings[i];
 		/* Set up some basics */
 		rxr->adapter = adapter;
-#ifdef PCI_IOV
-		rxr->me = ixgbe_pf_que_index(iov_mode, i);
-#else
-		rxr->me = i;
-#endif
+		/* In case SR-IOV is enabled, align the index properly */
+		rxr->me = ixgbe_vf_que_index(adapter->iov_mode, adapter->pool,
+		    i);
 		rxr->num_desc = adapter->num_rx_desc;
 
 		/* Initialize the RX side lock */
@@ -2243,8 +2151,8 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		    device_get_nameunit(dev), rxr->me);
 		mtx_init(&rxr->rx_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
-		if (ixgbe_dma_malloc(adapter, rsize,
-			&rxr->rxdma, BUS_DMA_NOWAIT)) {
+		if (ixgbe_dma_malloc(adapter, rsize, &rxr->rxdma,
+		    BUS_DMA_NOWAIT)) {
 			device_printf(dev,
 			    "Unable to allocate RxDescriptor memory\n");
 			error = ENOMEM;
@@ -2253,7 +2161,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		rxr->rx_base = (union ixgbe_adv_rx_desc *)rxr->rxdma.dma_vaddr;
 		bzero((void *)rxr->rx_base, rsize);
 
-        	/* Allocate receive buffers for the ring*/
+		/* Allocate receive buffers for the ring */
 		if (ixgbe_allocate_receive_buffers(rxr)) {
 			device_printf(dev,
 			    "Critical Failure setting up receive buffers\n");
@@ -2263,8 +2171,8 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	}
 
 	/*
-	** Finally set up the queue holding structs
-	*/
+	 * Finally set up the queue holding structs
+	 */
 	for (int i = 0; i < adapter->num_queues; i++) {
 		que = &adapter->queues[i];
 		que->adapter = adapter;
@@ -2288,4 +2196,4 @@ tx_fail:
 	free(adapter->queues, M_DEVBUF);
 fail:
 	return (error);
-}
+} /* ixgbe_allocate_queues */

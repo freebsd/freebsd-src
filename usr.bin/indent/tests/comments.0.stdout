@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /* See r303597, r303598, r309219, and r309343 */
-void 
+void
 t(void)
 {
 	/*

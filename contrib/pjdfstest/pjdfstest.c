@@ -26,14 +26,19 @@
  * $FreeBSD$
  */
 
+/* Needs to be first to twiddle appropriate system configuration/HAVE_* flags */
+#include "config.h"
+
 #include <sys/param.h>
-#include <sys/types.h>
+#ifdef	HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
+#ifdef	HAVE_SYS_MKDEV_H
+#include <sys/mkdev.h>
+#endif
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#ifndef makedev
-#include <sys/mkdev.h>
-#endif
 
 #include <assert.h>
 #include <ctype.h>
@@ -45,17 +50,14 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef HAS_TRUNCATE64
-#define	truncate64	truncate
-#define	ftruncate64	ftruncate
+#ifdef	__sun__
+#define	_USE_STAT64
 #endif
-#ifndef HAS_STAT64
-#define	stat64	stat
-#define	fstat64	fstat
-#define	lstat64	lstat
-#endif
-#ifdef HAS_FREEBSD_ACL
-#include <sys/acl.h>
+
+#ifdef	_USE_STAT64
+typedef	struct stat64	stat_t;
+#else
+typedef	struct stat	stat_t;
 #endif
 
 #ifndef ALLPERMS
@@ -64,69 +66,91 @@
 
 enum action {
 	ACTION_OPEN,
+#ifdef	HAVE_OPENAT
 	ACTION_OPENAT,
+#endif
 	ACTION_CREATE,
 	ACTION_UNLINK,
+#ifdef	HAVE_UNLINKAT
 	ACTION_UNLINKAT,
+#endif
 	ACTION_MKDIR,
+#ifdef	HAVE_MKDIRAT
 	ACTION_MKDIRAT,
+#endif
 	ACTION_RMDIR,
 	ACTION_LINK,
+#ifdef	HAVE_LINKAT
 	ACTION_LINKAT,
+#endif
 	ACTION_SYMLINK,
+#ifdef	HAVE_SYMLINKAT
 	ACTION_SYMLINKAT,
+#endif
 	ACTION_RENAME,
+#ifdef	HAVE_RENAMEAT
 	ACTION_RENAMEAT,
+#endif
 	ACTION_MKFIFO,
+#ifdef	HAVE_MKFIFOAT
 	ACTION_MKFIFOAT,
+#endif
 	ACTION_MKNOD,
 	ACTION_MKNODAT,
 	ACTION_BIND,
-#ifdef HAS_BINDAT
+#ifdef	HAVE_BINDAT
 	ACTION_BINDAT,
 #endif
 	ACTION_CONNECT,
-#ifdef HAS_CONNECTAT
+#ifdef	HAVE_CONNECTAT
 	ACTION_CONNECTAT,
 #endif
 	ACTION_CHMOD,
 	ACTION_FCHMOD,
-#ifdef HAS_LCHMOD
+#ifdef	HAVE_LCHMOD
 	ACTION_LCHMOD,
 #endif
 	ACTION_FCHMODAT,
 	ACTION_CHOWN,
 	ACTION_FCHOWN,
 	ACTION_LCHOWN,
+#ifdef	HAVE_FCHOWNAT
 	ACTION_FCHOWNAT,
-#ifdef HAS_CHFLAGS
+#endif
+#ifdef	HAVE_CHFLAGS
 	ACTION_CHFLAGS,
 #endif
-#ifdef HAS_FCHFLAGS
+#ifdef	HAVE_FCHFLAGS
 	ACTION_FCHFLAGS,
 #endif
-#ifdef HAS_CHFLAGSAT
+#ifdef	HAVE_CHFLAGSAT
 	ACTION_CHFLAGSAT,
 #endif
-#ifdef HAS_LCHFLAGS
+#ifdef	HAVE_LCHFLAGS
 	ACTION_LCHFLAGS,
 #endif
 	ACTION_TRUNCATE,
 	ACTION_FTRUNCATE,
+#ifdef	HAVE_POSIX_FALLOCATE
+	ACTION_POSIX_FALLOCATE,
+#endif
 	ACTION_STAT,
 	ACTION_FSTAT,
 	ACTION_LSTAT,
 	ACTION_FSTATAT,
 	ACTION_PATHCONF,
 	ACTION_FPATHCONF,
-#ifdef HAS_LPATHCONF
+#ifdef	HAVE_LPATHCONF
 	ACTION_LPATHCONF,
 #endif
-#ifdef HAS_FREEBSD_ACL
+#ifdef	HAS_NFSV4_ACL_SUPPORT
 	ACTION_PREPENDACL,
 	ACTION_READACL,
 #endif
 	ACTION_WRITE,
+#ifdef	HAVE_UTIMENSAT
+	ACTION_UTIMENSAT,
+#endif
 };
 
 #define	TYPE_NONE	0x0000
@@ -147,69 +171,104 @@ struct syscall_desc {
 
 static struct syscall_desc syscalls[] = {
 	{ "open", ACTION_OPEN, { TYPE_STRING, TYPE_STRING, TYPE_NUMBER | TYPE_OPTIONAL, TYPE_NONE } },
+#ifdef	HAVE_OPENAT
 	{ "openat", ACTION_OPENAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NUMBER | TYPE_OPTIONAL, TYPE_NONE } },
+#endif
 	{ "create", ACTION_CREATE, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "unlink", ACTION_UNLINK, { TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_UNLINKAT
 	{ "unlinkat", ACTION_UNLINKAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "mkdir", ACTION_MKDIR, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
+#ifdef	HAVE_MKDIRAT
 	{ "mkdirat", ACTION_MKDIRAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
+#endif
 	{ "rmdir", ACTION_RMDIR, { TYPE_STRING, TYPE_NONE } },
 	{ "link", ACTION_LINK, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_LINKAT
 	{ "linkat", ACTION_LINKAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "symlink", ACTION_SYMLINK, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_SYMLINKAT
 	{ "symlinkat", ACTION_SYMLINKAT, { TYPE_STRING, TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "rename", ACTION_RENAME, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_RENAMEAT
 	{ "renameat", ACTION_RENAMEAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "mkfifo", ACTION_MKFIFO, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
+#ifdef	HAVE_MKFIFOAT
 	{ "mkfifoat", ACTION_MKFIFOAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
+#endif
 	{ "mknod", ACTION_MKNOD, { TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
+#ifdef	HAVE_MKNODAT
 	{ "mknodat", ACTION_MKNODAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
+#endif
 	{ "bind", ACTION_BIND, { TYPE_STRING, TYPE_NONE } },
-#ifdef HAS_BINDAT
+#ifdef	HAVE_BINDAT
 	{ "bindat", ACTION_BINDAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
 #endif
 	{ "connect", ACTION_CONNECT, { TYPE_STRING, TYPE_NONE } },
-#ifdef HAS_CONNECTAT
+#ifdef	HAVE_CONNECTAT
 	{ "connectat", ACTION_CONNECTAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
 #endif
 	{ "chmod", ACTION_CHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "fchmod", ACTION_FCHMOD, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NONE } },
-#ifdef HAS_LCHMOD
+#ifdef	HAVE_LCHMOD
 	{ "lchmod", ACTION_LCHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 #endif
+#ifdef	HAVE_FCHMODAT
 	{ "fchmodat", ACTION_FCHMODAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NUMBER, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "chown", ACTION_CHOWN, { TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE } },
 	{ "fchown", ACTION_FCHOWN, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE } },
 	{ "lchown", ACTION_LCHOWN, { TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE } },
+#ifdef	HAVE_FCHOWNAT
 	{ "fchownat", ACTION_FCHOWNAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_STRING, TYPE_NONE } },
-#ifdef HAS_CHFLAGS
+#endif
+#ifdef	HAVE_CHFLAGS
 	{ "chflags", ACTION_CHFLAGS, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
-#ifdef HAS_FCHFLAGS
+#ifdef	HAVE_FCHFLAGS
 	{ "fchflags", ACTION_FCHFLAGS, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
 #endif
-#ifdef HAS_CHFLAGSAT
+#ifdef	HAVE_CHFLAGSAT
 	{ "chflagsat", ACTION_CHFLAGSAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
-#ifdef HAS_LCHFLAGS
+#ifdef	HAVE_LCHFLAGS
 	{ "lchflags", ACTION_LCHFLAGS, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
 	{ "truncate", ACTION_TRUNCATE, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "ftruncate", ACTION_FTRUNCATE, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NONE } },
+#ifdef	HAVE_POSIX_FALLOCATE
+	{ "posix_fallocate", ACTION_POSIX_FALLOCATE, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE } },
+#endif
 	{ "stat", ACTION_STAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "fstat", ACTION_FSTAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
 	{ "lstat", ACTION_LSTAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_FSTATAT
 	{ "fstatat", ACTION_FSTATAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "pathconf", ACTION_PATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "fpathconf", ACTION_FPATHCONF, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
-#ifdef HAS_LPATHCONF
+#ifdef	HAVE_LPATHCONF
 	{ "lpathconf", ACTION_LPATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
-#ifdef HAS_FREEBSD_ACL
+#ifdef	HAS_NFSV4_ACL_SUPPORT
 	{ "prependacl", ACTION_PREPENDACL, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "readacl", ACTION_READACL, { TYPE_STRING, TYPE_NONE } },
 #endif
 	{ "write", ACTION_WRITE, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#ifdef	HAVE_UTIMENSAT
+	{ "utimensat", ACTION_UTIMENSAT, {
+						 TYPE_DESCRIPTOR, /* Directory */
+						 TYPE_STRING, /* Relative path */
+						 TYPE_NUMBER, /* atime seconds */
+						 TYPE_STRING, /* atime nanoseconds */
+						 TYPE_NUMBER, /* mtime seconds */
+						 TYPE_STRING, /* mtime nanoseconds */
+						 TYPE_STRING, /* flags */}},
+#endif
 	{ NULL, -1, { TYPE_NONE } }
 };
 
@@ -219,122 +278,136 @@ struct flag {
 };
 
 static struct flag open_flags[] = {
-#ifdef O_RDONLY
+#ifdef	O_RDONLY
 	{ O_RDONLY, "O_RDONLY" },
 #endif
-#ifdef O_WRONLY
+#ifdef	O_WRONLY
 	{ O_WRONLY, "O_WRONLY" },
 #endif
-#ifdef O_RDWR
+#ifdef	O_RDWR
 	{ O_RDWR, "O_RDWR" },
 #endif
-#ifdef O_NONBLOCK
+#ifdef	O_NONBLOCK
 	{ O_NONBLOCK, "O_NONBLOCK" },
 #endif
-#ifdef O_APPEND
+#ifdef	O_APPEND
 	{ O_APPEND, "O_APPEND" },
 #endif
-#ifdef O_CREAT
+#ifdef	O_CREAT
 	{ O_CREAT, "O_CREAT" },
 #endif
-#ifdef O_TRUNC
+#ifdef	O_TRUNC
 	{ O_TRUNC, "O_TRUNC" },
 #endif
-#ifdef O_EXCL
+#ifdef	O_EXCL
 	{ O_EXCL, "O_EXCL" },
 #endif
-#ifdef O_SHLOCK
+#ifdef	O_SHLOCK
 	{ O_SHLOCK, "O_SHLOCK" },
 #endif
-#ifdef O_EXLOCK
+#ifdef	O_EXLOCK
 	{ O_EXLOCK, "O_EXLOCK" },
 #endif
-#ifdef O_DIRECT
+#ifdef	O_DIRECT
 	{ O_DIRECT, "O_DIRECT" },
 #endif
-#ifdef O_FSYNC
+#ifdef	O_FSYNC
 	{ O_FSYNC, "O_FSYNC" },
 #endif
-#ifdef O_SYNC
+#ifdef	O_SYNC
 	{ O_SYNC, "O_SYNC" },
 #endif
-#ifdef O_NOFOLLOW
+#ifdef	O_NOFOLLOW
 	{ O_NOFOLLOW, "O_NOFOLLOW" },
 #endif
-#ifdef O_NOCTTY
+#ifdef	O_NOCTTY
 	{ O_NOCTTY, "O_NOCTTY" },
 #endif
-#ifdef O_DIRECTORY
+#ifdef	O_DIRECTORY
 	{ O_DIRECTORY, "O_DIRECTORY" },
 #endif
 	{ 0, NULL }
 };
 
-#ifdef HAS_CHFLAGS
+#ifdef	HAVE_CHFLAGS
 static struct flag chflags_flags[] = {
-#ifdef UF_NODUMP
+#ifdef	UF_NODUMP
 	{ UF_NODUMP, "UF_NODUMP" },
 #endif
-#ifdef UF_IMMUTABLE
+#ifdef	UF_IMMUTABLE
 	{ UF_IMMUTABLE, "UF_IMMUTABLE" },
 #endif
-#ifdef UF_APPEND
+#ifdef	UF_APPEND
 	{ UF_APPEND, "UF_APPEND" },
 #endif
-#ifdef UF_NOUNLINK
+#ifdef	UF_NOUNLINK
 	{ UF_NOUNLINK, "UF_NOUNLINK" },
 #endif
-#ifdef UF_OPAQUE
+#ifdef	UF_OPAQUE
 	{ UF_OPAQUE, "UF_OPAQUE" },
 #endif
-#ifdef SF_ARCHIVED
+#ifdef	SF_ARCHIVED
 	{ SF_ARCHIVED, "SF_ARCHIVED" },
 #endif
-#ifdef SF_IMMUTABLE
+#ifdef	SF_IMMUTABLE
 	{ SF_IMMUTABLE, "SF_IMMUTABLE" },
 #endif
-#ifdef SF_APPEND
+#ifdef	SF_APPEND
 	{ SF_APPEND, "SF_APPEND" },
 #endif
-#ifdef SF_NOUNLINK
+#ifdef	SF_NOUNLINK
 	{ SF_NOUNLINK, "SF_NOUNLINK" },
 #endif
-#ifdef SF_SNAPSHOT
+#ifdef	SF_SNAPSHOT
 	{ SF_SNAPSHOT, "SF_SNAPSHOT" },
 #endif
 	{ 0, NULL }
 };
 #endif
 
+#ifdef	HAVE_UNLINKAT
 static struct flag unlinkat_flags[] = {
 	{ AT_REMOVEDIR, "AT_REMOVEDIR" },
 	{ 0, NULL }
 };
+#endif
 
+#ifdef	HAVE_LINKAT
 static struct flag linkat_flags[] = {
+#ifdef	AT_SYMLINK_FOLLOW
 	{ AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW" },
+#endif
 	{ 0, NULL }
 };
+#endif
 
+#ifdef	HAVE_CHFLAGSAT
 static struct flag chflagsat_flags[] = {
 	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
+#endif
 
+#ifdef	HAVE_FCHMODAT
 static struct flag fchmodat_flags[] = {
 	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
+#endif
 
+#ifdef	HAVE_FCHOWNAT
 static struct flag fchownat_flags[] = {
 	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
+#endif
 
+#ifdef	HAVE_FSTATAT
 static struct flag fstatat_flags[] = {
 	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
+#endif
 
 struct name {
 	int		 n_name;
@@ -342,16 +415,16 @@ struct name {
 };
 
 static struct name pathconf_names[] = {
-#ifdef _PC_LINK_MAX
+#ifdef	_PC_LINK_MAX
 	{ _PC_LINK_MAX, "_PC_LINK_MAX" },
 #endif
-#ifdef _PC_NAME_MAX
+#ifdef	_PC_NAME_MAX
 	{ _PC_NAME_MAX, "_PC_NAME_MAX" },
 #endif
-#ifdef _PC_PATH_MAX
+#ifdef	_PC_PATH_MAX
 	{ _PC_PATH_MAX, "_PC_PATH_MAX" },
 #endif
-#ifdef _PC_SYMLINK_MAX
+#ifdef	_PC_SYMLINK_MAX
 	{ _PC_SYMLINK_MAX, "_PC_SYMLINK_MAX" },
 #endif
 	{ 0, NULL }
@@ -394,7 +467,7 @@ str2flags(struct flag *tflags, char *sflags)
 	return (flags);
 }
 
-#ifdef HAS_CHFLAGS
+#ifdef	HAVE_CHFLAGS
 static char *
 flags2str(struct flag *tflags, long long flags)
 {
@@ -440,7 +513,7 @@ find_syscall(const char *name)
 }
 
 static void
-show_stat(struct stat64 *sp, const char *what)
+show_stat(stat_t *sp, const char *what)
 {
 
 	if (strcmp(what, "mode") == 0)
@@ -459,11 +532,51 @@ show_stat(struct stat64 *sp, const char *what)
 		printf("%lld", (long long)sp->st_blocks);
 	else if (strcmp(what, "atime") == 0)
 		printf("%lld", (long long)sp->st_atime);
-	else if (strcmp(what, "mtime") == 0)
-		printf("%lld", (long long)sp->st_mtime);
+#if	defined(HAVE_STRUCT_STAT_ST_ATIM) || \
+	defined(HAVE_STRUCT_STAT_ST_ATIMESPEC)
+	else if (strcmp(what, "atime_ns") == 0)
+#ifdef	HAVE_STRUCT_STAT_ST_ATIMESPEC
+		printf("%lld", (long long)sp->st_atimespec.tv_nsec);
+#else
+		printf("%lld", (long long)sp->st_atim.tv_nsec);
+#endif
+#endif	/* st_atim* */
 	else if (strcmp(what, "ctime") == 0)
 		printf("%lld", (long long)sp->st_ctime);
-#ifdef HAS_CHFLAGS
+#if	defined(HAVE_STRUCT_STAT_ST_CTIM) || \
+	defined(HAVE_STRUCT_STAT_ST_CTIMESPEC)
+	else if (strcmp(what, "ctime_ns") == 0)
+#ifdef	HAVE_STRUCT_STAT_ST_CTIMESPEC
+		printf("%lld", (long long)sp->st_ctimespec.tv_nsec);
+#else
+		printf("%lld", (long long)sp->st_ctim.tv_nsec);
+#endif
+#endif	/* st_ctim* */
+	else if (strcmp(what, "mtime") == 0)
+		printf("%lld", (long long)sp->st_mtime);
+	else if (strcmp(what, "mtime_ns") == 0)
+#if	defined(HAVE_STRUCT_STAT_ST_MTIM) || \
+	defined(HAVE_STRUCT_STAT_ST_MTIMESPEC)
+#ifdef	HAVE_STRUCT_STAT_ST_MTIMESPEC
+		printf("%lld", (long long)sp->st_mtimespec.tv_nsec);
+#else
+		printf("%lld", (long long)sp->st_mtim.tv_nsec);
+#endif
+#endif	/* st_mtim* */
+#ifdef	HAVE_STRUCT_STAT_ST_BIRTHTIME
+	else if (strcmp(what, "birthtime") == 0)
+		printf("%lld", (long long)sp->st_birthtime);
+#endif	/* st_birthtime */
+#if	defined(HAVE_STRUCT_STAT_ST_BIRTHTIM) || \
+	defined(HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC)
+	else if (strcmp(what, "birthtime_ns") == 0)
+#ifdef	HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC
+		printf("%lld", (long long)sp->st_birthtimespec.tv_nsec);
+#else
+		printf("%lld", (long long)sp->st_birthtim.tv_nsec);
+#endif
+#endif	/* st_birthtim{,espec} */
+#ifdef	HAVE_CHFLAGS
 	else if (strcmp(what, "flags") == 0)
 		printf("%s", flags2str(chflags_flags, (long long)sp->st_flags));
 #endif
@@ -504,7 +617,7 @@ show_stat(struct stat64 *sp, const char *what)
 }
 
 static void
-show_stats(struct stat64 *sp, char *what)
+show_stats(stat_t *sp, char *what)
 {
 	const char *s = "";
 	char *w;
@@ -547,7 +660,11 @@ descriptor_get(int pos)
 static unsigned int
 call_syscall(struct syscall_desc *scall, char *argv[])
 {
-	struct stat64 sb;
+	stat_t sb;
+#ifdef	HAVE_UTIMENSAT
+	struct timespec times[2];
+	int flag;
+#endif
 	long long flags;
 	unsigned int i;
 	char *endp;
@@ -556,7 +673,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		char *str;
 		long long num;
 	} args[MAX_ARGS];
-#ifdef HAS_FREEBSD_ACL
+#ifdef	HAS_NFSV4_ACL_SUPPORT
 	int entry_id = ACL_FIRST_ENTRY;
 	acl_t acl, newacl;
 	acl_entry_t entry, newentry;
@@ -645,6 +762,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		if (rval >= 0)
 			descriptor_add(rval);
 		break;
+#ifdef	HAVE_OPENAT
 	case ACTION_OPENAT:
 		flags = str2flags(open_flags, STR(2));
 		if (flags & O_CREAT) {
@@ -664,6 +782,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		if (rval >= 0)
 			descriptor_add(rval);
 		break;
+#endif
 	case ACTION_CREATE:
 		rval = open(STR(0), O_CREAT | O_EXCL, (mode_t)NUM(1));
 		if (rval >= 0)
@@ -672,46 +791,60 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_UNLINK:
 		rval = unlink(STR(0));
 		break;
+#ifdef	HAVE_UNLINKAT
 	case ACTION_UNLINKAT:
 		rval = unlinkat(NUM(0), STR(1),
 		    (int)str2flags(unlinkat_flags, STR(2)));
 		break;
+#endif
 	case ACTION_MKDIR:
 		rval = mkdir(STR(0), (mode_t)NUM(1));
 		break;
+#ifdef	HAVE_MKDIRAT
 	case ACTION_MKDIRAT:
 		rval = mkdirat(NUM(0), STR(1), (mode_t)NUM(2));
 		break;
+#endif
 	case ACTION_RMDIR:
 		rval = rmdir(STR(0));
 		break;
 	case ACTION_LINK:
 		rval = link(STR(0), STR(1));
 		break;
+#ifdef	HAVE_LINKAT
 	case ACTION_LINKAT:
 		rval = linkat(NUM(0), STR(1), NUM(2), STR(3),
 		    (int)str2flags(linkat_flags, STR(4)));
 		break;
+#endif
 	case ACTION_SYMLINK:
 		rval = symlink(STR(0), STR(1));
 		break;
+#ifdef	HAVE_SYMLINKAT
 	case ACTION_SYMLINKAT:
 		rval = symlinkat(STR(0), NUM(1), STR(2));
 		break;
+#endif
 	case ACTION_RENAME:
 		rval = rename(STR(0), STR(1));
 		break;
+#ifdef	HAVE_RENAMEAT
 	case ACTION_RENAMEAT:
 		rval = renameat(NUM(0), STR(1), NUM(2), STR(3));
 		break;
+#endif
 	case ACTION_MKFIFO:
 		rval = mkfifo(STR(0), (mode_t)NUM(1));
 		break;
+#ifdef	HAVE_MKFIFOAT
 	case ACTION_MKFIFOAT:
 		rval = mkfifoat(NUM(0), STR(1), (mode_t)NUM(2));
 		break;
+#endif
 	case ACTION_MKNOD:
+#ifdef	HAVE_MKNODAT
 	case ACTION_MKNODAT:
+#endif
 	    {
 		mode_t ntype;
 		dev_t dev;
@@ -721,9 +854,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		case ACTION_MKNOD:
 			fa = 0;
 			break;
+#ifdef	HAVE_MKNODAT
 		case ACTION_MKNODAT:
 			fa = 1;
 			break;
+#endif
 		default:
 			abort();
 		}
@@ -747,9 +882,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		case ACTION_MKNOD:
 			rval = mknod(STR(0), ntype | NUM(2), dev);
 			break;
+#ifdef	HAVE_MKNODAT
 		case ACTION_MKNODAT:
 			rval = mknodat(NUM(0), STR(1), ntype | NUM(3), dev);
 			break;
+#endif
 		default:
 			abort();
 		}
@@ -768,7 +905,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = bind(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
-#ifdef HAS_BINDAT
+#ifdef	HAVE_BINDAT
 	case ACTION_BINDAT:
 	    {
 		struct sockaddr_un sunx;
@@ -797,7 +934,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = connect(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
-#ifdef HAS_CONNECTAT
+#ifdef	HAVE_CONNECTAT
 	case ACTION_CONNECTAT:
 	    {
 		struct sockaddr_un sunx;
@@ -819,15 +956,17 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_FCHMOD:
 		rval = fchmod(NUM(0), (mode_t)NUM(1));
 		break;
-#ifdef HAS_LCHMOD
+#ifdef	HAVE_LCHMOD
 	case ACTION_LCHMOD:
 		rval = lchmod(STR(0), (mode_t)NUM(1));
 		break;
 #endif
+#ifdef	HAVE_FCHMODAT
 	case ACTION_FCHMODAT:
 		rval = fchmodat(NUM(0), STR(1), (mode_t)NUM(2),
 		    str2flags(fchmodat_flags, STR(3)));
 		break;
+#endif
 	case ACTION_CHOWN:
 		rval = chown(STR(0), (uid_t)NUM(1), (gid_t)NUM(2));
 		break;
@@ -837,62 +976,94 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_LCHOWN:
 		rval = lchown(STR(0), (uid_t)NUM(1), (gid_t)NUM(2));
 		break;
+#ifdef	HAVE_FCHOWNAT
 	case ACTION_FCHOWNAT:
 		rval = fchownat(NUM(0), STR(1), (uid_t)NUM(2), (gid_t)NUM(3),
 		    (int)str2flags(fchownat_flags, STR(4)));
 		break;
-#ifdef HAS_CHFLAGS
+#endif
+#ifdef	HAVE_CHFLAGS
 	case ACTION_CHFLAGS:
 		rval = chflags(STR(0),
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
-#ifdef HAS_FCHFLAGS
+#ifdef	HAVE_FCHFLAGS
 	case ACTION_FCHFLAGS:
 		rval = fchflags(NUM(0),
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
-#ifdef HAS_CHFLAGSAT
+#ifdef	HAVE_CHFLAGSAT
 	case ACTION_CHFLAGSAT:
 		rval = chflagsat(NUM(0), STR(1),
 		    (unsigned long)str2flags(chflags_flags, STR(2)),
 		    (int)str2flags(chflagsat_flags, STR(3)));
 		break;
 #endif
-#ifdef HAS_LCHFLAGS
+#ifdef	HAVE_LCHFLAGS
 	case ACTION_LCHFLAGS:
 		rval = lchflags(STR(0),
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 	case ACTION_TRUNCATE:
+#ifdef	_USE_STAT64
 		rval = truncate64(STR(0), NUM(1));
+#else
+		rval = truncate(STR(0), NUM(1));
+#endif
 		break;
 	case ACTION_FTRUNCATE:
+#ifdef	_USE_STAT64
 		rval = ftruncate64(NUM(0), NUM(1));
+#else
+		rval = ftruncate(NUM(0), NUM(1));
+#endif
 		break;
+#ifdef	HAVE_POSIX_FALLOCATE
+	case ACTION_POSIX_FALLOCATE:
+		rval = posix_fallocate(NUM(0), NUM(1), NUM(2));
+		if (rval != 0) {
+			errno = rval;
+			rval = -1;
+		}
+		break;
+#endif
 	case ACTION_STAT:
+#ifdef	_USE_STAT64
 		rval = stat64(STR(0), &sb);
+#else
+		rval = stat(STR(0), &sb);
+#endif
 		if (rval == 0) {
 			show_stats(&sb, STR(1));
 			return (i);
 		}
 		break;
 	case ACTION_FSTAT:
+#ifdef	_USE_STAT64
 		rval = fstat64(NUM(0), &sb);
+#else
+		rval = fstat(NUM(0), &sb);
+#endif
 		if (rval == 0) {
 			show_stats(&sb, STR(1));
 			return (i);
 		}
 		break;
 	case ACTION_LSTAT:
+#ifdef	_USE_STAT64
 		rval = lstat64(STR(0), &sb);
+#else
+		rval = lstat(STR(0), &sb);
+#endif
 		if (rval == 0) {
 			show_stats(&sb, STR(1));
 			return (i);
 		}
 		break;
+#ifdef	HAVE_FSTATAT
 	case ACTION_FSTATAT:
 		rval = fstatat(NUM(0), STR(1), &sb,
 		    (int)str2flags(fstatat_flags, STR(2)));
@@ -901,9 +1072,10 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 			return (i);
 		}
 		break;
+#endif
 	case ACTION_PATHCONF:
 	case ACTION_FPATHCONF:
-#ifdef HAS_LPATHCONF
+#ifdef	HAVE_LPATHCONF
 	case ACTION_LPATHCONF:
 #endif
 	    {
@@ -922,7 +1094,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		case ACTION_FPATHCONF:
 			lrval = fpathconf(NUM(0), name);
 			break;
-#ifdef HAS_LPATHCONF
+#ifdef	HAVE_LPATHCONF
 		case ACTION_LPATHCONF:
 			lrval = lpathconf(STR(0), name);
 			break;
@@ -940,7 +1112,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = -1;
 		break;
 	    }
-#ifdef HAS_FREEBSD_ACL
+#ifdef	HAS_NFSV4_ACL_SUPPORT
 	case ACTION_PREPENDACL:
 		rval = -1;
 
@@ -975,6 +1147,29 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_WRITE:
 		rval = write(NUM(0), STR(1), strlen(STR(1)));
 		break;
+#ifdef	HAVE_UTIMENSAT
+	case ACTION_UTIMENSAT:
+		times[0].tv_sec = NUM(2);
+		if (strcmp(STR(3), "UTIME_NOW") == 0)
+			times[0].tv_nsec = UTIME_NOW;
+		else if (strcmp(STR(3), "UTIME_OMIT") == 0)
+			times[0].tv_nsec = UTIME_OMIT;
+		else
+			times[0].tv_nsec = strtol(STR(3), NULL, 10);
+		times[1].tv_sec = NUM(4);
+		if (strcmp(STR(5), "UTIME_NOW") == 0)
+			times[1].tv_nsec = UTIME_NOW;
+		else if (strcmp(STR(5), "UTIME_OMIT") == 0)
+			times[1].tv_nsec = UTIME_OMIT;
+		else
+			times[1].tv_nsec = strtol(STR(5), NULL, 10);
+		if (strcmp(STR(6), "AT_SYMLINK_NOFOLLOW") == 0)
+			flag = AT_SYMLINK_NOFOLLOW;
+		else
+			flag = strtol(STR(6), NULL, 10);
+		rval = utimensat(NUM(0), STR(1), times, flag);
+		break;
+#endif
 	default:
 		fprintf(stderr, "unsupported syscall\n");
 		exit(1);
@@ -1007,7 +1202,7 @@ set_gids(char *gids)
 	assert(gidset != NULL);
 	for (i = 0, g = strtok(gids, ","); g != NULL;
 	    g = strtok(NULL, ","), i++) {
-		if (i >= ngroups) {
+		if ((long)i >= ngroups) {
 			fprintf(stderr, "too many gids\n");
 			exit(1);
 		}
@@ -1118,371 +1313,371 @@ err2str(int error)
 	static char errnum[8];
 
 	switch (error) {
-#ifdef EPERM
+#ifdef	EPERM
 	case EPERM:
 		return ("EPERM");
 #endif
-#ifdef ENOENT
+#ifdef	ENOENT
 	case ENOENT:
 		return ("ENOENT");
 #endif
-#ifdef ESRCH
+#ifdef	ESRCH
 	case ESRCH:
 		return ("ESRCH");
 #endif
-#ifdef EINTR
+#ifdef	EINTR
 	case EINTR:
 		return ("EINTR");
 #endif
-#ifdef EIO
+#ifdef	EIO
 	case EIO:
 		return ("EIO");
 #endif
-#ifdef ENXIO
+#ifdef	ENXIO
 	case ENXIO:
 		return ("ENXIO");
 #endif
-#ifdef E2BIG
+#ifdef	E2BIG
 	case E2BIG:
 		return ("E2BIG");
 #endif
-#ifdef ENOEXEC
+#ifdef	ENOEXEC
 	case ENOEXEC:
 		return ("ENOEXEC");
 #endif
-#ifdef EBADF
+#ifdef	EBADF
 	case EBADF:
 		return ("EBADF");
 #endif
-#ifdef ECHILD
+#ifdef	ECHILD
 	case ECHILD:
 		return ("ECHILD");
 #endif
-#ifdef EDEADLK
+#ifdef	EDEADLK
 	case EDEADLK:
 		return ("EDEADLK");
 #endif
-#ifdef ENOMEM
+#ifdef	ENOMEM
 	case ENOMEM:
 		return ("ENOMEM");
 #endif
-#ifdef EACCES
+#ifdef	EACCES
 	case EACCES:
 		return ("EACCES");
 #endif
-#ifdef EFAULT
+#ifdef	EFAULT
 	case EFAULT:
 		return ("EFAULT");
 #endif
-#ifdef ENOTBLK
+#ifdef	ENOTBLK
 	case ENOTBLK:
 		return ("ENOTBLK");
 #endif
-#ifdef EBUSY
+#ifdef	EBUSY
 	case EBUSY:
 		return ("EBUSY");
 #endif
-#ifdef EEXIST
+#ifdef	EEXIST
 	case EEXIST:
 		return ("EEXIST");
 #endif
-#ifdef EXDEV
+#ifdef	EXDEV
 	case EXDEV:
 		return ("EXDEV");
 #endif
-#ifdef ENODEV
+#ifdef	ENODEV
 	case ENODEV:
 		return ("ENODEV");
 #endif
-#ifdef ENOTDIR
+#ifdef	ENOTDIR
 	case ENOTDIR:
 		return ("ENOTDIR");
 #endif
-#ifdef EISDIR
+#ifdef	EISDIR
 	case EISDIR:
 		return ("EISDIR");
 #endif
-#ifdef EINVAL
+#ifdef	EINVAL
 	case EINVAL:
 		return ("EINVAL");
 #endif
-#ifdef ENFILE
+#ifdef	ENFILE
 	case ENFILE:
 		return ("ENFILE");
 #endif
-#ifdef EMFILE
+#ifdef	EMFILE
 	case EMFILE:
 		return ("EMFILE");
 #endif
-#ifdef ENOTTY
+#ifdef	ENOTTY
 	case ENOTTY:
 		return ("ENOTTY");
 #endif
-#ifdef ETXTBSY
+#ifdef	ETXTBSY
 	case ETXTBSY:
 		return ("ETXTBSY");
 #endif
-#ifdef EFBIG
+#ifdef	EFBIG
 	case EFBIG:
 		return ("EFBIG");
 #endif
-#ifdef ENOSPC
+#ifdef	ENOSPC
 	case ENOSPC:
 		return ("ENOSPC");
 #endif
-#ifdef ESPIPE
+#ifdef	ESPIPE
 	case ESPIPE:
 		return ("ESPIPE");
 #endif
-#ifdef EROFS
+#ifdef	EROFS
 	case EROFS:
 		return ("EROFS");
 #endif
-#ifdef EMLINK
+#ifdef	EMLINK
 	case EMLINK:
 		return ("EMLINK");
 #endif
-#ifdef EPIPE
+#ifdef	EPIPE
 	case EPIPE:
 		return ("EPIPE");
 #endif
-#ifdef EDOM
+#ifdef	EDOM
 	case EDOM:
 		return ("EDOM");
 #endif
-#ifdef ERANGE
+#ifdef	ERANGE
 	case ERANGE:
 		return ("ERANGE");
 #endif
-#ifdef EAGAIN
+#ifdef	EAGAIN
 	case EAGAIN:
 		return ("EAGAIN");
 #endif
-#ifdef EINPROGRESS
+#ifdef	EINPROGRESS
 	case EINPROGRESS:
 		return ("EINPROGRESS");
 #endif
-#ifdef EALREADY
+#ifdef	EALREADY
 	case EALREADY:
 		return ("EALREADY");
 #endif
-#ifdef ENOTSOCK
+#ifdef	ENOTSOCK
 	case ENOTSOCK:
 		return ("ENOTSOCK");
 #endif
-#ifdef EDESTADDRREQ
+#ifdef	EDESTADDRREQ
 	case EDESTADDRREQ:
 		return ("EDESTADDRREQ");
 #endif
-#ifdef EMSGSIZE
+#ifdef	EMSGSIZE
 	case EMSGSIZE:
 		return ("EMSGSIZE");
 #endif
-#ifdef EPROTOTYPE
+#ifdef	EPROTOTYPE
 	case EPROTOTYPE:
 		return ("EPROTOTYPE");
 #endif
-#ifdef ENOPROTOOPT
+#ifdef	ENOPROTOOPT
 	case ENOPROTOOPT:
 		return ("ENOPROTOOPT");
 #endif
-#ifdef EPROTONOSUPPORT
+#ifdef	EPROTONOSUPPORT
 	case EPROTONOSUPPORT:
 		return ("EPROTONOSUPPORT");
 #endif
-#ifdef ESOCKTNOSUPPORT
+#ifdef	ESOCKTNOSUPPORT
 	case ESOCKTNOSUPPORT:
 		return ("ESOCKTNOSUPPORT");
 #endif
-#ifdef EOPNOTSUPP
+#ifdef	EOPNOTSUPP
 	case EOPNOTSUPP:
 		return ("EOPNOTSUPP");
 #endif
-#ifdef EPFNOSUPPORT
+#ifdef	EPFNOSUPPORT
 	case EPFNOSUPPORT:
 		return ("EPFNOSUPPORT");
 #endif
-#ifdef EAFNOSUPPORT
+#ifdef	EAFNOSUPPORT
 	case EAFNOSUPPORT:
 		return ("EAFNOSUPPORT");
 #endif
-#ifdef EADDRINUSE
+#ifdef	EADDRINUSE
 	case EADDRINUSE:
 		return ("EADDRINUSE");
 #endif
-#ifdef EADDRNOTAVAIL
+#ifdef	EADDRNOTAVAIL
 	case EADDRNOTAVAIL:
 		return ("EADDRNOTAVAIL");
 #endif
-#ifdef ENETDOWN
+#ifdef	ENETDOWN
 	case ENETDOWN:
 		return ("ENETDOWN");
 #endif
-#ifdef ENETUNREACH
+#ifdef	ENETUNREACH
 	case ENETUNREACH:
 		return ("ENETUNREACH");
 #endif
-#ifdef ENETRESET
+#ifdef	ENETRESET
 	case ENETRESET:
 		return ("ENETRESET");
 #endif
-#ifdef ECONNABORTED
+#ifdef	ECONNABORTED
 	case ECONNABORTED:
 		return ("ECONNABORTED");
 #endif
-#ifdef ECONNRESET
+#ifdef	ECONNRESET
 	case ECONNRESET:
 		return ("ECONNRESET");
 #endif
-#ifdef ENOBUFS
+#ifdef	ENOBUFS
 	case ENOBUFS:
 		return ("ENOBUFS");
 #endif
-#ifdef EISCONN
+#ifdef	EISCONN
 	case EISCONN:
 		return ("EISCONN");
 #endif
-#ifdef ENOTCONN
+#ifdef	ENOTCONN
 	case ENOTCONN:
 		return ("ENOTCONN");
 #endif
-#ifdef ESHUTDOWN
+#ifdef	ESHUTDOWN
 	case ESHUTDOWN:
 		return ("ESHUTDOWN");
 #endif
-#ifdef ETOOMANYREFS
+#ifdef	ETOOMANYREFS
 	case ETOOMANYREFS:
 		return ("ETOOMANYREFS");
 #endif
-#ifdef ETIMEDOUT
+#ifdef	ETIMEDOUT
 	case ETIMEDOUT:
 		return ("ETIMEDOUT");
 #endif
-#ifdef ECONNREFUSED
+#ifdef	ECONNREFUSED
 	case ECONNREFUSED:
 		return ("ECONNREFUSED");
 #endif
-#ifdef ELOOP
+#ifdef	ELOOP
 	case ELOOP:
 		return ("ELOOP");
 #endif
-#ifdef ENAMETOOLONG
+#ifdef	ENAMETOOLONG
 	case ENAMETOOLONG:
 		return ("ENAMETOOLONG");
 #endif
-#ifdef EHOSTDOWN
+#ifdef	EHOSTDOWN
 	case EHOSTDOWN:
 		return ("EHOSTDOWN");
 #endif
-#ifdef EHOSTUNREACH
+#ifdef	EHOSTUNREACH
 	case EHOSTUNREACH:
 		return ("EHOSTUNREACH");
 #endif
-#ifdef ENOTEMPTY
+#ifdef	ENOTEMPTY
 	case ENOTEMPTY:
 		return ("ENOTEMPTY");
 #endif
-#ifdef EPROCLIM
+#ifdef	EPROCLIM
 	case EPROCLIM:
 		return ("EPROCLIM");
 #endif
-#ifdef EUSERS
+#ifdef	EUSERS
 	case EUSERS:
 		return ("EUSERS");
 #endif
-#ifdef EDQUOT
+#ifdef	EDQUOT
 	case EDQUOT:
 		return ("EDQUOT");
 #endif
-#ifdef ESTALE
+#ifdef	ESTALE
 	case ESTALE:
 		return ("ESTALE");
 #endif
-#ifdef EREMOTE
+#ifdef	EREMOTE
 	case EREMOTE:
 		return ("EREMOTE");
 #endif
-#ifdef EBADRPC
+#ifdef	EBADRPC
 	case EBADRPC:
 		return ("EBADRPC");
 #endif
-#ifdef ERPCMISMATCH
+#ifdef	ERPCMISMATCH
 	case ERPCMISMATCH:
 		return ("ERPCMISMATCH");
 #endif
-#ifdef EPROGUNAVAIL
+#ifdef	EPROGUNAVAIL
 	case EPROGUNAVAIL:
 		return ("EPROGUNAVAIL");
 #endif
-#ifdef EPROGMISMATCH
+#ifdef	EPROGMISMATCH
 	case EPROGMISMATCH:
 		return ("EPROGMISMATCH");
 #endif
-#ifdef EPROCUNAVAIL
+#ifdef	EPROCUNAVAIL
 	case EPROCUNAVAIL:
 		return ("EPROCUNAVAIL");
 #endif
-#ifdef ENOLCK
+#ifdef	ENOLCK
 	case ENOLCK:
 		return ("ENOLCK");
 #endif
-#ifdef ENOSYS
+#ifdef	ENOSYS
 	case ENOSYS:
 		return ("ENOSYS");
 #endif
-#ifdef EFTYPE
+#ifdef	EFTYPE
 	case EFTYPE:
 		return ("EFTYPE");
 #endif
-#ifdef EAUTH
+#ifdef	EAUTH
 	case EAUTH:
 		return ("EAUTH");
 #endif
-#ifdef ENEEDAUTH
+#ifdef	ENEEDAUTH
 	case ENEEDAUTH:
 		return ("ENEEDAUTH");
 #endif
-#ifdef EIDRM
+#ifdef	EIDRM
 	case EIDRM:
 		return ("EIDRM");
 #endif
-#ifdef ENOMSG
+#ifdef	ENOMSG
 	case ENOMSG:
 		return ("ENOMSG");
 #endif
-#ifdef EOVERFLOW
+#ifdef	EOVERFLOW
 	case EOVERFLOW:
 		return ("EOVERFLOW");
 #endif
-#ifdef ECANCELED
+#ifdef	ECANCELED
 	case ECANCELED:
 		return ("ECANCELED");
 #endif
-#ifdef EILSEQ
+#ifdef	EILSEQ
 	case EILSEQ:
 		return ("EILSEQ");
 #endif
-#ifdef ENOATTR
+#ifdef	ENOATTR
 	case ENOATTR:
 		return ("ENOATTR");
 #endif
-#ifdef EDOOFUS
+#ifdef	EDOOFUS
 	case EDOOFUS:
 		return ("EDOOFUS");
 #endif
-#ifdef EBADMSG
+#ifdef	EBADMSG
 	case EBADMSG:
 		return ("EBADMSG");
 #endif
-#ifdef EMULTIHOP
+#ifdef	EMULTIHOP
 	case EMULTIHOP:
 		return ("EMULTIHOP");
 #endif
-#ifdef ENOLINK
+#ifdef	ENOLINK
 	case ENOLINK:
 		return ("ENOLINK");
 #endif
-#ifdef EPROTO
+#ifdef	EPROTO
 	case EPROTO:
 		return ("EPROTO");
 #endif

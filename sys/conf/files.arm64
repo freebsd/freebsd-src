@@ -37,6 +37,12 @@ arm/allwinner/clk/aw_pll.c	optional	aw_ccu fdt \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
 arm/allwinner/clk/aw_thsclk.c	optional	aw_ccu fdt
 arm/allwinner/clk/aw_usbclk.c	optional	aw_ccu fdt
+arm/allwinner/clkng/aw_ccung.c	optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_nkmp.c	optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_nm.c	optional	aw_ccu fdt
+arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_a64.c	optional	aw_ccu fdt
+
 arm/allwinner/if_awg.c		optional	awg fdt
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt
@@ -152,6 +158,8 @@ dev/axgbe/xgbe-dev.c		optional	axgbe
 dev/axgbe/xgbe-drv.c		optional	axgbe
 dev/axgbe/xgbe-mdio.c		optional	axgbe
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
+dev/iicbus/twsi/a10_twsi.c	optional	twsi fdt
+dev/iicbus/twsi/twsi.c		optional	twsi fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mbox/mbox_if.m		optional	soc_brcm_bcm2837

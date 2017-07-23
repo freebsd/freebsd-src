@@ -361,6 +361,8 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
+
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = malloc(sizeof(*map), M_DMAR_DMAMAP, M_NOWAIT | M_ZERO);
 	if (map == NULL) {

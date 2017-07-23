@@ -988,7 +988,7 @@ vdev_geom_io_intr(struct bio *bp)
 		}
 		break;
 	}
-	g_destroy_bio(bp);
+
 	zio_delay_interrupt(zio);
 }
 
@@ -1053,10 +1053,17 @@ sendreq:
 	case ZIO_TYPE_READ:
 	case ZIO_TYPE_WRITE:
 		zio->io_target_timestamp = zio_handle_io_delay(zio);
-		bp->bio_cmd = zio->io_type == ZIO_TYPE_READ ? BIO_READ : BIO_WRITE;
-		bp->bio_data = zio->io_data;
 		bp->bio_offset = zio->io_offset;
 		bp->bio_length = zio->io_size;
+		if (zio->io_type == ZIO_TYPE_READ) {
+			bp->bio_cmd = BIO_READ;
+			bp->bio_data =
+			    abd_borrow_buf(zio->io_abd, zio->io_size);
+		} else {
+			bp->bio_cmd = BIO_WRITE;
+			bp->bio_data =
+			    abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+		}
 		break;
 	case ZIO_TYPE_FREE:
 		bp->bio_cmd = BIO_DELETE;
@@ -1073,6 +1080,7 @@ sendreq:
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;
+	zio->io_bio = bp;
 
 	g_io_request(bp, cp);
 }
@@ -1080,6 +1088,23 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
+	struct bio *bp = zio->io_bio;
+
+	if (bp == NULL) {
+		ASSERT3S(zio->io_error, !=, 0);
+		IMPLY(zio->io_type == ZIO_TYPE_READ ||
+		    zio->io_type == ZIO_TYPE_WRITE,
+		    zio->io_error == ENXIO);
+		return;
+	}
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, bp->bio_data, zio->io_size);
+	} else if (zio->io_type == ZIO_TYPE_WRITE) {
+		abd_return_buf(zio->io_abd, bp->bio_data, zio->io_size);
+	}
+
+	g_destroy_bio(bp);
 }
 
 static void

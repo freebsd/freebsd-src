@@ -287,7 +287,7 @@ static driver_t bnxt_iflib_driver = {
  * iflib shared context
  */
 
-#define BNXT_DRIVER_VERSION	"1.0.0.0"
+#define BNXT_DRIVER_VERSION	"1.0.0.1"
 char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
@@ -506,6 +506,17 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
+		/* Allocate the TPA start buffer */
+		softc->rx_rings[i].tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
+	    		(RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
+	    		M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (softc->rx_rings[i].tpa_start == NULL) {
+			rc = -ENOMEM;
+			device_printf(softc->dev,
+					"Unable to allocate space for TPA\n");
+			goto tpa_alloc_fail;
+		}
+
 		/* Allocate the AG ring */
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->ag_rings[i].softc = softc;
@@ -571,7 +582,10 @@ rss_grp_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.rss_hash_key_tbl);
 rss_hash_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.mc_list);
+tpa_alloc_fail:
 mc_list_alloc_fail:
+	for (i = i - 1; i >= 0; i--)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	iflib_dma_free(&softc->rx_stats);
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
@@ -635,16 +649,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto dma_fail;
 
-	/* Allocate the TPA start buffer */
-	softc->tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
-	    (RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->tpa_start == NULL) {
-		rc = ENOMEM;
-		device_printf(softc->dev,
-		    "Unable to allocate space for TPA\n");
-		goto tpa_failed;
-	}
 
 	/* Get firmware version and compare with driver */
 	softc->ver_info = malloc(sizeof(struct bnxt_ver_info),
@@ -814,8 +818,6 @@ nvm_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
 ver_alloc_fail:
-	free(softc->tpa_start, M_DEVBUF);
-tpa_failed:
 	bnxt_free_hwrm_dma_mem(softc);
 dma_fail:
 	BNXT_HWRM_LOCK_DESTROY(softc);
@@ -877,7 +879,8 @@ bnxt_detach(if_ctx_t ctx)
 	SLIST_FOREACH_SAFE(tag, &softc->vnic_info.vlan_tags, next, tmp)
 		free(tag, M_DEVBUF);
 	iflib_dma_free(&softc->def_cp_ring_mem);
-	free(softc->tpa_start, M_DEVBUF);
+	for (i = 0; i < softc->nrxqsets; i++)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	free(softc->ver_info, M_DEVBUF);
 	free(softc->nvm_info, M_DEVBUF);
 
@@ -1009,14 +1012,17 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 
-#ifdef notyet
-	/* Enable LRO/TPA/GRO */
+	/* 
+         * Enable LRO/TPA/GRO 
+         * TBD: 
+         *      Enable / Disable HW_LRO based on
+         *      ifconfig lro / ifconfig -lro setting
+         */
 	rc = bnxt_hwrm_vnic_tpa_cfg(softc, &softc->vnic_info,
 	    (if_getcapenable(iflib_get_ifp(ctx)) & IFCAP_LRO) ?
 	    HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA : 0);
 	if (rc)
 		goto fail;
-#endif
 
 	for (i = 0; i < softc->ntxqsets; i++) {
 		/* Allocate the statistics context */
@@ -1152,7 +1158,12 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_1000_SGMII;
 			break;
 		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
+                        /*
+                         * Workaround: 
+                         *    Don't return IFM_UNKNOWN until 
+                         *    Stratus return proper media_type 
+                         */  
+			ifmr->ifm_active |= IFM_1000_KX;
 			break;
 		}
 	break;
@@ -1192,7 +1203,12 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_10G_T;
 			break;
 		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
+                        /*
+                         * Workaround: 
+                         *    Don't return IFM_UNKNOWN until 
+                         *    Stratus return proper media_type 
+                         */  
+			ifmr->ifm_active |= IFM_10G_CR1;
 			break;
 		}
 		break;
@@ -1213,7 +1229,12 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_25G_SR;
 			break;
 		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
+                        /*
+                         * Workaround: 
+                         *    Don't return IFM_UNKNOWN until 
+                         *    Stratus return proper media_type 
+                         */  
+			ifmr->ifm_active |= IFM_25G_CR;
 			break;
 		}
 		break;
@@ -1249,7 +1270,12 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_50G_KR2;
 			break;
 		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
+                        /*
+                         * Workaround: 
+                         *    Don't return IFM_UNKNOWN until 
+                         *    Stratus return proper media_type 
+                         */  
+			ifmr->ifm_active |= IFM_50G_CR2;
 			break;
 		}
 		break;
@@ -1270,7 +1296,12 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_100G_SR4;
 			break;
 		default:
-			ifmr->ifm_active |= IFM_UNKNOWN;
+                        /*
+                         * Workaround: 
+                         *    Don't return IFM_UNKNOWN until 
+                         *    Stratus return proper media_type 
+                         */  
+			ifmr->ifm_active |= IFM_100G_CR4;
 			break;
 		}
 	default:
@@ -2025,9 +2056,6 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0,
 			    NULL);
 		break;
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
-		/* Auto only */
-		break;
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR2:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR:
@@ -2108,6 +2136,32 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		if (supported & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB)
 			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_SGMII, 0,
 			    NULL);
+		break;
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
+        default:
+                /*
+                 * Workaround for Cumulus & Stratus 
+                 *  For Stratus: 
+                 *      media_type is being returned as 0x0
+                 *      Return support speeds as 10G, 25G, 50G & 100G
+                 *
+                 *  For Cumulus: 
+                 *      phy_type is being returned as 0x14 (PHY_TYPE_40G_BASECR4)
+                 *      Return support speeds as 1G, 10G, 25G & 50G
+                 */
+		if (pci_get_device(softc->dev) == BCM57454) {
+                        /* For Stratus: 10G, 25G, 50G & 100G */
+			ifmedia_add(softc->media, IFM_ETHER | IFM_100G_CR4, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_CR2, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_CR, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0, NULL);
+		} else if (pci_get_device(softc->dev) == BCM57414) {
+                        /* For Cumulus: 1G, 10G, 25G & 50G */
+			ifmedia_add(softc->media, IFM_ETHER | IFM_50G_CR2, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_25G_CR, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_10G_CR1, 0, NULL);
+			ifmedia_add(softc->media, IFM_ETHER | IFM_1000_T, 0, NULL);
+                } 
 		break;
 	}
 

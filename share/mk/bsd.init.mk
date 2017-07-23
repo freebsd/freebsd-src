@@ -50,8 +50,9 @@ $xGRP=	${_gid}
 _SKIP_BUILD=	not building at level 0
 .elif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
-    make(clean*) || make(obj) || make(analyze) || make(print-dir) || \
-    make(destroy*)
+    ${.TARGETS:Mclean*} == ${.TARGETS} || \
+    ${.TARGETS:Mdestroy*} == ${.TARGETS} || \
+    make(obj) || make(analyze) || make(print-dir)
 # Skip building, but don't show a warning.
 _SKIP_BUILD=
 .endif

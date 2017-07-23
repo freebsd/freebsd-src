@@ -137,7 +137,7 @@ tcpmod_ipv6_setmss(struct mbuf **mp, uint16_t mss)
 	    proto == IPPROTO_DSTOPTS) {
 		hbh = mtodo(*mp, hlen);
 		proto = hbh->ip6h_nxt;
-		hlen += hbh->ip6h_len << 3;
+		hlen += (hbh->ip6h_len + 1) << 3;
 	}
 	tcp = mtodo(*mp, hlen);
 	plen = (*mp)->m_pkthdr.len - hlen;

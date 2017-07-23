@@ -54,11 +54,11 @@ putchar(int c)
 	int retval;
 	FILE *so = stdout;
 
-	FLOCKFILE(so);
+	FLOCKFILE_CANCELSAFE(so);
 	/* Orientation set by __sputc() when buffer is full. */
 	/* ORIENT(so, -1); */
 	retval = __sputc(c, so);
-	FUNLOCKFILE(so);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }
 

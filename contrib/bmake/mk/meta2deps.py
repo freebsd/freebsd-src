@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.26 2017/05/09 04:04:16 sjg Exp $
+	$Id: meta2deps.py,v 1.27 2017/05/24 00:04:04 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -90,6 +90,12 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     for d in [last_dir, cwd]:
         if not d:
             continue
+        if path == '..':
+            dw = d.split('/')
+            p = '/'.join(dw[:-1])
+            if not p:
+                p = '/'
+            return p
         p = '/'.join([d,path])
         if debug > 2:
             print("looking for:", p, end=' ', file=debug_out)
@@ -115,8 +121,11 @@ def cleanpath(path):
         if not d or d == '.':
             continue
         if d == '..':
-            p.pop()
-            continue
+            try:
+                p.pop()
+                continue
+            except:
+                break
         p.append(d)
 
     return r + '/'.join(p)

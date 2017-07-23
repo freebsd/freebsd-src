@@ -39,8 +39,6 @@ coredump_phnum_head()
 }
 coredump_phnum_body()
 {
-	atf_expect_fail "elftoolchain (base) readelf doesn't handle extended program header numbers; bug # 215019"
-
 	# Set up core dumping
 	cat > coredump_phnum_restore_state.sh <<-EOF
 	#!/bin/sh
@@ -48,7 +46,6 @@ coredump_phnum_body()
 	sysctl kern.coredump=$(sysctl -n kern.coredump)
 	sysctl kern.corefile='$(sysctl -n kern.corefile)'
 EOF
-	chmod +x coredump_phnum_restore_state.sh
 
 	ulimit -c unlimited
 	sysctl kern.coredump=1
@@ -58,30 +55,27 @@ EOF
 
 	# Check that core looks good
 	if [ ! -f coredump_phnum_helper.core ]; then
-	    atf_fail "Helper program did not dump core"
+		atf_fail "Helper program did not dump core"
 	fi
 
 	# These magic numbers don't have any real significance.  They are just
 	# the result of running the helper program and dumping core.  The only
 	# important bit is that they're larger than 65535 (UINT16_MAX).
-	readelf -h coredump_phnum_helper.core | \
-	    atf_check -o "match:65535 \(66[0-9]{3}\)" \
-	    grep "Number of program headers:"
-	readelf -l coredump_phnum_helper.core | \
-	    atf_check -o "match:There are 66[0-9]{3} program headers" \
-	    grep -1 "program headers"
-	readelf -S coredump_phnum_helper.core | \
-	    atf_check -o "match: 0000000000000001 .* 66[0-9]{3} " \
-	    grep -A1 "^  \[ 0\] "
+	atf_check -o "match:65535 \(66[0-9]{3}\)" \
+	    -x 'readelf -h coredump_phnum_helper.core | grep "Number of program headers:"'
+	atf_check -o "match:There are 66[0-9]{3} program headers" \
+	    -x 'readelf -l coredump_phnum_helper.core | grep -1 "program headers"'
+	atf_check -o "match: 0000000000000001 .* 66[0-9]{3} " \
+	    -x 'readelf -S coredump_phnum_helper.core | grep -A1 "^  \[ 0\] "'
 
-	procstat -v coredump_phnum_helper.core | \
-	    atf_check -o "match:66[0-9]{3}" wc -l
+	atf_check -o "match:66[0-9]{3}" \
+	    -x 'procstat -v coredump_phnum_helper.core | wc -l'
 }
 coredump_phnum_cleanup()
 {
 	rm -f coredump_phnum_helper.core
-	if [ -x coredump_phnum_restore_state.sh ]; then
-		./coredump_phnum_restore_state.sh
+	if [ -f coredump_phnum_restore_state.sh ]; then
+		. ./coredump_phnum_restore_state.sh
 	fi
 	rm -f coredump_phnum_restore_state.sh
 }

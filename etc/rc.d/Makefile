@@ -47,7 +47,6 @@ FILES=	DAEMON \
 	ip6addrctl \
 	ipfilter \
 	ipfs \
-	ipfw \
 	ipmon \
 	ipnat \
 	ipsec \
@@ -204,6 +203,13 @@ HASTPACKAGE=	hast
 
 .if ${MK_INETD} != "no"
 FILES+=		inetd
+.endif
+
+.if ${MK_IPFW} != "no"
+FILES+=		ipfw
+.if ${MK_NETGRAPH} != "no"
+FILES+=		ipfw_netflow
+.endif
 .endif
 
 .if ${MK_ISCSI} != "no"

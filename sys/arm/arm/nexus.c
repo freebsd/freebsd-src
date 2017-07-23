@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <arm/arm/nexusvar.h>
+
 #ifdef FDT
 #include <machine/fdt.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -87,6 +89,7 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
+static bus_dma_tag_t nexus_get_dma_tag(device_t dev, device_t child);
 #ifdef INTRNG
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
@@ -112,6 +115,13 @@ static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
     int icells, pcell_t *intr);
 #endif
 
+/*
+ * Normally NULL (which results in defaults which are handled in
+ * busdma_machdep), platform init code can use nexus_set_dma_tag() to set this
+ * to a tag that will be inherited by all busses and devices on the platform.
+ */
+static bus_dma_tag_t nexus_dma_tag;
+
 static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
@@ -127,6 +137,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
+	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
 #ifdef INTRNG
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
@@ -273,6 +284,20 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 #else
 		return((void *)1);
 #endif
+}
+
+static bus_dma_tag_t
+nexus_get_dma_tag(device_t dev, device_t child)
+{
+
+	return nexus_dma_tag;
+}
+
+void
+nexus_set_dma_tag(bus_dma_tag_t tag)
+{
+
+	nexus_dma_tag = tag;
 }
 
 static int
