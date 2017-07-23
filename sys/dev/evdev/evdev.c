@@ -29,19 +29,18 @@
 
 #include "opt_evdev.h"
 
-#include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/conf.h>
-#include <sys/malloc.h>
 #include <sys/bitstring.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
-#include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/evdev_private.h>
+#include <dev/evdev/input.h>
 
 #ifdef EVDEV_DEBUG
 #define	debugf(evdev, fmt, args...)	printf("evdev: " fmt "\n", ##args)
