@@ -1,4 +1,11 @@
 /* $FreeBSD$ */
+typedef enum x {
+	aaaaaaaaaaaaaaaaaaaaaa = 1 << 0,	/* test a */
+	bbbbbbbbbbbbbbbbb = 1 << 1,	/* test b */
+	cccccccccccccc = 1 << 1,	/* test c */
+	dddddddddddddddddddddddddddddd = 1 << 2	/* test d */
+} x;
+
 /* See r303597, r303598, r309219, and r309343 */
 void
 t(void)

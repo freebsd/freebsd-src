@@ -141,7 +141,7 @@ pr_comment(void)
 		    target_col = count_spaces(compute_label_target(), s_lab);
 	    }
 	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? ps.decl_com_ind : ps.com_ind;
-	    if (ps.com_col < target_col)
+	    if (ps.com_col <= target_col)
 		ps.com_col = ((target_col + 7) & ~7) + 1;
 	    if (ps.com_col + 24 > adj_max_col)
 		adj_max_col = ps.com_col + 24;
