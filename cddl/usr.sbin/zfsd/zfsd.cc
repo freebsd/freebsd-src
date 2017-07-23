@@ -437,7 +437,7 @@ void
 ZfsDaemon::ClosePIDFile()
 {
 	if (s_pidFH != NULL)
-		pidfile_close(s_pidFH);
+		pidfile_remove(s_pidFH);
 }
 
 void

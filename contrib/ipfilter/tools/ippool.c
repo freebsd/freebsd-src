@@ -75,11 +75,11 @@ usage(prog)
 	char *prog;
 {
 	fprintf(stderr, "Usage:\t%s\n", prog);
-	fprintf(stderr, "\t-a [-dnv] [-m <name>] [-o <role>] [-t type] [-T ttl] -i <ipaddr>[/netmask]\n");
+	fprintf(stderr, "\t-a [-dnv] -m <name> [-o <role>] [-t type] [-T ttl] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
 	fprintf(stderr, "\t-f <file> [-dnuv]\n");
 	fprintf(stderr, "\t-F [-dv] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>]\n");
+	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]\n");
 	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
 	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
 	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
@@ -201,16 +201,26 @@ poolnodecommand(remove, argc, argv)
 			}
 			break;
 		case 'T' :
-			ttl = atoi(optarg);
-			if (ttl < 0) {
-				fprintf(stderr, "cannot set negative ttl\n");
-				return -1;
+			if (remove == 0) {
+				ttl = atoi(optarg);
+				if (ttl < 0) {
+					fprintf(stderr, "cannot set negative ttl\n");
+					return -1;
+				}
+			} else {
+				usage(argv[0]);
 			}
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (argv[optind] != NULL && ipset == 0) {
 		if (setnodeaddr(type, role, ptr, argv[optind]) == 0)
@@ -268,7 +278,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RSv")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:RS:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -292,12 +302,21 @@ poolcommand(remove, argc, argv)
 			opts |= OPT_NORESOLVE;
 			break;
 		case 'S' :
-			iph.iph_seed = atoi(optarg);
+			if (remove == 0)
+				iph.iph_seed = atoi(optarg);
+			else
+				usage(argv[0]);
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolcommand: opts = %#x\n", opts);
@@ -568,7 +587,7 @@ poolflush(argc, argv)
 			break;		/* keep compiler happy */
 		}
 
-	if (argc - 1 - optind > 0)
+	if (argc - optind > 0)
 		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)

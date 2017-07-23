@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.35 2017/05/03 18:09:44 sjg Exp $
+# $Id: own.mk,v 1.36 2017/07/08 21:58:46 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -7,7 +7,7 @@ __${.PARSEFILE}__:
 .include "init.mk"
 .endif
 
-.ifndef NOMAKECONF
+.if !defined(NOMAKECONF) && !defined(NO_MAKECONF)
 MAKECONF?=	/etc/mk.conf
 .-include "${MAKECONF}"
 .endif
@@ -35,7 +35,7 @@ libprefix?=	/usr
 .endif
 
 # FreeBSD at least does not set this
-MACHINE_ARCH?=${MACHINE}
+MACHINE_ARCH?=	${MACHINE}
 # we need to make sure these are defined too in case sys.mk fails to.
 COMPILE.s?=	${CC} ${AFLAGS} -c
 LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
@@ -129,12 +129,11 @@ _uid!=  id -u
 USERGRP!=  id -g
 .export USERGRP
 .endif
-.for x in BIN CONF DOC INC INFO FILES KMOD LIB MAN NLS SHARE
+.for x in BIN CONF DOC INC INFO FILES KMOD LIB MAN NLS PROG SHARE
 $xOWN=  ${USER}
 $xGRP=  ${USERGRP}
 $x_INSTALL_OWN=
 .endfor
-PROG_INSTALL_OWN=
 .endif
 .endif
 

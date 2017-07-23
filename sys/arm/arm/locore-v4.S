@@ -365,7 +365,7 @@ svcstk:
  * Memory for the initial pagetable. We are unable to place this in
  * the bss as this will be cleared after the table is loaded.
  */
-	.section ".init_pagetable"
+	.section ".init_pagetable", "aw", %nobits
 	.align	14 /* 16KiB aligned */
 pagetable:
 	.space	L1_TABLE_SIZE

@@ -172,6 +172,17 @@ bool AnalyzerOptions::includeTemporaryDtorsInCFG() {
                           /* Default = */ false);
 }
 
+bool AnalyzerOptions::includeImplicitDtorsInCFG() {
+  return getBooleanOption(IncludeImplicitDtorsInCFG,
+                          "cfg-implicit-dtors",
+                          /* Default = */ true);
+}
+
+bool AnalyzerOptions::includeLifetimeInCFG() {
+  return getBooleanOption(IncludeLifetimeInCFG, "cfg-lifetime",
+                          /* Default = */ false);
+}
+
 bool AnalyzerOptions::mayInlineCXXStandardLibrary() {
   return getBooleanOption(InlineCXXStandardLibrary,
                           "c++-stdlib-inlining",
@@ -230,7 +241,7 @@ bool AnalyzerOptions::shouldSuppressInlinedDefensiveChecks() {
 bool AnalyzerOptions::shouldSuppressFromCXXStandardLibrary() {
   return getBooleanOption(SuppressFromCXXStandardLibrary,
                           "suppress-c++-stdlib",
-                          /* Default = */ false);
+                          /* Default = */ true);
 }
 
 bool AnalyzerOptions::shouldReportIssuesInMainSourceFile() {
@@ -293,7 +304,7 @@ unsigned AnalyzerOptions::getMaxInlinableSize() {
         DefaultValue = 4;
         break;
       case UMK_Deep:
-        DefaultValue = 50;
+        DefaultValue = 100;
         break;
     }
 
@@ -332,7 +343,7 @@ unsigned AnalyzerOptions::getMaxNodesPerTopLevelFunction() {
         DefaultValue = 75000;
         break;
       case UMK_Deep:
-        DefaultValue = 150000;
+        DefaultValue = 225000;
         break;
     }
     MaxNodesPerTopLevelFunction = getOptionAsInteger("max-nodes", DefaultValue);

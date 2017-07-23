@@ -120,7 +120,7 @@ __FBSDID("$FreeBSD$");
  * The 64-page limit is due to the radix code (kern/subr_blist.c).
  */
 #ifndef MAX_PAGEOUT_CLUSTER
-#define MAX_PAGEOUT_CLUSTER 16
+#define	MAX_PAGEOUT_CLUSTER	32
 #endif
 
 #if !defined(SWB_NPAGES)
@@ -134,8 +134,7 @@ __FBSDID("$FreeBSD$");
  * Unused disk addresses within a swap area are allocated and managed
  * using a blist.
  */
-#define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
-#define SWAP_META_PAGES		(SWB_NPAGES * 2)
+#define	SWAP_META_PAGES		32
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
 struct swblock {
@@ -1372,7 +1371,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			    mreq->pindex,
 			    blk + j
 			);
-			vm_page_dirty(mreq);
+			MPASS(mreq->dirty == VM_PAGE_BITS_ALL);
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
@@ -1584,43 +1583,6 @@ swp_pager_async_iodone(struct buf *bp)
 		)
 	    )
 	);
-}
-
-/*
- *	swap_pager_isswapped:
- *
- *	Return 1 if at least one page in the given object is paged
- *	out to the given swap device.
- *
- *	This routine may not sleep.
- */
-int
-swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
-{
-	daddr_t index = 0;
-	int bcount;
-	int i;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type != OBJT_SWAP)
-		return (0);
-
-	mtx_lock(&swhash_mtx);
-	for (bcount = 0; bcount < object->un_pager.swp.swp_bcount; bcount++) {
-		struct swblock *swap;
-
-		if ((swap = *swp_pager_hash(object, index)) != NULL) {
-			for (i = 0; i < SWAP_META_PAGES; ++i) {
-				if (swp_pager_isondev(swap->swb_pages[i], sp)) {
-					mtx_unlock(&swhash_mtx);
-					return (1);
-				}
-			}
-		}
-		index += SWAP_META_PAGES;
-	}
-	mtx_unlock(&swhash_mtx);
-	return (0);
 }
 
 int

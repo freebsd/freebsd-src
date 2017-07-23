@@ -91,7 +91,7 @@ struct inode {
 
 	/* Fields from struct dinode in UFS. */
 	uint16_t	i_mode;		/* IFMT, permissions; see below. */
-	int16_t		i_nlink;	/* File link count. */
+	int32_t		i_nlink;	/* File link count. */
 	uint32_t	i_uid;		/* File owner. */
 	uint32_t	i_gid;		/* File group. */
 	uint64_t	i_size;		/* File byte count. */

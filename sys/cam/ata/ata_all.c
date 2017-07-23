@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifdef _KERNEL
-#include <opt_scsi.h>
+#include "opt_scsi.h"
 
 #include <sys/systm.h>
 #include <sys/libkern.h>

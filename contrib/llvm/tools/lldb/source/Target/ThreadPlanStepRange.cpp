@@ -15,8 +15,6 @@
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Disassembler.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/ExecutionContext.h"
@@ -26,6 +24,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -461,6 +461,16 @@ bool ThreadPlanStepRange::IsPlanStale() {
     // One tricky bit here is that some stubs don't push a frame, so we should.
     // check that we are in the same symbol.
     if (!InRange()) {
+      // Set plan Complete when we reach next instruction just after the range
+      lldb::addr_t addr = m_thread.GetRegisterContext()->GetPC() - 1;
+      size_t num_ranges = m_address_ranges.size();
+      for (size_t i = 0; i < num_ranges; i++) {
+        bool in_range = m_address_ranges[i].ContainsLoadAddress(
+            addr, m_thread.CalculateTarget().get());
+        if (in_range) {
+          SetPlanComplete();
+        }
+      }
       return true;
     }
   }

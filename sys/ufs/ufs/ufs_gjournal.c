@@ -86,16 +86,8 @@ ufs_gjournal_modref(struct vnode *vp, int count)
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ufs_gjournal_modref: range: dev = %s, ino = %lu, fs = %s",
 		    devtoname(dev), (u_long)ino, fs->fs_fsmnt);
-	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
-		brelse(bp);
+	if ((error = ffs_getcg(fs, devvp, cg, &bp, &cgp)) != 0)
 		return (error);
-	}
-	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return (0);
-	}
-	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_unrefs += count;
 	UFS_LOCK(ump);
 	fs->fs_unrefs += count;

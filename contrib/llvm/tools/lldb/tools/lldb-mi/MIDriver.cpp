@@ -9,6 +9,8 @@
 
 // Third party headers:
 #include "lldb/API/SBError.h"
+#include <cassert>
+#include <csignal>
 #include <fstream>
 
 // In-house headers:
@@ -509,7 +511,7 @@ bool CMIDriver::StartWorkerThreads() {
     const CMIUtilString errMsg = CMIUtilString::Format(
         MIRSRC(IDS_THREADMGR_ERR_THREAD_FAIL_CREATE),
         CMICmnThreadMgrStd::Instance().GetErrorDescription().c_str());
-    SetErrorDescriptionn(errMsg);
+    SetErrorDescription(errMsg);
     return MIstatus::failure;
   }
 
@@ -710,7 +712,7 @@ const CMIUtilString &CMIDriver::GetDriverId() const { return GetId(); }
 //          Check the error message if the function returns a failure.
 // Type:    Overridden.
 // Args:    vCmd        - (R) Command instruction to interpret.
-//          vwErrMsg    - (W) Error description on command failing.
+//          vwErrMsg    - (W) Status description on command failing.
 // Return:  MIstatus::success - Command succeeded.
 //          MIstatus::failure - Command failed.
 // Throws:  None.

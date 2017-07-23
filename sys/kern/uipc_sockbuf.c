@@ -322,7 +322,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 		wakeup(&sb->sb_acc);
 	}
 	KNOTE_LOCKED(&sb->sb_sel->si_note, 0);
-	if (sb->sb_upcall != NULL && !(so->so_state & SS_ISDISCONNECTED)) {
+	if (sb->sb_upcall != NULL) {
 		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_NOWAIT);
 		if (ret == SU_ISCONNECTED) {
 			KASSERT(sb == &so->so_rcv,
@@ -334,7 +334,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	if (sb->sb_flags & SB_AIO)
 		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
-	if (ret == SU_ISCONNECTED)
+	if (ret == SU_ISCONNECTED && !(so->so_state & SS_ISDISCONNECTED))
 		soisconnected(so);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
@@ -451,14 +451,78 @@ sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 }
 
 int
-sbreserve(struct sockbuf *sb, u_long cc, struct socket *so, 
-    struct thread *td)
+sbsetopt(struct socket *so, int cmd, u_long cc)
 {
+	struct sockbuf *sb;
+	short *flags;
+	u_int *hiwat, *lowat;
 	int error;
 
-	SOCKBUF_LOCK(sb);
-	error = sbreserve_locked(sb, cc, so, td);
-	SOCKBUF_UNLOCK(sb);
+	SOCK_LOCK(so);
+	if (SOLISTENING(so)) {
+		switch (cmd) {
+			case SO_SNDLOWAT:
+			case SO_SNDBUF:
+				lowat = &so->sol_sbsnd_lowat;
+				hiwat = &so->sol_sbsnd_hiwat;
+				flags = &so->sol_sbsnd_flags;
+				break;
+			case SO_RCVLOWAT:
+			case SO_RCVBUF:
+				lowat = &so->sol_sbrcv_lowat;
+				hiwat = &so->sol_sbrcv_hiwat;
+				flags = &so->sol_sbrcv_flags;
+				break;
+		}
+	} else {
+		switch (cmd) {
+			case SO_SNDLOWAT:
+			case SO_SNDBUF:
+				sb = &so->so_snd;
+				break;
+			case SO_RCVLOWAT:
+			case SO_RCVBUF:
+				sb = &so->so_rcv;
+				break;
+		}
+		flags = &sb->sb_flags;
+		hiwat = &sb->sb_hiwat;
+		lowat = &sb->sb_lowat;
+		SOCKBUF_LOCK(sb);
+	}
+
+	error = 0;
+	switch (cmd) {
+	case SO_SNDBUF:
+	case SO_RCVBUF:
+		if (SOLISTENING(so)) {
+			if (cc > sb_max_adj) {
+				error = ENOBUFS;
+				break;
+			}
+			*hiwat = cc;
+			if (*lowat > *hiwat)
+				*lowat = *hiwat;
+		} else {
+			if (!sbreserve_locked(sb, cc, so, curthread))
+				error = ENOBUFS;
+		}
+		if (error == 0)
+			*flags &= ~SB_AUTOSIZE;
+		break;
+	case SO_SNDLOWAT:
+	case SO_RCVLOWAT:
+		/*
+		 * Make sure the low-water is never greater than the
+		 * high-water.
+		 */
+		*lowat = (cc > *hiwat) ? *hiwat : cc;
+		break;
+	}
+
+	if (!SOLISTENING(so))
+		SOCKBUF_UNLOCK(sb);
+	SOCK_UNLOCK(so);
 	return (error);
 }
 

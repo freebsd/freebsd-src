@@ -14,8 +14,8 @@ RFC3164_FMT='^[A-Z][a-z]{2} [ 0-9][0-9] [0-9]{2}:[0-9]{2}:[0-9]{2}'
 COUNT=0
 TMPDIR=$(pwd)/work
 if [ $? -ne 0 ]; then
-        echo "$0: Can't create temp dir, exiting..."
-        exit 1
+	echo "$0: Can't create temp dir, exiting..."
+	exit 1
 fi
 
 # Begin an individual test
@@ -432,8 +432,8 @@ tests_rfc5424() {
 	cknt ${dir}${LOGFNAME}.0${ext}
 	ckfe $LOGFNAME5424
 	cknt ${dir}${LOGFNAME5424}.0${ext}
-        ckrfc3164 ${LOGFNAME}
-        ckrfc5424 ${LOGFNAME5424}
+	ckrfc3164 ${LOGFNAME}
+	ckrfc5424 ${LOGFNAME5424}
 	end
 
 	begin "RFC-5424 - rotate normal 1 ${name_postfix}"
@@ -442,10 +442,10 @@ tests_rfc5424() {
 	ckfe ${dir}${LOGFNAME}.0${ext}
 	ckfe $LOGFNAME5424
 	ckfe ${dir}${LOGFNAME5424}.0${ext}
-        ckrfc3164 ${LOGFNAME}
-        ckrfc3164 ${dir}${LOGFNAME}.0${ext}
-        ckrfc5424 ${LOGFNAME5424}
-        ckrfc5424 ${dir}${LOGFNAME5424}.0${ext}
+	ckrfc3164 ${LOGFNAME}
+	ckrfc3164 ${dir}${LOGFNAME}.0${ext}
+	ckrfc5424 ${LOGFNAME5424}
+	ckrfc5424 ${dir}${LOGFNAME5424}.0${ext}
 	end
 
 	tmpdir_clean

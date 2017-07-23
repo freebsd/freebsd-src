@@ -421,7 +421,7 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(getresuid_args), (sy_call_t *)sys_getresuid, AUE_GETRESUID, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 360 = getresuid */
 	{ AS(getresgid_args), (sy_call_t *)sys_getresgid, AUE_GETRESGID, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 361 = getresgid */
 	{ 0, (sy_call_t *)sys_kqueue, AUE_KQUEUE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 362 = kqueue */
-	{ AS(freebsd32_kevent_args), (sy_call_t *)freebsd32_kevent, AUE_KEVENT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 363 = freebsd32_kevent */
+	{ compat11(AS(freebsd11_freebsd32_kevent_args),freebsd32_kevent), AUE_KEVENT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 363 = freebsd11 freebsd32_kevent */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 364 = __cap_get_proc */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 365 = __cap_set_proc */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 366 = __cap_get_fd */
@@ -641,4 +641,5 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(getfsstat_args), (sy_call_t *)sys_getfsstat, AUE_GETFSSTAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 557 = getfsstat */
 	{ AS(fhstatfs_args), (sy_call_t *)sys_fhstatfs, AUE_FHSTATFS, NULL, 0, 0, 0, SY_THR_STATIC },	/* 558 = fhstatfs */
 	{ AS(mknodat_args), (sy_call_t *)sys_mknodat, AUE_MKNODAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 559 = mknodat */
+	{ AS(freebsd32_kevent_args), (sy_call_t *)freebsd32_kevent, AUE_KEVENT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 560 = freebsd32_kevent */
 };

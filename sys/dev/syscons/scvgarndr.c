@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
@@ -149,24 +150,136 @@ RENDERER_MODULE(vga, vga_set);
 struct mousedata {
 	u_short	md_border[16];
 	u_short	md_interior[16];
-	u_short	md_width;
-	u_short	md_height;
+	u_char	md_width;
+	u_char	md_height;
+	u_char	md_baspect;
+	u_char	md_iaspect;
+	const char *md_name;
 };
 
-static const struct mousedata mouse9x13 = { {
-	0xc000, 0xa000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x9780,
-	0xf200, 0x1200, 0x1900, 0x0900, 0x0f00, 0x0000, 0x0000, 0x0000, }, {
-	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7c00, 0x7e00, 0x6800,
-	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
-	9, 13,
+static const struct mousedata mouse10x16_50 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8200,
+	0x8400, 0x8400, 0x8400, 0x9200, 0xB200, 0xA900, 0xC900, 0x8600, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7C00,
+	0x7800, 0x7800, 0x7800, 0x6C00, 0x4C00, 0x4600, 0x0600, 0x0000, },
+	10, 16, 49, 52, "mouse10x16_50",
 };
 
-static const struct mousedata mouse10x16 = { {
-	0xc000, 0xa000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
-	0x8040, 0x83c0, 0x9200, 0xa900, 0xc900, 0x0480, 0x0480, 0x0300, }, {
-	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7c00, 0x7e00, 0x7f00,
-	0x7f80, 0x7c00, 0x6c00, 0x4600, 0x0600, 0x0300, 0x0300, 0x0000, },
-	10, 16,
+static const struct mousedata mouse8x14_67 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8700,
+	0x8400, 0x9200, 0xB200, 0xA900, 0xC900, 0x0600, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7800,
+	0x7800, 0x6C00, 0x4C00, 0x4600, 0x0600, 0x0000, 0x0000, 0x0000, },
+	8, 14, 64, 65, "mouse8x14_67",
+};
+
+static const struct mousedata mouse8x13_75 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8600, 0x8400,
+	0xB200, 0xD200, 0x0900, 0x0900, 0x0600, 0x0000, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7800, 0x7800,
+	0x4C00, 0x0C00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
+	8, 13, 75, 80, "mouse8x13_75",
+};
+
+static const struct mousedata mouse10x16_75 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8700,
+	0x8400, 0x9200, 0xB200, 0xC900, 0x0900, 0x0480, 0x0480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7800,
+	0x7800, 0x6C00, 0x4C00, 0x0600, 0x0600, 0x0300, 0x0300, 0x0000, },
+	10, 16, 72, 75, "mouse10x16_75",
+};
+
+static const struct mousedata mouse9x13_90 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8780,
+	0x9200, 0xB200, 0xD900, 0x8900, 0x0600, 0x0000, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7800,
+	0x6C00, 0x4C00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
+	9, 13, 89, 89, "mouse9x13_90",
+};
+
+static const struct mousedata mouse10x16_90 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x8040, 0x83E0, 0x8200, 0x9900, 0xA900, 0xC480, 0x8480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x7F80, 0x7C00, 0x7C00, 0x6600, 0x4600, 0x0300, 0x0300, 0x0000, },
+	10, 16, 89, 89, "mouse10x16_90",
+};
+
+static const struct mousedata mouse9x13_100 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8780,
+	0xB200, 0xD200, 0x8900, 0x0900, 0x0600, 0x0000, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7800,
+	0x4C00, 0x0C00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
+	9, 13, 106, 113, "mouse9x13_100",
+};
+
+static const struct mousedata mouse10x16_100 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x8040, 0x83C0, 0x9200, 0xA900, 0xC900, 0x0480, 0x0480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x7F80, 0x7C00, 0x6C00, 0x4600, 0x0600, 0x0300, 0x0300, 0x0000, },
+	10, 16, 96, 106, "mouse10x16_100",
+};
+
+static const struct mousedata mouse10x14_120 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x97C0, 0xB200, 0xF200, 0xC900, 0x8900, 0x0600, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x6800, 0x4C00, 0x0C00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, },
+	10, 14, 120, 124, "mouse10x14_120",
+};
+
+static const struct mousedata mouse10x16_120 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x97C0, 0xB200, 0xF200, 0xC900, 0x8900, 0x0480, 0x0480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x6800, 0x4C00, 0x0C00, 0x0600, 0x0600, 0x0300, 0x0300, 0x0000, },
+	10, 16, 120, 124, "mouse10x16_120",
+};
+
+static const struct mousedata mouse9x13_133 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x9780, 0xB200, 0xC900, 0x0900, 0x0600, 0x0000, 0x0000, 0x0000, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x6800, 0x4C00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
+	9, 13, 142, 124, "mouse9x13_133",
+};
+
+static const struct mousedata mouse10x16_133 = { {
+	0xC000, 0xA000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x8040, 0x93E0, 0xB200, 0xC900, 0x8900, 0x0480, 0x0480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7C00, 0x7E00, 0x7F00,
+	0x7F80, 0x6C00, 0x4C00, 0x0600, 0x0600, 0x0300, 0x0300, 0x0000, },
+	10, 16, 120, 133, "mouse10x16_133",
+};
+
+static const struct mousedata mouse14x10_240 = { {
+	0xF800, 0xCE00, 0xC380, 0xC0E0, 0xC038, 0xC1FC, 0xDCC0, 0xF660,
+	0xC330, 0x01E0, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, }, {
+	0x0000, 0x3000, 0x3C00, 0x3F00, 0x3FC0, 0x3E00, 0x2300, 0x0180,
+	0x00C0, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, },
+	14, 10, 189, 189, "mouse14x10_240",
+};
+
+static const struct mousedata * const mouselarge[] = {
+	&mouse10x16_50,
+	&mouse8x14_67,
+	&mouse10x16_75,
+	&mouse10x16_90,
+	&mouse10x16_100,
+	&mouse10x16_120,
+	&mouse10x16_133,
+	&mouse14x10_240,
+};
+
+static const struct mousedata * const mousesmall[] = {
+	&mouse8x14_67,
+	&mouse8x13_75,
+	&mouse9x13_90,
+	&mouse9x13_100,
+	&mouse10x14_120,
+	&mouse9x13_133,
+	&mouse14x10_240,
 };
 #endif
 #endif
@@ -227,6 +340,109 @@ static uint16_t vga_palette15[16] = {
 };
 #endif
 
+static int vga_aspect_scale= 100;
+SYSCTL_INT(_machdep, OID_AUTO, vga_aspect_scale, CTLFLAG_RW,
+    &vga_aspect_scale, 0, "Aspect scale ratio (3:4):actual times 100");
+
+static u_short
+vga_flipattr(u_short a, int blink)
+{
+	if (blink)
+		a = (a & 0x8800) | ((a & 0x7000) >> 4) |
+		    ((a & 0x0700) << 4);
+	else
+		a = ((a & 0xf000) >> 4) | ((a & 0x0f00) << 4);
+	return (a);
+}
+
+static u_short
+vga_cursorattr_adj(u_short a, int blink)
+{
+	/*
+	 * !blink means pixel mode, and the cursor attribute in that case
+	 * is simplistic reverse video.
+	 */
+	if (!blink)
+		return (vga_flipattr(a, blink));
+
+	/*
+	 * The cursor attribute is usually that of the underlying char
+	 * with the bg changed to white.  If the bg is already white,
+	 * then the bg is changed to black.  The fg is usually not
+	 * changed, but if it is the same as the new bg then it is
+	 * changed to the inverse of the new bg.
+	 */
+	if ((a & 0x7000) == 0x7000) {
+		a &= 0x8f00;
+		if ((a & 0x0700) == 0)
+			a |= 0x0700;
+	} else {
+		a |= 0x7000;
+		if ((a & 0x0700) == 0x0700)
+			a &= 0xf000;
+	}
+	return (a);
+}
+
+static void
+vga_setmdp(scr_stat *scp)
+{
+#if !defined(SC_NO_CUTPASTE) && \
+   (!defined(SC_ALT_MOUSE_IMAGE) || defined(SC_PIXEL_MODE))
+	const struct mousedata *mdp;
+	const struct mousedata * const *mdpp;
+	int aspect, best_i, best_v, i, n, v, wb, wi, xpixel, ypixel;
+
+	xpixel = scp->xpixel;
+	ypixel = scp->ypixel;
+	if (scp->sc->adp->va_flags & V_ADP_CWIDTH9)
+		xpixel = xpixel * 9 / 8;
+
+	/* If 16:9 +-1%, assume square pixels, else scale to 4:3 or full. */
+	aspect = xpixel * 900 / ypixel / 16;
+	if (aspect < 99 || aspect > 100)
+		aspect = xpixel * 300 / ypixel / 4 * vga_aspect_scale / 100;
+
+	/*
+	 * Use 10x16 cursors except even with 8x8 fonts except in ~200-
+	 * line modes where pixels are very large and in text mode where
+	 * even 13 pixels high is really 4 too many.  Clipping a 16-high
+	 * cursor at 9-high gives a variable tail which looks better than
+	 * a smaller cursor with a constant tail.
+	 *
+	 * XXX: the IS*SC() macros don't work when this is called at the
+	 * end of a mode switch since UNKNOWN_SC is still set.
+	 */
+	if (scp->font_size <= 8 &&
+	    (ypixel < 300 || !(scp->status & PIXEL_MODE))) {
+		mdpp = &mousesmall[0];
+		n = nitems(mousesmall);
+	} else {
+		mdpp = &mouselarge[0];
+		n = nitems(mouselarge);
+	}
+	if (scp->status & PIXEL_MODE) {
+		wb = 1024;
+		wi = 256;
+	} else {
+		wb = 256;
+		wi = 1024;
+	}
+	best_i = 0;
+	best_v = 0x7fffffff;
+	for (i = 0; i < n; i++) {
+		v = (wb * abs(mdpp[i]->md_baspect - aspect) +
+		     wi * abs(mdpp[i]->md_iaspect - aspect)) / aspect;
+		if (best_v > v) {
+			best_v = v;
+			best_i = i;
+		}
+	}
+	mdp = mdpp[best_i];
+	scp->mouse_data = mdp;
+#endif /* !SC_NO_CUTPASTE && (!SC_ALT_MOUSE_IMAGE || SC_PIXEL_MODE) */
+}
+
 static void
 vga_nop(scr_stat *scp)
 {
@@ -260,8 +476,7 @@ vga_txtdraw(scr_stat *scp, int from, int count, int flip)
 		for (p = sc_vtb_pointer(&scp->scr, from); count-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
 			a = sc_vtb_geta(&scp->vtb, from);
-			a = (a & 0x8800) | ((a & 0x7000) >> 4) 
-				| ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
 			p = sc_vtb_putchar(&scp->scr, p, c, a);
 		}
 	} else {
@@ -272,13 +487,10 @@ vga_txtdraw(scr_stat *scp, int from, int count, int flip)
 static void 
 vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 {
+	vga_setmdp(scp);
 	if (base < 0 || base >= scp->font_size)
 		return;
 	/* the caller may set height <= 0 in order to disable the cursor */
-#if 0
-	scp->curs_attr.base = base;
-	scp->curs_attr.height = height;
-#endif
 	vidd_set_hw_cursor_shape(scp->sc->adp, base, height,
 	    scp->font_size, blink);
 }
@@ -309,8 +521,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 		if (scp->curs_attr.base >= h)
 			return;
 		if (flip)
-			a = (a & 0x8800)
-				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
 		bcopy(font + c*h, font + sc->cursor_char*h, h);
 		font = font + sc->cursor_char*h;
 		for (i = imax(h - scp->curs_attr.base - scp->curs_attr.height, 0);
@@ -323,18 +534,9 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	} else
 #endif /* SC_NO_FONT_LOADING */
 	{
-		if ((a & 0x7000) == 0x7000) {
-			a &= 0x8f00;
-			if ((a & 0x0700) == 0)
-				a |= 0x0700;
-		} else {
-			a |= 0x7000;
-			if ((a & 0x0700) == 0x0700)
-				a &= 0xf000;
-		}
 		if (flip)
-			a = (a & 0x8800)
-				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+			a = vga_flipattr(a, TRUE);
+		a = vga_cursorattr_adj(a, TRUE);
 		sc_vtb_putc(&scp->scr, at, c, a);
 	}
 }
@@ -371,9 +573,7 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		} else {
 			cursor_attr = sc_vtb_geta(&scp->vtb, at);
 			if (flip)
-				cursor_attr = (cursor_attr & 0x8800)
-					| ((cursor_attr & 0x7000) >> 4)
-					| ((cursor_attr & 0x0700) << 4);
+				cursor_attr = vga_flipattr(cursor_attr, TRUE);
 			if (scp->status & VR_CURSOR_ON)
 				sc_vtb_putc(&scp->scr, at,
 					    sc_vtb_getc(&scp->vtb, at),
@@ -407,7 +607,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	int crtc_addr;
 	int i;
 
-	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
+	mdp = scp->mouse_data;
 
 	/* prepare mousepointer char's bitmaps */
 	pos = (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
@@ -702,13 +902,10 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 	for (i = from; count-- > 0; ++i) {
 		a = sc_vtb_geta(&scp->vtb, i);
 
-		if (flip) {
-			col1 = (((a & 0x7000) >> 4) | (a & 0x0800)) >> 8;
-			col2 = (((a & 0x8000) >> 4) | (a & 0x0700)) >> 8;
-		} else {
-			col1 = (a & 0x0f00) >> 8;
-			col2 = (a & 0xf000) >> 12;
-		}
+		if (flip)
+			a = vga_flipattr(a, FALSE);
+		col1 = (a & 0x0f00) >> 8;
+		col2 = (a & 0xf000) >> 12;
 
 		e = d;
 		f = &(scp->font[sc_vtb_getc(&scp->vtb, i) * scp->font_size]);
@@ -759,13 +956,10 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		count = scp->xsize*scp->ysize - from;
 	for (i = from; count-- > 0; ++i) {
 		a = sc_vtb_geta(&scp->vtb, i);
-		if (flip) {
-			col1 = ((a & 0x7000) >> 4) | (a & 0x0800);
-			col2 = ((a & 0x8000) >> 4) | (a & 0x0700);
-		} else {
-			col1 = (a & 0x0f00);
-			col2 = (a & 0xf000) >> 4;
-		}
+		if (flip)
+			a = vga_flipattr(a, FALSE);
+		col1 = a & 0x0f00;
+		col2 = (a & 0xf000) >> 4;
 		/* set background color in EGA/VGA latch */
 		if (bg != col2) {
 			bg = col2;
@@ -807,13 +1001,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 static void 
 vga_pxlcursor_shape(scr_stat *scp, int base, int height, int blink)
 {
-	if (base < 0 || base >= scp->font_size)
-		return;
-	/* the caller may set height <= 0 in order to disable the cursor */
-#if 0
-	scp->curs_attr.base = base;
-	scp->curs_attr.height = height;
-#endif
+	vga_setmdp(scp);
 }
 
 static void 
@@ -835,13 +1023,12 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 
 	a = sc_vtb_geta(&scp->vtb, at);
 
-	if (flip) {
-		col1 = ((on) ? (a & 0x0f00) : ((a & 0xf000) >> 4)) >> 8;
-		col2 = ((on) ? ((a & 0xf000) >> 4) : (a & 0x0f00)) >> 8;
-	} else {
-		col1 = ((on) ? ((a & 0xf000) >> 4) : (a & 0x0f00)) >> 8;
-		col2 = ((on) ? (a & 0x0f00) : ((a & 0xf000) >> 4)) >> 8;
-	}
+	if (flip)
+		a = vga_flipattr(a, FALSE);
+	if (on)
+		a = vga_cursorattr_adj(a, FALSE);
+	col1 = (a & 0x0f00) >> 8;
+	col2 = a >> 12;
 
 	f = &(scp->font[sc_vtb_getc(&scp->vtb, at) * scp->font_size +
 	      scp->font_size - scp->curs_attr.base - 1]);
@@ -881,18 +1068,16 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 	/* set background color in EGA/VGA latch */
 	a = sc_vtb_geta(&scp->vtb, at);
 	if (flip)
-		col = (on) ? ((a & 0xf000) >> 4) : (a & 0x0f00);
-	else
-		col = (on) ? (a & 0x0f00) : ((a & 0xf000) >> 4);
+		a = vga_flipattr(a, FALSE);
+	if (on)
+		a = vga_cursorattr_adj(a, FALSE);
+	col = (a & 0xf000) >> 4;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	writeb(d, 0);
 	c = readb(d);			/* set bg color in the latch */
 	/* foreground color */
-	if (flip)
-		col = (on) ? (a & 0x0f00) : ((a & 0xf000) >> 4);
-	else
-		col = (on) ? ((a & 0xf000) >> 4) : (a & 0x0f00);
+	col = a & 0x0f00;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	f = &(scp->font[sc_vtb_getc(&scp->vtb, at)*scp->font_size
 		+ scp->font_size - scp->curs_attr.base - 1]);
@@ -1003,7 +1188,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	int i, j, k;
 	uint8_t m1;
 
-	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
+	mdp = scp->mouse_data;
 	line_width = scp->sc->adp->va_line_width;
 	xoff = (x - scp->xoff*8)%8;
 	yoff = y - rounddown(y, line_width);
@@ -1070,7 +1255,7 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 	vm_offset_t p;
 	int bx, by, i, line_width, xend, xoff, yend, yoff;
 
-	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
+	mdp = scp->mouse_data;
 
 	/*
 	 * It is only necessary to remove the mouse image where it overlaps
@@ -1109,7 +1294,7 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	int xend, yend;
 	int i, j;
 
-	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
+	mdp = scp->mouse_data;
 
 	/*
 	 * Determine overlap with the border and then if removing, do nothing

@@ -148,6 +148,7 @@ struct pl310_softc {
 	struct mtx	sc_mtx;
 	u_int		sc_rtl_revision;
 	struct intr_config_hook *sc_ich;
+	boolean_t	sc_io_coherent;
 };
 
 /**
@@ -180,8 +181,10 @@ pl310_write4(struct pl310_softc *sc, bus_size_t off, uint32_t val)
 void pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
     uint32_t read, uint32_t write, uint32_t setup);
 
+#ifndef PLATFORM
 void platform_pl310_init(struct pl310_softc *);
 void platform_pl310_write_ctrl(struct pl310_softc *, uint32_t);
 void platform_pl310_write_debug(struct pl310_softc *, uint32_t);
+#endif
 
 #endif /* PL310_H_ */

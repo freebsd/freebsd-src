@@ -11,9 +11,15 @@
 #define liblldb_FileSpecList_h_
 #if defined(__cplusplus)
 
-#include "lldb/Host/FileSpec.h"
-#include "lldb/lldb-private.h"
+#include "lldb/Utility/FileSpec.h"
+
 #include <vector>
+
+#include <stddef.h> // for size_t
+
+namespace lldb_private {
+class Stream;
+}
 
 namespace lldb_private {
 

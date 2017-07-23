@@ -392,8 +392,8 @@ typedef struct callout sctp_os_timer_t;
 	(sb).sb_mb = NULL;	\
 	(sb).sb_mbcnt = 0;
 
-#define SCTP_SB_LIMIT_RCV(so) so->so_rcv.sb_hiwat
-#define SCTP_SB_LIMIT_SND(so) so->so_snd.sb_hiwat
+#define SCTP_SB_LIMIT_RCV(so) (SOLISTENING(so) ? so->sol_sbrcv_hiwat : so->so_rcv.sb_hiwat)
+#define SCTP_SB_LIMIT_SND(so) (SOLISTENING(so) ? so->sol_sbsnd_hiwat : so->so_snd.sb_hiwat)
 
 /*
  * routes, output, etc.

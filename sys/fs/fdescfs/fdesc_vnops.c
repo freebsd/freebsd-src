@@ -152,7 +152,7 @@ fdesc_allocvp(fdntype ftype, unsigned fd_fd, int ix, struct mount *mp,
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
 	struct thread *td;
-	int error = 0;
+	int error;
 
 	td = curthread;
 	fc = FD_NHASH(ix);
@@ -162,7 +162,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		return (-1);
@@ -207,7 +207,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		vgone(vp);
@@ -358,7 +358,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 		    LK_EXCLUSIVE, &fvp);
 	}
-	
+
 	if (error)
 		goto bad;
 	*vpp = fvp;

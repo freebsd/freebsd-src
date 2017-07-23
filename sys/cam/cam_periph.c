@@ -661,6 +661,7 @@ static void
 camperiphfree(struct cam_periph *periph)
 {
 	struct periph_driver **p_drv;
+	struct periph_driver *drv;
 
 	cam_periph_assert(periph, MA_OWNED);
 	KASSERT(periph->periph_allocating == 0, ("%s%d: freed while allocating",
@@ -673,6 +674,15 @@ camperiphfree(struct cam_periph *periph)
 		printf("camperiphfree: attempt to free non-existant periph\n");
 		return;
 	}
+	/*
+	 * Cache a pointer to the periph_driver structure.  If a
+	 * periph_driver is added or removed from the array (see
+	 * periphdriver_register()) while we drop the toplogy lock
+	 * below, p_drv may change.  This doesn't protect against this
+	 * particular periph_driver going away.  That will require full
+	 * reference counting in the periph_driver infrastructure.
+	 */
+	drv = *p_drv;
 
 	/*
 	 * We need to set this flag before dropping the topology lock, to
@@ -708,8 +718,8 @@ camperiphfree(struct cam_periph *periph)
 	 */
 	xpt_lock_buses();
 
-	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-	(*p_drv)->generation++;
+	TAILQ_REMOVE(&drv->units, periph, unit_links);
+	drv->generation++;
 
 	xpt_remove_periph(periph);
 
@@ -817,6 +827,18 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
+	case XPT_MMC_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return(0);
+		/* Two mappings: one for cmd->data and one for cmd->data->data */
+		data_ptrs[0] = (unsigned char **)&ccb->mmcio.cmd.data;
+		lengths[0] = sizeof(struct mmc_data *);
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		data_ptrs[1] = (unsigned char **)&ccb->mmcio.cmd.data->data;
+		lengths[1] = ccb->mmcio.cmd.data->len;
+		dirs[1] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 2;
+		break;
 	case XPT_SMP_IO:
 		data_ptrs[0] = &ccb->smpio.smp_request;
 		lengths[0] = ccb->smpio.smp_request_len;
@@ -825,6 +847,17 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		lengths[1] = ccb->smpio.smp_response_len;
 		dirs[1] = CAM_DIR_IN;
 		numbufs = 2;
+		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return (0);
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		lengths[0] = ccb->nvmeio.dxfer_len;
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 1;
 		break;
 	case XPT_DEV_ADVINFO:
 		if (ccb->cdai.bufsiz == 0)
@@ -991,6 +1024,11 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_DEV_ADVINFO:
 		numbufs = min(mapinfo->num_bufs_used, 1);
 		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
+		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		numbufs = min(mapinfo->num_bufs_used, 1);
 		break;
 	default:
 		/* allow ourselves to be swapped once again */

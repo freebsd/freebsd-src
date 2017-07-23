@@ -487,6 +487,7 @@ static int get_params__post_init(struct adapter *);
 static int set_params__post_init(struct adapter *);
 static void t4_set_desc(struct adapter *);
 static void build_medialist(struct port_info *, struct ifmedia *);
+static void init_l1cfg(struct port_info *);
 static int cxgbe_init_synchronized(struct vi_info *);
 static int cxgbe_uninit_synchronized(struct vi_info *);
 static void quiesce_txq(struct adapter *, struct sge_txq *);
@@ -570,6 +571,8 @@ static int set_tcb_rpl(struct sge_iq *, const struct rss_header *,
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int load_fw(struct adapter *, struct t4_data *);
 static int load_cfg(struct adapter *, struct t4_data *);
+static int load_boot(struct adapter *, struct t4_bootrom *);
+static int load_bootcfg(struct adapter *, struct t4_data *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -955,7 +958,6 @@ t4_attach(device_t dev)
 	n10g = n1g = 0;
 	for_each_port(sc, i) {
 		struct port_info *pi;
-		struct link_config *lc;
 
 		pi = malloc(sizeof(*pi), M_CXGBE, M_ZERO | M_WAITOK);
 		sc->port[i] = pi;
@@ -978,28 +980,6 @@ t4_attach(device_t dev)
 		if (rc != 0) {
 			device_printf(dev, "unable to initialize port %d: %d\n",
 			    i, rc);
-			free(pi->vi, M_CXGBE);
-			free(pi, M_CXGBE);
-			sc->port[i] = NULL;
-			goto done;
-		}
-
-		lc = &pi->link_cfg;
-		lc->requested_fc &= ~(PAUSE_TX | PAUSE_RX);
-		lc->requested_fc |= t4_pause_settings;
-		if (t4_fec != -1) {
-			lc->requested_fec = t4_fec &
-			    G_FW_PORT_CAP_FEC(lc->supported);
-		}
-		if (lc->supported & FW_PORT_CAP_ANEG && t4_autoneg != -1) {
-			lc->autoneg = t4_autoneg ? AUTONEG_ENABLE :
-			    AUTONEG_DISABLE;
-		}
-		lc->requested_speed = port_top_speed_raw(pi);
-
-		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
-		if (rc != 0) {
-			device_printf(dev, "port %d l1cfg failed: %d\n", i, rc);
 			free(pi->vi, M_CXGBE);
 			free(pi, M_CXGBE);
 			sc->port[i] = NULL;
@@ -1480,7 +1460,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	/* Initialize ifmedia for this VI */
 	ifmedia_init(&vi->media, IFM_IMASK, cxgbe_media_change,
 	    cxgbe_media_status);
-	build_medialist(vi->pi, &vi->media);
 
 	vi->vlan_c = EVENTHANDLER_REGISTER(vlan_config, cxgbe_vlan_config, ifp,
 	    EVENTHANDLER_PRI_ANY);
@@ -2022,32 +2001,63 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
 	struct ifmedia_entry *cur;
-	int speed = pi->link_cfg.speed;
+	struct link_config *lc = &pi->link_cfg;
+
+	/*
+	 * If all the interfaces are administratively down the firmware does not
+	 * report transceiver changes.  Refresh port info here so that ifconfig
+	 * displays accurate information at all times.
+	 */
+	if (begin_synchronized_op(pi->adapter, NULL, SLEEP_OK | INTR_OK,
+	    "t4med") == 0) {
+		PORT_LOCK(pi);
+		if (pi->up_vis == 0) {
+			t4_update_port_info(pi);
+			build_medialist(pi, &vi->media);
+		}
+		PORT_UNLOCK(pi);
+		end_synchronized_op(pi->adapter, 0);
+	}
 
 	cur = vi->media.ifm_cur;
 
 	ifmr->ifm_status = IFM_AVALID;
-	if (!pi->link_cfg.link_ok)
+	if (lc->link_ok == 0)
 		return;
 
 	ifmr->ifm_status |= IFM_ACTIVE;
+	ifmr->ifm_active &= ~(IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE);
+	if (lc->fc & PAUSE_RX)
+		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
+	if (lc->fc & PAUSE_TX)
+		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	/* active and current will differ iff current media is autoselect. */
 	if (IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
-	if (speed == 10000)
+	if (lc->fc & PAUSE_RX)
+		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
+	if (lc->fc & PAUSE_TX)
+		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
+	switch (lc->speed) {
+	case 10000:
 		ifmr->ifm_active |= IFM_10G_T;
-	else if (speed == 1000)
+		break;
+	case 1000:
 		ifmr->ifm_active |= IFM_1000_T;
-	else if (speed == 100)
+		break;
+	case 100:
 		ifmr->ifm_active |= IFM_100_TX;
-	else if (speed == 10)
+		break;
+	case 10:
 		ifmr->ifm_active |= IFM_10_T;
-	else
-		KASSERT(0, ("%s: link up but speed unknown (%u)", __func__,
-			    speed));
+		break;
+	default:
+		device_printf(vi->dev, "link up but speed unknown (%u)\n",
+		    lc->speed);
+	}
 }
 
 static int
@@ -3590,11 +3600,18 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 {
 	int m;
 
-	PORT_LOCK(pi);
+	PORT_LOCK_ASSERT_OWNED(pi);
 
 	ifmedia_removeall(media);
 
-	m = IFM_ETHER | IFM_FDX;
+	/*
+	 * XXX: Would it be better to ifmedia_add all 4 combinations of pause
+	 * settings for every speed instead of just txpause|rxpause?  ifconfig
+	 * media display looks much better if autoselect is the only case where
+	 * ifm_current is different from ifm_active.  If the user picks anything
+	 * except txpause|rxpause the display is ugly.
+	 */
+	m = IFM_ETHER | IFM_FDX | IFM_ETH_TXPAUSE | IFM_ETH_RXPAUSE;
 
 	switch(pi->port_type) {
 	case FW_PORT_TYPE_BT_XFI:
@@ -3770,8 +3787,53 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		ifmedia_set(media, m | IFM_UNKNOWN);
 		break;
 	}
+}
 
-	PORT_UNLOCK(pi);
+/*
+ * Update all the requested_* fields in the link config and then send a mailbox
+ * command to apply the settings.
+ */
+static void
+init_l1cfg(struct port_info *pi)
+{
+	struct adapter *sc = pi->adapter;
+	struct link_config *lc = &pi->link_cfg;
+	int rc;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+
+	if (t4_autoneg != 0 && lc->supported & FW_PORT_CAP_ANEG) {
+		lc->requested_aneg = AUTONEG_ENABLE;
+		lc->requested_speed = 0;
+	} else {
+		lc->requested_aneg = AUTONEG_DISABLE;
+		lc->requested_speed = port_top_speed(pi);	/* in Gbps */
+	}
+
+	lc->requested_fc = t4_pause_settings & (PAUSE_TX | PAUSE_RX);
+
+	if (t4_fec != -1) {
+		lc->requested_fec = t4_fec & (FEC_RS | FEC_BASER_RS |
+		    FEC_RESERVED);
+	} else {
+		/* Use the suggested value provided by the firmware in acaps */
+		if (lc->advertising & FW_PORT_CAP_FEC_RS)
+			lc->requested_fec = FEC_RS;
+		else if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
+			lc->requested_fec = FEC_BASER_RS;
+		else if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
+			lc->requested_fec = FEC_RESERVED;
+		else
+			lc->requested_fec = 0;
+	}
+
+	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+	if (rc != 0) {
+		device_printf(pi->dev, "l1cfg failed: %d\n", rc);
+	} else {
+		lc->fc = lc->requested_fc;
+		lc->fec = lc->requested_fec;
+	}
 }
 
 #define FW_MAC_EXACT_CHUNK	7
@@ -4053,8 +4115,12 @@ cxgbe_init_synchronized(struct vi_info *vi)
 
 	/* all ok */
 	PORT_LOCK(pi);
+	if (pi->up_vis++ == 0) {
+		t4_update_port_info(pi);
+		build_medialist(vi->pi, &vi->media);
+		init_l1cfg(pi);
+	}
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	pi->up_vis++;
 
 	if (pi->nvi > 1 || sc->flags & IS_VF)
 		callout_reset(&vi->tick, hz, vi_tick, vi);
@@ -4127,7 +4193,7 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
 	pi->link_cfg.link_down_rc = 255;
-	t4_os_link_changed(sc, pi->port_id, 0);
+	t4_os_link_changed(pi, NULL);
 
 	return (0);
 }
@@ -5813,6 +5879,9 @@ sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
 			lc->requested_fc &= ~(PAUSE_TX | PAUSE_RX);
 			lc->requested_fc |= n;
 			rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+			if (rc == 0) {
+				lc->fc = lc->requested_fc;
+			}
 		}
 		end_synchronized_op(sc, 0);
 	}
@@ -5870,6 +5939,9 @@ sysctl_fec(SYSCTL_HANDLER_ARGS)
 			lc->requested_fec = n &
 			    G_FW_PORT_CAP_FEC(lc->supported);
 			rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
+			if (rc == 0) {
+				lc->fec = lc->requested_fec;
+			}
 		}
 		end_synchronized_op(sc, 0);
 	}
@@ -5886,7 +5958,7 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 	int rc, val, old;
 
 	if (lc->supported & FW_PORT_CAP_ANEG)
-		val = lc->autoneg == AUTONEG_ENABLE ? 1 : 0;
+		val = lc->requested_aneg == AUTONEG_ENABLE ? 1 : 0;
 	else
 		val = -1;
 	rc = sysctl_handle_int(oidp, &val, 0, req);
@@ -5901,18 +5973,18 @@ sysctl_autoneg(SYSCTL_HANDLER_ARGS)
 		val = AUTONEG_ENABLE;
 	else
 		return (EINVAL);
-	if (lc->autoneg == val)
+	if (lc->requested_aneg == val)
 		return (0);	/* no change */
 
 	rc = begin_synchronized_op(sc, &pi->vi[0], SLEEP_OK | INTR_OK,
 	    "t4aneg");
 	if (rc)
 		return (rc);
-	old = lc->autoneg;
-	lc->autoneg = val;
+	old = lc->requested_aneg;
+	lc->requested_aneg = val;
 	rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 	if (rc != 0)
-		lc->autoneg = old;
+		lc->requested_aneg = old;
 	end_synchronized_op(sc, 0);
 	return (rc);
 }
@@ -8782,6 +8854,87 @@ done:
 	return (rc);
 }
 
+static int
+load_boot(struct adapter *sc, struct t4_bootrom *br)
+{
+	int rc;
+	uint8_t *br_data = NULL;
+	u_int offset;
+
+	if (br->len > 1024 * 1024)
+		return (EFBIG);
+
+	if (br->pf_offset == 0) {
+		/* pfidx */
+		if (br->pfidx_addr > 7)
+			return (EINVAL);
+		offset = G_OFFSET(t4_read_reg(sc, PF_REG(br->pfidx_addr,
+		    A_PCIE_PF_EXPROM_OFST)));
+	} else if (br->pf_offset == 1) {
+		/* offset */
+		offset = G_OFFSET(br->pfidx_addr);
+	} else {
+		return (EINVAL);
+	}
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ldbr");
+	if (rc)
+		return (rc);
+
+	if (br->len == 0) {
+		/* clear */
+		rc = -t4_load_boot(sc, NULL, offset, 0);
+		goto done;
+	}
+
+	br_data = malloc(br->len, M_CXGBE, M_WAITOK);
+	if (br_data == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	rc = copyin(br->data, br_data, br->len);
+	if (rc == 0)
+		rc = -t4_load_boot(sc, br_data, offset, br->len);
+
+	free(br_data, M_CXGBE);
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
+static int
+load_bootcfg(struct adapter *sc, struct t4_data *bc)
+{
+	int rc;
+	uint8_t *bc_data = NULL;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ldcf");
+	if (rc)
+		return (rc);
+
+	if (bc->len == 0) {
+		/* clear */
+		rc = -t4_load_bootcfg(sc, NULL, 0);
+		goto done;
+	}
+
+	bc_data = malloc(bc->len, M_CXGBE, M_WAITOK);
+	if (bc_data == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	rc = copyin(bc->data, bc_data, bc->len);
+	if (rc == 0)
+		rc = -t4_load_bootcfg(sc, bc_data, bc->len);
+
+	free(bc_data, M_CXGBE);
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
 #define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
@@ -8874,9 +9027,9 @@ t4_os_pci_restore_state(struct adapter *sc)
 }
 
 void
-t4_os_portmod_changed(const struct adapter *sc, int idx)
+t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
+    struct link_config *old_lc)
 {
-	struct port_info *pi = sc->port[idx];
 	struct vi_info *vi;
 	struct ifnet *ifp;
 	int v;
@@ -8884,8 +9037,14 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
 
+	PORT_LOCK(pi);
 	for_each_vi(pi, v, vi) {
 		build_medialist(pi, &vi->media);
+	}
+	PORT_UNLOCK(pi);
+	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
+		init_l1cfg(pi);
+		end_synchronized_op(pi->adapter, LOCK_HELD);
 	}
 
 	ifp = pi->vi[0].ifp;
@@ -8896,8 +9055,8 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
 		if_printf(ifp, "unsupported transceiver inserted.\n");
 	else if (pi->mod_type > 0 && pi->mod_type < nitems(mod_str)) {
-		if_printf(ifp, "%s transceiver inserted.\n",
-		    mod_str[pi->mod_type]);
+		if_printf(ifp, "%dGbps %s transceiver inserted.\n",
+		    port_top_speed(pi), mod_str[pi->mod_type]);
 	} else {
 		if_printf(ifp, "transceiver (type %d) inserted.\n",
 		    pi->mod_type);
@@ -8905,11 +9064,11 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 }
 
 void
-t4_os_link_changed(struct adapter *sc, int idx, int link_stat)
+t4_os_link_changed(struct port_info *pi, struct link_config *old_lc)
 {
-	struct port_info *pi = sc->port[idx];
 	struct vi_info *vi;
 	struct ifnet *ifp;
+	struct link_config *lc;
 	int v;
 
 	for_each_vi(pi, v, vi) {
@@ -8917,8 +9076,9 @@ t4_os_link_changed(struct adapter *sc, int idx, int link_stat)
 		if (ifp == NULL)
 			continue;
 
-		if (link_stat) {
-			ifp->if_baudrate = IF_Mbps(pi->link_cfg.speed);
+		lc = &pi->link_cfg;
+		if (lc->link_ok) {
+			ifp->if_baudrate = IF_Mbps(lc->speed);
 			if_link_state_change(ifp, LINK_STATE_UP);
 		} else {
 			if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -9116,6 +9276,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	case CHELSIO_T4_LOAD_CFG:
 		rc = load_cfg(sc, (struct t4_data *)data);
+		break;
+	case CHELSIO_T4_LOAD_BOOT:
+		rc = load_boot(sc, (struct t4_bootrom *)data);
+		break;
+	case CHELSIO_T4_LOAD_BOOTCFG:
+		rc = load_bootcfg(sc, (struct t4_data *)data);
 		break;
 	default:
 		rc = ENOTTY;

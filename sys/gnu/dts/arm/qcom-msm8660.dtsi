@@ -163,7 +163,7 @@
 			reg = <0x500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
 
-			pmicintc: pmic@0 {
+			pm8058: pmic@0 {
 				compatible = "qcom,pm8058";
 				interrupt-parent = <&tlmm>;
 				interrupts = <88 8>;
@@ -176,7 +176,7 @@
 					compatible = "qcom,pm8058-gpio",
 						     "qcom,ssbi-gpio";
 					reg = <0x150>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <192 IRQ_TYPE_NONE>,
 						     <193 IRQ_TYPE_NONE>,
 						     <194 IRQ_TYPE_NONE>,
@@ -232,7 +232,7 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts =
 					<128 IRQ_TYPE_NONE>,
 					<129 IRQ_TYPE_NONE>,
@@ -251,7 +251,7 @@
 				pwrkey@1c {
 					compatible = "qcom,pm8058-pwrkey";
 					reg = <0x1c>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <50 1>, <51 1>;
 					debounce = <15625>;
 					pull-up;
@@ -260,7 +260,7 @@
 				keypad@148 {
 					compatible = "qcom,pm8058-keypad";
 					reg = <0x148>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <74 1>, <75 1>;
 					debounce = <15>;
 					scan-delay = <32>;
@@ -270,7 +270,7 @@
 				rtc@1e8 {
 					compatible = "qcom,pm8058-rtc";
 					reg = <0x1e8>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <39 1>;
 					allow-set-time;
 				};
@@ -392,6 +392,21 @@
 				cap-mmc-highspeed;
 			};
 
+			sdcc2: sdcc@12140000 {
+				status		= "disabled";
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				reg		= <0x12140000 0x8000>;
+				interrupts	= <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC2_CLK>, <&gcc SDC2_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <8>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
+			};
+
 			sdcc3: sdcc@12180000 {
 				compatible	= "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -406,6 +421,21 @@
 				cap-mmc-highspeed;
 				max-frequency	= <48000000>;
 				no-1-8-v;
+			};
+
+			sdcc4: sdcc@121c0000 {
+				compatible	= "arm,pl18x", "arm,primecell";
+				arm,primecell-periphid = <0x00051180>;
+				status		= "disabled";
+				reg		= <0x121c0000 0x8000>;
+				interrupts	= <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names	= "cmd_irq";
+				clocks		= <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+				clock-names	= "mclk", "apb_pclk";
+				bus-width	= <4>;
+				max-frequency	= <48000000>;
+				cap-sd-highspeed;
+				cap-mmc-highspeed;
 			};
 
 			sdcc5: sdcc@12200000 {

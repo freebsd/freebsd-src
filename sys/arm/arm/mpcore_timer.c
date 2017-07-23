@@ -59,9 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#ifdef MULTIDELAY
 #include <machine/machdep.h> /* For arm_set_delay */
-#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -438,8 +436,13 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef MULTIDELAY
-	arm_set_delay(arm_tmr_delay, sc);
+#ifdef PLATFORM
+	/*
+	 * We can register as the DELAY() implementation only if we successfully
+	 * set up the global timer.
+	 */
+	if (tc_err == 0)
+		arm_set_delay(arm_tmr_delay, sc);
 #endif
 
 	return (0);
@@ -524,7 +527,7 @@ arm_tmr_delay(int usec, void *arg)
 	}
 }
 
-#ifndef MULTIDELAY
+#ifndef PLATFORM
 /**
  *	DELAY - Delay for at least usec microseconds.
  *	@usec: number of microseconds to delay by

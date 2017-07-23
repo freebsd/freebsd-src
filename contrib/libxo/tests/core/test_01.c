@@ -80,6 +80,8 @@ main (int argc, char **argv)
 
     xo_open_container_h(NULL, "top");
 
+    xo_emit("df {:used-percent/%5.0f}{U:%%}\n", (double) 12);
+
     xo_emit("{e:kve_start/%#jx}", (uintmax_t) 0xdeadbeef);
     xo_emit("{e:kve_end/%#jx}", (uintmax_t) 0xcabb1e);
 
@@ -189,6 +191,8 @@ main (int argc, char **argv)
 	    "{t:user/%s}  {t:group/%s}  \n",
 	    "mode", "octal", "links",
 	    "user", "group", "extra1", "extra2", "extra3");
+
+    xo_emit("{e:pre/%s}{t:links/%-*u}{t:post/%-*s}\n", "that", 8, 3, 8, "this");
 
     xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} "
 	    "{t:user/%-*s}  {t:group/%-*s}  \n",

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2017
+.Dd June 22, 2017
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -148,12 +148,13 @@ The
 structure is defined as:
 .Bd -literal
 struct kevent {
-	uintptr_t ident;	/* identifier for this event */
+	uintptr_t  ident;	/* identifier for this event */
 	short	  filter;	/* filter for event */
 	u_short	  flags;	/* action flags for kqueue */
 	u_int	  fflags;	/* filter flag value */
-	intptr_t  data;		/* filter data value */
+	int64_t   data;		/* filter data value */
 	void	  *udata;	/* opaque user data identifier */
+	uint64_t  ext[4];	/* extentions */
 };
 .Ed
 .Pp
@@ -177,6 +178,20 @@ Filter-specific flags.
 Filter-specific data value.
 .It Fa udata
 Opaque user-defined value passed through the kernel unchanged.
+.It Fa ext
+Extended data passed to and from kernel.
+The
+.Fa ext[0]
+and
+.Fa ext[1]
+members use is defined by the filter.
+If the filter does not use them, the members are copied unchanged.
+The
+.Fa ext[2]
+and
+.Fa ext[3]
+members are always passed throught the kernel as-is,
+making additional context available to application.
 .El
 .Pp
 The
@@ -336,33 +351,18 @@ case.
 Takes a descriptor as the identifier, and returns whenever
 there is no remaining data in the write buffer.
 .It Dv EVFILT_AIO
-The sigevent portion of the AIO request is filled in, with
-.Va sigev_notify_kqueue
-containing the descriptor of the kqueue that the event should
-be attached to,
-.Va sigev_notify_kevent_flags
-containing the kevent flags which should be
-.Dv EV_ONESHOT ,
-.Dv EV_CLEAR
-or
-.Dv EV_DISPATCH ,
-.Va sigev_value
-containing the udata value, and
-.Va sigev_notify
-set to
-.Dv SIGEV_KEVENT .
-When the
-.Fn aio_*
-system call is made, the event will be registered
-with the specified kqueue, and the
-.Va ident
-argument set to the
-.Fa struct aiocb
-returned by the
-.Fn aio_*
-system call.
+Events for this filter are not registered with
+.Fn kevent
+directly but are registered via the
+.Va aio_sigevent
+member of an asychronous I/O request when it is scheduled via an asychronous I/O
+system call such as
+.Fn aio_read .
 The filter returns under the same conditions as
 .Fn aio_error .
+For more details on this filter see
+.Xr sigevent 3 and
+.Xr aio 4 .
 .It Dv EVFILT_VNODE
 Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
@@ -515,20 +515,26 @@ Establishes an arbitrary timer identified by
 .Va ident .
 When adding a timer,
 .Va data
-specifies the timeout period.
+specifies the moment to fire the timer (for
+.Dv NOTE_ABSTIME )
+or the timeout period.
 The timer will be periodic unless
 .Dv EV_ONESHOT
+or
+.Dv NOTE_ABSTIME
 is specified.
 On return,
 .Va data
 contains the number of times the timeout has expired since the last call to
 .Fn kevent .
-This filter automatically sets the EV_CLEAR flag internally.
-There is a system wide limit on the number of timers
-which is controlled by the
-.Va kern.kq_calloutmax
-sysctl.
-.Bl -tag -width "Dv NOTE_USECONDS"
+For non-monotonic timers, this filter automatically sets the
+.Dv EV_CLEAR
+flag internally.
+.Pp
+The filter accepts the following flags in the
+.Va fflags
+argument:
+.Bl -tag -width "Dv NOTE_MSECONDS"
 .It Dv NOTE_SECONDS
 .Va data
 is in seconds.
@@ -541,13 +547,21 @@ is in microseconds.
 .It Dv NOTE_NSECONDS
 .Va data
 is in nanoseconds.
+.It Dv NOTE_ABSTIME
+The specified expiration time is absolute.
 .El
 .Pp
 If
 .Va fflags
-is not set, the default is milliseconds. On return,
+is not set, the default is milliseconds.
+On return,
 .Va fflags
 contains the events which triggered the filter.
+.Pp
+There is a system wide limit on the number of timers
+which is controlled by the
+.Va kern.kq_calloutmax
+sysctl.
 .It Dv EVFILT_USER
 Establishes a user event identified by
 .Va ident

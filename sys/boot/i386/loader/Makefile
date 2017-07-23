@@ -14,7 +14,7 @@ LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
 
 # architecture-specific loader code
-SRCS=		main.c conf.c vers.c
+SRCS=		main.c conf.c vers.c chain.c
 
 # Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
 .if defined(LOADER_FIREWIRE_SUPPORT)

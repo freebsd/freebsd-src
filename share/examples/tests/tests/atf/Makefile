@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 # The release package to use for the tests contained within the directory
 #
 # This applies to components which rely on ^/projects/release-pkg support
@@ -33,10 +31,10 @@ ATF_TESTS_SH=	cp_test
 # definitions from above.
 KYUAFILE=	yes
 
-# Install file1 and file2 as files via bsd.prog.mk. Please note the intentional
+# Install file1 and file2 as files via bsd.progs.mk. Please note the intentional
 # ${PACKAGE} namespace of files.
 #
-# The basic semantics of this are the same as FILES in bsd.prog.mk, e.g. the
+# The basic semantics of this are the same as FILES in bsd.progs.mk, e.g. the
 # installation of the files can be manipulated via ${PACKAGE}FILESDIR,
 # ${PACKAGE}FILESMODE, etc.
 #

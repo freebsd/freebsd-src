@@ -79,3 +79,10 @@ get_tclk(void)
 
 	return (TCLK_166MHZ);
 }
+
+uint32_t
+get_cpu_freq(void)
+{
+
+	return (0);
+}

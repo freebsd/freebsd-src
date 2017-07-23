@@ -17,7 +17,7 @@
 #include "lldb/lldb-private.h"
 
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/ConstString.h"
+#include "lldb/Utility/ConstString.h"
 
 #include <map>
 #include <vector>
@@ -102,6 +102,7 @@ private:
   bool sub_rsp_pattern_p(int &amount);
   bool add_rsp_pattern_p(int &amount);
   bool lea_rsp_pattern_p(int &amount);
+  bool lea_rbp_rsp_pattern_p(int &amount);
   bool push_reg_p(int &regno);
   bool pop_reg_p(int &regno);
   bool pop_rbp_pattern_p();
@@ -112,7 +113,7 @@ private:
   bool ret_pattern_p();
   uint32_t extract_4(uint8_t *b);
 
-  bool instruction_length(uint8_t *insn, int &length);
+  bool instruction_length(uint8_t *insn, int &length, uint32_t buffer_remaining_bytes);
 
   bool machine_regno_to_lldb_regno(int machine_regno, uint32_t &lldb_regno);
 

@@ -33,6 +33,7 @@
 # common to all SunOS systems.
 
 ZFS_COMMON_OBJS +=		\
+	abd.o			\
 	arc.o			\
 	bplist.o		\
 	blkptr.o		\

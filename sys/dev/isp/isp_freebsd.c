@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 1997-2009 by Matthew Jacob
  * All rights reserved.
  *
@@ -169,6 +170,8 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
+		fcp->isp_use_gft_id = 1;
+		fcp->isp_use_gff_id = 1;
 
 		callout_init_mtx(&fc->gdt, &isp->isp_lock, 0);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
@@ -235,6 +238,12 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "topo", CTLFLAG_RD, &fcp->isp_topo, 0,
 		    "Connection topology");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "use_gft_id", CTLFLAG_RWTUN, &fcp->isp_use_gft_id, 0,
+		    "Use GFT_ID during fabric scan");
+		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "use_gff_id", CTLFLAG_RWTUN, &fcp->isp_use_gff_id, 0,
+		    "Use GFF_ID during fabric scan");
 	}
 	return (0);
 }
@@ -1608,7 +1617,7 @@ isp_target_putback_atio(union ccb *ccb)
 	}
 	at->at_status = CT_OK;
 	at->at_rxid = cso->tag_id;
-	at->at_iid = cso->ccb_h.target_id;
+	at->at_iid = cso->init_id;
 	if (isp_target_put_entry(isp, at)) {
 		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
 		    isp_refire_putback_atio, ccb);
@@ -1693,7 +1702,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
-	atiop->ccb_h.target_id = fcp->isp_loopid;
+	atiop->ccb_h.target_id = ISP_MAX_TARGETS(isp);
 	atiop->ccb_h.target_lun = lun;
 
 	/*
@@ -1872,7 +1881,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
 	atiop->init_id = FC_PORTDB_TGT(isp, chan, lp);
-	atiop->ccb_h.target_id = FCPARAM(isp, chan)->isp_loopid;
+	atiop->ccb_h.target_id = ISP_MAX_TARGETS(isp);
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
 	cdbxlen = aep->at_cmnd.fcp_cmnd_alen_datadir >> FCP_CMND_ADDTL_CDBLEN_SHIFT;
@@ -2357,6 +2366,8 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		goto bad;
 	}
 
+	inot->ccb_h.target_id = ISP_MAX_TARGETS(isp);
+	inot->ccb_h.target_lun = lun;
 	if (isp_find_pdb_by_portid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
 	    isp_find_pdb_by_handle(isp, notify->nt_channel, notify->nt_nphdl, &lp) == 0) {
 		inot->initiator_id = CAM_TARGET_WILDCARD;

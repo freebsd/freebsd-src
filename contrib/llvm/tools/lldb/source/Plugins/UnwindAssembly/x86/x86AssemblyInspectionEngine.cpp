@@ -452,6 +452,33 @@ bool x86AssemblyInspectionEngine::lea_rsp_pattern_p(int &amount) {
   return false;
 }
 
+// lea -0x28(%ebp), %esp
+// (32-bit and 64-bit variants, 8-bit and 32-bit displacement)
+bool x86AssemblyInspectionEngine::lea_rbp_rsp_pattern_p(int &amount) {
+  uint8_t *p = m_cur_insn;
+  if (m_wordsize == 8 && *p == 0x48)
+    p++;
+
+  // Check opcode
+  if (*p != 0x8d)
+    return false;
+  ++p;
+
+  // 8 bit displacement
+  if (*p == 0x65) {
+    amount = (int8_t)p[1];
+    return true;
+  }
+
+  // 32 bit displacement
+  if (*p == 0xa5) {
+    amount = (int32_t)extract_4(p + 1);
+    return true;
+  }
+
+  return false;
+}
+
 // popq %rbx
 // popl %ebx
 bool x86AssemblyInspectionEngine::pop_reg_p(int &regno) {
@@ -577,9 +604,10 @@ uint32_t x86AssemblyInspectionEngine::extract_4(uint8_t *b) {
 }
 
 bool x86AssemblyInspectionEngine::instruction_length(uint8_t *insn_p,
-                                                     int &length) {
+                                                     int &length, 
+                                                     uint32_t buffer_remaining_bytes) {
 
-  const uint32_t max_op_byte_size = m_arch.GetMaximumOpcodeByteSize();
+  uint32_t max_op_byte_size = std::min(buffer_remaining_bytes, m_arch.GetMaximumOpcodeByteSize());
   llvm::SmallVector<uint8_t, 32> opcode_data;
   opcode_data.resize(max_op_byte_size);
 
@@ -671,8 +699,9 @@ bool x86AssemblyInspectionEngine::GetNonCallSiteUnwindPlanFromAssembly(
     bool row_updated = false; // The UnwindPlan::Row 'row' has been updated
 
     m_cur_insn = data + current_func_text_offset;
-    if (!instruction_length(m_cur_insn, insn_len) || insn_len == 0 ||
-        insn_len > kMaxInstructionByteSize) {
+    if (!instruction_length(m_cur_insn, insn_len, size - current_func_text_offset)
+        || insn_len == 0 
+        || insn_len > kMaxInstructionByteSize) {
       // An unrecognized/junk instruction
       break;
     }
@@ -843,6 +872,12 @@ bool x86AssemblyInspectionEngine::GetNonCallSiteUnwindPlanFromAssembly(
         in_epilogue = true;
     }
 
+    else if (lea_rbp_rsp_pattern_p(stack_offset) &&
+             row->GetCFAValue().GetRegisterNumber() == m_lldb_fp_regnum) {
+      current_sp_bytes_offset_from_cfa =
+          row->GetCFAValue().GetOffset() - stack_offset;
+    }
+
     else if (ret_pattern_p() && prologue_completed_row.get()) {
       // Reinstate the saved prologue setup for any instructions
       // that come after the ret instruction
@@ -969,8 +1004,9 @@ bool x86AssemblyInspectionEngine::AugmentUnwindPlanFromCallSite(
   while (offset < size) {
     m_cur_insn = data + offset;
     int insn_len;
-    if (!instruction_length(m_cur_insn, insn_len) || insn_len == 0 ||
-        insn_len > kMaxInstructionByteSize) {
+    if (!instruction_length(m_cur_insn, insn_len, size - offset)
+        || insn_len == 0 
+        || insn_len > kMaxInstructionByteSize) {
       // An unrecognized/junk instruction.
       break;
     }
@@ -979,11 +1015,12 @@ bool x86AssemblyInspectionEngine::AugmentUnwindPlanFromCallSite(
     offset += insn_len;
     m_cur_insn = data + offset;
 
-    if (reinstate_unwind_state) {
-      // that was the last instruction of this function
-      if (offset >= size)
-        continue;
+    // offset is pointing beyond the bounds of the
+    // function; stop looping.
+    if (offset >= size) 
+      continue;
 
+    if (reinstate_unwind_state) {
       UnwindPlan::RowSP new_row(new UnwindPlan::Row());
       *new_row = *original_last_row;
       new_row->SetOffset(offset);
@@ -1180,8 +1217,9 @@ bool x86AssemblyInspectionEngine::FindFirstNonPrologueInstruction(
     int scratch;
 
     m_cur_insn = data + offset;
-    if (!instruction_length(m_cur_insn, insn_len) ||
-        insn_len > kMaxInstructionByteSize || insn_len == 0) {
+    if (!instruction_length(m_cur_insn, insn_len, size - offset) 
+        || insn_len > kMaxInstructionByteSize 
+        || insn_len == 0) {
       // An error parsing the instruction, i.e. probably data/garbage - stop
       // scanning
       break;

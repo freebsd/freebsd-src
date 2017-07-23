@@ -13,6 +13,7 @@ SRCS+=		profile/InstrProfilingBuffer.c
 SRCS+=		profile/InstrProfilingFile.c
 SRCS+=		profile/InstrProfilingMerge.c
 SRCS+=		profile/InstrProfilingMergeFile.c
+SRCS+=		profile/InstrProfilingNameVar.c
 SRCS+=		profile/InstrProfilingPlatformDarwin.c
 SRCS+=		profile/InstrProfilingPlatformLinux.c
 SRCS+=		profile/InstrProfilingPlatformOther.c

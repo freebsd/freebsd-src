@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ktrace.h"
 #include "opt_kqueue.h"
 
@@ -111,6 +112,10 @@ static int	kqueue_scan(struct kqueue *kq, int maxevents,
 static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
+struct g_kevent_args;
+static int	kern_kevent_generic(struct thread *td,
+		    struct g_kevent_args *uap,
+		    struct kevent_copyops *k_ops);
 
 static fo_ioctl_t	kqueue_ioctl;
 static fo_poll_t	kqueue_poll;
@@ -601,12 +606,13 @@ knote_fork(struct knlist *list, int pid)
  * interval timer support code.
  */
 
-#define NOTE_TIMER_PRECMASK	(NOTE_SECONDS|NOTE_MSECONDS|NOTE_USECONDS| \
-				NOTE_NSECONDS)
+#define NOTE_TIMER_PRECMASK						\
+    (NOTE_SECONDS | NOTE_MSECONDS | NOTE_USECONDS | NOTE_NSECONDS)
 
 static sbintime_t
 timer2sbintime(intptr_t data, int flags)
 {
+	int64_t secs;
 
         /*
          * Macros for converting to the fractional second portion of an
@@ -625,27 +631,27 @@ timer2sbintime(intptr_t data, int flags)
 	case NOTE_MSECONDS: /* FALLTHROUGH */
 	case 0:
 		if (data >= 1000) {
-			int64_t secs = data / 1000;
+			secs = data / 1000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
 			return (secs << 32 | MS_TO_SBT(data % 1000));
 		}
-		return MS_TO_SBT(data);
+		return (MS_TO_SBT(data));
 	case NOTE_USECONDS:
 		if (data >= 1000000) {
-			int64_t secs = data / 1000000;
+			secs = data / 1000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
 			return (secs << 32 | US_TO_SBT(data % 1000000));
 		}
-		return US_TO_SBT(data);
+		return (US_TO_SBT(data));
 	case NOTE_NSECONDS:
 		if (data >= 1000000000) {
-			int64_t secs = data / 1000000000;
+			secs = data / 1000000000;
 #ifdef __LP64__
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
@@ -662,7 +668,7 @@ timer2sbintime(intptr_t data, int flags)
 struct kq_timer_cb_data {
 	struct callout c;
 	sbintime_t next;	/* next timer event fires at */
-	sbintime_t to;		/* precalculated timer period */
+	sbintime_t to;		/* precalculated timer period, 0 for abs */
 };
 
 static void
@@ -677,8 +683,9 @@ filt_timerexpire(void *knx)
 
 	if ((kn->kn_flags & EV_ONESHOT) != 0)
 		return;
-
 	kc = kn->kn_ptr.p_v;
+	if (kc->to == 0)
+		return;
 	kc->next += kc->to;
 	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
 	    PCPU_GET(cpuid), C_ABSOLUTE);
@@ -691,7 +698,8 @@ static int
 filt_timerattach(struct knote *kn)
 {
 	struct kq_timer_cb_data *kc;
-	sbintime_t to;
+	struct bintime bt;
+	sbintime_t to, sbt;
 	unsigned int ncallouts;
 
 	if (kn->kn_sdata < 0)
@@ -699,10 +707,15 @@ filt_timerattach(struct knote *kn)
 	if (kn->kn_sdata == 0 && (kn->kn_flags & EV_ONESHOT) == 0)
 		kn->kn_sdata = 1;
 	/* Only precision unit are supported in flags so far */
-	if ((kn->kn_sfflags & ~NOTE_TIMER_PRECMASK) != 0)
+	if ((kn->kn_sfflags & ~(NOTE_TIMER_PRECMASK | NOTE_ABSTIME)) != 0)
 		return (EINVAL);
 
 	to = timer2sbintime(kn->kn_sdata, kn->kn_sfflags);
+	if ((kn->kn_sfflags & NOTE_ABSTIME) != 0) {
+		getboottimebin(&bt);
+		sbt = bttosbt(bt);
+		to -= sbt;
+	}
 	if (to < 0)
 		return (EINVAL);
 
@@ -712,12 +725,18 @@ filt_timerattach(struct knote *kn)
 			return (ENOMEM);
 	} while (!atomic_cmpset_int(&kq_ncallouts, ncallouts, ncallouts + 1));
 
-	kn->kn_flags |= EV_CLEAR;		/* automatically set */
+	if ((kn->kn_sfflags & NOTE_ABSTIME) == 0)
+		kn->kn_flags |= EV_CLEAR;	/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	callout_init(&kc->c, 1);
-	kc->next = to + sbinuptime();
-	kc->to = to;
+	if ((kn->kn_sfflags & NOTE_ABSTIME) != 0) {
+		kc->next = to;
+		kc->to = 0;
+	} else {
+		kc->next = to + sbinuptime();
+		kc->to = to;
+	}
 	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
 	    PCPU_GET(cpuid), C_ABSOLUTE);
 
@@ -889,34 +908,50 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 
 #ifdef KTRACE
 static size_t
-kev_iovlen(int n, u_int kgio)
+kev_iovlen(int n, u_int kgio, size_t kevent_size)
 {
 
-	if (n < 0 || n >= kgio / sizeof(struct kevent))
+	if (n < 0 || n >= kgio / kevent_size)
 		return (kgio);
-	return (n * sizeof(struct kevent));
+	return (n * kevent_size);
 }
 #endif
 
-#ifndef _SYS_SYSPROTO_H_
-struct kevent_args {
+struct g_kevent_args {
 	int	fd;
-	const struct kevent *changelist;
+	void	*changelist;
 	int	nchanges;
-	struct	kevent *eventlist;
+	void	*eventlist;
 	int	nevents;
 	const struct timespec *timeout;
 };
-#endif
+
 int
 sys_kevent(struct thread *td, struct kevent_args *uap)
 {
-	struct timespec ts, *tsp;
 	struct kevent_copyops k_ops = {
 		.arg = uap,
 		.k_copyout = kevent_copyout,
 		.k_copyin = kevent_copyin,
+		.kevent_size = sizeof(struct kevent),
 	};
+	struct g_kevent_args gk_args = {
+		.fd = uap->fd,
+		.changelist = uap->changelist,
+		.nchanges = uap->nchanges,
+		.eventlist = uap->eventlist,
+		.nevents = uap->nevents,
+		.timeout = uap->timeout,
+	};
+
+	return (kern_kevent_generic(td, &gk_args, &k_ops));
+}
+
+static int
+kern_kevent_generic(struct thread *td, struct g_kevent_args *uap,
+    struct kevent_copyops *k_ops)
+{
+	struct timespec ts, *tsp;
 	int error;
 #ifdef KTRACE
 	struct uio ktruio;
@@ -938,26 +973,30 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 	if (KTRPOINT(td, KTR_GENIO)) {
 		kgio = ktr_geniosize;
 		ktriov.iov_base = uap->changelist;
-		ktriov.iov_len = kev_iovlen(uap->nchanges, kgio);
+		ktriov.iov_len = kev_iovlen(uap->nchanges, kgio,
+		    k_ops->kevent_size);
 		ktruio = (struct uio){ .uio_iov = &ktriov, .uio_iovcnt = 1,
 		    .uio_segflg = UIO_USERSPACE, .uio_rw = UIO_READ,
 		    .uio_td = td };
 		ktruioin = cloneuio(&ktruio);
 		ktriov.iov_base = uap->eventlist;
-		ktriov.iov_len = kev_iovlen(uap->nevents, kgio);
-		ktriov.iov_len = uap->nevents * sizeof(struct kevent);
+		ktriov.iov_len = kev_iovlen(uap->nevents, kgio,
+		    k_ops->kevent_size);
+		ktriov.iov_len = uap->nevents * k_ops->kevent_size;
 		ktruioout = cloneuio(&ktruio);
 	}
 #endif
 
 	error = kern_kevent(td, uap->fd, uap->nchanges, uap->nevents,
-	    &k_ops, tsp);
+	    k_ops, tsp);
 
 #ifdef KTRACE
 	if (ktruioin != NULL) {
-		ktruioin->uio_resid = kev_iovlen(uap->nchanges, kgio);
+		ktruioin->uio_resid = kev_iovlen(uap->nchanges, kgio,
+		    k_ops->kevent_size);
 		ktrgenio(uap->fd, UIO_WRITE, ktruioin, 0);
-		ktruioout->uio_resid = kev_iovlen(td->td_retval[0], kgio);
+		ktruioout->uio_resid = kev_iovlen(td->td_retval[0], kgio,
+		    k_ops->kevent_size);
 		ktrgenio(uap->fd, UIO_READ, ktruioout, error);
 	}
 #endif
@@ -1000,6 +1039,94 @@ kevent_copyin(void *arg, struct kevent *kevp, int count)
 		uap->changelist += count;
 	return (error);
 }
+
+#ifdef COMPAT_FREEBSD11
+struct kevent_freebsd11 {
+	__uintptr_t	ident;		/* identifier for this event */
+	short		filter;		/* filter for event */
+	unsigned short	flags;
+	unsigned int	fflags;
+	__intptr_t	data;
+	void		*udata;		/* opaque user data identifier */
+};
+
+static int
+kevent11_copyout(void *arg, struct kevent *kevp, int count)
+{
+	struct freebsd11_kevent_args *uap;
+	struct kevent_freebsd11 kev11;
+	int error, i;
+
+	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
+	uap = (struct freebsd11_kevent_args *)arg;
+
+	for (i = 0; i < count; i++) {
+		kev11.ident = kevp->ident;
+		kev11.filter = kevp->filter;
+		kev11.flags = kevp->flags;
+		kev11.fflags = kevp->fflags;
+		kev11.data = kevp->data;
+		kev11.udata = kevp->udata;
+		error = copyout(&kev11, uap->eventlist, sizeof(kev11));
+		if (error != 0)
+			break;
+		uap->eventlist++;
+		kevp++;
+	}
+	return (error);
+}
+
+/*
+ * Copy 'count' items from the list pointed to by uap->changelist.
+ */
+static int
+kevent11_copyin(void *arg, struct kevent *kevp, int count)
+{
+	struct freebsd11_kevent_args *uap;
+	struct kevent_freebsd11 kev11;
+	int error, i;
+
+	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
+	uap = (struct freebsd11_kevent_args *)arg;
+
+	for (i = 0; i < count; i++) {
+		error = copyin(uap->changelist, &kev11, sizeof(kev11));
+		if (error != 0)
+			break;
+		kevp->ident = kev11.ident;
+		kevp->filter = kev11.filter;
+		kevp->flags = kev11.flags;
+		kevp->fflags = kev11.fflags;
+		kevp->data = (uintptr_t)kev11.data;
+		kevp->udata = kev11.udata;
+		bzero(&kevp->ext, sizeof(kevp->ext));
+		uap->changelist++;
+		kevp++;
+	}
+	return (error);
+}
+
+int
+freebsd11_kevent(struct thread *td, struct freebsd11_kevent_args *uap)
+{
+	struct kevent_copyops k_ops = {
+		.arg = uap,
+		.k_copyout = kevent11_copyout,
+		.k_copyin = kevent11_copyin,
+		.kevent_size = sizeof(struct kevent_freebsd11),
+	};
+	struct g_kevent_args gk_args = {
+		.fd = uap->fd,
+		.changelist = uap->changelist,
+		.nchanges = uap->nchanges,
+		.eventlist = uap->eventlist,
+		.nevents = uap->nevents,
+		.timeout = uap->timeout,
+	};
+
+	return (kern_kevent_generic(td, &gk_args, &k_ops));
+}
+#endif
 
 int
 kern_kevent(struct thread *td, int fd, int nchanges, int nevents,

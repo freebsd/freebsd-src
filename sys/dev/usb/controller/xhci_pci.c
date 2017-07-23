@@ -113,6 +113,8 @@ xhci_pci_match(device_t self)
 
 	case 0x0f358086:
 		return ("Intel BayTrail USB 3.0 controller");
+	case 0x19d08086:
+		return ("Intel Denverton USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");

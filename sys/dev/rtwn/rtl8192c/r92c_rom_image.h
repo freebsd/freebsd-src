@@ -48,7 +48,7 @@ struct r92c_rom {
 	uint8_t		ofdm_tx_pwr_diff[R92C_GROUP_2G];
 	uint8_t		ht40_max_pwr[R92C_GROUP_2G];
 	uint8_t		ht20_max_pwr[R92C_GROUP_2G];
-	uint8_t		xtal_calib;
+	uint8_t		channel_plan;
 	uint8_t		tssi[R92C_MAX_CHAINS];
 	uint8_t		thermal_meter;
 #define R92C_ROM_THERMAL_METER_M	0x1f
@@ -58,9 +58,7 @@ struct r92c_rom {
 	uint8_t		rf_opt2;
 	uint8_t		rf_opt3;
 	uint8_t		rf_opt4;
-	uint8_t		channel_plan;
-#define R92C_CHANNEL_PLAN_BY_HW		0x80
-
+	uint8_t		reserved5;
 	uint8_t		version;
 	uint8_t		customer_id;
 } __packed;

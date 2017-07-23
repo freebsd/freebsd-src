@@ -54,9 +54,9 @@ fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 {
 	size_t ret;
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ret = __fread(buf, size, count, fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (ret);
 }
 

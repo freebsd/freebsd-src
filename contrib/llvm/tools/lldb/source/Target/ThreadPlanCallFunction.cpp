@@ -15,9 +15,7 @@
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Address.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/ABI.h"
 #include "lldb/Target/LanguageRuntime.h"
@@ -27,6 +25,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -58,7 +58,7 @@ bool ThreadPlanCallFunction::ConstructorSetup(
   // If we can't read memory at the point of the process where we are planning
   // to put our function, we're
   // not going to get any further...
-  Error error;
+  Status error;
   process_sp->ReadUnsignedIntegerFromMemory(m_function_sp, 4, 0, error);
   if (!error.Success()) {
     m_constructor_errors.Printf(
@@ -174,9 +174,8 @@ ThreadPlanCallFunction::~ThreadPlanCallFunction() {
 }
 
 void ThreadPlanCallFunction::ReportRegisterState(const char *message) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP |
-                                                  LIBLLDB_LOG_VERBOSE));
-  if (log) {
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+  if (log && log->GetVerbose()) {
     StreamString strm;
     RegisterContext *reg_ctx = m_thread.GetRegisterContext().get();
 

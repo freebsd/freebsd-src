@@ -866,7 +866,7 @@ pfs_readdir(struct vop_readdir_args *va)
 		free(pfsent, M_IOV);
 		i++;
 	}
-	PFS_TRACE(("%d bytes", i * PFS_DELEN));
+	PFS_TRACE(("%ju bytes", (uintmax_t)(i * PFS_DELEN)));
 	PFS_RETURN (error);
 }
 

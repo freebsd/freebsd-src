@@ -50,9 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#include <arm/freescale/imx/imx6_mp.h>
+#include <arm/freescale/imx/imx6_machdep.h>
 
 #include "platform_if.h"
+#include "platform_pl310_if.h"
 
 static platform_attach_t imx6_attach;
 static platform_devmap_init_t imx6_devmap_init;
@@ -320,6 +321,8 @@ static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	imx6_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	imx6_mp_setmaxid),
 #endif
+
+	PLATFORMMETHOD(platform_pl310_init,	imx6_pl310_init),
 
 	PLATFORMMETHOD_END,
 };

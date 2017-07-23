@@ -50,12 +50,23 @@ static void
 usage(void)
 {
 
-	xo_error("usage: procstat [--libxo] [-CHhn] [-M core] "
+	xo_error(
+	    "usage: procstat [--libxo] [-Hhn] [-M core] "
 	    "[-N system] [-w interval]\n"
-	    "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -L | -r | -s | \n"
-	    "                 -S | -t | -v | -x]\n"
-	    "                [-a | pid | core ...]\n");
+	    "                [-S | -b | -c | -e | -i | -j | -k | -kk | "
+	    "-l | -r | -s | \n"
+	    "                 -t | -v | -x]\n"
+	    "                [-a | pid ... | core ...]\n"
+	    "       procstat [--libxo] -Cf [-hn] [-M core] "
+	    "[-N system] [-a | pid ... | core ...]\n"
+	    "                [-S | -b | -c | -e | -i | -j | -k | -kk | "
+	    "-l | -r | -s | \n"
+	    "       procstat [--libxo] -L [-hn] [-M core] "
+	    "[-N system] [-w interval]\n"
+	    "                [-S | -b | -c | -e | -i | -j | -k | -kk | "
+	    "-l | -r | -s | \n"
+	    "                 -t | -v | -x]\n"
+	    "                [core ...]\n");
 	xo_finish();
 	exit(EX_USAGE);
 }

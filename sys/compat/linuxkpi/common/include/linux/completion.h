@@ -32,7 +32,6 @@
 #define	_LINUX_COMPLETION_H_
 
 #include <linux/errno.h>
-#include <linux/wait.h>
 
 struct completion {
 	unsigned int done;

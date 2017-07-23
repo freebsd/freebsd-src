@@ -43,6 +43,7 @@ typedef std::unique_ptr<ConstraintManager>(*ConstraintManagerCreator)(
     ProgramStateManager &, SubEngine *);
 typedef std::unique_ptr<StoreManager>(*StoreManagerCreator)(
     ProgramStateManager &);
+typedef llvm::ImmutableMap<const SubRegion*, TaintTagType> TaintedSubRegions;
 
 //===----------------------------------------------------------------------===//
 // ProgramStateTrait - Traits used by the Generic Data Map of a ProgramState.
@@ -229,11 +230,12 @@ public:
 
   ProgramStateRef bindLoc(Loc location,
                           SVal V,
+                          const LocationContext *LCtx,
                           bool notifyChanges = true) const;
 
-  ProgramStateRef bindLoc(SVal location, SVal V) const;
+  ProgramStateRef bindLoc(SVal location, SVal V, const LocationContext *LCtx) const;
 
-  ProgramStateRef bindDefault(SVal loc, SVal V) const;
+  ProgramStateRef bindDefault(SVal loc, SVal V, const LocationContext *LCtx) const;
 
   ProgramStateRef killBinding(Loc LV) const;
 
@@ -342,6 +344,9 @@ public:
   ProgramStateRef addTaint(const Stmt *S, const LocationContext *LCtx,
                                TaintTagType Kind = TaintTagGeneric) const;
 
+  /// Create a new state in which the value is marked as tainted.
+  ProgramStateRef addTaint(SVal V, TaintTagType Kind = TaintTagGeneric) const;
+
   /// Create a new state in which the symbol is marked as tainted.
   ProgramStateRef addTaint(SymbolRef S,
                                TaintTagType Kind = TaintTagGeneric) const;
@@ -349,6 +354,14 @@ public:
   /// Create a new state in which the region symbol is marked as tainted.
   ProgramStateRef addTaint(const MemRegion *R,
                                TaintTagType Kind = TaintTagGeneric) const;
+
+  /// Create a new state in a which a sub-region of a given symbol is tainted.
+  /// This might be necessary when referring to regions that can not have an
+  /// individual symbol, e.g. if they are represented by the default binding of
+  /// a LazyCompoundVal.
+  ProgramStateRef addPartialTaint(SymbolRef ParentSym,
+                                  const SubRegion *SubRegion,
+                                  TaintTagType Kind = TaintTagGeneric) const;
 
   /// Check if the statement is tainted in the current state.
   bool isTainted(const Stmt *S, const LocationContext *LCtx,
@@ -452,6 +465,7 @@ private:
   std::unique_ptr<ConstraintManager>   ConstraintMgr;
 
   ProgramState::GenericDataMap::Factory     GDMFactory;
+  TaintedSubRegions::Factory TSRFactory;
 
   typedef llvm::DenseMap<void*,std::pair<void*,void (*)(void*)> > GDMContextsTy;
   GDMContextsTy GDMContexts;
@@ -681,9 +695,9 @@ ProgramState::assumeInclusiveRange(DefinedOrUnknownSVal Val,
       this, Val.castAs<NonLoc>(), From, To);
 }
 
-inline ProgramStateRef ProgramState::bindLoc(SVal LV, SVal V) const {
+inline ProgramStateRef ProgramState::bindLoc(SVal LV, SVal V, const LocationContext *LCtx) const {
   if (Optional<Loc> L = LV.getAs<Loc>())
-    return bindLoc(*L, V);
+    return bindLoc(*L, V, LCtx);
   return this;
 }
 

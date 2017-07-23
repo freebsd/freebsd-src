@@ -493,10 +493,9 @@
 			};
 
 			ocotp: ocotp-ctrl@30350000 {
-				compatible = "syscon";
+				compatible = "fsl,imx7d-ocotp", "syscon";
 				reg = <0x30350000 0x10000>;
-				clocks = <&clks IMX7D_CLK_DUMMY>;
-				status = "disabled";
+				clocks = <&clks IMX7D_OCOTP_CLK>;
 			};
 
 			anatop: anatop@30360000 {
@@ -517,7 +516,6 @@
 					anatop-min-bit-val = <8>;
 					anatop-min-voltage = <800000>;
 					anatop-max-voltage = <1200000>;
-					anatop-enable-bit = <31>;
 				};
 			};
 
@@ -560,7 +558,7 @@
 			};
 
 			src: src@30390000 {
-				compatible = "fsl,imx7d-src", "fsl,imx51-src", "syscon";
+				compatible = "fsl,imx7d-src", "syscon";
 				reg = <0x30390000 0x10000>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				#reset-cells = <1>;

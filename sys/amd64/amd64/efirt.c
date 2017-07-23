@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#include <isa/rtc.h>
 #include <machine/fpu.h>
 #include <machine/efi.h>
 #include <machine/metadata.h>
@@ -193,8 +194,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	uint64_t idx;
 	int bits, i, mode;
 
-	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, 1 + NPML4EPG +
-	    NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG,
+	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
+	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
 	    VM_PROT_ALL, 0, NULL);
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_pml4_page = efi_1t1_page(0);
@@ -445,7 +446,7 @@ efi_get_time_locked(struct efi_tm *tm)
 	efi_status status;
 	int error;
 
-	mtx_assert(&resettodr_lock, MA_OWNED);
+	mtx_assert(&atrtc_time_lock, MA_OWNED);
 	error = efi_enter();
 	if (error != 0)
 		return (error);
@@ -462,9 +463,9 @@ efi_get_time(struct efi_tm *tm)
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
-	mtx_lock(&resettodr_lock);
+	mtx_lock(&atrtc_time_lock);
 	error = efi_get_time_locked(tm);
-	mtx_unlock(&resettodr_lock);
+	mtx_unlock(&atrtc_time_lock);
 	return (error);
 }
 
@@ -487,7 +488,7 @@ efi_set_time_locked(struct efi_tm *tm)
 	efi_status status;
 	int error;
 
-	mtx_assert(&resettodr_lock, MA_OWNED);
+	mtx_assert(&atrtc_time_lock, MA_OWNED);
 	error = efi_enter();
 	if (error != 0)
 		return (error);
@@ -504,9 +505,9 @@ efi_set_time(struct efi_tm *tm)
 
 	if (efi_runtime == NULL)
 		return (ENXIO);
-	mtx_lock(&resettodr_lock);
+	mtx_lock(&atrtc_time_lock);
 	error = efi_set_time_locked(tm);
-	mtx_unlock(&resettodr_lock);
+	mtx_unlock(&atrtc_time_lock);
 	return (error);
 }
 

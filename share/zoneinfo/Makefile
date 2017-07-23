@@ -28,12 +28,24 @@
 # $ svn commit	# Commit message: "MFV of tzdata2008X"
 #
 
+.include <src.opts.mk>
+
 CLEANFILES+=	yearistype
 CLEANDIRS+=	builddir
 CONTRIBDIR=	${SRCTOP}/contrib/tzdata/
 .PATH:		${CONTRIBDIR}
 
 .if defined(LEAPSECONDS)
+.warning "Using backwards compatibility variable for LEAPSECONDS; please use WITH_ZONEINFO_LEAPSECONDS_SUPPORT instead"
+MK_ZONEINFO_LEAPSECONDS_SUPPORT= yes
+.endif
+
+.if defined(OLDTIMEZONES)
+.warning "Using backwards compatibility variable for OLDTIMEZONES; please use WITH_ZONEINFO_OLD_TIMEZONES_SUPPORT instead"
+MK_ZONEINFO_OLD_TIMEZONES_SUPPORT= yes
+.endif
+
+.if ${MK_ZONEINFO_LEAPSECONDS_SUPPORT} != "no"
 LEAPFILE=	-L ${CONTRIBDIR}leapseconds
 .else
 LEAPFILE=
@@ -43,7 +55,7 @@ TZFILES=	africa antarctica asia australasia etcetera europe \
 		factory northamerica southamerica
 POSIXRULES=	America/New_York
 
-.if defined(OLDTIMEZONES)
+.if ${MK_ZONEINFO_OLD_TIMEZONES_SUPPORT} != "no"
 TZFILES+=	backward systemv
 .endif
 
@@ -67,7 +79,7 @@ TZBUILDSUBDIRS=	\
 		Pacific \
 		SystemV
 
-.if defined(OLDTIMEZONES)
+.if ${MK_ZONEINFO_OLD_TIMEZONES_SUPPORT} != "no"
 TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
 .endif
 
@@ -83,14 +95,19 @@ zoneinfo: yearistype ${TDATA}
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
+.if make(*install*)
+TZS!= cd ${TZBUILDDIR} && find -s * -type f
+.endif
+
 beforeinstall: install-zoneinfo
 install-zoneinfo:
 	mkdir -p ${DESTDIR}/usr/share/zoneinfo
 	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
-	cd ${TZBUILDDIR} && \
-	    find -s * -type f -print -exec ${INSTALL} ${TAG_ARGS} \
+.for f in ${TZS}
+	${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
+	    ${TZBUILDDIR}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
+.endfor
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
@@ -113,5 +130,9 @@ afterinstall:
 	else \
 		echo "Run tzsetup(8) manually to update /etc/localtime."; \
 	fi
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

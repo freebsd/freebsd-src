@@ -109,3 +109,10 @@ get_tclk(void)
 		panic("Unknown TCLK settings!");
 	}
 }
+
+uint32_t
+get_cpu_freq(void)
+{
+
+	return (0);
+}

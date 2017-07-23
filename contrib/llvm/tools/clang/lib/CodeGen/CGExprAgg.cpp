@@ -111,6 +111,13 @@ public:
   void VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
     Visit(GE->getResultExpr());
   }
+  void VisitCoawaitExpr(CoawaitExpr *E) {
+    CGF.EmitCoawaitExpr(*E, Dest, IsResultUnused);
+  }
+  void VisitCoyieldExpr(CoyieldExpr *E) {
+    CGF.EmitCoyieldExpr(*E, Dest, IsResultUnused);
+  }
+  void VisitUnaryCoawait(UnaryOperator *E) { Visit(E->getSubExpr()); }
   void VisitUnaryExtension(UnaryOperator *E) { Visit(E->getSubExpr()); }
   void VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E) {
     return Visit(E->getReplacement());
@@ -505,12 +512,20 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
     currentElement->addIncoming(element, entryBB);
 
     // Emit the actual filler expression.
-    LValue elementLV =
-      CGF.MakeAddrLValue(Address(currentElement, elementAlign), elementType);
-    if (filler)
-      EmitInitializationToLValue(filler, elementLV);
-    else
-      EmitNullInitializationToLValue(elementLV);
+    {
+      // C++1z [class.temporary]p5:
+      //   when a default constructor is called to initialize an element of
+      //   an array with no corresponding initializer [...] the destruction of
+      //   every temporary created in a default argument is sequenced before
+      //   the construction of the next array element, if any
+      CodeGenFunction::RunCleanupsScope CleanupsScope(CGF);
+      LValue elementLV =
+        CGF.MakeAddrLValue(Address(currentElement, elementAlign), elementType);
+      if (filler)
+        EmitInitializationToLValue(filler, elementLV);
+      else
+        EmitNullInitializationToLValue(elementLV);
+    }
 
     // Move on to the next element.
     llvm::Value *nextElement =
@@ -1267,7 +1282,7 @@ void AggExprEmitter::VisitInitListExpr(InitListExpr *E) {
       // Store the initializer into the field.
       EmitInitializationToLValue(E->getInit(curInitIndex++), LV);
     } else {
-      // We're out of initalizers; default-initialize to null
+      // We're out of initializers; default-initialize to null
       EmitNullInitializationToLValue(LV);
     }
 

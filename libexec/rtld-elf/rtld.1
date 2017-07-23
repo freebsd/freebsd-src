@@ -309,7 +309,7 @@ The syntax of the direct invocation is
 .Op Ar image arguments
 .Ed
 .Pp
-The options are as follows:
+The options are:
 .Bl -tag -width indent
 .It Fl f Ar fd
 File descriptor
@@ -339,21 +339,22 @@ Ends the
 options.
 The argument following
 .Fl -
-is interpreted as the path of binary to execute.
+is interpreted as the path of the binary to execute.
 .El
 .Pp
-To conform to user expectation to not break some naively restricted
-execution environments, in the direct execution mode
+In the direct execution mode,
 .Nm
-emulates verification of the binary execute permission
-for current user.
+emulates verification of the binary execute permission for the
+current user.
+This is done to avoid breaking user expectations in naively restricted 
+execution environments.
 The verification only uses Unix
 .Dv DACs ,
 ignores
 .Dv ACLs
-and is racy by its nature.
-The environments which rely on such restrictions are weak
-and breakable on its own.
+and is naturally prone to race conditions.
+Environments which rely on such restrictions are weak
+and breakable on their own.
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
 .It Pa /var/run/ld-elf.so.hints

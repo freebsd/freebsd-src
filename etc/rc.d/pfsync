@@ -5,7 +5,7 @@
 
 # PROVIDE: pfsync
 # REQUIRE: FILESYSTEMS netif
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
@@ -15,7 +15,7 @@ rcvar="pfsync_enable"
 start_precmd="pfsync_prestart"
 start_cmd="pfsync_start"
 stop_cmd="pfsync_stop"
-required_modules="pf"
+required_modules="pf pfsync"
 
 pfsync_prestart()
 {
@@ -36,7 +36,6 @@ pfsync_start()
 	if [ -n "${pfsync_syncpeer}" ]; then
 		_syncpeer="syncpeer ${pfsync_syncpeer}"
 	fi
-	load_kld pfsync
 	ifconfig pfsync0 $_syncpeer syncdev $pfsync_syncdev $pfsync_ifconfig up
 }
 

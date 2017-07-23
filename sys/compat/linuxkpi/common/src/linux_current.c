@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <linux/compat.h>
+#include <linux/completion.h>
 #include <linux/mm.h>
 #include <linux/kthread.h>
 
@@ -68,6 +69,8 @@ linux_alloc_current(struct thread *td, int flags)
 	ts->pid = td->td_tid;
 	atomic_set(&ts->usage, 1);
 	ts->state = TASK_RUNNING;
+	init_completion(&ts->parked);
+	init_completion(&ts->exited);
 
 	proc = td->td_proc;
 
@@ -223,6 +226,23 @@ SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_init,
 static void
 linux_current_uninit(void *arg __unused)
 {
+	struct proc *p;
+	struct task_struct *ts;
+	struct thread *td;
+
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if ((ts = td->td_lkpi_task) != NULL) {
+				td->td_lkpi_task = NULL;
+				put_task_struct(ts);
+			}
+		}
+		PROC_UNLOCK(p);
+	}
+	sx_sunlock(&allproc_lock);
+
 	EVENTHANDLER_DEREGISTER(thread_dtor, linuxkpi_thread_dtor_tag);
 }
 SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_uninit, NULL);

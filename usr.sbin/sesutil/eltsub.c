@@ -32,15 +32,14 @@
  * mjacob@feral.com
  */
 
-#include <sys/endian.h>
 #include <sys/types.h>
-#include <sys/sbuf.h>
 
 #include <err.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <cam/scsi/scsi_enc.h>
+#include <libxo/xo.h>
 
 #include "eltsub.h"
 
@@ -51,181 +50,95 @@
  */
 #define TEMPERATURE_OFFSET 20
 
-char *
+const char *
 geteltnm(int type)
 {
 	static char rbuf[132];
 
 	switch (type) {
 	case ELMTYP_UNSPECIFIED:
-		sprintf(rbuf, "Unspecified");
-		break;
+		return ("Unspecified");
 	case ELMTYP_DEVICE:
-		sprintf(rbuf, "Device Slot");
-		break;
+		return ("Device Slot");
 	case ELMTYP_POWER:
-		sprintf(rbuf, "Power Supply");
-		break;
+		return ("Power Supply");
 	case ELMTYP_FAN:
-		sprintf(rbuf, "Cooling");
-		break;
+		return ("Cooling");
 	case ELMTYP_THERM:
-		sprintf(rbuf, "Temperature Sensors");
-		break;
+		return ("Temperature Sensors");
 	case ELMTYP_DOORLOCK:
-		sprintf(rbuf, "Door Lock");
-		break;
+		return ("Door Lock");
 	case ELMTYP_ALARM:
-		sprintf(rbuf, "Audible alarm");
-		break;
+		return ("Audible alarm");
 	case ELMTYP_ESCC:
-		sprintf(rbuf, "Enclosure Services Controller Electronics");
-		break;
+		return ("Enclosure Services Controller Electronics");
 	case ELMTYP_SCC:
-		sprintf(rbuf, "SCC Controller Electronics");
-		break;
+		return ("SCC Controller Electronics");
 	case ELMTYP_NVRAM:
-		sprintf(rbuf, "Nonvolatile Cache");
-		break;
+		return ("Nonvolatile Cache");
 	case ELMTYP_INV_OP_REASON:
-		sprintf(rbuf, "Invalid Operation Reason");
-		break;
+		return ("Invalid Operation Reason");
 	case ELMTYP_UPS:
-		sprintf(rbuf, "Uninterruptible Power Supply");
-		break;
+		return ("Uninterruptible Power Supply");
 	case ELMTYP_DISPLAY:
-		sprintf(rbuf, "Display");
-		break;
+		return ("Display");
 	case ELMTYP_KEYPAD:
-		sprintf(rbuf, "Key Pad Entry");
-		break;
+		return ("Key Pad Entry");
 	case ELMTYP_ENCLOSURE:
-		sprintf(rbuf, "Enclosure");
-		break;
+		return ("Enclosure");
 	case ELMTYP_SCSIXVR:
-		sprintf(rbuf, "SCSI Port/Transceiver");
-		break;
+		return ("SCSI Port/Transceiver");
 	case ELMTYP_LANGUAGE:
-		sprintf(rbuf, "Language");
-		break;
+		return ("Language");
 	case ELMTYP_COMPORT:
-		sprintf(rbuf, "Communication Port");
-		break;
+		return ("Communication Port");
 	case ELMTYP_VOM:
-		sprintf(rbuf, "Voltage Sensor");
-		break;
+		return ("Voltage Sensor");
 	case ELMTYP_AMMETER:
-		sprintf(rbuf, "Current Sensor");
-		break;
+		return ("Current Sensor");
 	case ELMTYP_SCSI_TGT:
-		sprintf(rbuf, "SCSI Target Port");
-		break;
+		return ("SCSI Target Port");
 	case ELMTYP_SCSI_INI:
-		sprintf(rbuf, "SCSI Initiator Port");
-		break;
+		return ("SCSI Initiator Port");
 	case ELMTYP_SUBENC:
-		sprintf(rbuf, "Simple Subenclosure");
-		break;
+		return ("Simple Subenclosure");
 	case ELMTYP_ARRAY_DEV:
-		sprintf(rbuf, "Array Device Slot");
-		break;
+		return ("Array Device Slot");
 	case ELMTYP_SAS_EXP:
-		sprintf(rbuf, "SAS Expander");
-		break;
+		return ("SAS Expander");
 	case ELMTYP_SAS_CONN:
-		sprintf(rbuf, "SAS Connector");
-		break;
+		return ("SAS Connector");
 	default:
-		(void) sprintf(rbuf, "<Type 0x%x>", type);
-		break;
+		snprintf(rbuf, sizeof(rbuf), "<Type 0x%x>", type);
+		return (rbuf);
 	}
-	return (rbuf);
 }
 
-char *
+const char *
 scode2ascii(u_char code)
 {
 	static char rbuf[32];
 	switch (code & 0xf) {
 	case SES_OBJSTAT_UNSUPPORTED:
-		sprintf(rbuf, "Unsupported");
-		break;
+		return ("Unsupported");
 	case SES_OBJSTAT_OK:
-		sprintf(rbuf, "OK");
-		break;
+		return ("OK");
 	case SES_OBJSTAT_CRIT:
-		sprintf(rbuf, "Critical");
-		break;
+		return ("Critical");
 	case SES_OBJSTAT_NONCRIT:
-		sprintf(rbuf, "Noncritical");
-		break;
+		return ("Noncritical");
 	case SES_OBJSTAT_UNRECOV:
-		sprintf(rbuf, "Unrecoverable");
-		break;
+		return ("Unrecoverable");
 	case SES_OBJSTAT_NOTINSTALLED:
-		sprintf(rbuf, "Not Installed");
-		break;
+		return ("Not Installed");
 	case SES_OBJSTAT_UNKNOWN:
-		sprintf(rbuf, "Unknown");
-		break;
+		return ("Unknown");
 	case SES_OBJSTAT_NOTAVAIL:
-		sprintf(rbuf, "Not Available");
-		break;
+		return ("Not Available");
 	case SES_OBJSTAT_NOACCESS:
-		sprintf(rbuf, "No Access Allowed");
-		break;
+		return ("No Access Allowed");
 	default:
-		sprintf(rbuf, "<Status 0x%x>", code & 0xf);
-		break;
+		snprintf(rbuf, sizeof(rbuf), "<Status 0x%x>", code & 0xf);
+		return (rbuf);
 	}
-	return (rbuf);
-}
-
-struct sbuf *
-stat2sbuf(int eletype, u_char *cstat)
-{
-	struct sbuf *buf;
-
-	buf = sbuf_new_auto();
-	if (buf == NULL)
-		err(EXIT_FAILURE, "sbuf_new_auto()");
-
-	if (cstat[0] & 0x40)
-		sbuf_printf(buf, "\t\t- Predicted Failure\n");
-	if (cstat[0] & 0x20)
-		sbuf_printf(buf, "\t\t- Disabled\n");
-	if (cstat[0] & 0x10)
-		sbuf_printf(buf, "\t\t- Swapped\n");
-	switch (eletype) {
-	case ELMTYP_DEVICE:
-		if (cstat[2] & 0x02)
-			sbuf_printf(buf, "\t\t- LED=locate\n");
-		if (cstat[2] & 0x20)
-			sbuf_printf(buf, "\t\t- LED=fault\n");
-		break;
-	case ELMTYP_ARRAY_DEV:
-		if (cstat[2] & 0x02)
-			sbuf_printf(buf, "\t\t- LED=locate\n");
-		if (cstat[2] & 0x20)
-			sbuf_printf(buf, "\t\t- LED=fault\n");
-		break;
-	case ELMTYP_FAN:
-		sbuf_printf(buf, "\t\t- Speed: %d rpm\n",
-		    (((0x7 & cstat[1]) << 8) + cstat[2]) * 10);
-		break;
-	case ELMTYP_THERM:
-		if (cstat[2]) {
-			sbuf_printf(buf, "\t\t- Temperature: %d C\n",
-			    cstat[2] - TEMPERATURE_OFFSET);
-		} else {
-			sbuf_printf(buf, "\t\t- Temperature: -reserved-\n");
-		}
-		break;
-	case ELMTYP_VOM:
-		sbuf_printf(buf, "\t\t- Voltage: %.2f V\n",
-		    be16dec(cstat + 2) / 100.0);
-		break;
-	}
-	sbuf_finish(buf);
-	return (buf);
 }

@@ -16,6 +16,7 @@ DIRDEPS = \
 	lib/libutil \
 	lib/libvmmapi \
 	lib/libz \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

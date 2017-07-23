@@ -21,9 +21,11 @@
 #ifndef LLVM_CODEGEN_GLOBALISEL_MACHINELEGALIZEHELPER_H
 #define LLVM_CODEGEN_GLOBALISEL_MACHINELEGALIZEHELPER_H
 
+#include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/LowLevelType.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/RuntimeLibcalls.h"
 
 namespace llvm {
 // Forward declarations.
@@ -55,11 +57,7 @@ public:
   ///
   /// Considered as an opaque blob, the legal code will use and define the same
   /// registers as \p MI.
-  LegalizeResult legalizeInstrStep(MachineInstr &MI,
-                                   const LegalizerInfo &LegalizerInfo);
-
-  LegalizeResult legalizeInstr(MachineInstr &MI,
-                               const LegalizerInfo &LegalizerInfo);
+  LegalizeResult legalizeInstrStep(MachineInstr &MI);
 
   /// Legalize an instruction by emiting a runtime library call instead.
   LegalizeResult libcall(MachineInstr &MI);
@@ -87,6 +85,10 @@ public:
   LegalizeResult moreElementsVector(MachineInstr &MI, unsigned TypeIdx,
                                     LLT WideTy);
 
+  /// Expose MIRBuilder so clients can set their own RecordInsertInstruction
+  /// functions
+  MachineIRBuilder MIRBuilder;
+
 private:
 
   /// Helper function to split a wide generic register into bitwise blocks with
@@ -95,9 +97,15 @@ private:
   void extractParts(unsigned Reg, LLT Ty, int NumParts,
                     SmallVectorImpl<unsigned> &Ops);
 
-  MachineIRBuilder MIRBuilder;
   MachineRegisterInfo &MRI;
+  const LegalizerInfo &LI;
 };
+
+/// Helper function that creates the given libcall.
+LegalizerHelper::LegalizeResult
+createLibcall(MachineIRBuilder &MIRBuilder, RTLIB::Libcall Libcall,
+              const CallLowering::ArgInfo &Result,
+              ArrayRef<CallLowering::ArgInfo> Args);
 
 } // End namespace llvm.
 

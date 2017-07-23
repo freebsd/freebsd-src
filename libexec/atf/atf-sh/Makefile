@@ -52,6 +52,7 @@ MLINKS+=	\
 		atf-sh.3 atf_fail.3 \
 		atf-sh.3 atf_get.3 \
 		atf-sh.3 atf_get_srcdir.3 \
+		atf-sh.3 atf_init_test_cases.3 \
 		atf-sh.3 atf_pass.3 \
 		atf-sh.3 atf_require_prog.3 \
 		atf-sh.3 atf_set.3 \

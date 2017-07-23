@@ -74,6 +74,7 @@ DIRDEPS = \
 	lib/libfigpar \
 	lib/libgeom \
 	lib/libgpio \
+	lib/libifconfig \
 	lib/libjail \
 	lib/libkvm \
 	lib/liblzma \
@@ -92,6 +93,7 @@ DIRDEPS = \
 	lib/libproc \
 	lib/libprocstat \
 	lib/libradius \
+	lib/librss \
 	lib/librtld_db \
 	lib/libsdp \
 	lib/libsqlite3 \

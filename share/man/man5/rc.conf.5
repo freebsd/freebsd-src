@@ -591,6 +591,44 @@ module if
 is also set to
 .Dq Li YES .
 .\" -------------------------------------------------------------------
+.It Va ipfw_netflow_enable
+.Pq Vt bool
+Setting this to
+.Dq Li YES
+will enable netflow logging via
+.Xr ng_netflow 4
+.Pp
+By default a ipfw rule is inserted and all packets are duplicated with
+the ngtee command and netflow packets are sent to 127.0.0.1 on the netflow
+port using protocol version 5.
+.It Va ipfw_netflow_hook
+.Pq Vt int
+netflow hook name, must be numerical
+(default
+.Pa 9995 ) .
+.It Va ipfw_netflow_rule
+.Pq Vt int
+ipfw rule number
+(default
+.Pa 1000 ) .
+.It Va ipfw_netflow_ip
+.Pq Vt str
+Destination server ip for receiving netflow data
+(default
+.Pa 127.0.0.1 ) .
+.It Va ipfw_netflow_port
+.Pq Vt int
+Destination server port for receiving netflow data
+(default
+.Pa 9995 ) .
+.It Va ipfw_netflow_version
+.Pq Vt int
+Do not set for using version 5 of the netflow protocol, set it to 9 for using version 9.
+.It Va ipfw_netflow_fib
+.Pq Vt int
+Only match packet in FIB
+.Pa ipfw_netflow_fib
+(default is undefined meaning all FIBs).
 .It Va natd_program
 .Pq Vt str
 Path to

@@ -3683,9 +3683,6 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 	}
 }
 
-#define ADVERT_MASK (V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED) | \
-		     FW_PORT_CAP_ANEG)
-
 /**
  *	t4_link_l1cfg - apply link configuration to MAC/PHY
  *	@phy: the PHY to setup
@@ -3704,7 +3701,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 {
 	struct fw_port_cmd c;
 	unsigned int mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
-	unsigned int fc, fec;
+	unsigned int aneg, fc, fec, speed;
 
 	fc = 0;
 	if (lc->requested_fc & PAUSE_RX)
@@ -3714,11 +3711,40 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	fec = 0;
 	if (lc->requested_fec & FEC_RS)
-		fec |= FW_PORT_CAP_FEC_RS;
-	if (lc->requested_fec & FEC_BASER_RS)
-		fec |= FW_PORT_CAP_FEC_BASER_RS;
-	if (lc->requested_fec & FEC_RESERVED)
-		fec |= FW_PORT_CAP_FEC_RESERVED;
+		fec = FW_PORT_CAP_FEC_RS;
+	else if (lc->requested_fec & FEC_BASER_RS)
+		fec = FW_PORT_CAP_FEC_BASER_RS;
+	else if (lc->requested_fec & FEC_RESERVED)
+		fec = FW_PORT_CAP_FEC_RESERVED;
+
+	if (!(lc->supported & FW_PORT_CAP_ANEG) ||
+	    lc->requested_aneg == AUTONEG_DISABLE) {
+		aneg = 0;
+		switch (lc->requested_speed) {
+		case 100:
+			speed = FW_PORT_CAP_SPEED_100G;
+			break;
+		case 40:
+			speed = FW_PORT_CAP_SPEED_40G;
+			break;
+		case 25:
+			speed = FW_PORT_CAP_SPEED_25G;
+			break;
+		case 10:
+			speed = FW_PORT_CAP_SPEED_10G;
+			break;
+		case 1:
+			speed = FW_PORT_CAP_SPEED_1G;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+	} else {
+		aneg = FW_PORT_CAP_ANEG;
+		speed = lc->supported &
+		    V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED);
+	}
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
@@ -3727,21 +3753,9 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	c.action_to_len16 =
 		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
 			    FW_LEN16(c));
+	c.u.l1cfg.rcap = cpu_to_be32(aneg | speed | fc | fec | mdi);
 
-	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
-		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
-					     fc | fec);
-		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
-		lc->fec = lc->requested_fec;
-	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed |
-					     fc | fec | mdi);
-		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
-		lc->fec = lc->requested_fec;
-	} else
-		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | fec | mdi);
-
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
 
 /**
@@ -7474,6 +7488,90 @@ const char *t4_link_down_rc_str(unsigned char link_down_rc)
 	return reason[link_down_rc];
 }
 
+/*
+ * Updates all fields owned by the common code in port_info and link_config
+ * based on information provided by the firmware.  Does not touch any
+ * requested_* field.
+ */
+static void handle_port_info(struct port_info *pi, const struct fw_port_info *p)
+{
+	struct link_config *lc = &pi->link_cfg;
+	int speed;
+	unsigned char fc, fec;
+	u32 stat = be32_to_cpu(p->lstatus_to_modtype);
+
+	pi->port_type = G_FW_PORT_CMD_PTYPE(stat);
+	pi->mod_type = G_FW_PORT_CMD_MODTYPE(stat);
+	pi->mdio_addr = stat & F_FW_PORT_CMD_MDIOCAP ?
+	    G_FW_PORT_CMD_MDIOADDR(stat) : -1;
+
+	lc->supported = be16_to_cpu(p->pcap);
+	lc->advertising = be16_to_cpu(p->acap);
+	lc->lp_advertising = be16_to_cpu(p->lpacap);
+	lc->link_ok = (stat & F_FW_PORT_CMD_LSTATUS) != 0;
+	lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC(stat);
+
+	speed = 0;
+	if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
+		speed = 100;
+	else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
+		speed = 1000;
+	else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
+		speed = 10000;
+	else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_25G))
+		speed = 25000;
+	else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+		speed = 40000;
+	else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100G))
+		speed = 100000;
+	lc->speed = speed;
+
+	fc = 0;
+	if (stat & F_FW_PORT_CMD_RXPAUSE)
+		fc |= PAUSE_RX;
+	if (stat & F_FW_PORT_CMD_TXPAUSE)
+		fc |= PAUSE_TX;
+	lc->fc = fc;
+
+	fec = 0;
+	if (lc->advertising & FW_PORT_CAP_FEC_RS)
+		fec |= FEC_RS;
+	if (lc->advertising & FW_PORT_CAP_FEC_BASER_RS)
+		fec |= FEC_BASER_RS;
+	if (lc->advertising & FW_PORT_CAP_FEC_RESERVED)
+		fec |= FEC_RESERVED;
+	lc->fec = fec;
+}
+
+/**
+ *	t4_update_port_info - retrieve and update port information if changed
+ *	@pi: the port_info
+ *
+ *	We issue a Get Port Information Command to the Firmware and, if
+ *	successful, we check to see if anything is different from what we
+ *	last recorded and update things accordingly.
+ */
+ int t4_update_port_info(struct port_info *pi)
+ {
+	struct fw_port_cmd port_cmd;
+	int ret;
+
+	memset(&port_cmd, 0, sizeof port_cmd);
+	port_cmd.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
+					    F_FW_CMD_REQUEST | F_FW_CMD_READ |
+					    V_FW_PORT_CMD_PORTID(pi->tx_chan));
+	port_cmd.action_to_len16 = cpu_to_be32(
+		V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
+		FW_LEN16(port_cmd));
+	ret = t4_wr_mbox_ns(pi->adapter, pi->adapter->mbox,
+			 &port_cmd, sizeof(port_cmd), &port_cmd);
+	if (ret)
+		return ret;
+
+	handle_port_info(pi, &port_cmd.u.info);
+	return 0;
+}
+
 /**
  *	t4_handle_fw_rpl - process a FW reply message
  *	@adap: the adapter
@@ -7490,52 +7588,31 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 
 	if (opcode == FW_PORT_CMD && action == FW_PORT_ACTION_GET_PORT_INFO) {
 		/* link/module state change message */
-		int speed = 0, fc = 0, i;
+		int i, old_ptype, old_mtype;
 		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
 		struct port_info *pi = NULL;
-		struct link_config *lc;
-		u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
-		int link_ok = (stat & F_FW_PORT_CMD_LSTATUS) != 0;
-		u32 mod = G_FW_PORT_CMD_MODTYPE(stat);
-
-		if (stat & F_FW_PORT_CMD_RXPAUSE)
-			fc |= PAUSE_RX;
-		if (stat & F_FW_PORT_CMD_TXPAUSE)
-			fc |= PAUSE_TX;
-		if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = 100;
-		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = 1000;
-		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = 10000;
-		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_25G))
-			speed = 25000;
-		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
-			speed = 40000;
-		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100G))
-			speed = 100000;
+		struct link_config *lc, old_lc;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
 			if (pi->tx_chan == chan)
 				break;
 		}
-		lc = &pi->link_cfg;
 
-		if (mod != pi->mod_type) {
-			pi->mod_type = mod;
-			t4_os_portmod_changed(adap, i);
+		lc = &pi->link_cfg;
+		old_lc = *lc;
+		old_ptype = pi->port_type;
+		old_mtype = pi->mod_type;
+
+		handle_port_info(pi, &p->u.info);
+		if (old_ptype != pi->port_type || old_mtype != pi->mod_type) {
+			t4_os_portmod_changed(pi, old_ptype, old_mtype,
+			    &old_lc);
 		}
-		if (link_ok != lc->link_ok || speed != lc->speed ||
-		    fc != lc->fc) {                    /* something changed */
-			if (!link_ok && lc->link_ok)
-				lc->link_down_rc = G_FW_PORT_CMD_LINKDNRC(stat);
-			lc->link_ok = link_ok;
-			lc->speed = speed;
-			lc->fc = fc;
-			lc->supported = be16_to_cpu(p->u.info.pcap);
-			lc->lp_advertising = be16_to_cpu(p->u.info.lpacap);
-			t4_os_link_changed(adap, i, link_ok);
+		if (old_lc.link_ok != lc->link_ok ||
+		    old_lc.speed != lc->speed ||
+		    old_lc.fc != lc->fc) {
+			t4_os_link_changed(pi, &old_lc);
 		}
 	} else {
 		CH_WARN_RATELIMIT(adap, "Unknown firmware reply %d\n", opcode);
@@ -7563,48 +7640,6 @@ static void get_pci_mode(struct adapter *adapter,
 		t4_os_pci_read_cfg2(adapter, pcie_cap + PCI_EXP_LNKSTA, &val);
 		p->speed = val & PCI_EXP_LNKSTA_CLS;
 		p->width = (val & PCI_EXP_LNKSTA_NLW) >> 4;
-	}
-}
-
-/**
- *	init_link_config - initialize a link's SW state
- *	@lc: structure holding the link state
- *	@pcaps: supported link capabilities
- *	@acaps: advertised link capabilities
- *
- *	Initializes the SW state maintained for each link, including the link's
- *	capabilities and default speed/flow-control/autonegotiation settings.
- */
-static void init_link_config(struct link_config *lc, unsigned int pcaps,
-    			     unsigned int acaps)
-{
-	unsigned int fec;
-
-	lc->supported = pcaps;
-	lc->lp_advertising = 0;
-	lc->requested_speed = 0;
-	lc->speed = 0;
-	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
-	lc->link_ok = 0;
-	lc->link_down_rc = 255;
-
-	fec = 0;
-	if (acaps & FW_PORT_CAP_FEC_RS)
-		fec |= FEC_RS;
-	if (acaps & FW_PORT_CAP_FEC_BASER_RS)
-		fec |= FEC_BASER_RS;
-	if (acaps & FW_PORT_CAP_FEC_RESERVED)
-		fec |= FEC_RESERVED;
-	fec &= G_FW_PORT_CAP_FEC(lc->supported);
-	lc->requested_fec = lc->fec = fec;
-
-	if (lc->supported & FW_PORT_CAP_ANEG) {
-		lc->advertising = lc->supported & ADVERT_MASK;
-		lc->autoneg = AUTONEG_ENABLE;
-		lc->requested_fc |= PAUSE_AUTONEG;
-	} else {
-		lc->advertising = 0;
-		lc->autoneg = AUTONEG_DISABLE;
 	}
 }
 
@@ -8144,24 +8179,7 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 
 	if (!(adap->flags & IS_VF) ||
 	    adap->params.vfres.r_caps & FW_CMD_CAP_PORT) {
-		c.op_to_portid = htonl(V_FW_CMD_OP(FW_PORT_CMD) |
-				       F_FW_CMD_REQUEST | F_FW_CMD_READ |
-				       V_FW_PORT_CMD_PORTID(j));
-		c.action_to_len16 = htonl(
-			V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
-			FW_LEN16(c));
-		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-		if (ret)
-			return ret;
-
-		ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
-		p->mdio_addr = (ret & F_FW_PORT_CMD_MDIOCAP) ?
-			G_FW_PORT_CMD_MDIOADDR(ret) : -1;
-		p->port_type = G_FW_PORT_CMD_PTYPE(ret);
-		p->mod_type = G_FW_PORT_CMD_MODTYPE(ret);
-
-		init_link_config(&p->link_cfg, be16_to_cpu(c.u.info.pcap),
-		    		 be16_to_cpu(c.u.info.acap));
+ 		t4_update_port_info(p);
 	}
 
 	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);
@@ -8177,7 +8195,7 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	p->rx_chan_map = t4_get_mps_bg_map(adap, j);
 	p->lport = j;
 	p->vi[0].rss_size = rss_size;
-	t4_os_set_hw_addr(adap, p->port_id, addr);
+	t4_os_set_hw_addr(p, addr);
 
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
