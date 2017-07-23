@@ -269,8 +269,9 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	vm_page_t m, m_map;
 #if defined(__amd64__) && VM_NRESERVLEVEL > 0
 	vm_page_t m_super;
+	int flags;
 #endif
-	int flags, psind, rv;
+	int psind, rv;
 
 	MPASS(fs->vp == NULL);
 	m = vm_page_lookup(fs->first_object, fs->first_pindex);
