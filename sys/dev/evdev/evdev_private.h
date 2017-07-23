@@ -135,6 +135,16 @@ struct evdev_dev
 #define	EVDEV_LOCK(evdev)		mtx_lock((evdev)->ev_lock)
 #define	EVDEV_UNLOCK(evdev)		mtx_unlock((evdev)->ev_lock)
 #define	EVDEV_LOCK_ASSERT(evdev)	mtx_assert((evdev)->ev_lock, MA_OWNED)
+#define	EVDEV_ENTER(evdev)	do {					\
+	if ((evdev)->ev_lock_type == EV_LOCK_INTERNAL)			\
+		EVDEV_LOCK(evdev);					\
+	else								\
+		EVDEV_LOCK_ASSERT(evdev);				\
+} while (0)
+#define	EVDEV_EXIT(evdev)	do {					\
+	if ((evdev)->ev_lock_type == EV_LOCK_INTERNAL)			\
+		EVDEV_UNLOCK(evdev);					\
+} while (0)
 
 struct evdev_client
 {
