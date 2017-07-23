@@ -31,8 +31,8 @@
 #define	_EVDEV_INPUT_H
 
 #ifndef __KERNEL__
-#include <sys/time.h>
 #include <sys/ioccom.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #endif
 

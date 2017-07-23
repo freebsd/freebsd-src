@@ -31,10 +31,11 @@
 #define	_DEV_EVDEV_EVDEV_PRIVATE_H
 
 #include <sys/bitstring.h>
-#include <sys/queue.h>
-#include <sys/malloc.h>
 #include <sys/kbio.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
 #include <sys/selinfo.h>
+
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/input.h>
 #include <dev/kbd/kbdreg.h>

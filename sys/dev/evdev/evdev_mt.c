@@ -27,14 +27,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 
-#include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/evdev_private.h>
+#include <dev/evdev/input.h>
 
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)

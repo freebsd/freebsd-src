@@ -27,17 +27,16 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/malloc.h>
 #include <sys/kbio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/systm.h>
 
-#include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
 
 #include <dev/kbd/kbdreg.h>
 
