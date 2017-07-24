@@ -770,7 +770,6 @@ _worldtmp: .PHONY
 	fi
 .endfor
 .endif	# ${USING_SYSTEM_COMPILER} == "yes"
-.endif	# !defined(NO_CLEAN)
 
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and
@@ -813,6 +812,9 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
 .endif
 .endfor
+
+.endif	# !defined(NO_CLEAN)
+
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
