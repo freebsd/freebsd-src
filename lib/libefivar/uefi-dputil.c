@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include "uefi-dplib.h"
 
-/* XXX maybe I sould include the entire DevicePathUtiltiies.c and ifdef out what we don't use */
+/* XXX maybe I should include the entire DevicePathUtiltiies.c and ifdef out what we don't use */
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathUtilities.c
