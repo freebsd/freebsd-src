@@ -813,6 +813,16 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
 .endif
 .endfor
+# 20170724 remove stale lib/clang/libllvm/Options.inc file, of which there are
+# two different versions after r308421, one for llvm-lib, one for llvm-dlltool
+.for d in ${OBJTREE} ${WORLDTMP}
+.for f in ${d}${.CURDIR}/lib/clang/libllvm/Options.inc
+.if exists(${f}) || exists(${f}.d)
+	@echo Removing stale generated ${f} files
+	@rm -f ${f} ${f}.d
+.endif
+.endfor
+.endfor
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
