@@ -259,8 +259,12 @@ beforebuild: kernel-depend
 # For meta+filemon the .meta file is checked for since it is the dependency
 # file used.
 .for __obj in ${DEPENDOBJS:O:u}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/.depend.${__obj}))
+.if defined(_meta_filemon)
+_depfile=	${.OBJDIR}/${__obj}.meta
+.else
+_depfile=	${.OBJDIR}/.depend.${__obj}
+.endif
+.if !exists(${_depfile})
 .if ${SYSTEM_OBJS:M${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS}
 .endif
@@ -275,7 +279,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 .endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif
+.endif	# !exists(${_depfile})
 .endfor
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}

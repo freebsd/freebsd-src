@@ -240,8 +240,12 @@ _meta_obj=	${.OBJDIR:C,/,_,g}_${__obj:C,/,_,g}.meta
 _meta_obj=	${__obj}.meta
 .endif
 _dep_obj=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${_meta_obj})) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${_dep_obj}))
+.if defined(_meta_filemon)
+_depfile=	${.OBJDIR}/${_meta_obj}
+.else
+_depfile=	${.OBJDIR}/${_dep_obj}
+.endif
+.if !exists(${_depfile})
 ${__obj}: ${OBJS_DEPEND_GUESS}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
@@ -252,7 +256,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 # guesses do include headers though since they may not be in SRCS.
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif
+.endif	# !exists(${_depfile})
 .endfor
 
 # Always run 'make depend' to generate dependencies early and to avoid the
