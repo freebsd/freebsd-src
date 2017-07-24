@@ -116,7 +116,7 @@ sub fail
 
 	open(README, ">$opt_d/failure.$n/README");
 	print README "ERROR: " . $file . " " . $msg;
-	
+
 	if (scalar @parms > 1) {
 		print README "; see $errfile\n";
 	} else {
