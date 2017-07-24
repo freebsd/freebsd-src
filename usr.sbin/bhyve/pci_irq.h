@@ -37,7 +37,7 @@ void	pci_irq_deassert(struct pci_devinst *pi);
 void	pci_irq_init(struct vmctx *ctx);
 void	pci_irq_reserve(int irq);
 void	pci_irq_use(int irq);
-int	pirq_alloc_pin(struct vmctx *ctx);
+int	pirq_alloc_pin(struct pci_devinst *pi);
 int	pirq_irq(int pin);
 uint8_t	pirq_read(int pin);
 void	pirq_write(struct vmctx *ctx, int pin, uint8_t val);

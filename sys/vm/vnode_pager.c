@@ -1277,12 +1277,13 @@ vnode_pager_putpages_ioflags(int pager_flags)
 }
 
 void
-vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, int eof,
+    int lpos)
 {
 	vm_object_t obj;
-	int i, pos;
+	int i, pos, pos_devb;
 
-	if (written == 0)
+	if (written == 0 && eof >= lpos)
 		return;
 	obj = ma[0]->object;
 	VM_OBJECT_WLOCK(obj);
@@ -1294,6 +1295,20 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 			/* Partially written page. */
 			rtvals[i] = VM_PAGER_AGAIN;
 			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
+		}
+	}
+	for (pos = eof, i = OFF_TO_IDX(trunc_page(pos)); pos < lpos; i++) {
+		if (pos != trunc_page(pos)) {
+			pos_devb = roundup2(pos, DEV_BSIZE) & PAGE_MASK;
+			vm_page_clear_dirty(ma[i], pos_devb, PAGE_SIZE -
+			    pos_devb);
+			if (ma[i]->dirty == VM_PAGE_BITS_ALL)
+				rtvals[i] = VM_PAGER_OK;
+			pos = round_page(pos);
+		} else {
+			/* vm_pageout_flush() clears dirty */
+			rtvals[i] = VM_PAGER_BAD;
+			pos += PAGE_SIZE;
 		}
 	}
 	VM_OBJECT_WUNLOCK(obj);
