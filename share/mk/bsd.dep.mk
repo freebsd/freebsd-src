@@ -195,13 +195,11 @@ ${DEPENDFILE}:	.NOMETA
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if !defined(_meta_filemon)
-.if defined(.PARSEDIR)
+.if !empty(DEPEND_CFLAGS)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:${DEPEND_FILTER}:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
-.else
-CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .if ${MAKE_VERSION} < 20160220
