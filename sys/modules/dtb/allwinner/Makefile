@@ -13,6 +13,7 @@ DTS=	\
 	sun7i-a20-cubieboard2.dts \
 	sun7i-a20-olimex-som-evb.dts \
 	sun7i-a20-pcduino3.dts \
+	sun8i-h2-plus-orangepi-zero.dts \
 	sun8i-h3-orangepi-one.dts
 
 LINKS= \

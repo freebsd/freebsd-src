@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/open/15.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="open returns EROFS when O_CREAT is specified and the named file would reside on a read-only file system"

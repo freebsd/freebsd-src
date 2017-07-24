@@ -54,8 +54,16 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/clkng/aw_ccung.h>
 #include <arm/allwinner/clkng/aw_clk.h>
 
+#ifdef __aarch64__
+#include "opt_soc.h"
+#endif
+
 #if defined(SOC_ALLWINNER_A31)
 #include <arm/allwinner/clkng/ccu_a31.h>
+#endif
+
+#if defined(SOC_ALLWINNER_A64)
+#include <arm/allwinner/clkng/ccu_a64.h>
 #endif
 
 #if defined(SOC_ALLWINNER_H3)
@@ -78,12 +86,19 @@ static struct resource_spec aw_ccung_spec[] = {
 #define	A31_CCU	2
 #endif
 
+#if defined(SOC_ALLWINNER_A64)
+#define	A64_CCU	2
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #if defined(SOC_ALLWINNER_H3)
 	{ "allwinner,sun8i-h3-ccu", H3_CCU },
 #endif
 #if defined(SOC_ALLWINNER_A31)
 	{ "allwinner,sun6i-a31-ccu", A31_CCU },
+#endif
+#if defined(SOC_ALLWINNER_A64)
+	{ "allwinner,sun50i-a64-ccu", A64_CCU },
 #endif
 	{NULL, 0 }
 };
@@ -261,7 +276,7 @@ aw_ccung_init_clocks(struct aw_ccung_softc *sc)
 			    sc->clk_init[i].default_freq, 0 , 0);
 			if (error != 0) {
 				device_printf(sc->dev,
-				    "Cannot set frequency for %s to %llu\n",
+				    "Cannot set frequency for %s to %ju\n",
 				    sc->clk_init[i].name,
 				    sc->clk_init[i].default_freq);
 				continue;
@@ -309,6 +324,11 @@ aw_ccung_attach(device_t dev)
 #if defined(SOC_ALLWINNER_A31)
 	case A31_CCU:
 		ccu_a31_register_clocks(sc);
+		break;
+#endif
+#if defined(SOC_ALLWINNER_A64)
+	case A64_CCU:
+		ccu_a64_register_clocks(sc);
 		break;
 #endif
 	}

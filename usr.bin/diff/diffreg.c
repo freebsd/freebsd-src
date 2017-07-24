@@ -1115,7 +1115,7 @@ restart:
 		return;
 	}
 proceed:
-	if (*pflags & D_HEADER) {
+	if (*pflags & D_HEADER && diff_format != D_BRIEF) {
 		diff_output("%s %s %s\n", diffargs, file1, file2);
 		*pflags &= ~D_HEADER;
 	}

@@ -138,7 +138,6 @@ mmc_wait_for_app_cmd(device_t brdev, device_t reqdev, uint16_t rca,
 	sc->squelched--;
 
 	if (err != MMC_ERR_NONE && brdev == reqdev) {
-		sc = device_get_softc(brdev);
 		if (sc->squelched == 0 && ppsratecheck(&sc->log_time,
 		    &sc->log_count, LOG_PPS)) {
 			device_printf(sc->dev, "ACMD%d failed, RESULT: %d\n",
@@ -154,9 +153,12 @@ mmc_switch(device_t brdev, device_t reqdev, uint16_t rca, uint8_t set,
     uint8_t index, uint8_t value, u_int timeout, bool status)
 {
 	struct mmc_command cmd;
+	struct mmc_softc *sc;
 	int err;
 
 	KASSERT(timeout != 0, ("%s: no timeout", __func__));
+
+	sc = device_get_softc(brdev);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SWITCH_FUNC;
@@ -172,10 +174,19 @@ mmc_switch(device_t brdev, device_t reqdev, uint16_t rca, uint8_t set,
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	else
 		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+	/*
+	 * Pause re-tuning so it won't interfere with the busy state and also
+	 * so that the result of CMD13 will always refer to switching rather
+	 * than to a tuning command that may have snuck in between.
+	 */
+	sc->retune_paused++;
 	err = mmc_wait_for_cmd(brdev, reqdev, &cmd, CMD_RETRIES);
 	if (err != MMC_ERR_NONE || status == false)
-		return (err);
-	return (mmc_switch_status(brdev, reqdev, rca, timeout));
+		goto out;
+	err = mmc_switch_status(brdev, reqdev, rca, timeout);
+out:
+	sc->retune_paused--;
+	return (err);
 }
 
 int
@@ -192,6 +203,7 @@ mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca, u_int timeout)
 	 * type MMC_CAP_WAIT_WHILE_BUSY will issue mmc_send_status() only
 	 * once and then exit the loop.
 	 */
+	end.tv_sec = end.tv_usec = 0;
 	for (;;) {
 		err = mmc_send_status(brdev, reqdev, rca, &status);
 		if (err != MMC_ERR_NONE)
@@ -208,7 +220,7 @@ mmc_switch_status(device_t brdev, device_t reqdev, uint16_t rca, u_int timeout)
 			break;
 		}
 	}
-	if (err == MMC_ERR_NONE && R1_CURRENT_STATE(status) == R1_SWITCH_ERROR)
+	if (err == MMC_ERR_NONE && (status & R1_SWITCH_ERROR) != 0)
 		return (MMC_ERR_FAILED);
 	return (err);
 }

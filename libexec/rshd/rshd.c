@@ -191,7 +191,7 @@ doit(struct sockaddr *fromp)
 	struct passwd *pwd;
 	u_short port;
 	fd_set ready, readfrom;
-	int cc, fd, nfd, pv[2], pid, s;
+	int cc, nfd, pv[2], pid, s;
 	int one = 1;
 	const char *cp, *errorstr;
 	char sig, buf[BUFSIZ];
@@ -338,8 +338,7 @@ doit(struct sockaddr *fromp)
 	pam_err = pam_authenticate(pamh, 0);
 	if (pam_err == PAM_SUCCESS) {
 		if ((pam_err = pam_get_user(pamh, &cp, NULL)) == PAM_SUCCESS) {
-			strncpy(luser, cp, sizeof(luser));
-			luser[sizeof(luser) - 1] = '\0';
+			strlcpy(luser, cp, sizeof(luser));
 			/* XXX truncation! */
 		}
 		pam_err = pam_acct_mgmt(pamh, 0);
@@ -386,9 +385,7 @@ doit(struct sockaddr *fromp)
 	if (lc != NULL && fromp->sa_family == AF_INET) {	/*XXX*/
 		char	remote_ip[MAXHOSTNAMELEN];
 
-		strncpy(remote_ip, numericname,
-			sizeof(remote_ip) - 1);
-		remote_ip[sizeof(remote_ip) - 1] = 0;
+		strlcpy(remote_ip, numericname, sizeof(remote_ip));
 		/* XXX truncation! */
 		if (!auth_hostok(lc, rhost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
@@ -496,8 +493,7 @@ doit(struct sockaddr *fromp)
 #ifdef USE_BLACKLIST
 	blacklist(0, STDIN_FILENO, "success");
 #endif
-	for (fd = getdtablesize(); fd > 2; fd--)
-		(void) close(fd);
+	closefrom(3);
 	if (setsid() == -1)
 		syslog(LOG_ERR, "setsid() failed: %m");
 	if (setlogin(pwd->pw_name) < 0)

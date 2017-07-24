@@ -308,7 +308,9 @@ main(int argc, CHAR16 *argv[])
 	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
+#if !defined(__arm__)
 	char buf[40];
+#endif
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -482,6 +484,7 @@ main(int argc, CHAR16 *argv[])
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
+#if !defined(__arm__)
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
 			snprintf(buf, sizeof(buf), "%p",
 			    ST->ConfigurationTable[k].VendorTable);
@@ -489,6 +492,7 @@ main(int argc, CHAR16 *argv[])
 			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
+#endif
 	}
 
 	interact(NULL);			/* doesn't return */

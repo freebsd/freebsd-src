@@ -80,7 +80,11 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+#define	f_inode	f_vnode
 	volatile u_int	f_count;
+
+	/* anonymous shmem object */
+	vm_object_t	f_shmem;
 
 	/* kqfilter support */
 	int		f_kqflags;
@@ -156,7 +160,8 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
-#define	fops_get(fops)	(fops)
+#define	fops_get(fops)		(fops)
+#define	replace_fops(f, fops)	((f)->f_op = (fops))
 
 #define	FMODE_READ	FREAD
 #define	FMODE_WRITE	FWRITE
@@ -261,7 +266,15 @@ iput(struct inode *inode)
 static inline loff_t 
 no_llseek(struct file *file, loff_t offset, int whence)
 {
-        return -ESPIPE;
+
+	return (-ESPIPE);
+}
+
+static inline loff_t
+noop_llseek(struct linux_file *file, loff_t offset, int whence)
+{
+
+	return (file->_file->f_offset);
 }
 
 #endif /* _LINUX_FS_H_ */

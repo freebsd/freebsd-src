@@ -1,5 +1,6 @@
 /* $FreeBSD$ */
 /*-
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -446,6 +447,8 @@ typedef struct {
 	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
+	int			isp_use_gft_id;		/* Use GFT_ID */
+	int			isp_use_gff_id;		/* Use GFF_ID */
 
 	/*
 	 * Current active WWNN/WWPN

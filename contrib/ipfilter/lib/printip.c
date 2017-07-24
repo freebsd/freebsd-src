@@ -25,7 +25,7 @@ printip(family, addr)
 		else
 			PRINTF("%s", inet_ntoa(ipa));
 	}
-#ifdef AF_INET6
+#ifdef USE_INET6
 	else if (family == AF_INET6) {
 		char buf[INET6_ADDRSTRLEN + 1];
 		const char *str;

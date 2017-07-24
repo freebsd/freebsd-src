@@ -260,6 +260,8 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
+#define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
+
 static inline unsigned long long
 simple_strtoull(const char *cp, char **endp, unsigned int base)
 {

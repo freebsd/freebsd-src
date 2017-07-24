@@ -1271,8 +1271,8 @@ new_session(session_t *sprev, struct ttyent *typ)
 
 	sp->se_flags |= SE_PRESENT;
 
-	sp->se_device = malloc(sizeof(_PATH_DEV) + strlen(typ->ty_name));
-	sprintf(sp->se_device, "%s%s", _PATH_DEV, typ->ty_name);
+	if (asprintf(&sp->se_device, "%s%s", _PATH_DEV, typ->ty_name) < 0)
+		err(1, "asprintf");
 
 	/*
 	 * Attempt to open the device, if we get "device not configured"
@@ -1315,8 +1315,8 @@ setupargv(session_t *sp, struct ttyent *typ)
 		free(sp->se_getty_argv_space);
 		free(sp->se_getty_argv);
 	}
-	sp->se_getty = malloc(strlen(typ->ty_getty) + strlen(typ->ty_name) + 2);
-	sprintf(sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name);
+	if (asprintf(&sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name) < 0)
+		err(1, "asprintf");
 	sp->se_getty_argv_space = strdup(sp->se_getty);
 	sp->se_getty_argv = construct_argv(sp->se_getty_argv_space);
 	if (sp->se_getty_argv == NULL) {
@@ -1429,7 +1429,7 @@ start_window_system(session_t *sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strncat(term, sp->se_type, sizeof(term) - 6);
+		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
 		env[1] = 0;
 	}
@@ -1493,7 +1493,7 @@ start_getty(session_t *sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strncat(term, sp->se_type, sizeof(term) - 6);
+		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
 		env[1] = 0;
 	} else

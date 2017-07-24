@@ -51,6 +51,32 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170722:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 5.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170701:
+	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need them to be
+	built with the base system.
+
+20170625:
+	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
+	a very major ABI incompatible change, so users of FreeBSD/powerpc must
+	be careful when performing source upgrades.  It is best to run
+	'make installworld' from an alternate root system, either a live
+	CD/memory stick, or a temporary root partition.  Additionally, all ports
+	must be recompiled.  powerpc64 is largely unaffected, except in the case
+	of 32-bit compatibility.  All 32-bit binaries will be affected.
+
+20170623:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
+
 20170620:
 	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
 	if you require the GPL compiler.

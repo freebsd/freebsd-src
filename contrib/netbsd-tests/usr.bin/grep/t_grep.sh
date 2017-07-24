@@ -658,6 +658,8 @@ mmap_eof_not_eol_body()
 		atf_expect_fail "gnu grep from ports has no --mmap option"
 	fi
 
+	atf_expect_fail "relies on jemalloc feature no longer available; needs to be rewritten - bug 220309"
+
 	printf "ABC" > test1
 	jot -b " "  -s "" 4096 >> test2
 

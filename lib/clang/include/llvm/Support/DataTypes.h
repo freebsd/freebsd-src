@@ -86,11 +86,11 @@ typedef u_int64_t uint64_t;
 
 #else /* _MSC_VER */
 #ifdef __cplusplus
-#include <cstdlib>
 #include <cstddef>
+#include <cstdlib>
 #else
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #endif
 #include <sys/types.h>
 
@@ -133,4 +133,4 @@ typedef signed int ssize_t;
 #define HUGE_VALF (float)HUGE_VAL
 #endif
 
-#endif  /* SUPPORT_DATATYPES_H */
+#endif /* SUPPORT_DATATYPES_H */

@@ -347,7 +347,12 @@ zio_push_transform(zio_t *zio, abd_t *data, uint64_t size, uint64_t bufsize,
 	 * Ensure that anyone expecting this zio to contain a linear ABD isn't
 	 * going to get a nasty surprise when they try to access the data.
 	 */
+#ifdef illumos
 	IMPLY(abd_is_linear(zio->io_abd), abd_is_linear(data));
+#else
+	IMPLY(zio->io_abd != NULL && abd_is_linear(zio->io_abd),
+	    abd_is_linear(data));
+#endif
 
 	zt->zt_orig_abd = zio->io_abd;
 	zt->zt_orig_size = zio->io_size;
@@ -3132,7 +3137,7 @@ zio_vdev_io_start(zio_t *zio)
 	    P2PHASE(zio->io_size, align) != 0) {
 		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
-		abd_t *abuf;
+		abd_t *abuf = NULL;
 		if (zio->io_type == ZIO_TYPE_READ ||
 		    zio->io_type == ZIO_TYPE_WRITE)
 			abuf = abd_alloc_sametype(zio->io_abd, asize);

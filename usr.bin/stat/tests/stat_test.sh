@@ -60,14 +60,23 @@ l_flag_body()
 
 	paths="a b c d"
 
+	ls_out=ls.output
+	stat_out=stat.output
+
 	# NOTE:
 	# - Even though stat -l claims to be equivalent to `ls -lT`, the
 	#   whitespace is a bit more liberal in the `ls -lT` output.
 	# - `ls -ldT` is used to not recursively list the contents of
 	#   directories.
 	for path in $paths; do
-		atf_check -o inline:"$(ls -ldT $path | sed -e 's,  , ,g')\n" \
-		    stat -l $path
+		atf_check -o save:$ls_out ls -ldT $path
+		cat $ls_out
+		atf_check -o save:$stat_out stat -l $path
+		cat $stat_out
+		echo "Comparing normalized whitespace"
+		atf_check sed -i '' -E -e 's/[[:space:]]+/ /g' $ls_out
+		atf_check sed -i '' -E -e 's/[[:space:]]+/ /g' $stat_out
+		atf_check cmp $ls_out $stat_out
 	done
 }
 
@@ -165,7 +174,7 @@ t_flag_body()
 
 x_output_date()
 {
-	local date_format='%a %b %d %H:%M:%S %Y'
+	local date_format='%a %b %e %H:%M:%S %Y'
 
 	stat -t "$date_format" "$@"
 }

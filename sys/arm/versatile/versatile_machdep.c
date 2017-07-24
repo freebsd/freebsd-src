@@ -49,32 +49,19 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platform.h>
+#include <machine/platformvar.h>
+
+#include "platform_if.h"
 
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
 
-vm_offset_t
-platform_lastaddr(void)
+static vm_offset_t
+versatile_lastaddr(platform_t plat)
 {
 
 	return (DEVMAP_BOOTSTRAP_MAP_START);
-}
-
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-}
-
-void
-platform_late_init(void)
-{
 }
 
 #define FDT_DEVMAP_MAX	(2)		/* FIXME */
@@ -87,8 +74,8 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 /*
  * Construct devmap table with DT-derived config data.
  */
-int
-platform_devmap_init(void)
+static int
+versatile_devmap_init(platform_t plat)
 {
 	int i = 0;
 	fdt_devmap[i].pd_va = 0xf0100000;
@@ -99,10 +86,18 @@ platform_devmap_init(void)
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+versatile_cpu_reset(platform_t plat)
 {
 	printf("cpu_reset\n");
 	while (1);
 }
 
+static platform_method_t versatile_methods[] = {
+	PLATFORMMETHOD(platform_lastaddr,	versatile_lastaddr),
+	PLATFORMMETHOD(platform_devmap_init,	versatile_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	versatile_cpu_reset),
+
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(versatile, "versatile", 0, "arm,versatile-pb", 1);

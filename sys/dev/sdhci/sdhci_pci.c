@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mmccam.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -396,8 +398,13 @@ sdhci_pci_attach(device_t dev)
 		device_printf(dev, "Can't setup IRQ\n");
 	pci_enable_busmaster(dev);
 	/* Process cards detection. */
-	for (i = 0; i < sc->num_slots; i++)
+	for (i = 0; i < sc->num_slots; i++) {
+#ifdef MMCCAM
+		sdhci_cam_start_slot(&sc->slots[i]);
+#else
 		sdhci_start_slot(&sc->slots[i]);
+#endif
+	}
 
 	return (0);
 }
@@ -489,6 +496,8 @@ static device_method_t sdhci_methods[] = {
 	/* mmcbr_if */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
 	DEVMETHOD(mmcbr_switch_vccq,	sdhci_generic_switch_vccq),
+	DEVMETHOD(mmcbr_tune,		sdhci_generic_tune),
+	DEVMETHOD(mmcbr_retune,		sdhci_generic_retune),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
@@ -518,4 +527,7 @@ static devclass_t sdhci_pci_devclass;
 DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
+
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_pci);
+#endif

@@ -65,7 +65,7 @@
 struct amdvi_dte {
 	uint32_t dt_valid:1;		/* Device Table valid. */
 	uint32_t pt_valid:1;		/* Page translation valid. */
-	uint8_t  :7;			/* Reserved[8:2] */
+	uint16_t :7;			/* Reserved[8:2] */
 	uint8_t	 pt_level:3;		/* Paging level, 0 to disable. */
 	uint64_t pt_base:40;		/* Page table root pointer. */
 	uint8_t  :3;			/* Reserved[54:52] */

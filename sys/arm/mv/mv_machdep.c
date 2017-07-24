@@ -46,9 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/devmap.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <arm/arm/nexusvar.h>
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
@@ -86,6 +89,39 @@ int armada38x_mbus_optimization(void);
 #define MPP_PINS_PER_REG	8
 #define MPP_SEL(pin,func)	(((func) & 0xf) <<		\
     (((pin) % MPP_PINS_PER_REG) * 4))
+
+static void
+mv_busdma_tag_init(void *arg __unused)
+{
+	phandle_t node;
+	bus_dma_tag_t dmat;
+
+	/*
+	 * If this platform has coherent DMA, create the parent DMA tag to pass
+	 * down the coherent flag to all busses and devices on the platform,
+	 * otherwise return without doing anything. By default create tag
+	 * for all A38x-based platforms only.
+	 */
+	if ((node = OF_finddevice("/")) == -1)
+		return;
+	if (ofw_bus_node_is_compatible(node, "marvell,armada380") == 0)
+		return;
+
+	bus_dma_tag_create(NULL,	/* No parent tag */
+	    1, 0,			/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsize */
+	    BUS_DMA_COHERENT,		/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &dmat);
+
+	nexus_set_dma_tag(dmat);
+}
+SYSINIT(mv_busdma_tag, SI_SUB_DRIVERS, SI_ORDER_ANY, mv_busdma_tag_init, NULL);
 
 static int
 platform_mpp_init(void)

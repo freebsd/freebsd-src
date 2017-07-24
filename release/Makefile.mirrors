@@ -21,7 +21,7 @@ STAGE_TARGETS?=		iso-images-stage
 .endif
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
-. if ${TARGET} == "arm" || ${EMBEDDED_TARGET} == "arm"
+. if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
 EMBEDDED=		1
 . endif
 .endif
@@ -57,7 +57,7 @@ TLD?=			${FTPDIR}/releases
 .endif
 
 .if defined(EMBEDDED) && !empty(EMBEDDED)
-. if ${TARGET} == "arm" && ${TARGET_ARCH} == "armv6"
+. if ${TARGET:Marm*} != "" && (${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "aarch64")
 .  if !defined(BOARDNAME) && empty(BOARDNAME)
 BOARDNAME:=		${KERNCONF}
 .  else

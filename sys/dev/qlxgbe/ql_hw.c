@@ -2498,6 +2498,9 @@ ql_init_hw_if(qla_host_t *ha)
 	if (qla_hw_add_all_mcast(ha))
 		return (-1);
 
+	if (ql_set_max_mtu(ha, ha->max_frame_size, ha->hw.rcv_cntxt_id))
+		return (-1);
+
 	if (qla_config_rss(ha, ha->hw.rcv_cntxt_id))
 		return (-1);
 
@@ -3363,7 +3366,7 @@ ql_hw_check_health(qla_host_t *ha)
 
 	ha->hw.health_count++;
 
-	if (ha->hw.health_count < 1000)
+	if (ha->hw.health_count < 500)
 		return 0;
 
 	ha->hw.health_count = 0;
@@ -3382,10 +3385,18 @@ ql_hw_check_health(qla_host_t *ha)
 	if ((val != ha->hw.hbeat_value) &&
 		(!(QL_ERR_INJECT(ha, INJCT_HEARTBEAT_FAILURE)))) {
 		ha->hw.hbeat_value = val;
+		ha->hw.hbeat_failure = 0;
 		return 0;
 	}
-	device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
-		__func__, val);
+
+	ha->hw.hbeat_failure++;
+
+	if (ha->hw.hbeat_failure < 2) /* we ignore the first failure */
+		return 0;
+	else
+		device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
+			__func__, val);
+
 
 	return -1;
 }

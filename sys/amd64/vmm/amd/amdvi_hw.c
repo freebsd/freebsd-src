@@ -496,7 +496,7 @@ amdvi_cmp_wait(struct amdvi_softc *softc)
 
 #ifdef AMDVI_DEBUG_CMD
 	if (status)
-		device_printf(softc->dev, "CMD completion DONE Tail:0x%x,
+		device_printf(softc->dev, "CMD completion DONE Tail:0x%x, "
 			      "Head:0x%x, loop:%d.\n", ctrl->cmd_tail,
 			      ctrl->cmd_head, loop);
 #endif

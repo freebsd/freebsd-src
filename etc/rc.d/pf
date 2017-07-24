@@ -6,7 +6,7 @@
 # PROVIDE: pf
 # REQUIRE: FILESYSTEMS netif pflog pfsync
 # BEFORE:  routing
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 

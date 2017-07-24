@@ -109,23 +109,25 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
 
-#ifndef __mips__
+#ifdef __amd64__
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
 #endif
 CTASSERT(sizeof(struct statfs32) == 256);
-#ifndef __mips__
+#ifdef __amd64__
 CTASSERT(sizeof(struct rusage32) == 72);
 #endif
 CTASSERT(sizeof(struct sigaltstack32) == 12);
+#ifdef __amd64__
 CTASSERT(sizeof(struct kevent32) == 56);
+#else
+CTASSERT(sizeof(struct kevent32) == 64);
+#endif
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
 #ifdef __amd64__
 CTASSERT(sizeof(struct stat32) == 208);
-#endif
-#ifndef __mips__
 CTASSERT(sizeof(struct freebsd11_stat32) == 96);
 #endif
 CTASSERT(sizeof(struct sigaction32) == 24);

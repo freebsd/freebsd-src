@@ -15,9 +15,7 @@
 #include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/ExpressionVariable.h"
@@ -29,6 +27,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadSpec.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -197,7 +197,7 @@ const char *BreakpointLocation::GetConditionText(size_t *hash) const {
 }
 
 bool BreakpointLocation::ConditionSaysStop(ExecutionContext &exe_ctx,
-                                           Error &error) {
+                                           Status &error) {
   Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS);
 
   std::lock_guard<std::mutex> guard(m_condition_mutex);
@@ -260,7 +260,7 @@ bool BreakpointLocation::ConditionSaysStop(ExecutionContext &exe_ctx,
   options.SetResultIsInternal(
       true); // Don't generate a user variable for condition expressions.
 
-  Error expr_error;
+  Status expr_error;
 
   diagnostics.Clear();
 

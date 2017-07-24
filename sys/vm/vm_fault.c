@@ -266,8 +266,12 @@ static int
 vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
     int fault_type, int fault_flags, boolean_t wired, vm_page_t *m_hold)
 {
-	vm_page_t m;
-	int rv;
+	vm_page_t m, m_map;
+#if defined(__amd64__) && VM_NRESERVLEVEL > 0
+	vm_page_t m_super;
+	int flags;
+#endif
+	int psind, rv;
 
 	MPASS(fs->vp == NULL);
 	m = vm_page_lookup(fs->first_object, fs->first_pindex);
@@ -275,14 +279,46 @@ vm_fault_soft_fast(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
 	    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL)
 		return (KERN_FAILURE);
-	rv = pmap_enter(fs->map->pmap, vaddr, m, prot, fault_type |
-	    PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED : 0), 0);
+	m_map = m;
+	psind = 0;
+#if defined(__amd64__) && VM_NRESERVLEVEL > 0
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    (m_super = vm_reserv_to_superpage(m)) != NULL &&
+	    rounddown2(vaddr, pagesizes[m_super->psind]) >= fs->entry->start &&
+	    roundup2(vaddr + 1, pagesizes[m_super->psind]) <= fs->entry->end &&
+	    (vaddr & (pagesizes[m_super->psind] - 1)) == (VM_PAGE_TO_PHYS(m) &
+	    (pagesizes[m_super->psind] - 1)) &&
+	    pmap_ps_enabled(fs->map->pmap)) {
+		flags = PS_ALL_VALID;
+		if ((prot & VM_PROT_WRITE) != 0) {
+			/*
+			 * Create a superpage mapping allowing write access
+			 * only if none of the constituent pages are busy and
+			 * all of them are already dirty (except possibly for
+			 * the page that was faulted on).
+			 */
+			flags |= PS_NONE_BUSY;
+			if ((fs->first_object->flags & OBJ_UNMANAGED) == 0)
+				flags |= PS_ALL_DIRTY;
+		}
+		if (vm_page_ps_test(m_super, flags, m)) {
+			m_map = m_super;
+			psind = m_super->psind;
+			vaddr = rounddown2(vaddr, pagesizes[psind]);
+			/* Preset the modified bit for dirty superpages. */
+			if ((flags & PS_ALL_DIRTY) != 0)
+				fault_type |= VM_PROT_WRITE;
+		}
+	}
+#endif
+	rv = pmap_enter(fs->map->pmap, vaddr, m_map, prot, fault_type |
+	    PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED : 0), psind);
 	if (rv != KERN_SUCCESS)
 		return (rv);
 	vm_fault_fill_hold(m_hold, m);
 	vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags, false);
 	VM_OBJECT_RUNLOCK(fs->first_object);
-	if (!wired)
+	if (psind == 0 && !wired)
 		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR);
 	vm_map_lookup_done(fs->map, fs->entry);
 	curthread->td_ru.ru_minflt++;
@@ -495,13 +531,12 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int locked, nera, result, rv;
 	u_char behavior;
 	boolean_t wired;	/* Passed by reference. */
-	bool dead, growstack, hardfault, is_first_object_locked;
+	bool dead, hardfault, is_first_object_locked;
 
 	VM_CNT_INC(v_vm_faults);
 	fs.vp = NULL;
 	faultcount = 0;
 	nera = -1;
-	growstack = true;
 	hardfault = false;
 
 RetryFault:;
@@ -511,17 +546,10 @@ RetryFault:;
 	 * search.
 	 */
 	fs.map = map;
-	result = vm_map_lookup(&fs.map, vaddr, fault_type, &fs.entry,
-	    &fs.first_object, &fs.first_pindex, &prot, &wired);
+	result = vm_map_lookup(&fs.map, vaddr, fault_type |
+	    VM_PROT_FAULT_LOOKUP, &fs.entry, &fs.first_object,
+	    &fs.first_pindex, &prot, &wired);
 	if (result != KERN_SUCCESS) {
-		if (growstack && result == KERN_INVALID_ADDRESS &&
-		    map != kernel_map) {
-			result = vm_map_growstack(curproc, vaddr);
-			if (result != KERN_SUCCESS)
-				return (KERN_FAILURE);
-			growstack = false;
-			goto RetryFault;
-		}
 		unlock_vp(&fs);
 		return (result);
 	}
@@ -546,6 +574,8 @@ RetryFault:;
 			vm_map_unlock(fs.map);
 		goto RetryFault;
 	}
+
+	MPASS((fs.entry->eflags & MAP_ENTRY_GUARD) == 0);
 
 	if (wired)
 		fault_type = prot | (fault_type & VM_PROT_COPY);

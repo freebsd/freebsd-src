@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2016
+.Dd June 22, 2017
 .Dt AIO 4
 .Os
 .Sh NAME
@@ -161,11 +161,27 @@ field which can be used to request notification when an operation completes.
 For
 .Dv SIGEV_KEVENT
 notifications,
-the posted kevent will contain:
+the
+.Va sigevent
+.Ap
+s
+.Va sigev_notify_kqueue
+field should contain the descriptor of the kqueue that the event should be attached
+to, its
+.Va sigev_notify_kevent_flags
+field may contain
+.Dv EV_ONESHOT ,
+.Dv EV_CLEAR , and/or
+.Dv EV_DISPATCH , and its
+.Va sigev_notify
+field should be set to
+.Dv SIGEV_KEVENT .
+The posted kevent will contain:
 .Bl -column ".Va filter"
 .It Sy Member Ta Sy Value
 .It Va ident Ta asynchronous I/O control buffer pointer
 .It Va filter Ta Dv EVFILT_AIO
+.It Va flags Ta Dv EV_EOF
 .It Va udata Ta
 value stored in
 .Va aio_sigevent.sigev_value

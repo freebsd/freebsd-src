@@ -114,7 +114,7 @@ ts_attach(device_t dev)
 		device_printf(dev, "failed to read Manufacturer ID\n");
 		return (ENXIO);
 	}
-	err = ts_readw_be(dev, 6, &devid);
+	err = ts_readw_be(dev, 7, &devid);
 	if (err != 0) {
 		device_printf(dev, "failed to read Device ID\n");
 		return (ENXIO);
@@ -130,6 +130,13 @@ ts_attach(device_t dev)
 		 * device ID and revision can vary.
 		 * E.g. STT424E02, Doc ID 13448 Rev 8,
 		 * section 4.6, page 26.
+		 */
+	} else if (vendorid == 0xb3 && (devid & 0xff00) == 0x2900) {
+		/*
+		 * IDT TS3000B3A and TSE2002B3C chips and their variants.
+		 * Revision IDs (the lower byte) can vary.
+		 * http://www.idt.com/sites/default/files/documents/IDT_TSE2002B3C_DST_20100512_120303152056.pdf
+		 * http://www.idt.com/sites/default/files/documents/IDT_TS3000B3A_DST_20101129_120303152013.pdf
 		 */
 	} else {
 		if (bootverbose) {

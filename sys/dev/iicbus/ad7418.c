@@ -120,6 +120,8 @@ ad7418_attach(device_t dev)
 	int conf;
 
 	sc->sc_dev = dev;
+	sc->sc_lastupdate = ticks - hz;
+
 	sx_init(&sc->sc_lock, "ad7418");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

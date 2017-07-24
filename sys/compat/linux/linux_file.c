@@ -381,9 +381,9 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	td->td_retval[0] = retval;
 
 out:
-	free(lbuf, M_LINUX);
+	free(lbuf, M_TEMP);
 out1:
-	free(buf, M_LINUX);
+	free(buf, M_TEMP);
 	return (error);
 }
 
@@ -507,9 +507,9 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	if (error == 0)
 		td->td_retval[0] = linuxreclen;
 
-	free(lbuf, M_LINUX);
+	free(lbuf, M_TEMP);
 out:
-	free(buf, M_LINUX);
+	free(buf, M_TEMP);
 	return (error);
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */

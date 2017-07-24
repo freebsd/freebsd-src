@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/rmdir/12.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="rmdir returns EINVAL if the last component of the path is '.' and EEXIST or ENOTEMPTY if the last component of the path is '..'"

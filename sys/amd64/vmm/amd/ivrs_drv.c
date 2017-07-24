@@ -75,6 +75,12 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 	end = (ACPI_IVRS_HEADER *)((char *)ivrs + ivrs->Header.Length);
 
 	while (ivrs_hdr < end) {
+		if ((uint8_t *)ivrs_hdr + ivrs_hdr->Length > (uint8_t *)end) {
+			printf("AMD-Vi:IVHD/IVMD is corrupted, length : %d\n",
+			    ivrs_hdr->Length);
+			break;
+		}
+
 		switch (ivrs_hdr->Type) {
 		case ACPI_IVRS_TYPE_HARDWARE:	/* Legacy */
 		case 0x11:
@@ -98,10 +104,6 @@ ivrs_hdr_iterate_tbl(ivhd_iter_t iter, void *arg)
 
 		ivrs_hdr = (ACPI_IVRS_HEADER *)((uint8_t *)ivrs_hdr +
 			ivrs_hdr->Length);
-		if (ivrs_hdr->Length < 0) {
-			printf("AMD-Vi:IVHD/IVMD is corrupted, length : %d\n", ivrs_hdr->Length);
-			break;
-		}
 	}
 }
 

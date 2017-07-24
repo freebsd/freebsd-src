@@ -71,7 +71,6 @@ struct fifoinfo {
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
 static vop_close_t	fifo_close;
-static vop_pathconf_t	fifo_pathconf;
 static vop_advlock_t	fifo_advlock;
 
 struct vop_vector fifo_specops = {
@@ -87,7 +86,7 @@ struct vop_vector fifo_specops = {
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,
 	.vop_open =		fifo_open,
-	.vop_pathconf =		fifo_pathconf,
+	.vop_pathconf =		vop_stdpathconf,
 	.vop_print =		fifo_print,
 	.vop_read =		VOP_PANIC,
 	.vop_readdir =		VOP_PANIC,
@@ -337,34 +336,6 @@ fifo_print(ap)
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);
-}
-
-/*
- * Return POSIX pathconf information applicable to fifo's.
- */
-static int
-fifo_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
 }
 
 /*

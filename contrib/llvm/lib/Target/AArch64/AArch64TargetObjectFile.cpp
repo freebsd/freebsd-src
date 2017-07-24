@@ -9,12 +9,12 @@
 
 #include "AArch64TargetObjectFile.h"
 #include "AArch64TargetMachine.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/Support/Dwarf.h"
 using namespace llvm;
 using namespace dwarf;
 
@@ -69,4 +69,12 @@ const MCExpr *AArch64_MachoTargetObjectFile::getIndirectSymViaGOTPCRel(
   Streamer.EmitLabel(PCSym);
   const MCExpr *PC = MCSymbolRefExpr::create(PCSym, getContext());
   return MCBinaryExpr::createSub(Res, PC, getContext());
+}
+
+void AArch64_MachoTargetObjectFile::getNameWithPrefix(
+    SmallVectorImpl<char> &OutName, const GlobalValue *GV,
+    const TargetMachine &TM) const {
+  // AArch64 does not use section-relative relocations so any global symbol must
+  // be accessed via at least a linker-private symbol.
+  getMangler().getNameWithPrefix(OutName, GV, /* CannotUsePrivateLabel */ true);
 }

@@ -19,18 +19,19 @@
 #include "lldb/Breakpoint/BreakpointResolver.h"
 #include "lldb/Breakpoint/BreakpointResolverFileLine.h"
 #include "lldb/Core/Address.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/SearchFilter.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Function.h"
+#include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -126,7 +127,7 @@ StructuredData::ObjectSP Breakpoint::SerializeToStructuredData() {
 }
 
 lldb::BreakpointSP Breakpoint::CreateFromStructuredData(
-    Target &target, StructuredData::ObjectSP &object_data, Error &error) {
+    Target &target, StructuredData::ObjectSP &object_data, Status &error) {
   BreakpointSP result_sp;
 
   StructuredData::Dictionary *breakpoint_dict = object_data->GetAsDictionary();
@@ -145,7 +146,7 @@ lldb::BreakpointSP Breakpoint::CreateFromStructuredData(
     return result_sp;
   }
 
-  Error create_error;
+  Status create_error;
   BreakpointResolverSP resolver_sp =
       BreakpointResolver::CreateFromStructuredData(*resolver_dict,
                                                    create_error);
@@ -206,10 +207,10 @@ lldb::BreakpointSP Breakpoint::CreateFromStructuredData(
   if (success && names_array) {
     size_t num_names = names_array->GetSize();
     for (size_t i = 0; i < num_names; i++) {
-      std::string name;
-      Error error;
+      llvm::StringRef name;
+      Status error;
       success = names_array->GetItemAtIndexAsString(i, name);
-      result_sp->AddName(name.c_str(), error);
+      result_sp->AddName(name, error);
     }
   }
 
@@ -241,7 +242,7 @@ bool Breakpoint::SerializedBreakpointMatchesNames(
   std::vector<std::string>::iterator end = names.end();
 
   for (size_t i = 0; i < num_names; i++) {
-    std::string name;
+    llvm::StringRef name;
     if (names_array->GetItemAtIndexAsString(i, name)) {
       if (std::find(begin, end, name) != end) {
         return true;
@@ -832,12 +833,12 @@ size_t Breakpoint::GetNumResolvedLocations() const {
 
 size_t Breakpoint::GetNumLocations() const { return m_locations.GetSize(); }
 
-bool Breakpoint::AddName(const char *new_name, Error &error) {
-  if (!new_name)
+bool Breakpoint::AddName(llvm::StringRef new_name, Status &error) {
+  if (new_name.empty())
     return false;
-  if (!BreakpointID::StringIsBreakpointName(llvm::StringRef(new_name), error)) {
-    error.SetErrorStringWithFormat("input name \"%s\" not a breakpoint name.",
-                                   new_name);
+  if (!BreakpointID::StringIsBreakpointName(new_name, error)) {
+    error.SetErrorStringWithFormatv("input name \"{0}\" not a breakpoint name.",
+                                    new_name);
     return false;
   }
   if (!error.Success())
@@ -996,8 +997,9 @@ bool Breakpoint::BreakpointPrecondition::EvaluatePrecondition(
 void Breakpoint::BreakpointPrecondition::GetDescription(
     Stream &stream, lldb::DescriptionLevel level) {}
 
-Error Breakpoint::BreakpointPrecondition::ConfigurePrecondition(Args &options) {
-  Error error;
+Status
+Breakpoint::BreakpointPrecondition::ConfigurePrecondition(Args &options) {
+  Status error;
   error.SetErrorString("Base breakpoint precondition has no options.");
   return error;
 }

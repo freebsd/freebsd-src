@@ -1671,6 +1671,7 @@ typedef struct _qla_hw {
 	/* heart beat register value */
 	uint32_t	hbeat_value;
 	uint32_t	health_count;
+	uint32_t	hbeat_failure;
 
 	uint32_t	max_tx_segs;
 	uint32_t	min_lro_pkt_size;

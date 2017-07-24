@@ -329,6 +329,7 @@ typedef struct scr_stat {
 	struct proc 	*mouse_proc;		/* proc* of controlling proc */
 	pid_t 		mouse_pid;		/* pid of controlling proc */
 	int		mouse_signal;		/* signal # to report with */
+	const void	*mouse_data;		/* renderer (pixmap) data */
 
 	u_short		bell_duration;
 	u_short		bell_pitch;

@@ -72,7 +72,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
     "Local offset from UTC in seconds");
 
 static int ct_debug;
-SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RWTUN,
     &ct_debug, 0, "Enable printing of clocktime debugging");
 
 static int wall_cmos_clock;
@@ -97,6 +97,13 @@ static const int month_days[12] = {
 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 };
 
+/*
+ * Optimization: using a precomputed count of days between POSIX_BASE_YEAR and
+ * some recent year avoids lots of unnecessary loop iterations in conversion.
+ * recent_base_days is the number of days before the start of recent_base_year.
+ */
+static const int recent_base_year = 2017;
+static const int recent_base_days = 17167;
 
 /*
  * This inline avoids some unnecessary modulo operations
@@ -135,18 +142,27 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 {
 	int i, year, days;
 
-	year = ct->year;
-
 	if (ct_debug) {
 		printf("ct_to_ts(");
 		print_ct(ct);
 		printf(")");
 	}
 
+	/*
+	 * Many realtime clocks store the year as 2-digit BCD; pivot on 70 to
+	 * determine century.  Some clocks have a "century bit" and drivers do
+	 * year += 100, so interpret values between 70-199 as relative to 1900.
+	 */
+	year = ct->year;
+	if (year < 70)
+		year += 2000;
+	else if (year < 200)
+		year += 1900;
+
 	/* Sanity checks. */
 	if (ct->mon < 1 || ct->mon > 12 || ct->day < 1 ||
 	    ct->day > days_in_month(year, ct->mon) ||
-	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 ||
+	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 || year < 1970 ||
 	    (sizeof(time_t) == 4 && year > 2037)) {	/* time_t overflow */
 		if (ct_debug)
 			printf(" = EINVAL\n");
@@ -157,8 +173,14 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	 * Compute days since start of time
 	 * First from years, then from months.
 	 */
-	days = 0;
-	for (i = POSIX_BASE_YEAR; i < year; i++)
+	if (year >= recent_base_year) {
+		i = recent_base_year;
+		days = recent_base_days;
+	} else {
+		i = POSIX_BASE_YEAR;
+		days = 0;
+	}
+	for (; i < year; i++)
 		days += days_in_year(i);
 
 	/* Months */
@@ -171,7 +193,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	ts->tv_nsec = ct->nsec;
 
 	if (ct_debug)
-		printf(" = %ld.%09ld\n", (long)ts->tv_sec, (long)ts->tv_nsec);
+		printf(" = %jd.%09ld\n", (intmax_t)ts->tv_sec, ts->tv_nsec);
 	return (0);
 }
 
@@ -188,8 +210,14 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 
 	ct->dow = day_of_week(days);
 
-	/* Subtract out whole years, counting them in i. */
-	for (year = POSIX_BASE_YEAR; days >= days_in_year(year); year++)
+	/* Subtract out whole years. */
+	if (days >= recent_base_days) {
+		year = recent_base_year;
+		days -= recent_base_days;
+	} else {
+		year = POSIX_BASE_YEAR;
+	}
+	for (; days >= days_in_year(year); year++)
 		days -= days_in_year(year);
 	ct->year = year;
 
@@ -209,8 +237,8 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 	ct->sec  = rsec;
 	ct->nsec = ts->tv_nsec;
 	if (ct_debug) {
-		printf("ts_to_ct(%ld.%09ld) = ",
-		    (long)ts->tv_sec, (long)ts->tv_nsec);
+		printf("ts_to_ct(%jd.%09ld) = ",
+		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 		print_ct(ct);
 		printf("\n");
 	}

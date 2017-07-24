@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Vladimir Kondratyev <wulf@cicgroup.ru>
+ * Copyright (c) 2016 Vladimir Kondratyev <wulf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 
-#include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/evdev_private.h>
+#include <dev/evdev/input.h>
 
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)
@@ -224,13 +224,9 @@ void
 evdev_push_nfingers(struct evdev_dev *evdev, int32_t nfingers)
 {
 
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_LOCK(evdev);
-	else
-		EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_ENTER(evdev);
 	evdev_send_nfingers(evdev, nfingers);
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_UNLOCK(evdev);
+	EVDEV_EXIT(evdev);
 }
 
 void
@@ -264,13 +260,9 @@ void
 evdev_push_mt_compat(struct evdev_dev *evdev)
 {
 
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_LOCK(evdev);
-	else
-		EVDEV_LOCK_ASSERT(evdev);
+	EVDEV_ENTER(evdev);
 	evdev_send_mt_compat(evdev);
-	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
-		EVDEV_UNLOCK(evdev);
+	EVDEV_EXIT(evdev);
 }
 
 void

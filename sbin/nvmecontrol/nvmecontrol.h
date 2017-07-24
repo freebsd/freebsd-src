@@ -88,5 +88,27 @@ void read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
 void gen_usage(struct nvme_function *);
 void dispatch(int argc, char *argv[], struct nvme_function *f);
 
+/* Utility Routines */
+/*
+ * 128-bit integer augments to standard values. On i386 this
+ * doesn't exist, so we use 64-bit values. So, on 32-bit i386,
+ * you'll get truncated values until someone implement 128bit
+ * ints in sofware.
+ */
+#define UINT128_DIG	39
+#ifdef __i386__
+typedef uint64_t uint128_t;
+#else
+typedef __uint128_t uint128_t;
 #endif
 
+static __inline uint128_t
+to128(void *p)
+{
+	return *(uint128_t *)p;
+}
+
+uint64_t le48dec(const void *pp);
+char * uint128_to_str(uint128_t u, char *buf, size_t buflen);
+
+#endif

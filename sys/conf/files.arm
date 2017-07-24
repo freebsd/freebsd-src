@@ -84,6 +84,7 @@ arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
+arm/arm/platform_pl310_if.m	optional	platform pl310
 arm/arm/pmap-v4.c		optional	!armv6
 arm/arm/pmap-v6.c		optional	armv6
 arm/arm/pmu.c			optional	pmu | fdt hwpmc

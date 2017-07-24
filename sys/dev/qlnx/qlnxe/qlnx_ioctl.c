@@ -534,12 +534,13 @@ qlnx_get_regs(qlnx_host_t *ha, qlnx_get_regs_t *regs)
 	return (rval);
 }
 
+extern char qlnx_name_str[];
+extern char qlnx_ver_str[];
+
 static int
 qlnx_drv_info(qlnx_host_t *ha, qlnx_drvinfo_t *drv_info)
 {
 	int i;
-	extern char qlnx_name_str[];
-	extern char qlnx_ver_str[];
 
 	bzero(drv_info, sizeof(qlnx_drvinfo_t));
 

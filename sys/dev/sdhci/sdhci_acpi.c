@@ -371,6 +371,8 @@ static device_method_t sdhci_methods[] = {
 	/* mmcbr_if */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
 	DEVMETHOD(mmcbr_switch_vccq,	sdhci_generic_switch_vccq),
+	DEVMETHOD(mmcbr_tune,		sdhci_generic_tune),
+	DEVMETHOD(mmcbr_retune,		sdhci_generic_retune),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
@@ -400,4 +402,7 @@ static devclass_t sdhci_acpi_devclass;
 DRIVER_MODULE(sdhci_acpi, acpi, sdhci_acpi_driver, sdhci_acpi_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_acpi, sdhci, 1, 1, 1);
+
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_acpi);
+#endif
