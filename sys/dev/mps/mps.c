@@ -2551,10 +2551,18 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 	 */
 	if (curthread->td_no_sleeping != 0)
 		sleep_flag = NO_SLEEP;
-	getmicrotime(&start_time);
+	getmicrouptime(&start_time);
 	if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP) {
 		cm->cm_flags |= MPS_CM_FLAGS_WAKEUP;
 		error = msleep(cm, &sc->mps_mtx, 0, "mpswait", timeout*hz);
+		if (error == EWOULDBLOCK) {
+			/*
+			 * Record the actual elapsed time in the case of a
+			 * timeout for the message below.
+			 */
+			getmicrouptime(&cur_time);
+			timevalsub(&cur_time, &start_time);
+		}
 	} else {
 		while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
 			mps_intr_locked(sc);
@@ -2563,8 +2571,9 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 			else
 				DELAY(50000);
 		
-			getmicrotime(&cur_time);
-			if ((cur_time.tv_sec - start_time.tv_sec) > timeout) {
+			getmicrouptime(&cur_time);
+			timevalsub(&cur_time, &start_time);
+			if (cur_time.tv_sec > timeout) {
 				error = EWOULDBLOCK;
 				break;
 			}
@@ -2572,7 +2581,9 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s\n", __func__);
+		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s, timeout=%d,"
+		    " elapsed=%jd\n", __func__, timeout,
+		    (intmax_t)cur_time.tv_sec);
 		rc = mps_reinit(sc);
 		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
 		    "failed");
