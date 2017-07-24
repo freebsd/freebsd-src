@@ -89,6 +89,20 @@ static int	ixl_sysctl_qrx_tail_handler(SYSCTL_HANDLER_ARGS);
 extern int ixl_enable_iwarp;
 #endif
 
+const uint8_t ixl_bcast_addr[ETHER_ADDR_LEN] =
+    {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+const char * const ixl_fc_string[6] = {
+	"None",
+	"Rx",
+	"Tx",
+	"Full",
+	"Priority",
+	"Default"
+};
+
+MALLOC_DEFINE(M_IXL, "ixl", "ixl driver allocations");
+
 void
 ixl_debug_core(struct ixl_pf *pf, enum ixl_dbg_mask mask, char *fmt, ...)
 {
@@ -3193,7 +3207,7 @@ ixl_reconfigure_filters(struct ixl_vsi *vsi)
 ** This routine adds macvlan filters
 */
 void
-ixl_add_filter(struct ixl_vsi *vsi, u8 *macaddr, s16 vlan)
+ixl_add_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 {
 	struct ixl_mac_filter	*f, *tmp;
 	struct ixl_pf		*pf;
@@ -3239,7 +3253,7 @@ ixl_add_filter(struct ixl_vsi *vsi, u8 *macaddr, s16 vlan)
 }
 
 void
-ixl_del_filter(struct ixl_vsi *vsi, u8 *macaddr, s16 vlan)
+ixl_del_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 {
 	struct ixl_mac_filter *f;
 
@@ -3264,7 +3278,7 @@ ixl_del_filter(struct ixl_vsi *vsi, u8 *macaddr, s16 vlan)
 ** Find the filter with both matching mac addr and vlan id
 */
 struct ixl_mac_filter *
-ixl_find_filter(struct ixl_vsi *vsi, u8 *macaddr, s16 vlan)
+ixl_find_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 {
 	struct ixl_mac_filter	*f;
 	bool			match = FALSE;

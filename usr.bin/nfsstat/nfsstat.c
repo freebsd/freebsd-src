@@ -926,6 +926,13 @@ exp41_intpr(int clientOnly, int serverOnly)
 		    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_COMMITDS]);
 		if (printtitle)
 			printf(
+			    "%12.12s %12.12s\n",
+			    "OpenLayout", "CreateLayout");
+		printf("%12ju %12ju\n",
+		    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_OPENLAYGET],
+		    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_CREATELAYGET]);
+		if (printtitle)
+			printf(
 			    "%12.12s %12.12s %12.12s %12.12s %12.12s %12.12s\n",
 			    "OpenOwner", "Opens", "LockOwner", "Locks",
 			    "Delegs", "LocalOwn");

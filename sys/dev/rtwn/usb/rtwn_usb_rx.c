@@ -63,12 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/usb/rtwn_usb_var.h>
 #include <dev/rtwn/usb/rtwn_usb_rx.h>
 
-#include <dev/rtwn/rtl8192c/r92c_reg.h>	/* for CAM_ALGO_NONE */
-#include <dev/rtwn/rtl8192c/r92c_rx_desc.h>
-
 
 static struct mbuf *
-rtwn_rx_copy_to_mbuf(struct rtwn_softc *sc, struct r92c_rx_stat *stat,
+rtwn_rx_copy_to_mbuf(struct rtwn_softc *sc, struct rtwn_rx_stat_common *stat,
     int totlen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -93,18 +90,18 @@ rtwn_rx_copy_to_mbuf(struct rtwn_softc *sc, struct r92c_rx_stat *stat,
 		return (NULL);
 
 	rxdw0 = le32toh(stat->rxdw0);
-	if (__predict_false(rxdw0 & (R92C_RXDW0_CRCERR | R92C_RXDW0_ICVERR))) {
+	if (__predict_false(rxdw0 & (RTWN_RXDW0_CRCERR | RTWN_RXDW0_ICVERR))) {
 		/*
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
 		RTWN_DPRINTF(sc, RTWN_DEBUG_RECV,
 		    "%s: RX flags error (%s)\n", __func__,
-		    rxdw0 & R92C_RXDW0_CRCERR ? "CRC" : "ICV");
+		    rxdw0 & RTWN_RXDW0_CRCERR ? "CRC" : "ICV");
 		goto fail;
 	}
 
-	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
+	pktlen = MS(rxdw0, RTWN_RXDW0_PKTLEN);
 	if (__predict_false(pktlen < sizeof(struct ieee80211_frame_ack))) {
 		/*
 		 * Should not happen (because of Rx filter setup).
@@ -140,21 +137,21 @@ static struct mbuf *
 rtwn_rxeof(struct rtwn_softc *sc, uint8_t *buf, int len)
 {
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
-	struct r92c_rx_stat *stat;
+	struct rtwn_rx_stat_common *stat;
 	struct mbuf *m, *m0 = NULL;
 	uint32_t rxdw0;
 	int totlen, pktlen, infosz;
 
 	/* Process packets. */
 	while (len >= sizeof(*stat)) {
-		stat = (struct r92c_rx_stat *)buf;
+		stat = (struct rtwn_rx_stat_common *)buf;
 		rxdw0 = le32toh(stat->rxdw0);
 
-		pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
+		pktlen = MS(rxdw0, RTWN_RXDW0_PKTLEN);
 		if (__predict_false(pktlen == 0))
 			break;
 
-		infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
+		infosz = MS(rxdw0, RTWN_RXDW0_INFOSZ) * 8;
 
 		/* Make sure everything fits in xfer. */
 		totlen = sizeof(*stat) + infosz + pktlen;
@@ -193,7 +190,7 @@ rtwn_report_intr(struct rtwn_usb_softc *uc, struct usb_xfer *xfer,
 
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
-	if (__predict_false(len < sizeof(struct r92c_rx_stat))) {
+	if (__predict_false(len < sizeof(struct rtwn_rx_stat_common))) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
@@ -238,11 +235,11 @@ rtwn_report_intr(struct rtwn_usb_softc *uc, struct usb_xfer *xfer,
 static struct ieee80211_node *
 rtwn_rx_frame(struct rtwn_softc *sc, struct mbuf *m)
 {
-	struct r92c_rx_stat stat;
+	struct rtwn_rx_stat_common stat;
 
 	/* Imitate PCIe layout. */
-	m_copydata(m, 0, sizeof(struct r92c_rx_stat), (caddr_t)&stat);
-	m_adj(m, sizeof(struct r92c_rx_stat));
+	m_copydata(m, 0, sizeof(stat), (caddr_t)&stat);
+	m_adj(m, sizeof(stat));
 
 	return (rtwn_rx_common(sc, m, &stat));
 }

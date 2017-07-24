@@ -12,14 +12,19 @@
 
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
+#include "llvm/CodeGen/GlobalISel/Utils.h"
+#include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
 #define DEBUG_TYPE "instruction-select"
@@ -44,17 +49,14 @@ void InstructionSelect::getAnalysisUsage(AnalysisUsage &AU) const {
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
-static void reportSelectionError(const MachineInstr *MI, const Twine &Message) {
-  const MachineFunction &MF = *MI->getParent()->getParent();
-  std::string ErrStorage;
-  raw_string_ostream Err(ErrStorage);
-  Err << Message << ":\nIn function: " << MF.getName() << '\n';
-  if (MI)
-    Err << *MI << '\n';
-  report_fatal_error(Err.str());
-}
-
 bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+
+  // No matter what happens, whether we successfully select the function or not,
+  // nothing is going to use the vreg types after us.  Make sure they disappear.
+  auto ClearVRegTypesOnReturn =
+      make_scope_exit([&]() { MRI.getVRegToType().clear(); });
+
   // If the ISel pipeline failed, do not bother running that pass.
   if (MF.getProperties().hasProperty(
           MachineFunctionProperties::Property::FailedISel))
@@ -66,10 +68,10 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
   const InstructionSelector *ISel = MF.getSubtarget().getInstructionSelector();
   assert(ISel && "Cannot work without InstructionSelector");
 
-  // FIXME: freezeReservedRegs is now done in IRTranslator, but there are many
-  // other MF/MFI fields we need to initialize.
+  // An optimization remark emitter. Used to report failures.
+  MachineOptimizationRemarkEmitter MORE(MF, /*MBFI=*/nullptr);
 
-  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  // FIXME: There are many other MF/MFI fields we need to initialize.
 
 #ifndef NDEBUG
   // Check that our input is fully legal: we require the function to have the
@@ -80,17 +82,19 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
   // that it has the same layering problem, but we only use inline methods so
   // end up not needing to link against the GlobalISel library.
   if (const LegalizerInfo *MLI = MF.getSubtarget().getLegalizerInfo())
-    for (const MachineBasicBlock &MBB : MF)
-      for (const MachineInstr &MI : MBB)
-        if (isPreISelGenericOpcode(MI.getOpcode()) && !MLI->isLegal(MI, MRI))
-          reportSelectionError(&MI, "Instruction is not legal");
+    for (MachineBasicBlock &MBB : MF)
+      for (MachineInstr &MI : MBB)
+        if (isPreISelGenericOpcode(MI.getOpcode()) && !MLI->isLegal(MI, MRI)) {
+          reportGISelFailure(MF, TPC, MORE, "gisel-select",
+                             "instruction is not legal", MI);
+          return false;
+        }
 
 #endif
   // FIXME: We could introduce new blocks and will need to fix the outer loop.
   // Until then, keep track of the number of blocks to assert that we don't.
   const size_t NumBlocks = MF.size();
 
-  bool Failed = false;
   for (MachineBasicBlock *MBB : post_order(&MF)) {
     if (MBB->empty())
       continue;
@@ -115,14 +119,19 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
 
       DEBUG(dbgs() << "Selecting: \n  " << MI);
 
+      // We could have folded this instruction away already, making it dead.
+      // If so, erase it.
+      if (isTriviallyDead(MI, MRI)) {
+        DEBUG(dbgs() << "Is dead; erasing.\n");
+        MI.eraseFromParentAndMarkDBGValuesForRemoval();
+        continue;
+      }
+
       if (!ISel->select(MI)) {
-        if (TPC.isGlobalISelAbortEnabled())
-          // FIXME: It would be nice to dump all inserted instructions.  It's
-          // not
-          // obvious how, esp. considering select() can insert after MI.
-          reportSelectionError(&MI, "Cannot select");
-        Failed = true;
-        break;
+        // FIXME: It would be nice to dump all inserted instructions.  It's
+        // not obvious how, esp. considering select() can insert after MI.
+        reportGISelFailure(MF, TPC, MORE, "gisel-select", "cannot select", MI);
+        return false;
       }
 
       // Dump the range of instructions that MI expanded into.
@@ -136,39 +145,47 @@ bool InstructionSelect::runOnMachineFunction(MachineFunction &MF) {
     }
   }
 
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+
   // Now that selection is complete, there are no more generic vregs.  Verify
   // that the size of the now-constrained vreg is unchanged and that it has a
   // register class.
   for (auto &VRegToType : MRI.getVRegToType()) {
     unsigned VReg = VRegToType.first;
     auto *RC = MRI.getRegClassOrNull(VReg);
-    auto *MI = MRI.def_instr_begin(VReg) == MRI.def_instr_end()
-                   ? nullptr
-                   : &*MRI.def_instr_begin(VReg);
-    if (!RC) {
-      if (TPC.isGlobalISelAbortEnabled())
-        reportSelectionError(MI, "VReg as no regclass after selection");
-      Failed = true;
-      break;
-    }
+    MachineInstr *MI = nullptr;
+    if (!MRI.def_empty(VReg))
+      MI = &*MRI.def_instr_begin(VReg);
+    else if (!MRI.use_empty(VReg))
+      MI = &*MRI.use_instr_begin(VReg);
+
+    if (MI && !RC) {
+      reportGISelFailure(MF, TPC, MORE, "gisel-select",
+                         "VReg has no regclass after selection", *MI);
+      return false;
+    } else if (!RC)
+      continue;
 
     if (VRegToType.second.isValid() &&
-        VRegToType.second.getSizeInBits() > (RC->getSize() * 8)) {
-      if (TPC.isGlobalISelAbortEnabled())
-        reportSelectionError(
-            MI, "VReg has explicit size different from class size");
-      Failed = true;
-      break;
+        VRegToType.second.getSizeInBits() > TRI.getRegSizeInBits(*RC)) {
+      reportGISelFailure(MF, TPC, MORE, "gisel-select",
+                         "VReg has explicit size different from class size",
+                         *MI);
+      return false;
     }
   }
 
-  MRI.getVRegToType().clear();
-
-  if (!TPC.isGlobalISelAbortEnabled() && (Failed || MF.size() != NumBlocks)) {
-    MF.getProperties().set(MachineFunctionProperties::Property::FailedISel);
+  if (MF.size() != NumBlocks) {
+    MachineOptimizationRemarkMissed R("gisel-select", "GISelFailure",
+                                      MF.getFunction()->getSubprogram(),
+                                      /*MBB=*/nullptr);
+    R << "inserting blocks is not supported yet";
+    reportGISelFailure(MF, TPC, MORE, R);
     return false;
   }
-  assert(MF.size() == NumBlocks && "Inserting blocks is not supported yet");
+
+  auto &TLI = *MF.getSubtarget().getTargetLowering();
+  TLI.finalizeLowering(MF);
 
   // FIXME: Should we accurately track changes?
   return true;

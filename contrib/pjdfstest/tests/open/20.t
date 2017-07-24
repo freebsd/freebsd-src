@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/open/20.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="open returns ETXTBSY when the file is a pure procedure (shared text) file that is being executed and the open() system call requests write access"
@@ -7,6 +8,7 @@ dir=`dirname $0`
 . ${dir}/../misc.sh
 
 [ "${os}:${fs}" = "FreeBSD:UFS" ] || quick_exit
+noexec && quick_exit
 
 requires_exec
 

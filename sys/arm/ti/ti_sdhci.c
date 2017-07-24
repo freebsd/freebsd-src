@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -59,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_hwmods.h>
 #include "gpio_if.h"
+
+#include "opt_mmccam.h"
 
 struct ti_sdhci_softc {
 	device_t		dev;
@@ -121,6 +125,11 @@ static struct ofw_compat_data compat_data[] = {
 #define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
 #define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
 #define	  MMCHS_SD_CAPA_VS33		  (1 << 24)
+
+/* Forward declarations, CAM-relataed */
+// static void ti_sdhci_cam_poll(struct cam_sim *);
+// static void ti_sdhci_cam_action(struct cam_sim *, union ccb *);
+// static int ti_sdhci_cam_settran_settings(struct ti_sdhci_softc *sc, union ccb *);
 
 static inline uint32_t
 ti_mmchs_read_4(struct ti_sdhci_softc *sc, bus_size_t off)
@@ -241,6 +250,22 @@ ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
 
+#ifdef MMCCAM
+	uint32_t newval32;
+	if (off == SDHCI_HOST_CONTROL) {
+		val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+		newval32  = val32;
+		if (val & SDHCI_CTRL_8BITBUS) {
+			device_printf(dev, "Custom-enabling 8-bit bus\n");
+			newval32 |= MMCHS_CON_DW8;
+		} else {
+			device_printf(dev, "Custom-disabling 8-bit bus\n");
+			newval32 &= ~MMCHS_CON_DW8;
+		}
+		if (newval32 != val32)
+			ti_mmchs_write_4(sc, MMCHS_CON, newval32);
+	}
+#endif
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xff << (off & 3) * 8);
 	val32 |= (val << (off & 3) * 8);
@@ -658,8 +683,11 @@ ti_sdhci_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
+#ifdef MMCCAM
+	sdhci_cam_start_slot(&sc->slot);
+#else
 	sdhci_start_slot(&sc->slot);
-
+#endif
 	return (0);
 
 fail:
@@ -730,4 +758,7 @@ static driver_t ti_sdhci_driver = {
 DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_ti, sdhci, 1, 1, 1);
+
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_ti);
+#endif

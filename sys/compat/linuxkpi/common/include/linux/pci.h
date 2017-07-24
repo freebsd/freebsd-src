@@ -56,13 +56,21 @@
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
-        uint32_t	subvendor;
+	uint32_t	subvendor;
 	uint32_t	subdevice;
+	uint32_t	class;
 	uint32_t	class_mask;
 	uintptr_t	driver_data;
 };
 
 #define	MODULE_DEVICE_TABLE(bus, table)
+
+#define	PCI_BASE_CLASS_DISPLAY		0x03
+#define	PCI_CLASS_DISPLAY_VGA		0x0300
+#define	PCI_CLASS_DISPLAY_OTHER		0x0380
+#define	PCI_BASE_CLASS_BRIDGE		0x06
+#define	PCI_CLASS_BRIDGE_ISA		0x0601
+
 #define	PCI_ANY_ID		(-1)
 #define	PCI_VENDOR_ID_APPLE		0x106b
 #define	PCI_VENDOR_ID_ASUSTEK		0x1043
@@ -175,9 +183,10 @@ struct pci_driver {
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
-	driver_t			driver;
+	driver_t			bsddriver;
 	devclass_t			bsdclass;
-        const struct pci_error_handlers       *err_handler;
+	struct device_driver		driver;
+	const struct pci_error_handlers       *err_handler;
 };
 
 extern struct list_head pci_drivers;
@@ -195,7 +204,8 @@ struct pci_dev {
 	uint16_t		vendor;
 	unsigned int		irq;
 	unsigned int		devfn;
-	u8			revision;
+	uint32_t		class;
+	uint8_t			revision;
 };
 
 static inline struct resource_list_entry *

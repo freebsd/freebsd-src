@@ -11,20 +11,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/TableGen/Record.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SMLoc.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <cassert>
 #include <cstdint>
-#include <new>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 
@@ -40,7 +48,9 @@ IntRecTy IntRecTy::Shared;
 StringRecTy StringRecTy::Shared;
 DagRecTy DagRecTy::Shared;
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void RecTy::dump() const { print(errs()); }
+#endif
 
 ListRecTy *RecTy::getListTy() {
   if (!ListTy)
@@ -160,8 +170,11 @@ RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
 //    Initializer implementations
 //===----------------------------------------------------------------------===//
 
-void Init::anchor() { }
+void Init::anchor() {}
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void Init::dump() const { return print(errs()); }
+#endif
 
 UnsetInit *UnsetInit::get() {
   static UnsetInit TheInit;
@@ -215,7 +228,6 @@ ProfileBitsInit(FoldingSetNodeID &ID, ArrayRef<Init *> Range) {
 
 BitsInit *BitsInit::get(ArrayRef<Init *> Range) {
   static FoldingSet<BitsInit> ThePool;
-  static std::vector<BitsInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileBitsInit(ID, Range);
@@ -230,7 +242,6 @@ BitsInit *BitsInit::get(ArrayRef<Init *> Range) {
   std::uninitialized_copy(Range.begin(), Range.end(),
                           I->getTrailingObjects<Init *>());
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -299,7 +310,6 @@ static Init *fixBitInit(const RecordVal *RV, Init *Before, Init *After) {
 
 // resolveReferences - If there are any field references that refer to fields
 // that have been filled in, we can propagate the values now.
-//
 Init *BitsInit::resolveReferences(Record &R, const RecordVal *RV) const {
   bool Changed = false;
   SmallVector<Init *, 16> NewBits(getNumBits());
@@ -403,27 +413,21 @@ IntInit::convertInitializerBitRange(ArrayRef<unsigned> Bits) const {
 }
 
 CodeInit *CodeInit::get(StringRef V) {
-  static DenseMap<StringRef, CodeInit*> ThePool;
+  static StringMap<CodeInit*, BumpPtrAllocator &> ThePool(Allocator);
 
-  auto I = ThePool.insert(std::make_pair(V, nullptr));
-  if (I.second) {
-    StringRef VCopy = V.copy(Allocator);
-    I.first->first = VCopy;
-    I.first->second = new(Allocator) CodeInit(VCopy);
-  }
-  return I.first->second;
+  auto &Entry = *ThePool.insert(std::make_pair(V, nullptr)).first;
+  if (!Entry.second)
+    Entry.second = new(Allocator) CodeInit(Entry.getKey());
+  return Entry.second;
 }
 
 StringInit *StringInit::get(StringRef V) {
-  static DenseMap<StringRef, StringInit*> ThePool;
+  static StringMap<StringInit*, BumpPtrAllocator &> ThePool(Allocator);
 
-  auto I = ThePool.insert(std::make_pair(V, nullptr));
-  if (I.second) {
-    StringRef VCopy = V.copy(Allocator);
-    I.first->first = VCopy;
-    I.first->second = new(Allocator) StringInit(VCopy);
-  }
-  return I.first->second;
+  auto &Entry = *ThePool.insert(std::make_pair(V, nullptr)).first;
+  if (!Entry.second)
+    Entry.second = new(Allocator) StringInit(Entry.getKey());
+  return Entry.second;
 }
 
 Init *StringInit::convertInitializerTo(RecTy *Ty) const {
@@ -452,7 +456,6 @@ static void ProfileListInit(FoldingSetNodeID &ID,
 
 ListInit *ListInit::get(ArrayRef<Init *> Range, RecTy *EltTy) {
   static FoldingSet<ListInit> ThePool;
-  static std::vector<ListInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileListInit(ID, Range, EltTy);
@@ -467,7 +470,6 @@ ListInit *ListInit::get(ArrayRef<Init *> Range, RecTy *EltTy) {
   std::uninitialized_copy(Range.begin(), Range.end(),
                           I->getTrailingObjects<Init *>());
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -602,7 +604,6 @@ ProfileUnOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *Op, RecTy *Type) {
 
 UnOpInit *UnOpInit::get(UnaryOp Opc, Init *LHS, RecTy *Type) {
   static FoldingSet<UnOpInit> ThePool;
-  static std::vector<UnOpInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileUnOpInit(ID, Opc, LHS, Type);
@@ -613,7 +614,6 @@ UnOpInit *UnOpInit::get(UnaryOp Opc, Init *LHS, RecTy *Type) {
 
   UnOpInit *I = new(Allocator) UnOpInit(Opc, LHS, Type);
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -623,7 +623,7 @@ void UnOpInit::Profile(FoldingSetNodeID &ID) const {
 
 Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
   switch (getOpcode()) {
-  case CAST: {
+  case CAST:
     if (isa<StringRecTy>(getType())) {
       if (StringInit *LHSs = dyn_cast<StringInit>(LHS))
         return LHSs;
@@ -688,15 +688,15 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
       }
     }
     break;
-  }
-  case HEAD: {
+
+  case HEAD:
     if (ListInit *LHSl = dyn_cast<ListInit>(LHS)) {
       assert(!LHSl->empty() && "Empty list in head");
       return LHSl->getElement(0);
     }
     break;
-  }
-  case TAIL: {
+
+  case TAIL:
     if (ListInit *LHSl = dyn_cast<ListInit>(LHS)) {
       assert(!LHSl->empty() && "Empty list in tail");
       // Note the +1.  We can't just pass the result of getValues()
@@ -704,15 +704,13 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
       return ListInit::get(LHSl->getValues().slice(1), LHSl->getType());
     }
     break;
-  }
-  case EMPTY: {
+
+  case EMPTY:
     if (ListInit *LHSl = dyn_cast<ListInit>(LHS))
       return IntInit::get(LHSl->empty());
     if (StringInit *LHSs = dyn_cast<StringInit>(LHS))
       return IntInit::get(LHSs->getValue().empty());
-
     break;
-  }
   }
   return const_cast<UnOpInit *>(this);
 }
@@ -748,7 +746,6 @@ ProfileBinOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *LHS, Init *RHS,
 BinOpInit *BinOpInit::get(BinaryOp Opc, Init *LHS,
                           Init *RHS, RecTy *Type) {
   static FoldingSet<BinOpInit> ThePool;
-  static std::vector<BinOpInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileBinOpInit(ID, Opc, LHS, RHS, Type);
@@ -759,7 +756,6 @@ BinOpInit *BinOpInit::get(BinaryOp Opc, Init *LHS,
 
   BinOpInit *I = new(Allocator) BinOpInit(Opc, LHS, RHS, Type);
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -906,7 +902,6 @@ ProfileTernOpInit(FoldingSetNodeID &ID, unsigned Opcode, Init *LHS, Init *MHS,
 TernOpInit *TernOpInit::get(TernaryOp Opc, Init *LHS, Init *MHS, Init *RHS,
                             RecTy *Type) {
   static FoldingSet<TernOpInit> ThePool;
-  static std::vector<TernOpInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileTernOpInit(ID, Opc, LHS, MHS, RHS, Type);
@@ -917,7 +912,6 @@ TernOpInit *TernOpInit::get(TernaryOp Opc, Init *LHS, Init *MHS, Init *RHS,
 
   TernOpInit *I = new(Allocator) TernOpInit(Opc, LHS, MHS, RHS, Type);
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -960,7 +954,6 @@ static Init *EvaluateOperation(OpInit *RHSo, Init *LHS, Init *Arg,
 
 static Init *ForeachHelper(Init *LHS, Init *MHS, Init *RHS, RecTy *Type,
                            Record *CurRec, MultiClass *CurMultiClass) {
-
   OpInit *RHSo = dyn_cast<OpInit>(RHS);
 
   if (!RHSo)
@@ -1257,7 +1250,7 @@ VarInit *VarInit::get(StringRef VN, RecTy *T) {
 }
 
 VarInit *VarInit::get(Init *VN, RecTy *T) {
-  typedef std::pair<RecTy *, Init *> Key;
+  using Key = std::pair<RecTy *, Init *>;
   static DenseMap<Key, VarInit*> ThePool;
 
   Key TheKey(std::make_pair(T, VN));
@@ -1332,7 +1325,7 @@ Init *VarInit::resolveReferences(Record &R, const RecordVal *RV) const {
 }
 
 VarBitInit *VarBitInit::get(TypedInit *T, unsigned B) {
-  typedef std::pair<TypedInit *, unsigned> Key;
+  using Key = std::pair<TypedInit *, unsigned>;
   static DenseMap<Key, VarBitInit*> ThePool;
 
   Key TheKey(std::make_pair(T, B));
@@ -1364,7 +1357,7 @@ Init *VarBitInit::resolveReferences(Record &R, const RecordVal *RV) const {
 
 VarListElementInit *VarListElementInit::get(TypedInit *T,
                                             unsigned E) {
-  typedef std::pair<TypedInit *, unsigned> Key;
+  using Key = std::pair<TypedInit *, unsigned>;
   static DenseMap<Key, VarListElementInit*> ThePool;
 
   Key TheKey(std::make_pair(T, E));
@@ -1434,7 +1427,7 @@ std::string DefInit::getAsString() const {
 }
 
 FieldInit *FieldInit::get(Init *R, StringInit *FN) {
-  typedef std::pair<Init *, StringInit *> Key;
+  using Key = std::pair<Init *, StringInit *>;
   static DenseMap<Key, FieldInit*> ThePool;
 
   Key TheKey(std::make_pair(R, FN));
@@ -1499,7 +1492,6 @@ DagInit *
 DagInit::get(Init *V, StringInit *VN, ArrayRef<Init *> ArgRange,
              ArrayRef<StringInit *> NameRange) {
   static FoldingSet<DagInit> ThePool;
-  static std::vector<DagInit*> TheActualPool;
 
   FoldingSetNodeID ID;
   ProfileDagInit(ID, V, VN, ArgRange, NameRange);
@@ -1508,9 +1500,13 @@ DagInit::get(Init *V, StringInit *VN, ArrayRef<Init *> ArgRange,
   if (DagInit *I = ThePool.FindNodeOrInsertPos(ID, IP))
     return I;
 
-  DagInit *I = new(Allocator) DagInit(V, VN, ArgRange, NameRange);
+  void *Mem = Allocator.Allocate(totalSizeToAlloc<Init *, StringInit *>(ArgRange.size(), NameRange.size()), alignof(BitsInit));
+  DagInit *I = new(Mem) DagInit(V, VN, ArgRange.size(), NameRange.size());
+  std::uninitialized_copy(ArgRange.begin(), ArgRange.end(),
+                          I->getTrailingObjects<Init *>());
+  std::uninitialized_copy(NameRange.begin(), NameRange.end(),
+                          I->getTrailingObjects<StringInit *>());
   ThePool.InsertNode(I, IP);
-  TheActualPool.push_back(I);
   return I;
 }
 
@@ -1529,7 +1525,7 @@ DagInit::get(Init *V, StringInit *VN,
 }
 
 void DagInit::Profile(FoldingSetNodeID &ID) const {
-  ProfileDagInit(ID, Val, ValName, Args, ArgNames);
+  ProfileDagInit(ID, Val, ValName, makeArrayRef(getTrailingObjects<Init *>(), NumArgs), makeArrayRef(getTrailingObjects<StringInit *>(), NumArgNames));
 }
 
 Init *DagInit::convertInitializerTo(RecTy *Ty) const {
@@ -1541,9 +1537,9 @@ Init *DagInit::convertInitializerTo(RecTy *Ty) const {
 
 Init *DagInit::resolveReferences(Record &R, const RecordVal *RV) const {
   SmallVector<Init*, 8> NewArgs;
-  NewArgs.reserve(Args.size());
+  NewArgs.reserve(arg_size());
   bool ArgsChanged = false;
-  for (const Init *Arg : Args) {
+  for (const Init *Arg : getArgs()) {
     Init *NewArg = Arg->resolveReferences(R, RV);
     NewArgs.push_back(NewArg);
     ArgsChanged |= NewArg != Arg;
@@ -1551,7 +1547,7 @@ Init *DagInit::resolveReferences(Record &R, const RecordVal *RV) const {
 
   Init *Op = Val->resolveReferences(R, RV);
   if (Op != Val || ArgsChanged)
-    return DagInit::get(Op, ValName, NewArgs, ArgNames);
+    return DagInit::get(Op, ValName, NewArgs, getArgNames());
 
   return const_cast<DagInit *>(this);
 }
@@ -1560,12 +1556,12 @@ std::string DagInit::getAsString() const {
   std::string Result = "(" + Val->getAsString();
   if (ValName)
     Result += ":" + ValName->getAsUnquotedString();
-  if (!Args.empty()) {
-    Result += " " + Args[0]->getAsString();
-    if (ArgNames[0]) Result += ":$" + ArgNames[0]->getAsUnquotedString();
-    for (unsigned i = 1, e = Args.size(); i != e; ++i) {
-      Result += ", " + Args[i]->getAsString();
-      if (ArgNames[i]) Result += ":$" + ArgNames[i]->getAsUnquotedString();
+  if (!arg_empty()) {
+    Result += " " + getArg(0)->getAsString();
+    if (getArgName(0)) Result += ":$" + getArgName(0)->getAsUnquotedString();
+    for (unsigned i = 1, e = getNumArgs(); i != e; ++i) {
+      Result += ", " + getArg(i)->getAsString();
+      if (getArgName(i)) Result += ":$" + getArgName(i)->getAsUnquotedString();
     }
   }
   return Result + ")";
@@ -1581,17 +1577,13 @@ RecordVal::RecordVal(Init *N, RecTy *T, bool P)
   assert(Value && "Cannot create unset value for current type!");
 }
 
-RecordVal::RecordVal(StringRef N, RecTy *T, bool P)
-  : Name(StringInit::get(N)), TyAndPrefix(T, P) {
-  Value = UnsetInit::get()->convertInitializerTo(T);
-  assert(Value && "Cannot create unset value for current type!");
-}
-
 StringRef RecordVal::getName() const {
   return cast<StringInit>(getNameInit())->getValue();
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void RecordVal::dump() const { errs() << *this; }
+#endif
 
 void RecordVal::print(raw_ostream &OS, bool PrintSem) const {
   if (getPrefix()) OS << "field ";
@@ -1610,8 +1602,7 @@ void Record::init() {
 
   // Every record potentially has a def at the top.  This value is
   // replaced with the top-level def name at instantiation time.
-  RecordVal DN("NAME", StringRecTy::get(), false);
-  addValue(DN);
+  addValue(RecordVal(StringInit::get("NAME"), StringRecTy::get(), false));
 }
 
 void Record::checkName() {
@@ -1647,10 +1638,6 @@ void Record::setName(Init *NewName) {
   // this.  See TGParser::ParseDef and TGParser::ParseDefm.
 }
 
-void Record::setName(StringRef Name) {
-  setName(StringInit::get(Name));
-}
-
 void Record::resolveReferencesTo(const RecordVal *RV) {
   for (RecordVal &Value : Values) {
     if (RV == &Value) // Skip resolve the same field as the given one
@@ -1673,7 +1660,9 @@ void Record::resolveReferencesTo(const RecordVal *RV) {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void Record::dump() const { errs() << *this; }
+#endif
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   OS << R.getNameInitAsString();
@@ -1719,7 +1708,7 @@ Init *Record::getValueInit(StringRef FieldName) const {
   return R->getValue();
 }
 
-std::string Record::getValueAsString(StringRef FieldName) const {
+StringRef Record::getValueAsString(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
   if (!R || !R->getValue())
     PrintFatalError(getLoc(), "Record `" + getName() +
@@ -1798,10 +1787,10 @@ Record::getValueAsListOfInts(StringRef FieldName) const {
   return Ints;
 }
 
-std::vector<std::string>
+std::vector<StringRef>
 Record::getValueAsListOfStrings(StringRef FieldName) const {
   ListInit *List = getValueAsListInit(FieldName);
-  std::vector<std::string> Strings;
+  std::vector<StringRef> Strings;
   for (Init *I : List->getValues()) {
     if (StringInit *SI = dyn_cast<StringInit>(I))
       Strings.push_back(SI->getValue());
@@ -1865,6 +1854,7 @@ DagInit *Record::getValueAsDag(StringRef FieldName) const {
     FieldName + "' does not have a dag initializer!");
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void MultiClass::dump() const {
   errs() << "Record:\n";
   Rec.dump();
@@ -1875,6 +1865,7 @@ LLVM_DUMP_METHOD void MultiClass::dump() const {
 }
 
 LLVM_DUMP_METHOD void RecordKeeper::dump() const { errs() << *this; }
+#endif
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
   OS << "------------- Classes -----------------\n";

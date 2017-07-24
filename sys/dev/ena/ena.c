@@ -156,6 +156,8 @@ static void	ena_update_hwassist(struct ena_adapter *);
 static int	ena_setup_ifnet(device_t, struct ena_adapter *,
     struct ena_com_dev_get_features_ctx *);
 static void	ena_tx_csum(struct ena_com_tx_ctx *, struct mbuf *);
+static int	ena_check_and_collapse_mbuf(struct ena_ring *tx_ring,
+    struct mbuf **mbuf);
 static int	ena_xmit_mbuf(struct ena_ring *, struct mbuf **);
 static void	ena_start_xmit(struct ena_ring *);
 static int	ena_mq_start(if_t, struct mbuf *);
@@ -226,16 +228,16 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	if (dma_space_addr == 0)
 		dma_space_addr = BUS_SPACE_MAXADDR;
 	error = bus_dma_tag_create(bus_get_dma_tag(dmadev), /* parent */
-	    8, 0,	      /* alignment, bounds */
-	    dma_space_addr,   /* lowaddr */
-	    dma_space_addr,   /* highaddr */
-	    NULL, NULL,	      /* filter, filterarg */
-	    maxsize,	      /* maxsize */
-	    1,		      /* nsegments */
-	    maxsize,	      /* maxsegsize */
-	    BUS_DMA_ALLOCNOW, /* flags */
-	    NULL,	      /* lockfunc */
-	    NULL,	      /* lockarg */
+	    8, 0,	      /* alignment, bounds 		*/
+	    dma_space_addr,   /* lowaddr of exclusion window	*/
+	    BUS_SPACE_MAXADDR,/* highaddr of exclusion window	*/
+	    NULL, NULL,	      /* filter, filterarg 		*/
+	    maxsize,	      /* maxsize 			*/
+	    1,		      /* nsegments 			*/
+	    maxsize,	      /* maxsegsize 			*/
+	    BUS_DMA_ALLOCNOW, /* flags 				*/
+	    NULL,	      /* lockfunc 			*/
+	    NULL,	      /* lockarg 			*/
 	    &dma->tag);
 	if (error) {
 		device_printf(dmadev,
@@ -476,7 +478,6 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		    device_get_nameunit(adapter->pdev), i);
 
 		mtx_init(&txr->ring_mtx, txr->mtx_name, NULL, MTX_DEF);
-		mtx_init(&rxr->ring_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
 		que = &adapter->que[i];
 		que->adapter = adapter;
@@ -509,7 +510,6 @@ ena_free_io_ring_resources(struct ena_adapter *adapter, unsigned int qid)
 	    sizeof(rxr->rx_stats));
 
 	mtx_destroy(&txr->ring_mtx);
-	mtx_destroy(&rxr->ring_mtx);
 
 	drbr_free(txr->br, M_DEVBUF);
 
@@ -532,16 +532,16 @@ ena_setup_tx_dma_tag(struct ena_adapter *adapter)
 
 	/* Create DMA tag for Tx buffers */
 	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev),
-	    1, 0,				  /* alignment, bounds 	*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr 		*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* highaddr 		*/
-	    NULL, NULL,				  /* filter, filterarg 	*/
-	    ENA_TSO_MAXSIZE,			  /* maxsize 		*/
-	    adapter->max_tx_sgl_size,		  /* nsegments 		*/
-	    ENA_TSO_MAXSIZE,			  /* maxsegsize 	*/
-	    0,					  /* flags 		*/
-	    NULL,				  /* lockfunc 		*/
-	    NULL,				  /* lockfuncarg 	*/
+	    1, 0,				  /* alignment, bounds 	     */
+	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
+	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
+	    NULL, NULL,				  /* filter, filterarg 	     */
+	    ENA_TSO_MAXSIZE,			  /* maxsize 		     */
+	    adapter->max_tx_sgl_size - 1,	  /* nsegments 		     */
+	    ENA_TSO_MAXSIZE,			  /* maxsegsize 	     */
+	    0,					  /* flags 		     */
+	    NULL,				  /* lockfunc 		     */
+	    NULL,				  /* lockfuncarg 	     */
 	    &adapter->tx_buf_tag);
 
 	if (ret != 0)
@@ -569,17 +569,17 @@ ena_setup_rx_dma_tag(struct ena_adapter *adapter)
 	int ret;
 
 	/* Create DMA tag for Rx buffers*/
-	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev), /* parent */
-	    1, 0,				  /* alignment, bounds 	*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr 		*/
-	    ENA_DMA_BIT_MASK(adapter->dma_width), /* highaddr 		*/
-	    NULL, NULL,				  /* filter, filterarg 	*/
-	    MJUM16BYTES,			  /* maxsize 		*/
-	    1,					  /* nsegments 		*/
-	    MJUM16BYTES,			  /* maxsegsize 	*/
-	    0,					  /* flags 		*/
-	    NULL,				  /* lockfunc 		*/
-	    NULL,				  /* lockarg 		*/
+	ret = bus_dma_tag_create(bus_get_dma_tag(adapter->pdev), /* parent   */
+	    1, 0,				  /* alignment, bounds 	     */
+	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
+	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
+	    NULL, NULL,				  /* filter, filterarg 	     */
+	    MJUM16BYTES,			  /* maxsize 		     */
+	    1,					  /* nsegments 		     */
+	    MJUM16BYTES,			  /* maxsegsize 	     */
+	    0,					  /* flags 		     */
+	    NULL,				  /* lockfunc 		     */
+	    NULL,				  /* lockarg 		     */
 	    &adapter->rx_buf_tag);
 
 	if (ret != 0)
@@ -642,7 +642,9 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->next_to_clean = 0;
 
 	/* Make sure that drbr is empty */
+	ENA_RING_MTX_LOCK(tx_ring);
 	drbr_flush(adapter->ifp, tx_ring->br);
+	ENA_RING_MTX_UNLOCK(tx_ring);
 
 	/* ... and create the buffer DMA maps */
 	for (i = 0; i < tx_ring->ring_size; i++) {
@@ -709,11 +711,11 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 
 	taskqueue_free(tx_ring->enqueue_tq);
 
+	ENA_RING_MTX_LOCK(tx_ring);
 	/* Flush buffer ring, */
 	drbr_flush(adapter->ifp, tx_ring->br);
 
 	/* Free buffer DMA maps, */
-	ENA_RING_MTX_LOCK(tx_ring);
 	for (int i = 0; i < tx_ring->ring_size; i++) {
 		m_freem(tx_ring->tx_buffer_info[i].mbuf);
 		tx_ring->tx_buffer_info[i].mbuf = NULL;
@@ -945,10 +947,8 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	if (rx_info->mbuf != NULL)
 		return (0);
 
-	ENA_RING_MTX_LOCK(rx_ring);
 	/* Get mbuf using UMA allocator */
 	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
-	ENA_RING_MTX_UNLOCK(rx_ring);
 
 	if (!rx_info->mbuf) {
 		counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
@@ -1032,7 +1032,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 		    &rx_ring->rx_buffer_info[next_to_use];
 
 		rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
-		if (rc < 0) {
+		if (rc != 0) {
 			device_printf(adapter->pdev,
 			    "failed to alloc buffer for rx queue\n");
 			break;
@@ -2095,7 +2095,6 @@ ena_up_complete(struct ena_adapter *adapter)
 
 	ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
 	ena_refill_all_rx_bufs(adapter);
-	ena_unmask_all_io_irqs(adapter);
 
 	return (0);
 }
@@ -2168,6 +2167,8 @@ ena_up(struct ena_adapter *adapter)
 		taskqueue_enqueue(adapter->stats_tq, &adapter->stats_task);
 
 		adapter->up = true;
+
+		ena_unmask_all_io_irqs(adapter);
 	}
 
 	return (0);
@@ -2276,8 +2277,11 @@ ena_init(void *arg)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
-	if (adapter->up == false)
+	if (adapter->up == false) {
+		sx_xlock(&adapter->ioctl_sx);
 		ena_up(adapter);
+		sx_unlock(&adapter->ioctl_sx);
+	}
 
 	return;
 }
@@ -2477,9 +2481,10 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	if_setcapabilitiesbit(ifp, caps, 0);
 
 	/* TSO parameters */
-	ifp->if_hw_tsomax = ENA_TSO_MAXSIZE;
-	ifp->if_hw_tsomaxsegcount = ENA_TSO_NSEGS;
-	ifp->if_hw_tsomaxsegsize = MCLBYTES;
+	ifp->if_hw_tsomax = ENA_TSO_MAXSIZE -
+	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = adapter->max_tx_sgl_size - 1;
+	ifp->if_hw_tsomaxsegsize = ENA_TSO_MAXSIZE;
 
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setcapenable(ifp, if_getcapabilities(ifp));
@@ -2620,10 +2625,10 @@ ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct mbuf *mbuf)
 }
 
 static int
-ena_check_and_defragment_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
+ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 {
 	struct ena_adapter *adapter;
-	struct mbuf *defrag_mbuf;
+	struct mbuf *collapsed_mbuf;
 	int num_frags;
 
 	adapter = tx_ring->adapter;
@@ -2632,16 +2637,17 @@ ena_check_and_defragment_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* One segment must be reserved for configuration descriptor. */
 	if (num_frags < adapter->max_tx_sgl_size)
 		return (0);
-	counter_u64_add(tx_ring->tx_stats.defragment, 1);
+	counter_u64_add(tx_ring->tx_stats.collapse, 1);
 
-	defrag_mbuf = m_defrag(*mbuf, M_NOWAIT);
-	if (defrag_mbuf == NULL) {
-		counter_u64_add(tx_ring->tx_stats.defragment_err, 1);
+	collapsed_mbuf = m_collapse(*mbuf, M_NOWAIT,
+	    adapter->max_tx_sgl_size - 1);
+	if (collapsed_mbuf == NULL) {
+		counter_u64_add(tx_ring->tx_stats.collapse_err, 1);
 		return (ENOMEM);
 	}
 
-	/* If mbuf was defragmented succesfully, original mbuf is released. */
-	*mbuf = defrag_mbuf;
+	/* If mbuf was collapsed succesfully, original mbuf is released. */
+	*mbuf = collapsed_mbuf;
 
 	return (0);
 }
@@ -2672,10 +2678,10 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	ENA_ASSERT(*mbuf, "mbuf is NULL\n");
 
-	rc = ena_check_and_defragment_mbuf(tx_ring, mbuf);
+	rc = ena_check_and_collapse_mbuf(tx_ring, mbuf);
 	if (rc) {
 		ena_trace(ENA_WARNING,
-		    "Failed to defragment mbuf! err: %d", rc);
+		    "Failed to collapse mbuf! err: %d", rc);
 		return (rc);
 	}
 
@@ -2799,10 +2805,11 @@ ena_start_xmit(struct ena_ring *tx_ring)
 			break;
 		}
 
+		drbr_advance(adapter->ifp, tx_ring->br);
+
 		if ((adapter->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			return;
 
-		drbr_advance(adapter->ifp, tx_ring->br);
 		acum_pkts++;
 
 		BPF_MTAP(adapter->ifp, mbuf);

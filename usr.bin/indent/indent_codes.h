@@ -70,3 +70,4 @@
 #define period		32
 #define strpfx		33
 #define storage		34
+#define funcname	35

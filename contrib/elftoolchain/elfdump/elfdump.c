@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3497 2016-10-17 20:57:22Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3521 2017-06-04 20:07:09Z jkoshy $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -2226,8 +2226,8 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 	uint64_t	*buf;
 	uint64_t	*bucket, *chain;
 	uint64_t	 nbucket, nchain;
-	uint64_t	*bl, *c, maxl, total;
-	uint64_t	 i, j;
+	uint64_t	*bl, *c, j, maxl, total;
+	size_t		 i;
 	int		 elferr, first;
 	char		 idx[10];
 

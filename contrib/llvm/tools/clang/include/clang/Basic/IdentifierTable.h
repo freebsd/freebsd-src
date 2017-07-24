@@ -272,15 +272,15 @@ public:
   /// this identifier is a C++ alternate representation of an operator.
   void setIsCPlusPlusOperatorKeyword(bool Val = true) {
     IsCPPOperatorKeyword = Val;
-    if (Val)
-      NeedsHandleIdentifier = true;
-    else
-      RecomputeNeedsHandleIdentifier();
   }
   bool isCPlusPlusOperatorKeyword() const { return IsCPPOperatorKeyword; }
 
   /// \brief Return true if this token is a keyword in the specified language.
-  bool isKeyword(const LangOptions &LangOpts);
+  bool isKeyword(const LangOptions &LangOpts) const;
+
+  /// \brief Return true if this token is a C++ keyword in the specified
+  /// language.
+  bool isCPlusPlusKeyword(const LangOptions &LangOpts) const;
 
   /// getFETokenInfo/setFETokenInfo - The language front-end is allowed to
   /// associate arbitrary metadata with this token.
@@ -351,6 +351,19 @@ public:
       RecomputeNeedsHandleIdentifier();
   }
 
+  /// Return true if this identifier is an editor placeholder.
+  ///
+  /// Editor placeholders are produced by the code-completion engine and are
+  /// represented as characters between '<#' and '#>' in the source code. An
+  /// example of auto-completed call with a placeholder parameter is shown
+  /// below:
+  /// \code
+  ///   function(<#int x#>);
+  /// \endcode
+  bool isEditorPlaceholder() const {
+    return getName().startswith("<#") && getName().endswith("#>");
+  }
+
   /// \brief Provide less than operator for lexicographical sorting.
   bool operator<(const IdentifierInfo &RHS) const {
     return getName() < RHS.getName();
@@ -364,10 +377,9 @@ private:
   /// This method is very tied to the definition of HandleIdentifier.  Any
   /// change to it should be reflected here.
   void RecomputeNeedsHandleIdentifier() {
-    NeedsHandleIdentifier =
-      (isPoisoned() | hasMacroDefinition() | isCPlusPlusOperatorKeyword() |
-       isExtensionToken() | isFutureCompatKeyword() || isOutOfDate() ||
-       isModulesImport());
+    NeedsHandleIdentifier = isPoisoned() || hasMacroDefinition() ||
+                            isExtensionToken() || isFutureCompatKeyword() ||
+                            isOutOfDate() || isModulesImport();
   }
 };
 
@@ -818,6 +830,7 @@ public:
 #define OVERLOADED_OPERATOR(Name,Spelling,Token,Unary,Binary,MemberOnly) \
     CXXOperator##Name,
 #include "clang/Basic/OperatorKinds.def"
+    CXXDeductionGuide,
     CXXLiteralOperator,
     CXXUsingDirective,
     NUM_EXTRA_KINDS

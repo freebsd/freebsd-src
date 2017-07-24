@@ -43,7 +43,7 @@ contrib/libcxxrt	dim	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
-contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
+contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
 dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.

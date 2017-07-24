@@ -118,19 +118,51 @@ raw_ostream::Colors determineCoveragePercentageColor(const T &Info) {
                                           : raw_ostream::RED;
 }
 
-/// \brief Determine the length of the longest common prefix of the strings in
-/// \p Strings.
-unsigned getLongestCommonPrefixLen(ArrayRef<std::string> Strings) {
-  unsigned LCP = Strings[0].size();
-  for (unsigned I = 1, E = Strings.size(); LCP > 0 && I < E; ++I) {
-    unsigned Cursor;
-    StringRef S = Strings[I];
-    for (Cursor = 0; Cursor < LCP && Cursor < S.size(); ++Cursor)
-      if (Strings[0][Cursor] != S[Cursor])
+/// \brief Get the number of redundant path components in each path in \p Paths.
+unsigned getNumRedundantPathComponents(ArrayRef<std::string> Paths) {
+  // To start, set the number of redundant path components to the maximum
+  // possible value.
+  SmallVector<StringRef, 8> FirstPathComponents{sys::path::begin(Paths[0]),
+                                                sys::path::end(Paths[0])};
+  unsigned NumRedundant = FirstPathComponents.size();
+
+  for (unsigned I = 1, E = Paths.size(); NumRedundant > 0 && I < E; ++I) {
+    StringRef Path = Paths[I];
+    for (const auto &Component :
+         enumerate(make_range(sys::path::begin(Path), sys::path::end(Path)))) {
+      // Do not increase the number of redundant components: that would remove
+      // useful parts of already-visited paths.
+      if (Component.index() >= NumRedundant)
         break;
-    LCP = std::min(LCP, Cursor);
+
+      // Lower the number of redundant components when there's a mismatch
+      // between the first path, and the path under consideration.
+      if (FirstPathComponents[Component.index()] != Component.value()) {
+        NumRedundant = Component.index();
+        break;
+      }
+    }
   }
-  return LCP;
+
+  return NumRedundant;
+}
+
+/// \brief Determine the length of the longest redundant prefix of the paths in
+/// \p Paths.
+unsigned getRedundantPrefixLen(ArrayRef<std::string> Paths) {
+  // If there's at most one path, no path components are redundant.
+  if (Paths.size() <= 1)
+    return 0;
+
+  unsigned PrefixLen = 0;
+  unsigned NumRedundant = getNumRedundantPathComponents(Paths);
+  auto Component = sys::path::begin(Paths[0]);
+  for (unsigned I = 0; I < NumRedundant; ++I) {
+    auto LastComponent = Component;
+    ++Component;
+    PrefixLen += Component - LastComponent;
+  }
+  return PrefixLen;
 }
 
 } // end anonymous namespace
@@ -200,12 +232,14 @@ void CoverageReport::render(const FileCoverageSummary &File,
 }
 
 void CoverageReport::render(const FunctionCoverageSummary &Function,
+                            const DemangleCache &DC,
                             raw_ostream &OS) const {
   auto FuncCoverageColor =
       determineCoveragePercentageColor(Function.RegionCoverage);
   auto LineCoverageColor =
       determineCoveragePercentageColor(Function.LineCoverage);
-  OS << column(Function.Name, FunctionReportColumns[0], Column::RightTrim)
+  OS << column(DC.demangle(Function.Name), FunctionReportColumns[0],
+               Column::RightTrim)
      << format("%*u", FunctionReportColumns[1],
                (unsigned)Function.RegionCoverage.NumRegions);
   Options.colored_ostream(OS, FuncCoverageColor)
@@ -230,6 +264,7 @@ void CoverageReport::render(const FunctionCoverageSummary &Function,
 }
 
 void CoverageReport::renderFunctionReports(ArrayRef<std::string> Files,
+                                           const DemangleCache &DC,
                                            raw_ostream &OS) {
   bool isFirst = true;
   for (StringRef Filename : Files) {
@@ -242,7 +277,7 @@ void CoverageReport::renderFunctionReports(ArrayRef<std::string> Files,
 
     std::vector<StringRef> Funcnames;
     for (const auto &F : Functions)
-      Funcnames.emplace_back(F.Name);
+      Funcnames.emplace_back(DC.demangle(F.Name));
     adjustColumnWidths({}, Funcnames);
 
     OS << "File '" << Filename << "':\n";
@@ -262,12 +297,12 @@ void CoverageReport::renderFunctionReports(ArrayRef<std::string> Files,
       ++Totals.ExecutionCount;
       Totals.RegionCoverage += Function.RegionCoverage;
       Totals.LineCoverage += Function.LineCoverage;
-      render(Function, OS);
+      render(Function, DC, OS);
     }
     if (Totals.ExecutionCount) {
       renderDivider(FunctionReportColumns, OS);
       OS << "\n";
-      render(Totals, OS);
+      render(Totals, DC, OS);
     }
   }
 }
@@ -277,9 +312,7 @@ CoverageReport::prepareFileReports(const coverage::CoverageMapping &Coverage,
                                    FileCoverageSummary &Totals,
                                    ArrayRef<std::string> Files) {
   std::vector<FileCoverageSummary> FileReports;
-  unsigned LCP = 0;
-  if (Files.size() > 1)
-    LCP = getLongestCommonPrefixLen(Files);
+  unsigned LCP = getRedundantPrefixLen(Files);
 
   for (StringRef Filename : Files) {
     FileCoverageSummary Summary(Filename.drop_front(LCP));

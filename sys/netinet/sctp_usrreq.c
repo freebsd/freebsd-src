@@ -85,7 +85,7 @@ sctp_init(void)
 #if defined(SCTP_PACKET_LOGGING)
 	SCTP_BASE_VAR(packet_log_writers) = 0;
 	SCTP_BASE_VAR(packet_log_end) = 0;
-	bzero(&SCTP_BASE_VAR(packet_log_buffer), SCTP_PACKET_LOG_SIZE);
+	memset(&SCTP_BASE_VAR(packet_log_buffer), 0, SCTP_PACKET_LOG_SIZE);
 #endif
 }
 
@@ -7143,7 +7143,11 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		solisten_proto(so, backlog);
 		SOCK_UNLOCK(so);
 	}
-	inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
+	if (backlog > 0) {
+		inp->sctp_flags |= SCTP_PCB_FLAGS_ACCEPTING;
+	} else {
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_ACCEPTING;
+	}
 	SCTP_INP_WUNLOCK(inp);
 	return (error);
 }

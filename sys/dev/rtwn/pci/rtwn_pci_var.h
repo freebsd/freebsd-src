@@ -23,9 +23,6 @@
 #ifndef RTWN_PCI_VAR_H
 #define RTWN_PCI_VAR_H
 
-#include <dev/rtwn/rtl8192c/pci/r92ce_rx_desc.h>
-
-
 #define RTWN_PCI_RX_LIST_COUNT		256
 #define RTWN_PCI_TX_LIST_COUNT		256
 
@@ -36,7 +33,7 @@ struct rtwn_rx_data {
 };
 
 struct rtwn_rx_ring {
-	struct r92ce_rx_stat	*desc;
+	struct rtwn_rx_stat_pci	*desc;
 	bus_addr_t		paddr;
 	bus_dma_tag_t		desc_dmat;
 	bus_dmamap_t		desc_map;

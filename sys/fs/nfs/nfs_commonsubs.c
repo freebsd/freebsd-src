@@ -68,9 +68,14 @@ gid_t nfsrv_defaultgid = GID_NOGROUP;
 int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsd_enable_stringtouid = 0;
+static int nfs_enable_uidtostring = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 extern int nfsrv_lughashsize;
+
+SYSCTL_DECL(_vfs_nfs);
+SYSCTL_INT(_vfs_nfs, OID_AUTO, enable_uidtostring, CTLFLAG_RW,
+    &nfs_enable_uidtostring, 0, "Make nfs always send numeric owner_names");
 
 /*
  * This array of structures indicates, for V4:
@@ -175,7 +180,7 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
  */
 int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -2561,7 +2566,7 @@ nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfs_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultuid to "nobody".
 		 */
@@ -2823,7 +2828,7 @@ nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfs_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultgid to "nogroup".
 		 */
@@ -3051,7 +3056,7 @@ nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len)
  * Set the port for the nfsuserd.
  */
 APPLESTATIC int
-nfsrv_nfsuserdport(u_short port, NFSPROC_T *p)
+nfsrv_nfsuserdport(struct sockaddr *sad, u_short port, NFSPROC_T *p)
 {
 	struct nfssockreq *rp;
 	struct sockaddr_in *ad;
@@ -3061,6 +3066,7 @@ nfsrv_nfsuserdport(u_short port, NFSPROC_T *p)
 	if (nfsrv_nfsuserd) {
 		NFSUNLOCKNAMEID();
 		error = EPERM;
+		NFSSOCKADDRFREE(sad);
 		goto out;
 	}
 	nfsrv_nfsuserd = 1;
@@ -3070,16 +3076,24 @@ nfsrv_nfsuserdport(u_short port, NFSPROC_T *p)
 	 */
 	rp = &nfsrv_nfsuserdsock;
 	rp->nr_client = NULL;
-	rp->nr_sotype = SOCK_DGRAM;
-	rp->nr_soproto = IPPROTO_UDP;
-	rp->nr_lock = (NFSR_RESERVEDPORT | NFSR_LOCALHOST);
 	rp->nr_cred = NULL;
-	NFSSOCKADDRALLOC(rp->nr_nam);
-	NFSSOCKADDRSIZE(rp->nr_nam, sizeof (struct sockaddr_in));
-	ad = NFSSOCKADDR(rp->nr_nam, struct sockaddr_in *);
-	ad->sin_family = AF_INET;
-	ad->sin_addr.s_addr = htonl((u_int32_t)0x7f000001);	/* 127.0.0.1 */
-	ad->sin_port = port;
+	rp->nr_lock = (NFSR_RESERVEDPORT | NFSR_LOCALHOST);
+	if (sad != NULL) {
+		/* Use the AF_LOCAL socket address passed in. */
+		rp->nr_sotype = SOCK_STREAM;
+		rp->nr_soproto = 0;
+		rp->nr_nam = sad;
+	} else {
+		/* Use the port# for a UDP socket (old nfsuserd). */
+		rp->nr_sotype = SOCK_DGRAM;
+		rp->nr_soproto = IPPROTO_UDP;
+		NFSSOCKADDRALLOC(rp->nr_nam);
+		NFSSOCKADDRSIZE(rp->nr_nam, sizeof (struct sockaddr_in));
+		ad = NFSSOCKADDR(rp->nr_nam, struct sockaddr_in *);
+		ad->sin_family = AF_INET;
+		ad->sin_addr.s_addr = htonl((u_int32_t)0x7f000001);
+		ad->sin_port = port;
+	}
 	rp->nr_prog = RPCPROG_NFSUSERD;
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);

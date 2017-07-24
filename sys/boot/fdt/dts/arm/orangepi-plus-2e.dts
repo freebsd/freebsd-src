@@ -50,15 +50,13 @@
 	emac_phy_reset_pin: emac_phy_reset_pin@0 {
 		allwinner,pins = "PD6";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		allwinner,drive = <10>;
 	};
 
 	codec_pa_pin: codec_pa_pin@0 {
 		allwinner,pins = "PA16";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		allwinner,drive = <10>;
 	};
 };
 

@@ -10,16 +10,13 @@
 #ifndef liblldb_SelectHelper_h_
 #define liblldb_SelectHelper_h_
 
-// C Includes
-// C++ Includes
-#include <chrono>
+#include "lldb/Utility/Status.h" // for Status
+#include "lldb/lldb-types.h"    // for socket_t
 
-// Other libraries and framework includes
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 
-// Project includes
-#include "lldb/lldb-forward.h"
+#include <chrono>
 
 class SelectHelper {
 public:
@@ -52,7 +49,7 @@ public:
   // Call the system's select() to wait for descriptors using
   // timeout provided in a call the SelectHelper::SetTimeout(),
   // or infinite wait if no timeout was set.
-  lldb_private::Error Select();
+  lldb_private::Status Select();
 
 protected:
   struct FDInfo {

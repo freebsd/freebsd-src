@@ -31,7 +31,7 @@ ${PACKAGE}FILES+=	\
 	d_mallocv1.in	\
 	d_mallocv2.in
 
-ATF_TESTS_SH_SED_netbsd_diff_test+=	-e 's,t_diff,netbsd_diff_test,g'
+ATF_TESTS_SH_SED_netbsd_diff_test+=	-e 's/t_diff/`basename $$0`/g'
 ATF_TESTS_SH_SRC_netbsd_diff_test=	t_diff.sh
 
 .include <netbsd-tests.test.mk>

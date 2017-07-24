@@ -130,6 +130,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
 
+VNET_DEFINE(int, tcp_sendbuf_auto_lowat) = 0;
+#define	V_tcp_sendbuf_auto_lowat	VNET(tcp_sendbuf_auto_lowat)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto_lowat, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(tcp_sendbuf_auto_lowat), 0,
+	"Modify threshold for auto send buffer growth to account for SO_SNDLOWAT");
+
 /*
  * Make sure that either retransmit or persist timer is set for SYN, FIN and
  * non-ACK.
@@ -380,7 +386,7 @@ after_sack_rexmit:
 	 */
 	if (sack_rxmit == 0) {
 		if (sack_bytes_rxmt == 0)
-			len = ((int32_t)ulmin(sbavail(&so->so_snd), sendwin) -
+			len = ((int32_t)min(sbavail(&so->so_snd), sendwin) -
 			    off);
 		else {
 			int32_t cwin;
@@ -521,8 +527,12 @@ after_sack_rexmit:
 	 * XXXGL: should there be used sbused() or sbavail()?
 	 */
 	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
-		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat &&
-		    sbused(&so->so_snd) >= (so->so_snd.sb_hiwat / 8 * 7) &&
+		int autosndbuf_mod = 0;
+		if (V_tcp_sendbuf_auto_lowat)
+			autosndbuf_mod = so->so_snd.sb_lowat;
+
+		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat - autosndbuf_mod &&
+		    sbused(&so->so_snd) >= (so->so_snd.sb_hiwat / 8 * 7) - autosndbuf_mod &&
 		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
 		    sendwin >= (sbused(&so->so_snd) -
 		    (tp->snd_nxt - tp->snd_una))) {

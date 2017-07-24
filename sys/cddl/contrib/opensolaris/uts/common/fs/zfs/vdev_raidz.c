@@ -279,7 +279,8 @@ vdev_raidz_map_free(raidz_map_t *rm)
 
 	size = 0;
 	for (c = rm->rm_firstdatacol; c < rm->rm_cols; c++) {
-		abd_put(rm->rm_col[c].rc_abd);
+		if (rm->rm_col[c].rc_abd != NULL)
+			abd_put(rm->rm_col[c].rc_abd);
 		size += rm->rm_col[c].rc_size;
 	}
 

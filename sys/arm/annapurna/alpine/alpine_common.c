@@ -43,97 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 #include <machine/intr.h>
 
-#define WDTLOAD		0x000
-#define LOAD_MIN	0x00000001
-#define LOAD_MAX	0xFFFFFFFF
-#define WDTVALUE	0x004
-#define WDTCONTROL	0x008
-/* control register masks */
-#define INT_ENABLE	(1 << 0)
-#define RESET_ENABLE	(1 << 1)
-#define WDTLOCK		0xC00
-#define UNLOCK		0x1ACCE551
-#define LOCK		0x00000001
-
-extern bus_addr_t  al_devmap_pa;
-
-static int alpine_get_wdt_base(uint32_t *pbase, uint32_t *psize);
+#ifndef INTRNG
 static int alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr,
     int *interrupt, int *trig, int *pol);
 
-int alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size);
-
-int alpine_get_devmap_base(bus_addr_t *pa, bus_addr_t *size)
-{
-	phandle_t node;
-
-	if ((node = OF_finddevice("/")) == 0)
-		return (ENXIO);
-
-	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
-		return (ENXIO);
-
-	return fdt_get_range(node, 0, pa, size);
-}
-
-static int
-alpine_get_wdt_base(uint32_t *pbase, uint32_t *psize)
-{
-	phandle_t node;
-	u_long base = 0;
-	u_long size = 0;
-
-	if (pbase == NULL || psize == NULL)
-		return (EINVAL);
-
-	if ((node = OF_finddevice("/")) == -1)
-		return (EFAULT);
-
-	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
-		return (EFAULT);
-
-	if ((node =
-	    fdt_find_compatible(node, "arm,sp805", 1)) == 0)
-		return (EFAULT);
-
-	if (fdt_regsize(node, &base, &size))
-		return (EFAULT);
-
-	*pbase = base;
-	*psize = size;
-
-	return (0);
-}
-
-void
-cpu_reset(void)
-{
-	uint32_t wdbase, wdsize;
-	bus_addr_t wdbaddr;
-	int ret;
-
-	ret = alpine_get_wdt_base(&wdbase, &wdsize);
-	if (ret) {
-		printf("Unable to get WDT base, do power down manually...");
-		goto infinite;
-	}
-
-	ret = bus_space_map(fdtbus_bs_tag, al_devmap_pa + wdbase,
-	    wdsize, 0, &wdbaddr);
-	if (ret) {
-		printf("Unable to map WDT base, do power down manually...");
-		goto infinite;
-	}
-
-	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOCK, UNLOCK);
-	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTLOAD, LOAD_MIN);
-	bus_space_write_4(fdtbus_bs_tag, wdbaddr, WDTCONTROL, INT_ENABLE | RESET_ENABLE);
-
-infinite:
-	while (1) {}
-}
-
-#ifndef INTRNG
 static int
 alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
     int *trig, int *pol)

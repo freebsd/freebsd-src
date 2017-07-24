@@ -74,7 +74,7 @@ DEFINE_COMPILERRT_FUNCTION(__eqsf2)
     // the subsequent operations.
 #if defined(USE_THUMB_1)
     lsrs    r6,     r3, #1
-    orrs    r6,     r2, r6
+    orrs    r6,     r2
 #else
     orrs    r12,    r2, r3, lsr #1
 #endif
@@ -203,7 +203,7 @@ DEFINE_COMPILERRT_FUNCTION(__gtsf2)
     lsls    r2,        r0, #1
     lsls    r3,        r1, #1
     lsrs    r6,        r3, #1
-    orrs    r6,        r2, r6
+    orrs    r6,        r2
     beq     1f
     movs    r6,        r0
     eors    r6,        r1

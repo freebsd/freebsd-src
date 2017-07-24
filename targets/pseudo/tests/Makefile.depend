@@ -7,9 +7,12 @@
 # find . -name Makefile -exec grep -l '^\.include.*\.test.mk' {} + | grep -v '^\./contrib' | sed -e 's,/Makefile,,' -e 's,^\./,,' -e 's,^,	,' -e 's,$, \\,' | sort
 DIRDEPS= \
       bin/cat/tests \
+      bin/chmod/tests \
       bin/date/tests \
       bin/dd/tests \
+      bin/echo/tests \
       bin/expr/tests \
+      bin/ln/tests \
       bin/ls/tests \
       bin/mv/tests \
       bin/pax/tests \
@@ -118,7 +121,6 @@ DIRDEPS= \
       cddl/usr.sbin/zfsd/tests \
       gnu/lib/tests \
       gnu/tests \
-      gnu/usr.bin/diff/tests \
       gnu/usr.bin/tests \
       lib/atf/libatf-c++/tests \
       lib/atf/libatf-c++/tests/detail \
@@ -185,6 +187,8 @@ DIRDEPS= \
       sbin/growfs/tests \
       sbin/ifconfig/tests \
       sbin/mdconfig/tests \
+      sbin/pfctl/tests \
+      sbin/savecore/tests \
       sbin/tests \
       secure/lib/tests \
       secure/libexec/tests \
@@ -195,7 +199,9 @@ DIRDEPS= \
       share/examples/tests/tests \
       share/examples/tests/tests/atf \
       share/examples/tests/tests/plain \
+      share/examples/tests/tests/tap \
       share/tests \
+      share/zoneinfo/tests \
       tests \
       tests/etc \
       tests/etc/rc.d \
@@ -245,6 +251,7 @@ DIRDEPS= \
       tests/sys/pjdfstest/tests/symlink \
       tests/sys/pjdfstest/tests/truncate \
       tests/sys/pjdfstest/tests/unlink \
+      tests/sys/pjdfstest/tests/utimensat \
       tests/sys/posixshm \
       tests/sys/sys \
       tests/sys/vfs \
@@ -305,13 +312,19 @@ DIRDEPS= \
       usr.bin/cmp/tests \
       usr.bin/col/tests \
       usr.bin/comm/tests \
+      usr.bin/compress/tests \
       usr.bin/cpio/tests \
+      usr.bin/csplit/tests \
       usr.bin/cut/tests \
       usr.bin/diff/tests \
+      usr.bin/diff3/tests \
       usr.bin/dirname/tests \
+      usr.bin/du/tests \
       usr.bin/file2c/tests \
+      usr.bin/getconf/tests \
       usr.bin/grep/tests \
       usr.bin/gzip/tests \
+      usr.bin/hexdump/tests \
       usr.bin/ident/tests \
       usr.bin/indent/tests \
       usr.bin/join/tests \
@@ -323,10 +336,12 @@ DIRDEPS= \
       usr.bin/ncal/tests \
       usr.bin/pr/tests \
       usr.bin/printf/tests \
+      usr.bin/procstat/tests \
       usr.bin/sdiff/tests \
       usr.bin/sed/tests \
       usr.bin/sed/tests/regress.multitest.out \
       usr.bin/soelim/tests \
+      usr.bin/stat/tests \
       usr.bin/tail/tests \
       usr.bin/tar/tests \
       usr.bin/tests \

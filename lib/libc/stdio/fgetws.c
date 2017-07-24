@@ -46,14 +46,14 @@ wchar_t *
 fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 {
 	int sret;
-	wchar_t *wsp;
+	wchar_t *wsp, *ret;
 	size_t nconv;
 	const char *src;
 	unsigned char *nl;
 	FIX_LOCALE(locale);
 	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 
 	if (n <= 0) {
@@ -113,12 +113,14 @@ fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 		goto error;
 ok:
 	*wsp = L'\0';
-	FUNLOCKFILE(fp);
-	return (ws);
+	ret = ws;
+end:
+	FUNLOCKFILE_CANCELSAFE();
+	return (ret);
 
 error:
-	FUNLOCKFILE(fp);
-	return (NULL);
+	ret = NULL;
+	goto end;
 }
 
 wchar_t *

@@ -61,7 +61,12 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#define	SOLARIS	(defined(sun) && (defined(__SVR4) || defined(__svr4__)))
+#if (defined(sun) && (defined(__SVR4) || defined(__svr4__)))
+#define	SOLARIS 1
+#else
+#define SOLARIS 0
+#endif
+
 #if defined(__hpux) || SOLARIS
 # include <sys/sysmacros.h>
 # include <sys/stream.h>

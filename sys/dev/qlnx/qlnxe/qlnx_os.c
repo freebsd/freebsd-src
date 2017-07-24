@@ -396,7 +396,7 @@ qlnx_fp_taskqueue(void *context, int pending)
         qlnx_host_t		*ha;
         struct ifnet		*ifp;
         struct mbuf		*mp;
-        int			ret;
+        int			ret = -1;
 	int			lro_enable;
 	int			rx_int = 0, total_rx_count = 0;
 	struct thread		*cthread;

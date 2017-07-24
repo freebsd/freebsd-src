@@ -133,7 +133,7 @@ static int nfscl_localconflict(struct nfsclclient *, u_int8_t *, int,
     struct nfscllock *, u_int8_t *, struct nfscldeleg *, struct nfscllock **);
 static void nfscl_newopen(struct nfsclclient *, struct nfscldeleg *,
     struct nfsclowner **, struct nfsclowner **, struct nfsclopen **,
-    struct nfsclopen **, u_int8_t *, u_int8_t *, int, int *);
+    struct nfsclopen **, u_int8_t *, u_int8_t *, int, struct ucred *, int *);
 static int nfscl_moveopen(vnode_t , struct nfsclclient *,
     struct nfsmount *, struct nfsclopen *, struct nfsclowner *,
     struct nfscldeleg *, struct ucred *, NFSPROC_T *);
@@ -287,7 +287,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	 * Create a new open, as required.
 	 */
 	nfscl_newopen(clp, dp, &owp, &nowp, &op, &nop, own, nfhp, fhlen,
-	    newonep);
+	    cred, newonep);
 
 	/*
 	 * Now, check the mode on the open and return the appropriate
@@ -346,7 +346,7 @@ static void
 nfscl_newopen(struct nfsclclient *clp, struct nfscldeleg *dp,
     struct nfsclowner **owpp, struct nfsclowner **nowpp, struct nfsclopen **opp,
     struct nfsclopen **nopp, u_int8_t *own, u_int8_t *fhp, int fhlen,
-    int *newonep)
+    struct ucred *cred, int *newonep)
 {
 	struct nfsclowner *owp = *owpp, *nowp;
 	struct nfsclopen *op, *nop;
@@ -399,6 +399,8 @@ nfscl_newopen(struct nfsclclient *clp, struct nfscldeleg *dp,
 			nop->nfso_stateid.other[0] = 0;
 			nop->nfso_stateid.other[1] = 0;
 			nop->nfso_stateid.other[2] = 0;
+			KASSERT(cred != NULL, ("%s: cred NULL\n", __func__));
+			newnfs_copyincred(cred, &nop->nfso_cred);
 			if (dp != NULL) {
 				TAILQ_REMOVE(&clp->nfsc_deleg, dp, nfsdl_list);
 				TAILQ_INSERT_HEAD(&clp->nfsc_deleg, dp,
@@ -3970,7 +3972,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 				    M_WAITOK);
 				nfscl_newopen(clp, NULL, &owp, &nowp, &op, 
 				    NULL, lowp->nfsow_owner, dp->nfsdl_fh,
-				    dp->nfsdl_fhlen, NULL);
+				    dp->nfsdl_fhlen, NULL, NULL);
 				newnfs_copycred(&dp->nfsdl_cred, cred);
 				ret = nfscl_moveopen(vp, clp, nmp, lop,
 				    owp, dp, cred, p);
@@ -4052,7 +4054,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	    lop->nfso_fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 	newone = 0;
 	nfscl_newopen(clp, NULL, &owp, NULL, &op, &nop, owp->nfsow_owner,
-	    lop->nfso_fh, lop->nfso_fhlen, &newone);
+	    lop->nfso_fh, lop->nfso_fhlen, cred, &newone);
 	ndp = dp;
 	error = nfscl_tryopen(nmp, vp, np->n_v4->n4_data, np->n_v4->n4_fhlen,
 	    lop->nfso_fh, lop->nfso_fhlen, lop->nfso_mode, op,
@@ -4061,8 +4063,6 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 		if (newone)
 			nfscl_freeopen(op, 0);
 	} else {
-		if (newone)
-			newnfs_copyincred(cred, &op->nfso_cred);
 		op->nfso_mode |= lop->nfso_mode;
 		op->nfso_opencnt += lop->nfso_opencnt;
 		nfscl_freeopen(lop, 1);

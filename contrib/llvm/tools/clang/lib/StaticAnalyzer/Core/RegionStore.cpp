@@ -494,6 +494,14 @@ public: // Part of public interface to class.
     return getBinding(getRegionBindings(S), L, T);
   }
 
+  Optional<SVal> getDefaultBinding(Store S, const MemRegion *R) override {
+    RegionBindingsRef B = getRegionBindings(S);
+    // Default bindings are always applied over a base region so look up the
+    // base region's default binding, otherwise the lookup will fail when R
+    // is at an offset from R->getBaseRegion().
+    return B.getDefaultBinding(R->getBaseRegion());
+  }
+
   SVal getBinding(RegionBindingsConstRef B, Loc L, QualType T = QualType());
 
   SVal getBindingForElement(RegionBindingsConstRef B, const ElementRegion *R);
@@ -1333,10 +1341,14 @@ RegionStoreManager::getSizeInElements(ProgramStateRef state,
 ///  the array).  This is called by ExprEngine when evaluating casts
 ///  from arrays to pointers.
 SVal RegionStoreManager::ArrayToPointer(Loc Array, QualType T) {
+  if (Array.getAs<loc::ConcreteInt>())
+    return Array;
+
   if (!Array.getAs<loc::MemRegionVal>())
     return UnknownVal();
 
-  const MemRegion* R = Array.castAs<loc::MemRegionVal>().getRegion();
+  const SubRegion *R =
+      cast<SubRegion>(Array.castAs<loc::MemRegionVal>().getRegion());
   NonLoc ZeroIdx = svalBuilder.makeZeroArrayIndex();
   return loc::MemRegionVal(MRMgr.getElementRegion(T, ZeroIdx, R, Ctx));
 }
@@ -1379,7 +1391,7 @@ SVal RegionStoreManager::getBinding(RegionBindingsConstRef B, Loc L, QualType T)
         T = SR->getSymbol()->getType();
       }
     }
-    MR = GetElementZeroRegion(MR, T);
+    MR = GetElementZeroRegion(cast<SubRegion>(MR), T);
   }
 
   // FIXME: Perhaps this method should just take a 'const MemRegion*' argument

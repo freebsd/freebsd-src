@@ -6,7 +6,7 @@
 # PROVIDE: rtadvd
 # REQUIRE: DAEMON
 # BEFORE:  LOGIN
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 . /etc/network.subr

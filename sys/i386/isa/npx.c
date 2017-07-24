@@ -1149,7 +1149,7 @@ npx_set_fpregs_xmm(struct save87 *sv_87, struct savexmm *sv_xmm)
 	for (i = 0; i < 8; ++i) {
 		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
 		if ((penv_87->en_tw & (3 << i * 2)) != (3 << i * 2))
-		    penv_xmm->en_tw |= 1 << i;
+			penv_xmm->en_tw |= 1 << i;
 	}
 }
 

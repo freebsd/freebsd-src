@@ -299,8 +299,9 @@ linux_synchronize_rcu(void)
 	old_cpu = PCPU_GET(cpuid);
 	old_pinned = td->td_pinned;
 	old_prio = td->td_priority;
-	td->td_pinned = 0;
 	was_bound = sched_is_bound(td);
+	sched_unbind(td);
+	td->td_pinned = 0;
 	sched_bind(td, old_cpu);
 
 	ck_epoch_synchronize_wait(&linux_epoch,

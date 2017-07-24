@@ -116,7 +116,7 @@ sub fail
 
 	open(README, ">$opt_d/failure.$n/README");
 	print README "ERROR: " . $file . " " . $msg;
-	
+
 	if (scalar @parms > 1) {
 		print README "; see $errfile\n";
 	} else {
@@ -250,7 +250,7 @@ sub run_tests {
 		$name = $1;
 		$base = $2;
 		$ext = $3;
-		
+
 		$dir = dirname($file);
 		$isksh = 0;
 		$tag = 0;
@@ -372,7 +372,7 @@ sub run_tests {
 			    "modunload -i 0");
 			if (!system("modinfo | grep dtrace")) {
 				warn "ERROR: couldn't unload dtrace\n";
-				system("svcadm enable " . 
+				system("svcadm enable " .
 				    "-s svc:/network/nfs/mapid:default");
 				exit(124);
 			}
@@ -387,7 +387,7 @@ sub run_tests {
 			    "modunload -i 0");
 			if (!system("modinfo | grep dtrace")) {
 				warn "ERROR: couldn't unload dtrace\n";
-				system("svcadm enable " . 
+				system("svcadm enable " .
 				    "-s svc:/network/nfs/mapid:default");
 				exit(124);
 			}
@@ -679,7 +679,7 @@ if ($opt_b) {
 #
 # Run all the tests specified on the command-line (the entire test suite
 # by default) once for each dtrace command tested, skipping any tests
-# not valid for that command. 
+# not valid for that command.
 #
 foreach $dtrace_cmd (@dtrace_cmds) {
 	run_tests($dtrace_cmd, $exception_lists{$dtrace_cmd});

@@ -21,21 +21,22 @@
 
 // C++ Includes
 // Other libraries and framework includes
-#include "lldb/Core/Error.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/PseudoTerminal.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/UnixSignals.h"
-#include "lldb/Utility/PseudoTerminal.h"
+#include "lldb/Utility/Status.h"
+#include "llvm/Support/Errno.h"
 
 #include "FreeBSDThread.h"
 #include "Plugins/Process/POSIX/CrashReason.h"
+#include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
 #include "ProcessFreeBSD.h"
 #include "ProcessMonitor.h"
-#include "ProcessPOSIXLog.h"
 
 extern "C" {
 extern char **environ;
@@ -154,7 +155,7 @@ PtraceWrapper((req), (pid), (addr), (data))
 // functions without needed to go thru the thread funnel.
 
 static size_t DoReadMemory(lldb::pid_t pid, lldb::addr_t vm_addr, void *buf,
-                           size_t size, Error &error) {
+                           size_t size, Status &error) {
   struct ptrace_io_desc pi_desc;
 
   pi_desc.piod_op = PIOD_READ_D;
@@ -168,7 +169,7 @@ static size_t DoReadMemory(lldb::pid_t pid, lldb::addr_t vm_addr, void *buf,
 }
 
 static size_t DoWriteMemory(lldb::pid_t pid, lldb::addr_t vm_addr,
-                            const void *buf, size_t size, Error &error) {
+                            const void *buf, size_t size, Status &error) {
   struct ptrace_io_desc pi_desc;
 
   pi_desc.piod_op = PIOD_WRITE_D;
@@ -183,7 +184,7 @@ static size_t DoWriteMemory(lldb::pid_t pid, lldb::addr_t vm_addr,
 
 // Simple helper function to ensure flags are enabled on the given file
 // descriptor.
-static bool EnsureFDFlags(int fd, int flags, Error &error) {
+static bool EnsureFDFlags(int fd, int flags, Status &error) {
   int status;
 
   if ((status = fcntl(fd, F_GETFL)) == -1) {
@@ -221,7 +222,7 @@ public:
 /// @brief Implements ProcessMonitor::ReadMemory.
 class ReadOperation : public Operation {
 public:
-  ReadOperation(lldb::addr_t addr, void *buff, size_t size, Error &error,
+  ReadOperation(lldb::addr_t addr, void *buff, size_t size, Status &error,
                 size_t &result)
       : m_addr(addr), m_buff(buff), m_size(size), m_error(error),
         m_result(result) {}
@@ -232,7 +233,7 @@ private:
   lldb::addr_t m_addr;
   void *m_buff;
   size_t m_size;
-  Error &m_error;
+  Status &m_error;
   size_t &m_result;
 };
 
@@ -247,8 +248,8 @@ void ReadOperation::Execute(ProcessMonitor *monitor) {
 /// @brief Implements ProcessMonitor::WriteMemory.
 class WriteOperation : public Operation {
 public:
-  WriteOperation(lldb::addr_t addr, const void *buff, size_t size, Error &error,
-                 size_t &result)
+  WriteOperation(lldb::addr_t addr, const void *buff, size_t size,
+                 Status &error, size_t &result)
       : m_addr(addr), m_buff(buff), m_size(size), m_error(error),
         m_result(result) {}
 
@@ -258,7 +259,7 @@ private:
   lldb::addr_t m_addr;
   const void *m_buff;
   size_t m_size;
-  Error &m_error;
+  Status &m_error;
   size_t &m_result;
 };
 
@@ -529,10 +530,8 @@ void ResumeOperation::Execute(ProcessMonitor *monitor) {
 
   if (PTRACE(PT_CONTINUE, pid, (caddr_t)1, data)) {
     Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
-
-    if (log)
-      log->Printf("ResumeOperation (%" PRIu64 ") failed: %s", pid,
-                  strerror(errno));
+    LLDB_LOG(log, "ResumeOperation ({0}) failed: {1}", pid,
+             llvm::sys::StrError(errno));
     m_result = false;
   } else
     m_result = true;
@@ -672,12 +671,12 @@ void KillOperation::Execute(ProcessMonitor *monitor) {
 /// @brief Implements ProcessMonitor::Detach.
 class DetachOperation : public Operation {
 public:
-  DetachOperation(Error &result) : m_error(result) {}
+  DetachOperation(Status &result) : m_error(result) {}
 
   void Execute(ProcessMonitor *monitor);
 
 private:
-  Error &m_error;
+  Status &m_error;
 };
 
 void DetachOperation::Execute(ProcessMonitor *monitor) {
@@ -731,7 +730,7 @@ ProcessMonitor::ProcessMonitor(
     const FileSpec &stdout_file_spec, const FileSpec &stderr_file_spec,
     const FileSpec &working_dir,
     const lldb_private::ProcessLaunchInfo & /* launch_info */,
-    lldb_private::Error &error)
+    lldb_private::Status &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),
       m_pid(LLDB_INVALID_PROCESS_ID), m_terminal_fd(-1), m_operation(0) {
   using namespace std::placeholders;
@@ -747,15 +746,9 @@ ProcessMonitor::ProcessMonitor(
   if (!error.Success())
     return;
 
-WAIT_AGAIN:
-  // Wait for the operation thread to initialize.
-  if (sem_wait(&args->m_semaphore)) {
-    if (errno == EINTR)
-      goto WAIT_AGAIN;
-    else {
-      error.SetErrorToErrno();
-      return;
-    }
+  if (llvm::sys::RetryAfterSignal(-1, sem_wait, &args->m_semaphore) == -1) {
+    error.SetErrorToErrno();
+    return;
   }
 
   // Check that the launch was a success.
@@ -777,7 +770,7 @@ WAIT_AGAIN:
 }
 
 ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process, lldb::pid_t pid,
-                               lldb_private::Error &error)
+                               lldb_private::Status &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)), m_pid(pid),
       m_terminal_fd(-1), m_operation(0) {
   using namespace std::placeholders;
@@ -791,15 +784,9 @@ ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process, lldb::pid_t pid,
   if (!error.Success())
     return;
 
-WAIT_AGAIN:
-  // Wait for the operation thread to initialize.
-  if (sem_wait(&args->m_semaphore)) {
-    if (errno == EINTR)
-      goto WAIT_AGAIN;
-    else {
-      error.SetErrorToErrno();
-      return;
-    }
+  if (llvm::sys::RetryAfterSignal(-1, sem_wait, &args->m_semaphore) == -1) {
+    error.SetErrorToErrno();
+    return;
   }
 
   // Check that the attach was a success.
@@ -824,7 +811,7 @@ ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
 
 //------------------------------------------------------------------------------
 // Thread setup and tear down.
-void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Error &error) {
+void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Status &error) {
   static const char *g_thread_name = "lldb.process.freebsd.operation";
 
   if (m_operation_thread.IsJoinable())
@@ -992,7 +979,7 @@ FINISH:
 }
 
 void ProcessMonitor::StartAttachOpThread(AttachArgs *args,
-                                         lldb_private::Error &error) {
+                                         lldb_private::Status &error) {
   static const char *g_thread_name = "lldb.process.freebsd.operation";
 
   if (m_operation_thread.IsJoinable())
@@ -1132,8 +1119,10 @@ ProcessMessage ProcessMonitor::MonitorSIGTRAP(ProcessMonitor *monitor,
 
   case 0:
   case TRAP_TRACE:
+#ifdef TRAP_CAP
   // Map TRAP_CAP to a trace trap in the absense of a more specific handler.
   case TRAP_CAP:
+#endif
     if (log)
       log->Printf("ProcessMonitor::%s() received trace event, tid = %" PRIu64
                   "  : si_code = %d",
@@ -1143,11 +1132,19 @@ ProcessMessage ProcessMonitor::MonitorSIGTRAP(ProcessMonitor *monitor,
 
   case SI_KERNEL:
   case TRAP_BRKPT:
-    if (log)
-      log->Printf(
-          "ProcessMonitor::%s() received breakpoint event, tid = %" PRIu64,
-          __FUNCTION__, tid);
-    message = ProcessMessage::Break(tid);
+    if (monitor->m_process->IsSoftwareStepBreakpoint(tid)) {
+      if (log)
+        log->Printf("ProcessMonitor::%s() received sw single step breakpoint "
+                    "event, tid = %" PRIu64,
+                    __FUNCTION__, tid);
+      message = ProcessMessage::Trace(tid);
+    } else {
+      if (log)
+        log->Printf(
+            "ProcessMonitor::%s() received breakpoint event, tid = %" PRIu64,
+            __FUNCTION__, tid);
+      message = ProcessMessage::Break(tid);
+    }
     break;
   }
 
@@ -1234,7 +1231,7 @@ void ProcessMonitor::DoOperation(Operation *op) {
 }
 
 size_t ProcessMonitor::ReadMemory(lldb::addr_t vm_addr, void *buf, size_t size,
-                                  Error &error) {
+                                  Status &error) {
   size_t result;
   ReadOperation op(vm_addr, buf, size, error, result);
   DoOperation(&op);
@@ -1242,7 +1239,7 @@ size_t ProcessMonitor::ReadMemory(lldb::addr_t vm_addr, void *buf, size_t size,
 }
 
 size_t ProcessMonitor::WriteMemory(lldb::addr_t vm_addr, const void *buf,
-                                   size_t size, lldb_private::Error &error) {
+                                   size_t size, lldb_private::Status &error) {
   size_t result;
   WriteOperation op(vm_addr, buf, size, error, result);
   DoOperation(&op);
@@ -1383,8 +1380,8 @@ bool ProcessMonitor::GetEventMessage(lldb::tid_t tid, unsigned long *message) {
   return result;
 }
 
-lldb_private::Error ProcessMonitor::Detach(lldb::tid_t tid) {
-  lldb_private::Error error;
+lldb_private::Status ProcessMonitor::Detach(lldb::tid_t tid) {
+  lldb_private::Status error;
   if (tid != LLDB_INVALID_THREAD_ID) {
     DetachOperation op(error);
     DoOperation(&op);

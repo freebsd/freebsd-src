@@ -104,7 +104,7 @@ struct drm_file;
 #include "dev/drm/drm_internal.h"
 #include "dev/drm/drm_linux_list.h"
 
-#include <opt_drm.h>
+#include "opt_drm.h"
 #ifdef DRM_DEBUG
 #undef DRM_DEBUG
 #define DRM_DEBUG_DEFAULT_ON 1
@@ -220,7 +220,7 @@ enum {
 
 #define PAGE_ALIGN(addr) round_page(addr)
 /* DRM_SUSER returns true if the user is superuser */
-#define DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
+#define DRM_SUSER(p)		(priv_check(p, PRIV_KMEM_WRITE) == 0)
 #define DRM_AGP_FIND_DEVICE()	agp_find_device()
 #define DRM_MTRR_WC		MDF_WRITECOMBINE
 #define jiffies			ticks

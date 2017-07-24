@@ -1054,7 +1054,7 @@ nat64_getlasthdr(struct mbuf *m, int *offset)
 		if (proto == IPPROTO_HOPOPTS && ip6->ip6_plen == 0)
 			return (-1);
 		proto = hbh->ip6h_nxt;
-		hlen += hbh->ip6h_len << 3;
+		hlen += (hbh->ip6h_len + 1) << 3;
 	}
 	if (offset != NULL)
 		*offset = hlen;

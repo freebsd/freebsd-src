@@ -88,6 +88,8 @@ sys/md5.h: ${SRCTOP}/sys/${.TARGET} .NOMETA
 CFLAGS+= -I${.CURDIR} -I${SRCTOP}/sys/crypto/sha2
 CFLAGS+= -I${SRCTOP}/sys/crypto/skein
 CFLAGS+= -DWEAK_REFS
+# unroll the 256 and 512 loops, half unroll the 1024
+CFLAGS+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 
@@ -101,6 +103,8 @@ CFLAGS+= -DRMD160_ASM
 .endif
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
 AFLAGS += --strip-local-absolute
+# Fully unroll all loops in the assembly optimized version
+AFLAGS+= --defsym SKEIN_LOOP=0
 SRCS+= skein_block_asm.s
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
 .endif
