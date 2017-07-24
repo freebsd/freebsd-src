@@ -158,8 +158,18 @@ META_TGT_WHITELIST+= \
 	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
+.ORDER: buildworld distrib-dirs
+.ORDER: buildworld distribution
+.ORDER: buildworld distribute
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
+.ORDER: distrib-dirs distribute
+.ORDER: distrib-dirs distributeworld
+.ORDER: distrib-dirs installworld
+.ORDER: distribution distribute
+.ORDER: distributeworld distribute
+.ORDER: distributeworld distribution
+.ORDER: installworld distribute
 .ORDER: installworld distribution
 .ORDER: installworld installkernel
 .ORDER: buildkernel installkernel
