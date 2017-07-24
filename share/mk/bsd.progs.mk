@@ -116,7 +116,16 @@ ${_PROGS_COMMON_OBJS}: .NOMETA
 
 .if !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
 # tell progs.mk we might want to install things
-PROGS_TARGETS+= checkdpadd clean cleandepend cleandir depend install
+PROGS_TARGETS+= checkdpadd clean depend install
+# Only handle removing depend files from the main process.
+_PROG_MK.cleandir=	CLEANDEPENDFILES= CLEANDEPENDDIRS=
+_PROG_MK.cleanobj=	CLEANDEPENDFILES= CLEANDEPENDDIRS=
+# Only recurse on these if there is no objdir, meaning a normal
+# 'clean' gets ran via the target defined in bsd.obj.mk.
+# Same check from cleanobj: in bsd.obj.mk
+.if ${CANONICALOBJDIR} == ${.CURDIR} || !exists(${CANONICALOBJDIR}/)
+PROGS_TARGETS+=	cleandir cleanobj
+.endif
 
 # Ensure common objects are built before recursing.
 .if !empty(_PROGS_COMMON_OBJS)
@@ -142,7 +151,7 @@ $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
 	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
-	    PROG=$p ${x.$p} ${@:E})
+	    ${_PROG_MK.${t}} PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 
