@@ -501,6 +501,15 @@ static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
 	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
 }
 
+static inline u_int ms_to_tcp_ticks(const struct adapter *adap, u_int ms)
+{
+	u_long l;
+
+	l = (u_long)ms * adap->params.vpd.cclk >> adap->params.tp.tre;
+
+	return (l);
+}
+
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
 
 int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
