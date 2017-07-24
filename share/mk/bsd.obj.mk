@@ -157,9 +157,10 @@ whereobj:
 	@echo ${.OBJDIR}
 .endif
 
+# Same check in bsd.progs.mk
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@-rm -rf ${CANONICALOBJDIR}
+	-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif

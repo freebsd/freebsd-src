@@ -78,6 +78,7 @@ __DEFAULT_DEPENDENT_OPTIONS = \
     COVERAGE/DEBUG_FILES \
     STAGING_MAN/STAGING \
     STAGING_PROG/STAGING \
+    STALE_STAGED/STAGING \
 
 
 .include <bsd.mkopt.mk>
@@ -100,10 +101,6 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 MK_${var}:=no
 .endif
 .endfor
-
-.if ${MK_STAGING} == "no"
-MK_STALE_STAGED= no
-.endif
 
 .include <bsd.cpu.mk>
 
