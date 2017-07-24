@@ -761,6 +761,13 @@ _worldtmp: .PHONY
 	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    delete-old delete-old-libs
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs
+.endif
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .if ${USING_SYSTEM_COMPILER} == "yes"
 .for cc in cc c++
