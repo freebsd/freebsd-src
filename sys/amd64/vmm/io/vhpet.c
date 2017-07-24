@@ -715,8 +715,10 @@ vhpet_init(struct vm *vm)
 	vhpet->freq_sbt = bttosbt(bt);
 
 	pincount = vioapic_pincount(vm);
-	if (pincount >= 24)
-		allowed_irqs = 0x00f00000;	/* irqs 20, 21, 22 and 23 */
+	if (pincount >= 32)
+		allowed_irqs = 0xff000000;	/* irqs 24-31 */
+	else if (pincount >= 20)
+		allowed_irqs = 0xf << (pincount - 4);	/* 4 upper irqs */
 	else
 		allowed_irqs = 0;
 
