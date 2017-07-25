@@ -1593,9 +1593,7 @@ ixgbe_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m,
 			if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
 				return;
 	}
-	IXGBE_RX_UNLOCK(rxr);
 	(*ifp->if_input)(ifp, m);
-	IXGBE_RX_LOCK(rxr);
 } /* ixgbe_rx_input */
 
 /************************************************************************
@@ -1880,7 +1878,9 @@ next_desc:
 		/* Now send to the stack or do LRO */
 		if (sendmp != NULL) {
 			rxr->next_to_check = i;
+			IXGBE_RX_UNLOCK(rxr);
 			ixgbe_rx_input(rxr, ifp, sendmp, ptype);
+			IXGBE_RX_LOCK(rxr);
 			i = rxr->next_to_check;
 		}
 
@@ -1897,12 +1897,12 @@ next_desc:
 
 	rxr->next_to_check = i;
 
+	IXGBE_RX_UNLOCK(rxr);
+
 	/*
 	 * Flush any outstanding LRO work
 	 */
 	tcp_lro_flush_all(lro);
-
-	IXGBE_RX_UNLOCK(rxr);
 
 	/*
 	 * Still have cleaning to do?
