@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # $FreeBSD$
 
 usage()
@@ -83,6 +85,12 @@ runtest()
         retval=1
         ;;
     esac
+
+    if [ $retval -eq 0 ] && \
+        head -n 1 $STDOUT | grep -q -E '^#!/.*ksh$'; then
+        ksh $STDOUT
+        retval=$?
+    fi
 
     return $retval
 }
