@@ -21,6 +21,9 @@ CFLAGS+=	-fPIC -mno-red-zone
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-fPIC -mgeneral-regs-only
 .endif
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-fPIC
+.endif
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
