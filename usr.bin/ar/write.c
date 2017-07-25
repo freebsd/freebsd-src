@@ -586,10 +586,17 @@ prefault_buffer(const char *buf, size_t s)
 static void
 write_data(struct bsdar *bsdar, struct archive *a, const void *buf, size_t s)
 {
+	ssize_t written;
+
 	prefault_buffer(buf, s);
-	if (archive_write_data(a, buf, s) != (ssize_t)s)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",
-		    archive_error_string(a));
+	while (s > 0) {
+		written = archive_write_data(a, buf, s);
+		if (written < 0)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",
+			    archive_error_string(a));
+		buf = (const char *)buf + written;
+		s -= written;
+	}
 }
 
 /*
