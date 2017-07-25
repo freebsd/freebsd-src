@@ -32,6 +32,7 @@ TESTEXES= \
 
 
 CFILES= \
+     tst.probestar.c  \
 
 
 
