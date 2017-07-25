@@ -156,11 +156,6 @@ ATF_TC_BODY(reduction, tc)
 		9.8477555741888350649e+4314L,
 		1.6061597222105160737e+4326L,
 	};
-#elif LDBL_MANT_DIG == 113
-	static const long double ld_pi_odd[] = {
-		/* XXX */
-	};
-#endif
 
 #if defined(__clang__) && \
 	((__clang_major__ >= 5))
@@ -205,7 +200,7 @@ ATF_TC_BODY(reduction, tc)
 		ATF_CHECK(fabs(tan(-d_pi_odd[i] * 2)) < 2 * DBL_EPSILON);
 	}
 
-#if LDBL_MANT_DIG > 53
+#if LDBL_MANT_DIG == 64 /* XXX: || LDBL_MANT_DIG == 113 */
 	for (i = 0; i < nitems(ld_pi_odd); i++) {
 		ATF_CHECK(fabsl(sinl(ld_pi_odd[i])) < LDBL_EPSILON);
 		ATF_CHECK(cosl(ld_pi_odd[i]) == -1.0);
