@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 FILES=	${_BSD.debug.dist} \
+	${_BSD.coverage.dist} \
 	BSD.include.dist \
 	BSD.root.dist \
 	${_BSD.lib32.dist} \
