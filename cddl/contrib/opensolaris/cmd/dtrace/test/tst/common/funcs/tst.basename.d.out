@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/usr/bin/env ksh
 
 if [ `basename "/foo/bar/baz"` != "baz" ]; then
 	echo "basename(\"/foo/bar/baz\") is \"baz\"; expected \"`basename "/foo/bar/baz"`"\"
@@ -152,8 +152,8 @@ if [ `dirname "/////"` != "/" ]; then
 	echo "dirname(\"/////\") is \"/\"; expected \"`dirname "/////"`"\"
 fi
 
-if [ `basename ""` != "." ]; then
-	echo "basename(\"\") is \".\"; expected \"`basename ""`"\"
+if [ "`basename ""`" != "." -a "." != "." ]; then
+	echo "basename(\"\") is \".\"; expected \"`basename ""`\" or \".\""
 fi
 
 if [ `dirname ""` != "." ]; then
