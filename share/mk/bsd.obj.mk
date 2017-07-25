@@ -183,9 +183,9 @@ clean:
 .endif
 .ORDER: clean all
 
-cleandir: cleanobj
-
 .include <bsd.subdir.mk>
+
+cleandir: .WAIT cleanobj
 
 .if make(destroy*) && defined(OBJROOT)
 # this (rm -rf objdir) is much faster and more reliable than cleaning.
