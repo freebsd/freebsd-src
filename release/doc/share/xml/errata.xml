@@ -19,73 +19,9 @@
 
     <tbody>
       <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-16:18.loader.asc">FreeBSD-EN-16:18.loader</link></entry>
-	<entry>25&nbsp;October&nbsp;2016</entry>
-	<entry><para>Loader may hang during boot</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-16:19.tzcode.asc">FreeBSD-EN-16:19.tzcode</link></entry>
-	<entry>6&nbsp;December&nbsp;2016</entry>
-	<entry><para>Fix warnings about invalid timezone
-	    abbreviations</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-16:20.tzdata.asc">FreeBSD-EN-16:20.tzdata</link></entry>
-	<entry>6&nbsp;December&nbsp;2016</entry>
-	<entry><para>Update timezone database
-	    information</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-16:21.localedef.asc">FreeBSD-EN-16:21.localedef</link></entry>
-	<entry>6&nbsp;December&nbsp;2016</entry>
-	<entry><para>Fix incorrectly defined unicode
-	    characters</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:01.pcie.asc">FreeBSD-EN-17:01.pcie</link></entry>
-	<entry>23&nbsp;February&nbsp;2017</entry>
-	<entry><para>Fix system hang when booting when PCI-express
-	    HotPlug is enabled</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:02.yp.asc">FreeBSD-EN-17:02.yp</link></entry>
-	<entry>23&nbsp;February&nbsp;2017</entry>
-	<entry><para>Fix NIS master updates are not pushed to an NIS
-	    slave</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:03.hyperv.asc">FreeBSD-EN-17:03.hyperv</link></entry>
-	<entry>23&nbsp;February&nbsp;2017</entry>
-	<entry><para>Fix compatibility with Hyper-V/storage after
-	    KB3172614 or KB3179574</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:04.mandoc.asc">FreeBSD-EN-17:04.mandoc</link></entry>
-	<entry>23&nbsp;February&nbsp;2017</entry>
-	<entry><para>Make &man.makewhatis.1; output
-	    reproducible</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-17:05.xen.asc">FreeBSD-EN-17:05.xen</link></entry>
-	<entry>23&nbsp;February&nbsp;2017</entry>
-	<entry><para>Xen migration enhancements</para></entry>
+	<entry>No notices</entry>
+	<entry>&nbsp;</entry>
+	<entry>&nbsp;</entry>
       </row>
     </tbody>
   </tgroup>
