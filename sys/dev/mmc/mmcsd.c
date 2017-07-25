@@ -235,7 +235,7 @@ mmcsd_attach(device_t dev)
 	 * insertion that results in switches to/from a transfer mode involving
 	 * re-tuning, iff there are multiple devices on a given bus.  Until now
 	 * mmc(4) lacks support for rescanning already attached buses, however,
-	 * and sdhci(4) has no support for embedded/shared buses in the first
+	 * and sdhci(4) to date has no support for shared buses in the first
 	 * place either.
 	 */
 	sc->max_data = mmc_get_max_data(dev);
