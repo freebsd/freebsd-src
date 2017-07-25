@@ -2336,10 +2336,12 @@ _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
+.if ${MK_ZFS} != "no"
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+.endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
-cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
