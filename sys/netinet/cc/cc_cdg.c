@@ -431,11 +431,6 @@ static void
 cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 {
 	struct cdg *cdg_data = ccv->cc_data;
-	uint32_t cwin;
-	u_int mss;
-
-	cwin = CCV(ccv, snd_cwnd);
-	mss = CCV(ccv, t_maxseg);
 
 	switch(signal_type) {
 	case CC_CDG_DELAY:
@@ -453,7 +448,7 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 		 */
 		if (IN_CONGRECOVERY(CCV(ccv, t_flags)) ||
 		    cdg_data->queue_state < CDG_Q_FULL) {
-			CCV(ccv, snd_ssthresh) = cwin;
+			CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd);
 			CCV(ccv, snd_recover) = CCV(ccv, snd_max);
 		} else {
 			/*
@@ -466,16 +461,12 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 				    cdg_data->shadow_w, RENO_BETA);
 
 			CCV(ccv, snd_ssthresh) = max(cdg_data->shadow_w,
-			    cdg_window_decrease(ccv, cwin, V_cdg_beta_loss));
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
+			    cdg_window_decrease(ccv, CCV(ccv, snd_cwnd),
+			    V_cdg_beta_loss));
 
 			cdg_data->window_incr = cdg_data->rtt_count = 0;
 		}
 		ENTER_RECOVERY(CCV(ccv, t_flags));
-		break;
-	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(2*mss, cwin/2);
-		CCV(ccv, snd_cwnd) = mss;
 		break;
 	default:
 		newreno_cc_algo.cong_signal(ccv, signal_type);

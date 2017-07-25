@@ -1052,15 +1052,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 						if (awnd < tp->snd_ssthresh) {
 							tp->snd_cwnd += tp->t_maxseg;
-							/*
-							 * RFC5681 Section 3.2 talks about cwnd
-							 * inflation on additional dupacks and
-							 * deflation on recovering from loss.
-							 *
-							 * We keep cwnd into check so that
-							 * we don't have to 'deflate' it when we
-							 * get out of recovery.
-							 */
 							if (tp->snd_cwnd > tp->snd_ssthresh)
 								tp->snd_cwnd = tp->snd_ssthresh;
 						}
@@ -1100,22 +1091,19 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						TCPSTAT_INC(
 						    tcps_sack_recovery_episode);
 						tp->sack_newdata = tp->snd_nxt;
-						if (CC_ALGO(tp)->cong_signal == NULL)
-							tp->snd_cwnd = tp->t_maxseg;
+						tp->snd_cwnd = tp->t_maxseg;
 						(void) tp->t_fb->tfb_tcp_output(tp);
 						goto drop;
 					}
 					tp->snd_nxt = th->th_ack;
-					if (CC_ALGO(tp)->cong_signal == NULL)
-						tp->snd_cwnd = tp->t_maxseg;
+					tp->snd_cwnd = tp->t_maxseg;
 					(void) tp->t_fb->tfb_tcp_output(tp);
 					KASSERT(tp->snd_limited <= 2,
 					    ("%s: tp->snd_limited too big",
 					    __func__));
-					if (CC_ALGO(tp)->cong_signal == NULL)
-						tp->snd_cwnd = tp->snd_ssthresh +
-						    tp->t_maxseg *
-						    (tp->t_dupacks - tp->snd_limited);
+					tp->snd_cwnd = tp->snd_ssthresh +
+					     tp->t_maxseg *
+					     (tp->t_dupacks - tp->snd_limited);
 					if (SEQ_GT(onxt, tp->snd_nxt))
 						tp->snd_nxt = onxt;
 					goto drop;
