@@ -182,38 +182,29 @@ newreno_after_idle(struct cc_var *ccv)
 static void
 newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 {
-	uint32_t cwin;
-	u_int mss;
-
-	cwin = CCV(ccv, snd_cwnd);
-	mss = CCV(ccv, t_maxseg);
+	u_int win;
 
 	/* Catch algos which mistakenly leak private signal types. */
 	KASSERT((type & CC_SIGPRIVMASK) == 0,
 	    ("%s: congestion signal type 0x%08x is private\n", __func__, type));
 
-	cwin = max(2*mss, cwin/2);
+	win = max(CCV(ccv, snd_cwnd) / 2 / CCV(ccv, t_maxseg), 2) *
+	    CCV(ccv, t_maxseg);
 
 	switch (type) {
 	case CC_NDUPACK:
 		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
-			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-				CCV(ccv, snd_ssthresh) = cwin;
-				CCV(ccv, snd_cwnd) = cwin;
-			}
+			if (!IN_CONGRECOVERY(CCV(ccv, t_flags)))
+				CCV(ccv, snd_ssthresh) = win;
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
 		break;
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-			CCV(ccv, snd_ssthresh) = cwin;
-			CCV(ccv, snd_cwnd) = cwin;
+			CCV(ccv, snd_ssthresh) = win;
+			CCV(ccv, snd_cwnd) = win;
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
-		break;
-	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = cwin;
-		CCV(ccv, snd_cwnd) = mss;
 		break;
 	}
 }
