@@ -4,8 +4,6 @@
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
-WARNS?=		0
-
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
 
@@ -85,6 +83,8 @@ IGNORE_PRAGMA=
 SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD+=	m
+
+WARNS?=		1
 
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"
