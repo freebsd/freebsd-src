@@ -158,7 +158,7 @@ __vdso_init_hpet(uint32_t u)
 	if (atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
 	    (uintptr_t)old_map, (uintptr_t)new_map) == 0 &&
 	    new_map != MAP_FAILED)
-	munmap((void *)new_map, PAGE_SIZE);
+		munmap((void *)new_map, PAGE_SIZE);
 
 	return;
 fail:
