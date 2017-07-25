@@ -131,6 +131,17 @@ boot</screen>
 	  upgrade from anywhere on earlier stable branches, so caution
 	  should be exercised.</para>
       </listitem>
+
+      <listitem>
+	<para>[2017-07-25] &os;/&arch.arm64; currently lacks
+	  <acronym>EFI</acronym> real-time clock
+	  (<acronym>RTC</acronym>) support, which may cause the system
+	  to boot with the wrong time set.</para>
+
+	<para>As a workaround, either enable &man.ntpdate.8; or
+	  include <literal>ntpd_sync_on_start="YES"</literal> in
+	  &man.rc.conf.5;.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
