@@ -292,7 +292,7 @@ main(int argc, char **argv)
 	    if (*p == ' ')
 		col++;
 	    else if (*p == '\t')
-		col = ((col - 1) & ~7) + 9;
+		col = tabsize * (1 + (col - 1) / tabsize) + 1;
 	    else
 		break;
 	    p++;
@@ -1050,7 +1050,7 @@ check_type:
 	    if (ps.p_l_follow == 0) {
 		if (ps.block_init_level <= 0)
 		    ps.block_init = 0;
-		if (break_comma && (!ps.leave_comma || compute_code_target() + (e_code - s_code) > max_col - 8))
+		if (break_comma && (!ps.leave_comma || compute_code_target() + (e_code - s_code) > max_col - tabsize))
 		    force_nl = true;
 	    }
 	    break;
@@ -1267,18 +1267,21 @@ indent_declaration(int cur_dec_ind, int tabs_to_var)
     char *startpos = e_code;
 
     /*
-     * get the tab math right for indentations that are not multiples of 8
+     * get the tab math right for indentations that are not multiples of tabsize
      */
-    if ((ps.ind_level * ps.ind_size) % 8 != 0) {
-	pos += (ps.ind_level * ps.ind_size) % 8;
-	cur_dec_ind += (ps.ind_level * ps.ind_size) % 8;
+    if ((ps.ind_level * ps.ind_size) % tabsize != 0) {
+	pos += (ps.ind_level * ps.ind_size) % tabsize;
+	cur_dec_ind += (ps.ind_level * ps.ind_size) % tabsize;
     }
-    if (tabs_to_var)
-	while ((pos & ~7) + 8 <= cur_dec_ind) {
+    if (tabs_to_var) {
+	int tpos;
+
+	while ((tpos = tabsize * (1 + pos / tabsize)) <= cur_dec_ind) {
 	    CHECK_SIZE_CODE;
 	    *e_code++ = '\t';
-	    pos = (pos & ~7) + 8;
+	    pos = tpos;
 	}
+    }
     while (pos < cur_dec_ind) {
 	CHECK_SIZE_CODE;
 	*e_code++ = ' ';
