@@ -88,7 +88,7 @@ _meta_filemon=	1
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
 # for _meta_filemon but not for _SKIP_DEPEND.
-.if defined(_SKIP_BUILD)
+.if !defined(NO_SKIP_DEPEND) && defined(_SKIP_BUILD)
 _SKIP_DEPEND=	1
 .endif
 .if ${MK_DIRDEPS_BUILD} == "no"
