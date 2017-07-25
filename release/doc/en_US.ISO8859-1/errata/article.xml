@@ -142,6 +142,15 @@ boot</screen>
 	  include <literal>ntpd_sync_on_start="YES"</literal> in
 	  &man.rc.conf.5;.</para>
       </listitem>
+
+      <listitem>
+	<para>[2017-07-25] A late issue was discovered with
+	  &os;/&arch.arm64; and &quot;root on
+	  <acronym>ZFS</acronym>&quot; installations where the root
+	  <acronym>ZFS</acronym> pool would fail to be located.</para>
+
+	<para>There currently is no workaround.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
