@@ -331,18 +331,22 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include	\
+		mtree/BSD.coverage.dist		/usr/lib	\
 		mtree/BSD.debug.dist		/usr/lib
 .if ${MK_LIB32} != "no"
-MTREES+=	mtree/BSD.lib32.dist		/usr
-MTREES+=	mtree/BSD.lib32.dist		/usr/lib/debug/usr
+.for dir in /usr /usr/lib/cov/usr /usr/lib/debug/usr
+MTREES+=	mtree/BSD.lib32.dist		${dir}
+.endfor
 .endif
 .if ${MK_LIBSOFT} != "no"
-MTREES+=	mtree/BSD.libsoft.dist		/usr
-MTREES+=	mtree/BSD.libsoft.dist		/usr/lib/debug/usr
+.for dir in /usr /usr/lib/cov/usr /usr/lib/debug/usr
+MTREES+=	mtree/BSD.libsoft.dist		${dir}
+.endfor
 .endif
 .if ${MK_TESTS} != "no"
-MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
-MTREES+=	mtree/BSD.tests.dist		/usr/lib/debug/${TESTSBASE}
+.for dir in ${TESTSBASE} /usr/lib/cov/${TESTSBASE} /usr/lib/debug/${TESTSBASE}
+MTREES+=	mtree/BSD.tests.dist		${dir}
+.endfor
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/
