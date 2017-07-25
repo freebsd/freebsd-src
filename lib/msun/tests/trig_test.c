@@ -156,6 +156,7 @@ ATF_TC_BODY(reduction, tc)
 		9.8477555741888350649e+4314L,
 		1.6061597222105160737e+4326L,
 	};
+#endif
 
 #if defined(__clang__) && \
 	((__clang_major__ >= 5))
