@@ -26,7 +26,7 @@
 				/* 18 is obsolete getstatfs */
 				/* 19 is obsolete lseek */
 #define	CHERIABI_SYS_getpid	20
-#define	CHERIABI_SYS_mount	21
+#define	CHERIABI_SYS_cheriabi_mount	21
 #define	CHERIABI_SYS_unmount	22
 #define	CHERIABI_SYS_setuid	23
 #define	CHERIABI_SYS_getuid	24
@@ -150,7 +150,7 @@
 				/* 145 is obsolete setrlimit */
 				/* 146 is obsolete killpg */
 #define	CHERIABI_SYS_setsid	147
-#define	CHERIABI_SYS_quotactl	148
+#define	CHERIABI_SYS_cheriabi_quotactl	148
 				/* 149 is obsolete oquota */
 				/* 150 is obsolete ogetsockname */
 #define	CHERIABI_SYS_cheriabi_nlm_syscall	154
@@ -323,7 +323,7 @@
 #define	CHERIABI_SYS_lchflags	391
 #define	CHERIABI_SYS_uuidgen	392
 #define	CHERIABI_SYS_cheriabi_sendfile	393
-#define	CHERIABI_SYS_mac_syscall	394
+#define	CHERIABI_SYS_cheriabi_mac_syscall	394
 				/* 395 is obsolete fbsd11_getfsstat */
 				/* 396 is obsolete fbsd11_statfs */
 				/* 397 is obsolete fbsd11_ftatfs */
@@ -369,7 +369,7 @@
 #define	CHERIABI_SYS_thr_wake	443
 #define	CHERIABI_SYS_kldunloadf	444
 #define	CHERIABI_SYS_audit	445
-#define	CHERIABI_SYS_auditon	446
+#define	CHERIABI_SYS_cheriabi_auditon	446
 #define	CHERIABI_SYS_getauid	447
 #define	CHERIABI_SYS_setauid	448
 #define	CHERIABI_SYS_getaudit	449

@@ -17,7 +17,7 @@ MIASM =  \
 	chmod.o \
 	chown.o \
 	getpid.o \
-	mount.o \
+	cheriabi_mount.o \
 	unmount.o \
 	setuid.o \
 	getuid.o \
@@ -98,7 +98,7 @@ MIASM =  \
 	utimes.o \
 	adjtime.o \
 	setsid.o \
-	quotactl.o \
+	cheriabi_quotactl.o \
 	cheriabi_nlm_syscall.o \
 	cheriabi_nfssvc.o \
 	lgetfh.o \
@@ -228,7 +228,7 @@ MIASM =  \
 	lchflags.o \
 	uuidgen.o \
 	cheriabi_sendfile.o \
-	mac_syscall.o \
+	cheriabi_mac_syscall.o \
 	cheriabi___mac_get_pid.o \
 	cheriabi___mac_get_link.o \
 	cheriabi___mac_set_link.o \
@@ -260,7 +260,7 @@ MIASM =  \
 	thr_wake.o \
 	kldunloadf.o \
 	audit.o \
-	auditon.o \
+	cheriabi_auditon.o \
 	getauid.o \
 	setauid.o \
 	getaudit.o \

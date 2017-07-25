@@ -128,13 +128,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* mount */
+	/* cheriabi_mount */
 	case 21: {
-		struct mount_args *p = params;
-		uarg[0] = (intptr_t) p->type; /* const char * */
-		uarg[1] = (intptr_t) p->path; /* const char * */
+		struct cheriabi_mount_args *p = params;
+		uarg[0] = (intptr_t) p->type; /* const char *__capability */
+		uarg[1] = (intptr_t) p->path; /* const char *__capability */
 		iarg[2] = p->flags; /* int */
-		uarg[3] = (intptr_t) p->data; /* void * */
+		uarg[3] = (intptr_t) p->data; /* void *__capability */
 		*n_args = 4;
 		break;
 	}
@@ -783,13 +783,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* quotactl */
+	/* cheriabi_quotactl */
 	case 148: {
-		struct quotactl_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* const char * */
+		struct cheriabi_quotactl_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char *__capability */
 		iarg[1] = p->cmd; /* int */
 		iarg[2] = p->uid; /* int */
-		uarg[3] = (intptr_t) p->arg; /* void * */
+		uarg[3] = (intptr_t) p->arg; /* void *__capability */
 		*n_args = 4;
 		break;
 	}
@@ -807,7 +807,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 155: {
 		struct cheriabi_nfssvc_args *p = params;
 		iarg[0] = p->flag; /* int */
-		uarg[1] = (intptr_t) p->argp; /* void * */
+		uarg[1] = (intptr_t) p->argp; /* void *__capability */
 		*n_args = 2;
 		break;
 	}
@@ -1876,12 +1876,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
-	/* mac_syscall */
+	/* cheriabi_mac_syscall */
 	case 394: {
-		struct mac_syscall_args *p = params;
-		uarg[0] = (intptr_t) p->policy; /* const char * */
+		struct cheriabi_mac_syscall_args *p = params;
+		uarg[0] = (intptr_t) p->policy; /* const char *__capability */
 		iarg[1] = p->call; /* int */
-		uarg[2] = (intptr_t) p->arg; /* void * */
+		uarg[2] = (intptr_t) p->arg; /* void *__capability */
 		*n_args = 3;
 		break;
 	}
@@ -2144,11 +2144,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* auditon */
+	/* cheriabi_auditon */
 	case 446: {
-		struct auditon_args *p = params;
+		struct cheriabi_auditon_args *p = params;
 		iarg[0] = p->cmd; /* int */
-		uarg[1] = (intptr_t) p->data; /* void * */
+		uarg[1] = (intptr_t) p->data; /* void *__capability */
 		uarg[2] = p->length; /* u_int */
 		*n_args = 3;
 		break;
@@ -3287,20 +3287,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* getpid */
 	case 20:
 		break;
-	/* mount */
+	/* cheriabi_mount */
 	case 21:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 1:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 2:
 			p = "int";
 			break;
 		case 3:
-			p = "userland void *";
+			p = "userland void *__capability";
 			break;
 		default:
 			break;
@@ -4351,11 +4351,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* setsid */
 	case 147:
 		break;
-	/* quotactl */
+	/* cheriabi_quotactl */
 	case 148:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 1:
 			p = "int";
@@ -4364,7 +4364,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "userland void *";
+			p = "userland void *__capability";
 			break;
 		default:
 			break;
@@ -4396,7 +4396,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "userland void *";
+			p = "userland void *__capability";
 			break;
 		default:
 			break;
@@ -6109,17 +6109,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* mac_syscall */
+	/* cheriabi_mac_syscall */
 	case 394:
 		switch(ndx) {
 		case 0:
-			p = "userland const char *";
+			p = "userland const char *__capability";
 			break;
 		case 1:
 			p = "int";
 			break;
 		case 2:
-			p = "userland void *";
+			p = "userland void *__capability";
 			break;
 		default:
 			break;
@@ -6561,14 +6561,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* auditon */
+	/* cheriabi_auditon */
 	case 446:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "userland void *";
+			p = "userland void *__capability";
 			break;
 		case 2:
 			p = "u_int";
@@ -8342,7 +8342,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getpid */
 	case 20:
-	/* mount */
+	/* cheriabi_mount */
 	case 21:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -8717,7 +8717,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* setsid */
 	case 147:
-	/* quotactl */
+	/* cheriabi_quotactl */
 	case 148:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9360,7 +9360,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* mac_syscall */
+	/* cheriabi_mac_syscall */
 	case 394:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9520,7 +9520,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* auditon */
+	/* cheriabi_auditon */
 	case 446:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

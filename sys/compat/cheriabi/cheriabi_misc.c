@@ -2147,3 +2147,31 @@ cheriabi_mmap_set_retcap(struct thread *td, void * __capability *retcap,
 
 	return (0);
 }
+
+int
+cheriabi_mount(struct thread *td, struct cheriabi_mount_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cheriabi_quotactl(struct thread *td, struct cheriabi_quotactl_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cheriabi_mac_syscall(struct thread *td, struct cheriabi_mac_syscall_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+cheriabi_auditon(struct thread *td, struct cheriabi_auditon_args *uap)
+{
+
+	return (ENOSYS);
+}

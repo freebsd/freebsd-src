@@ -98,10 +98,12 @@
 18	AUE_GETFSSTAT	OBSOL	getstatfs
 19	AUE_LSEEK	OBSOL	lseek
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
-; XXX-BD: no way to sanity check data
-21	AUE_MOUNT	NOPROTO	{ int mount(_In_z_ const char *type, \
-				    _In_z_ const char *path, \
-				    int flags, _In_opt_ void *data); }
+; XXX-BD: should be OBSOL, but need to fix amd
+21	AUE_MOUNT	STD	{ int cheriabi_mount( \
+				    _In_z_ const char * __capability type, \
+				    _In_z_ const char * __capability path, \
+				    int flags, \
+				    _In_opt_ void * __capability data); }
 22	AUE_UMOUNT	NOPROTO	{ int unmount(_In_z_ const char *path, \
 				    int flags); }
 23	AUE_SETUID	NOPROTO	{ int setuid(uid_t uid); }
@@ -332,9 +334,10 @@
 145	AUE_SETRLIMIT	OBSOL	setrlimit
 146	AUE_KILLPG	OBSOL	killpg
 147	AUE_SETSID	NOPROTO	{ int setsid(void); }
-; XXX-BD no practical way to check arg
-148	AUE_QUOTACTL	NOPROTO	{ int quotactl(_In_z_ const char *path, \
-				    int cmd, int uid, _In_ void *arg); }
+148	AUE_QUOTACTL	STD	{ int cheriabi_quotactl( \
+				    _In_z_ const char * __capability path, \
+				    int cmd, int uid, \
+				    _In_ void * __capability arg); }
 149	AUE_O_QUOTA	OBSOL oquota
 150	AUE_GETSOCKNAME	OBSOL ogetsockname
 
@@ -351,9 +354,8 @@
 				    _In_reads_(addr_count) \
 				    void * __capability *addrs); }
 ; 155 is initialized by the NFS code, if present.
-; XXX-BD: argp is impractical to check except by hand
-155	AUE_NFS_SVC	NOSTD|NOPARSE	{ int cheriabi_nfssvc(int flag, \
-				    void * argp); }
+155	AUE_NFS_SVC	NOSTD	{ int cheriabi_nfssvc(int flag, \
+				    void * __capability argp); }
 156	AUE_GETDIRENTRIES OBSOL getdirentries
 157	AUE_STATFS	OBSOL	statfs
 158	AUE_FSTATFS	OBSOL	fstatfs
@@ -795,10 +797,10 @@
 				    size_t nbytes, \
 				    _In_opt_ struct sf_hdtr_c *hdtr, \
 				    _Out_opt_ off_t *sbytes, int flags); }
-; XXX-BD: probably requires a wrapper
-394	AUE_NULL	NOPROTO|NOPARSE	{ int mac_syscall( \
-				    _In_z_ const char *policy, \
-				    int call, _In_opt_ void *arg); }
+394	AUE_NULL	STD	{ int cheriabi_mac_syscall( \
+				    _In_z_ const char * __capability policy, \
+				    int call, \
+				    _In_opt_ void * __capability arg); }
 395	AUE_GETFSSTAT	OBSOL	fbsd11_getfsstat
 396	AUE_STATFS	OBSOL	fbsd11_statfs
 397	AUE_FSTATFS	OBSOL	fbsd11_ftatfs
@@ -907,8 +909,8 @@
 				    _In_reads_bytes_(length) \
 				    const void *record, \
 				    u_int length); }
-446	AUE_AUDITON	NOPROTO|NOPARSE	{ int auditon(int cmd, \
-				    _In_opt_ void *data, \
+446	AUE_AUDITON	STD	{ int cheriabi_auditon(int cmd, \
+				    _In_opt_ void * __capability data, \
 				    u_int length); }
 447	AUE_GETAUID	NOPROTO	{ int getauid(_Out_ uid_t *auid); }
 448	AUE_SETAUID	NOPROTO	{ int setauid(_In_ uid_t *auid); }
@@ -916,8 +918,6 @@
 				    _Out_ struct auditinfo *auditinfo); }
 450	AUE_SETAUDIT	NOPROTO	{ int setaudit( \
 				    _In_ struct auditinfo *auditinfo); }
-; XXX-BD: Why does this take a length when it wants to copy out a single
-; struct.
 451	AUE_GETAUDIT_ADDR	NOPROTO	{ int getaudit_addr( \
 				    _Out_writes_bytes_(length) \
 				    struct auditinfo_addr *auditinfo_addr, \
@@ -928,7 +928,6 @@
 				    u_int length); }
 453	AUE_AUDITCTL	NOPROTO	{ int auditctl(_In_z_ const char *path); }
 ; XXX-BD: args pretty much unauditable
-; XXXBD: do uaddr(2) need special handling?
 454	AUE_NULL	NOPROTO|NOPARSE	{ int _umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr1, \
 				    void *uaddr2); }
