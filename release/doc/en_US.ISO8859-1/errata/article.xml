@@ -105,8 +105,8 @@
 	  without recompiling the kernel.</para>
 
 	<para>To mitigate system crashes with such configurations,
-	  chose <literal>Escape to loader prompt</literal> in the boot
-	  menu and enter the following lines from &man.loader.8;
+	  choose <literal>Escape to loader prompt</literal> in the
+	  boot menu and enter the following lines from &man.loader.8;
 	  prompt, after an <literal>OK</literal>:</para>
 
 	<screen>set kern.kstack_pages=4
