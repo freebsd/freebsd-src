@@ -325,8 +325,10 @@ static int	iwm_mvm_get_signal_strength(struct iwm_softc *,
 					    struct iwm_rx_phy_info *);
 static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
                                       struct iwm_rx_packet *);
-static int	iwm_get_noise(struct iwm_softc *sc,
+static int	iwm_get_noise(struct iwm_softc *,
 		    const struct iwm_mvm_statistics_rx_non_phy *);
+static void	iwm_mvm_handle_rx_statistics(struct iwm_softc *,
+		    struct iwm_rx_packet *);
 static boolean_t iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct mbuf *,
 				    uint32_t, boolean_t);
 static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
@@ -3159,6 +3161,15 @@ iwm_get_noise(struct iwm_softc *sc,
 #endif
 }
 
+static void
+iwm_mvm_handle_rx_statistics(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
+{
+	struct iwm_notif_statistics_v10 *stats = (void *)&pkt->data;
+
+	memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
+	sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
+}
+
 /*
  * iwm_mvm_rx_rx_mpdu - IWM_REPLY_RX_MPDU_CMD handler
  *
@@ -5292,13 +5303,9 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 		case IWM_CALIB_RES_NOTIF_PHY_DB:
 			break;
 
-		case IWM_STATISTICS_NOTIFICATION: {
-			struct iwm_notif_statistics *stats;
-			stats = (void *)pkt->data;
-			memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
-			sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
+		case IWM_STATISTICS_NOTIFICATION:
+			iwm_mvm_handle_rx_statistics(sc, pkt);
 			break;
-		}
 
 		case IWM_NVM_ACCESS_CMD:
 		case IWM_MCC_UPDATE_CMD:
