@@ -87,19 +87,22 @@ typedef enum drr_headertype {
 #define	DMU_BACKUP_FEATURE_SA_SPILL		(1 << 2)
 /* flags #3 - #15 are reserved for incompatible closed-source implementations */
 #define	DMU_BACKUP_FEATURE_EMBED_DATA		(1 << 16)
-#define	DMU_BACKUP_FEATURE_EMBED_DATA_LZ4	(1 << 17)
+#define	DMU_BACKUP_FEATURE_LZ4			(1 << 17)
 /* flag #18 is reserved for a Delphix feature */
 #define	DMU_BACKUP_FEATURE_LARGE_BLOCKS		(1 << 19)
 #define	DMU_BACKUP_FEATURE_RESUMING		(1 << 20)
+/* flag #21 is reserved for a Delphix feature */
+#define	DMU_BACKUP_FEATURE_COMPRESSED		(1 << 22)
 
 /*
  * Mask of all supported backup features
  */
 #define	DMU_BACKUP_FEATURE_MASK	(DMU_BACKUP_FEATURE_DEDUP | \
     DMU_BACKUP_FEATURE_DEDUPPROPS | DMU_BACKUP_FEATURE_SA_SPILL | \
-    DMU_BACKUP_FEATURE_EMBED_DATA | DMU_BACKUP_FEATURE_EMBED_DATA_LZ4 | \
+    DMU_BACKUP_FEATURE_EMBED_DATA | DMU_BACKUP_FEATURE_LZ4 | \
     DMU_BACKUP_FEATURE_RESUMING | \
-    DMU_BACKUP_FEATURE_LARGE_BLOCKS)
+    DMU_BACKUP_FEATURE_LARGE_BLOCKS | \
+    DMU_BACKUP_FEATURE_COMPRESSED)
 
 /* Are all features in the given flag word currently supported? */
 #define	DMU_STREAM_SUPPORTED(x)	(!((x) & ~DMU_BACKUP_FEATURE_MASK))
@@ -152,89 +155,11 @@ typedef enum dmu_send_resume_token_version {
 
 #define	DRR_IS_DEDUP_CAPABLE(flags)	((flags) & DRR_CHECKSUM_DEDUP)
 
-/*
- * zfs ioctl command structure
- */
-struct drr_begin {
-	uint64_t drr_magic;
-	uint64_t drr_versioninfo; /* was drr_version */
-	uint64_t drr_creation_time;
-	dmu_objset_type_t drr_type;
-	uint32_t drr_flags;
-	uint64_t drr_toguid;
-	uint64_t drr_fromguid;
-	char drr_toname[MAXNAMELEN];
-};
-
-struct drr_end {
-	zio_cksum_t drr_checksum;
-	uint64_t drr_toguid;
-};
-
-struct drr_object {
-	uint64_t drr_object;
-	dmu_object_type_t drr_type;
-	dmu_object_type_t drr_bonustype;
-	uint32_t drr_blksz;
-	uint32_t drr_bonuslen;
-	uint8_t drr_checksumtype;
-	uint8_t drr_compress;
-	uint8_t drr_pad[6];
-	uint64_t drr_toguid;
-	/* bonus content follows */
-};
-
-struct drr_freeobjects {
-	uint64_t drr_firstobj;
-	uint64_t drr_numobjs;
-	uint64_t drr_toguid;
-};
-
-struct drr_write {
-	uint64_t drr_object;
-	dmu_object_type_t drr_type;
-	uint32_t drr_pad;
-	uint64_t drr_offset;
-	uint64_t drr_length;
-	uint64_t drr_toguid;
-	uint8_t drr_checksumtype;
-	uint8_t drr_checksumflags;
-	uint8_t drr_pad2[6];
-	ddt_key_t drr_key; /* deduplication key */
-	/* content follows */
-};
-
-struct drr_free {
-	uint64_t drr_object;
-	uint64_t drr_offset;
-	uint64_t drr_length;
-	uint64_t drr_toguid;
-};
-
-struct drr_write_byref {
-	/* where to put the data */
-	uint64_t drr_object;
-	uint64_t drr_offset;
-	uint64_t drr_length;
-	uint64_t drr_toguid;
-	/* where to find the prior copy of the data */
-	uint64_t drr_refguid;
-	uint64_t drr_refobject;
-	uint64_t drr_refoffset;
-	/* properties of the data */
-	uint8_t drr_checksumtype;
-	uint8_t drr_checksumflags;
-	uint8_t drr_pad2[6];
-	ddt_key_t drr_key; /* deduplication key */
-};
-
-struct drr_spill {
-	uint64_t drr_object;
-	uint64_t drr_length;
-	uint64_t drr_toguid;
-	uint64_t drr_pad[4]; /* needed for crypto */
-	/* spill data follows */
-};
+/* deal with compressed drr_write replay records */
+#define	DRR_WRITE_COMPRESSED(drrw)	((drrw)->drr_compressiontype != 0)
+#define	DRR_WRITE_PAYLOAD_SIZE(drrw) \
+	(DRR_WRITE_COMPRESSED(drrw) ? (drrw)->drr_compressed_size : \
+	(drrw)->drr_logical_size)
 
 typedef struct dmu_replay_record {
 	enum {
@@ -244,14 +169,83 @@ typedef struct dmu_replay_record {
 	} drr_type;
 	uint32_t drr_payloadlen;
 	union {
-		struct drr_begin drr_begin;
-		struct drr_end drr_end;
-		struct drr_object drr_object;
-		struct drr_freeobjects drr_freeobjects;
-		struct drr_write drr_write;
-		struct drr_free drr_free;
-		struct drr_write_byref drr_write_byref;
-		struct drr_spill drr_spill;
+		struct drr_begin {
+			uint64_t drr_magic;
+			uint64_t drr_versioninfo; /* was drr_version */
+			uint64_t drr_creation_time;
+			dmu_objset_type_t drr_type;
+			uint32_t drr_flags;
+			uint64_t drr_toguid;
+			uint64_t drr_fromguid;
+			char drr_toname[MAXNAMELEN];
+		} drr_begin;
+		struct drr_end {
+			zio_cksum_t drr_checksum;
+			uint64_t drr_toguid;
+		} drr_end;
+		struct drr_object {
+			uint64_t drr_object;
+			dmu_object_type_t drr_type;
+			dmu_object_type_t drr_bonustype;
+			uint32_t drr_blksz;
+			uint32_t drr_bonuslen;
+			uint8_t drr_checksumtype;
+			uint8_t drr_compress;
+			uint8_t drr_pad[6];
+			uint64_t drr_toguid;
+			/* bonus content follows */
+		} drr_object;
+		struct drr_freeobjects {
+			uint64_t drr_firstobj;
+			uint64_t drr_numobjs;
+			uint64_t drr_toguid;
+		} drr_freeobjects;
+		struct drr_write {
+			uint64_t drr_object;
+			dmu_object_type_t drr_type;
+			uint32_t drr_pad;
+			uint64_t drr_offset;
+			uint64_t drr_logical_size;
+			uint64_t drr_toguid;
+			uint8_t drr_checksumtype;
+			uint8_t drr_checksumflags;
+			uint8_t drr_compressiontype;
+			uint8_t drr_pad2[5];
+			/* deduplication key */
+			ddt_key_t drr_key;
+			/* only nonzero if drr_compressiontype is not 0 */
+			uint64_t drr_compressed_size;
+			/* content follows */
+		} drr_write;
+		struct drr_free {
+			uint64_t drr_object;
+			uint64_t drr_offset;
+			uint64_t drr_length;
+			uint64_t drr_toguid;
+		} drr_free;
+		struct drr_write_byref {
+			/* where to put the data */
+			uint64_t drr_object;
+			uint64_t drr_offset;
+			uint64_t drr_length;
+			uint64_t drr_toguid;
+			/* where to find the prior copy of the data */
+			uint64_t drr_refguid;
+			uint64_t drr_refobject;
+			uint64_t drr_refoffset;
+			/* properties of the data */
+			uint8_t drr_checksumtype;
+			uint8_t drr_checksumflags;
+			uint8_t drr_pad2[6];
+			ddt_key_t drr_key; /* deduplication key */
+		} drr_write_byref;
+		struct drr_spill {
+			uint64_t drr_object;
+			uint64_t drr_length;
+			uint64_t drr_toguid;
+			uint64_t drr_pad[4]; /* needed for crypto */
+			/* spill data follows */
+		} drr_spill;
 		struct drr_write_embedded {
 			uint64_t drr_object;
 			uint64_t drr_offset;
