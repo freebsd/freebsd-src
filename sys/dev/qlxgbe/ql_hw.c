@@ -2498,6 +2498,9 @@ ql_init_hw_if(qla_host_t *ha)
 	if (qla_hw_add_all_mcast(ha))
 		return (-1);
 
+	if (ql_set_max_mtu(ha, ha->max_frame_size, ha->hw.rcv_cntxt_id))
+		return (-1);
+
 	if (qla_config_rss(ha, ha->hw.rcv_cntxt_id))
 		return (-1);
 
