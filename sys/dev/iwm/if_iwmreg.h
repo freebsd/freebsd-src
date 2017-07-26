@@ -3981,12 +3981,12 @@ enum {
  * Bit 11-12: (0) 20MHz, (1) 40MHz, (2) 80MHz, (3) 160MHz
  * 0 and 1 are valid for HT and VHT, 2 and 3 only for VHT
  */
-#define IWM_RATE_MCS_CHAN_WIDTH_POS		11
-#define IWM_RATE_MCS_CHAN_WIDTH_MSK		(3 << IWM_RATE_MCS_CHAN_WIDTH_POS)
-#define IWM_RATE_MCS_CHAN_WIDTH_20		(0 << IWM_RATE_MCS_CHAN_WIDTH_POS)
-#define IWM_RATE_MCS_CHAN_WIDTH_40		(1 << IWM_RATE_MCS_CHAN_WIDTH_POS)
-#define IWM_RATE_MCS_CHAN_WIDTH_80		(2 << IWM_RATE_MCS_CHAN_WIDTH_POS)
-#define IWM_RATE_MCS_CHAN_WIDTH_160		(3 << IWM_RATE_MCS_CHAN_WIDTH_POS)
+#define IWM_RATE_MCS_CHAN_WIDTH_POS	11
+#define IWM_RATE_MCS_CHAN_WIDTH_MSK	(3 << IWM_RATE_MCS_CHAN_WIDTH_POS)
+#define IWM_RATE_MCS_CHAN_WIDTH_20	(0 << IWM_RATE_MCS_CHAN_WIDTH_POS)
+#define IWM_RATE_MCS_CHAN_WIDTH_40	(1 << IWM_RATE_MCS_CHAN_WIDTH_POS)
+#define IWM_RATE_MCS_CHAN_WIDTH_80	(2 << IWM_RATE_MCS_CHAN_WIDTH_POS)
+#define IWM_RATE_MCS_CHAN_WIDTH_160	(3 << IWM_RATE_MCS_CHAN_WIDTH_POS)
 
 /* Bit 13: (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
 #define IWM_RATE_MCS_SGI_POS		13
@@ -3999,7 +3999,7 @@ enum {
 #define IWM_RATE_MCS_ANT_C_MSK		(4 << IWM_RATE_MCS_ANT_POS)
 #define IWM_RATE_MCS_ANT_AB_MSK		(IWM_RATE_MCS_ANT_A_MSK | \
 					 IWM_RATE_MCS_ANT_B_MSK)
-#define IWM_RATE_MCS_ANT_ABC_MSK		(IWM_RATE_MCS_ANT_AB_MSK | \
+#define IWM_RATE_MCS_ANT_ABC_MSK	(IWM_RATE_MCS_ANT_AB_MSK | \
 					 IWM_RATE_MCS_ANT_C_MSK)
 #define IWM_RATE_MCS_ANT_MSK		IWM_RATE_MCS_ANT_ABC_MSK
 #define IWM_RATE_MCS_ANT_NUM 3
@@ -4009,8 +4009,8 @@ enum {
 #define IWM_RATE_MCS_STBC_MSK		(1 << IWM_RATE_MCS_STBC_POS)
 
 /* Bit 19: (0) Beamforming is off, (1) Beamforming is on */
-#define IWM_RATE_MCS_BF_POS			19
-#define IWM_RATE_MCS_BF_MSK			(1 << IWM_RATE_MCS_BF_POS)
+#define IWM_RATE_MCS_BF_POS		19
+#define IWM_RATE_MCS_BF_MSK		(1 << IWM_RATE_MCS_BF_POS)
 
 /* Bit 20: (0) ZLF is off, (1) ZLF is on */
 #define IWM_RATE_MCS_ZLF_POS		20
@@ -4033,28 +4033,64 @@ enum {
 /* Link quality command flags bit fields */
 
 /* Bit 0: (0) Don't use RTS (1) Use RTS */
-#define IWM_LQ_FLAG_USE_RTS_POS             0
-#define IWM_LQ_FLAG_USE_RTS_MSK	        (1 << IWM_LQ_FLAG_USE_RTS_POS)
+#define IWM_LQ_FLAG_USE_RTS_POS         0
+#define IWM_LQ_FLAG_USE_RTS_MSK         (1 << IWM_LQ_FLAG_USE_RTS_POS)
 
 /* Bit 1-3: LQ command color. Used to match responses to LQ commands */
-#define IWM_LQ_FLAG_COLOR_POS               1
-#define IWM_LQ_FLAG_COLOR_MSK               (7 << IWM_LQ_FLAG_COLOR_POS)
+#define IWM_LQ_FLAG_COLOR_POS           1
+#define IWM_LQ_FLAG_COLOR_MSK           (7 << IWM_LQ_FLAG_COLOR_POS)
 
 /* Bit 4-5: Tx RTS BW Signalling
  * (0) No RTS BW signalling
  * (1) Static BW signalling
  * (2) Dynamic BW signalling
  */
-#define IWM_LQ_FLAG_RTS_BW_SIG_POS          4
-#define IWM_LQ_FLAG_RTS_BW_SIG_NONE         (0 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
-#define IWM_LQ_FLAG_RTS_BW_SIG_STATIC       (1 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
-#define IWM_LQ_FLAG_RTS_BW_SIG_DYNAMIC      (2 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
+#define IWM_LQ_FLAG_RTS_BW_SIG_POS      4
+#define IWM_LQ_FLAG_RTS_BW_SIG_NONE     (0 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
+#define IWM_LQ_FLAG_RTS_BW_SIG_STATIC   (1 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
+#define IWM_LQ_FLAG_RTS_BW_SIG_DYNAMIC  (2 << IWM_LQ_FLAG_RTS_BW_SIG_POS)
 
 /* Bit 6: (0) No dynamic BW selection (1) Allow dynamic BW selection
  * Dyanmic BW selection allows Tx with narrower BW then requested in rates
  */
-#define IWM_LQ_FLAG_DYNAMIC_BW_POS          6
-#define IWM_LQ_FLAG_DYNAMIC_BW_MSK          (1 << IWM_LQ_FLAG_DYNAMIC_BW_POS)
+#define IWM_LQ_FLAG_DYNAMIC_BW_POS      6
+#define IWM_LQ_FLAG_DYNAMIC_BW_MSK      (1 << IWM_LQ_FLAG_DYNAMIC_BW_POS)
+
+/* Single Stream Tx Parameters (lq_cmd->ss_params)
+ * Flags to control a smart FW decision about whether BFER/STBC/SISO will be
+ * used for single stream Tx.
+ */
+
+/* Bit 0-1: Max STBC streams allowed. Can be 0-3.
+ * (0) - No STBC allowed
+ * (1) - 2x1 STBC allowed (HT/VHT)
+ * (2) - 4x2 STBC allowed (HT/VHT)
+ * (3) - 3x2 STBC allowed (HT only)
+ * All our chips are at most 2 antennas so only (1) is valid for now.
+ */
+#define IWM_LQ_SS_STBC_ALLOWED_POS	0
+#define IWM_LQ_SS_STBC_ALLOWED_MSK	(3 << IWM_LQ_SS_STBC_ALLOWED_MSK)
+
+/* 2x1 STBC is allowed */
+#define IWM_LQ_SS_STBC_1SS_ALLOWED	(1 << IWM_LQ_SS_STBC_ALLOWED_POS)
+
+/* Bit 2: Beamformer (VHT only) is allowed */
+#define IWM_LQ_SS_BFER_ALLOWED_POS	2
+#define IWM_LQ_SS_BFER_ALLOWED		(1 << IWM_LQ_SS_BFER_ALLOWED_POS)
+
+/* Bit 3: Force BFER or STBC for testing
+ * If this is set:
+ * If BFER is allowed then force the ucode to choose BFER else
+ * If STBC is allowed then force the ucode to choose STBC over SISO
+ */
+#define IWM_LQ_SS_FORCE_POS		3
+#define IWM_LQ_SS_FORCE			(1 << IWM_LQ_SS_FORCE_POS)
+
+/* Bit 31: ss_params field is valid. Used for FW backward compatibility
+ * with other drivers which don't support the ss_params API yet
+ */
+#define IWM_LQ_SS_PARAMS_VALID_POS	31
+#define IWM_LQ_SS_PARAMS_VALID		(1 << IWM_LQ_SS_PARAMS_VALID_POS)
 
 /**
  * struct iwm_lq_cmd - link quality command
@@ -4078,11 +4114,11 @@ enum {
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @rs_table: array of rates for each TX try, each is rate_n_flags,
  *	meaning it is a combination of IWM_RATE_MCS_* and IWM_RATE_*_PLCP
- * @bf_params: beam forming params, currently not used
+ * @ss_params: single stream features. declare whether STBC or BFER are allowed.
  */
 struct iwm_lq_cmd {
 	uint8_t sta_id;
-	uint8_t reserved1;
+	uint8_t reduced_tpc;
 	uint16_t control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	uint8_t flags;
@@ -4096,7 +4132,7 @@ struct iwm_lq_cmd {
 	uint8_t agg_frame_cnt_limit;
 	uint32_t reserved2;
 	uint32_t rs_table[IWM_LQ_MAX_RETRY_NUM];
-	uint32_t bf_params;
+	uint32_t ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 
 /*
@@ -4533,7 +4569,8 @@ struct iwm_mvm_tx_resp {
 	uint8_t pa_integ_res_b[3];
 	uint8_t pa_integ_res_c[3];
 	uint16_t measurement_req_id;
-	uint16_t reserved;
+	uint8_t reduced_tpc;
+	uint8_t reserved;
 
 	uint32_t tfd_info;
 	uint16_t seq_ctl;
