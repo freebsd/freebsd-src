@@ -742,6 +742,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    BUS_DMA_NOWAIT, &slot->dmamap);
 	if (err != 0) {
 		device_printf(dev, "Can't alloc DMA memory\n");
+		bus_dma_tag_destroy(slot->dmatag);
 		SDHCI_LOCK_DESTROY(slot);
 		return (err);
 	}
@@ -751,6 +752,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    sdhci_getaddr, &slot->paddr, 0);
 	if (err != 0 || slot->paddr == 0) {
 		device_printf(dev, "Can't load DMA memory\n");
+		bus_dmamem_free(slot->dmatag, slot->dmamem, slot->dmamap);
+		bus_dma_tag_destroy(slot->dmatag);
 		SDHCI_LOCK_DESTROY(slot);
 		if (err)
 			return (err);
@@ -769,6 +772,22 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 			caps2 = RD4(slot, SDHCI_CAPABILITIES2);
 		else
 			caps2 = 0;
+	}
+	if (slot->version >= SDHCI_SPEC_300) {
+		if ((caps & SDHCI_SLOTTYPE_MASK) != SDHCI_SLOTTYPE_REMOVABLE &&
+		    (caps & SDHCI_SLOTTYPE_MASK) != SDHCI_SLOTTYPE_EMBEDDED) {
+			device_printf(dev,
+			    "Driver doesn't support shared bus slots\n");
+			bus_dmamap_unload(slot->dmatag, slot->dmamap);
+			bus_dmamem_free(slot->dmatag, slot->dmamem,
+			    slot->dmamap);
+			bus_dma_tag_destroy(slot->dmatag);
+			SDHCI_LOCK_DESTROY(slot);
+			return (ENXIO);
+		} else if ((caps & SDHCI_SLOTTYPE_MASK) ==
+		    SDHCI_SLOTTYPE_EMBEDDED) {
+			slot->opt |= SDHCI_SLOT_EMBEDDED | SDHCI_NON_REMOVABLE;
+		}
 	}
 	/* Calculate base clock frequency. */
 	if (slot->version >= SDHCI_SPEC_300)
@@ -819,7 +838,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	    slot->host.host_ocr |= MMC_OCR_320_330 | MMC_OCR_330_340;
 	if (caps & SDHCI_CAN_VDD_300)
 	    slot->host.host_ocr |= MMC_OCR_290_300 | MMC_OCR_300_310;
-	if (caps & SDHCI_CAN_VDD_180)
+	/* 1.8V VDD is not supposed to be used for removable cards. */
+	if ((caps & SDHCI_CAN_VDD_180) && (slot->opt & SDHCI_SLOT_EMBEDDED))
 	    slot->host.host_ocr |= MMC_OCR_LOW_VOLTAGE;
 	if (slot->host.host_ocr == 0) {
 		device_printf(dev, "Hardware doesn't report any "
@@ -966,20 +986,24 @@ no_tuning:
 
 	if (bootverbose || sdhci_debug) {
 		slot_printf(slot,
-		    "%uMHz%s %s VDD:%s%s%s VCCQ: 3.3V%s%s DRV: B%s%s%s %s\n",
+		    "%uMHz%s %s VDD:%s%s%s VCCQ: 3.3V%s%s DRV: B%s%s%s %s %s\n",
 		    slot->max_clk / 1000000,
 		    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
 		    (host_caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
 			((host_caps & MMC_CAP_4_BIT_DATA) ? "4bits" : "1bit"),
 		    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
 		    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
-		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
+		    ((caps & SDHCI_CAN_VDD_180) &&
+		    (slot->opt & SDHCI_SLOT_EMBEDDED)) ? " 1.8V" : "",
 		    (host_caps & MMC_CAP_SIGNALING_180) ? " 1.8V" : "",
 		    (host_caps & MMC_CAP_SIGNALING_120) ? " 1.2V" : "",
 		    (host_caps & MMC_CAP_DRIVER_TYPE_A) ? "A" : "",
 		    (host_caps & MMC_CAP_DRIVER_TYPE_C) ? "C" : "",
 		    (host_caps & MMC_CAP_DRIVER_TYPE_D) ? "D" : "",
-		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
+		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO",
+		    (slot->opt & SDHCI_SLOT_EMBEDDED) ? "embedded" :
+		    (slot->opt & SDHCI_NON_REMOVABLE) ? "non-removable" :
+		    "removable");
 		if (host_caps & (MMC_CAP_MMC_DDR52 | MMC_CAP_MMC_HS200 |
 		    MMC_CAP_MMC_HS400 | MMC_CAP_MMC_ENH_STROBE))
 			slot_printf(slot, "eMMC:%s%s%s%s\n",
