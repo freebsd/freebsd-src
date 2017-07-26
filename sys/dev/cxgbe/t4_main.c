@@ -4450,7 +4450,7 @@ adapter_full_init(struct adapter *sc)
 	for (i = 0; i < nitems(rss_key); i++) {
 		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
 	}
-	t4_write_rss_key(sc, &rss_key[0], -1);
+	t4_write_rss_key(sc, &rss_key[0], -1, 1);
 #endif
 
 	if (!(sc->flags & IS_VF))
@@ -6528,7 +6528,7 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	mtx_lock(&sc->reg_lock);
-	t4_tp_get_cpl_stats(sc, &stats);
+	t4_tp_get_cpl_stats(sc, &stats, 0);
 	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
@@ -6568,7 +6568,7 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	t4_get_usm_stats(sc, &stats);
+	t4_get_usm_stats(sc, &stats, 1);
 
 	sbuf_printf(sb, "Frames: %u\n", stats.frames);
 	sbuf_printf(sb, "Octets: %ju\n", stats.octets);
@@ -6716,7 +6716,7 @@ sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	for (i = 0; i < nchan; i++)
-		t4_get_fcoe_stats(sc, i, &stats[i]);
+		t4_get_fcoe_stats(sc, i, &stats[i], 1);
 
 	if (nchan > 2) {
 		sbuf_printf(sb, "                   channel 0        channel 1"
@@ -6771,7 +6771,7 @@ sysctl_hw_sched(SYSCTL_HANDLER_ARGS)
 	    "Class IPG (0.1 ns)   Flow IPG (us)");
 
 	for (i = 0; i < NTX_SCHED; ++i, map >>= 2) {
-		t4_get_tx_sched(sc, i, &kbps, &ipg);
+		t4_get_tx_sched(sc, i, &kbps, &ipg, 1);
 		sbuf_printf(sb, "\n    %u      %-5s     %u     ", i,
 		    (mode & (1 << i)) ? "flow" : "class", map & 3);
 		if (kbps)
@@ -7505,7 +7505,7 @@ sysctl_rdma_stats(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	mtx_lock(&sc->reg_lock);
-	t4_tp_get_rdma_stats(sc, &stats);
+	t4_tp_get_rdma_stats(sc, &stats, 0);
 	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "NoRQEModDefferals: %u\n", stats.rqe_dfr_mod);
@@ -7534,7 +7534,7 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	mtx_lock(&sc->reg_lock);
-	t4_tp_get_tcp_stats(sc, &v4, &v6);
+	t4_tp_get_tcp_stats(sc, &v4, &v6, 0);
 	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb,
@@ -7639,7 +7639,7 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	mtx_lock(&sc->reg_lock);
-	t4_tp_get_err_stats(sc, &stats);
+	t4_tp_get_err_stats(sc, &stats, 0);
 	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
@@ -8459,7 +8459,7 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	}
 #endif
 
-	rc = -t4_set_filter_mode(sc, fconf);
+	rc = -t4_set_filter_mode(sc, fconf, true);
 done:
 	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
