@@ -151,6 +151,34 @@ boot</screen>
 
 	<para>There currently is no workaround.</para>
       </listitem>
+
+      <listitem>
+	<para>[2017-07-26] Note for those upgrading from 11.1-RC2 in
+	  <application>VirtualBox</application>:</para>
+
+	<para>If system panics were experienced when upgrading from
+	  11.1-RC1 to 11.1-RC2, and the <filename
+	    role="package">emulators/virtualbox-ose-additions{,-nox11}</filename>
+	  port was built locally as a resolution, the port will either
+	  need to be rebuilt when upgrading from 11.1-RC2 to
+	  11.1-RELEASE, or reinstall the package from the pkg(8)
+	  mirrors using either:</para>
+
+	<screen> &prompt.root; <userinput>pkg install -f virtualbox-ose-additions</userinput></screen>
+
+	<para>or</para>
+
+	<screen> &prompt.root; <userinput>pkg install -f virtualbox-ose-additions-nox11</userinput></screen>
+
+	<para>To ensure the system does not panic after rebooting into
+	  the updated kernel, it is recommended to disable the
+	  <literal>vboxguest</literal> service in &man.rc.conf.5;
+	  prior to rebooting the system if possible, or use
+	  &man.pkg.8; to forcefully reinstall the package.</para>
+
+	<para>Systems being upgraded from 11.1-RC1 and earlier and
+	  11.1-RC3 to 11.1-RELEASE should be unaffected.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
