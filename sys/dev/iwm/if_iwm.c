@@ -4451,13 +4451,6 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
-	{
-		struct iwm_host_cmd cmd = {
-			.id = IWM_LQ_CMD,
-			.len = { sizeof(in->in_lq), },
-			.flags = IWM_CMD_SYNC,
-		};
-
 		in = IWM_NODE(vap->iv_bss);
 		/* Update the association state, now we have it all */
 		/* (eg associd comes in at this point */
@@ -4482,15 +4475,13 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		iwm_mvm_update_quotas(sc, ivp);
 		iwm_setrates(sc, in);
 
-		cmd.data[0] = &in->in_lq;
-		if ((error = iwm_send_cmd(sc, &cmd)) != 0) {
+		if ((error = iwm_mvm_send_lq_cmd(sc, &in->in_lq, TRUE)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: IWM_LQ_CMD failed\n", __func__);
+			    "%s: IWM_LQ_CMD failed: %d\n", __func__, error);
 		}
 
 		iwm_mvm_led_enable(sc);
 		break;
-	}
 
 	default:
 		break;
