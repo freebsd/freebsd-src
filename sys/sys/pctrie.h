@@ -76,7 +76,7 @@ name##_PCTRIE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 	return name##_PCTRIE_VAL2PTR(pctrie_lookup(ptree, key));	\
 }									\
 									\
-static __inline struct type *						\
+static __inline __unused struct type *						\
 name##_PCTRIE_LOOKUP_LE(struct pctrie *ptree, uint64_t key)		\
 {									\
 									\
