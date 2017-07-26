@@ -1636,10 +1636,11 @@ vm_page_alloc_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 		return (NULL);
 	}
 
-	/*
-	 *  At this point we had better have found a good page.
-	 */
-	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
+	if (m == NULL) {
+		/* XXX */
+		mtx_unlock(&vm_page_queue_free_mtx);
+		return (NULL);
+	}
 	vm_phys_freecnt_adj(m, -1);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_alloc_check(m);
