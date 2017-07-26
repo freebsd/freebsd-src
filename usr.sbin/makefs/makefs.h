@@ -124,13 +124,13 @@ typedef struct {
 	off_t	minsize;	/* minimum size image should be */
 	off_t	maxsize;	/* maximum size image can be */
 	off_t	freefiles;	/* free file entries to leave */
-	int	freefilepc;	/* free file % */
 	off_t	freeblocks;	/* free blocks to leave */
+	off_t	roundup;	/* round image size up to this value */
+	int	freefilepc;	/* free file % */
 	int	freeblockpc;	/* free block % */
 	int	needswap;	/* non-zero if byte swapping needed */
 	int	sectorsize;	/* sector size */
 	int	sparse;		/* sparse image, don't fill it with zeros */
-	off_t	roundup;	/* round image size up to this value */
 
 	void	*fs_specific;	/* File system specific additions. */
 } fsinfo_t;
