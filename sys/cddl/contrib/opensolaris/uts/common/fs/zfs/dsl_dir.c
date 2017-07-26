@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
@@ -133,7 +133,7 @@ extern inline dsl_dir_phys_t *dsl_dir_phys(dsl_dir_t *dd);
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
 
 static void
-dsl_dir_evict(void *dbu)
+dsl_dir_evict_async(void *dbu)
 {
 	dsl_dir_t *dd = dbu;
 	dsl_pool_t *dp = dd->dd_pool;
@@ -240,7 +240,8 @@ dsl_dir_hold_obj(dsl_pool_t *dp, uint64_t ddobj,
 			dmu_buf_rele(origin_bonus, FTAG);
 		}
 
-		dmu_buf_init_user(&dd->dd_dbu, dsl_dir_evict, &dd->dd_dbuf);
+		dmu_buf_init_user(&dd->dd_dbu, NULL, dsl_dir_evict_async,
+		    &dd->dd_dbuf);
 		winner = dmu_buf_set_user_ie(dbuf, &dd->dd_dbu);
 		if (winner != NULL) {
 			if (dd->dd_parent)
