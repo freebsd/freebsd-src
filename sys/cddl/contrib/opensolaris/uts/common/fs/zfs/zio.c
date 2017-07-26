@@ -962,7 +962,7 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	flags |= ZIO_FLAG_DONT_QUEUE;
 
 	zio = zio_create(pio, spa, txg, bp, NULL, size,
-	    BP_GET_PSIZE(bp), NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_NOW,
+	    size, NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_NOW,
 	    flags, NULL, 0, NULL, ZIO_STAGE_OPEN, stage);
 
 	return (zio);
