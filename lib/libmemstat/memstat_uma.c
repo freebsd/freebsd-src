@@ -53,6 +53,8 @@ static struct nlist namelist[] = {
 	{ .n_name = "_mp_maxid" },
 #define	X_ALL_CPUS	2
 	{ .n_name = "_all_cpus" },
+#define	X_VM_NDOMAINS	3
+	{ .n_name = "_vm_ndomains" },
 	{ .n_name = "" },
 };
 
@@ -299,7 +301,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	struct uma_cache *ucp, *ucp_array;
 	struct uma_zone *uzp, uz;
 	struct uma_keg *kzp, kz;
-	int hint_dontsearch, i, mp_maxid, ret;
+	int hint_dontsearch, i, mp_maxid, ndomains, ret;
 	char name[MEMTYPE_MAXNAME];
 	cpuset_t all_cpus;
 	long cpusetsize;
@@ -317,6 +319,12 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 	ret = kread_symbol(kvm, X_MP_MAXID, &mp_maxid, sizeof(mp_maxid), 0);
+	if (ret != 0) {
+		list->mtl_error = ret;
+		return (-1);
+	}
+	ret = kread_symbol(kvm, X_VM_NDOMAINS, &ndomains,
+	    sizeof(ndomains), 0);
 	if (ret != 0) {
 		list->mtl_error = ret;
 		return (-1);
@@ -445,11 +453,15 @@ skip_percpu:
 				    kz.uk_ipers;
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-			for (ubp = LIST_FIRST(&uz.uz_buckets); ubp !=
-			    NULL; ubp = LIST_NEXT(&ub, ub_link)) {
-				ret = kread(kvm, ubp, &ub, sizeof(ub), 0);
-				mtp->mt_zonefree += ub.ub_cnt;
-			}
+			for (i = 0; i < ndomains; i++)
+				for (ubp =
+				    LIST_FIRST(&uz.uz_domain[i].uzd_buckets);
+				    ubp != NULL;
+				    ubp = LIST_NEXT(&ub, ub_link)) {
+					ret = kread(kvm, ubp, &ub, sizeof(ub),
+					    0);
+					mtp->mt_zonefree += ub.ub_cnt;
+				}
 			if (!((kz.uk_flags & UMA_ZONE_SECONDARY) &&
 			    LIST_FIRST(&kz.uk_zones) != uzp)) {
 				mtp->mt_kegfree = kz.uk_free;

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_domain.h>
 
+#if 0
 #ifdef VM_NUMA_ALLOC
 static __inline int
 vm_domain_rr_selectdomain(int skip_domain)
@@ -83,6 +84,7 @@ vm_domain_rr_selectdomain(int skip_domain)
 	}
 	return (td->td_dom_rr_idx);
 }
+#endif
 #endif
 
 /*
@@ -214,6 +216,7 @@ vm_domain_iterator_init(struct vm_domain_iterator *vi)
 	return (0);
 }
 
+#if 0
 /*
  * Manually setup an iterator with the given details.
  */
@@ -257,6 +260,7 @@ vm_domain_iterator_set(struct vm_domain_iterator *vi,
 #endif
 	return (0);
 }
+#endif
 
 /*
  * Setup an iterator based on the given policy.
@@ -265,6 +269,7 @@ static inline void
 _vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
     const struct vm_domain_policy *vt)
 {
+
 
 #ifdef VM_NUMA_ALLOC
 	/*
@@ -279,24 +284,16 @@ _vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
 	 */
 	switch (vt->p.policy) {
 	case VM_POLICY_FIXED_DOMAIN:
-		vi->policy = vt->p.policy;
-		vi->domain = vt->p.domain;
-		vi->n = 1;
-		break;
 	case VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN:
 		vi->policy = vt->p.policy;
+		vi->cursor = -1;
 		vi->domain = vt->p.domain;
-		vi->n = vm_ndomains;
 		break;
 	case VM_POLICY_FIRST_TOUCH:
-		vi->policy = vt->p.policy;
-		vi->domain = PCPU_GET(domain);
-		vi->n = 1;
-		break;
 	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
 		vi->policy = vt->p.policy;
-		vi->domain = PCPU_GET(domain);
-		vi->n = vm_ndomains;
+		vi->cursor = PCPU_GET(domain);
+		vi->domain = -1;
 		break;
 	case VM_POLICY_ROUND_ROBIN:
 	default:
@@ -304,13 +301,12 @@ _vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
 		 * Default to round-robin policy.
 		 */
 		vi->policy = VM_POLICY_ROUND_ROBIN;
-		vi->domain = -1;
-		vi->n = vm_ndomains;
+		vi->cursor = vi->domain = -1;
 		break;
 	}
 #else
+	vi->cursor = -1;
 	vi->domain = 0;
-	vi->n = 1;
 #endif
 }
 
@@ -331,6 +327,7 @@ vm_domain_iterator_set_policy(struct vm_domain_iterator *vi,
 	}
 }
 
+#if 0
 /*
  * Return the next VM domain to use.
  *
@@ -391,6 +388,7 @@ vm_domain_iterator_isdone(struct vm_domain_iterator *vi)
 
 	return (vi->n <= 0);
 }
+#endif
 
 int
 vm_domain_iterator_cleanup(struct vm_domain_iterator *vi)

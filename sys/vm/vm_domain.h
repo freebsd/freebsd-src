@@ -33,11 +33,45 @@
 
 #include <sys/_vm_domain.h>
 
-struct vm_domain_iterator {
-	vm_domain_policy_type_t policy;
+extern int vm_ndomains;
+extern struct vm_domain_policy *vm_default_policy;
+
+static inline int
+vm_domain_select_first(struct vm_domain_iterator *vi)
+{
 	int domain;
-	int n;
-};
+
+	switch (vi->policy) {
+	case VM_POLICY_NONE:
+		domain = 0;
+		break;
+	case VM_POLICY_ROUND_ROBIN:
+		domain = atomic_fetchadd_int(&vi->cursor, 1) % vm_ndomains;
+		break;
+	case VM_POLICY_FIXED_DOMAIN:
+	case VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN:
+		domain = vi->domain;
+		break;
+	case VM_POLICY_FIRST_TOUCH:
+	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
+		domain = PCPU_GET(domain);
+		break;
+	}
+	return (domain);
+}
+
+static inline int
+vm_domain_select_next(struct vm_domain_iterator *vi, int domain)
+{
+
+	switch (vi->policy) {
+	case VM_POLICY_FIXED_DOMAIN:
+	case VM_POLICY_FIRST_TOUCH:
+		return (-1);
+	default:
+		return ((domain + 1) % vm_ndomains);
+	}
+}
 
 /*
  * TODO: check to see if these should just become inline functions

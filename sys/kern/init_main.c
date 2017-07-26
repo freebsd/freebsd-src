@@ -484,6 +484,8 @@ proc0_init(void *dummy __unused)
 	td->td_cpuset = cpuset_thread0();
 	vm_domain_policy_init(&td->td_vm_dom_policy);
 	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
+	vm_domain_iterator_set_policy(&td->td_dom_selector,
+	    &td->td_vm_dom_policy);
 	vm_domain_policy_init(&p->p_vm_dom_policy);
 	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
 	prison0_init();

@@ -102,13 +102,22 @@ sys_numa_setaffinity(struct thread *td, struct numa_setaffinity_args *uap)
 	/*
 	 * XXX if cpuset_which is called with WHICH_CPUSET and NULL cpuset,
 	 * it'll return ESRCH.  We should just return EINVAL.
+	 *
+	 * XXXMJ nothing synchronizes updates to the thread iterators.
 	 */
 	switch (uap->which) {
 	case CPU_WHICH_TID:
 		vm_domain_policy_copy(&ttd->td_vm_dom_policy, &vp);
+		vm_domain_iterator_set_policy(&ttd->td_dom_selector, &vp);
 		break;
 	case CPU_WHICH_PID:
 		vm_domain_policy_copy(&p->p_vm_dom_policy, &vp);
+		PROC_LOCK(p);
+		FOREACH_THREAD_IN_PROC(p, ttd) {
+			vm_domain_iterator_set_policy(&ttd->td_dom_selector,
+			    &vp);
+		}
+		PROC_UNLOCK(p);
 		break;
 	default:
 		error = EINVAL;

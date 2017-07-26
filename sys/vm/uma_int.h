@@ -36,7 +36,22 @@
  */
 
 /* 
- * Here's a quick description of the relationship between the objects:
+ * The brief summary;  Zones describe unique allocation types.  Zones are
+ * organized into per-CPU caches which are filled by buckets.  Buckets are
+ * organized according to memory domains.  Buckets are filled from kegs which
+ * are also organized according to memory domains.  Kegs describe a unique
+ * allocation type, backend memory provider, and layout.  Kegs are associated
+ * with one or more zones and zones reference one or more kegs.  Kegs provide
+ * slabs which are virtually contiguous collections of pages.  Each slab is
+ * broken down int one or more items that will satisfy an individual allocation.
+ *
+ * Allocation is satisfied in the following order:
+ * 1) Per-CPU cache
+ * 2) Per-domain cache of buckets
+ * 3) Slab from any of N kegs
+ * 4) Backend page provider
+ *
+ * More detail on individual objects is contained below:
  *
  * Kegs contain lists of slabs which are stored in either the full bin, empty
  * bin, or partially allocated bin, to reduce fragmentation.  They also contain
@@ -44,6 +59,13 @@
  * and rsize is the result of that.  The Keg also stores information for
  * managing a hash of page addresses that maps pages to uma_slab_t structures
  * for pages that don't have embedded uma_slab_t's.
+ *
+ * Keg slab lists are organized by memory domain to support NUMA allocation
+ * policies.  By default allocations are spread across domains to reduce the
+ * potential for hotspots.  Special keg creation flags may be specified to
+ * prefer location allocation.  However there is no strict enforcement as frees
+ * may happen on any CPU and these are returned to the CPU-local cache
+ * regardless of the originating domain.
  *  
  * The uma_slab_t may be embedded in a UMA_SLAB_SIZE chunk of memory or it may
  * be allocated off the page from a special slab zone.  The free list within a
@@ -179,6 +201,17 @@ struct uma_cache {
 typedef struct uma_cache * uma_cache_t;
 
 /*
+ * Per-domain memory list.  Embedded in the kegs.
+ */
+struct uma_domain {
+	LIST_HEAD(,uma_slab)	ud_part_slab;	/* partially allocated slabs */
+	LIST_HEAD(,uma_slab)	ud_free_slab;	/* empty slab list */
+	LIST_HEAD(,uma_slab)	ud_full_slab;	/* full slabs */
+};
+
+typedef struct uma_domain * uma_domain_t;
+
+/*
  * Keg management structure
  *
  * TODO: Optimize for cache line size
@@ -189,10 +222,9 @@ struct uma_keg {
 	struct uma_hash	uk_hash;
 
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
-	LIST_HEAD(,uma_slab)	uk_part_slab;	/* partially allocated slabs */
-	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
-	LIST_HEAD(,uma_slab)	uk_full_slab;	/* full slabs */
+	struct uma_domain	uk_domain[MAXMEMDOM];	/* Keg's slab lists. */
 
+	uint32_t	uk_cursor;	/* Domain alloc cursor. */
 	uint32_t	uk_align;	/* Alignment mask */
 	uint32_t	uk_pages;	/* Total page count */
 	uint32_t	uk_free;	/* Count of items free in slabs */
@@ -245,20 +277,32 @@ struct uma_slab {
 #endif
 	uint16_t	us_freecount;		/* How many are free? */
 	uint8_t		us_flags;		/* Page flags see uma.h */
-	uint8_t		us_pad;			/* Pad to 32bits, unused. */
+	uint8_t		us_domain;		/* Backing NUMA domain. */
 };
 
 #define	us_link	us_type._us_link
 #define	us_size	us_type._us_size
 
+#if MAXMEMDOM >= 255
+#error "Slab domain type insufficient"
+#endif
+
+#define	UMA_ANYDOMAIN	-1
+
 typedef struct uma_slab * uma_slab_t;
-typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int);
+typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int, int);
 
 struct uma_klink {
 	LIST_ENTRY(uma_klink)	kl_link;
 	uma_keg_t		kl_keg;
 };
 typedef struct uma_klink *uma_klink_t;
+
+struct uma_zone_domain {
+	LIST_HEAD(,uma_bucket)	uzd_buckets;	/* full buckets */
+};
+
+typedef struct uma_zone_domain * uma_zone_domain_t;
 
 /*
  * Zone management structure 
@@ -272,7 +316,7 @@ struct uma_zone {
 	const char		*uz_name;	/* Text name of the zone */
 
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
-	LIST_HEAD(,uma_bucket)	uz_buckets;	/* full buckets */
+	struct uma_zone_domain	uz_domain[MAXMEMDOM]; /* per-domain buckets */
 
 	LIST_HEAD(,uma_klink)	uz_kegs;	/* List of kegs. */
 	struct uma_klink	uz_klink;	/* klink for first keg. */
@@ -295,6 +339,8 @@ struct uma_zone {
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_count;	/* Amount of items in full bucket */
 	uint16_t	uz_count_min;	/* Minimal amount of items there */
+
+	struct vm_domain_iterator *uz_sel; /* Domain selector. */
 
 	/* The next two fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */
@@ -419,8 +465,8 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
  * if they can provide more efficient allocation functions.  This is useful
  * for using direct mapped addresses.
  */
-void *uma_small_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag,
-    int wait);
+void *uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
+    uint8_t *pflag, int wait);
 void uma_small_free(void *mem, vm_size_t size, uint8_t flags);
 #endif /* _KERNEL */
 

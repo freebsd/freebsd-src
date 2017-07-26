@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -247,6 +248,9 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		panic("_vm_object_allocate: type %d is undefined", type);
 	}
 	object->size = size;
+#if MAXMEMDOM > 1
+	vm_domain_iterator_set_policy(&object->selector, vm_default_policy);
+#endif
 	object->generation = 1;
 	object->ref_count = 1;
 	object->memattr = VM_MEMATTR_DEFAULT;
@@ -1296,6 +1300,9 @@ vm_object_shadow(
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
 #endif
+#if MAXMEMDOM > 1
+		result->selector = source->selector;
+#endif
 		VM_OBJECT_WUNLOCK(source);
 	}
 
@@ -1337,6 +1344,9 @@ vm_object_split(vm_map_entry_t entry)
 	 * into a swap object.
 	 */
 	new_object = vm_object_allocate(OBJT_DEFAULT, size);
+#if MAXMEMDOM > 1
+	new_object->selector = orig_object->selector;
+#endif
 
 	/*
 	 * At this point, the new object is still private, so the order in

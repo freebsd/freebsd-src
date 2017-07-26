@@ -71,10 +71,11 @@ extern int vm_phys_nsegs;
  */
 void vm_phys_add_page(vm_paddr_t pa);
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end);
-vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary);
-vm_page_t vm_phys_alloc_freelist_pages(int freelist, int pool, int order);
-vm_page_t vm_phys_alloc_pages(int pool, int order);
+vm_page_t vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
+vm_page_t vm_phys_alloc_freelist_pages(int domain, int freelist, int pool,
+    int order);
+vm_page_t vm_phys_alloc_pages(int domain, int pool, int order);
 boolean_t vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high);
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
@@ -95,21 +96,34 @@ int vm_phys_mem_affinity(int f, int t);
  *
  * 	Return the memory domain the page belongs to.
  */
-static inline struct vm_domain *
+static inline int
 vm_phys_domain(vm_page_t m)
 {
 #ifdef VM_NUMA_ALLOC
-	int domn, segind;
+	int segind;
 
 	/* XXXKIB try to assert that the page is managed */
 	segind = m->segind;
 	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
-	domn = vm_phys_segs[segind].domain;
+	return (vm_phys_segs[segind].domain);
+#else
+	return (0);
+#endif
+}
+
+/*
+ *	vm_page_domain:
+ *
+ *	Return the memory domain structure the page belongs to.
+ */
+static inline struct vm_domain *
+vm_page_domain(vm_page_t m)
+{
+	int domn;
+
+	domn = vm_phys_domain(m);
 	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
 	return (&vm_dom[domn]);
-#else
-	return (&vm_dom[0]);
-#endif
 }
 
 static inline void
@@ -118,7 +132,7 @@ vm_phys_freecnt_adj(vm_page_t m, int adj)
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	vm_cnt.v_free_count += adj;
-	vm_phys_domain(m)->vmd_free_count += adj;
+	vm_page_domain(m)->vmd_free_count += adj;
 }
 
 #endif	/* _KERNEL */

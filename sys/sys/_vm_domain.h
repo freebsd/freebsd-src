@@ -40,7 +40,6 @@ typedef enum {
 	VM_POLICY_FIXED_DOMAIN_ROUND_ROBIN,
 	VM_POLICY_FIRST_TOUCH,
 	VM_POLICY_FIRST_TOUCH_ROUND_ROBIN,
-	VM_POLICY_MAX
 } vm_domain_policy_type_t;
 
 struct vm_domain_policy_entry {
@@ -51,6 +50,12 @@ struct vm_domain_policy_entry {
 struct vm_domain_policy {
 	seq_t seq;
 	struct vm_domain_policy_entry p;
+};
+
+struct vm_domain_iterator {
+	vm_domain_policy_type_t policy;
+	int cursor;
+	int domain;
 };
 
 #define VM_DOMAIN_POLICY_STATIC_INITIALISER(vt, vd) \

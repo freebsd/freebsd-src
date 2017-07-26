@@ -71,6 +71,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
+#include <sys/_vm_domain.h>
 
 #include <vm/_vm_radix.h>
 
@@ -94,6 +95,9 @@ struct vm_object {
 	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
+#if MAXMEMDOM > 1
+	struct vm_domain_iterator selector; /* NUMA domain selector. */
+#endif
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */

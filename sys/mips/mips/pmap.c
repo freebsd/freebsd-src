@@ -1061,7 +1061,7 @@ pmap_alloc_direct_page(unsigned int index, int req)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req | VM_ALLOC_WIRED |
+	m = vm_page_alloc_freelist(0, VM_FREELIST_DIRECT, req | VM_ALLOC_WIRED |
 	    VM_ALLOC_ZERO);
 	if (m == NULL)
 		return (NULL);
@@ -1599,7 +1599,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, VM_ALLOC_NORMAL |
+	m = vm_page_alloc_freelist(0, VM_FREELIST_DIRECT, VM_ALLOC_NORMAL |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (try) {
