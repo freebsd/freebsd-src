@@ -2234,7 +2234,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 		return (rc);
 	}
 
-	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, &rootnum);
+	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, &objnum);
 	if (rc) {
 		free(entry);
 		return (rc);
