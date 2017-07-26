@@ -306,10 +306,6 @@ ncl_putpages(struct vop_putpages_args *ap)
 		printf("ncl_putpages: called on noncache-able vnode\n");
 		mtx_lock(&np->n_mtx);
 	}
-
-	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_ERROR;
-
 	/*
 	 * When putting pages, do not extend file past EOF.
 	 */
@@ -319,6 +315,9 @@ ncl_putpages(struct vop_putpages_args *ap)
 			count = 0;
 	}
 	mtx_unlock(&np->n_mtx);
+
+	for (i = 0; i < npages; i++)
+		rtvals[i] = VM_PAGER_ERROR;
 
 	VM_CNT_INC(v_vnodeout);
 	VM_CNT_ADD(v_vnodepgsout, count);
