@@ -90,14 +90,6 @@ cloudabi_sys_mem_advise(struct thread *td,
 }
 
 int
-cloudabi_sys_mem_lock(struct thread *td, struct cloudabi_sys_mem_lock_args *uap)
-{
-
-	return (kern_mlock(td->td_proc, td->td_ucred,
-	    __DECONST(uintptr_t, uap->mapping), uap->mapping_len));
-}
-
-int
 cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 {
 	int error, flags, prot;
@@ -158,15 +150,6 @@ cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 
 	return (kern_msync(td, (uintptr_t)uap->mapping, uap->mapping_len,
 	    flags));
-}
-
-int
-cloudabi_sys_mem_unlock(struct thread *td,
-    struct cloudabi_sys_mem_unlock_args *uap)
-{
-
-	return (kern_munlock(td, __DECONST(uintptr_t, uap->mapping),
-	    uap->mapping_len));
 }
 
 int
