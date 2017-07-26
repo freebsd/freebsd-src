@@ -1,3 +1,4 @@
+#!/usr/bin/env ksh
 #
 # CDDL HEADER START
 #
@@ -20,23 +21,10 @@
 #
 
 #
-# Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
-#
+# Copyright 2017 Li-Wen Hsu <lwhsu@FreeBSD.org>
 
-if [ $# != 1 ]; then
-	echo expected one argument: '<'dtrace-path'>'
-	exit 2
-fi
-
-dtrace=$1
-
-$dtrace -ln 'syscall:freebsd:*$1:entry' read | \
-	awk '{print $(NF-1),$NF}' | grep -v -E 'compat.\.' | sort
-$dtrace -ln 'syscall:freebsd:$1*:entry' read | awk '{print $(NF-1),$NF}' | sort
-$dtrace -ln 'syscall:freebsd:re$1*:entry' ad | awk '{print $(NF-1),$NF}' | sort
-$dtrace -ln 'syscall:freebsd:$1l*:entry' read | awk '{print $(NF-1),$NF}' | sort
-$dtrace -ln 'syscall:freebsd:w$1[0-9]:entry' ait | \
-	awk '{print $(NF-1),$NF}' | sort
-
-exit $status
+while true
+do
+	sleep 0.1
+	cat /etc/motd > /dev/null
+done

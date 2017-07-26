@@ -201,9 +201,9 @@ _meta_filemon=	1
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
 # for _meta_filemon but not for _SKIP_DEPEND.
-.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(*obj) || \
+.if !defined(NO_SKIP_DEPEND) && (make(*obj) || \
     ${.TARGETS:M*clean*} == ${.TARGETS} || \
-    ${.TARGETS:M*install*} == ${.TARGETS}
+    ${.TARGETS:M*install*} == ${.TARGETS})
 _SKIP_DEPEND=	1
 .endif
 .if defined(_SKIP_DEPEND) || defined(_meta_filemon)

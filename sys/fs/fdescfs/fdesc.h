@@ -34,7 +34,9 @@
  * $FreeBSD$
  */
 
-#ifdef _KERNEL
+#ifndef _FS_FDESC_H_
+#define _FS_FDESC_H_
+
 /* Private mount flags for fdescfs. */
 #define FMNT_UNMOUNTF 0x01
 struct fdescmount {
@@ -66,4 +68,4 @@ extern vfs_init_t fdesc_init;
 extern vfs_uninit_t fdesc_uninit;
 extern int fdesc_allocvp(fdntype, unsigned, int, struct mount *,
     struct vnode **);
-#endif /* _KERNEL */
+#endif /* !_FS_FDESC_H_ */

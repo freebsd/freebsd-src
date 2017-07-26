@@ -38,6 +38,14 @@
 ##
 
 
+reader()
+{
+	while true
+	do
+		sleep 0.1
+		cat /etc/motd > /dev/null
+	done
+}
 
 if [ $# != 1 ]; then
 	echo expected one argument: '<'dtrace-path'>'
@@ -46,11 +54,16 @@ fi
 
 dtrace=$1
 
+reader &
+child=$!
+
 $dtrace -qwf read'{chill(15); printf("Done chilling"); exit(0);}'
 status=$?
 
 if [ "$status" -ne 0 ]; then
 	echo $tst: dtrace failed
 fi
+
+kill $child
 
 exit $status

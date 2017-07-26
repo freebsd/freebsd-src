@@ -20,32 +20,28 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright 2017 Li-Wen Hsu <lwhsu@FreeBSD.org>
  */
 
-#pragma	ident	"%Z%%M%	%I%	%E% SMI"
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
-/*
- * ASSERTION:
- *
- * Call matching probe clauses with given name using "*"
- *
- * SECTION: Program Structure/Probe Clauses and Declarations
- *
- */
-
-
-#pragma D option quiet
-
-int i;
-BEGIN
+int
+main(void)
 {
-	i = 0;
-}
 
-syscall::*wait*:entry
-/pid == $1/
-{
-	exit(0);
+    sigset_t set;
+    siginfo_t info;
+    struct timespec timeout;
+
+    (void)sigemptyset(&set);
+    (void)sigaddset(&set, SIGHUP);
+    timeout.tv_sec = 1;
+    timeout.tv_nsec = 0;
+
+    for (;;)
+        (void)sigtimedwait(&set, &info, &timeout);
+
+    return (0);
 }
