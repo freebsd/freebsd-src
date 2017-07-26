@@ -470,3 +470,55 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		iicbus_stop(bus);
 	return (error);
 }
+
+int
+iicdev_readfrom(device_t slavedev, uint8_t regaddr, void *buffer,
+    uint16_t buflen, int waithow)
+{
+	struct iic_msg msgs[2];
+	uint8_t slaveaddr;
+
+	/*
+	 * Two transfers back to back with a repeat-start between them; first we
+	 * write the address-within-device, then we read from the device.
+	 */
+	slaveaddr = iicbus_get_addr(slavedev);
+
+	msgs[0].slave = slaveaddr;
+	msgs[0].flags = IIC_M_WR | IIC_M_NOSTOP;
+	msgs[0].len   = 1;
+	msgs[0].buf   = &regaddr;
+
+	msgs[1].slave = slaveaddr;
+	msgs[1].flags = IIC_M_RD;
+	msgs[1].len   = buflen;
+	msgs[1].buf   = buffer;
+
+	return (iicbus_transfer_excl(slavedev, msgs, nitems(msgs), waithow));
+}
+
+int iicdev_writeto(device_t slavedev, uint8_t regaddr, void *buffer,
+    uint16_t buflen, int waithow)
+{
+	struct iic_msg msgs[2];
+	uint8_t slaveaddr;
+
+	/*
+	 * Two transfers back to back with no stop or start between them; first
+	 * we write the address then we write the data to that address, all in a
+	 * single transfer from two scattered buffers.
+	 */
+	slaveaddr = iicbus_get_addr(slavedev);
+
+	msgs[0].slave = slaveaddr;
+	msgs[0].flags = IIC_M_WR | IIC_M_NOSTOP;
+	msgs[0].len   = 1;
+	msgs[0].buf   = &regaddr;
+
+	msgs[1].slave = slaveaddr;
+	msgs[1].flags = IIC_M_WR | IIC_M_NOSTART;
+	msgs[1].len   = buflen;
+	msgs[1].buf   = buffer;
+
+	return (iicbus_transfer_excl(slavedev, msgs, nitems(msgs), waithow));
+}
