@@ -388,6 +388,7 @@ static struct ieee80211vap *
 		               const uint8_t [IEEE80211_ADDR_LEN],
 		               const uint8_t [IEEE80211_ADDR_LEN]);
 static void	iwm_vap_delete(struct ieee80211vap *);
+static void	iwm_xmit_queue_drain(struct iwm_softc *);
 static void	iwm_scan_start(struct ieee80211com *);
 static void	iwm_scan_end(struct ieee80211com *);
 static void	iwm_update_mcast(struct ieee80211com *);
@@ -4103,7 +4104,7 @@ iwm_release(struct iwm_softc *sc, struct iwm_node *in)
 	 * get here from RUN state.
 	 */
 	tfd_msk = 0xf;
-	mbufq_drain(&sc->sc_snd);
+	iwm_xmit_queue_drain(sc);
 	iwm_mvm_flush_tx_path(sc, tfd_msk, IWM_CMD_SYNC);
 	/*
 	 * We seem to get away with just synchronously sending the
@@ -6214,6 +6215,19 @@ iwm_vap_delete(struct ieee80211vap *vap)
 }
 
 static void
+iwm_xmit_queue_drain(struct iwm_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
+static void
 iwm_scan_start(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -6372,6 +6386,9 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	callout_drain(&sc->sc_watchdog_to);
 	iwm_stop_device(sc);
 	if (do_net80211) {
+		IWM_LOCK(sc);
+		iwm_xmit_queue_drain(sc);
+		IWM_UNLOCK(sc);
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
 
@@ -6405,7 +6422,6 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		sc->sc_notif_wait = NULL;
 	}
 
-	mbufq_drain(&sc->sc_snd);
 	IWM_LOCK_DESTROY(sc);
 
 	return (0);
