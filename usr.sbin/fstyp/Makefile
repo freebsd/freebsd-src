@@ -18,8 +18,6 @@ WARNS?=	2
 SUBDIR+=	tests
 .endif
 
-CFLAGS+=-I${SRCTOP}/sys
-
 .if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES
 
@@ -34,6 +32,8 @@ CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
 .endif
+
+CFLAGS+=-I${SRCTOP}/sys
 
 LIBADD=	geom md
 
