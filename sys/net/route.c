@@ -59,7 +59,6 @@
 #include <net/route.h>
 #include <net/route_var.h>
 #include <net/vnet.h>
-#include <net/flowtable.h>
 
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -1504,79 +1503,12 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 #endif
 
-#ifdef FLOWTABLE
-static struct rtentry *
-rt_flowtable_check_route(struct rib_head *rnh, struct rt_addrinfo *info)
-{
-#if defined(INET6) || defined(INET)
-	struct radix_node *rn;
-#endif
-	struct rtentry *rt0;
-
-	rt0 = NULL;
-	/* "flow-table" only supports IPv6 and IPv4 at the moment. */
-	switch (dst->sa_family) {
-#ifdef INET6
-	case AF_INET6:
-#endif
-#ifdef INET
-	case AF_INET:
-#endif
-#if defined(INET6) || defined(INET)
-		rn = rnh->rnh_matchaddr(dst, &rnh->head);
-		if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
-			struct sockaddr *mask;
-			u_char *m, *n;
-			int len;
-
-			/*
-			 * compare mask to see if the new route is
-			 * more specific than the existing one
-			 */
-			rt0 = RNTORT(rn);
-			RT_LOCK(rt0);
-			RT_ADDREF(rt0);
-			RT_UNLOCK(rt0);
-			/*
-			 * A host route is already present, so
-			 * leave the flow-table entries as is.
-			 */
-			if (rt0->rt_flags & RTF_HOST) {
-				RTFREE(rt0);
-				rt0 = NULL;
-			} else if (!(flags & RTF_HOST) && netmask) {
-				mask = rt_mask(rt0);
-				len = mask->sa_len;
-				m = (u_char *)mask;
-				n = (u_char *)netmask;
-				while (len-- > 0) {
-					if (*n != *m)
-						break;
-					n++;
-					m++;
-				}
-				if (len == 0 || (*n < *m)) {
-					RTFREE(rt0);
-					rt0 = NULL;
-				}
-			}
-		}
-#endif/* INET6 || INET */
-	}
-
-	return (rt0);
-}
-#endif
-
 int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
 	int error = 0;
 	struct rtentry *rt, *rt_old;
-#ifdef FLOWTABLE
-	struct rtentry *rt0;
-#endif
 	struct radix_node *rn;
 	struct rib_head *rnh;
 	struct ifaddr *ifa;
@@ -1710,10 +1642,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		}
 #endif
 
-#ifdef FLOWTABLE
-		rt0 = rt_flowtable_check_route(rnh, info);
-#endif /* FLOWTABLE */
-
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, &rnh->head, rt->rt_nodes);
 
@@ -1748,18 +1676,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			ifa_free(rt->rt_ifa);
 			R_Free(rt_key(rt));
 			uma_zfree(V_rtzone, rt);
-#ifdef FLOWTABLE
-			if (rt0 != NULL)
-				RTFREE(rt0);
-#endif
 			return (EEXIST);
 		} 
-#ifdef FLOWTABLE
-		else if (rt0 != NULL) {
-			flowtable_route_flush(dst->sa_family, rt0);
-			RTFREE(rt0);
-		}
-#endif
 
 		if (rt_old != NULL) {
 			rt_notifydelete(rt_old, info);

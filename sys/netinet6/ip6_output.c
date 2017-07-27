@@ -117,10 +117,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef FLOWTABLE
-#include <net/flowtable.h>
-#endif
-
 extern int in6_mcast_loop;
 
 struct ip6_exthdrs {
@@ -502,10 +498,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	if (opt && opt->ip6po_rthdr)
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
-#ifdef FLOWTABLE
-	if (ro->ro_rt == NULL)
-		(void )flowtable_lookup(AF_INET6, m, (struct route *)ro);
-#endif
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
 	/*
