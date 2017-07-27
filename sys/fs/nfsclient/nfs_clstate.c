@@ -803,7 +803,7 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	 * allocate a new clientid and get out now. For the case where
 	 * clp != NULL, this is a harmless optimization.
 	 */
-	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+	if (NFSCL_FORCEDISM(mp)) {
 		NFSUNLOCKCLSTATE();
 		if (newclp != NULL)
 			free(newclp, M_NFSCLCLIENT);
@@ -843,7 +843,7 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	}
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock &&
-	    (mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0)
+	    !NFSCL_FORCEDISM(mp))
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
 		    NFSCLSTATEMUTEXPTR, mp);
 	if (igotlock == 0) {
@@ -858,10 +858,10 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		nfsv4_lock(&clp->nfsc_lock, 0, NULL, NFSCLSTATEMUTEXPTR, mp);
 		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
 	}
-	if (igotlock == 0 && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+	if (igotlock == 0 && NFSCL_FORCEDISM(mp)) {
 		/*
 		 * Both nfsv4_lock() and nfsv4_getref() know to check
-		 * for MNTK_UNMOUNTF and return without sleeping to
+		 * for NFSCL_FORCEDISM() and return without sleeping to
 		 * wait for the exclusive lock to be released, since it
 		 * might be held by nfscl_umount() and we need to get out
 		 * now for that case and not wait until nfscl_umount()
@@ -4844,7 +4844,7 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
 		}
 		nfsv4_getref(&lyp->nfsly_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
-		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		if (NFSCL_FORCEDISM(mp)) {
 			NFSUNLOCKCLSTATE();
 			if (tlyp != NULL)
 				free(tlyp, M_NFSLAYOUT);
@@ -4903,11 +4903,10 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 				do {
 					igotlock = nfsv4_lock(&lyp->nfsly_lock,
 					    1, NULL, NFSCLSTATEMUTEXPTR, mp);
-				} while (igotlock == 0 &&
-				    (mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0);
+				} while (igotlock == 0 && !NFSCL_FORCEDISM(mp));
 				*retflpp = NULL;
 			}
-			if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+			if (NFSCL_FORCEDISM(mp)) {
 				lyp = NULL;
 				*recalledp = 1;
 			}
@@ -5298,7 +5297,7 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 		return (EPERM);
 	}
 	nfsv4_getref(&lyp->nfsly_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
-	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+	if (NFSCL_FORCEDISM(mp)) {
 		NFSUNLOCKCLSTATE();
 		return (EPERM);
 	}

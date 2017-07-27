@@ -313,7 +313,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 
 	*npp = NULL;
 	/* For forced dismounts, just return error. */
-	if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(mntp))
 		return (EINTR);
 	MALLOC(nfhp, struct nfsfh *, sizeof (struct nfsfh) + fhsize,
 	    M_NFSFH, M_WAITOK);
@@ -336,7 +336,7 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 		 * stopped and the MNTK_UNMOUNTF flag is set before doing
 		 * a vflush() with FORCECLOSE, we should be ok here.
 		 */
-		if ((mntp->mnt_kern_flag & MNTK_UNMOUNTF))
+		if (NFSCL_FORCEDISM(mntp))
 			error = EINTR;
 		else {
 			vfs_hash_ref(mntp, hash, td, &nvp, newnfs_vncmpf, nfhp);

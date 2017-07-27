@@ -1839,7 +1839,7 @@ nfsv4_lock(struct nfsv4lock *lp, int iwantlock, int *isleptp,
 	    lp->nfslock_lock |= NFSV4LOCK_LOCKWANTED;
 	}
 	while (lp->nfslock_lock & (NFSV4LOCK_LOCK | NFSV4LOCK_LOCKWANTED)) {
-		if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
+		if (mp != NULL && NFSCL_FORCEDISM(mp)) {
 			lp->nfslock_lock &= ~NFSV4LOCK_LOCKWANTED;
 			return (0);
 		}
@@ -1893,7 +1893,7 @@ nfsv4_relref(struct nfsv4lock *lp)
  * not wait for threads that want the exclusive lock. If priority needs
  * to be given to threads that need the exclusive lock, a call to nfsv4_lock()
  * with the 2nd argument == 0 should be done before calling nfsv4_getref().
- * If the mp argument is not NULL, check for MNTK_UNMOUNTF being set and
+ * If the mp argument is not NULL, check for NFSCL_FORCEDISM() being set and
  * return without getting a refcnt for that case.
  */
 APPLESTATIC void
@@ -1908,7 +1908,7 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex,
 	 * Wait for a lock held.
 	 */
 	while (lp->nfslock_lock & NFSV4LOCK_LOCK) {
-		if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+		if (mp != NULL && NFSCL_FORCEDISM(mp))
 			return;
 		lp->nfslock_lock |= NFSV4LOCK_WANTED;
 		if (isleptp)
@@ -1916,7 +1916,7 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex,
 		(void) nfsmsleep(&lp->nfslock_lock, mutex,
 		    PZERO - 1, "nfsv4gr", NULL);
 	}
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+	if (mp != NULL && NFSCL_FORCEDISM(mp))
 		return;
 
 	lp->nfslock_usecnt++;
@@ -4197,9 +4197,7 @@ nfsv4_sequencelookup(struct nfsmount *nmp, struct nfsclsession *sep,
 			 * This RPC attempt will fail when it calls
 			 * newnfs_request().
 			 */
-			if (nmp != NULL &&
-			    (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
-			    != 0) {
+			if (nmp != NULL && NFSCL_FORCEDISM(nmp->nm_mountp)) {
 				mtx_unlock(&sep->nfsess_mtx);
 				return (ESTALE);
 			}
