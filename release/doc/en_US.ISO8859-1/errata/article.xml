@@ -179,6 +179,13 @@ boot</screen>
 	<para>Systems being upgraded from 11.1-RC1 and earlier and
 	  11.1-RC3 to 11.1-RELEASE should be unaffected.</para>
       </listitem>
+
+      <listitem>
+	<para>[2017-07-27] The release notes erroneously state
+	  revision <literal>r315330</literal> was sponsored by Rubicon
+	  Communications, LLC (Netgate), when in fact this work was
+	  done by Hiroki Mori independently.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
