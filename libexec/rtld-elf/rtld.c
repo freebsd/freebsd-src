@@ -1590,19 +1590,20 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
     bool nodeflib, objgiven;
 
     objgiven = refobj != NULL;
-    if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
-	if (xname[0] != '/' && !trust) {
-	    _rtld_error("Absolute pathname required for shared object \"%s\"",
-	      xname);
-	    return NULL;
-	}
-	return (origin_subst(__DECONST(Obj_Entry *, refobj),
-	  __DECONST(char *, xname)));
-    }
 
     if (libmap_disable || !objgiven ||
-	(name = lm_find(refobj->path, xname)) == NULL)
+      (name = lm_find(refobj->path, xname)) == NULL)
 	name = (char *)xname;
+
+    if (strchr(name, '/') != NULL) {	/* Hard coded pathname */
+	if (name[0] != '/' && !trust) {
+	    _rtld_error("Absolute pathname required for shared object \"%s\"",
+	      name);
+	    return (NULL);
+	}
+	return (origin_subst(__DECONST(Obj_Entry *, refobj),
+	  __DECONST(char *, name)));
+    }
 
     dbg(" Searching for \"%s\"", name);
 
