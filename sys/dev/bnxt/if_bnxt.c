@@ -761,12 +761,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    scctx->isc_nrxd[1];
 	scctx->isc_rxqsizes[2] = sizeof(struct rx_prod_pkt_bd) *
 	    scctx->isc_nrxd[2];
-	scctx->isc_max_rxqsets = min(pci_msix_count(softc->dev)-1,
+	scctx->isc_nrxqsets_max = min(pci_msix_count(softc->dev)-1,
 	    softc->func.max_cp_rings - 1);
-	scctx->isc_max_rxqsets = min(scctx->isc_max_rxqsets,
+	scctx->isc_nrxqsets_max = min(scctx->isc_nrxqsets_max,
 	    softc->func.max_rx_rings);
-	scctx->isc_max_txqsets = min(softc->func.max_rx_rings,
-	    softc->func.max_cp_rings - scctx->isc_max_rxqsets - 1);
+	scctx->isc_ntxqsets_max = min(softc->func.max_rx_rings,
+	    softc->func.max_cp_rings - scctx->isc_nrxqsets_max - 1);
 	scctx->isc_rss_table_size = HW_HASH_INDEX_SIZE;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size - 1;
 
