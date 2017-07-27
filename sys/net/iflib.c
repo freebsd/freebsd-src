@@ -2975,6 +2975,8 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 #endif
 			ifsd_m[next] = m;
 			while (buflen > 0) {
+				if (i >= max_segs)
+					goto err;
 				max_sgsize = MIN(buflen, maxsegsz);
 				curaddr = pmap_kextract(vaddr);
 				sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
@@ -2984,8 +2986,6 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 				vaddr += sgsize;
 				buflen -= sgsize;
 				i++;
-				if (i >= max_segs)
-					goto err;
 			}
 			count++;
 			tmp = m;
