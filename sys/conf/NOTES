@@ -646,9 +646,6 @@ options 	LIBMCHAIN
 # libalias library, performing NAT
 options 	LIBALIAS
 
-# flowtable cache
-options 	FLOWTABLE
-
 #
 # SCTP is a NEW transport protocol defined by
 # RFC2960 updated by RFC3309 and RFC3758.. and
