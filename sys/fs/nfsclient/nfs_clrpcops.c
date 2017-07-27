@@ -4616,6 +4616,11 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	struct nfsrv_descript *nd = &nfsd;
 	int error, irdcnt;
 
+	/* Make sure nm_rsize, nm_wsize is set. */
+	if (nmp->nm_rsize > NFS_MAXBSIZE || nmp->nm_rsize == 0)
+		nmp->nm_rsize = NFS_MAXBSIZE;
+	if (nmp->nm_wsize > NFS_MAXBSIZE || nmp->nm_wsize == 0)
+		nmp->nm_wsize = NFS_MAXBSIZE;
 	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = sep->nfsess_clientid.lval[0];
