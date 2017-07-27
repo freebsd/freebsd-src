@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cache.h>
 
+#ifdef CPU_CHERI
+#define	CAP_ALIGNED(x)	((x) % CHERICAP_SIZE == 0)
+#endif
+
 /*
  * Implement uiomove(9) from physical memory using a combination
  * of the direct mapping and sf_bufs to reduce the creation and
@@ -119,6 +123,16 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			}
 			break;
 		case UIO_SYSSPACE:
+#ifdef CPU_CHERI
+			if (CAP_ALIGNED((uintptr_t)cp) &&
+			    CAP_ALIGNED((uintptr_t)iov->iov_base) &&
+			    CAP_ALIGNED(cnt)) {
+				if (uio->uio_rw == UIO_READ)
+					cheri_bcopy(cp, iov->iov_base, cnt);
+				else
+					cheri_bcopy(iov->iov_base, cp, cnt);
+			} else
+#endif
 			if (uio->uio_rw == UIO_READ)
 				bcopy(cp, iov->iov_base, cnt);
 			else
