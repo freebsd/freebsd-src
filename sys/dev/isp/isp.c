@@ -2043,7 +2043,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	if (ownloopid)
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
 
-	icbp->icb_fwoptions2 = fcp->isp_xfwoptions;
 	if (isp->isp_confopts & ISP_CFG_NOFCTAPE) {
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_FCTAPE;
 	}
@@ -2106,7 +2105,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
 	}
 
-	icbp->icb_fwoptions3 = fcp->isp_zfwoptions;
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
