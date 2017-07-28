@@ -1002,6 +1002,8 @@ void _c4iw_free_ep(struct kref *kref)
 	    __func__, epc));
 	if (test_bit(QP_REFERENCED, &ep->com.flags))
 		deref_qp(ep);
+	CTR4(KTR_IW_CXGBE, "%s: ep %p, history 0x%lx, flags 0x%lx",
+	    __func__, ep, epc->history, epc->flags);
 	kfree(ep);
 }
 
