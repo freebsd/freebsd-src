@@ -178,6 +178,7 @@
 #define asm         __asm
 
 #define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_USE_NATIVE_MATH64
 
 #define ACPI_SYSTEM_XFACE
 #define ACPI_EXTERNAL_XFACE
@@ -215,5 +216,6 @@
 /* Always use NetBSD code over our local versions */
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_USE_NATIVE_MATH64
 
 #endif /* __ACNETBSD_H__ */

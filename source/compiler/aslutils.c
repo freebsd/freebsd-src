@@ -174,6 +174,12 @@ UtAttachNameseg (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
 
+static void
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize);
+
 
 /*******************************************************************************
  *
@@ -733,43 +739,48 @@ UtExpandLineBuffers (
             Gbl_LineBufferSize, NewSize);
     }
 
-    Gbl_CurrentLineBuffer = realloc (Gbl_CurrentLineBuffer, NewSize);
+    UtReallocLineBuffers (&Gbl_CurrentLineBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MainTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_MacroTokenBuffer, Gbl_LineBufferSize, NewSize);
+    UtReallocLineBuffers (&Gbl_ExpressionTokenBuffer, Gbl_LineBufferSize, NewSize);
+
     Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
-    if (!Gbl_CurrentLineBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_MainTokenBuffer = realloc (Gbl_MainTokenBuffer, NewSize);
-    if (!Gbl_MainTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_MacroTokenBuffer = realloc (Gbl_MacroTokenBuffer, NewSize);
-    if (!Gbl_MacroTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_ExpressionTokenBuffer = realloc (Gbl_ExpressionTokenBuffer, NewSize);
-    if (!Gbl_ExpressionTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
     Gbl_LineBufferSize = NewSize;
-    return;
+}
 
 
-    /* On error above, simply issue error messages and abort, cannot continue */
+/******************************************************************************
+ *
+ * FUNCTION:    UtReallocLineBuffers
+ *
+ * PARAMETERS:  Buffer              - Buffer to realloc
+ *              OldSize             - Old size of Buffer
+ *              NewSize             - New size of Buffer
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Reallocate and initialize Buffer
+ *
+ *****************************************************************************/
 
-ErrorExit:
+static void
+UtReallocLineBuffers (
+    char                    **Buffer,
+    UINT32                  OldSize,
+    UINT32                  NewSize)
+{
+
+    *Buffer = realloc (*Buffer, NewSize);
+    if (*Buffer)
+    {
+        memset (*Buffer + OldSize, 0, NewSize - OldSize);
+        return;
+    }
+
     printf ("Could not increase line buffer size from %u to %u\n",
-        Gbl_LineBufferSize, Gbl_LineBufferSize * 2);
+        OldSize, NewSize);
 
-    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION,
-        NULL, NULL);
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, NULL, NULL);
     AslAbort ();
 }
 

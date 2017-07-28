@@ -85,6 +85,7 @@ OBJECTS = \
 	$(OBJDIR)/dsmthdat.o\
 	$(OBJDIR)/dsobject.o\
 	$(OBJDIR)/dsopcode.o\
+	$(OBJDIR)/dspkginit.o\
 	$(OBJDIR)/dsutils.o\
 	$(OBJDIR)/dswexec.o\
 	$(OBJDIR)/dswload.o\

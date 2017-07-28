@@ -776,6 +776,11 @@ AcpiUtDumpAllocations (
         return_VOID;
     }
 
+    if (!AcpiGbl_GlobalList)
+    {
+        goto Exit;
+    }
+
     Element = AcpiGbl_GlobalList->ListHead;
     while (Element)
     {
@@ -787,7 +792,7 @@ AcpiUtDumpAllocations (
 
             if (Element->Size < sizeof (ACPI_COMMON_DESCRIPTOR))
             {
-                AcpiOsPrintf ("%p Length 0x%04X %9.9s-%u "
+                AcpiOsPrintf ("%p Length 0x%04X %9.9s-%4.4u "
                     "[Not a Descriptor - too small]\n",
                     Descriptor, Element->Size, Element->Module,
                     Element->Line);
@@ -799,7 +804,7 @@ AcpiUtDumpAllocations (
                 if (ACPI_GET_DESCRIPTOR_TYPE (Descriptor) !=
                     ACPI_DESC_TYPE_CACHED)
                 {
-                    AcpiOsPrintf ("%p Length 0x%04X %9.9s-%u [%s] ",
+                    AcpiOsPrintf ("%p Length 0x%04X %9.9s-%4.4u [%s] ",
                         Descriptor, Element->Size, Element->Module,
                         Element->Line, AcpiUtGetDescriptorName (Descriptor));
 
@@ -875,6 +880,7 @@ AcpiUtDumpAllocations (
         Element = Element->Next;
     }
 
+Exit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
 
     /* Print summary */

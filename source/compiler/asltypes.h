@@ -355,6 +355,15 @@ typedef struct asl_error_msg
 
 } ASL_ERROR_MSG;
 
+/* An entry in the expected messages array */
+typedef struct asl_expected_message
+{
+    UINT32                       MessageId;
+    char                         *MessageIdStr;
+    BOOLEAN                      MessageReceived;
+
+} ASL_EXPECTED_MESSAGE;
+
 
 /* An entry in the listing file stack (for include files) */
 

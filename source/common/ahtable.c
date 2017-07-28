@@ -239,6 +239,7 @@ const AH_TABLE      Gbl_AcpiSupportedTables[] =
     {ACPI_SIG_RSDT, "Root System Description Table"},
     {ACPI_SIG_S3PT, "S3 Performance Table"},
     {ACPI_SIG_SBST, "Smart Battery Specification Table"},
+    {ACPI_SIG_SDEI, "Software Delegated Exception Interface Table"},
     {ACPI_SIG_SLIC, "Software Licensing Description Table"},
     {ACPI_SIG_SLIT, "System Locality Information Table"},
     {ACPI_SIG_SPCR, "Serial Port Console Redirection table"},

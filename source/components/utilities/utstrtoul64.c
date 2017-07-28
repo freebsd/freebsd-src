@@ -419,8 +419,8 @@ AcpiUtStrtoulBase10 (
 
         /* Convert and insert (add) the decimal digit */
 
-        NextValue =
-            (ReturnValue * 10) + (AsciiDigit - ACPI_ASCII_ZERO);
+        AcpiUtShortMultiply (ReturnValue, 10, &NextValue);
+        NextValue += (AsciiDigit - ACPI_ASCII_ZERO);
 
         /* Check for overflow (32 or 64 bit) - return current converted value */
 
@@ -486,8 +486,8 @@ AcpiUtStrtoulBase16 (
 
         /* Convert and insert the hex digit */
 
-        ReturnValue =
-            (ReturnValue << 4) | AcpiUtAsciiCharToHex (AsciiDigit);
+        AcpiUtShortShiftLeft (ReturnValue, 4, &ReturnValue);
+        ReturnValue |= AcpiUtAsciiCharToHex (AsciiDigit);
 
         String++;
         ValidDigits++;

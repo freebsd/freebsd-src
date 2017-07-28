@@ -43,6 +43,7 @@ OBJECTS = \
 	$(OBJDIR)/dsinit.o\
 	$(OBJDIR)/dsmthdat.o\
 	$(OBJDIR)/dsobject.o\
+	$(OBJDIR)/dspkginit.o\
 	$(OBJDIR)/dsutils.o\
 	$(OBJDIR)/dswload.o\
 	$(OBJDIR)/dswload2.o\

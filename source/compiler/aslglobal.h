@@ -252,6 +252,7 @@ extern int                  AslCompilerdebug;
 #define ASL_DEFAULT_LINE_BUFFER_SIZE    (1024 * 32) /* 32K */
 #define ASL_MSG_BUFFER_SIZE             (1024 * 32) /* 32k */
 #define ASL_MAX_DISABLED_MESSAGES       32
+#define ASL_MAX_EXPECTED_MESSAGES       32
 #define HEX_TABLE_LINE_SIZE             8
 #define HEX_LISTING_LINE_SIZE           8
 
@@ -396,6 +397,7 @@ ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentHexColumn, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentAmlOffset, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLine, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_DisabledMessagesIndex, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ExpectedMessagesIndex, 0);
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_HexBytesWereWritten, FALSE);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_NumNamespaceObjects, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ReservedMethods, 0);
@@ -438,6 +440,7 @@ ASL_EXTERN char                     MsgBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN char                     StringBuffer2[ASL_MSG_BUFFER_SIZE];
 ASL_EXTERN UINT32                   Gbl_DisabledMessages[ASL_MAX_DISABLED_MESSAGES];
+ASL_EXTERN ASL_EXPECTED_MESSAGE     Gbl_ExpectedMessages[ASL_MAX_EXPECTED_MESSAGES];
 
 
 #endif /* __ASLGLOBAL_H */

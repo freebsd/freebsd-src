@@ -175,7 +175,7 @@ static int
 ApIsExistingFile (
     char                    *Pathname)
 {
-#ifndef _GNU_EFI
+#if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
     struct stat             StatInfo;
 
 

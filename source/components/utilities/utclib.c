@@ -762,7 +762,7 @@ strstr (
     char                    *String1,
     char                    *String2)
 {
-    UINT32                  Length;
+    ACPI_SIZE               Length;
 
 
     Length = strlen (String2);

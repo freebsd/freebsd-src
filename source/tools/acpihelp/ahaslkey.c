@@ -295,6 +295,7 @@ const AH_DIRECTIVE_INFO      Gbl_PreprocessorDirectives[] =
     {"__PATH__",                            "Return the full pathname of the current ASL file"},
     {"__LINE__",                            "Return the current line number within the current ASL file"},
     {"__DATE__",                            "Return the current date"},
+    {"__METHOD__",                          "Return the declared name of the current control method"},
     {"__IASL__",                            "Permanently defined for the iASL compiler"},
     {NULL,                                   NULL}
 };

@@ -815,6 +815,7 @@ CmCleanupAndExit (
     BOOLEAN                 DeleteAmlFile = FALSE;
 
 
+    AslCheckExpectedExceptions ();
     AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
