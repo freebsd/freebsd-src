@@ -197,12 +197,17 @@ __vdso_init_hpet(uint32_t u)
 	if (old_map != NULL)
 		return;
 
-	if (cap_getmode(&mode) == 0 && mode != 0)
-		goto fail;
-
-	fd = _open(devname, O_RDONLY);
-	if (fd == -1)
-		goto fail;
+	/*
+	 * Explicitely check for the capability mode to avoid
+	 * triggering trap_enocap on the device open by absolute path.
+	 */
+	if ((cap_getmode(&mode) == 0 && mode != 0) ||
+	    (fd = _open(devname, O_RDONLY)) == -1) {
+		/* Prevent the caller from re-entering. */
+		atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
+		    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
+		return;
+	}
 
 	new_map = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
 	_close(fd);
@@ -210,12 +215,6 @@ __vdso_init_hpet(uint32_t u)
 	    (uintptr_t)old_map, (uintptr_t)new_map) == 0 &&
 	    new_map != MAP_FAILED)
 		munmap((void *)new_map, PAGE_SIZE);
-
-	return;
-fail:
-	/* Prevent the caller from re-entering. */
-	atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
-	    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
 }
 
 #ifdef WANT_HYPERV
