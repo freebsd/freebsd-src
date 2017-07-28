@@ -946,7 +946,7 @@ DefinitionBlock (
         Notify (\_PR.CPU0, 0)
     }
 
-    Method (_ERR, 2)
+    Method (_ERR, 3)
     {
         Increment (ERRS)
         Store ("Run-time exception:", Debug)

@@ -685,10 +685,10 @@ TrCreateNullTargetOp (
  * DESCRIPTION: Create a leaf op (no children or peers) for one of the
  *              special constants - __LINE__, __FILE__, and __DATE__.
  *
- * Note: An implemenation of __FUNC__ cannot happen here because we don't
- * have a full parse tree at this time and cannot find the parent control
- * method. If it is ever needed, __FUNC__ must be implemented later, after
- * the parse tree has been fully constructed.
+ * Note: The fullimplemenation of __METHOD__ cannot happen here because we
+ * don't have a full parse tree at this time and cannot find the parent
+ * control method. __METHOD__ must be implemented later, after the parse
+ * tree has been fully constructed.
  *
  ******************************************************************************/
 
@@ -709,6 +709,14 @@ TrCreateConstantLeafOp (
 
         Op = TrAllocateOp (PARSEOP_INTEGER);
         Op->Asl.Value.Integer = Op->Asl.LineNumber;
+        break;
+
+    case PARSEOP___METHOD__:
+
+        /* Will become a string literal later */
+
+        Op = TrAllocateOp (PARSEOP___METHOD__);
+        Op->Asl.Value.String = NULL;
         break;
 
     case PARSEOP___PATH__:

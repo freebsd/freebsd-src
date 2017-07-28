@@ -451,7 +451,7 @@ DumpNode:
 
     else
     {
-        AcpiOsPrintf ("Object (%p) Pathname:  %s\n",
+        AcpiOsPrintf ("Object %p: Namespace Node - Pathname: %s\n",
             Node, (char *) RetBuf.Pointer);
     }
 
@@ -468,7 +468,7 @@ DumpNode:
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (ObjDesc)
     {
-        AcpiOsPrintf ("\nAttached Object (%p):\n", ObjDesc);
+        AcpiOsPrintf ("\nAttached Object %p:", ObjDesc);
         if (!AcpiOsReadable (ObjDesc, sizeof (ACPI_OPERAND_OBJECT)))
         {
             AcpiOsPrintf ("Invalid internal ACPI Object at address %p\n",
@@ -476,8 +476,33 @@ DumpNode:
             return;
         }
 
-        AcpiUtDebugDumpBuffer ((void *) ObjDesc,
-            sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+        if (ACPI_GET_DESCRIPTOR_TYPE (
+            ((ACPI_NAMESPACE_NODE *) ObjDesc)) == ACPI_DESC_TYPE_NAMED)
+        {
+            AcpiOsPrintf (" Namespace Node - ");
+            Status = AcpiGetName ((ACPI_NAMESPACE_NODE *) ObjDesc,
+                ACPI_FULL_PATHNAME_NO_TRAILING, &RetBuf);
+            if (ACPI_FAILURE (Status))
+            {
+                AcpiOsPrintf ("Could not convert name to pathname\n");
+            }
+            else
+            {
+                AcpiOsPrintf ("Pathname: %s",
+                    (char *) RetBuf.Pointer);
+            }
+
+            AcpiOsPrintf ("\n");
+            AcpiUtDebugDumpBuffer ((void *) ObjDesc,
+                sizeof (ACPI_NAMESPACE_NODE), Display, ACPI_UINT32_MAX);
+        }
+        else
+        {
+            AcpiOsPrintf ("\n");
+            AcpiUtDebugDumpBuffer ((void *) ObjDesc,
+                sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+        }
+
         AcpiExDumpObjectDescriptor (ObjDesc, 1);
     }
 }

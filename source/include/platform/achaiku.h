@@ -166,6 +166,7 @@ struct mutex;
 #define ACPI_MUTEX                  struct mutex *
 
 #define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_USE_NATIVE_MATH64
 
 /* #define ACPI_THREAD_ID               thread_id */
 

@@ -592,6 +592,7 @@ ConstExprTerm
     | PARSEOP___FILE__              {$$ = TrCreateConstantLeafOp (PARSEOP___FILE__);}
     | PARSEOP___LINE__              {$$ = TrCreateConstantLeafOp (PARSEOP___LINE__);}
     | PARSEOP___PATH__              {$$ = TrCreateConstantLeafOp (PARSEOP___PATH__);}
+    | PARSEOP___METHOD__            {$$ = TrCreateConstantLeafOp (PARSEOP___METHOD__);}
     ;
 
 Integer

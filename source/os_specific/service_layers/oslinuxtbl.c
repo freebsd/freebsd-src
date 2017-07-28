@@ -988,7 +988,7 @@ OslListBiosTables (
 
         /* Skip NULL entries in RSDT/XSDT */
 
-        if (!TableAddress)
+        if (TableAddress == 0)
         {
             continue;
         }
@@ -1041,7 +1041,8 @@ OslGetBiosTable (
     UINT8                   NumberOfTables;
     UINT8                   ItemSize;
     UINT32                  CurrentInstance = 0;
-    ACPI_PHYSICAL_ADDRESS   TableAddress = 0;
+    ACPI_PHYSICAL_ADDRESS   TableAddress;
+    ACPI_PHYSICAL_ADDRESS   FirstTableAddress = 0;
     UINT32                  TableLength = 0;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  i;
@@ -1055,10 +1056,10 @@ OslGetBiosTable (
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT) ||
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
     {
-        if (Instance > 0)
-        {
-            return (AE_LIMIT);
-        }
+
+FindNextInstance:
+
+        TableAddress = 0;
 
         /*
          * Get the appropriate address, either 32-bit or 64-bit. Be very
@@ -1067,28 +1068,34 @@ OslGetBiosTable (
          */
         if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT))
         {
-            if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XDSDT) &&
-                Gbl_Fadt->XDsdt)
+            if (CurrentInstance < 2)
             {
-                TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->XDsdt;
-            }
-            else if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_DSDT) &&
-                Gbl_Fadt->Dsdt)
-            {
-                TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Dsdt;
+                if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XDSDT) &&
+                    Gbl_Fadt->XDsdt && CurrentInstance == 0)
+                {
+                    TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->XDsdt;
+                }
+                else if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_DSDT) &&
+                    Gbl_Fadt->Dsdt != FirstTableAddress)
+                {
+                    TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Dsdt;
+                }
             }
         }
         else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
         {
-            if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XFACS) &&
-                Gbl_Fadt->XFacs)
+            if (CurrentInstance < 2)
             {
-                TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->XFacs;
-            }
-            else if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_FACS) &&
-                Gbl_Fadt->Facs)
-            {
-                TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Facs;
+                if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XFACS) &&
+                    Gbl_Fadt->XFacs && CurrentInstance == 0)
+                {
+                    TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->XFacs;
+                }
+                else if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_FACS) &&
+                    Gbl_Fadt->Facs != FirstTableAddress)
+                {
+                    TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Facs;
+                }
             }
         }
         else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT))
@@ -1097,16 +1104,32 @@ OslGetBiosTable (
             {
                 return (AE_BAD_SIGNATURE);
             }
-            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.XsdtPhysicalAddress;
+            if (CurrentInstance == 0)
+            {
+                TableAddress =
+                    (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.XsdtPhysicalAddress;
+            }
         }
         else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT))
         {
-            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.RsdtPhysicalAddress;
+            if (CurrentInstance == 0)
+            {
+                TableAddress =
+                    (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.RsdtPhysicalAddress;
+            }
         }
         else
         {
-            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_RsdpAddress;
-            Signature = ACPI_SIG_RSDP;
+            if (CurrentInstance == 0)
+            {
+                TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_RsdpAddress;
+                Signature = ACPI_SIG_RSDP;
+            }
+        }
+
+        if (TableAddress == 0)
+        {
+            goto ExitFindTable;
         }
 
         /* Now we can get the requested special table */
@@ -1118,6 +1141,20 @@ OslGetBiosTable (
         }
 
         TableLength = ApGetTableLength (MappedTable);
+        if (FirstTableAddress == 0)
+        {
+            FirstTableAddress = TableAddress;
+        }
+
+        /* Match table instance */
+
+        if (CurrentInstance != Instance)
+        {
+            OslUnmapTable (MappedTable);
+            MappedTable = NULL;
+            CurrentInstance++;
+            goto FindNextInstance;
+        }
     }
     else /* Case for a normal ACPI table */
     {
@@ -1155,7 +1192,7 @@ OslGetBiosTable (
 
             /* Skip NULL entries in RSDT/XSDT */
 
-            if (!TableAddress)
+            if (TableAddress == 0)
             {
                 continue;
             }
@@ -1189,6 +1226,8 @@ OslGetBiosTable (
             break;
         }
     }
+
+ExitFindTable:
 
     if (!MappedTable)
     {

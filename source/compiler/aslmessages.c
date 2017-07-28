@@ -348,7 +348,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_ARG_AS_LOCAL_NOT_USED */      "Method Argument (as a local) is set but never used",
 /*    ASL_MSG_ARG_NOT_USED */               "Method Argument is never used",
 /*    ASL_MSG_CONSTANT_REQUIRED */          "Non-reducible expression",
-/*    ASL_MSG_CROSS_TABLE_SCOPE */          "Illegal open scope on external object from within DSDT"
+/*    ASL_MSG_CROSS_TABLE_SCOPE */          "Illegal open scope on external object from within DSDT",
+/*    ASL_MSG_EXCEPTION_NOT_RECEIVED */     "Expected remark, warning, or error did not occur. Message ID:"
 };
 
 /* Table compiler */

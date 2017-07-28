@@ -174,5 +174,6 @@
 #define __cdecl
 
 #define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_USE_NATIVE_MATH64
 
 #endif /* __ACQNX_H__ */

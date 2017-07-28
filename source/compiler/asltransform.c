@@ -430,6 +430,8 @@ static void
 TrTransformSubtree (
     ACPI_PARSE_OBJECT           *Op)
 {
+    ACPI_PARSE_OBJECT           *MethodOp;
+
 
     if (Op->Asl.AmlOpcode == AML_RAW_DATA_BYTE)
     {
@@ -463,6 +465,35 @@ TrTransformSubtree (
             ExDoExternal (Op);
         }
 
+        break;
+
+    case PARSEOP___METHOD__:
+
+        /* Transform to a string op containing the parent method name */
+
+        Op->Asl.ParseOpcode = PARSEOP_STRING_LITERAL;
+        UtSetParseOpName (Op);
+
+        /* Find the parent control method op */
+
+        MethodOp = Op;
+        while (MethodOp)
+        {
+            if (MethodOp->Asl.ParseOpcode == PARSEOP_METHOD)
+            {
+                /* First child contains the method name */
+
+                MethodOp = MethodOp->Asl.Child;
+                Op->Asl.Value.String = MethodOp->Asl.Value.String;
+                return;
+            }
+
+            MethodOp = MethodOp->Asl.Parent;
+        }
+
+        /* At the root, invocation not within a control method */
+
+        Op->Asl.Value.String = "\\";
         break;
 
     default:
