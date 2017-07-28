@@ -2,6 +2,6 @@
 
 TESTSDIR=		${TESTSBASE}/sys/vfs
 
-PLAIN_TESTS_SH+=	trailing_slash
+TAP_TESTS_SH+=	trailing_slash
 
 .include <bsd.test.mk>
