@@ -195,7 +195,7 @@ AnMethodTypingWalkEnd (
     {
     case PARSEOP_METHOD:
 
-        Op->Asl.CompileFlags |= NODE_METHOD_TYPED;
+        Op->Asl.CompileFlags |= OP_METHOD_TYPED;
         break;
 
     case PARSEOP_RETURN:

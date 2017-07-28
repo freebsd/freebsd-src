@@ -474,6 +474,15 @@ AcpiAhMatchPredefinedName (
     const AH_PREDEFINED_NAME    *Info;
 
 
+    /* Nameseg must start with an underscore */
+
+    if (*Nameseg != '_')
+    {
+        return (NULL);
+    }
+
+    /* Search for a match in the predefined name table */
+
     for (Info = AslPredefinedInfo; Info->Name; Info++)
     {
         if (ACPI_COMPARE_NAME (Nameseg, Info->Name))

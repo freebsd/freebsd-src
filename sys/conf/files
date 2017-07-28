@@ -355,6 +355,7 @@ contrib/dev/acpica/components/dispatcher/dsmethod.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsmthdat.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsobject.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsopcode.c	optional acpi
+contrib/dev/acpica/components/dispatcher/dspkginit.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsutils.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dswexec.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dswload.c	optional acpi

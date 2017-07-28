@@ -186,6 +186,7 @@
 #define ACPI_SIG_MCHI           "MCHI"      /* Management Controller Host Interface table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
 #define ACPI_SIG_MTMR           "MTMR"      /* MID Timer table */
+#define ACPI_SIG_SDEI           "SDEI"      /* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SLIC           "SLIC"      /* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"      /* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"      /* Server Platform Management Interface table */
@@ -874,7 +875,7 @@ typedef struct acpi_ibft_target
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049B, October 2015
+ * Document number: ARM DEN 0049C, May 2017
  *
  ******************************************************************************/
 
@@ -1013,6 +1014,8 @@ typedef struct acpi_iort_smmu
 #define ACPI_IORT_SMMU_V2               0x00000001  /* Generic SMMUv2 */
 #define ACPI_IORT_SMMU_CORELINK_MMU400  0x00000002  /* ARM Corelink MMU-400 */
 #define ACPI_IORT_SMMU_CORELINK_MMU500  0x00000003  /* ARM Corelink MMU-500 */
+#define ACPI_IORT_SMMU_CORELINK_MMU401  0x00000004  /* ARM Corelink MMU-401 */
+#define ACPI_IORT_SMMU_CAVIUM_THUNDERX  0x00000005  /* Cavium ThunderX SMMUv2 */
 
 /* Masks for Flags field above */
 
@@ -1036,18 +1039,28 @@ typedef struct acpi_iort_smmu_v3
     UINT32                  Flags;
     UINT32                  Reserved;
     UINT64                  VatosAddress;
-    UINT32                  Model;                 /* O: generic SMMUv3 */
+    UINT32                  Model;
     UINT32                  EventGsiv;
     UINT32                  PriGsiv;
     UINT32                  GerrGsiv;
     UINT32                  SyncGsiv;
+    UINT8                   Pxm;
+    UINT8                   Reserved1;
+    UINT16                  Reserved2;
 
 } ACPI_IORT_SMMU_V3;
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V3_GENERIC           0x00000000  /* Generic SMMUv3 */
+#define ACPI_IORT_SMMU_V3_HISILICON_HI161X  0x00000001  /* HiSilicon Hi161x SMMUv3 */
+#define ACPI_IORT_SMMU_V3_CAVIUM_CN99XX     0x00000002  /* Cavium CN99xx SMMUv3 */
 
 /* Masks for Flags field above */
 
 #define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)
 #define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (1<<1)
+#define ACPI_IORT_SMMU_V3_PXM_VALID         (1<<3)
 
 
 /*******************************************************************************
@@ -1409,6 +1422,21 @@ typedef struct acpi_mtmr_entry
     UINT32                  Irq;
 
 } ACPI_MTMR_ENTRY;
+
+/*******************************************************************************
+ *
+ * SDEI - Software Delegated Exception Interface Descriptor Table
+ *
+ * Conforms to "Software Delegated Exception Interface (SDEI)" ARM DEN0054A,
+ * May 8th, 2017. Copyright 2017 ARM Ltd.
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_sdei
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+
+} ACPI_TABLE_SDEI;
 
 
 /*******************************************************************************

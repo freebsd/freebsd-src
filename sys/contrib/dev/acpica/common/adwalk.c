@@ -536,10 +536,19 @@ AcpiDmDumpDescending (
     case AML_NAME_OP:
     case AML_METHOD_OP:
     case AML_DEVICE_OP:
+
+        AcpiOsPrintf ("%4.4s",
+            ACPI_CAST_PTR (char, &Op->Named.Name));
+        break;
+
     case AML_INT_NAMEDFIELD_OP:
 
-        AcpiOsPrintf ("%4.4s", ACPI_CAST_PTR (char, &Op->Named.Name));
+        AcpiOsPrintf ("%4.4s Length: (bits) %8.8X%8.8X (bytes) %8.8X%8.8X",
+            ACPI_CAST_PTR (char, &Op->Named.Name),
+            ACPI_FORMAT_UINT64 (Op->Common.Value.Integer),
+            ACPI_FORMAT_UINT64 (Op->Common.Value.Integer / 8));
         break;
+
 
     default:
 
@@ -1070,10 +1079,10 @@ AcpiDmCommonDescendingOp (
 {
     ACPI_STATUS             Status;
 
+
     /* Resource descriptor conversion */
 
     Status = AcpiDmProcessResourceDescriptors (Op, Level, Context);
-
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -1082,7 +1091,6 @@ AcpiDmCommonDescendingOp (
     /* Switch/Case conversion */
 
     Status = AcpiDmProcessSwitch (Op);
-
     return (AE_OK);
 }
 
@@ -1113,6 +1121,7 @@ AcpiDmProcessResourceDescriptors (
     ACPI_OBJECT_TYPE        ObjectType;
     ACPI_STATUS             Status;
 
+
     WalkState = Info->WalkState;
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
@@ -1138,7 +1147,6 @@ AcpiDmProcessResourceDescriptors (
      * If so, convert the reference into a symbolic reference.
      */
     AcpiDmCheckResourceReference (Op, WalkState);
-
     return (AE_OK);
 }
 
