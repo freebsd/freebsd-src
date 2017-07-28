@@ -237,7 +237,7 @@ AslInitializeGlobals (
     {
         Gbl_CommentState.SpacesBefore          = 0;
         Gbl_CommentState.CommentType           = 1;
-        Gbl_CommentState.Latest_Parse_Node     = NULL;
+        Gbl_CommentState.LatestParseOp          = NULL;
         Gbl_CommentState.ParsingParenBraceNode = NULL;
         Gbl_CommentState.CaptureComments       = TRUE;
     }

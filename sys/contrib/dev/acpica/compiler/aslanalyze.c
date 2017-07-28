@@ -435,13 +435,13 @@ AnCheckMethodReturnValue (
     /* Examine the parent op of this method */
 
     OwningOp = Node->Op;
-    if (OwningOp->Asl.CompileFlags & NODE_METHOD_NO_RETVAL)
+    if (OwningOp->Asl.CompileFlags & OP_METHOD_NO_RETVAL)
     {
         /* Method NEVER returns a value */
 
         AslError (ASL_ERROR, ASL_MSG_NO_RETVAL, Op, Op->Asl.ExternalName);
     }
-    else if (OwningOp->Asl.CompileFlags & NODE_METHOD_SOME_NO_RETVAL)
+    else if (OwningOp->Asl.CompileFlags & OP_METHOD_SOME_NO_RETVAL)
     {
         /* Method SOMETIMES returns a value, SOMETIMES not */
 

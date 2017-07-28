@@ -363,7 +363,7 @@ ACPI_GENERIC_STATE *
 AcpiUtCreatePkgState (
     void                    *InternalObject,
     void                    *ExternalObject,
-    UINT16                  Index)
+    UINT32                  Index)
 {
     ACPI_GENERIC_STATE      *State;
 
