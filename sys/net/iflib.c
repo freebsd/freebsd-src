@@ -1262,8 +1262,8 @@ iflib_txsd_alloc(iflib_txq_t txq)
 			       NULL,			/* lockfuncarg */
 			       &txq->ift_desc_tag))) {
 		device_printf(dev,"Unable to allocate TX DMA tag: %d\n", err);
-		device_printf(dev,"maxsize: %zd nsegments: %d maxsegsize: %zd\n",
-					  sctx->isc_tx_maxsize, nsegments, sctx->isc_tx_maxsegsize);
+		device_printf(dev,"maxsize: %ju nsegments: %d maxsegsize: %ju\n",
+		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
 		goto fail;
 	}
 #ifdef IFLIB_DIAGNOSTICS
