@@ -71,6 +71,7 @@ NANO_PMAKE="make -j 3"
 
 # The default name for any image we create.
 NANO_IMGNAME="_.disk.full"
+NANO_IMG1NAME="_.disk.image"
 
 # Options to put in make.conf during buildworld only
 CONF_BUILD=' '
@@ -652,7 +653,7 @@ last_orders ( ) (
 	# Redefine this function with any last orders you may have
 	# after the build completed, for instance to copy the finished
 	# image to a more convenient place:
-	# cp ${NANO_DISKIMGDIR}/_.disk.image /home/ftp/pub/nanobsd.disk
+	# cp ${NANO_DISKIMGDIR}/${NANO_IMG1NAME} /home/ftp/pub/nanobsd.disk
 	true
 )
 
@@ -919,6 +920,7 @@ set_defaults_and_export ( ) {
 	export_var NANO_HEADS
 	export_var NANO_IMAGES
 	export_var NANO_IMGNAME
+	export_var NANO_IMG1NAME
 	export_var NANO_MAKE
 	export_var NANO_MAKE_CONF_BUILD
 	export_var NANO_MAKE_CONF_INSTALL
