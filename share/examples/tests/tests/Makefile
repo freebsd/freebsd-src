@@ -17,6 +17,7 @@ TESTSDIR=	${TESTSBASE}/share/examples/tests
 # of the system.  We use TESTS_SUBDIRS instead of SUBDIR because we want
 # the auto-generated Kyuafile to recurse into these directories.
 TESTS_SUBDIRS=	atf plain
+TESTS_SUBDIRS+=	tap
 
 # We leave KYUAFILE unset so that bsd.test.mk auto-generates a Kyuafile
 # for us based on the contents of the TESTS_SUBDIRS line above.  The
