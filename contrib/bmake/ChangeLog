@@ -1,3 +1,23 @@
+2017-07-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170720
+	  Merge with NetBSD make, pick up
+	  o compat.c: pass SIGINT etc onto child and wait for it to exit
+	    before we self-terminate.
+
+2017-07-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170711
+	  forgot to update after merge on 20170708 ;-)
+	  o main.c: refactor to reduce size of main function.
+	    add -v option to always fully expand values.
+	  o meta.c: ensure command output in meta file has ending newline
+	    even when filemon not being used.
+	    When matching ${.MAKE.META.IGNORE_PATTERNS} do not use
+	    pathname via ':L' since any ':' in pathname breaks that.
+	    Instead set a '${.p.}' to pathname in the target context and
+	    use that.
+
 2017-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20170510
