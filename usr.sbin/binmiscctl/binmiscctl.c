@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/imgact_binmisc.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 enum cmd {
@@ -401,7 +402,7 @@ main(int argc, char **argv)
 	size_t xbe_out_sz = 0, *xbe_out_szp = NULL;
 	uint32_t i;
 
-	if (kldfind(KMOD_NAME) == -1) {
+	if (modfind(KMOD_NAME) == -1) {
 		if (kldload(KMOD_NAME) == -1)
 			fatal("Can't load %s kernel module: %s",
 			    KMOD_NAME, strerror(errno));
