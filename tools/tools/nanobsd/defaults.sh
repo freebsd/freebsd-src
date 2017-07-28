@@ -780,7 +780,6 @@ cust_pkgng ( ) (
 		echo "FAILED: need a pkg/ package for bootstrapping"
 		exit 2
 	fi
-	NANO_PACKAGE_LIST="${_NANO_PKG_PACKAGE} ${NANO_PACKAGE_LIST}"
 
 	# Mount packages into chroot
 	mkdir -p ${NANO_WORLDDIR}/_.p
@@ -788,14 +787,25 @@ cust_pkgng ( ) (
 
 	trap "umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
-	# Install packages
-	todo="$(echo "${NANO_PACKAGE_LIST}" | awk '{ print NF }')"
-	echo "=== TODO: $todo"
-	echo "${NANO_PACKAGE_LIST}"
-	echo "==="
-	for _PKG in ${NANO_PACKAGE_LIST}; do
-		CR "${PKGCMD} add /_.p/${_PKG}"
-	done
+	# Install pkg-* package
+	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
+
+	(
+		# Expand any glob characters in pacakge list
+		cd "${NANO_PACKAGE_DIR}"
+		_PKGS=`find ${NANO_PACKAGE_LIST} -not -name "${_NANO_PKG_PACKAGE}" -print | sort | uniq`
+
+		# Show todo
+		todo=`echo "$_PKGS" | wc -l`
+		echo "=== TODO: $todo"
+		echo "$_PKGS"
+		echo "==="
+
+		# Install packages
+		for _PKG in $_PKGS; do
+			CR "${PKGCMD} add /_.p/${_PKG}"
+		done
+	)
 
 	CR0 "${PKGCMD} info"
 
