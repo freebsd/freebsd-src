@@ -1405,7 +1405,7 @@ e82545_tx_run(struct e82545_softc *sc)
 	    sc->esc_TDH, sc->esc_TDHr, sc->esc_TDT);
 }
 
-static void *
+static _Noreturn void *
 e82545_tx_thread(void *param)
 {
 	struct e82545_softc *sc = param;
