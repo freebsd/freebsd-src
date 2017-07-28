@@ -303,11 +303,9 @@ AcpiUtWalkAmlResources (
     ACPI_FUNCTION_TRACE (UtWalkAmlResources);
 
 
-    /*
-     * The absolute minimum resource template is one EndTag descriptor.
-     * However, we will treat a lone EndTag as just a simple buffer.
-     */
-    if (AmlLength <= sizeof (AML_RESOURCE_END_TAG))
+    /* The absolute minimum resource template is one EndTag descriptor */
+
+    if (AmlLength < sizeof (AML_RESOURCE_END_TAG))
     {
         return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
     }
@@ -362,14 +360,11 @@ AcpiUtWalkAmlResources (
             }
 
             /*
-             * The EndTag opcode must be followed by a zero byte.
-             * Although this byte is technically defined to be a checksum,
-             * in practice, all ASL compilers set this byte to zero.
+             * Don't attempt to perform any validation on the 2nd byte.
+             * Although all known ASL compilers insert a zero for the 2nd
+             * byte, it can also be a checksum (as per the ACPI spec),
+             * and this is occasionally seen in the field. July 2017.
              */
-            if (*(Aml + 1) != 0)
-            {
-                return_ACPI_STATUS (AE_AML_NO_RESOURCE_END_TAG);
-            }
 
             /* Return the pointer to the EndTag if requested */
 
@@ -378,10 +373,8 @@ AcpiUtWalkAmlResources (
                 *Context = Aml;
             }
 
-            /*
-             * Normal exit. Note: We allow the buffer to be larger than
-             * the resource template, as long as the END_TAG exists.
-             */
+            /* Normal exit */
+
             return_ACPI_STATUS (AE_OK);
         }
 
