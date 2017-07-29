@@ -624,8 +624,7 @@ XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # combined with --sysroot.
 XCFLAGS+=	-B${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
