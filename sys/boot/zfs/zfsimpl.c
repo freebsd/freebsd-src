@@ -2046,8 +2046,13 @@ check_mos_features(const spa_t *spa)
 	if ((rc = objset_get_dnode(spa, &spa->spa_mos, DMU_OT_OBJECT_DIRECTORY,
 	    &dir)) != 0)
 		return (rc);
-	if ((rc = zap_lookup(spa, &dir, DMU_POOL_FEATURES_FOR_READ, &objnum)) != 0)
-		return (rc);
+	if ((rc = zap_lookup(spa, &dir, DMU_POOL_FEATURES_FOR_READ, &objnum)) != 0) {
+		/*
+		 * It is older pool without features. As we have already
+		 * tested the label, just return without raising the error.
+		 */
+		return (0);
+	}
 
 	if ((rc = objset_get_dnode(spa, &spa->spa_mos, objnum, &dir)) != 0)
 		return (rc);
