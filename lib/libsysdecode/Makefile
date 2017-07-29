@@ -121,7 +121,7 @@ tables.h: mktables
 ioctl.c: .PHONY
 .endif
 ioctl.c: mkioctls .META
-	env MACHINE=${MACHINE} CPP="${CPP}" \
+	env MACHINE=${MACHINE} CPP="${CPP}" MK_PF="${MK_PF}" \
 		/bin/sh ${.CURDIR}/mkioctls ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 beforedepend: ioctl.c tables.h
