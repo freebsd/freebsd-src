@@ -209,7 +209,6 @@ load_ggate()
 	if ! kldstat -q -m g_${class}; then
 		if ! geom ${class} load; then
 			atf_skip "could not load module for geom class=${class}"
-			exit 0
 		fi
 	fi
 }
