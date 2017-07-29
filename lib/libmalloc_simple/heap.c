@@ -58,6 +58,12 @@ static char *rcsid = "$FreeBSD$";
 
 #include "malloc_heap.h"
 
+#ifdef IN_RTLD
+#include "rtld_printf.h"
+
+#define	printf	rtld_printf
+#endif
+
 #define	NPOOLPAGES	(32*1024/_pagesz)
 
 caddr_t		pagepool_start, pagepool_end;
@@ -106,7 +112,12 @@ __morepages(int n)
 		caddr_t	addr = cheri_setoffset(pagepool_start,
 		    roundup2(cheri_getoffset(pagepool_start), _pagesz));
 		if (munmap(addr, pagepool_end - addr) != 0) {
+#ifdef IN_RTLD
+			rtld_fdprintf(STDERR_FILENO, "%s: munmap %p", __func__,
+			    addr);
+#else
 			fprintf(stderr, "%s: munmap %p", __func__, addr);
+#endif
 		} else {
 			/* Shrink the pool */
 			pagepool_list[n_pagepools - 1] =

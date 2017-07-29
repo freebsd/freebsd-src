@@ -57,6 +57,14 @@ static char *rcsid = "$FreeBSD$";
 
 #include "malloc_heap.h"
 
+#ifdef IN_RTLD
+#include "rtld_printf.h"
+
+#undef assert
+#define	assert	ASSERT
+#define	printf	rtld_printf
+#endif
+
 union overhead;
 static void morecore(int);
 static void init_pagebucket(void);
@@ -91,14 +99,17 @@ static	size_t pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */
 
 
-#if defined(MALLOC_DEBUG) || defined(RCHECK)
+#if defined(MALLOC_DEBUG) || defined(RCHECK) || defined(IN_RTLD)
 #define	ASSERT(p)   if (!(p)) botch("p")
-#include <stdio.h>
 static void
 botch(char *s)
 {
+#ifdef IN_RTLD
+	rtld_fdprintf(STDERR_FILENO, "\r\nassertion botched: %s\r\n", s);
+#else
 	fprintf(stderr, "\r\nassertion botched: %s\r\n", s);
 	(void) fflush(stderr);		/* just in case user buffered it */
+#endif
 	abort();
 }
 #else
