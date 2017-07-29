@@ -17,8 +17,14 @@ LC_ALL=C; export LC_ALL
 # XXX should we use an ANSI cpp?
 ioctl_includes=$(
 	cd $includedir
+
+	filter='(.*disk.*)\.h'
+	if [ "${MK_PF}" == "no" ]; then
+		filter="(${filter})|((net/pfvar|net/if_pfsync)\.h)"
+	fi
+
 	find -H -s * -name '*.h' | \
-	egrep -v '(.*disk.*|net/pfvar|net/if_pfsync)\.h' | \
+		egrep -v ${filter} | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\n", $1)}'
