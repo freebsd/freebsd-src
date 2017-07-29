@@ -2759,17 +2759,28 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		return (-1);
 	}
 
+	/*
+	 * XXX CHERI: Leave all segments mapped writable to permit
+	 * cap_relocs fixups during initialization.  We could perhaps
+	 * drop PROT_WRITE after init functions have been called, but
+	 * it's probably a better use of time to handle caprelocs in
+	 * rtld directly instead.
+	 */
+#if 0
 	/* There are relocations to the write-protected text segment. */
 	if (obj->textrel && reloc_textrel_prot(obj, true) != 0)
 		return (-1);
+#endif
 
 	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
 
+#if 0
 	/* Re-protected the text segment. */
 	if (obj->textrel && reloc_textrel_prot(obj, false) != 0)
 		return (-1);
+#endif
 
 	/* Set the special PLT or GOT entries. */
 	init_pltgot(obj);
