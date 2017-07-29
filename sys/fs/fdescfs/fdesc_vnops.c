@@ -152,7 +152,7 @@ fdesc_allocvp(fdntype ftype, unsigned fd_fd, int ix, struct mount *mp,
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
 	struct thread *td;
-	int error = 0;
+	int error;
 
 	td = curthread;
 	fc = FD_NHASH(ix);
