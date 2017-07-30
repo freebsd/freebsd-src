@@ -28,7 +28,7 @@
 .\"	@(#)munmap.2	8.3 (Berkeley) 5/27/94
 .\" $FreeBSD$
 .\"
-.Dd May 27, 1994
+.Dd June 22, 2017
 .Dt MUNMAP 2
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 The
 .Fn munmap
 system call
-deletes the mappings for the specified address range,
+deletes the mappings and guards for the specified address range,
 and causes further references to addresses within the range
 to generate invalid memory references.
 .Sh RETURN VALUES

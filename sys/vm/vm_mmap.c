@@ -230,6 +230,10 @@ sys_mmap(td, uap)
 	}
 	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
 		return (EINVAL);
+	if ((flags & MAP_GUARD) != 0 && (prot != PROT_NONE || uap->fd != -1 ||
+	    pos != 0 || (flags & (MAP_SHARED | MAP_PRIVATE | MAP_PREFAULT |
+	    MAP_PREFAULT_READ | MAP_ANON | MAP_STACK)) != 0))
+		return (EINVAL);
 
 	/*
 	 * Align the file position to a page boundary,
@@ -299,7 +303,12 @@ sys_mmap(td, uap)
 			    lim_max(td->td_proc, RLIMIT_DATA));
 		PROC_UNLOCK(td->td_proc);
 	}
-	if (flags & MAP_ANON) {
+	if ((flags & MAP_GUARD) != 0) {
+		handle = NULL;
+		handle_type = OBJT_DEFAULT;
+		maxprot = VM_PROT_NONE;
+		cap_maxprot = VM_PROT_NONE;
+	} else if ((flags & MAP_ANON) != 0) {
 		/*
 		 * Mapping blank space is trivial.
 		 */
@@ -1450,7 +1459,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	objtype_t handle_type, void *handle,
 	vm_ooffset_t foff)
 {
-	boolean_t fitit;
+	boolean_t curmap, fitit;
+	vm_offset_t max_addr;
 	vm_object_t object = NULL;
 	struct thread *td = curthread;
 	int docow, error, findspace, rv;
@@ -1461,7 +1471,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	size = round_page(size);
 
-	if (map == &td->td_proc->p_vmspace->vm_map) {
+	curmap = map == &td->td_proc->p_vmspace->vm_map;
+	if (curmap) {
 		PROC_LOCK(td->td_proc);
 		if (map->size + size > lim_cur(td->td_proc, RLIMIT_VMEM)) {
 			PROC_UNLOCK(td->td_proc);
@@ -1571,6 +1582,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	}
 	if ((flags & MAP_EXCL) != 0)
 		docow |= MAP_CHECK_EXCL;
+	if ((flags & MAP_GUARD) != 0)
+		docow |= MAP_CREATE_GUARD;
 
 	if (fitit) {
 		if ((flags & MAP_ALIGNMENT_MASK) == MAP_ALIGNED_SUPER)
@@ -1580,11 +1593,26 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			    MAP_ALIGNMENT_SHIFT);
 		else
 			findspace = VMFS_OPTIMAL_SPACE;
-		rv = vm_map_find(map, object, foff, addr, size,
+		max_addr = 0;
 #ifdef MAP_32BIT
-		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
+		if ((flags & MAP_32BIT) != 0)
+			max_addr = MAP_32BIT_MAX_ADDR;
 #endif
-		    0, findspace, prot, maxprot, docow);
+		if (curmap) {
+			vm_offset_t min_addr;
+
+			PROC_LOCK(td->td_proc);
+			min_addr = round_page((vm_offset_t)td->td_proc->
+			    p_vmspace->vm_daddr + lim_max(td->td_proc,
+			    RLIMIT_DATA));
+			PROC_UNLOCK(td->td_proc);
+			rv = vm_map_find_min(map, object, foff, addr, size,
+			    min_addr, max_addr,
+			    findspace, prot, maxprot, docow);
+		} else {
+			rv = vm_map_find(map, object, foff, addr, size,
+			    max_addr, findspace, prot, maxprot, docow);
+		}
 	} else {
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 		    prot, maxprot, docow);
