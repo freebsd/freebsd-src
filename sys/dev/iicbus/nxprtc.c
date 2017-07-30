@@ -83,7 +83,8 @@ __FBSDID("$FreeBSD$");
 
 #define	PCF85xx_M_SECOND	0x7f	/* Masks for all BCD time regs... */
 #define	PCF85xx_M_MINUTE	0x7f
-#define	PCF85xx_M_HOUR		0x3f
+#define	PCF85xx_M_12HOUR	0x1f
+#define	PCF85xx_M_24HOUR	0x3f
 #define	PCF85xx_M_DAY		0x3f
 #define	PCF85xx_M_MONTH		0x1f
 #define	PCF85xx_M_YEAR		0xff
@@ -525,7 +526,7 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
 	int err;
-	uint8_t cs1, tmrcount;
+	uint8_t cs1, hourmask, tmrcount;
 
 	sc = device_get_softc(dev);
 
@@ -548,10 +549,15 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 		return (EINVAL); /* hardware is good, time is not. */
 	}
 
+	if (sc->flags & SC_F_AMPM)
+		hourmask = PCF85xx_M_12HOUR;
+	else
+		hourmask = PCF85xx_M_24HOUR;
+
 	ct.nsec = ((uint64_t)tmrcount * 1000000000) / TMR_TICKS_SEC;
 	ct.sec  = FROMBCD(tregs.sec   & PCF85xx_M_SECOND);
 	ct.min  = FROMBCD(tregs.min   & PCF85xx_M_MINUTE);
-	ct.hour = FROMBCD(tregs.hour  & PCF85xx_M_HOUR);
+	ct.hour = FROMBCD(tregs.hour  & hourmask);
 	ct.day  = FROMBCD(tregs.day   & PCF85xx_M_DAY);
 	ct.mon  = FROMBCD(tregs.month & PCF85xx_M_MONTH);
 	ct.year = FROMBCD(tregs.year  & PCF85xx_M_YEAR);
@@ -574,8 +580,12 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 	}
 
 	/* If this chip is running in 12-hour/AMPM mode, deal with it. */
-	if ((sc->flags & SC_F_AMPM) && (tregs.hour & PCF8523_B_HOUR_PM))
-		ct.hour += 12;
+	if (sc->flags & SC_F_AMPM) {
+		if (ct.hour == 12)
+			ct.hour = 0;
+		if (tregs.hour & PCF8523_B_HOUR_PM)
+			ct.hour += 12;
+	}
 
 	err = clock_ct_to_ts(&ct, ts);
 	ts->tv_sec += utc_offset();
@@ -628,9 +638,13 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
 	pmflag = 0;
-	if ((sc->flags & SC_F_AMPM) && ct.hour > 12) {
-		ct.hour -= 12;
-		pmflag = PCF8523_B_HOUR_PM;
+	if (sc->flags & SC_F_AMPM) {
+		if (ct.hour >= 12) {
+			ct.hour -= 12;
+			pmflag = PCF8523_B_HOUR_PM;
+		}
+		if (ct.hour == 0)
+			ct.hour = 12;
 	}
 
 	/* On 8563 set the century based on the polarity seen when reading. */
