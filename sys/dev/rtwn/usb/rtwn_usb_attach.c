@@ -77,12 +77,14 @@ static void	rtwn_usb_reset_lists(struct rtwn_softc *,
 		    struct ieee80211vap *);
 static void	rtwn_usb_reset_tx_list(struct rtwn_usb_softc *,
 		    rtwn_datahead *, struct ieee80211vap *);
+static void	rtwn_usb_reset_rx_list(struct rtwn_usb_softc *);
 static void	rtwn_usb_start_xfers(struct rtwn_softc *);
 static void	rtwn_usb_abort_xfers(struct rtwn_softc *);
 static int	rtwn_usb_fw_write_block(struct rtwn_softc *,
 		    const uint8_t *, uint16_t, int);
 static void	rtwn_usb_drop_incorrect_tx(struct rtwn_softc *);
 static void	rtwn_usb_attach_methods(struct rtwn_softc *);
+static void	rtwn_usb_sysctlattach(struct rtwn_softc *);
 
 #define RTWN_CONFIG_INDEX	0
 
@@ -133,9 +135,8 @@ rtwn_usb_alloc_rx_list(struct rtwn_softc *sc)
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
 	int error, i;
 
-	/* XXX recheck */
 	error = rtwn_usb_alloc_list(sc, uc->uc_rx, RTWN_USB_RX_LIST_COUNT,
-	    sc->rx_dma_size + 1024);
+	    uc->uc_rx_buf_size * RTWN_USB_RXBUFSZ_UNIT);
 	if (error != 0)
 		return (error);
 
@@ -199,6 +200,9 @@ rtwn_usb_free_rx_list(struct rtwn_softc *sc)
 
 	rtwn_usb_free_list(sc, uc->uc_rx, RTWN_USB_RX_LIST_COUNT);
 
+	uc->uc_rx_stat_len = 0;
+	uc->uc_rx_off = 0;
+
 	STAILQ_INIT(&uc->uc_rx_active);
 	STAILQ_INIT(&uc->uc_rx_inactive);
 }
@@ -224,8 +228,10 @@ rtwn_usb_reset_lists(struct rtwn_softc *sc, struct ieee80211vap *vap)
 
 	rtwn_usb_reset_tx_list(uc, &uc->uc_tx_active, vap);
 	rtwn_usb_reset_tx_list(uc, &uc->uc_tx_pending, vap);
-	if (vap == NULL)
+	if (vap == NULL) {
+		rtwn_usb_reset_rx_list(uc);
 		sc->qfullmsk = 0;
+	}
 }
 
 static void
@@ -256,6 +262,23 @@ rtwn_usb_reset_tx_list(struct rtwn_usb_softc *uc,
 			STAILQ_INSERT_TAIL(&uc->uc_tx_inactive, dp, next);
 		}
 	}
+}
+
+static void
+rtwn_usb_reset_rx_list(struct rtwn_usb_softc *uc)
+{
+	int i;
+
+	for (i = 0; i < RTWN_USB_RX_LIST_COUNT; i++) {
+		struct rtwn_data *dp = &uc->uc_rx[i];
+
+		if (dp->m != NULL) {
+			m_freem(dp->m);
+			dp->m = NULL;
+		}
+	}
+	uc->uc_rx_stat_len = 0;
+	uc->uc_rx_off = 0;
 }
 
 static void
@@ -327,6 +350,31 @@ rtwn_usb_attach_methods(struct rtwn_softc *sc)
 	sc->bcn_check_interval	= 100;
 }
 
+static void
+rtwn_usb_sysctlattach(struct rtwn_softc *sc)
+{
+	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	char str[64];
+	int ret;
+
+	ret = snprintf(str, sizeof(str),
+	    "Rx buffer size, 512-byte units [%d...%d]",
+	    RTWN_USB_RXBUFSZ_MIN, RTWN_USB_RXBUFSZ_MAX);
+	KASSERT(ret > 0, ("ret (%d) <= 0!\n", ret));
+	(void) ret;
+
+	uc->uc_rx_buf_size = RTWN_USB_RXBUFSZ_DEF;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "rx_buf_size", CTLFLAG_RDTUN, &uc->uc_rx_buf_size,
+	    uc->uc_rx_buf_size, str);
+	if (uc->uc_rx_buf_size < RTWN_USB_RXBUFSZ_MIN)
+		uc->uc_rx_buf_size = RTWN_USB_RXBUFSZ_MIN;
+	if (uc->uc_rx_buf_size > RTWN_USB_RXBUFSZ_MAX)
+		uc->uc_rx_buf_size = RTWN_USB_RXBUFSZ_MAX;
+}
+
 static int
 rtwn_usb_attach(device_t self)
 {
@@ -343,6 +391,7 @@ rtwn_usb_attach(device_t self)
 
 	/* Need to be initialized early. */
 	rtwn_sysctlattach(sc);
+	rtwn_usb_sysctlattach(sc);
 	mtx_init(&sc->sc_mtx, ic->ic_name, MTX_NETWORK_LOCK, MTX_DEF);
 
 	rtwn_usb_attach_methods(sc);
