@@ -358,7 +358,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 		    LK_EXCLUSIVE, &fvp);
 	}
-	
+
 	if (error)
 		goto bad;
 	*vpp = fvp;
