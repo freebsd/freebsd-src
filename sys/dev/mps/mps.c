@@ -1341,7 +1341,7 @@ mps_init_queues(struct mps_softc *sc)
  * Next are the global settings, if they exist.  Highest are the per-unit
  * settings, if they exist.
  */
-static void
+void
 mps_get_tunables(struct mps_softc *sc)
 {
 	char tmpstr[80];
@@ -1512,8 +1512,6 @@ int
 mps_attach(struct mps_softc *sc)
 {
 	int error;
-
-	mps_get_tunables(sc);
 
 	MPS_FUNCTRACE(sc);
 

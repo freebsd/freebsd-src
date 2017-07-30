@@ -1482,7 +1482,7 @@ mpr_init_queues(struct mpr_softc *sc)
  * Next are the global settings, if they exist.  Highest are the per-unit
  * settings, if they exist.
  */
-static void
+void
 mpr_get_tunables(struct mpr_softc *sc)
 {
 	char tmpstr[80];
@@ -1657,8 +1657,6 @@ int
 mpr_attach(struct mpr_softc *sc)
 {
 	int error;
-
-	mpr_get_tunables(sc);
 
 	MPR_FUNCTRACE(sc);
 
