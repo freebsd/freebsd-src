@@ -21,6 +21,12 @@
 #ifndef RTWN_USBVAR_H
 #define RTWN_USBVAR_H
 
+#include <dev/rtwn/if_rtwnreg.h>	/* for struct rtwn_rx_stat_common */
+
+#define RTWN_USB_RXBUFSZ_UNIT		(512)
+#define RTWN_USB_RXBUFSZ_MIN		( 4)
+#define RTWN_USB_RXBUFSZ_DEF		(24)
+#define RTWN_USB_RXBUFSZ_MAX		(64)
 #define RTWN_USB_TXBUFSZ		(16 * 1024)
 
 #define RTWN_IFACE_INDEX		0
@@ -58,6 +64,12 @@ struct rtwn_usb_softc {
 	struct rtwn_data	uc_rx[RTWN_USB_RX_LIST_COUNT];
 	rtwn_datahead		uc_rx_active;
 	rtwn_datahead		uc_rx_inactive;
+	int			uc_rx_buf_size;
+
+	struct rtwn_rx_stat_common uc_rx_stat;
+	int			uc_rx_stat_len;
+	int			uc_rx_off;
+
 	struct rtwn_data	uc_tx[RTWN_USB_TX_LIST_COUNT];
 	rtwn_datahead		uc_tx_active;
 	rtwn_datahead		uc_tx_inactive;
