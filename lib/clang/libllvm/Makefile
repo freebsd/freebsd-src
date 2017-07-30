@@ -1304,7 +1304,7 @@ CFLAGS.DlltoolDriver.cpp+=	-I${.OBJDIR}/llvm-dlltool
 
 beforebuild:
 # 20170724 remove stale Options.inc file, of which there are two different
-# versions after r308421, one for llvm-lib, one for llvm-dlltool
+# versions after upstream r308421, one for llvm-lib, one for llvm-dlltool
 .for f in Options.inc
 .if exists(${f}) || exists(${f}.d)
 	@echo Removing stale generated ${f} files

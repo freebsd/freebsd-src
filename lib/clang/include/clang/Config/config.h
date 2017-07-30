@@ -57,4 +57,9 @@
 /* enable x86 relax relocations by default */
 #define ENABLE_X86_RELAX_RELOCATIONS 0
 
+/* Enable each functionality of modules */
+/* #undef CLANG_ENABLE_ARCMT */
+/* #undef CLANG_ENABLE_OBJC_REWRITER */
+/* #undef CLANG_ENABLE_STATIC_ANALYZER */
+
 #endif
