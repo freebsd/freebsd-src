@@ -336,7 +336,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	vm_prot_t prot;
 	long ahead, behind;
 	int alloc_req, era, faultcount, nera, reqpage, result;
-	boolean_t dead, growstack, is_first_object_locked, wired;
+	boolean_t dead, is_first_object_locked, wired;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ_MAX];
 	int hardfault;
@@ -345,7 +345,6 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int locked, error;
 
 	hardfault = 0;
-	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
 	faultcount = reqpage = 0;
@@ -357,17 +356,10 @@ RetryFault:;
 	 * search.
 	 */
 	fs.map = map;
-	result = vm_map_lookup(&fs.map, vaddr, fault_type, &fs.entry,
-	    &fs.first_object, &fs.first_pindex, &prot, &wired);
+	result = vm_map_lookup(&fs.map, vaddr, fault_type |
+	    VM_PROT_FAULT_LOOKUP, &fs.entry, &fs.first_object,
+	    &fs.first_pindex, &prot, &wired);
 	if (result != KERN_SUCCESS) {
-		if (growstack && result == KERN_INVALID_ADDRESS &&
-		    map != kernel_map) {
-			result = vm_map_growstack(curproc, vaddr);
-			if (result != KERN_SUCCESS)
-				return (KERN_FAILURE);
-			growstack = FALSE;
-			goto RetryFault;
-		}
 		unlock_vp(&fs);
 		return (result);
 	}
@@ -392,6 +384,8 @@ RetryFault:;
 			vm_map_unlock(fs.map);
 		goto RetryFault;
 	}
+
+	MPASS((fs.entry->eflags & MAP_ENTRY_GUARD) == 0);
 
 	if (wired)
 		fault_type = prot | (fault_type & VM_PROT_COPY);
