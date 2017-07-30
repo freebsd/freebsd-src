@@ -56,20 +56,20 @@ __FBSDID("$FreeBSD$");
 
 struct ds1307_softc {
 	device_t	sc_dev;
-	int		sc_year0;
-	struct intr_config_hook	enum_hook;
-	uint16_t	sc_addr;	/* DS1307 slave address. */
+	struct intr_config_hook
+			enum_hook;
 	uint8_t		sc_ctrl;
-	int		sc_mcp7941x;
+	bool		sc_mcp7941x;
+	bool		sc_use_ampm;
 };
 
 static void ds1307_start(void *);
 
 #ifdef FDT
 static const struct ofw_compat_data ds1307_compat_data[] = {
-    {"dallas,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
-    {"maxim,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
-    {"microchip,mcp7941x", (uintptr_t)"Microchip MCP7941x RTC"},
+    {"dallas,ds1307",		(uintptr_t)"Dallas DS1307 RTC"},
+    {"maxim,ds1307",		(uintptr_t)"Maxim DS1307 RTC"},
+    {"microchip,mcp7941x",	(uintptr_t)"Microchip MCP7941x RTC"},
     { NULL, 0 }
 };
 #endif
@@ -111,48 +111,6 @@ ds1307_ctrl_write(struct ds1307_softc *sc)
 
 	ctrl = sc->sc_ctrl & DS1307_CTRL_MASK;
 	error = ds1307_write1(sc->sc_dev, DS1307_CONTROL, ctrl);
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot write to RTC.\n");
-
-	return (error);
-}
-
-static int
-ds1307_osc_enable(struct ds1307_softc *sc)
-{
-	int error;
-	uint8_t secs;
-
-	error = ds1307_read1(sc->sc_dev, DS1307_SECS, &secs);
-	if (error) {
-		device_printf(sc->sc_dev, "cannot read from RTC.\n");
-		return (error);
-	}
-	/* Check if the oscillator is disabled. */
-	if ((secs & DS1307_SECS_CH) == 0)
-		return (0);
-	device_printf(sc->sc_dev, "clock was halted, check the battery.\n");
-	secs &= DS1307_SECS_MASK;
-	error = ds1307_write1(sc->sc_dev, DS1307_SECS, secs);
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot write to RTC.\n");
-
-	return (error);
-}
-
-static int
-ds1307_set_24hrs_mode(struct ds1307_softc *sc)
-{
-	int error;
-	uint8_t hour;
-
-	error = ds1307_read1(sc->sc_dev, DS1307_HOUR, &hour);
-	if (error) {
-		device_printf(sc->sc_dev, "cannot read from RTC.\n");
-		return (error);
-	}
-	hour &= DS1307_HOUR_MASK;
-	error = ds1307_write1(sc->sc_dev, DS1307_HOUR, hour);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -268,7 +226,7 @@ ds1307_probe(device_t dev)
 #else
 	device_set_desc(dev, "Maxim DS1307 RTC");
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 #endif
 }
 
@@ -279,8 +237,6 @@ ds1307_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev);
-	sc->sc_year0 = 1900;
 	sc->enum_hook.ich_func = ds1307_start;
 	sc->enum_hook.ich_arg = dev;
 
@@ -307,6 +263,7 @@ ds1307_start(void *xdev)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree_node;
 	struct sysctl_oid_list *tree;
+	uint8_t secs;
 
 	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
@@ -315,12 +272,16 @@ ds1307_start(void *xdev)
 	tree = SYSCTL_CHILDREN(tree_node);
 
 	config_intrhook_disestablish(&sc->enum_hook);
-	/* Set the 24 hours mode. */
-	if (ds1307_set_24hrs_mode(sc) != 0)
+
+	/* Check if the oscillator is disabled. */
+	if (ds1307_read1(sc->sc_dev, DS1307_SECS, &secs) != 0) {
+		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return;
-	/* Enable the oscillator if halted. */
-	if (ds1307_osc_enable(sc) != 0)
-		return;
+	}
+	if ((secs & DS1307_SECS_CH) != 0) {
+		device_printf(sc->sc_dev,
+		    "WARNING: RTC clock stopped, check the battery.\n");
+	}
 
 	/* Configuration parameters. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "sqwe",
@@ -334,8 +295,8 @@ ds1307_start(void *xdev)
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds1307_sqw_out_sysctl, "IU", "DS1307 square-wave output state");
 
-	/* 1 second resolution. */
-	clock_register(dev, 1000000);
+	/* Register as a clock with 1 second resolution. */
+	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_TS);
 }
 
 static int
@@ -344,7 +305,7 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	int error;
 	struct clocktime ct;
 	struct ds1307_softc *sc;
-	uint8_t data[7];
+	uint8_t data[7], hourmask;
 
 	sc = device_get_softc(dev);
 	error = iicdev_readfrom(sc->sc_dev, DS1307_SECS, data, sizeof(data),
@@ -353,14 +314,28 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
 	}
+
+	/* If chip is in AM/PM mode remember that. */
+	if (data[DS1307_HOUR] & DS1307_HOUR_USE_AMPM) {
+		sc->sc_use_ampm = true;
+		hourmask = DS1307_HOUR_MASK_12HR;
+	} else
+		hourmask = DS1307_HOUR_MASK_24HR;
+
 	ct.nsec = 0;
-	ct.sec = FROMBCD(data[DS1307_SECS] & DS1307_SECS_MASK);
-	ct.min = FROMBCD(data[DS1307_MINS] & DS1307_MINS_MASK);
-	ct.hour = FROMBCD(data[DS1307_HOUR] & DS1307_HOUR_MASK);
-	ct.day = FROMBCD(data[DS1307_DATE] & DS1307_DATE_MASK);
-	ct.dow = data[DS1307_WEEKDAY] & DS1307_WEEKDAY_MASK;
-	ct.mon = FROMBCD(data[DS1307_MONTH] & DS1307_MONTH_MASK);
-	ct.year = FROMBCD(data[DS1307_YEAR] & DS1307_YEAR_MASK);
+	ct.sec  = FROMBCD(data[DS1307_SECS]  & DS1307_SECS_MASK);
+	ct.min  = FROMBCD(data[DS1307_MINS]  & DS1307_MINS_MASK);
+	ct.hour = FROMBCD(data[DS1307_HOUR]  & hourmask);
+	ct.day  = FROMBCD(data[DS1307_DATE]  & DS1307_DATE_MASK);
+	ct.mon  = FROMBCD(data[DS1307_MONTH] & DS1307_MONTH_MASK);
+	ct.year = FROMBCD(data[DS1307_YEAR]  & DS1307_YEAR_MASK);
+
+	if (sc->sc_use_ampm) {
+		if (ct.hour == 12)
+			ct.hour = 0;
+		if (data[DS1307_HOUR] & DS1307_HOUR_IS_PM)
+			ct.hour += 12;
+	}
 
 	return (clock_ct_to_ts(&ct, ts));
 }
@@ -368,17 +343,43 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 static int
 ds1307_settime(device_t dev, struct timespec *ts)
 {
-	int error;
 	struct clocktime ct;
 	struct ds1307_softc *sc;
+	long waitns;
+	int error;
 	uint8_t data[7];
+	uint8_t pmflags;
 
 	sc = device_get_softc(dev);
+
+	/* Sleep until 1ms into the second, to align RTC's second to ours. */
+	getnanotime(ts);
+	waitns = 1000000 - ts->tv_nsec;
+	if (waitns < 0)
+		waitns += 1000000000;
+	pause_sbt("set1307", nstosbt(waitns), 0, C_PREL(31));
+
+	/* Grab a fresh post-sleep idea of the time. */
+	getnanotime(ts);
+	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
+
+	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
+	if (sc->sc_use_ampm) {
+		pmflags = DS1307_HOUR_USE_AMPM;
+		if (ct.hour >= 12) {
+			ct.hour -= 12;
+			pmflags |= DS1307_HOUR_IS_PM;
+		}
+		if (ct.hour == 0)
+			ct.hour = 12;
+	} else
+		pmflags = 0;
+
 	data[DS1307_SECS]    = TOBCD(ct.sec);
 	data[DS1307_MINS]    = TOBCD(ct.min);
-	data[DS1307_HOUR]    = TOBCD(ct.hour);
+	data[DS1307_HOUR]    = TOBCD(ct.hour) | pmflags;
 	data[DS1307_DATE]    = TOBCD(ct.day);
 	data[DS1307_WEEKDAY] = ct.dow;
 	data[DS1307_MONTH]   = TOBCD(ct.mon);
