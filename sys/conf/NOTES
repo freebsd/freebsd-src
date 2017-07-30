@@ -2523,14 +2523,24 @@ device		iicoc		# OpenCores I2C controller support
 
 # I2C peripheral devices
 #
+# ds1307	Dallas Semiconductor DS1307 RTC and compatible
 # ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
 # ds1374	Dallas Semiconductor DS1374 RTC
 # ds1672	Dallas Semiconductor DS1672 RTC
+# ds3231	Dallas Semiconductor DS3231 RTC + temperature
+# icee		AT24Cxxx and compatible EEPROMs
+# lm75		LM75 compatible temperature sensor
+# nxprtc	NXP RTCs: PCA2129 PCA8565 PCF2127 PCF2129 PCF8523 PCF8563
 # s35390a	Seiko Instruments S-35390A RTC
 #
+device		ds1307
 device		ds133x
 device		ds1374
 device		ds1672
+device		ds3231
+device		icee
+device		lm75
+device		nxprtc
 device		s35390a
 
 # Parallel-Port Bus
