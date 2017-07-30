@@ -111,6 +111,7 @@ amrr_init(struct ieee80211vap *vap)
 
 	KASSERT(vap->iv_rs == NULL, ("%s called multiple times", __func__));
 
+	nrefs++;		/* XXX locking */
 	amrr = vap->iv_rs = malloc(sizeof(struct ieee80211_amrr),
 	    M_80211_RATECTL, M_NOWAIT|M_ZERO);
 	if (amrr == NULL) {
@@ -127,6 +128,8 @@ static void
 amrr_deinit(struct ieee80211vap *vap)
 {
 	free(vap->iv_rs, M_80211_RATECTL);
+	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
+	nrefs--;		/* XXX locking */
 }
 
 static int
