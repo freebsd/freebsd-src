@@ -373,7 +373,7 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 		}
 	}
 
-	mps_print_iocfacts(sc, sc->facts);
+	MPS_DPRINT_PAGE(sc, MPS_XINFO, iocfacts, sc->facts);
 
 	snprintf(sc->fw_version, sizeof(sc->fw_version), 
 	    "%02d.%02d.%02d.%02d", 
@@ -1623,7 +1623,7 @@ mps_log_evt_handler(struct mps_softc *sc, uintptr_t data,
 {
 	MPI2_EVENT_DATA_LOG_ENTRY_ADDED *entry;
 
-	mps_print_event(sc, event);
+	MPS_DPRINT_EVENT(sc, generic, event);
 
 	switch (event->Event) {
 	case MPI2_EVENT_LOG_DATA:
@@ -2033,7 +2033,7 @@ mps_reregister_events_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
 	if (cm->cm_reply)
-		mps_print_event(sc,
+		MPS_DPRINT_EVENT(sc, generic,
 			(MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply);
 
 	mps_free_command(sc, cm);
@@ -2118,7 +2118,10 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	if ((reply == NULL) ||
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
-	mps_print_event(sc, reply);
+
+	if (reply)
+		MPS_DPRINT_EVENT(sc, generic, reply);
+
 	mps_dprint(sc, MPS_TRACE, "%s finished error %d\n", __func__, error);
 
 	mps_free_command(sc, cm);
