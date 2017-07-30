@@ -75,24 +75,17 @@ static const struct ofw_compat_data ds1307_compat_data[] = {
 #endif
 
 static int
-ds1307_read(device_t dev, uint16_t addr, uint8_t reg, uint8_t *data, size_t len)
+ds1307_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
-	struct iic_msg msg[2] = {
-	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
-	    { addr, IIC_M_RD, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return(iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
-ds1307_write(device_t dev, uint16_t addr, uint8_t *data, size_t len)
+ds1307_write1(device_t dev, uint8_t reg, uint8_t data)
 {
-	struct iic_msg msg[1] = {
-	    { addr, IIC_M_WR, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return(iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -101,8 +94,7 @@ ds1307_ctrl_read(struct ds1307_softc *sc)
 	int error;
 
 	sc->sc_ctrl = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_CONTROL,
-	    &sc->sc_ctrl, sizeof(sc->sc_ctrl));
+	error = ds1307_read1(sc->sc_dev, DS1307_CONTROL, &sc->sc_ctrl);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
@@ -115,11 +107,10 @@ static int
 ds1307_ctrl_write(struct ds1307_softc *sc)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t ctrl;
 
-	data[0] = DS1307_CONTROL;
-	data[1] = sc->sc_ctrl & DS1307_CTRL_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	ctrl = sc->sc_ctrl & DS1307_CTRL_MASK;
+	error = ds1307_write1(sc->sc_dev, DS1307_CONTROL, ctrl);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -130,11 +121,9 @@ static int
 ds1307_osc_enable(struct ds1307_softc *sc)
 {
 	int error;
-	uint8_t data[2], secs;
+	uint8_t secs;
 
-	secs = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_SECS,
-	    &secs, sizeof(secs));
+	error = ds1307_read1(sc->sc_dev, DS1307_SECS, &secs);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
@@ -143,9 +132,8 @@ ds1307_osc_enable(struct ds1307_softc *sc)
 	if ((secs & DS1307_SECS_CH) == 0)
 		return (0);
 	device_printf(sc->sc_dev, "clock was halted, check the battery.\n");
-	data[0] = DS1307_SECS;
-	data[1] = secs & DS1307_SECS_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	secs &= DS1307_SECS_MASK;
+	error = ds1307_write1(sc->sc_dev, DS1307_SECS, secs);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -156,18 +144,15 @@ static int
 ds1307_set_24hrs_mode(struct ds1307_softc *sc)
 {
 	int error;
-	uint8_t data[2], hour;
+	uint8_t hour;
 
-	hour = 0;
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_HOUR,
-	    &hour, sizeof(hour));
+	error = ds1307_read1(sc->sc_dev, DS1307_HOUR, &hour);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
 	}
-	data[0] = DS1307_HOUR;
-	data[1] = hour & DS1307_HOUR_MASK;
-	error = ds1307_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	hour &= DS1307_HOUR_MASK;
+	error = ds1307_write1(sc->sc_dev, DS1307_HOUR, hour);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -362,9 +347,8 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	uint8_t data[7];
 
 	sc = device_get_softc(dev);
-	memset(data, 0, sizeof(data));
-	error = ds1307_read(sc->sc_dev, sc->sc_addr, DS1307_SECS,
-	    data, sizeof(data)); 
+	error = iicdev_readfrom(sc->sc_dev, DS1307_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0) {
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
@@ -377,9 +361,6 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	ct.dow = data[DS1307_WEEKDAY] & DS1307_WEEKDAY_MASK;
 	ct.mon = FROMBCD(data[DS1307_MONTH] & DS1307_MONTH_MASK);
 	ct.year = FROMBCD(data[DS1307_YEAR] & DS1307_YEAR_MASK);
-	ct.year += sc->sc_year0;
-	if (ct.year < POSIX_BASE_YEAR)
-		ct.year += 100;	/* assume [1970, 2069] */
 
 	return (clock_ct_to_ts(&ct, ts));
 }
@@ -390,25 +371,21 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	int error;
 	struct clocktime ct;
 	struct ds1307_softc *sc;
-	uint8_t data[8];
+	uint8_t data[7];
 
 	sc = device_get_softc(dev);
-	/* Accuracy is only one second. */
-	if (ts->tv_nsec >= 500000000)
-		ts->tv_sec++;
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
-	memset(data, 0, sizeof(data));
-	data[0] = DS1307_SECS;
-	data[DS1307_SECS + 1] = TOBCD(ct.sec);
-	data[DS1307_MINS + 1] = TOBCD(ct.min);
-	data[DS1307_HOUR + 1] = TOBCD(ct.hour);
-	data[DS1307_DATE + 1] = TOBCD(ct.day);
-	data[DS1307_WEEKDAY + 1] = ct.dow;
-	data[DS1307_MONTH + 1] = TOBCD(ct.mon);
-	data[DS1307_YEAR + 1] = TOBCD(ct.year % 100);
+	data[DS1307_SECS]    = TOBCD(ct.sec);
+	data[DS1307_MINS]    = TOBCD(ct.min);
+	data[DS1307_HOUR]    = TOBCD(ct.hour);
+	data[DS1307_DATE]    = TOBCD(ct.day);
+	data[DS1307_WEEKDAY] = ct.dow;
+	data[DS1307_MONTH]   = TOBCD(ct.mon);
+	data[DS1307_YEAR]    = TOBCD(ct.year % 100);
 	/* Write the time back to RTC. */
-	error = ds1307_write(dev, sc->sc_addr, data, sizeof(data));
+	error = iicdev_writeto(sc->sc_dev, DS1307_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0)
 		device_printf(dev, "cannot write to RTC.\n");
 
