@@ -41,63 +41,23 @@ extern struct mps_table_lookup mps_event_names[];
 extern struct mps_table_lookup mps_phystatus_names[];
 extern struct mps_table_lookup mps_linkrate_names[];
 
-void _mps_print_iocfacts(struct mps_softc *, MPI2_IOC_FACTS_REPLY *);
-void _mps_print_portfacts(struct mps_softc *, MPI2_PORT_FACTS_REPLY *);
-void _mps_print_event(struct mps_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
-void _mps_print_sasdev0(struct mps_softc *, MPI2_CONFIG_PAGE_SAS_DEV_0 *);
-void _mps_print_evt_sas(struct mps_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
-void _mps_print_expander1(struct mps_softc *, MPI2_CONFIG_PAGE_EXPANDER_1 *);
-void _mps_print_sasphy0(struct mps_softc *, MPI2_CONFIG_PAGE_SAS_PHY_0 *);
+void mps_print_iocfacts(struct mps_softc *, MPI2_IOC_FACTS_REPLY *);
+void mps_print_portfacts(struct mps_softc *, MPI2_PORT_FACTS_REPLY *);
+void mps_print_evt_generic(struct mps_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
+void mps_print_sasdev0(struct mps_softc *, MPI2_CONFIG_PAGE_SAS_DEV_0 *);
+void mps_print_evt_sas(struct mps_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
+void mps_print_expander1(struct mps_softc *, MPI2_CONFIG_PAGE_EXPANDER_1 *);
+void mps_print_sasphy0(struct mps_softc *, MPI2_CONFIG_PAGE_SAS_PHY_0 *);
 void mps_print_sgl(struct mps_softc *, struct mps_command *, int);
 void mps_print_scsiio_cmd(struct mps_softc *, struct mps_command *);
 
-static __inline void
-mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
-{
-	if (sc->mps_debug & MPS_XINFO)
-		_mps_print_iocfacts(sc, facts);
-}
+#define MPS_DPRINT_PAGE(sc, level, func, buf)		\
+do {							\
+	if ((sc)->mps_debug & level)			\
+		mps_print_##func((sc), buf);		\
+} while (0)
 
-static __inline void
-mps_print_portfacts(struct mps_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
-{
-	if (sc->mps_debug & MPS_XINFO)
-		_mps_print_portfacts(sc, facts);
-}
-
-static __inline void
-mps_print_event(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
-{
-	if (sc->mps_debug & MPS_EVENT)
-		_mps_print_event(sc, event);
-}
-
-static __inline void
-mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
-{
-	if (sc->mps_debug & MPS_XINFO)
-		_mps_print_sasdev0(sc, buf);
-}
-
-static __inline void
-mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
-{
-	if (sc->mps_debug & MPS_EVENT)
-		_mps_print_evt_sas(sc, event);
-}
-
-static __inline void
-mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
-{
-	if (sc->mps_debug & MPS_XINFO)
-		_mps_print_expander1(sc, buf);
-}
-
-static __inline void
-mps_print_sasphy0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
-{
-	if (sc->mps_debug & MPS_XINFO)
-		_mps_print_sasphy0(sc, buf);
-}
+#define MPS_DPRINT_EVENT(sc, func, buf)			\
+	MPS_DPRINT_PAGE(sc, MPS_EVENT, evt_##func, buf)
 
 #endif
