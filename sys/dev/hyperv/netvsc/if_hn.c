@@ -5574,6 +5574,7 @@ hn_rndis_rx_status(struct hn_softc *sc, const void *data, int dlen)
 		break;
 
 	case RNDIS_STATUS_TASK_OFFLOAD_CURRENT_CONFIG:
+	case RNDIS_STATUS_LINK_SPEED_CHANGE:
 		/* Not really useful; ignore. */
 		break;
 
