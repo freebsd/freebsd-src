@@ -3,6 +3,8 @@
 SUBDIR = \
 	controllers \
 	cyapa \
+	ds1307 \
+	ds3231 \
 	if_ic \
 	iic \
 	iicbb \
@@ -10,6 +12,7 @@ SUBDIR = \
 	iicsmb \
 	isl \
 	jedec_ts \
+	nxprtc \
 	smb \
 	smbus \
 
