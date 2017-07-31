@@ -48,7 +48,6 @@ CTFFLAGS+= -g
 _COV_FLAG= --coverage
 CFLAGS+= ${_COV_FLAG}
 CXXFLAGS+= ${_COV_FLAG}
-LDFLAGS+= ${_COV_FLAG}
 .endif
 .endif
 
