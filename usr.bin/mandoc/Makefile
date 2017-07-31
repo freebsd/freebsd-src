@@ -47,9 +47,11 @@ LIB_SRCS=	${LIBMAN_SRCS} \
 		mandoc.c \
 		mandoc_aux.c \
 		mandoc_ohash.c \
+		mandoc_xr.c \
 		msec.c \
 		preconv.c \
-		read.c
+		read.c \
+		compat_recallocarray.c \
 
 HTML_SRCS=	eqn_html.c \
 		html.c \

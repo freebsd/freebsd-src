@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.65 2017/06/08 18:11:22 schwarze Exp $ */
+/*	$Id: out.c,v 1.70 2017/06/27 18:25:02 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -85,10 +86,8 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 	case 'v':
 		dst->unit = SCALE_VS;
 		break;
-	case '\0':
-		endptr--;
-		/* FALLTHROUGH */
 	default:
+		endptr--;
 		if (SCALE_MAX == def)
 			return NULL;
 		dst->unit = def;
@@ -105,7 +104,7 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
  */
 void
 tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
-	size_t totalwidth)
+    size_t offset, size_t rmargin)
 {
 	struct roffsu		 su;
 	const struct tbl_opts	*opts;
@@ -142,8 +141,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 			if (1 < spans)
 				continue;
 			icol = dp->layout->col;
-			if (maxcol < icol)
-				maxcol = icol;
+			while (maxcol < icol)
+				tbl->cols[++maxcol].spacing = SIZE_MAX;
 			col = tbl->cols + icol;
 			col->flags |= dp->layout->flags;
 			if (dp->layout->flags & TBL_CELL_WIGN)
@@ -156,8 +155,15 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 				    (*tbl->sulen)(&su, tbl->arg);
 			if (col->width < dp->layout->width)
 				col->width = dp->layout->width;
-			tblcalc_data(tbl, col, opts, dp, dp->block ?
-			    totalwidth / (sp->opts->cols + 1) : 0);
+			if (dp->layout->spacing != SIZE_MAX &&
+			    (col->spacing == SIZE_MAX ||
+			     col->spacing < dp->layout->spacing))
+				col->spacing = dp->layout->spacing;
+			tblcalc_data(tbl, col, opts, dp,
+			    dp->block == 0 ? 0 :
+			    dp->layout->width ? dp->layout->width :
+			    rmargin ? (rmargin + sp->opts->cols / 2)
+			    / (sp->opts->cols + 1) : 0);
 		}
 	}
 
@@ -171,6 +177,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 	ewidth = xwidth = 0;
 	for (icol = 0; icol <= maxcol; icol++) {
 		col = tbl->cols + icol;
+		if (col->spacing == SIZE_MAX || icol == maxcol)
+			col->spacing = 3;
 		if (col->flags & TBL_CELL_EQUAL) {
 			necol++;
 			if (ewidth < col->width)
@@ -194,7 +202,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 				continue;
 			if (col->width == ewidth)
 				continue;
-			if (nxcol && totalwidth)
+			if (nxcol && rmargin)
 				xwidth += ewidth - col->width;
 			col->width = ewidth;
 		}
@@ -206,13 +214,13 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp,
 	 * Distribute the available width evenly.
 	 */
 
-	if (nxcol && totalwidth) {
+	if (nxcol && rmargin) {
 		xwidth += 3*maxcol +
 		    (opts->opts & (TBL_OPT_BOX | TBL_OPT_DBOX) ?
 		     2 : !!opts->lvert + !!opts->rvert);
-		if (xwidth >= totalwidth)
+		if (rmargin <= offset + xwidth)
 			return;
-		xwidth = totalwidth - xwidth;
+		xwidth = rmargin - offset - xwidth;
 
 		/*
 		 * Emulate a bug in GNU tbl width calculation that
@@ -281,11 +289,13 @@ tblcalc_literal(struct rofftbl *tbl, struct roffcol *col,
 	const char	*str;	/* Beginning of the first line. */
 	const char	*beg;	/* Beginning of the current line. */
 	char		*end;	/* End of the current line. */
-	size_t		 sz;	/* Length of the current line. */
+	size_t		 lsz;	/* Length of the current line. */
+	size_t		 wsz;	/* Length of the current word. */
 
 	if (dp->string == NULL || *dp->string == '\0')
 		return;
 	str = mw ? mandoc_strdup(dp->string) : dp->string;
+	lsz = 0;
 	for (beg = str; beg != NULL && *beg != '\0'; beg = end) {
 		end = mw ? strchr(beg, ' ') : NULL;
 		if (end != NULL) {
@@ -293,9 +303,13 @@ tblcalc_literal(struct rofftbl *tbl, struct roffcol *col,
 			while (*end == ' ')
 				end++;
 		}
-		sz = (*tbl->slen)(beg, tbl->arg);
-		if (col->width < sz)
-			col->width = sz;
+		wsz = (*tbl->slen)(beg, tbl->arg);
+		if (mw && lsz && lsz + 1 + wsz <= mw)
+			lsz += 1 + wsz;
+		else
+			lsz = wsz;
+		if (col->width < lsz)
+			col->width = lsz;
 	}
 	if (mw)
 		free((void *)str);
