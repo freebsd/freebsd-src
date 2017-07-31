@@ -1,0 +1,7 @@
+# Inherit base config
+include "BERI_DE4_USBROOT"
+
+ident BERI_DE4_USBROOT_BENCHMARK
+
+# Disable slow things
+include "std.BENCHMARK"

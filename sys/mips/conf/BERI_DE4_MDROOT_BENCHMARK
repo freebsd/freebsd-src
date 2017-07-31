@@ -1,0 +1,7 @@
+# Inherit base config
+include "BERI_DE4_MDROOT"
+
+ident BERI_DE4_MDROOT_BENCHMARK
+
+# Disable slow things
+include "std.BENCHMARK"

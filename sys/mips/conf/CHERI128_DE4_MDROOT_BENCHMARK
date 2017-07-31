@@ -1,0 +1,7 @@
+# Inherit base config
+include "CHERI128_DE4_MDROOT"
+
+ident CHERI128_DE4_MDROOT_BENCHMARK
+
+# Disable slow things
+include "std.BENCHMARK"

@@ -1,0 +1,7 @@
+# Inherit base config
+include "CHERI_DE4_USBROOT"
+
+ident CHERI_DE4_USBROOT_BENCHMARK
+
+# Disable slow things
+include "std.BENCHMARK"

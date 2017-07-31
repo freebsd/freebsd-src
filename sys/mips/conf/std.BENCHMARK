@@ -1,0 +1,7 @@
+# Include this in a kernel config to remove common options that should
+# not be used in benchmark kernels.
+
+nooptions	INVARIANTS
+nooptions	INVARIANTS_SUPPORT
+nooptions	KTRACE
+nooptions	WITNESS
