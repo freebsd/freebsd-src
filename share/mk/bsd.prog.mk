@@ -40,7 +40,13 @@ CFLAGS+=${CRUNCH_CFLAGS}
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf-*)
 CFLAGS+= -g
+CXXFLAGS+= -g
 CTFFLAGS+= -g
+.endif
+.if ${MK_COVERAGE} != "no" && ${CFLAGS:M-g*} != ""
+_COV_FLAG= --coverage
+CFLAGS+= ${_COV_FLAG}
+CXXFLAGS+= ${_COV_FLAG}
 .endif
 .endif
 
@@ -72,6 +78,12 @@ PROG_FULL=${PROG}.full
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
 DEBUGFILEDIR?=	${BINDIR}/.debug
+.endif
+.if ${MK_COVERAGE} != "no"
+COVERAGEDIR=	${COVDIR}${BINDIR}
+.if !exists(${DESTDIR}${COVERAGEDIR})
+COVERAGEMKDIR=
+.endif
 .endif
 .if !exists(${DESTDIR}${DEBUGFILEDIR})
 DEBUGMKDIR=
@@ -233,6 +245,13 @@ _proginstall:
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
 .if ${MK_DEBUG_FILES} != "no"
+.if ${MK_COVERAGE} != "no"
+.if defined(COVERAGEMKDIR)
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${DESTDIR}${COVERAGEDIR}/
+.endif
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
+	    ${PROGNAME}.full ${DESTDIR}${COVERAGEDIR}/${PROGNAME}
+.endif
 .if defined(DEBUGMKDIR)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
 .endif
@@ -279,6 +298,9 @@ NLSNAME?=	${PROG}
 .include <bsd.nls.mk>
 
 .include <bsd.confs.mk>
+.if defined(_COV_FLAG)
+.include <bsd.cov.mk>
+.endif
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.links.mk>

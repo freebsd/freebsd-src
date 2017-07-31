@@ -163,7 +163,6 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 .endif
 IR_CFLAGS	?=	${STATIC_CFLAGS:N-O*} ${CFLAGS:N-O*}
-COV_CFLAGS	?=	${CFLAGS}
 PO_CFLAGS	?=	${CFLAGS}
 
 # cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
@@ -185,7 +184,6 @@ CTFFLAGS	+=	-g
 CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
 IR_CXXFLAGS	?=	${STATIC_CXXFLAGS:N-O*} ${CXXFLAGS:N-O*}
-COV_CXXFLAGS	?=	${CXXFLAGS}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
 DTRACE		?=	dtrace
