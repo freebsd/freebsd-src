@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.154 2017/04/19 01:00:03 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.156 2017/06/24 14:38:32 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
@@ -140,16 +140,16 @@ html_putchar(char c)
 {
 
 	switch (c) {
-	case ('"'):
+	case '"':
 		printf("&quot;");
 		break;
-	case ('&'):
+	case '&':
 		printf("&amp;");
 		break;
-	case ('>'):
+	case '>':
 		printf("&gt;");
 		break;
-	case ('<'):
+	case '<':
 		printf("&lt;");
 		break;
 	default:
@@ -832,7 +832,7 @@ resp_format(const struct req *req, const char *file)
 
 	mchars_alloc();
 	mp = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1,
-	    MANDOCLEVEL_BADARG, NULL, req->q.manpath);
+	    MANDOCERR_MAX, NULL, MANDOC_OS_OTHER, req->q.manpath);
 	mparse_readfd(mp, fd, file);
 	close(fd);
 
