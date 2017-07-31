@@ -43,10 +43,12 @@ CFLAGS+= -g
 CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif
-.if ${MK_COVERAGE} != "no" && ${CFLAGS:M-g*} != ""
+.if ${MK_COVERAGE} != "no" && \
+    (${CFLAGS:M-g*} != "" || ${CXXFLAGS:M-g*})
 _COV_FLAG= --coverage
 CFLAGS+= ${_COV_FLAG}
 CXXFLAGS+= ${_COV_FLAG}
+LDFLAGS+= ${_COV_FLAG}
 .endif
 .endif
 
