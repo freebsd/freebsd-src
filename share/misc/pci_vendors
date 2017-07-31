@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2017.07.13
-#	Date:    2017-07-13 03:15:01
+#	Version: 2017.07.27
+#	Date:    2017-07-27 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -2436,7 +2436,7 @@
 		144d c0c7  Radeon HD 7550M
 	6842  Thames LE [Radeon HD 7000M Series]
 	6843  Thames [Radeon HD 7670M]
-	6863  Vega 10 [Radeon Vega Frontier Edition]
+	6863  Vega 10 XTX [Radeon Vega Frontier Edition]
 	687f  Vega [Radeon RX Vega]
 	6888  Cypress XT [FirePro V8800]
 	6889  Cypress PRO [FirePro V7800]
@@ -2952,6 +2952,8 @@
 	6987  Polaris12
 	6995  Lexa XT [Radeon PRO WX 2100]
 	699f  Lexa PRO [Radeon RX 550]
+		148c 2380  Lexa XL [Radeon RX 550]
+		1da2 e367  Lexa PRO [Radeon RX 550]
 	700f  RS100 AGP Bridge
 	7010  RS200/RS250 AGP Bridge
 	7100  R520 [Radeon X1800 XT]
@@ -6026,11 +6028,12 @@
 		1077 e4f4  FastLinQ QL45411H 40GbE Adapter
 	1644  FastLinQ QL45000 Series 100GbE Controller
 		1077 e4f8  FastLinQ QL45611H 100GbE Adapter
+	1654  FastLinQ QL45000 Series 50GbE Controller
+		1590 0223  Synergy 6810C 25/50Gb Ethernet Adapter
 	1656  FastLinQ QL45000 Series 25GbE Controller
 		1077 02a7  QL45212-DE 25GbE Adapter
 		1077 e4f6  FastLinQ QL45211H 25GbE Adapter
 		1077 e4f7  FastLinQ QL45212H 25GbE Adapter
-		1590 0223  Synergy 6810C 25/50Gb Ethernet Adapter
 	165c  FastLinQ QL45000 Series 40GbE Controller (FCoE)
 		1077 e4f1  FastLinQ QL45462H 40GbE FCoE Adapter
 		1077 e4f2  FastLinQ QL45461H 40GbE FCoE Adapter
@@ -16128,6 +16131,8 @@
 	50a0  T540-50A0 Unified Wire Ethernet Controller
 	50a1  T540-50A1 Unified Wire Ethernet Controller
 	50a2  T580-50A2 Unified Wire Ethernet Controller
+	50a3  T580-50A3 Unified Wire Ethernet Controller
+	50a4  T540-50A4 Unified Wire Ethernet Controller
 	5401  T520-CR Unified Wire Ethernet Controller
 	5402  T522-CR Unified Wire Ethernet Controller
 	5403  T540-CR Unified Wire Ethernet Controller
@@ -16181,6 +16186,8 @@
 	54a0  T540-50A0 Unified Wire Ethernet Controller
 	54a1  T540-50A1 Unified Wire Ethernet Controller
 	54a2  T580-50A2 Unified Wire Ethernet Controller
+	54a3  T580-50A3 Unified Wire Ethernet Controller
+	54a4  T540-50A4 Unified Wire Ethernet Controller
 	5501  T520-CR Unified Wire Storage Controller
 	5502  T522-CR Unified Wire Storage Controller
 	5503  T540-CR Unified Wire Storage Controller
@@ -16234,6 +16241,8 @@
 	55a0  T540-50A0 Unified Wire Storage Controller
 	55a1  T540-50A1 Unified Wire Storage Controller
 	55a2  T580-50A2 Unified Wire Storage Controller
+	55a3  T580-50A3 Unified Wire Storage Controller
+	55a4  T540-50A4 Unified Wire Storage Controller
 	5601  T520-CR Unified Wire Storage Controller
 	5602  T522-CR Unified Wire Storage Controller
 	5603  T540-CR Unified Wire Storage Controller
@@ -16287,6 +16296,8 @@
 	56a0  T540-50A0 Unified Wire Storage Controller
 	56a1  T540-50A1 Unified Wire Storage Controller
 	56a2  T580-50A2 Unified Wire Storage Controller
+	56a3  T580-50A3 Unified Wire Storage Controller
+	56a4  T540-50A4 Unified Wire Storage Controller
 	5701  T520-CR Unified Wire Ethernet Controller
 	5702  T522-CR Unified Wire Ethernet Controller
 	5703  T540-CR Unified Wire Ethernet Controller
@@ -16379,6 +16390,8 @@
 	58a0  T540-50A0 Unified Wire Ethernet Controller [VF]
 	58a1  T540-50A1 Unified Wire Ethernet Controller [VF]
 	58a2  T580-50A2 Unified Wire Ethernet Controller [VF]
+	58a3  T580-50A3 Unified Wire Ethernet Controller [VF]
+	58a4  T540-50A4 Unified Wire Ethernet Controller [VF]
 	6001  T6225-CR Unified Wire Ethernet Controller
 	6002  T6225-SO-CR Unified Wire Ethernet Controller
 	6003  T6425-CR Unified Wire Ethernet Controller
@@ -16594,6 +16607,7 @@
 	e836  M115S Hybrid Analog/DVB PAL/SECAM/NTSC Tuner
 	f436  AVerTV Hybrid+FM
 1462  Micro-Star International Co., Ltd. [MSI]
+	aaf0  Radeon RX 580 Gaming X 8G
 1463  Fast Corporation
 1464  Interactive Circuits & Systems Ltd
 1465  GN NETTEST Telecom DIV.
@@ -19273,6 +19287,7 @@
 		17d3 1880  ARC-1880 8/12/16/24 Port PCIe 2.0 to SAS/SATA 6Gb RAID Controller
 		17d3 1882  ARC-1882 8/12/16/24 Port PCIe 3.0 to SAS/SATA 6Gb RAID Controller
 		17d3 1883  ARC-1883 8/12/16/24 Port PCIe 3.0 to SAS/SATA 12Gb RAID Controller
+	1884  ARC-1884 series PCIe 3.0 to SAS/SATA 12/6Gb RAID Controller
 # nee Neterion Inc., previously S2io Inc.
 17d5  Exar Corp.
 	5731  Xframe 10-Gigabit Ethernet PCI-X
@@ -19348,12 +19363,15 @@
 17e4  Sectra AB
 	0001  KK671 Cardbus encryption board
 	0002  KK672 Cardbus encryption board
-17e6  Entropic Communications Inc.
+# nee Entropic Communications Inc.
+17e6  MaxLinear
 	0010  EN2010 [c.Link] MoCA Network Controller (Coax, PCI interface)
 	0011  EN2010 [c.Link] MoCA Network Controller (Coax, MPEG interface)
 	0021  EN2210 [c.Link] MoCA Network Controller (Coax)
 	0025  EN2510 [c.Link] MoCA Network Controller (Coax, PCIe interface)
 	0027  EN2710 [c.Link] MoCA 2.0 Network Controller (Coax, PCIe interface)
+	3706  MoCA 2.0 Network Controller (Coax, PCIe interface)
+	3711  MoCA 2.5 Network Controller (Coax, PCIe interface)
 17ee  Connect Components Ltd
 17f2  Albatron Corp.
 17f3  RDC Semiconductor, Inc.
@@ -24631,6 +24649,7 @@
 	24f3  Wireless 8260
 # Snow Field Peak AC
 		8086 0010  Dual Band Wireless-AC 8260
+		8086 1010  Dual Band Wireless-AC 8260
 	24f4  Wireless 8260
 # Snow Field Peak AC
 		8086 0030  Dual Band Wireless-AC 8260
