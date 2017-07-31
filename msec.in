@@ -1,4 +1,4 @@
-/*	$Id: msec.in,v 1.7 2014/08/26 11:21:40 schwarze Exp $ */
+/*	$Id: msec.in,v 1.8 2017/06/24 17:37:06 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -32,9 +32,3 @@ LINE("6",		"Games Manual")
 LINE("7",		"Miscellaneous Information Manual")
 LINE("8",		"System Manager\'s Manual")
 LINE("9",		"Kernel Developer\'s Manual")
-LINE("X11",		"X11 Developer\'s Manual")
-LINE("X11R6",		"X11 Developer\'s Manual")
-LINE("unass",		"Unassociated")
-LINE("local",		"Local")
-LINE("draft",		"Draft")
-LINE("paper",		"Paper")

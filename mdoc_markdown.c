@@ -1,4 +1,4 @@
-/*	$Id: mdoc_markdown.c,v 1.22 2017/05/30 16:31:29 schwarze Exp $ */
+/*	$Id: mdoc_markdown.c,v 1.23 2017/06/14 01:31:26 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -493,7 +493,7 @@ md_word(const char *s)
 {
 	const char	*seq, *prevfont, *currfont, *nextfont;
 	char		 c;
-	int		 bs, sz, uc;
+	int		 bs, sz, uc, breakline;
 
 	/* No spacing before closing delimiters. */
 	if (s[0] != '\0' && s[1] == '\0' &&
@@ -510,6 +510,7 @@ md_word(const char *s)
 	if ((s[0] == '(' || s[0] == '[') && s[1] == '\0')
 		outflags &= ~MD_spc;
 
+	breakline = 0;
 	prevfont = currfont = "";
 	while ((c = *s++) != '\0') {
 		bs = 0;
@@ -595,6 +596,9 @@ md_word(const char *s)
 			case ESCAPE_FONTPREV:
 				nextfont = prevfont;
 				break;
+			case ESCAPE_BREAK:
+				breakline = 1;
+				break;
 			case ESCAPE_NOSPACE:
 			case ESCAPE_SKIPCHAR:
 			case ESCAPE_OVERSTRIKE:
@@ -642,6 +646,13 @@ md_word(const char *s)
 		if (bs)
 			putchar('\\');
 		md_char(c);
+		if (breakline &&
+		    (*s == '\0' || *s == ' ' || *s == ASCII_NBRSP)) {
+			printf("  \n");
+			breakline = 0;
+			while (*s == ' ' || *s == ASCII_NBRSP)
+				s++;
+		}
 	}
 	if (*currfont != '\0') {
 		outflags &= ~MD_spc;

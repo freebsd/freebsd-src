@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.237 2017/05/16 19:06:30 schwarze Exp $
+* $Id: TODO,v 1.246 2017/07/24 11:15:12 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -65,20 +65,9 @@ are mere guesses, and some may be wrong.
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
   loc *  exist **  algo **  size **  imp **
 
-- \h horizontal move
-  #2 most important issue naddy@  Mon, 16 Feb 2015 20:59:17 +0100
-  found in cclive(1) nasm(1) bogofilter(1) asciidoc/DocBook output
-  bentley@ on discuss@  Sat, 21 Sep 2013 22:29:34 -0600
-  naddy@  Thu, 4 Dec 2014 16:26:41 +0100
-  loc **  exist **  algo **  size *  imp *** (parser reorg helps a lot)
-
 - \n+ and \n- numerical register increment and decrement
   found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
   loc *  exist *  algo *  size *  imp **
-
-- \n(.$ macro argument count number register; ocserv(8) by autogen
-  found by sthen@  Thu, 19 Feb 2015 22:03:01 +0000
-  loc *  exist **  algo *  size *  imp **
 
 - \w'' improve width measurements
   would not be very useful without an expression parser, see below
@@ -183,22 +172,6 @@ are mere guesses, and some may be wrong.
 
 --- missing tbl features -----------------------------------------------
 
-- horizontal lines in the layout still consume data cells
-  and can be mixed with actual data on the same table line
-  synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
-  loc **  exist **  algo **  size **  imp ***
-
-- break long text into lines inside cells
-  net/lftp(1) from jirib via bentley@ Sep 13, 2016
-
-- layout l1 for a column of max text width 3 reduces the following
-  inter-column spacing for groff, but not for mandoc
-  net/lftp(1) from jirib via bentley@ Sep 13, 2016
-
-- the "w" layout option is ignored
-  synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
-  loc *  exist *  algo *  size *  imp **
-
 - the "s" layout column specifier is used for placement of data
   into columns, but ignored during column width calculations
   synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
@@ -239,6 +212,16 @@ are mere guesses, and some may be wrong.
 - Mark and lineup are parsed and ignored,
   see User's Guide (Second Edition) page 5 section 15.
   loc **  exist **  algo **  size **  imp **
+
+- GNU eqn converts some operators to special characters, for example,
+  input HYPHEN-MINUS becomes output \(mi, unless it is part of a
+  quoted word.  mandoc(1) only does this when the operator is
+  surrounded by blanks, not when it is part of an unquoted word.
+  Also, check whether there are more such cases (e.g., +?).
+  reported by bentley@  20 Jun 2017 02:04:29 -0600
+
+- Primes, opprime, and '
+  bentley@  Thu, 13 Jul 2017 23:14:20 -0600
 
 --- missing misc features ----------------------------------------------
 
@@ -359,6 +342,12 @@ are mere guesses, and some may be wrong.
   .Vt vs .Vt/.Va vs .Ft/.Va vs .Ft/.Fa ...
   from kristaps@  Tue, 08 Jun 2010 11:13:32 +0200
 
+- implicit whitespace around inline equations
+  example code:  where '$times$' denotes matrix multiplication
+  must not have an HTML line break, nor a blank, before <math>
+  partial solution: html.c {"math", HTML_NLINSIDE | HTML_INDENT},
+  bentley@  Thu, 13 Jul 2017 19:00:59 -0600
+
 - in enclosures, mandoc sometimes fancies a bogus end of sentence
   reminded by jmc@  Thu, 23 Sep 2010 18:13:39 +0059
   loc *  exist **  algo ***  size *  imp ***
@@ -421,9 +410,6 @@ are mere guesses, and some may be wrong.
   Steffen Nurpmeso  Sat, 08 Nov 2014 13:34:59 +0100
   loc *  exist **  algo **  size *  imp **
 
-- .Lk formatting for long links with line breaks
-  Franco Fichtner  8 Oct 2013 00:33:42 +0200
-
 - In .Bl -enum -width 0n, groff continues one the same line after
   the number, mandoc breaks the line.
   mail to kristaps@  Mon, 20 Jul 2009 02:21:39 +0200
@@ -449,16 +435,6 @@ are mere guesses, and some may be wrong.
   reported by Nicolas Joly  Sat, 17 Nov 2012 11:49:54 +0100
   Probably, this should be fixed somewhere in termp_it_pre(), not sure.
   loc *  exist **  algo **  size *  imp **
-
-- .Nx 1.0a
-  should be "NetBSD 1.0A", not "NetBSD 1.0a",
-  see OpenBSD ccdconfig(8).
-  loc *  exist *  algo *  size *  imp **
-
-- In .Bl -tag, if a tag exceeds the right margin and must be continued
-  on the next line, it must be indented by -width, not width+1;
-  see "rule block|pass" in OpenBSD ifconfig(8).
-  loc *  exist ***  algo **  size *  imp **
 
 - When the -width string contains macros, the macros must be rendered
   before measuring the width, for example
@@ -495,14 +471,23 @@ are mere guesses, and some may be wrong.
 * warning issues
 ************************************************************************
 
-- provide a way in mandoc(1) to warn about broken .Xr links;
-  probably cannot be on by default in -Tlint because it needs
-  to access the manpath and mandoc.db(3) after parsing.
-  asked for by jmc@ Fri, 4 Dec 2015 22:39:40 +0000
+- style message about macros inside .Bd -literal and .Dl, in particular
+  font changing macros like .Cm, .Ar, .Fa (from the mdoclint TODO)
+
+- style message about mismatches between the section number in the
+  file name (if it is known) and the section number in .Dt
+  (from the mdoclint TODO)
+
+- style message about NULL without .Dv (from the mdoclint TODO)
+
+- style message about error constants without .Er (from the mdoclint TODO)
 
 - warn when .Sh or .Ss contain other macros
   Steffen Nurpmeso, savannah.gnu.org/bugs/index.php?45034
   loc *  exist *  algo *  size *  imp **
+
+- style message about violations of the convention
+  .An name Aq Mt localpart@domain in AUTHORS (from the mdoclint TODO)
 
 - warn about attempts to call non-callable macros
   Steffen Nurpmeso  Tue, 11 Nov 2014 22:55:16 +0100
@@ -512,24 +497,24 @@ are mere guesses, and some may be wrong.
   all over mdoc_macro.c and all subtly different.
   loc **  exist **  algo **  size **  imp **
 
+- style message about suspicious uses of - vs. \- vs. \(mi
+  e.g. -1 is likely wrong (from the mdoclint TODO)
+
+- warn about punctuation - e.g. ',' and ';' - at the beginning
+  of a text line, if it is likely intended to follow the preceding
+  output without intervening whitespace, in particular after a
+  macro line (from the mdoclint TODO)
+
 - mandoc_special does not really check the escape sequence,
   but just the overall format
   loc **  exist **  algo ***  size **  imp **
 
-- integrate mdoclint into mandoc ("end-of-line whitespace" thread)
-  from jmc@  Mon, 13 Jul 2009 17:12:09 +0100
-  from kristaps@  Mon, 13 Jul 2009 18:34:53 +0200
-  from jmc@  Mon, 13 Jul 2009 17:45:37 +0059
-  from kristaps@  Mon, 13 Jul 2009 19:02:03 +0200
-  (mostly done, check what remains)
-
-- -Tlint parser errors and warnings to stdout
-  to tech@mdocml, naddy@  Wed, 28 Sep 2011 11:21:46 +0200
-  wait!  kristaps@  Sun, 02 Oct 2011 17:12:52 +0200
-
 ************************************************************************
 * documentation issues
 ************************************************************************
+
+- dashes, hyphens, and minus signs in manual pages
+  jmc@ Fri, 28 Mar 2014 07:19:27 +0000
 
 - mark macros as: page structure domain, manual domain, general text domain
   is this useful?
@@ -542,11 +527,6 @@ are mere guesses, and some may be wrong.
 ************************************************************************
 * performance issues
 ************************************************************************
-
-- Why are we using MAP_SHARED, not MAP_PRIVATE for mmap(2)?
-  from kristaps@  Sat, 09 Aug 2014 13:51:36 +0200
-
-Several areas can be cleaned up to make mandoc even faster.  These are
 
 - the PDF file is HUGE: this can be reduced by using relative offsets
 
@@ -565,13 +545,13 @@ Several areas can be cleaned up to make mandoc even faster.  These are
   same-line from different-line input.  That plainly doesn't work
   with user-defined macros, leading to random breakage.
 
+- Is it possible to further simplify ENDBODY_SPACE?
+
 - Find better ways to prevent endless loops
   in roff(7) macro and string expansion.
 
-- Finish cleanup of date handling.
-  Decide which formats should be recognized where.
-  Update both mdoc(7) and man(7) documentation.
-  Triggered by  Tim van der Molen  Tue, 22 Feb 2011 20:30:45 +0100
+- make buffers for parsing functions const
+  christos@ via wiz@  Fri, 18 Dec 2015 17:10:01 +0100
 
 - struct mparse refactoring
   Steffen Nurpmeso  Thu, 04 Sep 2014 12:50:00 +0200
