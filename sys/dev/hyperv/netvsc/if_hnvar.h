@@ -59,7 +59,7 @@ struct hn_tx_ring;
 
 struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
-	struct ifnet	*hn_vf;		/* SR-IOV VF */
+	struct ifnet	*hn_rxvf_ifp;	/* SR-IOV VF for RX */
 	struct hn_tx_ring *hn_txr;
 	void		*hn_pktbuf;
 	int		hn_pktbuf_len;
@@ -174,6 +174,7 @@ struct hn_tx_ring {
  */
 struct hn_softc {
 	struct ifnet    *hn_ifp;
+	struct ifnet	*hn_vf_ifp;	/* SR-IOV VF */
 	struct ifmedia	hn_media;
 	device_t        hn_dev;
 	int             hn_if_flags;
@@ -238,6 +239,8 @@ struct hn_softc {
 
 	eventhandler_tag	hn_ifaddr_evthand;
 	eventhandler_tag	hn_ifnet_evthand;
+	eventhandler_tag	hn_ifnet_atthand;
+	eventhandler_tag	hn_ifnet_dethand;
 };
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
