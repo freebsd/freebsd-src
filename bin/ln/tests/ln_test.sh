@@ -98,6 +98,7 @@ target_exists_hard_head()
 
 target_exists_hard_body()
 {
+        set_umask
         atf_check touch A B
         atf_check -s exit:1 -e inline:'ln: B: File exists\n' \
                 ln A B
@@ -112,6 +113,7 @@ target_exists_symbolic_head()
 
 target_exists_symbolic_body()
 {
+        set_umask
         atf_check touch A B
         atf_check -s exit:1 -e inline:'ln: B: File exists\n' \
                 ln -s A B
@@ -171,6 +173,7 @@ sf_flag_head()
 
 sf_flag_body()
 {
+        set_umask
         atf_check touch A B
         atf_check ln -sf A B
         atf_check -o inline:'B: symbolic link to A\n' file B
