@@ -73,12 +73,19 @@ SHARED_CFLAGS+= -g
 SHARED_CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif
+.if defined(SHLIB_NAME) && ${MK_COVERAGE} != "no" && \
+    (!empty(DEBUG_FLAGS:M-g*) || !empty(SHARED_CFLAGS:M-g*) || \
+     !empty(SHARED_CXXFLAGS:M-g*))
+_COV_FLAG= --coverage
+SHARED_CFLAGS+= ${_COV_FLAG}
+SHARED_CXXFLAGS+= ${_COV_FLAG}
+.endif
 
 .include <bsd.libnames.mk>
 
-# prefer .s to a .c, add .covo and .po, remove stuff not used in the BSD libraries
+# prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
-.SUFFIXES: .out .o .bc .covo .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .bc .ll .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -88,13 +95,7 @@ PICFLAG=-fpic
 .endif
 .endif
 
-COV_FLAG=--coverage -g
-
 PO_FLAG=-pg
-
-.c.covo:
-	${CC} ${COV_FLAG} ${STATIC_CFLAGS} ${COV_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -103,9 +104,6 @@ PO_FLAG=-pg
 .c.pico:
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
-
-.cc.covo .C.covo .cpp.covo .cxx.covo:
-	${CXX} ${COV_FLAG} ${STATIC_CXXFLAGS} ${COV_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -121,13 +119,8 @@ PO_FLAG=-pg
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.covo .s.po .s.pico:
+.s.po .s.pico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
-
-.asm.covo:
-	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DCOV ${COV_CFLAGS} \
-	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.po:
@@ -138,11 +131,6 @@ PO_FLAG=-pg
 .asm.pico:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.S.covo:
-	${CC:N${CCACHE_BIN}} -DCOV ${COV_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
-	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.po:
@@ -161,6 +149,12 @@ _SHLIBDIR:=${SHLIBDIR}
 .if defined(SHLIB_NAME)
 .if ${MK_DEBUG_FILES} != "no"
 SHLIB_NAME_FULL=${SHLIB_NAME}.full
+.if ${MK_COVERAGE} != "no"
+COVERAGEFILEDIR=${COVERAGEDIR}${_SHLIBDIR}
+.if !exists(${DESTDIR}${COVERAGEFILEDIR})
+COVERAGEMKDIR=
+.endif
+.endif
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if ${_SHLIBDIR} == "/boot" ||\
     ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
@@ -204,22 +198,6 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 
 .if !defined(INTERNALLIB)
 
-.if ${MK_COVERAGE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB_PRIVATE}${LIB}_c.a
-COV_OBJS+=	${OBJS:.o=.covo} ${STATICOBJS:.o=.covo}
-DEPENDOBJS+=	${COV_OBJS}
-CLEANFILES+=	${COV_OBJS}
-# XXX (ngie): tighten this down
-CLEANFILES+=	*.gcda *.gcno
-
-lib${LIB_PRIVATE}${LIB}_c.a: ${COV_OBJS}
-	@${ECHO} building coverage instrumented ${LIB} library
-	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' \
-	    ${LORDER} ${COV_OBJS} | ${TSORT} ${TSORTFLAGS}` ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
-.endif
-
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
@@ -256,6 +234,9 @@ CLEANFILES+=	${SOBJS}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if !empty(_COV_FLAG)
+SOLINKOPTS+=	${_COV_FLAG}
+.endif
 SOLINKOPTS+=	-shared -Wl,-x
 .if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
 SOLINKOPTS+=	-Wl,--no-fatal-warnings
@@ -390,6 +371,14 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}/
 .if ${MK_DEBUG_FILES} != "no"
+.if ${MK_COVERAGE} != "no"
+.if defined(COVERAGEMKDIR)
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${DESTDIR}${COVERAGEFILEDIR}/
+.endif
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${SHLIB_NAME}.full ${DESTDIR}${COVERAGEFILEDIR}/${SHLIB_NAME}
+.endif
 .if defined(DEBUGMKDIR)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
 .endif
@@ -441,6 +430,9 @@ _libinstall:
 
 .if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
+.if defined(_COV_FLAG)
+.include <bsd.cov.mk>
+.endif
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.confs.mk>
