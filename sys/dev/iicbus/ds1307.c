@@ -380,6 +380,10 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	} else
 		pmflags = 0;
 
+	getnanotime(ts);
+	ts->tv_sec -= utc_offset();
+	clock_ts_to_ct(ts, &ct);
+
 	data[DS1307_SECS]    = TOBCD(ct.sec);
 	data[DS1307_MINS]    = TOBCD(ct.min);
 	data[DS1307_HOUR]    = TOBCD(ct.hour) | pmflags;
