@@ -560,7 +560,7 @@ AnGetBtype (
                 return (ACPI_UINT32_MAX);
             }
 
-            if (ReferencedNode->Asl.CompileFlags & NODE_METHOD_TYPED)
+            if (ReferencedNode->Asl.CompileFlags & OP_METHOD_TYPED)
             {
                 ThisNodeBtype = ReferencedNode->Asl.AcpiBtype;
             }

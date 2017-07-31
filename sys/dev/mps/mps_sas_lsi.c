@@ -136,7 +136,7 @@ mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
-	mps_print_evt_sas(sc, event);
+	MPS_DPRINT_EVENT(sc, sas, event);
 	mpssas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mps_fw_event_work), M_MPT2,

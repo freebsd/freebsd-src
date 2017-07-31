@@ -483,7 +483,7 @@ PrAddMacro (
     {
         /* Search the macro arg list for matching arg */
 
-        for (i = 0; Args[i].Name && (i < PR_MAX_MACRO_ARGS); i++)
+        for (i = 0; ((i < PR_MAX_MACRO_ARGS) && Args[i].Name); i++)
         {
             /*
              * Save argument offset within macro body. This is the mechanism
