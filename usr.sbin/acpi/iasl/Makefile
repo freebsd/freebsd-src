@@ -17,18 +17,19 @@ SRCS+=	aslanalyze.c aslascii.c aslbtypes.c aslcodegen.c	\
 	asllookup.c aslmain.c aslmap.c aslmapenter.c		\
 	aslmapoutput.c aslmaputils.c aslmessages.c aslmethod.c	\
 	aslnamesp.c asloffset.c aslopcodes.c asloperands.c	\
-	aslopt.c asloptions.c aslpld.c aslpredef.c aslprepkg.c	\
-	aslprintf.c aslprune.c aslresource.c aslrestype1.c	\
-	aslrestype1i.c aslrestype2.c aslrestype2d.c		\
-	aslrestype2e.c aslrestype2q.c aslrestype2s.c		\
-	aslrestype2w.c aslstartup.c aslstubs.c asltransform.c	\
-	asltree.c aslutils.c asluuid.c aslwalks.c aslxref.c	\
-	aslxrefout.c cvcompiler.c cvdisasm.c cvparser.c		\
-	dtcompile.c dtexpress.c dtfield.c dtio.c dtparser.y.h	\
-	dtparserlex.c dtparserparse.c dtsubtable.c dttable.c	\
-	dttable1.c dttable2.c dttemplate.c dtutils.c		\
-	prexpress.c prmacros.c prparser.y.h prparserlex.c	\
-	prparserparse.c prscan.c prutils.c
+	aslopt.c asloptions.c aslparseop.c aslpld.c aslpredef.c	\
+	aslprepkg.c aslprintf.c aslprune.c aslresource.c	\
+	aslrestype1.c aslrestype1i.c aslrestype2.c		\
+	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
+	aslrestype2s.c aslrestype2w.c aslstartup.c aslstubs.c	\
+	asltransform.c asltree.c aslutils.c asluuid.c		\
+	aslwalks.c aslxref.c aslxrefout.c cvcompiler.c		\
+	cvdisasm.c cvparser.c dtcompile.c dtexpress.c dtfield.c	\
+	dtio.c dtparser.y.h dtparserlex.c dtparserparse.c	\
+	dtsubtable.c dttable.c dttable1.c dttable2.c		\
+	dttemplate.c dtutils.c prexpress.c prmacros.c		\
+	prparser.y.h prparserlex.c prparserparse.c prscan.c	\
+	prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
@@ -40,8 +41,8 @@ SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
-	dsutils.c dswexec.c dswload.c dswload2.c dswscope.c	\
-	dswstate.c
+	dspkginit.c dsutils.c dswexec.c dswload.c dswload2.c	\
+	dswscope.c dswstate.c
 
 # components/executer
 SRCS+=	exconcat.c exconvrt.c excreate.c exdump.c exmisc.c	\

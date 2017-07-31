@@ -480,7 +480,6 @@ main(int argc, char *argv[])
 		xo_open_container("statistics");
 		if (sflag) {
 			rt_stats();
-			flowtable_stats();
 		} else
 			routepr(fib, af);
 		xo_close_container("statistics");
