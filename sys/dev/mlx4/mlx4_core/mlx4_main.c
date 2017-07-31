@@ -1793,10 +1793,10 @@ static void unmap_bf_area(struct mlx4_dev *dev)
 		io_mapping_free(mlx4_priv(dev)->bf_mapping);
 }
 
-int mlx4_read_clock(struct mlx4_dev *dev)
+s64 mlx4_read_clock(struct mlx4_dev *dev)
 {
 	u32 clockhi, clocklo, clockhi1;
-	cycle_t cycles;
+	s64 cycles;
 	int i;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -1813,7 +1813,7 @@ int mlx4_read_clock(struct mlx4_dev *dev)
 
 	cycles = (u64) clockhi << 32 | (u64) clocklo;
 
-	return cycles;
+	return cycles & CORE_CLOCK_MASK;
 }
 EXPORT_SYMBOL_GPL(mlx4_read_clock);
 
