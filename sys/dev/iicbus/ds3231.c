@@ -67,24 +67,17 @@ struct ds3231_softc {
 static void ds3231_start(void *);
 
 static int
-ds3231_read(device_t dev, uint16_t addr, uint8_t reg, uint8_t *data, size_t len)
+ds3231_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
-	struct iic_msg msg[2] = {
-	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
-	    { addr, IIC_M_RD, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
-ds3231_write(device_t dev, uint16_t addr, uint8_t *data, size_t len)
+ds3231_write1(device_t dev, uint8_t reg, uint8_t data)
 {
-	struct iic_msg msg[1] = {
-	    { addr, IIC_M_WR, len, data },
-	};
 
-	return (iicbus_transfer(dev, msg, nitems(msg)));
+	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -92,14 +85,11 @@ ds3231_ctrl_read(struct ds3231_softc *sc)
 {
 	int error;
 
-	sc->sc_ctrl = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_CONTROL,
-	    &sc->sc_ctrl, sizeof(sc->sc_ctrl));
+	error = ds3231_read1(sc->sc_dev, DS3231_CONTROL, &sc->sc_ctrl);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
 	}
-
 	return (0);
 }
 
@@ -107,12 +97,11 @@ static int
 ds3231_ctrl_write(struct ds3231_softc *sc)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t data;
 
-	data[0] = DS3231_CONTROL;
 	/* Always enable the oscillator.  Always disable both alarms. */
-	data[1] = sc->sc_ctrl & ~DS3231_CTRL_MASK;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	data = sc->sc_ctrl & ~DS3231_CTRL_MASK;
+	error = ds3231_write1(sc->sc_dev, DS3231_CONTROL, data);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -124,9 +113,7 @@ ds3231_status_read(struct ds3231_softc *sc)
 {
 	int error;
 
-	sc->sc_status = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_STATUS,
-	    &sc->sc_status, sizeof(sc->sc_status));
+	error = ds3231_read1(sc->sc_dev, DS3231_STATUS, &sc->sc_status);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
@@ -139,15 +126,14 @@ static int
 ds3231_status_write(struct ds3231_softc *sc, int clear_a1, int clear_a2)
 {
 	int error;
-	uint8_t data[2];
+	uint8_t data;
 
-	data[0] = DS3231_STATUS;
-	data[1] = sc->sc_status;
+	data = sc->sc_status;
 	if (clear_a1 == 0)
-		data[1] |= DS3231_STATUS_A1F;
+		data |= DS3231_STATUS_A1F;
 	if (clear_a2 == 0)
-		data[1] |= DS3231_STATUS_A2F;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+		data |= DS3231_STATUS_A2F;
+	error = ds3231_write1(sc->sc_dev, DS3231_STATUS, data);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -158,18 +144,15 @@ static int
 ds3231_set_24hrs_mode(struct ds3231_softc *sc)
 {
 	int error;
-	uint8_t data[2], hour;
+	uint8_t hour;
 
-	hour = 0;
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_HOUR,
-	    &hour, sizeof(hour));
+	error = ds3231_read1(sc->sc_dev, DS3231_HOUR, &hour);
 	if (error) {
 		device_printf(sc->sc_dev, "cannot read from RTC.\n");
 		return (error);
 	}
-	data[0] = DS3231_HOUR;
-	data[1] = hour & ~DS3231_C_MASK;
-	error = ds3231_write(sc->sc_dev, sc->sc_addr, data, sizeof(data));
+	hour &= ~DS3231_C_MASK;
+	error = ds3231_write1(sc->sc_dev, DS3231_HOUR, hour);
 	if (error != 0)
 		device_printf(sc->sc_dev, "cannot write to RTC.\n");
 
@@ -183,8 +166,8 @@ ds3231_temp_read(struct ds3231_softc *sc, int *temp)
 	uint8_t buf8[2];
 	uint16_t buf;
 
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_TEMP,
-	    buf8, sizeof(buf8));
+	error = iicdev_readfrom(sc->sc_dev, DS3231_TEMP, buf8, sizeof(buf8),
+	    IIC_INTRWAIT);
 	if (error != 0)
 		return (error);
 	buf = (buf8[0] << 8) | (buf8[1] & 0xff);
@@ -426,6 +409,14 @@ ds3231_attach(device_t dev)
 	return (0);
 }
 
+static int
+ds3231_detach(device_t dev)
+{
+
+	clock_unregister(dev);
+	return (0);
+}
+
 static void
 ds3231_start(void *xdev)
 {
@@ -499,8 +490,8 @@ ds3231_gettime(device_t dev, struct timespec *ts)
 
 	sc = device_get_softc(dev);
 	memset(data, 0, sizeof(data));
-	error = ds3231_read(sc->sc_dev, sc->sc_addr, DS3231_SECS,
-	    data, sizeof(data)); 
+	error = iicdev_readfrom(sc->sc_dev, DS3231_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0) {
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
@@ -533,7 +524,7 @@ ds3231_settime(device_t dev, struct timespec *ts)
 	int error;
 	struct clocktime ct;
 	struct ds3231_softc *sc;
-	uint8_t data[8];
+	uint8_t data[7];
 
 	sc = device_get_softc(dev);
 	/* Accuracy is only one second. */
@@ -542,18 +533,18 @@ ds3231_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
 	memset(data, 0, sizeof(data));
-	data[0] = DS3231_SECS;
-	data[DS3231_SECS + 1] = TOBCD(ct.sec);
-	data[DS3231_MINS + 1] = TOBCD(ct.min);
-	data[DS3231_HOUR + 1] = TOBCD(ct.hour);
-	data[DS3231_DATE + 1] = TOBCD(ct.day);
-	data[DS3231_WEEKDAY + 1] = ct.dow;
-	data[DS3231_MONTH + 1] = TOBCD(ct.mon);
-	data[DS3231_YEAR + 1] = TOBCD(ct.year % 100);
+	data[DS3231_SECS] = TOBCD(ct.sec);
+	data[DS3231_MINS] = TOBCD(ct.min);
+	data[DS3231_HOUR] = TOBCD(ct.hour);
+	data[DS3231_DATE] = TOBCD(ct.day);
+	data[DS3231_WEEKDAY] = ct.dow;
+	data[DS3231_MONTH] = TOBCD(ct.mon);
+	data[DS3231_YEAR] = TOBCD(ct.year % 100);
 	if (sc->sc_last_c)
 		data[DS3231_MONTH] |= DS3231_C_MASK;
 	/* Write the time back to RTC. */
-	error = ds3231_write(dev, sc->sc_addr, data, sizeof(data));
+	error = iicdev_writeto(dev, DS3231_SECS, data, sizeof(data),
+	    IIC_INTRWAIT);
 	if (error != 0)
 		device_printf(dev, "cannot write to RTC.\n");
 
@@ -563,6 +554,7 @@ ds3231_settime(device_t dev, struct timespec *ts)
 static device_method_t ds3231_methods[] = {
 	DEVMETHOD(device_probe,		ds3231_probe),
 	DEVMETHOD(device_attach,	ds3231_attach),
+	DEVMETHOD(device_detach,	ds3231_detach),
 
 	DEVMETHOD(clock_gettime,	ds3231_gettime),
 	DEVMETHOD(clock_settime,	ds3231_settime),

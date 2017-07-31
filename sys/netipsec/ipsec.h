@@ -253,8 +253,9 @@ struct ipsecstat {
 #include <sys/counter.h>
 
 struct ipsec_ctx_data;
-#define	IPSEC_INIT_CTX(_ctx, _mp, _sav, _af, _enc) do {	\
+#define	IPSEC_INIT_CTX(_ctx, _mp, _inp, _sav, _af, _enc) do {	\
 	(_ctx)->mp = (_mp);				\
+	(_ctx)->inp = (_inp);				\
 	(_ctx)->sav = (_sav);				\
 	(_ctx)->af = (_af);				\
 	(_ctx)->enc = (_enc);				\

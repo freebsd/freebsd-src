@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Nuxi, https://nuxi.nl/
+ * Copyright (c) 2016-2017 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <math.h>
@@ -384,11 +385,12 @@ oidname_print(const struct oidname *on, const struct oidformat *of,
 	label = on->labels;
 	for (i = 0; i < on->oid.len; ++i) {
 		if (*label == '\0') {
-			assert(name[strspn(name,
-			    "abcdefghijklmnopqrstuvwxyz"
-			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			    "0123456789_")] == '\0');
-			fprintf(fp, "_%s", name);
+			fputc('_', fp);
+			while (*name != '\0') {
+				/* Map unsupported characters to underscores. */
+				fputc(isalnum(*name) ? *name : '_', fp);
+				++name;
+			}
 		}
 		name += strlen(name) + 1;
 		label += strlen(label) + 1;
@@ -404,15 +406,18 @@ oidname_print(const struct oidname *on, const struct oidformat *of,
 	separator = '{';
 	for (i = 0; i < on->oid.len; ++i) {
 		if (*label != '\0') {
-			assert(name[strspn(name,
-			    "abcdefghijklmnopqrstuvwxyz"
-			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			    "0123456789_-")] == '\0');
 			assert(label[strspn(label,
 			    "abcdefghijklmnopqrstuvwxyz"
 			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 			    "0123456789_")] == '\0');
-			fprintf(fp, "%c%s=\"%s\"", separator, label, name);
+			fprintf(fp, "%c%s=\"", separator, label);
+			while (*name != '\0') {
+				/* Escape backslashes and double quotes. */
+				if (*name == '\\' || *name == '"')
+					fputc('\\', fp);
+				fputc(*name++, fp);
+			}
+			fputc('"', fp);
 			separator = ',';
 		}
 		name += strlen(name) + 1;

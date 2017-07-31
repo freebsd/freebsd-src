@@ -218,6 +218,7 @@
 #define ACPI_RASF_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_RASF,f)
 #define ACPI_S3PT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_S3PT,f)
 #define ACPI_SBST_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SBST,f)
+#define ACPI_SDEI_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SDEI,f)
 #define ACPI_SLIT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SLIT,f)
 #define ACPI_SPCR_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SPCR,f)
 #define ACPI_SPMI_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SPMI,f)
@@ -1838,6 +1839,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIort4[] =
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (Flags),                  "Flags (decoded below)", 0},
     {ACPI_DMT_FLAG0,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "COHACC Override", 0},
     {ACPI_DMT_FLAG1,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "HTTU Override", 0},
+    {ACPI_DMT_FLAG3,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "Proximity Domain Valid", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (Reserved),               "Reserved", 0},
     {ACPI_DMT_UINT64,   ACPI_IORT4_OFFSET (VatosAddress),           "VATOS Address", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (Model),                  "Model", 0},
@@ -1845,6 +1847,9 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIort4[] =
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (PriGsiv),                "PRI GSIV", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (GerrGsiv),               "GERR GSIV", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (SyncGsiv),               "Sync GSIV", 0},
+    {ACPI_DMT_UINT8,    ACPI_IORT4_OFFSET (Pxm),                    "Proximity Domain", 0},
+    {ACPI_DMT_UINT8,    ACPI_IORT4_OFFSET (Reserved1),              "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_IORT4_OFFSET (Reserved2),              "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -2763,6 +2768,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPmtt2[] =
     ACPI_DMT_TERMINATOR
 };
 
+/*******************************************************************************
+ *
+ * SDEI - Software Delegated Execption Interface Descriptor Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSdei[] =
+{
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *

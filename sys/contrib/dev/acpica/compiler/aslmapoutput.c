@@ -685,7 +685,7 @@ MpNamespaceXrefBegin (
      * are references to other objects within the namespace and the
      * parent objects of name declarations
      */
-    if (Op->Asl.CompileFlags & NODE_IS_NAME_DECLARATION)
+    if (Op->Asl.CompileFlags & OP_IS_NAME_DECLARATION)
     {
         return (AE_OK);
     }
