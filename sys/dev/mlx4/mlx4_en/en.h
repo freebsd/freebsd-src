@@ -572,7 +572,6 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_stats port_stats;
 	struct mlx4_en_vport_stats vport_stats;
 	struct mlx4_en_vf_stats vf_stats;
-	DECLARE_BITMAP(stats_bitmap, NUM_ALL_STATS);
 	struct list_head mc_list;
 	struct list_head curr_list;
 	u64 broadcast_id;
