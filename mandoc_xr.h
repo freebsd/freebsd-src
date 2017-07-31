@@ -1,6 +1,6 @@
-/*	$Id: lib.c,v 1.14 2017/06/24 14:38:32 schwarze Exp $ */
+/*	$Id: mandoc_xr.h,v 1.3 2017/07/02 21:18:29 schwarze Exp $ */
 /*
- * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,25 +14,18 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "config.h"
 
-#include <sys/types.h>
+struct	mandoc_xr {
+	struct mandoc_xr *next;
+	char		 *sec;
+	char		 *name;
+	int		  line;  /* Or -1 for this page's own names. */
+	int		  pos;
+	int		  count;
+	char		  hashkey[];
+};
 
-#include <string.h>
-
-#include "mandoc.h"
-#include "roff.h"
-#include "mdoc.h"
-#include "libmdoc.h"
-
-#define LINE(x, y) \
-	if (0 == strcmp(p, x)) return(y);
-
-const char *
-mdoc_a2lib(const char *p)
-{
-
-#include "lib.in"
-
-	return NULL;
-}
+void		  mandoc_xr_reset(void);
+int		  mandoc_xr_add(const char *, const char *, int, int);
+struct mandoc_xr *mandoc_xr_get(void);
+void		  mandoc_xr_free(void);

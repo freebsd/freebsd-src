@@ -1,4 +1,4 @@
-/*	$Id: chars.c,v 1.70 2017/06/02 12:43:52 schwarze Exp $ */
+/*	$Id: chars.c,v 1.71 2017/06/14 20:57:07 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -61,6 +61,7 @@ static struct ln lines[] = {
 	{ "ba",			"|",		0x007c	},
 	{ "br",			"|",		0x2502	},
 	{ "ul",			"_",		0x005f	},
+	{ "ru",			"_",		0x005f	},
 	{ "rn",			"-",		0x203e	},
 	{ "bb",			"|",		0x00a6	},
 	{ "sl",			"/",		0x002f	},

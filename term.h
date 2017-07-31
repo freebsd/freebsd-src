@@ -1,4 +1,4 @@
-/*	$Id: term.h,v 1.126 2017/06/07 20:01:19 schwarze Exp $ */
+/*	$Id: term.h,v 1.130 2017/07/08 14:51:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -36,7 +36,7 @@ enum	termfont {
 	TERMFONT__MAX
 };
 
-struct	eqn;
+struct	eqn_box;
 struct	roff_meta;
 struct	roff_node;
 struct	tbl_span;
@@ -52,6 +52,7 @@ struct	termp_tbl {
 struct	termp_col {
 	int		 *buf;		/* Output buffer. */
 	size_t		  maxcols;	/* Allocated bytes in buf. */
+	size_t		  lastcol;	/* Last byte in buf. */
 	size_t		  col;		/* Byte in buf to be written. */
 	size_t		  rmargin;	/* Current right margin. */
 	size_t		  offset;	/* Current left margin. */
@@ -69,7 +70,6 @@ struct	termp {
 	size_t		  lastrmargin;	/* Right margin before the last ll. */
 	size_t		  maxrmargin;	/* Max right margin. */
 	size_t		  col;		/* Byte position in buf. */
-	size_t		  lastcol;	/* Bytes in buf. */
 	size_t		  viscol;	/* Chars on current line. */
 	size_t		  trailspace;	/* See term_flushln(). */
 	size_t		  minbl;	/* Minimum blanks before next field. */
@@ -98,6 +98,7 @@ struct	termp {
 #define	TERMP_NOBUF	 (1 << 17)	/* Bypass output buffer. */
 #define	TERMP_NEWMC	 (1 << 18)	/* No .mc printed yet. */
 #define	TERMP_ENDMC	 (1 << 19)	/* Next break ends .mc mode. */
+#define	TERMP_MULTICOL	 (1 << 20)	/* Multiple column mode. */
 	enum termtype	  type;		/* Terminal, PS, or PDF. */
 	enum termenc	  enc;		/* Type of encoding. */
 	enum termfont	  fontl;	/* Last font set. */
@@ -125,9 +126,10 @@ const char	 *ascii_uc2str(int);
 
 void		  roff_term_pre(struct termp *, const struct roff_node *);
 
-void		  term_eqn(struct termp *, const struct eqn *);
+void		  term_eqn(struct termp *, const struct eqn_box *);
 void		  term_tbl(struct termp *, const struct tbl_span *);
 void		  term_free(struct termp *);
+void		  term_setcol(struct termp *, size_t);
 void		  term_newln(struct termp *);
 void		  term_vspace(struct termp *);
 void		  term_word(struct termp *, const char *);
@@ -138,11 +140,13 @@ void		  term_end(struct termp *);
 
 void		  term_setwidth(struct termp *, const char *);
 int		  term_hspan(const struct termp *, const struct roffsu *);
+int		  term_hen(const struct termp *, const struct roffsu *);
 int		  term_vspan(const struct termp *, const struct roffsu *);
 size_t		  term_strlen(const struct termp *, const char *);
 size_t		  term_len(const struct termp *, size_t);
 
 void		  term_tab_set(const struct termp *, const char *);
+void		  term_tab_iset(size_t);
 size_t		  term_tab_next(size_t);
 
 void		  term_fontpush(struct termp *, enum termfont);
