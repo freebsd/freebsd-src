@@ -2146,7 +2146,7 @@ netmap_mem_pt_guest_deref(struct netmap_mem_d *nmd)
 	    if (ptnmd->ptn_dev) {
 		nm_os_pt_memdev_iounmap(ptnmd->ptn_dev);
 	    }
-	    ptnmd->nm_addr = 0;
+	    ptnmd->nm_addr = NULL;
 	    ptnmd->nm_paddr = 0;
 	}
 }

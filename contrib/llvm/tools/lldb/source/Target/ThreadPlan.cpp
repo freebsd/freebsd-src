@@ -13,13 +13,12 @@
 // Project includes
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/State.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
-#include "lldb/Utility/ConvertEnum.h"
+#include "lldb/Utility/Log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -77,16 +76,11 @@ Vote ThreadPlan::ShouldReportStop(Event *event_ptr) {
     ThreadPlan *prev_plan = GetPreviousPlan();
     if (prev_plan) {
       Vote prev_vote = prev_plan->ShouldReportStop(event_ptr);
-      if (log)
-        log->Printf("ThreadPlan::ShouldReportStop() returning previous thread "
-                    "plan vote: %s",
-                    GetVoteAsCString(prev_vote));
+      LLDB_LOG(log, "returning previous thread plan vote: {0}", prev_vote);
       return prev_vote;
     }
   }
-  if (log)
-    log->Printf("ThreadPlan::ShouldReportStop() returning vote: %s",
-                GetVoteAsCString(m_stop_vote));
+  LLDB_LOG(log, "Returning vote: {0}", m_stop_vote);
   return m_stop_vote;
 }
 

@@ -2210,6 +2210,23 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 				    resp_buf[3], resp_buf[4]);
 			}
 			/*
+			 * XXX: Hyper-V (since win2012r2) responses inquiry with
+			 * unknown version (0) for GEN-2 DVD device.
+			 * Manually set the version number to SPC3 in order to
+			 * ask CAM to continue probing with "PROBE_REPORT_LUNS".
+			 * see probedone() in scsi_xpt.c
+			 */
+			if (SID_TYPE(inq_data) == T_CDROM &&
+			    inq_data->version == 0 &&
+			    (vmstor_proto_version >= VMSTOR_PROTOCOL_VERSION_WIN8)) {
+				inq_data->version = SCSI_REV_SPC3;
+				if (bootverbose) {
+					xpt_print(ccb->ccb_h.path,
+					    "set version from 0 to %d\n",
+					    inq_data->version);
+				}
+			}
+			/*
 			 * XXX: Manually fix the wrong response returned from WS2012
 			 */
 			if (!is_scsi_valid(inq_data) &&
@@ -2218,7 +2235,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 			    vmstor_proto_version == VMSTOR_PROTOCOL_VERSION_WIN7)) {
 				if (data_len >= 4 &&
 				    (resp_buf[2] == 0 || resp_buf[3] == 0)) {
-					resp_buf[2] = 5; // verion=5 means SPC-3
+					resp_buf[2] = SCSI_REV_SPC3;
 					resp_buf[3] = 2; // resp fmt must be 2
 					if (bootverbose)
 						xpt_print(ccb->ccb_h.path,

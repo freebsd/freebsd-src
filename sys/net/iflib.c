@@ -1513,8 +1513,8 @@ iflib_txsd_alloc(iflib_txq_t txq)
 			       NULL,			/* lockfuncarg */
 			       &txq->ift_desc_tag))) {
 		device_printf(dev,"Unable to allocate TX DMA tag: %d\n", err);
-		device_printf(dev,"maxsize: %zd nsegments: %d maxsegsize: %zd\n",
-					  sctx->isc_tx_maxsize, nsegments, sctx->isc_tx_maxsegsize);
+		device_printf(dev,"maxsize: %ju nsegments: %d maxsegsize: %ju\n",
+		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
 		goto fail;
 	}
 	if ((err = bus_dma_tag_create(bus_get_dma_tag(dev),
@@ -2927,6 +2927,14 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 				m_free(tmp);
 				continue;
 			}
+			m = m->m_next;
+			count++;
+		} while (m != NULL);
+		if (count > *nsegs)
+			return (0);
+		m = *m0;
+		count = 0;
+		do {
 			next = (pidx + count) & (ntxd-1);
 			MPASS(ifsd_m[next] == NULL);
 			ifsd_m[next] = m;
@@ -2967,6 +2975,8 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 #endif
 			ifsd_m[next] = m;
 			while (buflen > 0) {
+				if (i >= max_segs)
+					goto err;
 				max_sgsize = MIN(buflen, maxsegsz);
 				curaddr = pmap_kextract(vaddr);
 				sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
@@ -2976,8 +2986,6 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 				vaddr += sgsize;
 				buflen -= sgsize;
 				i++;
-				if (i >= max_segs)
-					goto err;
 			}
 			count++;
 			tmp = m;

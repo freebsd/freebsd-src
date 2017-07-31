@@ -1962,7 +1962,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			    (pagesizes[p->psind] - 1)) == 0) {
 				mask = atop(pagesizes[p->psind]) - 1;
 				if (tmpidx + mask < psize &&
-				    vm_page_ps_is_valid(p)) {
+				    vm_page_ps_test(p, PS_ALL_VALID, NULL)) {
 					p += mask;
 					threshold += mask;
 				}
@@ -3698,7 +3698,15 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 
 	p = curproc;
 	vm = p->p_vmspace;
-	MPASS(map == &p->p_vmspace->vm_map);
+
+	/*
+	 * Disallow stack growth when the access is performed by a
+	 * debugger or AIO daemon.  The reason is that the wrong
+	 * resource limits are applied.
+	 */
+	if (map != &p->p_vmspace->vm_map || p->p_textvp == NULL)
+		return (KERN_FAILURE);
+
 	MPASS(!map->system_map);
 
 	guard = stack_guard_page * PAGE_SIZE;

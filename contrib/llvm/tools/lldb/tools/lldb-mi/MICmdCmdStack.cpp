@@ -32,6 +32,8 @@
 #include "MICmnMIResultRecord.h"
 #include "MICmnMIValueConst.h"
 
+#include <algorithm>
+
 //++
 //------------------------------------------------------------------------------------
 // Details: CMICmdCmdStackInfoDepth constructor.
@@ -757,7 +759,8 @@ bool CMICmdCmdStackListLocals::Execute() {
                                                : thread.GetSelectedFrame();
 
   CMICmnMIValueList miValueList(true);
-  const MIuint maskVarTypes = CMICmnLLDBDebugSessionInfo::eVariableType_Locals;
+  const MIuint maskVarTypes = CMICmnLLDBDebugSessionInfo::eVariableType_Locals |
+                              CMICmnLLDBDebugSessionInfo::eVariableType_InScope;
   if (!rSessionInfo.MIResponseFormVariableInfo(frame, maskVarTypes,
                                                eVarInfoFormat, miValueList))
     return MIstatus::failure;
@@ -929,7 +932,8 @@ bool CMICmdCmdStackListVariables::Execute() {
   CMICmnMIValueList miValueList(true);
   const MIuint maskVarTypes =
       CMICmnLLDBDebugSessionInfo::eVariableType_Arguments |
-      CMICmnLLDBDebugSessionInfo::eVariableType_Locals;
+      CMICmnLLDBDebugSessionInfo::eVariableType_Locals |
+      CMICmnLLDBDebugSessionInfo::eVariableType_InScope;
   if (!rSessionInfo.MIResponseFormVariableInfo(
           frame, maskVarTypes, eVarInfoFormat, miValueList, 10, true))
     return MIstatus::failure;

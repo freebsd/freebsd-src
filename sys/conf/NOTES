@@ -302,7 +302,7 @@ options 	SX_NOINLINE
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
 # UMTX_PROFILING enables rudimentary profiling of the hash table used 
-	  to hold active lock queues.
+#	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_KDB causes the witness code to drop into the kernel debugger if
@@ -645,9 +645,6 @@ options 	LIBMCHAIN
 
 # libalias library, performing NAT
 options 	LIBALIAS
-
-# flowtable cache
-options 	FLOWTABLE
 
 #
 # SCTP is a NEW transport protocol defined by
@@ -2526,15 +2523,15 @@ device		iicoc		# OpenCores I2C controller support
 
 # I2C peripheral devices
 #
-# ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
-# ds1374	Dallas Semiconductor DS1374 RTC
-# ds1672	Dallas Semiconductor DS1672 RTC
-# s35390a	Seiko Instruments S-35390A RTC
-#
-device		ds133x
-device		ds1374
-device		ds1672
-device		s35390a
+device		ds1307		# Dallas DS1307 RTC and compatible
+device		ds133x		# Dallas DS1337, DS1338 and DS1339 RTC
+device		ds1374		# Dallas DS1374 RTC
+device		ds1672		# Dallas DS1672 RTC
+device		ds3231		# Dallas DS3231 RTC + temperature
+device		icee		# AT24Cxxx and compatible EEPROMs
+device		lm75		# LM75 compatible temperature sensor
+device		nxprtc		# NXP RTCs: PCA/PFC212x PCA/PCF85xx
+device		s35390a		# Seiko Instruments S-35390A RTC
 
 # Parallel-Port Bus
 #

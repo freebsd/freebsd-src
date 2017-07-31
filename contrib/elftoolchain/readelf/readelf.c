@@ -783,6 +783,80 @@ dt_type(unsigned int mach, unsigned int dtype)
 {
 	static char s_dtype[32];
 
+	switch (dtype) {
+	case DT_NULL: return "NULL";
+	case DT_NEEDED: return "NEEDED";
+	case DT_PLTRELSZ: return "PLTRELSZ";
+	case DT_PLTGOT: return "PLTGOT";
+	case DT_HASH: return "HASH";
+	case DT_STRTAB: return "STRTAB";
+	case DT_SYMTAB: return "SYMTAB";
+	case DT_RELA: return "RELA";
+	case DT_RELASZ: return "RELASZ";
+	case DT_RELAENT: return "RELAENT";
+	case DT_STRSZ: return "STRSZ";
+	case DT_SYMENT: return "SYMENT";
+	case DT_INIT: return "INIT";
+	case DT_FINI: return "FINI";
+	case DT_SONAME: return "SONAME";
+	case DT_RPATH: return "RPATH";
+	case DT_SYMBOLIC: return "SYMBOLIC";
+	case DT_REL: return "REL";
+	case DT_RELSZ: return "RELSZ";
+	case DT_RELENT: return "RELENT";
+	case DT_PLTREL: return "PLTREL";
+	case DT_DEBUG: return "DEBUG";
+	case DT_TEXTREL: return "TEXTREL";
+	case DT_JMPREL: return "JMPREL";
+	case DT_BIND_NOW: return "BIND_NOW";
+	case DT_INIT_ARRAY: return "INIT_ARRAY";
+	case DT_FINI_ARRAY: return "FINI_ARRAY";
+	case DT_INIT_ARRAYSZ: return "INIT_ARRAYSZ";
+	case DT_FINI_ARRAYSZ: return "FINI_ARRAYSZ";
+	case DT_RUNPATH: return "RUNPATH";
+	case DT_FLAGS: return "FLAGS";
+	case DT_PREINIT_ARRAY: return "PREINIT_ARRAY";
+	case DT_PREINIT_ARRAYSZ: return "PREINIT_ARRAYSZ";
+	case DT_MAXPOSTAGS: return "MAXPOSTAGS";
+	case DT_SUNW_AUXILIARY: return "SUNW_AUXILIARY";
+	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
+	case DT_SUNW_FILTER: return "SUNW_FILTER";
+	case DT_SUNW_CAP: return "SUNW_CAP";
+	case DT_CHECKSUM: return "CHECKSUM";
+	case DT_PLTPADSZ: return "PLTPADSZ";
+	case DT_MOVEENT: return "MOVEENT";
+	case DT_MOVESZ: return "MOVESZ";
+	case DT_FEATURE: return "FEATURE";
+	case DT_POSFLAG_1: return "POSFLAG_1";
+	case DT_SYMINSZ: return "SYMINSZ";
+	case DT_SYMINENT: return "SYMINENT";
+	case DT_GNU_HASH: return "GNU_HASH";
+	case DT_TLSDESC_PLT: return "DT_TLSDESC_PLT";
+	case DT_TLSDESC_GOT: return "DT_TLSDESC_GOT";
+	case DT_GNU_CONFLICT: return "GNU_CONFLICT";
+	case DT_GNU_LIBLIST: return "GNU_LIBLIST";
+	case DT_CONFIG: return "CONFIG";
+	case DT_DEPAUDIT: return "DEPAUDIT";
+	case DT_AUDIT: return "AUDIT";
+	case DT_PLTPAD: return "PLTPAD";
+	case DT_MOVETAB: return "MOVETAB";
+	case DT_SYMINFO: return "SYMINFO";
+	case DT_VERSYM: return "VERSYM";
+	case DT_RELACOUNT: return "RELACOUNT";
+	case DT_RELCOUNT: return "RELCOUNT";
+	case DT_FLAGS_1: return "FLAGS_1";
+	case DT_VERDEF: return "VERDEF";
+	case DT_VERDEFNUM: return "VERDEFNUM";
+	case DT_VERNEED: return "VERNEED";
+	case DT_VERNEEDNUM: return "VERNEEDNUM";
+	case DT_AUXILIARY: return "AUXILIARY";
+	case DT_USED: return "USED";
+	case DT_FILTER: return "FILTER";
+	case DT_GNU_PRELINKED: return "GNU_PRELINKED";
+	case DT_GNU_CONFLICTSZ: return "GNU_CONFLICTSZ";
+	case DT_GNU_LIBLISTSZ: return "GNU_LIBLISTSZ";
+	}
+
 	if (dtype >= DT_LOPROC && dtype <= DT_HIPROC) {
 		switch (mach) {
 		case EM_ARM:
@@ -903,86 +977,10 @@ dt_type(unsigned int mach, unsigned int dtype)
 		default:
 			break;
 		}
-		snprintf(s_dtype, sizeof(s_dtype), "<unknown: %#x>", dtype);
-		return (s_dtype);
 	}
 
-	switch (dtype) {
-	case DT_NULL: return "NULL";
-	case DT_NEEDED: return "NEEDED";
-	case DT_PLTRELSZ: return "PLTRELSZ";
-	case DT_PLTGOT: return "PLTGOT";
-	case DT_HASH: return "HASH";
-	case DT_STRTAB: return "STRTAB";
-	case DT_SYMTAB: return "SYMTAB";
-	case DT_RELA: return "RELA";
-	case DT_RELASZ: return "RELASZ";
-	case DT_RELAENT: return "RELAENT";
-	case DT_STRSZ: return "STRSZ";
-	case DT_SYMENT: return "SYMENT";
-	case DT_INIT: return "INIT";
-	case DT_FINI: return "FINI";
-	case DT_SONAME: return "SONAME";
-	case DT_RPATH: return "RPATH";
-	case DT_SYMBOLIC: return "SYMBOLIC";
-	case DT_REL: return "REL";
-	case DT_RELSZ: return "RELSZ";
-	case DT_RELENT: return "RELENT";
-	case DT_PLTREL: return "PLTREL";
-	case DT_DEBUG: return "DEBUG";
-	case DT_TEXTREL: return "TEXTREL";
-	case DT_JMPREL: return "JMPREL";
-	case DT_BIND_NOW: return "BIND_NOW";
-	case DT_INIT_ARRAY: return "INIT_ARRAY";
-	case DT_FINI_ARRAY: return "FINI_ARRAY";
-	case DT_INIT_ARRAYSZ: return "INIT_ARRAYSZ";
-	case DT_FINI_ARRAYSZ: return "FINI_ARRAYSZ";
-	case DT_RUNPATH: return "RUNPATH";
-	case DT_FLAGS: return "FLAGS";
-	case DT_PREINIT_ARRAY: return "PREINIT_ARRAY";
-	case DT_PREINIT_ARRAYSZ: return "PREINIT_ARRAYSZ";
-	case DT_MAXPOSTAGS: return "MAXPOSTAGS";
-	case DT_SUNW_AUXILIARY: return "SUNW_AUXILIARY";
-	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
-	case DT_SUNW_FILTER: return "SUNW_FILTER";
-	case DT_SUNW_CAP: return "SUNW_CAP";
-	case DT_CHECKSUM: return "CHECKSUM";
-	case DT_PLTPADSZ: return "PLTPADSZ";
-	case DT_MOVEENT: return "MOVEENT";
-	case DT_MOVESZ: return "MOVESZ";
-	case DT_FEATURE: return "FEATURE";
-	case DT_POSFLAG_1: return "POSFLAG_1";
-	case DT_SYMINSZ: return "SYMINSZ";
-	case DT_SYMINENT: return "SYMINENT";
-	case DT_GNU_HASH: return "GNU_HASH";
-	case DT_TLSDESC_PLT: return "DT_TLSDESC_PLT";
-	case DT_TLSDESC_GOT: return "DT_TLSDESC_GOT";
-	case DT_GNU_CONFLICT: return "GNU_CONFLICT";
-	case DT_GNU_LIBLIST: return "GNU_LIBLIST";
-	case DT_CONFIG: return "CONFIG";
-	case DT_DEPAUDIT: return "DEPAUDIT";
-	case DT_AUDIT: return "AUDIT";
-	case DT_PLTPAD: return "PLTPAD";
-	case DT_MOVETAB: return "MOVETAB";
-	case DT_SYMINFO: return "SYMINFO";
-	case DT_VERSYM: return "VERSYM";
-	case DT_RELACOUNT: return "RELACOUNT";
-	case DT_RELCOUNT: return "RELCOUNT";
-	case DT_FLAGS_1: return "FLAGS_1";
-	case DT_VERDEF: return "VERDEF";
-	case DT_VERDEFNUM: return "VERDEFNUM";
-	case DT_VERNEED: return "VERNEED";
-	case DT_VERNEEDNUM: return "VERNEEDNUM";
-	case DT_AUXILIARY: return "AUXILIARY";
-	case DT_USED: return "USED";
-	case DT_FILTER: return "FILTER";
-	case DT_GNU_PRELINKED: return "GNU_PRELINKED";
-	case DT_GNU_CONFLICTSZ: return "GNU_CONFLICTSZ";
-	case DT_GNU_LIBLISTSZ: return "GNU_LIBLISTSZ";
-	default:
-		snprintf(s_dtype, sizeof(s_dtype), "<unknown: %#x>", dtype);
-		return (s_dtype);
-	}
+	snprintf(s_dtype, sizeof(s_dtype), "<unknown: %#x>", dtype);
+	return (s_dtype);
 }
 
 static const char *
@@ -2638,10 +2636,8 @@ dyn_str(struct readelf *re, uint32_t stab, uint64_t d_val)
 }
 
 static void
-dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
+dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn)
 {
-	const char *name;
-
 	switch (re->ehdr.e_machine) {
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
@@ -2694,11 +2690,6 @@ dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 			break;
 		case DT_MIPS_IVERSION:
 		case DT_MIPS_PERF_SUFFIX:
-		case DT_AUXILIARY:
-		case DT_FILTER:
-			name = dyn_str(re, stab, dyn->d_un.d_val);
-			printf(" %s\n", name);
-			break;
 		case DT_MIPS_TIME_STAMP:
 			printf(" %s\n", timestamp(dyn->d_un.d_val));
 			break;
@@ -2715,14 +2706,16 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 {
 	const char *name;
 
-	if (dyn->d_tag >= DT_LOPROC && dyn->d_tag <= DT_HIPROC) {
-		dump_arch_dyn_val(re, dyn, stab);
+	if (dyn->d_tag >= DT_LOPROC && dyn->d_tag <= DT_HIPROC &&
+	    dyn->d_tag != DT_AUXILIARY && dyn->d_tag != DT_FILTER) {
+		dump_arch_dyn_val(re, dyn);
 		return;
 	}
 
 	/* These entry values are index into the string table. */
 	name = NULL;
-	if (dyn->d_tag == DT_NEEDED || dyn->d_tag == DT_SONAME ||
+	if (dyn->d_tag == DT_AUXILIARY || dyn->d_tag == DT_FILTER ||
+	    dyn->d_tag == DT_NEEDED || dyn->d_tag == DT_SONAME ||
 	    dyn->d_tag == DT_RPATH || dyn->d_tag == DT_RUNPATH)
 		name = dyn_str(re, stab, dyn->d_un.d_val);
 
@@ -2766,6 +2759,12 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 	case DT_VERDEFNUM:
 	case DT_VERNEEDNUM:
 		printf(" %ju\n", (uintmax_t) dyn->d_un.d_val);
+		break;
+	case DT_AUXILIARY:
+		printf(" Auxiliary library: [%s]\n", name);
+		break;
+	case DT_FILTER:
+		printf(" Filter library: [%s]\n", name);
 		break;
 	case DT_NEEDED:
 		printf(" Shared library: [%s]\n", name);

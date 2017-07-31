@@ -10,16 +10,13 @@
 #ifndef liblldb_Property_h_
 #define liblldb_Property_h_
 
-// C Includes
-// C++ Includes
-#include <string>
-
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Flags.h"
 #include "lldb/Interpreter/OptionValue.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Flags.h"
 #include "lldb/lldb-defines.h"
+#include "lldb/lldb-private-types.h"
+
+#include <string>
 
 namespace lldb_private {
 

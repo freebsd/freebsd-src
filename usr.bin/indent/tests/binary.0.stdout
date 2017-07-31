@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 #define b00101010 -1
-void 
+void
 t(void)
 {
 	unsigned	a[] = {0b00101010, 0x00005678, 02, 17U};

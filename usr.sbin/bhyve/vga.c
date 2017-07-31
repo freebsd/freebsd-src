@@ -1069,7 +1069,7 @@ vga_port_out_handler(struct vmctx *ctx, int in, int port, int bytes,
 				sc->vga_atc.atc_color_select_45 =
 					(val & ATC_CS_C45) << 4;
 				sc->vga_atc.atc_color_select_67 =
-					(val & ATC_CS_C67) << 6;
+					((val & ATC_CS_C67) >> 2) << 6;
 				break;
 			default:
 				//printf("XXX VGA ATC: outb 0x%04x, 0x%02x at index %d\n", port, val, sc->vga_atc.atc_index);

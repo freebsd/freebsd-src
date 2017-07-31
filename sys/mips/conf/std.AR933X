@@ -33,6 +33,11 @@ options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
+# Enable boot time calibration hints
+options		AR71XX_ATH_EEPROM
+device		ar71xx_caldata
+device		firmware
+
 # PMC
 options 	HWPMC_HOOKS
 
@@ -52,7 +57,10 @@ include		"std.AR_MIPS_BASE"
 
 makeoptions	MODULES_OVERRIDE+="hwpmc_mips24k"
 
+# AR9330 support - everything shipping uses EEPROM for calibration data,
+# so always include this.
 option		AH_SUPPORT_AR9330	# Chipset support
+option 		ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 
 device		usb
 device		ehci
@@ -61,5 +69,6 @@ device		scbus
 device		umass
 device		da
 
-device 		uart_ar933x
+device		ar71xx_apb
 
+device 		uart_ar933x

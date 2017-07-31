@@ -212,9 +212,12 @@ ProgramPoint CallEvent::getProgramPoint(bool IsPreVisit,
 
 bool CallEvent::isCalled(const CallDescription &CD) const {
   assert(getKind() != CE_ObjCMessage && "Obj-C methods are not supported");
-  if (!CD.II)
+  if (!CD.IsLookupDone) {
+    CD.IsLookupDone = true;
     CD.II = &getState()->getStateManager().getContext().Idents.get(CD.FuncName);
-  if (getCalleeIdentifier() != CD.II)
+  }
+  const IdentifierInfo *II = getCalleeIdentifier();
+  if (!II || II != CD.II)
     return false;
   return (CD.RequiredArgs == CallDescription::NoArgRequirement ||
           CD.RequiredArgs == getNumArgs());
@@ -692,13 +695,15 @@ void ObjCMethodCall::getExtraInvalidatedValues(
   if (const ObjCPropertyDecl *PropDecl = getAccessedProperty()) {
     if (const ObjCIvarDecl *PropIvar = PropDecl->getPropertyIvarDecl()) {
       SVal IvarLVal = getState()->getLValue(PropIvar, getReceiverSVal());
-      const MemRegion *IvarRegion = IvarLVal.getAsRegion();
-      ETraits->setTrait(
+      if (const MemRegion *IvarRegion = IvarLVal.getAsRegion()) {
+        ETraits->setTrait(
           IvarRegion,
           RegionAndSymbolInvalidationTraits::TK_DoNotInvalidateSuperRegion);
-      ETraits->setTrait(IvarRegion,
-                        RegionAndSymbolInvalidationTraits::TK_SuppressEscape);
-      Values.push_back(IvarLVal);
+        ETraits->setTrait(
+          IvarRegion,
+          RegionAndSymbolInvalidationTraits::TK_SuppressEscape);
+        Values.push_back(IvarLVal);
+      }
       return;
     }
   }
@@ -896,6 +901,38 @@ bool ObjCMethodCall::canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
   llvm_unreachable("The while loop should always terminate.");
 }
 
+static const ObjCMethodDecl *findDefiningRedecl(const ObjCMethodDecl *MD) {
+  if (!MD)
+    return MD;
+
+  // Find the redeclaration that defines the method.
+  if (!MD->hasBody()) {
+    for (auto I : MD->redecls())
+      if (I->hasBody())
+        MD = cast<ObjCMethodDecl>(I);
+  }
+  return MD;
+}
+
+static bool isCallToSelfClass(const ObjCMessageExpr *ME) {
+  const Expr* InstRec = ME->getInstanceReceiver();
+  if (!InstRec)
+    return false;
+  const auto *InstRecIg = dyn_cast<DeclRefExpr>(InstRec->IgnoreParenImpCasts());
+
+  // Check that receiver is called 'self'.
+  if (!InstRecIg || !InstRecIg->getFoundDecl() ||
+      !InstRecIg->getFoundDecl()->getName().equals("self"))
+    return false;
+
+  // Check that the method name is 'class'.
+  if (ME->getSelector().getNumArgs() != 0 ||
+      !ME->getSelector().getNameForSlot(0).equals("class"))
+    return false;
+
+  return true;
+}
+
 RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
   const ObjCMessageExpr *E = getOriginExpr();
   assert(E);
@@ -910,6 +947,7 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
     const MemRegion *Receiver = nullptr;
 
     if (!SupersType.isNull()) {
+      // The receiver is guaranteed to be 'super' in this case.
       // Super always means the type of immediate predecessor to the method
       // where the call occurs.
       ReceiverT = cast<ObjCObjectPointerType>(SupersType);
@@ -919,9 +957,15 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
         return RuntimeDefinition();
 
       DynamicTypeInfo DTI = getDynamicTypeInfo(getState(), Receiver);
+      if (!DTI.isValid()) {
+        assert(isa<AllocaRegion>(Receiver) &&
+               "Unhandled untyped region class!");
+        return RuntimeDefinition();
+      }
+
       QualType DynType = DTI.getType();
       CanBeSubClassed = DTI.canBeASubClass();
-      ReceiverT = dyn_cast<ObjCObjectPointerType>(DynType);
+      ReceiverT = dyn_cast<ObjCObjectPointerType>(DynType.getCanonicalType());
 
       if (ReceiverT && CanBeSubClassed)
         if (ObjCInterfaceDecl *IDecl = ReceiverT->getInterfaceDecl())
@@ -929,7 +973,32 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
             CanBeSubClassed = false;
     }
 
-    // Lookup the method implementation.
+    // Handle special cases of '[self classMethod]' and
+    // '[[self class] classMethod]', which are treated by the compiler as
+    // instance (not class) messages. We will statically dispatch to those.
+    if (auto *PT = dyn_cast_or_null<ObjCObjectPointerType>(ReceiverT)) {
+      // For [self classMethod], return the compiler visible declaration.
+      if (PT->getObjectType()->isObjCClass() &&
+          Receiver == getSelfSVal().getAsRegion())
+        return RuntimeDefinition(findDefiningRedecl(E->getMethodDecl()));
+
+      // Similarly, handle [[self class] classMethod].
+      // TODO: We are currently doing a syntactic match for this pattern with is
+      // limiting as the test cases in Analysis/inlining/InlineObjCClassMethod.m
+      // shows. A better way would be to associate the meta type with the symbol
+      // using the dynamic type info tracking and use it here. We can add a new
+      // SVal for ObjC 'Class' values that know what interface declaration they
+      // come from. Then 'self' in a class method would be filled in with
+      // something meaningful in ObjCMethodCall::getReceiverSVal() and we could
+      // do proper dynamic dispatch for class methods just like we do for
+      // instance methods now.
+      if (E->getInstanceReceiver())
+        if (const auto *M = dyn_cast<ObjCMessageExpr>(E->getInstanceReceiver()))
+          if (isCallToSelfClass(M))
+            return RuntimeDefinition(findDefiningRedecl(E->getMethodDecl()));
+    }
+
+    // Lookup the instance method implementation.
     if (ReceiverT)
       if (ObjCInterfaceDecl *IDecl = ReceiverT->getInterfaceDecl()) {
         // Repeatedly calling lookupPrivateMethod() is expensive, especially

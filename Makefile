@@ -158,8 +158,18 @@ META_TGT_WHITELIST+= \
 	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
+.ORDER: buildworld distrib-dirs
+.ORDER: buildworld distribution
+.ORDER: buildworld distribute
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
+.ORDER: distrib-dirs distribute
+.ORDER: distrib-dirs distributeworld
+.ORDER: distrib-dirs installworld
+.ORDER: distribution distribute
+.ORDER: distributeworld distribute
+.ORDER: distributeworld distribution
+.ORDER: installworld distribute
 .ORDER: installworld distribution
 .ORDER: installworld installkernel
 .ORDER: buildkernel installkernel
@@ -431,14 +441,22 @@ TARGET_ARCHES_${target}?= ${target}
 
 MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
 
-# XXX Remove riscv from universe if the required toolchain package is missing.
-.if !exists(/usr/local/share/toolchains/riscv64-gcc.mk) && ${TARGETS:Mriscv}
-_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Nriscv}
-universe: universe_riscv_skip .PHONY
-universe_epilogue: universe_riscv_skip .PHONY
-universe_riscv_skip: universe_prologue .PHONY
-	@echo ">> riscv skipped - install riscv64-xtoolchain-gcc port or package to build"
+# XXX Remove architectures only supported by external toolchain from universe
+# if required toolchain packages are missing.
+TOOLCHAINS_riscv=	riscv64
+.for target in riscv
+.if ${_UNIVERSE_TARGETS:M${target}}
+.for toolchain in ${TOOLCHAINS_${target}}
+.if !exists(/usr/local/share/toolchains/${toolchain}-gcc.mk)
+_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:N${target}}
+universe: universe_${toolchain}_skip .PHONY
+universe_epilogue: universe_${toolchain}_skip .PHONY
+universe_${toolchain}_skip: universe_prologue .PHONY
+	@echo ">> ${target} skipped - install ${toolchain}-xtoolchain-gcc port or package to build"
 .endif
+.endfor
+.endif
+.endfor
 
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES

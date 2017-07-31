@@ -4674,6 +4674,11 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	struct nfsrv_descript *nd = &nfsd;
 	int error, irdcnt;
 
+	/* Make sure nm_rsize, nm_wsize is set. */
+	if (nmp->nm_rsize > NFS_MAXBSIZE || nmp->nm_rsize == 0)
+		nmp->nm_rsize = NFS_MAXBSIZE;
+	if (nmp->nm_wsize > NFS_MAXBSIZE || nmp->nm_wsize == 0)
+		nmp->nm_wsize = NFS_MAXBSIZE;
 	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = sep->nfsess_clientid.lval[0];
@@ -6638,9 +6643,14 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	NFSCL_DEBUG(4, "aft nfsrpc_createlayoutrpc laystat=%d err=%d\n",
 	    laystat, error);
 	lyp = NULL;
-	nfhp = *nfhpp;
-	laystat = nfsrpc_layoutgetres(nmp, dvp, nfhp->nfh_fh, nfhp->nfh_len,
-	    &stateid, retonclose, NULL, &lyp, &flh, laystat, NULL, cred, p);
+	if (laystat == 0) {
+		nfhp = *nfhpp;
+		laystat = nfsrpc_layoutgetres(nmp, dvp, nfhp->nfh_fh,
+		    nfhp->nfh_len, &stateid, retonclose, NULL, &lyp, &flh,
+		    laystat, NULL, cred, p);
+	} else
+		laystat = nfsrpc_layoutgetres(nmp, dvp, NULL, 0, &stateid,
+		    retonclose, NULL, &lyp, &flh, laystat, NULL, cred, p);
 	if (laystat == 0)
 		nfscl_rellayout(lyp, 0);
 	return (error);

@@ -378,6 +378,10 @@
         ..
         mdconfig
         ..
+        pfctl
+            files
+            ..
+        ..
     ..
     secure
         lib
@@ -643,6 +647,8 @@
         grep
         ..
         gzip
+        ..
+        hexdump
         ..
         ident
         ..

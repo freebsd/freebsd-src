@@ -489,6 +489,32 @@ iwm_dma_contig_free(struct iwm_dma_info *dma)
 	}
 }
 
+/**
+ * iwm_mvm_send_lq_cmd() - Send link quality command
+ * @init: This command is sent as part of station initialization right
+ *        after station has been added.
+ *
+ * The link quality command is sent as the last step of station creation.
+ * This is the special case in which init is set and we call a callback in
+ * this case to clear the state indicating that station creation is in
+ * progress.
+ */
+int
+iwm_mvm_send_lq_cmd(struct iwm_softc *sc, struct iwm_lq_cmd *lq, boolean_t init)
+{
+	struct iwm_host_cmd cmd = {
+		.id = IWM_LQ_CMD,
+		.len = { sizeof(struct iwm_lq_cmd), },
+		.flags = init ? 0 : IWM_CMD_ASYNC,
+		.data = { lq, },
+	};
+
+	if (lq->sta_id == IWM_MVM_STATION_COUNT)
+		return EINVAL;
+
+	return iwm_send_cmd(sc, &cmd);
+}
+
 boolean_t
 iwm_mvm_rx_diversity_allowed(struct iwm_softc *sc)
 {

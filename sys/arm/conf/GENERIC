@@ -128,15 +128,22 @@ device		p2wi			# Allwinner Push-Pull Two Wire
 device		axp209			# AXP209 Power Management Unit
 device		axp81x			# AXP813/818 Power Management Unit
 device		bcm2835_bsc
-device		icee
+device		icee			# AT24Cxxx and compatible EEPROMs
 device		sy8106a			# SY8106A Buck Regulator
 device		ti_i2c
 device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 device		am335x_rtc		# RTC support (power management only)
-#define 	am335x_dmtpps		# Pulse Per Second capture driver
 device		twl			# TI TWLX0X0/TPS659x0 Power Management
 device		twl_vreg		# twl voltage regulation
 device		twl_clks		# twl external clocks
+
+# i2c RTCs
+device		ds1307			# Dallas DS1307 RTC and compatible
+device		ds133x			# Dallas DS1337, DS1338 and DS1339 RTC
+device		ds1672			# Dallas DS1672 RTC
+device		ds3231			# Dallas DS3231 RTC + temperature
+device		nxprtc			# NXP RTCs: PCA/PFC212x PCA/PCF85xx
+device		s35390a			# Seiko Instruments S-35390A RTC
 
 # GPIO
 device		gpio

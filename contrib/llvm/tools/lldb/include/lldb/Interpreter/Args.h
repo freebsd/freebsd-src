@@ -21,12 +21,13 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 // Project includes
-#include "lldb/Core/Error.h"
-#include "lldb/Host/OptionParser.h"
+#include "lldb/Utility/Status.h"
 #include "lldb/lldb-private-types.h"
 #include "lldb/lldb-types.h"
 
 namespace lldb_private {
+
+struct Option;
 
 typedef std::vector<std::tuple<std::string, int, std::string>> OptionArgVector;
 typedef std::shared_ptr<OptionArgVector> OptionArgVectorSP;
@@ -193,6 +194,15 @@ public:
   const char **GetConstArgumentVector() const;
 
   //------------------------------------------------------------------
+  /// Gets the argument as an ArrayRef. Note that the return value does *not*
+  /// have a nullptr const char * at the end, as the size of the list is
+  /// embedded in the ArrayRef object.
+  //------------------------------------------------------------------
+  llvm::ArrayRef<const char *> GetArgumentArrayRef() const {
+    return llvm::makeArrayRef(m_argv).drop_back();
+  }
+
+  //------------------------------------------------------------------
   /// Appends a new argument to the end of the list argument list.
   ///
   /// @param[in] arg_cstr
@@ -312,8 +322,8 @@ public:
   ///
   /// @see class Options
   //------------------------------------------------------------------
-  Error ParseOptions(Options &options, ExecutionContext *execution_context,
-                     lldb::PlatformSP platform_sp, bool require_validation);
+  Status ParseOptions(Options &options, ExecutionContext *execution_context,
+                      lldb::PlatformSP platform_sp, bool require_validation);
 
   bool IsPositionalArgument(const char *arg);
 
@@ -367,7 +377,7 @@ public:
 
   static lldb::addr_t StringToAddress(const ExecutionContext *exe_ctx,
                                       llvm::StringRef s,
-                                      lldb::addr_t fail_value, Error *error);
+                                      lldb::addr_t fail_value, Status *error);
 
   static bool StringToBoolean(llvm::StringRef s, bool fail_value,
                               bool *success_ptr);
@@ -377,17 +387,17 @@ public:
 
   static int64_t StringToOptionEnum(llvm::StringRef s,
                                     OptionEnumValueElement *enum_values,
-                                    int32_t fail_value, Error &error);
+                                    int32_t fail_value, Status &error);
 
   static lldb::ScriptLanguage
   StringToScriptLanguage(llvm::StringRef s, lldb::ScriptLanguage fail_value,
                          bool *success_ptr);
 
   // TODO: Use StringRef
-  static Error StringToFormat(const char *s, lldb::Format &format,
-                              size_t *byte_size_ptr); // If non-NULL, then a
-                                                      // byte size can precede
-                                                      // the format character
+  static Status StringToFormat(const char *s, lldb::Format &format,
+                               size_t *byte_size_ptr); // If non-NULL, then a
+                                                       // byte size can precede
+                                                       // the format character
 
   static lldb::Encoding
   StringToEncoding(llvm::StringRef s,

@@ -63,8 +63,6 @@ static inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
 
 static inline bool ixl_tso_detect_sparse(struct mbuf *mp);
-static int	ixl_tx_setup_offload(struct ixl_queue *que,
-    struct mbuf *mp, u32 *cmd, u32 *off);
 static inline u32 ixl_get_tx_head(struct ixl_queue *que);
 
 #ifdef DEV_NETMAP
@@ -1402,9 +1400,7 @@ ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
                                 return;
         }
 #endif
-	IXL_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
-	IXL_RX_LOCK(rxr);
 }
 
 
@@ -1578,6 +1574,18 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		else
 			vtag = 0;
 
+		/* Remove device access to the rx buffers. */
+		if (rbuf->m_head != NULL) {
+			bus_dmamap_sync(rxr->htag, rbuf->hmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->htag, rbuf->hmap);
+		}
+		if (rbuf->m_pack != NULL) {
+			bus_dmamap_sync(rxr->ptag, rbuf->pmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(rxr->ptag, rbuf->pmap);
+		}
+
 		/*
 		** Make sure bad packets are discarded,
 		** note that only EOP descriptor has valid
@@ -1720,7 +1728,9 @@ next_desc:
 		/* Now send to the stack or do LRO */
 		if (sendmp != NULL) {
 			rxr->next_check = i;
+			IXL_RX_UNLOCK(rxr);
 			ixl_rx_input(rxr, ifp, sendmp, ptype);
+			IXL_RX_LOCK(rxr);
 			i = rxr->next_check;
 		}
 
@@ -1737,6 +1747,8 @@ next_desc:
 
 	rxr->next_check = i;
 
+	IXL_RX_UNLOCK(rxr);
+
 #if defined(INET6) || defined(INET)
 	/*
 	 * Flush any outstanding LRO work
@@ -1752,7 +1764,6 @@ next_desc:
 #endif
 #endif /* defined(INET6) || defined(INET) */
 
-	IXL_RX_UNLOCK(rxr);
 	return (FALSE);
 }
 

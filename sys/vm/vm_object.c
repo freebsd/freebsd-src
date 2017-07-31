@@ -204,7 +204,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	/* These are true for any object that has been freed */
 	object->type = OBJT_DEAD;
 	object->ref_count = 0;
-	object->rtree.rt_root = 0;
+	vm_radix_init(&object->rtree);
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
@@ -301,7 +301,7 @@ vm_object_init(void)
 #endif
 	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
-	vm_radix_init();
+	vm_radix_zinit();
 }
 
 void
@@ -2275,7 +2275,7 @@ vm_object_vnode(vm_object_t object)
 static int
 sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 {
-	struct kinfo_vmobject kvo;
+	struct kinfo_vmobject *kvo;
 	char *fullpath, *freepath;
 	struct vnode *vp;
 	struct vattr va;
@@ -2300,6 +2300,7 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		    count * 11 / 10));
 	}
 
+	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK);
 	error = 0;
 
 	/*
@@ -2317,13 +2318,13 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 		mtx_unlock(&vm_object_list_mtx);
-		kvo.kvo_size = ptoa(obj->size);
-		kvo.kvo_resident = obj->resident_page_count;
-		kvo.kvo_ref_count = obj->ref_count;
-		kvo.kvo_shadow_count = obj->shadow_count;
-		kvo.kvo_memattr = obj->memattr;
-		kvo.kvo_active = 0;
-		kvo.kvo_inactive = 0;
+		kvo->kvo_size = ptoa(obj->size);
+		kvo->kvo_resident = obj->resident_page_count;
+		kvo->kvo_ref_count = obj->ref_count;
+		kvo->kvo_shadow_count = obj->shadow_count;
+		kvo->kvo_memattr = obj->memattr;
+		kvo->kvo_active = 0;
+		kvo->kvo_inactive = 0;
 		TAILQ_FOREACH(m, &obj->memq, listq) {
 			/*
 			 * A page may belong to the object but be
@@ -2335,46 +2336,46 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			 * approximation of the system anyway.
 			 */
 			if (vm_page_active(m))
-				kvo.kvo_active++;
+				kvo->kvo_active++;
 			else if (vm_page_inactive(m))
-				kvo.kvo_inactive++;
+				kvo->kvo_inactive++;
 		}
 
-		kvo.kvo_vn_fileid = 0;
-		kvo.kvo_vn_fsid = 0;
-		kvo.kvo_vn_fsid_freebsd11 = 0;
+		kvo->kvo_vn_fileid = 0;
+		kvo->kvo_vn_fsid = 0;
+		kvo->kvo_vn_fsid_freebsd11 = 0;
 		freepath = NULL;
 		fullpath = "";
 		vp = NULL;
 		switch (obj->type) {
 		case OBJT_DEFAULT:
-			kvo.kvo_type = KVME_TYPE_DEFAULT;
+			kvo->kvo_type = KVME_TYPE_DEFAULT;
 			break;
 		case OBJT_VNODE:
-			kvo.kvo_type = KVME_TYPE_VNODE;
+			kvo->kvo_type = KVME_TYPE_VNODE;
 			vp = obj->handle;
 			vref(vp);
 			break;
 		case OBJT_SWAP:
-			kvo.kvo_type = KVME_TYPE_SWAP;
+			kvo->kvo_type = KVME_TYPE_SWAP;
 			break;
 		case OBJT_DEVICE:
-			kvo.kvo_type = KVME_TYPE_DEVICE;
+			kvo->kvo_type = KVME_TYPE_DEVICE;
 			break;
 		case OBJT_PHYS:
-			kvo.kvo_type = KVME_TYPE_PHYS;
+			kvo->kvo_type = KVME_TYPE_PHYS;
 			break;
 		case OBJT_DEAD:
-			kvo.kvo_type = KVME_TYPE_DEAD;
+			kvo->kvo_type = KVME_TYPE_DEAD;
 			break;
 		case OBJT_SG:
-			kvo.kvo_type = KVME_TYPE_SG;
+			kvo->kvo_type = KVME_TYPE_SG;
 			break;
 		case OBJT_MGTDEVICE:
-			kvo.kvo_type = KVME_TYPE_MGTDEVICE;
+			kvo->kvo_type = KVME_TYPE_MGTDEVICE;
 			break;
 		default:
-			kvo.kvo_type = KVME_TYPE_UNKNOWN;
+			kvo->kvo_type = KVME_TYPE_UNKNOWN;
 			break;
 		}
 		VM_OBJECT_RUNLOCK(obj);
@@ -2382,29 +2383,30 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
-				kvo.kvo_vn_fileid = va.va_fileid;
-				kvo.kvo_vn_fsid = va.va_fsid;
-				kvo.kvo_vn_fsid_freebsd11 = va.va_fsid;
+				kvo->kvo_vn_fileid = va.va_fileid;
+				kvo->kvo_vn_fsid = va.va_fsid;
+				kvo->kvo_vn_fsid_freebsd11 = va.va_fsid;
 								/* truncate */
 			}
 			vput(vp);
 		}
 
-		strlcpy(kvo.kvo_path, fullpath, sizeof(kvo.kvo_path));
+		strlcpy(kvo->kvo_path, fullpath, sizeof(kvo->kvo_path));
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
 		/* Pack record size down */
-		kvo.kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path) +
-		    strlen(kvo.kvo_path) + 1;
-		kvo.kvo_structsize = roundup(kvo.kvo_structsize,
+		kvo->kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path)
+		    + strlen(kvo->kvo_path) + 1;
+		kvo->kvo_structsize = roundup(kvo->kvo_structsize,
 		    sizeof(uint64_t));
-		error = SYSCTL_OUT(req, &kvo, kvo.kvo_structsize);
+		error = SYSCTL_OUT(req, kvo, kvo->kvo_structsize);
 		mtx_lock(&vm_object_list_mtx);
 		if (error)
 			break;
 	}
 	mtx_unlock(&vm_object_list_mtx);
+	free(kvo, M_TEMP);
 	return (error);
 }
 SYSCTL_PROC(_vm, OID_AUTO, objects, CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP |
