@@ -381,7 +381,7 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 		}
 	}
 
-	mpr_print_iocfacts(sc, sc->facts);
+	MPR_DPRINT_PAGE(sc, MPR_XINFO, iocfacts, sc->facts);
 
 	snprintf(sc->fw_version, sizeof(sc->fw_version), 
 	    "%02d.%02d.%02d.%02d", 
@@ -1482,7 +1482,7 @@ mpr_init_queues(struct mpr_softc *sc)
  * Next are the global settings, if they exist.  Highest are the per-unit
  * settings, if they exist.
  */
-static void
+void
 mpr_get_tunables(struct mpr_softc *sc)
 {
 	char tmpstr[80];
@@ -1658,8 +1658,6 @@ mpr_attach(struct mpr_softc *sc)
 {
 	int error;
 
-	mpr_get_tunables(sc);
-
 	MPR_FUNCTRACE(sc);
 
 	mtx_init(&sc->mpr_mtx, "MPR lock", NULL, MTX_DEF);
@@ -1774,7 +1772,7 @@ mpr_log_evt_handler(struct mpr_softc *sc, uintptr_t data,
 {
 	MPI2_EVENT_DATA_LOG_ENTRY_ADDED *entry;
 
-	mpr_print_event(sc, event);
+	MPR_DPRINT_EVENT(sc, generic, event);
 
 	switch (event->Event) {
 	case MPI2_EVENT_LOG_DATA:
@@ -2189,7 +2187,7 @@ mpr_reregister_events_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
 
 	if (cm->cm_reply)
-		mpr_print_event(sc,
+		MPR_DPRINT_EVENT(sc, generic,
 			(MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply);
 
 	mpr_free_command(sc, cm);
@@ -2272,7 +2270,7 @@ mpr_update_events(struct mpr_softc *sc, struct mpr_event_handle *handle,
 		error = ENXIO;
 	
 	if (reply)
-		mpr_print_event(sc, reply);
+		MPR_DPRINT_EVENT(sc, generic, reply);
 
 	mpr_dprint(sc, MPR_TRACE, "%s finished error %d\n", __func__, error);
 

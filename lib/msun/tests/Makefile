@@ -4,8 +4,6 @@
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
-WARNS?=		0
-
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
 
@@ -70,7 +68,7 @@ TAP_TESTS_C+=	nan_test
 TAP_TESTS_C+=	nearbyint_test
 TAP_TESTS_C+=	next_test
 TAP_TESTS_C+=	rem_test
-TAP_TESTS_C+=	trig_test
+ATF_TESTS_C+=	trig_test
 
 .if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
 CFLAGS+=	-O0
@@ -85,6 +83,12 @@ IGNORE_PRAGMA=
 SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD+=	m
+
+.if ${MACHINE_CPUARCH} == "i386"
+# XXX: __fldcw macro mismatch between fenv.h and ieeefp.h .
+CWARNFLAGS.clang+=	-Wno-error=macro-redefined
+.endif
+WARNS?=		1
 
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"

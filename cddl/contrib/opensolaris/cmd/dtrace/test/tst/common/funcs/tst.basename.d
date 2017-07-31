@@ -27,6 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #pragma D option quiet
+#pragma D option dynvarsize=2m
 
 /*
  * This test verifies that the basename() and dirname() functions are working
@@ -54,12 +55,16 @@ BEGIN
 	dir[i++] = "f";
 	dir[i++] = "f/";
 	dir[i++] = "/////";
+	/*
+	 * basename(3) and basename(1) return different results for the empty
+	 * string on FreeBSD, so we need special handling.
 	dir[i++] = "";
+	*/
 
 	end = i;
 	i = 0;
 
-	printf("#!/usr/bin/ksh\n\n");
+	printf("#!/usr/bin/env ksh\n\n");
 }
 
 tick-1ms
@@ -83,5 +88,19 @@ tick-1ms
 tick-1ms
 /i == end/
 {
+	dir[i] = "";
+	printf("if [ \"`basename \"%s\"`\" != \"%s\" -a \".\" != \"%s\" ]; then\n",
+	    dir[i], basename(dir[i]), basename(dir[i]));
+	printf("	echo \"basename(\\\"%s\\\") is \\\"%s\\\"; ",
+	    dir[i], basename(dir[i]));
+	printf("expected \\\"`basename \"%s\"`\\\" or \\\".\\\"\"\n", dir[i]);
+	printf("fi\n\n");
+	printf("if [ `dirname \"%s\"` != \"%s\" ]; then\n",
+	    dir[i], dirname(dir[i]));
+	printf("	echo \"dirname(\\\"%s\\\") is \\\"%s\\\"; ",
+	    dir[i], dirname(dir[i]));
+	printf("expected \\\"`dirname \"%s\"`\"\\\"\n", dir[i]);
+	printf("fi\n\n");
+
 	exit(0);
 }

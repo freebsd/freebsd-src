@@ -1302,6 +1302,16 @@ llvm-dlltool/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-dlltool/Options.td
 TGHDRS+=	llvm-dlltool/Options.inc
 CFLAGS.DlltoolDriver.cpp+=	-I${.OBJDIR}/llvm-dlltool
 
+beforebuild:
+# 20170724 remove stale Options.inc file, of which there are two different
+# versions after upstream r308421, one for llvm-lib, one for llvm-dlltool
+.for f in Options.inc
+.if exists(${f}) || exists(${f}.d)
+	@echo Removing stale generated ${f} files
+	@rm -f ${f} ${f}.d
+.endif
+.endfor
+
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
 	AArch64/AArch64 ARM/ARM Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86

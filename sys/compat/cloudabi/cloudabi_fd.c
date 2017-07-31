@@ -111,8 +111,6 @@ cloudabi_sys_fd_create1(struct thread *td,
 		return (kern_shm_open(td, SHM_ANON, O_RDWR, 0, &fcaps));
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
 		return (kern_socket(td, AF_UNIX, SOCK_DGRAM, 0));
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
-		return (kern_socket(td, AF_UNIX, SOCK_SEQPACKET, 0));
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
 		return (kern_socket(td, AF_UNIX, SOCK_STREAM, 0));
 	default:
@@ -144,9 +142,6 @@ cloudabi_sys_fd_create2(struct thread *td,
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
 		error = kern_socketpair(td, AF_UNIX, SOCK_DGRAM, 0, fds);
-		break;
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
-		error = kern_socketpair(td, AF_UNIX, SOCK_SEQPACKET, 0, fds);
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
 		error = kern_socketpair(td, AF_UNIX, SOCK_STREAM, 0, fds);
@@ -245,8 +240,6 @@ cloudabi_convert_filetype(const struct file *fp)
 		switch (so->so_type) {
 		case SOCK_DGRAM:
 			return (CLOUDABI_FILETYPE_SOCKET_DGRAM);
-		case SOCK_SEQPACKET:
-			return (CLOUDABI_FILETYPE_SOCKET_SEQPACKET);
 		case SOCK_STREAM:
 			return (CLOUDABI_FILETYPE_SOCKET_STREAM);
 		default:
@@ -400,7 +393,6 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
-	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
 		*base &= CLOUDABI_RIGHT_FD_READ |
 		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |

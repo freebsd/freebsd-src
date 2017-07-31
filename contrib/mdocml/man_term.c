@@ -1,4 +1,4 @@
-/*	$Id: man_term.c,v 1.204 2017/06/08 12:54:58 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.208 2017/06/25 11:42:02 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -128,6 +128,8 @@ static	const struct termact __termacts[MAN_MAX - MAN_TH] = {
 	{ pre_literal, NULL, 0 }, /* EE */
 	{ pre_UR, post_UR, 0 }, /* UR */
 	{ NULL, NULL, 0 }, /* UE */
+	{ pre_UR, post_UR, 0 }, /* MT */
+	{ NULL, NULL, 0 }, /* ME */
 };
 static	const struct termact *termacts = __termacts - MAN_TH;
 
@@ -141,6 +143,9 @@ terminal_man(void *arg, const struct roff_man *man)
 	size_t			 save_defindent;
 
 	p = (struct termp *)arg;
+	save_defindent = p->defindent;
+	if (p->synopsisonly == 0 && p->defindent == 0)
+		p->defindent = 7;
 	p->tcol->rmargin = p->maxrmargin = p->defrmargin;
 	term_tab_set(p, NULL);
 	term_tab_set(p, "T");
@@ -167,16 +172,13 @@ terminal_man(void *arg, const struct roff_man *man)
 			n = n->next;
 		}
 	} else {
-		save_defindent = p->defindent;
-		if (p->defindent == 0)
-			p->defindent = 7;
 		term_begin(p, print_man_head, print_man_foot, &man->meta);
 		p->flags |= TERMP_NOSPACE;
 		if (n != NULL)
 			print_man_nodelist(p, &mt, n, &man->meta);
 		term_end(p);
-		p->defindent = save_defindent;
 	}
+	p->defindent = save_defindent;
 }
 
 /*
@@ -377,7 +379,7 @@ pre_in(DECL_ARGS)
 	if (a2roffsu(++cp, &su, SCALE_EN) == NULL)
 		return 0;
 
-	v = (term_hspan(p, &su) + 11) / 24;
+	v = term_hen(p, &su);
 
 	if (less < 0)
 		p->tcol->offset -= p->tcol->offset > v ? v : p->tcol->offset;
@@ -426,7 +428,7 @@ pre_HP(DECL_ARGS)
 
 	if ((nn = n->parent->head->child) != NULL &&
 	    a2roffsu(nn->string, &su, SCALE_EN) != NULL) {
-		len = term_hspan(p, &su) / 24;
+		len = term_hen(p, &su);
 		if (len < 0 && (size_t)(-len) > mt->offset)
 			len = -mt->offset;
 		else if (len > SHRT_MAX)
@@ -511,7 +513,7 @@ pre_IP(DECL_ARGS)
 	if ((nn = n->parent->head->child) != NULL &&
 	    (nn = nn->next) != NULL &&
 	    a2roffsu(nn->string, &su, SCALE_EN) != NULL) {
-		len = term_hspan(p, &su) / 24;
+		len = term_hen(p, &su);
 		if (len < 0 && (size_t)(-len) > mt->offset)
 			len = -mt->offset;
 		else if (len > SHRT_MAX)
@@ -593,7 +595,7 @@ pre_TP(DECL_ARGS)
 	if ((nn = n->parent->head->child) != NULL &&
 	    nn->string != NULL && ! (NODE_LINE & nn->flags) &&
 	    a2roffsu(nn->string, &su, SCALE_EN) != NULL) {
-		len = term_hspan(p, &su) / 24;
+		len = term_hen(p, &su);
 		if (len < 0 && (size_t)(-len) > mt->offset)
 			len = -mt->offset;
 		else if (len > SHRT_MAX)
@@ -797,7 +799,7 @@ pre_RS(DECL_ARGS)
 	if (n->child == NULL)
 		n->aux = mt->lmargin[mt->lmargincur];
 	else if (a2roffsu(n->child->string, &su, SCALE_EN) != NULL)
-		n->aux = term_hspan(p, &su) / 24;
+		n->aux = term_hen(p, &su);
 	if (n->aux < 0 && (size_t)(-n->aux) > mt->offset)
 		n->aux = -mt->offset;
 	else if (n->aux > SHRT_MAX)
@@ -872,7 +874,10 @@ print_man_node(DECL_ARGS)
 		 * before printing the line's data.
 		 */
 		if (*n->string == '\0') {
-			term_vspace(p);
+			if (p->flags & TERMP_NONEWLINE)
+				term_newln(p);
+			else
+				term_vspace(p);
 			return;
 		} else if (*n->string == ' ' && n->flags & NODE_LINE &&
 		    (p->flags & TERMP_NONEWLINE) == 0)

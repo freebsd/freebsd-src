@@ -691,6 +691,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto drv_rgtr_fail;
 	}
 
+        rc = bnxt_hwrm_func_rgtr_async_events(softc, NULL, 0);
+	if (rc) {
+		device_printf(softc->dev, "attach: hwrm rgtr async evts failed\n");
+		goto drv_rgtr_fail;
+	}
+
 	/* Get the HW capabilities */
 	rc = bnxt_hwrm_func_qcaps(softc);
 	if (rc)
@@ -755,12 +761,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    scctx->isc_nrxd[1];
 	scctx->isc_rxqsizes[2] = sizeof(struct rx_prod_pkt_bd) *
 	    scctx->isc_nrxd[2];
-	scctx->isc_max_rxqsets = min(pci_msix_count(softc->dev)-1,
+	scctx->isc_nrxqsets_max = min(pci_msix_count(softc->dev)-1,
 	    softc->func.max_cp_rings - 1);
-	scctx->isc_max_rxqsets = min(scctx->isc_max_rxqsets,
+	scctx->isc_nrxqsets_max = min(scctx->isc_nrxqsets_max,
 	    softc->func.max_rx_rings);
-	scctx->isc_max_txqsets = min(softc->func.max_rx_rings,
-	    softc->func.max_cp_rings - scctx->isc_max_rxqsets - 1);
+	scctx->isc_ntxqsets_max = min(softc->func.max_rx_rings,
+	    softc->func.max_cp_rings - scctx->isc_nrxqsets_max - 1);
 	scctx->isc_rss_table_size = HW_HASH_INDEX_SIZE;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size - 1;
 
@@ -2286,11 +2292,11 @@ bnxt_report_link(struct bnxt_softc *softc)
 		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
 			flow_ctrl = "FC - receive";
 		else
-			flow_ctrl = "none";
+			flow_ctrl = "FC - none";
 		iflib_link_state_change(softc->ctx, LINK_STATE_UP,
 		    IF_Gbps(100));
-		device_printf(softc->dev, "Link is UP %s, %s\n", duplex,
-		    flow_ctrl);
+		device_printf(softc->dev, "Link is UP %s, %s - %d Mbps \n", duplex,
+		    flow_ctrl, (softc->link_info.link_speed * 100));
 	} else {
 		iflib_link_state_change(softc->ctx, LINK_STATE_DOWN,
 		    bnxt_get_baudrate(&softc->link_info));

@@ -301,7 +301,7 @@ platform_late_init(void)
 	 * To avoid that, map all registers including PCIe IO
 	 * as strongly ordered instead of device memory.
 	 */
-	pmap_remap_vm_attr(PTE2_ATTR_DEVICE, PTE2_ATTR_SO);
+	pmap_remap_vm_attr(VM_MEMATTR_DEVICE, VM_MEMATTR_SO);
 
 	/* Set IO Sync Barrier bit for all Mbus devices */
 	if (armada38x_win_set_iosync_barrier() != 0)
