@@ -78,14 +78,14 @@ static int
 ds1307_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
 
-	return(iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
 ds1307_write1(device_t dev, uint8_t reg, uint8_t data)
 {
 
-	return(iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
+	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -255,6 +255,14 @@ ds1307_attach(device_t dev)
 	return (0);
 }
 
+static int
+ds1307_detach(device_t dev)
+{
+
+	clock_unregister(dev);
+	return (0);
+}
+
 static void
 ds1307_start(void *xdev)
 {
@@ -387,6 +395,7 @@ ds1307_settime(device_t dev, struct timespec *ts)
 static device_method_t ds1307_methods[] = {
 	DEVMETHOD(device_probe,		ds1307_probe),
 	DEVMETHOD(device_attach,	ds1307_attach),
+	DEVMETHOD(device_detach,	ds1307_detach),
 
 	DEVMETHOD(clock_gettime,	ds1307_gettime),
 	DEVMETHOD(clock_settime,	ds1307_settime),
