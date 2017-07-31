@@ -1,21 +1,31 @@
 # $FreeBSD$
 
+.ifdef notyet
 .include <bsd.own.mk>
 
 FILESGROUPS?=	FILES
-FILESGROUPS+=	GCNOS
-_GCNO_FILES=	${OBJS:.o=.gcno}
-CLEANFILES+=	${_GCNO_FILES}
-GCNOS+=		${_GCNO_FILES}
+_GCNOGROUPS=
 
-.for _gcno_file in ${_GCNO_FILES}
-_gcno_dir=	${COVERAGEDIR}${_gcno_file:tA:H}
-_gcno_fulldir=	${DESTDIR}${_gcno_dir}
-GCNOSDIR_${_gcno_file:T}=	${_gcno_dir}
+.for _obj in ${OBJS}
+# XXX (ngie): this is pretty hamfisted
+.if !empty(SRCS:T:M${obj:.o=.asm}) || !empty(SRCS:T:M${obj:.o=.s})
+_gcno=		${_obj:.o=.gcno}
+_gcno_prefix=	${_gcno:H:tA}
+_gcno_dir=	${COVERAGEDIR}${_gcno_prefix}
 
-.if !target(${_gcno_fulldir})
-beforeinstall: ${_gcno_fulldir}
-${_gcno_fulldir}:
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${.TARGET}
+_GCNO_GROUPS+=	${_gcno_prefix}
+CLEANFILES+=	${_gcno}
+${_gcno_prefix}+=	${_gcno}
+${_gcno_prefix}DIR=	${_gcno_dir}
+${_gcno}: ${_obj}
 .endif
 .endfor
+
+_GCNO_GROUPS:=	${_GCNO_GROUPS:O:u}
+FILESGROUPS+=	${_GCNO_GROUPS}
+.for _gcno_group in ${_GCNO_GROUPS}
+beforeinstall: ${DESTDIR}${${_gcno_group}DIR}
+${DESTDIR}${${_gcno_group}DIR}:
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},coverage} -d ${.TARGET}
+.endfor
+.endif
