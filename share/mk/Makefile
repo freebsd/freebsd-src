@@ -69,6 +69,10 @@ FILES=	\
 
 FILESDIR=	${BINDIR}/mk
 
+.if ${MK_COVERAGE} != "no"
+FILES+=	bsd.cov.mk
+.endif
+
 .if ${MK_TESTS} != "no"
 FILES+=	atf.test.mk
 FILES+=	plain.test.mk
