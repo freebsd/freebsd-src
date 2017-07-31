@@ -592,7 +592,7 @@ ksyms_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		mtx_init(&ksyms_mtx, "KSyms mtx", NULL, MTX_DEF);
 		ksyms_dev = make_dev(&ksyms_cdevsw, 0, UID_ROOT, GID_WHEEL,
-		    0444, KSYMS_DNAME);
+		    0400, KSYMS_DNAME);
 		break;
 
 	case MOD_UNLOAD:
