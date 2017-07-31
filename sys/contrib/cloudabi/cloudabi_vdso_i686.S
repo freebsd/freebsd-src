@@ -302,14 +302,8 @@ ENTRY(cloudabi_sys_mem_advise)
   ret
 END(cloudabi_sys_mem_advise)
 
-ENTRY(cloudabi_sys_mem_lock)
-  mov $33, %eax
-  int $0x80
-  ret
-END(cloudabi_sys_mem_lock)
-
 ENTRY(cloudabi_sys_mem_map)
-  mov $34, %eax
+  mov $33, %eax
   int $0x80
   jc 1f
   mov 32(%esp), %ecx
@@ -320,31 +314,25 @@ ENTRY(cloudabi_sys_mem_map)
 END(cloudabi_sys_mem_map)
 
 ENTRY(cloudabi_sys_mem_protect)
-  mov $35, %eax
+  mov $34, %eax
   int $0x80
   ret
 END(cloudabi_sys_mem_protect)
 
 ENTRY(cloudabi_sys_mem_sync)
-  mov $36, %eax
+  mov $35, %eax
   int $0x80
   ret
 END(cloudabi_sys_mem_sync)
 
-ENTRY(cloudabi_sys_mem_unlock)
-  mov $37, %eax
-  int $0x80
-  ret
-END(cloudabi_sys_mem_unlock)
-
 ENTRY(cloudabi_sys_mem_unmap)
-  mov $38, %eax
+  mov $36, %eax
   int $0x80
   ret
 END(cloudabi_sys_mem_unmap)
 
 ENTRY(cloudabi_sys_poll)
-  mov $39, %eax
+  mov $37, %eax
   int $0x80
   jc 1f
   mov 16(%esp), %ecx
@@ -355,7 +343,7 @@ ENTRY(cloudabi_sys_poll)
 END(cloudabi_sys_poll)
 
 ENTRY(cloudabi_sys_poll_fd)
-  mov $40, %eax
+  mov $38, %eax
   int $0x80
   jc 1f
   mov 28(%esp), %ecx
@@ -366,18 +354,18 @@ ENTRY(cloudabi_sys_poll_fd)
 END(cloudabi_sys_poll_fd)
 
 ENTRY(cloudabi_sys_proc_exec)
-  mov $41, %eax
+  mov $39, %eax
   int $0x80
   ret
 END(cloudabi_sys_proc_exec)
 
 ENTRY(cloudabi_sys_proc_exit)
-  mov $42, %eax
+  mov $40, %eax
   int $0x80
 END(cloudabi_sys_proc_exit)
 
 ENTRY(cloudabi_sys_proc_fork)
-  mov $43, %eax
+  mov $41, %eax
   int $0x80
   jc 1f
   mov 4(%esp), %ecx
@@ -390,19 +378,19 @@ ENTRY(cloudabi_sys_proc_fork)
 END(cloudabi_sys_proc_fork)
 
 ENTRY(cloudabi_sys_proc_raise)
-  mov $44, %eax
+  mov $42, %eax
   int $0x80
   ret
 END(cloudabi_sys_proc_raise)
 
 ENTRY(cloudabi_sys_random_get)
-  mov $45, %eax
+  mov $43, %eax
   int $0x80
   ret
 END(cloudabi_sys_random_get)
 
 ENTRY(cloudabi_sys_sock_accept)
-  mov $46, %eax
+  mov $44, %eax
   int $0x80
   jc 1f
   mov 12(%esp), %ecx
@@ -413,49 +401,49 @@ ENTRY(cloudabi_sys_sock_accept)
 END(cloudabi_sys_sock_accept)
 
 ENTRY(cloudabi_sys_sock_bind)
-  mov $47, %eax
+  mov $45, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_bind)
 
 ENTRY(cloudabi_sys_sock_connect)
-  mov $48, %eax
+  mov $46, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_connect)
 
 ENTRY(cloudabi_sys_sock_listen)
-  mov $49, %eax
+  mov $47, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_listen)
 
 ENTRY(cloudabi_sys_sock_recv)
-  mov $50, %eax
+  mov $48, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_recv)
 
 ENTRY(cloudabi_sys_sock_send)
-  mov $51, %eax
+  mov $49, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_send)
 
 ENTRY(cloudabi_sys_sock_shutdown)
-  mov $52, %eax
+  mov $50, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_shutdown)
 
 ENTRY(cloudabi_sys_sock_stat_get)
-  mov $53, %eax
+  mov $51, %eax
   int $0x80
   ret
 END(cloudabi_sys_sock_stat_get)
 
 ENTRY(cloudabi_sys_thread_create)
-  mov $54, %eax
+  mov $52, %eax
   int $0x80
   jc 1f
   mov 8(%esp), %ecx
@@ -466,12 +454,12 @@ ENTRY(cloudabi_sys_thread_create)
 END(cloudabi_sys_thread_create)
 
 ENTRY(cloudabi_sys_thread_exit)
-  mov $55, %eax
+  mov $53, %eax
   int $0x80
 END(cloudabi_sys_thread_exit)
 
 ENTRY(cloudabi_sys_thread_yield)
-  mov $56, %eax
+  mov $54, %eax
   int $0x80
   ret
 END(cloudabi_sys_thread_yield)

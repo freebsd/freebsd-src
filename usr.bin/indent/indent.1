@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2017
+.Dd July 25, 2017
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -85,6 +85,7 @@
 .Op Fl \&st
 .Op Fl \&ta
 .Op Fl troff
+.Op Fl ts Ns Ar n
 .Op Fl U Ns Ar file
 .Op Fl ut | Fl nut
 .Op Fl v | Fl \&nv
@@ -459,13 +460,15 @@ listing in much the same spirit as
 .Xr vgrind 1 .
 If the output file is not specified, the default is standard output,
 rather than formatting in place.
+.It Fl ts Ns Ar n
+Assumed distance between tab stops.
+The default is 8.
 .It Fl U Ns Ar file
 Adds type names from
 .Ar file
 to the list of type keywords.
 .It Fl ut , nut
 Enables (disables) the use of tab characters in the output.
-Tabs are assumed to be aligned on columns divisible by 8.
 The default is
 .Fl ut .
 .It Fl v , \&nv

@@ -33,6 +33,7 @@
 struct ipsec_ctx_data {
 	struct mbuf	**mp;
 	struct secasvar	*sav;
+	struct inpcb	*inp;
 	uint8_t		af;
 #define	IPSEC_ENC_BEFORE	0x01
 #define	IPSEC_ENC_AFTER		0x02

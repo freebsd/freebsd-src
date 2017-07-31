@@ -945,6 +945,22 @@ AslDoOptions (
             }
             break;
 
+        case 'x':
+
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Status = AslExpectException (AcpiGbl_Optarg);
+            if (ACPI_FAILURE (Status))
+            {
+                return (-1);
+            }
+            break;
+
         default:
 
             printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);

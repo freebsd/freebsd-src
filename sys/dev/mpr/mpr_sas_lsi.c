@@ -139,7 +139,7 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mpr_dprint(sc, MPR_TRACE, "%s\n", __func__);
-	mpr_print_evt_sas(sc, event);
+	MPR_DPRINT_EVENT(sc, sas, event);
 	mprsas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mpr_fw_event_work), M_MPR,

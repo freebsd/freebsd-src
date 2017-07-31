@@ -88,7 +88,7 @@ _meta_filemon=	1
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
 # for _meta_filemon but not for _SKIP_DEPEND.
-.if defined(_SKIP_BUILD)
+.if !defined(NO_SKIP_DEPEND) && defined(_SKIP_BUILD)
 _SKIP_DEPEND=	1
 .endif
 .if ${MK_DIRDEPS_BUILD} == "no"
@@ -195,13 +195,11 @@ ${DEPENDFILE}:	.NOMETA
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if !defined(_meta_filemon)
-.if defined(.PARSEDIR)
+.if !empty(DEPEND_CFLAGS)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:${DEPEND_FILTER}:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
-.else
-CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .if ${MAKE_VERSION} < 20160220
@@ -240,8 +238,12 @@ _meta_obj=	${.OBJDIR:C,/,_,g}_${__obj:C,/,_,g}.meta
 _meta_obj=	${__obj}.meta
 .endif
 _dep_obj=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${_meta_obj})) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${_dep_obj}))
+.if defined(_meta_filemon)
+_depfile=	${.OBJDIR}/${_meta_obj}
+.else
+_depfile=	${.OBJDIR}/${_dep_obj}
+.endif
+.if !exists(${_depfile})
 ${__obj}: ${OBJS_DEPEND_GUESS}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .elif defined(_meta_filemon)
@@ -252,7 +254,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 # guesses do include headers though since they may not be in SRCS.
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif
+.endif	# !exists(${_depfile})
 .endfor
 
 # Always run 'make depend' to generate dependencies early and to avoid the
