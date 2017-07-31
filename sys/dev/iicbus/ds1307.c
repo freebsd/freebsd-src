@@ -350,7 +350,6 @@ ds1307_settime(device_t dev, struct timespec *ts)
 {
 	struct clocktime ct;
 	struct ds1307_softc *sc;
-	long waitns;
 	int error;
 	uint8_t data[7];
 	uint8_t pmflags;
