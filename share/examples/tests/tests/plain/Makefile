@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 # Directory into which the Kyuafile provided by this directory will be
 # installed.
 #
