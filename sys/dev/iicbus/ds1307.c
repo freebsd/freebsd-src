@@ -295,8 +295,13 @@ ds1307_start(void *xdev)
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds1307_sqw_out_sysctl, "IU", "DS1307 square-wave output state");
 
-	/* Register as a clock with 1 second resolution. */
+        /*
+         * Register as a clock with 1 second resolution.  Schedule the
+         * clock_settime() method to be called just after top-of-second;
+         * resetting the time resets top-of-second in the hardware.
+         */
 	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_TS);
+	clock_schedule(dev, 1);
 }
 
 static int
@@ -351,19 +356,6 @@ ds1307_settime(device_t dev, struct timespec *ts)
 	uint8_t pmflags;
 
 	sc = device_get_softc(dev);
-
-	/* Sleep until 1ms into the second, to align RTC's second to ours. */
-	getnanotime(ts);
-	waitns = 1000000 - ts->tv_nsec;
-	if (waitns < 0)
-		waitns += 1000000000;
-	pause_sbt("set1307", nstosbt(waitns), 0, C_PREL(31));
-
-	/* Grab a fresh post-sleep idea of the time. */
-	getnanotime(ts);
-	ts->tv_sec -= utc_offset();
-	ts->tv_nsec = 0;
-	clock_ts_to_ct(ts, &ct);
 
 	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
 	if (sc->sc_use_ampm) {

@@ -513,10 +513,15 @@ nxprtc_start(void *dev)
 	 * we're using the timer to count fractional seconds, our resolution is
 	 * 1e6/64, about 15.6ms.  Without the timer we still align the RTC clock
 	 * when setting it so our error is an average .5s when reading it.
+	 * Schedule our clock_settime() method to be called at a .495ms offset
+	 * into the second, because the clock hardware resets the divider chain
+	 * to the mid-second point when you set the time and it takes about 5ms
+	 * of i2c bus activity to set the clock.
 	 */
 	resolution = sc->use_timer ? 1000000 / TMR_TICKS_SEC : 1000000 / 2;
 	clockflags = CLOCKF_GETTIME_NO_ADJ | CLOCKF_SETTIME_NO_TS;
 	clock_register_flags(sc->dev, resolution, clockflags);
+	clock_schedule(sc->dev, 495000000);
 }
 
 static int
@@ -599,7 +604,6 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 	struct clocktime ct;
 	struct time_regs tregs;
 	struct nxprtc_softc *sc;
-	long waitns;
 	int err;
 	uint8_t cflag, cs1, pmflag;
 
@@ -608,16 +612,9 @@ nxprtc_settime(device_t dev, struct timespec *ts)
 	/*
 	 * We stop the clock, set the time, then restart the clock.  Half a
 	 * second after restarting the clock it ticks over to the next second.
-	 * So to align the RTC, sleep until system time is halfway through the
-	 * current second (shoot for .495 to allow time for i2c operations).
-	 */
-	getnanotime(ts);
-	waitns = 495000000 - ts->tv_nsec;
-	if (waitns < 0)
-		waitns += 1000000000;
-	pause_sbt("nxpset", nstosbt(waitns), 0, C_PREL(31));
-
-	/*
+	 * So to align the RTC, we schedule this function to be called when
+	 * system time is roughly halfway (.495) through the current second.
+	 *
 	 * Reserve use of the i2c bus and stop the RTC clock.  Note that if
 	 * anything goes wrong from this point on, we leave the clock stopped,
 	 * because we don't really know what state it's in.
