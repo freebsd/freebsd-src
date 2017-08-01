@@ -43,11 +43,11 @@
 
 #define NBBY 8
 
-void
+int
 pager_output(const char *line)
 {
 
-	fprintf(stderr, "%s", line);
+	return (fprintf(stderr, "%s", line));
 }
 
 #define ZFS_TEST
