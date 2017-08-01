@@ -3401,19 +3401,6 @@ abort:
 	return (0);
 }
 
-/*
- * Scan the fabric for devices and add them to our port database.
- *
- * Use the GID_FT command to get all Port IDs for FC4 SCSI devices it knows.
- *
- * For 2100-23XX cards, we use the SNS mailbox command to pass simple name
- * server commands to the switch management server via the QLogic f/w.
- *
- * For the 24XX and above card, we use CT Pass-through IOCB.
- */
-#define	GIDLEN	ISP_FC_SCRLEN
-#define	NGENT	((GIDLEN - 16) >> 2)
-
 static int
 isp_ct_sns(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 {
@@ -3519,6 +3506,19 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 
 	return (0);
 }
+
+/*
+ * Scan the fabric for devices and add them to our port database.
+ *
+ * Use the GID_FT command to get all Port IDs for FC4 SCSI devices it knows.
+ *
+ * For 2100-23XX cards, we use the SNS mailbox command to pass simple name
+ * server commands to the switch management server via the QLogic f/w.
+ *
+ * For the 24XX and above card, we use CT Pass-through IOCB.
+ */
+#define	GIDLEN	ISP_FC_SCRLEN
+#define	NGENT	((GIDLEN - 16) >> 2)
 
 static int
 isp_gid_ft(ispsoftc_t *isp, int chan)
