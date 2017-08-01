@@ -1736,6 +1736,7 @@ dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
+dev/iicbus/isl12xx.c		optional isl12xx
 dev/iicbus/lm75.c		optional lm75
 dev/iicbus/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
