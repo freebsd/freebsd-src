@@ -82,8 +82,11 @@ PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 ${var}:=	${CCACHE_BIN} ${${var}}
 .endif
 .endfor
-.elif empty(PATH:M*${CCACHE_WRAPPER_PATH}*)
+.else
+# Need to ensure CCACHE_WRAPPER_PATH is the first in ${PATH}
+PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 PATH:=	${CCACHE_WRAPPER_PATH}:${PATH}
+CCACHE_WRAPPER_PATH_PFX=	${CCACHE_WRAPPER_PATH}:
 .endif	# ${CCACHE_BUILD_TYPE} == "command"
 # GCC does not need the CCACHE_CPP2 hack enabled by default in devel/ccache.
 # The port enables it due to ccache passing preprocessed C to clang
