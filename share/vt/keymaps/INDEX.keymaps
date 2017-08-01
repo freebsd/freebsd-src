@@ -15,7 +15,7 @@
 # 	german.iso.kbd:en:german
 #
 # See also setlocal
-# /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
+# /usr/share/locale, /usr/local/lib/X11/locale/locale.alias
 #
 #
 # Language support: MENU, FONT
@@ -510,9 +510,9 @@ uk.kbd:es:Británico
 
 uk.capsctrl.kbd:en:United Kingdom (Caps Lock acts as Left Ctrl)
 uk.capsctrl.kbd:de:Vereinigtes Königreich (Caps Lock als linke Strg)
-#uk.iso-ctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
-#uk.iso-ctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
-#uk.iso-ctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
 
 uk.dvorak.kbd:en:United Kingdom Dvorak
 uk.dvorak.kbd:de:Vereinigtes Königreich Dvorak
