@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 
+#include <net/if_gre.h> /* for struct gre_h */
+
 #include <netpfil/ipfw/ip_fw_private.h>
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
@@ -1142,6 +1144,11 @@ do {								\
 			case IPPROTO_PIM:
 				/* XXX PIM header check? */
 				PULLUP_TO(hlen, ulp, struct pim);
+				break;
+
+			case IPPROTO_GRE:	/* RFC 1701 */
+				/* XXX GRE header check? */
+				PULLUP_TO(hlen, ulp, struct gre_h);
 				break;
 
 			case IPPROTO_CARP:
