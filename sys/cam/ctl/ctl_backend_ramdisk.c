@@ -525,6 +525,11 @@ nospc:
 	io->scsiio.kern_sg_entries = sgs;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	PRIV(io)->len += lbas;
+	if ((ARGS(io)->flags & CTL_LLF_READ) &&
+	    ARGS(io)->len <= PRIV(io)->len) {
+		ctl_set_success(&io->scsiio);
+		ctl_serseq_done(io);
+	}
 #ifdef CTL_TIME_IO
 	getbinuptime(&io->io_hdr.dma_start_bt);
 #endif
