@@ -1541,6 +1541,12 @@ hn_attach(device_t dev)
 	sc->hn_ifaddr_evthand = EVENTHANDLER_REGISTER(ifaddr_event,
 	    hn_ifaddr_event, sc, EVENTHANDLER_PRI_ANY);
 
+	/*
+	 * NOTE:
+	 * Subscribe ether_ifattach event, instead of ifnet_arrival event,
+	 * since interface's LLADDR is needed; interface LLADDR is not
+	 * available when ifnet_arrival event is triggered.
+	 */
 	sc->hn_ifnet_atthand = EVENTHANDLER_REGISTER(ether_ifattach_event,
 	    hn_ifnet_attevent, sc, EVENTHANDLER_PRI_ANY);
 	sc->hn_ifnet_dethand = EVENTHANDLER_REGISTER(ifnet_departure_event,
