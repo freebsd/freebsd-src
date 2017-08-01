@@ -175,10 +175,6 @@ symtab_init(void)
 	int		fd;
 	int		i;
 	int		strindex = -1;
-#ifndef illumos
-	void		*ksyms;
-	size_t		sz;
-#endif
 
 #ifndef illumos
 	if ((fd = open("/dev/ksyms", O_RDONLY)) == -1) {
