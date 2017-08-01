@@ -2484,7 +2484,7 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 	}
 #endif
-	if (vp->v_type != VLNK)
+	if (vp->v_type != VLNK && (vp->v_vflag & VV_READLINK) == 0)
 		error = EINVAL;
 	else {
 		aiov.iov_base = buf;
