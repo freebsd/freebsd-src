@@ -1608,7 +1608,7 @@ isp_target_putback_atio(union ccb *ccb)
 	}
 	at->at_status = CT_OK;
 	at->at_rxid = cso->tag_id;
-	at->at_iid = cso->ccb_h.target_id;
+	at->at_iid = cso->init_id;
 	if (isp_target_put_entry(isp, at)) {
 		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
 		    isp_refire_putback_atio, ccb);
@@ -1693,7 +1693,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
-	atiop->ccb_h.target_id = fcp->isp_loopid;
+	atiop->ccb_h.target_id = ISP_MAX_TARGETS(isp);
 	atiop->ccb_h.target_lun = lun;
 
 	/*
@@ -1872,7 +1872,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
 	atiop->init_id = FC_PORTDB_TGT(isp, chan, lp);
-	atiop->ccb_h.target_id = FCPARAM(isp, chan)->isp_loopid;
+	atiop->ccb_h.target_id = ISP_MAX_TARGETS(isp);
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
 	cdbxlen = aep->at_cmnd.fcp_cmnd_alen_datadir >> FCP_CMND_ADDTL_CDBLEN_SHIFT;
@@ -2357,6 +2357,8 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		goto bad;
 	}
 
+	inot->ccb_h.target_id = ISP_MAX_TARGETS(isp);
+	inot->ccb_h.target_lun = lun;
 	if (isp_find_pdb_by_portid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
 	    isp_find_pdb_by_handle(isp, notify->nt_channel, notify->nt_nphdl, &lp) == 0) {
 		inot->initiator_id = CAM_TARGET_WILDCARD;
