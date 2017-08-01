@@ -92,6 +92,7 @@ flatten_entries(struct env *env)
 		free(tmp);
 	}
 	env->sc_user_lines = linep;
+	log_debug("done pushing users");
 
 	wrlen = env->sc_group_line_len;
 	if ((linep = calloc(1, env->sc_group_line_len + 1)) == NULL) {
@@ -117,6 +118,7 @@ flatten_entries(struct env *env)
 		wrlen -= len;
 	}
 	env->sc_group_lines = linep;
+	log_debug("done pushing groups");
 }
 
 int
