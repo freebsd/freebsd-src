@@ -1,4 +1,4 @@
-.\" Copyright (c) 2009-2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2006 Marcus Alves Grando
 .\" Copyright (c) 1998-2001 Matthew Jacob, for NASA/Ames Research Center
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2016
+.Dd July 3, 2017
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -221,6 +221,15 @@ This value says how long to wait for devices to reappear if they (temporarily)
 disappear due to loop or fabric events.
 While this timeout is running, I/O
 to those devices will simply be held.
+.It Va dev.isp.N.use_gff_id
+.It Va dev.isp.N.use_gft_id
+Setting those options to 0 allows to disable use of GFF_ID and GFT_ID SNS
+requests during FC fabric scan.
+It may be useful if switch does not implement them correctly,
+preventing some devices from being found.
+Disabling them may cause unneeded logins to ports not supporting target role
+or even FCP at all.
+The default is 1 (enabled).
 .It Va dev.isp.N.wwnn
 This is the readonly World Wide Node Name value for this port.
 .It Va dev.isp.N.wwpn
@@ -239,7 +248,7 @@ The
 driver was written by
 .An Matthew Jacob
 originally for NetBSD at NASA/Ames Research Center.
-Some later improvement was done by
+Later improvement was done by
 .An Alexander Motin Aq Mt mav@FreeBSD.org .
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
