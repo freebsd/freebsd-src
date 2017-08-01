@@ -11,6 +11,7 @@ SUBDIR = \
 	iicbus \
 	iicsmb \
 	isl \
+	isl12xx \
 	jedec_ts \
 	nxprtc \
 	smb \
