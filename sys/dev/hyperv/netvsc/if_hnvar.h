@@ -251,7 +251,7 @@ struct hn_softc {
 #define HN_FLAG_NO_SLEEPING		0x0020
 #define HN_FLAG_RXBUF_REF		0x0040
 #define HN_FLAG_CHIM_REF		0x0080
-#define HN_FLAG_VF			0x0100
+#define HN_FLAG_RXVF			0x0100
 
 #define HN_FLAG_ERRORS			(HN_FLAG_RXBUF_REF | HN_FLAG_CHIM_REF)
 
