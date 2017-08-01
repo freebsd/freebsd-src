@@ -47,7 +47,8 @@ int
 pager_output(const char *line)
 {
 
-	return (fprintf(stderr, "%s", line));
+	fprintf(stderr, "%s", line);
+	return (0);
 }
 
 #define ZFS_TEST
