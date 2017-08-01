@@ -222,9 +222,9 @@ struct hn_rxinfo {
 	uint32_t			hash_value;
 };
 
-struct hn_update_vf {
+struct hn_rxvf_setarg {
 	struct hn_rx_ring	*rxr;
-	struct ifnet		*vf;
+	struct ifnet		*vf_ifp;
 };
 
 #define HN_RXINFO_VLAN			0x0001
@@ -263,6 +263,13 @@ static void			hn_ifnet_event(void *, struct ifnet *, int);
 static void			hn_ifaddr_event(void *, struct ifnet *);
 static void			hn_ifnet_attevent(void *, struct ifnet *);
 static void			hn_ifnet_detevent(void *, struct ifnet *);
+
+static bool			hn_ismyvf(const struct hn_softc *,
+				    const struct ifnet *);
+static void			hn_rxvf_change(struct hn_softc *,
+				    struct ifnet *, bool);
+static void			hn_rxvf_set(struct hn_softc *, struct ifnet *);
+static void			hn_rxvf_set_task(void *, int);
 
 static int			hn_rndis_rxinfo(const void *, int,
 				    struct hn_rxinfo *);
@@ -801,7 +808,7 @@ hn_rxfilter_config(struct hn_softc *sc)
 	HN_LOCK_ASSERT(sc);
 
 	if ((ifp->if_flags & IFF_PROMISC) ||
-	    (sc->hn_flags & HN_FLAG_VF)) {
+	    (sc->hn_flags & HN_FLAG_RXVF)) {
 		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
 	} else {
 		filter = NDIS_PACKET_TYPE_DIRECTED;
@@ -991,39 +998,39 @@ hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-hn_update_vf_task(void *arg, int pending __unused)
+hn_rxvf_set_task(void *xarg, int pending __unused)
 {
-	struct hn_update_vf *uv = arg;
+	struct hn_rxvf_setarg *arg = xarg;
 
-	uv->rxr->hn_rxvf_ifp = uv->vf;
+	arg->rxr->hn_rxvf_ifp = arg->vf_ifp;
 }
 
 static void
-hn_update_vf(struct hn_softc *sc, struct ifnet *vf)
+hn_rxvf_set(struct hn_softc *sc, struct ifnet *vf_ifp)
 {
 	struct hn_rx_ring *rxr;
-	struct hn_update_vf uv;
+	struct hn_rxvf_setarg arg;
 	struct task task;
 	int i;
 
 	HN_LOCK_ASSERT(sc);
 
-	TASK_INIT(&task, 0, hn_update_vf_task, &uv);
+	TASK_INIT(&task, 0, hn_rxvf_set_task, &arg);
 
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		rxr = &sc->hn_rx_ring[i];
 
 		if (i < sc->hn_rx_ring_inuse) {
-			uv.rxr = rxr;
-			uv.vf = vf;
+			arg.rxr = rxr;
+			arg.vf_ifp = vf_ifp;
 			vmbus_chan_run_task(rxr->hn_chan, &task);
 		} else {
-			rxr->hn_rxvf_ifp = vf;
+			rxr->hn_rxvf_ifp = vf_ifp;
 		}
 	}
 }
 
-static __inline bool
+static bool
 hn_ismyvf(const struct hn_softc *sc, const struct ifnet *ifp)
 {
 	const struct ifnet *hn_ifp;
@@ -1048,7 +1055,7 @@ hn_ismyvf(const struct hn_softc *sc, const struct ifnet *ifp)
 }
 
 static void
-hn_set_vf(struct hn_softc *sc, struct ifnet *ifp, bool vf)
+hn_rxvf_change(struct hn_softc *sc, struct ifnet *ifp, bool rxvf)
 {
 	struct ifnet *hn_ifp;
 
@@ -1059,21 +1066,19 @@ hn_set_vf(struct hn_softc *sc, struct ifnet *ifp, bool vf)
 
 	if (!hn_ismyvf(sc, ifp))
 		goto out;
-
 	hn_ifp = sc->hn_ifp;
 
-	/* Now we're sure 'ifp' is a real VF device. */
-	if (vf) {
-		if (sc->hn_flags & HN_FLAG_VF)
+	if (rxvf) {
+		if (sc->hn_flags & HN_FLAG_RXVF)
 			goto out;
 
-		sc->hn_flags |= HN_FLAG_VF;
+		sc->hn_flags |= HN_FLAG_RXVF;
 		hn_rxfilter_config(sc);
 	} else {
-		if (!(sc->hn_flags & HN_FLAG_VF))
+		if (!(sc->hn_flags & HN_FLAG_RXVF))
 			goto out;
 
-		sc->hn_flags &= ~HN_FLAG_VF;
+		sc->hn_flags &= ~HN_FLAG_RXVF;
 		if (hn_ifp->if_drv_flags & IFF_DRV_RUNNING)
 			hn_rxfilter_config(sc);
 		else
@@ -1081,11 +1086,11 @@ hn_set_vf(struct hn_softc *sc, struct ifnet *ifp, bool vf)
 	}
 
 	hn_nvs_set_datapath(sc,
-	    vf ? HN_NVS_DATAPATH_VF : HN_NVS_DATAPATH_SYNTHETIC);
+	    rxvf ? HN_NVS_DATAPATH_VF : HN_NVS_DATAPATH_SYNTHETIC);
 
-	hn_update_vf(sc, vf ? ifp : NULL);
+	hn_rxvf_set(sc, rxvf ? ifp : NULL);
 
-	if (vf) {
+	if (rxvf) {
 		hn_suspend_mgmt(sc);
 		sc->hn_link_flags &=
 		    ~(HN_LINK_FLAG_LINKUP | HN_LINK_FLAG_NETCHG);
@@ -1094,12 +1099,13 @@ hn_set_vf(struct hn_softc *sc, struct ifnet *ifp, bool vf)
 		hn_resume_mgmt(sc);
 	}
 
-	devctl_notify("HYPERV_NIC_VF", if_name(hn_ifp),
-	    vf ? "VF_UP" : "VF_DOWN", NULL);
+	devctl_notify("HYPERV_NIC_VF", hn_ifp->if_xname,
+	    rxvf ? "VF_UP" : "VF_DOWN", NULL);
 
-	if (bootverbose)
-		if_printf(hn_ifp, "Data path is switched %s %s\n",
-		    vf ? "to" : "from", if_name(ifp));
+	if (bootverbose) {
+		if_printf(hn_ifp, "datapath is switched %s %s\n",
+		    rxvf ? "to" : "from", ifp->if_xname);
+	}
 out:
 	HN_UNLOCK(sc);
 }
@@ -1107,16 +1113,17 @@ out:
 static void
 hn_ifnet_event(void *arg, struct ifnet *ifp, int event)
 {
+
 	if (event != IFNET_EVENT_UP && event != IFNET_EVENT_DOWN)
 		return;
-
-	hn_set_vf(arg, ifp, event == IFNET_EVENT_UP);
+	hn_rxvf_change(arg, ifp, event == IFNET_EVENT_UP);
 }
 
 static void
 hn_ifaddr_event(void *arg, struct ifnet *ifp)
 {
-	hn_set_vf(arg, ifp, ifp->if_flags & IFF_UP);
+
+	hn_rxvf_change(arg, ifp, ifp->if_flags & IFF_UP);
 }
 
 static void
@@ -2902,7 +2909,7 @@ hn_stop(struct hn_softc *sc, bool detaching)
 	 * If the VF is active, make sure the filter is not 0, even if
 	 * the synthetic NIC is down.
 	 */
-	if (!detaching && (sc->hn_flags & HN_FLAG_VF))
+	if (!detaching && (sc->hn_flags & HN_FLAG_RXVF))
 		hn_rxfilter_config(sc);
 }
 
@@ -3438,13 +3445,13 @@ hn_vf_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	char vf_name[IFNAMSIZ + 1];
-	struct ifnet *vf;
+	struct ifnet *vf_ifp;
 
 	HN_LOCK(sc);
 	vf_name[0] = '\0';
-	vf = sc->hn_vf_ifp;
-	if (vf != NULL)
-		snprintf(vf_name, sizeof(vf_name), "%s", if_name(vf));
+	vf_ifp = sc->hn_vf_ifp;
+	if (vf_ifp != NULL)
+		snprintf(vf_name, sizeof(vf_name), "%s", vf_ifp->if_xname);
 	HN_UNLOCK(sc);
 	return sysctl_handle_string(oidp, vf_name, sizeof(vf_name), req);
 }
@@ -3454,13 +3461,13 @@ hn_rxvf_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	char vf_name[IFNAMSIZ + 1];
-	struct ifnet *vf;
+	struct ifnet *vf_ifp;
 
 	HN_LOCK(sc);
 	vf_name[0] = '\0';
-	vf = sc->hn_rx_ring[0].hn_rxvf_ifp;
-	if (vf != NULL)
-		snprintf(vf_name, sizeof(vf_name), "%s", if_name(vf));
+	vf_ifp = sc->hn_rx_ring[0].hn_rxvf_ifp;
+	if (vf_ifp != NULL)
+		snprintf(vf_name, sizeof(vf_name), "%s", vf_ifp->if_xname);
 	HN_UNLOCK(sc);
 	return sysctl_handle_string(oidp, vf_name, sizeof(vf_name), req);
 }
@@ -5445,7 +5452,7 @@ hn_suspend(struct hn_softc *sc)
 	hn_polling(sc, 0);
 
 	if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
-	    (sc->hn_flags & HN_FLAG_VF))
+	    (sc->hn_flags & HN_FLAG_RXVF))
 		hn_suspend_data(sc);
 	hn_suspend_mgmt(sc);
 }
@@ -5535,16 +5542,16 @@ hn_resume(struct hn_softc *sc)
 {
 
 	if ((sc->hn_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
-	    (sc->hn_flags & HN_FLAG_VF))
+	    (sc->hn_flags & HN_FLAG_RXVF))
 		hn_resume_data(sc);
 
 	/*
 	 * When the VF is activated, the synthetic interface is changed
-	 * to DOWN in hn_set_vf(). Here, if the VF is still active, we
-	 * don't call hn_resume_mgmt() until the VF is deactivated in
-	 * hn_set_vf().
+	 * to DOWN in hn_rxvf_change().  Here, if the VF is still active,
+	 * we don't call hn_resume_mgmt() until the VF is deactivated in
+	 * hn_rxvf_change().
 	 */
-	if (!(sc->hn_flags & HN_FLAG_VF))
+	if (!(sc->hn_flags & HN_FLAG_RXVF))
 		hn_resume_mgmt(sc);
 
 	/*
