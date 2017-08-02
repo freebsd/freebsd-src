@@ -65,12 +65,10 @@
  * linux/mmc/host.h file.
  *
  * A mmc bridge is a chipset that can have one or more mmc and/or sd
- * cards attached to it.  mmc cards are attached on a bus topology,
- * while sd and sdio cards are attached using a star topology (meaning
- * in practice each sd card has its own, independent slot).  Each
- * mmcbr is assumed to be derived from the mmcbr.  This is done to
- * allow for easier addition of bridges (as each bridge does not need
- * to be added to the mmcbus file).
+ * cards attached to it.  mmc devices are attached on a bus topology,
+ * while sd and sdio cards usually are attached using a star topology
+ * (meaning in practice each sd card has its own, independent slot).
+ * Since SDHCI v3.00, buses for esd and esdio are possible, though.
  *
  * Attached to the mmc bridge is an mmcbus.  The mmcbus is described
  * in dev/mmc/mmcbus_if.m.
