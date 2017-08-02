@@ -258,11 +258,17 @@ cheri_capability_set_user_sealcap(void * __capability *cp)
 	    CHERI_SEALCAP_USERSPACE_OFFSET);
 }
 
+/*
+ * Set per-thread CHERI register state for MIPS ABI processes.  In
+ * particular, we need to set up the CHERI register state for MIPS ABI
+ * processes with suitable capabilities.
+ *
+ * XXX: I also wonder if we should be inheriting signal-handling state...?
+ */
 void
-cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
+cheri_newthread_setregs(struct thread *td, unsigned long entry_addr)
 {
 	struct trapframe *frame;
-	struct cheri_signal *csigp;
 
 	/*
 	 * We assume that the caller has initialised the trapframe to zeroes
@@ -287,9 +293,22 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	cheri_capability_set_user_idc(&frame->idc);
 	cheri_capability_set_user_pcc(&frame->pcc);
 	cheri_capability_set_user_entry(&frame->c12, entry_addr);
+}
+
+/*
+ * Set per-process CHERI state for MIPS ABI processes after exec.
+ * Initializes process-wide state as well as per-thread state for the
+ * process' initial thread.
+ */
+void
+cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
+{
+	struct cheri_signal *csigp;
+
+	cheri_newthread_setregs(td, entry_addr);
 
 	/*
-	 * Also initialise signal-handling state; this can't yet be modified
+	 * Initialise signal-handling state; this can't yet be modified
 	 * by userspace, but the principle is that signal handlers should run
 	 * with ambient authority unless given up by the userspace runtime
 	 * explicitly.
@@ -309,22 +328,6 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 * This can be queried using sysarch(2).
 	 */
 	cheri_capability_set_user_sealcap(&td->td_pcb->pcb_sealcap);
-}
-
-/*
- * Similar to a newly exec'd process, we need to set up the CHERI register
- * state for MIPS ABI processes with suitable capabilities.  We do this using
- * the existing MIPS registers as a starting point.
- *
- * XXX: Similar concerns exist here as exist above in cheri_exec_setregs().
- *
- * XXX: I also wonder if we should be inheriting signal-handling state...?
- */
-void
-cheri_newthread_setregs(struct thread *td)
-{
-
-	cheri_exec_setregs(td, td->td_pcb->pcb_regs.pc);
 }
 
 void

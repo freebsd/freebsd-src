@@ -559,7 +559,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	 * the completed MIPS trapframe and existing process state.
 	 */
 	tf->sr |= MIPS_SR_COP_2_BIT;
-	cheri_newthread_setregs(td);
+	cheri_newthread_setregs(td, (uintptr_t)entry);
 #endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */

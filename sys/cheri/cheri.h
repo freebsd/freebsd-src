@@ -164,7 +164,7 @@ void	cheri_exec_setregs(struct thread *td, u_long entry_addr);
 void	cheri_log_cheri_frame(struct trapframe *frame);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
 void	cheri_log_exception_registers(struct trapframe *frame);
-void	cheri_newthread_setregs(struct thread *td);
+void	cheri_newthread_setregs(struct thread *td, u_long entry_addr);
 int	cheri_syscall_authorize(struct thread *td, u_int code,
 	    int nargs, syscallarg_t *args);
 int	cheri_signal_sandboxed(struct thread *td);

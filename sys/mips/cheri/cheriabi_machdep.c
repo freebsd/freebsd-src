@@ -782,7 +782,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 }
 
 /*
- * The CheriABI equivalent of cpu_set_upcall_kse().
+ * The CheriABI equivalent of cpu_set_upcall().
  */
 void
 cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
@@ -795,7 +795,7 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	/*
 	 * Keep interrupt mask
 	 *
-	 * XXX-BD: See XXXRW comment in cpu_set_upcall_kse().
+	 * XXX-BD: See XXXRW comment in cpu_set_upcall().
 	 */
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
 	    (mips_rd_status() & MIPS_SR_INT_MASK) |
@@ -809,7 +809,7 @@ cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
 	td->td_frame->sp = param->stack_size;
 
 	/*
-	 * XXX-BD: cpu_set_upcall() copies the cheri_signal struct.  Do we
+	 * XXX-BD: cpu_copy_thread() copies the cheri_signal struct.  Do we
 	 * want to point it at our stack instead?
 	 */
 	frame->pc = cheri_getoffset(param->start_func);
