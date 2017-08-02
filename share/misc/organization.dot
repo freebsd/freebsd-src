@@ -57,7 +57,7 @@ webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\
 # Misc hats go here alphabetically sorted
 
 donations [label="Donations Team\ndonations@FreeBSD.org\nwilko, gahr, pgolluci,\nobrien, trhodes, ds,\nrwatson"]
-marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, Dru Lavigne, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
+marketing [label="Marketing Team\nmarketing@FreeBSD.org\nSteven Beedle, Denise Ebery, deb,\njkoshy, dru, mwlucas, imp,\nKris Moore, murray, mattt,\nJeremy C. Reed, rwatson"]
 vendorrelations [label="Vendor Relations\nvendor-relations@FreeBSD.org\ncore, FreeBSD Foundation"]
 
 # Here are the team relationships.
