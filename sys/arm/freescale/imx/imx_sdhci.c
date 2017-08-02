@@ -59,10 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
 #include <dev/sdhci/sdhci.h>
+
+#include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 struct imx_sdhci_softc {
@@ -803,7 +803,6 @@ static device_method_t imx_sdhci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
@@ -822,7 +821,7 @@ static device_method_t imx_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_4,	imx_sdhci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	imx_sdhci_write_multi_4),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t imx_sdhci_devclass;
@@ -833,7 +832,7 @@ static driver_t imx_sdhci_driver = {
 	sizeof(struct imx_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_imx, simplebus, imx_sdhci_driver, imx_sdhci_devclass, 0, 0);
+DRIVER_MODULE(sdhci_imx, simplebus, imx_sdhci_driver, imx_sdhci_devclass,
+    NULL, NULL);
 MODULE_DEPEND(sdhci_imx, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_imx, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_imx, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_imx);

@@ -46,11 +46,7 @@
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcvar.h>
 #include <dev/mmc/mmcbrvar.h>
-
-#include "mmcbr_if.h"
-
 
 /*****************************************************************************
  * Private defines
@@ -112,7 +108,6 @@ struct fsl_sdhc_softc {
 #define FSL_SDHC_DMA_SEGMENT_SIZE	(1024)
 #define	FSL_SDHC_DMA_ALIGNMENT		(4)
 #define	FSL_SDHC_DMA_BLOCK_SIZE		FSL_SDHC_MAX_BLOCK_SIZE
-
 
 /*
  * Offsets of SD HC registers
