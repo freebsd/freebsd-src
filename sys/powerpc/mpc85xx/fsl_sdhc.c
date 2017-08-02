@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcvar.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
@@ -112,7 +111,7 @@ static device_method_t fsl_sdhc_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host, fsl_sdhc_acquire_host),
 	DEVMETHOD(mmcbr_release_host, fsl_sdhc_release_host),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 /* kobj_class definition */
@@ -124,9 +123,9 @@ static driver_t fsl_sdhc_driver = {
 
 static devclass_t fsl_sdhc_devclass;
 
-DRIVER_MODULE(sdhci, simplebus, fsl_sdhc_driver, fsl_sdhc_devclass, 0, 0);
-DRIVER_MODULE(mmc, sdhci_fsl, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_fsl, mmc, 1, 1, 1);
+DRIVER_MODULE(sdhci, simplebus, fsl_sdhc_driver, fsl_sdhc_devclass, NULL, NULL);
+MODULE_DEPEND(sdhci_fsl, sdhci, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_fsl);
 
 /*****************************************************************************
  * Private methods
