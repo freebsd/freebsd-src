@@ -99,4 +99,30 @@ realcheck: .PHONY
 		echo "LOCALBASE=\"${LOCALBASE}\""; \
 		false; \
 	fi
-	@${KYUA} test -k ${CHECKDIR}/Kyuafile
+	@env ${TESTS_ENV:Q} ${KYUA} test -k ${CHECKDIR}/Kyuafile
+
+.ifdef _TESTS_USE_OBJDIR
+DESTDIR=	${.OBJDIR}/checkdir
+CLEANDIRS+=	${CHECKDIR}
+
+# XXX (ngie): use daemon(1) and a pidfile to lock the directory?
+beforecheck:
+	@if [ -d "${DESTDIR}" ]; then \
+		echo "${DESTDIR} already exists"; \
+		echo "Aborting to avoid false positives with potentially" \
+		     "parallel instances of '${MAKE} check'"; \
+		false; \
+	fi
+.for t in clean all
+	@cd ${.CURDIR} && ${MAKE} $t
+.endfor
+	@cd ${.CURDIR} && ${MAKE} install \
+	    -D_FILESMKDIR \
+	    DESTDIR=${DESTDIR}
+
+# NOTE: this is intentional to ensure that "make check" can be run multiple
+#       times. It won't be run if "make check" fails or is interrupted
+aftercheck:
+	@cd ${.CURDIR} && ${MAKE} clean
+
+.endif
