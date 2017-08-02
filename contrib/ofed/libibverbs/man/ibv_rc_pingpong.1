@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH IBV_RC_PINGPONG 1 "August 30, 2005" "libibverbs" "USER COMMANDS"
 
 .SH NAME
@@ -5,12 +6,14 @@ ibv_rc_pingpong \- simple InfiniBand RC transport test
 
 .SH SYNOPSIS
 .B ibv_rc_pingpong
-[\-p port] [\-d device] [\-i ib port] [\-s size] [\-r rx depth]
-[\-n iters] [\-l sl] [\-e] \fBHOSTNAME\fR
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m size]
+[\-r rx depth] [\-n iters] [\-l sl] [\-e] [\-g gid index]
+[\-o] [\-t] \fBHOSTNAME\fR
 
 .B ibv_rc_pingpong
-[\-p port] [\-d device] [\-i ib port] [\-s size] [\-r rx depth]
-[\-n iters] [\-l sl] [\-e]
+[\-p port] [\-d device] [\-i ib port] [\-s size] [\-m size]
+[\-r rx depth] [\-n iters] [\-l sl] [\-e] [\-g gid index]
+[\-o] [\-t]
 
 .SH DESCRIPTION
 .PP
@@ -33,6 +36,9 @@ use IB port \fIPORT\fR (default port 1)
 \fB\-s\fR, \fB\-\-size\fR=\fISIZE\fR
 ping-pong messages of size \fISIZE\fR (default 4096)
 .TP
+\fB\-m\fR, \fB\-\-mtu\fR=\fISIZE\fR
+path MTU \fISIZE\fR (default 1024)
+.TP
 \fB\-r\fR, \fB\-\-rx\-depth\fR=\fIDEPTH\fR
 post \fIDEPTH\fR receives at a time (default 1000)
 .TP
@@ -45,11 +51,21 @@ use \fISL\fR as the service level value of the QP (default 0)
 \fB\-e\fR, \fB\-\-events\fR
 sleep while waiting for work completion events (default is to poll for
 completions)
+.TP
+\fB\-g\fR, \fB\-\-gid-idx\fR=\fIGIDINDEX\fR
+local port \fIGIDINDEX\fR
+.TP
+\fB\-o\fR, \fB\-\-odp\fR
+use on demand paging
+.TP
+\fB\-t\fR, \fB\-\-ts\fR
+get CQE with timestamp
 
 .SH SEE ALSO
 .BR ibv_uc_pingpong (1),
 .BR ibv_ud_pingpong (1),
-.BR ibv_srq_pingpong (1)
+.BR ibv_srq_pingpong (1),
+.BR ibv_xsrq_pingpong (1)
 
 .SH AUTHORS
 .TP

@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_SET_OPTION" 3 "2007-08-06" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_set_option \- Set communication options for an rdma_cm_id.
@@ -24,7 +25,10 @@ The size of the %optval buffer.
 .SH "DESCRIPTION"
 Sets communication options for an rdma_cm_id.  This call is used to override
 the default system settings.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
-Option details may be found in the relevent header files.
+Option details may be found in the relevant header files.
 .SH "SEE ALSO"
 rdma_create_id(3)
