@@ -366,7 +366,7 @@ __bitcount64(__uint64_t _x)
 
 #define	major(x)	((int)((dev_t)(x) >> 32))	/* major number */
 #define	minor(x)	((int)((x) & 0xffffffff))	/* minor number */
-#define	makedev(x, y)	(((dev_t)(x) << 32) | (y))	/* create dev_t */
+#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y)) /* create dev_t */
 
 /*
  * These declarations belong elsewhere, but are repeated here and in
