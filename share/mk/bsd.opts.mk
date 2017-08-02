@@ -63,6 +63,7 @@ __DEFAULT_YES_OPTIONS = \
     PROFILE \
     SSP \
     SYMVER \
+    TESTS \
     TOOLCHAIN \
     WARNS
 
