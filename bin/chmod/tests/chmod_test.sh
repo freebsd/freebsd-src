@@ -27,7 +27,9 @@
 
 get_filesystem()
 {
-	df -T . | tail -n 1 | cut -wf 2
+	local mountpoint=$1
+
+	df -T $mountpoint | tail -n 1 | cut -wf 2
 }
 
 atf_test_case RH_flag
