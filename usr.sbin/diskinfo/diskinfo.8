@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2016
+.Dd July 1, 2017
 .Dt DISKINFO 8
 .Os
 .Sh NAME
@@ -37,6 +37,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl citv
+.Ar disk ...
+.Nm
+.Op Fl p
+.Ar disk ...
+.Nm
+.Op Fl s
 .Ar disk ...
 .Sh DESCRIPTION
 The
@@ -52,6 +58,12 @@ Print fields one per line with a descriptive comment.
 Perform a simple measurement of the I/O read command overhead.
 .It Fl i
 Perform a simple IOPS benchmark.
+.It Fl p
+Return the physical path of the disk.
+This is a string that identifies the physical path to the disk in the
+storage enclosure.
+.It Fl s
+Return the disk serial number
 .It Fl t
 Perform a simple and rather naive benchmark of the disks seek
 and transfer performance.
@@ -62,6 +74,13 @@ with the following fields: device name, sectorsize, media size in bytes,
 media size in sectors, stripe size, stripe offset, firmware cylinders,
 firmware heads, and firmware sectors.
 The last three fields are only present if the information is available.
+.It Fl i
+Return the disk ident, usually the serial number.
+.It Fl p
+Return the physical path of the disk.
+This is a string that identifies the physical path to the disk in the
+storage enclosure.
+.El
 .Sh HISTORY
 The
 .Nm
