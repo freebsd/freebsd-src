@@ -442,6 +442,12 @@ OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
 .endfor
 .endif
 
+.if defined(HAS_TESTS)
+MAKE+=			-D_TESTS_USE_OBJDIR
+SUBDIR_TARGETS+=	check
+TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
+.endif
+
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>

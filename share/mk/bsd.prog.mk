@@ -305,6 +305,13 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
+.if defined(HAS_TESTS)
+MAKE+=			-D_TESTS_USE_OBJDIR
+SUBDIR_TARGETS+=	check
+TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
+TESTS_PATH+=		${.OBJDIR}
+.endif
+
 .if defined(PROG)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .endif
