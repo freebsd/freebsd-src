@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #include <errno.h>
@@ -73,6 +74,7 @@ main(int argc, char **argv)
 	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
+	struct diocgattr_arg arg;
 	off_t	mediasize, stripesize, stripeoffset;
 	u_int	sectorsize, fwsectors, fwheads, zoned = 0, isreg;
 	uint32_t zone_mode;
@@ -230,6 +232,10 @@ main(int argc, char **argv)
 				printf("\t%-12u\t# Heads according to firmware.\n", fwheads);
 				printf("\t%-12u\t# Sectors according to firmware.\n", fwsectors);
 			} 
+			strlcpy(arg.name, "GEOM::descr", sizeof(arg.name));
+			arg.len = sizeof(arg.value.str);
+			if (ioctl(fd, DIOCGATTR, &arg) == 0)
+				printf("\t%-12s\t# Disk descr.\n", arg.value.str);
 			if (ioctl(fd, DIOCGIDENT, ident) == 0)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
