@@ -16,6 +16,7 @@ WARNS?=	2
 .include <bsd.endian.mk>
 
 .if ${TARGET_ENDIANNESS} == 1234
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 .endif
 

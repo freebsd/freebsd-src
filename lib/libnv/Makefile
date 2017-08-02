@@ -17,6 +17,7 @@ SRCS+=	msgio.c
 SRCS+=	nvlist.c
 SRCS+=	nvpair.c
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

@@ -18,6 +18,7 @@ CFLAGS+=-I${SRCTOP}/lib/libxo
 
 LIBADD=	xo util
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
