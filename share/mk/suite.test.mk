@@ -8,6 +8,8 @@
 .error suite.test.mk cannot be included directly.
 .endif
 
+.include <bsd.opts.mk>
+
 # Name of the test suite these tests belong to.  Should rarely be changed for
 # Makefiles built into the FreeBSD src tree.
 TESTSUITE?= FreeBSD
@@ -101,7 +103,7 @@ realcheck: .PHONY
 	fi
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${CHECKDIR}/Kyuafile
 
-.if defined(_TESTS_USE_OBJDIR) && make(check)
+.if ${MK_MAKE_CHECK_USE_SANDBOX} && make(check)
 DESTDIR:=	${.OBJDIR}/checkdir
 CLEANDIRS+=	${DESTDIR}
 

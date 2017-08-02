@@ -443,7 +443,7 @@ OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
 .endif
 
 .if defined(HAS_TESTS)
-MAKE+=			-D_TESTS_USE_OBJDIR
+MAKE+=			MK_MAKE_CHECK_USE_SANDBOX=yes
 SUBDIR_TARGETS+=	check
 TESTS_LD_LIBRARY_PATH+=	${.OBJDIR}
 .endif
