@@ -1417,6 +1417,21 @@ linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	return (0);
 }
 
+unsigned int
+linux_iminor(struct inode *inode)
+{
+	struct linux_cdev *ldev;
+
+	if (inode == NULL || inode->v_rdev == NULL ||
+	    inode->v_rdev->si_devsw != &linuxcdevsw)
+		return (-1U);
+	ldev = inode->v_rdev->si_drv1;
+	if (ldev == NULL)
+		return (-1U);
+
+	return (minor(ldev->dev));
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = invfo_rdwr,
@@ -1975,13 +1990,13 @@ linux_in_atomic(void)
 struct linux_cdev *
 linux_find_cdev(const char *name, unsigned major, unsigned minor)
 {
-	int unit = MKDEV(major, minor);
+	dev_t dev = MKDEV(major, minor);
 	struct cdev *cdev;
 
 	dev_lock();
 	LIST_FOREACH(cdev, &linuxcdevsw.d_devs, si_list) {
 		struct linux_cdev *ldev = cdev->si_drv1;
-		if (dev2unit(cdev) == unit &&
+		if (ldev->dev == dev &&
 		    strcmp(kobject_name(&ldev->kobj), name) == 0) {
 			break;
 		}
