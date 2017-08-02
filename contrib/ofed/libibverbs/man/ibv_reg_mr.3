@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_REG_MR 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -34,6 +35,8 @@ describes the desired memory protection attributes; it is either 0 or the bitwis
 .B IBV_ACCESS_REMOTE_ATOMIC\fR Enable Remote Atomic Operation Access (if supported)
 .TP
 .B IBV_ACCESS_MW_BIND\fR       Enable Memory Window Binding
+.TP
+.B IBV_ACCESS_ON_DEMAND\fR    Create an on-demand paging MR
 .PP
 If
 .B IBV_ACCESS_REMOTE_WRITE
@@ -73,4 +76,4 @@ fails if any memory window is still bound to this MR.
 .BR ibv_post_srq_recv (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>

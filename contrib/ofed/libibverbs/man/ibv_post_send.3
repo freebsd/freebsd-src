@@ -1,4 +1,5 @@
 .\" -*- nroff -*-
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .\"
 .TH IBV_POST_SEND 3 2006-10-31 libibverbs "Libibverbs Programmer's Manual"
 .SH "NAME"
@@ -60,9 +61,47 @@ uint32_t        remote_qkey;    /* Q_Key number of the destination QP */
 } ud;
 .in -8
 } wr;
-uint32_t                xrc_remote_srq_num;     /* SRQ number of the destination XRC */
+union {
+.in +8
+struct {
+.in +8
+uint32_t remote_srqn;            /* Number of the remote SRQ */
+.in -8
+} xrc;
+.in -8
+} qp_type;
+union {
+.in +8
+struct {
+.in +8
+struct ibv_mw            *mw;             /* Memory window (MW) of type 2 to bind */
+uint32_t                 rkey;            /* The desired new rkey of the MW */
+struct ibv_mw_bind_info  bind_info;       /* MW additional bind information */
+.in -8
+} bind_mw;
+struct {
+.in +8
+void			*hdr;	/* Pointer address of inline header */
+uint16_t		hdr_sz;	/* Inline header size */
+uint16_t		mss;	/* Maximum segment size for each TSO fragment */
+.in -8
+} tso;
 .in -8
 };
+.in -8
+};
+.fi
+.sp
+.nf
+struct ibv_mw_bind_info {
+.in +8
+struct ibv_mr            *mr;             /* The Memory region (MR) to bind the MW to */
+uint64_t                 addr;           /* The address the MW should start at */
+uint64_t                 length;          /* The length (in bytes) the MW should span */
+int                      mw_access_flags; /* Access flags to the MW. Use ibv_access_flags */
+.in -8
+};
+.fi
 .sp
 .nf
 struct ibv_sge {
@@ -77,15 +116,19 @@ uint32_t                lkey;                   /* Key of the local Memory Regio
 Each QP Transport Service Type supports a specific set of opcodes, as shown in the following table:
 .PP
 .nf
-OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC | IBV_QPT_XRC
-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-
-IBV_WR_SEND                 |     X      |     X      |     X      |     X
-IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X      |     X
-IBV_WR_RDMA_WRITE           |            |     X      |     X      |     X
-IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X      |     X
-IBV_WR_RDMA_READ            |            |            |     X      |     X
-IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X      |     X
-IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X      |     X
+OPCODE                      | IBV_QPT_UD | IBV_QPT_UC | IBV_QPT_RC | IBV_QPT_XRC_SEND | IBV_QPT_RAW_PACKET
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+IBV_WR_SEND                 |     X      |     X      |     X      |         X        |         X
+IBV_WR_SEND_WITH_IMM        |     X      |     X      |     X      |         X        |
+IBV_WR_RDMA_WRITE           |            |     X      |     X      |         X        |
+IBV_WR_RDMA_WRITE_WITH_IMM  |            |     X      |     X      |         X        |
+IBV_WR_RDMA_READ            |            |            |     X      |         X        |
+IBV_WR_ATOMIC_CMP_AND_SWP   |            |            |     X      |         X        |
+IBV_WR_ATOMIC_FETCH_AND_ADD |            |            |     X      |         X        |
+IBV_WR_LOCAL_INV            |            |     X      |     X      |         X        |
+IBV_WR_BIND_MW              |            |     X      |     X      |         X        |
+IBV_WR_SEND_WITH_INV        |            |     X      |     X      |         X        |
+IBV_WR_TSO                  |     X      |            |            |                  |         X
 .fi
 .PP
 The attribute send_flags describes the properties of the \s-1WR\s0. It is either 0 or the bitwise \s-1OR\s0 of one or more of the following flags:
@@ -99,6 +142,10 @@ The attribute send_flags describes the properties of the \s-1WR\s0. It is either
 .TP
 .B IBV_SEND_INLINE \fR Send data in given gather list as inline data
 in a send WQE.  Valid only for Send and RDMA Write.  The L_Key will not be checked.
+.TP
+.B IBV_SEND_IP_CSUM \fR Offload the IPv4 and TCP/UDP checksum calculation.
+Valid only when \fBdevice_cap_flags\fR in device_attr indicates current QP is
+supported by checksum offload.
 .SH "RETURN VALUE"
 .B ibv_post_send()
 returns 0 on success, or the value of errno on failure (which indicates the failure reason).
@@ -115,11 +162,14 @@ IBV_SEND_INLINE flag was set, the buffer can be reused immediately
 after the call returns.
 .SH "SEE ALSO"
 .BR ibv_create_qp (3),
-.BR ibv_create_xrc_rcv_qp (3),
 .BR ibv_create_ah (3),
 .BR ibv_post_recv (3),
 .BR ibv_post_srq_recv (3),
 .BR ibv_poll_cq (3)
 .SH "AUTHORS"
 .TP
-Dotan Barak <dotanb@mellanox.co.il>
+Dotan Barak <dotanba@gmail.com>
+.TP
+Majd Dibbiny <majd@mellanox.com>
+.TP
+Yishai Hadas <yishaih@mellanox.com>
