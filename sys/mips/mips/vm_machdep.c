@@ -132,7 +132,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2,int flags)
 	cheri_bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 	cheri_signal_copy(pcb2, td1->td_pcb);
 	cheri_stack_copy(pcb2, td1->td_pcb);
-	cheri_sealcap_copy(pcb2, td1->td_pcb);
+	cheri_sealcap_copy(p2, p1);
 #endif
 
 	/* Point mdproc and then copy over td1's contents */
@@ -453,7 +453,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	cheri_bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	cheri_signal_copy(pcb2, td0->td_pcb);
 	cheri_stack_init(pcb2);
-	cheri_sealcap_copy(pcb2, td0->td_pcb);
 #endif
 
 	/*

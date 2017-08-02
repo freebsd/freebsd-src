@@ -52,11 +52,11 @@
  * Propagate the root object-type sealing capability across fork().
  */
 void
-cheri_sealcap_copy(struct pcb *dst, struct pcb *src)
+cheri_sealcap_copy(struct proc *dst, struct proc *src)
 {
 
-	cheri_memcpy(&dst->pcb_sealcap, &src->pcb_sealcap,
-	    sizeof(dst->pcb_sealcap));
+	cheri_memcpy(&dst->p_md.md_cheri_sealcap, &src->p_md.md_cheri_sealcap,
+	    sizeof(dst->p_md.md_cheri_sealcap));
 }
 
 /*
@@ -67,6 +67,6 @@ int
 cheri_sysarch_getsealcap(struct thread *td, struct sysarch_args *uap)
 {
 
-	return (copyoutcap(&td->td_pcb->pcb_sealcap, uap->parms,
-	    sizeof(td->td_pcb->pcb_sealcap)));
+	return (copyoutcap(&td->td_proc->p_md.md_cheri_sealcap, uap->parms,
+	    sizeof(td->td_proc->p_md.md_cheri_sealcap)));
 }

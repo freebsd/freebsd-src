@@ -170,7 +170,6 @@ struct pcb
 #ifdef CPU_CHERI
 	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
 	struct cheri_signal pcb_cherisignal;	/* CHERI signal-related state. */
-	void * __capability pcb_sealcap;	/* Root of object-type tree. */
 	struct cheri_kframe pcb_cherikframe;	/* kernel caller-save state. */
 #endif
 };

@@ -327,7 +327,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	 * Set up root for the userspace object-type sealing capability tree.
 	 * This can be queried using sysarch(2).
 	 */
-	cheri_capability_set_user_sealcap(&td->td_pcb->pcb_sealcap);
+	cheri_capability_set_user_sealcap(&td->td_proc->p_md.md_cheri_sealcap);
 }
 
 void
