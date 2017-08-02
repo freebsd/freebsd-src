@@ -101,7 +101,7 @@ realcheck: .PHONY
 	fi
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${CHECKDIR}/Kyuafile
 
-.ifdef _TESTS_USE_OBJDIR
+.if defined(_TESTS_USE_OBJDIR) && make(check)
 DESTDIR:=	${.OBJDIR}/checkdir
 CLEANDIRS+=	${DESTDIR}
 
