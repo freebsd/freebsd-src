@@ -1472,12 +1472,12 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64
  * the directory contents.
  */
 static int
-mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
+mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
 {
 	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
 	size_t size;
-	int chunks, i;
+	int chunks, i, rc;
 
 	/*
 	 * Microzap objects use exactly one block. Read the whole
@@ -1489,9 +1489,11 @@ mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
 
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
-		if (mze->mze_name[0])
-			//printf("%-32s 0x%jx\n", mze->mze_name, (uintmax_t)mze->mze_value);
-			callback(mze->mze_name);
+		if (mze->mze_name[0]) {
+			rc = callback(mze->mze_name, mze->mze_value);
+			if (rc != 0)
+				return (rc);
+		}
 	}
 
 	return (0);
@@ -1502,12 +1504,12 @@ mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
  * the directory header.
  */
 static int
-fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *))
+fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *, uint64_t))
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
 	fat_zap_t z;
-	int i, j;
+	int i, j, rc;
 
 	if (zh.zap_magic != ZAP_MAGIC)
 		return (EIO);
@@ -1565,14 +1567,16 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const cha
 			value = fzap_leaf_value(&zl, zc);
 
 			//printf("%s 0x%jx\n", name, (uintmax_t)value);
-			callback((const char *)name);
+			rc = callback((const char *)name, value);
+			if (rc != 0)
+				return (rc);
 		}
 	}
 
 	return (0);
 }
 
-static int zfs_printf(const char *name)
+static int zfs_printf(const char *name, uint64_t value __unused)
 {
 
 	printf("%s\n", name);
@@ -1867,7 +1871,7 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 }
 
 int
-zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *name))
+zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *, uint64_t))
 {
 	uint64_t dir_obj, child_dir_zapobj, zap_type;
 	dnode_phys_t child_dir_zap, dir, dataset;
@@ -2007,9 +2011,72 @@ zfs_mount(const spa_t *spa, uint64_t rootobj, struct zfsmount *mount)
 	return (0);
 }
 
+/*
+ * callback function for feature name checks.
+ */
+static int
+check_feature(const char *name, uint64_t value)
+{
+	int i;
+
+	if (value == 0)
+		return (0);
+	if (name[0] == '\0')
+		return (0);
+
+	for (i = 0; features_for_read[i] != NULL; i++) {
+		if (strcmp(name, features_for_read[i]) == 0)
+			return (0);
+	}
+	printf("ZFS: unsupported feature: %s\n", name);
+	return (EIO);
+}
+
+/*
+ * Checks whether the MOS features that are active are supported.
+ */
+static int
+check_mos_features(const spa_t *spa)
+{
+	dnode_phys_t dir;
+	uint64_t objnum, zap_type;
+	size_t size;
+	int rc;
+
+	if ((rc = objset_get_dnode(spa, &spa->spa_mos, DMU_OT_OBJECT_DIRECTORY,
+	    &dir)) != 0)
+		return (rc);
+	if ((rc = zap_lookup(spa, &dir, DMU_POOL_FEATURES_FOR_READ, &objnum)) != 0) {
+		/*
+		 * It is older pool without features. As we have already
+		 * tested the label, just return without raising the error.
+		 */
+		return (0);
+	}
+
+	if ((rc = objset_get_dnode(spa, &spa->spa_mos, objnum, &dir)) != 0)
+		return (rc);
+
+	if (dir.dn_type != DMU_OTN_ZAP_METADATA)
+		return (EIO);
+
+	size = dir.dn_datablkszsec * 512;
+	if (dnode_read(spa, &dir, 0, zap_scratch, size))
+		return (EIO);
+
+	zap_type = *(uint64_t *) zap_scratch;
+	if (zap_type == ZBT_MICRO)
+		rc = mzap_list(&dir, check_feature);
+	else
+		rc = fzap_list(spa, &dir, check_feature);
+
+	return (rc);
+}
+
 static int
 zfs_spa_init(spa_t *spa)
 {
+	int rc;
 
 	if (zio_read(spa, &spa->spa_uberblock.ub_rootbp, &spa->spa_mos)) {
 		printf("ZFS: can't read MOS of pool %s\n", spa->spa_name);
@@ -2019,7 +2086,13 @@ zfs_spa_init(spa_t *spa)
 		printf("ZFS: corrupted MOS of pool %s\n", spa->spa_name);
 		return (EIO);
 	}
-	return (0);
+
+	rc = check_mos_features(spa);
+	if (rc != 0) {
+		printf("ZFS: pool %s is not supported\n", spa->spa_name);
+	}
+
+	return (rc);
 }
 
 static int
@@ -2074,6 +2147,61 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb)
 	return (0);
 }
 
+static int
+zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
+{
+	int rc = 0;
+
+	if (dn->dn_bonustype == DMU_OT_SA) {
+		sa_hdr_phys_t *sahdrp = NULL;
+		size_t size = 0;
+		void *buf = NULL;
+		int hdrsize;
+		char *p;
+
+		if (dn->dn_bonuslen != 0)
+			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
+		else {
+			blkptr_t *bp;
+
+			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
+				return (EIO);
+			bp = &dn->dn_spill;
+
+			size = BP_GET_LSIZE(bp);
+			buf = zfs_alloc(size);
+			rc = zio_read(spa, bp, buf);
+			if (rc != 0) {
+				zfs_free(buf, size);
+				return (rc);
+			}
+			sahdrp = buf;
+		}
+		hdrsize = SA_HDR_SIZE(sahdrp);
+		p = (char *)((uintptr_t)sahdrp + hdrsize + SA_SYMLINK_OFFSET);
+		memcpy(path, p, psize);
+		if (buf != NULL)
+			zfs_free(buf, size);
+		return (0);
+	}
+	/*
+	 * Second test is purely to silence bogus compiler
+	 * warning about accessing past the end of dn_bonus.
+	 */
+	if (psize + sizeof(znode_phys_t) <= dn->dn_bonuslen &&
+	    sizeof(znode_phys_t) <= sizeof(dn->dn_bonus)) {
+		memcpy(path, &dn->dn_bonus[sizeof(znode_phys_t)], psize);
+	} else {
+		rc = dnode_read(spa, dn, 0, path, psize);
+	}
+	return (rc);
+}
+
+struct obj_list {
+	uint64_t		objnum;
+	STAILQ_ENTRY(obj_list)	entry;
+};
+
 /*
  * Lookup a file and return its dnode.
  */
@@ -2081,7 +2209,7 @@ static int
 zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 {
 	int rc;
-	uint64_t objnum, rootnum, parentnum;
+	uint64_t objnum;
 	const spa_t *spa;
 	dnode_phys_t dn;
 	const char *p, *q;
@@ -2089,6 +2217,8 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 	char path[1024];
 	int symlinks_followed = 0;
 	struct stat sb;
+	struct obj_list *entry, *tentry;
+	STAILQ_HEAD(, obj_list) on_cache = STAILQ_HEAD_INITIALIZER(on_cache);
 
 	spa = mount->spa;
 	if (mount->objset.os_type != DMU_OST_ZFS) {
@@ -2097,87 +2227,119 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 		return (EIO);
 	}
 
+	if ((entry = malloc(sizeof(struct obj_list))) == NULL)
+		return (ENOMEM);
+
 	/*
 	 * Get the root directory dnode.
 	 */
 	rc = objset_get_dnode(spa, &mount->objset, MASTER_NODE_OBJ, &dn);
-	if (rc)
+	if (rc) {
+		free(entry);
 		return (rc);
+	}
 
-	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, &rootnum);
-	if (rc)
+	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, &objnum);
+	if (rc) {
+		free(entry);
 		return (rc);
+	}
+	entry->objnum = objnum;
+	STAILQ_INSERT_HEAD(&on_cache, entry, entry);
 
-	rc = objset_get_dnode(spa, &mount->objset, rootnum, &dn);
-	if (rc)
-		return (rc);
+	rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
+	if (rc != 0)
+		goto done;
 
-	objnum = rootnum;
 	p = upath;
 	while (p && *p) {
+		rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
+		if (rc != 0)
+			goto done;
+
 		while (*p == '/')
 			p++;
-		if (!*p)
+		if (*p == '\0')
 			break;
-		q = strchr(p, '/');
-		if (q) {
-			memcpy(element, p, q - p);
-			element[q - p] = 0;
-			p = q;
-		} else {
-			strcpy(element, p);
-			p = NULL;
+		q = p;
+		while (*q != '\0' && *q != '/')
+			q++;
+
+		/* skip dot */
+		if (p + 1 == q && p[0] == '.') {
+			p++;
+			continue;
+		}
+		/* double dot */
+		if (p + 2 == q && p[0] == '.' && p[1] == '.') {
+			p += 2;
+			if (STAILQ_FIRST(&on_cache) ==
+			    STAILQ_LAST(&on_cache, obj_list, entry)) {
+				rc = ENOENT;
+				goto done;
+			}
+			entry = STAILQ_FIRST(&on_cache);
+			STAILQ_REMOVE_HEAD(&on_cache, entry);
+			free(entry);
+			objnum = (STAILQ_FIRST(&on_cache))->objnum;
+			continue;
+		}
+		if (q - p + 1 > sizeof(element)) {
+			rc = ENAMETOOLONG;
+			goto done;
+		}
+		memcpy(element, p, q - p);
+		element[q - p] = 0;
+		p = q;
+
+		if ((rc = zfs_dnode_stat(spa, &dn, &sb)) != 0)
+			goto done;
+		if (!S_ISDIR(sb.st_mode)) {
+			rc = ENOTDIR;
+			goto done;
 		}
 
-		rc = zfs_dnode_stat(spa, &dn, &sb);
-		if (rc)
-			return (rc);
-		if (!S_ISDIR(sb.st_mode))
-			return (ENOTDIR);
-
-		parentnum = objnum;
 		rc = zap_lookup(spa, &dn, element, &objnum);
 		if (rc)
-			return (rc);
+			goto done;
 		objnum = ZFS_DIRENT_OBJ(objnum);
 
+		if ((entry = malloc(sizeof(struct obj_list))) == NULL) {
+			rc = ENOMEM;
+			goto done;
+		}
+		entry->objnum = objnum;
+		STAILQ_INSERT_HEAD(&on_cache, entry, entry);
 		rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
 		if (rc)
-			return (rc);
+			goto done;
 
 		/*
 		 * Check for symlink.
 		 */
 		rc = zfs_dnode_stat(spa, &dn, &sb);
 		if (rc)
-			return (rc);
+			goto done;
 		if (S_ISLNK(sb.st_mode)) {
-			if (symlinks_followed > 10)
-				return (EMLINK);
+			if (symlinks_followed > 10) {
+				rc = EMLINK;
+				goto done;
+			}
 			symlinks_followed++;
 
 			/*
 			 * Read the link value and copy the tail of our
 			 * current path onto the end.
 			 */
-			if (p)
-				strcpy(&path[sb.st_size], p);
-			else
-				path[sb.st_size] = 0;
-			/*
-			 * Second test is purely to silence bogus compiler
-			 * warning about accessing past the end of dn_bonus.
-			 */
-			if (sb.st_size + sizeof(znode_phys_t) <=
-			    dn.dn_bonuslen && sizeof(znode_phys_t) <=
-			    sizeof(dn.dn_bonus)) {
-				memcpy(path, &dn.dn_bonus[sizeof(znode_phys_t)],
-					sb.st_size);
-			} else {
-				rc = dnode_read(spa, &dn, 0, path, sb.st_size);
-				if (rc)
-					return (rc);
+			if (sb.st_size + strlen(p) + 1 > sizeof(path)) {
+				rc = ENAMETOOLONG;
+				goto done;
 			}
+			strcpy(&path[sb.st_size], p);
+
+			rc = zfs_dnode_readlink(spa, &dn, path, sb.st_size);
+			if (rc != 0)
+				goto done;
 
 			/*
 			 * Restart with the new path, starting either at
@@ -2185,14 +2347,25 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 			 * not the link is relative.
 			 */
 			p = path;
-			if (*p == '/')
-				objnum = rootnum;
-			else
-				objnum = parentnum;
-			objset_get_dnode(spa, &mount->objset, objnum, &dn);
+			if (*p == '/') {
+				while (STAILQ_FIRST(&on_cache) !=
+				    STAILQ_LAST(&on_cache, obj_list, entry)) {
+					entry = STAILQ_FIRST(&on_cache);
+					STAILQ_REMOVE_HEAD(&on_cache, entry);
+					free(entry);
+				}
+			} else {
+				entry = STAILQ_FIRST(&on_cache);
+				STAILQ_REMOVE_HEAD(&on_cache, entry);
+				free(entry);
+			}
+			objnum = (STAILQ_FIRST(&on_cache))->objnum;
 		}
 	}
 
 	*dnode = dn;
-	return (0);
+done:
+	STAILQ_FOREACH_SAFE(entry, &on_cache, entry, tentry)
+		free(entry);
+	return (rc);
 }

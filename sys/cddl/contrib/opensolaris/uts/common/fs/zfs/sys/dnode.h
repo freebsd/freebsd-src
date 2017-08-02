@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -35,6 +35,7 @@
 #include <sys/refcount.h>
 #include <sys/dmu_zfetch.h>
 #include <sys/zrlock.h>
+#include <sys/multilist.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -58,6 +59,12 @@ extern "C" {
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
 #define	DN_MIN_INDBLKSHIFT	12	/* 4k */
+/*
+ * If we ever increase this value beyond 20, we need to revisit all logic that
+ * does x << level * ebps to handle overflow.  With a 1M indirect block size,
+ * 4 levels of indirect blocks would not be able to guarantee addressing an
+ * entire object, so 5 levels will be used, but 5 * (20 - 7) = 65.
+ */
 #define	DN_MAX_INDBLKSHIFT	17	/* 128k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
@@ -195,11 +202,9 @@ struct dnode {
 
 	/* protected by dn_dbufs_mtx; declared here to fill 32-bit hole */
 	uint32_t dn_dbufs_count;	/* count of dn_dbufs */
-	/* There are no level-0 blocks of this blkid or higher in dn_dbufs */
-	uint64_t dn_unlisted_l0_blkid;
 
 	/* protected by os_lock: */
-	list_node_t dn_dirty_link[TXG_SIZE];	/* next on dataset's dirty */
+	multilist_node_t dn_dirty_link[TXG_SIZE]; /* next on dataset's dirty */
 
 	/* protected by dn_mtx: */
 	kmutex_t dn_mtx;
@@ -300,7 +305,6 @@ void dnode_verify(dnode_t *dn);
 int dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx);
 void dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx);
 void dnode_diduse_space(dnode_t *dn, int64_t space);
-void dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx);
 void dnode_new_blkid(dnode_t *dn, uint64_t blkid, dmu_tx_t *tx, boolean_t);
 uint64_t dnode_block_freed(dnode_t *dn, uint64_t blkid);
 void dnode_init(void);

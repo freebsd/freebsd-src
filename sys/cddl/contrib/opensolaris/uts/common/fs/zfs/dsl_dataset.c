@@ -18,15 +18,17 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2016, OmniTI Computer Consulting, Inc. All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 #include <sys/dmu_objset.h>
@@ -243,52 +245,30 @@ dsl_dataset_block_kill(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx,
 	return (used);
 }
 
-uint64_t
-dsl_dataset_prev_snap_txg(dsl_dataset_t *ds)
+/*
+ * We have to release the fsid syncronously or we risk that a subsequent
+ * mount of the same dataset will fail to unique_insert the fsid.  This
+ * failure would manifest itself as the fsid of this dataset changing
+ * between mounts which makes NFS clients quite unhappy.
+ */
+static void
+dsl_dataset_evict_sync(void *dbu)
 {
-	uint64_t trysnap = 0;
+	dsl_dataset_t *ds = dbu;
 
-	if (ds == NULL)
-		return (0);
-	/*
-	 * The snapshot creation could fail, but that would cause an
-	 * incorrect FALSE return, which would only result in an
-	 * overestimation of the amount of space that an operation would
-	 * consume, which is OK.
-	 *
-	 * There's also a small window where we could miss a pending
-	 * snapshot, because we could set the sync task in the quiescing
-	 * phase.  So this should only be used as a guess.
-	 */
-	if (ds->ds_trysnap_txg >
-	    spa_last_synced_txg(ds->ds_dir->dd_pool->dp_spa))
-		trysnap = ds->ds_trysnap_txg;
-	return (MAX(dsl_dataset_phys(ds)->ds_prev_snap_txg, trysnap));
-}
+	ASSERT(ds->ds_owner == NULL);
 
-boolean_t
-dsl_dataset_block_freeable(dsl_dataset_t *ds, const blkptr_t *bp,
-    uint64_t blk_birth)
-{
-	if (blk_birth <= dsl_dataset_prev_snap_txg(ds) ||
-	    (bp != NULL && BP_IS_HOLE(bp)))
-		return (B_FALSE);
-
-	ddt_prefetch(dsl_dataset_get_spa(ds), bp);
-
-	return (B_TRUE);
+	unique_remove(ds->ds_fsid_guid);
 }
 
 static void
-dsl_dataset_evict(void *dbu)
+dsl_dataset_evict_async(void *dbu)
 {
 	dsl_dataset_t *ds = dbu;
 
 	ASSERT(ds->ds_owner == NULL);
 
 	ds->ds_dbuf = NULL;
-
-	unique_remove(ds->ds_fsid_guid);
 
 	if (ds->ds_objset != NULL)
 		dmu_objset_evict(ds->ds_objset);
@@ -350,17 +330,15 @@ dsl_dataset_snap_lookup(dsl_dataset_t *ds, const char *name, uint64_t *value)
 {
 	objset_t *mos = ds->ds_dir->dd_pool->dp_meta_objset;
 	uint64_t snapobj = dsl_dataset_phys(ds)->ds_snapnames_zapobj;
-	matchtype_t mt;
+	matchtype_t mt = 0;
 	int err;
 
 	if (dsl_dataset_phys(ds)->ds_flags & DS_FLAG_CI_DATASET)
-		mt = MT_FIRST;
-	else
-		mt = MT_EXACT;
+		mt = MT_NORMALIZE;
 
 	err = zap_lookup_norm(mos, snapobj, name, 8, 1,
 	    value, mt, NULL, 0, NULL);
-	if (err == ENOTSUP && mt == MT_FIRST)
+	if (err == ENOTSUP && (mt & MT_NORMALIZE))
 		err = zap_lookup(mos, snapobj, name, 8, 1, value);
 	return (err);
 }
@@ -371,18 +349,16 @@ dsl_dataset_snap_remove(dsl_dataset_t *ds, const char *name, dmu_tx_t *tx,
 {
 	objset_t *mos = ds->ds_dir->dd_pool->dp_meta_objset;
 	uint64_t snapobj = dsl_dataset_phys(ds)->ds_snapnames_zapobj;
-	matchtype_t mt;
+	matchtype_t mt = 0;
 	int err;
 
 	dsl_dir_snap_cmtime_update(ds->ds_dir);
 
 	if (dsl_dataset_phys(ds)->ds_flags & DS_FLAG_CI_DATASET)
-		mt = MT_FIRST;
-	else
-		mt = MT_EXACT;
+		mt = MT_NORMALIZE;
 
 	err = zap_remove_norm(mos, snapobj, name, mt, tx);
-	if (err == ENOTSUP && mt == MT_FIRST)
+	if (err == ENOTSUP && (mt & MT_NORMALIZE))
 		err = zap_remove(mos, snapobj, name, tx);
 
 	if (err == 0 && adj_cnt)
@@ -528,7 +504,8 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			ds->ds_reserved = ds->ds_quota = 0;
 		}
 
-		dmu_buf_init_user(&ds->ds_dbu, dsl_dataset_evict, &ds->ds_dbuf);
+		dmu_buf_init_user(&ds->ds_dbu, dsl_dataset_evict_sync,
+		    dsl_dataset_evict_async, &ds->ds_dbuf);
 		if (err == 0)
 			winner = dmu_buf_set_user_ie(dbuf, &ds->ds_dbu);
 
@@ -551,6 +528,16 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		} else {
 			ds->ds_fsid_guid =
 			    unique_insert(dsl_dataset_phys(ds)->ds_fsid_guid);
+			if (ds->ds_fsid_guid !=
+			    dsl_dataset_phys(ds)->ds_fsid_guid) {
+				zfs_dbgmsg("ds_fsid_guid changed from "
+				    "%llx to %llx for pool %s dataset id %llu",
+				    (long long)
+				    dsl_dataset_phys(ds)->ds_fsid_guid,
+				    (long long)ds->ds_fsid_guid,
+				    spa_name(dp->dp_spa),
+				    dsobj);
+			}
 		}
 	}
 	ASSERT3P(ds->ds_dbuf, ==, dbuf);
@@ -1753,6 +1740,11 @@ dsl_dataset_sync_done(dsl_dataset_t *ds, dmu_tx_t *tx)
 	bplist_iterate(&ds->ds_pending_deadlist,
 	    deadlist_enqueue_cb, &ds->ds_deadlist, tx);
 
+	if (os->os_synced_dnodes != NULL) {
+		multilist_destroy(os->os_synced_dnodes);
+		os->os_synced_dnodes = NULL;
+	}
+
 	ASSERT(!dmu_objset_is_dirty(os, dmu_tx_get_txg(tx)));
 
 	dmu_buf_rele(ds->ds_dbuf, ds);
@@ -1851,8 +1843,16 @@ get_receive_resume_stats(dsl_dataset_t *ds, nvlist_t *nv)
 			fnvlist_add_string(token_nv, "toname", buf);
 		}
 		if (zap_contains(dp->dp_meta_objset, ds->ds_object,
+		    DS_FIELD_RESUME_LARGEBLOCK) == 0) {
+			fnvlist_add_boolean(token_nv, "largeblockok");
+		}
+		if (zap_contains(dp->dp_meta_objset, ds->ds_object,
 		    DS_FIELD_RESUME_EMBEDOK) == 0) {
 			fnvlist_add_boolean(token_nv, "embedok");
+		}
+		if (zap_contains(dp->dp_meta_objset, ds->ds_object,
+		    DS_FIELD_RESUME_COMPRESSOK) == 0) {
+			fnvlist_add_boolean(token_nv, "compressok");
 		}
 		packed = fnvlist_pack(token_nv, &packed_size);
 		fnvlist_free(token_nv);

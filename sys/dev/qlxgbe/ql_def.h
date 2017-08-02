@@ -105,7 +105,7 @@ struct qla_ivec {
 
 typedef struct qla_ivec qla_ivec_t;
 
-#define QLA_WATCHDOG_CALLOUT_TICKS	1
+#define QLA_WATCHDOG_CALLOUT_TICKS	2
 
 typedef struct _qla_tx_ring {
 	qla_tx_buf_t	tx_buf[NUM_TX_DESCRIPTORS];

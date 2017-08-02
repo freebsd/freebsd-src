@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -63,8 +63,6 @@ typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *priv);
 /* generic arc_done_func_t's which you can use */
 arc_done_func_t arc_bcopy_func;
 arc_done_func_t arc_getbuf_func;
-
-extern int zfs_arc_num_sublists_per_state;
 
 typedef enum arc_flags
 {
@@ -122,11 +120,17 @@ typedef enum arc_flags
 
 } arc_flags_t;
 
+typedef enum arc_buf_flags {
+	ARC_BUF_FLAG_SHARED		= 1 << 0,
+	ARC_BUF_FLAG_COMPRESSED		= 1 << 1
+} arc_buf_flags_t;
+
 struct arc_buf {
 	arc_buf_hdr_t		*b_hdr;
 	arc_buf_t		*b_next;
 	kmutex_t		b_evict_lock;
 	void			*b_data;
+	arc_buf_flags_t		b_flags;
 };
 
 typedef enum arc_buf_contents {
@@ -150,13 +154,21 @@ typedef enum arc_space_type {
 
 void arc_space_consume(uint64_t space, arc_space_type_t type);
 void arc_space_return(uint64_t space, arc_space_type_t type);
-arc_buf_t *arc_alloc_buf(spa_t *spa, int32_t size, void *tag,
-    arc_buf_contents_t type);
-arc_buf_t *arc_loan_buf(spa_t *spa, int size);
+boolean_t arc_is_metadata(arc_buf_t *buf);
+enum zio_compress arc_get_compression(arc_buf_t *buf);
+int arc_decompress(arc_buf_t *buf);
+arc_buf_t *arc_alloc_buf(spa_t *spa, void *tag, arc_buf_contents_t type,
+    int32_t size);
+arc_buf_t *arc_alloc_compressed_buf(spa_t *spa, void *tag,
+    uint64_t psize, uint64_t lsize, enum zio_compress compression_type);
+arc_buf_t *arc_loan_buf(spa_t *spa, boolean_t is_metadata, int size);
+arc_buf_t *arc_loan_compressed_buf(spa_t *spa, uint64_t psize, uint64_t lsize,
+    enum zio_compress compression_type);
 void arc_return_buf(arc_buf_t *buf, void *tag);
 void arc_loan_inuse_buf(arc_buf_t *buf, void *tag);
 void arc_buf_destroy(arc_buf_t *buf, void *tag);
 int arc_buf_size(arc_buf_t *buf);
+int arc_buf_lsize(arc_buf_t *buf);
 void arc_release(arc_buf_t *buf, void *tag);
 int arc_released(arc_buf_t *buf);
 void arc_buf_freeze(arc_buf_t *buf);

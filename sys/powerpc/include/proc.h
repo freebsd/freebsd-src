@@ -53,6 +53,13 @@ struct mdproc {
 #define	KINFO_PROC_SIZE 768
 #endif
 
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[10];
+	int narg;
+};
+
 #ifdef _KERNEL
 
 #include <machine/pcb.h>
@@ -65,13 +72,6 @@ struct mdproc {
 	    td->td_kstack_pages * PAGE_SIZE -				\
 	    (char *)&td;						\
 } while (0)
-
-struct syscall_args {
-	u_int code;
-	struct sysent *callp;
-	register_t args[10];
-	int narg;
-};
 #endif
 
 #endif /* !_MACHINE_PROC_H_ */

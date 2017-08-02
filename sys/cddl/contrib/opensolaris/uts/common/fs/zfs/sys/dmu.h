@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2013 DEY Storage Systems, Inc.
@@ -47,6 +47,7 @@
 #include <sys/zfs_context.h>
 #include <sys/cred.h>
 #include <sys/fs/zfs.h>
+#include <sys/zio_compress.h>
 #include <sys/zio_priority.h>
 
 #ifdef	__cplusplus
@@ -539,8 +540,14 @@ typedef struct dmu_buf_user {
 	 */
 	taskq_ent_t	dbu_tqent;
 
-	/* This instance's eviction function pointer. */
-	dmu_buf_evict_func_t *dbu_evict_func;
+	/*
+	 * This instance's eviction function pointers.
+	 *
+	 * dbu_evict_func_sync is called synchronously and then
+	 * dbu_evict_func_async is executed asynchronously on a taskq.
+	 */
+	dmu_buf_evict_func_t *dbu_evict_func_sync;
+	dmu_buf_evict_func_t *dbu_evict_func_async;
 #ifdef ZFS_DEBUG
 	/*
 	 * Pointer to user's dbuf pointer.  NULL for clients that do
@@ -560,24 +567,22 @@ typedef struct dmu_buf_user {
  * NOTE: This function should only be called once on a given dmu_buf_user_t.
  *       To allow enforcement of this, dbu must already be zeroed on entry.
  */
-#ifdef __lint
-/* Very ugly, but it beats issuing suppression directives in many Makefiles. */
-extern void
-dmu_buf_init_user(dmu_buf_user_t *dbu, dmu_buf_evict_func_t *evict_func,
-    dmu_buf_t **clear_on_evict_dbufp);
-#else /* __lint */
+/*ARGSUSED*/
 inline void
-dmu_buf_init_user(dmu_buf_user_t *dbu, dmu_buf_evict_func_t *evict_func,
-    dmu_buf_t **clear_on_evict_dbufp)
+dmu_buf_init_user(dmu_buf_user_t *dbu, dmu_buf_evict_func_t *evict_func_sync,
+    dmu_buf_evict_func_t *evict_func_async, dmu_buf_t **clear_on_evict_dbufp)
 {
-	ASSERT(dbu->dbu_evict_func == NULL);
-	ASSERT(evict_func != NULL);
-	dbu->dbu_evict_func = evict_func;
+	ASSERT(dbu->dbu_evict_func_sync == NULL);
+	ASSERT(dbu->dbu_evict_func_async == NULL);
+
+	/* must have at least one evict func */
+	IMPLY(evict_func_sync == NULL, evict_func_async != NULL);
+	dbu->dbu_evict_func_sync = evict_func_sync;
+	dbu->dbu_evict_func_async = evict_func_async;
 #ifdef ZFS_DEBUG
 	dbu->dbu_clear_on_evict_dbufp = clear_on_evict_dbufp;
 #endif
 }
-#endif /* __lint */
 
 /*
  * Attach user data to a dbuf and mark it for normal (when the dbuf's
@@ -642,11 +647,6 @@ struct blkptr *dmu_buf_get_blkptr(dmu_buf_t *db);
 void dmu_buf_will_dirty(dmu_buf_t *db, dmu_tx_t *tx);
 
 /*
- * Tells if the given dbuf is freeable.
- */
-boolean_t dmu_buf_freeable(dmu_buf_t *);
-
-/*
  * You must create a transaction, then hold the objects which you will
  * (or might) modify as part of this transaction.  Then you must assign
  * the transaction to a transaction group.  Once the transaction has
@@ -669,10 +669,17 @@ boolean_t dmu_buf_freeable(dmu_buf_t *);
 
 dmu_tx_t *dmu_tx_create(objset_t *os);
 void dmu_tx_hold_write(dmu_tx_t *tx, uint64_t object, uint64_t off, int len);
+void dmu_tx_hold_write_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off,
+    int len);
 void dmu_tx_hold_free(dmu_tx_t *tx, uint64_t object, uint64_t off,
     uint64_t len);
+void dmu_tx_hold_free_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off,
+    uint64_t len);
 void dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name);
+void dmu_tx_hold_zap_by_dnode(dmu_tx_t *tx, dnode_t *dn, int add,
+    const char *name);
 void dmu_tx_hold_bonus(dmu_tx_t *tx, uint64_t object);
+void dmu_tx_hold_bonus_by_dnode(dmu_tx_t *tx, dnode_t *dn);
 void dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object);
 void dmu_tx_hold_sa(dmu_tx_t *tx, struct sa_handle *hdl, boolean_t may_grow);
 void dmu_tx_hold_sa_create(dmu_tx_t *tx, int total_size);
@@ -722,8 +729,12 @@ int dmu_free_long_object(objset_t *os, uint64_t object);
 #define	DMU_READ_NO_PREFETCH	1 /* don't prefetch */
 int dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	void *buf, uint32_t flags);
+int dmu_read_by_dnode(dnode_t *dn, uint64_t offset, uint64_t size, void *buf,
+    uint32_t flags);
 void dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	const void *buf, dmu_tx_t *tx);
+void dmu_write_by_dnode(dnode_t *dn, uint64_t offset, uint64_t size,
+    const void *buf, dmu_tx_t *tx);
 void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_tx_t *tx);
 int dmu_read_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size);
@@ -752,8 +763,8 @@ int dmu_xuio_add(struct xuio *uio, struct arc_buf *abuf, offset_t off,
 int dmu_xuio_cnt(struct xuio *uio);
 struct arc_buf *dmu_xuio_arcbuf(struct xuio *uio, int i);
 void dmu_xuio_clear(struct xuio *uio, int i);
-void xuio_stat_wbuf_copied();
-void xuio_stat_wbuf_nocopy();
+void xuio_stat_wbuf_copied(void);
+void xuio_stat_wbuf_nocopy(void);
 
 extern boolean_t zfs_prefetch_disable;
 extern int zfs_max_recordsize;

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
 
@@ -39,6 +39,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/dmu_tx.h>
 #include <sys/dsl_pool.h>
+#include <sys/abd.h>
 
 /*
  * The zfs intent log (ZIL) saves transaction records of system calls
@@ -89,27 +90,17 @@ SYSCTL_INT(_vfs_zfs_trim, OID_AUTO, enabled, CTLFLAG_RDTUN, &zfs_trim_enabled, 0
 
 /*
  * Limit SLOG write size per commit executed with synchronous priority.
- * Any writes above that executed with lower (asynchronous) priority to
- * limit potential SLOG device abuse by single active ZIL writer.
+ * Any writes above that will be executed with lower (asynchronous) priority
+ * to limit potential SLOG device abuse by single active ZIL writer.
  */
-uint64_t zil_slog_limit = 768 * 1024;
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, zil_slog_limit, CTLFLAG_RWTUN,
-    &zil_slog_limit, 0, "Maximal SLOG commit size with sync priority");
+uint64_t zil_slog_bulk = 768 * 1024;
+SYSCTL_QUAD(_vfs_zfs, OID_AUTO, zil_slog_bulk, CTLFLAG_RWTUN,
+    &zil_slog_bulk, 0, "Maximal SLOG commit size with sync priority");
 
 static kmem_cache_t *zil_lwb_cache;
 
 #define	LWB_EMPTY(lwb) ((BP_GET_LSIZE(&lwb->lwb_blk) - \
     sizeof (zil_chain_t)) == (lwb->lwb_sz - lwb->lwb_nused))
-
-
-/*
- * ziltest is by and large an ugly hack, but very useful in
- * checking replay without tedious work.
- * When running ziltest we want to keep all itx's and so maintain
- * a single list in the zl_itxg[] that uses a high txg: ZILTEST_TXG
- * We subtract TXG_CONCURRENT_STATES to allow for common code.
- */
-#define	ZILTEST_TXG (UINT64_MAX - TXG_CONCURRENT_STATES)
 
 static int
 zil_bp_compare(const void *x1, const void *x2)
@@ -897,6 +888,7 @@ zil_lwb_write_done(zio_t *zio)
 	 * one in zil_commit_writer(). zil_sync() will only remove
 	 * the lwb if lwb_buf is null.
 	 */
+	abd_put(zio->io_abd);
 	zio_buf_free(lwb->lwb_buf, lwb->lwb_sz);
 	mutex_enter(&zilog->zl_lock);
 	lwb->lwb_buf = NULL;
@@ -929,12 +921,14 @@ zil_lwb_write_init(zilog_t *zilog, lwb_t *lwb)
 		    ZIO_FLAG_CANFAIL);
 	}
 	if (lwb->lwb_zio == NULL) {
-		if (zilog->zl_cur_used <= zil_slog_limit || !lwb->lwb_slog)
+		abd_t *lwb_abd = abd_get_from_buf(lwb->lwb_buf,
+		    BP_GET_LSIZE(&lwb->lwb_blk));
+		if (!lwb->lwb_slog || zilog->zl_cur_used <= zil_slog_bulk)
 			prio = ZIO_PRIORITY_SYNC_WRITE;
 		else
 			prio = ZIO_PRIORITY_ASYNC_WRITE;
 		lwb->lwb_zio = zio_rewrite(zilog->zl_root_zio, zilog->zl_spa,
-		    0, &lwb->lwb_blk, lwb->lwb_buf, BP_GET_LSIZE(&lwb->lwb_blk),
+		    0, &lwb->lwb_blk, lwb_abd, BP_GET_LSIZE(&lwb->lwb_blk),
 		    zil_lwb_write_done, lwb, prio,
 		    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE, &zb);
 	}
@@ -1074,36 +1068,38 @@ zil_lwb_write_start(zilog_t *zilog, lwb_t *lwb, boolean_t last)
 static lwb_t *
 zil_lwb_commit(zilog_t *zilog, itx_t *itx, lwb_t *lwb)
 {
-	lr_t *lrcb, *lrc = &itx->itx_lr; /* common log record */
-	lr_write_t *lrwb, *lrw = (lr_write_t *)lrc;
+	lr_t *lrcb, *lrc;
+	lr_write_t *lrwb, *lrw;
 	char *lr_buf;
-	uint64_t txg = lrc->lrc_txg;
-	uint64_t reclen = lrc->lrc_reclen;
-	uint64_t dlen = 0;
-	uint64_t dnow, lwb_sp;
+	uint64_t dlen, dnow, lwb_sp, reclen, txg;
 
 	if (lwb == NULL)
 		return (NULL);
 
 	ASSERT(lwb->lwb_buf != NULL);
 
-	if (lrc->lrc_txtype == TX_WRITE && itx->itx_wr_state == WR_NEED_COPY)
+	lrc = &itx->itx_lr;		/* Common log record inside itx. */
+	lrw = (lr_write_t *)lrc;	/* Write log record inside itx. */
+	if (lrc->lrc_txtype == TX_WRITE && itx->itx_wr_state == WR_NEED_COPY) {
 		dlen = P2ROUNDUP_TYPED(
 		    lrw->lr_length, sizeof (uint64_t), uint64_t);
-
+	} else {
+		dlen = 0;
+	}
+	reclen = lrc->lrc_reclen;
 	zilog->zl_cur_used += (reclen + dlen);
+	txg = lrc->lrc_txg;
 
 	zil_lwb_write_init(zilog, lwb);
 
 cont:
 	/*
 	 * If this record won't fit in the current log block, start a new one.
-	 * For WR_NEED_COPY optimize layout for minimal number of chunks, but
-	 * try to keep wasted space withing reasonable range (12%).
+	 * For WR_NEED_COPY optimize layout for minimal number of chunks.
 	 */
 	lwb_sp = lwb->lwb_sz - lwb->lwb_nused;
 	if (reclen > lwb_sp || (reclen + dlen > lwb_sp &&
-	    lwb_sp < ZIL_MAX_LOG_DATA / 8 && (dlen % ZIL_MAX_LOG_DATA == 0 ||
+	    lwb_sp < ZIL_MAX_WASTE_SPACE && (dlen % ZIL_MAX_LOG_DATA == 0 ||
 	    lwb_sp < reclen + dlen % ZIL_MAX_LOG_DATA))) {
 		lwb = zil_lwb_write_start(zilog, lwb, B_FALSE);
 		if (lwb == NULL)
@@ -1111,14 +1107,14 @@ cont:
 		zil_lwb_write_init(zilog, lwb);
 		ASSERT(LWB_EMPTY(lwb));
 		lwb_sp = lwb->lwb_sz - lwb->lwb_nused;
-		ASSERT3U(reclen + MIN(dlen, sizeof(uint64_t)), <=, lwb_sp);
+		ASSERT3U(reclen + MIN(dlen, sizeof (uint64_t)), <=, lwb_sp);
 	}
 
 	dnow = MIN(dlen, lwb_sp - reclen);
 	lr_buf = lwb->lwb_buf + lwb->lwb_nused;
 	bcopy(lrc, lr_buf, reclen);
-	lrcb = (lr_t *)lr_buf;
-	lrwb = (lr_write_t *)lrcb;
+	lrcb = (lr_t *)lr_buf;		/* Like lrc, but inside lwb. */
+	lrwb = (lr_write_t *)lrcb;	/* Like lrw, but inside lwb. */
 
 	/*
 	 * If it's a write, fetch the data or get its blkptr as appropriate.
@@ -1334,6 +1330,8 @@ zil_itx_assign(zilog_t *zilog, itx_t *itx, dmu_tx_t *tx)
 			 * this itxg. Save the itxs for release below.
 			 * This should be rare.
 			 */
+			zfs_dbgmsg("zil_itx_assign: missed itx cleanup for "
+			    "txg %llu", itxg->itxg_txg);
 			clean = itxg->itxg_itxs;
 		}
 		itxg->itxg_txg = txg;

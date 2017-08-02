@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -153,7 +153,6 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	dn->dn_id_flags = 0;
 
 	dn->dn_dbufs_count = 0;
-	dn->dn_unlisted_l0_blkid = 0;
 	avl_create(&dn->dn_dbufs, dbuf_compare, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 
@@ -207,7 +206,6 @@ dnode_dest(void *arg, void *unused)
 	ASSERT0(dn->dn_id_flags);
 
 	ASSERT0(dn->dn_dbufs_count);
-	ASSERT0(dn->dn_unlisted_l0_blkid);
 	avl_destroy(&dn->dn_dbufs);
 }
 
@@ -525,7 +523,6 @@ dnode_destroy(dnode_t *dn)
 	dn->dn_newuid = 0;
 	dn->dn_newgid = 0;
 	dn->dn_id_flags = 0;
-	dn->dn_unlisted_l0_blkid = 0;
 
 	dmu_zfetch_fini(&dn->dn_zfetch);
 	kmem_cache_free(dnode_cache, dn);
@@ -761,7 +758,6 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ASSERT(avl_is_empty(&ndn->dn_dbufs));
 	avl_swap(&ndn->dn_dbufs, &odn->dn_dbufs);
 	ndn->dn_dbufs_count = odn->dn_dbufs_count;
-	ndn->dn_unlisted_l0_blkid = odn->dn_unlisted_l0_blkid;
 	ndn->dn_bonus = odn->dn_bonus;
 	ndn->dn_have_spill = odn->dn_have_spill;
 	ndn->dn_zio = odn->dn_zio;
@@ -794,7 +790,6 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	avl_create(&odn->dn_dbufs, dbuf_compare, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 	odn->dn_dbufs_count = 0;
-	odn->dn_unlisted_l0_blkid = 0;
 	odn->dn_bonus = NULL;
 	odn->dn_zfetch.zf_dnode = NULL;
 
@@ -1019,7 +1014,7 @@ dnode_special_open(objset_t *os, dnode_phys_t *dnp, uint64_t object,
 }
 
 static void
-dnode_buf_pageout(void *dbu)
+dnode_buf_evict_async(void *dbu)
 {
 	dnode_children_t *children_dnodes = dbu;
 	int i;
@@ -1145,8 +1140,8 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		for (i = 0; i < epb; i++) {
 			zrl_init(&dnh[i].dnh_zrlock);
 		}
-		dmu_buf_init_user(&children_dnodes->dnc_dbu,
-		    dnode_buf_pageout, NULL);
+		dmu_buf_init_user(&children_dnodes->dnc_dbu, NULL,
+		    dnode_buf_evict_async, NULL);
 		winner = dmu_buf_set_user(&db->db, &children_dnodes->dnc_dbu);
 		if (winner != NULL) {
 
@@ -1292,13 +1287,14 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 	 */
 	dmu_objset_userquota_get_ids(dn, B_TRUE, tx);
 
-	mutex_enter(&os->os_lock);
+	multilist_t *dirtylist = os->os_dirty_dnodes[txg & TXG_MASK];
+	multilist_sublist_t *mls = multilist_sublist_lock_obj(dirtylist, dn);
 
 	/*
 	 * If we are already marked dirty, we're done.
 	 */
 	if (list_link_active(&dn->dn_dirty_link[txg & TXG_MASK])) {
-		mutex_exit(&os->os_lock);
+		multilist_sublist_unlock(mls);
 		return;
 	}
 
@@ -1312,13 +1308,9 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 	dprintf_ds(os->os_dsl_dataset, "obj=%llu txg=%llu\n",
 	    dn->dn_object, txg);
 
-	if (dn->dn_free_txg > 0 && dn->dn_free_txg <= txg) {
-		list_insert_tail(&os->os_free_dnodes[txg&TXG_MASK], dn);
-	} else {
-		list_insert_tail(&os->os_dirty_dnodes[txg&TXG_MASK], dn);
-	}
+	multilist_sublist_insert_head(mls, dn);
 
-	mutex_exit(&os->os_lock);
+	multilist_sublist_unlock(mls);
 
 	/*
 	 * The dnode maintains a hold on its containing dbuf as
@@ -1339,13 +1331,6 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 void
 dnode_free(dnode_t *dn, dmu_tx_t *tx)
 {
-	int txgoff = tx->tx_txg & TXG_MASK;
-
-	dprintf("dn=%p txg=%llu\n", dn, tx->tx_txg);
-
-	/* we should be the only holder... hopefully */
-	/* ASSERT3U(refcount_count(&dn->dn_holds), ==, 1); */
-
 	mutex_enter(&dn->dn_mtx);
 	if (dn->dn_type == DMU_OT_NONE || dn->dn_free_txg) {
 		mutex_exit(&dn->dn_mtx);
@@ -1354,19 +1339,7 @@ dnode_free(dnode_t *dn, dmu_tx_t *tx)
 	dn->dn_free_txg = tx->tx_txg;
 	mutex_exit(&dn->dn_mtx);
 
-	/*
-	 * If the dnode is already dirty, it needs to be moved from
-	 * the dirty list to the free list.
-	 */
-	mutex_enter(&dn->dn_objset->os_lock);
-	if (list_link_active(&dn->dn_dirty_link[txgoff])) {
-		list_remove(&dn->dn_objset->os_dirty_dnodes[txgoff], dn);
-		list_insert_tail(&dn->dn_objset->os_free_dnodes[txgoff], dn);
-		mutex_exit(&dn->dn_objset->os_lock);
-	} else {
-		mutex_exit(&dn->dn_objset->os_lock);
-		dnode_setdirty(dn, tx);
-	}
+	dnode_setdirty(dn, tx);
 }
 
 /*
@@ -1812,25 +1785,6 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 		dn->dn_phys->dn_flags |= DNODE_FLAG_USED_BYTES;
 	}
 	mutex_exit(&dn->dn_mtx);
-}
-
-/*
- * Call when we think we're going to write/free space in open context to track
- * the amount of memory in use by the currently open txg.
- */
-void
-dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx)
-{
-	objset_t *os = dn->dn_objset;
-	dsl_dataset_t *ds = os->os_dsl_dataset;
-	int64_t aspace = spa_get_asize(os->os_spa, space);
-
-	if (ds != NULL) {
-		dsl_dir_willuse_space(ds->ds_dir, aspace, tx);
-		dsl_pool_dirty_space(dmu_tx_pool(tx), space, tx);
-	}
-
-	dmu_tx_willuse_space(tx, aspace);
 }
 
 /*

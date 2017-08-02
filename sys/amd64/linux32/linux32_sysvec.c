@@ -725,13 +725,15 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 }
 
 static int
-linux32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+linux32_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	struct trapframe *frame;
+	struct syscall_args *sa;
 
 	p = td->td_proc;
 	frame = td->td_frame;
+	sa = &td->td_sa;
 
 	sa->args[0] = frame->tf_rbx;
 	sa->args[1] = frame->tf_rcx;

@@ -81,7 +81,8 @@ fzap_upgrade(zap_t *zap, dmu_tx_t *tx, zap_flags_t flags)
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
 	zap->zap_ismicro = FALSE;
 
-	zap->zap_dbu.dbu_evict_func = zap_evict;
+	zap->zap_dbu.dbu_evict_func_sync = zap_evict_sync;
+	zap->zap_dbu.dbu_evict_func_async = NULL;
 
 	mutex_init(&zap->zap_f.zap_num_entries_mtx, 0, 0, 0);
 	zap->zap_f.zap_block_shift = highbit64(zap->zap_dbuf->db_size) - 1;
@@ -399,7 +400,7 @@ zap_allocate_blocks(zap_t *zap, int nblocks)
 }
 
 static void
-zap_leaf_pageout(void *dbu)
+zap_leaf_evict_sync(void *dbu)
 {
 	zap_leaf_t *l = dbu;
 
@@ -423,7 +424,7 @@ zap_create_leaf(zap_t *zap, dmu_tx_t *tx)
 	VERIFY(0 == dmu_buf_hold(zap->zap_objset, zap->zap_object,
 	    l->l_blkid << FZAP_BLOCK_SHIFT(zap), NULL, &l->l_dbuf,
 	    DMU_READ_NO_PREFETCH));
-	dmu_buf_init_user(&l->l_dbu, zap_leaf_pageout, &l->l_dbuf);
+	dmu_buf_init_user(&l->l_dbu, zap_leaf_evict_sync, NULL, &l->l_dbuf);
 	winner = dmu_buf_set_user(l->l_dbuf, &l->l_dbu);
 	ASSERT(winner == NULL);
 	dmu_buf_will_dirty(l->l_dbuf, tx);
@@ -470,13 +471,13 @@ zap_open_leaf(uint64_t blkid, dmu_buf_t *db)
 	l->l_bs = highbit64(db->db_size) - 1;
 	l->l_dbuf = db;
 
-	dmu_buf_init_user(&l->l_dbu, zap_leaf_pageout, &l->l_dbuf);
+	dmu_buf_init_user(&l->l_dbu, zap_leaf_evict_sync, NULL, &l->l_dbuf);
 	winner = dmu_buf_set_user(db, &l->l_dbu);
 
 	rw_exit(&l->l_rwlock);
 	if (winner != NULL) {
 		/* someone else set it first */
-		zap_leaf_pageout(&l->l_dbu);
+		zap_leaf_evict_sync(&l->l_dbu);
 		l = winner;
 	}
 
@@ -1354,65 +1355,4 @@ fzap_get_stats(zap_t *zap, zap_stats_t *zs)
 			}
 		}
 	}
-}
-
-int
-fzap_count_write(zap_name_t *zn, int add, refcount_t *towrite,
-    refcount_t *tooverwrite)
-{
-	zap_t *zap = zn->zn_zap;
-	zap_leaf_t *l;
-	int err;
-
-	/*
-	 * Account for the header block of the fatzap.
-	 */
-	if (!add && dmu_buf_freeable(zap->zap_dbuf)) {
-		(void) refcount_add_many(tooverwrite,
-		    zap->zap_dbuf->db_size, FTAG);
-	} else {
-		(void) refcount_add_many(towrite,
-		    zap->zap_dbuf->db_size, FTAG);
-	}
-
-	/*
-	 * Account for the pointer table blocks.
-	 * If we are adding we need to account for the following cases :
-	 * - If the pointer table is embedded, this operation could force an
-	 *   external pointer table.
-	 * - If this already has an external pointer table this operation
-	 *   could extend the table.
-	 */
-	if (add) {
-		if (zap_f_phys(zap)->zap_ptrtbl.zt_blk == 0) {
-			(void) refcount_add_many(towrite,
-			    zap->zap_dbuf->db_size, FTAG);
-		} else {
-			(void) refcount_add_many(towrite,
-			    zap->zap_dbuf->db_size * 3, FTAG);
-		}
-	}
-
-	/*
-	 * Now, check if the block containing leaf is freeable
-	 * and account accordingly.
-	 */
-	err = zap_deref_leaf(zap, zn->zn_hash, NULL, RW_READER, &l);
-	if (err != 0) {
-		return (err);
-	}
-
-	if (!add && dmu_buf_freeable(l->l_dbuf)) {
-		(void) refcount_add_many(tooverwrite, l->l_dbuf->db_size, FTAG);
-	} else {
-		/*
-		 * If this an add operation, the leaf block could split.
-		 * Hence, we need to account for an additional leaf block.
-		 */
-		(void) refcount_add_many(towrite,
-		    (add ? 2 : 1) * l->l_dbuf->db_size, FTAG);
-	}
-
-	zap_put_leaf(l);
-	return (0);
 }

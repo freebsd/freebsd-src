@@ -675,6 +675,7 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 {
 	struct kaiocb *job;
 
+	CURVNET_SET(so->so_vnet);
 	SOCKBUF_LOCK(sb);
 	while (!TAILQ_EMPTY(&sb->sb_aiojobq) && soaio_ready(so, sb)) {
 		job = TAILQ_FIRST(&sb->sb_aiojobq);
@@ -698,6 +699,7 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sorele(so);
+	CURVNET_RESTORE();
 }
 
 void

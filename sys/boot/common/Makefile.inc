@@ -39,6 +39,9 @@ CFLAGS+= -DLOADER_GPT_SUPPORT
 CFLAGS+= -DLOADER_MBR_SUPPORT
 .endif
 .endif
+.if !defined(LOADER_NO_GELI_SUPPORT)
+CFLAGS+= -DLOADER_GELI_SUPPORT
+.endif
 
 .if defined(HAVE_BCACHE)
 SRCS+=  bcache.c
