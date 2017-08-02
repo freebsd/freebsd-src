@@ -160,7 +160,6 @@ __DEFAULT_YES_OPTIONS = \
     TCP_WRAPPERS \
     TCSH \
     TELNET \
-    TESTS \
     TEXTPROC \
     TFTP \
     TIMED \
