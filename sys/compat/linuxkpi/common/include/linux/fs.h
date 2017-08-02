@@ -229,12 +229,8 @@ nonseekable_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static inline dev_t
-iminor(struct inode *inode)
-{
-
-	return (minor(dev2unit(inode->v_rdev)));
-}
+extern unsigned int linux_iminor(struct inode *);
+#define	iminor(...) linux_iminor(__VA_ARGS__)
 
 static inline struct linux_file *
 get_file(struct linux_file *f)
