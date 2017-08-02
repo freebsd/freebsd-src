@@ -139,21 +139,12 @@ extern struct ena_bus_space ebs;
 #define MAX_ERRNO 4095
 #define IS_ERR_VALUE(x) unlikely((x) <= (unsigned long)MAX_ERRNO)
 
-#define WARN_ON(condition)						\
-	do {								\
-		int __ret_warn_on = !!(condition);			\
-		if (unlikely(__ret_warn_on))				\
-			printf("%s %s", __FUNCTION__, __FILE__);	\
-		unlikely(__ret_warn_on);				\
-	} while (0)
-
 #define ENA_ASSERT(cond, format, arg...)				\
 	do {								\
 		if (unlikely(!(cond))) {				\
 			ena_trc_err(					\
 				"Assert failed on %s:%s:%d:" format,	\
 				__FILE__, __func__, __LINE__, ##arg);	\
-			WARN_ON(cond);					\
 		}							\
 	} while (0)
 
