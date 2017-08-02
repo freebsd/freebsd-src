@@ -5,14 +5,11 @@
 SUBDIR=	${_dtrace} \
 	${_lockstat} \
 	${_plockstat} \
-	${_tests} \
 	${_zdb} \
 	${_zfsd} \
 	${_zhack}
 
-.if ${MK_TESTS} != "no"
-_tests=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_ZFS} != "no"
 .if ${MK_LIBTHR} != "no"

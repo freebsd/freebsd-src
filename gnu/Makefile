@@ -4,11 +4,9 @@
 .include <src.opts.mk>
 
 SUBDIR= lib .WAIT \
-	${_tests} usr.bin
+	usr.bin
 
-.if ${MK_TESTS} != "no"
-_tests=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 SUBDIR_PARALLEL=
 
