@@ -85,6 +85,7 @@ beforeinstall:
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
