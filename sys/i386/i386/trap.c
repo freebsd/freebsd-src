@@ -455,7 +455,7 @@ user_trctrap_out:
 			goto userout;
 #else /* !POWERFAIL_NMI */
 			nmi_handle_intr(type, frame);
-			break;
+			goto out;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 
@@ -499,7 +499,7 @@ user_trctrap_out:
 			if (dtrace_return_probe_ptr != NULL &&
 			    dtrace_return_probe_ptr(&regs) == 0)
 				goto out;
-			break;
+			goto userout;
 #endif
 		}
 	} else {
