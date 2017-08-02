@@ -336,8 +336,10 @@ ncl_putpages(struct vop_putpages_args *ap)
 	    cred);
 	crfree(cred);
 
-	if (error == 0 || !nfs_keep_dirty_on_error)
-		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
+	if (error == 0 || !nfs_keep_dirty_on_error) {
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid,
+		    np->n_size - offset, npages * PAGE_SIZE);
+	}
 	return (rtvals[0]);
 }
 
