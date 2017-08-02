@@ -138,7 +138,7 @@ get_freq(void)
 	return (get_el0(cntfrq));
 }
 
-static long
+static uint64_t
 get_cntxct(bool physical)
 {
 	uint64_t val;
