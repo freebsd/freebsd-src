@@ -102,8 +102,8 @@ realcheck: .PHONY
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${CHECKDIR}/Kyuafile
 
 .ifdef _TESTS_USE_OBJDIR
-DESTDIR=	${.OBJDIR}/checkdir
-CLEANDIRS+=	${CHECKDIR}
+DESTDIR:=	${.OBJDIR}/checkdir
+CLEANDIRS+=	${DESTDIR}
 
 # XXX (ngie): use daemon(1) and a pidfile to lock the directory?
 beforecheck:
