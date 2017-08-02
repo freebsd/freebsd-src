@@ -229,6 +229,9 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 realinstall: _proginstall
 .ORDER: beforeinstall _proginstall
 _proginstall:
+.ifdef _FILESMKDIR
+	${INSTALL} -d ${DESTDIR}${BINDIR}
+.endif
 .if defined(PROG)
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
