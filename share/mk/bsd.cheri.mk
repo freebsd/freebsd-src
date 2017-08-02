@@ -119,6 +119,10 @@ CHERI_LLD_BROKEN=	yes
 LDFLAGS+=	-fuse-ld=bfd
 .else
 LDFLAGS+=	-fuse-ld=lld -Wl,-z,norelro
+.ifdef CHERI_LLD_INTEGRATED_CAPSIZEFIX
+LDFLAGS+=      -no-capsizefix -Wl,--process-cap-relocs
+LD_FATAL_WARNINGS:=no
+.endif
 .if ${CFLAGS:M-fexceptions} != ""
 # any code built with -fexceptions currently needs text relocations
 # See https://reviews.llvm.org/D33670
