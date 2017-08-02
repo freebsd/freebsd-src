@@ -69,6 +69,10 @@ stage_as.${file:T}: ${file}
 
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
+.ifdef _FILESMKDIR
+	${INSTALL} -d \
+	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}:H}
+.endif
 	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
@@ -83,10 +87,16 @@ stage_files.${group}: ${_${group}FILES}
 installfiles-${group}: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
+.ifdef _FILESMKDIR
+	${INSTALL} -d ${DESTDIR}${${${group}DIR}/${${group}NAME}
+.endif
 	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
+.ifdef _FILESMKDIR
+	${INSTALL} -d ${DESTDIR}${${group}DIR}/
+.endif
 	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif

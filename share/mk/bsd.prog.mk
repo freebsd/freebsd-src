@@ -268,6 +268,10 @@ SCRIPTSMODE_${script:T}?=	${SCRIPTSMODE}
 STAGE_AS_${script:T}=		${SCRIPTSDIR_${script:T}}/${SCRIPTSNAME_${script:T}}
 _scriptsinstall: _SCRIPTSINS_${script:T}
 _SCRIPTSINS_${script:T}: ${script}
+.ifdef _FILESMKDIR
+	${INSTALL} -d \
+	    ${DESTDIR}${SCRIPTSDIR_${.ALLSRC:T}}/${SCRIPTSNAME_${.ALLSRC:T}:H}
+.endif
 	${INSTALL} ${TAG_ARGS} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
 	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
