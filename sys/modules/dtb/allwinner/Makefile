@@ -14,6 +14,7 @@ DTS=	\
 	sun7i-a20-olimex-som-evb.dts \
 	sun7i-a20-pcduino3.dts \
 	sun8i-h2-plus-orangepi-zero.dts \
+	sun8i-h3-nanopi-m1.dts \
 	sun8i-h3-orangepi-one.dts
 
 LINKS= \
@@ -23,6 +24,7 @@ LINKS= \
 	${DTBDIR}/sun7i-a20-bananapi.dtb ${DTBDIR}/bananapi.dtb \
 	${DTBDIR}/sun7i-a20-cubieboard2.dtb ${DTBDIR}/cubieboard2.dtb \
 	${DTBDIR}/sun7i-a20-olimex-som-evb.dtb ${DTBDIR}/olimex-a20-som-evb.dtb \
-	${DTBDIR}/sun7i-a20-pcduino3.dtb ${DTBDIR}/pcduino3.dtb
+	${DTBDIR}/sun7i-a20-pcduino3.dtb ${DTBDIR}/pcduino3.dtb \
+	${DTBDIR}/nanopi-neo.dtb ${DTBDIR}/sun8i-h3-nanopi-neo.dtb
 
 .include <bsd.dtb.mk>

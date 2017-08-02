@@ -31,6 +31,9 @@ __<bsd.compiler.mk>__:
 
 .include <bsd.opts.mk>
 
+# command = /usr/local/bin/ccache cc ...
+# wrapper = /usr/local/libexec/ccache/cc ...
+CCACHE_BUILD_TYPE?=	command
 # Handle ccache after CC is determined, but not if CC/CXX are already
 # overridden with a manual setup.
 .if ${MK_CCACHE_BUILD:Uno} == "yes" && \
@@ -65,19 +68,26 @@ CCACHE_COMPILERCHECK?=	content
 CCACHE_COMPILERCHECK?=	mtime
 .endif
 .export CCACHE_COMPILERCHECK
-# Remove ccache from the PATH to prevent double calls and wasted CPP/LD time.
-PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 # Ensure no bogus CCACHE_PATH leaks in which might avoid the in-tree compiler.
 .if !empty(CCACHE_PATH)
 CCACHE_PATH=
 .export CCACHE_PATH
 .endif
+.if ${CCACHE_BUILD_TYPE} == "command"
+# Remove ccache from the PATH to prevent double calls and wasted CPP/LD time.
+PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 # Override various toolchain vars.
 .for var in CC CXX HOST_CC HOST_CXX
 .if defined(${var}) && ${${var}:M${CCACHE_BIN}} == ""
 ${var}:=	${CCACHE_BIN} ${${var}}
 .endif
 .endfor
+.else
+# Need to ensure CCACHE_WRAPPER_PATH is the first in ${PATH}
+PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
+PATH:=	${CCACHE_WRAPPER_PATH}:${PATH}
+CCACHE_WRAPPER_PATH_PFX=	${CCACHE_WRAPPER_PATH}:
+.endif	# ${CCACHE_BUILD_TYPE} == "command"
 # GCC does not need the CCACHE_CPP2 hack enabled by default in devel/ccache.
 # The port enables it due to ccache passing preprocessed C to clang
 # which fails with -Wparentheses-equality, -Wtautological-compare, and

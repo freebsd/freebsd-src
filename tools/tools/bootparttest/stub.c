@@ -48,5 +48,6 @@ int
 pager_output(const char *s)
 {
 
-	return (printf("%s", s));
+	printf("%s", s);
+	return (0);
 }
