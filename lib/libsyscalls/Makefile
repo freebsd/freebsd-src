@@ -23,6 +23,13 @@ NOASM=
 
 .include "${LIBC_SRCTOP}/sys/Makefile.inc"
 
+# since we build the libc interposing_table.c we also have to
+# build the stub sources so that cap_relocs can work
+.PATH:	${LIBC_SRCTOP}/gen
+SRCS+=	_spinlock_stub.c \
+	__pthread_mutex_init_calloc_cb_stub.c \
+	elf_utils.c
+
 VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
 CFLAGS+= -DSYMBOL_VERSIONING
