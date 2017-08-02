@@ -37,8 +37,6 @@ conflicting.names:	confstr.names limits.names sysconf.names
 unique.names:		conflicting.names
 	LC_ALL=C sort -u ${.ALLSRC} >${.TARGET}
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
