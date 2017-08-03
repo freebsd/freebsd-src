@@ -19,7 +19,8 @@
 .Op Fl "b <base>"
 .Op Fl "c" <command>"
 .Op Fl "f" <output>
-.Op Ar command argument...
+.Op Fl "w"
+.Op Ar command [argument ...]
 .Sh DESCRIPTION
 .Nm
 is a tool for preparing
@@ -69,6 +70,12 @@ command is used directly.
 .It Ic -f Ar file | Ic --file Ar file
 Output is saved to the given file, rather than to the standard output
 descriptor.
+.It Ic -w | --web
+Uses the official
+.Nm libxo
+website URL as the source path for the CSS and Javascript files
+referenced in the output of
+.Nm xohtml .
 .El
 .Pp
 .Sh EXAMPLES
