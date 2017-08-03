@@ -35,12 +35,12 @@ int main(void);
 void DELAY(int);
 
 int getc(int);
-int putchar(int);
-int xputchar(int);
+void putchar(int);
+void xputchar(int);
 void putstr(const char *);
 void puthex8(u_int8_t);
 void puthexlist(const u_int8_t *, int);
-int printf(const char *fmt,...);
+void printf(const char *fmt,...);
 
 void bzero(void *, size_t);
 char *strcpy(char *to, const char *from);
