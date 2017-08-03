@@ -260,6 +260,7 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 
 	dev = sc->mpr_dev;
 	error = 0;
+	msgs = 0;
 
 	if ((sc->disable_msix == 0) &&
 	    ((msgs = pci_msix_count(dev)) >= MPR_MSI_COUNT))
@@ -267,7 +268,7 @@ mpr_pci_alloc_interrupts(struct mpr_softc *sc)
 	if ((error != 0) && (sc->disable_msi == 0) &&
 	    ((msgs = pci_msi_count(dev)) >= MPR_MSI_COUNT))
 		error = mpr_alloc_msi(sc, MPR_MSI_COUNT);
-	else
+	if (error != 0)
 		msgs = 0;
 
 	sc->msi_msgs = msgs;

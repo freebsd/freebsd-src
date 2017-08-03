@@ -23,9 +23,7 @@ CFLAGS+= -DLIBWRAP
 LIBADD+= wrap
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 WARNS?=	1
 

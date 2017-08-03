@@ -101,6 +101,8 @@ fdesc_mount(struct mount *mp)
 	 */
 	mp->mnt_data = fmp;
 	fmp->flags = 0;
+	if (vfs_getopt(mp->mnt_optnew, "linrdlnk", NULL, NULL) == 0)
+		fmp->flags |= FMNT_LINRDLNKF;
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);

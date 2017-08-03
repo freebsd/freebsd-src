@@ -21,8 +21,6 @@ PRECIOUSLIB=
 VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=${.CURDIR}/Symbol.map
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

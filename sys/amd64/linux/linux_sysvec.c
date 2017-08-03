@@ -833,6 +833,8 @@ static void
 linux_vdso_install(void *param)
 {
 
+	amd64_lower_shared_page(&elf_linux_sysvec);
+
 	linux_szsigcode = (&_binary_linux_locore_o_end - 
 	    &_binary_linux_locore_o_start);
 
