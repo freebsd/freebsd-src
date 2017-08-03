@@ -20,13 +20,12 @@
 #include <stdarg.h>
 #include "lib.h"
 
-int
+void
 printf(const char *fmt,...)
 {
 	va_list ap;
 	const char *hex = "0123456789abcdef";
 	char buf[10];
-	const char *fmt_orig = fmt;
 	char *s;
 	unsigned u;
 	int c;
@@ -67,5 +66,5 @@ printf(const char *fmt,...)
 	}
 	va_end(ap);
 
-	return (int)(fmt - fmt_orig);
+	return;
 }

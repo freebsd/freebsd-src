@@ -1434,12 +1434,11 @@ static int cmd_exec_helper(struct mlx5_core_dev *dev,
 	struct mlx5_cmd_msg *inb;
 	struct mlx5_cmd_msg *outb;
 	int pages_queue;
-	gfp_t gfp;
+	const gfp_t gfp = GFP_KERNEL;
 	int err;
 	u8 status = 0;
 
 	pages_queue = is_manage_pages(in);
-	gfp = callback ? GFP_ATOMIC : GFP_KERNEL;
 
 	inb = alloc_msg(dev, in_size, gfp);
 	if (IS_ERR(inb)) {
