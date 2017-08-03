@@ -19,4 +19,20 @@
     <value>4</value>
     <color>yellow</color>
   </item>
+  <anchor>
+    <address>0xdeadbeef</address>
+    <foo>1</foo>
+  </anchor>
+  <anchor>
+    <address>0xdeadbeef</address>
+    <foo>1</foo>
+  </anchor>
+  <anchor>
+    <address>0xdeadbeef</address>
+    <foo>1</foo>
+  </anchor>
+  <anchor>
+    <address>0xdeadbeef</address>
+    <foo>1</foo>
+  </anchor>
 </top>
