@@ -50,7 +50,7 @@ dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith,
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
 ncvs [label="CVS src Repository Managers\nncvs@FreeBSD.org\njoe, kuriyama, markm,\nsimon, peter"]
 perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
-postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\njmb, brd, sahil, dhw"]
+postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, ler, pi, rea, remko, zi"]
 refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
 webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
 
