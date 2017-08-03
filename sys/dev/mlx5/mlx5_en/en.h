@@ -546,8 +546,10 @@ struct mlx5e_sq {
 static inline bool
 mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 {
-	return ((sq->wq.sz_m1 & (sq->cc - sq->pc)) >= n ||
-	    sq->cc == sq->pc);
+	u16 cc = sq->cc;
+	u16 pc = sq->pc;
+
+	return ((sq->wq.sz_m1 & (cc - pc)) >= n || cc == pc);
 }
 
 struct mlx5e_channel {
