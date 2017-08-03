@@ -1,8 +1,8 @@
-#	$Id: Generic.mk,v 1.11 2010/09/24 05:59:53 sjg Exp $
+#	$Id: Generic.mk,v 1.13 2017/05/05 18:02:16 sjg Exp $
 #
 
 # some reasonable defaults
-.SUFFIXES: .out .a .ln .o .s .S .c .cc .cpp .cxx .C .F .f .r .y .l .cl .p .h
+.SUFFIXES: .out .a .ln .o .s .S .c ${CXX_SUFFIXES} .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4
 
 .LIBS:		.a
@@ -80,8 +80,6 @@ LDFLAGS?=
 LINT?=		lint
 LINTFLAGS?=	-chapbxzF
 
-MAKE?=		${.MAKE}
-
 NM?=		nm
 
 PC?=		pc
@@ -110,11 +108,11 @@ YACC.y?=	${YACC} ${YFLAGS}
 	${LINT} ${LINTFLAGS} ${CPPFLAGS:M-[IDU]*} -i ${.IMPSRC}
 
 # C++
-.cc .cpp .cxx .C:
+${CXX_SUFFIXES}:
 	${LINK.cc} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
-.cc.o .cpp.o .cxx.o .C.o:
+${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
-.cc.a .cpp.a .cxx.a .C.a:
+${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o

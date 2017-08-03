@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.10 2015/12/07 04:28:31 sjg Exp $
+# $Id: init.mk,v 1.15 2017/05/07 20:27:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -23,10 +23,13 @@ _this_mk_dir := ${.PARSEDIR}
 .endif
 
 .-include <local.init.mk>
-.-include "${.CURDIR:H}/Makefile.inc"
+.-include <${.CURDIR:H}/Makefile.inc>
 .include <own.mk>
 
 .MAIN:		all
+
+# should have been set by sys.mk
+CXX_SUFFIXES?= .cc .cpp .cxx .C
 
 .if !empty(WARNINGS_SET) || !empty(WARNINGS_SET_${MACHINE_ARCH})
 .include <warnings.mk>
@@ -47,8 +50,20 @@ PROFFLAGS?= -DGPROF -DPROF
 _SKIP_BUILD = not building at level 0
 .endif
 
-.if !empty(_SKIP_BUILD)
+.if !defined(.PARSEDIR)
+# no-op is the best we can do if not bmake.
+.WAIT:
+.endif
+
+# define this once for consistency
+.if empty(_SKIP_BUILD)
+# beforebuild is a hook for things that must be done early
+all: beforebuild .WAIT realbuild
+.else
 all: .PHONY
 .warning ${_SKIP_BUILD}
 .endif
+beforebuild:
+realbuild:
+
 .endif

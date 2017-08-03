@@ -1,4 +1,4 @@
-MAKE(1)                 NetBSD General Commands Manual                 MAKE(1)
+BMAKE(1)                NetBSD General Commands Manual                BMAKE(1)
 
 NNAAMMEE
      bbmmaakkee -- maintain program dependencies
@@ -6,8 +6,8 @@ NNAAMMEE
 SSYYNNOOPPSSIISS
      bbmmaakkee [--BBeeiikkNNnnqqrrssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
-           [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [_v_a_r_i_a_b_l_e_=_v_a_l_u_e]
-           [_t_a_r_g_e_t _._._.]
+           [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [--vv _v_a_r_i_a_b_l_e]
+           [_v_a_r_i_a_b_l_e_=_v_a_l_u_e] [_t_a_r_g_e_t _._._.]
 
 DDEESSCCRRIIPPTTIIOONN
      bbmmaakkee is a program designed to simplify the maintenance of other pro-
@@ -118,7 +118,9 @@ DDEESSCCRRIIPPTTIIOONN
              _t       Print debugging information about target list mainte-
                      nance.
 
-             _V       Force the --VV option to print raw values of variables.
+             _V       Force the --VV option to print raw values of variables,
+                     overriding the default behavior set via
+                     _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S.
 
              _v       Print debugging information about variable assignment.
 
@@ -178,11 +180,11 @@ DDEESSCCRRIIPPTTIIOONN
              then bbmmaakkee will search for the specified file or directory named
              in the remaining part of the argument string.  The search starts
              with the current directory of the Makefile and then works upward
-             towards the root of the filesystem.  If the search is successful,
-             then the resulting directory replaces the ".../" specification in
-             the --mm argument.  If used, this feature allows bbmmaakkee to easily
-             search in the current source tree for customized sys.mk files
-             (e.g., by using ".../mk/sys.mk" as an argument).
+             towards the root of the file system.  If the search is success-
+             ful, then the resulting directory replaces the ".../" specifica-
+             tion in the --mm argument.  If used, this feature allows bbmmaakkee to
+             easily search in the current source tree for customized sys.mk
+             files (e.g., by using ".../mk/sys.mk" as an argument).
 
      --nn      Display the commands that would have been executed, but do not
              actually execute them unless the target depends on the .MAKE spe-
@@ -209,12 +211,25 @@ DDEESSCCRRIIPPTTIIOONN
              to-date.
 
      --VV _v_a_r_i_a_b_l_e
-             Print bbmmaakkee's idea of the value of _v_a_r_i_a_b_l_e, in the global con-
-             text.  Do not build any targets.  Multiple instances of this
-             option may be specified; the variables will be printed one per
-             line, with a blank line for each null or undefined variable.  If
-             _v_a_r_i_a_b_l_e contains a `$' then the value will be expanded before
-             printing.
+             Print the value of _v_a_r_i_a_b_l_e.  Do not build any targets.  Multiple
+             instances of this option may be specified; the variables will be
+             printed one per line, with a blank line for each null or unde-
+             fined variable.  The value printed is extracted from the global
+             context after all makefiles have been read.  By default, the raw
+             variable contents (which may include additional unexpanded vari-
+             able references) are shown.  If _v_a_r_i_a_b_l_e contains a `$' then the
+             value will be recursively expanded to its complete resultant text
+             before printing.  The expanded value will also be printed if
+             _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S is set to true and the --ddVV option has not
+             been used to override it.  Note that loop-local and target-local
+             variables, as well as values taken temporarily by global vari-
+             ables during makefile processing, are not accessible via this
+             option.  The --ddvv debug mode can be used to see these at the cost
+             of generating substantial extraneous output.
+
+     --vv _v_a_r_i_a_b_l_e
+             Like --VV but the variable is always expanded to its complete
+             value.
 
      --WW      Treat any warnings during makefile parsing as errors.
 
@@ -438,7 +453,9 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      suffixes declared with ..SSUUFFFFIIXXEESS or it will not be recog-
                      nized.
 
-           _._T_A_R_G_E_T   The name of the target; also known as `_@'.
+           _._T_A_R_G_E_T   The name of the target; also known as `_@'.  For compati-
+                     bility with other makes this is an alias for ..AARRCCHHIIVVEE in
+                     archive member rules.
 
      The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
      for backward compatibility with historical makefiles and legacy POSIX
@@ -486,7 +503,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      _._M_A_K_E_._E_X_P_A_N_D___V_A_R_I_A_B_L_E_S
                      A boolean that controls the default behavior of the --VV
-                     option.
+                     option.  If true, variable values printed with --VV are
+                     fully expanded; if false, the raw variable contents
+                     (which may include additional unexpanded variable refer-
+                     ences) are shown.
 
      _._M_A_K_E_._E_X_P_O_R_T_E_D  The list of variables exported by bbmmaakkee.
 
@@ -529,37 +549,51 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      mode that bbmmaakkee runs in.  It can contain a number of key-
                      words:
 
-                     _c_o_m_p_a_t      Like --BB, puts bbmmaakkee into "compat" mode.
+                     _c_o_m_p_a_t               Like --BB, puts bbmmaakkee into "compat"
+                                          mode.
 
-                     _m_e_t_a        Puts bbmmaakkee into "meta" mode, where meta files
-                                 are created for each target to capture the
-                                 command run, the output generated and if
-                                 filemon(4) is available, the system calls
-                                 which are of interest to bbmmaakkee.  The captured
-                                 output can be very useful when diagnosing
-                                 errors.
+                     _m_e_t_a                 Puts bbmmaakkee into "meta" mode, where
+                                          meta files are created for each tar-
+                                          get to capture the command run, the
+                                          output generated and if filemon(4)
+                                          is available, the system calls which
+                                          are of interest to bbmmaakkee.  The cap-
+                                          tured output can be very useful when
+                                          diagnosing errors.
 
-                     _c_u_r_d_i_r_O_k_= _b_f Normally bbmmaakkee will not create .meta files
-                                 in `_._C_U_R_D_I_R'.  This can be overridden by set-
-                                 ting _b_f to a value which represents True.
+                     _c_u_r_d_i_r_O_k_= _b_f         Normally bbmmaakkee will not create .meta
+                                          files in `_._C_U_R_D_I_R'.  This can be
+                                          overridden by setting _b_f to a value
+                                          which represents True.
 
-                     _e_n_v         For debugging, it can be useful to inlcude
-                                 the environment in the .meta file.
+                     _m_i_s_s_i_n_g_-_m_e_t_a_= _b_f     If _b_f is True, then a missing .meta
+                                          file makes the target out-of-date.
 
-                     _v_e_r_b_o_s_e     If in "meta" mode, print a clue about the
-                                 target being built.  This is useful if the
-                                 build is otherwise running silently.  The
-                                 message printed the value of:
-                                 _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X.
+                     _m_i_s_s_i_n_g_-_f_i_l_e_m_o_n_= _b_f  If _b_f is True, then missing filemon
+                                          data makes the target out-of-date.
 
-                     _i_g_n_o_r_e_-_c_m_d  Some makefiles have commands which are simply
-                                 not stable.  This keyword causes them to be
-                                 ignored for determining whether a target is
-                                 out of date in "meta" mode.  See also
-                                 ..NNOOMMEETTAA__CCMMPP.
+                     _n_o_f_i_l_e_m_o_n            Do not use filemon(4).
 
-                     _s_i_l_e_n_t_= _b_f  If _b_f is True, when a .meta file is created,
-                                 mark the target ..SSIILLEENNTT.
+                     _e_n_v                  For debugging, it can be useful to
+                                          include the environment in the .meta
+                                          file.
+
+                     _v_e_r_b_o_s_e              If in "meta" mode, print a clue
+                                          about the target being built.  This
+                                          is useful if the build is otherwise
+                                          running silently.  The message
+                                          printed the value of:
+                                          _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X.
+
+                     _i_g_n_o_r_e_-_c_m_d           Some makefiles have commands which
+                                          are simply not stable.  This keyword
+                                          causes them to be ignored for deter-
+                                          mining whether a target is out of
+                                          date in "meta" mode.  See also
+                                          ..NNOOMMEETTAA__CCMMPP.
+
+                     _s_i_l_e_n_t_= _b_f           If _b_f is True, when a .meta file is
+                                          created, mark the target ..SSIILLEENNTT.
 
      _._M_A_K_E_._M_E_T_A_._B_A_I_L_I_W_I_C_K
                      In "meta" mode, provides a list of prefixes which match
@@ -584,6 +618,14 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      The default list includes: `_/_d_e_v _/_e_t_c _/_p_r_o_c _/_t_m_p _/_v_a_r_/_r_u_n
                      _/_v_a_r_/_t_m_p'
 
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_T_E_R_N_S
+                     Provides a list of patterns to match against pathnames.
+                     Ignore any that match.
+
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___F_I_L_T_E_R
+                     Provides a list of variable modifiers to apply to each
+                     pathname.  Ignore if the expansion is an empty string.
+
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
                      "meta verbose" mode.  The default value is:
@@ -591,7 +633,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      _._M_A_K_E_O_V_E_R_R_I_D_E_S  This variable is used to record the names of variables
                      assigned to on the command line, so that they may be
-                     exported as part of `MAKEFLAGS'.  This behaviour can be
+                     exported as part of `MAKEFLAGS'.  This behavior can be
                      disabled by assigning an empty value to `_._M_A_K_E_O_V_E_R_R_I_D_E_S'
                      within a makefile.  Extra variables can be exported from
                      a makefile by appending their names to `_._M_A_K_E_O_V_E_R_R_I_D_E_S'.
@@ -607,10 +649,22 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      _._M_A_K_E_._P_P_I_D      The parent process-id of bbmmaakkee.
 
+     _._M_A_K_E_._S_A_V_E___D_O_L_L_A_R_S
+                     value should be a boolean that controls whether `$$' are
+                     preserved when doing `:=' assignments.  The default is
+                     false, for backwards compatibility.  Set to true for com-
+                     patability with other makes.  If set to false, `$$'
+                     becomes `$' per normal evaluation rules.
+
      _M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R
-                     When bbmmaakkee stops due to an error, it prints its name and
-                     the value of `_._C_U_R_D_I_R' as well as the value of any vari-
-                     ables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
+                     When bbmmaakkee stops due to an error, it sets `_._E_R_R_O_R___T_A_R_G_E_T'
+                     to the name of the target that failed, `_._E_R_R_O_R___C_M_D' to
+                     the commands of the failed target, and in "meta" mode, it
+                     also sets `_._E_R_R_O_R___C_W_D' to the getcwd(3), and
+                     `_._E_R_R_O_R___M_E_T_A___F_I_L_E' to the path of the meta file (if any)
+                     describing the failed target.  It then prints its name
+                     and the value of `_._C_U_R_D_I_R' as well as the value of any
+                     variables named in `_M_A_K_E___P_R_I_N_T___V_A_R___O_N___E_R_R_O_R'.
 
      _._n_e_w_l_i_n_e        This variable is simply assigned a newline character as
                      its value.  This allows expansions using the ::@@ modifier
@@ -670,7 +724,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      sets `_._C_U_R_D_I_R' to the canonical path given by getcwd(3).
                      However, if the environment variable `PWD' is set and
                      gives a path to the current directory, then bbmmaakkee sets
-                     `_._C_U_R_D_I_R' to the value of `PWD' instead.  This behaviour
+                     `_._C_U_R_D_I_R' to the value of `PWD' instead.  This behavior
                      is disabled if `MAKEOBJDIRPREFIX' is set or `MAKEOBJDIR'
                      contains a variable transform.  `PWD' is set to the value
                      of `_._O_B_J_D_I_R' for all programs which bbmmaakkee executes.
@@ -717,7 +771,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           of the way values are split into words, matched, and then joined, a
           construct like
                 ${VAR:M*}
-          will normalise the inter-word spacing, removing all leading and
+          will normalize the inter-word spacing, removing all leading and
           trailing space, and converting multiple consecutive spaces to single
           spaces.
 
@@ -730,7 +784,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::OOxx  Randomize words in variable.  The results will be different each
           time you are referring to the modified variable; use the assignment
-          with expansion (`::==') to prevent such behaviour.  For example,
+          with expansion (`::==') to prevent such behavior.  For example,
 
                 LIST=                   uno due tre quattro
                 RANDOM_LIST=            ${LIST:Ox}
@@ -753,16 +807,20 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::RR   Replaces each word in the variable with everything but its suffix.
 
-     ::ggmmttiimmee
-          The value is a format string for strftime(3), using the current
-          gmtime(3).
+     ::rraannggee[[==ccoouunntt]]
+          The value is an integer sequence representing the words of the orig-
+          inal value, or the supplied _c_o_u_n_t.
+
+     ::ggmmttiimmee[[==uuttcc]]
+          The value is a format string for strftime(3), using gmtime(3).  If a
+          _u_t_c value is not provided or is 0, the current time is used.
 
      ::hhaasshh
-          Compute a 32bit hash of the value and encode it as hex digits.
+          Compute a 32-bit hash of the value and encode it as hex digits.
 
-     ::llooccaallttiimmee
-          The value is a format string for strftime(3), using the current
-          localtime(3).
+     ::llooccaallttiimmee[[==uuttcc]]
+          The value is a format string for strftime(3), using localtime(3).
+          If a _u_t_c value is not provided or is 0, the current time is used.
 
      ::ttAA  Attempt to convert variable to an absolute path using realpath(3),
           if that fails, the value is unchanged.
@@ -863,6 +921,19 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           However a single character variable is often more readable:
                 ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 
+     ::__[[==vvaarr]]
+          Save the current variable value in `$_' or the named _v_a_r for later
+          reference.  Example usage:
+
+                M_cmpv.units = 1 1000 1000000
+                M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \
+                \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+
+                .if ${VERSION:${M_cmpv}} < ${3.1.12:L:${M_cmpv}}
+
+          Here `$_' is used to save the result of the `:S' modifier which is
+          later referenced using the index values from `:range'.
+
      ::UU_n_e_w_v_a_l
           If the variable is undefined _n_e_w_v_a_l is the value.  If the variable
           is defined, the existing value is returned.  This is another ODE
@@ -914,13 +985,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           tions related to the way in which the value is divided into words.
 
           Ordinarily, a value is treated as a sequence of words delimited by
-          white space.  Some modifiers suppress this behaviour, causing a
-          value to be treated as a single word (possibly containing embedded
-          white space).  An empty value, or a value that consists entirely of
-          white-space, is treated as a single word.  For the purposes of the
-          `::[[]]' modifier, the words are indexed both forwards using positive
-          integers (where index 1 represents the first word), and backwards
-          using negative integers (where index -1 represents the last word).
+          white space.  Some modifiers suppress this behavior, causing a value
+          to be treated as a single word (possibly containing embedded white
+          space).  An empty value, or a value that consists entirely of white-
+          space, is treated as a single word.  For the purposes of the `::[[]]'
+          modifier, the words are indexed both forwards using positive inte-
+          gers (where index 1 represents the first word), and backwards using
+          negative integers (where index -1 represents the last word).
 
           The _r_a_n_g_e is subjected to variable expansion, and the expanded
           result is then interpreted as follows:
@@ -957,8 +1028,14 @@ IINNCCLLUUDDEE SSTTAATTEEMMEENNTTSS,, CCOONNDDIITTIIOO
      used, the including makefile's directory and any directories specified
      using the --II option are searched before the system makefile directory.
      For compatibility with other versions of bbmmaakkee `include file ...' is also
-     accepted.  If the include statement is written as ..--iinncclluuddee or as
-     ..ssiinncclluuddee then errors locating and/or opening include files are ignored.
+     accepted.
+
+     If the include statement is written as ..--iinncclluuddee or as ..ssiinncclluuddee then
+     errors locating and/or opening include files are ignored.
+
+     If the include statement is written as ..ddiinncclluuddee not only are errors
+     locating and/or opening include files ignored, but stale dependencies
+     within the included file will be ignored just like _._M_A_K_E_._D_E_P_E_N_D_F_I_L_E.
 
      Conditional expressions are also preceded by a single dot as the first
      character of a line.  The possible conditionals are as follows:
@@ -981,6 +1058,10 @@ IINNCCLLUUDDEE SSTTAATTEEMMEENNTTSS,, CCOONNDDIITTIIOO
              The same as `.export', except that the variable is not appended
              to _._M_A_K_E_._E_X_P_O_R_T_E_D.  This allows exporting a value to the environ-
              ment which is different from that used by bbmmaakkee internally.
+
+     ..eexxppoorrtt--lliitteerraall _v_a_r_i_a_b_l_e _._._.
+             The same as `.export-env', except that variables in the value are
+             not expanded.
 
      ..iinnffoo _m_e_s_s_a_g_e
              The message is printed along with the name of the makefile and
@@ -1239,6 +1320,14 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               target that inherits ..DDEEFFAAUULLTT's commands is set to the target's
               own name.
 
+     ..DDEELLEETTEE__OONN__EERRRROORR
+              If this target is present in the makefile, it globally causes
+              make to delete targets whose commands fail.  (By default, only
+              targets whose commands are interrupted during execution are
+              deleted.  This is the historical behavior.)  This setting can be
+              used to help prevent half-finished or malformed targets from
+              being left around and corrupting future rebuilds.
+
      ..EENNDD     Any command lines attached to this target are executed after
               everything else is done.
 
@@ -1307,7 +1396,7 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               sources are a set of _f_i_e_l_d_=_v_a_l_u_e pairs.
 
               _n_a_m_e        This is the minimal specification, used to select
-                          one of the builtin shell specs; _s_h, _k_s_h, and _c_s_h.
+                          one of the built-in shell specs; _s_h, _k_s_h, and _c_s_h.
 
               _p_a_t_h        Specifies the path to the shell.
 
@@ -1452,4 +1541,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       June 4, 2015                       NetBSD 5.1
+NetBSD 7.1_RC1                   June 22, 2017                  NetBSD 7.1_RC1

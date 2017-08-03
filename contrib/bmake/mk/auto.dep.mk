@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.3 2014/08/04 05:19:10 sjg Exp $
+#	$Id: auto.dep.mk,v 1.5 2016/04/05 15:58:37 sjg Exp $
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
 #
@@ -45,6 +45,7 @@ CXXFLAGS += ${CFLAGS_MD} ${CFLAGS_MF}
 
 CLEANFILES += .depend ${.MAKE.DEPENDFILE} *.d
 
+.if ${MAKE_VERSION} < 20160218
 # skip generating dependfile for misc targets
 .if ${.TARGETS:Uall:M*all} != ""
 .END:	${.MAKE.DEPENDFILE}
@@ -60,5 +61,14 @@ ${.MAKE.DEPENDFILE}: ${OBJS} ${POBJS} ${SOBJS}
 	-@for f in ${.ALLSRC:M*o:T:O:u:%=%.d}; do \
 		echo ".-include \"$$f\""; \
 	done > $@
+.else
+# we have .dinclude
+.if empty(_SKIP_BUILD)
+_all_objs = ${OBJS} ${POBJS} ${SOBJS}
+.for d in ${_all_objs:M*o:T:O:u:%=%.d}
+.dinclude <$d>
+.endfor
+.endif
 
+.endif
 .endif
