@@ -507,10 +507,11 @@ struct mlx5e_sq {
 	u16	bf_offset;
 	u16	cev_counter;		/* completion event counter */
 	u16	cev_factor;		/* completion event factor */
-	u32	cev_next_state;		/* next completion event state */
+	u16	cev_next_state;		/* next completion event state */
 #define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	u16	stopped;		/* set if SQ is stopped */
 	struct callout cev_callout;
 	union {
 		u32	d32[2];
