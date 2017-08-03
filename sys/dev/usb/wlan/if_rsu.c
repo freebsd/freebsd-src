@@ -1126,6 +1126,8 @@ rsu_disconnect(struct rsu_softc *sc)
 	return (rsu_fw_cmd(sc, R92S_CMD_DISCONNECT, &zero, sizeof(zero)));
 }
 
+CTASSERT(MCLBYTES > sizeof(struct ieee80211_frame));
+
 static void
 rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 {
@@ -1135,34 +1137,30 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	struct ieee80211_channel *c;
 	struct ndis_wlan_bssid_ex *bss;
 	struct mbuf *m;
-	int pktlen;
+	uint32_t ieslen;
+	uint32_t pktlen;
 
 	if (__predict_false(len < sizeof(*bss)))
 		return;
 	bss = (struct ndis_wlan_bssid_ex *)buf;
-	if (__predict_false(len < sizeof(*bss) + le32toh(bss->ieslen)))
+	ieslen = le32toh(bss->ieslen);
+	/* range check length of information element */
+	if (__predict_false(ieslen > (uint32_t)(len - sizeof(*bss))))
 		return;
 
 	DPRINTFN(2, "found BSS %s: len=%d chan=%d inframode=%d "
 	    "networktype=%d privacy=%d\n",
-	    ether_sprintf(bss->macaddr), le32toh(bss->len),
+	    ether_sprintf(bss->macaddr), ieslen,
 	    le32toh(bss->config.dsconfig), le32toh(bss->inframode),
 	    le32toh(bss->networktype), le32toh(bss->privacy));
 
 	/* Build a fake beacon frame to let net80211 do all the parsing. */
-	pktlen = sizeof(*wh) + le32toh(bss->ieslen);
-	if (__predict_false(pktlen > MCLBYTES))
+	if (__predict_false(ieslen > (size_t)(MCLBYTES - sizeof(*wh))))
 		return;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	pktlen = sizeof(*wh) + ieslen;
+	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL))
 		return;
-	if (pktlen > MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if (!(m->m_flags & M_EXT)) {
-			m_free(m);
-			return;
-		}
-	}
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT |
 	    IEEE80211_FC0_SUBTYPE_BEACON;
@@ -1172,7 +1170,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	IEEE80211_ADDR_COPY(wh->i_addr2, bss->macaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, bss->macaddr);
 	*(uint16_t *)wh->i_seq = 0;
-	memcpy(&wh[1], (uint8_t *)&bss[1], le32toh(bss->ieslen));
+	memcpy(&wh[1], (uint8_t *)&bss[1], ieslen);
 
 	/* Finalize mbuf. */
 	m->m_pkthdr.len = m->m_len = pktlen;
@@ -2123,13 +2121,15 @@ rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 	return (0);
 }
 
+CTASSERT(sizeof(size_t) >= sizeof(uint32_t));
+
 static int
 rsu_load_firmware(struct rsu_softc *sc)
 {
 	const struct r92s_fw_hdr *hdr;
 	struct r92s_fw_priv *dmem;
 	const uint8_t *imem, *emem;
-	int imemsz, ememsz;
+	uint32_t imemsz, ememsz;
 	const struct firmware *fw;
 	size_t size;
 	uint32_t reg;
@@ -2178,7 +2178,8 @@ rsu_load_firmware(struct rsu_softc *sc)
 	imemsz = le32toh(hdr->imemsz);
 	ememsz = le32toh(hdr->sramsz);
 	/* Check that all FW sections fit in image. */
-	if (size < sizeof(*hdr) + imemsz + ememsz) {
+	if (imemsz > (size_t)(size - sizeof(*hdr)) ||
+	    ememsz > (size_t)(size - sizeof(*hdr) - imemsz)) {
 		device_printf(sc->sc_dev, "firmware too short\n");
 		error = EINVAL;
 		goto fail;
