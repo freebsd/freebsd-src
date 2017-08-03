@@ -13,7 +13,7 @@ _LIBCXXRTDIR=   ${SRCTOP}/contrib/cheri-libcxxrt/src
 HDRDIR=         ${SRCTOP}/contrib/cheri-libc++/include
 SRCDIR=         ${SRCTOP}/contrib/cheri-libc++/src
 .else
-_LIBCXXRTDIR=	${SRCTOP}/contrib/cheri-libcxxrt
+_LIBCXXRTDIR=	${SRCTOP}/contrib/cheri-libcxxrt/src
 HDRDIR=		${SRCTOP}/contrib/cheri-libc++/include
 SRCDIR=		${SRCTOP}/contrib/cheri-libc++/src
 .endif
