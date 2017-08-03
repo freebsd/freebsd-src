@@ -133,8 +133,10 @@ SUBDIR=	alias \
 	rpcinfo \
 	rs \
 	rup \
+	ruptime \
 	rusers \
 	rwall \
+	rwho \
 	script \
 	sdiff \
 	sed \
@@ -251,8 +253,6 @@ SUBDIR.${MK_OPENSSL}+=	newkey
 SUBDIR.${MK_QUOTAS}+=	quota
 SUBDIR.${MK_RCMDS}+=	rlogin
 SUBDIR.${MK_RCMDS}+=	rsh
-SUBDIR.${MK_RCMDS}+=	ruptime
-SUBDIR.${MK_RCMDS}+=	rwho
 SUBDIR.${MK_SENDMAIL}+=	vacation
 SUBDIR.${MK_TALK}+=	talk
 SUBDIR.${MK_TELNET}+=	telnet
