@@ -5,5 +5,4 @@
 # user sets it to no.
 MK_CHECK_USE_SANDBOX=	yes
 
-.include <src.opts.mk>
-
+.include <bsd.opts.mk>
