@@ -1,4 +1,4 @@
-/*	$Id: roff_html.c,v 1.8 2017/06/08 12:54:58 schwarze Exp $ */
+/*	$Id: roff_html.c,v 1.11 2017/06/24 14:38:33 schwarze Exp $ */
 /*
  * Copyright (c) 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <stddef.h>
 
+#include "mandoc.h"
 #include "roff.h"
 #include "out.h"
 #include "html.h"
@@ -38,6 +39,8 @@ static	const roff_html_pre_fp roff_html_pre_acts[ROFF_MAX] = {
 	NULL,  /* ft */
 	NULL,  /* ll */
 	NULL,  /* mc */
+	NULL,  /* po */
+	roff_html_pre_ce,  /* rj */
 	roff_html_pre_sp,  /* sp */
 	NULL,  /* ta */
 	NULL,  /* ti */

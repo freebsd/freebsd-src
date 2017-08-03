@@ -89,7 +89,10 @@ aw_modclk_init(struct clknode *clk, device_t dev)
 
 	index = (val & CLK_SRC_SEL) >> CLK_SRC_SEL_SHIFT;
 
-	clknode_init_parent_idx(clk, index);
+	if (index <= clknode_get_parents_num(clk))
+		clknode_init_parent_idx(clk, index);
+	else
+		clknode_init_parent_idx(clk, 0);
 	return (0);
 }
 

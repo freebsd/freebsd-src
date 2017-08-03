@@ -794,6 +794,7 @@ pager_printf(const char *fmt, ...)
 	va_start(args, fmt);
 	vsprintf(line, fmt, args);
 	va_end(args);
+
 	return (pager_output(line));
 }
 
@@ -804,15 +805,15 @@ pager_printf(const char *fmt, ...)
 static int
 print_state(int indent, const char *name, vdev_state_t state)
 {
-	int i;
 	char buf[512];
+	int i;
 
 	buf[0] = 0;
 	for (i = 0; i < indent; i++)
 		strcat(buf, "  ");
 	strcat(buf, name);
+
 	return (pager_printf(STATUS_FORMAT, buf, state_name(state)));
-	
 }
 
 static int

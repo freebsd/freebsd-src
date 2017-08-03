@@ -1,4 +1,4 @@
-.\"	$Id: roff.7,v 1.86 2017/06/07 00:50:34 schwarze Exp $
+.\"	$Id: roff.7,v 1.94 2017/07/05 12:25:17 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010,2011,2013-2015,2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: June 7 2017 $
+.Dd $Mdocdate: July 5 2017 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -180,7 +180,7 @@ single-character
 two-character
 .Sq \e*(XX ,
 and N-character
-.Sq \e*[N] .
+.Sq \e* Ns Bq N .
 .Pp
 Examples:
 .Bl -tag -width Ds -offset indent -compact
@@ -412,7 +412,6 @@ Create an alias for a number register.
 Currently unsupported.
 .It Ic \&als Ar newname oldname
 Create an alias for a request, string, macro, or diversion.
-Currently unsupported.
 .It Ic \&am Ar macroname Op Ar endmacro
 Append to a macro definition.
 The syntax of this request is the same as that of
@@ -1045,8 +1044,6 @@ If the first character of
 is
 .Sq c
 .Pq character available ,
-.Sq d
-.Pq string defined ,
 .Sq e
 .Pq even page ,
 .Sq t
@@ -1055,6 +1052,15 @@ or
 .Sq v
 .Pq vroff mode ,
 it evaluates to false.
+.It
+If the first character of
+.Ar condition
+is
+.Sq d ,
+it evaluates to true if the rest of
+.Ar condition
+is the name of an existing user defined macro or string;
+otherwise, it evaluates to false.
 .It
 If the first character of
 .Ar condition
@@ -1435,8 +1441,15 @@ Currently ignored.
 Print all number registers on standard error output.
 Currently ignored.
 .It Ic \&po Op Oo Cm + Ns | Ns Cm - Oc Ns Ar offset
-Set horizontal page offset.
-Currently ignored.
+Set a horizontal page offset.
+If no argument is specified, the page offset is reverted to its
+previous value.
+If a sign is specified, the new page offset is calculated relative
+to the current one; otherwise, it is absolute.
+The argument follows the syntax of
+.Sx Scaling Widths
+and the default scaling unit is
+.Cm m .
 .It Ic \&ps Op Oo Cm + Ns | Ns Cm - Oc Ns size
 Change point size.
 Currently ignored.
@@ -1477,7 +1490,9 @@ This is a Heirloom extension and currently ignored.
 Justify the next
 .Ar N
 input lines to the right margin without filling.
-Currently ignored.
+.Ar N
+defaults to 1.
+An argument of 0 or less ends right adjustment.
 .It Ic \&rm Ar macroname
 Remove a request, macro or string.
 .It Ic \&rn Ar oldname newname
@@ -1783,7 +1798,7 @@ logical and (corresponds to C
 .Ic && )
 .It Ic \&:
 logical or (corresponds to C
-.Ic \&|| )
+.Ic || )
 .It Ic <?
 minimum (not available in C)
 .It Ic >?
@@ -1839,7 +1854,7 @@ instead.
 .Sx Special Characters
 with two-letter names, see
 .Xr mandoc_char 7 .
-.Ss \e*[ Ns Ar name ]
+.Ss \e* Ns Bq Ar name
 Interpolate the string with the
 .Ar name ;
 see
@@ -1859,7 +1874,7 @@ Special character
 .Ss \e/
 Right italic correction (groff extension); ignored by
 .Xr mandoc 1 .
-.Ss \e[ Ns Ar name ]
+.Ss \e Ns Bq Ar name
 .Sx Special Characters
 with names of arbitrary length, see
 .Xr mandoc_char 7 .
@@ -1915,14 +1930,14 @@ Move down by half a line; ignored by
 .Xr mandoc 1 .
 .Ss \ee
 Backslash special character.
-.Ss \eF[ Ns Ar name ]
+.Ss \eF Ns Bq Ar name
 Switch font family (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
 .No \eF Ns Ar c
 and
 .No \eF( Ns Ar cc .
-.Ss \ef[ Ns Ar name ]
+.Ss \ef Ns Bq Ar name
 Switch to the font
 .Ar name ,
 see
@@ -1931,7 +1946,7 @@ For short names, there are variants
 .No \ef Ns Ar c
 and
 .No \ef( Ns Ar cc .
-.Ss \eg[ Ns Ar name ]
+.Ss \eg Ns Bq Ar name
 Interpolate the format of a number register; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1941,11 +1956,14 @@ and
 .Ss \eH\(aq Ns Oo +|- Oc Ns Ar number Ns \(aq
 Set the height of the current font; ignored by
 .Xr mandoc 1 .
-.Ss \eh\(aq Ns Ar width Ns \(aq
-Horizontal motion relative to the current position.
+.Ss \eh\(aq Ns Oo Cm \&| Oc Ns Ar width Ns \(aq
+Horizontal motion.
+If the vertical bar is given, the motion is relative to the current
+indentation.
+Otherwise, it is relative to the current position.
 The default scaling unit is
 .Cm m .
-.Ss \ek[ Ns Ar name ]
+.Ss \ek Ns Bq Ar name
 Mark horizontal input place in register; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1960,14 +1978,14 @@ Draw a horizontal line of
 .Ar width
 using the glyph
 .Ar c .
-.Ss \eM[ Ns Ar name ]
+.Ss \eM Ns Bq Ar name
 Set fill (background) color (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
 .No \eM Ns Ar c
 and
 .No \eM( Ns Ar cc .
-.Ss \em[ Ns Ar name ]
+.Ss \em Ns Bq Ar name
 Set glyph drawing color (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1978,7 +1996,7 @@ and
 Character
 .Ar number
 on the current font.
-.Ss \en[ Ns Ar name ]
+.Ss \en Ns Bq Ar name
 Interpolate the number register
 .Ar name .
 For short names, there are variants
@@ -1991,6 +2009,8 @@ Overstrike, writing all the characters contained in the
 to the same output position.
 In terminal and HTML output modes,
 only the last one of the characters is visible.
+.Ss \ep
+Break the output line at the end of the current word.
 .Ss \eR\(aq Ns Ar name Oo +|- Oc Ns Ar number Ns \(aq
 Set number register; ignored by
 .Xr mandoc 1 .
@@ -2003,9 +2023,9 @@ Change point size; ignored by
 Alternative forms
 .No \es Ns Oo +|- Oc Ns Ar n ,
 .No \es Ns Oo +|- Oc Ns \(aq Ns Ar number Ns \(aq ,
-.No \es Ns [ Oo +|- Oc Ns Ar number ] ,
+.No \es Ns Bq Oo +|- Oc Ns Ar number ,
 and
-.No \es Ns Oo +|- Oc Ns [ Ar number Ns ]
+.No \es Ns Oo +|- Oc Ns Bq Ar number
 are also parsed and ignored.
 .Ss \et
 Horizontal tab; ignored by
@@ -2013,7 +2033,7 @@ Horizontal tab; ignored by
 .Ss \eu
 Move up by half a line; ignored by
 .Xr mandoc 1 .
-.Ss \eV[ Ns Ar name ]
+.Ss \eV Ns Bq Ar name
 Interpolate an environment variable; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -2040,7 +2060,7 @@ as device control function; ignored in nroff mode and by
 .Ss \ex\(aq Ns Ar number Ns \(aq
 Extra line space function; ignored by
 .Xr mandoc 1 .
-.Ss \eY[ Ns Ar name ]
+.Ss \eY Ns Bq Ar name
 Output a string as a device control function; ignored in nroff mode and by
 .Xr mandoc 1 .
 For short names, there are variants

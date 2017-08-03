@@ -78,14 +78,14 @@ static int
 ds1307_read1(device_t dev, uint8_t reg, uint8_t *data)
 {
 
-	return(iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
+	return (iicdev_readfrom(dev, reg, data, 1, IIC_INTRWAIT));
 }
 
 static int
 ds1307_write1(device_t dev, uint8_t reg, uint8_t data)
 {
 
-	return(iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
+	return (iicdev_writeto(dev, reg, &data, 1, IIC_INTRWAIT));
 }
 
 static int
@@ -255,6 +255,14 @@ ds1307_attach(device_t dev)
 	return (0);
 }
 
+static int
+ds1307_detach(device_t dev)
+{
+
+	clock_unregister(dev);
+	return (0);
+}
+
 static void
 ds1307_start(void *xdev)
 {
@@ -295,12 +303,12 @@ ds1307_start(void *xdev)
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds1307_sqw_out_sysctl, "IU", "DS1307 square-wave output state");
 
-        /*
-         * Register as a clock with 1 second resolution.  Schedule the
-         * clock_settime() method to be called just after top-of-second;
-         * resetting the time resets top-of-second in the hardware.
-         */
-	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_TS);
+	/*
+	 * Register as a clock with 1 second resolution.  Schedule the
+	 * clock_settime() method to be called just after top-of-second;
+	 * resetting the time resets top-of-second in the hardware.
+	 */
+	clock_register_flags(dev, 1000000, CLOCKF_SETTIME_NO_ADJ);
 	clock_schedule(dev, 1);
 }
 
@@ -319,6 +327,10 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 		device_printf(dev, "cannot read from RTC.\n");
 		return (error);
 	}
+
+	/* If the clock halted, we don't have good data. */
+	if (data[DS1307_SECS] & DS1307_SECS_CH)
+		return (EINVAL);
 
 	/* If chip is in AM/PM mode remember that. */
 	if (data[DS1307_HOUR] & DS1307_HOUR_USE_AMPM) {
@@ -356,6 +368,13 @@ ds1307_settime(device_t dev, struct timespec *ts)
 
 	sc = device_get_softc(dev);
 
+	/*
+	 * We request a timespec with no resolution-adjustment.  That also
+	 * disables utc adjustment, so apply that ourselves.
+	 */
+	ts->tv_sec -= utc_offset();
+	clock_ts_to_ct(ts, &ct);
+
 	/* If the chip is in AM/PM mode, adjust hour and set flags as needed. */
 	if (sc->sc_use_ampm) {
 		pmflags = DS1307_HOUR_USE_AMPM;
@@ -387,6 +406,7 @@ ds1307_settime(device_t dev, struct timespec *ts)
 static device_method_t ds1307_methods[] = {
 	DEVMETHOD(device_probe,		ds1307_probe),
 	DEVMETHOD(device_attach,	ds1307_attach),
+	DEVMETHOD(device_detach,	ds1307_detach),
 
 	DEVMETHOD(clock_gettime,	ds1307_gettime),
 	DEVMETHOD(clock_settime,	ds1307_settime),

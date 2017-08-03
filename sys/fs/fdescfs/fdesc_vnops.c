@@ -69,6 +69,7 @@ static vop_getattr_t	fdesc_getattr;
 static vop_lookup_t	fdesc_lookup;
 static vop_open_t	fdesc_open;
 static vop_readdir_t	fdesc_readdir;
+static vop_readlink_t	fdesc_readlink;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
 
@@ -81,6 +82,7 @@ static struct vop_vector fdesc_vnodeops = {
 	.vop_open =		fdesc_open,
 	.vop_pathconf =		vop_stdpathconf,
 	.vop_readdir =		fdesc_readdir,
+	.vop_readlink =		fdesc_readlink,
 	.vop_reclaim =		fdesc_reclaim,
 	.vop_setattr =		fdesc_setattr,
 };
@@ -195,6 +197,8 @@ loop:
 	fd->fd_type = ftype;
 	fd->fd_fd = fd_fd;
 	fd->fd_ix = ix;
+	if (ftype == Fdesc && fmp->flags & FMNT_LINRDLNKF)
+		vp->v_vflag |= VV_READLINK;
 	error = insmntque1(vp, mp, fdesc_insmntque_dtr, NULL);
 	if (error != 0) {
 		*vpp = NULLVP;
@@ -420,7 +424,7 @@ fdesc_getattr(struct vop_getattr_args *ap)
 		break;
 
 	case Fdesc:
-		vap->va_type = VCHR;
+		vap->va_type = (vp->v_vflag & VV_READLINK) == 0 ? VCHR : VLNK;
 		vap->va_nlink = 1;
 		vap->va_size = 0;
 		vap->va_rdev = makedev(0, vap->va_fileid);
@@ -490,6 +494,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 static int
 fdesc_readdir(struct vop_readdir_args *ap)
 {
+	struct fdescmount *fmp;
 	struct uio *uio = ap->a_uio;
 	struct filedesc *fdp;
 	struct dirent d;
@@ -499,6 +504,7 @@ fdesc_readdir(struct vop_readdir_args *ap)
 	if (VTOFDESC(ap->a_vp)->fd_type != Froot)
 		panic("fdesc_readdir: not dir");
 
+	fmp = VFSTOFDESC(ap->a_vp->v_mount);
 	if (ap->a_ncookies != NULL)
 		*ap->a_ncookies = 0;
 
@@ -530,7 +536,8 @@ fdesc_readdir(struct vop_readdir_args *ap)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
-			dp->d_type = DT_CHR;
+			dp->d_type = (fmp->flags & FMNT_LINRDLNKF) == 0 ?
+			    DT_CHR : DT_LNK;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}
@@ -566,4 +573,53 @@ fdesc_reclaim(struct vop_reclaim_args *ap)
 	free(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	return (0);
+}
+
+static int
+fdesc_readlink(struct vop_readlink_args *va)
+{
+	struct vnode *vp, *vn;
+	cap_rights_t rights;
+	struct thread *td;
+	struct uio *uio;
+	struct file *fp;
+	char *freepath, *fullpath;
+	size_t pathlen;
+	int lockflags, fd_fd;
+	int error;
+
+	freepath = NULL;
+	vn = va->a_vp;
+	if (VTOFDESC(vn)->fd_type != Fdesc)
+		panic("fdesc_readlink: not fdescfs link");
+	fd_fd = ((struct fdescnode *)vn->v_data)->fd_fd;
+	lockflags = VOP_ISLOCKED(vn);
+	VOP_UNLOCK(vn, 0);
+
+	td = curthread;
+	error = fget_cap(td, fd_fd, cap_rights_init(&rights), &fp, NULL);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		vp = fp->f_vnode;
+		error = vn_fullpath(td, vp, &fullpath, &freepath);
+		break;
+	default:
+		fullpath = "anon_inode:[unknown]";
+		break;
+	}
+	if (error == 0) {
+		uio = va->a_uio;
+		pathlen = strlen(fullpath);
+		error = uiomove(fullpath, pathlen, uio);
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+	fdrop(fp, td);
+
+out:
+	vn_lock(vn, lockflags | LK_RETRY);
+	return (error);
 }

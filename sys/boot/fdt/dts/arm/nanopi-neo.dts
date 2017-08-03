@@ -46,10 +46,6 @@
 	};
 };
 
-&r_i2c {
-	status = "okay";
-};
-
 &emac {
         phy = <&phy1>;
         phy-mode = "mii";
