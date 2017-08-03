@@ -80,6 +80,10 @@ main (int argc, char **argv)
 
     xo_open_container_h(NULL, "top");
 
+    xo_emit("anchor {[:/%d}{:address/%p}..{:port/%u}{]:}\n", 18, NULL, 1);
+    xo_emit("anchor {[:18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
+    xo_emit("anchor {[:/18}{:address/%p}..{:port/%u}{]:}\n", NULL, 1);
+
     xo_emit("df {:used-percent/%5.0f}{U:%%}\n", (double) 12);
 
     xo_emit("{e:kve_start/%#jx}", (uintmax_t) 0xdeadbeef);

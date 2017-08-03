@@ -137,7 +137,7 @@ static const char xo_default_format[] = "%s";
 
 #define XO_INDENT_BY 2	/* Amount to indent when pretty printing */
 #define XO_DEPTH	128	 /* Default stack depth */
-#define XO_MAX_ANCHOR_WIDTH (8*1024) /* Anything wider is just sillyb */
+#define XO_MAX_ANCHOR_WIDTH (8*1024) /* Anything wider is just silly */
 
 #define XO_FAILURE_NAME	"failure"
 
@@ -5071,16 +5071,60 @@ xo_find_width (xo_handle_t *xop, xo_field_info_t *xfip,
 	bp[vlen] = '\0';
 
 	width = strtol(bp, &cp, 0);
-	if (width == LONG_MIN || width == LONG_MAX
-	    || bp == cp || *cp != '\0' ) {
+	if (width == LONG_MIN || width == LONG_MAX || bp == cp || *cp != '\0') {
 	    width = 0;
 	    xo_failure(xop, "invalid width for anchor: '%s'", bp);
 	}
     } else if (flen) {
-	if (flen != 2 || strncmp("%d", fmt, flen) != 0)
-	    xo_failure(xop, "invalid width format: '%*.*s'", flen, flen, fmt);
-	if (!XOF_ISSET(xop, XOF_NO_VA_ARG))
-	    width = va_arg(xop->xo_vap, int);
+	/*
+	 * We really expect the format for width to be "{:/%d}" or
+	 * "{:/%u}", so if that's the case, we just grab our width off
+	 * the argument list.  But we need to avoid optimized logic if
+	 * there's a custom formatter.
+	 */
+	if (xop->xo_formatter == NULL && flen == 2
+	        && strncmp("%d", fmt, flen) == 0) {
+	    if (!XOF_ISSET(xop, XOF_NO_VA_ARG))
+		width = va_arg(xop->xo_vap, int);
+	} else if (xop->xo_formatter == NULL && flen == 2
+		   && strncmp("%u", fmt, flen) == 0) {
+	    if (!XOF_ISSET(xop, XOF_NO_VA_ARG))
+		width = va_arg(xop->xo_vap, unsigned);
+	} else {
+	    /*
+	     * So we have a format and it's not a simple one like
+	     * "{:/%d}".  That means we need to format the field,
+	     * extract the value from the formatted output, and then
+	     * discard that output.
+	     */
+	    int anchor_was_set = FALSE;
+	    xo_buffer_t *xbp = &xop->xo_data;
+	    ssize_t start_offset = xo_buf_offset(xbp);
+	    bp = xo_buf_cur(xbp);	/* Save start of the string */
+	    cp = NULL;
+
+	    if (XOIF_ISSET(xop, XOIF_ANCHOR)) {
+		XOIF_CLEAR(xop, XOIF_ANCHOR);
+		anchor_was_set = TRUE;
+	    }
+
+	    ssize_t rc = xo_do_format_field(xop, xbp, fmt, flen, 0);
+	    if (rc >= 0) {
+		xo_buf_append(xbp, "", 1); /* Append a NUL */
+
+		width = strtol(bp, &cp, 0);
+		if (width == LONG_MIN || width == LONG_MAX
+		        || bp == cp || *cp != '\0') {
+		    width = 0;
+		    xo_failure(xop, "invalid width for anchor: '%s'", bp);
+		}
+	    }
+
+	    /* Reset the cur pointer to where we found it */
+	    xbp->xb_curp = xbp->xb_bufp + start_offset;
+	    if (anchor_was_set)
+		XOIF_SET(xop, XOIF_ANCHOR);
+	}
     }
 
     return width;
@@ -5107,9 +5151,6 @@ static void
 xo_anchor_start (xo_handle_t *xop, xo_field_info_t *xfip,
 		 const char *value, ssize_t vlen)
 {
-    if (xo_style(xop) != XO_STYLE_TEXT && xo_style(xop) != XO_STYLE_HTML)
-	return;
-
     if (XOIF_ISSET(xop, XOIF_ANCHOR))
 	xo_failure(xop, "the anchor already recording is discarded");
 
@@ -5129,9 +5170,6 @@ static void
 xo_anchor_stop (xo_handle_t *xop, xo_field_info_t *xfip,
 		 const char *value, ssize_t vlen)
 {
-    if (xo_style(xop) != XO_STYLE_TEXT && xo_style(xop) != XO_STYLE_HTML)
-	return;
-
     if (!XOIF_ISSET(xop, XOIF_ANCHOR)) {
 	xo_failure(xop, "no start anchor");
 	return;
