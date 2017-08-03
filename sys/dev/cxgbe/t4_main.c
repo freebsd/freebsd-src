@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
+#include "cudbg/cudbg.h"
 #include "t4_ioctl.h"
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
@@ -575,6 +576,7 @@ static int load_fw(struct adapter *, struct t4_data *);
 static int load_cfg(struct adapter *, struct t4_data *);
 static int load_boot(struct adapter *, struct t4_bootrom *);
 static int load_bootcfg(struct adapter *, struct t4_data *);
+static int cudbg_dump(struct adapter *, struct t4_cudbg_dump *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -9084,6 +9086,49 @@ done:
 	return (rc);
 }
 
+static int
+cudbg_dump(struct adapter *sc, struct t4_cudbg_dump *dump)
+{
+	int rc;
+	struct cudbg_init *cudbg;
+	void *handle, *buf;
+
+	/* buf is large, don't block if no memory is available */
+	buf = malloc(dump->len, M_CXGBE, M_NOWAIT);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	handle = cudbg_alloc_handle();
+	if (handle == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	cudbg = cudbg_get_init(handle);
+	cudbg->adap = sc;
+	cudbg->print = (cudbg_print_cb)printf;
+
+#ifndef notyet
+	device_printf(sc->dev, "%s: wr_flash %u, len %u, data %p.\n",
+	    __func__, dump->wr_flash, dump->len, dump->data);
+#endif
+
+	if (dump->wr_flash)
+		cudbg->use_flash = 1;
+	MPASS(sizeof(cudbg->dbg_bitmap) == sizeof(dump->bitmap));
+	memcpy(cudbg->dbg_bitmap, dump->bitmap, sizeof(cudbg->dbg_bitmap));
+
+	rc = cudbg_collect(handle, buf, &dump->len);
+	if (rc != 0)
+		goto done;
+
+	rc = copyout(buf, dump->data, dump->len);
+done:
+	cudbg_free_handle(handle);
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
 #define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
@@ -9431,6 +9476,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	case CHELSIO_T4_LOAD_BOOTCFG:
 		rc = load_bootcfg(sc, (struct t4_data *)data);
+		break;
+	case CHELSIO_T4_CUDBG_DUMP:
+		rc = cudbg_dump(sc, (struct t4_cudbg_dump *)data);
 		break;
 	default:
 		rc = ENOTTY;
