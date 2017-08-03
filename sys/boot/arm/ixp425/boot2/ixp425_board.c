@@ -165,7 +165,7 @@ getc(int seconds)
 	return c;
 }
 
-void
+int
 putchar(int ch)
 {
 	int delay, limit;
@@ -179,14 +179,16 @@ putchar(int ch)
 	limit = 40;
 	while ((uart_getreg(ubase, REG_LSR) & LSR_TEMT) == 0 && --limit)
 		DELAY(delay);
+	return (1);
 }
 
-void
+int
 xputchar(int ch)
 {
 	if (ch == '\n')
 		putchar('\r');
 	putchar(ch);
+	return (ch == '\n' ? 2 : 1);
 }
 
 void

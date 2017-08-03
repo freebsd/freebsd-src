@@ -39,11 +39,11 @@
 #include "lib.h"
 
 /*
- * void putchar(int ch)
+ * int putchar(int ch)
  * Writes a character to the DBGU port.  It assumes that DBGU has
  * already been initialized.
  */
-void
+int
 putchar(int ch)
 {
 	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
@@ -51,12 +51,14 @@ putchar(int ch)
 	while (!(pUSART->US_CSR & AT91C_US_TXRDY))
 		continue;
 	pUSART->US_THR = (ch & 0xFF);
+	return (1);
 }
 
-void
+int
 xputchar(int ch)
 {
-    if (ch == '\n')
-	putchar('\r');
-    putchar(ch);
+	if (ch == '\n')
+		putchar('\r');
+	putchar(ch);
+	return (ch == '\n' ? 2 : 1);
 }
