@@ -202,6 +202,8 @@ struct pci_dev {
 	uint64_t		dma_mask;
 	uint16_t		device;
 	uint16_t		vendor;
+	uint16_t		subsystem_vendor;
+	uint16_t		subsystem_device;
 	unsigned int		irq;
 	unsigned int		devfn;
 	uint32_t		class;
