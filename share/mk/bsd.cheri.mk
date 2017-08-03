@@ -115,6 +115,8 @@ LDFLAGS+=	-Wl,-init=crt_init_globals
 .if ${WANT_CHERI} == "sandbox"
 CHERI_LLD_BROKEN=	yes
 .endif
+# remove any conflicting -fuse-ld= flags
+LDFLAGS:=${LDFLAGS:N-fuse-ld=*}
 .ifdef CHERI_LLD_BROKEN
 LDFLAGS+=	-fuse-ld=bfd
 .else
