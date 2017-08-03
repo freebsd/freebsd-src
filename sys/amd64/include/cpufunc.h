@@ -63,7 +63,7 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsfl(u_int mask)
 {
 	u_int	result;
@@ -72,7 +72,7 @@ bsfl(u_int mask)
 	return (result);
 }
 
-static __inline u_long
+static __inline __pure2 u_long
 bsfq(u_long mask)
 {
 	u_long	result;
@@ -81,7 +81,7 @@ bsfq(u_long mask)
 	return (result);
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsrl(u_int mask)
 {
 	u_int	result;
@@ -90,7 +90,7 @@ bsrl(u_int mask)
 	return (result);
 }
 
-static __inline u_long
+static __inline __pure2 u_long
 bsrq(u_long mask)
 {
 	u_long	result;
@@ -155,7 +155,7 @@ enable_intr(void)
 
 #define	HAVE_INLINE_FFSL
 
-static __inline int
+static __inline __pure2 int
 ffsl(long mask)
 {
 	return (mask == 0 ? mask : (int)bsfq((u_long)mask) + 1);
@@ -163,7 +163,7 @@ ffsl(long mask)
 
 #define	HAVE_INLINE_FFSLL
 
-static __inline int
+static __inline __pure2 int
 ffsll(long long mask)
 {
 	return (ffsl((long)mask));
@@ -171,7 +171,7 @@ ffsll(long long mask)
 
 #define	HAVE_INLINE_FLS
 
-static __inline int
+static __inline __pure2 int
 fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
@@ -179,7 +179,7 @@ fls(int mask)
 
 #define	HAVE_INLINE_FLSL
 
-static __inline int
+static __inline __pure2 int
 flsl(long mask)
 {
 	return (mask == 0 ? mask : (int)bsrq((u_long)mask) + 1);
@@ -187,7 +187,7 @@ flsl(long mask)
 
 #define	HAVE_INLINE_FLSLL
 
-static __inline int
+static __inline __pure2 int
 flsll(long long mask)
 {
 	return (flsl((long)mask));
