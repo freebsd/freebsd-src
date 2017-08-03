@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $	*/
+/*	$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $");
+__RCSID("$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -118,6 +118,27 @@ __RCSID("$NetBSD: compat.c,v 1.101 2015/10/11 04:51:24 sjg Exp $");
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 static void CompatInterrupt(int);
+static pid_t compatChild;
+static int compatSigno;
+
+/*
+ * CompatDeleteTarget -- delete a failed, interrupted, or otherwise
+ * duffed target if not inhibited by .PRECIOUS.
+ */
+static void
+CompatDeleteTarget(GNode *gn)
+{
+    if ((gn != NULL) && !Targ_Precious (gn)) {
+	char	  *p1;
+	char 	  *file = Var_Value(TARGET, gn, &p1);
+
+	if (!noExecute && eunlink(file) != -1) {
+	    Error("*** %s removed", file);
+	}
+
+	free(p1);
+    }
+}
 
 /*-
  *-----------------------------------------------------------------------
@@ -132,6 +153,9 @@ static void CompatInterrupt(int);
  *	The target is removed and the process exits. If .INTERRUPT exists,
  *	its commands are run first WITH INTERRUPTS IGNORED..
  *
+ * XXX: is .PRECIOUS supposed to inhibit .INTERRUPT? I doubt it, but I've
+ * left the logic alone for now. - dholland 20160826
+ *
  *-----------------------------------------------------------------------
  */
 static void
@@ -139,16 +163,9 @@ CompatInterrupt(int signo)
 {
     GNode   *gn;
 
+    CompatDeleteTarget(curTarg);
+
     if ((curTarg != NULL) && !Targ_Precious (curTarg)) {
-	char	  *p1;
-	char 	  *file = Var_Value(TARGET, curTarg, &p1);
-
-	if (!noExecute && eunlink(file) != -1) {
-	    Error("*** %s removed", file);
-	}
-	if (p1)
-	    free(p1);
-
 	/*
 	 * Run .INTERRUPT only if hit with interrupt signal
 	 */
@@ -158,12 +175,20 @@ CompatInterrupt(int signo)
 		Compat_Make(gn, gn);
 	    }
 	}
-
     }
     if (signo == SIGQUIT)
 	_exit(signo);
-    bmake_signal(signo, SIG_DFL);
-    kill(myPid, signo);
+    /*
+     * If there is a child running, pass the signal on
+     * we will exist after it has exited.
+     */
+    compatSigno = signo;
+    if (compatChild > 0) {
+	KILLPG(compatChild, signo);
+    } else {
+	bmake_signal(signo, SIG_DFL);
+	kill(myPid, signo);
+    }
 }
 
 /*-
@@ -213,7 +238,7 @@ CompatRunCommand(void *cmdp, void *gnp)
     doIt = FALSE;
     
     cmdNode = Lst_Member(gn->commands, cmd);
-    cmdStart = Var_Subst(NULL, cmd, gn, FALSE, TRUE);
+    cmdStart = Var_Subst(NULL, cmd, gn, VARF_WANTRES);
 
     /*
      * brk_string will return an argv with a NULL in av[0], thus causing
@@ -356,7 +381,7 @@ again:
     /*
      * Fork and execute the single command. If the fork fails, we abort.
      */
-    cpid = vFork();
+    compatChild = cpid = vFork();
     if (cpid < 0) {
 	Fatal("Could not fork");
     }
@@ -374,10 +399,10 @@ again:
 	execError("exec", av[0]);
 	_exit(1);
     }
-    if (mav)
-	free(mav);
-    if (bp)
-	free(bp);
+
+    free(mav);
+    free(bp);
+
     Lst_Replace(cmdNode, NULL);
 
 #ifdef USE_META
@@ -447,6 +472,11 @@ again:
 			 * continue.
 			 */
 			printf(" (continuing)\n");
+		    } else {
+			printf("\n");
+		    }
+		    if (deleteOnError) {
+			    CompatDeleteTarget(gn);
 		    }
 		} else {
 		    /*
@@ -464,7 +494,12 @@ again:
 	}
     }
     free(cmdStart);
-
+    compatChild = 0;
+    if (compatSigno) {
+	bmake_signal(compatSigno, SIG_DFL);
+	kill(myPid, compatSigno);
+    }
+    
     return (status);
 }
 
@@ -516,8 +551,7 @@ Compat_Make(void *gnp, void *pgnp)
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
-	    if (p1)
-		free(p1);
+	    free(p1);
 	}
 
 	/*
@@ -587,7 +621,8 @@ Compat_Make(void *gnp, void *pgnp)
 	}
 #ifdef USE_META
 	if (useMeta && !NoExecute(gn)) {
-	    meta_job_finish(NULL);
+	    if (meta_job_finish(NULL) != 0)
+		gn->made = ERROR;
 	}
 #endif
 
@@ -607,7 +642,7 @@ Compat_Make(void *gnp, void *pgnp)
 	} else if (keepgoing) {
 	    pgn->flags &= ~REMAKE;
 	} else {
-	    PrintOnError(gn, "\n\nStop.");
+	    PrintOnError(gn, "\nStop.");
 	    exit(1);
 	}
     } else if (gn->made == ERROR) {
@@ -620,8 +655,7 @@ Compat_Make(void *gnp, void *pgnp)
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
-	    if (p1)
-		free(p1);
+	    free(p1);
 	}
 	switch(gn->made) {
 	    case BEINGMADE:
@@ -699,7 +733,7 @@ Compat_Run(Lst targs)
 	if (gn != NULL) {
 	    Compat_Make(gn, gn);
             if (gn->made == ERROR) {
-                PrintOnError(gn, "\n\nStop.");
+                PrintOnError(gn, "\nStop.");
                 exit(1);
             }
 	}
@@ -740,7 +774,7 @@ Compat_Run(Lst targs)
     if (errors == 0) {
 	Compat_Make(ENDNode, ENDNode);
 	if (gn->made == ERROR) {
-	    PrintOnError(gn, "\n\nStop.");
+	    PrintOnError(gn, "\nStop.");
 	    exit(1);
 	}
     }

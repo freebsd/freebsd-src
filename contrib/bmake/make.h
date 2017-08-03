@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.96 2015/09/21 21:50:16 pooka Exp $	*/
+/*	$NetBSD: make.h,v 1.103 2017/07/20 19:29:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -88,6 +88,7 @@
 #include <sys/param.h>
 
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_STRING_H
@@ -97,6 +98,10 @@
 #endif
 #include <unistd.h>
 #include <sys/cdefs.h>
+
+#ifndef FD_CLOEXEC
+#define FD_CLOEXEC 1
+#endif
 
 #if defined(__GNUC__)
 #define	MAKE_GNUC_PREREQ(x, y)						\
@@ -194,6 +199,7 @@ typedef struct GNode {
 #define DONE_ALLSRC	0x40	/* We do it once only */
 #define CYCLE		0x1000  /* Used by MakePrintStatus */
 #define DONECYCLE	0x2000  /* Used by MakePrintStatus */
+#define INTERNAL	0x4000	/* Internal use only */
     enum enum_made {
 	UNMADE, DEFERRED, REQUESTED, BEINGMADE,
 	MADE, UPTODATE, ERROR, ABORTED
@@ -383,6 +389,7 @@ extern Boolean  beSilent;    	/* True if should print no commands */
 extern Boolean  noExecute;    	/* True if should execute nothing */
 extern Boolean  noRecursiveExecute;    	/* True if should execute nothing */
 extern Boolean  allPrecious;   	/* True if every target is precious */
+extern Boolean  deleteOnError;	/* True if failed targets should be deleted */
 extern Boolean  keepgoing;    	/* True if should continue on unaffected
 				 * portions of the graph when have an error
 				 * in one portion */
@@ -497,9 +504,15 @@ char * Check_Cwd_Cmd(const char *);
 void Check_Cwd(const char **);
 void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(Boolean);
-Boolean Main_SetObjdir(const char *);
+Boolean Main_SetObjdir(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
+int cached_lstat(const char *, void *);
+int cached_stat(const char *, void *);
+
+#define	VARF_UNDEFERR	1
+#define	VARF_WANTRES	2
+#define	VARF_ASSIGN	4
 
 #ifdef __GNUC__
 #define UNCONST(ptr)	({ 		\
@@ -528,6 +541,12 @@ int str2Lst_Append(Lst, char *, const char *);
 #endif
 #ifndef PATH_MAX
 #define PATH_MAX	MAXPATHLEN
+#endif
+
+#if defined(SYSV)
+#define KILLPG(pid, sig)	kill(-(pid), (sig))
+#else
+#define KILLPG(pid, sig)	killpg((pid), (sig))
 #endif
 
 #endif /* _MAKE_H_ */

@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $	*/
+/*	$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $");
+__RCSID("$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -244,6 +244,7 @@ static Hash_Table mtimes;   /* Results of doing a last-resort stat in
 			     * be two rules to update a single file, so this
 			     * should be ok, but... */
 
+static Hash_Table lmtimes;  /* same as mtimes but for lstat */
 
 static int DirFindName(const void *, const void *);
 static int DirMatchFiles(const char *, Path *, Lst);
@@ -255,6 +256,80 @@ static char *DirLookup(Path *, const char *, const char *, Boolean);
 static char *DirLookupSubdir(Path *, const char *);
 static char *DirFindDot(Boolean, const char *, const char *);
 static char *DirLookupAbs(Path *, const char *, const char *);
+
+
+/*
+ * We use stat(2) a lot, cache the results
+ * mtime and mode are all we care about.
+ */
+struct cache_st {
+    time_t mtime;
+    mode_t  mode;
+};
+
+/* minimize changes below */
+static time_t
+Hash_GetTimeValue(Hash_Entry *entry)
+{
+    struct cache_st *cst;
+
+    cst = entry->clientPtr;
+    return cst->mtime;
+}
+
+#define CST_LSTAT 1
+#define CST_UPDATE 2
+
+static int
+cached_stats(Hash_Table *htp, const char *pathname, struct stat *st, int flags)
+{
+    Hash_Entry *entry;
+    struct cache_st *cst;
+    int rc;
+
+    if (!pathname || !pathname[0])
+	return -1;
+
+    entry = Hash_FindEntry(htp, pathname);
+
+    if (entry && (flags & CST_UPDATE) == 0) {
+	cst = entry->clientPtr;
+
+	memset(st, 0, sizeof(*st));
+	st->st_mtime = cst->mtime;
+	st->st_mode = cst->mode;
+	return 0;
+    }
+
+    rc = (flags & CST_LSTAT) ? lstat(pathname, st) : stat(pathname, st);
+    if (rc == -1)
+	return -1;
+
+    if (st->st_mtime == 0)
+	st->st_mtime = 1;      /* avoid confusion with missing file */
+
+    if (!entry)
+	entry = Hash_CreateEntry(htp, pathname, NULL);
+    if (!entry->clientPtr)
+	entry->clientPtr = bmake_malloc(sizeof(*cst));
+    cst = entry->clientPtr;
+    cst->mtime = st->st_mtime;
+    cst->mode = st->st_mode;
+
+    return 0;
+}
+
+int
+cached_stat(const char *pathname, void *st)
+{
+    return cached_stats(&mtimes, pathname, st, 0);
+}
+
+int
+cached_lstat(const char *pathname, void *st)
+{
+    return cached_stats(&lmtimes, pathname, st, CST_LSTAT);
+}
 
 /*-
  *-----------------------------------------------------------------------
@@ -271,10 +346,13 @@ static char *DirLookupAbs(Path *, const char *, const char *);
 void
 Dir_Init(const char *cdname)
 {
-    dirSearchPath = Lst_Init(FALSE);
-    openDirectories = Lst_Init(FALSE);
-    Hash_InitTable(&mtimes, 0);
-
+    if (!cdname) {
+	dirSearchPath = Lst_Init(FALSE);
+	openDirectories = Lst_Init(FALSE);
+	Hash_InitTable(&mtimes, 0);
+	Hash_InitTable(&lmtimes, 0);
+	return;
+    }
     Dir_InitCur(cdname);
 
     dotLast = bmake_malloc(sizeof(Path));
@@ -725,11 +803,11 @@ DirExpandInt(const char *word, Lst path, Lst expansions)
  *-----------------------------------------------------------------------
  */
 static int
-DirPrintWord(void *word, void *dummy)
+DirPrintWord(void *word, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "%s ", (char *)word);
 
-    return(dummy ? 0 : 0);
+    return 0;
 }
 
 /*-
@@ -901,7 +979,6 @@ static char *
 DirLookupSubdir(Path *p, const char *name)
 {
     struct stat	  stb;		/* Buffer for stat, if necessary */
-    Hash_Entry	 *entry;	/* Entry for mtimes table */
     char 	 *file;		/* the current filename to check */
 
     if (p != dot) {
@@ -917,9 +994,7 @@ DirLookupSubdir(Path *p, const char *name)
 	fprintf(debug_file, "checking %s ...\n", file);
     }
 
-    if (stat(file, &stb) == 0) {
-	if (stb.st_mtime == 0)
-		stb.st_mtime = 1;
+    if (cached_stat(file, &stb) == 0) {
 	/*
 	 * Save the modification time so if it's needed, we don't have
 	 * to fetch it again.
@@ -928,8 +1003,6 @@ DirLookupSubdir(Path *p, const char *name)
 	    fprintf(debug_file, "   Caching %s for %s\n", Targ_FmtTime(stb.st_mtime),
 		    file);
 	}
-	entry = Hash_CreateEntry(&mtimes, file, NULL);
-	Hash_SetTimeValue(entry, stb.st_mtime);
 	nearmisses += 1;
 	return (file);
     }
@@ -1242,8 +1315,14 @@ Dir_FindFile(const char *name, Lst path)
 	    fprintf(debug_file, "   Trying exact path matches...\n");
 	}
 
-	if (!hasLastDot && cur && (file = DirLookupAbs(cur, name, cp)) != NULL)
-	    return *file?file:NULL;
+	if (!hasLastDot && cur && ((file = DirLookupAbs(cur, name, cp))
+		!= NULL)) {
+	    if (file[0] == '\0') {
+		free(file);
+		return NULL;
+	    }
+	    return file;
+	}
 
 	(void)Lst_Open(path);
 	while ((ln = Lst_Next(path)) != NULL) {
@@ -1252,13 +1331,23 @@ Dir_FindFile(const char *name, Lst path)
 		continue;
 	    if ((file = DirLookupAbs(p, name, cp)) != NULL) {
 		Lst_Close(path);
-		return *file?file:NULL;
+		if (file[0] == '\0') {
+		    free(file);
+		    return NULL;
+		}
+		return file;
 	    }
 	}
 	Lst_Close(path);
 
-	if (hasLastDot && cur && (file = DirLookupAbs(cur, name, cp)) != NULL)
-	    return *file?file:NULL;
+	if (hasLastDot && cur && ((file = DirLookupAbs(cur, name, cp))
+		!= NULL)) {
+	    if (file[0] == '\0') {
+		free(file);
+		return NULL;
+	    }
+	    return file;
+	}
     }
 
     /*
@@ -1312,15 +1401,11 @@ Dir_FindFile(const char *name, Lst path)
 	    fprintf(debug_file, "   got it (in mtime cache)\n");
 	}
 	return(bmake_strdup(name));
-    } else if (stat(name, &stb) == 0) {
-	if (stb.st_mtime == 0)
-		stb.st_mtime = 1;
-	entry = Hash_CreateEntry(&mtimes, name, NULL);
+    } else if (cached_stat(name, &stb) == 0) {
 	if (DEBUG(DIR)) {
 	    fprintf(debug_file, "   Caching %s for %s\n", Targ_FmtTime(stb.st_mtime),
 		    name);
 	}
-	Hash_SetTimeValue(entry, stb.st_mtime);
 	return (bmake_strdup(name));
     } else {
 	if (DEBUG(DIR)) {
@@ -1368,7 +1453,7 @@ Dir_FindHereOrAbove(char *here, char *search_path, char *result, int rlen) {
 
 		/* try and stat(2) it ... */
 		snprintf(try, sizeof(try), "%s/%s", dirbase, search_path);
-		if (stat(try, &st) != -1) {
+		if (cached_stat(try, &st) != -1) {
 			/*
 			 * success!  if we found a file, chop off
 			 * the filename so we return a directory.
@@ -1489,12 +1574,12 @@ Dir_MTime(GNode *gn, Boolean recheck)
     else
 	entry = NULL;
     if (entry != NULL) {
+	stb.st_mtime = Hash_GetTimeValue(entry);
 	if (DEBUG(DIR)) {
 	    fprintf(debug_file, "Using cached time %s for %s\n",
-		    Targ_FmtTime(Hash_GetTimeValue(entry)), fullName);
+		    Targ_FmtTime(stb.st_mtime), fullName);
 	}
-	stb.st_mtime = Hash_GetTimeValue(entry);
-    } else if (stat(fullName, &stb) < 0) {
+    } else if (cached_stats(&mtimes, fullName, &stb, recheck ? CST_UPDATE : 0) < 0) {
 	if (gn->type & OP_MEMBER) {
 	    if (fullName != gn->path)
 		free(fullName);
@@ -1502,18 +1587,8 @@ Dir_MTime(GNode *gn, Boolean recheck)
 	} else {
 	    stb.st_mtime = 0;
 	}
-    } else {
-	if (stb.st_mtime == 0) {
-		/*
-		 * 0 handled specially by the code, if the time is really 0,
-		 * return something else instead
-		 */
-		stb.st_mtime = 1;
-	}
-	entry = Hash_CreateEntry(&mtimes, fullName, NULL);
-	Hash_SetTimeValue(entry, stb.st_mtime);
     }
-	
+
     if (fullName && gn->path == NULL) {
 	gn->path = fullName;
     }
@@ -1792,10 +1867,10 @@ Dir_PrintDirectories(void)
 }
 
 static int
-DirPrintDir(void *p, void *dummy)
+DirPrintDir(void *p, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "%s ", ((Path *)p)->name);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 void

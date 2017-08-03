@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.25 2013/07/18 05:46:24 sjg Exp $
+#	$Id: prog.mk,v 1.32 2017/05/06 17:30:09 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -66,21 +66,17 @@ CLEANFILES+=strings
 	@${CC} ${CFLAGS} -c x.c -o ${.TARGET}
 	@rm -f x.c
 
-.cc.o:
+${CXX_SUFFIXES:%=%.o}:
 	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
 	@mv -f x.c x.cc
 	@${CXX} ${CXXFLAGS} -c x.cc -o ${.TARGET}
 	@rm -f x.cc
-
-.C.o:
-	${CXX} -E ${CXXFLAGS} ${.IMPSRC} | xstr -c -
-	@mv -f x.c x.C
-	@${CXX} ${CXXFLAGS} -c x.C -o ${.TARGET}
-	@rm -f x.C
 .endif
 
 
 .if defined(PROG)
+BINDIR ?= ${prefix}/bin
+
 SRCS?=	${PROG}.c
 .for s in ${SRCS:N*.h:N*.sh:M*/*}
 ${.o .po .lo:L:@o@${s:T:R}$o@}: $s
@@ -132,8 +128,9 @@ MAN=	${PROG}.1
 .endif	# defined(PROG)
 
 .if !defined(_SKIP_BUILD)
-all: ${PROG}
+realbuild: ${PROG}
 .endif
+
 all: _SUBDIRUSE
 
 .if !target(clean)
@@ -197,6 +194,8 @@ install_links:
 
 maninstall: afterinstall
 afterinstall: realinstall
+install_links: realinstall
+proginstall: beforeinstall
 realinstall: beforeinstall
 .endif
 
@@ -212,6 +211,10 @@ lint: ${LOBJS}
 .NOPATH:	${OBJS}
 .endif
 
+.if defined(FILES) || defined(FILESGROUPS)
+.include <files.mk>
+.endif
+
 .if ${MK_MAN} != "no"
 .include <man.mk>
 .endif
@@ -223,6 +226,20 @@ lint: ${LOBJS}
 .include <obj.mk>
 .include <dep.mk>
 .include <subdir.mk>
+
+.if !empty(PROG) && ${MK_STAGING_PROG} == "yes"
+STAGE_BINDIR ?= ${STAGE_OBJTOP}${BINDIR}
+STAGE_DIR.prog ?= ${STAGE_BINDIR}
+.if ${PROG_NAME:U${PROG}} != ${PROG}
+STAGE_AS_SETS += prog
+STAGE_AS_${PROG} = ${PROG_NAME}
+stage_as.prog: ${PROG}
+.else
+STAGE_SETS += prog
+stage_files.prog: ${PROG}
+.endif
+.endif
+
 .include <final.mk>
 
 .endif
