@@ -18,5 +18,21 @@
     "name": "four",
     "value": 4,
     "color": "yellow"
+  },
+  "anchor": {
+    "address": "0xdeadbeef",
+    "foo": 1
+  },
+  "anchor": {
+    "address": "0xdeadbeef",
+    "foo": 1
+  },
+  "anchor": {
+    "address": "0xdeadbeef",
+    "foo": 1
+  },
+  "anchor": {
+    "address": "0xdeadbeef",
+    "foo": 1
   }
 }
