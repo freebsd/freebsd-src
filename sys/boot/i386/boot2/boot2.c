@@ -114,8 +114,8 @@ void exit(int);
 static void load(void);
 static int parse(void);
 static int dskread(void *, unsigned, unsigned);
-static int printf(const char *,...);
-static int putchar(int);
+static void printf(const char *,...);
+static void putchar(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
@@ -521,12 +521,11 @@ error:
     return -1;
 }
 
-static int
+static void
 printf(const char *fmt,...)
 {
     va_list ap;
     static char buf[10];
-    const char *fmt_orig = fmt;
     char *s;
     unsigned u;
     int c;
@@ -557,16 +556,15 @@ printf(const char *fmt,...)
 	putchar(c);
     }
     va_end(ap);
-    return (int)(fmt - fmt_orig);
+    return;
 }
 
-static int
+static void
 putchar(int c)
 {
     if (c == '\n')
 	xputc('\r');
     xputc(c);
-    return (c == '\n' ? 2 : 1);
 }
 
 static int
