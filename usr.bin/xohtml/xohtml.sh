@@ -1,5 +1,6 @@
 #!/bin/sh
 # $FreeBSD$
+#!/bin/sh
 #
 # Copyright (c) 2014, Juniper Networks, Inc.
 # All rights reserved.
@@ -11,8 +12,10 @@
 #
 
 BASE=/usr/share/libxo
+VERSION=0.8.4
 CMD=cat
 DONE=
+WEB=http://juniper.github.io/libxo/${VERSION}/xohtml
 
 do_help () {
     echo "xohtml: wrap libxo-enabled output in HTML"
@@ -42,6 +45,11 @@ while [ -z "$DONE" -a ! -z "$1" ]; do
 	    shift;
 	    exec > "$FILE";
             ;;
+        -w|--web)
+            shift;
+            BASE="${WEB}";
+            ;;
+
 	-*)
 	    do_help
 	    ;;
