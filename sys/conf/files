@@ -1352,6 +1352,18 @@ dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4vf_hw.c	optional cxgbev pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/cudbg_common.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/cudbg_flash_utils.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/cudbg_lib.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/cudbg_wtp.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/fastlz.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/cudbg/fastlz_api.c	optional cxgbe \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 t4fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t4fw_cfg.fw:t4fw_cfg t4fw_cfg_uwire.fw:t4fw_cfg_uwire t4fw.fw:t4fw -mt4fw_cfg -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
