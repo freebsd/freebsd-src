@@ -103,7 +103,7 @@ realcheck: .PHONY
 	fi
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${CHECKDIR}/Kyuafile
 
-.if ${MK_MAKE_CHECK_USE_SANDBOX} && make(check)
+.if ${MK_MAKE_CHECK_USE_SANDBOX} != "no" && make(check)
 DESTDIR:=	${.OBJDIR}/checkdir
 CLEANDIRS+=	${DESTDIR}
 
