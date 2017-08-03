@@ -122,7 +122,7 @@ LDFLAGS+=	-fuse-ld=bfd
 .else
 LDFLAGS+=	-fuse-ld=lld -Wl,-z,norelro
 .ifdef CHERI_LLD_INTEGRATED_CAPSIZEFIX
-LDFLAGS+=      -no-capsizefix -Wl,--process-cap-relocs
+LDFLAGS+=      -no-capsizefix -Wl,--process-cap-relocs -Wl,-color-diagnostics
 LD_FATAL_WARNINGS:=no
 .endif
 .if ${CFLAGS:M-fexceptions} != ""
