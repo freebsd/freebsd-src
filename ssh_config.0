@@ -201,7 +201,9 @@ DESCRIPTION
              preference.  Multiple ciphers must be comma-separated.  If the
              specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
              ciphers will be appended to the default set instead of replacing
-             them.
+             them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then
+             the specified ciphers (including wildcards) will be removed from
+             the default set instead of replacing them.
 
              The supported ciphers are:
 
@@ -448,7 +450,10 @@ DESCRIPTION
              authentication as a comma-separated pattern list.  Alternately if
              the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
              specified key types will be appended to the default set instead
-             of replacing them.  The default for this option is:
+             of replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified key types (including wildcards)
+             will be removed from the default set instead of replacing them.
+             The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -464,8 +469,10 @@ DESCRIPTION
              Specifies the host key algorithms that the client wants to use in
              order of preference.  Alternately if the specified value begins
              with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified key types will be
-             appended to the default set instead of replacing them.  The
-             default for this option is:
+             appended to the default set instead of replacing them.  If the
+             specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
+             key types (including wildcards) will be removed from the default
+             set instead of replacing them.  The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -591,7 +598,9 @@ DESCRIPTION
              algorithms must be comma-separated.  Alternately if the specified
              value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods
              will be appended to the default set instead of replacing them.
-             The default is:
+             If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the
+             specified methods (including wildcards) will be removed from the
+             default set instead of replacing them.  The default is:
 
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
@@ -644,7 +653,10 @@ DESCRIPTION
              integrity protection.  Multiple algorithms must be comma-
              separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
              then the specified algorithms will be appended to the default set
-             instead of replacing them.
+             instead of replacing them.  If the specified value begins with a
+             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified algorithms (including
+             wildcards) will be removed from the default set instead of
+             replacing them.
 
              The algorithms that contain "-etm" calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
@@ -667,7 +679,7 @@ DESCRIPTION
              machine on each of the machines and the user will get many
              warnings about changed host keys.  However, this option disables
              host authentication for localhost.  The argument to this keyword
-             must be yes or no.  (the default).
+             must be yes or no (the default).
 
      NumberOfPasswordPrompts
              Specifies the number of password prompts before giving up.  The
@@ -753,7 +765,10 @@ DESCRIPTION
              authentication as a comma-separated pattern list.  Alternately if
              the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the key
              types after it will be appended to the default instead of
-             replacing it.  The default for this option is:
+             replacing it.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified key types (including wildcards)
+             will be removed from the default set instead of replacing them.
+             The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -1074,4 +1089,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.0                    October 15, 2016                    OpenBSD 6.0
+OpenBSD 6.0                    February 27, 2017                   OpenBSD 6.0

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.215 2016/11/30 03:07:37 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.218 2017/03/15 03:52:30 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -89,7 +89,7 @@
 #endif
 
 #ifndef DEFAULT_PKCS11_WHITELIST
-# define DEFAULT_PKCS11_WHITELIST "/usr/lib/*,/usr/local/lib/*"
+# define DEFAULT_PKCS11_WHITELIST "/usr/lib*/*,/usr/local/lib*/*"
 #endif
 
 typedef enum {
@@ -821,7 +821,7 @@ send:
 static void
 process_remove_smartcard_key(SocketEntry *e)
 {
-	char *provider = NULL, *pin = NULL;
+	char *provider = NULL, *pin = NULL, canonical_provider[PATH_MAX];
 	int r, version, success = 0;
 	Identity *id, *nxt;
 	Idtab *tab;
@@ -831,6 +831,13 @@ process_remove_smartcard_key(SocketEntry *e)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	free(pin);
 
+	if (realpath(provider, canonical_provider) == NULL) {
+		verbose("failed PKCS#11 add of \"%.100s\": realpath: %s",
+		    provider, strerror(errno));
+		goto send;
+	}
+
+	debug("%s: remove %.100s", __func__, canonical_provider);
 	for (version = 1; version < 3; version++) {
 		tab = idtab_lookup(version);
 		for (id = TAILQ_FIRST(&tab->idlist); id; id = nxt) {
@@ -838,18 +845,19 @@ process_remove_smartcard_key(SocketEntry *e)
 			/* Skip file--based keys */
 			if (id->provider == NULL)
 				continue;
-			if (!strcmp(provider, id->provider)) {
+			if (!strcmp(canonical_provider, id->provider)) {
 				TAILQ_REMOVE(&tab->idlist, id, next);
 				free_identity(id);
 				tab->nentries--;
 			}
 		}
 	}
-	if (pkcs11_del_provider(provider) == 0)
+	if (pkcs11_del_provider(canonical_provider) == 0)
 		success = 1;
 	else
 		error("process_remove_smartcard_key:"
 		    " pkcs11_del_provider failed");
+send:
 	free(provider);
 	send_status(e, success);
 }
