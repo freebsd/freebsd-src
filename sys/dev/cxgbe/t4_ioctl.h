@@ -59,6 +59,7 @@ enum {
 	T4_LOAD_CFG,			/* copy a config file to card's flash */
 	T4_LOAD_BOOT,			/* flash boot rom */
 	T4_LOAD_BOOTCFG,		/* flash bootcfg */
+	T4_CUDBG_DUMP,			/* debug dump of chip state */
 };
 
 struct t4_reg {
@@ -334,6 +335,13 @@ struct t4_tracer {
 	struct t4_trace_params tp;
 };
 
+struct t4_cudbg_dump {
+	uint8_t wr_flash;
+	uint8_t	bitmap[16];
+	uint32_t len;
+	uint8_t *data;
+};
+
 #define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
 #define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
@@ -357,4 +365,5 @@ struct t4_tracer {
 #define CHELSIO_T4_LOAD_CFG	_IOW('f', T4_LOAD_CFG, struct t4_data)
 #define CHELSIO_T4_LOAD_BOOT	_IOW('f', T4_LOAD_BOOT, struct t4_bootrom)
 #define CHELSIO_T4_LOAD_BOOTCFG	_IOW('f', T4_LOAD_BOOTCFG, struct t4_data)
+#define CHELSIO_T4_CUDBG_DUMP	_IOWR('f', T4_CUDBG_DUMP, struct t4_cudbg_dump)
 #endif

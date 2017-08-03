@@ -90,6 +90,7 @@ usage(FILE *fp)
 	fprintf(fp,
 	    "\tclearstats <port>                   clear port statistics\n"
 	    "\tcontext <type> <id>                 show an SGE context\n"
+	    "\tdumpstate <dump.bin>                dump chip state\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
@@ -1884,6 +1885,40 @@ loadcfg(int argc, const char *argv[])
 }
 
 static int
+dumpstate(int argc, const char *argv[])
+{
+	int rc, fd;
+	struct t4_cudbg_dump dump = {0};
+	const char *fname = argv[0];
+
+	if (argc != 1) {
+		warnx("dumpstate: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	dump.wr_flash = 0;
+	memset(&dump.bitmap, 0xff, sizeof(dump.bitmap));
+	dump.len = 8 * 1024 * 1024;
+	dump.data = malloc(dump.len);
+	if (dump.data == NULL) {
+		close(fd);
+		return (ENOMEM);
+	}
+
+	rc = doit(CHELSIO_T4_CUDBG_DUMP, &dump);
+	write(fd, dump.data, dump.len);
+	free(dump.data);
+	close(fd);
+	return (rc);
+}
+
+static int
 read_mem(uint32_t addr, uint32_t len, void (*output)(uint32_t *, uint32_t))
 {
 	int rc;
@@ -2888,6 +2923,8 @@ run_cmd(int argc, const char *argv[])
 		rc = loadboot(argc, argv);
 	else if (!strcmp(cmd, "loadboot-cfg"))
 		rc = loadbootcfg(argc, argv);
+	else if (!strcmp(cmd, "dumpstate"))
+		rc = dumpstate(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
