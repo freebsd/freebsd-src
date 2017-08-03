@@ -269,7 +269,7 @@ overflow:
 	return;
 }
 
-#if !__has_feature(capabilities)
+#if !defined(__CHERI_PURE_CAPABILITY__)
 /*
  * Actual definition of mcount function.  Defined in <machine/profile.h>,
  * which is included by <sys/gmon.h>.
@@ -321,3 +321,5 @@ mexitcount(selfpc)
 	}
 }
 #endif /* GUPROF */
+
+// void _mcount(uintfptr_t frompc, uintfptr_t selfpc) {}
