@@ -398,8 +398,8 @@ SSH_KNOWN_HOSTS FILE FORMAT
      The /etc/ssh/ssh_known_hosts and ~/.ssh/known_hosts files contain host
      public keys for all known hosts.  The global file should be prepared by
      the administrator (optional), and the per-user file is maintained
-     automatically: whenever the user connects from an unknown host, its key
-     is added to the per-user file.
+     automatically: whenever the user connects to an unknown host, its key is
+     added to the per-user file.
 
      Each line in these files contains the following fields: markers
      (optional), hostnames, keytype, base64-encoded key, comment.  The fields
@@ -623,4 +623,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.0                    November 30, 2016                   OpenBSD 6.0
+OpenBSD 6.0                    January 30, 2017                    OpenBSD 6.0

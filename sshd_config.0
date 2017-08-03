@@ -238,7 +238,9 @@ DESCRIPTION
              Specifies the ciphers allowed.  Multiple ciphers must be comma-
              separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
              then the specified ciphers will be appended to the default set
-             instead of replacing them.
+             instead of replacing them.  If the specified value begins with a
+             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified ciphers (including wildcards)
+             will be removed from the default set instead of replacing them.
 
              The supported ciphers are:
 
@@ -378,7 +380,10 @@ DESCRIPTION
              authentication as a comma-separated pattern list.  Alternately if
              the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
              specified key types will be appended to the default set instead
-             of replacing them.  The default for this option is:
+             of replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified key types (including wildcards)
+             will be removed from the default set instead of replacing them.
+             The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -503,7 +508,10 @@ DESCRIPTION
              algorithms must be comma-separated.  Alternately if the specified
              value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods
              will be appended to the default set instead of replacing them.
-             The supported algorithms are:
+             If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the
+             specified methods (including wildcards) will be removed from the
+             default set instead of replacing them.  The supported algorithms
+             are:
 
                    curve25519-sha256
                    curve25519-sha256@libssh.org
@@ -555,7 +563,9 @@ DESCRIPTION
              protection.  Multiple algorithms must be comma-separated.  If the
              specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
              algorithms will be appended to the default set instead of
-             replacing them.
+             replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified algorithms (including wildcards)
+             will be removed from the default set instead of replacing them.
 
              The algorithms that contain "-etm" calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
@@ -751,7 +761,10 @@ DESCRIPTION
              authentication as a comma-separated pattern list.  Alternately if
              the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
              specified key types will be appended to the default set instead
-             of replacing them.  The default for this option is:
+             of replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified key types (including wildcards)
+             will be removed from the default set instead of replacing them.
+             The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -891,18 +904,6 @@ DESCRIPTION
              If UsePAM is enabled, you will not be able to run sshd(8) as a
              non-root user.  The default is no.
 
-     UsePrivilegeSeparation
-             Specifies whether sshd(8) separates privileges by creating an
-             unprivileged child process to deal with incoming network traffic.
-             After successful authentication, another process will be created
-             that has the privilege of the authenticated user.  The goal of
-             privilege separation is to prevent privilege escalation by
-             containing any corruption within the unprivileged processes.  The
-             argument must be yes, no, or sandbox.  If UsePrivilegeSeparation
-             is set to sandbox then the pre-authentication unprivileged
-             process is subject to additional restrictions.  The default is
-             sandbox.
-
      VersionAddendum
              Optionally specifies additional text to append to the SSH
              protocol banner sent by the server upon connection.  The default
@@ -988,12 +989,12 @@ TOKENS
            %t    The key or certificate type.
            %u    The username.
 
-     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %t, and %u.
+     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %k, %t, and %u.
 
      AuthorizedKeysFile accepts the tokens %%, %h, and %u.
 
-     AuthorizedPrincipalsCommand accepts the tokens %%, %F, %f, %K, %k, %h,
-     %i, %s, %T, %t, and %u.
+     AuthorizedPrincipalsCommand accepts the tokens %%, %F, %f, %h, %i, %K,
+     %k, %s, %T, %t, and %u.
 
      AuthorizedPrincipalsFile accepts the tokens %%, %h, and %u.
 
@@ -1016,4 +1017,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.0                    November 30, 2016                   OpenBSD 6.0
+OpenBSD 6.0                     March 14, 2017                     OpenBSD 6.0

@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.74 2016/10/11 21:47:45 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.76 2017/02/03 23:03:33 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -62,6 +62,9 @@ struct ssh {
 	char *local_ipaddr;
 	int local_port;
 
+	/* Optional preamble for log messages (e.g. username) */
+	char *log_preamble;
+
 	/* Dispatcher table */
 	dispatch_fn *dispatch[DISPATCH_MAX];
 	/* number of packets to ignore in the dispatcher */
@@ -104,6 +107,8 @@ void     ssh_packet_set_server(struct ssh *);
 void     ssh_packet_set_authenticated(struct ssh *);
 void     ssh_packet_set_mux(struct ssh *);
 int	 ssh_packet_get_mux(struct ssh *);
+int	 ssh_packet_set_log_preamble(struct ssh *, const char *, ...)
+    __attribute__((format(printf, 2, 3)));
 
 int	 ssh_packet_log_type(u_char);
 
@@ -154,7 +159,7 @@ int	 ssh_remote_port(struct ssh *);
 const char *ssh_local_ipaddr(struct ssh *);
 int	 ssh_local_port(struct ssh *);
 
-void	 ssh_packet_set_rekey_limits(struct ssh *, u_int64_t, time_t);
+void	 ssh_packet_set_rekey_limits(struct ssh *, u_int64_t, u_int32_t);
 time_t	 ssh_packet_get_rekey_timeout(struct ssh *);
 
 void	*ssh_packet_get_input(struct ssh *);
