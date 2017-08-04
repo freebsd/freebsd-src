@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_cpu.h>
 #endif
 
@@ -196,6 +197,10 @@ arm64_cpu_attach(device_t dev)
 
 	/* Set the device to start it later */
 	cpu_list[cpuid] = dev;
+
+	/* Try to read the numa node of this cpu */
+	OF_getencprop(ofw_bus_get_node(dev), "numa-node-id",
+	    &__pcpu[cpuid].pc_domain, sizeof(__pcpu[cpuid].pc_domain));
 
 	return (0);
 }
