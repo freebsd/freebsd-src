@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #define	bitcount64(x)	__bitcount64((uint64_t)(x))
 #define malloc(a,b,c)	calloc(a, 1)
 #define free(a,b)	free(a)
+#define CTASSERT(expr)
 
 #include <sys/blist.h>
 
@@ -142,6 +143,8 @@ static void	blst_radix_print(blmeta_t *scan, daddr_t blk, daddr_t radix,
 static MALLOC_DEFINE(M_SWAP, "SWAP", "Swap space");
 #endif
 
+CTASSERT(BLIST_BMAP_RADIX % BLIST_META_RADIX == 0);
+
 /*
  * For a subtree that can represent the state of up to 'radix' blocks, the
  * number of leaf nodes of the subtree is L=radix/BLIST_BMAP_RADIX.  If 'm'
@@ -151,17 +154,19 @@ static MALLOC_DEFINE(M_SWAP, "SWAP", "Swap space");
  * in the 'meta' functions that process subtrees.  Since integer division
  * discards remainders, we can express this computation as
  * skip = (m * m**h) / (m - 1)
- * skip = (m * radix / BLIST_BMAP_RADIX) / (m - 1)
- * and if m divides BLIST_BMAP_RADIX, we can simplify further to
- * skip = radix / (BLIST_BMAP_RADIX / m * (m - 1))
- * so that a simple integer division is enough for the calculation.
+ * skip = (m * (radix / BLIST_BMAP_RADIX)) / (m - 1)
+ * and since m divides BLIST_BMAP_RADIX, we can simplify further to
+ * skip = (radix / (BLIST_BMAP_RADIX / m)) / (m - 1)
+ * skip = radix / ((BLIST_BMAP_RADIX / m) * (m - 1))
+ * so that simple integer division by a constant can safely be used for the
+ * calculation.
  */
 static inline daddr_t
 radix_to_skip(daddr_t radix)
 {
 
 	return (radix /
-	    (BLIST_BMAP_RADIX / BLIST_META_RADIX * (BLIST_META_RADIX - 1)));
+	    ((BLIST_BMAP_RADIX / BLIST_META_RADIX) * (BLIST_META_RADIX - 1)));
 }
 
 /*
