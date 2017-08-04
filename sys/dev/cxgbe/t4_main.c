@@ -9236,12 +9236,13 @@ t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
 		build_medialist(pi, &vi->media);
 	}
 	PORT_UNLOCK(pi);
+	vi = &pi->vi[0];
 	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
 		init_l1cfg(pi);
 		end_synchronized_op(pi->adapter, LOCK_HELD);
 	}
 
-	ifp = pi->vi[0].ifp;
+	ifp = vi->ifp;
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(ifp, "transceiver unplugged.\n");
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
