@@ -18,6 +18,7 @@ TESTS_SUBDIRS+=	zfs_clone
 TESTS_SUBDIRS+=	zfs_copies
 TESTS_SUBDIRS+=	zfs_create
 TESTS_SUBDIRS+=	zfs_destroy
+TESTS_SUBDIRS+=	zfs_diff
 TESTS_SUBDIRS+=	zfs_get
 TESTS_SUBDIRS+=	zfs_inherit
 TESTS_SUBDIRS+=	zfs_mount

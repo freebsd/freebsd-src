@@ -500,6 +500,8 @@
                         ..
                         zpool_detach
                         ..
+                        zfs_diff
+                        ..
                         zpool_scrub
                         ..
                         zfs_inherit
