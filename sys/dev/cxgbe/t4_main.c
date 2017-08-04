@@ -294,6 +294,51 @@ TUNABLE_INT("hw.cxgbe.nofldtxq_vi", &t4_nofldtxq_vi);
 #define NOFLDRXQ_VI 1
 static int t4_nofldrxq_vi = -NOFLDRXQ_VI;
 TUNABLE_INT("hw.cxgbe.nofldrxq_vi", &t4_nofldrxq_vi);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_keepalive_idle = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.keepalive_idle", &t4_toe_keepalive_idle);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_keepalive_interval = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.keepalive_interval", &t4_toe_keepalive_interval);
+
+/* 0 means chip/fw default, non-zero number is # of keepalives before abort */
+static int t4_toe_keepalive_count = 0;
+TUNABLE_INT("hw.cxgbe.toe.keepalive_count", &t4_toe_keepalive_count);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_rexmt_min = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.rexmt_min", &t4_toe_rexmt_min);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_rexmt_max = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.rexmt_max", &t4_toe_rexmt_max);
+
+/* 0 means chip/fw default, non-zero number is # of rexmt before abort */
+static int t4_toe_rexmt_count = 0;
+TUNABLE_INT("hw.cxgbe.toe.rexmt_count", &t4_toe_rexmt_count);
+
+/* -1 means chip/fw default, other values are raw backoff values to use */
+static int t4_toe_rexmt_backoff[16] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.0", &t4_toe_rexmt_backoff[0]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.1", &t4_toe_rexmt_backoff[1]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.2", &t4_toe_rexmt_backoff[2]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.3", &t4_toe_rexmt_backoff[3]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.4", &t4_toe_rexmt_backoff[4]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.5", &t4_toe_rexmt_backoff[5]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.6", &t4_toe_rexmt_backoff[6]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.7", &t4_toe_rexmt_backoff[7]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.8", &t4_toe_rexmt_backoff[8]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.9", &t4_toe_rexmt_backoff[9]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.10", &t4_toe_rexmt_backoff[10]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.11", &t4_toe_rexmt_backoff[11]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.12", &t4_toe_rexmt_backoff[12]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.13", &t4_toe_rexmt_backoff[13]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.14", &t4_toe_rexmt_backoff[14]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.15", &t4_toe_rexmt_backoff[15]);
 #endif
 
 #ifdef DEV_NETMAP
@@ -3611,62 +3656,70 @@ static int
 set_params__post_init(struct adapter *sc)
 {
 	uint32_t param, val;
+#ifdef TCP_OFFLOAD
 	int i, v, shift;
-	char s[32];
+#endif
 
 	/* ask for encapsulated CPLs */
 	param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
 	val = 1;
 	(void)t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 
+#ifdef TCP_OFFLOAD
 	/*
 	 * Override the TOE timers with user provided tunables.  This is not the
 	 * recommended way to change the timers (the firmware config file is) so
 	 * these tunables are not documented.
 	 *
-	 * All the timer tunables are in milliseconds.
+	 * All the timer tunables are in microseconds.
 	 */
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_idle", &v)) {
+	if (t4_toe_keepalive_idle != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_keepalive_idle);
+		v &= M_KEEPALIVEIDLE;
 		t4_set_reg_field(sc, A_TP_KEEP_IDLE,
-		    V_KEEPALIVEIDLE(M_KEEPALIVEIDLE),
-		    V_KEEPALIVEIDLE(ms_to_tcp_ticks(sc, v)));
+		    V_KEEPALIVEIDLE(M_KEEPALIVEIDLE), V_KEEPALIVEIDLE(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_interval", &v)) {
+	if (t4_toe_keepalive_interval != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_keepalive_interval);
+		v &= M_KEEPALIVEINTVL;
 		t4_set_reg_field(sc, A_TP_KEEP_INTVL,
-		    V_KEEPALIVEINTVL(M_KEEPALIVEINTVL),
-		    V_KEEPALIVEINTVL(ms_to_tcp_ticks(sc, v)));
+		    V_KEEPALIVEINTVL(M_KEEPALIVEINTVL), V_KEEPALIVEINTVL(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_count", &v)) {
-		v &= M_KEEPALIVEMAXR1;
+	if (t4_toe_keepalive_count != 0) {
+		v = t4_toe_keepalive_count & M_KEEPALIVEMAXR2;
 		t4_set_reg_field(sc, A_TP_SHIFT_CNT,
 		    V_KEEPALIVEMAXR1(M_KEEPALIVEMAXR1) |
 		    V_KEEPALIVEMAXR2(M_KEEPALIVEMAXR2),
 		    V_KEEPALIVEMAXR1(1) | V_KEEPALIVEMAXR2(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_min", &v)) {
+	if (t4_toe_rexmt_min != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_rexmt_min);
+		v &= M_RXTMIN;
 		t4_set_reg_field(sc, A_TP_RXT_MIN,
-		    V_RXTMIN(M_RXTMIN), V_RXTMIN(ms_to_tcp_ticks(sc, v)));
+		    V_RXTMIN(M_RXTMIN), V_RXTMIN(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_max", &v)) {
+	if (t4_toe_rexmt_max != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_rexmt_max);
+		v &= M_RXTMAX;
 		t4_set_reg_field(sc, A_TP_RXT_MAX,
-		    V_RXTMAX(M_RXTMAX), V_RXTMAX(ms_to_tcp_ticks(sc, v)));
+		    V_RXTMAX(M_RXTMAX), V_RXTMAX(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_count", &v)) {
-		v &= M_RXTSHIFTMAXR1;
+	if (t4_toe_rexmt_count != 0) {
+		v = t4_toe_rexmt_count & M_RXTSHIFTMAXR2;
 		t4_set_reg_field(sc, A_TP_SHIFT_CNT,
 		    V_RXTSHIFTMAXR1(M_RXTSHIFTMAXR1) |
 		    V_RXTSHIFTMAXR2(M_RXTSHIFTMAXR2),
 		    V_RXTSHIFTMAXR1(1) | V_RXTSHIFTMAXR2(v));
 	}
-	for (i = 0; i < 16; i++) {
-		snprintf(s, sizeof(s), "hw.cxgbe.toe.rexmt_backoff.%d", i);
-		if (TUNABLE_INT_FETCH(s, &v)) {
-			v &= M_TIMERBACKOFFINDEX0;
+	for (i = 0; i < nitems(t4_toe_rexmt_backoff); i++) {
+		if (t4_toe_rexmt_backoff[i] != -1) {
+			v = t4_toe_rexmt_backoff[i] & M_TIMERBACKOFFINDEX0;
 			shift = (i & 3) << 3;
 			t4_set_reg_field(sc, A_TP_TCP_BACKOFF_REG0 + (i & ~3),
 			    M_TIMERBACKOFFINDEX0 << shift, v << shift);
 		}
 	}
+#endif
 	return (0);
 }
 
@@ -9236,12 +9289,13 @@ t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
 		build_medialist(pi, &vi->media);
 	}
 	PORT_UNLOCK(pi);
+	vi = &pi->vi[0];
 	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
 		init_l1cfg(pi);
 		end_synchronized_op(pi->adapter, LOCK_HELD);
 	}
 
-	ifp = pi->vi[0].ifp;
+	ifp = vi->ifp;
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(ifp, "transceiver unplugged.\n");
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)

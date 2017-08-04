@@ -747,6 +747,9 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	use_pie=auto
 	check_for_libcrypt_later=1
 	check_for_openpty_ctty_bug=1
+	dnl Target SUSv3/POSIX.1-2001 plus BSD specifics.
+	dnl _DEFAULT_SOURCE is the new name for _BSD_SOURCE
+	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE"
 	AC_DEFINE([PAM_TTY_KLUDGE], [1],
 		[Work around problematic Linux PAM modules handling of PAM_TTY])
 	AC_DEFINE([LOCKED_PASSWD_PREFIX], ["!"],
@@ -1523,7 +1526,6 @@ int deny_severity = 0, allow_severity = 0;
 					TCPW_MSG="yes"
 				], [
 					AC_MSG_ERROR([*** libwrap missing])
-				
 			])
 			LIBS="$saved_LIBS"
 		fi
@@ -1534,36 +1536,47 @@ int deny_severity = 0, allow_severity = 0;
 LDNS_MSG="no"
 AC_ARG_WITH(ldns,
 	[  --with-ldns[[=PATH]]      Use ldns for DNSSEC support (optionally in PATH)],
-    [
-        if test "x$withval" != "xno" ; then
+	[
+	ldns=""
+	if test "x$withval" = "xyes" ; then
+		AC_PATH_TOOL([LDNSCONFIG], [ldns-config], [no])
+		if test "x$PKGCONFIG" = "xno"; then
+			CPPFLAGS="$CPPFLAGS -I${withval}/include"
+			LDFLAGS="$LDFLAGS -L${withval}/lib"
+			LIBS="-lldns $LIBS"
+			ldns=yes
+		else
+			LIBS="$LIBS `$LDNSCONFIG --libs`"
+			CPPFLAGS="$CPPFLAGS `$LDNSCONFIG --cflags`"
+		fi
+	elif test "x$withval" != "xno" ; then
+			CPPFLAGS="$CPPFLAGS -I${withval}/include"
+			LDFLAGS="$LDFLAGS -L${withval}/lib"
+			LIBS="-lldns $LIBS"
+			ldns=yes
+	fi
 
-			if test "x$withval" != "xyes" ; then
-				CPPFLAGS="$CPPFLAGS -I${withval}/include"
-				LDFLAGS="$LDFLAGS -L${withval}/lib"
-			fi
-
-            AC_DEFINE(HAVE_LDNS, 1, [Define if you want ldns support])
-            LIBS="-lldns $LIBS"
-            LDNS_MSG="yes"
-
-            AC_MSG_CHECKING([for ldns support])
-            AC_LINK_IFELSE(
-                [AC_LANG_SOURCE([[
+	# Verify that it works.
+	if test "x$ldns" = "xyes" ; then
+		AC_DEFINE(HAVE_LDNS, 1, [Define if you want ldns support])
+		LDNS_MSG="yes"
+		AC_MSG_CHECKING([for ldns support])
+		AC_LINK_IFELSE(
+			[AC_LANG_SOURCE([[
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <ldns/ldns.h>
 int main() { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
-                                ]])
-                ],
-				[AC_MSG_RESULT(yes)],
+			]])
+		],
+			[AC_MSG_RESULT(yes)],
 				[
 					AC_MSG_RESULT(no)
 					AC_MSG_ERROR([** Incomplete or missing ldns libraries.])
 				])
-        fi
-    ]
-)
+	fi
+])
 
 # Check whether user wants libedit support
 LIBEDIT_MSG="no"
@@ -1766,6 +1779,7 @@ AC_CHECK_FUNCS([ \
 	inet_ntoa \
 	inet_ntop \
 	innetgr \
+	llabs \
 	login_getcapbool \
 	md5_crypt \
 	memmove \
@@ -1834,11 +1848,8 @@ AC_CHECK_FUNCS([ \
 	warn \
 ])
 
-dnl Wide character support.  Linux man page says it needs _XOPEN_SOURCE.
-saved_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -D_XOPEN_SOURCE"
+dnl Wide character support.
 AC_CHECK_FUNCS([mblen mbtowc nl_langinfo wcwidth])
-CFLAGS="$saved_CFLAGS"
 
 TEST_SSH_UTF8=${TEST_SSH_UTF8:=yes}
 AC_MSG_CHECKING([for utf8 locale support])
@@ -2583,8 +2594,8 @@ if test "x$openssl" = "xyes" ; then
 			ssl_library_ver=`cat conftest.ssllibver`
 			# Check version is supported.
 			case "$ssl_library_ver" in
-				0090[[0-7]]*|009080[[0-5]]*)
-					AC_MSG_ERROR([OpenSSL >= 0.9.8f required (have "$ssl_library_ver")])
+				10000*|0*)
+					AC_MSG_ERROR([OpenSSL >= 1.0.1 required (have "$ssl_library_ver")])
 			                ;;
 			        *) ;;
 			esac
@@ -5147,6 +5158,7 @@ echo "                     S/KEY support: $SKEY_MSG"
 echo "              TCP Wrappers support: $TCPW_MSG"
 echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
+echo "                   libldns support: $LDNS_MSG"
 echo "  Solaris process contract support: $SPC_MSG"
 echo "           Solaris project support: $SP_MSG"
 echo "         Solaris privilege support: $SPP_MSG"

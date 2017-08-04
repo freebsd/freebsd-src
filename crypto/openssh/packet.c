@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.243 2016/10/11 21:47:45 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.247 2017/03/11 13:07:35 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -352,6 +352,25 @@ int
 ssh_packet_get_mux(struct ssh *ssh)
 {
 	return ssh->state->mux;
+}
+
+int
+ssh_packet_set_log_preamble(struct ssh *ssh, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	free(ssh->log_preamble);
+	if (fmt == NULL)
+		ssh->log_preamble = NULL;
+	else {
+		va_start(args, fmt);
+		r = vasprintf(&ssh->log_preamble, fmt, args);
+		va_end(args);
+		if (r < 0 || ssh->log_preamble == NULL)
+			return SSH_ERR_ALLOC_FAIL;
+	}
+	return 0;
 }
 
 int
@@ -1051,7 +1070,7 @@ ssh_packet_need_rekeying(struct ssh *ssh, u_int outbound_packet_len)
 
 	/* Time-based rekeying */
 	if (state->rekey_interval != 0 &&
-	    state->rekey_time + state->rekey_interval <= monotime())
+	    (int64_t)state->rekey_time + state->rekey_interval <= monotime())
 		return 1;
 
 	/* Always rekey when MAX_PACKETS sent in either direction */
@@ -1449,8 +1468,10 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 				break;
 			}
 		}
-		if (r == 0)
-			return SSH_ERR_CONN_TIMEOUT;
+		if (r == 0) {
+			r = SSH_ERR_CONN_TIMEOUT;
+			goto out;
+		}
 		/* Read data from the socket. */
 		len = read(state->connection_in, buf, sizeof(buf));
 		if (len == 0) {
@@ -1831,11 +1852,11 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			if (r != SSH_ERR_MAC_INVALID)
 				goto out;
 			logit("Corrupted MAC on input.");
-			if (need > PACKET_MAX_SIZE)
+			if (need + block_size > PACKET_MAX_SIZE)
 				return SSH_ERR_INTERNAL_ERROR;
 			return ssh_packet_start_discard(ssh, enc, mac,
 			    sshbuf_len(state->incoming_packet),
-			    PACKET_MAX_SIZE - need);
+			    PACKET_MAX_SIZE - need - block_size);
 		}
 		/* Remove MAC from input buffer */
 		DBG(debug("MAC #%d ok", state->p_read.seqnr));
@@ -2076,27 +2097,36 @@ ssh_packet_send_debug(struct ssh *ssh, const char *fmt,...)
 		fatal("%s: %s", __func__, ssh_err(r));
 }
 
+static void
+fmt_connection_id(struct ssh *ssh, char *s, size_t l)
+{
+	snprintf(s, l, "%.200s%s%s port %d",
+	    ssh->log_preamble ? ssh->log_preamble : "",
+	    ssh->log_preamble ? " " : "",
+	    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+}
+
 /*
  * Pretty-print connection-terminating errors and exit.
  */
 void
 sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 {
+	char remote_id[512];
+
+	fmt_connection_id(ssh, remote_id, sizeof(remote_id));
+
 	switch (r) {
 	case SSH_ERR_CONN_CLOSED:
-		logdie("Connection closed by %.200s port %d",
-		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		logdie("Connection closed by %s", remote_id);
 	case SSH_ERR_CONN_TIMEOUT:
-		logdie("Connection %s %.200s port %d timed out",
-		    ssh->state->server_side ? "from" : "to",
-		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		logdie("Connection %s %s timed out",
+		    ssh->state->server_side ? "from" : "to", remote_id);
 	case SSH_ERR_DISCONNECTED:
-		logdie("Disconnected from %.200s port %d",
-		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+		logdie("Disconnected from %s", remote_id);
 	case SSH_ERR_SYSTEM_ERROR:
 		if (errno == ECONNRESET)
-			logdie("Connection reset by %.200s port %d",
-			    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+			logdie("Connection reset by %s", remote_id);
 		/* FALLTHROUGH */
 	case SSH_ERR_NO_CIPHER_ALG_MATCH:
 	case SSH_ERR_NO_MAC_ALG_MATCH:
@@ -2105,17 +2135,16 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 	case SSH_ERR_NO_HOSTKEY_ALG_MATCH:
 		if (ssh && ssh->kex && ssh->kex->failed_choice) {
 			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL, "ssh");
-			logdie("Unable to negotiate with %.200s port %d: %s. "
-			    "Their offer: %s", ssh_remote_ipaddr(ssh),
-			    ssh_remote_port(ssh), ssh_err(r),
+			logdie("Unable to negotiate with %s: %s. "
+			    "Their offer: %s", remote_id, ssh_err(r),
 			    ssh->kex->failed_choice);
 		}
 		/* FALLTHROUGH */
 	default:
-		logdie("%s%sConnection %s %.200s port %d: %s",
+		logdie("%s%sConnection %s %s: %s",
 		    tag != NULL ? tag : "", tag != NULL ? ": " : "",
 		    ssh->state->server_side ? "from" : "to",
-		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh), ssh_err(r));
+		    remote_id, ssh_err(r));
 	}
 }
 
@@ -2128,7 +2157,7 @@ sshpkt_fatal(struct ssh *ssh, const char *tag, int r)
 void
 ssh_packet_disconnect(struct ssh *ssh, const char *fmt,...)
 {
-	char buf[1024];
+	char buf[1024], remote_id[512];
 	va_list args;
 	static int disconnecting = 0;
 	int r;
@@ -2141,12 +2170,13 @@ ssh_packet_disconnect(struct ssh *ssh, const char *fmt,...)
 	 * Format the message.  Note that the caller must make sure the
 	 * message is of limited size.
 	 */
+	fmt_connection_id(ssh, remote_id, sizeof(remote_id));
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
 	/* Display the error locally */
-	logit("Disconnecting: %.100s", buf);
+	logit("Disconnecting %s: %.100s", remote_id, buf);
 
 	/*
 	 * Send the disconnect message to the other side, and wait
@@ -2399,10 +2429,10 @@ ssh_packet_send_ignore(struct ssh *ssh, int nbytes)
 }
 
 void
-ssh_packet_set_rekey_limits(struct ssh *ssh, u_int64_t bytes, time_t seconds)
+ssh_packet_set_rekey_limits(struct ssh *ssh, u_int64_t bytes, u_int32_t seconds)
 {
-	debug3("rekey after %llu bytes, %d seconds", (unsigned long long)bytes,
-	    (int)seconds);
+	debug3("rekey after %llu bytes, %u seconds", (unsigned long long)bytes,
+	    (unsigned int)seconds);
 	ssh->state->rekey_limit = bytes;
 	ssh->state->rekey_interval = seconds;
 }
