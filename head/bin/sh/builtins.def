@@ -15,7 +15,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -41,6 +41,9 @@
 # without job control.
 # The -h flag specifies that this command is to be excluded from systems
 # based on the NO_HISTORY compile-time symbol.
+# The -n flag specifies that this command can safely be run in the same
+# process when it is the only command in a command substitution.  Some
+# commands have special logic defined in safe_builtin().
 # The -s flag specifies that this is a POSIX 'special built-in' command.
 # The rest of the line specifies the command name or names used to run the
 # command.  The entry for bltincmd, which is run when the user does not specify
@@ -48,43 +51,43 @@
 #
 # NOTE: bltincmd must come first!
 
-bltincmd	builtin
+bltincmd -n	builtin
 aliascmd	alias
 bgcmd -j	bg
 bindcmd		bind
 breakcmd	-s break -s continue
 cdcmd		cd chdir
-commandcmd	command
+commandcmd -n	command
 dotcmd		-s .
-echocmd		echo
+echocmd -n	echo
 evalcmd		-s eval
 execcmd		-s exec
 exitcmd		-s exit
 letcmd		let
 exportcmd	-s export -s readonly
 #exprcmd		expr
-falsecmd	false
+falsecmd -n	false
 fgcmd -j	fg
 freebsd_wordexpcmd	freebsd_wordexp
 getoptscmd	getopts
 hashcmd		hash
 histcmd -h	fc
-jobidcmd	jobid
-jobscmd		jobs
-killcmd		kill
+jobidcmd -n	jobid
+jobscmd -n	jobs
+killcmd -n	kill
 localcmd	local
-printfcmd	printf
-pwdcmd		pwd
+printfcmd -n	printf
+pwdcmd -n	pwd
 readcmd		read
 returncmd	-s return
 setcmd		-s set
 setvarcmd	setvar
 shiftcmd	-s shift
-testcmd		test [
-timescmd	-s times
+testcmd -n	test [
+timescmd -n	-s times
 trapcmd		-s trap
-truecmd		-s : true
-typecmd		type
+truecmd -n	-s : true
+typecmd -n	type
 ulimitcmd	ulimit
 umaskcmd	umask
 unaliascmd	unalias

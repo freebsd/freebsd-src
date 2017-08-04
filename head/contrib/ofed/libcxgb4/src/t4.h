@@ -102,7 +102,7 @@
 #define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL - 1)
-#define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
+#define T4_PAGESIZE_MASK 0xffffffff000  /* 4KB-8TB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
 
@@ -484,11 +484,11 @@ static void copy_wqe_to_udb(volatile u32 *udb_offset, void *wqe)
 extern int ma_wr;
 extern int t5_en_wc;
 
-static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5, u8 len16,
+static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t4, u8 len16,
 				 union t4_wr *wqe)
 {
 	wc_wmb();
-	if (t5) {
+	if (!t4) {
 		if (t5_en_wc && inc == 1 && wq->sq.wc_reg_available) {
 			PDBG("%s: WC wq->sq.pidx = %d; len16=%d\n",
 			     __func__, wq->sq.pidx, len16);
@@ -517,11 +517,11 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5, u8 len16,
 	writel(V_QID(wq->sq.qid & wq->qid_mask) | V_PIDX(inc), wq->sq.udb);
 }
 
-static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5, u8 len16,
+static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t4, u8 len16,
 				 union t4_recv_wr *wqe)
 {
 	wc_wmb();
-	if (t5) {
+	if (!t4) {
 		if (t5_en_wc && inc == 1 && wq->sq.wc_reg_available) {
 			PDBG("%s: WC wq->rq.pidx = %d; len16=%d\n",
 			     __func__, wq->rq.pidx, len16);

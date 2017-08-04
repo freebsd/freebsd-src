@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #define	TCPTIMERS
 #include <netinet/tcp_timer.h>
+#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #define	TANAMES
@@ -417,12 +418,12 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 	printf("\n");
 	if (sflag) {
 		printf("\trcv_nxt %lx rcv_wnd %lx snd_una %lx snd_nxt %lx snd_max %lx\n",
-		    (u_long)tp->rcv_nxt, tp->rcv_wnd,
+		    (u_long)tp->rcv_nxt, (u_long)tp->rcv_wnd,
 		    (u_long)tp->snd_una, (u_long)tp->snd_nxt,
 		    (u_long)tp->snd_max);
 		printf("\tsnd_wl1 %lx snd_wl2 %lx snd_wnd %lx\n",
 		    (u_long)tp->snd_wl1,
-		    (u_long)tp->snd_wl2, tp->snd_wnd);
+		    (u_long)tp->snd_wl2, (u_long)tp->snd_wnd);
 	}
 	/* print out timers? */
 #if 0

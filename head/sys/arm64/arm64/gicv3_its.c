@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
+#include <arm/arm/gic_common.h>
 #include <arm64/arm64/gic_v3_reg.h>
 #include <arm64/arm64/gic_v3_var.h>
 
@@ -575,6 +576,12 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 	uint64_t xbaser, tmp;
 	uint32_t ctlr;
 	u_int cpuid;
+	int domain;
+
+	if (bus_get_domain(dev, &domain) == 0) {
+		if (PCPU_GET(domain) != domain)
+			return (0);
+	}
 
 	gicv3 = device_get_parent(dev);
 	cpuid = PCPU_GET(cpuid);

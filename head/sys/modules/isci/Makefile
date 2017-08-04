@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 
-ISCI_SRC_PATH = ${.CURDIR}/../..
+ISCI_SRC_PATH = ${SRCTOP}/sys
 
 .PATH:  ${ISCI_SRC_PATH}/dev/isci ${ISCI_SRC_PATH}/dev/isci/scil
 

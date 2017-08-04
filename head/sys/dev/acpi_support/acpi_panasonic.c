@@ -493,6 +493,10 @@ acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		}
 		ACPI_SERIAL_END(panasonic);
 		break;
+	case 0x81:
+		if (!bootverbose)
+			break;
+		/* FALLTHROUGH */
 	default:
 		device_printf(sc->dev, "unknown notify: %#x\n", notify);
 		break;

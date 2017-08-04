@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../libkern ${.CURDIR}/../../sys
+.PATH: ${SRCTOP}/sys/libkern ${SRCTOP}/sys/sys
 
 KMOD=	libiconv
 SRCS=	iconv.c iconv_ucs.c iconv_xlat.c iconv_xlat16.c
-SRCS+=	iconv.h 
+SRCS+=	iconv.h
 SRCS+=	iconv_converter_if.c iconv_converter_if.h
 
 EXPORT_SYMS=	iconv_add	\

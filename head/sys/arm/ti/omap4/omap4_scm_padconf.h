@@ -78,4 +78,6 @@
                                         | CONTROL_PADCONF_OFF_PULL_ENABLE)
 #define PADCONF_PIN_OFF_WAKEUPENABLE	CONTROL_PADCONF_WAKEUP_ENABLE
 
+extern const struct ti_pinmux_device omap4_pinmux_dev;
+
 #endif /* OMAP4_SCM_PADCONF_H */

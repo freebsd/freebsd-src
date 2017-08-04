@@ -218,13 +218,17 @@ static int
 rt305x_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct rt305x_spi_softc *sc;
+	uint32_t cs;
 	uint8_t *buf, byte, *tx_buf;
-	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 	int i, sz, error = 0, write = 0;
 
 	sc = device_get_softc(dev);
 
-	if (devi->cs != 0)
+	spibus_get_cs(child, &cs);
+
+	cs &= ~SPIBUS_CS_HIGH;
+
+	if (cs != 0)
 		/* Only 1 CS */
 		return (ENXIO);
 

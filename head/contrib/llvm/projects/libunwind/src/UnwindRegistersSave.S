@@ -469,3 +469,5 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
 /* RISCVTODO */
 
 #endif
+
+    .section .note.GNU-stack,"",@progbits

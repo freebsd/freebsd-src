@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -42,24 +44,7 @@
 
 #include "pcap-int.h"
 
-/*
- * $FreeBSD$
- *
- * This code is meant to build also on other versions of libpcap.
- *
- * older libpcap miss p->priv, use p->md.device instead (and allocate).
- * Also opt.timeout was in md.timeout before.
- * Use #define PCAP_IF_UP to discriminate
- */
-#ifdef PCAP_IF_UP
 #define NM_PRIV(p)	((struct pcap_netmap *)(p->priv))
-#define the_timeout	opt.timeout
-#else
-#define HAVE_NO_PRIV
-#define	NM_PRIV(p)	((struct pcap_netmap *)(p->md.device))
-#define SET_PRIV(p, x)	p->md.device = (void *)x
-#define the_timeout	md.timeout
-#endif
 
 #if defined (linux)
 /* On FreeBSD we use IFF_PPROMISC which is in ifr_flagshigh.
@@ -124,7 +109,7 @@ pcap_netmap_dispatch(pcap_t *p, int cnt, pcap_handler cb, u_char *user)
 		if (ret != 0)
 			break;
 		errno = 0;
-		ret = poll(&pfd, 1, p->the_timeout);
+		ret = poll(&pfd, 1, p->opt.timeout);
 	}
 	return ret;
 }
@@ -197,10 +182,6 @@ pcap_netmap_close(pcap_t *p)
 		}
 	}
 	nm_close(d);
-#ifdef HAVE_NO_PRIV
-	free(pn);
-	SET_PRIV(p, NULL); // unnecessary
-#endif
 	pcap_cleanup_live_common(p);
 }
 
@@ -209,23 +190,19 @@ static int
 pcap_netmap_activate(pcap_t *p)
 {
 	struct pcap_netmap *pn = NM_PRIV(p);
-	struct nm_desc *d = nm_open(p->opt.source, NULL, 0, NULL);
+	struct nm_desc *d = nm_open(p->opt.device, NULL, 0, NULL);
 	uint32_t if_flags = 0;
 
 	if (d == NULL) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 			"netmap open: cannot access %s: %s\n",
-			p->opt.source, pcap_strerror(errno));
-#ifdef HAVE_NO_PRIV
-		free(pn);
-		SET_PRIV(p, NULL); // unnecessary
-#endif
+			p->opt.device, pcap_strerror(errno));
 		pcap_cleanup_live_common(p);
 		return (PCAP_ERROR);
 	}
 	if (0)
 	    fprintf(stderr, "%s device %s priv %p fd %d ports %d..%d\n",
-		__FUNCTION__, p->opt.source, d, d->fd,
+		__FUNCTION__, p->opt.device, d, d->fd,
 		d->first_rx_ring, d->last_rx_ring);
 	pn->d = d;
 	p->fd = d->fd;
@@ -261,23 +238,9 @@ pcap_netmap_create(const char *device, char *ebuf, int *is_ours)
 	*is_ours = (!strncmp(device, "netmap:", 7) || !strncmp(device, "vale", 4));
 	if (! *is_ours)
 		return NULL;
-#ifdef HAVE_NO_PRIV
-	{
-		void *pn = calloc(1, sizeof(struct pcap_netmap));
-		if (pn == NULL)
-			return NULL;
-		p = pcap_create_common(device, ebuf);
-		if (p == NULL) {
-			free(pn);
-			return NULL;
-		}
-		SET_PRIV(p, pn);
-	}
-#else
-	p = pcap_create_common(device, ebuf, sizeof (struct pcap_netmap));
+	p = pcap_create_common(ebuf, sizeof (struct pcap_netmap));
 	if (p == NULL)
 		return (NULL);
-#endif
 	p->activate_op = pcap_netmap_activate;
 	return (p);
 }

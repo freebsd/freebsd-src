@@ -2,7 +2,7 @@
 
 PROG=	fifolog_reader
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 MAN=
 

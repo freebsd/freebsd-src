@@ -1,4 +1,4 @@
-.\" $NetBSD: libblacklist.3,v 1.3 2015/01/25 23:09:28 wiz Exp $
+.\" $NetBSD: libblacklist.3,v 1.7 2017/02/04 23:33:56 wiz Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 22, 2015
+.Dd May 5, 2017
 .Dt LIBBLACKLIST 3
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nm blacklist_r ,
 .Nm blacklist ,
 .Nm blacklist_sa
-.Nm blacklist_sa_r ,
+.Nm blacklist_sa_r
 .Nd Blacklistd notification library
 .Sh LIBRARY
 .Lb libblacklist
@@ -62,7 +62,7 @@ block or release port access to prevent Denial of Service attacks.
 .Pp
 The function
 .Fn blacklist_open
-creates a the necessary state to communicate with
+creates the necessary state to communicate with
 .Xr blacklistd 8
 and returns a pointer to it, or
 .Dv NULL
@@ -76,19 +76,39 @@ The
 .Fn blacklist
 function sends a message to
 .Xr blacklistd 8 ,
-with an
+with an integer
 .Ar action
-argument specifying
-.Dv 1
-for a failed connection or
-.Dv 0
-for a successful connection,
+argument specifying the type of notification,
 a file descriptor
 .Ar fd
 specifying the accepted file descriptor connected to the client,
 and an optional message in the
 .Ar msg
 argument.
+.Pp
+The
+.Ar action
+parameter can take these values:
+.Bl -tag -width ".Va BLACKLIST_ABUSIVE_BEHAVIOR"
+.It Va BLACKLIST_AUTH_FAIL
+There was an unsuccessful authentication attempt.
+.It Va BLACKLIST_AUTH_OK
+A user successfully authenticated.
+.It Va BLACKLIST_ABUSIVE_BEHAVIOR
+The sending daemon has detected abusive behavior
+from the remote system.  The remote address should
+be blocked as soon as possible.
+.It Va BLACKLIST_BAD_USER
+The sending daemon has determined the username
+presented for authentication is invalid.  The
+.Xr blacklistd 8
+daemon compares the username to a configured list of forbidden
+usernames and
+blocks the address immediately if a forbidden username matches.
+(The
+.Ar BLACKLIST_BAD_USER
+support is not currently available.)
+.El
 .Pp
 The
 .Fn blacklist_r
@@ -102,22 +122,34 @@ functions can be used with unconnected sockets, where
 .Xr getpeername 2
 will not work, the server will pass the peer name in the message.
 .Pp
-All functions log errors to
-.Xr syslogd 8 .
+By default,
+.Xr syslogd 8
+is used for message logging.
+The internal
+.Fn bl_create
+function can be used to create the required internal
+state and specify a custom logging function.
 .Sh RETURN VALUES
 The function
-.Fn bl_open
+.Fn blacklist_open
 returns a cookie on success and
 .Dv NULL
-on failure setting errno to an appropriate value.
+on failure setting
+.Dv errno
+to an appropriate value.
 .Pp
-The
-.Fn bl_send
-function returns
+The functions
+.Fn blacklist ,
+.Fn blacklist_sa ,
+and
+.Fn blacklist_sa_r
+return
 .Dv 0
 on success and
-.Dv -1
-on failure setting errno to an appropriate value.
+.Dv \-1
+on failure setting
+.Dv errno
+to an appropriate value.
 .Sh SEE ALSO
 .Xr blacklistd.conf 5 ,
 .Xr blacklistd 8

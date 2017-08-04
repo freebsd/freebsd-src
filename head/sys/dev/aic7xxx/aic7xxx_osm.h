@@ -37,7 +37,7 @@
 #ifndef _AIC7XXX_FREEBSD_H_
 #define _AIC7XXX_FREEBSD_H_
 
-#include <opt_aic7xxx.h>	/* for config options */
+#include "opt_aic7xxx.h"	/* for config options */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -224,7 +224,7 @@ int ahc_pci_map_registers(struct ahc_softc *ahc);
 #define ahc_pci_map_int ahc_map_int
 #endif /*AIC_PCI_CONFIG*/
 
-/******************************** VL/EISA *************************************/
+/******************************** VL/EISA/ISA *********************************/
 int aic7770_map_registers(struct ahc_softc *ahc, u_int port);
 static __inline int aic7770_map_int(struct ahc_softc *, int);
 
@@ -233,9 +233,9 @@ aic7770_map_int(struct ahc_softc *ahc, int irq)
 {
 	/*
 	 * The IRQ is unused in the FreeBSD
-	 * implementation since the EISA and
-	 * ISA attachments register the IRQ
-	 * with newbus before the core is called.
+	 * implementation since the ISA attachment
+	 * registers the IRQ with newbus before
+	 * the core is called.
 	 */
 	return ahc_map_int(ahc);
 }

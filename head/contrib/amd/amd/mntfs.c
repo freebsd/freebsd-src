@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,6 +48,16 @@ qelem mfhead = {&mfhead, &mfhead};
 int mntfs_allocated;
 
 
+am_loc *
+dup_loc(am_loc *loc)
+{
+  loc->al_refc++;
+  if (loc->al_mnt) {
+    dup_mntfs(loc->al_mnt);
+  }
+  return loc;
+}
+
 mntfs *
 dup_mntfs(mntfs *mf)
 {
@@ -71,24 +77,27 @@ init_mntfs(mntfs *mf, am_ops *ops, am_opts *mo, char *mp, char *info, char *auto
 {
   mf->mf_ops = ops;
   mf->mf_fsflags = ops->nfs_fs_flags;
-  mf->mf_fo = mo;
-  mf->mf_mount = strdup(mp);
-  mf->mf_info = strdup(info);
-  mf->mf_auto = strdup(auto_opts);
-  mf->mf_mopts = strdup(mopts);
-  mf->mf_remopts = strdup(remopts);
+  mf->mf_fo = 0;
+  if (mo)
+    mf->mf_fo = copy_opts(mo);
+
+  mf->mf_mount = xstrdup(mp);
+  mf->mf_info = xstrdup(info);
+  mf->mf_auto = xstrdup(auto_opts);
+  mf->mf_mopts = xstrdup(mopts);
+  mf->mf_remopts = xstrdup(remopts);
   mf->mf_loopdev = NULL;
   mf->mf_refc = 1;
   mf->mf_flags = 0;
   mf->mf_error = -1;
   mf->mf_cid = 0;
-  mf->mf_private = 0;
-  mf->mf_prfree = 0;
+  mf->mf_private = NULL;
+  mf->mf_prfree = NULL;
 
   if (ops->ffserver)
     mf->mf_server = (*ops->ffserver) (mf);
   else
-    mf->mf_server = 0;
+    mf->mf_server = NULL;
 }
 
 
@@ -138,7 +147,7 @@ locate_mntfs(am_ops *ops, am_opts *mo, char *mp, char *info, char *auto_opts, ch
       }
 
       dlog("mf->mf_flags = %#x", mf->mf_flags);
-      mf->mf_fo = mo;
+
       if ((mf->mf_flags & MFF_RESTART) && amd_state < Finishing) {
 	/*
 	 * Restart a previously mounted filesystem.
@@ -171,7 +180,7 @@ locate_mntfs(am_ops *ops, am_opts *mo, char *mp, char *info, char *auto_opts, ch
 
 	if (mf->mf_private && mf->mf_prfree) {
 	  mf->mf_prfree(mf->mf_private);
-	  mf->mf_private = 0;
+	  mf->mf_private = NULL;
 	}
 
 	fs = ops->ffserver ? (*ops->ffserver) (mf) : (fserver *) NULL;
@@ -202,26 +211,35 @@ find_mntfs(am_ops *ops, am_opts *mo, char *mp, char *info, char *auto_opts, char
 mntfs *
 new_mntfs(void)
 {
-  return alloc_mntfs(&amfs_error_ops, (am_opts *) 0, "//nil//", ".", "", "", "");
+  return alloc_mntfs(&amfs_error_ops, (am_opts *) NULL, "//nil//", ".", "", "", "");
+}
+
+am_loc *
+new_loc(void)
+{
+  am_loc *loc = CALLOC(struct am_loc);
+  loc->al_fo = 0;
+  loc->al_mnt = new_mntfs();
+  loc->al_refc = 1;
+  return loc;
 }
 
 
 static void
 uninit_mntfs(mntfs *mf)
 {
-  if (mf->mf_auto)
-    XFREE(mf->mf_auto);
-  if (mf->mf_mopts)
-    XFREE(mf->mf_mopts);
-  if (mf->mf_remopts)
-    XFREE(mf->mf_remopts);
-  if (mf->mf_info)
-    XFREE(mf->mf_info);
+  if (mf->mf_fo) {
+    free_opts(mf->mf_fo);
+    XFREE(mf->mf_fo);
+  }
+  XFREE(mf->mf_auto);
+  XFREE(mf->mf_mopts);
+  XFREE(mf->mf_remopts);
+  XFREE(mf->mf_info);
   if (mf->mf_private && mf->mf_prfree)
     (*mf->mf_prfree) (mf->mf_private);
 
-  if (mf->mf_mount)
-    XFREE(mf->mf_mount);
+  XFREE(mf->mf_mount);
 
   /*
    * Clean up the file server
@@ -255,6 +273,16 @@ discard_mntfs(voidp v)
   --mntfs_allocated;
 }
 
+static void
+discard_loc(voidp v)
+{
+  am_loc *loc = v;
+  if (loc->al_fo) {
+    free_opts(loc->al_fo);
+    XFREE(loc->al_fo);
+  }
+  XFREE(loc);
+}
 
 void
 flush_mntfs(void)
@@ -270,6 +298,23 @@ flush_mntfs(void)
   }
 }
 
+void
+free_loc(opaque_t arg)
+{
+  am_loc *loc = (am_loc *) arg;
+  dlog("free_loc %p", loc);
+
+  if (loc->al_refc <= 0) {
+    plog(XLOG_ERROR, "IGNORING free_loc for 0x%p", loc);
+    return;
+  }
+
+  if (loc->al_mnt)
+    free_mntfs(loc->al_mnt);
+  if (--loc->al_refc == 0) {
+    discard_loc(loc);
+  }
+}
 
 void
 free_mntfs(opaque_t arg)
@@ -356,7 +401,6 @@ realloc_mntfs(mntfs *mf, am_ops *ops, am_opts *mo, char *mp, char *info, char *a
   if (mf->mf_ops != &amfs_error_ops &&
       (mf->mf_flags & MFF_MOUNTED) &&
       !FSRV_ISDOWN(mf->mf_server)) {
-    mf->mf_fo = mo;
     return mf;
   }
 

@@ -1,7 +1,8 @@
-/*	$Id: mandocdb.c,v 1.218 2016/07/12 05:18:38 kristaps Exp $ */
+/*	$Id: mandocdb.c,v 1.253 2017/07/28 14:48:25 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2016 Ed Maste <emaste@freebsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,14 +38,13 @@
 #if HAVE_SANDBOX_INIT
 #include <sandbox.h>
 #endif
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <sqlite3.h>
 
 #include "mandoc_aux.h"
 #include "mandoc_ohash.h"
@@ -54,28 +54,10 @@
 #include "man.h"
 #include "manconf.h"
 #include "mansearch.h"
+#include "dba_array.h"
+#include "dba.h"
 
-extern int mansearch_keymax;
 extern const char *const mansearch_keynames[];
-
-#define	SQL_EXEC(_v) \
-	if (SQLITE_OK != sqlite3_exec(db, (_v), NULL, NULL, NULL)) \
-		say("", "%s: %s", (_v), sqlite3_errmsg(db))
-#define	SQL_BIND_TEXT(_s, _i, _v) \
-	if (SQLITE_OK != sqlite3_bind_text \
-		((_s), (_i)++, (_v), -1, SQLITE_STATIC)) \
-		say(mlink->file, "%s", sqlite3_errmsg(db))
-#define	SQL_BIND_INT(_s, _i, _v) \
-	if (SQLITE_OK != sqlite3_bind_int \
-		((_s), (_i)++, (_v))) \
-		say(mlink->file, "%s", sqlite3_errmsg(db))
-#define	SQL_BIND_INT64(_s, _i, _v) \
-	if (SQLITE_OK != sqlite3_bind_int64 \
-		((_s), (_i)++, (_v))) \
-		say(mlink->file, "%s", sqlite3_errmsg(db))
-#define SQL_STEP(_s) \
-	if (SQLITE_DONE != sqlite3_step((_s))) \
-		say(mlink->file, "%s", sqlite3_errmsg(db))
 
 enum	op {
 	OP_DEFAULT = 0, /* new dbs from dir list or default config */
@@ -98,14 +80,15 @@ struct	inodev {
 
 struct	mpage {
 	struct inodev	 inodev;  /* used for hashing routine */
-	int64_t		 pageid;  /* pageid in mpages SQL table */
+	struct dba_array *dba;
 	char		*sec;     /* section from file content */
 	char		*arch;    /* architecture from file content */
 	char		*title;   /* title from file content */
 	char		*desc;    /* description from file content */
+	struct mpage	*next;    /* singly linked list */
 	struct mlink	*mlinks;  /* singly linked list */
-	int		 form;    /* format from file content */
 	int		 name_head_done;
+	enum form	 form;    /* format from file content */
 };
 
 struct	mlink {
@@ -116,19 +99,9 @@ struct	mlink {
 	char		*fsec;    /* section from file name suffix */
 	struct mlink	*next;    /* singly linked list */
 	struct mpage	*mpage;   /* parent */
-	int		 dform;   /* format from directory */
-	int		 fform;   /* format from file name suffix */
 	int		 gzip;	  /* filename has a .gz suffix */
-};
-
-enum	stmt {
-	STMT_DELETE_PAGE = 0,	/* delete mpage */
-	STMT_INSERT_PAGE,	/* insert mpage */
-	STMT_INSERT_LINK,	/* insert mlink */
-	STMT_INSERT_NAME,	/* insert name */
-	STMT_SELECT_NAME,	/* retrieve existing name flags */
-	STMT_INSERT_KEY,	/* insert parsed key */
-	STMT__MAX
+	enum form	 dform;   /* format from directory */
+	enum form	 fform;   /* format from file name suffix */
 };
 
 typedef	int (*mdoc_fp)(struct mpage *, const struct roff_meta *,
@@ -137,22 +110,28 @@ typedef	int (*mdoc_fp)(struct mpage *, const struct roff_meta *,
 struct	mdoc_handler {
 	mdoc_fp		 fp; /* optional handler */
 	uint64_t	 mask;  /* set unless handler returns 0 */
+	int		 taboo;  /* node flags that must not be set */
 };
 
-static	void	 dbclose(int);
-static	void	 dbadd(struct mpage *);
+
+int		 mandocdb(int, char *[]);
+
+static	void	 dbadd(struct dba *, struct mpage *);
 static	void	 dbadd_mlink(const struct mlink *mlink);
-static	void	 dbadd_mlink_name(const struct mlink *mlink);
-static	int	 dbopen(int);
-static	void	 dbprune(void);
+static	void	 dbprune(struct dba *);
+static	void	 dbwrite(struct dba *);
 static	void	 filescan(const char *);
+#if HAVE_FTS_COMPARE_CONST
+static	int	 fts_compare(const FTSENT *const *, const FTSENT *const *);
+#else
+static	int	 fts_compare(const FTSENT **, const FTSENT **);
+#endif
 static	void	 mlink_add(struct mlink *, const struct stat *);
 static	void	 mlink_check(struct mpage *, struct mlink *);
 static	void	 mlink_free(struct mlink *);
 static	void	 mlinks_undupe(struct mpage *);
 static	void	 mpages_free(void);
-static	void	 mpages_merge(struct mparse *);
-static	void	 names_check(void);
+static	void	 mpages_merge(struct dba *, struct mparse *);
 static	void	 parse_cat(struct mpage *, int);
 static	void	 parse_man(struct mpage *, const struct roff_meta *,
 			const struct roff_node *);
@@ -180,14 +159,14 @@ static	int	 parse_mdoc_Xr(struct mpage *, const struct roff_meta *,
 static	void	 putkey(const struct mpage *, char *, uint64_t);
 static	void	 putkeys(const struct mpage *, char *, size_t, uint64_t);
 static	void	 putmdockey(const struct mpage *,
-			const struct roff_node *, uint64_t);
+			const struct roff_node *, uint64_t, int);
 static	int	 render_string(char **, size_t *);
-static	void	 say(const char *, const char *, ...);
+static	void	 say(const char *, const char *, ...)
+			__attribute__((__format__ (__printf__, 2, 3)));
 static	int	 set_basedir(const char *, int);
 static	int	 treescan(void);
 static	size_t	 utf8(unsigned int, char [7]);
 
-static	char		 tempfilename[32];
 static	int		 nodb; /* no database changes */
 static	int		 mparse_options; /* abort the parse early */
 static	int		 use_all; /* use all found files */
@@ -197,139 +176,136 @@ static	int		 write_utf8; /* write UTF-8 output; else ASCII */
 static	int		 exitcode; /* to be returned by main */
 static	enum op		 op; /* operational mode */
 static	char		 basedir[PATH_MAX]; /* current base directory */
+static	struct mpage	*mpage_head; /* list of distinct manual pages */
 static	struct ohash	 mpages; /* table of distinct manual pages */
 static	struct ohash	 mlinks; /* table of directory entries */
 static	struct ohash	 names; /* table of all names */
 static	struct ohash	 strings; /* table of all strings */
-static	sqlite3		*db = NULL; /* current database */
-static	sqlite3_stmt	*stmts[STMT__MAX]; /* current statements */
 static	uint64_t	 name_mask;
 
-static	const struct mdoc_handler mdocs[MDOC_MAX] = {
-	{ NULL, 0 },  /* Ap */
-	{ NULL, 0 },  /* Dd */
-	{ NULL, 0 },  /* Dt */
-	{ NULL, 0 },  /* Os */
-	{ parse_mdoc_Sh, TYPE_Sh }, /* Sh */
-	{ parse_mdoc_head, TYPE_Ss }, /* Ss */
-	{ NULL, 0 },  /* Pp */
-	{ NULL, 0 },  /* D1 */
-	{ NULL, 0 },  /* Dl */
-	{ NULL, 0 },  /* Bd */
-	{ NULL, 0 },  /* Ed */
-	{ NULL, 0 },  /* Bl */
-	{ NULL, 0 },  /* El */
-	{ NULL, 0 },  /* It */
-	{ NULL, 0 },  /* Ad */
-	{ NULL, TYPE_An },  /* An */
-	{ NULL, TYPE_Ar },  /* Ar */
-	{ NULL, TYPE_Cd },  /* Cd */
-	{ NULL, TYPE_Cm },  /* Cm */
-	{ NULL, TYPE_Dv },  /* Dv */
-	{ NULL, TYPE_Er },  /* Er */
-	{ NULL, TYPE_Ev },  /* Ev */
-	{ NULL, 0 },  /* Ex */
-	{ NULL, TYPE_Fa },  /* Fa */
-	{ parse_mdoc_Fd, 0 },  /* Fd */
-	{ NULL, TYPE_Fl },  /* Fl */
-	{ parse_mdoc_Fn, 0 },  /* Fn */
-	{ NULL, TYPE_Ft },  /* Ft */
-	{ NULL, TYPE_Ic },  /* Ic */
-	{ NULL, TYPE_In },  /* In */
-	{ NULL, TYPE_Li },  /* Li */
-	{ parse_mdoc_Nd, 0 },  /* Nd */
-	{ parse_mdoc_Nm, 0 },  /* Nm */
-	{ NULL, 0 },  /* Op */
-	{ NULL, 0 },  /* Ot */
-	{ NULL, TYPE_Pa },  /* Pa */
-	{ NULL, 0 },  /* Rv */
-	{ NULL, TYPE_St },  /* St */
-	{ parse_mdoc_Va, TYPE_Va },  /* Va */
-	{ parse_mdoc_Va, TYPE_Vt },  /* Vt */
-	{ parse_mdoc_Xr, 0 },  /* Xr */
-	{ NULL, 0 },  /* %A */
-	{ NULL, 0 },  /* %B */
-	{ NULL, 0 },  /* %D */
-	{ NULL, 0 },  /* %I */
-	{ NULL, 0 },  /* %J */
-	{ NULL, 0 },  /* %N */
-	{ NULL, 0 },  /* %O */
-	{ NULL, 0 },  /* %P */
-	{ NULL, 0 },  /* %R */
-	{ NULL, 0 },  /* %T */
-	{ NULL, 0 },  /* %V */
-	{ NULL, 0 },  /* Ac */
-	{ NULL, 0 },  /* Ao */
-	{ NULL, 0 },  /* Aq */
-	{ NULL, TYPE_At },  /* At */
-	{ NULL, 0 },  /* Bc */
-	{ NULL, 0 },  /* Bf */
-	{ NULL, 0 },  /* Bo */
-	{ NULL, 0 },  /* Bq */
-	{ NULL, TYPE_Bsx },  /* Bsx */
-	{ NULL, TYPE_Bx },  /* Bx */
-	{ NULL, 0 },  /* Db */
-	{ NULL, 0 },  /* Dc */
-	{ NULL, 0 },  /* Do */
-	{ NULL, 0 },  /* Dq */
-	{ NULL, 0 },  /* Ec */
-	{ NULL, 0 },  /* Ef */
-	{ NULL, TYPE_Em },  /* Em */
-	{ NULL, 0 },  /* Eo */
-	{ NULL, TYPE_Fx },  /* Fx */
-	{ NULL, TYPE_Ms },  /* Ms */
-	{ NULL, 0 },  /* No */
-	{ NULL, 0 },  /* Ns */
-	{ NULL, TYPE_Nx },  /* Nx */
-	{ NULL, TYPE_Ox },  /* Ox */
-	{ NULL, 0 },  /* Pc */
-	{ NULL, 0 },  /* Pf */
-	{ NULL, 0 },  /* Po */
-	{ NULL, 0 },  /* Pq */
-	{ NULL, 0 },  /* Qc */
-	{ NULL, 0 },  /* Ql */
-	{ NULL, 0 },  /* Qo */
-	{ NULL, 0 },  /* Qq */
-	{ NULL, 0 },  /* Re */
-	{ NULL, 0 },  /* Rs */
-	{ NULL, 0 },  /* Sc */
-	{ NULL, 0 },  /* So */
-	{ NULL, 0 },  /* Sq */
-	{ NULL, 0 },  /* Sm */
-	{ NULL, 0 },  /* Sx */
-	{ NULL, TYPE_Sy },  /* Sy */
-	{ NULL, TYPE_Tn },  /* Tn */
-	{ NULL, 0 },  /* Ux */
-	{ NULL, 0 },  /* Xc */
-	{ NULL, 0 },  /* Xo */
-	{ parse_mdoc_Fo, 0 },  /* Fo */
-	{ NULL, 0 },  /* Fc */
-	{ NULL, 0 },  /* Oo */
-	{ NULL, 0 },  /* Oc */
-	{ NULL, 0 },  /* Bk */
-	{ NULL, 0 },  /* Ek */
-	{ NULL, 0 },  /* Bt */
-	{ NULL, 0 },  /* Hf */
-	{ NULL, 0 },  /* Fr */
-	{ NULL, 0 },  /* Ud */
-	{ NULL, TYPE_Lb },  /* Lb */
-	{ NULL, 0 },  /* Lp */
-	{ NULL, TYPE_Lk },  /* Lk */
-	{ NULL, TYPE_Mt },  /* Mt */
-	{ NULL, 0 },  /* Brq */
-	{ NULL, 0 },  /* Bro */
-	{ NULL, 0 },  /* Brc */
-	{ NULL, 0 },  /* %C */
-	{ NULL, 0 },  /* Es */
-	{ NULL, 0 },  /* En */
-	{ NULL, TYPE_Dx },  /* Dx */
-	{ NULL, 0 },  /* %Q */
-	{ NULL, 0 },  /* br */
-	{ NULL, 0 },  /* sp */
-	{ NULL, 0 },  /* %U */
-	{ NULL, 0 },  /* Ta */
-	{ NULL, 0 },  /* ll */
+static	const struct mdoc_handler __mdocs[MDOC_MAX - MDOC_Dd] = {
+	{ NULL, 0, NODE_NOPRT },  /* Dd */
+	{ NULL, 0, NODE_NOPRT },  /* Dt */
+	{ NULL, 0, NODE_NOPRT },  /* Os */
+	{ parse_mdoc_Sh, TYPE_Sh, 0 }, /* Sh */
+	{ parse_mdoc_head, TYPE_Ss, 0 }, /* Ss */
+	{ NULL, 0, 0 },  /* Pp */
+	{ NULL, 0, 0 },  /* D1 */
+	{ NULL, 0, 0 },  /* Dl */
+	{ NULL, 0, 0 },  /* Bd */
+	{ NULL, 0, 0 },  /* Ed */
+	{ NULL, 0, 0 },  /* Bl */
+	{ NULL, 0, 0 },  /* El */
+	{ NULL, 0, 0 },  /* It */
+	{ NULL, 0, 0 },  /* Ad */
+	{ NULL, TYPE_An, 0 },  /* An */
+	{ NULL, 0, 0 },  /* Ap */
+	{ NULL, TYPE_Ar, 0 },  /* Ar */
+	{ NULL, TYPE_Cd, 0 },  /* Cd */
+	{ NULL, TYPE_Cm, 0 },  /* Cm */
+	{ NULL, TYPE_Dv, 0 },  /* Dv */
+	{ NULL, TYPE_Er, 0 },  /* Er */
+	{ NULL, TYPE_Ev, 0 },  /* Ev */
+	{ NULL, 0, 0 },  /* Ex */
+	{ NULL, TYPE_Fa, 0 },  /* Fa */
+	{ parse_mdoc_Fd, 0, 0 },  /* Fd */
+	{ NULL, TYPE_Fl, 0 },  /* Fl */
+	{ parse_mdoc_Fn, 0, 0 },  /* Fn */
+	{ NULL, TYPE_Ft, 0 },  /* Ft */
+	{ NULL, TYPE_Ic, 0 },  /* Ic */
+	{ NULL, TYPE_In, 0 },  /* In */
+	{ NULL, TYPE_Li, 0 },  /* Li */
+	{ parse_mdoc_Nd, 0, 0 },  /* Nd */
+	{ parse_mdoc_Nm, 0, 0 },  /* Nm */
+	{ NULL, 0, 0 },  /* Op */
+	{ NULL, 0, 0 },  /* Ot */
+	{ NULL, TYPE_Pa, NODE_NOSRC },  /* Pa */
+	{ NULL, 0, 0 },  /* Rv */
+	{ NULL, TYPE_St, 0 },  /* St */
+	{ parse_mdoc_Va, TYPE_Va, 0 },  /* Va */
+	{ parse_mdoc_Va, TYPE_Vt, 0 },  /* Vt */
+	{ parse_mdoc_Xr, 0, 0 },  /* Xr */
+	{ NULL, 0, 0 },  /* %A */
+	{ NULL, 0, 0 },  /* %B */
+	{ NULL, 0, 0 },  /* %D */
+	{ NULL, 0, 0 },  /* %I */
+	{ NULL, 0, 0 },  /* %J */
+	{ NULL, 0, 0 },  /* %N */
+	{ NULL, 0, 0 },  /* %O */
+	{ NULL, 0, 0 },  /* %P */
+	{ NULL, 0, 0 },  /* %R */
+	{ NULL, 0, 0 },  /* %T */
+	{ NULL, 0, 0 },  /* %V */
+	{ NULL, 0, 0 },  /* Ac */
+	{ NULL, 0, 0 },  /* Ao */
+	{ NULL, 0, 0 },  /* Aq */
+	{ NULL, TYPE_At, 0 },  /* At */
+	{ NULL, 0, 0 },  /* Bc */
+	{ NULL, 0, 0 },  /* Bf */
+	{ NULL, 0, 0 },  /* Bo */
+	{ NULL, 0, 0 },  /* Bq */
+	{ NULL, TYPE_Bsx, NODE_NOSRC },  /* Bsx */
+	{ NULL, TYPE_Bx, NODE_NOSRC },  /* Bx */
+	{ NULL, 0, 0 },  /* Db */
+	{ NULL, 0, 0 },  /* Dc */
+	{ NULL, 0, 0 },  /* Do */
+	{ NULL, 0, 0 },  /* Dq */
+	{ NULL, 0, 0 },  /* Ec */
+	{ NULL, 0, 0 },  /* Ef */
+	{ NULL, TYPE_Em, 0 },  /* Em */
+	{ NULL, 0, 0 },  /* Eo */
+	{ NULL, TYPE_Fx, NODE_NOSRC },  /* Fx */
+	{ NULL, TYPE_Ms, 0 },  /* Ms */
+	{ NULL, 0, 0 },  /* No */
+	{ NULL, 0, 0 },  /* Ns */
+	{ NULL, TYPE_Nx, NODE_NOSRC },  /* Nx */
+	{ NULL, TYPE_Ox, NODE_NOSRC },  /* Ox */
+	{ NULL, 0, 0 },  /* Pc */
+	{ NULL, 0, 0 },  /* Pf */
+	{ NULL, 0, 0 },  /* Po */
+	{ NULL, 0, 0 },  /* Pq */
+	{ NULL, 0, 0 },  /* Qc */
+	{ NULL, 0, 0 },  /* Ql */
+	{ NULL, 0, 0 },  /* Qo */
+	{ NULL, 0, 0 },  /* Qq */
+	{ NULL, 0, 0 },  /* Re */
+	{ NULL, 0, 0 },  /* Rs */
+	{ NULL, 0, 0 },  /* Sc */
+	{ NULL, 0, 0 },  /* So */
+	{ NULL, 0, 0 },  /* Sq */
+	{ NULL, 0, 0 },  /* Sm */
+	{ NULL, 0, 0 },  /* Sx */
+	{ NULL, TYPE_Sy, 0 },  /* Sy */
+	{ NULL, TYPE_Tn, 0 },  /* Tn */
+	{ NULL, 0, NODE_NOSRC },  /* Ux */
+	{ NULL, 0, 0 },  /* Xc */
+	{ NULL, 0, 0 },  /* Xo */
+	{ parse_mdoc_Fo, 0, 0 },  /* Fo */
+	{ NULL, 0, 0 },  /* Fc */
+	{ NULL, 0, 0 },  /* Oo */
+	{ NULL, 0, 0 },  /* Oc */
+	{ NULL, 0, 0 },  /* Bk */
+	{ NULL, 0, 0 },  /* Ek */
+	{ NULL, 0, 0 },  /* Bt */
+	{ NULL, 0, 0 },  /* Hf */
+	{ NULL, 0, 0 },  /* Fr */
+	{ NULL, 0, 0 },  /* Ud */
+	{ NULL, TYPE_Lb, NODE_NOSRC },  /* Lb */
+	{ NULL, 0, 0 },  /* Lp */
+	{ NULL, TYPE_Lk, 0 },  /* Lk */
+	{ NULL, TYPE_Mt, NODE_NOSRC },  /* Mt */
+	{ NULL, 0, 0 },  /* Brq */
+	{ NULL, 0, 0 },  /* Bro */
+	{ NULL, 0, 0 },  /* Brc */
+	{ NULL, 0, 0 },  /* %C */
+	{ NULL, 0, 0 },  /* Es */
+	{ NULL, 0, 0 },  /* En */
+	{ NULL, TYPE_Dx, NODE_NOSRC },  /* Dx */
+	{ NULL, 0, 0 },  /* %Q */
+	{ NULL, 0, 0 },  /* %U */
+	{ NULL, 0, 0 },  /* Ta */
 };
+static	const struct mdoc_handler *const mdocs = __mdocs - MDOC_Dd;
 
 
 int
@@ -337,6 +313,7 @@ mandocdb(int argc, char *argv[])
 {
 	struct manconf	  conf;
 	struct mparse	 *mp;
+	struct dba	 *dba;
 	const char	 *path_arg, *progname;
 	size_t		  j, sz;
 	int		  ch, i;
@@ -356,7 +333,6 @@ mandocdb(int argc, char *argv[])
 #endif
 
 	memset(&conf, 0, sizeof(conf));
-	memset(stmts, 0, STMT__MAX * sizeof(sqlite3_stmt *));
 
 	/*
 	 * We accept a few different invocations.
@@ -444,7 +420,8 @@ mandocdb(int argc, char *argv[])
 
 	exitcode = (int)MANDOCLEVEL_OK;
 	mchars_alloc();
-	mp = mparse_alloc(mparse_options, MANDOCLEVEL_BADARG, NULL, NULL);
+	mp = mparse_alloc(mparse_options, MANDOCERR_MAX, NULL,
+	    MANDOC_OS_OTHER, NULL);
 	mandoc_ohash_init(&mpages, 6, offsetof(struct mpage, inodev));
 	mandoc_ohash_init(&mlinks, 6, offsetof(struct mlink, file));
 
@@ -457,7 +434,8 @@ mandocdb(int argc, char *argv[])
 		if (OP_TEST != op && 0 == set_basedir(path_arg, 1))
 			goto out;
 
-		if (dbopen(1)) {
+		dba = nodb ? dba_new(128) : dba_read(MANDOC_DB);
+		if (dba != NULL) {
 			/*
 			 * The existing database is usable.  Process
 			 * all files specified on the command-line.
@@ -474,28 +452,28 @@ mandocdb(int argc, char *argv[])
 			use_all = 1;
 			for (i = 0; i < argc; i++)
 				filescan(argv[i]);
-			if (OP_TEST != op)
-				dbprune();
+			if (nodb == 0)
+				dbprune(dba);
 		} else {
-			/*
-			 * Database missing or corrupt.
-			 * Recreate from scratch.
-			 */
+			/* Database missing or corrupt. */
+			if (op != OP_UPDATE || errno != ENOENT)
+				say(MANDOC_DB, "%s: Automatically recreating"
+				    " from scratch", strerror(errno));
 			exitcode = (int)MANDOCLEVEL_OK;
 			op = OP_DEFAULT;
 			if (0 == treescan())
 				goto out;
-			if (0 == dbopen(0))
-				goto out;
+			dba = dba_new(128);
 		}
 		if (OP_DELETE != op)
-			mpages_merge(mp);
-		dbclose(OP_DEFAULT == op ? 0 : 1);
+			mpages_merge(dba, mp);
+		if (nodb == 0)
+			dbwrite(dba);
+		dba_free(dba);
 	} else {
 		/*
 		 * If we have arguments, use them as our manpaths.
-		 * If we don't, grok from manpath(1) or however else
-		 * manconf_parse() wants to do it.
+		 * If we don't, use man.conf(5).
 		 */
 		if (argc > 0) {
 			conf.manpath.paths = mandoc_reallocarray(NULL,
@@ -535,14 +513,11 @@ mandocdb(int argc, char *argv[])
 				continue;
 			if (0 == treescan())
 				continue;
-			if (0 == dbopen(0))
-				continue;
-
-			mpages_merge(mp);
-			if (warnings && !nodb &&
-			    ! (MPARSE_QUICK & mparse_options))
-				names_check();
-			dbclose(0);
+			dba = dba_new(128);
+			mpages_merge(dba, mp);
+			if (nodb == 0)
+				dbwrite(dba);
+			dba_free(dba);
 
 			if (j + 1 < conf.manpath.sz) {
 				mpages_free();
@@ -572,6 +547,20 @@ usage:
 }
 
 /*
+ * To get a singly linked list in alpha order while inserting entries
+ * at the beginning, process directory entries in reverse alpha order.
+ */
+static int
+#if HAVE_FTS_COMPARE_CONST
+fts_compare(const FTSENT *const *a, const FTSENT *const *b)
+#else
+fts_compare(const FTSENT **a, const FTSENT **b)
+#endif
+{
+	return -strcmp((*a)->fts_name, (*b)->fts_name);
+}
+
+/*
  * Scan a directory tree rooted at "basedir" for manpages.
  * We use fts(), scanning directory parts along the way for clues to our
  * section and architecture.
@@ -592,16 +581,17 @@ treescan(void)
 	FTS		*f;
 	FTSENT		*ff;
 	struct mlink	*mlink;
-	int		 dform, gzip;
+	int		 gzip;
+	enum form	 dform;
 	char		*dsec, *arch, *fsec, *cp;
 	const char	*path;
 	const char	*argv[2];
 
 	argv[0] = ".";
-	argv[1] = (char *)NULL;
+	argv[1] = NULL;
 
-	f = fts_open((char * const *)argv,
-	    FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+	f = fts_open((char * const *)argv, FTS_PHYSICAL | FTS_NOCHDIR,
+	    fts_compare);
 	if (f == NULL) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&fts_open");
@@ -881,6 +871,20 @@ filescan(const char *file)
 	}
 
 	/*
+	 * In test mode or when the original name is absolute
+	 * but outside our tree, guess the base directory.
+	 */
+
+	if (op == OP_TEST || (start == buf && *start == '/')) {
+		if (strncmp(buf, "man/", 4) == 0)
+			start = buf + 4;
+		else if ((start = strstr(buf, "/man/")) != NULL)
+			start += 5;
+		else
+			start = buf;
+	}
+
+	/*
 	 * First try to guess our directory structure.
 	 * If we find a separator, try to look for man* or cat*.
 	 * If we find one of these and what's underneath is a directory,
@@ -966,6 +970,9 @@ mlink_add(struct mlink *mlink, const struct stat *st)
 		mpage = mandoc_calloc(1, sizeof(struct mpage));
 		mpage->inodev.st_ino = inodev.st_ino;
 		mpage->inodev.st_dev = inodev.st_dev;
+		mpage->form = FORM_NONE;
+		mpage->next = mpage_head;
+		mpage_head = mpage;
 		ohash_insert(&mpages, slot, mpage);
 	} else
 		mlink->next = mpage->mlinks;
@@ -989,20 +996,18 @@ mpages_free(void)
 {
 	struct mpage	*mpage;
 	struct mlink	*mlink;
-	unsigned int	 slot;
 
-	mpage = ohash_first(&mpages, &slot);
-	while (NULL != mpage) {
-		while (NULL != (mlink = mpage->mlinks)) {
+	while ((mpage = mpage_head) != NULL) {
+		while ((mlink = mpage->mlinks) != NULL) {
 			mpage->mlinks = mlink->next;
 			mlink_free(mlink);
 		}
+		mpage_head = mpage->next;
 		free(mpage->sec);
 		free(mpage->arch);
 		free(mpage->title);
 		free(mpage->desc);
 		free(mpage);
-		mpage = ohash_next(&mpages, &slot);
 	}
 }
 
@@ -1079,7 +1084,7 @@ mlink_check(struct mpage *mpage, struct mlink *mlink)
 	 * architectures.
 	 * A few manuals are even shared across completely
 	 * different architectures, for example fdformat(1)
-	 * on amd64, i386, sparc, and sparc64.
+	 * on amd64, i386, and sparc64.
 	 */
 
 	if (strcasecmp(mpage->arch, mlink->arch))
@@ -1114,27 +1119,19 @@ mlink_check(struct mpage *mpage, struct mlink *mlink)
  * and filename to determine whether the file is parsable or not.
  */
 static void
-mpages_merge(struct mparse *mp)
+mpages_merge(struct dba *dba, struct mparse *mp)
 {
-	char			 any[] = "any";
 	struct mpage		*mpage, *mpage_dest;
 	struct mlink		*mlink, *mlink_dest;
 	struct roff_man		*man;
 	char			*sodest;
 	char			*cp;
 	int			 fd;
-	unsigned int		 pslot;
 
-	if ( ! nodb)
-		SQL_EXEC("BEGIN TRANSACTION");
-
-	mpage = ohash_first(&mpages, &pslot);
-	while (mpage != NULL) {
+	for (mpage = mpage_head; mpage != NULL; mpage = mpage->next) {
 		mlinks_undupe(mpage);
-		if ((mlink = mpage->mlinks) == NULL) {
-			mpage = ohash_next(&mpages, &pslot);
+		if ((mlink = mpage->mlinks) == NULL)
 			continue;
-		}
 
 		name_mask = NAME_MASK;
 		mandoc_ohash_init(&names, 4, offsetof(struct str, key));
@@ -1155,6 +1152,7 @@ mpages_merge(struct mparse *mp)
 		if (mlink->dform != FORM_CAT || mlink->fform != FORM_CAT) {
 			mparse_readfd(mp, fd, mlink->file);
 			close(fd);
+			fd = -1;
 			mparse_result(mp, &man, &sodest);
 		}
 
@@ -1184,8 +1182,8 @@ mpages_merge(struct mparse *mp)
 					 * to the target.
 					 */
 
-					if (mpage_dest->pageid)
-						dbadd_mlink_name(mlink);
+					if (mpage_dest->dba != NULL)
+						dbadd_mlink(mlink);
 
 					if (mlink->next == NULL)
 						break;
@@ -1211,120 +1209,96 @@ mpages_merge(struct mparse *mp)
 			mpage->title = mandoc_strdup(man->meta.title);
 		} else if (man != NULL && man->macroset == MACROSET_MAN) {
 			man_validate(man);
-			mpage->form = FORM_SRC;
-			mpage->sec = mandoc_strdup(man->meta.msec);
-			mpage->arch = mandoc_strdup(mlink->arch);
-			mpage->title = mandoc_strdup(man->meta.title);
-		} else {
+			if (*man->meta.msec != '\0' ||
+			    *man->meta.title != '\0') {
+				mpage->form = FORM_SRC;
+				mpage->sec = mandoc_strdup(man->meta.msec);
+				mpage->arch = mandoc_strdup(mlink->arch);
+				mpage->title = mandoc_strdup(man->meta.title);
+			} else
+				man = NULL;
+		}
+
+		assert(mpage->desc == NULL);
+		if (man == NULL) {
 			mpage->form = FORM_CAT;
 			mpage->sec = mandoc_strdup(mlink->dsec);
 			mpage->arch = mandoc_strdup(mlink->arch);
 			mpage->title = mandoc_strdup(mlink->name);
-		}
-		putkey(mpage, mpage->sec, TYPE_sec);
-		if (*mpage->arch != '\0')
-			putkey(mpage, mpage->arch, TYPE_arch);
-
-		for ( ; mlink != NULL; mlink = mlink->next) {
-			if ('\0' != *mlink->dsec)
-				putkey(mpage, mlink->dsec, TYPE_sec);
-			if ('\0' != *mlink->fsec)
-				putkey(mpage, mlink->fsec, TYPE_sec);
-			putkey(mpage, '\0' == *mlink->arch ?
-			    any : mlink->arch, TYPE_arch);
-			putkey(mpage, mlink->name, NAME_FILE);
-		}
-
-		assert(mpage->desc == NULL);
-		if (man != NULL && man->macroset == MACROSET_MDOC)
-			parse_mdoc(mpage, &man->meta, man->first);
-		else if (man != NULL)
-			parse_man(mpage, &man->meta, man->first);
-		else
 			parse_cat(mpage, fd);
-		if (mpage->desc == NULL)
-			mpage->desc = mandoc_strdup(mpage->mlinks->name);
+		} else if (man->macroset == MACROSET_MDOC)
+			parse_mdoc(mpage, &man->meta, man->first);
+		else
+			parse_man(mpage, &man->meta, man->first);
+		if (mpage->desc == NULL) {
+			mpage->desc = mandoc_strdup(mlink->name);
+			if (warnings)
+				say(mlink->file, "No one-line description, "
+				    "using filename \"%s\"", mlink->name);
+		}
 
-		if (warnings && !use_all)
-			for (mlink = mpage->mlinks; mlink;
-			     mlink = mlink->next)
+		for (mlink = mpage->mlinks;
+		     mlink != NULL;
+		     mlink = mlink->next) {
+			putkey(mpage, mlink->name, NAME_FILE);
+			if (warnings && !use_all)
 				mlink_check(mpage, mlink);
+		}
 
-		dbadd(mpage);
-		mlink = mpage->mlinks;
+		dbadd(dba, mpage);
 
 nextpage:
 		ohash_delete(&strings);
 		ohash_delete(&names);
-		mpage = ohash_next(&mpages, &pslot);
 	}
-
-	if (0 == nodb)
-		SQL_EXEC("END TRANSACTION");
-}
-
-static void
-names_check(void)
-{
-	sqlite3_stmt	*stmt;
-	const char	*name, *sec, *arch, *key;
-
-	sqlite3_prepare_v2(db,
-	  "SELECT name, sec, arch, key FROM ("
-	    "SELECT name AS key, pageid FROM names "
-	    "WHERE bits & ? AND NOT EXISTS ("
-	      "SELECT pageid FROM mlinks "
-	      "WHERE mlinks.pageid == names.pageid "
-	      "AND mlinks.name == names.name"
-	    ")"
-	  ") JOIN ("
-	    "SELECT sec, arch, name, pageid FROM mlinks "
-	    "GROUP BY pageid"
-	  ") USING (pageid);",
-	  -1, &stmt, NULL);
-
-	if (sqlite3_bind_int64(stmt, 1, NAME_TITLE) != SQLITE_OK)
-		say("", "%s", sqlite3_errmsg(db));
-
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
-		name = (const char *)sqlite3_column_text(stmt, 0);
-		sec  = (const char *)sqlite3_column_text(stmt, 1);
-		arch = (const char *)sqlite3_column_text(stmt, 2);
-		key  = (const char *)sqlite3_column_text(stmt, 3);
-		say("", "%s(%s%s%s) lacks mlink \"%s\"", name, sec,
-		    '\0' == *arch ? "" : "/",
-		    '\0' == *arch ? "" : arch, key);
-	}
-	sqlite3_finalize(stmt);
 }
 
 static void
 parse_cat(struct mpage *mpage, int fd)
 {
 	FILE		*stream;
-	char		*line, *p, *title;
+	struct mlink	*mlink;
+	char		*line, *p, *title, *sec;
 	size_t		 linesz, plen, titlesz;
 	ssize_t		 len;
 	int		 offs;
 
-	stream = (-1 == fd) ?
-	    fopen(mpage->mlinks->file, "r") :
-	    fdopen(fd, "r");
-	if (NULL == stream) {
-		if (-1 != fd)
+	mlink = mpage->mlinks;
+	stream = fd == -1 ? fopen(mlink->file, "r") : fdopen(fd, "r");
+	if (stream == NULL) {
+		if (fd != -1)
 			close(fd);
 		if (warnings)
-			say(mpage->mlinks->file, "&fopen");
+			say(mlink->file, "&fopen");
 		return;
 	}
 
 	line = NULL;
 	linesz = 0;
 
+	/* Parse the section number from the header line. */
+
+	while (getline(&line, &linesz, stream) != -1) {
+		if (*line == '\n')
+			continue;
+		if ((sec = strchr(line, '(')) == NULL)
+			break;
+		if ((p = strchr(++sec, ')')) == NULL)
+			break;
+		free(mpage->sec);
+		mpage->sec = mandoc_strndup(sec, p - sec);
+		if (warnings && *mlink->dsec != '\0' &&
+		    strcasecmp(mpage->sec, mlink->dsec))
+			say(mlink->file,
+			    "Section \"%s\" manual in %s directory",
+			    mpage->sec, mlink->dsec);
+		break;
+	}
+
 	/* Skip to first blank line. */
 
-	while (getline(&line, &linesz, stream) != -1)
-		if (*line == '\n')
+	while (line == NULL || *line != '\n')
+		if (getline(&line, &linesz, stream) == -1)
 			break;
 
 	/*
@@ -1370,8 +1344,7 @@ parse_cat(struct mpage *mpage, int fd)
 
 	if (NULL == title || '\0' == *title) {
 		if (warnings)
-			say(mpage->mlinks->file,
-			    "Cannot find NAME section");
+			say(mlink->file, "Cannot find NAME section");
 		fclose(stream);
 		free(title);
 		return;
@@ -1390,8 +1363,8 @@ parse_cat(struct mpage *mpage, int fd)
 			/* Skip to next word. */ ;
 	} else {
 		if (warnings)
-			say(mpage->mlinks->file,
-			    "No dash in title line");
+			say(mlink->file, "No dash in title line, "
+			    "reusing \"%s\" as one-line description", title);
 		p = title;
 	}
 
@@ -1420,13 +1393,6 @@ parse_cat(struct mpage *mpage, int fd)
 static void
 putkey(const struct mpage *mpage, char *value, uint64_t type)
 {
-	char	 *cp;
-
-	assert(NULL != value);
-	if (TYPE_arch == type)
-		for (cp = value; *cp; cp++)
-			if (isupper((unsigned char)*cp))
-				*cp = _tolower((unsigned char)*cp);
 	putkeys(mpage, value, strlen(value), type);
 }
 
@@ -1435,12 +1401,14 @@ putkey(const struct mpage *mpage, char *value, uint64_t type)
  */
 static void
 putmdockey(const struct mpage *mpage,
-	const struct roff_node *n, uint64_t m)
+	const struct roff_node *n, uint64_t m, int taboo)
 {
 
 	for ( ; NULL != n; n = n->next) {
+		if (n->flags & taboo)
+			continue;
 		if (NULL != n->child)
-			putmdockey(mpage, n->child, m);
+			putmdockey(mpage, n->child, m, taboo);
 		if (n->type == ROFFT_TEXT)
 			putkey(mpage, n->string, m);
 	}
@@ -1576,23 +1544,26 @@ parse_mdoc(struct mpage *mpage, const struct roff_meta *meta,
 	const struct roff_node *n)
 {
 
-	assert(NULL != n);
-	for (n = n->child; NULL != n; n = n->next) {
+	for (n = n->child; n != NULL; n = n->next) {
+		if (n->tok == TOKEN_NONE ||
+		    n->tok < ROFF_MAX ||
+		    n->flags & mdocs[n->tok].taboo)
+			continue;
+		assert(n->tok >= MDOC_Dd && n->tok < MDOC_MAX);
 		switch (n->type) {
 		case ROFFT_ELEM:
 		case ROFFT_BLOCK:
 		case ROFFT_HEAD:
 		case ROFFT_BODY:
 		case ROFFT_TAIL:
-			if (NULL != mdocs[n->tok].fp)
-			       if (0 == (*mdocs[n->tok].fp)(mpage, meta, n))
-				       break;
+			if (mdocs[n->tok].fp != NULL &&
+			    (*mdocs[n->tok].fp)(mpage, meta, n) == 0)
+				break;
 			if (mdocs[n->tok].mask)
 				putmdockey(mpage, n->child,
-				    mdocs[n->tok].mask);
+				    mdocs[n->tok].mask, mdocs[n->tok].taboo);
 			break;
 		default:
-			assert(n->type != ROFFT_ROOT);
 			continue;
 		}
 		if (NULL != n->child)
@@ -1757,17 +1728,17 @@ parse_mdoc_Nm(struct mpage *mpage, const struct roff_meta *meta,
 {
 
 	if (SEC_NAME == n->sec)
-		putmdockey(mpage, n->child, NAME_TITLE);
+		putmdockey(mpage, n->child, NAME_TITLE, 0);
 	else if (n->sec == SEC_SYNOPSIS && n->type == ROFFT_HEAD) {
 		if (n->child == NULL)
 			putkey(mpage, meta->name, NAME_SYN);
 		else
-			putmdockey(mpage, n->child, NAME_SYN);
+			putmdockey(mpage, n->child, NAME_SYN, 0);
 	}
 	if ( ! (mpage->name_head_done ||
 	    n->child == NULL || n->child->string == NULL ||
 	    strcasecmp(n->child->string, meta->title))) {
-		putkey(mpage, n->child->string, ROFFT_HEAD);
+		putkey(mpage, n->child->string, NAME_HEAD);
 		mpage->name_head_done = 1;
 	}
 	return 0;
@@ -1815,15 +1786,16 @@ putkeys(const struct mpage *mpage, char *cp, size_t sz, uint64_t v)
 			name_mask &= ~NAME_FIRST;
 		if (debug > 1)
 			say(mpage->mlinks->file,
-			    "Adding name %*s, bits=%d", sz, cp, v);
+			    "Adding name %*s, bits=0x%llx", (int)sz, cp,
+			    (unsigned long long)v);
 	} else {
 		htab = &strings;
 		if (debug > 1)
-		    for (i = 0; i < mansearch_keymax; i++)
+		    for (i = 0; i < KEY_MAX; i++)
 			if ((uint64_t)1 << i & v)
 			    say(mpage->mlinks->file,
 				"Adding key %s=%*s",
-				mansearch_keynames[i], sz, cp);
+				mansearch_keynames[i], (int)sz, cp);
 	}
 
 	end = cp + sz;
@@ -2025,53 +1997,24 @@ render_string(char **public, size_t *psz)
 static void
 dbadd_mlink(const struct mlink *mlink)
 {
-	size_t		 i;
-
-	i = 1;
-	SQL_BIND_TEXT(stmts[STMT_INSERT_LINK], i, mlink->dsec);
-	SQL_BIND_TEXT(stmts[STMT_INSERT_LINK], i, mlink->arch);
-	SQL_BIND_TEXT(stmts[STMT_INSERT_LINK], i, mlink->name);
-	SQL_BIND_INT64(stmts[STMT_INSERT_LINK], i, mlink->mpage->pageid);
-	SQL_STEP(stmts[STMT_INSERT_LINK]);
-	sqlite3_reset(stmts[STMT_INSERT_LINK]);
-}
-
-static void
-dbadd_mlink_name(const struct mlink *mlink)
-{
-	uint64_t	 bits;
-	size_t		 i;
-
-	dbadd_mlink(mlink);
-
-	i = 1;
-	SQL_BIND_INT64(stmts[STMT_SELECT_NAME], i, mlink->mpage->pageid);
-	bits = NAME_FILE & NAME_MASK;
-	if (sqlite3_step(stmts[STMT_SELECT_NAME]) == SQLITE_ROW) {
-		bits |= sqlite3_column_int64(stmts[STMT_SELECT_NAME], 0);
-		sqlite3_reset(stmts[STMT_SELECT_NAME]);
-	}
-
-	i = 1;
-	SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, bits);
-	SQL_BIND_TEXT(stmts[STMT_INSERT_NAME], i, mlink->name);
-	SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, mlink->mpage->pageid);
-	SQL_STEP(stmts[STMT_INSERT_NAME]);
-	sqlite3_reset(stmts[STMT_INSERT_NAME]);
+	dba_page_alias(mlink->mpage->dba, mlink->name, NAME_FILE);
+	dba_page_add(mlink->mpage->dba, DBP_SECT, mlink->dsec);
+	dba_page_add(mlink->mpage->dba, DBP_SECT, mlink->fsec);
+	dba_page_add(mlink->mpage->dba, DBP_ARCH, mlink->arch);
+	dba_page_add(mlink->mpage->dba, DBP_FILE, mlink->file);
 }
 
 /*
  * Flush the current page's terms (and their bits) into the database.
- * Wrap the entire set of additions in a transaction to make sqlite be a
- * little faster.
  * Also, handle escape sequences at the last possible moment.
  */
 static void
-dbadd(struct mpage *mpage)
+dbadd(struct dba *dba, struct mpage *mpage)
 {
 	struct mlink	*mlink;
 	struct str	*key;
 	char		*cp;
+	uint64_t	 mask;
 	size_t		 i;
 	unsigned int	 slot;
 	int		 mustfree;
@@ -2116,111 +2059,113 @@ dbadd(struct mpage *mpage)
 	cp = mpage->desc;
 	i = strlen(cp);
 	mustfree = render_string(&cp, &i);
-	i = 1;
-	SQL_BIND_TEXT(stmts[STMT_INSERT_PAGE], i, cp);
-	SQL_BIND_INT(stmts[STMT_INSERT_PAGE], i, mpage->form);
-	SQL_STEP(stmts[STMT_INSERT_PAGE]);
-	mpage->pageid = sqlite3_last_insert_rowid(db);
-	sqlite3_reset(stmts[STMT_INSERT_PAGE]);
+	mpage->dba = dba_page_new(dba->pages,
+	    *mpage->arch == '\0' ? mlink->arch : mpage->arch,
+	    cp, mlink->file, mpage->form);
 	if (mustfree)
 		free(cp);
+	dba_page_add(mpage->dba, DBP_SECT, mpage->sec);
 
-	while (NULL != mlink) {
+	while (mlink != NULL) {
 		dbadd_mlink(mlink);
 		mlink = mlink->next;
 	}
-	mlink = mpage->mlinks;
 
 	for (key = ohash_first(&names, &slot); NULL != key;
 	     key = ohash_next(&names, &slot)) {
 		assert(key->mpage == mpage);
-		i = 1;
-		SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, key->mask);
-		SQL_BIND_TEXT(stmts[STMT_INSERT_NAME], i, key->key);
-		SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, mpage->pageid);
-		SQL_STEP(stmts[STMT_INSERT_NAME]);
-		sqlite3_reset(stmts[STMT_INSERT_NAME]);
+		dba_page_alias(mpage->dba, key->key, key->mask);
 		free(key);
 	}
 	for (key = ohash_first(&strings, &slot); NULL != key;
 	     key = ohash_next(&strings, &slot)) {
 		assert(key->mpage == mpage);
-		i = 1;
-		SQL_BIND_INT64(stmts[STMT_INSERT_KEY], i, key->mask);
-		SQL_BIND_TEXT(stmts[STMT_INSERT_KEY], i, key->key);
-		SQL_BIND_INT64(stmts[STMT_INSERT_KEY], i, mpage->pageid);
-		SQL_STEP(stmts[STMT_INSERT_KEY]);
-		sqlite3_reset(stmts[STMT_INSERT_KEY]);
+		i = 0;
+		for (mask = TYPE_Xr; mask <= TYPE_Lb; mask *= 2) {
+			if (key->mask & mask)
+				dba_macro_add(dba->macros, i,
+				    key->key, mpage->dba);
+			i++;
+		}
 		free(key);
 	}
 }
 
 static void
-dbprune(void)
+dbprune(struct dba *dba)
 {
-	struct mpage	*mpage;
-	struct mlink	*mlink;
-	size_t		 i;
-	unsigned int	 slot;
+	struct dba_array	*page, *files;
+	char			*file;
 
-	if (0 == nodb)
-		SQL_EXEC("BEGIN TRANSACTION");
-
-	for (mpage = ohash_first(&mpages, &slot); NULL != mpage;
-	     mpage = ohash_next(&mpages, &slot)) {
-		mlink = mpage->mlinks;
-		if (debug)
-			say(mlink->file, "Deleting from database");
-		if (nodb)
-			continue;
-		for ( ; NULL != mlink; mlink = mlink->next) {
-			i = 1;
-			SQL_BIND_TEXT(stmts[STMT_DELETE_PAGE],
-			    i, mlink->dsec);
-			SQL_BIND_TEXT(stmts[STMT_DELETE_PAGE],
-			    i, mlink->arch);
-			SQL_BIND_TEXT(stmts[STMT_DELETE_PAGE],
-			    i, mlink->name);
-			SQL_STEP(stmts[STMT_DELETE_PAGE]);
-			sqlite3_reset(stmts[STMT_DELETE_PAGE]);
+	dba_array_FOREACH(dba->pages, page) {
+		files = dba_array_get(page, DBP_FILE);
+		dba_array_FOREACH(files, file) {
+			if (*file < ' ')
+				file++;
+			if (ohash_find(&mlinks, ohash_qlookup(&mlinks,
+			    file)) != NULL) {
+				if (debug)
+					say(file, "Deleting from database");
+				dba_array_del(dba->pages);
+				break;
+			}
 		}
 	}
-
-	if (0 == nodb)
-		SQL_EXEC("END TRANSACTION");
 }
 
 /*
- * Close an existing database and its prepared statements.
- * If "real" is not set, rename the temporary file into the real one.
+ * Write the database from memory to disk.
  */
 static void
-dbclose(int real)
+dbwrite(struct dba *dba)
 {
-	size_t		 i;
+	char		 tfn[32];
 	int		 status;
 	pid_t		 child;
 
-	if (nodb)
-		return;
+	/*
+	 * Do not write empty databases, and delete existing ones
+	 * when makewhatis -u causes them to become empty.
+	 */
 
-	for (i = 0; i < STMT__MAX; i++) {
-		sqlite3_finalize(stmts[i]);
-		stmts[i] = NULL;
+	dba_array_start(dba->pages);
+	if (dba_array_next(dba->pages) == NULL) {
+		if (unlink(MANDOC_DB) == -1 && errno != ENOENT)
+			say(MANDOC_DB, "&unlink");
+		return;
 	}
 
-	sqlite3_close(db);
-	db = NULL;
+	/*
+	 * Build the database in a temporary file,
+	 * then atomically move it into place.
+	 */
 
-	if (real)
-		return;
-
-	if ('\0' == *tempfilename) {
-		if (-1 == rename(MANDOC_DB "~", MANDOC_DB)) {
+	if (dba_write(MANDOC_DB "~", dba) != -1) {
+		if (rename(MANDOC_DB "~", MANDOC_DB) == -1) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
 			say(MANDOC_DB, "&rename");
+			unlink(MANDOC_DB "~");
 		}
 		return;
+	}
+
+	/*
+	 * We lack write permission and cannot replace the database
+	 * file, but let's at least check whether the data changed.
+	 */
+
+	(void)strlcpy(tfn, "/tmp/mandocdb.XXXXXXXX", sizeof(tfn));
+	if (mkdtemp(tfn) == NULL) {
+		exitcode = (int)MANDOCLEVEL_SYSERR;
+		say("", "&%s", tfn);
+		return;
+	}
+
+	(void)strlcat(tfn, "/" MANDOC_DB, sizeof(tfn));
+	if (dba_write(tfn, dba) == -1) {
+		exitcode = (int)MANDOCLEVEL_SYSERR;
+		say(tfn, "&dba_write");
+		goto out;
 	}
 
 	switch (child = fork()) {
@@ -2229,14 +2174,13 @@ dbclose(int real)
 		say("", "&fork cmp");
 		return;
 	case 0:
-		execlp("cmp", "cmp", "-s",
-		    tempfilename, MANDOC_DB, (char *)NULL);
+		execlp("cmp", "cmp", "-s", tfn, MANDOC_DB, (char *)NULL);
 		say("", "&exec cmp");
 		exit(0);
 	default:
 		break;
 	}
-	if (-1 == waitpid(child, &status, 0)) {
+	if (waitpid(child, &status, 0) == -1) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&wait cmp");
 	} else if (WIFSIGNALED(status)) {
@@ -2248,173 +2192,27 @@ dbclose(int real)
 		    "Data changed, but cannot replace database");
 	}
 
-	*strrchr(tempfilename, '/') = '\0';
+out:
+	*strrchr(tfn, '/') = '\0';
 	switch (child = fork()) {
 	case -1:
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&fork rm");
 		return;
 	case 0:
-		execlp("rm", "rm", "-rf", tempfilename, (char *)NULL);
+		execlp("rm", "rm", "-rf", tfn, (char *)NULL);
 		say("", "&exec rm");
 		exit((int)MANDOCLEVEL_SYSERR);
 	default:
 		break;
 	}
-	if (-1 == waitpid(child, &status, 0)) {
+	if (waitpid(child, &status, 0) == -1) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&wait rm");
 	} else if (WIFSIGNALED(status) || WEXITSTATUS(status)) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "%s: Cannot remove temporary directory",
-		    tempfilename);
+		say("", "%s: Cannot remove temporary directory", tfn);
 	}
-}
-
-/*
- * This is straightforward stuff.
- * Open a database connection to a "temporary" database, then open a set
- * of prepared statements we'll use over and over again.
- * If "real" is set, we use the existing database; if not, we truncate a
- * temporary one.
- * Must be matched by dbclose().
- */
-static int
-dbopen(int real)
-{
-	const char	*sql;
-	int		 rc, ofl;
-
-	if (nodb)
-		return 1;
-
-	*tempfilename = '\0';
-	ofl = SQLITE_OPEN_READWRITE;
-
-	if (real) {
-		rc = sqlite3_open_v2(MANDOC_DB, &db, ofl, NULL);
-		if (SQLITE_OK != rc) {
-			exitcode = (int)MANDOCLEVEL_SYSERR;
-			if (SQLITE_CANTOPEN != rc)
-				say(MANDOC_DB, "%s", sqlite3_errstr(rc));
-			return 0;
-		}
-		goto prepare_statements;
-	}
-
-	ofl |= SQLITE_OPEN_CREATE | SQLITE_OPEN_EXCLUSIVE;
-
-	remove(MANDOC_DB "~");
-	rc = sqlite3_open_v2(MANDOC_DB "~", &db, ofl, NULL);
-	if (SQLITE_OK == rc)
-		goto create_tables;
-	if (MPARSE_QUICK & mparse_options) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say(MANDOC_DB "~", "%s", sqlite3_errstr(rc));
-		return 0;
-	}
-
-	(void)strlcpy(tempfilename, "/tmp/mandocdb.XXXXXX",
-	    sizeof(tempfilename));
-	if (NULL == mkdtemp(tempfilename)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "&%s", tempfilename);
-		return 0;
-	}
-	(void)strlcat(tempfilename, "/" MANDOC_DB,
-	    sizeof(tempfilename));
-	rc = sqlite3_open_v2(tempfilename, &db, ofl, NULL);
-	if (SQLITE_OK != rc) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say("", "%s: %s", tempfilename, sqlite3_errstr(rc));
-		return 0;
-	}
-
-create_tables:
-	sql = "CREATE TABLE \"mpages\" (\n"
-	      " \"desc\" TEXT NOT NULL,\n"
-	      " \"form\" INTEGER NOT NULL,\n"
-	      " \"pageid\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL\n"
-	      ");\n"
-	      "\n"
-	      "CREATE TABLE \"mlinks\" (\n"
-	      " \"sec\" TEXT NOT NULL,\n"
-	      " \"arch\" TEXT NOT NULL,\n"
-	      " \"name\" TEXT NOT NULL,\n"
-	      " \"pageid\" INTEGER NOT NULL REFERENCES mpages(pageid) "
-		"ON DELETE CASCADE\n"
-	      ");\n"
-	      "CREATE INDEX mlinks_pageid_idx ON mlinks (pageid);\n"
-	      "\n"
-	      "CREATE TABLE \"names\" (\n"
-	      " \"bits\" INTEGER NOT NULL,\n"
-	      " \"name\" TEXT NOT NULL,\n"
-	      " \"pageid\" INTEGER NOT NULL REFERENCES mpages(pageid) "
-		"ON DELETE CASCADE,\n"
-	      " UNIQUE (\"name\", \"pageid\") ON CONFLICT REPLACE\n"
-	      ");\n"
-	      "\n"
-	      "CREATE TABLE \"keys\" (\n"
-	      " \"bits\" INTEGER NOT NULL,\n"
-	      " \"key\" TEXT NOT NULL,\n"
-	      " \"pageid\" INTEGER NOT NULL REFERENCES mpages(pageid) "
-		"ON DELETE CASCADE\n"
-	      ");\n"
-	      "CREATE INDEX keys_pageid_idx ON keys (pageid);\n";
-
-	if (SQLITE_OK != sqlite3_exec(db, sql, NULL, NULL, NULL)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say(MANDOC_DB, "%s", sqlite3_errmsg(db));
-		sqlite3_close(db);
-		return 0;
-	}
-
-prepare_statements:
-	if (SQLITE_OK != sqlite3_exec(db,
-	    "PRAGMA foreign_keys = ON", NULL, NULL, NULL)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say(MANDOC_DB, "PRAGMA foreign_keys: %s",
-		    sqlite3_errmsg(db));
-		sqlite3_close(db);
-		return 0;
-	}
-
-	sql = "DELETE FROM mpages WHERE pageid IN "
-		"(SELECT pageid FROM mlinks WHERE "
-		"sec=? AND arch=? AND name=?)";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_DELETE_PAGE], NULL);
-	sql = "INSERT INTO mpages "
-		"(desc,form) VALUES (?,?)";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_INSERT_PAGE], NULL);
-	sql = "INSERT INTO mlinks "
-		"(sec,arch,name,pageid) VALUES (?,?,?,?)";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_INSERT_LINK], NULL);
-	sql = "SELECT bits FROM names where pageid = ?";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_SELECT_NAME], NULL);
-	sql = "INSERT INTO names "
-		"(bits,name,pageid) VALUES (?,?,?)";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_INSERT_NAME], NULL);
-	sql = "INSERT INTO keys "
-		"(bits,key,pageid) VALUES (?,?,?)";
-	sqlite3_prepare_v2(db, sql, -1, &stmts[STMT_INSERT_KEY], NULL);
-
-#ifndef __APPLE__
-	/*
-	 * When opening a new database, we can turn off
-	 * synchronous mode for much better performance.
-	 */
-
-	if (real && SQLITE_OK != sqlite3_exec(db,
-	    "PRAGMA synchronous = OFF", NULL, NULL, NULL)) {
-		exitcode = (int)MANDOCLEVEL_SYSERR;
-		say(MANDOC_DB, "PRAGMA synchronous: %s",
-		    sqlite3_errmsg(db));
-		sqlite3_close(db);
-		return 0;
-	}
-#endif
-
-	return 1;
 }
 
 static int

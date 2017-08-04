@@ -1,4 +1,4 @@
-# $NetBSD: t_libcrypto.sh,v 1.3 2010/11/08 19:06:12 pooka Exp $
+# $NetBSD: t_libcrypto.sh,v 1.4 2016/10/13 09:25:37 martin Exp $
 #
 # Copyright (c) 2008, 2009, 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -49,7 +49,7 @@ atf_test_case bn
 bn_head()
 {
 	atf_set "descr" "Checks BIGNUM library"
-	atf_set "timeout" "300"
+	atf_set "timeout" "360"
 }
 bn_body()
 {

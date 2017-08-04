@@ -35,13 +35,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <md5.h>
-#ifdef __NetBSD__
 #include <sha1.h>
-#endif
 
-#ifdef __FreeBSD__
-#include <sha.h>
-#endif
 
 int mflag, rflag, sflag, tflag;
 
@@ -107,32 +102,17 @@ regress(void)
 			MD5Final(out, &ctx);
 			outlen = 16;
 		} else {
-#ifdef __FreeBSD__
-			SHA_CTX ctx;
-
-			SHA1_Init(&ctx);
-			SHA1_Update(&ctx, buf, len);
-#else
 			SHA1_CTX ctx;
 
 			SHA1Init(&ctx);
 			SHA1Update(&ctx, buf, len);
-#endif
 			while (!last &&
 			    fgets((char *)buf, sizeof(buf), stdin) != NULL) {
 				len = strlen((char *)buf);
 				CHOMP(buf, len, last);				
-#ifdef __FreeBSD__
-				SHA1_Update(&ctx, buf, len);
-#else
 				SHA1Update(&ctx, buf, len);
-#endif
 			}
-#ifdef __FreeBSD__
-			SHA1_Final(out, &ctx);
-#else
 			SHA1Final(out, &ctx);
-#endif
 			outlen = 20;
 		}
 		hexdump(out, outlen);

@@ -29,6 +29,8 @@ ntpd_precmd()
 		rc_flags="-g $rc_flags"
 	fi
 
+	ntpd_init_leapfile
+
 	if [ ! -f $ntp_db_leapfile ]; then
 		ntpd_fetch_leapfile
 	fi
@@ -67,13 +69,25 @@ current_ntp_ts() {
 }
 	
 get_ntp_leapfile_ver() {
+	# Leapfile update date (version number).
 	expr "$(awk '$1 == "#$" { print $2 }' "$1" 2>/dev/null)" : \
 		'^\([1-9][0-9]*\)$' \| 0
 }
 
 get_ntp_leapfile_expiry() {
+	# Leapfile expiry date.
 	expr "$(awk '$1 == "#@" { print $2 }' "$1" 2>/dev/null)" : \
 		'^\([1-9][0-9]*\)$' \| 0
+}
+
+ntpd_init_leapfile() {
+	# Refresh working leapfile with an invalid hash due to
+	# FreeBSD id header. Ntpd will ignore leapfiles with a
+	# mismatch hash. The file must be the virgin file from
+	# the source.
+	if [ ! -f $ntp_db_leapfile ]; then
+		cp -p $ntp_src_leapfile $ntp_db_leapfile
+	fi
 }
 
 ntpd_fetch_leapfile() {
@@ -88,19 +102,23 @@ ntpd_fetch_leapfile() {
 	ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
 
 	ntp_ver_no_src=$(get_ntp_leapfile_ver $ntp_src_leapfile)
+	ntp_expiry_src=$(get_ntp_leapfile_expiry $ntp_src_leapfile)
 	ntp_ver_no_db=$(get_ntp_leapfile_ver $ntp_db_leapfile)
+	ntp_expiry_db=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
 	$verbose ntp_src_leapfile version is $ntp_ver_no_src
 	$verbose ntp_db_leapfile version is $ntp_ver_no_db
 
-	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" ]; then
+	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" -o \
+	     "$ntp_ver_no_src" -eq "$ntp_ver_no_db" -a \
+	     "$ntp_expiry_src" -gt "$ntp_expiry_db" ]; then
 		$verbose replacing $ntp_db_leapfile with $ntp_src_leapfile 
 		cp -p $ntp_src_leapfile $ntp_db_leapfile
 		ntp_ver_no_db=$ntp_ver_no_src
 	else
 		$verbose not replacing $ntp_db_leapfile with $ntp_src_leapfile 
 	fi
-	ntp_leap_expiry=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
 	ntp_leapfile_expiry_seconds=$((ntp_leapfile_expiry_days*86400))
+	ntp_leap_expiry=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
 	ntp_leap_fetch_date=$((ntp_leap_expiry-ntp_leapfile_expiry_seconds))
 	if [ $(current_ntp_ts) -ge $ntp_leap_fetch_date ]; then
 		$verbose Within ntp leapfile expiry limit, initiating fetch
@@ -108,8 +126,11 @@ ntpd_fetch_leapfile() {
 			$verbose fetching $url
 			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break
 		done
+		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
 		ntp_expiry_tmp=$(get_ntp_leapfile_expiry $ntp_tmp_leapfile)
-		if [ "$ntp_expiry_tmp" -gt "$ntp_leap_expiry" ]; then
+		if [ "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" -o \
+		     "$ntp_ver_no_tmp" -eq "$ntp_ver_no_db" -a \
+		     "$ntp_expiry_tmp" -gt "$ntp_expiry_db" ]; then
 			$verbose using $url as $ntp_db_leapfile
 			mv $ntp_tmp_leapfile $ntp_db_leapfile
 		else

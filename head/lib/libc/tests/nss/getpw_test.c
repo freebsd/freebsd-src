@@ -47,8 +47,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT
 };
 
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
-
 DECLARE_TEST_DATA(passwd)
 DECLARE_TEST_FILE_SNAPSHOT(passwd)
 DECLARE_1PASS_TEST(passwd)
@@ -59,7 +57,9 @@ static int compare_passwd(struct passwd *, struct passwd *, void *);
 static void free_passwd(struct passwd *);
 
 static void sdump_passwd(struct passwd *, char *, size_t);
+#ifdef DEBUG
 static void dump_passwd(struct passwd *);
+#endif
 
 static int passwd_read_snapshot_func(struct passwd *, char *);
 
@@ -97,7 +97,7 @@ clone_passwd(struct passwd *dest, struct passwd const *src)
 }
 
 static int
-compare_passwd(struct passwd *pwd1, struct passwd *pwd2, void *mdata)
+compare_passwd(struct passwd *pwd1, struct passwd *pwd2, void *mdata __unused)
 {
 	ATF_REQUIRE(pwd1 != NULL);
 	ATF_REQUIRE(pwd2 != NULL);
@@ -142,6 +142,7 @@ sdump_passwd(struct passwd *pwd, char *buffer, size_t buflen)
 	    pwd->pw_fields);
 }
 
+#ifdef DEBUG
 static void
 dump_passwd(struct passwd *pwd)
 {
@@ -152,6 +153,7 @@ dump_passwd(struct passwd *pwd)
 	} else
 		printf("(null)\n");
 }
+#endif
 
 static int
 passwd_read_snapshot_func(struct passwd *pwd, char *line)
@@ -251,7 +253,7 @@ passwd_fill_test_data(struct passwd_test_data *td)
 }
 
 static int
-passwd_test_correctness(struct passwd *pwd, void *mdata)
+passwd_test_correctness(struct passwd *pwd, void *mdata __unused)
 {
 
 #ifdef DEBUG
@@ -363,7 +365,7 @@ passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 }
 
 static int
-passwd_test_getpwent(struct passwd *pwd, void *mdata)
+passwd_test_getpwent(struct passwd *pwd, void *mdata __unused)
 {
 	/* Only correctness can be checked when doing 1-pass test for
 	 * getpwent(). */

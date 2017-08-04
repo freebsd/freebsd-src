@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)kvm_open.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2015
+.Dd March 20, 2017
 .Dt KVM_OPEN 3
 .Os
 .Sh NAME
@@ -196,7 +196,7 @@ function is called,
 specifies the requested symbol name.
 If the function is able to resolve the name to an address,
 the address should be set in
-.Fa *addr
+.Fa addr
 and the function should return zero.
 If the function is not able to resolve the name to an address,
 it should return a non-zero value.
@@ -227,10 +227,29 @@ and
 write the error message into
 .Fa errbuf .
 .Pp
+.Rv -std kvm_close
+.Sh ERRORS
 The
 .Fn kvm_close
-function returns 0 on success and -1 on failure.
+function may fail and set the global variable
+.Va errno
+for any of the errors specified for
+.Xr close 2 .
+.Pp
+The
+.Fn kvm_close
+function may also fail and set
+.Va errno
+if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value passed via
+.Fa kd
+was
+.Dv NULL .
+.El
 .Sh SEE ALSO
+.Xr close 2 ,
 .Xr open 2 ,
 .Xr kvm 3 ,
 .Xr kvm_getargv 3 ,

@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define isinf(x)	(fabs(x) == INFINITY)
 #undef isnan
 #define isnan(x)	((x) != (x))
-#define	raise_inexact()	do { volatile float junk = 1 + tiny; } while(0)
+#define	raise_inexact()	do { volatile float junk __unused = 1 + tiny; } while(0)
 #undef signbit
 #define signbit(x)	(__builtin_signbit(x))
 
@@ -637,3 +637,12 @@ catan(double complex z)
 
 	return (CMPLX(cimag(w), creal(w)));
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(cacosh, cacoshl);
+__weak_reference(cacos, cacosl);
+__weak_reference(casinh, casinhl);
+__weak_reference(casin, casinl);
+__weak_reference(catanh, catanhl);
+__weak_reference(catan, catanl);
+#endif

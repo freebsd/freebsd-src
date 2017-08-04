@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 // Other libraries and framework includes
-#include "lldb/Core/ConstString.h"
+#include "lldb/Utility/ConstString.h"
 // Project includes
 #include "DWARFDefines.h"
 
@@ -27,98 +27,69 @@
 // in another DWARF file.
 //----------------------------------------------------------------------
 
-class DWARFDeclContext
-{
+class DWARFDeclContext {
 public:
-    struct Entry
-    {
-        Entry () :
-            tag(0),
-            name(NULL)
-        {
-        }
-        Entry (dw_tag_t t, const char *n) :
-            tag(t),
-            name(n)
-        {
-        }
+  struct Entry {
+    Entry() : tag(0), name(NULL) {}
+    Entry(dw_tag_t t, const char *n) : tag(t), name(n) {}
 
-        bool
-        NameMatches (const Entry& rhs) const
-        {
-            if (name == rhs.name)
-                return true;
-            else if (name && rhs.name)
-                return strcmp(name, rhs.name) == 0;
-            return false;
-        }
-
-        // Test operator
-        explicit operator bool() const
-        {
-            return tag != 0;
-        }
-
-        dw_tag_t tag;
-        const char *name;
-    };
-
-    DWARFDeclContext () :
-        m_entries()
-    {
+    bool NameMatches(const Entry &rhs) const {
+      if (name == rhs.name)
+        return true;
+      else if (name && rhs.name)
+        return strcmp(name, rhs.name) == 0;
+      return false;
     }
 
-    void
-    AppendDeclContext (dw_tag_t tag, const char *name)
-    {
-        m_entries.push_back(Entry(tag, name));
-    }
+    // Test operator
+    explicit operator bool() const { return tag != 0; }
 
-    bool
-    operator ==(const DWARFDeclContext& rhs) const;
+    dw_tag_t tag;
+    const char *name;
+  };
 
-    uint32_t
-    GetSize() const
-    {
-        return m_entries.size();
-    }
+  DWARFDeclContext() : m_entries(), m_language(lldb::eLanguageTypeUnknown) {}
 
-    Entry &
-    operator[] (uint32_t idx)
-    {
-        // "idx" must be valid
-        return m_entries[idx];
-    }
+  void AppendDeclContext(dw_tag_t tag, const char *name) {
+    m_entries.push_back(Entry(tag, name));
+  }
 
-    const Entry &
-    operator[] (uint32_t idx) const
-    {
-        // "idx" must be valid
-        return m_entries[idx];
-    }
+  bool operator==(const DWARFDeclContext &rhs) const;
 
-    const char *
-    GetQualifiedName () const;
+  uint32_t GetSize() const { return m_entries.size(); }
 
-    // Same as GetQaulifiedName, but the life time of the returned string will
-    // be that of the LLDB session.
-    lldb_private::ConstString
-    GetQualifiedNameAsConstString () const
-    {
-        return lldb_private::ConstString (GetQualifiedName ());
-    }
+  Entry &operator[](uint32_t idx) {
+    // "idx" must be valid
+    return m_entries[idx];
+  }
 
-    void
-    Clear()
-    {
-        m_entries.clear();
-        m_qualified_name.clear();
-    }
+  const Entry &operator[](uint32_t idx) const {
+    // "idx" must be valid
+    return m_entries[idx];
+  }
+
+  const char *GetQualifiedName() const;
+
+  // Same as GetQaulifiedName, but the life time of the returned string will
+  // be that of the LLDB session.
+  lldb_private::ConstString GetQualifiedNameAsConstString() const {
+    return lldb_private::ConstString(GetQualifiedName());
+  }
+
+  void Clear() {
+    m_entries.clear();
+    m_qualified_name.clear();
+  }
+
+  lldb::LanguageType GetLanguage() const { return m_language; }
+
+  void SetLanguage(lldb::LanguageType language) { m_language = language; }
 
 protected:
-    typedef std::vector<Entry> collection;
-    collection m_entries;
-    mutable std::string m_qualified_name;
+  typedef std::vector<Entry> collection;
+  collection m_entries;
+  mutable std::string m_qualified_name;
+  lldb::LanguageType m_language;
 };
 
-#endif  // SymbolFileDWARF_DWARFDeclContext_h_
+#endif // SymbolFileDWARF_DWARFDeclContext_h_

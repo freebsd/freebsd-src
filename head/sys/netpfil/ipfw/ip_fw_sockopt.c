@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/fnv_hash.h>
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/vnet.h>
 #include <vm/vm.h>
@@ -1736,11 +1737,16 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				return (EINVAL);
 			}
 			ci->object_opcodes++;
-			/* Do we have O_EXTERNAL_INSTANCE opcode? */
+			/*
+			 * Do we have O_EXTERNAL_INSTANCE or O_EXTERNAL_DATA
+			 * opcode?
+			 */
 			if (l != cmdlen) {
 				l -= cmdlen;
 				cmd += cmdlen;
 				cmdlen = F_LEN(cmd);
+				if (cmd->opcode == O_EXTERNAL_DATA)
+					goto check_action;
 				if (cmd->opcode != O_EXTERNAL_INSTANCE) {
 					printf("ipfw: invalid opcode "
 					    "next to external action %u\n",
@@ -1826,6 +1832,8 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			break;
 
 		case O_IP_SRC_LOOKUP:
+			if (cmdlen > F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
 		case O_IP_DST_LOOKUP:
 			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
@@ -2616,11 +2624,11 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 			continue;
 		no = rw->find_bykidx(ch, kidx);
 
-		KASSERT(no != NULL, ("table id %d not found", kidx));
+		KASSERT(no != NULL, ("object id %d not found", kidx));
 		KASSERT(no->subtype == subtype,
-		    ("wrong type %d (%d) for table id %d",
+		    ("wrong type %d (%d) for object id %d",
 		    no->subtype, subtype, kidx));
-		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
+		KASSERT(no->refcnt > 0, ("refcount for object %d is %d",
 		    kidx, no->refcnt));
 
 		if (no->refcnt == 1 && rw->destroy_object != NULL)
@@ -2669,7 +2677,14 @@ ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
 		return (0);
 	}
 
-	/* Found. Bump refcount and update kidx. */
+	/*
+	 * Object is already exist.
+	 * Its subtype should match with expected value.
+	 */
+	if (ti->type != no->subtype)
+		return (EINVAL);
+
+	/* Bump refcount and update kidx. */
 	no->refcnt++;
 	rw->update(cmd, no->kidx);
 	return (0);
@@ -3135,7 +3150,7 @@ int
 classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx)
 {
 
-	if (find_op_rw(cmd, puidx, NULL) == 0)
+	if (find_op_rw(cmd, puidx, NULL) == NULL)
 		return (1);
 	return (0);
 }

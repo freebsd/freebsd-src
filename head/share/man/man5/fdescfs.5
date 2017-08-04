@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2010
+.Dd August 1, 2017
 .Dt FDESCFS 5
 .Os
 .Sh NAME
@@ -92,6 +92,14 @@ and
 files are created by default when devfs alone is mounted.
 .Nm
 creates entries for all file descriptors opened by the process.
+.Pp
+For
+.Xr linux 4
+ABI compatibility mount
+.Nm
+volume with
+.Cm linrdlnk
+option.
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
 .It Pa /dev/fd/#
@@ -103,6 +111,12 @@ volume located on
 .Pa /dev/fd :
 .Pp
 .Dl "mount -t fdescfs null /dev/fd"
+.Pp
+For
+.Xr linux 4
+ABI compatibility:
+.Pp
+.Dl "mount -t fdescfs -o linrdlnk null /compat/linux/dev/fd"
 .Sh SEE ALSO
 .Xr devfs 5 ,
 .Xr mount 8

@@ -28,14 +28,23 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_LOCKDEP_H_
+
+#ifndef _LINUX_LOCKDEP_H_
 #define	_LINUX_LOCKDEP_H_
 
 struct lock_class_key {
 };
 
-#define lockdep_set_class(lock, key)
+#define	lockdep_set_class(lock, key)
 
-#define lockdep_set_class_and_name(lock, key, name)
+#define	lockdep_set_class_and_name(lock, key, name)
 
-#endif  /* _LINUX_LOCKDEP_H_ */
+#define	lockdep_assert_held(m)				\
+	sx_assert(&(m)->sx, SA_XLOCKED)
+
+#define	lockdep_assert_held_once(m)			\
+	sx_assert(&(m)->sx, SA_XLOCKED | SA_NOTRECURSED)
+
+#define	lockdep_is_held(m)	(sx_xholder(&(m)->sx) == curthread)
+
+#endif /* _LINUX_LOCKDEP_H_ */

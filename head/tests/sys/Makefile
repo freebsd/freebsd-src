@@ -1,14 +1,13 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-TESTSDIR= ${TESTSBASE}/sys
+TESTSDIR=		${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		acl
 TESTS_SUBDIRS+=		aio
 TESTS_SUBDIRS+=		${_cddl}
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
+TESTS_SUBDIRS+=		fs
 TESTS_SUBDIRS+=		geom
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue

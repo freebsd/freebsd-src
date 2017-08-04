@@ -1,4 +1,4 @@
-# $Id: Makefile 3418 2016-02-19 20:04:42Z emaste $
+# $Id: Makefile 3489 2016-08-31 00:12:15Z emaste $
 
 TOP=	${.CURDIR}/..
 
@@ -10,6 +10,7 @@ SRCS=	elftc_bfdtarget.c			\
 	elftc_reloc_type_str.c			\
 	elftc_set_timestamps.c			\
 	elftc_string_table.c			\
+	elftc_timestamp.c			\
 	elftc_version.c				\
 	libelftc_bfdtarget.c			\
 	libelftc_dem_arm.c			\

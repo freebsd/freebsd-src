@@ -131,10 +131,6 @@ struct c4iw_stats {
 	struct c4iw_stat stag;
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
-	u64  db_full;
-	u64  db_empty;
-	u64  db_drop;
-	u64  db_state_transitions;
 };
 
 struct c4iw_rdev {
@@ -161,57 +157,72 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return (int)(rdev->adap->vres.stag.size >> 5);
 }
 
-#define C4IW_WR_TO (10*HZ)
+#define C4IW_WR_TO (60*HZ)
 
 struct c4iw_wr_wait {
 	int ret;
-	atomic_t completion;
+	struct completion completion;
 };
 
 static inline void c4iw_init_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
 	wr_waitp->ret = 0;
-	atomic_set(&wr_waitp->completion, 0);
+	init_completion(&wr_waitp->completion);
 }
 
 static inline void c4iw_wake_up(struct c4iw_wr_wait *wr_waitp, int ret)
 {
 	wr_waitp->ret = ret;
-	atomic_set(&wr_waitp->completion, 1);
-	wakeup(wr_waitp);
+	complete(&wr_waitp->completion);
 }
 
 static inline int
 c4iw_wait_for_reply(struct c4iw_rdev *rdev, struct c4iw_wr_wait *wr_waitp,
-    u32 hwtid, u32 qpid, const char *func)
+					u32 hwtid, u32 qpid, const char *func)
 {
 	struct adapter *sc = rdev->adap;
 	unsigned to = C4IW_WR_TO;
+	int ret;
+	int timedout = 0;
+	struct timeval t1, t2;
 
-	while (!atomic_read(&wr_waitp->completion)) {
-                tsleep(wr_waitp, 0, "c4iw_wait", to);
-                if (SIGPENDING(curthread)) {
-			printf("%s - Device %s not responding - "
-			    "tid %u qpid %u\n", func,
-			    device_get_nameunit(sc->dev), hwtid, qpid);
-                        if (c4iw_fatal_error(rdev)) {
-                                wr_waitp->ret = -EIO;
-                                break;
-                        }
-                        to = to << 2;
-                }
-        }
+	if (c4iw_fatal_error(rdev)) {
+		wr_waitp->ret = -EIO;
+		goto out;
+	}
+
+	getmicrotime(&t1);
+	do {
+		ret = wait_for_completion_timeout(&wr_waitp->completion, to);
+		if (!ret) {
+			getmicrotime(&t2);
+			timevalsub(&t2, &t1);
+			printf("%s - Device %s not responding after %ld.%06ld "
+			    "seconds - tid %u qpid %u\n", func,
+			    device_get_nameunit(sc->dev), t2.tv_sec, t2.tv_usec,
+			    hwtid, qpid);
+			if (c4iw_fatal_error(rdev)) {
+				wr_waitp->ret = -EIO;
+				break;
+			}
+			to = to << 2;
+			timedout = 1;
+		}
+	} while (!ret);
+
+out:
+	if (timedout) {
+		getmicrotime(&t2);
+		timevalsub(&t2, &t1);
+		printf("%s - Device %s reply after %ld.%06ld seconds - "
+		    "tid %u qpid %u\n", func, device_get_nameunit(sc->dev),
+		    t2.tv_sec, t2.tv_usec, hwtid, qpid);
+	}
 	if (wr_waitp->ret)
-		CTR4(KTR_IW_CXGBE, "%s: FW reply %d tid %u qpid %u",
-		    device_get_nameunit(sc->dev), wr_waitp->ret, hwtid, qpid);
+		CTR4(KTR_IW_CXGBE, "%p: FW reply %d tid %u qpid %u", sc,
+		    wr_waitp->ret, hwtid, qpid);
 	return (wr_waitp->ret);
 }
-
-enum db_state {
-	NORMAL = 0,
-	FLOW_CONTROL = 1,
-	RECOVERY = 2
-};
 
 struct c4iw_dev {
 	struct ib_device ibdev;
@@ -222,8 +233,6 @@ struct c4iw_dev {
 	struct idr mmidr;
 	spinlock_t lock;
 	struct dentry *debugfs_root;
-	enum db_state db_state;
-	int qpcnt;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -535,6 +544,14 @@ enum c4iw_qp_state {
 	C4IW_QP_STATE_TOT
 };
 
+/*
+ * IW_CXGBE event bits.
+ * These bits are used for handling all events for a particular 'ep' serially.
+ */
+#define	C4IW_EVENT_SOCKET	0x0001
+#define	C4IW_EVENT_TIMEOUT	0x0002
+#define	C4IW_EVENT_TERM		0x0004
+
 static inline int c4iw_convert_state(enum ib_qp_state ib_state)
 {
 	switch (ib_state) {
@@ -570,6 +587,8 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	}
 	return IB_QPS_ERR;
 }
+
+#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
 
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
@@ -766,6 +785,7 @@ struct c4iw_ep_common {
         int rpl_done;
         struct thread *thread;
         struct socket *so;
+	int ep_events;
 };
 
 struct c4iw_listen_ep {
@@ -778,7 +798,6 @@ struct c4iw_ep {
 	struct c4iw_ep_common com;
 	struct c4iw_ep *parent_ep;
 	struct timer_list timer;
-	struct list_head entry;
 	unsigned int atid;
 	u32 hwtid;
 	u32 snd_seq;

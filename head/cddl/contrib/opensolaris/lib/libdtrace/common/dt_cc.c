@@ -1058,46 +1058,6 @@ dt_action_printm(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 }
 
 static void
-dt_action_printt(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
-{
-	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
-
-	dt_node_t *size = dnp->dn_args;
-	dt_node_t *addr = dnp->dn_args->dn_list;
-
-	char n[DT_TYPE_NAMELEN];
-
-	if (dt_node_is_posconst(size) == 0) {
-		dnerror(size, D_PRINTT_SIZE, "printt( ) argument #1 must "
-		    "be a non-zero positive integral constant expression\n");
-	}
-
-	if (addr == NULL || addr->dn_kind != DT_NODE_FUNC ||
-	    addr->dn_ident != dt_idhash_lookup(dtp->dt_globals, "typeref")) {
-		dnerror(addr, D_PRINTT_ADDR,
-		    "printt( ) argument #2 is incompatible with "
-		    "prototype:\n\tprototype: typeref()\n"
-		    "\t argument: %s\n",
-		    dt_node_type_name(addr, n, sizeof (n)));
-	}
-
-	dt_cg(yypcb, addr);
-	ap->dtad_difo = dt_as(yypcb);
-	ap->dtad_kind = DTRACEACT_PRINTT;
-
-	ap->dtad_difo->dtdo_rtype.dtdt_flags |= DIF_TF_BYREF;
-
-	/*
-	 * Allow additional buffer space for the data size, type size,
-	 * type string length and a stab in the dark (32 bytes) for the
-	 * type string. The type string is part of the typeref() that
-	 * this action references.
-	 */
-	ap->dtad_difo->dtdo_rtype.dtdt_size = size->dn_value + 3 * sizeof(uintptr_t) + 32;
-
-}
-
-static void
 dt_action_commit(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 {
 	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
@@ -1168,9 +1128,6 @@ dt_compile_fun(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		break;
 	case DT_ACT_PRINTM:
 		dt_action_printm(dtp, dnp->dn_expr, sdp);
-		break;
-	case DT_ACT_PRINTT:
-		dt_action_printt(dtp, dnp->dn_expr, sdp);
 		break;
 	case DT_ACT_RAISE:
 		dt_action_raise(dtp, dnp->dn_expr, sdp);

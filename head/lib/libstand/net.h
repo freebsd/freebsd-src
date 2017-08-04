@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +36,8 @@
  * $FreeBSD$
  */
 
+#ifndef _STAND_NET_H
+#define _STAND_NET_H
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */
 #undef __IPADDR
 #define __IPADDR(x)	htonl((u_int32_t)(x))
@@ -44,6 +46,12 @@
 #include "iodesc.h"
 
 #define BA { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
+
+enum net_proto {
+	NET_NONE,
+	NET_NFS,
+	NET_TFTP
+};
 
 /* Returns true if n_long's on the same net */
 #define	SAMENET(a1, a2, m) ((a1.s_addr & m) == (a2.s_addr & m))
@@ -74,6 +82,7 @@ extern	char hostname[FNAME_SIZE];
 extern	int hostnamelen;
 extern	char domainname[FNAME_SIZE];
 extern	int domainnamelen;
+extern	int netproto;
 extern	char ifname[IFNAME_SIZE];
 
 /* All of these are in network order. */
@@ -97,19 +106,20 @@ int	rarp_getipaddress(int);
 /* Link functions: */
 ssize_t sendether(struct iodesc *d, void *pkt, size_t len,
 			u_char *dea, int etype);
-ssize_t readether(struct iodesc *d, void *pkt, size_t len,
-			time_t tleft, u_int16_t *etype);
+ssize_t readether(struct iodesc *, void **, void **, time_t, uint16_t *);
 
+ssize_t	sendip(struct iodesc *, void *, size_t, uint8_t);
+ssize_t	readip(struct iodesc *, void **, void **, time_t, uint8_t);
 ssize_t	sendudp(struct iodesc *, void *, size_t);
-ssize_t	readudp(struct iodesc *, void *, size_t, time_t);
+ssize_t	readudp(struct iodesc *, void **, void **, time_t);
 ssize_t	sendrecv(struct iodesc *,
-		      ssize_t (*)(struct iodesc *, void *, size_t),
+			ssize_t (*)(struct iodesc *, void *, size_t),
 			void *, size_t,
-		        ssize_t (*)(struct iodesc *, void *, size_t, time_t),
-			void *, size_t);
+			ssize_t (*)(struct iodesc *, void **, void **, time_t),
+			void **, void **);
 
 /* bootp/DHCP */
-void	bootp(int, int);
+void	bootp(int);
 
 /* Utilities: */
 char	*ether_sprintf(u_char *);
@@ -120,3 +130,4 @@ n_long	inet_addr(char *);
 
 /* Machine-dependent functions: */
 time_t	getsecs(void);
+#endif /* ! _STAND_NET_H */

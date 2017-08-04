@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include "opt_apic.h"
 #endif
-#ifdef __i386__
-#include "opt_npx.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -213,7 +210,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (savectx(pcb)) {
 #ifdef __amd64__
 		fpususpend(susppcbs[0]->sp_fpususpend);
-#elif defined(DEV_NPX)
+#else
 		npxsuspend(susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
@@ -226,7 +223,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
-#ifndef __amd64__
+#ifdef __amd64__
+		WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER) &
+		    ~(EFER_LMA));
+#else
 		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
 #endif
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
@@ -250,7 +250,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	} else {
 #ifdef __amd64__
 		fpuresume(susppcbs[0]->sp_fpususpend);
-#elif defined(DEV_NPX)
+#else
 		npxresume(susppcbs[0]->sp_fpususpend);
 #endif
 	}

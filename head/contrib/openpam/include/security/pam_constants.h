@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_constants.h 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_constants.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef SECURITY_PAM_CONSTANTS_H_INCLUDED
@@ -78,6 +78,10 @@ enum {
 	PAM_TRY_AGAIN			=  27,
 	PAM_MODULE_UNKNOWN		=  28,
 	PAM_DOMAIN_UNKNOWN		=  29,
+	PAM_BAD_HANDLE			=  30,		/* OpenPAM extension */
+	PAM_BAD_ITEM			=  31,		/* OpenPAM extension */
+	PAM_BAD_FEATURE			=  32,		/* OpenPAM extension */
+	PAM_BAD_CONSTANT		=  33,		/* OpenPAM extension */
 	PAM_NUM_ERRORS					/* OpenPAM extension */
 };
 

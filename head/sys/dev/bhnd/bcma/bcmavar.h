@@ -45,6 +45,18 @@
  * Internal definitions shared by bcma(4) driver implementations.
  */
 
+/** Base resource ID for per-core agent register allocations */
+#define	BCMA_AGENT_RID_BASE	100
+
+/**
+ * Return the device's core index.
+ * 
+ * @param _dinfo The bcma_devinfo instance to query.
+ */
+#define	BCMA_DINFO_COREIDX(_dinfo)	\
+	((_dinfo)->corecfg->core_info.core_idx)
+
+
 /** BCMA port identifier. */
 typedef u_int		bcma_pid_t;
 #define BCMA_PID_MAX	UINT_MAX	/**< Maximum bcma_pid_t value */
@@ -62,9 +74,11 @@ struct bcma_sport;
 int			 bcma_probe(device_t dev);
 int			 bcma_attach(device_t dev);
 int			 bcma_detach(device_t dev);
+int			 bcma_get_intr_count(device_t dev, device_t child);
+int			 bcma_get_core_ivec(device_t dev, device_t child,
+			     u_int intr, uint32_t *ivec);
 
-int			 bcma_add_children(device_t bus,
-			     struct resource *erom_res, bus_size_t erom_offset);
+int			 bcma_add_children(device_t bus);
 
 struct bcma_sport_list	*bcma_corecfg_get_port_list(struct bcma_corecfg *cfg,
 			     bhnd_port_type type);
@@ -73,6 +87,8 @@ struct bcma_devinfo	*bcma_alloc_dinfo(device_t bus);
 int			 bcma_init_dinfo(device_t bus,
 			     struct bcma_devinfo *dinfo,
 			     struct bcma_corecfg *corecfg);
+int			 bcma_dinfo_alloc_agent(device_t bus, device_t child,
+			     struct bcma_devinfo *dinfo);
 void			 bcma_free_dinfo(device_t bus,
 			     struct bcma_devinfo *dinfo);
 
@@ -82,6 +98,11 @@ void			 bcma_free_corecfg(struct bcma_corecfg *corecfg);
 
 struct bcma_sport	*bcma_alloc_sport(bcma_pid_t port_num, bhnd_port_type port_type);
 void			 bcma_free_sport(struct bcma_sport *sport);
+
+int			 bcma_dmp_wait_reset(device_t child,
+			     struct bcma_devinfo *dinfo);
+int			 bcma_dmp_write_reset(device_t child,
+			     struct bcma_devinfo *dinfo, uint32_t value);
 
 /** BCMA master port descriptor */
 struct bcma_mport {
@@ -134,21 +155,20 @@ struct bcma_corecfg {
  * BCMA per-device info
  */
 struct bcma_devinfo {
-	struct bhnd_devinfo	 bhnd_dinfo;	/**< superclass device info. */
+	struct resource_list		 resources;	/**< Slave port memory regions. */
+	struct bcma_corecfg		*corecfg;	/**< IP core/block config */
 
-	struct resource_list	 resources;	/**< Slave port memory regions. */
-	struct bcma_corecfg	*corecfg;	/**< IP core/block config */
+	struct bhnd_resource		*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
+							  *  all bcma(4) cores have or require an agent. */
+	int				 rid_agent;	/**< Agent resource ID, or -1 */
 
-	struct bhnd_resource	*res_agent;	/**< Agent (wrapper) resource, or NULL. Not
-						  *  all bcma(4) cores have or require an agent. */
-	int			 rid_agent;	/**< Agent resource ID, or -1 */
+	struct bhnd_core_pmu_info	*pmu_info;	/**< Bus-managed PMU state, or NULL */
 };
 
 
 /** BMCA per-instance state */
 struct bcma_softc {
 	struct bhnd_softc	bhnd_sc;	/**< bhnd state */
-	device_t		hostb_dev;	/**< host bridge core, or NULL */
 };
 
 #endif /* _BCMA_BCMAVAR_H_ */

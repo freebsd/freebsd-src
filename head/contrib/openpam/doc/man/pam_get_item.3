@@ -1,13 +1,11 @@
 .\" Generated from pam_get_item.c by gendoc.pl
-.\" $Id: pam_get_item.c 648 2013-03-05 17:54:27Z des $
-.Dd September 12, 2014
+.\" $OpenPAM: pam_get_item.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_GET_ITEM 3
 .Os
 .Sh NAME
 .Nm pam_get_item
 .Nd get PAM information
-.Sh LIBRARY
-.Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
@@ -76,10 +74,10 @@ The
 .Fn pam_get_item
 function returns one of the following values:
 .Bl -tag -width 18n
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
-.It Bq Er PAM_SYSTEM_ERR
-System error.
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,
@@ -104,4 +102,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

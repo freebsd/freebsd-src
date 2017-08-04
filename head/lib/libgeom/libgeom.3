@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2010
+.Dd April 22, 2017
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -63,6 +63,10 @@
 .Sh LIBRARY
 .Lb libgeom
 .Sh SYNOPSIS
+.Bd -literal
+/* stdio.h is only required for `gctl_dump` */
+.Ed
+.In stdio.h
 .In libgeom.h
 .Ss "Statistics Functions"
 .Ft void
@@ -324,8 +328,8 @@ The
 .Fn g_device_path
 function returns the full path to a provider given a partial or full path to the
 device node.
-If the device can not be found or is not a valid geom provider, NULL is
-returned.
+.Dv NULL
+is returned if the device cannot be found or is not a valid geom provider.
 .Pp
 The
 .Fn g_get_ident
@@ -344,20 +348,19 @@ string.
 .Pp
 The
 .Fn g_open_by_ident
-function opens provider using its ident, unlike
+function opens provider using its identification, unlike
 .Fn g_open
-which uses provider's name.
-If the
+which uses the provider's name.
+The function will store the provider's name in the
 .Fa name
-argument is not
-.Dv NULL ,
-the function will store provider's name there.
+parameter if it is not
+.Dv NULL .
 .Pp
 The
 .Fn g_providername
 function returns the provider name of an open file descriptor.
-If the file descriptor does not point to a valid geom provider, NULL is
-returned.
+.Dv NULL
+is returned the file descriptor does not point to a valid geom provider.
 .Pp
 All functions except
 .Fn g_providername

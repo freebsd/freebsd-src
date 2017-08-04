@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mdio
+.PATH: ${SRCTOP}/sys/dev/mdio
 
 KMOD=	mdio
 SRCS=	mdio.c

@@ -856,9 +856,9 @@ failed:
 			printf("%-10s", buf);
 			buf[0] = '\0';
 			for (nl = rs->nlist; nl; nl = nl->next) {
-				strcat(buf, nl->netid);
+				strlcat(buf, nl->netid, sizeof(buf));
 				if (nl->next)
-					strcat(buf, ",");
+					strlcat(buf, ",", sizeof(buf));
 			}
 			printf("%-32s", buf);
 			rpc = getrpcbynumber(rs->prog);

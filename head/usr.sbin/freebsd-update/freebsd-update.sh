@@ -953,7 +953,7 @@ fetch_pick_server_init () {
 # "$name server selection ..."; we allow either format.
 	MLIST="_http._tcp.${SERVERNAME}"
 	host -t srv "${MLIST}" |
-	    sed -nE "s/${MLIST} (has SRV record|server selection) //p" |
+	    sed -nE "s/${MLIST} (has SRV record|server selection) //Ip" |
 	    cut -f 1,2,4 -d ' ' |
 	    sed -e 's/\.$//' |
 	    sort > serverlist_full
@@ -2380,7 +2380,7 @@ upgrade_merge () {
 				cp merge/old/${F} merge/new/${F}
 				;;
 			*)
-				if ! merge -p -L "current version"	\
+				if ! diff3 -E -m -L "current version"	\
 				    -L "${OLDRELNUM}" -L "${RELNUM}"	\
 				    merge/old/${F}			\
 				    merge/${OLDRELNUM}/${F}		\

@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <elf.h>
 #include <bootstrap.h>
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__amd64__)
 #define	ElfW_Rel	Elf64_Rela
 #define	ElfW_Dyn	Elf64_Dyn
 #define	ELFW_R_TYPE	ELF64_R_TYPE
@@ -40,10 +40,6 @@ __FBSDID("$FreeBSD$");
 #define	ElfW_Rel	Elf32_Rel
 #define	ElfW_Dyn	Elf32_Dyn
 #define	ELFW_R_TYPE	ELF32_R_TYPE
-#elif defined(__amd64__)
-#define	ElfW_Rel	Elf64_Rel
-#define	ElfW_Dyn	Elf64_Dyn
-#define	ELFW_R_TYPE	ELF64_R_TYPE
 #else
 #error architecture not supported
 #endif
@@ -99,7 +95,9 @@ self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic)
 	}
 
 	/*
-	 * Perform the actual relocation.
+	 * Perform the actual relocation. We rely on the object having been
+	 * linked at 0, so that the difference between the load and link
+	 * address is the same as the load address.
 	 */
 	for (; relsz > 0; relsz -= relent) {
 		switch (ELFW_R_TYPE(rel->r_info)) {
@@ -108,12 +106,13 @@ self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic)
 			break;
 
 		case RELOC_TYPE_RELATIVE:
-			/* Address relative to the base address. */
 			newaddr = (Elf_Addr *)(rel->r_offset + baseaddr);
-			*newaddr += baseaddr;
-			/* Add the addend when the ABI uses them */ 
 #ifdef ELF_RELA
-			*newaddr += rel->r_addend;
+			/* Addend relative to the base address. */
+			*newaddr = baseaddr + rel->r_addend;
+#else
+			/* Address relative to the base address. */
+			*newaddr += baseaddr;
 #endif
 			break;
 		default:

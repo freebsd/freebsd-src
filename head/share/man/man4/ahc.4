@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2008
+.Dd February 15, 2017
 .Dt AHC 4
 .Os
 .Sh NAME
 .Nm ahc
-.Nd Adaptec VL/EISA/PCI SCSI host adapter driver
+.Nd Adaptec VL/ISA/PCI SCSI host adapter driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -39,9 +39,6 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device scbus"
 .Cd "device ahc"
-.Pp
-For one or more VL/EISA cards:
-.Cd "device eisa"
 .Pp
 For one or more PCI cards:
 .Cd "device pci"
@@ -58,7 +55,6 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 ahc_load="YES"
-ahc_eisa_load="YES"
 ahc_isa_load="YES"
 ahc_pci_load="YES"
 .Ed
@@ -98,45 +94,19 @@ A value of 0x8a enables it for units 1, 3, and 7.
 Per target configuration performed in the
 .Tn SCSI-Select
 menu, accessible at boot
-in
-.No non- Ns Tn EISA
-models,
-or through an
-.Tn EISA
-configuration utility for
-.Tn EISA
-models,
 is honored by this driver.
 This includes synchronous/asynchronous transfers,
 maximum synchronous negotiation rate,
 wide transfers,
 disconnection,
-the host adapter's SCSI ID,
-and,
-in the case of
-.Tn EISA
-Twin Channel controllers,
-the primary channel selection.
+the host adapter's SCSI ID.
 For systems that store non-volatile settings in a system specific manner
 rather than a serial eeprom directly connected to the aic7xxx controller,
 the
 .Tn BIOS
 must be enabled for the driver to access this information.
-This restriction applies to all
-.Tn EISA
-and many motherboard configurations.
-.Pp
-Note that I/O addresses are determined automatically by the probe routines,
-but care should be taken when using a 284x
-.Pq Tn VESA No local bus controller
-in an
-.Tn EISA
-system.
-The jumpers setting the I/O area for the 284x should match the
-.Tn EISA
-slot into which the card is inserted to prevent conflicts with other
-.Tn EISA
-cards.
+This restriction applies to
+many chip-down motherboard configurations.
 .Pp
 Performance and feature sets vary throughout the aic7xxx product line.
 The following table provides a comparison of the different chips supported
@@ -147,9 +117,9 @@ Note that wide and twin channel features, although always supported
 by a particular chip, may be disabled in a particular motherboard or card
 design.
 .Bd -ragged -offset indent
-.Bl -column "aic7895CX" "MIPSX" "EISA/VLX" "MaxSyncX" "MaxWidthX" "SCBsX" "2 3 4 5 6 7 8X"
+.Bl -column "aic7895CX" "MIPSX" "PCI/64X" "MaxSyncX" "MaxWidthX" "SCBsX" "2 3 4 5 6 7 8X"
 .It Em "Chip" Ta "MIPS" Ta "Bus" Ta "MaxSync" Ta "MaxWidth" Ta "SCBs" Ta "Features"
-.It "aic7770" Ta "10" Ta "EISA/VL" Ta "10MHz" Ta "16Bit" Ta "4" Ta "1"
+.It "aic7770" Ta "10" Ta "VL" Ta "10MHz" Ta "16Bit" Ta "4" Ta "1"
 .It "aic7850" Ta "10" Ta "PCI/32" Ta "10MHz" Ta "8Bit" Ta "3" Ta ""
 .It "aic7860" Ta "10" Ta "PCI/32" Ta "20MHz" Ta "8Bit" Ta "3" Ta ""
 .It "aic7870" Ta "10" Ta "PCI/32" Ta "10MHz" Ta "16Bit" Ta "16" Ta ""
@@ -254,9 +224,6 @@ Adaptec
 .Tn 274X(T)
 .It
 Adaptec
-.Tn 284X
-.It
-Adaptec
 .Tn 2910
 .It
 Adaptec
@@ -349,14 +316,6 @@ Adaptec
 Adaptec
 .Tn 4944UW
 .It
-NEC PC-9821Xt13 (PC-98)
-.It
-NEC RvII26 (PC-98)
-.It
-NEC PC-9821X-B02L/B09 (PC-98)
-.It
-NEC SV-98/2-B03 (PC-98)
-.It
 Many motherboards with on-board
 .Tn SCSI
 support
@@ -402,7 +361,7 @@ more SCB space available, the less host bus traffic consumed saving
 and restoring SCB data.
 .Sh SEE ALSO
 .Xr aha 4 ,
-.Xr ahb 4 ,
+.Xr ahd 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
 .Xr sa 4 ,

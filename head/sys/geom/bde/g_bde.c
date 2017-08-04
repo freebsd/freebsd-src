@@ -85,7 +85,7 @@ g_bde_orphan(struct g_consumer *cp)
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
 	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, ENXIO);
+		g_wither_provider(pp, ENXIO);
 	bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
 	return;
 }

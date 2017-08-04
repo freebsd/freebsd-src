@@ -138,6 +138,7 @@ char	*sys_ident = NULL;	/* identity scheme */
  * TOS and multicast mapping stuff
  */
 int	sys_floor = 0;		/* cluster stratum floor */
+u_char	sys_bcpollbstep = 0;	/* Broadcast Poll backstep gate */
 int	sys_ceiling = STRATUM_UNSPEC - 1; /* cluster stratum ceiling */
 int	sys_minsane = 1;	/* minimum candidates */
 int	sys_minclock = NTP_MINCLOCK; /* minimum candidates */
@@ -146,7 +147,7 @@ int	sys_cohort = 0;		/* cohort switch */
 int	sys_orphan = STRATUM_UNSPEC + 1; /* orphan stratum */
 int	sys_orphwait = NTP_ORPHWAIT; /* orphan wait */
 int	sys_beacon = BEACON;	/* manycast beacon interval */
-int	sys_ttlmax;		/* max ttl mapping vector index */
+u_int	sys_ttlmax;		/* max ttl mapping vector index */
 u_char	sys_ttl[MAX_TTL];	/* ttl mapping vector */
 
 /*
@@ -278,7 +279,7 @@ valid_NAK(
 	  u_char hismode
 	  )
 {
-	int 		base_packet_length = MIN_V4_PKT_LEN;
+	int		base_packet_length = MIN_V4_PKT_LEN;
 	int		remainder_size;
 	struct pkt *	rpkt;
 	int		keyid;
@@ -335,7 +336,7 @@ valid_NAK(
 		myorg = &peer->borg;
 	else
 		myorg = &peer->aorg;
-	
+
 	if (L_ISZERO(&p_org) ||
 	    L_ISZERO( myorg) ||
 	    !L_ISEQU(&p_org, myorg)) {
@@ -400,7 +401,7 @@ transmit(
 			peer_xmit(peer);
 		} else if (   sys_survivors < sys_minclock
 			   || peer_associations < sys_maxclock) {
-			if (peer->ttl < (u_int32)sys_ttlmax)
+			if (peer->ttl < sys_ttlmax)
 				peer->ttl++;
 			peer_xmit(peer);
 		}
@@ -1450,22 +1451,66 @@ receive(
 				++bail;
 			}
 
-			/* too early? worth an error, too! */
+			/* too early? worth an error, too!
+			 *
+			 * [Bug 3113] Ensure that at least one poll
+			 * interval has elapsed since the last **clean**
+			 * packet was received.  We limit the check to
+			 * **clean** packets to prevent replayed packets
+			 * and incorrectly authenticated packets, which
+			 * we'll discard, from being used to create a
+			 * denial of service condition.
+			 */
 			deadband = (1u << pkt->ppoll);
 			if (FLAG_BC_VOL & peer->flags)
 				deadband -= 3;	/* allow greater fuzz after volley */
-			if ((current_time - peer->timelastrec) < deadband) {
+			if ((current_time - peer->timereceived) < deadband) {
 				msyslog(LOG_INFO, "receive: broadcast packet from %s arrived after %lu, not %lu seconds!",
 					stoa(&rbufp->recv_srcadr),
-					(current_time - peer->timelastrec),
+					(current_time - peer->timereceived),
 					deadband);
 				++bail;
 			}
 
-			/* Alert if time from the server is non-monotonic */
-			tdiff = p_xmt;
-			L_SUB(&tdiff, &peer->bxmt);
-			if (tdiff.l_i < 0) {
+			/* Alert if time from the server is non-monotonic.
+			 *
+			 * [Bug 3114] is about Broadcast mode replay DoS.
+			 *
+			 * Broadcast mode *assumes* a trusted network.
+			 * Even so, it's nice to be robust in the face
+			 * of attacks.
+			 *
+			 * If we get an authenticated broadcast packet
+			 * with an "earlier" timestamp, it means one of
+			 * two things:
+			 *
+			 * - the broadcast server had a backward step.
+			 *
+			 * - somebody is trying a replay attack.
+			 *
+			 * deadband: By default, we assume the broadcast
+			 * network is trustable, so we take our accepted
+			 * broadcast packets as we receive them.  But
+			 * some folks might want to take additional poll
+			 * delays before believing a backward step. 
+			 */
+			if (sys_bcpollbstep) {
+				/* pkt->ppoll or peer->ppoll ? */
+				deadband = (1u << pkt->ppoll)
+					   * sys_bcpollbstep + 2;
+			} else {
+				deadband = 0;
+			}
+
+			if (L_ISZERO(&peer->bxmt)) {
+				tdiff.l_ui = tdiff.l_uf = 0;
+			} else {
+				tdiff = p_xmt;
+				L_SUB(&tdiff, &peer->bxmt);
+			}
+			if (tdiff.l_i < 0 &&
+			    (current_time - peer->timereceived) < deadband)
+			{
 				msyslog(LOG_INFO, "receive: broadcast packet from %s contains non-monotonic timestamp: %#010x.%08x -> %#010x.%08x",
 					stoa(&rbufp->recv_srcadr),
 					peer->bxmt.l_ui, peer->bxmt.l_uf,
@@ -1473,8 +1518,6 @@ receive(
 					);
 				++bail;
 			}
-
-			peer->bxmt = p_xmt;
 
 			if (bail) {
 				peer->timelastrec = current_time;
@@ -1623,7 +1666,7 @@ receive(
 				peer->borg.l_ui, peer->borg.l_uf);
 			return;
 		}
-	
+
 	/*
 	 * Basic mode checks:
 	 *
@@ -1645,13 +1688,43 @@ receive(
 	} else if (peer->flip == 0) {
 		INSIST(0 != hisstratum);
 		INSIST(STRATUM_UNSPEC != hisstratum);
+
 		if (0) {
 		} else if (L_ISZERO(&p_org)) {
+			const char *action;
+
+#ifdef BUG3361
 			msyslog(LOG_INFO,
-				"receive: Got 0 origin timestamp from %s@%s xmt %#010x.%08x",
-				hm_str, ntoa(&peer->srcadr),
-				ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf));
+				"receive: BUG 3361: Clearing peer->aorg ");
 			L_CLR(&peer->aorg);
+#endif
+			/**/
+			switch (hismode) {
+			/* We allow 0org for: */
+			    case UCHAR_MAX:
+				action = "Allow";
+				break;
+			/* We disallow 0org for: */
+			    case MODE_UNSPEC:
+			    case MODE_ACTIVE:
+			    case MODE_PASSIVE:
+			    case MODE_CLIENT:
+			    case MODE_SERVER:
+			    case MODE_BROADCAST:
+				action = "Drop";
+				peer->bogusorg++;
+				peer->flash |= TEST2;	/* bogus */
+				break;
+			    default:
+				action = "";	/* for cranky compilers / MSVC */
+				INSIST(!"receive(): impossible hismode");
+				break;
+			}
+			/**/
+			msyslog(LOG_INFO,
+				"receive: %s 0 origin timestamp from %s@%s xmt %#010x.%08x",
+				action, hm_str, ntoa(&peer->srcadr),
+				ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf));
 		} else if (!L_ISEQU(&p_org, &peer->aorg)) {
 			/* are there cases here where we should bail? */
 			/* Should we set TEST2 if we decide to try xleave? */
@@ -1800,6 +1873,12 @@ receive(
 				"receive: Bad broadcast auth (%d) from %s",
 				is_authentic, ntoa(&peer->srcadr));
 		}
+
+		/*
+		 * Now that we know the packet is correctly authenticated,
+		 * update peer->bxmt.
+		 */
+		peer->bxmt = p_xmt;
 	}
 
 
@@ -1878,7 +1957,7 @@ receive(
 			peer->badauth++;
 			return;
 		}
-	    	break;
+		break;
 
 	    case MODE_CLIENT:		/* client mode */
 #if 0		/* At this point, MODE_CONTROL is overloaded by MODE_BCLIENT */
@@ -1886,14 +1965,14 @@ receive(
 #endif
 	    case MODE_PRIVATE:		/* private mode */
 	    case MODE_BCLIENT:		/* broadcast client mode */
-	    	break;
+		break;
 
 	    case MODE_UNSPEC:		/* unspecified (old version) */
 	    default:
 		msyslog(LOG_INFO,
 			"receive: Unexpected mode (%d) in packet from %s",
 			hismode, ntoa(&peer->srcadr));
-	    	break;
+		break;
 	}
 
 
@@ -2695,6 +2774,7 @@ peer_clear(
 	)
 {
 	u_char	u;
+	l_fp	bxmt = peer->bxmt;	/* bcast clients retain this! */
 
 #ifdef AUTOKEY
 	/*
@@ -2730,6 +2810,10 @@ peer_clear(
 	peer->disp = MAXDISPERSE;
 	peer->flash = peer_unfit(peer);
 	peer->jitter = LOGTOD(sys_precision);
+
+	/* Don't throw away our broadcast replay protection */
+	if (peer->hmode == MODE_BCLIENT)
+		peer->bxmt = bxmt;
 
 	/*
 	 * If interleave mode, initialize the alternate origin switch.
@@ -3040,8 +3124,9 @@ clock_select(void)
 		 * Leave the island immediately if the peer is
 		 * unfit to synchronize.
 		 */
-		if (peer_unfit(peer))
+		if (peer_unfit(peer)) {
 			continue;
+		}
 
 		/*
 		 * If this peer is an orphan parent, elect the
@@ -3081,8 +3166,9 @@ clock_select(void)
 		 * parent in ancestry so are excluded.
 		 * See http://bugs.ntp.org/2050
 		 */
-		if (peer->stratum > sys_orphan)
+		if (peer->stratum > sys_orphan) {
 			continue;
+		}
 #ifdef REFCLOCK
 		/*
 		 * The following are special cases. We deal
@@ -3531,15 +3617,15 @@ root_distance(
 
 	/*
 	 * Root Distance (LAMBDA) is defined as:
-	 * (delta + DELTA)/2 + epsilon + EPSILON + phi
+	 * (delta + DELTA)/2 + epsilon + EPSILON + D
 	 *
 	 * where:
 	 *  delta   is the round-trip delay
 	 *  DELTA   is the root delay
-	 *  epsilon is the remote server precision + local precision
+	 *  epsilon is the peer dispersion
 	 *	    + (15 usec each second)
 	 *  EPSILON is the root dispersion
-	 *  phi     is the peer jitter statistic
+	 *  D       is sys_jitter
 	 *
 	 * NB: Think hard about why we are using these values, and what
 	 * the alternatives are, and the various pros/cons.
@@ -3548,8 +3634,7 @@ root_distance(
 	 * other worse choices.
 	 */
 	dtemp = (peer->delay + peer->rootdelay) / 2
-		+ LOGTOD(peer->precision)
-		  + LOGTOD(sys_precision)
+		+ peer->disp
 		  + clock_phi * (current_time - peer->update)
 		+ peer->rootdisp
 		+ peer->jitter;
@@ -3639,8 +3724,9 @@ peer_xmit(
 			}
 		}
 		peer->t21_bytes = sendlen;
-		sendpkt(&peer->srcadr, peer->dstadr, sys_ttl[peer->ttl],
-		    &xpkt, sendlen);
+		sendpkt(&peer->srcadr, peer->dstadr,
+			sys_ttl[(peer->ttl >= sys_ttlmax) ? sys_ttlmax : peer->ttl],
+			&xpkt, sendlen);
 		peer->sent++;
 		peer->throttle += (1 << peer->minpoll) - 2;
 
@@ -3950,8 +4036,9 @@ peer_xmit(
 		exit (-1);
 	}
 	peer->t21_bytes = sendlen;
-	sendpkt(&peer->srcadr, peer->dstadr, sys_ttl[peer->ttl], &xpkt,
-	    sendlen);
+	sendpkt(&peer->srcadr, peer->dstadr,
+		sys_ttl[(peer->ttl >= sys_ttlmax) ? sys_ttlmax : peer->ttl],
+		&xpkt, sendlen);
 	peer->sent++;
 	peer->throttle += (1 << peer->minpoll) - 2;
 
@@ -3974,7 +4061,7 @@ peer_xmit(
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen,
 		    peer->keynumber));
 #else	/* !AUTOKEY follows */
-	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %d\n",
+	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %zu\n",
 		    current_time, peer->dstadr ?
 		    ntoa(&peer->dstadr->sin) : "-",
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen));
@@ -3994,6 +4081,10 @@ leap_smear_add_offs(
 {
 
 	L_ADD(t, &leap_smear.offset);
+
+	/*
+	** XXX: Should the smear be added to the root dispersion?
+	*/
 
 	return;
 }
@@ -4268,8 +4359,9 @@ pool_xmit(
 	get_systime(&xmt_tx);
 	pool->aorg = xmt_tx;
 	HTONL_FP(&xmt_tx, &xpkt.xmt);
-	sendpkt(rmtadr, lcladr,	sys_ttl[pool->ttl], &xpkt,
-		LEN_PKT_NOMAC);
+	sendpkt(rmtadr, lcladr,
+		sys_ttl[(pool->ttl >= sys_ttlmax) ? sys_ttlmax : pool->ttl],
+		&xpkt, LEN_PKT_NOMAC);
 	pool->sent++;
 	pool->throttle += (1 << pool->minpoll) - 2;
 	DPRINTF(1, ("pool_xmit: at %ld %s->%s pool\n",
@@ -4425,8 +4517,9 @@ peer_unfit(
 	 */
 	if (   peer->leap == LEAP_NOTINSYNC
 	    || peer->stratum < sys_floor
-	    || peer->stratum >= sys_ceiling)
+	    || peer->stratum >= sys_ceiling) {
 		rval |= TEST10;		/* bad synch or stratum */
+	}
 
 	/*
 	 * A distance error for a remote peer occurs if the root
@@ -4435,8 +4528,9 @@ peer_unfit(
 	 */
 	if (   !(peer->flags & FLAG_REFCLOCK)
 	    && root_distance(peer) >= sys_maxdist
-				      + clock_phi * ULOGTOD(peer->hpoll))
+				      + clock_phi * ULOGTOD(peer->hpoll)) {
 		rval |= TEST11;		/* distance exceeded */
+	}
 
 	/*
 	 * A loop error occurs if the remote peer is synchronized to the
@@ -4444,15 +4538,17 @@ peer_unfit(
 	 * server as the local peer but only if the remote peer is
 	 * neither a reference clock nor an orphan.
 	 */
-	if (peer->stratum > 1 && local_refid(peer))
+	if (peer->stratum > 1 && local_refid(peer)) {
 		rval |= TEST12;		/* synchronization loop */
+	}
 
 	/*
 	 * An unreachable error occurs if the server is unreachable or
 	 * the noselect bit is set.
 	 */
-	if (!peer->reach || (peer->flags & FLAG_NOSELECT))
+	if (!peer->reach || (peer->flags & FLAG_NOSELECT)) {
 		rval |= TEST13;		/* unreachable */
+	}
 
 	peer->flash &= ~PEER_TEST_MASK;
 	peer->flash |= rval;
@@ -4634,10 +4730,9 @@ init_proto(void)
 	sys_stattime = current_time;
 	orphwait = current_time + sys_orphwait;
 	proto_clr_stats();
-	for (i = 0; i < MAX_TTL; i++) {
+	for (i = 0; i < MAX_TTL; ++i)
 		sys_ttl[i] = (u_char)((i * 256) / MAX_TTL);
-		sys_ttlmax = i;
-	}
+	sys_ttlmax = (MAX_TTL - 1);
 	hardpps_enable = 0;
 	stats_control = 1;
 }
@@ -4717,6 +4812,11 @@ proto_config(
 	/*
 	 * tos command - arguments are double, sometimes cast to int
 	 */
+
+	case PROTO_BCPOLLBSTEP:	/* Broadcast Poll Backstep gate (bcpollbstep) */
+		sys_bcpollbstep = (u_char)dvalue;
+		break;
+
 	case PROTO_BEACON:	/* manycast beacon (beacon) */
 		sys_beacon = (int)dvalue;
 		break;

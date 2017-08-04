@@ -133,9 +133,13 @@ pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask)
 		ev_clone->ev_flags = ev->ev_flags;
 		ev_clone->ev_mode  = ev->ev_mode;
 		ev_clone->ev_name  = strdup(ev->ev_name);
+		if (ev_clone->ev_name == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
 		ev_clone->ev_pmcid = ev->ev_pmcid;
 		ev_clone->ev_saved = ev->ev_saved;
 		ev_clone->ev_spec  = strdup(ev->ev_spec);
+		if (ev_clone->ev_spec == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
 
 		STAILQ_INSERT_TAIL(&args.pa_events, ev_clone, ev_next);
 	}
@@ -192,22 +196,20 @@ pmcstat_attach_pmcs(void)
 void
 pmcstat_cleanup(void)
 {
-	struct pmcstat_ev *ev, *tmp;
+	struct pmcstat_ev *ev;
 
 	/* release allocated PMCs. */
-	STAILQ_FOREACH_SAFE(ev, &args.pa_events, ev_next, tmp)
-	    if (ev->ev_pmcid != PMC_ID_INVALID) {
-		if (pmc_stop(ev->ev_pmcid) < 0)
-			err(EX_OSERR, "ERROR: cannot stop pmc 0x%x \"%s\"",
-			    ev->ev_pmcid, ev->ev_name);
-		if (pmc_release(ev->ev_pmcid) < 0)
-			err(EX_OSERR, "ERROR: cannot release pmc 0x%x \"%s\"",
-			    ev->ev_pmcid, ev->ev_name);
-		free(ev->ev_name);
-		free(ev->ev_spec);
-		STAILQ_REMOVE(&args.pa_events, ev, pmcstat_ev, ev_next);
-		free(ev);
-	    }
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next)
+		if (ev->ev_pmcid != PMC_ID_INVALID) {
+			if (pmc_stop(ev->ev_pmcid) < 0)
+				err(EX_OSERR,
+				    "ERROR: cannot stop pmc 0x%x \"%s\"",
+				    ev->ev_pmcid, ev->ev_name);
+			if (pmc_release(ev->ev_pmcid) < 0)
+				err(EX_OSERR,
+				    "ERROR: cannot release pmc 0x%x \"%s\"",
+				    ev->ev_pmcid, ev->ev_name);
+		}
 
 	/* de-configure the log file if present. */
 	if (args.pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
@@ -614,7 +616,9 @@ main(int argc, char **argv)
 	len = 0;
 	if (sysctlbyname("kern.bootfile", NULL, &len, NULL, 0) == -1)
 		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
-	args.pa_kernel = malloc(len + 1);
+	args.pa_kernel = malloc(len);
+	if (args.pa_kernel == NULL)
+		errx(EX_SOFTWARE, "ERROR: Out of memory.");
 	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
 		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
 
@@ -700,6 +704,8 @@ main(int argc, char **argv)
 		case 'k':	/* pathname to the kernel */
 			free(args.pa_kernel);
 			args.pa_kernel = strdup(optarg);
+			if (args.pa_kernel == NULL)
+				errx(EX_SOFTWARE, "ERROR: Out of memory");
 			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
 			break;
@@ -767,6 +773,8 @@ main(int argc, char **argv)
 				args.pa_flags |= FLAG_HAS_SYSTEM_PMCS;
 
 			ev->ev_spec  = strdup(optarg);
+			if (ev->ev_spec == NULL)
+				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 
 			if (option == 'S' || option == 'P')
 				ev->ev_count = current_sampling_count;
@@ -796,6 +804,8 @@ main(int argc, char **argv)
 			/* extract event name */
 			c = strcspn(optarg, ", \t");
 			ev->ev_name = malloc(c + 1);
+			if (ev->ev_name == NULL)
+				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 			(void) strncpy(ev->ev_name, optarg, c);
 			*(ev->ev_name + c) = '\0';
 
@@ -1086,6 +1096,8 @@ main(int argc, char **argv)
 	if (!S_ISDIR(sb.st_mode)) {
 		tmp = args.pa_kernel;
 		args.pa_kernel = strdup(dirname(args.pa_kernel));
+		if (args.pa_kernel == NULL)
+			errx(EX_SOFTWARE, "ERROR: Out of memory");
 		free(tmp);
 		(void) snprintf(buffer, sizeof(buffer), "%s%s",
 		    args.pa_fsroot, args.pa_kernel);
@@ -1502,8 +1514,6 @@ main(int argc, char **argv)
 		pmc_close_logfile();
 
 	pmcstat_cleanup();
-
-	free(args.pa_kernel);
 
 	/* check if the driver lost any samples or events */
 	if (check_driver_stats) {

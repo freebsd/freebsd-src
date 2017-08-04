@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2015
+.Dd September 8, 2016
 .Dt GGATEL 8
 .Os
 .Sh NAME
@@ -80,7 +80,8 @@ List
 providers.
 .It Cm rescue
 Take over a previously created provider and handle pending and future
-requests. This is useful if the initial
+requests.
+This is useful if the initial
 .Nm
 process died.
 To prevent data loss, the given path must lead to the
@@ -151,6 +152,11 @@ ggatel destroy -u 5
 .Xr ggated 8 ,
 .Xr mount 8 ,
 .Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
 .Sh AUTHORS
 The
 .Nm

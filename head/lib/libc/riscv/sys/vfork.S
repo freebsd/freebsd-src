@@ -42,10 +42,12 @@ ENTRY(__sys_vfork)
 	mv	a2, ra
 
 	_SYSCALL(vfork)
-	bnez	t0, cerror
+	bnez	t0, 1f
 	addi	a1, a1, -1
 	and	a0, a0, a1
 	mv	ra, a2
 
 	ret
+1:	la	t1, cerror
+	jr	t1
 END(__sys_vfork)

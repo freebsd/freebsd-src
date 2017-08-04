@@ -413,6 +413,49 @@ sglist_append_user(struct sglist *sg, void *buf, size_t len, struct thread *td)
 }
 
 /*
+ * Append a subset of an existing scatter/gather list 'source' to a
+ * the scatter/gather list 'sg'.  If there are insufficient segments,
+ * then this fails with EFBIG.
+ */
+int
+sglist_append_sglist(struct sglist *sg, struct sglist *source, size_t offset,
+    size_t length)
+{
+	struct sgsave save;
+	struct sglist_seg *ss;
+	size_t seglen;
+	int error, i;
+
+	if (sg->sg_maxseg == 0 || length == 0)
+		return (EINVAL);
+	SGLIST_SAVE(sg, save);
+	error = EINVAL;
+	ss = &sg->sg_segs[sg->sg_nseg - 1];
+	for (i = 0; i < source->sg_nseg; i++) {
+		if (offset >= source->sg_segs[i].ss_len) {
+			offset -= source->sg_segs[i].ss_len;
+			continue;
+		}
+		seglen = source->sg_segs[i].ss_len - offset;
+		if (seglen > length)
+			seglen = length;
+		error = _sglist_append_range(sg, &ss,
+		    source->sg_segs[i].ss_paddr + offset, seglen);
+		if (error)
+			break;
+		offset = 0;
+		length -= seglen;
+		if (length == 0)
+			break;
+	}
+	if (length != 0)
+		error = EINVAL;
+	if (error)
+		SGLIST_RESTORE(sg, save);
+	return (error);
+}
+
+/*
  * Append the segments that describe a single uio to a scatter/gather
  * list.  If there are insufficient segments, then this fails with
  * EFBIG.

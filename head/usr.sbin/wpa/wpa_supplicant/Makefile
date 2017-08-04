@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers
@@ -142,6 +142,6 @@ SRCS+=	eap_sake.c \
 	eap_sake_common.c
 .endif
 
-.include "${.CURDIR}/../Makefile.crypto"
+.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>

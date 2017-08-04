@@ -346,9 +346,10 @@ std::auto_ptr< atf::check::check_result >
 execute_with_shell(char* const* argv)
 {
     const std::string cmd = flatten_argv(argv);
+    const std::string shell = atf::env::get("ATF_SHELL", ATF_SHELL);
 
     const char* sh_argv[4];
-    sh_argv[0] = atf::env::get("ATF_SHELL", ATF_SHELL).c_str();
+    sh_argv[0] = shell.c_str();
     sh_argv[1] = "-c";
     sh_argv[2] = cmd.c_str();
     sh_argv[3] = NULL;

@@ -125,7 +125,7 @@ simplebus_probe(device_t dev)
 
 	/*
 	 * FDT data puts a "simple-bus" compatible string on many things that
-	 * have children but aren't really busses in our world.  Without a
+	 * have children but aren't really buses in our world.  Without a
 	 * ranges property we will fail to attach, so just fail to probe too.
 	 */
 	if (!(ofw_bus_is_compatible(dev, "simple-bus") &&

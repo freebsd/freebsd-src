@@ -17,6 +17,7 @@
 
 // FIXME: vector is used because that's what clang uses for subtarget feature
 // lists, but SmallVector would probably be better
+#include "llvm/ADT/Triple.h"
 #include <vector>
 
 namespace llvm {
@@ -75,7 +76,7 @@ enum ArchExtKind : unsigned {
   AEK_CRC = 0x2,
   AEK_CRYPTO = 0x4,
   AEK_FP = 0x8,
-  AEK_HWDIV = 0x10,
+  AEK_HWDIVTHUMB = 0x10,
   AEK_HWDIVARM = 0x20,
   AEK_MP = 0x40,
   AEK_SIMD = 0x80,
@@ -83,6 +84,8 @@ enum ArchExtKind : unsigned {
   AEK_VIRT = 0x200,
   AEK_DSP = 0x400,
   AEK_FP16 = 0x800,
+  AEK_RAS = 0x1000,
+  AEK_SVE = 0x2000,
   // Unsupported extensions.
   AEK_OS = 0x8000000,
   AEK_IWMMXT = 0x10000000,
@@ -110,17 +113,17 @@ unsigned getFPUNeonSupportLevel(unsigned FPUKind);
 unsigned getFPURestriction(unsigned FPUKind);
 
 // FIXME: These should be moved to TargetTuple once it exists
-bool getFPUFeatures(unsigned FPUKind, std::vector<const char *> &Features);
-bool getHWDivFeatures(unsigned HWDivKind, std::vector<const char *> &Features);
+bool getFPUFeatures(unsigned FPUKind, std::vector<StringRef> &Features);
+bool getHWDivFeatures(unsigned HWDivKind, std::vector<StringRef> &Features);
 bool getExtensionFeatures(unsigned Extensions,
-                                   std::vector<const char*> &Features);
+                          std::vector<StringRef> &Features);
 
 StringRef getArchName(unsigned ArchKind);
 unsigned getArchAttr(unsigned ArchKind);
 StringRef getCPUAttr(unsigned ArchKind);
 StringRef getSubArch(unsigned ArchKind);
 StringRef getArchExtName(unsigned ArchExtKind);
-const char *getArchExtFeature(StringRef ArchExt);
+StringRef getArchExtFeature(StringRef ArchExt);
 StringRef getHWDivName(unsigned HWDivKind);
 
 // Information by Name
@@ -139,7 +142,73 @@ unsigned parseArchEndian(StringRef Arch);
 unsigned parseArchProfile(StringRef Arch);
 unsigned parseArchVersion(StringRef Arch);
 
+StringRef computeDefaultTargetABI(const Triple &TT, StringRef CPU);
+
 } // namespace ARM
+
+// FIXME:This should be made into class design,to avoid dupplication.
+namespace AArch64 {
+
+// Arch names.
+enum class ArchKind {
+#define AARCH64_ARCH(NAME, ID, CPU_ATTR, SUB_ARCH, ARCH_ATTR, ARCH_FPU, ARCH_BASE_EXT) ID,
+#include "AArch64TargetParser.def"
+  AK_LAST
+};
+
+// Arch extension modifiers for CPUs.
+enum ArchExtKind : unsigned {
+  AEK_INVALID = 0x0,
+  AEK_NONE = 0x1,
+  AEK_CRC = 0x2,
+  AEK_CRYPTO = 0x4,
+  AEK_FP = 0x8,
+  AEK_SIMD = 0x10,
+  AEK_FP16 = 0x20,
+  AEK_PROFILE = 0x40,
+  AEK_RAS = 0x80,
+  AEK_LSE = 0x100,
+  AEK_SVE = 0x200
+};
+
+StringRef getCanonicalArchName(StringRef Arch);
+
+// Information by ID
+StringRef getFPUName(unsigned FPUKind);
+unsigned getFPUVersion(unsigned FPUKind);
+unsigned getFPUNeonSupportLevel(unsigned FPUKind);
+unsigned getFPURestriction(unsigned FPUKind);
+
+// FIXME: These should be moved to TargetTuple once it exists
+bool getFPUFeatures(unsigned FPUKind, std::vector<StringRef> &Features);
+bool getExtensionFeatures(unsigned Extensions,
+                                   std::vector<StringRef> &Features);
+bool getArchFeatures(unsigned ArchKind, std::vector<StringRef> &Features);
+
+StringRef getArchName(unsigned ArchKind);
+unsigned getArchAttr(unsigned ArchKind);
+StringRef getCPUAttr(unsigned ArchKind);
+StringRef getSubArch(unsigned ArchKind);
+StringRef getArchExtName(unsigned ArchExtKind);
+StringRef getArchExtFeature(StringRef ArchExt);
+unsigned checkArchVersion(StringRef Arch);
+
+// Information by Name
+unsigned  getDefaultFPU(StringRef CPU, unsigned ArchKind);
+unsigned  getDefaultExtensions(StringRef CPU, unsigned ArchKind);
+StringRef getDefaultCPU(StringRef Arch);
+
+// Parser
+unsigned parseFPU(StringRef FPU);
+unsigned parseArch(StringRef Arch);
+unsigned parseArchExt(StringRef ArchExt);
+unsigned parseCPUArch(StringRef CPU);
+unsigned parseArchISA(StringRef Arch);
+unsigned parseArchEndian(StringRef Arch);
+unsigned parseArchProfile(StringRef Arch);
+unsigned parseArchVersion(StringRef Arch);
+
+} // namespace AArch64
 } // namespace llvm
 
 #endif

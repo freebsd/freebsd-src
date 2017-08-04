@@ -87,6 +87,9 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
 
 #include "utlist.h"
 #include "utstring.h"
@@ -127,19 +130,19 @@ enum ucl_parser_state {
 };
 
 enum ucl_character_type {
-	UCL_CHARACTER_DENIED = 0,
-	UCL_CHARACTER_KEY = 1,
-	UCL_CHARACTER_KEY_START = 1 << 1,
-	UCL_CHARACTER_WHITESPACE = 1 << 2,
-	UCL_CHARACTER_WHITESPACE_UNSAFE = 1 << 3,
-	UCL_CHARACTER_VALUE_END = 1 << 4,
-	UCL_CHARACTER_VALUE_STR = 1 << 5,
-	UCL_CHARACTER_VALUE_DIGIT = 1 << 6,
-	UCL_CHARACTER_VALUE_DIGIT_START = 1 << 7,
-	UCL_CHARACTER_ESCAPE = 1 << 8,
-	UCL_CHARACTER_KEY_SEP = 1 << 9,
-	UCL_CHARACTER_JSON_UNSAFE = 1 << 10,
-	UCL_CHARACTER_UCL_UNSAFE = 1 << 11
+	UCL_CHARACTER_DENIED = (1 << 0),
+	UCL_CHARACTER_KEY = (1 << 1),
+	UCL_CHARACTER_KEY_START = (1 << 2),
+	UCL_CHARACTER_WHITESPACE = (1 << 3),
+	UCL_CHARACTER_WHITESPACE_UNSAFE = (1 << 4),
+	UCL_CHARACTER_VALUE_END = (1 << 5),
+	UCL_CHARACTER_VALUE_STR = (1 << 6),
+	UCL_CHARACTER_VALUE_DIGIT = (1 << 7),
+	UCL_CHARACTER_VALUE_DIGIT_START = (1 << 8),
+	UCL_CHARACTER_ESCAPE = (1 << 9),
+	UCL_CHARACTER_KEY_SEP = (1 << 10),
+	UCL_CHARACTER_JSON_UNSAFE = (1 << 11),
+	UCL_CHARACTER_UCL_UNSAFE = (1 << 12)
 };
 
 struct ucl_macro {
@@ -567,5 +570,7 @@ bool ucl_parser_process_object_element (struct ucl_parser *parser,
  * @return
  */
 bool ucl_parse_msgpack (struct ucl_parser *parser);
+
+bool ucl_parse_csexp (struct ucl_parser *parser);
 
 #endif /* UCL_INTERNAL_H_ */

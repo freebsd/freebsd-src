@@ -27,37 +27,31 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/diskmbr.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
-#include <sys/gpt.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
+#include <gpt.h>
+#include <mbr.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
-#ifndef GPT_ENT_TYPE_FREEBSD_NANDFS
-#define	GPT_ENT_TYPE_FREEBSD_NANDFS	\
-    {0x74ba7dd9,0xa689,0x11e1,0xbd,0x04,{0x00,0xe0,0x81,0x28,0x6a,0xcf}}
-#endif
-
-static uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
-static uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
-static uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
-static uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
-static uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
-static uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
-static uuid_t gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
-static uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
-static uuid_t gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
-static uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
+static mkimg_uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
+static mkimg_uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
+static mkimg_uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static mkimg_uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
+static mkimg_uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+static mkimg_uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+static mkimg_uuid_t gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+static mkimg_uuid_t gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static mkimg_uuid_t gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
+static mkimg_uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 
 static struct mkimg_alias gpt_aliases[] = {
     {	ALIAS_EFI, ALIAS_PTR2TYPE(&gpt_uuid_efi) },
@@ -131,21 +125,6 @@ crc32(const void *buf, size_t sz)
 	return (crc ^ ~0U);
 }
 
-static void
-gpt_uuid_enc(void *buf, const uuid_t *uuid)
-{
-	uint8_t *p = buf;
-	int i;
-
-	le32enc(p, uuid->time_low);
-	le16enc(p + 4, uuid->time_mid);
-	le16enc(p + 6, uuid->time_hi_and_version);
-	p[8] = uuid->clock_seq_hi_and_reserved;
-	p[9] = uuid->clock_seq_low;
-	for (i = 0; i < _UUID_NODE_LEN; i++)
-		p[10 + i] = uuid->node[i];
-}
-
 static u_int
 gpt_tblsz(void)
 {
@@ -173,7 +152,7 @@ gpt_write_pmbr(lba_t blks, void *bootcode)
 	uint32_t secs;
 	int error;
 
-	secs = (blks > UINT32_MAX) ? UINT32_MAX : (uint32_t)blks;
+	secs = (blks > UINT32_MAX) ? UINT32_MAX : (uint32_t)blks - 1;
 
 	pmbr = malloc(secsz);
 	if (pmbr == NULL)
@@ -199,7 +178,7 @@ gpt_write_pmbr(lba_t blks, void *bootcode)
 static struct gpt_ent *
 gpt_mktbl(u_int tblsz)
 {
-	uuid_t uuid;
+	mkimg_uuid_t uuid;
 	struct gpt_ent *tbl, *ent;
 	struct part *part;
 	int c, idx;
@@ -208,11 +187,11 @@ gpt_mktbl(u_int tblsz)
 	if (tbl == NULL)
 		return (NULL);
 
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		ent = tbl + part->index;
-		gpt_uuid_enc(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
+		mkimg_uuid_enc(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
 		mkimg_uuid(&uuid);
-		gpt_uuid_enc(&ent->ent_uuid, &uuid);
+		mkimg_uuid_enc(&ent->ent_uuid, &uuid);
 		le64enc(&ent->ent_lba_start, part->block);
 		le64enc(&ent->ent_lba_end, part->block + part->size - 1);
 		if (part->label != NULL) {
@@ -243,7 +222,7 @@ gpt_write_hdr(struct gpt_hdr *hdr, uint64_t self, uint64_t alt, uint64_t tbl)
 static int
 gpt_write(lba_t imgsz, void *bootcode)
 {
-	uuid_t uuid;
+	mkimg_uuid_t uuid;
 	struct gpt_ent *tbl;
 	struct gpt_hdr *hdr;
 	uint32_t crc;
@@ -280,7 +259,7 @@ gpt_write(lba_t imgsz, void *bootcode)
 	le64enc(&hdr->hdr_lba_start, 2 + tblsz);
 	le64enc(&hdr->hdr_lba_end, imgsz - tblsz - 2);
 	mkimg_uuid(&uuid);
-	gpt_uuid_enc(&hdr->hdr_uuid, &uuid);
+	mkimg_uuid_enc(&hdr->hdr_uuid, &uuid);
 	le32enc(&hdr->hdr_entries, nparts);
 	le32enc(&hdr->hdr_entsz, sizeof(struct gpt_ent));
 	crc = crc32(tbl, nparts * sizeof(struct gpt_ent));

@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.46 2015/07/08 19:04:21 markus Exp $ */
+/* $OpenBSD: log.c,v 1.49 2017/03/10 03:15:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -176,6 +176,16 @@ sigdie(const char *fmt,...)
 	_exit(1);
 }
 
+void
+logdie(const char *fmt,...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	do_log(SYSLOG_LEVEL_INFO, fmt, args);
+	va_end(args);
+	cleanup_exit(255);
+}
 
 /* Log this message (information that usually should go to the log). */
 
@@ -342,7 +352,7 @@ log_change_level(LogLevel new_log_level)
 int
 log_is_on_stderr(void)
 {
-	return log_on_stderr;
+	return log_on_stderr && log_stderr_fd == STDERR_FILENO;
 }
 
 /* redirect what would usually get written to stderr to specified file */
@@ -443,7 +453,8 @@ do_log(LogLevel level, const char *fmt, va_list args)
 		tmp_handler(level, fmtbuf, log_handler_ctx);
 		log_handler = tmp_handler;
 	} else if (log_on_stderr) {
-		snprintf(msgbuf, sizeof msgbuf, "%s\r\n", fmtbuf);
+		snprintf(msgbuf, sizeof msgbuf, "%.*s\r\n",
+		    (int)sizeof msgbuf - 3, fmtbuf);
 		(void)write(log_stderr_fd, msgbuf, strlen(msgbuf));
 	} else {
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT)

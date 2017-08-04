@@ -82,8 +82,7 @@ struct db_variable *db_eregs = db_regs + nitems(db_regs);
 static __inline int
 get_esp(struct trapframe *tf)
 {
-	return ((ISPL(tf->tf_cs) || kdb_frame->tf_eflags & PSL_VM) ?
-	    tf->tf_esp : (intptr_t)&tf->tf_esp);
+	return (TF_HAS_STACKREGS(tf) ? tf->tf_esp : (intptr_t)&tf->tf_esp);
 }
 
 static int
@@ -147,7 +146,7 @@ db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
 
 	if (op == DB_VAR_GET)
 		*valuep = get_esp(kdb_frame);
-	else if (ISPL(kdb_frame->tf_cs))
+	else if (TF_HAS_STACKREGS(kdb_frame))
 		kdb_frame->tf_esp = *valuep;
 	return (1);
 }
@@ -180,9 +179,9 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (0);
 
 	if (op == DB_VAR_GET)
-		*valuep = (ISPL(kdb_frame->tf_cs) ||
-		    kdb_frame->tf_eflags & PSL_VM) ? kdb_frame->tf_ss : rss();
-	else if (ISPL(kdb_frame->tf_cs) || kdb_frame->tf_eflags & PSL_VM)
+		*valuep = TF_HAS_STACKREGS(kdb_frame) ? kdb_frame->tf_ss :
+		    rss();
+	else if (TF_HAS_STACKREGS(kdb_frame))
 		kdb_frame->tf_ss = *valuep;
 	return (1);
 }
@@ -422,6 +421,17 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 	int instr, narg;
 	boolean_t first;
 
+	if (db_segsize(tf) == 16) {
+		db_printf(
+"--- 16-bit%s, cs:eip = %#x:%#x, ss:esp = %#x:%#x, ebp = %#x, tf = %p ---\n",
+		    (tf->tf_eflags & PSL_VM) ? " (vm86)" : "",
+		    tf->tf_cs, tf->tf_eip,
+		    TF_HAS_STACKREGS(tf) ? tf->tf_ss : rss(),
+		    TF_HAS_STACKREGS(tf) ? tf->tf_esp : (intptr_t)&tf->tf_esp,
+		    tf->tf_ebp, tf);
+		return (0);
+	}
+
 	/*
 	 * If an indirect call via an invalid pointer caused a trap,
 	 * %pc contains the invalid address while the return address
@@ -439,7 +449,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		 * Find where the trap frame actually ends.
 		 * It won't contain tf_esp or tf_ss unless crossing rings.
 		 */
-		if (ISPL(kdb_frame->tf_cs))
+		if (TF_HAS_STACKREGS(kdb_frame))
 			instr = (int)(kdb_frame + 1);
 		else
 			instr = (int)&kdb_frame->tf_esp;
@@ -725,7 +735,7 @@ watchtype_str(type)
 
 
 void
-db_md_list_watchpoints()
+db_md_list_watchpoints(void)
 {
 	struct dbreg d;
 	int i, len, type;
@@ -741,7 +751,7 @@ db_md_list_watchpoints()
 			len = DBREG_DR7_LEN(d.dr[7], i);
 			db_printf("  %-5d  %-8s  %10s  %3d  ",
 			    i, "enabled", watchtype_str(type), len + 1);
-			db_printsym((db_addr_t)DBREG_DRX((&d), i), DB_STGY_ANY);
+			db_printsym((db_addr_t)DBREG_DRX(&d, i), DB_STGY_ANY);
 			db_printf("\n");
 		} else {
 			db_printf("  %-5d  disabled\n", i);
@@ -749,10 +759,8 @@ db_md_list_watchpoints()
 	}
 
 	db_printf("\ndebug register values:\n");
-	for (i = 0; i < 8; i++) {
-		db_printf("  dr%d 0x%08x\n", i, DBREG_DRX((&d), i));
-	}
+	for (i = 0; i < 8; i++)
+		if (i != 4 && i != 5)
+			db_printf("  dr%d 0x%08x\n", i, DBREG_DRX(&d, i));
 	db_printf("\n");
 }
-
-

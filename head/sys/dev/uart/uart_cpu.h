@@ -80,6 +80,7 @@ const char *uart_getname(struct uart_class *);
 struct uart_ops *uart_getops(struct uart_class *);
 int uart_getrange(struct uart_class *);
 u_int uart_getregshift(struct uart_class *);
+u_int uart_getregiowidth(struct uart_class *);
 
 void uart_add_sysdev(struct uart_devinfo *);
 

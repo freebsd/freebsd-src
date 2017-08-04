@@ -200,7 +200,7 @@ jailparam_all(struct jailparam **jpp)
 {
 	struct jailparam *jp, *tjp;
 	size_t mlen1, mlen2, buflen;
-	int njp, nlist;
+	unsigned njp, nlist;
 	int mib1[CTL_MAXNAME], mib2[CTL_MAXNAME - 2];
 	char buf[MAXPATHLEN];
 
@@ -223,11 +223,16 @@ jailparam_all(struct jailparam **jpp)
 		/* Get the next parameter. */
 		mlen2 = sizeof(mib2);
 		if (sysctl(mib1, mlen1 + 2, mib2, &mlen2, NULL, 0) < 0) {
+			if (errno == ENOENT) {
+				/* No more entries. */
+				break;
+			}
 			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 			    "sysctl(0.2): %s", strerror(errno));
 			goto error;
 		}
-		if (mib2[0] != mib1[2] || mib2[1] != mib1[3] ||
+		if (mib2[0] != mib1[2] ||
+		    mib2[1] != mib1[3] ||
 		    mib2[2] != mib1[4])
 			break;
 		/* Convert it to an ascii name. */
@@ -245,7 +250,7 @@ jailparam_all(struct jailparam **jpp)
 		/* Add the parameter to the list */
 		if (njp >= nlist) {
 			nlist *= 2;
-			tjp = realloc(jp, nlist * sizeof(*jp));
+			tjp = reallocarray(jp, nlist, sizeof(*jp));
 			if (tjp == NULL)
 				goto error;
 			jp = tjp;
@@ -254,7 +259,7 @@ jailparam_all(struct jailparam **jpp)
 			goto error;
 		mib1[1] = 2;
 	}
-	jp = realloc(jp, njp * sizeof(*jp));
+	jp = reallocarray(jp, njp, sizeof(*jp));
 	*jpp = jp;
 	return (njp);
 

@@ -6,7 +6,44 @@
 
 .include "Makefile.inc"
 
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+
+.PATH:	${LCRYPTO_SRC}/crypto \
+	${LCRYPTO_SRC}/crypto/aes/asm \
+	${LCRYPTO_SRC}/crypto/modes/asm \
+	${LCRYPTO_SRC}/crypto/sha/asm
+
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/perlasm
+
+# aes
+SRCS=	aesv8-armx.pl
+
+# modes
+SRCS+=	ghashv8-armx.pl
+
+# sha
+SRCS+=	sha1-armv8.pl sha512-armv8.pl
+
+ASM=	${SRCS:R:S/$/.S/} sha256-armv8.S
+
+all:	${ASM}
+
+CLEANFILES=	${ASM} ${SRCS:R:S/$/.s/} sha256-armv8.s
+.SUFFIXES:	.pl
+
+sha256-armv8.S:	sha512-armv8.pl
+	env CC=cc perl ${.ALLSRC} 64 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.ALLSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.pl.S:
+	env CC=cc perl ${.IMPSRC} 64 ${.TARGET:R:S/$/.s/}
+	( echo '/* $$'FreeBSD'$$ */' ;\
+	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
+	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
+
+.elif defined(ASM_amd64)
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \

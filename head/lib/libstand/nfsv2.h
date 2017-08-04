@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -119,46 +119,3 @@ typedef enum {
 	NFCHR=4,
 	NFLNK=5
 } nfstype;
-
-/* Structs for common parts of the rpc's */
-struct nfsv2_time {
-	n_long	nfs_sec;
-	n_long	nfs_usec;
-};
-
-/*
- * File attributes and setable attributes.
- */
-struct nfsv2_fattr {
-	n_long	fa_type;
-	n_long	fa_mode;
-	n_long	fa_nlink;
-	n_long	fa_uid;
-	n_long	fa_gid;
-	n_long	fa_size;
-	n_long	fa_blocksize;
-	n_long	fa_rdev;
-	n_long	fa_blocks;
-	n_long	fa_fsid;
-	n_long	fa_fileid;
-	struct nfsv2_time fa_atime;
-	struct nfsv2_time fa_mtime;
-	struct nfsv2_time fa_ctime;
-};
-
-struct nfsv2_sattr {
-	n_long	sa_mode;
-	n_long	sa_uid;
-	n_long	sa_gid;
-	n_long	sa_size;
-	struct nfsv2_time sa_atime;
-	struct nfsv2_time sa_mtime;
-};
-
-struct nfsv2_statfs {
-	n_long	sf_tsize;
-	n_long	sf_bsize;
-	n_long	sf_blocks;
-	n_long	sf_bfree;
-	n_long	sf_bavail;
-};

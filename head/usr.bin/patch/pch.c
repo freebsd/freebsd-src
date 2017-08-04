@@ -216,8 +216,10 @@ there_is_another_patch(void)
 			filearg[0] = fetchname(buf, &exists, 0);
 		}
 		if (!exists) {
-			ask("No file found--skip this patch? [n] ");
-			if (*buf != 'y')
+			int def_skip = *bestguess == '\0';
+			ask("No file found--skip this patch? [%c] ",
+			    def_skip  ? 'y' : 'n');
+			if (*buf == 'n' || (!def_skip && *buf != 'y'))
 				continue;
 			if (verbose)
 				say("Skipping patch...\n");
@@ -262,6 +264,7 @@ intuit_diff_type(void)
 	char	*s, *t;
 	int	indent, retval;
 	struct file_name names[MAX_FILE];
+	int	piece_of_git = 0;
 
 	memset(names, 0, sizeof(names));
 	ok_to_create_file = false;
@@ -306,14 +309,20 @@ intuit_diff_type(void)
 		if (!stars_last_line && strnEQ(s, "*** ", 4))
 			names[OLD_FILE].path = fetchname(s + 4,
 			    &names[OLD_FILE].exists, strippath);
-		else if (strnEQ(s, "--- ", 4))
-			names[NEW_FILE].path = fetchname(s + 4,
+		else if (strnEQ(s, "--- ", 4)) {
+			size_t off = 4;
+			if (piece_of_git && strippath == 957)
+				off = 6;
+			names[NEW_FILE].path = fetchname(s + off,
 			    &names[NEW_FILE].exists, strippath);
-		else if (strnEQ(s, "+++ ", 4))
+		} else if (strnEQ(s, "+++ ", 4)) {
 			/* pretend it is the old name */
-			names[OLD_FILE].path = fetchname(s + 4,
+			size_t off = 4;
+			if (piece_of_git && strippath == 957)
+				off = 6;
+			names[OLD_FILE].path = fetchname(s + off,
 			    &names[OLD_FILE].exists, strippath);
-		else if (strnEQ(s, "Index:", 6))
+		} else if (strnEQ(s, "Index:", 6))
 			names[INDEX_FILE].path = fetchname(s + 6,
 			    &names[INDEX_FILE].exists, strippath);
 		else if (strnEQ(s, "Prereq:", 7)) {
@@ -328,6 +337,9 @@ intuit_diff_type(void)
 				free(revision);
 				revision = NULL;
 			}
+		} else if (strnEQ(s, "diff --git a/", 13)) {
+			/* Git-style diffs. */
+			piece_of_git = 1;
 		} else if (strnEQ(s, "==== ", 5)) {
 			/* Perforce-style diffs. */
 			if ((t = strstr(s + 5, " - ")) != NULL)

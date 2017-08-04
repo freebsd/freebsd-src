@@ -1498,7 +1498,7 @@ struct al_pcie_rev3_w_regs {
 }
 #endif
 
-#endif /* __AL_HAL_PCIE_W_REG_H */
+#endif /* __AL_HAL_pcie_w_REG_H */
 
 /** @} end of ... group */
 

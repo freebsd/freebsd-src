@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2011
+.Dd June 15, 2017
 .Dt COPY 9
 .Os
 .Sh NAME
@@ -147,16 +147,20 @@ is
 .Sh RETURN VALUES
 The
 .Nm
-functions return 0 on success or
+functions return 0 on success.
+All but
+.Fn copystr
+return
 .Er EFAULT
 if a bad address is encountered.
-In addition, the
+The
 .Fn copyin_nofault
 and
 .Fn copyout_nofault
 functions return
 .Er EFAULT
-if a page fault occurs, and the
+if a page fault occurs.
+The
 .Fn copystr
 and
 .Fn copyinstr

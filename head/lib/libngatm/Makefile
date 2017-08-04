@@ -8,8 +8,8 @@ SHLIB_MAJOR= 4
 MAN=	libngatm.3 uniaddr.3 unifunc.3 unimsg.3 unisap.3 unistruct.3
 
 # source of the library lives in contrib
-SDIR=	${.CURDIR}/../../sys
-CTRB=	${.CURDIR}/../../contrib/ngatm
+SDIR=	${SRCTOP}/sys
+CTRB=	${SRCTOP}/contrib/ngatm
 LIBBASE= ${SDIR}/contrib/ngatm
 
 CFLAGS+= -I${LIBBASE} -I${.OBJDIR} -I${CTRB}/libngatm

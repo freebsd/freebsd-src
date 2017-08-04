@@ -1,0 +1,13 @@
+/* $FreeBSD$ */
+/* See r303485 */
+void
+t(void)
+{
+	static const struct {
+		int	a;
+		int	b;
+	} c[] = {
+		{ D, E },
+		{ F, G }
+	};
+}

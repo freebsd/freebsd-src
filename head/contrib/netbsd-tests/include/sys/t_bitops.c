@@ -1,4 +1,4 @@
-/*	$NetBSD: t_bitops.c,v 1.16 2012/12/07 02:28:19 christos Exp $ */
+/*	$NetBSD: t_bitops.c,v 1.19 2015/03/21 05:50:19 isaki Exp $ */
 
 /*-
  * Copyright (c) 2011, 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bitops.c,v 1.16 2012/12/07 02:28:19 christos Exp $");
+__RCSID("$NetBSD: t_bitops.c,v 1.19 2015/03/21 05:50:19 isaki Exp $");
 
 #include <atf-c.h>
 
@@ -67,7 +67,7 @@ static const struct {
 ATF_TC(bitmap_basic);
 ATF_TC_HEAD(bitmap_basic, tc)
 {
-        atf_tc_set_md_var(tc, "descr", "A basic test of __BITMAP_*");
+	atf_tc_set_md_var(tc, "descr", "A basic test of __BITMAP_*");
 }
 
 ATF_TC_BODY(bitmap_basic, tc)
@@ -174,65 +174,191 @@ ATF_TC_BODY(ffsfls, tc)
 	}
 }
 
-ATF_TC(ilog2_basic);
-ATF_TC_HEAD(ilog2_basic, tc)
+ATF_TC(ilog2_32bit);
+ATF_TC_HEAD(ilog2_32bit, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Test ilog2(3) for correctness");
+	atf_tc_set_md_var(tc, "descr", "Test ilog2(3) for 32bit variable");
 }
 
-ATF_TC_BODY(ilog2_basic, tc)
+ATF_TC_BODY(ilog2_32bit, tc)
 {
-	uint64_t i, x;
+	int i;
+	uint32_t x;
 
-	for (i = x = 0; i < 64; i++) {
-
-		x = (uint64_t)1 << i;
-
-		ATF_REQUIRE(i == (uint64_t)ilog2(x));
+	for (i = 0; i < 32; i++) {
+		x = 1 << i;
+		ATF_REQUIRE(ilog2(x) == i);
 	}
 }
 
-ATF_TC(ilog2_log2);
-ATF_TC_HEAD(ilog2_log2, tc)
+ATF_TC(ilog2_64bit);
+ATF_TC_HEAD(ilog2_64bit, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Test log2(3) vs. ilog2(3)");
+	atf_tc_set_md_var(tc, "descr", "Test ilog2(3) for 64bit variable");
 }
 
-ATF_TC_BODY(ilog2_log2, tc)
+ATF_TC_BODY(ilog2_64bit, tc)
 {
-#ifdef __vax__
-	atf_tc_skip("Test is unavailable on vax because of lack of log2()");
-#else
-	double  x, y;
-	uint64_t i;
+	int i;
+	uint64_t x;
 
+	for (i = 0; i < 64; i++) {
+		x = ((uint64_t)1) << i;
+		ATF_REQUIRE(ilog2(x) == i);
+	}
+}
+
+ATF_TC(ilog2_const);
+ATF_TC_HEAD(ilog2_const, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test ilog2(3) for constant");
+}
+
+ATF_TC_BODY(ilog2_const, tc)
+{
 	/*
-	 * This may fail under QEMU; see PR misc/44767.
+	 * These inlines test __builtin_constant_p() part of ilog2()
+	 * at compile time, so don't change it to loop.  PR lib/49745
 	 */
-	for (i = 1; i < UINT32_MAX; i += UINT16_MAX) {
+	ATF_REQUIRE(ilog2(0x0000000000000001ULL) == 0);
+	ATF_REQUIRE(ilog2(0x0000000000000002ULL) == 1);
+	ATF_REQUIRE(ilog2(0x0000000000000004ULL) == 2);
+	ATF_REQUIRE(ilog2(0x0000000000000008ULL) == 3);
+	ATF_REQUIRE(ilog2(0x0000000000000010ULL) == 4);
+	ATF_REQUIRE(ilog2(0x0000000000000020ULL) == 5);
+	ATF_REQUIRE(ilog2(0x0000000000000040ULL) == 6);
+	ATF_REQUIRE(ilog2(0x0000000000000080ULL) == 7);
+	ATF_REQUIRE(ilog2(0x0000000000000100ULL) == 8);
+	ATF_REQUIRE(ilog2(0x0000000000000200ULL) == 9);
+	ATF_REQUIRE(ilog2(0x0000000000000400ULL) == 10);
+	ATF_REQUIRE(ilog2(0x0000000000000800ULL) == 11);
+	ATF_REQUIRE(ilog2(0x0000000000001000ULL) == 12);
+	ATF_REQUIRE(ilog2(0x0000000000002000ULL) == 13);
+	ATF_REQUIRE(ilog2(0x0000000000004000ULL) == 14);
+	ATF_REQUIRE(ilog2(0x0000000000008000ULL) == 15);
+	ATF_REQUIRE(ilog2(0x0000000000010000ULL) == 16);
+	ATF_REQUIRE(ilog2(0x0000000000020000ULL) == 17);
+	ATF_REQUIRE(ilog2(0x0000000000040000ULL) == 18);
+	ATF_REQUIRE(ilog2(0x0000000000080000ULL) == 19);
+	ATF_REQUIRE(ilog2(0x0000000000100000ULL) == 20);
+	ATF_REQUIRE(ilog2(0x0000000000200000ULL) == 21);
+	ATF_REQUIRE(ilog2(0x0000000000400000ULL) == 22);
+	ATF_REQUIRE(ilog2(0x0000000000800000ULL) == 23);
+	ATF_REQUIRE(ilog2(0x0000000001000000ULL) == 24);
+	ATF_REQUIRE(ilog2(0x0000000002000000ULL) == 25);
+	ATF_REQUIRE(ilog2(0x0000000004000000ULL) == 26);
+	ATF_REQUIRE(ilog2(0x0000000008000000ULL) == 27);
+	ATF_REQUIRE(ilog2(0x0000000010000000ULL) == 28);
+	ATF_REQUIRE(ilog2(0x0000000020000000ULL) == 29);
+	ATF_REQUIRE(ilog2(0x0000000040000000ULL) == 30);
+	ATF_REQUIRE(ilog2(0x0000000080000000ULL) == 31);
+	ATF_REQUIRE(ilog2(0x0000000100000000ULL) == 32);
+	ATF_REQUIRE(ilog2(0x0000000200000000ULL) == 33);
+	ATF_REQUIRE(ilog2(0x0000000400000000ULL) == 34);
+	ATF_REQUIRE(ilog2(0x0000000800000000ULL) == 35);
+	ATF_REQUIRE(ilog2(0x0000001000000000ULL) == 36);
+	ATF_REQUIRE(ilog2(0x0000002000000000ULL) == 37);
+	ATF_REQUIRE(ilog2(0x0000004000000000ULL) == 38);
+	ATF_REQUIRE(ilog2(0x0000008000000000ULL) == 39);
+	ATF_REQUIRE(ilog2(0x0000010000000000ULL) == 40);
+	ATF_REQUIRE(ilog2(0x0000020000000000ULL) == 41);
+	ATF_REQUIRE(ilog2(0x0000040000000000ULL) == 42);
+	ATF_REQUIRE(ilog2(0x0000080000000000ULL) == 43);
+	ATF_REQUIRE(ilog2(0x0000100000000000ULL) == 44);
+	ATF_REQUIRE(ilog2(0x0000200000000000ULL) == 45);
+	ATF_REQUIRE(ilog2(0x0000400000000000ULL) == 46);
+	ATF_REQUIRE(ilog2(0x0000800000000000ULL) == 47);
+	ATF_REQUIRE(ilog2(0x0001000000000000ULL) == 48);
+	ATF_REQUIRE(ilog2(0x0002000000000000ULL) == 49);
+	ATF_REQUIRE(ilog2(0x0004000000000000ULL) == 50);
+	ATF_REQUIRE(ilog2(0x0008000000000000ULL) == 51);
+	ATF_REQUIRE(ilog2(0x0010000000000000ULL) == 52);
+	ATF_REQUIRE(ilog2(0x0020000000000000ULL) == 53);
+	ATF_REQUIRE(ilog2(0x0040000000000000ULL) == 54);
+	ATF_REQUIRE(ilog2(0x0080000000000000ULL) == 55);
+	ATF_REQUIRE(ilog2(0x0100000000000000ULL) == 56);
+	ATF_REQUIRE(ilog2(0x0200000000000000ULL) == 57);
+	ATF_REQUIRE(ilog2(0x0400000000000000ULL) == 58);
+	ATF_REQUIRE(ilog2(0x0800000000000000ULL) == 59);
+	ATF_REQUIRE(ilog2(0x1000000000000000ULL) == 60);
+	ATF_REQUIRE(ilog2(0x2000000000000000ULL) == 61);
+	ATF_REQUIRE(ilog2(0x4000000000000000ULL) == 62);
+	ATF_REQUIRE(ilog2(0x8000000000000000ULL) == 63);
 
-		x = log2(i);
-		y = (double)(ilog2(i));
-
-		ATF_REQUIRE(ceil(x) >= y);
-
-		if (fabs(floor(x) - y) > 1.0e-40) {
-			atf_tc_expect_fail("PR misc/44767");
-			atf_tc_fail("log2(%"PRIu64") != "
-			    "ilog2(%"PRIu64")", i, i);
-		}
-	}
-#endif
+	ATF_REQUIRE(ilog2(0x0000000000000003ULL) == 1);
+	ATF_REQUIRE(ilog2(0x0000000000000007ULL) == 2);
+	ATF_REQUIRE(ilog2(0x000000000000000fULL) == 3);
+	ATF_REQUIRE(ilog2(0x000000000000001fULL) == 4);
+	ATF_REQUIRE(ilog2(0x000000000000003fULL) == 5);
+	ATF_REQUIRE(ilog2(0x000000000000007fULL) == 6);
+	ATF_REQUIRE(ilog2(0x00000000000000ffULL) == 7);
+	ATF_REQUIRE(ilog2(0x00000000000001ffULL) == 8);
+	ATF_REQUIRE(ilog2(0x00000000000003ffULL) == 9);
+	ATF_REQUIRE(ilog2(0x00000000000007ffULL) == 10);
+	ATF_REQUIRE(ilog2(0x0000000000000fffULL) == 11);
+	ATF_REQUIRE(ilog2(0x0000000000001fffULL) == 12);
+	ATF_REQUIRE(ilog2(0x0000000000003fffULL) == 13);
+	ATF_REQUIRE(ilog2(0x0000000000007fffULL) == 14);
+	ATF_REQUIRE(ilog2(0x000000000000ffffULL) == 15);
+	ATF_REQUIRE(ilog2(0x000000000001ffffULL) == 16);
+	ATF_REQUIRE(ilog2(0x000000000003ffffULL) == 17);
+	ATF_REQUIRE(ilog2(0x000000000007ffffULL) == 18);
+	ATF_REQUIRE(ilog2(0x00000000000fffffULL) == 19);
+	ATF_REQUIRE(ilog2(0x00000000001fffffULL) == 20);
+	ATF_REQUIRE(ilog2(0x00000000003fffffULL) == 21);
+	ATF_REQUIRE(ilog2(0x00000000007fffffULL) == 22);
+	ATF_REQUIRE(ilog2(0x0000000000ffffffULL) == 23);
+	ATF_REQUIRE(ilog2(0x0000000001ffffffULL) == 24);
+	ATF_REQUIRE(ilog2(0x0000000003ffffffULL) == 25);
+	ATF_REQUIRE(ilog2(0x0000000007ffffffULL) == 26);
+	ATF_REQUIRE(ilog2(0x000000000fffffffULL) == 27);
+	ATF_REQUIRE(ilog2(0x000000001fffffffULL) == 28);
+	ATF_REQUIRE(ilog2(0x000000003fffffffULL) == 29);
+	ATF_REQUIRE(ilog2(0x000000007fffffffULL) == 30);
+	ATF_REQUIRE(ilog2(0x00000000ffffffffULL) == 31);
+	ATF_REQUIRE(ilog2(0x00000001ffffffffULL) == 32);
+	ATF_REQUIRE(ilog2(0x00000003ffffffffULL) == 33);
+	ATF_REQUIRE(ilog2(0x00000007ffffffffULL) == 34);
+	ATF_REQUIRE(ilog2(0x0000000fffffffffULL) == 35);
+	ATF_REQUIRE(ilog2(0x0000001fffffffffULL) == 36);
+	ATF_REQUIRE(ilog2(0x0000003fffffffffULL) == 37);
+	ATF_REQUIRE(ilog2(0x0000007fffffffffULL) == 38);
+	ATF_REQUIRE(ilog2(0x000000ffffffffffULL) == 39);
+	ATF_REQUIRE(ilog2(0x000001ffffffffffULL) == 40);
+	ATF_REQUIRE(ilog2(0x000003ffffffffffULL) == 41);
+	ATF_REQUIRE(ilog2(0x000007ffffffffffULL) == 42);
+	ATF_REQUIRE(ilog2(0x00000fffffffffffULL) == 43);
+	ATF_REQUIRE(ilog2(0x00001fffffffffffULL) == 44);
+	ATF_REQUIRE(ilog2(0x00003fffffffffffULL) == 45);
+	ATF_REQUIRE(ilog2(0x00007fffffffffffULL) == 46);
+	ATF_REQUIRE(ilog2(0x0000ffffffffffffULL) == 47);
+	ATF_REQUIRE(ilog2(0x0001ffffffffffffULL) == 48);
+	ATF_REQUIRE(ilog2(0x0003ffffffffffffULL) == 49);
+	ATF_REQUIRE(ilog2(0x0007ffffffffffffULL) == 50);
+	ATF_REQUIRE(ilog2(0x000fffffffffffffULL) == 51);
+	ATF_REQUIRE(ilog2(0x001fffffffffffffULL) == 52);
+	ATF_REQUIRE(ilog2(0x003fffffffffffffULL) == 53);
+	ATF_REQUIRE(ilog2(0x007fffffffffffffULL) == 54);
+	ATF_REQUIRE(ilog2(0x00ffffffffffffffULL) == 55);
+	ATF_REQUIRE(ilog2(0x01ffffffffffffffULL) == 56);
+	ATF_REQUIRE(ilog2(0x03ffffffffffffffULL) == 57);
+	ATF_REQUIRE(ilog2(0x07ffffffffffffffULL) == 58);
+	ATF_REQUIRE(ilog2(0x0fffffffffffffffULL) == 59);
+	ATF_REQUIRE(ilog2(0x1fffffffffffffffULL) == 60);
+	ATF_REQUIRE(ilog2(0x3fffffffffffffffULL) == 61);
+	ATF_REQUIRE(ilog2(0x7fffffffffffffffULL) == 62);
+	ATF_REQUIRE(ilog2(0xffffffffffffffffULL) == 63);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 
-        ATF_TP_ADD_TC(tp, bitmap_basic);
+	ATF_TP_ADD_TC(tp, bitmap_basic);
 	ATF_TP_ADD_TC(tp, fast_divide32);
 	ATF_TP_ADD_TC(tp, ffsfls);
-	ATF_TP_ADD_TC(tp, ilog2_basic);
-	ATF_TP_ADD_TC(tp, ilog2_log2);
+	ATF_TP_ADD_TC(tp, ilog2_32bit);
+	ATF_TP_ADD_TC(tp, ilog2_64bit);
+	ATF_TP_ADD_TC(tp, ilog2_const);
 
 	return atf_no_error();
 }

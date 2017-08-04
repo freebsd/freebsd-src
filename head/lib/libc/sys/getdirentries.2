@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 1995
+.Dd May 28, 2017
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -40,10 +40,10 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In dirent.h
-.Ft int
-.Fn getdirentries "int fd" "char *buf" "int nbytes" "long *basep"
-.Ft int
-.Fn getdents "int fd" "char *buf" "int nbytes"
+.Ft ssize_t
+.Fn getdirentries "int fd" "char *buf" "size_t nbytes" "off_t *basep"
+.Ft ssize_t
+.Fn getdents "int fd" "char *buf" "size_t nbytes"
 .Sh DESCRIPTION
 The
 .Fn getdirentries
@@ -71,10 +71,11 @@ The data in the buffer is a series of
 .Vt dirent
 structures each containing the following entries:
 .Bd -literal -offset indent
-uint32_t d_fileno;
-uint16_t d_reclen;
-uint8_t  d_type;
-uint8_t  d_namlen;
+ino_t	d_fileno;
+off_t	d_off;
+uint16_t	d_reclen;
+uint8_t	d_type;
+uint16_t	d_namlen;
 char	d_name[MAXNAMLEN + 1];	/* see below */
 .Ed
 .Pp
@@ -124,7 +125,10 @@ or
 A value of zero is returned when
 the end of the directory has been reached.
 .Pp
-The
+If the
+.Fa basep
+pointer value is non-NULL ,
+the
 .Fn getdirentries
 system call writes the position of the block read into the location pointed to by
 .Fa basep .
@@ -157,7 +161,7 @@ is not a valid file descriptor open for reading.
 .It Bq Er EFAULT
 Either
 .Fa buf
-or
+or non-NULL
 .Fa basep
 point outside the allocated address space.
 .It Bq Er EINVAL

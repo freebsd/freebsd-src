@@ -1,7 +1,7 @@
-/*	$Id: tbl_layout.c,v 1.41 2015/10/12 00:08:16 schwarze Exp $ */
+/*	$Id: tbl_layout.c,v 1.44 2017/06/27 18:25:02 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -62,6 +63,7 @@ mods(struct tbl_node *tbl, struct tbl_cell *cp,
 		int ln, const char *p, int *pos)
 {
 	char		*endptr;
+	size_t		 sz;
 
 mod:
 	while (p[*pos] == ' ' || p[*pos] == '\t')
@@ -127,7 +129,22 @@ mod:
 	case 'u':
 		cp->flags |= TBL_CELL_UP;
 		goto mod;
-	case 'w':  /* XXX for now, ignore minimal column width */
+	case 'w':
+		sz = 0;
+		if (p[*pos] == '(') {
+			(*pos)++;
+			while (p[*pos + sz] != '\0' && p[*pos + sz] != ')')
+				sz++;
+		} else
+			while (isdigit((unsigned char)p[*pos + sz]))
+				sz++;
+		if (sz) {
+			free(cp->wstr);
+			cp->wstr = mandoc_strndup(p + *pos, sz);
+			*pos += sz;
+			if (p[*pos] == ')')
+				(*pos)++;
+		}
 		goto mod;
 	case 'x':
 		cp->flags |= TBL_CELL_WMAX;
@@ -282,6 +299,8 @@ tbl_layout(struct tbl_node *tbl, int ln, const char *p, int pos)
 				    tbl->parse, ln, pos, NULL);
 				cell_alloc(tbl, tbl->first_row,
 				    TBL_CELL_LEFT);
+				if (tbl->opts.lvert < tbl->first_row->vert)
+					tbl->opts.lvert = tbl->first_row->vert;
 				return;
 			}
 
@@ -339,6 +358,7 @@ cell_alloc(struct tbl_node *tbl, struct tbl_row *rp, enum tbl_cellt pos)
 	struct tbl_cell	*p, *pp;
 
 	p = mandoc_calloc(1, sizeof(*p));
+	p->spacing = SIZE_MAX;
 	p->pos = pos;
 
 	if ((pp = rp->last) != NULL) {

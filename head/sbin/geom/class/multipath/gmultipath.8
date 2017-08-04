@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2015
+.Dd September 8, 2016
 .Dt GMULTIPATH 8
 .Os
 .Sh NAME
@@ -255,12 +255,11 @@ When this occurs, that path is marked FAIL, the next path
 in a list is selected as active and the failed I/O reissued.
 In Active/Active mode all paths not marked FAIL may handle I/O at the same time.
 Requests are distributed between paths to equalize load.
-For capable devices it allows to utilize the bandwidth of all paths.
+For capable devices it allows the utilisation of the bandwidth available on all paths.
 In Active/Read mode all paths not marked FAIL may handle reads at the same time,
 but unlike in Active/Active mode only one path handles write requests at any
-point in time.
-It allows to closer follow the original write request order if the layer above
-needs it for data consistency (not waiting for requisite write completion
+point in time; closely following the original write request order if the layer
+above needs it for data consistency (not waiting for requisite write completion
 before sending dependent write).
 .Pp
 When new devices are added to the system the
@@ -368,6 +367,11 @@ geom_multipath_load="YES"
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.0
 .Sh AUTHORS
 .An Matthew Jacob Aq Mt mjacob@FreeBSD.org
 .An Alexander Motin Aq Mt mav@FreeBSD.org

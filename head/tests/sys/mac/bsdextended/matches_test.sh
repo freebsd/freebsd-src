@@ -36,6 +36,12 @@ if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
 	echo "1..0 # SKIP mac_bsdextended(4) support isn't available"
 	exit 0
 fi
+if [ "$TMPDIR" != "/tmp" ]; then
+	if ! chmod -Rf 0755 $TMPDIR; then
+		echo "1..0 # SKIP failed to chmod $TMPDIR"
+		exit 0
+	fi
+fi
 if ! playground=$(mktemp -d $TMPDIR/tmp.XXXXXXX); then
 	echo "1..0 # SKIP failed to create temporary directory"
 	exit 0
@@ -144,30 +150,36 @@ else
 	fail $desc
 fi
 
-#
-# Subject Match on jail
-#
-rm -f $playground/test-jail
+if which jail >/dev/null; then
+	#
+	# Subject Match on jail
+	#
+	rm -f $playground/test-jail
 
-desc="subject matching jailid"
-jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-ugidfw set 1 subject jailid $jailid object mode rasx
-sleep 10
+	desc="subject matching jailid"
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
+	ugidfw set 1 subject jailid $jailid object mode rasx
+	sleep 10
 
-if [ -f $playground/test-jail ]; then
-	fail "TODO $desc: this testcase fails (see bug # 205481)"
+	if [ -f $playground/test-jail ]; then
+		fail "TODO $desc: this testcase fails (see bug # 205481)"
+	else
+		pass $desc
+	fi
+
+	rm -f $playground/test-jail
+	desc="subject nonmatching jailid"
+	jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
+	sleep 10
+	if [ -f $playground/test-jail ]; then
+		pass $desc
+	else
+		fail $desc
+	fi
 else
-	pass $desc
-fi
-
-rm -f $playground/test-jail
-desc="subject nonmatching jailid"
-jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
-sleep 10
-if [ -f $playground/test-jail ]; then
-	pass $desc
-else
-	fail $desc
+	# XXX: kyua is too dumb to parse skip ranges, still..
+	pass "skip jail(8) not installed"
+	pass "skip jail(8) not installed"
 fi
 
 #

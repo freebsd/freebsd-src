@@ -109,7 +109,8 @@
 
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
+.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && \
+    !make(showconfig) && !make(print-dir)
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
@@ -126,13 +127,13 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	installworld kernel-toolchain libraries lint maninstall \
 	obj objlink rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
-	_build-tools _cross-tools _includes _libraries \
+	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
-	create-world-packages create-kernel-packages create-packages \
+	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
-	test-system-compiler
+	print-dir test-system-compiler
 
 # XXX: r156740: This can't work since bsd.subdir.mk is not included ever.
 # It will only work for SUBDIR_TARGETS in make.conf.
@@ -157,8 +158,18 @@ META_TGT_WHITELIST+= \
 	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
+.ORDER: buildworld distrib-dirs
+.ORDER: buildworld distribution
+.ORDER: buildworld distribute
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
+.ORDER: distrib-dirs distribute
+.ORDER: distrib-dirs distributeworld
+.ORDER: distrib-dirs installworld
+.ORDER: distribution distribute
+.ORDER: distributeworld distribute
+.ORDER: distributeworld distribution
+.ORDER: installworld distribute
 .ORDER: installworld distribution
 .ORDER: installworld installkernel
 .ORDER: buildkernel installkernel
@@ -194,7 +205,8 @@ HAVE_MAKE=	bmake
 .else
 HAVE_MAKE=	fmake
 .endif
-.if ${HAVE_MAKE} != ${WANT_MAKE} || \
+.if defined(ALWAYS_BOOTSTRAP_MAKE) || \
+    ${HAVE_MAKE} != ${WANT_MAKE} || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 NEED_MAKE_UPGRADE= t
 .endif
@@ -235,10 +247,10 @@ _MAKE+=	MK_META_MODE=no
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
+_TARGET_ARCH=	${TARGET:S/arm64/aarch64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/:C/riscv64/riscv/}
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v6)?(eb)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/:C/powerpcspe/powerpc/:C/riscv64(sf)?/riscv/}
 .endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}
@@ -256,6 +268,10 @@ _TARGET_ARCH=	${XDEV_ARCH}
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if make(print-dir)
+.SILENT:
+.endif
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld
@@ -412,26 +428,35 @@ worlds: .PHONY
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm arm64 i386 mips pc98 powerpc sparc64
+TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_arm64?=	aarch64
-TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
-TARGET_ARCHES_powerpc?=	powerpc powerpc64
-TARGET_ARCHES_pc98?=	i386
+TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
+TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
+TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
-# XXX Remove arm64 from universe if the required binutils package is missing.
-# It does not build with the in-tree linker.
-.if !exists(/usr/local/aarch64-freebsd/bin/ld) && ${TARGETS:Marm64}
-_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Narm64}
-universe: universe_arm64_skip .PHONY
-universe_epilogue: universe_arm64_skip .PHONY
-universe_arm64_skip: universe_prologue .PHONY
-	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
+MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
+
+# XXX Remove architectures only supported by external toolchain from universe
+# if required toolchain packages are missing.
+TOOLCHAINS_riscv=	riscv64
+.for target in riscv
+.if ${_UNIVERSE_TARGETS:M${target}}
+.for toolchain in ${TOOLCHAINS_${target}}
+.if !exists(/usr/local/share/toolchains/${toolchain}-gcc.mk)
+_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:N${target}}
+universe: universe_${toolchain}_skip .PHONY
+universe_epilogue: universe_${toolchain}_skip .PHONY
+universe_${toolchain}_skip: universe_prologue .PHONY
+	@echo ">> ${target} skipped - install ${toolchain}-xtoolchain-gcc port or package to build"
 .endif
+.endfor
+.endif
+.endfor
 
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES
@@ -482,6 +507,7 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
+	    ${MAKE_PARAMS_${target}} \
 	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
 	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
 	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
@@ -515,6 +541,8 @@ TARGET!=	uname -m
 .endif
 .if defined(MAKE_ALL_KERNELS)
 _THINNER=cat
+.elif defined(MAKE_LINT_KERNELS)
+_THINNER=grep 'LINT' || true
 .else
 _THINNER=xargs grep -L "^.NO_UNIVERSE" || true
 .endif
@@ -537,6 +565,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
+	    ${MAKE_PARAMS_${TARGET}} \
 	    KERNCONF=${kernel} \
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \

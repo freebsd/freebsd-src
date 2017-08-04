@@ -31,6 +31,9 @@ __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
 __RCSID("$NetBSD: t_once.c,v 1.1 2010/07/16 15:42:53 jmmv Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/time.h> /* For itimer*, etc. */
+#endif
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -45,10 +48,6 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int x;
 
 #define NTHREADS 25
-
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#endif
 
 static void
 ofunc(void)

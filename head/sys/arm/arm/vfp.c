@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/frame.h>
-#include <machine/fp.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>

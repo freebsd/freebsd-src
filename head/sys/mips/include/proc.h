@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -62,6 +62,7 @@ struct mdthread {
 	int		md_pc_count;	/* performance counter */
 	int		md_pc_spill;	/* performance counter spill */
 	void		*md_tls;
+	size_t		md_tls_tcb_offset;	/* TCB offset */
 #ifdef	CPU_CNMIPS
 	struct octeon_cop2_state	*md_cop2; /* kernel context */
 	struct octeon_cop2_state	*md_ucop2; /* userland context */
@@ -79,7 +80,6 @@ struct mdproc {
 	/* empty */
 };
 
-#ifdef _KERNEL
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -87,7 +87,6 @@ struct syscall_args {
 	int narg;
 	struct trapframe *trapframe;
 };
-#endif
 
 #ifdef __mips_n64
 #define	KINFO_PROC_SIZE 1088

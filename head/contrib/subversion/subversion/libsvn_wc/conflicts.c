@@ -1622,7 +1622,14 @@ build_text_conflict_resolve_items(svn_skel_t **work_items,
         }
       case svn_wc_conflict_choose_mine_full:
         {
-          install_from_abspath = mine_abspath;
+          /* In case of selecting to resolve the conflict choosing the full
+             own file, allow the text conflict resolution to just take the
+             existing local file if no merged file was present (case: binary
+             file conflicts do not generate a locally merge file).
+          */
+          install_from_abspath = mine_abspath
+                                   ? mine_abspath
+                                   : local_abspath;
           break;
         }
       case svn_wc_conflict_choose_theirs_conflict:
@@ -1632,6 +1639,15 @@ build_text_conflict_resolve_items(svn_skel_t **work_items,
             = choice == svn_wc_conflict_choose_theirs_conflict
                 ? svn_diff_conflict_display_latest
                 : svn_diff_conflict_display_modified;
+
+          if (mine_abspath == NULL)
+            return svn_error_createf(SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE, NULL,
+                                     _("Conflict on '%s' cannot be resolved to "
+                                       "'theirs-conflict' or 'mine-conflict' "
+                                       "because a merged version of the file "
+                                       "cannot be created."),
+                                     svn_dirent_local_style(local_abspath,
+                                                            scratch_pool));
 
           SVN_ERR(merge_showing_conflicts(&install_from_abspath,
                                           db, local_abspath,

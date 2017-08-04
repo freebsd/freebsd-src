@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-void (*softdep_ast_cleanup)(void);
+void (*softdep_ast_cleanup)(struct thread *);
 
 /*
  * Define the code needed before returning to user mode, for trap and
@@ -128,8 +128,8 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef KTRACE
 	KTRUSERRET(td);
 #endif
-	if (softdep_ast_cleanup != NULL)
-		softdep_ast_cleanup();
+	td_softdep_cleanup(td);
+	MPASS(td->td_su == NULL);
 
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
@@ -234,7 +234,7 @@ ast(struct trapframe *framep)
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK |
 	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND | TDF_MACPEND);
 	thread_unlock(td);
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	if (td->td_cowgen != p->p_cowgen)
 		thread_cow_update(td);

@@ -13,14 +13,14 @@ SRCS+=	popen.c
 SRCS+=	token.l
 
 CFLAGS+=-I${.CURDIR}
-CFLAGS+=-I${.CURDIR}/../../sys/fs/autofs
+CFLAGS+=-I${SRCTOP}/sys/fs/autofs
 
 MAN=	automount.8 automountd.8 autounmountd.8 auto_master.5
 
 LIBADD=	util
 
 # Needed for getmntopts.c
-MOUNT=  ${.CURDIR}/../../sbin/mount
+MOUNT=  ${SRCTOP}/sbin/mount
 CFLAGS+=-I${MOUNT}
 
 WARNS=	6

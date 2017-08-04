@@ -388,7 +388,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
-		for (ino = 0; ino < ROOTINO; ino++) {
+		for (ino = 0; ino < UFS_ROOTINO; ino++) {
 			setbit(cg_inosused(&acg), ino);
 			acg.cg_cs.cs_nifree--;
 		}

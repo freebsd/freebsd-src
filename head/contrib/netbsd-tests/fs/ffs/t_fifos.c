@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fifos.c,v 1.5 2010/11/07 17:51:17 jmmv Exp $	*/
+/*	$NetBSD: t_fifos.c,v 1.6 2017/01/13 21:30:39 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -17,7 +17,7 @@
 
 #include <ufs/ufs/ufsmount.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC_WITH_CLEANUP(fifos);
 ATF_TC_HEAD(fifos, tc)

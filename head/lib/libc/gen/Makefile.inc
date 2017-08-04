@@ -17,6 +17,7 @@ SRCS+=	__getosreldate.c \
 	assert.c \
 	auxv.c \
 	basename.c \
+	basename_compat.c \
 	cap_sandboxed.c \
 	check_utility_compat.c \
 	clock.c \
@@ -147,15 +148,23 @@ SRCS+=	__getosreldate.c \
 	waitid.c \
 	wordexp.c
 .if ${MK_SYMVER} == yes
-SRCS+=	fts-compat.c \
+SRCS+=	devname-compat11.c \
+	fts-compat.c \
+	fts-compat11.c \
+	ftw-compat11.c \
+	getmntinfo-compat11.c \
+	glob-compat11.c \
+	nftw-compat11.c \
+	readdir-compat11.c \
+	scandir-compat11.c \
 	unvis-compat.c
 .endif
 
-.PATH: ${LIBC_SRCTOP}/../../contrib/libc-pwcache
+.PATH: ${SRCTOP}/contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
 
-.PATH: ${LIBC_SRCTOP}/../../contrib/libc-vis
-CFLAGS+=	-I${LIBC_SRCTOP}/../../contrib/libc-vis
+.PATH: ${SRCTOP}/contrib/libc-vis
+CFLAGS+=	-I${SRCTOP}/contrib/libc-vis
 SRCS+=	unvis.c vis.c
 
 MISRCS+=modf.c
@@ -462,6 +471,7 @@ MLINKS+=scandir.3 alphasort.3
 MLINKS+=sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3
 MLINKS+=sem_wait.3 sem_trywait.3
+MLINKS+=sem_timedwait.3 sem_clockwait_np.3
 MLINKS+=send.2 sendmmsg.2
 MLINKS+=setjmp.3 _longjmp.3 \
 	setjmp.3 _setjmp.3 \

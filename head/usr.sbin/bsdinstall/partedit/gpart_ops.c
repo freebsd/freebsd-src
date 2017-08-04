@@ -73,8 +73,6 @@ scheme_supports_labels(const char *scheme)
 		return (1);
 	if (strcmp(scheme, "GPT") == 0)
 		return (1);
-	if (strcmp(scheme, "PC98") == 0)
-		return (1);
 
 	return (0);
 }
@@ -101,14 +99,14 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("UFS Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_CHECK, &i);
 			if (choice == 1) /* Cancel */
 				return;
 		}
 
 		strcpy(command, "newfs ");
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "UFS1") == 0)
@@ -139,7 +137,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("ZFS Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_CHECK, &i);
 			if (choice == 1) /* Cancel */
 				return;
@@ -148,14 +146,14 @@ newfs_command(const char *fstype, char *command, int use_default)
 		strcpy(command, "zpool create -f -m none ");
 		if (getenv("BSDINSTALL_TMPBOOT") != NULL) {
 			char zfsboot_path[MAXPATHLEN];
-			sprintf(zfsboot_path, "%s/zfs",
+			snprintf(zfsboot_path, sizeof(zfsboot_path), "%s/zfs",
 			    getenv("BSDINSTALL_TMPBOOT"));
 			mkdir(zfsboot_path, S_IRWXU | S_IRGRP | S_IXGRP |
 			    S_IROTH | S_IXOTH);
 			sprintf(command, "%s -o cachefile=%s/zpool.cache ",
 			    command, zfsboot_path);
 		}
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "fletcher4") == 0)
@@ -181,14 +179,14 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("FAT Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_RADIO, &i);
 			if (choice == 1) /* Cancel */
 				return;
 		}
 
 		strcpy(command, "newfs_msdos ");
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "FAT32") == 0)
@@ -221,8 +219,6 @@ choose_part_type(const char *def_scheme)
 		    "Bootable on most x86 systems and EFI aware ARM64", 0 },
 		{"MBR", "DOS Partitions",
 		    "Bootable on most x86 systems", 0 },
-		{"PC98", "NEC PC9801 Partition Table",
-		    "Bootable on NEC PC9801 systems", 0 },
 		{"VTOC8", "Sun VTOC8 Partition Table",
 		    "Bootable on Sun SPARC systems", 0 },
 	};
@@ -231,7 +227,7 @@ parttypemenu:
 	dialog_vars.default_item = __DECONST(char *, def_scheme);
 	cancel = dlg_menu("Partition Scheme",
 	    "Select a partition scheme for this volume:", 0, 0, 0,
-	    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
+	    nitems(items), items, &choice, NULL);
 	dialog_vars.default_item = NULL;
 
 	if (cancel)
@@ -325,8 +321,7 @@ gpart_activate(struct gprovider *pp)
 		}
 	}
 
-	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "EBR") == 0 ||
-	    strcmp(scheme, "PC98") == 0)
+	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "EBR") == 0)
 		attribute = "active";
 	else
 		return;
@@ -617,6 +612,20 @@ editpart:
 	if (choice) /* Cancel pressed */
 		goto endedit;
 
+	/* If this is the root partition, check that this fs is bootable */
+	if (strcmp(items[2].text, "/") == 0 && !is_fs_bootable(scheme,
+	    items[0].text)) {
+		char message[512];
+		sprintf(message, "This file system (%s) is not bootable "
+		    "on this system. Are you sure you want to proceed?",
+		    items[0].text);
+		dialog_vars.defaultno = TRUE;
+		choice = dialog_yesno("Warning", message, 0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (choice == 1) /* cancel */
+			goto editpart;
+	}
+
 	/* Check if the label has a / in it */
 	if (strchr(items[3].text, '/') != NULL) {
 		dialog_msgbox("Error", "Label contains a /, which is not an "
@@ -653,7 +662,7 @@ endedit:
 	    "freebsd") == 0)
 		gpart_partition(pp->lg_name, "BSD");
 
-	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
+	for (i = 0; i < nitems(items); i++)
 		if (items[i].text_free)
 			free(items[i].text);
 }
@@ -965,7 +974,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	items[1].text = sizestr;
 
 	/* Special-case the MBR default type for nested partitions */
-	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "PC98") == 0) {
+	if (strcmp(scheme, "MBR") == 0) {
 		items[0].text = "freebsd";
 		items[0].help = "Filesystem type (e.g. freebsd, fat32)";
 	}
@@ -1191,7 +1200,7 @@ addpartform:
 		set_default_part_metadata(newpartname, scheme,
 		    items[0].text, items[2].text, newfs);
 
-	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
+	for (i = 0; i < nitems(items); i++)
 		if (items[i].text_free)
 			free(items[i].text);
 

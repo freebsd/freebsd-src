@@ -1,4 +1,4 @@
-/* $OpenBSD: key.h,v 1.49 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: key.h,v 1.50 2016/09/12 23:31:27 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -74,7 +74,6 @@ int	 key_certify(Key *, Key *);
 void	 key_cert_copy(const Key *, Key *);
 int	 key_cert_check_authority(const Key *, int, int, const char *,
 	    const char **);
-char	*key_alg_list(int, int);
 
 #if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
 int	 key_ec_validate_public(const EC_GROUP *, const EC_POINT *);

@@ -10,160 +10,134 @@
 #ifndef liblldb_ValueObjectDynamicValue_h_
 #define liblldb_ValueObjectDynamicValue_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Core/Address.h" // for Address
 #include "lldb/Core/ValueObject.h"
+#include "lldb/Symbol/CompilerType.h" // for CompilerType
 #include "lldb/Symbol/Type.h"
+#include "lldb/Utility/ConstString.h"       // for ConstString
+#include "lldb/Utility/SharingPtr.h"        // for operator==
+#include "lldb/lldb-defines.h"              // for DISALLOW_COPY_AND_ASSIGN
+#include "lldb/lldb-enumerations.h"         // for DynamicValueType, Langua...
+#include "lldb/lldb-forward.h"              // for ValueObjectSP, VariableSP
+#include "lldb/lldb-private-enumerations.h" // for LazyBool, LazyBool::eLaz...
 
+#include <assert.h> // for assert
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint64_t, uint32_t
+
+namespace lldb_private {
+class DataExtractor;
+}
+namespace lldb_private {
+class Declaration;
+}
+namespace lldb_private {
+class Status;
+}
 namespace lldb_private {
 
 //----------------------------------------------------------------------
-// A ValueObject that represents memory at a given address, viewed as some 
+// A ValueObject that represents memory at a given address, viewed as some
 // set lldb type.
 //----------------------------------------------------------------------
-class ValueObjectDynamicValue : public ValueObject
-{
+class ValueObjectDynamicValue : public ValueObject {
 public:
-    ~ValueObjectDynamicValue() override;
+  ~ValueObjectDynamicValue() override;
 
-    uint64_t
-    GetByteSize() override;
+  uint64_t GetByteSize() override;
 
-    ConstString
-    GetTypeName() override;
+  ConstString GetTypeName() override;
 
-    ConstString
-    GetQualifiedTypeName() override;
+  ConstString GetQualifiedTypeName() override;
 
-    ConstString
-    GetDisplayTypeName() override;
-    
-    size_t
-    CalculateNumChildren(uint32_t max) override;
+  ConstString GetDisplayTypeName() override;
 
-    lldb::ValueType
-    GetValueType() const override;
+  size_t CalculateNumChildren(uint32_t max) override;
 
-    bool
-    IsInScope() override;
-    
-    bool
-    IsDynamic() override
-    {
-        return true;
-    }
-    
-    bool
-    IsBaseClass () override
-    {
-        if (m_parent)
-            return m_parent->IsBaseClass();
-        return false;
-    }
-    
-    bool
-    GetIsConstant() const override
-    {
-        return false;
-    }
-    
-    ValueObject *
-    GetParent() override
-    {
-        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
-    }
+  lldb::ValueType GetValueType() const override;
 
-    const ValueObject *
-    GetParent() const override
-    {
-        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
-    }
+  bool IsInScope() override;
 
-    lldb::ValueObjectSP
-    GetStaticValue() override
-    {
-        return m_parent->GetSP();
-    }
+  bool IsDynamic() override { return true; }
 
-    void
-    SetOwningSP (lldb::ValueObjectSP &owning_sp)
-    {
-        if (m_owning_valobj_sp == owning_sp)
-            return;
-            
-        assert (m_owning_valobj_sp.get() == nullptr);
-        m_owning_valobj_sp = owning_sp;
-    }
-    
-    bool
-    SetValueFromCString(const char *value_str, Error& error) override;
-    
-    bool
-    SetData(DataExtractor &data, Error &error) override;
-    
-    TypeImpl
-    GetTypeImpl() override;
-    
-    lldb::VariableSP
-    GetVariable () override
-    {
-        return m_parent ? m_parent->GetVariable() : nullptr;
-    }
-    
-    lldb::LanguageType
-    GetPreferredDisplayLanguage() override;
-    
-    void
-    SetPreferredDisplayLanguage (lldb::LanguageType);
-    
-    bool
-    GetDeclaration(Declaration &decl) override;
-    
-    uint64_t
-    GetLanguageFlags () override;
-    
-    void
-    SetLanguageFlags (uint64_t flags) override;
+  bool IsBaseClass() override {
+    if (m_parent)
+      return m_parent->IsBaseClass();
+    return false;
+  }
+
+  bool GetIsConstant() const override { return false; }
+
+  ValueObject *GetParent() override {
+    return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
+  }
+
+  const ValueObject *GetParent() const override {
+    return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
+  }
+
+  lldb::ValueObjectSP GetStaticValue() override { return m_parent->GetSP(); }
+
+  void SetOwningSP(lldb::ValueObjectSP &owning_sp) {
+    if (m_owning_valobj_sp == owning_sp)
+      return;
+
+    assert(m_owning_valobj_sp.get() == nullptr);
+    m_owning_valobj_sp = owning_sp;
+  }
+
+  bool SetValueFromCString(const char *value_str, Status &error) override;
+
+  bool SetData(DataExtractor &data, Status &error) override;
+
+  TypeImpl GetTypeImpl() override;
+
+  lldb::VariableSP GetVariable() override {
+    return m_parent ? m_parent->GetVariable() : nullptr;
+  }
+
+  lldb::LanguageType GetPreferredDisplayLanguage() override;
+
+  void SetPreferredDisplayLanguage(lldb::LanguageType);
+
+  bool IsSyntheticChildrenGenerated() override;
+
+  void SetSyntheticChildrenGenerated(bool b) override;
+
+  bool GetDeclaration(Declaration &decl) override;
+
+  uint64_t GetLanguageFlags() override;
+
+  void SetLanguageFlags(uint64_t flags) override;
 
 protected:
-    bool
-    UpdateValue() override;
-    
-    LazyBool
-    CanUpdateWithInvalidExecutionContext() override
-    {
-        return eLazyBoolYes;
-    }
-    
-    lldb::DynamicValueType
-    GetDynamicValueTypeImpl() override
-    {
-        return m_use_dynamic;
-    }
-    
-    bool
-    HasDynamicValueTypeInfo() override
-    {
-        return true;
-    }
-    
-    CompilerType
-    GetCompilerTypeImpl() override;
+  bool UpdateValue() override;
 
-    Address  m_address;  ///< The variable that this value object is based upon
-    TypeAndOrName m_dynamic_type_info; // We can have a type_sp or just a name
-    lldb::ValueObjectSP m_owning_valobj_sp;
-    lldb::DynamicValueType m_use_dynamic;
-    TypeImpl m_type_impl;
+  LazyBool CanUpdateWithInvalidExecutionContext() override {
+    return eLazyBoolYes;
+  }
+
+  lldb::DynamicValueType GetDynamicValueTypeImpl() override {
+    return m_use_dynamic;
+  }
+
+  bool HasDynamicValueTypeInfo() override { return true; }
+
+  CompilerType GetCompilerTypeImpl() override;
+
+  Address m_address; ///< The variable that this value object is based upon
+  TypeAndOrName m_dynamic_type_info; // We can have a type_sp or just a name
+  lldb::ValueObjectSP m_owning_valobj_sp;
+  lldb::DynamicValueType m_use_dynamic;
+  TypeImpl m_type_impl;
 
 private:
-    friend class ValueObject;
-    friend class ValueObjectConstResult;
-    ValueObjectDynamicValue (ValueObject &parent, lldb::DynamicValueType use_dynamic);
+  friend class ValueObject;
+  friend class ValueObjectConstResult;
+  ValueObjectDynamicValue(ValueObject &parent,
+                          lldb::DynamicValueType use_dynamic);
 
-    DISALLOW_COPY_AND_ASSIGN (ValueObjectDynamicValue);
+  DISALLOW_COPY_AND_ASSIGN(ValueObjectDynamicValue);
 };
 
 } // namespace lldb_private

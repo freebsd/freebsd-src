@@ -47,12 +47,16 @@ struct _dirdesc {
 	long	dd_size;	/* amount of data returned by getdirentries */
 	char	*dd_buf;	/* data buffer */
 	int	dd_len;		/* size of data buffer */
-	long	dd_seek;	/* magic cookie returned by getdirentries */
+	off_t	dd_seek;	/* magic cookie returned by getdirentries */
 	int	dd_flags;	/* flags for readdir */
 	struct pthread_mutex	*dd_lock;	/* lock */
 	struct _telldir *dd_td;	/* telldir position recording */
+	void	*dd_compat_de;	/* compat dirent */
 };
 
 #define	_dirfd(dirp)	((dirp)->dd_fd)
+
+struct dirent;
+int __readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
 
 #endif /* !_GEN_PRIVATE_H_ */

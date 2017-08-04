@@ -21,7 +21,7 @@
  */
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  */
 
 /*
@@ -87,6 +87,8 @@ typedef struct	instable {
 	uint_t		it_always64:1;		/* 64 bit when in 64 bit mode */
 	uint_t		it_invalid32:1;		/* invalid in IA32 */
 	uint_t		it_stackop:1;		/* push/pop stack operation */
+	uint_t		it_vexwoxmm:1;		/* VEX instructions that don't use XMM/YMM */
+	uint_t		it_avxsuf:1;		/* AVX suffix required */
 } instable_t;
 
 /*
@@ -219,6 +221,7 @@ enum {
 	VEX_NONE,	/* VEX  no operand */
 	VEX_MO,		/* VEX	mod_rm		               -> implicit reg */
 	VEX_RMrX,	/* VEX  VEX.vvvv, mod_rm               -> mod_reg */
+	VEX_VRMrX,	/* VEX  mod_rm, VEX.vvvv               -> mod_rm */
 	VEX_RRX,	/* VEX  VEX.vvvv, mod_reg              -> mod_rm */
 	VEX_RMRX,	/* VEX  VEX.vvvv, mod_rm, imm8[7:4]    -> mod_reg */
 	VEX_MX,         /* VEX  mod_rm                         -> mod_reg */
@@ -230,11 +233,16 @@ enum {
 	VEX_RR,         /* VEX  mod_rm                         -> mod_reg */
 	VEX_RRi,        /* VEX  mod_rm, imm8                   -> mod_reg */
 	VEX_RM,         /* VEX  mod_reg                        -> mod_rm */
+	VEX_RIM,	/* VEX  mod_reg, imm8                  -> mod_rm */
 	VEX_RRM,        /* VEX  VEX.vvvv, mod_reg              -> mod_rm */
 	VEX_RMX,        /* VEX  VEX.vvvv, mod_rm               -> mod_reg */
+	VEX_SbVM,	/* VEX  SIB, VEX.vvvv                  -> mod_rm */
 	VMx,		/* vmcall/vmlaunch/vmresume/vmxoff */
 	VMxo,		/* VMx instruction with optional prefix */
-	SVM		/* AMD SVM instructions */
+	SVM,		/* AMD SVM instructions */
+	BLS,		/* BLSR, BLSMSK, BLSI */
+	FMA,		/* FMA instructions, all VEX_RMrX */
+	ADX		/* ADX instructions, support REX.w, mod_rm->mod_reg */
 };
 
 /*
@@ -272,12 +280,14 @@ enum {
  *   IND - indirect to another to another table
  *   "T" - means to Terminate indirections (this is the final opcode)
  *   "S" - means "operand length suffix required"
+ *   "Sa" - means AVX2 suffix (d/q) required
  *   "NS" - means "no suffix" which is the operand length suffix of the opcode
  *   "Z" - means instruction size arg required
  *   "u" - means the opcode is invalid in IA32 but valid in amd64
  *   "x" - means the opcode is invalid in amd64, but not IA32
  *   "y" - means the operand size is always 64 bits in 64 bit mode
  *   "p" - means push/pop stack operation
+ *   "vr" - means VEX instruction that operates on normal registers, not fpu
  */
 
 #if defined(DIS_TEXT) && defined(DIS_MEM)
@@ -290,11 +300,13 @@ enum {
 #define	TNSyp(name, amode)	{TERM, amode, name, 0, 0, 0, 1, 0, 1}
 #define	TNSZ(name, amode, sz)	{TERM, amode, name, 0, sz, 0, 0, 0, 0}
 #define	TNSZy(name, amode, sz)	{TERM, amode, name, 0, sz, 0, 1, 0, 0}
+#define	TNSZvr(name, amode, sz)	{TERM, amode, name, 0, sz, 0, 0, 0, 0, 1}
 #define	TS(name, amode)		{TERM, amode, name, 1, 0, 0, 0, 0, 0}
 #define	TSx(name, amode)	{TERM, amode, name, 1, 0, 1, 0, 0, 0}
 #define	TSy(name, amode)	{TERM, amode, name, 1, 0, 0, 1, 0, 0}
 #define	TSp(name, amode)	{TERM, amode, name, 1, 0, 0, 0, 0, 1}
 #define	TSZ(name, amode, sz)	{TERM, amode, name, 1, sz, 0, 0, 0, 0}
+#define	TSaZ(name, amode, sz)	{TERM, amode, name, 1, sz, 0, 0, 0, 0, 0, 1}
 #define	TSZx(name, amode, sz)	{TERM, amode, name, 1, sz, 1, 0, 0, 0}
 #define	TSZy(name, amode, sz)	{TERM, amode, name, 1, sz, 0, 1, 0, 0}
 #define	INVALID			{TERM, UNKNOWN, "", 0, 0, 0, 0, 0}
@@ -308,11 +320,13 @@ enum {
 #define	TNSyp(name, amode)	{TERM, amode, name, 0, 0, 1, 0, 1}
 #define	TNSZ(name, amode, sz)	{TERM, amode, name, 0, 0, 0, 0, 0}
 #define	TNSZy(name, amode, sz)	{TERM, amode, name, 0, 0, 1, 0, 0}
+#define	TNSZvr(name, amode, sz)	{TERM, amode, name, 0, 0, 0, 0, 0, 1}
 #define	TS(name, amode)		{TERM, amode, name, 1, 0, 0, 0, 0}
 #define	TSx(name, amode)	{TERM, amode, name, 1, 1, 0, 0, 0}
 #define	TSy(name, amode)	{TERM, amode, name, 1, 0, 1, 0, 0}
 #define	TSp(name, amode)	{TERM, amode, name, 1, 0, 0, 0, 1}
 #define	TSZ(name, amode, sz)	{TERM, amode, name, 1, 0, 0, 0, 0}
+#define	TSaZ(name, amode, sz)	{TERM, amode, name, 1, 0, 0, 0, 0, 0, 1}
 #define	TSZx(name, amode, sz)	{TERM, amode, name, 1, 1, 0, 0, 0}
 #define	TSZy(name, amode, sz)	{TERM, amode, name, 1, 0, 1, 0, 0}
 #define	INVALID			{TERM, UNKNOWN, "", 0, 0, 0, 0, 0}
@@ -326,11 +340,13 @@ enum {
 #define	TNSx(name, amode)	{TERM, amode,  0, 1, 0, 0, 0}
 #define	TNSZ(name, amode, sz)	{TERM, amode, sz, 0, 0, 0, 0}
 #define	TNSZy(name, amode, sz)	{TERM, amode, sz, 0, 1, 0, 0}
+#define	TNSZvr(name, amode, sz)	{TERM, amode, sz, 0, 0, 0, 0, 1}
 #define	TS(name, amode)		{TERM, amode,  0, 0, 0, 0, 0}
 #define	TSx(name, amode)	{TERM, amode,  0, 1, 0, 0, 0}
 #define	TSy(name, amode)	{TERM, amode,  0, 0, 1, 0, 0}
 #define	TSp(name, amode)	{TERM, amode,  0, 0, 0, 0, 1}
 #define	TSZ(name, amode, sz)	{TERM, amode, sz, 0, 0, 0, 0}
+#define	TSaZ(name, amode, sz)	{TERM, amode, sz, 0, 0, 0, 0, 0, 1}
 #define	TSZx(name, amode, sz)	{TERM, amode, sz, 1, 0, 0, 0}
 #define	TSZy(name, amode, sz)	{TERM, amode, sz, 0, 1, 0, 0}
 #define	INVALID			{TERM, UNKNOWN, 0, 0, 0, 0, 0}
@@ -344,11 +360,13 @@ enum {
 #define	TNSx(name, amode)	{TERM, amode,  1, 0, 0, 0}
 #define	TNSZ(name, amode, sz)	{TERM, amode,  0, 0, 0, 0}
 #define	TNSZy(name, amode, sz)	{TERM, amode,  0, 1, 0, 0}
+#define	TNSZvr(name, amode, sz)	{TERM, amode,  0, 0, 0, 0, 1}
 #define	TS(name, amode)		{TERM, amode,  0, 0, 0, 0}
 #define	TSx(name, amode)	{TERM, amode,  1, 0, 0, 0}
 #define	TSy(name, amode)	{TERM, amode,  0, 1, 0, 0}
 #define	TSp(name, amode)	{TERM, amode,  0, 0, 0, 1}
 #define	TSZ(name, amode, sz)	{TERM, amode,  0, 0, 0, 0}
+#define	TSaZ(name, amode, sz)	{TERM, amode,  0, 0, 0, 0, 0, 1}
 #define	TSZx(name, amode, sz)	{TERM, amode,  1, 0, 0, 0}
 #define	TSZy(name, amode, sz)	{TERM, amode,  0, 1, 0, 0}
 #define	INVALID			{TERM, UNKNOWN, 0, 0, 0, 0}
@@ -397,6 +415,12 @@ const char *const dis_addr64_mode12[16] = {
  * decode for scale from SIB byte
  */
 const char *const dis_scale_factor[4] = { ")", ",2)", ",4)", ",8)" };
+
+/*
+ * decode for scale from VSIB byte, note that we always include the scale factor
+ * to match gas.
+ */
+const char *const dis_vscale_factor[4] = { ",1)", ",2)", ",4)", ",8)" };
 
 /*
  * register decoding for normal references to registers (ie. not addressing)
@@ -550,7 +574,7 @@ const instable_t dis_op0FC7[8] = {
 const instable_t dis_op0FC7m3[8] = {
 
 /*  [0]  */	INVALID,		INVALID,	INVALID,		INVALID,
-/*  [4]  */	INVALID,		INVALID,	TNS("rdrand",MG9),	INVALID,
+/*  [4]  */	INVALID,		INVALID,	TNS("rdrand",MG9),	TNS("rdseed", MG9),
 };
 
 /*
@@ -669,7 +693,7 @@ const instable_t dis_opSIMDdata16[256] = {
 /*  [70]  */	TNSZ("pshufd",XMMP,16),	INVALID,		INVALID,		INVALID,
 /*  [74]  */	TNSZ("pcmpeqb",XMM,16),	TNSZ("pcmpeqw",XMM,16),	TNSZ("pcmpeqd",XMM,16),	INVALID,
 /*  [78]  */	TNSZ("extrq",XMM2I,16),	TNSZ("extrq",XMM,16), INVALID,		INVALID,
-/*  [7C]  */	INVALID,		INVALID,		TNSZ("movd",XMM3MXS,4),	TNSZ("movdqa",XMMS,16),
+/*  [7C]  */	TNSZ("haddpd",XMM,16),	TNSZ("hsubpd",XMM,16),	TNSZ("movd",XMM3MXS,4),	TNSZ("movdqa",XMMS,16),
 
 /*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -696,7 +720,7 @@ const instable_t dis_opSIMDdata16[256] = {
 /*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [D0]  */	INVALID,		TNSZ("psrlw",XMM,16),	TNSZ("psrld",XMM,16),	TNSZ("psrlq",XMM,16),
+/*  [D0]  */	TNSZ("addsubpd",XMM,16),TNSZ("psrlw",XMM,16),	TNSZ("psrld",XMM,16),	TNSZ("psrlq",XMM,16),
 /*  [D4]  */	TNSZ("paddq",XMM,16),	TNSZ("pmullw",XMM,16),	TNSZ("movq",XMMS,8),	TNS("pmovmskb",XMMX3),
 /*  [D8]  */	TNSZ("psubusb",XMM,16),	TNSZ("psubusw",XMM,16),	TNSZ("pminub",XMM,16),	TNSZ("pand",XMM,16),
 /*  [DC]  */	TNSZ("paddusb",XMM,16),	TNSZ("paddusw",XMM,16),	TNSZ("pmaxub",XMM,16),	TNSZ("pandn",XMM,16),
@@ -803,7 +827,7 @@ const instable_t dis_opSIMDrepnz[256] = {
 /*  [08]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [10]  */	TNSZ("movsd",XMM,8),	TNSZ("movsd",XMMS,8),	INVALID,		INVALID,
+/*  [10]  */	TNSZ("movsd",XMM,8),	TNSZ("movsd",XMMS,8),	TNSZ("movddup",XMM,8),	INVALID,
 /*  [14]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [18]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [1C]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -836,7 +860,7 @@ const instable_t dis_opSIMDrepnz[256] = {
 /*  [70]  */	TNSZ("pshuflw",XMMP,16),INVALID,		INVALID,		INVALID,
 /*  [74]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [78]  */	TNSZ("insertq",XMMX2I,16),TNSZ("insertq",XMM,8),INVALID,		INVALID,
-/*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [7C]  */	TNSZ("haddps",XMM,16),	TNSZ("hsubps",XMM,16),	INVALID,		INVALID,
 
 /*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -863,7 +887,7 @@ const instable_t dis_opSIMDrepnz[256] = {
 /*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D0]  */	TNSZ("addsubps",XMM,16),INVALID,		INVALID,		INVALID,
 /*  [D4]  */	INVALID,		INVALID,		TNS("movdq2q",XMMXM),	INVALID,
 /*  [D8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [DC]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -873,7 +897,7 @@ const instable_t dis_opSIMDrepnz[256] = {
 /*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [F0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F0]  */	TNS("lddqu",XMMM),	INVALID,		INVALID,		INVALID,
 /*  [F4]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -961,6 +985,251 @@ const instable_t dis_opAVXF20F[256] = {
 /*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 };
 
+const instable_t dis_opAVXF20F3A[256] = {
+/*  [00]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [04]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [08]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [10]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [14]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [18]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [1C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [20]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [24]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [28]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [2C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [30]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [34]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [38]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [3C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [40]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [44]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [48]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [4C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [50]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [54]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [58]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [5C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [60]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [64]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [68]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [6C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [70]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [74]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [78]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [88]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [90]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [94]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [98]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [9C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [A0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [AC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [B0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [BC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [DC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [E0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [F0]  */	TNSZvr("rorx",VEX_MXI,6),INVALID,		INVALID,		INVALID,
+/*  [F4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+};
+
+const instable_t dis_opAVXF20F38[256] = {
+/*  [00]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [04]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [08]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [10]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [14]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [18]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [1C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [20]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [24]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [28]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [2C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [30]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [34]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [38]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [3C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [40]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [44]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [48]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [4C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [50]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [54]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [58]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [5C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [60]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [64]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [68]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [6C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [70]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [74]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [78]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [88]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [90]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [94]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [98]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [9C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [A0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [AC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [B0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [BC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [DC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [E0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [F0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F4]  */	INVALID,		TNSZvr("pdep",VEX_RMrX,5),TNSZvr("mulx",VEX_RMrX,5),TNSZvr("shrx",VEX_VRMrX,5),
+/*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+};
+
+const instable_t dis_opAVXF30F38[256] = {
+/*  [00]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [04]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [08]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [10]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [14]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [18]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [1C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [20]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [24]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [28]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [2C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [30]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [34]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [38]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [3C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [40]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [44]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [48]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [4C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [50]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [54]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [58]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [5C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [60]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [64]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [68]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [6C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [70]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [74]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [78]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [88]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [90]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [94]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [98]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [9C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [A0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [AC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [B0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [BC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [D8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [DC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [E0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+
+/*  [F0]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F4]  */	INVALID,		TNSZvr("pext",VEX_RMrX,5),INVALID,		TNSZvr("sarx",VEX_VRMrX,5),
+/*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+};
 /*
  *	Decode table for SIMD instructions with the repz (0xf3) prefix.
  */
@@ -970,8 +1239,8 @@ const instable_t dis_opSIMDrepz[256] = {
 /*  [08]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [10]  */	TNSZ("movss",XMM,4),	TNSZ("movss",XMMS,4),	INVALID,		INVALID,
-/*  [14]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [10]  */	TNSZ("movss",XMM,4),	TNSZ("movss",XMMS,4),	TNSZ("movsldup",XMM,16),INVALID,
+/*  [14]  */	INVALID,		INVALID,		TNSZ("movshdup",XMM,16),INVALID,
 /*  [18]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [1C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
@@ -1023,7 +1292,7 @@ const instable_t dis_opSIMDrepz[256] = {
 /*  [B0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [B4]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [B8]  */	TS("popcnt",MRw),	INVALID,		INVALID,		INVALID,
-/*  [BC]  */	INVALID,		TS("lzcnt",MRw),	INVALID,		INVALID,
+/*  [BC]  */	TNSZ("tzcnt",MRw,5),	TS("lzcnt",MRw),	INVALID,		INVALID,
 
 /*  [C0]  */	INVALID,		INVALID,		TNSZ("cmpss",XMMP,4),	INVALID,
 /*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -1141,6 +1410,15 @@ const instable_t dis_op0F38F1[2] = {
 		TS("movbe",MOVBE),
 };
 
+/*
+ * The following table is used to distinguish between adox and adcx which share
+ * the same opcodes.
+ */
+const instable_t dis_op0F38F6[2] = {
+/*  [00]  */	TNS("adcx",ADX),
+		TNS("adox",ADX),
+};
+
 const instable_t dis_op0F38[256] = {
 /*  [00]  */	TNSZ("pshufb",XMM_66o,16),TNSZ("phaddw",XMM_66o,16),TNSZ("phaddd",XMM_66o,16),TNSZ("phaddsw",XMM_66o,16),
 /*  [04]  */	TNSZ("pmaddubsw",XMM_66o,16),TNSZ("phsubw",XMM_66o,16),	TNSZ("phsubd",XMM_66o,16),TNSZ("phsubsw",XMM_66o,16),
@@ -1204,8 +1482,8 @@ const instable_t dis_op0F38[256] = {
 
 /*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [C8]  */	TNSZ("sha1nexte",XMM,16),TNSZ("sha1msg1",XMM,16),TNSZ("sha1msg2",XMM,16),TNSZ("sha256rnds2",XMM,16),
+/*  [CC]  */	TNSZ("sha256msg1",XMM,16),TNSZ("sha256msg2",XMM,16),INVALID,		INVALID,
 
 /*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [D4]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -1217,7 +1495,7 @@ const instable_t dis_op0F38[256] = {
 /*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [F0]  */	IND(dis_op0F38F0),	IND(dis_op0F38F1),	INVALID,		INVALID,
-/*  [F4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F4]  */	INVALID,		INVALID,		IND(dis_op0F38F6),	INVALID,
 /*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 };
@@ -1229,7 +1507,7 @@ const instable_t dis_opAVX660F38[256] = {
 /*  [0C]  */	TNSZ("vpermilps",VEX_RMrX,8),TNSZ("vpermilpd",VEX_RMrX,16),TNSZ("vtestps",VEX_RRI,8),	TNSZ("vtestpd",VEX_RRI,16),
 
 /*  [10]  */	INVALID,		INVALID,		INVALID,		TNSZ("vcvtph2ps",VEX_MX,16),
-/*  [14]  */	INVALID,		INVALID,		INVALID,		TNSZ("vptest",VEX_RRI,16),
+/*  [14]  */	INVALID,		INVALID,		TNSZ("vpermps",VEX_RMrX,16),TNSZ("vptest",VEX_RRI,16),
 /*  [18]  */	TNSZ("vbroadcastss",VEX_MX,4),TNSZ("vbroadcastsd",VEX_MX,8),TNSZ("vbroadcastf128",VEX_MX,16),INVALID,
 /*  [1C]  */	TNSZ("vpabsb",VEX_MX,16),TNSZ("vpabsw",VEX_MX,16),TNSZ("vpabsd",VEX_MX,16),INVALID,
 
@@ -1239,18 +1517,18 @@ const instable_t dis_opAVX660F38[256] = {
 /*  [2C]  */	TNSZ("vmaskmovps",VEX_RMrX,8),TNSZ("vmaskmovpd",VEX_RMrX,16),TNSZ("vmaskmovps",VEX_RRM,8),TNSZ("vmaskmovpd",VEX_RRM,16),
 
 /*  [30]  */	TNSZ("vpmovzxbw",VEX_MX,16),TNSZ("vpmovzxbd",VEX_MX,16),TNSZ("vpmovzxbq",VEX_MX,16),TNSZ("vpmovzxwd",VEX_MX,16),
-/*  [34]  */	TNSZ("vpmovzxwq",VEX_MX,16),TNSZ("vpmovzxdq",VEX_MX,16),INVALID,	TNSZ("vpcmpgtq",VEX_RMrX,16),
+/*  [34]  */	TNSZ("vpmovzxwq",VEX_MX,16),TNSZ("vpmovzxdq",VEX_MX,16),TNSZ("vpermd",VEX_RMrX,16),TNSZ("vpcmpgtq",VEX_RMrX,16),
 /*  [38]  */	TNSZ("vpminsb",VEX_RMrX,16),TNSZ("vpminsd",VEX_RMrX,16),TNSZ("vpminuw",VEX_RMrX,16),TNSZ("vpminud",VEX_RMrX,16),
 /*  [3C]  */	TNSZ("vpmaxsb",VEX_RMrX,16),TNSZ("vpmaxsd",VEX_RMrX,16),TNSZ("vpmaxuw",VEX_RMrX,16),TNSZ("vpmaxud",VEX_RMrX,16),
 
 /*  [40]  */	TNSZ("vpmulld",VEX_RMrX,16),TNSZ("vphminposuw",VEX_MX,16),INVALID,	INVALID,
-/*  [44]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [44]  */	INVALID,		TSaZ("vpsrlv",VEX_RMrX,16),TNSZ("vpsravd",VEX_RMrX,16),TSaZ("vpsllv",VEX_RMrX,16),
 /*  [48]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [4C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
 /*  [50]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [54]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [58]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [58]  */	TNSZ("vpbroadcastd",VEX_MX,16),TNSZ("vpbroadcastq",VEX_MX,16),TNSZ("vbroadcasti128",VEX_MX,16),INVALID,
 /*  [5C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
 /*  [60]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -1260,28 +1538,28 @@ const instable_t dis_opAVX660F38[256] = {
 
 /*  [70]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [74]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [78]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [78]  */	TNSZ("vpbroadcastb",VEX_MX,16),TNSZ("vpbroadcastw",VEX_MX,16),INVALID,	INVALID,
 /*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
 /*  [80]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [88]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [8C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [8C]  */	TSaZ("vpmaskmov",VEX_RMrX,16),INVALID,		TSaZ("vpmaskmov",VEX_RRM,16),INVALID,
 
-/*  [90]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [94]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [98]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [9C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [90]  */	TNSZ("vpgatherd",VEX_SbVM,16),TNSZ("vpgatherq",VEX_SbVM,16),TNSZ("vgatherdp",VEX_SbVM,16),TNSZ("vgatherqp",VEX_SbVM,16),
+/*  [94]  */	INVALID,		INVALID,		TNSZ("vfmaddsub132p",FMA,16),TNSZ("vfmsubadd132p",FMA,16),
+/*  [98]  */	TNSZ("vfmadd132p",FMA,16),TNSZ("vfmadd132s",FMA,16),TNSZ("vfmsub132p",FMA,16),TNSZ("vfmsub132s",FMA,16),
+/*  [9C]  */	TNSZ("vfnmadd132p",FMA,16),TNSZ("vfnmadd132s",FMA,16),TNSZ("vfnmsub132p",FMA,16),TNSZ("vfnmsub132s",FMA,16),
 
 /*  [A0]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [A4]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [A8]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [AC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [A4]  */	INVALID,		INVALID,		TNSZ("vfmaddsub213p",FMA,16),TNSZ("vfmsubadd213p",FMA,16),
+/*  [A8]  */	TNSZ("vfmadd213p",FMA,16),TNSZ("vfmadd213s",FMA,16),TNSZ("vfmsub213p",FMA,16),TNSZ("vfmsub213s",FMA,16),
+/*  [AC]  */	TNSZ("vfnmadd213p",FMA,16),TNSZ("vfnmadd213s",FMA,16),TNSZ("vfnmsub213p",FMA,16),TNSZ("vfnmsub213s",FMA,16),
 
 /*  [B0]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [B4]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [B8]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [BC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [B4]  */	INVALID,		INVALID,		TNSZ("vfmaddsub231p",FMA,16),TNSZ("vfmsubadd231p",FMA,16),
+/*  [B8]  */	TNSZ("vfmadd231p",FMA,16),TNSZ("vfmadd231s",FMA,16),TNSZ("vfmsub231p",FMA,16),TNSZ("vfmsub231s",FMA,16),
+/*  [BC]  */	TNSZ("vfnmadd231p",FMA,16),TNSZ("vfnmadd231s",FMA,16),TNSZ("vfnmsub231p",FMA,16),TNSZ("vfnmsub231s",FMA,16),
 
 /*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -1298,7 +1576,7 @@ const instable_t dis_opAVX660F38[256] = {
 /*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [F0]  */	IND(dis_op0F38F0),	IND(dis_op0F38F1),	INVALID,		INVALID,
-/*  [F4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F4]  */	INVALID,		INVALID,		INVALID,		TNSZvr("shlx",VEX_VRMrX,5),
 /*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 };
@@ -1367,7 +1645,7 @@ const instable_t dis_op0F3A[256] = {
 /*  [C0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [C4]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [C8]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [CC]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [CC]  */	TNSZ("sha1rnds4",XMMP,16),INVALID,		INVALID,		INVALID,
 
 /*  [D0]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [D4]  */	INVALID,		INVALID,		INVALID,		INVALID,
@@ -1386,7 +1664,7 @@ const instable_t dis_op0F3A[256] = {
 };
 
 const instable_t dis_opAVX660F3A[256] = {
-/*  [00]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [00]  */	TNSZ("vpermq",VEX_MXI,16),TNSZ("vpermpd",VEX_MXI,16),TNSZ("vpblendd",VEX_RMRX,16),INVALID,
 /*  [04]  */	TNSZ("vpermilps",VEX_MXI,8),TNSZ("vpermilpd",VEX_MXI,16),TNSZ("vperm2f128",VEX_RMRX,16),INVALID,
 /*  [08]  */	TNSZ("vroundps",VEX_MXI,16),TNSZ("vroundpd",VEX_MXI,16),TNSZ("vroundss",VEX_RMRX,16),TNSZ("vroundsd",VEX_RMRX,16),
 /*  [0C]  */	TNSZ("vblendps",VEX_RMRX,16),TNSZ("vblendpd",VEX_RMRX,16),TNSZ("vpblendw",VEX_RMRX,16),TNSZ("vpalignr",VEX_RMRX,16),
@@ -1403,11 +1681,11 @@ const instable_t dis_opAVX660F3A[256] = {
 
 /*  [30]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [34]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [38]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [38]  */	TNSZ("vinserti128",VEX_RMRX,16),TNSZ("vextracti128",VEX_RIM,16),INVALID,		INVALID,
 /*  [3C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
 /*  [40]  */	TNSZ("vdpps",VEX_RMRX,16),TNSZ("vdppd",VEX_RMRX,16),TNSZ("vmpsadbw",VEX_RMRX,16),INVALID,
-/*  [44]  */	TNSZ("vpclmulqdq",VEX_RMRX,16),INVALID,		INVALID,		INVALID,
+/*  [44]  */	TNSZ("vpclmulqdq",VEX_RMRX,16),INVALID,		TNSZ("vperm2i128",VEX_RMRX,16),INVALID,
 /*  [48]  */	INVALID,		INVALID,		TNSZ("vblendvps",VEX_RMRX,8),	TNSZ("vblendvpd",VEX_RMRX,16),
 /*  [4C]  */	TNSZ("vpblendvb",VEX_RMRX,16),INVALID,		INVALID,		INVALID,
 
@@ -1468,6 +1746,15 @@ const instable_t dis_opAVX660F3A[256] = {
 };
 
 /*
+ * 	Decode table for 0x0F0D which uses the first byte of the mod_rm to
+ * 	indicate a sub-code.
+ */
+const instable_t dis_op0F0D[8] = {
+/*  [00]  */	INVALID,		TNS("prefetchw",PREF),	TNS("prefetchwt1",PREF),INVALID,
+/*  [04]  */	INVALID,		INVALID,		INVALID,		INVALID,
+};
+
+/*
  *	Decode table for 0x0F opcodes
  */
 
@@ -1476,7 +1763,7 @@ const instable_t dis_op0F[16][16] = {
 /*  [00]  */	IND(dis_op0F00),	IND(dis_op0F01),	TNS("lar",MR),		TNS("lsl",MR),
 /*  [04]  */	INVALID,		TNS("syscall",NORM),	TNS("clts",NORM),	TNS("sysret",NORM),
 /*  [08]  */	TNS("invd",NORM),	TNS("wbinvd",NORM),	INVALID,		TNS("ud2",NORM),
-/*  [0C]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [0C]  */	INVALID,		IND(dis_op0F0D),	INVALID,		INVALID,
 }, {
 /*  [10]  */	TNSZ("movups",XMMO,16),	TNSZ("movups",XMMOS,16),TNSZ("movlps",XMMO,8),	TNSZ("movlps",XMMOS,8),
 /*  [14]  */	TNSZ("unpcklps",XMMO,16),TNSZ("unpckhps",XMMO,16),TNSZ("movhps",XMMOM,8),TNSZ("movhps",XMMOMS,8),
@@ -1631,8 +1918,8 @@ const instable_t dis_opAVX0F[16][16] = {
 /*  [E8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [EC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 }, {
-/*  [F0]  */	INVALID,		INVALID,		INVALID,		INVALID,
-/*  [F4]  */	INVALID,		INVALID,		INVALID,		INVALID,
+/*  [F0]  */	INVALID,		INVALID,		TNSZvr("andn",VEX_RMrX,5),TNSZvr("bls",BLS,5),
+/*  [F4]  */	INVALID,		TNSZvr("bzhi",VEX_VRMrX,5),INVALID,		TNSZvr("bextr",VEX_VRMrX,5),
 /*  [F8]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [FC]  */	INVALID,		INVALID,		INVALID,		INVALID,
 } };
@@ -1795,19 +2082,19 @@ const instable_t dis_opFP1n2[8][8] = {
 /*  [2,0]  */	TNS("fiaddl",M),	TNS("fimull",M),	TNS("ficoml",M),	TNS("ficompl",M),
 /*  [2,4]  */	TNS("fisubl",M),	TNS("fisubrl",M),	TNS("fidivl",M),	TNS("fidivrl",M),
 }, {
-/*  [3,0]  */	TNS("fildl",M),		INVALID,		TNS("fistl",M),		TNS("fistpl",M),
+/*  [3,0]  */	TNS("fildl",M),		TNSZ("tisttpl",M,4),	TNS("fistl",M),		TNS("fistpl",M),
 /*  [3,4]  */	INVALID,		TNSZ("fldt",M,10),	INVALID,		TNSZ("fstpt",M,10),
 }, {
 /*  [4,0]  */	TNSZ("faddl",M,8),	TNSZ("fmull",M,8),	TNSZ("fcoml",M,8),	TNSZ("fcompl",M,8),
 /*  [4,1]  */	TNSZ("fsubl",M,8),	TNSZ("fsubrl",M,8),	TNSZ("fdivl",M,8),	TNSZ("fdivrl",M,8),
 }, {
-/*  [5,0]  */	TNSZ("fldl",M,8),	INVALID,		TNSZ("fstl",M,8),	TNSZ("fstpl",M,8),
+/*  [5,0]  */	TNSZ("fldl",M,8),	TNSZ("fisttpll",M,8),	TNSZ("fstl",M,8),	TNSZ("fstpl",M,8),
 /*  [5,4]  */	TNSZ("frstor",M,108),	INVALID,		TNSZ("fnsave",M,108),	TNSZ("fnstsw",M,2),
 }, {
 /*  [6,0]  */	TNSZ("fiadd",M,2),	TNSZ("fimul",M,2),	TNSZ("ficom",M,2),	TNSZ("ficomp",M,2),
 /*  [6,4]  */	TNSZ("fisub",M,2),	TNSZ("fisubr",M,2),	TNSZ("fidiv",M,2),	TNSZ("fidivr",M,2),
 }, {
-/*  [7,0]  */	TNSZ("fild",M,2),	INVALID,		TNSZ("fist",M,2),	TNSZ("fistp",M,2),
+/*  [7,0]  */	TNSZ("fild",M,2),	TNSZ("fisttp",M,2),	TNSZ("fist",M,2),	TNSZ("fistp",M,2),
 /*  [7,4]  */	TNSZ("fbld",M,10),	TNSZ("fildll",M,8),	TNSZ("fbstp",M,10),	TNSZ("fistpll",M,8),
 } };
 
@@ -2037,6 +2324,80 @@ static int isize64[] = {1, 2, 4, 8};
 #define	TEST_OPND	7	/* "value" used to indicate a test reg */
 #define	WORD_OPND	8	/* w-bit value indicating word size reg */
 #define	YMM_OPND	9	/* "value" used to indicate a ymm reg */
+
+/*
+ * The AVX2 gather instructions are a bit of a mess. While there's a pattern,
+ * there's not really a consistent scheme that we can use to know what the mode
+ * is supposed to be for a given type. Various instructions, like VPGATHERDD,
+ * always match the value of VEX_L. Other instructions like VPGATHERDQ, have
+ * some registers match VEX_L, but the VSIB is always XMM.
+ *
+ * The simplest way to deal with this is to just define a table based on the
+ * instruction opcodes, which are 0x90-0x93, so we subtract 0x90 to index into
+ * them.
+ *
+ * We further have to subdivide this based on the value of VEX_W and the value
+ * of VEX_L. The array is constructed to be indexed as:
+ * 	[opcode - 0x90][VEX_W][VEX_L].
+ */
+/* w = 0, 0x90 */
+typedef struct dis_gather_regs {
+	uint_t dgr_arg0;	/* src reg */
+	uint_t dgr_arg1;	/* vsib reg */
+	uint_t dgr_arg2;	/* dst reg */
+	char   *dgr_suffix;	/* suffix to append */
+} dis_gather_regs_t;
+
+static dis_gather_regs_t dis_vgather[4][2][2] = {
+	{
+		/* op 0x90, W.0 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "d" },
+			{ YMM_OPND, YMM_OPND, YMM_OPND, "d" }
+		},
+		/* op 0x90, W.1 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "q" },
+			{ YMM_OPND, XMM_OPND, YMM_OPND, "q" }
+		}
+	},
+	{
+		/* op 0x91, W.0 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "d" },
+			{ XMM_OPND, YMM_OPND, XMM_OPND, "d" },
+		},
+		/* op 0x91, W.1 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "q" },
+			{ YMM_OPND, YMM_OPND, YMM_OPND, "q" },
+		}
+	},
+	{
+		/* op 0x92, W.0 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "s" },
+			{ YMM_OPND, YMM_OPND, YMM_OPND, "s" }
+		},
+		/* op 0x92, W.1 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "d" },
+			{ YMM_OPND, XMM_OPND, YMM_OPND, "d" }
+		}
+	},
+	{
+		/* op 0x93, W.0 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "s" },
+			{ XMM_OPND, YMM_OPND, XMM_OPND, "s" }
+		},
+		/* op 0x93, W.1 */
+		{
+			{ XMM_OPND, XMM_OPND, XMM_OPND, "d" },
+			{ YMM_OPND, YMM_OPND, YMM_OPND, "d" }
+		}
+	}
+};
 
 /*
  * Get the next byte and separate the op code into the high and low nibbles.
@@ -2409,16 +2770,29 @@ dtrace_get_operand(dis86_t *x, uint_t mode, uint_t r_m, int wbit, int opindex)
 	} else {
 		uint_t need_paren = 0;
 		char **regs;
+		char **bregs;
+		const char *const *sf;
 		if (x->d86_mode == SIZE32) /* NOTE this is not addr_size! */
 			regs = (char **)dis_REG32;
 		else
 			regs = (char **)dis_REG64;
 
+		if (x->d86_vsib != 0) {
+			if (wbit == YMM_OPND) /* NOTE this is not addr_size! */
+				bregs = (char **)dis_YMMREG;
+			else
+				bregs = (char **)dis_XMMREG;
+			sf = dis_vscale_factor;
+		} else {
+			bregs = regs;
+			sf = dis_scale_factor;
+		}
+
 		/*
 		 * print the base (if any)
 		 */
 		if (base == EBP_REGNO && mode == 0) {
-			if (index != ESP_REGNO) {
+			if (index != ESP_REGNO || x->d86_vsib != 0) {
 				(void) strlcat(opnd, "(", OPLEN);
 				need_paren = 1;
 			}
@@ -2431,10 +2805,10 @@ dtrace_get_operand(dis86_t *x, uint_t mode, uint_t r_m, int wbit, int opindex)
 		/*
 		 * print the index (if any)
 		 */
-		if (index != ESP_REGNO) {
+		if (index != ESP_REGNO || x->d86_vsib) {
 			(void) strlcat(opnd, ",", OPLEN);
-			(void) strlcat(opnd, regs[index], OPLEN);
-			(void) strlcat(opnd, dis_scale_factor[ss], OPLEN);
+			(void) strlcat(opnd, bregs[index], OPLEN);
+			(void) strlcat(opnd, sf[ss], OPLEN);
 		} else
 			if (need_paren)
 				(void) strlcat(opnd, ")", OPLEN);
@@ -2581,7 +2955,12 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 	uint_t vex_B = 1;
 	uint_t vex_W = 0;
 	uint_t vex_L;
+	dis_gather_regs_t *vreg;
 
+#ifdef	DIS_TEXT
+	/* Instruction name for BLS* family of instructions */
+	char *blsinstr;
+#endif
 
 	size_t	off;
 
@@ -2605,6 +2984,7 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 	x->d86_rex_prefix = 0;
 	x->d86_got_modrm = 0;
 	x->d86_memsize = 0;
+	x->d86_vsib = 0;
 
 	if (cpu_mode == SIZE16) {
 		opnd_size = SIZE16;
@@ -2802,6 +3182,10 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 					dp = (instable_t *)
 					    &dis_opAVXF30F
 					    [(opcode1 << 4) | opcode2];
+				} else if (vex_m == VEX_m_0F38) {
+					dp = (instable_t *)
+					    &dis_opAVXF30F38
+					    [(opcode1 << 4) | opcode2];
 				} else {
 					goto error;
 				}
@@ -2810,6 +3194,14 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 				if (vex_m == VEX_m_0F) {
 					dp = (instable_t *)
 					    &dis_opAVXF20F
+					    [(opcode1 << 4) | opcode2];
+				} else if (vex_m == VEX_m_0F3A) {
+					dp = (instable_t *)
+					    &dis_opAVXF20F3A
+					    [(opcode1 << 4) | opcode2];
+				} else if (vex_m == VEX_m_0F38) {
+					dp = (instable_t *)
+					    &dis_opAVXF20F38
 					    [(opcode1 << 4) | opcode2];
 				} else {
 					goto error;
@@ -2822,10 +3214,14 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 		}
 	}
 	if (vex_prefix) {
-		if (vex_L)
-			wbit = YMM_OPND;
-		else
-			wbit = XMM_OPND;
+		if (dp->it_vexwoxmm) {
+			wbit = LONG_OPND;
+		} else {
+			if (vex_L)
+				wbit = YMM_OPND;
+			else
+				wbit = XMM_OPND;
+		}
 	}
 
 	/*
@@ -2894,6 +3290,8 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 				goto error;
 #endif
 			switch (dp->it_adrmode) {
+				case XMMP:
+					break;
 				case XMMP_66r:
 				case XMMPRM_66r:
 				case XMM3PM_66r:
@@ -2935,11 +3333,50 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 					dp++;
 				}
 			}
+
+			/*
+			 * The adx family of instructions (adcx and adox)
+			 * continue the classic Intel tradition of abusing
+			 * arbitrary prefixes without actually meaning the
+			 * prefix bit. Therefore, if we find either the
+			 * opnd_size_prefix or rep_prefix we end up zeroing it
+			 * out after making our determination so as to ensure
+			 * that we don't get confused and accidentally print
+			 * repz prefixes and the like on these instructions.
+			 *
+			 * In addition, these instructions are actually much
+			 * closer to AVX instructions in semantics. Importantly,
+			 * they always default to having 32-bit operands.
+			 * However, if the CPU is in 64-bit mode, then and only
+			 * then, does it use REX.w promotes things to 64-bits
+			 * and REX.r allows 64-bit mode to use register r8-r15.
+			 */
+			if (dp->it_indirect == (instable_t *)dis_op0F38F6) {
+				dp = dp->it_indirect;
+				if (opnd_size_prefix == 0 &&
+				    rep_prefix == 0xf3) {
+					/* It is adox */
+					dp++;
+				} else if (opnd_size_prefix != 0x66 &&
+				    rep_prefix != 0) {
+					/* It isn't adcx */
+					goto error;
+				}
+				opnd_size_prefix = 0;
+				rep_prefix = 0;
+				opnd_size = SIZE32;
+				if (rex_prefix & REX_W)
+					opnd_size = SIZE64;
+			}
+
 #ifdef DIS_TEXT
 			if (strcmp(dp->it_name, "INVALID") == 0)
 				goto error;
 #endif
 			switch (dp->it_adrmode) {
+				case ADX:
+				case XMM:
+					break;
 				case RM_66r:
 				case XMM_66r:
 				case XMMM_66r:
@@ -3029,9 +3466,12 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 		goto error;
 
 	/*
-	 * deal with MMX/SSE opcodes which are changed by prefixes
+	 * Deal with MMX/SSE opcodes which are changed by prefixes. Note, we do
+	 * need to include UNKNOWN below, as we may have instructions that
+	 * actually have a prefix, but don't exist in any other form.
 	 */
 	switch (dp->it_adrmode) {
+	case UNKNOWN:
 	case MMO:
 	case MMOIMPL:
 	case MMO3P:
@@ -3220,7 +3660,10 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 		if (strcmp(dp->it_name, "INVALID") == 0)
 			goto error;
 		(void) strlcat(x->d86_mnem, dp->it_name, OPLEN);
-		if (dp->it_suffix) {
+		if (dp->it_avxsuf && dp->it_suffix) {
+			(void) strlcat(x->d86_mnem, vex_W != 0 ? "q" : "d",
+			    OPLEN);
+		} else if (dp->it_suffix) {
 			char *types[] = {"", "w", "l", "q"};
 			if (opcode_bytes == 2 && opcode4 == 4) {
 				/* It's a cmovx.yy. Replace the suffix x */
@@ -3341,6 +3784,7 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 
 	/* memory or register operand to register, with 'w' bit	*/
 	case MRw:
+	case ADX:
 		wbit = WBIT(opcode2);
 		STANDARD_MODRM(x, mode, reg, r_m, rex_prefix, wbit, 0);
 		break;
@@ -3637,6 +4081,18 @@ just_mem:
 			} else if (r_m == 1) {
 #ifdef DIS_TEXT
 				(void) strncpy(x->d86_mnem, "mwait", OPLEN);
+#endif
+				NOMEM;
+				break;
+			} else if (r_m == 2) {
+#ifdef DIS_TEXT
+				(void) strncpy(x->d86_mnem, "clac", OPLEN);
+#endif
+				NOMEM;
+				break;
+			} else if (r_m == 3) {
+#ifdef DIS_TEXT
+				(void) strncpy(x->d86_mnem, "stac", OPLEN);
 #endif
 				NOMEM;
 				break;
@@ -4337,10 +4793,30 @@ xmmprm:
 		dtrace_get_operand(x, mode, r_m, wbit, 0);
 		break;
 	case VEX_RMrX:
+	case FMA:
 		/* ModR/M.reg := op(VEX.vvvv, ModR/M.r/m) */
 		x->d86_numopnds = 3;
 		dtrace_get_modrm(x, &mode, &reg, &r_m);
 		dtrace_vex_adjust(vex_byte1, mode, &reg, &r_m);
+
+		/*
+		 * In classic Intel fashion, the opcodes for all of the FMA
+		 * instructions all have two possible mnemonics which vary by
+		 * one letter, which is selected based on the value of the wbit.
+		 * When wbit is one, they have the 'd' suffix and when 'wbit' is
+		 * 0, they have the 's' suffix. Otherwise, the FMA instructions
+		 * are all a standard VEX_RMrX.
+		 */
+#ifdef DIS_TEXT
+		if (dp->it_adrmode == FMA) {
+			size_t len = strlen(dp->it_name);
+			(void) strncpy(x->d86_mnem, dp->it_name, OPLEN);
+			if (len + 1 < OPLEN) {
+				(void) strncpy(x->d86_mnem + len,
+				    vex_W != 0 ? "d" : "s", OPLEN - len);
+			}
+		}
+#endif
 
 		if (mode != REG_ONLY) {
 			if ((dp == &dis_opAVXF20F[0x10]) ||
@@ -4378,6 +4854,53 @@ xmmprm:
 #endif
 		dtrace_get_operand(x, mode, r_m, wbit, 0);
 
+		break;
+
+	case VEX_VRMrX:
+		/* ModR/M.reg := op(MODR/M.r/m, VEX.vvvv) */
+		x->d86_numopnds = 3;
+		dtrace_get_modrm(x, &mode, &reg, &r_m);
+		dtrace_vex_adjust(vex_byte1, mode, &reg, &r_m);
+
+		dtrace_get_operand(x, REG_ONLY, reg, wbit, 2);
+		/*
+		 * VEX prefix uses the 1's complement form to encode the
+		 * XMM/YMM regs
+		 */
+		dtrace_get_operand(x, REG_ONLY, (0xF - vex_v), wbit, 0);
+
+		dtrace_get_operand(x, mode, r_m, wbit, 1);
+		break;
+
+	case VEX_SbVM:
+		/* ModR/M.reg := op(MODR/M.r/m, VSIB, VEX.vvvv) */
+		x->d86_numopnds = 3;
+		x->d86_vsib = 1;
+
+		/*
+		 * All instructions that use VSIB are currently a mess. See the
+		 * comment around the dis_gather_regs_t structure definition.
+		 */
+
+		vreg = &dis_vgather[opcode2][vex_W][vex_L];
+
+#ifdef DIS_TEXT
+		(void) strncpy(x->d86_mnem, dp->it_name, OPLEN);
+		(void) strlcat(x->d86_mnem + strlen(dp->it_name),
+		    vreg->dgr_suffix, OPLEN - strlen(dp->it_name));
+#endif
+
+		dtrace_get_modrm(x, &mode, &reg, &r_m);
+		dtrace_vex_adjust(vex_byte1, mode, &reg, &r_m);
+
+		dtrace_get_operand(x, REG_ONLY, reg, vreg->dgr_arg2, 2);
+		/*
+		 * VEX prefix uses the 1's complement form to encode the
+		 * XMM/YMM regs
+		 */
+		dtrace_get_operand(x, REG_ONLY, (0xF - vex_v), vreg->dgr_arg0,
+		    0);
+		dtrace_get_operand(x, mode, r_m, vreg->dgr_arg1, 1);
 		break;
 
 	case VEX_RRX:
@@ -4469,9 +4992,17 @@ L_VEX_MX:
 			dtrace_get_operand(x, mode, r_m, wbit, 0);
 		} else if ((dp == &dis_opAVXF30F[0xE6]) ||
 		    (dp == &dis_opAVX0F[0x5][0xA]) ||
-		    (dp == &dis_opAVX660F38[0x13])) {
+		    (dp == &dis_opAVX660F38[0x13]) ||
+		    (dp == &dis_opAVX660F38[0x18]) ||
+		    (dp == &dis_opAVX660F38[0x19]) ||
+		    (dp == &dis_opAVX660F38[0x58]) ||
+		    (dp == &dis_opAVX660F38[0x78]) ||
+		    (dp == &dis_opAVX660F38[0x79]) ||
+		    (dp == &dis_opAVX660F38[0x59])) {
 			/* vcvtdq2pd <xmm>, <ymm> */
 			/* or vcvtps2pd <xmm>, <ymm> */
+			/* or vcvtph2ps <xmm>, <ymm> */
+			/* or vbroadcasts* <xmm>, <ymm> */
 			dtrace_get_operand(x, REG_ONLY, reg, wbit, 1);
 			dtrace_get_operand(x, mode, r_m, XMM_OPND, 0);
 		} else if (dp == &dis_opAVX660F[0x6E]) {
@@ -4618,6 +5149,18 @@ L_VEX_MX:
 		/* one byte immediate number */
 		dtrace_imm_opnd(x, wbit, 1, 0);
 		break;
+	case VEX_RIM:
+		/* ModR/M.rm := op(ModR/M.reg, imm) */
+		x->d86_numopnds = 3;
+
+		dtrace_get_modrm(x, &mode, &reg, &r_m);
+		dtrace_vex_adjust(vex_byte1, mode, &reg, &r_m);
+
+		dtrace_get_operand(x, mode, r_m, XMM_OPND, 2);
+		dtrace_get_operand(x, REG_ONLY, reg, wbit, 1);
+		/* one byte immediate number */
+		dtrace_imm_opnd(x, wbit, 1, 0);
+		break;
 
 	case VEX_RM:
 		/* ModR/M.rm := op(ModR/M.reg) */
@@ -4673,6 +5216,48 @@ L_VEX_RM:
 			(void) strncpy(x->d86_mnem, "vzeroall", OPLEN);
 #endif
 		break;
+	case BLS: {
+
+		/*
+		 * The BLS instructions are VEX instructions that are based on
+		 * VEX.0F38.F3; however, they are considered special group 17
+		 * and like everything else, they use the bits in 3-5 of the
+		 * MOD R/M to determine the sub instruction. Unlike many others
+		 * like the VMX instructions, these are valid both for memory
+		 * and register forms.
+		 */
+
+		dtrace_get_modrm(x, &mode, &reg, &r_m);
+		dtrace_vex_adjust(vex_byte1, mode, &reg, &r_m);
+
+		switch (reg) {
+		case 1:
+#ifdef	DIS_TEXT
+			blsinstr = "blsr";
+#endif
+			break;
+		case 2:
+#ifdef	DIS_TEXT
+			blsinstr = "blsmsk";
+#endif
+			break;
+		case 3:
+#ifdef	DIS_TEXT
+			blsinstr = "blsi";
+#endif
+			break;
+		default:
+			goto error;
+		}
+
+		x->d86_numopnds = 2;
+#ifdef DIS_TEXT
+		(void) strncpy(x->d86_mnem, blsinstr, OPLEN);
+#endif
+		dtrace_get_operand(x, REG_ONLY, (0xF - vex_v), wbit, 1);
+		dtrace_get_operand(x, mode, r_m, wbit, 0);
+		break;
+	}
 	/* an invalid op code */
 	case AM:
 	case DM:

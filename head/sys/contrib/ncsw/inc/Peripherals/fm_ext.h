@@ -322,9 +322,9 @@ typedef struct t_FmParams {
     t_Handle                h_App;                  /**< Relevant when guestId = NCSW_MASSTER_ID only.
                                                          A handle to an application layer object; This handle will
                                                          be passed by the driver upon calling the above callbacks */
-    int                     irq;                    /**< Relevant when guestId = NCSW_MASSTER_ID only.
+    uintptr_t               irq;                    /**< Relevant when guestId = NCSW_MASSTER_ID only.
                                                          FM interrupt source for normal events */
-    int                     errIrq;                 /**< Relevant when guestId = NCSW_MASSTER_ID only.
+    uintptr_t               errIrq;                 /**< Relevant when guestId = NCSW_MASSTER_ID only.
                                                          FM interrupt source for errors */
     t_FmPcdFirmwareParams   firmware;               /**< Relevant when guestId = NCSW_MASSTER_ID only.
                                                          Ucode */

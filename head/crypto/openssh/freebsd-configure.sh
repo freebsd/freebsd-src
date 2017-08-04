@@ -12,7 +12,7 @@ configure_args="
     --with-libedit
     --with-ssl-engine
     --without-xauth
-" 
+"
 
 set -e
 
@@ -30,7 +30,7 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 unset LD_LIBRARY_PATH
 
 # generate config.h with krb5 and stash it
-sh configure $configure_args --with-kerberos5
+sh configure $configure_args --with-kerberos5=/usr
 mv config.log config.log.orig
 mv config.h config.h.orig
 

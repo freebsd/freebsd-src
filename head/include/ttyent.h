@@ -38,6 +38,7 @@
 #define	_TTYS_OFF	"off"
 #define	_TTYS_ON	"on"
 #define	_TTYS_ONIFCONSOLE "onifconsole"
+#define	_TTYS_ONIFEXISTS "onifexists"
 #define	_TTYS_SECURE	"secure"
 #define	_TTYS_INSECURE	"insecure"
 #define	_TTYS_WINDOW	"window"

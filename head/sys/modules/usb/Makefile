@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-SYSDIR?=${.CURDIR}/../..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 #
@@ -47,7 +47,7 @@ SUBDIR = usb
 SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
 	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
-SUBDIR += atp uhid ukbd ums udbp ufm uep wsp ugold uled
+SUBDIR += atp cfumass uhid ukbd ums udbp ufm uep wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += udl
@@ -70,9 +70,12 @@ _uath=		uath
 _zyd=		zyd
 _kue=		kue
 _run=		run
-_runfw=		runfw
 _rsu=		rsu
+
+.if ${MACHINE_CPUARCH} != "mips"
 _rsufw=		rsufw
+_runfw=		runfw
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"

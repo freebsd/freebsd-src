@@ -2312,7 +2312,7 @@ vxge_vpath_open(vxge_dev_t *vdev)
 		vpath->rx_ticks = ticks;
 
 		vpath->tti_rtimer_val = VXGE_DEFAULT_TTI_RTIMER_VAL;
-		vpath->tti_rtimer_val = VXGE_DEFAULT_TTI_RTIMER_VAL;
+		vpath->rti_rtimer_val = VXGE_DEFAULT_RTI_RTIMER_VAL;
 
 		vpath->tx_intr_coalesce = vdev->config.intr_coalesce;
 		vpath->rx_intr_coalesce = vdev->config.intr_coalesce;

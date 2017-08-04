@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -500,7 +500,7 @@ checkfilesys(char *filesys)
 	 */
 	n_ffree = sblock.fs_cstotal.cs_nffree;
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
-	files = maxino - ROOTINO - sblock.fs_cstotal.cs_nifree - n_files;
+	files = maxino - UFS_ROOTINO - sblock.fs_cstotal.cs_nifree - n_files;
 	blks = n_blks +
 	    sblock.fs_ncg * (cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
 	blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
@@ -670,7 +670,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-"usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] filesystem ...\n",
+"usage: %s [-BCdEFfnpRrSyZ] [-b block] [-c level] [-m mode] filesystem ...\n",
 	    getprogname());
 	exit(1);
 }

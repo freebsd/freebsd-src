@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2012
+.Dd June 12, 2017
 .Dt LN 1
 .Os
 .Sh NAME
@@ -87,14 +87,18 @@ option should be used with either
 or
 .Fl i
 options.
-If none is specified,
+If neither
+.Fl f
+nor
+.Fl i
+is specified,
 .Fl f
 is implied.
 The
 .Fl F
 option is a no-op unless
 .Fl s
-option is specified.
+is specified.
 .It Fl L
 When creating a hard link to a symbolic link,
 create a hard link to the target of the symbolic link.

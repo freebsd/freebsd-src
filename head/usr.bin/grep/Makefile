@@ -15,22 +15,28 @@ bsdgrep.1: grep.1
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
-# Extra files ported backported form some regex improvements
+.if ${MK_BSD_GREP_FASTMATCH} == "yes"
+# Extra files ported backported for some regex improvements
 .PATH: ${.CURDIR}/regex
-SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c xmalloc.c
+SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c
 CFLAGS+=-I${.CURDIR}/regex
+.else
+CFLAGS+= -DWITHOUT_FASTMATCH
+.endif
 
 CFLAGS.gcc+= --param max-inline-insns-single=500
 
 .if ${MK_BSD_GREP} == "yes"
 LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
+	${BINDIR}/grep ${BINDIR}/rgrep \
 	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
 	${BINDIR}/grep ${BINDIR}/zfgrep
 
 MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
+	grep.1 rgrep.1 \
 	grep.1 zgrep.1 \
 	grep.1 zegrep.1 \
 	grep.1 zfgrep.1
@@ -76,7 +82,7 @@ CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
 .if ${MK_GNU_GREP_COMPAT} != "no"
-CFLAGS+= -I${DESTDIR}/usr/include/gnu
+CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
 LIBADD+=	gnuregex
 .endif
 
@@ -86,8 +92,6 @@ LIBADD+=	gnuregex
 CFLAGS+= -DWITHOUT_NLS
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

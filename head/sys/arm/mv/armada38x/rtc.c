@@ -56,18 +56,43 @@ __FBSDID("$FreeBSD$");
 
 #define	RTC_STATUS		0x0
 #define	RTC_TIME		0xC
+#define	RTC_TEST_CONFIG		0x1C
+#define	RTC_IRQ_1_CONFIG	0x4
+#define	RTC_IRQ_2_CONFIG	0x8
+#define	RTC_ALARM_1		0x10
+#define	RTC_ALARM_2		0x14
+#define	RTC_CLOCK_CORR		0x18
 
-#define	MV_RTC_LOCK(sc)		mtx_lock(&(sc)->mutex)
-#define	MV_RTC_UNLOCK(sc)	mtx_unlock(&(sc)->mutex)
+#define	RTC_NOMINAL_TIMING	0x2000
+#define	RTC_NOMINAL_TIMING_MASK	0x7fff
+
+#define	RTC_STATUS_ALARM1_MASK	0x1
+#define	RTC_STATUS_ALARM2_MASK	0x2
+
+#define	MV_RTC_LOCK(sc)		mtx_lock_spin(&(sc)->mutex)
+#define	MV_RTC_UNLOCK(sc)	mtx_unlock_spin(&(sc)->mutex)
+
+#define	RTC_BRIDGE_TIMING_CTRL		0x0
+#define	RTC_WRCLK_PERIOD_SHIFT			0
+#define	RTC_WRCLK_PERIOD_MASK			0x00000003FF
+#define	RTC_WRCLK_PERIOD_MAX			0x3FF
+#define	RTC_READ_OUTPUT_DELAY_SHIFT		26
+#define	RTC_READ_OUTPUT_DELAY_MASK		0x007C000000
+#define	RTC_READ_OUTPUT_DELAY_MAX		0x1F
+
+#define	RTC_RES		0
+#define	RTC_SOC_RES	1
+
 
 static struct resource_spec res_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
 	{ -1, 0 }
 };
 
 struct mv_rtc_softc {
 	device_t	dev;
-	struct resource	*res;
+	struct resource	*res[2];
 	struct mtx	mutex;
 };
 
@@ -78,9 +103,11 @@ static int mv_rtc_detach(device_t dev);
 static int mv_rtc_gettime(device_t dev, struct timespec *ts);
 static int mv_rtc_settime(device_t dev, struct timespec *ts);
 
-static uint32_t mv_rtc_reg_read(struct mv_rtc_softc *sc, bus_size_t off);
-static int mv_rtc_reg_write(struct mv_rtc_softc *sc, bus_size_t off,
+static inline uint32_t mv_rtc_reg_read(struct mv_rtc_softc *sc,
+    bus_size_t off);
+static inline int mv_rtc_reg_write(struct mv_rtc_softc *sc, bus_size_t off,
     uint32_t val);
+static inline void mv_rtc_configure_bus(struct mv_rtc_softc *sc);
 
 static device_method_t mv_rtc_methods[] = {
 	DEVMETHOD(device_probe,		mv_rtc_probe),
@@ -102,6 +129,43 @@ static driver_t mv_rtc_driver = {
 static devclass_t mv_rtc_devclass;
 
 DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
+
+static void
+mv_rtc_reset(device_t dev)
+{
+	struct mv_rtc_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	/* Reset Test register */
+	mv_rtc_reg_write(sc, RTC_TEST_CONFIG, 0);
+	DELAY(500000);
+
+	/* Reset Time register */
+	mv_rtc_reg_write(sc, RTC_TIME, 0);
+	DELAY(62);
+
+	/* Reset Status register */
+	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	DELAY(62);
+
+	/* Turn off Int1 and Int2 sources & clear the Alarm count */
+	mv_rtc_reg_write(sc, RTC_IRQ_1_CONFIG, 0);
+	mv_rtc_reg_write(sc, RTC_IRQ_2_CONFIG, 0);
+	mv_rtc_reg_write(sc, RTC_ALARM_1, 0);
+	mv_rtc_reg_write(sc, RTC_ALARM_2, 0);
+
+	/* Setup nominal register access timing */
+	mv_rtc_reg_write(sc, RTC_CLOCK_CORR, RTC_NOMINAL_TIMING);
+
+	/* Reset Time register */
+	mv_rtc_reg_write(sc, RTC_TIME, 0);
+	DELAY(10);
+
+	/* Reset Status register */
+	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	DELAY(50);
+}
 
 static int
 mv_rtc_probe(device_t dev)
@@ -131,14 +195,16 @@ mv_rtc_attach(device_t dev)
 
 	clock_register(dev, RTC_RES_US);
 
-	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_DEF);
+	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_SPIN);
 
-	ret = bus_alloc_resources(dev, res_spec, &sc->res);
+	ret = bus_alloc_resources(dev, res_spec, sc->res);
+
 	if (ret != 0) {
 		device_printf(dev, "could not allocate resources\n");
 		mtx_destroy(&sc->mutex);
 		return (ENXIO);
 	}
+	mv_rtc_configure_bus(sc);
 
 	return (0);
 }
@@ -152,7 +218,7 @@ mv_rtc_detach(device_t dev)
 
 	mtx_destroy(&sc->mutex);
 
-	bus_release_resources(dev, res_spec, &sc->res);
+	bus_release_resources(dev, res_spec, sc->res);
 
 	return (0);
 }
@@ -198,6 +264,12 @@ mv_rtc_settime(device_t dev, struct timespec *ts)
 
 	MV_RTC_LOCK(sc);
 
+	if ((mv_rtc_reg_read(sc, RTC_CLOCK_CORR) & RTC_NOMINAL_TIMING_MASK) !=
+	    RTC_NOMINAL_TIMING) {
+		/* RTC was not resetted yet */
+		mv_rtc_reset(dev);
+	}
+
 	/*
 	 * According to errata FE-3124064, Write to RTC TIME register
 	 * may fail. As a workaround, before writing to RTC TIME register,
@@ -212,11 +284,11 @@ mv_rtc_settime(device_t dev, struct timespec *ts)
 	return (0);
 }
 
-static uint32_t
+static inline uint32_t
 mv_rtc_reg_read(struct mv_rtc_softc *sc, bus_size_t off)
 {
 
-	return (bus_read_4(sc->res, off));
+	return (bus_read_4(sc->res[RTC_RES], off));
 }
 
 /*
@@ -224,12 +296,24 @@ mv_rtc_reg_read(struct mv_rtc_softc *sc, bus_size_t off)
  * register write to the RTC hard macro so that the required update
  * can occur without holding off the system bus
  */
-static int
+static inline int
 mv_rtc_reg_write(struct mv_rtc_softc *sc, bus_size_t off, uint32_t val)
 {
 
-	bus_write_4(sc->res, off, val);
+	bus_write_4(sc->res[RTC_RES], off, val);
 	DELAY(5);
 
 	return (0);
+}
+
+static inline void
+mv_rtc_configure_bus(struct mv_rtc_softc *sc)
+{
+	int val;
+
+	val = bus_read_4(sc->res[RTC_SOC_RES], RTC_BRIDGE_TIMING_CTRL);
+	val &= ~(RTC_WRCLK_PERIOD_MASK | RTC_READ_OUTPUT_DELAY_MASK);
+	val |= RTC_WRCLK_PERIOD_MAX << RTC_WRCLK_PERIOD_SHIFT;
+	val |= RTC_READ_OUTPUT_DELAY_MAX << RTC_READ_OUTPUT_DELAY_SHIFT;
+	bus_write_4(sc->res[RTC_SOC_RES], RTC_BRIDGE_TIMING_CTRL, val);
 }

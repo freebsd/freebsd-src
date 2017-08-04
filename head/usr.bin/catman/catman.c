@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <langinfo.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +71,8 @@ static char *lang_locale;	/* short form of locale */
 static const char *machine, *machine_arch;
 static int exit_code;		/* exit code to use when finished */
 
+extern char **environ;
+
 /*
  * -T argument for nroff
  */
@@ -93,6 +96,7 @@ static const char *locale_device[] = {
 #define	GZCAT_CMD	"z"
 enum Ziptype {NONE, BZIP, GZIP};
 
+static bool mandoc_locales = false;
 static uid_t uid;
 static int starting_dir;
 static char tmp_file[MAXPATHLEN];
@@ -438,11 +442,24 @@ process_page(char *mandir, char *src, char *cat, enum Ziptype zipped)
 	}
 	snprintf(tmp_file, sizeof tmp_file, "%s.tmp", cat);
 	snprintf(cmd, sizeof cmd,
-	    "%scat %s | tbl | nroff -c -T%s -man | %s > %s.tmp",
+	    "%scat %s | mandoc -Tlint -Wunsupp 2>/dev/null",
 	    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
-	    src, nroff_device,
-	    zipped == BZIP ? BZ2_CMD : zipped == GZIP ? GZ_CMD : "cat",
-	    cat);
+	    src);
+	if (system(cmd) == 0) {
+		snprintf(cmd, sizeof cmd,
+		    "%scat %s | mandoc -T%s | %s > %s.tmp",
+		    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
+		    src, mandoc_locales ? "locale" : "ascii",
+		    zipped == BZIP ? BZ2_CMD : zipped == GZIP ? GZ_CMD : "cat",
+		    cat);
+	} else {
+		snprintf(cmd, sizeof cmd,
+		    "%scat %s | tbl | nroff -c -T%s -man | %s > %s.tmp",
+		    zipped == BZIP ? BZ2CAT_CMD : zipped == GZIP ? GZCAT_CMD : "",
+		    src, nroff_device,
+		    zipped == BZIP ? BZ2_CMD : zipped == GZIP ? GZ_CMD : "cat",
+		    cat);
+	}
 	if (system(cmd) != 0)
 		err(1, "formatting pipeline");
 	if (rename(tmp_file, cat) < 0)
@@ -771,6 +788,7 @@ main(int argc, char **argv)
 			break;
 		case 'L':
 			determine_locale();
+			mandoc_locales = true;
 			break;
 		case 'n':
 			pretend++;

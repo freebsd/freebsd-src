@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -61,7 +61,7 @@ getumark(c)
 getmark(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 	static struct mark sm;
 
 	switch (c)
@@ -137,7 +137,7 @@ badmark(c)
 setmark(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getumark(c);
@@ -172,7 +172,7 @@ lastmark()
 gomark(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getmark(c);
@@ -220,7 +220,7 @@ gomark(c)
 markpos(c)
 	int c;
 {
-	register struct mark *m;
+	struct mark *m;
 
 	m = getmark(c);
 	if (m == NULL)

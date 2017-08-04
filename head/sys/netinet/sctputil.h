@@ -43,13 +43,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SCTP_ASOCLOG_OF_TSNS
 void sctp_print_out_track_log(struct sctp_tcb *stcb);
-
 #endif
 
 #ifdef SCTP_MBUF_LOGGING
 struct mbuf *sctp_m_free(struct mbuf *m);
 void sctp_m_freem(struct mbuf *m);
-
 #else
 #define sctp_m_free m_free
 #define sctp_m_freem m_freem
@@ -58,7 +56,6 @@ void sctp_m_freem(struct mbuf *m);
 #if defined(SCTP_LOCAL_TRACE_BUF) || defined(__APPLE__)
 void
      sctp_log_trace(uint32_t fr, const char *str SCTP_UNUSED, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f);
-
 #endif
 
 #define sctp_get_associd(stcb) ((sctp_assoc_t)stcb->asoc.assoc_id)
@@ -68,10 +65,10 @@ void
  * Function prototypes
  */
 int32_t
-sctp_map_assoc_state(int);
+        sctp_map_assoc_state(int);
 
 uint32_t
-sctp_get_ifa_hash_val(struct sockaddr *addr);
+         sctp_get_ifa_hash_val(struct sockaddr *addr);
 
 struct sctp_ifa *
          sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int hold_lock);
@@ -222,7 +219,6 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
     int *error, unsigned int limit, int *bad_addr);
 
 int sctp_is_there_an_abort_here(struct mbuf *, int, uint32_t *);
-
 #ifdef INET6
 uint32_t sctp_is_same_scope(struct sockaddr_in6 *, struct sockaddr_in6 *);
 
@@ -357,7 +353,6 @@ void
 
 void
      sctp_log_mbc(struct mbuf *m, int from);
-
 #endif
 
 void
@@ -393,5 +388,8 @@ sctp_auditing(int, struct sctp_inpcb *, struct sctp_tcb *,
 void sctp_audit_log(uint8_t, uint8_t);
 
 #endif
+uint32_t sctp_min_mtu(uint32_t, uint32_t, uint32_t);
+void sctp_hc_set_mtu(union sctp_sockstore *, uint16_t, uint32_t);
+uint32_t sctp_hc_get_mtu(union sctp_sockstore *, uint16_t);
 #endif				/* _KERNEL */
 #endif

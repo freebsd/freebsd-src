@@ -32,16 +32,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <pthread.h>
+#include <sysexits.h>
 
 #include "mevent.h"
 #include "uart_emul.h"
@@ -638,7 +645,7 @@ uart_tty_backend(struct uart_softc *sc, const char *opts)
 		sc->tty.opened = true;
 		retval = 0;
 	}
-	    
+
 	return (retval);
 }
 
@@ -646,6 +653,10 @@ int
 uart_set_backend(struct uart_softc *sc, const char *opts)
 {
 	int retval;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
 
 	retval = -1;
 
@@ -666,6 +677,18 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 	/* Make the backend file descriptor non-blocking */
 	if (retval == 0)
 		retval = fcntl(sc->tty.fd, F_SETFL, O_NONBLOCK);
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(sc->tty.fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+	if (!uart_stdio) {
+		if (caph_limit_stdin() == -1 && errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+	}
+#endif
 
 	if (retval == 0)
 		uart_opentty(sc);

@@ -29,7 +29,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../dev/qlxgb
+.PATH: ${SRCTOP}/sys/dev/qlxgb
 
 KMOD=	if_qlxgb
 SRCS=	qla_os.c qla_dbg.c qla_hw.c qla_misc.c qla_isr.c qla_ioctl.c

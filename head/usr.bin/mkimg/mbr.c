@@ -27,35 +27,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/diskmbr.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <mbr.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
-#ifndef DOSPTYP_FAT16B
-#define	DOSPTYP_FAT16B	0x06
-#endif
-#ifndef DOSPTYP_FAT32
-#define	DOSPTYP_FAT32	0x0b
-#endif
-#ifndef DOSPTYP_PPCBOOT
-#define	DOSPTYP_PPCBOOT	0x41
-#endif
-#ifndef DOSPTYP_EFI
-#define	DOSPTYP_EFI	0xef
-#endif
-
 static struct mkimg_alias mbr_aliases[] = {
     {	ALIAS_EBR, ALIAS_INT2TYPE(DOSPTYP_EXT) },
     {	ALIAS_EFI, ALIAS_INT2TYPE(DOSPTYP_EFI) },
-    {	ALIAS_FAT16B, ALIAS_INT2TYPE(DOSPTYP_FAT16B) },
+    {	ALIAS_FAT16B, ALIAS_INT2TYPE(DOSPTYP_FAT16) },
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
     {	ALIAS_NTFS, ALIAS_INT2TYPE(DOSPTYP_NTFS) },
@@ -101,10 +89,15 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 		memset(mbr, 0, secsz);
 	le16enc(mbr + DOSMAGICOFFSET, DOSMAGIC);
 	dpbase = (void *)(mbr + DOSPARTOFF);
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		size = round_track(part->size);
 		dp = dpbase + part->index;
-		dp->dp_flag = (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
+		if (active_partition != 0)
+			dp->dp_flag =
+			    (part->index + 1 == active_partition) ? 0x80 : 0;
+		else
+			dp->dp_flag =
+			    (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
 		mbr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
 		    part->block);
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);

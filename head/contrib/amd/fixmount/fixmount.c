@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -115,7 +111,7 @@ is_same_host(char *name1, char *name2, struct in_addr addr2)
     } else if (!(he = gethostbyname(name1))) {
       return 0;
     } else {
-      xstrlcpy(lasthost, name1, MAXHOSTNAMELEN);
+      xstrlcpy(lasthost, name1, sizeof(lasthost));
       memcpy(&addr1, he->h_addr, sizeof(addr1));
       return (addr1.s_addr == addr2.s_addr);
     }
@@ -176,7 +172,7 @@ remove_mount(CLIENT *client, char *host, mountlist ml, int fixit)
 			   (XDRPROC_T_TYPE) xdr_dirpath,
 			   (char *) &pathp,
 			   (XDRPROC_T_TYPE) xdr_void,
-			   (char *) 0,
+			   (char *) NULL,
 			   tv)) != RPC_SUCCESS) {
       fprintf(stderr, "%s:%s MOUNTPROC_UMNT: ",
 	      host, ml->ml_directory);
@@ -235,9 +231,9 @@ remove_all(CLIENT *client, char *host)
   if ((estat = clnt_call(client,
 			 MOUNTPROC_UMNTALL,
 			 (XDRPROC_T_TYPE) xdr_void,
-			 (char *) 0,
+			 (char *) NULL,
 			 (XDRPROC_T_TYPE) xdr_void,
-			 (char *) 0,
+			 (char *) NULL,
 			 tv)) != RPC_SUCCESS) {
     /*
      * RPC_SYSTEMERROR is returned even if all went well
@@ -389,7 +385,7 @@ main(int argc, char *argv[])
       if ((estat = clnt_call(client,
 			     MOUNTPROC_DUMP,
 			     (XDRPROC_T_TYPE) xdr_void,
-			     (char *) 0,
+			     (char *) NULL,
 			     (XDRPROC_T_TYPE) xdr_mountlist,
 			     (char *) &mntdump,
 			     tv)) != RPC_SUCCESS) {
@@ -403,7 +399,7 @@ main(int argc, char *argv[])
       if ((estat = clnt_call(client,
 			     MOUNTPROC_EXPORT,
 			     (XDRPROC_T_TYPE) xdr_void,
-			     (char *) 0,
+			     (char *) NULL,
 			     (XDRPROC_T_TYPE) xdr_exports,
 			     (char *) &mntexports,
 			     tv)) != RPC_SUCCESS) {

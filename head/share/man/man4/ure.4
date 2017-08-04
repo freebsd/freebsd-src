@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2015 Kevin Lo <kevlo@FreeBSD.org>
+.\" Copyright (c) 2015-2016 Kevin Lo <kevlo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd October 31, 2016
 .Dt URE 4
 .Os
 .Sh NAME
 .Nm ure
-.Nd "RealTek RTL8152 USB to Fast Ethernet controller driver"
+.Nd "RealTek RTL8152/RTL8153 USB to Ethernet controller driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -54,10 +54,10 @@ if_ure_load="YES"
 The
 .Nm
 driver provides support for USB Ethernet adapters based on the RealTek
-RTL8152 USB to Fast Ethernet controller chip.
+RealTek RTL8152 and RTL8153 USB Ethernet controllers.
 .Pp
-The RTL8152 contains an integrated Fast Ethernet MAC, which supports
-both 10 and 100Mbps speeds in either full or half duplex.
+NICs based on the RTL8152 are capable of 10 and 100Mbps speeds.
+NICs based on the RTL8153 are capable of 10, 100 and 1000Mbps operation.
 .Pp
 The
 .Nm
@@ -87,12 +87,17 @@ option can also be used to select either
 or
 .Cm half-duplex
 modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+The RealTek gigE chips support 1000Mbps in
+.Cm full-duplex
+mode only.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Bl -tag -width ".Cm 10baseT/UTP"
+.Bl -tag -width ".Cm full-duplex"
 .It Cm full-duplex
 Force full duplex operation.
 .It Cm half-duplex

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../../dev/ntb
+.PATH:  ${SRCTOP}/sys/dev/ntb
 
 KMOD    = ntb_transport
 SRCS    = ntb_transport.c

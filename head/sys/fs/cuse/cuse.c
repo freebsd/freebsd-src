@@ -63,6 +63,12 @@
 
 MODULE_VERSION(cuse, 1);
 
+/*
+ * Prevent cuse4bsd.ko and cuse.ko from loading at the same time by
+ * declaring support for the cuse4bsd interface in cuse.ko:
+ */
+MODULE_VERSION(cuse4bsd, 1);
+
 #define	NBUSY	((uint8_t *)1)
 
 #ifdef FEATURE
@@ -1501,8 +1507,8 @@ cuse_client_kqfilter_poll(struct cdev *dev, struct cuse_client *pcc)
 		/* get the latest polling state from the server */
 		temp = cuse_client_poll(dev, POLLIN | POLLOUT, NULL);
 
-		cuse_lock();
 		if (temp & (POLLIN | POLLOUT)) {
+			cuse_lock();
 			if (temp & POLLIN)
 				pcc->cflags |= CUSE_CLI_KNOTE_NEED_READ;
 			if (temp & POLLOUT)
@@ -1510,8 +1516,8 @@ cuse_client_kqfilter_poll(struct cdev *dev, struct cuse_client *pcc)
 
 			/* make sure the "knote" gets woken up */
 			cuse_server_wakeup_locked(pcc->server);
+			cuse_unlock();
 		}
-		cuse_unlock();
 	}
 }
 

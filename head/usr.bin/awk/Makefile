@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
+AWKSRC=	${SRCTOP}/contrib/one-true-awk
 .PATH: ${AWKSRC}
 
 PROG=	awk
@@ -26,6 +26,6 @@ proctab.c: maketab
 	${BTOOLSPATH:U.}/maketab > proctab.c
 
 build-tools: maketab
-maketab: ytab.h ${AWKSRC}/maketab.c ${BUILD_TOOLS_META}
+maketab: ytab.h maketab.c ${BUILD_TOOLS_META}
 
 .include <bsd.prog.mk>

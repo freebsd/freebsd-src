@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Dag-Erling Smørgrav
+ * Copyright (c) 2012-2016 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readlinev.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: openpam_readlinev.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -79,6 +79,7 @@ openpam_readlinev(FILE *f, int *lineno, int *lenp)
 		/* insert our word */
 		wordv[wordvlen++] = word;
 		wordv[wordvlen] = NULL;
+		word = NULL;
 	}
 	if (errno != 0) {
 		/* I/O error or out of memory */
@@ -86,6 +87,7 @@ openpam_readlinev(FILE *f, int *lineno, int *lenp)
 		while (wordvlen--)
 			free(wordv[wordvlen]);
 		free(wordv);
+		free(word);
 		errno = serrno;
 		return (NULL);
 	}

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_apic.h"
 #endif
 #include "opt_cpu.h"
+#include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 #include "opt_sched.h"
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -87,8 +89,6 @@ int	mcount_lock;
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
-
-extern	struct pcpu __pcpu[];
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
@@ -140,6 +140,7 @@ int cpu_apic_ids[MAXCPU];
 volatile u_int cpu_ipi_pending[MAXCPU];
 
 static void	release_aps(void *dummy);
+static void	cpustop_handler_post(u_int cpu);
 
 static int	hyperthreading_allowed = 1;
 SYSCTL_INT(_machdep, OID_AUTO, hyperthreading_allowed, CTLFLAG_RDTUN,
@@ -206,14 +207,14 @@ add_deterministic_cache(int type, int level, int share_count)
 
 	if (caches[level - 1].id_shift > pkg_id_shift) {
 		printf("WARNING: L%u data cache covers more "
-		    "APIC IDs than a package\n", level);
-		printf("%u > %u\n", caches[level - 1].id_shift, pkg_id_shift);
+		    "APIC IDs than a package (%u > %u)\n", level,
+		    caches[level - 1].id_shift, pkg_id_shift);
 		caches[level - 1].id_shift = pkg_id_shift;
 	}
 	if (caches[level - 1].id_shift < core_id_shift) {
-		printf("WARNING: L%u data cache covers less "
-		    "APIC IDs than a core\n", level);
-		printf("%u < %u\n", caches[level - 1].id_shift, core_id_shift);
+		printf("WARNING: L%u data cache covers fewer "
+		    "APIC IDs than a core (%u < %u)\n", level,
+		    caches[level - 1].id_shift, core_id_shift);
 		caches[level - 1].id_shift = core_id_shift;
 	}
 
@@ -224,17 +225,18 @@ add_deterministic_cache(int type, int level, int share_count)
  * Determine topology of processing units and caches for AMD CPUs.
  * See:
  *  - AMD CPUID Specification (Publication # 25481)
- *  - BKDG For AMD Family 10h Processors (Publication # 31116), section 2.15
  *  - BKDG for AMD NPT Family 0Fh Processors (Publication # 32559)
- * XXX At the moment the code does not recognize grouping of AMD CMT threads,
- * if supported, into cores, so each thread is treated as being in its own
- * core.  In other words, each logical CPU is considered to be a core.
+ *  - BKDG For AMD Family 10h Processors (Publication # 31116)
+ *  - BKDG For AMD Family 15h Models 00h-0Fh Processors (Publication # 42301)
+ *  - BKDG For AMD Family 16h Models 00h-0Fh Processors (Publication # 48751)
  */
 static void
 topo_probe_amd(void)
 {
 	u_int p[4];
+	uint64_t v;
 	int level;
+	int nodes_per_socket;
 	int share_count;
 	int type;
 	int i;
@@ -251,6 +253,22 @@ topo_probe_amd(void)
 	if (pkg_id_shift == 0)
 		pkg_id_shift =
 		    mask_width((cpu_procinfo2 & AMDID_CMP_CORES) + 1);
+
+	/*
+	 * Families prior to 16h define the following value as
+	 * cores per compute unit and we don't really care about the AMD
+	 * compute units at the moment.  Perhaps we should treat them as
+	 * cores and cores within the compute units as hardware threads,
+	 * but that's up for debate.
+	 * Later families define the value as threads per compute unit,
+	 * so we are following AMD's nomenclature here.
+	 */
+	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0 &&
+	    CPUID_TO_FAMILY(cpu_id) >= 0x16) {
+		cpuid_count(0x8000001e, 0, p);
+		share_count = ((p[1] >> 8) & 0xff) + 1;
+		core_id_shift = mask_width(share_count);
+	}
 
 	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0) {
 		for (i = 0; ; i++) {
@@ -277,13 +295,18 @@ topo_probe_amd(void)
 				caches[1].present = 1;
 			}
 			if (((p[3] >> 18) & 0x3fff) != 0) {
-
-				/*
-				 * TODO: Account for dual-node processors
-				 * where each node within a package has its own
-				 * L3 cache.
-				 */
-				caches[2].id_shift = pkg_id_shift;
+				nodes_per_socket = 1;
+				if ((amd_feature2 & AMDID2_NODE_ID) != 0) {
+					/*
+					 * Handle multi-node processors that
+					 * have multiple chips, each with its
+					 * own L3 cache, on the same die.
+					 */
+					v = rdmsr(0xc001100c);
+					nodes_per_socket = 1 + ((v >> 3) & 0x7);
+				}
+				caches[2].id_shift =
+				    pkg_id_shift - mask_width(nodes_per_socket);
 				caches[2].present = 1;
 			}
 		}
@@ -1211,6 +1234,32 @@ ipi_nmi_handler(void)
 	return (0);
 }
 
+#ifdef DEV_ISA
+int nmi_kdb_lock;
+
+void
+nmi_call_kdb_smp(u_int type, struct trapframe *frame)
+{
+	int cpu;
+	bool call_post;
+
+	cpu = PCPU_GET(cpuid);
+	if (atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1)) {
+		nmi_call_kdb(cpu, type, frame);
+		call_post = false;
+	} else {
+		savectx(&stoppcbs[cpu]);
+		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+		while (!atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1))
+			ia32_pause();
+		call_post = true;
+	}
+	atomic_store_rel_int(&nmi_kdb_lock, 0);
+	if (call_post)
+		cpustop_handler_post(cpu);
+}
+#endif
+
 /*
  * Handle an IPI_STOP by saving our current context and spinning until we
  * are resumed.
@@ -1231,8 +1280,21 @@ cpustop_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 	    ia32_pause();
 
+	cpustop_handler_post(cpu);
+}
+
+static void
+cpustop_handler_post(u_int cpu)
+{
+
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+
+	/*
+	 * We don't broadcast TLB invalidations to other CPUs when they are
+	 * stopped. Hence, we clear the TLB before resuming.
+	 */
+	invltlb_glob();
 
 #if defined(__amd64__) && defined(DDB)
 	amd64_db_resume_dbreg();
@@ -1304,12 +1366,22 @@ cpususpend_handler(void)
 void
 invlcache_handler(void)
 {
+	uint32_t generation;
+
 #ifdef COUNT_IPIS
 	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	/*
+	 * Reading the generation here allows greater parallelism
+	 * since wbinvd is a serializing instruction.  Without the
+	 * temporary, we'd wait for wbinvd to complete, then the read
+	 * would execute, then the dependent write, which must then
+	 * complete before return from interrupt.
+	 */
+	generation = smp_tlb_generation;
 	wbinvd();
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 /*
@@ -1367,7 +1439,7 @@ SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 /* Variables needed for SMP tlb shootdown. */
 static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
 pmap_t smp_tlb_pmap;
-volatile int smp_tlb_wait;
+volatile uint32_t smp_tlb_generation;
 
 #ifdef __amd64__
 #define	read_eflags() read_rflags()
@@ -1377,15 +1449,20 @@ static void
 smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
     vm_offset_t addr1, vm_offset_t addr2)
 {
-	int cpu, ncpu, othercpus;
+	cpuset_t other_cpus;
+	volatile uint32_t *p_cpudone;
+	uint32_t generation;
+	int cpu;
 
-	othercpus = mp_ncpus - 1;	/* does not shootdown self */
+	/* It is not necessary to signal other CPUs while in the debugger. */
+	if (kdb_active || panicstr != NULL)
+		return;
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
-		if (othercpus < 1)
+		if (mp_ncpus <= 1)
 			return;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
@@ -1399,23 +1476,28 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	smp_tlb_wait =  0;
+	generation = ++smp_tlb_generation;
 	if (CPU_ISFULLSET(&mask)) {
-		ncpu = othercpus;
 		ipi_all_but_self(vector);
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
-		ncpu = 0;
+		other_cpus = mask;
 		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
 			    cpu, vector);
 			ipi_send_cpu(cpu, vector);
-			ncpu++;
 		}
 	}
-	while (smp_tlb_wait < ncpu)
-		ia32_pause();
+	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &other_cpus);
+		p_cpudone = &cpuid_to_pcpu[cpu]->pc_smp_tlb_done;
+		while (*p_cpudone != generation)
+			ia32_pause();
+	}
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -1473,6 +1555,8 @@ smp_cache_flush(void)
 void
 invltlb_handler(void)
 {
+	uint32_t generation;
+  
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1480,16 +1564,23 @@ invltlb_handler(void)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	/*
+	 * Reading the generation here allows greater parallelism
+	 * since invalidating the TLB is a serializing operation.
+	 */
+	generation = smp_tlb_generation;
 	if (smp_tlb_pmap == kernel_pmap)
 		invltlb_glob();
 	else
 		invltlb();
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 void
 invlpg_handler(void)
 {
+	uint32_t generation;
+
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1497,14 +1588,16 @@ invlpg_handler(void)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
+	generation = smp_tlb_generation;	/* Overlap with serialization */
 	invlpg(smp_tlb_addr1);
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }
 
 void
 invlrng_handler(void)
 {
-	vm_offset_t addr;
+	vm_offset_t addr, addr2;
+	uint32_t generation;
 
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_rng[PCPU_GET(cpuid)]++;
@@ -1514,10 +1607,12 @@ invlrng_handler(void)
 #endif /* COUNT_IPIS */
 
 	addr = smp_tlb_addr1;
+	addr2 = smp_tlb_addr2;
+	generation = smp_tlb_generation;	/* Overlap with serialization */
 	do {
 		invlpg(addr);
 		addr += PAGE_SIZE;
-	} while (addr < smp_tlb_addr2);
+	} while (addr < addr2);
 
-	atomic_add_int(&smp_tlb_wait, 1);
+	PCPU_SET(smp_tlb_done, generation);
 }

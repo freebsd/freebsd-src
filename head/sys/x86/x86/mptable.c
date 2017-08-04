@@ -66,13 +66,8 @@ __FBSDID("$FreeBSD$");
 #define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
 #endif
 
-#ifdef PC98
-#define BIOS_BASE		(0xe8000)
-#define BIOS_SIZE		(0x18000)
-#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
-#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
@@ -385,7 +380,7 @@ mptable_setup_io(void)
 	for (i = 0; i <= mptable_maxbusid; i++)
 		busses[i].bus_type = NOBUS;
 
-	/* Second, we run through adding I/O APIC's and busses. */
+	/* Second, we run through adding I/O APIC's and buses. */
 	mptable_parse_apics_and_busses();	
 
 	/* Third, we run through the table tweaking interrupt sources. */
@@ -584,7 +579,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 }
 
 /*
- * Enumerate I/O APIC's and busses.
+ * Enumerate I/O APIC's and buses.
  */
 static void
 mptable_parse_apics_and_busses(void)
@@ -635,20 +630,18 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-#ifndef PC98
 		if (elcr_found)
 			return (elcr_read_trigger(src_bus_irq));
 		else
-#endif
 			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
-#ifndef PC98
+
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
 		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
-#endif
+
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
@@ -988,7 +981,7 @@ mptable_pci_setup(void)
 
 	/*
 	 * Find the first pci bus and call it 0.  Panic if pci0 is not
-	 * bus zero and there are multiple PCI busses.
+	 * bus zero and there are multiple PCI buses.
 	 */
 	for (i = 0; i <= mptable_maxbusid; i++)
 		if (busses[i].bus_type == PCI) {
@@ -996,7 +989,7 @@ mptable_pci_setup(void)
 				pci0 = i;
 			else if (pci0 != 0)
 				panic(
-		"MPTable contains multiple PCI busses but no PCI bus 0");
+		"MPTable contains multiple PCI buses but no PCI bus 0");
 		}
 }
 

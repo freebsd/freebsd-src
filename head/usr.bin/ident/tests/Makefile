@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	ident
+ATF_TESTS_SH=	ident_test
 ${PACKAGE}FILES+=	\
 		test.in \
 		test.out \

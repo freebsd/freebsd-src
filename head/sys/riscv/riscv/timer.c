@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_FREQ	1000000
 
 #define	TIMER_COUNTS		0x00
-#define	TIMER_MTIMECMP(cpu)	(0x08 + (cpu * 8))
+#define	TIMER_MTIMECMP(cpu)	(cpu * 8)
 
 #define	READ8(_sc, _reg)        \
 	bus_space_read_8(_sc->bst, _sc->bsh, _reg)
@@ -77,9 +77,11 @@ __FBSDID("$FreeBSD$");
 	bus_space_write_8(_sc->bst, _sc->bsh, _reg, _val)
 
 struct riscv_tmr_softc {
-	struct resource		*res[2];
+	struct resource		*res[3];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	bus_space_tag_t		bst_timecmp;
+	bus_space_handle_t	bsh_timecmp;
 	void			*ih;
 	uint32_t		clkfreq;
 	struct eventtimer	et;
@@ -89,6 +91,7 @@ static struct riscv_tmr_softc *riscv_tmr_sc = NULL;
 
 static struct resource_spec timer_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
@@ -107,8 +110,11 @@ static struct timecounter riscv_tmr_timecount = {
 static long
 get_counts(struct riscv_tmr_softc *sc)
 {
+	uint64_t counts;
 
-	return (READ8(sc, TIMER_COUNTS));
+	counts = READ8(sc, TIMER_COUNTS);
+
+	return (counts);
 }
 
 static unsigned
@@ -134,7 +140,8 @@ riscv_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
 		counts += READ8(sc, TIMER_COUNTS);
 		cpu = PCPU_GET(cpuid);
-		WRITE8(sc, TIMER_MTIMECMP(cpu), counts);
+		bus_space_write_8(sc->bst_timecmp, sc->bsh_timecmp,
+		    TIMER_MTIMECMP(cpu), counts);
 		csr_set(sie, SIE_STIE);
 		sbi_set_timer(counts);
 
@@ -225,11 +232,13 @@ riscv_tmr_attach(device_t dev)
 	/* Memory interface */
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
+	sc->bst_timecmp = rman_get_bustag(sc->res[1]);
+	sc->bsh_timecmp = rman_get_bushandle(sc->res[1]);
 
 	riscv_tmr_sc = sc;
 
 	/* Setup IRQs handler */
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_CLK,
+	error = bus_setup_intr(dev, sc->res[2], INTR_TYPE_CLK,
 	    riscv_tmr_intr, NULL, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "Unable to alloc int resource.\n");

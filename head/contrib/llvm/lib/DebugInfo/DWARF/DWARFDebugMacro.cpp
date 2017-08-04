@@ -1,4 +1,4 @@
-//===-- DWARFDebugMacro.cpp -----------------------------------------------===//
+//===- DWARFDebugMacro.cpp ------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SyntaxHighlighting.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugMacro.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Dwarf.h"
-#include "llvm/Support/Format.h"
+#include "SyntaxHighlighting.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cstdint>
 
 using namespace llvm;
 using namespace dwarf;

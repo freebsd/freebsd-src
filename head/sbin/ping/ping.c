@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -1666,6 +1666,7 @@ pr_icmph(struct icmp *icp)
 static void
 pr_iph(struct ip *ip)
 {
+	struct in_addr ina;
 	u_char *cp;
 	int hlen;
 
@@ -1681,8 +1682,10 @@ pr_iph(struct ip *ip)
 	    (u_long) ntohl(ip->ip_off) & 0x1fff);
 	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p,
 							    ntohs(ip->ip_sum));
-	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_src.s_addr));
-	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_dst.s_addr));
+	memcpy(&ina, &ip->ip_src.s_addr, sizeof ina);
+	(void)printf(" %s ", inet_ntoa(ina));
+	memcpy(&ina, &ip->ip_dst.s_addr, sizeof ina);
+	(void)printf(" %s ", inet_ntoa(ina));
 	/* dump any option bytes */
 	while (hlen-- > 20) {
 		(void)printf("%02x", *cp++);

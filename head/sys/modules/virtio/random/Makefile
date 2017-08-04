@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/random
+.PATH: ${SRCTOP}/sys/dev/virtio/random
 
 KMOD=	virtio_random
 SRCS=	virtio_random.c

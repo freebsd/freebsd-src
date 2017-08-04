@@ -256,11 +256,13 @@ dname_pkt_compare(sldns_buffer* pkt, uint8_t* d1, uint8_t* d2)
 		log_assert(len1 == len2 && len1 != 0);
 		/* compare labels */
 		while(len1--) {
-			if(tolower((unsigned char)*d1++) != tolower((unsigned char)*d2++)) {
-				if(tolower((unsigned char)d1[-1]) < tolower((unsigned char)d2[-1]))
+			if(tolower((unsigned char)*d1) != tolower((unsigned char)*d2)) {
+				if(tolower((unsigned char)*d1) < tolower((unsigned char)*d2))
 					return -1;
 				return 1;
 			}
+			d1++;
+			d2++;
 		}
 		len1 = *d1++;
 		len2 = *d2++;
@@ -281,8 +283,10 @@ dname_query_hash(uint8_t* dname, hashvalue_t h)
 		log_assert(lablen <= LDNS_MAX_LABELLEN);
 		labuf[0] = lablen;
 		i=0;
-		while(lablen--)
-			labuf[++i] = (uint8_t)tolower((unsigned char)*dname++);
+		while(lablen--) {
+			labuf[++i] = (uint8_t)tolower((unsigned char)*dname);
+			dname++;
+		}
 		h = hashlittle(labuf, labuf[0] + 1, h);
 		lablen = *dname++;
 	}
@@ -309,8 +313,10 @@ dname_pkt_hash(sldns_buffer* pkt, uint8_t* dname, hashvalue_t h)
 		log_assert(lablen <= LDNS_MAX_LABELLEN);
 		labuf[0] = lablen;
 		i=0;
-		while(lablen--)
-			labuf[++i] = (uint8_t)tolower((unsigned char)*dname++);
+		while(lablen--) {
+			labuf[++i] = (uint8_t)tolower((unsigned char)*dname);
+			dname++;
+		}
 		h = hashlittle(labuf, labuf[0] + 1, h);
 		lablen = *dname++;
 	}

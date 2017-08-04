@@ -76,7 +76,6 @@ enum pmcstat_image_type {
 
 struct pmcstat_image {
 	LIST_ENTRY(pmcstat_image) pi_next;	/* hash link */
-	TAILQ_ENTRY(pmcstat_image) pi_lru;	/* LRU list */
 	pmcstat_interned_string	pi_execpath;    /* cookie */
 	pmcstat_interned_string pi_samplename;  /* sample path name */
 	pmcstat_interned_string pi_fullpath;    /* path to FS object */

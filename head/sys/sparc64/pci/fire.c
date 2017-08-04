@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/firereg.h>
@@ -152,6 +153,7 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,	fire_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	fire_release_msix),
 	DEVMETHOD(pcib_map_msi,		fire_map_msi),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),

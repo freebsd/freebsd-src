@@ -284,7 +284,7 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	/* Make a packet looks like it was received on enc(4) */
 	rcvif = (*ctx->mp)->m_pkthdr.rcvif;
 	(*ctx->mp)->m_pkthdr.rcvif = ifp;
-	if (pfil_run_hooks(ph, ctx->mp, ifp, pdir, NULL) != 0 ||
+	if (pfil_run_hooks(ph, ctx->mp, ifp, pdir, ctx->inp) != 0 ||
 	    *ctx->mp == NULL) {
 		*ctx->mp = NULL; /* consumed by filter */
 		return (EACCES);
@@ -423,3 +423,4 @@ static moduledata_t enc_mod = {
 };
 
 DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_enc, 1);

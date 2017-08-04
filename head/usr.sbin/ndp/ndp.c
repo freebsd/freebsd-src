@@ -44,7 +44,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -109,10 +109,11 @@
 #include <unistd.h>
 #include "gmt2local.h"
 
-#define NEXTADDR(w, s) \
-	if (rtm->rtm_addrs & (w)) { \
-		bcopy((char *)&s, cp, sizeof(s)); cp += SA_SIZE(&s);}
-
+#define	NEXTADDR(w, s)					\
+	if (rtm->rtm_addrs & (w)) {			\
+		bcopy((char *)&s, cp, sizeof(s));	\
+		cp += SA_SIZE(&s);			\
+	}
 
 static pid_t pid;
 static int nflag;
@@ -529,10 +530,10 @@ delete:
 		printf("cannot locate %s\n", host);
 		return (1);
 	}
-        /* 
-         * need to reinit the field because it has rt_key
-         * but we want the actual address
-         */
+	/*
+	 * need to reinit the field because it has rt_key
+	 * but we want the actual address
+	 */
 	NEXTADDR(RTA_DST, sin_m);
 	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE) == 0) {
@@ -604,7 +605,8 @@ again:;
 
 		rtm = (struct rt_msghdr *)next;
 		sin = (struct sockaddr_in6 *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)((char *)sin + ALIGN(sin->sin6_len));
+		sdl = (struct sockaddr_dl *)((char *)sin +
+		    ALIGN(sin->sin6_len));
 
 		/*
 		 * Some OSes can produce a route that has the LINK flag but
@@ -724,7 +726,7 @@ again:;
 			    isrouter ? "R" : "",
 			    (rtm->rtm_flags & RTF_ANNOUNCE) ? "p" : "");
 		} else {
-#if 0	/* W and P are mystery even for us */
+#if 0			/* W and P are mystery even for us */
 			sin = (struct sockaddr_in6 *)
 			    (sdl->sdl_len + (char *)sdl);
 			snprintf(flgbuf, sizeof(flgbuf), "%s%s%s%s",
@@ -855,7 +857,7 @@ rtmsg(int cmd)
 			rtm->rtm_inits = RTV_EXPIRE;
 		}
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
-#if 0 /* we don't support ipv6addr/128 type proxying */
+#if 0		/* we don't support ipv6addr/128 type proxying */
 		if (rtm->rtm_flags & RTF_ANNOUNCE) {
 			rtm->rtm_flags &= ~RTF_HOST;
 			rtm->rtm_addrs |= RTA_NETMASK;
@@ -868,7 +870,7 @@ rtmsg(int cmd)
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
-#if 0 /* we don't support ipv6addr/128 type proxying */
+#if 0	/* we don't support ipv6addr/128 type proxying */
 	memset(&so_mask.sin6_addr, 0xff, sizeof(so_mask.sin6_addr));
 	NEXTADDR(RTA_NETMASK, so_mask);
 #endif
@@ -886,7 +888,8 @@ doit:
 	}
 	do {
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
-	} while (l > 0 && (rtm->rtm_seq != seq || rtm->rtm_pid != pid));
+	} while (l > 0 && (rtm->rtm_type != cmd || rtm->rtm_seq != seq ||
+	    rtm->rtm_pid != pid));
 	if (l < 0)
 		(void) fprintf(stderr, "ndp: read from routing socket: %s\n",
 		    strerror(errno));
@@ -913,7 +916,7 @@ ifinfo(char *ifname, int argc, char **argv)
 		err(1, "ioctl(SIOCGIFINFO_IN6)");
 		/* NOTREACHED */
 	}
-#define ND nd.ndi
+#define	ND nd.ndi
 	newflags = ND.flags;
 	for (i = 0; i < argc; i++) {
 		int clear = 0;
@@ -924,35 +927,33 @@ ifinfo(char *ifname, int argc, char **argv)
 			cp++;
 		}
 
-#define SETFLAG(s, f) \
-	do {\
-		if (strcmp(cp, (s)) == 0) {\
-			if (clear)\
-				newflags &= ~(f);\
-			else\
-				newflags |= (f);\
-		}\
-	} while (0)
+#define	SETFLAG(s, f) do {			\
+	if (strcmp(cp, (s)) == 0) {		\
+		if (clear)			\
+			newflags &= ~(f);	\
+		else				\
+			newflags |= (f);	\
+	}					\
+} while (0)
 /*
  * XXX: this macro is not 100% correct, in that it matches "nud" against
  *      "nudbogus".  But we just let it go since this is minor.
  */
-#define SETVALUE(f, v) \
-	do { \
-		char *valptr; \
-		unsigned long newval; \
-		v = 0; /* unspecified */ \
-		if (strncmp(cp, f, strlen(f)) == 0) { \
-			valptr = strchr(cp, '='); \
-			if (valptr == NULL) \
-				err(1, "syntax error in %s field", (f)); \
-			errno = 0; \
-			newval = strtoul(++valptr, NULL, 0); \
-			if (errno) \
-				err(1, "syntax error in %s's value", (f)); \
-			v = newval; \
-		} \
-	} while (0)
+#define	SETVALUE(f, v) do {						\
+	char *valptr;							\
+	unsigned long newval;						\
+	v = 0; /* unspecified */					\
+	if (strncmp(cp, f, strlen(f)) == 0) {				\
+		valptr = strchr(cp, '=');				\
+		if (valptr == NULL)					\
+			err(1, "syntax error in %s field", (f));	\
+		errno = 0;						\
+		newval = strtoul(++valptr, NULL, 0);			\
+		if (errno)						\
+			err(1, "syntax error in %s's value", (f));	\
+		v = newval;						\
+	}								\
+} while (0)
 
 		SETFLAG("disabled", ND6_IFF_IFDISABLED);
 		SETFLAG("nud", ND6_IFF_PERFORMNUD);
@@ -1021,7 +1022,7 @@ ifinfo(char *ifname, int argc, char **argv)
 				printf("%02x", rbuf[j]);
 		}
 	}
-#endif
+#endif /* IPV6CTL_USETEMPADDR */
 	if (ND.flags) {
 		printf("\nFlags: ");
 #ifdef ND6_IFF_IFDISABLED
@@ -1314,7 +1315,7 @@ getdefif()
 
 	close(s);
 }
-#endif
+#endif /* SIOCSDEFIFACE_IN6 */
 
 static char *
 sec2str(time_t total)

@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 2015 Spectra Logic Corporation
+ * Copyright (c) 2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +34,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #include <errno.h>
@@ -40,38 +42,61 @@
 #include <libutil.h>
 #include <paths.h>
 #include <err.h>
+#include <sysexits.h>
+#include <sys/aio.h>
 #include <sys/disk.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+
+#define	NAIO	128
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: diskinfo [-ctv] disk ...\n");
+	fprintf(stderr, "usage: diskinfo [-cipsStvw] disk ...\n");
 	exit (1);
 }
 
-static int opt_c, opt_t, opt_v;
+static int opt_c, opt_i, opt_p, opt_s, opt_S, opt_t, opt_v, opt_w;
 
 static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 static void commandtime(int fd, off_t mediasize, u_int sectorsize);
+static void iopsbench(int fd, off_t mediasize, u_int sectorsize);
+static void slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize);
 static int zonecheck(int fd, uint32_t *zone_mode, char *zone_str,
 		     size_t zone_str_len);
 
 int
 main(int argc, char **argv)
 {
+	struct stat sb;
 	int i, ch, fd, error, exitval = 0;
 	char buf[BUFSIZ], ident[DISK_IDENT_SIZE], physpath[MAXPATHLEN];
 	char zone_desc[64];
+	struct diocgattr_arg arg;
 	off_t	mediasize, stripesize, stripeoffset;
-	u_int	sectorsize, fwsectors, fwheads, zoned = 0;
+	u_int	sectorsize, fwsectors, fwheads, zoned = 0, isreg;
 	uint32_t zone_mode;
 
-	while ((ch = getopt(argc, argv, "ctv")) != -1) {
+	while ((ch = getopt(argc, argv, "cipsStvw")) != -1) {
 		switch (ch) {
 		case 'c':
 			opt_c = 1;
+			opt_v = 1;
+			break;
+		case 'i':
+			opt_i = 1;
+			opt_v = 1;
+			break;
+		case 'p':
+			opt_p = 1;
+			break;
+		case 's':
+			opt_s = 1;
+			break;
+		case 'S':
+			opt_S = 1;
 			opt_v = 1;
 			break;
 		case 't':
@@ -80,6 +105,9 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			opt_v = 1;
+			break;
+		case 'w':
+			opt_w = 1;
 			break;
 		default:
 			usage();
@@ -91,44 +119,89 @@ main(int argc, char **argv)
 	if (argc < 1)
 		usage();
 
+	if ((opt_p && opt_s) || ((opt_p || opt_s) && (opt_c || opt_i || opt_t || opt_v))) {
+		warnx("-p or -s cannot be used with other options");
+		usage();
+	}
+
+	if (opt_S && !opt_w) {
+		warnx("-S require also -w");
+		usage();
+	}
+
 	for (i = 0; i < argc; i++) {
-		fd = open(argv[i], O_RDONLY);
+		fd = open(argv[i], (opt_w ? O_RDWR : O_RDONLY) | O_DIRECT);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
-			sprintf(buf, "%s%s", _PATH_DEV, argv[i]);
+			snprintf(buf, BUFSIZ, "%s%s", _PATH_DEV, argv[i]);
 			fd = open(buf, O_RDONLY);
 		}
 		if (fd < 0) {
 			warn("%s", argv[i]);
+			exit(1);
+		}
+		error = fstat(fd, &sb);
+		if (error != 0) {
+			warn("cannot stat %s", argv[i]);
 			exitval = 1;
 			goto out;
 		}
-		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
-			exitval = 1;
-			goto out;
-		}
-		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
-		if (error) {
-			warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
-			exitval = 1;
-			goto out;
-		}
-		error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
-		if (error)
+		isreg = S_ISREG(sb.st_mode);
+		if (isreg) {
+			mediasize = sb.st_size;
+			sectorsize = S_BLKSIZE;
 			fwsectors = 0;
-		error = ioctl(fd, DIOCGFWHEADS, &fwheads);
-		if (error)
 			fwheads = 0;
-		error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
-		if (error)
-			stripesize = 0;
-		error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
-		if (error)
+			stripesize = sb.st_blksize;
 			stripeoffset = 0;
-		error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
-		if (error == 0)
-			zoned = 1;
+			if (opt_p || opt_s) {
+				warnx("-p and -s only operate on physical devices: %s", argv[i]);
+				goto out;
+			}
+		} else {
+			if (opt_p) {
+				if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0) {
+					printf("%s\n", physpath);
+				} else {
+					warnx("Failed to determine physpath for: %s", argv[i]);
+				}
+				goto out;
+			}
+			if (opt_s) {
+				if (ioctl(fd, DIOCGIDENT, ident) == 0) {
+					printf("%s\n", ident);
+				} else {
+					warnx("Failed to determine serial number for: %s", argv[i]);
+				}
+				goto out;
+			}
+			error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
+			if (error) {
+				warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
+				exitval = 1;
+				goto out;
+			}
+			error = ioctl(fd, DIOCGFWSECTORS, &fwsectors);
+			if (error)
+				fwsectors = 0;
+			error = ioctl(fd, DIOCGFWHEADS, &fwheads);
+			if (error)
+				fwheads = 0;
+			error = ioctl(fd, DIOCGSTRIPESIZE, &stripesize);
+			if (error)
+				stripesize = 0;
+			error = ioctl(fd, DIOCGSTRIPEOFFSET, &stripeoffset);
+			if (error)
+				stripeoffset = 0;
+			error = zonecheck(fd, &zone_mode, zone_desc, sizeof(zone_desc));
+			if (error == 0)
+				zoned = 1;
+		}
 		if (!opt_v) {
 			printf("%s", argv[i]);
 			printf("\t%u", sectorsize);
@@ -159,6 +232,10 @@ main(int argc, char **argv)
 				printf("\t%-12u\t# Heads according to firmware.\n", fwheads);
 				printf("\t%-12u\t# Sectors according to firmware.\n", fwsectors);
 			} 
+			strlcpy(arg.name, "GEOM::descr", sizeof(arg.name));
+			arg.len = sizeof(arg.value.str);
+			if (ioctl(fd, DIOCGATTR, &arg) == 0)
+				printf("\t%-12s\t# Disk descr.\n", arg.value.str);
 			if (ioctl(fd, DIOCGIDENT, ident) == 0)
 				printf("\t%-12s\t# Disk ident.\n", ident);
 			if (ioctl(fd, DIOCGPHYSPATH, physpath) == 0)
@@ -171,23 +248,28 @@ main(int argc, char **argv)
 			commandtime(fd, mediasize, sectorsize);
 		if (opt_t)
 			speeddisk(fd, mediasize, sectorsize);
+		if (opt_i)
+			iopsbench(fd, mediasize, sectorsize);
+		if (opt_S)
+			slogbench(fd, isreg, mediasize, sectorsize);
 out:
 		close(fd);
 	}
 	exit (exitval);
 }
 
-
-static char sector[65536];
-static char mega[1024 * 1024];
+#define MAXTX (8*1024*1024)
+#define MEGATX (1024*1024)
+static uint8_t buf[MAXTX];
 
 static void
 rdsect(int fd, off_t blockno, u_int sectorsize)
 {
 	int error;
 
-	lseek(fd, (off_t)blockno * sectorsize, SEEK_SET);
-	error = read(fd, sector, sectorsize);
+	if (lseek(fd, (off_t)blockno * sectorsize, SEEK_SET) == -1)
+		err(1, "lseek");
+	error = read(fd, buf, sectorsize);
 	if (error == -1)
 		err(1, "read");
 	if (error != (int)sectorsize)
@@ -199,10 +281,10 @@ rdmega(int fd)
 {
 	int error;
 
-	error = read(fd, mega, sizeof(mega));
+	error = read(fd, buf, MEGATX);
 	if (error == -1)
 		err(1, "read");
-	if (error != sizeof(mega))
+	if (error != MEGATX)
 		errx(1, "disk too small for test.");
 }
 
@@ -220,14 +302,24 @@ T0(void)
 	gettimeofday(&tv1, NULL);
 }
 
-static void
-TN(int count)
+static double
+delta_t(void)
 {
 	double dt;
 
 	gettimeofday(&tv2, NULL);
 	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
 	dt += (tv2.tv_sec - tv1.tv_sec);
+
+	return (dt);
+}
+
+static void
+TN(int count)
+{
+	double dt;
+
+	dt = delta_t();
 	printf("%5d iter in %10.6f sec = %8.3f msec\n",
 		count, dt, dt * 1000.0 / count);
 }
@@ -237,11 +329,29 @@ TR(double count)
 {
 	double dt;
 
-	gettimeofday(&tv2, NULL);
-	dt = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dt += (tv2.tv_sec - tv1.tv_sec);
+	dt = delta_t();
 	printf("%8.0f kbytes in %10.6f sec = %8.0f kbytes/sec\n",
 		count, dt, count / dt);
+}
+
+static void
+TI(double count)
+{
+	double dt;
+
+	dt = delta_t();
+	printf("%8.0f ops in  %10.6f sec = %8.0f IOPS\n",
+		count, dt, count / dt);
+}
+
+static void
+TS(u_int size, int count)
+{
+	double dt;
+
+	dt = delta_t();
+	printf("%8.1f usec/IO = %8.1f Mbytes/s\n",
+	    dt * 1000000.0 / count, size * count / dt / (1024 * 1024));
 }
 
 static void
@@ -251,6 +361,9 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	off_t b0, b1, sectorcount, step;
 
 	sectorcount = mediasize / sectorsize;
+	if (sectorcount <= 0)
+		return;		/* Can't test devices with no sectors */
+
 	step = 1ULL << (flsll(sectorcount / (4 * 200)) - 1);
 	if (step > 16384)
 		step = 16384;
@@ -330,7 +443,7 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	}
 	TN(2048);
 
-	printf("Transfer rates:\n");
+	printf("\nTransfer rates:\n");
 	printf("\toutside:     ");
 	rdsect(fd, 0, sectorsize);
 	T0();
@@ -373,9 +486,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 10; i++)
 		rdmega(fd);
-	gettimeofday(&tv2, NULL);
-	dtmega = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtmega += (tv2.tv_sec - tv1.tv_sec);
+	dtmega = delta_t();
 
 	printf("\ttime to read 10MB block    %10.6f sec\t= %8.3f msec/sector\n",
 		dtmega, dtmega*100/2048);
@@ -384,9 +495,7 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 	T0();
 	for (i = 0; i < 20480; i++)
 		rdsect(fd, 0, sectorsize);
-	gettimeofday(&tv2, NULL);
-	dtsector = (tv2.tv_usec - tv1.tv_usec) / 1e6;
-	dtsector += (tv2.tv_sec - tv1.tv_sec);
+	dtsector = delta_t();
 
 	printf("\ttime to read 20480 sectors %10.6f sec\t= %8.3f msec/sector\n",
 		dtsector, dtsector*100/2048);
@@ -395,6 +504,154 @@ commandtime(int fd, off_t mediasize, u_int sectorsize)
 
 	printf("\n");
 	return;
+}
+
+static void
+iops(int fd, off_t mediasize, u_int sectorsize)
+{
+	struct aiocb aios[NAIO], *aiop;
+	ssize_t ret;
+	off_t sectorcount;
+	int error, i, queued, completed;
+
+	sectorcount = mediasize / sectorsize;
+
+	for (i = 0; i < NAIO; i++) {
+		aiop = &(aios[i]);
+		bzero(aiop, sizeof(*aiop));
+		aiop->aio_buf = malloc(sectorsize);
+		if (aiop->aio_buf == NULL)
+			err(1, "malloc");
+	}
+
+	T0();
+	for (i = 0; i < NAIO; i++) {
+		aiop = &(aios[i]);
+
+		aiop->aio_fildes = fd;
+		aiop->aio_offset = (random() % (sectorcount)) * sectorsize;
+		aiop->aio_nbytes = sectorsize;
+
+		error = aio_read(aiop);
+		if (error != 0)
+			err(1, "aio_read");
+	}
+
+	queued = i;
+	completed = 0;
+
+	for (;;) {
+		ret = aio_waitcomplete(&aiop, NULL);
+		if (ret < 0)
+			err(1, "aio_waitcomplete");
+		if (ret != (ssize_t)sectorsize)
+			errx(1, "short read");
+
+		completed++;
+
+		if (delta_t() < 3.0) {
+			aiop->aio_fildes = fd;
+			aiop->aio_offset = (random() % (sectorcount)) * sectorsize;
+			aiop->aio_nbytes = sectorsize;
+
+			error = aio_read(aiop);
+			if (error != 0)
+				err(1, "aio_read");
+
+			queued++;
+		} else if (completed == queued) {
+			break;
+		}
+	}
+
+	TI(completed);
+
+	return;
+}
+
+static void
+iopsbench(int fd, off_t mediasize, u_int sectorsize)
+{
+	printf("Asynchronous random reads:\n");
+
+	printf("\tsectorsize:  ");
+	iops(fd, mediasize, sectorsize);
+
+	if (sectorsize != 4096) {
+		printf("\t4 kbytes:    ");
+		iops(fd, mediasize, 4096);
+	}
+
+	printf("\t32 kbytes:   ");
+	iops(fd, mediasize, 32 * 1024);
+
+	printf("\t128 kbytes:  ");
+	iops(fd, mediasize, 128 * 1024);
+
+	printf("\n");
+}
+
+#define MAXIO (128*1024)
+#define MAXIOS (MAXTX / MAXIO)
+
+static void
+parwrite(int fd, size_t size, off_t off)
+{
+	struct aiocb aios[MAXIOS];
+	off_t o;
+	size_t s;
+	int n, error;
+	struct aiocb *aiop;
+
+	for (n = 0, o = 0; size > MAXIO; n++, size -= s, o += s) {
+		s = (size >= MAXIO) ? MAXIO : size;
+		aiop = &aios[n];
+		bzero(aiop, sizeof(*aiop));
+		aiop->aio_buf = &buf[o];
+		aiop->aio_fildes = fd;
+		aiop->aio_offset = off + o;
+		aiop->aio_nbytes = s;
+		error = aio_write(aiop);
+		if (error != 0)
+			err(EX_IOERR, "AIO write submit error");
+	}
+	error = pwrite(fd, &buf[o], size, off + o);
+	if (error < 0)
+		err(EX_IOERR, "Sync write error");
+	for (; n > 0; n--) {
+		error = aio_waitcomplete(&aiop, NULL);
+		if (error < 0)
+			err(EX_IOERR, "AIO write wait error");
+	}
+}
+
+static void
+slogbench(int fd, int isreg, off_t mediasize, u_int sectorsize)
+{
+	off_t off;
+	u_int size;
+	int error, n, N;
+
+	printf("Synchronous random writes:\n");
+	for (size = sectorsize; size <= MAXTX; size *= 2) {
+		printf("\t%4.4g kbytes: ", (double)size / 1024);
+		N = 0;
+		T0();
+		do {
+			for (n = 0; n < 250; n++) {
+				off = random() % (mediasize / size);
+				parwrite(fd, size, off * size);
+				if (isreg)
+					error = fsync(fd);
+				else
+					error = ioctl(fd, DIOCGFLUSH);
+				if (error < 0)
+					err(EX_IOERR, "Flush error");
+			}
+			N += 250;
+		} while (delta_t() < 1.0);
+		TS(size, N);
+	}
 }
 
 static int

@@ -30,6 +30,18 @@
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
 # $FreeBSD$
 
+# Command line options:
+#
+#     -r               Reproducible build.  Do not embed directory names, user
+#                      names, time stamps or other dynamic information into
+#                      the output file.  This is intended to allow two builds
+#                      done at different times and even by different people on
+#                      different hosts to produce identical output.
+#
+#     -R               Reproducible build if the tree represents an unmodified
+#                      checkout from a version control system.  Metadata is
+#                      included if the tree is modified.
+
 TYPE="FreeBSD"
 REVISION="12.0"
 BRANCH="CURRENT"
@@ -38,6 +50,28 @@ if [ -n "${BRANCH_OVERRIDE}" ]; then
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
+
+#
+# findvcs dir
+#	Looks up directory dir at world root and up the filesystem
+#
+findvcs()
+{
+	local savedir
+
+	savedir=$(pwd)
+	cd ${SYSDIR}/..
+	while [ $(pwd) != "/" ]; do
+		if [ -d "./$1" ]; then
+			VCSDIR=$(pwd)"/$1"
+			cd ${savedir}
+			return 0
+		fi
+		cd ..
+	done
+	cd ${savedir}
+	return 1
+}
 
 if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
@@ -142,19 +176,20 @@ for dir in /usr/bin /usr/local/bin; do
 		p4_cmd=${dir}/p4
 	fi
 done
-if [ -d "${SYSDIR}/../.git" ] ; then
+
+if findvcs .git; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
-			git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
+			git_cmd="${dir}/git --git-dir=${VCSDIR}"
 			break
 		fi
 	done
 fi
 
-if [ -d "${SYSDIR}/../.hg" ] ; then
+if findvcs .hg; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/hg" ] ; then
-			hg_cmd="${dir}/hg -R ${SYSDIR}/.."
+			hg_cmd="${dir}/hg -R ${VCSDIR}"
 			break
 		fi
 	done
@@ -163,8 +198,16 @@ fi
 if [ -n "$svnversion" ] ; then
 	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
 	case "$svn" in
-	[0-9]*)	svn=" r${svn}" ;;
-	*)	unset svn ;;
+	[0-9]*[MSP]|*:*)
+		svn=" r${svn}"
+		modified=true
+		;;
+	[0-9]*)
+		svn=" r${svn}"
+		;;
+	*)
+		unset svn
+		;;
 	esac
 fi
 
@@ -193,9 +236,10 @@ if [ -n "$git_cmd" ] ; then
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
 	fi
-	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
+	if $git_cmd --work-tree=${VCSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then
 		git="${git}-dirty"
+		modified=true
 	fi
 fi
 
@@ -208,7 +252,10 @@ if [ -n "$p4_cmd" ] ; then
 		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
 		case "$p4opened" in
 		File*) ;;
-		//*)	p4version="${p4version}+edit" ;;
+		//*)
+			p4version="${p4version}+edit"
+			modified=true
+			;;
 		esac
 		;;
 	*)	unset p4version ;;
@@ -227,10 +274,32 @@ if [ -n "$hg_cmd" ] ; then
 	fi
 fi
 
+include_metadata=true
+while getopts rR opt; do
+	case "$opt" in
+	r)
+		include_metadata=
+		;;
+	R)
+		if [ -z "${modified}" ]; then
+			include_metadata=
+		fi
+	esac
+done
+shift $((OPTIND - 1))
+
+if [ -z "${include_metadata}" ]; then
+	VERINFO="${VERSION} ${svn}${git}${hg}${p4version}"
+	VERSTR="${VERINFO}\\n"
+else
+	VERINFO="${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
+	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
+fi
+
 cat << EOF > vers.c
 $COPYRIGHT
-#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
-#define VERSTR "${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}\\n    ${u}@${h}:${d}\\n"
+#define SCCSSTR "@(#)${VERINFO}"
+#define VERSTR "${VERSTR}"
 #define RELSTR "${RELEASE}"
 
 char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;

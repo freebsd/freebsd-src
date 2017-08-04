@@ -26,7 +26,7 @@ EVT EVT::changeExtendedTypeToInteger() const {
 
 EVT EVT::changeExtendedVectorElementTypeToInteger() const {
   LLVMContext &Context = LLVMTy->getContext();
-  EVT IntTy = getIntegerVT(Context, getVectorElementType().getSizeInBits());
+  EVT IntTy = getIntegerVT(Context, getScalarSizeInBits());
   return getVectorVT(Context, IntTy, getVectorNumElements());
 }
 
@@ -53,6 +53,11 @@ bool EVT::isExtendedFloatingPoint() const {
 bool EVT::isExtendedInteger() const {
   assert(isExtended() && "Type is not extended!");
   return LLVMTy->isIntOrIntVectorTy();
+}
+
+bool EVT::isExtendedScalarInteger() const {
+  assert(isExtended() && "Type is not extended!");
+  return LLVMTy->isIntegerTy();
 }
 
 bool EVT::isExtendedVector() const {
@@ -137,6 +142,7 @@ std::string EVT::getEVTString() const {
   case MVT::Other:   return "ch";
   case MVT::Glue:    return "glue";
   case MVT::x86mmx:  return "x86mmx";
+  case MVT::v1i1:    return "v1i1";
   case MVT::v2i1:    return "v2i1";
   case MVT::v4i1:    return "v4i1";
   case MVT::v8i1:    return "v8i1";
@@ -215,6 +221,7 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::f128:    return Type::getFP128Ty(Context);
   case MVT::ppcf128: return Type::getPPC_FP128Ty(Context);
   case MVT::x86mmx:  return Type::getX86_MMXTy(Context);
+  case MVT::v1i1:    return VectorType::get(Type::getInt1Ty(Context), 1);
   case MVT::v2i1:    return VectorType::get(Type::getInt1Ty(Context), 2);
   case MVT::v4i1:    return VectorType::get(Type::getInt1Ty(Context), 4);
   case MVT::v8i1:    return VectorType::get(Type::getInt1Ty(Context), 8);

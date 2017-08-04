@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/psl.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -88,7 +89,9 @@ static struct procabi amd64_cloudabi64 = {
 	"CloudABI ELF64",
 	SYSDECODE_ABI_CLOUDABI64,
 	amd64_cloudabi64_fetch_args,
-	amd64_cloudabi64_fetch_retval
+	amd64_cloudabi64_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(amd64_cloudabi64.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(amd64_cloudabi64);

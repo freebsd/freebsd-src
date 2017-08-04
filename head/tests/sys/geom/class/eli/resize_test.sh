@@ -18,7 +18,7 @@ setsize() {
     {
 	echo a: $(($partszMB * $BLKS_PER_MB)) 0 4.2BSD 1024 8192
 	echo c: $(($unitszMB * $BLKS_PER_MB)) 0 unused 0 0
-    } | disklabel -R $md /dev/stdin
+    } | bsdlabel -R $md /dev/stdin
 }
 
 # Initialise

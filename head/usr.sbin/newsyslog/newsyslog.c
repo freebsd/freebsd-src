@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -100,17 +101,22 @@ __FBSDID("$FreeBSD$");
 #define	COMPRESS_SUFFIX_XZ	".xz"
 #endif
 
+#ifndef	COMPRESS_SUFFIX_ZST
+#define	COMPRESS_SUFFIX_ZST	".zst"
+#endif
+
 #define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ))
 
 /*
  * Compression types
  */
-#define	COMPRESS_TYPES  4	/* Number of supported compression types */
+#define	COMPRESS_TYPES  5	/* Number of supported compression types */
 
 #define	COMPRESS_NONE	0
 #define	COMPRESS_GZIP	1
 #define	COMPRESS_BZIP2	2
 #define	COMPRESS_XZ	3
+#define COMPRESS_ZSTD	4
 
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
@@ -126,6 +132,8 @@ __FBSDID("$FreeBSD$");
 #define	CE_CREATE	0x0100	/* Create the log file if it does not exist. */
 #define	CE_NODUMP	0x0200	/* Set 'nodump' on newly created log file. */
 #define	CE_PID2CMD	0x0400	/* Replace PID file with a shell command.*/
+
+#define	CE_RFC5424	0x0800	/* Use RFC5424 format rotation message */
 
 #define	MIN_PID         5	/* Don't touch pids lower than this */
 #define	MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
@@ -149,7 +157,8 @@ static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "" },					/* no compression */
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP },	/* gzip compression */
 	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2 },	/* bzip2 compression */
-	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ }		/* xz compression */
+	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ },		/* xz compression */
+	{ "Y", COMPRESS_SUFFIX_ZST, _PATH_ZSTD }	/* zst compression */
 };
 
 struct conf_entry {
@@ -241,6 +250,15 @@ static struct ptime_data *timenow; /* The time to use for checking at-fields */
 #define	DAYTIME_LEN	16
 static char daytime[DAYTIME_LEN];/* The current time in human readable form,
 				  * used for rotation-tracking messages. */
+
+/* Another buffer to hold the current time in RFC5424 format. Fractional
+ * seconds are allowed by the RFC, but are not included in the
+ * rotation-tracking messages written by newsyslog and so are not accounted for
+ * in the length below.
+ */
+#define	DAYTIME_RFC5424_LEN	sizeof("YYYY-MM-DDTHH:MM:SS+00:00")
+static char daytime_rfc5424[DAYTIME_RFC5424_LEN];
+
 static char hostname[MAXHOSTNAMELEN]; /* hostname */
 
 static const char *path_syslogpid = _PATH_SYSLOGPID;
@@ -624,6 +642,7 @@ parse_args(int argc, char **argv)
 	timenow = ptime_init(NULL);
 	ptimeset_time(timenow, time(NULL));
 	strlcpy(daytime, ptimeget_ctime(timenow) + 4, DAYTIME_LEN);
+	ptimeget_ctime_rfc5424(timenow, daytime_rfc5424, DAYTIME_RFC5424_LEN);
 
 	/* Let's get our hostname */
 	(void)gethostname(hostname, sizeof(hostname));
@@ -1290,14 +1309,20 @@ no_trimat:
 			case 'r':
 				working->flags |= CE_PID2CMD;
 				break;
+			case 't':
+				working->flags |= CE_RFC5424;
+				break;
 			case 'u':
 				working->flags |= CE_SIGNALGROUP;
 				break;
 			case 'w':
-				/* Depreciated flag - keep for compatibility purposes */
+				/* Deprecated flag - keep for compatibility purposes */
 				break;
 			case 'x':
 				working->compress = COMPRESS_XZ;
+				break;
+			case 'y':
+				working->compress = COMPRESS_ZSTD;
 				break;
 			case 'z':
 				working->compress = COMPRESS_GZIP;
@@ -1510,11 +1535,11 @@ validate_old_timelog(int fd, const struct dirent *dp, const char *logfname,
 static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
-	char *logfname, *s, *dir, errbuf[80];
+	char *basebuf, *dirbuf, errbuf[80];
+	const char *base, *dir;
 	int dir_fd, i, logcnt, max_logcnt;
 	struct oldlog_entry *oldlogs;
 	struct dirent *dp;
-	const char *cdir;
 	struct tm tm;
 	DIR *dirp;
 
@@ -1522,19 +1547,19 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 	max_logcnt = MAX_OLDLOGS;
 	logcnt = 0;
 
-	if (archive_dir != NULL && archive_dir[0] != '\0')
-		cdir = archive_dir;
-	else
-		if ((cdir = dirname(ent->log)) == NULL)
-			err(1, "dirname()");
-	if ((dir = strdup(cdir)) == NULL)
-		err(1, "strdup()");
+	if (archive_dir != NULL && archive_dir[0] != '\0') {
+		dirbuf = NULL;
+		dir = archive_dir;
+	} else {
+		if ((dirbuf = strdup(ent->log)) == NULL)
+			err(1, "strdup()");
+		dir = dirname(dirbuf);
+	}
 
-	if ((s = basename(ent->log)) == NULL)
-		err(1, "basename()");
-	if ((logfname = strdup(s)) == NULL)
+	if ((basebuf = strdup(ent->log)) == NULL)
 		err(1, "strdup()");
-	if (strcmp(logfname, "/") == 0)
+	base = basename(basebuf);
+	if (strcmp(base, "/") == 0)
 		errx(1, "Invalid log filename - became '/'");
 
 	if (verbose > 2)
@@ -1545,7 +1570,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "Cannot open log directory '%s'", dir);
 	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, base, &tm) == 0)
 			continue;
 
 		/*
@@ -1610,8 +1635,8 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		free(oldlogs[i].fname);
 	}
 	free(oldlogs);
-	free(logfname);
-	free(dir);
+	free(dirbuf);
+	free(basebuf);
 }
 
 /*
@@ -2062,7 +2087,7 @@ do_zipwork(struct zipwork_entry *zwork)
  * Save information on any process we need to signal.  Any single
  * process may need to be sent different signal-values for different
  * log files, but usually a single signal-value will cause the process
- * to close and re-open all of it's log files.
+ * to close and re-open all of its log files.
  */
 static struct sigwork_entry *
 save_sigwork(const struct conf_entry *ent)
@@ -2092,7 +2117,7 @@ save_sigwork(const struct conf_entry *ent)
 
 	tmpsiz = sizeof(struct sigwork_entry) + strlen(ent->pid_cmd_file) + 1;
 	stmp = malloc(tmpsiz);
-	
+
 	stmp->sw_runcmd = 0;
 	/* If this is a command to run we just set the flag and run command */
 	if (ent->flags & CE_PID2CMD) {
@@ -2248,15 +2273,34 @@ log_trim(const char *logname, const struct conf_entry *log_ent)
 	xtra = "";
 	if (log_ent->def_cfg)
 		xtra = " using <default> rule";
-	if (log_ent->firstcreate)
-		fprintf(f, "%s %s newsyslog[%d]: logfile first created%s\n",
-		    daytime, hostname, (int) getpid(), xtra);
-	else if (log_ent->r_reason != NULL)
-		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
-		    daytime, hostname, (int) getpid(), log_ent->r_reason, xtra);
-	else
-		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
-		    daytime, hostname, (int) getpid(), xtra);
+	if (log_ent->flags & CE_RFC5424) {
+		if (log_ent->firstcreate) {
+			fprintf(f, "<%d>1 %s %s newsyslog %d - - %s%s\n",
+			    LOG_MAKEPRI(LOG_USER, LOG_INFO),
+			    daytime_rfc5424, hostname, getpid(),
+			    "logfile first created", xtra);
+		} else if (log_ent->r_reason != NULL) {
+			fprintf(f, "<%d>1 %s %s newsyslog %d - - %s%s%s\n",
+			    LOG_MAKEPRI(LOG_USER, LOG_INFO),
+			    daytime_rfc5424, hostname, getpid(),
+			    "logfile turned over", log_ent->r_reason, xtra);
+		} else {
+			fprintf(f, "<%d>1 %s %s newsyslog %d - - %s%s\n",
+			    LOG_MAKEPRI(LOG_USER, LOG_INFO),
+			    daytime_rfc5424, hostname, getpid(),
+			    "logfile turned over", xtra);
+		}
+	} else {
+		if (log_ent->firstcreate)
+			fprintf(f, "%s %s newsyslog[%d]: logfile first created%s\n",
+			    daytime, hostname, getpid(), xtra);
+		else if (log_ent->r_reason != NULL)
+			fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
+			    daytime, hostname, getpid(), log_ent->r_reason, xtra);
+		else
+			fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
+			    daytime, hostname, getpid(), xtra);
+	}
 	if (fclose(f) == EOF)
 		err(1, "log_trim: fclose");
 	return (0);

@@ -253,7 +253,7 @@ sctp_ss_default_packet_done(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets 
 
 static int
 sctp_ss_default_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
-    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t * value SCTP_UNUSED)
+    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t *value SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return (-1);
@@ -268,9 +268,23 @@ sctp_ss_default_set_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_associa
 }
 
 static int
-sctp_ss_default_is_user_msgs_incomplete(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED)
+sctp_ss_default_is_user_msgs_incomplete(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc)
 {
-	return (0);
+	struct sctp_stream_out *strq;
+	struct sctp_stream_queue_pending *sp;
+
+	if (asoc->stream_queue_cnt != 1) {
+		return (0);
+	}
+	strq = asoc->ss_data.locked_on_sending;
+	if (strq == NULL) {
+		return (0);
+	}
+	sp = TAILQ_FIRST(&strq->outqueue);
+	if (sp == NULL) {
+		return (0);
+	}
+	return (!sp->msg_is_complete);
 }
 
 /*
@@ -294,7 +308,7 @@ sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			TAILQ_INSERT_HEAD(&asoc->ss_data.out.wheel, strq, ss_params.rr.next_spoke);
 		} else {
 			strqt = TAILQ_FIRST(&asoc->ss_data.out.wheel);
-			while (strqt != NULL && (strqt->stream_no < strq->stream_no)) {
+			while (strqt != NULL && (strqt->sid < strq->sid)) {
 				strqt = TAILQ_NEXT(strqt, ss_params.rr.next_spoke);
 			}
 			if (strqt != NULL) {
@@ -535,7 +549,7 @@ prio_again:
 
 static int
 sctp_ss_prio_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
-    struct sctp_stream_out *strq, uint16_t * value)
+    struct sctp_stream_out *strq, uint16_t *value)
 {
 	if (strq == NULL) {
 		return (-1);
@@ -863,7 +877,7 @@ sctp_ss_fcfs_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
 	sp = TAILQ_FIRST(&asoc->ss_data.out.list);
 default_again:
 	if (sp != NULL) {
-		strq = &asoc->strmout[sp->stream];
+		strq = &asoc->strmout[sp->sid];
 	} else {
 		strq = NULL;
 	}

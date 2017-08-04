@@ -1,29 +1,29 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/support ${SRCTOP}/lib/libc/gen ${SRCTOP}/lib/libc/string
 
 # libc must search machine_arch, then machine_cpuarch, but libthr has all its
 # code implemented in machine_cpuarch.  Cope.
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/sys)
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys
-CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_ARCH}
+.if exists(${SRCTOP}/lib/libc/${MACHINE_ARCH}/sys)
+.PATH: ${SRCTOP}/lib/libc/${MACHINE_ARCH}/sys
+CFLAGS+= -I${SRCTOP}/lib/libc/${MACHINE_ARCH}
 .else
-.PATH: ${.CURDIR}/../libc/${MACHINE_CPUARCH}/sys
-CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_CPUARCH}
+.PATH: ${SRCTOP}/lib/libc/${MACHINE_CPUARCH}/sys
+CFLAGS+= -I${SRCTOP}/lib/libc/${MACHINE_CPUARCH}
 .endif
 
 SYSCALLS= thr_new
 
 SYSCALL_SRC=   ${SYSCALLS:S/$/.S/}
-SYSCALL_OBJ=   ${SYSCALLS:S/$/.So/}
+SYSCALL_OBJ=   ${SYSCALLS:S/$/.pico/}
 
 ${SYSCALL_SRC}:
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
 
 LIBC_OBJS=
 
-SOBJS+=	thr_libc.So
+SOBJS+=	thr_libc.pico
 CLEANFILES+= ${SYSCALL_SRC} ${SYSCALL_OBJ} ${LIBC_OBJS}
 
-thr_libc.So: ${SYSCALL_OBJ} ${LIBC_OBJS}
+thr_libc.pico: ${SYSCALL_OBJ} ${LIBC_OBJS}
 	${CC} -fPIC -nostdlib -o ${.TARGET} -r ${.ALLSRC}

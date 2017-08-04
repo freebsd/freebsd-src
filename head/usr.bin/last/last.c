@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,8 +40,11 @@ static const char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -56,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <timeconv.h>
 #include <unistd.h>
 #include <utmpx.h>
-#include <sys/queue.h>
 
 #define	NO	0				/* false/no */
 #define	YES	1				/* true/yes */
@@ -176,6 +178,19 @@ main(int argc, char *argv[])
 			usage();
 		}
 
+	if (caph_limit_stdio() < 0)
+		err(1, "can't limit stdio rights");
+
+	caph_cache_catpages();
+	caph_cache_tzdata();
+
+	/* Cache UTX database. */
+	if (setutxdb(UTXDB_LOG, file) != 0)
+		err(1, "%s", file != NULL ? file : "(default utx db)");
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "cap_enter");
+
 	if (sflag && width == 8) usage();
 
 	if (argc) {
@@ -213,8 +228,6 @@ wtmp(void)
 	(void)time(&t);
 
 	/* Load the last entries from the file. */
-	if (setutxdb(UTXDB_LOG, file) != 0)
-		err(1, "%s", file);
 	while ((ut = getutxent()) != NULL) {
 		if (amount % 128 == 0) {
 			buf = realloc(buf, (amount + 128) * sizeof *ut);
@@ -230,7 +243,7 @@ wtmp(void)
 	/* Display them in reverse order. */
 	while (amount > 0)
 		doentry(&buf[--amount]);
-
+	free(buf);
 	tm = localtime(&t);
 	(void) strftime(ct, sizeof(ct), "%+", tm);
 	printf("\n%s begins %s\n", ((file == NULL) ? "utx.log" : file), ct);

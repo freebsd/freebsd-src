@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
+#include <dev/pci/pcivar.h>
+
 #include <vm/vm_param.h>
 
 static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
@@ -331,6 +333,15 @@ acpi_Startup(void)
     started = 1;
 
     /*
+     * Initialize the ACPICA subsystem.
+     */
+    if (ACPI_FAILURE(status = AcpiInitializeSubsystem())) {
+	printf("ACPI: Could not initialize Subsystem: %s\n",
+	    AcpiFormatException(status));
+	return_VALUE (status);
+    }
+
+    /*
      * Pre-allocate space for RSDT/XSDT and DSDT tables and allow resizing
      * if more tables exist.
      */
@@ -476,14 +487,6 @@ acpi_attach(device_t dev)
     AcpiDbgLayer = 0;
     AcpiDbgLevel = 0;
 #endif
-
-    /* Start up the ACPI CA subsystem. */
-    status = AcpiInitializeSubsystem();
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "Could not initialize Subsystem: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
 
     /* Override OS interfaces if the user requested. */
     acpi_reset_interfaces(dev);
@@ -923,6 +926,15 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     case ISA_IVAR_LOGICALID:
 	*(int *)result = acpi_isa_get_logicalid(child);
 	break;
+    case PCI_IVAR_CLASS:
+	*(uint8_t*)result = (ad->ad_cls_class >> 16) & 0xff;
+	break;
+    case PCI_IVAR_SUBCLASS:
+	*(uint8_t*)result = (ad->ad_cls_class >> 8) & 0xff;
+	break;
+    case PCI_IVAR_PROGIF:
+	*(uint8_t*)result = (ad->ad_cls_class >> 0) & 0xff;
+	break;
     default:
 	return (ENOENT);
     }
@@ -1276,7 +1288,9 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
+#if defined(__i386__) || defined(__amd64__)
     ACPI_DEVICE_INFO *devinfo;
+#endif
     rman_res_t end;
     
     /* Ignore IRQ resources for PCI link devices. */
@@ -1292,13 +1306,11 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
      * x86 of a PCI bridge claiming the I/O ports used for PCI config
      * access.
      */
+#if defined(__i386__) || defined(__amd64__)
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-#if defined(__i386__) || defined(__amd64__)
-		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT))
-#endif
-		{
+		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT)) {
 		    AcpiOsFree(devinfo);
 		    return (0);
 		}
@@ -1306,6 +1318,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	    AcpiOsFree(devinfo);
 	}
     }
+#endif
 
     /* If the resource is already allocated, fail. */
     if (resource_list_busy(rl, type, rid))
@@ -1960,6 +1973,8 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
+    ACPI_DEVICE_INFO *devinfo;
+    struct acpi_device	*ad;
     struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
@@ -2053,6 +2068,17 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * device not to have any resources.
 	     */
 	    acpi_parse_resources(child, handle, &acpi_res_parse_set, NULL);
+
+	    ad = device_get_ivars(child);
+	    ad->ad_cls_class = 0xffffff;
+	    if (ACPI_SUCCESS(AcpiGetObjectInfo(handle, &devinfo))) {
+		if ((devinfo->Valid & ACPI_VALID_CLS) != 0 &&
+		    devinfo->ClassCode.Length >= ACPI_PCICLS_STRING_SIZE) {
+		    ad->ad_cls_class = strtoul(devinfo->ClassCode.String,
+			NULL, 16);
+		}
+		AcpiOsFree(devinfo);
+	    }
 	    break;
 	}
     }

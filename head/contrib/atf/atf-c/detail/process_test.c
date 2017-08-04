@@ -26,6 +26,9 @@
 #include "atf-c/detail/process.h"
 
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -666,6 +669,14 @@ ATF_TC_BODY(status_coredump, tc)
     if (setrlimit(RLIMIT_CORE, &rl) == -1)
         atf_tc_skip("Cannot unlimit the core file size; check limits "
                     "manually");
+
+#ifdef __FreeBSD__
+	int coredump_enabled;
+	size_t ce_len = sizeof(coredump_enabled);
+	if (sysctlbyname("kern.coredump", &coredump_enabled, &ce_len, NULL,
+	    0) == 0 && !coredump_enabled)
+		atf_tc_skip("Coredumps disabled");
+#endif
 
     const int rawstatus = fork_and_wait_child(child_sigquit);
     atf_process_status_t s;

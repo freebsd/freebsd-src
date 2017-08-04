@@ -40,7 +40,7 @@ static char archive_data[] = {
 };
 
 /*
- * Compatibility: uudecode command ignores junk data placed ater the "end"
+ * Compatibility: uudecode command ignores junk data placed after the "end"
  * marker.
  */
 DEFINE_TEST(test_compat_uudecode)

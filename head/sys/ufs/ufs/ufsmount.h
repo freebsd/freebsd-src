@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -108,8 +108,8 @@ struct ufsmount {
 #define	UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define	UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 #define	UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
-#define	UFS_RDONLY(aa) ((aa)->i_ump->um_rdonly(aa))
-#define	UFS_SNAPGONE(aa) ((aa)->i_ump->um_snapgone(aa))
+#define	UFS_RDONLY(aa) (ITOUMP(aa)->um_rdonly(aa))
+#define	UFS_SNAPGONE(aa) (ITOUMP(aa)->um_snapgone(aa))
 
 #define	UFS_LOCK(aa)	mtx_lock(&(aa)->um_lock)
 #define	UFS_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)

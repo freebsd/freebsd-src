@@ -8,8 +8,6 @@ FILESDIR=	${SHAREDIR}/misc
 
 LIBADD=	edit
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

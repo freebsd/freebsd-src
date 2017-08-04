@@ -37,4 +37,3 @@ extern void start_tracing(struct trussinfo *, pid_t);
 extern void restore_proc(int);
 extern void eventloop(struct trussinfo *);
 extern const char *ioctlname(unsigned long val);
-extern char *strsig(int sig);

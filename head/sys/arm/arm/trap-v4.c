@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -139,11 +140,7 @@ static const struct data_abort data_aborts[] = {
 	{dab_align,	"Alignment Fault 3"},
 	{dab_buserr,	"External Linefetch Abort (S)"},
 	{NULL,		"Translation Fault (S)"},
-#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
-	{NULL,		"Translation Flag Fault"},
-#else
 	{dab_buserr,	"External Linefetch Abort (P)"},
-#endif
 	{NULL,		"Translation Fault (P)"},
 	{dab_buserr,	"External Non-Linefetch Abort (S)"},
 	{NULL,		"Domain Fault (S)"},
@@ -207,7 +204,7 @@ abort_handler(struct trapframe *tf, int type)
 	td = curthread;
 	p = td->td_proc;
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 	/* Data abort came from user mode? */
 	user = TRAP_USERMODE(tf);
 
@@ -618,7 +615,7 @@ prefetch_abort_handler(struct trapframe *tf)
 
  	td = curthread;
 	p = td->td_proc;
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	if (TRAP_USERMODE(tf)) {
 		td->td_frame = tf;

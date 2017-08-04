@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/bwi
+.PATH: ${SRCTOP}/sys/dev/bwi
 
 KMOD	= if_bwi
 

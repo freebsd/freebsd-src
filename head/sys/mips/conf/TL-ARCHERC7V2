@@ -15,7 +15,7 @@
 #NO_UNIVERSE
 
 # Include the default QCA955x parameters
-include         "QCA955X_BASE"
+include         "std.QCA955X"
 
 ident           TL-ARCHERC7V2
 

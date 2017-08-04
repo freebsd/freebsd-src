@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/smp.h>
+#include <sys/vmmeter.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -231,7 +232,7 @@ riscv_cpu_intr(struct trapframe *frame)
 		event = intr_events[active_irq];
 		/* Update counters */
 		atomic_add_long(riscv_intr_counters[active_irq], 1);
-		PCPU_INC(cnt.v_intr);
+		VM_CNT_INC(v_intr);
 		break;
 	default:
 		event = NULL;

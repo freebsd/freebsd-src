@@ -1,4 +1,4 @@
-/* $NetBSD: t_condwait.c,v 1.4 2013/04/12 17:18:11 christos Exp $ */
+/* $NetBSD: t_condwait.c,v 1.5 2017/01/16 16:29:19 christos Exp $ */
 
 /*
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -26,8 +26,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_condwait.c,v 1.4 2013/04/12 17:18:11 christos Exp $");
+__RCSID("$NetBSD: t_condwait.c,v 1.5 2017/01/16 16:29:19 christos Exp $");
 
+#include <sys/time.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -40,9 +41,7 @@ __RCSID("$NetBSD: t_condwait.c,v 1.4 2013/04/12 17:18:11 christos Exp $");
 
 #include "isqemu.h"
 
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#endif
+#include "h_common.h"
 
 #define WAITTIME 2	/* Timeout wait secound */
 
@@ -60,8 +59,8 @@ run(void *param)
 
 
 	clck = *(clockid_t *)param;
-	pthread_condattr_init(&attr);
-	pthread_condattr_setclock(&attr, clck); /* MONOTONIC or MONOTONIC */
+	PTHREAD_REQUIRE(pthread_condattr_init(&attr));
+	PTHREAD_REQUIRE(pthread_condattr_setclock(&attr, clck));
 	pthread_cond_init(&cond, &attr);
 
 	ATF_REQUIRE_EQ((ret = pthread_mutex_lock(&m)), 0);

@@ -51,7 +51,6 @@ static void qla_del_rcv_cntxt(qla_host_t *ha);
 static int qla_init_rcv_cntxt(qla_host_t *ha);
 static void qla_del_xmt_cntxt(qla_host_t *ha);
 static int qla_init_xmt_cntxt(qla_host_t *ha);
-static void qla_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx);
 static int qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	uint32_t *fw_mbox, uint32_t n_fwmbox, uint32_t no_pause);
 static int qla_config_intr_cntxt(qla_host_t *ha, uint32_t start_idx,
@@ -184,9 +183,9 @@ qla_sysctl_stop_pegs(SYSCTL_HANDLER_ARGS)
 
 	if (ret == 1) {
 		ha = (qla_host_t *)arg1;
-		(void)QLA_LOCK(ha, __func__, 0);
+		QLA_LOCK(ha);
 		qla_stop_pegs(ha);	
-		QLA_UNLOCK(ha, __func__);
+		QLA_UNLOCK(ha);
 	}
 
 	return err;
@@ -440,6 +439,17 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "enable_9kb", CTLFLAG_RW, &ha->hw.enable_9kb,
                 ha->hw.enable_9kb, "Enable 9Kbyte Buffers when MTU = 9000");
+
+        ha->hw.enable_hw_lro = 1;
+
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+                OID_AUTO, "enable_hw_lro", CTLFLAG_RW, &ha->hw.enable_hw_lro,
+                ha->hw.enable_hw_lro, "Enable Hardware LRO; Default is true \n"
+		"\t 1 : Hardware LRO if LRO is enabled\n"
+		"\t 0 : Software LRO if LRO is enabled\n"
+		"\t Any change requires ifconfig down/up to take effect\n"
+		"\t Note that LRO may be turned off/on via ifconfig\n");
 
 	ha->hw.mdump_active = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -1128,12 +1138,21 @@ qla_config_intr_coalesce(qla_host_t *ha, uint16_t cntxt_id, int tenable,
  *	Can be unicast, multicast or broadcast.
  */
 static int
-qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
+qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac,
+	uint32_t num_mac)
 {
 	q80_config_mac_addr_t		*cmac;
 	q80_config_mac_addr_rsp_t	*cmac_rsp;
 	uint32_t			err;
 	device_t			dev = ha->pci_dev;
+	int				i;
+	uint8_t				*mac_cpy = mac_addr;
+
+	if (num_mac > Q8_MAX_MAC_ADDRS) {
+		device_printf(dev, "%s: %s num_mac [0x%x] > Q8_MAX_MAC_ADDRS\n",
+			__func__, (add_mac ? "Add" : "Del"), num_mac);
+		return (-1);
+	}
 
 	cmac = (q80_config_mac_addr_t *)ha->hw.mbox;
 	bzero(cmac, (sizeof (q80_config_mac_addr_t)));
@@ -1149,9 +1168,13 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
 		
 	cmac->cmd |= Q8_MBX_CMAC_CMD_CAM_INGRESS;
 
-	cmac->nmac_entries = 1;
+	cmac->nmac_entries = num_mac;
 	cmac->cntxt_id = ha->hw.rcv_cntxt_id;
-	bcopy(mac_addr, cmac->mac_addr[0].addr, 6); 
+
+	for (i = 0; i < num_mac; i++) {
+		bcopy(mac_addr, cmac->mac_addr[i].addr, Q8_ETHER_ADDR_LEN); 
+		mac_addr = mac_addr + ETHER_ADDR_LEN;
+	}
 
 	if (qla_mbx_cmd(ha, (uint32_t *)cmac,
 		(sizeof (q80_config_mac_addr_t) >> 2),
@@ -1165,11 +1188,14 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac)
 	err = Q8_MBX_RSP_STATUS(cmac_rsp->regcnt_status);
 
 	if (err) {
-		device_printf(dev, "%s: %s "
-			"%02x:%02x:%02x:%02x:%02x:%02x failed1 [0x%08x]\n",
-			__func__, (add_mac ? "Add" : "Del"),
-			mac_addr[0], mac_addr[1], mac_addr[2],
-			mac_addr[3], mac_addr[4], mac_addr[5], err);
+		device_printf(dev, "%s: %s failed1 [0x%08x]\n", __func__,
+			(add_mac ? "Add" : "Del"), err);
+		for (i = 0; i < num_mac; i++) {
+			device_printf(dev, "%s: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				__func__, mac_cpy[0], mac_cpy[1], mac_cpy[2],
+				mac_cpy[3], mac_cpy[4], mac_cpy[5]);
+			mac_cpy += ETHER_ADDR_LEN;
+		}
 		return (-1);
 	}
 	
@@ -1528,6 +1554,8 @@ qla_rcv_stats(qla_host_t *ha, q80_rcv_stats_t *rstat)
 		rstat->lro_flows_active);
 	device_printf(dev, "%s: pkts_droped_unknown\t\t%" PRIu64 "\n",
 		__func__, rstat->pkts_droped_unknown);
+	device_printf(dev, "%s: pkts_cnt_oversized\t\t%" PRIu64 "\n",
+		__func__, rstat->pkts_cnt_oversized);
 }
 
 static void
@@ -2031,7 +2059,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 		ha->hw.iscsi_pkt_count++;
 
 	if (hw->tx_cntxt[txr_idx].txr_free <= (num_tx_cmds + QLA_TX_MIN_FREE)) {
-		qla_hw_tx_done_locked(ha, txr_idx);
+		ql_hw_tx_done_locked(ha, txr_idx);
 		if (hw->tx_cntxt[txr_idx].txr_free <=
 				(num_tx_cmds + QLA_TX_MIN_FREE)) {
         		QL_DPRINT8(ha, (dev, "%s: (hw->txr_free <= "
@@ -2240,6 +2268,83 @@ qla_config_rss_ind_table(qla_host_t *ha)
 	return (0);
 }
 
+static int
+qla_config_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+        for (i = 0; i < hw->num_sds_rings; i++) {
+                lro = &hw->sds[i].lro;
+
+		bzero(lro, sizeof(struct lro_ctrl));
+
+#if (__FreeBSD_version >= 1100101)
+                if (tcp_lro_init_args(lro, ha->ifp, 0, NUM_RX_DESCRIPTORS)) {
+                        device_printf(ha->pci_dev,
+				"%s: tcp_lro_init_args [%d] failed\n",
+                                __func__, i);
+                        return (-1);
+                }
+#else
+                if (tcp_lro_init(lro)) {
+                        device_printf(ha->pci_dev,
+				"%s: tcp_lro_init [%d] failed\n",
+                                __func__, i);
+                        return (-1);
+                }
+#endif /* #if (__FreeBSD_version >= 1100101) */
+
+                lro->ifp = ha->ifp;
+        }
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: LRO initialized\n", __func__));
+        return (0);
+}
+
+static void
+qla_drain_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+       	for (i = 0; i < hw->num_sds_rings; i++) {
+               	lro = &hw->sds[i].lro;
+
+#if (__FreeBSD_version >= 1100101)
+		tcp_lro_flush_all(lro);
+#else
+                struct lro_entry *queued;
+
+		while ((!SLIST_EMPTY(&lro->lro_active))) {
+			queued = SLIST_FIRST(&lro->lro_active);
+			SLIST_REMOVE_HEAD(&lro->lro_active, next);
+			tcp_lro_flush(lro, queued);
+		}
+#endif /* #if (__FreeBSD_version >= 1100101) */
+	}
+
+	return;
+}
+
+static void
+qla_free_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+        for (i = 0; i < hw->num_sds_rings; i++) {
+               	lro = &hw->sds[i].lro;
+		tcp_lro_free(lro);
+	}
+
+	return;
+}
+
+
 /*
  * Name: ql_del_hw_if
  * Function: Destroys the hardware specific entities corresponding to an
@@ -2254,6 +2359,7 @@ ql_del_hw_if(qla_host_t *ha)
 	(void)qla_stop_nic_func(ha);
 
 	qla_del_rcv_cntxt(ha);
+
 	qla_del_xmt_cntxt(ha);
 
 	if (ha->hw.flags.init_intr_cnxt) {
@@ -2270,6 +2376,12 @@ ql_del_hw_if(qla_host_t *ha)
 
 		ha->hw.flags.init_intr_cnxt = 0;
 	}
+
+	if (ha->hw.enable_soft_lro) {
+		qla_drain_soft_lro(ha);
+		qla_free_soft_lro(ha);
+	}
+
 	return;
 }
 
@@ -2291,7 +2403,6 @@ qla_confirm_9kb_enable(qla_host_t *ha)
 
 	return;
 }
-
 
 /*
  * Name: ql_init_hw_if
@@ -2368,7 +2479,7 @@ ql_init_hw_if(qla_host_t *ha)
 	}
 	ha->hw.max_tx_segs = 0;
 
-	if (qla_config_mac_addr(ha, ha->hw.mac_addr, 1))
+	if (qla_config_mac_addr(ha, ha->hw.mac_addr, 1, 1))
 		return(-1);
 
 	ha->hw.flags.unicast_mac = 1;
@@ -2376,7 +2487,7 @@ ql_init_hw_if(qla_host_t *ha)
 	bcast_mac[0] = 0xFF; bcast_mac[1] = 0xFF; bcast_mac[2] = 0xFF;
 	bcast_mac[3] = 0xFF; bcast_mac[4] = 0xFF; bcast_mac[5] = 0xFF;
 
-	if (qla_config_mac_addr(ha, bcast_mac, 1))
+	if (qla_config_mac_addr(ha, bcast_mac, 1, 1))
 		return (-1);
 
 	ha->hw.flags.bcast_mac = 1;
@@ -2385,6 +2496,9 @@ ql_init_hw_if(qla_host_t *ha)
 	 * program any cached multicast addresses
 	 */
 	if (qla_hw_add_all_mcast(ha))
+		return (-1);
+
+	if (ql_set_max_mtu(ha, ha->max_frame_size, ha->hw.rcv_cntxt_id))
 		return (-1);
 
 	if (qla_config_rss(ha, ha->hw.rcv_cntxt_id))
@@ -2399,8 +2513,19 @@ ql_init_hw_if(qla_host_t *ha)
 	if (qla_link_event_req(ha, ha->hw.rcv_cntxt_id))
 		return (-1);
 
-	if (qla_config_fw_lro(ha, ha->hw.rcv_cntxt_id))
-		return (-1);
+	if (ha->ifp->if_capenable & IFCAP_LRO) {
+		if (ha->hw.enable_hw_lro) {
+			ha->hw.enable_soft_lro = 0;
+
+			if (qla_config_fw_lro(ha, ha->hw.rcv_cntxt_id))
+				return (-1);
+		} else {
+			ha->hw.enable_soft_lro = 1;
+
+			if (qla_config_soft_lro(ha))
+				return (-1);
+		}
+	}
 
         if (qla_init_nic_func(ha))
                 return (-1);
@@ -2534,15 +2659,8 @@ qla_init_rcv_cntxt(qla_host_t *ha)
 			qla_host_to_le64(hw->dma_buf.sds_ring[i].dma_addr);
 		rcntxt->sds[i].size =
 			qla_host_to_le32(NUM_STATUS_DESCRIPTORS);
-		if (ha->msix_count == 2) {
-			rcntxt->sds[i].intr_id =
-				qla_host_to_le16(hw->intr_id[0]);
-			rcntxt->sds[i].intr_src_bit = qla_host_to_le16((i));
-		} else {
-			rcntxt->sds[i].intr_id =
-				qla_host_to_le16(hw->intr_id[i]);
-			rcntxt->sds[i].intr_src_bit = qla_host_to_le16(0);
-		}
+		rcntxt->sds[i].intr_id = qla_host_to_le16(hw->intr_id[i]);
+		rcntxt->sds[i].intr_src_bit = qla_host_to_le16(0);
 	}
 
 	for (i = 0; i <  rcntxt_rds_rings; i++) {
@@ -2654,17 +2772,11 @@ qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds)
                 add_rcv->sds[i].size =
                         qla_host_to_le32(NUM_STATUS_DESCRIPTORS);
 
-                if (ha->msix_count == 2) {
-                        add_rcv->sds[i].intr_id =
-                                qla_host_to_le16(hw->intr_id[0]);
-                        add_rcv->sds[i].intr_src_bit = qla_host_to_le16(j);
-                } else {
-                        add_rcv->sds[i].intr_id =
-                                qla_host_to_le16(hw->intr_id[j]);
-                        add_rcv->sds[i].intr_src_bit = qla_host_to_le16(0);
-                }
+                add_rcv->sds[i].intr_id = qla_host_to_le16(hw->intr_id[j]);
+                add_rcv->sds[i].intr_src_bit = qla_host_to_le16(0);
 
         }
+
         for (i = 0; (i <  nsds); i++) {
                 j = i + sds_idx;
 
@@ -2733,14 +2845,14 @@ qla_del_rcv_cntxt(qla_host_t *ha)
 		bcast_mac[0] = 0xFF; bcast_mac[1] = 0xFF; bcast_mac[2] = 0xFF;
 		bcast_mac[3] = 0xFF; bcast_mac[4] = 0xFF; bcast_mac[5] = 0xFF;
 
-		if (qla_config_mac_addr(ha, bcast_mac, 0))
+		if (qla_config_mac_addr(ha, bcast_mac, 0, 1))
 			return;
 		ha->hw.flags.bcast_mac = 0;
 
 	}
 
 	if (ha->hw.flags.unicast_mac) {
-		if (qla_config_mac_addr(ha, ha->hw.mac_addr, 0))
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr, 0, 1))
 			return;
 		ha->hw.flags.unicast_mac = 0;
 	}
@@ -2785,6 +2897,7 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 	q80_rsp_tx_cntxt_t	*tcntxt_rsp;
 	uint32_t		err;
 	qla_hw_tx_cntxt_t       *hw_tx_cntxt;
+	uint32_t		intr_idx;
 
 	hw_tx_cntxt = &hw->tx_cntxt[txr_idx];
 
@@ -2800,6 +2913,8 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 	tcntxt->count_version = (sizeof (q80_rq_tx_cntxt_t) >> 2);
 	tcntxt->count_version |= Q8_MBX_CMD_VERSION;
 
+	intr_idx = txr_idx;
+
 #ifdef QL_ENABLE_ISCSI_TLV
 
 	tcntxt->cap0 = Q8_TX_CNTXT_CAP0_BASEFW | Q8_TX_CNTXT_CAP0_LSO |
@@ -2809,8 +2924,9 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 		tcntxt->traffic_class = 1;
 	}
 
-#else
+	intr_idx = txr_idx % (ha->hw.num_tx_rings >> 1);
 
+#else
 	tcntxt->cap0 = Q8_TX_CNTXT_CAP0_BASEFW | Q8_TX_CNTXT_CAP0_LSO;
 
 #endif /* #ifdef QL_ENABLE_ISCSI_TLV */
@@ -2823,9 +2939,8 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 		qla_host_to_le64(hw_tx_cntxt->tx_cons_paddr);
 	tcntxt->tx_ring[0].nentries = qla_host_to_le16(NUM_TX_DESCRIPTORS);
 
-	tcntxt->tx_ring[0].intr_id = qla_host_to_le16(hw->intr_id[0]);
+	tcntxt->tx_ring[0].intr_id = qla_host_to_le16(hw->intr_id[intr_idx]);
 	tcntxt->tx_ring[0].intr_src_bit = qla_host_to_le16(0);
-
 
 	hw_tx_cntxt->txr_free = NUM_TX_DESCRIPTORS;
 	hw_tx_cntxt->txr_next = hw_tx_cntxt->txr_comp = 0;
@@ -2926,11 +3041,19 @@ qla_init_xmt_cntxt(qla_host_t *ha)
 }
 
 static int
-qla_hw_add_all_mcast(qla_host_t *ha)
+qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 {
 	int i, nmcast;
+	uint32_t count = 0;
+	uint8_t *mcast;
 
 	nmcast = ha->hw.nmcast;
+
+	QL_DPRINT2(ha, (ha->pci_dev,
+		"%s:[0x%x] enter nmcast = %d \n", __func__, add_mcast, nmcast));
+
+	mcast = ha->hw.mac_addr_arr;
+	memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 
 	for (i = 0 ; ((i < Q8_MAX_NUM_MULTICAST_ADDRS) && nmcast); i++) {
 		if ((ha->hw.mcast[i].addr[0] != 0) || 
@@ -2940,52 +3063,80 @@ qla_hw_add_all_mcast(qla_host_t *ha)
 			(ha->hw.mcast[i].addr[4] != 0) ||
 			(ha->hw.mcast[i].addr[5] != 0)) {
 
-			if (qla_config_mac_addr(ha, ha->hw.mcast[i].addr, 1)) {
-                		device_printf(ha->pci_dev, "%s: failed\n",
-					__func__);
-				return (-1);
+			bcopy(ha->hw.mcast[i].addr, mcast, ETHER_ADDR_LEN);
+			mcast = mcast + ETHER_ADDR_LEN;
+			count++;
+			
+			if (count == Q8_MAX_MAC_ADDRS) {
+				if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
+					add_mcast, count)) {
+                			device_printf(ha->pci_dev,
+						"%s: failed\n", __func__);
+					return (-1);
+				}
+
+				count = 0;
+				mcast = ha->hw.mac_addr_arr;
+				memset(mcast, 0,
+					(Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 			}
 
 			nmcast--;
 		}
 	}
+
+	if (count) {
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr, add_mcast,
+			count)) {
+                	device_printf(ha->pci_dev, "%s: failed\n", __func__);
+			return (-1);
+		}
+	}
+	QL_DPRINT2(ha, (ha->pci_dev,
+		"%s:[0x%x] exit nmcast = %d \n", __func__, add_mcast, nmcast));
+
 	return 0;
+}
+
+static int
+qla_hw_add_all_mcast(qla_host_t *ha)
+{
+	int ret;
+
+	ret = qla_hw_all_mcast(ha, 1);
+
+	return (ret);
 }
 
 static int
 qla_hw_del_all_mcast(qla_host_t *ha)
 {
-	int i, nmcast;
+	int ret;
 
-	nmcast = ha->hw.nmcast;
+	ret = qla_hw_all_mcast(ha, 0);
 
-	for (i = 0 ; ((i < Q8_MAX_NUM_MULTICAST_ADDRS) && nmcast); i++) {
-		if ((ha->hw.mcast[i].addr[0] != 0) || 
-			(ha->hw.mcast[i].addr[1] != 0) ||
-			(ha->hw.mcast[i].addr[2] != 0) ||
-			(ha->hw.mcast[i].addr[3] != 0) ||
-			(ha->hw.mcast[i].addr[4] != 0) ||
-			(ha->hw.mcast[i].addr[5] != 0)) {
+	bzero(ha->hw.mcast, (sizeof (qla_mcast_t) * Q8_MAX_NUM_MULTICAST_ADDRS));
+	ha->hw.nmcast = 0;
 
-			if (qla_config_mac_addr(ha, ha->hw.mcast[i].addr, 0))
-				return (-1);
-
-			nmcast--;
-		}
-	}
-	return 0;
+	return (ret);
 }
 
 static int
-qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta)
+qla_hw_mac_addr_present(qla_host_t *ha, uint8_t *mta)
 {
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
-
 		if (QL_MAC_CMP(ha->hw.mcast[i].addr, mta) == 0)
-			return 0; /* its been already added */
+			return (0); /* its been already added */
 	}
+	return (-1);
+}
+
+static int
+qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
+{
+	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
 
@@ -2996,28 +3147,27 @@ qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta)
 			(ha->hw.mcast[i].addr[4] == 0) &&
 			(ha->hw.mcast[i].addr[5] == 0)) {
 
-			if (qla_config_mac_addr(ha, mta, 1))
-				return (-1);
-
 			bcopy(mta, ha->hw.mcast[i].addr, Q8_MAC_ADDR_LEN);
 			ha->hw.nmcast++;	
 
-			return 0;
+			mta = mta + ETHER_ADDR_LEN;
+			nmcast--;
+
+			if (nmcast == 0)
+				break;
 		}
+
 	}
 	return 0;
 }
 
 static int
-qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
+qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 {
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
 		if (QL_MAC_CMP(ha->hw.mcast[i].addr, mta) == 0) {
-
-			if (qla_config_mac_addr(ha, mta, 0))
-				return (-1);
 
 			ha->hw.mcast[i].addr[0] = 0;
 			ha->hw.mcast[i].addr[1] = 0;
@@ -3028,7 +3178,11 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
 
 			ha->hw.nmcast--;	
 
-			return 0;
+			mta = mta + ETHER_ADDR_LEN;
+			nmcast--;
+
+			if (nmcast == 0)
+				break;
 		}
 	}
 	return 0;
@@ -3036,39 +3190,84 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta)
 
 /*
  * Name: ql_hw_set_multi
- * Function: Sets the Multicast Addresses provided the host O.S into the
+ * Function: Sets the Multicast Addresses provided by the host O.S into the
  *	hardware (for the given interface)
  */
 int
-ql_hw_set_multi(qla_host_t *ha, uint8_t *mcast, uint32_t mcnt,
+ql_hw_set_multi(qla_host_t *ha, uint8_t *mcast_addr, uint32_t mcnt,
 	uint32_t add_mac)
 {
+	uint8_t *mta = mcast_addr;
 	int i;
-	uint8_t *mta = mcast;
 	int ret = 0;
+	uint32_t count = 0;
+	uint8_t *mcast;
+
+	mcast = ha->hw.mac_addr_arr;
+	memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 
 	for (i = 0; i < mcnt; i++) {
-		if (add_mac) {
-			ret = qla_hw_add_mcast(ha, mta);
-			if (ret)
-				break;
-		} else {
-			ret = qla_hw_del_mcast(ha, mta);
-			if (ret)
-				break;
+		if (mta[0] || mta[1] || mta[2] || mta[3] || mta[4] || mta[5]) {
+			if (add_mac) {
+				if (qla_hw_mac_addr_present(ha, mta) != 0) {
+					bcopy(mta, mcast, ETHER_ADDR_LEN);
+					mcast = mcast + ETHER_ADDR_LEN;
+					count++;
+				}
+			} else {
+				if (qla_hw_mac_addr_present(ha, mta) == 0) {
+					bcopy(mta, mcast, ETHER_ADDR_LEN);
+					mcast = mcast + ETHER_ADDR_LEN;
+					count++;
+				}
+			}
+		}
+		if (count == Q8_MAX_MAC_ADDRS) {
+			if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
+				add_mac, count)) {
+                		device_printf(ha->pci_dev, "%s: failed\n",
+					__func__);
+				return (-1);
+			}
+
+			if (add_mac) {
+				qla_hw_add_mcast(ha, ha->hw.mac_addr_arr,
+					count);
+			} else {
+				qla_hw_del_mcast(ha, ha->hw.mac_addr_arr,
+					count);
+			}
+
+			count = 0;
+			mcast = ha->hw.mac_addr_arr;
+			memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 		}
 			
 		mta += Q8_MAC_ADDR_LEN;
 	}
+
+	if (count) {
+		if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr, add_mac,
+			count)) {
+                	device_printf(ha->pci_dev, "%s: failed\n", __func__);
+			return (-1);
+		}
+		if (add_mac) {
+			qla_hw_add_mcast(ha, ha->hw.mac_addr_arr, count);
+		} else {
+			qla_hw_del_mcast(ha, ha->hw.mac_addr_arr, count);
+		}
+	}
+
 	return (ret);
 }
 
 /*
- * Name: qla_hw_tx_done_locked
+ * Name: ql_hw_tx_done_locked
  * Function: Handle Transmit Completions
  */
-static void
-qla_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
+void
+ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 {
 	qla_tx_buf_t *txb;
         qla_hw_t *hw = &ha->hw;
@@ -3103,34 +3302,6 @@ qla_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 	}
 
 	hw_tx_cntxt->txr_free += comp_count;
-	return;
-}
-
-/*
- * Name: ql_hw_tx_done
- * Function: Handle Transmit Completions
- */
-void
-ql_hw_tx_done(qla_host_t *ha)
-{
-	int i;
-	uint32_t flag = 0;
-
-	if (!mtx_trylock(&ha->tx_lock)) {
-       		QL_DPRINT8(ha, (ha->pci_dev,
-			"%s: !mtx_trylock(&ha->tx_lock)\n", __func__));
-		return;
-	}
-	for (i = 0; i < ha->hw.num_tx_rings; i++) {
-		qla_hw_tx_done_locked(ha, i);
-		if (ha->hw.tx_cntxt[i].txr_free <= (NUM_TX_DESCRIPTORS >> 1))
-			flag = 1;
-	}
-
-	if (!flag)
-		ha->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	QLA_TX_UNLOCK(ha);
 	return;
 }
 
@@ -3195,7 +3366,7 @@ ql_hw_check_health(qla_host_t *ha)
 
 	ha->hw.health_count++;
 
-	if (ha->hw.health_count < 1000)
+	if (ha->hw.health_count < 500)
 		return 0;
 
 	ha->hw.health_count = 0;
@@ -3214,10 +3385,18 @@ ql_hw_check_health(qla_host_t *ha)
 	if ((val != ha->hw.hbeat_value) &&
 		(!(QL_ERR_INJECT(ha, INJCT_HEARTBEAT_FAILURE)))) {
 		ha->hw.hbeat_value = val;
+		ha->hw.hbeat_failure = 0;
 		return 0;
 	}
-	device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
-		__func__, val);
+
+	ha->hw.hbeat_failure++;
+
+	if (ha->hw.hbeat_failure < 2) /* we ignore the first failure */
+		return 0;
+	else
+		device_printf(ha->pci_dev, "%s: Heartbeat Failue [0x%08x]\n",
+			__func__, val);
+
 
 	return -1;
 }
@@ -3553,7 +3732,7 @@ qla_get_port_config(qla_host_t *ha, uint32_t *cfg_bits)
 }
 
 int
-qla_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
+ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
 {
         struct ether_vlan_header        *eh;
         uint16_t                        etype;

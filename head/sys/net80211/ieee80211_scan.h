@@ -250,7 +250,9 @@ struct ieee80211_scanparams {
 	uint8_t		*quiet;
 	uint8_t		*meshid;
 	uint8_t		*meshconf;
-	uint8_t		*spare[3];
+	uint8_t		*vhtcap;
+	uint8_t		*vhtopmode;
+	uint8_t		*spare[1];
 };
 
 /*

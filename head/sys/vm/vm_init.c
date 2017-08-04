@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -90,10 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 long physmem;
-
-static int exec_map_entries = 16;
-SYSCTL_INT(_vm, OID_AUTO, exec_map_entries, CTLFLAG_RDTUN, &exec_map_entries, 0,
-    "Maximum number of simultaneous execs");
 
 /*
  * System initialization
@@ -206,8 +202,18 @@ again:
 	 */
 	if (firstaddr == 0) {
 		size = (vm_size_t)v;
-		firstaddr = kmem_malloc(kernel_arena, round_page(size),
-		    M_ZERO | M_WAITOK);
+#ifdef VM_FREELIST_DMA32
+		/*
+		 * Try to protect 32-bit DMAable memory from the largest
+		 * early alloc of wired mem.
+		 */
+		firstaddr = kmem_alloc_attr(kernel_arena, size,
+		    M_ZERO | M_NOWAIT, (vm_paddr_t)1 << 32,
+		    ~(vm_paddr_t)0, VM_MEMATTR_DEFAULT);
+		if (firstaddr == 0)
+#endif
+			firstaddr = kmem_malloc(kernel_arena, size,
+			    M_ZERO | M_WAITOK);
 		if (firstaddr == 0)
 			panic("startup: no room for tables");
 		goto again;
@@ -261,10 +267,19 @@ again:
 		panic("Clean map calculation incorrect");
 
 	/*
- 	 * Allocate the pageable submaps.
+	 * Allocate the pageable submaps.  We may cache an exec map entry per
+	 * CPU, so we therefore need to reserve space for at least ncpu+1
+	 * entries to avoid deadlock.  The exec map is also used by some image
+	 * activators, so we leave a fixed number of pages for their use.
 	 */
+#ifdef __LP64__
+	exec_map_entries = 8 * mp_ncpus;
+#else
+	exec_map_entries = 2 * mp_ncpus + 4;
+#endif
+	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    exec_map_entries * round_page(PATH_MAX + ARG_MAX), FALSE);
+	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, FALSE);
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    FALSE);
 }

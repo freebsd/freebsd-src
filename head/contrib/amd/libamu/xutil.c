@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,14 +59,13 @@ static char am_hostname[MAXHOSTNAMELEN] = "unknown"; /* Hostname */
 pid_t am_mypid = -1;		/* process ID */
 serv_state amd_state;		/* amd's state */
 int foreground = 1;		/* 1 == this is the top-level server */
-int debug_flags = 0;
+u_int debug_flags = D_CONTROL;	/* set regardless if compiled with debugging */
 
 #ifdef HAVE_SYSLOG
 int syslogging;
 #endif /* HAVE_SYSLOG */
-int xlog_level = XLOG_ALL & ~XLOG_MAP & ~XLOG_STATS;
-int xlog_level_init = ~0;
-static int amd_program_number = AMQ_PROGRAM;
+static u_int xlog_level = XLOG_DEFAULT;
+static u_long amd_program_number = AMQ_PROGRAM;
 
 #ifdef DEBUG_MEM
 # if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_VERIFY)
@@ -92,23 +87,23 @@ static void real_plog(int lvl, const char *fmt, va_list vargs)
 struct opt_tab dbg_opt[] =
 {
   {"all", D_ALL},		/* All non-disruptive options */
-  {"amq", D_AMQ},		/* Don't register for AMQ program */
-  {"daemon", D_DAEMON},		/* Don't enter daemon mode */
-  {"fork", D_FORK},		/* Don't fork server */
+  {"defaults", D_DEFAULT},	/* Default options */
+  {"test", D_TEST},		/* Full debug - no daemon, no fork, no amq, local mtab */
+  {"amq", D_AMQ},		/* Register for AMQ program */
+  {"daemon", D_DAEMON},		/* Enter daemon mode */
+  {"fork", D_FORK},		/* Fork server (hlfsd only) */
   {"full", D_FULL},		/* Program trace */
 #ifdef HAVE_CLOCK_GETTIME
   {"hrtime", D_HRTIME},		/* Print high resolution time stamps */
 #endif /* HAVE_CLOCK_GETTIME */
-  /* info service specific debugging (hesiod, nis, etc) */
-  {"info", D_INFO},
+  {"info", D_INFO},		/* info service specific debugging (hesiod, nis, etc) */
   {"mem", D_MEM},		/* Trace memory allocations */
   {"mtab", D_MTAB},		/* Use local mtab file */
   {"readdir", D_READDIR},	/* Check on browsable_dirs progress */
   {"str", D_STR},		/* Debug string munging */
-  {"test", D_TEST},		/* Full debug - no daemon, no amq, local mtab */
   {"trace", D_TRACE},		/* Protocol trace */
   {"xdrtrace", D_XDRTRACE},	/* Trace xdr routines */
-  {0, 0}
+  {NULL, 0}
 };
 #endif /* DEBUG */
 
@@ -118,6 +113,7 @@ struct opt_tab dbg_opt[] =
 struct opt_tab xlog_opt[] =
 {
   {"all", XLOG_ALL},		/* All messages */
+  {"defaults", XLOG_DEFAULT},	/* Default messages */
 #ifdef DEBUG
   {"debug", XLOG_DEBUG},	/* Debug messages */
 #endif /* DEBUG */		/* DEBUG */
@@ -129,7 +125,7 @@ struct opt_tab xlog_opt[] =
   {"user", XLOG_USER},		/* Non-fatal user errors */
   {"warn", XLOG_WARNING},	/* Warnings */
   {"warning", XLOG_WARNING},	/* Warnings */
-  {0, 0}
+  {NULL, 0}
 };
 
 
@@ -150,7 +146,7 @@ am_get_progname(void)
 void
 am_set_hostname(char *hn)
 {
-  xstrlcpy(am_hostname, hn, MAXHOSTNAMELEN);
+  xstrlcpy(am_hostname, hn, sizeof(am_hostname));
 }
 
 
@@ -295,17 +291,23 @@ expand_error(const char *f, char *e, size_t maxlen)
   const char *p;
   char *q;
   int error = errno;
-  int len = 0;
+  size_t len = 0, l;
 
-  for (p = f, q = e; (*q = *p) && (size_t) len < maxlen; len++, q++, p++) {
+  *e = '\0';
+  for (p = f, q = e; len < maxlen && (*q = *p); len++, q++, p++) {
     if (p[0] == '%' && p[1] == 'm') {
-      xstrlcpy(q, strerror(error), maxlen);
-      len += strlen(q) - 1;
-      q += strlen(q) - 1;
+      if (len >= maxlen)
+	break;
+      xstrlcpy(q, strerror(error), maxlen - len);
+      l = strlen(q);
+      if (l != 0)
+	  l--;
+      len += l;
+      q += l;
       p++;
     }
   }
-  e[maxlen-1] = '\0';		/* null terminate, to be sure */
+  e[maxlen - 1] = '\0';		/* null terminate, to be sure */
   return e;
 }
 
@@ -317,7 +319,7 @@ static void
 show_time_host_and_name(int lvl)
 {
   static time_t last_t = 0;
-  static char *last_ctime = 0;
+  static char *last_ctime = NULL;
   time_t t;
 #if defined(HAVE_CLOCK_GETTIME) && defined(DEBUG)
   struct timespec ts;
@@ -390,21 +392,63 @@ show_time_host_and_name(int lvl)
 int
 debug_option(char *opt)
 {
-  return cmdoption(opt, dbg_opt, &debug_flags);
+  u_int dl = debug_flags;
+  static int initialized_debug_flags = 0;
+  int rc = cmdoption(opt, dbg_opt, &dl);
+
+  if (rc)		    /* if got any error, don't update debug flags */
+    return EINVAL;
+
+  /*
+   * If we already initialized the debugging flags once (via amd.conf), then
+   * don't allow "immutable" flags to be changed again (via amq -D), because
+   * they could mess Amd's state and only make sense to be set once when Amd
+   * starts.
+   */
+  if (initialized_debug_flags &&
+      debug_flags != 0 &&
+      (dl & D_IMMUTABLE) != (debug_flags & D_IMMUTABLE)) {
+    plog(XLOG_ERROR, "cannot change immutable debug flags");
+    /* undo any attempted change to an immutable flag */
+    dl = (dl & ~D_IMMUTABLE) | (debug_flags & D_IMMUTABLE);
+  }
+  initialized_debug_flags = 1;
+  debug_flags = dl;
+
+  return rc;
 }
 
 
 void
 dplog(const char *fmt, ...)
 {
+#ifdef HAVE_SIGACTION
+  sigset_t old, chld;
+#else /* not HAVE_SIGACTION */
+  int mask;
+#endif /* not HAVE_SIGACTION */
   va_list ap;
 
+#ifdef HAVE_SIGACTION
+  sigemptyset(&chld);
+  sigaddset(&chld, SIGCHLD);
+#else /* not HAVE_SIGACTION */
+  mask = sigblock(sigmask(SIGCHLD));
+#endif /* not HAVE_SIGACTION */
+
+  sigprocmask(SIG_BLOCK, &chld, &old);
   if (!logfp)
     logfp = stderr;		/* initialize before possible first use */
 
   va_start(ap, fmt);
   real_plog(XLOG_DEBUG, fmt, ap);
   va_end(ap);
+
+#ifdef HAVE_SIGACTION
+  sigprocmask(SIG_SETMASK, &old, NULL);
+#else /* not HAVE_SIGACTION */
+  mask = sigblock(sigmask(SIGCHLD));
+#endif /* not HAVE_SIGACTION */
 }
 #endif /* DEBUG */
 
@@ -412,7 +456,20 @@ dplog(const char *fmt, ...)
 void
 plog(int lvl, const char *fmt, ...)
 {
+#ifdef HAVE_SIGACTION
+  sigset_t old, chld;
+#else /* not HAVE_SIGACTION */
+  int mask;
+#endif /* not HAVE_SIGACTION */
   va_list ap;
+
+#ifdef HAVE_SIGACTION
+  sigemptyset(&chld);
+  sigaddset(&chld, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &chld, &old);
+#else /* not HAVE_SIGACTION */
+  mask = sigblock(sigmask(SIGCHLD));
+#endif /* not HAVE_SIGACTION */
 
   if (!logfp)
     logfp = stderr;		/* initialize before possible first use */
@@ -420,6 +477,12 @@ plog(int lvl, const char *fmt, ...)
   va_start(ap, fmt);
   real_plog(lvl, fmt, ap);
   va_end(ap);
+
+#ifdef HAVE_SIGACTION
+  sigprocmask(SIG_SETMASK, &old, NULL);
+#else /* not HAVE_SIGACTION */
+  sigsetmask(mask);
+#endif /* not HAVE_SIGACTION */
 }
 
 
@@ -497,11 +560,11 @@ real_plog(int lvl, const char *fmt, va_list vargs)
   switch (last_count) {
   case 0:			/* never printed at all */
     last_count = 1;
-    if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
+    if (strlcpy(last_msg, msg, sizeof(last_msg)) >= sizeof(last_msg)) /* don't use xstrlcpy here (recursive!) */
       fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
     last_lvl = lvl;
     show_time_host_and_name(lvl); /* mimic syslog header */
-    fwrite(msg, ptr - msg, 1, logfp);
+    __IGNORE(fwrite(msg, ptr - msg, 1, logfp));
     fflush(logfp);
     break;
 
@@ -510,11 +573,11 @@ real_plog(int lvl, const char *fmt, va_list vargs)
       last_count++;
     } else {			/* last msg printed once, new one differs */
       /* last_count remains at 1 */
-      if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
+      if (strlcpy(last_msg, msg, sizeof(last_msg)) >= sizeof(last_msg)) /* don't use xstrlcpy here (recursive!) */
 	fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
       last_lvl = lvl;
       show_time_host_and_name(lvl); /* mimic syslog header */
-      fwrite(msg, ptr - msg, 1, logfp);
+      __IGNORE(fwrite(msg, ptr - msg, 1, logfp));
       fflush(logfp);
     }
     break;
@@ -527,7 +590,7 @@ real_plog(int lvl, const char *fmt, va_list vargs)
     show_time_host_and_name(last_lvl);
     xsnprintf(last_msg, sizeof(last_msg),
 	      "last message repeated %d times\n", last_count);
-    fwrite(last_msg, strlen(last_msg), 1, logfp);
+    __IGNORE(fwrite(last_msg, strlen(last_msg), 1, logfp));
     fflush(logfp);
     last_count = 0;		/* start from scratch */
     break;
@@ -539,13 +602,13 @@ real_plog(int lvl, const char *fmt, va_list vargs)
       show_time_host_and_name(last_lvl);
       xsnprintf(last_msg, sizeof(last_msg),
 		"last message repeated %d times\n", last_count);
-      fwrite(last_msg, strlen(last_msg), 1, logfp);
+      __IGNORE(fwrite(last_msg, strlen(last_msg), 1, logfp));
       if (strlcpy(last_msg, msg, 1024) >= 1024) /* don't use xstrlcpy here (recursive!) */
 	fprintf(stderr, "real_plog: string \"%s\" truncated to \"%s\"\n", last_msg, msg);
       last_count = 1;
       last_lvl = lvl;
       show_time_host_and_name(lvl); /* mimic syslog header */
-      fwrite(msg, ptr - msg, 1, logfp);
+      __IGNORE(fwrite(msg, ptr - msg, 1, logfp));
       fflush(logfp);
     }
     break;
@@ -573,7 +636,7 @@ show_opts(int ch, struct opt_tab *opts)
 
 
 int
-cmdoption(char *s, struct opt_tab *optb, int *flags)
+cmdoption(char *s, struct opt_tab *optb, u_int *flags)
 {
   char *p = s;
   int errs = 0;
@@ -581,7 +644,7 @@ cmdoption(char *s, struct opt_tab *optb, int *flags)
   while (p && *p) {
     int neg;
     char *opt;
-    struct opt_tab *dp, *dpn = 0;
+    struct opt_tab *dp, *dpn = NULL;
 
     s = p;
     p = strchr(p, ',');
@@ -624,7 +687,7 @@ cmdoption(char *s, struct opt_tab *optb, int *flags)
        * This will log to stderr when parsing the command line
        * since any -l option will not yet have taken effect.
        */
-      plog(XLOG_USER, "option \"%s\" not recognized", s);
+      plog(XLOG_ERROR, "option \"%s\" not recognized", s);
       errs++;
     }
 
@@ -645,22 +708,22 @@ cmdoption(char *s, struct opt_tab *optb, int *flags)
 int
 switch_option(char *opt)
 {
-  int xl = xlog_level;
+  u_int xl = xlog_level;
   int rc = cmdoption(opt, xlog_opt, &xl);
 
-  if (rc) {
-    rc = EINVAL;
-  } else {
-    /*
-     * Keep track of initial log level, and
-     * don't allow options to be turned off.
-     */
-    if (xlog_level_init == ~0)
-      xlog_level_init = xl;
-    else
-      xl |= xlog_level_init;
-    xlog_level = xl;
+  if (rc)			/* if got any error, don't update flags */
+    return EINVAL;
+
+  /*
+   * Don't allow "mandatory" flags to be turned off, because
+   * we must always be able to report on flag re/setting errors.
+   */
+  if ((xl & XLOG_MANDATORY) != XLOG_MANDATORY) {
+    plog(XLOG_ERROR, "cannot turn off mandatory logging options");
+    xl |= XLOG_MANDATORY;
   }
+  if (xlog_level != xl)
+    xlog_level = xl;		/* set new flags */
   return rc;
 }
 
@@ -801,7 +864,7 @@ switch_to_logfile(char *logfile, int old_umask, int truncate_log)
     } else {			/* regular log file */
       (void) umask(old_umask);
       if (truncate_log)
-	truncate(logfile, 0);
+	__IGNORE(truncate(logfile, 0));
       new_logfp = fopen(logfile, "a");
       umask(0);
     }
@@ -834,7 +897,8 @@ switch_to_logfile(char *logfile, int old_umask, int truncate_log)
 void
 unregister_amq(void)
 {
-  if (!amuDebug(D_AMQ)) {
+
+  if (amuDebug(D_AMQ)) {
     /* find which instance of amd to unregister */
     u_long amd_prognum = get_amd_program_number();
 
@@ -875,7 +939,7 @@ going_down(int rc)
 
 
 /* return the rpc program number under which amd was used */
-int
+u_long
 get_amd_program_number(void)
 {
   return amd_program_number;
@@ -884,7 +948,7 @@ get_amd_program_number(void)
 
 /* set the rpc program number used for amd */
 void
-set_amd_program_number(int program)
+set_amd_program_number(u_long program)
 {
   amd_program_number = program;
 }
@@ -955,9 +1019,9 @@ amu_release_controlling_tty(void)
     close(fd);
   }
   return;
-#endif /* not TIOCNOTTY */
-
+#else
   plog(XLOG_ERROR, "unable to release controlling tty");
+#endif /* not TIOCNOTTY */
 }
 
 
@@ -1012,7 +1076,7 @@ mkdirs(char *path, int mode)
   /*
    * take a copy in case path is in readonly store
    */
-  char *p2 = strdup(path);
+  char *p2 = xstrdup(path);
   char *sp = p2;
   struct stat stb;
   int error_so_far = 0;
@@ -1056,7 +1120,7 @@ mkdirs(char *path, int mode)
 void
 rmdirs(char *dir)
 {
-  char *xdp = strdup(dir);
+  char *xdp = xstrdup(dir);
   char *dp;
 
   do {
@@ -1088,4 +1152,16 @@ rmdirs(char *dir)
   } while (dp && dp > xdp);
 
   XFREE(xdp);
+}
+
+/*
+ * Dup a string
+ */
+char *
+xstrdup(const char *s)
+{
+  size_t len = strlen(s);
+  char *sp = xmalloc(len + 1);
+  memcpy(sp, s, len + 1);
+  return sp;
 }

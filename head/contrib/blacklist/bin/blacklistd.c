@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.34 2016/04/04 15:52:56 christos Exp $	*/
+/*	$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include "config.h"
 #endif
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.34 2016/04/04 15:52:56 christos Exp $");
+__RCSID("$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -207,13 +207,24 @@ process(bl_t bl)
 
 	if (debug) {
 		char b1[128], b2[128];
-		(*lfun)(LOG_DEBUG, "%s: db state info for %s: count=%d/%d "
+		(*lfun)(LOG_DEBUG, "%s: initial db state for %s: count=%d/%d "
 		    "last=%s now=%s", __func__, rbuf, dbi.count, c.c_nfail,
 		    fmttime(b1, sizeof(b1), dbi.last),
 		    fmttime(b2, sizeof(b2), ts.tv_sec));
 	}
 
 	switch (bi->bi_type) {
+	case BL_ABUSE:
+		/*
+		 * If the application has signaled abusive behavior,
+		 * set the number of fails to be one less than the
+		 * configured limit.  Fallthrough to the normal BL_ADD
+		 * processing, which will increment the failure count
+		 * to the threshhold, and block the abusive address.
+		 */
+		if (c.c_nfail != -1)
+			dbi.count = c.c_nfail - 1;
+		/*FALLTHROUGH*/
 	case BL_ADD:
 		dbi.count++;
 		dbi.last = ts.tv_sec;
@@ -246,15 +257,27 @@ process(bl_t bl)
 	case BL_DELETE:
 		if (dbi.last == 0)
 			goto out;
+		dbi.count = 0;
 		dbi.last = 0;
+		break;
+	case BL_BADUSER:
+		/* ignore for now */
 		break;
 	default:
 		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
 	}
-	if (state_put(state, &c, &dbi) == -1)
-		goto out;
+	state_put(state, &c, &dbi);
+
 out:
 	close(bi->bi_fd);
+
+	if (debug) {
+		char b1[128], b2[128];
+		(*lfun)(LOG_DEBUG, "%s: final db state for %s: count=%d/%d "
+		    "last=%s now=%s", __func__, rbuf, dbi.count, c.c_nfail,
+		    fmttime(b1, sizeof(b1), dbi.last),
+		    fmttime(b2, sizeof(b2), ts.tv_sec));
+	}
 }
 
 static void
@@ -393,13 +416,15 @@ rules_restore(void)
 int
 main(int argc, char *argv[])
 {
-	int c, tout, flags, flush, restore;
-	const char *spath, *blsock;
+	int c, tout, flags, flush, restore, ret;
+	const char *spath, **blsock;
+	size_t nblsock, maxblsock;
 
 	setprogname(argv[0]);
 
 	spath = NULL;
-	blsock = _PATH_BLSOCK;
+	blsock = NULL;
+	maxblsock = nblsock = 0;
 	flush = 0;
 	restore = 0;
 	tout = 0;
@@ -431,7 +456,17 @@ main(int argc, char *argv[])
 			restore++;
 			break;
 		case 's':
-			blsock = optarg;
+			if (nblsock >= maxblsock) {
+				maxblsock += 10;
+				void *p = realloc(blsock,
+				    sizeof(*blsock) * maxblsock);
+				if (p == NULL)
+				    err(EXIT_FAILURE,
+					"Can't allocate memory for %zu sockets",
+					maxblsock);
+				blsock = p;
+			}
+			blsock[nblsock++] = optarg;
 			break;
 		case 't':
 			tout = atoi(optarg) * 1000;
@@ -473,17 +508,16 @@ main(int argc, char *argv[])
 		flags |= O_TRUNC;
 	}
 
-	if (restore)
-		rules_restore();
-
 	struct pollfd *pfd = NULL;
 	bl_t *bl = NULL;
 	size_t nfd = 0;
 	size_t maxfd = 0;
 
-	if (spath == NULL)
-		addfd(&pfd, &bl, &nfd, &maxfd, blsock);
-	else {
+	for (size_t i = 0; i < nblsock; i++)
+		addfd(&pfd, &bl, &nfd, &maxfd, blsock[i]);
+	free(blsock);
+
+	if (spath) {
 		FILE *fp = fopen(spath, "r");
 		char *line;
 		if (fp == NULL)
@@ -493,12 +527,17 @@ main(int argc, char *argv[])
 			addfd(&pfd, &bl, &nfd, &maxfd, line);
 		fclose(fp);
 	}
+	if (nfd == 0)
+		addfd(&pfd, &bl, &nfd, &maxfd, _PATH_BLSOCK);
 
 	state = state_open(dbfile, flags, 0600);
 	if (state == NULL)
 		state = state_open(dbfile,  flags | O_CREAT, 0600);
 	if (state == NULL)
 		return EXIT_FAILURE;
+
+	if (restore)
+		rules_restore();
 
 	if (!debug) {
 		if (daemon(0, 0) == -1)
@@ -512,7 +551,10 @@ main(int argc, char *argv[])
 			readconf = 0;
 			conf_parse(configfile);
 		}
-		switch (poll(pfd, (nfds_t)nfd, tout)) {
+		ret = poll(pfd, (nfds_t)nfd, tout);
+		if (debug)
+			(*lfun)(LOG_DEBUG, "received %d from poll()", ret);
+		switch (ret) {
 		case -1:
 			if (errno == EINTR)
 				continue;

@@ -1431,8 +1431,8 @@ pmc_process_csw_out(struct thread *td)
 		 * save the reading.
 		 */
 
-		if (pp != NULL && pp->pp_pmcs[ri].pp_pmc != NULL) {
-
+		if (pm->pm_state != PMC_STATE_DELETED && pp != NULL &&
+		    pp->pp_pmcs[ri].pp_pmc != NULL) {
 			KASSERT(pm == pp->pp_pmcs[ri].pp_pmc,
 			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p", __LINE__,
 				pm, ri, pp->pp_pmcs[ri].pp_pmc));
@@ -4224,7 +4224,8 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	ps_end = psb->ps_write;
 	do {
 #ifdef	INVARIANTS
-		if (ps->ps_pmc->pm_state != PMC_STATE_RUNNING)
+		if ((ps->ps_pmc == NULL) ||
+		    (ps->ps_pmc->pm_state != PMC_STATE_RUNNING))
 			nfree++;
 #endif
 		if (ps->ps_nsamples != PMC_SAMPLE_INUSE)
@@ -4262,9 +4263,11 @@ next:
 			ps = psb->ps_samples;
 	} while (ps != ps_end);
 
+#ifdef	INVARIANTS
 	KASSERT(ncallchains > 0 || nfree > 0,
 	    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
 		cpu));
+#endif
 
 	KASSERT(td->td_pinned == 1,
 	    ("[pmc,%d] invalid td_pinned value", __LINE__));

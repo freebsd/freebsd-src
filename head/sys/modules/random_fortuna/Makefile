@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/random
+.PATH:	${SRCTOP}/sys/dev/random
 
 KMOD	= random_fortuna
 SRCS	= randomdev.c hash.c fortuna.c

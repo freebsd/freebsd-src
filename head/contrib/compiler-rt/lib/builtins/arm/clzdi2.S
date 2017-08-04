@@ -15,13 +15,13 @@
 
 	.syntax unified
 	.text
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 	.thumb
 #endif
 
 
 	.p2align	2
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 DEFINE_COMPILERRT_THUMB_FUNCTION(__clzdi2)
 #else
 DEFINE_COMPILERRT_FUNCTION(__clzdi2)
@@ -95,3 +95,6 @@ DEFINE_COMPILERRT_FUNCTION(__clzdi2)
 	JMP(lr)
 #endif // __ARM_FEATURE_CLZ
 END_COMPILERRT_FUNCTION(__clzdi2)
+
+NO_EXEC_STACK_DIRECTIVE
+

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -128,7 +128,7 @@ int nfsrv_checksetattr(vnode_t, struct nfsrv_descript *,
     NFSPROC_T *);
 int nfsrv_checkgetattr(struct nfsrv_descript *, vnode_t,
     struct nfsvattr *, nfsattrbit_t *, struct ucred *, NFSPROC_T *);
-int nfsrv_nfsuserdport(u_short, NFSPROC_T *);
+int nfsrv_nfsuserdport(struct sockaddr *, u_short, NFSPROC_T *);
 void nfsrv_nfsuserddelport(void);
 void nfsrv_throwawayallstate(NFSPROC_T *);
 int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
@@ -370,7 +370,7 @@ int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
 int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
-int nfsrv_atroot(vnode_t, long *);
+int nfsrv_atroot(vnode_t, uint64_t *);
 void newnfs_timer(void *);
 int nfs_supportsnfsv4acls(vnode_t);
 
@@ -490,7 +490,7 @@ int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
     int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,
     NFSPROC_T *, void *);
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
-int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
+int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t, int,
     struct ucred *, NFSPROC_T *);
 int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
     struct nfsclflayout **);
@@ -502,8 +502,8 @@ int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
     int *, int *, int);
 int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, int, struct ucred *,
     NFSPROC_T *, nfsv4stateid_t *, void **);
-void nfscl_ownerrelease(struct nfsclowner *, int, int, int);
-void nfscl_openrelease(struct nfsclopen *, int, int);
+void nfscl_ownerrelease(struct nfsmount *, struct nfsclowner *, int, int, int);
+void nfscl_openrelease(struct nfsmount *, struct nfsclopen *, int, int);
 int nfscl_getcl(struct mount *, struct ucred *, NFSPROC_T *, int,
     struct nfsclclient **);
 struct nfsclclient *nfscl_findcl(struct nfsmount *);
@@ -592,7 +592,7 @@ int nfscl_maperr(NFSPROC_T *, int, uid_t, gid_t);
 void nfscl_init(void);
 
 /* nfs_clbio.c */
-int ncl_flush(vnode_t, int, struct ucred *, NFSPROC_T *, int, int);
+int ncl_flush(vnode_t, int, NFSPROC_T *, int, int);
 
 /* nfs_clnode.c */
 void ncl_invalcaches(vnode_t);

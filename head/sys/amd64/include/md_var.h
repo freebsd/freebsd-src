@@ -34,11 +34,14 @@
 
 #include <x86/x86_var.h>
 
-extern  uint64_t *vm_page_dump;
+extern uint64_t	*vm_page_dump;
+extern int	hw_lower_amd64_sharedpage;
 
 struct	savefpu;
+struct	sysentvec;
 
 void	amd64_db_resume_dbreg(void);
+void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_syscall(struct thread *td, int traced);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
@@ -57,6 +60,7 @@ void	gsbase_load_fault(void) __asm(__STRING(gsbase_load_fault));
 void	fpstate_drop(struct thread *td);
 void	pagezero(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
+void	sse2_pagezero(void *addr);
 struct savefpu *get_pcb_user_save_td(struct thread *td);
 struct savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
 

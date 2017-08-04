@@ -57,12 +57,12 @@ struct rcc_gpio_pin {
 };
 
 static struct rcc_gpio_pin rcc_pins[] = {
-	{ .pin = 11, .name = "reset switch", .caps = GPIO_PIN_INPUT },
-	{ .pin = 15, .name = "red LED", .caps = GPIO_PIN_OUTPUT },
-	{ .pin = 17, .name = "green LED", .caps = GPIO_PIN_OUTPUT },
+	{ .pin = (1 << 11), .name = "reset switch", .caps = GPIO_PIN_INPUT },
+	{ .pin = (1 << 15), .name = "red LED", .caps = GPIO_PIN_OUTPUT },
+	{ .pin = (1 << 17), .name = "green LED", .caps = GPIO_PIN_OUTPUT },
 #if 0
-	{ .pin = 16, .name = "HD1 LED", .caps = GPIO_PIN_OUTPUT },
-	{ .pin = 18, .name = "HD2 LED", .caps = GPIO_PIN_OUTPUT },
+	{ .pin = (1 << 16), .name = "HD1 LED", .caps = GPIO_PIN_OUTPUT },
+	{ .pin = (1 << 18), .name = "HD2 LED", .caps = GPIO_PIN_OUTPUT },
 #endif
 };
 
@@ -87,14 +87,14 @@ struct rcc_gpio_softc {
 
 static void
 rcc_gpio_modify_bits(struct rcc_gpio_softc *sc, uint32_t reg, uint32_t mask,
-	uint32_t bit)
+	uint32_t writebits)
 {
 	uint32_t value;
 
 	RCC_GPIO_LOCK(sc);
 	value = RCC_READ(sc, reg);
-	value &= ~(1 << mask);
-	value |= (1 << bit);
+	value &= ~mask;
+	value |= writebits;
 	RCC_WRITE(sc, reg, value);
 	RCC_GPIO_UNLOCK(sc);
 }

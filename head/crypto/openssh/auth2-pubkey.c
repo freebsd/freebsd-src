@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.55 2016/01/27 00:53:12 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.62 2017/01/30 01:03:00 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -560,13 +560,16 @@ match_principals_option(const char *principal_list, struct sshkey_cert *cert)
 
 static int
 process_principals(FILE *f, char *file, struct passwd *pw,
-    struct sshkey_cert *cert)
+    const struct sshkey_cert *cert)
 {
 	char line[SSH_MAX_PUBKEY_BYTES], *cp, *ep, *line_opts;
 	u_long linenum = 0;
-	u_int i;
+	u_int i, found_principal = 0;
 
 	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
+		/* Always consume entire input */
+		if (found_principal)
+			continue;
 		/* Skip leading whitespace. */
 		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
 			;
@@ -599,11 +602,12 @@ process_principals(FILE *f, char *file, struct passwd *pw,
 				if (auth_parse_options(pw, line_opts,
 				    file, linenum) != 1)
 					continue;
-				return 1;
+				found_principal = 1;
+				continue;
 			}
 		}
 	}
-	return 0;
+	return found_principal;
 }
 
 static int
@@ -629,14 +633,17 @@ match_principals_file(char *file, struct passwd *pw, struct sshkey_cert *cert)
  * returns 1 if the principal is allowed or 0 otherwise.
  */
 static int
-match_principals_command(struct passwd *user_pw, struct sshkey_cert *cert)
+match_principals_command(struct passwd *user_pw, const struct sshkey *key)
 {
+	const struct sshkey_cert *cert = key->cert;
 	FILE *f = NULL;
-	int ok, found_principal = 0;
+	int r, ok, found_principal = 0;
 	struct passwd *pw;
 	int i, ac = 0, uid_swapped = 0;
 	pid_t pid;
 	char *tmp, *username = NULL, *command = NULL, **av = NULL;
+	char *ca_fp = NULL, *key_fp = NULL, *catext = NULL, *keytext = NULL;
+	char serial_s[16];
 	void (*osigchld)(int);
 
 	if (options.authorized_principals_command == NULL)
@@ -674,10 +681,38 @@ match_principals_command(struct passwd *user_pw, struct sshkey_cert *cert)
 		    command);
 		goto out;
 	}
+	if ((ca_fp = sshkey_fingerprint(cert->signature_key,
+	    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL) {
+		error("%s: sshkey_fingerprint failed", __func__);
+		goto out;
+	}
+	if ((key_fp = sshkey_fingerprint(key,
+	    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL) {
+		error("%s: sshkey_fingerprint failed", __func__);
+		goto out;
+	}
+	if ((r = sshkey_to_base64(cert->signature_key, &catext)) != 0) {
+		error("%s: sshkey_to_base64 failed: %s", __func__, ssh_err(r));
+		goto out;
+	}
+	if ((r = sshkey_to_base64(key, &keytext)) != 0) {
+		error("%s: sshkey_to_base64 failed: %s", __func__, ssh_err(r));
+		goto out;
+	}
+	snprintf(serial_s, sizeof(serial_s), "%llu",
+	    (unsigned long long)cert->serial);
 	for (i = 1; i < ac; i++) {
 		tmp = percent_expand(av[i],
 		    "u", user_pw->pw_name,
 		    "h", user_pw->pw_dir,
+		    "t", sshkey_ssh_name(key),
+		    "T", sshkey_ssh_name(cert->signature_key),
+		    "f", key_fp,
+		    "F", ca_fp,
+		    "k", keytext,
+		    "K", catext,
+		    "i", cert->key_id,
+		    "s", serial_s,
 		    (char *)NULL);
 		if (tmp == NULL)
 			fatal("%s: percent_expand failed", __func__);
@@ -696,6 +731,9 @@ match_principals_command(struct passwd *user_pw, struct sshkey_cert *cert)
 
 	ok = process_principals(f, NULL, pw, cert);
 
+	fclose(f);
+	f = NULL;
+
 	if (exited_cleanly(pid, "AuthorizedPrincipalsCommand", command) != 0)
 		goto out;
 
@@ -712,6 +750,10 @@ match_principals_command(struct passwd *user_pw, struct sshkey_cert *cert)
 		restore_uid();
 	free(command);
 	free(username);
+	free(ca_fp);
+	free(key_fp);
+	free(catext);
+	free(keytext);
 	return found_principal;
 }
 /*
@@ -722,17 +764,20 @@ static int
 check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 {
 	char line[SSH_MAX_PUBKEY_BYTES];
-	const char *reason;
 	int found_key = 0;
 	u_long linenum = 0;
 	Key *found;
-	char *fp;
 
 	found_key = 0;
 
 	found = NULL;
 	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
-		char *cp, *key_options = NULL;
+		char *cp, *key_options = NULL, *fp = NULL;
+		const char *reason = NULL;
+
+		/* Always consume entrire file */
+		if (found_key)
+			continue;
 		if (found != NULL)
 			key_free(found);
 		found = key_new(key_is_cert(key) ? KEY_UNSPEC : key->type);
@@ -797,10 +842,8 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 			    authorized_principals == NULL ? pw->pw_name : NULL,
 			    &reason) != 0)
 				goto fail_reason;
-			if (auth_cert_options(key, pw) != 0) {
-				free(fp);
-				continue;
-			}
+			if (auth_cert_options(key, pw, &reason) != 0)
+				goto fail_reason;
 			verbose("Accepted certificate ID \"%s\" (serial %llu) "
 			    "signed by %s CA %s via %s", key->cert->key_id,
 			    (unsigned long long)key->cert->serial,
@@ -821,7 +864,7 @@ check_authkeys_file(FILE *f, char *file, Key* key, struct passwd *pw)
 			    file, linenum, key_type(found), fp);
 			free(fp);
 			found_key = 1;
-			break;
+			continue;
 		}
 	}
 	if (found != NULL)
@@ -863,7 +906,7 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 			found_principal = 1;
 	}
 	/* Try querying command if specified */
-	if (!found_principal && match_principals_command(pw, key->cert))
+	if (!found_principal && match_principals_command(pw, key))
 		found_principal = 1;
 	/* If principals file or command is specified, then require a match */
 	use_authorized_principals = principals_file != NULL ||
@@ -878,8 +921,8 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 	if (key_cert_check_authority(key, 0, 1,
 	    use_authorized_principals ? NULL : pw->pw_name, &reason) != 0)
 		goto fail_reason;
-	if (auth_cert_options(key, pw) != 0)
-		goto out;
+	if (auth_cert_options(key, pw, &reason) != 0)
+		goto fail_reason;
 
 	verbose("Accepted certificate ID \"%s\" (serial %llu) signed by "
 	    "%s CA %s via %s", key->cert->key_id,
@@ -1016,6 +1059,9 @@ user_key_command_allowed2(struct passwd *user_pw, Key *key)
 	temporarily_use_uid(pw);
 
 	ok = check_authkeys_file(f, options.authorized_keys_command, key, pw);
+
+	fclose(f);
+	f = NULL;
 
 	if (exited_cleanly(pid, "AuthorizedKeysCommand", command) != 0)
 		goto out;

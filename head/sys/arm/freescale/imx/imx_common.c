@@ -50,10 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/vmparam.h>
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 #ifndef INTRNG
 static int
 fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,

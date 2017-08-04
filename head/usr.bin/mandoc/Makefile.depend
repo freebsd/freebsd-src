@@ -10,8 +10,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libopenbsd \
-	lib/libsqlite3 \
-	lib/libthr \
 	lib/libz \
 
 

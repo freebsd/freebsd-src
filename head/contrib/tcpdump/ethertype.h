@@ -17,7 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * $FreeBSD$
  */
 
 /*
@@ -196,6 +195,9 @@
 #endif
 #ifndef	ETHERTYPE_GEONET
 #define	ETHERTYPE_GEONET        0x8947  /* ETSI GeoNetworking (Official IEEE registration from Jan 2013) */
+#endif
+#ifndef	ETHERTYPE_MEDSA
+#define	ETHERTYPE_MEDSA		0xdada	/* Marvel Distributed Switch Architecture */
 #endif
 
 extern const struct tok ethertype_values[];

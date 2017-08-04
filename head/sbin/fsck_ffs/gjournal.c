@@ -34,7 +34,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -367,7 +367,7 @@ clear_inode(struct ufs2_dinode *dino)
 		osize = dino->di_extsize;
 		dino->di_blocks -= extblocks;
 		dino->di_extsize = 0;
-		for (i = 0; i < NXADDR; i++) {
+		for (i = 0; i < UFS_NXADDR; i++) {
 			if (dino->di_extb[i] == 0)
 				continue;
 			blkfree(dino->di_extb[i], sblksize(fs, osize, i));
@@ -383,7 +383,7 @@ clear_inode(struct ufs2_dinode *dino)
 		freeindir(dino->di_ib[level], level);
 	}
 	/* deallocate direct blocks and fragments */
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < UFS_NDADDR; i++) {
 		bn = dino->di_db[i];
 		if (bn == 0)
 			continue;

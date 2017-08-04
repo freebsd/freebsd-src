@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,25 +40,38 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 
+#include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/net.h>
 #include <linux/notifier.h>
 
-struct net {
-};
-
-extern struct net init_net;
+#ifdef VIMAGE
+#define	init_net *vnet0
+#else
+#define	init_net *((struct vnet *)0)
+#endif
 
 #define	MAX_ADDR_LEN		20
 
 #define	net_device	ifnet
 
-#define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
-#define	dev_hold(d)	if_ref((d))
-#define	dev_put(d)	if_rele((d))
-#define	dev_net(d)	(&init_net)
+static inline struct ifnet *
+dev_get_by_index(struct vnet *vnet, int if_index)
+{
+	struct ifnet *retval;
+
+	CURVNET_SET(vnet);
+	retval = ifnet_byindex_ref(if_index);
+	CURVNET_RESTORE();
+
+	return (retval);
+}
+
+#define	dev_hold(d)	if_ref(d)
+#define	dev_put(d)	if_rele(d)
+#define	dev_net(d)	((d)->if_vnet)
 
 #define	net_eq(a,b)	((a) == (b))
 

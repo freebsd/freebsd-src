@@ -162,6 +162,8 @@ int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
 	    u_char pri, enum intr_type flags, void **cookiep);	    
 int	intr_event_bind(struct intr_event *ie, int cpu);
+int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
+int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
@@ -173,9 +175,9 @@ int	intr_event_destroy(struct intr_event *ie);
 void	intr_event_execute_handlers(struct proc *p, struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
-int	intr_getaffinity(int irq, void *mask);
+int	intr_getaffinity(int irq, int mode, void *mask);
 void	*intr_handler_source(void *cookie);
-int	intr_setaffinity(int irq, void *mask);
+int	intr_setaffinity(int irq, int mode, void *mask);
 void	_intr_drain(int irq);  /* Linux compat only. */
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,

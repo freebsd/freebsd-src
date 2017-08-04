@@ -38,9 +38,8 @@ struct Struct_Obj_Entry;
 #define rtld_dynamic(obj)    (&_DYNAMIC)
 
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
-		       const struct Struct_Obj_Entry *defobj,
-		       const struct Struct_Obj_Entry *obj,
-		       const Elf_Rel *rel);
+    const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,
+    const Elf_Rel *rel);
 
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)
@@ -51,10 +50,8 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define call_init_pointer(obj, target) \
 	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
-/*
- * Lazy binding entry point, called via PLT.
- */
-void _rtld_bind_start(void);
+#define	call_ifunc_resolver(ptr) \
+	(((Elf_Addr (*)(void))ptr)())
 
 /*
  * TLS

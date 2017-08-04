@@ -25,6 +25,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -51,6 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
+#define	SPIGEN_OPEN		(1 << 0)
+#define	SPIGEN_MMAP_BUSY	(1 << 1)
+
 struct spigen_softc {
 	device_t sc_dev;
 	struct cdev *sc_cdev;
@@ -61,15 +66,28 @@ struct spigen_softc {
 	vm_object_t sc_mmap_buffer;     /* command, then data */
 	vm_offset_t sc_mmap_kvaddr;
 	size_t sc_mmap_buffer_size;
-	int sc_mmap_busy;
 	int sc_debug;
+	int sc_flags;
 };
+
+#ifdef FDT
+static void
+spigen_identify(driver_t *driver, device_t parent)
+{
+	if (device_find_child(parent, "spigen", -1) != NULL)
+		return;
+	if (BUS_ADD_CHILD(parent, 0, "spigen", -1) == NULL)
+		device_printf(parent, "add child failed\n");
+}
+#endif
 
 static int
 spigen_probe(device_t dev)
 {
+
 	device_set_desc(dev, "SPI Generic IO");
-	return (0);
+
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int spigen_open(struct cdev *, int, int, struct thread *);
@@ -176,10 +194,24 @@ spigen_attach(device_t dev)
 }
 
 static int 
-spigen_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+spigen_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
 {
+	int error;
+	device_t dev;
+	struct spigen_softc *sc;
 
-	return (0);
+	error = 0;
+	dev = cdev->si_drv1;
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_flags & SPIGEN_OPEN)
+		error = EBUSY;
+	else
+		sc->sc_flags |= SPIGEN_OPEN;
+	mtx_unlock(&sc->sc_mtx);
+
+	return (error);
 }
 
 static int
@@ -191,7 +223,7 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	int error = 0;
 
 	mtx_lock(&sc->sc_mtx);
-	if (st->st_command.iov_len == 0 || st->st_data.iov_len == 0)
+	if (st->st_command.iov_len == 0)
 		error = EINVAL;
 	else if (st->st_command.iov_len > sc->sc_command_length_max ||
 	    st->st_data.iov_len > sc->sc_data_length_max)
@@ -208,16 +240,20 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	    M_DEVBUF, M_WAITOK);
 	if (transfer.tx_cmd == NULL)
 		return (ENOMEM);
-	transfer.tx_data = transfer.rx_data = malloc(st->st_data.iov_len,
-	    M_DEVBUF, M_WAITOK);
-	if (transfer.tx_data == NULL) {
-		free(transfer.tx_cmd, M_DEVBUF);
-		return (ENOMEM);
+	if (st->st_data.iov_len > 0) {
+		transfer.tx_data = transfer.rx_data = malloc(st->st_data.iov_len,
+		    M_DEVBUF, M_WAITOK);
+		if (transfer.tx_data == NULL) {
+			free(transfer.tx_cmd, M_DEVBUF);
+			return (ENOMEM);
+		}
 	}
+	else
+		transfer.tx_data = transfer.rx_data = NULL;
 
 	error = copyin(st->st_command.iov_base, transfer.tx_cmd,
 	    transfer.tx_cmd_sz = transfer.rx_cmd_sz = st->st_command.iov_len);	
-	if (error == 0)
+	if ((error == 0) && (st->st_data.iov_len > 0))
 		error = copyin(st->st_data.iov_base, transfer.tx_data,
 		    transfer.tx_data_sz = transfer.rx_data_sz =
 		                          st->st_data.iov_len);	
@@ -226,7 +262,7 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 	if (error == 0) {
 		error = copyout(transfer.rx_cmd, st->st_command.iov_base,
 		    transfer.rx_cmd_sz);
-		if (error == 0)
+		if ((error == 0) && (st->st_data.iov_len > 0))
 			error = copyout(transfer.rx_data, st->st_data.iov_base,
 			    transfer.rx_data_sz);
 	}
@@ -245,7 +281,7 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	int error = 0;
 
 	mtx_lock(&sc->sc_mtx);
-	if (sc->sc_mmap_busy)
+	if (sc->sc_flags & SPIGEN_MMAP_BUSY)
 		error = EBUSY;
 	else if (stm->stm_command_length > sc->sc_command_length_max ||
 	    stm->stm_data_length > sc->sc_data_length_max)
@@ -256,7 +292,7 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	    stm->stm_command_length + stm->stm_data_length)
 		error = ENOMEM;
 	if (error == 0)
-		sc->sc_mmap_busy = 1;
+		sc->sc_flags |= SPIGEN_MMAP_BUSY;
 	mtx_unlock(&sc->sc_mtx);
 	if (error)
 		return (error);
@@ -269,8 +305,8 @@ spigen_transfer_mmapped(struct cdev *cdev, struct spigen_transfer_mmapped *stm)
 	error = SPIBUS_TRANSFER(device_get_parent(dev), dev, &transfer);
 
 	mtx_lock(&sc->sc_mtx);
-	KASSERT(sc->sc_mmap_busy, ("mmap no longer marked busy"));
-	sc->sc_mmap_busy = 0;
+	KASSERT((sc->sc_flags & SPIGEN_MMAP_BUSY), ("mmap no longer marked busy"));
+	sc->sc_flags &= ~(SPIGEN_MMAP_BUSY);
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
 }
@@ -372,6 +408,7 @@ spigen_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
 		sc->sc_mmap_buffer = NULL;
 		sc->sc_mmap_buffer_size = 0;
 	}
+	sc->sc_flags &= ~(SPIGEN_OPEN);
 	mtx_unlock(&sc->sc_mtx);
 	return (0);
 }
@@ -379,14 +416,32 @@ spigen_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
 static int
 spigen_detach(device_t dev)
 {
+	struct spigen_softc *sc;
 
-	return (EIO);
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_flags & SPIGEN_OPEN) {
+		mtx_unlock(&sc->sc_mtx);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
+	mtx_destroy(&sc->sc_mtx);
+
+        if (sc->sc_cdev)
+                destroy_dev(sc->sc_cdev);
+	
+	return (0);
 }
 
 static devclass_t spigen_devclass;
 
 static device_method_t spigen_methods[] = {
 	/* Device interface */
+#ifdef FDT
+	DEVMETHOD(device_identify,	spigen_identify),
+#endif
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),

@@ -29,7 +29,7 @@
 #endif
 
 #if !defined(_LIBCPP_HAS_ATOMIC_BUILTINS) && !defined(_LIBCPP_HAS_NO_THREADS)
-# if defined(_MSC_VER) && !defined(__clang__)
+# if defined(_LIBCPP_WARNING)
     _LIBCPP_WARNING("Building libc++ without __atomic builtins is unsupported")
 # else
 #   warning Building libc++ without __atomic builtins is unsupported
@@ -45,7 +45,7 @@ namespace {
 enum __libcpp_atomic_order {
     _AO_Relaxed = __ATOMIC_RELAXED,
     _AO_Consume = __ATOMIC_CONSUME,
-    _AO_Aquire  = __ATOMIC_ACQUIRE,
+    _AO_Acquire = __ATOMIC_ACQUIRE,
     _AO_Release = __ATOMIC_RELEASE,
     _AO_Acq_Rel = __ATOMIC_ACQ_REL,
     _AO_Seq     = __ATOMIC_SEQ_CST

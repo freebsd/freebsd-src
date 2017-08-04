@@ -21,11 +21,9 @@
 
 ident		ERL
 
-makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
+makeoptions	ARCH_FLAGS="-march=octeon+ -mabi=64"
 makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
-# Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 # We don't need to build a trampolined version of the kernel.
@@ -55,6 +53,8 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	IPSEC			# IP (v4/v6) security
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -73,6 +73,8 @@ options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with o32 binaries
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -87,7 +89,6 @@ options 	MAC			# TrustedBSD MAC Framework
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
-options 	NO_SWAPPING		# Disable support for paging
 options		TMPFS			# Temporary file system
 
 # Debugging for use in -current
@@ -201,7 +202,7 @@ device		ural		# Ralink Technology RT2500USB wireless NICs
 device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 
 # crypto subsystem
-device		crypto		# core crypto support
+device		crypto		# core crypto support (required for IPSEC)
 device		cryptodev	# /dev/crypto for access to h/w
 device		cryptocteon	# Octeon coprocessor 2 crypto offload
 

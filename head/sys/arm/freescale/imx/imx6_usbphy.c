@@ -68,6 +68,12 @@ struct usbphy_softc {
 	u_int		phy_num;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-usbphy",	true},
+	{"fsl,imx6ul-usbphy",	true},
+	{NULL,			false}
+};
+
 static int
 usbphy_detach(device_t dev)
 {
@@ -143,6 +149,10 @@ usbphy_attach(device_t dev)
 	bus_write_4(sc->mem_res, CTRL_SET_REG, CTRL_SFTRST);
 	bus_write_4(sc->mem_res, CTRL_CLR_REG, CTRL_SFTRST | CTRL_CLKGATE);
 
+	/* Set UTMI+ level 2+3 bits to enable low and full speed devices. */
+	bus_write_4(sc->mem_res, CTRL_SET_REG,
+	    CTRL_ENUTMILEVEL2 | CTRL_ENUTMILEVEL3);
+
 	/* Power up: clear all bits in the powerdown register. */
 	bus_write_4(sc->mem_res, PWD_REG, 0);
 
@@ -163,7 +173,7 @@ usbphy_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "fsl,imx6q-usbphy") == 0)
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX6 USB PHY");
@@ -188,5 +198,11 @@ static driver_t usbphy_driver = {
 
 static devclass_t usbphy_devclass;
 
-DRIVER_MODULE(usbphy, simplebus, usbphy_driver, usbphy_devclass, 0, 0);
+/*
+ * This driver needs to start before the ehci driver, but later than the usual
+ * "special" drivers like clocks and cpu.  Ehci starts at DEFAULT so
+ * DEFAULT-1000 seems good.
+ */
+EARLY_DRIVER_MODULE(usbphy, simplebus, usbphy_driver, usbphy_devclass, 0, 0,
+    BUS_PASS_DEFAULT - 1000);
 

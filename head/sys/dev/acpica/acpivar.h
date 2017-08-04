@@ -85,6 +85,7 @@ struct acpi_device {
     ACPI_HANDLE			ad_handle;
     void			*ad_private;
     int				ad_flags;
+    int				ad_cls_class;
 
     /* Resources */
     struct resource_list	ad_rl;
@@ -299,6 +300,12 @@ void		acpi_EnterDebugger(void);
     if (acpi_get_verbose(acpi_sc))				\
 	device_printf(dev, x);					\
 } while (0)
+
+/* Values for the first status word returned by _OSC. */
+#define	ACPI_OSC_FAILURE	(1 << 1)
+#define	ACPI_OSC_BAD_UUID	(1 << 2)
+#define	ACPI_OSC_BAD_REVISION	(1 << 3)
+#define	ACPI_OSC_CAPS_MASKED	(1 << 4)
 
 /* Values for the device _STA (status) method. */
 #define ACPI_STA_PRESENT	(1 << 0)

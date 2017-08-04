@@ -31,8 +31,22 @@
 
 usage()
 {
-	echo "usage: crashinfo [-d crashdir] [-n dumpnr] [-k kernel] [core]"
+	echo "usage: crashinfo [-b] [-d crashdir] [-n dumpnr]" \
+		"[-k kernel] [core]"
 	exit 1
+}
+
+# Find a gdb binary to use and save the value in GDB.
+find_gdb()
+{
+	local binary
+
+	for binary in /usr/local/bin/gdb /usr/libexec/gdb /usr/bin/gdb; do
+		if [ -x ${binary} ]; then
+			GDB=${binary}
+			return
+		fi
+	done
 }
 
 # Run a single gdb command against a kernel file in batch mode.
@@ -44,10 +58,10 @@ gdb_command()
 
 	k=$1 ; shift
 
-	if [ -x /usr/local/bin/gdb ]; then
-		/usr/local/bin/gdb -batch -ex "$@" $k
+	if [ ${GDB} = /usr/local/bin/gdb ]; then
+		${GDB} -batch -ex "$@" $k
 	else
-		echo -e "$@" | /usr/bin/gdb -x /dev/stdin -batch $k
+		echo -e "$@" | ${GDB} -x /dev/stdin -batch $k
 	fi
 }
 
@@ -69,10 +83,12 @@ find_kernel()
 		}
 	}' $INFO)
 
-	# Look for a matching kernel version.
+	# Look for a matching kernel version, handling possible truncation
+	# of the version string recovered from the dump.
 	for k in `sysctl -n kern.bootfile` $(ls -t /boot/*/kernel); do
-		kvers=$(gdb_command $k 'printf "  Version String: %s", version' \
-		     2>/dev/null)
+		kvers=$(gdb_command $k 'printf "  Version String: %s", version' | \
+		    awk "{line=line\$0\"\n\"} END{print substr(line,1,${#ivers})}" \
+		    2>/dev/null)
 		if [ "$ivers" = "$kvers" ]; then
 			KERNEL=$k
 			break
@@ -80,12 +96,16 @@ find_kernel()
 	done
 }
 
+BATCH=false
 CRASHDIR=/var/crash
 DUMPNR=
 KERNEL=
 
-while getopts "d:n:k:" opt; do
+while getopts "bd:n:k:" opt; do
 	case "$opt" in
+	b)
+		BATCH=true
+		;;
 	d)
 		CRASHDIR=$OPTARG
 		;;
@@ -140,6 +160,17 @@ INFO=$CRASHDIR/info.$DUMPNR
 FILE=$CRASHDIR/core.txt.$DUMPNR
 HOSTNAME=`hostname`
 
+if $BATCH; then
+	echo "Writing crash summary to $FILE."
+	exec > $FILE 2>&1
+fi
+
+find_gdb
+if [ -z "$GDB" ]; then
+	echo "Unable to find a kernel debugger."
+	exit 1
+fi
+
 if [ ! -e $VMCORE ]; then
 	echo "$VMCORE not found"
 	exit 1
@@ -162,8 +193,6 @@ elif [ ! -e $KERNEL ]; then
 	exit 1
 fi
 
-echo "Writing crash summary to $FILE."
-
 umask 077
 
 # Simulate uname
@@ -172,7 +201,10 @@ osrelease=$(gdb_command $KERNEL 'printf "%s", osrelease')
 version=$(gdb_command $KERNEL 'printf "%s", version' | tr '\t\n' '  ')
 machine=$(gdb_command $KERNEL 'printf "%s", machine')
 
-exec > $FILE 2>&1
+if ! $BATCH; then
+	echo "Writing crash summary to $FILE."
+	exec > $FILE 2>&1
+fi
 
 echo "$HOSTNAME dumped core - see $VMCORE"
 echo
@@ -189,11 +221,7 @@ file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
 	echo "bt" >> $file
 	echo "quit" >> $file
-	if [ -x /usr/local/bin/kgdb ]; then
-		/usr/local/bin/kgdb $KERNEL $VMCORE < $file
-	else
-		kgdb $KERNEL $VMCORE < $file
-	fi
+	${GDB%gdb}kgdb $KERNEL $VMCORE < $file
 	rm -f $file
 	echo
 fi

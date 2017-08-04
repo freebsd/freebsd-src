@@ -36,7 +36,7 @@ routing_start()
 
 	case $_af in
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
-		for _a in inet inet6 atm; do
+		for _a in inet inet6; do
 			afexists $_a || continue
 			setroutes $_cmd $_a $_if || _ret=1
 		done
@@ -65,7 +65,7 @@ routing_stop()
 
 	case $_af in
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
-		for _a in inet inet6 atm; do
+		for _a in inet inet6; do
 			afexists $_a || continue
 			eval static_${_a} delete $_if
 			# When $_if is specified, do not flush routes.
@@ -124,11 +124,6 @@ routing_stop_inet6()
 			ifconfig $i inet6 -defaultif
 		fi
 	done
-}
-
-routing_stop_atm()
-{
-	return 0
 }
 
 get_fibmod()
@@ -286,24 +281,7 @@ static_inet6()
 	esac
 
 	ifconfig ${ipv6_default_interface} inet6 defaultif
-	sysctl net.inet6.ip6.use_defaultzone=1
-}
-
-static_atm()
-{
-	local _action i route_args
-	_action=$1
-
-	if [ -n "${natm_static_routes}" ]; then
-		for i in ${natm_static_routes}; do
-			route_args=`get_if_var $i route_IF`
-			if [ -n "$route_args" ]; then
-				atmconfig natm ${_action} ${route_args}
-			else
-				warn "route_${i} not found."
-			fi
-		done
-	fi
+	${SYSCTL} net.inet6.ip6.use_defaultzone=1 > /dev/null
 }
 
 ropts_init()
@@ -387,13 +365,6 @@ options_inet6()
 	else
 		${SYSCTL} net.inet6.ip6.forwarding=0 > /dev/null
 	fi
-
-	[ -n "${_ropts_initdone}" ] && echo '.'
-}
-
-options_atm()
-{
-	_ropts_initdone=
 
 	[ -n "${_ropts_initdone}" ] && echo '.'
 }

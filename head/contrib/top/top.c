@@ -112,7 +112,8 @@ extern int io_compare();
 #endif
 time_t time();
 
-caddr_t get_process_info();
+caddr_t get_process_info(struct system_info *si, struct process_select *sel,
+    int (*compare)(const void *, const void *));
 
 /* different routines for displaying the user's identification */
 /* (values assigned to get_userid) */
@@ -120,15 +121,16 @@ char *username();
 char *itoa7();
 
 /* pointers to display routines */
-void (*d_loadave)() = i_loadave;
-void (*d_procstates)() = i_procstates;
-void (*d_cpustates)() = i_cpustates;
-void (*d_memory)() = i_memory;
-void (*d_arc)() = i_arc;
-void (*d_swap)() = i_swap;
-void (*d_message)() = i_message;
-void (*d_header)() = i_header;
-void (*d_process)() = i_process;
+void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
+void (*d_procstates)(int total, int *brkdn) = i_procstates;
+void (*d_cpustates)(int *states) = i_cpustates;
+void (*d_memory)(int *stats) = i_memory;
+void (*d_arc)(int *stats) = i_arc;
+void (*d_carc)(int *stats) = i_carc;
+void (*d_swap)(int *stats) = i_swap;
+void (*d_message)(void) = i_message;
+void (*d_header)(char *text) = i_header;
+void (*d_process)(int line, char *thisline) = i_process;
 
 void reset_display(void);
 
@@ -188,9 +190,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJ";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJw";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -219,8 +221,9 @@ char *argv[];
 #define CMD_kidletog	22
 #define CMD_pcputog	23
 #define CMD_jail	24
+#define CMD_swaptog	25
 #ifdef ORDER
-#define CMD_order       25
+#define CMD_order       26
 #endif
 
     /* set the buffer for stdout */
@@ -254,6 +257,7 @@ char *argv[];
     ps.wcpu    = 1;
     ps.jid     = -1;
     ps.jail    = No;
+    ps.swap    = No;
     ps.kidle   = Yes;
     ps.command = NULL;
 
@@ -280,7 +284,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:tw")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -418,6 +422,10 @@ char *argv[];
 		pcpu_stats = !pcpu_stats;
 		break;
 
+	      case 'w':
+		ps.swap = 1;
+		break;
+
 	      case 'z':
 		ps.kidle = !ps.kidle;
 		break;
@@ -425,7 +433,7 @@ char *argv[];
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-abCHIijnPqStuvwz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-J jail] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
@@ -652,6 +660,7 @@ restart:
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
 	(*d_arc)(system_info.arc);
+	(*d_carc)(system_info.carc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -718,6 +727,7 @@ restart:
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
 		    d_arc = u_arc;
+		    d_carc = u_carc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -1141,6 +1151,15 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
+			    case CMD_swaptog:
+				ps.swap = !ps.swap;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying per-process swap usage.",
+				    ps.swap ? "D" : "Not d");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
 				putchar('\r');
@@ -1175,6 +1194,7 @@ reset_display()
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
     d_arc        = i_arc;
+    d_carc       = i_carc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;

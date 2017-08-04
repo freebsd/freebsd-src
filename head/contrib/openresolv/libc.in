@@ -216,7 +216,7 @@ fi
 if $backup; then
 	if [ "$newconf" = "$signature$NL" ]; then
 		if [ -e "$resolv_conf.bak" ]; then
-			newconf="$(cat "$resolv_conf.bak")"
+			newconf="$(cat "$resolv_conf.bak")$NL"
 		fi
 	elif [ -e "$resolv_conf" ]; then
 		read line <"$resolv_conf"

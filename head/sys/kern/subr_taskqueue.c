@@ -81,6 +81,7 @@ struct taskqueue {
 #define	TQ_FLAGS_UNLOCKED_ENQUEUE	(1 << 2)
 
 #define	DT_CALLOUT_ARMED	(1 << 0)
+#define	DT_DRAIN_IN_PROGRESS	(1 << 1)
 
 #define	TQ_LOCK(tq)							\
 	do {								\
@@ -288,8 +289,8 @@ taskqueue_timeout_func(void *arg)
 }
 
 int
-taskqueue_enqueue_timeout(struct taskqueue *queue,
-    struct timeout_task *timeout_task, int ticks)
+taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
+    struct timeout_task *timeout_task, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	int res;
 
@@ -299,7 +300,11 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 	KASSERT(!queue->tq_spin, ("Timeout for spin-queue"));
 	timeout_task->q = queue;
 	res = timeout_task->t.ta_pending;
-	if (ticks == 0) {
+	if (timeout_task->f & DT_DRAIN_IN_PROGRESS) {
+		/* Do nothing */
+		TQ_UNLOCK(queue);
+		res = -1;
+	} else if (sbt == 0) {
 		taskqueue_enqueue_locked(queue, &timeout_task->t);
 		/* The lock is released inside. */
 	} else {
@@ -308,16 +313,25 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 		} else {
 			queue->tq_callouts++;
 			timeout_task->f |= DT_CALLOUT_ARMED;
-			if (ticks < 0)
-				ticks = -ticks; /* Ignore overflow. */
+			if (sbt < 0)
+				sbt = -sbt; /* Ignore overflow. */
 		}
-		if (ticks > 0) {
-			callout_reset(&timeout_task->c, ticks,
-			    taskqueue_timeout_func, timeout_task);
+		if (sbt > 0) {
+			callout_reset_sbt(&timeout_task->c, sbt, pr,
+			    taskqueue_timeout_func, timeout_task, flags);
 		}
 		TQ_UNLOCK(queue);
 	}
 	return (res);
+}
+
+int
+taskqueue_enqueue_timeout(struct taskqueue *queue,
+    struct timeout_task *ttask, int ticks)
+{
+
+	return (taskqueue_enqueue_timeout_sbt(queue, ttask, ticks * tick_sbt,
+	    0, 0));
 }
 
 static void
@@ -482,6 +496,23 @@ task_is_running(struct taskqueue *queue, struct task *task)
 	return (0);
 }
 
+/*
+ * Only use this function in single threaded contexts. It returns
+ * non-zero if the given task is either pending or running. Else the
+ * task is idle and can be queued again or freed.
+ */
+int
+taskqueue_poll_is_busy(struct taskqueue *queue, struct task *task)
+{
+	int retval;
+
+	TQ_LOCK(queue);
+	retval = task->ta_pending > 0 || task_is_running(queue, task);
+	TQ_UNLOCK(queue);
+
+	return (retval);
+}
+
 static int
 taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
     u_int *pendp)
@@ -559,8 +590,24 @@ taskqueue_drain_timeout(struct taskqueue *queue,
     struct timeout_task *timeout_task)
 {
 
+	/*
+	 * Set flag to prevent timer from re-starting during drain:
+	 */
+	TQ_LOCK(queue);
+	KASSERT((timeout_task->f & DT_DRAIN_IN_PROGRESS) == 0,
+	    ("Drain already in progress"));
+	timeout_task->f |= DT_DRAIN_IN_PROGRESS;
+	TQ_UNLOCK(queue);
+
 	callout_drain(&timeout_task->c);
 	taskqueue_drain(queue, &timeout_task->t);
+
+	/*
+	 * Clear flag to allow timer to re-start:
+	 */
+	TQ_LOCK(queue);
+	timeout_task->f &= ~DT_DRAIN_IN_PROGRESS;
+	TQ_UNLOCK(queue);
 }
 
 static void
@@ -624,6 +671,11 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 			tq->tq_threads[i] = NULL;		/* paranoid */
 		} else
 			tq->tq_tcount++;
+	}
+	if (tq->tq_tcount == 0) {
+		free(tq->tq_threads, M_TASKQUEUE);
+		tq->tq_threads = NULL;
+		return (ENOMEM);
 	}
 	for (i = 0; i < count; i++) {
 		if (tq->tq_threads[i] == NULL)

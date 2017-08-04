@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd May 20, 2017
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -164,12 +164,12 @@ In the absence of
 .Fl maproot
 and
 .Fl mapall
-options, remote accesses by root will result in using a credential of -2:-2.
+options, remote accesses by root will result in using a credential of 65534:65533.
 All other users will be mapped to their remote credential.
 If a
 .Fl maproot
 option is given,
-remote access by root will be mapped to that credential instead of -2:-2.
+remote access by root will be mapped to that credential instead of 65534:65533.
 If a
 .Fl mapall
 option is given,

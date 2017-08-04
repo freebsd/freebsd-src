@@ -30,13 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/select.h>
 
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sysexits.h>
 
 #include "inout.h"
 #include "pci_lpc.h"
@@ -104,6 +110,10 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		uint32_t *eax, void *arg)
 {
 	static int opened;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
 
 	if (bytes == 2 && in) {
 		*eax = BVM_CONS_SIG;
@@ -123,6 +133,16 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		return (-1);
 
 	if (!opened) {
+#ifndef WITHOUT_CAPSICUM
+		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
+		    CAP_WRITE);
+		if (cap_rights_limit(STDIN_FILENO, &rights) == -1 &&
+		    errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+		if (cap_ioctls_limit(STDIN_FILENO, cmds, nitems(cmds)) == -1 &&
+		    errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 		ttyopen();
 		opened = 1;
 	}

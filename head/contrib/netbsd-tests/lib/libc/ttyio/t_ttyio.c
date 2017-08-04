@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ttyio.c,v 1.2 2011/04/19 20:07:53 martin Exp $ */
+/*	$NetBSD: t_ttyio.c,v 1.3 2017/01/10 01:31:40 christos Exp $ */
 
 /*
  * Copyright (c) 2001, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_ttyio.c,v 1.2 2011/04/19 20:07:53 martin Exp $");
+__RCSID("$NetBSD: t_ttyio.c,v 1.3 2017/01/10 01:31:40 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -150,8 +150,9 @@ ATF_TC_BODY(ioctl, tc)
 	/* wait for last child */
 	sa.sa_handler = SIG_DFL;
 	REQUIRE_ERRNO(sigaction(SIGCHLD, &sa, NULL), -1);
-	(void) wait(NULL);
+	(void)wait(NULL);
 
+	(void)close(s);
 	ATF_REQUIRE_EQ(rc, 0);
 }
 

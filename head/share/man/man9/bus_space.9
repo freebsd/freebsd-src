@@ -51,7 +51,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2005
+.Dd January 15, 2017
 .Dt BUS_SPACE 9
 .Os
 .Sh NAME
@@ -601,7 +601,7 @@ of devices on different system architectures, and to allow a single driver
 object file to manipulate a set of devices on multiple bus types on a
 single architecture.
 .Pp
-Not all busses have to implement all functions described in this
+Not all buses have to implement all functions described in this
 document, though that is encouraged if the operations are logically
 supported by the bus.
 Unimplemented functions should cause
@@ -625,7 +625,7 @@ machine-dependent code.
 A given machine may have several different types
 of bus space (e.g.\& memory space and I/O space), and thus may provide
 multiple different bus space tags.
-Individual busses or devices on a machine may use more than one bus space
+Individual buses or devices on a machine may use more than one bus space
 tag.
 For instance, ISA devices are
 given an ISA memory space tag and an ISA I/O space tag.
@@ -639,7 +639,7 @@ The
 bus address describes the start of the range in bus space.
 The bus
 size describes the size of the range in bytes.
-Busses which are not byte
+Buses which are not byte
 addressable may require use of bus space ranges with appropriately
 aligned addresses and properly rounded sizes.
 .Pp
@@ -656,7 +656,7 @@ argument, at least one handle argument, and at least one offset argument
 The bus space tag specifies the space, each handle specifies a region in
 the space, and each offset specifies the offset into the region of the
 actual location(s) to be accessed.
-Offsets are given in bytes, though busses
+Offsets are given in bytes, though buses
 may impose alignment constraints.
 The offset used to access data
 relative to a given handle must be such that all of the data being
@@ -853,8 +853,8 @@ Some implementations may keep track of use of bus space for some or all
 bus spaces and refuse to allow duplicate allocations.
 This is encouraged
 for bus spaces which have no notion of slot-specific space addressing,
-such as ISA and VME, and for spaces which coexist with those spaces
-(e.g.\& EISA and PCI memory and I/O spaces co-existing with ISA memory and
+such as ISA, and for spaces which coexist with those spaces
+(e.g.\& PCI memory and I/O spaces co-existing with ISA memory and
 I/O spaces).
 .Pp
 Mapped regions may contain areas for which there is no device on the
@@ -1049,7 +1049,7 @@ The
 and
 .Fn bus_space_write_N
 families of functions provide
-the ability to read and write 1, 2, 4, and 8 byte data items on busses
+the ability to read and write 1, 2, 4, and 8 byte data items on buses
 which support those access sizes.
 .Ss Fn bus_space_read_1 space handle offset
 .Ss Fn bus_space_read_2 space handle offset

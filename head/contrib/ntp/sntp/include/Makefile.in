@@ -100,9 +100,8 @@ am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
 	$(top_srcdir)/m4/ntp_crosscompile.m4 \
 	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/m4/ntp_facilitynames.m4 \
-	$(top_srcdir)/m4/ntp_googletest.m4 \
-	$(top_srcdir)/m4/ntp_ipv6.m4 $(top_srcdir)/m4/ntp_lib_m.m4 \
-	$(top_srcdir)/m4/ntp_libevent.m4 \
+	$(top_srcdir)/m4/ntp_harden.m4 $(top_srcdir)/m4/ntp_ipv6.m4 \
+	$(top_srcdir)/m4/ntp_lib_m.m4 $(top_srcdir)/m4/ntp_libevent.m4 \
 	$(top_srcdir)/m4/ntp_libntp.m4 \
 	$(top_srcdir)/m4/ntp_lineeditlibs.m4 \
 	$(top_srcdir)/m4/ntp_locinfo.m4 \
@@ -172,10 +171,6 @@ CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
-CXXDEPMODE = @CXXDEPMODE@
-CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -190,11 +185,6 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
-GTEST_CONFIG = @GTEST_CONFIG@
-GTEST_CPPFLAGS = @GTEST_CPPFLAGS@
-GTEST_CXXFLAGS = @GTEST_CXXFLAGS@
-GTEST_LDFLAGS = @GTEST_LDFLAGS@
-GTEST_LIBS = @GTEST_LIBS@
 HAVE_INLINE = @HAVE_INLINE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -222,6 +212,7 @@ LIPO = @LIPO@
 LN_S = @LN_S@
 LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MANTAGFMT = @MANTAGFMT@
@@ -274,6 +265,9 @@ NTPTRACE_DS = @NTPTRACE_DS@
 NTPTRACE_MS = @NTPTRACE_MS@
 NTPTRACE_NI = @NTPTRACE_NI@
 NTP_FORCE_LIBEVENT_DIST = @NTP_FORCE_LIBEVENT_DIST@
+NTP_HARD_CFLAGS = @NTP_HARD_CFLAGS@
+NTP_HARD_CPPFLAGS = @NTP_HARD_CPPFLAGS@
+NTP_HARD_LDFLAGS = @NTP_HARD_LDFLAGS@
 NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
 NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
 NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
@@ -335,7 +329,6 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@

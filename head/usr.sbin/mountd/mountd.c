@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -230,9 +230,9 @@ static char **exnames;
 static char **hosts = NULL;
 static struct xucred def_anon = {
 	XUCRED_VERSION,
-	(uid_t)-2,
+	(uid_t)65534,
 	1,
-	{ (gid_t)-2 },
+	{ (gid_t)65533 },
 	NULL
 };
 static int force_v2 = 0;
@@ -476,7 +476,7 @@ main(int argc, char **argv)
 	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
 	if (!resvport_only) {
-		if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
+		if (sysctlbyname("vfs.nfsd.nfs_privport", NULL, NULL,
 		    &resvport_only, sizeof(resvport_only)) != 0 &&
 		    errno != ENOENT) {
 			syslog(LOG_ERR, "sysctl: %m");
@@ -2893,8 +2893,8 @@ parsecred(char *namelist, struct xucred *cr)
 	/*
 	 * Set up the unprivileged user.
 	 */
-	cr->cr_uid = -2;
-	cr->cr_groups[0] = -2;
+	cr->cr_uid = 65534;
+	cr->cr_groups[0] = 65533;
 	cr->cr_ngroups = 1;
 	/*
 	 * Get the user's password table entry.

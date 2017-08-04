@@ -29,12 +29,16 @@
 # $FreeBSD$
 #
 
-.PATH:	${.CURDIR}/../../../dev/gpio/
+.PATH:	${SRCTOP}/sys/dev/gpio/
 
 KMOD=	gpioled
+.if !empty(OPT_FDT)
+SRCS=	gpioled_fdt.c
+.else
 SRCS=	gpioled.c
+.endif
 SRCS+=	device_if.h bus_if.h gpio_if.h gpiobus_if.h opt_platform.h ofw_bus_if.h
 
-CFLAGS+=  -I. -I${.CURDIR}/../../../dev/gpio/
+CFLAGS+=  -I. -I${SRCTOP}/sys/dev/gpio/
 
 .include <bsd.kmod.mk>

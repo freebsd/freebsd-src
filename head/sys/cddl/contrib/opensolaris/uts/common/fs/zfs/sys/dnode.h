@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -35,6 +35,7 @@
 #include <sys/refcount.h>
 #include <sys/dmu_zfetch.h>
 #include <sys/zrlock.h>
+#include <sys/multilist.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -58,7 +59,13 @@ extern "C" {
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
 #define	DN_MIN_INDBLKSHIFT	12	/* 4k */
-#define	DN_MAX_INDBLKSHIFT	14	/* 16k */
+/*
+ * If we ever increase this value beyond 20, we need to revisit all logic that
+ * does x << level * ebps to handle overflow.  With a 1M indirect block size,
+ * 4 levels of indirect blocks would not be able to guarantee addressing an
+ * entire object, so 5 levels will be used, but 5 * (20 - 7) = 65.
+ */
+#define	DN_MAX_INDBLKSHIFT	17	/* 128k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
 #define	DN_MAX_OBJECT_SHIFT	48	/* 256 trillion (zfs_fid_t limit) */
@@ -88,6 +95,11 @@ extern "C" {
 
 #define	DNODES_PER_BLOCK_SHIFT	(DNODE_BLOCK_SHIFT - DNODE_SHIFT)
 #define	DNODES_PER_BLOCK	(1ULL << DNODES_PER_BLOCK_SHIFT)
+
+/*
+ * This is inaccurate if the indblkshift of the particular object is not the
+ * max.  But it's only used by userland to calculate the zvol reservation.
+ */
 #define	DNODES_PER_LEVEL_SHIFT	(DN_MAX_INDBLKSHIFT - SPA_BLKPTRSHIFT)
 #define	DNODES_PER_LEVEL	(1ULL << DNODES_PER_LEVEL_SHIFT)
 
@@ -144,7 +156,7 @@ typedef struct dnode_phys {
 	blkptr_t dn_spill;
 } dnode_phys_t;
 
-typedef struct dnode {
+struct dnode {
 	/*
 	 * Protects the structure of the dnode, including the number of levels
 	 * of indirection (dn_nlevels), dn_maxblkid, and dn_next_*
@@ -190,11 +202,9 @@ typedef struct dnode {
 
 	/* protected by dn_dbufs_mtx; declared here to fill 32-bit hole */
 	uint32_t dn_dbufs_count;	/* count of dn_dbufs */
-	/* There are no level-0 blocks of this blkid or higher in dn_dbufs */
-	uint64_t dn_unlisted_l0_blkid;
 
 	/* protected by os_lock: */
-	list_node_t dn_dirty_link[TXG_SIZE];	/* next on dataset's dirty */
+	multilist_node_t dn_dirty_link[TXG_SIZE]; /* next on dataset's dirty */
 
 	/* protected by dn_mtx: */
 	kmutex_t dn_mtx;
@@ -242,7 +252,7 @@ typedef struct dnode {
 
 	/* holds prefetch structure */
 	struct zfetch	dn_zfetch;
-} dnode_t;
+};
 
 /*
  * Adds a level of indirection between the dbuf and the dnode to avoid
@@ -295,7 +305,6 @@ void dnode_verify(dnode_t *dn);
 int dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx);
 void dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx);
 void dnode_diduse_space(dnode_t *dn, int64_t space);
-void dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx);
 void dnode_new_blkid(dnode_t *dn, uint64_t blkid, dmu_tx_t *tx, boolean_t);
 uint64_t dnode_block_freed(dnode_t *dn, uint64_t blkid);
 void dnode_init(void);

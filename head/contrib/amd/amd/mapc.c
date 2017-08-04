@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -96,7 +92,7 @@ static struct opt_tab mapc_opt[] =
   {"regexp", MAPC_RE},
 #endif /* HAVE_REGEXEC */
   {"sync", MAPC_SYNC},
-  {0, 0}
+  {NULL, 0}
 };
 
 /*
@@ -137,6 +133,7 @@ static const char *get_full_path(const char *map, const char *path, const char *
 static int mapc_meta_search(mnt_map *, char *, char **, int);
 static void mapc_sync(mnt_map *);
 static void mapc_clear(mnt_map *);
+static void mapc_clear_kvhash(kv **);
 
 /* ROOT MAP */
 static int root_init(mnt_map *, char *, time_t *);
@@ -198,12 +195,6 @@ extern int ndbm_search(mnt_map *, char *, char *, char **, time_t *);
 extern int ndbm_mtime(mnt_map *, char *, time_t *);
 #endif /* HAVE_MAP_NDBM */
 
-/* EXECUTABLE MAPS */
-#ifdef HAVE_MAP_EXEC
-extern int exec_init(mnt_map *, char *, time_t *);
-extern int exec_search(mnt_map *, char *, char *, char **, time_t *);
-#endif /* HAVE_MAP_EXEC */
-
 /* FILE MAPS */
 #ifdef HAVE_MAP_FILE
 extern int file_init_or_mtime(mnt_map *, char *, time_t *);
@@ -211,6 +202,16 @@ extern int file_reload(mnt_map *, char *, add_fn *);
 extern int file_search(mnt_map *, char *, char *, char **, time_t *);
 #endif /* HAVE_MAP_FILE */
 
+/* EXECUTABLE MAPS */
+#ifdef HAVE_MAP_EXEC
+extern int exec_init(mnt_map *, char *, time_t *);
+extern int exec_search(mnt_map *, char *, char *, char **, time_t *);
+#endif /* HAVE_MAP_EXEC */
+
+/* Sun-syntax MAPS */
+#ifdef HAVE_MAP_SUN
+/* XXX: fill in */
+#endif /* HAVE_MAP_SUN */
 
 /* note that the choice of MAPC_{INC,ALL} will affect browsable_dirs */
 static map_type maptypes[] =
@@ -323,6 +324,20 @@ static map_type maptypes[] =
     MAPC_INC
   },
 #endif /* HAVE_MAP_EXEC */
+#ifdef notyet /* probe function needs to be there or SEGV */
+#ifdef HAVE_MAP_SUN
+  {
+    /* XXX: fill in */
+    "sun",
+    NULL,
+    NULL,
+    NULL,			/* isup function */
+    NULL,
+    NULL,
+    0
+  },
+#endif /* HAVE_MAP_SUN */
+#endif
   {
     "error",
     error_init,
@@ -412,6 +427,44 @@ mapc_add_kv(mnt_map *m, char *key, char *val)
 
   dlog("add_kv: %s -> %s", key, val);
 
+  if (val != NULL && strchr(val, '\n') != NULL) {
+    /*
+     * If the entry value contains multiple lines we need to break
+     * them up and add them recursively.  This is a workaround to
+     * support Sun style multi-mounts.  Amd converts Sun style
+     * mulit-mounts to type:=auto.  The problem is that Sun packs all
+     * the entries on one line.  When Amd does the conversion it puts
+     * each type:=auto entry on the same line separated by '\n'.
+     */
+    char *entry, *tok;
+
+    /*
+     * The first line should contain the first entry.  The key for
+     * this entry is the key passed into this function.
+     */
+    if ((tok = strtok(val, "\n")) != NULL) {
+      mapc_add_kv(m, key, xstrdup(tok));
+    }
+
+    /*
+     * For the rest of the entries we need to tokenize them by '\n'
+     * and separate the keys from there entries.
+     */
+    while ((tok = strtok(NULL, "\n")) != NULL) {
+      key = tok;
+      /* find the entry */
+      for (entry = key; *entry && !isspace((unsigned char)*entry); entry++);
+      if (*entry) {
+	*entry++ = '\0';
+      }
+
+      mapc_add_kv(m, xstrdup(key), xstrdup(entry));
+    }
+
+    XFREE(val);
+    return;
+  }
+
 #ifdef HAVE_REGEXEC
   if (MAPC_ISRE(m)) {
     char pattern[MAXPATHLEN];
@@ -431,7 +484,8 @@ mapc_add_kv(mnt_map *m, char *key, char *val)
       plog(XLOG_USER, "error compiling RE \"%s\": %s", pattern, errstr);
       return;
     }
-  }
+  } else
+    memset(&re, 0, sizeof(re));
 #endif /* HAVE_REGEXEC */
 
   h = &m->kvhash[hash];
@@ -443,6 +497,7 @@ mapc_add_kv(mnt_map *m, char *key, char *val)
   n->val = val;
   n->next = *h;
   *h = n;
+  m->nentries++;
 }
 
 
@@ -506,7 +561,7 @@ mapc_find_wildcard(mnt_map *m)
   int rc = search_map(m, wildcard, &m->wildcard);
 
   if (rc != 0)
-    m->wildcard = 0;
+    m->wildcard = NULL;
 }
 
 
@@ -520,7 +575,7 @@ static int
 mapc_reload_map(mnt_map *m)
 {
   int error, ret = 0;
-  kv *maphash[NKVHASH], *tmphash[NKVHASH];
+  kv *maphash[NKVHASH];
   time_t t;
 
   error = (*m->mtime) (m, m->map_name, &t);
@@ -546,6 +601,7 @@ mapc_reload_map(mnt_map *m)
   memset((voidp) m->kvhash, 0, sizeof(m->kvhash));
 
   dlog("calling map reload on %s", m->map_name);
+  m->nentries = 0;
   error = (*m->reload) (m, m->map_name, mapc_add_kv);
   if (error) {
     if (m->reloads == 0)
@@ -561,19 +617,19 @@ mapc_reload_map(mnt_map *m)
     else
       plog(XLOG_INFO, "reload #%d of map %s succeeded",
 	   m->reloads, m->map_name);
-    memcpy((voidp) tmphash, (voidp) m->kvhash, sizeof(m->kvhash));
-    memcpy((voidp) m->kvhash, (voidp) maphash, sizeof(m->kvhash));
-    mapc_clear(m);
-    memcpy((voidp) m->kvhash, (voidp) tmphash, sizeof(m->kvhash));
+    mapc_clear_kvhash(maphash);
+    if (m->wildcard) {
+       XFREE(m->wildcard);
+       m->wildcard = NULL;
+    }
     m->modify = t;
     ret = 1;
   }
-  m->wildcard = 0;
 
   dlog("calling mapc_search for wildcard");
   error = mapc_search(m, wildcard, &m->wildcard);
   if (error)
-    m->wildcard = 0;
+    m->wildcard = NULL;
   return ret;
 }
 
@@ -582,12 +638,12 @@ mapc_reload_map(mnt_map *m)
  * Create a new map
  */
 static mnt_map *
-mapc_create(char *map, char *opt, const char *type)
+mapc_create(char *map, char *opt, const char *type, const char *mntpt)
 {
   mnt_map *m = ALLOC(struct mnt_map);
   map_type *mt;
   time_t modify = 0;
-  int alloc = 0;
+  u_int alloc = 0;
 
   cmdoption(opt, mapc_opt, &alloc);
 
@@ -632,6 +688,7 @@ mapc_create(char *map, char *opt, const char *type)
   /* assert: mt in maptypes */
 
   m->flags = alloc & ~MAPC_CACHE_MASK;
+  m->nentries = 0;
   alloc &= MAPC_CACHE_MASK;
 
   if (alloc == MAPC_DFLT)
@@ -678,12 +735,12 @@ mapc_create(char *map, char *opt, const char *type)
   m->search = alloc >= MAPC_ALL ? error_search : mt->search;
   m->mtime = mt->mtime;
   memset((voidp) m->kvhash, 0, sizeof(m->kvhash));
-  m->map_name = strdup(map);
+  m->map_name = xstrdup(map);
   m->refc = 1;
-  m->wildcard = 0;
+  m->wildcard = NULL;
   m->reloads = 0;
-  /* Unfortunately with current code structure, this cannot be initialized here */
-  m->cfm = NULL;
+  /* initialize per-map information (flags, etc.) */
+  m->cfm = find_cf_map(mntpt);
 
   /*
    * synchronize cache with reality
@@ -695,10 +752,10 @@ mapc_create(char *map, char *opt, const char *type)
 
 
 /*
- * Free the cached data in a map
+ * Free the cached data in a map hash
  */
 static void
-mapc_clear(mnt_map *m)
+mapc_clear_kvhash(kv **kvhash)
 {
   int i;
 
@@ -707,16 +764,25 @@ mapc_clear(mnt_map *m)
    * along free'ing the data.
    */
   for (i = 0; i < NKVHASH; i++) {
-    kv *k = m->kvhash[i];
+    kv *k = kvhash[i];
     while (k) {
       kv *n = k->next;
       XFREE(k->key);
-      if (k->val)
-	XFREE(k->val);
+      XFREE(k->val);
       XFREE(k);
       k = n;
     }
   }
+}
+
+
+/*
+ * Free the cached data in a map
+ */
+static void
+mapc_clear(mnt_map *m)
+{
+  mapc_clear_kvhash(m->kvhash);
 
   /*
    * Zero the hash slots
@@ -726,10 +792,10 @@ mapc_clear(mnt_map *m)
   /*
    * Free the wildcard if it exists
    */
-  if (m->wildcard) {
-    XFREE(m->wildcard);
-    m->wildcard = 0;
-  }
+  XFREE(m->wildcard);
+  m->wildcard = NULL;
+
+  m->nentries = 0;
 }
 
 
@@ -737,7 +803,7 @@ mapc_clear(mnt_map *m)
  * Find a map, or create one if it does not exist
  */
 mnt_map *
-mapc_find(char *map, char *opt, const char *maptype)
+mapc_find(char *map, char *opt, const char *maptype, const char *mntpt)
 {
   mnt_map *m;
 
@@ -751,7 +817,7 @@ mapc_find(char *map, char *opt, const char *maptype)
   ITER(m, mnt_map, &map_list_head)
     if (STREQ(m->map_name, map))
       return mapc_dup(m);
-  m = mapc_create(map, opt, maptype);
+  m = mapc_create(map, opt, maptype, mntpt);
   ins_que(&m->hdr, &map_list_head);
 
   return m;
@@ -788,7 +854,7 @@ static int
 mapc_meta_search(mnt_map *m, char *key, char **pval, int recurse)
 {
   int error = 0;
-  kv *k = 0;
+  kv *k = NULL;
 
   /*
    * Firewall
@@ -839,7 +905,7 @@ mapc_meta_search(mnt_map *m, char *key, char **pval, int recurse)
 	int retval;
 
 	/* XXX: this code was recently ported, and must be tested -Erez */
-	retval = regexec(&k->re, key, 0, 0, 0);
+	retval = regexec(&k->re, key, 0, NULL, 0);
 	if (retval == 0) {	/* succeeded */
 	  break;
 	} else {		/* failed to match, log error */
@@ -863,7 +929,7 @@ mapc_meta_search(mnt_map *m, char *key, char **pval, int recurse)
    */
   if (k) {
     if (k->val)
-      *pval = strdup(k->val);
+      *pval = xstrdup(k->val);
     else
       error = ENOENT;
   } else if (m->alloc >= MAPC_ALL) {
@@ -880,7 +946,7 @@ mapc_meta_search(mnt_map *m, char *key, char **pval, int recurse)
      */
     error = search_map(m, key, pval);
     if (!error && m->alloc == MAPC_INC)
-      mapc_add_kv(m, strdup(key), strdup(*pval));
+      mapc_add_kv(m, xstrdup(key), xstrdup(*pval));
   }
 
   /*
@@ -911,11 +977,11 @@ mapc_meta_search(mnt_map *m, char *key, char **pval, int recurse)
 	dlog("mapc recurses on %s", wildname);
 	error = mapc_meta_search(m, wildname, pval, MREC_PART);
 	if (error)
-	  *subp = 0;
+	  *subp = '\0';
       }
 
       if (error > 0 && m->wildcard) {
-	*pval = strdup(m->wildcard);
+	*pval = xstrdup(m->wildcard);
 	error = 0;
       }
     }
@@ -1031,7 +1097,7 @@ root_newmap(const char *dir, const char *opts, const char *map, const cf_map_t *
    * First make sure we have a root map to talk about...
    */
   if (!root_map)
-    root_map = mapc_find(ROOT_MAP, "mapdefault", NULL);
+    root_map = mapc_find(ROOT_MAP, "mapdefault", NULL, NULL);
 
   /*
    * Then add the entry...
@@ -1071,7 +1137,7 @@ root_newmap(const char *dir, const char *opts, const char *map, const cf_map_t *
     else
       xstrlcpy(str, opts, sizeof(str));
   }
-  mapc_repl_kv(root_map, strdup((char *)dir), strdup(str));
+  mapc_repl_kv(root_map, xstrdup(dir), xstrdup(str));
 }
 
 

@@ -30,7 +30,7 @@
 #define _SYS_EVENTVAR_H_
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 #include <sys/_task.h>

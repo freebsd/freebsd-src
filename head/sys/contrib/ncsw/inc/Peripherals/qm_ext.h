@@ -249,7 +249,7 @@ typedef struct {
     t_QmExceptionsCallback  *f_Exception;           /**< An application callback routine to handle exceptions.*/
     t_Handle                h_App;                  /**< A handle to an application layer object; This handle will
                                                          be passed by the driver upon calling the above callbacks */
-    int                     errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
+    uintptr_t               errIrq;                 /**< error interrupt line; NO_IRQ if interrupts not used */
     uint32_t                partFqidBase;           /**< The first frame-queue-id dedicated to this partition.
                                                          NOTE: this parameter relevant only when working with multiple partitions. */
     uint32_t                partNumOfFqids;         /**< Number of frame-queue-ids dedicated to this partition.

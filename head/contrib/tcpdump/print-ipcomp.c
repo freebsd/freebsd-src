@@ -19,12 +19,13 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IP Payload Compression Protocol (IPComp) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 struct ipcomp {
 	uint8_t comp_nxt;	/* Next Header */
@@ -32,52 +33,37 @@ struct ipcomp {
 	uint16_t comp_cpi;	/* Compression parameter index */
 };
 
-#if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
-#include <zlib.h>
-#endif
-
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
-int
-ipcomp_print(netdissect_options *ndo, register const u_char *bp, int *nhdr _U_)
+void
+ipcomp_print(netdissect_options *ndo, register const u_char *bp)
 {
 	register const struct ipcomp *ipcomp;
-	register const u_char *ep;
 	uint16_t cpi;
-#if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
-	int advance;
-#endif
 
-	ipcomp = (struct ipcomp *)bp;
+	ipcomp = (const struct ipcomp *)bp;
+	ND_TCHECK(*ipcomp);
 	cpi = EXTRACT_16BITS(&ipcomp->comp_cpi);
 
-	/* 'ep' points to the end of available data. */
-	ep = ndo->ndo_snapend;
-
-	if ((u_char *)(ipcomp + 1) >= ep - sizeof(struct ipcomp)) {
-		ND_PRINT((ndo, "[|IPCOMP]"));
-		goto fail;
-	}
 	ND_PRINT((ndo, "IPComp(cpi=0x%04x)", cpi));
 
-#if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
-	if (1)
-		goto fail;
-
 	/*
-	 * We may want to decompress the packet here.  Packet buffer
-	 * management is a headache (if we decompress, packet will become
-	 * larger).
+	 * XXX - based on the CPI, we could decompress the packet here.
+	 * Packet buffer management is a headache (if we decompress,
+	 * packet will become larger).
+	 *
+	 * We would decompress the packet and then call a routine that,
+	 * based on ipcomp->comp_nxt, dissects the decompressed data.
+	 *
+	 * Until we do that, however, we just return -1, so that
+	 * the loop that processes "protocol"/"next header" types
+	 * stops - there's nothing more it can do with a compressed
+	 * payload.
 	 */
-	if (nhdr)
-		*nhdr = ipcomp->comp_nxt;
-	advance = sizeof(struct ipcomp);
+	return;
 
-	ND_PRINT((ndo, ": "));
-	return advance;
-
-#endif
-fail:
-	return -1;
+trunc:
+	ND_PRINT((ndo, "[|IPCOMP]"));
+	return;
 }

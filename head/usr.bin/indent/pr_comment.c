@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include "indent_globs.h"
+#include "indent_codes.h"
 #include "indent.h"
 /*
  * NAME:
@@ -140,16 +141,23 @@ pr_comment(void)
 		    target_col = count_spaces(compute_label_target(), s_lab);
 	    }
 	    ps.com_col = ps.decl_on_line || ps.ind_level == 0 ? ps.decl_com_ind : ps.com_ind;
-	    if (ps.com_col < target_col)
-		ps.com_col = ((target_col + 7) & ~7) + 1;
+	    if (ps.com_col <= target_col)
+		ps.com_col = tabsize * (1 + (target_col - 1) / tabsize) + 1;
 	    if (ps.com_col + 24 > adj_max_col)
 		adj_max_col = ps.com_col + 24;
 	}
     }
     if (ps.box_com) {
-	buf_ptr[-2] = 0;
-	ps.n_comment_delta = 1 - count_spaces(1, in_buffer);
-	buf_ptr[-2] = '/';
+	/*
+	 * Find out how much indentation there was originally, because that
+	 * much will have to be ignored by pad_output() in dump_line(). This
+	 * is a box comment, so nothing changes -- not even indentation.
+	 *
+	 * The comment we're about to read usually comes from in_buffer,
+	 * unless it has been copied into save_com.
+	 */
+	char *start = buf_ptr >= save_com && buf_ptr < save_com + sc_size ? bp_save : buf_ptr;
+	ps.n_comment_delta = 1 - count_spaces_until(1, in_buffer, start - 2);
     }
     else {
 	ps.n_comment_delta = 0;
@@ -162,21 +170,25 @@ pr_comment(void)
     if (*buf_ptr != ' ' && !ps.box_com)
 	*e_com++ = ' ';
 
-    /* Don't put a break delimiter if this comment is a one-liner */
-    for (t_ptr = buf_ptr; *t_ptr != '\0' && *t_ptr != '\n'; t_ptr++) {
-	if (t_ptr >= buf_end)
-	    fill_buffer();
-	if (t_ptr[0] == '*' && t_ptr[1] == '/') {
-	    break_delim = false;
-	    break;
+    /*
+     * Don't put a break delimiter if this is a one-liner that won't wrap.
+     */
+    if (break_delim)
+	for (t_ptr = buf_ptr; *t_ptr != '\0' && *t_ptr != '\n'; t_ptr++) {
+	    if (t_ptr >= buf_end)
+		fill_buffer();
+	    if (t_ptr[0] == '*' && t_ptr[1] == '/') {
+		if (adj_max_col >= count_spaces_until(ps.com_col, buf_ptr, t_ptr + 2))
+		    break_delim = false;
+		break;
+	    }
 	}
-    }
 
     if (break_delim) {
 	char       *t = e_com;
 	e_com = s_com + 2;
 	*e_com = 0;
-	if (blanklines_before_blockcomments)
+	if (blanklines_before_blockcomments && ps.last_token != lbrace)
 	    prefix_blankline_requested = 1;
 	dump_line();
 	e_com = s_com = t;
@@ -282,7 +294,7 @@ pr_comment(void)
 			s_com = e_com;
 		    *e_com++ = ' ';
 		}
-		if (e_com[-1] != ' ' && !ps.box_com)
+		if (e_com[-1] != ' ' && e_com[-1] != '\t' && !ps.box_com)
 		    *e_com++ = ' ';	/* ensure blank before end */
 		*e_com++ = '*', *e_com++ = '/', *e_com = '\0';
 		ps.just_saw_decl = l_just_saw_decl;

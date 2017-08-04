@@ -36,7 +36,6 @@
  */
 
 #include <machine/asm.h>
-#include <machine/cpuconf.h>
 __FBSDID("$FreeBSD$");
 
 /*

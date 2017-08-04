@@ -336,8 +336,8 @@ match_prefix_definition:
 			struct icmp6_router_renum *irr;
 			struct rr_pco_match *rpm;
 
-			irr = (struct icmp6_router_renum *)&ple_cur.pl_irr;
-			rpm = (struct rr_pco_match *)(irr + 1);
+			irr = &ple_cur.pl_irr;
+			rpm = &ple_cur.pl_rpm;
 			memset(rpm, 0, sizeof(*rpm));
 
 			rpm->rpm_code = $1;

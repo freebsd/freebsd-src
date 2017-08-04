@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2016
+.Dd April 25, 2017
 .Dt RC 8
 .Os
 .Sh NAME
@@ -454,15 +454,6 @@ disables the loading of firewall rules
 .It Ar filename
 will load the rules in the given filename (full path required).
 .El
-.Pp
-The
-.Pa /etc/rc.d/atm*
-scripts are used to configure ATM network interfaces.
-The interfaces are configured in three passes.
-The first pass performs the initial interface configuration.
-The second pass completes the interface configuration and defines PVCs and
-permanent ATMARP entries.
-The third pass starts any ATM daemons.
 .Pp
 Most daemons, including network related daemons, have their own script in
 .Pa /etc/rc.d/ ,

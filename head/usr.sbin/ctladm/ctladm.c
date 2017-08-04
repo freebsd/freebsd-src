@@ -43,25 +43,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/linker.h>
-#include <sys/queue.h>
 #include <sys/callout.h>
+#include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/stat.h>
+#include <bsdxml.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <ctype.h>
-#include <bsdxml.h>
+#include <unistd.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl.h>
@@ -2794,7 +2794,8 @@ struct cctl_islist_conn {
 	char *target_alias;
 	char *header_digest;
 	char *data_digest;
-	char *max_data_segment_length;
+	char *max_recv_data_segment_length;
+	char *max_send_data_segment_length;
 	char *max_burst_length;
 	char *first_burst_length;
 	char *offload;
@@ -2908,8 +2909,11 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "data_digest") == 0) {
 		cur_conn->data_digest = str;
 		str = NULL;
-	} else if (strcmp(name, "max_data_segment_length") == 0) {
-		cur_conn->max_data_segment_length = str;
+	} else if (strcmp(name, "max_recv_data_segment_length") == 0) {
+		cur_conn->max_recv_data_segment_length = str;
+		str = NULL;
+	} else if (strcmp(name, "max_send_data_segment_length") == 0) {
+		cur_conn->max_send_data_segment_length = str;
 		str = NULL;
 	} else if (strcmp(name, "max_burst_length") == 0) {
 		cur_conn->max_burst_length = str;
@@ -3030,20 +3034,21 @@ retry:
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
-			printf("Session ID:       %d\n", conn->connection_id);
-			printf("Initiator name:   %s\n", conn->initiator);
-			printf("Initiator portal: %s\n", conn->initiator_addr);
-			printf("Initiator alias:  %s\n", conn->initiator_alias);
-			printf("Target name:      %s\n", conn->target);
-			printf("Target alias:     %s\n", conn->target_alias);
-			printf("Header digest:    %s\n", conn->header_digest);
-			printf("Data digest:      %s\n", conn->data_digest);
-			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
-			printf("MaxBurstLen:      %s\n", conn->max_burst_length);
-			printf("FirstBurstLen:    %s\n", conn->first_burst_length);
-			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
-			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
-			printf("Offload driver:   %s\n", conn->offload);
+			printf("%-25s %d\n", "Session ID:", conn->connection_id);
+			printf("%-25s %s\n", "Initiator name:", conn->initiator);
+			printf("%-25s %s\n", "Initiator portal:", conn->initiator_addr);
+			printf("%-25s %s\n", "Initiator alias:", conn->initiator_alias);
+			printf("%-25s %s\n", "Target name:", conn->target);
+			printf("%-25s %s\n", "Target alias:", conn->target_alias);
+			printf("%-25s %s\n", "Header digest:", conn->header_digest);
+			printf("%-25s %s\n", "Data digest:", conn->data_digest);
+			printf("%-25s %s\n", "MaxRecvDataSegmentLength:", conn->max_recv_data_segment_length);
+			printf("%-25s %s\n", "MaxSendDataSegmentLength:", conn->max_send_data_segment_length);
+			printf("%-25s %s\n", "MaxBurstLen:", conn->max_burst_length);
+			printf("%-25s %s\n", "FirstBurstLen:", conn->first_burst_length);
+			printf("%-25s %s\n", "ImmediateData:", conn->immediate_data ? "Yes" : "No");
+			printf("%-25s %s\n", "iSER (RDMA):", conn->iser ? "Yes" : "No");
+			printf("%-25s %s\n", "Offload driver:", conn->offload);
 			printf("\n");
 		}
 	} else {
@@ -4148,6 +4153,13 @@ main(int argc, char **argv)
 			retval = 1;
 			goto bailout;
 		}
+#ifdef	WANT_ISCSI
+		else {
+			if (modfind("cfiscsi") == -1 &&
+			    kldload("cfiscsi") == -1)
+				warn("couldn't load cfiscsi");
+		}
+#endif
 	} else if ((command != CTLADM_CMD_HELP)
 		&& ((cmdargs & CTLADM_ARG_DEVICE) == 0)) {
 		fprintf(stderr, "%s: you must specify a device with the "

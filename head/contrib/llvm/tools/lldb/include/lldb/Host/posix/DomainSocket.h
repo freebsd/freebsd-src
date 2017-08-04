@@ -12,26 +12,24 @@
 
 #include "lldb/Host/Socket.h"
 
-namespace lldb_private
-{
-    class DomainSocket: public Socket
-    {
-    public:
-        DomainSocket(bool child_processes_inherit, Error &error);
+namespace lldb_private {
+class DomainSocket : public Socket {
+public:
+  DomainSocket(bool should_close, bool child_processes_inherit);
 
-        Error Connect(llvm::StringRef name) override;
-        Error Listen(llvm::StringRef name, int backlog) override;
-        Error Accept(llvm::StringRef name, bool child_processes_inherit, Socket *&socket) override;
+  Status Connect(llvm::StringRef name) override;
+  Status Listen(llvm::StringRef name, int backlog) override;
+  Status Accept(Socket *&socket) override;
 
-    protected:
-        DomainSocket(SocketProtocol protocol, bool child_processes_inherit, Error &error);
+protected:
+  DomainSocket(SocketProtocol protocol, bool child_processes_inherit);
 
-        virtual size_t GetNameOffset() const;
-        virtual void DeleteSocketFile(llvm::StringRef name);
+  virtual size_t GetNameOffset() const;
+  virtual void DeleteSocketFile(llvm::StringRef name);
 
-    private:
-        DomainSocket(NativeSocket socket);
-    };
+private:
+  DomainSocket(NativeSocket socket, const DomainSocket &listen_socket);
+};
 }
 
 #endif // ifndef liblldb_DomainSocket_h_

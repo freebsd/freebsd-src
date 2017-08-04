@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 3, 2016
 .Dt CCDCONFIG 8
 .Os
 .Sh NAME
@@ -159,7 +159,7 @@ It reads as a two disk stripe of da4 and da5 which is mirrored
 to a two disk stripe of da6 and da7.
 The last example is a simple
 mirror.
-The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
+The second slice of /dev/da8 is mirrored with the third slice of /dev/da9
 and assigned to ccd0.
 .Bd -literal
 # ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
@@ -246,7 +246,7 @@ and
 The
 .Nm
 utility first appeared in
-.Nx 1.0a .
+.Nx 1.1 .
 .Sh BUGS
 The initial disklabel returned by
 .Xr ccd 4

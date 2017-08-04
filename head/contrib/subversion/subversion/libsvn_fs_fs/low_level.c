@@ -764,7 +764,11 @@ svn_fs_fs__parse_representation(representation_t **rep_p,
 
   SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_md5, str,
                                  scratch_pool));
-  memcpy(rep->md5_digest, checksum->digest, sizeof(rep->md5_digest));
+
+  /* If STR is a all-zero checksum, CHECKSUM will be NULL and REP already
+     contains the correct value. */
+  if (checksum)
+    memcpy(rep->md5_digest, checksum->digest, sizeof(rep->md5_digest));
 
   /* The remaining fields are only used for formats >= 4, so check that. */
   str = svn_cstring_tokenize(" ", &string);
@@ -778,8 +782,16 @@ svn_fs_fs__parse_representation(representation_t **rep_p,
 
   SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1, str,
                                  scratch_pool));
+
+  /* We do have a valid SHA1 but it might be all 0.
+     We cannot be sure where that came from (Alas! legacy), so let's not
+     claim we know the SHA1 in that case. */
   rep->has_sha1 = checksum != NULL;
-  memcpy(rep->sha1_digest, checksum->digest, sizeof(rep->sha1_digest));
+
+  /* If STR is a all-zero checksum, CHECKSUM will be NULL and REP already
+     contains the correct value. */
+  if (checksum)
+    memcpy(rep->sha1_digest, checksum->digest, sizeof(rep->sha1_digest));
 
   /* Read the uniquifier. */
   str = svn_cstring_tokenize("/", &string);

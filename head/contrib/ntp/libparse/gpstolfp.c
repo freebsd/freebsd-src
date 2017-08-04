@@ -39,8 +39,8 @@
 
 void
 gpstolfp(
-	 int weeks,
-	 int days,
+	 u_int weeks,
+	 u_int days,
 	 unsigned long  seconds,
 	 l_fp * lfp
 	 )

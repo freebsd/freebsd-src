@@ -215,7 +215,7 @@ main(int argc, char *argv[])
 			if (vfstype == NULL)
 				vfstype = getfstype(spec);
 			if (vfstype == NULL)
-				errx(1, "Could not determine filesystem type");
+				vfstype = "ufs";
 			type = vfstype;
 			devcheck(spec);
 		} else {

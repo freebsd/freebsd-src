@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,8 +32,8 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_OS_H_
-#define _IXGBE_OS_H_
+#ifndef _IXGBE_OSDEP_H_
+#define _IXGBE_OSDEP_H_
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -55,7 +55,7 @@
 #include <dev/pci/pcireg.h>
 
 #define ASSERT(x) if(!(x)) panic("IXGBE: x")
-#define EWARN(H, W, S) printf(W)
+#define EWARN(H, W) printf(W)
 
 enum {
 	IXGBE_ERROR_SOFTWARE,
@@ -135,10 +135,13 @@ enum {
 #define IXGBE_NTOHS(_i)	ntohs(_i)
 
 /* XXX these need to be revisited */
+#define IXGBE_CPU_TO_LE16 htole16
 #define IXGBE_CPU_TO_LE32 htole32
+#define IXGBE_LE32_TO_CPU le32toh
 #define IXGBE_LE32_TO_CPUS(x)
 #define IXGBE_CPU_TO_BE16 htobe16
 #define IXGBE_CPU_TO_BE32 htobe32
+#define IXGBE_BE32_TO_CPU be32toh
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
@@ -159,7 +162,7 @@ typedef boolean_t	bool;
 #define __be32  u32
 #define __be64  u64
 
-#define le16_to_cpu 
+#define le16_to_cpu
 
 #if __FreeBSD_version < 800000
 #if defined(__i386__) || defined(__amd64__)
@@ -209,8 +212,7 @@ struct ixgbe_osdep
 };
 
 /* These routines need struct ixgbe_hw declared */
-struct ixgbe_hw; 
-device_t ixgbe_dev_from_hw(struct ixgbe_hw *hw);
+struct ixgbe_hw;
 
 /* These routines are needed by the shared code */
 extern u16 ixgbe_read_pci_cfg(struct ixgbe_hw *, u32);
@@ -235,4 +237,4 @@ extern void ixgbe_write_reg_array(struct ixgbe_hw *, u32, u32, u32);
 #define IXGBE_WRITE_REG_ARRAY(a, reg, offset, val) \
     ixgbe_write_reg_array(a, reg, offset, val)
 
-#endif /* _IXGBE_OS_H_ */
+#endif /* _IXGBE_OSDEP_H_ */

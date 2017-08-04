@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2015
+.Dd December 13, 2016
 .Dt SYSCTL_ADD_OID 9
 .Os
 .Sh NAME
@@ -51,6 +51,7 @@
 .Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
 .Fa "const char *format"
 .Fa "const char *descr"
+.Fa "const char *label"
 .Fc
 .Ft int
 .Fo sysctl_move_oid

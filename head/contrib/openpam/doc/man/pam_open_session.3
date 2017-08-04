@@ -1,13 +1,11 @@
 .\" Generated from pam_open_session.c by gendoc.pl
-.\" $Id: pam_open_session.c 648 2013-03-05 17:54:27Z des $
-.Dd September 12, 2014
+.\" $OpenPAM: pam_open_session.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_OPEN_SESSION 3
 .Os
 .Sh NAME
 .Nm pam_open_session
 .Nd open a user session
-.Sh LIBRARY
-.Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
@@ -33,14 +31,18 @@ Do not emit any messages.
 If any other bits are set,
 .Fn pam_open_session
 will return
-.Dv PAM_SYMBOL_ERR .
+.Dv PAM_BAD_CONSTANT .
 .Sh RETURN VALUES
 The
 .Fn pam_open_session
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_ABORT
 General failure.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
 .It Bq Er PAM_CONV_ERR
@@ -51,8 +53,6 @@ Permission denied.
 Error in service module.
 .It Bq Er PAM_SESSION_ERR
 Session failure.
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
 .El
@@ -78,4 +78,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

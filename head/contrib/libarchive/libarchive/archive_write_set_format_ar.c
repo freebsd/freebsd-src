@@ -126,12 +126,11 @@ archive_write_set_format_ar(struct archive_write *a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	ar = (struct ar_w *)malloc(sizeof(*ar));
+	ar = (struct ar_w *)calloc(1, sizeof(*ar));
 	if (ar == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate ar data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(ar, 0, sizeof(*ar));
 	a->format_data = ar;
 
 	a->format_name = "ar";
@@ -375,13 +374,14 @@ archive_write_ar_data(struct archive_write *a, const void *buff, size_t s)
 			return (ARCHIVE_WARN);
 		}
 
-		ar->strtab = (char *)malloc(s);
+		ar->strtab = (char *)malloc(s + 1);
 		if (ar->strtab == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate strtab buffer");
 			return (ARCHIVE_FATAL);
 		}
-		strncpy(ar->strtab, buff, s);
+		memcpy(ar->strtab, buff, s);
+		ar->strtab[s] = '\0';
 		ar->has_strtab = 1;
 	}
 

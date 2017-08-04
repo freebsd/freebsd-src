@@ -807,7 +807,7 @@ devstats(int perf_select, long double etime, int havelast)
 			printf("           cpu ");
 		printf("\n");
 		if (Iflag == 0) {
-			printf("device     r/s   w/s     kr/s     kw/s "
+			printf("device       r/s     w/s     kr/s     kw/s "
 			    " ms/r  ms/w  ms/o  ms/t qlen  %%b  ");
 		} else {
 			printf("device           r/i         w/i         kr/i"
@@ -884,7 +884,7 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5d %5d %8.1Lf "
+					printf("%-8.8s %7d %7d %8.1Lf "
 					    "%8.1Lf %5d %5d %5d %5d "
 					    "%4" PRIu64 " %3.0Lf ",
 					    devicename,

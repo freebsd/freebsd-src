@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fd.c,v 1.4 2011/08/25 18:46:01 hannken Exp $	*/
+/*	$NetBSD: t_fd.c,v 1.6 2017/01/13 21:30:41 christos Exp $	*/
 
 /*
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -42,7 +42,7 @@
 #include <rump/rumpclient.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC_WITH_CLEANUP(bigenough);
 ATF_TC_HEAD(bigenough, tc)
@@ -110,7 +110,7 @@ ATF_TC_BODY(sigio, tc)
 
 	signal(SIGIO, gotsig);
 	RZ(system("rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet "
-	    RUMPSERV));
+	    "-lrumpdev -lrumpvfs " RUMPSERV));
 	RL(setenv("RUMP_SERVER", RUMPSERV, 1));
 
 	RL(rumpclient_init());

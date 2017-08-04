@@ -94,7 +94,8 @@ dumpsys(struct dumperinfo *di)
 	    DEV_BSIZE);
 	size += hdrsize;
 
-	totsize = size + 2 * sizeof(kdh);
+	totsize = size + 2 * di->blocksize +
+	    kerneldumpcrypto_dumpkeysize(di->kdc);
 	if (totsize > di->mediasize) {
 		printf("Insufficient space on device (need %ld, have %ld), "
 		    "refusing to dump.\n", (long)totsize,
@@ -106,16 +107,27 @@ dumpsys(struct dumperinfo *di)
 	/* Determine dump offset on device. */
 	dumplo = di->mediaoffset + di->mediasize - totsize;
 
+	/* Initialize kernel dump crypto. */
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error)
+		goto fail;
+
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_SPARC64_VERSION, size,
-	    di->blocksize);
+	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
 
 	printf("Dumping %lu MB (%d chunks)\n", (u_long)(size >> 20), nreg);
 
 	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += di->blocksize;
+
+	/* Dump key */
+	error = dump_write_key(di, 0, dumplo);
+	if (error)
+		goto fail;
+	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump the private header. */
 	hdr.dh_hdr_size = hdrsize;
@@ -143,9 +155,10 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
+	dumplo += di->blocksize;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);

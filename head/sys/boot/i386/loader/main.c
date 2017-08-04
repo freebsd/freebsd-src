@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
 #include <machine/psl.h>
+#include <sys/disk.h>
 #include <sys/reboot.h>
+#include <common/drv.h>
 
 #include "bootstrap.h"
 #include "common/bootargs.h"
@@ -69,6 +71,7 @@ static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
 #ifdef LOADER_GELI_SUPPORT
+#include "geliboot.h"
 struct geli_boot_args	*gargs;
 #endif
 #ifdef LOADER_ZFS_SUPPORT
@@ -77,7 +80,7 @@ static void		i386_zfs_probe(void);
 #endif
 
 /* from vers.c */
-extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+extern	char bootprog_info[];
 
 /* XXX debugging */
 extern char end[];
@@ -173,9 +176,13 @@ main(void)
     if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
 	zargs = (struct zfs_boot_args *)(kargs + 1);
 	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
+	    if (zargs->size >= offsetof(struct zfs_boot_args, keybuf_sentinel) &&
+	      zargs->keybuf_sentinel == KEYBUF_SENTINEL) {
+		geli_save_keybuf(zargs->keybuf);
+	    }
 	    if (zargs->gelipw[0] != '\0') {
 		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
-		bzero(zargs->gelipw, sizeof(zargs->gelipw));
+		explicit_bzero(zargs->gelipw, sizeof(zargs->gelipw));
 	    }
 	}
     }
@@ -185,9 +192,12 @@ main(void)
     if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
 	gargs = (struct geli_boot_args *)(kargs + 1);
 	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
+	    if (gargs->keybuf_sentinel == KEYBUF_SENTINEL) {
+		geli_save_keybuf(gargs->keybuf);
+	    }
 	    if (gargs->gelipw[0] != '\0') {
 		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);
-		bzero(gargs->gelipw, sizeof(gargs->gelipw));
+		explicit_bzero(gargs->gelipw, sizeof(gargs->gelipw));
 	    }
 	}
     }
@@ -215,9 +225,7 @@ main(void)
     /* detect PCI BIOS for future reference */
     biospci_detect();
 
-    printf("\n");
-    printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-    printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+    printf("\n%s", bootprog_info);
 
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
@@ -411,7 +419,7 @@ command_reloadbe(int argc, char *argv[])
 	    /* There does not appear to be a ZFS pool here, exit without error */
 	    return (CMD_OK);
 	}
-	err = zfs_bootenv(getenv("zfs_be_root"));
+	err = zfs_bootenv(root);
     }
 
     if (err != 0) {
@@ -455,5 +463,15 @@ i386_zfs_probe(void)
 	sprintf(devname, "disk%d:", unit);
 	zfs_probe_dev(devname, NULL);
     }
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	int fd = (uintptr_t) priv;
+	uint64_t size;
+
+	ioctl(fd, DIOCGMEDIASIZE, &size);
+	return (size);
 }
 #endif

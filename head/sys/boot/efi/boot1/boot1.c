@@ -47,7 +47,6 @@ static const boot_module_t *boot_modules[] =
 /* The initial number of handles used to query EFI for partitions. */
 #define NUM_HANDLES_INIT	24
 
-void putchar(int c);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
 EFI_SYSTEM_TABLE *systab;
@@ -530,6 +529,7 @@ probe_handle_status(EFI_HANDLE h, EFI_DEVICE_PATH *imgpath)
 	EFI_STATUS status;
 	BOOLEAN preferred;
 
+	preferred = FALSE;
 	status = probe_handle(h, imgpath, &preferred);
 	
 	DPRINTF("probe: ");

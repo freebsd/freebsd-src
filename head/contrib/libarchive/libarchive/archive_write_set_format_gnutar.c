@@ -119,9 +119,9 @@ static const char template_header[] = {
 	'0','0','0','0','0','0', '0','\0',
 	/* gid, null termination: 8 bytes */
 	'0','0','0','0','0','0', '0','\0',
-	/* size, space termation: 12 bytes */
+	/* size, space termination: 12 bytes */
 	'0','0','0','0','0','0','0','0','0','0','0', '\0',
-	/* mtime, space termation: 12 bytes */
+	/* mtime, space termination: 12 bytes */
 	'0','0','0','0','0','0','0','0','0','0','0', '\0',
 	/* Initial checksum value: 8 spaces */
 	' ',' ',' ',' ',' ',' ',' ',' ',
@@ -368,7 +368,7 @@ archive_write_gnutar_header(struct archive_write *a,
 	}
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* Make sure the path separators in pahtname, hardlink and symlink
+	/* Make sure the path separators in pathname, hardlink and symlink
 	 * are all slash '/', not the Windows path separator '\'. */
 	entry_main = __la_win_entry_in_posix_pathseparator(entry);
 	if (entry_main == NULL) {
@@ -478,15 +478,15 @@ archive_write_gnutar_header(struct archive_write *a,
 		archive_entry_set_pathname(temp, "././@LongLink");
 		archive_entry_set_size(temp, length);
 		ret = archive_format_gnutar_header(a, buff, temp, 'K');
+		archive_entry_free(temp);
 		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		ret = __archive_write_output(a, buff, 512);
-		if(ret < ARCHIVE_WARN)
+		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
-		archive_entry_free(temp);
 		/* Write name and trailing null byte. */
 		ret = __archive_write_output(a, gnutar->linkname, length);
-		if(ret < ARCHIVE_WARN)
+		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		/* Pad to 512 bytes */
 		ret = __archive_write_nulls(a, 0x1ff & (-(ssize_t)length));
@@ -508,12 +508,12 @@ archive_write_gnutar_header(struct archive_write *a,
 		archive_entry_set_pathname(temp, "././@LongLink");
 		archive_entry_set_size(temp, length);
 		ret = archive_format_gnutar_header(a, buff, temp, 'L');
+		archive_entry_free(temp);
 		if (ret < ARCHIVE_WARN)
 			goto exit_write_header;
 		ret = __archive_write_output(a, buff, 512);
 		if(ret < ARCHIVE_WARN)
 			goto exit_write_header;
-		archive_entry_free(temp);
 		/* Write pathname + trailing null byte. */
 		ret = __archive_write_output(a, pathname, length);
 		if(ret < ARCHIVE_WARN)

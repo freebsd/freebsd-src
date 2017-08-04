@@ -1,4 +1,4 @@
-/*	$Id: main.h,v 1.25 2016/07/08 22:29:05 schwarze Exp $ */
+/*	$Id: main.h,v 1.27 2017/03/03 14:23:23 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-#define	UNCONST(a)	((void *)(uintptr_t)(const void *)(a))
 
 struct	roff_man;
 struct	manoutput;
@@ -51,3 +49,5 @@ void		  pspdf_free(void *);
 void		  terminal_mdoc(void *, const struct roff_man *);
 void		  terminal_man(void *, const struct roff_man *);
 void		  terminal_sepline(void *);
+
+void		  markdown_mdoc(void *, const struct roff_man *);

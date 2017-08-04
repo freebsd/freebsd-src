@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -409,7 +409,7 @@ _i386_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 }
 
 int
-_i386_native(kvm_t *kd)
+_i386_native(kvm_t *kd __unused)
 {
 
 #ifdef __i386__
@@ -419,7 +419,7 @@ _i386_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_i386 = {
+static struct kvm_arch kvm_i386 = {
 	.ka_probe = _i386_probe,
 	.ka_initvtop = _i386_initvtop,
 	.ka_freevtop = _i386_freevtop,

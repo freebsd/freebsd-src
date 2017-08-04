@@ -30,9 +30,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
+
+#if __ARM_ARCH >= 6
+void reinit_mmu(uint32_t ttb, uint32_t aux_clr, uint32_t aux_set);
+#endif
 
 struct cpuinfo cpuinfo =
 {
@@ -43,10 +49,42 @@ struct cpuinfo cpuinfo =
 	.icache_line_mask = 31,
 };
 
+static SYSCTL_NODE(_hw, OID_AUTO, cpu, CTLFLAG_RD, 0,
+    "CPU");
+static SYSCTL_NODE(_hw_cpu, OID_AUTO, quirks, CTLFLAG_RD, 0,
+    "CPU quirks");
+
+/*
+ * Tunable CPU quirks.
+ * Be careful, ACTRL cannot be changed if CPU is started in secure
+ * mode(world) and write to ACTRL can cause exception!
+ * These quirks are intended for optimizing CPU performance, not for
+ * applying errata workarounds. Nobody can expect that CPU with unfixed
+ * errata is stable enough to execute the kernel until quirks are applied.
+ */
+static uint32_t cpu_quirks_actlr_mask;
+SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_mask,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &cpu_quirks_actlr_mask, 0,
+    "Bits to be masked in ACTLR");
+
+static uint32_t cpu_quirks_actlr_set;
+SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &cpu_quirks_actlr_set, 0,
+    "Bits to be set in ACTLR");
+
+
 /* Read and parse CPU id scheme */
 void
 cpuinfo_init(void)
 {
+
+	/*
+	 * Prematurely fetch CPU quirks. Standard fetch for tunable
+	 * sysctls is handled using SYSINIT, thus too late for boot CPU.
+	 * Keep names in sync with sysctls.
+	 */
+	TUNABLE_INT_FETCH("hw.cpu.quirks.actlr_mask", &cpu_quirks_actlr_mask);
+	TUNABLE_INT_FETCH("hw.cpu.quirks.actlr_set", &cpu_quirks_actlr_set);
 
 	cpuinfo.midr = cp15_midr_get();
 	/* Test old version id schemes first */
@@ -111,6 +149,10 @@ cpuinfo_init(void)
 /* Not yet - CBAR only exist on ARM SMP Cortex A CPUs
 	cpuinfo.cbar = cp15_cbar_get();
 */
+	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
+		cpuinfo.ccsidr = cp15_ccsidr_get();
+		cpuinfo.clidr = cp15_clidr_get();
+	}
 
 	/* Test if revidr is implemented */
 	if (cpuinfo.revidr == cpuinfo.midr)
@@ -131,6 +173,8 @@ cpuinfo_init(void)
 	cpuinfo.generic_timer_ext = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	cpuinfo.virtualization_ext = (cpuinfo.id_pfr1 >> 12) & 0xF;
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
+	/* mpidr */
+	cpuinfo.mp_ext = (cpuinfo.mpidr >> 31u) & 0x1;
 
 	/* L1 Cache sizes */
 	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
@@ -149,21 +193,28 @@ cpuinfo_init(void)
 #endif
 }
 
+#if __ARM_ARCH >= 6
 /*
  * Get bits that must be set or cleared in ACLR register.
  * Note: Bits in ACLR register are IMPLEMENTATION DEFINED.
  * Its expected that SCU is in operational state before this
  * function is called.
  */
-void
+static void
 cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 {
+
 	*actlr_mask = 0;
 	*actlr_set = 0;
 
 	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
 		switch (cpuinfo.part_number) {
-
+		case CPU_ARCH_CORTEX_A73:
+		case CPU_ARCH_CORTEX_A72:
+		case CPU_ARCH_CORTEX_A57:
+		case CPU_ARCH_CORTEX_A53:
+			/* Nothing to do for AArch32 */
+			break;
 		case CPU_ARCH_CORTEX_A17:
 		case CPU_ARCH_CORTEX_A12: /* A12 is merged to A17 */
 			/*
@@ -227,3 +278,18 @@ cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 		return;
 	}
 }
+
+/* Reinitialize MMU to final kernel mapping and apply all CPU quirks. */
+void
+cpuinfo_reinit_mmu(uint32_t ttb)
+{
+	uint32_t actlr_mask;
+	uint32_t actlr_set;
+
+	cpuinfo_get_actlr_modifier(&actlr_mask, &actlr_set);
+	actlr_mask |= cpu_quirks_actlr_mask;
+	actlr_set |= cpu_quirks_actlr_set;
+	reinit_mmu(ttb, actlr_mask, actlr_set);
+}
+
+#endif /* __ARM_ARCH >= 6 */

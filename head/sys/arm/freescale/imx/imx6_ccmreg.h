@@ -79,7 +79,10 @@
 #define		CCGR0_ABPHDMA			(0x3 << 4)
 #define	CCM_CCGR1			0x06C
 #define		CCGR1_ENET			(0x3 << 10)
+#define		CCGR1_EPIT1			(0x3 << 12)
+#define		CCGR1_EPIT2			(0x3 << 14)
 #define		CCGR1_GPT			(0x3 << 20)
+#define		CCGR1_GPT_SERIAL		(0x3 << 22)
 #define	CCM_CCGR2			0x070
 #define		CCGR2_HDMI_TX			(0x3 << 0)
 #define		CCGR2_HDMI_TX_ISFR		(0x3 << 4)
@@ -113,6 +116,7 @@
 #define		CCGR4_PL301_MX6QPER1_BCH	(0x3 << 12)
 #define		CCGR4_PL301_MX6QPER2_MAIN	(0x3 << 14)
 #define	CCM_CCGR5			0x07C
+#define		CCGR5_SATA        		(0x3 << 4)
 #define		CCGR5_SDMA			(0x3 << 6)
 #define		CCGR5_SSI1			(0x3 << 18)
 #define		CCGR5_SSI2			(0x3 << 20)
@@ -126,5 +130,12 @@
 #define		CCGR6_USDHC3			(0x3 << 6)
 #define		CCGR6_USDHC4			(0x3 << 8)
 #define	CCM_CMEOR			0x088
+
+#define CCM_ANALOG_PLL_ENET			0x000040e0
+#define  CCM_ANALOG_PLL_ENET_LOCK		(1u << 31)
+#define  CCM_ANALOG_PLL_ENET_ENABLE_100M	(1u << 20)	/* SATA */
+#define  CCM_ANALOG_PLL_ENET_BYPASS		(1u << 16)
+#define  CCM_ANALOG_PLL_ENET_ENABLE		(1u << 13)	/* Ether */
+#define  CCM_ANALOG_PLL_ENET_POWERDOWN		(1u << 12)
 
 #endif

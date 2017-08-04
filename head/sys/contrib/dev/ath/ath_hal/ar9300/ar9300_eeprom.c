@@ -4397,7 +4397,7 @@ ar9300_eeprom_restore(struct ath_hal *ah)
 #endif
         /*
          * At this point, mptr points to the eeprom data structure
-         * in it's "default" state.  If this is big endian, swap the
+         * in its "default" state.  If this is big endian, swap the
          * data structures back to "little endian" form.
          */
         if (ar9300_eeprom_restore_internal(ah, mptr, mdata_size) >= 0) {

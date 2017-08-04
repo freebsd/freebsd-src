@@ -3,9 +3,16 @@
 
 DIRDEPS = \
 	include \
+	include/arpa \
 	include/xlocale \
+	lib/clang/libclang \
+	lib/clang/libllvm \
 	lib/libc++ \
-	usr.bin/clang/clang-tblgen.host \
+	lib/libedit \
+	lib/libexecinfo \
+	lib/msun \
+	lib/ncurses/ncursesw \
+	lib/ncurses/panelw \
 
 
 .include <dirdeps.mk>

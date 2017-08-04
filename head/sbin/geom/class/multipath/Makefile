@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 PACKAGE=runtime
-.PATH: ${.CURDIR}/../../misc
+.PATH: ${.CURDIR:H:H}/misc
 
 GEOM_CLASS=	multipath
 
-CFLAGS+=  -I${.CURDIR}/../../../../sys
+CFLAGS+=  -I${SRCTOP}/sys
 
 .include <bsd.lib.mk>

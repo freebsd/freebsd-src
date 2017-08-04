@@ -346,6 +346,7 @@ ctf_fdopen(int fd, int *errp)
 			if ((sp32 = malloc(nbytes)) == NULL || pread64(fd,
 			    sp32, nbytes, hdr.e64.e_shoff) != nbytes) {
 				free(sp);
+				free(sp32);
 				return (ctf_set_open_errno(errp, errno));
 			}
 

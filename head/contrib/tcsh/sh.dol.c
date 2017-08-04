@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.dol.c,v 3.83 2011/01/25 20:10:46 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.dol.c,v 3.87 2014/08/13 23:39:34 amold Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.dol.c,v 3.83 2011/01/25 20:10:46 christos Exp $")
+RCSID("$tcsh: sh.dol.c,v 3.87 2014/08/13 23:39:34 amold Exp $")
 
 /*
  * C shell
@@ -825,9 +825,8 @@ setDolp(Char *cp)
 		    (void) Strcpy(np + diff, rhsub);
 		    (void) Strcpy(np + diff + rhlen, dp + lhlen);
 
-		    dp = np + diff + 1;
 		    xfree(cp);
-		    cp = np;
+		    dp = cp = np;
 		    cp[--len] = '\0';
 		    didmod = 1;
 		    if (diff >= (ssize_t)len)
@@ -920,6 +919,19 @@ inheredoc_cleanup(void *dummy)
     inheredoc = 0;
 }
 
+Char *
+randsuf(void) {
+#ifndef WINNT_NATIVE
+	struct timeval tv;
+	(void) gettimeofday(&tv, NULL);
+	return putn((((tcsh_number_t)tv.tv_sec) ^ 
+	    ((tcsh_number_t)tv.tv_usec) ^
+	    ((tcsh_number_t)getpid())) & 0x00ffffff);
+#else
+    return putn(getpid());
+#endif
+}
+
 /*
  * Form a shell temporary file (in unit 0) from the words
  * of the shell input up to EOF or a line the same as "term".
@@ -950,7 +962,6 @@ heredoc(Char *term)
 #else /* !HAVE_MKSTEMP */
     char   *tmp;
 # ifndef WINNT_NATIVE
-    struct timeval tv;
 
 again:
 # endif /* WINNT_NATIVE */
@@ -966,11 +977,8 @@ again:
 # ifndef WINNT_NATIVE
 	if (errno == EEXIST) {
 	    if (unlink(tmp) == -1) {
-		(void) gettimeofday(&tv, NULL);
 		xfree(shtemp);
-		mbp = putn((((tcsh_number_t)tv.tv_sec) ^ 
-		    ((tcsh_number_t)tv.tv_usec) ^
-		    ((tcsh_number_t)getpid())) & 0x00ffffff);
+		mbp = randsuf();
 		shtemp = Strspl(STRtmpsh, mbp);
 		xfree(mbp);
 	    }

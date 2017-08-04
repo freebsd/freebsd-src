@@ -356,7 +356,7 @@ bridge_get_time_since_tc(struct bridge_if *bif, uint32_t *ticks)
 
 	if (gettimeofday(&ct, NULL) < 0) {
 		syslog(LOG_ERR, "bridge get time since last TC:"
-		    "getttimeofday failed: %s", strerror(errno));
+		    "gettimeofday failed: %s", strerror(errno));
 		return (-1);
 	}
 
@@ -433,7 +433,7 @@ bridge_update_bif(struct bridge_if *bif)
 }
 
 /*
- * Update all bridge interfaces' ports only - 
+ * Update all bridge interfaces' ports only -
  * make sure each bridge interface exists first.
  */
 void

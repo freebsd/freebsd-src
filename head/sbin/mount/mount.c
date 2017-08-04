@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -115,6 +115,7 @@ static struct opt {
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
 	{ MNT_AUTOMOUNTED,	"automounted" },
+	{ MNT_VERIFIED,		"verified" },
 	{ 0, NULL }
 };
 
@@ -397,7 +398,9 @@ main(int argc, char *argv[])
 					have_fstab = 1;
 					mntfromname = mntbuf->f_mntfromname;
 				} else if (argv[0][0] == '/' &&
-				    argv[0][1] == '\0') {
+				    argv[0][1] == '\0' &&
+				    strcmp(fs->fs_vfstype,
+				    mntbuf->f_fstypename) == 0) {
 					fs = getfsfile("/");
 					have_fstab = 1;
 					mntfromname = fs->fs_spec;
@@ -597,7 +600,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	append_arg(&mnt_argv, execname);
 	mangle(optbuf, &mnt_argv);
 	if (mountprog != NULL)
-		strcpy(execname, mountprog);
+		strlcpy(execname, mountprog, sizeof(execname));
 
 	append_arg(&mnt_argv, strdup(spec));
 	append_arg(&mnt_argv, strdup(name));
@@ -705,17 +708,14 @@ getmntpt(const char *name)
 char *
 catopt(char *s0, const char *s1)
 {
-	size_t i;
 	char *cp;
 
 	if (s1 == NULL || *s1 == '\0')
 		return (s0);
 
 	if (s0 && *s0) {
-		i = strlen(s0) + strlen(s1) + 1 + 1;
-		if ((cp = malloc(i)) == NULL)
-			errx(1, "malloc failed");
-		(void)snprintf(cp, i, "%s,%s", s0, s1);
+		if (asprintf(&cp, "%s,%s", s0, s1) == -1)
+			errx(1, "asprintf failed");
 	} else
 		cp = strdup(s1);
 
@@ -905,8 +905,9 @@ putfsent(struct statfs *ent)
 
 	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
 	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
-		strcpy(ent->f_mntfromname, (strnstr(ent->f_mntfromname, ":", 8)
-		    +1));
+		strlcpy(ent->f_mntfromname,
+		    (strnstr(ent->f_mntfromname, ":", 8) +1),
+		    sizeof(ent->f_mntfromname));
 	}
 
 	l = strlen(ent->f_mntfromname);

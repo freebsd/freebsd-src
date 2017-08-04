@@ -10,23 +10,25 @@
 #ifndef LLVM_MC_MCFRAGMENT_H
 #define LLVM_MC_MCFRAGMENT_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/ADT/iterator.h"
 #include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/Support/SMLoc.h"
+#include <cstdint>
+#include <utility>
 
 namespace llvm {
+
 class MCSection;
-class MCSymbol;
 class MCSubtargetInfo;
+class MCSymbol;
 
 class MCFragment : public ilist_node_with_parent<MCFragment, MCSection> {
   friend class MCAsmLayout;
-
-  MCFragment(const MCFragment &) = delete;
-  void operator=(const MCFragment &) = delete;
 
 public:
   enum FragmentType : uint8_t {
@@ -40,6 +42,8 @@ public:
     FT_DwarfFrame,
     FT_LEB,
     FT_SafeSEH,
+    FT_CVInlineLines,
+    FT_CVDefRange,
     FT_Dummy
   };
 
@@ -81,13 +85,12 @@ protected:
              uint8_t BundlePadding, MCSection *Parent = nullptr);
 
   ~MCFragment();
-private:
-
-  // This is a friend so that the sentinal can be created.
-  friend struct ilist_sentinel_traits<MCFragment>;
-  MCFragment();
 
 public:
+  MCFragment() = delete;
+  MCFragment(const MCFragment &) = delete;
+  MCFragment &operator=(const MCFragment &) = delete;
+
   /// Destroys the current fragment.
   ///
   /// This must be used instead of delete as MCFragment is non-virtual.
@@ -127,13 +130,14 @@ public:
   /// \brief Return true if given frgment has FT_Dummy type.
   bool isDummy() const { return Kind == FT_Dummy; }
 
-  void dump();
+  void dump() const;
 };
 
 class MCDummyFragment : public MCFragment {
 public:
   explicit MCDummyFragment(MCSection *Sec)
-      : MCFragment(FT_Dummy, false, 0, Sec){};
+      : MCFragment(FT_Dummy, false, 0, Sec) {}
+
   static bool classof(const MCFragment *F) { return F->getKind() == FT_Dummy; }
 };
 
@@ -196,8 +200,8 @@ protected:
                                                     Sec) {}
 
 public:
-  typedef SmallVectorImpl<MCFixup>::const_iterator const_fixup_iterator;
-  typedef SmallVectorImpl<MCFixup>::iterator fixup_iterator;
+  using const_fixup_iterator = SmallVectorImpl<MCFixup>::const_iterator;
+  using fixup_iterator = SmallVectorImpl<MCFixup>::iterator;
 
   SmallVectorImpl<MCFixup> &getFixups() { return Fixups; }
   const SmallVectorImpl<MCFixup> &getFixups() const { return Fixups; }
@@ -210,7 +214,8 @@ public:
 
   static bool classof(const MCFragment *F) {
     MCFragment::FragmentType Kind = F->getKind();
-    return Kind == MCFragment::FT_Relaxable || Kind == MCFragment::FT_Data;
+    return Kind == MCFragment::FT_Relaxable || Kind == MCFragment::FT_Data ||
+           Kind == MCFragment::FT_CVDefRange;
   }
 };
 
@@ -272,7 +277,6 @@ public:
 };
 
 class MCAlignFragment : public MCFragment {
-
   /// Alignment - The alignment to ensure, in bytes.
   unsigned Alignment;
 
@@ -320,36 +324,18 @@ public:
 };
 
 class MCFillFragment : public MCFragment {
+  /// Value to use for filling bytes.
+  uint8_t Value;
 
-  /// Value - Value to use for filling bytes.
-  int64_t Value;
-
-  /// ValueSize - The size (in bytes) of \p Value to use when filling, or 0 if
-  /// this is a virtual fill fragment.
-  unsigned ValueSize;
-
-  /// Size - The number of bytes to insert.
+  /// The number of bytes to insert.
   uint64_t Size;
 
 public:
-  MCFillFragment(int64_t Value, unsigned ValueSize, uint64_t Size,
-                 MCSection *Sec = nullptr)
-      : MCFragment(FT_Fill, false, 0, Sec), Value(Value), ValueSize(ValueSize),
-        Size(Size) {
-    assert((!ValueSize || (Size % ValueSize) == 0) &&
-           "Fill size must be a multiple of the value size!");
-  }
+  MCFillFragment(uint8_t Value, uint64_t Size, MCSection *Sec = nullptr)
+      : MCFragment(FT_Fill, false, 0, Sec), Value(Value), Size(Size) {}
 
-  /// \name Accessors
-  /// @{
-
-  int64_t getValue() const { return Value; }
-
-  unsigned getValueSize() const { return ValueSize; }
-
+  uint8_t getValue() const { return Value; }
   uint64_t getSize() const { return Size; }
-
-  /// @}
 
   static bool classof(const MCFragment *F) {
     return F->getKind() == MCFragment::FT_Fill;
@@ -357,16 +343,19 @@ public:
 };
 
 class MCOrgFragment : public MCFragment {
-
   /// Offset - The offset this fragment should start at.
   const MCExpr *Offset;
 
   /// Value - Value to use for filling bytes.
   int8_t Value;
 
+  /// Loc - Source location of the directive that this fragment was created for.
+  SMLoc Loc;
+
 public:
-  MCOrgFragment(const MCExpr &Offset, int8_t Value, MCSection *Sec = nullptr)
-      : MCFragment(FT_Org, false, 0, Sec), Offset(&Offset), Value(Value) {}
+  MCOrgFragment(const MCExpr &Offset, int8_t Value, SMLoc Loc,
+                MCSection *Sec = nullptr)
+      : MCFragment(FT_Org, false, 0, Sec), Offset(&Offset), Value(Value), Loc(Loc) {}
 
   /// \name Accessors
   /// @{
@@ -374,6 +363,8 @@ public:
   const MCExpr &getOffset() const { return *Offset; }
 
   uint8_t getValue() const { return Value; }
+
+  SMLoc getLoc() const { return Loc; }
 
   /// @}
 
@@ -383,7 +374,6 @@ public:
 };
 
 class MCLEBFragment : public MCFragment {
-
   /// Value - The value this fragment should contain.
   const MCExpr *Value;
 
@@ -416,7 +406,6 @@ public:
 };
 
 class MCDwarfLineAddrFragment : public MCFragment {
-
   /// LineDelta - the value of the difference between the two line numbers
   /// between two .loc dwarf directives.
   int64_t LineDelta;
@@ -453,7 +442,6 @@ public:
 };
 
 class MCDwarfCallFrameFragment : public MCFragment {
-
   /// AddrDelta - The expression for the difference of the two symbols that
   /// make up the address delta between two .cfi_* dwarf directives.
   const MCExpr *AddrDelta;
@@ -501,6 +489,76 @@ public:
   }
 };
 
+/// Fragment representing the binary annotations produced by the
+/// .cv_inline_linetable directive.
+class MCCVInlineLineTableFragment : public MCFragment {
+  unsigned SiteFuncId;
+  unsigned StartFileId;
+  unsigned StartLineNum;
+  const MCSymbol *FnStartSym;
+  const MCSymbol *FnEndSym;
+  SmallString<8> Contents;
+
+  /// CodeViewContext has the real knowledge about this format, so let it access
+  /// our members.
+  friend class CodeViewContext;
+
+public:
+  MCCVInlineLineTableFragment(unsigned SiteFuncId, unsigned StartFileId,
+                              unsigned StartLineNum, const MCSymbol *FnStartSym,
+                              const MCSymbol *FnEndSym,
+                              MCSection *Sec = nullptr)
+      : MCFragment(FT_CVInlineLines, false, 0, Sec), SiteFuncId(SiteFuncId),
+        StartFileId(StartFileId), StartLineNum(StartLineNum),
+        FnStartSym(FnStartSym), FnEndSym(FnEndSym) {}
+
+  /// \name Accessors
+  /// @{
+
+  const MCSymbol *getFnStartSym() const { return FnStartSym; }
+  const MCSymbol *getFnEndSym() const { return FnEndSym; }
+
+  SmallString<8> &getContents() { return Contents; }
+  const SmallString<8> &getContents() const { return Contents; }
+
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_CVInlineLines;
+  }
+};
+
+/// Fragment representing the .cv_def_range directive.
+class MCCVDefRangeFragment : public MCEncodedFragmentWithFixups<32, 4> {
+  SmallVector<std::pair<const MCSymbol *, const MCSymbol *>, 2> Ranges;
+  SmallString<32> FixedSizePortion;
+
+  /// CodeViewContext has the real knowledge about this format, so let it access
+  /// our members.
+  friend class CodeViewContext;
+
+public:
+  MCCVDefRangeFragment(
+      ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> Ranges,
+      StringRef FixedSizePortion, MCSection *Sec = nullptr)
+      : MCEncodedFragmentWithFixups<32, 4>(FT_CVDefRange, false, Sec),
+        Ranges(Ranges.begin(), Ranges.end()),
+        FixedSizePortion(FixedSizePortion) {}
+
+  /// \name Accessors
+  /// @{
+  ArrayRef<std::pair<const MCSymbol *, const MCSymbol *>> getRanges() const {
+    return Ranges;
+  }
+
+  StringRef getFixedSizePortion() const { return FixedSizePortion; }
+  /// @}
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_CVDefRange;
+  }
+};
+
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCFRAGMENT_H

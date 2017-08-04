@@ -26,11 +26,17 @@
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
 #include "kvec.h"
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h> /* for snprintf */
 
 #ifndef _WIN32
 #include <glob.h>
+#include <sys/param.h>
+#else
+#ifndef NBBY
+#define NBBY 8
+#endif
 #endif
 
 #ifdef HAVE_LIBGEN_H
@@ -79,11 +85,6 @@ typedef kvec_t(ucl_object_t *) ucl_array_t;
 #endif
 #ifndef MAP_FAILED
 #define MAP_FAILED      ((void *) -1)
-#endif
-
-#ifdef _WIN32
-#include <limits.h>
-#define NBBY CHAR_BIT
 #endif
 
 static void *ucl_mmap(char *addr, size_t length, int prot, int access, int fd, off_t offset)
@@ -1795,8 +1796,9 @@ ucl_parser_set_filevars (struct ucl_parser *parser, const char *filename, bool n
 }
 
 bool
-ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
-		unsigned priority)
+ucl_parser_add_file_full (struct ucl_parser *parser, const char *filename,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type)
 {
 	unsigned char *buf;
 	size_t len;
@@ -1819,7 +1821,8 @@ ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
 	}
 	parser->cur_file = strdup (realbuf);
 	ucl_parser_set_filevars (parser, realbuf, false);
-	ret = ucl_parser_add_chunk_priority (parser, buf, len, priority);
+	ret = ucl_parser_add_chunk_full (parser, buf, len, priority, strat,
+			parse_type);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
@@ -1829,19 +1832,34 @@ ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
 }
 
 bool
+ucl_parser_add_file_priority (struct ucl_parser *parser, const char *filename,
+		unsigned priority)
+{
+	if (parser == NULL) {
+		return false;
+	}
+
+	return ucl_parser_add_file_full(parser, filename, priority,
+			UCL_DUPLICATE_APPEND, UCL_PARSE_UCL);
+}
+
+bool
 ucl_parser_add_file (struct ucl_parser *parser, const char *filename)
 {
 	if (parser == NULL) {
 		return false;
 	}
 
-	return ucl_parser_add_file_priority(parser, filename,
-			parser->default_priority);
+	return ucl_parser_add_file_full(parser, filename,
+			parser->default_priority, UCL_DUPLICATE_APPEND,
+			UCL_PARSE_UCL);
 }
 
+
 bool
-ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
-		unsigned priority)
+ucl_parser_add_fd_full (struct ucl_parser *parser, int fd,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type)
 {
 	unsigned char *buf;
 	size_t len;
@@ -1867,13 +1885,26 @@ ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
 	}
 	parser->cur_file = NULL;
 	len = st.st_size;
-	ret = ucl_parser_add_chunk_priority (parser, buf, len, priority);
+	ret = ucl_parser_add_chunk_full (parser, buf, len, priority, strat,
+			parse_type);
 
 	if (len > 0) {
 		ucl_munmap (buf, len);
 	}
 
 	return ret;
+}
+
+bool
+ucl_parser_add_fd_priority (struct ucl_parser *parser, int fd,
+		unsigned priority)
+{
+	if (parser == NULL) {
+		return false;
+	}
+
+	return ucl_parser_add_fd_full(parser, fd, parser->default_priority,
+			UCL_DUPLICATE_APPEND, UCL_PARSE_UCL);
 }
 
 bool
@@ -2473,6 +2504,10 @@ ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
 
 	UCL_SAFE_ITER_CHECK (rit);
 
+	if (rit->expl_it != NULL) {
+		UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+	}
+
 	rit->impl_it = obj;
 	rit->expl_it = NULL;
 
@@ -2481,6 +2516,13 @@ ucl_object_iterate_reset (ucl_object_iter_t it, const ucl_object_t *obj)
 
 const ucl_object_t*
 ucl_object_iterate_safe (ucl_object_iter_t it, bool expand_values)
+{
+	return ucl_object_iterate_full (it, expand_values ? UCL_ITERATE_BOTH :
+			UCL_ITERATE_IMPLICIT);
+}
+
+const ucl_object_t*
+ucl_object_iterate_full (ucl_object_iter_t it, enum ucl_iterate_type type)
 {
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
 	const ucl_object_t *ret = NULL;
@@ -2494,21 +2536,23 @@ ucl_object_iterate_safe (ucl_object_iter_t it, bool expand_values)
 	if (rit->impl_it->type == UCL_OBJECT || rit->impl_it->type == UCL_ARRAY) {
 		ret = ucl_object_iterate (rit->impl_it, &rit->expl_it, true);
 
-		if (ret == NULL) {
+		if (ret == NULL && (type & UCL_ITERATE_IMPLICIT)) {
 			/* Need to switch to another implicit object in chain */
 			rit->impl_it = rit->impl_it->next;
 			rit->expl_it = NULL;
-			return ucl_object_iterate_safe (it, expand_values);
+
+			return ucl_object_iterate_safe (it, type);
 		}
 	}
 	else {
 		/* Just iterate over the implicit array */
 		ret = rit->impl_it;
 		rit->impl_it = rit->impl_it->next;
-		if (expand_values) {
+
+		if (type & UCL_ITERATE_EXPLICIT) {
 			/* We flatten objects if need to expand values */
 			if (ret->type == UCL_OBJECT || ret->type == UCL_ARRAY) {
-				return ucl_object_iterate_safe (it, expand_values);
+				return ucl_object_iterate_safe (it, type);
 			}
 		}
 	}
@@ -2522,6 +2566,10 @@ ucl_object_iterate_free (ucl_object_iter_t it)
 	struct ucl_object_safe_iter *rit = UCL_SAFE_ITER (it);
 
 	UCL_SAFE_ITER_CHECK (rit);
+
+	if (rit->expl_it != NULL) {
+		UCL_FREE (sizeof (*rit->expl_it), rit->expl_it);
+	}
 
 	UCL_FREE (sizeof (*rit), it);
 }

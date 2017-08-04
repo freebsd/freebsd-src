@@ -1,4 +1,5 @@
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -56,9 +57,11 @@ bhyvegc_resize(struct bhyvegc *gc, int width, int height)
 	gc_image->width = width;
 	gc_image->height = height;
 	if (!gc->raw) {
-		gc_image->data = realloc(gc_image->data,
-		    sizeof (uint32_t) * width * height);
-		memset(gc_image->data, 0, width * height * sizeof (uint32_t));
+		gc_image->data = reallocarray(gc_image->data, width * height,
+		    sizeof (uint32_t));
+		if (gc_image->data != NULL)
+			memset(gc_image->data, 0, width * height *
+			    sizeof (uint32_t));
 	}
 }
 

@@ -183,7 +183,7 @@ test_read_format_mtree1(void)
 	min_time = archive_entry_mtime(ae);
 	assert(min_time <= 0);
 	/* Simply asserting min_time - 1 > 0 breaks with some compiler optimizations. */
-	t = min_time - 1;
+	t = (time_t)((uintmax_t)min_time - 1);
 	assert(t > 0);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);

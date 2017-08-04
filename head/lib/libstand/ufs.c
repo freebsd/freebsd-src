@@ -24,7 +24,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -112,14 +112,14 @@ struct file {
 		struct ufs1_dinode di1;
 		struct ufs2_dinode di2;
 	}		f_di;		/* copy of on-disk inode */
-	int		f_nindir[NIADDR];
+	int		f_nindir[UFS_NIADDR];
 					/* number of blocks mapped by
 					   indirect block at level i */
-	char		*f_blk[NIADDR];	/* buffer for indirect block at
+	char		*f_blk[UFS_NIADDR];	/* buffer for indirect block at
 					   level i */
-	size_t		f_blksize[NIADDR];
+	size_t		f_blksize[UFS_NIADDR];
 					/* size of buffer */
-	ufs2_daddr_t	f_blkno[NIADDR];/* disk address of block in buffer */
+	ufs2_daddr_t	f_blkno[UFS_NIADDR];/* disk address of block in buffer */
 	ufs2_daddr_t	f_buf_blkno;	/* block number of data block */
 	char		*f_buf;		/* buffer for data block */
 	size_t		f_buf_size;	/* size of data block */
@@ -157,7 +157,7 @@ read_inode(inumber, f)
 	buf = malloc(fs->fs_bsize);
 	twiddle(1);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		fsbtodb(fs, ino_to_fsba(fs, inumber)), 0, fs->fs_bsize,
+		fsbtodb(fs, ino_to_fsba(fs, inumber)), fs->fs_bsize,
 		buf, &rsize);
 	if (rc)
 		goto out;
@@ -179,7 +179,7 @@ read_inode(inumber, f)
 	{
 		int level;
 
-		for (level = 0; level < NIADDR; level++)
+		for (level = 0; level < UFS_NIADDR; level++)
 			fp->f_blkno[level] = -1;
 		fp->f_buf_blkno = -1;
 	}
@@ -209,33 +209,33 @@ block_map(f, file_block, disk_block_p)
 	/*
 	 * Index structure of an inode:
 	 *
-	 * di_db[0..NDADDR-1]	hold block numbers for blocks
-	 *			0..NDADDR-1
+	 * di_db[0..UFS_NDADDR-1] hold block numbers for blocks
+	 *			0..UFS_NDADDR-1
 	 *
 	 * di_ib[0]		index block 0 is the single indirect block
 	 *			holds block numbers for blocks
-	 *			NDADDR .. NDADDR + NINDIR(fs)-1
+	 *			UFS_NDADDR .. UFS_NDADDR + NINDIR(fs)-1
 	 *
 	 * di_ib[1]		index block 1 is the double indirect block
 	 *			holds block numbers for INDEX blocks for blocks
-	 *			NDADDR + NINDIR(fs) ..
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2 - 1
+	 *			UFS_NDADDR + NINDIR(fs) ..
+	 *			UFS_NDADDR + NINDIR(fs) + NINDIR(fs)**2 - 1
 	 *
 	 * di_ib[2]		index block 2 is the triple indirect block
 	 *			holds block numbers for double-indirect
 	 *			blocks for blocks
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2 ..
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2
+	 *			UFS_NDADDR + NINDIR(fs) + NINDIR(fs)**2 ..
+	 *			UFS_NDADDR + NINDIR(fs) + NINDIR(fs)**2
 	 *				+ NINDIR(fs)**3 - 1
 	 */
 
-	if (file_block < NDADDR) {
+	if (file_block < UFS_NDADDR) {
 		/* Direct block. */
 		*disk_block_p = DIP(fp, di_db[file_block]);
 		return (0);
 	}
 
-	file_block -= NDADDR;
+	file_block -= UFS_NDADDR;
 
 	/*
 	 * nindir[0] = NINDIR
@@ -243,12 +243,12 @@ block_map(f, file_block, disk_block_p)
 	 * nindir[2] = NINDIR**3
 	 *	etc
 	 */
-	for (level = 0; level < NIADDR; level++) {
+	for (level = 0; level < UFS_NIADDR; level++) {
 		if (file_block < fp->f_nindir[level])
 			break;
 		file_block -= fp->f_nindir[level];
 	}
-	if (level == NIADDR) {
+	if (level == UFS_NIADDR) {
 		/* Block number too high */
 		return (EFBIG);
 	}
@@ -267,7 +267,7 @@ block_map(f, file_block, disk_block_p)
 					malloc(fs->fs_bsize);
 			twiddle(1);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fp->f_fs, ind_block_num), 0,
+				fsbtodb(fp->f_fs, ind_block_num),
 				fs->fs_bsize,
 				fp->f_blk[level],
 				&fp->f_blksize[level]);
@@ -348,7 +348,7 @@ buf_write_file(f, buf_p, size_p)
 
 		twiddle(4);
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-			fsbtodb(fs, disk_block), 0,
+			fsbtodb(fs, disk_block),
 			block_size, fp->f_buf, &fp->f_buf_size);
 		if (rc)
 			return (rc);
@@ -367,7 +367,7 @@ buf_write_file(f, buf_p, size_p)
 
 	twiddle(4);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
-		fsbtodb(fs, disk_block), 0,
+		fsbtodb(fs, disk_block),
 		block_size, fp->f_buf, &fp->f_buf_size);
 	return (rc);
 }
@@ -408,7 +408,7 @@ buf_read_file(f, buf_p, size_p)
 		} else {
 			twiddle(4);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fs, disk_block), 0,
+				fsbtodb(fs, disk_block),
 				block_size, fp->f_buf, &fp->f_buf_size);
 			if (rc)
 				return (rc);
@@ -521,7 +521,7 @@ ufs_open(upath, f)
 	 */
 	for (i = 0; sblock_try[i] != -1; i++) {
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		    sblock_try[i] / DEV_BSIZE, 0, SBLOCKSIZE,
+		    sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
 		    (char *)fs, &buf_size);
 		if (rc)
 			goto out;
@@ -545,13 +545,13 @@ ufs_open(upath, f)
 		int level;
 
 		mult = 1;
-		for (level = 0; level < NIADDR; level++) {
+		for (level = 0; level < UFS_NIADDR; level++) {
 			mult *= NINDIR(fs);
 			fp->f_nindir[level] = mult;
 		}
 	}
 
-	inumber = ROOTINO;
+	inumber = UFS_ROOTINO;
 	if ((rc = read_inode(inumber, f)) != 0)
 		goto out;
 
@@ -586,7 +586,7 @@ ufs_open(upath, f)
 
 			ncp = cp;
 			while ((c = *cp) != '\0' && c != '/') {
-				if (++len > MAXNAMLEN) {
+				if (++len > UFS_MAXNAMLEN) {
 					rc = ENOENT;
 					goto out;
 				}
@@ -651,7 +651,7 @@ ufs_open(upath, f)
 				
 				twiddle(1);
 				rc = (f->f_dev->dv_strategy)(f->f_devdata,
-					F_READ, fsbtodb(fs, disk_block), 0,
+					F_READ, fsbtodb(fs, disk_block),
 					fs->fs_bsize, buf, &buf_size);
 				if (rc)
 					goto out;
@@ -667,7 +667,7 @@ ufs_open(upath, f)
 			if (*cp != '/')
 				inumber = parent_inumber;
 			else
-				inumber = (ino_t)ROOTINO;
+				inumber = (ino_t)UFS_ROOTINO;
 
 			if ((rc = read_inode(inumber, f)) != 0)
 				goto out;
@@ -704,7 +704,7 @@ ufs_close(f)
 	if (fp == (struct file *)0)
 		return (0);
 
-	for (level = 0; level < NIADDR; level++) {
+	for (level = 0; level < UFS_NIADDR; level++) {
 		if (fp->f_blk[level])
 			free(fp->f_blk[level]);
 	}

@@ -8,8 +8,8 @@
 __CC_MAKEFILE_INC__= ${MFILE}
 
 GCCVER=	4.2
-GCCDIR=	${.CURDIR}/../../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 
 .include "Makefile.tgt"
 
@@ -39,7 +39,7 @@ CFLAGS += -DFREEBSD_ARCH_armv6
 .endif
 
 .if ${TARGET_CPUARCH} == "mips"
-.if ${TARGET_ARCH:Mmips*el} != ""
+.if ${TARGET_ARCH:Mmips*el*} != ""
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=0
 .endif
 

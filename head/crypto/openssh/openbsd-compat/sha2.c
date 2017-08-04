@@ -1,4 +1,4 @@
-/*	from OpenBSD: sha2.c,v 1.11 2005/08/08 08:05:35 espie Exp 	*/
+/*	$OpenBSD: sha2.c,v 1.11 2005/08/08 08:05:35 espie Exp 	*/
 
 /*
  * FILE:	sha2.c

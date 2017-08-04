@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.81"
+#define BXE_DRIVER_VERSION "1.78.90"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -165,6 +165,18 @@ static struct bxe_device_type bxe_devs[] = {
         CHIP_NUM_57840_4_10,
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57840 4x10GbE"
+    },
+    {
+        QLOGIC_VENDORID,
+        CHIP_NUM_57840_4_10,
+        PCI_ANY_ID, PCI_ANY_ID,
+        "QLogic NetXtreme II BCM57840 4x10GbE"
+    },
+    {
+        BRCM_VENDORID,
+        CHIP_NUM_57840_2_20,
+        PCI_ANY_ID, PCI_ANY_ID,
+        "QLogic NetXtreme II BCM57840 2x20GbE"
     },
     {
         BRCM_VENDORID,
@@ -489,7 +501,21 @@ static const struct {
     { STATS_OFFSET32(mbuf_alloc_tpa),
                 4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"},
     { STATS_OFFSET32(tx_queue_full_return),
-                4, STATS_FLAGS_FUNC, "tx_queue_full_return"}
+                4, STATS_FLAGS_FUNC, "tx_queue_full_return"},
+    { STATS_OFFSET32(bxe_tx_mq_sc_state_failures),
+                4, STATS_FLAGS_FUNC, "bxe_tx_mq_sc_state_failures"},
+    { STATS_OFFSET32(tx_request_link_down_failures),
+                4, STATS_FLAGS_FUNC, "tx_request_link_down_failures"},
+    { STATS_OFFSET32(bd_avail_too_less_failures),
+                4, STATS_FLAGS_FUNC, "bd_avail_too_less_failures"},
+    { STATS_OFFSET32(tx_mq_not_empty),
+                4, STATS_FLAGS_FUNC, "tx_mq_not_empty"},
+    { STATS_OFFSET32(nsegs_path1_errors),
+                4, STATS_FLAGS_FUNC, "nsegs_path1_errors"},
+    { STATS_OFFSET32(nsegs_path2_errors),
+                4, STATS_FLAGS_FUNC, "nsegs_path2_errors"}
+
+
 };
 
 static const struct {
@@ -602,7 +628,21 @@ static const struct {
     { Q_STATS_OFFSET32(mbuf_alloc_tpa),
                 4, "mbuf_alloc_tpa"},
     { Q_STATS_OFFSET32(tx_queue_full_return),
-                4, "tx_queue_full_return"}
+                4, "tx_queue_full_return"},
+    { Q_STATS_OFFSET32(bxe_tx_mq_sc_state_failures),
+                4, "bxe_tx_mq_sc_state_failures"},
+    { Q_STATS_OFFSET32(tx_request_link_down_failures),
+                4, "tx_request_link_down_failures"},
+    { Q_STATS_OFFSET32(bd_avail_too_less_failures),
+                4, "bd_avail_too_less_failures"},
+    { Q_STATS_OFFSET32(tx_mq_not_empty),
+                4, "tx_mq_not_empty"},
+    { Q_STATS_OFFSET32(nsegs_path1_errors),
+                4, "nsegs_path1_errors"},
+    { Q_STATS_OFFSET32(nsegs_path2_errors),
+                4, "nsegs_path2_errors"}
+
+
 };
 
 #define BXE_NUM_ETH_STATS   ARRAY_SIZE(bxe_eth_stats_arr)
@@ -672,6 +712,7 @@ static void bxe_handle_fp_tq(void *context, int pending);
 
 static int bxe_add_cdev(struct bxe_softc *sc);
 static void bxe_del_cdev(struct bxe_softc *sc);
+int bxe_grc_dump(struct bxe_softc *sc);
 static int bxe_alloc_buf_rings(struct bxe_softc *sc);
 static void bxe_free_buf_rings(struct bxe_softc *sc);
 
@@ -5211,12 +5252,24 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
                 fp->eth_q_stats.tx_dma_mapping_failure++;
                 /* No sense in trying to defrag/copy chain, drop it. :( */
                 rc = error;
-            }
-            else {
-                /* if the chain is still too long then drop it */
-                if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
-                    bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
-                    rc = ENODEV;
+            } else {
+               /* if the chain is still too long then drop it */
+                if(m0->m_pkthdr.csum_flags & CSUM_TSO) {
+                    /*
+                     * in case TSO is enabled nsegs should be checked against
+                     * BXE_TSO_MAX_SEGMENTS
+                     */
+                    if (__predict_false(nsegs > BXE_TSO_MAX_SEGMENTS)) {
+                        bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
+                        fp->eth_q_stats.nsegs_path1_errors++;
+                        rc = ENODEV;
+                    }
+                } else {
+                    if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
+                        bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
+                        fp->eth_q_stats.nsegs_path2_errors++;
+                        rc = ENODEV;
+                    }
                 }
             }
         }
@@ -5589,7 +5642,7 @@ bxe_tx_start(if_t ifp)
 
     fp = &sc->fp[0];
 
-    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
         fp->eth_q_stats.tx_queue_full_return++;
         return;
     }
@@ -5599,7 +5652,7 @@ bxe_tx_start(if_t ifp)
     BXE_FP_TX_UNLOCK(fp);
 }
 
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 901504
 
 static int
 bxe_tx_mq_start_locked(struct bxe_softc    *sc,
@@ -5616,16 +5669,26 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
 
     BXE_FP_TX_LOCK_ASSERT(fp);
 
+    if (sc->state != BXE_STATE_OPEN)  {
+        fp->eth_q_stats.bxe_tx_mq_sc_state_failures++;
+        return ENETDOWN;
+    }
+
     if (!tx_br) {
         BLOGE(sc, "Multiqueue TX and no buf_ring!\n");
         return (EINVAL);
     }
 
-    if (!sc->link_vars.link_up ||
-        (if_getdrvflags(ifp) &
-        (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
-        if (m != NULL)
-            rc = drbr_enqueue(ifp, tx_br, m);
+    if (m != NULL) {
+        rc = drbr_enqueue(ifp, tx_br, m);
+        if (rc != 0) {
+            fp->eth_q_stats.tx_soft_errors++;
+            goto bxe_tx_mq_start_locked_exit;
+        }
+    }
+
+    if (!sc->link_vars.link_up || !(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+        fp->eth_q_stats.tx_request_link_down_failures++;
         goto bxe_tx_mq_start_locked_exit;
     }
 
@@ -5635,24 +5698,22 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         fp->eth_q_stats.tx_max_drbr_queue_depth = depth;
     }
 
-    if (m == NULL) {
-        /* no new work, check for pending frames */
-        next = drbr_dequeue_drv(ifp, tx_br);
-    } else if (drbr_needs_enqueue_drv(ifp, tx_br)) {
-        /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue(ifp, tx_br, m);
-        if (rc != 0) {
-            fp->eth_q_stats.tx_soft_errors++;
-            goto bxe_tx_mq_start_locked_exit;
-        }
-        next = drbr_dequeue_drv(ifp, tx_br);
-    } else {
-        /* new work only and nothing pending */
-        next = m;
-    }
-
     /* keep adding entries while there are frames to send */
-    while (next != NULL) {
+    while ((next = drbr_peek(ifp, tx_br)) != NULL) {
+        /* handle any completions if we're running low */
+        tx_bd_avail = bxe_tx_avail(sc, fp);
+        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
+            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
+            bxe_txeof(sc, fp);
+            tx_bd_avail = bxe_tx_avail(sc, fp);
+            if (tx_bd_avail < (BXE_TSO_MAX_SEGMENTS + 1)) {
+                fp->eth_q_stats.bd_avail_too_less_failures++;
+                m_freem(next);
+                drbr_advance(ifp, tx_br);
+                rc = ENOBUFS;
+                break;
+            }
+        }
 
         /* the mbuf now belongs to us */
         fp->eth_q_stats.mbuf_alloc_tx++;
@@ -5668,11 +5729,11 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
             if (next != NULL) {
                 /* mark the TX queue as full and save the frame */
                 if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-                /* XXX this may reorder the frame */
-                rc = drbr_enqueue(ifp, tx_br, next);
+                drbr_putback(ifp, tx_br, next);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_frames_deferred++;
-            }
+            } else
+                drbr_advance(ifp, tx_br);
 
             /* stop looking for more work */
             break;
@@ -5684,18 +5745,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         /* send a copy of the frame to any BPF listeners */
 	if_etherbpfmtap(ifp, next);
 
-        tx_bd_avail = bxe_tx_avail(sc, fp);
-
-        /* handle any completions if we're running low */
-        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
-            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
-            bxe_txeof(sc, fp);
-            if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-                break;
-            }
-        }
-
-        next = drbr_dequeue_drv(ifp, tx_br);
+        drbr_advance(ifp, tx_br);
     }
 
     /* all TX packets were dequeued and/or the tx ring is full */
@@ -5705,8 +5755,26 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     }
 
 bxe_tx_mq_start_locked_exit:
+    /* If we didn't drain the drbr, enqueue a task in the future to do it. */
+    if (!drbr_empty(ifp, tx_br)) {
+        fp->eth_q_stats.tx_mq_not_empty++;
+        taskqueue_enqueue_timeout(fp->tq, &fp->tx_timeout_task, 1);
+    }
 
     return (rc);
+}
+
+static void
+bxe_tx_mq_start_deferred(void *arg,
+                         int pending)
+{
+    struct bxe_fastpath *fp = (struct bxe_fastpath *)arg;
+    struct bxe_softc *sc = fp->sc;
+    if_t ifp = sc->ifp;
+
+    BXE_FP_TX_LOCK(fp);
+    bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
+    BXE_FP_TX_UNLOCK(fp);
 }
 
 /* Multiqueue (TSS) dispatch routine. */
@@ -5727,11 +5795,18 @@ bxe_tx_mq_start(struct ifnet *ifp,
 
     fp = &sc->fp[fp_index];
 
+    if (sc->state != BXE_STATE_OPEN)  {
+        fp->eth_q_stats.bxe_tx_mq_sc_state_failures++;
+        return ENETDOWN;
+    }
+
     if (BXE_FP_TX_TRYLOCK(fp)) {
         rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
         BXE_FP_TX_UNLOCK(fp);
-    } else
+    } else {
         rc = drbr_enqueue(ifp, fp->tx_br, m);
+        taskqueue_enqueue(fp->tq, &fp->tx_task);
+    }
 
     return (rc);
 }
@@ -5747,7 +5822,7 @@ bxe_mq_flush(struct ifnet *ifp)
     for (i = 0; i < sc->num_queues; i++) {
         fp = &sc->fp[i];
 
-        if (fp->state != BXE_FP_STATE_OPEN) {
+        if (fp->state != BXE_FP_STATE_IRQ) {
             BLOGD(sc, DBG_LOAD, "Not clearing fp[%02d] buf_ring (state=%d)\n",
                   fp->index, fp->state);
             continue;
@@ -5766,7 +5841,7 @@ bxe_mq_flush(struct ifnet *ifp)
     if_qflush(ifp);
 }
 
-#endif /* FreeBSD_version >= 800000 */
+#endif /* FreeBSD_version >= 901504 */
 
 static uint16_t
 bxe_cid_ilt_lines(struct bxe_softc *sc)
@@ -5964,6 +6039,7 @@ bxe_free_mem(struct bxe_softc *sc)
 static int
 bxe_alloc_mem(struct bxe_softc *sc)
 {
+
     int context_size;
     int allocated;
     int i;
@@ -6126,7 +6202,7 @@ bxe_free_fp_buffers(struct bxe_softc *sc)
     for (i = 0; i < sc->num_queues; i++) {
         fp = &sc->fp[i];
 
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 901504
         if (fp->tx_br != NULL) {
             /* just in case bxe_mq_flush() wasn't called */
             if (mtx_initialized(&fp->tx_mtx)) {
@@ -6953,10 +7029,12 @@ bxe_link_attn(struct bxe_softc *sc)
     uint32_t pause_enabled = 0;
     struct host_port_stats *pstats;
     int cmng_fns;
+    struct bxe_fastpath *fp;
+    int i;
 
     /* Make sure that we are synced with the current statistics */
     bxe_stats_handle(sc, STATS_EVENT_STOP);
-
+	BLOGI(sc, "link_vars phy_flags : %x\n", sc->link_vars.phy_flags);
     elink_link_update(&sc->link_params, &sc->link_vars);
 
     if (sc->link_vars.link_up) {
@@ -6984,6 +7062,12 @@ bxe_link_attn(struct bxe_softc *sc)
         if (sc->state == BXE_STATE_OPEN) {
             bxe_stats_handle(sc, STATS_EVENT_LINK_UP);
         }
+
+	/* Restart tx when the link comes back. */
+        FOR_EACH_ETH_QUEUE(sc, i) {
+            fp = &sc->fp[i];
+            taskqueue_enqueue(fp->tq, &fp->tx_task);
+	}
     }
 
     if (sc->link_vars.link_up && sc->link_vars.line_speed) {
@@ -9035,6 +9119,10 @@ bxe_interrupt_detach(struct bxe_softc *sc)
         fp = &sc->fp[i];
         if (fp->tq) {
             taskqueue_drain(fp->tq, &fp->tq_task);
+            taskqueue_drain(fp->tq, &fp->tx_task);
+            while (taskqueue_cancel_timeout(fp->tq, &fp->tx_timeout_task,
+                NULL))
+                taskqueue_drain_timeout(fp->tq, &fp->tx_timeout_task);
             taskqueue_free(fp->tq);
             fp->tq = NULL;
         }
@@ -9067,9 +9155,9 @@ bxe_interrupt_attach(struct bxe_softc *sc)
     snprintf(sc->sp_tq_name, sizeof(sc->sp_tq_name),
              "bxe%d_sp_tq", sc->unit);
     TASK_INIT(&sc->sp_tq_task, 0, bxe_handle_sp_tq, sc);
-    sc->sp_tq = taskqueue_create_fast(sc->sp_tq_name, M_NOWAIT,
-                                      taskqueue_thread_enqueue,
-                                      &sc->sp_tq);
+    sc->sp_tq = taskqueue_create(sc->sp_tq_name, M_NOWAIT,
+                                 taskqueue_thread_enqueue,
+                                 &sc->sp_tq);
     taskqueue_start_threads(&sc->sp_tq, 1, PWAIT, /* lower priority */
                             "%s", sc->sp_tq_name);
 
@@ -9079,9 +9167,12 @@ bxe_interrupt_attach(struct bxe_softc *sc)
         snprintf(fp->tq_name, sizeof(fp->tq_name),
                  "bxe%d_fp%d_tq", sc->unit, i);
         TASK_INIT(&fp->tq_task, 0, bxe_handle_fp_tq, fp);
-        fp->tq = taskqueue_create_fast(fp->tq_name, M_NOWAIT,
-                                       taskqueue_thread_enqueue,
-                                       &fp->tq);
+        TASK_INIT(&fp->tx_task, 0, bxe_tx_mq_start_deferred, fp);
+        fp->tq = taskqueue_create(fp->tq_name, M_NOWAIT,
+                                  taskqueue_thread_enqueue,
+                                  &fp->tq);
+        TIMEOUT_TASK_INIT(fp->tq, &fp->tx_timeout_task, 0,
+                          bxe_tx_mq_start_deferred, fp);
         taskqueue_start_threads(&fp->tq, 1, PI_NET, /* higher priority */
                                 "%s", fp->tq_name);
     }
@@ -11148,7 +11239,9 @@ bxe_get_q_flags(struct bxe_softc    *sc,
 
     if (if_getcapenable(sc->ifp) & IFCAP_LRO) {
         bxe_set_bit(ECORE_Q_FLG_TPA, &flags);
+#if __FreeBSD_version >= 800000
         bxe_set_bit(ECORE_Q_FLG_TPA_IPV6, &flags);
+#endif
     }
 
     if (leading) {
@@ -11585,13 +11678,13 @@ static void
 bxe_calc_fc_adv(struct bxe_softc *sc)
 {
     uint8_t cfg_idx = bxe_get_link_cfg_idx(sc);
+
+
+    sc->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
+                                           ADVERTISED_Pause);
+
     switch (sc->link_vars.ieee_fc &
             MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
-    case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
-    default:
-        sc->port.advertising[cfg_idx] &= ~(ADVERTISED_Asym_Pause |
-                                           ADVERTISED_Pause);
-        break;
 
     case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
         sc->port.advertising[cfg_idx] |= (ADVERTISED_Asym_Pause |
@@ -11601,6 +11694,10 @@ bxe_calc_fc_adv(struct bxe_softc *sc)
     case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC:
         sc->port.advertising[cfg_idx] |= ADVERTISED_Asym_Pause;
         break;
+
+    default:
+        break;
+
     }
 }
 
@@ -11682,15 +11779,17 @@ bxe_link_report_locked(struct bxe_softc *sc)
         return;
     }
 
+	ELINK_DEBUG_P2(sc, "Change in link status : cur_data = %x, last_reported_link = %x\n",
+					cur_data.link_report_flags, sc->last_reported_link.link_report_flags);
     sc->link_cnt++;
 
+	ELINK_DEBUG_P1(sc, "link status change count = %x\n", sc->link_cnt);
     /* report new link params and remember the state for the next time */
     memcpy(&sc->last_reported_link, &cur_data, sizeof(cur_data));
 
     if (bxe_test_bit(BXE_LINK_REPORT_LINK_DOWN,
                      &cur_data.link_report_flags)) {
         if_link_state_change(sc->ifp, LINK_STATE_DOWN);
-        BLOGI(sc, "NIC Link is Down\n");
     } else {
         const char *duplex;
         const char *flow;
@@ -11698,8 +11797,10 @@ bxe_link_report_locked(struct bxe_softc *sc)
         if (bxe_test_and_clear_bit(BXE_LINK_REPORT_FULL_DUPLEX,
                                    &cur_data.link_report_flags)) {
             duplex = "full";
+			ELINK_DEBUG_P0(sc, "link set to full duplex\n");
         } else {
             duplex = "half";
+			ELINK_DEBUG_P0(sc, "link set to half duplex\n");
         }
 
         /*
@@ -12114,8 +12215,6 @@ static void
 bxe_periodic_callout_func(void *xsc)
 {
     struct bxe_softc *sc = (struct bxe_softc *)xsc;
-    struct bxe_fastpath *fp;
-    uint16_t tx_bd_avail;
     int i;
 
     if (!BXE_CORE_TRYLOCK(sc)) {
@@ -12136,49 +12235,8 @@ bxe_periodic_callout_func(void *xsc)
         BLOGW(sc, "periodic callout exit (state=0x%x)\n", sc->state);
         BXE_CORE_UNLOCK(sc);
         return;
-    }
-
-#if __FreeBSD_version >= 800000
-
-    FOR_EACH_QUEUE(sc, i) {
-        fp = &sc->fp[i];
-
-        if (BXE_FP_TX_TRYLOCK(fp)) {
-            if_t ifp = sc->ifp;
-            /*
-             * If interface was stopped due to unavailable
-             * bds, try to process some tx completions
-             */
-            (void) bxe_txeof(sc, fp);
-           
-            tx_bd_avail = bxe_tx_avail(sc, fp);
-            if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
-                bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
-            }
-            BXE_FP_TX_UNLOCK(fp);
         }
-    }
 
-#else
-
-    fp = &sc->fp[0];
-    if (BXE_FP_TX_TRYLOCK(fp)) {
-        struct ifnet *ifp = sc->ifnet;
-        /*
-         * If interface was stopped due to unavailable
-         * bds, try to process some tx completions
-         */
-        (void) bxe_txeof(sc, fp);
-           
-        tx_bd_avail = bxe_tx_avail(sc, fp);
-        if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
-            bxe_tx_start_locked(sc, ifp, fp);
-        }
- 
-        BXE_FP_TX_UNLOCK(fp);
-    }
-
-#endif /* #if __FreeBSD_version >= 800000 */
 
     /* Check for TX timeouts on any fastpath. */
     FOR_EACH_QUEUE(sc, i) {
@@ -12643,6 +12701,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
     ifmedia_set(&sc->ifmedia, (IFM_ETHER | IFM_AUTO));
 
     sc->ifmedia.ifm_media = sc->ifmedia.ifm_cur->ifm_media; /* XXX ? */
+	BLOGI(sc, "IFMEDIA flags : %x\n", sc->ifmedia.ifm_media);
 
     /* allocate the ifnet structure */
     if ((ifp = if_gethandle(IFT_ETHER)) == NULL) {
@@ -12656,7 +12715,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
     if_setioctlfn(ifp, bxe_ioctl);
     if_setstartfn(ifp, bxe_tx_start);
     if_setgetcounterfn(ifp, bxe_get_counter);
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 901504
     if_settransmitfn(ifp, bxe_tx_mq_start);
     if_setqflushfn(ifp, bxe_mq_flush);
 #endif
@@ -12693,6 +12752,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
          IFCAP_WOL_MAGIC);
 #endif
     if_setcapabilitiesbit(ifp, capabilities, 0); /* XXX */
+    if_setcapenable(ifp, if_getcapabilities(ifp));
     if_setbaudrate(ifp, IF_Gbps(10));
 /* XXX */
     if_setsendqlen(ifp, sc->tx_ring_size);
@@ -13990,6 +14050,8 @@ bxe_link_settings_supported(struct bxe_softc *sc,
 
     BLOGD(sc, DBG_LOAD, "PHY supported 0=0x%08x 1=0x%08x\n",
           sc->port.supported[0], sc->port.supported[1]);
+	ELINK_DEBUG_P2(sc, "PHY supported 0=0x%08x 1=0x%08x\n",
+					sc->port.supported[0], sc->port.supported[1]);
 }
 
 static void
@@ -14054,6 +14116,8 @@ bxe_link_settings_requested(struct bxe_softc *sc)
                 sc->link_params.req_duplex[idx] = DUPLEX_HALF;
                 sc->port.advertising[idx] |= (ADVERTISED_10baseT_Half |
                                               ADVERTISED_TP);
+				ELINK_DEBUG_P1(sc, "driver requesting DUPLEX_HALF req_duplex = %x!\n",
+								sc->link_params.req_duplex[idx]);
             } else {
                 BLOGE(sc, "Invalid NVRAM config link_config=0x%08x "
                           "speed_cap_mask=0x%08x\n",
@@ -14158,6 +14222,11 @@ bxe_link_settings_requested(struct bxe_softc *sc)
               sc->link_params.req_duplex[idx],
               sc->link_params.req_flow_ctrl[idx],
               sc->port.advertising[idx]);
+		ELINK_DEBUG_P3(sc, "req_line_speed=%d req_duplex=%d "
+						"advertising=0x%x\n",
+						sc->link_params.req_line_speed[idx],
+						sc->link_params.req_duplex[idx],
+						sc->port.advertising[idx]);
     }
 }
 
@@ -14170,11 +14239,12 @@ bxe_get_phy_info(struct bxe_softc *sc)
 
     /* shmem data already read in bxe_get_shmem_info() */
 
-    BLOGD(sc, DBG_LOAD, "lane_config=0x%08x speed_cap_mask0=0x%08x "
+    ELINK_DEBUG_P3(sc, "lane_config=0x%08x speed_cap_mask0=0x%08x "
                         "link_config0=0x%08x\n",
                sc->link_params.lane_config,
                sc->link_params.speed_cap_mask[0],
                sc->port.link_config[0]);
+     
 
     bxe_link_settings_supported(sc, sc->link_params.switch_cfg);
     bxe_link_settings_requested(sc);
@@ -14205,6 +14275,7 @@ bxe_get_phy_info(struct bxe_softc *sc)
 
     /* get the media type */
     bxe_media_detect(sc);
+	ELINK_DEBUG_P1(sc, "detected media type\n", sc->media);
 }
 
 static void
@@ -15560,6 +15631,86 @@ bxe_sysctl_eth_q_stat(SYSCTL_HANDLER_ARGS)
     return (sysctl_handle_64(oidp, &value, 0, req));
 }
 
+static void bxe_force_link_reset(struct bxe_softc *sc)
+{
+
+        bxe_acquire_phy_lock(sc);
+        elink_link_reset(&sc->link_params, &sc->link_vars, 1);
+        bxe_release_phy_lock(sc);
+}
+
+static int
+bxe_sysctl_pauseparam(SYSCTL_HANDLER_ARGS)
+{
+        struct bxe_softc *sc = (struct bxe_softc *)arg1;;
+        uint32_t cfg_idx = bxe_get_link_cfg_idx(sc);
+        int rc = 0;
+        int error;
+        int result;
+
+
+        error = sysctl_handle_int(oidp, &sc->bxe_pause_param, 0, req);
+
+        if (error || !req->newptr) {
+                return (error);
+        }
+        if ((sc->bxe_pause_param < 0) ||  (sc->bxe_pause_param > 8)) {
+                BLOGW(sc, "invalid pause param (%d) - use intergers between 1 & 8\n",sc->bxe_pause_param);
+                sc->bxe_pause_param = 8;
+        }
+
+        result = (sc->bxe_pause_param << PORT_FEATURE_FLOW_CONTROL_SHIFT);
+
+
+        if((result & 0x400) && !(sc->port.supported[cfg_idx] & ELINK_SUPPORTED_Autoneg))  {
+                        BLOGW(sc, "Does not support Autoneg pause_param %d\n", sc->bxe_pause_param);
+                        return -EINVAL;
+        }
+
+        if(IS_MF(sc))
+                return 0;
+       sc->link_params.req_flow_ctrl[cfg_idx] = ELINK_FLOW_CTRL_AUTO;
+        if(result & ELINK_FLOW_CTRL_RX)
+                sc->link_params.req_flow_ctrl[cfg_idx] |= ELINK_FLOW_CTRL_RX;
+
+        if(result & ELINK_FLOW_CTRL_TX)
+                sc->link_params.req_flow_ctrl[cfg_idx] |= ELINK_FLOW_CTRL_TX;
+        if(sc->link_params.req_flow_ctrl[cfg_idx] == ELINK_FLOW_CTRL_AUTO)
+                sc->link_params.req_flow_ctrl[cfg_idx] = ELINK_FLOW_CTRL_NONE;
+
+        if(result & 0x400) {
+                if (sc->link_params.req_line_speed[cfg_idx] == ELINK_SPEED_AUTO_NEG) {
+                        sc->link_params.req_flow_ctrl[cfg_idx] =
+                                ELINK_FLOW_CTRL_AUTO;
+                }
+                sc->link_params.req_fc_auto_adv = 0;
+                if (result & ELINK_FLOW_CTRL_RX)
+                        sc->link_params.req_fc_auto_adv |= ELINK_FLOW_CTRL_RX;
+
+                if (result & ELINK_FLOW_CTRL_TX)
+                        sc->link_params.req_fc_auto_adv |= ELINK_FLOW_CTRL_TX;
+                if (!sc->link_params.req_fc_auto_adv)
+                        sc->link_params.req_fc_auto_adv |= ELINK_FLOW_CTRL_NONE;
+        }
+         if (IS_PF(sc)) {
+                        if (sc->link_vars.link_up) {
+                                bxe_stats_handle(sc, STATS_EVENT_STOP);
+                        }
+			if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
+                        bxe_force_link_reset(sc);
+                        bxe_acquire_phy_lock(sc);
+
+                        rc = elink_phy_init(&sc->link_params, &sc->link_vars);
+
+                        bxe_release_phy_lock(sc);
+
+                        bxe_calc_fc_adv(sc);
+                        }
+        }
+        return rc;
+}
+
+
 static void
 bxe_add_sysctls(struct bxe_softc *sc)
 {
@@ -15660,6 +15811,12 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     CTLFLAG_RW, &sc->rx_budget, 0,
                     "rx processing budget");
 
+   SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_param",
+                    CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
+                    bxe_sysctl_pauseparam, "IU",
+                    "need pause frames- DEF:0/TX:1/RX:2/BOTH:3/AUTO:4/AUTOTX:5/AUTORX:6/AUTORXTX:7/NONE:8");
+
+
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "state",
                     CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
                     bxe_sysctl_state, "IU", "dump driver state");
@@ -15699,7 +15856,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
 static int
 bxe_alloc_buf_rings(struct bxe_softc *sc)
 {
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 901504
 
     int i;
     struct bxe_fastpath *fp;
@@ -15720,7 +15877,7 @@ bxe_alloc_buf_rings(struct bxe_softc *sc)
 static void
 bxe_free_buf_rings(struct bxe_softc *sc)
 {
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 901504
 
     int i;
     struct bxe_fastpath *fp;
@@ -17994,6 +18151,7 @@ bxe_reset_port(struct bxe_softc *sc)
     int port = SC_PORT(sc);
     uint32_t val;
 
+	ELINK_DEBUG_P0(sc, "bxe_reset_port called\n");
     /* reset physical Link */
     bxe_link_reset(sc);
 
@@ -18496,8 +18654,6 @@ bxe_grc_dump(struct bxe_softc *sc)
     uint32_t reg_val;
     uint32_t reg_addr;
     uint32_t cmd_offset;
-    int context_size;
-    int allocated;
     struct ecore_ilt *ilt = SC_ILT(sc);
     struct bxe_fastpath *fp;
     struct ilt_client_info *ilt_cli;
@@ -18592,67 +18748,80 @@ bxe_grc_dump(struct bxe_softc *sc)
     bxe_pretend_func(sc, SC_ABS_FUNC(sc));
 
 
-    context_size = (sizeof(union cdu_context) * BXE_L2_CID_COUNT(sc));
-    for (i = 0, allocated = 0; allocated < context_size; i++) {
 
-        BLOGI(sc, "cdu_context i %d paddr %#jx vaddr %p size 0x%zx\n", i,
-            (uintmax_t)sc->context[i].vcxt_dma.paddr,
-            sc->context[i].vcxt_dma.vaddr,
-            sc->context[i].size);
-        allocated += sc->context[i].size;
-    }
-    BLOGI(sc, "fw stats start_paddr %#jx end_paddr %#jx vaddr %p size 0x%x\n",
-        (uintmax_t)sc->fw_stats_req_mapping,
-        (uintmax_t)sc->fw_stats_data_mapping,
-        sc->fw_stats_req, (sc->fw_stats_req_size + sc->fw_stats_data_size));
-    BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%zx\n",
-        (void *)sc->def_sb_dma.paddr, sc->def_sb,
-        sizeof(struct host_sp_status_block));
-    BLOGI(sc, "event_queue paddr %#jx vaddr %p size 0x%x\n",
-        (uintmax_t)sc->eq_dma.paddr, sc->eq_dma.vaddr, BCM_PAGE_SIZE);
-    BLOGI(sc, "slow path paddr %#jx vaddr %p size 0x%zx\n",
-        (uintmax_t)sc->sp_dma.paddr, sc->sp_dma.vaddr,
-        sizeof(struct bxe_slowpath));
-    BLOGI(sc, "slow path queue paddr %#jx vaddr %p size 0x%x\n",
-        (uintmax_t)sc->spq_dma.paddr, sc->spq_dma.vaddr, BCM_PAGE_SIZE);
-    BLOGI(sc, "fw_buf paddr %#jx vaddr %p size 0x%x\n",
-        (uintmax_t)sc->gz_buf_dma.paddr, sc->gz_buf_dma.vaddr,
-        FW_BUF_SIZE);
-    for (i = 0; i < sc->num_queues; i++) {
-        fp = &sc->fp[i];
-        BLOGI(sc, "FP status block fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
-            (uintmax_t)fp->sb_dma.paddr, fp->sb_dma.vaddr,
-            sizeof(union bxe_host_hc_status_block));
-        BLOGI(sc, "TX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
-            (uintmax_t)fp->tx_dma.paddr, fp->tx_dma.vaddr,
-            (BCM_PAGE_SIZE * TX_BD_NUM_PAGES));
-        BLOGI(sc, "RX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
-            (uintmax_t)fp->rx_dma.paddr, fp->rx_dma.vaddr,
-            (BCM_PAGE_SIZE * RX_BD_NUM_PAGES));
-        BLOGI(sc, "RX RCQ CHAIN fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
-            (uintmax_t)fp->rcq_dma.paddr, fp->rcq_dma.vaddr,
-            (BCM_PAGE_SIZE * RCQ_NUM_PAGES));
-        BLOGI(sc, "RX SGE CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
-            (uintmax_t)fp->rx_sge_dma.paddr, fp->rx_sge_dma.vaddr,
-            (BCM_PAGE_SIZE * RX_SGE_NUM_PAGES));
-    }
+    if(sc->state == BXE_STATE_OPEN) {
+        if(sc->fw_stats_req  != NULL) {
+    		BLOGI(sc, "fw stats start_paddr %#jx end_paddr %#jx vaddr %p size 0x%x\n",
+        			(uintmax_t)sc->fw_stats_req_mapping,
+        			(uintmax_t)sc->fw_stats_data_mapping,
+        			sc->fw_stats_req, (sc->fw_stats_req_size + sc->fw_stats_data_size));
+		}	
+		if(sc->def_sb != NULL) {
+			BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%zx\n",
+        			(void *)sc->def_sb_dma.paddr, sc->def_sb,
+        			sizeof(struct host_sp_status_block));
+		}
+		if(sc->eq_dma.vaddr != NULL) {
+    		BLOGI(sc, "event_queue paddr %#jx vaddr %p size 0x%x\n",
+        			(uintmax_t)sc->eq_dma.paddr, sc->eq_dma.vaddr, BCM_PAGE_SIZE);
+		}
+		if(sc->sp_dma.vaddr != NULL) {
+    		BLOGI(sc, "slow path paddr %#jx vaddr %p size 0x%zx\n",
+        			(uintmax_t)sc->sp_dma.paddr, sc->sp_dma.vaddr,
+        			sizeof(struct bxe_slowpath));
+		}
+		if(sc->spq_dma.vaddr != NULL) {
+    		BLOGI(sc, "slow path queue paddr %#jx vaddr %p size 0x%x\n",
+        			(uintmax_t)sc->spq_dma.paddr, sc->spq_dma.vaddr, BCM_PAGE_SIZE);
+		}
+		if(sc->gz_buf_dma.vaddr != NULL) {
+    		BLOGI(sc, "fw_buf paddr %#jx vaddr %p size 0x%x\n",
+        			(uintmax_t)sc->gz_buf_dma.paddr, sc->gz_buf_dma.vaddr,
+        			FW_BUF_SIZE);
+		}
+    	for (i = 0; i < sc->num_queues; i++) {
+        	fp = &sc->fp[i];
+			if(fp->sb_dma.vaddr != NULL && fp->tx_dma.vaddr != NULL &&
+                        fp->rx_dma.vaddr != NULL && fp->rcq_dma.vaddr != NULL &&
+                        fp->rx_sge_dma.vaddr != NULL) {
 
-    ilt_cli = &ilt->clients[1];
-    for (i = ilt_cli->start; i <= ilt_cli->end; i++) {
-        BLOGI(sc, "ECORE_ILT paddr %#jx vaddr %p size 0x%x\n",
-            (uintmax_t)(((struct bxe_dma *)((&ilt->lines[i])->page))->paddr),
-            ((struct bxe_dma *)((&ilt->lines[i])->page))->vaddr, BCM_PAGE_SIZE);
-    }
+				BLOGI(sc, "FP status block fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
+            			(uintmax_t)fp->sb_dma.paddr, fp->sb_dma.vaddr,
+            			sizeof(union bxe_host_hc_status_block));
+				BLOGI(sc, "TX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            			(uintmax_t)fp->tx_dma.paddr, fp->tx_dma.vaddr,
+            			(BCM_PAGE_SIZE * TX_BD_NUM_PAGES));
+        		BLOGI(sc, "RX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            			(uintmax_t)fp->rx_dma.paddr, fp->rx_dma.vaddr,
+            			(BCM_PAGE_SIZE * RX_BD_NUM_PAGES));
+        		BLOGI(sc, "RX RCQ CHAIN fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
+            			(uintmax_t)fp->rcq_dma.paddr, fp->rcq_dma.vaddr,
+            			(BCM_PAGE_SIZE * RCQ_NUM_PAGES));
+        		BLOGI(sc, "RX SGE CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            			(uintmax_t)fp->rx_sge_dma.paddr, fp->rx_sge_dma.vaddr,
+            			(BCM_PAGE_SIZE * RX_SGE_NUM_PAGES));
+    		}
+		}
+		if(ilt != NULL ) {
+    		ilt_cli = &ilt->clients[1];
+			if(ilt->lines != NULL) {
+    		for (i = ilt_cli->start; i <= ilt_cli->end; i++) {
+        		BLOGI(sc, "ECORE_ILT paddr %#jx vaddr %p size 0x%x\n",
+            			(uintmax_t)(((struct bxe_dma *)((&ilt->lines[i])->page))->paddr),
+            			((struct bxe_dma *)((&ilt->lines[i])->page))->vaddr, BCM_PAGE_SIZE);
+    		}
+			}
+		}
 
 
-    cmd_offset = DMAE_REG_CMD_MEM;
-    for (i = 0; i < 224; i++) {
-        reg_addr = (cmd_offset +(i * 4));
-        reg_val = REG_RD(sc, reg_addr);
-        BLOGI(sc, "DMAE_REG_CMD_MEM i=%d reg_addr 0x%x reg_val 0x%08x\n",i,
-            reg_addr, reg_val);
-    }
-
+    	cmd_offset = DMAE_REG_CMD_MEM;
+    	for (i = 0; i < 224; i++) {
+        	reg_addr = (cmd_offset +(i * 4));
+        	reg_val = REG_RD(sc, reg_addr);
+        	BLOGI(sc, "DMAE_REG_CMD_MEM i=%d reg_addr 0x%x reg_val 0x%08x\n",i,
+            			reg_addr, reg_val);
+    	}
+	}
 
     BLOGI(sc, "Collection of grcdump done\n");
     sc->grcdump_done = 1;

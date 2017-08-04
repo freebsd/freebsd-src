@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/nop
+.PATH: ${SRCTOP}/sys/geom/nop
 
 KMOD=	geom_nop
 SRCS=	g_nop.c

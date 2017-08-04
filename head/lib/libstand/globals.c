@@ -25,6 +25,7 @@ char	hostname[FNAME_SIZE];		/* our hostname */
 int	hostnamelen;
 char	domainname[FNAME_SIZE];		/* our DNS domain */
 int	domainnamelen;
+int	netproto = NET_NONE;		/* Network prototol */
 char	ifname[IFNAME_SIZE];		/* name of interface (e.g. "le0") */
 struct	in_addr myip;			/* my ip address */
 struct	in_addr nameip;			/* DNS server ip address */

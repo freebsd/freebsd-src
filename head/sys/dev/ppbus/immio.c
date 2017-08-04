@@ -674,10 +674,10 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int *ret)
 {
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	register char r;
+	char r;
 	char l, h = 0;
 	int len, error = 0, not_connected = 0;
-	register int k;
+	int k;
 	int negociated = 0;
 
 	/*

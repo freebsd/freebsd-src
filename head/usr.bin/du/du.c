@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-
 #include <err.h>
 #include <errno.h>
 #include <fnmatch.h>
@@ -421,7 +420,7 @@ linkchk(FTSENT *p)
 		if (le->dev == st->st_dev && le->ino == st->st_ino) {
 			/*
 			 * Save memory by releasing an entry when we've seen
-			 * all of it's links.
+			 * all of its links.
 			 */
 			if (--le->links <= 0) {
 				if (le->previous != NULL)
@@ -514,7 +513,7 @@ static void
 ignoreclean(void)
 {
 	struct ignentry *ign;
-	
+
 	while (!SLIST_EMPTY(&ignores)) {
 		ign = SLIST_FIRST(&ignores);
 		SLIST_REMOVE_HEAD(&ignores, next);

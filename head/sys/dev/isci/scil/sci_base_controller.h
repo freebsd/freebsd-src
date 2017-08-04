@@ -90,7 +90,7 @@ typedef enum _SCI_BASE_CONTROLLER_STATES
 
    /**
     * This state indicates that the controller is reset.  The memory for
-    * the controller is in it's initial state, but the controller requires
+    * the controller is in its initial state, but the controller requires
     * initialization.
     * This state is entered from the INITIAL state.
     * This state is entered from the RESETTING state.

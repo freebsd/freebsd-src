@@ -66,6 +66,10 @@ _TESTS=
 .include <plain.test.mk>
 .include <tap.test.mk>
 
+# Sort the tests alphabetically, so the results are deterministically formed
+# across runs.
+_TESTS:=	${_TESTS:O}
+
 # kyua automatically descends directories; only run make check on the
 # top-level directory
 .if !make(check)

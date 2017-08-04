@@ -154,7 +154,8 @@ typedef enum ucl_parser_flags {
 	UCL_PARSER_NO_TIME = (1 << 2), /**< Do not parse time and treat time values as strings */
 	UCL_PARSER_NO_IMPLICIT_ARRAYS = (1 << 3), /** Create explicit arrays instead of implicit ones */
 	UCL_PARSER_SAVE_COMMENTS = (1 << 4), /** Save comments in the parser context */
-	UCL_PARSER_DISABLE_MACRO = (1 << 5) /** Treat macros as comments */
+	UCL_PARSER_DISABLE_MACRO = (1 << 5), /** Treat macros as comments */
+	UCL_PARSER_NO_FILEVARS = (1 << 6) /** Do not set file vars */
 } ucl_parser_flags_t;
 
 /**
@@ -205,7 +206,8 @@ enum ucl_duplicate_strategy {
 enum ucl_parse_type {
 	UCL_PARSE_UCL = 0, /**< Default ucl format */
 	UCL_PARSE_MSGPACK, /**< Message pack input format */
-	UCL_PARSE_CSEXP /**< Canonical S-expressions */
+	UCL_PARSE_CSEXP, /**< Canonical S-expressions */
+	UCL_PARSE_AUTO /**< Try to detect parse type */
 };
 
 /**
@@ -227,7 +229,7 @@ typedef struct ucl_object_s {
 	const char *key;						/**< Key of an object		*/
 	struct ucl_object_s *next;				/**< Array handle			*/
 	struct ucl_object_s *prev;				/**< Array handle			*/
-	uint32_t keylen;						/**< Lenght of a key		*/
+	uint32_t keylen;						/**< Length of a key		*/
 	uint32_t len;							/**< Size of an object		*/
 	uint32_t ref;							/**< Reference count		*/
 	uint16_t flags;							/**< Object flags			*/
@@ -831,10 +833,29 @@ UCL_EXTERN ucl_object_iter_t ucl_object_iterate_reset (ucl_object_iter_t it,
  * Get the next object from the `obj`. This fucntion iterates over arrays, objects
  * and implicit arrays
  * @param iter safe iterator
+ * @param expand_values expand explicit arrays and objects
  * @return the next object in sequence
  */
 UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter,
 		bool expand_values);
+/**
+ * Iteration type enumerator
+ */
+enum ucl_iterate_type {
+	UCL_ITERATE_EXPLICIT = 1 << 0, /**< Iterate just explicit arrays and objects */
+	UCL_ITERATE_IMPLICIT = 1 << 1,  /**< Iterate just implicit arrays */
+	UCL_ITERATE_BOTH = (1 << 0) | (1 << 1),   /**< Iterate both explicit and implicit arrays*/
+};
+
+/**
+ * Get the next object from the `obj`. This fucntion iterates over arrays, objects
+ * and implicit arrays if needed
+ * @param iter safe iterator
+ * @param
+ * @return the next object in sequence
+ */
+UCL_EXTERN const ucl_object_t* ucl_object_iterate_full (ucl_object_iter_t iter,
+		enum ucl_iterate_type type);
 
 /**
  * Free memory associated with the safe iterator
@@ -1035,6 +1056,20 @@ UCL_EXTERN bool ucl_parser_add_file_priority (struct ucl_parser *parser,
 		const char *filename, unsigned priority);
 
 /**
+ * Load and add data from a file
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat Merge strategy to use while parsing this file
+ * @param parse_type Parser type to use while parsing this file
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_file_full (struct ucl_parser *parser, const char *filename,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type);
+
+/**
  * Load and add data from a file descriptor
  * @param parser parser structure
  * @param filename the name of file
@@ -1055,6 +1090,21 @@ UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
 		int fd, unsigned priority);
+
+/**
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat Merge strategy to use while parsing this file
+ * @param parse_type Parser type to use while parsing this file
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd_full (struct ucl_parser *parser, int fd,
+		unsigned priority, enum ucl_duplicate_strategy strat,
+		enum ucl_parse_type parse_type);
 
 /**
  * Provide a UCL_ARRAY of paths to search for include files. The object is

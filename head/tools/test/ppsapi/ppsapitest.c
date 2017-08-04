@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	if (argc > 0) {
 		fd = open(argv[0], O_RDONLY);
 		if (fd < 0) 
-			err(1, argv[0]);
+			err(1, "%s", argv[0]);
 	} else {
 		fd = 0;
 	}

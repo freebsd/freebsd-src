@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2016
+.Dd May 3, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -102,10 +102,10 @@
 .Op device id
 .Nm
 .Ic rescan
-.Aq all | bus Ns Op :target:lun
+.Aq all | device id | bus Ns Op :target:lun
 .Nm
 .Ic reset
-.Aq all | bus Ns Op :target:lun
+.Aq all | device id | bus Ns Op :target:lun
 .Nm
 .Ic defects
 .Op device id
@@ -121,7 +121,7 @@
 .Ic modepage
 .Op device id
 .Op generic args
-.Aq Fl m Ar page | Fl l
+.Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
 .Op Fl d
@@ -343,6 +343,11 @@
 .Op Fl S Ar power_src
 .Op Fl T Ar timer
 .Nm
+.Ic timestamp
+.Op device id
+.Op generic args
+.Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -417,6 +422,17 @@ It may take some other actions, depending upon the sense code returned from
 the command.
 .It Fl n Ar dev_name
 Specify the device type to operate on, e.g.\& "da", "cd".
+.It Fl Q Ar task_attr
+.Tn SCSI
+task attribute for the command, if it is a
+.Tn SCSI
+command.
+This may be ordered, simple, head, or aca.
+In most cases this is not needed.
+The default is simple, which works with all
+.Tn SCSI
+devices.
+The task attribute may also be specified numerically.
 .It Fl t Ar timeout
 SCSI command timeout in seconds.
 This overrides the default timeout for
@@ -560,14 +576,22 @@ start bit set and the load/eject bit set.
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the load/eject bit set.
 .It Ic rescan
-Tell the kernel to scan all busses in the system (with the
+Tell the kernel to scan all buses in the system (with the
 .Ar all
-argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
+argument), the given bus (XPT_SCAN_BUS), bus:target:lun or device
 (XPT_SCAN_LUN) for new devices or devices that have gone away.
 The user
-may specify a scan of all busses, a single bus, or a lun.
+may specify a scan of all buses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
+.Pp
+If a device is specified by peripheral name and unit number, for instance
+da4, it may only be rescanned if that device currently exists in the CAM EDT
+(Existing Device Table).
+If the device is no longer there (see
+.Nm
+devlist ),
+you must use the bus:target:lun form to rescan it.
 .It Ic reprobe
 Tell the kernel to refresh the information about the device and
 notify the upper layer,
@@ -575,10 +599,10 @@ notify the upper layer,
 This includes sending the SCSI READ CAPACITY command and updating
 the disk size visible to the rest of the system.
 .It Ic reset
-Tell the kernel to reset all busses in the system (with the
+Tell the kernel to reset all buses in the system (with the
 .Ar all
-argument) or the given bus (XPT_RESET_BUS) by issuing a SCSI bus
-reset for that bus, or to reset the given bus:target:lun
+argument), the given bus (XPT_RESET_BUS) by issuing a SCSI bus
+reset for that bus, or to reset the given bus:target:lun or device
 (XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
 connecting to that device.
 Note that this can have a destructive impact
@@ -697,9 +721,10 @@ The editor will be invoked if
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
-.It Fl m Ar mode_page
-This specifies the number of the mode page the user would like to view
-and/or edit.
+If specified more then once, also lists subpages.
+.It Fl m Ar page[,subpage]
+This specifies the number of the mode page and optionally subpage the user
+would like to view and/or edit.
 This argument is mandatory unless
 .Fl l
 is specified.
@@ -2368,6 +2393,20 @@ this power condition will be affected.
 .It state
 Enable or disable a particular power condition.
 .Bl -tag -width 7n
+.It Fl e
+Enable the power condition.
+One of 
+.Fl e
+or
+.Fl d
+is required.
+.It Fl d
+Disable the power condition.
+One of
+.Fl d
+or
+.Fl e
+is required.
 .It Fl p Ar cond
 Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
 This argument is required.
@@ -2417,6 +2456,54 @@ supports, and a number of parameters about each condition, including
 whether it is enabled and what the timer value is.
 .El
 .El
+.It Ic timestamp
+Issue REPORT TIMESTAMP or SET TIMESTAMP
+.Tn SCSI
+commands. Either the
+.Fl r
+option or the
+.Fl s
+option must be specified.
+.Bl -tag -width 6n
+.It Fl r
+Report the device's timestamp.
+If no more arguments are specified, the timestamp will be reported using
+the national representation of the date and time, followed by the time
+zone.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strftime format string, as documented in strftime(3), to be used
+to format the reported timestamp.
+.It Fl m
+Report the timestamp as milliseconds since the epoch.
+.It Fl U
+Report the timestamp using the national representation of the date and
+time, but override the system time zone and use UTC instead.
+.El
+.El
+.Bl -tag -width 6n
+.It Fl s
+Set the device's timestamp. Either the
+.Fl f
+and 
+.Fl T
+options or the
+.Fl U
+option must be specified.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strptime format string, as documented in strptime(3).
+The time must also be specified with the
+.Fl T 
+option.
+.It Fl T Ar time
+Provide the time in the format specified with the
+.Fl f
+option.
+.It Fl U
+Set the timestamp to the host system's time in UTC.
+.El
+.El
 .It Ic help
 Print out verbose usage information.
 .El
@@ -2455,7 +2542,7 @@ information if the command fails since the
 .Fl v
 switch was not specified.
 .Bd -literal -offset indent
-camcontrol tur da1 -E -C 4 -t 50 -v
+camcontrol tur da1 -E -C 4 -t 50 -Q head -v
 .Ed
 .Pp
 Send a test unit ready command to da1.
@@ -2467,6 +2554,9 @@ printing (with the
 flag) if the command fails.
 Since error recovery is turned on, the
 disk will be spun up if it is not currently spinning.
+The
+.Tn SCSI
+task attribute for the command will be set to Head of Queue.
 The
 .Nm
 utility will report whether the disk is ready.
@@ -2503,7 +2593,7 @@ write reallocation settings, among other things.
 .Pp
 .Dl camcontrol rescan all
 .Pp
-Rescan all SCSI busses in the system for devices that have been added,
+Rescan all SCSI buses in the system for devices that have been added,
 removed or changed.
 .Pp
 .Dl camcontrol rescan 0
@@ -2730,6 +2820,18 @@ camcontrol epc ada0 -c list
 Display the ATA Power Conditions log (Log Address 0x08) for
 drive
 .Pa ada0 .
+.Pp
+.Bd -literal -offset indent
+camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
+	-T "Wed, 26 Oct 2016 21:43:57 -0600"
+.Ed
+.Pp
+Set the timestamp of drive
+.Pa sa0
+using a
+.Xr strptime 3 
+format string followed by a time string
+that was created using this format string.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

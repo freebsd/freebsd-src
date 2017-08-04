@@ -52,11 +52,11 @@ int
 getchar(void)
 {
 	int retval;
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	/* Orientation set by __sgetc() when buffer is empty. */
 	/* ORIENT(stdin, -1); */
 	retval = __sgetc(stdin);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }
 

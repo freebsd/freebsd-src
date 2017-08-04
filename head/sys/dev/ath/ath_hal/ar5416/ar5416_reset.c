@@ -2833,6 +2833,9 @@ ar5416SetIFSTiming(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		clk_44 = 1;
 
 	/* XXX does this need save/restoring for the 11n chips? */
+	/*
+	 * XXX TODO: should mask out the txlat/rxlat/usec values?
+	 */
 	refClock = OS_REG_READ(ah, AR_USEC) & AR_USEC_USEC32;
 
 	/*

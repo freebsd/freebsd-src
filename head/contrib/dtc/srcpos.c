@@ -34,7 +34,7 @@ struct search_path {
 static struct search_path *search_path_head, **search_path_tail;
 
 
-static char *dirname(const char *path)
+static char *get_dirname(const char *path)
 {
 	const char *slash = strrchr(path, '/');
 
@@ -77,7 +77,7 @@ static char *try_open(const char *dirname, const char *fname, FILE **fp)
 	else
 		fullname = join_path(dirname, fname);
 
-	*fp = fopen(fullname, "r");
+	*fp = fopen(fullname, "rb");
 	if (!*fp) {
 		free(fullname);
 		fullname = NULL;
@@ -150,7 +150,7 @@ void srcfile_push(const char *fname)
 	srcfile = xmalloc(sizeof(*srcfile));
 
 	srcfile->f = srcfile_relative_open(fname, &srcfile->name);
-	srcfile->dir = dirname(srcfile->name);
+	srcfile->dir = get_dirname(srcfile->name);
 	srcfile->prev = current_srcfile;
 
 	srcfile->lineno = 1;
@@ -246,46 +246,27 @@ srcpos_copy(struct srcpos *pos)
 	return pos_new;
 }
 
-
-
-void
-srcpos_dump(struct srcpos *pos)
-{
-	printf("file        : \"%s\"\n",
-	       pos->file ? (char *) pos->file : "<no file>");
-	printf("first_line  : %d\n", pos->first_line);
-	printf("first_column: %d\n", pos->first_column);
-	printf("last_line   : %d\n", pos->last_line);
-	printf("last_column : %d\n", pos->last_column);
-	printf("file        : %s\n", pos->file->name);
-}
-
-
 char *
 srcpos_string(struct srcpos *pos)
 {
 	const char *fname = "<no-file>";
 	char *pos_str;
-	int rc;
 
-	if (pos)
+	if (pos->file && pos->file->name)
 		fname = pos->file->name;
 
 
 	if (pos->first_line != pos->last_line)
-		rc = asprintf(&pos_str, "%s:%d.%d-%d.%d", fname,
-			      pos->first_line, pos->first_column,
-			      pos->last_line, pos->last_column);
+		xasprintf(&pos_str, "%s:%d.%d-%d.%d", fname,
+			  pos->first_line, pos->first_column,
+			  pos->last_line, pos->last_column);
 	else if (pos->first_column != pos->last_column)
-		rc = asprintf(&pos_str, "%s:%d.%d-%d", fname,
-			      pos->first_line, pos->first_column,
-			      pos->last_column);
+		xasprintf(&pos_str, "%s:%d.%d-%d", fname,
+			  pos->first_line, pos->first_column,
+			  pos->last_column);
 	else
-		rc = asprintf(&pos_str, "%s:%d.%d", fname,
-			      pos->first_line, pos->first_column);
-
-	if (rc == -1)
-		die("Couldn't allocate in srcpos string");
+		xasprintf(&pos_str, "%s:%d.%d", fname,
+			  pos->first_line, pos->first_column);
 
 	return pos_str;
 }

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,6 +48,8 @@ struct rib_head {
 	struct radix_mask_head	rmhead;		/* masks radix head */
 };
 
+#define	RIB_LOCK_INIT(rh)	rw_init(&(rh)->rib_lock, "rib head lock")
+#define	RIB_LOCK_DESTROY(rh)	rw_destroy(&(rh)->rib_lock)
 #define	RIB_RLOCK(rh)		rw_rlock(&(rh)->rib_lock)
 #define	RIB_RUNLOCK(rh)		rw_runlock(&(rh)->rib_lock)
 #define	RIB_WLOCK(rh)		rw_wlock(&(rh)->rib_lock)

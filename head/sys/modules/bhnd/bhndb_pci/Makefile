@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/bhnd/bhndb
+.PATH: ${SRCTOP}/sys/dev/bhnd/bhndb
 
 KMOD=	bhndb_pci
 SRCS=	bhndb_pci.c bhndb_pci_hwdata.c \

@@ -52,6 +52,10 @@ typedef	struct _sem	sem_t;
 struct timespec;
 
 __BEGIN_DECLS
+#if __BSD_VISIBLE
+int	 sem_clockwait_np(sem_t * __restrict, __clockid_t, int,
+	    const struct timespec *, struct timespec *);
+#endif
 int	 sem_close(sem_t *);
 int	 sem_destroy(sem_t *);
 int	 sem_getvalue(sem_t * __restrict, int * __restrict);

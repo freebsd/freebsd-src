@@ -56,6 +56,7 @@
 #define		bind				_bind
 #define		__cap_get_fd			___cap_get_fd
 #define		__cap_set_fd			___cap_set_fd
+#define		clock_nanosleep			_clock_nanosleep
 #define		close				_close
 #define		connect				_connect
 #define		dup				_dup
@@ -217,6 +218,7 @@
 #define		sem_open			_sem_open
 #define		sem_post			_sem_post
 #define		sem_timedwait			_sem_timedwait
+#define		sem_clockwait_np		_sem_clockwait_np
 #define		sem_trywait			_sem_trywait
 #define		sem_unlink			_sem_unlink
 #define		sem_wait			_sem_wait

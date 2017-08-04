@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3474 2016-05-17 20:44:53Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3521 2017-06-04 20:07:09Z jkoshy $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -223,9 +223,9 @@ d_tags(uint64_t tag)
 	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe:	return "DT_SUNW_USED";
-	case 0x7fffffff:	return "DT_SUNW_FILTER";
+	case DT_AUXILIARY:	return "DT_AUXILIARY";
+	case DT_USED:		return "DT_USED";
+	case DT_FILTER:		return "DT_FILTER";
 	}
 
 	snprintf(unknown_buf, sizeof(unknown_buf),
@@ -332,6 +332,8 @@ static const char *ei_abis[256] = {
 	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
 	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
 	[17] = "ELFOSABI_CLOUDABI",
+	[64] = "ELFOSABI_ARM_AEABI",
+	[97] = "ELFOSABI_ARM",
 	[255] = "ELFOSABI_STANDALONE"
 };
 
@@ -2224,8 +2226,8 @@ elf_print_svr4_hash64(struct elfdump *ed, struct section *s)
 	uint64_t	*buf;
 	uint64_t	*bucket, *chain;
 	uint64_t	 nbucket, nchain;
-	uint64_t	*bl, *c, maxl, total;
-	uint64_t	 i, j;
+	uint64_t	*bl, *c, j, maxl, total;
+	size_t		 i;
 	int		 elferr, first;
 	char		 idx[10];
 

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -303,7 +303,7 @@ findchild(pid_t pid, int dont_alloc)
 	    cpp = &(*cpp)->link)
 			;
 	if (*cpp == NULL) {
-	if (dont_alloc)
+		if (dont_alloc)
 			return(NULL);
 		if (child_freelist) {
 			*cpp = child_freelist;
@@ -344,6 +344,8 @@ sigchild(int signo __unused)
 	save_errno = errno;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 		cp = findchild(pid, 1);
+		if (cp == NULL)
+			continue;
 		if (cp->free)
 			delchild(cp);
 		else {

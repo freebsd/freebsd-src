@@ -50,7 +50,7 @@ acpi_PkgInt(ACPI_OBJECT *res, int idx, UINT64 *dst)
     ACPI_OBJECT		*obj;
 
     obj = &res->Package.Elements[idx];
-    if (obj == NULL || obj->Type != ACPI_TYPE_INTEGER)
+    if (obj->Type != ACPI_TYPE_INTEGER)
 	return (EINVAL);
     *dst = obj->Integer.Value;
 

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2016
+.Dd March 27, 2017
 .Dt PTHREAD_MUTEX_CONSISTENT 3
 .Os
 .Sh NAME
@@ -83,10 +83,10 @@ The mutex pointed to by the
 argument is not robust, or is not in the inconsistent state.
 .El
 .Sh SEE ALSO
-.Xr pthread_mutexattr_setrobust 3 ,
 .Xr pthread_mutex_init 3 ,
 .Xr pthread_mutex_lock 3 ,
-.Xr pthread_mutex_unlock 3
+.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_mutexattr_setrobust 3
 .Sh STANDARDS
 The
 .Fn pthread_mutex_lock

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,6 +70,13 @@ struct mdproc {
 #define	KINFO_PROC_SIZE 1088
 #define	KINFO_PROC32_SIZE 768
 
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
+
 #ifdef	_KERNEL
 
 /* Get the current kernel thread stack usage. */
@@ -92,13 +99,6 @@ int amd64_set_ldt_data(struct thread *td, int start, int num,
 
 extern struct mtx dt_lock;
 extern int max_ldt_segment;
-
-struct syscall_args {
-	u_int code;
-	struct sysent *callp;
-	register_t args[8];
-	int narg;
-};
 #endif  /* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */

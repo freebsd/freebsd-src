@@ -46,6 +46,7 @@
 #include <bitstring.h>
 
 #include <netgraph/ng_message.h>
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
 #include <netgraph/bluetooth/include/ng_btsocket.h>

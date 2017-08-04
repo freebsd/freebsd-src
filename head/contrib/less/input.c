@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,7 +47,7 @@ forw_line(curr_pos)
 {
 	POSITION base_pos;
 	POSITION new_pos;
-	register int c;
+	int c;
 	int blankline;
 	int endline;
 	int backchars;

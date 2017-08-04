@@ -153,6 +153,9 @@ do {							\
 #define VMBUS_CHANPKT_TOTLEN(tlen)	\
 	roundup2((tlen), VMBUS_CHANPKT_SIZE_ALIGN)
 
+#define VMBUS_CHANPKT_HLEN_MIN		\
+	(sizeof(struct vmbus_chanpkt_hdr) >> VMBUS_CHANPKT_SIZE_SHIFT)
+
 struct vmbus_chanpkt {
 	struct vmbus_chanpkt_hdr cp_hdr;
 } __packed;

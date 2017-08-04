@@ -1,4 +1,4 @@
-$ $tcsh: set9,v 1.4 2011/02/04 18:19:45 christos Exp $
+$ $tcsh: set9,v 1.5 2015/05/26 17:38:25 christos Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: Null extended-key not allowed.\n
@@ -8,5 +8,5 @@ $set 9
 5 Some extended keys too long for internal print buffer
 6 Enumerate: ПОМИЛКА!! Null ptr passed\n!
 7 no input
-8 Something must follow: %c\n
+8 Something must follow: '%c'\n
 9 Octal constant does not fit in a char.\n

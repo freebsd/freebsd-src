@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
 
@@ -63,7 +61,6 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-#ifdef DEV_NPX
 	pushfl
 	cli
 	movl	PCPU(CURTHREAD),%ecx
@@ -77,7 +74,6 @@ ENTRY(vm86_bioscall)
 	popl	%edx			/* recover our pcb */
 1:
 	popfl
-#endif
 
 	movl	SCR_VMFRAME(%edx),%ebx	/* target frame location */
 	movl	%ebx,%edi		/* destination */

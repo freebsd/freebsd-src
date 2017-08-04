@@ -1,4 +1,4 @@
-/* $NetBSD: t_ioctl.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $ */
+/* $NetBSD: t_ioctl.c,v 1.3 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_ioctl.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
+__RCSID("$NetBSD: t_ioctl.c,v 1.3 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/event.h>
 #include <sys/ioctl.h>
@@ -42,7 +42,7 @@ __RCSID("$NetBSD: t_ioctl.c,v 1.1 2009/02/20 21:39:57 jmmv Exp $");
 
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(kfilter_byfilter);
 ATF_TC_HEAD(kfilter_byfilter, tc)
@@ -53,7 +53,8 @@ ATF_TC_BODY(kfilter_byfilter, tc)
 {
 	char buf[32];
 	struct kfilter_mapping km;
-	int i, kq;
+	int kq;
+	uint32_t i;
 
 	RL(kq = kqueue());
 

@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd October 24, 2015
+.Dd May 19, 2017
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -242,7 +242,7 @@ rotate at the first day of every month at midnight
 (i.e., the start of the day; same as
 .Li @01T00 )
 .It Li $M5D6
-rotate on every 5th day of month at 6:00
+rotate on every fifth day of month at 6:00
 (same as
 .Li @05T06 )
 .El
@@ -303,6 +303,12 @@ indicates that
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr xz 1 .
+.It Cm Y
+indicates that
+.Xr newsyslog 8
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr zstd 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
@@ -313,6 +319,11 @@ will run shell command defined in
 .Ar path_to_pid_cmd_file
 after rotation instead of trying to send signal to a process id
 stored in the file.
+.It Cm T
+if this flag is set the informational rotation message written to
+the log file will be in the format specified by RFC5424.
+Normally, the rotation message is written in the traditional (RFC3164)
+syslog format.
 .It Cm U
 indicates that the file specified by
 .Ar path_to_pid_cmd_file
@@ -389,6 +400,17 @@ entry:
 .Xr chown 8 ,
 .Xr newsyslog 8 ,
 .Xr syslogd 8
+.Pp
+.Rs
+.%A C. Lonvick
+.%T The BSD syslog Protocol
+.%O RFC3164
+.Re
+.Rs
+.%A R. Gerhards
+.%T The Syslog Protocol
+.%O RFC5424
+.Re
 .Sh HISTORY
 This manual page first appeared in
 .Fx 4.10 .

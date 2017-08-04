@@ -946,6 +946,7 @@ pkg_query_yes_no(void)
 {
 	int ret, c;
 
+	fflush(stdout);
 	c = getchar();
 
 	if (c == 'y' || c == 'Y')

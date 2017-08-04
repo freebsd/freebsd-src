@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2015
+.Dd March 17, 2017
 .Dt MEMMEM 3
 .Os
 .Sh NAME
@@ -77,8 +77,11 @@ The
 .Fn memmem
 function first appeared in
 .Fx 6.0 .
-.Sh AUTHORS
+It was replaced with an optimized O(n) implementation from the musl libc
+project in
+.Fx 12.0 .
 .An Pascal Gloor Aq Mt pascal.gloor@spale.com
+provided this man page along with the previous implementation.
 .Sh BUGS
 This function was broken in Linux libc up to and including version 5.0.9
 and in GNU libc prior to version 2.1.

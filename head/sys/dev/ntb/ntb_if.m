@@ -38,6 +38,7 @@ HEADER {
 		NTB_SPEED_GEN1 = 1,
 		NTB_SPEED_GEN2 = 2,
 		NTB_SPEED_GEN3 = 3,
+		NTB_SPEED_GEN4 = 4,
 	};
 
 	enum ntb_width {

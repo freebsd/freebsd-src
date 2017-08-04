@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -581,7 +581,8 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 		case STAR:
 			pglob->gl_flags |= GLOB_MAGCHAR;
 			/* collapse adjacent stars to one,
-			 * to avoid exponential behavior
+			 * to ensure "**" at the end continues to match the
+			 * empty string
 			 */
 			if (bufnext == patbuf || bufnext[-1] != M_ALL)
 			    *bufnext++ = M_ALL;
@@ -850,7 +851,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
     const char *origpat)
 {
 	char **pathv;
-	size_t i, newsize, len;
+	size_t i, newn, len;
 	char *copy;
 	const Char *p;
 
@@ -860,9 +861,9 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		return (GLOB_NOSPACE);
 	}
 
-	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
-	/* realloc(NULL, newsize) is equivalent to malloc(newsize). */
-	pathv = realloc((void *)pglob->gl_pathv, newsize);
+	newn = 2 + pglob->gl_pathc + pglob->gl_offs;
+	/* reallocarray(NULL, newn, size) is equivalent to malloc(newn*size). */
+	pathv = reallocarray(pglob->gl_pathv, newn, sizeof(*pathv));
 	if (pathv == NULL)
 		return (GLOB_NOSPACE);
 
@@ -903,61 +904,74 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 }
 
 /*
- * pattern matching function for filenames.  Each occurrence of the *
- * pattern causes a recursion level.
+ * pattern matching function for filenames.
  */
 static int
 match(Char *name, Char *pat, Char *patend)
 {
 	int ok, negate_range;
-	Char c, k;
+	Char c, k, *nextp, *nextn;
 	struct xlocale_collate *table =
 		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
-	while (pat < patend) {
-		c = *pat++;
-		switch (c & M_MASK) {
-		case M_ALL:
-			if (pat == patend)
-				return (1);
-			do
-			    if (match(name, pat, patend))
-				    return (1);
-			while (*name++ != EOS);
-			return (0);
-		case M_ONE:
-			if (*name++ == EOS)
-				return (0);
-			break;
-		case M_SET:
-			ok = 0;
-			if ((k = *name++) == EOS)
-				return (0);
-			if ((negate_range = ((*pat & M_MASK) == M_NOT)) != 0)
-				++pat;
-			while (((c = *pat++) & M_MASK) != M_END)
-				if ((*pat & M_MASK) == M_RNG) {
-					if (table->__collate_load_error ?
-					    CHAR(c) <= CHAR(k) &&
-					    CHAR(k) <= CHAR(pat[1]) :
-					    __wcollate_range_cmp(CHAR(c),
-					    CHAR(k)) <= 0 &&
-					    __wcollate_range_cmp(CHAR(k),
-					    CHAR(pat[1])) <= 0)
+	nextn = NULL;
+	nextp = NULL;
+
+	while (1) {
+		while (pat < patend) {
+			c = *pat++;
+			switch (c & M_MASK) {
+			case M_ALL:
+				if (pat == patend)
+					return (1);
+				if (*name == EOS)
+					return (0);
+				nextn = name + 1;
+				nextp = pat - 1;
+				break;
+			case M_ONE:
+				if (*name++ == EOS)
+					goto fail;
+				break;
+			case M_SET:
+				ok = 0;
+				if ((k = *name++) == EOS)
+					goto fail;
+				negate_range = ((*pat & M_MASK) == M_NOT);
+				if (negate_range != 0)
+					++pat;
+				while (((c = *pat++) & M_MASK) != M_END)
+					if ((*pat & M_MASK) == M_RNG) {
+						if (table->__collate_load_error ?
+						    CHAR(c) <= CHAR(k) &&
+						    CHAR(k) <= CHAR(pat[1]) :
+						    __wcollate_range_cmp(CHAR(c),
+						    CHAR(k)) <= 0 &&
+						    __wcollate_range_cmp(CHAR(k),
+						    CHAR(pat[1])) <= 0)
+							ok = 1;
+						pat += 2;
+					} else if (c == k)
 						ok = 1;
-					pat += 2;
-				} else if (c == k)
-					ok = 1;
-			if (ok == negate_range)
-				return (0);
-			break;
-		default:
-			if (*name++ != c)
-				return (0);
-			break;
+				if (ok == negate_range)
+					goto fail;
+				break;
+			default:
+				if (*name++ != c)
+					goto fail;
+				break;
+			}
 		}
+		if (*name == EOS)
+			return (1);
+
+	fail:
+		if (nextn == NULL)
+			break;
+		pat = nextp;
+		name = nextn;
 	}
-	return (*name == EOS);
+	return (0);
 }
 
 /* Free allocated data belonging to a glob_t structure. */

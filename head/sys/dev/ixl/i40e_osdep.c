@@ -189,13 +189,69 @@ void
 i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
 {
 	va_list args;
+	device_t dev;
 
 	if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
 		return;
 
+	dev = ((struct i40e_osdep *)hw->back)->dev;
+
+	/* Re-implement device_printf() */
+	device_print_prettyname(dev);
 	va_start(args, fmt);
-	device_printf(((struct i40e_osdep *)hw->back)->dev, fmt, args);
+	vprintf(fmt, args);
 	va_end(args);
+}
+
+const char *
+ixl_vc_opcode_str(uint16_t op)
+{
+	switch (op) {
+	case I40E_VIRTCHNL_OP_VERSION:
+		return ("VERSION");
+	case I40E_VIRTCHNL_OP_RESET_VF:
+		return ("RESET_VF");
+	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
+		return ("GET_VF_RESOURCES");
+	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
+		return ("CONFIG_TX_QUEUE");
+	case I40E_VIRTCHNL_OP_CONFIG_RX_QUEUE:
+		return ("CONFIG_RX_QUEUE");
+	case I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES:
+		return ("CONFIG_VSI_QUEUES");
+	case I40E_VIRTCHNL_OP_CONFIG_IRQ_MAP:
+		return ("CONFIG_IRQ_MAP");
+	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
+		return ("ENABLE_QUEUES");
+	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
+		return ("DISABLE_QUEUES");
+	case I40E_VIRTCHNL_OP_ADD_ETHER_ADDRESS:
+		return ("ADD_ETHER_ADDRESS");
+	case I40E_VIRTCHNL_OP_DEL_ETHER_ADDRESS:
+		return ("DEL_ETHER_ADDRESS");
+	case I40E_VIRTCHNL_OP_ADD_VLAN:
+		return ("ADD_VLAN");
+	case I40E_VIRTCHNL_OP_DEL_VLAN:
+		return ("DEL_VLAN");
+	case I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
+		return ("CONFIG_PROMISCUOUS_MODE");
+	case I40E_VIRTCHNL_OP_GET_STATS:
+		return ("GET_STATS");
+	case I40E_VIRTCHNL_OP_FCOE:
+		return ("FCOE");
+	case I40E_VIRTCHNL_OP_EVENT:
+		return ("EVENT");
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_KEY:
+		return ("CONFIG_RSS_KEY");
+	case I40E_VIRTCHNL_OP_CONFIG_RSS_LUT:
+		return ("CONFIG_RSS_LUT");
+	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+		return ("GET_RSS_HENA_CAPS");
+	case I40E_VIRTCHNL_OP_SET_RSS_HENA:
+		return ("SET_RSS_HENA");
+	default:
+		return ("UNKNOWN");
+	}
 }
 
 u16

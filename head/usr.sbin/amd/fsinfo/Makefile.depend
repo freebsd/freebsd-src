@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libwrap \
 	usr.bin/yacc.host \
 	usr.sbin/amd/include \
 	usr.sbin/amd/libamu \

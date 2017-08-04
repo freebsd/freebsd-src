@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/uart
+.PATH: ${SRCTOP}/sys/dev/uart
 
 .if ${MACHINE_CPUARCH} == "sparc64"
 uart_bus_ebus=	uart_bus_ebus.c

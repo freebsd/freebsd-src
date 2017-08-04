@@ -33,8 +33,28 @@ printpoolnode(np, opts, fields)
 		printmask(np->ipn_addr.adf_family,
 			  (u_32_t *)&np->ipn_mask.adf_addr);
 	} else {
-		PRINTF("\tAddress: %s%s", np->ipn_info ? "! " : "",
-			inet_ntoa(np->ipn_addr.adf_addr.in4));
+#ifdef USE_INET6
+		if (np->ipn_addr.adf_family == AF_INET6) {
+			char buf[INET6_ADDRSTRLEN + 1];
+			const char *str;
+			
+			buf[0] = '\0';
+			str = inet_ntop(AF_INET6, &np->ipn_addr.adf_addr.in6,
+				buf, sizeof(buf) - 1);
+			if (str == NULL)
+				str = "???";
+			PRINTF("\tAddress: %s%s", np->ipn_info ? "! " : "",
+				str);
+		} else if (np->ipn_addr.adf_family == AF_INET) {
+#else
+		if (np->ipn_addr.adf_family == AF_INET) {
+#endif
+			PRINTF("\tAddress: %s%s", np->ipn_info ? "! " : "",
+				inet_ntoa(np->ipn_addr.adf_addr.in4));
+		} else {
+			PRINTF("\tAddress: family: %d\n",
+				np->ipn_addr.adf_family);
+		}
 		printmask(np->ipn_addr.adf_family,
 			  (u_32_t *)&np->ipn_mask.adf_addr);
 #ifdef USE_QUAD_T

@@ -196,6 +196,10 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_25G_SR	IFM_X(55)	/* 25GBase-SR */
 #define	IFM_50G_CR2	IFM_X(56)	/* 50GBase-CR2 */
 #define	IFM_50G_KR2	IFM_X(57)	/* 50GBase-KR2 */
+#define	IFM_25G_LR	IFM_X(58)	/* 25GBase-LR */
+#define	IFM_10G_AOC	IFM_X(59)	/* 10G active optical cable */
+#define	IFM_25G_ACC	IFM_X(60)	/* 25G active copper cable */
+#define	IFM_25G_AOC	IFM_X(61)	/* 25G active optical cable */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -264,6 +268,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_OFDM27	23	/* OFDM 27Mbps */
 /* NB: not enough bits to express MCS fully */
 #define	IFM_IEEE80211_MCS	24	/* HT MCS rate */
+#define	IFM_IEEE80211_VHT	25	/* HT MCS rate */
 
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
@@ -280,6 +285,8 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_FH	0x00040000	/* 2Ghz, GFSK mode */
 #define	IFM_IEEE80211_11NA	0x00050000	/* 5Ghz, HT mode */
 #define	IFM_IEEE80211_11NG	0x00060000	/* 2Ghz, HT mode */
+#define	IFM_IEEE80211_VHT5G	0x00070000	/* 5Ghz, VHT mode */
+#define	IFM_IEEE80211_VHT2G	0x00080000	/* 2Ghz, VHT mode */
 
 /*
  * ATM
@@ -447,6 +454,10 @@ struct ifmedia_description {
 	{ IFM_25G_SR,	"25GBase-SR" },					\
 	{ IFM_50G_CR2,	"50GBase-CR2" },				\
 	{ IFM_50G_KR2,	"50GBase-KR2" },				\
+	{ IFM_25G_LR,	"25GBase-LR" },					\
+	{ IFM_10G_AOC,	"10GBase-AOC" },				\
+	{ IFM_25G_ACC,	"25GBase-ACC" },				\
+	{ IFM_25G_AOC,	"25GBase-AOC" },				\
 	{ 0, NULL },							\
 }
 
@@ -570,6 +581,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM/4.5Mbps" },			\
 	{ IFM_IEEE80211_OFDM27, "OFDM/27Mbps" },			\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -609,6 +621,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM4.5" },				\
 	{ IFM_IEEE80211_OFDM27, "OFDM27" },				\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -631,6 +644,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_FH, "fh" },					\
 	{ IFM_IEEE80211_11NA, "11na" },					\
 	{ IFM_IEEE80211_11NG, "11ng" },					\
+	{ IFM_IEEE80211_VHT5G, "11ac" },				\
+	{ IFM_IEEE80211_VHT2G, "11ac2" },				\
 	{ 0, NULL },							\
 }
 
@@ -775,6 +790,10 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_25G_SR,	IF_Gbps(25ULL) },		\
 	{ IFM_ETHER | IFM_50G_CR2,	IF_Gbps(50ULL) },		\
 	{ IFM_ETHER | IFM_50G_KR2,	IF_Gbps(50ULL) },		\
+	{ IFM_ETHER | IFM_25G_LR,	IF_Gbps(25ULL) },		\
+	{ IFM_ETHER | IFM_10G_AOC,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_25G_ACC,	IF_Gbps(25ULL) },		\
+	{ IFM_ETHER | IFM_25G_AOC,	IF_Gbps(25ULL) },		\
 									\
 	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
 	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\

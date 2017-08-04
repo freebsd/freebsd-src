@@ -1,4 +1,4 @@
-#include "llvm/ExecutionEngine/Orc/OrcArchitectureSupport.h"
+#include "llvm/ExecutionEngine/Orc/OrcABISupport.h"
 #include "llvm/ExecutionEngine/Orc/OrcRemoteTargetServer.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -12,10 +12,12 @@ using namespace llvm::orc;
 using namespace llvm::sys;
 
 #ifdef __x86_64__
-typedef OrcX86_64 HostOrcArch;
+typedef OrcX86_64_SysV HostOrcArch;
 #else
-typedef OrcGenericArchitecture HostOrcArch;
+typedef OrcGenericABI HostOrcArch;
 #endif
+
+ExitOnError ExitOnErr;
 
 int main(int argc, char *argv[]) {
 
@@ -23,6 +25,8 @@ int main(int argc, char *argv[]) {
     errs() << "Usage: " << argv[0] << " <input fd> <output fd>\n";
     return 1;
   }
+
+  ExitOnErr.setBanner(std::string(argv[0]) + ":");
 
   int InFD;
   int OutFD;
@@ -41,26 +45,20 @@ int main(int argc, char *argv[]) {
     return RTDyldMemoryManager::getSymbolAddressInProcess(Name);
   };
 
-  FDRPCChannel Channel(InFD, OutFD);
-  typedef remote::OrcRemoteTargetServer<FDRPCChannel, HostOrcArch> JITServer;
-  JITServer Server(Channel, SymbolLookup);
+  auto RegisterEHFrames = [](uint8_t *Addr, uint32_t Size) {
+    RTDyldMemoryManager::registerEHFramesInProcess(Addr, Size);
+  };
 
-  while (1) {
-    JITServer::JITProcId Id = JITServer::InvalidId;
-    if (auto EC = Server.getNextProcId(Id)) {
-      errs() << "Error: " << EC.message() << "\n";
-      return 1;
-    }
-    switch (Id) {
-    case JITServer::TerminateSessionId:
-      return 0;
-    default:
-      if (auto EC = Server.handleKnownProcedure(Id)) {
-        errs() << "Error: " << EC.message() << "\n";
-        return 1;
-      }
-    }
-  }
+  auto DeregisterEHFrames = [](uint8_t *Addr, uint32_t Size) {
+    RTDyldMemoryManager::deregisterEHFramesInProcess(Addr, Size);
+  };
+
+  FDRawChannel Channel(InFD, OutFD);
+  typedef remote::OrcRemoteTargetServer<FDRawChannel, HostOrcArch> JITServer;
+  JITServer Server(Channel, SymbolLookup, RegisterEHFrames, DeregisterEHFrames);
+
+  while (!Server.receivedTerminate())
+    ExitOnErr(Server.handleOne());
 
   close(InFD);
   close(OutFD);

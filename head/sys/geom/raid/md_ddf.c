@@ -1161,6 +1161,16 @@ hdrerror:
 		    (GET16(meta, hdr->Configuration_Record_Length) * ss - 512) / 12));
 	}
 
+	if (GET32(meta, hdr->cd_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->pdr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->vdr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->cr_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->pdd_length) * ss >= MAXPHYS ||
+	    GET32(meta, hdr->bbmlog_length) * ss >= MAXPHYS) {
+		G_RAID_DEBUG(1, "%s: Blocksize is too big.", pp->name);
+		goto hdrerror;
+	}
+
 	/* Read controller data. */
 	buf = g_read_data(cp, (lba + GET32(meta, hdr->cd_section)) * ss,
 	    GET32(meta, hdr->cd_length) * ss, &error);
@@ -1626,7 +1636,7 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 	vmeta = &pv->pv_meta;
 	gmeta = &mdi->mdio_meta;
 
-	/* Find disk position in metadata by it's reference. */
+	/* Find disk position in metadata by its reference. */
 	disk_pos = ddf_meta_find_disk(vmeta, reference,
 	    &md_disk_bvd, &md_disk_pos);
 	md_pde_pos = ddf_meta_find_pd(gmeta, NULL, reference);

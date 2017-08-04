@@ -1,4 +1,4 @@
-/*	$NetBSD: t_connect.c,v 1.1 2011/11/05 18:19:02 jruoho Exp $	*/
+/*	$NetBSD: t_connect.c,v 1.3 2017/01/13 20:09:48 christos Exp $	*/
 /*
  * Copyright (c) 2007, 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -26,6 +26,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/socket.h>
 #include <err.h>
 #include <errno.h>
 #include <string.h>
@@ -35,10 +36,6 @@
 #include <netinet/in.h>
 
 #include <atf-c.h>
-
-#ifdef __FreeBSD__
-#include <sys/socket.h>
-#endif
 
 ATF_TC(connect_low_port);
 ATF_TC_HEAD(connect_low_port, tc)
@@ -56,10 +53,8 @@ ATF_TC_BODY(connect_low_port, tc)
 	slist = socket(AF_INET, SOCK_STREAM, 0);
 	sd = socket(AF_INET, SOCK_STREAM, 0);
 
-#ifdef __FreeBSD__
 	ATF_REQUIRE(sd > 0);
 	ATF_REQUIRE(slist > 0);
-#endif
 
 	/* bind listening socket */
 	memset(&sinlist, 0, sizeof(sinlist));
@@ -97,15 +92,42 @@ ATF_TC_BODY(connect_low_port, tc)
 	ATF_REQUIRE(ntohs(sin.sin_port) <= IPPORT_RESERVEDMAX);
 
 	close(sd);
-#ifdef __FreeBSD__
 	close(slist);
-#endif
+}
+
+ATF_TC(connect_foreign_family);
+ATF_TC_HEAD(connect_foreign_family, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Checks that connecting a socket "
+	    "with a different address family fails");
+}
+ATF_TC_BODY(connect_foreign_family, tc)
+{
+	struct sockaddr_in addr;
+
+	/* addr.sin_family = AF_UNSPEC = 0 */
+	memset(&addr, 0, sizeof(addr));
+
+	/*
+	 * it is not necessary to initialize sin_{addr,port} since
+	 * those structure members shall not be accessed if connect
+	 * fails correctly.
+	 */
+
+	int sock = socket(AF_LOCAL, SOCK_STREAM, 0);
+	ATF_REQUIRE(sock != -1);
+
+	ATF_REQUIRE(-1 == connect(sock, (struct sockaddr *)&addr, sizeof(addr)));
+	ATF_REQUIRE(EAFNOSUPPORT == errno);
+
+	close(sock);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, connect_low_port);
+	ATF_TP_ADD_TC(tp, connect_foreign_family);
 
 	return atf_no_error();
 }

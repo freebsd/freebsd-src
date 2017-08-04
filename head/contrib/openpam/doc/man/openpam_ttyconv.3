@@ -1,13 +1,11 @@
 .\" Generated from openpam_ttyconv.c by gendoc.pl
-.\" $Id: openpam_ttyconv.c 807 2014-09-09 09:41:32Z des $
-.Dd September 12, 2014
+.\" $OpenPAM: openpam_ttyconv.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt OPENPAM_TTYCONV 3
 .Os
 .Sh NAME
 .Nm openpam_ttyconv
 .Nd simple tty-based conversation function
-.Sh LIBRARY
-.Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
@@ -34,6 +32,8 @@ The
 .Fn openpam_ttyconv
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
 .It Bq Er PAM_CONV_ERR
@@ -64,4 +64,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

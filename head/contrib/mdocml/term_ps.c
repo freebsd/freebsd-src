@@ -1,7 +1,7 @@
-/*	$Id: term_ps.c,v 1.80 2015/12/23 20:50:13 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.85 2017/06/07 17:38:26 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -98,15 +98,13 @@ static	void		  ps_begin(struct termp *);
 static	void		  ps_closepage(struct termp *);
 static	void		  ps_end(struct termp *);
 static	void		  ps_endline(struct termp *);
-static	void		  ps_fclose(struct termp *);
 static	void		  ps_growbuf(struct termp *, size_t);
 static	void		  ps_letter(struct termp *, int);
 static	void		  ps_pclose(struct termp *);
+static	void		  ps_plast(struct termp *);
 static	void		  ps_pletter(struct termp *, int);
-#if __GNUC__ - 0 >= 4
-__attribute__((__format__ (__printf__, 2, 3)))
-#endif
-static	void		  ps_printf(struct termp *, const char *, ...);
+static	void		  ps_printf(struct termp *, const char *, ...)
+				__attribute__((__format__ (__printf__, 2, 3)));
 static	void		  ps_putchar(struct termp *, char);
 static	void		  ps_setfont(struct termp *, enum termfont);
 static	void		  ps_setwidth(struct termp *, int, int);
@@ -540,12 +538,15 @@ pspdf_alloc(const struct manoutput *outopts)
 	size_t		 marginx, marginy, lineheight;
 	const char	*pp;
 
-	p = mandoc_calloc(1, sizeof(struct termp));
+	p = mandoc_calloc(1, sizeof(*p));
+	p->tcol = p->tcols = mandoc_calloc(1, sizeof(*p->tcol));
+	p->maxtcol = 1;
+
 	p->enc = TERMENC_ASCII;
 	p->fontq = mandoc_reallocarray(NULL,
-	    (p->fontsz = 8), sizeof(enum termfont));
+	    (p->fontsz = 8), sizeof(*p->fontq));
 	p->fontq[0] = p->fontl = TERMFONT_NONE;
-	p->ps = mandoc_calloc(1, sizeof(struct termp_ps));
+	p->ps = mandoc_calloc(1, sizeof(*p->ps));
 
 	p->advance = ps_advance;
 	p->begin = ps_begin;
@@ -781,6 +782,9 @@ static void
 ps_end(struct termp *p)
 {
 	size_t		 i, xref, base;
+
+	ps_plast(p);
+	ps_pclose(p);
 
 	/*
 	 * At the end of the file, do one last showpage.  This is the
@@ -1025,39 +1029,53 @@ ps_pclose(struct termp *p)
 	p->ps->flags &= ~PS_INLINE;
 }
 
+/* If we have a `last' char that wasn't printed yet, print it now. */
 static void
-ps_fclose(struct termp *p)
+ps_plast(struct termp *p)
 {
+	size_t	 wx;
 
-	/*
-	 * Strong closure: if we have a last-char, spit it out after
-	 * checking that we're in the right font mode.  This will of
-	 * course open a new scope, if applicable.
-	 *
-	 * Following this, close out any scope that's open.
-	 */
-
-	if (p->ps->last != '\0') {
-		assert( ! (p->ps->flags & PS_BACKSP));
-		if (p->ps->nextf != p->ps->lastf) {
-			ps_pclose(p);
-			ps_setfont(p, p->ps->nextf);
-		}
-		p->ps->nextf = TERMFONT_NONE;
-		ps_pletter(p, p->ps->last);
-		p->ps->last = '\0';
-	}
-
-	if ( ! (PS_INLINE & p->ps->flags))
+	if (p->ps->last == '\0')
 		return;
 
-	ps_pclose(p);
+	/* Check the font mode; open a new scope if it doesn't match. */
+
+	if (p->ps->nextf != p->ps->lastf) {
+		ps_pclose(p);
+		ps_setfont(p, p->ps->nextf);
+	}
+	p->ps->nextf = TERMFONT_NONE;
+
+	/*
+	 * For an overstrike, if a previous character
+	 * was wider, advance to center the new one.
+	 */
+
+	if (p->ps->pscolnext) {
+		wx = fonts[p->ps->lastf].gly[(int)p->ps->last-32].wx;
+		if (p->ps->pscol + wx < p->ps->pscolnext)
+			p->ps->pscol = (p->ps->pscol +
+			    p->ps->pscolnext - wx) / 2;
+	}
+
+	ps_pletter(p, p->ps->last);
+	p->ps->last = '\0';
+
+	/*
+	 * For an overstrike, if a previous character
+	 * was wider, advance to the end of the old one.
+	 */
+
+	if (p->ps->pscol < p->ps->pscolnext) {
+		ps_pclose(p);
+		p->ps->pscol = p->ps->pscolnext;
+	}
 }
 
 static void
 ps_letter(struct termp *p, int arg)
 {
-	size_t		savecol, wx;
+	size_t		savecol;
 	char		c;
 
 	c = arg >= 128 || arg <= 0 ? '?' : arg;
@@ -1123,43 +1141,12 @@ ps_letter(struct termp *p, int arg)
 	 * Use them and print it.
 	 */
 
-	if (p->ps->last != '\0') {
-		if (p->ps->nextf != p->ps->lastf) {
-			ps_pclose(p);
-			ps_setfont(p, p->ps->nextf);
-		}
-		p->ps->nextf = TERMFONT_NONE;
-
-		/*
-		 * For an overstrike, if a previous character
-		 * was wider, advance to center the new one.
-		 */
-
-		if (p->ps->pscolnext) {
-			wx = fonts[p->ps->lastf].gly[(int)p->ps->last-32].wx;
-			if (p->ps->pscol + wx < p->ps->pscolnext)
-				p->ps->pscol = (p->ps->pscol +
-				    p->ps->pscolnext - wx) / 2;
-		}
-
-		ps_pletter(p, p->ps->last);
-
-		/*
-		 * For an overstrike, if a previous character
-		 * was wider, advance to the end of the old one.
-		 */
-
-		if (p->ps->pscol < p->ps->pscolnext) {
-			ps_pclose(p);
-			p->ps->pscol = p->ps->pscolnext;
-		}
-	}
+	ps_plast(p);
 
 	/*
 	 * Do not print the current character yet because font
-	 * instructions might follow; only remember it.
-	 * For the first character, nothing else is done.
-	 * The final character will get printed from ps_fclose().
+	 * instructions might follow; only remember the character.
+	 * It will get printed later from ps_plast().
 	 */
 
 	p->ps->last = c;
@@ -1192,7 +1179,8 @@ ps_advance(struct termp *p, size_t len)
 	 * and readjust our column settings.
 	 */
 
-	ps_fclose(p);
+	ps_plast(p);
+	ps_pclose(p);
 	p->ps->pscol += len;
 }
 
@@ -1202,7 +1190,8 @@ ps_endline(struct termp *p)
 
 	/* Close out any scopes we have open: we're at eoln. */
 
-	ps_fclose(p);
+	ps_plast(p);
+	ps_pclose(p);
 
 	/*
 	 * If we're in the margin, don't try to recalculate our current
@@ -1233,6 +1222,9 @@ ps_endline(struct termp *p)
 	}
 
 	ps_closepage(p);
+
+	p->tcol->offset -= p->ti;
+	p->ti = 0;
 }
 
 static void

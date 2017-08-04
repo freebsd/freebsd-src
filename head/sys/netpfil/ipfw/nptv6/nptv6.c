@@ -125,7 +125,7 @@ nptv6_getlasthdr(struct nptv6_cfg *cfg, struct mbuf *m, int *offset)
 		if (m->m_len < hlen)
 			return (-1);
 		proto = hbh->ip6h_nxt;
-		hlen += hbh->ip6h_len << 3;
+		hlen += (hbh->ip6h_len + 1) << 3;
 	}
 	if (offset != NULL)
 		*offset = hlen;
@@ -352,24 +352,24 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	int ret;
 
 	*done = 0; /* try next rule if not matched */
+	ret = IP_FW_DENY;
 	icmd = cmd + 1;
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    cmd->arg1 != V_nptv6_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
 	    (cfg = NPTV6_LOOKUP(chain, icmd)) == NULL)
-		return (0);
+		return (ret);
 	/*
 	 * We need act as router, so when forwarding is disabled -
 	 * do nothing.
 	 */
 	if (V_ip6_forwarding == 0 || args->f_id.addr_type != 6)
-		return (0);
+		return (ret);
 	/*
 	 * NOTE: we expect ipfw_chk() did m_pullup() up to upper level
 	 * protocol's headers. Also we skip some checks, that ip6_input(),
 	 * ip6_forward(), ip6_fastfwd() and ipfw_chk() already did.
 	 */
-	ret = IP_FW_DENY;
 	ip6 = mtod(args->m, struct ip6_hdr *);
 	NPTV6_IPDEBUG("eid %u, oid %u, %s -> %s %d",
 	    cmd->arg1, icmd->arg1,
@@ -384,15 +384,15 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 		 */
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_dst,
 		    &cfg->internal, &cfg->mask))
-			return (0);
+			return (ret);
 		ret = nptv6_rewrite_internal(cfg, &args->m, 0);
 	} else if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_dst,
 	    &cfg->external, &cfg->mask))
 		ret = nptv6_rewrite_external(cfg, &args->m, 0);
 	else
-		return (0);
+		return (ret);
 	/*
-	 * If address wasn't rewrited - free mbuf.
+	 * If address wasn't rewrited - free mbuf and terminate the search.
 	 */
 	if (ret != 0) {
 		if (args->m != NULL) {
@@ -400,14 +400,16 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 			args->m = NULL; /* mark mbuf as consumed */
 		}
 		NPTV6STAT_INC(cfg, dropped);
-	}
-	/* Terminate the search if one_pass is set */
-	*done = V_fw_one_pass;
-	/* Update args->f_id when one_pass is off */
-	if (*done == 0 && ret == 0) {
-		ip6 = mtod(args->m, struct ip6_hdr *);
-		args->f_id.src_ip6 = ip6->ip6_src;
-		args->f_id.dst_ip6 = ip6->ip6_dst;
+		*done = 1;
+	} else {
+		/* Terminate the search if one_pass is set */
+		*done = V_fw_one_pass;
+		/* Update args->f_id when one_pass is off */
+		if (*done == 0) {
+			ip6 = mtod(args->m, struct ip6_hdr *);
+			args->f_id.src_ip6 = ip6->ip6_src;
+			args->f_id.dst_ip6 = ip6->ip6_dst;
+		}
 	}
 	return (ret);
 }

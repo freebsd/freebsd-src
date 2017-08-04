@@ -1,4 +1,4 @@
-# $NetBSD: t_set_e.sh,v 1.1 2012/03/17 16:33:11 jruoho Exp $
+# $NetBSD: t_set_e.sh,v 1.4 2016/03/31 16:22:27 christos Exp $
 #
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -30,7 +30,7 @@
 #   http://www.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html
 
 # the implementation of "sh" to test
-: ${TEST_SH:="sh"}
+: ${TEST_SH:="/bin/sh"}
 
 failwith()
 {
@@ -63,7 +63,7 @@ dcheck()
 # is thus important to test. (PR bin/29861)
 echeck()
 {
-	check1 'eval '"'($1)'" "$2" "eval '($1)'"
+	check1 'eval '"'( $1 )'" "$2" "eval '($1)'"
 }
 
 atf_test_case all
@@ -81,8 +81,8 @@ all_body() {
 	# first, check basic functioning.
 	# The ERR shouldn't print; the result of the () should be 1.
 	# Henceforth we'll assume that we don't need to check $?.
-	dcheck '(set -e; false; echo ERR$?); echo -n OK$?' 'OK1'
-	echeck '(set -e; false; echo ERR$?); echo -n OK$?' 'OK1'
+	dcheck '(set -e; false; echo ERR$?); echo OK$?' 'OK1'
+	echeck '(set -e; false; echo ERR$?); echo OK$?' 'OK1'
 
 	# these cases should be equivalent to the preceding.
 	dcheck '(set -e; /nonexistent; echo ERR); echo OK' 'OK'
@@ -205,6 +205,9 @@ all_body() {
 
 	# According to dsl@ in PR bin/32282, () is not defined as a
 	# subshell, only as a grouping operator [and a scope, I guess]
+
+	#		(This is incorrect.   () is definitely a sub-shell)
+
 	# so the nested false ought to cause the whole shell to exit,
 	# not just the subshell. dholland@ would like to see C&V,
 	# because that seems like a bad idea. (Among other things, it
@@ -215,8 +218,10 @@ all_body() {
 	#
 	# XXX: the second set has been disabled in the name of making
 	# all tests "pass".
+	#
+	# As they should be, they are utter nonsense.
 
-	# 1. error if the whole shell exits (current behavior)
+	# 1. error if the whole shell exits (current correct behavior)
 	dcheck 'echo OK; (set -e; false); echo OK' 'OK OK'
 	echeck 'echo OK; (set -e; false); echo OK' 'OK OK'
 	# 2. error if the whole shell does not exit (dsl's suggested behavior)
@@ -232,29 +237,32 @@ all_body() {
 
 	# backquote expansion (PR bin/17514)
 
-	# correct
+	# (in-)correct
 	#dcheck '(set -e; echo ERR `false`; echo ERR); echo OK' 'OK'
 	#dcheck '(set -e; echo ERR $(false); echo ERR); echo OK' 'OK'
 	#dcheck '(set -e; echo ERR `exit 3`; echo ERR); echo OK' 'OK'
 	#dcheck '(set -e; echo ERR $(exit 3); echo ERR); echo OK' 'OK'
-	# wrong current behavior
+	# Not-wrong current behavior
+	# the exit status of ommand substitution is ignored in most cases
+	# None of these should be causing the shell to exit.
 	dcheck '(set -e; echo ERR `false`; echo ERR); echo OK' 'ERR ERR OK'
 	dcheck '(set -e; echo ERR $(false); echo ERR); echo OK' 'ERR ERR OK'
 	dcheck '(set -e; echo ERR `exit 3`; echo ERR); echo OK' 'ERR ERR OK'
 	dcheck '(set -e; echo ERR $(exit 3); echo ERR); echo OK' 'ERR ERR OK'
 
+	# This is testing one case (the case?) where the exit status is used
 	dcheck '(set -e; x=`false`; echo ERR); echo OK' 'OK'
 	dcheck '(set -e; x=$(false); echo ERR); echo OK' 'OK'
 	dcheck '(set -e; x=`exit 3`; echo ERR); echo OK' 'OK'
 	dcheck '(set -e; x=$(exit 3); echo ERR); echo OK' 'OK'
 
-	# correct
+	# correct (really just commented out incorrect nonsense)
 	#echeck '(set -e; echo ERR `false`; echo ERR); echo OK' 'OK'
 	#echeck '(set -e; echo ERR $(false); echo ERR); echo OK' 'OK'
 	#echeck '(set -e; echo ERR `exit 3`; echo ERR); echo OK' 'OK'
 	#echeck '(set -e; echo ERR $(exit 3); echo ERR); echo OK' 'OK'
 
-	# wrong current behavior
+	# not-wrong current behavior (as above)
 	echeck '(set -e; echo ERR `false`; echo ERR); echo OK' 'ERR ERR OK'
 	echeck '(set -e; echo ERR $(false); echo ERR); echo OK' 'ERR ERR OK'
 	echeck '(set -e; echo ERR `exit 3`; echo ERR); echo OK' 'ERR ERR OK'
@@ -267,11 +275,19 @@ all_body() {
 
 	# shift (PR bin/37493)
 	# correct
+	# Actually, both ways are correct, both are permitted
 	#dcheck '(set -e; shift || true; echo OK); echo OK' 'OK OK'
 	#echeck '(set -e; shift || true; echo OK); echo OK' 'OK OK'
-	# wrong current behavior
-	dcheck '(set -e; shift || true; echo OK); echo OK' 'OK'
-	echeck '(set -e; shift || true; echo OK); echo OK' 'OK'
+	# (not-) wrong current behavior
+	#dcheck '(set -e; shift || true; echo OK); echo OK' 'OK'
+	#echeck '(set -e; shift || true; echo OK); echo OK' 'OK'
+
+	# what is wrong is this test assuming one behaviour or the other
+	# (and incidentally this has nothing whatever to do with "-e",
+	# the test should really be moved elsewhere...)
+	# But for now, leave it here, and correct it:
+	dcheck '(set -e; shift && echo OK); echo OK' 'OK'
+	echeck '(set -e; shift && echo OK); echo OK' 'OK'
 
 	# Done.
 

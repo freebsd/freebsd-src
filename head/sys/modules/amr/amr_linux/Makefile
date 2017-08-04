@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/amr
+.PATH: ${SRCTOP}/sys/dev/amr
 
 KMOD=	amr_linux
 SRCS=	amr_linux.c device_if.h bus_if.h

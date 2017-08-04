@@ -92,7 +92,7 @@ archive_write_add_filter_program(struct archive *_a, const char *cmd)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
 	struct private_data *data;
-	static const char *prefix = "Program: ";
+	static const char prefix[] = "Program: ";
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_program");
@@ -200,6 +200,7 @@ __archive_write_program_free(struct archive_write_program_data *data)
 		if (data->child)
 			CloseHandle(data->child);
 #endif
+		free(data->program_name);
 		free(data->child_buf);
 		free(data);
 	}

@@ -184,15 +184,15 @@ siba_addrspace_region(u_int addrspace)
 
 /**
  * Return the number of bhnd(4) ports to advertise for the given
- * @p dinfo.
+ * @p num_addrspace.
  * 
- * @param dinfo The device info to query.
+ * @param num_addrspace The number of siba address spaces.
  */
 u_int
-siba_addrspace_port_count(struct siba_devinfo *dinfo)
+siba_addrspace_port_count(u_int num_addrspace)
 {
 	/* 0, 1, or 2 ports */
-	return min(dinfo->core_id.num_addrspace, 2);
+	return min(num_addrspace, 2);
 }
 
 /**
@@ -203,10 +203,8 @@ siba_addrspace_port_count(struct siba_devinfo *dinfo)
  * spaces.
  */
 u_int
-siba_addrspace_region_count(struct siba_devinfo *dinfo, u_int port) 
+siba_addrspace_region_count(u_int num_addrspace, u_int port) 
 {
-	u_int num_addrspace = dinfo->core_id.num_addrspace;
-
 	/* The first address space, if any, is mapped to device0.0 */
 	if (port == 0)
 		return (min(num_addrspace, 1));
@@ -220,32 +218,33 @@ siba_addrspace_region_count(struct siba_devinfo *dinfo, u_int port)
 }
 
 /**
- * Return true if @p port is defined on @p dinfo, false otherwise.
+ * Return true if @p port is defined given an address space count
+ * of @p num_addrspace, false otherwise.
  *
  * Refer to the siba_find_addrspace() function for information on siba's
  * mapping of bhnd(4) port and region identifiers.
  * 
- * @param dinfo The device info to verify the port against.
+ * @param num_addrspace The number of address spaces to verify the port against.
  * @param type The bhnd(4) port type.
  * @param port The bhnd(4) port number.
  */
 bool
-siba_is_port_valid(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port)
+siba_is_port_valid(u_int num_addrspace, bhnd_port_type type, u_int port)
 {
 	/* Only device ports are supported */
 	if (type != BHND_PORT_DEVICE)
 		return (false);
 
 	/* Verify the index against the port count */
-	if (siba_addrspace_port_count(dinfo) <= port)
+	if (siba_addrspace_port_count(num_addrspace) <= port)
 		return (false);
 
 	return (true);
 }
 
 /**
- * Map an bhnd(4) type/port/region triplet to its associated address space
- * entry, if any.
+ * Map a bhnd(4) type/port/region triplet to its associated address space
+ * index, if any.
  * 
  * For compatibility with bcma(4), we map address spaces to port/region
  * identifiers as follows:
@@ -258,6 +257,46 @@ siba_is_port_valid(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port)
  * 
  * The only supported port type is BHND_PORT_DEVICE.
  * 
+ * @param num_addrspace The number of available siba address spaces.
+ * @param type The bhnd(4) port type.
+ * @param port The bhnd(4) port number.
+ * @param region The bhnd(4) port region.
+ * @param addridx On success, the corresponding addrspace index.
+ * 
+ * @retval 0 success
+ * @retval ENOENT if the given type/port/region cannot be mapped to a
+ * siba address space.
+ */
+int
+siba_addrspace_index(u_int num_addrspace, bhnd_port_type type, u_int port,
+    u_int region, u_int *addridx)
+{
+	u_int idx;
+
+	if (!siba_is_port_valid(num_addrspace, type, port))
+		return (ENOENT);
+	
+	if (port == 0)
+		idx = region;
+	else if (port == 1)
+		idx = region + 1;
+	else
+		return (ENOENT);
+
+	if (idx >= num_addrspace)
+		return (ENOENT);
+
+	/* Found */
+	*addridx = idx;
+	return (0);
+}
+
+/**
+ * Map an bhnd(4) type/port/region triplet to its associated address space
+ * entry, if any.
+ *
+ * The only supported port type is BHND_PORT_DEVICE.
+ * 
  * @param dinfo The device info to search for a matching address space.
  * @param type The bhnd(4) port type.
  * @param port The bhnd(4) port number.
@@ -267,23 +306,19 @@ struct siba_addrspace *
 siba_find_addrspace(struct siba_devinfo *dinfo, bhnd_port_type type, u_int port,
     u_int region)
 {
-	u_int			 addridx;
+	u_int	addridx;
+	int	error;
 
-	if (!siba_is_port_valid(dinfo, type, port))
-		return (NULL);
-
-	if (port == 0)
-		addridx = region;
-	else if (port == 1)
-		addridx = region + 1;
-	else
-		return (NULL);
-
-	/* Out of range? */
-	if (addridx >= dinfo->core_id.num_addrspace)
+	/* Map to addrspace index */
+	error = siba_addrspace_index(dinfo->core_id.num_addrspace, type, port,
+	    region, &addridx);
+	if (error)
 		return (NULL);
 
 	/* Found */
+	if (addridx >= SIBA_MAX_ADDRSPACE)
+		return (NULL);
+
 	return (&dinfo->addrspace[addridx]);
 }
 
@@ -431,4 +466,86 @@ siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)
 	}
 
 	return (0);
+}
+
+/**
+ * Write @p value to @p dev's CFG0 target/initiator state register and
+ * wait for completion.
+ * 
+ * @param dev The siba(4) child device.
+ * @param reg The state register to write (e.g. SIBA_CFG0_TMSTATELOW,
+ *    SIBA_CFG0_IMSTATE)
+ * @param value The value to write to @p reg.
+ * @param mask The mask of bits to be included from @p value.
+ * 
+ * @retval 0 success.
+ * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
+ * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
+ */
+int
+siba_write_target_state(device_t dev, struct siba_devinfo *dinfo,
+    bus_size_t reg, uint32_t value, uint32_t mask)
+{
+	struct bhnd_resource	*r;
+	uint32_t		 rval;
+
+	/* Must have a CFG0 block */
+	if ((r = dinfo->cfg[0]) == NULL)
+		return (ENODEV);
+
+	/* Verify the register offset falls within CFG register block */
+	if (reg > SIBA_CFG_SIZE-4)
+		return (EFAULT);
+
+	for (int i = 0; i < 300; i += 10) {
+		rval = bhnd_bus_read_4(r, reg);
+		rval &= ~mask;
+		rval |= (value & mask);
+
+		bhnd_bus_write_4(r, reg, rval);
+		bhnd_bus_read_4(r, reg); /* read-back */
+		DELAY(1);
+
+		/* If the write has completed, wait for target busy state
+		 * to clear */
+		rval = bhnd_bus_read_4(r, reg);
+		if ((rval & mask) == (value & mask))
+			return (siba_wait_target_busy(dev, dinfo, 100000));
+
+		DELAY(10);
+	}
+
+	return (ETIMEDOUT);
+}
+
+/**
+ * Spin for up to @p usec waiting for SIBA_TMH_BUSY to clear in
+ * @p dev's SIBA_CFG0_TMSTATEHIGH register.
+ * 
+ * @param dev The siba(4) child device to wait on.
+ * @param dinfo The @p dev's device info
+ * 
+ * @retval 0 if SIBA_TMH_BUSY is cleared prior to the @p usec timeout.
+ * @retval ENODEV if SIBA_CFG0 is not mapped by @p dinfo.
+ * @retval ETIMEDOUT if a timeout occurs prior to SIBA_TMH_BUSY clearing.
+ */
+int
+siba_wait_target_busy(device_t dev, struct siba_devinfo *dinfo, int usec)
+{
+	struct bhnd_resource	*r;
+	uint32_t		 ts_high;
+
+	if ((r = dinfo->cfg[0]) == NULL)
+		return (ENODEV);
+
+	for (int i = 0; i < usec; i += 10) {
+		ts_high = bhnd_bus_read_4(r, SIBA_CFG0_TMSTATEHIGH);
+		if (!(ts_high & SIBA_TMH_BUSY))
+			return (0);
+
+		DELAY(10);
+	}
+
+	device_printf(dev, "SIBA_TMH_BUSY wait timeout\n");
+	return (ETIMEDOUT);
 }

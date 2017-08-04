@@ -24,6 +24,11 @@
                 "valid": false
             },
             {
+                "description": "a single invalid match is invalid",
+                "data": {"fooooo": 2, "foo": "bar"},
+                "valid": false
+            },
+            {
                 "description": "multiple invalid matches is invalid",
                 "data": {"foo": "bar", "foooooo" : "baz"},
                 "valid": false

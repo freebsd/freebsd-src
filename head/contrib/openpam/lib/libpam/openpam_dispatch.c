@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dispatch.c 807 2014-09-09 09:41:32Z des $
+ * $OpenPAM: openpam_dispatch.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -40,6 +40,8 @@
 #endif
 
 #include <sys/param.h>
+
+#include <stdint.h>
 
 #include <security/pam_appl.h>
 
@@ -67,8 +69,6 @@ openpam_dispatch(pam_handle_t *pamh,
 	int debug;
 
 	ENTER();
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 
 	/* prevent recursion */
 	if (pamh->current != NULL) {
@@ -107,7 +107,7 @@ openpam_dispatch(pam_handle_t *pamh,
 		if (chain->module->func[primitive] == NULL) {
 			openpam_log(PAM_LOG_ERROR, "%s: no %s()",
 			    chain->module->path, pam_sm_func_name[primitive]);
-			r = PAM_SYSTEM_ERR;
+			r = PAM_SYMBOL_ERR;
 		} else {
 			pamh->primitive = primitive;
 			pamh->current = chain;
@@ -128,7 +128,7 @@ openpam_dispatch(pam_handle_t *pamh,
 
 		if (r == PAM_IGNORE)
 			continue;
-		if (r == PAM_SUCCESS) {	
+		if (r == PAM_SUCCESS) {
 			++nsuccess;
 			/*
 			 * For pam_setcred() and pam_chauthtok() with the

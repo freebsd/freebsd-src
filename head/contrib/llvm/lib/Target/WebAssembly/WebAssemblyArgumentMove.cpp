@@ -26,9 +26,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "WebAssembly.h"
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
+#include "WebAssembly.h"
 #include "WebAssemblyMachineFunctionInfo.h"
+#include "WebAssemblySubtarget.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
@@ -44,9 +46,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
   WebAssemblyArgumentMove() : MachineFunctionPass(ID) {}
 
-  const char *getPassName() const override {
-    return "WebAssembly Argument Move";
-  }
+  StringRef getPassName() const override { return "WebAssembly Argument Move"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
@@ -64,19 +64,6 @@ FunctionPass *llvm::createWebAssemblyArgumentMove() {
   return new WebAssemblyArgumentMove();
 }
 
-/// Test whether the given instruction is an ARGUMENT.
-static bool IsArgument(const MachineInstr *MI) {
-  switch (MI->getOpcode()) {
-  case WebAssembly::ARGUMENT_I32:
-  case WebAssembly::ARGUMENT_I64:
-  case WebAssembly::ARGUMENT_F32:
-  case WebAssembly::ARGUMENT_F64:
-    return true;
-  default:
-    return false;
-  }
-}
-
 bool WebAssemblyArgumentMove::runOnMachineFunction(MachineFunction &MF) {
   DEBUG({
     dbgs() << "********** Argument Move **********\n"
@@ -88,20 +75,18 @@ bool WebAssemblyArgumentMove::runOnMachineFunction(MachineFunction &MF) {
   MachineBasicBlock::iterator InsertPt = EntryMBB.end();
 
   // Look for the first NonArg instruction.
-  for (auto MII = EntryMBB.begin(), MIE = EntryMBB.end(); MII != MIE; ++MII) {
-    MachineInstr *MI = MII;
-    if (!IsArgument(MI)) {
-      InsertPt = MII;
+  for (MachineInstr &MI : EntryMBB) {
+    if (!WebAssembly::isArgument(MI)) {
+      InsertPt = MI;
       break;
     }
   }
 
   // Now move any argument instructions later in the block
   // to before our first NonArg instruction.
-  for (auto I = InsertPt, E = EntryMBB.end(); I != E; ++I) {
-    MachineInstr *MI = I;
-    if (IsArgument(MI)) {
-      EntryMBB.insert(InsertPt, MI->removeFromParent());
+  for (MachineInstr &MI : llvm::make_range(InsertPt, EntryMBB.end())) {
+    if (WebAssembly::isArgument(MI)) {
+      EntryMBB.insert(InsertPt, MI.removeFromParent());
       Changed = true;
     }
   }

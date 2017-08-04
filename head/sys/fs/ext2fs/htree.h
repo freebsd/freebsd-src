@@ -42,10 +42,10 @@
 #define	EXT2_HTREE_EOF 0x7FFFFFFF
 
 struct ext2fs_fake_direct {
-	uint32_t e2d_ino;	/* inode number of entry */
-	uint16_t e2d_reclen;	/* length of this record */
-	uint8_t  e2d_namlen;	/* length of string in d_name */
-	uint8_t  e2d_type;	/* file type */
+	uint32_t e2d_ino;		/* inode number of entry */
+	uint16_t e2d_reclen;		/* length of this record */
+	uint8_t	e2d_namlen;		/* length of string in d_name */
+	uint8_t	e2d_type;		/* file type */
 };
 
 struct ext2fs_htree_count {
@@ -60,17 +60,17 @@ struct ext2fs_htree_entry {
 
 struct ext2fs_htree_root_info {
 	uint32_t h_reserved1;
-	uint8_t  h_hash_version;
-	uint8_t  h_info_len;
-	uint8_t  h_ind_levels;
-	uint8_t  h_reserved2;
+	uint8_t	h_hash_version;
+	uint8_t	h_info_len;
+	uint8_t	h_ind_levels;
+	uint8_t	h_reserved2;
 };
 
 struct ext2fs_htree_root {
 	struct ext2fs_fake_direct h_dot;
-	char h_dot_name[4];
+	char	h_dot_name[4];
 	struct ext2fs_fake_direct h_dotdot;
-	char h_dotdot_name[4];
+	char	h_dotdot_name[4];
 	struct ext2fs_htree_root_info h_info;
 	struct ext2fs_htree_entry h_entries[0];
 };
@@ -97,4 +97,4 @@ struct ext2fs_htree_sort_entry {
 	uint32_t h_hash;
 };
 
-#endif /* !_FS_EXT2FS_HTREE_H_ */
+#endif	/* !_FS_EXT2FS_HTREE_H_ */

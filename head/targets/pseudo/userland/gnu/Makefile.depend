@@ -111,10 +111,6 @@ DIRDEPS = \
 	gnu/usr.bin/texinfo/makeinfo \
 	gnu/usr.bin/texinfo/texindex \
 
-.if ${MK_ELFCOPY_AS_OBJCOPY} == "no"
-DIRDEPS+=	gnu/usr.bin/binutils/objcopy
-.endif
-
 .if ${MK_GPL_DTC} != "no"
 DIRDEPS+= gnu/usr.bin/dtc
 .endif

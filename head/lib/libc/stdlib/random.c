@@ -270,16 +270,24 @@ void
 srandomdev(void)
 {
 	int mib[2];
-	size_t len;
+	size_t expected, len;
 
 	if (rand_type == TYPE_0)
-		len = sizeof(state[0]);
+		expected = len = sizeof(state[0]);
 	else
-		len = rand_deg * sizeof(state[0]);
+		expected = len = rand_deg * sizeof(state[0]);
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
-	sysctl(mib, 2, state, &len, NULL, 0);
+	if (sysctl(mib, 2, state, &len, NULL, 0) == -1 || len != expected) {
+		/*
+		 * The sysctl cannot fail. If it does fail on some FreeBSD
+		 * derivative or after some future change, just abort so that
+		 * the problem will be found and fixed. abort is not normally
+		 * suitable for a library but makes sense here.
+		 */
+		abort();
+	}
 
 	if (rand_type != TYPE_0) {
 		fptr = &state[rand_sep];

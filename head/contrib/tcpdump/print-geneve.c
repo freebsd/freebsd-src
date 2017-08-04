@@ -15,19 +15,20 @@
  * FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Generic Network Virtualization Encapsulation (Geneve) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "ethertype.h"
 
 /*
- * Geneve header, draft-gross-geneve-02
+ * Geneve header, draft-ietf-nvo3-geneve
  *
  *    0                   1                   2                   3
  *    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -77,12 +78,25 @@ static const struct tok geneve_flag_values[] = {
 static const char *
 format_opt_class(uint16_t opt_class)
 {
-    if (opt_class <= 0xff)
-        return "Standard";
-    else if (opt_class == 0xffff)
-        return "Experimental";
-    else
-        return "Unknown";
+    switch (opt_class) {
+    case 0x0100:
+        return "Linux";
+    case 0x0101:
+        return "Open vSwitch";
+    case 0x0102:
+        return "Open Virtual Networking (OVN)";
+    case 0x0103:
+        return "In-band Network Telemetry (INT)";
+    case 0x0104:
+        return "VMware";
+    default:
+        if (opt_class <= 0x00ff)
+            return "Standard";
+        else if (opt_class >= 0xfff0)
+            return "Experimental";
+    }
+
+    return "Unknown";
 }
 
 static void
@@ -112,14 +126,14 @@ geneve_opts_print(netdissect_options *ndo, const u_char *bp, u_int len)
         }
 
         if (ndo->ndo_vflag > 1 && opt_len > 4) {
-            uint32_t *print_data = (uint32_t *)(bp + 4);
+            const uint32_t *data = (const uint32_t *)(bp + 4);
             int i;
 
             ND_PRINT((ndo, " data"));
 
             for (i = 4; i < opt_len; i += 4) {
-                ND_PRINT((ndo, " %08x", EXTRACT_32BITS(print_data)));
-                print_data++;
+                ND_PRINT((ndo, " %08x", EXTRACT_32BITS(data)));
+                data++;
             }
         }
 
@@ -132,7 +146,7 @@ void
 geneve_print(netdissect_options *ndo, const u_char *bp, u_int len)
 {
     uint8_t ver_opt;
-    uint version;
+    u_int version;
     uint8_t flags;
     uint16_t prot;
     uint32_t vni;
@@ -184,7 +198,7 @@ geneve_print(netdissect_options *ndo, const u_char *bp, u_int len)
 
     if (len < opts_len) {
         ND_PRINT((ndo, " truncated-geneve - %u bytes missing",
-                  len - opts_len));
+                  opts_len - len));
         return;
     }
 
@@ -209,9 +223,9 @@ geneve_print(netdissect_options *ndo, const u_char *bp, u_int len)
     else
         ND_PRINT((ndo, "\n\t"));
 
-    if (ethertype_print(ndo, prot, bp, len, len) == 0) {
+    if (ethertype_print(ndo, prot, bp, len, ndo->ndo_snapend - bp, NULL, NULL) == 0) {
         if (prot == ETHERTYPE_TEB)
-            ether_print(ndo, bp, len, len, NULL, NULL);
+            ether_print(ndo, bp, len, ndo->ndo_snapend - bp, NULL, NULL);
         else
             ND_PRINT((ndo, "geneve-proto-0x%x", prot));
     }

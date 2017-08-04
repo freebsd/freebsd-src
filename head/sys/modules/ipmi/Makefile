@@ -2,7 +2,7 @@
 
 SUBDIR+= ipmi_linux
 
-.PATH: ${.CURDIR}/../../dev/ipmi
+.PATH: ${SRCTOP}/sys/dev/ipmi
 
 # XXX - ipmi_smbus and ipmi_ssif depend on smbus
 # XXX - ipmi_acpi depends on acpi

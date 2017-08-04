@@ -1,4 +1,4 @@
-# $NetBSD: README,v 1.7 2015/01/26 00:34:50 christos Exp $
+# $NetBSD: README,v 1.8 2017/04/13 17:59:34 christos Exp $
 
 This package contains library that can be used by network daemons to
 communicate with a packet filter via a daemon to enforce opening and
@@ -97,6 +97,16 @@ group "internal" on $int_if {
         ruleset "blacklistd-int" 
 	...
 }
+
+You can use 'blacklistctl dump -a' to list all the current entries
+in the database; the ones that have nfail <c>/<t> where <c>urrent
+>= <t>otal, should have an id assosiated with them; this means that
+there is a packet filter rule added for that entry. For npf, you
+can examine the packet filter dynamic rule entries using 'npfctl
+rule <rulename> list'.  The number of current entries can exceed
+the total. This happens because entering packet filter rules is
+asynchronous; there could be other connection before the rule
+becomes activated.
 
 Enjoy,
 

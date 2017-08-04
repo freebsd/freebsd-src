@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 /* Cannot get exact size in 64-bit due to alignment issue of entire struct. */
 CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
-CTASSERT(sizeof(struct ioc_toc_header32) == 4);
 CTASSERT(sizeof(struct mem_range_op32) == 12);
 CTASSERT(sizeof(struct pci_conf_io32) == 36);
 CTASSERT(sizeof(struct pci_match_conf32) == 44);
@@ -135,25 +134,6 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		error = copyout(&md32, uap->data, sizeof(md32));
 	}
 	return error;
-}
-
-
-static int
-freebsd32_ioctl_ioc_toc_header(struct thread *td,
-    struct freebsd32_ioctl_args *uap, struct file *fp)
-{
-	struct ioc_toc_header toch;
-	struct ioc_toc_header32 toch32;
-	int error;
-
-	if ((error = copyin(uap->data, &toch32, sizeof(toch32))))
-		return (error);
-	CP(toch32, toch, len);
-	CP(toch32, toch, starting_track);
-	CP(toch32, toch, ending_track);
-	error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&toch,
-	    td->td_ucred, td);
-	return (error);
 }
 
 
@@ -439,10 +419,6 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 
 	case CDIOREADTOCENTRYS_32:
 		error = freebsd32_ioctl_ioc_read_toc(td, uap, fp);
-		break;
-
-	case CDIOREADTOCHEADER_32:
-		error = freebsd32_ioctl_ioc_toc_header(td, uap, fp);
 		break;
 
 	case FIODGNAME_32:

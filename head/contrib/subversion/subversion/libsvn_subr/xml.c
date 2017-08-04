@@ -46,6 +46,14 @@
 #error Expat is unusable -- it has been compiled for wide characters
 #endif
 
+#ifndef XML_VERSION_AT_LEAST
+#define XML_VERSION_AT_LEAST(major,minor,patch)                  \
+(((major) < XML_MAJOR_VERSION)                                       \
+ || ((major) == XML_MAJOR_VERSION && (minor) < XML_MINOR_VERSION)    \
+ || ((major) == XML_MAJOR_VERSION && (minor) == XML_MINOR_VERSION && \
+     (patch) <= XML_MICRO_VERSION))
+#endif /* XML_VERSION_AT_LEAST */
+
 const char *
 svn_xml__compiled_version(void)
 {
@@ -361,6 +369,28 @@ static void expat_data_handler(void *userData, const XML_Char *s, int len)
   (*svn_parser->data_handler)(svn_parser->baton, s, (apr_size_t)len);
 }
 
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+static void expat_entity_declaration(void *userData,
+                                     const XML_Char *entityName,
+                                     int is_parameter_entity,
+                                     const XML_Char *value,
+                                     int value_length,
+                                     const XML_Char *base,
+                                     const XML_Char *systemId,
+                                     const XML_Char *publicId,
+                                     const XML_Char *notationName)
+{
+  svn_xml_parser_t *svn_parser = userData;
+
+  /* Stop the parser if an entity declaration is hit. */
+  XML_StopParser(svn_parser->parser, 0 /* resumable */);
+}
+#else
+/* A noop default_handler. */
+static void expat_default_handler(void *userData, const XML_Char *s, int len)
+{
+}
+#endif
 
 /*** Making a parser. ***/
 
@@ -381,6 +411,12 @@ svn_xml_make_parser(void *baton,
                         end_handler ? expat_end_handler : NULL);
   XML_SetCharacterDataHandler(parser,
                               data_handler ? expat_data_handler : NULL);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  XML_SetEntityDeclHandler(parser, expat_entity_declaration);
+#else
+  XML_SetDefaultHandler(parser, expat_default_handler);
+#endif
 
   /* ### we probably don't want this pool; or at least we should pass it
      ### to the callbacks and clear it periodically.  */
@@ -463,6 +499,9 @@ void svn_xml_signal_bailout(svn_error_t *error,
   /* This will cause the current XML_Parse() call to finish quickly! */
   XML_SetElementHandler(svn_parser->parser, NULL, NULL);
   XML_SetCharacterDataHandler(svn_parser->parser, NULL);
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  XML_SetEntityDeclHandler(svn_parser->parser, NULL);
+#endif
 
   /* Once outside of XML_Parse(), the existence of this field will
      cause svn_delta_parse()'s main read-loop to return error. */

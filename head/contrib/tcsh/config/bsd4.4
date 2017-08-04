@@ -98,6 +98,7 @@
 
 #elif defined(__APPLE__)
 # define SYSMALLOC
+# define BSD_STYLE_COLORLS
 #endif
 
 #endif /* _h_config */

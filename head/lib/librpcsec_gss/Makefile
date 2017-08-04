@@ -8,11 +8,11 @@ SRCS+=	rpcsec_gss.c rpcsec_gss_prot.c rpcsec_gss_conf.c rpcsec_gss_misc.c \
 
 LIBADD=	gssapi
 
-VERSION_DEF=	${.CURDIR}/../libc/Versions.def
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
-CFLAGS+= -I${.CURDIR}/../../include
-CFLAGS+= -I${.CURDIR}/../../libc_rpc
+CFLAGS+= -I${SRCTOP}/include
+CFLAGS+= -I${SRCTOP}/lib/libc_rpc
 MK_PROFILE=	no
 
 MAN=	rpcsec_gss.3

@@ -183,6 +183,7 @@ command_load(int argc, char *argv[])
     return (error == 0 ? CMD_OK : CMD_CRIT);
 }
 
+#ifdef LOADER_GELI_SUPPORT
 COMMAND_SET(load_geli, "load_geli", "load a geli key", command_load_geli);
 
 static int
@@ -221,6 +222,7 @@ command_load_geli(int argc, char *argv[])
     sprintf(typestr, "%s:geli_keyfile%d", argv[1], num);
     return (file_loadraw(argv[2], typestr, 1) ? CMD_OK : CMD_ERROR);
 }
+#endif
 
 void
 unload(void)
@@ -254,7 +256,7 @@ command_lsmod(int argc, char *argv[])
     struct kernel_module	*mp;
     struct file_metadata	*md;
     char			lbuf[80];
-    int				ch, verbose;
+    int				ch, verbose, ret = 0;
 
     verbose = 0;
     optind = 1;
@@ -273,11 +275,13 @@ command_lsmod(int argc, char *argv[])
 
     pager_open();
     for (fp = preloaded_files; fp; fp = fp->f_next) {
-	sprintf(lbuf, " %p: ", (void *) fp->f_addr);
+	snprintf(lbuf, sizeof(lbuf), " %p: ", (void *) fp->f_addr);
 	pager_output(lbuf);
 	pager_output(fp->f_name);
-	sprintf(lbuf, " (%s, 0x%lx)\n", fp->f_type, (long)fp->f_size);
-	pager_output(lbuf);
+	snprintf(lbuf, sizeof(lbuf), " (%s, 0x%lx)\n", fp->f_type,
+	    (long)fp->f_size);
+	if (pager_output(lbuf))
+	    break;
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
 	    pager_output(fp->f_args);
@@ -287,7 +291,8 @@ command_lsmod(int argc, char *argv[])
 	if (fp->f_modules) {
 	    pager_output("  modules: ");
 	    for (mp = fp->f_modules; mp; mp = mp->m_next) {
-		sprintf(lbuf, "%s.%d ", mp->m_name, mp->m_version);
+		snprintf(lbuf, sizeof(lbuf), "%s.%d ", mp->m_name,
+		    mp->m_version);
 		pager_output(lbuf);
 	    }
 	    if (pager_output("\n"))
@@ -296,11 +301,14 @@ command_lsmod(int argc, char *argv[])
 	if (verbose) {
 	    /* XXX could add some formatting smarts here to display some better */
 	    for (md = fp->f_metadata; md != NULL; md = md->md_next) {
-		sprintf(lbuf, "      0x%04x, 0x%lx\n", md->md_type, (long) md->md_size);
+		snprintf(lbuf, sizeof(lbuf), "      0x%04x, 0x%lx\n",
+		    md->md_type, (long) md->md_size);
 		if (pager_output(lbuf))
 			break;
 	    }
 	}
+	if (ret)
+	    break;
     }
     pager_close();
     return(CMD_OK);
@@ -653,6 +661,22 @@ file_findmetadata(struct preloaded_file *fp, int type)
 	if (md->md_type == type)
 	    break;
     return(md);
+}
+
+/*
+ * Remove all metadata from the file.
+ */
+void
+file_removemetadata(struct preloaded_file *fp)
+{
+    struct file_metadata *md, *next;
+
+    for (md = fp->f_metadata; md != NULL; md = next)
+    {
+	next = md->md_next;
+	free(md);
+    }
+    fp->f_metadata = NULL;
 }
 
 struct file_metadata *

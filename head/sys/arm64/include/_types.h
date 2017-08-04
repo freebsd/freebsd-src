@@ -88,9 +88,7 @@ typedef	__uint32_t	__uint_least32_t;
 typedef	__uint64_t	__uint_least64_t;
 typedef	__uint64_t	__u_register_t;
 typedef	__uint64_t	__vm_offset_t;
-typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint64_t	__vm_paddr_t;
-typedef	__uint64_t	__vm_pindex_t;
 typedef	__uint64_t	__vm_size_t;
 typedef	unsigned int	___wchar_t;
 

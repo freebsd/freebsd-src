@@ -7,6 +7,6 @@ MAN=	w.1 uptime.1
 LIBADD=	kvm sbuf xo util
 LINKS=	${BINDIR}/w ${BINDIR}/uptime
 
-.PATH: ${.CURDIR}/../../bin/ps
+.PATH: ${SRCTOP}/bin/ps
 
 .include <bsd.prog.mk>

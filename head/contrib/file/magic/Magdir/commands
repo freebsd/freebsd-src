@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.54 2016/04/19 13:40:02 christos Exp $
+# $File: commands,v 1.56 2016/07/14 19:01:12 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -112,3 +112,7 @@
 # URL:  http://packages.debian.org/pdmenu
 # From: Edward Betts <edward@debian.org>
 0	string		#!/usr/bin/pdmenu	Pdmenu configuration file text
+
+# From Danny Weldon
+0	string	\x0b\x13\x08\x00
+>0x04   uleshort	<4      ksh byte-code version %d

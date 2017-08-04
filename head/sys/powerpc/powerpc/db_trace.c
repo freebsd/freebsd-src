@@ -296,8 +296,12 @@ db_trace_self(void)
 {
 	db_addr_t addr;
 
-	addr = (db_addr_t)__builtin_frame_address(1);
-	db_backtrace(curthread, addr, -1);
+	addr = (db_addr_t)__builtin_frame_address(0);
+	if (addr == 0) {
+		db_printf("Null frame address\n");
+		return;
+	}
+	db_backtrace(curthread, *(db_addr_t *)addr, -1);
 }
 
 int

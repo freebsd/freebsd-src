@@ -11,7 +11,7 @@
 
 	.syntax unified
 	.text
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 	.thumb
 #endif
 
@@ -21,7 +21,7 @@
 // Reverse all the bytes in a 64-bit integer.
 //
 	.p2align 2
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 DEFINE_COMPILERRT_THUMB_FUNCTION(__bswapdi2)
 #else
 DEFINE_COMPILERRT_FUNCTION(__bswapdi2)
@@ -45,3 +45,6 @@ DEFINE_COMPILERRT_FUNCTION(__bswapdi2)
     mov r1, r2  // r1 = r2 = rev(r0)
     JMP(lr)
 END_COMPILERRT_FUNCTION(__bswapdi2)
+
+NO_EXEC_STACK_DIRECTIVE
+

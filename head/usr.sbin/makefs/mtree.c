@@ -44,9 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
+#include <util.h>
 
 #include "makefs.h"
+
+#ifndef ENOATTR
+#define	ENOATTR	ENOMSG
+#endif
 
 #define	IS_DOT(nm)	((nm)[0] == '.' && (nm)[1] == '\0')
 #define	IS_DOTDOT(nm)	((nm)[0] == '.' && (nm)[1] == '.' && (nm)[2] == '\0')
@@ -75,14 +81,11 @@ mtree_file_push(const char *name, FILE *fp)
 {
 	struct mtree_fileinfo *fi;
 
-	fi = malloc(sizeof(*fi));
-	if (fi == NULL)
-		return (ENOMEM);
-
+	fi = emalloc(sizeof(*fi));
 	if (strcmp(name, "-") == 0)
-		fi->name = strdup("(stdin)");
+		fi->name = estrdup("(stdin)");
 	else
-		fi->name = strdup(name);
+		fi->name = estrdup(name);
 	if (fi->name == NULL) {
 		free(fi);
 		return (ENOMEM);
@@ -168,7 +171,7 @@ mtree_file_path(fsnode *node)
 	}
 	sbuf_cat(sb, rp[depth]);
 	sbuf_finish(sb);
-	res = strdup(sbuf_data(sb));
+	res = estrdup(sbuf_data(sb));
 	sbuf_delete(sb);
 	if (res == NULL)
 		errno = ENOMEM;
@@ -198,8 +201,8 @@ mtree_resolve(const char *spec, int *istemp)
 	quoted = (subst || c == '\'') ? 1 : 0;
 
 	if (!subst) {
-		res = strdup(spec + quoted);
-		if (res != NULL && quoted)
+		res = estrdup(spec + quoted);
+		if (quoted)
 			res[len - 2] = '\0';
 		return (res);
 	}
@@ -255,25 +258,18 @@ mtree_resolve(const char *spec, int *istemp)
 		}
 
 		error = ENOMEM;
-		var = calloc(p - v, 1);
-		if (var == NULL)
-			break;
-
+		var = ecalloc(p - v, 1);
 		memcpy(var, v + 1, p - v - 1);
 		if (strcmp(var, ".CURDIR") == 0) {
 			res = getcwd(NULL, 0);
 			if (res == NULL)
 				break;
 		} else if (strcmp(var, ".PROG") == 0) {
-			res = strdup(getprogname());
-			if (res == NULL)
-				break;
+			res = estrdup(getprogname());
 		} else {
 			v = getenv(var);
 			if (v != NULL) {
-				res = strdup(v);
-				if (res == NULL)
-					break;
+				res = estrdup(v);
 			} else
 				res = NULL;
 		}
@@ -451,28 +447,15 @@ create_node(const char *name, u_int type, fsnode *parent, fsnode *global)
 {
 	fsnode *n;
 
-	n = calloc(1, sizeof(*n));
-	if (n == NULL)
-		return (NULL);
-
-	n->name = strdup(name);
-	if (n->name == NULL) {
-		free(n);
-		return (NULL);
-	}
-
+	n = ecalloc(1, sizeof(*n));
+	n->name = estrdup(name);
 	n->type = (type == 0) ? global->type : type;
 	n->parent = parent;
 
-	n->inode = calloc(1, sizeof(*n->inode));
-	if (n->inode == NULL) {
-		free(n->name);
-		free(n);
-		return (NULL);
-	}
+	n->inode = ecalloc(1, sizeof(*n->inode));
 
 	/* Assign global options/defaults. */
-	bcopy(global->inode, n->inode, sizeof(*n->inode));
+	memcpy(n->inode, global->inode, sizeof(*n->inode));
 	n->inode->st.st_mode = (n->inode->st.st_mode & ~S_IFMT) | n->type;
 
 	if (n->type == S_IFLNK)
@@ -522,7 +505,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 	struct stat *st, sb;
 	intmax_t num;
 	u_long flset, flclr;
-	int error, istemp, type;
+	int error, istemp;
+	uint32_t type;
 
 	st = &node->inode->st;
 	do {
@@ -560,7 +544,7 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				node->contents = strdup(value);
+				node->contents = estrdup(value);
 			} else
 				error = ENOSYS;
 			break;
@@ -607,7 +591,7 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				node->symlink = strdup(value);
+				node->symlink = estrdup(value);
 			} else
 				error = ENOSYS;
 			break;
@@ -1057,8 +1041,8 @@ read_mtree(const char *fname, fsnode *node)
 	if (error)
 		goto out;
 
-	bzero(&mtree_global, sizeof(mtree_global));
-	bzero(&mtree_global_inode, sizeof(mtree_global_inode));
+	memset(&mtree_global, 0, sizeof(mtree_global));
+	memset(&mtree_global_inode, 0, sizeof(mtree_global_inode));
 	mtree_global.inode = &mtree_global_inode;
 	mtree_global_inode.nlink = 1;
 	mtree_global_inode.st.st_nlink = 1;

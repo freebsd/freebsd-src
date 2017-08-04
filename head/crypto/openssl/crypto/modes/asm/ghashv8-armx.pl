@@ -49,7 +49,7 @@ $code=<<___;
 
 .text
 ___
-$code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
+# $code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
 $code.=".fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
 
 ################################################################################

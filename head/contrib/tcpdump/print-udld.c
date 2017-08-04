@@ -12,21 +12,23 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * UNIDIRECTIONAL LINK DETECTION (UDLD) as per
- * http://www.ietf.org/internet-drafts/draft-foschiano-udld-02.txt
- *
  * Original code by Carles Kishimoto <carles.kishimoto@gmail.com>
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Cisco UniDirectional Link Detection (UDLD) protocol printer */
+
+/* specification: RFC 5171 */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
+
+static const char tstr[] = " [|udld]";
 
 #define UDLD_HEADER_LEN			4
 #define UDLD_DEVICE_ID_TLV		0x0001
@@ -63,9 +65,10 @@ static const struct tok udld_flags_values[] = {
 };
 
 /*
+ * UDLD's Protocol Data Unit format:
  *
- * 0                   1                   2                   3
- * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * | Ver | Opcode  |     Flags     |           Checksum            |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -73,6 +76,18 @@ static const struct tok udld_flags_values[] = {
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
+ * TLV format:
+ *
+ *  0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |             TYPE              |            LENGTH             |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                             VALUE                             |
+ * |                              ...                              |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * LENGTH: Length in bytes of the Type, Length, and Value fields.
  */
 
 #define	UDLD_EXTRACT_VERSION(x) (((x)&0xe0)>>5)
@@ -115,35 +130,48 @@ udld_print (netdissect_options *ndo, const u_char *pptr, u_int length)
     while (tptr < (pptr+length)) {
 
         ND_TCHECK2(*tptr, 4);
-
 	type = EXTRACT_16BITS(tptr);
         len  = EXTRACT_16BITS(tptr+2);
-        len -= 4;
-        tptr += 4;
-
-        /* infinite loop check */
-        if (type == 0 || len == 0) {
-            return;
-        }
 
         ND_PRINT((ndo, "\n\t%s (0x%04x) TLV, length %u",
                tok2str(udld_tlv_values, "Unknown", type),
                type, len));
 
+        if (type == 0)
+            goto invalid;
+
+        /* infinite loop check */
+        if (len <= 4)
+            goto invalid;
+
+        len -= 4;
+        tptr += 4;
+
+        ND_TCHECK2(*tptr, len);
+
         switch (type) {
         case UDLD_DEVICE_ID_TLV:
         case UDLD_PORT_ID_TLV:
-        case UDLD_ECHO_TLV:
         case UDLD_DEVICE_NAME_TLV:
-            ND_PRINT((ndo, ", %s", tptr));
+            ND_PRINT((ndo, ", "));
+            fn_printzp(ndo, tptr, len, NULL);
+            break;
+
+        case UDLD_ECHO_TLV:
+            ND_PRINT((ndo, ", "));
+            (void)fn_printn(ndo, tptr, len, NULL);
             break;
 
         case UDLD_MESSAGE_INTERVAL_TLV:
         case UDLD_TIMEOUT_INTERVAL_TLV:
+            if (len != 1)
+                goto invalid;
             ND_PRINT((ndo, ", %us", (*tptr)));
             break;
 
         case UDLD_SEQ_NUMBER_TLV:
+            if (len != 4)
+                goto invalid;
             ND_PRINT((ndo, ", %u", EXTRACT_32BITS(tptr)));
             break;
 
@@ -155,8 +183,11 @@ udld_print (netdissect_options *ndo, const u_char *pptr, u_int length)
 
     return;
 
- trunc:
-    ND_PRINT((ndo, "[|udld]"));
+invalid:
+    ND_PRINT((ndo, "%s", istr));
+    return;
+trunc:
+    ND_PRINT((ndo, "%s", tstr));
 }
 
 /*

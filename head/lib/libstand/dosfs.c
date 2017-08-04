@@ -65,6 +65,7 @@ struct fs_ops dosfs_fsops = {
 #define DEPSEC   16             /* directory entries per sector */
 #define DSHIFT    4             /* DEPSEC shift */
 #define LOCLUS    2             /* lowest cluster number */
+#define FATBLKSZ  0x20000       /* size of block in the FAT cache buffer */
 
 /* DOS "BIOS Parameter Block" */
 typedef struct {
@@ -132,18 +133,6 @@ static DOS_DE dot[2] = {
                          ((u_int)cv2((de)->dex.h_clus) << 16) |  \
 			 cv2((de)->clus))
 
-/*
- * fat cache metadata
- */
-struct fatcache {
-	int unit;	/* disk unit number */
-	int size;	/* buffer (and fat) size in sectors */
-	u_char *buf;
-};
-
-static struct fatcache fat;
-
-static int dosunmount(DOS_FS *);
 static int parsebs(DOS_FS *, DOS_BS *);
 static int namede(DOS_FS *, const char *, DOS_DE **);
 static int lookup(DOS_FS *, u_int, const char *, DOS_DE **);
@@ -153,36 +142,37 @@ static off_t fsize(DOS_FS *, DOS_DE *);
 static int fatcnt(DOS_FS *, u_int);
 static int fatget(DOS_FS *, u_int *);
 static int fatend(u_int, u_int);
-static int ioread(DOS_FS *, u_int, void *, u_int);
-static int ioget(struct open_file *, daddr_t, size_t, void *, u_int);
+static int ioread(DOS_FS *, u_int, void *, size_t);
+static int ioget(struct open_file *, daddr_t, void *, size_t);
 
-static void
-dos_read_fat(DOS_FS *fs, struct open_file *fd)
+static int
+dos_read_fatblk(DOS_FS *fs, struct open_file *fd, u_int blknum)
 {
-    struct devdesc *dd = fd->f_devdata;
+    int err;
+    size_t io_size;
+    daddr_t offset_in_fat, max_offset_in_fat;
 
-    if (fat.buf != NULL) {		/* can we reuse old buffer? */
-	if (fat.size != fs->spf) {
-	    free(fat.buf);		/* no, free old buffer */
-	    fat.buf = NULL;
-	}
+    offset_in_fat = ((daddr_t)blknum) * FATBLKSZ;
+    max_offset_in_fat = secbyt(fs->spf);
+    io_size = FATBLKSZ;
+    if (offset_in_fat > max_offset_in_fat)
+        offset_in_fat = max_offset_in_fat;
+    if (offset_in_fat + io_size > max_offset_in_fat)
+        io_size = ((size_t)(max_offset_in_fat - offset_in_fat));
+
+    if (io_size != 0) {
+        err = ioget(fd, fs->lsnfat + bytsec(offset_in_fat),
+            fs->fatbuf, io_size);
+        if (err != 0) {
+            fs->fatbuf_blknum = ((u_int)(-1));
+            return (err);
+        }
     }
+    if (io_size < FATBLKSZ)
+        memset(fs->fatbuf + io_size, 0, FATBLKSZ - io_size);
 
-    if (fat.buf == NULL)
-	fat.buf = malloc(secbyt(fs->spf));
-
-    if (fat.buf != NULL) {
-	if (ioget(fd, fs->lsnfat, 0, fat.buf, secbyt(fs->spf)) == 0) {
-	    fat.size = fs->spf;
-	    fat.unit = dd->d_unit;
-	    return;
-	}
-    }
-    if (fat.buf != NULL)	/* got IO error */
-	free(fat.buf);
-    fat.buf = NULL;
-    fat.unit = -1;	/* impossible unit */
-    fat.size = 0;
+    fs->fatbuf_blknum = blknum;
+    return (0);
 }
 
 /*
@@ -192,24 +182,27 @@ static int
 dos_mount(DOS_FS *fs, struct open_file *fd)
 {
     int err;
-    struct devdesc *dd = fd->f_devdata;
     u_char *buf;
 
     bzero(fs, sizeof(DOS_FS));
     fs->fd = fd;
 
-    if ((err = !(buf = malloc(secbyt(1))) ? errno : 0) ||
-        (err = ioget(fs->fd, 0, 0, buf, secbyt(1))) ||
+    if ((buf = malloc(secbyt(1))) == NULL)
+        return (errno);
+    if ((err = ioget(fs->fd, 0, buf, secbyt(1))) ||
         (err = parsebs(fs, (DOS_BS *)buf))) {
-	if (buf != NULL)
-	    free(buf);
-        (void)dosunmount(fs);
-        return(err);
+        free(buf);
+        return (err);
     }
     free(buf);
 
-    if (fat.buf == NULL || fat.unit != dd->d_unit)
-	dos_read_fat(fs, fd);
+    if ((fs->fatbuf = malloc(FATBLKSZ)) == NULL)
+        return (errno);
+    err = dos_read_fatblk(fs, fd, 0);
+    if (err != 0) {
+        free(fs->fatbuf);
+        return (err);
+    }
 
     fs->root = dot[0];
     fs->root.name[0] = ' ';
@@ -219,7 +212,7 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
         fs->root.dex.h_clus[0] = (fs->rdcl >> 16) & 0xff;
         fs->root.dex.h_clus[1] = (fs->rdcl >> 24) & 0xff;
     }
-    return 0;
+    return (0);
 }
 
 /*
@@ -228,23 +221,11 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
 static int
 dos_unmount(DOS_FS *fs)
 {
-    int err;
-
     if (fs->links)
-        return(EBUSY);
-    if ((err = dosunmount(fs)))
-        return(err);
-    return 0;
-}
-
-/*
- * Common code shared by dos_mount() and dos_unmount()
- */
-static int
-dosunmount(DOS_FS *fs)
-{
+        return (EBUSY);
+    free(fs->fatbuf);
     free(fs);
-    return(0);
+    return (0);
 }
 
 /*
@@ -257,16 +238,20 @@ dos_open(const char *path, struct open_file *fd)
     DOS_FILE *f;
     DOS_FS *fs;
     u_int size, clus;
-    int err = 0;
+    int err;
 
     /* Allocate mount structure, associate with open */
-    fs = malloc(sizeof(DOS_FS));
-    
-    if ((err = dos_mount(fs, fd)))
-	goto out;
+    if ((fs = malloc(sizeof(DOS_FS))) == NULL)
+        return (errno);
+    if ((err = dos_mount(fs, fd))) {
+        free(fs);
+        return (err);
+    }
 
-    if ((err = namede(fs, path, &de)))
-	goto out;
+    if ((err = namede(fs, path, &de))) {
+        dos_unmount(fs);
+        return (err);
+    }
 
     clus = stclus(fs->fatsz, de);
     size = cv4(de->size);
@@ -274,18 +259,20 @@ dos_open(const char *path, struct open_file *fd)
     if ((!(de->attr & FA_DIR) && (!clus != !size)) ||
 	((de->attr & FA_DIR) && size) ||
 	(clus && !okclus(fs, clus))) {
-        err = EINVAL;
-	goto out;
+        dos_unmount(fs);
+        return (EINVAL);
     }
-    f = malloc(sizeof(DOS_FILE));
+    if ((f = malloc(sizeof(DOS_FILE))) == NULL) {
+        err = errno;
+        dos_unmount(fs);
+        return (err);
+    }
     bzero(f, sizeof(DOS_FILE));
     f->fs = fs;
     fs->links++;
     f->de = *de;
     fd->f_fsdata = (void *)f;
-
- out:
-    return(err);
+    return (0);
 }
 
 /*
@@ -307,7 +294,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
     twiddle(4);
     nb = (u_int)nbyte;
     if ((size = fsize(f->fs, &f->de)) == -1)
-	return EINVAL;
+	return (EINVAL);
     if (nb > (n = size - f->offset))
 	nb = n;
     off = f->offset;
@@ -344,7 +331,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
  out:
     if (resid)
 	*resid = nbyte - nb + cnt;
-    return(err);
+    return (err);
 }
 
 /*
@@ -370,16 +357,16 @@ dos_seek(struct open_file *fd, off_t offset, int whence)
         break;
     default:
 	errno = EINVAL;
-	return(-1);
+	return (-1);
     }
     off += offset;
     if (off < 0 || off > size) {
 	errno = EINVAL;
-        return(-1);
+        return (-1);
     }
     f->offset = (u_int)off;
     f->c = 0;
-    return(off);
+    return (off);
 }
 
 /*
@@ -394,7 +381,7 @@ dos_close(struct open_file *fd)
     f->fs->links--;
     free(f);
     dos_unmount(fs);
-    return 0;
+    return (0);
 }
 
 /*
@@ -411,7 +398,7 @@ dos_stat(struct open_file *fd, struct stat *sb)
     sb->st_uid = 0;
     sb->st_gid = 0;
     if ((sb->st_size = fsize(f->fs, &f->de)) == -1)
-	return EINVAL;
+	return (EINVAL);
     return (0);
 }
 
@@ -439,7 +426,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
     u_char fn[261];
     DOS_DIR dd;
     size_t res;
-    u_int chk, i, x, xdn;
+    u_int chk, x, xdn;
     int err;
 
     x = chk = 0;
@@ -501,7 +488,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
     d->d_reclen = sizeof(*d);
     d->d_type = (dd.de.attr & FA_DIR) ? DT_DIR : DT_REG;
     memcpy(d->d_name, fn, sizeof(d->d_name));
-    return(0);
+    return (0);
 }
 
 /*
@@ -516,41 +503,41 @@ parsebs(DOS_FS *fs, DOS_BS *bs)
          bs->jmp[0] != 0xe9 &&
          (bs->jmp[0] != 0xeb || bs->jmp[2] != 0x90)) ||
         bs->bpb.media < 0xf0)
-        return EINVAL;
+        return (EINVAL);
     if (cv2(bs->bpb.secsiz) != SECSIZ)
-        return EINVAL;
+        return (EINVAL);
     if (!(fs->spc = bs->bpb.spc) || fs->spc & (fs->spc - 1))
-        return EINVAL;
+        return (EINVAL);
     fs->bsize = secbyt(fs->spc);
     fs->bshift = ffs(fs->bsize) - 1;
     if ((fs->spf = cv2(bs->bpb.spf))) {
         if (bs->bpb.fats != 2)
-            return EINVAL;
+            return (EINVAL);
         if (!(fs->dirents = cv2(bs->bpb.dirents)))
-            return EINVAL;
+            return (EINVAL);
     } else {
         if (!(fs->spf = cv4(bs->bpb.lspf)))
-            return EINVAL;
+            return (EINVAL);
         if (!bs->bpb.fats || bs->bpb.fats > 16)
-            return EINVAL;
+            return (EINVAL);
         if ((fs->rdcl = cv4(bs->bpb.rdcl)) < LOCLUS)
-            return EINVAL;
+            return (EINVAL);
     }
     if (!(fs->lsnfat = cv2(bs->bpb.ressec)))
-        return EINVAL;
+        return (EINVAL);
     fs->lsndir = fs->lsnfat + fs->spf * bs->bpb.fats;
     fs->lsndta = fs->lsndir + entsec(fs->dirents);
     if (!(sc = cv2(bs->bpb.secs)) && !(sc = cv4(bs->bpb.lsecs)))
-        return EINVAL;
+        return (EINVAL);
     if (fs->lsndta > sc)
-        return EINVAL;
+        return (EINVAL);
     if ((fs->xclus = secblk(fs, sc - fs->lsndta) + 1) < LOCLUS)
-        return EINVAL;
+        return (EINVAL);
     fs->fatsz = fs->dirents ? fs->xclus < 0xff6 ? 12 : 16 : 32;
     sc = (secbyt(fs->spf) << 1) / (fs->fatsz >> 2) - 1;
     if (fs->xclus > sc)
         fs->xclus = sc;
-    return 0;
+    return (0);
 }
 
 /*
@@ -575,17 +562,17 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
         if (!(s = strchr(path, '/')))
             s = strchr(path, 0);
         if ((n = s - path) > 255)
-            return ENAMETOOLONG;
+            return (ENAMETOOLONG);
         memcpy(name, path, n);
         name[n] = 0;
         path = s;
         if (!(de->attr & FA_DIR))
-            return ENOTDIR;
+            return (ENOTDIR);
         if ((err = lookup(fs, stclus(fs->fatsz, de), name, &de)))
-            return err;
+            return (err);
     }
     *dep = de;
-    return 0;
+    return (0);
 }
 
 /*
@@ -598,13 +585,13 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
     u_char lfn[261];
     u_char sfn[13];
     u_int nsec, lsec, xdn, chk, sec, ent, x;
-    int err, ok, i;
+    int err, ok;
 
     if (!clus)
         for (ent = 0; ent < 2; ent++)
             if (!strcasecmp(name, dotstr[ent])) {
                 *dep = dot + ent;
-                return 0;
+                return (0);
             }
     if (!clus && fs->fatsz == 32)
         clus = fs->rdcl;
@@ -617,13 +604,13 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         else if (okclus(fs, clus))
             lsec = blklsn(fs, clus);
         else
-            return EINVAL;
+            return (EINVAL);
         for (sec = 0; sec < nsec; sec++) {
-            if ((err = ioget(fs->fd, lsec + sec, 0, dir, secbyt(1))))
-                return err;
+            if ((err = ioget(fs->fd, lsec + sec, dir, secbyt(1))))
+                return (err);
             for (ent = 0; ent < DEPSEC; ent++) {
                 if (!*dir[ent].de.name)
-                    return ENOENT;
+                    return (ENOENT);
                 if (*dir[ent].de.name != 0xe5) {
                     if ((dir[ent].de.attr & FA_MASK) == FA_XDE) {
                         x = dir[ent].xde.seq;
@@ -651,7 +638,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
                         }
                         if (ok) {
                             *dep = &dir[ent].de;
-                            return 0;
+                            return (0);
                         }
                     }
 		}
@@ -661,11 +648,11 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         if (!clus)
             break;
         if ((err = fatget(fs, &clus)))
-            return err;
+            return (err);
         if (fatend(fs->fatsz, clus))
             break;
     }
-    return ENOENT;
+    return (ENOENT);
 }
 
 /*
@@ -739,11 +726,11 @@ fsize(DOS_FS *fs, DOS_DE *de)
          size = fs->dirents * sizeof(DOS_DE);
       else {
          if ((n = fatcnt(fs, c)) == -1)
-            return n;
+            return (n);
          size = blkbyt(fs, n);
       }
    }
-   return size;
+   return (size);
 }
 
 /*
@@ -756,56 +743,62 @@ fatcnt(DOS_FS *fs, u_int c)
 
    for (n = 0; okclus(fs, c); n++)
       if (fatget(fs, &c))
-	  return -1;
-   return fatend(fs->fatsz, c) ? n : -1;
+	  return (-1);
+   return (fatend(fs->fatsz, c) ? n : -1);
 }
 
 /*
- * Get next cluster in cluster chain. Use in core fat cache unless another
- * device replaced it.
+ * Get next cluster in cluster chain. Use in core fat cache unless
+ * the number of current 128K block in FAT has changed.
  */
 static int
 fatget(DOS_FS *fs, u_int *c)
 {
-    u_char buf[4];
-    u_char *s;
-    u_int x, offset, off, n, nbyte, lsec;
-    struct devdesc *dd = fs->fd->f_devdata;
-    int err = 0;
+    u_int val_in, val_out, offset, blknum, nbyte;
+    const u_char *p_entry;
+    int err;
 
-    if (fat.unit != dd->d_unit) {
-	/* fat cache was changed to another device, dont use it */
-	err = ioread(fs, secbyt(fs->lsnfat) + fatoff(fs->fatsz, *c), buf,
-	    fs->fatsz != 32 ? 2 : 4);
-	if (err)
-	    return err;
-    } else {
-	offset = fatoff(fs->fatsz, *c);
-	nbyte = fs->fatsz != 32 ? 2 : 4;
+    /* check input value to prevent overflow in fatoff() */
+    val_in = *c;
+    if (val_in & 0xf0000000)
+        return (EINVAL);
 
-	s = buf;
-	if ((off = offset & (SECSIZ - 1))) {
-	    offset -= off;
-	    lsec = bytsec(offset);
-	    offset += SECSIZ;
-	    if ((n = SECSIZ - off) > nbyte)
-		n = nbyte;
-	    memcpy(s, fat.buf + secbyt(lsec) + off, n);
-	    s += n;
-	    nbyte -= n;
-	}
-	n = nbyte & (SECSIZ - 1);
-	if (nbyte -= n) {
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), nbyte);
-	    offset += nbyte;
-	    s += nbyte;
-	}
-	if (n)
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), n);
+    /* ensure that current 128K FAT block is cached */
+    offset = fatoff(fs->fatsz, val_in);
+    nbyte = fs->fatsz != 32 ? 2 : 4;
+    if (offset + nbyte > secbyt(fs->spf))
+        return (EINVAL);
+    blknum = offset / FATBLKSZ;
+    offset %= FATBLKSZ;
+    if (offset + nbyte > FATBLKSZ)
+        return (EINVAL);
+    if (blknum != fs->fatbuf_blknum) {
+        err = dos_read_fatblk(fs, fs->fd, blknum);
+        if (err != 0)
+            return (err);
     }
+    p_entry = fs->fatbuf + offset;
 
-    x = fs->fatsz != 32 ? cv2(buf) : cv4(buf);
-    *c = fs->fatsz == 12 ? *c & 1 ? x >> 4 : x & 0xfff : x;
+    /* extract cluster number from FAT entry */
+    switch (fs->fatsz) {
+    case 32:
+        val_out = cv4(p_entry);
+        val_out &= 0x0fffffff;
+        break;
+    case 16:
+        val_out = cv2(p_entry);
+        break;
+    case 12:
+        val_out = cv2(p_entry);
+        if (val_in & 1)
+            val_out >>= 4;
+        else
+            val_out &= 0xfff;
+        break;
+    default:
+        return (EINVAL);
+    }
+    *c = val_out;
     return (0);
 }
 
@@ -815,50 +808,61 @@ fatget(DOS_FS *fs, u_int *c)
 static int
 fatend(u_int sz, u_int c)
 {
-    return c > (sz == 12 ? 0xff7U : sz == 16 ? 0xfff7U : 0xffffff7);
+    return (c > (sz == 12 ? 0xff7U : sz == 16 ? 0xfff7U : 0xffffff7));
 }
 
 /*
  * Offset-based I/O primitive
  */
 static int
-ioread(DOS_FS *fs, u_int offset, void *buf, u_int nbyte)
+ioread(DOS_FS *fs, u_int offset, void *buf, size_t nbyte)
 {
     char *s;
     u_int off, n;
     int err;
+    u_char local_buf[SECSIZ];
 
     s = buf;
     if ((off = offset & (SECSIZ - 1))) {
         offset -= off;
         if ((n = SECSIZ - off) > nbyte)
             n = nbyte;
-        if ((err = ioget(fs->fd, bytsec(offset), off, s, n)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
+            return (err);
+	memcpy(s, local_buf + off, n);
         offset += SECSIZ;
         s += n;
         nbyte -= n;
     }
     n = nbyte & (SECSIZ - 1);
     if (nbyte -= n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, nbyte)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), s, nbyte)))
+            return (err);
         offset += nbyte;
         s += nbyte;
     }
     if (n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, n)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
+            return (err);
+	memcpy(s, local_buf, n);
     }
-    return 0;
+    return (0);
 }
 
 /*
  * Sector-based I/O primitive
  */
 static int
-ioget(struct open_file *fd, daddr_t lsec, size_t offset, void *buf, u_int size)
+ioget(struct open_file *fd, daddr_t lsec, void *buf, size_t size)
 {
-    return ((fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec, offset,
-	size, buf, NULL));
+    size_t rsize;
+    int rv;
+
+    /* Make sure we get full read or error. */
+    rsize = 0;
+    rv = (fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec,
+        size, buf, &rsize);
+    if ((rv == 0) && (size != rsize))
+        rv = EIO;
+    return (rv);
 }

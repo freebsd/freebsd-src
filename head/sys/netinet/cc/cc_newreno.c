@@ -137,7 +137,8 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 			 */
 			if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
 				incr = min(ccv->bytes_this_ack,
-				    V_tcp_abc_l_var * CCV(ccv, t_maxseg));
+				    ccv->nsegs * V_tcp_abc_l_var *
+				    CCV(ccv, t_maxseg));
 			else
 				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
 		}

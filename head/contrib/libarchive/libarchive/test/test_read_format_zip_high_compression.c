@@ -50,6 +50,11 @@ DEFINE_TEST(test_read_format_zip_high_compression)
 	size_t s;
 	int64_t o;
 
+	if (archive_zlib_version() == NULL) {
+		skipping("Zip compression test requires zlib");
+		return;
+	}
+
 	extract_reference_file(refname);
 	p = slurpfile(&archive_size, refname);
 
@@ -81,6 +86,11 @@ DEFINE_TEST(test_read_format_zip_high_compression2)
 	const size_t buff_size = 2 * 1024 * 1024;
 	char *body, *body_read, *buff;
 	int n;
+
+	if (archive_zlib_version() == NULL) {
+		skipping("Zip compression test requires zlib");
+		return;
+	}
 
 	assert((body = malloc(body_size)) != NULL);
 	assert((body_read = malloc(body_size)) != NULL);

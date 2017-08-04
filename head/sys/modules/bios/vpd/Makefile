@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-.PATH:  ${.CURDIR}/../../../x86/bios
+.PATH:  ${SRCTOP}/sys/x86/bios
 
 KMOD=	vpd
 SRCS=	vpd.c \

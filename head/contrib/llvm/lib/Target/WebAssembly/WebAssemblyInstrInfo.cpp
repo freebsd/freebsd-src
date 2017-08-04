@@ -15,6 +15,7 @@
 
 #include "WebAssemblyInstrInfo.h"
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
+#include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -32,35 +33,66 @@ WebAssemblyInstrInfo::WebAssemblyInstrInfo(const WebAssemblySubtarget &STI)
                               WebAssembly::ADJCALLSTACKUP),
       RI(STI.getTargetTriple()) {}
 
+bool WebAssemblyInstrInfo::isReallyTriviallyReMaterializable(
+    const MachineInstr &MI, AliasAnalysis *AA) const {
+  switch (MI.getOpcode()) {
+  case WebAssembly::CONST_I32:
+  case WebAssembly::CONST_I64:
+  case WebAssembly::CONST_F32:
+  case WebAssembly::CONST_F64:
+    // isReallyTriviallyReMaterializableGeneric misses these because of the
+    // ARGUMENTS implicit def, so we manualy override it here.
+    return true;
+  default:
+    return false;
+  }
+}
+
 void WebAssemblyInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator I,
-                                       DebugLoc DL, unsigned DestReg,
+                                       const DebugLoc &DL, unsigned DestReg,
                                        unsigned SrcReg, bool KillSrc) const {
   // This method is called by post-RA expansion, which expects only pregs to
   // exist. However we need to handle both here.
   auto &MRI = MBB.getParent()->getRegInfo();
-  const TargetRegisterClass *RC = TargetRegisterInfo::isVirtualRegister(DestReg) ?
-      MRI.getRegClass(DestReg) :
-      MRI.getTargetRegisterInfo()->getMinimalPhysRegClass(SrcReg);
+  const TargetRegisterClass *RC =
+      TargetRegisterInfo::isVirtualRegister(DestReg)
+          ? MRI.getRegClass(DestReg)
+          : MRI.getTargetRegisterInfo()->getMinimalPhysRegClass(DestReg);
 
-  unsigned CopyLocalOpcode;
+  unsigned CopyOpcode;
   if (RC == &WebAssembly::I32RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_I32;
+    CopyOpcode = WebAssembly::COPY_I32;
   else if (RC == &WebAssembly::I64RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_I64;
+    CopyOpcode = WebAssembly::COPY_I64;
   else if (RC == &WebAssembly::F32RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_F32;
+    CopyOpcode = WebAssembly::COPY_F32;
   else if (RC == &WebAssembly::F64RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_F64;
+    CopyOpcode = WebAssembly::COPY_F64;
   else
     llvm_unreachable("Unexpected register class");
 
-  BuildMI(MBB, I, DL, get(CopyLocalOpcode), DestReg)
+  BuildMI(MBB, I, DL, get(CopyOpcode), DestReg)
       .addReg(SrcReg, KillSrc ? RegState::Kill : 0);
 }
 
+MachineInstr *
+WebAssemblyInstrInfo::commuteInstructionImpl(MachineInstr &MI, bool NewMI,
+                                             unsigned OpIdx1,
+                                             unsigned OpIdx2) const {
+  // If the operands are stackified, we can't reorder them.
+  WebAssemblyFunctionInfo &MFI =
+      *MI.getParent()->getParent()->getInfo<WebAssemblyFunctionInfo>();
+  if (MFI.isVRegStackified(MI.getOperand(OpIdx1).getReg()) ||
+      MFI.isVRegStackified(MI.getOperand(OpIdx2).getReg()))
+    return nullptr;
+
+  // Otherwise use the default implementation.
+  return TargetInstrInfo::commuteInstructionImpl(MI, NewMI, OpIdx1, OpIdx2);
+}
+
 // Branch analysis.
-bool WebAssemblyInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
+bool WebAssemblyInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                          MachineBasicBlock *&TBB,
                                          MachineBasicBlock *&FBB,
                                          SmallVectorImpl<MachineOperand> &Cond,
@@ -75,22 +107,22 @@ bool WebAssemblyInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       if (HaveCond)
         return true;
       // If we're running after CFGStackify, we can't optimize further.
-      if (!MI.getOperand(1).isMBB())
+      if (!MI.getOperand(0).isMBB())
         return true;
       Cond.push_back(MachineOperand::CreateImm(true));
-      Cond.push_back(MI.getOperand(0));
-      TBB = MI.getOperand(1).getMBB();
+      Cond.push_back(MI.getOperand(1));
+      TBB = MI.getOperand(0).getMBB();
       HaveCond = true;
       break;
     case WebAssembly::BR_UNLESS:
       if (HaveCond)
         return true;
       // If we're running after CFGStackify, we can't optimize further.
-      if (!MI.getOperand(1).isMBB())
+      if (!MI.getOperand(0).isMBB())
         return true;
       Cond.push_back(MachineOperand::CreateImm(false));
-      Cond.push_back(MI.getOperand(0));
-      TBB = MI.getOperand(1).getMBB();
+      Cond.push_back(MI.getOperand(1));
+      TBB = MI.getOperand(0).getMBB();
       HaveCond = true;
       break;
     case WebAssembly::BR:
@@ -110,7 +142,10 @@ bool WebAssemblyInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
   return false;
 }
 
-unsigned WebAssemblyInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
+unsigned WebAssemblyInstrInfo::removeBranch(MachineBasicBlock &MBB,
+                                            int *BytesRemoved) const {
+  assert(!BytesRemoved && "code size not handled");
+
   MachineBasicBlock::instr_iterator I = MBB.instr_end();
   unsigned Count = 0;
 
@@ -129,11 +164,14 @@ unsigned WebAssemblyInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   return Count;
 }
 
-unsigned WebAssemblyInstrInfo::InsertBranch(MachineBasicBlock &MBB,
+unsigned WebAssemblyInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                             MachineBasicBlock *TBB,
                                             MachineBasicBlock *FBB,
                                             ArrayRef<MachineOperand> Cond,
-                                            DebugLoc DL) const {
+                                            const DebugLoc &DL,
+                                            int *BytesAdded) const {
+  assert(!BytesAdded && "code size not handled");
+
   if (Cond.empty()) {
     if (!TBB)
       return 0;
@@ -145,13 +183,9 @@ unsigned WebAssemblyInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   assert(Cond.size() == 2 && "Expected a flag and a successor block");
 
   if (Cond[0].getImm()) {
-    BuildMI(&MBB, DL, get(WebAssembly::BR_IF))
-        .addOperand(Cond[1])
-        .addMBB(TBB);
+    BuildMI(&MBB, DL, get(WebAssembly::BR_IF)).addMBB(TBB).add(Cond[1]);
   } else {
-    BuildMI(&MBB, DL, get(WebAssembly::BR_UNLESS))
-        .addOperand(Cond[1])
-        .addMBB(TBB);
+    BuildMI(&MBB, DL, get(WebAssembly::BR_UNLESS)).addMBB(TBB).add(Cond[1]);
   }
   if (!FBB)
     return 1;
@@ -160,7 +194,7 @@ unsigned WebAssemblyInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   return 2;
 }
 
-bool WebAssemblyInstrInfo::ReverseBranchCondition(
+bool WebAssemblyInstrInfo::reverseBranchCondition(
     SmallVectorImpl<MachineOperand> &Cond) const {
   assert(Cond.size() == 2 && "Expected a flag and a successor block");
   Cond.front() = MachineOperand::CreateImm(!Cond.front().getImm());

@@ -79,6 +79,10 @@ void EmitMapTable(RecordKeeper &RK, raw_ostream &OS);
 void EmitOptParser(RecordKeeper &RK, raw_ostream &OS);
 void EmitCTags(RecordKeeper &RK, raw_ostream &OS);
 void EmitAttributes(RecordKeeper &RK, raw_ostream &OS);
+void EmitSearchableTables(RecordKeeper &RK, raw_ostream &OS);
+void EmitGlobalISel(RecordKeeper &RK, raw_ostream &OS);
+void EmitX86EVEX2VEXTables(RecordKeeper &RK, raw_ostream &OS);
+void EmitRegisterBank(RecordKeeper &RK, raw_ostream &OS);
 
 } // End llvm namespace
 

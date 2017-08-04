@@ -18,8 +18,8 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef tcpdump_machdep_h
-#define tcpdump_machdep_h
+#ifndef netdissect_machdep_h
+#define netdissect_machdep_h
 
 int abort_on_misalignment(char *, size_t);
 #endif

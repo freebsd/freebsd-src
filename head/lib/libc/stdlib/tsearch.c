@@ -32,18 +32,17 @@ __FBSDID("$FreeBSD$");
 
 #include "tsearch_path.h"
 
-void *
-tsearch(const void *key, void **rootp,
+posix_tnode *
+tsearch(const void *key, posix_tnode **rootp,
     int (*compar)(const void *, const void *))
 {
 	struct path path;
-	node_t *root, **base, **leaf, *result, *n, *x, *y, *z;
+	posix_tnode **leaf, *result, *n, *x, *y, *z;
 	int cmp;
 
 	/* POSIX requires that tsearch() returns NULL if rootp is NULL. */
 	if (rootp == NULL)
-	return (NULL);
-		root = *rootp;
+		return (NULL);
 
 	/*
 	 * Find the leaf where the new key needs to be inserted. Return
@@ -52,8 +51,7 @@ tsearch(const void *key, void **rootp,
 	 * balances.
 	*/
 	path_init(&path);
-	base = &root;
-	leaf = &root;
+	leaf = rootp;
 	while (*leaf != NULL) {
 		if ((*leaf)->balance != 0) {
 			/*
@@ -62,9 +60,9 @@ tsearch(const void *key, void **rootp,
 			 * need to perform any rotations above this
 			 * point. In this case rotations are always
 			 * capable of keeping the subtree in balance.
-			 * Make this the base node and reset the path.
+			 * Make this the root node and reset the path.
 			 */
-			base = leaf;
+			rootp = leaf;
 			path_init(&path);
 		}
 		cmp = compar(key, (*leaf)->key);
@@ -75,7 +73,7 @@ tsearch(const void *key, void **rootp,
 			path_taking_right(&path);
 			leaf = &(*leaf)->rlink;
 		} else {
-			return (&(*leaf)->key);
+			return (*leaf);
 		}
 	}
 
@@ -94,7 +92,7 @@ tsearch(const void *key, void **rootp,
 	 * have a balance of zero, meaning that these nodes will not get
 	 * out of balance.
 	*/
-	for (n = *base; n != *leaf;) {
+	for (n = *rootp; n != *leaf;) {
 		if (path_took_left(&path)) {
 			n->balance += 1;
 			n = n->llink;
@@ -106,10 +104,10 @@ tsearch(const void *key, void **rootp,
 
 	/*
 	 * Adjusting the balances may have pushed the balance of the
-	 * base node out of range. Perform a rotation to bring the
+	 * root node out of range. Perform a rotation to bring the
 	 * balance back in range.
 	 */
-	x = *base;
+	x = *rootp;
 	if (x->balance > 1) {
 		y = x->llink;
 		if (y->balance < 0) {
@@ -129,7 +127,7 @@ tsearch(const void *key, void **rootp,
 			z->llink = y;
 			x->llink = z->rlink;
 			z->rlink = x;
-			*base = z;
+			*rootp = z;
 
 			x->balance = z->balance > 0 ? -1 : 0;
 			y->balance = z->balance < 0 ? 1 : 0;
@@ -146,7 +144,7 @@ tsearch(const void *key, void **rootp,
 			 */
 			x->llink = y->rlink;
 			y->rlink = x;
-			*base = y;
+			*rootp = y;
 
 			x->balance = 0;
 			y->balance = 0;
@@ -165,12 +163,12 @@ tsearch(const void *key, void **rootp,
 			 *      / \          A B   C D
 			 *     B   C
 			 */
-			node_t *z = y->llink;
+			posix_tnode *z = y->llink;
 			x->rlink = z->llink;
 			z->llink = x;
 			y->llink = z->rlink;
 			z->rlink = y;
-			*base = z;
+			*rootp = z;
 
 			x->balance = z->balance < 0 ? 1 : 0;
 			y->balance = z->balance > 0 ? -1 : 0;
@@ -187,7 +185,7 @@ tsearch(const void *key, void **rootp,
 			 */
 			x->rlink = y->llink;
 			y->llink = x;
-			*base = y;
+			*rootp = y;
 
 			x->balance = 0;
 			y->balance = 0;
@@ -195,6 +193,5 @@ tsearch(const void *key, void **rootp,
 	}
 
 	/* Return the new entry. */
-	*rootp = root;
-	return (&result->key);
+	return (result);
 }

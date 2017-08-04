@@ -526,7 +526,8 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 #ifdef INET6
 	} else {
 		xn = (struct radix_addr_xentry *)e;
-		memcpy(&tent->k, &xn->addr6.sin6_addr, sizeof(struct in6_addr));
+		memcpy(&tent->k.addr6, &xn->addr6.sin6_addr,
+		    sizeof(struct in6_addr));
 		tent->masklen = xn->masklen;
 		tent->subtype = AF_INET6;
 		tent->v.kidx = xn->value;
@@ -1381,7 +1382,7 @@ ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->v.kidx = ent->value;
 #ifdef INET6
 	} else {
-		memcpy(&tent->k, &ent->a.a6, sizeof(struct in6_addr));
+		memcpy(&tent->k.addr6, &ent->a.a6, sizeof(struct in6_addr));
 		tent->masklen = cfg->mask6;
 		tent->subtype = AF_INET6;
 		tent->v.kidx = ent->value;
@@ -2319,7 +2320,6 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	tb = (struct ta_buf_ifidx *)ta_buf;
 	ifname = (char *)tei->paddr;
 	icfg = (struct iftable_cfg *)ta_state;
-	ife = tb->ife;
 
 	ife = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
 
@@ -3984,7 +3984,8 @@ ta_dump_kfib_tentry_int(struct sockaddr *paddr, struct sockaddr *pmask,
 	if (paddr->sa_family == AF_INET6) {
 		addr6 = (struct sockaddr_in6 *)paddr;
 		mask6 = (struct sockaddr_in6 *)pmask;
-		memcpy(&tent->k, &addr6->sin6_addr, sizeof(struct in6_addr));
+		memcpy(&tent->k.addr6, &addr6->sin6_addr,
+		    sizeof(struct in6_addr));
 		len = 128;
 		if (mask6 != NULL)
 			len = contigmask((uint8_t *)&mask6->sin6_addr, 128);

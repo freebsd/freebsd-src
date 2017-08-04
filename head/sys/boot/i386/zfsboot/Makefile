@@ -18,7 +18,7 @@ ORG2=	0x2000
 
 CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-O1 \
-	-DBOOT2 \
+	-DZFS -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
@@ -35,8 +35,10 @@ CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-Winline
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
+# Do not unroll skein loops, reduce code size
+CFLAGS+=	-DSKEIN_LOOP=111
 
-LD_FLAGS=-static -N --gc-sections
+LD_FLAGS=${LD_FLAGS_BIN}
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
@@ -66,9 +68,9 @@ CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 BOOT2SIZE=	131072
 
 zfsboot2: zfsboot.ld
-	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \
+	@set -- `ls -l ${.ALLSRC}`; x=$$((${BOOT2SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=zfsboot.ld of=${.TARGET} obs=${BOOT2SIZE} conv=osync status=none
+	${DD} if=${.ALLSRC} of=${.TARGET} obs=${BOOT2SIZE} conv=osync
 
 zfsboot.ld: zfsboot.ldr zfsboot.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l zfsboot.ldr \

@@ -14,5 +14,7 @@ before_install:
       sudo apt-get -qq install byacc flex;
     elif [ $TRAVIS_OS_NAME == "osx" ]; then
       brew update;
-      brew install byacc flex;
+      brew install byacc flex openssl;
+      export CFLAGS="-I/usr/local/opt/openssl/include $CFLAGS";
+      export LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS";
     fi

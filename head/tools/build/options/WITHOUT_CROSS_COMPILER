@@ -1,10 +1,10 @@
 .\" $FreeBSD$
 Set to not build any cross compiler in the cross-tools stage of buildworld.
-If you are compiling a different version of
+When compiling a different version of
 .Fx
-than what is installed on the system, you will need to provide an alternate
+than what is installed on the system, provide an alternate
 compiler with XCC to ensure success.
-If you are compiling with an identical version of
+When compiling with an identical version of
 .Fx
 to the host, this option may be safely used.
 This option may also be safe when the host version of

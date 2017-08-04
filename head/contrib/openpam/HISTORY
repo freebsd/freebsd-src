@@ -1,3 +1,42 @@
+OpenPAM Resedacea						2017-04-30
+
+ - BUGFIX: Reinstore the NULL check in pam_end(3) which was removed in
+   OpenPAM Radula, as it breaks common error-handling constructs.
+
+ - BUGFIX: Return PAM_SYMBOL_ERR instead of PAM_SYSTEM_ERR from the
+   dispatcher when the required service function could not be found.
+ 
+ - ENHANCE: Introduce the PAM_BAD_HANDLE error code for when pamh is
+   NULL in API functions that have a NULL check.
+
+ - ENHANCE: Introduce the PAM_BAD_ITEM, PAM_BAD_FEATURE and
+   PAM_BAD_CONSTANT error codes for situations where we previously
+   incorrectly used PAM_SYMBOL_ERR to denote that an invalid constant
+   had been passed to an API function.
+
+ - ENHANCE: Improve the RETURN VALUES section in API man pages,
+   especially for functions that cannot fail, which were incorrectly
+   documented as returning -1 on failure.
+============================================================================
+OpenPAM Radula							2017-02-19
+
+ - BUGFIX: Fix an inverted test which prevented pam_get_authtok(3) and
+   pam_get_user(3) from using application-provided custom prompts.
+
+ - BUGFIX: Plug a memory leak in pam_set_item(3).
+
+ - BUGFIX: Plug a potential memory leak in openpam_readlinev(3).
+
+ - BUGFIX: In openpam_readword(3), support line continuations within
+   whitespace.
+
+ - ENHANCE: Add a feature flag to control fallback to "other" policy.
+
+ - ENHANCE: Add a pam_return(8) module which returns an arbitrary
+   code specified in the module options.
+
+ - ENHANCE: More and better unit tests.
+============================================================================
 OpenPAM Ourouparia						2014-09-12
 
  - ENHANCE: When executing a chain, require at least one service

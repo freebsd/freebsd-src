@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # $FreeBSD$
 
 usage()
@@ -70,7 +72,7 @@ runtest()
     err.*.ksh|tst.*.ksh)
         expr "$TFILE" : 'err.*' >/dev/null && exstatus=1
 
-        ksh "$TFILE" /usr/sbin/dtrace >$STDOUT 2>$STDERR
+        tst=$TFILE ksh "$TFILE" /usr/sbin/dtrace >$STDOUT 2>$STDERR
         status=$?
 
         if [ $status -ne $exstatus ]; then
@@ -83,6 +85,12 @@ runtest()
         retval=1
         ;;
     esac
+
+    if [ $retval -eq 0 ] && \
+        head -n 1 $STDOUT | grep -q -E '^#!/.*ksh$'; then
+        ksh $STDOUT
+        retval=$?
+    fi
 
     return $retval
 }

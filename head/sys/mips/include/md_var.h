@@ -52,6 +52,7 @@ extern	int vm_page_dump_size;
 extern vm_offset_t kstack0;
 extern vm_offset_t kernel_kseg0_end;
 
+uint32_t MipsFPID(void);
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);

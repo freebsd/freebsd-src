@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -288,7 +288,7 @@ fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 			if (errno == 0) {
 				if (*endptr != '\0' ||
 				    fib[i] < 0 ||
-				    (numfibs != -1 && fib[i] > numfibs - 1)) 
+				    (numfibs != -1 && fib[i] > numfibs - 1))
 					errno = EINVAL;
 			}
 			if (errno)
@@ -1136,7 +1136,7 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin,
 			j <<= 8;
 		}
 		/* i holds the first non zero bit */
-		bits = 32 - (i*8);	
+		bits = 32 - (i*8);
 	}
 	if (bits != 0)
 		mask = 0xffffffff << (32 - bits);
@@ -1356,7 +1356,7 @@ prefixlen(const char *str)
 	int max;
 	char *p;
 
-	rtm_addrs |= RTA_NETMASK;	
+	rtm_addrs |= RTA_NETMASK;
 	switch (af) {
 #ifdef INET6
 	case AF_INET6:
@@ -1390,7 +1390,7 @@ prefixlen(const char *str)
 
 	if (len < 0 || max < len)
 		errx(EX_USAGE, "%s: invalid prefixlen", str);
-	
+
 	q = len >> 3;
 	r = len & 7;
 	memset((void *)p, 0, max / 8);
@@ -1497,10 +1497,7 @@ rtmsg(int cmd, int flags, int fib)
 
 #define NEXTADDR(w, u)							\
 	if (rtm_addrs & (w)) {						\
-		l = (((struct sockaddr *)&(u))->sa_len == 0) ?		\
-		    sizeof(long) :					\
-		    1 + ((((struct sockaddr *)&(u))->sa_len - 1)	\
-			| (sizeof(long) - 1));				\
+		l = SA_SIZE(&(u));					\
 		memmove(cp, (char *)&(u), l);				\
 		cp += l;						\
 		if (verbose)						\
@@ -1564,7 +1561,8 @@ rtmsg(int cmd, int flags, int fib)
 		do {
 			l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
 		} while (l > 0 && stop_read == 0 &&
-		    (rtm.rtm_seq != rtm_seq || rtm.rtm_pid != pid));
+		    (rtm.rtm_type != RTM_GET || rtm.rtm_seq != rtm_seq ||
+			rtm.rtm_pid != pid));
 		if (stop_read != 0) {
 			warnx("read from routing socket timed out");
 			return (-1);
@@ -1706,10 +1704,13 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 		break;
 
 	default:
-		printf("pid: %ld, seq %d, errno %d, flags:",
-			(long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
-		printb(rtm->rtm_flags, routeflags);
-		pmsg_common(rtm, msglen);
+		if (rtm->rtm_type <= RTM_RESOLVE) {
+			printf("pid: %ld, seq %d, errno %d, flags:",
+			    (long)rtm->rtm_pid, rtm->rtm_seq, rtm->rtm_errno);
+			printb(rtm->rtm_flags, routeflags);
+			pmsg_common(rtm, msglen);
+		} else
+			printf("type: %u, len: %zu\n", rtm->rtm_type, msglen);
 	}
 
 	return;

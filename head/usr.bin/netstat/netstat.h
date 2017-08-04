@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -100,7 +100,16 @@ void	ah_stats(u_long, const char *, int, int);
 void	ipcomp_stats(u_long, const char *, int, int);
 #endif
 
+#ifdef INET
+struct in_addr;
+
+char	*inetname(struct in_addr *);
+#endif
+
 #ifdef INET6
+struct in6_addr;
+
+char	*inet6name(struct in6_addr *);
 void	ip6_stats(u_long, const char *, int, int);
 void	ip6_ifstats(char *);
 void	icmp6_stats(u_long, const char *, int, int);
@@ -131,7 +140,6 @@ void	intpr(void (*)(char *), int);
 
 void	pr_family(int);
 void	rt_stats(void);
-void	flowtable_stats(void);
 
 char	*routename(struct sockaddr *, int);
 const char *netname(struct sockaddr *, struct sockaddr *);

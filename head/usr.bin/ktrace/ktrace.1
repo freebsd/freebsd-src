@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2016
+.Dd July 24, 2017
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -85,6 +85,9 @@ Clear the specified trace points associated with the given file or processes.
 .It Fl d
 Descendants; perform the operation for all current children of the
 designated processes.
+See also the
+.Fl i
+option.
 .It Fl f Ar trfile
 Log trace records to
 .Ar trfile
@@ -97,6 +100,9 @@ flag is permitted).
 .It Fl i
 Inherit; pass the trace flags to all future children of the designated
 processes.
+See also the
+.Fl d
+option.
 .It Fl p Ar pid
 Enable (disable) tracing on the indicated process id (only one
 .Fl p
@@ -148,34 +154,36 @@ and
 .Ar command
 options are mutually exclusive.
 .Sh EXAMPLES
-# trace all kernel operations of process id 34
+Run "make", then trace it and any child processes:
+.Dl $ ktrace -i make
+.Pp
+Trace all kernel operations of process id 34:
 .Dl $ ktrace -p 34
 .Pp
-# trace all kernel operations of processes in process group 15 and
-# pass the trace flags to all current and future children
+Trace all kernel operations of processes in process group 15 and
+pass the trace flags to all current and future children:
 .Dl $ ktrace -idg 15
 .Pp
-# disable all tracing of process 65
+Disable all tracing of process 65:
 .Dl $ ktrace -cp 65
 .Pp
-# disable tracing signals on process 70 and all current children
+Disable tracing signals on process 70 and all current children:
 .Dl $ ktrace -t s -cdp 70
 .Pp
-# enable tracing of
+Enable tracing of
 .Tn I/O
-on process 67
+on process 67:
 .Dl $ ktrace -ti -p 67
 .Pp
-# run the command "w", tracing only system calls
-.Dl $ ktrace -tc w
-.Pp
-# disable all tracing to the file "tracedata"
+Disable all tracing to the file "tracedata":
 .Dl $ ktrace -c -f tracedata
 .Pp
-# disable tracing of all user-owned processes
+Disable tracing of all user-owned processes:
 .Dl $ ktrace -C
 .Sh SEE ALSO
+.Xr dtrace 1 ,
 .Xr kdump 1 ,
+.Xr truss 1 ,
 .Xr ktrace 2
 .Sh HISTORY
 The

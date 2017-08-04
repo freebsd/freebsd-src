@@ -1677,10 +1677,6 @@ ipf_nat_siocdelnat(softc, softn, n, getlock)
 	ipnat_t *n;
 	int getlock;
 {
-#ifdef IPF_NAT6
-	int i;
-#endif
-
 	if (getlock) {
 		WRITE_ENTER(&softc->ipf_nat);
 	}
@@ -4704,8 +4700,8 @@ ipf_nat_lookupredir(np)
 				}
 			}
 
-			np->nl_realip = nat->nat_ndstip;
-			np->nl_realport = nat->nat_ndport;
+			np->nl_realip = nat->nat_odstip;
+			np->nl_realport = nat->nat_odport;
 		}
  	}
 

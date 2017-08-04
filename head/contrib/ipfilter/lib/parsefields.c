@@ -1,4 +1,5 @@
 #include "ipf.h"
+#include <err.h>
 
 extern int nohdrfields;
 
@@ -31,7 +32,11 @@ wordtab_t *parsefields(table, arg)
 		if (fields == NULL) {
 			fields = malloc(2 * sizeof(*fields));
 		} else {
-			fields = realloc(fields, (num + 1) * sizeof(*fields));
+			fields = reallocarray(fields, num + 1, sizeof(*fields));
+			if (fields == NULL) {
+				warnx("memory allocation error at %d in %s in %s", __LINE__, __FUNCTION__, __FILE__);
+				abort();
+			}
 		}
 
 		if (t == NULL) {

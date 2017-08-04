@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -121,6 +121,9 @@ struct bio {
 	void	*_bio_caller2;
 	uint8_t	_bio_cflags;
 #endif
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct buf *bio_track_bp;	/* Parent buf for tracking */
+#endif
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
@@ -142,6 +145,23 @@ void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);
 int biowait(struct bio *bp, const char *wchan);
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+void biotrack_buf(struct bio *bp, const char *location);
+
+static __inline void
+biotrack(struct bio *bp, const char *location)
+{
+
+	if (bp->bio_track_bp != NULL)
+		biotrack_buf(bp, location);
+}
+#else
+static __inline void
+biotrack(struct bio *bp __unused, const char *location __unused)
+{
+}
+#endif
+
 void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
 struct bio *bioq_first(struct bio_queue_head *head);
 struct bio *bioq_takefirst(struct bio_queue_head *head);
@@ -150,8 +170,6 @@ void bioq_init(struct bio_queue_head *head);
 void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
-
-void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
 
 int	physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio

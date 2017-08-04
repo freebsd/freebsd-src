@@ -11,10 +11,11 @@ trap "cleanup" INT QUIT TRAP ABRT TERM
 
 write_partition_layout() {
 	if [ -z "${NOSWAP}" ]; then
-		SWAPOPT="-p freebsd-swap/swapfs::1G"
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
 	fi
 
 	_OBJDIR="$(make -C ${WORLDDIR} -V .OBJDIR)"
+	_OBJDIR="$(realpath ${_OBJDIR})"
 	if [ -d "${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}" ]; then
 		BOOTFILES="/${_OBJDIR%%/usr/src}/${TARGET}.${TARGET_ARCH}/usr/src/sys/boot"
 	else
@@ -154,6 +155,11 @@ vm_extra_enable_services() {
 		for _rcvar in ${VM_RC_LIST}; do
 			echo ${_rcvar}_enable="YES" >> ${DESTDIR}/etc/rc.conf
 		done
+	fi
+
+	if [ -z "${VMCONFIG}" -o -c "${VMCONFIG}" ]; then
+		echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> \
+			${DESTDIR}/etc/rc.conf
 	fi
 
 	return 0

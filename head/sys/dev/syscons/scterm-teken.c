@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include <teken/teken.h>
 
-static void scteken_revattr(unsigned char, teken_attr_t *);
-static unsigned int scteken_attr(const teken_attr_t *);
+static void scteken_sc_to_te_attr(unsigned char, teken_attr_t *);
+static int scteken_te_to_sc_attr(const teken_attr_t *);
 
 static sc_term_init_t		scteken_init;
 static sc_term_term_t		scteken_term;
@@ -62,6 +62,7 @@ static sc_term_default_attr_t	scteken_default_attr;
 static sc_term_clear_t		scteken_clear;
 static sc_term_input_t		scteken_input;
 static sc_term_fkeystr_t	scteken_fkeystr;
+static sc_term_sync_t		scteken_sync;
 static void			scteken_nop(void);
 
 typedef struct {
@@ -70,6 +71,8 @@ typedef struct {
 } teken_stat;
 
 static teken_stat	reserved_teken_stat;
+
+static void scteken_sync_internal(scr_stat *, teken_stat *);
 
 static sc_term_sw_t sc_term_scteken = {
 	{ NULL, NULL },
@@ -88,6 +91,7 @@ static sc_term_sw_t sc_term_scteken = {
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
 	scteken_fkeystr,
+	scteken_sync,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -114,7 +118,7 @@ static int
 scteken_init(scr_stat *scp, void **softc, int code)
 {
 	teken_stat *ts;
-	teken_pos_t tp;
+	teken_attr_t ta;
 
 	if (*softc == NULL) {
 		if (reserved_teken_stat.ts_busy)
@@ -129,24 +133,16 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		ts->ts_busy = 1;
 		/* FALLTHROUGH */
 	case SC_TE_WARM_INIT:
+		ta = *teken_get_defattr(&ts->ts_teken);
 		teken_init(&ts->ts_teken, &scteken_funcs, scp);
+		teken_set_defattr(&ts->ts_teken, &ta);
 #ifndef TEKEN_UTF8
 		teken_set_8bit(&ts->ts_teken);
 #endif /* !TEKEN_UTF8 */
 #ifdef TEKEN_CONS25
 		teken_set_cons25(&ts->ts_teken);
 #endif /* TEKEN_CONS25 */
-
-		tp.tp_row = scp->ysize;
-		tp.tp_col = scp->xsize;
-		teken_set_winsize(&ts->ts_teken, &tp);
-
-		if (scp->cursor_pos < scp->ysize * scp->xsize) {
-			/* Valid old cursor position. */
-			tp.tp_row = scp->cursor_pos / scp->xsize;
-			tp.tp_col = scp->cursor_pos % scp->xsize;
-			teken_set_cursor(&ts->ts_teken, &tp);
-		}
+		scteken_sync_internal(scp, ts);
 		break;
 	}
 
@@ -167,23 +163,12 @@ scteken_term(scr_stat *scp, void **softc)
 }
 
 static void
-scteken_puts(scr_stat *scp, u_char *buf, int len, int kernel)
+scteken_puts(scr_stat *scp, u_char *buf, int len)
 {
 	teken_stat *ts = scp->ts;
-	teken_attr_t backup, kattr;
 
 	scp->sc->write_in_progress++;
-	if (kernel) {
-		/* Use special colors for kernel messages. */
-		backup = *teken_get_curattr(&ts->ts_teken);
-		scteken_revattr(SC_KERNEL_CONS_ATTR, &kattr);
-		teken_set_curattr(&ts->ts_teken, &kattr);
-		teken_input(&ts->ts_teken, buf, len);
-		teken_set_curattr(&ts->ts_teken, &backup);
-	} else {
-		/* Print user messages with regular colors. */
-		teken_input(&ts->ts_teken, buf, len);
-	}
+	teken_input(&ts->ts_teken, buf, len);
 	scp->sc->write_in_progress--;
 }
 
@@ -193,19 +178,19 @@ scteken_ioctl(scr_stat *scp, struct tty *tp, u_long cmd, caddr_t data,
 {
 	teken_stat *ts = scp->ts;
 	vid_info_t *vi;
-	unsigned int attr;
+	int attr;
 
 	switch (cmd) {
 	case GIO_ATTR:      	/* get current attributes */
 		*(int*)data =
-		    scteken_attr(teken_get_curattr(&ts->ts_teken));
+		    scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken));
 		return (0);
 	case CONS_GETINFO:  	/* get current (virtual) console info */
 		vi = (vid_info_t *)data;
 		if (vi->size != sizeof(struct vid_info))
 			return EINVAL;
 
-		attr = scteken_attr(teken_get_defattr(&ts->ts_teken));
+		attr = scteken_te_to_sc_attr(teken_get_defattr(&ts->ts_teken));
 		vi->mv_norm.fore = attr & 0x0f;
 		vi->mv_norm.back = (attr >> 4) & 0x0f;
 		vi->mv_rev.fore = vi->mv_norm.back;
@@ -225,16 +210,20 @@ scteken_default_attr(scr_stat *scp, int color, int rev_color)
 	teken_stat *ts = scp->ts;
 	teken_attr_t ta;
 
-	scteken_revattr(color, &ta);
+	scteken_sc_to_te_attr(color, &ta);
 	teken_set_defattr(&ts->ts_teken, &ta);
 }
 
 static void
 scteken_clear(scr_stat *scp)
 {
+	teken_stat *ts = scp->ts;
 
 	sc_move_cursor(scp, 0, 0);
-	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20], SC_NORM_ATTR << 8);
+	scteken_sync_internal(scp, ts);
+	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20],
+		     scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken))
+		     << 8);
 	mark_all(scp);
 }
 
@@ -296,6 +285,25 @@ scteken_fkeystr(scr_stat *scp, int c)
 }
 
 static void
+scteken_sync_internal(scr_stat *scp, teken_stat *ts)
+{
+	teken_pos_t tp;
+
+	tp.tp_col = scp->xsize;
+	tp.tp_row = scp->ysize;
+	teken_set_winsize_noreset(&ts->ts_teken, &tp);
+	tp.tp_col = scp->xpos;
+	tp.tp_row = scp->ypos;
+	teken_set_cursor(&ts->ts_teken, &tp);
+}
+
+static void
+scteken_sync(scr_stat *scp)
+{
+	scteken_sync_internal(scp, scp->ts);
+}
+
+static void
 scteken_nop(void)
 {
 
@@ -305,88 +313,57 @@ scteken_nop(void)
  * libteken routines.
  */
 
-static const unsigned char fgcolors_normal[TC_NCOLORS] = {
-	FG_BLACK,     FG_RED,          FG_GREEN,      FG_BROWN,
-	FG_BLUE,      FG_MAGENTA,      FG_CYAN,       FG_LIGHTGREY,
+static const teken_color_t sc_to_te_color[] = {
+	TC_BLACK,     TC_BLUE,         TC_GREEN,     TC_CYAN,
+	TC_RED,       TC_MAGENTA,      TC_BROWN,     TC_WHITE,
 };
 
-static const unsigned char fgcolors_bold[TC_NCOLORS] = {
-	FG_DARKGREY,  FG_LIGHTRED,     FG_LIGHTGREEN, FG_YELLOW,
-	FG_LIGHTBLUE, FG_LIGHTMAGENTA, FG_LIGHTCYAN,  FG_WHITE,
-};
-
-static const unsigned char bgcolors[TC_NCOLORS] = {
-	BG_BLACK,     BG_RED,          BG_GREEN,      BG_BROWN,
-	BG_BLUE,      BG_MAGENTA,      BG_CYAN,       BG_LIGHTGREY,
+static const unsigned char te_to_sc_color[] = {
+	FG_BLACK,     FG_RED,          FG_GREEN,     FG_BROWN,
+	FG_BLUE,      FG_MAGENTA,      FG_CYAN,      FG_LIGHTGREY,
 };
 
 static void
-scteken_revattr(unsigned char color, teken_attr_t *a)
+scteken_sc_to_te_attr(unsigned char color, teken_attr_t *a)
 {
-	teken_color_t fg, bg;
 
 	/*
-	 * XXX: Reverse conversion of syscons to teken attributes. Not
-	 * realiable. Maybe we should turn it into a 1:1 mapping one of
-	 * these days?
+	 * Conversions of attrs are not reversible.  Since sc attrs are
+	 * pure colors in the simplest mode (16-color graphics) and the
+	 * API is too deficient to tell us the mode, always convert to
+	 * pure colors.  The conversion is essentially the identity except
+	 * for reordering the non-brightness bits in the 2 color numbers.
 	 */
-
 	a->ta_format = 0;
-	a->ta_fgcolor = TC_WHITE;
-	a->ta_bgcolor = TC_BLACK;
-
-#ifdef FG_BLINK
-	if (color & FG_BLINK) {
-		a->ta_format |= TF_BLINK;
-		color &= ~FG_BLINK;
-	}
-#endif /* FG_BLINK */
-
-	for (fg = 0; fg < TC_NCOLORS; fg++) {
-		for (bg = 0; bg < TC_NCOLORS; bg++) {
-			if ((fgcolors_normal[fg] | bgcolors[bg]) == color) {
-				a->ta_fgcolor = fg;
-				a->ta_bgcolor = bg;
-				return;
-			}
-
-			if ((fgcolors_bold[fg] | bgcolors[bg]) == color) {
-				a->ta_fgcolor = fg;
-				a->ta_bgcolor = bg;
-				a->ta_format |= TF_BOLD;
-				return;
-			}
-		}
-	}
+	a->ta_fgcolor = sc_to_te_color[color & 7] | (color & 8);
+	a->ta_bgcolor = sc_to_te_color[(color >> 4) & 7] | ((color >> 4) & 8);
 }
 
-static unsigned int
-scteken_attr(const teken_attr_t *a)
+static int
+scteken_te_to_sc_attr(const teken_attr_t *a)
 {
-	unsigned int attr = 0;
+	int attr;
 	teken_color_t fg, bg;
 
 	if (a->ta_format & TF_REVERSE) {
-		fg = teken_256to8(a->ta_bgcolor);
-		bg = teken_256to8(a->ta_fgcolor);
+		fg = a->ta_bgcolor;
+		bg = a->ta_fgcolor;
 	} else {
-		fg = teken_256to8(a->ta_fgcolor);
-		bg = teken_256to8(a->ta_bgcolor);
+		fg = a->ta_fgcolor;
+		bg = a->ta_bgcolor;
 	}
-	if (a->ta_format & TF_BOLD)
-		attr |= fgcolors_bold[fg];
-	else
-		attr |= fgcolors_normal[fg];
-	attr |= bgcolors[bg];
+	if (fg >= 16)
+		fg = teken_256to16(fg);
+	if (bg >= 16)
+		bg = teken_256to16(bg);
+	attr = te_to_sc_color[fg & 7] | (fg & 8) |
+	    ((te_to_sc_color[bg & 7] | (bg & 8)) << 4);
 
-#ifdef FG_UNDERLINE
-	if (a->ta_format & TF_UNDERLINE)
-		attr |= FG_UNDERLINE;
-#endif /* FG_UNDERLINE */
-#ifdef FG_BLINK
+	/* XXX: underline mapping for Hercules adapter can be better. */
+	if (a->ta_format & (TF_BOLD | TF_UNDERLINE))
+		attr ^= 8;
 	if (a->ta_format & TF_BLINK)
-		attr |= FG_BLINK;
-#endif /* FG_BLINK */
+		attr ^= 0x80;
 
 	return (attr);
 }
@@ -558,7 +535,7 @@ scteken_putchar(void *arg, const teken_pos_t *tp, teken_char_t c,
 	 * characters. Simply print a space and assume that the left
 	 * hand side describes the entire character.
 	 */
-	attr = scteken_attr(a) << 8;
+	attr = scteken_te_to_sc_attr(a) << 8;
 	if (a->ta_format & TF_CJK_RIGHT)
 		c = ' ';
 #ifdef TEKEN_UTF8
@@ -590,7 +567,7 @@ scteken_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 	unsigned int width;
 	int attr, row;
 
-	attr = scteken_attr(a) << 8;
+	attr = scteken_te_to_sc_attr(a) << 8;
 #ifdef TEKEN_UTF8
 	scteken_get_cp437(&c, &attr);
 #endif /* TEKEN_UTF8 */

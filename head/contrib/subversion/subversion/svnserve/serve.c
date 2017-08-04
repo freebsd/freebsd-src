@@ -3588,6 +3588,7 @@ find_repos(const char *url,
   if (hooks_env)
     hooks_env = svn_dirent_internal_style(hooks_env, scratch_pool);
 
+  SVN_ERR(svn_repos_hooks_setenv(repository->repos, hooks_env, scratch_pool));
   repository->hooks_env = apr_pstrdup(result_pool, hooks_env);
 
   return SVN_NO_ERROR;

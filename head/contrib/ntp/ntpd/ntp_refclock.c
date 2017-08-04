@@ -710,7 +710,7 @@ process_refclock_packet(
 	if (rio->io_input == NULL || (*rio->io_input)(rb) != 0) {
 		rio->recvcount++;
 		packets_received++;
-		handler_pkts++;		
+		handler_pkts++;
 		(*rio->clock_recv)(rb);
 	}
 }
@@ -1208,6 +1208,7 @@ refclock_ppsapi(
 			    "refclock_ppsapi: time_pps_create: %m");
 			return (0);
 		}
+		ZERO(ap->ts); /* [Bug 2689] defined INIT state */
 	}
 	return (1);
 }
@@ -1278,7 +1279,7 @@ refclock_pps(
 	struct refclockproc *pp;
 	pps_info_t pps_info;
 	struct timespec timeout;
-	double	dtemp;
+	double	dtemp, dcorr, trash;
 
 	/*
 	 * We require the clock to be synchronized before setting the
@@ -1293,15 +1294,14 @@ refclock_pps(
 		if (refclock_params(pp->sloppyclockflag, ap) < 1)
 			return (0);
 	}
-	timeout.tv_sec = 0;
-	timeout.tv_nsec = 0;
+	ZERO(timeout);
 	ZERO(pps_info);
 	if (time_pps_fetch(ap->handle, PPS_TSFMT_TSPEC, &pps_info,
 	    &timeout) < 0) {
 		refclock_report(peer, CEVNT_FAULT);
 		return (0);
 	}
-	timeout = ap->ts;
+	timeout = ap->ts;	/* save old timestamp for check */
 	if (ap->pps_params.mode & PPS_CAPTUREASSERT)
 		ap->ts = pps_info.assert_timestamp;
 	else if (ap->pps_params.mode & PPS_CAPTURECLEAR)
@@ -1309,22 +1309,62 @@ refclock_pps(
 	else
 		return (0);
 
+	/* [Bug 2689] Discard the first sample we read -- if the PPS
+	 * source is currently down / disconnected, we have read a
+	 * potentially *very* stale value here. So if our old TS value
+	 * is all-zero, we consider this sample unrealiable and drop it.
+	 *
+	 * Note 1: a better check would compare the PPS time stamp to
+	 * the current system time and drop it if it's more than say 3s
+	 * away.
+	 *
+	 * Note 2: If we ever again get an all-zero PPS sample, the next
+	 * one will be discarded. This can happen every 136yrs and is
+	 * unlikely to be ever observed.
+	 */
+	if (0 == (timeout.tv_sec | timeout.tv_nsec))
+		return (0);
+
+	/* If the PPS source fails to deliver a new sample between
+	 * polls, it regurgitates the last sample. We do not want to
+	 * process the same sample multiple times.
+	 */
 	if (0 == memcmp(&timeout, &ap->ts, sizeof(timeout)))
 		return (0);
 
 	/*
-	 * Convert to signed fraction offset and stuff in median filter.
+	 * Convert to signed fraction offset, apply fudge and properly
+	 * fold the correction into the [-0.5s,0.5s] range. Handle
+	 * excessive fudge times, too.
+	 */
+	dtemp = ap->ts.tv_nsec / 1e9;
+	dcorr = modf((pp->fudgetime1 - dtemp), &trash);
+	if (dcorr > 0.5)
+		dcorr -= 1.0;
+	else if (dcorr < -0.5)
+		dcorr += 1.0;
+
+	/* phase gate check: avoid wobbling by +/-1s when too close to
+	 * the switch-over point. We allow +/-400ms max phase deviation.
+	 * The trade-off is clear: The smaller the limit, the less
+	 * sensitive to sampling noise the clock becomes. OTOH the
+	 * system must get into phase gate range by other means for the
+	 * PPS clock to lock in.
+	 */
+	if (fabs(dcorr) > 0.4)
+		return (0);
+
+	/*
+	 * record this time stamp and stuff in median filter
 	 */
 	pp->lastrec.l_ui = (u_int32)ap->ts.tv_sec + JAN_1970;
-	dtemp = ap->ts.tv_nsec / 1e9;
 	pp->lastrec.l_uf = (u_int32)(dtemp * FRAC);
-	if (dtemp > .5)
-		dtemp -= 1.;
-	SAMPLE(-dtemp + pp->fudgetime1);
+	SAMPLE(dcorr);
+	
 #ifdef DEBUG
 	if (debug > 1)
 		printf("refclock_pps: %lu %f %f\n", current_time,
-		    dtemp, pp->fudgetime1);
+		    dcorr, pp->fudgetime1);
 #endif
 	return (1);
 }

@@ -32,6 +32,8 @@
         ..
         casper
         ..
+        cron.d
+        ..
         defaults
         ..
         devd
@@ -76,6 +78,10 @@
         ..
         ssl
         ..
+        syslog.d
+        ..
+        zfs
+        ..
     ..
     lib
         casper
@@ -90,6 +96,8 @@
     media
     ..
     mnt
+    ..
+    net
     ..
     proc            mode=0555
     ..

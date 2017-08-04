@@ -56,9 +56,9 @@ scanf(char const * __restrict fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	ret = __svfscanf(stdin, __get_locale(), fmt, ap);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	va_end(ap);
 	return (ret);
 }
@@ -70,9 +70,9 @@ scanf_l(locale_t locale, char const * __restrict fmt, ...)
 	FIX_LOCALE(locale);
 
 	va_start(ap, fmt);
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	ret = __svfscanf(stdin, locale, fmt, ap);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	va_end(ap);
 	return (ret);
 }

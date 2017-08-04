@@ -21,7 +21,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -349,8 +349,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
 		return (error);
 
-	if (fmode & (O_EXLOCK | O_SHLOCK)) {
+	while ((fmode & (O_EXLOCK | O_SHLOCK)) != 0) {
 		KASSERT(fp != NULL, ("open with flock requires fp"));
+		if (fp->f_type != DTYPE_NONE && fp->f_type != DTYPE_VNODE) {
+			error = EOPNOTSUPP;
+			break;
+		}
 		lock_flags = VOP_ISLOCKED(vp);
 		VOP_UNLOCK(vp, 0);
 		lf.l_whence = SEEK_SET;
@@ -367,8 +371,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (error == 0)
 			fp->f_flag |= FHASLOCK;
 		vn_lock(vp, lock_flags | LK_RETRY);
-		if (error == 0 && vp->v_iflag & VI_DOOMED)
+		if (error != 0)
+			break;
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
 			error = ENOENT;
+			break;
+		}
 
 		/*
 		 * Another thread might have used this vnode as an
@@ -376,20 +384,20 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		 * Ensure the vnode is still able to be opened for
 		 * writing after the lock has been obtained.
 		 */
-		if (error == 0 && accmode & VWRITE)
+		if ((accmode & VWRITE) != 0)
 			error = vn_writechk(vp);
-
-		if (error != 0) {
-			fp->f_flag |= FOPENFAILED;
-			fp->f_vnode = vp;
-			if (fp->f_ops == &badfileops) {
-				fp->f_type = DTYPE_VNODE;
-				fp->f_ops = &vnops;
-			}
-			vref(vp);
-		}
+		break;
 	}
-	if (error == 0 && fmode & FWRITE) {
+
+	if (error != 0) {
+		fp->f_flag |= FOPENFAILED;
+		fp->f_vnode = vp;
+		if (fp->f_ops == &badfileops) {
+			fp->f_type = DTYPE_VNODE;
+			fp->f_ops = &vnops;
+		}
+		vref(vp);
+	} else if  ((fmode & FWRITE) != 0) {
 		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
@@ -403,8 +411,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
  * Prototype text segments cannot be written.
  */
 int
-vn_writechk(vp)
-	register struct vnode *vp;
+vn_writechk(struct vnode *vp)
 {
 
 	ASSERT_VOP_LOCKED(vp, "vn_writechk");
@@ -422,12 +429,9 @@ vn_writechk(vp)
 /*
  * Vnode close call
  */
-int
-vn_close(vp, flags, file_cred, td)
-	register struct vnode *vp;
-	int flags;
-	struct ucred *file_cred;
-	struct thread *td;
+static int
+vn_close1(struct vnode *vp, int flags, struct ucred *file_cred,
+    struct thread *td, bool keep_ref)
 {
 	struct mount *mp;
 	int error, lock_flags;
@@ -449,9 +453,20 @@ vn_close(vp, flags, file_cred, td)
 		    __func__, vp, vp->v_writecount);
 	}
 	error = VOP_CLOSE(vp, flags, file_cred, td);
-	vput(vp);
+	if (keep_ref)
+		VOP_UNLOCK(vp, 0);
+	else
+		vput(vp);
 	vn_finished_write(mp);
 	return (error);
+}
+
+int
+vn_close(struct vnode *vp, int flags, struct ucred *file_cred,
+    struct thread *td)
+{
+
+	return (vn_close1(vp, flags, file_cred, td, false));
 }
 
 /*
@@ -1352,15 +1367,11 @@ vn_statfile(fp, sb, active_cred, td)
  * Stat a vnode; implementation for the stat syscall
  */
 int
-vn_stat(vp, sb, active_cred, file_cred, td)
-	struct vnode *vp;
-	register struct stat *sb;
-	struct ucred *active_cred;
-	struct ucred *file_cred;
-	struct thread *td;
+vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
+    struct ucred *file_cred, struct thread *td)
 {
 	struct vattr vattr;
-	register struct vattr *vap;
+	struct vattr *vap;
 	int error;
 	u_short mode;
 
@@ -1463,12 +1474,8 @@ vn_stat(vp, sb, active_cred, file_cred, td)
  * File table vnode ioctl routine.
  */
 static int
-vn_ioctl(fp, com, data, active_cred, td)
-	struct file *fp;
-	u_long com;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vattr vattr;
 	struct vnode *vp;
@@ -1506,11 +1513,8 @@ vn_ioctl(fp, com, data, active_cred, td)
  * File table vnode poll routine.
  */
 static int
-vn_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vnode *vp;
 	int error;
@@ -1538,28 +1542,21 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 	int error;
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
-	    ("vn_lock called with no locktype."));
-	do {
-#ifdef DEBUG_VFS_LOCKS
-		KASSERT(vp->v_holdcnt != 0,
-		    ("vn_lock %p: zero hold count", vp));
-#endif
-		error = VOP_LOCK1(vp, flags, file, line);
-		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
-		KASSERT((flags & LK_RETRY) == 0 || error == 0,
-		    ("LK_RETRY set with incompatible flags (0x%x) or an error occurred (%d)",
-		    flags, error));
-		/*
-		 * Callers specify LK_RETRY if they wish to get dead vnodes.
-		 * If RETRY is not set, we return ENOENT instead.
-		 */
-		if (error == 0 && vp->v_iflag & VI_DOOMED &&
-		    (flags & LK_RETRY) == 0) {
+	    ("vn_lock: no locktype"));
+	VNASSERT(vp->v_holdcnt != 0, vp, ("vn_lock: zero hold count"));
+retry:
+	error = VOP_LOCK1(vp, flags, file, line);
+	flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
+	KASSERT((flags & LK_RETRY) == 0 || error == 0,
+	    ("vn_lock: error %d incompatible with flags %#x", error, flags));
+
+	if ((flags & LK_RETRY) == 0) {
+		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
 			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
-			break;
 		}
-	} while (flags & LK_RETRY && error != 0);
+	} else if (error != 0)
+		goto retry;
 	return (error);
 }
 
@@ -1567,23 +1564,20 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
  * File table vnode close routine.
  */
 static int
-vn_closefile(fp, td)
-	struct file *fp;
-	struct thread *td;
+vn_closefile(struct file *fp, struct thread *td)
 {
 	struct vnode *vp;
 	struct flock lf;
 	int error;
+	bool ref;
 
 	vp = fp->f_vnode;
 	fp->f_ops = &badfileops;
+	ref= (fp->f_flag & FHASLOCK) != 0 && fp->f_type == DTYPE_VNODE;
 
-	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK)
-		vref(vp);
+	error = vn_close1(vp, fp->f_flag, fp->f_cred, td, ref);
 
-	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
-
-	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
+	if (__predict_false(ref)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
@@ -1765,8 +1759,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
  * now in effect.
  */
 void
-vn_finished_write(mp)
-	struct mount *mp;
+vn_finished_write(struct mount *mp)
 {
 	if (mp == NULL || !vn_suspendable(mp))
 		return;
@@ -1788,8 +1781,7 @@ vn_finished_write(mp)
  * that the suspension is now in effect.
  */
 void
-vn_finished_secondary_write(mp)
-	struct mount *mp;
+vn_finished_secondary_write(struct mount *mp)
 {
 	if (mp == NULL || !vn_suspendable(mp))
 		return;
@@ -2348,7 +2340,7 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	char *fullpath, *freepath;
 	int error;
 
-	kif->kf_vnode_type = vntype_to_kinfo(vp->v_type);
+	kif->kf_un.kf_file.kf_file_type = vntype_to_kinfo(vp->v_type);
 	freepath = NULL;
 	fullpath = "-";
 	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
@@ -2377,10 +2369,14 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	else
 		kif->kf_un.kf_file.kf_file_fsid =
 		    vp->v_mount->mnt_stat.f_fsid.val[0];
+	kif->kf_un.kf_file.kf_file_fsid_freebsd11 =
+	    kif->kf_un.kf_file.kf_file_fsid; /* truncate */
 	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
 	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
 	kif->kf_un.kf_file.kf_file_size = va.va_size;
 	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
+	kif->kf_un.kf_file.kf_file_rdev_freebsd11 =
+	    kif->kf_un.kf_file.kf_file_rdev; /* truncate */
 	return (0);
 }
 
@@ -2424,9 +2420,11 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	 * proc does a setuid?
 	 */
 	mp = vp->v_mount;
-	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0)
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0) {
 		maxprot = VM_PROT_NONE;
-	else
+		if ((prot & VM_PROT_EXECUTE) != 0)
+			return (EACCES);
+	} else
 		maxprot = VM_PROT_EXECUTE;
 	if ((fp->f_flag & FREAD) != 0)
 		maxprot |= VM_PROT_READ;
@@ -2449,6 +2447,24 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	}
 	maxprot &= cap_maxprot;
 
+	/*
+	 * For regular files and shared memory, POSIX requires that
+	 * the value of foff be a legitimate offset within the data
+	 * object.  In particular, negative offsets are invalid.
+	 * Blocking negative offsets and overflows here avoids
+	 * possible wraparound or user-level access into reserved
+	 * ranges of the data object later.  In contrast, POSIX does
+	 * not dictate how offsets are used by device drivers, so in
+	 * the case of a device mapping a negative offset is passed
+	 * on.
+	 */
+	if (
+#ifdef _LP64
+	    size > OFF_MAX ||
+#endif
+	    foff < 0 || foff > OFF_MAX - size)
+		return (EINVAL);
+
 	writecounted = FALSE;
 	error = vm_mmap_vnode(td, size, prot, &maxprot, &flags, vp,
 	    &foff, &object, &writecounted);
@@ -2467,11 +2483,24 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	}
 #ifdef HWPMC_HOOKS
 	/* Inform hwpmc(4) if an executable is being mapped. */
-	if (error == 0 && (prot & VM_PROT_EXECUTE) != 0) {
-		pkm.pm_file = vp;
-		pkm.pm_address = (uintptr_t) *addr;
-		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+	if (PMC_HOOK_INSTALLED(PMC_FN_MMAP)) {
+		if ((prot & VM_PROT_EXECUTE) != 0 && error == 0) {
+			pkm.pm_file = vp;
+			pkm.pm_address = (uintptr_t) *addr;
+			PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+		}
 	}
 #endif
 	return (error);
+}
+
+void
+vn_fsid(struct vnode *vp, struct vattr *va)
+{
+	fsid_t *f;
+
+	f = &vp->v_mount->mnt_stat.f_fsid;
+	va->va_fsid = (uint32_t)f->val[1];
+	va->va_fsid <<= sizeof(f->val[1]) * NBBY;
+	va->va_fsid += (uint32_t)f->val[0];
 }

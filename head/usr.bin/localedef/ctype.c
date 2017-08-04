@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2012 Garrett D'Amore <garrett@damore.org>  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
@@ -306,7 +306,7 @@ dump_ctype(void)
 		return;
 
 	(void) memcpy(rl.magic, _FILE_RUNE_MAGIC_1, 8);
-	(void) strncpy(rl.encoding, get_wide_encoding(), sizeof (rl.encoding));
+	(void) strlcpy(rl.encoding, get_wide_encoding(), sizeof (rl.encoding));
 
 	/*
 	 * Initialize the identity map.
@@ -379,12 +379,12 @@ dump_ctype(void)
 		if ((ctn->ctype & _ISALPHA) &&
 		    (ctn->ctype & (_ISPUNCT|_ISDIGIT)))
 			conflict++;
-		if ((ctn->ctype & _ISPUNCT) &
+		if ((ctn->ctype & _ISPUNCT) &&
 		    (ctn->ctype & (_ISDIGIT|_ISALPHA|_ISXDIGIT)))
 			conflict++;
 		if ((ctn->ctype & _ISSPACE) && (ctn->ctype & _ISGRAPH))
 			conflict++;
-		if ((ctn->ctype & _ISCNTRL) & _ISPRINT)
+		if ((ctn->ctype & _ISCNTRL) && (ctn->ctype & _ISPRINT))
 			conflict++;
 		if ((wc == ' ') && (ctn->ctype & (_ISPUNCT|_ISGRAPH)))
 			conflict++;
@@ -407,9 +407,9 @@ dump_ctype(void)
 			continue;
 		}
 
-		if ((last_ct != NULL) && (last_ct->ctype == ctn->ctype)) {
+		if ((last_ct != NULL) && (last_ct->ctype == ctn->ctype) &&
+		    (last_ct->wc + 1 == wc)) {
 			ct[rl.runetype_ext_nranges-1].max = wc;
-			last_ct = ctn;
 		} else {
 			rl.runetype_ext_nranges++;
 			ct = realloc(ct,
@@ -417,8 +417,8 @@ dump_ctype(void)
 			ct[rl.runetype_ext_nranges - 1].min = wc;
 			ct[rl.runetype_ext_nranges - 1].max = wc;
 			ct[rl.runetype_ext_nranges - 1].map = ctn->ctype;
-			last_ct = ctn;
 		}
+		last_ct = ctn;
 		if (ctn->tolower == 0) {
 			last_lo = NULL;
 		} else if ((last_lo != NULL) &&

@@ -13,10 +13,10 @@ MK_SSP=		no
 # This library should never be installed, and isn't even linked
 # with in the normal way. (See ../rescue/Makefile for details.)
 
-.PATH: ${.CURDIR}/../../lib/libc/gen \
-       ${.CURDIR}/../../lib/libc/net \
-       ${.CURDIR}/../../lib/libc/stdlib \
-       ${.CURDIR}/../../lib/libutil 
+.PATH: ${SRCTOP}/lib/libc/gen \
+       ${SRCTOP}/lib/libc/net \
+       ${SRCTOP}/lib/libc/stdlib \
+       ${SRCTOP}/lib/libutil 
 
 LIB=		rescue
 INTERNALLIB=	# Don't install this library
@@ -42,6 +42,6 @@ CFLAGS+=       -DYP
 .if ${MK_HESIOD} != "no"
 CFLAGS+=       -DHESIOD
 .endif
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
+CFLAGS+=	-I${SRCTOP}/lib/libc/include
 
 .include <bsd.lib.mk>

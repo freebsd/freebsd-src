@@ -24,7 +24,7 @@ using namespace llvm;
 namespace {
 class OptimizeReturned final : public FunctionPass,
                                public InstVisitor<OptimizeReturned> {
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "WebAssembly Optimize Returned";
   }
 
@@ -54,7 +54,7 @@ FunctionPass *llvm::createWebAssemblyOptimizeReturned() {
 
 void OptimizeReturned::visitCallSite(CallSite CS) {
   for (unsigned i = 0, e = CS.getNumArgOperands(); i < e; ++i)
-    if (CS.paramHasAttr(1 + i, Attribute::Returned)) {
+    if (CS.paramHasAttr(i, Attribute::Returned)) {
       Instruction *Inst = CS.getInstruction();
       Value *Arg = CS.getArgOperand(i);
       // Ignore constants, globals, undef, etc.

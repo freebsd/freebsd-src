@@ -12,10 +12,10 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libexpat \
 	lib/libgeom \
+	lib/libmd \
 	lib/libsbuf \
 	lib/libthr \
 	lib/libutil \
-	secure/lib/libcrypto \
 	usr.bin/yacc.host \
 
 

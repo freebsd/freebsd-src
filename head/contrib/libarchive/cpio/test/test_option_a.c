@@ -96,7 +96,8 @@ DEFINE_TEST(test_option_a)
 	test_create();
 
 	/* Sanity check; verify that atimes really do get modified. */
-	assert((p = slurpfile(NULL, "f0")) != NULL);
+	p = slurpfile(NULL, "f0");
+	assert(p != NULL);
 	free(p);
 	assertEqualInt(0, stat("f0", &st));
 	if (st.st_atime == files[0].atime_sec) {

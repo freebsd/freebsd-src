@@ -65,7 +65,7 @@ void ExprEngine::performTrivialCopy(NodeBuilder &Bldr, ExplodedNode *Pred,
   if (Optional<Loc> L = V.getAs<Loc>())
     V = Pred->getState()->getSVal(*L);
   else
-    assert(V.isUnknown());
+    assert(V.isUnknownOrUndef());
 
   const Expr *CallExpr = Call.getOriginExpr();
   evalBind(Dst, CallExpr, Pred, ThisVal, V, true);
@@ -317,7 +317,7 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
         // actually make things worse. Placement new makes this tricky as well,
         // since it's then possible to be initializing one part of a multi-
         // dimensional array.
-        State = State->bindDefault(loc::MemRegionVal(Target), ZeroVal);
+        State = State->bindDefault(loc::MemRegionVal(Target), ZeroVal, LCtx);
         Bldr.generateNode(CE, *I, State, /*tag=*/nullptr,
                           ProgramPoint::PreStmtKind);
       }
@@ -345,6 +345,30 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
          I != E; ++I)
       defaultEvalCall(Bldr, *I, *Call);
   }
+
+  // If the CFG was contructed without elements for temporary destructors
+  // and the just-called constructor created a temporary object then
+  // stop exploration if the temporary object has a noreturn constructor.
+  // This can lose coverage because the destructor, if it were present
+  // in the CFG, would be called at the end of the full expression or
+  // later (for life-time extended temporaries) -- but avoids infeasible
+  // paths when no-return temporary destructors are used for assertions.
+  const AnalysisDeclContext *ADC = LCtx->getAnalysisDeclContext();
+  if (!ADC->getCFGBuildOptions().AddTemporaryDtors) {
+      const MemRegion *Target = Call->getCXXThisVal().getAsRegion();
+      if (Target && isa<CXXTempObjectRegion>(Target) &&
+          Call->getDecl()->getParent()->isAnyDestructorNoReturn()) {
+
+      for (ExplodedNode *N : DstEvaluated) {
+        Bldr.generateSink(CE, N, N->getState());
+      }
+
+      // There is no need to run the PostCall and PostStmtchecker
+      // callbacks because we just generated sinks on all nodes in th
+      // frontier.
+      return;
+    }
+ }
 
   ExplodedNodeSet DstPostCall;
   getCheckerManager().runCheckersForPostCall(DstPostCall, DstEvaluated,
@@ -488,7 +512,8 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   if (CNE->isArray()) {
     // FIXME: allocating an array requires simulating the constructors.
     // For now, just return a symbolicated region.
-    const MemRegion *NewReg = symVal.castAs<loc::MemRegionVal>().getRegion();
+    const SubRegion *NewReg =
+        symVal.castAs<loc::MemRegionVal>().getRegionAs<SubRegion>();
     QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
     const ElementRegion *EleReg =
       getStoreManager().GetElementZeroRegion(NewReg, ObjTy);
@@ -548,7 +573,7 @@ void ExprEngine::VisitCXXCatchStmt(const CXXCatchStmt *CS,
   SVal V = svalBuilder.conjureSymbolVal(CS, LCtx, VD->getType(),
                                         currBldrCtx->blockCount());
   ProgramStateRef state = Pred->getState();
-  state = state->bindLoc(state->getLValue(VD, LCtx), V);
+  state = state->bindLoc(state->getLValue(VD, LCtx), V, LCtx);
 
   StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   Bldr.generateNode(CS, Pred, state);
@@ -578,9 +603,9 @@ void ExprEngine::VisitLambdaExpr(const LambdaExpr *LE, ExplodedNode *Pred,
   const MemRegion *R = svalBuilder.getRegionManager().getCXXTempObjectRegion(
       LE, LocCtxt);
   SVal V = loc::MemRegionVal(R);
-  
+
   ProgramStateRef State = Pred->getState();
-  
+
   // If we created a new MemRegion for the lambda, we should explicitly bind
   // the captures.
   CXXRecordDecl::field_iterator CurField = LE->getLambdaClass()->field_begin();
@@ -603,7 +628,7 @@ void ExprEngine::VisitLambdaExpr(const LambdaExpr *LE, ExplodedNode *Pred,
       InitVal = State->getSVal(SizeExpr, LocCtxt);
     }
 
-    State = State->bindLoc(FieldLoc, InitVal);
+    State = State->bindLoc(FieldLoc, InitVal, LocCtxt);
   }
 
   // Decay the Loc into an RValue, because there might be a

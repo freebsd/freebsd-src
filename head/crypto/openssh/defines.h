@@ -25,9 +25,6 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.183 2014/09/02 19:33:26 djm Exp $ */
-
-
 /* Constants */
 
 #if defined(HAVE_DECL_SHUT_RD) && HAVE_DECL_SHUT_RD == 0
@@ -40,6 +37,19 @@ enum
 # define SHUT_RD   SHUT_RD
 # define SHUT_WR   SHUT_WR
 # define SHUT_RDWR SHUT_RDWR
+#endif
+
+/*
+ * Cygwin doesn't really have a notion of reserved ports.  It is still
+ * is useful on the client side so for compatibility it defines as 1024 via
+ * netinet/in.h inside an enum.  We * don't actually want that restriction
+ * so we want to set that to zero, but we can't do it direct in config.h
+ * because it'll cause a conflicting definition the first time we include
+ * netinet/in.h.
+ */
+
+#ifdef HAVE_CYGWIN
+#define IPPORT_RESERVED 0
 #endif
 
 /*
@@ -821,6 +831,13 @@ struct winsize {
 #ifndef SSH_IOBUFSZ
 # define SSH_IOBUFSZ 8192
 #endif
+
+/*
+ * We want functions in openbsd-compat, if enabled, to override system ones.
+ * We no-op out the weak symbol definition rather than remove it to reduce
+ * future sync problems.
+ */
+#define DEF_WEAK(x)
 
 /*
  * Platforms that have arc4random_uniform() and not arc4random_stir()

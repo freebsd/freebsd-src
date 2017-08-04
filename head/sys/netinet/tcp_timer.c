@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -468,6 +468,26 @@ tcp_timer_keep(void *xtp)
 	}
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
+
+	/*
+	 * Because we don't regularly reset the keepalive callout in
+	 * the ESTABLISHED state, it may be that we don't actually need
+	 * to send a keepalive yet. If that occurs, schedule another
+	 * call for the next time the keepalive timer might expire.
+	 */
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		u_int idletime;
+
+		idletime = ticks - tp->t_rcvtime;
+		if (idletime < TP_KEEPIDLE(tp)) {
+			callout_reset(&tp->t_timers->tt_keep,
+			    TP_KEEPIDLE(tp) - idletime, tcp_timer_keep, tp);
+			INP_WUNLOCK(inp);
+			CURVNET_RESTORE();
+			return;
+		}
+	}
+
 	/*
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
@@ -825,20 +845,16 @@ tcp_timer_rexmt(void * xtp)
 	    (tp->t_rxtshift == 3))
 		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
-	 * If we backed off this far, our srtt estimate is probably bogus.
-	 * Clobber it so we'll take the next rtt measurement as our srtt;
-	 * move the current srtt into rttvar to keep the current
-	 * retransmit times until then.
+	 * If we backed off this far, notify the L3 protocol that we're having
+	 * connection problems.
 	 */
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
+	if (tp->t_rxtshift > TCP_RTT_INVALIDATE) {
 #ifdef INET6
 		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
 			in6_losing(tp->t_inpcb);
 		else
 #endif
 			in_losing(tp->t_inpcb);
-		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
-		tp->t_srtt = 0;
 	}
 	tp->snd_nxt = tp->snd_una;
 	tp->snd_recover = tp->snd_max;
@@ -989,29 +1005,4 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		 */
 		tp->t_timers->tt_draincnt++;
 	}
-}
-
-#define	ticks_to_msecs(t)	(1000*(t) / hz)
-
-void
-tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
-    struct xtcp_timer *xtimer)
-{
-	sbintime_t now;
-
-	bzero(xtimer, sizeof(*xtimer));
-	if (timer == NULL)
-		return;
-	now = getsbinuptime();
-	if (callout_active(&timer->tt_delack))
-		xtimer->tt_delack = (timer->tt_delack.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_rexmt))
-		xtimer->tt_rexmt = (timer->tt_rexmt.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_persist))
-		xtimer->tt_persist = (timer->tt_persist.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_keep))
-		xtimer->tt_keep = (timer->tt_keep.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_2msl))
-		xtimer->tt_2msl = (timer->tt_2msl.c_time - now) / SBT_1MS;
-	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
 }

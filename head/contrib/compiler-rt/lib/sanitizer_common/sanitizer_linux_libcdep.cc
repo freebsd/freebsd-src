@@ -26,14 +26,12 @@
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
 
-#if SANITIZER_ANDROID || SANITIZER_FREEBSD
 #include <dlfcn.h>  // for dlsym()
-#endif
-
 #include <link.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <syslog.h>
 
 #if SANITIZER_FREEBSD
 #include <pthread_np.h>
@@ -51,8 +49,6 @@
 
 #if SANITIZER_ANDROID && __ANDROID_API__ < 21
 #include <android/log.h>
-#else
-#include <syslog.h>
 #endif
 
 #if !SANITIZER_ANDROID
@@ -85,28 +81,25 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
 
     // Find the mapping that contains a stack variable.
     MemoryMappingLayout proc_maps(/*cache_enabled*/true);
-    uptr start, end, offset;
+    MemoryMappedSegment segment;
     uptr prev_end = 0;
-    while (proc_maps.Next(&start, &end, &offset, nullptr, 0,
-          /* protection */nullptr)) {
-      if ((uptr)&rl < end)
-        break;
-      prev_end = end;
+    while (proc_maps.Next(&segment)) {
+      if ((uptr)&rl < segment.end) break;
+      prev_end = segment.end;
     }
-    CHECK((uptr)&rl >= start && (uptr)&rl < end);
+    CHECK((uptr)&rl >= segment.start && (uptr)&rl < segment.end);
 
     // Get stacksize from rlimit, but clip it so that it does not overlap
     // with other mappings.
     uptr stacksize = rl.rlim_cur;
-    if (stacksize > end - prev_end)
-      stacksize = end - prev_end;
+    if (stacksize > segment.end - prev_end) stacksize = segment.end - prev_end;
     // When running with unlimited stack size, we still want to set some limit.
     // The unlimited stack size is caused by 'ulimit -s unlimited'.
     // Also, for some reason, GNU make spawns subprocesses with unlimited stack.
     if (stacksize > kMaxThreadStackSize)
       stacksize = kMaxThreadStackSize;
-    *stack_top = end;
-    *stack_bottom = end - stacksize;
+    *stack_top = segment.end;
+    *stack_bottom = segment.end - stacksize;
     return;
   }
   pthread_attr_t attr;
@@ -117,7 +110,6 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   my_pthread_attr_getstack(&attr, &stackaddr, &stacksize);
   pthread_attr_destroy(&attr);
 
-  CHECK_LE(stacksize, kMaxThreadStackSize);  // Sanity check.
   *stack_top = (uptr)stackaddr + stacksize;
   *stack_bottom = (uptr)stackaddr;
 }
@@ -158,7 +150,6 @@ bool SanitizerGetThreadName(char *name, int max_len) {
 
 #if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
 static uptr g_tls_size;
-#endif
 
 #ifdef __i386__
 # define DL_INTERNAL_FUNCTION __attribute__((regparm(3), stdcall))
@@ -166,26 +157,7 @@ static uptr g_tls_size;
 # define DL_INTERNAL_FUNCTION
 #endif
 
-#if defined(__mips__) || defined(__powerpc64__)
-// TlsPreTcbSize includes size of struct pthread_descr and size of tcb
-// head structure. It lies before the static tls blocks.
-static uptr TlsPreTcbSize() {
-# if defined(__mips__)
-  const uptr kTcbHead = 16; // sizeof (tcbhead_t)
-# elif defined(__powerpc64__)
-  const uptr kTcbHead = 88; // sizeof (tcbhead_t)
-# endif
-  const uptr kTlsAlign = 16;
-  const uptr kTlsPreTcbSize =
-    (ThreadDescriptorSize() + kTcbHead + kTlsAlign - 1) & ~(kTlsAlign - 1);
-  InitTlsSize();
-  g_tls_size = (g_tls_size + kTlsPreTcbSize + kTlsAlign -1) & ~(kTlsAlign - 1);
-  return kTlsPreTcbSize;
-}
-#endif
-
 void InitTlsSize() {
-#if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
 // all current supported platforms have 16 bytes stack alignment
   const size_t kStackAlign = 16;
   typedef void (*get_tls_func)(size_t*, size_t*) DL_INTERNAL_FUNCTION;
@@ -201,12 +173,14 @@ void InitTlsSize() {
   if (tls_align < kStackAlign)
     tls_align = kStackAlign;
   g_tls_size = RoundUpTo(tls_size, tls_align);
-#endif  // !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
 }
+#else
+void InitTlsSize() { }
+#endif  // !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
 
 #if (defined(__x86_64__) || defined(__i386__) || defined(__mips__) \
-    || defined(__aarch64__) || defined(__powerpc64__)) \
-    && SANITIZER_LINUX && !SANITIZER_ANDROID
+    || defined(__aarch64__) || defined(__powerpc64__) || defined(__s390__) \
+    || defined(__arm__)) && SANITIZER_LINUX && !SANITIZER_ANDROID
 // sizeof(struct pthread) from glibc.
 static atomic_uintptr_t kThreadDescriptorSize;
 
@@ -214,14 +188,14 @@ uptr ThreadDescriptorSize() {
   uptr val = atomic_load(&kThreadDescriptorSize, memory_order_relaxed);
   if (val)
     return val;
-#if defined(__x86_64__) || defined(__i386__)
+#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
 #ifdef _CS_GNU_LIBC_VERSION
   char buf[64];
   uptr len = confstr(_CS_GNU_LIBC_VERSION, buf, sizeof(buf));
   if (len < sizeof(buf) && internal_strncmp(buf, "glibc 2.", 8) == 0) {
     char *end;
     int minor = internal_simple_strtoll(buf + 8, &end, 10);
-    if (end != buf + 8 && (*end == '\0' || *end == '.')) {
+    if (end != buf + 8 && (*end == '\0' || *end == '.' || *end == '-')) {
       int patch = 0;
       if (*end == '.')
         // strtoll will return 0 if no valid conversion could be performed
@@ -230,6 +204,9 @@ uptr ThreadDescriptorSize() {
       /* sizeof(struct pthread) values from various glibc versions.  */
       if (SANITIZER_X32)
         val = 1728;  // Assume only one particular version for x32.
+      // For ARM sizeof(struct pthread) changed in Glibc 2.23.
+      else if (SANITIZER_ARM)
+        val = minor <= 22 ? 1120 : 1216;
       else if (minor <= 3)
         val = FIRST_32_SECOND_64(1104, 1696);
       else if (minor == 4)
@@ -267,6 +244,9 @@ uptr ThreadDescriptorSize() {
   val = 1776; // from glibc.ppc64le 2.20-8.fc21
   atomic_store(&kThreadDescriptorSize, val, memory_order_relaxed);
   return val;
+#elif defined(__s390__)
+  val = FIRST_32_SECOND_64(1152, 1776); // valid for glibc 2.22
+  atomic_store(&kThreadDescriptorSize, val, memory_order_relaxed);
 #endif
   return 0;
 }
@@ -277,6 +257,22 @@ const uptr kThreadSelfOffset = FIRST_32_SECOND_64(8, 16);
 uptr ThreadSelfOffset() {
   return kThreadSelfOffset;
 }
+
+#if defined(__mips__) || defined(__powerpc64__)
+// TlsPreTcbSize includes size of struct pthread_descr and size of tcb
+// head structure. It lies before the static tls blocks.
+static uptr TlsPreTcbSize() {
+# if defined(__mips__)
+  const uptr kTcbHead = 16; // sizeof (tcbhead_t)
+# elif defined(__powerpc64__)
+  const uptr kTcbHead = 88; // sizeof (tcbhead_t)
+# endif
+  const uptr kTlsAlign = 16;
+  const uptr kTlsPreTcbSize =
+      RoundUpTo(ThreadDescriptorSize() + kTcbHead, kTlsAlign);
+  return kTlsPreTcbSize;
+}
+#endif
 
 uptr ThreadSelf() {
   uptr descr_addr;
@@ -296,7 +292,10 @@ uptr ThreadSelf() {
                 rdhwr %0,$29;\
                 .set pop" : "=r" (thread_pointer));
   descr_addr = thread_pointer - kTlsTcbOffset - TlsPreTcbSize();
-# elif defined(__aarch64__)
+# elif defined(__aarch64__) || defined(__arm__)
+  descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer()) -
+                                      ThreadDescriptorSize();
+# elif defined(__s390__)
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer());
 # elif defined(__powerpc64__)
   // PPC64LE uses TLS variant I. The thread pointer (in GPR 13)
@@ -337,12 +336,13 @@ uptr ThreadSelf() {
 #if !SANITIZER_GO
 static void GetTls(uptr *addr, uptr *size) {
 #if SANITIZER_LINUX && !SANITIZER_ANDROID
-# if defined(__x86_64__) || defined(__i386__)
+# if defined(__x86_64__) || defined(__i386__) || defined(__s390__)
   *addr = ThreadSelf();
   *size = GetTlsSize();
   *addr -= *size;
   *addr += ThreadDescriptorSize();
-# elif defined(__mips__) || defined(__aarch64__) || defined(__powerpc64__)
+# elif defined(__mips__) || defined(__aarch64__) || defined(__powerpc64__) \
+    || defined(__arm__)
   *addr = ThreadSelf();
   *size = GetTlsSize();
 # else
@@ -377,6 +377,8 @@ uptr GetTlsSize() {
   uptr addr, size;
   GetTls(&addr, &size);
   return size;
+#elif defined(__mips__) || defined(__powerpc64__)
+  return RoundUpTo(g_tls_size + TlsPreTcbSize(), 16);
 #else
   return g_tls_size;
 #endif
@@ -417,17 +419,12 @@ typedef ElfW(Phdr) Elf_Phdr;
 # endif
 
 struct DlIteratePhdrData {
-  LoadedModule *modules;
-  uptr current_n;
+  InternalMmapVector<LoadedModule> *modules;
   bool first;
-  uptr max_n;
-  string_predicate_t filter;
 };
 
 static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
   DlIteratePhdrData *data = (DlIteratePhdrData*)arg;
-  if (data->current_n == data->max_n)
-    return 0;
   InternalScopedString module_name(kMaxPathLength);
   if (data->first) {
     data->first = false;
@@ -438,20 +435,20 @@ static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
   }
   if (module_name[0] == '\0')
     return 0;
-  if (data->filter && !data->filter(module_name.data()))
-    return 0;
-  LoadedModule *cur_module = &data->modules[data->current_n];
-  cur_module->set(module_name.data(), info->dlpi_addr);
-  data->current_n++;
+  LoadedModule cur_module;
+  cur_module.set(module_name.data(), info->dlpi_addr);
   for (int i = 0; i < info->dlpi_phnum; i++) {
     const Elf_Phdr *phdr = &info->dlpi_phdr[i];
     if (phdr->p_type == PT_LOAD) {
       uptr cur_beg = info->dlpi_addr + phdr->p_vaddr;
       uptr cur_end = cur_beg + phdr->p_memsz;
       bool executable = phdr->p_flags & PF_X;
-      cur_module->addAddressRange(cur_beg, cur_end, executable);
+      bool writable = phdr->p_flags & PF_W;
+      cur_module.addAddressRange(cur_beg, cur_end, executable,
+                                 writable);
     }
   }
+  data->modules->push_back(cur_module);
   return 0;
 }
 
@@ -460,8 +457,8 @@ extern "C" __attribute__((weak)) int dl_iterate_phdr(
     int (*)(struct dl_phdr_info *, size_t, void *), void *);
 #endif
 
-uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
-                      string_predicate_t filter) {
+void ListOfModules::init() {
+  clear();
 #if SANITIZER_ANDROID && __ANDROID_API__ <= 22
   u32 api_level = AndroidGetApiLevel();
   // Fall back to /proc/maps if dl_iterate_phdr is unavailable or broken.
@@ -469,13 +466,12 @@ uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
   // both K and L (and future) Android releases.
   if (api_level <= ANDROID_LOLLIPOP_MR1) { // L or earlier
     MemoryMappingLayout memory_mapping(false);
-    return memory_mapping.DumpListOfModules(modules, max_modules, filter);
+    memory_mapping.DumpListOfModules(&modules_);
+    return;
   }
 #endif
-  CHECK(modules);
-  DlIteratePhdrData data = {modules, 0, true, max_modules, filter};
+  DlIteratePhdrData data = {&modules_, true};
   dl_iterate_phdr(dl_iterate_phdr_cb, &data);
-  return data.current_n;
 }
 
 // getrusage does not give us the current RSS, only the max RSS.
@@ -526,6 +522,7 @@ uptr GetRSS() {
 static atomic_uint8_t android_log_initialized;
 
 void AndroidLogInit() {
+  openlog(GetProcessName(), 0, LOG_USER);
   atomic_store(&android_log_initialized, 1, memory_order_release);
 }
 
@@ -550,6 +547,13 @@ void LogMessageOnPrintf(const char *str) {
   if (common_flags()->log_to_syslog && ShouldLogAfterPrintf())
     WriteToSyslog(str);
 }
+
+#if SANITIZER_ANDROID && __ANDROID_API__ >= 21
+extern "C" void android_set_abort_message(const char *msg);
+void SetAbortMessage(const char *str) { android_set_abort_message(str); }
+#else
+void SetAbortMessage(const char *str) {}
+#endif
 
 #endif // SANITIZER_LINUX
 

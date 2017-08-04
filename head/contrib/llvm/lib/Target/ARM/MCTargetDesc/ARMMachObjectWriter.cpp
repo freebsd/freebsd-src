@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMFixupKinds.h"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
@@ -21,7 +22,6 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MachO.h"
 using namespace llvm;
 
 namespace {
@@ -208,7 +208,7 @@ RecordARMScatteredHalfRelocation(MachObjectWriter *Writer,
     if (Asm.isThumbFunc(A))
       FixedValue &= 0xfffffffe;
     MovtBit = 1;
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case ARM::fixup_t2_movw_lo16:
     ThumbBit = 1;
     break;
@@ -389,7 +389,8 @@ void ARMMachObjectWriter::recordRelocation(MachObjectWriter *Writer,
   uint32_t Offset = Target.getConstant();
   if (IsPCRel && RelocType == MachO::ARM_RELOC_VANILLA)
     Offset += 1 << Log2Size;
-  if (Offset && A && !Writer->doesSymbolRequireExternRelocation(*A))
+  if (Offset && A && !Writer->doesSymbolRequireExternRelocation(*A) &&
+      RelocType != MachO::ARM_RELOC_HALF)
     return RecordARMScatteredRelocation(Writer, Asm, Layout, Fragment, Fixup,
                                         Target, RelocType, Log2Size,
                                         FixedValue);
@@ -447,8 +448,10 @@ void ARMMachObjectWriter::recordRelocation(MachObjectWriter *Writer,
   // Even when it's not a scattered relocation, movw/movt always uses
   // a PAIR relocation.
   if (Type == MachO::ARM_RELOC_HALF) {
-    // The other-half value only gets populated for the movt and movw
-    // relocation entries.
+    // The entire addend is needed to correctly apply a relocation. One half is
+    // extracted from the instruction itself, the other comes from this
+    // PAIR. I.e. it's correct that we insert the high bits of the addend in the
+    // MOVW case here.  relocation entries.
     uint32_t Value = 0;
     switch ((unsigned)Fixup.getKind()) {
     default: break;

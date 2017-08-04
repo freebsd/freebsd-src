@@ -19,16 +19,15 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 Routing Information Protocol (RIPng) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef INET6
+#include <netdissect-stdinc.h>
 
-#include <tcpdump-stdinc.h>
-
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -109,7 +108,7 @@ rip6_entry_print(netdissect_options *ndo, register const struct netinfo6 *ni, in
 void
 ripng_print(netdissect_options *ndo, const u_char *dat, unsigned int length)
 {
-	register const struct rip6 *rp = (struct rip6 *)dat;
+	register const struct rip6 *rp = (const struct rip6 *)dat;
 	register const struct netinfo6 *ni;
 	register u_int amt;
 	register u_int i;
@@ -173,4 +172,3 @@ ripng_print(netdissect_options *ndo, const u_char *dat, unsigned int length)
 	if (rp->rip6_vers != RIP6_VERSION)
 		ND_PRINT((ndo, " [vers %d]", rp->rip6_vers));
 }
-#endif /* INET6 */

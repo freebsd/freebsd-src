@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2013
+.Dd January 20, 2017
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
@@ -171,7 +171,8 @@ and
 .Dv O_TRUNC
 flags may be used in portable programs.
 .Pp
-The result of using
+.Tn POSIX
+specifications state that the result of using
 .Xr open 2 ,
 .Xr read 2 ,
 or
@@ -179,19 +180,48 @@ or
 on a shared memory object, or on the descriptor returned by
 .Fn shm_open ,
 is undefined.
-It is also undefined whether the shared memory object itself, or its
-contents, persist across reboots.
-.Pp
-In FreeBSD,
+However, the
+.Fx
+kernel implementation explicitly includes support for
 .Xr read 2
 and
-.Xr write 2
-on a shared memory object will fail with
-.Er EOPNOTSUPP
-and neither shared memory objects nor their contents persist across reboots.
+.Xr write 2 .
+.Pp
+.Fx
+also supports zero-copy transmission of data from shared memory
+objects with
+.Xr sendfile 2 .
+.Pp
+Neither shared memory objects nor their contents persist across reboots.
+.Pp
+Writes do not extend shared memory objects, so
+.Xr ftruncate 2
+must be called before any data can be written.
+See
+.Sx EXAMPLES .
+.Sh EXAMPLES
+This example fails without the call to
+.Xr ftruncate 2 :
+.Bd -literal -compact
+
+        uint8_t buffer[getpagesize()];
+        ssize_t len;
+        int fd;
+
+        fd = shm_open(SHM_ANON, O_RDWR | O_CREAT, 0600);
+        if (fd < 0)
+                err(EX_OSERR, "%s: shm_open", __func__);
+        if (ftruncate(fd, getpagesize()) < 0)
+                err(EX_IOERR, "%s: ftruncate", __func__);
+        len = pwrite(fd, buffer, getpagesize(), 0);
+        if (len < 0)
+                err(EX_IOERR, "%s: pwrite", __func__);
+        if (len != getpagesize())
+                errx(EX_IOERR, "%s: pwrite length mismatch", __func__);
+.Ed
 .Sh ERRORS
-The following errors are defined for
-.Fn shm_open :
+.Fn shm_open
+fails with these error codes for these conditions:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 A flag other than
@@ -235,8 +265,8 @@ are specified and the named shared memory object does exist.
 The required permissions (for reading or reading and writing) are denied.
 .El
 .Pp
-The following errors are defined for
-.Fn shm_unlink :
+.Fn shm_unlink
+fails with these error codes for these conditions:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 The
@@ -256,7 +286,8 @@ requires write permission to the shared memory object.
 .Xr fstat 2 ,
 .Xr ftruncate 2 ,
 .Xr mmap 2 ,
-.Xr munmap 2
+.Xr munmap 2 ,
+.Xr sendfile 2
 .Sh STANDARDS
 The
 .Fn shm_open

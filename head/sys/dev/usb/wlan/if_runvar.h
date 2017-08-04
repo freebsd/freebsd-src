@@ -66,7 +66,6 @@ struct run_rx_radiotap_header {
 
 struct run_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-	uint64_t	wt_tsf;
 	uint8_t		wt_flags;
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
@@ -77,8 +76,7 @@ struct run_tx_radiotap_header {
 #define IEEE80211_RADIOTAP_HWQUEUE 15
 
 #define	RUN_TX_RADIOTAP_PRESENT				\
-	(1 << IEEE80211_RADIOTAP_TSFT |			\
-	 1 << IEEE80211_RADIOTAP_FLAGS |		\
+	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_RATE |			\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
 	 1 << IEEE80211_RADIOTAP_HWQUEUE)
@@ -161,6 +159,7 @@ struct run_endpoint_queue {
 struct run_softc {
 	struct mtx			sc_mtx;
 	struct ieee80211com		sc_ic;
+	struct ieee80211_ratectl_tx_stats sc_txs;
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;

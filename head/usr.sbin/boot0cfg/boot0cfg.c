@@ -88,7 +88,7 @@ static const struct {
     {"update", 1},
     {"setdrv", 0}
 };
-static const int nopt = sizeof(opttbl) / sizeof(opttbl[0]);
+static const int nopt = nitems(opttbl);
 
 static const char fmt0[] = "#   flag     start chs   type"
     "       end chs       offset         size\n";

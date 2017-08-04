@@ -113,12 +113,11 @@ archive_write_set_format_shar(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	shar = (struct shar *)malloc(sizeof(*shar));
+	shar = (struct shar *)calloc(1, sizeof(*shar));
 	if (shar == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate shar data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(shar, 0, sizeof(*shar));
 	archive_string_init(&shar->work);
 	archive_string_init(&shar->quoted_name);
 	a->format_data = shar;

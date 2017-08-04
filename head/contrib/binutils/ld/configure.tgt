@@ -480,12 +480,21 @@ powerpc-*-lynxos*)	targ_emul=ppclynx ;;
 rs6000-*-aix5*)		targ_emul=aix5rs6 ;;
 rs6000-*-aix*)		targ_emul=aixrs6
 			;;
+s390x-*-freebsd*)	targ_emul=elf64_s390
+			targ_extra_emuls=elf_s390
+			targ_extra_libpath=$targ_extra_emuls
+			tdir_elf_s390=`echo ${targ_alias} | sed -e 's/s390x/s390/'` ;;
 s390x-*-linux*)         targ_emul=elf64_s390
 			targ_extra_emuls=elf_s390
 			targ_extra_libpath=$targ_extra_emuls
 			tdir_elf_s390=`echo ${targ_alias} | sed -e 's/s390x/s390/'` ;;
 s390x-*-tpf*)		targ_emul=elf64_s390
 			tdir_elf_s390=`echo ${targ_alias} | sed -e 's/s390x/s390/'` ;;
+s390-*-freebsd*)	targ_emul=elf_s390
+			targ64_extra_emuls=elf64_s390
+			targ64_extra_libpath=elf64_s390
+			tdir_elf64_s390=`echo ${targ_alias} | sed -e 's/s390/s390x/'`
+			;;
 s390-*-linux*)          targ_emul=elf_s390
 			targ64_extra_emuls=elf64_s390
 			targ64_extra_libpath=elf64_s390

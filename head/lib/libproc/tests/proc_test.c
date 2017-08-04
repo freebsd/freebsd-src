@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014, 2015 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2014-2016 Mark Johnston <markj@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -152,38 +152,6 @@ verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
 	    "expected map name '%s' doesn't match '%s'", mapname, mapbname);
 }
 
-ATF_TC(map_alias_obj2map);
-ATF_TC_HEAD(map_alias_obj2map, tc)
-{
-	atf_tc_set_md_var(tc, "descr",
-	    "Callers are supposed to be able to use \"a.out\" as an alias for "
-	    "the program executable. Make sure that proc_obj2map() handles "
-	    "this properly.");
-}
-ATF_TC_BODY(map_alias_obj2map, tc)
-{
-	struct proc_handle *phdl;
-	prmap_t *map1, *map2;
-
-	phdl = start_prog(tc, false);
-
-	/* Initialize the rtld_db handle. */
-	(void)proc_rdagent(phdl);
-
-	/* Ensure that "target_prog" and "a.out" return the same map. */
-	map1 = proc_obj2map(phdl, target_prog_file);
-	ATF_REQUIRE_MSG(map1 != NULL, "failed to look up map for '%s'",
-	    target_prog_file);
-	map2 = proc_obj2map(phdl, aout_object);
-	ATF_REQUIRE_MSG(map2 != NULL, "failed to look up map for '%s'",
-	    aout_object);
-	ATF_CHECK_EQ(strcmp(map1->pr_mapname, map2->pr_mapname), 0);
-
-	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
-
-	proc_free(phdl);
-}
-
 ATF_TC(map_alias_name2map);
 ATF_TC_HEAD(map_alias_name2map, tc)
 {
@@ -209,6 +177,35 @@ ATF_TC_BODY(map_alias_name2map, tc)
 	map2 = proc_name2map(phdl, aout_object);
 	ATF_REQUIRE_MSG(map2 != NULL, "failed to look up map for '%s'",
 	    aout_object);
+	ATF_CHECK_EQ(strcmp(map1->pr_mapname, map2->pr_mapname), 0);
+
+	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
+
+	proc_free(phdl);
+}
+
+ATF_TC(map_prefix_name2map);
+ATF_TC_HEAD(map_prefix_name2map, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Verify that proc_name2map() returns prefix matches of the "
+	    "basename of loaded objects if no full matches are found.");
+}
+ATF_TC_BODY(map_prefix_name2map, tc)
+{
+	struct proc_handle *phdl;
+	prmap_t *map1, *map2;
+
+	phdl = start_prog(tc, false);
+
+	/* Initialize the rtld_db handle. */
+	(void)proc_rdagent(phdl);
+
+	/* Make sure that "ld-elf" and "ld-elf.so" return the same map. */
+	map1 = proc_name2map(phdl, "ld-elf");
+	ATF_REQUIRE_MSG(map1 != NULL, "failed to look up map for 'ld-elf'");
+	map2 = proc_name2map(phdl, "ld-elf.so");
+	ATF_REQUIRE_MSG(map2 != NULL, "failed to look up map for 'ld-elf.so'");
 	ATF_CHECK_EQ(strcmp(map1->pr_mapname, map2->pr_mapname), 0);
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
@@ -315,7 +312,7 @@ ATF_TC_BODY(symbol_lookup_fail, tc)
 	/* Initialize the rtld_db handle. */
 	(void)proc_rdagent(phdl);
 
-	map = proc_obj2map(phdl, target_prog_file);
+	map = proc_name2map(phdl, target_prog_file);
 	ATF_REQUIRE_MSG(map != NULL, "failed to look up map for '%s'",
 	    target_prog_file);
 
@@ -376,8 +373,8 @@ ATF_TC_BODY(signal_forward, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, map_alias_obj2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2map);
+	ATF_TP_ADD_TC(tp, map_prefix_name2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2sym);
 	ATF_TP_ADD_TC(tp, symbol_lookup);
 	ATF_TP_ADD_TC(tp, symbol_lookup_fail);

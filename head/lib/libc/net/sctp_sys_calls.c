@@ -797,7 +797,7 @@ sctp_sendmsgx(int sd,
 	memset((void *)&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	sinfo.sinfo_ppid = ppid;
 	sinfo.sinfo_flags = flags;
-	sinfo.sinfo_ssn = stream_no;
+	sinfo.sinfo_stream = stream_no;
 	sinfo.sinfo_timetolive = timetolive;
 	sinfo.sinfo_context = context;
 	return (sctp_sendx(sd, msg, len, addrs, addrcnt, &sinfo, 0));

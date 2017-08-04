@@ -17,22 +17,18 @@ LC_ALL=C; export LC_ALL
 # XXX should we use an ANSI cpp?
 ioctl_includes=$(
 	cd $includedir
+
+	filter='tee'
+	if [ "${MK_PF}" == "no" ]; then
+		filter='egrep -v (net/pfvar|net/if_pfsync)\.h'
+	fi
+
 	find -H -s * -name '*.h' | \
-	egrep -v '(.*disk.*|net/pfvar|net/if_pfsync)\.h' | \
+		$filter | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\n", $1)}'
 )
-
-: ${MACHINE=$(uname -m)}
-case "${MACHINE}" in
-*pc98*)
-	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
-	;;
-*)
-	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
-	;;
-esac
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	$CPP -nostdinc -I$includedir -dM -DCOMPAT_43TTY - |
@@ -62,6 +58,7 @@ BEGIN {
 	print "#include <netinet6/ip6_mroute.h>"
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
+	print "#include <stdbool.h>"
 	print "#include <stddef.h>"
 	print "#include <stdint.h>"
 	print "#include <sysdecode.h>"

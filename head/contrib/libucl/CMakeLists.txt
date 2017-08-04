@@ -205,8 +205,7 @@ SET(UCLSRC src/ucl_util.c
 		src/ucl_hash.c
 		src/ucl_schema.c
 		src/ucl_msgpack.c
-		src/ucl_sexp.c
-		src/xxhash.c)
+		src/ucl_sexp.c)
 
 
 SET (LIB_TYPE STATIC)

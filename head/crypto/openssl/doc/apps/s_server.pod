@@ -35,6 +35,8 @@ B<openssl> B<s_server>
 [B<-CAfile filename>]
 [B<-no_alt_chains>]
 [B<-nocert>]
+[B<-client_sigalgs sigalglist>]
+[B<-named_curve curve>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
 [B<-quiet>]
@@ -62,6 +64,7 @@ B<openssl> B<s_server>
 [B<-status_verbose>]
 [B<-status_timeout nsec>]
 [B<-status_url url>]
+[B<-alpn protocols>]
 [B<-nextprotoneg protocols>]
 
 =head1 DESCRIPTION
@@ -233,6 +236,18 @@ option enables various workarounds.
 this option enables a further workaround for some some early Netscape
 SSL code (?).
 
+=item B<-client_sigalgs sigalglist>
+
+Signature algorithms to support for client certificate authentication
+(colon-separated list)
+
+=item B<-named_curve curve>
+
+Specifies the elliptic curve to use. NOTE: this is single curve, not a list.
+For a list of all possible curves, use:
+
+    $ openssl ecparam -list_curves
+
 =item B<-cipher cipherlist>
 
 this allows the cipher list used by the server to be modified.  When
@@ -327,9 +342,13 @@ sets a fallback responder URL to use if no responder URL is present in the
 server certificate. Without this option an error is returned if the server
 certificate does not contain a responder address.
 
-=item B<-nextprotoneg protocols>
+=item B<-alpn protocols>, B<-nextprotoneg protocols>
 
-enable Next Protocol Negotiation TLS extension and provide a
+these flags enable the 
+Enable the Application-Layer Protocol Negotiation or Next Protocol
+Negotiation extension, respectively. ALPN is the IETF standard and
+replaces NPN.
+The B<protocols> list is a
 comma-separated list of supported protocol names.
 The list should contain most wanted protocols first.
 Protocol names are printable ASCII strings, for example "http/1.1" or

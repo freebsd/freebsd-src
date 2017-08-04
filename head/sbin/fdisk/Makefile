@@ -6,7 +6,7 @@ SRCS=	fdisk.c geom_mbr_enc.c
 WARNS?=	4
 MAN=	fdisk.8
 
-.PATH:	${.CURDIR}/../../sys/geom
+.PATH:	${SRCTOP}/sys/geom
 
 LIBADD=	geom
 

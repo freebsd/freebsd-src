@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -120,11 +120,12 @@ command(KINFO *k, VARENT *ve)
 	if (cflag) {
 		/* If it is the last field, then don't pad */
 		if (STAILQ_NEXT(ve, next_ve) == NULL) {
-			asprintf(&str, "%s%s%s%s",
+			asprintf(&str, "%s%s%s%s%s",
 			    k->ki_d.prefix ? k->ki_d.prefix : "",
 			    k->ki_p->ki_comm,
 			    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
-			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "");
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "",
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_moretdname : "");
 		} else
 			str = strdup(k->ki_p->ki_comm);
 
@@ -172,14 +173,16 @@ ucomm(KINFO *k, VARENT *ve)
 	char *str;
 
 	if (STAILQ_NEXT(ve, next_ve) == NULL) {	/* last field, don't pad */
-		asprintf(&str, "%s%s%s%s",
+		asprintf(&str, "%s%s%s%s%s",
 		    k->ki_d.prefix ? k->ki_d.prefix : "",
 		    k->ki_p->ki_comm,
 		    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
-		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "");
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "",
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_moretdname : "");
 	} else {
 		if (showthreads && k->ki_p->ki_numthreads > 1)
-			asprintf(&str, "%s/%s", k->ki_p->ki_comm, k->ki_p->ki_tdname);
+			asprintf(&str, "%s/%s%s", k->ki_p->ki_comm,
+			    k->ki_p->ki_tdname, k->ki_p->ki_moretdname);
 		else
 			str = strdup(k->ki_p->ki_comm);
 	}
@@ -192,7 +195,8 @@ tdnam(KINFO *k, VARENT *ve __unused)
 	char *str;
 
 	if (showthreads && k->ki_p->ki_numthreads > 1)
-		str = strdup(k->ki_p->ki_tdname);
+		asprintf(&str, "%s%s", k->ki_p->ki_tdname,
+		    k->ki_p->ki_moretdname);
 	else
 		str = strdup("      ");
 

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -497,7 +496,7 @@ zy7_pl_fclk_enabled(int unit)
 }
 
 int
-zy7_pl_level_shifters_enabled()
+zy7_pl_level_shifters_enabled(void)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
 
@@ -514,7 +513,7 @@ zy7_pl_level_shifters_enabled()
 }
 
 void
-zy7_pl_level_shifters_enable()
+zy7_pl_level_shifters_enable(void)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
 
@@ -529,7 +528,7 @@ zy7_pl_level_shifters_enable()
 }
 
 void
-zy7_pl_level_shifters_disable()
+zy7_pl_level_shifters_disable(void)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
 
@@ -621,8 +620,8 @@ zy7_slcr_attach(device_t dev)
 
 	/* Derive PLL frequencies from PS_CLK. */
 	node = ofw_bus_get_node(dev);
-	if (OF_getprop(node, "clock-frequency", &cell, sizeof(cell)) > 0)
-		ps_clk_frequency = fdt32_to_cpu(cell);
+	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) > 0)
+		ps_clk_frequency = cell;
 	else
 		ps_clk_frequency = ZYNQ_DEFAULT_PS_CLK_FREQUENCY;
 

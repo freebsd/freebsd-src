@@ -3,6 +3,6 @@
 
 PROG=	lptest
 
-CFLAGS+= -I${.CURDIR}/../common_source
+CFLAGS+= -I${.CURDIR:H}/common_source
 
 .include <bsd.prog.mk>

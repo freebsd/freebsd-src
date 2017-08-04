@@ -172,9 +172,8 @@ struct nvme_tracker {
 	bus_dmamap_t			payload_dma_map;
 	uint16_t			cid;
 
-	uint64_t			prp[NVME_MAX_PRP_LIST_ENTRIES];
+	uint64_t			*prp;
 	bus_addr_t			prp_bus_addr;
-	bus_dmamap_t			prp_dma_map;
 };
 
 struct nvme_qpair {
@@ -206,10 +205,8 @@ struct nvme_qpair {
 	bus_dma_tag_t		dma_tag;
 	bus_dma_tag_t		dma_tag_payload;
 
-	bus_dmamap_t		cmd_dma_map;
+	bus_dmamap_t		queuemem_map;
 	uint64_t		cmd_bus_addr;
-
-	bus_dmamap_t		cpl_dma_map;
 	uint64_t		cpl_bus_addr;
 
 	TAILQ_HEAD(, nvme_tracker)	free_tr;
@@ -417,7 +414,7 @@ void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 void	nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
 				       struct nvme_request *req);
 
-void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
+int	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
 			     uint32_t num_trackers,
 			     struct nvme_controller *ctrlr);

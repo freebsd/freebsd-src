@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../dev/bhnd/cores/pci
-.PATH: ${.CURDIR}/../../../../dev/bhnd/cores/pcie2
+.PATH: ${SRCTOP}/sys/dev/bhnd/cores/pci
+.PATH: ${SRCTOP}/sys/dev/bhnd/cores/pcie2
 
 KMOD=	bhnd_pcib
 SRCS=	bhnd_pcib.c bhnd_pcie2b.c

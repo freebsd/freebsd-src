@@ -117,6 +117,29 @@ dumpsys_gen_write_aux_headers(struct dumperinfo *di)
 #endif
 
 int
+dumpsys_buf_seek(struct dumperinfo *di, size_t sz)
+{
+	static uint8_t buf[DEV_BSIZE];
+	size_t nbytes;
+	int error;
+
+	bzero(buf, sizeof(buf));
+
+	while (sz > 0) {
+		nbytes = MIN(sz, sizeof(buf));
+
+		error = dump_write(di, buf, 0, dumplo, nbytes);
+		if (error)
+			return (error);
+		dumplo += nbytes;
+
+		sz -= nbytes;
+	}
+
+	return (0);
+}
+
+int
 dumpsys_buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 {
 	size_t len;
@@ -284,7 +307,7 @@ dumpsys_generic(struct dumperinfo *di)
 	Elf_Ehdr ehdr;
 	uint64_t dumpsize;
 	off_t hdrgap;
-	size_t hdrsz, size;
+	size_t hdrsz;
 	int error;
 
 #ifndef __powerpc__
@@ -325,24 +348,37 @@ dumpsys_generic(struct dumperinfo *di)
 	hdrgap = fileofs - roundup2((off_t)hdrsz, di->blocksize);
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
+	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
 		error = ENOSPC;
 		goto fail;
 	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
 	dumplo -= di->blocksize * 2;
+	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
+
+	/* Initialize kernel dump crypto. */
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error)
+		goto fail;
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION, dumpsize,
-	    di->blocksize);
+	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
 
 	printf("Dumping %ju MB (%d chunks)\n", (uintmax_t)dumpsize >> 20,
 	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
 
 	/* Dump leader */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += size;
+	dumplo += di->blocksize;
+
+	/* Dump key */
+	error = dump_write_key(di, 0, dumplo);
+	if (error)
+		goto fail;
+	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump ELF header */
 	error = dumpsys_buf_write(di, (char*)&ehdr, sizeof(ehdr));
@@ -365,7 +401,9 @@ dumpsys_generic(struct dumperinfo *di)
 	 * boundary. We cannot use MD_ALIGN on dumplo, because we don't
 	 * care and may very well be unaligned within the dump device.
 	 */
-	dumplo += hdrgap;
+	error = dumpsys_buf_seek(di, (size_t)hdrgap);
+	if (error)
+		goto fail;
 
 	/* Dump memory chunks (updates dumplo) */
 	error = dumpsys_foreach_chunk(dumpsys_cb_dumpdata, di);
@@ -373,9 +411,10 @@ dumpsys_generic(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
+	dumplo += di->blocksize;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);

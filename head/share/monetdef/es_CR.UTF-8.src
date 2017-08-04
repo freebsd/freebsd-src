@@ -13,7 +13,7 @@ CRC
 ,
 #
 # mon_thousands_sep
-.
+ 
 #
 # mon_grouping
 3
@@ -25,10 +25,10 @@ CRC
 -
 #
 # int_frac_digits
-0
+2
 #
 # frac_digits
-0
+2
 #
 # p_cs_precedes
 1

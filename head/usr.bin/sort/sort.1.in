@@ -133,7 +133,7 @@ also checks that there are no lines with duplicate keys.
 .It Fl s
 Stable sort.
 This option maintains the original record order of records that have
-and equal key.
+an equal key.
 This is a non-standard feature, but it is widely accepted and used.
 .It Fl Fl version
 Print the version and silently exits.

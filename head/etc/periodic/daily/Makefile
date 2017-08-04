@@ -16,6 +16,7 @@ FILES=	100.clean-disks \
 	407.status-graid3 \
 	408.status-gstripe \
 	409.status-gconcat \
+	410.status-mfi \
 	420.status-network \
 	430.status-uptime \
 	450.status-security \

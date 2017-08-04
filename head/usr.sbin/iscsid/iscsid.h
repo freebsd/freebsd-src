@@ -44,8 +44,6 @@
 
 #define	CONN_MUTUAL_CHALLENGE_LEN	1024
 #define	SOCKBUF_SIZE			1048576
-#define	MAX_BURST_LENGTH		(256 * 1024)
-#define	FIRST_BURST_LENGTH		(128 * 1024)
 
 struct connection {
 	int			conn_iscsi_fd;
@@ -61,9 +59,10 @@ struct connection {
 	int			conn_data_digest;
 	bool			conn_initial_r2t;
 	bool			conn_immediate_data;
-	size_t			conn_max_data_segment_length;
-	size_t			conn_max_burst_length;
-	size_t			conn_first_burst_length;
+	int			conn_max_recv_data_segment_length;
+	int			conn_max_send_data_segment_length;
+	int			conn_max_burst_length;
+	int			conn_first_burst_length;
 	struct chap		*conn_mutual_chap;
 };
 

@@ -51,7 +51,30 @@
 #define _MACHINE_PMAP_V4_H_
 
 #include <machine/pte-v4.h>
-#include <machine/cpuconf.h>
+
+/*
+ * Define the MMU types we support based on the cpu types.  While the code has
+ * some theoretical support for multiple MMU types in a single kernel, there are
+ * no actual working configurations that use that feature.
+ */
+#if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	defined(CPU_FA526))
+#define	ARM_MMU_GENERIC		1
+#else
+#define	ARM_MMU_GENERIC		0
+#endif
+
+#if (defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
+     defined(CPU_XSCALE_81342))
+#define	ARM_MMU_XSCALE		1
+#else
+#define	ARM_MMU_XSCALE		0
+#endif
+
+#define	ARM_NMMUS		(ARM_MMU_GENERIC + ARM_MMU_XSCALE)
+#if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
+#error ARM_NMMUS is 0
+#endif
+
 /*
  * Pte related macros
  */

@@ -47,10 +47,13 @@ DEFINE_TEST(test_option_J_upper)
 		}
 		failure("-J option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has an xz signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\3757zXZ", 5);
+done:
+	free(p);
 }

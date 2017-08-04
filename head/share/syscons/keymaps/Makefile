@@ -26,7 +26,7 @@ FILES=	INDEX.keymaps \
 	icelandic.iso.kbd icelandic.iso.acc.kbd \
 	it.iso.kbd \
 	iw.iso8.kbd \
-	jp.106.kbd jp.106x.kbd jp.pc98.kbd jp.pc98.iso.kbd \
+	jp.106.kbd jp.106x.kbd \
 	kk.pt154.kst.kbd kk.pt154.io.kbd \
 	latinamerican.kbd latinamerican.iso.acc.kbd \
 	lt.iso4.kbd \

@@ -189,6 +189,7 @@ public:
 
       case DeadIncrement:
         BugType = "Dead increment";
+        LLVM_FALLTHROUGH;
       case Standard:
         if (!BugType) BugType = "Dead assignment";
         os << "Value stored to '" << *V << "' is never read";
@@ -278,6 +279,8 @@ public:
           RHS = RHS->IgnoreParenCasts();
 
           QualType T = VD->getType();
+          if (T.isVolatileQualified())
+            return;
           if (T->isPointerType() || T->isObjCObjectPointerType()) {
             if (RHS->isNullPointerConstant(Ctx, Expr::NPC_ValueDependentIsNull))
               return;

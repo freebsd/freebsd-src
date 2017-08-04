@@ -30,9 +30,6 @@
 #include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 

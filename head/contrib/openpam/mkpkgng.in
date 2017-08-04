@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013 Dag-Erling Smørgrav
+# Copyright (c) 2013-2014 Dag-Erling Smørgrav
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: mkpkgng.in 816 2014-09-12 07:50:22Z des $
+# $OpenPAM: mkpkgng.in 938 2017-04-30 21:34:42Z des $
 #
 
 # Print an informational message
@@ -61,8 +61,6 @@ yesno() {
 # Locate source and build directory
 #
 srcdir="@abs_top_srcdir@"
-[ -f "$srcdir/include/security/openpam.h" ] || \
-    error "Unable to locate source directory."
 builddir="@abs_top_builddir@"
 cd "$srcdir"
 
@@ -83,7 +81,8 @@ if ! expr "$version" : "[0-9]{1,}$" >/dev/null ; then
 	svnversion="$(svnversion 2>&1)"
 	svnversion=$(expr "$svnversion" : '\([0-9][0-9]*\)[A-Z]\{0,1\}$')
 	if [ -n "$svnversion" ] ; then
-		version="$version-r${svnversion}"
+		package="$package-$version"
+		version="r$svnversion"
 	fi
 fi
 
@@ -115,6 +114,21 @@ info "Installing into the temporary directory."
 $make install DESTDIR="$tmproot"
 
 #
+# Compress man pages
+#
+find $tmproot -type d -name 'man[0-9]' |
+while read mandir ; do
+	find $mandir -type f -name '*.[0-9]' |
+	while read manpage ; do
+		gzip "$manpage"
+	done
+	find $mandir -type l -name '*.[0-9]' |
+	while read manlink ; do
+		ln -s "$(readlink $manlink).gz" "$manlink.gz"
+	done
+done
+
+#
 # Generate stub manifest
 #
 info "Generating the stub manifest."
@@ -128,30 +142,27 @@ arch: $pkgabi
 www: @PACKAGE_URL@
 maintainer: @PACKAGE_BUGREPORT@
 prefix: @prefix@
-desc:
-  OpenPAM is an open source PAM library that focuses on simplicity,
-  correctness, and cleanliness.
-  
-  OpenPAM aims to gather the best features of Solaris PAM, XSSO and
-  Linux-PAM, plus some innovations of its own.  In areas where these
-  implementations disagree, OpenPAM tries to remain compatible with
-  Solaris, at the expense of XSSO conformance and Linux-PAM
-  compatibility.
-categories: local, security
+categories: [ local, security ]
 EOF
+cp "$srcdir/README" "$tmproot/+DESC"
 
 #
 # Generate file list
 #
 info "Generating the file list."
 (
-	echo "files:"
-	find -s "$tmproot" -type f | while read file ; do
-		[ "$file" = "$manifest" ] && continue
+	echo "files: {"
+	find -s "$tmproot@prefix@" -type f -or -type l | while read file ; do
+		case $file in
+		*.la)
+			continue
+			;;
+		esac
 		mode=$(stat -f%p "$file" | cut -c 3-)
 		file="${file#$tmproot}"
 		echo "  $file: { uname: root, gname: wheel, perm: $mode }"
 	done
+	echo "}"
 )>>"$manifest"
 
 #

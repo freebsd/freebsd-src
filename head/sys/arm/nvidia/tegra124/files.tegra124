@@ -4,7 +4,6 @@
 # Standard ARM support.
 #
 kern/kern_clocksource.c			standard
-dev/ofw/ofw_cpu.c			optional	fdt
 
 #
 # Standard tegra124 devices and support.
@@ -25,6 +24,7 @@ arm/nvidia/tegra_uart.c			optional	uart
 arm/nvidia/tegra_sdhci.c		optional	sdhci
 arm/nvidia/tegra_gpio.c			optional	gpio
 arm/nvidia/tegra_ehci.c			optional	ehci
+arm/nvidia/tegra_xhci.c			optional	xhci
 arm/nvidia/tegra_ahci.c			optional	ahci
 arm/nvidia/tegra_pcie.c			optional	pci
 arm/nvidia/tegra_i2c.c			optional	iic
@@ -34,22 +34,37 @@ arm/nvidia/tegra_efuse.c		standard
 arm/nvidia/tegra_soctherm_if.m		standard
 arm/nvidia/tegra_soctherm.c		standard
 arm/nvidia/tegra_lic.c			standard
+arm/nvidia/tegra_mc.c			standard
 #arm/nvidia/tegra_hda.c			optional	snd_hda
-#arm/nvidia/drm2/hdmi.c			optional	drm2
-#arm/nvidia/drm2/tegra_drm_if.m		optional	drm2
-#arm/nvidia/drm2/tegra_drm_subr.c	optional	drm2
-#arm/nvidia/drm2/tegra_host1x.c		optional	drm2
-#arm/nvidia/drm2/tegra_hdmi.c		optional	drm2
-#arm/nvidia/drm2/tegra_dc_if.m		optional	drm2
-#arm/nvidia/drm2/tegra_dc.c		optional	drm2
-#arm/nvidia/drm2/tegra_fb.c		optional	drm2
-#arm/nvidia/drm2/tegra_bo.c		optional	drm2
+arm/nvidia/drm2/hdmi.c			optional	drm2
+arm/nvidia/drm2/tegra_drm_if.m		optional	drm2
+arm/nvidia/drm2/tegra_drm_subr.c	optional	drm2
+arm/nvidia/drm2/tegra_host1x.c		optional	drm2
+arm/nvidia/drm2/tegra_hdmi.c		optional	drm2
+arm/nvidia/drm2/tegra_dc_if.m		optional	drm2
+arm/nvidia/drm2/tegra_dc.c		optional	drm2
+arm/nvidia/drm2/tegra_fb.c		optional	drm2
+arm/nvidia/drm2/tegra_bo.c		optional	drm2
 #
-# Optional devices.
+# Firmware
 #
-
+tegra124_xusb_fw.c			optional tegra124_xusb_fw	\
+	dependency	"$S/arm/nvidia/tegra124/files.tegra124"		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk tegra124_xusb.fw:tegra124_xusb_fw -mtegra124_xusb_fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"tegra124_xusb_fw.c"
+tegra124_xusb.fwo			optional tegra124_xusb_fw	\
+	dependency	"tegra124_xusb.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"tegra124_xusb.fwo"
+tegra124_xusb.fw			optional tegra124_xusb_fw	\
+	dependency	"$S/contrib/dev/nvidia/tegra124_xusb.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"tegra124_xusb.fw"
 #
-# Temporary/ to be moved stuff
+# Temporary/to be moved stuff
 #
 arm/nvidia/as3722.c			optional	iic
 arm/nvidia/as3722_regulators.c		optional	iic

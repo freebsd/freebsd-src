@@ -105,6 +105,7 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
+	memset_s;
 	timingsafe_bcmp;
 	timingsafe_memcmp;
 };

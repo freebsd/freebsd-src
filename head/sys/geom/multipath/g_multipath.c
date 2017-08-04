@@ -470,7 +470,7 @@ g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 	gp = pp->geom;
 
 	/* Error used if we have no valid consumers. */
-	error = ENXIO;
+	error = (dr > 0 || dw > 0 || de > 0) ? ENXIO : 0;
 
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp->index & MP_WITHER)
@@ -923,6 +923,7 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	struct g_provider *pp;
 	const char *mpname;
 	static const char devpf[6] = "/dev/";
+	int error;
 
 	g_topology_assert();
 
@@ -972,10 +973,9 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 		return;
 	}
 
-	/*
-	 * Now add....
-	 */
-	(void) g_multipath_add_disk(gp, pp);
+	error = g_multipath_add_disk(gp, pp);
+	if (error != 0)
+		gctl_error(req, "Provider addition error: %d", error);
 }
 
 static void

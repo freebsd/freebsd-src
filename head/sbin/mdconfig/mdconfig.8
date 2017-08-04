@@ -215,6 +215,14 @@ flag to forcibly destroy an
 disk that is still in use.
 .It Oo Cm no Oc Ns Cm readonly
 Enable/disable readonly mode.
+.It Oo Cm no Oc Ns Cm verify
+For
+.Cm vnode
+backed devices: enable/disable requesting verification of the
+file used for backing store.
+The type of verification depends on which security features are available.
+One example of verification is testing file integrity with
+checksums or cryptographic signatures.
 .El
 .It Fl u Ar unit
 Request a specific unit number or device name for the
@@ -298,6 +306,7 @@ gnop create -o 512K md1
 mount /dev/md1.nop /mnt
 .Ed
 .Sh SEE ALSO
+.Xr open 2 ,
 .Xr md 4 ,
 .Xr ffs 7 ,
 .Xr gpart 8 ,

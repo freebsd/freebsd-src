@@ -19,7 +19,7 @@
 .\"IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\"WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
-.TH PCAP_SET_TSTAMP_PRECISION 3PCAP "27 August 2013"
+.TH PCAP_SET_TSTAMP_PRECISION 3PCAP "5 February 2015"
 .SH NAME
 pcap_set_tstamp_precision \- set the time stamp precision returned in
 captures
@@ -48,7 +48,7 @@ use options
 .B PCAP_TSTAMP_PRECISION_NANO
 to request desired precision. By default, time stamps are in microseconds.
 .SH RETURN VALUE
-.B pcap_set_tstamp_type()
+.B pcap_set_tstamp_precision()
 returns 0 on success if the specified time stamp precision is expected to be
 supported by the operating system,
 .B PCAP_ERROR_TSTAMP_PRECISION_NOTSUP

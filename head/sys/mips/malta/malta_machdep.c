@@ -191,7 +191,7 @@ mips_init(unsigned long memsize, uint64_t ememsize)
 	/* phys_avail regions are in bytes */
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = memsize;
-	dump_avail[0] = phys_avail[0];
+	dump_avail[0] = 0;
 	dump_avail[1] = phys_avail[1];
 
 	/* Only specify the extended region if it's set */

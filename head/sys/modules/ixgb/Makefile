@@ -1,6 +1,6 @@
 #$FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/ixgb
+.PATH: ${SRCTOP}/sys/dev/ixgb
 
 KMOD=	if_ixgb
 SRCS=	if_ixgb.c ixgb_hw.c ixgb_ee.c

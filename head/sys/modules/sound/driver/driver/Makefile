@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../dev/sound
+.PATH: ${SRCTOP}/sys/dev/sound
 
 KMOD=	snd_driver
 SRCS=	device_if.h bus_if.h

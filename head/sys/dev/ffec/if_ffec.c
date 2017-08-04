@@ -78,11 +78,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ffec/if_ffecreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/mii/mii_fdt.h>
 #include "miibus_if.h"
 
 /*
@@ -113,6 +115,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
+	{"fsl,imx6ul-fec",	FECTYPE_IMX6},
 	{"fsl,mvf600-fec",	FECTYPE_MVF},
 	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
@@ -127,18 +130,10 @@ static struct ofw_compat_data compat_data[] = {
 #define	TX_DESC_SIZE	(sizeof(struct ffec_hwdesc) * TX_DESC_COUNT)
 
 #define	WATCHDOG_TIMEOUT_SECS	5
-#define	STATS_HARVEST_INTERVAL	3
 
 struct ffec_bufmap {
 	struct mbuf	*mbuf;
 	bus_dmamap_t	map;
-};
-
-enum {
-	PHY_CONN_UNKNOWN,
-	PHY_CONN_MII,
-	PHY_CONN_RMII,
-	PHY_CONN_RGMII
 };
 
 struct ffec_softc {
@@ -152,13 +147,12 @@ struct ffec_softc {
 	struct resource		*mem_res;
 	void *			intr_cookie;
 	struct callout		ffec_callout;
-	uint8_t			phy_conn_type;
+	mii_contype_t		phy_conn_type;
 	uint8_t			fectype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
 	int			tx_watchdog_count;
-	int			stats_harvest_count;
 
 	bus_dma_tag_t		rxdesc_tag;
 	bus_dmamap_t		rxdesc_map;
@@ -262,10 +256,10 @@ ffec_miigasket_setup(struct ffec_softc *sc)
 
 	switch (sc->phy_conn_type)
 	{
-	case PHY_CONN_MII:
+	case MII_CONTYPE_MII:
 		ifmode = 0;
 		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		ifmode = FEC_MIIGSK_CFGR_IF_MODE_RMII;
 		break;
 	default:
@@ -377,13 +371,16 @@ ffec_miibus_statchg(device_t dev)
 
 	rcr |= FEC_RCR_MII_MODE; /* Must always be on even for R[G]MII. */
 	switch (sc->phy_conn_type) {
-	case PHY_CONN_MII:
-		break;
-	case PHY_CONN_RMII:
+	case MII_CONTYPE_RMII:
 		rcr |= FEC_RCR_RMII_MODE;
 		break;
-	case PHY_CONN_RGMII:
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 		rcr |= FEC_RCR_RGMII_EN;
+		break;
+	default:
 		break;
 	}
 
@@ -460,22 +457,41 @@ ffec_media_change(struct ifnet * ifp)
 
 static void ffec_clear_stats(struct ffec_softc *sc)
 {
+	uint32_t mibc;
 
-	WR4(sc, FEC_RMON_R_PACKETS, 0);
-	WR4(sc, FEC_RMON_R_MC_PKT, 0);
-	WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_R_OVERSIZE, 0);
-	WR4(sc, FEC_RMON_R_FRAG, 0);
-	WR4(sc, FEC_RMON_R_JAB, 0);
-	WR4(sc, FEC_RMON_T_PACKETS, 0);
-	WR4(sc, FEC_RMON_T_MC_PKT, 0);
-	WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
-	WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
-	WR4(sc, FEC_RMON_T_OVERSIZE , 0);
-	WR4(sc, FEC_RMON_T_FRAG, 0);
-	WR4(sc, FEC_RMON_T_JAB, 0);
-	WR4(sc, FEC_RMON_T_COL, 0);
+	mibc = RD4(sc, FEC_MIBC_REG);
+
+	/*
+	 * On newer hardware the statistic regs are cleared by toggling a bit in
+	 * the mib control register.  On older hardware the clear procedure is
+	 * to disable statistics collection, zero the regs, then re-enable.
+	 */
+	if (sc->fectype == FECTYPE_IMX6 || sc->fectype == FECTYPE_MVF) {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_CLEAR);
+		WR4(sc, FEC_MIBC_REG, mibc & ~FEC_MIBC_CLEAR);
+	} else {
+		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_DIS);
+	
+		WR4(sc, FEC_IEEE_R_DROP, 0);
+		WR4(sc, FEC_IEEE_R_MACERR, 0);
+		WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_R_FRAG, 0);
+		WR4(sc, FEC_RMON_R_JAB, 0);
+		WR4(sc, FEC_RMON_R_MC_PKT, 0);
+		WR4(sc, FEC_RMON_R_OVERSIZE, 0);
+		WR4(sc, FEC_RMON_R_PACKETS, 0);
+		WR4(sc, FEC_RMON_R_UNDERSIZE, 0);
+		WR4(sc, FEC_RMON_T_COL, 0);
+		WR4(sc, FEC_RMON_T_CRC_ALIGN, 0);
+		WR4(sc, FEC_RMON_T_FRAG, 0);
+		WR4(sc, FEC_RMON_T_JAB, 0);
+		WR4(sc, FEC_RMON_T_MC_PKT, 0);
+		WR4(sc, FEC_RMON_T_OVERSIZE , 0);
+		WR4(sc, FEC_RMON_T_PACKETS, 0);
+		WR4(sc, FEC_RMON_T_UNDERSIZE, 0);
+
+		WR4(sc, FEC_MIBC_REG, mibc);
+	}
 }
 
 static void
@@ -483,28 +499,21 @@ ffec_harvest_stats(struct ffec_softc *sc)
 {
 	struct ifnet *ifp;
 
-	/* We don't need to harvest too often. */
-	if (++sc->stats_harvest_count < STATS_HARVEST_INTERVAL)
-		return;
-
-	/*
-	 * Try to avoid harvesting unless the IDLE flag is on, but if it has
-	 * been too long just go ahead and do it anyway, the worst that'll
-	 * happen is we'll lose a packet count or two as we clear at the end.
-	 */
-	if (sc->stats_harvest_count < (2 * STATS_HARVEST_INTERVAL) &&
-	    ((RD4(sc, FEC_MIBC_REG) & FEC_MIBC_IDLE) == 0))
-		return;
-
-	sc->stats_harvest_count = 0;
 	ifp = sc->ifp;
 
+	/*
+	 * - FEC_IEEE_R_DROP is "dropped due to invalid start frame delimiter"
+	 *   so it's really just another type of input error.
+	 * - FEC_IEEE_R_MACERR is "no receive fifo space"; count as input drops.
+	 */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, RD4(sc, FEC_RMON_R_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_IMCASTS, RD4(sc, FEC_RMON_R_MC_PKT));
 	if_inc_counter(ifp, IFCOUNTER_IERRORS,
 	    RD4(sc, FEC_RMON_R_CRC_ALIGN) + RD4(sc, FEC_RMON_R_UNDERSIZE) +
 	    RD4(sc, FEC_RMON_R_OVERSIZE) + RD4(sc, FEC_RMON_R_FRAG) +
-	    RD4(sc, FEC_RMON_R_JAB));
+	    RD4(sc, FEC_RMON_R_JAB) + RD4(sc, FEC_IEEE_R_DROP));
+
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, RD4(sc, FEC_IEEE_R_MACERR));
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, RD4(sc, FEC_RMON_T_PACKETS));
 	if_inc_counter(ifp, IFCOUNTER_OMCASTS, RD4(sc, FEC_RMON_T_MC_PKT));
@@ -1014,7 +1023,6 @@ ffec_stop_locked(struct ffec_softc *sc)
 	ifp = sc->ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tx_watchdog_count = 0;
-	sc->stats_harvest_count = 0;
 
 	/* 
 	 * Stop the hardware, mask all interrupts, and clear all current
@@ -1192,7 +1200,8 @@ ffec_init_locked(struct ffec_softc *sc)
 	WR4(sc, FEC_IEM_REG, FEC_IER_TXF | FEC_IER_RXF | FEC_IER_EBERR);
 
 	/*
-	 * MIBC - MIB control (hardware stats).
+	 * MIBC - MIB control (hardware stats); clear all statistics regs, then
+	 * enable collection of statistics.
 	 */
 	regval = RD4(sc, FEC_MIBC_REG);
 	WR4(sc, FEC_MIBC_REG, regval | FEC_MIBC_DIS);
@@ -1424,10 +1433,10 @@ ffec_attach(device_t dev)
 	struct ffec_softc *sc;
 	struct ifnet *ifp = NULL;
 	struct mbuf *m;
+	void *dummy;
 	phandle_t ofw_node;
-	int error, rid;
+	int error, phynum, rid;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	char phy_conn_name[32];
 	uint32_t idx, mscr;
 
 	sc = device_get_softc(dev);
@@ -1450,16 +1459,8 @@ ffec_attach(device_t dev)
 		error = ENXIO;
 		goto out;
 	}
-	if (OF_searchprop(ofw_node, "phy-mode", 
-	    phy_conn_name, sizeof(phy_conn_name)) != -1) {
-		if (strcasecmp(phy_conn_name, "mii") == 0)
-			sc->phy_conn_type = PHY_CONN_MII;
-		else if (strcasecmp(phy_conn_name, "rmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RMII;
-		else if (strcasecmp(phy_conn_name, "rgmii") == 0)
-			sc->phy_conn_type = PHY_CONN_RGMII;
-	}
-	if (sc->phy_conn_type == PHY_CONN_UNKNOWN) {
+	sc->phy_conn_type = mii_fdt_get_contype(ofw_node);
+	if (sc->phy_conn_type == MII_CONTYPE_UNKNOWN) {
 		device_printf(sc->dev, "No valid 'phy-mode' "
 		    "property found in FDT data for device.\n");
 		error = ENOATTR;
@@ -1695,8 +1696,11 @@ ffec_attach(device_t dev)
 	ffec_miigasket_setup(sc);
 
 	/* Attach the mii driver. */
+	if (fdt_get_phyaddr(ofw_node, dev, &phynum, &dummy) != 0) {
+		phynum = MII_PHY_ANY;
+	}
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
-	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    ffec_media_status, BMSR_DEFCAPMASK, phynum, MII_OFFSET_ANY,
 	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");

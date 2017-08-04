@@ -347,7 +347,7 @@ DEFINE_TEST(test_pax_filename_encoding_KOI8R)
 		return;
 	}
 
-	/* Check if the paltform completely supports the string conversion. */
+	/* Check if the platform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
@@ -394,7 +394,7 @@ DEFINE_TEST(test_pax_filename_encoding_CP1251)
 		return;
 	}
 
-	/* Check if the paltform completely supports the string conversion. */
+	/* Check if the platform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
@@ -440,7 +440,7 @@ DEFINE_TEST(test_pax_filename_encoding_EUCJP)
 		return;
 	}
 
-	/* Check if the paltform completely supports the string conversion. */
+	/* Check if the platform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
@@ -488,7 +488,7 @@ DEFINE_TEST(test_pax_filename_encoding_CP932)
 		return;
 	}
 
-	/* Check if the paltform completely supports the string conversion. */
+	/* Check if the platform completely supports the string conversion. */
 	a = archive_write_new();
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {

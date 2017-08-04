@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/condvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/usb/usb.h>
@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/usb/omap_usb.h>
+
+#include <arm/ti/omap4/pandaboard/pandaboard.h>
 
 /* EHCI */
 #define	OMAP_USBHOST_HCCAPBASE                      0x0000
@@ -259,7 +261,6 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 static int
 omap_ehci_probe(device_t dev)
 {
-
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -290,8 +291,21 @@ omap_ehci_attach(device_t dev)
 {
 	struct omap_ehci_softc *isc = device_get_softc(dev);
 	ehci_softc_t *sc = &isc->base;
+#ifdef SOC_OMAP4
+	phandle_t root;
+#endif
 	int err;
 	int rid;
+
+#ifdef SOC_OMAP4
+	/* 
+	 * If we're running a Pandaboard, run Pandaboard-specific 
+	 * init code.
+	 */
+	root = OF_finddevice("/");
+	if (ofw_bus_node_is_compatible(root, "ti,omap4-panda"))
+		pandaboard_usb_hub_init();
+#endif
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
@@ -392,15 +406,8 @@ omap_ehci_detach(device_t dev)
 {
 	struct omap_ehci_softc *isc = device_get_softc(dev);
 	ehci_softc_t *sc = &isc->base;
-	device_t bdev;
 	int err;
 	
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
-
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 	

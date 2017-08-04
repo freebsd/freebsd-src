@@ -93,7 +93,18 @@ subdirs_body() {
 	test_unmount
 }
 
+# Begin FreeBSD
+if true; then
+atf_test_case kqueue cleanup
+kqueue_cleanup() {
+	Mount_Point=$(pwd)/mntpt _test_unmount || :
+}
+else
+# End FreeBSD
 atf_test_case kqueue
+# Begin FreeBSD
+fi
+# End FreeBSD
 kqueue_head() {
 	atf_set "descr" "Verifies that creating a link raises the correct" \
 	                "kqueue events"
@@ -101,6 +112,10 @@ kqueue_head() {
 }
 kqueue_body() {
 	test_mount
+
+	# Begin FreeBSD
+	atf_expect_fail "fails with: dir/b did not receive NOTE_LINK - bug 213662"
+	# End FreeBSD
 
 	atf_check -s eq:0 -o empty -e empty mkdir dir
 	atf_check -s eq:0 -o empty -e empty touch dir/a

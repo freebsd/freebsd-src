@@ -45,13 +45,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include "bcm_socinfo.h"
-
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
 #include <dev/cfe/cfe_ioctl.h>
 #include <dev/cfe/cfe_error.h>
 #endif
+
+#include "bcm_machdep.h"
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
@@ -69,18 +69,16 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 static int
 uart_cpu_init(struct uart_devinfo *di, u_int uart, int baudrate)
 {
-	struct bcm_socinfo	*socinfo;
-
 	if (uart >= CHIPC_UART_MAX)
 		return (EINVAL);
 
-	socinfo = bcm_get_socinfo();
 	di->ops = uart_getops(chipc_uart_class);
 	di->bas.chan = 0;
 	di->bas.bst = uart_bus_space_mem;
-	di->bas.bsh = (bus_space_handle_t) BCM_SOCREG(CHIPC_UART(uart));
+	di->bas.bsh = (bus_space_handle_t) BCM_CORE_ADDR(bcm_get_platform(),
+	    cc_addr, CHIPC_UART(uart));
 	di->bas.regshft = 0;
-	di->bas.rclk = socinfo->uartrate;  /* in Hz */
+	di->bas.rclk = bcm_get_uart_rclk(bcm_get_platform());
 	di->baudrate = baudrate;
 	di->databits = 8;
 	di->stopbits = 1;
@@ -112,7 +110,7 @@ uart_getenv_cfe(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 
 	/* Fetch device handle */
-	fd = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE);
+	fd = bcm_get_platform()->cfe_console;
 	if (fd < 0)
 		return (ENXIO);
 

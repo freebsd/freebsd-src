@@ -1,4 +1,4 @@
-/*	$NetBSD: t_bpfilter.c,v 1.8 2014/06/24 11:32:36 alnsn Exp $	*/
+/*	$NetBSD: t_bpfilter.c,v 1.11 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bpfilter.c,v 1.8 2014/06/24 11:32:36 alnsn Exp $");
+__RCSID("$NetBSD: t_bpfilter.c,v 1.11 2017/01/13 21:30:42 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -53,7 +53,7 @@ __RCSID("$NetBSD: t_bpfilter.c,v 1.8 2014/06/24 11:32:36 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 
@@ -113,6 +113,21 @@ static struct bpf_insn noinitA_prog[] = {
 static struct bpf_insn noinitX_prog[] = {
 	BPF_STMT(BPF_MISC+BPF_TXA, 0),
 	BPF_STMT(BPF_RET+BPF_A, 0),
+};
+
+static struct bpf_insn badjmp_prog[] = {
+	BPF_STMT(BPF_JMP+BPF_JA, 5),
+	BPF_STMT(BPF_RET+BPF_A, 0),
+};
+
+static struct bpf_insn negjmp_prog[] = {
+	BPF_STMT(BPF_JMP+BPF_JA, 0),
+	BPF_STMT(BPF_JMP+BPF_JA, UINT32_MAX - 1), // -2
+	BPF_STMT(BPF_RET+BPF_A, 0),
+};
+
+static struct bpf_insn badret_prog[] = {
+	BPF_STMT(BPF_RET+BPF_A+0x8000, 0),
 };
 
 static uint16_t
@@ -387,6 +402,70 @@ ATF_TC_BODY(bpfilternoinitX, tc)
 	RL(send_bpf_prog("bpfilternoinitX", &prog));
 }
 
+ATF_TC(bpfilterbadjmp);
+ATF_TC_HEAD(bpfilterbadjmp, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr", "Checks that bpf program that "
+	    "jumps to invalid destination is rejected by the kernel");
+	atf_tc_set_md_var(tc, "timeout", "30");
+}
+
+ATF_TC_BODY(bpfilterbadjmp, tc)
+{
+	struct bpf_program prog;
+
+	prog.bf_len = __arraycount(badjmp_prog);
+	prog.bf_insns = badjmp_prog;
+	ATF_CHECK_ERRNO(EINVAL, send_bpf_prog("bpfilterbadjmp", &prog) == -1);
+}
+
+ATF_TC(bpfilternegjmp);
+ATF_TC_HEAD(bpfilternegjmp, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr", "Checks that bpf program that "
+	    "jumps backwards is rejected by the kernel");
+	atf_tc_set_md_var(tc, "timeout", "30");
+}
+
+ATF_TC_BODY(bpfilternegjmp, tc)
+{
+	struct bpf_program prog;
+
+	prog.bf_len = __arraycount(negjmp_prog);
+	prog.bf_insns = negjmp_prog;
+	ATF_CHECK_ERRNO(EINVAL, send_bpf_prog("bpfilternegjmp", &prog) == -1);
+}
+
+ATF_TC(bpfilterbadret);
+ATF_TC_HEAD(bpfilterbadret, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr", "Checks that bpf program that "
+	    "ends with invalid BPF_RET instruction is rejected by the kernel");
+	atf_tc_set_md_var(tc, "timeout", "30");
+}
+
+ATF_TC_BODY(bpfilterbadret, tc)
+{
+	struct bpf_program prog;
+	struct bpf_insn *last;
+
+	prog.bf_len = __arraycount(badret_prog);
+	prog.bf_insns = badret_prog;
+
+	/*
+	 * The point of this test is checking a bad instruction of
+	 * a valid class and with a valid BPF_RVAL data.
+	 */
+	last = &prog.bf_insns[prog.bf_len - 1];
+	ATF_CHECK(BPF_CLASS(last->code) == BPF_RET &&
+	    (BPF_RVAL(last->code) == BPF_K || BPF_RVAL(last->code) == BPF_A));
+
+	ATF_CHECK_ERRNO(EINVAL, send_bpf_prog("bpfilterbadret", &prog) == -1);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -395,6 +474,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bpfilterbadmem);
 	ATF_TP_ADD_TC(tp, bpfilternoinitA);
 	ATF_TP_ADD_TC(tp, bpfilternoinitX);
+	ATF_TP_ADD_TC(tp, bpfilterbadjmp);
+	ATF_TP_ADD_TC(tp, bpfilternegjmp);
+	ATF_TP_ADD_TC(tp, bpfilterbadret);
 
 	return atf_no_error();
 }

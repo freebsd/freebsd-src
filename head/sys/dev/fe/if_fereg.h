@@ -114,14 +114,6 @@
 
 
 /*
- * Registers on RE1000.  (*NOT* on RE1000 Plus.)
- */
-
-/* IRQ configuration.  */
-#define	FE_RE1000_IRQCONF	0x10
-
-
-/*
  * Fujitsu MB86965 JLI mode support routines.
  */
 

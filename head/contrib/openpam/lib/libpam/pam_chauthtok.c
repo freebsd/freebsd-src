@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_chauthtok.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_chauthtok.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,7 +60,7 @@ pam_chauthtok(pam_handle_t *pamh,
 
 	ENTER();
 	if (flags & ~(PAM_SILENT|PAM_CHANGE_EXPIRED_AUTHTOK))
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_CONSTANT);
 	r = openpam_dispatch(pamh, PAM_SM_CHAUTHTOK,
 	    flags | PAM_PRELIM_CHECK);
 	if (r == PAM_SUCCESS)
@@ -77,7 +77,7 @@ pam_chauthtok(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_chauthtok
  *	!PAM_IGNORE
- *	PAM_SYMBOL_ERR
+ *	PAM_BAD_CONSTANT
  */
 
 /**
@@ -93,5 +93,5 @@ pam_chauthtok(pam_handle_t *pamh,
  *	=PAM_CHANGE_EXPIRED_AUTHTOK:
  *		Change only those authentication tokens that have expired.
  *
- * If any other bits are set, =pam_chauthtok will return =PAM_SYMBOL_ERR.
+ * If any other bits are set, =pam_chauthtok will return =PAM_BAD_CONSTANT.
  */

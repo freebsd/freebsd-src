@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 handbook:
 
-    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+    https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/updating-src.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -31,6 +31,291 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+
+****************************** SPECIAL WARNING: ******************************
+
+	Due to a bug in some versions of clang that's very hard to workaround in
+	the upgrade process, to upgrade to -current you must first upgrade
+	either stable/9 after r286035 or stable/10 after r286033 (including
+	10.3-RELEASE) or current after r286007 (including stable/11 and
+	11.0-RELEASE). These revisions post-date the 10.2 and 9.3 releases, so
+	you'll need to take the unusual step of upgrading to the tip of the
+	stable branch before moving to 11 or -current via a source upgrade.
+	stable/11 and 11.0-RELEASE have working newer compiler. This differs
+	from the historical situation where one could upgrade from anywhere on
+	the last couple of stable branches, so be careful.
+
+	If you're running a hybrid system on 9.x or 10.x with an updated clang
+	compiler or are using an supported external toolchain, the build system
+	will allow the upgrade. Otherwise it will print a reminder.
+
+****************************** SPECIAL WARNING: ******************************
+
+20170728:
+	As of r321665, an NFSv4 server configuration that services
+	Kerberos mounts or clients that do not support the uid/gid in
+	owner/owner_group string capability, must explicitly enable
+	the nfsuserd daemon by adding nfsuserd_enable="YES" to the
+	machine's /etc/rc.conf file.
+
+20170722:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 5.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170701:
+	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need them to be
+	built with the base system.
+
+20170625:
+	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
+	a very major ABI incompatible change, so users of FreeBSD/powerpc must
+	be careful when performing source upgrades.  It is best to run
+	'make installworld' from an alternate root system, either a live
+	CD/memory stick, or a temporary root partition.  Additionally, all ports
+	must be recompiled.  powerpc64 is largely unaffected, except in the case
+	of 32-bit compatibility.  All 32-bit binaries will be affected.
+
+20170623:
+	Forward compatibility for the "ino64" project have been committed. This
+	will allow most new binaries to run on older kernels in a limited
+	fashion.  This prevents many of the common foot-shooting actions in the
+	upgrade as well as the limited ability to roll back the kernel across
+	the ino64 upgrade. Complicated use cases may not work properly, though
+	enough simpler ones work to allow recovery in most situations.
+
+20170620:
+	Switch back to the BSDL dtc (Device Tree Compiler). Set WITH_GPL_DTC
+	if you require the GPL compiler.
+
+20170618:
+	The internal ABI used for communication between the NFS kernel modules
+	was changed by r320085, so __FreeBSD_version was bumped to
+	ensure all the NFS related modules are updated together.
+
+20170617:
+	The ABI of struct event was changed by extending the data
+	member to 64bit and adding ext fields.  For upgrade, same
+	precautions as for the entry 20170523 "ino64" must be
+	followed.
+
+20170531:
+	The GNU roff toolchain has been removed from base. To render manpages
+	which are not supported by mandoc(1), man(1) can fallback on GNU roff
+	from ports (and recommends to install it).
+	To render roff(7) documents, consider using GNU roff from ports or the
+	heirloom doctools roff toolchain from ports via pkg install groff or
+	via pkg install heirloom-doctools.
+
+20170524:
+	The ath(4) and ath_hal(4) modules now build piecemeal to allow for
+	smaller runtime footprint builds.  This is useful for embedded systems
+	which only require one chipset support.
+
+	If you load it as a module, make sure this is in /boot/loader.conf:
+
+	if_ath_load="YES"
+
+	This will load the HAL, all chip/RF backends and if_ath_pci.
+	If you have if_ath_pci in /boot/loader.conf, ensure it is after
+	if_ath or it will not load any HAL chipset support.
+
+	If you want to selectively load things (eg on ye cheape ARM/MIPS
+	platforms where RAM is at a premium) you should:
+
+	* load ath_hal
+	* load the chip modules in question
+	* load ath_rate, ath_dfs
+	* load ath_main
+	* load if_ath_pci and/or if_ath_ahb depending upon your particular
+	  bus bind type - this is where probe/attach is done.
+
+	For further comments/feedback, poke adrian@ .
+
+20170523:
+	The "ino64" 64-bit inode project has been committed, which extends
+	a number of types to 64 bits.  Upgrading in place requires care and
+	adherence to the documented upgrade procedure.
+
+	If using a custom kernel configuration ensure that the
+	COMPAT_FREEBSD11 option is included (as during the upgrade the
+	system will be running the ino64 kernel with the existing world).
+
+	For the safest in-place upgrade begin by removing previous build
+	artifacts via "rm -rf /usr/obj/*".   Then, carefully follow the
+	full procedure documented below under the heading "To rebuild
+	everything and install it on the current system."  Specifically,
+	a reboot is required after installing the new kernel before
+	installing world.  
+
+20170424:
+	The NATM framework including the en(4), fatm(4), hatm(4), and
+	patm(4) devices has been removed.  Consumers should plan a
+	migration before the end-of-life date for FreeBSD 11.
+
+20170420:
+	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
+	diff has not been implemented, if those are needed a newer version of
+	GNU diff is available via the diffutils package under the gdiff name.
+
+20170413:
+	As of r316810 for ipfilter, keep frags is no longer assumed when
+	keep state is specified in a rule. r316810 aligns ipfilter with
+	documentation in man pages separating keep frags from keep state.
+	This allows keep state to be specified without forcing keep frags
+	and allows keep frags to be specified independently of keep state.
+	To maintain previous behaviour, also specify keep frags with
+	keep state (as documented in ipf.conf.5).
+
+20170407:
+	arm64 builds now use the base system LLD 4.0.0 linker by default,
+	instead of requiring that the aarch64-binutils port or package be
+	installed. To continue using aarch64-binutils, set
+	CROSS_BINUTILS_PREFIX=/usr/local/aarch64-freebsd/bin .
+
+20170405:
+	The UDP optimization in entry 20160818 that added the sysctl
+	net.inet.udp.require_l2_bcast has been reverted.  L2 broadcast
+	packets will no longer be treated as L3 broadcast packets.
+
+20170331:
+	Binds and sends to the loopback addresses, IPv6 and IPv4, will now
+	use any explicitly assigned loopback address available in the jail
+	instead of using the first assigned address of the jail.
+
+20170329:
+	The ctl.ko module no longer implements the iSCSI target frontend:
+	cfiscsi.ko does instead.
+
+	If building cfiscsi.ko as a kernel module, the module can be loaded
+	via one of the following methods:
+	- `cfiscsi_load="YES"` in loader.conf(5).
+	- Add `cfiscsi` to `$kld_list` in rc.conf(5).
+	- ctladm(8)/ctld(8), when compiled with iSCSI support
+	  (`WITH_ISCSI=yes` in src.conf(5))
+
+	Please see cfiscsi(4) for more details.
+
+20170316:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
+20170315:
+	The syntax of ipfw(8) named states was changed to avoid ambiguity.
+	If you have used named states in the firewall rules, you need to modify
+	them after installworld and before rebooting. Now named states must
+	be prefixed with colon.
+
+20170311:
+	The old drm (sys/dev/drm/) drivers for i915 and radeon have been
+	removed as the userland we provide cannot use them. The KMS version
+	(sys/dev/drm2) supports the same hardware.
+
+20170302:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170221:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
+20170216:
+	EISA bus support has been removed. The WITH_EISA option is no longer
+	valid.
+
+20170215:
+	MCA bus support has been removed.
+
+20170127:
+	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
+	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.
+
+20170112:
+	The EM_MULTIQUEUE kernel configuration option is deprecated now that
+	the em(4) driver conforms to iflib specifications.
+
+20170109:
+	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
+	IFLIB.  If you have a custom kernel configuration that excludes em(4)
+	but you use igb(4), you need to re-add em(4) to your custom configuration.
+
+20161217:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161124:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20161119:
+	The layout of the pmap structure has changed for powerpc to put the pmap
+	statistics at the front for all CPU variations.  libkvm(3) and all tools
+	that link against it need to be recompiled.
+
+20161030:
+	isl(4) and cyapa(4) drivers now require a new driver,
+	chromebook_platform(4), to work properly on Chromebook-class hardware.
+	On other types of hardware the drivers may need to be configured using
+	device hints.  Please see the corresponding manual pages for details.
+
+20161017:
+	The urtwn(4) driver was merged into rtwn(4) and now consists of
+	rtwn(4) main module + rtwn_usb(4) and rtwn_pci(4) bus-specific
+	parts.
+	Also, firmware for RTL8188CE was renamed due to possible name
+	conflict (rtwnrtl8192cU(B) -> rtwnrtl8192cE(B))
+
+20161015:
+	GNU rcs has been removed from base.  It is available as packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) before it was
+	removed from base.
+
+20161008:
+	Use of the cc_cdg, cc_chd, cc_hd, or cc_vegas congestion control
+	modules now requires that the kernel configuration contain the
+	TCP_HHOOK option. (This option is included in the GENERIC kernel.)
+
+20161003:
+	The WITHOUT_ELFCOPY_AS_OBJCOPY src.conf(5) knob has been retired.
+	ELF Tool Chain's elfcopy is always installed as /usr/bin/objcopy.
+
+20160924:
+	Relocatable object files with the extension of .So have been renamed
+	to use an extension of .pico instead.  The purpose of this change is
+	to avoid a name clash with shared libraries on case-insensitive file
+	systems.  On those file systems, foo.So is the same file as foo.so.
+
+20160918:
+	GNU rcs has been turned off by default.  It can (temporarily) be built
+	again by adding WITH_RCS knob in src.conf.
+	Otherwise, GNU rcs is available from packages:
+	- rcs: Latest GPLv3 GNU rcs version.
+	- rcs57: Copy of the latest version of GNU rcs (GPLv2) from base.
+
+20160918:
+	The backup_uses_rcs functionality has been removed from rc.subr.
+
+20160908:
+	The queue(3) debugging macro, QUEUE_MACRO_DEBUG, has been split into
+	two separate components, QUEUE_MACRO_DEBUG_TRACE and
+	QUEUE_MACRO_DEBUG_TRASH.  Define both for the original
+	QUEUE_MACRO_DEBUG behavior.
+
+20160824:
+	r304787 changed some ioctl interfaces between the iSCSI userspace
+	programs and the kernel.  ctladm, ctld, iscsictl, and iscsid must be
+	rebuilt to work with new kernels.  __FreeBSD_version has been bumped
+	to 1200005.
+
 20160818:
 	The UDP receive code has been updated to only treat incoming UDP
 	packets that were addressed to an L2 broadcast address as L3
@@ -41,7 +326,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20160818:
 	Remove the openbsd_poll system call.
-        __FreeBSD_version has been bumped because of this.
+	__FreeBSD_version has been bumped because of this.
 
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with
@@ -54,7 +339,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20160527:
 	CAM will now strip leading spaces from SCSI disks' serial numbers.
-	This will effect users who create UFS filesystems on SCSI disks using
+	This will affect users who create UFS filesystems on SCSI disks using
 	those disk's diskid device nodes.  For example, if /etc/fstab
 	previously contained a line like
 	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
@@ -83,7 +368,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	packages will be needed.
 
 	To update an existing self-hosted armv6hf system, you must add
-	TARGET_ARCH=armv6 on the make command line for both the build 
+	TARGET_ARCH=armv6 on the make command line for both the build
 	and the install steps.
 
 20160510:
@@ -334,7 +619,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	# pw groupmod video -m $USER
 
 20150806:
-	The menu.rc and loader.rc files will now be replaced during 
+	The menu.rc and loader.rc files will now be replaced during
 	upgrades. Please migrate local changes to menu.rc.local and
 	loader.rc.local instead.
 
@@ -1069,7 +1354,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	behavior in parallel build.
 
 20130429:
-        Fix a bug that allows NFS clients to issue READDIR on files.
+	Fix a bug that allows NFS clients to issue READDIR on files.
 
 20130426:
 	The WITHOUT_IDEA option has been removed because
@@ -1417,11 +1702,15 @@ COMMON ITEMS:
 	your build attempts in an "environmental clean room", prefix all make
 	commands with 'env -i '.  See the env(1) manual page for more details.
 
-	When upgrading from one major version to another it is generally best
-	to upgrade to the latest code in the currently installed branch first,
-	then do an upgrade to the new branch. This is the best-tested upgrade
-	path, and has the highest probability of being successful.  Please try
-	this approach before reporting problems with a major version upgrade.
+	When upgrading from one major version to another it is generally best to
+	upgrade to the latest code in the currently installed branch first, then
+	do an upgrade to the new branch. This is the best-tested upgrade path,
+	and has the highest probability of being successful.  Please try this
+	approach if you encounter problems with a major version upgrade.  Since
+	the stable 4.x branch point, one has generally been able to upgade from
+	anywhere in the most recent stable branch to head / current (or even the
+	last couple of stable branches). See the top of this file when there's
+	an exception.
 
 	When upgrading a live system, having a root shell around before
 	installing anything can help undo problems. Not having a root shell

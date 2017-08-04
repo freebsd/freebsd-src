@@ -233,10 +233,10 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		(void)QLA_LOCK(ha, __func__, 0);
+		QLA_LOCK(ha);
 		if (!ha->hw.mdump_done)
 			ha->qla_initiate_recovery = 1;
-		QLA_UNLOCK(ha, __func__);
+		QLA_UNLOCK(ha);
 	
 #define QLNX_DUMP_WAIT_SECS	30
 
@@ -254,9 +254,9 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 			
-		(void)QLA_LOCK(ha, __func__, 0);
+		QLA_LOCK(ha);
 		ha->hw.mdump_done = 0;
-		QLA_UNLOCK(ha, __func__);
+		QLA_UNLOCK(ha);
 
 		if ((rval = copyout(ha->hw.mdump_template,
 			fw_dump->minidump, ha->hw.mdump_template_size))) {

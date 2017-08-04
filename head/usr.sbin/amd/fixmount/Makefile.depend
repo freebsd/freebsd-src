@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/librpcsvc \
-	lib/libwrap \
 	usr.sbin/amd/include \
 	usr.sbin/amd/libamu \
 

@@ -303,8 +303,8 @@ getargs(int argc, char **argv)
 		usage();
 	}
 	if (*Outfile == '\0') {
-		strcpy(Outfile, Infile);
-		strcat(Outfile, ".dat");
+		strlcpy(Outfile, Infile, sizeof(Outfile));
+		strlcat(Outfile, ".dat", sizeof(Outfile));
 	}
 }
 

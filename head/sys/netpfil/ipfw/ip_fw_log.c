@@ -211,6 +211,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				TARG(cmd->arg1, pipe));
 			break;
 		case O_FORWARD_IP: {
+			char buf[INET_ADDRSTRLEN];
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
 			int len;
 			struct in_addr dummyaddr;
@@ -220,7 +221,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				dummyaddr.s_addr = sa->sa.sin_addr.s_addr;
 
 			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
-				inet_ntoa(dummyaddr));
+				inet_ntoa_r(dummyaddr, buf));
 
 			if (sa->sa.sin_port)
 				snprintf(SNPARGS(action2, len), ":%d",
@@ -262,6 +263,11 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 			else
 				snprintf(SNPARGS(action2, 0), "Call %d",
 				    cmd->arg1);
+			break;
+		case O_EXTERNAL_ACTION:
+			snprintf(SNPARGS(action2, 0), "Eaction %s",
+			    ((struct named_object *)SRV_OBJECT(chain,
+			    cmd->arg1))->name);
 			break;
 		default:
 			action = "UNKNOWN";

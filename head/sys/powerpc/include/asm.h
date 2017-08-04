@@ -89,10 +89,11 @@
 	name:
 
 #ifdef __powerpc64__
-#define TOC_REF(name)	__CONCAT(.L,name)
+#define TOC_NAME_FOR_REF(name)	__CONCAT(.L,name)
+#define	TOC_REF(name)	TOC_NAME_FOR_REF(name)@toc
 #define TOC_ENTRY(name) \
 	.section ".toc","aw"; \
-	TOC_REF(name): \
+	TOC_NAME_FOR_REF(name): \
         .tc name[TC],name
 #endif
 
@@ -127,6 +128,13 @@ name: \
 	.long	0; \
 	.byte	0,0,0,0,0,0,0,0; \
 	END_SIZE(name)
+
+#define	LOAD_ADDR(reg, var) \
+	lis	reg, var@highest; \
+	ori	reg, reg, var@higher; \
+	rldicr	reg, reg, 32, 31; \
+	oris	reg, reg, var@h; \
+	ori	reg, reg, var@l;
 #else /* !__powerpc64__ */
 #define	_ENTRY(name) \
 	.text; \
@@ -135,6 +143,10 @@ name: \
 	.type	name,@function; \
 	name:
 #define	_END(name)
+
+#define	LOAD_ADDR(reg, var) \
+	lis	reg, var@ha; \
+	ori	reg, reg, var@l;
 #endif /* __powerpc64__ */
 
 #if defined(PROF) || (defined(_KERNEL) && defined(GPROF))

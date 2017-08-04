@@ -30,17 +30,17 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd July 28, 2010
+.Dd April 17, 2017
 .Dt GREP 1
 .Os
 .Sh NAME
-.Nm grep , egrep , fgrep ,
+.Nm grep , egrep , fgrep , rgrep ,
 .Nm zgrep , zegrep , zfgrep
 .Nd file pattern searcher
 .Sh SYNOPSIS
 .Nm grep
 .Bk -words
-.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZ
+.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZz
 .Op Fl A Ar num
 .Op Fl B Ar num
 .Op Fl C Ns Op Ar num
@@ -341,6 +341,10 @@ will only search a file until a match has been found,
 making searches potentially less expensive.
 .It Fl R , Fl r , Fl Fl recursive
 Recursively search subdirectories listed.
+(i.e. force
+.Nm grep
+to behave as
+.Nm rgrep ) .
 .It Fl S
 If
 .Fl R
@@ -352,6 +356,8 @@ Nonexistent and unreadable files are ignored
 (i.e. their error messages are suppressed).
 .It Fl U , Fl Fl binary
 Search binary files, but do not attempt to print them.
+.It Fl u
+This option has no effect and is provided only for compatibility with GNU grep.
 .It Fl V , Fl Fl version
 Display version information and exit.
 .It Fl v , Fl Fl invert-match
@@ -372,7 +378,10 @@ expression are considered to be matching lines.
 Equivalent to
 .Fl i .
 Obsoleted.
-.It Fl Z , Fl z , Fl Fl decompress
+.It Fl z , Fl Fl null-data
+Treat input and output data as sequences of lines terminated by a
+zero-byte instead of a newline.
+.It Fl Z , Fl Fl decompress
 Force
 .Nm grep
 to behave as

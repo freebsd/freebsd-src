@@ -1,4 +1,4 @@
-MANIFEST for byacc-20160324, version t20160324
+MANIFEST for byacc-20170430, version t20170430
 --------------------------------------------------------------------------------
 MANIFEST                        this file
 ACKNOWLEDGEMENTS                original version of byacc - 1993
@@ -77,6 +77,22 @@ test/btyacc/btyacc_demo.error   reference output for testing
 test/btyacc/btyacc_demo.output  reference output for testing
 test/btyacc/btyacc_demo.tab.c   reference output for testing
 test/btyacc/btyacc_demo.tab.h   reference output for testing
+test/btyacc/btyacc_demo2.error  reference output for testing
+test/btyacc/btyacc_demo2.output reference output for testing
+test/btyacc/btyacc_demo2.tab.c  reference output for testing
+test/btyacc/btyacc_demo2.tab.h  reference output for testing
+test/btyacc/btyacc_destroy1.error  reference output for testing
+test/btyacc/btyacc_destroy1.output  reference output for testing
+test/btyacc/btyacc_destroy1.tab.c  reference output for testing
+test/btyacc/btyacc_destroy1.tab.h  reference output for testing
+test/btyacc/btyacc_destroy2.error  reference output for testing
+test/btyacc/btyacc_destroy2.output  reference output for testing
+test/btyacc/btyacc_destroy2.tab.c  reference output for testing
+test/btyacc/btyacc_destroy2.tab.h  reference output for testing
+test/btyacc/btyacc_destroy3.error  reference output for testing
+test/btyacc/btyacc_destroy3.output  reference output for testing
+test/btyacc/btyacc_destroy3.tab.c  reference output for testing
+test/btyacc/btyacc_destroy3.tab.h  reference output for testing
 test/btyacc/calc.error          reference output for testing
 test/btyacc/calc.output         reference output for testing
 test/btyacc/calc.tab.c          reference output for testing
@@ -256,6 +272,10 @@ test/btyacc/error.error         reference output for testing
 test/btyacc/error.output        reference output for testing
 test/btyacc/error.tab.c         reference output for testing
 test/btyacc/error.tab.h         reference output for testing
+test/btyacc/expr.oxout.error    reference output for testing
+test/btyacc/expr.oxout.output   reference output for testing
+test/btyacc/expr.oxout.tab.c    reference output for testing
+test/btyacc/expr.oxout.tab.h    reference output for testing
 test/btyacc/grammar.dot         reference output for testing
 test/btyacc/grammar.error       reference output for testing
 test/btyacc/grammar.output      reference output for testing
@@ -359,6 +379,9 @@ test/btyacc/varsyntax_calc1.tab.h  reference output for testing
 test                            subdirectory
 test/btyacc_calc1.y             testcase for btyacc
 test/btyacc_demo.y              testcase for btyacc
+test/btyacc_destroy1.y          btyacc test-case for %parse-param
+test/btyacc_destroy2.y          btyacc test-case for %parse-param
+test/btyacc_destroy3.y          btyacc test-case for %parse-param
 test/calc.y                     example from VMS freeware version of byacc
 test/calc1.y                    advanced example from Steve Johnson's paper.
 test/calc2.y                    test-cases and reference files for %lex-param / %parse-param
@@ -403,6 +426,7 @@ test/err_syntax8.y              testcase for used_reserved()
 test/err_syntax8a.y             testcase for used_reserved()
 test/err_syntax9.y              testcase for tokenized_start()
 test/error.y                    original version of byacc - 1993
+test/expr.oxout.y               test-case for "#line" feature
 test/grammar.y                  grammar from cproto
 test/inherit0.y                 testcase for btyacc
 test/inherit1.y                 testcase for btyacc
@@ -577,6 +601,10 @@ test/yacc/error.error           reference output for testing
 test/yacc/error.output          reference output for testing
 test/yacc/error.tab.c           reference output for testing
 test/yacc/error.tab.h           reference output for testing
+test/yacc/expr.oxout.error      reference output for testing
+test/yacc/expr.oxout.output     reference output for testing
+test/yacc/expr.oxout.tab.c      reference output for testing
+test/yacc/expr.oxout.tab.h      reference output for testing
 test/yacc/grammar.dot           reference output for testing
 test/yacc/grammar.error         reference output for testing
 test/yacc/grammar.output        reference output for testing

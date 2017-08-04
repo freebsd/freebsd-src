@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/slicer.h>
+
+#include <geom/geom_disk.h>
 
 #include <machine/bus.h>
 
@@ -106,6 +109,40 @@ static const struct nand_ecc_data rb_ecc = {
 };
 #endif
 
+/* Slicer operates on the NAND controller, so we have to find the chip. */
+static int
+rb_nand_slicer(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *nslices)
+{
+	struct nand_chip *chip;
+	device_t *children;
+	int n;
+
+	if (device_get_children(dev, &children, &n) != 0) {
+		panic("Slicer called on controller with no child!");
+	}
+	dev = children[0];
+	free(children, M_TEMP);
+
+	if (device_get_children(dev, &children, &n) != 0) {
+		panic("Slicer called on controller with nandbus but no child!");
+	}
+	dev = children[0];
+	free(children, M_TEMP);
+
+	chip = device_get_softc(dev);
+	*nslices = 2;
+	slices[0].base = 0;
+	slices[0].size = 4 * 1024 * 1024;
+	slices[0].label = "boot";
+
+	slices[1].base = 4 * 1024 * 1024;
+	slices[1].size = chip->ndisk->d_mediasize - slices[0].size;
+	slices[1].label = "rootfs";
+
+	return (0);
+}
+
 static int
 rb_nand_probe(device_t dev)
 {
@@ -174,6 +211,8 @@ rb_nand_attach(device_t dev)
 		device_printf(dev, "could not allocate local address window.\n");
 		return (ENXIO);
 	}
+
+	flash_register_slicer(rb_nand_slicer, FLASH_SLICES_TYPE_NAND, TRUE);
 
 	nand_init(&sc->nand_dev, dev, NAND_ECC_SOFT, 0, 0, NULL, NULL);
 

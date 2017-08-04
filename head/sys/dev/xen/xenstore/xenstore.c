@@ -1699,3 +1699,20 @@ xs_unregister_watch(struct xs_watch *watch)
 		sx_xunlock(&xs.xenwatch_mutex);
 	}
 }
+
+void
+xs_lock(void)
+{
+
+	sx_xlock(&xs.request_mutex);
+	return;
+}
+
+void
+xs_unlock(void)
+{
+
+	sx_xunlock(&xs.request_mutex);
+	return;
+}
+

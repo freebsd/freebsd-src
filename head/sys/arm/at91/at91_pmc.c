@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <arm/at91/at91reg.h>
@@ -52,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pmcvar.h>
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif

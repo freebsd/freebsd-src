@@ -102,7 +102,7 @@ int
 main(int argc, char *argv[])
 {
 	char	mixer[PATH_MAX] = "/dev/mixer";
-	char	lstr[5], rstr[5];
+	char	lstr[8], rstr[8];
 	char	*name, *eptr;
 	int	devmask = 0, recmask = 0, recsrc = 0, orecsrc;
 	int	dusage = 0, drecsrc = 0, sflag = 0, Sflag = 0;

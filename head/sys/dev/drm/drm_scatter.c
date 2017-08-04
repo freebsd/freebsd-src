@@ -48,7 +48,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	entry = malloc(sizeof(*entry), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
 
 	size = round_page(request->size);
-	entry->pages = OFF_TO_IDX(size);
+	entry->pages = atop(size);
 	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
 	    DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
 

@@ -42,7 +42,7 @@
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *  mpi2_init.h Version:  02.00.20
+ *  mpi2_init.h Version:  02.00.21
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -62,7 +62,7 @@
  *  05-21-08  02.00.05  Fixed typo in name of Mpi2SepRequest_t.
  *  10-02-08  02.00.06  Removed Untagged and No Disconnect values from SCSI IO
  *                      Control field Task Attribute flags.
- *                      Moved LUN field defines to mpi2.h becasue they are
+ *                      Moved LUN field defines to mpi2.h because they are
  *                      common to many structures.
  *  05-06-09  02.00.07  Changed task management type of Query Unit Attention to
  *                      Query Asynchronous Event.
@@ -90,6 +90,8 @@
  *  08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
  *  12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
  *  01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
+ *  01-21-16  02.00.21  Modified MPI26_SCSITASKMGMT_MSGFLAGS_PCIE* defines to
+ *                      be unique within first 32 characters.
  *  --------------------------------------------------------------------------
  */
 
@@ -491,12 +493,13 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST
 #define MPI2_SCSITASKMGMT_TASKTYPE_QRY_UNIT_ATTENTION   (MPI2_SCSITASKMGMT_TASKTYPE_QRY_ASYNC_EVENT)
 
 /* MsgFlags bits */
-
-#define MPI2_SCSITASKMGMT_MSGFLAGS_MASK_TARGET_RESET    (0x18)
-#define MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET           (0x00)
+#define MPI2_SCSITASKMGMT_MSGFLAGS_MASK_TARGET_RESET      (0x18)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_HOT_RESET_PCIE        (0x00)
+#define MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET             (0x00)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU    (0x01)
-#define MPI2_SCSITASKMGMT_MSGFLAGS_NEXUS_RESET_SRST     (0x08)
-#define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET  (0x10)
+#define MPI2_SCSITASKMGMT_MSGFLAGS_NEXUS_RESET_SRST       (0x08)
+#define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET    (0x10)
+#define MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE (0x18)
 
 
 /* SCSI Task Management Reply Message */

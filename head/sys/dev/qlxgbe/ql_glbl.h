@@ -39,6 +39,7 @@
  */
 extern void ql_mbx_isr(void *arg);
 extern void ql_isr(void *arg);
+extern uint32_t ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count);
 
 /*
  * from ql_os.c
@@ -66,7 +67,7 @@ extern void qla_reset_promisc(qla_host_t *ha);
 extern int ql_set_allmulti(qla_host_t *ha);
 extern void qla_reset_allmulti(qla_host_t *ha);
 extern void ql_update_link_state(qla_host_t *ha);
-extern void ql_hw_tx_done(qla_host_t *ha);
+extern void ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx);
 extern int ql_set_max_mtu(qla_host_t *ha, uint32_t mtu, uint16_t cntxt_id);
 extern void ql_hw_stop_rcv(qla_host_t *ha);
 extern void ql_get_stats(qla_host_t *ha);
@@ -76,7 +77,7 @@ extern void qla_hw_async_event(qla_host_t *ha);
 extern int qla_get_nic_partition(qla_host_t *ha, uint32_t *supports_9kb,
 		uint32_t *num_rcvq);
 
-extern int qla_iscsi_pdu(qla_host_t *ha, struct mbuf *mp);
+extern int ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp);
 
 extern void ql_minidump(qla_host_t *ha);
 extern int ql_minidump_init(qla_host_t *ha);

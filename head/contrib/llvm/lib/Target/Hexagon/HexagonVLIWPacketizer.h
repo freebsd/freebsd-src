@@ -7,6 +7,9 @@
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 
 namespace llvm {
+class HexagonInstrInfo;
+class HexagonRegisterInfo;
+
 class HexagonPacketizerList : public VLIWPacketizerList {
   // Vector of instructions assigned to the packet that has just been created.
   std::vector<MachineInstr*> OldPacketMIs;
@@ -31,6 +34,10 @@ class HexagonPacketizerList : public VLIWPacketizerList {
   // Track MIs with ignored dependence.
   std::vector<MachineInstr*> IgnoreDepMIs;
 
+  // Set to true if the packet contains an instruction that stalls with an
+  // instruction from the previous packet.
+  bool PacketStalls = false;
+
 protected:
   /// \brief A handle to the branch probability pass.
   const MachineBranchProbabilityInfo *MBPI;
@@ -50,12 +57,12 @@ public:
   void initPacketizerState() override;
 
   // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
-  bool ignorePseudoInstruction(const MachineInstr *MI,
+  bool ignorePseudoInstruction(const MachineInstr &MI,
                                const MachineBasicBlock *MBB) override;
 
   // isSoloInstruction - return true if instruction MI can not be packetized
   // with any other instruction, which means that MI itself is a packet.
-  bool isSoloInstruction(const MachineInstr *MI) override;
+  bool isSoloInstruction(const MachineInstr &MI) override;
 
   // isLegalToPacketizeTogether - Is it legal to packetize SUI and SUJ
   // together.
@@ -65,49 +72,53 @@ public:
   // and SUJ.
   bool isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ) override;
 
-  MachineBasicBlock::iterator addToPacket(MachineInstr *MI) override;
-  void endPacket(MachineBasicBlock *MBB, MachineInstr *MI) override;
-  bool shouldAddToPacket(const MachineInstr *MI) override;
+  MachineBasicBlock::iterator addToPacket(MachineInstr &MI) override;
+  void endPacket(MachineBasicBlock *MBB,
+                 MachineBasicBlock::iterator MI) override;
+  bool shouldAddToPacket(const MachineInstr &MI) override;
 
   void unpacketizeSoloInstrs(MachineFunction &MF);
 
 protected:
-  bool isCallDependent(const MachineInstr* MI, SDep::Kind DepType,
+  bool isCallDependent(const MachineInstr &MI, SDep::Kind DepType,
                        unsigned DepReg);
-  bool promoteToDotCur(MachineInstr* MI, SDep::Kind DepType,
+  bool promoteToDotCur(MachineInstr &MI, SDep::Kind DepType,
                        MachineBasicBlock::iterator &MII,
-                       const TargetRegisterClass* RC);
-  bool canPromoteToDotCur(const MachineInstr* MI, const SUnit* PacketSU,
+                       const TargetRegisterClass *RC);
+  bool canPromoteToDotCur(const MachineInstr &MI, const SUnit *PacketSU,
                           unsigned DepReg, MachineBasicBlock::iterator &MII,
-                          const TargetRegisterClass* RC);
+                          const TargetRegisterClass *RC);
   void cleanUpDotCur();
 
-  bool promoteToDotNew(MachineInstr* MI, SDep::Kind DepType,
+  bool promoteToDotNew(MachineInstr &MI, SDep::Kind DepType,
                        MachineBasicBlock::iterator &MII,
-                       const TargetRegisterClass* RC);
-  bool canPromoteToDotNew(const MachineInstr* MI, const SUnit* PacketSU,
+                       const TargetRegisterClass *RC);
+  bool canPromoteToDotNew(const MachineInstr &MI, const SUnit *PacketSU,
                           unsigned DepReg, MachineBasicBlock::iterator &MII,
-                          const TargetRegisterClass* RC);
-  bool canPromoteToNewValue(const MachineInstr* MI, const SUnit* PacketSU,
+                          const TargetRegisterClass *RC);
+  bool canPromoteToNewValue(const MachineInstr &MI, const SUnit *PacketSU,
                             unsigned DepReg, MachineBasicBlock::iterator &MII);
-  bool canPromoteToNewValueStore(const MachineInstr* MI,
-                                 const MachineInstr* PacketMI, unsigned DepReg);
-  bool demoteToDotOld(MachineInstr* MI);
-  bool arePredicatesComplements(MachineInstr* MI1, MachineInstr* MI2);
-  bool restrictingDepExistInPacket(MachineInstr*, unsigned);
-  bool isNewifiable(const MachineInstr *MI);
-  bool isCurifiable(MachineInstr* MI);
-  bool cannotCoexist(const MachineInstr *MI, const MachineInstr *MJ);
+  bool canPromoteToNewValueStore(const MachineInstr &MI,
+                                 const MachineInstr &PacketMI, unsigned DepReg);
+  bool demoteToDotOld(MachineInstr &MI);
+  bool useCallersSP(MachineInstr &MI);
+  void useCalleesSP(MachineInstr &MI);
+  bool arePredicatesComplements(MachineInstr &MI1, MachineInstr &MI2);
+  bool restrictingDepExistInPacket(MachineInstr&, unsigned);
+  bool isNewifiable(const MachineInstr &MI, const TargetRegisterClass *NewRC);
+  bool isCurifiable(MachineInstr &MI);
+  bool cannotCoexist(const MachineInstr &MI, const MachineInstr &MJ);
   inline bool isPromotedToDotNew() const {
     return PromotedToDotNew;
   }
   bool tryAllocateResourcesForConstExt(bool Reserve);
   bool canReserveResourcesForConstExt();
   void reserveResourcesForConstExt();
-  bool hasDeadDependence(const MachineInstr *I, const MachineInstr *J);
-  bool hasControlDependence(const MachineInstr *I, const MachineInstr *J);
-  bool hasV4SpecificDependence(const MachineInstr *I, const MachineInstr *J);
-  bool producesStall(const MachineInstr *MI);
+  bool hasDeadDependence(const MachineInstr &I, const MachineInstr &J);
+  bool hasControlDependence(const MachineInstr &I, const MachineInstr &J);
+  bool hasRegMaskDependence(const MachineInstr &I, const MachineInstr &J);
+  bool hasV4SpecificDependence(const MachineInstr &I, const MachineInstr &J);
+  bool producesStall(const MachineInstr &MI);
 };
 } // namespace llvm
 #endif // HEXAGONVLIWPACKETIZER_H

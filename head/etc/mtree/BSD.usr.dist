@@ -11,7 +11,13 @@
         private
             bsdstat
             ..
+            event
+            ..
+            sqlite3
+            ..
             ucl
+            ..
+            zstd
             ..
         ..
     ..
@@ -19,7 +25,7 @@
         aout
         ..
         clang
-            3.8.0
+            5.0.0
                 include
                     sanitizer
                     ..
@@ -183,8 +189,6 @@
             ..
             atf
             ..
-            atm
-            ..
             legal
             ..
             llvm
@@ -209,103 +213,7 @@
                 scripts
                 ..
             ..
-            papers
-            ..
             pjdfstest
-            ..
-            psd
-                01.cacm
-                ..
-                02.implement
-                ..
-                03.iosys
-                ..
-                04.uprog
-                ..
-                05.sysman
-                ..
-                06.Clang
-                ..
-                12.make
-                ..
-                13.rcs
-                ..
-                15.yacc
-                ..
-                16.lex
-                ..
-                17.m4
-                ..
-                18.gprof
-                ..
-                20.ipctut
-                ..
-                21.ipc
-                ..
-                22.rpcgen
-                ..
-                23.rpc
-                ..
-                24.xdr
-                ..
-                25.xdrrfc
-                ..
-                26.rpcrfc
-                ..
-                27.nfsrfc
-                ..
-            ..
-            smm
-                01.setup
-                ..
-                02.config
-                ..
-                03.fsck
-                ..
-                04.quotas
-                ..
-                05.fastfs
-                ..
-                06.nfs
-                ..
-                07.lpd
-                ..
-                08.sendmailop
-                ..
-                11.timedop
-                ..
-                12.timed
-                ..
-                18.net
-                ..
-            ..
-            usd
-                04.csh
-                ..
-                05.dc
-                ..
-                06.bc
-                ..
-                07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
-                ..
-                18.msdiffs
-                ..
-                19.memacros
-                ..
-                20.meref
-                ..
-                21.troff
-                ..
-                22.trofftut
-                ..
             ..
         ..
         dtrace
@@ -505,8 +413,6 @@
                 UTF
                 ..
             ..
-        ..
-        info
         ..
         keys
             pkg
@@ -1385,11 +1291,7 @@
             ..
             zh_CN.eucCN
             ..
-            zh_HK.Big5HKSCS
-            ..
             zh_HK.UTF-8
-            ..
-            zh_TW.Big5
             ..
             zh_TW.UTF-8
             ..

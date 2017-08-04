@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.55 2011/02/25 23:58:34 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -34,7 +34,7 @@
 #include "sh.h"
 #include <assert.h>
 
-RCSID("$tcsh: sh.err.c,v 3.55 2011/02/25 23:58:34 christos Exp $")
+RCSID("$tcsh: sh.err.c,v 3.57 2015/05/26 17:32:45 christos Exp $")
 
 /*
  * C Shell
@@ -218,7 +218,7 @@ errinit(void)
     elst[ERR_DOLZERO] = CSAVS(1, 5, "No file for $0");
     elst[ERR_INCBR] = CSAVS(1, 6, "Incomplete [] modifier");
     elst[ERR_EXPORD] = CSAVS(1, 7, "$ expansion must end before ]");
-    elst[ERR_BADMOD] = CSAVS(1, 8, "Bad : modifier in $ (%c)");
+    elst[ERR_BADMOD] = CSAVS(1, 8, "Bad : modifier in $ '%c'");
     elst[ERR_SUBSCRIPT] = CSAVS(1, 9, "Subscript error");
     elst[ERR_BADNUM] = CSAVS(1, 10, "Badly formed number");
     elst[ERR_NOMORE] = CSAVS(1, 11, "No more words");
@@ -262,8 +262,8 @@ errinit(void)
     elst[ERR_NOTWHILE] = CSAVS(1, 48, "Not in while/foreach");
     elst[ERR_NOPROC] = CSAVS(1, 49, "No more processes");
     elst[ERR_NOMATCH] = CSAVS(1, 50, "No match");
-    elst[ERR_MISSING] = CSAVS(1, 51, "Missing %c");
-    elst[ERR_UNMATCHED] = CSAVS(1, 52, "Unmatched %c");
+    elst[ERR_MISSING] = CSAVS(1, 51, "Missing '%c'");
+    elst[ERR_UNMATCHED] = CSAVS(1, 52, "Unmatched '%c'");
     elst[ERR_NOMEM] = CSAVS(1, 53, "Out of memory");
     elst[ERR_PIPE] = CSAVS(1, 54, "Can't make pipe");
     elst[ERR_SYSTEM] = CSAVS(1, 55, "%s: %s");
@@ -309,7 +309,7 @@ errinit(void)
     elst[ERR_BADSUBST] = CSAVS(1, 90, "Bad substitute");
     elst[ERR_LHS] = CSAVS(1, 91, "No previous left hand side");
     elst[ERR_RHSLONG] = CSAVS(1, 92, "Right hand side too long");
-    elst[ERR_BADBANGMOD] = CSAVS(1, 93, "Bad ! modifier: %c");
+    elst[ERR_BADBANGMOD] = CSAVS(1, 93, "Bad ! modifier: '%c'");
     elst[ERR_MODFAIL] = CSAVS(1, 94, "Modifier failed");
     elst[ERR_SUBOVFL] = CSAVS(1, 95, "Substitution buffer overflow");
     elst[ERR_BADBANGARG] = CSAVS(1, 96, "Bad ! arg selector");
@@ -335,7 +335,7 @@ errinit(void)
     elst[ERR_TCNOSTR] = CSAVS(1, 115, "Out of termcap string space");
     elst[ERR_SETTCUS] = CSAVS(1, 116, "Usage: settc %s [yes|no]");
     elst[ERR_TCCAP] = CSAVS(1, 117, "Unknown capability `%s'");
-    elst[ERR_TCPARM] = CSAVS(1, 118, "Unknown termcap parameter `%%%c'");
+    elst[ERR_TCPARM] = CSAVS(1, 118, "Unknown termcap parameter '%%%c'");
     elst[ERR_TCARGS] = CSAVS(1, 119, "Too many arguments for `%s' (%d)");
     elst[ERR_TCNARGS] = CSAVS(1, 120, "`%s' requires %d arguments");
     elst[ERR_TCUSAGE] = CSAVS(1, 121,
@@ -365,7 +365,7 @@ errinit(void)
     elst[ERR_ULIMUS] = CSAVS(1, 134, "Usage: unlimit [-fh] [limits]");
     elst[ERR_READONLY] = CSAVS(1, 135, "$%S is read-only");
     elst[ERR_BADJOB] = CSAVS(1, 136, "No such job (badjob)");
-    elst[ERR_BADCOLORVAR] = CSAVS(1, 137, "Unknown colorls variable `%c%c'");
+    elst[ERR_BADCOLORVAR] = CSAVS(1, 137, "Unknown colorls variable '%c%c'");
     elst[ERR_EOF] = CSAVS(1, 138, "Unexpected end of file");
 }
 
@@ -380,10 +380,10 @@ struct cleanup_entry
 #endif
 };
 
-static struct cleanup_entry *cleanup_stack; /* = NULL; */
-static size_t cleanup_sp; /* = 0; Next free entry */
-static size_t cleanup_mark; /* = 0; Last entry to handle before unwinding */
-static size_t cleanup_stack_size; /* = 0 */
+static struct cleanup_entry *cleanup_stack INIT_ZERO; /* = NULL; */
+static size_t cleanup_sp INIT_ZERO; /* = 0; Next free entry */
+static size_t cleanup_mark INIT_ZERO; /* = 0; Last entry to handle before unwinding */
+static size_t cleanup_stack_size INIT_ZERO; /* = 0 */
 
 /* fn() will be run with all signals blocked, so it should not do anything
    risky. */

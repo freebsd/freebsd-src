@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.285 2016/02/17 05:29:04 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.306 2017/03/14 07:19:07 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -89,9 +89,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_host_cert_files = 0;
 	options->host_key_agent = NULL;
 	options->pid_file = NULL;
-	options->server_key_bits = -1;
 	options->login_grace_time = -1;
-	options->key_regeneration_time = -1;
 	options->permit_root_login = PERMIT_NOT_SET;
 	options->ignore_rhosts = -1;
 	options->ignore_user_known_hosts = -1;
@@ -107,12 +105,10 @@ initialize_server_options(ServerOptions *options)
 	options->tcp_keep_alive = -1;
 	options->log_facility = SYSLOG_FACILITY_NOT_SET;
 	options->log_level = SYSLOG_LEVEL_NOT_SET;
-	options->rhosts_rsa_authentication = -1;
 	options->hostbased_authentication = -1;
 	options->hostbased_uses_name_from_packet_only = -1;
 	options->hostbased_key_types = NULL;
 	options->hostkeyalgorithms = NULL;
-	options->rsa_authentication = -1;
 	options->pubkey_authentication = -1;
 	options->pubkey_key_types = NULL;
 	options->kerberos_authentication = -1;
@@ -127,7 +123,6 @@ initialize_server_options(ServerOptions *options)
 	options->challenge_response_authentication = -1;
 	options->permit_empty_passwd = -1;
 	options->permit_user_env = -1;
-	options->use_login = -1;
 	options->compression = -1;
 	options->rekey_limit = -1;
 	options->rekey_interval = -1;
@@ -141,7 +136,6 @@ initialize_server_options(ServerOptions *options)
 	options->ciphers = NULL;
 	options->macs = NULL;
 	options->kex_algorithms = NULL;
-	options->protocol = SSH_PROTO_UNKNOWN;
 	options->fwd_opts.gateway_ports = -1;
 	options->fwd_opts.streamlocal_bind_mask = (mode_t)-1;
 	options->fwd_opts.streamlocal_bind_unlink = -1;
@@ -172,6 +166,8 @@ initialize_server_options(ServerOptions *options)
 	options->ip_qos_bulk = -1;
 	options->version_addendum = NULL;
 	options->fingerprint_hash = -1;
+	options->disable_forwarding = -1;
+	options->use_blacklist = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -205,8 +201,6 @@ fill_default_server_options(ServerOptions *options)
 		options->use_pam = 1;
 
 	/* Standard Options */
-	if (options->protocol == SSH_PROTO_UNKNOWN)
-		options->protocol = SSH_PROTO_2;
 #define add_host_key_file(path)						\
 	do {								\
 		if (access((path), O_RDONLY) == 0)			\
@@ -215,16 +209,12 @@ fill_default_server_options(ServerOptions *options)
 	} while (0)
 	if (options->num_host_key_files == 0) {
 		/* fill default hostkeys for protocols */
-		if (options->protocol & SSH_PROTO_1)
-			add_host_key_file(_PATH_HOST_KEY_FILE);
-		if (options->protocol & SSH_PROTO_2) {
-			add_host_key_file(_PATH_HOST_RSA_KEY_FILE);
-			add_host_key_file(_PATH_HOST_DSA_KEY_FILE);
+		add_host_key_file(_PATH_HOST_RSA_KEY_FILE);
+		add_host_key_file(_PATH_HOST_DSA_KEY_FILE);
 #ifdef OPENSSL_HAS_ECC
-			add_host_key_file(_PATH_HOST_ECDSA_KEY_FILE);
+		add_host_key_file(_PATH_HOST_ECDSA_KEY_FILE);
 #endif
-			add_host_key_file(_PATH_HOST_ED25519_KEY_FILE);
-		}
+		add_host_key_file(_PATH_HOST_ED25519_KEY_FILE);
 	}
 #undef add_host_key_file
 	if (options->num_host_key_files == 0)
@@ -238,12 +228,8 @@ fill_default_server_options(ServerOptions *options)
 		add_listen_addr(options, NULL, 0);
 	if (options->pid_file == NULL)
 		options->pid_file = xstrdup(_PATH_SSH_DAEMON_PID_FILE);
-	if (options->server_key_bits == -1)
-		options->server_key_bits = 1024;
 	if (options->login_grace_time == -1)
 		options->login_grace_time = 120;
-	if (options->key_regeneration_time == -1)
-		options->key_regeneration_time = 3600;
 	if (options->permit_root_login == PERMIT_NOT_SET)
 		options->permit_root_login = PERMIT_NO;
 	if (options->ignore_rhosts == -1)
@@ -274,14 +260,10 @@ fill_default_server_options(ServerOptions *options)
 		options->log_facility = SYSLOG_FACILITY_AUTH;
 	if (options->log_level == SYSLOG_LEVEL_NOT_SET)
 		options->log_level = SYSLOG_LEVEL_INFO;
-	if (options->rhosts_rsa_authentication == -1)
-		options->rhosts_rsa_authentication = 0;
 	if (options->hostbased_authentication == -1)
 		options->hostbased_authentication = 0;
 	if (options->hostbased_uses_name_from_packet_only == -1)
 		options->hostbased_uses_name_from_packet_only = 0;
-	if (options->rsa_authentication == -1)
-		options->rsa_authentication = 1;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
 	if (options->kerberos_authentication == -1)
@@ -297,7 +279,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->gss_cleanup_creds == -1)
 		options->gss_cleanup_creds = 1;
 	if (options->gss_strict_acceptor == -1)
-		options->gss_strict_acceptor = 0;
+		options->gss_strict_acceptor = 1;
 	if (options->password_authentication == -1)
 		options->password_authentication = 0;
 	if (options->kbd_interactive_authentication == -1)
@@ -308,8 +290,6 @@ fill_default_server_options(ServerOptions *options)
 		options->permit_empty_passwd = 0;
 	if (options->permit_user_env == -1)
 		options->permit_user_env = 0;
-	if (options->use_login == -1)
-		options->use_login = 0;
 	if (options->compression == -1)
 		options->compression = COMP_DELAYED;
 	if (options->rekey_limit == -1)
@@ -360,6 +340,10 @@ fill_default_server_options(ServerOptions *options)
 		options->fwd_opts.streamlocal_bind_unlink = 0;
 	if (options->fingerprint_hash == -1)
 		options->fingerprint_hash = SSH_FP_HASH_DEFAULT;
+	if (options->disable_forwarding == -1)
+		options->disable_forwarding = 0;
+	if (options->use_blacklist == -1)
+		options->use_blacklist = 0;
 
 	assemble_algorithms(options);
 
@@ -388,6 +372,14 @@ fill_default_server_options(ServerOptions *options)
 		CLEAR_ON_NONE(options->host_cert_files[i]);
 #undef CLEAR_ON_NONE
 
+	/* Similar handling for AuthenticationMethods=any */
+	if (options->num_auth_methods == 1 &&
+	    strcmp(options->auth_methods[0], "any") == 0) {
+		free(options->auth_methods[0]);
+		options->auth_methods[0] = NULL;
+		options->num_auth_methods = 0;
+	}
+
 #ifndef HAVE_MMAP
 	if (use_privsep && options->compression == 1) {
 		error("This platform does not support both privilege "
@@ -405,8 +397,8 @@ typedef enum {
 	/* Portable-specific options */
 	sUsePAM,
 	/* Standard Options */
-	sPort, sHostKeyFile, sServerKeyBits, sLoginGraceTime,
-	sKeyRegenerationTime, sPermitRootLogin, sLogFacility, sLogLevel,
+	sPort, sHostKeyFile, sLoginGraceTime,
+	sPermitRootLogin, sLogFacility, sLogLevel,
 	sRhostsRSAAuthentication, sRSAAuthentication,
 	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
 	sKerberosGetAFSToken,
@@ -416,9 +408,9 @@ typedef enum {
 	sPrintMotd, sPrintLastLog, sIgnoreRhosts,
 	sX11Forwarding, sX11DisplayOffset, sX11UseLocalhost,
 	sPermitTTY, sStrictModes, sEmptyPasswd, sTCPKeepAlive,
-	sPermitUserEnvironment, sUseLogin, sAllowTcpForwarding, sCompression,
+	sPermitUserEnvironment, sAllowTcpForwarding, sCompression,
 	sRekeyLimit, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
-	sIgnoreUserKnownHosts, sCiphers, sMacs, sProtocol, sPidFile,
+	sIgnoreUserKnownHosts, sCiphers, sMacs, sPidFile,
 	sGatewayPorts, sPubkeyAuthentication, sPubkeyAcceptedKeyTypes,
 	sXAuthLocation, sSubsystem, sMaxStartups, sMaxAuthTries, sMaxSessions,
 	sBanner, sUseDNS, sHostbasedAuthentication,
@@ -436,8 +428,9 @@ typedef enum {
 	sAuthorizedKeysCommand, sAuthorizedKeysCommandUser,
 	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
-	sAllowStreamLocalForwarding, sFingerprintHash,
-	sDeprecated, sUnsupported
+	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
+	sUseBlacklist,
+	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
 #define SSHCFG_GLOBAL	0x01	/* allowed in main section of sshd_config */
@@ -463,19 +456,19 @@ static struct {
 	{ "hostdsakey", sHostKeyFile, SSHCFG_GLOBAL },		/* alias */
 	{ "hostkeyagent", sHostKeyAgent, SSHCFG_GLOBAL },
 	{ "pidfile", sPidFile, SSHCFG_GLOBAL },
-	{ "serverkeybits", sServerKeyBits, SSHCFG_GLOBAL },
+	{ "serverkeybits", sDeprecated, SSHCFG_GLOBAL },
 	{ "logingracetime", sLoginGraceTime, SSHCFG_GLOBAL },
-	{ "keyregenerationinterval", sKeyRegenerationTime, SSHCFG_GLOBAL },
+	{ "keyregenerationinterval", sDeprecated, SSHCFG_GLOBAL },
 	{ "permitrootlogin", sPermitRootLogin, SSHCFG_ALL },
 	{ "syslogfacility", sLogFacility, SSHCFG_GLOBAL },
 	{ "loglevel", sLogLevel, SSHCFG_GLOBAL },
 	{ "rhostsauthentication", sDeprecated, SSHCFG_GLOBAL },
-	{ "rhostsrsaauthentication", sRhostsRSAAuthentication, SSHCFG_ALL },
+	{ "rhostsrsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_ALL },
 	{ "hostbasedusesnamefrompacketonly", sHostbasedUsesNameFromPacketOnly, SSHCFG_ALL },
 	{ "hostbasedacceptedkeytypes", sHostbasedAcceptedKeyTypes, SSHCFG_ALL },
 	{ "hostkeyalgorithms", sHostKeyAlgorithms, SSHCFG_GLOBAL },
-	{ "rsaauthentication", sRSAAuthentication, SSHCFG_ALL },
+	{ "rsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_ALL },
 	{ "pubkeyacceptedkeytypes", sPubkeyAcceptedKeyTypes, SSHCFG_ALL },
 	{ "dsaauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL }, /* alias */
@@ -527,7 +520,7 @@ static struct {
 	{ "strictmodes", sStrictModes, SSHCFG_GLOBAL },
 	{ "permitemptypasswords", sEmptyPasswd, SSHCFG_ALL },
 	{ "permituserenvironment", sPermitUserEnvironment, SSHCFG_GLOBAL },
-	{ "uselogin", sUseLogin, SSHCFG_GLOBAL },
+	{ "uselogin", sDeprecated, SSHCFG_GLOBAL },
 	{ "compression", sCompression, SSHCFG_GLOBAL },
 	{ "rekeylimit", sRekeyLimit, SSHCFG_ALL },
 	{ "tcpkeepalive", sTCPKeepAlive, SSHCFG_GLOBAL },
@@ -540,7 +533,7 @@ static struct {
 	{ "denygroups", sDenyGroups, SSHCFG_ALL },
 	{ "ciphers", sCiphers, SSHCFG_GLOBAL },
 	{ "macs", sMacs, SSHCFG_GLOBAL },
-	{ "protocol", sProtocol, SSHCFG_GLOBAL },
+	{ "protocol", sIgnore, SSHCFG_GLOBAL },
 	{ "gatewayports", sGatewayPorts, SSHCFG_ALL },
 	{ "subsystem", sSubsystem, SSHCFG_GLOBAL },
 	{ "maxstartups", sMaxStartups, SSHCFG_GLOBAL },
@@ -550,11 +543,11 @@ static struct {
 	{ "usedns", sUseDNS, SSHCFG_GLOBAL },
 	{ "verifyreversemapping", sDeprecated, SSHCFG_GLOBAL },
 	{ "reversemappingcheck", sDeprecated, SSHCFG_GLOBAL },
-	{ "clientaliveinterval", sClientAliveInterval, SSHCFG_GLOBAL },
-	{ "clientalivecountmax", sClientAliveCountMax, SSHCFG_GLOBAL },
+	{ "clientaliveinterval", sClientAliveInterval, SSHCFG_ALL },
+	{ "clientalivecountmax", sClientAliveCountMax, SSHCFG_ALL },
 	{ "authorizedkeysfile", sAuthorizedKeysFile, SSHCFG_ALL },
 	{ "authorizedkeysfile2", sDeprecated, SSHCFG_ALL },
-	{ "useprivilegeseparation", sUsePrivilegeSeparation, SSHCFG_GLOBAL},
+	{ "useprivilegeseparation", sDeprecated, SSHCFG_GLOBAL},
 	{ "acceptenv", sAcceptEnv, SSHCFG_ALL },
 	{ "permittunnel", sPermitTunnel, SSHCFG_ALL },
 	{ "permittty", sPermitTTY, SSHCFG_ALL },
@@ -579,6 +572,8 @@ static struct {
 	{ "streamlocalbindunlink", sStreamLocalBindUnlink, SSHCFG_ALL },
 	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
 	{ "fingerprinthash", sFingerprintHash, SSHCFG_GLOBAL },
+	{ "disableforwarding", sDisableForwarding, SSHCFG_ALL },
+	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
 	{ "hpnbuffersize", sDeprecated, SSHCFG_ALL },
@@ -717,14 +712,15 @@ process_queued_listen_addrs(ServerOptions *options)
 struct connection_info *
 get_connection_info(int populate, int use_dns)
 {
+	struct ssh *ssh = active_state; /* XXX */
 	static struct connection_info ci;
 
 	if (!populate)
 		return &ci;
-	ci.host = get_canonical_hostname(use_dns);
-	ci.address = get_remote_ipaddr();
-	ci.laddress = get_local_ipaddr(packet_get_connection_in());
-	ci.lport = get_local_port();
+	ci.host = auth_get_canonical_hostname(ssh, use_dns);
+	ci.address = ssh_remote_ipaddr(ssh);
+	ci.laddress = ssh_local_ipaddr(ssh);
+	ci.lport = ssh_local_port(ssh);
 	return &ci;
 }
 
@@ -744,7 +740,7 @@ get_connection_info(int populate, int use_dns)
  * options set are copied into the main server config.
  *
  * Potential additions/improvements:
- *  - Add Match support for pre-kex directives, eg Protocol, Ciphers.
+ *  - Add Match support for pre-kex directives, eg. Ciphers.
  *
  *  - Add a Tag directive (idea from David Leonard) ala pf, eg:
  *	Match Address 192.168.0.*
@@ -945,8 +941,8 @@ static const struct multistate multistate_permitrootlogin[] = {
 	{ NULL, -1 }
 };
 static const struct multistate multistate_compression[] = {
+	{ "yes",			COMP_DELAYED },
 	{ "delayed",			COMP_DELAYED },
-	{ "yes",			COMP_ZLIB },
 	{ "no",				COMP_NONE },
 	{ NULL, -1 }
 };
@@ -986,6 +982,15 @@ process_server_config_line(ServerOptions *options, char *line,
 	size_t len;
 	long long val64;
 	const struct multistate *multistate_ptr;
+
+	/* Strip trailing whitespace. Allow \f (form feed) at EOL only */
+	if ((len = strlen(line)) == 0)
+		return 0;
+	for (len--; len > 0; len--) {
+		if (strchr(WHITESPACE "\f", line[len]) == NULL)
+			break;
+		line[len] = '\0';
+	}
 
 	cp = line;
 	if ((arg = strdelim(&cp)) == NULL)
@@ -1042,18 +1047,6 @@ process_server_config_line(ServerOptions *options, char *line,
 			    filename, linenum);
 		break;
 
-	case sServerKeyBits:
-		intptr = &options->server_key_bits;
- parse_int:
-		arg = strdelim(&cp);
-		if (!arg || *arg == '\0')
-			fatal("%s line %d: missing integer value.",
-			    filename, linenum);
-		value = atoi(arg);
-		if (*activep && *intptr == -1)
-			*intptr = value;
-		break;
-
 	case sLoginGraceTime:
 		intptr = &options->login_grace_time;
  parse_time:
@@ -1067,10 +1060,6 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (*activep && *intptr == -1)
 			*intptr = value;
 		break;
-
-	case sKeyRegenerationTime:
-		intptr = &options->key_regeneration_time;
-		goto parse_time;
 
 	case sListenAddress:
 		arg = strdelim(&cp);
@@ -1157,7 +1146,6 @@ process_server_config_line(ServerOptions *options, char *line,
 			    MAX_HOSTCERTS);
 		charptr = &options->host_cert_files[*intptr];
 		goto parse_filename;
-		break;
 
 	case sPidFile:
 		charptr = &options->pid_file;
@@ -1191,10 +1179,6 @@ process_server_config_line(ServerOptions *options, char *line,
 		intptr = &options->ignore_user_known_hosts;
 		goto parse_flag;
 
-	case sRhostsRSAAuthentication:
-		intptr = &options->rhosts_rsa_authentication;
-		goto parse_flag;
-
 	case sHostbasedAuthentication:
 		intptr = &options->hostbased_authentication;
 		goto parse_flag;
@@ -1210,7 +1194,8 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: Missing argument.",
 			    filename, linenum);
-		if (!sshkey_names_valid2(*arg == '+' ? arg + 1 : arg, 1))
+		if (*arg != '-' &&
+		    !sshkey_names_valid2(*arg == '+' ? arg + 1 : arg, 1))
 			fatal("%s line %d: Bad key types '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && *charptr == NULL)
@@ -1220,10 +1205,6 @@ process_server_config_line(ServerOptions *options, char *line,
 	case sHostKeyAlgorithms:
 		charptr = &options->hostkeyalgorithms;
 		goto parse_keytypes;
-
-	case sRSAAuthentication:
-		intptr = &options->rsa_authentication;
-		goto parse_flag;
 
 	case sPubkeyAuthentication:
 		intptr = &options->pubkey_authentication;
@@ -1287,7 +1268,15 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sX11DisplayOffset:
 		intptr = &options->x11_display_offset;
-		goto parse_int;
+ parse_int:
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing integer value.",
+			    filename, linenum);
+		value = atoi(arg);
+		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
 
 	case sX11UseLocalhost:
 		intptr = &options->x11_use_localhost;
@@ -1319,10 +1308,6 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sPermitUserEnvironment:
 		intptr = &options->permit_user_env;
-		goto parse_flag;
-
-	case sUseLogin:
-		intptr = &options->use_login;
 		goto parse_flag;
 
 	case sCompression:
@@ -1402,16 +1387,18 @@ process_server_config_line(ServerOptions *options, char *line,
 		intptr = &options->allow_agent_forwarding;
 		goto parse_flag;
 
-	case sUsePrivilegeSeparation:
-		intptr = &use_privsep;
-		multistate_ptr = multistate_privsep;
-		goto parse_multistate;
+	case sDisableForwarding:
+		intptr = &options->disable_forwarding;
+		goto parse_flag;
 
 	case sAllowUsers:
 		while ((arg = strdelim(&cp)) && *arg != '\0') {
 			if (options->num_allow_users >= MAX_ALLOW_USERS)
 				fatal("%s line %d: too many allow users.",
 				    filename, linenum);
+			if (match_user(NULL, NULL, NULL, arg) == -1)
+				fatal("%s line %d: invalid AllowUsers pattern: "
+				    "\"%.100s\"", filename, linenum, arg);
 			if (!*activep)
 				continue;
 			options->allow_users[options->num_allow_users++] =
@@ -1424,6 +1411,9 @@ process_server_config_line(ServerOptions *options, char *line,
 			if (options->num_deny_users >= MAX_DENY_USERS)
 				fatal("%s line %d: too many deny users.",
 				    filename, linenum);
+			if (match_user(NULL, NULL, NULL, arg) == -1)
+				fatal("%s line %d: invalid DenyUsers pattern: "
+				    "\"%.100s\"", filename, linenum, arg);
 			if (!*activep)
 				continue;
 			options->deny_users[options->num_deny_users++] =
@@ -1459,7 +1449,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		arg = strdelim(&cp);
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: Missing argument.", filename, linenum);
-		if (!ciphers_valid(*arg == '+' ? arg + 1 : arg))
+		if (*arg != '-' && !ciphers_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%s line %d: Bad SSH2 cipher spec '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (options->ciphers == NULL)
@@ -1470,7 +1460,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		arg = strdelim(&cp);
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: Missing argument.", filename, linenum);
-		if (!mac_valid(*arg == '+' ? arg + 1 : arg))
+		if (*arg != '-' && !mac_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%s line %d: Bad SSH2 mac spec '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (options->macs == NULL)
@@ -1482,24 +1472,12 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: Missing argument.",
 			    filename, linenum);
-		if (!kex_names_valid(*arg == '+' ? arg + 1 : arg))
+		if (*arg != '-' &&
+		    !kex_names_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%s line %d: Bad SSH2 KexAlgorithms '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (options->kex_algorithms == NULL)
 			options->kex_algorithms = xstrdup(arg);
-		break;
-
-	case sProtocol:
-		intptr = &options->protocol;
-		arg = strdelim(&cp);
-		if (!arg || *arg == '\0')
-			fatal("%s line %d: Missing argument.", filename, linenum);
-		value = proto_spec(arg);
-		if (value == SSH_PROTO_UNKNOWN)
-			fatal("%s line %d: Bad protocol spec '%s'.",
-			    filename, linenum, arg ? arg : "<NONE>");
-		if (*intptr == SSH_PROTO_UNKNOWN)
-			*intptr = value;
 		break;
 
 	case sSubsystem:
@@ -1814,20 +1792,40 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sAuthenticationMethods:
 		if (options->num_auth_methods == 0) {
+			value = 0; /* seen "any" pseudo-method */
+			value2 = 0; /* sucessfully parsed any method */
 			while ((arg = strdelim(&cp)) && *arg != '\0') {
 				if (options->num_auth_methods >=
 				    MAX_AUTH_METHODS)
 					fatal("%s line %d: "
 					    "too many authentication methods.",
 					    filename, linenum);
-				if (auth2_methods_valid(arg, 0) != 0)
+				if (strcmp(arg, "any") == 0) {
+					if (options->num_auth_methods > 0) {
+						fatal("%s line %d: \"any\" "
+						    "must appear alone in "
+						    "AuthenticationMethods",
+						    filename, linenum);
+					}
+					value = 1;
+				} else if (value) {
+					fatal("%s line %d: \"any\" must appear "
+					    "alone in AuthenticationMethods",
+					    filename, linenum);
+				} else if (auth2_methods_valid(arg, 0) != 0) {
 					fatal("%s line %d: invalid "
 					    "authentication method list.",
 					    filename, linenum);
+				}
+				value2 = 1;
 				if (!*activep)
 					continue;
 				options->auth_methods[
 				    options->num_auth_methods++] = xstrdup(arg);
+			}
+			if (value2 == 0) {
+				fatal("%s line %d: no AuthenticationMethods "
+				    "specified", filename, linenum);
 			}
 		}
 		return 0;
@@ -1861,16 +1859,17 @@ process_server_config_line(ServerOptions *options, char *line,
 			options->fingerprint_hash = value;
 		break;
 
-	case sDeprecated:
-		logit("%s line %d: Deprecated option %s",
-		    filename, linenum, arg);
-		while (arg)
-		    arg = strdelim(&cp);
-		break;
+	case sUseBlacklist:
+		intptr = &options->use_blacklist;
+		goto parse_flag;
 
+	case sDeprecated:
+	case sIgnore:
 	case sUnsupported:
-		logit("%s line %d: Unsupported option %s",
-		    filename, linenum, arg);
+		do_log2(opcode == sIgnore ?
+		    SYSLOG_LEVEL_DEBUG2 : SYSLOG_LEVEL_INFO,
+		    "%s line %d: %s option %s", filename, linenum,
+		    opcode == sUnsupported ? "Unsupported" : "Deprecated", arg);
 		while (arg)
 		    arg = strdelim(&cp);
 		break;
@@ -1990,7 +1989,6 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 
 	M_CP_INTOPT(password_authentication);
 	M_CP_INTOPT(gss_authentication);
-	M_CP_INTOPT(rsa_authentication);
 	M_CP_INTOPT(pubkey_authentication);
 	M_CP_INTOPT(kerberos_authentication);
 	M_CP_INTOPT(hostbased_authentication);
@@ -2002,8 +2000,10 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(allow_tcp_forwarding);
 	M_CP_INTOPT(allow_streamlocal_forwarding);
 	M_CP_INTOPT(allow_agent_forwarding);
+	M_CP_INTOPT(disable_forwarding);
 	M_CP_INTOPT(permit_tun);
 	M_CP_INTOPT(fwd_opts.gateway_ports);
+	M_CP_INTOPT(fwd_opts.streamlocal_bind_unlink);
 	M_CP_INTOPT(x11_display_offset);
 	M_CP_INTOPT(x11_forwarding);
 	M_CP_INTOPT(x11_use_localhost);
@@ -2011,10 +2011,22 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(permit_user_rc);
 	M_CP_INTOPT(max_sessions);
 	M_CP_INTOPT(max_authtries);
+	M_CP_INTOPT(client_alive_count_max);
+	M_CP_INTOPT(client_alive_interval);
 	M_CP_INTOPT(ip_qos_interactive);
 	M_CP_INTOPT(ip_qos_bulk);
 	M_CP_INTOPT(rekey_limit);
 	M_CP_INTOPT(rekey_interval);
+
+	/*
+	 * The bind_mask is a mode_t that may be unsigned, so we can't use
+	 * M_CP_INTOPT - it does a signed comparison that causes compiler
+	 * warnings.
+	 */
+	if (src->fwd_opts.streamlocal_bind_mask != (mode_t)-1) {
+		dst->fwd_opts.streamlocal_bind_mask =
+		    src->fwd_opts.streamlocal_bind_mask;
+	}
 
 	/* M_CP_STROPT and M_CP_STRARRAYOPT should not appear before here */
 #define M_CP_STROPT(n) do {\
@@ -2069,7 +2081,8 @@ parse_server_config(ServerOptions *options, const char *filename, Buffer *conf,
 
 	debug2("%s: config %s len %d", __func__, filename, buffer_len(conf));
 
-	obuf = cbuf = xstrdup(buffer_ptr(conf));
+	if ((obuf = cbuf = sshbuf_dup_string(conf)) == NULL)
+		fatal("%s: sshbuf_dup_string failed", __func__);
 	active = connectinfo ? 0 : 1;
 	linenum = 1;
 	while ((cp = strsep(&cbuf, "\n")) != NULL) {
@@ -2110,25 +2123,12 @@ fmt_intarg(ServerOpCodes code, int val)
 		return fmt_multistate_int(val, multistate_gatewayports);
 	case sCompression:
 		return fmt_multistate_int(val, multistate_compression);
-	case sUsePrivilegeSeparation:
-		return fmt_multistate_int(val, multistate_privsep);
 	case sAllowTcpForwarding:
 		return fmt_multistate_int(val, multistate_tcpfwd);
 	case sAllowStreamLocalForwarding:
 		return fmt_multistate_int(val, multistate_tcpfwd);
 	case sFingerprintHash:
 		return ssh_digest_alg_name(val);
-	case sProtocol:
-		switch (val) {
-		case SSH_PROTO_1:
-			return "1";
-		case SSH_PROTO_2:
-			return "2";
-		case (SSH_PROTO_1|SSH_PROTO_2):
-			return "2,1";
-		default:
-			return "UNKNOWN";
-		}
 	default:
 		switch (val) {
 		case 0:
@@ -2173,8 +2173,6 @@ dump_cfg_fmtint(ServerOpCodes code, int val)
 static void
 dump_cfg_string(ServerOpCodes code, const char *val)
 {
-	if (val == NULL)
-		return;
 	printf("%s %s\n", lookup_opcode_name(code),
 	    val == NULL ? "none" : val);
 }
@@ -2193,11 +2191,13 @@ dump_cfg_strarray_oneline(ServerOpCodes code, u_int count, char **vals)
 {
 	u_int i;
 
-	if (count <= 0)
+	if (count <= 0 && code != sAuthenticationMethods)
 		return;
 	printf("%s", lookup_opcode_name(code));
 	for (i = 0; i < count; i++)
 		printf(" %s",  vals[i]);
+	if (code == sAuthenticationMethods && count == 0)
+		printf(" any");
 	printf("\n");
 }
 
@@ -2213,7 +2213,6 @@ dump_config(ServerOptions *o)
 	/* these are usually at the top of the config */
 	for (i = 0; i < o->num_ports; i++)
 		printf("port %d\n", o->ports[i]);
-	dump_cfg_fmtint(sProtocol, o->protocol);
 	dump_cfg_fmtint(sAddressFamily, o->address_family);
 
 	/*
@@ -2246,9 +2245,7 @@ dump_config(ServerOptions *o)
 #ifdef USE_PAM
 	dump_cfg_fmtint(sUsePAM, o->use_pam);
 #endif
-	dump_cfg_int(sServerKeyBits, o->server_key_bits);
 	dump_cfg_int(sLoginGraceTime, o->login_grace_time);
-	dump_cfg_int(sKeyRegenerationTime, o->key_regeneration_time);
 	dump_cfg_int(sX11DisplayOffset, o->x11_display_offset);
 	dump_cfg_int(sMaxAuthTries, o->max_authtries);
 	dump_cfg_int(sMaxSessions, o->max_sessions);
@@ -2260,11 +2257,9 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sPermitRootLogin, o->permit_root_login);
 	dump_cfg_fmtint(sIgnoreRhosts, o->ignore_rhosts);
 	dump_cfg_fmtint(sIgnoreUserKnownHosts, o->ignore_user_known_hosts);
-	dump_cfg_fmtint(sRhostsRSAAuthentication, o->rhosts_rsa_authentication);
 	dump_cfg_fmtint(sHostbasedAuthentication, o->hostbased_authentication);
 	dump_cfg_fmtint(sHostbasedUsesNameFromPacketOnly,
 	    o->hostbased_uses_name_from_packet_only);
-	dump_cfg_fmtint(sRSAAuthentication, o->rsa_authentication);
 	dump_cfg_fmtint(sPubkeyAuthentication, o->pubkey_authentication);
 #ifdef KRB5
 	dump_cfg_fmtint(sKerberosAuthentication, o->kerberos_authentication);
@@ -2295,15 +2290,16 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sTCPKeepAlive, o->tcp_keep_alive);
 	dump_cfg_fmtint(sEmptyPasswd, o->permit_empty_passwd);
 	dump_cfg_fmtint(sPermitUserEnvironment, o->permit_user_env);
-	dump_cfg_fmtint(sUseLogin, o->use_login);
 	dump_cfg_fmtint(sCompression, o->compression);
 	dump_cfg_fmtint(sGatewayPorts, o->fwd_opts.gateway_ports);
 	dump_cfg_fmtint(sUseDNS, o->use_dns);
 	dump_cfg_fmtint(sAllowTcpForwarding, o->allow_tcp_forwarding);
 	dump_cfg_fmtint(sAllowAgentForwarding, o->allow_agent_forwarding);
+	dump_cfg_fmtint(sDisableForwarding, o->disable_forwarding);
 	dump_cfg_fmtint(sAllowStreamLocalForwarding, o->allow_streamlocal_forwarding);
-	dump_cfg_fmtint(sUsePrivilegeSeparation, use_privsep);
+	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
+	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);

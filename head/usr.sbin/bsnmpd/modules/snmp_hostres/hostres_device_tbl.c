@@ -123,7 +123,7 @@ device_entry_create(const char *name, const char *location, const char *descr)
 	if (map == NULL) {
 		/* new object - get a new index */
 		if (next_device_index > INT_MAX) {
-		        syslog(LOG_ERR,
+			syslog(LOG_ERR,
 			    "%s: hrDeviceTable index wrap", __func__);
 			/* There isn't much we can do here.
 			 * If the next_swins_index is consumed

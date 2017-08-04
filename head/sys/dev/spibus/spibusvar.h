@@ -46,6 +46,8 @@ struct spibus_ivar
 	uint32_t	clock;
 };
 
+#define	SPIBUS_CS_HIGH	(1U << 31)
+
 enum {
 	SPIBUS_IVAR_CS,		/* chip select that we're on */
 	SPIBUS_IVAR_MODE,	/* SPI mode (0-3) */

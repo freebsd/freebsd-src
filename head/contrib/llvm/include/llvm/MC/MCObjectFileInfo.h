@@ -65,12 +65,6 @@ protected:
   /// constants.
   MCSection *ReadOnlySection;
 
-  /// This section contains the static constructor pointer list.
-  MCSection *StaticCtorSection;
-
-  /// This section contains the static destructor pointer list.
-  MCSection *StaticDtorSection;
-
   /// If exception handling is supported by the target, this is the section the
   /// Language Specific Data Area information is emitted to.
   MCSection *LSDASection;
@@ -115,6 +109,9 @@ protected:
   MCSection *DwarfLineDWOSection;
   MCSection *DwarfLocDWOSection;
   MCSection *DwarfStrOffDWOSection;
+
+  /// The DWARF v5 string offset and address table sections.
+  MCSection *DwarfStrOffSection;
   MCSection *DwarfAddrSection;
 
   // These are for Fission DWP files.
@@ -127,6 +124,7 @@ protected:
   MCSection *DwarfGnuPubTypesSection;
 
   MCSection *COFFDebugSymbolsSection;
+  MCSection *COFFDebugTypesSection;
 
   /// Extra TLS Variable Data section.
   ///
@@ -134,7 +132,7 @@ protected:
   /// it'll go here.
   MCSection *TLSExtraDataSection;
 
-  /// Section directive for Thread Local data. ELF, MachO and COFF.
+  /// Section directive for Thread Local data. ELF, MachO, COFF, and Wasm.
   MCSection *TLSDataSection; // Defaults to ".tdata".
 
   /// Section directive for Thread Local uninitialized data.
@@ -158,6 +156,7 @@ protected:
   MCSection *MergeableConst4Section;
   MCSection *MergeableConst8Section;
   MCSection *MergeableConst16Section;
+  MCSection *MergeableConst32Section;
 
   // MachO specific sections.
 
@@ -183,6 +182,7 @@ protected:
   MCSection *SixteenByteConstantSection;
   MCSection *LazySymbolPointerSection;
   MCSection *NonLazySymbolPointerSection;
+  MCSection *ThreadLocalPointerSection;
 
   /// COFF specific sections.
   MCSection *DrectveSection;
@@ -191,12 +191,8 @@ protected:
   MCSection *SXDataSection;
 
 public:
-  void InitMCObjectFileInfo(const Triple &TT, Reloc::Model RM,
-                            CodeModel::Model CM, MCContext &ctx);
-  LLVM_ATTRIBUTE_DEPRECATED(
-      void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM,
-                                CodeModel::Model CM, MCContext &ctx),
-      "StringRef GNU Triple argument replaced by a llvm::Triple object");
+  void InitMCObjectFileInfo(const Triple &TT, bool PIC, CodeModel::Model CM,
+                            MCContext &ctx);
 
   bool getSupportsWeakOmittedEHFrame() const {
     return SupportsWeakOmittedEHFrame;
@@ -267,6 +263,7 @@ public:
   MCSection *getDwarfLineDWOSection() const { return DwarfLineDWOSection; }
   MCSection *getDwarfLocDWOSection() const { return DwarfLocDWOSection; }
   MCSection *getDwarfStrOffDWOSection() const { return DwarfStrOffDWOSection; }
+  MCSection *getDwarfStrOffSection() const { return DwarfStrOffSection; }
   MCSection *getDwarfAddrSection() const { return DwarfAddrSection; }
   MCSection *getDwarfCUIndexSection() const { return DwarfCUIndexSection; }
   MCSection *getDwarfTUIndexSection() const { return DwarfTUIndexSection; }
@@ -274,6 +271,10 @@ public:
   MCSection *getCOFFDebugSymbolsSection() const {
     return COFFDebugSymbolsSection;
   }
+  MCSection *getCOFFDebugTypesSection() const {
+    return COFFDebugTypesSection;
+  }
+
 
   MCSection *getTLSExtraDataSection() const { return TLSExtraDataSection; }
   const MCSection *getTLSDataSection() const { return TLSDataSection; }
@@ -292,6 +293,9 @@ public:
   }
   const MCSection *getMergeableConst16Section() const {
     return MergeableConst16Section;
+  }
+  const MCSection *getMergeableConst32Section() const {
+    return MergeableConst32Section;
   }
 
   // MachO specific sections.
@@ -324,6 +328,9 @@ public:
   MCSection *getNonLazySymbolPointerSection() const {
     return NonLazySymbolPointerSection;
   }
+  MCSection *getThreadLocalPointerSection() const {
+    return ThreadLocalPointerSection;
+  }
 
   // COFF specific sections.
   MCSection *getDrectveSection() const { return DrectveSection; }
@@ -335,21 +342,22 @@ public:
     return EHFrameSection;
   }
 
-  enum Environment { IsMachO, IsELF, IsCOFF };
+  enum Environment { IsMachO, IsELF, IsCOFF, IsWasm };
   Environment getObjectFileType() const { return Env; }
 
-  Reloc::Model getRelocM() const { return RelocM; }
+  bool isPositionIndependent() const { return PositionIndependent; }
 
 private:
   Environment Env;
-  Reloc::Model RelocM;
+  bool PositionIndependent;
   CodeModel::Model CMModel;
   MCContext *Ctx;
   Triple TT;
 
-  void initMachOMCObjectFileInfo(Triple T);
-  void initELFMCObjectFileInfo(Triple T);
-  void initCOFFMCObjectFileInfo(Triple T);
+  void initMachOMCObjectFileInfo(const Triple &T);
+  void initELFMCObjectFileInfo(const Triple &T);
+  void initCOFFMCObjectFileInfo(const Triple &T);
+  void initWasmMCObjectFileInfo(const Triple &T);
 
 public:
   const Triple &getTargetTriple() const { return TT; }

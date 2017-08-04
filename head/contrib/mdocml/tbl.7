@@ -1,7 +1,7 @@
-.\"	$Id: tbl.7,v 1.26 2015/01/29 00:33:57 schwarze Exp $
+.\"	$Id: tbl.7,v 1.28 2017/06/28 00:59:57 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 29 2015 $
+.Dd $Mdocdate: June 28 2017 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -24,128 +24,43 @@
 .Sh DESCRIPTION
 The
 .Nm tbl
-language is a table-formatting language.
+language formats tables.
 It is used within
 .Xr mdoc 7
 and
 .Xr man 7
-.Ux
-manual pages.
+pages.
 This manual describes the subset of the
 .Nm
 language accepted by the
 .Xr mandoc 1
 utility.
 .Pp
-Tables within
-.Xr mdoc 7
-or
-.Xr man 7
-are enclosed by the
-.Sq TS
-and
-.Sq TE
-macro tags, whose precise syntax is documented in
-.Xr roff 7 .
-Tables consist of a series of options on a single line, followed by the
-table layout, followed by data.
-.Pp
-For example, the following creates a boxed table with digits centered in
-the cells.
-.Bd -literal -offset indent
-\&.TS
-tab(:) box;
-c5 c5 c5.
-1:2:3
-4:5:6
-\&.TE
-.Ed
-.Pp
-When formatted, the following output is produced:
-.Bd -filled -offset indent -compact
-.TS
-tab(:) box;
-c5 c5 c5.
-1:2:3
-4:5:6
-.TE
-.Ed
-.Sh TABLE STRUCTURE
-Tables are enclosed by the
-.Sq TS
-and
-.Sq TE
+Each table is started with a
 .Xr roff 7
-macros.
-A table consists of an optional single line of table
-.Sx Options
-terminated by a semicolon, followed by one or more lines of
+.Ic \&TS
+macro, consist of at most one line of
+.Sx Options ,
+one or more
 .Sx Layout
-specifications terminated by a period, then
-.Sx Data .
+lines, one or more
+.Sx Data
+lines, and ends with a
+.Ic \&TE
+macro.
 All input must be 7-bit ASCII.
-Example:
-.Bd -literal -offset indent
-\&.TS
-box tab(:);
-c | c
-| c | c.
-1:2
-3:4
-\&.TE
-.Ed
-.Pp
-Table data is
-.Em pre-processed ,
-that is, data rows are parsed then inserted into the underlying stream
-of input data.
-This allows data rows to be interspersed by arbitrary
-.Xr roff 7 ,
-.Xr mdoc 7 ,
-and
-.Xr man 7
-macros such as
-.Bd -literal -offset indent
-\&.TS
-tab(:);
-c c c.
-1:2:3
-\&.Ao
-3:2:1
-\&.Ac
-\&.TE
-.Ed
-.Pp
-in the case of
-.Xr mdoc 7
-or
-.Bd -literal -offset indent
-\&.TS
-tab(:);
-c c c.
-\&.ds ab 2
-1:\e*(ab:3
-\&.I
-3:2:1
-\&.TE
-.Ed
-.Pp
-in the case of
-.Xr man 7 .
 .Ss Options
-The first line of a table may contain options separated by spaces, tabs,
-or commas and terminated by a semicolon.
-If the first line does not have a terminating semicolon, it is assumed
-that no options are specified and instead a
+If the first input line of a table ends with a semicolon, it contains
+case-insensitive options separated by spaces, tabs, or commas.
+Otherwise, it is interpreted as the first
 .Sx Layout
-is processed.
-Some options require arguments enclosed by parentheses.
-The following case-insensitive options are available:
+line.
+.Pp
+The following options are available.
+Some of them require arguments enclosed in parentheses:
 .Bl -tag -width Ds
 .It Cm allbox
 Draw a single-line box around each table cell.
-Currently treated as a synonym for
-.Cm box .
 .It Cm box
 Draw a single-line box around the table.
 For GNU compatibility, this may also be invoked with
@@ -185,73 +100,77 @@ Suppress warnings about tables exceeding the current line length.
 This is a GNU extension and currently ignored.
 .It Cm tab
 Use the single-character argument as a delimiter between data cells.
-By default, the tab character is used.
+By default, the horizontal tabulator character is used.
 .El
 .Ss Layout
-The table layout follows
+The table layout follows an
 .Sx Options
-or a
-.Sq \&T&
-macro invocation.
-Layout specifies how data rows are displayed on output.
-Each layout line corresponds to a line of data; the last layout line
-applies to all remaining data lines.
-Layout lines may also be separated by a comma.
-Each layout cell consists of one of the following case-insensitive keys:
+line or a
+.Xr roff 7
+.Ic \&TS
+or
+.Ic \&T&
+macro.
+Each layout line specifies how one line of
+.Sx Data
+is formatted.
+The last layout line ends with a full stop.
+It also applies to all remaining data lines.
+Multiple layout lines can be joined by commas on a single physical
+input line.
+.Pp
+Each layout line consists of one or more layout cell specifications,
+optionally separated by whitespace.
+The following case-insensitive key characters start a new cell
+specification:
 .Bl -tag -width 2n
 .It Cm c
-Center a literal string within its column.
+Center the string in this cell.
 .It Cm r
-Right-justify a literal string within its column.
+Right-justify the string in this cell.
 .It Cm l
-Left-justify a literal string within its column.
+Left-justify the string in this cell.
 .It Cm n
 Justify a number around its last decimal point.
-If the decimal point is not found on the number, it's assumed to trail
-the number.
+If no decimal point is found in the number,
+it is assumed to trail the number.
 .It Cm s
 Horizontally span columns from the last
-.No non- Ns Cm s
-data cell.
-It is an error if spanning columns follow a
-.Cm \-
+.Pf non- Cm s
+layout cell.
+It is an error if a column span follows a
+.Cm _
 or
-.Cm \(ba
-cell, or come first.
-This option is not supported by
-.Xr mandoc 1 .
+.Cm =
+cell, or comes first on a layout line.
+The combined cell as a whole consumes only one cell
+of the corresponding data line.
 .It Cm a
-Left-justify a literal string and pad with one space.
+Left-justify a string and pad with one space.
 .It Cm ^
 Vertically span rows from the last
-.No non- Ns Cm ^
-data cell.
-It is an error to invoke a vertical span on the first layout row.
-Unlike a horizontal spanner, you must specify an empty cell (if it not
-empty, the data is discarded) in the corresponding data cell.
-.It Cm \-
-Replace the data cell (its contents will be lost) with a single
-horizontal line.
-This may also be invoked with
-.Cm _ .
+.Pf non- Cm ^
+layout cell.
+It is an error to invoke a vertical span on the first layout line.
+Unlike a horizontal span, a vertical span consumes a data cell
+and discards the content.
+.It Cm _
+Draw a single horizontal line in this cell.
+This consumes a data cell and discards the content.
+It may also be invoked with
+.Cm \- .
 .It Cm =
-Replace the data cell (its contents will be lost) with a double
-horizontal line.
-.It Cm \(ba
-Emit a vertical bar instead of data.
-.It Cm \(ba\(ba
-Emit a double-vertical bar instead of data.
+Draw a double horizontal line in this cell.
+This consumes a data cell and discards the content.
 .El
 .Pp
-Keys may be followed by a set of modifiers.
-A modifier is either a modifier key or a natural number for specifying
-the minimum width of a column.
-The following case-insensitive modifier keys are available:
+Each cell key may be followed by zero or more of the following
+case-insensitive modifiers:
 .Bl -tag -width 2n
 .It Cm b
-Use a bold font for the contents of this column.
+Use a bold font for the contents of this cell.
 .It Cm d
-Move cell content down to the last cell of a vertical span.
+Move content down to the last row of this vertical span.
 Currently ignored.
 .It Cm e
 Make this column wider to match the maximum width
@@ -259,12 +178,12 @@ of any other column also having the
 .Cm e
 modifier.
 .It Cm f
-The next character selects the font to use for this column.
+The next character selects the font to use for this cell.
 See the
 .Xr roff 7
 manual for supported one-character font names.
 .It Cm i
-Use an italic font for the contents of this column.
+Use an italic font for the contents of this cell.
 .It Cm m
 Specify a cell start macro.
 This is a GNU extension and currently unsupported.
@@ -277,15 +196,14 @@ Set the vertical line spacing to the following unsigned argument,
 or change it by the following signed argument.
 Currently ignored.
 .It Cm t
-Do not vertically center cell content in the vertical span,
-leave it at the top.
+Do not vertically center content in this vertical span,
+leave it in the top row.
 Currently ignored.
 .It Cm u
-Move cell content up by half a table line.
+Move cell content up by half a table row.
 Currently ignored.
 .It Cm w
-Specify minimum column width.
-Currently ignored.
+Specify a minimum column width.
 .It Cm x
 After determining the width of all other columns, distribute the
 rest of the line length among all columns having the
@@ -293,40 +211,185 @@ rest of the line length among all columns having the
 modifier.
 .It Cm z
 Do not use this cell for determining the width of this column.
+.It Cm \&|
+Draw a single vertical line to the right of this cell.
+.It Cm ||
+Draw a double vertical line to the right of this cell.
 .El
 .Pp
-For example, the following layout specifies a center-justified column of
-minimum width 10, followed by vertical bar, followed by a left-justified
-column of minimum width 10, another vertical bar, then a column using
-bold font justified about the decimal point in numbers:
-.Pp
-.Dl c10 | l10 | nfB
+If a modifier consists of decimal digits,
+it specifies a minimum spacing in units of
+.Cm n
+between this column and the next column to the right.
+The default is 3.
+If there is a vertical line, it is drawn inside the spacing.
 .Ss Data
-The data section follows the last layout row.
-By default, cells in a data section are delimited by a tab.
-This behaviour may be changed with the
+The data section follows the last
+.Sx Layout
+line.
+Each data line consists of one or more data cells, delimited by
 .Cm tab
-option.
-If
-.Cm _
+characters.
+.Pp
+If a data cells contains only the single character
+.Ql _
 or
-.Cm =
-is specified, a single or double line, respectively, is drawn across the
-data field.
-If
-.Cm \e-
+.Ql = ,
+a single or double horizontal line is drawn across the cell,
+joining its neighbours.
+If a data cells contains only the two character sequence
+.Ql \e_
 or
-.Cm \e=
-is specified, a line is drawn within the data field (i.e. terminating
-within the cell and not draw to the border).
-If the last cell of a line is
-.Cm T{ ,
-all subsequent lines are included as part of the cell until
-.Cm T}
-is specified as its own data cell.
-It may then be followed by a tab
-.Pq or as designated by Cm tab
-or an end-of-line to terminate the row.
+.Ql \e= ,
+a single or double horizontal line is drawn inside the cell,
+not joining its neighbours.
+If a data line contains nothing but the single character
+.Ql _
+or
+.Ql = ,
+a horizontal line across the whole table is inserted
+without consuming a layout row.
+.Pp
+In place of any data cell, a text block can be used.
+It starts with
+.Ic \&T{
+at the end of a physical input line.
+Input line breaks inside the text block
+neither end the text block nor its data cell.
+It only ends if
+.Ic \&T}
+occurs at the beginning of a physical input line and is followed
+by an end-of-cell indicator.
+If the
+.Ic \&T}
+is followed by the end of the physical input line, the text block,
+the data cell, and the data line ends at this point.
+If the
+.Ic \&T}
+is followed by the
+.Cm tab
+character, only the text block and the data cell end,
+but the data line continues with the data cell following the
+.Cm tab
+character.
+If
+.Ic \&T}
+is followed by any other character, it does not end the text block,
+which instead continues to the following physical input line.
+.Sh EXAMPLES
+String justification and font selection:
+.Bd -literal -offset indent
+\&.TS
+rb c  lb
+r  ci l.
+r	center	l
+ri	ce	le
+right	c	left
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+rb c  lb
+r  ci l.
+r	center	l
+ri	ce	le
+right	c	left
+.TE
+.Ed
+.Pp
+Some ports in
+.Ox 6.1
+to show number alignment and line drawing:
+.Bd -literal -offset indent
+\&.TS
+box tab(:);
+r| l
+r  n.
+software:version
+_
+AFL:2.39b
+Mutt:1.8.0
+Ruby:1.8.7.374
+TeX Live:2015
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+box tab(:);
+r| l
+r  n.
+software:version
+_
+AFL:2.39b
+Mutt:1.8.0
+Ruby:1.8.7.374
+TeX Live:2015 
+.TE
+.Ed
+.sp 2v
+Spans and skipping width calculations:
+.Bd -literal -offset indent
+\&.TS
+box tab(:);
+lz  s | rt
+lt| cb| ^
+^ | rz  s.
+left:r
+l:center:
+:right
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+box tab(:);
+lz  s | rt
+lt| cb| ^
+^ | rz  s.
+left:r
+l:center:
+:right
+.TE
+.Ed
+.sp 2v
+Text blocks, specifying spacings and specifying and equalizing
+column widths, putting lines into individual cells, and overriding
+.Cm allbox :
+.Bd -literal -offset indent
+\&.TS
+allbox tab(:);
+le le||7 lw10.
+The fourth line:_:line 1
+of this column:=:line 2
+determines:\_:line 3
+the column width.:T{
+This text is too wide to fit into a column of width 17.
+T}:line 4
+T{
+No break here.
+T}::line 5
+\&.TE
+.Ed
+.Bd -filled -offset indent
+.TS
+allbox tab(:);
+le le||7 lw10.
+The fourth line:_:line 1
+of this column:=:line 2
+determines:\_:line 3
+the column width.:T{
+This text is too wide to fit into a column of width 17.
+T}:line 4
+T{
+No break here.
+T}::line 5
+.TE
+.Ed
+.sp 2v
+These examples were constructed to demonstrate many
+.Nm
+features in a compact way.
+In real manual pages, keep tables as simple as possible:
+Like that, they usually look better, are less fragile, and more portable.
 .Sh COMPATIBILITY
 The
 .Xr mandoc 1
@@ -364,4 +427,6 @@ utility.
 This
 .Nm
 reference was written by
-.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
+and
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

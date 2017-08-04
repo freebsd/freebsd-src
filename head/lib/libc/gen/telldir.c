@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,15 +52,22 @@ __FBSDID("$FreeBSD$");
 long
 telldir(DIR *dirp)
 {
-	struct ddloc *lp;
+	struct ddloc *lp, *flp;
 	long idx;
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
+	flp = NULL;
 	LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
-		if (lp->loc_seek == dirp->dd_seek &&
-		    lp->loc_loc == dirp->dd_loc)
+		if (lp->loc_seek == dirp->dd_seek) {
+			if (flp == NULL)
+				flp = lp;
+			if (lp->loc_loc == dirp->dd_loc)
+				break;
+		} else if (flp != NULL) {
+			lp = NULL;
 			break;
+		}
 	}
 	if (lp == NULL) {
 		lp = malloc(sizeof(struct ddloc));
@@ -72,7 +79,10 @@ telldir(DIR *dirp)
 		lp->loc_index = dirp->dd_td->td_loccnt++;
 		lp->loc_seek = dirp->dd_seek;
 		lp->loc_loc = dirp->dd_loc;
-		LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
+		if (flp != NULL)
+			LIST_INSERT_BEFORE(flp, lp, loc_lqe);
+		else
+			LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
 	}
 	idx = lp->loc_index;
 	if (__isthreaded)

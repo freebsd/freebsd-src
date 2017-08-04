@@ -81,7 +81,6 @@ void  ficlFree   (void *p)
 }
 
 #ifndef TESTMAIN
-#ifdef __i386__
 /* 
  * outb ( port# c -- )
  * Store a byte to I/O port number port#
@@ -111,7 +110,22 @@ ficlInb(FICL_VM *pVM)
 	c=inb(port);
 	stackPushINT(pVM->pStack,c);
 }
-#endif
+
+/*
+ * Glue function to add the appropriate forth words to access x86 special cpu
+ * functionality.
+ */
+static void ficlCompileCpufunc(FICL_SYSTEM *pSys)
+{
+    FICL_DICT *dp = pSys->dp;
+    assert (dp);
+
+    dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
+    dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
+}
+
+FICL_COMPILE_SET(ficlCompileCpufunc);
+
 #endif
 
 /*

@@ -69,13 +69,14 @@ nat64stl_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 {
 	static uint32_t pktid = 0;
 
-	memset(plog, 0, sizeof(plog));
+	memset(plog, 0, sizeof(*plog));
 	plog->length = PFLOG_REAL_HDRLEN;
 	plog->af = family;
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;
 	plog->rulenr = htonl(kidx);
-	plog->subrulenr = htonl(++pktid);
+	pktid++;
+	plog->subrulenr = htonl(pktid);
 	plog->ruleset[0] = '\0';
 	strlcpy(plog->ifname, "NAT64STL", sizeof(plog->ifname));
 	ipfw_bpf_mtap2(plog, PFLOG_HDRLEN, m);
@@ -184,7 +185,7 @@ nat64stl_handle_icmp6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	 * IPv4 mapped address.
 	 */
 	ip6i = mtodo(m, hlen);
-	if (ipfw_lookup_table_extended(chain, cfg->map64,
+	if (ipfw_lookup_table(chain, cfg->map64,
 	    sizeof(struct in6_addr), &ip6i->ip6_dst, &tablearg) == 0) {
 		m_freem(m);
 		return (NAT64RETURN);
@@ -204,6 +205,7 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 {
 	ipfw_insn *icmd;
 	struct nat64stl_cfg *cfg;
+	in_addr_t dst4;
 	uint32_t tablearg;
 	int ret;
 
@@ -219,11 +221,12 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 
 	switch (args->f_id.addr_type) {
 	case 4:
-		ret = ipfw_lookup_table(chain, cfg->map46,
-		    htonl(args->f_id.dst_ip), &tablearg);
+		dst4 = htonl(args->f_id.dst_ip);
+		ret = ipfw_lookup_table(chain, cfg->map46, sizeof(in_addr_t),
+		    &dst4, &tablearg);
 		break;
 	case 6:
-		ret = ipfw_lookup_table_extended(chain, cfg->map64,
+		ret = ipfw_lookup_table(chain, cfg->map64,
 		    sizeof(struct in6_addr), &args->f_id.src_ip6, &tablearg);
 		break;
 	default:

@@ -65,7 +65,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -140,6 +140,15 @@ static struct val2str ipsec_ahnames[] = {
 #endif
 #ifdef SADB_X_AALG_AES_XCBC_MAC
 	{ SADB_X_AALG_AES_XCBC_MAC, "aes-xcbc-mac", },
+#endif
+#ifdef SADB_X_AALG_AES128GMAC
+	{ SADB_X_AALG_AES128GMAC, "aes-gmac-128", },
+#endif
+#ifdef SADB_X_AALG_AES192GMAC
+	{ SADB_X_AALG_AES192GMAC, "aes-gmac-192", },
+#endif
+#ifdef SADB_X_AALG_AES256GMAC
+	{ SADB_X_AALG_AES256GMAC, "aes-gmac-256", },
 #endif
 	{ -1, NULL },
 };

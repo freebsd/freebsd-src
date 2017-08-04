@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -108,7 +108,7 @@ tcp_reass_global_init(void)
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
 	    &tcp_reass_maxseg);
 	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/* Set the zone limit and read back the effective value. */
 	tcp_reass_maxseg = uma_zone_set_max(tcp_reass_zone,
 	    tcp_reass_maxseg);

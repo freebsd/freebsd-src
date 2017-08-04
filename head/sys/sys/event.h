@@ -29,7 +29,8 @@
 #ifndef _SYS_EVENT_H_
 #define _SYS_EVENT_H_
 
-#include <sys/queue.h> 
+#include <sys/_types.h>
+#include <sys/queue.h>
 
 #define EVFILT_READ		(-1)
 #define EVFILT_WRITE		(-2)
@@ -43,7 +44,8 @@
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
 #define EVFILT_SENDFILE		(-12)	/* attached to sendfile requests */
-#define EVFILT_SYSCOUNT		12
+#define EVFILT_EMPTY		(-13)	/* empty send socket buf */
+#define EVFILT_SYSCOUNT		13
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
@@ -53,15 +55,20 @@
 	(kevp)->fflags = (d);			\
 	(kevp)->data = (e);			\
 	(kevp)->udata = (f);			\
+	(kevp)->ext[0] = 0;			\
+	(kevp)->ext[1] = 0;			\
+	(kevp)->ext[2] = 0;			\
+	(kevp)->ext[3] = 0;			\
 } while(0)
 
 struct kevent {
-	uintptr_t	ident;		/* identifier for this event */
+	__uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	intptr_t	data;
+	unsigned short	flags;
+	unsigned int	fflags;
+	__int64_t	data;
 	void		*udata;		/* opaque user data identifier */
+	__uint64_t	ext[4];
 };
 
 /* actions */
@@ -147,6 +154,7 @@ struct kevent {
 #define NOTE_MSECONDS		0x00000002	/* data is milliseconds */
 #define NOTE_USECONDS		0x00000004	/* data is microseconds */
 #define NOTE_NSECONDS		0x00000008	/* data is nanoseconds */
+#define	NOTE_ABSTIME		0x00000010	/* timeout is absolute */
 
 struct knote;
 SLIST_HEAD(klist, knote);
@@ -171,7 +179,7 @@ struct knlist {
 #define	KNF_LISTLOCKED	0x0001			/* knlist is locked */
 #define	KNF_NOKQLOCK	0x0002			/* do not keep KQ_LOCK */
 
-#define KNOTE(list, hist, flags)	knote(list, hist, flags)
+#define KNOTE(list, hint, flags)	knote(list, hint, flags)
 #define KNOTE_LOCKED(list, hint)	knote(list, hint, KNF_LISTLOCKED)
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
 
@@ -202,8 +210,11 @@ struct filterops {
 };
 
 /*
- * Setting the KN_INFLUX flag enables you to unlock the kq that this knote
- * is on, and modify kn_status as if you had the KQ lock.
+ * An in-flux knote cannot be dropped from its kq while the kq is
+ * unlocked.  If the KN_SCAN flag is not set, a thread can only set
+ * kn_influx when it is exclusive owner of the knote state, and can
+ * modify kn_status as if it had the KQ lock.  KN_SCAN must not be set
+ * on a knote which is already in flux.
  *
  * kn_sfflags, kn_sdata, and kn_kevent are protected by the knlist lock.
  */
@@ -214,29 +225,28 @@ struct knote {
 	TAILQ_ENTRY(knote)	kn_tqe;
 	struct			kqueue *kn_kq;	/* which queue we are on */
 	struct 			kevent kn_kevent;
+	void			*kn_hook;
+	int			kn_hookid;
 	int			kn_status;	/* protected by kq lock */
 #define KN_ACTIVE	0x01			/* event has been triggered */
 #define KN_QUEUED	0x02			/* event is on queue */
 #define KN_DISABLED	0x04			/* event is disabled */
 #define KN_DETACHED	0x08			/* knote is detached */
-#define KN_INFLUX	0x10			/* knote is in flux */
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define KN_HASKQLOCK	0x80			/* for _inevent */
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
+	int			kn_influx;
 	int			kn_sfflags;	/* saved filter flags */
-	intptr_t		kn_sdata;	/* saved data field */
+	int64_t			kn_sdata;	/* saved data field */
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
 		struct		kaiocb *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */
-		sbintime_t	*p_nexttime;	/* next timer event fires at */
 		void		*p_v;		/* generic other pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;
-	void			*kn_hook;
-	int			kn_hookid;
 
 #define kn_id		kn_kevent.ident
 #define kn_filter	kn_kevent.filter
@@ -249,6 +259,7 @@ struct kevent_copyops {
 	void	*arg;
 	int	(*k_copyout)(void *arg, struct kevent *kevp, int count);
 	int	(*k_copyin)(void *arg, struct kevent *kevp, int count);
+	size_t	kevent_size;
 };
 
 struct thread;
@@ -257,30 +268,30 @@ struct knlist;
 struct mtx;
 struct rwlock;
 
-extern void	knote(struct knlist *list, long hint, int lockflags);
-extern void	knote_fork(struct knlist *list, int pid);
-extern struct knlist *knlist_alloc(struct mtx *lock);
-extern void	knlist_detach(struct knlist *knl);
-extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
-extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
-extern int	knlist_empty(struct knlist *knl);
-extern void	knlist_init(struct knlist *knl, void *lock,
-    void (*kl_lock)(void *), void (*kl_unlock)(void *),
-    void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *));
-extern void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
-extern void	knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock);
-extern void	knlist_destroy(struct knlist *knl);
-extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
-	int islocked, int killkn);
+void	knote(struct knlist *list, long hint, int lockflags);
+void	knote_fork(struct knlist *list, int pid);
+struct knlist *knlist_alloc(struct mtx *lock);
+void	knlist_detach(struct knlist *knl);
+void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
+void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
+int	knlist_empty(struct knlist *knl);
+void	knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
+	    void (*kl_unlock)(void *), void (*kl_assert_locked)(void *),
+	    void (*kl_assert_unlocked)(void *));
+void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
+void	knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock);
+void	knlist_destroy(struct knlist *knl);
+void	knlist_cleardel(struct knlist *knl, struct thread *td,
+	    int islocked, int killkn);
 #define knlist_clear(knl, islocked)				\
-		knlist_cleardel((knl), NULL, (islocked), 0)
+	knlist_cleardel((knl), NULL, (islocked), 0)
 #define knlist_delete(knl, td, islocked)			\
-		knlist_cleardel((knl), (td), (islocked), 1)
-extern void	knote_fdclose(struct thread *p, int fd);
-extern int 	kqfd_register(int fd, struct kevent *kev, struct thread *p,
-		    int waitok);
-extern int	kqueue_add_filteropts(int filt, struct filterops *filtops);
-extern int	kqueue_del_filteropts(int filt);
+	knlist_cleardel((knl), (td), (islocked), 1)
+void	knote_fdclose(struct thread *p, int fd);
+int 	kqfd_register(int fd, struct kevent *kev, struct thread *p,
+	    int waitok);
+int	kqueue_add_filteropts(int filt, struct filterops *filtops);
+int	kqueue_del_filteropts(int filt);
 
 #else 	/* !_KERNEL */
 

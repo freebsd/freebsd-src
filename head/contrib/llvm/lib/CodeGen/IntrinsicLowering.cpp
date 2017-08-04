@@ -115,21 +115,21 @@ void IntrinsicLowering::AddPrototypes(Module &M) {
           Type::getInt8PtrTy(Context),
                               Type::getInt8PtrTy(Context), 
                               Type::getInt8PtrTy(Context), 
-                              DL.getIntPtrType(Context), nullptr);
+                              DL.getIntPtrType(Context));
         break;
       case Intrinsic::memmove:
         M.getOrInsertFunction("memmove",
           Type::getInt8PtrTy(Context),
                               Type::getInt8PtrTy(Context), 
                               Type::getInt8PtrTy(Context), 
-                              DL.getIntPtrType(Context), nullptr);
+                              DL.getIntPtrType(Context));
         break;
       case Intrinsic::memset:
         M.getOrInsertFunction("memset",
           Type::getInt8PtrTy(Context),
                               Type::getInt8PtrTy(Context), 
                               Type::getInt32Ty(M.getContext()), 
-                              DL.getIntPtrType(Context), nullptr);
+                              DL.getIntPtrType(Context));
         break;
       case Intrinsic::sqrt:
         EnsureFPIntrinsicsExist(M, F, "sqrtf", "sqrt", "sqrtl");
@@ -436,8 +436,14 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     errs() << "WARNING: this target does not support the llvm."
            << (Callee->getIntrinsicID() == Intrinsic::returnaddress ?
              "return" : "frame") << "address intrinsic.\n";
-    CI->replaceAllUsesWith(ConstantPointerNull::get(
-                                            cast<PointerType>(CI->getType())));
+    CI->replaceAllUsesWith(
+        ConstantPointerNull::get(cast<PointerType>(CI->getType())));
+    break;
+  case Intrinsic::addressofreturnaddress:
+    errs() << "WARNING: this target does not support the "
+              "llvm.addressofreturnaddress intrinsic.\n";
+    CI->replaceAllUsesWith(
+        ConstantPointerNull::get(cast<PointerType>(CI->getType())));
     break;
 
   case Intrinsic::prefetch:

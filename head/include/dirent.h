@@ -41,6 +41,25 @@
 #include <sys/_types.h>
 #include <sys/dirent.h>
 
+#if __BSD_VISIBLE
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif
+
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
+#endif /* __BSD_VISIBLE */
+
 #if __XSI_VISIBLE
 
 #ifndef _INO_T_DECLARED
@@ -89,8 +108,8 @@ int	 dirfd(DIR *);
 #if __BSD_VISIBLE
 DIR	*__opendir2(const char *, int);
 int	 fdclosedir(DIR *);
-int	 getdents(int, char *, int);
-int	 getdirentries(int, char *, int, long *);
+ssize_t	 getdents(int, char *, size_t);
+ssize_t	 getdirentries(int, char *, size_t, off_t *);
 #endif
 DIR	*opendir(const char *);
 DIR	*fdopendir(int);

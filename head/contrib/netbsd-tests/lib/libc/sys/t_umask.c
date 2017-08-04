@@ -1,4 +1,4 @@
-/* $NetBSD: t_umask.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $ */
+/* $NetBSD: t_umask.c,v 1.2 2017/01/13 19:34:19 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_umask.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $");
+__RCSID("$NetBSD: t_umask.c,v 1.2 2017/01/13 19:34:19 christos Exp $");
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -129,6 +129,7 @@ ATF_TC_BODY(umask_open, tc)
 		if (fd < 0)
 			continue;
 
+		(void)close(fd);
 		(void)memset(&st, 0, sizeof(struct stat));
 
 		if (stat(path, &st) != 0) {

@@ -46,16 +46,15 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 TARGET_ARCHES_arm?=     arm armeb armv6
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
-TARGET_ARCHES_powerpc?= powerpc powerpc64
-TARGET_ARCHES_pc98?=    i386
-TARGET_ARCHES_riscv?=   riscv64
+TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpcspe
+TARGET_ARCHES_riscv?=   riscv64 riscv64sf
 
 # some corner cases
 BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc riscv sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips powerpc riscv sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
@@ -214,7 +213,8 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
-.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH)
+.if !defined(_RECURSING_PROGS) && !defined(_RECURSING_CRUNCH) && \
+    !make(print-dir)
 WITH_META_STATS= t
 .endif
 

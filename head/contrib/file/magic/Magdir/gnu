@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.16 2015/04/19 22:59:25 christos Exp $
+# $File: gnu,v 1.17 2016/07/16 22:17:04 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -34,8 +34,11 @@
 
 # This magic is not particularly good, as the keyrings don't have true
 # magic. Nevertheless, it covers many keyrings.
-0       beshort         0x9901                  GPG key public ring
-!:mime	application/x-gnupg-keyring
+0	ubeshort-0x9901	<2
+>3	byte		4
+>>4	bedate		x		GPG key public ring, created %s
+!:mime application/x-gnupg-keyring
+
 
 # Symmetric encryption
 0	leshort		0x0d8c

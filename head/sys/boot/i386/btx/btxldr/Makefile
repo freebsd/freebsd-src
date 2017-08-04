@@ -12,7 +12,8 @@ CFLAGS+=-I${.CURDIR}/../../common
 CFLAGS+=-DBTXLDR_VERBOSE
 .endif
 
-LDFLAGS=-e start -Ttext ${LOADER_ADDRESS} -Wl,-N,-S,--oformat,binary
+ORG=${LOADER_ADDRESS}
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
 

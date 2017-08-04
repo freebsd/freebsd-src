@@ -12,8 +12,6 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * VLAN TRUNKING PROTOCOL (VTP)
- *
  * Reference documentation:
  *  http://www.cisco.com/en/US/tech/tk389/tk689/technologies_tech_note09186a0080094c52.shtml
  *  http://www.cisco.com/warp/public/473/21.html
@@ -22,14 +20,15 @@
  * Original code ode by Carles Kishimoto <carles.kishimoto@gmail.com>
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Cisco VLAN Trunking Protocol (VTP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -121,7 +120,7 @@ void
 vtp_print (netdissect_options *ndo,
            const u_char *pptr, u_int length)
 {
-    int type, len, tlv_len, tlv_value;
+    int type, len, tlv_len, tlv_value, mgmtd_len;
     const u_char *tptr;
     const struct vtp_vlan_ *vtp_vlan;
 
@@ -136,7 +135,7 @@ vtp_print (netdissect_options *ndo,
     ND_PRINT((ndo, "VTPv%u, Message %s (0x%02x), length %u",
 	   *tptr,
 	   tok2str(vtp_message_type_values,"Unknown message type", type),
-	   *(tptr+1),
+	   type,
 	   length));
 
     /* In non-verbose mode, just print version and message type */
@@ -145,9 +144,15 @@ vtp_print (netdissect_options *ndo,
     }
 
     /* verbose mode print all fields */
-    ND_PRINT((ndo, "\n\tDomain name: %s, %s: %u",
-	   (tptr+4),
-	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
+    ND_PRINT((ndo, "\n\tDomain name: "));
+    mgmtd_len = *(tptr + 3);
+    if (mgmtd_len < 1 ||  mgmtd_len > 32) {
+	ND_PRINT((ndo, " [invalid MgmtD Len %d]", mgmtd_len));
+	return;
+    }
+    fn_printzp(ndo, tptr + 4, mgmtd_len, NULL);
+    ND_PRINT((ndo, ", %s: %u",
+	   tok2str(vtp_header_values, "Unknown", type),
 	   *(tptr+2)));
 
     tptr += VTP_HEADER_LEN;
@@ -161,9 +166,9 @@ vtp_print (netdissect_options *ndo,
 	 *
 	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |     Version   |     Code      |    Followers  |    MmgtD Len  |
+	 *  |     Version   |     Code      |    Followers  |    MgmtD Len  |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |                    Management Domain Name                     |
+	 *  |       Management Domain Name  (zero-padded to 32 bytes)       |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *  |                    Configuration revision number              |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -176,15 +181,18 @@ vtp_print (netdissect_options *ndo,
 	 *
 	 */
 
+	ND_TCHECK2(*tptr, 8);
 	ND_PRINT((ndo, "\n\t  Config Rev %x, Updater %s",
 	       EXTRACT_32BITS(tptr),
 	       ipaddr_string(ndo, tptr+4)));
 	tptr += 8;
+	ND_TCHECK2(*tptr, VTP_UPDATE_TIMESTAMP_LEN);
 	ND_PRINT((ndo, ", Timestamp 0x%08x 0x%08x 0x%08x",
 	       EXTRACT_32BITS(tptr),
 	       EXTRACT_32BITS(tptr + 4),
 	       EXTRACT_32BITS(tptr + 8)));
 	tptr += VTP_UPDATE_TIMESTAMP_LEN;
+	ND_TCHECK2(*tptr, VTP_MD5_DIGEST_LEN);
 	ND_PRINT((ndo, ", MD5 digest: %08x%08x%08x%08x",
 	       EXTRACT_32BITS(tptr),
 	       EXTRACT_32BITS(tptr + 4),
@@ -200,9 +208,9 @@ vtp_print (netdissect_options *ndo,
 	 *
 	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |     Version   |     Code      |   Seq number  |    MmgtD Len  |
+	 *  |     Version   |     Code      |   Seq number  |    MgmtD Len  |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |                    Management Domain Name                     |
+	 *  |       Management Domain Name  (zero-padded to 32 bytes)       |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *  |                    Configuration revision number              |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -241,14 +249,15 @@ vtp_print (netdissect_options *ndo,
 
 	    ND_TCHECK2(*tptr, len);
 
-	    vtp_vlan = (struct vtp_vlan_*)tptr;
-	    ND_PRINT((ndo, "\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
+	    vtp_vlan = (const struct vtp_vlan_*)tptr;
+	    ND_TCHECK(*vtp_vlan);
+	    ND_PRINT((ndo, "\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name ",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),
 		   EXTRACT_16BITS(&vtp_vlan->vlanid),
 		   EXTRACT_16BITS(&vtp_vlan->mtu),
-		   EXTRACT_32BITS(&vtp_vlan->index),
-		   (tptr + VTP_VLAN_INFO_OFFSET)));
+		   EXTRACT_32BITS(&vtp_vlan->index)));
+	    fn_printzp(ndo, tptr + VTP_VLAN_INFO_OFFSET, vtp_vlan->name_len, NULL);
 
             /*
              * Vlan names are aligned to 32-bit boundaries.
@@ -338,15 +347,16 @@ vtp_print (netdissect_options *ndo,
 	 *
 	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |     Version   |     Code      |   Reserved    |    MmgtD Len  |
+	 *  |     Version   |     Code      |   Reserved    |    MgmtD Len  |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *  |                    Management Domain Name                     |
+	 *  |       Management Domain Name  (zero-padded to 32 bytes)       |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *  |                          Start value                          |
 	 *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *
 	 */
 
+	ND_TCHECK2(*tptr, 4);
 	ND_PRINT((ndo, "\n\tStart value: %u", EXTRACT_32BITS(tptr)));
 	break;
 

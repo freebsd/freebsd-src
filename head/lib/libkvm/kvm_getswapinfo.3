@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 1999
+.Dd January 2, 2017
 .Dt KVM_SWAPINFO 3
 .Os
 .Sh NAME
@@ -78,9 +78,9 @@ This structure contains the following fields:
 .It
 .Va char ksw_devname[] ;
 .It
-.Va int ksw_total ;
+.Va u_int ksw_total ;
 .It
-.Va int ksw_used ;
+.Va u_int ksw_used ;
 .It
 .Va int ksw_flags ;
 .El

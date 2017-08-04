@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
-#include <machine/cpufunc.h>
 #include <machine/smp.h>
 
 #include <arm/mv/mvvar.h>
@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+#define	MPIC_INT_LOCAL			3
 #define	MPIC_INT_ERR			4
 #define	MPIC_INT_MSI			96
 
@@ -94,7 +95,9 @@ __FBSDID("$FreeBSD$");
 #define	MPIC_IIACK		0x44
 #define	MPIC_ISM		0x48
 #define	MPIC_ICM		0x4c
-#define	MPIC_ERR_MASK		0xe50
+#define	MPIC_ERR_MASK		0x50
+#define	MPIC_LOCAL_MASK		0x54
+#define	MPIC_CPU(n)		(n) * 0x100
 
 #define	MPIC_PPI	32
 
@@ -149,12 +152,11 @@ static void	mpic_unmask_irq(uintptr_t nb);
 static void	mpic_mask_irq(uintptr_t nb);
 static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
+static boolean_t mpic_irq_is_percpu(uintptr_t);
+#ifdef INTRNG
 static int	mpic_intr(void *arg);
-static void	mpic_unmask_msi(void);
-#ifndef INTRNG
-static void	arm_mask_irq_err(uintptr_t);
-static void	arm_unmask_irq_err(uintptr_t);
 #endif
+static void	mpic_unmask_msi(void);
 
 #define	MPIC_WRITE(softc, reg, val) \
     bus_space_write_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg), (val))
@@ -225,6 +227,7 @@ mv_mpic_attach(device_t dev)
 	struct mv_mpic_softc *sc;
 	int error;
 	uint32_t val;
+	int cpu;
 
 	sc = (struct mv_mpic_softc *)device_get_softc(dev);
 
@@ -261,8 +264,7 @@ mv_mpic_attach(device_t dev)
 		sc->drbl_bsh = rman_get_bushandle(sc->mpic_res[2]);
 	}
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_CTRL, 1);
+	MPIC_WRITE(mv_mpic_sc, MPIC_CTRL, 1);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
 
 	val = MPIC_READ(mv_mpic_sc, MPIC_CTRL);
@@ -274,6 +276,9 @@ mv_mpic_attach(device_t dev)
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
 		return (ENXIO);
 	}
+
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
+
 	if (intr_pic_register(dev, OF_xref_from_device(dev)) == NULL) {
 		device_printf(dev, "could not register PIC\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
@@ -282,6 +287,12 @@ mv_mpic_attach(device_t dev)
 #endif
 
 	mpic_unmask_msi();
+
+	/* Unmask CPU performance counters overflow irq */
+	for (cpu = 0; cpu < mp_ncpus; cpu++)
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CPU(cpu) + MPIC_LOCAL_MASK,
+		    (1 << cpu) | MPIC_CPU_READ(mv_mpic_sc,
+		    MPIC_CPU(cpu) + MPIC_LOCAL_MASK));
 
 	return (0);
 }
@@ -399,7 +410,7 @@ static driver_t mv_mpic_driver = {
 static devclass_t mv_mpic_devclass;
 
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, mv_mpic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 
 #ifndef INTRNG
 int
@@ -433,26 +444,11 @@ arm_mask_irq(uintptr_t nb)
 	mpic_mask_irq(nb);
 }
 
-
-static void
-arm_mask_irq_err(uintptr_t nb)
-{
-
-	mpic_mask_irq_err(nb);
-}
-
 void
 arm_unmask_irq(uintptr_t nb)
 {
 
 	mpic_unmask_irq(nb);
-}
-
-void
-arm_unmask_irq_err(uintptr_t nb)
-{
-
-	mpic_unmask_irq_err(nb);
 }
 #endif
 
@@ -469,8 +465,7 @@ mpic_unmask_irq_err(uintptr_t nb)
 	uint32_t mask;
 	uint8_t bit_off;
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ISE, MPIC_INT_ERR);
+	MPIC_WRITE(mv_mpic_sc, MPIC_ISE, MPIC_INT_ERR);
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, MPIC_INT_ERR);
 
 	bit_off = nb - ERR_IRQ;
@@ -491,15 +486,34 @@ mpic_mask_irq_err(uintptr_t nb)
 	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
 }
 
+static boolean_t
+mpic_irq_is_percpu(uintptr_t nb)
+{
+	if (nb < MPIC_PPI)
+		return TRUE;
+
+	return FALSE;
+}
+
 static void
 mpic_unmask_irq(uintptr_t nb)
 {
 
-	if (nb < ERR_IRQ) {
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ISE, nb);
+#ifdef SMP
+	int cpu;
+
+	if (nb == MPIC_INT_LOCAL) {
+		for (cpu = 0; cpu < mp_ncpus; cpu++)
+			MPIC_CPU_WRITE(mv_mpic_sc,
+			    MPIC_CPU(cpu) + MPIC_ICM, nb);
+		return;
+	}
+#endif
+	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
-	} else if (nb < MSI_IRQ)
+	else if (nb < ERR_IRQ)
+		MPIC_WRITE(mv_mpic_sc, MPIC_ISE, nb);
+	else if (nb < MSI_IRQ)
 		mpic_unmask_irq_err(nb);
 
 	if (nb == 0)
@@ -510,11 +524,21 @@ static void
 mpic_mask_irq(uintptr_t nb)
 {
 
-	if (nb < ERR_IRQ) {
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ICE, nb);
+#ifdef SMP
+	int cpu;
+
+	if (nb == MPIC_INT_LOCAL) {
+		for (cpu = 0; cpu < mp_ncpus; cpu++)
+			MPIC_CPU_WRITE(mv_mpic_sc,
+			    MPIC_CPU(cpu) + MPIC_ISM, nb);
+		return;
+	}
+#endif
+	if (mpic_irq_is_percpu(nb))
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
-	} else if (nb < MSI_IRQ)
+	else if (nb < ERR_IRQ)
+		MPIC_WRITE(mv_mpic_sc, MPIC_ICE, nb);
+	else if (nb < MSI_IRQ)
 		mpic_mask_irq_err(nb);
 }
 
@@ -531,8 +555,7 @@ mv_mpic_get_cause_err(void)
 	uint32_t err_cause;
 	uint8_t bit_off;
 
-	err_cause = bus_space_read_4(mv_mpic_sc->mpic_bst,
-	    mv_mpic_sc->mpic_bsh, MPIC_ERR_CAUSE);
+	err_cause = MPIC_READ(mv_mpic_sc, MPIC_ERR_CAUSE);
 
 	if (err_cause)
 		bit_off = ffs(err_cause) - 1;
@@ -613,8 +636,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 		if (CPU_ISSET(i, &cpus))
 			val |= (1 << (8 + i));
 	val |= ipi;
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_SOFT_INT, val);
+	MPIC_WRITE(mv_mpic_sc, MPIC_SOFT_INT, val);
 }
 
 int

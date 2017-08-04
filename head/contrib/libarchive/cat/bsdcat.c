@@ -142,5 +142,8 @@ main(int argc, char **argv)
 			bsdcat_next();
 		}
 
+	if (a != NULL)
+		archive_read_free(a);
+
 	exit(exit_status);
 }

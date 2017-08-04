@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar  2, 2016" "NLnet Labs" "unbound 1.5.8"
+.TH "unbound.conf" "5" "Sep 27, 2016" "NLnet Labs" "unbound 1.5.10"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -72,7 +72,8 @@ Processing continues as if the text from the included file was copied into
 the config file at that point.  If also using chroot, using full path names
 for the included files works, relative pathnames for the included names work
 if the directory where the daemon is started equals its chroot/working 
-directory.  Wildcards can be used to include multiple files, see \fIglob\fR(7).
+directory or is specified before the include statement with directory: dir.
+Wildcards can be used to include multiple files, see \fIglob\fR(7).
 .SS "Server Options"
 These options are part of the
 .B server:
@@ -126,7 +127,7 @@ Detect source interface on UDP queries and copy them to replies.  This
 feature is experimental, and needs support in your OS for particular socket
 options.  Default value is no.
 .TP
-.B outgoing\-interface: \fI<ip address>
+.B outgoing\-interface: \fI<ip address or ip6 netblock>
 Interface to use to connect to the network. This interface is used to send
 queries to authoritative servers and receive their replies. Can be given 
 multiple times to work on several interfaces. If none are given the 
@@ -136,12 +137,28 @@ and
 .B outgoing\-interface:
 lines, the interfaces are then used for both purposes. Outgoing queries are 
 sent via a random outgoing interface to counter spoofing.
+.IP
+If an IPv6 netblock is specified instead of an individual IPv6 address,
+outgoing UDP queries will use a randomised source address taken from the
+netblock to counter spoofing. Requires the IPv6 netblock to be routed to the
+host running unbound, and requires OS support for unprivileged non-local binds
+(currently only supported on Linux). Several netblocks may be specified with
+multiple
+.B outgoing\-interface:
+options, but do not specify both an individual IPv6 address and an IPv6
+netblock, or the randomisation will be compromised.  Consider combining with
+.B prefer\-ip6: yes
+to increase the likelihood of IPv6 nameservers being selected for queries.
+On Linux you need these two commands to be able to use the freebind socket
+option to receive traffic for the ip6 netblock:
+ip -6 addr add mynetblock/64 dev lo &&
+ip -6 route add local mynetblock/64 dev lo
 .TP
 .B outgoing\-range: \fI<number>
 Number of ports to open. This number of file descriptors can be opened per 
 thread. Must be at least 1. Default depends on compile options. Larger 
 numbers need extra resources from the operating system.  For performance a
-a very large value is best, use libevent to make this possible.
+very large value is best, use libevent to make this possible.
 .TP
 .B outgoing\-port\-permit: \fI<port number or range>
 Permit unbound to open this port or range of ports for use to send queries.
@@ -277,6 +294,13 @@ and with this option you can select which (future) interfaces unbound
 provides service on.  This option needs unbound to be started with root
 permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems.
 .TP
+.B ip\-freebind: \fI<yes or no>
+If yes, then use IP_FREEBIND socket option on sockets where unbound
+is listening to incoming traffic.  Default no.  Allows you to bind to
+IP addresses that are nonlocal or do not exist, like when the network
+interface or IP address is down.  Exists only on Linux, where the similar
+ip\-transparent option is also available.
+.TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
 A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
@@ -322,6 +346,10 @@ Lower limit for dynamic retransmit timeout calculation in infrastructure
 cache. Default is 50 milliseconds. Increase this value if using forwarders
 needing more time to do recursive name resolution.
 .TP
+.B define\-tag: \fI<"list of tags">
+Define the tags that can be used with local\-zone and access\-control.
+Enclose the list between quotes ("") and put spaces between tags.
+.TP
 .B do\-ip4: \fI<yes or no>
 Enable or disable whether ip4 queries are answered or issued. Default is yes.
 .TP
@@ -331,6 +359,10 @@ If disabled, queries are not answered on IPv6, and queries are not sent on
 IPv6 to the internet nameservers.  With this option you can disable the
 ipv6 transport for sending DNS traffic, it does not impact the contents of
 the DNS traffic, which may have ip4 and ip6 addresses in it.
+.TP
+.B prefer\-ip6: \fI<yes or no>
+If enabled, prefer IPv6 transport for sending DNS queries to internet
+nameservers. Default is no.
 .TP
 .B do\-udp: \fI<yes or no>
 Enable or disable whether UDP queries are answered or issued. Default is yes.
@@ -425,6 +457,23 @@ allowed full recursion but only the static data.  With deny_non_local,
 messages that are disallowed are dropped, with refuse_non_local they
 receive error code REFUSED.
 .TP
+.B access\-control\-tag: \fI<IP netblock> <"list of tags">
+Assign tags to access-control elements. Clients using this access control
+element use localzones that are tagged with one of these tags. Tags must be
+defined in \fIdefine\-tags\fR.  Enclose list of tags in quotes ("") and put
+spaces between tags. If access\-control\-tag is configured for a netblock that
+does not have an access\-control, an access\-control element with action
+\fIallow\fR is configured for this netblock.
+.TP
+.B access\-control\-tag\-action: \fI<IP netblock> <tag> <action>
+Set action for particular tag for given access control element. If you have
+multiple tag values, the tag used to lookup the action is the first tag match
+between access\-control\-tag and local\-zone\-tag where "first" comes from the
+order of the define-tag values.
+.TP
+.B access\-control\-tag\-data: \fI<IP netblock> <tag> <"resource record string">
+Set redirect data for particular tag for given access control element.
+.TP
 .B chroot: \fI<directory>
 If chroot is enabled, you should pass the configfile (from the
 commandline) as a full path from the original root. After the
@@ -462,6 +511,8 @@ requires privileges, then a reload will fail; a restart is needed.
 Sets the working directory for the program. Default is "@UNBOUND_RUN_DIR@".
 On Windows the string "%EXECUTABLE%" tries to change to the directory
 that unbound.exe resides in.
+If you give a server: directory: dir before include: file statements
+then those includes can be relative to the working directory.
 .TP
 .B logfile: \fI<filename>
 If "" is given, logging goes to stderr, or nowhere once daemonized.
@@ -570,6 +621,7 @@ might return nxdomain for empty nonterminals (that usually happen for reverse
 IP address lookups), and thus may be incompatible with this.  To try to avoid
 this only DNSSEC-secure nxdomains are used, because the old software does not
 have DNSSEC.  Default is off.
+Currently, draft\-ietf\-dnsop\-nxdomain\-cut promotes this technique.
 .TP
 .B harden\-referral\-path: \fI<yes or no>
 Harden the referral path by performing additional queries for
@@ -673,6 +725,13 @@ This may cause a slight speedup.  The default is no, because the DNS
 protocol RFCs mandate these sections, and the additional content could
 be of use and save roundtrips for clients.
 .TP
+.B disable-dnssec-lame-check: \fI<yes or no>
+If true, disables the DNSSEC lameness check in the iterator.  This check
+sees if RRSIGs are present in the answer, when dnssec is expected,
+and retries another authority if RRSIGs are unexpectedly missing.
+The validator will insist in RRSIGs for DNSSEC signed domains regardless
+of this setting, if a trust anchor is loaded.
+.TP
 .B module\-config: \fI<"module names">
 Module configuration, a list of module names separated by spaces, surround
 the string with quotes (""). The modules can be validator, iterator.
@@ -691,7 +750,9 @@ File with trust anchor for one zone, which is tracked with RFC5011 probes.
 The probes are several times per month, thus the machine must be online
 frequently.  The initial file can be one with contents as described in
 \fBtrust\-anchor\-file\fR.  The file is written to when the anchor is updated,
-so the unbound user must have write permission.
+so the unbound user must have write permission.  Write permission to the file,
+but also to the directory it is in (to create a temporary file, which is
+necessary to deal with filesystem full events).
 .TP
 .B trust\-anchor: \fI<"Resource Record">
 A DS or DNSKEY RR for a key to use for validation. Multiple entries can be
@@ -866,6 +927,7 @@ address space are not validated.  This is usually required whenever
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
 transparent, redirect, nodefault, typetransparent, inform, inform_deny,
+always_transparent, always_refuse, always_nxdomain,
 and are explained below. After that the default settings are listed. Use
 local\-data: to enter data into the local zone. Answers for local zones
 are authoritative DNS answers. By default the zones are class IN.
@@ -925,6 +987,15 @@ logged, eg. to run antivirus on them.
 \h'5'\fIinform_deny\fR 
 The query is dropped, like 'deny', and logged, like 'inform'.  Ie. find
 infected machines without answering the queries.
+.TP 10
+\h'5'\fIalways_transparent\fR 
+Like transparent, but ignores local data and resolves normally.
+.TP 10
+\h'5'\fIalways_refuse\fR 
+Like refuse, but ignores local data and refuses the query.
+.TP 10
+\h'5'\fIalways_nxdomain\fR 
+Like static, but ignores local data and returns nxdomain for the query.
 .TP 10
 \h'5'\fInodefault\fR 
 Used to turn off default contents for AS112 zones. The other types
@@ -1042,6 +1113,18 @@ it as detailed in the stub zone section below.
 Configure local data shorthand for a PTR record with the reversed IPv4 or
 IPv6 address and the host name.  For example "192.0.2.4 www.example.com".
 TTL can be inserted like this: "2001:DB8::4 7200 www.example.com"
+.TP 5
+.B local\-zone\-tag: \fI<zone> <"list of tags">
+Assign tags to localzones. Tagged localzones will only be applied when the
+used access-control element has a matching tag. Tags must be defined in
+\fIdefine\-tags\fR.  Enclose list of tags in quotes ("") and put spaces between
+tags.
+.TP 5
+.B local\-zone\-override: \fI<zone> <IP netblock> <type>
+Override the localzone type for queries from addresses matching netblock. 
+Use this localzone type, regardless the type configured for the local-zone
+(both tagged and untagged) and regardless the type configured using
+access\-control\-tag\-action.
 .TP 5
 .B ratelimit: \fI<number or 0>
 Enable ratelimiting of queries sent to nameserver for performing recursion.

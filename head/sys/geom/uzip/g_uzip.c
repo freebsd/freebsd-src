@@ -464,6 +464,27 @@ g_uzip_start(struct bio *bp)
 	sc = gp->softc;
 	sc->req_total++;
 
+	if (bp->bio_cmd == BIO_GETATTR) {
+		struct bio *bp2;
+		struct g_consumer *cp;
+		struct g_geom *gp;
+		struct g_provider *pp;
+
+		/* pass on MNT:* requests and ignore others */
+		if (strncmp(bp->bio_attribute, "MNT:", 4) == 0) {
+			bp2 = g_clone_bio(bp);
+			if (bp2 == NULL) {
+				g_io_deliver(bp, ENOMEM);
+				return;
+			}
+			bp2->bio_done = g_std_done;
+			pp = bp->bio_to;
+			gp = pp->geom;
+			cp = LIST_FIRST(&gp->consumer);
+			g_io_request(bp2, cp);
+			return;
+		}
+	}
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;

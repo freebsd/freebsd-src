@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2015
+.Dd May 3, 2017
 .Dt PASS 4
 .Os
 .Sh NAME
@@ -85,6 +85,11 @@ Some examples of xpt-only CCBs are XPT_SCAN_BUS,
 XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
 These CCB types have various attributes that make it illogical or
 impossible to service them through the passthrough interface.
+.Pp
+If the user would like the kernel to do error recovery, the
+.Dv CAM_PASS_ERR_RECOVER
+flag must be set on the CCB, and the retry_count field set to the number
+of retries.
 .It CAMGETPASSTHRU union ccb *
 This ioctl takes an XPT_GDEVLIST CCB, and returns the passthrough device
 corresponding to the device in question.
@@ -160,6 +165,11 @@ available for userland use with the
 and
 .Dv CAMIOGET
 ioctls and will be preserved across calls.
+.Pp
+If the user would like the kernel to do error recovery, the
+.Dv CAM_PASS_ERR_RECOVER
+flag must be set on the CCB, and the retry_count field set to the number
+of retries.
 .It CAMIOGET union ccb *
 Retrieve completed CAM CCBs queued via the
 .Dv CAMIOQUEUE

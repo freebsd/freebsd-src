@@ -322,7 +322,7 @@ snmp_calc_keychange(struct snmp_user *user, uint8_t *keychange)
 
 	for (i = 0; i < keylen / 4; i++)
 		rvalue[i] = random();
-	
+
 	memcpy(keychange, user->auth_key, keylen);
 	memcpy(keychange + keylen, rvalue, keylen);
 

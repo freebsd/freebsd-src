@@ -282,7 +282,7 @@ int
 pw_group_show(int argc, char **argv, char *arg1)
 {
 	struct group *grp = NULL;
-	char *name;
+	char *name = NULL;
 	intmax_t id = -1;
 	int ch;
 	bool all, force, quiet, pretty;

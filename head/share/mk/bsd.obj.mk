@@ -51,6 +51,30 @@ CANONICALOBJDIR= ${.OBJDIR}
 # but this makefile does not want it!
 .OBJDIR: ${.CURDIR}
 .endif
+# Handle special case where SRCS is full-pathed and requires
+# nested objdirs.  This duplicates some auto.obj.mk logic.
+.if (!empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)) && \
+    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+_wantdirs=	${SRCS:M*/*:H} ${DPSRCS:M*/*:H}
+.if !empty(_wantdirs)
+_wantdirs:=	${_wantdirs:O:u}
+_needdirs=
+.for _dir in ${_wantdirs}
+.if !exists(${.OBJDIR}/${_dir}/)
+_needdirs+=	${_dir}
+.endif
+.endfor
+.endif
+.if !empty(_needdirs)
+#_mkneededdirs!=	umask ${OBJDIR_UMASK:U002}; ${Mkdirs} ${_needdirs}
+__objdir_made != umask ${OBJDIR_UMASK:U002}; ${Mkdirs}; \
+	for dir in ${_needdirs}; do \
+	  dir=${.OBJDIR}/$${dir}; \
+	  ${ECHO_TRACE} "[Creating nested objdir $${dir}...]" >&2; \
+          Mkdirs $${dir}; \
+	done
+.endif
+.endif	# !empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)
 .elif defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
@@ -78,7 +102,7 @@ OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 # case 2 (using MAKEOBJDIR), don't issue a warning.  Otherwise,
 # issue a warning differentiating between cases 6 and (3 or 4).
 #
-objwarn:
+objwarn: .PHONY
 .if !defined(NO_OBJ) && ${.OBJDIR} != ${CANONICALOBJDIR} && \
     !(defined(MAKEOBJDIRPREFIX) && exists(${CANONICALOBJDIR}/)) && \
     !(defined(MAKEOBJDIR) && exists(${MAKEOBJDIR}/))
@@ -133,9 +157,10 @@ whereobj:
 	@echo ${.OBJDIR}
 .endif
 
+# Same check in bsd.progs.mk
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@-rm -rf ${CANONICALOBJDIR}
+	-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif
@@ -156,10 +181,11 @@ clean:
 	-rm -rf ${CLEANDIRS}
 .endif
 .endif
-
-cleandir: cleanobj
+.ORDER: clean all
 
 .include <bsd.subdir.mk>
+
+cleandir: .WAIT cleanobj
 
 .if make(destroy*) && defined(OBJROOT)
 # this (rm -rf objdir) is much faster and more reliable than cleaning.

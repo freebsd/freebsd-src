@@ -9,7 +9,7 @@ CLEANFILES+=	${_FIRM}
 
 FIRMWS=	${_FIRM}:${KMOD}:111
 
-FIRMWARE_LICENSE=	realtek
+# FIRMWARE_LICENSE=	realtek
 
-${_FIRM}: ${.CURDIR}/../../../contrib/dev/rtwn/${_FIRM}.uu
+${_FIRM}: ${SRCTOP}/sys/contrib/dev/rtwn/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

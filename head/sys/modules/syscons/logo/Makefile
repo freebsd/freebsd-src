@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/logo
+.PATH:	${SRCTOP}/sys/dev/syscons/logo
 
 KMOD=	logo_saver
 SRCS=	logo_saver.c logo.c

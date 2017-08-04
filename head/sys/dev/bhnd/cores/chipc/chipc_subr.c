@@ -248,8 +248,8 @@ chipc_print_caps(device_t dev, struct chipc_caps *caps)
 	    CC_TFS(sprom), CC_TFS(otp_size));
 	device_printf(dev, "CFIsz:   0x%02x  | OTPsz: 0x%02x\n",
 	    caps->cfi_width, caps->otp_size);
-	device_printf(dev, "ExtBus:  0x%02x  | PwCtl: %s\n",
-	    caps->extbus_type, CC_TFS(power_control));
+	device_printf(dev, "ExtBus:  0x%02x  | PwrCtrl: %s\n",
+	    caps->extbus_type, CC_TFS(pwr_ctrl));
 	device_printf(dev, "PLL:     0x%02x  | JTAGM: %s\n",
 	    caps->pll_type, CC_TFS(jtag_master));
 	device_printf(dev, "PMU:     %-3s   | ECI:   %s\n",

@@ -1860,6 +1860,16 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 				prequpper = OHCI_PREQUPPER_MAX;
 			}
 			OWRITE(sc, OHCI_PREQUPPER, prequpper & 0xffffffff);
+			if (OREAD(sc, OHCI_PREQUPPER) !=
+			    (prequpper & 0xffffffff)) {
+				device_printf(fc->dev,
+				   "PhysicalUpperBound register is not "
+				   "implemented.  Physical memory access "
+				   "is limited to the first 4GB\n");
+				device_printf(fc->dev,
+				   "PhysicalUpperBound = 0x%08x\n",
+				    OREAD(sc, OHCI_PREQUPPER));
+			}
 		}
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13 + 16) | 0xfff);

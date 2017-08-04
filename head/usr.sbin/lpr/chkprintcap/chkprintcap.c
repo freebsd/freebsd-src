@@ -113,8 +113,13 @@ main(int argc, char **argv)
 	 * the printcap file.
 	*/
 	skres = skim_printcap(pcap_fname, verbosity);
-	if (skres->fatalerr)
-		return (skres->fatalerr);
+	if (skres == NULL) {
+		problems = 1;
+		goto main_ret;
+	} else if (skres->fatalerr) {
+		problems = skres->fatalerr;
+		goto main_ret;
+	}
 
 	/*
 	 * Now use the standard capability-db routines to check the values
@@ -156,6 +161,9 @@ next:
 		warnx("WARNING:  but only found %d queues to process!",
 		    queuecnt);
 	}
+
+main_ret:
+	free(pcap_fname);
 	return (problems);
 }
 

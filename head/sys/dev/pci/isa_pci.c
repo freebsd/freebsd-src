@@ -136,9 +136,6 @@ isab_pci_probe(device_t dev)
 	case 0x00001078:	/* Cyrix Cx5510 */
 	case 0x01001078:	/* Cyrix Cx5530 */
 	case 0xc7001045:	/* OPTi 82C700 (FireStar) */
-	case 0x00011033:	/* NEC 0001 (C-bus) */
-	case 0x002c1033:	/* NEC 002C (C-bus) */
-	case 0x003b1033:	/* NEC 003B (C-bus) */
 	case 0x886a1060:	/* UMC UM8886 ISA */
 	case 0x02001166:	/* ServerWorks IB6566 PCI */
 	    if (bootverbose)

@@ -112,6 +112,7 @@ CRUNCHENV+= MK_TESTS=no \
 	    _RECURSING_CRUNCH=1
 .ORDER: ${OUTPUTS} objs
 ${OUTPUTS:[1]}: .META
+${OUTPUTS:[2..-1]}: .NOMETA
 ${OUTPUTS}: ${CONF}
 	MAKE=${MAKE} ${CRUNCHENV:NMK_AUTO_OBJ=*} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
 	    MK_AUTO_OBJ=${MK_AUTO_OBJ} \
@@ -122,15 +123,17 @@ ${OUTPUTS}: ${CONF}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
-${PROG}: ${OUTPUTS} objs .META
+${PROG}: ${OUTPUTS} objs .NOMETA .PHONY
 	${CRUNCHENV} \
 	    CC="${CC} ${CFLAGS} ${LDFLAGS}" \
 	    CXX="${CXX} ${CXXFLAGS} ${LDFLAGS}" \
-	    ${MAKE} .MAKE.MODE=normal -f ${OUTMK} exe
+	    ${MAKE} .MAKE.MODE="${.MAKE.MODE} curdirOk=yes" \
+	    .MAKE.META.IGNORE_PATHS="${.MAKE.META.IGNORE_PATHS}" \
+	    -f ${OUTMK} exe
 
 objs: ${OUTMK} .META
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
-	    ${MAKE} -f ${OUTMK} BUILD_TOOLS_META=.NOMETA_CMP objs
+	    ${MAKE} -f ${OUTMK} BUILD_TOOLS_META=.NOMETA objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
@@ -166,3 +169,5 @@ clean:
 	fi
 
 META_XTRAS+=	${find ${CRUNCHOBJS}${SRCTOP} -name '*.meta' 2>/dev/null || true:L:sh}
+META_XTRAS+=	${echo ${CRUNCHOBJS}/*.lo.meta 2>/dev/null || true:L:sh}
+META_XTRAS+=	${PROG}.meta

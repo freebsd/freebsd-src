@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/regulator/regulator.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -827,13 +826,8 @@ static device_method_t tegra_usbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t tegra_usbphy_driver = {
-	"tegra_usbphy",
-	tegra_usbphy_methods,
-	sizeof(struct usbphy_softc),
-};
-
 static devclass_t tegra_usbphy_devclass;
-
+static DEFINE_CLASS_0(usbphy, tegra_usbphy_driver, tegra_usbphy_methods,
+    sizeof(struct usbphy_softc));
 EARLY_DRIVER_MODULE(tegra_usbphy, simplebus, tegra_usbphy_driver,
-    tegra_usbphy_devclass, 0, 0, 79);
+    tegra_usbphy_devclass, NULL, NULL, 79);

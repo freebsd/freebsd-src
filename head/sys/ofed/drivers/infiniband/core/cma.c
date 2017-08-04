@@ -1072,8 +1072,6 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 		kfree(bind_list);
 	}
 	mutex_unlock(&lock);
-	if (id_priv->sock)
-		sock_release(id_priv->sock);
 }
 
 static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
@@ -2505,7 +2503,7 @@ static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 	int low, high, remaining;
 	unsigned int rover;
 
-	inet_get_local_port_range(&low, &high);
+	inet_get_local_port_range(&init_net, &low, &high);
 	remaining = (high - low) + 1;
 	rover = random() % remaining + low;
 retry:

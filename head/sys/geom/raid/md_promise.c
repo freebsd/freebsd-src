@@ -341,6 +341,11 @@ promise_meta_read(struct g_consumer *cp, struct promise_raid_conf **metaarr)
 
 	pp = cp->provider;
 	subdisks = 0;
+
+	if (pp->sectorsize * 4 > MAXPHYS) {
+		G_RAID_DEBUG(1, "%s: Blocksize is too big.", pp->name);
+		return (subdisks);
+	}
 next:
 	/* Read metadata block. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize *
@@ -673,7 +678,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 	meta = pv->pv_meta;
 
 	if (sdn >= 0) {
-		/* Find disk position in metadata by it's serial. */
+		/* Find disk position in metadata by its serial. */
 		md_disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
 		/* For RAID0+1 we need to translate order. */
 		disk_pos = promise_meta_translate_disk(vol, md_disk_pos);

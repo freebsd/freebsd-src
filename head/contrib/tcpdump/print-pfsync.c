@@ -33,17 +33,20 @@
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
-
+#ifndef HAVE_NET_PFVAR_H
+#error "No pf headers available"
+#endif
 #include <sys/endian.h>
 #include <net/if.h>
-#include <net/pfvar.h>	/* XXX */
+#include <net/pfvar.h>
 #include <net/if_pfsync.h>
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
+#include <netdissect-stdinc.h>
 #include <string.h>
 
+#include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
 
@@ -178,7 +181,7 @@ pfsync_print(netdissect_options *ndo, struct pfsync_header *hdr,
 				break;
 			}
 
-			if (vflag)
+			if (ndo->ndo_vflag)
 				actions[subh->action].print(ndo, bp);
 
 			bp += alen;
@@ -234,7 +237,7 @@ pfsync_print_upd_c(netdissect_options *ndo, const void *bp)
 
 	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
 	    (uintmax_t)be64toh(u->id), ntohl(u->creatorid)));
-	if (vflag > 2) {
+	if (ndo->ndo_vflag > 2) {
 		ND_PRINT((ndo, "\n\tTCP? :"));
 		print_src_dst(ndo, &u->src, &u->dst, IPPROTO_TCP);
 	}
@@ -343,7 +346,7 @@ print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
 		else
 			ND_PRINT((ndo, "   <BAD STATE LEVELS %u:%u>",
 			    src->state, dst->state));
-		if (vflag > 1) {
+		if (ndo->ndo_vflag > 1) {
 			ND_PRINT((ndo, "\n\t"));
 			print_seq(ndo, src);
 			if (src->wscale && dst->wscale)
@@ -417,7 +420,7 @@ print_state(netdissect_options *ndo, struct pfsync_state *s)
 
 	print_src_dst(ndo, src, dst, s->proto);
 
-	if (vflag > 1) {
+	if (ndo->ndo_vflag > 1) {
 		uint64_t packets[2];
 		uint64_t bytes[2];
 		uint32_t creation = ntohl(s->creation);
@@ -446,7 +449,7 @@ print_state(netdissect_options *ndo, struct pfsync_state *s)
 		if (s->rule != ntohl(-1))
 			ND_PRINT((ndo, ", rule %u", ntohl(s->rule)));
 	}
-	if (vflag > 1) {
+	if (ndo->ndo_vflag > 1) {
 		uint64_t id;
 
 		bcopy(&s->id, &id, sizeof(uint64_t));

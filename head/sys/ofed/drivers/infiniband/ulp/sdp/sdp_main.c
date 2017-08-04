@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -310,7 +310,6 @@ sdp_closed(struct sdp_sock *ssk)
 		    ("sdp_closed: !SS_PROTOREF"));
 		ssk->flags &= ~SDP_SOCKREF;
 		SDP_WUNLOCK(ssk);
-		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
 		sofree(so);
@@ -1859,12 +1858,10 @@ sdp_pcblist(SYSCTL_HANDLER_ARGS)
 		xt.xt_inp.inp_lport = ssk->lport;
 		memcpy(&xt.xt_inp.inp_faddr, &ssk->faddr, sizeof(ssk->faddr));
 		xt.xt_inp.inp_fport = ssk->fport;
-		xt.xt_tp.t_state = ssk->state;
+		xt.t_state = ssk->state;
 		if (ssk->socket != NULL)
-			sotoxsocket(ssk->socket, &xt.xt_socket);
-		else
-			bzero(&xt.xt_socket, sizeof xt.xt_socket);
-		xt.xt_socket.xso_protocol = IPPROTO_TCP;
+			sotoxsocket(ssk->socket, &xt.xt_inp.xi_socket);
+		xt.xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
 		SDP_RUNLOCK(ssk);
 		error = SYSCTL_OUT(req, &xt, sizeof xt);
 		if (error)

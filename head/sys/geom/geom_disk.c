@@ -77,6 +77,8 @@ static g_ioctl_t g_disk_ioctl;
 static g_dumpconf_t g_disk_dumpconf;
 static g_provgone_t g_disk_providergone;
 
+static int g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS);
+
 static struct g_class g_disk_class = {
 	.name = G_DISK_CLASS_NAME,
 	.version = G_VERSION,
@@ -421,6 +423,8 @@ g_disk_start(struct bio *bp)
 	int error;
 	off_t off;
 
+	biotrack(bp, __func__);
+
 	sc = bp->bio_to->private;
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		g_io_deliver(bp, ENXIO);
@@ -496,6 +500,8 @@ g_disk_start(struct bio *bp)
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
+			break;
+		else if (g_handleattr_str(bp, "GEOM::descr", dp->d_descr))
 			break;
 		else if (g_handleattr_uint16_t(bp, "GEOM::hba_vendor",
 		    dp->d_hba_vendor))
@@ -586,12 +592,12 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		 * special cases, and there's also a valid range.
 		 */
 		sbuf_printf(sb, "%s<rotationrate>", indent);
-		if (dp->d_rotation_rate == 0)		/* Old drives don't */
-			sbuf_printf(sb, "unknown");	/* report RPM. */
-		else if (dp->d_rotation_rate == 1)	/* Since 0 is used */
-			sbuf_printf(sb, "0");		/* above, SSDs use 1. */
-		else if ((dp->d_rotation_rate >= 0x041) &&
-		    (dp->d_rotation_rate <= 0xfffe))
+		if (dp->d_rotation_rate == DISK_RR_UNKNOWN) /* Old drives */
+			sbuf_printf(sb, "unknown");	/* don't report RPM. */
+		else if (dp->d_rotation_rate == DISK_RR_NON_ROTATING)
+			sbuf_printf(sb, "0");
+		else if ((dp->d_rotation_rate >= DISK_RR_MIN) &&
+		    (dp->d_rotation_rate <= DISK_RR_MAX))
 			sbuf_printf(sb, "%u", dp->d_rotation_rate);
 		else
 			sbuf_printf(sb, "invalid");
@@ -723,6 +729,10 @@ g_disk_create(void *arg, int flag)
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
 		    CTLFLAG_RWTUN, sc->led, sizeof(sc->led),
 		    "LED name");
+		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
+		    CTLTYPE_STRING | CTLFLAG_RD, dp, 0, g_disk_sysctl_flags,
+		    "A", "Report disk flags");
 	}
 	pp->private = sc;
 	dp->d_geom = gp;
@@ -990,6 +1000,30 @@ g_kern_disks(void *p, int flag __unused)
 		sp = " ";
 	}
 	sbuf_finish(sb);
+}
+
+static int
+g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct disk *dp;
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new_auto();
+	dp = (struct disk *)arg1;
+	sbuf_printf(sb, "%b", dp->d_flags,
+		"\20"
+		"\2OPEN"
+		"\3CANDELETE"
+		"\4CANFLUSHCACHE"
+		"\5UNMAPPEDBIO"
+		"\6DIRECTCOMPLETION"
+		"\10CANZONE");
+
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
 }
 
 static int

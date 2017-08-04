@@ -51,10 +51,16 @@ run(int n, ...)
 	ATF_REQUIRE_EQ(n, DEPTH - calls - 1);
 
 	va_start(va, n);
-#if defined(__FreeBSD__) && defined(__amd64__)
+#ifdef __FreeBSD__
+#if defined(__amd64__)
 	for (i = 0; i < 5; i++) {
-#elif defined(__FreeBSD__) && defined(__aarch64__)
+#elif defined(__aarch64__)
 	for (i = 0; i < 7; i++) {
+#elif defined(__mips__)
+	for (i = 0; i < 5; i++) {
+#else
+	for (i = 0; i < 9; i++) {
+#endif
 #else
 	for (i = 0; i < 9; i++) {
 #endif
@@ -114,14 +120,23 @@ ATF_TC_BODY(setcontext_link, tc)
 		uc[i].uc_stack.ss_size = STACKSZ;
 		uc[i].uc_link = (i > 0) ? &uc[i - 1] : &save;
 
-#if defined(__FreeBSD__) && defined(__amd64__)
+#ifdef __FreeBSD__
+#if defined(__amd64__)
 		/* FreeBSD/amd64 only permits up to 6 arguments. */
 		makecontext(&uc[i], (void *)run, 6, i,
 			0, 1, 2, 3, 4);
-#elif defined(__FreeBSD__) && defined(__aarch64__)
+#elif defined(__aarch64__)
 		/* FreeBSD/arm64 only permits up to 8 arguments. */
 		makecontext(&uc[i], (void *)run, 8, i,
 			0, 1, 2, 3, 4, 5, 6);
+#elif defined(__mips__)
+		/* FreeBSD/mips only permits up to 6 arguments. */
+		makecontext(&uc[i], (void *)run, 6, i,
+			0, 1, 2, 3, 4);
+#else
+		makecontext(&uc[i], (void *)run, 10, i,
+			0, 1, 2, 3, 4, 5, 6, 7, 8);
+#endif
 #else
 		makecontext(&uc[i], (void *)run, 10, i,
 			0, 1, 2, 3, 4, 5, 6, 7, 8);

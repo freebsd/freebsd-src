@@ -70,7 +70,7 @@ savecore_start()
 	if savecore -C "${dev}" >/dev/null; then
 		savecore ${savecore_flags} ${dumpdir} ${dumpdev}
 		if checkyesno crashinfo_enable; then
-			${crashinfo_program} -d ${dumpdir}
+			${crashinfo_program} -b -d ${dumpdir}
 		fi
 		sync
 	else

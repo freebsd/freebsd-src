@@ -120,9 +120,9 @@ int
 gpio_check_flags(uint32_t caps, uint32_t flags)
 {
 
-	/* Check for unwanted flags. */
-	if ((flags & caps) == 0 || (flags & caps) != flags)
-		return (EINVAL);
+	/* Filter unwanted flags. */
+	flags &= caps;
+
 	/* Cannot mix input/output together. */
 	if (flags & GPIO_PIN_INPUT && flags & GPIO_PIN_OUTPUT)
 		return (EINVAL);
@@ -855,5 +855,6 @@ driver_t gpiobus_driver = {
 
 devclass_t	gpiobus_devclass;
 
-DRIVER_MODULE(gpiobus, gpio, gpiobus_driver, gpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gpiobus, gpio, gpiobus_driver, gpiobus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(gpiobus, 1);

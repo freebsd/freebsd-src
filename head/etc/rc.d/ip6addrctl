@@ -6,7 +6,7 @@
 # PROVIDE: ip6addrctl
 # REQUIRE: FILESYSTEMS
 # BEFORE: netif
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr

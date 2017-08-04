@@ -4,7 +4,7 @@ PACKAGE=runtime
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	attrib.c epc.c fwdownload.c modeedit.c persist.c progress.c zone.c
+SRCS+=	attrib.c epc.c fwdownload.c modeedit.c persist.c progress.c timestamp.c zone.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif

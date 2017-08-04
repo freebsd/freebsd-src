@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../usr.bin/cksum
+.PATH: ${SRCTOP}/usr.bin/cksum
 
 PROG=	ckdist
 SRCS=   ckdist.c crc.c

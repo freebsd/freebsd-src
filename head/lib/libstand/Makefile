@@ -41,7 +41,7 @@ SRCS+= ntoh.c
 .PATH: ${LIBC_SRC}/string
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c fls.c \
 	memccpy.c memchr.c memcmp.c memcpy.c memmove.c memset.c \
-	qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
+	qdivrem.c strcat.c strchr.c strcmp.c strcpy.c stpcpy.c stpncpy.c \
 	strcspn.c strlcat.c strlcpy.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .if ${MACHINE_CPUARCH} == "arm"
@@ -109,9 +109,9 @@ libstand_bzlib_private.h: bzlib_private.h
 	sed -e 's|<stdlib.h>|"stand.h"|' \
 		${.ALLSRC} > ${.TARGET}
 
-# decompression functionality from libz
-.PATH: ${LIBSTAND_SRC}/../libz
-CFLAGS+=-DHAVE_MEMCPY -I${LIBSTAND_SRC}/../libz
+# decompression functionality from zlib
+.PATH: ${LIBSTAND_SRC}/../../contrib/zlib
+CFLAGS+=-DHAVE_MEMCPY -I${LIBSTAND_SRC}/../../contrib/zlib
 SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
@@ -141,7 +141,7 @@ SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
 	fstat.c close.c lseek.c open.c read.c write.c readdir.c
 
 # network routines
-SRCS+=	arp.c ether.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
+SRCS+=	arp.c ether.c ip.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 
 # network info services:
 SRCS+=	bootp.c rarp.c bootparam.c
@@ -154,6 +154,10 @@ SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif
+
+# explicit_bzero
+.PATH: ${SRCTOP}/sys/libkern
+SRCS+=  explicit_bzero.c
 
 .include <bsd.stand.mk>
 .include <bsd.lib.mk>

@@ -284,6 +284,8 @@ enum tokens {
 	TOK_INTPREFIX,
 	TOK_EXTPREFIX,
 	TOK_PREFIXLEN,
+
+	TOK_TCPSETMSS,
 };
 
 /*
@@ -329,7 +331,7 @@ void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
 
 struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
-int do_set3(int optname, struct _ip_fw3_opheader *op3, uintptr_t optlen);
+int do_set3(int optname, struct _ip_fw3_opheader *op3, size_t optlen);
 int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
@@ -396,8 +398,11 @@ void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
 void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
 void print_ext6hdr(struct buf_pr *bp, struct _ipfw_insn *cmd );
 
-struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen);
-struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen);
+struct tidx;
+struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen,
+    struct tidx *tstate);
+struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen,
+    struct tidx *tstate);
 
 void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
 void fill_unreach6_code(u_short *codep, char *str);
@@ -406,6 +411,8 @@ int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 
 /* ipfw2.c */
 void bp_flush(struct buf_pr *b);
+void fill_table(struct _ipfw_insn *cmd, char *av, uint8_t opcode,
+    struct tidx *tstate);
 
 /* tables.c */
 struct _ipfw_obj_ctlv;

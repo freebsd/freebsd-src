@@ -30,6 +30,69 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
+EFI_STATUS
+errno_to_efi_status(int errno)
+{
+        EFI_STATUS status;
+
+        switch (errno) {
+        case EPERM:
+                status = EFI_ACCESS_DENIED;
+                break;
+
+        case EOVERFLOW:
+                status = EFI_BUFFER_TOO_SMALL;
+                break;
+
+        case EIO:
+                status = EFI_DEVICE_ERROR;
+                break;
+
+        case EINVAL:
+                status = EFI_INVALID_PARAMETER;
+                break;
+
+        case ESTALE:
+                status = EFI_MEDIA_CHANGED;
+                break;
+
+        case ENXIO:
+                status = EFI_NO_MEDIA;
+                break;
+
+        case ENOENT:
+                status = EFI_NOT_FOUND;
+                break;
+
+        case ENOMEM:
+                status = EFI_OUT_OF_RESOURCES;
+                break;
+
+        case ENOTSUP:
+        case ENODEV:
+                status = EFI_UNSUPPORTED;
+                break;
+
+        case ENOSPC:
+                status = EFI_VOLUME_FULL;
+                break;
+
+        case EACCES:
+                status = EFI_WRITE_PROTECTED;
+                break;
+
+        case 0:
+                status = EFI_SUCCESS;
+                break;
+
+        default:
+                status = EFI_DEVICE_ERROR;
+                break;
+        }
+
+        return (status);
+}
+
 int
 efi_status_to_errno(EFI_STATUS status)
 {

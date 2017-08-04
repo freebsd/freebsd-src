@@ -1,13 +1,11 @@
 .\" Generated from pam_authenticate.c by gendoc.pl
-.\" $Id: pam_authenticate.c 648 2013-03-05 17:54:27Z des $
-.Dd September 12, 2014
+.\" $OpenPAM: pam_authenticate.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_AUTHENTICATE 3
 .Os
 .Sh NAME
 .Nm pam_authenticate
 .Nd perform authentication within the PAM framework
-.Sh LIBRARY
-.Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
@@ -43,18 +41,22 @@ Fail if the user's authentication token is null.
 If any other bits are set,
 .Fn pam_authenticate
 will return
-.Dv PAM_SYMBOL_ERR .
+.Dv PAM_BAD_CONSTANT .
 .Sh RETURN VALUES
 The
 .Fn pam_authenticate
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_ABORT
 General failure.
 .It Bq Er PAM_AUTHINFO_UNAVAIL
 Authentication information is unavailable.
 .It Bq Er PAM_AUTH_ERR
 Authentication error.
+.It Bq Er PAM_BAD_CONSTANT
+Bad constant.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
 .It Bq Er PAM_CONV_ERR
@@ -67,8 +69,6 @@ Maximum number of tries exceeded.
 Permission denied.
 .It Bq Er PAM_SERVICE_ERR
 Error in service module.
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
 .It Bq Er PAM_USER_UNKNOWN
@@ -95,4 +95,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .

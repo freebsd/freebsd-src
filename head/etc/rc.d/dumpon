@@ -16,7 +16,12 @@ stop_cmd="dumpon_stop"
 
 dumpon_try()
 {
-	if /sbin/dumpon "${1}" ; then
+	if [ -n "${dumppubkey}" ]; then
+		/sbin/dumpon -k "${dumppubkey}" "${1}"
+	else
+		/sbin/dumpon "${1}"
+	fi
+	if [ $? -eq 0 ]; then
 		# Make a symlink in devfs for savecore
 		ln -fs "${1}" /dev/dumpdev
 		return 0

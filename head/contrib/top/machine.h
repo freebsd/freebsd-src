@@ -21,6 +21,7 @@ struct statics
     char **cpustate_names;
     char **memory_names;
     char **arc_names;
+    char **carc_names;
     char **swap_names;
 #ifdef ORDER
     char **order_names;
@@ -48,6 +49,7 @@ struct system_info
     int    *cpustates;
     int    *memory;
     int    *arc;
+    int    *carc;
     int    *swap;
     struct timeval boottime;
     int    ncpus;
@@ -72,20 +74,22 @@ struct process_select
     int wcpu;		/* show weighted cpu */
     int jid;		/* only this jid (unless jid == -1) */
     int jail;		/* show jail ID */
+    int swap;		/* show swap usage */
     int kidle;		/* show per-CPU idle threads */
     char *command;	/* only this command (unless == NULL) */
 };
 
 /* routines defined by the machine dependent module */
 
-char	*format_header();
-char	*format_next_process();
+char	*format_header(char *uname_field);
+char	*format_next_process(caddr_t handle, char *(*get_userid)(int),
+	    int flags);
 void	 toggle_pcpustats(void);
 void	 get_system_info(struct system_info *si);
-int		 machine_init(struct statics *statics, char do_unames);
-int		 proc_owner(int pid);
+int	 machine_init(struct statics *statics, char do_unames);
+int	 proc_owner(int pid);
 
 /* non-int routines typically used by the machine dependent module */
-char	*printable();
+char	*printable(char *string);
 
 #endif /* MACHINE_H */

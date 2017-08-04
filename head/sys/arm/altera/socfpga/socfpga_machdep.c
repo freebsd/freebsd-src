@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,13 +28,11 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_ddb.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -42,38 +40,23 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 
+#include <dev/ofw/openfirm.h>
+
 #include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/fdt.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
+#include <machine/platformvar.h>
 
-vm_offset_t
-platform_lastaddr(void)
-{
+#include <arm/altera/socfpga/socfpga_mp.h>
+#include <arm/altera/socfpga/socfpga_rstmgr.h>
 
-	return (devmap_lastaddr());
-}
+#include "platform_if.h"
 
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
-}
-
-int
-platform_devmap_init(void)
+#if defined(SOC_ALTERA_CYCLONE5)
+static int
+socfpga_devmap_init(platform_t plat)
 {
 
 	/* UART */
@@ -100,17 +83,94 @@ platform_devmap_init(void)
 
 	return (0);
 }
+#endif
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
+#if defined(SOC_ALTERA_ARRIA10)
+static int
+socfpga_a10_devmap_init(platform_t plat)
 {
 
-	return (NULL);
-}
+	/* UART */
+	devmap_add_entry(0xffc00000, 0x100000);
 
-int
-bus_dma_get_range_nb(void)
-{
+	/* USB OTG */
+	devmap_add_entry(0xffb00000, 0x100000);
+
+	/* dwmmc */
+	devmap_add_entry(0xff800000, 0x100000);
+
+	/* scu */
+	devmap_add_entry(0xfff00000, 0x100000);
 
 	return (0);
 }
+#endif
+
+static void
+_socfpga_cpu_reset(bus_size_t reg)
+{
+	uint32_t paddr;
+	bus_addr_t vaddr;
+	phandle_t node;
+
+	if (rstmgr_warmreset(reg) == 0)
+		goto end;
+
+	node = OF_finddevice("/soc/rstmgr");
+	if (node == -1)
+		goto end;
+
+	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x8, 0, &vaddr) == 0) {
+			bus_space_write_4(fdtbus_bs_tag, vaddr,
+			    reg, CTRL_SWWARMRSTREQ);
+		}
+	}
+
+end:
+	while (1);
+}
+
+#if defined(SOC_ALTERA_CYCLONE5)
+static void
+socfpga_cpu_reset(platform_t plat)
+{
+
+	_socfpga_cpu_reset(RSTMGR_CTRL);
+}
+#endif
+
+#if defined(SOC_ALTERA_ARRIA10)
+static void
+socfpga_a10_cpu_reset(platform_t plat)
+{
+
+	_socfpga_cpu_reset(RSTMGR_A10_CTRL);
+}
+#endif
+
+#if defined(SOC_ALTERA_CYCLONE5)
+static platform_method_t socfpga_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	socfpga_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	socfpga_cpu_reset),
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_setmaxid,	socfpga_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap,	socfpga_mp_start_ap),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(socfpga, "socfpga", 0, "altr,socfpga-cyclone5", 200);
+#endif
+
+#if defined(SOC_ALTERA_ARRIA10)
+static platform_method_t socfpga_a10_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	socfpga_a10_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	socfpga_a10_cpu_reset),
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_setmaxid,	socfpga_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap,	socfpga_a10_mp_start_ap),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(socfpga_a10, "socfpga", 0, "altr,socfpga-arria10", 200);
+#endif

@@ -239,7 +239,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 	 * it if any of the rate entries aren't 11n.
 	 */
 	do_ldpc = 0;
-	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
+	if ((ni->ni_vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX) &&
 	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
 		do_ldpc = 1;
 
@@ -319,8 +319,8 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * and we're not doing positioning, enable STBC.
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
-			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
-			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX) &&
+			    (ni->ni_htcap & IEEE80211_HTCAP_RXSTBC) &&
 			    (sc->sc_cur_txchainmask > 1) &&
 			    (HT_RC_2_STREAMS(rate) == 1) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
@@ -402,26 +402,42 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
  */
 static int
 ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
-    uint16_t pktlen)
+    uint16_t pktlen, int is_first)
 {
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ieee80211_node *ni = first_bf->bf_node;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int ndelim, mindelim = 0;
-	int mpdudensity;	 /* in 1/100'th of a microsecond */
+	int mpdudensity;	/* in 1/100'th of a microsecond */
+	int peer_mpdudensity;	/* net80211 value */
 	uint8_t rc, rix, flags;
 	int width, half_gi;
 	uint32_t nsymbits, nsymbols;
 	uint16_t minlen;
 
 	/*
-	 * vap->iv_ampdu_density is a value, rather than the actual
-	 * density.
+	 * Get the advertised density from the node.
 	 */
-	if (vap->iv_ampdu_density > IEEE80211_HTCAP_MPDUDENSITY_16)
+	peer_mpdudensity = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+	/*
+	 * vap->iv_ampdu_density is a net80211 value, rather than the actual
+	 * density.  Larger values are longer A-MPDU density spacing values,
+	 * and we want to obey larger configured / negotiated density values
+	 * per station if we get it.
+	 */
+	if (vap->iv_ampdu_density > peer_mpdudensity)
+		peer_mpdudensity = vap->iv_ampdu_density;
+
+	/*
+	 * Convert the A-MPDU density net80211 value to a 1/100 microsecond
+	 * value for subsequent calculations.
+	 */
+	if (peer_mpdudensity > IEEE80211_HTCAP_MPDUDENSITY_16)
 		mpdudensity = 1600;		/* maximum density */
 	else
-		mpdudensity = ieee80211_mpdudensity_map[vap->iv_ampdu_density];
+		mpdudensity = ieee80211_mpdudensity_map[peer_mpdudensity];
 
 	/* Select standard number of delimiters based on frame length */
 	ndelim = ATH_AGGR_GET_NDELIM(pktlen);
@@ -442,11 +458,12 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 * For AR9380, there's a minimum number of delimeters
 	 * required when doing RTS.
 	 *
-	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled, and
-	 * XXX (b) this is the first sub-frame in the aggregate.
+	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled for
+	 * this exchange, and (b) (done) this is the first sub-frame
+	 * in the aggregate.
 	 */
 	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
-	    && ndelim < AH_FIRST_DESC_NDELIMS)
+	    && ndelim < AH_FIRST_DESC_NDELIMS && is_first)
 		ndelim = AH_FIRST_DESC_NDELIMS;
 
 	/*
@@ -509,21 +526,63 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	    __func__, pktlen, minlen, rix, rc, width, half_gi, ndelim);
 
 	return ndelim;
+#undef	MS
+}
+
+/*
+ * XXX TODO: put into net80211
+ */
+static int
+ath_rx_ampdu_to_byte(char a)
+{
+	switch (a) {
+	case IEEE80211_HTCAP_MAXRXAMPDU_16K:
+		return 16384;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_32K:
+		return 32768;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_64K:
+		return 65536;
+		break;
+	case IEEE80211_HTCAP_MAXRXAMPDU_8K:
+	default:
+		return 8192;
+		break;
+	}
 }
 
 /*
  * Fetch the aggregation limit.
  *
  * It's the lowest of the four rate series 4ms frame length.
+ *
+ * Also take into account the hardware specific limits (8KiB on AR5416)
+ * and per-peer limits in non-STA mode.
  */
 static int
-ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
+ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_buf *bf)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	int amin = ATH_AGGR_MAXSIZE;
 	int i;
 
+	/* Extract out the maximum configured driver A-MPDU limit */
 	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
 		amin = sc->sc_aggr_limit;
+
+	/* Check the vap configured transmit limit */
+	amin = MIN(amin, ath_rx_ampdu_to_byte(vap->iv_ampdu_limit));
+
+	/*
+	 * Check the HTCAP field for the maximum size the node has
+	 * negotiated.  If it's smaller than what we have, cap it there.
+	 */
+	amin = MIN(amin, ath_rx_ampdu_to_byte(MS(ni->ni_htparam,
+	    IEEE80211_HTCAP_MAXRXAMPDU)));
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)
@@ -531,10 +590,17 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
 		amin = MIN(amin, bf->bf_state.bfs_rc[i].max4msframelen);
 	}
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: max frame len= %d\n",
-	    __func__, amin);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+	    "%s: aggr_limit=%d, iv_ampdu_limit=%d, "
+	    "peer maxrxampdu=%d, max frame len=%d\n",
+	    __func__,
+	    sc->sc_aggr_limit,
+	    vap->iv_ampdu_limit,
+	    MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU),
+	    amin);
 
 	return amin;
+#undef	MS
 }
 
 /*
@@ -787,7 +853,8 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 			 * set the aggregation limit based on the
 			 * rate control decision that has been made.
 			 */
-			aggr_limit = ath_get_aggr_limit(sc, bf_first);
+			aggr_limit = ath_get_aggr_limit(sc, &an->an_node,
+			    bf_first);
 		}
 
 		/* Set this early just so things don't get confused */
@@ -909,7 +976,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 */
 		bf->bf_state.bfs_ndelim =
 		    ath_compute_num_delims(sc, bf_first,
-		    bf->bf_state.bfs_pktlen);
+		    bf->bf_state.bfs_pktlen, (bf_first == bf));
 
 		/*
 		 * Calculate the padding needed from this set of delimiters,

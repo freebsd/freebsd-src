@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -13,7 +13,6 @@
  */
 
 #include "less.h"
-#include "pattern.h"
 #include "position.h"
 #include "charset.h"
 
@@ -29,7 +28,7 @@ extern int jump_sline;
 extern int bs_mode;
 extern int ctldisp;
 extern int status_col;
-extern void * constant ml_search;
+extern void *ml_search;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 extern int utf_mode;
@@ -103,7 +102,7 @@ static struct hilite_tree filter_anchor = HILITE_INITIALIZER();
  * search pattern and filter pattern.
  */
 struct pattern_info {
-	DEFINE_PATTERN(compiled);
+	PATTERN_TYPE compiled;
 	char* text;
 	int search_type;
 };
@@ -1015,27 +1014,6 @@ hilite_line(linepos, line, line_len, chpos, sp, ep, cvt_ops)
 }
 #endif
 
-/*
- * Change the caseless-ness of searches.  
- * Updates the internal search state to reflect a change in the -i flag.
- */
-	public void
-chg_caseless()
-{
-	if (!is_ucase_pattern)
-		/*
-		 * Pattern did not have uppercase.
-		 * Just set the search caselessness to the global caselessness.
-		 */
-		is_caseless = caseless;
-	else
-		/*
-		 * Pattern did have uppercase.
-		 * Discard the pattern; we can't change search caselessness now.
-		 */
-		clear_pattern(&search_info);
-}
-
 #if HILITE_SEARCH
 /*
  * Find matching text which is currently on screen and highlight it.
@@ -1114,18 +1092,18 @@ search_pos(search_type)
 			 * Search does not include current screen.
 			 */
 			if (search_type & SRCH_FORW)
-				linenum = BOTTOM_PLUS_ONE;
+				linenum = sc_height-1; /* BOTTOM_PLUS_ONE */
 			else
-				linenum = TOP;
+				linenum = 0; /* TOP */
 		} else if (how_search == OPT_ONPLUS && !(search_type & SRCH_AFTER_TARGET))
 		{
 			/*
 			 * Search includes all of displayed screen.
 			 */
 			if (search_type & SRCH_FORW)
-				linenum = TOP;
+				linenum = 0; /* TOP */
 			else
-				linenum = BOTTOM_PLUS_ONE;
+				linenum = sc_height-1; /* BOTTOM_PLUS_ONE */
 		} else 
 		{
 			/*
@@ -1292,6 +1270,8 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 				hl.hl_startpos = linepos;
 				hl.hl_endpos = pos;
 				add_hilite(&filter_anchor, &hl);
+				free(cline);
+				free(chpos);
 				continue;
 			}
 		}
@@ -1378,6 +1358,30 @@ hist_pattern(search_type)
 #else /* CMD_HISTORY */
 	return (0);
 #endif /* CMD_HISTORY */
+}
+
+/*
+ * Change the caseless-ness of searches.  
+ * Updates the internal search state to reflect a change in the -i flag.
+ */
+	public void
+chg_caseless()
+{
+	if (!is_ucase_pattern)
+		/*
+		 * Pattern did not have uppercase.
+		 * Just set the search caselessness to the global caselessness.
+		 */
+		is_caseless = caseless;
+	else
+	{
+		/*
+		 * Pattern did have uppercase.
+		 * Regenerate the pattern using the new state.
+		 */
+		clear_pattern(&search_info);
+		hist_pattern(search_info.search_type);
+	}
 }
 
 /*

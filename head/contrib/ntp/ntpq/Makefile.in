@@ -116,6 +116,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_dir_sep.m4 \
 	$(top_srcdir)/sntp/m4/ntp_facilitynames.m4 \
 	$(top_srcdir)/sntp/m4/ntp_googletest.m4 \
+	$(top_srcdir)/sntp/m4/ntp_harden.m4 \
 	$(top_srcdir)/sntp/m4/ntp_ipv6.m4 \
 	$(top_srcdir)/sntp/m4/ntp_lib_m.m4 \
 	$(top_srcdir)/sntp/m4/ntp_libevent.m4 \
@@ -295,10 +296,6 @@ CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
 CPPFLAGS_NTP = @CPPFLAGS_NTP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
-CXXDEPMODE = @CXXDEPMODE@
-CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DCFD = @DCFD@
 DEFS = @DEFS@
@@ -351,6 +348,7 @@ LN_S = @LN_S@
 LSCF = @LSCF@
 LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
+LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
 MAKE_CHECK_LAYOUT = @MAKE_CHECK_LAYOUT@
@@ -414,6 +412,9 @@ NTPTRACE_DL = @NTPTRACE_DL@
 NTPTRACE_DS = @NTPTRACE_DS@
 NTPTRACE_MS = @NTPTRACE_MS@
 NTPTRACE_NI = @NTPTRACE_NI@
+NTP_HARD_CFLAGS = @NTP_HARD_CFLAGS@
+NTP_HARD_CPPFLAGS = @NTP_HARD_CPPFLAGS@
+NTP_HARD_LDFLAGS = @NTP_HARD_LDFLAGS@
 NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
 NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
 NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
@@ -487,7 +488,6 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -539,9 +539,10 @@ NULL =
 bin_PROGRAMS = $(NTPQ_DB)
 libexec_PROGRAMS = $(NTPQ_DL)
 sbin_PROGRAMS = $(NTPQ_DS)
-AM_CFLAGS = $(CFLAGS_NTP)
-AM_CPPFLAGS = $(NTP_INCS) $(LIBOPTS_CFLAGS) $(CPPFLAGS_NTP)
-AM_LDFLAGS = $(LDFLAGS_NTP)
+AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
+AM_CPPFLAGS = $(NTP_INCS) $(LIBOPTS_CFLAGS) $(CPPFLAGS_NTP) \
+	$(NTP_HARD_CPPFLAGS)
+AM_LDFLAGS = $(LDFLAGS_NTP) $(NTP_HARD_LDFLAGS)
 
 # LDADD might need RESLIB and ADJLIB
 ntpq_LDADD = version.o $(LIBOPTS_LDADD) ../libntp/libntp.a \

@@ -19,7 +19,7 @@ SECTIONS
     /* .gnu.warning sections are handled specially by elf32.em. */
     *(.gnu.warning)
     *(.plt)
-  } =0x00300000010070000002000001000400
+  } =0xCCCCCCCC
   . = ALIGN(4096);
   .data		: {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
@@ -39,6 +39,11 @@ SECTIONS
     __start_set_Xcommand_set = .;
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
+  }
+  set_Xficl_compile_set	: {
+    __start_set_Xficl_compile_set = .;
+    *(set_Xficl_compile_set)
+    __stop_set_Xficl_compile_set = .;
   }
   . = ALIGN(4096);
   __gp = .;

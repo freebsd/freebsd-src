@@ -367,7 +367,7 @@ moveon:
 	err = fdt_get_range(node, 0, &b, &s);
 
 	if (err != 0)
-		return (err);
+		return (0);
 
 	law_enable(OCP85XX_TGTIF_DCSR, b, 0x400000);
 	return pmap_early_io_map(b, 0x400000);
@@ -435,4 +435,31 @@ mpc85xx_fix_errata(vm_offset_t va_ccsr)
 
 err:
 	return;
+}
+
+uint32_t
+mpc85xx_get_platform_clock(void)
+{
+	phandle_t soc;
+	static uint32_t freq;
+
+	if (freq != 0)
+		return (freq);
+
+	soc = OF_finddevice("/soc");
+
+	/* freq isn't modified on error. */
+	OF_getencprop(soc, "bus-frequency", (void *)&freq, sizeof(freq));
+
+	return (freq);
+}
+
+uint32_t
+mpc85xx_get_system_clock(void)
+{
+	uint32_t freq;
+
+	freq = mpc85xx_get_platform_clock();
+
+	return (freq / 2);
 }

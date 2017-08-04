@@ -8,7 +8,7 @@ SRCS+=	exec.c \
 CFLAGS+=-I${.CURDIR}/../../arm64/libarm64
 SRCS+=	cache.c
 
-CFLAGS+=	-msoft-float -mgeneral-regs-only
+CFLAGS+=	-mgeneral-regs-only
 
 CLEANFILES+=	loader.help
 

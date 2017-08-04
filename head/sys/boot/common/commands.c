@@ -132,7 +132,7 @@ command_help(int argc, char *argv[])
     char	*topic, *subtopic, *t, *s, *d;
 
     /* page the help text from our load path */
-    sprintf(buf, "%s/boot/loader.help", getenv("loaddev"));
+    snprintf(buf, sizeof(buf), "%s/boot/loader.help", getenv("loaddev"));
     if ((hfd = open(buf, O_RDONLY)) < 0) {
 	printf("Verbose help not available, use '?' to list commands\n");
 	return(CMD_OK);
@@ -497,10 +497,8 @@ command_lsdev(int argc, char *argv[])
     pager_open();
     for (i = 0; devsw[i] != NULL; i++) {
 	if (devsw[i]->dv_print != NULL){
-	    sprintf(line, "%s devices:\n", devsw[i]->dv_name);
-	    if (pager_output(line))
-		    break;
-	    devsw[i]->dv_print(verbose);
+	    if (devsw[i]->dv_print(verbose))
+		break;
 	} else {
 	    sprintf(line, "%s: (unknown)\n", devsw[i]->dv_name);
 	    if (pager_output(line))

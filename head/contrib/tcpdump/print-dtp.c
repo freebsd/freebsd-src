@@ -12,21 +12,22 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Dynamic Trunk Protocol (DTP)
- *
  * Original code by Carles Kishimoto <carles.kishimoto@gmail.com>
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Dynamic Trunking Protocol (DTP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+static const char tstr[] = " [|dtp]";
 
 #define DTP_HEADER_LEN			1
 #define DTP_DOMAIN_TLV			0x0001
@@ -71,30 +72,36 @@ dtp_print (netdissect_options *ndo, const u_char *pptr, u_int length)
     while (tptr < (pptr+length)) {
 
         ND_TCHECK2(*tptr, 4);
-
 	type = EXTRACT_16BITS(tptr);
         len  = EXTRACT_16BITS(tptr+2);
-
-        /* infinite loop check */
-        if (type == 0 || len == 0) {
+       /* XXX: should not be but sometimes it is, see the test captures */
+        if (type == 0)
             return;
-        }
-
         ND_PRINT((ndo, "\n\t%s (0x%04x) TLV, length %u",
                tok2str(dtp_tlv_values, "Unknown", type),
                type, len));
 
+        /* infinite loop check */
+        if (len < 4)
+            goto invalid;
+        ND_TCHECK2(*tptr, len);
+
         switch (type) {
 	case DTP_DOMAIN_TLV:
-		ND_PRINT((ndo, ", %s", tptr+4));
+		ND_PRINT((ndo, ", "));
+		fn_printzp(ndo, tptr+4, len-4, pptr+length);
 		break;
 
 	case DTP_STATUS_TLV:
 	case DTP_DTP_TYPE_TLV:
+                if (len < 5)
+                    goto invalid;
                 ND_PRINT((ndo, ", 0x%x", *(tptr+4)));
                 break;
 
 	case DTP_NEIGHBOR_TLV:
+                if (len < 10)
+                    goto invalid;
                 ND_PRINT((ndo, ", %s", etheraddr_string(ndo, tptr+4)));
                 break;
 
@@ -106,8 +113,11 @@ dtp_print (netdissect_options *ndo, const u_char *pptr, u_int length)
 
     return;
 
+ invalid:
+    ND_PRINT((ndo, "%s", istr));
+    return;
  trunc:
-    ND_PRINT((ndo, "[|dtp]"));
+    ND_PRINT((ndo, "%s", tstr));
 }
 
 /*

@@ -57,7 +57,7 @@ main(void)
 		mq = mq_open(MQNAME, O_RDWR);
 		if (mq == (mqd_t)-1)
 			err(1, "child: mq_open");
-		EV_SET(&kev, __mq_oshandle(mq), EVFILT_READ, EV_ADD, 0, 0, 0);
+		EV_SET(&kev, mq_getfd_np(mq), EVFILT_READ, EV_ADD, 0, 0, 0);
 		status = kevent(kq, &kev, 1, NULL, 0, NULL);
 		if (status == -1)
 			err(1, "child: kevent");
@@ -89,7 +89,7 @@ main(void)
 
 		signal(SIGALRM, sighandler);
 		kq = kqueue();
-		EV_SET(&kev, __mq_oshandle(mq), EVFILT_WRITE, EV_ADD, 0, 0, 0);
+		EV_SET(&kev, mq_getfd_np(mq), EVFILT_WRITE, EV_ADD, 0, 0, 0);
 		status = kevent(kq, &kev, 1, NULL, 0, NULL);
 		if (status == -1)
 			err(1, "kevent");

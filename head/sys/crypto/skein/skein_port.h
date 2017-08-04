@@ -137,6 +137,16 @@ void    Skein_Get64_LSB_First(u64b_t *dst,const u08b_t *src,size_t wCnt)
 #define SKEIN512_End		_libmd_SKEIN512_End
 #define SKEIN1024_End		_libmd_SKEIN1024_End
 #endif
+#ifndef SKEIN256_Fd
+#define SKEIN256_Fd		_libmd_SKEIN256_Fd
+#define SKEIN512_Fd		_libmd_SKEIN512_Fd
+#define SKEIN1024_Fd		_libmd_SKEIN1024_Fd
+#endif
+#ifndef SKEIN256_FdChunk
+#define SKEIN256_FdChunk	_libmd_SKEIN256_FdChunk
+#define SKEIN512_FdChunk	_libmd_SKEIN512_FdChunk
+#define SKEIN1024_FdChunk	_libmd_SKEIN1024_FdChunk
+#endif
 #ifndef SKEIN256_File
 #define SKEIN256_File		_libmd_SKEIN256_File
 #define SKEIN512_File		_libmd_SKEIN512_File

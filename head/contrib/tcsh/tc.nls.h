@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.h,v 3.14 2011/02/25 23:57:21 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.h,v 3.17 2015/06/06 21:19:08 christos Exp $ */
 /*
  * tc.nls.h: NLS support
  *
@@ -43,7 +43,7 @@ extern int NLSStringWidth (const Char *);
 #endif
 
 extern Char *NLSChangeCase (const Char *, int);
-extern int NLSClassify (Char, int);
+extern int NLSClassify (Char, int, int);
 
 #define NLSCLASS_CTRL		(-1)
 #define NLSCLASS_TAB		(-2)
@@ -52,6 +52,7 @@ extern int NLSClassify (Char, int);
 #define NLSCLASS_ILLEGAL2	(-5)
 #define NLSCLASS_ILLEGAL3	(-6)
 #define NLSCLASS_ILLEGAL4	(-7)
+#define NLSCLASS_ILLEGAL5	(-8)
 
 #define NLSCLASS_ILLEGAL_SIZE(x) (-(x) - (-(NLSCLASS_ILLEGAL) - 1))
 

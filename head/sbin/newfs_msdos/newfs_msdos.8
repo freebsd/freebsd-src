@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2015
+.Dd May 16, 2017
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -38,10 +38,11 @@
 .Op Fl B Ar boot
 .Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
-.Op Fl I Ar VolumeId
+.Op Fl I Ar VolumeID
 .Op Fl L Ar label
 .Op Fl O Ar OEM
 .Op Fl S Ar sector-size
+.Op Fl T Ar timestamp
 .Op Fl a Ar FAT-size
 .Op Fl b Ar block-size
 .Op Fl c Ar cluster-size
@@ -117,6 +118,14 @@ The default is
 Number of bytes per sector.
 Acceptable values are powers of 2
 in the range 512 through 32768, inclusive.
+.It Fl T Ar timestamp
+Create the filesystem as though the current time is
+.Ar timestamp .
+The default filesystem volume ID is derived from the time.
+.Ar timestamp
+can be a pathname (where the timestamp is derived from
+that file) or an integer value interpreted
+as the number of seconds since the Epoch.
 .It Fl a Ar FAT-size
 Number of sectors per FAT.
 .It Fl b Ar block-size
@@ -163,7 +172,7 @@ File system size.
 Number of sectors per track.
 .El
 .Sh NOTES
-If some parameters (e.g. size, number of sectors, etc.) are not specified
+If some parameters (e.g., size, number of sectors, etc.) are not specified
 through options or disktype, the program tries to generate them automatically.
 In particular, the size is determined as the device or file size minus the
 offset specified with the

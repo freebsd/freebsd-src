@@ -4,6 +4,8 @@ PACKAGE=	tests
 
 TAP_TESTS_SH=	legacy_test
 
+TEST_METADATA.legacy_test+=	timeout="600"
+
 ${PACKAGE}FILES+=		calendar.calibrate
 ${PACKAGE}FILES+=		regress.a1.out
 ${PACKAGE}FILES+=		regress.a2.out

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -1622,6 +1730,14 @@ AcpiDmDumpHest (
             SubTableLength = sizeof (ACPI_HEST_GENERIC_V2);
             break;
 
+        case ACPI_HEST_TYPE_IA32_DEFERRED_CHECK:
+
+            InfoTable = AcpiDmTableInfoHest11;
+            SubTableLength = sizeof (ACPI_HEST_IA_DEFERRED_CHECK);
+            BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_DEFERRED_CHECK,
+                SubTable))->NumHardwareBanks;
+            break;
+
         default:
 
             /* Cannot continue on unknown type - no length */
@@ -1670,6 +1786,203 @@ AcpiDmDumpHest (
         /* Point to next subtable */
 
         SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, SubTable, SubTableLength);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpHmat
+ *
+ * PARAMETERS:  Table               - A HMAT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a HMAT.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpHmat (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_HMAT_STRUCTURE     *HmatStruct;
+    ACPI_HMAT_LOCALITY      *HmatLocality;
+    ACPI_HMAT_CACHE         *HmatCache;
+    UINT32                  Offset;
+    UINT32                  SubTableOffset;
+    UINT32                  Length;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  i, j;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoHmat);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+    Offset = sizeof (ACPI_TABLE_HMAT);
+
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        SubTableOffset = 0;
+
+        /* Dump HMAT structure header */
+
+        HmatStruct = ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, Table, Offset);
+        if (HmatStruct->Length < sizeof (ACPI_HMAT_STRUCTURE))
+        {
+            AcpiOsPrintf ("Invalid HMAT structure length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, HmatStruct,
+            HmatStruct->Length, AcpiDmTableInfoHmatHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (HmatStruct->Type)
+        {
+        case ACPI_HMAT_TYPE_ADDRESS_RANGE:
+
+            InfoTable = AcpiDmTableInfoHmat0;
+            Length = sizeof (ACPI_HMAT_ADDRESS_RANGE);
+            break;
+
+        case ACPI_HMAT_TYPE_LOCALITY:
+
+            InfoTable = AcpiDmTableInfoHmat1;
+            Length = sizeof (ACPI_HMAT_LOCALITY);
+            break;
+
+        case ACPI_HMAT_TYPE_CACHE:
+
+            InfoTable = AcpiDmTableInfoHmat2;
+            Length = sizeof (ACPI_HMAT_CACHE);
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown HMAT structure type 0x%X\n",
+                HmatStruct->Type);
+
+            /* Attempt to continue */
+
+            goto NextSubTable;
+        }
+
+        /* Dump HMAT structure body */
+
+        if (HmatStruct->Length < Length)
+        {
+            AcpiOsPrintf ("Invalid HMAT structure length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, HmatStruct,
+            HmatStruct->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Dump HMAT structure additionals */
+
+        switch (HmatStruct->Type)
+        {
+        case ACPI_HMAT_TYPE_LOCALITY:
+
+            HmatLocality = ACPI_CAST_PTR (ACPI_HMAT_LOCALITY, HmatStruct);
+            SubTableOffset = sizeof (ACPI_HMAT_LOCALITY);
+
+            /* Dump initiator proximity domains */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfInitiatorPDs * 4))
+            {
+                AcpiOsPrintf ("Invalid initiator proximity domain number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfInitiatorPDs; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    4, AcpiDmTableInfoHmat1a);
+                SubTableOffset += 4;
+            }
+
+            /* Dump target proximity domains */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfTargetPDs * 4))
+            {
+                AcpiOsPrintf ("Invalid target proximity domain number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfTargetPDs; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    4, AcpiDmTableInfoHmat1b);
+                SubTableOffset += 4;
+            }
+
+            /* Dump latency/bandwidth entris */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatLocality->NumberOfInitiatorPDs *
+                         HmatLocality->NumberOfTargetPDs * 2))
+            {
+                AcpiOsPrintf ("Invalid latency/bandwidth entry number\n");
+                return;
+            }
+            for (i = 0; i < HmatLocality->NumberOfInitiatorPDs; i++)
+            {
+                for (j = 0; j < HmatLocality->NumberOfTargetPDs; j++)
+                {
+                    Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                        ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                        2, AcpiDmTableInfoHmat1c);
+                    SubTableOffset += 2;
+                }
+            }
+            break;
+
+        case ACPI_HMAT_TYPE_CACHE:
+
+            HmatCache = ACPI_CAST_PTR (ACPI_HMAT_CACHE, HmatStruct);
+            SubTableOffset = sizeof (ACPI_HMAT_CACHE);
+
+            /* Dump SMBIOS handles */
+
+            if ((UINT32)(HmatStruct->Length - SubTableOffset) <
+                (UINT32)(HmatCache->NumberOfSMBIOSHandles * 2))
+            {
+                AcpiOsPrintf ("Invalid SMBIOS handle number\n");
+                return;
+            }
+            for (i = 0; i < HmatCache->NumberOfSMBIOSHandles; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_HMAT_STRUCTURE, HmatStruct, SubTableOffset),
+                    2, AcpiDmTableInfoHmat2a);
+                SubTableOffset += 2;
+            }
+            break;
+
+        default:
+
+            break;
+        }
+
+NextSubTable:
+        /* Point to next HMAT structure subtable */
+
+        Offset += (HmatStruct->Length);
     }
 }
 
@@ -2902,6 +3215,16 @@ AcpiDmDumpPcct (
             InfoTable = AcpiDmTableInfoPcct2;
             break;
 
+        case ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct3;
+            break;
+
+        case ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct4;
+            break;
+
         default:
 
             AcpiOsPrintf (
@@ -3128,6 +3451,136 @@ AcpiDmDumpPmtt (
         Offset += SubTable->Length;
         SubTable = ACPI_ADD_PTR (ACPI_PMTT_HEADER,
             SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpPptt
+ *
+ * PARAMETERS:  Table               - A PMTT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a PPTT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpPptt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_SUBTABLE_HEADER    *SubTable;
+    ACPI_PPTT_PROCESSOR     *PpttProcessor;
+    UINT8                   Length;
+    UINT8                   SubTableOffset;
+    UINT32                  Offset = sizeof (ACPI_TABLE_FPDT);
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  i;
+
+
+    /* There is no main table (other than the standard ACPI header) */
+
+    /* Subtables */
+
+    Offset = sizeof (ACPI_TABLE_HEADER);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+
+        /* Common subtable header */
+
+        SubTable = ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, Table, Offset);
+        if (SubTable->Length < sizeof (ACPI_SUBTABLE_HEADER))
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            SubTable->Length, AcpiDmTableInfoPpttHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (SubTable->Type)
+        {
+        case ACPI_PPTT_TYPE_PROCESSOR:
+
+            InfoTable = AcpiDmTableInfoPptt0;
+            Length = sizeof (ACPI_PPTT_PROCESSOR);
+            break;
+
+        case ACPI_PPTT_TYPE_CACHE:
+
+            InfoTable = AcpiDmTableInfoPptt1;
+            Length = sizeof (ACPI_PPTT_CACHE);
+            break;
+
+        case ACPI_PPTT_TYPE_ID:
+
+            InfoTable = AcpiDmTableInfoPptt2;
+            Length = sizeof (ACPI_PPTT_ID);
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown PPTT subtable type 0x%X\n\n",
+                SubTable->Type);
+
+            /* Attempt to continue */
+
+            goto NextSubTable;
+        }
+
+        if (SubTable->Length < Length)
+        {
+            AcpiOsPrintf ("Invalid subtable length\n");
+            return;
+        }
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+        SubTableOffset = Length;
+
+        switch (SubTable->Type)
+        {
+        case ACPI_PPTT_TYPE_PROCESSOR:
+
+            PpttProcessor = ACPI_CAST_PTR (ACPI_PPTT_PROCESSOR, SubTable);
+
+            /* Dump SMBIOS handles */
+
+            if ((UINT8)(SubTable->Length - SubTableOffset) <
+                (UINT8)(PpttProcessor->NumberOfPrivResources * 4))
+            {
+                AcpiOsPrintf ("Invalid private resource number\n");
+                return;
+            }
+            for (i = 0; i < PpttProcessor->NumberOfPrivResources; i++)
+            {
+                Status = AcpiDmDumpTable (Table->Length, Offset + SubTableOffset,
+                    ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, SubTable, SubTableOffset),
+                    4, AcpiDmTableInfoPptt0a);
+                SubTableOffset += 4;
+            }
+            break;
+
+        default:
+
+            break;
+        }
+
+NextSubTable:
+        /* Point to next subtable */
+
+        Offset += SubTable->Length;
     }
 }
 
@@ -3388,6 +3841,11 @@ AcpiDmDumpSrat (
         case ACPI_SRAT_TYPE_GICC_AFFINITY:
 
             InfoTable = AcpiDmTableInfoSrat3;
+            break;
+
+        case ACPI_SRAT_TYPE_GIC_ITS_AFFINITY:
+
+            InfoTable = AcpiDmTableInfoSrat4;
             break;
 
         default:

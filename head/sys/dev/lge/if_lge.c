@@ -216,7 +216,7 @@ lge_eeprom_getword(sc, addr, dest)
 	int			addr;
 	u_int16_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int32_t		val;
 
 	CSR_WRITE_4(sc, LGE_EECTL, LGE_EECTL_CMD_READ|
@@ -413,7 +413,7 @@ static void
 lge_reset(sc)
 	struct lge_softc	*sc;
 {
-	register int		i;
+	int			i;
 
 	LGE_SETBIT(sc, LGE_MODE1, LGE_MODE1_SETRST_CTL0|LGE_MODE1_SOFTRST);
 
@@ -756,7 +756,7 @@ lge_alloc_jumbo_mem(sc)
 	struct lge_softc	*sc;
 {
 	caddr_t			ptr;
-	register int		i;
+	int			i;
 	struct lge_jpool_entry   *entry;
 
 	/* Grab a big chunk o' storage. */
@@ -1524,7 +1524,7 @@ static void
 lge_stop(sc)
 	struct lge_softc	*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	LGE_LOCK_ASSERT(sc);

@@ -58,6 +58,10 @@ static_ipv6_loopback_route_for_each_fib_body()
 	local nfibs fib
 	nfibs=`sysctl -n net.fibs`
 
+	if [ "`sysctl -in kern.features.inet6`" != "1" ]; then
+		atf_skip "This test requires IPv6 support"
+	fi
+
 	# Check for an IPv6 loopback route
 	for fib in `seq 0 $((${nfibs} - 1))`; do
 		atf_check -o match:"interface: lo0" -s exit:0 \

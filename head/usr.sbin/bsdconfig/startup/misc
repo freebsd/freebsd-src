@@ -74,7 +74,6 @@ dialog_menu_main()
 		var_list="$var_list
 			apm_enable
 			ibcs2_enable
-			svr4_enable
 		" # END-QUOTE
 	fi
 
@@ -96,7 +95,6 @@ dialog_menu_main()
 		export msg_accounting     msg_accounting_desc
 		export msg_lpd            msg_lpd_desc
 		export msg_sco            msg_sco_desc
-		export msg_svr4           msg_svr4_desc
 		:| awk \
 			-v uname_p="$UNAME_P"            \
 			-v menu_tags="$DIALOG_MENU_TAGS" \
@@ -238,18 +236,6 @@ dialog_menu_main()
 				tag = sprintf(mtag_fmt, char, mark, subtag)
 				mprint(tag, ENVIRON["msg_sco_desc"])
 				if (ditem == char) defaultitem = tag
-
-				#
-				# SVR4: This host wants to be able to run SVR4
-				#       binaries.
-				#
-				char = substr(menu_tags, i++, 1)
-				mark = ( ENVIRON["svr4_enable"] ~ \
-						/^[Yy][Ee][Ss]$/ ? "X" : " " )
-				subtag = ENVIRON["msg_svr4"]
-				tag = sprintf(mtag_fmt, char, mark, subtag)
-				mprint(tag, ENVIRON["msg_svr4_desc"])
-				if (ditem == char) defaultitem = tag
 			}
 
 			printf "\"\n"
@@ -360,9 +346,6 @@ while :; do
 	?" ["?"] $msg_sco")
 		f_eval_catch -dk err "$0" f_sysrc_set \
 			'f_sysrc_set ibcs2_enable "%s"' "$reverse" ;;
-	?" ["?"] $msg_svr4")
-		f_eval_catch -dk err "$0" f_sysrc_set \
-			'f_sysrc_set svr4_enable "%s"' "$reverse" ;;
 	# Multi-variable On/Off toggle bits
 	?" ["?"] $msg_nis_client")
 		if f_eval_catch -dk err "$0" f_sysrc_set \

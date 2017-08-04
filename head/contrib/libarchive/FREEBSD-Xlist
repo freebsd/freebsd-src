@@ -21,6 +21,9 @@ doc
 examples
 libarchive/CMakeLists.txt
 libarchive/archive_entry_copy_bhfi.c
+libarchive/archive_disk_acl_darwin.c
+libarchive/archive_disk_acl_linux.c
+libarchive/archive_disk_acl_sunos.c
 libarchive/archive_read_disk_windows.c
 libarchive/archive_windows.c
 libarchive/archive_windows.h

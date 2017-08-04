@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-#include <opt_ddb.h>
+#include "opt_ddb.h"
 
 /*
  * Multiple symbol tables
@@ -286,10 +286,10 @@ static c_db_sym_t
 db_lookup(const char *symstr)
 {
 	c_db_sym_t sp;
-	register int i;
+	int i;
 	int symtab_start = 0;
 	int symtab_end = db_nsymtab;
-	register const char *cp;
+	const char *cp;
 
 	/*
 	 * Look for, remove, and remember any symbol table specifier.
@@ -343,8 +343,8 @@ static bool
 db_symbol_is_ambiguous(c_db_sym_t sym)
 {
 	const char	*sym_name;
-	register int	i;
-	register bool	found_once = false;
+	int		i;
+	bool		found_once = false;
 
 	if (!db_qualify_ambiguous_names)
 		return (false);
@@ -367,16 +367,15 @@ db_symbol_is_ambiguous(c_db_sym_t sym)
 c_db_sym_t
 db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 {
-	register
 	unsigned int	diff;
 	size_t		newdiff;
-	register int	i;
+	int		i;
 	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
-	newdiff = diff = ~0;
+	newdiff = diff = val;
 	for (i = 0; i < db_nsymtab; i++) {
 	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
-	    if (newdiff < diff) {
+	    if ((uintmax_t)newdiff < (uintmax_t)diff) {
 		db_last_symtab = &db_symtabs[i];
 		diff = newdiff;
 		ret = sym;
@@ -432,19 +431,16 @@ db_printsym(db_expr_t off, db_strategy_t strategy)
 	db_expr_t	d;
 	char 		*filename;
 	const char	*name;
-	db_expr_t	value;
 	int 		linenum;
 	c_db_sym_t	cursym;
 
-	cursym = db_search_symbol(off, strategy, &d);
-	db_symbol_values(cursym, &name, &value);
-	if (name == NULL)
-		value = off;
-	if (value >= DB_SMALL_VALUE_MIN && value <= DB_SMALL_VALUE_MAX) {
+	if (off < 0 && off >= -db_maxoff) {
 		db_printf("%+#lr", (long)off);
 		return;
 	}
-	if (name == NULL || d >= (unsigned long)db_maxoff) {
+	cursym = db_search_symbol(off, strategy, &d);
+	db_symbol_values(cursym, &name, NULL);
+	if (name == NULL || d >= (db_addr_t)db_maxoff) {
 		db_printf("%#lr", (unsigned long)off);
 		return;
 	}

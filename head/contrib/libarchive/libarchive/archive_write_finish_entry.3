@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd February 28, 2017
 .Dt ARCHIVE_WRITE_FINISH_ENTRY 3
 .Os
 .Sh NAME
@@ -45,6 +45,9 @@ is called automatically by
 and
 .Fn archive_write_close
 as needed.
+For
+.Tn archive_write_disk
+handles, this flushes pending file attribute changes like modification time.
 .\" .Sh EXAMPLE
 .Sh RETURN VALUES
 This function returns

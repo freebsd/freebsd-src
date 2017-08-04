@@ -1,12 +1,10 @@
-#	$OpenBSD: integrity.sh,v 1.16 2015/03/24 20:22:17 markus Exp $
+#	$OpenBSD: integrity.sh,v 1.20 2017/01/06 02:26:10 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 # start at byte 2900 (i.e. after kex) and corrupt at different offsets
-# XXX the test hangs if we modify the low bytes of the packet length
-# XXX and ssh tries to read...
 tries=10
 startoffset=2900
 macs=`${SSH} -Q mac`
@@ -27,6 +25,7 @@ for m in $macs; do
 	elen=0
 	epad=0
 	emac=0
+	etmo=0
 	ecnt=0
 	skip=0
 	for off in `jot $tries $startoffset`; do
@@ -54,7 +53,7 @@ for m in $macs; do
 			fail "ssh -m $m succeeds with bit-flip at $off"
 		fi
 		ecnt=`expr $ecnt + 1`
-		out=$(tail -2 $TEST_SSH_LOGFILE | egrep -v "^debug" | \
+		out=$(egrep -v "^debug" $TEST_SSH_LOGFILE | tail -2 | \
 		     tr -s '\r\n' '.')
 		case "$out" in
 		Bad?packet*)	elen=`expr $elen + 1`; skip=3;;

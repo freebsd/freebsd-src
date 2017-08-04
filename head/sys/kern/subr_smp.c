@@ -209,6 +209,11 @@ forward_signal(struct thread *td)
  *   1: ok
  *
  */
+#if defined(__amd64__) || defined(__i386__)
+#define	X86	1
+#else
+#define	X86	0
+#endif
 static int
 generic_stop_cpus(cpuset_t map, u_int type)
 {
@@ -220,12 +225,11 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	volatile cpuset_t *cpus;
 
 	KASSERT(
-#if defined(__amd64__) || defined(__i386__)
-	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
-#else
-	    type == IPI_STOP || type == IPI_STOP_HARD,
+	    type == IPI_STOP || type == IPI_STOP_HARD
+#if X86
+	    || type == IPI_SUSPEND
 #endif
-	    ("%s: invalid stop type", __func__));
+	    , ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
 		return (0);
@@ -233,7 +237,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
 	    cpusetobj_strprint(cpusetbuf, &map), type);
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	/*
 	 * When suspending, ensure there are are no IPIs in progress.
 	 * IPIs that have been issued, but not yet delivered (e.g.
@@ -245,6 +249,9 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		mtx_lock_spin(&smp_ipi_mtx);
 #endif
 
+#if X86
+	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
+#endif
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
 		    PCPU_GET(cpuid)) == 0)
@@ -253,8 +260,11 @@ generic_stop_cpus(cpuset_t map, u_int type)
 
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
+#if X86
+	}
+#endif
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
 		cpus = &suspended_cpus;
 	else
@@ -272,7 +282,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		}
 	}
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
 		mtx_unlock_spin(&smp_ipi_mtx);
 #endif
@@ -295,7 +305,7 @@ stop_cpus_hard(cpuset_t map)
 	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 int
 suspend_cpus(cpuset_t map)
 {
@@ -325,20 +335,18 @@ generic_restart_cpus(cpuset_t map, u_int type)
 #endif
 	volatile cpuset_t *cpus;
 
-	KASSERT(
-#if defined(__amd64__) || defined(__i386__)
-	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
-#else
-	    type == IPI_STOP || type == IPI_STOP_HARD,
+	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD
+#if X86
+	    || type == IPI_SUSPEND
 #endif
-	    ("%s: invalid stop type", __func__));
+	    , ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
-		return 0;
+		return (0);
 
 	CTR1(KTR_SMP, "restart_cpus(%s)", cpusetobj_strprint(cpusetbuf, &map));
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 	if (type == IPI_SUSPEND)
 		cpus = &suspended_cpus;
 	else
@@ -348,11 +356,17 @@ generic_restart_cpus(cpuset_t map, u_int type)
 	/* signal other cpus to restart */
 	CPU_COPY_STORE_REL(&map, &started_cpus);
 
+#if X86
+	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
+#endif
 	/* wait for each to clear its bit */
 	while (CPU_OVERLAP(cpus, &map))
 		cpu_spinwait();
+#if X86
+	}
+#endif
 
-	return 1;
+	return (1);
 }
 
 int
@@ -362,7 +376,7 @@ restart_cpus(cpuset_t map)
 	return (generic_restart_cpus(map, IPI_STOP));
 }
 
-#if defined(__amd64__) || defined(__i386__)
+#if X86
 int
 resume_cpus(cpuset_t map)
 {
@@ -370,6 +384,7 @@ resume_cpus(cpuset_t map)
 	return (generic_restart_cpus(map, IPI_SUSPEND));
 }
 #endif
+#undef X86
 
 /*
  * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
@@ -436,7 +451,7 @@ smp_rendezvous_action(void)
 	 * function.  Ensure all CPUs have completed the setup
 	 * function before moving on to the action function.
 	 */
-	if (local_setup_func != smp_no_rendevous_barrier) {
+	if (local_setup_func != smp_no_rendezvous_barrier) {
 		if (smp_rv_setup_func != NULL)
 			smp_rv_setup_func(smp_rv_func_arg);
 		atomic_add_int(&smp_rv_waiters[1], 1);
@@ -447,7 +462,7 @@ smp_rendezvous_action(void)
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
 
-	if (local_teardown_func != smp_no_rendevous_barrier) {
+	if (local_teardown_func != smp_no_rendezvous_barrier) {
 		/*
 		 * Signal that the main action has been completed.  If a
 		 * full exit rendezvous is requested, then all CPUs will
@@ -779,15 +794,8 @@ smp_rendezvous(void (*setup_func)(void *),
 	       void *arg)
 {
 
-	/* Look comments in the smp_rendezvous_cpus() case. */
-	spinlock_enter();
-	if (setup_func != NULL)
-		setup_func(arg);
-	if (action_func != NULL)
-		action_func(arg);
-	if (teardown_func != NULL)
-		teardown_func(arg);
-	spinlock_exit();
+	smp_rendezvous_cpus(all_cpus, setup_func, action_func, teardown_func,
+	    arg);
 }
 
 /*
@@ -807,10 +815,10 @@ SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
 #endif /* SMP */
 
 void
-smp_no_rendevous_barrier(void *dummy)
+smp_no_rendezvous_barrier(void *dummy)
 {
 #ifdef SMP
-	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
+	KASSERT((!smp_started),("smp_no_rendezvous called and smp is started"));
 #endif
 }
 

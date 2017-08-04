@@ -1,22 +1,21 @@
 
-                 Release notes for OpenPAM Ourouparia
-                 ====================================
+		 Release notes for OpenPAM Resedacea
+		 ===================================
 
-This release corresponds to the code used in FreeBSD HEAD as of the
-release date, and is also expected to work on almost any POSIX-like
-platform that has GNU autotools, GNU make and the GNU compiler suite
-installed.
+OpenPAM is developed primarily on FreeBSD, but is expected to work on
+almost any POSIX-like platform that has GNU autotools, GNU make and
+the GNU compiler suite installed.
 
-The distribution consists of the following components:
+The OpenPAM distribution consists of the following components:
 
  - The PAM library itself, with complete API documentation.
 
  - Sample modules (pam_permit, pam_deny and pam_unix) and a sample
-   application (su) which demonstrate how to use PAM.
+   application (su) which demonstrate how to use the PAM library.
 
  - A test application (pamtest) which can be used to test policies and
    modules.
 
- - Unit tests for limited portions of the libraries.
+ - Unit tests for limited portions of the library.
 
 Please direct bug reports and inquiries to <des@des.no>.

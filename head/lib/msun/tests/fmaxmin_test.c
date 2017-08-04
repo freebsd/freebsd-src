@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 	}								      \
 } while (0)
 
-int
+static int
 testall_r(long double big, long double small)
 {
 	int ok;
@@ -86,12 +86,14 @@ testall_r(long double big, long double small)
 	return (ok);
 }
 
+static const char *comment = NULL;
+
 /*
  * Test all the functions: fmaxf, fmax, fmaxl, fminf, fmin, and fminl,
  * in all rounding modes and with the arguments in different orders.
  * The input 'big' must be >= 'small'.
  */
-void
+static void
 testall(int testnum, long double big, long double small)
 {
 	static const int rmodes[] = {
@@ -107,12 +109,20 @@ testall(int testnum, long double big, long double small)
 			break;
 		}
 	}
-	printf("%sok %d - big = %.20Lg, small = %.20Lg\n",
-	       (i == 4) ? "" : "not ", testnum, big, small);
+	printf("%sok %d - big = %.20Lg, small = %.20Lg%s\n",
+	       (i == 4) ? "" : "not ", testnum, big, small,
+	       comment == NULL ? "" : comment);
 }
 
+/* Clang 3.8.0+ fails the invariants for testcase 6, 7, 10, and 11. */
+#if defined(__clang__) && \
+    ((__clang_major__ >  3)) || \
+    ((__clang_major__ == 3 && __clang_minor__ >= 8))
+#define	affected_by_bug_208703
+#endif
+
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..12\n");
@@ -122,15 +132,23 @@ main(int argc, char *argv[])
 	testall(3, nextafterf(42.0, INFINITY), 42.0);
 	testall(4, -5.0, -5.0);
 	testall(5, -3.0, -4.0);
+#ifdef affected_by_bug_208703
+	comment = "# TODO: testcase 6-7 fails invariant with clang 3.8+ (bug 208703)";
+#endif
 	testall(6, 1.0, NAN);
 	testall(7, INFINITY, NAN);
+	comment = NULL;
 	testall(8, INFINITY, 1.0);
 	testall(9, -3.0, -INFINITY);
 	testall(10, 3.0, -INFINITY);
+#ifdef affected_by_bug_208703
+	comment = "# TODO: testcase 11-12 fails invariant with clang 3.8+ (bug 208703)";
+#endif
 	testall(11, NAN, NAN);
 
 	/* This test isn't strictly required to work by C99. */
 	testall(12, 0.0, -0.0);
+	comment = NULL;
 
 	return (0);
 }

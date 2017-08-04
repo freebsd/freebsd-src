@@ -51,6 +51,8 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
+#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -63,5 +65,17 @@ const struct usb_string_lang usb_string_lang_en = {
 
 MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
+
+int
+usbd_in_polling_mode(void)
+{
+	return (USB_IN_POLLING_MODE_VALUE());
+}
+
+void
+usbd_dummy_timeout(void *arg)
+{
+	/* NOP */
+}
 
 MODULE_VERSION(usb, 1);

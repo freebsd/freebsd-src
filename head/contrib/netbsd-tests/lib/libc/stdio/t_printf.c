@@ -36,10 +36,6 @@
 #include <time.h>
 #include <stdlib.h>
 
-#ifndef __NetBSD__
-#include <signal.h>
-#endif
-
 ATF_TC(snprintf_c99);
 ATF_TC_HEAD(snprintf_c99, tc)
 {
@@ -120,12 +116,6 @@ ATF_TC_BODY(snprintf_posarg_error, tc)
 {
 	char s[16], fmt[32];
 
-#ifndef __NetBSD__
-	atf_tc_expect_signal(SIGSEGV,
-	    "some non-NetBSD platforms including FreeBSD don't validate "
-	    "negative size; testcase blows up with SIGSEGV");
-#endif
-
 	snprintf(fmt, sizeof(fmt), "%%%zu$d", SIZE_MAX / sizeof(size_t));
 
 	ATF_CHECK(snprintf(s, sizeof(s), fmt, -23) == -1);
@@ -137,6 +127,10 @@ ATF_TC_HEAD(snprintf_float, tc)
 
 	atf_tc_set_md_var(tc, "descr", "test that floating conversions don't"
 	    " leak memory");
+#ifdef	__FreeBSD__
+	atf_tc_set_md_var(tc, "require.memory", "64m");
+	atf_tc_set_md_var(tc, "require.user", "root");
+#endif
 }
 
 ATF_TC_BODY(snprintf_float, tc)
@@ -150,10 +144,17 @@ ATF_TC_BODY(snprintf_float, tc)
 	char buf[1000];
 	struct rlimit rl;
 
+#ifdef	__FreeBSD__
+	rl.rlim_cur = rl.rlim_max = 32 * 1024 * 1024;
+	ATF_CHECK(setrlimit(RLIMIT_AS, &rl) != -1);
+	rl.rlim_cur = rl.rlim_max = 32 * 1024 * 1024;
+	ATF_CHECK(setrlimit(RLIMIT_DATA, &rl) != -1);
+#else
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
 	ATF_CHECK(setrlimit(RLIMIT_AS, &rl) != -1);
 	rl.rlim_cur = rl.rlim_max = 1 * 1024 * 1024;
 	ATF_CHECK(setrlimit(RLIMIT_DATA, &rl) != -1);
+#endif
 
 	time(&now);
 	srand(now);

@@ -76,15 +76,26 @@ ic_to_icc(struct icl_conn *ic)
 	return (__containerof(ic, struct icl_cxgbei_conn, ic));
 }
 
-#define CXGBEI_PDU_SIGNATURE 0x12344321
+/* PDU flags and signature. */
+enum {
+	ICPF_RX_HDR	= 1 << 0, /* PDU header received. */
+	ICPF_RX_FLBUF	= 1 << 1, /* PDU payload received in a freelist. */
+	ICPF_RX_DDP	= 1 << 2, /* PDU payload DDP'd. */
+	ICPF_RX_STATUS	= 1 << 3, /* Rx status received. */
+	ICPF_HCRC_ERR	= 1 << 4, /* Header digest error. */
+	ICPF_DCRC_ERR	= 1 << 5, /* Data digest error. */
+	ICPF_PAD_ERR	= 1 << 6, /* Padding error. */
+
+	CXGBEI_PDU_SIGNATURE = 0x12344321
+};
 
 struct icl_cxgbei_pdu {
 	struct icl_pdu ip;
 
 	/* cxgbei specific stuff goes here. */
 	uint32_t icp_signature;
-	uint32_t pdu_seq;	/* For debug only */
-	u_int pdu_flags;
+	uint32_t icp_seq;	/* For debug only */
+	u_int icp_flags;
 };
 
 static inline struct icl_cxgbei_pdu *
@@ -94,74 +105,26 @@ ip_to_icp(struct icl_pdu *ip)
 	return (__containerof(ip, struct icl_cxgbei_pdu, ip));
 }
 
-struct cxgbei_sgl {
-        int     sg_flag;
-        void    *sg_addr;
-        void    *sg_dma_addr;
-        size_t  sg_offset;
-        size_t  sg_length;
-};
-
-#define cxgbei_scsi_for_each_sg(_sgl, _sgel, _n, _i)      \
-        for (_i = 0, _sgel = (cxgbei_sgl*) (_sgl); _i < _n; _i++, \
-                        _sgel++)
-#define sg_dma_addr(_sgel)      _sgel->sg_dma_addr
-#define sg_virt(_sgel)          _sgel->sg_addr
-#define sg_len(_sgel)           _sgel->sg_length
-#define sg_off(_sgel)           _sgel->sg_offset
-#define sg_next(_sgel)          _sgel + 1
-
-#define SBUF_ULP_FLAG_HDR_RCVD          0x1
-#define SBUF_ULP_FLAG_DATA_RCVD         0x2
-#define SBUF_ULP_FLAG_STATUS_RCVD       0x4
-#define SBUF_ULP_FLAG_HCRC_ERROR        0x10
-#define SBUF_ULP_FLAG_DCRC_ERROR        0x20
-#define SBUF_ULP_FLAG_PAD_ERROR         0x40
-#define SBUF_ULP_FLAG_DATA_DDPED        0x80
-
-/* private data for each scsi task */
-struct cxgbei_task_data {
-	struct cxgbei_sgl sgl[256];
-	u_int	nsge;
-	u_int	sc_ddp_tag;
-};
-
-struct cxgbei_ulp2_tag_format {
-	u_char sw_bits;
-	u_char rsvd_bits;
-	u_char rsvd_shift;
-	u_char filler[1];
-	uint32_t rsvd_mask;
-};
-
 struct cxgbei_data {
-	u_int max_txsz;
-	u_int max_rxsz;
-	u_int llimit;
-	u_int ulimit;
-	u_int nppods;
-	u_int idx_last;
-	u_char idx_bits;
-	uint32_t idx_mask;
-	uint32_t rsvd_tag_mask;
+	u_int max_tx_pdu_len;
+	u_int max_rx_pdu_len;
 
-	struct mtx map_lock;
-	bus_dma_tag_t ulp_ddp_tag;
-	unsigned char *colors;
-	struct cxgbei_ulp2_gather_list **gl_map;
+	u_int ddp_threshold;
+	struct ppod_region pr;
 
-	struct cxgbei_ulp2_tag_format tag_format;
+	struct sysctl_ctx_list ctx;	/* from uld_activate to deactivate */
+	counter_u64_t ddp_setup_ok;
+	counter_u64_t ddp_setup_error;
+	counter_u64_t ddp_bytes;
+	counter_u64_t ddp_pdus;
+	counter_u64_t fl_bytes;
+	counter_u64_t fl_pdus;
 };
 
-void cxgbei_conn_task_reserve_itt(void *, void **, void *, unsigned int *);
-void cxgbei_conn_transfer_reserve_ttt(void *, void **, void *, unsigned int *);
-void cxgbei_cleanup_task(void *, void *);
+/* cxgbei.c */
 u_int cxgbei_select_worker_thread(struct icl_cxgbei_conn *);
 
-struct cxgbei_ulp2_pagepod_hdr;
-int t4_ddp_set_map(struct cxgbei_data *, void *,
-    struct cxgbei_ulp2_pagepod_hdr *, u_int, u_int,
-    struct cxgbei_ulp2_gather_list *, int);
-void t4_ddp_clear_map(struct cxgbei_data *, struct cxgbei_ulp2_gather_list *,
-    u_int, u_int, u_int, struct icl_cxgbei_conn *);
+/* icl_cxgbei.c */
+int icl_cxgbei_mod_load(void);
+int icl_cxgbei_mod_unload(void);
 #endif

@@ -45,15 +45,20 @@ wchar_t *fgetwln_l(FILE * __restrict, size_t *, locale_t);
 wchar_t *
 fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 {
+	wchar_t *ret;
 	wint_t wc;
 	size_t len;
+	int savserr;
+
 	FIX_LOCALE(locale);
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, 1);
 
+	savserr = fp->_flags & __SERR;
+	fp->_flags &= ~__SERR;
+
 	len = 0;
-	/* WEOF or error: return partial line, see fgetln(3). */
 	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
@@ -65,17 +70,24 @@ fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 		if (wc == L'\n')
 			break;
 	}
+	/* fgetwc(3) may set both __SEOF and __SERR at once. */
+	if (__sferror(fp))
+		goto error;
+
+	fp->_flags |= savserr;
 	if (len == 0)
 		goto error;
 
-	FUNLOCKFILE(fp);
 	*lenp = len;
-	return ((wchar_t *)fp->_lb._base);
+	ret = (wchar_t *)fp->_lb._base;
+end:
+	FUNLOCKFILE_CANCELSAFE();
+	return (ret);
 
 error:
-	FUNLOCKFILE(fp);
 	*lenp = 0;
-	return (NULL);
+	ret = NULL;
+	goto end;
 }
 
 wchar_t *

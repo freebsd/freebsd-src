@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,7 +75,7 @@ pcblist_sysctl(int type, char **bufp)
 	size_t	len;
 	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
+	snprintf(mibvar, sizeof(mibvar), "net.local.%s.pcblist", socktype[type]);
 
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {

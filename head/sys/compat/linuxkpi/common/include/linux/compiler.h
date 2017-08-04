@@ -40,13 +40,13 @@
 #define __force
 #define __nocast
 #define __iomem
-#define __chk_user_ptr(x)		0
-#define __chk_io_ptr(x)			0
+#define __chk_user_ptr(x)		((void)0)
+#define __chk_io_ptr(x)			((void)0)
 #define __builtin_warning(x, y...)	(1)
 #define __acquires(x)
 #define __releases(x)
-#define __acquire(x)			0
-#define __release(x)			0
+#define __acquire(x)			do { } while (0)
+#define __release(x)			do { } while (0)
 #define __cond_lock(x,c)		(c)
 #define	__bitwise
 #define __devinitdata
@@ -56,7 +56,9 @@
 #define	__devexit
 #define __exit
 #define	__rcu
-#define	__stringify(x)			#x
+#define	__malloc
+#define	___stringify(...)		#__VA_ARGS__
+#define	__stringify(...)		___stringify(__VA_ARGS__)
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline
@@ -67,7 +69,6 @@
 #define typeof(x)			__typeof(x)
 
 #define	uninitialized_var(x)		x = x
-#define	__read_mostly __attribute__((__section__(".data.read_mostly")))
 #define	__always_unused			__unused
 #define	__must_check			__result_use_check
 
@@ -87,9 +88,10 @@
 } while (0)
 
 #define	READ_ONCE(x) ({			\
-	__typeof(x) __var;		\
-	barrier();			\
-	__var = ACCESS_ONCE(x);		\
+	__typeof(x) __var = ({		\
+		barrier();		\
+		ACCESS_ONCE(x);		\
+	});				\
 	barrier();			\
 	__var;				\
 })

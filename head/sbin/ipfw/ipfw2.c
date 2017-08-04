@@ -36,6 +36,7 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -238,6 +239,7 @@ static struct _s_x rule_eactions[] = {
 	{ "nat64lsn",		TOK_NAT64LSN },
 	{ "nat64stl",		TOK_NAT64STL },
 	{ "nptv6",		TOK_NPTV6 },
+	{ "tcp-setmss",		TOK_TCPSETMSS },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -272,6 +274,7 @@ static struct _s_x rule_actions[] = {
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
 	{ "eaction",		TOK_EACTION },
+	{ "tcp-setmss",		TOK_TCPSETMSS },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -591,7 +594,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * Returns 0 on success or errno otherwise.
  */
 int
-do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
+do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 {
 
 	if (co.test_only)
@@ -621,6 +624,7 @@ int
 do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 {
 	int error;
+	socklen_t len;
 
 	if (co.test_only)
 		return (0);
@@ -632,8 +636,9 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	op3->opcode = optname;
 
-	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
-	    (socklen_t *)optlen);
+	len = *optlen;
+	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, &len);
+	*optlen = len;
 
 	return (error);
 }
@@ -1481,7 +1486,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				    cmd->arg1, IPFW_TLV_STATE_NAME);
 			else
 				ename = NULL;
-			bprintf(bp, " %s", ename ? ename: "any");
+			bprintf(bp, " :%s", ename ? ename: "any");
 			/* avoid printing anything else */
 			flags = HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP;
@@ -1637,6 +1642,22 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				    cmd->arg1,
 				    IPFW_TLV_EACTION_NAME(has_eaction->arg1));
 			bprintf(bp, " %s", ename);
+			break;
+		}
+
+		case O_EXTERNAL_DATA: {
+			if (has_eaction == NULL)
+				break;
+			/*
+			 * Currently we support data formatting only for
+			 * external data with datalen u16. For unknown data
+			 * print its size in bytes.
+			 */
+			if (cmd->len == F_INSN_SIZE(ipfw_insn))
+				bprintf(bp, " %u", cmd->arg1);
+			else
+				bprintf(bp, " %ubytes",
+				    cmd->len * sizeof(uint32_t));
 			break;
 		}
 
@@ -2074,7 +2095,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 			case O_KEEP_STATE:
 				bprintf(bp, " keep-state");
-				bprintf(bp, " %s",
+				bprintf(bp, " :%s",
 				    object_search_ctlv(fo->tstate, cmd->arg1,
 				    IPFW_TLV_STATE_NAME));
 				break;
@@ -2093,7 +2114,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 						comma = ",";
 					}
 				bprint_uint_arg(bp, " ", c->conn_limit);
-				bprintf(bp, " %s",
+				bprintf(bp, " :%s",
 				    object_search_ctlv(fo->tstate, cmd->arg1,
 				    IPFW_TLV_STATE_NAME));
 				break;
@@ -2196,7 +2217,7 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	} else
 		bprintf(bp, " UNKNOWN <-> UNKNOWN");
 	if (d->kidx != 0)
-		bprintf(bp, " %s", object_search_ctlv(fo->tstate,
+		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
 		    d->kidx, IPFW_TLV_STATE_NAME));
 }
 
@@ -2910,8 +2931,9 @@ pack_table(struct tidx *tstate, char *name)
 	return (pack_object(tstate, name, IPFW_TLV_TBL_NAME));
 }
 
-static void
-fill_table(ipfw_insn *cmd, char *av, uint8_t opcode, struct tidx *tstate)
+void
+fill_table(struct _ipfw_insn *cmd, char *av, uint8_t opcode,
+    struct tidx *tstate)
 {
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
 	uint16_t uidx;
@@ -3165,15 +3187,14 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
+	ipfw_range_tlv rt;
+	char *sep;
 	int i, j;
 	int exitval = EX_OK;
 	int do_set = 0;
-	char *sep;
-	ipfw_range_tlv rt;
 
 	av++;
 	NEED1("missing rule specification");
-	memset(&rt, 0, sizeof(rt));
 	if ( *av && _substrcmp(*av, "set") == 0) {
 		/* Do not allow using the following syntax:
 		 *	ipfw set N delete set M
@@ -3200,6 +3221,7 @@ ipfw_delete(char *av[])
  		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
+			memset(&rt, 0, sizeof(rt));
 			if (do_set != 0) {
 				rt.set = i & 31;
 				rt.flags = IPFW_RCFLAG_SET;
@@ -3220,7 +3242,7 @@ ipfw_delete(char *av[])
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rt.start_rule);
-			} else if (rt.new_set == 0) {
+			} else if (rt.new_set == 0 && do_set == 0) {
 				exitval = EX_UNAVAILABLE;
 				if (rt.start_rule != rt.end_rule)
 					warnx("no rules rules in %u-%u range",
@@ -3570,7 +3592,7 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_srcip6(cmd, av, cblen);
+		ret = add_srcip6(cmd, av, cblen, tstate);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
@@ -3601,7 +3623,7 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_dstip6(cmd, av, cblen);
+		ret = add_dstip6(cmd, av, cblen, tstate);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
@@ -3711,27 +3733,25 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_CHECKSTATE:
 		have_state = action;
 		action->opcode = O_CHECK_STATE;
-		if (*av == NULL) {
+		if (*av == NULL ||
+		    match_token(rule_options, *av) == TOK_COMMENT) {
 			action->arg1 = pack_object(tstate,
 			    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
-		if (strcmp(*av, "any") == 0)
-			action->arg1 = 0;
-		else if ((i = match_token(rule_options, *av)) != -1) {
-			action->arg1 = pack_object(tstate,
-			    default_state_name, IPFW_TLV_STATE_NAME);
-			if (i != TOK_COMMENT)
-				warn("Ambiguous state name '%s', '%s'"
-				    " used instead.\n", *av,
-				    default_state_name);
+		if (*av[0] == ':') {
+			if (strcmp(*av + 1, "any") == 0)
+				action->arg1 = 0;
+			else if (state_check_name(*av + 1) == 0)
+				action->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+			else
+				errx(EX_DATAERR, "Invalid state name %s",
+				    *av);
+			av++;
 			break;
-		} else if (state_check_name(*av) == 0)
-			action->arg1 = pack_object(tstate, *av,
-			    IPFW_TLV_STATE_NAME);
-		else
-			errx(EX_DATAERR, "Invalid state name %s", *av);
-		av++;
+		}
+		errx(EX_DATAERR, "Invalid state name %s", *av);
 		break;
 
 	case TOK_ACCEPT:
@@ -3989,6 +4009,26 @@ chkarg:
 	case TOK_RETURN:
 		fill_cmd(action, O_CALLRETURN, F_NOT, 0);
 		break;
+
+	case TOK_TCPSETMSS: {
+		u_long mss;
+		uint16_t idx;
+
+		idx = pack_object(tstate, "tcp-setmss", IPFW_TLV_EACTION);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_ACTION, 0, idx);
+		NEED1("Missing MSS value");
+		action = next_cmd(action, &ablen);
+		action->len = 1;
+		CHECK_ACTLEN;
+		mss = strtoul(*av, NULL, 10);
+		if (mss == 0 || mss > UINT16_MAX)
+			errx(EX_USAGE, "invalid MSS value %s", *av);
+		fill_cmd(action, O_EXTERNAL_DATA, 0, (uint16_t)mss);
+		av++;
+		break;
+	}
 
 	default:
 		av--;
@@ -4574,22 +4614,16 @@ read_options:
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
-			if (*av == NULL ||
-			    (i = match_token(rule_options, *av)) != -1) {
-				if (*av != NULL && i != TOK_COMMENT)
-					warn("Ambiguous state name '%s',"
-					    " '%s' used instead.\n", *av,
-					    default_state_name);
-				uidx = pack_object(tstate, default_state_name,
-				    IPFW_TLV_STATE_NAME);
-			} else {
-				if (state_check_name(*av) != 0)
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
 					errx(EX_DATAERR,
 					    "Invalid state name %s", *av);
-				uidx = pack_object(tstate, *av,
+				uidx = pack_object(tstate, *av + 1,
 				    IPFW_TLV_STATE_NAME);
 				av++;
-			}
+			} else
+				uidx = pack_object(tstate, default_state_name,
+				    IPFW_TLV_STATE_NAME);
 			have_state = cmd;
 			fill_cmd(cmd, O_KEEP_STATE, 0, uidx);
 			break;
@@ -4626,22 +4660,16 @@ read_options:
 			    TOK_LIMIT, rule_options);
 			av++;
 
-			if (*av == NULL ||
-			    (i = match_token(rule_options, *av)) != -1) {
-				if (*av != NULL && i != TOK_COMMENT)
-					warn("Ambiguous state name '%s',"
-					    " '%s' used instead.\n", *av,
-					    default_state_name);
-				cmd->arg1 = pack_object(tstate,
-				    default_state_name, IPFW_TLV_STATE_NAME);
-			} else {
-				if (state_check_name(*av) != 0)
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
 					errx(EX_DATAERR,
 					    "Invalid state name %s", *av);
-				cmd->arg1 = pack_object(tstate, *av,
+				cmd->arg1 = pack_object(tstate, *av + 1,
 				    IPFW_TLV_STATE_NAME);
 				av++;
-			}
+			} else
+				cmd->arg1 = pack_object(tstate,
+				    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
 
@@ -4670,14 +4698,14 @@ read_options:
 
 		case TOK_SRCIP6:
 			NEED1("missing source IP6");
-			if (add_srcip6(cmd, *av, cblen)) {
+			if (add_srcip6(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
 
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
-			if (add_dstip6(cmd, *av, cblen)) {
+			if (add_dstip6(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
@@ -5129,18 +5157,17 @@ void
 ipfw_zero(int ac, char *av[], int optname)
 {
 	ipfw_range_tlv rt;
-	uint32_t arg;
-	int failed = EX_OK;
 	char const *errstr;
 	char const *name = optname ? "RESETLOG" : "ZERO";
+	uint32_t arg;
+	int failed = EX_OK;
 
 	optname = optname ? IP_FW_XRESETLOG : IP_FW_XZERO;
-	memset(&rt, 0, sizeof(rt));
-
 	av++; ac--;
 
 	if (ac == 0) {
 		/* clear all entries */
+		memset(&rt, 0, sizeof(rt));
 		rt.flags = IPFW_RCFLAG_ALL;
 		if (do_range_cmd(optname, &rt) < 0)
 			err(EX_UNAVAILABLE, "setsockopt(IP_FW_X%s)", name);
@@ -5158,6 +5185,7 @@ ipfw_zero(int ac, char *av[], int optname)
 			if (errstr)
 				errx(EX_DATAERR,
 				    "invalid rule number %s\n", *av);
+			memset(&rt, 0, sizeof(rt));
 			rt.start_rule = arg;
 			rt.end_rule = arg;
 			rt.flags |= IPFW_RCFLAG_RANGE;

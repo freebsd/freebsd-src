@@ -97,7 +97,7 @@ fdclose(FILE *fp, int *fdp)
 		return (EOF);
 	}
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	r = 0;
 	if (fp->_close != __sclose) {
 		r = EOF;
@@ -115,7 +115,7 @@ fdclose(FILE *fp, int *fdp)
 			*fdp = fp->_file;
 		r = cleanfile(fp, false);
 	}
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }
@@ -130,9 +130,9 @@ fclose(FILE *fp)
 		return (EOF);
 	}
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	r = cleanfile(fp, true);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 
 	return (r);
 }

@@ -23,7 +23,7 @@ LIBADD=	ssh
 CFLAGS+=	-DHAVE_LDNS=1
 .endif
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
 SRCS+=	krb5_config.h
 LIBADD+=	gssapi

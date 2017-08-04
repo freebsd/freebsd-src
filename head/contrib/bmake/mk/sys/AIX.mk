@@ -67,8 +67,6 @@ LDFLAGS=
 LINT=		lint
 LINTFLAGS=	-chapbx
 
-MAKE=		bmake
-
 PC=		pc
 PFLAGS=
 COMPILE.p=	${PC} ${PFLAGS} ${CPPFLAGS} -c

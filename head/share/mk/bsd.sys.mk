@@ -78,6 +78,9 @@ CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
 CWARNFLAGS.clang+=	-Wno-unused-local-typedef
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 40000
+CWARNFLAGS.clang+=	-Wno-address-of-packed-member
+.endif
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
@@ -128,6 +131,11 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=unused-value
 .endif
 
+# GCC 5.3.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50300
+CWARNFLAGS+=	-Wno-error=strict-overflow
+.endif
+
 # GCC 6.1.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100
 CWARNFLAGS+=	-Wno-error=misleading-indentation	\
@@ -135,6 +143,23 @@ CWARNFLAGS+=	-Wno-error=misleading-indentation	\
 		-Wno-error=shift-negative-value		\
 		-Wno-error=tautological-compare		\
 		-Wno-error=unused-const-variable
+.endif
+
+# GCC 7.1.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 70100
+CWARNFLAGS+=	-Wno-error=deprecated			\
+		-Wno-error=pointer-compare		\
+		-Wno-error=format-truncation		\
+		-Wno-error=implicit-fallthrough		\
+		-Wno-error=expansion-to-defined		\
+		-Wno-error=int-in-bool-context		\
+		-Wno-error=bool-operation		\
+		-Wno-error=format-overflow		\
+		-Wno-error=stringop-overflow		\
+		-Wno-error=memset-elt-size		\
+		-Wno-error=int-in-bool-context		\
+		-Wno-error=unused-const-variable	\
+		-Wno-error=nonnull
 .endif
 
 # How to handle FreeBSD custom printf format specifiers.
@@ -204,7 +229,7 @@ CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
 
 .if defined(SRCTOP)
 # Prevent rebuilding during install to support read-only objdirs.
-.if !make(all) && make(install) && empty(.MAKE.MODE:Mmeta)
+.if ${.TARGETS:M*install*} == ${.TARGETS} && empty(.MAKE.MODE:Mmeta)
 CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
 .endif
 .endif

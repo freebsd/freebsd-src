@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)munmap.2	8.3 (Berkeley) 5/27/94
 .\" $FreeBSD$
 .\"
-.Dd May 27, 1994
+.Dd June 22, 2017
 .Dt MUNMAP 2
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 The
 .Fn munmap
 system call
-deletes the mappings for the specified address range,
+deletes the mappings and guards for the specified address range,
 and causes further references to addresses within the range
 to generate invalid memory references.
 .Sh RETURN VALUES

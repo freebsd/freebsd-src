@@ -198,7 +198,6 @@ start.3:
 		call putstr			#  message
 		movl $m_segs,%esi		# Format string
 #endif
-		movl $0x2,%edi			# Segment count
 		movl 0x1c(%ebx),%edx		# Get e_phoff
 		addl %ebx,%edx			# To pointer
 		movzwl 0x2c(%ebx),%ecx		# Get e_phnum
@@ -216,8 +215,7 @@ start.4:	cmpl $0x1,(%edx)		# Is p_type PT_LOAD?
 		call putstr			# End message
 #endif
 		pushl %esi			# Save
-		pushl %edi			#  working
-		pushl %ecx			#  registers
+		pushl %ecx			#  working registers
 		movl 0x4(%edx),%esi		# Get p_offset
 		addl %ebx,%esi			#  as pointer
 		movl 0x8(%edx),%edi		# Get p_vaddr
@@ -232,13 +230,9 @@ start.4:	cmpl $0x1,(%edx)		# Is p_type PT_LOAD?
 		rep				#  zero
 		stosb				#  them
 start.5:	popl %ecx			# Restore
-		popl %edi			#  working
 		popl %esi			#  registers
-		decl %edi			# Segments to do
-		je start.7			# If none
 start.6:	addl $0x20,%edx 		# To next entry
 		loop start.4			# Till done
-start.7:
 #ifdef BTXLDR_VERBOSE
 		movl $m_done,%esi		# Display done
 		call putstr			#  message

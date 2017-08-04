@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,35 +70,35 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 
 static struct Info {
 	long	time[CPUSTATES];
-	u_int v_swtch;		/* context switches */
-	u_int v_trap;		/* calls to trap */
-	u_int v_syscall;	/* calls to syscall() */
-	u_int v_intr;		/* device interrupts */
-	u_int v_soft;		/* software interrupts */
+	uint64_t v_swtch;	/* context switches */
+	uint64_t v_trap;	/* calls to trap */
+	uint64_t v_syscall;	/* calls to syscall() */
+	uint64_t v_intr;	/* device interrupts */
+	uint64_t v_soft;	/* software interrupts */
 	/*
 	 * Virtual memory activity.
 	 */
-	u_int v_vm_faults;	/* number of address memory faults */
-	u_int v_io_faults;	/* page faults requiring I/O */
-	u_int v_cow_faults;	/* number of copy-on-writes */
-	u_int v_zfod;		/* pages zero filled on demand */
-	u_int v_ozfod;		/* optimized zero fill pages */
-	u_int v_swapin;		/* swap pager pageins */
-	u_int v_swapout;	/* swap pager pageouts */
-	u_int v_swappgsin;	/* swap pager pages paged in */
-	u_int v_swappgsout;	/* swap pager pages paged out */
-	u_int v_vnodein;	/* vnode pager pageins */
-	u_int v_vnodeout;	/* vnode pager pageouts */
-	u_int v_vnodepgsin;	/* vnode_pager pages paged in */
-	u_int v_vnodepgsout;	/* vnode pager pages paged out */
-	u_int v_intrans;	/* intransit blocking page faults */
-	u_int v_reactivated;	/* number of pages reactivated from free list */
-	u_int v_pdwakeups;	/* number of times daemon has awaken from sleep */
-	u_int v_pdpages;	/* number of pages analyzed by daemon */
+	uint64_t v_vm_faults;	/* number of address memory faults */
+	uint64_t v_io_faults;	/* page faults requiring I/O */
+	uint64_t v_cow_faults;	/* number of copy-on-writes */
+	uint64_t v_zfod;	/* pages zero filled on demand */
+	uint64_t v_ozfod;	/* optimized zero fill pages */
+	uint64_t v_swapin;	/* swap pager pageins */
+	uint64_t v_swapout;	/* swap pager pageouts */
+	uint64_t v_swappgsin;	/* swap pager pages paged in */
+	uint64_t v_swappgsout;	/* swap pager pages paged out */
+	uint64_t v_vnodein;	/* vnode pager pageins */
+	uint64_t v_vnodeout;	/* vnode pager pageouts */
+	uint64_t v_vnodepgsin;	/* vnode_pager pages paged in */
+	uint64_t v_vnodepgsout;	/* vnode pager pages paged out */
+	uint64_t v_intrans;	/* intransit blocking page faults */
+	uint64_t v_reactivated;	/* number of pages reactivated by pagedaemon */
+	uint64_t v_pdwakeups;	/* number of times daemon has awaken from sleep */
+	uint64_t v_pdpages;	/* number of pages analyzed by daemon */
 
-	u_int v_dfree;		/* pages freed by daemon */
-	u_int v_pfree;		/* pages freed by exiting processes */
-	u_int v_tfree;		/* total pages freed */
+	uint64_t v_dfree;	/* pages freed by daemon */
+	uint64_t v_pfree;	/* pages freed by exiting processes */
+	uint64_t v_tfree;	/* total pages freed */
 	/*
 	 * Distribution of page usages.
 	 */
@@ -107,7 +107,7 @@ static struct Info {
 	u_int v_wire_count;	/* number of pages wired down */
 	u_int v_active_count;	/* number of pages active */
 	u_int v_inactive_count;	/* number of pages inactive */
-	u_int v_cache_count;	/* number of pages on buffer cache queue */
+	u_int v_laundry_count;	/* number of pages in laundry queue */
 	u_long v_kmem_map_size;	/* Current kmem allocation size */
 	struct	vmtotal Total;
 	struct	nchstats nchstats;
@@ -343,7 +343,7 @@ labelkre(void)
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 9, "wire");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 9, "act");
 	mvprintw(VMSTATROW + 14, VMSTATCOL + 9, "inact");
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 9, "cache");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 9, "laund");
 	mvprintw(VMSTATROW + 16, VMSTATCOL + 9, "free");
 	if (LINES - 1 > VMSTATROW + 17)
 		mvprintw(VMSTATROW + 17, VMSTATCOL + 9, "buf");
@@ -519,7 +519,7 @@ showkre(void)
 	putint(pgtokb(s.v_wire_count), VMSTATROW + 12, VMSTATCOL, 8);
 	putint(pgtokb(s.v_active_count), VMSTATROW + 13, VMSTATCOL, 8);
 	putint(pgtokb(s.v_inactive_count), VMSTATROW + 14, VMSTATCOL, 8);
-	putint(pgtokb(s.v_cache_count), VMSTATROW + 15, VMSTATCOL, 8);
+	putint(pgtokb(s.v_laundry_count), VMSTATROW + 15, VMSTATCOL, 8);
 	putint(pgtokb(s.v_free_count), VMSTATROW + 16, VMSTATCOL, 8);
 	if (LINES - 1 > VMSTATROW + 17)
 		putint(s.bufspace / 1024, VMSTATROW + 17, VMSTATCOL, 8);
@@ -794,7 +794,7 @@ getinfo(struct Info *ls)
 	GETSYSCTL("vm.stats.vm.v_wire_count", ls->v_wire_count);
 	GETSYSCTL("vm.stats.vm.v_active_count", ls->v_active_count);
 	GETSYSCTL("vm.stats.vm.v_inactive_count", ls->v_inactive_count);
-	GETSYSCTL("vm.stats.vm.v_cache_count", ls->v_cache_count);
+	GETSYSCTL("vm.stats.vm.v_laundry_count", ls->v_laundry_count);
 	GETSYSCTL("vfs.bufspace", ls->bufspace);
 	GETSYSCTL("kern.maxvnodes", ls->desiredvnodes);
 	GETSYSCTL("vfs.numvnodes", ls->numvnodes);

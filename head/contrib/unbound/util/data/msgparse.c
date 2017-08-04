@@ -38,6 +38,7 @@
  */
 #include "config.h"
 #include "util/data/msgparse.h"
+#include "util/data/msgreply.h"
 #include "util/data/dname.h"
 #include "util/data/packed_rrset.h"
 #include "util/storage/lookup3.h"
@@ -933,13 +934,41 @@ parse_packet(sldns_buffer* pkt, struct msg_parse* msg, struct regional* region)
 	return 0;
 }
 
+/** parse EDNS options from EDNS wireformat rdata */
+static int
+parse_edns_options(uint8_t* rdata_ptr, size_t rdata_len,
+	struct edns_data* edns, struct regional* region)
+{
+	/* while still more options, and have code+len to read */
+	/* ignores partial content (i.e. rdata len 3) */
+	while(rdata_len >= 4) {
+		uint16_t opt_code = sldns_read_uint16(rdata_ptr);
+		uint16_t opt_len = sldns_read_uint16(rdata_ptr+2);
+		rdata_ptr += 4;
+		rdata_len -= 4;
+		if(opt_len > rdata_len)
+			break; /* option code partial */
+		if(!edns_opt_append(edns, region, opt_code, opt_len,
+			rdata_ptr)) {
+			log_err("out of memory");
+			return 0;
+		}
+		rdata_ptr += opt_len;
+		rdata_len -= opt_len;
+	}
+	return 1;
+}
+
 int 
-parse_extract_edns(struct msg_parse* msg, struct edns_data* edns)
+parse_extract_edns(struct msg_parse* msg, struct edns_data* edns,
+	struct regional* region)
 {
 	struct rrset_parse* rrset = msg->rrset_first;
 	struct rrset_parse* prev = 0;
 	struct rrset_parse* found = 0;
 	struct rrset_parse* found_prev = 0;
+	size_t rdata_len;
+	uint8_t* rdata_ptr;
 	/* since the class encodes the UDP size, we cannot use hash table to
 	 * find the EDNS OPT record. Scan the packet. */
 	while(rrset) {
@@ -986,13 +1015,25 @@ parse_extract_edns(struct msg_parse* msg, struct edns_data* edns)
 	edns->edns_version = found->rr_last->ttl_data[1];
 	edns->bits = sldns_read_uint16(&found->rr_last->ttl_data[2]);
 	edns->udp_size = ntohs(found->rrset_class);
-	/* ignore rdata and rrsigs */
+	edns->opt_list = NULL;
+
+	/* take the options */
+	rdata_len = found->rr_first->size;
+	rdata_ptr = found->rr_first->ttl_data+6;
+	if(!parse_edns_options(rdata_ptr, rdata_len, edns, region))
+		return 0;
+
+	/* ignore rrsigs */
+
 	return 0;
 }
 
 int 
-parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns)
+parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns,
+	struct regional* region)
 {
+	size_t rdata_len;
+	uint8_t* rdata_ptr;
 	log_assert(LDNS_QDCOUNT(sldns_buffer_begin(pkt)) == 1);
 	log_assert(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) == 0);
 	log_assert(LDNS_NSCOUNT(sldns_buffer_begin(pkt)) == 0);
@@ -1017,6 +1058,17 @@ parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns)
 	edns->ext_rcode = sldns_buffer_read_u8(pkt); /* ttl used for bits */
 	edns->edns_version = sldns_buffer_read_u8(pkt);
 	edns->bits = sldns_buffer_read_u16(pkt);
-	/* ignore rdata and rrsigs */
+	edns->opt_list = NULL;
+
+	/* take the options */
+	rdata_len = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < rdata_len)
+		return LDNS_RCODE_FORMERR;
+	rdata_ptr = sldns_buffer_current(pkt);
+	if(!parse_edns_options(rdata_ptr, rdata_len, edns, region))
+		return LDNS_RCODE_SERVFAIL;
+
+	/* ignore rrsigs */
+
 	return 0;
 }

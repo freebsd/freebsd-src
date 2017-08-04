@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -132,8 +132,8 @@ tabify(const char *curfile)
 				    tabstops[0];
 				continue;
 			} else {
-				for (n = 0; tabstops[n] - 1 < dcol &&
-				    n < nstops; n++)
+				for (n = 0; n < nstops &&
+				    tabstops[n] - 1 < dcol; n++)
 					;
 				if (n < nstops - 1 && tabstops[n] - 1 < limit) {
 					dcol = tabstops[n];
@@ -154,7 +154,7 @@ tabify(const char *curfile)
 				    tabstops[0];
 			}
 		} else {
-			for (n = 0; tabstops[n] - 1 < ocol && n < nstops; n++)
+			for (n = 0; n < nstops && tabstops[n] - 1 < ocol; n++)
 				;
 			while (ocol < dcol && n < nstops && ocol < limit) {
 				putwchar('\t');

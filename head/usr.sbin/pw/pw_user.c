@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
@@ -490,6 +491,7 @@ pw_pwcrypt(char *password)
 	char            salt[SALTSIZE + 1];
 	char		*cryptpw;
 	static char     buf[256];
+	size_t		pwlen;
 
 	/*
 	 * Calculate a salt value
@@ -501,7 +503,9 @@ pw_pwcrypt(char *password)
 	cryptpw = crypt(password, salt);
 	if (cryptpw == NULL)
 		errx(EX_CONFIG, "crypt(3) failure");
-	return strcpy(buf, cryptpw);
+	pwlen = strlcpy(buf, cryptpw, sizeof(buf));
+	assert(pwlen < sizeof(buf));
+	return (buf);
 }
 
 static char *
@@ -1177,7 +1181,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 	char line[_PASSWORD_LEN+1], path[MAXPATHLEN];
 	char *gecos, *homedir, *skel, *walk, *userid, *groupid, *grname;
 	char *default_passwd, *name, *p;
-	const char *cfg;
+	const char *cfg = NULL;
 	login_cap_t *lc;
 	FILE *pfp, *fp;
 	intmax_t id = -1;
@@ -1356,6 +1360,9 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if (GETPWNAM(name) != NULL)
 		errx(EX_DATAERR, "login name `%s' already exists", name);
 
+	if (!grname)
+		grname = cmdcnf->default_group;
+
 	pwd = &fakeuser;
 	pwd->pw_name = name;
 	pwd->pw_class = cmdcnf->default_class ? cmdcnf->default_class : "";
@@ -1485,7 +1492,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	struct group *grp;
 	StringList *groups = NULL;
 	char args[] = "C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:NPYy:";
-	const char *cfg;
+	const char *cfg = NULL;
 	char *gecos, *homedir, *grname, *name, *newname, *walk, *skel, *shell;
 	char *passwd, *class, *nispasswd;
 	login_cap_t *lc;
@@ -1493,7 +1500,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	intmax_t id = -1;
 	int ch, fd = -1;
 	size_t i, j;
-	bool quiet, createhome, pretty, dryrun, nis, edited, docreatehome;
+	bool quiet, createhome, pretty, dryrun, nis, edited;
 	bool precrypted;
 	mode_t homemode = 0;
 	time_t expire_days, password_days, now;
@@ -1503,7 +1510,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	passwd = NULL;
 	class = nispasswd = NULL;
 	quiet = createhome = pretty = dryrun = nis = precrypted = false;
-	edited = docreatehome = false;
+	edited = false;
 
 	if (arg1 != NULL) {
 		if (arg1[strspn(arg1, "0123456789")] == '\0')
@@ -1704,8 +1711,6 @@ pw_user_mod(int argc, char **argv, char *arg1)
 			if (!createhome)
 				warnx("WARNING: home `%s' does not exist",
 				    pwd->pw_dir);
-			else
-				docreatehome = true;
 		} else if (!S_ISDIR(st.st_mode)) {
 			warnx("WARNING: home `%s' is not a directory",
 			    pwd->pw_dir);
@@ -1797,7 +1802,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
-	if (PWALTDIR() != PWF_ALT && docreatehome && pwd->pw_dir &&
+	if (PWALTDIR() != PWF_ALT && createhome && pwd->pw_dir &&
 	    *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
 		if (!skel)
 			skel = cnf->dotdir;

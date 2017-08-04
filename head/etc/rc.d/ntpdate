@@ -20,7 +20,7 @@ ntpdate_start()
 	if [ -z "$ntpdate_hosts" -a -f "$ntpdate_config" ]; then
 		ntpdate_hosts=`awk '
 			/^server[ \t]*127.127/      {next}
-			/^(server|peer)/            {
+			/^(server|peer|pool)/       {
 			    if ($2 ~/^-/)           {print $3}
 			    else                    {print $2}}
 		' < "$ntpdate_config"`

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.113 2016/02/14 14:38:24 christos Exp $
+# $File: filesystems,v 1.114 2016/09/05 08:34:25 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -539,8 +539,6 @@
 >>>514		string		!HdrS			
 # not BeOS
 >>>>422		string		!Be\ Boot\ Loader	
->>>>>32769	string    CD001
->>>>>>0	use cdrom
 # jump over BPB instruction implies DOS bootsector or AdvanceMAME mbr 
 >>>>>0		ubelong&0xFD000000	=0xE9000000	
 # AdvanceMAME mbr
@@ -1929,6 +1927,7 @@
 >>38917	string    3         (version 2.0)
 >>38917	byte     >0x33      (unknown version, ID 0x%X)
 >>38917	byte     <0x31      (unknown version, ID 0x%X)
+# The next line is not necessary because the MBR staff is done looking for boot signature
 >0x1FE	leshort  0xAA55     (DOS/MBR boot sector)
 # "application id" which appears to be used as a volume label
 >32808	string/T  >\0       '%s'

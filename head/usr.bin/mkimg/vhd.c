@@ -27,15 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <uuid.h>
 
+#include "endian.h"
 #include "image.h"
 #include "format.h"
 #include "mkimg.h"
@@ -92,7 +91,7 @@ struct vhd_footer {
 #define	VHD_DISK_TYPE_DYNAMIC	3
 #define	VHD_DISK_TYPE_DIFF	4
 	uint32_t	checksum;
-	uuid_t		id;
+	mkimg_uuid_t	id;
 	uint8_t		saved_state;
 	uint8_t		_reserved[427];
 };
@@ -201,25 +200,10 @@ vhd_timestamp(void)
 }
 
 static void
-vhd_uuid_enc(void *buf, const uuid_t *uuid)
-{
-	uint8_t *p = buf;
-	int i;
-
-	be32enc(p, uuid->time_low);
-	be16enc(p + 4, uuid->time_mid);
-	be16enc(p + 6, uuid->time_hi_and_version);
-	p[8] = uuid->clock_seq_hi_and_reserved;
-	p[9] = uuid->clock_seq_low;
-	for (i = 0; i < _UUID_NODE_LEN; i++)
-		p[10 + i] = uuid->node[i];
-}
-
-static void
 vhd_make_footer(struct vhd_footer *footer, uint64_t image_size,
     uint32_t disk_type, uint64_t data_offset)
 {
-	uuid_t id;
+	mkimg_uuid_t id;
 
 	memset(footer, 0, sizeof(*footer));
 	be64enc(&footer->cookie, VHD_FOOTER_COOKIE);
@@ -236,7 +220,7 @@ vhd_make_footer(struct vhd_footer *footer, uint64_t image_size,
 	be16enc(&footer->geometry.cylinders, footer->geometry.cylinders);
 	be32enc(&footer->disk_type, disk_type);
 	mkimg_uuid(&id);
-	vhd_uuid_enc(&footer->id, &id);
+	mkimg_uuid_enc(&footer->id, &id);
 	be32enc(&footer->checksum, vhd_checksum(footer, sizeof(*footer)));
 }
 
@@ -261,7 +245,7 @@ struct vhd_dyn_header {
 	uint32_t	max_entries;
 	uint32_t	block_size;
 	uint32_t	checksum;
-	uuid_t		parent_id;
+	mkimg_uuid_t	parent_id;
 	uint32_t	parent_timestamp;
 	char		_reserved1[4];
 	uint16_t	parent_name[256];	/* UTF-16 */

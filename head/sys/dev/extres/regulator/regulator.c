@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_REGULATOR, "regulator", "Regulator framework");
 
+#define	DIV_ROUND_UP(n,d) howmany(n, d)
+
 /* Forward declarations. */
 struct regulator;
 struct regnode;
@@ -984,3 +986,87 @@ regulator_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
 	return (regulator_get_by_id(cdev, regdev, id, reg));
 }
 #endif
+
+/* --------------------------------------------------------------------------
+ *
+ * Regulator utility functions.
+ *
+ */
+
+/* Convert raw selector value to real voltage */
+int
+regulator_range_sel8_to_volt(struct regulator_range *ranges, int nranges,
+   uint8_t sel, int *volt)
+{
+	struct regulator_range *range;
+	int i;
+
+	if (nranges == 0)
+		panic("Voltage regulator have zero ranges\n");
+
+	for (i = 0; i < nranges ; i++) {
+		range = ranges  + i;
+
+		if (!(sel >= range->min_sel &&
+		      sel <= range->max_sel))
+			continue;
+
+		sel -= range->min_sel;
+
+		*volt = range->min_uvolt + sel * range->step_uvolt;
+		return (0);
+	}
+
+	return (ERANGE);
+}
+
+int
+regulator_range_volt_to_sel8(struct regulator_range *ranges, int nranges,
+    int min_uvolt, int max_uvolt, uint8_t *out_sel)
+{
+	struct regulator_range *range;
+	uint8_t sel;
+	int uvolt;
+	int rv, i;
+
+	if (nranges == 0)
+		panic("Voltage regulator have zero ranges\n");
+
+	for (i = 0; i < nranges; i++) {
+		range = ranges  + i;
+		uvolt = range->min_uvolt +
+		    (range->max_sel - range->min_sel) * range->step_uvolt;
+
+		if ((min_uvolt > uvolt) ||
+		    (max_uvolt < range->min_uvolt))
+			continue;
+
+		if (min_uvolt <= range->min_uvolt)
+			min_uvolt = range->min_uvolt;
+
+		/* if step == 0 -> fixed voltage range. */
+		if (range->step_uvolt == 0)
+			sel = 0;
+		else
+			sel = DIV_ROUND_UP(min_uvolt - range->min_uvolt,
+			   range->step_uvolt);
+
+
+		sel += range->min_sel;
+
+		break;
+	}
+
+	if (i >= nranges)
+		return (ERANGE);
+
+	/* Verify new settings. */
+	rv = regulator_range_sel8_to_volt(ranges, nranges, sel, &uvolt);
+	if (rv != 0)
+		return (rv);
+	if ((uvolt < min_uvolt) || (uvolt > max_uvolt))
+		return (ERANGE);
+
+	*out_sel = sel;
+	return (0);
+}

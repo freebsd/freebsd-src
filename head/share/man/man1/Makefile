@@ -8,7 +8,7 @@ MAN=	builtin.1 intro.1
 PACKAGE=runtime-manuals
 
 .if ${MK_TESTS} != "no"
-ATF=	${.CURDIR}/../../../contrib/atf
+ATF=	${SRCTOP}/contrib/atf
 .PATH:	${ATF}/doc
 MAN+=	atf-test-program.1
 .endif

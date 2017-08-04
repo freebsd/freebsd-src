@@ -3,7 +3,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../lib/libc/gen
+.PATH: ${SRCTOP}/usr.sbin/pwd_mkdb ${SRCTOP}/lib/libc/gen
 
 PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
@@ -15,19 +15,19 @@ CFLAGS+= -DYP
 .endif
 #Some people need this, uncomment to activate
 #CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
-CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen -I.
+CFLAGS+=-I${SRCTOP}/usr.sbin/pwd_mkdb -I${SRCTOP}/lib/libc/gen -I.
 
 LIBADD=	crypt util
 .if ${MK_NIS} != "no"
 LIBADD+=	ypclnt
 .endif 
 
-SYMLINKS=	${BINDIR}/chpass ${BINDIR}/chfn
-SYMLINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
+SYMLINKS=	chpass ${BINDIR}/chfn
+SYMLINKS+=	chpass ${BINDIR}/chsh
 .if ${MK_NIS} != "no"
-SYMLINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
-SYMLINKS+=	${BINDIR}/chpass ${BINDIR}/ypchfn
-SYMLINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
+SYMLINKS+=	chpass ${BINDIR}/ypchfn
+SYMLINKS+=	chpass ${BINDIR}/ypchpass
+SYMLINKS+=	chpass ${BINDIR}/ypchsh
 .endif
 
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1

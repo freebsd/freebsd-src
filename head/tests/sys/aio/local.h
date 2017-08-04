@@ -39,36 +39,51 @@
 
 #include <atf-c.h>
 
-#define	ATF_REQUIRE_UNSAFE_AIO() do {					\
-	size_t _len;							\
-	int _unsafe;							\
-									\
-	_len = sizeof(_unsafe);						\
-	if (sysctlbyname("vfs.aio.enable_unsafe", &_unsafe, &_len, NULL,\
-	    0) < 0) {							\
-		if (errno != ENOENT)					\
-			atf_libc_error(errno,				\
-			    "Failed to read vfs.aio.enable_unsafe");	\
-	} else if (_unsafe == 0)					\
-		atf_tc_skip("Unsafe AIO is disabled");			\
+static const char	*sysctl_oid_name = "vfs.aio.enable_unsafe";
+
+static int
+is_unsafe_aio_enabled(void)
+{
+	size_t len;
+	int unsafe;
+
+	len = sizeof(unsafe);
+	if (sysctlbyname(sysctl_oid_name, &unsafe, &len, NULL, 0) < 0) {
+		if (errno == ENOENT)
+			return (-1);
+		return (0);
+	}
+	return (unsafe == 0 ? 0 : 1);
+}
+
+#define	ATF_REQUIRE_UNSAFE_AIO() do {						\
+	switch (is_unsafe_aio_enabled()) {					\
+	case -1:								\
+		atf_libc_error(errno, "Failed to read %s", sysctl_oid_name);	\
+		break;								\
+	case 0:									\
+		atf_tc_skip("Unsafe AIO is disabled");				\
+		break;								\
+	default:								\
+		printf("Unsafe AIO is enabled\n");				\
+		break;								\
+	}									\
 } while (0)
-	
-#define	PLAIN_REQUIRE_UNSAFE_AIO(_exit_code) do {			\
-	size_t _len;							\
-	int _unsafe;							\
-									\
-	_len = sizeof(_unsafe);						\
-	if (sysctlbyname("vfs.aio.enable_unsafe", &_unsafe, &_len, NULL,\
-	    0) < 0) {							\
-		if (errno != ENOENT) {					\
-			printf("Failed to read vfs.aio.enable_unsafe: %s\n",\
-			    strerror(errno));				\
-			_exit(1);					\
-		}							\
-	} else if (_unsafe == 0) {					\
-		printf("Unsafe AIO is disabled");			\
-		_exit(_exit_code);					\
-	}								\
+
+#define	PLAIN_REQUIRE_UNSAFE_AIO(_exit_code) do {				\
+	switch (is_unsafe_aio_enabled()) {					\
+	case -1:								\
+		printf("Failed to read %s", sysctl_oid_name);			\
+		_exit(_exit_code);						\
+		break;								\
+	case 0:									\
+		printf("Unsafe AIO is disabled\n");				\
+		_exit(_exit_code);						\
+		break;								\
+	default:								\
+		printf("Unsafe AIO is enabled\n");				\
+		break;								\
+	}									\
 } while (0)
 
 #endif /* !_AIO_TEST_LOCAL_H_ */

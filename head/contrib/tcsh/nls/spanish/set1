@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.4 2011/02/04 18:19:42 christos Exp $
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
 $ Mensajes de Error
 $set 1 
 1 Error de sintaxis
@@ -8,7 +8,7 @@ $set 1
 5 No hay fichero para $0
 6 Modificador [] incompleto
 7 $ expansión debe terminar antes de ]
-8 Modificador erróneo : en $ (%c)
+8 Modificador erróneo : en $ '%c'
 9 Error de índice
 10 Número erróneamente formado
 11 No hay más palabras
@@ -51,8 +51,8 @@ $set 1
 48 No se encuentra en bucle while/foreach
 49 No hay más procesos
 50 No existe correspondencia
-51 Falta %c
-52 No se ha hallado correspondencia con %c
+51 Falta '%c'
+52 No se ha hallado correspondencia con '%c'
 53 Memoria insuficiente
 54 No se puede crear la tubería
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Sustituto erróneo
 91 No existe `lado izquierdo' previo
 92 Valor de asignación demasiado largo
-93 Modificador de ! incorrecto: %c
+93 Modificador de ! incorrecto: '%c'
 94 Error de modificador
 95 Desborde el el buffer de sustitución
 96 Selector de argumento de ! erróneo
@@ -118,7 +118,7 @@ $set 1
 115 Se ha agotado el espacio para cadenas termcap
 116 Uso: settc %s [yes|no]
 117 Característica `%s' desconocida
-118 Parámetro termcap `%%%c' desconocido
+118 Parámetro termcap '%%%c' desconocido
 119 Demasiados argumentos para `%s' (%d)
 120 `%s' requiere %d argumentos
 121 Uso: echotc [-v|-s] [<característica> [<args>]]
@@ -137,4 +137,4 @@ $set 1
 134 Uso: unlimit [-fh] [límites]
 135 $%S es de sólo-lectura
 136 No existe ese trabajo
-137 Unknown colorls variable `%c%c'
+137 Unknown colorls variable '%c%c'

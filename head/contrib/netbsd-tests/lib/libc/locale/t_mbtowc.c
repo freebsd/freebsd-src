@@ -137,16 +137,9 @@ ATF_TC_BODY(mbtowc, tc)
 	h_mbtowc("ja_JP.ISO2022-JP", "\033$B", "\033$B$\"\033(B");
 	h_mbtowc("ja_JP.SJIS", "\202", "\202\240");
 	h_mbtowc("ja_JP.eucJP", "\244", "\244\242");
-#ifndef __FreeBSD__
-	/* Moved last as it fails */
 	h_mbtowc("zh_CN.GB18030", "\241", "\241\241");
-#endif
 	h_mbtowc("zh_TW.Big5", "\241", "\241@");
 	h_mbtowc("zh_TW.eucTW", "\241", "\241\241");
-#ifdef __FreeBSD__
-	atf_tc_expect_fail("zh_CN.GB18030");
-	h_mbtowc("zh_CN.GB18030", "\241", "\241\241");
-#endif
 }
 
 ATF_TP_ADD_TCS(tp)

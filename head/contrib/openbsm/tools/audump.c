@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 2005-2009 Robert N. M. Watson
+ * Copyright (c) 2005-2009, 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,7 +81,7 @@ static void
 audump_control(void)
 {
 	char string[PATH_MAX], string2[PATH_MAX];
-	int ret, val;
+	int ret, val, qsz;
 	long policy;
 	time_t age;
 	size_t size;
@@ -135,6 +140,13 @@ audump_control(void)
 
 	printf("filesz:%ldB\n", size);
 
+	ret = getacqsize(&qsz);
+	if (ret == -2)
+		err(-1, "getacqsize");
+	if (ret != 0)
+		err(-1, "getacqzize: %d", ret);
+
+	printf("qsize:%d\n", qsz);
 
 	ret = getachost(string, PATH_MAX);
 	if (ret == -2)

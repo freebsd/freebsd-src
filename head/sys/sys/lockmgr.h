@@ -68,6 +68,10 @@ struct thread;
  */
 int	 __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    const char *wmesg, int prio, int timo, const char *file, int line);
+int	 lockmgr_lock_fast_path(struct lock *lk, u_int flags,
+	    struct lock_object *ilk, const char *file, int line);
+int	 lockmgr_unlock_fast_path(struct lock *lk, u_int flags,
+	    struct lock_object *ilk);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	 _lockmgr_assert(const struct lock *lk, int what, const char *file, int line);
 #endif

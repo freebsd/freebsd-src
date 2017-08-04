@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "extern.h"
 
 #define DIFF_PATH	"/usr/bin/diff"
@@ -83,34 +82,13 @@ enum {
 	NORMAL_OPT,
 	FCASE_SENSITIVE_OPT,
 	FCASE_IGNORE_OPT,
-	FROMFILE_OPT,
-	TOFILE_OPT,
-	UNIDIR_OPT,
 	STRIPCR_OPT,
-	HORIZ_OPT,
-	LEFTC_OPT,
-	SUPCL_OPT,
-	LF_OPT,
-	/* the following groupings must be in sequence */
-	OLDGF_OPT,
-	NEWGF_OPT,
-	UNCGF_OPT,
-	CHGF_OPT,
-	OLDLF_OPT,
-	NEWLF_OPT,
-	UNCLF_OPT,
-	/* end order-sensitive enums */
 	TSIZE_OPT,
-	HLINES_OPT,
-	LFILES_OPT,
 	DIFFPROG_OPT,
-
-	NOOP_OPT,
 };
 
 static struct option longopts[] = {
 	/* options only processed in sdiff */
-	{ "left-column",		no_argument,		NULL,	LEFTC_OPT },
 	{ "suppress-common-lines",	no_argument,		NULL,	's' },
 	{ "width",			required_argument,	NULL,	'w' },
 
@@ -130,6 +108,7 @@ static struct option longopts[] = {
 	{ "ignore-tab-expansion",	no_argument,		NULL,	'E' },
 	{ "ignore-matching-lines",	required_argument,	NULL,	'I' },
 	{ "ignore-case",		no_argument,		NULL,	'i' },
+	{ "left-column",		no_argument,		NULL,	'l' },
 	{ "expand-tabs",		no_argument,		NULL,	't' },
 	{ "speed-large-files",		no_argument,		NULL,	'H' },
 	{ "ignore-all-space",		no_argument,		NULL,	'W' },
@@ -138,24 +117,25 @@ static struct option longopts[] = {
 };
 
 static const char *help_msg[] = {
-	"\nusage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1 file2\n",
-	"\t-l, --left-column, Only print the left column for identical lines.",
-	"\t-o OUTFILE, --output=OUTFILE, nteractively merge file1 and file2 into outfile.",
-	"\t-s, --suppress-common-lines, Skip identical lines.",
-	"\t-w WIDTH, --width=WIDTH, Print a maximum of WIDTH characters on each line.",
-	"\tOptions passed to diff(1) are:",
-	"\t\t-a, --text, Treat file1 and file2 as text files.",
-	"\t\t-b, --ignore-trailing-cr, Ignore trailing blank spaces.",
-	"\t\t-d, --minimal, Minimize diff size.",
-	"\t\t-I RE, --ignore-matching-lines=RE, Ignore changes whose line matches RE.",
-	"\t\t-i, --ignore-case, Do a case-insensitive comparison.",
-	"\t\t-t, --expand-tabs Expand tabs to spaces.",
-	"\t\t-W, --ignore-all-spaces, Ignore all spaces.",
-	"\t\t--speed-large-files, Assume large file with scattered changes.",
-	"\t\t--strip-trailing-cr, Strip trailing carriage return.",
-	"\t\t--ignore-file-name-case, Ignore case of file names.",
-	"\t\t--no-ignore-file-name-case, Do not ignore file name case",
-	"\t\t--tabsize NUM, Change size of tabs (default 8.)",
+	"usage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1 file2\n",
+	"-l, --left-column: only print the left column for identical lines.",
+	"-o OUTFILE, --output=OUTFILE: interactively merge file1 and file2 into outfile.",
+	"-s, --suppress-common-lines: skip identical lines.",
+	"-w WIDTH, --width=WIDTH: print a maximum of WIDTH characters on each line.",
+	"",
+	"Options passed to diff(1) are:",
+	"\t-a, --text: treat file1 and file2 as text files.",
+	"\t-b, --ignore-trailing-cr: ignore trailing blank spaces.",
+	"\t-d, --minimal: minimize diff size.",
+	"\t-I RE, --ignore-matching-lines=RE: ignore changes whose line matches RE.",
+	"\t-i, --ignore-case: do a case-insensitive comparison.",
+	"\t-t, --expand-tabs: sxpand tabs to spaces.",
+	"\t-W, --ignore-all-spaces: ignore all spaces.",
+	"\t--speed-large-files: assume large file with scattered changes.",
+	"\t--strip-trailing-cr: strip trailing carriage return.",
+	"\t--ignore-file-name-case: ignore case of file names.",
+	"\t--no-ignore-file-name-case: do not ignore file name case",
+	"\t--tabsize NUM: change size of tabs (default 8.)",
 
 	NULL,
 };
@@ -233,7 +213,6 @@ main(int argc, char **argv)
 	int ch, fd[2] = {-1}, status;
 	pid_t pid=0;
 	const char *outfile = NULL;
-	struct option *popt;
 	char **diffargv, *diffprog = DIFF_PATH, *filename1, *filename2,
 	     *tmp1, *tmp2, *s1, *s2;
 	int i;
@@ -279,9 +258,7 @@ main(int argc, char **argv)
 		case 'E':
 		case 'i':
 		case 't':
-		case 'H':
 		case 'W':
-			for(popt = longopts; ch != popt->val && popt->name != NULL; popt++);
 			diffargv[1]  = realloc(diffargv[1], sizeof(char) * strlen(diffargv[1]) + 2);
 			/*
 			 * In diff, the 'W' option is 'w' and the 'w' is 'W'.
@@ -290,6 +267,9 @@ main(int argc, char **argv)
 				sprintf(diffargv[1], "%sw", diffargv[1]);
 			else
 				sprintf(diffargv[1], "%s%c", diffargv[1], ch);
+			break;
+		case 'H':
+			diffargv[diffargc++] = "--speed-large-files";
 			break;
 		case DIFFPROG_OPT:
 			diffargv[0] = diffprog = optarg;
@@ -477,8 +457,8 @@ main(int argc, char **argv)
 }
 
 /*
- * When sdiff/zsdiff detects a binary file as input, executes them with
- * diff/zdiff to maintain the same behavior as GNU sdiff with binary input.
+ * When sdiff detects a binary file as input, executes them with
+ * diff to maintain the same behavior as GNU sdiff with binary input.
  */
 static void
 binexec(char *diffprog, char *f1, char *f2)
@@ -488,7 +468,7 @@ binexec(char *diffprog, char *f1, char *f2)
 	execv(diffprog, args);
 
 	/* If execv() fails, sdiff's execution will continue below. */
-	errx(1, "Could not execute diff process.\n");
+	errx(1, "could not execute diff process");
 }
 
 /*
@@ -1171,7 +1151,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1"
+	    "usage: sdiff [-abdilstHW] [-I regexp] [-o outfile] [-w width] file1"
 	    " file2\n");
 	exit(2);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -124,7 +124,11 @@ repaint()
 	 */
 	get_scrpos(&scrpos);
 	pos_clear();
-	jump_loc(scrpos.pos, scrpos.ln);
+	if (scrpos.pos == NULL_POSITION)
+		/* Screen hasn't been drawn yet. */
+		jump_loc(0, 0);
+	else
+		jump_loc(scrpos.pos, scrpos.ln);
 }
 
 /*
@@ -196,7 +200,7 @@ jump_loc(pos, sline)
 	POSITION pos;
 	int sline;
 {
-	register int nline;
+	int nline;
 	POSITION tpos;
 	POSITION bpos;
 

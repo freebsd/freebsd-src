@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -34,7 +34,7 @@ struct MachineFunctionPrinterPass : public MachineFunctionPass {
   MachineFunctionPrinterPass(raw_ostream &os, const std::string &banner)
       : MachineFunctionPass(ID), OS(os), Banner(banner) {}
 
-  const char *getPassName() const override { return "MachineFunction Printer"; }
+  StringRef getPassName() const override { return "MachineFunction Printer"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();

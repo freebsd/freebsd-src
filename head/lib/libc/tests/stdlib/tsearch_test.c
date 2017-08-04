@@ -31,10 +31,14 @@ __FBSDID("$FreeBSD$");
 #include <search.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+static int n_nodes = 0;
+static int n_seen = 0;
 
 /* Validates the integrity of an AVL tree. */
 static inline unsigned int
-tnode_assert(const node_t *n)
+tnode_assert(const posix_tnode *n)
 {
 	unsigned int height_left, height_right;
 	int balance;
@@ -55,6 +59,14 @@ compar(const void *a, const void *b)
 {
 
 	return *(int *)a - *(int *)b;
+}
+
+static void
+treewalk(const posix_tnode *node, VISIT v, int level)
+{
+
+	if (v == postorder || v == leaf)
+		n_seen++;
 }
 
 ATF_TC_WITHOUT_HEAD(tsearch_test);
@@ -79,15 +91,26 @@ ATF_TC_BODY(tsearch_test, tc)
 		keys[i] = i;
 
 	/* Apply random operations on a binary tree and check the results. */
-	void *root = NULL;
+	posix_tnode *root = NULL;
 	bool present[NKEYS] = {};
 	for (int i = 0; i < NKEYS * 10; ++i) {
 		int key = nrand48(random_state) % NKEYS;
-		switch (nrand48(random_state) % 3) {
+		int sample = i;
+
+		/*
+		 * Ensure each case is tested at least 10 times, plus a
+		 * random sampling.
+		 */
+		if ((sample % NKEYS) > 3)
+			sample = nrand48(random_state) % 3;
+
+		switch (sample) {
 		case 0:  /* tdelete(). */
 			if (present[key]) {
 				ATF_CHECK(tdelete(&key, &root, compar) != NULL);
 				present[key] = false;
+				ATF_CHECK(n_nodes > 0);
+				n_nodes--;
 			} else {
 				ATF_CHECK_EQ(NULL,
 				    tdelete(&key, &root, compar));
@@ -109,11 +132,16 @@ ATF_TC_BODY(tsearch_test, tc)
 				ATF_CHECK_EQ(&keys[key], *(int **)tsearch(
 				    &keys[key], &root, compar));
 				present[key] = true;
+				n_nodes++;
 			}
 			break;
 		}
 		tnode_assert(root);
 	}
+
+	/* Walk the tree. */
+	twalk(root, treewalk);
+	ATF_CHECK_EQ(n_nodes, n_seen);
 
 	/* Remove all entries from the tree. */
 	for (int key = 0; key < NKEYS; ++key)

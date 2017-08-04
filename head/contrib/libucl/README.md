@@ -1,6 +1,8 @@
 # LIBUCL
 
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)[![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)
+[![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
 
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
@@ -12,7 +14,7 @@
 	- [Named keys hierarchy](#named-keys-hierarchy)
 	- [Convenient numbers and booleans](#convenient-numbers-and-booleans)
 - [General improvements](#general-improvements)
-	- [Commments](#commments)
+	- [Comments](#comments)
 	- [Macros support](#macros-support)
 	- [Variables support](#variables-support)
 	- [Multiline strings](#multiline-strings)
@@ -21,7 +23,7 @@
 - [Performance](#performance)
 - [Conclusion](#conclusion)
 
-## Introduction 
+## Introduction
 
 This document describes the main features and principles of the configuration
 language called `UCL` - universal configuration language.
@@ -47,7 +49,7 @@ section {
     string = "something";
     subsection {
         host = {
-            host = "hostname"; 
+            host = "hostname";
             port = 900;
         }
         host = {
@@ -163,9 +165,9 @@ section {
 	}
 }
 ```
-    
+
 Plain definitions may be more complex and contain more than a single level of nested objects:
-   
+
 ```nginx
 section "blah" "foo" {
 	key = value;
@@ -174,7 +176,7 @@ section "blah" "foo" {
 
 is presented as:
 
-```nginx    
+```nginx
 section {
 	blah {
 		foo {
@@ -196,17 +198,17 @@ section {
 
 ## General improvements
 
-### Commments
+### Comments
 
 UCL supports different style of comments:
 
-* single line: `#` 
+* single line: `#`
 * multiline: `/* ... */`
 
 Multiline comments may be nested:
 ```c
 # Sample single line comment
-/* 
+/*
  some comment
  /* nested comment */
  end of comment
@@ -217,8 +219,8 @@ Multiline comments may be nested:
 
 UCL supports external macros both multiline and single line ones:
 ```nginx
-.macro "sometext";
-.macro {
+.macro_name "sometext";
+.macro_name {
     Some long text
     ....
 };
@@ -229,12 +231,12 @@ arguments themselves are the UCL object that is parsed and passed to a macro as
 options:
 
 ```nginx
-.macro(param=value) "something";
-.macro(param={key=value}) "something";
-.macro(.include "params.conf") "something";
-.macro(#this is multiline macro
+.macro_name(param=value) "something";
+.macro_name(param={key=value}) "something";
+.macro_name(.include "params.conf") "something";
+.macro_name(#this is multiline macro
 param = [value1, value2]) "something";
-.macro(key="()") "something";
+.macro_name(key="()") "something";
 ```
 
 UCL also provide a convenient `include` macro to load content from another files
@@ -263,7 +265,7 @@ all files that matches the specified pattern (normally the format of patterns is
 for your operating system). This option is meaningless for URL includes.
 * `url` (default: **true**) - allow URL includes.
 * `path` (default: empty) - A UCL_ARRAY of directories to search for the include file.
-Search ends after the first patch, unless `glob` is true, then all matches are included.
+Search ends after the first match, unless `glob` is true, then all matches are included.
 * `prefix` (default false) - Put included contents inside an object, instead
 of loading them into the root. If no `key` is provided, one is automatically generated based on each files basename()
 * `key` (default: <empty string>) - Key to load contents of include into. If
@@ -273,7 +275,7 @@ object or an array.
 * `priority` (default: 0) - specify priority for the include (see below).
 * `duplicate` (default: 'append') - specify policy of duplicates resolving:
 	- `append` - default strategy, if we have new object of higher priority then it replaces old one, if we have new object with less priority it is ignored completely, and if we have two duplicate objects with the same priority then we have a multi-value key (implicit array)
-	- `merge` - if we have object or array, then new keys are merged inside, if we have a plain object then an implicit array is formed (regardeless of priorities)
+	- `merge` - if we have object or array, then new keys are merged inside, if we have a plain object then an implicit array is formed (regardless of priorities)
 	- `error` - create error on duplicate keys and stop parsing
 	- `rewrite` - always rewrite an old value with new one (ignoring priorities)
 
@@ -320,7 +322,7 @@ Here are some rules for this syntax:
 * Multiline terminator must start just after `<<` symbols and it must consist of capital letters only (e.g. `<<eof` or `<< EOF` won't work);
 * Terminator must end with a single newline character (and no spaces are allowed between terminator and newline character);
 * To finish multiline string you need to include a terminator string just after newline and followed by a newline (no spaces or other characters are allowed as well);
-* The initial and the final newlines are not inserted to the resulting string, but you can still specify newlines at the begin and at the end of a value, for example:
+* The initial and the final newlines are not inserted to the resulting string, but you can still specify newlines at the beginning and at the end of a value, for example:
 
 ```
 key <<EOD
@@ -347,7 +349,7 @@ UCL allows validation of objects. It uses the same schema that is used for json:
 ## Performance
 
 Are UCL parser and emitter fast enough? Well, there are some numbers.
-I got a 19Mb file that consist of ~700 thousands lines of json (obtained via
+I got a 19Mb file that consist of ~700 thousand lines of json (obtained via
 http://www.json-generator.com/). Then I checked jansson library that performs json
 parsing and emitting and compared it with UCL. Here are results:
 
@@ -377,6 +379,6 @@ You can do your own benchmarks by running `make check` in libucl top directory.
 ## Conclusion
 
 UCL has clear design that should be very convenient for reading and writing. At the same time it is compatible with
-JSON language and therefore can be used as a simple JSON parser. Macroes logic provides an ability to extend configuration
-language (for example by including some lua code) and comments allows to disable or enable the parts of a configuration
+JSON language and therefore can be used as a simple JSON parser. Macro logic provides an ability to extend configuration
+language (for example by including some lua code) and comments allow to disable or enable the parts of a configuration
 quickly.

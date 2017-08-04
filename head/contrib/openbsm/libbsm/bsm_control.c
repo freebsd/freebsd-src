@@ -1,7 +1,12 @@
 /*-
  * Copyright (c) 2004, 2009 Apple Inc.
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006, 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -132,11 +137,7 @@ getstrfromtype_locked(const char *name, char **str)
 		if ((type = strtok_r(tokptr, delim, &last)) != NULL) {
 			if (strcmp(name, type) == 0) {
 				/* Found matching name. */
-				*str = strtok_r(NULL, delim, &last);
-				if (*str == NULL) {
-					errno = EINVAL;
-					return (-1); /* Parse error in file */
-				}
+				*str = last;
 				return (0); /* Success */
 			}
 		}
@@ -549,19 +550,18 @@ getaccommon(const char *name, char *auditstr, int len)
 #endif
 		return (-2);
 	}
-	if (str == NULL) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-1);
-	}
-	if (strlen(str) >= (size_t)len) {
+
+	/*
+	 * getstrfromtype_locked() can return NULL for an empty value -- make
+	 * sure to handle this by coercing the NULL back into an empty string.
+	 */
+	if (str != NULL && (strlen(str) >= (size_t)len)) {
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
 #endif
 		return (-3);
 	}
-	strlcpy(auditstr, str, len);
+	strlcpy(auditstr, str != NULL ? str : "", len);
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
 #endif
@@ -701,6 +701,61 @@ getacexpire(int *andflg, time_t *age, size_t *size)
 		return (-1);
 	}
 
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+	pthread_mutex_unlock(&mutex);
+#endif
+	return (0);
+}
+/*
+ * Return the desired queue size from the audit control file.
+ */
+int
+getacqsize(int *qsz_val)
+{
+	char *str;
+	int nparsed;
+
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+	pthread_mutex_lock(&mutex);
+#endif
+	setac_locked();
+	if (getstrfromtype_locked(QSZ_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		return (-2);
+	}
+	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		*qsz_val = USE_DEFAULT_QSZ;
+		return (0);
+	}
+
+	/* Trim off any leading white space. */
+	while (*str == ' ' || *str == '\t')
+		str++;
+
+	nparsed = sscanf(str, "%d", (int *)qsz_val);
+
+	if (nparsed != 1) {
+		errno = EINVAL;
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		return (-1);
+	}
+
+	/* The queue size must either be 0 or < AQ_MAXHIGH */
+	if (*qsz_val < 0 || *qsz_val > AQ_MAXHIGH) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		qsz_val = 0L;
+		errno = EINVAL;
+		return (-1);
+	}
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 	pthread_mutex_unlock(&mutex);
 #endif

@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_BREAKLOOP 3PCAP "5 April 2008"
+.TH PCAP_BREAKLOOP 3PCAP "8 March 2015"
 .SH NAME
 pcap_breakloop \- force a pcap_dispatch() or pcap_loop() call to return
 .SH SYNOPSIS
@@ -91,7 +91,7 @@ If \-2 is returned from
 .B pcap_dispatch()
 or
 .BR pcap_loop() ,
-the flag is cleared, so a subsequent call will resume reading packets. 
+the flag is cleared, so a subsequent call will resume reading packets.
 If a positive number is returned, the flag is not cleared, so a
 subsequent call will return \-2 and clear the flag.
 .SH SEE ALSO

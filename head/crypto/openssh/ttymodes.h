@@ -1,4 +1,4 @@
-/* $OpenBSD: ttymodes.h,v 1.14 2006/03/25 22:22:43 djm Exp $ */
+/* $OpenBSD: ttymodes.h,v 1.15 2016/05/03 09:03:49 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -127,6 +127,9 @@ TTYMODE(IXOFF,	c_iflag, 40)
 #ifdef IMAXBEL
 TTYMODE(IMAXBEL,c_iflag, 41)
 #endif /* IMAXBEL */
+#ifdef IUTF8
+TTYMODE(IUTF8,  c_iflag, 42)
+#endif /* IUTF8 */
 
 TTYMODE(ISIG,	c_lflag, 50)
 TTYMODE(ICANON,	c_lflag, 51)

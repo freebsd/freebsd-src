@@ -35,7 +35,7 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../libpam
+.PATH: ${SRCTOP}/lib/libpam
 
 # Only build the static library.
 LIB=	pam
@@ -64,6 +64,6 @@ CLEANFILES+=	openpam_static.o \
 		openpam_static_modules.o
 
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
-	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
+	${CC} -nostdlib ${LDFLAGS} -o ${.TARGET} -r -Wl,--whole-archive ${.ALLSRC}
 
-.include "${.CURDIR}/../libpam/Makefile"
+.include "${.CURDIR:H}/libpam/Makefile"

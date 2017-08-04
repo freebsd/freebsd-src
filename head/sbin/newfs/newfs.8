@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2015
+.Dd July 7, 2017
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -79,11 +79,9 @@ The following options define the general layout policies:
 .It Fl E
 Erase the content of the disk before making the filesystem.
 The reserved area in front of the superblock (for bootcode) will not be erased.
-.Pp
-This option is only relevant for flash based storage devices that use
-wear-leveling algorithms.
-.Pp
-Erasing may take a long time as it writes to every sector on the disk.
+Erasing is only relevant to flash-memory or thinly provisioned devices.
+Erasing may take a long time.
+If the device does not support BIO_DELETE, the command will fail.
 .It Fl J
 Enable journaling on the new file system via gjournal.
 See
@@ -264,9 +262,11 @@ Turn on the TRIM enable flag.
 If enabled, and if the underlying device supports the BIO_DELETE
 command, the file system will send a delete request to the underlying
 device for each freed block.
-The trim enable flag is typically set when the underlying device
-uses flash-memory as the device can use the delete command to
-pre-zero or at least avoid copying blocks that have been deleted.
+The trim enable flag is typically set for flash-memory devices to
+reduce write amplification which reduces wear on write-limited
+flash-memory and often improves long-term performance.
+Thinly provisioned storage also benefits by returning unused blocks to
+the global pool.
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.

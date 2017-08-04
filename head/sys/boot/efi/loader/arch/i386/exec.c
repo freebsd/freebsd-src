@@ -36,6 +36,12 @@ __FBSDID("$FreeBSD$");
 uint32_t __base;
 struct __v86 __v86;
 
+/* XXX - Needed a definition here to implicitly define exit(); do not remove. */
+static void
+exit(int x)
+{
+}
+
 void
 __v86int()
 {

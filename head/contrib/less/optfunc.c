@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,9 +47,9 @@ extern char *every_first_cmd;
 extern IFILE curr_ifile;
 extern char version[];
 extern int jump_sline;
-extern int jump_sline_fraction;
+extern long jump_sline_fraction;
 extern int shift_count;
-extern int shift_count_fraction;
+extern long shift_count_fraction;
 extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
@@ -67,6 +67,7 @@ extern int bo_fg_color, bo_bg_color;
 extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
+extern int sgr_mode;
 #endif
 
 
@@ -179,7 +180,7 @@ opt_j(type, s)
 		} else
 		{
 
-			sprintf(buf, ".%06d", jump_sline_fraction);
+			sprintf(buf, ".%06ld", jump_sline_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -244,7 +245,7 @@ opt_shift(type, s)
 		} else
 		{
 
-			sprintf(buf, ".%06d", shift_count_fraction);
+			sprintf(buf, ".%06ld", shift_count_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -361,7 +362,7 @@ opt__T(type, s)
 	public void
 opt_p(type, s)
 	int type;
-	register char *s;
+	char *s;
 {
 	switch (type)
 	{
@@ -397,9 +398,9 @@ opt_p(type, s)
 	public void
 opt__P(type, s)
 	int type;
-	register char *s;
+	char *s;
 {
-	register char **proto;
+	char **proto;
 	PARG parg;
 
 	switch (type)
@@ -517,7 +518,7 @@ opt__V(type, s)
 		putstr("no ");
 #endif
 		putstr("regular expressions)\n");
-		putstr("Copyright (C) 1984-2015  Mark Nudelman\n\n");
+		putstr("Copyright (C) 1984-2017  Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
@@ -573,6 +574,8 @@ opt_D(type, s)
 	int type;
 	char *s;
 {
+	PARG p;
+
 	switch (type)
 	{
 	case INIT:
@@ -594,8 +597,11 @@ opt_D(type, s)
 		case 's':
 			colordesc(s, &so_fg_color, &so_bg_color);
 			break;
+		case 'a':
+			sgr_mode = !sgr_mode;
+			break;
 		default:
-			error("-D must be followed by n, d, u, k or s", NULL_PARG);
+			error("-D must be followed by n, d, u, k, s or a", NULL_PARG);
 			break;
 		}
 		if (type == TOGGLE)
@@ -605,6 +611,8 @@ opt_D(type, s)
 		}
 		break;
 	case QUERY:
+		p.p_string = (sgr_mode) ? "on" : "off";
+		error("SGR mode is %s", &p);
 		break;
 	}
 }
@@ -616,7 +624,7 @@ opt_D(type, s)
 	public void
 opt_x(type, s)
 	int type;
-	register char *s;
+	char *s;
 {
 	extern int tabstops[];
 	extern int ntabstops;
@@ -674,7 +682,7 @@ opt_x(type, s)
 	public void
 opt_quote(type, s)
 	int type;
-	register char *s;
+	char *s;
 {
 	char buf[3];
 	PARG parg;

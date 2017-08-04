@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2015 The FreeBSD Foundation
+# Copyright (c) 2013-2017 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
@@ -148,10 +148,11 @@ env_check() {
 		WITH_COMPRESSED_IMAGES=
 		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
-			arm:armv6)
-				chroot_build_release_cmd="chroot_arm_armv6_build_release"
+			arm:armv6|arm64:aarch64)
+				chroot_build_release_cmd="chroot_arm_build_release"
 				;;
 			*)
+				;;
 		esac
 	fi
 
@@ -205,8 +206,8 @@ env_check() {
 	CHROOT_MAKEENV="${CHROOT_MAKEENV} \
 		MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
-	CHROOT_IMAKEFLAGS="${CONF_FILES}"
-	CHROOT_DMAKEFLAGS="${CONF_FILES}"
+	CHROOT_IMAKEFLAGS="${WORLD_FLAGS} ${CONF_FILES}"
+	CHROOT_DMAKEFLAGS="${WORLD_FLAGS} ${CONF_FILES}"
 	RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} \
 		${CONF_FILES}"
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
@@ -346,13 +347,19 @@ chroot_build_release() {
 	return 0
 } # chroot_build_release()
 
-# chroot_arm_armv6_build_release(): Create arm/armv6 SD card image.
-chroot_arm_armv6_build_release() {
+# chroot_arm_build_release(): Create arm SD card image.
+chroot_arm_build_release() {
 	load_target_env
 	eval chroot ${CHROOTDIR} make -C /usr/src/release obj
-	if [ -e "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr" ]; then
-		. "${RELENGDIR}/tools/${EMBEDDED_TARGET}.subr"
-	fi
+	case ${EMBEDDED_TARGET} in
+		arm|arm64)
+			if [ -e "${RELENGDIR}/tools/arm.subr" ]; then
+				. "${RELENGDIR}/tools/arm.subr"
+			fi
+			;;
+		*)
+			;;
+	esac
 	[ ! -z "${RELEASECONF}" ] && . "${RELEASECONF}"
 	WORLDDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V WORLDDIR)"
 	OBJDIR="$(eval chroot ${CHROOTDIR} make -C /usr/src/release -V .OBJDIR)"
@@ -381,7 +388,7 @@ chroot_arm_armv6_build_release() {
 		> CHECKSUM.SHA256
 
 	return 0
-} # chroot_arm_armv6_build_release()
+} # chroot_arm_build_release()
 
 # main(): Start here.
 main() {

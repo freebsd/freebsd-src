@@ -10,21 +10,22 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Support for the Link Management Protocol as per rfc 4204.
- *
  * Original code by Hannes Gredler (hannes@juniper.net)
  * Support for LMP service discovery extensions (defined by UNI 1.0) added
  * by Manu Pathak (mapathak@cisco.com), May 2005
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Link Management Protocol (LMP) printer */
+
+/* specification: RFC 4204 */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 #include "gmpls.h"
@@ -459,14 +460,12 @@ lmp_print(netdissect_options *ndo,
                        ipaddr_string(ndo, obj_tptr),
                        EXTRACT_32BITS(obj_tptr)));
                 break;
-#ifdef INET6
             case LMP_CTYPE_IPV6_LOC:
             case LMP_CTYPE_IPV6_RMT:
                 ND_PRINT((ndo, "\n\t    IPv6 Link ID: %s (0x%08x)",
                        ip6addr_string(ndo, obj_tptr),
                        EXTRACT_32BITS(obj_tptr)));
                 break;
-#endif
             case LMP_CTYPE_UNMD_LOC:
             case LMP_CTYPE_UNMD_RMT:
                 ND_PRINT((ndo, "\n\t    Link ID: %u (0x%08x)",
@@ -551,9 +550,7 @@ lmp_print(netdissect_options *ndo,
                        EXTRACT_32BITS(obj_tptr+8)));
 		break;
 
-#ifdef INET6
 	    case LMP_CTYPE_IPV6:
-#endif
 	    case LMP_CTYPE_UNMD:
             default:
                 hexdump=TRUE;
@@ -620,9 +617,7 @@ lmp_print(netdissect_options *ndo,
 		}
 
 		break;
-#ifdef INET6
 	    case LMP_CTYPE_IPV6:
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -709,9 +704,7 @@ lmp_print(netdissect_options *ndo,
 			offset+=8;
 		}
                 break;
-#ifdef INET6
 	    case LMP_CTYPE_IPV6:
-#endif
             default:
                 hexdump=TRUE;
             }
@@ -729,9 +722,7 @@ lmp_print(netdissect_options *ndo,
 			offset+=4;
 		}
                 break;
-#ifdef INET6
 	    case LMP_CTYPE_IPV6:
-#endif
 	    default:
                 hexdump=TRUE;
             }
@@ -851,7 +842,7 @@ lmp_print(netdissect_options *ndo,
 
 	    default:
 		hexdump = TRUE;
-	    };
+	    }
 
 	break;
 

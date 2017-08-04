@@ -66,7 +66,7 @@ efx_mcdi_get_rxdp_config(
 		/* RX DMA end padding is disabled */
 		end_padding = 0;
 	} else {
-		switch(MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+		switch (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
 					    GET_RXDP_CONFIG_OUT_PAD_HOST_LEN)) {
 		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64:
 			end_padding = 64;
@@ -283,18 +283,27 @@ medford_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-	    goto fail10;
+		goto fail10;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
 
 	/* Get the RX DMA end padding alignment configuration */
-	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0)
-		goto fail11;
+	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0) {
+		if (rc != EACCES)
+			goto fail11;
+
+		/* Assume largest tail padding size supported by hardware */
+		end_padding = 256;
+	}
 	encp->enc_rx_buf_align_end = end_padding;
 
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
+
+	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
+	/* No boundary crossing limits */
+	encp->enc_tx_dma_desc_boundary = 0;
 
 	/*
 	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use

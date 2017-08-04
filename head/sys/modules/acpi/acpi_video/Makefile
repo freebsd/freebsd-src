@@ -1,6 +1,6 @@
 #	$FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/acpica
+.PATH:	${SRCTOP}/sys/dev/acpica
 
 KMOD=	acpi_video
 SRCS=	acpi_video.c

@@ -750,8 +750,8 @@ feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *m,
 
 	tmpmap = 0x0000000000000000ULL;
 
-	for (i = 0; m->map[i].type != SND_CHN_T_MAX &&
-	    i < SND_CHN_OSS_MAX; i++) {
+	for (i = 0; i < SND_CHN_OSS_MAX && m->map[i].type != SND_CHN_T_MAX;
+	    i++) {
 		if ((1 << m->map[i].type) & ~SND_CHN_OSS_VALIDMASK)
 			return (EINVAL);
 		tmpmap |=

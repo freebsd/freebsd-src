@@ -29,6 +29,32 @@
 #include "sun8i-a83t-sinovoip-bpi-m3.dts"
 #include "a83t.dtsi"
 
+/ {
+	cpus {
+		cpu@0 {
+			cpu-supply = <&reg_dcdc2>;
+			operating-points = <
+				/* kHz    uV */
+				1200000	840000
+				1008000	840000
+				648000	840000
+				408000	840000
+				>;
+		};
+
+		cpu@100 {
+			cpu-supply = <&reg_dcdc3>;
+			operating-points = <
+				/* kHz    uV */
+				1200000	840000
+				1008000	840000
+				648000	840000
+				408000	840000
+				>;
+		};
+	};
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -115,6 +141,16 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		gpio-controller;
 		#gpio-cells = <1>;
+
+		regulators {
+			reg_dcdc2: dcdc2 {
+				regulator-name = "dcdc2";
+			};
+
+			reg_dcdc3: dcdc3 {
+				regulator-name = "dcdc3";
+			};
+		};
 	};
 };
 

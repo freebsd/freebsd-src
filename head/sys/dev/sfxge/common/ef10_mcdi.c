@@ -108,13 +108,53 @@ ef10_mcdi_fini(
 	emip->emi_new_epoch = B_FALSE;
 }
 
+/*
+ * In older firmware all commands are processed in a single thread, so a long
+ * running command for one PCIe function can block processing for another
+ * function (see bug 61269).
+ *
+ * In newer firmware that supports multithreaded MCDI processing, we can extend
+ * the timeout for long-running requests which we know firmware may choose to
+ * process in a background thread.
+ */
+#define	EF10_MCDI_CMD_TIMEOUT_US	(10 * 1000 * 1000)
+#define	EF10_MCDI_CMD_LONG_TIMEOUT_US	(60 * 1000 * 1000)
+
+			void
+ef10_mcdi_get_timeout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *timeoutp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+
+	switch (emrp->emr_cmd) {
+	case MC_CMD_POLL_BIST:
+	case MC_CMD_NVRAM_ERASE:
+	case MC_CMD_LICENSING_V3:
+	case MC_CMD_NVRAM_UPDATE_FINISH:
+		if (encp->enc_fw_verified_nvram_update_required != B_FALSE) {
+			/*
+			 * Potentially longer running commands, which firmware
+			 * may choose to process in a background thread.
+			 */
+			*timeoutp = EF10_MCDI_CMD_LONG_TIMEOUT_US;
+			break;
+		}
+		/* FALLTHRU */
+	default:
+		*timeoutp = EF10_MCDI_CMD_TIMEOUT_US;
+		break;
+	}
+}
+
 			void
 ef10_mcdi_send_request(
-	__in		efx_nic_t *enp,
-	__in		void *hdrp,
-	__in		size_t hdr_len,
-	__in		void *sdup,
-	__in		size_t sdu_len)
+	__in			efx_nic_t *enp,
+	__in_bcount(hdr_len)	void *hdrp,
+	__in			size_t hdr_len,
+	__in_bcount(sdu_len)	void *sdup,
+	__in			size_t sdu_len)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
@@ -159,6 +199,8 @@ ef10_mcdi_poll_response(
 	efx_dword_t hdr;
 
 	EFSYS_MEM_READD(esmp, 0, &hdr);
+	EFSYS_MEM_READ_BARRIER();
+
 	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
 }
 

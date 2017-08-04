@@ -626,6 +626,8 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    /* data rate */
 	    if (b == 0)
 		sprintf(bwbuf, "unlimited     ");
+	    else if (b >= 1000000000)
+		sprintf(bwbuf, "%7.3f Gbit/s", b/1000000000);
 	    else if (b >= 1000000)
 		sprintf(bwbuf, "%7.3f Mbit/s", b/1000000);
 	    else if (b >= 1000)
@@ -805,8 +807,7 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 			warn("interface name truncated");
 		namelen--;
 		/* interface name */
-		strncpy(if_name, arg, namelen);
-		if_name[namelen] = '\0';
+		strlcpy(if_name, arg, namelen);
 		*bandwidth = 0;
 	} else {	/* read bandwidth value */
 		int bw;
@@ -819,6 +820,9 @@ read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 		} else if (*end == 'M' || *end == 'm') {
 			end++;
 			bw *= 1000000;
+		} else if (*end == 'G' || *end == 'g') {
+			end++;
+			bw *= 1000000000;
 		}
 		if ((*end == 'B' &&
 			_substrcmp2(end, "Bi", "Bit/s") != 0) ||
@@ -933,8 +937,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 		} else if (!strcasecmp(name, ED_TOK_NAME)) {
 		    if (profile_name[0] != '\0')
 			errx(ED_EFMT("duplicated token: %s"), name);
-		    strncpy(profile_name, arg, sizeof(profile_name) - 1);
-		    profile_name[sizeof(profile_name)-1] = '\0';
+		    strlcpy(profile_name, arg, sizeof(profile_name));
 		    do_points = 0;
 		} else if (!strcasecmp(name, ED_TOK_DELAY)) {
 		    if (do_points)
@@ -1005,7 +1008,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 	}
 	p->samples_no = samples;
 	p->loss_level = loss * samples;
-	strncpy(p->name, profile_name, sizeof(p->name));
+	strlcpy(p->name, profile_name, sizeof(p->name));
 }
 
 #ifdef NEW_AQM
@@ -1568,7 +1571,8 @@ end_mask:
 			fs->flags &= ~(DN_IS_RED|DN_IS_GENTLE_RED);
 			fs->flags |= DN_IS_AQM;
 
-			strcpy(aqm_extra->name,av[-1]);
+			strlcpy(aqm_extra->name, av[-1],
+			    sizeof(aqm_extra->name));
 			aqm_extra->oid.subtype = DN_AQM_PARAMS;
 
 			process_extra_parms(&ac, av, aqm_extra, tok);
@@ -1580,7 +1584,8 @@ end_mask:
 				errx(EX_DATAERR, "use type before fq_codel/fq_pie");
 
 			NEED(sch, "fq_codel/fq_pie is only for schd");
-			strcpy(sch_extra->name,av[-1]);
+			strlcpy(sch_extra->name, av[-1],
+			    sizeof(sch_extra->name));
 			sch_extra->oid.subtype = DN_SCH_PARAMS;
 			process_extra_parms(&ac, av, sch_extra, tok);
 			break;
@@ -1649,14 +1654,15 @@ end_mask:
 			l = strlen(av[0]);
 			if (l == 0 || l > 15)
 				errx(1, "type %s too long\n", av[0]);
-			strcpy(sch->name, av[0]);
+			strlcpy(sch->name, av[0], sizeof(sch->name));
 			sch->oid.subtype = 0; /* use string */
 #ifdef NEW_AQM
 			/* if fq_codel is selected, consider all tokens after it
 			 * as parameters
 			 */
 			if (!strcasecmp(av[0],"fq_codel") || !strcasecmp(av[0],"fq_pie")){
-				strcpy(sch_extra->name,av[0]);
+				strlcpy(sch_extra->name, av[0],
+				    sizeof(sch_extra->name));
 				sch_extra->oid.subtype = DN_SCH_PARAMS;
 				process_extra_parms(&ac, av, sch_extra, tok);
 			} else {
@@ -1881,7 +1887,7 @@ parse_range(int ac, char *av[], uint32_t *v, int len)
 			av--;
 		}
 		if (v[1] < v[0] ||
-			v[1] >= DN_MAX_ID-1 ||
+			v[0] >= DN_MAX_ID-1 ||
 			v[1] >= DN_MAX_ID-1) {
 			continue; /* invalid entry */
 		}

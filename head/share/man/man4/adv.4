@@ -28,7 +28,7 @@
 .Os
 .Sh NAME
 .Nm adv
-.Nd Advansys ISA/VL/EISA/PCI 8bit SCSI Host adapter driver
+.Nd Advansys ISA/VL/PCI Narrow 8bit SCSI Host adapter driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -36,9 +36,6 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device scbus"
 .Cd "device adv"
-.Pp
-For one or more EISA cards:
-.Cd "device eisa"
 .Pp
 For one or more VL/ISA cards:
 .Cd "device isa"
@@ -51,7 +48,7 @@ For one or more PCI cards:
 .Cd "device pci"
 .Ed
 .Sh DESCRIPTION
-This driver provides access to the 8bit
+This driver provides access to the narrow 8bit
 .Tn SCSI
 bus connected to the Advanced Systems Products, Inc.
 .Tn ASC900 ,
@@ -82,8 +79,8 @@ Connectivity Products:
 .It "ABP930" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta "5"
 .It "ABP930U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
 .It "ABP930UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
-.It "ABP960" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
-.It "ABP960U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
+.It "ABP960" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta "2"
+.It "ABP960U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta "2"
 .El
 .Pp
 Footnotes:
@@ -104,10 +101,9 @@ This board has been sold by SIIG as the Fast SCSI Pro PCI.
 .Ed
 .Bd -ragged -offset indent
 Single Channel Products:
-.Bl -column "ABPX3X940UA " "EISA " "Floppy " "MaxSync " "Commands"
+.Bl -column "ABPX3X940UA " "PCI " "Floppy " "MaxSync " "Commands"
 .Em "Adapter" Ta Em "Bus" Ta Em "Floppy" Ta Em "MaxSync" Ta Em "Commands"
 .It "ABP542" Ta "ISA" Ta "Yes" Ta "10MHz" Ta "240"
-.It "ABP742" Ta "EISA" Ta "Yes" Ta "10MHz" Ta "240"
 .It "ABP842" Ta "VL" Ta "Yes" Ta "10MHz" Ta "240"
 .It "ABP940" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240"
 .It "ABP[3]940UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240"
@@ -119,9 +115,8 @@ Single Channel Products:
 .Ed
 .Bd -ragged -offset indent
 Multi Channel Products (Commands are per-channel):
-.Bl -column "ABPX3X980UA " "EISA " "Floppy " "MaxSync " "Commands " "Channels"
+.Bl -column "ABPX3X980UA " "PCI " "Floppy " "MaxSync " "Commands " "Channels"
 .Em "Adapter" Ta Em "Bus" Ta Em "Floppy" Ta Em "MaxSync" Ta Em "Commands" Ta Em "Channels"
-.It "ABP752" Ta "EISA" Ta "Yes" Ta "10MHz" Ta "240" Ta "2"
 .It "ABP852" Ta "VL" Ta "Yes" Ta "10MHz" Ta "240" Ta "2"
 .It "ABP950" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240" Ta "2"
 .It "ABP980" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240" Ta "4"
@@ -130,15 +125,17 @@ Multi Channel Products (Commands are per-channel):
 .El
 .Ed
 .Pp
-.\" For ISA or Vesa Local Bus adapters, one kernel config entry is required
-.\" for every card to be attached by the system.  Specific values for the port
-.\" address, irq, and drq may be specified.  If wildcard values are used, the
-.\" driver will query the device for its current settings and use those.  If
-.\" the port address is a wildcard, the driver consults an internal table of
-.\" possible port address locations and attaches to the first unattached card
-.\" it finds.  The possible port addresses for these card are 0x110, 0x130,
-.\" 0x150, 0x190, 0x210, 0x230, 0x250, and 0x330.
-.\" .Pp
+For ISA or Vesa Local Bus adapters, one kernel hints entry is required
+for every card to be attached by the system.
+Specific values for the port address, irq and drq may be specified.
+If unspecified, the driver will query the device for its current
+settings and use those.
+If the port address is unspecified, the driver will search for it at
+one of the possible addresses.
+Cards configured for ISA PNP addresses are found automatically.
+The possible port addresses for these card are 0x110, 0x130,
+0x150, 0x190, 0x210, 0x230, 0x250, and 0x330.
+.Pp
 Per target configuration performed in the
 .Tn AdvanceWare
 menu, which is accessible at boot,
@@ -181,8 +178,6 @@ AdvanSys ABP960, ABP960U
 .It
 AdvanSys ABP542
 .It
-AdvanSys ABP742
-.It
 AdvanSys ABP842
 .It
 AdvanSys ABP940
@@ -195,8 +190,6 @@ AdvanSys ABP3960UA
 .It
 AdvanSys ABP970, ABP970U
 .It
-AdvanSys ABP752
-.It
 AdvanSys ABP852
 .It
 AdvanSys ABP950
@@ -204,17 +197,10 @@ AdvanSys ABP950
 AdvanSys ABP980, ABP980U
 .It
 AdvanSys ABP980UA/3980UA
-.It
-MELCO IFC-USP (PC-98)
-.It
-RATOC REX-PCI30 (PC-98)
-.It
-@Nifty FNECHARD IFC-USUP-TX (PC-98)
 .El
 .Sh SEE ALSO
 .Xr adw 4 ,
 .Xr aha 4 ,
-.Xr ahb 4 ,
 .Xr ahc 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,

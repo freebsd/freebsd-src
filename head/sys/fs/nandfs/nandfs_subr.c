@@ -80,7 +80,7 @@ nandfs_bufsync(struct bufobj *bo, int waitfor)
 	struct vnode *vp;
 	int error = 0;
 
-	vp = bo->__bo_vnode;
+	vp = bo2vnode(bo);
 
 	ASSERT_VOP_LOCKED(vp, __func__);
 	error = nandfs_sync_file(vp);

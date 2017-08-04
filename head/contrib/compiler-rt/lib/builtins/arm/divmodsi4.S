@@ -23,7 +23,7 @@
 
 	.syntax unified
 	.text
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 	.thumb
 #endif
 
@@ -32,7 +32,7 @@
 @   value is the quotient, the remainder is placed in the variable.
 
 	.p2align 3
-#if __ARM_ARCH_ISA_THUMB == 2
+#if defined(USE_THUMB_PROLOGUE)
 DEFINE_COMPILERRT_THUMB_FUNCTION(__divmodsi4)
 #else
 DEFINE_COMPILERRT_FUNCTION(__divmodsi4)
@@ -72,3 +72,6 @@ LOCAL_LABEL(divzero):
     CLEAR_FRAME_AND_RETURN
 #endif
 END_COMPILERRT_FUNCTION(__divmodsi4)
+
+NO_EXEC_STACK_DIRECTIVE
+

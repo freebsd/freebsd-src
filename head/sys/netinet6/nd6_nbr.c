@@ -262,8 +262,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
 
-		/* Always use the default FIB. */
-		if (rib_lookup_info(RT_DEFAULT_FIB, (struct sockaddr *)&dst6,
+		if (rib_lookup_info(ifp->if_fib, (struct sockaddr *)&dst6,
 		    0, 0, &info) == 0) {
 			if ((info.rti_flags & RTF_ANNOUNCE) != 0 &&
 			    rt_gateway.sdl_family == AF_LINK) {
@@ -485,7 +484,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			uint32_t scopeid;
 
 			in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
-			error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+			error = in6_selectsrc_addr(fibnum, &dst6,
 			    scopeid, ifp, &src6, NULL);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
@@ -982,7 +981,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	 * Select a source whose scope is the same as that of the dest.
 	 */
 	in6_splitscope(&daddr6, &dst6, &scopeid);
-	error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+	error = in6_selectsrc_addr(fibnum, &dst6,
 	    scopeid, ifp, &src6, NULL);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
@@ -1086,7 +1085,6 @@ nd6_ifptomac(struct ifnet *ifp)
 	case IFT_FDDI:
 	case IFT_IEEE1394:
 	case IFT_L2VLAN:
-	case IFT_IEEE80211:
 	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_ISO88025:
@@ -1217,40 +1215,26 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
+	KASSERT((ia->ia6_flags & IN6_IFF_TENTATIVE) != 0,
+	    ("starting DAD on non-tentative address %p", ifa));
+
 	/*
 	 * If we don't need DAD, don't do it.
 	 * There are several cases:
-	 * - DAD is disabled (ip6_dad_count == 0)
+	 * - DAD is disabled globally or on the interface
 	 * - the interface address is anycast
 	 */
-	if (!(ia->ia6_flags & IN6_IFF_TENTATIVE)) {
-		log(LOG_DEBUG,
-			"nd6_dad_start: called with non-tentative address "
-			"%s(%s)\n",
-			ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
-			ifa->ifa_ifp ? if_name(ifa->ifa_ifp) : "???");
-		return;
-	}
-	if (ia->ia6_flags & IN6_IFF_ANYCAST) {
+	if ((ia->ia6_flags & IN6_IFF_ANYCAST) != 0 ||
+	    V_ip6_dad_count == 0 ||
+	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_NO_DAD) != 0) {
 		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
-	if (!V_ip6_dad_count) {
-		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+	if ((ifa->ifa_ifp->if_flags & IFF_UP) == 0 ||
+	    (ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED) != 0)
 		return;
-	}
-	if (ifa->ifa_ifp == NULL)
-		panic("nd6_dad_start: ifa->ifa_ifp == NULL");
-	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_NO_DAD) {
-		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
-		return;
-	}
-	if (!(ifa->ifa_ifp->if_flags & IFF_UP) ||
-	    !(ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
-	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)) {
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
-		return;
-	}
+
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/*
 		 * DAD is already in progress.  Let the existing entry
@@ -1329,11 +1313,8 @@ nd6_dad_timer(struct dadq *dp)
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	/* Sanity check */
-	if (ia == NULL) {
-		log(LOG_ERR, "nd6_dad_timer: called with null parameter\n");
-		goto err;
-	}
+	KASSERT(ia != NULL, ("DAD entry %p with no address", dp));
+
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
 		/* Do not need DAD for ifdisabled interface. */
 		log(LOG_ERR, "nd6_dad_timer: cancel DAD on %s because of "
@@ -1474,7 +1455,6 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 		case IFT_FDDI:
 		case IFT_ATM:
 		case IFT_IEEE1394:
-		case IFT_IEEE80211:
 		case IFT_INFINIBAND:
 			in6 = ia->ia_addr.sin6_addr;
 			if (in6_get_hw_ifid(ifp, &in6) == 0 &&

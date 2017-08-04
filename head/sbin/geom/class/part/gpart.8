@@ -543,11 +543,6 @@ The
 option enables backward compatibility for partition names
 in the EBR scheme.
 It also prevents any type of actions on such partitions.
-.It Cm PC98
-An MBR variant for NEC PC-98 and compatible computers.
-Requires the
-.Cm GEOM_PART_PC98
-kernel option.
 .It Cm VTOC8
 Sun's SMI Volume Table Of Contents, used by
 .Tn SPARC64
@@ -945,12 +940,6 @@ The scheme-specific attributes for MBR:
 .Bl -tag -width ".Cm active"
 .It Cm active
 .El
-.Pp
-The scheme-specific attributes for PC98:
-.Bl -tag -width ".Cm bootable"
-.It Cm active
-.It Cm bootable
-.El
 .Sh BOOTSTRAPPING
 .Fx
 supports several partitioning schemes and each scheme uses different
@@ -1157,6 +1146,18 @@ variables can be used to control the behavior of the
 GEOM class.
 The default value is shown next to each variable.
 .Bl -tag -width indent
+.It Va kern.geom.part.auto_resize: No 1
+This variable controls automatic resize behavior of
+.Nm
+GEOM class.
+When this variable is enable and new size of provider is detected, the schema
+metadata is resized but all changes are not saved to disk, until
+.Cm gpart commit
+is run to confirm changes.
+This behavior is also reported with diagnostic message:
+.Sy "GEOM_PART: (provider) was automatically resized."
+.Sy "Use `gpart commit (provider)` to save changes or `gpart undo (provider)`"
+.Sy "to revert them."
 .It Va kern.geom.part.check_integrity : No 1
 This variable controls the behaviour of metadata integrity checks.
 When integrity checks are enabled, the

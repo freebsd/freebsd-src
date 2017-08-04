@@ -41,7 +41,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -118,11 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netinet6/ip6_ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <netinet6/ip6protosw.h>
 
@@ -524,14 +520,11 @@ ip6_direct_input(struct mbuf *m)
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
@@ -548,13 +541,21 @@ ip6_input(struct mbuf *m)
 	struct in6_addr odst;
 	struct ip6_hdr *ip6;
 	struct in6_ifaddr *ia;
+	struct ifnet *rcvif;
 	u_int32_t plen;
 	u_int32_t rtalert = ~0;
 	int off = sizeof(struct ip6_hdr), nest;
 	int nxt, ours = 0;
 	int srcrt = 0;
 
-#ifdef IPSEC
+	/*
+	 * Drop the packet if IPv6 operation is disabled on the interface.
+	 */
+	rcvif = m->m_pkthdr.rcvif;
+	if ((ND_IFINFO(rcvif)->flags & ND6_IFF_IFDISABLED))
+		goto bad;
+
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * should the inner packet be considered authentic?
 	 * see comment in ah4_input().
@@ -588,20 +589,15 @@ ip6_input(struct mbuf *m)
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
 				IP6STAT_INC(ip6s_m2m[V_loif->if_index]);
-			} else if (m->m_pkthdr.rcvif->if_index < IP6S_M2MMAX)
-				IP6STAT_INC(
-				    ip6s_m2m[m->m_pkthdr.rcvif->if_index]);
+			} else if (rcvif->if_index < IP6S_M2MMAX)
+				IP6STAT_INC(ip6s_m2m[rcvif->if_index]);
 			else
 				IP6STAT_INC(ip6s_m2m[0]);
 		} else
 			IP6STAT_INC(ip6s_m1);
 	}
 
-	/* drop the packet if IPv6 operation is disabled on the IF */
-	if ((ND_IFINFO(m->m_pkthdr.rcvif)->flags & ND6_IFF_IFDISABLED))
-		goto bad;
-
-	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_receive);
+	in6_ifstat_inc(rcvif, ifs6_in_receive);
 	IP6STAT_INC(ip6s_total);
 
 #ifndef PULLDOWN_TEST
@@ -617,10 +613,8 @@ ip6_input(struct mbuf *m)
 			n = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		else
 			n = m_gethdr(M_NOWAIT, MT_DATA);
-		if (n == NULL) {
-			m_freem(m);
-			return;	/* ENOBUFS */
-		}
+		if (n == NULL)
+			goto bad;
 
 		m_move_pkthdr(n, m);
 		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
@@ -632,26 +626,22 @@ ip6_input(struct mbuf *m)
 #endif
 
 	if (m->m_len < sizeof(struct ip6_hdr)) {
-		struct ifnet *inifp;
-		inifp = m->m_pkthdr.rcvif;
 		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
 			IP6STAT_INC(ip6s_toosmall);
-			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
-			return;
+			in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
+			goto bad;
 		}
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
-
 	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
 		IP6STAT_INC(ip6s_badvers);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_hdrerr);
 		goto bad;
 	}
 
 	IP6STAT_INC(ip6s_nxthist[ip6->ip6_nxt]);
-
-	IP_PROBE(receive, NULL, NULL, ip6, m->m_pkthdr.rcvif, NULL, ip6);
+	IP_PROBE(receive, NULL, NULL, ip6, rcvif, NULL, ip6);
 
 	/*
 	 * Check against address spoofing/corruption.
@@ -662,7 +652,7 @@ ip6_input(struct mbuf *m)
 		 * XXX: "badscope" is not very suitable for a multicast source.
 		 */
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
 	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst) &&
@@ -674,7 +664,7 @@ ip6_input(struct mbuf *m)
 		 * as the outgoing/incoming interface.
 		 */
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
@@ -686,7 +676,7 @@ ip6_input(struct mbuf *m)
 		 * a packet is received, it must be silently dropped.
 		 */
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
 #ifdef ALTQ
@@ -710,7 +700,7 @@ ip6_input(struct mbuf *m)
 	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
 #if 0
@@ -728,14 +718,37 @@ ip6_input(struct mbuf *m)
 		goto bad;
 	}
 #endif
-#ifdef IPSEC
+	/*
+	 * Try to forward the packet, but if we fail continue.
+	 * ip6_tryforward() does inbound and outbound packet firewall
+	 * processing. If firewall has decided that destination becomes
+	 * our local address, it sets M_FASTFWD_OURS flag. In this
+	 * case skip another inbound firewall processing and update
+	 * ip6 pointer.
+	 */
+	if (V_ip6_forwarding != 0
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	    && (!IPSEC_ENABLED(ipv6) ||
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_OPERABLE) == 0)
+#endif
+	    ) {
+		if ((m = ip6_tryforward(m)) == NULL)
+			return;
+		if (m->m_flags & M_FASTFWD_OURS) {
+			m->m_flags &= ~M_FASTFWD_OURS;
+			ours = 1;
+			ip6 = mtod(m, struct ip6_hdr *);
+			goto hbhcheck;
+		}
+	}
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
-	if (ip6_ipsec_filtertunnel(m))
-		goto passin;
-#endif /* IPSEC */
-
+	if (IPSEC_ENABLED(ipv6) &&
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_BYPASS_FILTER) != 0)
+			goto passin;
+#endif
 	/*
 	 * Run through list of hooks for input packets.
 	 *
@@ -743,12 +756,12 @@ ip6_input(struct mbuf *m)
 	 *     (e.g. by NAT rewriting).  When this happens,
 	 *     tell ip6_forward to do the right thing.
 	 */
-	odst = ip6->ip6_dst;
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passin;
 
+	odst = ip6->ip6_dst;
 	if (pfil_run_hooks(&V_inet6_pfil_hook, &m,
 	    m->m_pkthdr.rcvif, PFIL_IN, NULL))
 		return;
@@ -788,8 +801,8 @@ passin:
 		IP6STAT_INC(ip6s_badscope); /* XXX */
 		goto bad;
 	}
-	if (in6_setscope(&ip6->ip6_src, m->m_pkthdr.rcvif, NULL) ||
-	    in6_setscope(&ip6->ip6_dst, m->m_pkthdr.rcvif, NULL)) {
+	if (in6_setscope(&ip6->ip6_src, rcvif, NULL) ||
+	    in6_setscope(&ip6->ip6_dst, rcvif, NULL)) {
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
@@ -799,7 +812,7 @@ passin:
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		ours = 1;
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
+		in6_ifstat_inc(rcvif, ifs6_in_mcast);
 		goto hbhcheck;
 	}
 	/*
@@ -834,7 +847,6 @@ passin:
 	 */
 	if (!V_ip6_forwarding) {
 		IP6STAT_INC(ip6s_cantforward);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 		goto bad;
 	}
 
@@ -866,7 +878,7 @@ passin:
 	 */
 	if (m->m_pkthdr.len - sizeof(struct ip6_hdr) < plen) {
 		IP6STAT_INC(ip6s_tooshort);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
+		in6_ifstat_inc(rcvif, ifs6_in_truncated);
 		goto bad;
 	}
 	if (m->m_pkthdr.len > sizeof(struct ip6_hdr) + plen) {
@@ -893,10 +905,8 @@ passin:
 		 * XXX TODO: Check hlim and multicast scope here to avoid
 		 * unnecessarily calling into ip6_mforward().
 		 */
-		if (ip6_mforward &&
-		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
+		if (ip6_mforward && ip6_mforward(ip6, rcvif, m)) {
 			IP6STAT_INC(ip6s_cantforward);
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 			goto bad;
 		}
 	} else if (!ours) {
@@ -918,7 +928,7 @@ passin:
 	if (IN6_IS_ADDR_V4MAPPED(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst)) {
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
 
@@ -926,7 +936,7 @@ passin:
 	 * Tell launch routine the next header
 	 */
 	IP6STAT_INC(ip6s_delivered);
-	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_deliver);
+	in6_ifstat_inc(rcvif, ifs6_in_deliver);
 	nest = 0;
 
 	while (nxt != IPPROTO_DONE) {
@@ -941,25 +951,24 @@ passin:
 		 */
 		if (m->m_pkthdr.len < off) {
 			IP6STAT_INC(ip6s_tooshort);
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
+			in6_ifstat_inc(rcvif, ifs6_in_truncated);
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	return;
 bad:
-	m_freem(m);
+	in6_ifstat_inc(rcvif, ifs6_in_discard);
+	if (m != NULL)
+		m_freem(m);
 }
 
 /*
@@ -1207,13 +1216,48 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 
 #ifdef SO_TIMESTAMP
 	if ((inp->inp_socket->so_options & SO_TIMESTAMP) != 0) {
-		struct timeval tv;
+		union {
+			struct timeval tv;
+			struct bintime bt;
+			struct timespec ts;
+		} t;
 
-		microtime(&tv);
-		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
-		    SCM_TIMESTAMP, SOL_SOCKET);
-		if (*mp)
-			mp = &(*mp)->m_next;
+		switch (inp->inp_socket->so_ts_clock) {
+		case SO_TS_REALTIME_MICRO:
+			microtime(&t.tv);
+			*mp = sbcreatecontrol((caddr_t) &t.tv, sizeof(t.tv),
+			    SCM_TIMESTAMP, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_BINTIME:
+			bintime(&t.bt);
+			*mp = sbcreatecontrol((caddr_t)&t.bt, sizeof(t.bt),
+			    SCM_BINTIME, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_REALTIME:
+			nanotime(&t.ts);
+			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
+			    SCM_REALTIME, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_MONOTONIC:
+			nanouptime(&t.ts);
+			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
+			    SCM_MONOTONIC, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		default:
+			panic("unknown (corrupted) so_ts_clock");
+		}
 	}
 #endif
 
@@ -1772,6 +1816,6 @@ u_char	inet6ctlerrmap[PRC_NCMDS] = {
 	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,
 	EHOSTUNREACH,	EHOSTUNREACH,	ECONNREFUSED,	ECONNREFUSED,
 	EMSGSIZE,	EHOSTUNREACH,	0,		0,
-	0,		0,		0,		0,
-	ENOPROTOOPT
+	0,		0,		EHOSTUNREACH,	0,
+	ENOPROTOOPT,	ECONNREFUSED
 };

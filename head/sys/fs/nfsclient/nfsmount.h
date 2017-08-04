@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +44,7 @@
  */
 struct	nfsmount {
 	struct	nfsmount_common nm_com;	/* Common fields for nlm */
+	uint32_t nm_privflag;		/* Private flags */
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_FHMAX];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
@@ -99,6 +100,10 @@ struct	nfsmount {
 #define	nm_getinfo	nm_com.nmcom_getinfo
 #define	nm_vinvalbuf	nm_com.nmcom_vinvalbuf
 
+/* Private flags. */
+#define	NFSMNTP_FORCEDISM	0x00000001
+#define	NFSMNTP_CANCELRPCS	0x00000002
+
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\
 	(&((m)->nm_name[(m)->nm_krbnamelen + (m)->nm_dirpathlen + 2]))
@@ -112,8 +117,21 @@ struct	nfsmount {
 /*
  * Get a pointer to the MDS session, which is always the first element
  * in the list.
+ * This macro can only be safely used when the NFSLOCKMNT() lock is held.
+ * The inline function can be used when the lock isn't held.
  */
 #define	NFSMNT_MDSSESSION(m)	(&(TAILQ_FIRST(&((m)->nm_sess))->nfsclds_sess))
+
+static __inline struct nfsclsession *
+nfsmnt_mdssession(struct nfsmount *nmp)
+{
+	struct nfsclsession *tsep;
+
+	mtx_lock(&nmp->nm_mtx);
+	tsep = NFSMNT_MDSSESSION(nmp);
+	mtx_unlock(&nmp->nm_mtx);
+	return (tsep);
+}
 
 #ifndef NFS_DEFAULT_NAMETIMEO
 #define NFS_DEFAULT_NAMETIMEO		60

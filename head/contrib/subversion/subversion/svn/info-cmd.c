@@ -764,7 +764,7 @@ print_info_item_revision(svn_revnum_t rev, const char *target_path,
       if (target_path)
         SVN_ERR(svn_cmdline_printf(pool, "%-10ld %s", rev, target_path));
       else
-        SVN_ERR(svn_cmdline_printf(pool, "%-10ld", rev));
+        SVN_ERR(svn_cmdline_printf(pool, "%ld", rev));
     }
   else if (target_path)
     SVN_ERR(svn_cmdline_printf(pool, "%-10s %s", "", target_path));

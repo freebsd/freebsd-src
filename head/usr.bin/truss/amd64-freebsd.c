@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/psl.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
@@ -123,7 +124,9 @@ static struct procabi amd64_freebsd = {
 	"FreeBSD ELF64",
 	SYSDECODE_ABI_FREEBSD,
 	amd64_fetch_args,
-	amd64_fetch_retval
+	amd64_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(amd64_freebsd.extra_syscalls),
+	{ NULL }
 };
 
 PROCABI(amd64_freebsd);

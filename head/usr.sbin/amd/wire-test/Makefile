@@ -5,7 +5,7 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/wire-test
+.PATH:	${SRCTOP}/contrib/amd/wire-test
 
 PROG=	wire-test
 MAN=	wire-test.8

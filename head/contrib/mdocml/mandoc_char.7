@@ -1,8 +1,8 @@
-.\"	$Id: mandoc_char.7,v 1.63 2015/09/02 15:38:35 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.67 2017/06/14 20:57:07 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2013, 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2013, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 2 2015 $
+.Dd $Mdocdate: June 14 2017 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -61,6 +61,30 @@ The hyphen does not need to be escaped:
 blue-eyed
 lorry-driver
 .Ed
+.Pp
+If a word on a text input line contains a hyphen, a formatter may decide
+to insert an output line break after the hyphen if that helps filling
+the current output line, but the whole word would overflow the line.
+If it is important that the word is not broken across lines in this
+way, a zero-width space
+.Pq Sq \e&
+can be inserted before or after the hyphen.
+While
+.Xr mandoc 1
+never breaks the output line after hyphens adjacent to a zero-width
+space, after any of the other dash- or hyphen-like characters
+represented by escape sequences, or after hyphens inside words in
+macro arguments, other software may not respect these rules and may
+break the line even in such cases.
+.Pp
+Some
+.Xr roff 7
+implementations contains dictionaries allowing to break the line
+at syllable boundaries even inside words that contain no hyphens.
+Such automatic hyphenation is not supported by
+.Xr mandoc 1 ,
+which only breaks the line at whitespace, and inside words only
+after existing hyphens.
 .Pp
 The mathematical minus sign is used for negative numbers or subtraction.
 It should be written as
@@ -145,6 +169,8 @@ even on request and macro lines.
 .Ss Accents
 In output modes supporting such special output characters, for example
 .Fl T Cm pdf ,
+and sometimes less consistently in
+.Fl T Cm utf8 ,
 some
 .Xr roff 7
 formatters convert the following ASCII input characters to the
@@ -153,6 +179,7 @@ following Unicode special output characters:
 .It \(ga Ta U+2018 Ta left single quotation mark
 .It \(aq Ta U+2019 Ta right single quotation mark
 .It \(ti Ta U+02DC Ta small tilde
+.It \(ha Ta U+02C6 Ta modifier letter circumflex
 .El
 .Pp
 In prose, this automatic substitution is often desirable;
@@ -163,6 +190,7 @@ escaping to render as follows:
 .It \e(ga Ta U+0060 Ta grave accent
 .It \e(aq Ta U+0027 Ta apostrophe
 .It \e(ti Ta U+007E Ta tilde
+.It \e(ha Ta U+005E Ta circumflex accent
 .El
 .Ss Periods
 The period
@@ -232,6 +260,7 @@ Lines:
 .It \e(ba    Ta \(ba        Ta bar
 .It \e(br    Ta \(br        Ta box rule
 .It \e(ul    Ta \(ul        Ta underscore
+.It \e(ru    Ta \(ru        Ta underscore (width 0.5m)
 .It \e(rn    Ta \(rn        Ta overline
 .It \e(bb    Ta \(bb        Ta broken bar
 .It \e(sl    Ta \(sl        Ta forward slash
@@ -255,6 +284,10 @@ Text markers:
 .It \e(sh    Ta \(sh        Ta hash (pound)
 .It \e(CR    Ta \(CR        Ta carriage return
 .It \e(OK    Ta \(OK        Ta check mark
+.It \e(CL    Ta \(CL        Ta club suit
+.It \e(SP    Ta \(SP        Ta spade suit
+.It \e(HE    Ta \(HE        Ta heart suit
+.It \e(DI    Ta \(DI        Ta diamond suit
 .El
 .Pp
 Legal symbols:
@@ -348,6 +381,7 @@ Arrows:
 .It \e(uA    Ta \(uA        Ta up double-arrow
 .It \e(dA    Ta \(dA        Ta down double-arrow
 .It \e(vA    Ta \(vA        Ta up-down double-arrow
+.It \e(an    Ta \(an        Ta horizontal arrow extension
 .El
 .Pp
 Logical:
@@ -426,11 +460,20 @@ Mathematical:
 .It \e(Ah    Ta \(Ah        Ta aleph
 .It \e(Im    Ta \(Im        Ta imaginary
 .It \e(Re    Ta \(Re        Ta real
+.It \e(wp    Ta \(wp        Ta Weierstrass p
 .It \e(pd    Ta \(pd        Ta partial differential
 .It \e(-h    Ta \(-h        Ta Planck constant over 2\(*p
-.It \e[12]   Ta \[12]       Ta one-half
-.It \e[14]   Ta \[14]       Ta one-fourth
-.It \e[34]   Ta \[34]       Ta three-fourths
+.It \e[hbar] Ta \[hbar]     Ta Planck constant over 2\(*p
+.It \e(12    Ta \(12        Ta one-half
+.It \e(14    Ta \(14        Ta one-fourth
+.It \e(34    Ta \(34        Ta three-fourths
+.It \e(18    Ta \(18        Ta one-eighth
+.It \e(38    Ta \(38        Ta three-eighths
+.It \e(58    Ta \(58        Ta five-eighths
+.It \e(78    Ta \(78        Ta seven-eighths
+.It \e(S1    Ta \(S1        Ta superscript 1
+.It \e(S2    Ta \(S2        Ta superscript 2
+.It \e(S3    Ta \(S3        Ta superscript 3
 .El
 .Pp
 Ligatures:
@@ -564,6 +607,8 @@ Units:
 .It \e(fm    Ta \(fm        Ta minute
 .It \e(sd    Ta \(sd        Ta second
 .It \e(mc    Ta \(mc        Ta micro
+.It \e(Of    Ta \(Of        Ta Spanish female ordinal
+.It \e(Om    Ta \(Om        Ta Spanish masculine ordinal
 .El
 .Pp
 Greek letters:
@@ -724,9 +769,7 @@ the
 differently between mandoc and groff.
 .It
 In
-.Fl T Ns Cm html
-and
-.Fl T Ns Cm xhtml ,
+.Fl T Ns Cm html ,
 the \e(\(ti=, \e(nb, and \e(nc special characters render differently
 between mandoc and groff.
 .It

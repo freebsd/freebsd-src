@@ -62,10 +62,7 @@ struct device_type {
 };
 
 extern char end[];
-extern char bootprog_name[];
-extern char bootprog_rev[];
-extern char bootprog_date[];
-extern char bootprog_maker[];
+extern char bootprog_info[];
 
 extern unsigned char _etext[];
 extern unsigned char _edata[];
@@ -419,7 +416,9 @@ main(int argc, char **argv)
 
 	/*
 	 * Initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is safe.
+	 * alloc() is usable.  We are using the stack u-boot set up near the top
+	 * of physical ram; hopefully there is sufficient space between the end
+	 * of our bss and the bottom of the u-boot stack to avoid overlap.
 	 */
 	uboot_heap_start = round_page((uintptr_t)end);
 	uboot_heap_end   = uboot_heap_start + 512 * 1024;
@@ -431,9 +430,7 @@ main(int argc, char **argv)
 	cons_probe();
 	printf("Compatible U-Boot API signature found @%p\n", sig);
 
-	printf("\n");
-	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("\n%s", bootprog_info);
 	printf("\n");
 
 	dump_sig(sig);

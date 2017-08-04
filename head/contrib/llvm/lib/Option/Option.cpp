@@ -1,4 +1,4 @@
-//===--- Option.cpp - Abstract Driver Options -----------------------------===//
+//===- Option.cpp - Abstract Driver Options -------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,22 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Option/Option.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Option/Option.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 #include <cassert>
+#include <cstring>
 
 using namespace llvm;
 using namespace llvm::opt;
 
 Option::Option(const OptTable::Info *info, const OptTable *owner)
   : Info(info), Owner(owner) {
-
   // Multi-level aliases are not supported. This just simplifies option
   // tracking, it is not an inherent limitation.
   assert((!Info || !getAlias().isValid() || !getAlias().getAlias().isValid()) &&
@@ -45,12 +47,14 @@ void Option::print(raw_ostream &O) const {
     P(UnknownClass);
     P(FlagClass);
     P(JoinedClass);
+    P(ValuesClass);
     P(SeparateClass);
     P(CommaJoinedClass);
     P(MultiArgClass);
     P(JoinedOrSeparateClass);
     P(JoinedAndSeparateClass);
     P(RemainingArgsClass);
+    P(RemainingArgsJoinedClass);
 #undef P
   }
 
@@ -82,7 +86,9 @@ void Option::print(raw_ostream &O) const {
   O << ">\n";
 }
 
-void Option::dump() const { print(dbgs()); }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void Option::dump() const { print(dbgs()); }
+#endif
 
 bool Option::matches(OptSpecifier Opt) const {
   // Aliases are never considered in matching, look through them.
@@ -234,6 +240,19 @@ Arg *Option::accept(const ArgList &Args,
       A->getValues().push_back(Args.getArgString(Index++));
     return A;
   }
+  case RemainingArgsJoinedClass: {
+    Arg *A = new Arg(UnaliasedOption, Spelling, Index);
+    if (ArgSize != strlen(Args.getArgString(Index))) {
+      // An inexact match means there is a joined arg.
+      A->getValues().push_back(Args.getArgString(Index) + ArgSize);
+    }
+    Index++;
+    while (Index < Args.getNumInputArgStrings() &&
+           Args.getArgString(Index) != nullptr)
+      A->getValues().push_back(Args.getArgString(Index++));
+    return A;
+  }
+
   default:
     llvm_unreachable("Invalid option kind!");
   }

@@ -48,13 +48,12 @@ void sctp_startup_iterator(void);
 
 #ifdef INET6
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);
-
 #endif
 
 #ifdef  SCTP_PACKET_LOGGING
 
 void sctp_packet_log(struct mbuf *m);
-int sctp_copy_out_packet_log(uint8_t * target, int length);
+int sctp_copy_out_packet_log(uint8_t *target, int length);
 
 #endif
 

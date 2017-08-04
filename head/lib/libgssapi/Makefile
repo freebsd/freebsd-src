@@ -3,7 +3,7 @@
 PACKAGE=lib${LIB}
 LIB=		gssapi
 SHLIB_MAJOR=	10
-VERSION_DEF=	${.CURDIR}/../libc/Versions.def
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 SRCS=

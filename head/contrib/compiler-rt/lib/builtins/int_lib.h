@@ -30,25 +30,18 @@
 /* ABI macro definitions */
 
 #if __ARM_EABI__
-# define ARM_EABI_FNALIAS(aeabi_name, name)         \
-  void __aeabi_##aeabi_name() __attribute__((alias("__" #name)));
-
-# if !defined(__clang__) && defined(__GNUC__) && \
-     (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5)
+# if defined(COMPILER_RT_ARMHF_TARGET) || (!defined(__clang__) && \
+     defined(__GNUC__) && (__GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ < 5))
 /* The pcs attribute was introduced in GCC 4.5.0 */
-#  define COMPILER_RT_ABI
-# else
-#  define COMPILER_RT_ABI __attribute__((pcs("aapcs")))
-# endif
-
-#else
-# define ARM_EABI_FNALIAS(aeabi_name, name)
-# if defined(__arm__) && defined(_WIN32) && (!defined(_MSC_VER) || defined(__clang__))
-#   define COMPILER_RT_ABI __attribute__((pcs("aapcs")))
-# else
 #   define COMPILER_RT_ABI
+# else
+#   define COMPILER_RT_ABI __attribute__((__pcs__("aapcs")))
 # endif
+#else
+# define COMPILER_RT_ABI
 #endif
+
+#define AEABI_RTABI __attribute__((__pcs__("aapcs")))
 
 #ifdef _MSC_VER
 #define ALWAYS_INLINE __forceinline
@@ -125,14 +118,14 @@ COMPILER_RT_ABI tu_int __udivmodti4(tu_int a, tu_int b, tu_int* rem);
 #include <intrin.h>
 
 uint32_t __inline __builtin_ctz(uint32_t value) {
-  uint32_t trailing_zero = 0;
+  unsigned long trailing_zero = 0;
   if (_BitScanForward(&trailing_zero, value))
     return trailing_zero;
   return 32;
 }
 
 uint32_t __inline __builtin_clz(uint32_t value) {
-  uint32_t leading_zero = 0;
+  unsigned long leading_zero = 0;
   if (_BitScanReverse(&leading_zero, value))
     return 31 - leading_zero;
   return 32;
@@ -140,7 +133,7 @@ uint32_t __inline __builtin_clz(uint32_t value) {
 
 #if defined(_M_ARM) || defined(_M_X64)
 uint32_t __inline __builtin_clzll(uint64_t value) {
-  uint32_t leading_zero = 0;
+  unsigned long leading_zero = 0;
   if (_BitScanReverse64(&leading_zero, value))
     return 63 - leading_zero;
   return 64;

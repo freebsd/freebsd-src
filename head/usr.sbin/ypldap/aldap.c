@@ -1206,36 +1206,25 @@ isu8cont(unsigned char c)
 /*
  * Parse a LDAP value
  * notes:
- *	the argument u should be a NULL terminated sequence of ASCII bytes.
+ *	the argument p should be a NUL-terminated sequence of ASCII bytes.
  */
 char *
 parseval(char *p, size_t len)
 {
 	char	 hex[3];
-	char	*cp = p, *buffer, *newbuffer;
-	size_t	 size, newsize, i, j;
+	char	*buffer;
+	size_t	 i, j;
 
-	size = 50;
-	if ((buffer = calloc(1, size)) == NULL)
+	if ((buffer = calloc(1, len + 1)) == NULL)
 		return NULL;
 
 	for (i = j = 0; j < len; i++) {
-		if (i >= size) {
-			newsize = size + 1024;
-			if ((newbuffer = realloc(buffer, newsize)) == NULL) {
-				free(buffer);
-				return (NULL);
-			}
-			buffer = newbuffer;
-			size = newsize;
-		}
-
-		if (cp[j] == '\\') {
-			strlcpy(hex, cp + j + 1, sizeof(hex));
+		if (p[j] == '\\') {
+			strlcpy(hex, p + j + 1, sizeof(hex));
 			buffer[i] = (char)strtoumax(hex, NULL, 16);
 			j += 3;
 		} else {
-			buffer[i] = cp[j];
+			buffer[i] = p[j];
 			j++;
 		}
 	}

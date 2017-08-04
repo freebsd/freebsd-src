@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef CPU_MV_PJ4B
 #include <arm/mv/mvwin.h>
-#include <dev/fdt/fdt_common.h>
 #endif
 
 extern struct pcpu __pcpu[];
@@ -155,11 +154,9 @@ init_secondary(int cpu)
 #ifndef INTRNG
 	int start = 0, end = 0;
 #endif
-	uint32_t actlr_mask, actlr_set;
 
 	pmap_set_tex();
-	cpuinfo_get_actlr_modifier(&actlr_mask, &actlr_set);
-	reinit_mmu(pmap_kern_ttb, actlr_mask, actlr_set);
+	cpuinfo_reinit_mmu(pmap_kern_ttb);
 	cpu_setup();
 
 	/* Provide stack pointers for other processor modes. */
@@ -467,9 +464,8 @@ release_aps(void *dummy __unused)
 #endif
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake the other threads up */
-#if __ARM_ARCH >= 7
-	armv7_sev();
-#endif
+	dsb();
+	sev();
 
 	printf("Release APs\n");
 

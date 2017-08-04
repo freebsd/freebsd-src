@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2016
+.Dd August 29, 2016
 .Dt DEVCTL 8
 .Os
 .Sh NAME
@@ -34,6 +34,10 @@
 .Sh SYNOPSIS
 .Nm
 .Cm attach
+.Ar device
+.Nm
+.Cm clear driver
+.Op Fl f
 .Ar device
 .Nm
 .Cm detach
@@ -133,11 +137,26 @@ If the device is already attached to a device driver and the
 .Fl f
 flag is not specified,
 the device will not be changed.
+.It Xo Cm clear driver
+.Op Fl f
+.Ar device
+.Xc
+Clear a previously-forced driver name so that the device is able to use any
+valid device driver.
+After the previous name has been cleared,
+the device is reprobed so that other device drivers may attach to it.
+This can be used to undo an earlier
+.Cm set driver
+command.
+If the device is currently attached to a device driver and the
+.Fl f
+flag is not specified,
+the device will not be changed.
 .It Cm rescan Ar device
 Rescan a bus device checking for devices that have been added or
 removed.
 .It Xo Cm delete
-.Op Fl
+.Op Fl f
 .Ar device
 .Xc
 Delete the device from the device tree.

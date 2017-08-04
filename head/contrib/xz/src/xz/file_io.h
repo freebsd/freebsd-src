@@ -80,6 +80,12 @@ extern void io_write_to_user_abort_pipe(void);
 extern void io_no_sparse(void);
 
 
+#ifdef ENABLE_SANDBOX
+/// \brief      main() calls this if conditions for sandboxing have been met.
+extern void io_allow_sandbox(void);
+#endif
+
+
 /// \brief      Open the source file
 extern file_pair *io_open_src(const char *src_name);
 

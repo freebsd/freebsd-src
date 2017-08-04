@@ -6,7 +6,7 @@ LIB=		bluetooth
 MAN=		bluetooth.3
 
 WARNS?=		2
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
+CFLAGS+=	-I${.CURDIR} -I${SRCTOP}/sys
 
 SHLIB_MAJOR=	4
 

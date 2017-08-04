@@ -129,10 +129,10 @@ int al_iofic_msix_moder_interval_config(void __iomem *regs_base, int group,
 }
 
 /*
- * configure the vmid attributes for a given msix vector.
+ * configure the target-id attributes for a given msix vector.
  */
-int al_iofic_msix_vmid_attributes_config(void __iomem *regs_base, int group,
-				       uint8_t vector, uint32_t vmid, uint8_t vmid_en)
+int al_iofic_msix_tgtid_attributes_config(void __iomem *regs_base, int group,
+				       uint8_t vector, uint32_t tgtid, uint8_t tgtid_en)
 {
 	struct al_iofic_regs __iomem *regs = (struct al_iofic_regs __iomem *)(regs_base);
 	uint32_t reg = 0;
@@ -141,14 +141,14 @@ int al_iofic_msix_vmid_attributes_config(void __iomem *regs_base, int group,
 	al_assert(group < AL_IOFIC_MAX_GROUPS);
 
 	AL_REG_FIELD_SET(reg,
-			 INT_MSIX_VMID_MASK,
-			 INT_MSIX_VMID_SHIFT,
-			 vmid);
+			 INT_MSIX_TGTID_MASK,
+			 INT_MSIX_TGTID_SHIFT,
+			 tgtid);
 	AL_REG_BIT_VAL_SET(reg,
-			 INT_MSIX_VMID_EN_SHIFT,
-			 vmid_en);
+			 INT_MSIX_TGTID_EN_SHIFT,
+			 tgtid_en);
 
-	al_reg_write32(&regs->grp_int_mod[group][vector].grp_int_vmid_reg, reg);
+	al_reg_write32(&regs->grp_int_mod[group][vector].grp_int_tgtid_reg, reg);
 
 	return 0;
 }

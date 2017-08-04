@@ -20,7 +20,6 @@
 
 %option noyywrap nounput noinput never-interactive
 
-%x INCLUDE
 %x BYTESTRING
 %x PROPNODENAME
 %s V1
@@ -67,7 +66,13 @@ static int dts_version = 1;
 
 static void push_input_file(const char *filename);
 static bool pop_input_file(void);
+#ifdef __GNUC__
+static void lexical_error(const char *fmt, ...)
+	__attribute__((format (printf, 1, 2)));
+#else
 static void lexical_error(const char *fmt, ...);
+#endif
+
 %}
 
 %%
@@ -78,24 +83,32 @@ static void lexical_error(const char *fmt, ...);
 		}
 
 <*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)? {
-			char *line, *tmp, *fn;
+			char *line, *fnstart, *fnend;
+			struct data fn;
 			/* skip text before line # */
 			line = yytext;
 			while (!isdigit((unsigned char)*line))
 				line++;
-			/* skip digits in line # */
-			tmp = line;
-			while (!isspace((unsigned char)*tmp))
-				tmp++;
-			/* "NULL"-terminate line # */
-			*tmp = '\0';
-			/* start of filename */
-			fn = strchr(tmp + 1, '"') + 1;
-			/* strip trailing " from filename */
-			tmp = strchr(fn, '"');
-			*tmp = 0;
+
+			/* regexp ensures that first and list "
+			 * in the whole yytext are those at
+			 * beginning and end of the filename string */
+			fnstart = memchr(yytext, '"', yyleng);
+			for (fnend = yytext + yyleng - 1;
+			     *fnend != '"'; fnend--)
+				;
+			assert(fnstart && fnend && (fnend > fnstart));
+
+			fn = data_copy_escape_string(fnstart + 1,
+						     fnend - fnstart - 1);
+
+			/* Don't allow nuls in filenames */
+			if (memchr(fn.val, '\0', fn.len - 1))
+				lexical_error("nul in line number directive");
+
 			/* -1 since #line is the number of the next line */
-			srcpos_set_line(xstrdup(fn), atoi(line) - 1);
+			srcpos_set_line(xstrdup(fn.val), atoi(line) - 1);
+			data_free(fn);
 		}
 
 <*><<EOF>>		{
@@ -116,6 +129,11 @@ static void lexical_error(const char *fmt, ...);
 			dts_version = 1;
 			BEGIN_DEFAULT();
 			return DT_V1;
+		}
+
+<*>"/plugin/"	{
+			DPRINT("Keyword: /plugin/\n");
+			return DT_PLUGIN;
 		}
 
 <*>"/memreserve/"	{
@@ -158,7 +176,10 @@ static void lexical_error(const char *fmt, ...);
 			errno = 0;
 			yylval.integer = strtoull(yytext, &e, 0);
 
-			assert(!(*e) || !e[strspn(e, "UL")]);
+			if (*e && e[strspn(e, "UL")]) {
+				lexical_error("Bad integer literal '%s'",
+					      yytext);
+			}
 
 			if (errno == ERANGE)
 				lexical_error("Integer literal '%s' out of range",
@@ -178,16 +199,16 @@ static void lexical_error(const char *fmt, ...);
 			if (d.len == 1) {
 				lexical_error("Empty character literal");
 				yylval.integer = 0;
-				return DT_CHAR_LITERAL;
+			} else {
+				yylval.integer = (unsigned char)d.val[0];
+
+				if (d.len > 2)
+					lexical_error("Character literal has %d"
+						      " characters instead of 1",
+						      d.len - 1);
 			}
 
-			yylval.integer = (unsigned char)d.val[0];
-
-			if (d.len > 2)
-				lexical_error("Character literal has %d"
-					      " characters instead of 1",
-					      d.len - 1);
-
+			data_free(d);
 			return DT_CHAR_LITERAL;
 		}
 
@@ -197,7 +218,7 @@ static void lexical_error(const char *fmt, ...);
 			return DT_REF;
 		}
 
-<*>"&{/"{PATHCHAR}+\}	{	/* new-style path reference */
+<*>"&{/"{PATHCHAR}*\}	{	/* new-style path reference */
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
 			yylval.labelref = xstrdup(yytext+2);

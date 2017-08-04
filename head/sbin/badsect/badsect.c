@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -129,19 +129,8 @@ main(int argc, char *argv[])
 			err(8, "%s", *argv);
 		if (chkuse(number, 1))
 			continue;
-		/*
-		 * Print a warning if converting the block number to a dev_t
-		 * will truncate it.  badsect was not very useful in versions
-		 * of BSD before 4.4 because dev_t was 16 bits and another
-		 * bit was lost by bogus sign extensions.
-		 */
 		diskbn = dbtofsb(fs, number);
-		if ((dev_t)diskbn != diskbn) {
-			printf("sector %ld cannot be represented as a dev_t\n",
-			    (long)number);
-			errs++;
-		}
-		else if (mknod(*argv, IFMT|0600, (dev_t)diskbn) < 0) {
+		if (mknod(*argv, IFMT|0600, (dev_t)diskbn) < 0) {
 			warn("%s", *argv);
 			errs++;
 		}

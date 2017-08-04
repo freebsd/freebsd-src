@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -87,7 +87,12 @@ struct direct	*rst_readdir(RST_DIR *);
 void		 rst_closedir(void *);
 void	 	 runcmdshell(void);
 char		*savename(char *);
-void		 set_extattr_file(char *, void *, int);
+enum set_extattr_mode {
+	SXA_FILE,
+	SXA_LINK,
+	SXA_FD,
+};
+void		 set_extattr(int, char *, void *, int, enum set_extattr_mode);
 void	 	 setdirmodes(int);
 void		 setinput(char *, int);
 void		 setup(void);

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.23 2016/05/21 14:28:27 christos Exp $
+# $File: c-lang,v 1.24 2016/07/01 23:31:13 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 # The strength is to beat standard HTML
@@ -47,6 +47,11 @@
 0	regex	\^private:		C++ source text
 !:strength + 30
 !:mime	text/x-c++
+
+# Objective-C
+0	regex	\^#import	Objective-C source text
+!:strength +25
+!:mime	text/x-objective-c
 
 # From: Mikhail Teterin <mi@aldan.algebra.com> 
 0	string		cscope		cscope reference data

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  * The latter two convert to float or double, respectively, and test csqrtf()
  * and csqrt() with the same arguments.
  */
-long double complex (*t_csqrt)(long double complex);
+static long double complex (*t_csqrt)(long double complex);
 
 static long double complex
 _csqrtf(long double complex d)
@@ -82,7 +82,7 @@ assert_equal(long double complex d1, long double complex d2)
  * exceptions.)
  */
 static void
-test_finite()
+test_finite(void)
 {
 	static const double tests[] = {
 	     /* csqrt(a + bI) = x + yI */
@@ -125,7 +125,7 @@ test_finite()
 
 	double a, b;
 	double x, y;
-	int i, j;
+	unsigned i, j;
 
 	for (i = 0; i < nitems(tests); i += 4) {
 		for (j = 0; j < nitems(mults); j++) {
@@ -143,7 +143,7 @@ test_finite()
  * Test the handling of +/- 0.
  */
 static void
-test_zeros()
+test_zeros(void)
 {
 
 	assert_equal(t_csqrt(CMPLXL(0.0, 0.0)), CMPLXL(0.0, 0.0));
@@ -156,7 +156,7 @@ test_zeros()
  * Test the handling of infinities when the other argument is not NaN.
  */
 static void
-test_infinities()
+test_infinities(void)
 {
 	static const double vals[] = {
 		0.0,
@@ -167,7 +167,7 @@ test_infinities()
 		-INFINITY,
 	};
 
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(vals); i++) {
 		if (isfinite(vals[i])) {
@@ -187,7 +187,7 @@ test_infinities()
  * Test the handling of NaNs.
  */
 static void
-test_nans()
+test_nans(void)
 {
 
 	assert(creall(t_csqrt(CMPLXL(INFINITY, NAN))) == INFINITY);
@@ -232,7 +232,7 @@ test_overflow(int maxexp)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..15\n");

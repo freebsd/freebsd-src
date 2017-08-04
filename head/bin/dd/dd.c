@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,11 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
+#include <sys/mtio.h>
 
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -92,6 +95,10 @@ main(int argc __unused, char *argv[])
 	jcl(argv);
 	setup();
 
+	caph_cache_catpages();
+	if (cap_enter() == -1 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
+
 	(void)signal(SIGINFO, siginfo_handler);
 	(void)signal(SIGINT, terminate);
 
@@ -125,6 +132,8 @@ static void
 setup(void)
 {
 	u_int cnt;
+	cap_rights_t rights;
+	unsigned long cmds[] = { FIODTYPE, MTIOCTOP };
 
 	if (in.name == NULL) {
 		in.name = "stdin";
@@ -137,9 +146,14 @@ setup(void)
 
 	getfdtype(&in);
 
+	cap_rights_init(&rights, CAP_READ, CAP_SEEK);
+	if (cap_rights_limit(in.fd, &rights) == -1 && errno != ENOSYS)
+		err(1, "unable to limit capability rights");
+
 	if (files_cnt > 1 && !(in.flags & ISTAPE))
 		errx(1, "files is not supported for non-tape devices");
 
+	cap_rights_set(&rights, CAP_FTRUNCATE, CAP_IOCTL, CAP_WRITE);
 	if (out.name == NULL) {
 		/* No way to check for read access here. */
 		out.fd = STDOUT_FILENO;
@@ -156,12 +170,34 @@ setup(void)
 		if (out.fd == -1) {
 			out.fd = open(out.name, O_WRONLY | OFLAGS, DEFFILEMODE);
 			out.flags |= NOREAD;
+			cap_rights_clear(&rights, CAP_READ);
 		}
 		if (out.fd == -1)
 			err(1, "%s", out.name);
 	}
 
 	getfdtype(&out);
+
+	if (cap_rights_limit(out.fd, &rights) == -1 && errno != ENOSYS)
+		err(1, "unable to limit capability rights");
+	if (cap_ioctls_limit(out.fd, cmds, nitems(cmds)) == -1 &&
+	    errno != ENOSYS)
+		err(1, "unable to limit capability rights");
+
+	if (in.fd != STDIN_FILENO && out.fd != STDIN_FILENO) {
+		if (caph_limit_stdin() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
+	if (in.fd != STDOUT_FILENO && out.fd != STDOUT_FILENO) {
+		if (caph_limit_stdout() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
+	if (in.fd != STDERR_FILENO && out.fd != STDERR_FILENO) {
+		if (caph_limit_stderr() == -1)
+			err(1, "unable to limit capability rights");
+	}
 
 	/*
 	 * Allocate space for the input and output buffers.  If not doing

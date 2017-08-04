@@ -126,7 +126,7 @@ reserve:
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (unlikely(ret != 0)) {
 		if (ret == -EBUSY) {
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		}
 	}
@@ -139,7 +139,7 @@ reserve:
 		case -EBUSY:
 		case -ERESTARTSYS:
 		case -EINTR:
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		default:
 			retval = VM_PAGER_ERROR;
@@ -236,7 +236,7 @@ reserve:
 	if (vm_page_busied(m)) {
 		vm_page_lock(m);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(m, "ttmpbs");
+		vm_page_busy_sleep(m, "ttmpbs", false);
 		VM_OBJECT_WLOCK(vm_obj);
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);

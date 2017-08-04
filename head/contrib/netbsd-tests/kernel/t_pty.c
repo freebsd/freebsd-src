@@ -1,4 +1,4 @@
-/* $Id: t_pty.c,v 1.1 2011/09/24 15:53:01 christos Exp $ */
+/* $Id: t_pty.c,v 1.2 2017/01/13 21:30:41 christos Exp $ */
 
 /*
  * Allocates a pty(4) device, and sends the specified number of packets of the
@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_pty.c,v 1.1 2011/09/24 15:53:01 christos Exp $");
+__RCSID("$NetBSD: t_pty.c,v 1.2 2017/01/13 21:30:41 christos Exp $");
 
 #include <errno.h>
 #include <err.h>
@@ -35,7 +35,7 @@ static __dead void	usage(const char *);
 static void		parse_args(int, char **);
 #else
 #include <atf-c.h>
-#include "../h_macros.h"
+#include "h_macros.h"
 #endif
 
 static int		pty_open(void);

@@ -57,17 +57,17 @@ static off_t lengths[] = {0, 1, 2, 3, 4, 127, 128, 129, 511, 512, 513, 1023,
 static int lengths_count = sizeof(lengths) / sizeof(off_t);
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int error, fd, fds[2], i, read_only_fd;
-	char path[PATH_MAX];
+	char path[] = "ftruncate_file";
 	struct stat sb;
 	ssize_t size;
 	off_t len;
 	char ch;
 
 	/*
-	 * Tests using a writable temporary file: grow and then shrink a file
+	 * Tests using a writable file: grow and then shrink a file
 	 * using ftruncate and various lengths.  Make sure that a negative
 	 * file length is rejected.  Make sure that when we grow the file,
 	 * bytes now in the range of the file size return 0.
@@ -75,37 +75,36 @@ main(int argc, char *argv[])
 	 * Save a read-only reference to the file to use later for read-only
 	 * descriptor tests.
 	 */
-	snprintf(path, PATH_MAX, "/tmp/ftruncate.XXXXXXXXXXXXX");
-	fd = mkstemp(path);
+	fd = open(path, O_RDWR|O_CREAT, 0600);
 	if (fd < 0)
-		err(-1, "mkstemp");
+		err(1, "open(%s, O_RDWR|O_CREAT, 0600)", path);
 	read_only_fd = open(path, O_RDONLY);
 	if (read_only_fd < 0) {
 		error = errno;
 		(void)unlink(path);
 		errno = error;
-		err(-1, "open(%s, O_RDONLY)", path);
+		err(1, "open(%s, O_RDONLY)", path);
 	}
 	(void)unlink(path);
 
 	if (ftruncate(fd, -1) == 0)
-		errx(-1, "ftruncate(fd, -1) succeeded");
+		errx(1, "ftruncate(fd, -1) succeeded unexpectedly");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(fd, -1) returned wrong error");
+		err(1, "ftruncate(fd, -1) returned wrong error");
 
 	for (i = 0; i < lengths_count; i++) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%jd) up", (intmax_t)len);
+			err(1, "ftruncate(%jd) up", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
-			err(-1, "stat");
+			err(1, "stat");
 		if (sb.st_size != len)
 			errx(-1, "fstat with len=%jd returned len %jd up",
 			    (intmax_t)len, (intmax_t)sb.st_size);
 		if (len != 0) {
 			size = pread(fd, &ch, sizeof(ch), len - 1);
 			if (size < 0)
-				err(-1, "pread on len %jd up", (intmax_t)len);
+				err(1, "pread on len %jd up", (intmax_t)len);
 			if (size != sizeof(ch))
 				errx(-1, "pread len %jd size %jd up",
 				    (intmax_t)len, (intmax_t)size);
@@ -119,9 +118,9 @@ main(int argc, char *argv[])
 	for (i = lengths_count - 1; i >= 0; i--) {
 		len = lengths[i];
 		if (ftruncate(fd, len) < 0)
-			err(-1, "ftruncate(%jd) down", (intmax_t)len);
+			err(1, "ftruncate(%jd) down", (intmax_t)len);
 		if (fstat(fd, &sb) < 0)
-			err(-1, "stat");
+			err(1, "stat");
 		if (sb.st_size != len)
 			errx(-1, "fstat(%jd) returned %jd down", (intmax_t)len,
 			    sb.st_size);
@@ -134,7 +133,7 @@ main(int argc, char *argv[])
 	if (ftruncate(read_only_fd, 0) == 0)
 		errx(-1, "ftruncate(read_only_fd) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(read_only_fd) returned wrong error");
+		err(1, "ftruncate(read_only_fd) returned wrong error");
 	close(read_only_fd);
 
 	/*
@@ -142,22 +141,22 @@ main(int argc, char *argv[])
 	 */
 	fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0)
-		err(-1, "socket(PF_UNIX, SOCK_STREAM, 0)");
+		err(1, "socket(PF_UNIX, SOCK_STREAM, 0)");
 	if (ftruncate(fd, 0) == 0)
 		errx(-1, "ftruncate(socket) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(socket) returned wrong error");
+		err(1, "ftruncate(socket) returned wrong error");
 	close(fd);
 
 	/*
 	 * Make sure that ftruncate on pipes doesn't work.
 	 */
 	if (pipe(fds) < 0)
-		err(-1, "pipe");
+		err(1, "pipe");
 	if (ftruncate(fds[0], 0) == 0)
 		errx(-1, "ftruncate(pipe) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(pipe) returned wrong error");
+		err(1, "ftruncate(pipe) returned wrong error");
 	close(fds[0]);
 	close(fds[1]);
 
@@ -166,11 +165,11 @@ main(int argc, char *argv[])
 	 */
 	fd = kqueue();
 	if (fd < 0)
-		err(-1, "kqueue");
+		err(1, "kqueue");
 	if (ftruncate(fds[0], 0) == 0)
 		errx(-1, "ftruncate(kqueue) succeeded");
 	if (errno != EINVAL)
-		err(-1, "ftruncate(kqueue) returned wrong error");
+		err(1, "ftruncate(kqueue) returned wrong error");
 	close(fd);
 
 	return (0);

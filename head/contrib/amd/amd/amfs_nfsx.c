@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -118,7 +114,7 @@ amfs_nfsx_match(am_opts *fo)
   }
 
   /* set default sublink */
-  if (fo->opt_sublink == 0) {
+  if (fo->opt_sublink == NULL || fo->opt_sublink[0] == '\0') {
     ptr = strchr(fo->opt_rfs, ',');
     if (ptr && ptr > (fo->opt_rfs + 1))
       fo->opt_sublink = strnsave(fo->opt_rfs + 1, ptr - fo->opt_rfs - 1);
@@ -149,7 +145,7 @@ amfs_nfsx_match(am_opts *fo)
   /*
    * Determine magic cookie to put in mtab
    */
-  xmtab = str3cat((char *) 0, fo->opt_rhost, ":", fo->opt_rfs);
+  xmtab = str3cat((char *) NULL, fo->opt_rhost, ":", fo->opt_rfs);
   dlog("NFSX: mounting remote server \"%s\", remote fs \"%s\" on \"%s\"",
        fo->opt_rhost, fo->opt_rfs, fo->opt_fs);
 
@@ -190,12 +186,15 @@ amfs_nfsx_init(mntfs *mf)
 
   if (nx == 0) {
     char **ivec;
-    char *info = 0;
+    char *info = NULL;
     char *host;
     char *pref;
     int error = 0;
 
-    info = strdup(mf->mf_info);
+    info = xstrdup(mf->mf_info);
+    if (info == NULL)
+      return errno;
+
     host = strchr(info, ':');
     if (!host) {
       error = EINVAL;
@@ -221,12 +220,12 @@ amfs_nfsx_init(mntfs *mf)
 
     nx->nx_c = i - 1;		/* i-1 because we don't want the prefix */
     nx->nx_v = (amfs_nfsx_mnt *) xmalloc(nx->nx_c * sizeof(amfs_nfsx_mnt));
-    nx->nx_mp = 0;
+    nx->nx_mp = NULL;
     {
-      char *mp = 0;
-      char *xinfo = 0;
+      char *mp = NULL;
+      char *xinfo = NULL;
       char *fs = mf->mf_fo->opt_fs;
-      char *rfs = 0;
+      char *rfs = NULL;
       for (i = 0; i < nx->nx_c; i++) {
 	char *path = ivec[i + 1];
 	rfs = str3cat(rfs, pref, "/", path);
@@ -251,18 +250,14 @@ amfs_nfsx_init(mntfs *mf)
 	/* propagate the on_autofs flag */
 	nx->nx_v[i].n_mnt->mf_flags |= mf->mf_flags & MFF_ON_AUTOFS;
       }
-      if (rfs)
-	XFREE(rfs);
-      if (mp)
-	XFREE(mp);
-      if (xinfo)
-	XFREE(xinfo);
+      XFREE(rfs);
+      XFREE(mp);
+      XFREE(xinfo);
     }
 
     XFREE(ivec);
   errexit:
-    if (info)
-      XFREE(info);
+    XFREE(info);
     if (error)
       return error;
   }
@@ -503,7 +498,7 @@ amfs_nfsx_umount(am_node *am, mntfs *mf)
 	}
       }
       free_mntfs(m);
-      n->n_mnt = 0;
+      n->n_mnt = NULL;
       n->n_error = -1;
     }
   }

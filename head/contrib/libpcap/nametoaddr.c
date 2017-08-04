@@ -33,10 +33,36 @@
 #include <netdnet/dnetdb.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <pcap-stdinc.h>
 
-#else /* WIN32 */
+#ifdef INET6
+/*
+ * To quote the MSDN page for getaddrinfo() at
+ *
+ *    https://msdn.microsoft.com/en-us/library/windows/desktop/ms738520(v=vs.85).aspx
+ *
+ * "Support for getaddrinfo on Windows 2000 and older versions
+ * The getaddrinfo function was added to the Ws2_32.dll on Windows XP and
+ * later. To execute an application that uses this function on earlier
+ * versions of Windows, then you need to include the Ws2tcpip.h and
+ * Wspiapi.h files. When the Wspiapi.h include file is added, the
+ * getaddrinfo function is defined to the WspiapiGetAddrInfo inline
+ * function in the Wspiapi.h file. At runtime, the WspiapiGetAddrInfo
+ * function is implemented in such a way that if the Ws2_32.dll or the
+ * Wship6.dll (the file containing getaddrinfo in the IPv6 Technology
+ * Preview for Windows 2000) does not include getaddrinfo, then a
+ * version of getaddrinfo is implemented inline based on code in the
+ * Wspiapi.h header file. This inline code will be used on older Windows
+ * platforms that do not natively support the getaddrinfo function."
+ *
+ * We use getaddrinfo(), so we include Wspiapi.h here.  pcap-stdinc.h
+ * includes Ws2tcpip.h, so we don't need to include it ourselves.
+ */
+#include <Wspiapi.h>
+#endif
+
+#else /* _WIN32 */
 
 #include <sys/param.h>
 #include <sys/types.h>				/* concession to AIX */
@@ -44,9 +70,9 @@
 #include <sys/time.h>
 
 #include <netinet/in.h>
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
-#ifndef WIN32
+#ifndef _WIN32
 #ifdef HAVE_ETHER_HOSTTON
 /*
  * XXX - do we need any of this if <netinet/if_ether.h> doesn't declare
@@ -64,7 +90,7 @@ struct rtentry;		/* declarations in <net/if.h> */
 #endif /* HAVE_ETHER_HOSTTON */
 #include <arpa/inet.h>
 #include <netdb.h>
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
 #include <ctype.h>
 #include <errno.h>
@@ -76,6 +102,7 @@ struct rtentry;		/* declarations in <net/if.h> */
 
 #include "gencode.h"
 #include <pcap/namedb.h>
+#include "nametoaddr.h"
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
@@ -142,7 +169,7 @@ pcap_nametoaddrinfo(const char *name)
 bpf_u_int32
 pcap_nametonetaddr(const char *name)
 {
-#ifndef WIN32
+#ifndef _WIN32
 	struct netent *np;
 
 	if ((np = getnetbyname(name)) != NULL)
@@ -152,6 +179,15 @@ pcap_nametonetaddr(const char *name)
 #else
 	/*
 	 * There's no "getnetbyname()" on Windows.
+	 *
+	 * XXX - I guess we could use the BSD code to read
+	 * C:\Windows\System32\drivers\etc/networks, assuming
+	 * that's its home on all the versions of Windows
+	 * we use, but that file probably just has the loopback
+	 * network on 127/24 on 99 44/100% of Windows machines.
+	 *
+	 * (Heck, these days it probably just has that on 99 44/100%
+	 * of *UN*X* machines.)
 	 */
 	return 0;
 #endif
@@ -276,8 +312,14 @@ struct eproto {
 	u_short p;
 };
 
-/* Static data base of ether protocol types. */
-struct eproto eproto_db[] = {
+/*
+ * Static data base of ether protocol types.
+ * tcpdump used to import this, and it's declared as an export on
+ * Debian, at least, so make it a public symbol, even though we
+ * don't officially export it by declaring it in a header file.
+ * (Programs *should* do this themselves, as tcpdump now does.)
+ */
+PCAP_API_DEF struct eproto eproto_db[] = {
 #if 0
 	/* The FreeBSD elf linker generates a request to copy this array
 	 * (including its size) when you link with -lpcap.  In order to
@@ -394,7 +436,7 @@ __pcap_atodn(const char *s, bpf_u_int32 *addr)
 	u_int node, area;
 
 	if (sscanf(s, "%d.%d", &area, &node) != 2)
-		bpf_error("malformed decnet address '%s'", s);
+		return(0);
 
 	*addr = (area << AREASHIFT) & AREAMASK;
 	*addr |= (node & NODEMASK);
@@ -498,23 +540,20 @@ pcap_ether_hostton(const char *name)
 }
 #endif
 
-u_short
-__pcap_nametodnaddr(const char *name)
+int
+__pcap_nametodnaddr(const char *name, u_short *res)
 {
 #ifdef	DECNETLIB
 	struct nodeent *getnodebyname();
 	struct nodeent *nep;
-	unsigned short res;
 
 	nep = getnodebyname(name);
 	if (nep == ((struct nodeent *)0))
-		bpf_error("unknown decnet host name '%s'\n", name);
+		return(0);
 
-	memcpy((char *)&res, (char *)nep->n_addr, sizeof(unsigned short));
-	return(res);
+	memcpy((char *)res, (char *)nep->n_addr, sizeof(unsigned short));
+	return(1);
 #else
-	bpf_error("decnet name support not included, '%s' cannot be translated\n",
-		name);
 	return(0);
 #endif
 }

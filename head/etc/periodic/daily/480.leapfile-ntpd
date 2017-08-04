@@ -13,16 +13,9 @@ fi
 
 case "$daily_ntpd_leapfile_enable" in
     [Yy][Ee][Ss])
-	case "$daily_ntpd_avoid_congestion" in
-    	[Yy][Ee][Ss])
-	    # Avoid dogpiling
-	    (sleep $(jot -r 1 0 3600); service ntpd onefetch) &
-	    ;;
-	*)
-	    service ntpd onefetch
-	    ;;
-	esac
-	;;
+        anticongestion
+        service ntpd onefetch
+        ;;
 esac
 
 exit $rc

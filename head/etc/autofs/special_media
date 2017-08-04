@@ -38,7 +38,17 @@ print_map_entry() {
 	_fstype="$1"
 	_p="$2"
 
-	if [ "${_fstype}" = "ntfs" ]; then
+	case "${_fstype}" in
+	"exfat")
+		if [ -f "/usr/local/sbin/mount.exfat" ]; then
+			echo "-mountprog=/usr/local/sbin/mount.exfat,fstype=${_fstype},nosuid	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-exfat first"
+			exit 1
+		fi
+		;;
+	"ntfs")
 		if [ -f "/usr/local/bin/ntfs-3g" ]; then
 			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid	:/dev/${_p}" 
 		else
@@ -46,9 +56,14 @@ print_map_entry() {
 			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ntfs first"
 			exit 1
 		fi
-	else
+		;;
+	"ext2fs" | "msdosfs")
+		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
+		;;
+	*)
 		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
-	fi
+		;;
+	esac
 }
 
 # Determine map entry contents for the given key and print out the entry.

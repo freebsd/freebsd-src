@@ -81,6 +81,8 @@ static int
 ar9340_hw_global_setup(struct arswitch_softc *sc)
 {
 
+	ARSWITCH_LOCK(sc);
+
 	/* Enable CPU port; disable mirror port */
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
 	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
@@ -142,6 +144,7 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	} else {
 		device_printf(sc->sc_dev, "%s: need is_gmii or is_mii set\n",
 		    __func__);
+		ARSWITCH_UNLOCK(sc);
 		return (ENXIO);
 	}
 
@@ -163,6 +166,7 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 	/* Settle time */
 	DELAY(1000);
 
+	ARSWITCH_UNLOCK(sc);
 	return (0);
 }
 

@@ -143,20 +143,20 @@
 #endif
 
 /*
- * If this platform has <sys/acl.h>, acl_create(), acl_init(),
- * acl_set_file(), and ACL_USER, we assume it has the rest of the
- * POSIX.1e draft functions used in archive_read_extract.c.
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE && HAVE_ACL_USER
-#define	HAVE_POSIX_ACL	1
-#endif
-
-/*
  * If we can't restore metadata using a file descriptor, then
  * for compatibility's sake, close files before trying to restore metadata.
  */
 #if defined(HAVE_FCHMOD) || defined(HAVE_FUTIMES) || defined(HAVE_ACL_SET_FD) || defined(HAVE_ACL_SET_FD_NP) || defined(HAVE_FCHOWN)
 #define	CAN_RESTORE_METADATA_FD
+#endif
+
+/*
+ * glibc 2.24 deprecates readdir_r
+ */
+#if defined(HAVE_READDIR_R) && (!defined(__GLIBC__) || !defined(__GLIBC_MINOR__) || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 24))
+#define	USE_READDIR_R	1
+#else
+#undef	USE_READDIR_R
 #endif
 
 /* Set up defaults for internal error codes. */

@@ -2,7 +2,7 @@
 
 SUBDIR += chipsets
 
-.PATH: ${.CURDIR}/../../../dev/ata
+.PATH: ${SRCTOP}/sys/dev/ata
 
 KMOD=	atapci
 SRCS=	ata-pci.c ata-dma.c ata-sata.c

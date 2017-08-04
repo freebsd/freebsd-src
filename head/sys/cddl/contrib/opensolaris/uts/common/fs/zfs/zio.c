@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -41,6 +41,8 @@
 #include <sys/trim_map.h>
 #include <sys/blkptr.h>
 #include <sys/zfeature.h>
+#include <sys/metaslab_impl.h>
+#include <sys/abd.h>
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
@@ -77,6 +79,10 @@ const char *zio_type_name[ZIO_TYPES] = {
 	"zio_null", "zio_read", "zio_write", "zio_free", "zio_claim",
 	"zio_ioctl"
 };
+
+boolean_t zio_dva_throttle_enabled = B_TRUE;
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, dva_throttle_enabled, CTLFLAG_RDTUN,
+    &zio_dva_throttle_enabled, 0, "");
 
 /*
  * ==========================================================================
@@ -135,6 +141,8 @@ int zio_buf_debug_limit = 16384;
 int zio_buf_debug_limit = 0;
 #endif
 #endif
+
+static void zio_taskq_dispatch(zio_t *, zio_taskq_type_t, boolean_t);
 
 void
 zio_init(void)
@@ -329,13 +337,24 @@ zio_data_buf_free(void *buf, size_t size)
  * Push and pop I/O transform buffers
  * ==========================================================================
  */
-static void
-zio_push_transform(zio_t *zio, void *data, uint64_t size, uint64_t bufsize,
+void
+zio_push_transform(zio_t *zio, abd_t *data, uint64_t size, uint64_t bufsize,
     zio_transform_func_t *transform)
 {
 	zio_transform_t *zt = kmem_alloc(sizeof (zio_transform_t), KM_SLEEP);
 
-	zt->zt_orig_data = zio->io_data;
+	/*
+	 * Ensure that anyone expecting this zio to contain a linear ABD isn't
+	 * going to get a nasty surprise when they try to access the data.
+	 */
+#ifdef illumos
+	IMPLY(abd_is_linear(zio->io_abd), abd_is_linear(data));
+#else
+	IMPLY(zio->io_abd != NULL && abd_is_linear(zio->io_abd),
+	    abd_is_linear(data));
+#endif
+
+	zt->zt_orig_abd = zio->io_abd;
 	zt->zt_orig_size = zio->io_size;
 	zt->zt_bufsize = bufsize;
 	zt->zt_transform = transform;
@@ -343,11 +362,11 @@ zio_push_transform(zio_t *zio, void *data, uint64_t size, uint64_t bufsize,
 	zt->zt_next = zio->io_transform_stack;
 	zio->io_transform_stack = zt;
 
-	zio->io_data = data;
+	zio->io_abd = data;
 	zio->io_size = size;
 }
 
-static void
+void
 zio_pop_transforms(zio_t *zio)
 {
 	zio_transform_t *zt;
@@ -355,12 +374,12 @@ zio_pop_transforms(zio_t *zio)
 	while ((zt = zio->io_transform_stack) != NULL) {
 		if (zt->zt_transform != NULL)
 			zt->zt_transform(zio,
-			    zt->zt_orig_data, zt->zt_orig_size);
+			    zt->zt_orig_abd, zt->zt_orig_size);
 
 		if (zt->zt_bufsize != 0)
-			zio_buf_free(zio->io_data, zt->zt_bufsize);
+			abd_free(zio->io_abd);
 
-		zio->io_data = zt->zt_orig_data;
+		zio->io_abd = zt->zt_orig_abd;
 		zio->io_size = zt->zt_orig_size;
 		zio->io_transform_stack = zt->zt_next;
 
@@ -374,21 +393,26 @@ zio_pop_transforms(zio_t *zio)
  * ==========================================================================
  */
 static void
-zio_subblock(zio_t *zio, void *data, uint64_t size)
+zio_subblock(zio_t *zio, abd_t *data, uint64_t size)
 {
 	ASSERT(zio->io_size > size);
 
 	if (zio->io_type == ZIO_TYPE_READ)
-		bcopy(zio->io_data, data, size);
+		abd_copy(data, zio->io_abd, size);
 }
 
 static void
-zio_decompress(zio_t *zio, void *data, uint64_t size)
+zio_decompress(zio_t *zio, abd_t *data, uint64_t size)
 {
-	if (zio->io_error == 0 &&
-	    zio_decompress_data(BP_GET_COMPRESS(zio->io_bp),
-	    zio->io_data, data, zio->io_size, size) != 0)
-		zio->io_error = SET_ERROR(EIO);
+	if (zio->io_error == 0) {
+		void *tmp = abd_borrow_buf(data, size);
+		int ret = zio_decompress_data(BP_GET_COMPRESS(zio->io_bp),
+		    zio->io_abd, tmp, zio->io_size, size);
+		abd_return_buf_copy(data, tmp, size);
+
+		if (ret != 0)
+			zio->io_error = SET_ERROR(EIO);
+	}
 }
 
 /*
@@ -396,52 +420,39 @@ zio_decompress(zio_t *zio, void *data, uint64_t size)
  * I/O parent/child relationships and pipeline interlocks
  * ==========================================================================
  */
-/*
- * NOTE - Callers to zio_walk_parents() and zio_walk_children must
- *        continue calling these functions until they return NULL.
- *        Otherwise, the next caller will pick up the list walk in
- *        some indeterminate state.  (Otherwise every caller would
- *        have to pass in a cookie to keep the state represented by
- *        io_walk_link, which gets annoying.)
- */
 zio_t *
-zio_walk_parents(zio_t *cio)
+zio_walk_parents(zio_t *cio, zio_link_t **zl)
 {
-	zio_link_t *zl = cio->io_walk_link;
 	list_t *pl = &cio->io_parent_list;
 
-	zl = (zl == NULL) ? list_head(pl) : list_next(pl, zl);
-	cio->io_walk_link = zl;
-
-	if (zl == NULL)
+	*zl = (*zl == NULL) ? list_head(pl) : list_next(pl, *zl);
+	if (*zl == NULL)
 		return (NULL);
 
-	ASSERT(zl->zl_child == cio);
-	return (zl->zl_parent);
+	ASSERT((*zl)->zl_child == cio);
+	return ((*zl)->zl_parent);
 }
 
 zio_t *
-zio_walk_children(zio_t *pio)
+zio_walk_children(zio_t *pio, zio_link_t **zl)
 {
-	zio_link_t *zl = pio->io_walk_link;
 	list_t *cl = &pio->io_child_list;
 
-	zl = (zl == NULL) ? list_head(cl) : list_next(cl, zl);
-	pio->io_walk_link = zl;
-
-	if (zl == NULL)
+	*zl = (*zl == NULL) ? list_head(cl) : list_next(cl, *zl);
+	if (*zl == NULL)
 		return (NULL);
 
-	ASSERT(zl->zl_parent == pio);
-	return (zl->zl_child);
+	ASSERT((*zl)->zl_parent == pio);
+	return ((*zl)->zl_child);
 }
 
 zio_t *
 zio_unique_parent(zio_t *cio)
 {
-	zio_t *pio = zio_walk_parents(cio);
+	zio_link_t *zl = NULL;
+	zio_t *pio = zio_walk_parents(cio, &zl);
 
-	VERIFY(zio_walk_parents(cio) == NULL);
+	VERIFY3P(zio_walk_parents(cio, &zl), ==, NULL);
 	return (pio);
 }
 
@@ -510,6 +521,7 @@ zio_wait_for_children(zio_t *zio, enum zio_child child, enum zio_wait_type wait)
 	ASSERT(zio->io_stall == NULL);
 	if (*countp != 0) {
 		zio->io_stage >>= 1;
+		ASSERT3U(zio->io_stage, !=, ZIO_STAGE_OPEN);
 		zio->io_stall = countp;
 		waiting = B_TRUE;
 	}
@@ -533,9 +545,18 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait)
 	(*countp)--;
 
 	if (*countp == 0 && pio->io_stall == countp) {
+		zio_taskq_type_t type =
+		    pio->io_stage < ZIO_STAGE_VDEV_IO_START ? ZIO_TASKQ_ISSUE :
+		    ZIO_TASKQ_INTERRUPT;
 		pio->io_stall = NULL;
 		mutex_exit(&pio->io_lock);
-		zio_execute(pio);
+		/*
+		 * Dispatch the parent zio in its own taskq so that
+		 * the child can continue to make progress. This also
+		 * prevents overflowing the stack when we have deeply nested
+		 * parent-child relationships.
+		 */
+		zio_taskq_dispatch(pio, type, B_FALSE);
 	} else {
 		mutex_exit(&pio->io_lock);
 	}
@@ -548,6 +569,40 @@ zio_inherit_child_errors(zio_t *zio, enum zio_child c)
 		zio->io_error = zio->io_child_error[c];
 }
 
+int
+zio_bookmark_compare(const void *x1, const void *x2)
+{
+	const zio_t *z1 = x1;
+	const zio_t *z2 = x2;
+
+	if (z1->io_bookmark.zb_objset < z2->io_bookmark.zb_objset)
+		return (-1);
+	if (z1->io_bookmark.zb_objset > z2->io_bookmark.zb_objset)
+		return (1);
+
+	if (z1->io_bookmark.zb_object < z2->io_bookmark.zb_object)
+		return (-1);
+	if (z1->io_bookmark.zb_object > z2->io_bookmark.zb_object)
+		return (1);
+
+	if (z1->io_bookmark.zb_level < z2->io_bookmark.zb_level)
+		return (-1);
+	if (z1->io_bookmark.zb_level > z2->io_bookmark.zb_level)
+		return (1);
+
+	if (z1->io_bookmark.zb_blkid < z2->io_bookmark.zb_blkid)
+		return (-1);
+	if (z1->io_bookmark.zb_blkid > z2->io_bookmark.zb_blkid)
+		return (1);
+
+	if (z1 < z2)
+		return (-1);
+	if (z1 > z2)
+		return (1);
+
+	return (0);
+}
+
 /*
  * ==========================================================================
  * Create the various types of I/O (read, write, free, etc)
@@ -555,20 +610,22 @@ zio_inherit_child_errors(zio_t *zio, enum zio_child c)
  */
 static zio_t *
 zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
-    void *data, uint64_t size, zio_done_func_t *done, void *private,
-    zio_type_t type, zio_priority_t priority, enum zio_flag flags,
-    vdev_t *vd, uint64_t offset, const zbookmark_phys_t *zb,
-    enum zio_stage stage, enum zio_stage pipeline)
+    abd_t *data, uint64_t lsize, uint64_t psize, zio_done_func_t *done,
+    void *private, zio_type_t type, zio_priority_t priority,
+    enum zio_flag flags, vdev_t *vd, uint64_t offset,
+    const zbookmark_phys_t *zb, enum zio_stage stage, enum zio_stage pipeline)
 {
 	zio_t *zio;
 
-	ASSERT3U(type == ZIO_TYPE_FREE || size, <=, SPA_MAXBLOCKSIZE);
-	ASSERT(P2PHASE(size, SPA_MINBLOCKSIZE) == 0);
+	ASSERT3U(type == ZIO_TYPE_FREE || psize, <=, SPA_MAXBLOCKSIZE);
+	ASSERT(P2PHASE(psize, SPA_MINBLOCKSIZE) == 0);
 	ASSERT(P2PHASE(offset, SPA_MINBLOCKSIZE) == 0);
 
 	ASSERT(!vd || spa_config_held(spa, SCL_STATE_ALL, RW_READER));
 	ASSERT(!bp || !(flags & ZIO_FLAG_CONFIG_WRITER));
 	ASSERT(vd || stage == ZIO_STAGE_OPEN);
+
+	IMPLY(lsize != psize, (flags & ZIO_FLAG_RAW) != 0);
 
 	zio = kmem_cache_alloc(zio_cache, KM_SLEEP);
 	bzero(zio, sizeof (zio_t));
@@ -580,6 +637,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	    offsetof(zio_link_t, zl_parent_node));
 	list_create(&zio->io_child_list, sizeof (zio_link_t),
 	    offsetof(zio_link_t, zl_child_node));
+	metaslab_trace_init(&zio->io_alloc_list);
 
 	if (vd != NULL)
 		zio->io_child_type = ZIO_CHILD_VDEV;
@@ -611,11 +669,13 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	zio->io_priority = priority;
 	zio->io_vd = vd;
 	zio->io_offset = offset;
-	zio->io_orig_data = zio->io_data = data;
-	zio->io_orig_size = zio->io_size = size;
+	zio->io_orig_abd = zio->io_abd = data;
+	zio->io_orig_size = zio->io_size = psize;
+	zio->io_lsize = lsize;
 	zio->io_orig_flags = zio->io_flags = flags;
 	zio->io_orig_stage = zio->io_stage = stage;
 	zio->io_orig_pipeline = zio->io_pipeline = pipeline;
+	zio->io_pipeline_trace = ZIO_STAGE_OPEN;
 
 	zio->io_state[ZIO_WAIT_READY] = (stage >= ZIO_STAGE_READY);
 	zio->io_state[ZIO_WAIT_DONE] = (stage >= ZIO_STAGE_DONE);
@@ -637,6 +697,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 static void
 zio_destroy(zio_t *zio)
 {
+	metaslab_trace_fini(&zio->io_alloc_list);
 	list_destroy(&zio->io_parent_list);
 	list_destroy(&zio->io_child_list);
 	mutex_destroy(&zio->io_lock);
@@ -650,7 +711,7 @@ zio_null(zio_t *pio, spa_t *spa, vdev_t *vd, zio_done_func_t *done,
 {
 	zio_t *zio;
 
-	zio = zio_create(pio, spa, 0, NULL, NULL, 0, done, private,
+	zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
 	    ZIO_TYPE_NULL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
 	    ZIO_STAGE_OPEN, ZIO_INTERLOCK_PIPELINE);
 
@@ -747,7 +808,7 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp)
 
 zio_t *
 zio_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
-    void *data, uint64_t size, zio_done_func_t *done, void *private,
+    abd_t *data, uint64_t size, zio_done_func_t *done, void *private,
     zio_priority_t priority, enum zio_flag flags, const zbookmark_phys_t *zb)
 {
 	zio_t *zio;
@@ -755,7 +816,7 @@ zio_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
 	zfs_blkptr_verify(spa, bp);
 
 	zio = zio_create(pio, spa, BP_PHYSICAL_BIRTH(bp), bp,
-	    data, size, done, private,
+	    data, size, size, done, private,
 	    ZIO_TYPE_READ, priority, flags, NULL, 0, zb,
 	    ZIO_STAGE_OPEN, (flags & ZIO_FLAG_DDT_CHILD) ?
 	    ZIO_DDT_CHILD_READ_PIPELINE : ZIO_READ_PIPELINE);
@@ -765,7 +826,7 @@ zio_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
 
 zio_t *
 zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
-    void *data, uint64_t size, const zio_prop_t *zp,
+    abd_t *data, uint64_t lsize, uint64_t psize, const zio_prop_t *zp,
     zio_done_func_t *ready, zio_done_func_t *children_ready,
     zio_done_func_t *physdone, zio_done_func_t *done,
     void *private, zio_priority_t priority, enum zio_flag flags,
@@ -782,7 +843,7 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 	    zp->zp_copies > 0 &&
 	    zp->zp_copies <= spa_max_replication(spa));
 
-	zio = zio_create(pio, spa, txg, bp, data, size, done, private,
+	zio = zio_create(pio, spa, txg, bp, data, lsize, psize, done, private,
 	    ZIO_TYPE_WRITE, priority, flags, NULL, 0, zb,
 	    ZIO_STAGE_OPEN, (flags & ZIO_FLAG_DDT_CHILD) ?
 	    ZIO_DDT_CHILD_WRITE_PIPELINE : ZIO_WRITE_PIPELINE);
@@ -806,14 +867,14 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 }
 
 zio_t *
-zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, void *data,
+zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, abd_t *data,
     uint64_t size, zio_done_func_t *done, void *private,
     zio_priority_t priority, enum zio_flag flags, zbookmark_phys_t *zb)
 {
 	zio_t *zio;
 
-	zio = zio_create(pio, spa, txg, bp, data, size, done, private,
-	    ZIO_TYPE_WRITE, priority, flags, NULL, 0, zb,
+	zio = zio_create(pio, spa, txg, bp, data, size, size, done, private,
+	    ZIO_TYPE_WRITE, priority, flags | ZIO_FLAG_IO_REWRITE, NULL, 0, zb,
 	    ZIO_STAGE_OPEN, ZIO_REWRITE_PIPELINE);
 
 	return (zio);
@@ -898,8 +959,8 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	flags |= ZIO_FLAG_DONT_QUEUE;
 
 	zio = zio_create(pio, spa, txg, bp, NULL, size,
-	    NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_NOW, flags,
-	    NULL, 0, NULL, ZIO_STAGE_OPEN, stage);
+	    size, NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_NOW,
+	    flags, NULL, 0, NULL, ZIO_STAGE_OPEN, stage);
 
 	return (zio);
 }
@@ -932,8 +993,9 @@ zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	ASSERT(!BP_GET_DEDUP(bp) || !spa_writeable(spa));	/* zdb(1M) */
 
 	zio = zio_create(pio, spa, txg, bp, NULL, BP_GET_PSIZE(bp),
-	    done, private, ZIO_TYPE_CLAIM, ZIO_PRIORITY_NOW, flags,
-	    NULL, 0, NULL, ZIO_STAGE_OPEN, ZIO_CLAIM_PIPELINE);
+	    BP_GET_PSIZE(bp), done, private, ZIO_TYPE_CLAIM, ZIO_PRIORITY_NOW,
+	    flags, NULL, 0, NULL, ZIO_STAGE_OPEN, ZIO_CLAIM_PIPELINE);
+	ASSERT0(zio->io_queued_timestamp);
 
 	return (zio);
 }
@@ -947,8 +1009,8 @@ zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd, uint64_t offset,
 	int c;
 
 	if (vd->vdev_children == 0) {
-		zio = zio_create(pio, spa, 0, NULL, NULL, size, done, private,
-		    ZIO_TYPE_IOCTL, priority, flags, vd, offset, NULL,
+		zio = zio_create(pio, spa, 0, NULL, NULL, 0, 0, done, private,
+		    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
 		    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
 
 		zio->io_cmd = cmd;
@@ -965,7 +1027,7 @@ zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd, uint64_t offset,
 
 zio_t *
 zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
-    void *data, int checksum, zio_done_func_t *done, void *private,
+    abd_t *data, int checksum, zio_done_func_t *done, void *private,
     zio_priority_t priority, enum zio_flag flags, boolean_t labels)
 {
 	zio_t *zio;
@@ -975,9 +1037,9 @@ zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 	    offset >= vd->vdev_psize - VDEV_LABEL_END_SIZE);
 	ASSERT3U(offset + size, <=, vd->vdev_psize);
 
-	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, done, private,
-	    ZIO_TYPE_READ, priority, flags | ZIO_FLAG_PHYSICAL, vd, offset,
-	    NULL, ZIO_STAGE_OPEN, ZIO_READ_PHYS_PIPELINE);
+	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, size, done,
+	    private, ZIO_TYPE_READ, priority, flags | ZIO_FLAG_PHYSICAL, vd,
+	    offset, NULL, ZIO_STAGE_OPEN, ZIO_READ_PHYS_PIPELINE);
 
 	zio->io_prop.zp_checksum = checksum;
 
@@ -986,7 +1048,7 @@ zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 
 zio_t *
 zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
-    void *data, int checksum, zio_done_func_t *done, void *private,
+    abd_t *data, int checksum, zio_done_func_t *done, void *private,
     zio_priority_t priority, enum zio_flag flags, boolean_t labels)
 {
 	zio_t *zio;
@@ -996,9 +1058,9 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 	    offset >= vd->vdev_psize - VDEV_LABEL_END_SIZE);
 	ASSERT3U(offset + size, <=, vd->vdev_psize);
 
-	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, done, private,
-	    ZIO_TYPE_WRITE, priority, flags | ZIO_FLAG_PHYSICAL, vd, offset,
-	    NULL, ZIO_STAGE_OPEN, ZIO_WRITE_PHYS_PIPELINE);
+	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, size, done,
+	    private, ZIO_TYPE_WRITE, priority, flags | ZIO_FLAG_PHYSICAL, vd,
+	    offset, NULL, ZIO_STAGE_OPEN, ZIO_WRITE_PHYS_PIPELINE);
 
 	zio->io_prop.zp_checksum = checksum;
 
@@ -1009,8 +1071,9 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 		 * Therefore, we must make a local copy in case the data is
 		 * being written to multiple places in parallel.
 		 */
-		void *wbuf = zio_buf_alloc(size);
-		bcopy(data, wbuf, size);
+		abd_t *wbuf = abd_alloc_sametype(data, size);
+		abd_copy(wbuf, data, size);
+
 		zio_push_transform(zio, wbuf, size, size, NULL);
 	}
 
@@ -1022,8 +1085,8 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
  */
 zio_t *
 zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
-	void *data, uint64_t size, int type, zio_priority_t priority,
-	enum zio_flag flags, zio_done_func_t *done, void *private)
+    abd_t *data, uint64_t size, int type, zio_priority_t priority,
+    enum zio_flag flags, zio_done_func_t *done, void *private)
 {
 	enum zio_stage pipeline = ZIO_VDEV_CHILD_PIPELINE;
 	zio_t *zio;
@@ -1058,9 +1121,30 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 	if (flags & ZIO_FLAG_IO_REPAIR)
 		flags &= ~ZIO_FLAG_SPECULATIVE;
 
-	zio = zio_create(pio, pio->io_spa, pio->io_txg, bp, data, size,
+	/*
+	 * If we're creating a child I/O that is not associated with a
+	 * top-level vdev, then the child zio is not an allocating I/O.
+	 * If this is a retried I/O then we ignore it since we will
+	 * have already processed the original allocating I/O.
+	 */
+	if (flags & ZIO_FLAG_IO_ALLOCATING &&
+	    (vd != vd->vdev_top || (flags & ZIO_FLAG_IO_RETRY))) {
+		metaslab_class_t *mc = spa_normal_class(pio->io_spa);
+
+		ASSERT(mc->mc_alloc_throttle_enabled);
+		ASSERT(type == ZIO_TYPE_WRITE);
+		ASSERT(priority == ZIO_PRIORITY_ASYNC_WRITE);
+		ASSERT(!(flags & ZIO_FLAG_IO_REPAIR));
+		ASSERT(!(pio->io_flags & ZIO_FLAG_IO_REWRITE) ||
+		    pio->io_child_type == ZIO_CHILD_GANG);
+
+		flags &= ~ZIO_FLAG_IO_ALLOCATING;
+	}
+
+	zio = zio_create(pio, pio->io_spa, pio->io_txg, bp, data, size, size,
 	    done, private, type, priority, flags, vd, offset, &pio->io_bookmark,
 	    ZIO_STAGE_VDEV_IO_START >> 1, pipeline);
+	ASSERT3U(zio->io_child_type, ==, ZIO_CHILD_VDEV);
 
 	zio->io_physdone = pio->io_physdone;
 	if (vd->vdev_ops->vdev_op_leaf && zio->io_logical != NULL)
@@ -1070,7 +1154,7 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 }
 
 zio_t *
-zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, void *data, uint64_t size,
+zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, abd_t *data, uint64_t size,
     int type, zio_priority_t priority, enum zio_flag flags,
     zio_done_func_t *done, void *private)
 {
@@ -1079,7 +1163,7 @@ zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, void *data, uint64_t size,
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
 	zio = zio_create(NULL, vd->vdev_spa, 0, NULL,
-	    data, size, done, private, type, priority,
+	    data, size, size, done, private, type, priority,
 	    flags | ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_RETRY | ZIO_FLAG_DELEGATED,
 	    vd, offset, NULL,
 	    ZIO_STAGE_VDEV_IO_START >> 1, ZIO_VDEV_CHILD_PIPELINE);
@@ -1101,7 +1185,7 @@ zio_trim(zio_t *zio, spa_t *spa, vdev_t *vd, uint64_t offset, uint64_t size)
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
-	return (zio_create(zio, spa, 0, NULL, NULL, size, NULL, NULL,
+	return (zio_create(zio, spa, 0, NULL, NULL, size, size, NULL, NULL,
 	    ZIO_TYPE_FREE, ZIO_PRIORITY_TRIM, ZIO_FLAG_DONT_AGGREGATE |
 	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY,
 	    vd, offset, NULL, ZIO_STAGE_OPEN, ZIO_FREE_PHYS_PIPELINE));
@@ -1120,8 +1204,11 @@ zio_shrink(zio_t *zio, uint64_t size)
 	 * Note, BP_IS_RAIDZ() assumes no compression.
 	 */
 	ASSERT(BP_GET_COMPRESS(zio->io_bp) == ZIO_COMPRESS_OFF);
-	if (!BP_IS_RAIDZ(zio->io_bp))
-		zio->io_orig_size = zio->io_size = size;
+	if (!BP_IS_RAIDZ(zio->io_bp)) {
+		/* we are not doing a raw write */
+		ASSERT3U(zio->io_size, ==, zio->io_lsize);
+		zio->io_orig_size = zio->io_size = zio->io_lsize = size;
+	}
 }
 
 /*
@@ -1140,14 +1227,17 @@ zio_read_bp_init(zio_t *zio)
 	    !(zio->io_flags & ZIO_FLAG_RAW)) {
 		uint64_t psize =
 		    BP_IS_EMBEDDED(bp) ? BPE_GET_PSIZE(bp) : BP_GET_PSIZE(bp);
-		void *cbuf = zio_buf_alloc(psize);
-
-		zio_push_transform(zio, cbuf, psize, psize, zio_decompress);
+		zio_push_transform(zio, abd_alloc_sametype(zio->io_abd, psize),
+		    psize, psize, zio_decompress);
 	}
 
 	if (BP_IS_EMBEDDED(bp) && BPE_GET_ETYPE(bp) == BP_EMBEDDED_TYPE_DATA) {
 		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
-		decode_embedded_bp_compressed(bp, zio->io_data);
+
+		int psize = BPE_GET_PSIZE(bp);
+		void *data = abd_borrow_buf(zio->io_abd, psize);
+		decode_embedded_bp_compressed(bp, data);
+		abd_return_buf_copy(zio->io_abd, data, psize);
 	} else {
 		ASSERT(!BP_IS_EMBEDDED(bp));
 	}
@@ -1167,13 +1257,74 @@ zio_read_bp_init(zio_t *zio)
 static int
 zio_write_bp_init(zio_t *zio)
 {
+	if (!IO_IS_ALLOCATING(zio))
+		return (ZIO_PIPELINE_CONTINUE);
+
+	ASSERT(zio->io_child_type != ZIO_CHILD_DDT);
+
+	if (zio->io_bp_override) {
+		blkptr_t *bp = zio->io_bp;
+		zio_prop_t *zp = &zio->io_prop;
+
+		ASSERT(bp->blk_birth != zio->io_txg);
+		ASSERT(BP_GET_DEDUP(zio->io_bp_override) == 0);
+
+		*bp = *zio->io_bp_override;
+		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
+
+		if (BP_IS_EMBEDDED(bp))
+			return (ZIO_PIPELINE_CONTINUE);
+
+		/*
+		 * If we've been overridden and nopwrite is set then
+		 * set the flag accordingly to indicate that a nopwrite
+		 * has already occurred.
+		 */
+		if (!BP_IS_HOLE(bp) && zp->zp_nopwrite) {
+			ASSERT(!zp->zp_dedup);
+			ASSERT3U(BP_GET_CHECKSUM(bp), ==, zp->zp_checksum);
+			zio->io_flags |= ZIO_FLAG_NOPWRITE;
+			return (ZIO_PIPELINE_CONTINUE);
+		}
+
+		ASSERT(!zp->zp_nopwrite);
+
+		if (BP_IS_HOLE(bp) || !zp->zp_dedup)
+			return (ZIO_PIPELINE_CONTINUE);
+
+		ASSERT((zio_checksum_table[zp->zp_checksum].ci_flags &
+		    ZCHECKSUM_FLAG_DEDUP) || zp->zp_dedup_verify);
+
+		if (BP_GET_CHECKSUM(bp) == zp->zp_checksum) {
+			BP_SET_DEDUP(bp, 1);
+			zio->io_pipeline |= ZIO_STAGE_DDT_WRITE;
+			return (ZIO_PIPELINE_CONTINUE);
+		}
+
+		/*
+		 * We were unable to handle this as an override bp, treat
+		 * it as a regular write I/O.
+		 */
+		zio->io_bp_override = NULL;
+		*bp = zio->io_bp_orig;
+		zio->io_pipeline = zio->io_orig_pipeline;
+	}
+
+	return (ZIO_PIPELINE_CONTINUE);
+}
+
+static int
+zio_write_compress(zio_t *zio)
+{
 	spa_t *spa = zio->io_spa;
 	zio_prop_t *zp = &zio->io_prop;
 	enum zio_compress compress = zp->zp_compress;
 	blkptr_t *bp = zio->io_bp;
-	uint64_t lsize = zio->io_size;
-	uint64_t psize = lsize;
+	uint64_t lsize = zio->io_lsize;
+	uint64_t psize = zio->io_size;
 	int pass = 1;
+
+	EQUIV(lsize != psize, (zio->io_flags & ZIO_FLAG_RAW) != 0);
 
 	/*
 	 * If our children haven't all reached the ready stage,
@@ -1197,44 +1348,7 @@ zio_write_bp_init(zio_t *zio)
 	}
 
 	ASSERT(zio->io_child_type != ZIO_CHILD_DDT);
-
-	if (zio->io_bp_override) {
-		ASSERT(bp->blk_birth != zio->io_txg);
-		ASSERT(BP_GET_DEDUP(zio->io_bp_override) == 0);
-
-		*bp = *zio->io_bp_override;
-		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
-
-		if (BP_IS_EMBEDDED(bp))
-			return (ZIO_PIPELINE_CONTINUE);
-
-		/*
-		 * If we've been overridden and nopwrite is set then
-		 * set the flag accordingly to indicate that a nopwrite
-		 * has already occurred.
-		 */
-		if (!BP_IS_HOLE(bp) && zp->zp_nopwrite) {
-			ASSERT(!zp->zp_dedup);
-			zio->io_flags |= ZIO_FLAG_NOPWRITE;
-			return (ZIO_PIPELINE_CONTINUE);
-		}
-
-		ASSERT(!zp->zp_nopwrite);
-
-		if (BP_IS_HOLE(bp) || !zp->zp_dedup)
-			return (ZIO_PIPELINE_CONTINUE);
-
-		ASSERT((zio_checksum_table[zp->zp_checksum].ci_flags &
-		    ZCHECKSUM_FLAG_DEDUP) || zp->zp_dedup_verify);
-
-		if (BP_GET_CHECKSUM(bp) == zp->zp_checksum) {
-			BP_SET_DEDUP(bp, 1);
-			zio->io_pipeline |= ZIO_STAGE_DDT_WRITE;
-			return (ZIO_PIPELINE_CONTINUE);
-		}
-		zio->io_bp_override = NULL;
-		BP_ZERO(bp);
-	}
+	ASSERT(zio->io_bp_override == NULL);
 
 	if (!BP_IS_HOLE(bp) && bp->blk_birth == zio->io_txg) {
 		/*
@@ -1260,9 +1374,10 @@ zio_write_bp_init(zio_t *zio)
 		    spa_max_replication(spa)) == BP_GET_NDVAS(bp));
 	}
 
-	if (compress != ZIO_COMPRESS_OFF) {
+	/* If it's a compressed write that is not raw, compress the buffer. */
+	if (compress != ZIO_COMPRESS_OFF && psize == lsize) {
 		void *cbuf = zio_buf_alloc(lsize);
-		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize);
+		psize = zio_compress_data(compress, zio->io_abd, cbuf, lsize);
 		if (psize == 0 || psize == lsize) {
 			compress = ZIO_COMPRESS_OFF;
 			zio_buf_free(cbuf, lsize);
@@ -1297,12 +1412,24 @@ zio_write_bp_init(zio_t *zio)
 				zio_buf_free(cbuf, lsize);
 				psize = lsize;
 			} else {
-				bzero((char *)cbuf + psize, rounded - psize);
+				abd_t *cdata = abd_get_from_buf(cbuf, lsize);
+				abd_take_ownership_of_buf(cdata, B_TRUE);
+				abd_zero_off(cdata, psize, rounded - psize);
 				psize = rounded;
-				zio_push_transform(zio, cbuf,
+				zio_push_transform(zio, cdata,
 				    psize, lsize, NULL);
 			}
 		}
+
+		/*
+		 * We were unable to handle this as an override bp, treat
+		 * it as a regular write I/O.
+		 */
+		zio->io_bp_override = NULL;
+		*bp = zio->io_bp_orig;
+		zio->io_pipeline = zio->io_orig_pipeline;
+	} else {
+		ASSERT3U(psize, !=, 0);
 	}
 
 	/*
@@ -1355,7 +1482,6 @@ zio_write_bp_init(zio_t *zio)
 			zio->io_pipeline |= ZIO_STAGE_NOP_WRITE;
 		}
 	}
-
 	return (ZIO_PIPELINE_CONTINUE);
 }
 
@@ -1532,6 +1658,8 @@ zio_execute(zio_t *zio)
 {
 	zio->io_executor = curthread;
 
+	ASSERT3U(zio->io_queued_timestamp, >, 0);
+
 	while (zio->io_stage < ZIO_STAGE_DONE) {
 		enum zio_stage pipeline = zio->io_pipeline;
 		enum zio_stage stage = zio->io_stage;
@@ -1565,6 +1693,7 @@ zio_execute(zio_t *zio)
 		}
 
 		zio->io_stage = stage;
+		zio->io_pipeline_trace |= zio->io_stage;
 		rv = zio_pipeline[highbit64(stage) - 1](zio);
 
 		if (rv == ZIO_PIPELINE_STOP)
@@ -1588,6 +1717,8 @@ zio_wait(zio_t *zio)
 	ASSERT(zio->io_executor == NULL);
 
 	zio->io_waiter = curthread;
+	ASSERT0(zio->io_queued_timestamp);
+	zio->io_queued_timestamp = gethrtime();
 
 	zio_execute(zio);
 
@@ -1619,6 +1750,8 @@ zio_nowait(zio_t *zio)
 		zio_add_child(spa->spa_async_zio_root[CPU_SEQID], zio);
 	}
 
+	ASSERT0(zio->io_queued_timestamp);
+	zio->io_queued_timestamp = gethrtime();
 	zio_execute(zio);
 }
 
@@ -1643,6 +1776,7 @@ zio_reexecute(zio_t *pio)
 	pio->io_pipeline = pio->io_orig_pipeline;
 	pio->io_reexecute = 0;
 	pio->io_flags |= ZIO_FLAG_REEXECUTED;
+	pio->io_pipeline_trace = 0;
 	pio->io_error = 0;
 	for (int w = 0; w < ZIO_WAIT_TYPES; w++)
 		pio->io_state[w] = 0;
@@ -1659,8 +1793,9 @@ zio_reexecute(zio_t *pio)
 	 * the remainder of pio's io_child_list, from 'cio_next' onward,
 	 * cannot be affected by any side effects of reexecuting 'cio'.
 	 */
-	for (cio = zio_walk_children(pio); cio != NULL; cio = cio_next) {
-		cio_next = zio_walk_children(pio);
+	zio_link_t *zl = NULL;
+	for (cio = zio_walk_children(pio, &zl); cio != NULL; cio = cio_next) {
+		cio_next = zio_walk_children(pio, &zl);
 		mutex_enter(&pio->io_lock);
 		for (int w = 0; w < ZIO_WAIT_TYPES; w++)
 			pio->io_children[cio->io_child_type][w]++;
@@ -1673,8 +1808,10 @@ zio_reexecute(zio_t *pio)
 	 * We don't reexecute "The Godfather" I/O here as it's the
 	 * responsibility of the caller to wait on him.
 	 */
-	if (!(pio->io_flags & ZIO_FLAG_GODFATHER))
+	if (!(pio->io_flags & ZIO_FLAG_GODFATHER)) {
+		pio->io_queued_timestamp = gethrtime();
 		zio_execute(pio);
+	}
 }
 
 void
@@ -1805,26 +1942,38 @@ zio_resume_wait(spa_t *spa)
  * ==========================================================================
  */
 
+static void
+zio_gang_issue_func_done(zio_t *zio)
+{
+	abd_put(zio->io_abd);
+}
+
 static zio_t *
-zio_read_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
+zio_read_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, abd_t *data,
+    uint64_t offset)
 {
 	if (gn != NULL)
 		return (pio);
 
-	return (zio_read(pio, pio->io_spa, bp, data, BP_GET_PSIZE(bp),
-	    NULL, NULL, pio->io_priority, ZIO_GANG_CHILD_FLAGS(pio),
+	return (zio_read(pio, pio->io_spa, bp, abd_get_offset(data, offset),
+	    BP_GET_PSIZE(bp), zio_gang_issue_func_done,
+	    NULL, pio->io_priority, ZIO_GANG_CHILD_FLAGS(pio),
 	    &pio->io_bookmark));
 }
 
-zio_t *
-zio_rewrite_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
+static zio_t *
+zio_rewrite_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, abd_t *data,
+    uint64_t offset)
 {
 	zio_t *zio;
 
 	if (gn != NULL) {
+		abd_t *gbh_abd =
+		    abd_get_from_buf(gn->gn_gbh, SPA_GANGBLOCKSIZE);
 		zio = zio_rewrite(pio, pio->io_spa, pio->io_txg, bp,
-		    gn->gn_gbh, SPA_GANGBLOCKSIZE, NULL, NULL, pio->io_priority,
-		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
+		    gbh_abd, SPA_GANGBLOCKSIZE, zio_gang_issue_func_done, NULL,
+		    pio->io_priority, ZIO_GANG_CHILD_FLAGS(pio),
+		    &pio->io_bookmark);
 		/*
 		 * As we rewrite each gang header, the pipeline will compute
 		 * a new gang block header checksum for it; but no one will
@@ -1835,8 +1984,12 @@ zio_rewrite_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
 		 * this is just good hygiene.)
 		 */
 		if (gn != pio->io_gang_leader->io_gang_tree) {
+			abd_t *buf = abd_get_offset(data, offset);
+
 			zio_checksum_compute(zio, BP_GET_CHECKSUM(bp),
-			    data, BP_GET_PSIZE(bp));
+			    buf, BP_GET_PSIZE(bp));
+
+			abd_put(buf);
 		}
 		/*
 		 * If we are here to damage data for testing purposes,
@@ -1846,7 +1999,8 @@ zio_rewrite_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
 			zio->io_pipeline &= ~ZIO_VDEV_IO_STAGES;
 	} else {
 		zio = zio_rewrite(pio, pio->io_spa, pio->io_txg, bp,
-		    data, BP_GET_PSIZE(bp), NULL, NULL, pio->io_priority,
+		    abd_get_offset(data, offset), BP_GET_PSIZE(bp),
+		    zio_gang_issue_func_done, NULL, pio->io_priority,
 		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 	}
 
@@ -1854,8 +2008,9 @@ zio_rewrite_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
 }
 
 /* ARGSUSED */
-zio_t *
-zio_free_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
+static zio_t *
+zio_free_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, abd_t *data,
+    uint64_t offset)
 {
 	return (zio_free_sync(pio, pio->io_spa, pio->io_txg, bp,
 	    BP_IS_GANG(bp) ? SPA_GANGBLOCKSIZE : BP_GET_PSIZE(bp),
@@ -1863,8 +2018,9 @@ zio_free_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
 }
 
 /* ARGSUSED */
-zio_t *
-zio_claim_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
+static zio_t *
+zio_claim_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, abd_t *data,
+    uint64_t offset)
 {
 	return (zio_claim(pio, pio->io_spa, pio->io_txg, bp,
 	    NULL, NULL, ZIO_GANG_CHILD_FLAGS(pio)));
@@ -1926,13 +2082,14 @@ static void
 zio_gang_tree_assemble(zio_t *gio, blkptr_t *bp, zio_gang_node_t **gnpp)
 {
 	zio_gang_node_t *gn = zio_gang_node_alloc(gnpp);
+	abd_t *gbh_abd = abd_get_from_buf(gn->gn_gbh, SPA_GANGBLOCKSIZE);
 
 	ASSERT(gio->io_gang_leader == gio);
 	ASSERT(BP_IS_GANG(bp));
 
-	zio_nowait(zio_read(gio, gio->io_spa, bp, gn->gn_gbh,
-	    SPA_GANGBLOCKSIZE, zio_gang_tree_assemble_done, gn,
-	    gio->io_priority, ZIO_GANG_CHILD_FLAGS(gio), &gio->io_bookmark));
+	zio_nowait(zio_read(gio, gio->io_spa, bp, gbh_abd, SPA_GANGBLOCKSIZE,
+	    zio_gang_tree_assemble_done, gn, gio->io_priority,
+	    ZIO_GANG_CHILD_FLAGS(gio), &gio->io_bookmark));
 }
 
 static void
@@ -1948,12 +2105,15 @@ zio_gang_tree_assemble_done(zio_t *zio)
 	if (zio->io_error)
 		return;
 
+	/* this ABD was created from a linear buf in zio_gang_tree_assemble */
 	if (BP_SHOULD_BYTESWAP(bp))
-		byteswap_uint64_array(zio->io_data, zio->io_size);
+		byteswap_uint64_array(abd_to_buf(zio->io_abd), zio->io_size);
 
-	ASSERT(zio->io_data == gn->gn_gbh);
+	ASSERT3P(abd_to_buf(zio->io_abd), ==, gn->gn_gbh);
 	ASSERT(zio->io_size == SPA_GANGBLOCKSIZE);
 	ASSERT(gn->gn_gbh->zg_tail.zec_magic == ZEC_MAGIC);
+
+	abd_put(zio->io_abd);
 
 	for (int g = 0; g < SPA_GBH_NBLKPTRS; g++) {
 		blkptr_t *gbp = &gn->gn_gbh->zg_blkptr[g];
@@ -1964,7 +2124,8 @@ zio_gang_tree_assemble_done(zio_t *zio)
 }
 
 static void
-zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, void *data)
+zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, abd_t *data,
+    uint64_t offset)
 {
 	zio_t *gio = pio->io_gang_leader;
 	zio_t *zio;
@@ -1977,7 +2138,7 @@ zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, void *data)
 	 * If you're a gang header, your data is in gn->gn_gbh.
 	 * If you're a gang member, your data is in 'data' and gn == NULL.
 	 */
-	zio = zio_gang_issue_func[gio->io_type](pio, bp, gn, data);
+	zio = zio_gang_issue_func[gio->io_type](pio, bp, gn, data, offset);
 
 	if (gn != NULL) {
 		ASSERT(gn->gn_gbh->zg_tail.zec_magic == ZEC_MAGIC);
@@ -1986,13 +2147,14 @@ zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, void *data)
 			blkptr_t *gbp = &gn->gn_gbh->zg_blkptr[g];
 			if (BP_IS_HOLE(gbp))
 				continue;
-			zio_gang_tree_issue(zio, gn->gn_child[g], gbp, data);
-			data = (char *)data + BP_GET_PSIZE(gbp);
+			zio_gang_tree_issue(zio, gn->gn_child[g], gbp, data,
+			    offset);
+			offset += BP_GET_PSIZE(gbp);
 		}
 	}
 
-	if (gn == gio->io_gang_tree && gio->io_data != NULL)
-		ASSERT3P((char *)gio->io_data + gio->io_size, ==, data);
+	if (gn == gio->io_gang_tree && gio->io_abd != NULL)
+		ASSERT3U(gio->io_size, ==, offset);
 
 	if (zio != pio)
 		zio_nowait(zio);
@@ -2025,7 +2187,8 @@ zio_gang_issue(zio_t *zio)
 	ASSERT(zio->io_child_type > ZIO_CHILD_GANG);
 
 	if (zio->io_child_error[ZIO_CHILD_GANG] == 0)
-		zio_gang_tree_issue(zio, zio->io_gang_tree, bp, zio->io_data);
+		zio_gang_tree_issue(zio, zio->io_gang_tree, bp, zio->io_abd,
+		    0);
 	else
 		zio_gang_tree_free(&zio->io_gang_tree);
 
@@ -2064,15 +2227,23 @@ zio_write_gang_member_ready(zio_t *zio)
 	mutex_exit(&pio->io_lock);
 }
 
+static void
+zio_write_gang_done(zio_t *zio)
+{
+	abd_put(zio->io_abd);
+}
+
 static int
 zio_write_gang_block(zio_t *pio)
 {
 	spa_t *spa = pio->io_spa;
+	metaslab_class_t *mc = spa_normal_class(spa);
 	blkptr_t *bp = pio->io_bp;
 	zio_t *gio = pio->io_gang_leader;
 	zio_t *zio;
 	zio_gang_node_t *gn, **gnpp;
 	zio_gbh_phys_t *gbh;
+	abd_t *gbh_abd;
 	uint64_t txg = pio->io_txg;
 	uint64_t resid = pio->io_size;
 	uint64_t lsize;
@@ -2081,10 +2252,44 @@ zio_write_gang_block(zio_t *pio)
 	zio_prop_t zp;
 	int error;
 
-	error = metaslab_alloc(spa, spa_normal_class(spa), SPA_GANGBLOCKSIZE,
-	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp,
-	    METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER);
+	int flags = METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER;
+	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+		ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
+		ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+
+		flags |= METASLAB_ASYNC_ALLOC;
+		VERIFY(refcount_held(&mc->mc_alloc_slots, pio));
+
+		/*
+		 * The logical zio has already placed a reservation for
+		 * 'copies' allocation slots but gang blocks may require
+		 * additional copies. These additional copies
+		 * (i.e. gbh_copies - copies) are guaranteed to succeed
+		 * since metaslab_class_throttle_reserve() always allows
+		 * additional reservations for gang blocks.
+		 */
+		VERIFY(metaslab_class_throttle_reserve(mc, gbh_copies - copies,
+		    pio, flags));
+	}
+
+	error = metaslab_alloc(spa, mc, SPA_GANGBLOCKSIZE,
+	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp, flags,
+	    &pio->io_alloc_list, pio);
 	if (error) {
+		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
+			ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+
+			/*
+			 * If we failed to allocate the gang block header then
+			 * we remove any additional allocation reservations that
+			 * we placed here. The original reservation will
+			 * be removed when the logical I/O goes to the ready
+			 * stage.
+			 */
+			metaslab_class_throttle_unreserve(mc,
+			    gbh_copies - copies, pio);
+		}
 		pio->io_error = error;
 		return (ZIO_PIPELINE_CONTINUE);
 	}
@@ -2099,12 +2304,14 @@ zio_write_gang_block(zio_t *pio)
 	gn = zio_gang_node_alloc(gnpp);
 	gbh = gn->gn_gbh;
 	bzero(gbh, SPA_GANGBLOCKSIZE);
+	gbh_abd = abd_get_from_buf(gbh, SPA_GANGBLOCKSIZE);
 
 	/*
 	 * Create the gang header.
 	 */
-	zio = zio_rewrite(pio, spa, txg, bp, gbh, SPA_GANGBLOCKSIZE, NULL, NULL,
-	    pio->io_priority, ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
+	zio = zio_rewrite(pio, spa, txg, bp, gbh_abd, SPA_GANGBLOCKSIZE,
+	    zio_write_gang_done, NULL, pio->io_priority,
+	    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 
 	/*
 	 * Create and nowait the gang children.
@@ -2123,11 +2330,25 @@ zio_write_gang_block(zio_t *pio)
 		zp.zp_dedup_verify = B_FALSE;
 		zp.zp_nopwrite = B_FALSE;
 
-		zio_nowait(zio_write(zio, spa, txg, &gbh->zg_blkptr[g],
-		    (char *)pio->io_data + (pio->io_size - resid), lsize, &zp,
-		    zio_write_gang_member_ready, NULL, NULL, NULL,
-		    &gn->gn_child[g], pio->io_priority,
-		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark));
+		zio_t *cio = zio_write(zio, spa, txg, &gbh->zg_blkptr[g],
+		    abd_get_offset(pio->io_abd, pio->io_size - resid), lsize,
+		    lsize, &zp, zio_write_gang_member_ready, NULL, NULL,
+		    zio_write_gang_done, &gn->gn_child[g], pio->io_priority,
+		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
+
+		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
+			ASSERT(!(pio->io_flags & ZIO_FLAG_NODATA));
+
+			/*
+			 * Gang children won't throttle but we should
+			 * account for their work, so reserve an allocation
+			 * slot for them here.
+			 */
+			VERIFY(metaslab_class_throttle_reserve(mc,
+			    zp.zp_copies, cio, flags));
+		}
+		zio_nowait(cio);
 	}
 
 	/*
@@ -2225,10 +2446,11 @@ zio_ddt_child_read_done(zio_t *zio)
 	ddp = ddt_phys_select(dde, bp);
 	if (zio->io_error == 0)
 		ddt_phys_clear(ddp);	/* this ddp doesn't need repair */
-	if (zio->io_error == 0 && dde->dde_repair_data == NULL)
-		dde->dde_repair_data = zio->io_data;
+
+	if (zio->io_error == 0 && dde->dde_repair_abd == NULL)
+		dde->dde_repair_abd = zio->io_abd;
 	else
-		zio_buf_free(zio->io_data, zio->io_size);
+		abd_free(zio->io_abd);
 	mutex_exit(&pio->io_lock);
 }
 
@@ -2260,16 +2482,16 @@ zio_ddt_read_start(zio_t *zio)
 			ddt_bp_create(ddt->ddt_checksum, &dde->dde_key, ddp,
 			    &blk);
 			zio_nowait(zio_read(zio, zio->io_spa, &blk,
-			    zio_buf_alloc(zio->io_size), zio->io_size,
-			    zio_ddt_child_read_done, dde, zio->io_priority,
-			    ZIO_DDT_CHILD_FLAGS(zio) | ZIO_FLAG_DONT_PROPAGATE,
-			    &zio->io_bookmark));
+			    abd_alloc_for_io(zio->io_size, B_TRUE),
+			    zio->io_size, zio_ddt_child_read_done, dde,
+			    zio->io_priority, ZIO_DDT_CHILD_FLAGS(zio) |
+			    ZIO_FLAG_DONT_PROPAGATE, &zio->io_bookmark));
 		}
 		return (ZIO_PIPELINE_CONTINUE);
 	}
 
 	zio_nowait(zio_read(zio, zio->io_spa, bp,
-	    zio->io_data, zio->io_size, NULL, NULL, zio->io_priority,
+	    zio->io_abd, zio->io_size, NULL, NULL, zio->io_priority,
 	    ZIO_DDT_CHILD_FLAGS(zio), &zio->io_bookmark));
 
 	return (ZIO_PIPELINE_CONTINUE);
@@ -2299,8 +2521,9 @@ zio_ddt_read_done(zio_t *zio)
 			zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_FALSE);
 			return (ZIO_PIPELINE_STOP);
 		}
-		if (dde->dde_repair_data != NULL) {
-			bcopy(dde->dde_repair_data, zio->io_data, zio->io_size);
+		if (dde->dde_repair_abd != NULL) {
+			abd_copy(zio->io_abd, dde->dde_repair_abd,
+			    zio->io_size);
 			zio->io_child_error[ZIO_CHILD_DDT] = 0;
 		}
 		ddt_repair_done(ddt, dde);
@@ -2316,6 +2539,10 @@ static boolean_t
 zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 {
 	spa_t *spa = zio->io_spa;
+	boolean_t do_raw = (zio->io_flags & ZIO_FLAG_RAW);
+
+	/* We should never get a raw, override zio */
+	ASSERT(!(zio->io_bp_override && do_raw));
 
 	/*
 	 * Note: we compare the original data, not the transformed data,
@@ -2328,7 +2555,7 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 
 		if (lio != NULL) {
 			return (lio->io_orig_size != zio->io_orig_size ||
-			    bcmp(zio->io_orig_data, lio->io_orig_data,
+			    abd_cmp(zio->io_orig_abd, lio->io_orig_abd,
 			    zio->io_orig_size) != 0);
 		}
 	}
@@ -2339,6 +2566,7 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 		if (ddp->ddp_phys_birth != 0) {
 			arc_buf_t *abuf = NULL;
 			arc_flags_t aflags = ARC_FLAG_WAIT;
+			int zio_flags = ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE;
 			blkptr_t blk = *zio->io_bp;
 			int error;
 
@@ -2346,17 +2574,33 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 
 			ddt_exit(ddt);
 
+			/*
+			 * Intuitively, it would make more sense to compare
+			 * io_abd than io_orig_abd in the raw case since you
+			 * don't want to look at any transformations that have
+			 * happened to the data. However, for raw I/Os the
+			 * data will actually be the same in io_abd and
+			 * io_orig_abd, so all we have to do is issue this as
+			 * a raw ARC read.
+			 */
+			if (do_raw) {
+				zio_flags |= ZIO_FLAG_RAW;
+				ASSERT3U(zio->io_size, ==, zio->io_orig_size);
+				ASSERT0(abd_cmp(zio->io_abd, zio->io_orig_abd,
+				    zio->io_size));
+				ASSERT3P(zio->io_transform_stack, ==, NULL);
+			}
+
 			error = arc_read(NULL, spa, &blk,
 			    arc_getbuf_func, &abuf, ZIO_PRIORITY_SYNC_READ,
-			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
-			    &aflags, &zio->io_bookmark);
+			    zio_flags, &aflags, &zio->io_bookmark);
 
 			if (error == 0) {
 				if (arc_buf_size(abuf) != zio->io_orig_size ||
-				    bcmp(abuf->b_data, zio->io_orig_data,
+				    abd_cmp_buf(zio->io_orig_abd, abuf->b_data,
 				    zio->io_orig_size) != 0)
 					error = SET_ERROR(EEXIST);
-				VERIFY(arc_buf_remove_ref(abuf, &abuf));
+				arc_buf_destroy(abuf, &abuf);
 			}
 
 			ddt_enter(ddt);
@@ -2385,7 +2629,8 @@ zio_ddt_child_write_ready(zio_t *zio)
 
 	ddt_phys_fill(ddp, zio->io_bp);
 
-	while ((pio = zio_walk_parents(zio)) != NULL)
+	zio_link_t *zl = NULL;
+	while ((pio = zio_walk_parents(zio, &zl)) != NULL)
 		ddt_bp_fill(ddp, pio->io_bp, zio->io_txg);
 
 	ddt_exit(ddt);
@@ -2406,7 +2651,8 @@ zio_ddt_child_write_done(zio_t *zio)
 	dde->dde_lead_zio[p] = NULL;
 
 	if (zio->io_error == 0) {
-		while (zio_walk_parents(zio) != NULL)
+		zio_link_t *zl = NULL;
+		while (zio_walk_parents(zio, &zl) != NULL)
 			ddt_phys_addref(ddp);
 	} else {
 		ddt_phys_clear(ddp);
@@ -2462,6 +2708,7 @@ zio_ddt_write(zio_t *zio)
 	ASSERT(BP_GET_DEDUP(bp));
 	ASSERT(BP_GET_CHECKSUM(bp) == zp->zp_checksum);
 	ASSERT(BP_IS_HOLE(bp) || zio->io_bp_override);
+	ASSERT(!(zio->io_bp_override && (zio->io_flags & ZIO_FLAG_RAW)));
 
 	ddt_enter(ddt);
 	dde = ddt_lookup(ddt, bp, B_TRUE);
@@ -2482,7 +2729,9 @@ zio_ddt_write(zio_t *zio)
 			BP_ZERO(bp);
 		} else {
 			zp->zp_dedup = B_FALSE;
+			BP_SET_DEDUP(bp, B_FALSE);
 		}
+		ASSERT(!BP_GET_DEDUP(bp));
 		zio->io_pipeline = ZIO_WRITE_PIPELINE;
 		ddt_exit(ddt);
 		return (ZIO_PIPELINE_CONTINUE);
@@ -2514,12 +2763,12 @@ zio_ddt_write(zio_t *zio)
 			return (ZIO_PIPELINE_CONTINUE);
 		}
 
-		dio = zio_write(zio, spa, txg, bp, zio->io_orig_data,
-		    zio->io_orig_size, &czp, NULL, NULL,
+		dio = zio_write(zio, spa, txg, bp, zio->io_orig_abd,
+		    zio->io_orig_size, zio->io_orig_size, &czp, NULL, NULL,
 		    NULL, zio_ddt_ditto_write_done, dde, zio->io_priority,
 		    ZIO_DDT_CHILD_FLAGS(zio), &zio->io_bookmark);
 
-		zio_push_transform(dio, zio->io_data, zio->io_size, 0, NULL);
+		zio_push_transform(dio, zio->io_abd, zio->io_size, 0, NULL);
 		dde->dde_lead_zio[DDT_PHYS_DITTO] = dio;
 	}
 
@@ -2536,13 +2785,13 @@ zio_ddt_write(zio_t *zio)
 		ddt_phys_fill(ddp, bp);
 		ddt_phys_addref(ddp);
 	} else {
-		cio = zio_write(zio, spa, txg, bp, zio->io_orig_data,
-		    zio->io_orig_size, zp,
+		cio = zio_write(zio, spa, txg, bp, zio->io_orig_abd,
+		    zio->io_orig_size, zio->io_orig_size, zp,
 		    zio_ddt_child_write_ready, NULL, NULL,
 		    zio_ddt_child_write_done, dde, zio->io_priority,
 		    ZIO_DDT_CHILD_FLAGS(zio), &zio->io_bookmark);
 
-		zio_push_transform(cio, zio->io_data, zio->io_size, 0, NULL);
+		zio_push_transform(cio, zio->io_abd, zio->io_size, 0, NULL);
 		dde->dde_lead_zio[p] = cio;
 	}
 
@@ -2584,6 +2833,95 @@ zio_ddt_free(zio_t *zio)
  * Allocate and free blocks
  * ==========================================================================
  */
+
+static zio_t *
+zio_io_to_allocate(spa_t *spa)
+{
+	zio_t *zio;
+
+	ASSERT(MUTEX_HELD(&spa->spa_alloc_lock));
+
+	zio = avl_first(&spa->spa_alloc_tree);
+	if (zio == NULL)
+		return (NULL);
+
+	ASSERT(IO_IS_ALLOCATING(zio));
+
+	/*
+	 * Try to place a reservation for this zio. If we're unable to
+	 * reserve then we throttle.
+	 */
+	if (!metaslab_class_throttle_reserve(spa_normal_class(spa),
+	    zio->io_prop.zp_copies, zio, 0)) {
+		return (NULL);
+	}
+
+	avl_remove(&spa->spa_alloc_tree, zio);
+	ASSERT3U(zio->io_stage, <, ZIO_STAGE_DVA_ALLOCATE);
+
+	return (zio);
+}
+
+static int
+zio_dva_throttle(zio_t *zio)
+{
+	spa_t *spa = zio->io_spa;
+	zio_t *nio;
+
+	if (zio->io_priority == ZIO_PRIORITY_SYNC_WRITE ||
+	    !spa_normal_class(zio->io_spa)->mc_alloc_throttle_enabled ||
+	    zio->io_child_type == ZIO_CHILD_GANG ||
+	    zio->io_flags & ZIO_FLAG_NODATA) {
+		return (ZIO_PIPELINE_CONTINUE);
+	}
+
+	ASSERT(zio->io_child_type > ZIO_CHILD_GANG);
+
+	ASSERT3U(zio->io_queued_timestamp, >, 0);
+	ASSERT(zio->io_stage == ZIO_STAGE_DVA_THROTTLE);
+
+	mutex_enter(&spa->spa_alloc_lock);
+
+	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+	avl_add(&spa->spa_alloc_tree, zio);
+
+	nio = zio_io_to_allocate(zio->io_spa);
+	mutex_exit(&spa->spa_alloc_lock);
+
+	if (nio == zio)
+		return (ZIO_PIPELINE_CONTINUE);
+
+	if (nio != NULL) {
+		ASSERT(nio->io_stage == ZIO_STAGE_DVA_THROTTLE);
+		/*
+		 * We are passing control to a new zio so make sure that
+		 * it is processed by a different thread. We do this to
+		 * avoid stack overflows that can occur when parents are
+		 * throttled and children are making progress. We allow
+		 * it to go to the head of the taskq since it's already
+		 * been waiting.
+		 */
+		zio_taskq_dispatch(nio, ZIO_TASKQ_ISSUE, B_TRUE);
+	}
+	return (ZIO_PIPELINE_STOP);
+}
+
+void
+zio_allocate_dispatch(spa_t *spa)
+{
+	zio_t *zio;
+
+	mutex_enter(&spa->spa_alloc_lock);
+	zio = zio_io_to_allocate(spa);
+	mutex_exit(&spa->spa_alloc_lock);
+	if (zio == NULL)
+		return;
+
+	ASSERT3U(zio->io_stage, ==, ZIO_STAGE_DVA_THROTTLE);
+	ASSERT0(zio->io_error);
+	zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_TRUE);
+}
+
 static int
 zio_dva_allocate(zio_t *zio)
 {
@@ -2604,18 +2942,21 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));
 
-	/*
-	 * The dump device does not support gang blocks so allocation on
-	 * behalf of the dump device (i.e. ZIO_FLAG_NODATA) must avoid
-	 * the "fast" gang feature.
-	 */
-	flags |= (zio->io_flags & ZIO_FLAG_NODATA) ? METASLAB_GANG_AVOID : 0;
-	flags |= (zio->io_flags & ZIO_FLAG_GANG_CHILD) ?
-	    METASLAB_GANG_CHILD : 0;
-	error = metaslab_alloc(spa, mc, zio->io_size, bp,
-	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags);
+	if (zio->io_flags & ZIO_FLAG_NODATA) {
+		flags |= METASLAB_DONT_THROTTLE;
+	}
+	if (zio->io_flags & ZIO_FLAG_GANG_CHILD) {
+		flags |= METASLAB_GANG_CHILD;
+	}
+	if (zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE) {
+		flags |= METASLAB_ASYNC_ALLOC;
+	}
 
-	if (error) {
+	error = metaslab_alloc(spa, mc, zio->io_size, bp,
+	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
+	    &zio->io_alloc_list, zio);
+
+	if (error != 0) {
 		spa_dbgmsg(spa, "%s: metaslab allocation failure: zio %p, "
 		    "size %llu, error %d", spa_name(spa), zio, zio->io_size,
 		    error);
@@ -2674,28 +3015,26 @@ zio_dva_unallocate(zio_t *zio, zio_gang_node_t *gn, blkptr_t *bp)
  */
 int
 zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
-    uint64_t size, boolean_t use_slog)
+    uint64_t size, boolean_t *slog)
 {
 	int error = 1;
+	zio_alloc_list_t io_alloc_list;
 
 	ASSERT(txg > spa_syncing_txg(spa));
 
-	/*
-	 * ZIL blocks are always contiguous (i.e. not gang blocks) so we
-	 * set the METASLAB_GANG_AVOID flag so that they don't "fast gang"
-	 * when allocating them.
-	 */
-	if (use_slog) {
-		error = metaslab_alloc(spa, spa_log_class(spa), size,
-		    new_bp, 1, txg, old_bp,
-		    METASLAB_HINTBP_AVOID | METASLAB_GANG_AVOID);
-	}
-
-	if (error) {
+	metaslab_trace_init(&io_alloc_list);
+	error = metaslab_alloc(spa, spa_log_class(spa), size, new_bp, 1,
+	    txg, old_bp, METASLAB_HINTBP_AVOID, &io_alloc_list, NULL);
+	if (error == 0) {
+		*slog = TRUE;
+	} else {
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
-		    new_bp, 1, txg, old_bp,
-		    METASLAB_HINTBP_AVOID);
+		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID,
+		    &io_alloc_list, NULL);
+		if (error == 0)
+			*slog = FALSE;
 	}
+	metaslab_trace_fini(&io_alloc_list);
 
 	if (error == 0) {
 		BP_SET_LSIZE(new_bp, size);
@@ -2770,6 +3109,8 @@ zio_vdev_io_start(zio_t *zio)
 		return (ZIO_PIPELINE_CONTINUE);
 	}
 
+	ASSERT3P(zio->io_logical, !=, zio);
+
 	/*
 	 * We keep track of time-sensitive I/Os so that the scan thread
 	 * can quickly react to certain workloads.  In particular, we care
@@ -2796,14 +3137,14 @@ zio_vdev_io_start(zio_t *zio)
 	    P2PHASE(zio->io_size, align) != 0) {
 		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
-		char *abuf = NULL;
+		abd_t *abuf = NULL;
 		if (zio->io_type == ZIO_TYPE_READ ||
 		    zio->io_type == ZIO_TYPE_WRITE)
-			abuf = zio_buf_alloc(asize);
+			abuf = abd_alloc_sametype(zio->io_abd, asize);
 		ASSERT(vd == vd->vdev_top);
 		if (zio->io_type == ZIO_TYPE_WRITE) {
-			bcopy(zio->io_data, abuf, zio->io_size);
-			bzero(abuf + zio->io_size, asize - zio->io_size);
+			abd_copy(abuf, zio->io_abd, zio->io_size);
+			abd_zero_off(abuf, zio->io_size, asize - zio->io_size);
 		}
 		zio_push_transform(zio, abuf, asize, abuf ? asize : 0,
 		    zio_subblock);
@@ -2955,7 +3296,7 @@ zio_vsd_default_cksum_report(zio_t *zio, zio_cksum_report_t *zcr, void *ignored)
 {
 	void *buf = zio_buf_alloc(zio->io_size);
 
-	bcopy(zio->io_data, buf, zio->io_size);
+	abd_copy_to_buf(buf, zio->io_abd, zio->io_size);
 
 	zcr->zcr_cbinfo = zio->io_size;
 	zcr->zcr_cbdata = buf;
@@ -3034,6 +3375,16 @@ zio_vdev_io_assess(zio_t *zio)
 		vd->vdev_cant_write = B_TRUE;
 	}
 
+	/*
+	 * If a cache flush returns ENOTSUP or ENOTTY, we know that no future
+	 * attempts will ever succeed. In this case we set a persistent bit so
+	 * that we don't bother with it in the future.
+	 */
+	if ((zio->io_error == ENOTSUP || zio->io_error == ENOTTY) &&
+	    zio->io_type == ZIO_TYPE_IOCTL &&
+	    zio->io_cmd == DKIOCFLUSHWRITECACHE && vd != NULL)
+		vd->vdev_nowritecache = B_TRUE;
+
 	if (zio->io_error)
 		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
 
@@ -3105,7 +3456,7 @@ zio_checksum_generate(zio_t *zio)
 		}
 	}
 
-	zio_checksum_compute(zio, checksum, zio->io_data, zio->io_size);
+	zio_checksum_compute(zio, checksum, zio->io_abd, zio->io_size);
 
 	return (ZIO_PIPELINE_CONTINUE);
 }
@@ -3188,6 +3539,7 @@ zio_ready(zio_t *zio)
 {
 	blkptr_t *bp = zio->io_bp;
 	zio_t *pio, *pio_next;
+	zio_link_t *zl = NULL;
 
 	if (zio_wait_for_children(zio, ZIO_CHILD_GANG, ZIO_WAIT_READY) ||
 	    zio_wait_for_children(zio, ZIO_CHILD_DDT, ZIO_WAIT_READY))
@@ -3205,12 +3557,26 @@ zio_ready(zio_t *zio)
 	if (bp != NULL && bp != &zio->io_bp_copy)
 		zio->io_bp_copy = *bp;
 
-	if (zio->io_error)
+	if (zio->io_error != 0) {
 		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
+
+		if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+			ASSERT(IO_IS_ALLOCATING(zio));
+			ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
+			/*
+			 * We were unable to allocate anything, unreserve and
+			 * issue the next I/O to allocate.
+			 */
+			metaslab_class_throttle_unreserve(
+			    spa_normal_class(zio->io_spa),
+			    zio->io_prop.zp_copies, zio);
+			zio_allocate_dispatch(zio->io_spa);
+		}
+	}
 
 	mutex_enter(&zio->io_lock);
 	zio->io_state[ZIO_WAIT_READY] = 1;
-	pio = zio_walk_parents(zio);
+	pio = zio_walk_parents(zio, &zl);
 	mutex_exit(&zio->io_lock);
 
 	/*
@@ -3221,7 +3587,7 @@ zio_ready(zio_t *zio)
 	 * all parents must wait for us to be done before they can be done.
 	 */
 	for (; pio != NULL; pio = pio_next) {
-		pio_next = zio_walk_parents(zio);
+		pio_next = zio_walk_parents(zio, &zl);
 		zio_notify_parent(pio, zio, ZIO_WAIT_READY);
 	}
 
@@ -3229,7 +3595,7 @@ zio_ready(zio_t *zio)
 		if (BP_IS_GANG(bp)) {
 			zio->io_flags &= ~ZIO_FLAG_NODATA;
 		} else {
-			ASSERT((uintptr_t)zio->io_data < SPA_MAXBLOCKSIZE);
+			ASSERT((uintptr_t)zio->io_abd < SPA_MAXBLOCKSIZE);
 			zio->io_pipeline &= ~ZIO_VDEV_IO_STAGES;
 		}
 	}
@@ -3241,6 +3607,66 @@ zio_ready(zio_t *zio)
 	return (ZIO_PIPELINE_CONTINUE);
 }
 
+/*
+ * Update the allocation throttle accounting.
+ */
+static void
+zio_dva_throttle_done(zio_t *zio)
+{
+	zio_t *lio = zio->io_logical;
+	zio_t *pio = zio_unique_parent(zio);
+	vdev_t *vd = zio->io_vd;
+	int flags = METASLAB_ASYNC_ALLOC;
+
+	ASSERT3P(zio->io_bp, !=, NULL);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
+	ASSERT3U(zio->io_priority, ==, ZIO_PRIORITY_ASYNC_WRITE);
+	ASSERT3U(zio->io_child_type, ==, ZIO_CHILD_VDEV);
+	ASSERT(vd != NULL);
+	ASSERT3P(vd, ==, vd->vdev_top);
+	ASSERT(!(zio->io_flags & (ZIO_FLAG_IO_REPAIR | ZIO_FLAG_IO_RETRY)));
+	ASSERT(zio->io_flags & ZIO_FLAG_IO_ALLOCATING);
+	ASSERT(!(lio->io_flags & ZIO_FLAG_IO_REWRITE));
+	ASSERT(!(lio->io_orig_flags & ZIO_FLAG_NODATA));
+
+	/*
+	 * Parents of gang children can have two flavors -- ones that
+	 * allocated the gang header (will have ZIO_FLAG_IO_REWRITE set)
+	 * and ones that allocated the constituent blocks. The allocation
+	 * throttle needs to know the allocating parent zio so we must find
+	 * it here.
+	 */
+	if (pio->io_child_type == ZIO_CHILD_GANG) {
+		/*
+		 * If our parent is a rewrite gang child then our grandparent
+		 * would have been the one that performed the allocation.
+		 */
+		if (pio->io_flags & ZIO_FLAG_IO_REWRITE)
+			pio = zio_unique_parent(pio);
+		flags |= METASLAB_GANG_CHILD;
+	}
+
+	ASSERT(IO_IS_ALLOCATING(pio));
+	ASSERT3P(zio, !=, zio->io_logical);
+	ASSERT(zio->io_logical != NULL);
+	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REPAIR));
+	ASSERT0(zio->io_flags & ZIO_FLAG_NOPWRITE);
+
+	mutex_enter(&pio->io_lock);
+	metaslab_group_alloc_decrement(zio->io_spa, vd->vdev_id, pio, flags);
+	mutex_exit(&pio->io_lock);
+
+	metaslab_class_throttle_unreserve(spa_normal_class(zio->io_spa),
+	    1, pio);
+
+	/*
+	 * Call into the pipeline to see if there is more work that
+	 * needs to be done. If there is work to be done it will be
+	 * dispatched to another taskq thread.
+	 */
+	zio_allocate_dispatch(zio->io_spa);
+}
+
 static int
 zio_done(zio_t *zio)
 {
@@ -3250,6 +3676,8 @@ zio_done(zio_t *zio)
 	vdev_t *vd = zio->io_vd;
 	uint64_t psize = zio->io_size;
 	zio_t *pio, *pio_next;
+	metaslab_class_t *mc = spa_normal_class(spa);
+	zio_link_t *zl = NULL;
 
 	/*
 	 * If our children haven't all completed,
@@ -3260,6 +3688,30 @@ zio_done(zio_t *zio)
 	    zio_wait_for_children(zio, ZIO_CHILD_DDT, ZIO_WAIT_DONE) ||
 	    zio_wait_for_children(zio, ZIO_CHILD_LOGICAL, ZIO_WAIT_DONE))
 		return (ZIO_PIPELINE_STOP);
+
+	/*
+	 * If the allocation throttle is enabled, then update the accounting.
+	 * We only track child I/Os that are part of an allocating async
+	 * write. We must do this since the allocation is performed
+	 * by the logical I/O but the actual write is done by child I/Os.
+	 */
+	if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING &&
+	    zio->io_child_type == ZIO_CHILD_VDEV) {
+		ASSERT(mc->mc_alloc_throttle_enabled);
+		zio_dva_throttle_done(zio);
+	}
+
+	/*
+	 * If the allocation throttle is enabled, verify that
+	 * we have decremented the refcounts for every I/O that was throttled.
+	 */
+	if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+		ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
+		ASSERT(bp != NULL);
+		metaslab_group_alloc_verify(spa, zio->io_bp, zio);
+		VERIFY(refcount_not_held(&mc->mc_alloc_slots, zio));
+	}
 
 	for (int c = 0; c < ZIO_CHILD_TYPES; c++)
 		for (int w = 0; w < ZIO_WAIT_TYPES; w++)
@@ -3298,21 +3750,28 @@ zio_done(zio_t *zio)
 			zio_cksum_report_t *zcr = zio->io_cksum_report;
 			uint64_t align = zcr->zcr_align;
 			uint64_t asize = P2ROUNDUP(psize, align);
-			char *abuf = zio->io_data;
+			char *abuf = NULL;
+			abd_t *adata = zio->io_abd;
 
 			if (asize != psize) {
-				abuf = zio_buf_alloc(asize);
-				bcopy(zio->io_data, abuf, psize);
-				bzero(abuf + psize, asize - psize);
+				adata = abd_alloc_linear(asize, B_TRUE);
+				abd_copy(adata, zio->io_abd, psize);
+				abd_zero_off(adata, psize, asize - psize);
 			}
+
+			if (adata != NULL)
+				abuf = abd_borrow_buf_copy(adata, asize);
 
 			zio->io_cksum_report = zcr->zcr_next;
 			zcr->zcr_next = NULL;
 			zcr->zcr_finish(zcr, abuf);
 			zfs_ereport_free_checksum(zcr);
 
+			if (adata != NULL)
+				abd_return_buf(adata, abuf, asize);
+
 			if (asize != psize)
-				zio_buf_free(abuf, asize);
+				abd_free(adata);
 		}
 	}
 
@@ -3430,13 +3889,15 @@ zio_done(zio_t *zio)
 		 * trouble (e.g. suspended). This allows "The Godfather"
 		 * I/O to return status without blocking.
 		 */
-		for (pio = zio_walk_parents(zio); pio != NULL; pio = pio_next) {
-			zio_link_t *zl = zio->io_walk_link;
-			pio_next = zio_walk_parents(zio);
+		zl = NULL;
+		for (pio = zio_walk_parents(zio, &zl); pio != NULL;
+		    pio = pio_next) {
+			zio_link_t *remove_zl = zl;
+			pio_next = zio_walk_parents(zio, &zl);
 
 			if ((pio->io_flags & ZIO_FLAG_GODFATHER) &&
 			    (zio->io_reexecute & ZIO_REEXECUTE_SUSPEND)) {
-				zio_remove_child(pio, zio, zl);
+				zio_remove_child(pio, zio, remove_zl);
 				zio_notify_parent(pio, zio, ZIO_WAIT_DONE);
 			}
 		}
@@ -3500,10 +3961,11 @@ zio_done(zio_t *zio)
 	zio->io_state[ZIO_WAIT_DONE] = 1;
 	mutex_exit(&zio->io_lock);
 
-	for (pio = zio_walk_parents(zio); pio != NULL; pio = pio_next) {
-		zio_link_t *zl = zio->io_walk_link;
-		pio_next = zio_walk_parents(zio);
-		zio_remove_child(pio, zio, zl);
+	zl = NULL;
+	for (pio = zio_walk_parents(zio, &zl); pio != NULL; pio = pio_next) {
+		zio_link_t *remove_zl = zl;
+		pio_next = zio_walk_parents(zio, &zl);
+		zio_remove_child(pio, zio, remove_zl);
 		zio_notify_parent(pio, zio, ZIO_WAIT_DONE);
 	}
 
@@ -3527,9 +3989,10 @@ zio_done(zio_t *zio)
 static zio_pipe_stage_t *zio_pipeline[] = {
 	NULL,
 	zio_read_bp_init,
+	zio_write_bp_init,
 	zio_free_bp_init,
 	zio_issue_async,
-	zio_write_bp_init,
+	zio_write_compress,
 	zio_checksum_generate,
 	zio_nop_write,
 	zio_ddt_read_start,
@@ -3538,6 +4001,7 @@ static zio_pipe_stage_t *zio_pipeline[] = {
 	zio_ddt_free,
 	zio_gang_assemble,
 	zio_gang_issue,
+	zio_dva_throttle,
 	zio_dva_allocate,
 	zio_dva_free,
 	zio_dva_claim,

@@ -55,6 +55,8 @@ AC_CONFIG_HEADER([config.h])
 dnl AC_ARG_PROGRAM
 
 NTP_PROG_CC
+NTP_COMPILER
+NTP_HARDEN
 
 NTP_LOCINFO()
 
@@ -139,9 +141,9 @@ AC_DEFINE([HAVE_TERMIOS], 1, [sntp does not care about TTY stuff])
 AC_CHECK_FUNCS([socket])
 
 NTP_UNITYBUILD
-# HMS: if we don't find c++ we should not look for gtest.
-AC_PROG_CXX
-NTP_GOOGLETEST
+## HMS: if we don't find c++ we should not look for gtest.
+#AC_PROG_CXX
+#NTP_GOOGLETEST
 
 SNTP_PROBLEM_TESTS
 

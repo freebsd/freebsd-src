@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2015
+.Dd April 26, 2017
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -34,7 +34,6 @@
 .Nm uma_zalloc_arg ,
 .Nm uma_zfree ,
 .Nm uma_zfree_arg ,
-.Nm uma_find_refcnt ,
 .Nm uma_zdestroy ,
 .Nm uma_zone_set_max,
 .Nm uma_zone_get_max,
@@ -60,8 +59,6 @@
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
-.Ft "uint32_t *"
-.Fn uma_find_refcnt "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
 .Ft int
@@ -155,10 +152,6 @@ is a subset of the following flags:
 .Bl -tag -width "foo"
 .It Dv UMA_ZONE_NOFREE
 Slabs of the zone are never returned back to VM.
-.It Dv UMA_ZONE_REFCNT
-Each item in the zone would have internal reference counter associated with it.
-See
-.Fn uma_find_refcnt .
 .It Dv UMA_ZONE_NODUMP
 Pages belonging to the zone will not be included into mini-dumps.
 .It Dv UMA_ZONE_PCPU
@@ -256,13 +249,6 @@ specify an argument for the
 and
 .Dv dtor
 functions, respectively.
-.Pp
-If zone was created with
-.Dv UMA_ZONE_REFCNT
-flag, then pointer to reference counter for an item can be retrieved with
-help of the
-.Fn uma_find_refcnt
-function.
 .Pp
 Created zones,
 which are empty,

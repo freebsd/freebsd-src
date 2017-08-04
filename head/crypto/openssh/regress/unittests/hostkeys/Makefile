@@ -1,6 +1,4 @@
-#	$OpenBSD: Makefile,v 1.1 2015/02/16 22:18:34 djm Exp $
-
-TEST_ENV=      "MALLOC_OPTIONS=AFGJPRX"
+#	$OpenBSD: Makefile,v 1.3 2016/11/01 13:43:27 tb Exp $
 
 PROG=test_hostkeys
 SRCS=tests.c test_iterate.c

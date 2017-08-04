@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -268,8 +268,7 @@ setup(char *dev)
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = Calloc((unsigned)(sblock.fs_ncg),
-	    sizeof(struct inostatlist));
+	inostathead = Calloc(sblock.fs_ncg, sizeof(struct inostatlist));
 	if (inostathead == NULL) {
 		printf("cannot alloc %u bytes for inostathead\n",
 		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
@@ -279,10 +278,8 @@ setup(char *dev)
 	dirhash = numdirs;
 	inplast = 0;
 	listmax = numdirs + 10;
-	inpsort = (struct inoinfo **)Calloc((unsigned)listmax,
-	    sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)Calloc((unsigned)numdirs,
-	    sizeof(struct inoinfo *));
+	inpsort = (struct inoinfo **)Calloc(listmax, sizeof(struct inoinfo *));
+	inphead = (struct inoinfo **)Calloc(numdirs, sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
 		printf("cannot alloc %ju bytes for inphead\n",
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));

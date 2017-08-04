@@ -666,7 +666,7 @@ static void
 eli_init(struct gctl_req *req)
 {
 	struct g_eli_metadata md;
-	unsigned char sector[sizeof(struct g_eli_metadata)];
+	unsigned char sector[sizeof(struct g_eli_metadata)] __aligned(4);
 	unsigned char key[G_ELI_USERKEYLEN];
 	char backfile[MAXPATHLEN];
 	const char *str, *prov;
@@ -1118,7 +1118,9 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 
 	val = gctl_get_intmax(req, "iterations");
 	/* Check if iterations number should and can be changed. */
-	if (val != -1) {
+	if (val != -1 && md->md_iterations == -1) {
+		md->md_iterations = val;
+	} else if (val != -1 && val != md->md_iterations) {
 		if (bitcount32(md->md_keys) != 1) {
 			gctl_error(req, "To be able to use '-i' option, only "
 			    "one key can be defined.");

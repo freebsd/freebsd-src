@@ -1,4 +1,4 @@
-/*	$Id: demandoc.c,v 1.27 2016/07/09 15:24:19 schwarze Exp $ */
+/*	$Id: demandoc.c,v 1.29 2017/06/24 14:38:32 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -25,10 +25,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "mandoc.h"
 #include "roff.h"
 #include "man.h"
 #include "mdoc.h"
-#include "mandoc.h"
 
 static	void	 pline(int, int *, int *, int);
 static	void	 pman(const struct roff_node *, int *, int *, int);
@@ -78,7 +78,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL, NULL);
+	mp = mparse_alloc(MPARSE_SO, MANDOCERR_MAX, NULL,
+	    MANDOC_OS_OTHER, NULL);
 	assert(mp);
 
 	if (argc < 1)
@@ -239,7 +240,7 @@ pmdoc(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
-		if (MDOC_LINE & p->flags)
+		if (NODE_LINE & p->flags)
 			pline(p->line, line, col, list);
 		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);
@@ -253,7 +254,7 @@ pman(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
-		if (MAN_LINE & p->flags)
+		if (NODE_LINE & p->flags)
 			pline(p->line, line, col, list);
 		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);

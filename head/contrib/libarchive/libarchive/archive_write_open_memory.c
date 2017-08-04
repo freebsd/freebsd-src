@@ -53,12 +53,11 @@ archive_write_open_memory(struct archive *a, void *buff, size_t buffSize, size_t
 {
 	struct write_memory_data *mine;
 
-	mine = (struct write_memory_data *)malloc(sizeof(*mine));
+	mine = (struct write_memory_data *)calloc(1, sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
 	}
-	memset(mine, 0, sizeof(*mine));
 	mine->buff = buff;
 	mine->size = buffSize;
 	mine->client_size = used;

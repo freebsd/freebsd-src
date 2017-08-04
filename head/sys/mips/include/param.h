@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,33 +53,36 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
+#if _BYTE_ORDER == _BIG_ENDIAN
+# define _EL_SUFFIX ""
+#else
+# define _EL_SUFFIX "el"
+#endif
+
+#ifdef __mips_n64
+# define _N64_SUFFIX "64"
+#elif defined(__mips_n32)
+# define _N64_SUFFIX "n32"
+#else
+# define _N64_SUFFIX ""
+#endif
+
+#ifdef __mips_hard_float
+# define _HF_SUFFIX "hf"
+#else
+# define _HF_SUFFIX ""
+#endif
+
 #ifndef MACHINE
-#define	MACHINE		"mips"
+# define MACHINE	"mips"
 #endif
 #ifndef MACHINE_ARCH
-#if _BYTE_ORDER == _BIG_ENDIAN
+# define MACHINE_ARCH 	"mips" _N64_SUFFIX _EL_SUFFIX _HF_SUFFIX
+#endif
 #ifdef __mips_n64
-#define	MACHINE_ARCH	"mips64"
-#ifndef	MACHINE_ARCH32
-#define	MACHINE_ARCH32	"mips"
-#endif
-#elif defined(__mips_n32)
-#define	MACHINE_ARCH	"mipsn32"
-#else
-#define	MACHINE_ARCH	"mips"
-#endif
-#else
-#ifdef __mips_n64
-#define	MACHINE_ARCH	"mips64el"
-#ifndef	MACHINE_ARCH32
-#define	MACHINE_ARCH32	"mipsel"
-#endif
-#elif defined(__mips_n32)
-#define	MACHINE_ARCH	"mipsn32el"
-#else
-#define	MACHINE_ARCH	"mipsel"
-#endif
-#endif
+# ifndef MACHINE_ARCH32
+#  define MACHINE_ARCH32 "mips" _EL_SUFFIX _HF_SUFFIX
+# endif
 #endif
 
 /*

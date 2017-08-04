@@ -2,6 +2,8 @@
 #include <ucl.h>
 #include <Python.h>
 
+static PyObject *SchemaError;
+
 static PyObject *
 _basic_ucl_type (ucl_object_t const *obj)
 {
@@ -13,9 +15,11 @@ _basic_ucl_type (ucl_object_t const *obj)
 	case UCL_STRING:
 		return Py_BuildValue ("s", ucl_object_tostring (obj));
 	case UCL_BOOLEAN:
-		return ucl_object_toboolean (obj) ? Py_True : Py_False;
+		return PyBool_FromLong (ucl_object_toboolean (obj));
 	case UCL_TIME:
 		return Py_BuildValue ("d", ucl_object_todouble (obj));
+	case UCL_NULL:
+		Py_RETURN_NONE;
 	}
 	return NULL;
 }
@@ -124,26 +128,60 @@ _iterate_python (PyObject *obj)
 {
 	if (obj == Py_None) {
 		return ucl_object_new();
-	} else if (PyBool_Check (obj)) {
-		return ucl_object_frombool (obj == Py_True);
-	} else if (PyInt_Check (obj)) {
-		return ucl_object_fromint (PyInt_AsLong (obj));
-	} else if (PyFloat_Check (obj)) {
-		return ucl_object_fromdouble (PyFloat_AsDouble (obj));
-	} else if (PyString_Check (obj)) {
-		return ucl_object_fromstring (PyString_AsString (obj));
-	// } else if (PyDateTime_Check (obj)) {
 	}
+	else if (PyBool_Check (obj)) {
+		return ucl_object_frombool (obj == Py_True);
+	}
+#if PY_MAJOR_VERSION < 3
+	else if (PyInt_Check (obj)) {
+		return ucl_object_fromint (PyInt_AsLong (obj));
+	}
+#endif
+	else if (PyLong_Check (obj)) {
+		return ucl_object_fromint (PyLong_AsLong (obj));
+	}
+	else if (PyFloat_Check (obj)) {
+		return ucl_object_fromdouble (PyFloat_AsDouble (obj));
+	}
+	else if (PyUnicode_Check (obj)) {
+		ucl_object_t *ucl_str;
+		PyObject *str = PyUnicode_AsASCIIString(obj);
+		ucl_str = ucl_object_fromstring (PyBytes_AsString (str));
+		Py_DECREF(str);
+		return ucl_str;
+	}
+#if PY_MAJOR_VERSION < 3
+	else if (PyString_Check (obj)) {
+		return ucl_object_fromstring (PyString_AsString (obj));
+	}
+#endif
 	else if (PyDict_Check(obj)) {
 		PyObject *key, *value;
 		Py_ssize_t pos = 0;
 		ucl_object_t *top, *elm;
+		char *keystr = NULL;
 
 		top = ucl_object_typed_new (UCL_OBJECT);
 
 		while (PyDict_Next(obj, &pos, &key, &value)) {
 			elm = _iterate_python(value);
-			ucl_object_insert_key (top, elm, PyString_AsString(key), 0, true);
+			
+			if (PyUnicode_Check(key)) {
+				PyObject *keyascii = PyUnicode_AsASCIIString(key);
+				keystr = PyBytes_AsString(keyascii);
+				Py_DECREF(keyascii);
+			}
+#if PY_MAJOR_VERSION < 3
+			else if (PyString_Check(key)) {
+				keystr = PyString_AsString(key);
+			}
+#endif
+			else {
+				PyErr_SetString(PyExc_TypeError, "Unknown key type");
+				return NULL;
+			}
+
+			ucl_object_insert_key (top, elm, keystr, 0, true);
 		}
 
 		return top;
@@ -195,11 +233,6 @@ ucl_dump (PyObject *self, PyObject *args)
 		Py_RETURN_NONE;
 	}
 
-	if (!PyDict_Check(obj)) {
-		PyErr_SetString(PyExc_TypeError, "Argument must be dict");
-		return NULL;
-	}
-
 	root = _iterate_python(obj);
 	if (root) {
 		PyObject *ret;
@@ -207,7 +240,11 @@ ucl_dump (PyObject *self, PyObject *args)
 
 		buf = (char *) ucl_object_emit (root, emitter);
 		ucl_object_unref (root);
+#if PY_MAJOR_VERSION < 3
 		ret = PyString_FromString (buf);
+#else
+		ret = PyUnicode_FromString (buf);
+#endif
 		free(buf);
 
 		return ret;
@@ -219,17 +256,35 @@ ucl_dump (PyObject *self, PyObject *args)
 static PyObject *
 ucl_validate (PyObject *self, PyObject *args)
 {
-	char *uclstr, *schema;
+	PyObject *dataobj, *schemaobj;
+	ucl_object_t *data, *schema;
+	bool r;
+	struct ucl_schema_error err;
 
-	if (PyArg_ParseTuple(args, "zz", &uclstr, &schema)) {
-		if (!uclstr || !schema) {
-			Py_RETURN_NONE;
-		}
-
-		PyErr_SetString(PyExc_NotImplementedError, "schema validation is not yet supported");
+	if (!PyArg_ParseTuple (args, "OO", &schemaobj, &dataobj)) {
+		PyErr_SetString (PyExc_TypeError, "Unhandled object type");
+		return NULL;
 	}
 
-	return NULL;
+	schema = _iterate_python(schemaobj);
+	if (!schema)
+		return NULL;
+
+	data = _iterate_python(dataobj);
+	if (!data)
+		return NULL;
+
+	// validation
+	r = ucl_object_validate (schema, data, &err);
+	ucl_object_unref (schema);
+	ucl_object_unref (data);
+
+	if (!r) {
+		PyErr_SetString (SchemaError, err.msg);
+		return NULL;
+	}
+
+	Py_RETURN_TRUE;
 }
 
 static PyMethodDef uclMethods[] = {
@@ -247,6 +302,10 @@ init_macros(PyObject *mod)
 	PyModule_AddIntMacro(mod, UCL_EMIT_CONFIG);
 	PyModule_AddIntMacro(mod, UCL_EMIT_YAML);
 	PyModule_AddIntMacro(mod, UCL_EMIT_MSGPACK);
+
+	SchemaError = PyErr_NewException("ucl.SchemaError", NULL, NULL);
+	Py_INCREF(SchemaError);
+	PyModule_AddObject(mod, "SchemaError", SchemaError);
 }
 
 #if PY_MAJOR_VERSION >= 3

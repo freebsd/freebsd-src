@@ -8,10 +8,10 @@ all, because it does not do anything with dates other than print the date on
 the log file, in whatever format is provided by your os/libc --- especially
 the ctime(3) call.
 
-However, on Friday, September 18th 1998, Matthew Crosby <mcrosby@ms.com>
+However, on Friday, September 18th 1998, Matthew Crosby <mcrosby AT ms.com>
 reported that they evaluated 6.0a16 and found it to be compliant.
 
-On March 26, 1999, Paul Balyoz <pbalyoz@sedona.ch.intel.com> submitted a
+On March 26, 1999, Paul Balyoz <pbalyoz AT sedona.ch.intel.com> submitted a
 patch to lostaltmail which makes it print Y2K compliant dates.  He used a
 code scanner and manually "eyeballed" the code and could not find any more
 problems.  Paul's patch is included in am-utils-6.0.1s7 and newer versions.
@@ -23,5 +23,4 @@ CERTIFY AM-UTILS AS Y2K COMPLIANT.  USE AT YOUR OWN RISK.
 ---
 Erez Zadok.
 Maintainer, am-utils package and am-utils list.
-Email: am-utils@am-utils.org
 WWW:   http://www.am-utils.org

@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,8 +59,8 @@
 
 /*
  * The path name on which the file system is mounted is maintained
- * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in 
- * the super block for this name. 
+ * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in
+ * the super block for this name.
  */
 #define	MAXMNTLEN	512
 
@@ -82,8 +82,8 @@
  * of files per directory. These defaults are well selected for typical
  * filesystems, but may need to be tuned for odd cases like filesystems
  * being used for squid caches or news spools.
- * AVFPDIR is the expected number of files per directory. AVGDIRSIZE is 
- * obtained by multiplying AVFPDIR and AVFILESIZ which is assumed to be 
+ * AVFPDIR is the expected number of files per directory. AVGDIRSIZE is
+ * obtained by multiplying AVFPDIR and AVFILESIZ which is assumed to be
  * 16384.
  */
 
@@ -159,4 +159,4 @@
  */
 #define	NINDIR(fs)	(EXT2_ADDR_PER_BLOCK(fs))
 
-#endif /* !_FS_EXT2FS_FS_H_ */
+#endif	/* !_FS_EXT2FS_FS_H_ */

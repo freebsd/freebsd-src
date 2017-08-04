@@ -1,7 +1,7 @@
-/*	$Id: libmandoc.h,v 1.63 2016/07/07 19:19:01 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.70 2017/07/08 17:52:49 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,8 +23,6 @@ enum	rofferr {
 	ROFF_REPARSE, /* re-run main parser on the result */
 	ROFF_SO, /* include another file */
 	ROFF_IGN, /* ignore current line */
-	ROFF_TBL, /* a table row was successfully parsed */
-	ROFF_EQN /* an equation was successfully parsed */
 };
 
 struct	buf {
@@ -34,34 +32,28 @@ struct	buf {
 
 
 struct	mparse;
-struct	tbl_span;
-struct	eqn;
 struct	roff;
 struct	roff_man;
 
 void		 mandoc_msg(enum mandocerr, struct mparse *,
 			int, int, const char *);
-#if __GNUC__ - 0 >= 4
-__attribute__((__format__ (__printf__, 5, 6)))
-#endif
 void		 mandoc_vmsg(enum mandocerr, struct mparse *,
-			int, int, const char *, ...);
+			int, int, const char *, ...)
+			__attribute__((__format__ (__printf__, 5, 6)));
 char		*mandoc_getarg(struct mparse *, char **, int, int *);
-char		*mandoc_normdate(struct mparse *, char *, int, int);
+char		*mandoc_normdate(struct roff_man *, char *, int, int);
 int		 mandoc_eos(const char *, size_t);
 int		 mandoc_strntoi(const char *, size_t, int);
 const char	*mandoc_a2msec(const char*);
 
-void		 mdoc_hash_init(void);
 int		 mdoc_parseln(struct roff_man *, int, char *, int);
 void		 mdoc_endparse(struct roff_man *);
 
-void		 man_hash_init(void);
 int		 man_parseln(struct roff_man *, int, char *, int);
 void		 man_endparse(struct roff_man *);
 
 int		 preconv_cue(const struct buf *, size_t);
-int		 preconv_encode(struct buf *, size_t *,
+int		 preconv_encode(const struct buf *, size_t *,
 			struct buf *, size_t *, int *);
 
 void		 roff_free(struct roff *);
@@ -79,6 +71,3 @@ char		*roff_strdup(const struct roff *, const char *);
 int		 roff_getcontrol(const struct roff *,
 			const char *, int *);
 int		 roff_getformat(const struct roff *);
-
-const struct tbl_span	*roff_span(const struct roff *);
-const struct eqn	*roff_eqn(const struct roff *);

@@ -3,14 +3,14 @@
 .include <src.opts.mk>
 
 PROG=	sshd
-SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
+SRCS=	sshd.c auth-rhosts.c auth-passwd.c \
 	audit.c audit-bsm.c audit-linux.c platform.c \
 	sshpty.c sshlogin.c servconf.c serverloop.c \
-	auth.c auth1.c auth2.c auth-options.c session.c \
-	auth-chall.c auth2-chall.c groupaccess.c \
+	auth.c auth2.c auth-options.c session.c \
+	auth2-chall.c groupaccess.c \
 	auth-skey.c auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
-	monitor_mm.c monitor.c monitor_wrap.c auth-krb5.c \
+	monitor.c monitor_wrap.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
 	sftp-server.c sftp-common.c \
@@ -27,7 +27,7 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 
 # pam should always happen before ssh here for static linking
-LIBADD=	pam ssh util wrap
+LIBADD=	pam ssh util
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -36,14 +36,26 @@ CFLAGS+=	-DHAVE_LDNS=1
 .endif
 
 .if ${MK_AUDIT} != "no"
-CFLAGS+= -DUSE_BSM_AUDIT -DHAVE_GETAUDIT_ADDR
+CFLAGS+= -DUSE_BSM_AUDIT=1 -DHAVE_GETAUDIT_ADDR=1
 LIBADD+=	bsm
 .endif
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blacklist/include
+SRCS+=	blacklist.c
+LIBADD+= blacklist
+LDFLAGS+=-L${LIBBLACKLISTDIR}
+.endif
+
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
 SRCS+=	krb5_config.h
 LIBADD+=	gssapi_krb5 gssapi krb5
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP=1
+LIBADD+=	wrap
 .endif
 
 LIBADD+=	crypto

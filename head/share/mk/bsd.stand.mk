@@ -5,7 +5,12 @@
 #
 
 CFLAGS+= -ffreestanding -Wformat
-CFLAGS+= ${CFLAGS_NO_SIMD} -msoft-float -D_STANDALONE
+CFLAGS+= ${CFLAGS_NO_SIMD} -D_STANDALONE
+.if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS+=	-mno-float
+.elif ${MACHINE_CPUARCH} != "aarch64"
+CFLAGS+=	-msoft-float
+.endif
 
 .if ${MACHINE_CPUARCH} == "i386"
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
@@ -13,11 +18,11 @@ CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-fPIC -mno-red-zone
 .endif
-.if ${MACHINE} == "pc98"
-CFLAGS+=	-Os
-.endif
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS+=	-mgeneral-regs-only
+CFLAGS+=	-fPIC -mgeneral-regs-only
+.endif
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-fPIC
 .endif
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-G0 -fno-pic -mno-abicalls

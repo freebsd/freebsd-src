@@ -172,10 +172,10 @@ int des_set_key_checked(des_cblock *key, des_key_schedule schedule)
 void des_set_key_unchecked(des_cblock *key, des_key_schedule schedule)
 {
 	static int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
-	register DES_LONG c,d,t,s,t2;
-	register const unsigned char *in;
-	register DES_LONG *k;
-	register int i;
+	DES_LONG c,d,t,s,t2;
+	const unsigned char *in;
+	DES_LONG *k;
+	int i;
 
 	k = &schedule->ks.deslong[0];
 	in = &(*key)[0];

@@ -374,7 +374,7 @@ cdg_exp_backoff_scale_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, arg1, arg2, req));
 }
 
-static inline unsigned long
+static inline uint32_t
 cdg_window_decrease(struct cc_var *ccv, unsigned long owin, unsigned int beta)
 {
 
@@ -460,7 +460,7 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 				cdg_data->shadow_w = cdg_window_decrease(ccv,
 				    cdg_data->shadow_w, RENO_BETA);
 
-			CCV(ccv, snd_ssthresh) = ulmax(cdg_data->shadow_w,
+			CCV(ccv, snd_ssthresh) = max(cdg_data->shadow_w,
 			    cdg_window_decrease(ccv, CCV(ccv, snd_cwnd),
 			    V_cdg_beta_loss));
 

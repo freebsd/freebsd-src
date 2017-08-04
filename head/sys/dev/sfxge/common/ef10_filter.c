@@ -145,6 +145,10 @@ ef10_filter_init(
 	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_OUTER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IP_PROTO ==
 	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_IP_PROTO));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_UNKNOWN_MCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST));
+	EFX_STATIC_ASSERT((uint32_t)EFX_FILTER_MATCH_UNKNOWN_UCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST));
 #undef MATCH_MASK
 
 	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (ef10_filter_table_t), eftp);
@@ -187,7 +191,6 @@ efx_mcdi_filter_op_add(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
 			    MC_CMD_FILTER_OP_OUT_LEN)];
-	uint32_t match_fields = 0;
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
@@ -214,26 +217,10 @@ efx_mcdi_filter_op_add(
 		goto fail1;
 	}
 
-	if (spec->efs_match_flags & EFX_FILTER_MATCH_LOC_MAC_IG) {
-		/*
-		 * The LOC_MAC_IG match flag can represent unknown unicast
-		 *  or multicast filters - use the MAC address to distinguish
-		 *  them.
-		 */
-		if (EFX_MAC_ADDR_IS_MULTICAST(spec->efs_loc_mac))
-			match_fields |= 1U <<
-				MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST_LBN;
-		else
-			match_fields |= 1U <<
-				MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST_LBN;
-	}
-
-	match_fields |= spec->efs_match_flags & (~EFX_FILTER_MATCH_LOC_MAC_IG);
-
 	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_MATCH_FIELDS,
-	    match_fields);
+	    spec->efs_match_flags);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_DEST,
 	    MC_CMD_FILTER_OP_IN_RX_DEST_HOST);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_QUEUE,
@@ -484,7 +471,7 @@ ef10_filter_restore(
 	efx_filter_spec_t *spec;
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	boolean_t restoring;
-	int state;
+	efsys_lock_state_t state;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -559,7 +546,7 @@ ef10_filter_add_internal(
 	int ins_index;
 	boolean_t replacing = B_FALSE;
 	unsigned int i;
-	int state;
+	efsys_lock_state_t state;
 	boolean_t locked = B_FALSE;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -761,7 +748,7 @@ ef10_filter_delete_internal(
 	efx_rc_t rc;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t *spec;
-	int state;
+	efsys_lock_state_t state;
 	uint32_t filter_idx = filter_id % EFX_EF10_FILTER_TBL_ROWS;
 
 	/*
@@ -835,7 +822,7 @@ ef10_filter_delete(
 	unsigned int hash;
 	unsigned int depth;
 	unsigned int i;
-	int state;
+	efsys_lock_state_t state;
 	boolean_t locked = B_FALSE;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -884,17 +871,17 @@ fail1:
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_parser_disp_info(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PARSER_DISP_INFO_IN_LEN,
 			    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX)];
+	size_t matches_count;
+	size_t list_size;
 	efx_rc_t rc;
-	uint32_t i;
-	boolean_t support_unknown_ucast = B_FALSE;
-	boolean_t support_unknown_mcast = B_FALSE;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PARSER_DISP_INFO;
@@ -913,47 +900,41 @@ efx_mcdi_get_parser_disp_info(
 		goto fail1;
 	}
 
-	*length = MCDI_OUT_DWORD(req,
+	matches_count = MCDI_OUT_DWORD(req,
 	    GET_PARSER_DISP_INFO_OUT_NUM_SUPPORTED_MATCHES);
 
 	if (req.emr_out_length_used <
-	    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(*length)) {
+	    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(matches_count)) {
 		rc = EMSGSIZE;
 		goto fail2;
 	}
 
-	memcpy(list,
-	    MCDI_OUT2(req,
-	    uint32_t,
-	    GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES),
-	    (*length) * sizeof (uint32_t));
+	*list_lengthp = matches_count;
+
+	if (buffer_length < matches_count) {
+		rc = ENOSPC;
+		goto fail3;
+	}
+
+	/*
+	 * Check that the elements in the list in the MCDI response are the size
+	 * we expect, so we can just copy them directly. Any conversion of the
+	 * flags is handled by the caller.
+	 */
 	EFX_STATIC_ASSERT(sizeof (uint32_t) ==
 	    MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_LEN);
 
-	/*
-	 * Remove UNKNOWN UCAST and MCAST flags, and if both are present, change
-	 * the lower priority one to LOC_MAC_IG.
-	 */
-	for (i = 0; i < *length; i++) {
-		if (list[i] & MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST_LBN) {
-			list[i] &=
-			(~MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST_LBN);
-			support_unknown_ucast = B_TRUE;
-		}
-		if (list[i] & MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST_LBN) {
-			list[i] &=
-			(~MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST_LBN);
-			support_unknown_mcast = B_TRUE;
-		}
-
-		if (support_unknown_ucast && support_unknown_mcast) {
-			list[i] &= EFX_FILTER_MATCH_LOC_MAC_IG;
-			break;
-		}
-	}
+	list_size = matches_count *
+		MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_LEN;
+	memcpy(buffer,
+	    MCDI_OUT2(req, uint32_t,
+		    GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES),
+	    list_size);
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -964,14 +945,55 @@ fail1:
 
 	__checkReturn	efx_rc_t
 ef10_filter_supported_filters(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *list,
-	__out		size_t *length)
+	__in				efx_nic_t *enp,
+	__out_ecount(buffer_length)	uint32_t *buffer,
+	__in				size_t buffer_length,
+	__out				size_t *list_lengthp)
 {
-	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length)) != 0)
+	size_t mcdi_list_length;
+	size_t list_length;
+	uint32_t i;
+	efx_rc_t rc;
+	uint32_t all_filter_flags =
+	    (EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_LOC_HOST |
+	    EFX_FILTER_MATCH_REM_MAC | EFX_FILTER_MATCH_REM_PORT |
+	    EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_PORT |
+	    EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_INNER_VID |
+	    EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_IP_PROTO |
+	    EFX_FILTER_MATCH_UNKNOWN_MCAST_DST |
+	    EFX_FILTER_MATCH_UNKNOWN_UCAST_DST);
+
+	rc = efx_mcdi_get_parser_disp_info(enp, buffer, buffer_length,
+					    &mcdi_list_length);
+	if (rc != 0) {
+		if (rc == ENOSPC) {
+			/* Pass through mcdi_list_length for the list length */
+			*list_lengthp = mcdi_list_length;
+		}
 		goto fail1;
+	}
+
+	/*
+	 * The static assertions in ef10_filter_init() ensure that the values of
+	 * the EFX_FILTER_MATCH flags match those used by MCDI, so they don't
+	 * need to be converted.
+	 *
+	 * In case support is added to MCDI for additional flags, remove any
+	 * matches from the list which include flags we don't support. The order
+	 * of the matches is preserved as they are ordered from highest to
+	 * lowest priority.
+	 */
+	EFSYS_ASSERT(mcdi_list_length <= buffer_length);
+	list_length = 0;
+	for (i = 0; i < mcdi_list_length; i++) {
+		if ((buffer[i] & ~all_filter_flags) == 0) {
+			buffer[list_length] = buffer[i];
+			list_length++;
+		}
+	}
+
+	*list_lengthp = list_length;
 
 	return (0);
 
@@ -985,7 +1007,7 @@ static	__checkReturn	efx_rc_t
 ef10_filter_insert_unicast(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *addr,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -1016,7 +1038,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 ef10_filter_insert_all_unicast(
 	__in				efx_nic_t *enp,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -1050,7 +1072,7 @@ ef10_filter_insert_multicast_list(
 	__in				boolean_t brdcst,
 	__in_ecount(6*count)		uint8_t const *addrs,
 	__in				uint32_t count,
-	__in				efx_filter_flag_t filter_flags,
+	__in				efx_filter_flags_t filter_flags,
 	__in				boolean_t rollback)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
@@ -1143,7 +1165,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 ef10_filter_insert_all_multicast(
 	__in				efx_nic_t *enp,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flags_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
@@ -1245,8 +1267,8 @@ ef10_filter_reconfigure(
 {
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
-	efx_filter_flag_t filter_flags;
-	unsigned i;
+	efx_filter_flags_t filter_flags;
+	unsigned int i;
 	efx_rc_t all_unicst_rc = 0;
 	efx_rc_t all_mulcst_rc = 0;
 	efx_rc_t rc;

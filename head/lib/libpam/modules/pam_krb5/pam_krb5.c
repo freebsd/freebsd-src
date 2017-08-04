@@ -239,6 +239,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		retval = PAM_SERVICE_ERR;
 		goto cleanup2;
 	}
+	krb5_get_init_creds_opt_set_default_flags(pam_context,
+	    service, NULL, opts);
 
 	if (openpam_get_option(pamh, PAM_OPT_FORWARDABLE))
 		krb5_get_init_creds_opt_set_forwardable(opts, 1);

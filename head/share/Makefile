@@ -26,7 +26,6 @@ SUBDIR=	${_colldef} \
 	${_syscons} \
 	tabset \
 	termcap \
-	${_tests} \
 	${_timedef} \
 	${_vt} \
 	${_zoneinfo}
@@ -47,10 +46,6 @@ _dict=		dict
 
 .if ${MK_EXAMPLES} != "no"
 _examples=	examples
-.endif
-
-.if ${MK_GROFF} != "no"
-_me=		me
 .endif
 
 .if ${MK_ICONV} != "no"
@@ -86,9 +81,7 @@ _doc=		doc
 _syscons=	syscons
 .endif
 
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_VT} != "no"
 _vt=		vt

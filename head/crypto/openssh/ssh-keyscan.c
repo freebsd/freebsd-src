@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.105 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.109 2017/03/10 04:26:06 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -302,6 +302,9 @@ keygrab_ssh2(con *c)
 #ifdef WITH_OPENSSL
 	c->c_ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 	c->c_ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 # ifdef OPENSSL_HAS_ECC
@@ -318,16 +321,18 @@ keygrab_ssh2(con *c)
 }
 
 static void
-keyprint_one(char *host, struct sshkey *key)
+keyprint_one(const char *host, struct sshkey *key)
 {
 	char *hostport;
-
-	if (hash_hosts && (host = host_hash(host, NULL, 0)) == NULL)
-		fatal("host_hash failed");
+	const char *known_host, *hashed;
 
 	hostport = put_host_port(host, ssh_port);
+	lowercase(hostport);
+	if (hash_hosts && (hashed = host_hash(host, NULL, 0)) == NULL)
+		fatal("host_hash failed");
+	known_host = hash_hosts ? hashed : hostport;
 	if (!get_cert)
-		fprintf(stdout, "%s ", hostport);
+		fprintf(stdout, "%s ", known_host);
 	sshkey_write(key, stdout);
 	fputs("\n", stdout);
 	free(hostport);
@@ -749,10 +754,13 @@ main(int argc, char **argv)
 			tname = strtok(optarg, ",");
 			while (tname) {
 				int type = sshkey_type_from_name(tname);
+
 				switch (type) {
+#ifdef WITH_SSH1
 				case KEY_RSA1:
 					get_keytypes |= KT_RSA1;
 					break;
+#endif
 				case KEY_DSA:
 					get_keytypes |= KT_DSA;
 					break;
@@ -766,7 +774,8 @@ main(int argc, char **argv)
 					get_keytypes |= KT_ED25519;
 					break;
 				case KEY_UNSPEC:
-					fatal("unknown key type %s", tname);
+				default:
+					fatal("Unknown key type \"%s\"", tname);
 				}
 				tname = strtok(NULL, ",");
 			}

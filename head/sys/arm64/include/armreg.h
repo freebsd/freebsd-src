@@ -89,7 +89,7 @@
 #define	 ISS_DATa_CM		(0x01 << 8)
 #define	 ISS_INSN_S1PTW		(0x01 << 7)
 #define	 ISS_DATa_WnR		(0x01 << 6)
-#define	 ISS_DATA_DFSC_MASK	(0x1f << 0)
+#define	 ISS_DATA_DFSC_MASK	(0x3f << 0)
 #define	 ISS_DATA_DFSC_ASF_L0	(0x00 << 0)
 #define	 ISS_DATA_DFSC_ASF_L1	(0x01 << 0)
 #define	 ISS_DATA_DFSC_ASF_L2	(0x02 << 0)
@@ -115,7 +115,7 @@
 #define	 ISS_DATA_DFSC_ECC_L2	(0x1e << 0)
 #define	 ISS_DATA_DFSC_ECC_L3	(0x1f << 0)
 #define	 ISS_DATA_DFSC_ALIGN	(0x21 << 0)
-#define	 ISS_DATA_DFSC_TLB_CONFLICT (0x28 << 0)
+#define	 ISS_DATA_DFSC_TLB_CONFLICT (0x30 << 0)
 #define	ESR_ELx_IL		(0x01 << 25)
 #define	ESR_ELx_EC_SHIFT	26
 #define	ESR_ELx_EC_MASK		(0x3f << 26)
@@ -312,6 +312,7 @@
 #define	ID_AA64MMFR1_PAN(x)		((x) & ID_AA64MMFR1_PAN_MASK)
 #define	 ID_AA64MMFR1_PAN_NONE		(0x0 << ID_AA64MMFR1_PAN_SHIFT)
 #define	 ID_AA64MMFR1_PAN_IMPL		(0x1 << ID_AA64MMFR1_PAN_SHIFT)
+#define	 ID_AA64MMFR1_PAN_ATS1E1	(0x2 << ID_AA64MMFR1_PAN_SHIFT)
 
 /* ID_AA64PFR0_EL1 */
 #define	ID_AA64PFR0_MASK		0x0fffffff
@@ -357,6 +358,10 @@
 /* MAIR_EL1 - Memory Attribute Indirection Register */
 #define	MAIR_ATTR_MASK(idx)	(0xff << ((n)* 8))
 #define	MAIR_ATTR(attr, idx) ((attr) << ((idx) * 8))
+#define	 MAIR_DEVICE_nGnRnE	0x00
+#define	 MAIR_NORMAL_NC		0x44
+#define	 MAIR_NORMAL_WT		0xbb
+#define	 MAIR_NORMAL_WB		0xff
 
 /* PAR_EL1 - Physical Address Register */
 #define	PAR_F_SHIFT		0
@@ -380,8 +385,8 @@
 #define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
 
 /* SCTLR_EL1 - System Control Register */
-#define	SCTLR_RES0	0xc8222400	/* Reserved, write 0 */
-#define	SCTLR_RES1	0x30d00800	/* Reserved, write 1 */
+#define	SCTLR_RES0	0xc8222400	/* Reserved ARMv8.0, write 0 */
+#define	SCTLR_RES1	0x30d00800	/* Reserved ARMv8.0, write 1 */
 
 #define	SCTLR_M		0x00000001
 #define	SCTLR_A		0x00000002
@@ -399,9 +404,13 @@
 #define	SCTLR_nTWI	0x00010000
 #define	SCTLR_nTWE	0x00040000
 #define	SCTLR_WXN	0x00080000
+#define	SCTLR_IESB	0x00200000
+#define	SCTLR_SPAN	0x00800000
 #define	SCTLR_EOE	0x01000000
 #define	SCTLR_EE	0x02000000
 #define	SCTLR_UCI	0x04000000
+#define	SCTLR_nTLSMD	0x10000000
+#define	SCTLR_LSMAOE	0x20000000
 
 /* SPSR_EL1 */
 /*

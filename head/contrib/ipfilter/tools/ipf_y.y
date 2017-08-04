@@ -9,6 +9,7 @@
 #include "ipf.h"
 #include <sys/ioctl.h>
 #include <syslog.h>
+#include <err.h>
 #ifdef IPFILTER_BPF
 # include <pcap.h>
 #endif
@@ -2194,7 +2195,11 @@ char *phrase;
 
 			for (i = 0, s = strtok(phrase, " \r\n\t"); s != NULL;
 			     s = strtok(NULL, " \r\n\t"), i++) {
-				fb = realloc(fb, (i / 4 + 1) * sizeof(*fb));
+				fb = reallocarray(fb, i / 4 + 1, sizeof(*fb));
+				if (fb == NULL) {
+					warnx("memory allocation error at %d in %s in %s", __LINE__, __FUNCTION__, __FILE__);
+					abort();
+				}
 				l = (u_32_t)strtol(s, NULL, 0);
 				switch (i & 3)
 				{
@@ -2298,7 +2303,7 @@ makepool(list)
 
 	for (n = top, a = list; (n != NULL) && (a != NULL); a = a->al_next) {
 		if (use_inet6 == 1) {
-#ifdef AF_INET6
+#ifdef USE_INET6
 			n->ipn_addr.adf_family = AF_INET6;
 			n->ipn_addr.adf_addr = a->al_i6addr;
 			n->ipn_addr.adf_len = offsetof(addrfamily_t,

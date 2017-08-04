@@ -20,7 +20,6 @@ SUBDIR=	title \
 	05.sysman \
 	06.Clang \
 	12.make \
-	13.rcs \
 	15.yacc \
 	16.lex \
 	17.m4 \

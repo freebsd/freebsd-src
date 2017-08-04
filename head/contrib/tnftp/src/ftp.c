@@ -2050,7 +2050,7 @@ abort_squared(int dummy)
 void
 abort_remote(FILE *din)
 {
-	char buf[BUFSIZ];
+	unsigned char buf[BUFSIZ];
 	int nfnd;
 
 	if (cout == NULL) {

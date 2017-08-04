@@ -1,4 +1,4 @@
-.\"	$NetBSD: tutorial.ms,v 1.12 2014/09/30 21:33:14 christos Exp $
+.\"	$NetBSD: tutorial.ms,v 1.13 2017/03/01 13:05:11 kre Exp $
 .\" Copyright (c) 1988, 1989, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -117,6 +117,15 @@
 .de No
 .br
 .ne 0.5i
+.ie n \{\
+.nr g3 \w'NOTE '
+.po -\\n(g3u
+.br
+NOTE
+.br
+.po +\\n(g3u
+.\}
+.el \{\
 .po -0.5i
 .br
 .mk 
@@ -148,12 +157,14 @@
 .rt 
 .ft \\n(g3
 .ps \\n(g4
+.\}
 ..
 .de Bp
 .ie !\\n(.$ .IP \(bu 2
 .el .IP "\&" 2
 ..
-.po +.3i
+.ie n .po +\w'NOTE  'u
+.el .po +.3i
 .TL
 PMake \*- A Tutorial
 .AU

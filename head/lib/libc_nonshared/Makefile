@@ -6,7 +6,7 @@
 # bsd.lib.mk doesn't have an easy way to express that.
 MK_PROFILE?=no
 .include <src.opts.mk>
-NO_PIC=	
+NO_PIC=
 # -fpic on some platforms, -fPIC on others.
 CFLAGS+=${PICFLAG} -DPIC -fvisibility=hidden
 
@@ -18,9 +18,9 @@ LIBC_NONSHARED_SRCS=
 SRCS=	__stub.c
 
 .if ${MK_ICONV} == "yes"
-.PATH: ${.CURDIR}/../libc/iconv
+.PATH: ${SRCTOP}/lib/libc/iconv
 .include "Makefile.iconv"
-CFLAGS+=-I${.CURDIR}/../libc/iconv
+CFLAGS+=-I${SRCTOP}/lib/libc/iconv
 .endif
 
 SRCS+=	${LIBC_NONSHARED_SRCS}

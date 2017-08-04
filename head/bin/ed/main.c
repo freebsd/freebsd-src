@@ -350,7 +350,8 @@ next_addr(void)
 				ibufp++;
 				addr_cnt++;
 				second_addr = (c == ';') ? current_addr : 1;
-				addr = addr_last;
+				if ((addr = next_addr()) < 0)
+					addr = addr_last;
 				break;
 			}
 			/* FALLTHROUGH */
@@ -809,7 +810,7 @@ exec_command(void)
 		if ((addr = write_file(*fnp ? fnp : old_filename,
 		    (c == 'W') ? "a" : "w", first_addr, second_addr)) < 0)
 			return ERR;
-		else if (addr == addr_last)
+		else if (addr == addr_last && *fnp != '!')
 			modified = 0;
 		else if (modified && !scripted && n == 'q')
 			gflag = EMOD;
@@ -1356,7 +1357,7 @@ handle_hup(int signo)
 	char *hup = NULL;		/* hup filename */
 	char *s;
 	char ed_hup[] = "ed.hup";
-	int n;
+	size_t n;
 
 	if (!sigactive)
 		quit(1);

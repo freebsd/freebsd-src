@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2012
+.Dd April 26, 2017
 .Dt USLCOM 4
 .Os
 .Sh NAME
@@ -191,6 +191,20 @@ and PL512 and MPOD PSUs
 WMR RIGblaster Plug&Play and RIGtalk RT1
 .It
 Zephyr Bioharness
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,

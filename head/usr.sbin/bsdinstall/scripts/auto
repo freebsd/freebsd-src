@@ -260,7 +260,7 @@ Shell \"Open a shell and partition by hand\""
 
 CURARCH=$( uname -m )
 case $CURARCH in
-	amd64|i386)	# Booting ZFS Supported
+	amd64|arm64|i386)	# Booting ZFS Supported
 		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
 		;;
 	*)		# Booting ZFS Unspported
@@ -319,7 +319,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
 	fi
-		
+
 	export FTP_PASSIVE_MODE=YES
 	# Iterate through the distribution list and set a flag if debugging
 	# distributions have been selected.
@@ -413,7 +413,7 @@ finalconfig() {
 		finalconfig
 		;;
 	"Root Password")
-		bsdinstall rootpass 
+		bsdinstall rootpass
 		finalconfig
 		;;
 	"Hostname")
@@ -449,9 +449,11 @@ finalconfig
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
 
+if [ -n "$DISTDIR_IS_UNIONFS" ]; then
+	umount -f $BSDINSTALL_DISTDIR
+fi
+
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
-	[ "$BSDINSTALL_FETCHDEST" != "$BSDINSTALL_DISTDIR" ] && \
-	    umount "$BSDINSTALL_DISTDIR"
 	rm -rf "$BSDINSTALL_FETCHDEST"
 fi
 
@@ -460,7 +462,6 @@ dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
    "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
-	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	echo This shell is operating in a chroot in the new system. \
 	    When finished making configuration changes, type \"exit\".
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1

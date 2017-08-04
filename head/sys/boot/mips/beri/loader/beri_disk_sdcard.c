@@ -44,10 +44,9 @@ __FBSDID("$FreeBSD$");
 static int	beri_sdcard_disk_init(void);
 static int	beri_sdcard_disk_open(struct open_file *, ...);
 static int	beri_sdcard_disk_close(struct open_file *);
-static void	beri_sdcard_disk_cleanup(void);
-static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t, size_t,
+static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t,
 		    char *, size_t *);
-static void	beri_sdcard_disk_print(int);
+static int	beri_sdcard_disk_print(int);
 
 struct devsw beri_sdcard_disk = {
 	.dv_name = "sdcard",
@@ -58,7 +57,7 @@ struct devsw beri_sdcard_disk = {
 	.dv_close = beri_sdcard_disk_close,
 	.dv_ioctl = noioctl,
 	.dv_print = beri_sdcard_disk_print,
- 	.dv_cleanup = beri_sdcard_disk_cleanup,
+	.dv_cleanup = NULL,
 };
 
 static int
@@ -69,11 +68,12 @@ beri_sdcard_disk_init(void)
 }
 
 static int
-beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t offset,
-    size_t size, char *buf, size_t *rsizep)
+beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsizep)
 {
 	int error;
 
+	flag &= F_MASK;
 	if (flag == F_WRITE)
 		return (EROFS);
 	if (flag != F_READ)
@@ -106,7 +106,7 @@ beri_sdcard_disk_open(struct open_file *f, ...)
 	if (dev->d_unit != 0)
 		return (EIO);
 	return (disk_open(dev, altera_sdcard_get_mediasize(),
-	    altera_sdcard_get_sectorsize(), 0));
+	    altera_sdcard_get_sectorsize()));
 }
 
 static int
@@ -118,29 +118,30 @@ beri_sdcard_disk_close(struct open_file *f)
 	return (disk_close(dev));
 }
 
-static void
+static int
 beri_sdcard_disk_print(int verbose)
 {
 	struct disk_devdesc dev;
 	char line[80];
+	int ret;
 
-	sprintf(line, "    sdcard%d   Altera SD card drive\n", 0);
-	pager_output(line);
+	printf("%s devices:", beri_sdcard_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
+	
+	snprintf(line, sizeof(line), "    sdcard%d   Altera SD card drive\n", 0);
+	ret = pager_output(line);
+	if (ret != 0)
+	    return (ret);
 	dev.d_dev = &beri_sdcard_disk;
 	dev.d_unit = 0;
 	dev.d_slice = -1;
 	dev.d_partition = -1;
 	if (disk_open(&dev, altera_sdcard_get_mediasize(),
-	    altera_sdcard_get_sectorsize(), 0) == 0) {
-		sprintf(line, "    sdcard%d", 0);
-		disk_print(&dev, line, verbose);
+	    altera_sdcard_get_sectorsize()) == 0) {
+		snprintf(line, sizeof(line), "    sdcard%d", 0);
+		ret = disk_print(&dev, line, verbose);
 		disk_close(&dev);
 	}
-}
-
-static void
-beri_sdcard_disk_cleanup(void)
-{
-
-	disk_cleanup(&beri_sdcard_disk);
+	return (ret);
 }

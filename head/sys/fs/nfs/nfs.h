@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -265,7 +265,7 @@ struct nfsreferral {
 	u_char		*nfr_srvlist;	/* List of servers */
 	int		nfr_srvcnt;	/* number of servers */
 	vnode_t		nfr_vp;	/* vnode for referral */
-	u_int32_t	nfr_dfileno;	/* assigned dir inode# */
+	uint64_t	nfr_dfileno;	/* assigned dir inode# */
 };
 
 /*
@@ -601,6 +601,7 @@ struct nfsrv_descript {
 	uint8_t			nd_sessionid[NFSX_V4SESSIONID];	/* Session id */
 	uint32_t		nd_slotid;	/* Slotid for this RPC */
 	SVCXPRT			*nd_xprt;	/* Server RPC handle */
+	uint32_t		*nd_sequence;	/* Sequence Op. ptr */
 };
 
 #define	nd_princlen	nd_gssnamelen
@@ -636,6 +637,7 @@ struct nfsrv_descript {
 #define	ND_HASSEQUENCE		0x04000000
 #define	ND_CACHETHIS		0x08000000
 #define	ND_LASTOP		0x10000000
+#define	ND_LOOPBADSESS		0x20000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
@@ -649,6 +651,7 @@ struct nfsv4_opflag {
 	int	modifyfs;
 	int	lktype;
 	int	needsseq;
+	int	loopbadsess;
 };
 
 /*

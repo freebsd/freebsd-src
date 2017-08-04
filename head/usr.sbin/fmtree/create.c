@@ -207,7 +207,8 @@ statf(int indent, FTSENT *p)
 	if (keys & F_MODE && (p->fts_statp->st_mode & MBITS) != mode)
 		output(indent, &offset, "mode=%#o", p->fts_statp->st_mode & MBITS);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
-		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
+		output(indent, &offset, "nlink=%ju",
+		    (uintmax_t)p->fts_statp->st_nlink);
 	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
 		output(indent, &offset, "size=%jd",
 		    (intmax_t)p->fts_statp->st_size);

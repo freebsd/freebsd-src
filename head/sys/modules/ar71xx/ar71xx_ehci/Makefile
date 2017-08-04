@@ -29,15 +29,15 @@
 # $FreeBSD$
 #
 
-.PATH:	${.CURDIR}/../../../mips/atheros/
+.PATH:	${SRCTOP}/sys/mips/atheros/
 
 KMOD=	ar71xx_ehci
 SRCS=	ar71xx_ehci.c
 SRCS+=	device_if.h bus_if.h usb_if.h opt_usb.h opt_bus.h
 
-.PATH: ${.CURDIR}/../../../dev/usb/controller/
+.PATH: ${SRCTOP}/sys/dev/usb/controller/
 SRCS+=	ehci.c
 
-CFLAGS+=  -I. -I${.CURDIR}/../../../mips/atheros
+CFLAGS+=  -I. -I${SRCTOP}/sys/mips/atheros
 
 .include <bsd.kmod.mk>

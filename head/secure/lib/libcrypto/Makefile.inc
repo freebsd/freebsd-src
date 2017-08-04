@@ -3,10 +3,10 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.2h
-OPENSSL_DATE=	2016-05-03
+OPENSSL_VER=	1.0.2l
+OPENSSL_DATE=	2017-05-25
 
-LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
+LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 
 CFLAGS+=	-I${LCRYPTO_SRC}
@@ -21,7 +21,9 @@ CFLAGS+=-DL_ENDIAN
 CFLAGS+=-DB_ENDIAN
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
+ASM_${MACHINE_CPUARCH}=
+.elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _ASM_AVX!=	{ \
 		    echo vzeroall | \
 		    ${CC} -x assembler -o /dev/null -c - 2> /dev/null; \
@@ -29,11 +31,11 @@ _ASM_AVX!=	{ \
 .if ${_ASM_AVX} == yes
 ASM_${MACHINE_CPUARCH}=
 .endif
-.elif ${MACHINE_CPUARCH} == "arm"
-ASM_arm=
 .endif
 
-.if defined(ASM_amd64)
+.if defined(ASM_aarch64)
+CFLAGS+=-DSHA1_ASM -DSHA256_ASM -DSHA512_ASM
+.elif defined(ASM_amd64)
 CFLAGS+=-DOPENSSL_IA32_SSE2
 CFLAGS+=-DAES_ASM -DBSAES_ASM -DVPAES_ASM
 CFLAGS+=-DECP_NISTZ256_ASM
@@ -62,6 +64,9 @@ MANDIR=	${SHAREDIR}/openssl/man/man
 
 .if defined(LIB)
 _docs=	${LIB}
+.if ${LIB} == ssl
+_docs+=	man3
+.endif
 _skip=	SSLeay_version des_modes
 _sec=	3
 .else
@@ -74,7 +79,10 @@ man-update:
 .for manpage in ${MAN}
 	@(sec=${manpage:E}; \
 	pod=${manpage:R}.pod; \
-	cp ${LCRYPTO_DOC}/${_docs}/$$pod .; \
+	for i in ${_docs}; do \
+		test -f ${LCRYPTO_DOC}/$$i/$$pod && \
+		cp ${LCRYPTO_DOC}/$$i/$$pod .; \
+	done; \
 	pod2man --section=$$sec --release="${OPENSSL_VER}" \
 	  --date="${OPENSSL_DATE}" --center="OpenSSL"  \
 	  $$pod > ${.CURDIR}/man/${manpage}; \
@@ -87,18 +95,23 @@ man-makefile-update:
 	echo '# $$'FreeBSD'$$' >> ${.CURDIR}/Makefile.man
 	echo '# DO NOT EDIT: generated from man-makefile-update target' >> \
 	    ${.CURDIR}/Makefile.man
-	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
-		fn=`basename $$i .pod`; \
-		if ! echo '${_skip}' | grep -qw "$$fn"; then \
-		${ECHO} "MAN+= $$fn.${_sec}" >> ${.CURDIR}/Makefile.man; \
-		fi; \
-	done
-	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
-		fn=`basename $$i .pod`; \
-		if ! echo '${_skip}' | grep -qw "$$fn"; then \
-		perl ${LCRYPTO_SRC}/util/extract-names.pl < $$i | \
-		  awk "/^$$fn\$$/ { next; } \
-		  { print \"MLINKS+= $$fn.${_sec} \" \$$1 \".${_sec}\" }" >> \
-		  ${.CURDIR}/Makefile.man; \
-		fi; \
-	done
+	for i in ${_docs}; do \
+		for j in ${LCRYPTO_DOC}/$$i/*.pod; do \
+			test -f $$j || continue; \
+			fn=`basename $$j .pod`; \
+			if ! echo '${_skip}' | grep -qw "$$fn"; then \
+			${ECHO} "MAN+= $$fn.${_sec}"; \
+			fi; \
+		done; \
+	done | env LANG=C sort >> ${.CURDIR}/Makefile.man
+	for i in ${_docs}; do \
+		for j in ${LCRYPTO_DOC}/$$i/*.pod; do \
+			test -f $$j || continue; \
+			fn=`basename $$j .pod`; \
+			if ! echo '${_skip}' | grep -qw "$$fn"; then \
+			perl ${LCRYPTO_SRC}/util/extract-names.pl < $$j | \
+			  awk "/^$$fn\$$/ { next; } \
+			  { print \"MLINKS+= $$fn.${_sec} \" \$$1 \".${_sec}\" }"; \
+			fi; \
+		done; \
+	done | env LANG=C sort >> ${.CURDIR}/Makefile.man

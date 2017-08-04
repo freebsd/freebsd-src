@@ -69,39 +69,6 @@ extern	__checkReturn	efx_rc_t
 hunt_board_cfg(
 	__in		efx_nic_t *enp);
 
-
-/* PHY */
-
-#if EFSYS_OPT_BIST
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_enable_offline(
-	__in			efx_nic_t *enp);
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_start(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type);
-
-extern	__checkReturn		efx_rc_t
-hunt_bist_poll(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type,
-	__out			efx_bist_result_t *resultp,
-	__out_opt __drv_when(count > 0, __notnull)
-	uint32_t 	*value_maskp,
-	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
-	unsigned long	*valuesp,
-	__in			size_t count);
-
-extern				void
-hunt_bist_stop(
-	__in			efx_nic_t *enp,
-	__in			efx_bist_type_t type);
-
-#endif	/* EFSYS_OPT_BIST */
-
-
 #ifdef	__cplusplus
 }
 #endif

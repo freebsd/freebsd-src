@@ -1075,6 +1075,8 @@ vt_determine_colors(term_char_t c, int cursor,
 	if (TCHAR_FORMAT(c) & TF_BOLD)
 		*fg = TCOLOR_LIGHT(*fg);
 	*bg = TCHAR_BGCOLOR(c);
+	if (TCHAR_FORMAT(c) & TF_BLINK)
+		*bg = TCOLOR_LIGHT(*bg);
 
 	if (TCHAR_FORMAT(c) & TF_REVERSE)
 		invert ^= 1;
@@ -1147,6 +1149,36 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 }
 #endif
 
+static void
+vt_set_border(struct vt_device *vd, const term_rect_t *area,
+    const term_color_t c)
+{
+	vd_drawrect_t *drawrect = vd->vd_driver->vd_drawrect;
+
+	if (drawrect == NULL)
+		return;
+
+	/* Top bar */
+	if (area->tr_begin.tp_row > 0)
+		drawrect(vd, 0, 0, vd->vd_width - 1,
+		    area->tr_begin.tp_row - 1, 1, c);
+
+	/* Left bar */
+	if (area->tr_begin.tp_col > 0)
+		drawrect(vd, 0, area->tr_begin.tp_row,
+		    area->tr_begin.tp_col - 1, area->tr_end.tp_row - 1, 1, c);
+
+	/* Right bar */
+	if (area->tr_end.tp_col < vd->vd_width)
+		drawrect(vd, area->tr_end.tp_col, area->tr_begin.tp_row,
+		    vd->vd_width - 1, area->tr_end.tp_row - 1, 1, c);
+
+	/* Bottom bar */
+	if (area->tr_end.tp_row < vd->vd_height)
+		drawrect(vd, 0, area->tr_end.tp_row, vd->vd_width - 1,
+		    vd->vd_height - 1, 1, c);
+}
+
 static int
 vt_flush(struct vt_device *vd)
 {
@@ -1212,6 +1244,7 @@ vt_flush(struct vt_device *vd)
 	if (vd->vd_flags & VDF_INVALID) {
 		vd->vd_flags &= ~VDF_INVALID;
 
+		vt_set_border(vd, &vw->vw_draw_area, TC_BLACK);
 		vt_termrect(vd, vf, &tarea);
 		if (vt_draw_logo_cpus)
 			vtterm_draw_cpu_logos(vd);
@@ -1527,45 +1560,6 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
-vt_set_border(struct vt_window *vw, term_color_t c)
-{
-	struct vt_device *vd = vw->vw_device;
-
-	if (vd->vd_driver->vd_drawrect == NULL)
-		return (ENOTSUP);
-
-	/* Top bar. */
-	if (vw->vw_draw_area.tr_begin.tp_row > 0)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, 0,
-		    vd->vd_width - 1, vw->vw_draw_area.tr_begin.tp_row - 1,
-		    1, c);
-
-	/* Left bar. */
-	if (vw->vw_draw_area.tr_begin.tp_col > 0)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, 0,
-		    vw->vw_draw_area.tr_begin.tp_col - 1, vd->vd_height - 1,
-		    1, c);
-
-	/* Right bar. */
-	if (vw->vw_draw_area.tr_end.tp_col < vd->vd_width)
-		vd->vd_driver->vd_drawrect(vd,
-		    vw->vw_draw_area.tr_end.tp_col - 1, 0,
-		    vd->vd_width - 1, vd->vd_height - 1,
-		    1, c);
-
-	/* Bottom bar. */
-	if (vw->vw_draw_area.tr_end.tp_row < vd->vd_height)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, vw->vw_draw_area.tr_end.tp_row - 1,
-		    vd->vd_width - 1, vd->vd_height - 1,
-		    1, c);
-
-	return (0);
-}
-
-static int
 vt_change_font(struct vt_window *vw, struct vt_font *vf)
 {
 	struct vt_device *vd = vw->vw_device;
@@ -1630,7 +1624,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
-		vt_set_border(vw, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
 		vt_resume_flush_timer(vw->vw_device, 0);
 	}
@@ -2617,10 +2610,17 @@ vt_upgrade(struct vt_device *vd)
 		/* Init 25 Hz timer. */
 		callout_init_mtx(&vd->vd_timer, &vd->vd_lock, 0);
 
-		/* Start timer when everything ready. */
+		/*
+		 * Start timer when everything ready.
+		 * Note that the operations here are purposefully ordered.
+		 * We need to ensure vd_timer_armed is non-zero before we set
+		 * the VDF_ASYNC flag. That prevents this function from
+		 * racing with vt_resume_flush_timer() to update the
+		 * callout structure.
+		 */
+		atomic_add_acq_int(&vd->vd_timer_armed, 1);
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
-		vd->vd_timer_armed = 1;
 		register_handlers = 1;
 	}
 

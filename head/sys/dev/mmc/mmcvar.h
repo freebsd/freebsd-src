@@ -49,15 +49,14 @@
  * or the SD Card Association to disclose or distribute any technical
  * information, know-how or other confidential information to any third party.
  *
- * "$FreeBSD$"
+ * $FreeBSD$
  */
 
 #ifndef DEV_MMC_MMCVAR_H
 #define DEV_MMC_MMCVAR_H
 
-#include <dev/mmc/bridge.h>
-
 enum mmc_device_ivars {
+    MMC_IVAR_SPEC_VERS,
     MMC_IVAR_DSR_IMP,
     MMC_IVAR_MEDIA_SIZE,
     MMC_IVAR_RCA,
@@ -79,6 +78,7 @@ enum mmc_device_ivars {
 #define MMC_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(mmc, var, MMC, ivar, type)
 
+MMC_ACCESSOR(spec_vers, SPEC_VERS, uint8_t)
 MMC_ACCESSOR(dsr_imp, DSR_IMP, int)
 MMC_ACCESSOR(media_size, MEDIA_SIZE, long)
 MMC_ACCESSOR(rca, RCA, int)

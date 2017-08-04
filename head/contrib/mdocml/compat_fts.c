@@ -6,8 +6,8 @@ int dummy;
 
 #else
 
-/*	$Id: compat_fts.c,v 1.9 2015/03/18 19:29:48 schwarze Exp $	*/
-/*	$OpenBSD: fts.c,v 1.50 2015/01/16 16:48:51 deraadt Exp $	*/
+/*	$Id: compat_fts.c,v 1.14 2017/02/18 12:24:24 schwarze Exp $	*/
+/*	$OpenBSD: fts.c,v 1.56 2016/09/21 04:38:56 guenther Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993, 1994
@@ -59,12 +59,10 @@ static void	 fts_load(FTS *, FTSENT *);
 static size_t	 fts_maxarglen(char * const *);
 static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
+static FTSENT	*fts_sort(FTS *, FTSENT *, int);
 static unsigned short	 fts_stat(FTS *, FTSENT *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
-#ifndef	O_DIRECTORY
-#define	O_DIRECTORY	0
-#endif
 #ifndef	O_CLOEXEC
 #define	O_CLOEXEC	0
 #endif
@@ -74,13 +72,13 @@ static unsigned short	 fts_stat(FTS *, FTSENT *);
 #define	SET(opt)	(sp->fts_options |= (opt))
 
 FTS *
-fts_open(char * const *argv, int options, void *dummy)
+fts_open(char * const *argv, int options,
+    int (*compar)(const FTSENT **, const FTSENT **))
 {
 	FTS *sp;
 	FTSENT *p, *root;
 	int nitems;
-	FTSENT *parent, *tmp;
-	size_t len;
+	FTSENT *parent, *prev;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -88,9 +86,16 @@ fts_open(char * const *argv, int options, void *dummy)
 		return (NULL);
 	}
 
+	/* At least one path must be specified. */
+	if (*argv == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
 	/* Allocate/initialize the stream */
 	if ((sp = calloc(1, sizeof(FTS))) == NULL)
 		return (NULL);
+	sp->fts_compar = compar;
 	sp->fts_options = options;
 
 	/*
@@ -106,14 +111,8 @@ fts_open(char * const *argv, int options, void *dummy)
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
 
 	/* Allocate/initialize root(s). */
-	for (root = NULL, nitems = 0; *argv; ++argv, ++nitems) {
-		/* Don't allow zero-length paths. */
-		if ((len = strlen(*argv)) == 0) {
-			errno = ENOENT;
-			goto mem3;
-		}
-
-		if ((p = fts_alloc(sp, *argv, len)) == NULL)
+	for (root = prev = NULL, nitems = 0; *argv; ++argv, ++nitems) {
+		if ((p = fts_alloc(sp, *argv, strlen(*argv))) == NULL)
 			goto mem3;
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
@@ -124,14 +123,24 @@ fts_open(char * const *argv, int options, void *dummy)
 		if (p->fts_info == FTS_DOT)
 			p->fts_info = FTS_D;
 
-		p->fts_link = NULL;
-		if (root == NULL)
-			tmp = root = p;
-		else {
-			tmp->fts_link = p;
-			tmp = p;
+		/*
+		 * If comparison routine supplied, traverse in sorted
+		 * order; otherwise traverse in the order specified.
+		 */
+		if (compar) {
+			p->fts_link = root;
+			root = p;
+		} else {
+			p->fts_link = NULL;
+			if (root == NULL)
+				root = p;
+			else
+				prev->fts_link = p;
+			prev = p;
 		}
 	}
+	if (compar && nitems > 1)
+		root = fts_sort(sp, root, nitems);
 
 	/*
 	 * Allocate a dummy pointer and make fts_read think that we've just
@@ -201,6 +210,7 @@ fts_close(FTS *sp)
 	/* Free up child linked list, sort array, path buffer, stream ptr.*/
 	if (sp->fts_child)
 		fts_lfree(sp->fts_child);
+	free(sp->fts_array);
 	free(sp->fts_path);
 	free(sp);
 
@@ -317,7 +327,6 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  * semantics to fts using fts_set.  An error return is allowed for similar
  * reasons.
  */
-/* ARGSUSED */
 int
 fts_set(FTS *sp, FTSENT *p, int instr)
 {
@@ -416,8 +425,7 @@ fts_build(FTS *sp)
 				 * structures already allocated.
 				 */
 mem1:				saved_errno = errno;
-				if (p)
-					free(p);
+				free(p);
 				fts_lfree(head);
 				(void)closedir(dirp);
 				cur->fts_info = FTS_ERR;
@@ -490,6 +498,10 @@ mem1:				saved_errno = errno;
 		cur->fts_info = FTS_DP;
 		return (NULL);
 	}
+
+	/* Sort the entries. */
+	if (sp->fts_compar && nitems > 1)
+		head = fts_sort(sp, head, nitems);
 	return (head);
 }
 
@@ -547,6 +559,40 @@ fts_stat(FTS *sp, FTSENT *p)
 }
 
 static FTSENT *
+fts_sort(FTS *sp, FTSENT *head, int nitems)
+{
+	FTSENT **ap, *p;
+
+	/*
+	 * Construct an array of pointers to the structures and call qsort(3).
+	 * Reassemble the array in the order returned by qsort.  If unable to
+	 * sort for memory reasons, return the directory entries in their
+	 * current order.  Allocate enough space for the current needs plus
+	 * 40 so don't realloc one entry at a time.
+	 */
+	if (nitems > sp->fts_nitems) {
+		struct _ftsent **a;
+
+		sp->fts_nitems = nitems + 40;
+		if ((a = reallocarray(sp->fts_array,
+		    sp->fts_nitems, sizeof(FTSENT *))) == NULL) {
+			free(sp->fts_array);
+			sp->fts_array = NULL;
+			sp->fts_nitems = 0;
+			return (head);
+		}
+		sp->fts_array = a;
+	}
+	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
+		*ap++ = p;
+	qsort(sp->fts_array, nitems, sizeof(FTSENT *), sp->fts_compar);
+	for (head = *(ap = sp->fts_array); --nitems; ++ap)
+		ap[0]->fts_link = ap[1];
+	ap[0]->fts_link = NULL;
+	return (head);
+}
+
+static FTSENT *
 fts_alloc(FTS *sp, const char *name, size_t namelen)
 {
 	FTSENT *p;
@@ -597,8 +643,7 @@ fts_palloc(FTS *sp, size_t more)
 	 */
 	more += 256;
 	if (sp->fts_pathlen + more < sp->fts_pathlen) {
-		if (sp->fts_path)
-			free(sp->fts_path);
+		free(sp->fts_path);
 		sp->fts_path = NULL;
 		errno = ENAMETOOLONG;
 		return (1);
@@ -606,8 +651,7 @@ fts_palloc(FTS *sp, size_t more)
 	sp->fts_pathlen += more;
 	p = realloc(sp->fts_path, sp->fts_pathlen);
 	if (p == NULL) {
-		if (sp->fts_path)
-			free(sp->fts_path);
+		free(sp->fts_path);
 		sp->fts_path = NULL;
 		return (1);
 	}

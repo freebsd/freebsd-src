@@ -185,8 +185,8 @@ fpu_dumpfpn(struct fpn *fp)
 int
 fpu_emulate(struct trapframe *frame, struct fpu *fpf)
 {
-	static union instr insn;
-	static struct fpemu fe;
+	union instr insn;
+	struct fpemu fe;
 	static int lastill = 0;
 	int sig;
 

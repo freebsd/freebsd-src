@@ -219,6 +219,40 @@ atomic_cmpset_rel_ ## name(volatile ptype p, vtype e, vtype s)		\
 	return (((vtype)atomic_cas_rel((p), (e), (s), sz)) == (e));	\
 }									\
 									\
+static __inline int							\
+atomic_fcmpset_ ## name(volatile ptype p, vtype *ep, vtype s)		\
+{									\
+	vtype t;							\
+									\
+	t = (vtype)atomic_cas((p), (*ep), (s), sz);			\
+	if (t == (*ep))	 						\
+		return (1);						\
+	*ep = t;							\
+	return (0);							\
+}									\
+static __inline int							\
+atomic_fcmpset_acq_ ## name(volatile ptype p, vtype *ep, vtype s)	\
+{									\
+	vtype t;							\
+									\
+	t = (vtype)atomic_cas_acq((p), (*ep), (s), sz);			\
+	if (t == (*ep))	 						\
+		return (1);						\
+	*ep = t;							\
+	return (0);							\
+}									\
+static __inline int							\
+atomic_fcmpset_rel_ ## name(volatile ptype p, vtype *ep, vtype s)	\
+{									\
+	vtype t;							\
+									\
+	t = (vtype)atomic_cas_rel((p), (*ep), (s), sz);			\
+	if (t == (*ep))	 						\
+		return (1);						\
+	*ep = t;							\
+	return (0);							\
+}									\
+									\
 static __inline vtype							\
 atomic_load_ ## name(volatile ptype p)					\
 {									\

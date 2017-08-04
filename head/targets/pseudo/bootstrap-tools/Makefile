@@ -35,6 +35,7 @@ OSRELDATE?= 0
 # need to keep this in sync with src/Makefile.inc1 
 BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
+		BWPHASE=${.TARGET} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
@@ -78,6 +79,8 @@ BSTCENV= \
 BSTCARGS= \
 	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*:NMK_CROSS_COMPILER=*:NMK_CLANG=*:NMK_GCC=*} \
 	BUILD_DIRDEPS=yes \
+	LLVM_TBLGEN=${TOOLSDIR}/usr/bin/llvm-tblgen \
+	CLANG_TBLGEN=${TOOLSDIR}/usr/bin/clang-tblgen \
 	-DWITH_STAGING \
 	-DWITH_TOOLSDIR
 

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2012
+.Dd November 1, 2016
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -61,6 +61,12 @@ The
 field is separated from the
 .Em action
 field by one or more tab characters or spaces.
+.Pp
+A special
+.Em include
+keyword can be used to include all files with names ending in '.conf' and not
+beginning with a '.' contained in the directory following the keyword.
+This keyword can only be used in the first level configuration file.
 .Pp
 Note that if you use spaces as separators, your
 .Nm

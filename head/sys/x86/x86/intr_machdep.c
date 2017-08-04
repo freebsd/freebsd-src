@@ -46,8 +46,10 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/vmmeter.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
@@ -60,11 +62,7 @@
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
 #include <x86/isa/icu.h>
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
 #include <isa/isareg.h>
-#endif
 #endif
 
 #define	MAX_STRAY_LOG	5
@@ -73,7 +71,8 @@ typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
-static struct mtx intr_table_lock;
+static struct sx intrsrc_lock;
+static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
 static TAILQ_HEAD(pics_head, pic) pics;
 
@@ -117,14 +116,14 @@ intr_register_pic(struct pic *pic)
 {
 	int error;
 
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	if (intr_pic_registered(pic))
 		error = EBUSY;
 	else {
 		TAILQ_INSERT_TAIL(&pics, pic, pics);
 		error = 0;
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 	return (error);
 }
 
@@ -148,16 +147,16 @@ intr_register_source(struct intsrc *isrc)
 	    vector);
 	if (error)
 		return (error);
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] != NULL) {
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 		intr_event_destroy(isrc->is_event);
 		return (EEXIST);
 	}
 	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
 	isrc->is_handlers = 0;
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 	return (0);
 }
 
@@ -181,14 +180,14 @@ intr_add_handler(const char *name, int vector, driver_filter_t filter,
 	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
-		mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		intrcnt_updatename(isrc);
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_pic->pic_enable_intr(isrc);
 			isrc->is_pic->pic_enable_source(isrc);
 		}
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
 }
@@ -202,14 +201,14 @@ intr_remove_handler(void *cookie)
 	isrc = intr_handler_source(cookie);
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
-		mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0) {
 			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
 			isrc->is_pic->pic_disable_intr(isrc);
 		}
 		intrcnt_updatename(isrc);
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
 }
@@ -247,7 +246,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * processed too.
 	 */
 	(*isrc->is_count)++;
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 
 	ie = isrc->is_event;
 
@@ -283,12 +282,12 @@ intr_resume(bool suspend_cancelled)
 #ifndef DEV_ATPIC
 	atpic_reset();
 #endif
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH(pic, &pics, pics) {
 		if (pic->pic_resume != NULL)
 			pic->pic_resume(pic, suspend_cancelled);
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 }
 
 void
@@ -296,12 +295,12 @@ intr_suspend(void)
 {
 	struct pic *pic;
 
-	mtx_lock(&intr_table_lock);
+	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics) {
 		if (pic->pic_suspend != NULL)
 			pic->pic_suspend(pic);
 	}
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock(&intrpic_lock);
 }
 
 static int
@@ -313,7 +312,9 @@ intr_assign_cpu(void *arg, int cpu)
 
 #ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
-	if (cpu != NOCPU) {
+
+	/* Nothing to do if there is only a single CPU. */
+	if (mp_ncpus > 1 && cpu != NOCPU) {
 #else
 	/*
 	 * Don't do anything during early boot.  We will pick up the
@@ -322,9 +323,9 @@ intr_assign_cpu(void *arg, int cpu)
 	if (assign_cpu && cpu != NOCPU) {
 #endif
 		isrc = arg;
-		mtx_lock(&intr_table_lock);
+		sx_xlock(&intrsrc_lock);
 		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
-		mtx_unlock(&intr_table_lock);
+		sx_xunlock(&intrsrc_lock);
 	} else
 		error = 0;
 	return (error);
@@ -384,7 +385,8 @@ intr_init(void *dummy __unused)
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
 	TAILQ_INIT(&pics);
-	mtx_init(&intr_table_lock, "intr sources", NULL, MTX_DEF);
+	mtx_init(&intrpic_lock, "intrpic", NULL, MTX_DEF);
+	sx_init(&intrsrc_lock, "intrsrc");
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
@@ -449,7 +451,7 @@ intr_reprogram(void)
 	struct intsrc *is;
 	int v;
 
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	for (v = 0; v < NUM_IO_INTS; v++) {
 		is = interrupt_sources[v];
 		if (is == NULL)
@@ -457,7 +459,7 @@ intr_reprogram(void)
 		if (is->is_pic->pic_reprogram_pin != NULL)
 			is->is_pic->pic_reprogram_pin(is);
 	}
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 }
 
 #ifdef DDB
@@ -500,6 +502,8 @@ intr_next_cpu(void)
 
 #ifdef EARLY_AP_STARTUP
 	MPASS(mp_ncpus == 1 || smp_started);
+	if (mp_ncpus == 1)
+		return (PCPU_GET(apic_id));
 #else
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
@@ -562,7 +566,7 @@ intr_shuffle_irqs(void *arg __unused)
 		return;
 
 	/* Round-robin assign a CPU to each enabled source. */
-	mtx_lock(&intr_table_lock);
+	sx_xlock(&intrsrc_lock);
 	assign_cpu = 1;
 	for (i = 0; i < NUM_IO_INTS; i++) {
 		isrc = interrupt_sources[i];
@@ -583,7 +587,7 @@ intr_shuffle_irqs(void *arg __unused)
 
 		}
 	}
-	mtx_unlock(&intr_table_lock);
+	sx_xunlock(&intrsrc_lock);
 }
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);

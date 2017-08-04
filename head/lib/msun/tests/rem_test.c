@@ -52,7 +52,7 @@ static void testf(float, float, float, int);
 } while (0)
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..3\n");

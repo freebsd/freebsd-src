@@ -331,6 +331,8 @@ void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 
 #define	NET80211_TAG_RECV_PARAMS	2
 
+#define	NET80211_TAG_TOA_PARAMS		3
+
 struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
 int	ieee80211_vap_xmitpkt(struct ieee80211vap *, struct mbuf *);
@@ -620,42 +622,35 @@ int	ieee80211_add_xmit_params(struct mbuf *m,
 int	ieee80211_get_xmit_params(struct mbuf *m,
 	    struct ieee80211_bpf_params *);
 
-#define	IEEE80211_MAX_CHAINS		3
-#define	IEEE80211_MAX_EVM_PILOTS	6
+struct ieee80211_rx_params;
+struct ieee80211_rx_stats;
 
-#define	IEEE80211_R_NF		0x0000001	/* global NF value valid */
-#define	IEEE80211_R_RSSI	0x0000002	/* global RSSI value valid */
-#define	IEEE80211_R_C_CHAIN	0x0000004	/* RX chain count valid */
-#define	IEEE80211_R_C_NF	0x0000008	/* per-chain NF value valid */
-#define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
-#define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
-#define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
-#define	IEEE80211_R_FREQ	0x0000080	/* Freq value populated, MHz */
-#define	IEEE80211_R_IEEE	0x0000100	/* IEEE value populated */
-#define	IEEE80211_R_BAND	0x0000200	/* Frequency band populated */
-
-struct ieee80211_rx_stats {
-	uint32_t r_flags;		/* IEEE80211_R_* flags */
-	uint8_t c_chain;		/* number of RX chains involved */
-	int16_t	c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	int16_t	c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	uint8_t nf;			/* global NF */
-	uint8_t rssi;			/* global RSSI */
-	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
-					/* per-chain, per-pilot EVM values */
-	uint16_t c_freq;
-	uint8_t c_ieee;
-};
-
-struct ieee80211_rx_params {
-	struct ieee80211_rx_stats params;
-};
 int	ieee80211_add_rx_params(struct mbuf *m,
 	    const struct ieee80211_rx_stats *rxs);
 int	ieee80211_get_rx_params(struct mbuf *m,
 	    struct ieee80211_rx_stats *rxs);
+const struct ieee80211_rx_stats * ieee80211_get_rx_params_ptr(struct mbuf *m);
+
+struct ieee80211_toa_params {
+	int request_id;
+};
+int	ieee80211_add_toa_params(struct mbuf *m,
+	    const struct ieee80211_toa_params *p);
+int	ieee80211_get_toa_params(struct mbuf *m,
+	    struct ieee80211_toa_params *p);
+
+#define	IEEE80211_F_SURVEY_TIME		0x00000001
+#define	IEEE80211_F_SURVEY_TIME_BUSY	0x00000002
+#define	IEEE80211_F_SURVEY_NOISE_DBM	0x00000004
+#define	IEEE80211_F_SURVEY_TSC		0x00000008
+struct ieee80211_channel_survey {
+	uint32_t s_flags;
+	uint32_t s_time;
+	uint32_t s_time_busy;
+	int32_t s_noise;
+	uint64_t s_tsc;
+};
+
 #endif /* _KERNEL */
 
 /*

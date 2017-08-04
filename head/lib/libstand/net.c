@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,10 +70,10 @@ __FBSDID("$FreeBSD$");
  */
 ssize_t
 sendrecv(struct iodesc *d,
-	ssize_t (*sproc)(struct iodesc *, void *, size_t),
-	void *sbuf, size_t ssize,
-	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t),
-	void *rbuf, size_t rsize)
+    ssize_t (*sproc)(struct iodesc *, void *, size_t),
+    void *sbuf, size_t ssize,
+    ssize_t (*rproc)(struct iodesc *, void **, void **, time_t),
+    void **pkt, void **payload)
 {
 	ssize_t cc;
 	time_t t, tmo, tlast;
@@ -116,7 +116,7 @@ sendrecv(struct iodesc *d,
 		}
 
 		/* Try to get a packet and process it. */
-		cc = (*rproc)(d, rbuf, rsize, tleft);
+		cc = (*rproc)(d, pkt, payload, tleft);
 		/* Return on data, EOF or real error. */
 		if (cc != -1 || errno != 0)
 			return (cc);

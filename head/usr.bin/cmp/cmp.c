@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,11 +43,14 @@ static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <nl_types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +69,8 @@ main(int argc, char *argv[])
 	off_t skip1, skip2;
 	int ch, fd1, fd2, oflag, special;
 	const char *file1, *file2;
+	cap_rights_t rights;
+	uint32_t fcntls;
 
 	oflag = O_RDONLY;
 	while ((ch = getopt(argc, argv, "hlsxz")) != -1)
@@ -145,6 +150,35 @@ main(int argc, char *argv[])
 		else
 			exit(ERR_EXIT);
 	}
+
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_MMAP_R);
+	if (cap_rights_limit(fd1, &rights) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit rights for %s", file1);
+	if (cap_rights_limit(fd2, &rights) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit rights for %s", file2);
+
+	/* Required for fdopen(3). */
+	fcntls = CAP_FCNTL_GETFL;
+	if (cap_fcntls_limit(fd1, fcntls) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit fcntls for %s", file1);
+	if (cap_fcntls_limit(fd2, fcntls) < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to limit fcntls for %s", file2);
+
+	if (!special) {
+		cap_rights_init(&rights);
+		if (cap_rights_limit(STDIN_FILENO, &rights) < 0 &&
+		    errno != ENOSYS) {
+			err(ERR_EXIT, "unable to limit stdio");
+		}
+	}
+
+	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
+		err(ERR_EXIT, "unable to limit stdio");
+
+	caph_cache_catpages();
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(ERR_EXIT, "unable to enter capability mode");
 
 	if (!special) {
 		if (fstat(fd1, &sb1)) {

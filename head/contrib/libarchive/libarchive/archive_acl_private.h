@@ -56,6 +56,7 @@ struct archive_acl {
 void archive_acl_clear(struct archive_acl *);
 void archive_acl_copy(struct archive_acl *, struct archive_acl *);
 int archive_acl_count(struct archive_acl *, int);
+int archive_acl_types(struct archive_acl *);
 int archive_acl_reset(struct archive_acl *, int);
 int archive_acl_next(struct archive *, struct archive_acl *, int,
     int *, int *, int *, int *, const char **);
@@ -66,22 +67,17 @@ int archive_acl_add_entry_w_len(struct archive_acl *,
 int archive_acl_add_entry_len(struct archive_acl *,
     int, int, int, int, const char *, size_t);
 
-const wchar_t *archive_acl_text_w(struct archive *, struct archive_acl *, int);
-int archive_acl_text_l(struct archive_acl *, int, const char **, size_t *,
+wchar_t *archive_acl_to_text_w(struct archive_acl *, ssize_t *, int,
+    struct archive *);
+char *archive_acl_to_text_l(struct archive_acl *, ssize_t *, int,
     struct archive_string_conv *);
 
 /*
- * Private ACL parser.  This is private because it handles some
- * very weird formats that clients should not be messing with.
- * Clients should only deal with their platform-native formats.
- * Because of the need to support many formats cleanly, new arguments
- * are likely to get added on a regular basis.  Clients who try to use
- * this interface are likely to be surprised when it changes.
+ * ACL text parser.
  */
-int archive_acl_parse_w(struct archive_acl *,
-		    const wchar_t *, int /* type */);
-int archive_acl_parse_l(struct archive_acl *,
-		    const char *, int /* type */,
-		    struct archive_string_conv *);
+int archive_acl_from_text_w(struct archive_acl *, const wchar_t * /* wtext */,
+    int /* type */);
+int archive_acl_from_text_l(struct archive_acl *, const char * /* text */,
+    int /* type */, struct archive_string_conv *);
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

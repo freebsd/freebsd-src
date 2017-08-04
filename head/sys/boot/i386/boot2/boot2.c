@@ -143,7 +143,7 @@ strcmp(const char *s1, const char *s2)
 #define	UFS_SMALL_CGBASE
 #include "ufsread.c"
 
-static inline int
+static int
 xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
 {
     if ((size_t)fsread(inode, buf, nbyte) != nbyte) {

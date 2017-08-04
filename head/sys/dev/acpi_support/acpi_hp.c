@@ -66,11 +66,17 @@ ACPI_MODULE_NAME("HP")
 #define ACPI_HP_WMI_BIOS_GUID		"5FB7F034-2C63-45E9-BE91-3D44E2C707E4"
 #define ACPI_HP_WMI_CMI_GUID		"2D114B49-2DFB-4130-B8FE-4A3C09E75133"
 
-#define ACPI_HP_WMI_DISPLAY_COMMAND	0x1
-#define ACPI_HP_WMI_HDDTEMP_COMMAND	0x2
-#define ACPI_HP_WMI_ALS_COMMAND		0x3
-#define ACPI_HP_WMI_DOCK_COMMAND	0x4
-#define ACPI_HP_WMI_WIRELESS_COMMAND	0x5
+#define ACPI_HP_WMI_DISPLAY_COMMAND		0x1
+#define ACPI_HP_WMI_HDDTEMP_COMMAND		0x2
+#define ACPI_HP_WMI_ALS_COMMAND			0x3
+#define ACPI_HP_WMI_DOCK_COMMAND		0x4
+#define ACPI_HP_WMI_WIRELESS_COMMAND		0x5
+#define ACPI_HP_WMI_BIOS_COMMAND		0x9
+#define ACPI_HP_WMI_FEATURE_COMMAND		0xb
+#define ACPI_HP_WMI_HOTKEY_COMMAND		0xc
+#define ACPI_HP_WMI_FEATURE2_COMMAND		0xd
+#define ACPI_HP_WMI_WIRELESS2_COMMAND		0x1b
+#define ACPI_HP_WMI_POSTCODEERROR_COMMAND	0x2a
 
 #define ACPI_HP_METHOD_WLAN_ENABLED			1
 #define ACPI_HP_METHOD_WLAN_RADIO			2
@@ -104,10 +110,31 @@ ACPI_MODULE_NAME("HP")
 #define HP_MASK_BLUETOOTH_ENABLED		0x20000
 #define HP_MASK_WLAN_ENABLED			0x200
 
+#define ACPI_HP_EVENT_DOCK			0x01
+#define ACPI_HP_EVENT_PARK_HDD			0x02
+#define ACPI_HP_EVENT_SMART_ADAPTER		0x03
+#define ACPI_HP_EVENT_BEZEL_BUTTON		0x04
+#define ACPI_HP_EVENT_WIRELESS			0x05
+#define ACPI_HP_EVENT_CPU_BATTERY_THROTTLE	0x06
+#define ACPI_HP_EVENT_LOCK_SWITCH		0x07
+#define ACPI_HP_EVENT_LID_SWITCH		0x08
+#define ACPI_HP_EVENT_SCREEN_ROTATION		0x09
+#define ACPI_HP_EVENT_COOLSENSE_SYSTEM_MOBILE	0x0A
+#define ACPI_HP_EVENT_COOLSENSE_SYSTEM_HOT	0x0B
+#define ACPI_HP_EVENT_PROXIMITY_SENSOR		0x0C
+#define ACPI_HP_EVENT_BACKLIT_KB_BRIGHTNESS	0x0D
+#define ACPI_HP_EVENT_PEAKSHIFT_PERIOD		0x0F
+#define ACPI_HP_EVENT_BATTERY_CHARGE_PERIOD	0x10
+
 #define ACPI_HP_CMI_DETAIL_PATHS		0x01
 #define ACPI_HP_CMI_DETAIL_ENUMS		0x02
 #define ACPI_HP_CMI_DETAIL_FLAGS		0x04
 #define ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE	0x08
+
+#define ACPI_HP_WMI_RET_WRONG_SIGNATURE		0x02
+#define ACPI_HP_WMI_RET_UNKNOWN_COMMAND		0x03
+#define ACPI_HP_WMI_RET_UNKNOWN_CMDTYPE		0x04
+#define ACPI_HP_WMI_RET_INVALID_PARAMETERS	0x05
 
 struct acpi_hp_inst_seq_pair {
 	UINT32	sequence;	/* sequence number as suggested by cmi bios */
@@ -119,6 +146,7 @@ struct acpi_hp_softc {
 	device_t	wmi_dev;
 	int		has_notify;		/* notification GUID found */
 	int		has_cmi;		/* CMI GUID found */
+	int		has_wireless;		/* Wireless command found */
 	int		cmi_detail;		/* CMI detail level
 						   (set by sysctl) */
 	int		verbose;		/* add debug output */
@@ -287,7 +315,7 @@ static int	acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method,
 		    int arg, int oldarg);
 static int	acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method);
 static int	acpi_hp_exec_wmi_command(device_t wmi_dev, int command,
-		    int is_write, int val);
+		    int is_write, int val, int *retval);
 static void	acpi_hp_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid,
 		    UINT8 instance, char* outbuf, size_t outsize,
@@ -332,13 +360,18 @@ MODULE_DEPEND(acpi_hp, acpi, 1, 1, 1);
 static void	
 acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 {
+	int	res;
 	int	wireless;
 	int	new_wlan_status;
 	int	new_bluetooth_status;
 	int	new_wwan_status;
 
-	wireless = acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+	res = acpi_hp_exec_wmi_command(sc->wmi_dev,
+	    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &wireless);
+	if (res != 0) {
+		device_printf(sc->wmi_dev, "Wireless command error %x\n", res);
+		return;
+	}
 	new_wlan_status = -1;
 	new_bluetooth_status = -1;
 	new_wwan_status = -1;
@@ -348,41 +381,41 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 	if (sc->wlan_disable_if_radio_off && !(wireless & HP_MASK_WLAN_RADIO)
 	    &&  (wireless & HP_MASK_WLAN_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x100);
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x100, NULL);
 		new_wlan_status = 0;
 	}
 	else if (sc->wlan_enable_if_radio_on && (wireless & HP_MASK_WLAN_RADIO)
 		&&  !(wireless & HP_MASK_WLAN_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x101);
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x101, NULL);
 		new_wlan_status = 1;
 	}
 	if (sc->bluetooth_disable_if_radio_off &&
 	    !(wireless & HP_MASK_BLUETOOTH_RADIO) &&
 	    (wireless & HP_MASK_BLUETOOTH_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x200);
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x200, NULL);
 		new_bluetooth_status = 0;
 	}
 	else if (sc->bluetooth_enable_if_radio_on &&
 		(wireless & HP_MASK_BLUETOOTH_RADIO) &&
 		!(wireless & HP_MASK_BLUETOOTH_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x202);
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x202, NULL);
 		new_bluetooth_status = 1;
 	}
 	if (sc->wwan_disable_if_radio_off &&
 	    !(wireless & HP_MASK_WWAN_RADIO) &&
 	    (wireless & HP_MASK_WWAN_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x400);
+		ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x400, NULL);
 		new_wwan_status = 0;
 	}
 	else if (sc->wwan_enable_if_radio_on &&
 		(wireless & HP_MASK_WWAN_RADIO) &&
 		!(wireless & HP_MASK_WWAN_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
-		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x404);
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 1, 0x404, NULL);
 		new_wwan_status = 1;
 	}
 
@@ -441,6 +474,11 @@ acpi_hp_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "acpi_hp", -1) != NULL)
 		return;
 
+	/* Check BIOS GUID to see whether system is compatible. */
+	if (!ACPI_WMI_PROVIDES_GUID_STRING(parent,
+	    ACPI_HP_WMI_BIOS_GUID))
+		return;
+
 	if (BUS_ADD_CHILD(parent, 0, "acpi_hp", -1) == NULL)
 		device_printf(parent, "add acpi_hp child failed\n");
 }
@@ -476,7 +514,7 @@ acpi_hp_attach(device_t dev)
 	sc->was_wwan_on_air = 0;
 	sc->cmi_detail = 0;
 	sc->cmi_order_size = -1;
-	sc->verbose = 0;
+	sc->verbose = bootverbose;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
 
 	sc->wmi_dev = device_get_parent(dev);
@@ -513,13 +551,17 @@ acpi_hp_attach(device_t dev)
 		sc->hpcmi_bufptr = -1;
 	}
 
+	if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+	    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, NULL) == 0)
+		sc->has_wireless = 1;
+
 	ACPI_SERIAL_BEGIN(hp);
 
 	sc->sysctl_ctx = device_get_sysctl_ctx(dev);
 	sc->sysctl_tree = device_get_sysctl_tree(dev);
 	for (int i = 0; acpi_hp_sysctls[i].name != NULL; ++i) {
 		arg = 0;
-		if ((!sc->has_notify &&
+		if (((!sc->has_notify || !sc->has_wireless) &&
 		    (acpi_hp_sysctls[i].method ==
 			ACPI_HP_METHOD_WLAN_ENABLE_IF_RADIO_ON ||
 		    acpi_hp_sysctls[i].method ==
@@ -577,8 +619,10 @@ acpi_hp_detach(device_t dev)
 	if (sc->has_cmi && sc->hpcmi_open_pid != 0)
 		return (EBUSY);
 
-	if (sc->has_notify)
-		ACPI_WMI_REMOVE_EVENT_HANDLER(dev, ACPI_HP_WMI_EVENT_GUID);
+	if (sc->has_notify) {
+		ACPI_WMI_REMOVE_EVENT_HANDLER(sc->wmi_dev,
+		    ACPI_HP_WMI_EVENT_GUID);
+	}
 
 	if (sc->has_cmi) {
 		if (sc->hpcmi_bufptr != -1) {
@@ -630,18 +674,21 @@ acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 
 	switch (method) {
 	case ACPI_HP_METHOD_WLAN_ENABLED:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WLAN_ENABLED) != 0);
 		break;
 	case ACPI_HP_METHOD_WLAN_RADIO:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WLAN_RADIO) != 0);
 		break;
 	case ACPI_HP_METHOD_WLAN_ON_AIR:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WLAN_ON_AIR) != 0);
 		break;
 	case ACPI_HP_METHOD_WLAN_ENABLE_IF_RADIO_ON:
@@ -651,18 +698,21 @@ acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 		val = sc->wlan_disable_if_radio_off;
 		break;
 	case ACPI_HP_METHOD_BLUETOOTH_ENABLED:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_BLUETOOTH_ENABLED) != 0);
 		break;
 	case ACPI_HP_METHOD_BLUETOOTH_RADIO:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_BLUETOOTH_RADIO) != 0);
 		break;
 	case ACPI_HP_METHOD_BLUETOOTH_ON_AIR:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_BLUETOOTH_ON_AIR) != 0);
 		break;
 	case ACPI_HP_METHOD_BLUETOOTH_ENABLE_IF_RADIO_ON:
@@ -672,18 +722,21 @@ acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 		val = sc->bluetooth_disable_if_radio_off;
 		break;
 	case ACPI_HP_METHOD_WWAN_ENABLED:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WWAN_ENABLED) != 0);
 		break;
 	case ACPI_HP_METHOD_WWAN_RADIO:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WWAN_RADIO) != 0);
 		break;
 	case ACPI_HP_METHOD_WWAN_ON_AIR:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		val = ((val & HP_MASK_WWAN_ON_AIR) != 0);
 		break;
 	case ACPI_HP_METHOD_WWAN_ENABLE_IF_RADIO_ON:
@@ -693,20 +746,24 @@ acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 		val = sc->wwan_disable_if_radio_off;
 		break;
 	case ACPI_HP_METHOD_ALS:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_ALS_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_ALS_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		break;
 	case ACPI_HP_METHOD_DISPLAY:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_DISPLAY_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_DISPLAY_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		break;
 	case ACPI_HP_METHOD_HDDTEMP:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_HDDTEMP_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_HDDTEMP_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		break;
 	case ACPI_HP_METHOD_DOCK:
-		val = acpi_hp_exec_wmi_command(sc->wmi_dev,
-			ACPI_HP_WMI_DOCK_COMMAND, 0, 0);
+		if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+		    ACPI_HP_WMI_DOCK_COMMAND, 0, 0, &val))
+			return (-EINVAL);
 		break;
 	case ACPI_HP_METHOD_CMI_DETAIL:
 		val = sc->cmi_detail;
@@ -732,9 +789,11 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 	if (arg != oldarg) {
 		switch (method) {
 		case ACPI_HP_METHOD_WLAN_ENABLED:
-			return (acpi_hp_exec_wmi_command(sc->wmi_dev,
-				    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
-				    arg?0x101:0x100));
+			if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+			    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
+			    arg?0x101:0x100, NULL))
+				return (-EINVAL);
+			break;
 		case ACPI_HP_METHOD_WLAN_ENABLE_IF_RADIO_ON:
 			sc->wlan_enable_if_radio_on = arg;
 			acpi_hp_evaluate_auto_on_off(sc);
@@ -744,9 +803,11 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 			acpi_hp_evaluate_auto_on_off(sc);
 			break;
 		case ACPI_HP_METHOD_BLUETOOTH_ENABLED:
-			return (acpi_hp_exec_wmi_command(sc->wmi_dev,
-				    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
-				    arg?0x202:0x200));
+			if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+			    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
+			    arg?0x202:0x200, NULL))
+				return (-EINVAL);
+			break;
 		case ACPI_HP_METHOD_BLUETOOTH_ENABLE_IF_RADIO_ON:
 			sc->bluetooth_enable_if_radio_on = arg;
 			acpi_hp_evaluate_auto_on_off(sc);
@@ -756,9 +817,11 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 			acpi_hp_evaluate_auto_on_off(sc);
 			break;
 		case ACPI_HP_METHOD_WWAN_ENABLED:
-			return (acpi_hp_exec_wmi_command(sc->wmi_dev,
-				    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
-				    arg?0x404:0x400));
+			if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+			    ACPI_HP_WMI_WIRELESS_COMMAND, 1,
+			    arg?0x404:0x400, NULL))
+				return (-EINVAL);
+			break;
 		case ACPI_HP_METHOD_WWAN_ENABLE_IF_RADIO_ON:
 			sc->wwan_enable_if_radio_on = arg?1:0;
 			acpi_hp_evaluate_auto_on_off(sc);
@@ -768,9 +831,10 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 			acpi_hp_evaluate_auto_on_off(sc);
 			break;
 		case ACPI_HP_METHOD_ALS:
-			return (acpi_hp_exec_wmi_command(sc->wmi_dev,
-				    ACPI_HP_WMI_ALS_COMMAND, 1,
-				    arg?1:0));
+			if (acpi_hp_exec_wmi_command(sc->wmi_dev,
+			    ACPI_HP_WMI_ALS_COMMAND, 1, arg?1:0, NULL))
+				return (-EINVAL);
+			break;
 		case ACPI_HP_METHOD_CMI_DETAIL:
 			sc->cmi_detail = arg;
 			if ((arg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) != 
@@ -806,26 +870,32 @@ acpi_hp_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	ACPI_WMI_GET_EVENT_DATA(sc->wmi_dev, notify, &response);
 	obj = (ACPI_OBJECT*) response.Pointer;
 	if (obj && obj->Type == ACPI_TYPE_BUFFER && obj->Buffer.Length == 8) {
-		if (*((UINT8 *) obj->Buffer.Pointer) == 0x5) {
+		switch (*((UINT8 *) obj->Buffer.Pointer)) {
+		case ACPI_HP_EVENT_WIRELESS:
 			acpi_hp_evaluate_auto_on_off(sc);
+			break;
+		default:
+			if (sc->verbose) {
+				device_printf(sc->dev, "Event %02x\n",
+				    *((UINT8 *) obj->Buffer.Pointer));
+			}
+			break;
 		}
 	}
 	acpi_hp_free_buffer(&response);
 }
 
 static int
-acpi_hp_exec_wmi_command(device_t wmi_dev, int command, int is_write, int val)
+acpi_hp_exec_wmi_command(device_t wmi_dev, int command, int is_write,
+    int val, int *retval)
 {
-	UINT32		params[5] = { 0x55434553,
-			    is_write?2:1,
-			    command,
-			    is_write?4:0,
-			    val};
+	UINT32		params[4+32] = { 0x55434553, is_write ? 2 : 1,
+			    command, 4, val};
 	UINT32*		result;
 	ACPI_OBJECT	*obj;
 	ACPI_BUFFER	in = { sizeof(params), &params };
 	ACPI_BUFFER	out = { ACPI_ALLOCATE_BUFFER, NULL };
-	int retval;
+	int res;
 	
 	if (ACPI_FAILURE(ACPI_WMI_EVALUATE_CALL(wmi_dev, ACPI_HP_WMI_BIOS_GUID,
 		    0, 0x3, &in, &out))) {
@@ -838,13 +908,12 @@ acpi_hp_exec_wmi_command(device_t wmi_dev, int command, int is_write, int val)
 		return (-EINVAL);
 	}
 	result = (UINT32*) obj->Buffer.Pointer;
-	retval = result[2];
-	if (result[1] > 0) {
-		retval = result[1];
-	}
+	res = result[1];
+	if (res == 0 && retval != NULL)
+		*retval = result[2];
 	acpi_hp_free_buffer(&out);
 
-	return (retval);
+	return (res);
 }
 
 static __inline char*
@@ -909,81 +978,91 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		return (-EINVAL);
 	}
 
-	if (obj->Package.Count >= 8 &&
-	    obj->Package.Elements[7].Type == ACPI_TYPE_INTEGER) {
-	    valuebase = 8 + obj->Package.Elements[7].Integer.Value;
+	/* Check if first 6 bytes matches our expectations. */
+	if (obj->Package.Count < 8 ||
+	    obj->Package.Elements[0].Type != ACPI_TYPE_STRING ||
+	    obj->Package.Elements[1].Type != ACPI_TYPE_STRING ||
+	    obj->Package.Elements[2].Type != ACPI_TYPE_STRING ||
+	    obj->Package.Elements[3].Type != ACPI_TYPE_INTEGER ||
+	    obj->Package.Elements[4].Type != ACPI_TYPE_INTEGER ||
+	    obj->Package.Elements[5].Type != ACPI_TYPE_INTEGER ||
+	    obj->Package.Elements[6].Type != ACPI_TYPE_INTEGER ||
+	    obj->Package.Elements[7].Type != ACPI_TYPE_INTEGER) {
+		acpi_hp_free_buffer(&out);
+		return (-EINVAL);
 	}
 
-	/* check if this matches our expectations based on limited knowledge */
-	if (valuebase > 7 && obj->Package.Count > valuebase + 1 &&
-	    obj->Package.Elements[0].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[1].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[2].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[3].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[4].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[5].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[6].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[valuebase].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[valuebase+1].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Count > valuebase + 
-	        obj->Package.Elements[valuebase+1].Integer.Value
-	   ) {
-		enumbase = valuebase + 1;
-		if (detail & ACPI_HP_CMI_DETAIL_PATHS) {
-			strlcat(outbuf, acpi_hp_get_string_from_object(
-				&obj->Package.Elements[2], string_buffer, size),
-				outsize);
-			outlen += 48;
-			while (strlen(outbuf) < outlen)
-				strlcat(outbuf, " ", outsize);
-		}
+	/* Skip prerequisites and optionally array. */
+	valuebase = 8 + obj->Package.Elements[7].Integer.Value;
+	if (obj->Package.Count <= valuebase) {
+		acpi_hp_free_buffer(&out);
+		return (-EINVAL);
+	}
+	if (obj->Package.Elements[valuebase].Type == ACPI_TYPE_INTEGER)
+		valuebase += 1 + obj->Package.Elements[valuebase].Integer.Value;
+
+	/* Check if we have value and enum. */
+	if (obj->Package.Count <= valuebase + 1 ||
+	    obj->Package.Elements[valuebase].Type != ACPI_TYPE_STRING ||
+	    obj->Package.Elements[valuebase+1].Type != ACPI_TYPE_INTEGER) {
+		acpi_hp_free_buffer(&out);
+		return (-EINVAL);
+	}
+	enumbase = valuebase + 1;
+	if (obj->Package.Count <= valuebase + 
+	        obj->Package.Elements[enumbase].Integer.Value) {
+		acpi_hp_free_buffer(&out);
+		return (-EINVAL);
+	}
+
+	if (detail & ACPI_HP_CMI_DETAIL_PATHS) {
 		strlcat(outbuf, acpi_hp_get_string_from_object(
-				&obj->Package.Elements[0], string_buffer, size),
-				outsize);
-		outlen += 43;
+		    &obj->Package.Elements[2], string_buffer, size), outsize);
+		outlen += 48;
 		while (strlen(outbuf) < outlen)
 			strlcat(outbuf, " ", outsize);
-		strlcat(outbuf, acpi_hp_get_string_from_object(
-				&obj->Package.Elements[valuebase], string_buffer, 
-				size),
-				outsize);
-		outlen += 21;
-		while (strlen(outbuf) < outlen)
-			strlcat(outbuf, " ", outsize);
-		for (i = 0; i < strlen(outbuf); ++i)
-			if (outbuf[i] == '\\')
-				outbuf[i] = '/';
-		if (detail & ACPI_HP_CMI_DETAIL_ENUMS) {
-			for (i = enumbase + 1; i < enumbase + 1 +
-			    obj->Package.Elements[enumbase].Integer.Value;
-			    ++i) {
-				acpi_hp_get_string_from_object(
-				    &obj->Package.Elements[i], string_buffer,
-				    size);
-				if (strlen(string_buffer) > 1 ||
-				    (strlen(string_buffer) == 1 &&
-				    string_buffer[0] != ' ')) {
-					if (has_enums)
-						strlcat(outbuf, "/", outsize);
-					else
-						strlcat(outbuf, " (", outsize);
-					strlcat(outbuf, string_buffer, outsize);
-					has_enums = 1;
-				}
+	}
+	strlcat(outbuf, acpi_hp_get_string_from_object(
+	    &obj->Package.Elements[0], string_buffer, size), outsize);
+	outlen += 43;
+	while (strlen(outbuf) < outlen)
+		strlcat(outbuf, " ", outsize);
+	strlcat(outbuf, acpi_hp_get_string_from_object(
+	    &obj->Package.Elements[valuebase], string_buffer, size), outsize);
+	outlen += 21;
+	while (strlen(outbuf) < outlen)
+		strlcat(outbuf, " ", outsize);
+	for (i = 0; i < strlen(outbuf); ++i)
+		if (outbuf[i] == '\\')
+			outbuf[i] = '/';
+	if (detail & ACPI_HP_CMI_DETAIL_ENUMS) {
+		for (i = enumbase + 1; i < enumbase + 1 +
+		    obj->Package.Elements[enumbase].Integer.Value; ++i) {
+			acpi_hp_get_string_from_object(
+			    &obj->Package.Elements[i], string_buffer, size);
+			if (strlen(string_buffer) > 1 ||
+			    (strlen(string_buffer) == 1 &&
+			    string_buffer[0] != ' ')) {
+				if (has_enums)
+					strlcat(outbuf, "/", outsize);
+				else
+					strlcat(outbuf, " (", outsize);
+				strlcat(outbuf, string_buffer, outsize);
+				has_enums = 1;
 			}
 		}
-		if (has_enums)
-			strlcat(outbuf, ")", outsize);
-		if (detail & ACPI_HP_CMI_DETAIL_FLAGS) {
-			strlcat(outbuf, obj->Package.Elements[3].Integer.Value?
-			    " [ReadOnly]":"", outsize);
-			strlcat(outbuf, obj->Package.Elements[4].Integer.Value?
-			    "":" [NOUI]", outsize);
-			strlcat(outbuf, obj->Package.Elements[5].Integer.Value?
-			    " [RPP]":"", outsize);
-		}
-		*sequence = (UINT32) obj->Package.Elements[6].Integer.Value;
 	}
+	if (has_enums)
+		strlcat(outbuf, ")", outsize);
+	if (detail & ACPI_HP_CMI_DETAIL_FLAGS) {
+		strlcat(outbuf, obj->Package.Elements[3].Integer.Value ?
+		    " [ReadOnly]" : "", outsize);
+		strlcat(outbuf, obj->Package.Elements[4].Integer.Value ?
+		    "" : " [NOUI]", outsize);
+		strlcat(outbuf, obj->Package.Elements[5].Integer.Value ?
+		    " [RPP]" : "", outsize);
+	}
+	*sequence = (UINT32) obj->Package.Elements[6].Integer.Value;
 	acpi_hp_free_buffer(&out);
 
 	return (0);

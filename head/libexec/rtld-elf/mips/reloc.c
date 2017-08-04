@@ -51,12 +51,28 @@ __FBSDID("$FreeBSD$");
 #define	GOT1_MASK	0x80000000UL
 #endif
 
+/*
+ * Determine if the second GOT entry is reserved for rtld or if it is
+ * the first "real" GOT entry.
+ *
+ * This must be a macro rather than a function so that
+ * _rtld_relocate_nonplt_self doesn't trigger a GOT invocation trying
+ * to use it before the local GOT entries in rtld are adjusted.
+ */
+#ifdef __mips_n64
+/* Old binutils uses the 32-bit GOT1 mask value for N64. */
+#define GOT1_RESERVED_FOR_RTLD(got)					\
+	(((got)[1] == 0x80000000) || (got)[1] & GOT1_MASK)
+#else
+#define GOT1_RESERVED_FOR_RTLD(got)	((got)[1] & GOT1_MASK)
+#endif
+
 void
 init_pltgot(Obj_Entry *obj)
 {
 	if (obj->pltgot != NULL) {
 		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
-		if (obj->pltgot[1] & 0x80000000)
+		if (GOT1_RESERVED_FOR_RTLD(obj->pltgot))
 			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
 	}
 }
@@ -175,7 +191,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 		}
 	}
 
-	i = (got[1] & GOT1_MASK) ? 2 : 1;
+	i = GOT1_RESERVED_FOR_RTLD(got) ? 2 : 1;
 	/* Relocate the local GOT entries */
 	got += i;
 	for (; i < local_gotno; i++) {
@@ -215,7 +231,6 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 			sym = symtab + r_symndx;
 			assert(ELF_ST_BIND(sym->st_info) == STB_LOCAL);
 			val += relocbase;
-			store_ptr(where, val, sizeof(Elf_Sword));
 			dbg("REL32/L(%p) %p -> %p in <self>",
 			    where, (void *)old, (void *)val);
 			store_ptr(where, val, rlen);
@@ -240,10 +255,17 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         Elf_Addr *got = obj->pltgot;
         const Elf_Sym *def;
         const Obj_Entry *defobj;
+        Elf_Addr *where;
         Elf_Addr target;
+        RtldLockState lockstate;
 
+	rlock_acquire(rtld_bind_lock, &lockstate);
+	if (sigsetjmp(lockstate.env, 0) != 0)
+		lock_upgrade(rtld_bind_lock, &lockstate);
+
+	where = &got[obj->local_gotno + reloff - obj->gotsym];
         def = find_symdef(reloff, obj, &defobj, SYMLOOK_IN_PLT, NULL,
-	    NULL);
+           &lockstate);
         if (def == NULL)
 		rtld_die();
 
@@ -251,9 +273,10 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
 	    (intmax_t)reloff, defobj->strtab + def->st_name, 
-	    (void *)got[obj->local_gotno + reloff - obj->gotsym],
-	    (void *)target);
-        got[obj->local_gotno + reloff - obj->gotsym] = target;
+	    (void *)*where, (void *)target);
+	if (!ld_bind_not)
+		*where = target;
+	lock_release(rtld_bind_lock, &lockstate);
 	return (Elf_Addr)target;
 }
 
@@ -288,7 +311,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	dbg("%s: broken=%d", obj->path, broken);
 #endif
 
-	i = (got[1] & GOT1_MASK) ? 2 : 1;
+	i = GOT1_RESERVED_FOR_RTLD(got) ? 2 : 1;
 
 	/* Relocate the local GOT entries */
 	got += i;
@@ -618,6 +641,11 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 }
 
 void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+}
+
+void
 allocate_initial_tls(Obj_Entry *objs)
 {
 	char *tls;
@@ -645,7 +673,7 @@ _mips_get_tls(void)
 	    ".set\tmips64r2\n\t"
 	    "rdhwr\t%0, $29\n\t"
 	    ".set\tpop"
-	    : "=v" (_rv));
+	    : "=r" (_rv));
 	/*
 	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
 	 *
@@ -670,7 +698,7 @@ _mips_get_tls(void)
 	    ".set\tmips32r2\n\t"
 	    "rdhwr\t%0, $29\n\t"
 	    ".set\tpop"
-	    : "=v" (_rv));
+	    : "=r" (_rv));
 	/*
 	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
 	 *

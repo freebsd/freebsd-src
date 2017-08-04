@@ -504,12 +504,12 @@ htcp_ssthresh_update(struct cc_var *ccv)
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
 	if (CCV(ccv, snd_ssthresh) == TCP_MAXWIN << TCP_MAX_WINSHIFT)
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * HTCP_MINBETA)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    HTCP_MINBETA) >> HTCP_SHIFT;
 	else {
 		htcp_recalc_beta(ccv);
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * htcp_data->beta)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    htcp_data->beta) >> HTCP_SHIFT;
 	}
 }
 

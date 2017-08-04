@@ -1,6 +1,7 @@
-/*	$Id: eqn_html.c,v 1.10 2014/10/12 19:31:41 schwarze Exp $ */
+/*	$Id: eqn_html.c,v 1.17 2017/07/14 13:32:35 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +20,7 @@
 #include <sys/types.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,9 +33,11 @@ static void
 eqn_box(struct html *p, const struct eqn_box *bp)
 {
 	struct tag	*post, *row, *cell, *t;
-	struct htmlpair	 tag[2];
 	const struct eqn_box *child, *parent;
+	const char	*cp;
 	size_t		 i, j, rows;
+	enum htmltag	 tag;
+	enum eqn_fontt	 font;
 
 	if (NULL == bp)
 		return;
@@ -47,7 +51,8 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 	if (EQN_MATRIX == bp->type) {
 		if (NULL == bp->first)
 			goto out;
-		if (EQN_LIST != bp->first->type) {
+		if (bp->first->type != EQN_LIST ||
+		    bp->first->expectargs == 1) {
 			eqn_box(p, bp->first);
 			goto out;
 		}
@@ -59,10 +64,10 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 		for (rows = 0; NULL != child; rows++)
 			child = child->next;
 		/* Print row-by-row. */
-		post = print_otag(p, TAG_MTABLE, 0, NULL);
+		post = print_otag(p, TAG_MTABLE, "");
 		for (i = 0; i < rows; i++) {
 			parent = bp->first->first;
-			row = print_otag(p, TAG_MTR, 0, NULL);
+			row = print_otag(p, TAG_MTR, "");
 			while (NULL != parent) {
 				child = parent->first;
 				for (j = 0; j < i; j++) {
@@ -70,8 +75,7 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 						break;
 					child = child->next;
 				}
-				cell = print_otag
-					(p, TAG_MTD, 0, NULL);
+				cell = print_otag(p, TAG_MTD, "");
 				/*
 				 * If we have no data for this
 				 * particular cell, then print a
@@ -88,29 +92,29 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 	}
 
 	switch (bp->pos) {
-	case (EQNPOS_TO):
-		post = print_otag(p, TAG_MOVER, 0, NULL);
+	case EQNPOS_TO:
+		post = print_otag(p, TAG_MOVER, "");
 		break;
-	case (EQNPOS_SUP):
-		post = print_otag(p, TAG_MSUP, 0, NULL);
+	case EQNPOS_SUP:
+		post = print_otag(p, TAG_MSUP, "");
 		break;
-	case (EQNPOS_FROM):
-		post = print_otag(p, TAG_MUNDER, 0, NULL);
+	case EQNPOS_FROM:
+		post = print_otag(p, TAG_MUNDER, "");
 		break;
-	case (EQNPOS_SUB):
-		post = print_otag(p, TAG_MSUB, 0, NULL);
+	case EQNPOS_SUB:
+		post = print_otag(p, TAG_MSUB, "");
 		break;
-	case (EQNPOS_OVER):
-		post = print_otag(p, TAG_MFRAC, 0, NULL);
+	case EQNPOS_OVER:
+		post = print_otag(p, TAG_MFRAC, "");
 		break;
-	case (EQNPOS_FROMTO):
-		post = print_otag(p, TAG_MUNDEROVER, 0, NULL);
+	case EQNPOS_FROMTO:
+		post = print_otag(p, TAG_MUNDEROVER, "");
 		break;
-	case (EQNPOS_SUBSUP):
-		post = print_otag(p, TAG_MSUBSUP, 0, NULL);
+	case EQNPOS_SUBSUP:
+		post = print_otag(p, TAG_MSUBSUP, "");
 		break;
-	case (EQNPOS_SQRT):
-		post = print_otag(p, TAG_MSQRT, 0, NULL);
+	case EQNPOS_SQRT:
+		post = print_otag(p, TAG_MSQRT, "");
 		break;
 	default:
 		break;
@@ -119,52 +123,99 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 	if (bp->top || bp->bottom) {
 		assert(NULL == post);
 		if (bp->top && NULL == bp->bottom)
-			post = print_otag(p, TAG_MOVER, 0, NULL);
+			post = print_otag(p, TAG_MOVER, "");
 		else if (bp->top && bp->bottom)
-			post = print_otag(p, TAG_MUNDEROVER, 0, NULL);
+			post = print_otag(p, TAG_MUNDEROVER, "");
 		else if (bp->bottom)
-			post = print_otag(p, TAG_MUNDER, 0, NULL);
+			post = print_otag(p, TAG_MUNDER, "");
 	}
 
 	if (EQN_PILE == bp->type) {
 		assert(NULL == post);
-		if (bp->first != NULL && bp->first->type == EQN_LIST)
-			post = print_otag(p, TAG_MTABLE, 0, NULL);
-	} else if (bp->type == EQN_LIST &&
+		if (bp->first != NULL &&
+		    bp->first->type == EQN_LIST &&
+		    bp->first->expectargs > 1)
+			post = print_otag(p, TAG_MTABLE, "");
+	} else if (bp->type == EQN_LIST && bp->expectargs > 1 &&
 	    bp->parent && bp->parent->type == EQN_PILE) {
 		assert(NULL == post);
-		post = print_otag(p, TAG_MTR, 0, NULL);
-		print_otag(p, TAG_MTD, 0, NULL);
+		post = print_otag(p, TAG_MTR, "");
+		print_otag(p, TAG_MTD, "");
 	}
 
-	if (NULL != bp->text) {
-		assert(NULL == post);
-		post = print_otag(p, TAG_MI, 0, NULL);
+	if (bp->text != NULL) {
+		assert(post == NULL);
+		tag = TAG_MI;
+		cp = bp->text;
+		if (isdigit((unsigned char)cp[0]) ||
+		    (cp[0] == '.' && isdigit((unsigned char)cp[1]))) {
+			tag = TAG_MN;
+			while (*++cp != '\0') {
+				if (*cp != '.' &&
+				    isdigit((unsigned char)*cp) == 0) {
+					tag = TAG_MI;
+					break;
+				}
+			}
+		} else if (*cp != '\0' && isalpha((unsigned char)*cp) == 0) {
+			tag = TAG_MO;
+			while (*cp != '\0') {
+				if (cp[0] == '\\' && cp[1] != '\0') {
+					cp++;
+					mandoc_escape(&cp, NULL, NULL);
+				} else if (isalnum((unsigned char)*cp)) {
+					tag = TAG_MI;
+					break;
+				} else
+					cp++;
+			}
+		}
+		font = bp->font;
+		if (bp->text[0] != '\0' &&
+		    (((tag == TAG_MN || tag == TAG_MO) &&
+		      font == EQNFONT_ROMAN) ||
+		     (tag == TAG_MI && font == (bp->text[1] == '\0' ?
+		      EQNFONT_ITALIC : EQNFONT_ROMAN))))
+			font = EQNFONT_NONE;
+		switch (font) {
+		case EQNFONT_NONE:
+			post = print_otag(p, tag, "");
+			break;
+		case EQNFONT_ROMAN:
+			post = print_otag(p, tag, "?", "fontstyle", "normal");
+			break;
+		case EQNFONT_BOLD:
+		case EQNFONT_FAT:
+			post = print_otag(p, tag, "?", "fontweight", "bold");
+			break;
+		case EQNFONT_ITALIC:
+			post = print_otag(p, tag, "?", "fontstyle", "italic");
+			break;
+		default:
+			abort();
+		}
 		print_text(p, bp->text);
 	} else if (NULL == post) {
-		if (NULL != bp->left || NULL != bp->right) {
-			PAIR_INIT(&tag[0], ATTR_OPEN,
-			    NULL == bp->left ? "" : bp->left);
-			PAIR_INIT(&tag[1], ATTR_CLOSE,
-			    NULL == bp->right ? "" : bp->right);
-			post = print_otag(p, TAG_MFENCED, 2, tag);
-		}
+		if (NULL != bp->left || NULL != bp->right)
+			post = print_otag(p, TAG_MFENCED, "??",
+			    "open", bp->left == NULL ? "" : bp->left,
+			    "close", bp->right == NULL ? "" : bp->right);
 		if (NULL == post)
-			post = print_otag(p, TAG_MROW, 0, NULL);
+			post = print_otag(p, TAG_MROW, "");
 		else
-			print_otag(p, TAG_MROW, 0, NULL);
+			print_otag(p, TAG_MROW, "");
 	}
 
 	eqn_box(p, bp->first);
 
 out:
 	if (NULL != bp->bottom) {
-		t = print_otag(p, TAG_MO, 0, NULL);
+		t = print_otag(p, TAG_MO, "");
 		print_text(p, bp->bottom);
 		print_tagq(p, t);
 	}
 	if (NULL != bp->top) {
-		t = print_otag(p, TAG_MO, 0, NULL);
+		t = print_otag(p, TAG_MO, "");
 		print_text(p, bp->top);
 		print_tagq(p, t);
 	}
@@ -176,16 +227,17 @@ out:
 }
 
 void
-print_eqn(struct html *p, const struct eqn *ep)
+print_eqn(struct html *p, const struct eqn_box *bp)
 {
-	struct htmlpair	 tag;
 	struct tag	*t;
 
-	PAIR_CLASS_INIT(&tag, "eqn");
-	t = print_otag(p, TAG_MATH, 1, &tag);
+	if (bp->first == NULL)
+		return;
+
+	t = print_otag(p, TAG_MATH, "c", "eqn");
 
 	p->flags |= HTML_NONOSPACE;
-	eqn_box(p, ep->root);
+	eqn_box(p, bp);
 	p->flags &= ~HTML_NONOSPACE;
 
 	print_tagq(p, t);

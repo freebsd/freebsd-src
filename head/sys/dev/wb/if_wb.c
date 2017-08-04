@@ -256,7 +256,7 @@ wb_eeprom_putbyte(sc, addr)
 	struct wb_softc		*sc;
 	int			addr;
 {
-	register int		d, i;
+	int			d, i;
 
 	d = addr | WB_EECMD_READ;
 
@@ -286,7 +286,7 @@ wb_eeprom_getword(sc, addr, dest)
 	int			addr;
 	u_int16_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/* Enter EEPROM access mode. */
@@ -507,7 +507,7 @@ static void
 wb_reset(sc)
 	struct wb_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct mii_data		*mii;
 	struct mii_softc	*miisc;
 
@@ -1574,7 +1574,7 @@ static void
 wb_stop(sc)
 	struct wb_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	WB_LOCK_ASSERT(sc);

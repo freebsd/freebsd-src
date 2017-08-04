@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.249 2016/05/17 21:43:07 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.255 2016/10/24 18:02:17 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -408,11 +408,11 @@ add_mlist(struct mlist *mlp, struct magic_map *map, size_t idx)
 {
 	struct mlist *ml;
 
-	mlp->map = idx == 0 ? map : NULL;
+	mlp->map = NULL;
 	if ((ml = CAST(struct mlist *, malloc(sizeof(*ml)))) == NULL)
 		return -1;
 
-	ml->map = NULL;
+	ml->map = idx == 0 ? map : NULL;
 	ml->magic = map->magic[idx];
 	ml->nmagic = map->nmagic[idx];
 
@@ -451,6 +451,8 @@ apprentice_1(struct magic_set *ms, const char *fn, int action)
 
 #ifndef COMPILE_ONLY
 	map = apprentice_map(ms, fn);
+	if (map == (struct magic_map *)-1)
+		return -1;
 	if (map == NULL) {
 		if (ms->flags & MAGIC_CHECK)
 			file_magwarn(ms, "using regular magic file `%s'", fn);
@@ -462,7 +464,7 @@ apprentice_1(struct magic_set *ms, const char *fn, int action)
 	for (i = 0; i < MAGIC_SETS; i++) {
 		if (add_mlist(ms->mlist[i], map, i) == -1) {
 			file_oomem(ms, sizeof(*ml));
-			goto fail;
+			return -1;
 		}
 	}
 
@@ -476,12 +478,6 @@ apprentice_1(struct magic_set *ms, const char *fn, int action)
 		}
 	}
 	return 0;
-fail:
-	for (i = 0; i < MAGIC_SETS; i++) {
-		mlist_free(ms->mlist[i]);
-		ms->mlist[i] = NULL;
-	}
-	return -1;
 #else
 	return 0;
 #endif /* COMPILE_ONLY */
@@ -554,7 +550,7 @@ apprentice_unmap(struct magic_map *map)
 	case MAP_TYPE_MALLOC:
 		for (i = 0; i < MAGIC_SETS; i++) {
 			if ((char *)map->magic[i] >= (char *)map->p &&
-			    (char *)map->magic[i] < (char *)map->p + map->len)
+			    (char *)map->magic[i] <= (char *)map->p + map->len)
 				continue;
 			free(map->magic[i]);
 		}
@@ -594,7 +590,7 @@ mlist_free(struct mlist *mlist)
 	ml = mlist->next;
 	for (ml = mlist->next; (next = ml->next) != NULL; ml = next) {
 		if (ml->map)
-			apprentice_unmap(ml->map);
+			apprentice_unmap(CAST(struct magic_map *, ml->map));
 		free(ml);
 		if (ml == mlist)
 			break;
@@ -1879,10 +1875,13 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 	if (m->flag & INDIR) {
 		m->in_type = FILE_LONG;
 		m->in_offset = 0;
+		m->in_op = 0;
 		/*
-		 * read [.lbs][+-]nnnnn)
+		 * read [.,lbs][+-]nnnnn)
 		 */
-		if (*l == '.') {
+		if (*l == '.' || *l == ',') {
+			if (*l == ',')
+				m->in_op |= FILE_OPSIGNED;
 			l++;
 			switch (*l) {
 			case 'l':
@@ -1934,7 +1933,6 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 			l++;
 		}
 
-		m->in_op = 0;
 		if (*l == '~') {
 			m->in_op |= FILE_OPINVERSE;
 			l++;
@@ -2930,6 +2928,7 @@ apprentice_map(struct magic_set *ms, const char *fn)
 	struct stat st;
 	char *dbname = NULL;
 	struct magic_map *map;
+	struct magic_map *rv = NULL;
 
 	fd = -1;
 	if ((map = CAST(struct magic_map *, calloc(1, sizeof(*map)))) == NULL) {
@@ -2978,8 +2977,10 @@ apprentice_map(struct magic_set *ms, const char *fn)
 	(void)close(fd);
 	fd = -1;
 
-	if (check_buffer(ms, map, dbname) != 0)
+	if (check_buffer(ms, map, dbname) != 0) {
+		rv = (struct magic_map *)-1;
 		goto error;
+	}
 #ifdef QUICK
 	if (mprotect(map->p, (size_t)st.st_size, PROT_READ) == -1) {
 		file_error(ms, errno, "cannot mprotect `%s'", dbname);
@@ -2995,7 +2996,7 @@ error:
 		(void)close(fd);
 	apprentice_unmap(map);
 	free(dbname);
-	return NULL;
+	return rv;
 }
 
 private int
@@ -3151,7 +3152,7 @@ mkdbname(struct magic_set *ms, const char *fn, int strip)
 		return NULL;
 
 	/* Compatibility with old code that looked in .mime */
-	if (strstr(p, ".mime") != NULL)
+	if (strstr(fn, ".mime") != NULL)
 		ms->flags &= MAGIC_MIME_TYPE;
 	return buf;
 }

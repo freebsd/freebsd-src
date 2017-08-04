@@ -43,7 +43,11 @@ enum ActionType {
   PrintSets,
   GenOptParserDefs,
   GenCTags,
-  GenAttributes
+  GenAttributes,
+  GenSearchableTables,
+  GenGlobalISel,
+  GenX86EVEX2VEXTables,
+  GenRegisterBank,
 };
 
 namespace {
@@ -89,11 +93,19 @@ namespace {
                                "Generate ctags-compatible index"),
                     clEnumValN(GenAttributes, "gen-attrs",
                                "Generate attributes"),
-                    clEnumValEnd));
+                    clEnumValN(GenSearchableTables, "gen-searchable-tables",
+                               "Generate generic binary-searchable table"),
+                    clEnumValN(GenGlobalISel, "gen-global-isel",
+                               "Generate GlobalISel selector"),
+                    clEnumValN(GenX86EVEX2VEXTables, "gen-x86-EVEX2VEX-tables",
+                               "Generate X86 EVEX to VEX compress tables"),
+                    clEnumValN(GenRegisterBank, "gen-register-bank",
+                               "Generate registers bank descriptions")));
 
+  cl::OptionCategory PrintEnumsCat("Options for -print-enums");
   cl::opt<std::string>
   Class("class", cl::desc("Print Enum list for this class"),
-          cl::value_desc("class name"));
+        cl::value_desc("class name"), cl::cat(PrintEnumsCat));
 
 bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   switch (Action) {
@@ -172,6 +184,18 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenAttributes:
     EmitAttributes(Records, OS);
     break;
+  case GenSearchableTables:
+    EmitSearchableTables(Records, OS);
+    break;
+  case GenGlobalISel:
+    EmitGlobalISel(Records, OS);
+    break;
+  case GenRegisterBank:
+    EmitRegisterBank(Records, OS);
+    break;
+  case GenX86EVEX2VEXTables:
+    EmitX86EVEX2VEXTables(Records, OS);
+    break;
   }
 
   return false;
@@ -179,7 +203,7 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
 }
 
 int main(int argc, char **argv) {
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
 

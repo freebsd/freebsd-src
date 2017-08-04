@@ -31,7 +31,7 @@
 #ifndef _CAM_CAM_IOSCHED_H
 #define _CAM_CAM_IOSCHED_H
 
-/* No user-servicable parts in here. */
+/* No user-serviceable parts in here. */
 #ifdef _KERNEL
 
 /* Forward declare all structs to keep interface thin */

@@ -51,7 +51,7 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 
 void
 archive_entry_sparse_add_entry(struct archive_entry *entry,
-	int64_t offset, int64_t length)
+	la_int64_t offset, la_int64_t length)
 {
 	struct ae_sparse *sp;
 
@@ -135,7 +135,7 @@ archive_entry_sparse_reset(struct archive_entry * entry)
 
 int
 archive_entry_sparse_next(struct archive_entry * entry,
-	int64_t *offset, int64_t *length)
+	la_int64_t *offset, la_int64_t *length)
 {
 	if (entry->sparse_p) {
 		*offset = entry->sparse_p->offset;

@@ -5,7 +5,7 @@ SFX= 32
 CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
-.PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}
+.PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}
 
 VDSO=	linux${SFX}_vdso
 
@@ -52,7 +52,7 @@ linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
 	${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
 	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -nostdinc -nostdlib	\
 	-fno-omit-frame-pointer -fPIC						\
-	-Wl,-T${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
+	-Wl,-T${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
 	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
 	    ${.IMPSRC} -o ${.TARGET}
 
@@ -64,14 +64,16 @@ linux${SFX}_support.o: linux${SFX}_assym.h assym.s
 ${VDSO}.so: linux${SFX}_locore.o
 	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
+	strip -N _binary_linux${SFX}_locore_o_size ${.TARGET}
 .else
 ${VDSO}.so: linux${SFX}_locore.o
 	${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
+	strip -N _binary_linux_locore_o_size ${.TARGET}
 .endif
 
 linux${SFX}_genassym.o:
-	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
 .if defined(KTR)

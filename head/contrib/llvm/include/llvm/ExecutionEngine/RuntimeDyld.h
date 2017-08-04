@@ -1,4 +1,4 @@
-//===-- RuntimeDyld.h - Run-time dynamic linker for MC-JIT ------*- C++ -*-===//
+//===- RuntimeDyld.h - Run-time dynamic linker for MC-JIT -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,57 +14,66 @@
 #ifndef LLVM_EXECUTIONENGINE_RUNTIMEDYLD_H
 #define LLVM_EXECUTIONENGINE_RUNTIMEDYLD_H
 
-#include "JITSymbolFlags.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Object/ObjectFile.h"
-#include "llvm/Support/Memory.h"
 #include "llvm/DebugInfo/DIContext.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/Error.h"
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <string>
+#include <system_error>
 
 namespace llvm {
 
 namespace object {
-  class ObjectFile;
-  template <typename T> class OwningBinary;
-}
 
-class RuntimeDyldImpl;
+template <typename T> class OwningBinary;
+
+} // end namespace object
+
+/// Base class for errors originating in RuntimeDyld, e.g. missing relocation
+/// support.
+class RuntimeDyldError : public ErrorInfo<RuntimeDyldError> {
+public:
+  static char ID;
+
+  RuntimeDyldError(std::string ErrMsg) : ErrMsg(std::move(ErrMsg)) {}
+
+  void log(raw_ostream &OS) const override;
+  const std::string &getErrorMessage() const { return ErrMsg; }
+  std::error_code convertToErrorCode() const override;
+
+private:
+  std::string ErrMsg;
+};
+
 class RuntimeDyldCheckerImpl;
+class RuntimeDyldImpl;
 
 class RuntimeDyld {
   friend class RuntimeDyldCheckerImpl;
-
-  RuntimeDyld(const RuntimeDyld &) = delete;
-  void operator=(const RuntimeDyld &) = delete;
 
 protected:
   // Change the address associated with a section when resolving relocations.
   // Any relocations already associated with the symbol will be re-resolved.
   void reassignSectionAddress(unsigned SectionID, uint64_t Addr);
+
 public:
-
-  /// \brief Information about a named symbol.
-  class SymbolInfo : public JITSymbolBase {
-  public:
-    SymbolInfo(std::nullptr_t) : JITSymbolBase(JITSymbolFlags::None), Address(0) {}
-    SymbolInfo(uint64_t Address, JITSymbolFlags Flags)
-      : JITSymbolBase(Flags), Address(Address) {}
-    explicit operator bool() const { return Address != 0; }
-    uint64_t getAddress() const { return Address; }
-  private:
-    uint64_t Address;
-  };
-
   /// \brief Information about the loaded object.
   class LoadedObjectInfo : public llvm::LoadedObjectInfo {
     friend class RuntimeDyldImpl;
+
   public:
-    typedef std::map<object::SectionRef, unsigned> ObjSectionToIDMap;
+    using ObjSectionToIDMap = std::map<object::SectionRef, unsigned>;
 
     LoadedObjectInfo(RuntimeDyldImpl &RTDyld, ObjSectionToIDMap ObjSecToIDMap)
-      : RTDyld(RTDyld), ObjSecToIDMap(ObjSecToIDMap) { }
+        : RTDyld(RTDyld), ObjSecToIDMap(std::move(ObjSecToIDMap)) {}
 
     virtual object::OwningBinary<object::ObjectFile>
     getObjectForDebug(const object::ObjectFile &Obj) const = 0;
@@ -79,26 +88,13 @@ public:
     ObjSectionToIDMap ObjSecToIDMap;
   };
 
-  template <typename Derived> struct LoadedObjectInfoHelper : LoadedObjectInfo {
-  protected:
-    LoadedObjectInfoHelper(const LoadedObjectInfoHelper &) = default;
-    LoadedObjectInfoHelper() = default;
-
-  public:
-    LoadedObjectInfoHelper(RuntimeDyldImpl &RTDyld,
-                           LoadedObjectInfo::ObjSectionToIDMap ObjSecToIDMap)
-        : LoadedObjectInfo(RTDyld, std::move(ObjSecToIDMap)) {}
-    std::unique_ptr<llvm::LoadedObjectInfo> clone() const override {
-      return llvm::make_unique<Derived>(static_cast<const Derived &>(*this));
-    }
-  };
-
   /// \brief Memory Management.
   class MemoryManager {
     friend class RuntimeDyld;
+
   public:
-    MemoryManager() : FinalizationLocked(false) {}
-    virtual ~MemoryManager() {}
+    MemoryManager() = default;
+    virtual ~MemoryManager() = default;
 
     /// Allocate a memory block of (at least) the given size suitable for
     /// executable code. The SectionID is a unique identifier assigned by the
@@ -141,8 +137,7 @@ public:
     /// be the case for local execution) these two values will be the same.
     virtual void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr,
                                   size_t Size) = 0;
-    virtual void deregisterEHFrames(uint8_t *addr, uint64_t LoadAddr,
-                                    size_t Size) = 0;
+    virtual void deregisterEHFrames() = 0;
 
     /// This method is called when object loading is complete and section page
     /// permissions can be applied.  It is up to the memory manager implementation
@@ -171,46 +166,14 @@ public:
 
   private:
     virtual void anchor();
-    bool FinalizationLocked;
-  };
 
-  /// \brief Symbol resolution.
-  class SymbolResolver {
-  public:
-    virtual ~SymbolResolver() {}
-
-    /// This method returns the address of the specified function or variable.
-    /// It is used to resolve symbols during module linking.
-    ///
-    /// If the returned symbol's address is equal to ~0ULL then RuntimeDyld will
-    /// skip all relocations for that symbol, and the client will be responsible
-    /// for handling them manually.
-    virtual SymbolInfo findSymbol(const std::string &Name) = 0;
-
-    /// This method returns the address of the specified symbol if it exists
-    /// within the logical dynamic library represented by this
-    /// RTDyldMemoryManager. Unlike getSymbolAddress, queries through this
-    /// interface should return addresses for hidden symbols.
-    ///
-    /// This is of particular importance for the Orc JIT APIs, which support lazy
-    /// compilation by breaking up modules: Each of those broken out modules
-    /// must be able to resolve hidden symbols provided by the others. Clients
-    /// writing memory managers for MCJIT can usually ignore this method.
-    ///
-    /// This method will be queried by RuntimeDyld when checking for previous
-    /// definitions of common symbols. It will *not* be queried by default when
-    /// resolving external symbols (this minimises the link-time overhead for
-    /// MCJIT clients who don't care about Orc features). If you are writing a
-    /// RTDyldMemoryManager for Orc and want "external" symbol resolution to
-    /// search the logical dylib, you should override your getSymbolAddress
-    /// method call this method directly.
-    virtual SymbolInfo findSymbolInLogicalDylib(const std::string &Name) = 0;
-  private:
-    virtual void anchor();
+    bool FinalizationLocked = false;
   };
 
   /// \brief Construct a RuntimeDyld instance.
-  RuntimeDyld(MemoryManager &MemMgr, SymbolResolver &Resolver);
+  RuntimeDyld(MemoryManager &MemMgr, JITSymbolResolver &Resolver);
+  RuntimeDyld(const RuntimeDyld &) = delete;
+  RuntimeDyld &operator=(const RuntimeDyld &) = delete;
   ~RuntimeDyld();
 
   /// Add the referenced object file to the list of objects to be loaded and
@@ -224,7 +187,7 @@ public:
 
   /// Get the target address and flags for the named symbol.
   /// This address is the one used for relocation.
-  SymbolInfo getSymbol(StringRef Name) const;
+  JITEvaluatedSymbol getSymbol(StringRef Name) const;
 
   /// Resolve the relocations for all symbols we currently know about.
   void resolveRelocations();
@@ -284,7 +247,7 @@ private:
   // interface.
   std::unique_ptr<RuntimeDyldImpl> Dyld;
   MemoryManager &MemMgr;
-  SymbolResolver &Resolver;
+  JITSymbolResolver &Resolver;
   bool ProcessAllSections;
   RuntimeDyldCheckerImpl *Checker;
 };

@@ -341,9 +341,11 @@ enum nvme_admin_opcode {
 	NVME_OPC_GET_FEATURES			= 0x0a,
 	/* 0x0b - reserved */
 	NVME_OPC_ASYNC_EVENT_REQUEST		= 0x0c,
-	/* 0x0d-0x0f - reserved */
+	NVME_OPC_NAMESPACE_MANAGEMENT		= 0x0d,
+	/* 0x0e-0x0f - reserved */
 	NVME_OPC_FIRMWARE_ACTIVATE		= 0x10,
 	NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD	= 0x11,
+	NVME_OPC_NAMESPACE_ATTACHMENT		= 0x15,
 
 	NVME_OPC_FORMAT_NVM			= 0x80,
 	NVME_OPC_SECURITY_SEND			= 0x81,
@@ -456,7 +458,10 @@ struct nvme_controller_data {
 	/** maximum data transfer size */
 	uint8_t			mdts;
 
-	uint8_t			reserved1[178];
+	/** Controller ID */
+	uint16_t		ctrlr_id;
+
+	uint8_t			reserved1[176];
 
 	/* bytes 256-511: admin command set attributes */
 
@@ -471,7 +476,10 @@ struct nvme_controller_data {
 		/* supports firmware activate/download commands */
 		uint16_t	firmware  : 1;
 
-		uint16_t	oacs_rsvd : 13;
+		/* supports namespace management commands */
+		uint16_t	nsmgmt	  : 1;
+
+		uint16_t	oacs_rsvd : 12;
 	} __packed oacs;
 
 	/** abort command limit */
@@ -513,8 +521,16 @@ struct nvme_controller_data {
 		uint8_t		avscc_rsvd  : 7;
 	} __packed avscc;
 
-	uint8_t			reserved2[247];
+	uint8_t			reserved2[15];
 
+	/** Name space capabilities  */
+	struct {
+		/* if nsmgmt, report tnvmcap and unvmcap */
+		uint8_t    tnvmcap[16];
+		uint8_t    unvmcap[16];
+	} __packed untncap;
+
+	uint8_t reserved3[200];
 	/* bytes 512-703: nvm command set attributes */
 
 	/** submission queue entry size */
@@ -529,7 +545,7 @@ struct nvme_controller_data {
 		uint8_t		max : 4;
 	} __packed cqes;
 
-	uint8_t			reserved3[2];
+	uint8_t			reserved4[2];
 
 	/** number of namespaces */
 	uint32_t		nn;
@@ -555,10 +571,10 @@ struct nvme_controller_data {
 	} __packed vwc;
 
 	/* TODO: flesh out remaining nvm command set attributes */
-	uint8_t			reserved4[178];
+	uint8_t			reserved5[178];
 
 	/* bytes 704-2047: i/o command set attributes */
-	uint8_t			reserved5[1344];
+	uint8_t			reserved6[1344];
 
 	/* bytes 2048-3071: power state descriptors */
 	struct nvme_power_state power_state[32];
@@ -663,9 +679,27 @@ enum nvme_log_page {
 	NVME_LOG_ERROR			= 0x01,
 	NVME_LOG_HEALTH_INFORMATION	= 0x02,
 	NVME_LOG_FIRMWARE_SLOT		= 0x03,
-	/* 0x04-0x7F - reserved */
+	NVME_LOG_CHANGED_NAMESPACE	= 0x04,
+	NVME_LOG_COMMAND_EFFECT		= 0x05,
+	/* 0x06-0x7F - reserved */
 	/* 0x80-0xBF - I/O command set specific */
+	NVME_LOG_RES_NOTIFICATION	= 0x80,
 	/* 0xC0-0xFF - vendor specific */
+
+	/*
+	 * The following are Intel Specific log pages, but they seem
+	 * to be widely implemented.
+	 */
+	INTEL_LOG_READ_LAT_LOG		= 0xc1,
+	INTEL_LOG_WRITE_LAT_LOG		= 0xc2,
+	INTEL_LOG_TEMP_STATS		= 0xc5,
+	INTEL_LOG_ADD_SMART		= 0xca,
+	INTEL_LOG_DRIVE_MKT_NAME	= 0xdd,
+
+	/*
+	 * HGST log page, with lots ofs sub pages.
+	 */
+	HGST_INFO_LOG			= 0xc1,
 };
 
 struct nvme_error_information_entry {
@@ -724,8 +758,11 @@ struct nvme_health_information_page {
 	uint64_t		unsafe_shutdowns[2];
 	uint64_t		media_errors[2];
 	uint64_t		num_error_info_log_entries[2];
+	uint32_t		warning_temp_time;
+	uint32_t		error_temp_time;
+	uint16_t		temp_sensor[8];
 
-	uint8_t			reserved2[320];
+	uint8_t			reserved2[296];
 } __packed __aligned(4);
 
 struct nvme_firmware_page {
@@ -738,6 +775,19 @@ struct nvme_firmware_page {
 	uint8_t			reserved[7];
 	uint64_t		revision[7]; /* revisions for 7 slots */
 	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
+struct intel_log_temp_stats
+{
+	uint64_t	current;
+	uint64_t	overtemp_flag_last;
+	uint64_t	overtemp_flag_life;
+	uint64_t	max_temp;
+	uint64_t	min_temp;
+	uint64_t	_rsvd[5];
+	uint64_t	max_oper_temp;
+	uint64_t	min_oper_temp;
+	uint64_t	est_offset;
 } __packed __aligned(4);
 
 #define NVME_TEST_MAX_THREADS	128
@@ -921,7 +971,8 @@ void	nvme_ns_rw_cmd(struct nvme_command *cmd, uint32_t rwcmd, uint16_t nsid,
 {
 	cmd->opc = rwcmd;
 	cmd->nsid = nsid;
-	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw10 = lba & 0xffffffffu;
+	cmd->cdw11 = lba >> 32;
 	cmd->cdw12 = count-1;
 	cmd->cdw13 = 0;
 	cmd->cdw14 = 0;
@@ -951,6 +1002,8 @@ void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint16_t nsid,
 	cmd->cdw10 = num_ranges - 1;
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 }
+
+extern int nvme_use_nvd;
 
 #endif /* _KERNEL */
 

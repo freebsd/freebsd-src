@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <libutil.h>
 
-static const int maxscale = 7;
+static const int maxscale = 6;
 
 int
 humanize_number(char *buf, size_t len, int64_t quotient,
@@ -64,7 +64,7 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 		return (-1);
 	if (scale < 0)
 		return (-1);
-	else if (scale >= maxscale &&
+	else if (scale > maxscale &&
 	    ((scale & ~(HN_AUTOSCALE|HN_GETSCALE)) != 0))
 		return (-1);
 	if ((flags & HN_DIVISOR_1000) && (flags & HN_IEC_PREFIXES))

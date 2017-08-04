@@ -36,6 +36,7 @@ options 	GDB
 options 	GEOM_PART_GPT
 options 	INET
 options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 options 	KDB
@@ -57,6 +58,11 @@ options 	SYSVSEM
 options 	SYSVSHM
 options 	WITNESS
 options 	WITNESS_SKIPSPIN
+options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
+options 	HWPMC_HOOKS
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
 
 device		ata
 device		bpf
@@ -70,12 +76,15 @@ device		alc
 device		ether
 device		fxp
 device  	gpio
+device  	gpiopower
 device		iic
 device		iicbus
 #device		isa
 device		loop
 device		md
 device		miibus
+device  	mmc
+device  	mmcsd
 device		pass
 device		pci
 device		quicc
@@ -84,11 +93,21 @@ device		random
 device		scbus
 device		scc
 device		sec
+device  	spibus
+device  	spigen
 device		tsec
+device  	dpaa
 device		tun
 device		uart
 options 	USB_DEBUG	# enable debug msgs
 #device		uhci
+device		ehci
 device		umass
 device		usb
 device		vlan
+
+# P1022 DIU
+device  	diu
+device  	videomode
+device  	vt
+device  	fbd

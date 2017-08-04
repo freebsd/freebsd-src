@@ -1158,3 +1158,8 @@ struct rl_softc {
 /* US Robotics 997902 device ID */
 
 #define	USR_DEVICEID_997902	0x0116
+
+/* 
+ * NCube vendor ID
+ */
+#define	NCUBE_VENDORID		0x10FF

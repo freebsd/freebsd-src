@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -82,6 +82,8 @@ ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR*sizeof(register_t));
 ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR*sizeof(register_t));
 ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR*sizeof(register_t));
 ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR*sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR0, BOOKE_CRITSAVE_SRR0*sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR1, BOOKE_CRITSAVE_SRR1*sizeof(register_t));
 
 ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR*sizeof(register_t));
 ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR*sizeof(register_t));
@@ -117,7 +119,11 @@ ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 ASSYM(USER_SR, USER_SR);
 #endif
 #elif defined(BOOKE)
+#ifdef __powerpc64__
+ASSYM(PM_PP2D, offsetof(struct pmap, pm_pp2d));
+#else
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
+#endif
 /*
  * With pte_t being a bitfield struct, these fields cannot be addressed via
  * offsetof().
@@ -216,6 +222,9 @@ ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 
+#ifdef __powerpc64__
+ASSYM(PSL_CM, PSL_CM);
+#endif
 ASSYM(PSL_DE, PSL_DE);
 ASSYM(PSL_DS, PSL_DS);
 ASSYM(PSL_IS, PSL_IS);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -60,7 +60,7 @@ position(where)
 add_forw_pos(pos)
 	POSITION pos;
 {
-	register int i;
+	int i;
 
 	/*
 	 * Scroll the position table up.
@@ -77,7 +77,7 @@ add_forw_pos(pos)
 add_back_pos(pos)
 	POSITION pos;
 {
-	register int i;
+	int i;
 
 	/*
 	 * Scroll the position table down.
@@ -93,7 +93,7 @@ add_back_pos(pos)
 	public void
 pos_clear()
 {
-	register int i;
+	int i;
 
 	for (i = 0;  i < sc_height;  i++)
 		table[i] = NULL_POSITION;
@@ -135,7 +135,7 @@ pos_init()
 onscreen(pos)
 	POSITION pos;
 {
-	register int i;
+	int i;
 
 	if (pos < table[0])
 		return (-1);
@@ -159,7 +159,7 @@ empty_lines(s, e)
 	int s;
 	int e;
 {
-	register int i;
+	int i;
 
 	for (i = s;  i <= e;  i++)
 		if (table[i] != NULL_POSITION && table[i] != 0)
@@ -179,7 +179,7 @@ empty_lines(s, e)
 get_scrpos(scrpos)
 	struct scrpos *scrpos;
 {
-	register int i;
+	int i;
 
 	/*
 	 * Find the first line on the screen which has something on it,

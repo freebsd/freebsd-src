@@ -30,6 +30,8 @@
 #define SYMBOL_IS_FUNC(name)
 #define CONST_SECTION .const
 
+#define NO_EXEC_STACK_DIRECTIVE
+
 #elif defined(__ELF__)
 
 #define HIDDEN(name) .hidden name
@@ -41,6 +43,13 @@
 #define SYMBOL_IS_FUNC(name) .type name,@function
 #endif
 #define CONST_SECTION .section .rodata
+
+#if defined(__GNU__) || defined(__FreeBSD__) || defined(__Fuchsia__) || \
+    defined(__linux__)
+#define NO_EXEC_STACK_DIRECTIVE .section .note.GNU-stack,"",%progbits
+#else
+#define NO_EXEC_STACK_DIRECTIVE
+#endif
 
 #else // !__APPLE__ && !__ELF__
 
@@ -54,13 +63,15 @@
   .endef
 #define CONST_SECTION .section .rdata,"rd"
 
+#define NO_EXEC_STACK_DIRECTIVE
+
 #endif
 
 #if defined(__arm__)
 #if defined(__ARM_ARCH_4T__) || __ARM_ARCH >= 5
 #define ARM_HAS_BX
 #endif
-#if !defined(__ARM_FEATURE_CLZ) &&                                             \
+#if !defined(__ARM_FEATURE_CLZ) && __ARM_ARCH_ISA_THUMB != 1 &&                \
     (__ARM_ARCH >= 6 || (__ARM_ARCH == 5 && !defined(__ARM_ARCH_5__)))
 #define __ARM_FEATURE_CLZ
 #endif
@@ -82,20 +93,37 @@
   JMP(ip)
 #endif
 
-#if __ARM_ARCH_ISA_THUMB == 2
+/*
+ * Determine actual [ARM][THUMB[1][2]] ISA using compiler predefined macros:
+ * - for '-mthumb -march=armv6' compiler defines '__thumb__'
+ * - for '-mthumb -march=armv7' compiler defines '__thumb__' and '__thumb2__'
+ */
+#if defined(__thumb2__)
+#define USE_THUMB_2 1
+#elif defined(__thumb__)
+#define USE_THUMB_1 1
+#endif
+
+#if defined(USE_THUMB_1) && defined(USE_THUMB_2)
+#error "USE_THUMB_1 and USE_THUMB_2 can't be defined together."
+#endif
+
+#if defined(USE_THUMB_1) || defined(USE_THUMB_1)
+#define USE_THUMB_PROLOGUE 1
+#endif
+
+#if defined(USE_THUMB_2)
 #define IT(cond)  it cond
 #define ITT(cond) itt cond
+#define ITE(cond) ite cond
+#define WIDE(op) op.w
 #else
 #define IT(cond)
 #define ITT(cond)
-#endif
-
-#if __ARM_ARCH_ISA_THUMB == 2
-#define WIDE(op) op.w
-#else
+#define ITE(cond)
 #define WIDE(op) op
 #endif
-#endif
+#endif /* defined(__arm__) */
 
 #define GLUE2(a, b) a##b
 #define GLUE(a, b) GLUE2(a, b)
@@ -139,6 +167,7 @@
 #define DEFINE_COMPILERRT_FUNCTION_ALIAS(name, target)                         \
   .globl SYMBOL_NAME(name) SEPARATOR                                           \
   SYMBOL_IS_FUNC(SYMBOL_NAME(name)) SEPARATOR                                  \
+  DECLARE_SYMBOL_VISIBILITY(SYMBOL_NAME(name)) SEPARATOR                       \
   .set SYMBOL_NAME(name), SYMBOL_NAME(target) SEPARATOR
 
 #if defined(__ARM_EABI__)

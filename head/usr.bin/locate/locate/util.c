@@ -83,10 +83,7 @@ check_bigram_char(ch)
  *
  */
 char **
-colon(dbv, path, dot)
-	char **dbv;
-	char *path;
-	char *dot; /* default for single ':' */
+colon(char **dbv, char *path, char *dot)
 {
 	int vlen, slen;
 	char *c, *ch, *p;

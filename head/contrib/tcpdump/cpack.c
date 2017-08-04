@@ -27,20 +27,19 @@
  * OF SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <stdlib.h>
 #include <string.h>
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include "cpack.h"
 #include "extract.h"
 
-uint8_t *
-cpack_next_boundary(uint8_t *buf, uint8_t *p, size_t alignment)
+const uint8_t *
+cpack_next_boundary(const uint8_t *buf, const uint8_t *p, size_t alignment)
 {
 	size_t misalignment = (size_t)(p - buf) % alignment;
 
@@ -54,10 +53,10 @@ cpack_next_boundary(uint8_t *buf, uint8_t *p, size_t alignment)
  * wordsize bytes remain in the buffer after the boundary.  Otherwise,
  * return a pointer to the boundary.
  */
-uint8_t *
+const uint8_t *
 cpack_align_and_reserve(struct cpack_state *cs, size_t wordsize)
 {
-	uint8_t *next;
+	const uint8_t *next;
 
 	/* Ensure alignment. */
 	next = cpack_next_boundary(cs->c_buf, cs->c_next, wordsize);
@@ -81,7 +80,7 @@ cpack_advance(struct cpack_state *cs, const size_t toskip)
 }
 
 int
-cpack_init(struct cpack_state *cs, uint8_t *buf, size_t buflen)
+cpack_init(struct cpack_state *cs, const uint8_t *buf, size_t buflen)
 {
 	memset(cs, 0, sizeof(*cs));
 
@@ -96,7 +95,7 @@ cpack_init(struct cpack_state *cs, uint8_t *buf, size_t buflen)
 int
 cpack_uint64(struct cpack_state *cs, uint64_t *u)
 {
-	uint8_t *next;
+	const uint8_t *next;
 
 	if ((next = cpack_align_and_reserve(cs, sizeof(*u))) == NULL)
 		return -1;
@@ -112,7 +111,7 @@ cpack_uint64(struct cpack_state *cs, uint64_t *u)
 int
 cpack_uint32(struct cpack_state *cs, uint32_t *u)
 {
-	uint8_t *next;
+	const uint8_t *next;
 
 	if ((next = cpack_align_and_reserve(cs, sizeof(*u))) == NULL)
 		return -1;
@@ -128,7 +127,7 @@ cpack_uint32(struct cpack_state *cs, uint32_t *u)
 int
 cpack_uint16(struct cpack_state *cs, uint16_t *u)
 {
-	uint8_t *next;
+	const uint8_t *next;
 
 	if ((next = cpack_align_and_reserve(cs, sizeof(*u))) == NULL)
 		return -1;

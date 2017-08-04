@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.165 2011/04/14 18:25:25 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.178 2016/09/12 16:33:54 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -127,6 +127,11 @@ typedef int eChar;
 #if !defined(__inline) && !defined(__GNUC__) && !defined(_MSC_VER)
 #define __inline
 #endif
+#ifdef _MSC_VER
+#define TCSH_PTRDIFF_T_FMT "I"
+#else
+#define TCSH_PTRDIFF_T_FMT "t"
+#endif
 /* Elide unused argument warnings */
 #define USE(a)	(void) (a)
 #define TCSH_IGNORE(a)	tcsh_ignore((intptr_t)a)
@@ -187,6 +192,11 @@ static __inline void tcsh_ignore(intptr_t a)
 #  define ECHO_STYLE BSD_ECHO
 # endif /* SYSVREL */
 #endif /* ECHO_STYLE */
+
+/* values for noclobber */
+#define NOCLOBBER_DEFAULT  1
+#define NOCLOBBER_NOTEMPTY 2
+#define NOCLOBBER_ASK      4
 
 /*
  * The shell moves std in/out/diag and the old std input away from units
@@ -428,9 +438,7 @@ typedef long tcsh_number_t;
 # if (defined(_SS_SIZE) || defined(_SS_MAXSIZE)) && defined(HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY)
 #  if !defined(__APPLE__) /* Damnit, where is getnameinfo() folks? */
 #   if !defined(sgi)
-#    if !defined(__CYGWIN__)
-#     define INET6
-#    endif /* __CYGWIN__ */
+#    define INET6
 #   endif /* sgi */
 #  endif /* __APPLE__ */
 # endif
@@ -440,21 +448,7 @@ typedef long tcsh_number_t;
 #ifdef PURIFY
 /* exit normally, allowing purify to trace leaks */
 # define _exit		exit
-typedef  int		pret_t;
-#else /* !PURIFY */
-/*
- * If your compiler complains, then you can either
- * throw it away and get gcc or, use the following define
- * and get rid of the typedef.
- * [The 4.2/3BSD vax compiler does not like that]
- * Both MULTIFLOW and PCC compilers exhbit this bug.  -- sterling@netcom.com
- */
-# if (defined(vax) || defined(uts) || defined(MULTIFLOW) || defined(PCC)) && !defined(__GNUC__)
-#  define pret_t void
-# else /* !((vax || uts || MULTIFLOW || PCC) && !__GNUC__) */
-typedef void pret_t;
-# endif /* (vax || uts || MULTIFLOW || PCC) && !__GNUC__ */
-#endif /* PURIFY */
+#endif /* !PURIFY */
 
 /*
  * ASCII vs. EBCDIC
@@ -573,7 +567,7 @@ EXTERN int    neednote IZERO;	/* Need to pnotify() */
 EXTERN int    noexec IZERO;	/* Don't execute, just syntax check */
 EXTERN int    pjobs IZERO;	/* want to print jobs if interrupted */
 EXTERN int    setintr IZERO;	/* Set interrupts on/off -> Wait intr... */
-EXTERN int    handle_intr IZERO;/* Are we currently handling an interrupt? */
+EXTERN int    handle_interrupt IZERO;/* Are we currently handling an interrupt? */
 EXTERN int    havhash IZERO;	/* path hashing is available */
 EXTERN int    editing IZERO;	/* doing filename expansion and line editing */
 EXTERN int    noediting IZERO;	/* initial $term defaulted to noedit */
@@ -585,8 +579,10 @@ EXTERN int    isdiagatty IZERO;/* is SHDIAG a tty */
 EXTERN int    is1atty IZERO;	/* is file descriptor 1 a tty (didfds mode) */
 EXTERN int    is2atty IZERO;	/* is file descriptor 2 a tty (didfds mode) */
 EXTERN int    arun IZERO;	/* Currently running multi-line-aliases */
-EXTERN int     implicit_cd IZERO;/* implicit cd enabled?(1=enabled,2=verbose) */
+EXTERN int    implicit_cd IZERO;/* implicit cd enabled?(1=enabled,2=verbose) */
+EXTERN int    cdtohome IZERO;	/* cd without args goes home */
 EXTERN int    inheredoc IZERO;	/* Currently parsing a heredoc */
+EXTERN int    no_clobber IZERO;	/* no clobber enabled? 1=yes 2=notempty, 4=ask*/
 /* We received a window change event */
 EXTERN volatile sig_atomic_t windowchg IZERO;
 #if defined(KANJI) && defined(SHORT_STRINGS) && defined(DSPMBYTE)
@@ -635,8 +631,10 @@ EXTERN time_t seconds0;
 /*
  * Miscellany
  */
+EXTERN pid_t   mainpid;		/* pid of the main shell ($$) */
 EXTERN Char   *doldol;		/* Character pid for $$ */
 EXTERN pid_t   backpid;		/* pid of the last background job */
+
 
 /*
  * Ideally these should be uid_t, gid_t, pid_t. I cannot do that right now
@@ -717,14 +715,21 @@ extern struct sigaction parterm;	/* Parents terminate catch */
 #define		ASCII		0177
 #ifdef WIDE_STRINGS		/* Implies SHORT_STRINGS */
 /* 31st char bit used for 'ing (not 32nd, we want all values nonnegative) */
-# define	QUOTE		0x40000000
-# define	TRIM		0x3FFFFFFF /* Mask to strip quote bit */
+/*
+ * Notice
+ *
+ * By fix for handling unicode name file, 32nd bit is used.
+ * We need use '&' instead of '> or <' when comparing with INVALID_BYTE etc..
+ * Cast to uChar is not recommended,
+ *  becase Char is 4bytes but uChar is 8bytes on I32LP64. */
+# define	QUOTE		0x80000000
+# define	TRIM		0x7FFFFFFF /* Mask to strip quote bit */
 # define	UNDER		0x08000000 /* Underline flag */
 # define	BOLD		0x04000000 /* Bold flag */
 # define	STANDOUT	0x02000000 /* Standout flag */
 # define	LITERAL		0x01000000 /* Literal character flag */
 # define	ATTRIBUTES	0x0F000000 /* The bits used for attributes */
-# define	INVALID_BYTE	0x00800000 /* Invalid character on input */
+# define	INVALID_BYTE	0xF0000000 /* Invalid character on input */
 # ifdef SOLARIS2
 #  define	CHAR		0x30FFFFFF /* Mask to mask out the character */
 # else
@@ -752,6 +757,8 @@ extern struct sigaction parterm;	/* Parents terminate catch */
 # define	CHAR		0000177	/* Mask to mask out the character */
 #endif
 #define		CHAR_DBWIDTH	(LITERAL|(LITERAL-1))
+
+# define 	MAX_UTF32	0x7FFFFFFF	/* max UTF32 is U+7FFFFFFF */
 
 EXTERN int     AsciiOnly;	/* If set only 7 bits expected in characters */
 
@@ -1020,10 +1027,6 @@ EXTERN Char  **alvec IZERO_STRUCT,
  * Filename/command name expansion variables
  */
 
-#ifdef __CYGWIN__
-# undef MAXPATHLEN
-#endif /* __CYGWIN__ */
-
 #ifndef MAXPATHLEN
 # ifdef PATH_MAX
 #  define MAXPATHLEN PATH_MAX
@@ -1065,7 +1068,7 @@ EXTERN struct Hist {
     unsigned Hhash;                     /* hash value of command line */
 }       Histlist IZERO_STRUCT;
 
-EXTERN struct wordent paraml;	/* Current lexical word list */
+extern struct wordent paraml;	/* Current lexical word list */
 EXTERN int     eventno;		/* Next events number */
 EXTERN int     lastev;		/* Last event reference (default) */
 
@@ -1166,12 +1169,14 @@ extern struct mesg {
     const char *pname;		/* print name */
 } mesg[];
 
-/* word_chars is set by default to WORD_CHARS but can be overridden by
-   the worchars variable--if unset, reverts to WORD_CHARS */
+/* word_chars is set by default to WORD_CHARS (or WORD_CHARS_VI) but can
+   be overridden by the wordchars variable--if unset, reverts to
+   WORD_CHARS (or WORD_CHARS_VI) */
 
 EXTERN Char   *word_chars;
 
 #define WORD_CHARS "*?_-.[]~="	/* default chars besides alnums in words */
+#define WORD_CHARS_VI "_"	/* default chars besides alnums in words */
 
 EXTERN Char   *STR_SHELLPATH;
 
@@ -1179,6 +1184,7 @@ EXTERN Char   *STR_SHELLPATH;
 EXTERN Char   *STR_BSHELL;
 #endif 
 EXTERN Char   *STR_WORD_CHARS;
+EXTERN Char   *STR_WORD_CHARS_VI;
 EXTERN Char  **STR_environ IZERO;
 
 extern int     dont_free;	/* Tell free that we are in danger if we free */

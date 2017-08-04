@@ -72,5 +72,5 @@ device 		bpf
 device 		if_bridge
 
 # Extres
-device 		ext_resources
+options		EXT_RESOURCES
 device 		clk

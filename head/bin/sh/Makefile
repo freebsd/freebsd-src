@@ -28,9 +28,9 @@ WARNS?=	2
 WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../kill \
-	${.CURDIR}/../test \
-	${.CURDIR}/../../usr.bin/printf
+	${.CURDIR:H}/kill \
+	${.CURDIR:H}/test \
+	${SRCTOP}/usr.bin/printf
 
 CLEANFILES+= mknodes mknodes.o \
 	mksyntax mksyntax.o
@@ -64,8 +64,6 @@ syntax.c syntax.h: mksyntax
 token.h: mktokens
 	sh ${.CURDIR}/mktokens
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=    tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -33,7 +33,6 @@
 # include "ntp_syscall.h"
 #endif
 
-
 /*
  * Structure to hold request procedure information
  */
@@ -120,14 +119,14 @@ static const struct ctl_proc control_codes[] = {
 	{ CTL_OP_READVAR,		NOAUTH,	read_variables },
 	{ CTL_OP_WRITEVAR,		AUTH,	write_variables },
 	{ CTL_OP_READCLOCK,		NOAUTH,	read_clockstatus },
-	{ CTL_OP_WRITECLOCK,		NOAUTH,	write_clockstatus },
-	{ CTL_OP_SETTRAP,		NOAUTH,	set_trap },
+	{ CTL_OP_WRITECLOCK,		AUTH,	write_clockstatus },
+	{ CTL_OP_SETTRAP,		AUTH,	set_trap },
 	{ CTL_OP_CONFIGURE,		AUTH,	configure },
 	{ CTL_OP_SAVECONFIG,		AUTH,	save_config },
 	{ CTL_OP_READ_MRU,		NOAUTH,	read_mru_list },
 	{ CTL_OP_READ_ORDLIST_A,	AUTH,	read_ordlist },
 	{ CTL_OP_REQ_NONCE,		NOAUTH,	req_nonce },
-	{ CTL_OP_UNSETTRAP,		NOAUTH,	unset_trap },
+	{ CTL_OP_UNSETTRAP,		AUTH,	unset_trap },
 	{ NO_REQUEST,			0,	NULL }
 };
 
@@ -1548,21 +1547,15 @@ ctl_putstr(
 	)
 {
 	char buffer[512];
-	char *cp;
-	size_t tl;
+	int  rc;
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 3 + len <= sizeof(buffer));
-		*cp++ = '=';
-		*cp++ = '"';
-		memcpy(cp, data, len);
-		cp += len;
-		*cp++ = '"';
-	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
+	INSIST(len < sizeof(buffer));
+	if (len)
+	    rc = snprintf(buffer, sizeof(buffer), "%s=\"%.*s\"", tag, (int)len, data);
+	else
+	    rc = snprintf(buffer, sizeof(buffer), "%s", tag);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1583,19 +1576,15 @@ ctl_putunqstr(
 	)
 {
 	char buffer[512];
-	char *cp;
-	size_t tl;
+	int  rc;
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 1 + len <= sizeof(buffer));
-		*cp++ = '=';
-		memcpy(cp, data, len);
-		cp += len;
-	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
+	INSIST(len < sizeof(buffer));
+	if (len)
+	    rc = snprintf(buffer, sizeof(buffer), "%s=%.*s", tag, (int)len, data);
+	else
+	    rc = snprintf(buffer, sizeof(buffer), "%s", tag);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1610,20 +1599,14 @@ ctl_putdblf(
 	double		d
 	)
 {
-	char *cp;
-	const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), use_f ? "%.*f" : "%.*g",
-	    precision, d);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer),
+		      (use_f ? "%s=%.*f" : "%s=%.*g"),
+		      tag, precision, d);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 /*
@@ -1635,25 +1618,19 @@ ctl_putuint(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%lu", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%s=%lu", tag, uval);
+	INSIST(rc >= 0 && rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 /*
- * ctl_putcal - write a decoded calendar data into the response
+ * ctl_putcal - write a decoded calendar data into the response.
+ * only used with AUTOKEY currently, so compiled conditional
  */
+#ifdef AUTOKEY
 static void
 ctl_putcal(
 	const char *tag,
@@ -1661,22 +1638,18 @@ ctl_putcal(
 	)
 {
 	char buffer[100];
-	unsigned numch;
+	int  rc;
 
-	numch = snprintf(buffer, sizeof(buffer),
-			"%s=%04d%02d%02d%02d%02d",
-			tag,
-			pcal->year,
-			pcal->month,
-			pcal->monthday,
-			pcal->hour,
-			pcal->minute
-			);
-	INSIST(numch < sizeof(buffer));
-	ctl_putdata(buffer, numch, 0);
-
-	return;
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=%04d%02d%02d%02d%02d",
+		      tag,
+		      pcal->year, pcal->month, pcal->monthday,
+		      pcal->hour, pcal->minute
+		);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
+#endif
 
 /*
  * ctl_putfs - write a decoded filestamp into the response
@@ -1687,28 +1660,23 @@ ctl_putfs(
 	tstamp_t uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
 	struct tm *tm = NULL;
 	time_t fstamp;
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	fstamp = uval - JAN_1970;
+	int    rc;
+	
+	fstamp = (time_t)uval - JAN_1970;
 	tm = gmtime(&fstamp);
-	if (NULL ==  tm)
+	if (NULL == tm)
 		return;
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer),
-		 "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
-		 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=%04d%02d%02d%02d%02d",
+		      tag,
+		      tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+		      tm->tm_hour, tm->tm_min);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1722,20 +1690,12 @@ ctl_puthex(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%lx", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer,(unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer), "%s=0x%lx", tag, uval);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1748,20 +1708,12 @@ ctl_putint(
 	long ival
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%ld", ival);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer), "%s=%ld", tag, ival);
+	INSIST(rc >= 0 && rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1774,21 +1726,14 @@ ctl_putts(
 	l_fp *ts
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%08x.%08x",
-		 (u_int)ts->l_ui, (u_int)ts->l_uf);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=0x%08lx.%08lx",
+		      tag, (u_long)ts->l_ui, (u_long)ts->l_uf);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1802,24 +1747,17 @@ ctl_putadr(
 	sockaddr_u *addr
 	)
 {
-	register char *cp;
-	register const char *cq;
+	const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
+	int  rc;
+	
 	if (NULL == addr)
 		cq = numtoa(addr32);
 	else
 		cq = stoa(addr);
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%s", cq);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%s=%s", tag, cq);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1832,34 +1770,22 @@ ctl_putrefid(
 	u_int32		refid
 	)
 {
-	char	output[16];
-	char *	optr;
-	char *	oplim;
-	char *	iptr;
-	char *	iplim;
-	char *	past_eq;
+	char buffer[128];
+	int  rc, i;
 
-	optr = output;
-	oplim = output + sizeof(output);
-	while (optr < oplim && '\0' != *tag)
-		*optr++ = *tag++;
-	if (optr < oplim) {
-		*optr++ = '=';
-		past_eq = optr;
-	}
-	if (!(optr < oplim))
-		return;
-	iptr = (char *)&refid;
-	iplim = iptr + sizeof(refid);
-	for ( ; optr < oplim && iptr < iplim && '\0' != *iptr;
-	     iptr++, optr++)
-		if (isprint((int)*iptr))
-			*optr = *iptr;
-		else
-			*optr = '.';
-	if (!(optr <= oplim))
-		optr = past_eq;
-	ctl_putdata(output, (u_int)(optr - output), FALSE);
+	union {
+		uint32_t w;
+		uint8_t  b[sizeof(uint32_t)];
+	} bytes;
+
+	bytes.w = refid;
+	for (i = 0; i < sizeof(bytes.b); ++i)
+		if (bytes.b[i] && !isprint(bytes.b[i]))
+			bytes.b[i] = '.';
+	rc = snprintf(buffer, sizeof(buffer), "%s=%.*s",
+		      tag, (int)sizeof(bytes.b), bytes.b);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, FALSE);
 }
 
 
@@ -1873,26 +1799,27 @@ ctl_putarray(
 	int start
 	)
 {
-	register char *cp;
-	register const char *cq;
+	char *cp, *ep;
 	char buffer[200];
-	int i;
+	int  i, rc;
+
 	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
+	ep = buffer + sizeof(buffer);
+
+	rc  = snprintf(cp, (size_t)(ep - cp), "%s=", tag);
+	INSIST(rc >= 0 && rc < (ep - cp));
+	cp += rc;
+
 	i = start;
 	do {
 		if (i == 0)
 			i = NTP_SHIFT;
 		i--;
-		INSIST((cp - buffer) < (int)sizeof(buffer));
-		snprintf(cp, sizeof(buffer) - (cp - buffer),
-			 " %.2f", arr[i] * 1e3);
-		cp += strlen(cp);
+		rc = snprintf(cp, (size_t)(ep - cp), " %.2f", arr[i] * 1e3);
+		INSIST(rc >= 0 && rc < (ep - cp));
+		cp += rc;
 	} while (i != start);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
 }
 
 /*
@@ -2086,7 +2013,7 @@ ctl_putsys(
 
 		buffp = buf;
 		buffend = buf + sizeof(buf);
-		if (buffp + strlen(sys_var[CS_VARLIST].text) + 4 > buffend)
+		if (strlen(sys_var[CS_VARLIST].text) > (sizeof(buf) - 4))
 			break;	/* really long var name */
 
 		snprintf(buffp, sizeof(buf), "%s=\"",sys_var[CS_VARLIST].text);
@@ -2096,7 +2023,7 @@ ctl_putsys(
 			if (k->flags & PADDING)
 				continue;
 			len = strlen(k->text);
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (!firstVarName)
 				*buffp++ = ',';
@@ -2116,7 +2043,7 @@ ctl_putsys(
 				len = strlen(k->text);
 			else
 				len = ss1 - k->text;
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (firstVarName) {
 				*buffp++ = ',';
@@ -2125,7 +2052,7 @@ ctl_putsys(
 			memcpy(buffp, k->text,(unsigned)len);
 			buffp += len;
 		}
-		if (buffp + 2 >= buffend)
+		if (2 >= buffend - buffp)
 			break;
 
 		*buffp++ = '"';
@@ -3158,15 +3085,21 @@ ctl_getitem(
 
 	for (v = var_list; !(EOV & v->flags); ++v)
 		if (!(PADDING & v->flags)) {
-			/* check if the var name matches the buffer */
+			/* Check if the var name matches the buffer. The
+			 * name is bracketed by [reqpt..tp] and not NUL
+			 * terminated, and it contains no '=' char. The
+			 * lookup value IS NUL-terminated but might
+			 * include a '='... We have to look out for
+			 * that!
+			 */
 			const char *sp1 = reqpt;
 			const char *sp2 = v->text;
-			
-			while ((sp1 != tp) && *sp2 && (*sp1 == *sp2)) {
+
+			while ((sp1 != tp) && (*sp1 == *sp2)) {
 				++sp1;
 				++sp2;
 			}
-			if (sp1 == tp && !*sp2)
+			if (sp1 == tp && (*sp2 == '\0' || *sp2 == '='))
 				break;
 		}
 
@@ -3649,7 +3582,7 @@ static u_int32 derive_nonce(
 		u_char	digest[EVP_MAX_MD_SIZE];
 		u_int32 extract;
 	}		d;
-	EVP_MD_CTX	ctx;
+	EVP_MD_CTX	*ctx;
 	u_int		len;
 
 	while (!salt[0] || current_time - last_salt_update >= 3600) {
@@ -3660,19 +3593,21 @@ static u_int32 derive_nonce(
 		last_salt_update = current_time;
 	}
 
-	EVP_DigestInit(&ctx, EVP_get_digestbynid(NID_md5));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestUpdate(&ctx, &ts_i, sizeof(ts_i));
-	EVP_DigestUpdate(&ctx, &ts_f, sizeof(ts_f));
+	ctx = EVP_MD_CTX_new();
+	EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestUpdate(ctx, &ts_i, sizeof(ts_i));
+	EVP_DigestUpdate(ctx, &ts_f, sizeof(ts_f));
 	if (IS_IPV4(addr))
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR4(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR4(addr),
 			         sizeof(SOCK_ADDR4(addr)));
 	else
-		EVP_DigestUpdate(&ctx, &SOCK_ADDR6(addr),
+		EVP_DigestUpdate(ctx, &SOCK_ADDR6(addr),
 			         sizeof(SOCK_ADDR6(addr)));
-	EVP_DigestUpdate(&ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
-	EVP_DigestUpdate(&ctx, salt, sizeof(salt));
-	EVP_DigestFinal(&ctx, d.digest, &len);
+	EVP_DigestUpdate(ctx, &NSRCPORT(addr), sizeof(NSRCPORT(addr)));
+	EVP_DigestUpdate(ctx, salt, sizeof(salt));
+	EVP_DigestFinal(ctx, d.digest, &len);
+	EVP_MD_CTX_free(ctx);
 
 	return d.extract;
 }
@@ -3954,15 +3889,17 @@ static void read_mru_list(
 	int restrict_mask
 	)
 {
-	const char		nonce_text[] =		"nonce";
-	const char		frags_text[] =		"frags";
-	const char		limit_text[] =		"limit";
-	const char		mincount_text[] =	"mincount";
-	const char		resall_text[] =		"resall";
-	const char		resany_text[] =		"resany";
-	const char		maxlstint_text[] =	"maxlstint";
-	const char		laddr_text[] =		"laddr";
-	const char		resaxx_fmt[] =		"0x%hx";
+	static const char	nulltxt[1] = 		{ '\0' };	
+	static const char	nonce_text[] =		"nonce";
+	static const char	frags_text[] =		"frags";
+	static const char	limit_text[] =		"limit";
+	static const char	mincount_text[] =	"mincount";
+	static const char	resall_text[] =		"resall";
+	static const char	resany_text[] =		"resany";
+	static const char	maxlstint_text[] =	"maxlstint";
+	static const char	laddr_text[] =		"laddr";
+	static const char	resaxx_fmt[] =		"0x%hx";
+	
 	u_int			limit;
 	u_short			frags;
 	u_short			resall;
@@ -3979,7 +3916,7 @@ static void read_mru_list(
 	char			buf[128];
 	struct ctl_var *	in_parms;
 	const struct ctl_var *	v;
-	char *			val;
+	const char *		val;
 	const char *		pch;
 	char *			pnonce;
 	int			nonce_valid;
@@ -4031,46 +3968,68 @@ static void read_mru_list(
 	ZERO(last);
 	ZERO(addr);
 
-	while (NULL != (v = ctl_getitem(in_parms, &val)) &&
+	/* have to go through '(void*)' to drop 'const' property from pointer.
+	 * ctl_getitem()' needs some cleanup, too.... perlinger@ntp.org
+	 */
+	while (NULL != (v = ctl_getitem(in_parms, (void*)&val)) &&
 	       !(EOV & v->flags)) {
 		int si;
 
+		if (NULL == val)
+			val = nulltxt;
+
 		if (!strcmp(nonce_text, v->text)) {
-			if (NULL != pnonce)
-				free(pnonce);
-			pnonce = estrdup(val);
+			free(pnonce);
+			pnonce = (*val) ? estrdup(val) : NULL;
 		} else if (!strcmp(frags_text, v->text)) {
-			sscanf(val, "%hu", &frags);
+			if (1 != sscanf(val, "%hu", &frags))
+				goto blooper;
 		} else if (!strcmp(limit_text, v->text)) {
-			sscanf(val, "%u", &limit);
+			if (1 != sscanf(val, "%u", &limit))
+				goto blooper;
 		} else if (!strcmp(mincount_text, v->text)) {
-			if (1 != sscanf(val, "%d", &mincount) ||
-			    mincount < 0)
+			if (1 != sscanf(val, "%d", &mincount))
+				goto blooper;
+			if (mincount < 0)
 				mincount = 0;
 		} else if (!strcmp(resall_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resall);
+			if (1 != sscanf(val, resaxx_fmt, &resall))
+				goto blooper;
 		} else if (!strcmp(resany_text, v->text)) {
-			sscanf(val, resaxx_fmt, &resany);
+			if (1 != sscanf(val, resaxx_fmt, &resany))
+				goto blooper;
 		} else if (!strcmp(maxlstint_text, v->text)) {
-			sscanf(val, "%u", &maxlstint);
+			if (1 != sscanf(val, "%u", &maxlstint))
+				goto blooper;
 		} else if (!strcmp(laddr_text, v->text)) {
-			if (decodenetnum(val, &laddr))
-				lcladr = getinterface(&laddr, 0);
+			if (!decodenetnum(val, &laddr))
+				goto blooper;
+			lcladr = getinterface(&laddr, 0);
 		} else if (1 == sscanf(v->text, last_fmt, &si) &&
 			   (size_t)si < COUNTOF(last)) {
-			if (2 == sscanf(val, "0x%08x.%08x", &ui, &uf)) {
-				last[si].l_ui = ui;
-				last[si].l_uf = uf;
-				if (!SOCK_UNSPEC(&addr[si]) &&
-				    si == priors)
-					priors++;
-			}
+			if (2 != sscanf(val, "0x%08x.%08x", &ui, &uf))
+				goto blooper;
+			last[si].l_ui = ui;
+			last[si].l_uf = uf;
+			if (!SOCK_UNSPEC(&addr[si]) && si == priors)
+				priors++;
 		} else if (1 == sscanf(v->text, addr_fmt, &si) &&
 			   (size_t)si < COUNTOF(addr)) {
-			if (decodenetnum(val, &addr[si])
-			    && last[si].l_ui && last[si].l_uf &&
-			    si == priors)
+			if (!decodenetnum(val, &addr[si]))
+				goto blooper;
+			if (last[si].l_ui && last[si].l_uf && si == priors)
 				priors++;
+		} else {
+			DPRINTF(1, ("read_mru_list: invalid key item: '%s' (ignored)\n",
+				    v->text));
+			continue;
+
+		blooper:
+			DPRINTF(1, ("read_mru_list: invalid param for '%s': '%s' (bailing)\n",
+				    v->text, val));
+			free(pnonce);
+			pnonce = NULL;
+			break;
 		}
 	}
 	free_varlist(in_parms);
@@ -4962,7 +4921,7 @@ report_event(
 		u_char		errlast;
 
 		errlast = (u_char)err & ~PEER_EVENT;
-		if (peer->last_event == errlast)
+		if (peer->last_event != errlast)
 			peer->num_events = 0;
 		if (peer->num_events >= CTL_PEER_MAXEVENTS)
 			return;
@@ -4997,6 +4956,22 @@ report_event(
 	if (num_ctl_traps <= 0)
 		return;
 
+	/* [Bug 3119]
+	 * Peer Events should be associated with a peer -- hence the
+	 * name. But there are instances where this function is called
+	 * *without* a valid peer. This happens e.g. with an unsolicited
+	 * CryptoNAK, or when a leap second alarm is going off while
+	 * currently without a system peer.
+	 *
+	 * The most sensible approach to this seems to bail out here if
+	 * this happens. Avoiding to call this function would also
+	 * bypass the log reporting in the first part of this function,
+	 * and this is probably not the best of all options.
+	 *   -*-perlinger@ntp.org-*-
+	 */
+	if ((err & PEER_EVENT) && !peer)
+		return;
+
 	/*
 	 * Set up the outgoing packet variables
 	 */
@@ -5013,15 +4988,14 @@ report_event(
 		/* Include the core system variables and the list. */
 		for (i = 1; i <= CS_VARLIST; i++)
 			ctl_putsys(i);
-	} else {
-		INSIST(peer != NULL);
+	} else if (NULL != peer) { /* paranoia -- skip output */
 		rpkt.associd = htons(peer->associd);
 		rpkt.status = htons(ctlpeerstatus(peer));
 
 		/* Dump it all. Later, maybe less. */
 		for (i = 1; i <= CP_MAX_NOAUTOKEY; i++)
 			ctl_putpeer(i, peer);
-#ifdef REFCLOCK
+#	    ifdef REFCLOCK
 		/*
 		 * for clock exception events: add clock variables to
 		 * reflect info on exception
@@ -5047,7 +5021,7 @@ report_event(
 						    FALSE);
 			free_varlist(cs.kv_list);
 		}
-#endif /* REFCLOCK */
+#	    endif /* REFCLOCK */
 	}
 
 	/*

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.decls.h,v 3.62 2011/02/25 23:58:34 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.decls.h,v 3.68 2016/08/01 16:21:09 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */
@@ -78,6 +78,7 @@ extern	void		  loaddirs	(Char *);
 extern	void		  Dfix		(struct command *);
 extern	Char		 *Dfix1		(Char *);
 extern	void		  heredoc	(Char *);
+extern  Char		 *randsuf	(void);
 
 /*
  * sh.err.c
@@ -184,6 +185,7 @@ extern	void		  unalias	(Char **, struct command *);
 extern	void		  wfree		(void);
 extern	void		  dobuiltins	(Char **, struct command *);
 extern	void		  reexecute	(struct command *);
+extern  int		  getYN		(const char *);
 
 /*
  * sh.glob.c
@@ -221,6 +223,7 @@ extern	char		 *fmthist	(int, ptr_t);
 extern	void		  rechist	(Char *, int);
 extern	void		  loadhist	(Char *, int);
 extern	void		  displayHistStats(const char *);
+extern	void		  sethistory	(int);
 
 /*
  * sh.init.c
@@ -236,6 +239,7 @@ extern	void		  btell		(struct Ain *);
 extern	void		  btoeof	(void);
 extern	void		  copylex	(struct wordent *, struct wordent *);
 extern	Char		 *domod		(Char *, Char);
+extern	void		  initlex	(struct wordent *);
 extern	void		  freelex	(struct wordent *);
 extern	int		  lex		(struct wordent *);
 extern	void		  lex_cleanup	(void *);
@@ -243,6 +247,7 @@ extern	void		  prlex		(struct wordent *);
 extern	eChar		  readc		(int);
 extern	void		  settell	(void);
 extern	void		  unreadc	(Char);
+extern	ssize_t		  wide_read	(int, Char *, size_t, int);
 
 
 /*
@@ -397,6 +402,7 @@ extern	void		  autoset_dspmbyte	(const Char *);
 #if defined(AUTOSET_KANJI)
 extern	void		  autoset_kanji	(void);
 #endif
+extern	void		  update_wordchars	(void);
 
 /*
  * sh.time.c

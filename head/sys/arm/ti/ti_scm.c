@@ -59,15 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include "ti_scm.h"
 
@@ -131,7 +128,10 @@ ti_scm_attach(device_t dev)
 
 	ti_scm_sc = sc;
 
-	return (0);
+	/* Attach platform extensions, if any. */
+	bus_generic_probe(dev);
+
+	return (bus_generic_attach(dev));
 }
 
 int

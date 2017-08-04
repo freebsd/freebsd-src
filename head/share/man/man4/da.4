@@ -156,7 +156,7 @@ Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
 The default is sorting enabled for HDDs and disabled for SSDs.
 .It Va kern.cam.da. Ns Ar X Ns Va .delete_method
 This variable specifies method to handle BIO_DELETE requests:
-.Bl -tag
+.Bl -tag -width "ATA_TRIM"
 .It ATA_TRIM
 ATA TRIM via ATA COMMAND PASS THROUGH command,
 .It UNMAP

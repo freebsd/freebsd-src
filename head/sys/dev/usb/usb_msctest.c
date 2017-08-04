@@ -551,13 +551,13 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	memcpy(&sc->cbw->CBWCDB, cmd_ptr, cmd_len);
 	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw->CBWCDB, ":");
 
-	mtx_lock(&sc->mtx);
+	USB_MTX_LOCK(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);
 
 	while (usbd_transfer_pending(sc->xfer[sc->state])) {
 		cv_wait(&sc->cv, &sc->mtx);
 	}
-	mtx_unlock(&sc->mtx);
+	USB_MTX_UNLOCK(&sc->mtx);
 	return (sc->error);
 }
 
@@ -582,11 +582,11 @@ bbb_raw_write(struct bbb_transfer *sc, const void *data_ptr, size_t data_len,
 	DPRINTFN(1, "BULK DATA = %*D\n", (int)data_len,
 	    (const char *)data_ptr, ":");
 
-	mtx_lock(&sc->mtx);
+	USB_MTX_LOCK(&sc->mtx);
 	usbd_transfer_start(sc->xfer[0]);
 	while (usbd_transfer_pending(sc->xfer[0]))
 		cv_wait(&sc->cv, &sc->mtx);
-	mtx_unlock(&sc->mtx);
+	USB_MTX_UNLOCK(&sc->mtx);
 	return (sc->error);
 }
 

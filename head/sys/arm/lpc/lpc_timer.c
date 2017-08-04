@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -158,15 +157,13 @@ lpc_timer_attach(device_t dev)
 
 	/* Get PERIPH_CLK encoded in parent bus 'bus-frequency' property */
 	node = ofw_bus_get_node(dev);
-	if (OF_getprop(OF_parent(node), "bus-frequency", &freq,
+	if (OF_getencprop(OF_parent(node), "bus-frequency", &freq,
 	    sizeof(pcell_t)) <= 0) {
 		bus_release_resources(dev, lpc_timer_spec, sc->lt_res);
 		bus_teardown_intr(dev, sc->lt_res[2], intrcookie);
 		device_printf(dev, "could not obtain base clock frequency\n");
 		return (ENXIO);
 	}
-
-	freq = fdt32_to_cpu(freq);
 
 	/* Set desired frequency in event timer and timecounter */
 	sc->lt_et.et_frequency = (uint64_t)freq;

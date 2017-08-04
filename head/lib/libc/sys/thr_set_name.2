@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2016
+.Dd December 2, 2016
 .Dt THR_SET_NAME 2
 .Os
 .Sh NAME
@@ -43,37 +43,34 @@
 .Sh DESCRIPTION
 The
 .Fn thr_set_name
-sets the user-visible name for the kernel thread with the identifier
+system call sets the user-visible name for the thread with the identifier
 .Va id
-in the current process, to the NUL-terminated string
+in the current process to the NUL-terminated string
 .Va name .
+The name will be silently truncated to fit into a buffer of
+.Dv MAXCOMLEN + 1
+bytes.
 The thread name can be seen in the output of the
 .Xr ps 1
 and
 .Xr top 1
 commands, in the kernel debuggers and kernel tracing facility outputs,
-also in userland debuggers and program core files, as notes.
+and in userland debuggers and program core files, as notes.
 .Sh RETURN VALUES
 If successful,
 .Fn thr_set_name
-will return zero, otherwise \-1 is returned, and
+returns zero; otherwise, \-1 is returned, and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
 The
 .Fn thr_set_name
-operation may return the following errors:
+system call may return the following errors:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 The memory pointed to by the
 .Fa name
 argument is not valid.
-.It Bq Er ENAMETOOLONG
-The string pointed to by the
-.Fa name
-argument exceeds
-.Dv MAXCOMLEN + 1
-bytes in length.
 .It Bq Er ESRCH
 The thread with the identifier
 .Fa id
@@ -92,6 +89,6 @@ does not exist in the current process.
 .Xr ktr 9
 .Sh STANDARDS
 The
-.Fn thr_new
-system call is non-standard and is used by
+.Fn thr_set_name
+system call is non-standard and is used by the
 .Lb libthr .

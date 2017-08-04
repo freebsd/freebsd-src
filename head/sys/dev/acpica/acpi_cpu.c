@@ -466,8 +466,8 @@ disable_idle(struct acpi_cpu_softc *sc)
      * is called and executed in such a context with interrupts being re-enabled
      * right before return.
      */
-    smp_rendezvous_cpus(cpuset, smp_no_rendevous_barrier, NULL,
-	smp_no_rendevous_barrier, NULL);
+    smp_rendezvous_cpus(cpuset, smp_no_rendezvous_barrier, NULL,
+	smp_no_rendezvous_barrier, NULL);
 }
 
 static void
@@ -703,7 +703,6 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     sc->cpu_non_c2 = sc->cpu_cx_count;
     sc->cpu_non_c3 = sc->cpu_cx_count;
     sc->cpu_cx_count++;
-    cpu_deepest_sleep = 1;
 
     /* 
      * The spec says P_BLK must be 6 bytes long.  However, some systems
@@ -729,7 +728,6 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	    cx_ptr++;
 	    sc->cpu_non_c3 = sc->cpu_cx_count;
 	    sc->cpu_cx_count++;
-	    cpu_deepest_sleep = 2;
 	}
     }
     if (sc->cpu_p_blk_len < 6)
@@ -746,7 +744,6 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	    cx_ptr->trans_lat = AcpiGbl_FADT.C3Latency;
 	    cx_ptr++;
 	    sc->cpu_cx_count++;
-	    cpu_deepest_sleep = 3;
 	}
     }
 }
@@ -831,7 +828,6 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     cx_ptr->type = ACPI_STATE_C0;
     cx_ptr++;
     sc->cpu_cx_count++;
-    cpu_deepest_sleep = 1;
 
     /* Set up all valid states. */
     for (i = 0; i < count; i++) {
@@ -884,8 +880,6 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    continue;
 	case ACPI_STATE_C2:
 	    sc->cpu_non_c3 = sc->cpu_cx_count;
-	    if (cpu_deepest_sleep < 2)
-		    cpu_deepest_sleep = 2;
 	    break;
 	case ACPI_STATE_C3:
 	default:
@@ -894,8 +888,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 				 "acpi_cpu%d: C3[%d] not available.\n",
 				 device_get_unit(sc->cpu_dev), i));
 		continue;
-	    } else
-		cpu_deepest_sleep = 3;
+	    }
 	    break;
 	}
 
@@ -1158,6 +1151,9 @@ acpi_cpu_idle(sbintime_t sbt)
 	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 	if (curthread->td_critnest == 0)
 		end_time = min(end_time, 500000 / hz);
+	/* acpi_cpu_c1() returns with interrupts enabled. */
+	if (cx_next->do_mwait)
+	    ACPI_ENABLE_IRQS();
 	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
     }

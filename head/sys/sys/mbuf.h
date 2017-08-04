@@ -130,6 +130,14 @@ struct m_tag {
 };
 
 /*
+ * Static network interface owned tag.
+ * Allocated through ifp->if_snd_tag_alloc().
+ */
+struct m_snd_tag {
+	struct ifnet *ifp;		/* network interface tag belongs to */
+};
+
+/*
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
  * Size ILP32: 48
  *	 LP64: 56
@@ -137,7 +145,10 @@ struct m_tag {
  * they are correct.
  */
 struct pkthdr {
-	struct ifnet	*rcvif;		/* rcv interface */
+	union {
+		struct m_snd_tag *snd_tag;	/* send tag, if any */
+		struct ifnet	*rcvif;		/* rcv interface */
+	};
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	int32_t		 len;		/* total packet length */
 
@@ -174,6 +185,7 @@ struct pkthdr {
 #define	PH_vt		PH_per
 #define	vt_nrecs	sixteen[0]
 #define	tso_segsz	PH_per.sixteen[1]
+#define	lro_nsegs	tso_segsz
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
 
@@ -334,7 +346,7 @@ struct mbuf {
 #define	M_HASHTYPE_RSS_TCP_IPV6		M_HASHTYPE_HASH(4) /* TCPv6 4-tuple */
 #define	M_HASHTYPE_RSS_IPV6_EX		M_HASHTYPE_HASH(5) /* IPv6 2-tuple +
 							    * ext hdrs */
-#define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tiple +
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	M_HASHTYPE_HASH(6) /* TCPv6 4-tuple +
 							    * ext hdrs */
 /* Non-standard RSS hash types */
 #define	M_HASHTYPE_RSS_UDP_IPV4		M_HASHTYPE_HASH(7) /* IPv4 UDP 4-tuple*/
@@ -390,7 +402,7 @@ struct mbuf {
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
-#define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
+#define	EXT_MBUF	7	/* external mbuf reference */
 #define	EXT_SFBUF_NOCACHE 8	/* sendfile(2)'s sf_buf not to be cached */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
@@ -472,7 +484,7 @@ void sf_ext_free_nocache(void *, void *);
 #define	CSUM_L4_VALID		0x08000000	/* checksum is correct */
 #define	CSUM_L5_CALC		0x10000000	/* calculated layer 5 csum */
 #define	CSUM_L5_VALID		0x20000000	/* checksum is correct */
-#define	CSUM_COALESED		0x40000000	/* contains merged segments */
+#define	CSUM_COALESCED		0x40000000	/* contains merged segments */
 
 /*
  * CSUM flag description for use with printf(9) %b identifier.
@@ -483,7 +495,7 @@ void sf_ext_free_nocache(void *, void *);
     "\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP\15CSUM_IP6_TSO" \
     "\16CSUM_IP6_ISCSI" \
     "\31CSUM_L3_CALC\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID" \
-    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESED"
+    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESCED"
 
 /* CSUM flags compatibility mappings. */
 #define	CSUM_IP_CHECKED		CSUM_L3_CALC
@@ -602,7 +614,7 @@ struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
-int		 m_mbuftouio(struct uio *, struct mbuf *, int);
+int		 m_mbuftouio(struct uio *, const struct mbuf *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
@@ -978,9 +990,6 @@ m_align(struct mbuf *m, int len)
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-/* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
-
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
@@ -1311,5 +1320,18 @@ mbufq_prepend(struct mbufq *mq, struct mbuf *m)
 	STAILQ_INSERT_HEAD(&mq->mq_head, m, m_stailqpkt);
 	mq->mq_len++;
 }
+
+/*
+ * Note: this doesn't enforce the maximum list size for dst.
+ */
+static inline void
+mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
+{
+
+	mq_dst->mq_len += mq_src->mq_len;
+	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
+	mq_src->mq_len = 0;
+}
+
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

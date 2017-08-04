@@ -38,9 +38,6 @@
 #define PR_RLC		0x0001
 #define PR_KLC		0x0002
 
-#define	PGRAB_RDONLY	O_RDONLY
-#define	PGRAB_FORCE	0
-
 #include_next <libproc.h>
 
 #endif

@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -95,7 +95,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct inode *ip;
 	struct m_ext2fs *fs;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path = { .ep_bp = NULL };
+	struct ext4_extent_path path = {.ep_bp = NULL};
 	daddr_t lbn;
 	int error;
 
@@ -163,7 +163,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	struct buf *bp;
 	struct ext2mount *ump;
 	struct mount *mp;
-	struct indir a[NIADDR+1], *ap;
+	struct indir a[EXT2_NIADDR + 1], *ap;
 	daddr_t daddr;
 	e2fs_lbn_t metalbn;
 	int error, num, maxrun = 0, bsize;
@@ -180,10 +180,8 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		maxrun = mp->mnt_iosize_max / bsize - 1;
 		*runp = 0;
 	}
-
-	if (runb) {
+	if (runb)
 		*runb = 0;
-	}
 
 
 	ap = a;
@@ -199,7 +197,8 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			*bnp = -1;
 		} else if (runp) {
 			daddr_t bnb = bn;
-			for (++bn; bn < NDADDR && *runp < maxrun &&
+
+			for (++bn; bn < EXT2_NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
 			bn = bnb;
@@ -212,7 +211,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 		}
 		return (0);
 	}
-
 
 	/* Get disk address out of indirect block array */
 	daddr = ip->i_ib[ap->in_off];
@@ -290,7 +288,7 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	 * return a request for a zeroed out buffer if attempts are made
 	 * to read a BLK_NOCOPY or BLK_SNAP block.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc){
+	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc) {
 		*bnp = -1;
 		return (0);
 	}
@@ -327,17 +325,18 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 	if ((long)bn < 0)
 		bn = -(long)bn;
 
-	/* The first NDADDR blocks are direct blocks. */
-	if (bn < NDADDR)
+	/* The first EXT2_NDADDR blocks are direct blocks. */
+	if (bn < EXT2_NDADDR)
 		return (0);
 
 	/*
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the previous level of indirection, and NIADDR - i is the number
-	 * of levels of indirection needed to locate the requested block.
+	 * at the previous level of indirection, and EXT2_NIADDR - i is the
+	 * number of levels of indirection needed to locate the requested block.
 	 */
-	for (blockcnt = 1, i = NIADDR, bn -= NDADDR;; i--, bn -= blockcnt) {
+	for (blockcnt = 1, i = EXT2_NIADDR, bn -= EXT2_NDADDR; ;
+	    i--, bn -= blockcnt) {
 		if (i == 0)
 			return (EFBIG);
 		/*
@@ -353,9 +352,9 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 
 	/* Calculate the address of the first meta-block. */
 	if (realbn >= 0)
-		metalbn = -(realbn - bn + NIADDR - i);
+		metalbn = -(realbn - bn + EXT2_NIADDR - i);
 	else
-		metalbn = -(-realbn - bn + NIADDR - i);
+		metalbn = -(-realbn - bn + EXT2_NIADDR - i);
 
 	/*
 	 * At each iteration, off is the offset into the bap array which is
@@ -364,9 +363,9 @@ ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 	 * into the argument array.
 	 */
 	ap->in_lbn = metalbn;
-	ap->in_off = off = NIADDR - i;
+	ap->in_off = off = EXT2_NIADDR - i;
 	ap++;
-	for (++numlevels; i <= NIADDR; i++) {
+	for (++numlevels; i <= EXT2_NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
 		if (metalbn == realbn)
 			break;

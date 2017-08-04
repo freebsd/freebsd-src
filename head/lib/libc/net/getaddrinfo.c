@@ -224,6 +224,7 @@ struct ai_order {
 	struct policyqueue *aio_dstpolicy;
 	struct addrinfo *aio_ai;
 	int aio_matchlen;
+	int aio_initial_sequence;
 };
 
 static const ns_src default_dns_files[] = {
@@ -690,9 +691,8 @@ reorder(struct addrinfo *sentinel)
 		return(n);
 
 	/* allocate a temporary array for sort and initialization of it. */
-	if ((aio = malloc(sizeof(*aio) * n)) == NULL)
+	if ((aio = calloc(n, sizeof(*aio))) == NULL)
 		return(n);	/* give up reordering */
-	memset(aio, 0, sizeof(*aio) * n);
 
 	/* retrieve address selection policy from the kernel */
 	TAILQ_INIT(&policyhead);
@@ -708,6 +708,7 @@ reorder(struct addrinfo *sentinel)
 		aio[i].aio_dstpolicy = match_addrselectpolicy(ai->ai_addr,
 							      &policyhead);
 		set_source(&aio[i], &policyhead);
+		aio[i].aio_initial_sequence = i;
 	}
 
 	/* perform sorting. */
@@ -947,7 +948,7 @@ matchlen(struct sockaddr *src, struct sockaddr *dst)
 
 	while (s < lim)
 		if ((r = (*d++ ^ *s++)) != 0) {
-			while (r < addrlen * 8) {
+			while ((r & 0x80) == 0) {
 				match++;
 				r <<= 1;
 			}
@@ -1066,6 +1067,23 @@ comp_dst(const void *arg1, const void *arg2)
 	}
 
 	/* Rule 10: Otherwise, leave the order unchanged. */
+
+	/* 
+	 * Note that qsort is unstable; so, we can't return zero and 
+	 * expect the order to be unchanged.
+	 * That also means we can't depend on the current position of
+	 * dst2 being after dst1.  We must enforce the initial order
+	 * with an explicit compare on the original position.
+	 * The qsort specification requires that "When the same objects 
+	 * (consisting of width bytes, irrespective of their current 
+	 * positions in the array) are passed more than once to the 
+	 * comparison function, the results shall be consistent with one 
+	 * another."  
+	 * In other words, If A < B, then we must also return B > A.
+	 */
+	if (dst2->aio_initial_sequence < dst1->aio_initial_sequence)
+		return(1);
+
 	return(-1);
 }
 
@@ -1430,9 +1448,8 @@ copy_ai(const struct addrinfo *pai)
 	size_t l;
 
 	l = sizeof(*ai) + pai->ai_addrlen;
-	if ((ai = (struct addrinfo *)malloc(l)) == NULL)
+	if ((ai = calloc(1, l)) == NULL)
 		return NULL;
-	memset(ai, 0, l);
 	memcpy(ai, pai, sizeof(*ai));
 	ai->ai_addr = (struct sockaddr *)(void *)(ai + 1);
 	memcpy(ai->ai_addr, pai->ai_addr, pai->ai_addrlen);
@@ -1855,8 +1872,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 		size = new_ai.ai_addrlen + sizeof(struct addrinfo) +
 			_ALIGNBYTES;
 
-		sentinel = (struct addrinfo *)malloc(size);
-		memset(sentinel, 0, size);
+		sentinel = calloc(1, size);
 
 		memcpy(sentinel, &new_ai, sizeof(struct addrinfo));
 		sentinel->ai_addr = (struct sockaddr *)_ALIGN((char *)sentinel +
@@ -1869,8 +1885,7 @@ addrinfo_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
 			memcpy(&size, p, sizeof(size_t));
 			p += sizeof(size_t);
 
-			sentinel->ai_canonname = (char *)malloc(size + 1);
-			memset(sentinel->ai_canonname, 0, size + 1);
+			sentinel->ai_canonname = calloc(1, size + 1);
 
 			memcpy(sentinel->ai_canonname, p, size);
 			p += size;

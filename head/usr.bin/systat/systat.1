@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2015
+.Dd December 5, 2016
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -112,19 +112,22 @@ The
 specifies the screen refresh time interval in seconds.
 Time interval can be fractional.
 .It Ar display-commands
-A list of commands specific for this display. These commands can also
-be entered interactively and are described for each display separately
-below. If the command of the display requires an argument or arguments,
-it is possible to specify them as separate command line argument. To finish
-display commands it is possible to use double dash at the end
-of the list. For example:
+A list of commands specific to this display.
+These commands can also be entered interactively and are described for
+each display separately below.
+If the command requires arguments, they can be specified as separate
+command line arguments.
+A command line argument
+.Fl -
+will finish display commands.
+For example:
 .Pp
 .Dl Nm Fl ifstat Fl match Ar bge0,em1 Fl pps
 .Pp
 This will display statistics of packets per second for network interfaces
 named as bge0 and em1.
 .Pp
-.Dl Nm Fl iostat Fl numeric Fl - Ar 2.1
+.Dl Nm Fl iostat Fl numbers Fl - Ar 2.1
 .Pp
 This will display all IO statistics in a numeric format and the information
 will be refreshed each 2.1 seconds.
@@ -411,7 +414,7 @@ as amounts of memory in kilobytes,
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
-pages on the cache queue (`cache'),
+dirty pages queued for laundering (`laund'),
 and
 free pages (`free').
 Note that the values displayed are the current transient ones;

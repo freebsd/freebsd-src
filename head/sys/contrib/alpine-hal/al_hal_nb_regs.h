@@ -355,7 +355,7 @@ struct al_nb_nb_version {
 };
 struct al_nb_sriov {
 	/* [0x0]  */
-	uint32_t cpu_vmid[4];
+	uint32_t cpu_tgtid[4];
 	uint32_t rsrvd[4];
 };
 struct al_nb_dram_channels {
@@ -403,7 +403,7 @@ struct al_nb_push_packet {
 	uint32_t pp_config;
 	uint32_t rsrvd_0[3];
 	/* [0x10]  */
-	uint32_t pp_ext_awuser;
+	uint32_t pp_ext_attr;
 	uint32_t rsrvd_1[3];
 	/* [0x20]  */
 	uint32_t pp_base_low;
@@ -411,7 +411,7 @@ struct al_nb_push_packet {
 	uint32_t pp_base_high;
 	uint32_t rsrvd_2[2];
 	/* [0x30]  */
-	uint32_t pp_sel_awuser;
+	uint32_t pp_sel_attr;
 	uint32_t rsrvd[51];
 };
 
@@ -853,8 +853,8 @@ Enables 4k hazard of post-barrier vs pre-barrier transactions. Otherwise, 64B ha
 This value is sampled into the CP15 Configuration Base Address Register (CBAR) at reset. */
 #define NB_GLOBAL_LGIC_BASE_HIGH_BASE_39_32_MASK 0x000000FF
 #define NB_GLOBAL_LGIC_BASE_HIGH_BASE_39_32_SHIFT 0
-#define NB_GLOBAL_LGIC_BASE_HIGH_BASE_43_32_MASK_PKR 0x00000FFF
-#define NB_GLOBAL_LGIC_BASE_HIGH_BASE_43_32_SHIFT_PKR 0
+#define NB_GLOBAL_LGIC_BASE_HIGH_BASE_43_32_MASK_ALPINE_V2 0x00000FFF
+#define NB_GLOBAL_LGIC_BASE_HIGH_BASE_43_32_SHIFT_ALPINE_V2 0
 /* GIC registers base [31:15].
 This value is sampled into the CP15 Configuration Base Address Register (CBAR) at reset */
 #define NB_GLOBAL_LGIC_BASE_LOW_BASED_31_15_MASK 0xFFFF8000
@@ -1055,9 +1055,9 @@ Other access types are  hazard check against the pre-barrier requests. */
 /* Disable counter (wait 1000 NB cycles) before applying PoS enable/disable configuration */
 #define NB_GLOBAL_ACF_MISC_POS_CONFIG_CNT_DIS (1 << 14)
 /* Disable wr spliter A0 bug fixes */
-#define NB_GLOBAL_ACF_MISC_WRSPLT_ALPINE_M0_MODE (1 << 16)
-/* Disable wr spliter PKR bug fixes */
-#define NB_GLOBAL_ACF_MISC_WRSPLT_ALPINE_A0_MODE (1 << 17)
+#define NB_GLOBAL_ACF_MISC_WRSPLT_ALPINE_V1_M0_MODE (1 << 16)
+/* Disable wr spliter ALPINE_V2 bug fixes */
+#define NB_GLOBAL_ACF_MISC_WRSPLT_ALPINE_V1_A0_MODE (1 << 17)
 /* Override the address parity calucation for write transactions going to IO-fabric */
 #define NB_GLOBAL_ACF_MISC_NB_NIC_AWADDR_PAR_OVRD (1 << 18)
 /* Override the data parity calucation for write transactions going to IO-fabric */
@@ -1074,7 +1074,7 @@ Other access types are  hazard check against the pre-barrier requests. */
 #define NB_GLOBAL_ACF_MISC_CPU_DSB_FLUSH_DIS (1 << 26)
 /* Enable DMB flush request to NB to SB PoS when barrier is terminted inside the processor cluster */
 #define NB_GLOBAL_ACF_MISC_CPU_DMB_FLUSH_DIS (1 << 27)
-/* Peakrock only: remap CPU address above 40 bits to Slave Error
+/* Alpine V2 only: remap CPU address above 40 bits to Slave Error
 INTERNAL  */
 #define NB_GLOBAL_ACF_MISC_ADDR43_40_REMAP_DIS (1 << 28)
 /* Enable CPU WriteUnique to WriteNoSnoop trasform */
@@ -1586,7 +1586,7 @@ enable - 0x1: Enable interrupt on overflow. */
 /* Number of monitored events supported by the PMU. */
 #define NB_MC_PMU_PMU_CONTROL_NUM_OF_EVENTS_MASK 0x00FC0000
 #define NB_MC_PMU_PMU_CONTROL_NUM_OF_EVENTS_SHIFT 18
-#define NB_MC_PMU_PMU_CONTROL_NUM_OF_EVENTS_SHIFT_ALPINE 19
+#define NB_MC_PMU_PMU_CONTROL_NUM_OF_EVENTS_SHIFT_ALPINE_V1 19
 /* Number of counters implemented by PMU. */
 #define NB_MC_PMU_PMU_CONTROL_NUM_OF_CNTS_MASK 0x0F000000
 #define NB_MC_PMU_PMU_CONTROL_NUM_OF_CNTS_SHIFT 24
@@ -1659,6 +1659,9 @@ Note: This field must be changed for larger counters. */
 /*  Revision number (Major) */
 #define NB_NB_VERSION_VERSION_RELEASE_NUM_MAJOR_MASK 0x0000FF00
 #define NB_NB_VERSION_VERSION_RELEASE_NUM_MAJOR_SHIFT 8
+#define NB_NB_VERSION_VERSION_RELEASE_NUM_MAJOR_VAL_ALPINE_V1	2
+#define NB_NB_VERSION_VERSION_RELEASE_NUM_MAJOR_VAL_ALPINE_V2	3
+#define NB_NB_VERSION_VERSION_RELEASE_NUM_MAJOR_VAL_ALPINE_V3	4
 /*  Date of release */
 #define NB_NB_VERSION_VERSION_DATE_DAY_MASK 0x001F0000
 #define NB_NB_VERSION_VERSION_DATE_DAY_SHIFT 16
@@ -1672,10 +1675,10 @@ Note: This field must be changed for larger counters. */
 #define NB_NB_VERSION_VERSION_RESERVED_MASK 0xC0000000
 #define NB_NB_VERSION_VERSION_RESERVED_SHIFT 30
 
-/**** cpu_vmid register ****/
-/* Target VMID */
-#define NB_SRIOV_CPU_VMID_VAL_MASK      0x000000FF
-#define NB_SRIOV_CPU_VMID_VAL_SHIFT     0
+/**** cpu_tgtid register ****/
+/* Target-ID */
+#define NB_SRIOV_CPU_TGTID_VAL_MASK      0x000000FF
+#define NB_SRIOV_CPU_TGTID_VAL_SHIFT     0
 
 /**** DRAM_0_Control register ****/
 /* Controller Idle
@@ -1807,7 +1810,7 @@ Parity bits are still generated per transaction */
 #define NB_PUSH_PACKET_PP_EXT_AWUSER_AWUSER_SHIFT 0
 
 /**** pp_sel_awuser register ****/
-/* Select whether to use addr[63:48] or PP awmisc as vmid.
+/* Select whether to use addr[63:48] or PP awmisc as tgtid.
 Each bit if set to 1 selects the corresponding address bit. Otherwise, selects the corersponding awmis bit. */
 #define NB_PUSH_PACKET_PP_SEL_AWUSER_SEL_MASK 0x0000FFFF
 #define NB_PUSH_PACKET_PP_SEL_AWUSER_SEL_SHIFT 0

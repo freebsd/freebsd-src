@@ -40,7 +40,7 @@ MDNode *MDBuilder::createBranchWeights(uint32_t TrueWeight,
 }
 
 MDNode *MDBuilder::createBranchWeights(ArrayRef<uint32_t> Weights) {
-  assert(Weights.size() >= 2 && "Need at least two branch weights!");
+  assert(Weights.size() >= 1 && "Need at least one branch weights!");
 
   SmallVector<Metadata *, 4> Vals(Weights.size() + 1);
   Vals[0] = createString("branch_weights");
@@ -56,11 +56,22 @@ MDNode *MDBuilder::createUnpredictable() {
   return MDNode::get(Context, None);
 }
 
-MDNode *MDBuilder::createFunctionEntryCount(uint64_t Count) {
+MDNode *MDBuilder::createFunctionEntryCount(
+    uint64_t Count, const DenseSet<GlobalValue::GUID> *Imports) {
   Type *Int64Ty = Type::getInt64Ty(Context);
+  SmallVector<Metadata *, 8> Ops;
+  Ops.push_back(createString("function_entry_count"));
+  Ops.push_back(createConstant(ConstantInt::get(Int64Ty, Count)));
+  if (Imports)
+    for (auto ID : *Imports)
+      Ops.push_back(createConstant(ConstantInt::get(Int64Ty, ID)));
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *MDBuilder::createFunctionSectionPrefix(StringRef Prefix) {
   return MDNode::get(Context,
-                     {createString("function_entry_count"),
-                      createConstant(ConstantInt::get(Int64Ty, Count))});
+                     {createString("function_section_prefix"),
+                      createString(Prefix)});
 }
 
 MDNode *MDBuilder::createRange(const APInt &Lo, const APInt &Hi) {

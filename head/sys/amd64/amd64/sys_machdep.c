@@ -169,9 +169,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 }
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error = 0;
 	struct pcb *pcb = curthread->td_pcb;
@@ -608,6 +606,8 @@ amd64_set_ldt(td, uap, descs)
 		largest_ld = uap->start + uap->num;
 		if (largest_ld > max_ldt_segment)
 			largest_ld = max_ldt_segment;
+		if (largest_ld < uap->start)
+			return (EINVAL);
 		i = largest_ld - uap->start;
 		mtx_lock(&dt_lock);
 		bzero(&((struct user_segment_descriptor *)(pldt->ldt_base))
@@ -620,7 +620,8 @@ amd64_set_ldt(td, uap, descs)
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
 		if (uap->start >= max_ldt_segment ||
-		    largest_ld > max_ldt_segment)
+		    largest_ld > max_ldt_segment ||
+		    largest_ld < uap->start)
 			return (EINVAL);
 	}
 

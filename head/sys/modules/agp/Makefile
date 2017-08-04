@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/agp
+.PATH: ${SRCTOP}/sys/dev/agp
 
 KMOD=	agp
 SRCS=	agp.c agp_if.c
@@ -35,6 +35,7 @@ EXPORT_SYMS=	agp_find_device		\
 .if ${MACHINE_CPUARCH} == "i386"  || ${MACHINE_CPUARCH} == "amd64"
 EXPORT_SYMS+=	intel_gtt_clear_range	\
 		intel_gtt_insert_pages	\
+		intel_gtt_install_pte	\
 		intel_gtt_get		\
 		intel_gtt_chipset_flush	\
 		intel_gtt_unmap_memory	\

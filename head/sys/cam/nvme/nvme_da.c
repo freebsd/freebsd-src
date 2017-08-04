@@ -608,9 +608,9 @@ ndasysctlinit(void *context, int pending)
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= NDA_FLAG_SCTX_INIT;
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_nda), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr);
+		CTLFLAG_RD, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("ndasysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);
@@ -743,7 +743,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * The name space ID is the lun, save it for later I/O
 	 */
-	softc->nsid = (uint16_t)xpt_path_lun_id(periph->path);
+	softc->nsid = (uint32_t)xpt_path_lun_id(periph->path);
 
 	/*
 	 * Register this media as a disk
@@ -761,7 +761,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cd->mn)));
 	strlcpy(softc->disk->d_ident, cd->sn,
 	    MIN(sizeof(softc->disk->d_ident), sizeof(cd->sn)));
-	disk->d_rotation_rate = 0;	/* Spinning rust need not apply */
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	disk->d_open = ndaopen;
 	disk->d_close = ndaclose;
 	disk->d_strategy = ndastrategy;

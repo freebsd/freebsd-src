@@ -19,5 +19,6 @@
 #define	__AR9300_DS_H__
 
 extern	void ar9300_alq_payload(struct if_ath_alq_payload *a);
+extern	void ath_alq_print_edma_tx_fifo_push(struct if_ath_alq_payload *a);
 
 #endif	/* __AR9300_DS_H__ */

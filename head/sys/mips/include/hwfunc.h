@@ -67,7 +67,8 @@ void platform_init_ap(int processor_id);
  * This hardware interrupt is used to deliver IPIs exclusively and must
  * not be used for any other interrupt source.
  */
-int platform_ipi_intrnum(void);
+int platform_ipi_hardintr_num(void);
+int platform_ipi_softintr_num(void);
 
 /*
  * Trigger a IPI interrupt on 'cpuid'.

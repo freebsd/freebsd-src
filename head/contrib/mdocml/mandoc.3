@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.3,v 1.37 2016/07/07 19:19:01 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.41 2017/07/04 23:40:01 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 7 2016 $
+.Dd $Mdocdate: July 4 2017 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -34,7 +34,8 @@
 .Nm mparse_reset ,
 .Nm mparse_result ,
 .Nm mparse_strerror ,
-.Nm mparse_strlevel
+.Nm mparse_strlevel ,
+.Nm mparse_updaterc
 .Nd mandoc macro compiler library
 .Sh SYNOPSIS
 .In sys/types.h
@@ -46,9 +47,10 @@
 .Ft struct mparse *
 .Fo mparse_alloc
 .Fa "int options"
-.Fa "enum mandoclevel wlevel"
+.Fa "enum mandocerr mmin"
 .Fa "mandocmsg mmsg"
-.Fa "char *defos"
+.Fa "enum mandoc_os oe_e"
+.Fa "char *os_s"
 .Fc
 .Ft void
 .Fo (*mandocmsg)
@@ -99,6 +101,11 @@
 .Ft "const char *"
 .Fo mparse_strlevel
 .Fa "enum mandoclevel"
+.Fc
+.Ft void
+.Fo mparse_updaterc
+.Fa "struct mparse *parse"
+.Fa "enum mandoclevel *rc"
 .Fc
 .In roff.h
 .Ft void
@@ -180,6 +187,9 @@ validate it with
 or
 .Fn man_validate ,
 respectively;
+.It
+if information about the validity of the input is needed, fetch it with
+.Fn mparse_updaterc ;
 .It
 iterate over parse nodes with starting from the
 .Fa first
@@ -295,12 +305,15 @@ This is for example useful in
 .Xr makewhatis 8
 .Fl Q
 to quickly build minimal databases.
-.It Ar wlevel
+.It Ar mmin
 Can be set to
-.Dv MANDOCLEVEL_BADARG ,
-.Dv MANDOCLEVEL_ERROR ,
+.Dv MANDOCERR_BASE ,
+.Dv MANDOCERR_STYLE ,
+.Dv MANDOCERR_WARNING ,
+.Dv MANDOCERR_ERROR ,
+.Dv MANDOCERR_UNSUPP ,
 or
-.Dv MANDOCLEVEL_WARNING .
+.Dv MANDOCERR_MAX .
 Messages below the selected level will be suppressed.
 .It Ar mmsg
 A callback function to handle errors and warnings.
@@ -310,10 +323,19 @@ for an example.
 If printing of error messages is not desired,
 .Dv NULL
 may be passed.
-.It Ar defos
+.It Ar os_e
+Operating system to check base system conventions for.
+If
+.Dv MANDOC_OS_OTHER ,
+the system is automatically detected from
+.Ic \&Os ,
+.Fl Ios ,
+or
+.Xr uname 3 .
+.It Ar os_s
 A default string for the
 .Xr mdoc 7
-.Sq \&Os
+.Ic \&Os
 macro, overriding the
 .Dv OSNAME
 preprocessor definition and the results of
@@ -412,6 +434,22 @@ implemented in
 .Pa read.c .
 .It Fn mparse_strlevel
 Return a statically-allocated string representation of a level code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_updaterc
+If the highest warning or error level that occurred during the current
+.Fa parse
+is higher than
+.Pf * Fa rc ,
+update
+.Pf * Fa rc
+accordingly.
+This is useful after calling
+.Fn mdoc_validate
+or
+.Fn man_validate .
 Declared in
 .In mandoc.h ,
 implemented in
@@ -625,10 +663,10 @@ TEXT end
 .Ed
 .Pp
 Here, the formatting of the
-.Sq \&Ao
+.Ic \&Ao
 block extends from TEXT ao to TEXT ac,
 while the formatting of the
-.Sq \&Bo
+.Ic \&Bo
 block extends from TEXT bo to TEXT bc.
 It renders as follows in
 .Fl T Ns Cm ascii
@@ -644,11 +682,9 @@ Using badly-nested blocks is
 .Em strongly discouraged ;
 for example, the
 .Fl T Ns Cm html
-and
-.Fl T Ns Cm xhtml
-front-ends to
+front-end to
 .Xr mandoc 1
-are unable to render them in any meaningful way.
+is unable to render them in any meaningful way.
 Furthermore, behaviour when encountering badly-nested blocks is not
 consistent across troff implementations, especially when using multiple
 levels of badly-nested blocks.

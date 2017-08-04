@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,14 +49,17 @@
 
 /* locals */
 static int flush_flag;
-static int minfo_flag;
 static int getpid_flag;
-static int unmount_flag;
-static int stats_flag;
-static int getvers_flag;
-static int amd_program_number = AMQ_PROGRAM;
-static int use_tcp_flag, use_udp_flag;
 static int getpwd_flag;
+static int getvers_flag;
+static int minfo_flag;
+static int mapinfo_flag;
+static int quiet_flag;
+static int stats_flag;
+static int unmount_flag;
+static int use_tcp_flag;
+static int use_udp_flag;
+static u_long amd_program_number = AMQ_PROGRAM;
 static char *debug_opts;
 static char *amq_logfile;
 static char *xlog_optstr;
@@ -76,6 +75,17 @@ enum show_opt {
   Full, Stats, Calc, Short, ShowDone
 };
 
+
+static void
+time_print(time_type tt)
+{
+  time_t t = (time_t)*tt;
+  struct tm *tp = localtime(&t);
+  printf("%02d/%02d/%04d %02d:%02d:%02d",
+	 tp->tm_mon + 1, tp->tm_mday,
+	 tp->tm_year < 1900 ? tp->tm_year + 1900 : tp->tm_year,
+	 tp->tm_hour, tp->tm_min, tp->tm_sec);
+}
 
 /*
  * If (e) is Calc then just calculate the sizes
@@ -101,8 +111,7 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 
   case Full:
     {
-      struct tm *tp = localtime((time_t *) ((voidp) &mt->mt_mounttime));
-      printf("%-*.*s %-*.*s %-*.*s %s\n\t%-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%04d %02d:%02d:%02d\n",
+      printf("%-*.*s %-*.*s %-*.*s %s\n\t%-5d %-7d %-6d %-7d %-7d %-6d",
 	     *dwid, *dwid,
 	     *mt->mt_directory ? mt->mt_directory : "/",	/* XXX */
 	     *twid, *twid,
@@ -116,18 +125,15 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 	     mt->mt_lookup,
 	     mt->mt_readdir,
 	     mt->mt_readlink,
-	     mt->mt_statfs,
-
-	     tp->tm_mon + 1, tp->tm_mday,
-	     tp->tm_year < 1900 ? tp->tm_year + 1900 : tp->tm_year,
-	     tp->tm_hour, tp->tm_min, tp->tm_sec);
+	     mt->mt_statfs);
+      time_print(mt->mt_mounttime);
+      printf("\n");
     }
   break;
 
   case Stats:
     {
-      struct tm *tp = localtime((time_t *) ((voidp) &mt->mt_mounttime));
-      printf("%-*.*s %-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%02d %02d:%02d:%04d\n",
+      printf("%-*.*s %-5d %-7d %-6d %-7d %-7d %-6d ",
 	     *dwid, *dwid,
 	     *mt->mt_directory ? mt->mt_directory : "/",	/* XXX */
 
@@ -136,11 +142,9 @@ show_mti(amq_mount_tree *mt, enum show_opt e, int *mwid, int *dwid, int *twid)
 	     mt->mt_lookup,
 	     mt->mt_readdir,
 	     mt->mt_readlink,
-	     mt->mt_statfs,
-
-	     tp->tm_mon + 1, tp->tm_mday,
-	     tp->tm_year < 1900 ? tp->tm_year + 1900 : tp->tm_year,
-	     tp->tm_hour, tp->tm_min, tp->tm_sec);
+	     mt->mt_statfs);
+      time_print(mt->mt_mounttime);
+      printf("\n");
     }
   break;
 
@@ -229,7 +233,7 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
     {
       for (i = 0; i < ml->amq_mount_info_list_len; i++) {
 	amq_mount_info *mi = &ml->amq_mount_info_list_val[i];
-	printf("%-*.*s %-*.*s %-*.*s %-3d %s is %s",
+	printf("%-*.*s %-*.*s %-*.*s %-3d %s is %s ",
 	       *mwid, *mwid, mi->mi_mountinfo,
 	       *dwid, *dwid, mi->mi_mountpt,
 	       *twid, *twid, mi->mi_type,
@@ -251,6 +255,55 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
   }
 }
 
+static void
+show_map(amq_map_info *mi)
+{
+}
+
+static void
+show_mapinfo(amq_map_info_list *ml, enum show_opt e, int *nwid, int *wwid)
+{
+  u_int i;
+
+  switch (e) {
+
+  case Calc:
+    {
+      for (i = 0; i < ml->amq_map_info_list_len; i++) {
+	amq_map_info *mi = &ml->amq_map_info_list_val[i];
+	int nw = strlen(mi->mi_name);
+	int ww = strlen(mi->mi_wildcard ? mi->mi_wildcard : "(null");
+	if (nw > *nwid)
+	  *nwid = nw;
+	if (ww > *wwid)
+	  *wwid = ww;
+      }
+    }
+  break;
+
+  case Full:
+    {
+      printf("%-*.*s %-*.*s %-8.8s %-7.7s %-7.7s %-7.7s %-s Modified\n",
+	*nwid, *nwid, "Name",
+	*wwid, *wwid, "Wild",
+	"Flags", "Refcnt", "Entries", "Reloads", "Stat");
+      for (i = 0; i < ml->amq_map_info_list_len; i++) {
+	amq_map_info *mi = &ml->amq_map_info_list_val[i];
+        printf("%-*.*s %*.*s %-8x %-7d %-7d %-7d %s ",
+	       *nwid, *nwid, mi->mi_name,
+	       *wwid, *wwid, mi->mi_wildcard,
+	       mi->mi_flags, mi->mi_refc, mi->mi_nentries, mi->mi_reloads,
+	       mi->mi_up == -1 ? "root" : (mi->mi_up ? "  up" : "down"));
+        time_print(mi->mi_modify);
+	fputc('\n', stdout);
+      }
+    }
+  break;
+
+  default:
+    break;
+  }
+}
 
 /*
  * Display general mount statistics
@@ -287,6 +340,72 @@ cluster_server(void)
 #endif /* defined(HAVE_CLUSTER_H) && defined(HAVE_CNODEID) && defined(HAVE_GETCCENT) */
 
 
+static void
+print_umnt_error(amq_sync_umnt *rv, const char *fs)
+{
+
+  switch (rv->au_etype) {
+  case AMQ_UMNT_OK:
+    break;
+  case AMQ_UMNT_FAILED:
+    printf("unmount failed: %s\n", strerror(rv->au_errno));
+    break;
+  case AMQ_UMNT_FORK:
+    if (rv->au_errno == 0)
+      printf("%s is not mounted\n", fs);
+    else
+      printf("falling back to asynchronous unmount: %s\n",
+	  strerror(rv->au_errno));
+    break;
+  case AMQ_UMNT_READ:
+    printf("pipe read error: %s\n", strerror(rv->au_errno));
+    break;
+  case AMQ_UMNT_SERVER:
+    printf("amd server down\n");
+    break;
+  case AMQ_UMNT_SIGNAL:
+    printf("got signal: %d\n", rv->au_signal);
+    break;
+  /*
+   * Omit default so the compiler can check for missing cases.
+   *
+  default:
+    break;
+   */
+  }
+}
+
+
+static int
+amu_sync_umnt_to_retval(amq_sync_umnt *rv)
+{
+  switch (rv->au_etype) {
+  case AMQ_UMNT_FORK:
+    if (rv->au_errno == 0) {
+      /*
+       * We allow this error so that things like:
+       *   amq -uu /l/cd0d && eject cd0
+       * will work when /l/cd0d is not mounted.
+       * XXX - We still print an error message.
+       */
+      return 0;
+    }
+    /*FALLTHROUGH*/
+  default:
+    return rv->au_etype;
+  }
+}
+
+
+static int
+clnt_failed(CLIENT *clnt, char *server)
+{
+  fprintf(stderr, "%s: ", am_get_progname());
+  clnt_perror(clnt, server);
+  return 1;
+}
+
+
 /*
  * MAIN
  */
@@ -320,7 +439,7 @@ main(int argc, char *argv[])
   /*
    * Parse arguments
    */
-  while ((opt_ch = getopt(argc, argv, "Hfh:l:msuvx:D:pP:TUw")) != -1)
+  while ((opt_ch = getopt(argc, argv, "Hfh:il:mqsuvx:D:pP:TUw")) != -1)
     switch (opt_ch) {
     case 'H':
       goto show_usage;
@@ -333,6 +452,11 @@ main(int argc, char *argv[])
 
     case 'h':
       def_server = optarg;
+      break;
+
+    case 'i':
+      mapinfo_flag = 1;
+      nodefault = 1;
       break;
 
     case 'l':
@@ -350,13 +474,18 @@ main(int argc, char *argv[])
       nodefault = 1;
       break;
 
+    case 'q':
+      quiet_flag = 1;
+      nodefault = 1;
+      break;
+
     case 's':
       stats_flag = 1;
       nodefault = 1;
       break;
 
     case 'u':
-      unmount_flag = 1;
+      unmount_flag++;
       nodefault = 1;
       break;
 
@@ -403,9 +532,9 @@ main(int argc, char *argv[])
   if (errs) {
   show_usage:
     fprintf(stderr, "\
-Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
+Usage: %s [-fimpqsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
 \t[-x log_options] [-D debug_options]\n\
-\t[-P program_number] [[-u] directory ...]\n",
+\t[-P program_number] [[-u[u]] directory ...]\n",
 	    am_get_progname()
     );
     exit(1);
@@ -538,16 +667,19 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
    */
   if (getpwd_flag) {
     char path[MAXPATHLEN+1];
-    char *wd = getcwd(path, MAXPATHLEN+1);
-    amq_mount_tree_list *mlp = amqproc_export_1((voidp) 0, clnt);
+    char *wd;
+    amq_mount_tree_list *mlp;
     amq_mount_tree_p mt;
     u_int i;
     int flag;
 
+    wd = getcwd(path, MAXPATHLEN+1);
     if (!wd) {
-      perror("getcwd");
+      fprintf(stderr, "%s: getcwd failed (%s)", am_get_progname(),
+	  strerror(errno));
       exit(1);
     }
+    mlp = amqproc_export_1((voidp) 0, clnt);
     for (i = 0; mlp && i < mlp->amq_mount_tree_list_len; i++) {
       mt = mlp->amq_mount_tree_list_val[i];
       while (1) {
@@ -578,6 +710,26 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
 
     } else {
       fprintf(stderr, "%s: amd on %s cannot provide mount info\n",
+	      am_get_progname(), server);
+    }
+  }
+
+
+  /*
+   * Map
+   */
+  if (mapinfo_flag) {
+    int dummy;
+    amq_map_info_list *ml = amqproc_getmapinfo_1(&dummy, clnt);
+    if (ml) {
+      int mwid = 0, wwid = 0;
+      show_mapinfo(ml, Calc, &mwid, &wwid);
+      mwid++;
+      if (wwid)
+	 wwid++;
+      show_mapinfo(ml, Full, &mwid, &wwid);
+    } else {
+      fprintf(stderr, "%s: amd on %s cannot provide map info\n",
 	      am_get_progname(), server);
     }
   }
@@ -616,7 +768,20 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
   if (optind < argc) {
     do {
       char *fs = argv[optind++];
-      if (unmount_flag) {
+      if (unmount_flag > 1) {
+	amq_sync_umnt *sup;
+	/*
+	 * Synchronous unmount request
+	 */
+        sup = amqproc_sync_umnt_1(&fs, clnt);
+	if (sup) {
+	  if (quiet_flag == 0)
+	    print_umnt_error(sup, fs);
+	  errs = amu_sync_umnt_to_retval(sup);
+	} else {
+	  errs = clnt_failed(clnt, server);
+	}
+      }	else if (unmount_flag) {
 	/*
 	 * Unmount request
 	 */
@@ -641,9 +806,7 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
 	  }
 	  xdr_pri_free((XDRPROC_T_TYPE) xdr_amq_mount_tree_p, (caddr_t) mtp);
 	} else {
-	  fprintf(stderr, "%s: ", am_get_progname());
-	  clnt_perror(clnt, server);
-	  errs = 1;
+	  errs = clnt_failed(clnt, server);
 	}
       }
     } while (optind < argc);
@@ -656,9 +819,7 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
     if (ms) {
       show_ms(ms);
     } else {
-      fprintf(stderr, "%s: ", am_get_progname());
-      clnt_perror(clnt, server);
-      errs = 1;
+      errs = clnt_failed(clnt, server);
     }
 
   } else if (!nodefault) {
@@ -682,9 +843,7 @@ Usage: %s [-fmpsvwHTU] [-h hostname] [-l log_file|\"syslog\"]\n\
       }
 
     } else {
-      fprintf(stderr, "%s: ", am_get_progname());
-      clnt_perror(clnt, server);
-      errs = 1;
+      errs = clnt_failed(clnt, server);
     }
   }
   exit(errs);

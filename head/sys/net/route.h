@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -135,7 +135,7 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #endif
 #endif
 
-#if defined(_KERNEL) || defined(_WANT_RTENTRY)
+#if defined(_KERNEL)
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*
@@ -159,7 +159,7 @@ struct rtentry {
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 };
-#endif /* _KERNEL || _WANT_RTENTRY */
+#endif /* _KERNEL */
 
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
@@ -189,7 +189,7 @@ struct rtentry {
 					/* 0x8000000 and up unassigned */
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
-#define	RTF_RNH_LOCKED	 0x40000000	/* unused */
+#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
 
 #define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
 					   with existing routing apps */
@@ -265,25 +265,35 @@ struct rt_msghdr {
 
 /*
  * Message types.
+ *
+ * The format for each message is annotated below using the following
+ * identifiers:
+ *
+ * (1) struct rt_msghdr
+ * (2) struct ifa_msghdr
+ * (3) struct if_msghdr
+ * (4) struct ifma_msghdr
+ * (5) struct if_announcemsghdr
+ *
  */
-#define RTM_ADD		0x1	/* Add Route */
-#define RTM_DELETE	0x2	/* Delete Route */
-#define RTM_CHANGE	0x3	/* Change Metrics or flags */
-#define RTM_GET		0x4	/* Report Metrics */
-#define RTM_LOSING	0x5	/* Kernel Suspects Partitioning */
-#define RTM_REDIRECT	0x6	/* Told to use different route */
-#define RTM_MISS	0x7	/* Lookup failed on this address */
-#define RTM_LOCK	0x8	/* fix specified metrics */
+#define	RTM_ADD		0x1	/* (1) Add Route */
+#define	RTM_DELETE	0x2	/* (1) Delete Route */
+#define	RTM_CHANGE	0x3	/* (1) Change Metrics or flags */
+#define	RTM_GET		0x4	/* (1) Report Metrics */
+#define	RTM_LOSING	0x5	/* (1) Kernel Suspects Partitioning */
+#define	RTM_REDIRECT	0x6	/* (1) Told to use different route */
+#define	RTM_MISS	0x7	/* (1) Lookup failed on this address */
+#define	RTM_LOCK	0x8	/* (1) fix specified metrics */
 		    /*	0x9  */
 		    /*	0xa  */
-#define RTM_RESOLVE	0xb	/* req to resolve dst to LL addr */
-#define RTM_NEWADDR	0xc	/* address being added to iface */
-#define RTM_DELADDR	0xd	/* address being removed from iface */
-#define RTM_IFINFO	0xe	/* iface going up/down etc. */
-#define	RTM_NEWMADDR	0xf	/* mcast group membership being added to if */
-#define	RTM_DELMADDR	0x10	/* mcast group membership being deleted */
-#define	RTM_IFANNOUNCE	0x11	/* iface arrival/departure */
-#define	RTM_IEEE80211	0x12	/* IEEE80211 wireless event */
+#define	RTM_RESOLVE	0xb	/* (1) req to resolve dst to LL addr */
+#define	RTM_NEWADDR	0xc	/* (2) address being added to iface */
+#define	RTM_DELADDR	0xd	/* (2) address being removed from iface */
+#define	RTM_IFINFO	0xe	/* (3) iface going up/down etc. */
+#define	RTM_NEWMADDR	0xf	/* (4) mcast group membership being added to if */
+#define	RTM_DELMADDR	0x10	/* (4) mcast group membership being deleted */
+#define	RTM_IFANNOUNCE	0x11	/* (5) iface arrival/departure */
+#define	RTM_IEEE80211	0x12	/* (5) IEEE80211 wireless event */
 
 /*
  * Bitmask values for rtm_inits and rmx_locks.
@@ -342,11 +352,10 @@ struct rt_addrinfo {
  * This macro returns the size of a struct sockaddr when passed
  * through a routing socket. Basically we round up sa_len to
  * a multiple of sizeof(long), with a minimum of sizeof(long).
- * The check for a NULL pointer is just a convenience, probably never used.
  * The case sa_len == 0 should only apply to empty structures.
  */
 #define SA_SIZE(sa)						\
-    (  (!(sa) || ((struct sockaddr *)(sa))->sa_len == 0) ?	\
+    (  (((struct sockaddr *)(sa))->sa_len == 0) ?		\
 	sizeof(long)		:				\
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
 

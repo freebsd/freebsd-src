@@ -36,6 +36,8 @@ struct allwinner_pins {
 	uint8_t port;
 	uint8_t pin;
 	const char *functions[8];
+	uint8_t eint_func;
+	uint8_t eint_num;
 };
 
 struct allwinner_padconf {

@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include "indent.h"
 
 #define alphanum 1
+#ifdef undef
 #define opchar 3
+#endif
 
 struct templ {
     const char *rwd;
@@ -70,6 +72,7 @@ struct templ {
  */
 struct templ specials[] =
 {
+    {"auto", 10},
     {"break", 9},
     {"case", 8},
     {"char", 4},
@@ -79,7 +82,7 @@ struct templ specials[] =
     {"double", 4},
     {"else", 6},
     {"enum", 3},
-    {"extern", 4},
+    {"extern", 10},
     {"float", 4},
     {"for", 5},
     {"global", 4},
@@ -88,14 +91,14 @@ struct templ specials[] =
     {"int", 4},
     {"long", 4},
     {"offsetof", 1},
-    {"register", 4},
+    {"register", 10},
     {"return", 9},
     {"short", 4},
     {"sizeof", 2},
-    {"static", 4},
+    {"static", 10},
     {"struct", 3},
     {"switch", 7},
-    {"typedef", 4},
+    {"typedef", 10},
     {"union", 3},
     {"unsigned", 4},
     {"void", 4},
@@ -166,19 +169,47 @@ lexi(void)
 	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
+	    enum base {
+		BASE_2, BASE_8, BASE_10, BASE_16
+	    };
 	    int         seendot = 0,
 	                seenexp = 0,
 			seensfx = 0;
-	    if (*buf_ptr == '0' &&
-		    (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')) {
+	    enum base	in_base = BASE_10;
+
+	    if (*buf_ptr == '0') {
+		if (buf_ptr[1] == 'b' || buf_ptr[1] == 'B')
+		    in_base = BASE_2;
+		else if (buf_ptr[1] == 'x' || buf_ptr[1] == 'X')
+		    in_base = BASE_16;
+		else if (isdigit(buf_ptr[1]))
+		    in_base = BASE_8;
+	    }
+	    switch (in_base) {
+	    case BASE_2:
+		*e_token++ = *buf_ptr++;
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr == '0' || *buf_ptr == '1') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_8:
+		*e_token++ = *buf_ptr++;
+		while (*buf_ptr >= '0' && *buf_ptr <= '8') {
+		    CHECK_SIZE_TOKEN;
+		    *e_token++ = *buf_ptr++;
+		}
+		break;
+	    case BASE_16:
 		*e_token++ = *buf_ptr++;
 		*e_token++ = *buf_ptr++;
 		while (isxdigit(*buf_ptr)) {
 		    CHECK_SIZE_TOKEN;
 		    *e_token++ = *buf_ptr++;
 		}
-	    }
-	    else
+		break;
+	    case BASE_10:
 		while (1) {
 		    if (*buf_ptr == '.') {
 			if (seendot)
@@ -201,6 +232,8 @@ lexi(void)
 			}
 		    }
 		}
+		break;
+	    }
 	    while (1) {
 		if (!(seensfx & 1) && (*buf_ptr == 'U' || *buf_ptr == 'u')) {
 		    CHECK_SIZE_TOKEN;
@@ -237,6 +270,11 @@ lexi(void)
 		    fill_buffer();
 	    }
 	*e_token++ = '\0';
+
+	if (s_token[0] == 'L' && s_token[1] == '\0' &&
+	      (*buf_ptr == '"' || *buf_ptr == '\''))
+	    return (strpfx);
+
 	while (*buf_ptr == ' ' || *buf_ptr == '\t') {	/* get rid of blanks */
 	    if (++buf_ptr >= buf_end)
 		fill_buffer();
@@ -307,19 +345,24 @@ lexi(void)
 	    case 6:		/* do, else */
 		return (sp_nparen);
 
+	    case 10:		/* storage class specifier */
+		return (storage);
+
 	    default:		/* all others are treated like any other
 				 * identifier */
 		return (ident);
 	    }			/* end of switch */
 	}			/* end of if (found_it) */
-	if (*buf_ptr == '(' && ps.tos <= 1 && ps.ind_level == 0) {
+	if (*buf_ptr == '(' && ps.tos <= 1 && ps.ind_level == 0 &&
+	    ps.in_parameter_declaration == 0 && ps.block_init == 0) {
 	    char *tp = buf_ptr;
 	    while (tp < buf_end)
 		if (*tp++ == ')' && (*tp == ';' || *tp == ','))
 		    goto not_proc;
 	    strncpy(ps.procname, token, sizeof ps.procname - 1);
-	    ps.in_parameter_declaration = 1;
-	    rparen_count = 1;
+	    if (ps.in_decl)
+		ps.in_parameter_declaration = 1;
+	    return (last_code = funcname);
     not_proc:;
 	}
 	/*

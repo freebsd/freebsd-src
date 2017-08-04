@@ -62,7 +62,7 @@ _thr_setthreaded(int threaded)
 }
 
 void
-_thr_assert_lock_level()
+_thr_assert_lock_level(void)
 {
 	PANIC("locklevel <= 0");
 }

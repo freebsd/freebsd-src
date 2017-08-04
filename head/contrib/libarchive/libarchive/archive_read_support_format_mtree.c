@@ -75,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #define	MTREE_HAS_OPTIONAL	0x0800
 #define	MTREE_HAS_NOCHANGE	0x1000 /* FreeBSD specific */
 
+#define	MTREE_HASHTABLE_SIZE 1024
+
 struct mtree_option {
 	struct mtree_option *next;
 	char *value;
@@ -86,6 +88,8 @@ struct mtree_entry {
 	char *name;
 	char full;
 	char used;
+	unsigned int name_hash;
+	struct mtree_entry *hashtable_next;
 };
 
 struct mtree {
@@ -98,6 +102,7 @@ struct mtree {
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
 	struct mtree_entry	*this_entry;
+	struct mtree_entry	*entry_hashtable[MTREE_HASHTABLE_SIZE];
 	struct archive_string	 current_dir;
 	struct archive_string	 contents_name;
 
@@ -110,6 +115,7 @@ struct mtree {
 static int	bid_keycmp(const char *, const char *, ssize_t);
 static int	cleanup(struct archive_read *);
 static int	detect_form(struct archive_read *, int *);
+static unsigned int	hash(const char *);
 static int	mtree_bid(struct archive_read *, int);
 static int	parse_file(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
@@ -124,9 +130,7 @@ static ssize_t	readline(struct archive_read *, struct mtree *, char **, ssize_t)
 static int	skip(struct archive_read *a);
 static int	read_header(struct archive_read *,
 		    struct archive_entry *);
-static int64_t	mtree_atol10(char **);
-static int64_t	mtree_atol8(char **);
-static int64_t	mtree_atol(char **);
+static int64_t	mtree_atol(char **, int base);
 
 /*
  * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
@@ -223,13 +227,12 @@ archive_read_support_format_mtree(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_mtree");
 
-	mtree = (struct mtree *)malloc(sizeof(*mtree));
+	mtree = (struct mtree *)calloc(1, sizeof(*mtree));
 	if (mtree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(mtree, 0, sizeof(*mtree));
 	mtree->fd = -1;
 
 	r = __archive_read_register_format(a, mtree, "mtree",
@@ -301,6 +304,15 @@ get_line_size(const char *b, ssize_t avail, ssize_t *nlsize)
 	return (avail);
 }
 
+/*
+ *  <---------------- ravail --------------------->
+ *  <-- diff ------> <---  avail ----------------->
+ *                   <---- len ----------->
+ * | Previous lines | line being parsed  nl extra |
+ *                  ^
+ *                  b
+ *
+ */
 static ssize_t
 next_line(struct archive_read *a,
     const char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
@@ -339,7 +351,7 @@ next_line(struct archive_read *a,
 		*b += diff;
 		*avail -= diff;
 		tested = len;/* Skip some bytes we already determinated. */
-		len = get_line_size(*b, *avail, nl);
+		len = get_line_size(*b + len, *avail - len, nl);
 		if (len >= 0)
 			len += tested;
 	}
@@ -385,41 +397,41 @@ bid_keycmp(const char *p, const char *key, ssize_t len)
 static int
 bid_keyword(const char *p,  ssize_t len)
 {
-	static const char *keys_c[] = {
+	static const char * const keys_c[] = {
 		"content", "contents", "cksum", NULL
 	};
-	static const char *keys_df[] = {
+	static const char * const keys_df[] = {
 		"device", "flags", NULL
 	};
-	static const char *keys_g[] = {
+	static const char * const keys_g[] = {
 		"gid", "gname", NULL
 	};
-	static const char *keys_il[] = {
+	static const char * const keys_il[] = {
 		"ignore", "inode", "link", NULL
 	};
-	static const char *keys_m[] = {
+	static const char * const keys_m[] = {
 		"md5", "md5digest", "mode", NULL
 	};
-	static const char *keys_no[] = {
+	static const char * const keys_no[] = {
 		"nlink", "nochange", "optional", NULL
 	};
-	static const char *keys_r[] = {
+	static const char * const keys_r[] = {
 		"resdevice", "rmd160", "rmd160digest", NULL
 	};
-	static const char *keys_s[] = {
+	static const char * const keys_s[] = {
 		"sha1", "sha1digest",
 		"sha256", "sha256digest",
 		"sha384", "sha384digest",
 		"sha512", "sha512digest",
 		"size", NULL
 	};
-	static const char *keys_t[] = {
+	static const char * const keys_t[] = {
 		"tags", "time", "type", NULL
 	};
-	static const char *keys_u[] = {
+	static const char * const keys_u[] = {
 		"uid", "uname",	NULL
 	};
-	const char **keys;
+	const char * const *keys;
 	int i;
 
 	switch (*p) {
@@ -701,13 +713,13 @@ detect_form(struct archive_read *a, int *is_form_d)
 				}
 			} else
 				break;
-		} else if (strncmp(p, "/set", 4) == 0) {
+		} else if (len > 4 && strncmp(p, "/set", 4) == 0) {
 			if (bid_keyword_list(p+4, len-4, 0, 0) <= 0)
 				break;
 			/* This line continues. */
 			if (p[len-nl-1] == '\\')
 				multiline = 2;
-		} else if (strncmp(p, "/unset", 6) == 0) {
+		} else if (len > 6 && strncmp(p, "/unset", 6) == 0) {
 			if (bid_keyword_list(p+6, len-6, 1, 0) <= 0)
 				break;
 			/* This line continues. */
@@ -853,11 +865,12 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
     struct mtree_option **global, const char *line, ssize_t line_len,
     struct mtree_entry **last_entry, int is_form_d)
 {
-	struct mtree_entry *entry;
+	struct mtree_entry *entry, *ht_iter;
 	struct mtree_option *iter;
 	const char *next, *eq, *name, *end;
 	size_t name_len, len;
 	int r, i;
+	unsigned int ht_idx;
 
 	if ((entry = malloc(sizeof(*entry))) == NULL) {
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
@@ -868,6 +881,8 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	entry->name = NULL;
 	entry->used = 0;
 	entry->full = 0;
+	entry->name_hash = 0;
+	entry->hashtable_next = NULL;
 
 	/* Add this entry to list. */
 	if (*last_entry == NULL)
@@ -920,6 +935,16 @@ process_add_entry(struct archive_read *a, struct mtree *mtree,
 	memcpy(entry->name, name, name_len);
 	entry->name[name_len] = '\0';
 	parse_escapes(entry->name, entry);
+	entry->name_hash = hash(entry->name);
+
+	ht_idx = entry->name_hash % MTREE_HASHTABLE_SIZE;
+	if ((ht_iter = mtree->entry_hashtable[ht_idx]) != NULL) {
+		while (ht_iter->hashtable_next)
+			ht_iter = ht_iter->hashtable_next;
+		ht_iter->hashtable_next = entry;
+	} else {
+		mtree->entry_hashtable[ht_idx] = entry;
+	}
 
 	for (iter = *global; iter != NULL; iter = iter->next) {
 		r = add_option(a, &entry->options, iter->value,
@@ -992,11 +1017,11 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		if (*p != '/') {
 			r = process_add_entry(a, mtree, &global, p, len,
 			    &last_entry, is_form_d);
-		} else if (strncmp(p, "/set", 4) == 0) {
+		} else if (len > 4 && strncmp(p, "/set", 4) == 0) {
 			if (p[4] != ' ' && p[4] != '\t')
 				break;
 			r = process_global_set(a, &global, p);
-		} else if (strncmp(p, "/unset", 6) == 0) {
+		} else if (len > 6 && strncmp(p, "/unset", 6) == 0) {
 			if (p[6] != ' ' && p[6] != '\t')
 				break;
 			r = process_global_unset(a, &global, p);
@@ -1113,9 +1138,10 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 		 * with pathname canonicalization, which is a very
 		 * tricky subject.)
 		 */
-		for (mp = mentry->next; mp != NULL; mp = mp->next) {
+		for (mp = mentry->hashtable_next; mp != NULL; mp = mp->hashtable_next) {
 			if (mp->full && !mp->used
-			    && strcmp(mentry->name, mp->name) == 0) {
+					&& mentry->name_hash == mp->name_hash
+					&& strcmp(mentry->name, mp->name) == 0) {
 				/* Later lines override earlier ones. */
 				mp->used = 1;
 				r1 = parse_line(a, entry, mtree, mp,
@@ -1390,7 +1416,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 				    "Too many arguments");
 				return ARCHIVE_WARN;
 			}
-			numbers[argc++] = (unsigned long)mtree_atol(&p);
+			numbers[argc++] = (unsigned long)mtree_atol(&p, 0);
 		}
 		if (argc < 2) {
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1405,7 +1431,7 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 		}
 	} else {
 		/* file system raw value. */
-		result = (dev_t)mtree_atol(&val);
+		result = (dev_t)mtree_atol(&val, 0);
 	}
 	*pdev = result;
 	return ARCHIVE_OK;
@@ -1485,7 +1511,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 	case 'g':
 		if (strcmp(key, "gid") == 0) {
 			*parsed_kws |= MTREE_HAS_GID;
-			archive_entry_set_gid(entry, mtree_atol10(&val));
+			archive_entry_set_gid(entry, mtree_atol(&val, 10));
 			break;
 		}
 		if (strcmp(key, "gname") == 0) {
@@ -1495,7 +1521,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 	case 'i':
 		if (strcmp(key, "inode") == 0) {
-			archive_entry_set_ino(entry, mtree_atol10(&val));
+			archive_entry_set_ino(entry, mtree_atol(&val, 10));
 			break;
 		}
 	case 'l':
@@ -1507,14 +1533,14 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0)
 			break;
 		if (strcmp(key, "mode") == 0) {
-			if (val[0] >= '0' && val[0] <= '9') {
+			if (val[0] >= '0' && val[0] <= '7') {
 				*parsed_kws |= MTREE_HAS_PERM;
 				archive_entry_set_perm(entry,
-				    (mode_t)mtree_atol8(&val));
+				    (mode_t)mtree_atol(&val, 8));
 			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Symbolic mode \"%s\" unsupported", val);
+				    "Symbolic or non-octal mode \"%s\" unsupported", val);
 				return ARCHIVE_WARN;
 			}
 			break;
@@ -1523,7 +1549,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		if (strcmp(key, "nlink") == 0) {
 			*parsed_kws |= MTREE_HAS_NLINK;
 			archive_entry_set_nlink(entry,
-				(unsigned int)mtree_atol10(&val));
+				(unsigned int)mtree_atol(&val, 10));
 			break;
 		}
 	case 'r':
@@ -1554,7 +1580,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		    strcmp(key, "sha512digest") == 0)
 			break;
 		if (strcmp(key, "size") == 0) {
-			archive_entry_set_size(entry, mtree_atol10(&val));
+			archive_entry_set_size(entry, mtree_atol(&val, 10));
 			break;
 		}
 	case 't':
@@ -1573,15 +1599,18 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			long ns = 0;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
-			m = mtree_atol10(&val);
+			m = mtree_atol(&val, 10);
 			/* Replicate an old mtree bug:
 			 * 123456789.1 represents 123456789
 			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
 				++val;
-				ns = (long)mtree_atol10(&val);
-			} else
-				ns = 0;
+				ns = (long)mtree_atol(&val, 10);
+				if (ns < 0)
+					ns = 0;
+				else if (ns > 999999999)
+					ns = 999999999;
+			}
 			if (m > my_time_t_max)
 				m = my_time_t_max;
 			else if (m < my_time_t_min)
@@ -1639,7 +1668,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 	case 'u':
 		if (strcmp(key, "uid") == 0) {
 			*parsed_kws |= MTREE_HAS_UID;
-			archive_entry_set_uid(entry, mtree_atol10(&val));
+			archive_entry_set_uid(entry, mtree_atol(&val, 10));
 			break;
 		}
 		if (strcmp(key, "uname") == 0) {
@@ -1794,72 +1823,9 @@ parse_escapes(char *src, struct mtree_entry *mentry)
 	*dest = '\0';
 }
 
-/*
- * Note that this implementation does not (and should not!) obey
- * locale settings; you cannot simply substitute strtol here, since
- * it does obey locale.
- */
-static int64_t
-mtree_atol8(char **p)
-{
-	int64_t	l, limit, last_digit_limit;
-	int digit, base;
-
-	base = 8;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
-
-	l = 0;
-	digit = **p - '0';
-	while (digit >= 0 && digit < base) {
-		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
-		l = (l * base) + digit;
-		digit = *++(*p) - '0';
-	}
-	return (l);
-}
-
-/*
- * Note that this implementation does not (and should not!) obey
- * locale settings; you cannot simply substitute strtol here, since
- * it does obey locale.
- */
-static int64_t
-mtree_atol10(char **p)
-{
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
-
-	base = 10;
-
-	if (**p == '-') {
-		sign = -1;
-		limit = ((uint64_t)(INT64_MAX) + 1) / base;
-		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
-		++(*p);
-	} else {
-		sign = 1;
-		limit = INT64_MAX / base;
-		last_digit_limit = INT64_MAX % base;
-	}
-
-	l = 0;
-	digit = **p - '0';
-	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit))
-			return (sign < 0) ? INT64_MIN : INT64_MAX;
-		l = (l * base) + digit;
-		digit = *++(*p) - '0';
-	}
-	return (sign < 0) ? -l : l;
-}
-
 /* Parse a hex digit. */
 static int
-parsehex(char c)
+parsedigit(char c)
 {
 	if (c >= '0' && c <= '9')
 		return c - '0';
@@ -1877,45 +1843,50 @@ parsehex(char c)
  * it does obey locale.
  */
 static int64_t
-mtree_atol16(char **p)
+mtree_atol(char **p, int base)
 {
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
+	int64_t l, limit;
+	int digit, last_digit_limit;
 
-	base = 16;
+	if (base == 0) {
+		if (**p != '0')
+			base = 10;
+		else if ((*p)[1] == 'x' || (*p)[1] == 'X') {
+			*p += 2;
+			base = 16;
+		} else {
+			base = 8;
+		}
+	}
 
 	if (**p == '-') {
-		sign = -1;
-		limit = ((uint64_t)(INT64_MAX) + 1) / base;
-		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
+		limit = INT64_MIN / base;
+		last_digit_limit = INT64_MIN % base;
 		++(*p);
+
+		l = 0;
+		digit = parsedigit(**p);
+		while (digit >= 0 && digit < base) {
+			if (l < limit || (l == limit && digit > last_digit_limit))
+				return INT64_MIN;
+			l = (l * base) - digit;
+			digit = parsedigit(*++(*p));
+		}
+		return l;
 	} else {
-		sign = 1;
 		limit = INT64_MAX / base;
 		last_digit_limit = INT64_MAX % base;
-	}
 
-	l = 0;
-	digit = parsehex(**p);
-	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit))
-			return (sign < 0) ? INT64_MIN : INT64_MAX;
-		l = (l * base) + digit;
-		digit = parsehex(*++(*p));
+		l = 0;
+		digit = parsedigit(**p);
+		while (digit >= 0 && digit < base) {
+			if (l > limit || (l == limit && digit > last_digit_limit))
+				return INT64_MAX;
+			l = (l * base) + digit;
+			digit = parsedigit(*++(*p));
+		}
+		return l;
 	}
-	return (sign < 0) ? -l : l;
-}
-
-static int64_t
-mtree_atol(char **p)
-{
-	if (**p != '0')
-		return mtree_atol10(p);
-	if ((*p)[1] == 'x' || (*p)[1] == 'X') {
-		*p += 2;
-		return mtree_atol16(p);
-	}
-	return mtree_atol8(p);
 }
 
 /*
@@ -1990,4 +1961,20 @@ readline(struct archive_read *a, struct mtree *mtree, char **start,
 		}
 		find_off = u - mtree->line.s;
 	}
+}
+
+static unsigned int
+hash(const char *p)
+{
+	/* A 32-bit version of Peter Weinberger's (PJW) hash algorithm,
+	   as used by ELF for hashing function names. */
+	unsigned g, h = 0;
+	while (*p != '\0') {
+		h = (h << 4) + *p++;
+		if ((g = h & 0xF0000000) != 0) {
+			h ^= g >> 24;
+			h &= 0x0FFFFFFF;
+		}
+	}
+	return h;
 }

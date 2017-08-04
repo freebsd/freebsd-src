@@ -130,8 +130,8 @@ struct fs_ops ext2fs_fsops = {
 #define EXT2_MINBSHIFT		10	/* mininum block shift */
 #define EXT2_MINFSHIFT		10	/* mininum frag shift */
 
-#define NDADDR		12		/* # of direct blocks */
-#define NIADDR		3		/* # of indirect blocks */
+#define EXT2_NDADDR		12	/* # of direct blocks */
+#define EXT2_NIADDR		3	/* # of indirect blocks */
 
 /*
  * file system block to disk address
@@ -162,7 +162,7 @@ struct fs_ops ext2fs_fsops = {
 #define fragroundup(fs, size)			/* roundup(size, fsize) */ \
 	(((size) + (fs)->fs_fmask) & ~(fs)->fs_fmask)
 #define dblksize(fs, dip, lbn) \
-	(((lbn) >= NDADDR || (dip)->di_size >= smalllblktosize(fs, (lbn) + 1)) \
+	(((lbn) >= EXT2_NDADDR || (dip)->di_size >= smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (dip)->di_size))))
 
@@ -275,8 +275,8 @@ struct ext2dinode {
 
 	u_int32_t	di_osdep1;	/* os dependent stuff */
 
-	u_int32_t	di_db[NDADDR];	/* direct blocks */
-	u_int32_t	di_ib[NIADDR];	/* indirect blocks */
+	u_int32_t	di_db[EXT2_NDADDR]; /* direct blocks */
+	u_int32_t	di_ib[EXT2_NIADDR]; /* indirect blocks */
 	u_int32_t	di_version;	/* version */
 	u_int32_t	di_facl;	/* file acl */
 	u_int32_t	di_dacl;	/* dir acl */
@@ -305,12 +305,12 @@ struct file {
 	struct 		ext2fs *f_fs;		/* pointer to super-block */
 	struct 		ext2blkgrp *f_bg;	/* pointer to blkgrp map */
 	struct 		ext2dinode f_di;	/* copy of on-disk inode */
-	int		f_nindir[NIADDR];	/* number of blocks mapped by
+	int		f_nindir[EXT2_NIADDR];	/* number of blocks mapped by
 						   indirect block at level i */
-	char		*f_blk[NIADDR];		/* buffer for indirect block
+	char		*f_blk[EXT2_NIADDR];	/* buffer for indirect block
 						   at level i */
-	size_t		f_blksize[NIADDR];	/* size of buffer */
-	daddr_t		f_blkno[NIADDR];	/* disk address of block in
+	size_t		f_blksize[EXT2_NIADDR];	/* size of buffer */
+	daddr_t		f_blkno[EXT2_NIADDR];	/* disk address of block in
 						   buffer */
 	char		*f_buf;			/* buffer for data block */
 	size_t		f_buf_size;		/* size of data block */
@@ -355,7 +355,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 	fp->f_fs = fs;
 	twiddle(1);
 	error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-	    EXT2_SBLOCK, 0, EXT2_SBSIZE, (char *)fs, &buf_size);
+	    EXT2_SBLOCK, EXT2_SBSIZE, (char *)fs, &buf_size);
 	if (error)
 		goto out;
 
@@ -397,7 +397,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 	fp->f_bg = malloc(len);
 	twiddle(1);
 	error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-	    EXT2_SBLOCK + EXT2_SBSIZE / DEV_BSIZE, 0, len,
+	    EXT2_SBLOCK + EXT2_SBSIZE / DEV_BSIZE, len,
 	    (char *)fp->f_bg, &buf_size);
 	if (error)
 		goto out;
@@ -411,7 +411,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 	 * Calculate indirect block levels.
 	 */
 	mult = 1;
-	for (i = 0; i < NIADDR; i++) {
+	for (i = 0; i < EXT2_NIADDR; i++) {
 		mult *= nindir(fs);
 		fp->f_nindir[i] = mult;
 	}
@@ -509,7 +509,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 				
 				twiddle(1);
 				error = (f->f_dev->dv_strategy)(f->f_devdata,
-				    F_READ, fsb_to_db(fs, disk_block), 0,
+				    F_READ, fsb_to_db(fs, disk_block),
 				    fs->fs_bsize, buf, &buf_size);
 				if (error)
 					goto out;
@@ -570,7 +570,7 @@ read_inode(ino_t inumber, struct open_file *f)
 	buf = malloc(fs->fs_bsize);
 	twiddle(1);
 	error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-	    ino_to_db(fs, fp->f_bg, inumber), 0, fs->fs_bsize, buf, &rsize);
+	    ino_to_db(fs, fp->f_bg, inumber), fs->fs_bsize, buf, &rsize);
 	if (error)
 		goto out;
 	if (rsize != fs->fs_bsize) {
@@ -582,7 +582,7 @@ read_inode(ino_t inumber, struct open_file *f)
 	fp->f_di = dp[ino_to_bo(fs, inumber)];
 
 	/* clear out old buffers */
-	for (level = 0; level < NIADDR; level++)
+	for (level = 0; level < EXT2_NIADDR; level++)
 		fp->f_blkno[level] = -1;
 	fp->f_buf_blkno = -1;
 	fp->f_seekp = 0;
@@ -609,33 +609,33 @@ block_map(struct open_file *f, daddr_t file_block, daddr_t *disk_block_p)
 	/*
 	 * Index structure of an inode:
 	 *
-	 * di_db[0..NDADDR-1]	hold block numbers for blocks
-	 *			0..NDADDR-1
+	 * di_db[0..EXT2_NDADDR-1] hold block numbers for blocks
+	 *			0..EXT2_NDADDR-1
 	 *
 	 * di_ib[0]		index block 0 is the single indirect block
 	 *			holds block numbers for blocks
-	 *			NDADDR .. NDADDR + NINDIR(fs)-1
+	 *			EXT2_NDADDR .. EXT2_NDADDR + NINDIR(fs)-1
 	 *
 	 * di_ib[1]		index block 1 is the double indirect block
 	 *			holds block numbers for INDEX blocks for blocks
-	 *			NDADDR + NINDIR(fs) ..
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2 - 1
+	 *			EXT2_NDADDR + NINDIR(fs) ..
+	 *			EXT2_NDADDR + NINDIR(fs) + NINDIR(fs)**2 - 1
 	 *
 	 * di_ib[2]		index block 2 is the triple indirect block
 	 *			holds block numbers for double-indirect
 	 *			blocks for blocks
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2 ..
-	 *			NDADDR + NINDIR(fs) + NINDIR(fs)**2
+	 *			EXT2_NDADDR + NINDIR(fs) + NINDIR(fs)**2 ..
+	 *			EXT2_NDADDR + NINDIR(fs) + NINDIR(fs)**2
 	 *				+ NINDIR(fs)**3 - 1
 	 */
 
-	if (file_block < NDADDR) {
+	if (file_block < EXT2_NDADDR) {
 		/* Direct block. */
 		*disk_block_p = fp->f_di.di_db[file_block];
 		return (0);
 	}
 
-	file_block -= NDADDR;
+	file_block -= EXT2_NDADDR;
 
 	/*
 	 * nindir[0] = NINDIR
@@ -643,12 +643,12 @@ block_map(struct open_file *f, daddr_t file_block, daddr_t *disk_block_p)
 	 * nindir[2] = NINDIR**3
 	 *	etc
 	 */
-	for (level = 0; level < NIADDR; level++) {
+	for (level = 0; level < EXT2_NIADDR; level++) {
 		if (file_block < fp->f_nindir[level])
 			break;
 		file_block -= fp->f_nindir[level];
 	}
-	if (level == NIADDR) {
+	if (level == EXT2_NIADDR) {
 		/* Block number too high */
 		return (EFBIG);
 	}
@@ -667,7 +667,7 @@ block_map(struct open_file *f, daddr_t file_block, daddr_t *disk_block_p)
 					malloc(fs->fs_bsize);
 			twiddle(1);
 			error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-			    fsb_to_db(fp->f_fs, ind_block_num), 0, fs->fs_bsize,
+			    fsb_to_db(fp->f_fs, ind_block_num), fs->fs_bsize,
 			    fp->f_blk[level], &fp->f_blksize[level]);
 			if (error)
 				return (error);
@@ -725,7 +725,7 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 		} else {
 			twiddle(4);
 			error = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-			    fsb_to_db(fs, disk_block), 0, block_size,
+			    fsb_to_db(fs, disk_block), block_size,
 			    fp->f_buf, &fp->f_buf_size);
 			if (error)
 				goto done;
@@ -800,7 +800,7 @@ ext2fs_close(struct open_file *f)
 	if (fp == (struct file *)0)
 		return (0);
 
-	for (level = 0; level < NIADDR; level++) {
+	for (level = 0; level < EXT2_NIADDR; level++) {
 		if (fp->f_blk[level])
 			free(fp->f_blk[level]);
 	}

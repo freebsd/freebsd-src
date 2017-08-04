@@ -62,7 +62,7 @@ public:
       : Compilations(std::move(Compilations)) {}
 
   void appendArgumentsAdjuster(ArgumentsAdjuster Adjuster) {
-    Adjusters.push_back(Adjuster);
+    Adjusters.push_back(std::move(Adjuster));
   }
 
   std::vector<CompileCommand>
@@ -116,14 +116,19 @@ CommonOptionsParser::CommonOptionsParser(
 
   cl::HideUnrelatedOptions(Category);
 
-  Compilations.reset(FixedCompilationDatabase::loadFromCommandLine(argc, argv));
+  std::string ErrorMessage;
+  Compilations =
+      FixedCompilationDatabase::loadFromCommandLine(argc, argv, ErrorMessage);
+  if (!Compilations && !ErrorMessage.empty())
+    llvm::errs() << ErrorMessage;
   cl::ParseCommandLineOptions(argc, argv, Overview);
+  cl::PrintOptionValues();
+
   SourcePathList = SourcePaths;
   if ((OccurrencesFlag == cl::ZeroOrMore || OccurrencesFlag == cl::Optional) &&
       SourcePathList.empty())
     return;
   if (!Compilations) {
-    std::string ErrorMessage;
     if (!BuildPath.empty()) {
       Compilations =
           CompilationDatabase::autoDetectFromDirectory(BuildPath, ErrorMessage);

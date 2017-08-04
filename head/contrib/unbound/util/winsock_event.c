@@ -262,8 +262,9 @@ static int handle_select(struct event_base* base, struct timeval* wait)
 			break; /* sanity check */
 	}
 	log_assert(numwait <= WSA_MAXIMUM_WAIT_EVENTS);
-	verbose(VERB_CLIENT, "winsock_event bmax=%d numwait=%d wait=%x "
-		"timeout=%d", base->max, numwait, (int)wait, (int)timeout);
+	verbose(VERB_CLIENT, "winsock_event bmax=%d numwait=%d wait=%s "
+		"timeout=%d", base->max, numwait, (wait?"<wait>":"<null>"),
+		(int)timeout);
 
 	/* do the wait */
 	if(numwait == 0) {

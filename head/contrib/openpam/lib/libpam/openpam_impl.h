@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_impl.h 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: openpam_impl.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_IMPL_H_INCLUDED
@@ -130,19 +130,28 @@ struct pam_handle {
 /*
  * Internal functions
  */
-int		 openpam_configure(pam_handle_t *, const char *);
-int		 openpam_dispatch(pam_handle_t *, int, int);
-int		 openpam_findenv(pam_handle_t *, const char *, size_t);
-pam_module_t	*openpam_load_module(const char *);
-void		 openpam_clear_chains(pam_chain_t **);
+int		 openpam_configure(pam_handle_t *, const char *)
+	OPENPAM_NONNULL((1));
+int		 openpam_dispatch(pam_handle_t *, int, int)
+	OPENPAM_NONNULL((1));
+int		 openpam_findenv(pam_handle_t *, const char *, size_t)
+	OPENPAM_NONNULL((1,2));
+pam_module_t	*openpam_load_module(const char *)
+	OPENPAM_NONNULL((1));
+void		 openpam_clear_chains(pam_chain_t **)
+	OPENPAM_NONNULL((1));
 
-int		 openpam_check_desc_owner_perms(const char *, int);
-int		 openpam_check_path_owner_perms(const char *);
+int		 openpam_check_desc_owner_perms(const char *, int)
+	OPENPAM_NONNULL((1));
+int		 openpam_check_path_owner_perms(const char *)
+	OPENPAM_NONNULL((1));
 
 #ifdef OPENPAM_STATIC_MODULES
-pam_module_t	*openpam_static(const char *);
+pam_module_t	*openpam_static(const char *)
+	OPENPAM_NONNULL((1));
 #endif
-pam_module_t	*openpam_dynamic(const char *);
+pam_module_t	*openpam_dynamic(const char *)
+	OPENPAM_NONNULL((1));
 
 #define	FREE(p)					\
 	do {					\
@@ -152,11 +161,11 @@ pam_module_t	*openpam_dynamic(const char *);
 
 #define FREEV(c, v)				\
 	do {					\
-		while (c) {			\
-			--(c);			\
-			FREE((v)[(c)]);		\
+		if ((v) != NULL) {		\
+			while ((c)-- > 0)	\
+				FREE((v)[(c)]);	\
+			FREE(v);		\
 		}				\
-		FREE(v);			\
 	} while (0)
 
 #include "openpam_constants.h"

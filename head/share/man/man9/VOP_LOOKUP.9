@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 1997
+.Dd March 27, 2017
 .Dt VOP_LOOKUP 9
 .Os
 .Sh NAME
@@ -71,7 +71,6 @@ struct componentname {
 	char	*cn_nameptr;	/* pointer to looked up name */
 	long	cn_namelen;	/* length of looked up component */
 	u_long	cn_hash;	/* hash value of looked up name */
-	long	cn_consume;	/* chars to consume in lookup() */
 };
 .Ed
 .Pp

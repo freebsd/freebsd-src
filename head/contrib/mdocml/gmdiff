@@ -19,7 +19,7 @@ if [ `id -u` -eq 0 ]; then
 fi
 
 if [ $# -eq 0 ]; then
-  echo "usage: $0 -h manual_source_file ..."
+  echo "usage: $0 [-h] manual_source_file ..."
   exit 1
 fi
 
@@ -29,21 +29,24 @@ if [ "X$1" = "X-h" ]; then
   EQN="neqn"
   ROFF="nroff"
   MOPT="-Omdoc $MOPT"
+elif [ "X$1" = "X-u" ]; then
+  shift
+  ROFF="groff -ket -ww -Tutf8 -P -c"
+  MOPT="-Werror -Tutf8 $MOPT"
 else
-  EQN="eqn -Tascii"
-  ROFF="groff -ww -Tascii -P -c"
+  ROFF="groff -et -ww -Tascii -P -c"
+  MOPT="-Werror -Tascii $MOPT"
 fi
-MOPT="-Werror $MOPT"
 
 while [ -n "$1" ]; do
   file=$1
   shift
   echo " ========== $file ========== "
-  tbl $file | $EQN | $ROFF -mandoc 2> /tmp/roff.err > /tmp/roff.out
-  ${MANDOC:=mandoc} -Ios='OpenBSD ports' $MOPT $file \
+  $ROFF -mandoc $file 2> /tmp/roff.err > /tmp/roff.out
+  ${MANDOC:=mandoc} -Ios=OpenBSD $MOPT $file \
     2> /tmp/mandoc.err > /tmp/mandoc.out
   for i in roff mandoc; do
-    [[ -s /tmp/$i.err ]] && echo "$i errors:" && cat /tmp/$i.err
+    [ -s /tmp/$i.err ] && echo "$i errors:" && cat /tmp/$i.err
   done
   diff -au /tmp/roff.out /tmp/mandoc.out 2>&1
 done

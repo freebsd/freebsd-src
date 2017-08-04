@@ -43,10 +43,11 @@
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
-static inline void inet_get_local_port_range(int *low, int *high)
+static inline void
+inet_get_local_port_range(struct vnet *vnet, int *low, int *high)
 {
 #ifdef INET
-	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+	CURVNET_SET_QUIET(vnet);
 	*low = V_ipport_firstauto;
 	*high = V_ipport_lastauto;
 	CURVNET_RESTORE();

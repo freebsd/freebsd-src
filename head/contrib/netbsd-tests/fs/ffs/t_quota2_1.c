@@ -1,4 +1,4 @@
-/*	$NetBSD: t_quota2_1.c,v 1.4 2012/03/15 02:02:22 joerg Exp $	*/
+/*	$NetBSD: t_quota2_1.c,v 1.5 2017/01/13 21:30:39 christos Exp $	*/
 
 /*
  * Basic tests for quota2
@@ -18,7 +18,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static void
 do_quota(const atf_tc_t *tc, int n, const char *newfs_opts, int log)

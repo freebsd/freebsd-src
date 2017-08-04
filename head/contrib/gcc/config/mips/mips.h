@@ -285,7 +285,10 @@ extern const struct mips_rtx_cost_data *mips_cost;
 								\
       macro = concat ((PREFIX), "_", (INFO)->name, NULL);	\
       for (p = macro; *p != 0; p++)				\
-	*p = TOUPPER (*p);					\
+	if (*p == '+')						\
+	  *p = 'P';						\
+	else							\
+	  *p = TOUPPER (*p);					\
 								\
       builtin_define (macro);					\
       builtin_define_with_value ((PREFIX), (INFO)->name, 1);	\

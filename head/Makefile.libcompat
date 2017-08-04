@@ -4,8 +4,7 @@
 __<${_this:T}>__:
 
 # Makefile for the compatibility libraries.
-# - 32-bit compat libraries on PowerPC and AMD64.
-#   could also be for mips, but that doesn't work today.
+# - 32-bit compat libraries on MIPS, PowerPC, and AMD64.
 
 # -------------------------------------------------------------------
 # 32 bit world
@@ -15,6 +14,7 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
+LIB32CPUFLAGS+=	-m32
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2"
 LIB32WMAKEFLAGS=	\
@@ -28,14 +28,32 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 .else
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
+LIB32CPUFLAGS+=	-m32
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
 LIB32WMAKEFLAGS=	\
 		LD="${XLD} -m elf32ppc_fbsd" \
 		OBJCOPY="${XOBJCOPY}"
+
+.elif ${TARGET_ARCH:Mmips64*} != ""
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-march=mips3
+.else
+LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
+.endif
+LIB32CPUFLAGS+= -mabi=32
+LIB32WMAKEENV=	MACHINE=mips MACHINE_ARCH=mips
+.if ${TARGET_ARCH:Mmips64el*} != ""
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32ltsmip_fbsd"
+.else
+LIB32WMAKEFLAGS= LD="${XLD} -m elf32btsmip_fbsd"
+.endif
+LIB32WMAKEFLAGS+= OBJCOPY="${XOBJCOPY}"
 .endif
 
+LIB32WMAKEFLAGS+= NM="${XNM}"
 
-LIB32CFLAGS=	-m32 -DCOMPAT_32BIT
+
+LIB32CFLAGS=	-DCOMPAT_32BIT
 LIB32DTRACE=	${DTRACE} -32
 LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 
@@ -85,7 +103,7 @@ LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 .if ${X_COMPILER_VERSION} >= 40800 && \
     (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
-			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+			-nostdinc++
 .endif
 .endif
 
@@ -93,12 +111,13 @@ LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
+		SYSROOT=${LIBCOMPATTMP} \
 		LIBDIR=/usr/lib${libcompat} \
 		SHLIBDIR=/usr/lib${libcompat} \
 		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
 .if ${MK_META_MODE} != "no"
 # Don't rebuild build-tools targets during normal build.
-LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA_CMP
+LIBCOMPATWMAKEENV+=	BUILD_TOOLS_META=.NOMETA
 .endif
 LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
 		CXX="${XCXX} ${LIBCOMPATCXXFLAGS} ${LIBCOMPATCFLAGS}" \
@@ -145,7 +164,7 @@ build${libcompat}: .PHONY
 .endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _t in obj includes
+.for _t in ${_obj} includes
 .for _dir in ${_LC_INCDIRS}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
 	    DIRPRFX=${_dir}/ ${_t}
@@ -162,7 +181,7 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .if ${libcompat} == "32"
-.for _t in obj all
+.for _t in ${_obj} all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \

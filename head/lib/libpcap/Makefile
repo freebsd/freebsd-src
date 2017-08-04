@@ -7,16 +7,16 @@ SHLIBDIR?= /lib
 
 PACKAGE=lib${LIB}
 LIB=	pcap
-SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
-	pcap-netmap.c \
+SRCS=	grammar.y tokdefs.h pcap_version.h pcap-bpf.c \
+	pcap-netmap.c fad-helpers.c \
 	pcap.c pcap-common.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c bpf_dump.c \
 	scanner.l sf-pcap.c sf-pcap-ng.c version.c
 
 # Old compatibility headers
-INCS=	pcap.h pcap-int.h pcap-namedb.h pcap-bpf.h
+INCS=	pcap.h pcap-namedb.h pcap-bpf.h
 
-PCAPINCS=	pcap/pcap.h pcap/namedb.h pcap/bpf.h
+PCAPINCS=	pcap/pcap.h pcap/namedb.h pcap/bpf.h pcap/dlt.h pcap/export-defs.h
 PCAPINCSDIR=	${INCLUDEDIR}/pcap
 INCSGROUPS=	INCS PCAPINCS
 
@@ -93,13 +93,14 @@ MLINKS=	pcap_datalink_val_to_name.3 pcap_datalink_val_to_description.3 \
 
 # Our man pages are a special copy from the distdir. See below.
 CLEANFILES+=${MAN}
-CLEANFILES+=tokdefs.h version.h version.c
+CLEANFILES+=tokdefs.h scanner.h pcap_version.h version.c
 
-YFLAGS+=-p pcapyy
-LFLAGS+=-Ppcapyy
-CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcapyylval -I${.CURDIR} -I.
+YFLAGS+=-p pcap_
+LFLAGS+=-Ppcap_ --header-file=${.OBJDIR}/scanner.h --nounput
+CFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR} -I${.OBJDIR}
 CFLAGS+=-D_U_="__attribute__((unused))"
 CFLAGS+=-DHAVE_SNPRINTF -DHAVE_VSNPRINTF
+CFLAGS+=-DBUILDING_PCAP
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
@@ -114,7 +115,7 @@ SHLIB_MAJOR=	8
 #
 # Magic to grab sources out of src/contrib
 #
-PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
+PCAP_DISTDIR?=${SRCTOP}/contrib/libpcap
 CFLAGS+=-I${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
@@ -123,7 +124,7 @@ version.c: ${PCAP_DISTDIR}/VERSION
 	@rm -f $@
 	sed 's/.*/char pcap_version[] = "&";/' ${PCAP_DISTDIR}/VERSION > $@
 
-version.h: ${PCAP_DISTDIR}/VERSION
+pcap_version.h: ${PCAP_DISTDIR}/VERSION
 	@rm -f $@
 	sed 's/.*/char pcap_version_string[] = "libpcap version &";/' ${PCAP_DISTDIR}/VERSION > $@
 

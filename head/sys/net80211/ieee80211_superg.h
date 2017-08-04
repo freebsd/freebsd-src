@@ -66,6 +66,8 @@ struct ieee80211_stageq {
 struct ieee80211_superg {
 	/* fast-frames staging q */
 	struct ieee80211_stageq	ff_stageq[WME_NUM_AC];
+	/* flush queues automatically */
+	struct timeout_task	ff_qtimer;
 };
 
 void	ieee80211_superg_attach(struct ieee80211com *);

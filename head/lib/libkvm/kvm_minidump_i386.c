@@ -238,7 +238,7 @@ _i386_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (_i386_minidump_vatop(kd, va, pa));
 }
 
-struct kvm_arch kvm_i386_minidump = {
+static struct kvm_arch kvm_i386_minidump = {
 	.ka_probe = _i386_minidump_probe,
 	.ka_initvtop = _i386_minidump_initvtop,
 	.ka_freevtop = _i386_minidump_freevtop,

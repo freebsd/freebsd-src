@@ -97,21 +97,21 @@ static __inline uint8_t
 fsfind(const char *name, ufs_ino_t * ino)
 {
 	static char buf[DEV_BSIZE];
-	struct direct *d;
+	static struct direct d;
 	char *s;
 	ssize_t n;
 
 	fs_off = 0;
 	while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
 		for (s = buf; s < buf + DEV_BSIZE;) {
-			d = (void *)s;
+			memcpy(&d, s, sizeof(struct direct));
 			if (ls)
-				printf("%s ", d->d_name);
-			else if (!strcmp(name, d->d_name)) {
-				*ino = d->d_ino;
-				return d->d_type;
+				printf("%s ", d.d_name);
+			else if (!strcmp(name, d.d_name)) {
+				*ino = d.d_ino;
+				return d.d_type;
 			}
-			s += d->d_reclen;
+			s += d.d_reclen;
 		}
 	if (n != -1 && ls)
 		printf("\n");
@@ -121,13 +121,13 @@ fsfind(const char *name, ufs_ino_t * ino)
 static ufs_ino_t
 lookup(const char *path)
 {
-	static char name[MAXNAMLEN + 1];
+	static char name[UFS_MAXNAMLEN + 1];
 	const char *s;
 	ufs_ino_t ino;
 	ssize_t n;
 	uint8_t dt;
 
-	ino = ROOTINO;
+	ino = UFS_ROOTINO;
 	dt = DT_DIR;
 	for (;;) {
 		if (*path == '/')
@@ -135,7 +135,7 @@ lookup(const char *path)
 		if (!*path)
 			break;
 		for (s = path; *s && *s != '/'; s++);
-		if ((n = s - path) > MAXNAMLEN)
+		if ((n = s - path) > UFS_MAXNAMLEN)
 			return 0;
 		ls = *path == '?' && n == 1 && !*s;
 		memcpy(name, path, n);
@@ -261,19 +261,19 @@ fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 	while (nb) {
 		lbn = lblkno(&fs, fs_off);
 		off = blkoff(&fs, fs_off);
-		if (lbn < NDADDR) {
+		if (lbn < UFS_NDADDR) {
 			addr2 = DIP(di_db[lbn]);
-		} else if (lbn < NDADDR + NINDIR(&fs)) {
+		} else if (lbn < UFS_NDADDR + NINDIR(&fs)) {
 			n = INDIRPERVBLK(&fs);
 			addr2 = DIP(di_ib[0]);
-			u = (u_int)(lbn - NDADDR) / n * DBPERVBLK;
+			u = (u_int)(lbn - UFS_NDADDR) / n * DBPERVBLK;
 			vbaddr = fsbtodb(&fs, addr2) + u;
 			if (indmap != vbaddr) {
 				if (dskread(indbuf, vbaddr, DBPERVBLK))
 					return -1;
 				indmap = vbaddr;
 			}
-			n = (lbn - NDADDR) & (n - 1);
+			n = (lbn - UFS_NDADDR) & (n - 1);
 #if defined(UFS1_ONLY)
 			memcpy(&addr1, (ufs1_daddr_t *)indbuf + n,
 			    sizeof(ufs1_daddr_t));

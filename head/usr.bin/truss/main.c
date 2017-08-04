@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sysdecode.h>
@@ -59,18 +60,6 @@ usage(void)
 	    "usage: truss [-cfaedDS] [-o file] [-s strsize] -p pid",
 	    "       truss [-cfaedDS] [-o file] [-s strsize] command [args]");
 	exit(1);
-}
-
-char *
-strsig(int sig)
-{
-	static char tmp[64];
-
-	if (sig > 0 && sig < NSIG) {
-		snprintf(tmp, sizeof(tmp), "SIG%s", sys_signame[sig]);
-		return (tmp);
-	}
-	return (NULL);
 }
 
 int

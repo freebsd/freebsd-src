@@ -42,6 +42,12 @@
 #define VMBUS_IC_VERSION(major, minor)	((major) | (((uint32_t)(minor)) << 16))
 #define VMBUS_ICVER_MAJOR(ver)		((ver) & 0xffff)
 #define VMBUS_ICVER_MINOR(ver)		(((ver) & 0xffff0000) >> 16)
+#define VMBUS_ICVER_SWAP(ver)		\
+	((VMBUS_ICVER_MAJOR((ver)) << 16) | VMBUS_ICVER_MINOR((ver)))
+#define VMBUS_ICVER_LE(v1, v2)		\
+	(VMBUS_ICVER_SWAP((v1)) <= VMBUS_ICVER_SWAP((v2)))
+#define VMBUS_ICVER_GT(v1, v2)		\
+	(VMBUS_ICVER_SWAP((v1)) > VMBUS_ICVER_SWAP((v2)))
 
 struct vmbus_pipe_hdr {
 	uint32_t		ph_flags;
@@ -80,5 +86,50 @@ struct vmbus_icmsg_negotiate {
 	 */
 	uint32_t		ic_ver[];
 } __packed;
+
+/* VMBUS_ICMSG_TYPE_HEARTBEAT */
+struct vmbus_icmsg_heartbeat {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_seq;
+	uint32_t		ic_rsvd[8];
+} __packed;
+
+#define VMBUS_ICMSG_HEARTBEAT_SIZE_MIN	\
+	__offsetof(struct vmbus_icmsg_heartbeat, ic_rsvd[0])
+
+/* VMBUS_ICMSG_TYPE_SHUTDOWN */
+struct vmbus_icmsg_shutdown {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint32_t		ic_code;
+	uint32_t		ic_timeo;
+	uint32_t 		ic_haltflags;
+	uint8_t			ic_msg[2048];
+} __packed;
+
+#define VMBUS_ICMSG_SHUTDOWN_SIZE_MIN	\
+	__offsetof(struct vmbus_icmsg_shutdown, ic_msg[0])
+
+/* VMBUS_ICMSG_TYPE_TIMESYNC */
+struct vmbus_icmsg_timesync {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_hvtime;
+	uint64_t		ic_vmtime;
+	uint64_t		ic_rtt;
+	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
+} __packed;
+
+/* VMBUS_ICMSG_TYPE_TIMESYNC, MSGVER4 */
+struct vmbus_icmsg_timesync4 {
+	struct vmbus_icmsg_hdr	ic_hdr;
+	uint64_t		ic_hvtime;
+	uint64_t		ic_sent_tc;
+	uint8_t			ic_tsflags;	/* VMBUS_ICMSG_TS_FLAG_ */
+	uint8_t			ic_rsvd[5];
+} __packed;
+
+#define VMBUS_ICMSG_TS_FLAG_SYNC	0x01
+#define VMBUS_ICMSG_TS_FLAG_SAMPLE	0x02
+
+#define VMBUS_ICMSG_TS_BASE		116444736000000000ULL
 
 #endif	/* !_VMBUS_ICREG_H_ */

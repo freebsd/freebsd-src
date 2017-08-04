@@ -14,7 +14,7 @@ END { system "mdconfig -du$unit" if defined $unit };
 sub setsize {
     my ($partszMB, $unitszMB) = @_;
 
-    open my $fd, "|-", "disklabel -R md$unit /dev/stdin" or die;
+    open my $fd, "|-", "bsdlabel -R md$unit /dev/stdin" or die;
     print $fd "a: ", ($partszMB * BLKS_PER_MB), " 0 4.2BSD 1024 8192\n";
     print $fd "c: ", ($unitszMB * BLKS_PER_MB), " 0 unused 0 0\n";
     close $fd;

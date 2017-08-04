@@ -123,9 +123,9 @@ parseipfexpr(line, errorptr)
 		osize = asize;
 		asize += 4 + (items * e->ipoe_nbasearg * e->ipoe_argsize);
 		if (oplist == NULL)
-			oplist = calloc(1, sizeof(int) * (asize + 2));
+			oplist = calloc(asize + 2, sizeof(int));
 		else
-			oplist = realloc(oplist, sizeof(int) * (asize + 2));
+			oplist = reallocarray(oplist, asize + 2, sizeof(int));
 		if (oplist == NULL) {
 			error = "oplist alloc failed";
 			goto parseerror;

@@ -165,8 +165,9 @@ typeerr:		LABEL;
 	if (s->flags & F_NLINK && s->type != F_DIR &&
 	    s->st_nlink != p->fts_statp->st_nlink) {
 		LABEL;
-		(void)printf("%slink_count expected %u found %u\n",
-		    tab, s->st_nlink, p->fts_statp->st_nlink);
+		(void)printf("%slink_count expected %ju found %ju\n",
+		    tab, (uintmax_t)s->st_nlink,
+		    (uintmax_t)p->fts_statp->st_nlink);
 		tab = "\t";
 	}
 	if (s->flags & F_SIZE && s->st_size != p->fts_statp->st_size &&

@@ -157,6 +157,9 @@ static void	init_turnstile0(void *dummy);
 #ifdef TURNSTILE_PROFILING
 static void	init_turnstile_profiling(void *arg);
 #endif
+#ifdef DDB
+static void	print_sleepchain(struct thread *td, const char *prefix);
+#endif
 static void	propagate_priority(struct thread *td);
 static int	turnstile_adjust_thread(struct turnstile *ts,
 		    struct thread *td);
@@ -1168,6 +1171,10 @@ DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
 				db_printf("chain %d:\n", i++);
 				print_lockchain(td, " ");
+			}
+			if (TD_IS_INHIBITED(td) && TD_ON_SLEEPQ(td)) {
+				db_printf("chain %d:\n", i++);
+				print_sleepchain(td, " ");
 			}
 			if (db_pager_quit)
 				return;

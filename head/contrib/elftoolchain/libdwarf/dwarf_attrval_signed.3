@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_attrval_signed.3 2980 2014-01-21 20:15:54Z kaiwang27 $
+.\" $Id: dwarf_attrval_signed.3 3509 2016-12-29 03:58:41Z emaste $
 .\"
-.Dd January 18, 2014
+.Dd December 26, 2016
 .Os
 .Dt DWARF_ATTRVAL_SIGNED 3
 .Sh NAME
@@ -168,17 +168,22 @@ or
 .Pp
 If the attribute named by argument
 .Ar attr
-is not present in the debugging information entry referenced by
-argument
+is
+.Dv DW_AT_type
+and is not present in the debugging information entry referenced by argument
 .Ar die ,
 and if a
 .Dv DW_AT_abstract_origin
+or
+.Dv DW_AT_specification
 attribute is present in the debugging information entry,
 function
 .Fn dwarf_attrval_unsigned
 will search for the named attribute in the debugging information entry
 referenced by the
 .Dv DW_AT_abstract_origin
+or
+.Dv DW_AT_specification
 attribute.
 .Sh RETURN VALUES
 On success, these functions returns

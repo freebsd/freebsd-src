@@ -21,21 +21,21 @@
 // Project includes
 #include "lldb/lldb-forward.h"
 
-#include "lldb/Core/ConstString.h"
 #include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/ConstString.h"
 
-namespace lldb_private
-{
-namespace formatters
-{
+namespace lldb_private {
+namespace formatters {
 
-bool GoStringSummaryProvider(ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options);
+bool GoStringSummaryProvider(ValueObject &valobj, Stream &stream,
+                             const TypeSummaryOptions &options);
 
-SyntheticChildrenFrontEnd *GoSliceSyntheticFrontEndCreator(CXXSyntheticChildren *, lldb::ValueObjectSP);
+SyntheticChildrenFrontEnd *
+GoSliceSyntheticFrontEndCreator(CXXSyntheticChildren *, lldb::ValueObjectSP);
 
 } // namespace formatters
 } // namespace lldb_private

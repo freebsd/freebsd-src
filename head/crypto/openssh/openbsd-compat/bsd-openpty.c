@@ -122,7 +122,7 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	}
 
 	/*
-	 * Try to push the appropriate streams modules, as described 
+	 * Try to push the appropriate streams modules, as described
 	 * in Solaris pts(7).
 	 */
 	ioctl(*aslave, I_PUSH, "ptem");
@@ -184,7 +184,7 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	struct termios tio;
 
 	for (i = 0; i < num_ptys; i++) {
-		snprintf(ptbuf, sizeof(ptbuf), "/dev/pty%c%c", 
+		snprintf(ptbuf, sizeof(ptbuf), "/dev/pty%c%c",
 		    ptymajors[i / num_minors], ptyminors[i % num_minors]);
 		snprintf(ttbuf, sizeof(ttbuf), "/dev/tty%c%c",
 		    ptymajors[i / num_minors], ptyminors[i % num_minors]);

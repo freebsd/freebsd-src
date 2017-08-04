@@ -1,5 +1,6 @@
 /* $FreeBSD$ */
 /*-
+ *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  *
@@ -58,14 +59,13 @@
  */
 typedef struct ispsoftc ispsoftc_t;
 struct ispmdvec {
-	int		(*dv_rd_isr) (ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+	void		(*dv_run_isr) (ispsoftc_t *);
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
 	int		(*dv_dmaset) (ispsoftc_t *, XS_T *, void *);
 	void		(*dv_dmaclr) (ispsoftc_t *, XS_T *, uint32_t);
-	void		(*dv_reset0) (ispsoftc_t *);
-	void		(*dv_reset1) (ispsoftc_t *);
+	int		(*dv_irqsetup) (ispsoftc_t *);
 	void		(*dv_dregs) (ispsoftc_t *, const char *);
 	const void *	dv_ispfw;	/* ptr to f/w */
 	uint16_t	dv_conf1;
@@ -81,13 +81,14 @@ struct ispmdvec {
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
+#define	ISP_MAX_IRQS		3
 
 /*
  * Macros to access ISP registers through bus specific layers-
  * mostly wrappers to vector through the mdvec structure.
  */
-#define	ISP_READ_ISR(isp, isrp, semap, info)	\
-	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, info)
+#define	ISP_RUN_ISR(isp)	\
+	(*(isp)->isp_mdvec->dv_run_isr)(isp)
 
 #define	ISP_READ(isp, reg)	\
 	(*(isp)->isp_mdvec->dv_rd_reg)((isp), (reg))
@@ -105,10 +106,8 @@ struct ispmdvec {
 	if ((isp)->isp_mdvec->dv_dmaclr)	\
 	    (*(isp)->isp_mdvec->dv_dmaclr)((isp), (xs), (hndl))
 
-#define	ISP_RESET0(isp)	\
-	if ((isp)->isp_mdvec->dv_reset0) (*(isp)->isp_mdvec->dv_reset0)((isp))
-#define	ISP_RESET1(isp)	\
-	if ((isp)->isp_mdvec->dv_reset1) (*(isp)->isp_mdvec->dv_reset1)((isp))
+#define	ISP_IRQSETUP(isp)	\
+	(((isp)->isp_mdvec->dv_irqsetup) ? (*(isp)->isp_mdvec->dv_irqsetup)(isp) : 0)
 #define	ISP_DUMPREGS(isp, m)	\
 	if ((isp)->isp_mdvec->dv_dregs) (*(isp)->isp_mdvec->dv_dregs)((isp),(m))
 
@@ -448,6 +447,8 @@ typedef struct {
 	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
+	int			isp_use_gft_id;		/* Use GFT_ID */
+	int			isp_use_gff_id;		/* Use GFF_ID */
 
 	/*
 	 * Current active WWNN/WWPN
@@ -504,6 +505,10 @@ typedef struct {
 
 #define TOPO_IS_FABRIC(x)	((x) == TOPO_FL_PORT || (x) == TOPO_F_PORT)
 
+#define FCP_AL_DA_ALL		0xFF
+#define FCP_AL_PA(fcp) ((uint8_t)(fcp->isp_portid))
+#define FCP_IS_DEST_ALPD(fcp, alpd) (FCP_AL_PA((fcp)) == FCP_AL_DA_ALL || FCP_AL_PA((fcp)) == alpd)
+
 /*
  * Soft Structure per host adapter
  */
@@ -529,13 +534,13 @@ struct ispsoftc {
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
+	uint8_t			isp_nirq;	/* number of IRQs */
 	uint16_t		isp_nchan;	/* number of channels */
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 
 	uint32_t		isp_clock	: 8,	/* input clock */
-						: 4,
+						: 5,
 				isp_port	: 1,	/* 23XX/24XX only */
-				isp_open	: 1,	/* opened (ioctl) */
 				isp_bustype	: 1,	/* SBus or PCI */
 				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 16;	/* debug log mask */
@@ -549,29 +554,11 @@ struct ispsoftc {
 	uint32_t		isp_respoutrp;	/* register for RESOUTP */
 
 	/*
-	 * Instrumentation
-	 */
-	uint64_t		isp_intcnt;		/* total int count */
-	uint64_t		isp_intbogus;		/* spurious int count */
-	uint64_t		isp_intmboxc;		/* mbox completions */
-	uint64_t		isp_intoasync;		/* other async */
-	uint64_t		isp_rsltccmplt;		/* CMDs on result q */
-	uint64_t		isp_fphccmplt;		/* CMDs via fastpost */
-	uint16_t		isp_rscchiwater;
-	uint16_t		isp_fpcchiwater;
-	NANOTIME_T		isp_init_time;		/* time were last initialized */
-
-	/*
 	 * Volatile state
 	 */
 
-	volatile uint32_t	:	8,
-				:	2,
-		isp_dead	:	1,
-				:	1,
-		isp_mboxbsy	:	1,	/* mailbox command active */
-		isp_state	:	3,
-		isp_nactive	:	16;	/* how many commands active */
+	volatile u_int		isp_mboxbsy;	/* mailbox command active */
+	volatile u_int		isp_state;
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
@@ -582,12 +569,7 @@ struct ispsoftc {
 	volatile uint32_t	isp_serno;	/* rolling serial number */
 	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
-	volatile uint16_t	isp_mbxwrk0;
-	volatile uint16_t	isp_mbxwrk1;
-	volatile uint16_t	isp_mbxwrk2;
-	volatile uint16_t	isp_mbxwrk8;
 	volatile uint16_t	isp_seqno;	/* running sequence number */
-	void *			isp_mbxworkp;
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
@@ -819,13 +801,19 @@ void isp_init(ispsoftc_t *);
 int isp_reinit(ispsoftc_t *, int);
 
 /*
- * Internal Interrupt Service Routine
- *
- * The outer layers do the spade work to get the appropriate status register,
- * semaphore register and first mailbox register (if appropriate). This also
- * means that most spurious/bogus interrupts not for us can be filtered first.
+ * Shutdown hardware after use.
  */
-void isp_intr(ispsoftc_t *, uint16_t, uint16_t, uint16_t);
+void isp_shutdown(ispsoftc_t *);
+
+/*
+ * Internal Interrupt Service Routine
+ */
+#ifdef	ISP_TARGET_MODE
+void isp_intr_atioq(ispsoftc_t *);
+#endif
+void isp_intr_async(ispsoftc_t *, uint16_t event);
+void isp_intr_mbox(ispsoftc_t *, uint16_t mbox0);
+void isp_intr_respq(ispsoftc_t *);
 
 
 /*
@@ -933,11 +921,6 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISPASYNC_CHANGE_OTHER	2
 
 /*
- * Platform Independent Error Prinout
- */
-void isp_prt_endcmd(ispsoftc_t *, XS_T *);
-
-/*
  * Platform Dependent Error and Debug Printout
  *
  * Two required functions for each platform must be provided:
@@ -1023,6 +1006,7 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_DMA_ADDR_T		Platform PCI DMA Address Type
  *	XS_GET_DMA_SEG(..)	Get 32 bit dma segment list value
  *	XS_GET_DMA64_SEG(..)	Get 64 bit dma segment list value
+ *	XS_NEED_DMA64_SEG(..)	dma segment needs 64 bit storage
  *	XS_ISP(xs)		gets an instance out of an XS_T
  *	XS_CHANNEL(xs)		gets the channel (bus # for DUALBUS cards) ""
  *	XS_TGT(xs)		gets the target ""
@@ -1030,7 +1014,7 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_CDBP(xs)		gets a pointer to the scsi CDB ""
  *	XS_CDBLEN(xs)		gets the CDB's length ""
  *	XS_XFRLEN(xs)		gets the associated data transfer length ""
- *	XS_TIME(xs)		gets the time (in milliseconds) for this command
+ *	XS_TIME(xs)		gets the time (in seconds) for this command
  *	XS_GET_RESID(xs)	gets the current residual count
  *	XS_GET_RESID(xs, resid)	sets the current residual count
  *	XS_STSP(xs)		gets a pointer to the SCSI status byte ""
@@ -1058,8 +1042,7 @@ void isp_prt_endcmd(ispsoftc_t *, XS_T *);
  *	XS_NOERR(xs)	there is no error currently set
  *	XS_INITERR(xs)	initialize error state
  *
- *	XS_SAVE_SENSE(xs, sp, total_len, this_len)	save sense data (total and current amount)
- *
+ *	XS_SAVE_SENSE(xs, sp, len)	save sense data
  *	XS_APPEND_SENSE(xs, sp, len)	append more sense data
  *
  *	XS_SENSE_VALID(xs)		indicates whether sense is valid
@@ -1148,9 +1131,7 @@ int isp_endcmd(ispsoftc_t *, ...);
 
 /*
  * Handle an asynchronous event
- *
- * Return nonzero if the interrupt that generated this event has been dismissed.
  */
-int isp_target_async(ispsoftc_t *, int, int);
+void isp_target_async(ispsoftc_t *, int, int);
 #endif
 #endif	/* _ISPVAR_H */

@@ -206,7 +206,22 @@ critical_exit(void)
 
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
+
+		/*
+		 * Interrupt handlers execute critical_exit() on
+		 * leave, and td_owepreempt may be left set by an
+		 * interrupt handler only when td_critnest > 0.  If we
+		 * are decrementing td_critnest from 1 to 0, read
+		 * td_owepreempt after decrementing, to not miss the
+		 * preempt.  Disallow compiler to reorder operations.
+		 */
+		__compiler_membar();
 		if (td->td_owepreempt && !kdb_active) {
+			/*
+			 * Microoptimization: we committed to switch,
+			 * disable preemption in interrupt handlers
+			 * while spinning for the thread lock.
+			 */
 			td->td_critnest = 1;
 			thread_lock(td);
 			td->td_critnest--;

@@ -100,6 +100,7 @@ int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
 int ofw_bus_status_okay(device_t dev);
+int ofw_bus_node_status_okay(phandle_t node);
 
 /* Helper to get node's interrupt parent */
 phandle_t ofw_bus_find_iparent(phandle_t);
@@ -107,6 +108,7 @@ phandle_t ofw_bus_find_iparent(phandle_t);
 /* Helper routine for checking compat prop */
 int ofw_bus_is_compatible(device_t, const char *);
 int ofw_bus_is_compatible_strict(device_t, const char *);
+int ofw_bus_node_is_compatible(phandle_t, const char *);
 
 /* 
  * Helper routine to search a list of compat properties.  The table is

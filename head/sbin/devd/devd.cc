@@ -36,7 +36,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <map>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <vector>
 
 #include "devd.h"		/* C compatible definitions */
@@ -372,7 +373,7 @@ media::do_match(config &c)
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s >= 0) {
 		memset(&ifmr, 0, sizeof(ifmr));
-		strncpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
+		strlcpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
 
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
@@ -410,6 +411,24 @@ var_list::is_set(const string &var) const
 	return (_vars.find(var) != _vars.end());
 }
 
+/** fix_value
+ *
+ * Removes quoted characters that have made it this far. \" are
+ * converted to ". For all other characters, both \ and following
+ * character. So the string 'fre\:\"' is translated to 'fred\:"'.
+ */
+std::string
+var_list::fix_value(const std::string &val) const
+{
+        std::string rv(val);
+        std::string::size_type pos(0);
+
+        while ((pos = rv.find("\\\"", pos)) != rv.npos) {
+                rv.erase(pos, 1);
+        }
+        return (rv);
+}
+
 void
 var_list::set_variable(const string &var, const string &val)
 {
@@ -419,9 +438,9 @@ var_list::set_variable(const string &var, const string &val)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
+	_vars[var] = fix_value(val);
 	if (no_daemon)
 		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
-	_vars[var] = val;
 }
 
 void
@@ -710,8 +729,13 @@ config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 	if (*walker == '"') {
 		walker++;	// skip "
 		rhs = walker;
-		while (*walker && *walker != '"')
+		while (*walker && *walker != '"') {
+			// Skip \" ... We leave it in the string and strip the \ later.
+			// due to the super simplistic parser that we have here.
+			if (*walker == '\\' && walker[1] == '"')
+				walker++;
 			walker++;
+		}
 		if (*walker != '"')
 			return (false);
 		rhs[-2] = '\0';
@@ -871,8 +895,10 @@ create_socket(const char *name, int socktype)
 	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
-	chown(name, 0, 0);	/* XXX - root.wheel */
-	chmod(name, 0666);
+	if (chown(name, 0, 0))	/* XXX - root.wheel */
+		err(1, "chown");
+	if (chmod(name, 0666))
+		err(1, "chmod");
 	return (fd);
 }
 
@@ -1058,7 +1084,13 @@ event_loop(void)
 				buffer[rv] = '\0';
 				while (buffer[--rv] == '\n')
 					buffer[rv] = '\0';
-				process_event(buffer);
+				try {
+					process_event(buffer);
+				}
+				catch (std::length_error e) {
+					devdlog(LOG_ERR, "Dropping event %s "
+					    "due to low memory", buffer);
+				}
 			} else if (rv < 0) {
 				if (errno != EINTR)
 					break;
@@ -1076,6 +1108,9 @@ event_loop(void)
 		if (FD_ISSET(seqpacket_fd, &fds))
 			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
+	cfg.remove_pidfile();
+	close(seqpacket_fd);
+	close(stream_fd);
 	close(fd);
 }
 
@@ -1193,7 +1228,7 @@ devdlog(int priority, const char* fmt, ...)
 	va_start(argp, fmt);
 	if (no_daemon)
 		vfprintf(stderr, fmt, argp);
-	else if ((! quiet_mode) || (priority <= LOG_WARNING))
+	else if (quiet_mode == 0 || priority <= LOG_WARNING)
 		vsyslog(priority, fmt, argp);
 	va_end(argp);
 }
@@ -1218,7 +1253,8 @@ check_devd_enabled()
 	if (val == 0) {
 		warnx("Setting " SYSCTL " to 1000");
 		val = 1000;
-		sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val));
+		if (sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val)))
+			err(1, "sysctlbyname");
 	}
 }
 

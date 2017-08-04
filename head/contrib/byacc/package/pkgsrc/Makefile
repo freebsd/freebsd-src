@@ -1,7 +1,7 @@
 # $NetBSD: Makefile,v 1.9 2008/07/24 17:13:00 tonnerre Exp $
 #
 
-DISTNAME=	byacc-20160324
+DISTNAME=	byacc-20170430
 PKGREVISION=	1
 CATEGORIES=	devel
 MASTER_SITES=	ftp://invisible-island.net/byacc/

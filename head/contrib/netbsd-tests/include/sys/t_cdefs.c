@@ -1,4 +1,4 @@
-/* $NetBSD: t_cdefs.c,v 1.3 2013/09/05 09:01:27 gsutre Exp $ */
+/* $NetBSD: t_cdefs.c,v 1.4 2016/03/16 07:21:36 mrg Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_cdefs.c,v 1.3 2013/09/05 09:01:27 gsutre Exp $");
+__RCSID("$NetBSD: t_cdefs.c,v 1.4 2016/03/16 07:21:36 mrg Exp $");
 
 #include <atf-c.h>
 #include <sys/types.h>
@@ -180,34 +180,34 @@ ATF_TC_HEAD(stypefit, tc)
 
 ATF_TC_BODY(stypefit, tc)
 {
-#define CHECK(a, b, c) ATF_REQUIRE(!__type_fit(a, b) == c)
+#define CHECK(a, b, c) ATF_REQUIRE(__type_fit(a, b) == c)
 
-	CHECK(signed char, -1, 0);
-	CHECK(signed char, 1, 0);
-	CHECK(signed char, 0x7f, 0);
-	CHECK(signed char, 0x80, 1);
-	CHECK(signed char, 0xff, 1);
-	CHECK(signed char, 0x1ff, 1);
+	CHECK(signed char, -1, 1);
+	CHECK(signed char, 1, 1);
+	CHECK(signed char, 0x7f, 1);
+	CHECK(signed char, 0x80, 0);
+	CHECK(signed char, 0xff, 0);
+	CHECK(signed char, 0x1ff, 0);
 
-	CHECK(signed short, -1, 0);
-	CHECK(signed short, 1, 0);
-	CHECK(signed short, 0x7fff, 0);
-	CHECK(signed short, 0x8000, 1);
-	CHECK(signed short, 0xffff, 1);
-	CHECK(signed short, 0x1ffff, 1);
+	CHECK(signed short, -1, 1);
+	CHECK(signed short, 1, 1);
+	CHECK(signed short, 0x7fff, 1);
+	CHECK(signed short, 0x8000, 0);
+	CHECK(signed short, 0xffff, 0);
+	CHECK(signed short, 0x1ffff, 0);
 
-	CHECK(signed int, -1, 0);
-	CHECK(signed int, 1, 0);
-	CHECK(signed int, 0x7fffffff, 0);
-	CHECK(signed int, 0x80000000, 1);
-	CHECK(signed int, 0xffffffff, 1);
-	CHECK(signed int, 0x1ffffffffLL, 1);
+	CHECK(signed int, -1, 1);
+	CHECK(signed int, 1, 1);
+	CHECK(signed int, 0x7fffffff, 1);
+	CHECK(signed int, 0x80000000, 0);
+	CHECK(signed int, 0xffffffff, 0);
+	CHECK(signed int, 0x1ffffffffLL, 0);
 
-	CHECK(signed long long, -1, 0);
-	CHECK(signed long long, 1, 0);
-	CHECK(signed long long, 0x7fffffffffffffffLL, 0);
-	CHECK(signed long long, 0x8000000000000000LL, 1);
-	CHECK(signed long long, 0xffffffffffffffffLL, 1);
+	CHECK(signed long long, -1, 1);
+	CHECK(signed long long, 1, 1);
+	CHECK(signed long long, 0x7fffffffffffffffLL, 1);
+	CHECK(signed long long, 0x8000000000000000LL, 0);
+	CHECK(signed long long, 0xffffffffffffffffLL, 0);
 
 #undef CHECK
 }
@@ -220,34 +220,34 @@ ATF_TC_HEAD(utypefit, tc)
 
 ATF_TC_BODY(utypefit, tc)
 {
-#define CHECK(a, b, c) ATF_REQUIRE(!__type_fit(a, b) == c)
+#define CHECK(a, b, c) ATF_REQUIRE(__type_fit(a, b) == c)
 
-	CHECK(unsigned char, -1, 1);
-	CHECK(unsigned char, 1, 0);
-	CHECK(unsigned char, 0x7f, 0);
-	CHECK(unsigned char, 0x80, 0);
-	CHECK(unsigned char, 0xff, 0);
-	CHECK(unsigned char, 0x1ff, 1);
+	CHECK(unsigned char, -1, 0);
+	CHECK(unsigned char, 1, 1);
+	CHECK(unsigned char, 0x7f, 1);
+	CHECK(unsigned char, 0x80, 1);
+	CHECK(unsigned char, 0xff, 1);
+	CHECK(unsigned char, 0x1ff, 0);
 
-	CHECK(unsigned short, -1, 1);
-	CHECK(unsigned short, 1, 0);
-	CHECK(unsigned short, 0x7fff, 0);
-	CHECK(unsigned short, 0x8000, 0);
-	CHECK(unsigned short, 0xffff, 0);
-	CHECK(unsigned short, 0x1ffff, 1);
+	CHECK(unsigned short, -1, 0);
+	CHECK(unsigned short, 1, 1);
+	CHECK(unsigned short, 0x7fff, 1);
+	CHECK(unsigned short, 0x8000, 1);
+	CHECK(unsigned short, 0xffff, 1);
+	CHECK(unsigned short, 0x1ffff, 0);
 
-	CHECK(unsigned int, -1, 1);
-	CHECK(unsigned int, 1, 0);
-	CHECK(unsigned int, 0x7fffffff, 0);
-	CHECK(unsigned int, 0x80000000, 0);
-	CHECK(unsigned int, 0xffffffff, 0);
-	CHECK(unsigned int, 0x1ffffffffLL, 1);
+	CHECK(unsigned int, -1, 0);
+	CHECK(unsigned int, 1, 1);
+	CHECK(unsigned int, 0x7fffffff, 1);
+	CHECK(unsigned int, 0x80000000, 1);
+	CHECK(unsigned int, 0xffffffff, 1);
+	CHECK(unsigned int, 0x1ffffffffLL, 0);
 
-	CHECK(unsigned long long, -1, 1);
-	CHECK(unsigned long long, 1, 0);
-	CHECK(unsigned long long, 0x7fffffffffffffffULL, 0);
-	CHECK(unsigned long long, 0x8000000000000000ULL, 0);
-	CHECK(unsigned long long, 0xffffffffffffffffULL, 0);
+	CHECK(unsigned long long, -1, 0);
+	CHECK(unsigned long long, 1, 1);
+	CHECK(unsigned long long, 0x7fffffffffffffffULL, 1);
+	CHECK(unsigned long long, 0x8000000000000000ULL, 1);
+	CHECK(unsigned long long, 0xffffffffffffffffULL, 1);
 
 #undef CHECK
 }

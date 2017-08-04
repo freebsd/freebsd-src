@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.66 2015/05/04 06:10:48 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.68 2017/03/10 04:26:06 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -123,14 +123,13 @@ host_hash(const char *host, const char *name_from_hostfile, u_int src_len)
 	u_char salt[256], result[256];
 	char uu_salt[512], uu_result[512];
 	static char encoded[1024];
-	u_int i, len;
+	u_int len;
 
 	len = ssh_digest_bytes(SSH_DIGEST_SHA1);
 
 	if (name_from_hostfile == NULL) {
 		/* Create new salt */
-		for (i = 0; i < len; i++)
-			salt[i] = arc4random();
+		arc4random_buf(salt, len);
 	} else {
 		/* Extract salt from known host entry */
 		if (extract_salt(name_from_hostfile, src_len, salt,
@@ -420,19 +419,24 @@ write_host_entry(FILE *f, const char *host, const char *ip,
     const struct sshkey *key, int store_hash)
 {
 	int r, success = 0;
-	char *hashed_host = NULL;
+	char *hashed_host = NULL, *lhost;
+
+	lhost = xstrdup(host);
+	lowercase(lhost);
 
 	if (store_hash) {
-		if ((hashed_host = host_hash(host, NULL, 0)) == NULL) {
+		if ((hashed_host = host_hash(lhost, NULL, 0)) == NULL) {
 			error("%s: host_hash failed", __func__);
+			free(lhost);
 			return 0;
 		}
 		fprintf(f, "%s ", hashed_host);
 	} else if (ip != NULL)
-		fprintf(f, "%s,%s ", host, ip);
-	else
-		fprintf(f, "%s ", host);
-
+		fprintf(f, "%s,%s ", lhost, ip);
+	else {
+		fprintf(f, "%s ", lhost);
+	}
+	free(lhost);
 	if ((r = sshkey_write(key, f)) == 0)
 		success = 1;
 	else

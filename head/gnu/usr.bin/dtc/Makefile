@@ -34,7 +34,7 @@ OBJS+= dtc-parser.tab.o dtc-lexer.lex.o
 CLEANFILES+= dtc-parser.tab.o dtc-lexer.lex.o dtc-parser.tab.c \
 		dtc-parser.tab.h dtc-lexer.lex.c ${DTCVERSIONFILE}
 
-${DTCVERSIONFILE}:
+${DTCVERSIONFILE}: ${DTCDIR}/Makefile
 	@echo '#define DTC_VERSION "DTC ${DTCVERSION}"' > ${DTCVERSIONFILE}
 
 dtc-parser.tab.o:	dtc-parser.tab.c dtc-parser.tab.h

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_listen.c,v 1.4 2012/03/18 07:00:52 jruoho Exp $	*/
+/*	$NetBSD: t_listen.c,v 1.5 2017/01/13 20:41:50 christos Exp $	*/
 /*
  * Copyright (c) 2007 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -26,6 +26,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/socket.h>
 #include <atf-c.h>
 #include <err.h>
 #include <errno.h>
@@ -35,10 +36,6 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
-
-#ifdef __FreeBSD__
-#include <sys/socket.h>
-#endif
 
 static const char *path = "listen";
 
@@ -110,6 +107,7 @@ ATF_TC_BODY(listen_low_port, tc)
 	int sd, val;
 
 	sd = socket(AF_INET, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(sd != -1, "socket failed: %s", strerror(errno));
 
 	val = IP_PORTRANGE_LOW;
 	if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE, &val,

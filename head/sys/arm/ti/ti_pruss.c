@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -310,7 +309,7 @@ ti_pruss_kqfilter(struct cdev *cdev, struct knote *kn)
 	case EVFILT_READ:
 		kn->kn_hook = sc;
 		kn->kn_fop = &ti_pruss_kq_read;
-		knlist_add(&sc->sc_selinfo.si_note, kn, 1);
+		knlist_add(&sc->sc_selinfo.si_note, kn, 0);
 		break;
 	default:
 		return (EINVAL);

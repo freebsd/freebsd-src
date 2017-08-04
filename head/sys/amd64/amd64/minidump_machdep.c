@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
 #include <sys/watchdog.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
@@ -68,6 +70,9 @@ static void *dump_va;
 static size_t counter, progress, dumpsize;
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
+static int dump_retry_count = 5;
+SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
+    &dump_retry_count, 0, "Number of times dump has to retry before bailing out");
 
 static int
 is_dumpable(vm_paddr_t pa)
@@ -219,7 +224,6 @@ minidumpsys(struct dumperinfo *di)
 	int error;
 	uint64_t bits;
 	uint64_t *pml4, *pdp, *pd, *pt, pa;
-	size_t size;
 	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
@@ -239,10 +243,10 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 1GB of space
 		 */
 		pmapsize += PAGE_SIZE;
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 		if ((pdp[i] & PG_V) == 0) {
 			va += NBPDP;
 			continue;
@@ -264,7 +268,7 @@ minidumpsys(struct dumperinfo *di)
 
 		pd = (uint64_t *)PHYS_TO_DMAP(pdp[i] & PG_FRAME);
 		for (n = 0; n < NPDEPG; n++, va += NBPDR) {
-			j = (va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1);
+			j = pmap_pde_index(va);
 
 			if ((pd[j] & PG_V) == 0)
 				continue;
@@ -317,13 +321,20 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2 +
+	    kerneldumpcrypto_dumpkeysize(di->kdc)) {
 		error = E2BIG;
 		goto fail;
 	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
 	dumplo -= di->blocksize * 2;
+	dumplo -= kerneldumpcrypto_dumpkeysize(di->kdc);
 	progress = dumpsize;
+
+	/* Initialize kernel dump crypto. */
+	error = kerneldumpcrypto_init(di->kdc);
+	if (error)
+		goto fail;
 
 	/* Initialize mdhdr */
 	bzero(&mdhdr, sizeof(mdhdr));
@@ -336,16 +347,23 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize,
+	    kerneldumpcrypto_dumpkeysize(di->kdc), di->blocksize);
 
 	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
 	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += size;
+	dumplo += di->blocksize;
+
+	/* Dump key */
+	error = dump_write_key(di, 0, dumplo);
+	if (error)
+		goto fail;
+	dumplo += kerneldumpcrypto_dumpkeysize(di->kdc);
 
 	/* Dump my header */
 	bzero(&fakepd, sizeof(fakepd));
@@ -368,10 +386,10 @@ minidumpsys(struct dumperinfo *di)
 	bzero(fakepd, sizeof(fakepd));
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
-		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		ii = pmap_pml4e_index(va);
 		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
 		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
-		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
+		i = pmap_pdpe_index(va);
 
 		/* We always write a page, even if it is zero */
 		if ((pdp[i] & PG_V) == 0) {
@@ -430,10 +448,10 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
+	error = dump_write_header(di, &kdh, 0, dumplo);
 	if (error)
 		goto fail;
-	dumplo += size;
+	dumplo += di->blocksize;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
@@ -447,7 +465,7 @@ minidumpsys(struct dumperinfo *di)
 	printf("\n");
 	if (error == ENOSPC) {
 		printf("Dump map grown while dumping. ");
-		if (retry_count < 5) {
+		if (retry_count < dump_retry_count) {
 			printf("Retrying...\n");
 			goto retry;
 		}

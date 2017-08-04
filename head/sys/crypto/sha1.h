@@ -61,7 +61,7 @@ typedef struct sha1_ctxt SHA1_CTX;
 extern void sha1_init(struct sha1_ctxt *);
 extern void sha1_pad(struct sha1_ctxt *);
 extern void sha1_loop(struct sha1_ctxt *, const u_int8_t *, size_t);
-extern void sha1_result(struct sha1_ctxt *, char[static SHA1_RESULTLEN]);
+extern void sha1_result(struct sha1_ctxt *, char[__min_size(SHA1_RESULTLEN)]);
 
 /* compatibilty with other SHA1 source codes */
 #define SHA1Init(x)		sha1_init((x))

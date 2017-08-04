@@ -104,16 +104,6 @@ struct xraddr_entry {
 	LIST_ENTRY(xraddr_entry) xraddr_entries;
 };
 
-#ifdef INET
-char *
-inetname(struct in_addr *inp);
-#endif
-
-#ifdef INET6
-char *
-inet6name(struct in6_addr *in6p);
-#endif
-
 static void
 sctp_print_address(const char *container, union sctp_sockstore *address,
     int port, int num_port)
@@ -121,6 +111,7 @@ sctp_print_address(const char *container, union sctp_sockstore *address,
 	struct servent *sp = 0;
 	char line[80], *cp;
 	int width;
+	size_t alen, plen;
 
 	if (container)
 		xo_open_container(container);
@@ -128,29 +119,36 @@ sctp_print_address(const char *container, union sctp_sockstore *address,
 	switch (address->sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
 		break;
 #endif
 	default:
-		sprintf(line, "%.*s.", Wflag ? 39 : 16, "");
+		snprintf(line, sizeof(line), "%.*s.",
+		    Wflag ? 39 : 16, "");
 		break;
 	}
-	cp = strchr(line, '\0');
+	alen = strlen(line);
+	cp = line + alen;
 	if (!num_port && port)
 		sp = getservbyport((int)port, "sctp");
 	if (sp || port == 0)
-		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
+		snprintf(cp, sizeof(line) - alen,
+		    "%.15s ", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d ", ntohs((u_short)port));
+		snprintf(cp, sizeof(line) - alen,
+		    "%d ", ntohs((u_short)port));
 	width = Wflag ? 45 : 22;
 	xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	int alen = cp - line - 1, plen = strlen(cp) - 1;
+	plen = strlen(cp) - 1;
+	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
 

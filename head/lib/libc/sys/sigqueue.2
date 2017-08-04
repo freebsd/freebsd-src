@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2012
+.Dd May 5, 2017
 .Dt SIGQUEUE 2
 .Os
 .Sh NAME
@@ -129,7 +129,6 @@ does not exist.
 .Xr kill 2 ,
 .Xr sigaction 2 ,
 .Xr sigpending 2 ,
-.Xr sigqueue 2 ,
 .Xr sigsuspend 2 ,
 .Xr sigtimedwait 2 ,
 .Xr sigwait 2 ,
@@ -147,3 +146,18 @@ Support for
 .Tn POSIX
 realtime signal queue first appeared in
 .Fx 7.0 .
+.Sh CAVEATS
+When using
+.Nm
+to send signals to a process which might have a different ABI
+(for instance, one is 32-bit and the other 64-bit),
+the
+.Va sival_int
+member of
+.Fa value
+can be delivered reliably, but the
+.Va sival_ptr
+may be truncated in endian dependent ways and must not be relied on.
+Further, many pointer integrity schemes disallow sending pointers to other
+processes, and this technique should not be used in programs intended to
+be portable.

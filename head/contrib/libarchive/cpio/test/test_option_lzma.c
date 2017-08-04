@@ -43,14 +43,18 @@ DEFINE_TEST(test_option_lzma)
 		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
 			    "without lzma support");
+			free(p);
 			return;
 		}
 		failure("--lzma option is broken");
 		assertEqualInt(r, 0);
+		free(p);
 		return;
 	}
+	free(p);
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x5d\00\00", 3);
+	free(p);
 }

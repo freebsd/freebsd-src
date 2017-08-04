@@ -67,8 +67,21 @@ struct regnode_init_def {
 #ifdef FDT
 	 phandle_t 		ofw_node;	/* OFW node of regulator */
 #endif
-
 };
+
+struct regulator_range {
+	int		min_uvolt;
+	int		step_uvolt;
+	uint8_t		min_sel;
+	uint8_t		max_sel;
+};
+
+#define	REG_RANGE_INIT(_min_sel, _max_sel, _min_uvolt, _step_uvolt) {	\
+	.min_sel	= _min_sel,					\
+	.max_sel	= _max_sel,					\
+	.min_uvolt	= _min_uvolt,					\
+	.step_uvolt	= _step_uvolt,					\
+}
 
 /*
  * Shorthands for constructing method tables.
@@ -124,5 +137,11 @@ int regulator_get_by_ofw_property(device_t dev, phandle_t node, char *name,
 int regulator_parse_ofw_stdparam(device_t dev, phandle_t node,
     struct regnode_init_def *def);
 #endif
+
+/* Utility functions */
+int regulator_range_volt_to_sel8(struct regulator_range *ranges, int nranges,
+    int min_uvolt, int max_uvolt, uint8_t *out_sel);
+int regulator_range_sel8_to_volt(struct regulator_range *ranges, int nranges,
+   uint8_t sel, int *volt);
 
 #endif /* _DEV_EXTRES_REGULATOR_H_ */

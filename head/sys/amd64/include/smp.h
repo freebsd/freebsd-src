@@ -21,9 +21,6 @@
 
 #include <x86/x86_smp.h>
 
-extern int pmap_pcid_enabled;
-extern int invpcid_works;
-
 /* global symbols in mpboot.S */
 extern char			mptramp_start[];
 extern char			mptramp_end[];

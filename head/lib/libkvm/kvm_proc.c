@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -426,8 +426,6 @@ nopgrp:
 			kp->ki_pri.pri_native = mtd.td_base_pri;
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
-			if (mtd.td_name[0] != 0)
-				strlcpy(kp->ki_tdname, mtd.td_name, MAXCOMLEN);
 			kp->ki_oncpu = mtd.td_oncpu;
 			if (mtd.td_name[0] != '\0')
 				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
@@ -454,6 +452,7 @@ nopgrp:
 		} else {
 			kp->ki_stat = SZOMB;
 		}
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 		bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
 		++bp;
 		++cnt;

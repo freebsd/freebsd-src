@@ -50,13 +50,13 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "riscv,rv64";
-			reg = <0x40001000>;
+			reg = <0x0>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "riscv,rv64";
-			reg = <0x40002000>;
+			reg = <0x0>;
 		};
 	};
 
@@ -88,7 +88,8 @@
 
 		timer0: timer@0 {
 			compatible = "riscv,timer";
-			reg = < 0x40000000 0x100 >;
+			reg = < 0x40000000 0x0008 >,	/* rtc */
+			      < 0x40000008 0x1000 >;	/* timecmp */
 			interrupts = < 5 >;
 			interrupt-parent = < &pic0 >;
 			clock-frequency = < 1000000 >;

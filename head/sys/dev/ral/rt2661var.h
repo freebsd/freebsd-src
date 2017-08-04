@@ -98,6 +98,7 @@ struct rt2661_vap {
 
 struct rt2661_softc {
 	struct ieee80211com		sc_ic;
+	struct ieee80211_ratectl_tx_status sc_txs;
 	struct mtx			sc_mtx;
 	struct mbufq			sc_snd;
 	device_t			sc_dev;

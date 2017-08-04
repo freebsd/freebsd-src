@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2013
+.Dd November 27, 2016
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -41,6 +41,13 @@
 .Nm
 .Cm clear
 .Op Fl v
+.Ar prov ...
+.Nm
+.Cm create
+.Op Fl Fnv
+.Op Fl b Ar balance
+.Op Fl s Ar slice
+.Ar name
 .Ar prov ...
 .Nm
 .Cm configure
@@ -170,6 +177,12 @@ Defaults to 4096 bytes.
 .El
 .It Cm clear
 Clear metadata on the given providers.
+.It Cm create
+Similar to
+.Cm label,
+but creates mirror without storing on-disk metadata in last sector.
+This special "manual" operation mode assumes some external control to manage
+mirror detection after reboot, device hot-plug and other external events.
 .It Cm configure
 Configure the given device.
 .Pp

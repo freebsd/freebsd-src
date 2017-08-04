@@ -137,7 +137,7 @@ ow_temp_event_thread(void *arg)
 	struct ow_temp_softc *sc;
 	uint8_t scratch[8 + 1];
 	uint8_t crc;
-	int retries, rv;
+	int retries, rv, tmp;
 
 	sc = arg;
 	pause("owtstart", device_get_unit(sc->dev) * hz / 100);	// 10ms stagger
@@ -164,16 +164,16 @@ ow_temp_event_thread(void *arg)
 						if (scratch[7]) {
 							/*
 							 * Formula from DS18S20 datasheet, page 6
-							 * DS18S20 datahseet says count_per_c is 16, DS1820 does not
+							 * DS18S20 datasheet says count_per_c is 16, DS1820 does not
 							 */
-							sc->temp = (int16_t)((scratch[0] & 0xfe) |
+							tmp = (int16_t)((scratch[0] & 0xfe) |
 							    (scratch[1] << 8)) << 3;
-							sc->temp += 16 - scratch[6] - 4; /* count_per_c == 16 */
+							tmp += 16 - scratch[6] - 4; /* count_per_c == 16 */
 						} else
-							sc->temp = (int16_t)(scratch[0] | (scratch[1] << 8)) << 3;
+							tmp = (int16_t)(scratch[0] | (scratch[1] << 8)) << 3;
 					} else
-						sc->temp = (int16_t)(scratch[0] | (scratch[1] << 8));
-					sc->temp = sc->temp * 1000 / 16 + 273150;
+						tmp = (int16_t)(scratch[0] | (scratch[1] << 8));
+					sc->temp = tmp * 1000 / 16 + 273150;
 					break;
 				}
 				sc->bad_crc++;

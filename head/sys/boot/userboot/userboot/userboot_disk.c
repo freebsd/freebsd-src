@@ -54,13 +54,13 @@ static struct userdisk_info	*ud_info;
 static int	userdisk_init(void);
 static void	userdisk_cleanup(void);
 static int	userdisk_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t offset, size_t size, char *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	userdisk_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t offset, size_t size, char *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	userdisk_open(struct open_file *f, ...);
 static int	userdisk_close(struct open_file *f);
 static int	userdisk_ioctl(struct open_file *f, u_long cmd, void *data);
-static void	userdisk_print(int verbose);
+static int	userdisk_print(int verbose);
 
 struct devsw userboot_disk = {
 	"disk",
@@ -110,33 +110,45 @@ userdisk_cleanup(void)
 
 	if (userdisk_maxunit > 0)
 		free(ud_info);
-	disk_cleanup(&userboot_disk);
 }
 
 /*
  * Print information about disks
  */
-static void
+static int
 userdisk_print(int verbose)
 {
 	struct disk_devdesc dev;
 	char line[80];
-	int i;
+	int i, ret = 0;
+
+	if (userdisk_maxunit == 0)
+		return (0);
+
+	printf("%s devices:", userboot_disk.dv_name);
+	if ((ret = pager_output("\n")) != 0)
+		return (ret);
 
 	for (i = 0; i < userdisk_maxunit; i++) {
-		sprintf(line, "    disk%d:   Guest drive image\n", i);
-		pager_output(line);
+		snprintf(line, sizeof(line),
+		    "    disk%d:   Guest drive image\n", i);
+		ret = pager_output(line);
+		if (ret != 0)
+			break;
 		dev.d_dev = &userboot_disk;
 		dev.d_unit = i;
 		dev.d_slice = -1;
 		dev.d_partition = -1;
 		if (disk_open(&dev, ud_info[i].mediasize,
-		    ud_info[i].sectorsize, 0) == 0) {
-			sprintf(line, "    disk%d", i);
-			disk_print(&dev, line, verbose);
+		    ud_info[i].sectorsize) == 0) {
+			snprintf(line, sizeof(line), "    disk%d", i);
+			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
+			if (ret != 0)
+				break;
 		}
 	}
+	return (ret);
 }
 
 /*
@@ -158,7 +170,7 @@ userdisk_open(struct open_file *f, ...)
 	if (ud_info[dev->d_unit].ud_bcache == NULL)
 		ud_info[dev->d_unit].ud_bcache = bcache_allocate();
 	return (disk_open(dev, ud_info[dev->d_unit].mediasize,
-	    ud_info[dev->d_unit].sectorsize, 0));
+	    ud_info[dev->d_unit].sectorsize));
 }
 
 static int
@@ -176,8 +188,8 @@ userdisk_close(struct open_file *f)
 }
 
 static int
-userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct bcache_devdata bcd;
 	struct disk_devdesc *dev;
@@ -186,19 +198,20 @@ userdisk_strategy(void *devdata, int rw, daddr_t dblk, size_t offset,
 	bcd.dv_strategy = userdisk_realstrategy;
 	bcd.dv_devdata = devdata;
 	bcd.dv_cache = ud_info[dev->d_unit].ud_bcache;
-	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset, offset,
+	return (bcache_strategy(&bcd, rw, dblk + dev->d_offset,
 	    size, buf, rsize));
 }
 
 static int
-userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct disk_devdesc *dev = devdata;
 	uint64_t	off;
 	size_t		resid;
 	int		rc;
 
+	rw &= F_MASK;
 	if (rw == F_WRITE)
 		return (EROFS);
 	if (rw != F_READ)
@@ -218,7 +231,12 @@ static int
 userdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 {
 	struct disk_devdesc *dev;
+	int rc;
 
 	dev = (struct disk_devdesc *)f->f_devdata;
+	rc = disk_ioctl(dev, cmd, data);
+	if (rc != ENOTTY)
+		return (rc);
+
 	return (CALLBACK(diskioctl, dev->d_unit, cmd, data));
 }

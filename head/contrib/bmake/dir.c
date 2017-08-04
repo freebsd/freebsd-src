@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $	*/
+/*	$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $");
+__RCSID("$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -346,11 +346,13 @@ cached_lstat(const char *pathname, void *st)
 void
 Dir_Init(const char *cdname)
 {
-    dirSearchPath = Lst_Init(FALSE);
-    openDirectories = Lst_Init(FALSE);
-    Hash_InitTable(&mtimes, 0);
-    Hash_InitTable(&lmtimes, 0);
-
+    if (!cdname) {
+	dirSearchPath = Lst_Init(FALSE);
+	openDirectories = Lst_Init(FALSE);
+	Hash_InitTable(&mtimes, 0);
+	Hash_InitTable(&lmtimes, 0);
+	return;
+    }
     Dir_InitCur(cdname);
 
     dotLast = bmake_malloc(sizeof(Path));
@@ -801,11 +803,11 @@ DirExpandInt(const char *word, Lst path, Lst expansions)
  *-----------------------------------------------------------------------
  */
 static int
-DirPrintWord(void *word, void *dummy)
+DirPrintWord(void *word, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "%s ", (char *)word);
 
-    return(dummy ? 0 : 0);
+    return 0;
 }
 
 /*-
@@ -1313,8 +1315,14 @@ Dir_FindFile(const char *name, Lst path)
 	    fprintf(debug_file, "   Trying exact path matches...\n");
 	}
 
-	if (!hasLastDot && cur && (file = DirLookupAbs(cur, name, cp)) != NULL)
-	    return *file?file:NULL;
+	if (!hasLastDot && cur && ((file = DirLookupAbs(cur, name, cp))
+		!= NULL)) {
+	    if (file[0] == '\0') {
+		free(file);
+		return NULL;
+	    }
+	    return file;
+	}
 
 	(void)Lst_Open(path);
 	while ((ln = Lst_Next(path)) != NULL) {
@@ -1323,13 +1331,23 @@ Dir_FindFile(const char *name, Lst path)
 		continue;
 	    if ((file = DirLookupAbs(p, name, cp)) != NULL) {
 		Lst_Close(path);
-		return *file?file:NULL;
+		if (file[0] == '\0') {
+		    free(file);
+		    return NULL;
+		}
+		return file;
 	    }
 	}
 	Lst_Close(path);
 
-	if (hasLastDot && cur && (file = DirLookupAbs(cur, name, cp)) != NULL)
-	    return *file?file:NULL;
+	if (hasLastDot && cur && ((file = DirLookupAbs(cur, name, cp))
+		!= NULL)) {
+	    if (file[0] == '\0') {
+		free(file);
+		return NULL;
+	    }
+	    return file;
+	}
     }
 
     /*
@@ -1849,10 +1867,10 @@ Dir_PrintDirectories(void)
 }
 
 static int
-DirPrintDir(void *p, void *dummy)
+DirPrintDir(void *p, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "%s ", ((Path *)p)->name);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 void

@@ -126,7 +126,7 @@ static inline int
 sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 {
 
-	sysctl_add_oid(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
+	SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
 	    attr->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE, kobj,
 	    (uintptr_t)attr, sysctl_handle_attr, "A", "");
 
@@ -158,7 +158,7 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 	oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->oidp),
 	    OID_AUTO, grp->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, grp->name);
 	for (attr = grp->attrs; *attr != NULL; attr++) {
-		sysctl_add_oid(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
+		SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
 		    (*attr)->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
 		    kobj, (uintptr_t)*attr, sysctl_handle_attr, "A", "");
 	}

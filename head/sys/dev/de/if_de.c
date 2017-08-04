@@ -4887,8 +4887,8 @@ tulip_pci_attach(device_t dev)
 	    rid = 0;
 	    res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 					 RF_SHAREABLE | RF_ACTIVE);
-	    if (res == 0 || bus_setup_intr(dev, res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, intr_rtn, sc, &ih)) {
+	    if (res == NULL || bus_setup_intr(dev, res, INTR_TYPE_NET |
+                                              INTR_MPSAFE, NULL, intr_rtn, sc, &ih)) {
 		device_printf(dev, "couldn't map interrupt\n");
 		tulip_busdma_cleanup(sc);
 		ether_ifdetach(sc->tulip_ifp);

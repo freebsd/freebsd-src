@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -433,6 +433,8 @@ __END_DECLS
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
 #define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
 #define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
+#define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
+#define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
 /*
  * Options for controlling the firewall and dummynet.
@@ -631,6 +633,8 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
 					/* 15, unused, was: IPCTL_KEEPFAITH  */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
+#define	IPCTL_INTRDQMAXLEN	17	/* max length of direct netisr queue */
+#define	IPCTL_INTRDQDROPS	18	/* number of direct netisr q drops */
 
 #endif /* __BSD_VISIBLE */
 
@@ -646,7 +650,6 @@ int	 in_localaddr(struct in_addr);
 int	 in_localip(struct in_addr);
 int	 in_ifhasaddr(struct ifnet *, struct in_addr);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
-char	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
 int	 inet_pton(int af, const char *, void *); /* in libkern */

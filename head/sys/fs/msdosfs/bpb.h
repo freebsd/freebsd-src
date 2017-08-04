@@ -24,17 +24,17 @@
  * BIOS Parameter Block (BPB) for DOS 3.3
  */
 struct bpb33 {
-	u_int16_t	bpbBytesPerSec;	/* bytes per sector */
-	u_int8_t	bpbSecPerClust;	/* sectors per cluster */
-	u_int16_t	bpbResSectors;	/* number of reserved sectors */
-	u_int8_t	bpbFATs;	/* number of FATs */
-	u_int16_t	bpbRootDirEnts;	/* number of root directory entries */
-	u_int16_t	bpbSectors;	/* total number of sectors */
-	u_int8_t	bpbMedia;	/* media descriptor */
-	u_int16_t	bpbFATsecs;	/* number of sectors per FAT */
-	u_int16_t	bpbSecPerTrack;	/* sectors per track */
-	u_int16_t	bpbHeads;	/* number of heads */
-	u_int16_t	bpbHiddenSecs;	/* number of hidden sectors */
+	uint16_t	bpbBytesPerSec;	/* bytes per sector */
+	uint8_t		bpbSecPerClust;	/* sectors per cluster */
+	uint16_t	bpbResSectors;	/* number of reserved sectors */
+	uint8_t		bpbFATs;	/* number of FATs */
+	uint16_t	bpbRootDirEnts;	/* number of root directory entries */
+	uint16_t	bpbSectors;	/* total number of sectors */
+	uint8_t		bpbMedia;	/* media descriptor */
+	uint16_t	bpbFATsecs;	/* number of sectors per FAT */
+	uint16_t	bpbSecPerTrack;	/* sectors per track */
+	uint16_t	bpbHeads;	/* number of heads */
+	uint16_t	bpbHiddenSecs;	/* number of hidden sectors */
 };
 
 /*
@@ -42,46 +42,46 @@ struct bpb33 {
  * and bpbHugeSectors is not in the 3.3 bpb.
  */
 struct bpb50 {
-	u_int16_t	bpbBytesPerSec;	/* bytes per sector */
-	u_int8_t	bpbSecPerClust;	/* sectors per cluster */
-	u_int16_t	bpbResSectors;	/* number of reserved sectors */
-	u_int8_t	bpbFATs;	/* number of FATs */
-	u_int16_t	bpbRootDirEnts;	/* number of root directory entries */
-	u_int16_t	bpbSectors;	/* total number of sectors */
-	u_int8_t	bpbMedia;	/* media descriptor */
-	u_int16_t	bpbFATsecs;	/* number of sectors per FAT */
-	u_int16_t	bpbSecPerTrack;	/* sectors per track */
-	u_int16_t	bpbHeads;	/* number of heads */
-	u_int32_t	bpbHiddenSecs;	/* # of hidden sectors */
-	u_int32_t	bpbHugeSectors;	/* # of sectors if bpbSectors == 0 */
+	uint16_t	bpbBytesPerSec;	/* bytes per sector */
+	uint8_t		bpbSecPerClust;	/* sectors per cluster */
+	uint16_t	bpbResSectors;	/* number of reserved sectors */
+	uint8_t		bpbFATs;	/* number of FATs */
+	uint16_t	bpbRootDirEnts;	/* number of root directory entries */
+	uint16_t	bpbSectors;	/* total number of sectors */
+	uint8_t		bpbMedia;	/* media descriptor */
+	uint16_t	bpbFATsecs;	/* number of sectors per FAT */
+	uint16_t	bpbSecPerTrack;	/* sectors per track */
+	uint16_t	bpbHeads;	/* number of heads */
+	uint32_t	bpbHiddenSecs;	/* # of hidden sectors */
+	uint32_t	bpbHugeSectors;	/* # of sectors if bpbSectors == 0 */
 };
 
 /*
  * BPB for DOS 7.10 (FAT32).  This one has a few extensions to bpb50.
  */
 struct bpb710 {
-	u_int16_t	bpbBytesPerSec;	/* bytes per sector */
-	u_int8_t	bpbSecPerClust;	/* sectors per cluster */
-	u_int16_t	bpbResSectors;	/* number of reserved sectors */
-	u_int8_t	bpbFATs;	/* number of FATs */
-	u_int16_t	bpbRootDirEnts;	/* number of root directory entries */
-	u_int16_t	bpbSectors;	/* total number of sectors */
-	u_int8_t	bpbMedia;	/* media descriptor */
-	u_int16_t	bpbFATsecs;	/* number of sectors per FAT */
-	u_int16_t	bpbSecPerTrack;	/* sectors per track */
-	u_int16_t	bpbHeads;	/* number of heads */
-	u_int32_t	bpbHiddenSecs;	/* # of hidden sectors */
-	u_int32_t	bpbHugeSectors;	/* # of sectors if bpbSectors == 0 */
-	u_int32_t	bpbBigFATsecs;	/* like bpbFATsecs for FAT32 */
-	u_int16_t	bpbExtFlags;	/* extended flags: */
+	uint16_t	bpbBytesPerSec;	/* bytes per sector */
+	uint8_t		bpbSecPerClust;	/* sectors per cluster */
+	uint16_t	bpbResSectors;	/* number of reserved sectors */
+	uint8_t		bpbFATs;	/* number of FATs */
+	uint16_t	bpbRootDirEnts;	/* number of root directory entries */
+	uint16_t	bpbSectors;	/* total number of sectors */
+	uint8_t		bpbMedia;	/* media descriptor */
+	uint16_t	bpbFATsecs;	/* number of sectors per FAT */
+	uint16_t	bpbSecPerTrack;	/* sectors per track */
+	uint16_t	bpbHeads;	/* number of heads */
+	uint32_t	bpbHiddenSecs;	/* # of hidden sectors */
+	uint32_t	bpbHugeSectors;	/* # of sectors if bpbSectors == 0 */
+	uint32_t	bpbBigFATsecs;	/* like bpbFATsecs for FAT32 */
+	uint16_t	bpbExtFlags;	/* extended flags: */
 #define	FATNUM		0xf		/* mask for numbering active FAT */
 #define	FATMIRROR	0x80		/* FAT is mirrored (like it always was) */
-	u_int16_t	bpbFSVers;	/* filesystem version */
+	uint16_t	bpbFSVers;	/* filesystem version */
 #define	FSVERS		0		/* currently only 0 is understood */
-	u_int32_t	bpbRootClust;	/* start cluster for root directory */
-	u_int16_t	bpbFSInfo;	/* filesystem info structure sector */
-	u_int16_t	bpbBackup;	/* backup boot sector */
-	u_int8_t	bpbReserved[12]; /* reserved for future expansion */
+	uint32_t	bpbRootClust;	/* start cluster for root directory */
+	uint16_t	bpbFSInfo;	/* filesystem info structure sector */
+	uint16_t	bpbBackup;	/* backup boot sector */
+	uint8_t		bpbReserved[12]; /* reserved for future expansion */
 };
 
 /*
@@ -138,37 +138,37 @@ struct byte_bpb50 {
  * BPB for DOS 7.10 (FAT32).  This one has a few extensions to bpb50.
  */
 struct byte_bpb710 {
-	u_int8_t bpbBytesPerSec[2];	/* bytes per sector */
-	u_int8_t bpbSecPerClust;	/* sectors per cluster */
-	u_int8_t bpbResSectors[2];	/* number of reserved sectors */
-	u_int8_t bpbFATs;		/* number of FATs */
-	u_int8_t bpbRootDirEnts[2];	/* number of root directory entries */
-	u_int8_t bpbSectors[2];		/* total number of sectors */
-	u_int8_t bpbMedia;		/* media descriptor */
-	u_int8_t bpbFATsecs[2];		/* number of sectors per FAT */
-	u_int8_t bpbSecPerTrack[2];	/* sectors per track */
-	u_int8_t bpbHeads[2];		/* number of heads */
-	u_int8_t bpbHiddenSecs[4];	/* # of hidden sectors */
-	u_int8_t bpbHugeSectors[4];	/* # of sectors if bpbSectors == 0 */
-	u_int8_t bpbBigFATsecs[4];	/* like bpbFATsecs for FAT32 */
-	u_int8_t bpbExtFlags[2];	/* extended flags: */
-	u_int8_t bpbFSVers[2];		/* filesystem version */
-	u_int8_t bpbRootClust[4];	/* start cluster for root directory */
-	u_int8_t bpbFSInfo[2];		/* filesystem info structure sector */
-	u_int8_t bpbBackup[2];		/* backup boot sector */
-	u_int8_t bpbReserved[12];	/* reserved for future expansion */
+	uint8_t bpbBytesPerSec[2];	/* bytes per sector */
+	uint8_t bpbSecPerClust;		/* sectors per cluster */
+	uint8_t bpbResSectors[2];	/* number of reserved sectors */
+	uint8_t bpbFATs;		/* number of FATs */
+	uint8_t bpbRootDirEnts[2];	/* number of root directory entries */
+	uint8_t bpbSectors[2];		/* total number of sectors */
+	uint8_t bpbMedia;		/* media descriptor */
+	uint8_t bpbFATsecs[2];		/* number of sectors per FAT */
+	uint8_t bpbSecPerTrack[2];	/* sectors per track */
+	uint8_t bpbHeads[2];		/* number of heads */
+	uint8_t bpbHiddenSecs[4];	/* # of hidden sectors */
+	uint8_t bpbHugeSectors[4];	/* # of sectors if bpbSectors == 0 */
+	uint8_t bpbBigFATsecs[4];	/* like bpbFATsecs for FAT32 */
+	uint8_t bpbExtFlags[2];		/* extended flags: */
+	uint8_t bpbFSVers[2];		/* filesystem version */
+	uint8_t bpbRootClust[4];	/* start cluster for root directory */
+	uint8_t bpbFSInfo[2];		/* filesystem info structure sector */
+	uint8_t bpbBackup[2];		/* backup boot sector */
+	uint8_t bpbReserved[12];	/* reserved for future expansion */
 };
 
 /*
  * FAT32 FSInfo block.
  */
 struct fsinfo {
-	u_int8_t fsisig1[4];
-	u_int8_t fsifill1[480];
-	u_int8_t fsisig2[4];
-	u_int8_t fsinfree[4];
-	u_int8_t fsinxtfree[4];
-	u_int8_t fsifill2[12];
-	u_int8_t fsisig3[4];
+	uint8_t fsisig1[4];
+	uint8_t fsifill1[480];
+	uint8_t fsisig2[4];
+	uint8_t fsinfree[4];
+	uint8_t fsinxtfree[4];
+	uint8_t fsifill2[12];
+	uint8_t fsisig3[4];
 };
 #endif /* !_FS_MSDOSFS_BPB_H_ */

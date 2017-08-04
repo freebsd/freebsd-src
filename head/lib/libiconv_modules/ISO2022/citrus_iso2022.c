@@ -259,8 +259,8 @@ get_recommend(_ISO2022EncodingInfo * __restrict ei,
 	if (!ei->recommend[i])
 		ei->recommend[i] = malloc(sizeof(_ISO2022Charset));
 	else {
-		p = realloc(ei->recommend[i],
-		    sizeof(_ISO2022Charset) * (ei->recommendsize[i] + 1));
+		p = reallocarray(ei->recommend[i], ei->recommendsize[i] + 1,
+		    sizeof(_ISO2022Charset));
 		if (!p)
 			return (_PARSEFAIL);
 		ei->recommend[i] = p;

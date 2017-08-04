@@ -37,6 +37,7 @@
 
 #include <linux/list.h>
 #include <linux/compiler.h>
+#include <linux/kmod.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/moduleparam.h>
@@ -45,6 +46,8 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
+#define	MODULE_INFO(tag, info)
+#define	MODULE_FIRMWARE(firmware)
 
 #define	THIS_MODULE	((struct module *)0)
 

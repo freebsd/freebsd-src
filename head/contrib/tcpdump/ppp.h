@@ -13,8 +13,6 @@
  * University.  Carnegie Mellon makes no representations about the
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
- *
- * $FreeBSD$
  */
 #define PPP_HDRLEN	4	/* length of PPP header */
 

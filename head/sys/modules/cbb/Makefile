@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/pccbb
+.PATH: ${SRCTOP}/sys/dev/pccbb
 
 KMOD=	cbb
 SRCS=	pccbb.c pccbb_isa.c pccbb_pci.c \

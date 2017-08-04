@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -126,7 +126,7 @@ squish_check()
  */
 	public void
 forw(n, pos, force, only_last, nblank)
-	register int n;
+	int n;
 	POSITION pos;
 	int force;
 	int only_last;
@@ -303,7 +303,7 @@ forw(n, pos, force, only_last, nblank)
  */
 	public void
 back(n, pos, force, only_last)
-	register int n;
+	int n;
 	POSITION pos;
 	int force;
 	int only_last;
@@ -448,4 +448,22 @@ get_back_scroll()
 	if (top_scroll)
 		return (sc_height - 2);
 	return (10000); /* infinity */
+}
+
+/*
+ * Get line count of file up to the screen height + 1 char
+ */
+	public int
+get_line_count()
+{
+	int nlines;
+	POSITION pos;
+
+	pos = ch_zero();
+	for (nlines = 0;  nlines <= sc_height;  nlines++)
+	{
+		pos = forw_line(pos);
+		if (pos == NULL_POSITION) break;
+	}
+	return nlines;
 }

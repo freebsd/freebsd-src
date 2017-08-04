@@ -32,7 +32,13 @@
 # define 	__KERNEL__
 #endif
 
-#define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
+#ifndef	SOLARIS
+# if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+#  define	SOLARIS		1
+# else
+#  define	SOLARIS		0
+# endif
+#endif
 
 
 #if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
@@ -159,6 +165,7 @@ struct  ether_addr {
 #    define	READ_ENTER(x)		rw_rlock(&(x)->ipf_lk)
 #    define	WRITE_ENTER(x)		rw_wlock(&(x)->ipf_lk)
 #    define	MUTEX_DOWNGRADE(x)	rw_downgrade(&(x)->ipf_lk)
+#    define	MUTEX_TRY_UPGRADE(x)	rw_try_upgrade(&(x)->ipf_lk)
 #    define	RWLOCK_INIT(x,y)	rw_init(&(x)->ipf_lk, (y))
 #    define	RW_DESTROY(x)		rw_destroy(&(x)->ipf_lk)
 #    define	RWLOCK_EXIT(x)		do { \
@@ -169,6 +176,7 @@ struct  ether_addr {
 					} while (0)
 #  include <net/if_var.h>
 #  define	GETKTIME(x)	microtime((struct timeval *)x)
+#  define	if_addrlist	if_addrhead
 
 #   include <netinet/in_systm.h>
 #   include <netinet/ip.h>
@@ -205,7 +213,7 @@ struct  ether_addr {
 #  define	MSGDSIZE(m)	mbufchainlen(m)
 #  define	M_LEN(m)	(m)->m_len
 #  define	M_ADJ(m,x)	m_adj(m, x)
-#  define	M_COPY(x)	m_copy((x), 0, M_COPYALL)
+#  define	M_COPY(x)	m_copym((x), 0, M_COPYALL, M_NOWAIT)
 #  define	M_DUP(m)	m_dup(m, M_NOWAIT)
 #  define	IPF_PANIC(x,y)	if (x) { printf y; panic("ipf_panic"); }
 typedef struct mbuf mb_t;
@@ -413,6 +421,8 @@ extern	void	freembt __P((mb_t *));
 # define	MUTEX_NUKE(x)		bzero((x), sizeof(*(x)))
 
 # define	MUTEX_DOWNGRADE(x)	eMrwlock_downgrade(&(x)->ipf_emu, \
+							   __FILE__, __LINE__)
+# define	MUTEX_TRY_UPGRADE(x)	eMrwlock_try_upgrade(&(x)->ipf_emu, \
 							   __FILE__, __LINE__)
 # define	READ_ENTER(x)		eMrwlock_read_enter(&(x)->ipf_emu, \
 							    __FILE__, __LINE__)
@@ -664,6 +674,7 @@ extern	char	*ipf_getifname __P((struct ifnet *, char *));
 # define	READ_ENTER(x)		;
 # define	WRITE_ENTER(x)		;
 # define	MUTEX_DOWNGRADE(x)	;
+# define	MUTEX_TRY_UPGRADE(x)	;
 # define	RWLOCK_INIT(x, y)	;
 # define	RWLOCK_EXIT(x)		;
 # define	RW_DESTROY(x)		;

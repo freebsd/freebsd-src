@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91board.h>
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #define FDT_HACKS 1

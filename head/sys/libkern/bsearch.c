@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,16 +54,16 @@ __FBSDID("$FreeBSD$");
  */
 void *
 bsearch(key, base0, nmemb, size, compar)
-	register const void *key;
+	const void *key;
 	const void *base0;
 	size_t nmemb;
-	register size_t size;
-	register int (*compar)(const void *, const void *);
+	size_t size;
+	int (*compar)(const void *, const void *);
 {
-	register const char *base = base0;
-	register size_t lim;
-	register int cmp;
-	register const void *p;
+	const char *base = base0;
+	size_t lim;
+	int cmp;
+	const void *p;
 
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		p = base + (lim >> 1) * size;

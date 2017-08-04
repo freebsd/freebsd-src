@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	soelim
+ATF_TESTS_SH=	soelim_test
 
 ${PACKAGE}FILES+=		nonexisting.in \
 		basic.in \

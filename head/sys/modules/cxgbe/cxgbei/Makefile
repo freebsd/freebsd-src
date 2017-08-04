@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-CXGBE = ${.CURDIR}/../../../dev/cxgbe
+CXGBE = ${SRCTOP}/sys/dev/cxgbe
 .PATH: ${CXGBE}/cxgbei
 
 KMOD=	cxgbei
 
 SRCS=	cxgbei.c
-SRCS+=	cxgbei_ulp2_ddp.c
 SRCS+=	icl_cxgbei.c
 SRCS+=	bus_if.h
 SRCS+=	device_if.h

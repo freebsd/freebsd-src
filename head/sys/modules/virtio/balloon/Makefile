@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/balloon
+.PATH: ${SRCTOP}/sys/dev/virtio/balloon
 
 KMOD=	virtio_balloon
 SRCS=	virtio_balloon.c

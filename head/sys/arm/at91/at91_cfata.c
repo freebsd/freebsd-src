@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
@@ -116,7 +114,7 @@ at91_cfata_detach(device_t dev)
 
 static struct resource *
 ata_at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct at91_cfata_softc *sc = device_get_softc(dev);
 

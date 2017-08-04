@@ -72,6 +72,7 @@ iwn_intr_str(uint8_t cmd)
 	case IWN_RX_PHY:		return "RX_PHY";
 	case IWN_MPDU_RX_DONE:		return "MPDU_RX_DONE";
 	case IWN_RX_DONE:		return "RX_DONE";
+	case IWN_RX_COMPRESSED_BA:	return "RX_COMPRESSED_BA";
 
 	/* Command Notifications */
 	case IWN_CMD_RXON:		return "IWN_CMD_RXON";
@@ -81,6 +82,7 @@ iwn_intr_str(uint8_t cmd)
 	case IWN_CMD_LINK_QUALITY:	return "IWN_CMD_LINK_QUALITY";
 	case IWN_CMD_SET_LED:		return "IWN_CMD_SET_LED";
 	case IWN5000_CMD_WIMAX_COEX:	return "IWN5000_CMD_WIMAX_COEX";
+	case IWN_TEMP_NOTIFICATION:	return "IWN_TEMP_NOTIFICATION";
 	case IWN5000_CMD_CALIB_CONFIG:	return "IWN5000_CMD_CALIB_CONFIG";
 	case IWN5000_CMD_CALIB_RESULT:	return "IWN5000_CMD_CALIB_RESULT";
 	case IWN5000_CMD_CALIB_COMPLETE: return "IWN5000_CMD_CALIB_COMPLETE";

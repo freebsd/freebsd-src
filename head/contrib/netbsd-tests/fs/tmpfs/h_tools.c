@@ -50,6 +50,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <inttypes.h>
+#endif
+
 /* --------------------------------------------------------------------- */
 
 static int getfh_main(int, char **);
@@ -70,7 +74,12 @@ getfh_main(int argc, char **argv)
 	if (argc < 2)
 		return EXIT_FAILURE;
 
+#ifdef __FreeBSD__
+	fh_size = sizeof(fhandle_t);
+#else
 	fh_size = 0;
+#endif
+
 	fh = NULL;
 	for (;;) {
 		if (fh_size) {
@@ -85,7 +94,11 @@ getfh_main(int argc, char **argv)
 		 * but it may change if someone moves things around,
 		 * so retry untill we have enough memory.
 		 */
+#ifdef __FreeBSD__
+		error = getfh(argv[1], fh);
+#else
 		error = getfh(argv[1], fh, &fh_size);
+#endif
 		if (error == 0) {
 			break;
 		} else {
@@ -230,12 +243,21 @@ sockets_main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+#ifdef	__FreeBSD__
+	memset(&addr, 0, sizeof(addr));
+#endif
 	(void)strlcpy(addr.sun_path, argv[1], sizeof(addr.sun_path));
 	addr.sun_family = PF_UNIX;
-
+#ifdef	__FreeBSD__
+	error = bind(fd, (struct sockaddr *)&addr, SUN_LEN(&addr));
+#else
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+#endif
 	if (error == -1) {
 		warn("connect");
+#ifdef	__FreeBSD__
+		(void)close(fd);
+#endif
 		return EXIT_FAILURE;
 	}
 

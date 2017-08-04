@@ -319,6 +319,8 @@ void cancel_timeout(void (*)(void *), void *);
 void add_protocol(char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
 int interface_link_status(char *);
+void interface_set_mtu_unpriv(int, u_int16_t);
+void interface_set_mtu_priv(char *, u_int16_t); 
 
 /* hash.c */
 struct hash_table *new_hash(void);

@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.22 2016/05/31 23:30:59 sjg Exp $
+# $Id: dpadd.mk,v 1.23 2017/02/13 16:46:01 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -49,11 +49,11 @@ CXXFLAGS_LAST += ${CXXFLAGS_DEBUG_XTRA}
 # DPLIBS helps us ensure we keep DPADD and LDADD in sync
 DPLIBS+= ${DPLIBS_LAST}
 DPADD+= ${DPLIBS:N-*}
-.for __lib in ${DPLIBS:T:R}
+.for __lib in ${DPLIBS}
 .if "${_lib:M-*}" != ""
 LDADD += ${__lib}
 .else
-LDADD += ${LDADD_${__lib}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
+LDADD += ${LDADD_${__lib:T:R}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}
 .endif
 .endfor
 

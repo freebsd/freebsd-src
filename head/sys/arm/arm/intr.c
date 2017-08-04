@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -184,7 +185,7 @@ intr_irq_handler(struct trapframe *frame)
 	struct intr_event *event;
 	int i;
 
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 	i = -1;
 	while ((i = arm_get_next_irq(i)) != -1) {
 		intrcnt[i]++;

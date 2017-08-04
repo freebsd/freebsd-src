@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2015
+.Dd October 5, 2016
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -114,21 +114,33 @@ static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 .Ed
 .Pp
-Leave another blank line before the header files.
+Leave one blank line before the header files.
 .Pp
-Kernel include files (i.e.\&
-.Pa sys/*.h )
-come first; normally, include
+Kernel include files
+.Pa ( sys/*.h )
+come first.
+If
+.In sys/cdefs.h
+is needed for
+.Fn __FBSDID ,
+include it first.
+If either
 .In sys/types.h
-OR
-.In sys/param.h ,
-but not both.
-.In sys/types.h
+or
+.In sys/param.h
+is needed, include it before other include files.
+.Po
+.In sys/param.h
 includes
-.In sys/cdefs.h ,
-and it is okay to depend on that.
+.In sys/types.h ;
+do not include both.
+.Pc
+The remaining kernel headers should be sorted alphabetically.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
+#include <sys/endian.h>
+#include <sys/lock.h>
+#include <sys/queue.h>
 .Ed
 .Pp
 For a network program, put the network include files next.
@@ -140,9 +152,9 @@ For a network program, put the network include files next.
 #include <protocols/rwhod.h>
 .Ed
 .Pp
-Do not use files in
+Do not include files from
 .Pa /usr/include
-for files in the kernel.
+in the kernel.
 .Pp
 Leave a blank line before the next group, the
 .Pa /usr/include
@@ -162,7 +174,7 @@ in the local directory.
 #include <paths.h>
 .Ed
 .Pp
-Leave another blank line before the user include files.
+Leave another blank line before the local include files.
 .Bd -literal
 #include "pathnames.h"		/* Local includes in double quotes. */
 .Ed

@@ -79,7 +79,7 @@ int	pacct_update(void);
 void	pacct_print(void);
 
 /* external functions in readrec.c */
-int	readrec_forward(FILE *f, struct acctv2 *av2);
+int	readrec_forward(FILE *f, struct acctv3 *av2);
 
 /* external functions in usrdb.c */
 int	usracct_init(void);

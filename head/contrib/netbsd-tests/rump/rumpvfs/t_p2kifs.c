@@ -1,4 +1,4 @@
-/*	$NetBSD: t_p2kifs.c,v 1.4 2014/02/07 15:29:23 hannken Exp $	*/
+/*	$NetBSD: t_p2kifs.c,v 1.6 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -32,6 +32,7 @@
 #include <sys/sysctl.h>
 
 #include <rump/rump.h>
+#include <rump/rumpvnode_if.h>
 #include <rump/rump_syscalls.h>
 
 #include <atf-c.h>
@@ -40,7 +41,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(makecn);
 ATF_TC_HEAD(makecn, tc)

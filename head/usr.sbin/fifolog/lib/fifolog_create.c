@@ -45,6 +45,7 @@ fifolog_create(const char *fn, off_t size, ssize_t recsize)
 {
 	int i, fd;
 	ssize_t u;
+	u_int uu;
 	off_t ms;
 	struct stat st;
 	char *buf;
@@ -79,7 +80,8 @@ fifolog_create(const char *fn, off_t size, ssize_t recsize)
 	}
 
 	/* For raw disk with larger sectors: use 1 sector */
-	i = ioctl(fd, DIOCGSECTORSIZE, &u);
+	i = ioctl(fd, DIOCGSECTORSIZE, &uu);
+	u = uu;
 	if (i == 0 && (u > recsize || (recsize % u) != 0))
 		recsize = u;
 
@@ -97,7 +99,7 @@ fifolog_create(const char *fn, off_t size, ssize_t recsize)
 	if (S_ISREG(st.st_mode) && ftruncate(fd, size) < 0)
 		return ("Could not ftrunc");
 
-	buf = calloc(recsize, 1);
+	buf = calloc(1, recsize);
 	if (buf == NULL)
 		return ("Could not malloc");
 

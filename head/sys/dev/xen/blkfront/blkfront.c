@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr_machdep.h>
 #include <machine/vmparam.h>
-#include <sys/bus_dma.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -1245,19 +1244,27 @@ xbd_connect(struct xbd_softc *sc)
 		    xenbus_get_otherend_path(dev));
 		return;
 	}
+	if ((sectors == 0) || (sector_size == 0)) {
+		xenbus_dev_fatal(dev, 0,
+		    "invalid parameters from %s:"
+		    " sectors = %lu, sector_size = %lu",
+		    xenbus_get_otherend_path(dev),
+		    sectors, sector_size);
+		return;
+	}
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
 	     "physical-sector-size", "%lu", &phys_sector_size,
 	     NULL);
 	if (err || phys_sector_size <= sector_size)
 		phys_sector_size = 0;
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-	     "feature-barrier", "%lu", &feature_barrier,
+	     "feature-barrier", "%d", &feature_barrier,
 	     NULL);
 	if (err == 0 && feature_barrier != 0)
 		sc->xbd_flags |= XBDF_BARRIER;
 
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-	     "feature-flush-cache", "%lu", &feature_flush,
+	     "feature-flush-cache", "%d", &feature_flush,
 	     NULL);
 	if (err == 0 && feature_flush != 0)
 		sc->xbd_flags |= XBDF_FLUSH;
@@ -1529,6 +1536,11 @@ xbd_resume(device_t dev)
 {
 	struct xbd_softc *sc = device_get_softc(dev);
 
+	if (xen_suspend_cancelled) {
+		sc->xbd_state = XBD_STATE_CONNECTED;
+		return (0);
+	}
+
 	DPRINTK("xbd_resume: %s\n", xenbus_get_node(dev));
 
 	xbd_free(sc);
@@ -1565,11 +1577,14 @@ xbd_backend_changed(device_t dev, XenbusState backend_state)
 		break;
 
 	case XenbusStateClosing:
-		if (sc->xbd_users > 0)
-			xenbus_dev_error(dev, -EBUSY,
-			    "Device in use; refusing to close");
-		else
+		if (sc->xbd_users > 0) {
+			device_printf(dev, "detaching with pending users\n");
+			KASSERT(sc->xbd_disk != NULL,
+			    ("NULL disk with pending users\n"));
+			disk_gone(sc->xbd_disk);
+		} else {
 			xbd_closing(dev);
+		}
 		break;	
 	}
 }

@@ -25,6 +25,12 @@
 #ifndef MD5End
 #define MD5End		_libmd_MD5End
 #endif
+#ifndef MD5Fd
+#define MD5Fd		_libmd_MD5Fd
+#endif
+#ifndef MD5FdChunk
+#define MD5FdChunk	_libmd_MD5FdChunk
+#endif
 #ifndef MD5File
 #define MD5File		_libmd_MD5File
 #endif
@@ -37,13 +43,5 @@
 
 #endif
 
-#ifdef __cplusplus
-#define static
-#endif
-
 #include <sys/md5.h>
-
-#ifdef __cplusplus
-#undef static
-#endif
 #endif /* _MD5_H_ */

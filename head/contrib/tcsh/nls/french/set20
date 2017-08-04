@@ -1,4 +1,4 @@
-$ $tcsh: set20,v 1.3 2011/02/04 18:19:35 christos Exp $
+$ $tcsh: set20,v 1.4 2015/08/13 08:54:04 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Nom de touche incorrect `%S'\n
@@ -19,7 +19,7 @@ $set 20
 16     -c   interprète COMMANDE comme une commande intégrée ou externe\n
 17     -v   redéfinit toutes les touches pour vi\n
 18     -e   redéfinit toutes les touches pour emacs\n
-19     -d   redéfinit toutes les touches pour de l'éditeur par defaut\n
+19     -d   redéfinit toutes les touches pour de l'éditeur par defaut (%s)\n
 20     -l   liste les commandes de l'éditeur avec descriptions\n
 21     -r   enlève la correspondance pour la TOUCHE\n
 22     -k   interprète TOUCHE comme un nom de touche de direction symbolique\n

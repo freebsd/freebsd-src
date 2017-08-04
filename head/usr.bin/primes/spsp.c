@@ -32,23 +32,32 @@ __FBSDID("$FreeBSD$");
 
 #include "primes.h"
 
-/* Return a * b % n, where 0 <= a, b < 2^63, 0 < n < 2^63. */
+/* Return a * b % n, where 0 < n. */
 static uint64_t
 mulmod(uint64_t a, uint64_t b, uint64_t n)
 {
 	uint64_t x = 0;
+	uint64_t an = a % n;
 
 	while (b != 0) {
-		if (b & 1)
-			x = (x + a) % n;
-		a = (a + a) % n;
+		if (b & 1) {
+			x += an;
+			if ((x < an) || (x >= n))
+				x -= n;
+		}
+		if (an + an < an)
+			an = an + an - n;
+		else if (an + an >= n)
+			an = an + an - n;
+		else
+			an = an + an;
 		b >>= 1;
 	}
 
 	return (x);
 }
 
-/* Return a^r % n, where 0 <= a < 2^63, 0 < n < 2^63. */
+/* Return a^r % n, where 0 < n. */
 static uint64_t
 powmod(uint64_t a, uint64_t r, uint64_t n)
 {
@@ -173,9 +182,20 @@ isprime(ubig _n)
 	if (n < 3825123056546413051)
 		return (1);
 
-	/* We can't handle values larger than this. */
-	assert(n <= SPSPMAX);
+	/*
+	 * Value from:
+	 * J. Sorenson and J. Webster, Strong pseudoprimes to twelve prime
+	 * bases, Math. Comp. 86(304):985-1003, 2017.
+	 */
 
-	/* UNREACHABLE */
-	return (0);
+	/* No SPSPs to bases 2..37 less than 318665857834031151167461. */
+	if (!spsp(n, 29))
+		return (0);
+	if (!spsp(n, 31))
+		return (0);
+	if (!spsp(n, 37))
+		return (0);
+
+	/* All 64-bit values are less than 318665857834031151167461. */
+	return (1);
 }

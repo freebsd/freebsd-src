@@ -930,8 +930,11 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 			axf = &auth_hash_nist_gmac_aes_256;
 		auth4common:
 			len = cri->cri_klen / 8;
-			if (len != 16 && len != 24 && len != 32)
+			if (len != 16 && len != 24 && len != 32) {
+				swcr_freesession_locked(dev, i);
+				rw_runlock(&swcr_sessions_lock);
 				return EINVAL;
+			}
 
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);

@@ -20,12 +20,14 @@ saveseed_cmd="${name}_stop"
 
 save_dev_random()
 {
+	oumask=`umask`
+	umask 077
 	for f ; do
-		if :>>"$f" ; then
-			debug "saving entropy to $f"
-			dd if=/dev/random of="$f" bs=4096 count=1 2>/dev/null
-		fi
+		debug "saving entropy to $f"
+		dd if=/dev/random of="$f" bs=4096 count=1 status=none &&
+			chmod 600 "$f"
 	done
+	umask ${oumask}
 }
 
 feed_dev_random()

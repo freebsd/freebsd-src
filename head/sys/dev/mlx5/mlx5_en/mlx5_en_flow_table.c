@@ -472,7 +472,7 @@ mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 
 	match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
-	    outer_headers.vlan_tag);
+	    outer_headers.cvlan_tag);
 
 	switch (rule_type) {
 	case MLX5E_VLAN_RULE_TYPE_UNTAGGED:
@@ -480,12 +480,12 @@ mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 		break;
 	case MLX5E_VLAN_RULE_TYPE_ANY_VID:
 		ft_ix = &priv->vlan.any_vlan_rule_ft_ix;
-		MLX5_SET(fte_match_param, match_value, outer_headers.vlan_tag,
+		MLX5_SET(fte_match_param, match_value, outer_headers.cvlan_tag,
 		    1);
 		break;
 	default:			/* MLX5E_VLAN_RULE_TYPE_MATCH_VID */
 		ft_ix = &priv->vlan.active_vlans_ft_ix[vid];
-		MLX5_SET(fte_match_param, match_value, outer_headers.vlan_tag,
+		MLX5_SET(fte_match_param, match_value, outer_headers.cvlan_tag,
 		    1);
 		MLX5_SET_TO_ONES(fte_match_param, match_criteria,
 		    outer_headers.first_vid);
@@ -854,8 +854,6 @@ mlx5e_create_main_flow_table(struct mlx5e_priv *priv)
 	u8 *dmac;
 
 	g = malloc(9 * sizeof(*g), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (g == NULL)
-		return (-ENOMEM);
 
 	g[0].log_sz = 2;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
@@ -939,13 +937,11 @@ mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	struct mlx5_flow_table_group *g;
 
 	g = malloc(2 * sizeof(*g), M_MLX5EN, M_WAITOK | M_ZERO);
-	if (g == NULL)
-		return (-ENOMEM);
 
 	g[0].log_sz = 12;
 	g[0].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, g[0].match_criteria,
-	    outer_headers.vlan_tag);
+	    outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, g[0].match_criteria,
 	    outer_headers.first_vid);
 
@@ -953,7 +949,7 @@ mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	g[1].log_sz = 1;
 	g[1].match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, g[1].match_criteria,
-	    outer_headers.vlan_tag);
+	    outer_headers.cvlan_tag);
 
 	priv->ft.vlan = mlx5_create_flow_table(priv->mdev, 0,
 	    MLX5_FLOW_TABLE_TYPE_NIC_RCV,

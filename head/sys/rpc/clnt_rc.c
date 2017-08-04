@@ -450,7 +450,6 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 
 	case CLSET_BACKCHANNEL:
 		xprt = (SVCXPRT *)info;
-		SVC_ACQUIRE(xprt);
 		xprt_register(xprt);
 		rc->rc_backchannel = info;
 		break;

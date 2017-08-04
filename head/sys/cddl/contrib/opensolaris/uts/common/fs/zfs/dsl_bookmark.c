@@ -12,8 +12,10 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 #include <sys/zfs_context.h>
@@ -34,10 +36,10 @@ static int
 dsl_bookmark_hold_ds(dsl_pool_t *dp, const char *fullname,
     dsl_dataset_t **dsp, void *tag, char **shortnamep)
 {
-	char buf[MAXNAMELEN];
+	char buf[ZFS_MAX_DATASET_NAME_LEN];
 	char *hashp;
 
-	if (strlen(fullname) >= MAXNAMELEN)
+	if (strlen(fullname) >= ZFS_MAX_DATASET_NAME_LEN)
 		return (SET_ERROR(ENAMETOOLONG));
 	hashp = strchr(fullname, '#');
 	if (hashp == NULL)
@@ -59,16 +61,14 @@ dsl_dataset_bmark_lookup(dsl_dataset_t *ds, const char *shortname,
 {
 	objset_t *mos = ds->ds_dir->dd_pool->dp_meta_objset;
 	uint64_t bmark_zapobj = ds->ds_bookmarks;
-	matchtype_t mt;
+	matchtype_t mt = 0;
 	int err;
 
 	if (bmark_zapobj == 0)
 		return (SET_ERROR(ESRCH));
 
 	if (dsl_dataset_phys(ds)->ds_flags & DS_FLAG_CI_DATASET)
-		mt = MT_FIRST;
-	else
-		mt = MT_EXACT;
+		mt = MT_NORMALIZE;
 
 	err = zap_lookup_norm(mos, bmark_zapobj, shortname, sizeof (uint64_t),
 	    sizeof (*bmark_phys) / sizeof (uint64_t), bmark_phys, mt,
@@ -339,12 +339,10 @@ dsl_dataset_bookmark_remove(dsl_dataset_t *ds, const char *name, dmu_tx_t *tx)
 {
 	objset_t *mos = ds->ds_dir->dd_pool->dp_meta_objset;
 	uint64_t bmark_zapobj = ds->ds_bookmarks;
-	matchtype_t mt;
+	matchtype_t mt = 0;
 
 	if (dsl_dataset_phys(ds)->ds_flags & DS_FLAG_CI_DATASET)
-		mt = MT_FIRST;
-	else
-		mt = MT_EXACT;
+		mt = MT_NORMALIZE;
 
 	return (zap_remove_norm(mos, bmark_zapobj, name, mt, tx));
 }

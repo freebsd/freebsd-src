@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2013
+.Dd October 5, 2016
 .Dt DEVFS 8
 .Os
 .Sh NAME
@@ -249,7 +249,8 @@ configuration file.
 .It Pa /etc/devfs.rules
 Local
 .Nm
-configuration file.  Rulesets in here override those in
+configuration file.
+Rulesets in here override those in
 .Pa /etc/defaults/devfs.rules
 with the same ruleset number, otherwise the two files are effectively merged.
 .It Pa /etc/devfs.conf
@@ -374,5 +375,10 @@ this feature can be used to copy rulesets:
 .Xr chown 8 ,
 .Xr jail 8 ,
 .Xr mknod 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Dima Dorfman

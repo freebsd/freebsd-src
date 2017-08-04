@@ -127,7 +127,7 @@ shutdown_send_sigpipe_handler(int __unused x)
  * Parameterized test function bodies
  */
 static void
-test_eagain(size_t sndbufsize, size_t rcvbufsize)
+test_eagain(int sndbufsize, int rcvbufsize)
 {
 	int i;
 	int sv[2];
@@ -165,7 +165,7 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 }
 
 static void
-test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
+test_sendrecv_symmetric_buffers(int bufsize, int blocking) {
 	int s;
 	int sv[2];
 	const ssize_t pktsize = bufsize / 2;
@@ -209,7 +209,7 @@ test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
 }
 
 static void
-test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
+test_pipe_simulator(int sndbufsize, int rcvbufsize)
 {
 	int num_sent, num_received;
 	int sv[2];
@@ -341,7 +341,7 @@ test_pipe_reader(void* args)
 
 
 static void
-test_pipe(size_t sndbufsize, size_t rcvbufsize)
+test_pipe(int sndbufsize, int rcvbufsize)
 {
 	test_pipe_thread_data_t writer_data, reader_data;
 	pthread_t writer, reader;
@@ -762,7 +762,7 @@ ATF_TC_BODY(shutdown_send, tc)
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
 	const char *path = "sock";
 	const char *data = "data";
-	ssize_t ssize;
+	ssize_t datalen, ssize;
 	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
@@ -786,8 +786,9 @@ ATF_TC_BODY(shutdown_send, tc)
 	}
 
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
+	datalen = strlen(data) + 1;	/* +1 for the null */
 	/* USE MSG_NOSIGNAL so we don't get SIGPIPE */
-	ssize = send(s2, data, sizeof(data), MSG_EOR | MSG_NOSIGNAL);
+	ssize = send(s2, data, datalen, MSG_EOR | MSG_NOSIGNAL);
 	ATF_CHECK_EQ(EPIPE, errno);
 	ATF_CHECK_EQ(-1, ssize);
 	close(s);
@@ -802,6 +803,7 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
 	const char *path = "sock";
 	const char *data = "data";
+	ssize_t datalen;
 	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
@@ -826,7 +828,8 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
-	(void)send(s2, data, sizeof(data), MSG_EOR);
+	datalen = strlen(data) + 1;	/* +1 for the null */
+	(void)send(s2, data, sizeof(*data), MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
 	close(s);
 	close(s2);
@@ -875,8 +878,8 @@ ATF_TC_WITHOUT_HEAD(emsgsize);
 ATF_TC_BODY(emsgsize, tc)
 {
 	int sv[2];
-	const size_t sndbufsize = 8192;
-	const size_t rcvbufsize = 8192;
+	const int sndbufsize = 8192;
+	const int rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
 	ssize_t ssize;
@@ -904,8 +907,8 @@ ATF_TC_WITHOUT_HEAD(emsgsize_nonblocking);
 ATF_TC_BODY(emsgsize_nonblocking, tc)
 {
 	int sv[2];
-	const size_t sndbufsize = 8192;
-	const size_t rcvbufsize = 8192;
+	const int sndbufsize = 8192;
+	const int rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
 	ssize_t ssize;
@@ -962,8 +965,8 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 	int i;
 	int sv[2];
 	const ssize_t pktsize = 1024;
-	const size_t sndbufsize = 8192;
-	const size_t rcvbufsize = 131072;
+	const int sndbufsize = 8192;
+	const int rcvbufsize = 131072;
 	const size_t geometric_mean_bufsize = 32768;
 	const int numpkts = geometric_mean_bufsize / pktsize;
 	char sndbuf[pktsize];

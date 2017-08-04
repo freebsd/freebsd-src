@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
  * Return information about mounted filesystems.
  */
 int
-getmntinfo(struct statfs **mntbufp, int flags)
+getmntinfo(struct statfs **mntbufp, int mode)
 {
 	static struct statfs *mntbuf;
 	static int mntsize;
@@ -50,7 +50,7 @@ getmntinfo(struct statfs **mntbufp, int flags)
 
 	if (mntsize <= 0 && (mntsize = getfsstat(0, 0, MNT_NOWAIT)) < 0)
 		return (0);
-	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 		return (0);
 	while (bufsize <= mntsize * sizeof(struct statfs)) {
 		if (mntbuf)
@@ -58,7 +58,7 @@ getmntinfo(struct statfs **mntbufp, int flags)
 		bufsize = (mntsize + 1) * sizeof(struct statfs);
 		if ((mntbuf = malloc(bufsize)) == NULL)
 			return (0);
-		if ((mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+		if ((mntsize = getfsstat(mntbuf, bufsize, mode)) < 0)
 			return (0);
 	}
 	*mntbufp = mntbuf;

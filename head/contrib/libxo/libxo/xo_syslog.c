@@ -21,7 +21,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,6 +53,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/time.h>
@@ -94,11 +95,13 @@
 #define XO_DEFAULT_EID	32473	/* Fallback to the "example" number */
 #endif
 
+#ifndef HOST_NAME_MAX
 #ifdef _SC_HOST_NAME_MAX
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #else
 #define HOST_NAME_MAX 255
 #endif /* _SC_HOST_NAME_MAX */
+#endif /* HOST_NAME_MAX */
 
 #ifndef UNUSED
 #define UNUSED __attribute__ ((__unused__))
@@ -173,8 +176,8 @@ xo_send_syslog (char *full_msg, char *v0_hdr,
     int fd;
     int full_len = strlen(full_msg);
 
-    /* Output to stderr if requested. */
-    if (xo_logstat & LOG_PERROR) {
+    /* Output to stderr if requested, then we've been passed a v0 header */
+    if (v0_hdr) {
         struct iovec iov[3];
         struct iovec *v = iov;
         char newline[] = "\n";
@@ -425,12 +428,13 @@ xo_set_syslog_handler (xo_syslog_open_t open_func,
     xo_syslog_close = close_func;
 }
 
-static size_t
-xo_snprintf (char *out, size_t outsize, const char *fmt, ...)
+static ssize_t
+xo_snprintf (char *out, ssize_t outsize, const char *fmt, ...)
 {
-    int status;
-    size_t retval = 0;
+    ssize_t status;
+    ssize_t retval = 0;
     va_list ap;
+
     if (out && outsize) {
         va_start(ap, fmt);
         status = vsnprintf(out, outsize, fmt, ap);
@@ -443,10 +447,11 @@ xo_snprintf (char *out, size_t outsize, const char *fmt, ...)
         }
         va_end(ap);
     }
+
     return retval;
 }
 
-static int
+static xo_ssize_t
 xo_syslog_handle_write (void *opaque, const char *data)
 {
     xo_buffer_t *xbp = opaque;

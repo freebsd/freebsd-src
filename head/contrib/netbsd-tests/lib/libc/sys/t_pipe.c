@@ -1,4 +1,4 @@
-/* $NetBSD: t_pipe.c,v 1.3 2011/10/31 15:41:31 christos Exp $ */
+/* $NetBSD: t_pipe.c,v 1.5 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2001, 2008 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_pipe.c,v 1.3 2011/10/31 15:41:31 christos Exp $");
+__RCSID("$NetBSD: t_pipe.c,v 1.5 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -45,7 +45,7 @@ __RCSID("$NetBSD: t_pipe.c,v 1.3 2011/10/31 15:41:31 christos Exp $");
 
 #include <atf-c.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 static pid_t pid;
 static int nsiginfo = 0;
@@ -153,6 +153,7 @@ ATF_TC_BODY(pipe_restart, tc)
 
 		ATF_REQUIRE_EQ(WEXITSTATUS(st), 0);
 	}
+	free(f);
 }
 
 ATF_TP_ADD_TCS(tp)

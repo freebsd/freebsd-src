@@ -2,7 +2,7 @@
 
 # Makefile for the IEEE1394 OHCI chipset
 
-.PATH: ${.CURDIR}/../../../dev/firewire
+.PATH: ${SRCTOP}/sys/dev/firewire
 
 KMOD= firewire
 SRCS	= bus_if.h device_if.h pci_if.h \

@@ -122,7 +122,7 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 	ml = &maps[map_idx];
 	if (TAILQ_LAST(ml, mapping_list) != NULL &&
 	    TAILQ_LAST(ml, mapping_list)->m_char >= c)
-		errx(1, "Bad ordering at character %u\n", c);
+		errx(1, "Bad ordering at character %u", c);
 	TAILQ_INSERT_TAIL(ml, mp, m_list);
 
 	map_count[map_idx]++;
@@ -143,7 +143,7 @@ dedup_mapping(unsigned int map_idx)
 		while (mp_normal->m_char < mp_bold->m_char)
 			mp_normal = TAILQ_NEXT(mp_normal, m_list);
 		if (mp_bold->m_char != mp_normal->m_char)
-			errx(1, "Character %u not in normal font!\n",
+			errx(1, "Character %u not in normal font!",
 			    mp_bold->m_char);
 		if (mp_bold->m_glyph != mp_normal->m_glyph)
 			continue;
@@ -218,7 +218,7 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 	unsigned int i, subline;
 
 	if (dwidth != width && dwidth != width * 2)
-		errx(1, "Bitmap with unsupported width %u!\n", dwidth);
+		errx(1, "Bitmap with unsupported width %u!", dwidth);
 
 	/* Move pixel data right to simplify splitting double characters. */
 	line >>= (howmany(dwidth, 8) * 8) - dwidth;
@@ -235,7 +235,7 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 			*p++ = subline >> 8;
 			*p = subline;
 		} else {
-			errx(1, "Unsupported wbytes %u!\n", wbytes);
+			errx(1, "Unsupported wbytes %u!", wbytes);
 		}
 
 		line >>= width;
@@ -267,7 +267,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		    (ln[6] == ' ' || ln[6] == '\0')) {
 			for (i = 0; i < height; i++) {
 				if ((ln = fgetln(fp, &length)) == NULL)
-					errx(1, "Unexpected EOF!\n");
+					errx(1, "Unexpected EOF!");
 				ln[length - 1] = '\0';
 				sscanf(ln, "%x", &line);
 				if (parse_bitmap_line(bytes + i * wbytes,

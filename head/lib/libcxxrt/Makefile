@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PACKAGE=	clibs
-SRCDIR=		${.CURDIR}/../../contrib/libcxxrt
+SRCDIR=		${SRCTOP}/contrib/libcxxrt
 
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib

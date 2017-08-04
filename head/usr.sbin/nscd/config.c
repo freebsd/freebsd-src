@@ -274,9 +274,8 @@ add_configuration_entry(struct configuration *config,
 		struct configuration_entry **new_entries;
 
 		config->entries_capacity *= 2;
-		new_entries = calloc(1,
-			sizeof(*new_entries) *
-			config->entries_capacity);
+		new_entries = calloc(config->entries_capacity,
+			sizeof(*new_entries));
 		assert(new_entries != NULL);
 		memcpy(new_entries, config->entries,
 			sizeof(struct configuration_entry *) *
@@ -522,9 +521,8 @@ init_configuration(void)
 	assert(retval != NULL);
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
-	retval->entries = calloc(1,
-		sizeof(*retval->entries) *
-		retval->entries_capacity);
+	retval->entries = calloc(retval->entries_capacity,
+		sizeof(*retval->entries));
 	assert(retval->entries != NULL);
 
 	pthread_rwlock_init(&retval->rwlock, NULL);

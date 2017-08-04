@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -105,8 +105,8 @@ fetch_udp(void)
 	     ptr->xig_len > sizeof(struct xinpgen);
              ptr = (struct xinpgen *)(void *)((char *)ptr + ptr->xig_len)) {
 		inp = (struct xinpcb *)ptr;
-		if (inp->xi_inp.inp_gencnt > xinpgen->xig_gen ||
-		    (inp->xi_inp.inp_vflag & INP_IPV4) == 0)
+		if (inp->inp_gencnt > xinpgen->xig_gen ||
+		    (inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 
 		udp_total++;
@@ -128,17 +128,17 @@ fetch_udp(void)
 	     ptr->xig_len > sizeof(struct xinpgen);
              ptr = (struct xinpgen *)(void *)((char *)ptr + ptr->xig_len)) {
 		inp = (struct xinpcb *)ptr;
-		if (inp->xi_inp.inp_gencnt > xinpgen->xig_gen ||
-		    (inp->xi_inp.inp_vflag & INP_IPV4) == 0)
+		if (inp->inp_gencnt > xinpgen->xig_gen ||
+		    (inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 		oid->inp = inp;
 		oid->index.len = 5;
-		inaddr = ntohl(inp->xi_inp.inp_laddr.s_addr);
+		inaddr = ntohl(inp->inp_laddr.s_addr);
 		oid->index.subs[0] = (inaddr >> 24) & 0xff;
 		oid->index.subs[1] = (inaddr >> 16) & 0xff;
 		oid->index.subs[2] = (inaddr >>  8) & 0xff;
 		oid->index.subs[3] = (inaddr >>  0) & 0xff;
-		oid->index.subs[4] = ntohs(inp->xi_inp.inp_lport);
+		oid->index.subs[4] = ntohs(inp->inp_lport);
 		oid++;
 	}
 

@@ -1,12 +1,12 @@
 LDAP support for am-utils was originally done by Leif Johansson
-<leifj@it.su.se>.  He no longer maintains it.
+<leifj AT it.su.se>.  He no longer maintains it.
 
 The current LDAP support for am-utils is for LDAPv2 only.  Reportedly,
 LDAPv3 mostly works.  Volunteers and patches are welcome.
 
 The IANA has assigned the following Private Enterprise Number to:
 
-	10180  Am-utils Organization   Erez Zadok	ezk@am-utils.org
+	10180  Am-utils Organization   Erez Zadok	ezk AT am-utils.org
 
 There are three files in this directory that relate to LDAP:
 
@@ -33,8 +33,8 @@ Erez.
 
 ------- Forwarded Message
 
-From: "IANA Private Enterprise Number" <iana-pen@icann.org>
-To: "Erez Zadok" <ezk@cs.columbia.edu>
+From: "IANA Private Enterprise Number" <iana-pen AT icann.org>
+To: "Erez Zadok" <ezk AT cs.columbia.edu>
 Subject: RE: Application for Enterprise-number (10180)
 Date: Sun, 15 Jul 2001 14:43:45 -0700
 
@@ -43,7 +43,7 @@ Dear Erez,
 The IANA has assigned the following Private Enterprise
 Number to:
 
-10180  Am-utils Organization   Erez Zadok                 ezk@am-utils.org
+10180  Am-utils Organization   Erez Zadok                 ezk AT am-utils.org
 
 Please notify the IANA if there is a change in your contact
 or company information.

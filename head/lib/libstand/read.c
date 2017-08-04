@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -79,7 +79,7 @@ read(int fd, void *dest, size_t bcount)
     if (f->f_flags & F_RAW) {
 	twiddle(4);
 	errno = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				btodb(f->f_offset), 0, bcount, dest, &resid);
+				btodb(f->f_offset), bcount, dest, &resid);
 	if (errno)
 	    return (-1);
 	f->f_offset += resid;

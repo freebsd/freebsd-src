@@ -198,7 +198,7 @@ auth_check_secret_length(struct auth *auth)
 			    auth->a_auth_group->ag_name);
 		else
 			log_warnx("secret for user \"%s\", target \"%s\", "
-			    "is too short; it should be at least 16 characters "
+			    "is too short; it should be at least 12 characters "
 			    "long", auth->a_user,
 			    auth->a_auth_group->ag_target->t_name);
 	}
@@ -227,7 +227,7 @@ auth_check_secret_length(struct auth *auth)
 			else
 				log_warnx("mutual secret for user \"%s\", "
 				    "target \"%s\", is too short; it should be "
-				    "at least 16 characters long",
+				    "at least 12 characters long",
 				    auth->a_user,
 				    auth->a_auth_group->ag_target->t_name);
 		}
@@ -401,6 +401,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	return (ap);
 
 error:
+	free(str);
 	free(ap);
 	log_warnx("incorrect initiator portal \"%s\"", portal);
 	return (NULL);
@@ -675,8 +676,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 		 */
 		arg++;
 		addr = strsep(&arg, "]");
-		if (arg == NULL)
+		if (arg == NULL) {
+			free(str);
 			return (1);
+		}
 		if (arg[0] == '\0') {
 			port = def_port;
 		} else if (arg[0] == ':') {
@@ -1234,7 +1237,6 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 	port->p_target = target;
 	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
 	port->p_portal_group = pg;
-	port->p_foreign = pg->pg_foreign;
 	return (port);
 }
 
@@ -1305,6 +1307,19 @@ port_delete(struct port *port)
 	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
 	free(port->p_name);
 	free(port);
+}
+
+int
+port_is_dummy(struct port *port)
+{
+
+	if (port->p_portal_group) {
+		if (port->p_portal_group->pg_foreign)
+			return (1);
+		if (TAILQ_EMPTY(&port->p_portal_group->pg_portals))
+			return (1);
+	}
+	return (0);
 }
 
 struct target *
@@ -1578,8 +1593,10 @@ connection_new(struct portal *portal, int fd, const char *host,
 	/*
 	 * Default values, from RFC 3720, section 12.
 	 */
-	conn->conn_max_data_segment_length = 8192;
+	conn->conn_max_recv_data_segment_length = 8192;
+	conn->conn_max_send_data_segment_length = 8192;
 	conn->conn_max_burst_length = 262144;
+	conn->conn_first_burst_length = 65536;
 	conn->conn_immediate_data = true;
 
 	return (conn);
@@ -1882,10 +1899,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * and missing in the new one.
 	 */
 	TAILQ_FOREACH_SAFE(oldport, &oldconf->conf_ports, p_next, tmpport) {
-		if (oldport->p_foreign)
+		if (port_is_dummy(oldport))
 			continue;
 		newport = port_find(newconf, oldport->p_name);
-		if (newport != NULL && !newport->p_foreign)
+		if (newport != NULL && !port_is_dummy(newport))
 			continue;
 		log_debugx("removing port \"%s\"", oldport->p_name);
 		error = kernel_port_remove(oldport);
@@ -2005,11 +2022,11 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Now add new ports or modify existing ones.
 	 */
 	TAILQ_FOREACH(newport, &newconf->conf_ports, p_next) {
-		if (newport->p_foreign)
+		if (port_is_dummy(newport))
 			continue;
 		oldport = port_find(oldconf, newport->p_name);
 
-		if (oldport == NULL || oldport->p_foreign) {
+		if (oldport == NULL || port_is_dummy(oldport)) {
 			log_debugx("adding port \"%s\"", newport->p_name);
 			error = kernel_port_add(newport);
 		} else {

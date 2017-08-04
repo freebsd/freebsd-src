@@ -66,10 +66,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <machine/bus.h>
 
 /* Prototypes for all the bus_space structure functions */
-bs_protos(generic);
-bs_protos(generic_armv4);
+uint8_t	generic_bs_r_1(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset);
+
+uint16_t generic_bs_r_2(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset);
+
+uint32_t generic_bs_r_4(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset);
+
+void generic_bs_w_1(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, uint8_t value);
+
+void generic_bs_w_2(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, uint16_t value);
+
+void generic_bs_w_4(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, uint32_t value);
+
+void generic_bs_w_8(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, uint64_t value);
 
 #define __UNUSED __attribute__((unused))
 
@@ -78,6 +97,52 @@ bs_protos(generic_armv4);
 extern "C" {
 #endif
 /* *INDENT-ON* */
+
+/**
+  * Make sure data will be visible by other masters (other CPUS and DMA).
+  * usually this is achieved by the ARM DMB instruction.
+  */
+static void al_data_memory_barrier(void);
+static void al_smp_data_memory_barrier(void);
+
+/**
+  * Make sure data will be visible by DMA masters, no restriction for other cpus
+  */
+static inline void
+al_data_memory_barrier(void)
+{
+#ifndef __aarch64__
+	dsb();
+#else
+	dsb(sy);
+#endif
+}
+
+/**
+  * Make sure data will be visible in order by other cpus masters.
+  */
+static inline void
+al_smp_data_memory_barrier(void)
+{
+#ifndef __aarch64__
+	dmb();
+#else
+	dmb(ish);
+#endif
+}
+
+/**
+  * Make sure write data will be visible in order by other cpus masters.
+  */
+static inline void
+al_local_data_memory_barrier(void)
+{
+#ifndef __aarch64__
+	dsb();
+#else
+	dsb(sy);
+#endif
+}
 
 /*
  * WMA: This is a hack which allows not modifying the __iomem accessing HAL code.
@@ -168,50 +233,66 @@ uint64_t al_reg_read64(uint64_t * offset);
  * @param  offset	register offset
  * @param  val		value to write to the register
  */
-#define al_reg_write8(l,v)	do { dsb(); generic_bs_w_1(NULL, (bus_space_handle_t)l, 0, v); dmb(); } while (0)
+#define al_reg_write8(l, v) do {				\
+	al_data_memory_barrier();				\
+	generic_bs_w_1(NULL, (bus_space_handle_t)l, 0, v);	\
+	al_smp_data_memory_barrier();				\
+} while (0)
 
 /**
  * Write to MMIO 16 bits register
  * @param  offset	register offset
  * @param  val		value to write to the register
  */
-#define al_reg_write16(l,v)	do { dsb(); generic_bs_w_2(NULL, (bus_space_handle_t)l, 0, v); dmb(); } while (0)
+#define al_reg_write16(l, v) do {				\
+	al_data_memory_barrier();				\
+	generic_bs_w_2(NULL, (bus_space_handle_t)l, 0, v);	\
+	al_smp_data_memory_barrier();				\
+} while (0)
 
 /**
  * Write to MMIO 32 bits register
  * @param  offset	register offset
  * @param  val		value to write to the register
  */
-#define al_reg_write32(l,v)	do { dsb(); generic_bs_w_4(NULL, (bus_space_handle_t)l, 0, v); dmb(); } while (0)
+#define al_reg_write32(l, v) do {				\
+	al_data_memory_barrier();				\
+	generic_bs_w_4(NULL, (bus_space_handle_t)l, 0, v);	\
+	al_smp_data_memory_barrier();				\
+} while (0)
 
 /**
  * Write to MMIO 64 bits register
  * @param  offset	register offset
  * @param  val		value to write to the register
  */
-#define al_reg_write64(l,v)	do { dsb(); generic_bs_w_8(NULL, (bus_space_handle_t)l, 0, v); dmb(); } while (0)
+#define al_reg_write64(l, v) do {				\
+	al_data_memory_barrier();				\
+	generic_bs_w_8(NULL, (bus_space_handle_t)l, 0, v);	\
+	al_smp_data_memory_barrier();				\
+} while (0)
 
 static inline uint8_t
 al_reg_read8(uint8_t *l)
 {
-	dsb();
 
+	al_data_memory_barrier();
 	return (generic_bs_r_1(NULL, (bus_space_handle_t)l, 0));
 }
 
 static inline uint16_t
 al_reg_read16(uint16_t *l)
 {
-	dsb();
 
+	al_data_memory_barrier();
 	return (generic_bs_r_2(NULL, (bus_space_handle_t)l, 0));
 }
 
 static inline uint32_t
 al_reg_read32(uint32_t *l)
 {
-	dsb();
 
+	al_data_memory_barrier();
 	return (generic_bs_r_4(NULL, (bus_space_handle_t)l, 0));
 }
 
@@ -223,10 +304,8 @@ al_reg_read32(uint32_t *l)
 
 #define AL_DBG_LEVEL AL_DBG_LEVEL_ERR
 
-extern struct mtx al_dbg_lock;
-
-#define AL_DBG_LOCK()	mtx_lock_spin(&al_dbg_lock)
-#define AL_DBG_UNLOCK()	mtx_unlock_spin(&al_dbg_lock)
+#define AL_DBG_LOCK()
+#define AL_DBG_UNLOCK()
 
 /**
  * print message
@@ -276,39 +355,6 @@ extern struct mtx al_dbg_lock;
 			"%s:%d:%s: Assertion failed! (%s)\n",	\
 			__FILE__, __LINE__, __func__, #COND);	\
 	} while(AL_FALSE)
-
-/**
-  * Make sure data will be visible by other masters (other CPUS and DMA).
-  * usually this is achieved by the ARM DMB instruction.
-  */
-static void al_data_memory_barrier(void);
-
-/**
-  * Make sure data will be visible by DMA masters, no restriction for other cpus
-  */
-static inline void
-al_data_memory_barrier(void)
-{
-	dsb();
-}
-
-/**
-  * Make sure data will be visible in order by other cpus masters.
-  */
-static inline void
-al_smp_data_memory_barrier(void)
-{
-	dsb();
-}
-
-/**
-  * Make sure write data will be visible in order by other cpus masters.
-  */
-static inline void
-al_local_data_memory_barrier(void)
-{
-	dsb();
-}
 
 /**
  * al_udelay - micro sec delay

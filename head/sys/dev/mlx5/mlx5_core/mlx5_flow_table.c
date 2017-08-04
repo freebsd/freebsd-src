@@ -87,7 +87,7 @@ static int mlx5_set_flow_entry_cmd(struct mlx5_flow_table *ft, u32 group_ix,
 	return err;
 }
 
-static void mlx5_del_flow_entry_cmd(struct mlx5_flow_table *ft, u32 flow_index)
+static int mlx5_del_flow_entry_cmd(struct mlx5_flow_table *ft, u32 flow_index)
 {
 	u32 in[MLX5_ST_SZ_DW(delete_fte_in)];
 	u32 out[MLX5_ST_SZ_DW(delete_fte_out)];
@@ -103,7 +103,8 @@ static void mlx5_del_flow_entry_cmd(struct mlx5_flow_table *ft, u32 flow_index)
 	MLX5_SET_DFTEI(in, flow_index,   flow_index);
 	MLX5_SET_DFTEI(in, opcode,     MLX5_CMD_OP_DELETE_FLOW_TABLE_ENTRY);
 
-	mlx5_cmd_exec_check_status(ft->dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_check_status(ft->dev, in, sizeof(in), out,
+					 sizeof(out));
 }
 
 static void mlx5_destroy_flow_group_cmd(struct mlx5_flow_table *ft, int i)
@@ -343,12 +344,15 @@ int mlx5_add_flow_table_entry(void *flow_table, u8 match_criteria_enable,
 }
 EXPORT_SYMBOL(mlx5_add_flow_table_entry);
 
-void mlx5_del_flow_table_entry(void *flow_table, u32 flow_index)
+int mlx5_del_flow_table_entry(void *flow_table, u32 flow_index)
 {
 	struct mlx5_flow_table *ft = flow_table;
+	int ret;
 
-	mlx5_del_flow_entry_cmd(ft, flow_index);
-	mlx5_free_flow_index(ft, flow_index);
+	ret = mlx5_del_flow_entry_cmd(ft, flow_index);
+	if (!ret)
+		mlx5_free_flow_index(ft, flow_index);
+	return ret;
 }
 EXPORT_SYMBOL(mlx5_del_flow_table_entry);
 
@@ -430,3 +434,46 @@ u32 mlx5_get_flow_table_id(void *flow_table)
 	return ft->id;
 }
 EXPORT_SYMBOL(mlx5_get_flow_table_id);
+
+int mlx5_set_flow_table_root(struct mlx5_core_dev *mdev, u16 op_mod,
+			     u8 vport_num, u8 table_type, u32 table_id,
+			     u32 underlay_qpn)
+{
+	u32 in[MLX5_ST_SZ_DW(set_flow_table_root_in)];
+	u32 out[MLX5_ST_SZ_DW(set_flow_table_root_out)];
+	int err;
+	int is_group_manager;
+
+	is_group_manager = MLX5_CAP_GEN(mdev, vport_group_manager);
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(set_flow_table_root_in, in, op_mod, op_mod);
+	MLX5_SET(set_flow_table_root_in, in, table_type, table_type);
+	MLX5_SET(set_flow_table_root_in, in, underlay_qpn, underlay_qpn);
+	if (op_mod == MLX5_SET_FLOW_TABLE_ROOT_OPMOD_SET)
+		MLX5_SET(set_flow_table_root_in, in, table_id, table_id);
+
+	MLX5_SET(set_flow_table_root_in, in, opcode,
+		 MLX5_CMD_OP_SET_FLOW_TABLE_ROOT);
+
+	if (vport_num) {
+		if (is_group_manager) {
+			MLX5_SET(set_flow_table_root_in, in, other_vport,
+				 1);
+			MLX5_SET(set_flow_table_root_in, in, vport_number,
+				 vport_num);
+		} else {
+			return -EPERM;
+		}
+	}
+
+	memset(out, 0, sizeof(out));
+	err = mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out,
+					 sizeof(out));
+	if (err)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mlx5_set_flow_table_root);

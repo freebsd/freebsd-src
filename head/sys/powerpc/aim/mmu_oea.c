@@ -300,7 +300,6 @@ void moea_remove_write(mmu_t, vm_page_t);
 void moea_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_zero_page(mmu_t, vm_page_t);
 void moea_zero_page_area(mmu_t, vm_page_t, int, int);
-void moea_zero_page_idle(mmu_t, vm_page_t);
 void moea_activate(mmu_t, struct thread *);
 void moea_deactivate(mmu_t, struct thread *);
 void moea_cpu_bootstrap(mmu_t, int);
@@ -349,7 +348,6 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_unwire,		moea_unwire),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
-	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
 	MMUMETHOD(mmu_activate,		moea_activate),
 	MMUMETHOD(mmu_deactivate,      	moea_deactivate),
 	MMUMETHOD(mmu_page_set_memattr,	moea_page_set_memattr),
@@ -1079,13 +1077,6 @@ moea_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 	void *va = (void *)(pa + off);
 
 	bzero(va, size);
-}
-
-void
-moea_zero_page_idle(mmu_t mmu, vm_page_t m)
-{
-
-	moea_zero_page(mmu, m);
 }
 
 vm_offset_t

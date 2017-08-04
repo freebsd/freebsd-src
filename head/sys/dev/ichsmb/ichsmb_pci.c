@@ -67,34 +67,89 @@ __FBSDID("$FreeBSD$");
 #include <dev/ichsmb/ichsmb_reg.h>
 
 /* PCI unique identifiers */
-#define ID_82801AA			0x24138086
-#define ID_82801AB			0x24238086
-#define ID_82801BA			0x24438086
-#define ID_82801CA			0x24838086
-#define ID_82801DC			0x24C38086
-#define ID_82801EB			0x24D38086
-#define ID_82801FB			0x266A8086
-#define ID_82801GB			0x27da8086
-#define ID_82801H			0x283e8086
-#define ID_82801I			0x29308086
-#define ID_82801JI			0x3a308086
-#define ID_PCH				0x3b308086
-#define ID_6300ESB			0x25a48086
-#define	ID_631xESB			0x269b8086
-#define ID_DH89XXCC			0x23308086
-#define ID_PATSBURG			0x1d228086
-#define ID_CPT				0x1c228086
-#define ID_PPT				0x1e228086
-#define ID_AVOTON			0x1f3c8086
-#define ID_COLETOCRK			0x23B08086
-#define ID_LPT				0x8c228086
-#define ID_LPTLP			0x9c228086
-#define ID_WCPT				0x8ca28086
-#define ID_WCPTLP			0x9ca28086
-#define	ID_WELLSBURG			0x8d228086
-#define	ID_SRPT				0xa1238086
+#define	PCI_VENDOR_INTEL		0x8086
+#define	ID_82801AA			0x2413
+#define	ID_82801AB			0x2423
+#define	ID_82801BA			0x2443
+#define	ID_82801CA			0x2483
+#define	ID_82801DC			0x24C3
+#define	ID_82801EB			0x24D3
+#define	ID_82801FB			0x266A
+#define	ID_82801GB			0x27da
+#define	ID_82801H			0x283e
+#define	ID_82801I			0x2930
+#define	ID_EP80579			0x5032
+#define	ID_82801JI			0x3a30
+#define	ID_82801JD			0x3a60
+#define	ID_PCH				0x3b30
+#define	ID_6300ESB			0x25a4
+#define	ID_631xESB			0x269b
+#define	ID_DH89XXCC			0x2330
+#define	ID_PATSBURG			0x1d22
+#define	ID_CPT				0x1c22
+#define	ID_PPT				0x1e22
+#define	ID_AVOTON			0x1f3c
+#define	ID_COLETOCRK			0x23B0
+#define	ID_LPT				0x8c22
+#define	ID_LPTLP			0x9c22
+#define	ID_WCPT				0x8ca2
+#define	ID_WCPTLP			0x9ca2
+#define	ID_BAYTRAIL			0x0f12
+#define	ID_BRASWELL			0x2292
+#define	ID_WELLSBURG			0x8d22
+#define	ID_SRPT				0xa123
+#define	ID_SRPTLP			0x9d23
+#define	ID_DENVERTON			0x19df
+#define	ID_BROXTON			0x5ad4
+#define	ID_LEWISBURG			0xa1a3
+#define	ID_LEWISBURG2			0xa223
+#define	ID_KABYLAKE			0xa2a3
 
-#define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
+static const struct ichsmb_device {
+	uint16_t	id;
+	const char	*name;
+} ichsmb_devices[] = {
+	{ ID_82801AA,	"Intel 82801AA (ICH) SMBus controller"		},
+	{ ID_82801AB,	"Intel 82801AB (ICH0) SMBus controller"		},
+	{ ID_82801BA,	"Intel 82801BA (ICH2) SMBus controller"		},
+	{ ID_82801CA,	"Intel 82801CA (ICH3) SMBus controller"		},
+	{ ID_82801DC,	"Intel 82801DC (ICH4) SMBus controller"		},
+	{ ID_82801EB,	"Intel 82801EB (ICH5) SMBus controller"		},
+	{ ID_82801FB,	"Intel 82801FB (ICH6) SMBus controller"		},
+	{ ID_82801GB,	"Intel 82801GB (ICH7) SMBus controller"		},
+	{ ID_82801H,	"Intel 82801H (ICH8) SMBus controller"		},
+	{ ID_82801I,	"Intel 82801I (ICH9) SMBus controller"		},
+	{ ID_82801GB,	"Intel 82801GB (ICH7) SMBus controller"		},
+	{ ID_82801H,	"Intel 82801H (ICH8) SMBus controller"		},
+	{ ID_82801I,	"Intel 82801I (ICH9) SMBus controller"		},
+	{ ID_EP80579,	"Intel EP80579 SMBus controller"		},
+	{ ID_82801JI,	"Intel 82801JI (ICH10) SMBus controller"	},
+	{ ID_82801JD,	"Intel 82801JD (ICH10) SMBus controller"	},
+	{ ID_PCH,	"Intel PCH SMBus controller"			},
+	{ ID_6300ESB,	"Intel 6300ESB (ICH) SMBus controller"		},
+	{ ID_631xESB,	"Intel 631xESB/6321ESB (ESB2) SMBus controller"	},
+	{ ID_DH89XXCC,	"Intel DH89xxCC SMBus controller"		},
+	{ ID_PATSBURG,	"Intel Patsburg SMBus controller"		},
+	{ ID_CPT,	"Intel Cougar Point SMBus controller"		},
+	{ ID_PPT,	"Intel Panther Point SMBus controller"		},
+	{ ID_AVOTON,	"Intel Avoton SMBus controller"			},
+	{ ID_LPT,	"Intel Lynx Point SMBus controller"		},
+	{ ID_LPTLP,	"Intel Lynx Point-LP SMBus controller"		},
+	{ ID_WCPT,	"Intel Wildcat Point SMBus controller"		},
+	{ ID_WCPTLP,	"Intel Wildcat Point-LP SMBus controller"	},
+	{ ID_BAYTRAIL,	"Intel Baytrail SMBus controller"		},
+	{ ID_BRASWELL,	"Intel Braswell SMBus controller"		},
+	{ ID_COLETOCRK,	"Intel Coleto Creek SMBus controller"		},
+	{ ID_WELLSBURG,	"Intel Wellsburg SMBus controller"		},
+	{ ID_SRPT,	"Intel Sunrise Point-H SMBus controller"	},
+	{ ID_SRPTLP,	"Intel Sunrise Point-LP SMBus controller"	},
+	{ ID_DENVERTON,	"Intel Denverton SMBus controller"		},
+	{ ID_BROXTON,	"Intel Broxton SMBus controller"		},
+	{ ID_LEWISBURG,	"Intel Lewisburg SMBus controller"		},
+	{ ID_LEWISBURG2,"Intel Lewisburg SMBus controller"		},
+	{ ID_KABYLAKE,	"Intel Kaby Lake SMBus controller"		},
+	{ 0, NULL },
+};
 
 /* Internal functions */
 static int	ichsmb_pci_probe(device_t dev);
@@ -140,92 +195,19 @@ DRIVER_MODULE(ichsmb, pci, ichsmb_pci_driver, ichsmb_pci_devclass, 0, 0);
 static int
 ichsmb_pci_probe(device_t dev)
 {
-	/* Check PCI identifier */
-	switch (pci_get_devid(dev)) {
-	case ID_82801AA:
-		device_set_desc(dev, "Intel 82801AA (ICH) SMBus controller");
-		break;
-	case ID_82801AB:
-		device_set_desc(dev, "Intel 82801AB (ICH0) SMBus controller");
-		break;
-	case ID_82801BA:
-		device_set_desc(dev, "Intel 82801BA (ICH2) SMBus controller");
-		break;
-	case ID_82801CA:
-		device_set_desc(dev, "Intel 82801CA (ICH3) SMBus controller");
-		break;
-	case ID_82801DC:
-		device_set_desc(dev, "Intel 82801DC (ICH4) SMBus controller");
-		break;
-	case ID_82801EB:
-		device_set_desc(dev, "Intel 82801EB (ICH5) SMBus controller");
-		break;
-	case ID_82801FB:
-		device_set_desc(dev, "Intel 82801FB (ICH6) SMBus controller");
-		break;
-	case ID_82801GB:
-		device_set_desc(dev, "Intel 82801GB (ICH7) SMBus controller");
-		break;
-	case ID_82801H:
-		device_set_desc(dev, "Intel 82801H (ICH8) SMBus controller");
-		break;
-	case ID_82801I:
-		device_set_desc(dev, "Intel 82801I (ICH9) SMBus controller");
-		break;
-	case ID_82801JI:
-		device_set_desc(dev, "Intel 82801JI (ICH10) SMBus controller");
-		break;
-	case ID_PCH:
-		device_set_desc(dev, "Intel PCH SMBus controller");
-		break;
-	case ID_6300ESB:
-		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
-		break;
-	case ID_631xESB:
-		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
-		break;
-	case ID_DH89XXCC:
-		device_set_desc(dev, "Intel DH89xxCC SMBus controller");
-		break;
-	case ID_PATSBURG:
-		device_set_desc(dev, "Intel Patsburg SMBus controller");
-		break;
-	case ID_CPT:
-		device_set_desc(dev, "Intel Cougar Point SMBus controller");
-		break;
-	case ID_PPT:
-		device_set_desc(dev, "Intel Panther Point SMBus controller");
-		break;
-	case ID_AVOTON:
-		device_set_desc(dev, "Intel Avoton SMBus controller");
-		break;
-	case ID_LPT:
-		device_set_desc(dev, "Intel Lynx Point SMBus controller");
-		break;
-	case ID_LPTLP:
-		device_set_desc(dev, "Intel Lynx Point-LP SMBus controller");
-		break;
-	case ID_WCPT:
-		device_set_desc(dev, "Intel Wildcat Point SMBus controller");
-		break;
-	case ID_WCPTLP:
-		device_set_desc(dev, "Intel Wildcat Point-LP SMBus controller");
-		break;
-	case ID_COLETOCRK:
-		device_set_desc(dev, "Intel Coleto Creek SMBus controller");
-		break;
-	case ID_WELLSBURG:
-		device_set_desc(dev, "Intel Wellsburg SMBus controller");
-		break;
-	case ID_SRPT:
-		device_set_desc(dev, "Intel Sunrise Point-H SMBus controller");
-		break;
-	default:
+	const struct ichsmb_device *device;
+
+	if (pci_get_vendor(dev) != PCI_VENDOR_INTEL)
 		return (ENXIO);
+
+	for (device = ichsmb_devices; device->name != NULL; device++) {
+		if (pci_get_device(dev) == device->id) {
+			device_set_desc(dev, device->name);
+			return (ichsmb_probe(dev));
+		}
 	}
 
-	/* Done */
-	return (ichsmb_probe(dev));
+	return (ENXIO);
 }
 
 static int

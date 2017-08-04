@@ -127,7 +127,7 @@ platform_mp_setmaxid(void)
 
 	/* Armada38x family supports maximum 2 cores */
 	mp_ncpus = platform_cnt_cpus();
-	mp_maxid = 1;
+	mp_maxid = mp_ncpus - 1;
 }
 
 void

@@ -1,7 +1,6 @@
-
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../nfs
+.PATH: ${SRCTOP}/sys/nfs
 KMOD=	nfssvc
 SRCS=	nfs_nfssvc.c \
 	opt_nfs.h

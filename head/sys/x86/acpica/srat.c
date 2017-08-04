@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <machine/intr_machdep.h>
@@ -201,6 +203,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
+		if (cpu->ApicId > MAX_APIC_ID) {
+			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
+			    cpu->ApicId);
+			break;
+		}
+
 		if (cpus[cpu->ApicId].enabled) {
 			printf("SRAT: Duplicate local APIC ID %u\n",
 			    cpu->ApicId);
@@ -219,6 +227,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(x2apic->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
+		if (x2apic->ApicId > MAX_APIC_ID) {
+			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
+			    x2apic->ApicId);
+			break;
+		}
+
 		KASSERT(!cpus[x2apic->ApicId].enabled,
 		    ("Duplicate local APIC ID %u", x2apic->ApicId));
 		cpus[x2apic->ApicId].domain = x2apic->ProximityDomain;
@@ -228,7 +242,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;
 		if (bootverbose)
 			printf(
-		    "SRAT: Found memory domain %d addr %jx len %jx: %s\n",
+		    "SRAT: Found memory domain %d addr 0x%jx len 0x%jx: %s\n",
 			    mem->ProximityDomain, (uintmax_t)mem->BaseAddress,
 			    (uintmax_t)mem->Length,
 			    (mem->Flags & ACPI_SRAT_MEM_ENABLED) ?
@@ -237,7 +251,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			break;
 		if (!overlaps_phys_avail(mem->BaseAddress,
 		    mem->BaseAddress + mem->Length)) {
-			printf("SRAT: Ignoring memory at addr %jx\n",
+			printf("SRAT: Ignoring memory at addr 0x%jx\n",
 			    (uintmax_t)mem->BaseAddress);
 			break;
 		}
@@ -334,7 +348,7 @@ check_phys_avail(void)
 				address = mem_info[i].end + 1;
 		}
 	}
-	printf("SRAT: No memory region found for %jx - %jx\n",
+	printf("SRAT: No memory region found for 0x%jx - 0x%jx\n",
 	    (uintmax_t)phys_avail[j], (uintmax_t)phys_avail[j + 1]);
 	return (ENXIO);
 }

@@ -1,4 +1,4 @@
-//===- DFAPacketizerEmitter.cpp - Packetization DFA for a VLIW machine-----===//
+//===- DFAPacketizerEmitter.cpp - Packetization DFA for a VLIW machine ----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,15 +19,19 @@
 
 #include "CodeGenTarget.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 #include "llvm/Support/Debug.h"
-#include <list>
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <cstdint>
 #include <map>
+#include <set>
 #include <string>
-#include <queue>
+#include <vector>
+
 using namespace llvm;
 
 // --------------------------------------------------------------------
@@ -58,6 +62,7 @@ typedef int64_t                 DFAStateInput;
 #define DFA_TBLTYPE             "int64_t" // For generating DFAStateInputTable.
 
 namespace {
+
   DFAInput addDFAFuncUnits(DFAInput Inp, unsigned FuncUnits) {
     return (Inp << DFA_MAX_RESOURCES) | FuncUnits;
   }
@@ -67,13 +72,15 @@ namespace {
   /// DFAPacketizerEmitter.cpp.
   DFAInput getDFAInsnInput(const std::vector<unsigned> &InsnClass) {
     DFAInput InsnInput = 0;
-    assert ((InsnClass.size() <= DFA_MAX_RESTERMS) &&
-            "Exceeded maximum number of DFA terms");
+    assert((InsnClass.size() <= DFA_MAX_RESTERMS) &&
+           "Exceeded maximum number of DFA terms");
     for (auto U : InsnClass)
       InsnInput = addDFAFuncUnits(InsnInput, U);
     return InsnInput;
   }
-}
+
+} // end anonymous namespace
+
 // --------------------------------------------------------------------
 
 #ifndef NDEBUG
@@ -97,6 +104,7 @@ void dbgsIndent(unsigned indent);
 // for resource tracking.
 //
 namespace {
+
 class DFAPacketizerEmitter {
 private:
   std::string TargetName;
@@ -149,9 +157,7 @@ public:
 
   void run(raw_ostream &OS);
 };
-} // End anonymous namespace.
 
-//
 //
 // State represents the usage of machine resources if the packet contains
 // a set of instruction classes.
@@ -173,7 +179,6 @@ public:
 // A State instance also contains a collection of transitions from that state:
 // a map from inputs to new states.
 //
-namespace {
 class State {
  public:
   static int currentStateNum;
@@ -203,6 +208,7 @@ class State {
   //
   bool canMaybeAddInsnClass(std::vector<unsigned> &InsnClass,
                         std::map<unsigned, unsigned> &ComboBitToBitsMap) const;
+
   //
   // AddInsnClass - Return all combinations of resource reservation
   // which are possible from this state (PossibleStates).
@@ -213,6 +219,7 @@ class State {
   void AddInsnClass(std::vector<unsigned> &InsnClass,
                         std::map<unsigned, unsigned> &ComboBitToBitsMap,
                         std::set<unsigned> &PossibleStates) const;
+
   //
   // AddInsnClassStages - Return all combinations of resource reservation
   // resulting from the cross product of all stages for this InsnClass
@@ -224,31 +231,31 @@ class State {
                         unsigned prevState, unsigned origState,
                         DenseSet<unsigned> &VisitedResourceStates,
                         std::set<unsigned> &PossibleStates) const;
+
   //
   // addTransition - Add a transition from this state given the input InsnClass
   //
   void addTransition(std::vector<unsigned> InsnClass, const State *To) const;
+
   //
   // hasTransition - Returns true if there is a transition from this state
   // given the input InsnClass
   //
   bool hasTransition(std::vector<unsigned> InsnClass) const;
 };
-} // End anonymous namespace.
 
 //
 // class DFA: deterministic finite automaton for processor resource tracking.
 //
-namespace {
 class DFA {
 public:
-  DFA();
+  DFA() = default;
 
   // Set of states. Need to keep this sorted to emit the transition table.
   typedef std::set<State> StateSet;
   StateSet states;
 
-  State *currentState;
+  State *currentState = nullptr;
 
   //
   // Modify the DFA.
@@ -262,7 +269,8 @@ public:
                  int numInsnClasses = 0,
                  int maxResources = 0, int numCombos = 0, int maxStages = 0);
 };
-} // End anonymous namespace.
+
+} // end anonymous namespace
 
 #ifndef NDEBUG
 // To enable debugging, run llvm-tblgen with: "-debug-only dfa-emitter".
@@ -305,15 +313,13 @@ void dbgsIndent(unsigned indent) {
     DEBUG(dbgs() << " ");
   }
 }
-#endif
+#endif // NDEBUG
 
 //
 // Constructors and destructors for State and DFA
 //
 State::State() :
   stateNum(currentStateNum++), isInitial(false) {}
-
-DFA::DFA(): currentState(nullptr) {}
 
 //
 // addTransition - Add a transition from this state given the input InsnClass
@@ -369,7 +375,6 @@ void State::AddInsnClassStages(std::vector<unsigned> &InsnClass,
                         unsigned prevState, unsigned origState,
                         DenseSet<unsigned> &VisitedResourceStates,
                         std::set<unsigned> &PossibleStates) const {
-
   assert((chkstage < numstages) && "AddInsnClassStages: stage out of range");
   unsigned thisStage = InsnClass[chkstage];
 
@@ -454,7 +459,6 @@ void State::AddInsnClassStages(std::vector<unsigned> &InsnClass,
   }
 }
 
-
 //
 // canMaybeAddInsnClass - Quickly verifies if an instruction of type InsnClass
 // may be a valid transition from this state i.e., can an instruction of type
@@ -469,7 +473,6 @@ bool State::canMaybeAddInsnClass(std::vector<unsigned> &InsnClass,
                     std::map<unsigned, unsigned> &ComboBitToBitsMap) const {
   for (std::set<unsigned>::const_iterator SI = stateInfo.begin();
        SI != stateInfo.end(); ++SI) {
-
     // Check to see if all required resources are available.
     bool available = true;
 
@@ -505,7 +508,6 @@ bool State::canMaybeAddInsnClass(std::vector<unsigned> &InsnClass,
   return false;
 }
 
-
 const State &DFA::newState() {
   auto IterPair = states.insert(State());
   assert(IterPair.second && "State already exists");
@@ -515,9 +517,7 @@ const State &DFA::newState() {
 int State::currentStateNum = 0;
 
 DFAPacketizerEmitter::DFAPacketizerEmitter(RecordKeeper &R):
-  TargetName(CodeGenTarget(R).getName()),
-  allInsnClasses(), Records(R) {}
-
+  TargetName(CodeGenTarget(R).getName()), Records(R) {}
 
 //
 // writeTableAndAPI - Print out a table representing the DFA and the
@@ -533,7 +533,6 @@ DFAPacketizerEmitter::DFAPacketizerEmitter(RecordKeeper &R):
 void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName,
                            int numInsnClasses,
                            int maxResources, int numCombos, int maxStages) {
-
   unsigned numStates = states.size();
 
   DEBUG(dbgs() << "-----------------------------------------------------------------------------\n");
@@ -626,7 +625,6 @@ void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName,
   OS << "};\n";
   OS << "} // namespace\n";
 
-
   //
   // Emit DFA Packetizer tables if the target is a VLIW machine.
   //
@@ -639,7 +637,6 @@ void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName,
      << "DFAStateInputTable, " << TargetName << "DFAStateEntryTable);\n}\n\n";
   OS << "} // End llvm namespace \n";
 }
-
 
 //
 // collectAllFuncUnits - Construct a map of function unit names to bits.
@@ -713,7 +710,7 @@ int DFAPacketizerEmitter::collectAllComboFuncs(
       Record *ComboFunc = FuncData->getValueAsDef("TheComboFunc");
       const std::vector<Record*> &FuncList =
                                    FuncData->getValueAsListOfDefs("FuncList");
-      std::string ComboFuncName = ComboFunc->getName();
+      const std::string &ComboFuncName = ComboFunc->getName();
       unsigned ComboBit = FUNameToBitsMap[ComboFuncName];
       unsigned ComboResources = ComboBit;
       DEBUG(dbgs() << "      combo: " << ComboFuncName
@@ -734,7 +731,6 @@ int DFAPacketizerEmitter::collectAllComboFuncs(
   }
   return numCombos;
 }
-
 
 //
 // collectOneInsnClass - Populate allInsnClasses with one instruction class
@@ -788,7 +784,7 @@ int DFAPacketizerEmitter::collectOneInsnClass(const std::string &ProcName,
     DEBUG(dbgs() << " (bits: 0x" << utohexstr(UnitBitValue) << ")\n");
   }
 
-  if (UnitBits.size() > 0)
+  if (!UnitBits.empty())
     allInsnClasses.push_back(UnitBits);
 
   DEBUG({
@@ -836,7 +832,6 @@ int DFAPacketizerEmitter::collectAllInsnClasses(const std::string &ProcName,
 // Run the worklist algorithm to generate the DFA.
 //
 void DFAPacketizerEmitter::run(raw_ostream &OS) {
-
   // Collect processor iteraries.
   std::vector<Record*> ProcItinList =
     Records.getAllDerivedDefinitions("ProcessorItineraries");
@@ -895,7 +890,6 @@ void DFAPacketizerEmitter::run(raw_ostream &OS) {
   Initial->isInitial = true;
   Initial->stateInfo.insert(0x0);
   SmallVector<const State*, 32> WorkList;
-//  std::queue<State*> WorkList;
   std::map<std::set<unsigned>, const State*> Visited;
 
   WorkList.push_back(Initial);
@@ -940,9 +934,9 @@ void DFAPacketizerEmitter::run(raw_ostream &OS) {
       //
       if (!current->hasTransition(InsnClass) &&
           current->canMaybeAddInsnClass(InsnClass, ComboBitToBitsMap)) {
-        const State *NewState = NULL;
+        const State *NewState = nullptr;
         current->AddInsnClass(InsnClass, ComboBitToBitsMap, NewStateResources);
-        if (NewStateResources.size() == 0) {
+        if (NewStateResources.empty()) {
           DEBUG(dbgs() << "  Skipped - no new states generated\n");
           continue;
         }
@@ -994,4 +988,4 @@ void EmitDFAPacketizer(RecordKeeper &RK, raw_ostream &OS) {
   DFAPacketizerEmitter(RK).run(OS);
 }
 
-} // End llvm namespace
+} // end namespace llvm

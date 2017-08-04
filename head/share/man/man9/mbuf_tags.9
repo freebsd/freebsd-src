@@ -33,7 +33,7 @@
 .Ft "struct m_tag *"
 .Fn m_tag_copy "struct m_tag *t" "int how"
 .Ft int
-.Fn m_tag_copy_chain "struct mbuf *to" "struct mbuf *from" "int how"
+.Fn m_tag_copy_chain "struct mbuf *to" "const struct mbuf *from" "int how"
 .Ft void
 .Fn m_tag_delete "struct mbuf *m" "struct m_tag *t"
 .Ft void

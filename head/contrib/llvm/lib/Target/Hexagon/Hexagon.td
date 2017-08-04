@@ -22,32 +22,25 @@ include "llvm/Target/Target.td"
 //===----------------------------------------------------------------------===//
 
 // Hexagon Architectures
-def ArchV4:  SubtargetFeature<"v4",  "HexagonArchVersion", "V4",  "Hexagon V4">;
-def ArchV5:  SubtargetFeature<"v5",  "HexagonArchVersion", "V5",  "Hexagon V5">;
-def ArchV55: SubtargetFeature<"v55", "HexagonArchVersion", "V55", "Hexagon V55">;
-def ArchV60: SubtargetFeature<"v60", "HexagonArchVersion", "V60", "Hexagon V60">;
+include "HexagonDepArch.td"
 
 // Hexagon ISA Extensions
-def ExtensionHVX: SubtargetFeature<"hvx", "UseHVXOps",
-                                   "true", "Hexagon HVX instructions">;
-def ExtensionHVXDbl: SubtargetFeature<"hvx-double", "UseHVXDblOps",
-                                   "true", "Hexagon HVX Double instructions">;
+def ExtensionHVX: SubtargetFeature<"hvx", "UseHVXOps", "true",
+      "Hexagon HVX instructions">;
+def ExtensionHVXDbl: SubtargetFeature<"hvx-double", "UseHVXDblOps", "true",
+      "Hexagon HVX Double instructions">;
+def FeatureLongCalls: SubtargetFeature<"long-calls", "UseLongCalls", "true",
+      "Use constant-extended calls">;
 
 //===----------------------------------------------------------------------===//
 // Hexagon Instruction Predicate Definitions.
 //===----------------------------------------------------------------------===//
-def HasV5T             : Predicate<"HST->hasV5TOps()">;
-def NoV5T              : Predicate<"!HST->hasV5TOps()">;
-def HasV55T            : Predicate<"HST->hasV55TOps()">,
-                         AssemblerPredicate<"ArchV55">;
-def HasV60T            : Predicate<"HST->hasV60TOps()">,
-                         AssemblerPredicate<"ArchV60">;
+
 def UseMEMOP           : Predicate<"HST->useMemOps()">;
 def IEEERndNearV5T     : Predicate<"HST->modeIEEERndNear()">;
 def UseHVXDbl          : Predicate<"HST->useHVXDblOps()">,
                          AssemblerPredicate<"ExtensionHVXDbl">;
 def UseHVXSgl          : Predicate<"HST->useHVXSglOps()">;
-
 def UseHVX             : Predicate<"HST->useHVXSglOps() ||HST->useHVXDblOps()">,
                          AssemblerPredicate<"ExtensionHVX">;
 
@@ -81,7 +74,7 @@ class IntrinsicsRel;
 def getPredOpcode : InstrMapping {
   let FilterClass = "PredRel";
   // Instructions with the same BaseOpcode and isNVStore values form a row.
-  let RowFields = ["BaseOpcode", "isNVStore", "PNewValue", "isNT"];
+  let RowFields = ["BaseOpcode", "isNVStore", "PNewValue", "isBrTaken", "isNT"];
   // Instructions with the same predicate sense form a column.
   let ColFields = ["PredSense"];
   // The key column is the unpredicated instructions.
@@ -132,7 +125,7 @@ def getPredNewOpcode : InstrMapping {
 //
 def getPredOldOpcode : InstrMapping {
   let FilterClass = "PredNewRel";
-  let RowFields = ["BaseOpcode", "PredSense", "isNVStore"];
+  let RowFields = ["BaseOpcode", "PredSense", "isNVStore", "isBrTaken"];
   let ColFields = ["PNewValue"];
   let KeyCol = ["new"];
   let ValueCols = [[""]];
@@ -171,12 +164,37 @@ def getBaseWithImmOffset : InstrMapping {
   let ValueCols = [["BaseImmOffset"]];
 }
 
+def getAbsoluteForm : InstrMapping {
+  let FilterClass = "AddrModeRel";
+  let RowFields = ["CextOpcode", "PredSense", "PNewValue", "isNVStore",
+                   "isFloat"];
+  let ColFields = ["addrMode"];
+  let KeyCol = ["BaseImmOffset"];
+  let ValueCols = [["Absolute"]];
+}
+
 def getBaseWithRegOffset : InstrMapping {
   let FilterClass = "AddrModeRel";
   let RowFields = ["CextOpcode", "PredSense", "PNewValue", "isNVStore"];
   let ColFields = ["addrMode"];
   let KeyCol = ["BaseImmOffset"];
   let ValueCols = [["BaseRegOffset"]];
+}
+
+def xformRegToImmOffset : InstrMapping {
+  let FilterClass = "AddrModeRel";
+  let RowFields = ["CextOpcode", "PredSense", "PNewValue", "isNVStore"];
+  let ColFields = ["addrMode"];
+  let KeyCol = ["BaseRegOffset"];
+  let ValueCols = [["BaseImmOffset"]];
+}
+
+def getBaseWithLongOffset : InstrMapping {
+  let FilterClass = "ImmRegShl";
+  let RowFields = ["CextOpcode", "PredSense", "PNewValue", "isNVStore"];
+  let ColFields = ["addrMode"];
+  let KeyCol = ["BaseRegOffset"];
+  let ValueCols = [["BaseLongOffset"]];
 }
 
 def getRegForm : InstrMapping {
@@ -223,10 +241,18 @@ def getRealHWInstr : InstrMapping {
 //===----------------------------------------------------------------------===//
 include "HexagonSchedule.td"
 include "HexagonRegisterInfo.td"
-include "HexagonCallingConv.td"
-include "HexagonInstrInfo.td"
+include "HexagonOperands.td"
+include "HexagonDepOperands.td"
+include "HexagonDepITypes.td"
+include "HexagonInstrFormats.td"
+include "HexagonDepInstrFormats.td"
+include "HexagonDepInstrInfo.td"
+include "HexagonPseudo.td"
+include "HexagonPatterns.td"
+include "HexagonDepMappings.td"
 include "HexagonIntrinsics.td"
 include "HexagonIntrinsicsDerived.td"
+include "HexagonMapAsm2IntrinV62.gen.td"
 
 def HexagonInstrInfo : InstrInfo;
 
@@ -246,18 +272,21 @@ def : Proc<"hexagonv55", HexagonModelV55,
            [ArchV4, ArchV5, ArchV55]>;
 def : Proc<"hexagonv60", HexagonModelV60,
            [ArchV4, ArchV5, ArchV55, ArchV60, ExtensionHVX]>;
+def : Proc<"hexagonv62", HexagonModelV62,
+           [ArchV4, ArchV5, ArchV55, ArchV60, ArchV62, ExtensionHVX]>;
 
 //===----------------------------------------------------------------------===//
 // Declare the target which we are implementing
 //===----------------------------------------------------------------------===//
 
 def HexagonAsmParser : AsmParser {
+  let ShouldEmitMatchRegisterAltName = 1;
   bit HasMnemonicFirst = 0;
 }
 
 def HexagonAsmParserVariant : AsmParserVariant {
   int Variant = 0;
-  string TokenizingCharacters = "#()=:.<>!+*";
+  string TokenizingCharacters = "#()=:.<>!+*-|^&";
 }
 
 def Hexagon : Target {

@@ -2450,6 +2450,7 @@ aurora		9084/sctp  #IBM AURORA Performance Visualizer
 aurora		9084/tcp   #IBM AURORA Performance Visualizer
 aurora		9084/udp   #IBM AURORA Performance Visualizer
 jetdirect	9100/tcp   #HP JetDirect card
+prom-sysctl	9124/tcp   #prometheus_sysctl_exporter(8)
 git		9418/tcp   #git pack transfer service
 git		9418/udp   #git pack transfer service
 man		9535/tcp

@@ -45,8 +45,7 @@
 
 static bool
 ext4_ext_binsearch_index(struct inode *ip, struct ext4_extent_path *path,
-		daddr_t lbn, daddr_t *first_lbn, daddr_t *last_lbn)
-{
+    daddr_t lbn, daddr_t *first_lbn, daddr_t *last_lbn){
 	struct ext4_extent_header *ehp = path->ep_header;
 	struct ext4_extent_index *first, *last, *l, *r, *m;
 
@@ -79,7 +78,7 @@ ext4_ext_binsearch_index(struct inode *ip, struct ext4_extent_path *path,
 
 static void
 ext4_ext_binsearch(struct inode *ip, struct ext4_extent_path *path, daddr_t lbn,
-		daddr_t first_lbn, daddr_t last_lbn)
+    daddr_t first_lbn, daddr_t last_lbn)
 {
 	struct ext4_extent_header *ehp = path->ep_header;
 	struct ext4_extent *first, *l, *r, *m;
@@ -167,7 +166,7 @@ ext4_ext_put_cache(struct inode *ip, struct ext4_extent *ep, int type)
  */
 struct ext4_extent_path *
 ext4_ext_find_extent(struct m_ext2fs *fs, struct inode *ip,
-		     daddr_t lbn, struct ext4_extent_path *path)
+    daddr_t lbn, struct ext4_extent_path *path)
 {
 	struct ext4_extent_header *ehp;
 	uint16_t i;
@@ -200,7 +199,7 @@ ext4_ext_find_extent(struct m_ext2fs *fs, struct inode *ip,
 			path->ep_bp = NULL;
 		}
 		error = bread(ip->i_devvp, fsbtodb(fs, nblk), size, NOCRED,
-			    &path->ep_bp);
+		    &path->ep_bp);
 		if (error) {
 			brelse(path->ep_bp);
 			path->ep_bp = NULL;

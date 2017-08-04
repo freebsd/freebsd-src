@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
@@ -63,16 +66,16 @@ __FBSDID("$FreeBSD$");
 #define	HZ2MHZ(freq) ((freq) / (1000 * 1000))
 #define	MHZ2HZ(freq) ((freq) * (1000 * 1000))
 
-#ifdef SOC_BCM2836
-#define	OFFSET2MVOLT(val) (((val) / 1000))
-#define	MVOLT2OFFSET(val) (((val) * 1000))
-#define	DEFAULT_ARM_FREQUENCY	 600
-#define	DEFAULT_LOWEST_FREQ	 600
-#else
+#ifdef SOC_BCM2835
 #define	OFFSET2MVOLT(val) (1200 + ((val) * 25))
 #define	MVOLT2OFFSET(val) (((val) - 1200) / 25)
 #define	DEFAULT_ARM_FREQUENCY	 700
 #define	DEFAULT_LOWEST_FREQ	 300
+#else
+#define	OFFSET2MVOLT(val) (((val) / 1000))
+#define	MVOLT2OFFSET(val) (((val) * 1000))
+#define	DEFAULT_ARM_FREQUENCY	 600
+#define	DEFAULT_LOWEST_FREQ	 600
 #endif
 #define	DEFAULT_CORE_FREQUENCY	 250
 #define	DEFAULT_SDRAM_FREQUENCY	 400
@@ -117,6 +120,13 @@ struct bcm2835_cpufreq_softc {
 
 	/* initial hook for waiting mbox intr */
 	struct intr_config_hook	init_hook;
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "broadcom,bcm2835-vc",	1 },
+	{ "broadcom,bcm2708-vc",	1 },
+	{ "brcm,bcm2709",	1 },
+	{ NULL, 0 }
 };
 
 static int cpufreq_verbose = 0;
@@ -1244,6 +1254,16 @@ bcm2835_cpufreq_init(void *arg)
 static void
 bcm2835_cpufreq_identify(driver_t *driver, device_t parent)
 {
+	const struct ofw_compat_data *compat;
+	phandle_t root;
+
+	root = OF_finddevice("/");
+	for (compat = compat_data; compat->ocd_str != NULL; compat++)
+		if (ofw_bus_node_is_compatible(root, compat->ocd_str))
+			break;
+
+	if (compat->ocd_data == 0)
+		return;
 
 	DPRINTF("driver=%p, parent=%p\n", driver, parent);
 	if (device_find_child(parent, "bcm2835_cpufreq", -1) != NULL)
@@ -1524,7 +1544,20 @@ bcm2835_cpufreq_make_freq_list(device_t dev, struct cf_setting *sets,
 		if (min_freq > cpufreq_lowest_freq)
 			min_freq = cpufreq_lowest_freq;
 
-#ifdef SOC_BCM2836
+#ifdef SOC_BCM2835
+	/* from freq to min_freq */
+	for (idx = 0; idx < *count && freq >= min_freq; idx++) {
+		if (freq > sc->arm_min_freq)
+			volts = sc->max_voltage_core;
+		else
+			volts = sc->min_voltage_core;
+		sets[idx].freq = freq;
+		sets[idx].volts = volts;
+		sets[idx].lat = TRANSITION_LATENCY;
+		sets[idx].dev = dev;
+		freq -= MHZSTEP;
+	}
+#else
 	/* XXX RPi2 have only 900/600MHz */
 	idx = 0;
 	volts = sc->min_voltage_core;
@@ -1539,19 +1572,6 @@ bcm2835_cpufreq_make_freq_list(device_t dev, struct cf_setting *sets,
 		sets[idx].lat = TRANSITION_LATENCY;
 		sets[idx].dev = dev;
 		idx++;
-	}
-#else
-	/* from freq to min_freq */
-	for (idx = 0; idx < *count && freq >= min_freq; idx++) {
-		if (freq > sc->arm_min_freq)
-			volts = sc->max_voltage_core;
-		else
-			volts = sc->min_voltage_core;
-		sets[idx].freq = freq;
-		sets[idx].volts = volts;
-		sets[idx].lat = TRANSITION_LATENCY;
-		sets[idx].dev = dev;
-		freq -= MHZSTEP;
 	}
 #endif
 	*count = idx;

@@ -5,8 +5,8 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/fixmount \
-       ${.CURDIR}/../../../contrib/amd/conf/checkmount
+.PATH:	${SRCTOP}/contrib/amd/fixmount \
+	${SRCTOP}/contrib/amd/conf/checkmount
 
 PROG=	fixmount
 MAN=	fixmount.8

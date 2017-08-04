@@ -630,7 +630,7 @@ fuidstr_to_sid(zfsvfs_t *zfsvfs, const char *fuidstr,
 	uint64_t fuid;
 	const char *domain;
 
-	fuid = strtonum(fuidstr, NULL);
+	fuid = zfs_strtonum(fuidstr, NULL);
 
 	domain = zfs_fuid_find_by_idx(zfsvfs, FUID_INDEX(fuid));
 	if (domain)
@@ -1039,13 +1039,6 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	if (error)
 		return (error);
 
-	/*
-	 * Set the objset user_ptr to track its zfsvfs.
-	 */
-	mutex_enter(&zfsvfs->z_os->os_user_ptr_lock);
-	dmu_objset_set_user(zfsvfs->z_os, zfsvfs);
-	mutex_exit(&zfsvfs->z_os->os_user_ptr_lock);
-
 	zfsvfs->z_log = zil_open(zfsvfs->z_os, zfs_get_data);
 
 	/*
@@ -1105,6 +1098,13 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 		}
 		zfsvfs->z_vfs->vfs_flag |= readonly; /* restore readonly bit */
 	}
+
+	/*
+	 * Set the objset user_ptr to track its zfsvfs.
+	 */
+	mutex_enter(&zfsvfs->z_os->os_user_ptr_lock);
+	dmu_objset_set_user(zfsvfs->z_os, zfsvfs);
+	mutex_exit(&zfsvfs->z_os->os_user_ptr_lock);
 
 	return (0);
 }
@@ -1790,7 +1790,7 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	strlcpy(statp->f_mntonname, vfsp->mnt_stat.f_mntonname,
 	    sizeof(statp->f_mntonname));
 
-	statp->f_namemax = ZFS_MAXNAMELEN;
+	statp->f_namemax = MAXNAMELEN - 1;
 
 	ZFS_EXIT(zfsvfs);
 	return (0);
@@ -1843,7 +1843,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 */
 		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
 #ifdef FREEBSD_NAMECACHE
-		cache_purgevfs(zfsvfs->z_parent->z_vfs);
+		cache_purgevfs(zfsvfs->z_parent->z_vfs, true);
 #endif
 	}
 
@@ -1952,15 +1952,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_ctldir != NULL) {
 		if ((ret = zfsctl_umount_snapshots(vfsp, fflag, cr)) != 0)
 			return (ret);
-		ret = vflush(vfsp, 0, 0, td);
-		ASSERT(ret == EBUSY);
-		if (!(fflag & MS_FORCE)) {
-			if (zfsvfs->z_ctldir->v_count > 1)
-				return (EBUSY);
-			ASSERT(zfsvfs->z_ctldir->v_count == 1);
-		}
-		zfsctl_destroy(zfsvfs);
-		ASSERT(zfsvfs->z_ctldir == NULL);
 	}
 
 	if (fflag & MS_FORCE) {
@@ -1978,13 +1969,8 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	 * Flush all the files.
 	 */
 	ret = vflush(vfsp, 0, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
-	if (ret != 0) {
-		if (!zfsvfs->z_issnap) {
-			zfsctl_create(zfsvfs);
-			ASSERT(zfsvfs->z_ctldir != NULL);
-		}
+	if (ret != 0)
 		return (ret);
-	}
 
 #ifdef illumos
 	if (!(fflag & MS_FORCE)) {
@@ -2095,8 +2081,10 @@ CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 {
+	struct componentname cn;
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
+	vnode_t		*dvp;
 	uint64_t	object = 0;
 	uint64_t	fid_gen = 0;
 	uint64_t	gen_mask;
@@ -2151,21 +2139,32 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 	if ((fid_gen == 0 &&
 	     (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) ||
 	    (zfsvfs->z_shares_dir != 0 && object == zfsvfs->z_shares_dir)) {
-		*vpp = zfsvfs->z_ctldir;
-		ASSERT(*vpp != NULL);
-		if (object == ZFSCTL_INO_SNAPDIR) {
-			VERIFY(zfsctl_root_lookup(*vpp, "snapshot", vpp, NULL,
-			    0, NULL, NULL, NULL, NULL, NULL) == 0);
-		} else if (object == zfsvfs->z_shares_dir) {
-			VERIFY(zfsctl_root_lookup(*vpp, "shares", vpp, NULL,
-			    0, NULL, NULL, NULL, NULL, NULL) == 0);
-		} else {
-			vref(*vpp);
-		}
 		ZFS_EXIT(zfsvfs);
-		err = vn_lock(*vpp, flags);
-		if (err != 0)
-			*vpp = NULL;
+		VERIFY0(zfsctl_root(zfsvfs, LK_SHARED, &dvp));
+		if (object == ZFSCTL_INO_SNAPDIR) {
+			cn.cn_nameptr = "snapshot";
+			cn.cn_namelen = strlen(cn.cn_nameptr);
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_flags = ISLASTCN | LOCKLEAF;
+			cn.cn_lkflags = flags;
+			VERIFY0(VOP_LOOKUP(dvp, vpp, &cn));
+			vput(dvp);
+		} else if (object == zfsvfs->z_shares_dir) {
+			/*
+			 * XXX This branch must not be taken,
+			 * if it is, then the lookup below will
+			 * explode.
+			 */
+			cn.cn_nameptr = "shares";
+			cn.cn_namelen = strlen(cn.cn_nameptr);
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_flags = ISLASTCN;
+			cn.cn_lkflags = flags;
+			VERIFY0(VOP_LOOKUP(dvp, vpp, &cn));
+			vput(dvp);
+		} else {
+			*vpp = dvp;
+		}
 		return (err);
 	}
 
@@ -2190,7 +2189,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = vn_lock(*vpp, flags | LK_RETRY);
+	err = vn_lock(*vpp, flags);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else
@@ -2225,7 +2224,7 @@ zfs_suspend_fs(zfsvfs_t *zfsvfs)
  * zfsvfs, held, and long held on entry.
  */
 int
-zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
+zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 {
 	int err;
 	znode_t *zp;
@@ -2234,14 +2233,13 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 	ASSERT(RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock));
 
 	/*
-	 * We already own this, so just hold and rele it to update the
-	 * objset_t, as the one we had before may have been evicted.
+	 * We already own this, so just update the objset_t, as the one we
+	 * had before may have been evicted.
 	 */
 	objset_t *os;
-	VERIFY0(dmu_objset_hold(osname, zfsvfs, &os));
-	VERIFY3P(os->os_dsl_dataset->ds_owner, ==, zfsvfs);
-	VERIFY(dsl_dataset_long_held(os->os_dsl_dataset));
-	dmu_objset_rele(os, zfsvfs);
+	VERIFY3P(ds->ds_owner, ==, zfsvfs);
+	VERIFY(dsl_dataset_long_held(ds));
+	VERIFY0(dmu_objset_from_ds(ds, &os));
 
 	err = zfsvfs_init(zfsvfs, os);
 	if (err != 0)
@@ -2461,8 +2459,10 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 	else
 		pname = zfs_prop_to_name(prop);
 
-	if (os != NULL)
+	if (os != NULL) {
+		ASSERT3U(os->os_phys->os_type, ==, DMU_OST_ZFS);
 		error = zap_lookup(os, MASTER_NODE_OBJ, pname, 8, 1, value);
+	}
 
 	if (error == ENOENT) {
 		/* No value set, use the default value */

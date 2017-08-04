@@ -37,24 +37,39 @@
 /dts-v1/;
 
 / {
-	model = "QEMU RV64I";
-	compatible = "riscv,rv64i";
+	model = "QEMU RV64";
+	compatible = "riscv,rv64";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	#interrupt-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "riscv,rv64";
+			reg = <0x0>;
+		};
+	};
 
 	aliases {
 		console0 = &console0;
 	};
 
 	memory {
+		/*
+		 * This is not used currently.
+		 * We take information from sbi_query_memory.
+		 */
 		device_type = "memory";
-		reg = <0x0 0x40000000>; /* 1GB at 0x0 */
+		reg = <0x80000000 0x40000000>; /* 1GB at 0x80000000 */
 	};
 
 	soc {
-		#address-cells = <2>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		#interrupt-cells = <1>;
 
 		compatible = "simple-bus";
@@ -67,7 +82,9 @@
 
 		timer0: timer@0 {
 			compatible = "riscv,timer";
-			interrupts = < 1 >;
+			reg = < 0x40000000 0x0008 >,	/* rtc */
+			      < 0x40000008 0x1000 >;	/* timecmp */
+			interrupts = < 5 >;
 			interrupt-parent = < &pic0 >;
 			clock-frequency = < 400000000 >;
 		};

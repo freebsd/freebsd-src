@@ -73,14 +73,25 @@ struct bcm_vchiq_softc {
 	void*			intr_hl;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	int			regs_offset;
 };
 
 static struct bcm_vchiq_softc *bcm_vchiq_sc = NULL;
 
+#define	BSD_DTB			1
+#define	UPSTREAM_DTB		2
+static struct ofw_compat_data compat_data[] = {
+	{"broadcom,bcm2835-vchiq",	BSD_DTB},
+	{"brcm,bcm2835-vchiq",		UPSTREAM_DTB},
+	{NULL,				0}
+};
+
 #define	vchiq_read_4(reg)		\
-    bus_space_read_4(bcm_vchiq_sc->bst, bcm_vchiq_sc->bsh, reg)
+    bus_space_read_4(bcm_vchiq_sc->bst, bcm_vchiq_sc->bsh, (reg) + \
+    bcm_vchiq_sc->regs_offset)
 #define	vchiq_write_4(reg, val)		\
-    bus_space_write_4(bcm_vchiq_sc->bst, bcm_vchiq_sc->bsh, reg, val)
+    bus_space_write_4(bcm_vchiq_sc->bst, bcm_vchiq_sc->bsh, (reg) + \
+    bcm_vchiq_sc->regs_offset, val)
 
 /* 
  * Extern functions */
@@ -122,12 +133,11 @@ static int
 bcm_vchiq_probe(device_t dev)
 {
 
-	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-vchiq")) {
-		device_set_desc(dev, "BCM2835 VCHIQ");
-		return(BUS_PROBE_DEFAULT);
-	}
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	device_set_desc(dev, "BCM2835 VCHIQ");
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -156,6 +166,9 @@ bcm_vchiq_attach(device_t dev)
 		device_printf(dev, "could not allocate interrupt resource\n");
 		return (ENXIO);
 	}
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == UPSTREAM_DTB)
+		sc->regs_offset = -0x40;
 
 	node = ofw_bus_get_node(dev);
 	if ((OF_getencprop(node, "cache-line-size", &cell, sizeof(cell))) > 0)

@@ -15,8 +15,8 @@
 #ifndef LLVM_SUPPORT_POINTERLIKETYPETRAITS_H
 #define LLVM_SUPPORT_POINTERLIKETYPETRAITS_H
 
-#include "llvm/Support/AlignOf.h"
 #include "llvm/Support/DataTypes.h"
+#include <type_traits>
 
 namespace llvm {
 
@@ -37,16 +37,16 @@ template <> struct ConstantLog2<1> : std::integral_constant<size_t, 0> {};
 }
 
 // Provide PointerLikeTypeTraits for non-cvr pointers.
-template <typename T> struct PointerLikeTypeTraits<T *> {
+template <typename T> class PointerLikeTypeTraits<T *> {
+public:
   static inline void *getAsVoidPointer(T *P) { return P; }
   static inline T *getFromVoidPointer(void *P) { return static_cast<T *>(P); }
 
-  enum {
-    NumLowBitsAvailable = detail::ConstantLog2<AlignOf<T>::Alignment>::value
-  };
+  enum { NumLowBitsAvailable = detail::ConstantLog2<alignof(T)>::value };
 };
 
-template <> struct PointerLikeTypeTraits<void *> {
+template <> class PointerLikeTypeTraits<void *> {
+public:
   static inline void *getAsVoidPointer(void *P) { return P; }
   static inline void *getFromVoidPointer(void *P) { return P; }
 
@@ -58,6 +58,20 @@ template <> struct PointerLikeTypeTraits<void *> {
   /// All clients should use assertions to do a run-time check to ensure that
   /// this is actually true.
   enum { NumLowBitsAvailable = 2 };
+};
+
+// Provide PointerLikeTypeTraits for const things.
+template <typename T> class PointerLikeTypeTraits<const T> {
+  typedef PointerLikeTypeTraits<T> NonConst;
+
+public:
+  static inline const void *getAsVoidPointer(const T P) {
+    return NonConst::getAsVoidPointer(P);
+  }
+  static inline const T getFromVoidPointer(const void *P) {
+    return NonConst::getFromVoidPointer(const_cast<void *>(P));
+  }
+  enum { NumLowBitsAvailable = NonConst::NumLowBitsAvailable };
 };
 
 // Provide PointerLikeTypeTraits for const pointers.

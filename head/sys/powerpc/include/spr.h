@@ -192,6 +192,19 @@
 #define	  FSL_E5500		  0x8024
 #define	  FSL_E6500		  0x8040
 
+#define	SPR_EPCR		0x133
+#define	  EPCR_EXTGS		  0x80000000
+#define	  EPCR_DTLBGS		  0x40000000
+#define	  EPCR_ITLBGS		  0x20000000
+#define	  EPCR_DSIGS		  0x10000000
+#define	  EPCR_ISIGS		  0x08000000
+#define	  EPCR_DUVGS		  0x04000000
+#define	  EPCR_ICM		  0x02000000
+#define	  EPCR_GICMGS		  0x01000000
+#define	  EPCR_DGTMI		  0x00800000
+#define	  EPCR_DMIUH		  0x00400000
+#define	  EPCR_PMGS		  0x00200000
+#define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
@@ -258,6 +271,7 @@
 #define	SPR_DBAT6L		0x23d	/* .6. Data BAT Reg 6 Lower */
 #define	SPR_DBAT7U		0x23e	/* .6. Data BAT Reg 7 Upper */
 #define	SPR_DBAT7L		0x23f	/* .6. Data BAT Reg 7 Lower */
+#define	SPR_SPRG8		0x25c	/* ..8 SPR General 8 */
 #define	SPR_MI_CTR		0x310	/* ..8 IMMU control */
 #define	  Mx_CTR_GPM		0x80000000 /* Group Protection Mode */
 #define	  Mx_CTR_PPM		0x40000000 /* Page Protection Mode */
@@ -670,6 +684,8 @@
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+#define	SPR_DSRR0		0x23e	/* ..8 574 Debug SRR0<E.ED> */
+#define	SPR_DSRR1		0x23f	/* ..8 575 Debug SRR1<E.ED> */
 
 #define	SPR_MMUCR		0x3b2	/* 4.. MMU Control Register */
 #define	  MMUCR_SWOA		(0x80000000 >> 7)
@@ -697,8 +713,12 @@
 #define	  SVR_MPC8572E		  0x80e8
 #define	  SVR_P1011		  0x80e5
 #define	  SVR_P1011E		  0x80ed
+#define	  SVR_P1013		  0x80e7
+#define	  SVR_P1013E		  0x80ef
 #define	  SVR_P1020		  0x80e4
 #define	  SVR_P1020E		  0x80ec
+#define	  SVR_P1022		  0x80e6
+#define	  SVR_P1022E		  0x80ee
 #define	  SVR_P2010		  0x80e3
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2

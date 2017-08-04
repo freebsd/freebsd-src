@@ -238,6 +238,24 @@ translator ipinfo_t < uint8_t *p > {
 	    inet_ntoa6(&((struct ip6_hdr *)p)->ip6_dst);
 };
 
+#pragma D binding "1.13" translator
+translator ipinfo_t < struct mbuf *m > {
+	ip_ver =	m == NULL ? 0 : ((struct ip *)m->m_data)->ip_v;
+	ip_plength =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    ntohs(((struct ip *)m->m_data)->ip_len) - 
+			(((struct ip *)m->m_data)->ip_hl << 2):
+	    ntohs(((struct ip6_hdr *)m->m_data)->ip6_ctlun.ip6_un1.ip6_un1_plen);
+	ip_saddr =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    inet_ntoa(&((struct ip *)m->m_data)->ip_src.s_addr) :
+	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_src);
+	ip_daddr =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    inet_ntoa(&((struct ip *)m->m_data)->ip_dst.s_addr) :
+	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_dst);
+};
+
 #pragma D binding "1.5" IFF_LOOPBACK
 inline int IFF_LOOPBACK =	0x8;
 
@@ -255,8 +273,8 @@ translator ipv4info_t < struct ip *p > {
 	ipv4_tos =	p == NULL ? 0 : p->ip_tos;
 	ipv4_length =	p == NULL ? 0 : ntohs(p->ip_len);
 	ipv4_ident =	p == NULL ? 0 : ntohs(p->ip_id);
-	ipv4_flags =	p == NULL ? 0 : (p->ip_off & 0xe000);
-	ipv4_offset =	p == NULL ? 0 : p->ip_off;
+	ipv4_flags =	p == NULL ? 0 : (ntohs(p->ip_off) & 0xe000) >> 8;
+	ipv4_offset =	p == NULL ? 0 : ntohs(p->ip_off) & 0x1fff;
 	ipv4_ttl =	p == NULL ? 0 : p->ip_ttl;
 	ipv4_protocol =	p == NULL ? 0 : p->ip_p;
 	ipv4_protostr = p == NULL ? "<null>" : protocols[p->ip_p];

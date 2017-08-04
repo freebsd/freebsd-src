@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -65,7 +65,7 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 	char *dst;
 	char *edst = odst;
 	char *src;
-	register char *src_end;
+	char *src_end;
 	LWCHAR ch;
 
 	if (lenp != NULL)

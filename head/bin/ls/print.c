@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -259,12 +259,12 @@ printlong(const DISPLAY *dp)
 		np = p->fts_pointer;
 		xo_attr("value", "%03o", (int) sp->st_mode & ALLPERMS);
 		if (f_numericonly) {
-			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} {td:user/%-*s}{e:user/%ju}  {td:group/%-*s}{e:group/%ju}  ",
-				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, sp->st_nlink,
+			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*ju} {td:user/%-*s}{e:user/%ju}  {td:group/%-*s}{e:group/%ju}  ",
+				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, (uintmax_t)sp->st_nlink,
 				dp->s_user, np->user, (uintmax_t)sp->st_uid, dp->s_group, np->group, (uintmax_t)sp->st_gid);
 		} else {
-			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} {t:user/%-*s}  {t:group/%-*s}  ",
-				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, sp->st_nlink,
+			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*ju} {t:user/%-*s}  {t:group/%-*s}  ",
+				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, (uintmax_t)sp->st_nlink,
 				dp->s_user, np->user, dp->s_group, np->group);
 		}
 		if (S_ISBLK(sp->st_mode))

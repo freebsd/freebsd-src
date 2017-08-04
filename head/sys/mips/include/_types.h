@@ -143,8 +143,6 @@ typedef	__uint64_t	__vm_paddr_t;
 typedef	__uint32_t	__vm_paddr_t;
 #endif
 
-typedef	__int64_t	__vm_ooffset_t;
-typedef	__uint64_t	__vm_pindex_t;
 typedef	int		___wchar_t;
 
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */

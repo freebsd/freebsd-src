@@ -60,6 +60,11 @@ HEADER {
 	    PCI_ID_RID,
 	    PCI_ID_MSI,
 	};
+
+	enum pci_feature {
+	    PCI_FEATURE_HP,		/* Hot Plug feature */
+	    PCI_FEATURE_AER,		/* Advanced Error Reporting */
+	};
 }
 
 

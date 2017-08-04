@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netpfil/ipfw/nat64
+.PATH: ${SRCTOP}/sys/netpfil/ipfw/nat64
 
 KMOD=	ipfw_nat64
 SRCS=	ip_fw_nat64.c nat64_translate.c

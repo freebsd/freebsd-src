@@ -649,11 +649,12 @@ ar9300_set_quiet(struct ath_hal *ah, u_int32_t period, u_int32_t duration,
     return status;
 #undef	TU_TO_USEC
 }
-#ifdef ATH_SUPPORT_DFS
+
+//#ifdef ATH_SUPPORT_DFS
 void
 ar9300_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL enable)
 {
-    u32 reg1, reg2;
+    uint32_t reg1, reg2;
 
     reg1 = OS_REG_READ(ah, AR_MAC_PCU_OFFSET(MAC_PCU_MISC_MODE));
     reg2 = OS_REG_READ(ah, AR_MAC_PCU_OFFSET(MAC_PCU_QUIET_TIME_1));
@@ -671,7 +672,7 @@ ar9300_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL enable)
                      reg2 | AR_QUIET1_QUIET_ACK_CTS_ENABLE);
     }
 }
-#endif /* ATH_SUPPORT_DFS */
+//#endif /* ATH_SUPPORT_DFS */
 
 void
 ar9300_set_pcu_config(struct ath_hal *ah)

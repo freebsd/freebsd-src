@@ -1,5 +1,3 @@
-/* $Id: audit-bsm.c,v 1.8 2012/02/23 23:40:43 dtucker Exp $ */
-
 /*
  * TODO
  *

@@ -555,6 +555,9 @@ svn_sqlite__hotcopy(const char *src_path,
                     const char *dst_path,
                     apr_pool_t *scratch_pool);
 
+/* Backported version of SVN_ERR_SQLITE_ROLLBACK_FAILED. */
+#define SVN_SQLITE__ERR_ROLLBACK_FAILED  (SVN_ERR_MISC_CATEGORY_START + 44)
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

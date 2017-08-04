@@ -483,9 +483,9 @@ iser_conn_task_done(struct icl_conn *ic, void *prv)
 }
 
 static int
-iser_limits(size_t *limitp)
+iser_limits(struct icl_drv_limits *idl)
 {
-	*limitp = 128 * 1024;
+	idl->idl_max_recv_data_segment_length = 128 * 1024;
 
 	return (0);
 }

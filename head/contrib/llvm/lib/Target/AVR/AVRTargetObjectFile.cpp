@@ -9,12 +9,12 @@
 
 #include "AVRTargetObjectFile.h"
 
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Support/ELF.h"
 
 #include "AVR.h"
 
@@ -26,15 +26,16 @@ void AVRTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM) {
 }
 
 MCSection *
-AVRTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
-                                            SectionKind Kind, Mangler &Mang,
+AVRTargetObjectFile::SelectSectionForGlobal(const GlobalObject *GO,
+                                            SectionKind Kind,
                                             const TargetMachine &TM) const {
   // Global values in flash memory are placed in the progmem.data section
   // unless they already have a user assigned section.
-  if (AVR::isProgramMemoryAddress(GV) && !GV->hasSection())
+  if (AVR::isProgramMemoryAddress(GO) && !GO->hasSection())
     return ProgmemDataSection;
 
   // Otherwise, we work the same way as ELF.
-  return Base::SelectSectionForGlobal(GV, Kind, Mang, TM);
+  return Base::SelectSectionForGlobal(GO, Kind, TM);
 }
 } // end of namespace llvm
+

@@ -30,12 +30,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/uio.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -55,8 +61,9 @@ static int
 dbg_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	    uint32_t *eax, void *arg)
 {
-	char ch;
 	int nwritten, nread, printonce;
+	int on = 1;
+	char ch;
 
 	if (bytes == 2 && in) {
 		*eax = BVM_DBG_SIG;
@@ -73,11 +80,17 @@ again:
 			printf("Waiting for connection from gdb\r\n");
 			printonce = 1;
 		}
-		conn_fd = accept(listen_fd, NULL, NULL);
-		if (conn_fd >= 0)
-			fcntl(conn_fd, F_SETFL, O_NONBLOCK);
-		else if (errno != EINTR)
+		conn_fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK);
+		if (conn_fd >= 0) {
+			/* Avoid EPIPE after the client drops off. */
+			(void)setsockopt(conn_fd, SOL_SOCKET, SO_NOSIGPIPE,
+			    &on, sizeof(on));
+			/* Improve latency for one byte at a time tranfers. */
+			(void)setsockopt(conn_fd, IPPROTO_TCP, TCP_NODELAY,
+			    &on, sizeof(on));
+		} else if (errno != EINTR) {
 			perror("accept");
+		}
 	}
 
 	if (in) {
@@ -117,6 +130,9 @@ void
 init_dbgport(int sport)
 {
 	int reuse;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	conn_fd = -1;
 
@@ -146,6 +162,12 @@ init_dbgport(int sport)
 		perror("listen");
 		exit(1);
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(listen_fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	register_inout(&dbgport);
 }

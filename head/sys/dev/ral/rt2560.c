@@ -911,17 +911,18 @@ rt2560_encryption_intr(struct rt2560_softc *sc)
 static void
 rt2560_tx_intr(struct rt2560_softc *sc)
 {
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct mbuf *m;
-	struct ieee80211vap *vap;
 	struct ieee80211_node *ni;
 	uint32_t flags;
-	int retrycnt, status;
+	int status;
 
 	bus_dmamap_sync(sc->txq.desc_dmat, sc->txq.desc_map,
 	    BUS_DMASYNC_POSTREAD);
 
+	txs->flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
 	for (;;) {
 		desc = &sc->txq.desc[sc->txq.next];
 		data = &sc->txq.data[sc->txq.next];
@@ -934,41 +935,37 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 
 		m = data->m;
 		ni = data->ni;
-		vap = ni->ni_vap;
 
 		switch (flags & RT2560_TX_RESULT_MASK) {
 		case RT2560_TX_SUCCESS:
-			retrycnt = 0;
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = 0;
 
 			DPRINTFN(sc, 10, "%s\n", "data frame sent successfully");
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 0;
 			break;
 
 		case RT2560_TX_SUCCESS_RETRY:
-			retrycnt = RT2560_TX_RETRYCNT(flags);
+			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+			txs->long_retries = RT2560_TX_RETRYCNT(flags);
 
 			DPRINTFN(sc, 9, "data frame sent after %u retries\n",
-			    retrycnt);
+			    txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_SUCCESS,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 0;
 			break;
 
 		case RT2560_TX_FAIL_RETRY:
-			retrycnt = RT2560_TX_RETRYCNT(flags);
+			txs->status = IEEE80211_RATECTL_TX_FAIL_LONG;
+			txs->long_retries = RT2560_TX_RETRYCNT(flags);
 
 			DPRINTFN(sc, 9, "data frame failed after %d retries\n",
-			    retrycnt);
+			    txs->long_retries);
 			if (data->rix != IEEE80211_FIXED_RATE_NONE)
-				ieee80211_ratectl_tx_complete(vap, ni,
-				    IEEE80211_RATECTL_TX_FAILURE,
-				    &retrycnt, NULL);
+				ieee80211_ratectl_tx_complete(ni, txs);
 			status = 1;
 			break;
 
@@ -1521,7 +1518,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 	desc = &sc->prioq.desc[sc->prioq.cur];
 	data = &sc->prioq.data[sc->prioq.cur];
 
-	rate = vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)].mgmtrate;
+	rate = ni->ni_txparms->mgmtrate;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
@@ -1749,7 +1746,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
 	struct mbuf *mnew;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1759,11 +1756,10 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		rate = tp->mcastrate;
-	} else if (m0->m_flags & M_EAPOL) {
+	if (m0->m_flags & M_EAPOL) {
 		rate = tp->mgmtrate;
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		rate = tp->mcastrate;
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = tp->ucastrate;
 	} else {

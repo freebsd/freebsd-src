@@ -37,6 +37,7 @@
 #undef		bind
 #undef		__cap_get_fd
 #undef		__cap_set_fd
+#undef		clock_nanosleep
 #undef		close
 #undef		connect
 #undef		dup
@@ -198,6 +199,7 @@
 #undef		sem_open
 #undef		sem_post
 #undef		sem_timedwait
+#undef		sem_clockwait_np
 #undef		sem_trywait
 #undef		sem_unlink
 #undef		sem_wait

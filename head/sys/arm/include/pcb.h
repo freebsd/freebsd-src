@@ -38,8 +38,8 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/fp.h>
 #include <machine/frame.h>
+#include <machine/vfp.h>
 
 
 /*

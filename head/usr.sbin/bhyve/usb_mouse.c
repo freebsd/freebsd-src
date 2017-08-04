@@ -284,7 +284,7 @@ umouse_event(uint8_t button, int x, int y, void *arg)
 
 	/* scale coords to mouse resolution */
 	sc->um_report.x = MOUSE_MAX_X * x / gc->width;
-	sc->um_report.y = MOUSE_MAX_X * y / gc->height;
+	sc->um_report.y = MOUSE_MAX_Y * y / gc->height;
 	sc->newdata = 1;
 	pthread_mutex_unlock(&sc->mtx);
 

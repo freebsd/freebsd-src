@@ -231,6 +231,19 @@ struct addr_tree_node* addr_tree_lookup(rbtree_t* tree,
         return result;
 }
 
+struct addr_tree_node* addr_tree_find(rbtree_t* tree,
+        struct sockaddr_storage* addr, socklen_t addrlen, int net)
+{
+        rbnode_t* res = NULL;
+        struct addr_tree_node key;
+        key.node.key = &key;
+        memcpy(&key.addr, addr, addrlen);
+        key.addrlen = addrlen;
+        key.net = net;
+	res = rbtree_search(tree, &key);
+	return (struct addr_tree_node*)res;
+}
+
 int
 name_tree_next_root(rbtree_t* tree, uint16_t* dclass)
 {

@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/uart/uart.h>
@@ -217,7 +216,7 @@ tegra_uart_probe(device_t dev)
 		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
 		return (ENXIO);
 	}
-	return (uart_bus_probe(dev, shift, (int)freq, 0, 0));
+	return (uart_bus_probe(dev, shift, 0, (int)freq, 0, 0));
 }
 
 static int

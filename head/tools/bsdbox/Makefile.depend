@@ -47,6 +47,9 @@ DIRDEPS = \
 	secure/lib/libcrypto \
 	secure/lib/libssl \
 	usr.bin/lex/lib \
+	usr.bin/yacc.host \
+	usr.sbin/crunch/crunchgen.host \
+	usr.sbin/crunch/crunchide.host \
 
 
 .include <dirdeps.mk>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -176,10 +176,10 @@ static struct loption option[] =
 	},
 #if MSDOS_COMPILER
 	{ 'D', &D__optname,
-		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
+		STRING|REPAINT, 0, NULL, opt_D,
 		{
 			"color desc: ", 
-			"Ddknsu0123456789.",
+			"Dadknsu0123456789.",
 			NULL
 		}
 	},
@@ -466,7 +466,7 @@ static struct loption option[] =
 	public void
 init_option()
 {
-	register struct loption *o;
+	struct loption *o;
 	char *p;
 
 	p = lgetenv("LESS_IS_MORE");
@@ -492,7 +492,7 @@ init_option()
 findopt(c)
 	int c;
 {
-	register struct loption *o;
+	struct loption *o;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
@@ -533,9 +533,9 @@ findopt_name(p_optname, p_oname, p_err)
 	int *p_err;
 {
 	char *optname = *p_optname;
-	register struct loption *o;
-	register struct optname *oname;
-	register int len;
+	struct loption *o;
+	struct optname *oname;
+	int len;
 	int uppercase;
 	struct loption *maxo = NULL;
 	struct optname *maxoname = NULL;

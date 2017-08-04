@@ -371,7 +371,7 @@ setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 /**********************************************************************
- * A good chunk of this is duplicated from sys/net/ifmedia.c
+ * A good chunk of this is duplicated from sys/net/if_media.c
  **********************************************************************/
 
 static struct ifmedia_description ifm_type_descriptions[] =

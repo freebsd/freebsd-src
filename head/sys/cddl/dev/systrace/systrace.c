@@ -193,7 +193,8 @@ systrace_probe(struct syscall_args *sa, enum systrace_probe_t type, int retval)
 	memset(uargs, 0, sizeof(uargs));
 
 	if (type == SYSTRACE_ENTRY) {
-		id = sa->callp->sy_entry;
+		if ((id = sa->callp->sy_entry) == DTRACE_IDNONE)
+			return;
 
 		if (sa->callp->sy_systrace_args_func != NULL)
 			/*
@@ -215,7 +216,8 @@ systrace_probe(struct syscall_args *sa, enum systrace_probe_t type, int retval)
 		 */
 		curthread->t_dtrace_systrace_args = uargs;
 	} else {
-		id = sa->callp->sy_return;
+		if ((id = sa->callp->sy_return) == DTRACE_IDNONE)
+			return;
 
 		curthread->t_dtrace_systrace_args = NULL;
 		/* Set arg0 and arg1 as the return value of this syscall. */

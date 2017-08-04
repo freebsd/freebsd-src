@@ -50,6 +50,9 @@
 #ifdef WITH_PYTHONMODULE
 #include "pythonmod/pythonmod.h"
 #endif
+#ifdef USE_CACHEDB
+#include "cachedb/cachedb.h"
+#endif
 
 /** count number of modules (words) in the string */
 static int
@@ -121,6 +124,9 @@ module_list_avail(void)
 #ifdef WITH_PYTHONMODULE
 		"python", 
 #endif
+#ifdef USE_CACHEDB
+		"cachedb",
+#endif
 		"validator", 
 		"iterator", 
 		NULL};
@@ -138,6 +144,9 @@ module_funcs_avail(void)
 		&dns64_get_funcblock,
 #ifdef WITH_PYTHONMODULE
 		&pythonmod_get_funcblock, 
+#endif
+#ifdef USE_CACHEDB
+		&cachedb_get_funcblock,
 #endif
 		&val_get_funcblock, 
 		&iter_get_funcblock, 

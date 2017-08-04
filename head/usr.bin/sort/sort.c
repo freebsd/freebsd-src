@@ -209,14 +209,10 @@ sort_modifier_empty(struct sort_mods *sm)
 static void
 usage(bool opt_err)
 {
-	struct option *o;
 	FILE *out;
 
-	out = stdout;
-	o = &(long_options[0]);
+	out = opt_err ? stderr : stdout;
 
-	if (opt_err)
-		out = stderr;
 	fprintf(out, getstr(12), getprogname());
 	if (opt_err)
 		exit(2);
@@ -271,8 +267,6 @@ set_hw_params(void)
 {
 	long pages, psize;
 
-	pages = psize = 0;
-
 #if defined(SORT_THREADS)
 	ncpu = 1;
 #endif
@@ -280,7 +274,7 @@ set_hw_params(void)
 	pages = sysconf(_SC_PHYS_PAGES);
 	if (pages < 1) {
 		perror("sysconf pages");
-		psize = 1;
+		pages = 1;
 	}
 	psize = sysconf(_SC_PAGESIZE);
 	if (psize < 1) {

@@ -199,7 +199,10 @@ localedir='${datadir}/locale'
 AC_SUBST(localedir)
 
 dnl For SVN_LOCALE_DIR, we have to expand it to something.  See SVN_BINDIR.
-if test "${datadir}" = '${prefix}/share' && test "${prefix}" = "NONE"; then
+if test "${prefix}" = "NONE" \
+  && ( test "${datadir}" = '${prefix}/share' \
+       || ( test "${datadir}" = '${datarootdir}' \
+            && test "${datarootdir}" = '${prefix}/share' ) ); then
   exp_localedir='${ac_default_prefix}/share/locale'
 else
   exp_localedir=$localedir
@@ -1504,6 +1507,7 @@ fi
 # Need to strip '-no-cpp-precomp' from CPPFLAGS for SWIG as well.
 SWIG_CPPFLAGS="$CPPFLAGS"
 SVN_STRIP_FLAG(SWIG_CPPFLAGS, [-no-cpp-precomp ])
+SVN_STRIP_FLAG(SWIG_CPPFLAGS, [-Wdate-time ])
 AC_SUBST([SWIG_CPPFLAGS])
 
 dnl Since this is used only on Unix-y systems, define the path separator as '/'

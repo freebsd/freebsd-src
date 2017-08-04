@@ -58,7 +58,6 @@ extern struct bootinfo	 boot2_bootinfo;
 int	md_load64(char *args, vm_offset_t *modulep);
 
 /* vers.c */
-extern char		bootprog_name[], bootprog_rev[];
-extern char		bootprog_date[], bootprog_maker[];
+extern char		bootprog_info[];
 
 #endif /* !_BOOT_LOADER_H_ */

@@ -599,7 +599,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 * CDEV
 	 */
 	{ "vm map (system)", &lock_class_mtx_sleep },
-	{ "vm page queue", &lock_class_mtx_sleep },
+	{ "vm pagequeue", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
 	{ "cdev", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -609,7 +609,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "vm map (user)", &lock_class_sx },
 	{ "vm object", &lock_class_rw },
 	{ "vm page", &lock_class_mtx_sleep },
-	{ "vm page queue", &lock_class_mtx_sleep },
+	{ "vm pagequeue", &lock_class_mtx_sleep },
 	{ "pmap pv global", &lock_class_rw },
 	{ "pmap", &lock_class_mtx_sleep },
 	{ "pmap pv list", &lock_class_rw },
@@ -621,6 +621,14 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "kqueue", &lock_class_mtx_sleep },
 	{ "struct mount mtx", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * VFS namecache
+	 */
+	{ "ncvn", &lock_class_mtx_sleep },
+	{ "ncbuc", &lock_class_rw },
+	{ "vnode interlock", &lock_class_mtx_sleep },
+	{ "ncneg", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * ZFS locking
@@ -637,7 +645,6 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "rm.mutex_mtx", &lock_class_mtx_spin },
 	{ "sio", &lock_class_mtx_spin },
-	{ "scrlock", &lock_class_mtx_spin },
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
 #endif
@@ -653,6 +660,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "pmc-per-proc", &lock_class_mtx_spin },
 #endif
 	{ "process slock", &lock_class_mtx_spin },
+	{ "syscons video lock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
 	{ "rm_spinlock", &lock_class_mtx_spin },
 	{ "turnstile chain", &lock_class_mtx_spin },
@@ -661,7 +669,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "td_contested", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
 	{ "entropy harvest mutex", &lock_class_mtx_spin },
-	{ "syscons video lock", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
@@ -1725,15 +1732,14 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				continue;
 			if (n == 0) {
 				va_start(ap, fmt);
-				witness_voutput(fmt, ap);
+				vprintf(fmt, ap);
 				va_end(ap);
-				witness_output(
-				    " with the following %slocks held:\n",
+				printf(" with the following %slocks held:\n",
 				    (flags & WARN_SLEEPOK) != 0 ?
 				    "non-sleepable " : "");
 			}
 			n++;
-			witness_list_lock(lock1, witness_output);
+			witness_list_lock(lock1, printf);
 		}
 
 	/*
@@ -1758,11 +1764,11 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			return (0);
 
 		va_start(ap, fmt);
-		witness_voutput(fmt, ap);
+		vprintf(fmt, ap);
 		va_end(ap);
-		witness_output(" with the following %slocks held:\n",
+		printf(" with the following %slocks held:\n",
 		    (flags & WARN_SLEEPOK) != 0 ?  "non-sleepable " : "");
-		n += witness_list_locks(&lock_list, witness_output);
+		n += witness_list_locks(&lock_list, printf);
 	} else
 		sched_unpin();
 	if (flags & WARN_PANIC && n)
@@ -1843,12 +1849,14 @@ enroll(const char *description, struct lock_class *lock_class)
 	return (w);
 found:
 	w->w_refcount++;
+	if (w->w_refcount == 1)
+		w->w_class = lock_class;
 	mtx_unlock_spin(&w_mtx);
 	if (lock_class != w->w_class)
 		kassert_panic(
-			"lock (%s) %s does not match earlier (%s) lock",
-			description, lock_class->lc_name,
-			w->w_class->lc_name);
+		    "lock (%s) %s does not match earlier (%s) lock",
+		    description, lock_class->lc_name,
+		    w->w_class->lc_name);
 	return (w);
 }
 

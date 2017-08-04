@@ -10,6 +10,7 @@
  * BinString -- pointer to an array of chars, printed via strvisx().
  * Ptr -- pointer to some unspecified structure.  Just print as hex for now.
  * Stat -- a pointer to a stat buffer.  Prints a couple fields.
+ * Stat11 -- a pointer to a freebsd 11 stat buffer.  Prints a couple fields.
  * StatFs -- a pointer to a statfs buffer.  Prints a few fields.
  * Ioctl -- an ioctl command.  Woefully limited.
  * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
@@ -28,6 +29,7 @@
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
  * Pathconf -- the 2nd argument of pathconf().
  * Utrace -- utrace(2) buffer.
+ * CapRights -- a pointer to a cap_rights_t.  Prints all set capabilities.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -37,14 +39,19 @@
  * $FreeBSD$
  */
 
-enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
+enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Stat11, Ioctl,
 	Quad, Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval,
 	Pollfd, Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
 	Sigset, Sigprocmask, StatFs, Kevent, Sockdomain, Socktype, Open,
-	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
-	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
+	Fcntlflag, Rusage, RusageWho, BinString, Shutdown, Resource, Rlimit,
+	Timeval2, Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
 	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode, Long,
-	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray,
+	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray, Pipe2,
+	CapFcntlRights, Fadvice, FileFlags, Flockop, Getfsstatmode, Kldsymcmd,
+	Kldunloadflags, Sizet, Madvice, Socklent, Sockprotocol, Sockoptlevel,
+	Sockoptname, Msgflags, CapRights, PUInt, PQuadHex, Acltype,
+	Extattrnamespace, Minherit, Mlockall, Mountflags, Msync, Priowhich,
+	Ptraceop, Quotactlcmd, Reboothowto, Rtpriofunc, Schedpolicy, Schedparam,
 
 	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
 	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
@@ -72,9 +79,10 @@ struct syscall {
 	struct timespec time; /* Time spent for this call */
 	int ncalls;	/* Number of calls */
 	int nerror;	/* Number of calls that returned with error */
+	bool unknown;	/* Unknown system call */
 };
 
-struct syscall *get_syscall(const char *, int nargs);
+struct syscall *get_syscall(struct threadinfo *, u_int, u_int);
 char *print_arg(struct syscall_args *, unsigned long*, long *, struct trussinfo *);
 
 /*

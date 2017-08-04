@@ -46,6 +46,19 @@
 # include <ctype.h>
 #endif
 
+
+/* 
+ * 4.4BSD-Lite switched to an unsigned long ioctl arg.  Detect common
+ * derivatives here, and apply that type. To make the following code
+ * less verbose we make a proper typedef.
+ * The joy of IOCTL programming...
+ */
+# if defined(__FreeBSD__) || defined(__APPLE__) || defined(__NetBSD__) || defined __OpenBSD__
+typedef unsigned long ioctl_arg_T;
+#else
+typedef int ioctl_arg_T;
+#endif
+
 /*
  * Global variables
  */
@@ -54,13 +67,14 @@ static struct audio_device device; /* audio device ident */
 #endif /* HAVE_SYS_AUDIOIO_H */
 #ifdef PCM_STYLE_SOUND
 # define INIT_FILE "/etc/ntp.audio"
-int agc =	SOUND_MIXER_WRITE_RECLEV; /* or IGAIN or LINE */
-int monitor =	SOUND_MIXER_WRITE_VOLUME; /* or OGAIN */
-int devmask = 0;
-int recmask = 0;
-char cf_c_dev[100], cf_i_dev[100], cf_agc[100], cf_monitor[100];
 
-const char *m_names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+static ioctl_arg_T agc		= SOUND_MIXER_WRITE_RECLEV; /* or IGAIN or LINE */
+static ioctl_arg_T audiomonitor	= SOUND_MIXER_WRITE_VOLUME; /* or OGAIN */
+static int devmask = 0;
+static int recmask = 0;
+static char cf_c_dev[100], cf_i_dev[100], cf_agc[100], cf_monitor[100];
+
+static const char *m_names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 #else /* not PCM_STYLE_SOUND */
 static struct audio_info info;	/* audio device info */
 #endif /* not PCM_STYLE_SOUND */
@@ -334,7 +348,7 @@ audio_init(
 		/* devmask */
 		i = mixer_name(cf_monitor, devmask);
 		if (i >= 0)
-			monitor = MIXER_WRITE(i);
+                       audiomonitor = MIXER_WRITE(i);
 		else
 			printf("monitor %s not in devmask %#x\n",
 			       cf_monitor, devmask);
@@ -347,7 +361,7 @@ audio_init(
 # ifdef HAVE_SYS_AUDIOIO_H
 	info.record.buffer_size = bufsiz;
 # endif /* HAVE_SYS_AUDIOIO_H */
-	rval = ioctl(ctl_fd, (int)AUDIO_SETINFO, (char *)&info);
+	rval = ioctl(ctl_fd, AUDIO_SETINFO, (char *)&info);
 	if (rval < 0) {
 		msyslog(LOG_ERR, "audio: invalid control device parameters");
 		close(ctl_fd);
@@ -412,7 +426,7 @@ audio_gain(
 # endif
 		l |= r << 8;
 		if (cf_monitor[0] != '\0')
-			rval = ioctl(ctl_fd, monitor, &l );
+                       rval = ioctl(ctl_fd, audiomonitor, &l );
 		else 
 			rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_VOLUME,
 				     &l);
@@ -448,7 +462,7 @@ audio_gain(
 		o_port = port;
 	}
 #else /* not PCM_STYLE_SOUND */
-	ioctl(ctl_fd, (int)AUDIO_GETINFO, (char *)&info);
+	ioctl(ctl_fd, AUDIO_GETINFO, (char *)&info);
 	info.record.encoding = AUDIO_ENCODING_ULAW;
 	info.record.error = 0;
 	info.record.gain = gain;
@@ -456,7 +470,7 @@ audio_gain(
 		o_mongain = info.monitor_gain = mongain;
 	if (o_port != port)
 		o_port = info.record.port = port;
-	rval = ioctl(ctl_fd, (int)AUDIO_SETINFO, (char *)&info);
+	rval = ioctl(ctl_fd, AUDIO_SETINFO, (char *)&info);
 	if (rval < 0) {
 		msyslog(LOG_ERR, "audio_gain: %m");
 		return (rval);
@@ -485,11 +499,11 @@ audio_show(void)
 
 #else /* not PCM_STYLE_SOUND */
 # ifdef HAVE_SYS_AUDIOIO_H
-	ioctl(ctl_fd, (int)AUDIO_GETDEV, &device);
+	ioctl(ctl_fd, AUDIO_GETDEV, &device);
 	printf("audio: name %s, version %s, config %s\n",
 	    device.name, device.version, device.config);
 # endif /* HAVE_SYS_AUDIOIO_H */
-	ioctl(ctl_fd, (int)AUDIO_GETINFO, (char *)&info);
+	ioctl(ctl_fd, AUDIO_GETINFO, (char *)&info);
 	printf(
 	    "audio: rate %d, chan %d, prec %d, code %d, gain %d, mon %d, port %d\n",
 	    info.record.sample_rate, info.record.channels,

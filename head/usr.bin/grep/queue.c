@@ -49,11 +49,14 @@ struct qentry {
 };
 
 static STAILQ_HEAD(, qentry)	queue = STAILQ_HEAD_INITIALIZER(queue);
-static unsigned long long	count;
+static long long		count;
 
 static struct qentry	*dequeue(void);
 
-void
+/*
+ * Enqueue another line; return true if we've dequeued a line as a result
+ */
+bool
 enqueue(struct str *x)
 {
 	struct qentry *item;
@@ -62,6 +65,7 @@ enqueue(struct str *x)
 	item->data.dat = grep_malloc(sizeof(char) * x->len);
 	item->data.len = x->len;
 	item->data.line_no = x->line_no;
+	item->data.boff = x->boff;
 	item->data.off = x->off;
 	memcpy(item->data.dat, x->dat, x->len);
 	item->data.file = x->file;
@@ -72,7 +76,9 @@ enqueue(struct str *x)
 		item = dequeue();
 		free(item->data.dat);
 		free(item);
+		return (true);
 	}
+	return (false);
 }
 
 static struct qentry *
@@ -95,7 +101,7 @@ printqueue(void)
 	struct qentry *item;
 
 	while ((item = dequeue()) != NULL) {
-		printline(&item->data, '-', NULL, 0);
+		grep_printline(&item->data, '-');
 		free(item->data.dat);
 		free(item);
 	}

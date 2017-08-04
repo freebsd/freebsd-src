@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2016
+.Dd July 25, 2017
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Ar input-file Op Ar output-file
 .Op Fl bacc | Fl nbacc
 .Op Fl bad | Fl nbad
+.Op Fl badp | Fl nbadp
 .Op Fl bap | Fl nbap
 .Bk -words
 .Op Fl ei | Fl ei
@@ -50,6 +51,7 @@
 .Op Fl \&bc | Fl nbc
 .Op Fl \&bl
 .Op Fl \&br
+.Op Fl bs | Fl nbs
 .Op Fl c Ns Ar n
 .Op Fl \&cd Ns Ar n
 .Bk -words
@@ -72,6 +74,7 @@
 .Op Fl \&ldi Ns Ar n
 .Op Fl \&lp | Fl nlp
 .Op Fl npro
+.Op Fl P Ns Ar file
 .Op Fl pcs | Fl npcs
 .Op Fl psl | Fl npsl
 .Op Fl sac | Fl nsac
@@ -82,6 +85,7 @@
 .Op Fl \&st
 .Op Fl \&ta
 .Op Fl troff
+.Op Fl ts Ns Ar n
 .Op Fl U Ns Ar file
 .Op Fl ut | Fl nut
 .Op Fl v | Fl \&nv
@@ -143,6 +147,14 @@ is specified, a blank line is forced after every block of
 declarations.
 Default:
 .Fl nbad .
+.It Fl badp , nbadp
+This is vaguely similar to
+.Fl bad
+except that it only applies to the first set of declarations
+in a procedure (just after the first `{') and it causes a blank
+line to be generated even if there are no declarations.
+The default is
+.Fl nbadp.
 .It Fl bap , nbap
 If
 .Fl bap
@@ -182,6 +194,10 @@ if (...) {
   code
 }
 .Ed
+.It Fl bs , nbs
+Whether a blank should always be inserted after sizeof.
+The default is
+.Fl nbs.
 .It Fl c Ns Ar n
 The column in which comments on code start.
 The default is 33.
@@ -324,6 +340,10 @@ The default is
 .It Fl l Ns Ar n
 Maximum length of an output line.
 The default is 78.
+.It Fl lc Ns Ar n
+Maximum length of an output line in a block comment.
+The default is 0, which means to limit block comment lines in accordance with
+.Fl l.
 .It Fl \&ldi Ns Ar n
 Specifies the indentation, in character positions,
 of local variable names
@@ -365,6 +385,9 @@ Causes the profile files,
 and
 .Sq Pa ~/.indent.pro ,
 to be ignored.
+.It Fl P Ns Ar file
+Read profile from
+.Ar file .
 .It Fl pcs , npcs
 If true
 .Pq Fl pcs
@@ -437,13 +460,15 @@ listing in much the same spirit as
 .Xr vgrind 1 .
 If the output file is not specified, the default is standard output,
 rather than formatting in place.
+.It Fl ts Ns Ar n
+Assumed distance between tab stops.
+The default is 8.
 .It Fl U Ns Ar file
 Adds type names from
 .Ar file
 to the list of type keywords.
 .It Fl ut , nut
 Enables (disables) the use of tab characters in the output.
-Tabs are assumed to be aligned on columns divisible by 8.
 The default is
 .Fl ut .
 .It Fl v , \&nv

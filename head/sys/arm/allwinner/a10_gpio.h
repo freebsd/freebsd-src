@@ -32,6 +32,4 @@
 #define	A10_GPIO_FUNC_MII	2
 #define	A10_GPIO_FUNC_RGMII	5
 
-int a10_gpio_ethernet_activate(uint32_t);
-
 #endif

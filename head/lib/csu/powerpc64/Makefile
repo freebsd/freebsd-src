@@ -1,23 +1,13 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../common
+.PATH: ${.CURDIR:H}/common
 
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
-CFLAGS+=	-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include \
+CFLAGS+=	-I${.CURDIR:H}/common \
+		-I${SRCTOP}/lib/libc/include \
 		-mlongcall
-
-# XXX: See the log for r232932 as to why the above -mlongcall is needed.  Since
-# clang doesn't support -mlongcall, and testing shows a clang linked with a
-# clang-built csu segfaults, this must currently be compiled with gcc.  Once
-# clang supports -mlongcall, or we get a fixed ld, this can be revisited.
-.include <bsd.compiler.mk>
-.if ${COMPILER_TYPE} != "gcc"
-CC:=		gcc
-COMPILER_TYPE:=	gcc
-.endif
 
 FILES=		${OBJS}
 FILESMODE=	${LIBMODE}
@@ -38,20 +28,20 @@ crt1.s: crt1.c
 	sed ${SED_FIX_NOTE} ${.TARGET}
 
 crt1.o: crt1.s
-	${CC} ${ACFLAGS} -c -o ${.TARGET} crt1.s
+	${CC} ${CFLAGS:N-g} ${ACFLAGS} -c -o ${.TARGET} crt1.s
 
 gcrt1.s: crt1.c
 	${CC} ${CFLAGS} -DGCRT -S -o ${.TARGET} ${.CURDIR}/crt1.c
 	sed ${SED_FIX_NOTE} ${.TARGET}
 
 gcrt1.o: gcrt1.s
-	${CC} ${ACFLAGS} -c -o ${.TARGET} gcrt1.s
+	${CC} ${CFLAGS:N-g} ${ACFLAGS} -c -o ${.TARGET} gcrt1.s
 
 Scrt1.s: crt1.c
 	${CC} ${CFLAGS} -fPIC -DPIC -S -o ${.TARGET} ${.CURDIR}/crt1.c
 	sed ${SED_FIX_NOTE} ${.TARGET}
 
 Scrt1.o: Scrt1.s
-	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrt1.s
+	${CC} ${CFLAGS:N-g} ${ACFLAGS} -c -o ${.TARGET} Scrt1.s
 
 .include <bsd.lib.mk>

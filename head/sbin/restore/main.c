@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -212,7 +212,7 @@ main(int argc, char *argv[])
 			extractdirs(1);
 			removeoldleaves();
 			vprintf(stdout, "Calculate node updates.\n");
-			treescan(".", ROOTINO, nodeupdates);
+			treescan(".", UFS_ROOTINO, nodeupdates);
 			findunreflinks();
 			removeoldnodes();
 		} else {
@@ -223,7 +223,7 @@ main(int argc, char *argv[])
 			initsymtable((char *)0);
 			extractdirs(1);
 			vprintf(stdout, "Calculate extraction list.\n");
-			treescan(".", ROOTINO, nodeupdates);
+			treescan(".", UFS_ROOTINO, nodeupdates);
 		}
 		createleaves(symtbl);
 		createlinks();
@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 		checkrestore();
 		if (dflag) {
 			vprintf(stdout, "Verify the directory structure\n");
-			treescan(".", ROOTINO, verifyfile);
+			treescan(".", UFS_ROOTINO, verifyfile);
 		}
 		dumpsymtable(symtbl, (long)1);
 		break;

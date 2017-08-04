@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_authtok.c 807 2014-09-09 09:41:32Z des $
+ * $OpenPAM: pam_get_authtok.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -76,8 +76,6 @@ pam_get_authtok(pam_handle_t *pamh,
 	int pitem, r, style, twice;
 
 	ENTER();
-	if (pamh == NULL || authtok == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	*authtok = NULL;
 	twice = 0;
 	switch (item) {
@@ -106,7 +104,7 @@ pam_get_authtok(pam_handle_t *pamh,
 		twice = 0;
 		break;
 	default:
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_CONSTANT);
 	}
 	if (openpam_get_option(pamh, "try_first_pass") ||
 	    openpam_get_option(pamh, "use_first_pass")) {
@@ -122,9 +120,11 @@ pam_get_authtok(pam_handle_t *pamh,
 	if ((promptp = openpam_get_option(pamh, prompt_option)) != NULL)
 		prompt = promptp;
 	/* no prompt provided, see if there is one tucked away somewhere */
-	if (prompt == NULL)
-		if (pam_get_item(pamh, pitem, &promptp) && promptp != NULL)
+	if (prompt == NULL) {
+		r = pam_get_item(pamh, pitem, &promptp);
+		if (r == PAM_SUCCESS && promptp != NULL)
 			prompt = promptp;
+	}
 	/* fall back to hardcoded default */
 	if (prompt == NULL)
 		prompt = default_prompt;
@@ -170,6 +170,7 @@ pam_get_authtok(pam_handle_t *pamh,
  *	=pam_prompt
  *	=pam_set_item
  *	!PAM_SYMBOL_ERR
+ *	PAM_BAD_CONSTANT
  *	PAM_TRY_AGAIN
  */
 

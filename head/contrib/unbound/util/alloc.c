@@ -64,7 +64,7 @@ alloc_setup_special(alloc_special_t* t)
  * @param alloc: the structure to fill up.
  */
 static void
-prealloc(struct alloc_cache* alloc)
+prealloc_setup(struct alloc_cache* alloc)
 {
 	alloc_special_t* p;
 	int i;
@@ -216,7 +216,7 @@ alloc_special_obtain(struct alloc_cache* alloc)
 		}
 	}
 	/* allocate new */
-	prealloc(alloc);
+	prealloc_setup(alloc);
 	if(!(p = (alloc_special_t*)malloc(sizeof(alloc_special_t)))) {
 		log_err("alloc_special_obtain: out of memory");
 		return NULL;

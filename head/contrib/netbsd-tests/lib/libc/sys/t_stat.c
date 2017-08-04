@@ -1,4 +1,4 @@
-/* $NetBSD: t_stat.c,v 1.4 2012/03/17 08:37:08 jruoho Exp $ */
+/* $NetBSD: t_stat.c,v 1.5 2017/01/13 20:06:50 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,13 +29,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_stat.c,v 1.4 2012/03/17 08:37:08 jruoho Exp $");
+__RCSID("$NetBSD: t_stat.c,v 1.5 2017/01/13 20:06:50 christos Exp $");
 
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -46,10 +47,6 @@ __RCSID("$NetBSD: t_stat.c,v 1.4 2012/03/17 08:37:08 jruoho Exp $");
 #include <unistd.h>
 
 #include <stdio.h>
-
-#ifdef __FreeBSD__
-#include <netinet/in.h>
-#endif
 
 static const char *path = "stat";
 
@@ -396,6 +393,7 @@ ATF_TC_BODY(stat_symlink, tc)
 	if (sa.st_mode == sb.st_mode)
 		atf_tc_fail("inconsistencies between stat(2) and lstat(2)");
 
+	(void)close(fd);
 	ATF_REQUIRE(unlink(path) == 0);
 	ATF_REQUIRE(unlink(pathlink) == 0);
 }
