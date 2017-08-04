@@ -1003,6 +1003,8 @@ void	nvme_ns_trim_cmd(struct nvme_command *cmd, uint16_t nsid,
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 }
 
+extern int nvme_use_nvd;
+
 #endif /* _KERNEL */
 
 #endif /* __NVME_H__ */

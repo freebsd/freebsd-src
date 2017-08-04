@@ -33,6 +33,12 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+int nvme_use_nvd = 1;
+
+SYSCTL_NODE(_hw, OID_AUTO, nvme, CTLFLAG_RD, 0, "NVMe sysctl tunables");
+SYSCTL_INT(_hw_nvme, OID_AUTO, use_nvd, CTLFLAG_RDTUN,
+    &nvme_use_nvd, 1, "1 = Create NVD devices, 0 = Create NDA devices");
+
 /*
  * CTLTYPE_S64 and sysctl_handle_64 were added in r217616.  Define these
  *  explicitly here for older kernels that don't include the r217616
