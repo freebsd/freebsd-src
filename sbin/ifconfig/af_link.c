@@ -108,7 +108,15 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 			if (rc != 0) {
 				return;
 			}
-			if (memcmp(ifr.ifr_addr.sa_data, laggaddr, sdl->sdl_alen) == 0) {
+
+			/*
+			 * If this is definitely a lagg device or the hwaddr
+			 * matches the link addr, don't bother.
+			 */
+			if (memcmp(ifr.ifr_addr.sa_data, laggaddr,
+			    sdl->sdl_alen) == 0 ||
+			    memcmp(ifr.ifr_addr.sa_data, LLADDR(sdl),
+			    sdl->sdl_alen) == 0) {
 				return;
 			}
 			ether_format = ether_ntoa((const struct ether_addr *)
