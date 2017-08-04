@@ -106,7 +106,11 @@ function verify_assertion # dev
 	i=0
 	while (( i < iters )); do
 		start_all_wp
-		while ! is_pool_resilvered "$TESTPOOL"; do
+		while true; do
+			if is_pool_resilvered "$TESTPOOL" -a \
+				[ -f "$TESTDIR/$TESTFILE.$i" ]; then
+				break;
+			fi
 			$SLEEP 2
 		done
 
