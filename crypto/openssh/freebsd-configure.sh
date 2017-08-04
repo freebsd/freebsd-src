@@ -12,7 +12,7 @@ configure_args="
     --with-libedit
     --with-ssl-engine
     --without-xauth
-" 
+"
 
 set -e
 

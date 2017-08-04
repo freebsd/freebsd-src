@@ -1,12 +1,10 @@
-#	$OpenBSD: integrity.sh,v 1.19 2016/11/25 02:56:49 dtucker Exp $
+#	$OpenBSD: integrity.sh,v 1.20 2017/01/06 02:26:10 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 # start at byte 2900 (i.e. after kex) and corrupt at different offsets
-# XXX the test hangs if we modify the low bytes of the packet length
-# XXX and ssh tries to read...
 tries=10
 startoffset=2900
 macs=`${SSH} -Q mac`
@@ -27,6 +25,7 @@ for m in $macs; do
 	elen=0
 	epad=0
 	emac=0
+	etmo=0
 	ecnt=0
 	skip=0
 	for off in `jot $tries $startoffset`; do

@@ -1,4 +1,4 @@
-/*	$OpenBSD: fmt_scaled.c,v 1.9 2007/03/20 03:42:52 tedu Exp $	*/
+/*	$OpenBSD: fmt_scaled.c,v 1.13 2017/03/11 23:37:23 djm Exp $	*/
 
 /*
  * Copyright (c) 2001, 2002, 2003 Ian F. Darwin.  All rights reserved.
@@ -69,7 +69,7 @@ static long long scale_factors[] = {
 
 #define MAX_DIGITS (SCALE_LENGTH * 3)	/* XXX strlen(sprintf("%lld", -1)? */
 
-/** Convert the given input string "scaled" into numeric in "result".
+/* Convert the given input string "scaled" into numeric in "result".
  * Return 0 on success, -1 and errno set on error.
  */
 int
@@ -81,7 +81,7 @@ scan_scaled(char *scaled, long long *result)
 	long long scale_fact = 1, whole = 0, fpart = 0;
 
 	/* Skip leading whitespace */
-	while (isascii(*p) && isspace(*p))
+	while (isascii((unsigned char)*p) && isspace((unsigned char)*p))
 		++p;
 
 	/* Then at most one leading + or - */
@@ -108,7 +108,8 @@ scan_scaled(char *scaled, long long *result)
 	 * (but note that E for Exa might look like e to some!).
 	 * Advance 'p' to end, to get scale factor.
 	 */
-	for (; isascii(*p) && (isdigit(*p) || *p=='.'); ++p) {
+	for (; isascii((unsigned char)*p) &&
+	    (isdigit((unsigned char)*p) || *p=='.'); ++p) {
 		if (*p == '.') {
 			if (fract_digits > 0) {	/* oops, more than one '.' */
 				errno = EINVAL;
@@ -124,10 +125,18 @@ scan_scaled(char *scaled, long long *result)
 				/* ignore extra fractional digits */
 				continue;
 			fract_digits++;		/* for later scaling */
+			if (fpart >= LLONG_MAX / 10) {
+				errno = ERANGE;
+				return -1;
+			}
 			fpart *= 10;
 			fpart += i;
 		} else {				/* normal digit */
 			if (++ndigits >= MAX_DIGITS) {
+				errno = ERANGE;
+				return -1;
+			}
+			if (whole >= LLONG_MAX / 10) {
 				errno = ERANGE;
 				return -1;
 			}
@@ -150,16 +159,21 @@ scan_scaled(char *scaled, long long *result)
 	/* Validate scale factor, and scale whole and fraction by it. */
 	for (i = 0; i < SCALE_LENGTH; i++) {
 
-		/** Are we there yet? */
+		/* Are we there yet? */
 		if (*p == scale_chars[i] ||
-			*p == tolower(scale_chars[i])) {
+			*p == tolower((unsigned char)scale_chars[i])) {
 
 			/* If it ends with alphanumerics after the scale char, bad. */
-			if (isalnum(*(p+1))) {
+			if (isalnum((unsigned char)*(p+1))) {
 				errno = EINVAL;
 				return -1;
 			}
 			scale_fact = scale_factors[i];
+
+			if (whole >= LLONG_MAX / scale_fact) {
+				errno = ERANGE;
+				return -1;
+			}
 
 			/* scale whole part */
 			whole *= scale_fact;
@@ -181,7 +195,9 @@ scan_scaled(char *scaled, long long *result)
 			return 0;
 		}
 	}
-	errno = ERANGE;
+
+	/* Invalid unit or character */
+	errno = EINVAL;
 	return -1;
 }
 
@@ -196,7 +212,7 @@ fmt_scaled(long long number, char *result)
 	unsigned int i;
 	unit_type unit = NONE;
 
-	abval = (number < 0LL) ? -number : number;	/* no long long_abs yet */
+	abval = llabs(number);
 
 	/* Not every negative long long has a positive representation.
 	 * Also check for numbers that are just too darned big to format

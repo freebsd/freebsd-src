@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.125 2016/09/12 01:22:38 deraadt Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.126 2017/01/03 05:46:51 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -66,6 +66,13 @@ extern int showprogress;
 
 /* Maximum depth to descend in directory trees */
 #define MAX_DIR_DEPTH 64
+
+/* Directory separator characters */
+#ifdef HAVE_CYGWIN
+# define SFTP_DIRECTORY_CHARS      "/\\"
+#else /* HAVE_CYGWIN */
+# define SFTP_DIRECTORY_CHARS      "/"
+#endif /* HAVE_CYGWIN */
 
 struct sftp_conn {
 	int fd_in;
@@ -587,6 +594,8 @@ do_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 
 		if ((r = sshbuf_get_u32(msg, &count)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		if (count > SSHBUF_SIZE_MAX)
+			fatal("%s: nonsensical number of entries", __func__);
 		if (count == 0)
 			break;
 		debug3("Received %d SSH2_FXP_NAME responses", count);
@@ -617,7 +626,7 @@ do_lsreaddir(struct sftp_conn *conn, const char *path, int print_flag,
 			 * These can be used to attack recursive ops
 			 * (e.g. send '../../../../etc/passwd')
 			 */
-			if (strchr(filename, '/') != NULL) {
+			if (strpbrk(filename, SFTP_DIRECTORY_CHARS) != NULL) {
 				error("Server sent suspect path \"%s\" "
 				    "during readdir of \"%s\"", filename, path);
 			} else if (dir) {
