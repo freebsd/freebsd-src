@@ -1944,7 +1944,7 @@ retry:
 	 */
 	if (error != 0 && wkhd != NULL)
 		softdep_freework(wkhd);
-	lockmgr(vp->v_vnlock, LK_RELEASE, NULL);
+	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 	return (error);
 }
 
