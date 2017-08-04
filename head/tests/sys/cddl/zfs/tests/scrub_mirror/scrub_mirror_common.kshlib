@@ -37,14 +37,15 @@ function overwrite_verify_mirror
 	set -A cksums
 	set -A newcksums
 
-	fill_fs $TESTDIR $FILE_COUNT $BLOCKSZ $WRITE_COUNT
-	while (( atfile < FILE_COUNT )); do
-		cksums[$atfile]=$($CKSUM ${TESTDIR}/${TESTFILE}.${i})
-		(( atfile = atfile + 1 ))
+	fill_fs $TESTDIR -1 $FILE_COUNT $BLOCKSZ $WRITE_COUNT
+	while [ "$atfile" -lt "$FILE_COUNT" ]; do
+		if [ -f ${TESTDIR}/0/${TESTFILE}.${atfile} ]; then
+			cksums[$atfile]=$($CKSUM ${TESTDIR}/0/${TESTFILE}.${atfile})
+		fi
+		(( atfile = $atfile + 1 ))
 	done
 
 	# unmount and export before dd
-	log_must $UMOUNT $TESTDIR
 	log_must $ZPOOL export $POOL
 
 	# dd the affected side of the mirror
@@ -58,19 +59,21 @@ function overwrite_verify_mirror
 
 	atfile=0
 	typeset -i failedcount=0
-	while (( atfile < FILE_COUNT )); do
-		newcksum=$($CKSUM $TESTDIR/${TESTFILE}.${i})
-		if [[ $newcksum != ${cksums[$atfile]} ]]; then
-			(( failedcount = failedcount + 1 ))
-		else
-			log_note "${TESTFILE}.${i} checksums match:"\
-			    "old ${cksums[$atfile]} new $newcksum"
+	while [ "$atfile" -lt "$FILE_COUNT" ]; do
+		if [ -f ${TESTDIR}/0/${TESTFILE}.${atfile} ]; then
+			newcksum=$($CKSUM $TESTDIR/0/${TESTFILE}.${atfile})
+			if [[ $newcksum != ${cksums[$atfile]} ]]; then
+				(( failedcount = $failedcount + 1 ))
+			else
+				log_note "${TESTFILE}.${atfile} checksums match:"\
+				    "old ${cksums[$atfile]} new $newcksum"
+			fi
+			$RM -f ${files[$atfile]}
 		fi
-		$RM -f ${files[$atfile]}
-		(( atfile = atfile + 1 ))
+		(( atfile = $atfile + 1 ))
 	done
 
-	if (( $failedcount > 0 )); then
+	if [ "$failedcount" -gt 0 ]; then
 		log_fail "of the $FILE_COUNT files $failedcount did not " \
 		    "have the same checksum before and after."
 	fi
