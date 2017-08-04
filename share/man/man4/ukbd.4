@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd August 3, 2017
 .Dt UKBD 4
 .Os
 .Sh NAME
@@ -136,6 +136,19 @@ or
 Do not allow the user to change the keymap.
 Note that these options also affect the AT keyboard driver,
 .Xr atkbd 4 .
+.Sh MIB Variables
+The
+.Nm
+driver exposes the following variables in the
+.Va hw.usb.ukbd
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va debug"
+.It Va debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/kbd*" -compact
 .It Pa /dev/kbd*
