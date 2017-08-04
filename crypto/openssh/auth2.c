@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.136 2016/05/02 08:49:03 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.137 2017/02/03 23:05:57 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -214,15 +214,16 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 static int
 input_userauth_request(int type, u_int32_t seq, void *ctxt)
 {
+	struct ssh *ssh = active_state;	/* XXX */
 	Authctxt *authctxt = ctxt;
 	Authmethod *m = NULL;
 	char *user, *service, *method, *style = NULL;
 	int authenticated = 0;
 #ifdef HAVE_LOGIN_CAP
-	struct ssh *ssh = active_state; /* XXX */
 	login_cap_t *lc;
 	const char *from_host, *from_ip;
 #endif
+
 	if (authctxt == NULL)
 		fatal("input_userauth_request: no authctxt");
 
@@ -241,9 +242,10 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		authctxt->user = xstrdup(user);
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
-			debug2("input_userauth_request: setting up authctxt for %s", user);
+			debug2("%s: setting up authctxt for %s",
+			    __func__, user);
 		} else {
-			logit("input_userauth_request: invalid user %s", user);
+			/* Invalid user, fake password information */
 			authctxt->pw = fakepw();
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_INVALID_USER));
@@ -253,6 +255,8 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		if (options.use_pam)
 			PRIVSEP(start_pam(authctxt));
 #endif
+		ssh_packet_set_log_preamble(ssh, "%suser %s",
+		    authctxt->valid ? "authenticating " : "invalid ", user);
 		setproctitle("%s%s", authctxt->valid ? user : "unknown",
 		    use_privsep ? " [net]" : "");
 		authctxt->service = xstrdup(service);
@@ -320,6 +324,7 @@ void
 userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
     const char *submethod)
 {
+	struct ssh *ssh = active_state;	/* XXX */
 	char *methods;
 	int partial = 0;
 
@@ -381,6 +386,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 		packet_write_wait();
 		/* now we can break out */
 		authctxt->success = 1;
+		ssh_packet_set_log_preamble(ssh, "user %s", authctxt->user);
 	} else {
 
 		/* Allow initial try of "none" auth without failure penalty */

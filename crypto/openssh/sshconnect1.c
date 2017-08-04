@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect1.c,v 1.79 2016/09/19 07:52:42 natano Exp $ */
+/* $OpenBSD: sshconnect1.c,v 1.80 2017/03/10 03:53:11 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -520,7 +520,8 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 		cookie[i] = packet_get_char();
 
 	/* Get the public key. */
-	server_key = key_new(KEY_RSA1);
+	if ((server_key = key_new(KEY_RSA1)) == NULL)
+		fatal("%s: key_new(KEY_RSA1) failed", __func__);
 	bits = packet_get_int();
 	packet_get_bignum(server_key->rsa->e);
 	packet_get_bignum(server_key->rsa->n);
@@ -532,7 +533,8 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 		logit("Warning: This may be due to an old implementation of ssh.");
 	}
 	/* Get the host key. */
-	host_key = key_new(KEY_RSA1);
+	if ((host_key = key_new(KEY_RSA1)) == NULL)
+		fatal("%s: key_new(KEY_RSA1) failed", __func__);
 	bits = packet_get_int();
 	packet_get_bignum(host_key->rsa->e);
 	packet_get_bignum(host_key->rsa->n);

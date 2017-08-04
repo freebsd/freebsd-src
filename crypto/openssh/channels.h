@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.120 2016/10/18 17:32:54 dtucker Exp $ */
+/* $OpenBSD: channels.h,v 1.121 2017/02/01 02:59:09 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -275,7 +275,8 @@ void	 channel_update_permitted_opens(int, int);
 void	 channel_clear_permitted_opens(void);
 void	 channel_clear_adm_permitted_opens(void);
 void 	 channel_print_adm_permitted_opens(void);
-Channel	*channel_connect_to_port(const char *, u_short, char *, char *);
+Channel	*channel_connect_to_port(const char *, u_short, char *, char *, int *,
+	     const char **);
 Channel *channel_connect_to_path(const char *, char *, char *);
 Channel	*channel_connect_stdio_fwd(const char*, u_short, int, int);
 Channel	*channel_connect_by_listen_address(const char *, u_short,
