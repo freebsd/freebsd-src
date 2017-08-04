@@ -144,7 +144,7 @@ function zvol_volsize_to_reservation
 	typeset volblocksize=$2
 	typeset ncopies=$3
 	typeset ncopies_bp
-	typeset DN_MAX_INDBLKSHIFT=14
+	typeset DN_MAX_INDBLKSHIFT=17
 	typeset SPA_BLKPTRSHIFT=7
 	typeset SPA_DVAS_PER_BP=3
 	typeset DVAS_PER_BP
