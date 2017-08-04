@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd August 3, 2017
 .Dt UHID 4
 .Os
 .Sh NAME
@@ -127,6 +127,19 @@ Use
 to send data to the device.
 Data should be written in chunks of the
 size prescribed by the report descriptor.
+.Sh MIB Variables
+The
+.Nm
+driver exposes the following variables in the
+.Va hw.usb.uhid
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va debug"
+.It Va debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/uhid?"
 .It Pa /dev/uhid?
