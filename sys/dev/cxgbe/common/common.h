@@ -501,13 +501,10 @@ static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
 	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
 }
 
-static inline u_int ms_to_tcp_ticks(const struct adapter *adap, u_int ms)
+static inline u_int us_to_tcp_ticks(const struct adapter *adap, u_long us)
 {
-	u_long l;
 
-	l = (u_long)ms * adap->params.vpd.cclk >> adap->params.tp.tre;
-
-	return (l);
+	return (us * adap->params.vpd.cclk / 1000 >> adap->params.tp.tre);
 }
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
