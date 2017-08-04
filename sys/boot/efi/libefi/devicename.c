@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-#include "loader_efi.h"
-
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 
 /*
