@@ -2016,6 +2016,7 @@ function set_disks
 
 	if (( ${#disk_array[*]} <= 1 )); then
 		export DISK=${DISKS%% *}
+		export DISK_ARRAY_NUM=1
 	else 
 		export DISK=""
         	typeset -i i=0
