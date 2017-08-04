@@ -82,6 +82,11 @@ struct gic_v3_softc {
 	struct gic_v3_irqsrc	*gic_irqs;
 };
 
+
+struct gic_v3_devinfo {
+	int gic_domain;
+};
+
 #define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
 
 MALLOC_DECLARE(M_GIC_V3);
