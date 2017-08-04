@@ -1845,7 +1845,7 @@ function cleanup_devices #vdevs
 	for device in $@; do
 		# Labelclear must happen first, otherwise it may interfere
 		# with the teardown/setup of GPT labels.
-		log_must $ZPOOL labelclear -f $device
+		$ZPOOL labelclear -f $device
 		# Only wipe partition tables for arguments that are disks,
 		# as opposed to slices (which are valid arguments here).
 		if camcontrol inquiry $device >/dev/null 2>&1; then
