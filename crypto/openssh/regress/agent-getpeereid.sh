@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.7 2016/09/26 21:34:38 bluhm Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.8 2017/01/06 02:51:16 djm Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"
@@ -32,17 +32,17 @@ if [ $r -ne 0 ]; then
 else
 	chmod 644 ${SSH_AUTH_SOCK}
 
-	ssh-add -l > /dev/null 2>&1
+	${SSHADD} -l > /dev/null 2>&1
 	r=$?
 	if [ $r -ne 1 ]; then
 		fail "ssh-add failed with $r != 1"
 	fi
 	if test -z "$sudo" ; then
 		# doas
-		${SUDO} -n -u ${UNPRIV} ssh-add -l 2>/dev/null
+		${SUDO} -n -u ${UNPRIV} ${SSHADD} -l 2>/dev/null
 	else
 		# sudo
-		< /dev/null ${SUDO} -S -u ${UNPRIV} ssh-add -l 2>/dev/null
+		< /dev/null ${SUDO} -S -u ${UNPRIV} ${SSHADD} -l 2>/dev/null
 	fi
 	r=$?
 	if [ $r -lt 2 ]; then

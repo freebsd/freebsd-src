@@ -58,6 +58,41 @@ __FBSDID("$FreeBSD$");
 #define SECSPERHOUR ( 60*60 )
 #define SECSPERDAY	(24 * SECSPERHOUR)
 
+/*
+//  These arrays give the cumulative number of days up to the first of the
+//  month number used as the index (1 -> 12) for regular and leap years.
+//  The value at index 13 is for the whole year.
+*/
+static const time_t CumulativeDays[2][14] = {
+  {0,
+   0,
+   31,
+   31 + 28,
+   31 + 28 + 31,
+   31 + 28 + 31 + 30,
+   31 + 28 + 31 + 30 + 31,
+   31 + 28 + 31 + 30 + 31 + 30,
+   31 + 28 + 31 + 30 + 31 + 30 + 31,
+   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
+   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+   31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31 },
+  {0,
+   0,
+   31,
+   31 + 29,
+   31 + 29 + 31,
+   31 + 29 + 31 + 30,
+   31 + 29 + 31 + 30 + 31,
+   31 + 29 + 31 + 30 + 31 + 30,
+   31 + 29 + 31 + 30 + 31 + 30 + 31,
+   31 + 29 + 31 + 30 + 31 + 30 + 31 + 31,
+   31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+   31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+   31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+   31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31 }};
+
 void
 efi_time_init(void)
 {
@@ -68,45 +103,46 @@ efi_time_fini(void)
 {
 }
 
-static time_t
-efi_time(EFI_TIME *ETime)
+void
+to_efi_time(EFI_TIME *efi_time, time_t time)
 {
-    /*
-    //  These arrays give the cumulative number of days up to the first of the
-    //  month number used as the index (1 -> 12) for regular and leap years.
-    //  The value at index 13 is for the whole year.
-    */
-    static time_t CumulativeDays[2][14] = {
-    {0,
-     0,
-     31,
-     31 + 28,
-     31 + 28 + 31,
-     31 + 28 + 31 + 30,
-     31 + 28 + 31 + 30 + 31,
-     31 + 28 + 31 + 30 + 31 + 30,
-     31 + 28 + 31 + 30 + 31 + 30 + 31,
-     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
-     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-     31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31 },
-    {0,
-     0,
-     31,
-     31 + 29,
-     31 + 29 + 31,
-     31 + 29 + 31 + 30,
-     31 + 29 + 31 + 30 + 31,
-     31 + 29 + 31 + 30 + 31 + 30,
-     31 + 29 + 31 + 30 + 31 + 30 + 31,
-     31 + 29 + 31 + 30 + 31 + 30 + 31 + 31,
-     31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-     31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-     31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-     31 + 29 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31 }};
+        if (time >= 0) {
+                for (efi_time->Year = 1970;
+                    time > CumulativeDays[isleap(efi_time->Year)][13] * SECSPERDAY;
+                    time -= CumulativeDays[isleap(efi_time->Year)][13] * SECSPERDAY,
+                    efi_time->Year++);
 
-    time_t  UTime; 
+                for (efi_time->Month = 0;
+                    time > CumulativeDays[isleap(efi_time->Year)][efi_time->Month] *
+                      SECSPERDAY;
+                    efi_time->Month++);
+
+                time -= CumulativeDays[isleap(efi_time->Year)][efi_time->Month - 1] *
+                    SECSPERDAY;
+
+                for (efi_time->Day = 0; time > SECSPERDAY;
+                    time -= SECSPERDAY, efi_time->Day++);
+
+                for (efi_time->Hour = 0; time > SECSPERHOUR;
+                    time -= SECSPERHOUR, efi_time->Hour++);
+
+                for (efi_time->Minute = 0; time > 60;
+                    time -= 60, efi_time->Minute++);
+
+                efi_time->Second = time;
+                efi_time->Nanosecond = 0;
+                efi_time->TimeZone = 0;
+                efi_time->Daylight = 0;
+        } else {
+                memset(efi_time, 0, sizeof(EFI_TIME));
+        }
+}
+
+time_t
+from_efi_time(EFI_TIME *ETime)
+{
+
+    time_t  UTime;
     int     Year;
 
     /*
@@ -196,7 +232,7 @@ EFI_GetTimeOfDay(
 	//  Convert to UNIX time (ie seconds since the epoch
 	*/
 
-	tp->tv_sec  = efi_time( &EfiTime );
+	tp->tv_sec  = from_efi_time( &EfiTime );
 	tp->tv_usec = 0; /* EfiTime.Nanosecond * 1000; */
 
 	/*

@@ -27,6 +27,8 @@ Revision History
 
 --*/
 
+#include <efidef.h>
+
 //
 // Device Path protocol
 //
@@ -554,5 +556,81 @@ typedef struct _EFI_UNICODE_COLLATION_INTERFACE {
 
     CHAR8                               *SupportedLanguages;
 } EFI_UNICODE_COLLATION_INTERFACE;
+
+//
+// Driver Binding protocol
+//
+
+#define DRIVER_BINDING_PROTOCOL \
+  { 0x18a031ab, 0xb443, 0x4d1a, {0xa5, 0xc0, 0x0c, 0x09, 0x26, 0x1e, 0x9f, 0x71} }
+
+INTERFACE_DECL(_EFI_DRIVER_BINDING);
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DRIVER_BINDING_SUPPORTED) (
+    IN struct _EFI_DRIVER_BINDING *This,
+    IN EFI_HANDLE ControllerHandle,
+    IN EFI_DEVICE_PATH *RemainingPath
+    );
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DRIVER_BINDING_START) (
+    IN struct _EFI_DRIVER_BINDING *This,
+    IN EFI_HANDLE ControllerHandle,
+    IN EFI_DEVICE_PATH *RemainingPath
+    );
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_DRIVER_BINDING_STOP) (
+    IN struct _EFI_DRIVER_BINDING *This,
+    IN EFI_HANDLE ControllerHandle,
+    IN UINTN NumberOfChildren,
+    IN EFI_HANDLE *ChildHandleBuffer
+    );
+
+typedef struct _EFI_DRIVER_BINDING {
+    EFI_DRIVER_BINDING_SUPPORTED Supported;
+    EFI_DRIVER_BINDING_START Start;
+    EFI_DRIVER_BINDING_STOP Stop;
+    UINT32 Version;
+    EFI_HANDLE ImageHandle;
+    EFI_HANDLE DriverBindingHandle;
+} EFI_DRIVER_BINDING;
+
+//
+// Component Name Protocol 2
+//
+
+#define COMPONENT_NAME2_PROTOCOL \
+  { 0x6a7a5cff, 0xe8d9, 0x4f70, {0xba, 0xda, 0x75, 0xab, 0x30, 0x25, 0xce, 0x14 } }
+
+INTERFACE_DECL(_EFI_COMPONENT_NAME2);
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_COMPONENT_NAME_GET_DRIVER_NAME) (
+    IN struct _EFI_COMPONENT_NAME2 *This,
+    IN CHAR8 * Language,
+    OUT CHAR16 **DriverName
+    );
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_COMPONENT_NAME_GET_CONTROLLER_NAME) (
+    IN struct _EFI_COMPONENT_NAME2 *This,
+    IN EFI_HANDLE ControllerHandle,
+    IN EFI_HANDLE ChildHandle OPTIONAL,
+    IN CHAR8 *Language,
+    OUT CHAR16 **ControllerName
+    );
+
+typedef struct _EFI_COMPONENT_NAME2 {
+    EFI_COMPONENT_NAME_GET_DRIVER_NAME GetDriverName;
+    EFI_COMPONENT_NAME_GET_CONTROLLER_NAME GetControllerName;
+    CHAR8 **SupportedLanguages;
+} EFI_COMPONENT_NAME2;
 
 #endif

@@ -12,7 +12,7 @@ INTERNALLIB=
 WARNS?=	2
 
 SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
-	handles.c wchar.c libefi.c
+	handles.c wchar.c libefi.c efi_driver_utils.c efizfs.c devicename.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
@@ -38,6 +38,12 @@ CFLAGS+= -fPIC -mno-red-zone
 CFLAGS+= -I${.CURDIR}/../include
 CFLAGS+= -I${.CURDIR}/../include/${MACHINE}
 CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
+.if ${MK_ZFS} != "no"
+CFLAGS+=	-I${.CURDIR}/../../zfs
+CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
+CFLAGS+=	-I${.CURDIR}/../../../crypto/skein
+CFLAGS+=	-DEFI_ZFS_BOOT
+.endif
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+= -I${.CURDIR}/../../common
