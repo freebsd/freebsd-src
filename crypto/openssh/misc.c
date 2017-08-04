@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.107 2016/11/30 00:28:31 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.109 2017/03/14 00:55:37 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -307,7 +307,7 @@ a2tun(const char *s, int *remote)
 long
 convtime(const char *s)
 {
-	long total, secs;
+	long total, secs, multiplier = 1;
 	const char *p;
 	char *endp;
 
@@ -334,23 +334,28 @@ convtime(const char *s)
 			break;
 		case 'm':
 		case 'M':
-			secs *= MINUTES;
+			multiplier = MINUTES;
 			break;
 		case 'h':
 		case 'H':
-			secs *= HOURS;
+			multiplier = HOURS;
 			break;
 		case 'd':
 		case 'D':
-			secs *= DAYS;
+			multiplier = DAYS;
 			break;
 		case 'w':
 		case 'W':
-			secs *= WEEKS;
+			multiplier = WEEKS;
 			break;
 		default:
 			return -1;
 		}
+		if (secs >= LONG_MAX / multiplier)
+			return -1;
+		secs *= multiplier;
+		if  (total >= LONG_MAX - secs)
+			return -1;
 		total += secs;
 		if (total < 0)
 			return -1;
