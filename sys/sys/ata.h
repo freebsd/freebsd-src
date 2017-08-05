@@ -68,8 +68,8 @@ struct ata_params {
 /*049*/ u_int16_t       capabilities1;
 #define ATA_SUPPORT_DMA                 0x0100
 #define ATA_SUPPORT_LBA                 0x0200
-#define ATA_SUPPORT_IORDY               0x0400
-#define ATA_SUPPORT_IORDYDIS            0x0800
+#define ATA_SUPPORT_IORDYDIS            0x0400
+#define ATA_SUPPORT_IORDY               0x0800
 #define ATA_SUPPORT_OVERLAP             0x4000
 
 /*050*/ u_int16_t       capabilities2;
