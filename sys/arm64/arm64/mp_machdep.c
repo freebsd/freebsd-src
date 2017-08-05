@@ -198,10 +198,6 @@ arm64_cpu_attach(device_t dev)
 	/* Set the device to start it later */
 	cpu_list[cpuid] = dev;
 
-	/* Try to read the numa node of this cpu */
-	OF_getencprop(ofw_bus_get_node(dev), "numa-node-id",
-	    &__pcpu[cpuid].pc_domain, sizeof(__pcpu[cpuid].pc_domain));
-
 	return (0);
 }
 
@@ -535,6 +531,7 @@ static boolean_t
 cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
+	int domain;
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -542,7 +539,17 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	return (start_cpu(id, target_cpu) ? TRUE : FALSE);
+	if (!start_cpu(id, target_cpu))
+		return (FALSE);
+
+	/* Try to read the numa node of this cpu */
+	if (OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) > 0) {
+		__pcpu[id].pc_domain = domain;
+		if (domain < MAXMEMDOM)
+			CPU_SET(id, &cpuset_domain[domain]);
+	}
+
+	return (TRUE);
 }
 #endif
 
