@@ -374,6 +374,8 @@
                 ..
             ..
         ..
+        zoneinfo
+        ..
     ..
     sys
         acl
