@@ -89,7 +89,7 @@ SUBDIR=	adduser \
 	tcpdump \
 	traceroute \
 	trpt \
-	${_tzsetup} \
+	tzsetup \
 	uefisign \
 	ugidfw \
 	vigr \
@@ -154,7 +154,6 @@ SUBDIR+=	cxgbetool
 
 .if ${MK_DIALOG} != "no"
 _bsdconfig=	bsdconfig
-_tzsetup=	tzsetup
 .endif
 
 .if ${MK_FLOPPY} != "no"

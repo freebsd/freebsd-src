@@ -1,16 +1,18 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	tzsetup
 MAN=	tzsetup.8
 
-CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
+CFLAGS+= -I.
 
+.if ${MK_DIALOG} != no
 WARNS?=	3
-
+CFLAGS+=	-I${.CURDIR}/../../contrib/dialog -DHAVE_DIALOG
 DPADD=	${LIBDIALOG} ${LIBM}
 LDADD=	-ldialog -lm
-
-.include <bsd.own.mk>
+.endif
 
 .if ${MK_NCURSESW} == "no"
 DPADD+=	${LIBNCURSES}
