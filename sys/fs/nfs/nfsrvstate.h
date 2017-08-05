@@ -128,7 +128,8 @@ struct nfslayout {
 	nfsv4stateid_t		lay_stateid;
 	nfsquad_t		lay_clientid;
 	fhandle_t		lay_fh;
-	uint16_t		lay_layoutlen;
+	uint32_t		lay_layoutlen;
+	uint16_t		lay_type;
 	uint8_t			lay_read;
 	uint8_t			lay_rw;
 	char			lay_xdr[0];

@@ -192,7 +192,7 @@ static int nfsrv_setdsserver(char *dspathp, NFSPROC_T *p,
 static void nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost);
 static void nfsrv_freealldevids(void);
 static int nfsrv_findlayout(struct nfsrv_descript *nd, fhandle_t *fhp,
-    NFSPROC_T *, struct nfslayout **lypp);
+    int laytype, NFSPROC_T *, struct nfslayout **lypp);
 static int nfsrv_fndclid(nfsquad_t *clidvec, nfsquad_t clid, int clidcnt);
 
 /*
@@ -6253,7 +6253,7 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	/* First, see if a layout already exists and return if found. */
 	lhyp = NFSLAYOUTHASH(&fh);
 	NFSLOCKLAYOUT(lhyp);
-	error = nfsrv_findlayout(nd, &fh, p, &lyp);
+	error = nfsrv_findlayout(nd, &fh, layouttype, p, &lyp);
 	NFSD_DEBUG(4, "layoutget findlay=%d\n", error);
 	if (error == 0) {
 		/*
@@ -6289,6 +6289,7 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 
 	lyp = malloc(sizeof(struct nfslayout) + NFSX_V4FILELAYOUT, M_NFSDSTATE,
 	    M_WAITOK | M_ZERO);
+	lyp->lay_type = layouttype;
 	if (*iomode == NFSLAYOUTIOMODE_RW)
 		lyp->lay_rw = 1;
 	else
@@ -6309,7 +6310,6 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	 * that should cover most/all arches w.r.t. PAGE_SIZE.
 	 */
 	*tl++ = txdr_unsigned(NFSFLAYUTIL_STRIPE_MASK & ~0xffff);
-
 	*tl++ = 0;					/* 1st stripe index. */
 	pattern_offset = 0;
 	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */
@@ -6358,7 +6358,7 @@ nfsrv_layoutreturn(struct nfsrv_descript *nd, vnode_t vp,
 		if (error == 0) {
 			lhyp = NFSLAYOUTHASH(&fh);
 			NFSLOCKLAYOUT(lhyp);
-			error = nfsrv_findlayout(nd, &fh, p, &lyp);
+			error = nfsrv_findlayout(nd, &fh, layouttype, p, &lyp);
 			NFSD_DEBUG(4, "layoutret findlay=%d\n", error);
 			if (error == 0) {
 				NFSD_DEBUG(4, "nfsrv_layoutreturn: stateid %d"
@@ -6409,8 +6409,8 @@ nfsrv_layoutreturn(struct nfsrv_descript *nd, vnode_t vp,
  * Look for an existing layout.
  */
 static int
-nfsrv_findlayout(struct nfsrv_descript *nd, fhandle_t *fhp, NFSPROC_T *p,
-    struct nfslayout **lypp)
+nfsrv_findlayout(struct nfsrv_descript *nd, fhandle_t *fhp, int laytype,
+    NFSPROC_T *p, struct nfslayout **lypp)
 {
 	struct nfslayouthash *lhyp;
 	struct nfslayout *lyp;
@@ -6423,7 +6423,8 @@ nfsrv_findlayout(struct nfsrv_descript *nd, fhandle_t *fhp, NFSPROC_T *p,
 	lhyp = NFSLAYOUTHASH(fhp);
 	LIST_FOREACH(lyp, &lhyp->list, lay_list) {
 		if (NFSBCMP(&lyp->lay_fh, fhp, sizeof(*fhp)) == 0 &&
-		    lyp->lay_clientid.qval == nd->nd_clientid.qval)
+		    lyp->lay_clientid.qval == nd->nd_clientid.qval &&
+		    lyp->lay_type == laytype)
 			break;
 	}
 	if (lyp != NULL)
