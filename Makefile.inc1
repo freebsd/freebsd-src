@@ -1713,11 +1713,15 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libzfs_core} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
-		${_secure_lib_libssh} ${_secure_lib_libssl} \
-		gnu/lib/libdialog
+		${_secure_lib_libssh} ${_secure_lib_libssl}
 .if ${MK_GNUCXX} != no
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
+.endif
+
+.if ${MK_DIALOG} != "no"
+_prebuild_libs+= gnu/lib/libdialog
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
@@ -1850,8 +1854,6 @@ _lib_libypclnt=	lib/libypclnt
 .if ${MK_OPENSSL} == "no"
 lib/libradius__L: lib/libmd__L
 .endif
-
-gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE

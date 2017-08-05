@@ -40,7 +40,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdevctl \
 	libdevinfo \
 	libdevstat \
-	libdpv \
+	${_libdpv} \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -162,6 +162,10 @@ _libbsnmp=	libbsnmp
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
 _clang=		clang
+.endif
+
+.if ${MK_DIALOG} != "no"
+_libdpv=	libdpv
 .endif
 
 .if ${MK_FILE} != "no"

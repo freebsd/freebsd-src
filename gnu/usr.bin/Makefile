@@ -4,7 +4,7 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	dialog \
+	${_dialog} \
 	diff \
 	diff3 \
 	${_dtc} \
@@ -24,6 +24,10 @@ _gperf=		gperf
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
+.endif
+
+.if ${MK_DIALOG} != "no"
+_dialog=	dialog
 .endif
 
 .if ${MK_GPL_DTC} != "no"
