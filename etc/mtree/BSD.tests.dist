@@ -388,6 +388,8 @@
                 ..
             ..
         ..
+        zoneinfo
+        ..
     ..
     sys
         acl
