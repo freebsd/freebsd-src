@@ -37,7 +37,7 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
-	dpv \
+	${_dpv} \
 	du \
 	elf2aout \
 	elfdump \
@@ -225,6 +225,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_DIALOG} != "no"
+_dpv=		dpv
 .endif
 
 .if ${MK_EE} != "no"
