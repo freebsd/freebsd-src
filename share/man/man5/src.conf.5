@@ -1213,6 +1213,21 @@ Set to not build ZFS file system.
 .It Va WITHOUT_ZONEINFO
 .\" from FreeBSD: stable/10/tools/build/options/WITHOUT_ZONEINFO 235342 2012-05-12 16:12:36Z gjb
 Set to not build the timezone database.
+When set, it also enforces the following options:
+.Pp
+.Bl -item -compact
+.It
+.Va WITHOUT_ZONEINFO_LEAPSECONDS_SUPPORT
+.It
+.Va WITHOUT_ZONEINFO_OLD_TIMEZONES_SUPPORT
+.El
+.It Va WITH_ZONEINFO_LEAPSECONDS_SUPPORT
+.\" from FreeBSD: stable/10/tools/build/options/WITH_ZONEINFO_LEAPSECONDS_SUPPORT 322100 2017-08-05 16:54:40Z ngie
+Set to build leapsecond information in to the timezone database.
+.It Va WITH_ZONEINFO_OLD_TIMEZONES_SUPPORT
+.\" from FreeBSD: stable/10/tools/build/options/WITH_ZONEINFO_OLD_TIMEZONES_SUPPORT 322100 2017-08-05 16:54:40Z ngie
+Set to build backward compatibility timezone aliases in to the timezone
+database.
 .El
 .Sh FILES
 .Bl -tag -compact -width Pa
