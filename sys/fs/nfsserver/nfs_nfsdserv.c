@@ -60,6 +60,7 @@ extern struct nfsdevicehead nfsrv_devidhead;
 extern int nfsd_debuglevel;
 extern u_long sb_max_adj;
 extern int nfsrv_pnfsatime;
+extern int nfsrv_maxpnfsmirror;
 #endif	/* !APPLEKEXT */
 
 static int	nfs_async = 0;
@@ -4325,7 +4326,7 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	int error = 0, layoutlen, layouttype, iomode, maxcnt, retonclose;
 	uint64_t offset, len, minlen;
-	char *layp = NULL;
+	char *layp;
 
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
@@ -4368,13 +4369,18 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	}
 
+	layp = NULL;
 	if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
 		layp = malloc(NFSX_V4FILELAYOUT, M_TEMP, M_WAITOK);
+	else if (layouttype == NFSLAYOUT_FLEXFILE)
+		layp = malloc(NFSX_V4FLEXLAYOUT(nfsrv_maxpnfsmirror), M_TEMP,
+		    M_WAITOK);
 	else
-		layp = malloc(NFSX_V4MAXLAYOUT, M_TEMP, M_WAITOK);
-	nd->nd_repstat = nfsrv_layoutget(nd, vp, exp, layouttype, &iomode,
-	    &offset, &len, minlen, &stateid, maxcnt, &retonclose, &layoutlen,
-	    layp, nd->nd_cred, p);
+		nd->nd_repstat = NFSERR_UNKNLAYOUTTYPE;
+	if (layp != NULL)
+		nd->nd_repstat = nfsrv_layoutget(nd, vp, exp, layouttype,
+		    &iomode, &offset, &len, minlen, &stateid, maxcnt,
+		    &retonclose, &layoutlen, layp, nd->nd_cred, p);
 	NFSD_DEBUG(4, "nfsrv_layoutget stat=%u layoutlen=%d\n", nd->nd_repstat,
 	    layoutlen);
 	if (nd->nd_repstat == 0) {

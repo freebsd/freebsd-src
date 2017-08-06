@@ -36,6 +36,7 @@ int nfsrv_issuedelegs = 0;
 int nfsrv_dolocallocks = 0;
 struct nfsv4lock nfsv4rootfs_lock;
 time_t nfsdev_time = 0;
+int nfsrv_maxpnfsmirror = 1;
 
 extern int newnfs_numnfsd;
 extern struct nfsstatsv1 nfsstatsv1;
