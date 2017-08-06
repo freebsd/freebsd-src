@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/clkng/ccu_a64.h>
 #endif
 
-#if defined(SOC_ALLWINNER_H3)
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 #include <arm/allwinner/clkng/ccu_h3.h>
 #endif
 
@@ -78,7 +78,7 @@ static struct resource_spec aw_ccung_spec[] = {
 	{ -1, 0 }
 };
 
-#if defined(SOC_ALLWINNER_H3)
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 #define	H3_CCU	1
 #endif
 
@@ -91,7 +91,7 @@ static struct resource_spec aw_ccung_spec[] = {
 #endif
 
 static struct ofw_compat_data compat_data[] = {
-#if defined(SOC_ALLWINNER_H3)
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 	{ "allwinner,sun8i-h3-ccu", H3_CCU },
 #endif
 #if defined(SOC_ALLWINNER_A31)
@@ -316,7 +316,7 @@ aw_ccung_attach(device_t dev)
 		panic("Cannot create clkdom\n");
 
 	switch (sc->type) {
-#if defined(SOC_ALLWINNER_H3)
+#if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
 	case H3_CCU:
 		ccu_h3_register_clocks(sc);
 		break;

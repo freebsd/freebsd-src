@@ -444,7 +444,7 @@ BUILD_ARCH!=	uname -p
 .endif
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
+BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -760,10 +760,12 @@ _worldtmp: .PHONY
 	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
+.if exists(${WORLDTMP})
 	@echo ">>> Deleting stale files in build tree..."
 	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
 	    delete-old delete-old-libs >/dev/null
-.if defined(LIBCOMPAT)
+.endif
+.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
 	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
 	    DESTDIR=${LIBCOMPATTMP} \
 	    delete-old delete-old-libs >/dev/null
@@ -2759,9 +2761,6 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
 XDDESTDIR=${DESTDIR}/${XDTP}
-.if !defined(OSREL)
-OSREL!= uname -r | sed -e 's/[-(].*//'
-.endif
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
@@ -2855,7 +2854,7 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
-			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
+			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
 .else
 xdev xdev-build xdev-install xdev-links: .PHONY

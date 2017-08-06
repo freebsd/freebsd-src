@@ -1,3 +1,4 @@
+1. Prerequisites
 ----------------
 
 A C compiler.  Any C89 or better compiler should work.  Where supported,
@@ -243,7 +244,7 @@ manually using the following commands:
 
     ssh-keygen -t [type] -f /etc/ssh/ssh_host_key -N ""
 
-for each of the types you wish to generate (rsa, dsa or ecdsaa) or
+for each of the types you wish to generate (rsa, dsa or ecdsa) or
 
     ssh-keygen -A
 

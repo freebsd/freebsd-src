@@ -119,9 +119,12 @@ linux_pci_attach(device_t dev)
 {
 	struct resource_list_entry *rle;
 	struct pci_dev *pdev;
+	struct pci_devinfo *dinfo;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
 	int error;
+
+	dinfo = device_get_ivars(dev);
 
 	linux_set_current(curthread);
 	pdrv = linux_pci_find(dev, &id);
@@ -132,6 +135,8 @@ linux_pci_attach(device_t dev)
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
+	pdev->subsystem_vendor = dinfo->cfg.subvendor;
+	pdev->subsystem_device = dinfo->cfg.subdevice;
 	pdev->class = pci_get_class(dev);
 	pdev->revision = pci_get_revid(dev);
 	pdev->dev.dma_mask = &pdev->dma_mask;

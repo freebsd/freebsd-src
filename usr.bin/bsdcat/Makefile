@@ -24,8 +24,6 @@ LIBADD=	archive
 CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 .endif
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

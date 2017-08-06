@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.58 2016/12/16 01:06:27 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.59 2017/02/07 23:03:11 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -444,12 +444,10 @@ Host *
 	User			$USER
 	GlobalKnownHostsFile	$OBJ/known_hosts
 	UserKnownHostsFile	$OBJ/known_hosts
-	RSAAuthentication	yes
 	PubkeyAuthentication	yes
 	ChallengeResponseAuthentication	no
 	HostbasedAuthentication	no
 	PasswordAuthentication	no
-	RhostsRSAAuthentication	no
 	BatchMode		yes
 	StrictHostKeyChecking	yes
 	LogLevel		DEBUG3

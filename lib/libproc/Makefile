@@ -41,8 +41,6 @@ SHLIB_MAJOR=	4
 
 MAN=
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

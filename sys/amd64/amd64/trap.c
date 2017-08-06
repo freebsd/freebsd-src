@@ -370,7 +370,7 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 			nmi_handle_intr(type, frame);
-			break;
+			goto out;
 #endif /* DEV_ISA */
 
 		case T_OFLOW:		/* integer overflow fault */
@@ -408,7 +408,7 @@ trap(struct trapframe *frame)
 			if (dtrace_return_probe_ptr != NULL &&
 			    dtrace_return_probe_ptr(&regs) == 0)
 				goto out;
-			break;
+			goto userout;
 #endif
 		}
 	} else {
@@ -935,6 +935,6 @@ amd64_syscall(struct thread *td, int traced)
 	 * not be safe.  Instead, use the full return path which
 	 * catches the problem safely.
 	 */
-	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS)
+	if (__predict_false(td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS))
 		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
