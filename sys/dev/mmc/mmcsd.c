@@ -99,7 +99,8 @@ __FBSDID("$FreeBSD$");
 struct mmcsd_softc;
 
 struct mmcsd_part {
-	struct mtx part_mtx;
+	struct mtx disk_mtx;
+	struct mtx ioctl_mtx;
 	struct mmcsd_softc *sc;
 	struct disk *disk;
 	struct proc *p;
@@ -109,15 +110,19 @@ struct mmcsd_part {
 	u_int type;
 	int running;
 	int suspend;
+	int ioctl;
 	bool ro;
 	char name[MMCSD_PART_NAMELEN];
 };
 
 struct mmcsd_softc {
 	device_t dev;
-	device_t mmcbr;
+	device_t mmcbus;
 	struct mmcsd_part *part[MMC_PART_MAX];
 	enum mmc_card_mode mode;
+	u_int max_data;		/* Maximum data size [blocks] */
+	u_int erase_sector;	/* Device native erase sector size [blocks] */
+	uint8_t	high_cap;	/* High Capacity device (block addressed) */
 	uint8_t part_curr;	/* Partition currently switched to */
 	uint8_t ext_csd[MMC_EXTCSD_SIZE];
 	uint16_t rca;
@@ -178,15 +183,25 @@ static int mmcsd_slicer(device_t dev, const char *provider,
 static int mmcsd_switch_part(device_t bus, device_t dev, uint16_t rca,
     u_int part);
 
-#define	MMCSD_PART_LOCK(_part)		mtx_lock(&(_part)->part_mtx)
-#define	MMCSD_PART_UNLOCK(_part)	mtx_unlock(&(_part)->part_mtx)
-#define	MMCSD_PART_LOCK_INIT(_part)					\
-	mtx_init(&(_part)->part_mtx, (_part)->name, "mmcsd part", MTX_DEF)
-#define	MMCSD_PART_LOCK_DESTROY(_part)	mtx_destroy(&(_part)->part_mtx);
-#define	MMCSD_PART_ASSERT_LOCKED(_part)					\
-	mtx_assert(&(_part)->part_mtx, MA_OWNED);
-#define	MMCSD_PART_ASSERT_UNLOCKED(_part)				\
-	mtx_assert(&(_part)->part_mtx, MA_NOTOWNED);
+#define	MMCSD_DISK_LOCK(_part)		mtx_lock(&(_part)->disk_mtx)
+#define	MMCSD_DISK_UNLOCK(_part)	mtx_unlock(&(_part)->disk_mtx)
+#define	MMCSD_DISK_LOCK_INIT(_part)					\
+	mtx_init(&(_part)->disk_mtx, (_part)->name, "mmcsd disk", MTX_DEF)
+#define	MMCSD_DISK_LOCK_DESTROY(_part)	mtx_destroy(&(_part)->disk_mtx);
+#define	MMCSD_DISK_ASSERT_LOCKED(_part)					\
+	mtx_assert(&(_part)->disk_mtx, MA_OWNED);
+#define	MMCSD_DISK_ASSERT_UNLOCKED(_part)				\
+	mtx_assert(&(_part)->disk_mtx, MA_NOTOWNED);
+
+#define	MMCSD_IOCTL_LOCK(_part)		mtx_lock(&(_part)->ioctl_mtx)
+#define	MMCSD_IOCTL_UNLOCK(_part)	mtx_unlock(&(_part)->ioctl_mtx)
+#define	MMCSD_IOCTL_LOCK_INIT(_part)					\
+	mtx_init(&(_part)->ioctl_mtx, (_part)->name, "mmcsd IOCTL", MTX_DEF)
+#define	MMCSD_IOCTL_LOCK_DESTROY(_part)	mtx_destroy(&(_part)->ioctl_mtx);
+#define	MMCSD_IOCTL_ASSERT_LOCKED(_part)				\
+	mtx_assert(&(_part)->ioctl_mtx, MA_OWNED);
+#define	MMCSD_IOCLT_ASSERT_UNLOCKED(_part)				\
+	mtx_assert(&(_part)->ioctl_mtx, MA_NOTOWNED);
 
 static int
 mmcsd_probe(device_t dev)
@@ -200,7 +215,7 @@ mmcsd_probe(device_t dev)
 static int
 mmcsd_attach(device_t dev)
 {
-	device_t mmcbr;
+	device_t mmcbus;
 	struct mmcsd_softc *sc;
 	const uint8_t *ext_csd;
 	off_t erase_size, sector_size, size, wp_size;
@@ -212,15 +227,27 @@ mmcsd_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->mmcbr = mmcbr = device_get_parent(dev);
-	sc->mode = mmcbr_get_mode(mmcbr);
+	sc->mmcbus = mmcbus = device_get_parent(dev);
+	sc->mode = mmcbr_get_mode(mmcbus);
+	/*
+	 * Note that in principle with an SDHCI-like re-tuning implementation,
+	 * the maximum data size can change at runtime due to a device removal/
+	 * insertion that results in switches to/from a transfer mode involving
+	 * re-tuning, iff there are multiple devices on a given bus.  Until now
+	 * mmc(4) lacks support for rescanning already attached buses, however,
+	 * and sdhci(4) to date has no support for shared buses in the first
+	 * place either.
+	 */
+	sc->max_data = mmc_get_max_data(dev);
+	sc->erase_sector = mmc_get_erase_sector(dev);
+	sc->high_cap = mmc_get_high_cap(dev);
 	sc->rca = mmc_get_rca(dev);
 
 	/* Only MMC >= 4.x devices support EXT_CSD. */
 	if (mmc_get_spec_vers(dev) >= 4) {
-		MMCBUS_ACQUIRE_BUS(mmcbr, dev);
-		err = mmc_send_ext_csd(mmcbr, dev, sc->ext_csd);
-		MMCBUS_RELEASE_BUS(mmcbr, dev);
+		MMCBUS_ACQUIRE_BUS(mmcbus, dev);
+		err = mmc_send_ext_csd(mmcbus, dev, sc->ext_csd);
+		MMCBUS_RELEASE_BUS(mmcbus, dev);
 		if (err != MMC_ERR_NONE)
 			bzero(sc->ext_csd, sizeof(sc->ext_csd));
 	}
@@ -267,7 +294,7 @@ mmcsd_attach(device_t dev)
 			    (ext_csd[EXT_CSD_ENH_START_ADDR + 1] << 8) +
 			    (ext_csd[EXT_CSD_ENH_START_ADDR + 2] << 16) +
 			    (ext_csd[EXT_CSD_ENH_START_ADDR + 3] << 24)) *
-			    (mmc_get_high_cap(dev) ? MMC_SECTOR_SIZE : 1);
+			    (sc->high_cap != 0 ? MMC_SECTOR_SIZE : 1);
 		} else if (bootverbose)
 			device_printf(dev,
 			    "enhanced user data area spans entire device\n");
@@ -280,7 +307,7 @@ mmcsd_attach(device_t dev)
 	ro = mmc_get_read_only(dev);
 	mmcsd_add_part(sc, EXT_CSD_PART_CONFIG_ACC_DEFAULT, "mmcsd",
 	    device_get_unit(dev), mmc_get_media_size(dev) * sector_size,
-	    mmc_get_erase_sector(dev) * sector_size, ro);
+	    sc->erase_sector * sector_size, ro);
 
 	if (mmc_get_spec_vers(dev) < 3)
 		return (0);
@@ -303,7 +330,7 @@ mmcsd_attach(device_t dev)
 
 	/* Add boot partitions, which are of a fixed multiple of 128 KB. */
 	size = ext_csd[EXT_CSD_BOOT_SIZE_MULT] * MMC_BOOT_RPMB_BLOCK_SIZE;
-	if (size > 0 && (mmcbr_get_caps(mmcbr) & MMC_CAP_BOOT_NOACC) == 0) {
+	if (size > 0 && (mmcbr_get_caps(mmcbus) & MMC_CAP_BOOT_NOACC) == 0) {
 		mmcsd_add_part(sc, EXT_CSD_PART_CONFIG_ACC_BOOT0,
 		    MMCSD_FMT_BOOT, 0, size, MMC_BOOT_RPMB_BLOCK_SIZE,
 		    ro | ((ext_csd[EXT_CSD_BOOT_WP_STATUS] &
@@ -395,7 +422,7 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
     off_t media_size, off_t erase_size, bool ro)
 {
 	struct make_dev_args args;
-	device_t dev, mmcbr;
+	device_t dev, mmcbus;
 	const char *ext;
 	const uint8_t *ext_csd;
 	struct mmcsd_part *part;
@@ -408,7 +435,7 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 	char unit[2];
 
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
+	mmcbus = sc->mmcbus;
 	part = sc->part[type] = malloc(sizeof(*part), M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 	part->sc = sc;
@@ -417,7 +444,16 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 	part->ro = ro;
 	snprintf(part->name, sizeof(part->name), name, device_get_unit(dev));
 
-	/* For the RPMB partition, allow IOCTL access only. */
+	MMCSD_IOCTL_LOCK_INIT(part);
+
+	/*
+	 * For the RPMB partition, allow IOCTL access only.
+	 * NB: If ever attaching RPMB partitions to disk(9), the re-tuning
+	 *     implementation and especially its pausing need to be revisited,
+	 *     because then re-tuning requests may be issued by the IOCTL half
+	 *     of this driver while re-tuning is already paused by the disk(9)
+	 *     one and vice versa.
+	 */
 	if (type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
 		make_dev_args_init(&args);
 		args.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
@@ -432,7 +468,7 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 			return;
 		}
 	} else {
-		MMCSD_PART_LOCK_INIT(part);
+		MMCSD_DISK_LOCK_INIT(part);
 
 		d = part->disk = disk_alloc();
 		d->d_open = mmcsd_open;
@@ -444,7 +480,7 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 		d->d_name = part->name;
 		d->d_drv1 = part;
 		d->d_sectorsize = mmc_get_sector_size(dev);
-		d->d_maxsize = mmc_get_max_data(dev) * d->d_sectorsize;
+		d->d_maxsize = sc->max_data * d->d_sectorsize;
 		d->d_mediasize = media_size;
 		d->d_stripesize = erase_size;
 		d->d_unit = cnt;
@@ -466,12 +502,12 @@ mmcsd_add_part(struct mmcsd_softc *sc, u_int type, const char *name, u_int cnt,
 
 	bytes = mmcsd_pretty_size(media_size, unit);
 	if (type == EXT_CSD_PART_CONFIG_ACC_DEFAULT) {
-		speed = mmcbr_get_clock(mmcbr);
+		speed = mmcbr_get_clock(mmcbus);
 		printf("%s%d: %ju%sB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
 		    part->name, cnt, bytes, unit, mmc_get_card_id_string(dev),
-		    ro ? " (read-only)" : "", device_get_nameunit(mmcbr),
+		    ro ? " (read-only)" : "", device_get_nameunit(mmcbus),
 		    speed / 1000000, (speed / 100000) % 10,
-		    mmcsd_bus_bit_width(dev), mmc_get_max_data(dev));
+		    mmcsd_bus_bit_width(dev), sc->max_data);
 	} else if (type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
 		printf("%s: %ju%sB partion %d%s at %s\n", part->name, bytes,
 		    unit, type, ro ? " (read-only)" : "",
@@ -559,19 +595,27 @@ mmcsd_detach(device_t dev)
 
 	for (i = 0; i < MMC_PART_MAX; i++) {
 		part = sc->part[i];
-		if (part != NULL && part->disk != NULL) {
-			MMCSD_PART_LOCK(part);
-			part->suspend = 0;
-			if (part->running > 0) {
-				/* kill thread */
-				part->running = 0;
-				wakeup(part);
-				/* wait for thread to finish. */
-				while (part->running != -1)
-					msleep(part, &part->part_mtx, 0,
-					    "detach", 0);
+		if (part != NULL) {
+			if (part->disk != NULL) {
+				MMCSD_DISK_LOCK(part);
+				part->suspend = 0;
+				if (part->running > 0) {
+					/* kill thread */
+					part->running = 0;
+					wakeup(part);
+					/* wait for thread to finish. */
+					while (part->running != -1)
+						msleep(part, &part->disk_mtx, 0,
+						    "mmcsd disk detach", 0);
+				}
+				MMCSD_DISK_UNLOCK(part);
 			}
-			MMCSD_PART_UNLOCK(part);
+			MMCSD_IOCTL_LOCK(part);
+			while (part->ioctl > 0)
+				msleep(part, &part->ioctl_mtx, 0,
+				    "mmcsd IOCTL detach", 0);
+			part->ioctl = -1;
+			MMCSD_IOCTL_UNLOCK(part);
 		}
 	}
 
@@ -587,8 +631,9 @@ mmcsd_detach(device_t dev)
 				/* kill disk */
 				disk_destroy(part->disk);
 
-				MMCSD_PART_LOCK_DESTROY(part);
+				MMCSD_DISK_LOCK_DESTROY(part);
 			}
+			MMCSD_IOCTL_LOCK_DESTROY(part);
 			free(part, M_DEVBUF);
 		}
 	}
@@ -604,19 +649,27 @@ mmcsd_suspend(device_t dev)
 
 	for (i = 0; i < MMC_PART_MAX; i++) {
 		part = sc->part[i];
-		if (part != NULL && part->disk != NULL) {
-			MMCSD_PART_LOCK(part);
-			part->suspend = 1;
-			if (part->running > 0) {
-				/* kill thread */
-				part->running = 0;
-				wakeup(part);
-				/* wait for thread to finish. */
-				while (part->running != -1)
-					msleep(part, &part->part_mtx, 0,
-					    "detach", 0);
+		if (part != NULL) {
+			if (part->disk != NULL) {
+				MMCSD_DISK_LOCK(part);
+				part->suspend = 1;
+				if (part->running > 0) {
+					/* kill thread */
+					part->running = 0;
+					wakeup(part);
+					/* wait for thread to finish. */
+					while (part->running != -1)
+						msleep(part, &part->disk_mtx, 0,
+						    "mmcsd disk suspension", 0);
+				}
+				MMCSD_DISK_UNLOCK(part);
 			}
-			MMCSD_PART_UNLOCK(part);
+			MMCSD_IOCTL_LOCK(part);
+			while (part->ioctl > 0)
+				msleep(part, &part->ioctl_mtx, 0,
+				    "mmcsd IOCTL suspension", 0);
+			part->ioctl = -1;
+			MMCSD_IOCTL_UNLOCK(part);
 		}
 	}
 	return (0);
@@ -631,16 +684,22 @@ mmcsd_resume(device_t dev)
 
 	for (i = 0; i < MMC_PART_MAX; i++) {
 		part = sc->part[i];
-		if (part != NULL && part->disk != NULL) {
-			MMCSD_PART_LOCK(part);
-			part->suspend = 0;
-			if (part->running <= 0) {
-				part->running = 1;
-				kproc_create(&mmcsd_task, part, &part->p, 0, 0,
-				    "%s%d: mmc/sd card", part->name, part->cnt);
-				MMCSD_PART_UNLOCK(part);
-			} else
-				MMCSD_PART_UNLOCK(part);
+		if (part != NULL) {
+			if (part->disk != NULL) {
+				MMCSD_DISK_LOCK(part);
+				part->suspend = 0;
+				if (part->running <= 0) {
+					part->running = 1;
+					MMCSD_DISK_UNLOCK(part);
+					kproc_create(&mmcsd_task, part,
+					    &part->p, 0, 0, "%s%d: mmc/sd card",
+					    part->name, part->cnt);
+				} else
+					MMCSD_DISK_UNLOCK(part);
+			}
+			MMCSD_IOCTL_LOCK(part);
+			part->ioctl = 0;
+			MMCSD_IOCTL_UNLOCK(part);
 		}
 	}
 	return (0);
@@ -668,13 +727,13 @@ mmcsd_strategy(struct bio *bp)
 
 	part = bp->bio_disk->d_drv1;
 	sc = part->sc;
-	MMCSD_PART_LOCK(part);
+	MMCSD_DISK_LOCK(part);
 	if (part->running > 0 || part->suspend > 0) {
 		bioq_disksort(&part->bio_queue, bp);
-		MMCSD_PART_UNLOCK(part);
+		MMCSD_DISK_UNLOCK(part);
 		wakeup(part);
 	} else {
-		MMCSD_PART_UNLOCK(part);
+		MMCSD_DISK_UNLOCK(part);
 		biofinish(bp, NULL, ENXIO);
 	}
 }
@@ -710,9 +769,9 @@ mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
 	switch (cmd) {
 	case MMC_IOC_CMD:
 		mic = data;
-		err = mmcsd_ioctl_cmd(part, data, fflag);
+		err = mmcsd_ioctl_cmd(part, mic, fflag);
 		break;
-	case MMC_IOC_CMD_MULTI:
+	case MMC_IOC_MULTI_CMD:
 		mimc = data;
 		if (mimc->num_of_cmds == 0)
 			break;
@@ -722,12 +781,12 @@ mmcsd_ioctl(struct mmcsd_part *part, u_long cmd, void *data, int fflag)
 		size = sizeof(*mic) * cnt;
 		mic = malloc(size, M_TEMP, M_WAITOK);
 		err = copyin((const void *)mimc->cmds, mic, size);
-		if (err != 0)
-			break;
-		for (i = 0; i < cnt; i++) {
-			err = mmcsd_ioctl_cmd(part, &mic[i], fflag);
-			if (err != 0)
-				break;
+		if (err == 0) {
+			for (i = 0; i < cnt; i++) {
+				err = mmcsd_ioctl_cmd(part, &mic[i], fflag);
+				if (err != 0)
+					break;
+			}
 		}
 		free(mic, M_TEMP);
 		break;
@@ -743,7 +802,7 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 	struct mmc_command cmd;
 	struct mmc_data data;
 	struct mmcsd_softc *sc;
-	device_t dev, mmcbr;
+	device_t dev, mmcbus;
 	void *dp;
 	u_long len;
 	int err, retries;
@@ -756,11 +815,31 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 	if (part->ro == TRUE && mic->write_flag != 0)
 		return (EROFS);
 
+	/*
+	 * We don't need to explicitly lock against the disk(9) half of this
+	 * driver as MMCBUS_ACQUIRE_BUS() will serialize us.  However, it's
+	 * necessary to protect against races with detachment and suspension,
+	 * especially since it's required to switch away from RPMB partitions
+	 * again after an access (see mmcsd_switch_part()).
+	 */
+	MMCSD_IOCTL_LOCK(part);
+	while (part->ioctl != 0) {
+		if (part->ioctl < 0) {
+			MMCSD_IOCTL_UNLOCK(part);
+			return (ENXIO);
+		}
+		msleep(part, &part->ioctl_mtx, 0, "mmcsd IOCTL", 0);
+	}
+	part->ioctl = 1;
+	MMCSD_IOCTL_UNLOCK(part);
+
 	err = 0;
 	dp = NULL;
 	len = mic->blksz * mic->blocks;
-	if (len > MMC_IOC_MAX_BYTES)
-		return (EOVERFLOW);
+	if (len > MMC_IOC_MAX_BYTES) {
+		err = EOVERFLOW;
+		goto out;
+	}
 	if (len != 0) {
 		dp = malloc(len, M_TEMP, M_WAITOK);
 		err = copyin((void *)(uintptr_t)mic->data_ptr, dp, len);
@@ -806,21 +885,21 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 		}
 	}
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
-	MMCBUS_ACQUIRE_BUS(mmcbr, dev);
-	err = mmcsd_switch_part(mmcbr, dev, rca, part->type);
+	mmcbus = sc->mmcbus;
+	MMCBUS_ACQUIRE_BUS(mmcbus, dev);
+	err = mmcsd_switch_part(mmcbus, dev, rca, part->type);
 	if (err != MMC_ERR_NONE)
 		goto release;
 	if (part->type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
 		err = mmcsd_set_blockcount(sc, mic->blocks,
 		    mic->write_flag & (1 << 31));
 		if (err != MMC_ERR_NONE)
-			goto release;
+			goto switch_back;
 	}
 	if (mic->is_acmd != 0)
-		(void)mmc_wait_for_app_cmd(mmcbr, dev, rca, &cmd, 0);
+		(void)mmc_wait_for_app_cmd(mmcbus, dev, rca, &cmd, 0);
 	else
-		(void)mmc_wait_for_cmd(mmcbr, dev, &cmd, 0);
+		(void)mmc_wait_for_cmd(mmcbus, dev, &cmd, 0);
 	if (part->type == EXT_CSD_PART_CONFIG_ACC_RPMB) {
 		/*
 		 * If the request went to the RPMB partition, try to ensure
@@ -828,7 +907,7 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 		 */
 		retries = MMCSD_CMD_RETRIES;
 		do {
-			err = mmc_send_status(mmcbr, dev, rca, &status);
+			err = mmc_send_status(mmcbus, dev, rca, &status);
 			if (err != MMC_ERR_NONE)
 				break;
 			if (R1_STATUS(status) == 0 &&
@@ -837,8 +916,9 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 			DELAY(1000);
 		} while (retries-- > 0);
 
+switch_back:
 		/* ... and always switch back to the default partition. */
-		err = mmcsd_switch_part(mmcbr, dev, rca,
+		err = mmcsd_switch_part(mmcbus, dev, rca,
 		    EXT_CSD_PART_CONFIG_ACC_DEFAULT);
 		if (err != MMC_ERR_NONE)
 			goto release;
@@ -849,11 +929,11 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 	 * so retrieve EXT_CSD again.
 	 */
 	if (cmd.opcode == MMC_SWITCH_FUNC) {
-		err = mmc_send_ext_csd(mmcbr, dev, sc->ext_csd);
+		err = mmc_send_ext_csd(mmcbus, dev, sc->ext_csd);
 		if (err != MMC_ERR_NONE)
 			goto release;
 	}
-	MMCBUS_RELEASE_BUS(mmcbr, dev);
+	MMCBUS_RELEASE_BUS(mmcbus, dev);
 	if (cmd.error != MMC_ERR_NONE) {
 		switch (cmd.error) {
 		case MMC_ERR_TIMEOUT:
@@ -883,10 +963,14 @@ mmcsd_ioctl_cmd(struct mmcsd_part *part, struct mmc_ioc_cmd *mic, int fflag)
 	goto out;
 
 release:
-	MMCBUS_RELEASE_BUS(mmcbr, dev);
+	MMCBUS_RELEASE_BUS(mmcbus, dev);
 	err = EIO;
 
 out:
+	MMCSD_IOCTL_LOCK(part);
+	part->ioctl = 0;
+	MMCSD_IOCTL_UNLOCK(part);
+	wakeup(part);
 	if (dp != NULL)
 		free(dp, M_TEMP);
 	return (err);
@@ -925,7 +1009,7 @@ mmcsd_set_blockcount(struct mmcsd_softc *sc, u_int count, bool reliable)
 	if (reliable)
 		cmd.arg |= 1 << 31;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(sc->mmcbr, sc->dev, &req);
+	MMCBUS_WAIT_FOR_REQUEST(sc->mmcbus, sc->dev, &req);
 	return (cmd.error);
 }
 
@@ -938,10 +1022,23 @@ mmcsd_switch_part(device_t bus, device_t dev, uint16_t rca, u_int part)
 
 	sc = device_get_softc(dev);
 
-	if (sc->part_curr == part)
+	if (sc->mode == mode_sd)
 		return (MMC_ERR_NONE);
 
-	if (sc->mode == mode_sd)
+	/*
+	 * According to section "6.2.2 Command restrictions" of the eMMC
+	 * specification v5.1, CMD19/CMD21 aren't allowed to be used with
+	 * RPMB partitions.  So we pause re-tuning along with triggering
+	 * it up-front to decrease the likelihood of re-tuning becoming
+	 * necessary while accessing an RPMB partition.  Consequently, an
+	 * RPMB partition should immediately be switched away from again
+	 * after an access in order to allow for re-tuning to take place
+	 * anew.
+	 */
+	if (part == EXT_CSD_PART_CONFIG_ACC_RPMB)
+		MMCBUS_RETUNE_PAUSE(sc->mmcbus, sc->dev, true);
+
+	if (sc->part_curr == part)
 		return (MMC_ERR_NONE);
 
 	value = (sc->ext_csd[EXT_CSD_PART_CONFIG] &
@@ -949,10 +1046,15 @@ mmcsd_switch_part(device_t bus, device_t dev, uint16_t rca, u_int part)
 	/* Jump! */
 	err = mmc_switch(bus, dev, rca, EXT_CSD_CMD_SET_NORMAL,
 	    EXT_CSD_PART_CONFIG, value, sc->part_time, true);
-	if (err != MMC_ERR_NONE)
+	if (err != MMC_ERR_NONE) {
+		if (part == EXT_CSD_PART_CONFIG_ACC_RPMB)
+			MMCBUS_RETUNE_UNPAUSE(sc->mmcbus, sc->dev);
 		return (err);
+	}
 
 	sc->ext_csd[EXT_CSD_PART_CONFIG] = value;
+	if (sc->part_curr == EXT_CSD_PART_CONFIG_ACC_RPMB)
+		MMCBUS_RETUNE_UNPAUSE(sc->mmcbus, sc->dev);
 	sc->part_curr = part;
 	return (MMC_ERR_NONE);
 }
@@ -963,7 +1065,7 @@ mmcsd_errmsg(int e)
 
 	if (e < 0 || e > MMC_ERR_MAX)
 		return "Bad error code";
-	return errmsg[e];
+	return (errmsg[e]);
 }
 
 static daddr_t
@@ -975,20 +1077,20 @@ mmcsd_rw(struct mmcsd_part *part, struct bio *bp)
 	struct mmc_request req;
 	struct mmc_data data;
 	struct mmcsd_softc *sc;
-	device_t dev, mmcbr;
-	int numblocks, sz;
+	device_t dev, mmcbus;
+	u_int numblocks, sz;
 	char *vaddr;
 
 	sc = part->sc;
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
+	mmcbus = sc->mmcbus;
 
 	block = bp->bio_pblkno;
 	sz = part->disk->d_sectorsize;
 	end = bp->bio_pblkno + (bp->bio_bcount / sz);
 	while (block < end) {
 		vaddr = bp->bio_data + (block - bp->bio_pblkno) * sz;
-		numblocks = min(end - block, mmc_get_max_data(dev));
+		numblocks = min(end - block, sc->max_data);
 		memset(&req, 0, sizeof(req));
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
@@ -1008,7 +1110,7 @@ mmcsd_rw(struct mmcsd_part *part, struct bio *bp)
 				cmd.opcode = MMC_WRITE_BLOCK;
 		}
 		cmd.arg = block;
-		if (!mmc_get_high_cap(dev))
+		if (sc->high_cap == 0)
 			cmd.arg <<= 9;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		data.data = vaddr;
@@ -1026,7 +1128,7 @@ mmcsd_rw(struct mmcsd_part *part, struct bio *bp)
 			stop.mrq = &req;
 			req.stop = &stop;
 		}
-		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
+		MMCBUS_WAIT_FOR_REQUEST(mmcbus, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
 			if (ppsratecheck(&sc->log_time, &sc->log_count,
 			    LOG_PPS))
@@ -1047,12 +1149,12 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	struct mmc_command cmd;
 	struct mmc_request req;
 	struct mmcsd_softc *sc;
-	device_t dev, mmcbr;
-	int erase_sector, sz;
+	device_t dev, mmcbus;
+	u_int erase_sector, sz;
 
 	sc = part->sc;
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
+	mmcbus = sc->mmcbus;
 
 	block = bp->bio_pblkno;
 	sz = part->disk->d_sectorsize;
@@ -1063,7 +1165,7 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	if (end >= part->eblock && end < part->eend)
 		end = part->eend;
 	/* Safe round to the erase sector boundaries. */
-	erase_sector = mmc_get_erase_sector(dev);
+	erase_sector = sc->erase_sector;
 	start = block + erase_sector - 1;	 /* Round up. */
 	start -= start % erase_sector;
 	stop = end;				/* Round down. */
@@ -1075,6 +1177,12 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 		return (end);
 	}
 
+	/*
+	 * Pause re-tuning so it won't interfere with the order of erase
+	 * commands.  Note that these latter don't use the data lines, so
+	 * re-tuning shouldn't actually become necessary during erase.
+	 */
+	MMCBUS_RETUNE_PAUSE(mmcbus, dev, false);
 	/* Set erase start position. */
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
@@ -1085,13 +1193,15 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	else
 		cmd.opcode = MMC_ERASE_GROUP_START;
 	cmd.arg = start;
-	if (!mmc_get_high_cap(dev))
+	if (sc->high_cap == 0)
 		cmd.arg <<= 9;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbus, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
-	    printf("erase err1: %d\n", req.cmd->error);
-	    return (block);
+		device_printf(dev, "Setting erase start position failed %d\n",
+		    req.cmd->error);
+		block = bp->bio_pblkno;
+		goto unpause;
 	}
 	/* Set erase stop position. */
 	memset(&req, 0, sizeof(req));
@@ -1102,14 +1212,16 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	else
 		cmd.opcode = MMC_ERASE_GROUP_END;
 	cmd.arg = stop;
-	if (!mmc_get_high_cap(dev))
+	if (sc->high_cap == 0)
 		cmd.arg <<= 9;
 	cmd.arg--;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbus, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
-	    printf("erase err2: %d\n", req.cmd->error);
-	    return (block);
+		device_printf(dev, "Setting erase stop position failed %d\n",
+		    req.cmd->error);
+		block = bp->bio_pblkno;
+		goto unpause;
 	}
 	/* Erase range. */
 	memset(&req, 0, sizeof(req));
@@ -1118,10 +1230,13 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 	cmd.opcode = MMC_ERASE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbus, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
-	    printf("erase err3 %d\n", req.cmd->error);
-	    return (block);
+		device_printf(dev, "erase err3: %d\n", req.cmd->error);
+		device_printf(dev, "Issuing erase command failed %d\n",
+		    req.cmd->error);
+		block = bp->bio_pblkno;
+		goto unpause;
 	}
 	/* Store one of remaining parts for the next call. */
 	if (bp->bio_pblkno >= part->eblock || block == start) {
@@ -1131,7 +1246,10 @@ mmcsd_delete(struct mmcsd_part *part, struct bio *bp)
 		part->eblock = block;	/* Predict next backward. */
 		part->eend = start;
 	}
-	return (end);
+	block = end;
+unpause:
+	MMCBUS_RETUNE_UNPAUSE(mmcbus, dev);
+	return (block);
 }
 
 static int
@@ -1143,7 +1261,7 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	struct disk *disk;
 	struct mmcsd_softc *sc;
 	struct mmcsd_part *part;
-	device_t dev, mmcbr;
+	device_t dev, mmcbus;
 	int err;
 
 	/* length zero is special and really means flush buffers to media */
@@ -1154,7 +1272,7 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	part = disk->d_drv1;
 	sc = part->sc;
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
+	mmcbus = sc->mmcbus;
 
 	g_reset_bio(&bp);
 	bp.bio_disk = disk;
@@ -1163,16 +1281,16 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	bp.bio_data = virtual;
 	bp.bio_cmd = BIO_WRITE;
 	end = bp.bio_pblkno + bp.bio_bcount / disk->d_sectorsize;
-	MMCBUS_ACQUIRE_BUS(mmcbr, dev);
-	err = mmcsd_switch_part(mmcbr, dev, sc->rca, part->type);
+	MMCBUS_ACQUIRE_BUS(mmcbus, dev);
+	err = mmcsd_switch_part(mmcbus, dev, sc->rca, part->type);
 	if (err != MMC_ERR_NONE) {
 		if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS))
 			device_printf(dev, "Partition switch error\n");
-		MMCBUS_RELEASE_BUS(mmcbr, dev);
+		MMCBUS_RELEASE_BUS(mmcbus, dev);
 		return (EIO);
 	}
 	block = mmcsd_rw(part, &bp);
-	MMCBUS_RELEASE_BUS(mmcbr, dev);
+	MMCBUS_RELEASE_BUS(mmcbus, dev);
 	return ((end < block) ? EIO : 0);
 }
 
@@ -1183,25 +1301,25 @@ mmcsd_task(void *arg)
 	struct mmcsd_part *part;
 	struct mmcsd_softc *sc;
 	struct bio *bp;
-	device_t dev, mmcbr;
+	device_t dev, mmcbus;
 	int err, sz;
 
 	part = arg;
 	sc = part->sc;
 	dev = sc->dev;
-	mmcbr = sc->mmcbr;
+	mmcbus = sc->mmcbus;
 
 	while (1) {
-		MMCSD_PART_LOCK(part);
+		MMCSD_DISK_LOCK(part);
 		do {
 			if (part->running == 0)
 				goto out;
 			bp = bioq_takefirst(&part->bio_queue);
 			if (bp == NULL)
-				msleep(part, &part->part_mtx, PRIBIO,
-				    "jobqueue", 0);
+				msleep(part, &part->disk_mtx, PRIBIO,
+				    "mmcsd disk jobqueue", 0);
 		} while (bp == NULL);
-		MMCSD_PART_UNLOCK(part);
+		MMCSD_DISK_UNLOCK(part);
 		if (bp->bio_cmd != BIO_READ && part->ro) {
 			bp->bio_error = EROFS;
 			bp->bio_resid = bp->bio_bcount;
@@ -1209,11 +1327,11 @@ mmcsd_task(void *arg)
 			biodone(bp);
 			continue;
 		}
-		MMCBUS_ACQUIRE_BUS(mmcbr, dev);
+		MMCBUS_ACQUIRE_BUS(mmcbus, dev);
 		sz = part->disk->d_sectorsize;
 		block = bp->bio_pblkno;
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
-		err = mmcsd_switch_part(mmcbr, dev, sc->rca, part->type);
+		err = mmcsd_switch_part(mmcbus, dev, sc->rca, part->type);
 		if (err != MMC_ERR_NONE) {
 			if (ppsratecheck(&sc->log_time, &sc->log_count,
 			    LOG_PPS))
@@ -1229,7 +1347,7 @@ mmcsd_task(void *arg)
 			block = mmcsd_delete(part, bp);
 		}
 release:
-		MMCBUS_RELEASE_BUS(mmcbr, dev);
+		MMCBUS_RELEASE_BUS(mmcbus, dev);
 		if (block < end) {
 			bp->bio_error = EIO;
 			bp->bio_resid = (end - block) * sz;
@@ -1242,7 +1360,7 @@ release:
 out:
 	/* tell parent we're done */
 	part->running = -1;
-	MMCSD_PART_UNLOCK(part);
+	MMCSD_DISK_UNLOCK(part);
 	wakeup(part);
 
 	kproc_exit(0);
