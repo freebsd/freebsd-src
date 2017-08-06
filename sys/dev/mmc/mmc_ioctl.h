@@ -54,7 +54,7 @@ struct mmc_ioc_multi_cmd {
 #define	MMC_IOC_BASE		'M'
 
 #define	MMC_IOC_CMD		_IOWR(MMC_IOC_BASE, 0, struct mmc_ioc_cmd)
-#define	MMC_IOC_CMD_MULTI	_IOWR(MMC_IOC_BASE, 1, struct mmc_ioc_multi_cmd)
+#define	MMC_IOC_MULTI_CMD	_IOWR(MMC_IOC_BASE, 1, struct mmc_ioc_multi_cmd)
 
 /* Maximum accepted data transfer size */
 #define	MMC_IOC_MAX_BYTES	(512  * 256)

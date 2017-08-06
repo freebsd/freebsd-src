@@ -58,8 +58,9 @@
 # that mmc/sd card drivers call to make requests.
 #
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/types.h>
-#include <sys/bus.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
