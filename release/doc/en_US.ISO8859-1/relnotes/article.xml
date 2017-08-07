@@ -200,6 +200,12 @@
       <para revision="319390">The &man.cxgbetool.8; utility has been
 	added, providing command-line access to features and debugging
 	facilities of &man.cxgbe.4; devices.</para>
+
+      <para revision="321242">The &man.cron.8; utility has been
+	updated to add support for including files within <filename
+	  class="directory">/etc/cron.d</filename> and <filename
+	  class="directory">/usr/local/etc/cron.d</filename> by
+	default.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
