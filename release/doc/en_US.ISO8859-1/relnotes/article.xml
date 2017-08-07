@@ -214,9 +214,6 @@
       <para revision="313796">&man.zlib.3; has been updated to version
 	1.2.11.</para>
 
-      <para revision="315433">&man.libarchive.3; has been updated to
-	version 3.3.1.</para>
-
       <para revision="316069">&man.ntpd.8; has been updated to version
 	4.2.8p10.</para>
 
@@ -225,6 +222,9 @@
 
       <para revision="316958">&man.tcsh.1; has been updated to version
 	6.20.00.</para>
+
+      <para revision="321304">&man.libarchive.3; has been updated to
+	version 3.3.2.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
