@@ -314,6 +314,13 @@
       tuning, and system control parameters that are not otherwise
       categorized.</para>
 
+    <sect2 xml:id="kernel-misc">
+      <title>Miscellaneous Kernel Changes</title>
+
+      <para revision="321198">The &man.vt.4; driver has been updated,
+	increasing the maximum framebuffer size.</para>
+    </sect2>
+
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
