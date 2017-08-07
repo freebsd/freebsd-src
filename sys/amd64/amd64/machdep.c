@@ -1544,6 +1544,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	kmdp = init_ops.parse_preload_data(modulep);
 
+	identify_hypervisor();
+
 	/* Init basic tunables, hz etc */
 	init_param1();
 
