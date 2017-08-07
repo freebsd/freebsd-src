@@ -178,12 +178,6 @@
 	&man.src.conf.5; knob has been added, which when enabled
 	allows building &man.rpcbind.8; with
 	<literal>warmstart</literal> support.</para>
-
-      <para revision="321263">The &man.newsyslog.8; utility has been
-	updated to support logging to &man.syslogd.8; in a format
-	compliant with RFC5424.  For more details, see the description
-	for the <literal>T</literal> flag in
-	&man.newsyslog.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -215,6 +209,12 @@
 	<filename class="directory">/etc/syslog.d</filename> and
 	<filename class="directory">/usr/local/etc/syslog.d</filename>
 	by default.</para>
+
+      <para revision="321263">The &man.newsyslog.8; utility has been
+	updated to support logging to &man.syslogd.8; in a format
+	compliant with RFC5424.  For more details, see the description
+	for the <literal>T</literal> flag in
+	&man.newsyslog.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
