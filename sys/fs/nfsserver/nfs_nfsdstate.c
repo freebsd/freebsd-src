@@ -6608,24 +6608,28 @@ nfsrv_getdevinfo(char *devid, int layouttype, uint32_t *maxcnt,
 		return (NFSERR_NOENT);
 
 	/* If the correct nfsdev_XXXXaddrlen is > 0, we have the device info. */
-	if (layouttype == NFSLAYOUT_NFSV4_1_FILES &&
-	    ds->nfsdev_fileaddrlen > 0) {
-		/*
-		 * The XDR overhead is 3 unsigned values: layout_type,
-		 * length_of_address and notify bitmap.
-		 * If the notify array is changed to not all zeros, the
-		 * count of unsigned values must be increased.
-		 */
-		if (*maxcnt > 0 && *maxcnt <
-		    NFSM_RNDUP(ds->nfsdev_fileaddrlen) + 3 * NFSX_UNSIGNED) {
-			*maxcnt = NFSM_RNDUP(ds->nfsdev_fileaddrlen) +
-			    3 * NFSX_UNSIGNED;
-			return (NFSERR_TOOSMALL);
-		}
+	*devaddrlen = 0;
+	if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
 		*devaddrlen = ds->nfsdev_fileaddrlen;
 		*devaddr = ds->nfsdev_fileaddr;
-	} else
+	} else if (layouttype == NFSLAYOUT_FLEXFILE) {
+		*devaddrlen = ds->nfsdev_flexaddrlen;
+		*devaddr = ds->nfsdev_flexaddr;
+	}
+	if (*devaddrlen == 0)
 		return (NFSERR_UNKNLAYOUTTYPE);
+
+	/*
+	 * The XDR overhead is 3 unsigned values: layout_type,
+	 * length_of_address and notify bitmap.
+	 * If the notify array is changed to not all zeros, the
+	 * count of unsigned values must be increased.
+	 */
+	if (*maxcnt > 0 && *maxcnt < NFSM_RNDUP(*devaddrlen) +
+	    3 * NFSX_UNSIGNED) {
+		*maxcnt = NFSM_RNDUP(*devaddrlen) + 3 * NFSX_UNSIGNED;
+		return (NFSERR_TOOSMALL);
+	}
 
 	/* No notifies for now. */
 	for (i = 0; i < NFSV4_NOTIFYBITMAP; i++)
@@ -6682,6 +6686,7 @@ nfsrv_freedevid(struct nfsdevice *ds)
 		if (ds->nfsdev_dsdir[i] != NULL)
 			vrele(ds->nfsdev_dsdir[i]);
 	free(ds->nfsdev_fileaddr, M_NFSDSTATE);
+	free(ds->nfsdev_flexaddr, M_NFSDSTATE);
 	free(ds->nfsdev_host, M_NFSDSTATE);
 	free(ds, M_NFSDSTATE);
 }
@@ -6845,6 +6850,31 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	tl += (NFSM_RNDUP(strlen(netprot)) / NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(strlen(addr));
 	NFSBCOPY(addr, tl, strlen(addr));
+
+	/*
+	 * Fill in the flex file addr (actually the ff_device_addr4
+	 * as defined for Flexible File Layout) in XDR.
+	 */
+	addrlen = NFSM_RNDUP(strlen(addr)) + NFSM_RNDUP(strlen(netprot)) +
+	    10 * NFSX_UNSIGNED;
+	ds->nfsdev_flexaddrlen = addrlen;
+	tl = malloc(addrlen, M_NFSDSTATE, M_WAITOK | M_ZERO);
+	ds->nfsdev_flexaddr = (char *)tl;
+	*tl++ = txdr_unsigned(1);		/* One multipath list */
+	*tl++ = txdr_unsigned(1);		/* with one entry in it. */
+	/* The netaddr for this one entry. */
+	*tl++ = txdr_unsigned(strlen(netprot));
+	NFSBCOPY(netprot, tl, strlen(netprot));
+	tl += (NFSM_RNDUP(strlen(netprot)) / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(strlen(addr));
+	NFSBCOPY(addr, tl, strlen(addr));
+	tl += (NFSM_RNDUP(strlen(addr)) / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(1);		/* One NFS Version. */
+	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
+	*tl++ = txdr_unsigned(NFSV41_MINORVERSION); /* Minor version 1. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max wsize. */
+	*tl = newnfs_true;			/* Tightly coupled. */
 
 	ds->nfsdev_hostnamelen = strlen(dnshost);
 	ds->nfsdev_host = malloc(ds->nfsdev_hostnamelen, M_NFSDSTATE,

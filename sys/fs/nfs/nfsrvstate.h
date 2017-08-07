@@ -336,7 +336,9 @@ struct nfsdevice {
 	char			nfsdev_deviceid[NFSX_V4DEVICEID];
 	uint16_t		nfsdev_hostnamelen;
 	uint16_t		nfsdev_fileaddrlen;
+	uint16_t		nfsdev_flexaddrlen;
 	char			*nfsdev_fileaddr;
+	char			*nfsdev_flexaddr;
 	char			*nfsdev_host;
 	uint32_t		nfsdev_nextdir;
 	vnode_t			nfsdev_dsdir[0];
