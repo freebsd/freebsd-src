@@ -68,10 +68,9 @@ static void badsb(int listerr, const char *s);
 int
 setup(char *dev)
 {
-	long cg, asked, i, j;
+	long asked, i, j;
 	long bmapsize;
 	struct stat statb;
-	struct fs proto;
 	size_t size;
 
 	havesb = 0;
@@ -178,26 +177,8 @@ setup(char *dev)
 		skipclean = 0;
 		if (bflag || preen)
 			return(0);
-		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
-			return (0);
-		for (cg = 0; cg < proto.fs_ncg; cg++) {
-			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
-			if (readsb(0) != 0)
-				break;
-		}
-		if (cg >= proto.fs_ncg) {
-			printf("%s %s\n%s %s\n%s %s\n",
-				"SEARCH FOR ALTERNATE SUPER-BLOCK",
-				"FAILED. YOU MUST USE THE",
-				"-b OPTION TO FSCK TO SPECIFY THE",
-				"LOCATION OF AN ALTERNATE",
-				"SUPER-BLOCK TO SUPPLY NEEDED",
-				"INFORMATION; SEE fsck_ffs(8).");
-			bflag = 0;
-			return(0);
-		}
-		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
-		bflag = 0;
+		/* Looking for alternates is hard punt for now but retain structure */
+		return (0);
 	}
 	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
@@ -393,9 +374,16 @@ readsb(int listerr)
 	    altsblock.fs_ipg != sblock.fs_ipg ||
 	    altsblock.fs_fpg != sblock.fs_fpg ||
 	    altsblock.fs_magic != sblock.fs_magic) {
-		badsb(listerr,
-		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
-		return (0);
+		if (listerr == 0)
+			return (0);
+		if (preen)
+			printf("%s: ", cdevname);
+		printf(
+		    "VALUES IN SUPER BLOCK LSB=%jd DISAGREE WITH THOSE IN\n"
+		    "FIRST ALTERNATE LSB=%jd\n",
+		    sblk.b_bno, asblk.b_bno);
+		if (reply("IGNORE ALTERNATE SUPER BLOCK") == 0)
+			return (0);
 	}
 out:
 	/*
@@ -415,17 +403,6 @@ out:
 	}
 	havesb = 1;
 	return (1);
-}
-
-static void
-badsb(int listerr, const char *s)
-{
-
-	if (!listerr)
-		return;
-	if (preen)
-		printf("%s: ", cdevname);
-	pfatal("BAD SUPER BLOCK: %s\n", s);
 }
 
 void
