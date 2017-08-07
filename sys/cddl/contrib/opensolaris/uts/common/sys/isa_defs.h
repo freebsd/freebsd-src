@@ -388,7 +388,7 @@ extern "C" {
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
-#elif defined(__riscv__)
+#elif defined(__riscv)
 
 /*
  * Define the appropriate "processor characteristics"
