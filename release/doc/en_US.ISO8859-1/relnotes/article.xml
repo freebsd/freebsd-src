@@ -255,7 +255,10 @@
     <sect2 xml:id="userland-installer">
       <title>Installation and Configuration Tools</title>
 
-      <para>&nbsp;</para>
+      <para revision="321202" contrib="sponsor" sponsor="&ff;">The
+	default <acronym>EFI</acronym> partition created by
+	&man.bsdinstall.8; has been increased from 800KB to
+	200MB.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
