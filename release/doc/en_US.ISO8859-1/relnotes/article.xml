@@ -383,6 +383,10 @@
 	to support tri-mode
 	(<acronym>SAS</acronym>/<acronym>SATA</acronym>/<acronym>PCIe</acronym>)
 	Broadcom&reg; storage adapters.</para>
+
+      <para revision="321067">The &man.arcmsr.4; driver has been
+	updated to version 1.40.00.00, adding support for ARC-1884
+	<acronym>SATA</acronym> controllers.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
