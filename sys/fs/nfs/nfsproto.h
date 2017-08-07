@@ -658,6 +658,12 @@
 #define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
 #define	NFSFLAYUTIL_STRIPE_MASK		0xffffffc0
 
+/* Flags for Flex File Layout. */
+#define	NFSFLEXFLAG_NO_LAYOUTCOMMIT	0x00000001
+#define	NFSFLEXFLAG_NOIO_MDS		0x00000002
+#define	NFSFLEXFLAG_NO_READIO		0x00000004
+#define	NFSFLEXFLAG_WRITE_ONEMIRROR	0x00000008
+
 #if defined(_KERNEL) || defined(KERNEL)
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\

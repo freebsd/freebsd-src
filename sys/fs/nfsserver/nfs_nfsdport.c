@@ -4478,7 +4478,8 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
  * Get the device id and file handle for a DS file.
  */
 int
-nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, fhandle_t *fhp, char *devid)
+nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, int *mirrorcntp,
+    fhandle_t *fhp, char *devid)
 {
 	int buflen, error;
 	char *buf;
@@ -4487,6 +4488,7 @@ nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, fhandle_t *fhp, char *devid)
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflen, p, NULL, NULL, fhp,
 	    devid, NULL);
+	*mirrorcntp = 1;
 	free(buf, M_TEMP);
 	return (error);
 }

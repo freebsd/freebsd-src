@@ -195,6 +195,10 @@ static void nfsrv_freealldevids(void);
 static int nfsrv_findlayout(struct nfsrv_descript *nd, fhandle_t *fhp,
     int laytype, NFSPROC_T *, struct nfslayout **lypp);
 static int nfsrv_fndclid(nfsquad_t *clidvec, nfsquad_t clid, int clidcnt);
+static struct nfslayout *nfsrv_filelayout(struct nfsrv_descript *nd, int iomode,
+    fhandle_t *fhp, fhandle_t *dsfhp, char *devid);
+static struct nfslayout *nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode,
+    int mirrorcnt, fhandle_t *fhp, fhandle_t *dsfhp, char *devid);
 
 /*
  * Scan the client list for a match and either return the current one,
@@ -6208,13 +6212,11 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
     uint64_t minlen, nfsv4stateid_t *stateidp, int maxcnt, int *retonclose,
     int *layoutlenp, char *layp, struct ucred *cred, NFSPROC_T *p)
 {
-	uint32_t *tl;
 	struct nfslayouthash *lhyp;
 	struct nfslayout *lyp;
-	char devid[NFSX_V4DEVICEID];
-	fhandle_t fh, dsfh;
-	uint64_t pattern_offset;
-	int error;
+	char *devid;
+	fhandle_t fh, *dsfhp;
+	int error, mirrorcnt;
 
 	if (layouttype != NFSLAYOUT_NFSV4_1_FILES)
 		return (NFSERR_UNKNLAYOUTTYPE);
@@ -6283,19 +6285,55 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	NFSUNLOCKLAYOUT(lhyp);
 
 	/* Find the device id and file handle. */
-	error = nfsrv_dsgetdevandfh(vp, p, &dsfh, devid);
+	dsfhp = malloc(sizeof(fhandle_t) * nfsrv_maxpnfsmirror, M_TEMP,
+	    M_WAITOK);
+	devid = malloc(NFSX_V4DEVICEID * nfsrv_maxpnfsmirror, M_TEMP, M_WAITOK);
+	error = nfsrv_dsgetdevandfh(vp, p, &mirrorcnt, dsfhp, devid);
 	NFSD_DEBUG(4, "layoutget devandfh=%d\n", error);
+	if (error == 0) {
+		if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
+			lyp = nfsrv_filelayout(nd, *iomode, &fh, dsfhp, devid);
+		else
+			lyp = nfsrv_flexlayout(nd, *iomode, mirrorcnt, &fh,
+			    dsfhp, devid);
+	}
+	free(dsfhp, M_TEMP);
+	free(devid, M_TEMP);
 	if (error != 0)
 		return (error);
 
+	/*
+	 * Now, add this layout to the list.
+	 */
+	error = nfsrv_addlayout(nd, &lyp, stateidp, layp, layoutlenp, p);
+	NFSD_DEBUG(4, "layoutget addl=%d\n", error);
+	/*
+	 * The lyp will be set to NULL by nfsrv_addlayout() if it
+	 * linked the new structure into the lists.
+	 */
+	free(lyp, M_NFSDSTATE);
+	return (error);
+}
+
+/*
+ * Generate a File Layout.
+ */
+static struct nfslayout *
+nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
+    fhandle_t *dsfhp, char *devid)
+{
+	uint32_t *tl;
+	struct nfslayout *lyp;
+	uint64_t pattern_offset;
+
 	lyp = malloc(sizeof(struct nfslayout) + NFSX_V4FILELAYOUT, M_NFSDSTATE,
 	    M_WAITOK | M_ZERO);
-	lyp->lay_type = layouttype;
-	if (*iomode == NFSLAYOUTIOMODE_RW)
+	lyp->lay_type = NFSLAYOUT_NFSV4_1_FILES;
+	if (iomode == NFSLAYOUTIOMODE_RW)
 		lyp->lay_rw = 1;
 	else
 		lyp->lay_read = 1;
-	NFSBCOPY(&fh, &lyp->lay_fh, sizeof(fh));
+	NFSBCOPY(fhp, &lyp->lay_fh, sizeof(*fhp));
 	lyp->lay_clientid.qval = nd->nd_clientid.qval;
 
 	/* Fill in the xdr for the files layout. */
@@ -6316,20 +6354,60 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */
 	*tl++ = txdr_unsigned(1);			/* 1 file handle. */
 	*tl++ = txdr_unsigned(NFSX_V4PNFSFH);
-	NFSBCOPY(&dsfh, tl, sizeof(dsfh));
+	NFSBCOPY(dsfhp, tl, sizeof(*dsfhp));
 	lyp->lay_layoutlen = NFSX_V4FILELAYOUT;
+	return (lyp);
+}
 
-	/*
-	 * Now, add this layout to the list.
-	 */
-	error = nfsrv_addlayout(nd, &lyp, stateidp, layp, layoutlenp, p);
-	NFSD_DEBUG(4, "layoutget addl=%d\n", error);
-	/*
-	 * The lyp will be set to NULL by nfsrv_addlayout() if it
-	 * linked the new structure into the lists.
-	 */
-	free(lyp, M_NFSDSTATE);
-	return (error);
+/*
+ * Generate a Flex File Layout.
+ */
+static struct nfslayout *
+nfsrv_flexlayout(struct nfsrv_descript *nd, int iomode, int mirrorcnt,
+    fhandle_t *fhp, fhandle_t *dsfhp, char *devid)
+{
+	uint32_t *tl;
+	struct nfslayout *lyp;
+	uint64_t lenval;
+	int i;
+
+	lyp = malloc(sizeof(struct nfslayout) + NFSX_V4FLEXLAYOUT(mirrorcnt),
+	    M_NFSDSTATE, M_WAITOK | M_ZERO);
+	lyp->lay_type = NFSLAYOUT_FLEXFILE;
+	if (iomode == NFSLAYOUTIOMODE_RW)
+		lyp->lay_rw = 1;
+	else
+		lyp->lay_read = 1;
+	NFSBCOPY(fhp, &lyp->lay_fh, sizeof(*fhp));
+	lyp->lay_clientid.qval = nd->nd_clientid.qval;
+
+	/* Fill in the xdr for the files layout. */
+	tl = (uint32_t *)lyp->lay_xdr;
+	lenval = 0;
+	txdr_hyper(lenval, tl); tl += 2;		/* Stripe unit. */
+	*tl++ = txdr_unsigned(mirrorcnt);		/* # of mirrors. */
+	for (i = 0; i < mirrorcnt; i++) {
+		*tl++ = txdr_unsigned(1);		/* One stripe. */
+		NFSBCOPY(devid, tl, NFSX_V4DEVICEID);	/* Device ID. */
+		tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+		devid += NFSX_V4DEVICEID;
+		*tl++ = txdr_unsigned(1);		/* Efficiency. */
+		*tl++ = 0xffffffff;			/* Proxy Stateid. */
+		*tl++ = 0x55555555;
+		*tl++ = 0x55555555;
+		*tl++ = 0x55555555;
+		*tl++ = txdr_unsigned(1);		/* 1 file handle. */
+		*tl++ = txdr_unsigned(NFSX_V4PNFSFH);
+		NFSBCOPY(dsfhp, tl, sizeof(*dsfhp));
+		tl += (NFSM_RNDUP(NFSX_V4PNFSFH) / NFSX_UNSIGNED);
+		dsfhp++;
+		*tl++ = 0;				/* Nil Owner. */
+		*tl++ = 0;				/* Nil Owner_group. */
+	}
+	*tl++ = txdr_unsigned(NFSFLEXFLAG_NOIO_MDS);	/* ff_flags. */
+	*tl = txdr_unsigned(60);		/* Status interval hint. */
+	lyp->lay_layoutlen = NFSX_V4FLEXLAYOUT(mirrorcnt);
+	return (lyp);
 }
 
 /*

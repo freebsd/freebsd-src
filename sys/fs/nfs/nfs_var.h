@@ -686,7 +686,8 @@ int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
 uint32_t nfsrv_hashfh(fhandle_t *);
 uint32_t nfsrv_hashsessionid(uint8_t *);
 void nfsrv_backupstable(void);
-int nfsrv_dsgetdevandfh(struct vnode *, NFSPROC_T *, fhandle_t *, char *);
+int nfsrv_dsgetdevandfh(struct vnode *, NFSPROC_T *, int *, fhandle_t *,
+    char *);
 int nfsrv_updatemdsattr(struct vnode *, struct nfsvattr *, NFSPROC_T *);
 int nfsrv_dssetacl(struct vnode *, struct acl *, struct ucred *, NFSPROC_T *);
 
