@@ -963,7 +963,7 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	int err;
 	u32 counter_index = dev->counters[port_num - 1] & 0xffff;
 	u8 mode;
-	char				counter_buf[MLX4_IF_STAT_SZ(1)];
+	char				counter_buf[MLX4_IF_STAT_SZ(1)] __aligned(8);
 	union  mlx4_counter		*counter = (union mlx4_counter *)
 						   counter_buf;
 
