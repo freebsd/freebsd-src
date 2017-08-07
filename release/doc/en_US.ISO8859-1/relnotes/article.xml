@@ -462,6 +462,11 @@
 	prevent creating new <acronym>TCP</acronym> connections when
 	<literal>ERESTART</literal> is received from
 	&man.sosend.9;.</para>
+
+      <para revision="321031">The <acronym>NFS</acronym> client has
+	been updated to support <acronym>pNFS</acronym>
+	<literal>commit</literal> through the
+	<literal>DS</literal>.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
