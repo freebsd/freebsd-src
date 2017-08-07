@@ -980,38 +980,6 @@ int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
 	return 0;
 }
 
-void mlx4_set_stats_bitmap(struct mlx4_dev *dev, unsigned long *stats_bitmap)
-{
-	int last_i = 0;
-
-	bitmap_zero(stats_bitmap, NUM_ALL_STATS);
-
-	if (mlx4_is_slave(dev)) {
-		last_i = dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN ?
-			NUM_PKT_STATS + NUM_FLOW_STATS : NUM_PKT_STATS;
-	} else {
-		bitmap_set(stats_bitmap, last_i, NUM_PKT_STATS);
-		last_i = NUM_PKT_STATS;
-
-		if (dev->caps.flags2 &
-		    MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN) {
-			bitmap_set(stats_bitmap, last_i, NUM_FLOW_STATS);
-			last_i += NUM_FLOW_STATS;
-		}
-	}
-
-	if (mlx4_is_slave(dev))
-		bitmap_set(stats_bitmap, last_i, NUM_VF_STATS);
-	last_i += NUM_VF_STATS;
-
-	if (mlx4_is_master(dev))
-		bitmap_set(stats_bitmap, last_i, NUM_VPORT_STATS);
-	last_i += NUM_VPORT_STATS;
-
-	bitmap_set(stats_bitmap, last_i, NUM_PORT_STATS);
-}
-EXPORT_SYMBOL(mlx4_set_stats_bitmap);
-
 int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid, int *slave_id)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
