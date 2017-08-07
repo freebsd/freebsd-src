@@ -339,7 +339,13 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para></para>
+      <para revision="321024">The
+	<literal>kern.features.linux</literal> and
+	<literal>kern.features.linux64</literal> flags have been
+	added to the <literal>kern.features</literal> &man.sysctl.8;,
+	which when set to <literal>1</literal>, indicate the kernel
+	is configured with compatibility for 32-bit and/or 64-bit
+	linux binaries, respectively.</para>
     </sect2>
   </sect1>
 
