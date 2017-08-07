@@ -253,7 +253,7 @@ hv_kvp_convert_utf8_ipinfo_to_utf16(struct hv_kvp_msg *umsg,
 	    UNUSED_FLAG,
 	    &err_dns);
 	utf8_to_utf16((uint16_t *)host_ip_msg->kvp_ip_val.adapter_id,
-	    MAX_IP_ADDR_SIZE,
+	    MAX_ADAPTER_ID_SIZE,
 	    (char *)umsg->body.kvp_ip_val.adapter_id,
 	    strlen((char *)umsg->body.kvp_ip_val.adapter_id),
 	    UNUSED_FLAG,
