@@ -1399,7 +1399,7 @@ t4fw.fw			optional cxgbe					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
 t5fw_cfg.c		optional cxgbe					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t4fw.fw:t4fw -mt5fw_cfg -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
 	clean		"t5fw_cfg.c"
 t5fw_cfg.fwo		optional cxgbe					\
@@ -1412,6 +1412,16 @@ t5fw_cfg.fw		optional cxgbe					\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t5fw_cfg.fw"
+t5fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t5fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t5fw_cfg_uwire.fwo"
+t5fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t5fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t5fw_cfg_uwire.fw"
 t5fw.fwo		optional cxgbe					\
 	dependency	"t5fw.fw"					\
 	compile-with	"${NORMAL_FWO}"					\
@@ -1423,7 +1433,7 @@ t5fw.fw			optional cxgbe					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
 t6fw_cfg.c		optional cxgbe					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk t6fw_cfg.fw:t6fw_cfg t6fw.fw:t6fw -mt6fw_cfg -c${.TARGET}" \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t6fw_cfg.fw:t6fw_cfg t6fw_cfg_uwire.fw:t6fw_cfg_uwire t6fw.fw:t6fw -mt6fw_cfg -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
 	clean		"t6fw_cfg.c"
 t6fw_cfg.fwo		optional cxgbe					\
@@ -1436,6 +1446,16 @@ t6fw_cfg.fw		optional cxgbe					\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw_cfg.fw"
+t6fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t6fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t6fw_cfg_uwire.fwo"
+t6fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t6fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t6fw_cfg_uwire.fw"
 t6fw.fwo		optional cxgbe					\
 	dependency	"t6fw.fw"					\
 	compile-with	"${NORMAL_FWO}"					\
