@@ -64,8 +64,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	and upgrading, if you are not already using clang 3.5.0 or higher.
 
 20170701:
-	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need them to be
-	built with the base system.
+	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need the
+	r-commands (rlogin, rsh, etc.) to be built with the base system.
 
 20170625:
 	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is
