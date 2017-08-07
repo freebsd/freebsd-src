@@ -369,9 +369,6 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			    __func__, gap->ga_alias, error);
 			continue;
 		}
-		adev->si_flags |= SI_UNMAPPED;
-		adev->si_iosize_max = dev->si_iosize_max;
-		adev->si_drv2 = dev->si_drv2;
 		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
 		devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
 	}
