@@ -104,11 +104,33 @@ struct mmc_ivars {
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
 	uint32_t erase_sector;	/* Card native erase sector size */
 	uint32_t cmd6_time;	/* Generic switch timeout [us] */
+	uint32_t quirks;	/* Quirks as per mmc_quirk->quirks */
 	char card_id_string[64];/* Formatted CID info (serial, MFG, etc) */
 	char card_sn_string[16];/* Formatted serial # for disk->d_ident */
 };
 
 #define	CMD_RETRIES	3
+
+static const struct mmc_quirk mmc_quirks[] = {
+	/*
+	 * For some SanDisk iNAND devices, the CMD38 argument needs to be
+	 * provided in EXT_CSD[113].
+	 */
+	{ 0x2, 0x100,	 		"SEM02G", MMC_QUIRK_INAND_CMD38 },
+	{ 0x2, 0x100,			"SEM04G", MMC_QUIRK_INAND_CMD38 },
+	{ 0x2, 0x100,			"SEM08G", MMC_QUIRK_INAND_CMD38 },
+	{ 0x2, 0x100,			"SEM16G", MMC_QUIRK_INAND_CMD38 },
+	{ 0x2, 0x100,			"SEM32G", MMC_QUIRK_INAND_CMD38 },
+
+	/*
+	 * Disable TRIM for Kingston eMMCs where a firmware bug can lead to
+	 * unrecoverable data corruption.
+	 */
+	{ 0x70, MMC_QUIRK_OID_ANY,	"V10008", MMC_QUIRK_BROKEN_TRIM },
+	{ 0x70, MMC_QUIRK_OID_ANY,	"V10016", MMC_QUIRK_BROKEN_TRIM },
+
+	{ 0x0, 0x0, NULL, 0x0 }
+};
 
 static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
@@ -1109,7 +1131,7 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	/*
 	 * Format a card ID string for use by the mmcsd driver, it's what
 	 * appears between the <> in the following:
-	 * mmcsd0: 968MB <SD SD01G 8.0 SN 2686905 Mfg 08/2008 by 3 TN> at mmc0
+	 * mmcsd0: 968MB <SD SD01G 8.0 SN 2686905 MFG 08/2008 by 3 TN> at mmc0
 	 * 22.5MHz/4bit/128-block
 	 *
 	 * Also format just the card serial number, which the mmcsd driver will
@@ -1547,6 +1569,7 @@ mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 			break;
 		}
 	}
+	device_printf(dev, " quirks: %b\n", ivar->quirks, MMC_QUIRKS_FMT);
 	device_printf(dev, " bus: %ubit, %uMHz (%s timing)\n",
 	    (ivar->bus_width == bus_width_1 ? 1 :
 	    (ivar->bus_width == bus_width_4 ? 4 : 8)),
@@ -1563,6 +1586,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 	u_char switch_res[64];
 	uint32_t raw_cid[4];
 	struct mmc_ivars *ivar = NULL;
+	const struct mmc_quirk *quirk;
 	device_t child;
 	int err, host_caps, i, newcard;
 	uint32_t resp, sec_count, status;
@@ -1870,6 +1894,18 @@ mmc_discover_cards(struct mmc_softc *sc)
 		    ivar->raw_ext_csd[EXT_CSD_REV] >= 5);
 
 child_common:
+		for (quirk = &mmc_quirks[0]; quirk->mid != 0x0; quirk++) {
+			if ((quirk->mid == MMC_QUIRK_MID_ANY ||
+			    quirk->mid == ivar->cid.mid) &&
+			    (quirk->oid == MMC_QUIRK_OID_ANY ||
+			    quirk->oid == ivar->cid.oid) &&
+			    strncmp(quirk->pnm, ivar->cid.pnm,
+			    sizeof(ivar->cid.pnm)) == 0) {
+				ivar->quirks = quirk->quirks;
+				break;
+			}
+		}
+
 		/*
 		 * Some cards that report maximum I/O block sizes greater
 		 * than 512 require the block length to be set to 512, even
@@ -2470,6 +2506,12 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		break;
 	case MMC_IVAR_MAX_DATA:
 		*result = mmcbr_get_max_data(bus);
+		break;
+	case MMC_IVAR_CMD6_TIMEOUT:
+		*result = ivar->cmd6_time;
+		break;
+	case MMC_IVAR_QUIRKS:
+		*result = ivar->quirks;
 		break;
 	case MMC_IVAR_CARD_ID_STRING:
 		*(char **)result = ivar->card_id_string;
