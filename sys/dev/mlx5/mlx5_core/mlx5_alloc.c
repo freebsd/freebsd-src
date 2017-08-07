@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,106 +40,110 @@
  * multiple pages, so we don't require too much contiguous memory.
  */
 
-static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
-					   size_t size, dma_addr_t *dma_handle,
-					   int node)
+static void
+mlx5_buf_load_mem_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	void *cpu_handle;
+	struct mlx5_buf *buf;
+	uint8_t owned;
+	int x;
 
-	cpu_handle = dma_zalloc_coherent(&dev->pdev->dev, size,
-					 dma_handle, GFP_KERNEL);
-	return cpu_handle;
+	buf = (struct mlx5_buf *)arg;
+	owned = MLX5_DMA_OWNED(buf->dev);
+
+	if (!owned)
+		MLX5_DMA_LOCK(buf->dev);
+
+	if (error == 0) {
+		for (x = 0; x != nseg; x++) {
+			buf->page_list[x] = segs[x].ds_addr;
+			KASSERT(segs[x].ds_len == PAGE_SIZE, ("Invalid segment size"));
+		}
+		buf->load_done = MLX5_LOAD_ST_SUCCESS;
+	} else {
+		buf->load_done = MLX5_LOAD_ST_FAILURE;
+	}
+	MLX5_DMA_DONE(buf->dev);
+
+	if (!owned)
+		MLX5_DMA_UNLOCK(buf->dev);
 }
 
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size, int max_direct,
-			struct mlx5_buf *buf, int node)
+int
+mlx5_buf_alloc(struct mlx5_core_dev *dev, int size,
+    int max_direct, struct mlx5_buf *buf)
 {
-	dma_addr_t t;
+	int err;
 
-	buf->size = size;
-	if (size <= max_direct) {
-		buf->nbufs        = 1;
-		buf->npages       = 1;
-		buf->page_shift   = (u8)get_order(size) + PAGE_SHIFT;
-		buf->direct.buf   = mlx5_dma_zalloc_coherent_node(dev, size,
-								  &t, node);
-		if (!buf->direct.buf)
-			return -ENOMEM;
+	buf->npages = howmany(size, PAGE_SIZE);
+	buf->page_shift = PAGE_SHIFT;
+	buf->load_done = MLX5_LOAD_ST_NONE;
+	buf->dev = dev;
+	buf->page_list = kcalloc(buf->npages, sizeof(*buf->page_list),
+	    GFP_KERNEL);
 
-		buf->direct.map = t;
+	err = -bus_dma_tag_create(
+	    bus_get_dma_tag(dev->pdev->dev.bsddev),
+	    PAGE_SIZE,		/* alignment */
+	    0,			/* no boundary */
+	    BUS_SPACE_MAXADDR,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,	/* highaddr */
+	    NULL, NULL,		/* filter, filterarg */
+	    PAGE_SIZE * buf->npages,	/* maxsize */
+	    buf->npages,	/* nsegments */
+	    PAGE_SIZE,		/* maxsegsize */
+	    0,			/* flags */
+	    NULL, NULL,		/* lockfunc, lockfuncarg */
+	    &buf->dma_tag);
 
-		while (t & ((1 << buf->page_shift) - 1)) {
-			--buf->page_shift;
-			buf->npages *= 2;
-		}
-	} else {
-		int i;
+	if (err != 0)
+		goto err_dma_tag;
 
-		buf->direct.buf  = NULL;
-		buf->nbufs       = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-		buf->npages      = buf->nbufs;
-		buf->page_shift  = PAGE_SHIFT;
-		buf->page_list   = kcalloc(buf->nbufs, sizeof(*buf->page_list),
-					   GFP_KERNEL);
+	/* allocate memory */
+	err = -bus_dmamem_alloc(buf->dma_tag, &buf->direct.buf,
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT, &buf->dma_map);
+	if (err != 0)
+		goto err_dma_alloc;
 
-		for (i = 0; i < buf->nbufs; i++) {
-			buf->page_list[i].buf =
-				mlx5_dma_zalloc_coherent_node(dev, PAGE_SIZE,
-							      &t, node);
+	/* load memory into DMA */
+	MLX5_DMA_LOCK(dev);
+	err = bus_dmamap_load(
+	    buf->dma_tag, buf->dma_map, buf->direct.buf,
+	    PAGE_SIZE * buf->npages, &mlx5_buf_load_mem_cb,
+	    buf, BUS_DMA_WAITOK | BUS_DMA_COHERENT);
 
-			buf->page_list[i].map = t;
-		}
+	while (buf->load_done == MLX5_LOAD_ST_NONE)
+		MLX5_DMA_WAIT(dev);
+	MLX5_DMA_UNLOCK(dev);
 
-		if (BITS_PER_LONG == 64) {
-			struct page **pages;
-
-			pages = kmalloc(sizeof(*pages) * (buf->nbufs + 1),
-					GFP_KERNEL);
-			for (i = 0; i < buf->nbufs; i++)
-				pages[i] = virt_to_page(buf->page_list[i].buf);
-			pages[buf->nbufs] = pages[0];
-			buf->direct.buf = vmap(pages, buf->nbufs + 1, VM_MAP,
-					       PAGE_KERNEL);
-			kfree(pages);
-			if (!buf->direct.buf)
-				goto err_free;
-		}
+	/* check for error */
+	if (buf->load_done != MLX5_LOAD_ST_SUCCESS) {
+		err = -ENOMEM;
+		goto err_dma_load;
 	}
 
-	return 0;
+	/* clean memory */
+	memset(buf->direct.buf, 0, PAGE_SIZE * buf->npages);
 
-err_free:
-	mlx5_buf_free(dev, buf);
+	/* flush memory to RAM */
+	bus_dmamap_sync(buf->dev->cmd.dma_tag, buf->dma_map, BUS_DMASYNC_PREWRITE);
+	return (0);
 
-	return -ENOMEM;
+err_dma_load:
+	bus_dmamem_free(buf->dma_tag, buf->direct.buf, buf->dma_map);
+err_dma_alloc:
+	bus_dma_tag_destroy(buf->dma_tag);
+err_dma_tag:
+	kfree(buf->page_list);
+	return (err);
 }
-
-int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, int max_direct,
-		   struct mlx5_buf *buf)
-{
-	return mlx5_buf_alloc_node(dev, size, max_direct,
-				   buf, dev->priv.numa_node);
-}
-EXPORT_SYMBOL_GPL(mlx5_buf_alloc);
-
 
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf)
 {
-	if (buf->nbufs == 1)
-		dma_free_coherent(&dev->pdev->dev, buf->size, buf->direct.buf,
-				  buf->direct.map);
-	else {
-		int i;
-		if (BITS_PER_LONG == 64 && buf->direct.buf)
-			vunmap(buf->direct.buf);
 
-		for (i = 0; i < buf->nbufs; i++)
-			if (buf->page_list[i].buf)
-				dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
-						  buf->page_list[i].buf,
-						  buf->page_list[i].map);
-		kfree(buf->page_list);
-	}
+	bus_dmamap_unload(buf->dma_tag, buf->dma_map);
+	bus_dmamem_free(buf->dma_tag, buf->direct.buf, buf->dma_map);
+	bus_dma_tag_destroy(buf->dma_tag);
+	kfree(buf->page_list);
 }
 EXPORT_SYMBOL_GPL(mlx5_buf_free);
 
@@ -152,8 +156,17 @@ static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 
 	bitmap_fill(pgdir->bitmap, MLX5_DB_PER_PAGE);
 
-	pgdir->db_page = mlx5_dma_zalloc_coherent_node(dev, PAGE_SIZE,
-						       &pgdir->db_dma, node);
+	pgdir->fw_page = mlx5_fwp_alloc(dev, GFP_KERNEL, 1);
+	if (pgdir->fw_page != NULL) {
+		pgdir->db_page = pgdir->fw_page->virt_addr;
+		pgdir->db_dma = pgdir->fw_page->dma_addr;
+
+		/* clean allocated memory */
+		memset(pgdir->db_page, 0, MLX5_ADAPTER_PAGE_SIZE);
+
+		/* flush memory to RAM */
+		mlx5_fwp_flush(pgdir->fw_page);
+	}
 	if (!pgdir->db_page) {
 		kfree(pgdir);
 		return NULL;
@@ -228,8 +241,7 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 	__set_bit(db->index, db->u.pgdir->bitmap);
 
 	if (bitmap_full(db->u.pgdir->bitmap, MLX5_DB_PER_PAGE)) {
-		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
-				  db->u.pgdir->db_page, db->u.pgdir->db_dma);
+		mlx5_fwp_free(db->u.pgdir->fw_page);
 		list_del(&db->u.pgdir->list);
 		kfree(db->u.pgdir);
 	}
@@ -238,19 +250,12 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 }
 EXPORT_SYMBOL_GPL(mlx5_db_free);
 
-
-void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas)
+void
+mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas)
 {
-	u64 addr;
 	int i;
 
-	for (i = 0; i < buf->npages; i++) {
-		if (buf->nbufs == 1)
-			addr = buf->direct.map + ((u64)i << buf->page_shift);
-		else
-			addr = buf->page_list[i].map;
-
-		pas[i] = cpu_to_be64(addr);
-	}
+	for (i = 0; i != buf->npages; i++)
+		pas[i] = cpu_to_be64(buf->page_list[i]);
 }
 EXPORT_SYMBOL_GPL(mlx5_fill_page_array);
