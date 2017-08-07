@@ -2742,8 +2742,7 @@ CD2CFLAGS+=	-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib
 # combined with --sysroot.
 CD2CFLAGS+=	-B${XDDESTDIR}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 CD2CXXFLAGS+=	-isystem ${XDDESTDIR}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
