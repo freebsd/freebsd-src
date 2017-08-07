@@ -347,6 +347,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
 	LIST_INIT(&gp->provider);
+	LIST_INIT(&gp->aliases);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
 	strcpy(gp->name, sbuf_data(sb));
@@ -367,6 +368,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 void
 g_destroy_geom(struct g_geom *gp)
 {
+	struct g_geom_alias *gap, *gaptmp;
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
@@ -380,6 +382,8 @@ g_destroy_geom(struct g_geom *gp)
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
+	LIST_FOREACH_SAFE(gap, &gp->aliases, ga_next, gaptmp)
+		g_free(gap);
 	g_free(gp->name);
 	g_free(gp);
 }
@@ -1210,6 +1214,18 @@ g_compare_names(const char *namea, const char *nameb)
 	if (strcmp(namea + deva, nameb + devb) == 0)
 		return (1);
 	return (0);
+}
+
+void
+g_geom_add_alias(struct g_geom *gp, const char *alias)
+{
+	struct g_geom_alias *gap;
+
+	gap = (struct g_geom_alias *)g_malloc(
+		sizeof(struct g_geom_alias) + strlen(alias) + 1, M_WAITOK);
+	strcpy((char *)(gap + 1), alias);
+	gap->ga_alias = (const char *)(gap + 1);
+	LIST_INSERT_HEAD(&gp->aliases, gap, ga_next);
 }
 
 #if defined(DIAGNOSTIC) || defined(DDB)
