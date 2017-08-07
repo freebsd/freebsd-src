@@ -48,7 +48,6 @@ struct hrtimer {
 	enum hrtimer_restart (*function)(struct hrtimer *);
 	struct mtx mtx;
 	struct callout callout;
-	uint32_t flags;
 };
 
 #define	hrtimer_active(hrtimer)	linux_hrtimer_active(hrtimer)
