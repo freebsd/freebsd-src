@@ -92,7 +92,7 @@
  * does not have dedicated bit counting instructions.
  */
 #if defined(__FreeBSD__) && (defined(__sparc64__) || \
-    defined(__mips_n64) || defined(__mips_o64) || defined(__riscv__))
+    defined(__mips_n64) || defined(__mips_o64) || defined(__riscv))
 si_int __clzsi2(si_int);
 si_int __ctzsi2(si_int);
 #define	__builtin_clz __clzsi2
