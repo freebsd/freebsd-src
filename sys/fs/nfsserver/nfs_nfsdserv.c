@@ -67,6 +67,9 @@ static int	nfs_async = 0;
 SYSCTL_DECL(_vfs_nfsd);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0,
     "Tell client that writes were synced even though they were not");
+extern int	nfsrv_doflexfile;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_flexfile, CTLFLAG_RW,
+    &nfsrv_doflexfile, 0, "Enable generation of Flex File Layouts for pNFS");
 
 /*
  * This list defines the GSS mechanisms supported.
@@ -4370,9 +4373,9 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 
 	layp = NULL;
-	if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
+	if (layouttype == NFSLAYOUT_NFSV4_1_FILES && nfsrv_doflexfile == 0)
 		layp = malloc(NFSX_V4FILELAYOUT, M_TEMP, M_WAITOK);
-	else if (layouttype == NFSLAYOUT_FLEXFILE)
+	else if (layouttype == NFSLAYOUT_FLEXFILE && nfsrv_doflexfile != 0)
 		layp = malloc(NFSX_V4FLEXLAYOUT(nfsrv_maxpnfsmirror), M_TEMP,
 		    M_WAITOK);
 	else

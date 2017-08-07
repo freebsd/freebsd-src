@@ -6218,10 +6218,6 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	fhandle_t fh, *dsfhp;
 	int error, mirrorcnt;
 
-	if (layouttype != NFSLAYOUT_NFSV4_1_FILES)
-		return (NFSERR_UNKNLAYOUTTYPE);
-	if (maxcnt < NFSX_V4FILELAYOUT)
-		return (NFSERR_TOOSMALL);
 	NFSDDSLOCK();
 	if (TAILQ_EMPTY(&nfsrv_devidhead)) {
 		NFSDDSUNLOCK();
@@ -6269,6 +6265,11 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 			NFSD_DEBUG(1, "ret bad stateid\n");
 			return (NFSERR_BADSTATEID);
 		}
+		if (lyp->lay_layoutlen > maxcnt) {
+			NFSUNLOCKLAYOUT(lhyp);
+			NFSD_DEBUG(1, "ret layout too small\n");
+			return (NFSERR_TOOSMALL);
+		}
 		if (*iomode == NFSLAYOUTIOMODE_RW)
 			lyp->lay_rw = 1;
 		else
@@ -6291,11 +6292,19 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	error = nfsrv_dsgetdevandfh(vp, p, &mirrorcnt, dsfhp, devid);
 	NFSD_DEBUG(4, "layoutget devandfh=%d\n", error);
 	if (error == 0) {
-		if (layouttype == NFSLAYOUT_NFSV4_1_FILES)
-			lyp = nfsrv_filelayout(nd, *iomode, &fh, dsfhp, devid);
-		else
-			lyp = nfsrv_flexlayout(nd, *iomode, mirrorcnt, &fh,
-			    dsfhp, devid);
+		if (layouttype == NFSLAYOUT_NFSV4_1_FILES) {
+			if (NFSX_V4FILELAYOUT > maxcnt)
+				error = NFSERR_TOOSMALL;
+			else
+				lyp = nfsrv_filelayout(nd, *iomode, &fh, dsfhp,
+				    devid);
+		} else {
+			if (NFSX_V4FLEXLAYOUT(mirrorcnt) > maxcnt)
+				error = NFSERR_TOOSMALL;
+			else
+				lyp = nfsrv_flexlayout(nd, *iomode, mirrorcnt,
+				    &fh, dsfhp, devid);
+		}
 	}
 	free(dsfhp, M_TEMP);
 	free(devid, M_TEMP);
