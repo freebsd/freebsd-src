@@ -43,6 +43,7 @@
 #include <dev/mlx5/doorbell.h>
 
 #define MLX5_QCOUNTER_SETS_NETDEV 64
+#define MLX5_MAX_NUMBER_OF_VFS 128
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -521,7 +522,7 @@ struct mlx5_priv {
 	s64			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;
-
+	s64			pages_per_func[MLX5_MAX_NUMBER_OF_VFS];
 	struct mlx5_core_health health;
 
 	struct mlx5_srq_table	srq_table;
@@ -850,6 +851,7 @@ void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
+s64 mlx5_wait_for_reclaim_vfs_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
 void mlx5_unregister_debugfs(void);
 int mlx5_eq_init(struct mlx5_core_dev *dev);
