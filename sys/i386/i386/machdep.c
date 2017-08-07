@@ -3195,6 +3195,10 @@ init386(int first)
 	else
 		init_static_kenv(NULL, 0);
 
+#ifndef XEN
+	identify_hypervisor();
+#endif
+
 	/* Init basic tunables, hz etc */
 	init_param1();
 

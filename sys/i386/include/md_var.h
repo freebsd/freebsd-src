@@ -128,6 +128,7 @@ void	dump_drop_page(vm_paddr_t);
 void	finishidentcpu(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	fill_based_sd(struct segment_descriptor *sdp, uint32_t base);
+void	identify_hypervisor(void);
 void	initializecpu(void);
 void	initializecpucache(void);
 bool	fix_cpuid(void);
