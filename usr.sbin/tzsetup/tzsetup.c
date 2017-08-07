@@ -866,47 +866,9 @@ install_zoneinfo_file(const char *zoneinfo_file)
 static int
 install_zoneinfo(const char *zoneinfo)
 {
-	int		fd, rv;
+	int		rv;
 	FILE		*f;
 	char		path_zoneinfo_file[MAXPATHLEN];
-	char		prompt[SILLY_BUFFER_SIZE], title[64];
-
-	if (reallydoit) {
-		if (strcmp(zoneinfo, "UTC") == 0) {
-			if (unlink(path_wall_cmos_clock) < 0 &&
-			    errno != ENOENT) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Could not delete %s: %s",
-				    path_wall_cmos_clock, strerror(errno));
-#ifdef HAVE_DIALOG
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-#endif
-					fprintf(stderr, "%s\n", prompt);
-
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-		} else {
-			fd = open(path_wall_cmos_clock, O_WRONLY | O_CREAT |
-			    O_TRUNC, S_IRUSR | S_IRGRP | S_IROTH);
-			if (fd < 0) {
-				snprintf(title, sizeof(title), "Error");
-				snprintf(prompt, sizeof(prompt),
-				    "Could not create %s: %s",
-				    path_wall_cmos_clock, strerror(errno));
-#ifdef HAVE_DIALOG
-				if (usedialog)
-					dialog_msgbox(title, prompt, 8, 72, 1);
-				else
-#endif
-					fprintf(stderr, "%s\n", prompt);
-				return (DITEM_FAILURE | DITEM_RECREATE);
-			}
-			close(fd);
-		}
-	}
 
 	if ((size_t)snprintf(path_zoneinfo_file, sizeof(path_zoneinfo_file),
 	    "%s/%s", path_zoneinfo, zoneinfo) >= sizeof(path_zoneinfo_file))
@@ -938,6 +900,7 @@ main(int argc, char **argv)
 {
 #ifdef HAVE_DIALOG
 	char		title[64], prompt[128];
+	int		fd;
 #endif
 	int		c, rv, skiputc;
 	char		vm_guest[16] = "";
@@ -991,7 +954,6 @@ main(int argc, char **argv)
 		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
 		    _PATH_WALL_CMOS_CLOCK);
 	}
-
 
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);
@@ -1059,11 +1021,19 @@ main(int argc, char **argv)
 		yesno = dialog_yesno(title, prompt, 7, 73);
 		dlg_restore_vars(&save_vars);
 		if (!yesno) {
+			if (reallydoit)
+				unlink(path_wall_cmos_clock);
+		} else {
 			if (reallydoit) {
-				rv = install_zoneinfo("UTC");
-				dlg_clear();
-				end_dialog();
-				exit(rv & ~DITEM_LEAVE_MENU);
+				fd = open(path_wall_cmos_clock,
+				    O_WRONLY | O_CREAT | O_TRUNC,
+				    S_IRUSR | S_IRGRP | S_IROTH);
+				if (fd < 0) {
+					end_dialog();
+					err(1, "create %s",
+					    path_wall_cmos_clock);
+				}
+				close(fd);
 			}
 		}
 		dlg_clear();
