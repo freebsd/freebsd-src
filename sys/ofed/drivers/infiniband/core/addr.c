@@ -192,10 +192,10 @@ EXPORT_SYMBOL(rdma_translate_ip);
 
 static void set_timeout(unsigned long time)
 {
-	unsigned long delay;
+	int delay;	/* under FreeBSD ticks are 32-bit */
 
 	delay = time - jiffies;
-	if ((long)delay <= 0)
+	if (delay <= 0)
 		delay = 1;
 
 	mod_delayed_work(addr_wq, &work, delay);
