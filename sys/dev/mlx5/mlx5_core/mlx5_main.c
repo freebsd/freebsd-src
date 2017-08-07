@@ -1140,3 +1140,13 @@ static void __exit cleanup(void)
 
 module_init(init);
 module_exit(cleanup);
+
+void mlx5_enter_error_state(struct mlx5_core_dev *dev)
+{
+	if (dev->state != MLX5_DEVICE_STATE_UP)
+		return;
+
+	dev->state = MLX5_DEVICE_STATE_INTERNAL_ERROR;
+	mlx5_trigger_cmd_completions(dev);
+}
+EXPORT_SYMBOL(mlx5_enter_error_state);
