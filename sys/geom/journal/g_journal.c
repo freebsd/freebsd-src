@@ -1261,7 +1261,7 @@ g_journal_flush(struct g_journal_softc *sc)
 	strlcpy(hdr.jrh_magic, GJ_RECORD_HEADER_MAGIC, sizeof(hdr.jrh_magic));
 
 	bioq = &sc->sc_active.jj_queue;
-	pbp = sc->sc_flush_queue;
+	GJQ_LAST(sc->sc_flush_queue, pbp);
 
 	fbp = g_alloc_bio();
 	fbp->bio_parent = NULL;
