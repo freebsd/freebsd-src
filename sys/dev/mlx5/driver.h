@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -258,13 +258,26 @@ struct mlx5_cmd_first {
 	__be32		data[4];
 };
 
-struct mlx5_cmd_msg {
-	struct list_head		list;
-	struct cache_ent	       *cache;
-	u32				len;
-	struct mlx5_cmd_first		first;
-	struct mlx5_cmd_mailbox	       *next;
+struct cache_ent;
+struct mlx5_fw_page {
+	union {
+		struct rb_node rb_node;
+		struct list_head list;
+	};
+	struct mlx5_cmd_first first;
+	struct mlx5_core_dev *dev;
+	bus_dmamap_t dma_map;
+	bus_addr_t dma_addr;
+	void *virt_addr;
+	struct cache_ent *cache;
+	u32 numpages;
+	u16 load_done;
+#define	MLX5_LOAD_ST_NONE 0
+#define	MLX5_LOAD_ST_SUCCESS 1
+#define	MLX5_LOAD_ST_FAILURE 2
+	u16 func_id;
 };
+#define	mlx5_cmd_msg mlx5_fw_page
 
 struct mlx5_cmd_debug {
 	struct dentry	       *dbg_root;
@@ -304,9 +317,16 @@ struct mlx5_cmd_stats {
 };
 
 struct mlx5_cmd {
-	void	       *cmd_alloc_buf;
-	dma_addr_t	alloc_dma;
-	int		alloc_size;
+	struct mlx5_fw_page *cmd_page;
+	bus_dma_tag_t dma_tag;
+	struct sx dma_sx;
+	struct mtx dma_mtx;
+#define	MLX5_DMA_OWNED(dev) mtx_owned(&(dev)->cmd.dma_mtx)
+#define	MLX5_DMA_LOCK(dev) mtx_lock(&(dev)->cmd.dma_mtx)
+#define	MLX5_DMA_UNLOCK(dev) mtx_unlock(&(dev)->cmd.dma_mtx)
+	struct cv dma_cv;
+#define	MLX5_DMA_DONE(dev) cv_broadcast(&(dev)->cmd.dma_cv)
+#define	MLX5_DMA_WAIT(dev) cv_wait(&(dev)->cmd.dma_cv, &(dev)->cmd.dma_mtx)
 	void	       *cmd_buf;
 	dma_addr_t	dma;
 	u16		cmdif_rev;
@@ -331,7 +351,6 @@ struct mlx5_cmd {
 	struct semaphore pages_sem;
 	int	mode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
-	struct pci_pool *pool;
 	struct mlx5_cmd_debug dbg;
 	struct cmd_msg_cache cache;
 	int checksum_disabled;
@@ -345,24 +364,18 @@ struct mlx5_port_caps {
 	u8	ext_port_cap;
 };
 
-struct mlx5_cmd_mailbox {
-	void	       *buf;
-	dma_addr_t	dma;
-	struct mlx5_cmd_mailbox *next;
-};
-
-struct mlx5_buf_list {
-	void		       *buf;
-	dma_addr_t		map;
-};
-
 struct mlx5_buf {
-	struct mlx5_buf_list	direct;
-	struct mlx5_buf_list   *page_list;
-	int			nbufs;
+	bus_dma_tag_t		dma_tag;
+	bus_dmamap_t		dma_map;
+	struct mlx5_core_dev   *dev;
+	struct {
+		void	       *buf;
+	} direct;
+	u64		       *page_list;
 	int			npages;
 	int			size;
 	u8			page_shift;
+	u8			load_done;
 };
 
 struct mlx5_eq {
@@ -521,7 +534,6 @@ struct mlx5_priv {
 	struct rb_root		page_root;
 	s64			fw_pages;
 	atomic_t		reg_pages;
-	struct list_head	free_list;
 	s64			pages_per_func[MLX5_MAX_NUMBER_OF_VFS];
 	struct mlx5_core_health health;
 
@@ -664,7 +676,7 @@ struct mlx5_vport_counters {
 };
 
 enum {
-	MLX5_DB_PER_PAGE = PAGE_SIZE / L1_CACHE_BYTES,
+	MLX5_DB_PER_PAGE = MLX5_ADAPTER_PAGE_SIZE / L1_CACHE_BYTES,
 };
 
 struct mlx5_core_dct {
@@ -688,6 +700,7 @@ enum {
 struct mlx5_db_pgdir {
 	struct list_head	list;
 	DECLARE_BITMAP(bitmap, MLX5_DB_PER_PAGE);
+	struct mlx5_fw_page    *fw_page;
 	__be32		       *db_page;
 	dma_addr_t		db_dma;
 };
@@ -697,6 +710,7 @@ typedef void (*mlx5_cmd_cbk_t)(int status, void *context);
 struct mlx5_cmd_work_ent {
 	struct mlx5_cmd_msg    *in;
 	struct mlx5_cmd_msg    *out;
+	int			uin_size;
 	void		       *uout;
 	int			uout_size;
 	mlx5_cmd_cbk_t		callback;
@@ -721,13 +735,10 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
-static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
+static inline void *
+mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
-	if (likely(BITS_PER_LONG == 64 || buf->nbufs == 1))
-		return buf->direct.buf + offset;
-	else
-		return buf->page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
+	return ((char *)buf->direct.buf + offset);
 }
 
 
@@ -816,8 +827,9 @@ void mlx5_health_cleanup(void);
 void  __init mlx5_health_init(void);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size, int max_direct,
-			struct mlx5_buf *buf, int node);
+
+#define	mlx5_buf_alloc_node(dev, size, direct, buf, node) \
+	mlx5_buf_alloc(dev, size, direct, buf)
 int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, int max_direct,
 		   struct mlx5_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf);
@@ -845,6 +857,12 @@ int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn);
 int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn);
 int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, void *inb, void *outb,
 		      u16 opmod, u8 port);
+void mlx5_fwp_flush(struct mlx5_fw_page *fwp);
+void mlx5_fwp_invalidate(struct mlx5_fw_page *fwp);
+struct mlx5_fw_page *mlx5_fwp_alloc(struct mlx5_core_dev *dev, gfp_t flags, unsigned num);
+void mlx5_fwp_free(struct mlx5_fw_page *fwp);
+u64 mlx5_fwp_get_dma(struct mlx5_fw_page *fwp, size_t offset);
+void *mlx5_fwp_get_virt(struct mlx5_fw_page *fwp, size_t offset);
 void mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
