@@ -5,6 +5,7 @@
 BINDIR=		${LIBEXECDIR}/hyperv
 
 SCRIPTS=	hv_set_ifconfig hv_get_dns_info hv_get_dhcp_info
+SCRIPTS+=	hyperv_vfattach hyperv_vfup
 NO_OBJ=
 
 .include <bsd.prog.mk>
