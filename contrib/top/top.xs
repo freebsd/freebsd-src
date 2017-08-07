@@ -307,9 +307,11 @@ This acts similarly to the command
 .IR renice (8)).
 .TP
 .B u
-Display only processes owned by a specific username (prompt for username).
-If the username specified is simply \*(lq+\*(rq, then processes belonging
-to all users will be displayed.
+Display only processes owned by a specific set of usernames (prompt for
+username).  If the username specified is simply \*(lq+\*(rq or \*(lq-\*(rq,
+then processes belonging to all users will be displayed. Usernames can be added
+to and removed from the set by prepending them with \*(lq+\*(rq and
+\*(lq-\*(rq, respectively.
 .TP
 .B o
 Change the order in which the display is sorted.  This command is not
