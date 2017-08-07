@@ -33,38 +33,38 @@ or
 .Em HTML
 using the same commands that emit text output.
 .Pp
-.Bl -tag -width "12345678901234567"
-.It Fl "-close <path>"
+.Bl -tag -width indent
+.It Ic --close Ar path
 Close tags for the given path
-.It Fl "-depth <num>"
+.It Ic --depth Ar num
 Set the depth for pretty printing
-.It Fl "-help"
-Display this help text
-.It Fl "-html OR -H"
+.It Ic --help
+Display help text
+.It Ic -H | Ic --html
 Generate HTML output
-.It Fl "-json OR -J"
+.It Ic -J | Ic --json
 Generate JSON output
-.It Fl "-leading-xpath <path>"
+.It Ic --leading-xpath Ar path
 Add a prefix to generated XPaths (HTML)
-.It Fl "-open <path>"
+.It Ic --open Ar path
 Open tags for the given path
-.It Fl "-pretty OR -p"
+.It Ic -p | Ic --pretty
 Make 'pretty' output (add indent, newlines)
-.It Fl "-style <style>"
+.It Ic --style Ar style
 Generate given style (xml, json, text, html)
-.It Fl "-text OR -T"
+.It Ic -T | Ic --text
 Generate text output (the default style)
-.It Fl "-version"
+.It Ic --version
 Display version information
-.It Fl "-warn OR -W"
+.It Ic -W | Ic --warn
 Display warnings in text on stderr
-.It Fl "-warn-xml"
+.It Ic --warn-xml
 Display warnings in xml on stdout
-.It Fl "-wrap <path>"
+.It Ic --wrap Ar path
 Wrap output in a set of containers
-.It Fl "-xml OR -X"
+.It Ic -X | Ic --xml
 Generate XML output
-.It Fl "-xpath"
+.It Ic --xpath
 Add XPath data to HTML output
 .El
 .Pp
@@ -73,9 +73,32 @@ The
 utility accepts a format string suitable for
 .Xr xo_emit 3
 and a set of zero or more arguments used to supply data for that string.
+.Pp
+In addition,
+.Nm
+accepts any of the
+.Nm libxo
+options listed in
+.Xr xo_options 7 .
+.Sh EXAMPLES
+In this example,
+.Nm
+is used to emit the same data encoded in text and then in XML by
+adding the "-p" (pretty) and "-X" (XML output) flags:
 .Bd -literal -offset indent
-    xo "The {k:name} weighs {:weight/%d} pounds.\\n" fish 6
-
+  % xo 'The {:product} is {:status}\\n' stereo "in route"
+  The stereo is in route
+  % xo -p -X 'The {:product} is {:status}\\n' stereo "in route"
+  <product>stereo</product>
+  <status>in route</status>
+.Ed
+.Pp
+In this example, the output from a
+.Nm
+command is shown in several styles:
+.Bd -literal -offset indent
+  xo "The {k:name} weighs {:weight/%d} pounds.\\n" fish 6
+.Pp
   TEXT:
     The fish weighs 6 pounds.
   XML:
@@ -101,8 +124,8 @@ specific hierarchy.
 The path is a set of hierarchical names separated
 by the '/' character.
 .Bd -literal -offset indent
-    xo --wrap top/a/b/c '{:tag}' value
-
+  xo --wrap top/a/b/c '{:tag}' value
+.Pp
   XML:
     <top>
       <a>
@@ -143,10 +166,11 @@ The
 may be used to
 prepend data to the XPath values used for HTML output style.
 .Bd -literal -offset indent
-    #!/bin/sh
-    xo --open top/data
-    xo --depth 2 '{tag}' value
-    xo --close top/data
+  #!/bin/sh
+  xo --open top/data
+  xo --depth 2 '{tag}' value
+  xo --close top/data
+.Pp
   XML:
     <top>
       <data>
@@ -160,14 +184,17 @@ prepend data to the XPath values used for HTML output style.
       }
     }
 .Ed
-.Sh EXAMPLE
-.Bd -literal
-  % xo 'The {:product} is {:status}\n' stereo "in route"
-  The stereo is in route
-  % xo -p -X 'The {:product} is {:status}\n' stereo "in route"
-  <product>stereo</product>
-  <status>in route</status>
-.Ed
 .Sh SEE ALSO
 .Xr libxo 3 ,
-.Xr xo_emit 3
+.Xr xo_emit 3 ,
+.Xr xo_options 7
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

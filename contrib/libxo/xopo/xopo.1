@@ -53,18 +53,18 @@ output stream, allowing
 .Nm
 to operated as a filter.
 .Pp
-.Bl -tag -width "12345678901234567"
-.It Fl "-simplify OR -s <text>"
-Generate the simplified version of a single text string.
-.It Fl "-po OR -f <pofile>"
+.Bl -tag -width indent
+.It Ic -f Ar pofile | Ic --po  Ar pofile
 Use the given po file for input.
-.It Fl "-help"
+.It Ic --help
 Display this help text
-.It Fl "-output OR -o <file>"
+.It Ic -o Ar file | Ic --output Ar file
 Write output content to the given file
-.It Fl "-warn OR -W"
+.It Ic -s Ar text | Ic --simplify Ar text
+Generate the simplified version of a single text string.
+.It Ic -W | Ic --warn
 Generate warnings while parsing the format strings
-.It Fl "-version"
+.It Ic --version
 Display version information
 .El
 .Pp
@@ -75,3 +75,13 @@ Display version information
 .Sh SEE ALSO
 .Xr libxo 3 ,
 .Xr xo_format 5
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+
