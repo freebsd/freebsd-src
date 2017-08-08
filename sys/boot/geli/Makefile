@@ -28,23 +28,23 @@ SRCS+=  bcmp.c bcopy.c bzero.c
 SRCS+=  pwgets.c
 
 # sha256 and sha512 from sys/crypto
-.PATH: ${.CURDIR}/../../crypto/sha2
+.PATH: ${SRCTOP}/sys/crypto/sha2
 CFLAGS+=	-DWEAK_REFS
 SRCS+=		sha256c.c sha512c.c
 
 # md5 from libmd
-.PATH: ${.CURDIR}/../../../lib/libmd
+.PATH: ${SRCTOP}/lib/libmd
 SRCS+=		md5c.c
 
 # AES implementation from sys/crypto
-.PATH: ${.CURDIR}/../../crypto/rijndael
+.PATH: ${SRCTOP}/sys/crypto/rijndael
 CFLAGS+=	-I${.CURDIR}/../../
 # Remove asserts
 CFLAGS+=	-DNDEBUG
 SRCS+=		rijndael-alg-fst.c rijndael-api-fst.c rijndael-api.c
 
 # local GELI Implementation
-.PATH: ${.CURDIR}/../../geom/eli
+.PATH: ${SRCTOP}/sys/geom/eli
 CFLAGS+=	-D_STAND
 SRCS+=		geliboot_crypto.c g_eli_hmac.c g_eli_key.c g_eli_key_cache.c pkcs5v2.c
 
