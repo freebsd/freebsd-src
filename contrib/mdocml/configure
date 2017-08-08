@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.55 2017/01/12 15:45:05 schwarze Exp $
+# $Id: configure,v 1.64 2017/07/01 09:47:30 schwarze Exp $
 #
-# Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -33,6 +33,9 @@ echo "config.log: writing..."
 # Initialize all variables here,
 # such that nothing can leak in from the environment.
 
+SOURCEDIR=`dirname "$0"`
+
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 OSNAME=
 UTF8_LOCALE=
@@ -44,11 +47,15 @@ LDADD=
 LDFLAGS=
 LD_NANOSLEEP=
 LD_OHASH=
+LD_RECVMSG=
 STATIC="-static"
 
 BUILD_CGI=0
+BUILD_CATMAN=0
 INSTALL_LIBMANDOC=0
 
+HAVE_CMSG=
+HAVE_CMSG_XPG42=0
 HAVE_DIRENT_NAMLEN=
 HAVE_EFTYPE=
 HAVE_ENDIAN=
@@ -61,11 +68,14 @@ HAVE_ISBLANK=
 HAVE_MKDTEMP=
 HAVE_NANOSLEEP=
 HAVE_NTOHL=
+HAVE_O_DIRECTORY=
 HAVE_OHASH=
 HAVE_PATH_MAX=
 HAVE_PLEDGE=
 HAVE_PROGNAME=
 HAVE_REALLOCARRAY=
+HAVE_RECALLOCARRAY=
+HAVE_RECVMSG=
 HAVE_REWB_BSD=
 HAVE_REWB_SYSV=
 HAVE_SANDBOX_INIT=
@@ -83,6 +93,7 @@ HAVE_WCHAR=
 PREFIX="/usr/local"
 BINDIR=
 SBINDIR=
+BIN_FROM_SBIN=
 INCLUDEDIR=
 LIBDIR=
 MANDIR=
@@ -93,6 +104,7 @@ HTDOCDIR=
 CGIBINDIR=
 
 BINM_APROPOS="apropos"
+BINM_CATMAN="catman"
 BINM_MAKEWHATIS="makewhatis"
 BINM_MAN="man"
 BINM_SOELIM="soelim"
@@ -109,6 +121,7 @@ INSTALL_PROGRAM=
 INSTALL_LIB=
 INSTALL_MAN=
 INSTALL_DATA=
+LN="ln -f"
 
 # --- manual settings from configure.local -----------------------------
 
@@ -148,7 +161,8 @@ ${1}${3}: testing...
 ${COMP} -o test-${1} test-${1}.c ${3}
 __HEREDOC__
 
-	if ${COMP} -o "test-${1}" "test-${1}.c" ${3} 1>&3 2>&3; then
+	if ${COMP} -o "test-${1}" "${SOURCEDIR}/test-${1}.c" ${3} 1>&3 2>&3
+	then
 		echo "${1}${3}: ${CC} succeeded" 1>&3
 	else
 		echo "${1}${3}: ${CC} failed with $?" 1>&3
@@ -211,11 +225,13 @@ runtest getsubopt	GETSUBOPT	|| true
 runtest isblank		ISBLANK		|| true
 runtest mkdtemp		MKDTEMP		|| true
 runtest ntohl		NTOHL		|| true
+runtest O_DIRECTORY	O_DIRECTORY	|| true
 runtest PATH_MAX	PATH_MAX	|| true
 runtest pledge		PLEDGE		|| true
 runtest sandbox_init	SANDBOX_INIT	|| true
 runtest progname	PROGNAME	|| true
 runtest reallocarray	REALLOCARRAY	|| true
+runtest recallocarray	RECALLOCARRAY	|| true
 runtest rewb-bsd	REWB_BSD	|| true
 runtest rewb-sysv	REWB_SYSV	|| true
 runtest strcasestr	STRCASESTR	|| true
@@ -266,6 +282,36 @@ if [ "${HAVE_NANOSLEEP}" -eq 0 ]; then
 	exit 1
 fi
 
+if [ ${BUILD_CATMAN} -gt 0 ]; then
+	# --- recvmsg ---
+	if [ -n "${LD_RECVMSG}" ]; then
+		runtest recvmsg RECVMSG "${LD_RECVMSG}" || true
+	elif singletest recvmsg RECVMSG; then
+		:
+	elif runtest recvmsg RECVMSG "-lsocket"; then
+		LD_RECVMSG="-lsocket"
+	fi
+	if [ "${HAVE_RECVMSG}" -eq 0 ]; then
+		echo "FATAL: recvmsg: no" 1>&2
+		echo "FATAL: recvmsg: no" 1>&3
+		echo "Without recvmsg(2), you cannot BUILD_CATMAN." 1>&2
+		exit 1
+	fi
+
+	# --- cmsg ---
+	if singletest cmsg CMSG; then
+		:
+	elif runtest cmsg CMSG "-D_XPG4_2"; then
+		HAVE_CMSG_XPG42=1
+	fi
+	if [ "${HAVE_CMSG}" -eq 0 ]; then
+		echo "FATAL: cmsg: no" 1>&2
+		echo "FATAL: cmsg: no" 1>&3
+		echo "Without CMSG_FIRSTHDR(3), you cannot BUILD_CATMAN." 1>&2
+		exit 1
+	fi
+fi
+
 # --- ohash ---
 if ismanual ohash OHASH "${HAVE_OHASH}"; then
 	:
@@ -281,7 +327,7 @@ if [ "${HAVE_OHASH}" -eq 0 ]; then
 fi
 
 # --- LDADD ---
-LDADD="${LDADD} ${LD_NANOSLEEP} ${LD_OHASH} -lz"
+LDADD="${LDADD} ${LD_NANOSLEEP} ${LD_RECVMSG} ${LD_OHASH} -lz"
 echo "LDADD=\"${LDADD}\"" 1>&2
 echo "LDADD=\"${LDADD}\"" 1>&3
 echo 1>&3
@@ -305,7 +351,8 @@ cat << __HEREDOC__
 
 __HEREDOC__
 
-[ ${HAVE_GETLINE} -eq 0 -o ${HAVE_REALLOCARRAY} -eq 0 -o \
+[ ${HAVE_GETLINE} -eq 0 -o \
+  ${HAVE_REALLOCARRAY} -eq 0 -o ${HAVE_RECALLOCARRAY} -eq 0 -o \
   ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 ] \
 	&& echo "#include <sys/types.h>"
 [ ${HAVE_VASPRINTF} -eq 0 ] && echo "#include <stdarg.h>"
@@ -313,11 +360,13 @@ __HEREDOC__
 
 echo
 echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
+echo "#define MANPATH_BASE \"${MANPATH_BASE}\""
 echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
 [ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
 [ -n "${HOMEBREWDIR}" ] && echo "#define HOMEBREWDIR \"${HOMEBREWDIR}\""
 [ ${HAVE_EFTYPE} -eq 0 ] && echo "#define EFTYPE EINVAL"
+[ ${HAVE_O_DIRECTORY} -eq 0 ] && echo "#define O_DIRECTORY 0"
 [ ${HAVE_PATH_MAX} -eq 0 ] && echo "#define PATH_MAX 4096"
 if [ ${HAVE_ENDIAN} -eq 0 -a ${HAVE_SYS_ENDIAN} -eq 0 ]; then
 	echo "#define be32toh ntohl"
@@ -325,6 +374,7 @@ if [ ${HAVE_ENDIAN} -eq 0 -a ${HAVE_SYS_ENDIAN} -eq 0 ]; then
 fi
 
 cat << __HEREDOC__
+#define HAVE_CMSG_XPG42 ${HAVE_CMSG_XPG42}
 #define HAVE_DIRENT_NAMLEN ${HAVE_DIRENT_NAMLEN}
 #define HAVE_ENDIAN ${HAVE_ENDIAN}
 #define HAVE_ERR ${HAVE_ERR}
@@ -338,6 +388,7 @@ cat << __HEREDOC__
 #define HAVE_PLEDGE ${HAVE_PLEDGE}
 #define HAVE_PROGNAME ${HAVE_PROGNAME}
 #define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
+#define HAVE_RECALLOCARRAY ${HAVE_RECALLOCARRAY}
 #define HAVE_REWB_BSD ${HAVE_REWB_BSD}
 #define HAVE_REWB_SYSV ${HAVE_REWB_SYSV}
 #define HAVE_SANDBOX_INIT ${HAVE_SANDBOX_INIT}
@@ -354,6 +405,7 @@ cat << __HEREDOC__
 #define HAVE_OHASH ${HAVE_OHASH}
 
 #define BINM_APROPOS "${BINM_APROPOS}"
+#define BINM_CATMAN "${BINM_CATMAN}"
 #define BINM_MAKEWHATIS "${BINM_MAKEWHATIS}"
 #define BINM_MAN "${BINM_MAN}"
 #define BINM_SOELIM "${BINM_SOELIM}"
@@ -388,6 +440,9 @@ fi
 [ ${HAVE_REALLOCARRAY} -eq 0 ] && \
 	echo "extern	void	 *reallocarray(void *, size_t, size_t);"
 
+[ ${HAVE_RECALLOCARRAY} -eq 0 ] && \
+	echo "extern	void	 *recallocarray(void *, size_t, size_t, size_t);"
+
 [ ${HAVE_STRCASESTR} -eq 0 ] && \
 	echo "extern	char	 *strcasestr(const char *, const char *);"
 
@@ -413,14 +468,15 @@ echo "config.h: written" 1>&3
 
 exec > Makefile.local
 
-[ -z "${BINDIR}"     ] && BINDIR="${PREFIX}/bin"
-[ -z "${SBINDIR}"    ] && SBINDIR="${PREFIX}/sbin"
-[ -z "${INCLUDEDIR}" ] && INCLUDEDIR="${PREFIX}/include/mandoc"
-[ -z "${LIBDIR}"     ] && LIBDIR="${PREFIX}/lib/mandoc"
-[ -z "${MANDIR}"     ] && MANDIR="${PREFIX}/man"
+[ -z "${BINDIR}"          ] && BINDIR="${PREFIX}/bin"
+[ -z "${SBINDIR}"         ] && SBINDIR="${PREFIX}/sbin"
+[ -z "${BIN_FROM_SBIN}"   ] && BIN_FROM_SBIN="../bin"
+[ -z "${INCLUDEDIR}"      ] && INCLUDEDIR="${PREFIX}/include/mandoc"
+[ -z "${LIBDIR}"          ] && LIBDIR="${PREFIX}/lib/mandoc"
+[ -z "${MANDIR}"          ] && MANDIR="${PREFIX}/man"
 
-[ -z "${HTDOCDIR}"   ] && HTDOCDIR="${WWWPREFIX}/htdocs"
-[ -z "${CGIBINDIR}"  ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
+[ -z "${HTDOCDIR}"        ] && HTDOCDIR="${WWWPREFIX}/htdocs"
+[ -z "${CGIBINDIR}"       ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
 
 [ -z "${INSTALL_PROGRAM}" ] && INSTALL_PROGRAM="${INSTALL} -m 0555"
 [ -z "${INSTALL_LIB}"     ] && INSTALL_LIB="${INSTALL} -m 0444"
@@ -428,10 +484,14 @@ exec > Makefile.local
 [ -z "${INSTALL_DATA}"    ] && INSTALL_DATA="${INSTALL} -m 0444"
 
 BUILD_TARGETS=
-[ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="cgi-build"
+[ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="man.cgi"
+[ ${BUILD_CATMAN} -gt 0 ] && \
+	BUILD_TARGETS="${BUILD_TARGETS} mandocd catman"
 INSTALL_TARGETS=
 [ ${INSTALL_LIBMANDOC} -gt 0 ] && INSTALL_TARGETS="lib-install"
 [ ${BUILD_CGI} -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} cgi-install"
+[ ${BUILD_CATMAN} -gt 0 ] && \
+	INSTALL_TARGETS="${INSTALL_TARGETS} catman-install"
 
 cat << __HEREDOC__
 BUILD_TARGETS	= ${BUILD_TARGETS}
@@ -444,6 +504,7 @@ STATIC		= ${STATIC}
 PREFIX		= ${PREFIX}
 BINDIR		= ${BINDIR}
 SBINDIR		= ${SBINDIR}
+BIN_FROM_SBIN	= ${BIN_FROM_SBIN}
 INCLUDEDIR	= ${INCLUDEDIR}
 LIBDIR		= ${LIBDIR}
 MANDIR		= ${MANDIR}
@@ -451,6 +512,7 @@ WWWPREFIX	= ${WWWPREFIX}
 HTDOCDIR	= ${HTDOCDIR}
 CGIBINDIR	= ${CGIBINDIR}
 BINM_APROPOS	= ${BINM_APROPOS}
+BINM_CATMAN	= ${BINM_CATMAN}
 BINM_MAKEWHATIS	= ${BINM_MAKEWHATIS}
 BINM_MAN	= ${BINM_MAN}
 BINM_SOELIM	= ${BINM_SOELIM}
@@ -466,6 +528,7 @@ INSTALL_PROGRAM	= ${INSTALL_PROGRAM}
 INSTALL_LIB	= ${INSTALL_LIB}
 INSTALL_MAN	= ${INSTALL_MAN}
 INSTALL_DATA	= ${INSTALL_DATA}
+LN		= ${LN}
 __HEREDOC__
 
 echo "Makefile.local: written" 1>&2

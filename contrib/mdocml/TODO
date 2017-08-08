@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.223 2017/01/17 15:32:43 schwarze Exp $
+* $Id: TODO,v 1.246 2017/07/24 11:15:12 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -61,36 +61,13 @@ are mere guesses, and some may be wrong.
   reported by brad@  Sat, 15 Jan 2011 15:45:23 -0500
   loc ***  exist ***  algo ***  size **  imp *
 
-- .ta (tab settings)
-  #1 most important issue naddy@ Mon, 16 Feb 2015 20:59:17 +0100
-  ircbug(1) gnats(1) reported by brad@  Sat, 15 Jan 2011 15:50:51 -0500
-  also Tcl_NewStringObj(3) via wiz@  Wed, 5 Mar 2014 22:27:43 +0100
-  also posix2time(3) Carsten Kunze  Mon, 1 Dec 2014 13:03:10 +0100
-  loc **  exist ***  algo **  size **  imp ***
-
-- .ti (temporary indent)
-  found by naddy@ in xloadimage(1) [devel/libvstr] vstr(3)
-  found by bentley@ in nmh(1)  Mon, 23 Apr 2012 13:38:28 -0600
-  loc **  exist **  algo **  size *  imp ** (parser reorg helps a lot)
-
 - .while and .shift
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
   loc *  exist **  algo **  size **  imp **
 
-- \h horizontal move
-  #2 most important issue naddy@  Mon, 16 Feb 2015 20:59:17 +0100
-  found in cclive(1) nasm(1) bogofilter(1) asciidoc/DocBook output
-  bentley@ on discuss@  Sat, 21 Sep 2013 22:29:34 -0600
-  naddy@  Thu, 4 Dec 2014 16:26:41 +0100
-  loc **  exist **  algo **  size *  imp *** (parser reorg helps a lot)
-
 - \n+ and \n- numerical register increment and decrement
   found by bentley@ in sbcl(1)  Mon, 9 Dec 2013 18:36:57 -0700
   loc *  exist *  algo *  size *  imp **
-
-- \n(.$ macro argument count number register; ocserv(8) by autogen
-  found by sthen@  Thu, 19 Feb 2015 22:03:01 +0000
-  loc *  exist **  algo *  size *  imp **
 
 - \w'' improve width measurements
   would not be very useful without an expression parser, see below
@@ -193,27 +170,7 @@ are mere guesses, and some may be wrong.
   uqs@  Thu, 2 Jun 2011 11:33:35 +0200
   loc *  exist **  algo ***  size *  imp **
 
---- missing man features -----------------------------------------------
-
-- -T[x]html doesn't stipulate non-collapsing spaces in literal mode
-
 --- missing tbl features -----------------------------------------------
-
-- horizontal lines in the layout still consume data cells
-  and can be mixed with actual data on the same table line
-  synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
-  loc **  exist **  algo **  size **  imp ***
-
-- break long text into lines inside cells
-  net/lftp(1) from jirib via bentley@ Sep 13, 2016
-
-- layout l1 for a column of max text width 3 reduces the following
-  inter-column spacing for groff, but not for mandoc
-  net/lftp(1) from jirib via bentley@ Sep 13, 2016
-
-- the "w" layout option is ignored
-  synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
-  loc *  exist *  algo *  size *  imp **
 
 - the "s" layout column specifier is used for placement of data
   into columns, but ignored during column width calculations
@@ -223,12 +180,15 @@ are mere guesses, and some may be wrong.
 - support mdoc(7) and man(7) macros inside tbl(7) code;
   probably requires the parser reorg and letting tbl(7)
   use roff_node such that macro sets can mix;
-  informed by bapt@ that FreeBSD needs this.
+  informed by bapt@ that FreeBSD needs this: 3 Jan 2015 23:32:23 +0100
   loc ***  exist **  algo ***  size **  imp ***
 
 - look at the POSIX manuals in the books/man-pages-posix port,
   they use some unsupported tbl(7) features.
   loc *  exist **  algo **  size **  imp ***
+
+- look what Joerg Schilling manual pages use
+  Thu, 19 Mar 2015 18:31:48 +0100
 
 - use Unicode U+2500 to U+256C for table borders
   in tbl(7) -Tutf-8 output
@@ -253,6 +213,16 @@ are mere guesses, and some may be wrong.
   see User's Guide (Second Edition) page 5 section 15.
   loc **  exist **  algo **  size **  imp **
 
+- GNU eqn converts some operators to special characters, for example,
+  input HYPHEN-MINUS becomes output \(mi, unless it is part of a
+  quoted word.  mandoc(1) only does this when the operator is
+  surrounded by blanks, not when it is part of an unquoted word.
+  Also, check whether there are more such cases (e.g., +?).
+  reported by bentley@  20 Jun 2017 02:04:29 -0600
+
+- Primes, opprime, and '
+  bentley@  Thu, 13 Jul 2017 23:14:20 -0600
+
 --- missing misc features ----------------------------------------------
 
 - italic correction (\/) in PostScript mode
@@ -261,15 +231,6 @@ are mere guesses, and some may be wrong.
 
 - change the default PAGER to more -Es and use the pager
   even for apropos title line output; req by bapt@
-  loc *  exist *  algo *  size *  imp ***
-
-- makewhatis(8) for preformatted pages:
-  parse the section number from the header line
-  and compare to the section number from the directory name
-  loc *  exist *  algo *  size *  imp **
-
-- Does makewhatis(8) detect missing NAME sections, missing names,
-  and missing descriptions in all the file formats?
   loc *  exist *  algo *  size *  imp ***
 
 - clean up escape sequence handling, creating three classes:
@@ -283,12 +244,6 @@ are mere guesses, and some may be wrong.
 - kettenis wants base roff, ms, and me  Fri, 1 Jan 2010 22:13:15 +0100 (CET)
   loc **  exist **  algo **  size ***  imp *
 
-- Vsevolod Stakhov (FreeBSD) needs either a markdown output formatter
-  for mandoc -mdoc or a markdown to mdoc converter because they
-  have to maintain manuals needed both in markdown and mdoc format.
-  Look at the libsoldout (markdown -> whatever)
-  loc *  exist *  algo *  size **  imp **
-
 --- compatibility checks -----------------------------------------------
 
 - is .Bk implemented correctly in modern groff?
@@ -300,6 +255,8 @@ are mere guesses, and some may be wrong.
 - look at AT&T DWB http://www2.research.att.com/sw/download
   Carsten Kunze <carsten dot kunze at arcor dot de> has patches
   Mon, 4 Aug 2014 17:01:28 +0200
+  ported version: https://github.com/n-t-roff/DWB3.3
+  Carsten Kunze  Wed, 22 Apr 2015 11:21:43 +0200
 
 - look at pages generated from reStructeredText, e.g. devel/mercurial hg(1)
   These are a weird mixture of man(7) and custom autogenerated low-level
@@ -333,6 +290,9 @@ are mere guesses, and some may be wrong.
   http://ikiwiki.info/plugins/contrib/mandoc/
   https://github.com/schmonz/ikiwiki/compare/mandoc
   Amitai Schlair  Mon, 19 May 2014 14:05:53 -0400
+
+- check features of the Slackware man.conf(5) format
+  Carsten Kunze  Wed, 11 Mar 2015 17:57:24 +0100
 
 ************************************************************************
 * formatting issues: ugly output
@@ -382,6 +342,12 @@ are mere guesses, and some may be wrong.
   .Vt vs .Vt/.Va vs .Ft/.Va vs .Ft/.Fa ...
   from kristaps@  Tue, 08 Jun 2010 11:13:32 +0200
 
+- implicit whitespace around inline equations
+  example code:  where '$times$' denotes matrix multiplication
+  must not have an HTML line break, nor a blank, before <math>
+  partial solution: html.c {"math", HTML_NLINSIDE | HTML_INDENT},
+  bentley@  Thu, 13 Jul 2017 19:00:59 -0600
+
 - in enclosures, mandoc sometimes fancies a bogus end of sentence
   reminded by jmc@  Thu, 23 Sep 2010 18:13:39 +0059
   loc *  exist **  algo ***  size *  imp ***
@@ -394,7 +360,7 @@ are mere guesses, and some may be wrong.
   reveals lots of bugs both in groff and mandoc...
   reported by bentley@  Wed, 22 May 2013 23:49:30 -0600
 
---- PDF issues ---------------------------------------------------------
+--- PostScript and PDF issues ------------------------------------------
 
 - PDF output doesn't use a monospaced font for .Bd -literal
   Example: "mandoc -Tpdf afterboot.8 > output.pdf && pdfviewer output.pdf".
@@ -404,20 +370,10 @@ are mere guesses, and some may be wrong.
   instructions from juanfra@  Wed, 11 Jun 2014 02:21:01 +0200
     add a new <</Type /Font>> block to the PDF files with /BaseFont /Courier
     and change the /Name from /F0 to the new font (/F5 (?)).
+  re-reported by tb@ Mon, 16 Mar 2015 16:47:21 +0100
   loc *  exist **  algo **  size *  imp **
 
 --- HTML issues --------------------------------------------------------
-
-- <dl><dt><dd> formatting is ugly
-  hints are easy to find on the web, e.g.
-  http://stackoverflow.com/questions/1713048/
-  see also matthew@  Fri, 18 Jul 2014 19:25:12 -0700
-  loc *  exist *  algo **  size *  imp ***
-
-- In -man -Thtml, .nf does not preserve indentation.
-  It should either convert blanks to &nbsp;
-  or use <pre> rather than <div> (like .Bd -literal does).
-  Reported by afresh1@  12 Apr 2016 14:35:45 -0700
 
 - .Bf at the beginning of a paragraph inserts a bogus 1ex horizontal
   space, see for example random(3).  Introduced in
@@ -427,6 +383,9 @@ are mere guesses, and some may be wrong.
 
 - jsg on icb, Nov 3, 2014:
   try to guess Xr in man(7) for hyperlinking
+  and render them with <a class="Xr" href=...>
+  https://github.com/Debian/debiman/issues/15
+  loc *  exist *  algo **  size **  imp **
 
 - The tables used to render the three-part page headers actually force
   the width of the <body> to the max-width given for <html>.
@@ -434,9 +393,6 @@ are mere guesses, and some may be wrong.
   Observed by an Anonymous Coward on undeadly.org:
   http://undeadly.org/cgi?action=article&sid=20140925064244&pid=1
   loc *  exist *  algo **  size *  imp ***
-
-- consider whether <var> can be used for Ar Dv Er Ev Fa Va.
-  from bentley@  Wed, 13 Aug 2014 09:17:55 -0600
 
 - generate <img> tags in HTML
   idea from florian@  Tue, 7 Apr 2015 00:26:28 +0000
@@ -480,16 +436,6 @@ are mere guesses, and some may be wrong.
   Probably, this should be fixed somewhere in termp_it_pre(), not sure.
   loc *  exist **  algo **  size *  imp **
 
-- .Nx 1.0a
-  should be "NetBSD 1.0A", not "NetBSD 1.0a",
-  see OpenBSD ccdconfig(8).
-  loc *  exist *  algo *  size *  imp **
-
-- In .Bl -tag, if a tag exceeds the right margin and must be continued
-  on the next line, it must be indented by -width, not width+1;
-  see "rule block|pass" in OpenBSD ifconfig(8).
-  loc *  exist ***  algo **  size *  imp **
-
 - When the -width string contains macros, the macros must be rendered
   before measuring the width, for example
     .Bl -tag -width ".Dv message"
@@ -498,6 +444,7 @@ are mere guesses, and some may be wrong.
   The same applies to .Bl -column column widths;
   reported again by Nicolas Joly Thu, 1 Mar 2012 13:41:26 +0100 via wiz@ 5 Mar
   reported again by Franco Fichtner Fri, 27 Sep 2013 21:02:28 +0200
+  reported again by Bruce Evans Fri, 17 Feb 2017 21:22:44 +0100 via bapt@
   loc ***  exist ***  algo ***  size **  imp ***
   An easy partial fix would be to just skip the first word if it starts
   with a dot, including any following white space, when measuring.
@@ -507,12 +454,6 @@ are mere guesses, and some may be wrong.
   That is, when it is alone on a line between two .Pp,
   we want three blank lines, not two as in mandoc.
   loc **  exist **  algo **  size *  imp **
-
-- Header lines of excessive length:
-  Port OpenBSD man_term.c rev. 1.25 to mdoc_term.c
-  and document it in mdoc(7) and man(7) COMPATIBILITY
-  found while talking to Chris Bennett
-  loc *  exist *  algo *  size *  imp *
 
 - Sequences of multiple man(7) paragraphs (.PP, .IP) interspersed
   with .ps and .nf/.fi produce execessive blank lines, see libJudy
@@ -530,25 +471,23 @@ are mere guesses, and some may be wrong.
 * warning issues
 ************************************************************************
 
-- provide a way in mandoc(1) to warn about broken .Xr links;
-  probably cannot be on by default in -Tlint because it needs
-  to access the manpath and mandoc.db(3) after parsing.
-  asked for by jmc@ Fri, 4 Dec 2015 22:39:40 +0000
+- style message about macros inside .Bd -literal and .Dl, in particular
+  font changing macros like .Cm, .Ar, .Fa (from the mdoclint TODO)
 
-- Report errors in -O suboption parsing.
-  loc *  exist *  algo *  size *  imp **
+- style message about mismatches between the section number in the
+  file name (if it is known) and the section number in .Dt
+  (from the mdoclint TODO)
+
+- style message about NULL without .Dv (from the mdoclint TODO)
+
+- style message about error constants without .Er (from the mdoclint TODO)
 
 - warn when .Sh or .Ss contain other macros
   Steffen Nurpmeso, savannah.gnu.org/bugs/index.php?45034
   loc *  exist *  algo *  size *  imp **
 
-- check that MANDOCERR_BADTAB is thrown in the right cases,
-  i.e. when finding a literal tab character in fill mode,
-  and possibly change the wording of the warning message
-  to refer to fill mode, not literal mode
-  See the mail from Werner LEMBERG on the groff list,
-  Fri, 14 Feb 2014 18:54:42 +0100 (CET)
-  loc *  exist **  algo **  size *  imp **
+- style message about violations of the convention
+  .An name Aq Mt localpart@domain in AUTHORS (from the mdoclint TODO)
 
 - warn about attempts to call non-callable macros
   Steffen Nurpmeso  Tue, 11 Nov 2014 22:55:16 +0100
@@ -558,34 +497,24 @@ are mere guesses, and some may be wrong.
   all over mdoc_macro.c and all subtly different.
   loc **  exist **  algo **  size **  imp **
 
-- warn about "new sentence, new line"
-  loc **  exist **  algo ***  size *  imp **
+- style message about suspicious uses of - vs. \- vs. \(mi
+  e.g. -1 is likely wrong (from the mdoclint TODO)
+
+- warn about punctuation - e.g. ',' and ';' - at the beginning
+  of a text line, if it is likely intended to follow the preceding
+  output without intervening whitespace, in particular after a
+  macro line (from the mdoclint TODO)
 
 - mandoc_special does not really check the escape sequence,
   but just the overall format
   loc **  exist **  algo ***  size **  imp **
 
-- integrate mdoclint into mandoc ("end-of-line whitespace" thread)
-  from jmc@  Mon, 13 Jul 2009 17:12:09 +0100
-  from kristaps@  Mon, 13 Jul 2009 18:34:53 +0200
-  from jmc@  Mon, 13 Jul 2009 17:45:37 +0059
-  from kristaps@  Mon, 13 Jul 2009 19:02:03 +0200
-  (mostly done, check what remains)
-
-- -Tlint parser errors and warnings to stdout
-  to tech@mdocml, naddy@  Wed, 28 Sep 2011 11:21:46 +0200
-  wait!  kristaps@  Sun, 02 Oct 2011 17:12:52 +0200
-
 ************************************************************************
 * documentation issues
 ************************************************************************
 
-- mention hyphenation rules:
-  breaking at letter-letter in text mode (not macro args)
-  proper hyphenation is unimplemented
-
-- talk about spacing around delimiters
-  to jmc@, kristaps@  Sat, 23 Apr 2011 17:41:27 +0200
+- dashes, hyphens, and minus signs in manual pages
+  jmc@ Fri, 28 Mar 2014 07:19:27 +0000
 
 - mark macros as: page structure domain, manual domain, general text domain
   is this useful?
@@ -599,20 +528,7 @@ are mere guesses, and some may be wrong.
 * performance issues
 ************************************************************************
 
-- Why are we using MAP_SHARED, not MAP_PRIVATE for mmap(2)?
-  from kristaps@  Sat, 09 Aug 2014 13:51:36 +0200
-
-Several areas can be cleaned up to make mandoc even faster.  These are
-
-- improve hashing mechanism for macros (quite important: performance)
-
-- improve hashing mechanism for characters (not as important)
-
 - the PDF file is HUGE: this can be reduced by using relative offsets
-
-- instead of re-initialising the roff predefined-strings set before each
-  parse, create a read-only version the first time and copy it
-  loc *  exist **  algo **  size *  imp **
 
 ************************************************************************
 * structural issues
@@ -629,13 +545,13 @@ Several areas can be cleaned up to make mandoc even faster.  These are
   same-line from different-line input.  That plainly doesn't work
   with user-defined macros, leading to random breakage.
 
+- Is it possible to further simplify ENDBODY_SPACE?
+
 - Find better ways to prevent endless loops
   in roff(7) macro and string expansion.
 
-- Finish cleanup of date handling.
-  Decide which formats should be recognized where.
-  Update both mdoc(7) and man(7) documentation.
-  Triggered by  Tim van der Molen  Tue, 22 Feb 2011 20:30:45 +0100
+- make buffers for parsing functions const
+  christos@ via wiz@  Fri, 18 Dec 2015 17:10:01 +0100
 
 - struct mparse refactoring
   Steffen Nurpmeso  Thu, 04 Sep 2014 12:50:00 +0200
@@ -648,9 +564,6 @@ Several areas can be cleaned up to make mandoc even faster.  These are
    output through libz.
  - Sandbox (see OpenSSH).
  - Enable caching support via HTTP 304 and If-Modified-Since.
- - Allow for cgi.h to be overridden by CGI environment variables.
-   Otherwise, binary distributions will inherit the compile-time
-   behaviour, which is not optimal.
  - Have Mac OSX systems automatically disable -static compilation of the
    CGI: -static isn't supported.
 
@@ -660,3 +573,10 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 
 - use uname(1) to set doc-default-operating-system at install time
   tobimensch  Mon, 1 Dec 2014 00:25:07 +0100
+
+- apostrophe (39), circumflex (94), grave (96), tilde (126)
+  in manuals: \(aq, \(ha, \`, \(ti
+  Re: [Groff] ASCII Minus Sign in man Pages.
+  bentley@ 26 Apr 2017 10:02:06 -0600
+  Do we need to fix existing manuals?
+  Do we need to fix the definition of the mdoc(7) language?

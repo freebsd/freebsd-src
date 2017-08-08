@@ -1,7 +1,7 @@
-/*	$Id: man.c,v 1.167 2017/01/10 13:47:00 schwarze Exp $ */
+/*	$Id: man.c,v 1.176 2017/06/28 12:52:45 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -34,21 +34,6 @@
 #include "libmandoc.h"
 #include "roff_int.h"
 #include "libman.h"
-
-const	char *const __man_macronames[MAN_MAX] = {
-	"br",		"TH",		"SH",		"SS",
-	"TP",		"LP",		"PP",		"P",
-	"IP",		"HP",		"SM",		"SB",
-	"BI",		"IB",		"BR",		"RB",
-	"R",		"B",		"I",		"IR",
-	"RI",		"sp",		"nf",
-	"fi",		"RE",		"RS",		"DT",
-	"UC",		"PD",		"AT",		"in",
-	"ft",		"OP",		"EX",		"EE",
-	"UR",		"UE",		"ll"
-	};
-
-const	char * const *man_macronames = __man_macronames;
 
 static	void		 man_descope(struct roff_man *, int, int);
 static	int		 man_ptext(struct roff_man *, int, char *, int);
@@ -91,6 +76,8 @@ static int
 man_ptext(struct roff_man *man, int line, char *buf, int offs)
 {
 	int		 i;
+	const char 	*cp, *sp;
+	char		*ep;
 
 	/* Literal free-form text whitespace is preserved. */
 
@@ -104,17 +91,36 @@ man_ptext(struct roff_man *man, int line, char *buf, int offs)
 		/* Skip leading whitespace. */ ;
 
 	/*
-	 * Blank lines are ignored right after headings
+	 * Blank lines are ignored in next line scope
+	 * and right after headings and cancel preceding \c,
 	 * but add a single vertical space elsewhere.
 	 */
 
 	if (buf[i] == '\0') {
-		/* Allocate a blank entry. */
-		if (man->last->tok != MAN_SH &&
-		    man->last->tok != MAN_SS) {
-			roff_elem_alloc(man, line, offs, MAN_sp);
-			man->next = ROFF_NEXT_SIBLING;
+		if (man->flags & (MAN_ELINE | MAN_BLINE)) {
+			mandoc_msg(MANDOCERR_BLK_BLANK, man->parse,
+			    line, 0, NULL);
+			return 1;
 		}
+		if (man->last->tok == MAN_SH || man->last->tok == MAN_SS)
+			return 1;
+		switch (man->last->type) {
+		case ROFFT_TEXT:
+			sp = man->last->string;
+			cp = ep = strchr(sp, '\0') - 2;
+			if (cp < sp || cp[0] != '\\' || cp[1] != 'c')
+				break;
+			while (cp > sp && cp[-1] == '\\')
+				cp--;
+			if ((ep - cp) % 2)
+				break;
+			*ep = '\0';
+			return 1;
+		default:
+			break;
+		}
+		roff_elem_alloc(man, line, offs, ROFF_sp);
+		man->next = ROFF_NEXT_SIBLING;
 		return 1;
 	}
 
@@ -160,26 +166,19 @@ man_pmacro(struct roff_man *man, int ln, char *buf, int offs)
 {
 	struct roff_node *n;
 	const char	*cp;
-	int		 tok;
-	int		 i, ppos;
+	size_t		 sz;
+	enum roff_tok	 tok;
+	int		 ppos;
 	int		 bline;
-	char		 mac[5];
+
+	/* Determine the line macro. */
 
 	ppos = offs;
-
-	/*
-	 * Copy the first word into a nil-terminated buffer.
-	 * Stop when a space, tab, escape, or eoln is encountered.
-	 */
-
-	i = 0;
-	while (i < 4 && strchr(" \t\\", buf[offs]) == NULL)
-		mac[i++] = buf[offs++];
-
-	mac[i] = '\0';
-
-	tok = (i > 0 && i < 4) ? man_hash_find(mac) : TOKEN_NONE;
-
+	tok = TOKEN_NONE;
+	for (sz = 0; sz < 4 && strchr(" \t\\", buf[offs]) == NULL; sz++)
+		offs++;
+	if (sz > 0 && sz < 4)
+		tok = roffhash_find(man->manmac, buf + ppos, sz);
 	if (tok == TOKEN_NONE) {
 		mandoc_msg(MANDOCERR_MACRO, man->parse,
 		    ln, ppos, buf + ppos - 1);
@@ -203,7 +202,7 @@ man_pmacro(struct roff_man *man, int ln, char *buf, int offs)
 
 	/* Jump to the next non-whitespace word. */
 
-	while (buf[offs] && buf[offs] == ' ')
+	while (buf[offs] == ' ')
 		offs++;
 
 	/*
@@ -222,6 +221,20 @@ man_pmacro(struct roff_man *man, int ln, char *buf, int offs)
 
 	man_breakscope(man, tok);
 	bline = man->flags & MAN_BLINE;
+
+	/*
+	 * If the line in next-line scope ends with \c, keep the
+	 * next-line scope open for the subsequent input line.
+	 * That is not at all portable, only groff >= 1.22.4
+	 * does it, but *if* this weird idiom occurs in a manual
+	 * page, that's very likely what the author intended.
+	 */
+
+	if (bline) {
+		cp = strchr(buf + offs, '\0') - 2;
+		if (cp >= buf && cp[0] == '\\' && cp[1] == 'c')
+			bline = 0;
+	}
 
 	/* Call to handler... */
 
@@ -266,17 +279,18 @@ man_breakscope(struct roff_man *man, int tok)
 	 * Delete the element that is being broken.
 	 */
 
-	if (man->flags & MAN_ELINE && (tok == TOKEN_NONE ||
+	if (man->flags & MAN_ELINE && (tok < MAN_TH ||
 	    ! (man_macros[tok].flags & MAN_NSCOPED))) {
 		n = man->last;
-		assert(n->type != ROFFT_TEXT);
-		if (man_macros[n->tok].flags & MAN_NSCOPED)
+		if (n->type == ROFFT_TEXT)
+			n = n->parent;
+		if (n->tok < MAN_TH ||
+		    man_macros[n->tok].flags & MAN_NSCOPED)
 			n = n->parent;
 
 		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse,
 		    n->line, n->pos, "%s breaks %s",
-		    tok == TOKEN_NONE ? "TS" : man_macronames[tok],
-		    man_macronames[n->tok]);
+		    roff_name[tok], roff_name[n->tok]);
 
 		roff_node_delete(man, n);
 		man->flags &= ~MAN_ELINE;
@@ -302,12 +316,13 @@ man_breakscope(struct roff_man *man, int tok)
 	 * Delete the block that is being broken.
 	 */
 
-	if (man->flags & MAN_BLINE && (tok == TOKEN_NONE ||
+	if (man->flags & MAN_BLINE && (tok < MAN_TH ||
 	    man_macros[tok].flags & MAN_BSCOPE)) {
 		n = man->last;
 		if (n->type == ROFFT_TEXT)
 			n = n->parent;
-		if ( ! (man_macros[n->tok].flags & MAN_BSCOPE))
+		if (n->tok < MAN_TH ||
+		    (man_macros[n->tok].flags & MAN_BSCOPE) == 0)
 			n = n->parent;
 
 		assert(n->type == ROFFT_HEAD);
@@ -317,8 +332,7 @@ man_breakscope(struct roff_man *man, int tok)
 
 		mandoc_vmsg(MANDOCERR_BLK_LINE, man->parse,
 		    n->line, n->pos, "%s breaks %s",
-		    tok == TOKEN_NONE ? "TS" : man_macronames[tok],
-		    man_macronames[n->tok]);
+		    roff_name[tok], roff_name[n->tok]);
 
 		roff_node_delete(man, n);
 		man->flags &= ~MAN_BLINE;

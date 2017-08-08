@@ -1,7 +1,7 @@
-.\"	$Id: roff.7,v 1.75 2015/09/24 18:41:22 schwarze Exp $
+.\"	$Id: roff.7,v 1.94 2017/07/05 12:25:17 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013-2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010,2011,2013-2015,2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 24 2015 $
+.Dd $Mdocdate: July 5 2017 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -180,7 +180,7 @@ single-character
 two-character
 .Sq \e*(XX ,
 and N-character
-.Sq \e*[N] .
+.Sq \e* Ns Bq N .
 .Pp
 Examples:
 .Bl -tag -width Ds -offset indent -compact
@@ -397,219 +397,218 @@ The
 parser recognises the following requests.
 For requests marked as "ignored" or "unsupported", any arguments are
 ignored, and the number of arguments is not checked.
-.Ss \&ab
+.Bl -tag -width Ds
+.It Ic \&ab Op Ar message
 Abort processing.
 Currently unsupported.
-.Ss \&ad
-Set line adjustment mode.
-It takes one argument to select normal, left, right,
-or center adjustment for subsequent text.
+.It Ic \&ad Op Cm b | c | l | n | r
+Set line adjustment mode for subsequent text.
 Currently ignored.
-.Ss \&af
+.It Ic \&af Ar registername format
 Assign an output format to a number register.
 Currently ignored.
-.Ss \&aln
+.It Ic \&aln Ar newname oldname
 Create an alias for a number register.
 Currently unsupported.
-.Ss \&als
+.It Ic \&als Ar newname oldname
 Create an alias for a request, string, macro, or diversion.
-Currently unsupported.
-.Ss \&am
+.It Ic \&am Ar macroname Op Ar endmacro
 Append to a macro definition.
 The syntax of this request is the same as that of
-.Sx \&de .
-.Ss \&am1
+.Ic \&de .
+.It Ic \&am1 Ar macroname Op Ar endmacro
 Append to a macro definition, switching roff compatibility mode off
 during macro execution (groff extension).
 The syntax of this request is the same as that of
-.Sx \&de1 .
+.Ic \&de1 .
 Since
 .Xr mandoc 1
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&am .
-.Ss \&ami
+.Ic \&am .
+.It Ic \&ami Ar macrostring Op Ar endstring
 Append to a macro definition, specifying the macro name indirectly
 (groff extension).
 The syntax of this request is the same as that of
-.Sx \&dei .
-.Ss \&ami1
+.Ic \&dei .
+.It Ic \&ami1 Ar macrostring Op Ar endstring
 Append to a macro definition, specifying the macro name indirectly
 and switching roff compatibility mode off during macro execution
 (groff extension).
 The syntax of this request is the same as that of
-.Sx \&dei1 .
+.Ic \&dei1 .
 Since
 .Xr mandoc 1
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&ami .
-.Ss \&as
+.Ic \&ami .
+.It Ic \&as Ar stringname Op Ar string
 Append to a user-defined string.
 The syntax of this request is the same as that of
 .Sx \&ds .
 If a user-defined string with the specified name does not yet exist,
 it is set to the empty string before appending.
-.Ss \&as1
+.It Ic \&as1 Ar stringname Op Ar string
 Append to a user-defined string, switching roff compatibility mode off
 during macro execution (groff extension).
 The syntax of this request is the same as that of
-.Sx \&ds1 .
+.Ic \&ds1 .
 Since
 .Xr mandoc 1
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&as .
-.Ss \&asciify
+.Ic \&as .
+.It Ic \&asciify Ar divname
 Fully unformat a diversion.
 Currently unsupported.
-.Ss \&backtrace
+.It Ic \&backtrace
 Print a backtrace of the input stack.
 This is a groff extension and currently ignored.
-.Ss \&bd
+.It Ic \&bd Ar font Oo Ar curfont Oc Op Ar offset
 Artificially embolden by repeated printing with small shifts.
 Currently ignored.
-.Ss \&bleedat
+.It Ic \&bleedat Ar left top width height
 Set the BleedBox page parameter for PDF generation.
 This is a Heirloom extension and currently ignored.
-.Ss \&blm
+.It Ic \&blm Ar macroname
 Set a blank line trap.
 Currently unsupported.
-.Ss \&box
+.It Ic \&box Ar divname
 Begin a diversion without including a partially filled line.
 Currently unsupported.
-.Ss \&boxa
+.It Ic \&boxa Ar divname
 Add to a diversion without including a partially filled line.
 Currently unsupported.
-.Ss \&bp
-Begin new page.
+.It Ic \&bp Oo Cm + Ns | Ns Cm - Oc Ns Ar pagenumber
+Begin a new page.
 Currently ignored.
-.Ss \&BP
+.It Ic \&BP Ar source height width position offset flags label
 Define a frame and place a picture in it.
 This is a Heirloom extension and currently unsupported.
-.Ss \&br
+.It Ic \&br
 Break the output line.
-See
-.Xr man 7
-and
-.Xr mdoc 7 .
-.Ss \&break
+.It Ic \&break
 Break out of a
-.Sx \&while
+.Ic \&while
 loop.
 Currently unsupported.
-.Ss \&breakchar
+.It Ic \&breakchar Ar char ...
 Optional line break characters.
 This is a Heirloom extension and currently ignored.
-.Ss \&brnl
-Break output line after next N input lines.
+.It Ic \&brnl Ar N
+Break output line after the next
+.Ar N
+input lines.
 This is a Heirloom extension and currently ignored.
-.Ss \&brp
+.It Ic \&brp
 Break and spread output line.
 Currently, this is implemented as an alias for
-.Sx \&br .
-.Ss \&brpnl
-Break and spread output line after next N input lines.
+.Ic \&br .
+.It Ic \&brpnl Ar N
+Break and spread output line after the next
+.Ar N
+input lines.
 This is a Heirloom extension and currently ignored.
-.Ss \&c2
+.It Ic \&c2 Op Ar char
 Change the no-break control character.
 Currently unsupported.
-.Ss \&cc
+.It Ic \&cc Op Ar char
 Change the control character.
-Its syntax is as follows:
-.Bd -literal -offset indent
-.Pf . Cm \&cc Op Ar c
-.Ed
-.Pp
 If
-.Ar c
+.Ar char
 is not specified, the control character is reset to
 .Sq \&. .
 Trailing characters are ignored.
-.Ss \&ce
-Center some lines.
-It takes one integer argument, specifying how many lines to center.
-Currently ignored.
-.Ss \&cf
+.It Ic \&ce Op Ar N
+Center the next
+.Ar N
+input lines without filling.
+.Ar N
+defaults to 1.
+An argument of 0 or less ends centering.
+Currently, high level macros abort centering.
+.It Ic \&cf Ar filename
 Output the contents of a file.
 Ignored because insecure.
-.Ss \&cflags
+.It Ic \&cflags Ar flags char ...
 Set character flags.
 This is a groff extension and currently ignored.
-.Ss \&ch
+.It Ic \&ch Ar macroname Op Ar dist
 Change a trap location.
 Currently ignored.
-.Ss \&char
+.It Ic \&char Ar glyphname Op Ar string
 Define a new glyph.
 Currently unsupported.
-.Ss \&chop
+.It Ic \&chop Ar stringname
 Remove the last character from a macro, string, or diversion.
 Currently unsupported.
-.Ss \&class
+.It Ic \&class Ar classname char ...
 Define a character class.
 This is a groff extension and currently ignored.
-.Ss \&close
+.It Ic \&close Ar streamname
 Close an open file.
 Ignored because insecure.
-.Ss \&CL
+.It Ic \&CL Ar color text
 Print text in color.
 This is a Heirloom extension and currently unsupported.
-.Ss \&color
+.It Ic \&color Op Cm 1 | 0
 Activate or deactivate colors.
 This is a groff extension and currently ignored.
-.Ss \&composite
+.It Ic \&composite Ar from to
 Define a name component for composite glyph names.
 This is a groff extension and currently unsupported.
-.Ss \&continue
+.It Ic \&continue
 Immediately start the next iteration of a
-.Sx \&while
+.Ic \&while
 loop.
 Currently unsupported.
-.Ss \&cp
+.It Ic \&cp Op Cm 1 | 0
 Switch
 .Nm
 compatibility mode on or off.
 Currently ignored.
-.Ss \&cropat
+.It Ic \&cropat Ar left top width height
 Set the CropBox page parameter for PDF generation.
 This is a Heirloom extension and currently ignored.
-.Ss \&cs
+.It Ic \&cs Ar font Op Ar width Op Ar emsize
 Constant character spacing mode.
 Currently ignored.
-.Ss \&cu
-Underline including whitespace.
+.It Ic \&cu Op Ar N
+Underline next
+.Ar N
+input lines including whitespace.
 Currently ignored.
-.Ss \&da
+.It Ic \&da Ar divname
 Append to a diversion.
 Currently unsupported.
-.Ss \&dch
+.It Ic \&dch Ar macroname Op Ar dist
 Change a trap location in the current diversion.
 This is a Heirloom extension and currently unsupported.
-.Ss \&de
+.It Ic \&de Ar macroname Op Ar endmacro
 Define a
 .Nm
 macro.
 Its syntax can be either
 .Bd -literal -offset indent
-.Pf . Cm \&de Ar name
-.Ar macro definition
+.Pf . Ic \&de Ar macroname
+.Ar definition
 \&..
 .Ed
 .Pp
 or
 .Bd -literal -offset indent
-.Pf . Cm \&de Ar name Ar end
-.Ar macro definition
-.Pf . Ar end
+.Pf . Ic \&de Ar macroname Ar endmacro
+.Ar definition
+.Pf . Ar endmacro
 .Ed
 .Pp
 Both forms define or redefine the macro
-.Ar name
+.Ar macroname
 to represent the
-.Ar macro definition ,
+.Ar definition ,
 which may consist of one or more input lines, including the newline
 characters terminating each line, optionally containing calls to
 .Nm
@@ -622,13 +621,13 @@ or
 macros, whichever applies to the document in question.
 .Pp
 Specifying a custom
-.Ar end
+.Ar endmacro
 macro works in the same way as for
-.Sx \&ig ;
+.Ic \&ig ;
 namely, the call to
-.Sq Pf . Ar end
+.Sq Pf . Ar endmacro
 first ends the
-.Ar macro definition ,
+.Ar definition ,
 and after that, it is also evaluated as a
 .Nm
 request or
@@ -637,7 +636,7 @@ macro, but not as a high-level macro.
 .Pp
 The macro can be invoked later using the syntax
 .Pp
-.D1 Pf . Ar name Op Ar argument Op Ar argument ...
+.D1 Pf . Ar macroname Op Ar argument Op Ar argument ...
 .Pp
 Regarding argument parsing, see
 .Sx MACRO SYNTAX
@@ -645,7 +644,7 @@ above.
 .Pp
 The line invoking the macro will be replaced
 in the input stream by the
-.Ar macro definition ,
+.Ar definition ,
 replacing all occurrences of
 .No \e\e$ Ns Ar N ,
 where
@@ -670,15 +669,15 @@ joined together with single blank characters.
 .Pp
 Since macros and user-defined strings share a common string table,
 defining a macro
-.Ar name
+.Ar macroname
 clobbers the user-defined string
-.Ar name ,
+.Ar macroname ,
 and the
-.Ar macro definition
+.Ar definition
 can also be printed using the
 .Sq \e*
 string interpolation syntax described below
-.Sx ds ,
+.Ic ds ,
 but this is rarely useful because every macro definition contains at least
 one explicit newline character.
 .Pp
@@ -689,7 +688,7 @@ to a large, but finite number, and
 .Xr mandoc 1
 also limits the length of the expanded input line.
 Do not rely on the exact values of these limits.
-.Ss \&de1
+.It Ic \&de1 Ar macroname Op Ar endmacro
 Define a
 .Nm
 macro that will be executed with
@@ -701,24 +700,20 @@ Since
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&de .
-.Ss \&defcolor
+.Ic \&de .
+.It Ic \&defcolor Ar newname scheme component ...
 Define a color name.
 This is a groff extension and currently ignored.
-.Ss \&dei
+.It Ic \&dei Ar macrostring Op Ar endstring
 Define a
 .Nm
 macro, specifying the macro name indirectly (groff extension).
 The syntax of this request is the same as that of
-.Sx \&de .
-The request
+.Ic \&de .
+The effect is the same as:
 .Pp
-.D1 Pf . Cm \&dei Ar name Op Ar end
-.Pp
-has the same effect as:
-.Pp
-.D1 Pf . Cm \&de No \e* Ns Bo Ar name Bc Op \e* Ns Bq Ar end
-.Ss \&dei1
+.D1 Pf . Cm \&de No \e* Ns Bo Ar macrostring Bc Op \e* Ns Bq Ar endstring
+.It Ic \&dei1 Ar macrostring Op Ar endstring
 Define a
 .Nm
 macro that will be executed with
@@ -730,29 +725,23 @@ Since
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&dei .
-.Ss \&device
-This request only makes sense with the groff-specific intermediate
-output format and is unsupported.
-.Ss \&devicem
-This request only makes sense with the groff-specific intermediate
-output format and is unsupported.
-.Ss \&di
+.Ic \&dei .
+.It Ic \&device Ar string ...
+.It Ic \&devicem Ar stringname
+These two requests only make sense with the groff-specific intermediate
+output format and are unsupported.
+.It Ic \&di Ar divname
 Begin a diversion.
 Currently unsupported.
-.Ss \&do
+.It Ic \&do Ar command Op Ar argument ...
 Execute
 .Nm
 request or macro line with compatibility mode disabled.
 Currently unsupported.
-.Ss \&ds
+.It Ic \&ds Ar stringname Op Oo \(dq Oc Ns Ar string
 Define a user-defined string.
-Its syntax is as follows:
-.Pp
-.D1 Pf . Cm \&ds Ar name Oo \(dq Oc Ns Ar string
-.Pp
 The
-.Ar name
+.Ar stringname
 and
 .Ar string
 arguments are space-separated.
@@ -767,11 +756,11 @@ including whitespace and double-quote characters, even trailing ones.
 The
 .Ar string
 can be interpolated into subsequent text by using
-.No \e* Ns Bq Ar name
+.No \e* Ns Bq Ar stringname
 for a
-.Ar name
+.Ar stringname
 of arbitrary length, or \e*(NN or \e*N if the length of
-.Ar name
+.Ar stringname
 is two or one characters, respectively.
 Interpolation can be prevented by escaping the leading backslash;
 that is, an asterisk preceded by an even number of backslashes
@@ -779,11 +768,11 @@ does not trigger string interpolation.
 .Pp
 Since user-defined strings and macros share a common string table,
 defining a string
-.Ar name
+.Ar stringname
 clobbers the macro
-.Ar name ,
+.Ar stringname ,
 and the
-.Ar name
+.Ar stringname
 used for defining a string can also be invoked as a macro,
 in which case the following input line will be appended to the
 .Ar string ,
@@ -798,12 +787,12 @@ H SYNOPSIS
 .Ed
 .Pp
 invokes the
-.Cm SH
+.Ic SH
 macro when used in a
 .Xr man 7
 document.
 Such abuse is of course strongly discouraged.
-.Ss \&ds1
+.It Ic \&ds1 Ar stringname Op Oo \(dq Oc Ns Ar string
 Define a user-defined string that will be expanded with
 .Nm
 compatibility mode switched off during string expansion.
@@ -813,125 +802,122 @@ Since
 does not implement
 .Nm
 compatibility mode at all, it handles this request as an alias for
-.Sx \&ds .
-.Ss \&dwh
+.Ic \&ds .
+.It Ic \&dwh Ar dist macroname
 Set a location trap in the current diversion.
 This is a Heirloom extension and currently unsupported.
-.Ss \&dt
+.It Ic \&dt Op Ar dist macroname
 Set a trap within a diversion.
 Currently unsupported.
-.Ss \&ec
-Change the escape character.
-Currently unsupported.
-.Ss \&ecs
+.It Ic \&ec Op Ar char
+Enable the escape mechanism and change the escape character.
+The
+.Ar char
+argument defaults to the backslash
+.Pq Sq \e .
+.It Ic \&ecr
 Restore the escape character.
 Currently unsupported.
-.Ss \&ecr
+.It Ic \&ecs
 Save the escape character.
 Currently unsupported.
-.Ss \&el
+.It Ic \&el Ar body
 The
-.Qq else
+.Dq else
 half of an if/else conditional.
 Pops a result off the stack of conditional evaluations pushed by
-.Sx \&ie
+.Ic \&ie
 and uses it as its conditional.
 If no stack entries are present (e.g., due to no prior
-.Sx \&ie
+.Ic \&ie
 calls)
 then false is assumed.
 The syntax of this request is similar to
-.Sx \&if
+.Ic \&if
 except that the conditional is missing.
-.Ss \&em
+.It Ic \&em Ar macroname
 Set a trap at the end of input.
 Currently unsupported.
-.Ss \&EN
+.It Ic \&EN
 End an equation block.
 See
-.Sx \&EQ .
-.Ss \&eo
+.Ic \&EQ .
+.It Ic \&eo
 Disable the escape mechanism completely.
-Currently unsupported.
-.Ss \&EP
+.It Ic \&EP
 End a picture started by
-.Sx \&BP .
+.Ic \&BP .
 This is a Heirloom extension and currently unsupported.
-.Ss \&EQ
+.It Ic \&EQ
 Begin an equation block.
 See
 .Xr eqn 7
 for a description of the equation language.
-.Ss \&errprint
+.It Ic \&errprint Ar message
 Print a string like an error message.
 This is a Heirloom extension and currently ignored.
-.Ss \&ev
+.It Ic \&ev Op Ar envname
 Switch to another environment.
 Currently unsupported.
-.Ss \&evc
+.It Ic \&evc Op Ar envname
 Copy an environment into the current environment.
 Currently unsupported.
-.Ss \&ex
+.It Ic \&ex
 Abort processing and exit.
 Currently unsupported.
-.Ss \&fallback
+.It Ic \&fallback Ar curfont font ...
 Select the fallback sequence for a font.
 This is a Heirloom extension and currently ignored.
-.Ss \&fam
+.It Ic \&fam Op Ar familyname
 Change the font family.
-Takes one argument specifying the font family to be selected.
-It is a groff extension and currently ignored.
-.Ss \&fc
+This is a groff extension and currently ignored.
+.It Ic \&fc Op Ar delimchar Op Ar padchar
 Define a delimiting and a padding character for fields.
 Currently unsupported.
-.Ss \&fchar
+.It Ic \&fchar Ar glyphname Op Ar string
 Define a fallback glyph.
 Currently unsupported.
-.Ss \&fcolor
+.It Ic \&fcolor Ar colorname
 Set the fill color for \eD objects.
 This is a groff extension and currently ignored.
-.Ss \&fdeferlig
+.It Ic \&fdeferlig Ar font string ...
 Defer ligature building.
 This is a Heirloom extension and currently ignored.
-.Ss \&feature
+.It Ic \&feature Cm + Ns | Ns Cm - Ns Ar name
 Enable or disable an OpenType feature.
 This is a Heirloom extension and currently ignored.
-.Ss \&fi
+.It Ic \&fi
 Switch to fill mode.
 See
 .Xr man 7 .
 Ignored in
 .Xr mdoc 7 .
-.Ss \&fkern
+.It Ic \&fkern Ar font minkern
 Control the use of kerning tables for a font.
 This is a Heirloom extension and currently ignored.
-.Ss \&fl
+.It Ic \&fl
 Flush output.
 Currently ignored.
-.Ss \&flig
+.It Ic \&flig Ar font string char ...
 Define ligatures.
 This is a Heirloom extension and currently ignored.
-.Ss \&fp
+.It Ic \&fp Ar position font Op Ar filename
 Assign font position.
 Currently ignored.
-.Ss \&fps
+.It Ic \&fps Ar mapname ...
 Mount a font with a special character map.
 This is a Heirloom extension and currently ignored.
-.Ss \&fschar
+.It Ic \&fschar Ar font glyphname Op Ar string
 Define a font-specific fallback glyph.
 This is a groff extension and currently unsupported.
-.Ss \&fspacewidth
+.It Ic \&fspacewidth Ar font Op Ar afmunits
 Set a font-specific width for the space character.
 This is a Heirloom extension and currently ignored.
-.Ss \&fspecial
+.It Ic \&fspecial Ar curfont Op Ar font ...
 Conditionally define a special font.
 This is a groff extension and currently ignored.
-.Ss \&ft
+.It Ic \&ft Op Ar font
 Change the font.
-Its syntax is as follows:
-.Pp
-.D1 Pf . Cm \&ft Op Ar font
-.Pp
 The following
 .Ar font
 arguments are supported:
@@ -950,91 +936,88 @@ switches to normal font
 switches back to the previous font
 .El
 .Pp
-This request takes effect only locally, may be overridden by macros
-and escape sequences, and is only supported in
-.Xr man 7
-for now.
-.Ss \&ftr
+This request takes effect only locally and may be overridden
+by macros and escape sequences.
+.It Ic \&ftr Ar newname Op Ar oldname
 Translate font name.
 This is a groff extension and currently ignored.
-.Ss \&fzoom
+.It Ic \&fzoom Ar font Op Ar permille
 Zoom font size.
 Currently ignored.
-.Ss \&gcolor
+.It Ic \&gcolor Op Ar colorname
 Set glyph color.
 This is a groff extension and currently ignored.
-.Ss \&hc
+.It Ic \&hc Op Ar char
 Set the hyphenation character.
 Currently ignored.
-.Ss \&hcode
+.It Ic \&hcode Ar char code ...
 Set hyphenation codes of characters.
 Currently ignored.
-.Ss \&hidechar
+.It Ic \&hidechar Ar font char ...
 Hide characters in a font.
 This is a Heirloom extension and currently ignored.
-.Ss \&hla
+.It Ic \&hla Ar language
 Set hyphenation language.
 This is a groff extension and currently ignored.
-.Ss \&hlm
+.It Ic \&hlm Op Ar number
 Set maximum number of consecutive hyphenated lines.
 Currently ignored.
-.Ss \&hpf
+.It Ic \&hpf Ar filename
 Load hyphenation pattern file.
 This is a groff extension and currently ignored.
-.Ss \&hpfa
+.It Ic \&hpfa Ar filename
 Load hyphenation pattern file, appending to the current patterns.
 This is a groff extension and currently ignored.
-.Ss \&hpfcode
+.It Ic \&hpfcode Ar code code ...
 Define mapping values for character codes in hyphenation patterns.
 This is a groff extension and currently ignored.
-.Ss \&hw
+.It Ic \&hw Ar word ...
 Specify hyphenation points in words.
 Currently ignored.
-.Ss \&hy
+.It Ic \&hy Op Ar mode
 Set automatic hyphenation mode.
 Currently ignored.
-.Ss \&hylang
+.It Ic \&hylang Ar language
 Set hyphenation language.
 This is a Heirloom extension and currently ignored.
-.Ss \&hylen
+.It Ic \&hylen Ar nchar
 Minimum word length for hyphenation.
 This is a Heirloom extension and currently ignored.
-.Ss \&hym
+.It Ic \&hym Op Ar length
 Set hyphenation margin.
 This is a groff extension and currently ignored.
-.Ss \&hypp
+.It Ic \&hypp Ar penalty ...
 Define hyphenation penalties.
 This is a Heirloom extension and currently ignored.
-.Ss \&hys
+.It Ic \&hys Op Ar length
 Set hyphenation space.
 This is a groff extension and currently ignored.
-.Ss \&ie
+.It Ic \&ie Ar condition body
 The
-.Qq if
+.Dq if
 half of an if/else conditional.
 The result of the conditional is pushed into a stack used by subsequent
 invocations of
-.Sx \&el ,
+.Ic \&el ,
 which may be separated by any intervening input (or not exist at all).
 Its syntax is equivalent to
-.Sx \&if .
-.Ss \&if
-Begins a conditional.
-This request has the following syntax:
-.Bd -literal -offset indent
-\&.if COND BODY
+.Ic \&if .
+.It Ic \&if Ar condition body
+Begin a conditional.
+This request can also be written as follows:
+.Bd -unfilled -offset indent
+.Pf . Ic \&if Ar condition No \e{ Ns Ar body
+.Ar body ... Ns \e}
 .Ed
-.Bd -literal -offset indent
-\&.if COND \e{BODY
-BODY...\e}
-.Ed
-.Bd -literal -offset indent
-\&.if COND \e{\e
-BODY...
-\&.\e}
+.Bd -unfilled -offset indent
+.Pf . Ic \&if Ar condition No \e{\e
+.Ar body ...
+.Pf . No \e}
 .Ed
 .Pp
-COND is a conditional statement.
+The
+.Ar condition
+is a boolean expression.
 Currently,
 .Xr mandoc 1
 supports the following subset of roff conditionals:
@@ -1042,21 +1025,25 @@ supports the following subset of roff conditionals:
 .It
 If
 .Sq \&!
-is prefixed to COND, the condition is logically inverted.
+is prefixed to
+.Ar condition ,
+it is logically inverted.
 .It
-If the first character of COND is
+If the first character of
+.Ar condition
+is
 .Sq n
 .Pq nroff mode
 or
 .Sq o
 .Pq odd page ,
-COND evaluates to true.
+it evaluates to true.
 .It
-If the first character of COND is
+If the first character of
+.Ar condition
+is
 .Sq c
 .Pq character available ,
-.Sq d
-.Pq string defined ,
 .Sq e
 .Pq even page ,
 .Sq t
@@ -1064,26 +1051,44 @@ If the first character of COND is
 or
 .Sq v
 .Pq vroff mode ,
-COND evaluates to false.
+it evaluates to false.
 .It
-If the first character of COND is
+If the first character of
+.Ar condition
+is
+.Sq d ,
+it evaluates to true if the rest of
+.Ar condition
+is the name of an existing user defined macro or string;
+otherwise, it evaluates to false.
+.It
+If the first character of
+.Ar condition
+is
 .Sq r ,
-it evaluates to true if the rest of COND is the name of an existing
-number register; otherwise, it evaluates to false.
+it evaluates to true if the rest of
+.Ar condition
+is the name of an existing number register;
+otherwise, it evaluates to false.
 .It
-If COND starts with a parenthesis or with an optionally signed
+If the
+.Ar condition
+starts with a parenthesis or with an optionally signed
 integer number, it is evaluated according to the rules of
 .Sx Numerical expressions
 explained below.
 It evaluates to true if the result is positive,
 or to false if the result is zero or negative.
 .It
-Otherwise, the first character of COND is regarded as a delimiter
-and COND evaluates to true if the string extending from its first
-to its second occurrence is equal to the string extending from its
-second to its third occurrence.
+Otherwise, the first character of
+.Ar condition
+is regarded as a delimiter and it evaluates to true if the string
+extending from its first to its second occurrence is equal to the
+string extending from its second to its third occurrence.
 .It
-If COND cannot be parsed, it evaluates to false.
+If
+.Ar condition
+cannot be parsed, it evaluates to false.
 .El
 .Pp
 If a conditional is false, its children are not processed, but are
@@ -1104,28 +1109,33 @@ conditional.
 Sub-conditionals, in this case, obviously inherit the truth value of
 the parent.
 .Pp
-If the BODY section is begun by an escaped brace
+If the
+.Ar body
+section is begun by an escaped brace
 .Sq \e{ ,
 scope continues until the end of the input line containing the
 matching closing-brace escape sequence
 .Sq \e} .
-If the BODY is not enclosed in braces, scope continues until
-the end of the line.
-If the COND is followed by a BODY on the same line, whether after a
-brace or not, then requests and macros
+If the
+.Ar body
+is not enclosed in braces, scope continues until the end of the line.
+If the
+.Ar condition
+is followed by a
+.Ar body
+on the same line, whether after a brace or not, then requests and macros
 .Em must
 begin with a control character.
 It is generally more intuitive, in this case, to write
-.Bd -literal -offset indent
-\&.if COND \e{\e
-\&.foo
-bar
-\&.\e}
+.Bd -unfilled -offset indent
+.Pf . Ic \&if Ar condition No \e{\e
+.Pf . Ar request
+.Pf . No \e}
 .Ed
 .Pp
 than having the request or macro follow as
 .Pp
-.D1 \&.if COND \e{ .foo
+.D1 Pf . Ic \&if Ar condition Pf \e{. Ar request
 .Pp
 The scope of a conditional is always parsed, but only executed if the
 conditional evaluates to true.
@@ -1144,7 +1154,7 @@ will result in
 being considered an argument of the
 .Sq \&Fl
 macro.
-.Ss \&ig
+.It Ic \&ig Op Ar endmacro
 Ignore input.
 Its syntax can be either
 .Bd -literal -offset indent
@@ -1155,31 +1165,31 @@ Its syntax can be either
 .Pp
 or
 .Bd -literal -offset indent
-.Pf . Cm \&ig Ar end
+.Pf . Cm \&ig Ar endmacro
 .Ar ignored text
-.Pf . Ar end
+.Pf . Ar endmacro
 .Ed
 .Pp
 In the first case, input is ignored until a
 .Sq \&..
 request is encountered on its own line.
 In the second case, input is ignored until the specified
-.Sq Pf . Ar end
-macro is encountered.
+.Sq Pf . Ar endmacro
+is encountered.
 Do not use the escape character
 .Sq \e
 anywhere in the definition of
-.Ar end ;
+.Ar endmacro ;
 it would cause very strange behaviour.
 .Pp
 When the
-.Ar end
-macro is a roff request or a roff macro, like in
+.Ar endmacro
+is a roff request or a roff macro, like in
 .Pp
 .D1 \&.ig if
 .Pp
 the subsequent invocation of
-.Sx \&if
+.Ic \&if
 will first terminate the
 .Ar ignored text ,
 then be invoked as usual.
@@ -1188,21 +1198,17 @@ Otherwise, it only terminates the
 and arguments following it or the
 .Sq \&..
 request are discarded.
-.Ss \&in
+.It Ic \&in Op Oo Cm + Ns | Ns Cm - Oc Ns Ar width
 Change indentation.
 See
 .Xr man 7 .
 Ignored in
 .Xr mdoc 7 .
-.Ss \&index
+.It Ic \&index Ar register stringname substring
 Find a substring in a string.
 This is a Heirloom extension and currently unsupported.
-.Ss \&it
+.It Ic \&it Ar expression macro
 Set an input line trap.
-Its syntax is as follows:
-.Pp
-.D1 Pf . Cm it Ar expression macro
-.Pp
 The named
 .Ar macro
 will be invoked after processing the number of input text lines
@@ -1213,63 +1219,59 @@ While evaluating the
 the unit suffixes described below
 .Sx Scaling Widths
 are ignored.
-.Ss \&itc
+.It Ic \&it Ar expression macro
 Set an input line trap, not counting lines ending with \ec.
 Currently unsupported.
-.Ss \&IX
+.It Ic \&IX Ar class keystring
 To support the generation of a table of contents,
 .Xr pod2man 1
 emits this user-defined macro, usually without defining it.
 To avoid reporting large numbers of spurious errors,
 .Xr mandoc 1
 ignores it.
-.Ss \&kern
+.It Ic \&kern Op Cm 1 | 0
 Switch kerning on or off.
 Currently ignored.
-.Ss \&kernafter
+.It Ic \&kernafter Ar font char ... afmunits ...
 Increase kerning after some characters.
 This is a Heirloom extension and currently ignored.
-.Ss \&kernbefore
+.It Ic \&kernbefore Ar font char ... afmunits ...
 Increase kerning before some characters.
 This is a Heirloom extension and currently ignored.
-.Ss \&kernpair
+.It Ic \&kernpair Ar font char ... font char ... afmunits
 Add a kerning pair to the kerning table.
 This is a Heirloom extension and currently ignored.
-.Ss \&lc
+.It Ic \&lc Op Ar glyph
 Define a leader repetition character.
 Currently unsupported.
-.Ss \&lc_ctype
+.It Ic \&lc_ctype Ar localename
 Set the
 .Dv LC_CTYPE
 locale.
 This is a Heirloom extension and currently unsupported.
-.Ss \&lds
+.It Ic \&lds Ar macroname string
 Define a local string.
 This is a Heirloom extension and currently unsupported.
-.Ss \&length
-Count the number of input characters in a user-defined string.
+.It Ic \&length Ar register string
+Count the number of input characters in a string.
 Currently unsupported.
-.Ss \&letadj
+.It Ic \&letadj Ar lspmin lshmin letss lspmax lshmax
 Dynamic letter spacing and reshaping.
 This is a Heirloom extension and currently ignored.
-.Ss \&lf
+.It Ic \&lf Ar lineno Op Ar filename
 Change the line number for error messages.
 Ignored because insecure.
-.Ss \&lg
+.It Ic \&lg Op Cm 1 | 0
 Switch the ligature mechanism on or off.
 Currently ignored.
-.Ss \&lhang
+.It Ic \&lhang Ar font char ... afmunits
 Hang characters at left margin.
 This is a Heirloom extension and currently ignored.
-.Ss \&linetabs
+.It Ic \&linetabs Op Cm 1 | 0
 Enable or disable line-tabs mode.
 This is a groff extension and currently unsupported.
-.Ss \&ll
+.It Ic \&ll Op Oo Cm + Ns | Ns Cm - Oc Ns Ar width
 Change the output line length.
-Its syntax is as follows:
-.Pp
-.D1 Pf . Cm \&ll Op Oo +|- Oc Ns Ar width
-.Pp
 If the
 .Ar width
 argument is omitted, the line length is reset to its previous value.
@@ -1281,77 +1283,75 @@ among others because it overrides the
 .Xr mandoc 1
 .Fl O Cm width
 command line option.
-.Ss \&lnr
+.It Ic \&lnr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar value Op Ar increment
 Set local number register.
 This is a Heirloom extension and currently unsupported.
-.Ss \&lnrf
+.It Ic \&lnrf Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar value Op Ar increment
 Set local floating-point register.
 This is a Heirloom extension and currently unsupported.
-.Ss \&lpfx
+.It Ic \&lpfx Ar string
 Set a line prefix.
 This is a Heirloom extension and currently unsupported.
-.Ss \&ls
+.It Ic \&ls Op Ar factor
 Set line spacing.
 It takes one integer argument specifying the vertical distance of
 subsequent output text lines measured in v units.
 Currently ignored.
-.Ss \&lsm
+.It Ic \&lsm Ar macroname
 Set a leading spaces trap.
 This is a groff extension and currently unsupported.
-.Ss \&lt
+.It Ic \&lt Op Oo Cm + Ns | Ns Cm - Oc Ns Ar width
 Set title line length.
 Currently ignored.
-.Ss \&mc
+.It Ic \&mc Ar glyph Op Ar dist
 Print margin character in the right margin.
-Currently ignored.
-.Ss \&mediasize
+The
+.Ar dist
+is currently ignored; instead, 1n is used.
+.It Ic \&mediasize Ar media
 Set the device media size.
 This is a Heirloom extension and currently ignored.
-.Ss \&minss
+.It Ic \&minss Ar width
 Set minimum word space.
 This is a Heirloom extension and currently ignored.
-.Ss \&mk
+.It Ic \&mk Op Ar register
 Mark vertical position.
 Currently ignored.
-.Ss \&mso
-Load a macro file.
+.It Ic \&mso Ar filename
+Load a macro file using the search path.
 Ignored because insecure.
-.Ss \&na
+.It Ic \&na
 Disable adjusting without changing the adjustment mode.
 Currently ignored.
-.Ss \&ne
+.It Ic \&ne Op Ar height
 Declare the need for the specified minimum vertical space
 before the next trap or the bottom of the page.
 Currently ignored.
-.Ss \&nf
+.It Ic \&nf
 Switch to no-fill mode.
 See
 .Xr man 7 .
 Ignored by
 .Xr mdoc 7 .
-.Ss \&nh
+.It Ic \&nh
 Turn off automatic hyphenation mode.
 Currently ignored.
-.Ss \&nhychar
+.It Ic \&nhychar Ar char ...
 Define hyphenation-inhibiting characters.
 This is a Heirloom extension and currently ignored.
-.Ss \&nm
+.It Ic \&nm Op Ar start Op Ar inc Op Ar space Op Ar indent
 Print line numbers.
 Currently unsupported.
-.Ss \&nn
+.It Ic \&nn Op Ar number
 Temporarily turn off line numbering.
 Currently unsupported.
-.Ss \&nop
+.It Ic \&nop Ar body
 Execute the rest of the input line as a request or macro line.
 Currently unsupported.
-.Ss \&nr
+.It Ic \&nr Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression
 Define or change a register.
 A register is an arbitrary string value that defines some sort of state,
 which influences parsing and/or formatting.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Cm \&nr Ar name Oo +|- Oc Ns Ar expression
-.Pp
 For the syntax of
 .Ar expression ,
 see
@@ -1360,8 +1360,8 @@ below.
 If it is prefixed by a sign, the register will be
 incremented or decremented instead of assigned to.
 .Pp
-The following register
-.Ar name
+The following
+.Ar register
 is handled specially:
 .Bl -tag -width Ds
 .It Cm nS
@@ -1378,155 +1378,165 @@ section itself.
 Note that starting a new
 .Xr mdoc 7
 section with the
-.Cm \&Sh
+.Ic \&Sh
 macro will reset this register.
 .El
-.Ss \&nrf
+.It Xo
+.Ic \&nrf Ar register Oo Cm + Ns | Ns Cm - Oc Ns Ar expression
+.Op Ar increment
+.Xc
 Define or change a floating-point register.
 This is a Heirloom extension and currently unsupported.
-.Ss \&nroff
+.It Ic \&nroff
 Force nroff mode.
 This is a groff extension and currently ignored.
-.Ss \&ns
+.It Ic \&ns
 Turn on no-space mode.
 Currently ignored.
-.Ss \&nx
+.It Ic \&nx Op Ar filename
 Abort processing of the current input file and process another one.
 Ignored because insecure.
-.Ss \&open
+.It Ic \&open Ar stream file
 Open a file for writing.
 Ignored because insecure.
-.Ss \&opena
+.It Ic \&opena Ar stream file
 Open a file for appending.
 Ignored because insecure.
-.Ss \&os
+.It Ic \&os
 Output saved vertical space.
 Currently ignored.
-.Ss \&output
+.It Ic \&output Ar string
 Output directly to intermediate output.
 Not supported.
-.Ss \&padj
+.It Ic \&padj Op Cm 1 | 0
 Globally control paragraph-at-once adjustment.
 This is a Heirloom extension and currently ignored.
-.Ss \&papersize
+.It Ic \&papersize Ar media
 Set the paper size.
 This is a Heirloom extension and currently ignored.
-.Ss \&pc
+.It Ic \&pc Op Ar char
 Change the page number character.
 Currently ignored.
-.Ss \&pev
+.It Ic \&pev
 Print environments.
 This is a groff extension and currently ignored.
-.Ss \&pi
+.It Ic \&pi Ar command
 Pipe output to a shell command.
 Ignored because insecure.
-.Ss \&PI
+.It Ic \&PI
 Low-level request used by
-.Sx \&BP .
+.Ic \&BP .
 This is a Heirloom extension and currently unsupported.
-.Ss \&pl
+.It Ic \&pl Op Oo Cm + Ns | Ns Cm - Oc Ns Ar height
 Change page length.
-Takes one height argument.
 Currently ignored.
-.Ss \&pm
-Print names and sizes of macros, strings, and diversions.
+.It Ic \&pm
+Print names and sizes of macros, strings, and diversions
+to standard error output.
 Currently ignored.
-.Ss \&pn
-Change page number of the next page.
+.It Ic \&pn Oo Cm + Ns | Ns Cm - Oc Ns Ar number
+Change the page number of the next page.
 Currently ignored.
-.Ss \&pnr
-Print all number registers.
+.It Ic \&pnr
+Print all number registers on standard error output.
 Currently ignored.
-.Ss \&po
-Set horizontal page offset.
-Currently ignored.
-.Ss \&ps
+.It Ic \&po Op Oo Cm + Ns | Ns Cm - Oc Ns Ar offset
+Set a horizontal page offset.
+If no argument is specified, the page offset is reverted to its
+previous value.
+If a sign is specified, the new page offset is calculated relative
+to the current one; otherwise, it is absolute.
+The argument follows the syntax of
+.Sx Scaling Widths
+and the default scaling unit is
+.Cm m .
+.It Ic \&ps Op Oo Cm + Ns | Ns Cm - Oc Ns size
 Change point size.
-Takes one numerical argument.
 Currently ignored.
-.Ss \&psbb
+.It Ic \&psbb Ar filename
 Retrieve the bounding box of a PostScript file.
 Currently unsupported.
-.Ss \&pshape
+.It Ic \&pshape Ar indent length ...
 Set a special shape for the current paragraph.
 This is a Heirloom extension and currently unsupported.
-.Ss \&pso
+.It Ic \&pso Ar command
 Include output of a shell command.
 Ignored because insecure.
-.Ss \&ptr
-Print the names and positions of all traps.
+.It Ic \&ptr
+Print the names and positions of all traps on standard error output.
 This is a groff extension and currently ignored.
-.Ss \&pvs
+.It Ic \&pvs Op Oo Cm + Ns | Ns Cm - Oc Ns Ar height
 Change post-vertical spacing.
 This is a groff extension and currently ignored.
-.Ss \&rchar
+.It Ic \&rchar Ar glyph ...
 Remove glyph definitions.
 Currently unsupported.
-.Ss \&rd
+.It Ic \&rd Op Ar prompt Op Ar agument ...
 Read from standard input.
 Currently ignored.
-.Ss \&recursionlimit
+.It Ic \&recursionlimit Ar maxrec maxtail
 Set the maximum stack depth for recursive macros.
 This is a Heirloom extension and currently ignored.
-.Ss \&return
+.It Ic \&return Op Ar twice
 Exit a macro and return to the caller.
 Currently unsupported.
-.Ss \&rfschar
+.It Ic \&rfschar Ar font glyph ...
 Remove font-specific fallback glyph definitions.
 Currently unsupported.
-.Ss \&rhang
+.It Ic \&rhang Ar font char ... afmunits
 Hang characters at right margin.
 This is a Heirloom extension and currently ignored.
-.Ss \&rj
-Justify unfilled text to the right margin.
-Currently ignored.
-.Ss \&rm
+.It Ic \&rj Op Ar N
+Justify the next
+.Ar N
+input lines to the right margin without filling.
+.Ar N
+defaults to 1.
+An argument of 0 or less ends right adjustment.
+.It Ic \&rm Ar macroname
 Remove a request, macro or string.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Cm \&rm Ar name
-.Ss \&rn
+.It Ic \&rn Ar oldname newname
 Rename a request, macro, diversion, or string.
-Currently unsupported.
-.Ss \&rnn
+In
+.Xr mandoc 1 ,
+user-defined macros,
+.Xr mdoc 7
+and
+.Xr man 7
+macros, and user-defined strings can be renamed, but renaming of
+predefined strings and of
+.Nm
+requests is not supported, and diversions are not implemented at all.
+.It Ic \&rnn Ar oldname newname
 Rename a number register.
 Currently unsupported.
-.Ss \&rr
+.It Ic \&rr Ar register
 Remove a register.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Cm \&rr Ar name
-.Ss \&rs
+.It Ic \&rs
 End no-space mode.
 Currently ignored.
-.Ss \&rt
+.It Ic \&rt Op Ar dist
 Return to marked vertical position.
 Currently ignored.
-.Ss \&schar
+.It Ic \&schar Ar glyph Op Ar string
 Define global fallback glyph.
 This is a groff extension and currently unsupported.
-.Ss \&sentchar
+.It Ic \&sentchar Ar char ...
 Define sentence-ending characters.
 This is a Heirloom extension and currently ignored.
-.Ss \&shc
+.It Ic \&shc Op Ar glyph
 Change the soft hyphen character.
 Currently ignored.
-.Ss \&shift
+.It Ic \&shift Op Ar number
 Shift macro arguments.
 Currently unsupported.
-.Ss \&sizes
+.It Ic \&sizes Ar size ...
 Define permissible point sizes.
 This is a groff extension and currently ignored.
-.Ss \&so
+.It Ic \&so Ar filename
 Include a source file.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Cm \&so Ar file
-.Pp
-The
-.Ar file
-will be read and its contents processed as input in place of the
-.Sq \&.so
+The file is read and its contents processed as input in place of the
+.Ic \&so
 request line.
 To avoid inadvertent inclusion of unrelated files,
 .Xr mandoc 1
@@ -1545,168 +1555,184 @@ Typical usage looks like:
 .Dl \&.so man3/Xcursor.3
 .Pp
 As the whole concept is rather fragile, the use of
-.Sx \&so
+.Ic \&so
 is discouraged.
 Use
 .Xr ln 1
 instead.
-.Ss \&spacewidth
+.It Ic \&sp Op Ar height
+Break the output line and emit vertical space.
+The argument follows the syntax of
+.Sx Scaling Widths
+and defaults to one blank line
+.Pq Li 1v .
+.It Ic \&spacewidth Op Cm 1 | 0
 Set the space width from the font metrics file.
 This is a Heirloom extension and currently ignored.
-.Ss \&special
+.It Ic \&special Op Ar font ...
 Define a special font.
 This is a groff extension and currently ignored.
-.Ss \&spreadwarn
+.It Ic \&spreadwarn Op Ar width
 Warn about wide spacing between words.
 Currently ignored.
-.Ss \&ss
+.It Ic \&ss Ar wordspace Op Ar sentencespace
 Set space character size.
 Currently ignored.
-.Ss \&sty
+.It Ic \&sty Ar position style
 Associate style with a font position.
 This is a groff extension and currently ignored.
-.Ss \&substring
+.It Ic \&substring Ar stringname startpos Op Ar endpos
 Replace a user-defined string with a substring.
 Currently unsupported.
-.Ss \&sv
+.It Ic \&sv Op Ar height
 Save vertical space.
 Currently ignored.
-.Ss \&sy
+.It Ic \&sy Ar command
 Execute shell command.
 Ignored because insecure.
-.Ss \&T&
+.It Ic \&T&
 Re-start a table layout, retaining the options of the prior table
 invocation.
 See
 .Sx \&TS .
-.Ss \&ta
+.It Ic \&ta Op Ar width ... Op Cm T Ar width ...
 Set tab stops.
-Takes an arbitrary number of arguments.
-Currently unsupported.
-.Ss \&tc
+Each
+.Ar width
+argument follows the syntax of
+.Sx Scaling Widths .
+If prefixed by a plus sign, it is relative to the previous tab stop.
+The arguments after the
+.Cm T
+marker are used repeatedly as often as needed; for each reuse,
+they are taken relative to the last previously established tab stop.
+When
+.Ic \&ta
+is called without arguments, all tab stops are cleared.
+.It Ic \&tc Op Ar glyph
 Change tab repetition character.
 Currently unsupported.
-.Ss \&TE
+.It Ic \&TE
 End a table context.
 See
 .Sx \&TS .
-.Ss \&ti
-Temporary indent.
-Currently unsupported.
-.Ss \&tkf
+.It Ic \&ti Oo Cm + Ns | Ns Cm - Oc Ns Ar width
+Break the output line and indent the next output line by
+.Ar width .
+If a sign is specified, the temporary indentation is calculated
+relative to the current indentation; otherwise, it is absolute.
+The argument follows the syntax of
+.Sx Scaling Widths
+and the default scaling unit is
+.Cm m .
+.It Ic \&tkf Ar font minps width1 maxps width2
 Enable track kerning for a font.
 Currently ignored.
-.Ss \&tl
+.It Ic \&tl No \& Ap Ar left Ap Ar center Ap Ar right Ap
 Print a title line.
 Currently unsupported.
-.Ss \&tm
+.It Ic \&tm Ar string
 Print to standard error output.
 Currently ignored.
-.Ss \&tm1
+.It Ic \&tm1 Ar string
 Print to standard error output, allowing leading blanks.
 This is a groff extension and currently ignored.
-.Ss \&tmc
+.It Ic \&tmc Ar string
 Print to standard error output without a trailing newline.
 This is a groff extension and currently ignored.
-.Ss \&tr
+.It Ic \&tr Ar glyph glyph ...
 Output character translation.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Cm \&tr Ar [ab]+
-.Pp
-Pairs of
-.Ar ab
-characters are replaced
-.Ar ( a
-for
-.Ar b ) .
-Replacement (or origin) characters may also be character escapes; thus,
+The first glyph in each pair is replaced by the second one.
+Character escapes can be used; for example,
 .Pp
 .Dl tr \e(xx\e(yy
 .Pp
 replaces all invocations of \e(xx with \e(yy.
-.Ss \&track
+.It Ic \&track Ar font minps width1 maxps width2
 Static letter space tracking.
 This is a Heirloom extension and currently ignored.
-.Ss \&transchar
+.It Ic \&transchar Ar char ...
 Define transparent characters for sentence-ending.
 This is a Heirloom extension and currently ignored.
-.Ss \&trf
+.It Ic \&trf Ar filename
 Output the contents of a file, disallowing invalid characters.
 This is a groff extension and ignored because insecure.
-.Ss \&trimat
+.It Ic \&trimat Ar left top width height
 Set the TrimBox page parameter for PDF generation.
 This is a Heirloom extension and currently ignored.
-.Ss \&trin
+.It Ic \&trin Ar glyph glyph ...
 Output character translation, ignored by
-.Cm \&asciify .
+.Ic \&asciify .
 Currently unsupported.
-.Ss \&trnt
+.It Ic \&trnt Ar glyph glyph ...
 Output character translation, ignored by \e!.
 Currently unsupported.
-.Ss \&troff
+.It Ic \&troff
 Force troff mode.
 This is a groff extension and currently ignored.
-.Ss \&TS
+.It Ic \&TS
 Begin a table, which formats input in aligned rows and columns.
 See
 .Xr tbl 7
 for a description of the tbl language.
-.Ss \&uf
+.It Ic \&uf Ar font
 Globally set the underline font.
 Currently ignored.
-.Ss \&ul
-Underline.
+.It Ic \&ul Op Ar N
+Underline next
+.Ar N
+input lines.
 Currently ignored.
-.Ss \&unformat
+.It Ic \&unformat Ar divname
 Unformat spaces and tabs in a diversion.
 Currently unsupported.
-.Ss \&unwatch
+.It Ic \&unwatch Ar macroname
 Disable notification for string or macro.
 This is a Heirloom extension and currently ignored.
-.Ss \&unwatchn
+.It Ic \&unwatchn Ar register
 Disable notification for register.
 This is a Heirloom extension and currently ignored.
-.Ss \&vpt
+.It Ic \&vpt Op Cm 1 | 0
 Enable or disable vertical position traps.
 This is a groff extension and currently ignored.
-.Ss \&vs
+.It Ic \&vs Op Oo Cm + Ns | Ns Cm - Oc Ns Ar height
 Change vertical spacing.
 Currently ignored.
-.Ss \&warn
+.It Ic \&warn Ar flags
 Set warning level.
 Currently ignored.
-.Ss \&warnscale
+.It Ic \&warnscale Ar si
 Set the scaling indicator used in warnings.
 This is a groff extension and currently ignored.
-.Ss \&watch
+.It Ic \&watch Ar macroname
 Notify on change of string or macro.
 This is a Heirloom extension and currently ignored.
-.Ss \&watchlength
+.It Ic \&watchlength Ar maxlength
 On change, report the contents of macros and strings
 up to the specified length.
 This is a Heirloom extension and currently ignored.
-.Ss \&watchn
+.It Ic \&watchn Ar register
 Notify on change of register.
 This is a Heirloom extension and currently ignored.
-.Ss \&wh
+.It Ic \&wh Ar dist Op Ar macroname
 Set a page location trap.
 Currently unsupported.
-.Ss \&while
+.It Ic \&while Ar condition body
 Repeated execution while a condition is true.
 Currently unsupported.
-.Ss \&write
+.It Ic \&write Oo \(dq Oc Ns Ar string
 Write to an open file.
 Ignored because insecure.
-.Ss \&writec
+.It Ic \&writec Oo \(dq Oc Ns Ar string
 Write to an open file without appending a newline.
 Ignored because insecure.
-.Ss \&writem
+.It Ic \&writem Ar macroname
 Write macro or string to an open file.
 Ignored because insecure.
-.Ss \&xflag
+.It Ic \&xflag Ar level
 Set the extension level.
 This is a Heirloom extension and currently ignored.
+.El
 .Ss Numerical expressions
 The
 .Sx \&nr ,
@@ -1772,7 +1798,7 @@ logical and (corresponds to C
 .Ic && )
 .It Ic \&:
 logical or (corresponds to C
-.Ic \&|| )
+.Ic || )
 .It Ic <?
 minimum (not available in C)
 .It Ic >?
@@ -1780,7 +1806,7 @@ maximum (not available in C)
 .El
 .Pp
 There is no concept of precedence; evaluation proceeds from left to right,
-except when subexpressions are enclosed in parantheses.
+except when subexpressions are enclosed in parentheses.
 Inside parentheses, whitespace is ignored.
 .Sh ESCAPE SEQUENCE REFERENCE
 The
@@ -1828,7 +1854,7 @@ instead.
 .Sx Special Characters
 with two-letter names, see
 .Xr mandoc_char 7 .
-.Ss \e*[ Ns Ar name ]
+.Ss \e* Ns Bq Ar name
 Interpolate the string with the
 .Ar name ;
 see
@@ -1848,7 +1874,7 @@ Special character
 .Ss \e/
 Right italic correction (groff extension); ignored by
 .Xr mandoc 1 .
-.Ss \e[ Ns Ar name ]
+.Ss \e Ns Bq Ar name
 .Sx Special Characters
 with names of arbitrary length, see
 .Xr mandoc_char 7 .
@@ -1904,14 +1930,14 @@ Move down by half a line; ignored by
 .Xr mandoc 1 .
 .Ss \ee
 Backslash special character.
-.Ss \eF[ Ns Ar name ]
+.Ss \eF Ns Bq Ar name
 Switch font family (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
 .No \eF Ns Ar c
 and
 .No \eF( Ns Ar cc .
-.Ss \ef[ Ns Ar name ]
+.Ss \ef Ns Bq Ar name
 Switch to the font
 .Ar name ,
 see
@@ -1920,7 +1946,7 @@ For short names, there are variants
 .No \ef Ns Ar c
 and
 .No \ef( Ns Ar cc .
-.Ss \eg[ Ns Ar name ]
+.Ss \eg Ns Bq Ar name
 Interpolate the format of a number register; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1930,10 +1956,14 @@ and
 .Ss \eH\(aq Ns Oo +|- Oc Ns Ar number Ns \(aq
 Set the height of the current font; ignored by
 .Xr mandoc 1 .
-.Ss \eh\(aq Ns Ar number Ns \(aq
-Horizontal motion; ignored by
-.Xr mandoc 1 .
-.Ss \ek[ Ns Ar name ]
+.Ss \eh\(aq Ns Oo Cm \&| Oc Ns Ar width Ns \(aq
+Horizontal motion.
+If the vertical bar is given, the motion is relative to the current
+indentation.
+Otherwise, it is relative to the current position.
+The default scaling unit is
+.Cm m .
+.Ss \ek Ns Bq Ar name
 Mark horizontal input place in register; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1943,17 +1973,19 @@ and
 .Ss \eL\(aq Ns Ar number Ns Oo Ar c Oc Ns \(aq
 Vertical line drawing function; ignored by
 .Xr mandoc 1 .
-.Ss \el\(aq Ns Ar number Ns Oo Ar c Oc Ns \(aq
-Horizontal line drawing function; ignored by
-.Xr mandoc 1 .
-.Ss \eM[ Ns Ar name ]
+.Ss \el\(aq Ns Ar width Ns Oo Ar c Oc Ns \(aq
+Draw a horizontal line of
+.Ar width
+using the glyph
+.Ar c .
+.Ss \eM Ns Bq Ar name
 Set fill (background) color (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
 .No \eM Ns Ar c
 and
 .No \eM( Ns Ar cc .
-.Ss \em[ Ns Ar name ]
+.Ss \em Ns Bq Ar name
 Set glyph drawing color (groff extension); ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -1964,7 +1996,7 @@ and
 Character
 .Ar number
 on the current font.
-.Ss \en[ Ns Ar name ]
+.Ss \en Ns Bq Ar name
 Interpolate the number register
 .Ar name .
 For short names, there are variants
@@ -1977,6 +2009,8 @@ Overstrike, writing all the characters contained in the
 to the same output position.
 In terminal and HTML output modes,
 only the last one of the characters is visible.
+.Ss \ep
+Break the output line at the end of the current word.
 .Ss \eR\(aq Ns Ar name Oo +|- Oc Ns Ar number Ns \(aq
 Set number register; ignored by
 .Xr mandoc 1 .
@@ -1989,9 +2023,9 @@ Change point size; ignored by
 Alternative forms
 .No \es Ns Oo +|- Oc Ns Ar n ,
 .No \es Ns Oo +|- Oc Ns \(aq Ns Ar number Ns \(aq ,
-.No \es Ns [ Oo +|- Oc Ns Ar number ] ,
+.No \es Ns Bq Oo +|- Oc Ns Ar number ,
 and
-.No \es Ns Oo +|- Oc Ns [ Ar number Ns ]
+.No \es Ns Oo +|- Oc Ns Bq Ar number
 are also parsed and ignored.
 .Ss \et
 Horizontal tab; ignored by
@@ -1999,7 +2033,7 @@ Horizontal tab; ignored by
 .Ss \eu
 Move up by half a line; ignored by
 .Xr mandoc 1 .
-.Ss \eV[ Ns Ar name ]
+.Ss \eV Ns Bq Ar name
 Interpolate an environment variable; ignored by
 .Xr mandoc 1 .
 For short names, there are variants
@@ -2026,7 +2060,7 @@ as device control function; ignored in nroff mode and by
 .Ss \ex\(aq Ns Ar number Ns \(aq
 Extra line space function; ignored by
 .Xr mandoc 1 .
-.Ss \eY[ Ns Ar name ]
+.Ss \eY Ns Bq Ar name
 Output a string as a device control function; ignored in nroff mode and by
 .Xr mandoc 1 .
 For short names, there are variants

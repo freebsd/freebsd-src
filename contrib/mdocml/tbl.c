@@ -1,4 +1,4 @@
-/*	$Id: tbl.c,v 1.40 2015/10/06 18:32:20 schwarze Exp $ */
+/*	$Id: tbl.c,v 1.42 2017/07/08 17:52:50 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -31,7 +31,7 @@
 #include "libroff.h"
 
 
-enum rofferr
+void
 tbl_read(struct tbl_node *tbl, int ln, const char *p, int pos)
 {
 	const char	*cp;
@@ -66,7 +66,7 @@ tbl_read(struct tbl_node *tbl, int ln, const char *p, int pos)
 		if (*cp == ';') {
 			tbl_option(tbl, ln, p, &pos);
 			if (p[pos] == '\0')
-				return ROFF_IGN;
+				return;
 		}
 	}
 
@@ -75,15 +75,14 @@ tbl_read(struct tbl_node *tbl, int ln, const char *p, int pos)
 	switch (tbl->part) {
 	case TBL_PART_LAYOUT:
 		tbl_layout(tbl, ln, p, pos);
-		return ROFF_IGN;
+		break;
 	case TBL_PART_CDATA:
-		return tbl_cdata(tbl, ln, p, pos) ? ROFF_TBL : ROFF_IGN;
+		tbl_cdata(tbl, ln, p, pos);
+		break;
 	default:
+		tbl_data(tbl, ln, p, pos);
 		break;
 	}
-
-	tbl_data(tbl, ln, p, pos);
-	return ROFF_TBL;
 }
 
 struct tbl_node *
@@ -114,6 +113,7 @@ tbl_free(struct tbl_node *tbl)
 		while (rp->first != NULL) {
 			cp = rp->first;
 			rp->first = cp->next;
+			free(cp->wstr);
 			free(cp);
 		}
 		free(rp);
@@ -159,13 +159,9 @@ tbl_span(struct tbl_node *tbl)
 }
 
 int
-tbl_end(struct tbl_node **tblp)
+tbl_end(struct tbl_node *tbl)
 {
-	struct tbl_node	*tbl;
 	struct tbl_span *sp;
-
-	tbl = *tblp;
-	*tblp = NULL;
 
 	if (tbl->part == TBL_PART_CDATA)
 		mandoc_msg(MANDOCERR_TBLDATA_BLK, tbl->parse,

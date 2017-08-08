@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.493 2016/11/19 15:24:51 schwarze Exp $
+# $Id: Makefile,v 1.516 2017/07/20 16:24:53 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-# Copyright (c) 2011, 2013-2016 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,12 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.14.0
+VERSION = 1.14.2
 
 # === LIST OF FILES ====================================================
 
 TESTSRCS	 = test-be32toh.c \
+		   test-cmsg.c \
 		   test-dirent-namlen.c \
 		   test-EFTYPE.c \
 		   test-err.c \
@@ -30,11 +31,14 @@ TESTSRCS	 = test-be32toh.c \
 		   test-mkdtemp.c \
 		   test-nanosleep.c \
 		   test-ntohl.c \
+		   test-O_DIRECTORY.c \
 		   test-ohash.c \
 		   test-PATH_MAX.c \
 		   test-pledge.c \
 		   test-progname.c \
+		   test-recvmsg.c \
 		   test-reallocarray.c \
+		   test-recallocarray.c \
 		   test-rewb-bsd.c \
 		   test-rewb-sysv.c \
 		   test-sandbox_init.c \
@@ -49,6 +53,7 @@ TESTSRCS	 = test-be32toh.c \
 		   test-wchar.c
 
 SRCS		 = att.c \
+		   catman.c \
 		   cgi.c \
 		   chars.c \
 		   compat_err.c \
@@ -60,6 +65,7 @@ SRCS		 = att.c \
 		   compat_ohash.c \
 		   compat_progname.c \
 		   compat_reallocarray.c \
+		   compat_recallocarray.c \
 		   compat_strcasestr.c \
 		   compat_stringlist.c \
 		   compat_strlcat.c \
@@ -81,7 +87,6 @@ SRCS		 = att.c \
 		   lib.c \
 		   main.c \
 		   man.c \
-		   man_hash.c \
 		   man_html.c \
 		   man_macro.c \
 		   man_term.c \
@@ -89,16 +94,17 @@ SRCS		 = att.c \
 		   mandoc.c \
 		   mandoc_aux.c \
 		   mandoc_ohash.c \
+		   mandoc_xr.c \
+		   mandocd.c \
 		   mandocdb.c \
-		   manpage.c \
 		   manpath.c \
 		   mansearch.c \
 		   mdoc.c \
 		   mdoc_argv.c \
-		   mdoc_hash.c \
 		   mdoc_html.c \
 		   mdoc_macro.c \
 		   mdoc_man.c \
+		   mdoc_markdown.c \
 		   mdoc_state.c \
 		   mdoc_term.c \
 		   mdoc_validate.c \
@@ -107,6 +113,9 @@ SRCS		 = att.c \
 		   preconv.c \
 		   read.c \
 		   roff.c \
+		   roff_html.c \
+		   roff_term.c \
+		   roff_validate.c \
 		   soelim.c \
 		   st.c \
 		   tag.c \
@@ -119,6 +128,7 @@ SRCS		 = att.c \
 		   term.c \
 		   term_ascii.c \
 		   term_ps.c \
+		   term_tab.c \
 		   tree.c
 
 DISTFILES	 = INSTALL \
@@ -128,6 +138,7 @@ DISTFILES	 = INSTALL \
 		   NEWS \
 		   TODO \
 		   apropos.1 \
+		   catman.8 \
 		   cgi.h.example \
 		   compat_fts.h \
 		   compat_ohash.h \
@@ -156,6 +167,7 @@ DISTFILES	 = INSTALL \
 		   man.cgi.8 \
 		   man.conf.5 \
 		   man.h \
+		   man.options.1 \
 		   manconf.h \
 		   mandoc.1 \
 		   mandoc.3 \
@@ -169,6 +181,8 @@ DISTFILES	 = INSTALL \
 		   mandoc_html.3 \
 		   mandoc_malloc.3 \
 		   mandoc_ohash.h \
+		   mandoc_xr.h \
+		   mandocd.8 \
 		   mansearch.3 \
 		   mansearch.h \
 		   mchars_alloc.3 \
@@ -190,7 +204,6 @@ DISTFILES	 = INSTALL \
 		   $(TESTSRCS)
 
 LIBMAN_OBJS	 = man.o \
-		   man_hash.o \
 		   man_macro.o \
 		   man_validate.o
 
@@ -198,7 +211,6 @@ LIBMDOC_OBJS	 = att.o \
 		   lib.o \
 		   mdoc.o \
 		   mdoc_argv.o \
-		   mdoc_hash.o \
 		   mdoc_macro.o \
 		   mdoc_state.o \
 		   mdoc_validate.o \
@@ -206,6 +218,7 @@ LIBMDOC_OBJS	 = att.o \
 
 LIBROFF_OBJS	 = eqn.o \
 		   roff.o \
+		   roff_validate.o \
 		   tbl.o \
 		   tbl_data.o \
 		   tbl_layout.o \
@@ -218,6 +231,7 @@ LIBMANDOC_OBJS	 = $(LIBMAN_OBJS) \
 		   mandoc.o \
 		   mandoc_aux.o \
 		   mandoc_ohash.o \
+		   mandoc_xr.o \
 		   msec.o \
 		   preconv.o \
 		   read.o
@@ -231,6 +245,7 @@ COMPAT_OBJS	 = compat_err.o \
 		   compat_ohash.o \
 		   compat_progname.o \
 		   compat_reallocarray.o \
+		   compat_recallocarray.o \
 		   compat_strcasestr.o \
 		   compat_strlcat.o \
 		   compat_strlcpy.o \
@@ -242,16 +257,17 @@ MANDOC_HTML_OBJS = eqn_html.o \
 		   html.o \
 		   man_html.o \
 		   mdoc_html.o \
+		   roff_html.o \
 		   tbl_html.o
-
-MANDOC_MAN_OBJS  = mdoc_man.o
 
 MANDOC_TERM_OBJS = eqn_term.o \
 		   man_term.o \
 		   mdoc_term.o \
+		   roff_term.o \
 		   term.o \
 		   term_ascii.o \
 		   term_ps.o \
+		   term_tab.o \
 		   tbl_term.o
 
 DBM_OBJS	 = dbm.o \
@@ -271,6 +287,8 @@ MAIN_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(DBA_OBJS) \
 		   main.o \
 		   manpath.o \
+		   mdoc_man.o \
+		   mdoc_markdown.o \
 		   out.o \
 		   tag.o \
 		   tree.o
@@ -280,9 +298,11 @@ CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   cgi.o \
 		   out.o
 
-MANPAGE_OBJS	 = $(DBM_OBJS) \
-		   manpage.o \
-		   manpath.o
+MANDOCD_OBJS	 = $(MANDOC_HTML_OBJS) \
+		   $(MANDOC_TERM_OBJS) \
+		   mandocd.o \
+		   out.o \
+		   tag.o
 
 DEMANDOC_OBJS	 = demandoc.o
 
@@ -298,6 +318,7 @@ WWW_MANS	 = apropos.1.html \
 		   man.1.html \
 		   mandoc.1.html \
 		   soelim.1.html \
+		   man.cgi.3.html \
 		   mandoc.3.html \
 		   mandoc_escape.3.html \
 		   mandoc_headers.3.html \
@@ -311,11 +332,12 @@ WWW_MANS	 = apropos.1.html \
 		   eqn.7.html \
 		   man.7.html \
 		   mandoc_char.7.html \
+		   mandocd.8.html \
 		   mdoc.7.html \
 		   roff.7.html \
 		   tbl.7.html \
+		   catman.8.html \
 		   makewhatis.8.html \
-		   man.cgi.3.html \
 		   man.cgi.8.html \
 		   man.h.html \
 		   manconf.h.html \
@@ -325,24 +347,17 @@ WWW_MANS	 = apropos.1.html \
 		   mdoc.h.html \
 		   roff.h.html
 
-WWW_OBJS	 = mdocml.tar.gz \
-		   mdocml.sha256
-
 # === USER CONFIGURATION ===============================================
 
 include Makefile.local
 
 # === DEPENDENCY HANDLING ==============================================
 
-all: base-build $(BUILD_TARGETS) Makefile.local
-
-base-build: mandoc demandoc soelim
-
-cgi-build: man.cgi
+all: mandoc demandoc soelim $(BUILD_TARGETS) Makefile.local
 
 install: base-install $(INSTALL_TARGETS)
 
-www: $(WWW_OBJS) $(WWW_MANS)
+www: $(WWW_MANS)
 
 $(WWW_MANS): mandoc
 
@@ -360,13 +375,13 @@ clean:
 	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(COMPAT_OBJS)
 	rm -f mandoc $(MAIN_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
-	rm -f manpage $(MANPAGE_OBJS)
+	rm -f mandocd catman catman.o $(MANDOCD_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
 	rm -f soelim $(SOELIM_OBJS)
-	rm -f $(WWW_MANS) $(WWW_OBJS)
+	rm -f $(WWW_MANS) mandoc.tar.gz mandoc.sha256
 	rm -rf *.dSYM
 
-base-install: base-build
+base-install: mandoc demandoc soelim
 	mkdir -p $(DESTDIR)$(BINDIR)
 	mkdir -p $(DESTDIR)$(SBINDIR)
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
@@ -375,29 +390,28 @@ base-install: base-build
 	mkdir -p $(DESTDIR)$(MANDIR)/man8
 	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
 	$(INSTALL_PROGRAM) soelim $(DESTDIR)$(BINDIR)/$(BINM_SOELIM)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc \
-		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_MAN)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_APROPOS)
+	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_WHATIS)
+	cd $(DESTDIR)$(SBINDIR) && \
+		$(LN) ${BIN_FROM_SBIN}/mandoc $(BINM_MAKEWHATIS)
 	$(INSTALL_MAN) mandoc.1 demandoc.1 $(DESTDIR)$(MANDIR)/man1
 	$(INSTALL_MAN) soelim.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_SOELIM).1
 	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
 	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
-	ln -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
-		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
-	$(INSTALL_MAN) man.conf.5 $(DESTDIR)$(MANDIR)/man5/${MANM_MANCONF}.5
+	cd $(DESTDIR)$(MANDIR)/man1 && $(LN) $(BINM_APROPOS).1 $(BINM_WHATIS).1
+	$(INSTALL_MAN) man.conf.5 $(DESTDIR)$(MANDIR)/man5/$(MANM_MANCONF).5
 	$(INSTALL_MAN) mandoc.db.5 $(DESTDIR)$(MANDIR)/man5
-	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MAN}.7
-	$(INSTALL_MAN) mdoc.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MDOC}.7
-	$(INSTALL_MAN) roff.7 $(DESTDIR)$(MANDIR)/man7/${MANM_ROFF}.7
-	$(INSTALL_MAN) eqn.7 $(DESTDIR)$(MANDIR)/man7/${MANM_EQN}.7
-	$(INSTALL_MAN) tbl.7 $(DESTDIR)$(MANDIR)/man7/${MANM_TBL}.7
+	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_MAN).7
+	$(INSTALL_MAN) mdoc.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_MDOC).7
+	$(INSTALL_MAN) roff.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_ROFF).7
+	$(INSTALL_MAN) eqn.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_EQN).7
+	$(INSTALL_MAN) tbl.7 $(DESTDIR)$(MANDIR)/man7/$(MANM_TBL).7
 	$(INSTALL_MAN) mandoc_char.7 $(DESTDIR)$(MANDIR)/man7
 	$(INSTALL_MAN) makewhatis.8 \
 		$(DESTDIR)$(MANDIR)/man8/$(BINM_MAKEWHATIS).8
 
-lib-install: base-build
+lib-install: libmandoc.a
 	mkdir -p $(DESTDIR)$(LIBDIR)
 	mkdir -p $(DESTDIR)$(INCLUDEDIR)
 	mkdir -p $(DESTDIR)$(MANDIR)/man3
@@ -407,13 +421,70 @@ lib-install: base-build
 	$(INSTALL_MAN) mandoc.3 mandoc_escape.3 mandoc_malloc.3 \
 		mansearch.3 mchars_alloc.3 tbl.3 $(DESTDIR)$(MANDIR)/man3
 
-cgi-install: cgi-build
+cgi-install: man.cgi
 	mkdir -p $(DESTDIR)$(CGIBINDIR)
 	mkdir -p $(DESTDIR)$(HTDOCDIR)
 	$(INSTALL_PROGRAM) man.cgi $(DESTDIR)$(CGIBINDIR)
 	$(INSTALL_DATA) mandoc.css $(DESTDIR)$(HTDOCDIR)
 
-Makefile.local config.h: configure ${TESTSRCS}
+catman-install: mandocd catman
+	mkdir -p $(DESTDIR)$(SBINDIR)
+	mkdir -p $(DESTDIR)$(MANDIR)/man8
+	$(INSTALL_PROGRAM) mandocd $(DESTDIR)$(SBINDIR)
+	$(INSTALL_PROGRAM) catman $(DESTDIR)$(SBINDIR)/$(BINM_CATMAN)
+	$(INSTALL_MAN) mandocd.8 $(DESTDIR)$(MANDIR)/man8
+	$(INSTALL_MAN) catman.8 $(DESTDIR)$(MANDIR)/man8/$(BINM_CATMAN).8
+
+uninstall:
+	rm -f $(DESTDIR)$(BINDIR)/mandoc
+	rm -f $(DESTDIR)$(BINDIR)/demandoc
+	rm -f $(DESTDIR)$(BINDIR)/$(BINM_SOELIM)
+	rm -f $(DESTDIR)$(BINDIR)/$(BINM_MAN)
+	rm -f $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
+	rm -f $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
+	rm -f $(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
+	rm -f $(DESTDIR)$(MANDIR)/man1/mandoc.1
+	rm -f $(DESTDIR)$(MANDIR)/man1/demandoc.1
+	rm -f $(DESTDIR)$(MANDIR)/man1/$(BINM_SOELIM).1
+	rm -f $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
+	rm -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
+	rm -f $(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
+	rm -f $(DESTDIR)$(MANDIR)/man5/$(MANM_MANCONF).5
+	rm -f $(DESTDIR)$(MANDIR)/man5/mandoc.db.5
+	rm -f $(DESTDIR)$(MANDIR)/man7/$(MANM_MAN).7
+	rm -f $(DESTDIR)$(MANDIR)/man7/$(MANM_MDOC).7
+	rm -f $(DESTDIR)$(MANDIR)/man7/$(MANM_ROFF).7
+	rm -f $(DESTDIR)$(MANDIR)/man7/$(MANM_EQN).7
+	rm -f $(DESTDIR)$(MANDIR)/man7/$(MANM_TBL).7
+	rm -f $(DESTDIR)$(MANDIR)/man7/mandoc_char.7
+	rm -f $(DESTDIR)$(MANDIR)/man8/$(BINM_MAKEWHATIS).8
+	rm -f $(DESTDIR)$(CGIBINDIR)/man.cgi
+	rm -f $(DESTDIR)$(HTDOCDIR)/mandoc.css
+	rm -f $(DESTDIR)$(SBINDIR)/mandocd
+	rm -f $(DESTDIR)$(SBINDIR)/$(BINM_CATMAN)
+	rm -f $(DESTDIR)$(MANDIR)/man8/mandocd.8
+	rm -f $(DESTDIR)$(MANDIR)/man8/$(BINM_CATMAN).8
+	rm -f $(DESTDIR)$(LIBDIR)/libmandoc.a
+	rm -f $(DESTDIR)$(MANDIR)/man3/mandoc.3
+	rm -f $(DESTDIR)$(MANDIR)/man3/mandoc_escape.3
+	rm -f $(DESTDIR)$(MANDIR)/man3/mandoc_malloc.3
+	rm -f $(DESTDIR)$(MANDIR)/man3/mansearch.3
+	rm -f $(DESTDIR)$(MANDIR)/man3/mchars_alloc.3
+	rm -f $(DESTDIR)$(MANDIR)/man3/tbl.3
+	rm -f $(DESTDIR)$(INCLUDEDIR)/man.h
+	rm -f $(DESTDIR)$(INCLUDEDIR)/mandoc.h
+	rm -f $(DESTDIR)$(INCLUDEDIR)/mandoc_aux.h
+	rm -f $(DESTDIR)$(INCLUDEDIR)/mdoc.h
+	rm -f $(DESTDIR)$(INCLUDEDIR)/roff.h
+	[ ! -e $(DESTDIR)$(INCLUDEDIR) ] || rmdir $(DESTDIR)$(INCLUDEDIR)
+
+regress: all
+	cd regress && ./regress.pl
+
+regress-clean:
+	cd regress && ./regress.pl . clean
+
+Makefile.local config.h: configure $(TESTSRCS)
 	@echo "$@ is out of date; please run ./configure"
 	@exit 1
 
@@ -423,11 +494,14 @@ libmandoc.a: $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
 mandoc: $(MAIN_OBJS) libmandoc.a
 	$(CC) -o $@ $(LDFLAGS) $(MAIN_OBJS) libmandoc.a $(LDADD)
 
-manpage: $(MANPAGE_OBJS) libmandoc.a
-	$(CC) -o $@ $(LDFLAGS) $(MANPAGE_OBJS) libmandoc.a $(LDADD)
-
 man.cgi: $(CGI_OBJS) libmandoc.a
 	$(CC) $(STATIC) -o $@ $(LDFLAGS) $(CGI_OBJS) libmandoc.a $(LDADD)
+
+mandocd: $(MANDOCD_OBJS) libmandoc.a
+	$(CC) -o $@ $(LDFLAGS) $(MANDOCD_OBJS) libmandoc.a $(LDADD)
+
+catman: catman.o libmandoc.a
+	$(CC) -o $@ $(LDFLAGS) catman.o libmandoc.a $(LDADD)
 
 demandoc: $(DEMANDOC_OBJS) libmandoc.a
 	$(CC) -o $@ $(LDFLAGS) $(DEMANDOC_OBJS) libmandoc.a $(LDADD)
@@ -438,13 +512,7 @@ soelim: $(SOELIM_OBJS)
 # --- maintainer targets ---
 
 www-install: www
-	mkdir -p $(HTDOCDIR)/snapshots
 	$(INSTALL_DATA) $(WWW_MANS) mandoc.css $(HTDOCDIR)
-	$(INSTALL_DATA) $(WWW_OBJS) $(HTDOCDIR)/snapshots
-	$(INSTALL_DATA) mdocml.tar.gz \
-		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).tar.gz
-	$(INSTALL_DATA) mdocml.sha256 \
-		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).sha256
 
 depend: config.h
 	mkdep -f Makefile.depend $(CFLAGS) $(SRCS)
@@ -453,16 +521,43 @@ depend: config.h
 		Makefile.depend > Makefile.tmp
 	mv Makefile.tmp Makefile.depend
 
-dist: mdocml.sha256
+regress-distclean:
+	@find regress \
+		-name '.#*' -o \
+		-name '*.orig' -o \
+		-name '*.rej' -o \
+		-name '*.core' \
+		-exec rm -i {} \;
 
-mdocml.sha256: mdocml.tar.gz
-	sha256 mdocml.tar.gz > $@
+regress-distcheck:
+	@find regress ! -type d ! -type f
+	@find regress -type f \
+		! -path '*/CVS/*' \
+		! -name Makefile \
+		! -name Makefile.inc \
+		! -name '*.in' \
+		! -name '*.out_ascii' \
+		! -name '*.out_utf8' \
+		! -name '*.out_html' \
+		! -name '*.out_markdown' \
+		! -name '*.out_lint' \
+		! -path regress/regress.pl \
+		! -path regress/regress.pl.1
 
-mdocml.tar.gz: $(DISTFILES)
-	mkdir -p .dist/mdocml-$(VERSION)/
-	$(INSTALL) -m 0644 $(DISTFILES) .dist/mdocml-$(VERSION)
-	chmod 755 .dist/mdocml-$(VERSION)/configure
-	( cd .dist/ && tar zcf ../$@ mdocml-$(VERSION) )
+dist: mandoc.sha256
+
+mandoc.sha256: mandoc.tar.gz
+	sha256 mandoc.tar.gz > $@
+
+mandoc.tar.gz: $(DISTFILES)
+	ls regress/*/*/*.mandoc_* && exit 1 || true
+	mkdir -p .dist/mandoc-$(VERSION)/
+	$(INSTALL) -m 0644 $(DISTFILES) .dist/mandoc-$(VERSION)
+	cp -pR regress .dist/mandoc-$(VERSION)
+	find .dist/mandoc-$(VERSION)/regress \
+	    -type d -name CVS -print0 | xargs -0 rm -rf
+	chmod 755 .dist/mandoc-$(VERSION)/configure
+	( cd .dist/ && tar zcf ../$@ mandoc-$(VERSION) )
 	rm -rf .dist/
 
 # === SUFFIX RULES =====================================================

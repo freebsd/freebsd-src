@@ -1,6 +1,6 @@
-/*	$Id: manpath.c,v 1.31 2016/07/19 22:40:33 schwarze Exp $	*/
+/*	$Id: manpath.c,v 1.35 2017/07/01 09:47:30 schwarze Exp $ */
 /*
- * Copyright (c) 2011, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -89,6 +89,13 @@ manconf_parse(struct manconf *conf, const char *file,
 
 	/* MANPATH overrides man.conf(5) completely. */
 	manpath_parseline(&conf->manpath, defp, 0);
+}
+
+void
+manpath_base(struct manpaths *dirs)
+{
+	char path_base[] = MANPATH_BASE;
+	manpath_parseline(dirs, path_base, 0);
 }
 
 /*
@@ -207,7 +214,7 @@ manconf_file(struct manconf *conf, const char *file)
 			*manpath_default = '\0';
 			break;
 		case 1:  /* output */
-			manconf_output(&conf->output, cp);
+			manconf_output(&conf->output, cp, 1);
 			break;
 		default:
 			break;
@@ -221,15 +228,17 @@ out:
 		manpath_parseline(&conf->manpath, manpath_default, 0);
 }
 
-void
-manconf_output(struct manoutput *conf, const char *cp)
+int
+manconf_output(struct manoutput *conf, const char *cp, int fromfile)
 {
 	const char *const toks[] = {
 	    "includes", "man", "paper", "style",
-	    "indent", "width", "fragment", "mdoc"
+	    "indent", "width", "fragment", "mdoc", "noval"
 	};
 
-	size_t	 len, tok;
+	const char	*errstr;
+	char		*oldval;
+	size_t		 len, tok;
 
 	for (tok = 0; tok < sizeof(toks)/sizeof(toks[0]); tok++) {
 		len = strlen(toks[tok]);
@@ -244,41 +253,81 @@ manconf_output(struct manoutput *conf, const char *cp)
 		}
 	}
 
-	if (tok < 6 && *cp == '\0')
-		return;
+	if (tok < 6 && *cp == '\0') {
+		warnx("-O %s=?: Missing argument value", toks[tok]);
+		return -1;
+	}
+	if ((tok == 6 || tok == 7) && *cp != '\0') {
+		warnx("-O %s: Does not take a value: %s", toks[tok], cp);
+		return -1;
+	}
 
 	switch (tok) {
 	case 0:
-		if (conf->includes == NULL)
-			conf->includes = mandoc_strdup(cp);
-		break;
+		if (conf->includes != NULL) {
+			oldval = mandoc_strdup(conf->includes);
+			break;
+		}
+		conf->includes = mandoc_strdup(cp);
+		return 0;
 	case 1:
-		if (conf->man == NULL)
-			conf->man = mandoc_strdup(cp);
-		break;
+		if (conf->man != NULL) {
+			oldval = mandoc_strdup(conf->man);
+			break;
+		}
+		conf->man = mandoc_strdup(cp);
+		return 0;
 	case 2:
-		if (conf->paper == NULL)
-			conf->paper = mandoc_strdup(cp);
-		break;
+		if (conf->paper != NULL) {
+			oldval = mandoc_strdup(conf->paper);
+			break;
+		}
+		conf->paper = mandoc_strdup(cp);
+		return 0;
 	case 3:
-		if (conf->style == NULL)
-			conf->style = mandoc_strdup(cp);
-		break;
+		if (conf->style != NULL) {
+			oldval = mandoc_strdup(conf->style);
+			break;
+		}
+		conf->style = mandoc_strdup(cp);
+		return 0;
 	case 4:
-		if (conf->indent == 0)
-			conf->indent = strtonum(cp, 0, 1000, NULL);
-		break;
+		if (conf->indent) {
+			mandoc_asprintf(&oldval, "%zu", conf->indent);
+			break;
+		}
+		conf->indent = strtonum(cp, 0, 1000, &errstr);
+		if (errstr == NULL)
+			return 0;
+		warnx("-O indent=%s is %s", cp, errstr);
+		return -1;
 	case 5:
-		if (conf->width == 0)
-			conf->width = strtonum(cp, 58, 1000, NULL);
-		break;
+		if (conf->width) {
+			mandoc_asprintf(&oldval, "%zu", conf->width);
+			break;
+		}
+		conf->width = strtonum(cp, 1, 1000, &errstr);
+		if (errstr == NULL)
+			return 0;
+		warnx("-O width=%s is %s", cp, errstr);
+		return -1;
 	case 6:
 		conf->fragment = 1;
-		break;
+		return 0;
 	case 7:
 		conf->mdoc = 1;
-		break;
+		return 0;
+	case 8:
+		conf->noval = 1;
+		return 0;
 	default:
-		break;
+		if (fromfile)
+			warnx("-O %s: Bad argument", cp);
+		return -1;
 	}
+	if (fromfile == 0)
+		warnx("-O %s=%s: Option already set to %s",
+		    toks[tok], cp, oldval);
+	free(oldval);
+	return -1;
 }
