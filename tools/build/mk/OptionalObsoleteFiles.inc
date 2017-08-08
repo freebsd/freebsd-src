@@ -6895,24 +6895,16 @@ OLD_FILES+=usr/share/man/man8/rbootd.8.gz
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
-OLD_FILES+=etc/rc.d/rwho
-OLD_FILES+=etc/periodic/daily/140.clean-rwho
 OLD_FILES+=rescue/rcp
 OLD_FILES+=usr/bin/rlogin
 OLD_FILES+=usr/bin/rsh
-OLD_FILES+=usr/bin/ruptime
-OLD_FILES+=usr/bin/rwho
 OLD_FILES+=usr/libexec/rlogind
 OLD_FILES+=usr/libexec/rshd
-OLD_FILES+=usr/sbin/rwhod
 OLD_FILES+=usr/share/man/man1/rcp.1.gz
 OLD_FILES+=usr/share/man/man1/rlogin.1.gz
 OLD_FILES+=usr/share/man/man1/rsh.1.gz
-OLD_FILES+=usr/share/man/man1/ruptime.1.gz
-OLD_FILES+=usr/share/man/man1/rwho.1.gz
 OLD_FILES+=usr/share/man/man8/rlogind.8.gz
 OLD_FILES+=usr/share/man/man8/rshd.8.gz
-OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .endif
 
 .if ${MK_RESCUE} == no
