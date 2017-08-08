@@ -24,7 +24,7 @@
  * Portions Copyright 2010 Robert Milkowski
  *
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -991,7 +991,6 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	uint64_t object = ZVOL_OBJ;
 	uint64_t offset = lr->lr_offset;
 	uint64_t size = lr->lr_length;	/* length of user data */
-	blkptr_t *bp = &lr->lr_blkptr;
 	dmu_buf_t *db;
 	zgd_t *zgd;
 	int error;
@@ -1019,11 +1018,7 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		error = dmu_buf_hold(os, object, offset, zgd, &db,
 		    DMU_READ_NO_PREFETCH);
 		if (error == 0) {
-			blkptr_t *obp = dmu_buf_get_blkptr(db);
-			if (obp) {
-				ASSERT(BP_IS_HOLE(bp));
-				*bp = *obp;
-			}
+			blkptr_t *bp = &lr->lr_blkptr;
 
 			zgd->zgd_db = db;
 			zgd->zgd_bp = bp;
