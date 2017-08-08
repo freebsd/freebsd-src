@@ -3292,6 +3292,8 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 				nfsdarg.addrlen = 0;
 				nfsdarg.dnshost = NULL;
 				nfsdarg.dnshostlen = 0;
+				nfsdarg.mirror = NULL;
+				nfsdarg.mirrorlen = 0;
 			}
 		} else
 			error = copyin(uap->argp, &nfsdarg, sizeof(nfsdarg));
@@ -3300,11 +3302,13 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		if (nfsdarg.addrlen > 0 && nfsdarg.addrlen < 10000 &&
 		    nfsdarg.dnshostlen > 0 && nfsdarg.dnshostlen < 10000 &&
 		    nfsdarg.dspathlen > 0 && nfsdarg.dspathlen < 10000 &&
+		    nfsdarg.mirrorlen > 0 && nfsdarg.mirrorlen < 10000 &&
 		    nfsdarg.addr != NULL && nfsdarg.dnshost != NULL &&
-		    nfsdarg.dspath != NULL) {
-			NFSD_DEBUG(1, "addrlen=%d dspathlen=%d dnslen=%d\n",
-			    nfsdarg.addrlen, nfsdarg.dspathlen,
-			    nfsdarg.dnshostlen);
+		    nfsdarg.dspath != NULL && nfsdarg.mirror != NULL) {
+			NFSD_DEBUG(1, "addrlen=%d dspathlen=%d dnslen=%d"
+			    " mirrorlen=%d\n", nfsdarg.addrlen,
+			    nfsdarg.dspathlen, nfsdarg.dnshostlen,
+			    nfsdarg.mirrorlen);
 			cp = malloc(nfsdarg.addrlen + 1, M_TEMP, M_WAITOK);
 			error = copyin(nfsdarg.addr, cp, nfsdarg.addrlen);
 			if (error != 0) {
@@ -3332,6 +3336,17 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 			}
 			cp[nfsdarg.dspathlen] = '\0';	/* Ensure nul term. */
 			nfsdarg.dspath = cp;
+			cp = malloc(nfsdarg.mirrorlen + 1, M_TEMP, M_WAITOK);
+			error = copyin(nfsdarg.mirror, cp, nfsdarg.mirrorlen);
+			if (error != 0) {
+				free(nfsdarg.addr, M_TEMP);
+				free(nfsdarg.dnshost, M_TEMP);
+				free(nfsdarg.dspath, M_TEMP);
+				free(cp, M_TEMP);
+				goto out;
+			}
+			cp[nfsdarg.mirrorlen] = '\0';	/* Ensure nul term. */
+			nfsdarg.mirror = cp;
 		} else {
 			nfsdarg.addr = NULL;
 			nfsdarg.addrlen = 0;
@@ -3339,11 +3354,14 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 			nfsdarg.dnshostlen = 0;
 			nfsdarg.dspath = NULL;
 			nfsdarg.dspathlen = 0;
+			nfsdarg.mirror = NULL;
+			nfsdarg.mirrorlen = 0;
 		}
 		error = nfsrvd_nfsd(td, &nfsdarg);
 		free(nfsdarg.addr, M_TEMP);
 		free(nfsdarg.dnshost, M_TEMP);
 		free(nfsdarg.dspath, M_TEMP);
+		free(nfsdarg.mirror, M_TEMP);
 	} else {
 		error = nfssvc_srvcall(td, uap, td->td_ucred);
 	}

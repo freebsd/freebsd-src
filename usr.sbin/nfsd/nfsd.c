@@ -1174,8 +1174,10 @@ static void
 parse_dsserver(const char *optarg, struct nfsd_nfsd_args *nfsdargp)
 {
 	char *ad, *cp, *cp2, *dsaddr, *dshost, *dspath, *dsvol, nfsprt[9];
+	char *mirror, mirrorstr[NFSDEV_MIRRORSTR + 1];
 	int adsiz, dsaddrcnt, dshostcnt, dspathcnt, ecode, hostsiz, pathsiz;
-	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz;
+	int mirrorcnt, mirrorstrsiz, mirrorindex;
+	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz, mirrorsiz;
 	struct addrinfo hints, *ai_tcp;
 	struct sockaddr_in *sin;
 
@@ -1199,12 +1201,18 @@ parse_dsserver(const char *optarg, struct nfsd_nfsd_args *nfsdargp)
 	dsaddr = malloc(dsaddrsiz);
 	if (dsaddr == NULL)
 		errx(1, "Out of memory");
+	mirrorsiz = 1024;
+	mirrorcnt = 0;
+	mirror = malloc(mirrorsiz);
+	if (mirror == NULL)
+		errx(1, "Out of memory");
 
 	/* Put the NFS port# in "." form. */
 	snprintf(nfsprt, 9, ".%d.%d", 2049 >> 8, 2049 & 0xff);
 	nfsprtsiz = strlen(nfsprt);
 
 	ai_tcp = NULL;
+	mirrorindex = 0;
 	/* Loop around for each DS server name. */
 	do {
 		cp2 = strchr(cp, ',');
@@ -1271,6 +1279,20 @@ printf("pnfs path=%s\n", dsvol);
 		strcpy(&dshost[dshostcnt], ai_tcp->ai_canonname);
 		dshostcnt += hostsiz + 1;
 
+		/* Append this mirrorindex to mirror. */
+		if (snprintf(mirrorstr, NFSDEV_MIRRORSTR + 1, "%d",
+		    mirrorindex++) > NFSDEV_MIRRORSTR)
+			errx(1, "Too many mirrors");
+		mirrorstrsiz = strlen(mirrorstr);
+		if (mirrorcnt + mirrorstrsiz + 1 > mirrorsiz) {
+			mirrorsiz *= 2;
+			mirror = realloc(mirror, mirrorsiz);
+			if (mirror == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&mirror[mirrorcnt], mirrorstr);
+		mirrorcnt += mirrorstrsiz + 1;
+
 		cp = cp2;
 	} while (cp != NULL);
 
@@ -1286,6 +1308,8 @@ printf("pnfs path=%s\n", dsvol);
 	nfsdargp->dnshostlen = dshostcnt;
 	nfsdargp->dspath = dspath;
 	nfsdargp->dspathlen = dspathcnt;
+	nfsdargp->mirror = mirror;
+	nfsdargp->mirrorlen = mirrorcnt;
 	freeaddrinfo(ai_tcp);
 }
 

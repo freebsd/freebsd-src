@@ -183,7 +183,10 @@ struct nfsd_nfsd_args {
 	int	dnshostlen;	/* Length of DNS names */
 	char	*dspath;	/* DS Mount path on MDS */
 	int	dspathlen;	/* Length of DS Mount path on MDS */
+	char	*mirror;	/* DS with same mirrorindex are mirrors */
+	int	mirrorlen;	/* Length of the mirrorindex array */
 };
+#define	NFSDEV_MIRRORSTR	3
 
 /* Old version. */
 struct nfsd_nfsd_oargs {

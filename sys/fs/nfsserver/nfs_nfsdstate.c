@@ -188,7 +188,8 @@ static void nfsrv_freelayout(struct nfslayout *lyp);
 static void nfsrv_freelayoutlist(nfsquad_t clientid);
 static void nfsrv_freealllayouts(int *fndp);
 static void nfsrv_freedevid(struct nfsdevice *ds);
-static int nfsrv_setdsserver(char *dspathp, NFSPROC_T *p,
+static void nfsrv_freeonedevid(struct nfsdevice *ds);
+static int nfsrv_setdsserver(char *dspathp, char *mirrorp, NFSPROC_T *p,
     struct nfsdevice **dsp);
 static void nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost);
 static void nfsrv_freealldevids(void);
@@ -6685,11 +6686,10 @@ nfsrv_freelayout(struct nfslayout *lyp)
  * Free up a device id.
  */
 static void
-nfsrv_freedevid(struct nfsdevice *ds)
+nfsrv_freeonedevid(struct nfsdevice *ds)
 {
 	int i;
 
-	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
 	vrele(ds->nfsdev_dvp);
 	for (i = 0; i < nfsrv_dsdirsize; i++)
 		if (ds->nfsdev_dsdir[i] != NULL)
@@ -6698,6 +6698,20 @@ nfsrv_freedevid(struct nfsdevice *ds)
 	free(ds->nfsdev_flexaddr, M_NFSDSTATE);
 	free(ds->nfsdev_host, M_NFSDSTATE);
 	free(ds, M_NFSDSTATE);
+}
+
+/*
+ * Free up a device id and its mirrors.
+ */
+static void
+nfsrv_freedevid(struct nfsdevice *ds)
+{
+	struct nfsdevice *mds, *nds;
+
+	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
+	TAILQ_FOREACH_SAFE(mds, &ds->nfsdev_mirrors, nfsdev_list, nds)
+		nfsrv_freeonedevid(mds);
+	nfsrv_freeonedevid(ds);
 }
 
 /*
@@ -6744,10 +6758,11 @@ nfsrv_freealllayouts(int *fndp)
  * Look up the mount path for the DS server.
  */
 static int
-nfsrv_setdsserver(char *dspathp, NFSPROC_T *p, struct nfsdevice **dsp)
+nfsrv_setdsserver(char *dspathp, char *mirrorp, NFSPROC_T *p,
+    struct nfsdevice **dsp)
 {
 	struct nameidata nd;
-	struct nfsdevice *ds;
+	struct nfsdevice *ds, *mds, *tds;
 	int error, i;
 	char *dsdirpath;
 	size_t dsdirsize;
@@ -6778,6 +6793,8 @@ nfsrv_setdsserver(char *dspathp, NFSPROC_T *p, struct nfsdevice **dsp)
 	 */
 	*dsp = ds = malloc(sizeof(*ds) + nfsrv_dsdirsize * sizeof(vnode_t),
 	    M_NFSDSTATE, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&ds->nfsdev_mirrors);
+	strcpy(ds->nfsdev_mirrorid, mirrorp);
 	ds->nfsdev_dvp = nd.ni_vp;
 	NFSVOPUNLOCK(nd.ni_vp, 0);
 
@@ -6812,8 +6829,23 @@ nfsrv_setdsserver(char *dspathp, NFSPROC_T *p, struct nfsdevice **dsp)
 	/*
 	 * Since this is done before the nfsd threads are running, locking
 	 * isn't required.
+	 * First, look for a mirror. If none found, link into main list.
 	 */
-	TAILQ_INSERT_TAIL(&nfsrv_devidhead, ds, nfsdev_list);
+	TAILQ_FOREACH(mds, &nfsrv_devidhead, nfsdev_list) {
+		if (strcmp(mds->nfsdev_mirrorid, mirrorp) == 0) {
+			TAILQ_INSERT_TAIL(&mds->nfsdev_mirrors, ds,
+			    nfsdev_list);
+			ds = NULL;
+			i = 1;
+			TAILQ_FOREACH(tds, &mds->nfsdev_mirrors, nfsdev_list)
+				i++;
+			if (i > nfsrv_maxpnfsmirror)
+				nfsrv_maxpnfsmirror = i;
+			break;
+		}
+	}
+	if (ds != NULL)
+		TAILQ_INSERT_TAIL(&nfsrv_devidhead, ds, nfsdev_list);
 	return (error);
 }
 
@@ -6901,23 +6933,30 @@ int
 nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 {
 	struct nfsdevice *ds;
-	char *addrp, *dnshostp, *dspathp;
+	char *addrp, *dnshostp, *dspathp, *mirrorp;
 	int error;
 
 	addrp = args->addr;
 	dnshostp = args->dnshost;
 	dspathp = args->dspath;
-	if (addrp == NULL || dnshostp == NULL || dspathp == NULL)
+	mirrorp = args->mirror;
+	if (addrp == NULL || dnshostp == NULL || dspathp == NULL ||
+	    mirrorp == NULL)
 		return (0);
 
 	/*
-	 * Loop around for each nul-terminated string in args->addr and
-	 * args->dnshost.
+	 * Loop around for each nul-terminated string in args->addr,
+	 * args->dnshost, args->dnspath and args->mirror.
 	 */
 	while (addrp < (args->addr + args->addrlen) &&
 	    dnshostp < (args->dnshost + args->dnshostlen) &&
-	    dspathp < (args->dspath + args->dspathlen)) {
-		error = nfsrv_setdsserver(dspathp, p, &ds);
+	    dspathp < (args->dspath + args->dspathlen) &&
+	    mirrorp < (args->mirror + args->mirrorlen)) {
+		error = 0;
+		if (*mirrorp == '\0' || strlen(mirrorp) > NFSDEV_MIRRORSTR)
+			error = ENXIO;
+		if (error == 0)
+			error = nfsrv_setdsserver(dspathp, mirrorp, p, &ds);
 		if (error != 0) {
 			/* Free all DS servers. */
 			nfsrv_freealldevids();
@@ -6927,6 +6966,7 @@ nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 		addrp += (strlen(addrp) + 1);
 		dnshostp += (strlen(dnshostp) + 1);
 		dspathp += (strlen(dspathp) + 1);
+		mirrorp += (strlen(mirrorp) + 1);
 	}
 	return (0);
 }
