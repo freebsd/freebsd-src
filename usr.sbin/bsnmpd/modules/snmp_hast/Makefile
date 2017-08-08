@@ -13,6 +13,8 @@ SRCS+=	parse.y pjdlog.c
 SRCS+=	proto.c proto_common.c proto_uds.c
 SRCS+=	token.l
 SRCS+=	y.tab.h
+# There are cap_relocs against the functions in hast_checksum.c
+SRCS+=	hast_checksum.c
 MAN=	snmp_hast.3
 
 NO_WFORMAT=
