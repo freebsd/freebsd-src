@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.22 2016/11/19 15:24:51 schwarze Exp $
+# $Id: configure.local.example,v 1.33 2017/07/20 16:24:53 schwarze Exp $
 #
-# Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
 # and put any of these settings into it if ./configure autodetection
 # fails or if you want to make different choices for other reasons.
 
-# If autodetection fails, please tell <tech@mdocml.bsd.lv>.
+# If autodetection fails, please tell <tech@mandoc.bsd.lv>.
 
 # We recommend that you write ./configure.local from scratch and
 # only put the lines there you need.  This file contains examples.
@@ -62,6 +62,11 @@ UTF8_LOCALE=en_US.UTF-8
 
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 
+# Validation of cross references with mandoc -Tlint only looks
+# for manual pages in the following directories:
+
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
+
 # In manual pages written in the mdoc(7) language, the operating system
 # version is displayed in the page footer line.  If an operating system
 # is specified as an argument to the .Os macro, that is always used.
@@ -84,6 +89,13 @@ PREFIX="/usr/local"
 BINDIR="${PREFIX}/bin"
 SBINDIR="${PREFIX}/sbin"
 MANDIR="${PREFIX}/man"
+
+# If BINDIR and SBINDIR are not subdirectories of the same parent
+# directory or if the basename(1) of BINDIR differs from "bin",
+# the relative path from SBINDIR to BINDIR is also needed.
+# The default is:
+
+BIN_FROM_SBIN="../bin"
 
 # Some distributions may want to avoid naming conflicts
 # with the configuration files of other man(1) implementations.
@@ -119,6 +131,15 @@ BINM_WHATIS=mwhatis		# default is "whatis"
 BINM_MAKEWHATIS=mandocdb	# default is "makewhatis"
 BINM_SOELIM=msoelim		# default is "soelim"
 
+# Some distributions do not want hardlinks
+# between installed binary programs.
+# Set the following variable to use symbolic links instead.
+# It is also used for links between manual pages.
+# It is only used by the install* targets.
+# When using this, DESTDIR must be empty or an absolute path.
+
+LN="ln -sf"			# default is "ln -f"
+
 # Before falling back to the bundled version of the ohash(3) hashing
 # library, autoconfiguration tries the following linker flag to
 # link against your system version.  If you do have ohash(3) on
@@ -139,6 +160,12 @@ CFLAGS="${CFLAGS} -I/usr/local/include"
 # Otherwise, set the following variable.
 
 LD_NANOSLEEP="-lrt"
+
+# Some platforms may need an additional linker flag for recvmsg(2).
+# If none is needed or it is -lsocket, it is autodetected.
+# Otherwise, set the following variable.
+
+LD_RECVMSG="-lsocket"
 
 # Some platforms might need additional linker flags to link against
 # libmandoc that are not autodetected, though no such cases are
@@ -212,6 +239,20 @@ WWWPREFIX="/var/www"
 HTDOCDIR="${WWWPREFIX}/htdocs"
 CGIBINDIR="${WWWPREFIX}/cgi-bin"
 
+# --- user settings related to catman ----------------------------------
+
+# By default, building mandocd(8) and catman(8) is disabled.
+# To enable it, use the following line.
+# It does not work on SunOS 5.10 because there is no mkdirat(2)
+# nor on SunOS 5.9 which also lacks CMSG_LEN(3) and CMSG_SPACE(3).
+
+BUILD_CATMAN=1
+
+# Install catman(8) with a different name.
+# See BINM_MAN above for details of how this works.
+
+BINM_CATMAN=mcatman		# default is "catman"
+
 # --- settings that rarely need to be touched --------------------------
 
 # Do not set these variables unless you really need to.
@@ -250,11 +291,13 @@ HAVE_GETSUBOPT=0
 HAVE_ISBLANK=0
 HAVE_MKDTEMP=0
 HAVE_NTOHL=0
+HAVE_O_DIRECTORY=0
 HAVE_OHASH=0
 HAVE_PATH_MAX=0
 HAVE_PLEDGE=0
 HAVE_PROGNAME=0
 HAVE_REALLOCARRAY=0
+HAVE_RECALLOCARRAY=0
 HAVE_REWB_BSD=0
 HAVE_REWB_SYSV=0
 HAVE_STRCASESTR=0

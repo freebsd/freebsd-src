@@ -1,4 +1,4 @@
-.Dd December 1, 2014
+.Dd $Mdocdate: July 8 2017 $
 .Dt MANDOC_HEADERS 3
 .Os
 .Sh NAME
@@ -60,9 +60,19 @@ Requires
 .In sys/types.h
 for
 .Vt size_t .
+.Pp
 Provides the utility functions documented in
 .Xr mandoc_malloc 3 .
 .It Qq Pa mandoc_ohash.h
+Requires
+.In stddef.h
+for
+.Vt ptrdiff_t
+and
+.In stdint.h
+for
+.Vt uint32_t .
+.Pp
 Includes
 .In ohash.h
 and provides
@@ -77,6 +87,7 @@ Provides
 .Vt enum mandoc_esc ,
 .Vt enum mandocerr ,
 .Vt enum mandoclevel ,
+.Vt enum mandoc_os ,
 .Vt enum tbl_cellt ,
 .Vt enum tbl_datt ,
 .Vt enum tbl_spant ,
@@ -90,7 +101,6 @@ Provides
 .Vt struct tbl_dat ,
 .Vt struct tbl_span ,
 .Vt struct eqn_box ,
-.Vt struct eqn ,
 the function prototype typedef
 .Fn mandocmsg ,
 the function
@@ -112,18 +122,44 @@ Uses the type
 from
 .Pa roff.h
 as an opaque type for function prototypes.
+.It Qq Pa mandoc_xr.h
+Provides
+.Vt struct mandoc_xr
+and the functions
+.Fn mandoc_xr_reset ,
+.Fn mandoc_xr_add ,
+.Fn mandoc_xr_get ,
+and
+.Fn mandoc_xr_free .
 .It Qq Pa roff.h
+Requires
+.Qq Pa mandoc_ohash.h
+for
+.Vt struct ohash
+and
+.Qq Pa mandoc.h
+for
+.Vt enum mandoc_os .
+.Pp
 Provides
 .Vt enum mdoc_endbody ,
 .Vt enum roff_macroset ,
 .Vt enum roff_next ,
 .Vt enum roff_sec ,
+.Vt enum roff_tok ,
 .Vt enum roff_type ,
 .Vt struct roff_man ,
 .Vt struct roff_meta ,
 .Vt struct roff_node ,
-and the function
-.Fn deroff .
+the constant array
+.Va roff_name
+and the functions
+.Fn deroff ,
+.Fn roffhash_alloc ,
+.Fn roffhash_find ,
+.Fn roffhash_free ,
+and
+.Fn roff_validate .
 .Pp
 Uses pointers to the types
 .Vt struct mdoc_arg
@@ -198,9 +234,10 @@ or
 .El
 .Ss Parser internals
 The following headers require inclusion of a parser interface header
-before they can be included.  All parser interface headers should
-precede all parser internal headers.  When any parser internal headers
-are included, the same file should not include any formatter headers.
+before they can be included.
+All parser interface headers should precede all parser internal headers.
+When any parser internal headers are included, the same file should
+not include any formatter headers.
 .Bl -tag -width Ds
 .It Qq Pa libmandoc.h
 Requires
@@ -227,17 +264,11 @@ and
 from
 .Pa roff.c
 for function prototypes.
-Uses the types
-.Vt struct tbl_span
-and
-.Vt struct eqn
-from
-.Pa mandoc.h
-and
+Uses the type
 .Vt struct roff_man
 from
 .Pa roff.h
-as opaque types for function prototypes.
+as an opaque type for function prototypes.
 .It Qq Pa roff_int.h
 Requires
 .Qq Pa roff.h
@@ -254,16 +285,11 @@ because the latter two are needed by
 .Qq Pa roff.c .
 .Pp
 Uses the types
-.Vt struct eqn
-and
-.Vt struct tbl_span
-from
-.Pa mandoc.h ,
 .Vt struct roff_man
 and
 .Vt struct roff_node
 from
-.Pa roff.h ,
+.Pa roff.h
 and
 .Vt struct mdoc_arg
 from
@@ -271,6 +297,10 @@ from
 as opaque types for function prototypes.
 .It Qq Pa libmdoc.h
 Requires
+.Qq Pa roff.h
+for
+.Vt enum roff_tok
+and
 .Qq Pa mdoc.h
 for
 .Vt enum mdoc_*
@@ -303,6 +333,11 @@ When this header is included, the same file should not include
 or
 .Pa libroff.h .
 .It Qq Pa libman.h
+Requires
+.Qq Pa roff.h
+for
+.Vt enum roff_tok .
+.Pp
 Provides
 .Vt struct man_macro
 and some functions internal to the
@@ -326,16 +361,13 @@ or
 Requires
 .In sys/types.h
 for
-.Vt size_t ,
+.Vt size_t
+and
 .Qq Pa mandoc.h
 for
 .Vt struct tbl_*
 and
-.Vt struct eqn ,
-and
-.Qq Pa libmandoc.h
-for
-.Vt enum rofferr .
+.Vt struct eqn_box .
 .Pp
 Provides
 .Vt enum tbl_part ,
@@ -405,6 +437,7 @@ Provides
 .Vt enum termtype ,
 .Vt struct termp_tbl ,
 .Vt struct termp ,
+.Fn roff_term_pre ,
 and many terminal formatting functions.
 .Pp
 Uses the opaque type
@@ -414,11 +447,13 @@ from
 Uses
 .Vt struct tbl_span
 and
-.Vt struct eqn
+.Vt struct eqn_box
 from
 .Pa mandoc.h
 and
 .Vt struct roff_meta
+and
+.Vt struct roff_node
 from
 .Pa roff.h
 as opaque types for function prototypes.
@@ -431,10 +466,7 @@ or
 Requires
 .In sys/types.h
 for
-.Vt size_t ,
-.In stdio.h
-for
-.Dv BUFSIZ ,
+.Vt size_t
 and
 .Qq Pa out.h
 for
@@ -450,7 +482,20 @@ Provides
 .Vt struct tagq ,
 .Vt struct htmlpair ,
 .Vt struct html ,
+.Fn roff_html_pre ,
 and many HTML formatting functions.
+.Pp
+Uses
+.Vt struct tbl_span
+and
+.Vt struct eqn_box
+from
+.Pa mandoc.h
+and
+.Vt struct roff_node
+from
+.Pa roff.h
+as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
 .Pa term.h
@@ -489,8 +534,9 @@ Provides
 and the functions
 .Fn manconf_parse ,
 .Fn manconf_output ,
+.Fn manconf_free ,
 and
-.Fn manconf_free .
+.Fn manpath_base .
 .It Qq Pa mansearch.h
 Requires
 .In sys/types.h
@@ -506,8 +552,7 @@ Provides
 .Vt struct manpage ,
 .Vt struct mansearch ,
 and the functions
-.Fn mansearch_setup ,
-.Fn mansearch ,
+.Fn mansearch
 and
 .Fn mansearch_free .
 .Pp

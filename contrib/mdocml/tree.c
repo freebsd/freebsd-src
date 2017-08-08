@@ -1,4 +1,4 @@
-/*	$Id: tree.c,v 1.72 2017/01/12 17:29:33 schwarze Exp $ */
+/*	$Id: tree.c,v 1.77 2017/07/08 14:51:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -129,23 +129,23 @@ print_mdoc(const struct roff_node *n, int indent)
 		p = n->string;
 		break;
 	case ROFFT_BODY:
-		p = mdoc_macronames[n->tok];
+		p = roff_name[n->tok];
 		break;
 	case ROFFT_HEAD:
-		p = mdoc_macronames[n->tok];
+		p = roff_name[n->tok];
 		break;
 	case ROFFT_TAIL:
-		p = mdoc_macronames[n->tok];
+		p = roff_name[n->tok];
 		break;
 	case ROFFT_ELEM:
-		p = mdoc_macronames[n->tok];
+		p = roff_name[n->tok];
 		if (n->args) {
 			argv = n->args->argv;
 			argc = n->args->argc;
 		}
 		break;
 	case ROFFT_BLOCK:
-		p = mdoc_macronames[n->tok];
+		p = roff_name[n->tok];
 		if (n->args) {
 			argv = n->args->argv;
 			argc = n->args->argc;
@@ -192,6 +192,8 @@ print_mdoc(const struct roff_node *n, int indent)
 			putchar(')');
 		if (NODE_EOS & n->flags)
 			putchar('.');
+		if (NODE_BROKEN & n->flags)
+			printf(" BROKEN");
 		if (NODE_NOSRC & n->flags)
 			printf(" NOSRC");
 		if (NODE_NOPRT & n->flags)
@@ -200,7 +202,7 @@ print_mdoc(const struct roff_node *n, int indent)
 	}
 
 	if (n->eqn)
-		print_box(n->eqn->root->first, indent + 4);
+		print_box(n->eqn->first, indent + 4);
 	if (n->child)
 		print_mdoc(n->child, indent +
 		    (n->type == ROFFT_BLOCK ? 2 : 4));
@@ -255,7 +257,7 @@ print_man(const struct roff_node *n, int indent)
 	case ROFFT_BLOCK:
 	case ROFFT_HEAD:
 	case ROFFT_BODY:
-		p = man_macronames[n->tok];
+		p = roff_name[n->tok];
 		break;
 	case ROFFT_ROOT:
 		p = "root";
@@ -285,7 +287,7 @@ print_man(const struct roff_node *n, int indent)
 	}
 
 	if (n->eqn)
-		print_box(n->eqn->root->first, indent + 4);
+		print_box(n->eqn->first, indent + 4);
 	if (n->child)
 		print_man(n->child, indent +
 		    (n->type == ROFFT_BLOCK ? 2 : 4));
@@ -311,10 +313,6 @@ print_box(const struct eqn_box *ep, int indent)
 
 	t = NULL;
 	switch (ep->type) {
-	case EQN_ROOT:
-		t = "eqn-root";
-		break;
-	case EQN_LISTONE:
 	case EQN_LIST:
 		t = "eqn-list";
 		break;

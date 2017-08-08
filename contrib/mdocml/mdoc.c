@@ -1,7 +1,7 @@
-/*	$Id: mdoc.c,v 1.258 2017/01/10 13:47:00 schwarze Exp $ */
+/*	$Id: mdoc.c,v 1.267 2017/06/17 13:06:16 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,41 +35,6 @@
 #include "roff_int.h"
 #include "libmdoc.h"
 
-const	char *const __mdoc_macronames[MDOC_MAX + 1] = {
-	"text",
-	"Ap",		"Dd",		"Dt",		"Os",
-	"Sh",		"Ss",		"Pp",		"D1",
-	"Dl",		"Bd",		"Ed",		"Bl",
-	"El",		"It",		"Ad",		"An",
-	"Ar",		"Cd",		"Cm",		"Dv",
-	"Er",		"Ev",		"Ex",		"Fa",
-	"Fd",		"Fl",		"Fn",		"Ft",
-	"Ic",		"In",		"Li",		"Nd",
-	"Nm",		"Op",		"Ot",		"Pa",
-	"Rv",		"St",		"Va",		"Vt",
-	"Xr",		"%A",		"%B",		"%D",
-	"%I",		"%J",		"%N",		"%O",
-	"%P",		"%R",		"%T",		"%V",
-	"Ac",		"Ao",		"Aq",		"At",
-	"Bc",		"Bf",		"Bo",		"Bq",
-	"Bsx",		"Bx",		"Db",		"Dc",
-	"Do",		"Dq",		"Ec",		"Ef",
-	"Em",		"Eo",		"Fx",		"Ms",
-	"No",		"Ns",		"Nx",		"Ox",
-	"Pc",		"Pf",		"Po",		"Pq",
-	"Qc",		"Ql",		"Qo",		"Qq",
-	"Re",		"Rs",		"Sc",		"So",
-	"Sq",		"Sm",		"Sx",		"Sy",
-	"Tn",		"Ux",		"Xc",		"Xo",
-	"Fo",		"Fc",		"Oo",		"Oc",
-	"Bk",		"Ek",		"Bt",		"Hf",
-	"Fr",		"Ud",		"Lb",		"Lp",
-	"Lk",		"Mt",		"Brq",		"Bro",
-	"Brc",		"%C",		"Es",		"En",
-	"Dx",		"%Q",		"br",		"sp",
-	"%U",		"Ta",		"ll",
-};
-
 const	char *const __mdoc_argnames[MDOC_ARG_MAX] = {
 	"split",		"nosplit",		"ragged",
 	"unfilled",		"literal",		"file",
@@ -80,9 +45,7 @@ const	char *const __mdoc_argnames[MDOC_ARG_MAX] = {
 	"width",		"compact",		"std",
 	"filled",		"words",		"emphasis",
 	"symbolic",		"nested",		"centered"
-	};
-
-const	char * const *mdoc_macronames = __mdoc_macronames + 1;
+};
 const	char * const *mdoc_argnames = __mdoc_argnames;
 
 static	int		  mdoc_ptext(struct roff_man *, int, char *, int);
@@ -119,13 +82,12 @@ mdoc_parseln(struct roff_man *mdoc, int ln, char *buf, int offs)
 void
 mdoc_macro(MACRO_PROT_ARGS)
 {
-	assert(tok > TOKEN_NONE && tok < MDOC_MAX);
-
+	assert(tok >= MDOC_Dd && tok < MDOC_MAX);
 	(*mdoc_macros[tok].fp)(mdoc, tok, line, ppos, pos, buf);
 }
 
 void
-mdoc_tail_alloc(struct roff_man *mdoc, int line, int pos, int tok)
+mdoc_tail_alloc(struct roff_man *mdoc, int line, int pos, enum roff_tok tok)
 {
 	struct roff_node *p;
 
@@ -135,8 +97,8 @@ mdoc_tail_alloc(struct roff_man *mdoc, int line, int pos, int tok)
 }
 
 struct roff_node *
-mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
-		struct roff_node *body, enum mdoc_endbody end)
+mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos,
+    enum roff_tok tok, struct roff_node *body)
 {
 	struct roff_node *p;
 
@@ -145,7 +107,7 @@ mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
 	p = roff_node_alloc(mdoc, line, pos, ROFFT_BODY, tok);
 	p->body = body;
 	p->norm = body->norm;
-	p->end = end;
+	p->end = ENDBODY_SPACE;
 	roff_node_append(mdoc, p);
 	mdoc->next = ROFF_NEXT_SIBLING;
 	return p;
@@ -153,7 +115,7 @@ mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
 
 struct roff_node *
 mdoc_block_alloc(struct roff_man *mdoc, int line, int pos,
-	int tok, struct mdoc_arg *args)
+    enum roff_tok tok, struct mdoc_arg *args)
 {
 	struct roff_node *p;
 
@@ -180,7 +142,7 @@ mdoc_block_alloc(struct roff_man *mdoc, int line, int pos,
 
 void
 mdoc_elem_alloc(struct roff_man *mdoc, int line, int pos,
-	int tok, struct mdoc_arg *args)
+     enum roff_tok tok, struct mdoc_arg *args)
 {
 	struct roff_node *p;
 
@@ -217,6 +179,7 @@ static int
 mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 {
 	struct roff_node *n;
+	const char	 *cp, *sp;
 	char		 *c, *ws, *end;
 
 	n = mdoc->last;
@@ -282,16 +245,31 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 		mandoc_msg(MANDOCERR_SPACE_EOL, mdoc->parse,
 		    line, (int)(ws-buf), NULL);
 
+	/*
+	 * Blank lines are allowed in no-fill mode
+	 * and cancel preceding \c,
+	 * but add a single vertical space elsewhere.
+	 */
+
 	if (buf[offs] == '\0' && ! (mdoc->flags & MDOC_LITERAL)) {
+		switch (mdoc->last->type) {
+		case ROFFT_TEXT:
+			sp = mdoc->last->string;
+			cp = end = strchr(sp, '\0') - 2;
+			if (cp < sp || cp[0] != '\\' || cp[1] != 'c')
+				break;
+			while (cp > sp && cp[-1] == '\\')
+				cp--;
+			if ((end - cp) % 2)
+				break;
+			*end = '\0';
+			return 1;
+		default:
+			break;
+		}
 		mandoc_msg(MANDOCERR_FI_BLANK, mdoc->parse,
 		    line, (int)(c - buf), NULL);
-
-		/*
-		 * Insert a `sp' in the case of a blank line.  Technically,
-		 * blank lines aren't allowed, but enough manuals assume this
-		 * behaviour that we want to work around it.
-		 */
-		roff_elem_alloc(mdoc, line, offs, MDOC_sp);
+		roff_elem_alloc(mdoc, line, offs, ROFF_sp);
 		mdoc->last->flags |= NODE_VALID | NODE_ENDED;
 		mdoc->next = ROFF_NEXT_SIBLING;
 		return 1;
@@ -312,6 +290,28 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 
 	if (mandoc_eos(buf+offs, (size_t)(end-buf-offs)))
 		mdoc->last->flags |= NODE_EOS;
+
+	for (c = buf + offs; c != NULL; c = strchr(c + 1, '.')) {
+		if (c - buf < offs + 2)
+			continue;
+		if (end - c < 3)
+			break;
+		if (c[1] != ' ' ||
+		    isalpha((unsigned char)c[-2]) == 0 ||
+		    isalpha((unsigned char)c[-1]) == 0 ||
+		    (c[-2] == 'n' && c[-1] == 'c') ||
+		    (c[-2] == 'v' && c[-1] == 's'))
+			continue;
+		c += 2;
+		if (*c == ' ')
+			c++;
+		if (*c == ' ')
+			c++;
+		if (isupper((unsigned char)(*c)))
+			mandoc_msg(MANDOCERR_EOS, mdoc->parse,
+			    line, (int)(c - buf), NULL);
+	}
+
 	return 1;
 }
 
@@ -324,25 +324,18 @@ mdoc_pmacro(struct roff_man *mdoc, int ln, char *buf, int offs)
 {
 	struct roff_node *n;
 	const char	 *cp;
-	int		  tok;
-	int		  i, sv;
-	char		  mac[5];
+	size_t		  sz;
+	enum roff_tok	  tok;
+	int		  sv;
+
+	/* Determine the line macro. */
 
 	sv = offs;
-
-	/*
-	 * Copy the first word into a nil-terminated buffer.
-	 * Stop when a space, tab, escape, or eoln is encountered.
-	 */
-
-	i = 0;
-	while (i < 4 && strchr(" \t\\", buf[offs]) == NULL)
-		mac[i++] = buf[offs++];
-
-	mac[i] = '\0';
-
-	tok = (i > 1 && i < 4) ? mdoc_hash_find(mac) : TOKEN_NONE;
-
+	tok = TOKEN_NONE;
+	for (sz = 0; sz < 4 && strchr(" \t\\", buf[offs]) == NULL; sz++)
+		offs++;
+	if (sz == 2 || sz == 3)
+		tok = roffhash_find(mdoc->mdocmac, buf + sv, sz);
 	if (tok == TOKEN_NONE) {
 		mandoc_msg(MANDOCERR_MACRO, mdoc->parse,
 		    ln, sv, buf + sv - 1);
@@ -366,7 +359,7 @@ mdoc_pmacro(struct roff_man *mdoc, int ln, char *buf, int offs)
 
 	/* Jump to the next non-whitespace word. */
 
-	while (buf[offs] && ' ' == buf[offs])
+	while (buf[offs] == ' ')
 		offs++;
 
 	/*

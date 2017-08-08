@@ -1,7 +1,7 @@
 /*	$OpenBSD: mansearch.c,v 1.50 2016/07/09 15:23:36 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -67,9 +67,9 @@ static	struct ohash	*manmerge_term(struct expr *, struct ohash *);
 static	struct ohash	*manmerge_or(struct expr *, struct ohash *);
 static	struct ohash	*manmerge_and(struct expr *, struct ohash *);
 static	char		*buildnames(const struct dbm_page *);
-static	char		*buildoutput(size_t, int32_t);
-static	size_t		 lstlen(const char *);
-static	void		 lstcat(char *, size_t *, const char *);
+static	char		*buildoutput(size_t, struct dbm_page *);
+static	size_t		 lstlen(const char *, size_t);
+static	void		 lstcat(char *, size_t *, const char *, const char *);
 static	int		 lstmatch(const char *, const char *);
 static	struct expr	*exprcomp(const struct mansearch *,
 				int, char *[], int *);
@@ -104,7 +104,8 @@ mansearch(const struct mansearch *search,
 	}
 
 	cur = maxres = 0;
-	*res = NULL;
+	if (res != NULL)
+		*res = NULL;
 
 	outkey = KEY_Nd;
 	if (search->outkey != NULL)
@@ -155,7 +156,8 @@ mansearch(const struct mansearch *search,
 		chdir_status = 1;
 
 		if (dbm_open(MANDOC_DB) == -1) {
-			warn("%s/%s", paths->paths[i], MANDOC_DB);
+			if (errno != ENOENT)
+				warn("%s/%s", paths->paths[i], MANDOC_DB);
 			continue;
 		}
 
@@ -172,6 +174,10 @@ mansearch(const struct mansearch *search,
 			    lstmatch(search->arch, page->arch) == 0)
 				continue;
 
+			if (res == NULL) {
+				cur = 1;
+				break;
+			}
 			if (cur + 1 > maxres) {
 				maxres += 1024;
 				*res = mandoc_reallocarray(*res,
@@ -181,9 +187,7 @@ mansearch(const struct mansearch *search,
 			mandoc_asprintf(&mpage->file, "%s/%s",
 			    paths->paths[i], page->file + 1);
 			mpage->names = buildnames(page);
-			mpage->output = (int)outkey == KEY_Nd ?
-			    mandoc_strdup(page->desc) :
-			    buildoutput(outkey, page->addr);
+			mpage->output = buildoutput(outkey, page);
 			mpage->ipath = i;
 			mpage->bits = rp->bits;
 			mpage->sec = *page->sect - '0';
@@ -205,12 +209,13 @@ mansearch(const struct mansearch *search,
 		if (cur && search->firstmatch)
 			break;
 	}
-	qsort(*res, cur, sizeof(struct manpage), manpage_compare);
+	if (res != NULL)
+		qsort(*res, cur, sizeof(struct manpage), manpage_compare);
 	if (chdir_status && getcwd_status && chdir(buf) == -1)
 		warn("%s", buf);
 	exprfree(e);
 	*sz = cur;
-	return 1;
+	return res != NULL || cur;
 }
 
 /*
@@ -389,13 +394,29 @@ static int
 manpage_compare(const void *vp1, const void *vp2)
 {
 	const struct manpage	*mp1, *mp2;
+	const char		*cp1, *cp2;
+	size_t			 sz1, sz2;
 	int			 diff;
 
 	mp1 = vp1;
 	mp2 = vp2;
-	return (diff = mp2->bits - mp1->bits) ? diff :
-	    (diff = mp1->sec - mp2->sec) ? diff :
-	    strcasecmp(mp1->names, mp2->names);
+	if ((diff = mp2->bits - mp1->bits) ||
+	    (diff = mp1->sec - mp2->sec))
+		return diff;
+
+	/* Fall back to alphabetic ordering of names. */
+	sz1 = strcspn(mp1->names, "(");
+	sz2 = strcspn(mp2->names, "(");
+	if (sz1 < sz2)
+		sz1 = sz2;
+	if ((diff = strncasecmp(mp1->names, mp2->names, sz1)))
+		return diff;
+
+	/* For identical names and sections, prefer arch-dependent. */
+	cp1 = strchr(mp1->names + sz1, '/');
+	cp2 = strchr(mp2->names + sz2, '/');
+	return cp1 != NULL && cp2 != NULL ? strcasecmp(cp1, cp2) :
+	    cp1 != NULL ? -1 : cp2 != NULL ? 1 : 0;
 }
 
 static char *
@@ -404,16 +425,16 @@ buildnames(const struct dbm_page *page)
 	char	*buf;
 	size_t	 i, sz;
 
-	sz = lstlen(page->name) + 1 + lstlen(page->sect) +
-	    (page->arch == NULL ? 0 : 1 + lstlen(page->arch)) + 2;
+	sz = lstlen(page->name, 2) + 1 + lstlen(page->sect, 2) +
+	    (page->arch == NULL ? 0 : 1 + lstlen(page->arch, 2)) + 2;
 	buf = mandoc_malloc(sz);
 	i = 0;
-	lstcat(buf, &i, page->name);
+	lstcat(buf, &i, page->name, ", ");
 	buf[i++] = '(';
-	lstcat(buf, &i, page->sect);
+	lstcat(buf, &i, page->sect, ", ");
 	if (page->arch != NULL) {
 		buf[i++] = '/';
-		lstcat(buf, &i, page->arch);
+		lstcat(buf, &i, page->arch, ", ");
 	}
 	buf[i++] = ')';
 	buf[i++] = '\0';
@@ -423,11 +444,11 @@ buildnames(const struct dbm_page *page)
 
 /*
  * Count the buffer space needed to print the NUL-terminated
- * list of NUL-terminated strings, when printing two separator
+ * list of NUL-terminated strings, when printing sep separator
  * characters between strings.
  */
 static size_t
-lstlen(const char *cp)
+lstlen(const char *cp, size_t sep)
 {
 	size_t	 sz;
 
@@ -435,7 +456,7 @@ lstlen(const char *cp)
 		if (cp[0] == '\0') {
 			if (cp[1] == '\0')
 				break;
-			sz++;
+			sz += sep - 1;
 		} else if (cp[0] < ' ')
 			sz--;
 		cp++;
@@ -445,17 +466,20 @@ lstlen(const char *cp)
 
 /*
  * Print the NUL-terminated list of NUL-terminated strings
- * into the buffer, seperating strings with a comma and a blank.
+ * into the buffer, seperating strings with sep.
  */
 static void
-lstcat(char *buf, size_t *i, const char *cp)
+lstcat(char *buf, size_t *i, const char *cp, const char *sep)
 {
+	const char *s;
+
 	for (;;) {
 		if (cp[0] == '\0') {
 			if (cp[1] == '\0')
 				break;
-			buf[(*i)++] = ',';
-			buf[(*i)++] = ' ';
+			s = sep;
+			while (*s != '\0')
+				buf[(*i)++] = *s++;
 		} else if (cp[0] >= ' ')
 			buf[(*i)++] = cp[0];
 		cp++;
@@ -482,17 +506,46 @@ lstmatch(const char *want, const char *have)
 }
 
 /*
- * Build a list of values taken by the macro im
- * in the manual page with big-endian address addr.
+ * Build a list of values taken by the macro im in the manual page.
  */
 static char *
-buildoutput(size_t im, int32_t addr)
+buildoutput(size_t im, struct dbm_page *page)
 {
-	const char	*oldoutput, *sep;
+	const char	*oldoutput, *sep, *input;
 	char		*output, *newoutput, *value;
+	size_t		 sz, i;
+
+	switch (im) {
+	case KEY_Nd:
+		return mandoc_strdup(page->desc);
+	case KEY_Nm:
+		input = page->name;
+		break;
+	case KEY_sec:
+		input = page->sect;
+		break;
+	case KEY_arch:
+		input = page->arch;
+		if (input == NULL)
+			input = "all\0";
+		break;
+	default:
+		input = NULL;
+		break;
+	}
+
+	if (input != NULL) {
+		sz = lstlen(input, 3) + 1;
+		output = mandoc_malloc(sz);
+		i = 0;
+		lstcat(output, &i, input, " # ");
+		output[i++] = '\0';
+		assert(i == sz);
+		return output;
+	}
 
 	output = NULL;
-	dbm_macro_bypage(im - 2, addr);
+	dbm_macro_bypage(im - 2, page->addr);
 	while ((value = dbm_macro_next()) != NULL) {
 		if (output == NULL) {
 			oldoutput = "";
@@ -641,6 +694,12 @@ exprterm(const struct mansearch *search, int argc, char *argv[], int *argi)
 			warnx("unclosed parenthesis");
 		return e;
 	}
+
+	if (strcmp("-i", argv[*argi]) == 0 && *argi + 1 < argc) {
+		cs = 0;
+		++*argi;
+	} else
+		cs = 1;
 
 	e = mandoc_calloc(1, sizeof(*e));
 	e->type = EXPR_TERM;

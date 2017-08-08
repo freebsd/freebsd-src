@@ -1,4 +1,4 @@
-/*	$Id: tag.c,v 1.17 2017/01/09 17:49:58 schwarze Exp $ */
+/*	$Id: tag.c,v 1.18 2017/02/17 14:31:52 schwarze Exp $ */
 /*
  * Copyright (c) 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -38,7 +38,7 @@ struct tag_entry {
 	char	 s[];
 };
 
-static	void	 tag_signal(int) __attribute__((noreturn));
+static	void	 tag_signal(int) __attribute__((__noreturn__));
 
 static struct ohash	 tag_data;
 static struct tag_files	 tag_files;

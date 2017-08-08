@@ -1,6 +1,6 @@
-.\"	$Id: man.cgi.3,v 1.2 2016/07/07 19:19:01 schwarze Exp $
+.\"	$Id: man.cgi.3,v 1.4 2017/03/15 13:18:53 schwarze Exp $
 .\"
-.\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 7 2016 $
+.Dd $Mdocdate: March 15 2017 $
 .Dt MAN.CGI 3
 .Os
 .Sh NAME
@@ -126,12 +126,30 @@ contains a search query in short format or when
 is empty and a
 .Ev QUERY_STRING
 is provided.
-It changes into the manpath and calls
+If possible, requests using
+.Ev QUERY_STRING
+are redirected to URIs using
+.Ev PATH_INFO
+by calling
+.Fn pg_redirect .
+Otherwise, it changes into the manpath and calls
 .Xr mansearch 3 .
 Depending on the result, it calls either
 .Fn pg_noresult
 or
 .Fn pg_searchres .
+.It Ft void Fn pg_redirect "const struct req *req" "const char *name"
+This function is special in so far as it does not print an HTML page,
+but only an HTTP 303 response with a Location: of the form:
+.Sm off
+.No http://
+.Ar host Ns /
+.Op Ar scriptname Ns /
+.Op Ar manpath Ns /
+.Op Ar arch Ns /
+.Fa name
+.Op Pf . Ar sec
+.Sm on
 .It Ft void Fn pg_noresult "const struct req *req" "const char *msg"
 This function calls
 .Fn resp_begin_html ,
@@ -219,13 +237,18 @@ and
 are used.
 The highest level result generators are:
 .Bl -tag -width 1n
-.It Ft void Fn resp_begin_html "int code" "const char *msg"
+.It Ft void Fn resp_begin_html "int code" "const char *msg" "const char *file"
 This generator calls
 .Fn resp_begin_http
 to print the HTTP headers, then prints the HTML header up to the
 opening tag of the <body> element, then copies the file
 .Pa header.html
 to the output, if it exists and is readable.
+If
+.Fa file
+is not
+.Dv NULL ,
+it is used for the <title> element.
 .It Ft void Fn resp_searchform "const struct req *req" "enum focus focus"
 This generator prints a search form, filling it with data
 from the provided request object.

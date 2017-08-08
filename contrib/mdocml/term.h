@@ -1,7 +1,7 @@
-/*	$Id: term.h,v 1.118 2015/11/07 14:01:16 schwarze Exp $ */
+/*	$Id: term.h,v 1.130 2017/07/08 14:51:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,9 +36,10 @@ enum	termfont {
 	TERMFONT__MAX
 };
 
-#define	TERM_MAXMARGIN	  100000 /* FIXME */
-
+struct	eqn_box;
 struct	roff_meta;
+struct	roff_node;
+struct	tbl_span;
 struct	termp;
 
 typedef void	(*term_margin)(struct termp *, const struct roff_meta *);
@@ -48,24 +49,33 @@ struct	termp_tbl {
 	int		  decimal;	/* decimal point position */
 };
 
+struct	termp_col {
+	int		 *buf;		/* Output buffer. */
+	size_t		  maxcols;	/* Allocated bytes in buf. */
+	size_t		  lastcol;	/* Last byte in buf. */
+	size_t		  col;		/* Byte in buf to be written. */
+	size_t		  rmargin;	/* Current right margin. */
+	size_t		  offset;	/* Current left margin. */
+};
+
 struct	termp {
-	enum termtype	  type;
-	struct rofftbl	  tbl;		/* table configuration */
-	int		  synopsisonly; /* print the synopsis only */
-	int		  mdocstyle;	/* imitate mdoc(7) output */
+	struct rofftbl	  tbl;		/* Table configuration. */
+	struct termp_col *tcols;	/* Array of table columns. */
+	struct termp_col *tcol;		/* Current table column. */
+	size_t		  maxtcol;	/* Allocated table columns. */
+	size_t		  lasttcol;	/* Last column currently used. */
 	size_t		  line;		/* Current output line number. */
 	size_t		  defindent;	/* Default indent for text. */
 	size_t		  defrmargin;	/* Right margin of the device. */
 	size_t		  lastrmargin;	/* Right margin before the last ll. */
-	size_t		  rmargin;	/* Current right margin. */
 	size_t		  maxrmargin;	/* Max right margin. */
-	size_t		  maxcols;	/* Max size of buf. */
-	size_t		  offset;	/* Margin offest. */
-	size_t		  tabwidth;	/* Distance of tab positions. */
-	size_t		  col;		/* Bytes in buf. */
+	size_t		  col;		/* Byte position in buf. */
 	size_t		  viscol;	/* Chars on current line. */
-	size_t		  trailspace;	/* See termp_flushln(). */
-	int		  overstep;	/* See termp_flushln(). */
+	size_t		  trailspace;	/* See term_flushln(). */
+	size_t		  minbl;	/* Minimum blanks before next field. */
+	int		  synopsisonly; /* Print the synopsis only. */
+	int		  mdocstyle;	/* Imitate mdoc(7) output. */
+	int		  ti;		/* Temporary indent for one line. */
 	int		  skipvsp;	/* Vertical space to skip. */
 	int		  flags;
 #define	TERMP_SENTENCE	 (1 << 0)	/* Space before a sentence. */
@@ -79,12 +89,17 @@ struct	termp {
 #define	TERMP_NOBREAK	 (1 << 8)	/* See term_flushln(). */
 #define	TERMP_BRTRSP	 (1 << 9)	/* See term_flushln(). */
 #define	TERMP_BRIND	 (1 << 10)	/* See term_flushln(). */
-#define	TERMP_DANGLE	 (1 << 11)	/* See term_flushln(). */
-#define	TERMP_HANG	 (1 << 12)	/* See term_flushln(). */
+#define	TERMP_HANG	 (1 << 11)	/* See term_flushln(). */
+#define	TERMP_NOPAD	 (1 << 12)	/* See term_flushln(). */
 #define	TERMP_NOSPLIT	 (1 << 13)	/* Do not break line before .An. */
 #define	TERMP_SPLIT	 (1 << 14)	/* Break line before .An. */
 #define	TERMP_NONEWLINE	 (1 << 15)	/* No line break in nofill mode. */
-	int		 *buf;		/* Output buffer. */
+#define	TERMP_BRNEVER	 (1 << 16)	/* Don't even break at maxrmargin. */
+#define	TERMP_NOBUF	 (1 << 17)	/* Bypass output buffer. */
+#define	TERMP_NEWMC	 (1 << 18)	/* No .mc printed yet. */
+#define	TERMP_ENDMC	 (1 << 19)	/* Next break ends .mc mode. */
+#define	TERMP_MULTICOL	 (1 << 20)	/* Multiple column mode. */
+	enum termtype	  type;		/* Terminal, PS, or PDF. */
 	enum termenc	  enc;		/* Type of encoding. */
 	enum termfont	  fontl;	/* Last font set. */
 	enum termfont	 *fontq;	/* Symmetric fonts. */
@@ -102,18 +117,19 @@ struct	termp {
 	int		(*hspan)(const struct termp *,
 				const struct roffsu *);
 	const void	 *argf;		/* arg for headf/footf */
+	const char	 *mc;		/* Margin character. */
 	struct termp_ps	 *ps;
 };
 
 
-struct	tbl_span;
-struct	eqn;
-
 const char	 *ascii_uc2str(int);
 
-void		  term_eqn(struct termp *, const struct eqn *);
+void		  roff_term_pre(struct termp *, const struct roff_node *);
+
+void		  term_eqn(struct termp *, const struct eqn_box *);
 void		  term_tbl(struct termp *, const struct tbl_span *);
 void		  term_free(struct termp *);
+void		  term_setcol(struct termp *, size_t);
 void		  term_newln(struct termp *);
 void		  term_vspace(struct termp *);
 void		  term_word(struct termp *, const char *);
@@ -124,9 +140,14 @@ void		  term_end(struct termp *);
 
 void		  term_setwidth(struct termp *, const char *);
 int		  term_hspan(const struct termp *, const struct roffsu *);
+int		  term_hen(const struct termp *, const struct roffsu *);
 int		  term_vspan(const struct termp *, const struct roffsu *);
 size_t		  term_strlen(const struct termp *, const char *);
 size_t		  term_len(const struct termp *, size_t);
+
+void		  term_tab_set(const struct termp *, const char *);
+void		  term_tab_iset(size_t);
+size_t		  term_tab_next(size_t);
 
 void		  term_fontpush(struct termp *, enum termfont);
 void		  term_fontpop(struct termp *);

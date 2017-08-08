@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.78 2017/01/19 16:59:30 schwarze Exp $ */
+/*	$Id: html.h,v 1.87 2017/07/08 14:51:04 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -30,7 +30,7 @@ enum	htmltag {
 	TAG_BR,
 	TAG_A,
 	TAG_TABLE,
-	TAG_TBODY,
+	TAG_COLGROUP,
 	TAG_COL,
 	TAG_TR,
 	TAG_TD,
@@ -41,6 +41,8 @@ enum	htmltag {
 	TAG_DT,
 	TAG_DD,
 	TAG_PRE,
+	TAG_VAR,
+	TAG_CITE,
 	TAG_B,
 	TAG_I,
 	TAG_CODE,
@@ -49,6 +51,7 @@ enum	htmltag {
 	TAG_MATH,
 	TAG_MROW,
 	TAG_MI,
+	TAG_MN,
 	TAG_MO,
 	TAG_MSUP,
 	TAG_MSUB,
@@ -78,10 +81,6 @@ struct	tag {
 	enum htmltag	  tag;
 };
 
-struct tagq {
-	struct tag	 *head;
-};
-
 struct	html {
 	int		  flags;
 #define	HTML_NOSPACE	 (1 << 0) /* suppress next space */
@@ -100,7 +99,7 @@ struct	html {
 	size_t		  col; /* current output byte position */
 	size_t		  bufcol; /* current buf byte position */
 	char		  buf[80]; /* output buffer */
-	struct tagq	  tags; /* stack of open tags */
+	struct tag	 *tag; /* last open tag */
 	struct rofftbl	  tbl; /* current table */
 	struct tag	 *tblt; /* current open table scope */
 	char		 *base_man; /* base for manpage href */
@@ -114,8 +113,11 @@ struct	html {
 };
 
 
+struct	roff_node;
 struct	tbl_span;
-struct	eqn;
+struct	eqn_box;
+
+void		  roff_html_pre(struct html *, const struct roff_node *);
 
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
@@ -125,7 +127,9 @@ void		  print_stagq(struct html *, const struct tag *);
 void		  print_text(struct html *, const char *);
 void		  print_tblclose(struct html *);
 void		  print_tbl(struct html *, const struct tbl_span *);
-void		  print_eqn(struct html *, const struct eqn *);
+void		  print_eqn(struct html *, const struct eqn_box *);
 void		  print_paragraph(struct html *);
+void		  print_endline(struct html *);
 
+char		 *html_make_id(const struct roff_node *);
 int		  html_strlen(const char *);

@@ -6,7 +6,7 @@ int dummy;
 
 #else
 
-/*	$Id: compat_fts.c,v 1.12 2016/10/18 23:58:12 schwarze Exp $	*/
+/*	$Id: compat_fts.c,v 1.14 2017/02/18 12:24:24 schwarze Exp $	*/
 /*	$OpenBSD: fts.c,v 1.56 2016/09/21 04:38:56 guenther Exp $	*/
 
 /*-
@@ -63,14 +63,8 @@ static FTSENT	*fts_sort(FTS *, FTSENT *, int);
 static unsigned short	 fts_stat(FTS *, FTSENT *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
-#ifndef	O_DIRECTORY
-#define	O_DIRECTORY	0
-#endif
 #ifndef	O_CLOEXEC
 #define	O_CLOEXEC	0
-#endif
-#ifndef	PATH_MAX
-#define	PATH_MAX	4096
 #endif
 
 #define	CLR(opt)	(sp->fts_options &= ~(opt))
@@ -84,7 +78,7 @@ fts_open(char * const *argv, int options,
 	FTS *sp;
 	FTSENT *p, *root;
 	int nitems;
-	FTSENT *parent, *tmp;
+	FTSENT *parent, *prev;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -117,7 +111,7 @@ fts_open(char * const *argv, int options,
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
 
 	/* Allocate/initialize root(s). */
-	for (root = NULL, nitems = 0; *argv; ++argv, ++nitems) {
+	for (root = prev = NULL, nitems = 0; *argv; ++argv, ++nitems) {
 		if ((p = fts_alloc(sp, *argv, strlen(*argv))) == NULL)
 			goto mem3;
 		p->fts_level = FTS_ROOTLEVEL;
@@ -139,11 +133,10 @@ fts_open(char * const *argv, int options,
 		} else {
 			p->fts_link = NULL;
 			if (root == NULL)
-				tmp = root = p;
-			else {
-				tmp->fts_link = p;
-				tmp = p;
-			}
+				root = p;
+			else
+				prev->fts_link = p;
+			prev = p;
 		}
 	}
 	if (compar && nitems > 1)
