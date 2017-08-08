@@ -793,7 +793,7 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 			num_pkts = DIV_ROUND_UP(payload_len, mss);
 		ring->bytes += payload_len + (num_pkts * ihs);
 		ring->packets += num_pkts;
-		priv->port_stats.tso_packets++;
+		ring->tso_packets++;
 		/* store pointer to inline header */
 		dseg_inline = dseg;
 		/* copy data inline */
@@ -814,20 +814,11 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 	}
 	m_adj(mb, ihs);
 
-	/* trim off empty mbufs */
-	while (mb->m_len == 0) {
-		mb = m_free(mb);
-		/* check if all data has been inlined */
-		if (mb == NULL) {
-			nr_segs = 0;
-			goto skip_dma;
-		}
-	}
-
 	err = bus_dmamap_load_mbuf_sg(ring->dma_tag, tx_info->dma_map,
 	    mb, segs, &nr_segs, BUS_DMA_NOWAIT);
 	if (unlikely(err == EFBIG)) {
 		/* Too many mbuf fragments */
+		ring->defrag_attempts++;
 		m = m_defrag(mb, M_NOWAIT);
 		if (m == NULL) {
 			ring->oversized_packets++;
@@ -843,11 +834,18 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 		ring->oversized_packets++;
 		goto tx_drop;
 	}
-	/* make sure all mbuf data is written to RAM */
-	bus_dmamap_sync(ring->dma_tag, tx_info->dma_map,
-	    BUS_DMASYNC_PREWRITE);
+	/* If there were no errors and we didn't load anything, don't sync. */
+	if (nr_segs != 0) {
+		/* make sure all mbuf data is written to RAM */
+		bus_dmamap_sync(ring->dma_tag, tx_info->dma_map,
+		    BUS_DMASYNC_PREWRITE);
+	} else {
+		/* All data was inlined, free the mbuf. */
+		bus_dmamap_unload(ring->dma_tag, tx_info->dma_map);
+		m_freem(mb);
+		mb = NULL;
+	}
 
-skip_dma:
 	/* compute number of DS needed */
 	ds_cnt = (dseg - ((volatile struct mlx4_wqe_data_seg *)tx_desc)) + nr_segs;
 
