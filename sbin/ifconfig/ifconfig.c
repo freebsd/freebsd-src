@@ -760,7 +760,7 @@ top:
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0 &&
 	    (uafp != NULL || errno != EAFNOSUPPORT ||
 	     (s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0))
-		err(1, "socket(family %u,SOCK_DGRAM", ifr.ifr_addr.sa_family);
+		err(1, "socket(family %u,SOCK_DGRAM)", ifr.ifr_addr.sa_family);
 
 	while (argc > 0) {
 		p = cmd_lookup(*argv, iscreate);
