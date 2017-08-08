@@ -187,6 +187,11 @@ Tests are not required to preserve any data present on these disks.
 Must be set to a space delimited list of FIBs (routing tables).
 Tests that need to modify a routing table may use any of these.
 Tests will cleanup any new routes that they create.
+.It keep_pools
+Must be set to a space delimited list of
+.Xr zfs 8
+pools that the tests should not modify.  No test may modify any of these pools,
+other than by writing temporary files in the usual locations.
 .El
 .Ss What to do if something fails?
 If there is
