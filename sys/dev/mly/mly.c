@@ -2892,8 +2892,7 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
     MLY_LOCK(sc);
     if (mly_alloc_command(sc, &mc)) {
 	MLY_UNLOCK(sc);
-	error = ENOMEM;
-	goto out;		/* XXX Linux version will wait for a command */
+	return (ENOMEM);	/* XXX Linux version will wait for a command */
     }
     MLY_UNLOCK(sc);
 
@@ -2952,11 +2951,9 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
  out:
     if (mc->mc_data != NULL)
 	free(mc->mc_data, M_DEVBUF);
-    if (mc != NULL) {
-	MLY_LOCK(sc);
-	mly_release_command(mc);
-	MLY_UNLOCK(sc);
-    }
+    MLY_LOCK(sc);
+    mly_release_command(mc);
+    MLY_UNLOCK(sc);
     return(error);
 }
 
