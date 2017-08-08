@@ -6755,18 +6755,16 @@ top:
 			goto top;
 		}
 
-		if (HDR_L2_WRITE_HEAD(hdr)) {
-			/*
-			 * We hit a write head node.  Leave it for
-			 * l2arc_write_done().
-			 */
-			list_remove(buflist, hdr);
-			mutex_exit(hash_lock);
-			continue;
-		}
+		/*
+		 * A header can't be on this list if it doesn't have L2 header.
+		 */
+		ASSERT(HDR_HAS_L2HDR(hdr));
 
-		if (!all && HDR_HAS_L2HDR(hdr) &&
-		    (hdr->b_l2hdr.b_daddr > taddr ||
+		/* Ensure this header has finished being written. */
+		ASSERT(!HDR_L2_WRITING(hdr));
+		ASSERT(!HDR_L2_WRITE_HEAD(hdr));
+
+		if (!all && (hdr->b_l2hdr.b_daddr >= taddr ||
 		    hdr->b_l2hdr.b_daddr < dev->l2ad_hand)) {
 			/*
 			 * We've evicted to the target address,
@@ -6776,7 +6774,6 @@ top:
 			break;
 		}
 
-		ASSERT(HDR_HAS_L2HDR(hdr));
 		if (!HDR_HAS_L1HDR(hdr)) {
 			ASSERT(!HDR_L2_READING(hdr));
 			/*
@@ -6798,9 +6795,6 @@ top:
 				ARCSTAT_BUMP(arcstat_l2_evict_reading);
 				arc_hdr_set_flags(hdr, ARC_FLAG_L2_EVICTED);
 			}
-
-			/* Ensure this header has finished being written */
-			ASSERT(!HDR_L2_WRITING(hdr));
 
 			arc_hdr_l2hdr_destroy(hdr);
 		}
