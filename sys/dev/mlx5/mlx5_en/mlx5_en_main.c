@@ -552,7 +552,6 @@ mlx5e_update_stats_work(struct work_struct *work)
 	    priv->stats.pport.alignment_err +
 	    priv->stats.pport.check_seq_err +
 	    priv->stats.pport.crc_align_errors +
-	    priv->stats.pport.drop_events +
 	    priv->stats.pport.in_range_len_errors +
 	    priv->stats.pport.jabbers +
 	    priv->stats.pport.out_of_range_len +
@@ -561,7 +560,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 	    priv->stats.pport.too_long_errors +
 	    priv->stats.pport.undersize_pkts +
 	    priv->stats.pport.unsupported_op_rx;
-	ifp->if_iqdrops = s->rx_out_of_buffer;
+	ifp->if_iqdrops = s->rx_out_of_buffer +
+	    priv->stats.pport.drop_events;
 	ifp->if_opackets = s->tx_packets;
 	ifp->if_oerrors = s->tx_error_packets;
 	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
@@ -2467,7 +2467,6 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		    priv->stats.pport.alignment_err +
 		    priv->stats.pport.check_seq_err +
 		    priv->stats.pport.crc_align_errors +
-		    priv->stats.pport.drop_events +
 		    priv->stats.pport.in_range_len_errors +
 		    priv->stats.pport.jabbers +
 		    priv->stats.pport.out_of_range_len +
@@ -2478,7 +2477,8 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		    priv->stats.pport.unsupported_op_rx;
 		break;
 	case IFCOUNTER_IQDROPS:
-		retval = priv->stats.vport.rx_out_of_buffer;
+		retval = priv->stats.vport.rx_out_of_buffer +
+		    priv->stats.pport.drop_events;
 		break;
 	case IFCOUNTER_OPACKETS:
 		retval = priv->stats.vport.tx_packets;
