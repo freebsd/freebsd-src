@@ -326,6 +326,7 @@ GLIBCXX_3.4 {
         "operator new(unsigned long, std::nothrow_t const&)";
 
         "std::unexpected()";
+        "std::get_new_handler()";
         "std::get_terminate()";
         "std::get_unexpected()";
         "std::uncaught_exception()";
