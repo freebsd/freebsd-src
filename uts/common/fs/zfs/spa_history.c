@@ -614,7 +614,7 @@ void
 spa_history_log_version(spa_t *spa, const char *operation)
 {
 	spa_history_log_internal(spa, operation, NULL,
-	    "pool version %llu; software version %llu/%d; uts %s %s %s %s",
+	    "pool version %llu; software version %llu/%llu; uts %s %s %s %s",
 	    (u_longlong_t)spa_version(spa), SPA_VERSION, ZPL_VERSION,
 	    utsname.nodename, utsname.release, utsname.version,
 	    utsname.machine);
