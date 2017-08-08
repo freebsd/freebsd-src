@@ -70,7 +70,7 @@ _fcntl(int fd, int cmd, ...)
 		break;
 
 	default:
-		arg = va_arg(args, long);
+		arg = va_arg(args, int);
 		break;
 	}
 	va_end(args);
