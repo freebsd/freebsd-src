@@ -49,7 +49,7 @@ CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
 	if (uap->com & IOC_VOID) {
 		tag = cheri_gettag(tmpcap);
 		if (!tag)
-			uap->data = (void *)tmpcap;
+			uap->data = (void *)(cheri_getbase(tmpcap) + cheri_getoffset(tmpcap));
 		else
 			return (EPROT);
 	} else {
@@ -100,7 +100,7 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 		 * Allow addr to be NULL, but don't let the caller examine
 		 * mappings they don't have access to.
 		 */
-		uap->addr = (void *)tmpcap;
+		uap->addr = (void *)(cheri_getbase(tmpcap) + cheri_getoffset(tmpcap));
 		if (uap->addr != NULL)
 			return (EPROT);
 	} else {
@@ -183,7 +183,7 @@ CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
 	case F_READAHEAD:
 	case F_RDAHEAD:
 		cheriabi_fetch_syscall_arg(td, &tmpcap, 2, CHERIABI_SYS_fcntl_PTRMASK);
-		uap->arg = (register_t)tmpcap;
+		uap->arg = cheri_getbase(tmpcap) + cheri_getoffset(tmpcap);
 		break;
 
 	case F_GETLK:
@@ -430,7 +430,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 			 * and assume we'll copy in a struct timespec if
 			 * the size is less than struct timespec.
 			 */
-			uap->uaddr1 = (void *)tmpcap;
+			uap->uaddr1 = (void *)(cheri_getbase(tmpcap) + cheri_getoffset(tmpcap));
 			if ((size_t)uap->uaddr1 <= sizeof(struct timespec))
 				reqsize = sizeof(struct timespec);
 			else
