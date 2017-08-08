@@ -1850,12 +1850,14 @@ enroll(const char *description, struct lock_class *lock_class)
 	return (w);
 found:
 	w->w_refcount++;
+	if (w->w_refcount == 1)
+		w->w_class = lock_class;
 	mtx_unlock_spin(&w_mtx);
 	if (lock_class != w->w_class)
 		kassert_panic(
-			"lock (%s) %s does not match earlier (%s) lock",
-			description, lock_class->lc_name,
-			w->w_class->lc_name);
+		    "lock (%s) %s does not match earlier (%s) lock",
+		    description, lock_class->lc_name,
+		    w->w_class->lc_name);
 	return (w);
 }
 
