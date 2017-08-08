@@ -74,7 +74,6 @@ SUBDIR=	adduser \
 	rpc.statd \
 	rpc.umntall \
 	rtprio \
-	rwhod \
 	service \
 	services_mkdb \
 	sesutil \
@@ -192,6 +191,7 @@ SUBDIR.${MK_PPP}+=	ppp
 SUBDIR.${MK_QUOTAS}+=	edquota
 SUBDIR.${MK_QUOTAS}+=	quotaon
 SUBDIR.${MK_QUOTAS}+=	repquota
+SUBDIR.${MK_RCMDS}+=	rwhod
 SUBDIR.${MK_SENDMAIL}+=	editmap
 SUBDIR.${MK_SENDMAIL}+=	mailstats
 SUBDIR.${MK_SENDMAIL}+=	makemap
