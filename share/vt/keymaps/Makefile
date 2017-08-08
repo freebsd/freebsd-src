@@ -69,6 +69,7 @@ FILES=	INDEX.keymaps \
 	se.kbd \
 	si.kbd \
 	sk.kbd \
+	tr.f.kbd \
 	tr.kbd \
 	ua.kbd \
 	ua.shift.alt.kbd \
