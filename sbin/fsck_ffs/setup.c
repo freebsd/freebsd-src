@@ -58,8 +58,6 @@ struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static void badsb(int listerr, const char *s);
-
 /*
  * Read in a superblock finding an alternate if necessary.
  * Return 1 if successful, 0 if unsuccessful, -1 if file system
