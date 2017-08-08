@@ -766,6 +766,12 @@ get_epair()
 {
 	local EPAIRD
 
+	if  (which pfctl && pfctl -s info | grep -q 'Status: Enabled') || 
+	    [ `sysctl -n net.inet.ip.fw.enable` = "1" ] ||
+	    (which ipf && ipf -V); then
+		atf_skip "firewalls interfere with this test"
+	fi
+
 	if EPAIRD=`ifconfig epair create`; then
 		# Record the epair device so we can clean it up later
 		echo ${EPAIRD} >> "ifaces_to_cleanup"
