@@ -196,9 +196,8 @@
 	facilities of &man.cxgbe.4; devices.</para>
 
       <para revision="320646">The &man.rcp.1;, &man.rlogin.1;,
-	&man.rsh.1;, &man.ruptime.1;, &man.rwho.1;, &man.rlogind.8;,
-	&man.rshd.8;, and &man.rwhod.8; utilities have been marked as
-	deprecated, and planned for removal in
+	&man.rsh.1;, &man.rlogind.8;, and &man.rshd.8; utilities have
+	been marked as deprecated, and planned for removal in
 	&os;&nbsp;12.0-RELEASE.</para>
 
       <para revision="320824">The &man.gdb.1; and &man.kgdb.1;
