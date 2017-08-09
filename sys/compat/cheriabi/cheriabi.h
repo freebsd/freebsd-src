@@ -34,6 +34,8 @@
 #ifndef _COMPAT_CHERIABI_CHERIABI_H_
 #define _COMPAT_CHERIABI_CHERIABI_H_
 
+#include <sys/ktrace.h>
+
 #include <cheri/cheri.h>
 #include <cheri/cheric.h>
 
@@ -55,6 +57,9 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, void * __capability cap, size_t reqlen,
     register_t reqperms, int may_be_null)
 {
 	size_t length, offset;
+#ifdef KTRACE
+	struct thread *td = curthread;
+#endif
 
 	if (!cheri_gettag(cap)) {
 		if (!may_be_null)
@@ -63,19 +68,32 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, void * __capability cap, size_t reqlen,
 		if (*ptrp != NULL)
 			return (EFAULT);
 	} else {
-		if (cheri_getsealed(cap))
+		if (cheri_getsealed(cap)) {
+			SYSERRCAUSE("cap %p is sealed", (void *)cap);
 			return (EPROT);
+		}
 
-		if ((cheri_getperm(cap) & reqperms) != reqperms)
+		if ((cheri_getperm(cap) & reqperms) != reqperms) {
+			SYSERRCAUSE("cap %p has insufficent perms, missing %lx",
+			    (void *)cap, reqperms & ~cheri_getperm(cap));
 			return (EPROT);
+		}
 
 		length = cheri_getlen(cap);
 		offset = cheri_getoffset(cap);
-		if (offset >= length)
+		if (offset >= length) {
+			SYSERRCAUSE(
+			    "cap %p out of bounds, offset %zu > length %zu",
+			    (void *)cap, offset, length);
 			return (EPROT);
+		}
 		length -= offset;
-		if (length < reqlen)
+		if (length < reqlen) {
+			SYSERRCAUSE("cap %p too short "
+			    "(length - offset) %zu < reqlen %zu",
+			    (void *)cap, length, reqlen);
 			return (EPROT);
+		}
 
 		*ptrp = (caddr_t)cap;
 	}
