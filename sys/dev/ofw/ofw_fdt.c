@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofwvar.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "ofw_if.h"
 
@@ -450,7 +451,15 @@ ofw_fdt_fixup(ofw_t ofw)
 	for (i = 0; fdt_fixup_table[i].model != NULL; i++) {
 		if (strncmp(model, fdt_fixup_table[i].model,
 		    FDT_MODEL_LEN) != 0)
-			continue;
+			/*
+			 * Sometimes it's convenient to provide one
+			 * fixup entry that refers to many boards.
+			 * To handle this case, simply check if model
+			 * is compatible parameter
+			 */
+			if(!ofw_bus_node_is_compatible(root,
+			    fdt_fixup_table[i].model))
+				continue;
 
 		if (fdt_fixup_table[i].handler != NULL)
 			(*fdt_fixup_table[i].handler)(root);
