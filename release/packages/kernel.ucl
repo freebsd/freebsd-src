@@ -16,6 +16,39 @@ desc = <<EOD
 %DESC%
 EOD
 scripts: {
+	pre-install = <<EOD
+	case ${ASSUME_ALWAYS_YES} in
+		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee])
+			exit 0
+			;;
+		*)
+			continue
+			;;
+	esac
+	echo "****************************************************************"
+	echo "It is recommended to install the FreeBSD-%PKGNAME% package"
+	echo "with:"
+	echo
+	echo "	pkg install FreeBSD-%PKGNAME%"
+	echo
+	echo "and rebooting the system into the new kernel before upgrading"
+	echo "with:"
+	echo
+	echo "	pkg upgrade"
+	echo
+	echo "****************************************************************"
+	echo
+	echo "Do you want to continue anyway?"
+	echo "[Enter] to continue, ^C to cancel."
+	echo
+	read ANSWER
+	case ${ANSWER} in
+		*)
+			continue
+			;;
+	esac
+EOD
+
 	post-install = <<EOD
 	/usr/sbin/kldxref ${PKG_ROOTDIR}/boot/kernel
 EOD
