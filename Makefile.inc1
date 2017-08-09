@@ -1618,7 +1618,10 @@ create-world-package-${pkgname}: .PHONY
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
-		' ${WSTAGEDIR}/${pkgname}.ucl ; \
+		' ${WSTAGEDIR}/${pkgname}.ucl ;
+	@if [ "${pkgname}" == "runtime" ]; then \
+		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
