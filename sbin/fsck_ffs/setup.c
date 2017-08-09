@@ -58,6 +58,10 @@ struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
+static int calcsb(char *dev, int devfd, struct fs *fs);
+static void saverecovery(int readfd, int writefd);
+static int chkrecovery(int devfd);
+
 /*
  * Read in a superblock finding an alternate if necessary.
  * Return 1 if successful, 0 if unsuccessful, -1 if file system
@@ -66,9 +70,10 @@ struct bufarea asblk;
 int
 setup(char *dev)
 {
-	long asked, i, j;
+	long cg, asked, i, j;
 	long bmapsize;
 	struct stat statb;
+	struct fs proto;
 	size_t size;
 
 	havesb = 0;
@@ -173,10 +178,28 @@ setup(char *dev)
 	 */
 	if (readsb(1) == 0) {
 		skipclean = 0;
-		if (bflag || preen)
+		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
 			return(0);
-		/* Looking for alternates is hard punt for now but retain structure */
-		return (0);
+		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
+			return (0);
+		for (cg = 0; cg < proto.fs_ncg; cg++) {
+			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
+			if (readsb(0) != 0)
+				break;
+		}
+		if (cg >= proto.fs_ncg) {
+			printf("%s %s\n%s %s\n%s %s\n",
+				"SEARCH FOR ALTERNATE SUPER-BLOCK",
+				"FAILED. YOU MUST USE THE",
+				"-b OPTION TO FSCK TO SPECIFY THE",
+				"LOCATION OF AN ALTERNATE",
+				"SUPER-BLOCK TO SUPPLY NEEDED",
+				"INFORMATION; SEE fsck_ffs(8).");
+			bflag = 0;
+			return(0);
+		}
+		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
+		bflag = 0;
 	}
 	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
@@ -213,6 +236,10 @@ setup(char *dev)
 		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);
 		flush(fswritefd, &asblk);
 	}
+	if (preen == 0 && yflag == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
+	    fswritefd != -1 && chkrecovery(fsreadfd) == 0 &&
+	    reply("SAVE DATA TO FIND ALTERNATE SUPERBLOCKS") != 0)
+		saverecovery(fsreadfd, fswritefd);
 	/*
 	 * read in the summary info.
 	 */
@@ -427,4 +454,74 @@ sblock_init(void)
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	dev_bsize = secsize = DEV_BSIZE;
+}
+
+/*
+ * Calculate a prototype superblock based on information in the boot area.
+ * When done the cgsblock macro can be calculated and the fs_ncg field
+ * can be used. Do NOT attempt to use other macros without verifying that
+ * their needed information is available!
+ */
+static int
+calcsb(char *dev, int devfd, struct fs *fs)
+{
+	struct fsrecovery fsr;
+
+	/*
+	 * We need fragments-per-group and the partition-size.
+	 *
+	 * Newfs stores these details at the end of the boot block area
+	 * at the start of the filesystem partition. If they have been
+	 * overwritten by a boot block, we fail. But usually they are
+	 * there and we can use them.
+	 */
+	if (blread(devfd, (char *)&fsr,
+	    (SBLOCK_UFS2 - sizeof(fsr)) / dev_bsize, sizeof(fsr)) ||
+	    fsr.fsr_magic != FS_UFS2_MAGIC)
+		return (0);
+	memset(fs, 0, sizeof(struct fs));
+	fs->fs_fpg = fsr.fsr_fpg;
+	fs->fs_fsbtodb = fsr.fsr_fsbtodb;
+	fs->fs_sblkno = fsr.fsr_sblkno;
+	fs->fs_magic = fsr.fsr_magic;
+	fs->fs_ncg = fsr.fsr_ncg;
+	return (1);
+}
+
+/*
+ * Check to see if recovery information exists.
+ */
+static int
+chkrecovery(int devfd)
+{
+	struct fsrecovery fsr;
+
+	if (blread(devfd, (char *)&fsr,
+	    (SBLOCK_UFS2 - sizeof(fsr)) / dev_bsize, sizeof(fsr)) ||
+	    fsr.fsr_magic != FS_UFS2_MAGIC)
+		return (0);
+	return (1);
+}
+
+/*
+ * Read the last sector of the boot block, replace the last
+ * 20 bytes with the recovery information, then write it back.
+ * The recovery information only works for UFS2 filesystems.
+ */
+static void
+saverecovery(int readfd, int writefd)
+{
+	struct fsrecovery fsr;
+
+	if (sblock.fs_magic != FS_UFS2_MAGIC ||
+	    blread(readfd, (char *)&fsr,
+	    (SBLOCK_UFS2 - sizeof(fsr)) / dev_bsize, sizeof(fsr)))
+		return;
+	fsr.fsr_magic = sblock.fs_magic;
+	fsr.fsr_fpg = sblock.fs_fpg;
+	fsr.fsr_fsbtodb = sblock.fs_fsbtodb;
+	fsr.fsr_sblkno = sblock.fs_sblkno;
+	fsr.fsr_ncg = sblock.fs_ncg;
+	blwrite(writefd, (char *)&fsr, (SBLOCK_UFS2 - sizeof(fsr)) / dev_bsize,
+	    sizeof(fsr));
 }
