@@ -46,6 +46,7 @@ void	eintr(void);
 void	user(void);
 #endif
 #include <machine/atomic.h>
+#include <stdlib.h>
 
 /*
  * mcount is called on entry to each function compiled with the profiling
