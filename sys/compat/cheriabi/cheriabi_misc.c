@@ -156,14 +156,6 @@ static int cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 static register_t cheriabi_mmap_prot2perms(int prot);
 
-#ifdef KTRACE
-#define	SYSERRCAUSE(fmt, ...)						\
-	if (KTRPOINT(td, KTR_SYSERRCAUSE))				\
-		ktrsyserrcause("%s: " fmt, __func__, ##__VA_ARGS__);
-#else
-#define	SYSERRCAUSE(fmt, ...)
-#endif
-
 int
 cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 {
