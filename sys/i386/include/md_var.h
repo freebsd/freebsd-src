@@ -59,7 +59,6 @@ void	doreti_popl_es(void) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault(void) __asm(__STRING(doreti_popl_es_fault));
 void	doreti_popl_fs(void) __asm(__STRING(doreti_popl_fs));
 void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
-void	finishidentcpu(void);
 void	fill_based_sd(struct segment_descriptor *sdp, uint32_t base);
 void	i686_pagezero(void *addr);
 void	sse2_pagezero(void *addr);
