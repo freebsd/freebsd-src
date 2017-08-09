@@ -469,7 +469,7 @@ trap(struct trapframe *frame)
 				goto userout;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
-			break;
+			goto out;
 #endif /* POWERFAIL_NMI */
 #endif /* DEV_ISA */
 
@@ -519,7 +519,7 @@ trap(struct trapframe *frame)
 			if (dtrace_return_probe_ptr != NULL &&
 			    dtrace_return_probe_ptr(&regs) == 0)
 				goto out;
-			break;
+			goto userout;
 #endif
 		}
 	} else {

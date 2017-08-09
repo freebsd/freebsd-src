@@ -396,7 +396,7 @@ trap(struct trapframe *frame)
 				goto userout;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
-			break;
+			goto out;
 #endif /* DEV_ISA */
 
 		case T_OFLOW:		/* integer overflow fault */
@@ -434,7 +434,7 @@ trap(struct trapframe *frame)
 			if (dtrace_return_probe_ptr != NULL &&
 			    dtrace_return_probe_ptr(&regs) == 0)
 				goto out;
-			break;
+			goto userout;
 #endif
 		}
 	} else {
