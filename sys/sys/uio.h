@@ -48,7 +48,10 @@ typedef	__off_t	off_t;
 #endif
 
 #if __BSD_VISIBLE
+#ifndef _UIO_RW_DECLARED
 enum	uio_rw { UIO_READ, UIO_WRITE };
+#define	_UIO_RW_DECLARED
+#endif
 
 /* Segment flag values. */
 enum uio_seg {

@@ -114,6 +114,10 @@ struct ktr_sysret {
 /*
  * KTR_GENIO - trace generic process i/o
  */
+#ifndef _UIO_RW_DECLARED
+enum	uio_rw { UIO_READ, UIO_WRITE };
+#define	_UIO_RW_DECLARED
+#endif
 #define KTR_GENIO	4
 struct ktr_genio {
 	int	ktr_fd;
