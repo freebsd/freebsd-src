@@ -1771,7 +1771,8 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	       (unsigned)dev->if_mtu, (unsigned)new_mtu);
 
 	if ((new_mtu < MLX4_EN_MIN_MTU) || (new_mtu > priv->max_mtu)) {
-		en_err(priv, "Bad MTU size:%d.\n", new_mtu);
+		en_err(priv, "Bad MTU size:%d, max %u.\n", new_mtu,
+		    priv->max_mtu);
 		return -EPERM;
 	}
 	mutex_lock(&mdev->state_lock);
