@@ -186,6 +186,16 @@ boot</screen>
 	  Communications, LLC (Netgate), when in fact this work was
 	  done by Hiroki Mori independently.</para>
       </listitem>
+
+      <listitem>
+	<para>[2017-08-09] The release notes stated the
+	  &man.ruptime.1;, &man.rwho.1;, and &man.rwhod.8; utilities
+	  have been marked &quot;deprecated&quot;, however this change
+	  was reversed in 12.0-CURRENT.</para>
+
+	<para>The other utilities mentioned in the entry in the
+	  release notes, however, are unchanged.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
