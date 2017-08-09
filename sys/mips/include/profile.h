@@ -42,7 +42,10 @@
 /*XXX The cprestore instruction is a "dummy" to shut up as(1). */
 
 /*XXX This is not MIPS64 safe. */
-
+#ifdef __mips_n64
+/* XXXAR: not implemented for mips n64 */
+#define	MCOUNT	void _mcount(uintfptr_t frompc, uintfptr_t selfpc) { abort(); }
+#else
 #define	MCOUNT \
 	__asm(".globl _mcount;"		\
 	".type _mcount,@function;"	\
@@ -71,7 +74,7 @@
 	"move $31,$1;"			\
 	".set reorder;"			\
 	".set at");
-
+#endif
 #ifdef _KERNEL
 /*
  * The following two macros do splhigh and splx respectively.
