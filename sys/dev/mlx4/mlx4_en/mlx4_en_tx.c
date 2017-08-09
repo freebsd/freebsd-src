@@ -1071,6 +1071,10 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 		taskqueue_enqueue(cq->tq, &cq->cq_task);
 	}
 
+#if __FreeBSD_version >= 1100000
+	if (unlikely(err != 0))
+		if_inc_counter(dev, IFCOUNTER_IQDROPS, 1);
+#endif
 	return (err);
 }
 
