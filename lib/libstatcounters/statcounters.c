@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#include <err.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -573,20 +573,30 @@ static void end_sample (void)
     const char * const fmt = getenv("STATCOUNTERS_FORMAT");
     bool display_header = true;
     statcounters_fmt_flag_t fmt_flg = HUMAN_READABLE;
-    if (fname && access(fname, F_OK) != -1)
+    if (!fname)
+        return;
+    if (access(fname, F_OK) != -1)
         display_header = false;
-    if (fname && (fp = fopen(fname, "a")))
-    {
-        if (fmt && (strcmp(fmt,"csv") == 0))
-        {
-            if (display_header) fmt_flg = CSV_HEADER;
-            else fmt_flg = CSV_NOHEADER;
-        }
-	if (pname) strncpy(pname_arg,pname,128);
-	else strncpy(pname_arg,getprogname(),128);
-	if (aname) strncpy(aname_arg,aname,32);
-	else getarchname(aname_arg,"unknown_arch");
-	statcounters_dump(&diff_cnt,pname_arg,aname_arg,fp,fmt_flg);
-        fclose(fp);
+    fp = fopen(fname, "a");
+    if (!fp) {
+        warn("Failed to open statcounters output %s", fname);
+        return;
     }
+    if (fmt && (strcmp(fmt,"csv") == 0)) {
+       if (display_header)
+           fmt_flg = CSV_HEADER;
+       else
+           fmt_flg = CSV_NOHEADER;
+    }
+    if (pname)
+        strncpy(pname_arg,pname,128);
+    else
+        strncpy(pname_arg,getprogname(),128);
+    if (aname)
+        strncpy(aname_arg,aname,32);
+    else
+        getarchname(aname_arg,"unknown_arch");
+
+    statcounters_dump(&diff_cnt,pname_arg,aname_arg,fp,fmt_flg);
+    fclose(fp);
 }
