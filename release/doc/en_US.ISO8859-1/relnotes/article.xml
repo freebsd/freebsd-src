@@ -258,6 +258,9 @@
 
       <para revision="321304">&man.libarchive.3; has been updated to
 	version 3.3.2.</para>
+
+      <para revision="321964"><application>bmake</application> has
+	been updated to version 20170720.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
