@@ -433,6 +433,7 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 	struct libusb_bos_descriptor *ptr;
 	struct libusb_usb_2_0_device_capability_descriptor *dcap_20 = NULL;
 	struct libusb_ss_usb_device_capability_descriptor *ss_cap = NULL;
+	uint8_t index = 0;
 
 	if (buf == NULL || bos == NULL || len < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -453,7 +454,8 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 			break;
 
 		if (dlen >= LIBUSB_DT_BOS_SIZE &&
-		    dtype == LIBUSB_DT_BOS) {
+		    dtype == LIBUSB_DT_BOS &&
+		    ptr == NULL) {
 
 			ptr = malloc(sizeof(*ptr) + sizeof(*dcap_20) +
 			    sizeof(*ss_cap));
@@ -470,6 +472,11 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 			ptr->bNumDeviceCapabilities = ((const uint8_t *)buf)[4];
 			ptr->usb_2_0_ext_cap = NULL;
 			ptr->ss_usb_cap = NULL;
+			ptr->dev_capability = calloc(ptr->bNumDeviceCapabilities, sizeof(void *));
+			if (ptr->dev_capability == NULL) {
+				free(ptr);
+				return (LIBUSB_ERROR_NO_MEM);
+			}
 
 			dcap_20 = (void *)(ptr + 1);
 			ss_cap = (void *)(dcap_20 + 1);
@@ -477,6 +484,15 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 		if (dlen >= 3 &&
 		    ptr != NULL &&
 		    dtype == LIBUSB_DT_DEVICE_CAPABILITY) {
+			if (index != ptr->bNumDeviceCapabilities) {
+				ptr->dev_capability[index] = malloc(dlen);
+				if (ptr->dev_capability[index] == NULL) {
+					libusb_free_bos_descriptor(ptr);
+					return LIBUSB_ERROR_NO_MEM;
+				}
+				memcpy(ptr->dev_capability[index], buf, dlen);
+				index++;
+			}
 			switch (((const uint8_t *)buf)[2]) {
 			case LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY:
 				if (ptr->usb_2_0_ext_cap != NULL || dcap_20 == NULL)
@@ -523,8 +539,11 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 		buf = ((const uint8_t *)buf) + dlen;
 		len -= dlen;
 	}
-	if (ptr != NULL)
+
+	if (ptr != NULL) {
+		ptr->bNumDeviceCapabilities = index;
 		return (0);		/* success */
+	}
 
 	return (LIBUSB_ERROR_IO);
 }
@@ -532,9 +551,14 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 void
 libusb_free_bos_descriptor(struct libusb_bos_descriptor *bos)
 {
+	uint8_t i;
+
 	if (bos == NULL)
 		return;
 
+	for (i = 0; i != bos->bNumDeviceCapabilities; i++)
+		free(bos->dev_capability[i]);
+	free(bos->dev_capability);
 	free(bos);
 }
 
