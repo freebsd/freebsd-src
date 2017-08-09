@@ -397,9 +397,13 @@ qlnx_fp_taskqueue(void *context, int pending)
         struct ifnet		*ifp;
         struct mbuf		*mp;
         int			ret = -1;
+	struct thread		*cthread;
+
+#ifdef QLNX_RCV_IN_TASKQ
 	int			lro_enable;
 	int			rx_int = 0, total_rx_count = 0;
-	struct thread		*cthread;
+
+#endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
         fp = context;
 
@@ -419,54 +423,59 @@ qlnx_fp_taskqueue(void *context, int pending)
 
         ifp = ha->ifp;
 
-	lro_enable = ha->ifp->if_capenable & IFCAP_LRO;
+#ifdef QLNX_RCV_IN_TASKQ
+	{
+		lro_enable = ifp->if_capenable & IFCAP_LRO;
 
-	rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold, lro_enable);
+		rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold, lro_enable);
 
-	if (rx_int) {
-		fp->rx_pkts += rx_int;
-		total_rx_count += rx_int;
-	}
+		if (rx_int) {
+			fp->rx_pkts += rx_int;
+			total_rx_count += rx_int;
+		}
 
 #ifdef QLNX_SOFT_LRO
-	{
-		struct lro_ctrl *lro;
+		{
+			struct lro_ctrl *lro;
+	
+			lro = &fp->rxq->lro;
 
-		lro = &fp->rxq->lro;
-
-		if (lro_enable && total_rx_count) {
+			if (lro_enable && total_rx_count) {
 
 #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 
-			if (ha->dbg_trace_lro_cnt) {
-				if (lro->lro_mbuf_count & ~1023)
-					fp->lro_cnt_1024++;
-				else if (lro->lro_mbuf_count & ~511)
-					fp->lro_cnt_512++;
-				else if (lro->lro_mbuf_count & ~255)
-					fp->lro_cnt_256++;
-				else if (lro->lro_mbuf_count & ~127)
-					fp->lro_cnt_128++;
-				else if (lro->lro_mbuf_count & ~63)
-					fp->lro_cnt_64++;
-			}
-			tcp_lro_flush_all(lro);
+				if (ha->dbg_trace_lro_cnt) {
+					if (lro->lro_mbuf_count & ~1023)
+						fp->lro_cnt_1024++;
+					else if (lro->lro_mbuf_count & ~511)
+						fp->lro_cnt_512++;
+					else if (lro->lro_mbuf_count & ~255)
+						fp->lro_cnt_256++;
+					else if (lro->lro_mbuf_count & ~127)
+						fp->lro_cnt_128++;
+					else if (lro->lro_mbuf_count & ~63)
+						fp->lro_cnt_64++;
+				}
+				tcp_lro_flush_all(lro);
 
 #else
-			struct lro_entry *queued;
+				struct lro_entry *queued;
 
-			while ((!SLIST_EMPTY(&lro->lro_active))) {
-				queued = SLIST_FIRST(&lro->lro_active);
-				SLIST_REMOVE_HEAD(&lro->lro_active, next);
-				tcp_lro_flush(lro, queued);
-			}
+				while ((!SLIST_EMPTY(&lro->lro_active))) {
+					queued = SLIST_FIRST(&lro->lro_active);
+					SLIST_REMOVE_HEAD(&lro->lro_active, next);
+					tcp_lro_flush(lro, queued);
+				}
 #endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
+			}
 		}
-	}
 #endif /* #ifdef QLNX_SOFT_LRO */
 
-	ecore_sb_update_sb_idx(fp->sb_info);
-	rmb();
+		ecore_sb_update_sb_idx(fp->sb_info);
+		rmb();
+	}
+
+#endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
         mtx_lock(&fp->tx_mtx);
 
@@ -476,10 +485,6 @@ qlnx_fp_taskqueue(void *context, int pending)
                 mtx_unlock(&fp->tx_mtx);
                 goto qlnx_fp_taskqueue_exit;
         }
-
-//	for (tc = 0; tc < ha->num_tc; tc++) {
-//		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
-//	}
 
         mp = drbr_peek(ifp, fp->tx_br);
 
@@ -516,13 +521,11 @@ qlnx_fp_taskqueue(void *context, int pending)
                 mp = drbr_peek(ifp, fp->tx_br);
         }
 
-//	for (tc = 0; tc < ha->num_tc; tc++) {
-//		(void)qlnx_tx_int(ha, fp, fp->txq[tc]);
-//	}
-
         mtx_unlock(&fp->tx_mtx);
 
 qlnx_fp_taskqueue_exit:
+
+#ifdef QLNX_RCV_IN_TASKQ
 	if (rx_int) {
 		if (fp->fp_taskqueue != NULL)
 			taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
@@ -532,6 +535,7 @@ qlnx_fp_taskqueue_exit:
 		}
 		ecore_sb_ack(fp->sb_info, IGU_INT_ENABLE, 1);
 	}
+#endif /* #ifdef QLNX_RCV_IN_TASKQ */
 
         QL_DPRINT2(ha, "exit ret = %d\n", ret);
         return;
@@ -4262,6 +4266,7 @@ next_cqe:	/* don't consume bd rx buffer */
         return rx_pkt;
 }
 
+
 /*
  * fast path interrupt
  */
@@ -4292,9 +4297,82 @@ qlnx_fp_isr(void *arg)
         if (fp == NULL) {
                 ha->err_fp_null++;
         } else {
+
+#ifdef QLNX_RCV_IN_TASKQ
                 ecore_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0);
 		if (fp->fp_taskqueue != NULL)
 			taskqueue_enqueue(fp->fp_taskqueue, &fp->fp_task);
+#else
+		int	rx_int = 0, total_rx_count = 0;
+		int 	lro_enable, tc;
+
+		lro_enable = ha->ifp->if_capenable & IFCAP_LRO;
+
+                ecore_sb_ack(fp->sb_info, IGU_INT_DISABLE, 0);
+
+                do {
+                        for (tc = 0; tc < ha->num_tc; tc++) {
+                                if (mtx_trylock(&fp->tx_mtx)) {
+                                        qlnx_tx_int(ha, fp, fp->txq[tc]);
+                                        mtx_unlock(&fp->tx_mtx);
+                                }
+                        }
+
+                        rx_int = qlnx_rx_int(ha, fp, ha->rx_pkt_threshold,
+                                        lro_enable);
+
+                        if (rx_int) {
+                                fp->rx_pkts += rx_int;
+                                total_rx_count += rx_int;
+                        }
+
+                } while (rx_int);
+
+
+#ifdef QLNX_SOFT_LRO
+                {
+                        struct lro_ctrl *lro;
+
+                        lro = &fp->rxq->lro;
+
+                        if (lro_enable && total_rx_count) {
+
+#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
+
+#ifdef QLNX_TRACE_LRO_CNT
+                                if (lro->lro_mbuf_count & ~1023)
+                                        fp->lro_cnt_1024++;
+                                else if (lro->lro_mbuf_count & ~511)
+                                        fp->lro_cnt_512++;
+                                else if (lro->lro_mbuf_count & ~255)
+                                        fp->lro_cnt_256++;
+                                else if (lro->lro_mbuf_count & ~127)
+                                        fp->lro_cnt_128++;
+                                else if (lro->lro_mbuf_count & ~63)
+                                        fp->lro_cnt_64++;
+#endif /* #ifdef QLNX_TRACE_LRO_CNT */
+
+                                tcp_lro_flush_all(lro);
+
+#else
+                                struct lro_entry *queued;
+
+                                while ((!SLIST_EMPTY(&lro->lro_active))) {
+                                        queued = SLIST_FIRST(&lro->lro_active);
+                                        SLIST_REMOVE_HEAD(&lro->lro_active, \
+                                                next);
+                                        tcp_lro_flush(lro, queued);
+                                }
+#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
+                        }
+                }
+#endif /* #ifdef QLNX_SOFT_LRO */
+
+                ecore_sb_update_sb_idx(fp->sb_info);
+                rmb();
+                ecore_sb_ack(fp->sb_info, IGU_INT_ENABLE, 1);
+
+#endif /* #ifdef QLNX_RCV_IN_TASKQ */
         }
 
         return;
