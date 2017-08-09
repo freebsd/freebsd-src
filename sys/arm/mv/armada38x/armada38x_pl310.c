@@ -57,6 +57,9 @@ platform_pl310_init(struct pl310_softc *sc)
 	pl310_write4(sc, PL310_PREFETCH_CTRL, PREFETCH_CTRL_DL |
 	    PREFETCH_CTRL_DATA_PREFETCH | PREFETCH_CTRL_INCR_DL |
 	    PREFETCH_CTRL_DL_ON_WRAP);
+
+	/* Disable L2 cache sync for IO coherent operation */
+	sc->sc_io_coherent = true;
 }
 
 void
