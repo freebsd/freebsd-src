@@ -291,7 +291,7 @@ cheri_newthread_setregs(struct thread *td, unsigned long entry_addr)
 	cheri_capability_set_user_ddc(&frame->ddc);
 	cheri_capability_set_user_stc(&frame->stc);
 	cheri_capability_set_user_idc(&frame->idc);
-	cheri_capability_set_user_pcc(&frame->pcc);
+	cheri_capability_set_user_entry(&frame->pcc, entry_addr);
 	cheri_capability_set_user_entry(&frame->c12, entry_addr);
 }
 
