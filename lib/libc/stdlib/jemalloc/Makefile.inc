@@ -5,7 +5,7 @@
 JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bitmap.c ckh.c \
 	ctl.c extent.c extent_dss.c extent_mmap.c hash.c hooks.c large.c \
 	malloc_io.c mutex.c mutex_pool.c nstime.c pages.c prng.c prof.c \
-	rtree.c spin.c stats.c sz.c tcache.c ticker.c tsd.c witness.c
+	rtree.c stats.c sz.c tcache.c ticker.c tsd.c witness.c
 
 SYM_MAPS+=${LIBC_SRCTOP}/stdlib/jemalloc/Symbol.map
 
