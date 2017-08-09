@@ -191,21 +191,32 @@ DEFINE_GET_STAT_COUNTER(tagcachemaster_write_rsp,14,5);
 
 #define ARCHNAME_BUFF_SZ 32
 
-static void getarchname (char * restrict archname, const char * const dflt)
+static const char* getarchname(void)
 {
-    FILE *fp;
-    char name[ARCHNAME_BUFF_SZ];
-    fp = popen("uname -m", "r");
-    if (fp != NULL && fgets(name, sizeof(name)-1, fp) !=NULL)
-    {
-        char * tmp = strdup(name);
-        char * ret = strsep(&tmp,"\n");
-        strncpy(archname,ret,ARCHNAME_BUFF_SZ);
-        free(tmp);
-    }
-    else
-        strncpy(archname,dflt,ARCHNAME_BUFF_SZ);
-    pclose(fp);
+    const char* result = "unknown_arch";
+#ifdef __mips__
+#  if defined(__CHERI__)
+#    define STATCOUNTERS_ARCH "cheri" __XSTRING(_MIPS_SZCAP);
+#    if defined(__CHERI_PURE_CAPABILITY__)
+#      define STATCOUNTERS_ABI "-purecap"
+#    else
+#      define STATCOUNTERS_ABI "-hybrid"
+#    endif
+#  else
+#    define STATCOUNTERS_ARCH "mips"
+#    if defined(__mips_n64)
+#      define STATCOUNTERS_ABI "" /* n64 is default case -> no suffix */
+#    elif defined(__mips_n32)
+#      define STATCOUNTERS_ABI "-n32"
+#    else
+#      error "Unkown MIPS ABI"
+#    endif
+#  endif
+    result = STATCOUNTERS_ARCH STATCOUNTERS_ABI;
+#else /* !defined(__mips__) */
+#  error "Unknown target archicture for libstatcounters"
+#endif
+    return result;
 }
 
 // libstatcounters API
@@ -334,23 +345,32 @@ void dump_statcounters (
     const char * const fname,
     const char * const fmt)
 {
+    /* XXXAR: a lot of this is duplicated from end_sample */
     FILE * fp = NULL;
     bool display_header = true;
     statcounters_fmt_flag_t flg = HUMAN_READABLE;
-    if (fname && access(fname, F_OK) != -1)
+    if (!fname)
+        return;
+    if (access(fname, F_OK) != -1)
         display_header = false;
-    if (fname && (fp = fopen(fname, "a")))
+    if ((fp = fopen(fname, "a")))
     {
         if (fmt && (strcmp(fmt,"csv") == 0))
         {
             if (display_header) flg = CSV_HEADER;
             else flg = CSV_NOHEADER;
         }
-        char tmp[ARCHNAME_BUFF_SZ];
-	getarchname(tmp,"unknown_arch");
-        statcounters_dump(b,getprogname(),tmp,fp,flg);
+        const char * pname = getenv("STATCOUNTERS_PROGNAME");
+        if (!pname || pname[0] == '\0')
+            pname = getprogname();
+        const char * aname = getenv("STATCOUNTERS_ARCHNAME");
+        if (!aname || aname[0] == '\0')
+            aname = getarchname();
+        statcounters_dump(b,pname,aname,fp,flg);
         fclose(fp);
-    }
+    } else {
+        warn("Failed to open statcounters output %s", fname);
+    } 
 }
 int statcounters_dump (
     const statcounters_bank_t * const b,
@@ -565,10 +585,12 @@ static void end_sample (void)
     statcounters_diff(&diff_cnt, &end_cnt, &start_cnt);
     // preparing call to dumping function
     FILE * fp = NULL;
-    const char * const pname = getenv("STATCOUNTERS_PROGNAME");
-    char pname_arg[128];
-    const char * const aname = getenv("STATCOUNTERS_ARCHNAME");
-    char aname_arg[ARCHNAME_BUFF_SZ];
+    const char * pname = getenv("STATCOUNTERS_PROGNAME");
+    if (!pname || pname[0] == '\0')
+        pname = getprogname();
+    const char * aname = getenv("STATCOUNTERS_ARCHNAME");
+    if (!aname || aname[0] == '\0')
+        aname = getarchname();
     const char * const fname = getenv("STATCOUNTERS_OUTPUT");
     const char * const fmt = getenv("STATCOUNTERS_FORMAT");
     bool display_header = true;
@@ -588,15 +610,6 @@ static void end_sample (void)
        else
            fmt_flg = CSV_NOHEADER;
     }
-    if (pname)
-        strncpy(pname_arg,pname,128);
-    else
-        strncpy(pname_arg,getprogname(),128);
-    if (aname)
-        strncpy(aname_arg,aname,32);
-    else
-        getarchname(aname_arg,"unknown_arch");
-
-    statcounters_dump(&diff_cnt,pname_arg,aname_arg,fp,fmt_flg);
+    statcounters_dump(&diff_cnt,pname,aname,fp,fmt_flg);
     fclose(fp);
 }
