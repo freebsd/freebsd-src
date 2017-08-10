@@ -196,7 +196,7 @@ static const char* getarchname(void)
     const char* result = "unknown_arch";
 #ifdef __mips__
 #  if defined(__CHERI__)
-#    define STATCOUNTERS_ARCH "cheri" __XSTRING(_MIPS_SZCAP);
+#    define STATCOUNTERS_ARCH "cheri" __XSTRING(_MIPS_SZCAP)
 #    if defined(__CHERI_PURE_CAPABILITY__)
 #      define STATCOUNTERS_ABI "-purecap"
 #    else
