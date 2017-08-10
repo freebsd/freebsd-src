@@ -546,11 +546,15 @@ svn_repos__dump_revision_record(svn_stream_t *dump_stream,
                                  "%" APR_SIZE_T_FMT, propstring->len));
     }
 
-  /* Write out a regular Content-length header for the benefit of
-     non-Subversion RFC-822 parsers. */
-  svn_hash_sets(headers, SVN_REPOS_DUMPFILE_CONTENT_LENGTH,
-                apr_psprintf(scratch_pool,
-                             "%" APR_SIZE_T_FMT, propstring->len));
+  if (propstring)
+    {
+      /* Write out a regular Content-length header for the benefit of
+         non-Subversion RFC-822 parsers. */
+      svn_hash_sets(headers, SVN_REPOS_DUMPFILE_CONTENT_LENGTH,
+                    apr_psprintf(scratch_pool,
+                                 "%" APR_SIZE_T_FMT, propstring->len));
+    }
+
   SVN_ERR(write_revision_headers(dump_stream, headers, scratch_pool));
 
   /* End of headers */
