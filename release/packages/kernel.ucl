@@ -40,7 +40,17 @@ scripts: {
 	echo "	pkg upgrade"
 	echo
 	echo "****************************************************************"
-	sleep 5
+	echo
+	echo "Do you want to continue anyway? (N/y)"
+	read ANSWER
+	case ${ANSWER} in
+		[Yy])
+			exit 0
+			;;
+		*)
+			kill ${PPID} ${PID}
+			;;
+	esac
 EOD
 
 	post-install = <<EOD
