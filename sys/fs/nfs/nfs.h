@@ -186,7 +186,15 @@ struct nfsd_nfsd_args {
 	char	*mirror;	/* DS with same mirrorindex are mirrors */
 	int	mirrorlen;	/* Length of the mirrorindex array */
 };
+
+/*
+ * NFSDEV_MIRRORSTR - string of digits that number the DSs 0->999.
+ * (To support more than 1000 DSs on an MDS, this needs to be increased.)
+ * NFSDEV_MAXMIRRORS - Maximum # of mirrors for a DS.
+ * (Most will only have a single mirror, but this setting allows up to 3.)
+ */
 #define	NFSDEV_MIRRORSTR	3
+#define	NFSDEV_MAXMIRRORS	4
 
 /* Old version. */
 struct nfsd_nfsd_oargs {

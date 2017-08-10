@@ -3581,14 +3581,14 @@ nfsrv_backupstable(void)
 }
 
 /*
- * Create a pNFS data file on a Data Server.
+ * Create a pNFS data file on the Data Server(s).
  */
 static void
 nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     NFSPROC_T *p)
 {
-	struct vnode *dvp, *nvp;
-	struct nfsdevice *ds;
+	struct vnode *dvp[NFSDEV_MAXMIRRORS], *nvp;
+	struct nfsdevice *ds, *mds;
 	fhandle_t fh;
 	struct nameidata named;
 	char *bufp;
@@ -3596,17 +3596,18 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	struct mount *mp;
 	struct nfsnode *np;
 	struct nfsmount *nmp;
-	struct pnfsdsfile *pf;
+	struct pnfsdsfile *pf, *tpf;
 	struct pnfsdsattr dsattr;
 	struct vattr va;
 	uid_t vauid;
 	gid_t vagid;
 	u_short vamode;
 	struct ucred *tcred;
-	int error;
-	uint32_t dsdir;
+	int error, i, mirrorcnt;
+	uint32_t dsdir[NFSDEV_MAXMIRRORS];
 
 	/* Get a DS server directory in a round-robin order. */
+	mirrorcnt = 1;
 	NFSDDSLOCK();
 	ds = TAILQ_FIRST(&nfsrv_devidhead);
 	if (ds == NULL) {
@@ -3617,9 +3618,16 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	/* Put at end of list to implement round-robin usage. */
 	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
 	TAILQ_INSERT_TAIL(&nfsrv_devidhead, ds, nfsdev_list);
-	dsdir = ds->nfsdev_nextdir;
+	i = dsdir[0] = ds->nfsdev_nextdir;
 	ds->nfsdev_nextdir = (ds->nfsdev_nextdir + 1) % nfsrv_dsdirsize;
-	dvp = ds->nfsdev_dsdir[dsdir];
+	dvp[0] = ds->nfsdev_dsdir[i];
+	TAILQ_FOREACH(mds, &ds->nfsdev_mirrors, nfsdev_list) {
+		i = dsdir[mirrorcnt] = mds->nfsdev_nextdir;
+		mds->nfsdev_nextdir = (mds->nfsdev_nextdir + 1) %
+		    nfsrv_dsdirsize;
+		dvp[mirrorcnt] = mds->nfsdev_dsdir[i];
+		mirrorcnt++;
+	}
 	NFSDDSUNLOCK();
 
 	error = nfsvno_getfh(vp, &fh, p);
@@ -3632,77 +3640,90 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 
 	NFSD_DEBUG(4, "nfsrv_pnfscreate: cruid=%d crgid=%d uid=%d gid=%d\n",
 	    cred->cr_uid, cred->cr_gid, va.va_uid, va.va_gid);
-	/* Make date file name based on FH. */
+	/* Make data file name based on FH. */
 	tcred = newnfs_getcred();
-	NFSNAMEICNDSET(&named.ni_cnd, tcred, CREATE,
-	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
-	nfsvno_setpathbuf(&named, &bufp, &hashp);
-	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
-	named.ni_cnd.cn_thread = p;
-	named.ni_cnd.cn_nameptr = bufp;
-	named.ni_cnd.cn_namelen = nfsrv_putfhname(&fh, bufp);
+	tpf = pf = malloc(sizeof(*pf) * mirrorcnt, M_TEMP, M_WAITOK | M_ZERO);
 
-	/* Create the date file in the DS mount. */
-	error = NFSVOPLOCK(dvp, LK_EXCLUSIVE);
-	if (error == 0) {
-		error = VOP_CREATE(dvp, &nvp, &named.ni_cnd, vap);
-		NFSVOPUNLOCK(dvp, 0);
+	/* Create the file on each DS mirror. */
+	for (i = 0; i < mirrorcnt && error == 0; i++) {
+		NFSNAMEICNDSET(&named.ni_cnd, tcred, CREATE,
+		    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+		nfsvno_setpathbuf(&named, &bufp, &hashp);
+		named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
+		named.ni_cnd.cn_thread = p;
+		named.ni_cnd.cn_nameptr = bufp;
+		named.ni_cnd.cn_namelen = nfsrv_putfhname(&fh, bufp);
+	
+		/* Create the date file in the DS mount. */
+		error = NFSVOPLOCK(dvp[i], LK_EXCLUSIVE);
 		if (error == 0) {
-			/* Set the ownership of the file. */
-			vauid = va.va_uid;
-			vagid = va.va_gid;
-			vamode = va.va_mode;
-			VATTR_NULL(&va);
-			va.va_uid = vauid;
-			va.va_gid = vagid;
-			va.va_mode = vamode;
-			error = VOP_SETATTR(nvp, &va, tcred);
-			NFSD_DEBUG(4, "nfsrv_pnfscreate: setattr-uid=%d\n",
-			    error);
+			error = VOP_CREATE(dvp[i], &nvp, &named.ni_cnd, vap);
+			NFSVOPUNLOCK(dvp[i], 0);
+			if (error == 0) {
+				/* Set the ownership of the file. */
+				vauid = va.va_uid;
+				vagid = va.va_gid;
+				vamode = va.va_mode;
+				VATTR_NULL(&va);
+				va.va_uid = vauid;
+				va.va_gid = vagid;
+				va.va_mode = vamode;
+				error = VOP_SETATTR(nvp, &va, tcred);
+				NFSD_DEBUG(4, "nfsrv_pnfscreate:"
+				    " setattr-uid=%d\n", error);
+				if (error != 0)
+					vput(nvp);
+			}
 			if (error != 0)
-				vput(nvp);
+				printf("pNFS: pnfscreate failed=%d\n", error);
+		} else
+			printf("pNFS: pnfscreate vnlock=%d\n", error);
+		if (error == 0) {
+			np = VTONFS(nvp);
+			nmp = VFSTONFS(nvp->v_mount);
+			if (strcmp(nvp->v_mount->mnt_vfc->vfc_name, "nfs")
+			    != 0 || nmp->nm_nam->sa_len > sizeof(
+			    struct sockaddr_in6) ||
+			    np->n_fhp->nfh_len != NFSX_MYFH) {
+				printf("Bad DS file: fstype=%s salen=%d"
+				    " fhlen=%d\n",
+				    nvp->v_mount->mnt_vfc->vfc_name,
+				    nmp->nm_nam->sa_len, np->n_fhp->nfh_len);
+				error = ENOENT;
+			}
+	
+			/* Get the attributes of the DS file. */
+			if (error == 0)
+				error = VOP_GETATTR(nvp, &va, cred);
+			/* Set extattrs for the DS on the MDS file. */
+			if (error == 0) {
+				dsattr.dsa_filerev = va.va_filerev;
+				dsattr.dsa_size = va.va_size;
+				dsattr.dsa_atime = va.va_atime;
+				dsattr.dsa_mtime = va.va_mtime;
+				tpf->dsf_dir = dsdir[i];
+				NFSBCOPY(np->n_fhp->nfh_fh, &tpf->dsf_fh,
+				    NFSX_MYFH);
+				NFSBCOPY(nmp->nm_nam, &tpf->dsf_sin,
+				    nmp->nm_nam->sa_len);
+				NFSBCOPY(named.ni_cnd.cn_nameptr,
+				    tpf->dsf_filename,
+				    sizeof(tpf->dsf_filename));
+				tpf++;
+			} else
+				printf("pNFS: pnfscreate can't get DS"
+				    " attr=%d\n", error);
+			vput(nvp);
 		}
-		if (error != 0)
-			printf("pNFS: pnfscreate failed=%d\n", error);
-	} else
-		printf("pNFS: pnfscreate vnlock=%d\n", error);
+		nfsvno_relpathbuf(&named);
+	}
 	NFSFREECRED(tcred);
 	if (error == 0) {
-		pf = NULL;
-		np = VTONFS(nvp);
-		nmp = VFSTONFS(nvp->v_mount);
-		if (strcmp(nvp->v_mount->mnt_vfc->vfc_name, "nfs") != 0 ||
-		    nmp->nm_nam->sa_len > sizeof(struct sockaddr_in6) ||
-		    np->n_fhp->nfh_len != NFSX_MYFH) {
-			printf("Bad DS file: fstype=%s salen=%d fhlen=%d\n",
-			    nvp->v_mount->mnt_vfc->vfc_name,
-			    nmp->nm_nam->sa_len, np->n_fhp->nfh_len);
-			error = ENOENT;
-		}
-
-		/* Get the attributes of the DS file. */
-		error = VOP_GETATTR(nvp, &va, cred);
-		/* Set extattrs for the DS on the MDS file. */
-		if (error == 0) {
-			dsattr.dsa_filerev = va.va_filerev;
-			dsattr.dsa_size = va.va_size;
-			dsattr.dsa_atime = va.va_atime;
-			dsattr.dsa_mtime = va.va_mtime;
-			pf = malloc(sizeof(*pf), M_TEMP, M_WAITOK | M_ZERO);
-			pf->dsf_dir = dsdir;
-			NFSBCOPY(np->n_fhp->nfh_fh, &pf->dsf_fh, NFSX_MYFH);
-			NFSBCOPY(nmp->nm_nam, &pf->dsf_sin,
-			    nmp->nm_nam->sa_len);
-			NFSBCOPY(named.ni_cnd.cn_nameptr, pf->dsf_filename,
-			    sizeof(pf->dsf_filename));
-			error = vn_start_write(vp, &mp, V_WAIT);
-		} else
-			printf("pNFS: pnfscreate can't get DS attr=%d\n",
-			    error);
+		error = vn_start_write(vp, &mp, V_WAIT);
 		if (error == 0) {
 			error = vn_extattr_set(vp, IO_NODELOCKED,
 			    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsfile",
-			    sizeof(*pf), (char *)pf, p);
+			    sizeof(*pf) * mirrorcnt, (char *)pf, p);
 			if (error == 0)
 				error = vn_extattr_set(vp, IO_NODELOCKED,
 				    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
@@ -3713,11 +3734,9 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 				    error);
 		} else
 			printf("pNFS: pnfscreate startwrite=%d\n", error);
-		vput(nvp);
-		free(pf, M_TEMP);
 	} else
 		printf("pNFS: pnfscreate=%d\n", error);
-	nfsvno_relpathbuf(&named);
+	free(pf, M_TEMP);
 }
 
 /*
