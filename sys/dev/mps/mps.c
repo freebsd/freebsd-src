@@ -427,6 +427,8 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 
 	/* Only deallocate and reallocate if relevant IOC Facts have changed */
 	reallocating = FALSE;
+	sc->mps_flags &= ~MPS_FLAGS_REALLOCATED;
+
 	if ((!attaching) &&
 	    ((saved_facts.MsgVersion != sc->facts->MsgVersion) ||
 	    (saved_facts.HeaderVersion != sc->facts->HeaderVersion) ||
@@ -447,6 +449,9 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	    (saved_facts.MaxPersistentEntries !=
 	    sc->facts->MaxPersistentEntries))) {
 		reallocating = TRUE;
+
+		/* Record that we reallocated everything */
+		sc->mps_flags |= MPS_FLAGS_REALLOCATED;
 	}
 
 	/*
@@ -2075,7 +2080,7 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
     u32 *mask)
 {
 	MPI2_EVENT_NOTIFICATION_REQUEST *evtreq;
-	MPI2_EVENT_NOTIFICATION_REPLY *reply;
+	MPI2_EVENT_NOTIFICATION_REPLY *reply = NULL;
 	struct mps_command *cm;
 	int error, i;
 
@@ -2113,8 +2118,9 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
 
-	error = mps_wait_command(sc, cm, 60, 0);
-	reply = (MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply;
+	error = mps_wait_command(sc, &cm, 60, 0);
+	if (cm != NULL)
+		reply = (MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply;
 	if ((reply == NULL) ||
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
@@ -2124,7 +2130,8 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 
 	mps_dprint(sc, MPS_TRACE, "%s finished error %d\n", __func__, error);
 
-	mps_free_command(sc, cm);
+	if (cm != NULL)
+		mps_free_command(sc, cm);
 	return (error);
 }
 
@@ -2530,11 +2537,12 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
  * be executed and enqueued automatically.  Other errors come from msleep().
  */
 int
-mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
+mps_wait_command(struct mps_softc *sc, struct mps_command **cmp, int timeout,
     int sleep_flag)
 {
 	int error, rc;
 	struct timeval cur_time, start_time;
+	struct mps_command *cm = *cmp;
 
 	if (sc->mps_flags & MPS_FLAGS_DIAGRESET) 
 		return  EBUSY;
@@ -2588,6 +2596,13 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 		rc = mps_reinit(sc);
 		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
 		    "failed");
+		if (sc->mps_flags & MPS_FLAGS_REALLOCATED) {
+			/*
+			 * Tell the caller that we freed the command in a
+			 * reinit.
+			 */
+			*cmp = NULL;
+		}
 		error = ETIMEDOUT;
 	}
 	return (error);
@@ -2654,11 +2669,12 @@ mps_read_config_page(struct mps_softc *sc, struct mps_config_params *params)
 		cm->cm_complete = mps_config_complete;
 		return (mps_map_command(sc, cm));
 	} else {
-		error = mps_wait_command(sc, cm, 0, CAN_SLEEP);
+		error = mps_wait_command(sc, &cm, 0, CAN_SLEEP);
 		if (error) {
 			mps_dprint(sc, MPS_FAULT,
 			    "Error %d reading config page\n", error);
-			mps_free_command(sc, cm);
+			if (cm != NULL)
+				mps_free_command(sc, cm);
 			return (error);
 		}
 		mps_config_complete(sc, cm);
