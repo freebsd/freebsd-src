@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -62,7 +62,7 @@ set_gp(Obj_Entry *obj)
 
 	__asm __volatile("mv    %0, gp" : "=r"(old));
 
-	symlook_init(&req, "_gp");
+	symlook_init(&req, "__global_pointer$");
 	req.ventry = NULL;
 	req.flags = SYMLOOK_EARLY;
 	res = symlook_obj(&req, obj);

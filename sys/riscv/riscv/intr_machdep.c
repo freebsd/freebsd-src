@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -265,11 +265,14 @@ riscv_unmask_ipi(void)
 static void
 ipi_send(struct pcpu *pc, int ipi)
 {
+	uintptr_t mask;
 
 	CTR3(KTR_SMP, "%s: cpu=%d, ipi=%x", __func__, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_pending_ipis, ipi);
-	sbi_send_ipi(pc->pc_cpuid);
+	mask = (1 << (pc->pc_cpuid));
+
+	sbi_send_ipi(&mask);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }
@@ -302,16 +305,20 @@ void
 ipi_selected(cpuset_t cpus, u_int ipi)
 {
 	struct pcpu *pc;
+	uintptr_t mask;
 
 	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
 
+	mask = 0;
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (CPU_ISSET(pc->pc_cpuid, &cpus)) {
 			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
 			    ipi);
-			ipi_send(pc, ipi);
+			atomic_set_32(&pc->pc_pending_ipis, ipi);
+			mask |= (1 << (pc->pc_cpuid));
 		}
 	}
+	sbi_send_ipi(&mask);
 }
 
 #endif
