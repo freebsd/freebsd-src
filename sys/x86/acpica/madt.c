@@ -325,12 +325,17 @@ static void
 madt_parse_cpu(unsigned int apic_id, unsigned int flags)
 {
 
-	if (!(flags & ACPI_MADT_ENABLED) || mp_ncpus == MAXCPU ||
+	if (!(flags & ACPI_MADT_ENABLED) ||
+#ifdef SMP
+	    mp_ncpus == MAXCPU ||
+#endif
 	    apic_id > MAX_APIC_ID)
 		return;
 
+#ifdef SMP
 	mp_ncpus++;
 	mp_maxid = mp_ncpus - 1;
+#endif
 	max_apic_id = max(apic_id, max_apic_id);
 }
 
