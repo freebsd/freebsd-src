@@ -40,6 +40,6 @@ int
 _pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t))
 {
-
+	(void)mutex;
 	return (0);
 }
