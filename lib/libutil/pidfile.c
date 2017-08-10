@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 
@@ -103,6 +104,7 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	struct stat sb;
 	int error, fd, dirfd, dirlen, filenamelen, count;
 	struct timespec rqtp;
+	cap_rights_t caprights;
 
 	pfh = malloc(sizeof(*pfh));
 	if (pfh == NULL)
@@ -179,13 +181,18 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	 * to the proper descriptor.
 	 */
 	if (fstat(fd, &sb) == -1) {
-		error = errno;
-		unlinkat(dirfd, pfh->pf_filename, 0);
-		close(dirfd);
-		close(fd);
-		free(pfh);
-		errno = error;
-		return (NULL);
+		goto failed;
+	}
+
+	if (cap_rights_limit(dirfd,
+	    cap_rights_init(&caprights, CAP_UNLINKAT)) < 0 && errno != ENOSYS) {
+		goto failed;
+	}
+
+	if (cap_rights_limit(fd, cap_rights_init(&caprights, CAP_PWRITE,
+	    CAP_FSTAT, CAP_FTRUNCATE)) < 0 &&
+	    errno != ENOSYS) {
+		goto failed;
 	}
 
 	pfh->pf_dirfd = dirfd;
@@ -194,6 +201,15 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	pfh->pf_ino = sb.st_ino;
 
 	return (pfh);
+
+failed:
+	error = errno;
+	unlinkat(dirfd, pfh->pf_filename, 0);
+	close(dirfd);
+	close(fd);
+	free(pfh);
+	errno = error;
+	return (NULL);
 }
 
 int
