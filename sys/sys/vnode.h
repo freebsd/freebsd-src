@@ -253,6 +253,7 @@ struct xvnode {
 #define	VV_DELETED	0x0400	/* should be removed */
 #define	VV_MD		0x0800	/* vnode backs the md device */
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
+#define	VV_READLINK	0x2000	/* fdescfs linux vnode */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
