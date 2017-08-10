@@ -13,7 +13,7 @@
  * All rights reserved.
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -596,8 +596,10 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			min_pa = physmap[i];
 		if (physmap[i + 1] > max_pa)
 			max_pa = physmap[i + 1];
-		break;
 	}
+	printf("physmap_idx %lx\n", physmap_idx);
+	printf("min_pa %lx\n", min_pa);
+	printf("max_pa %lx\n", max_pa);
 
 	/* Create a direct map region early so we can use it for pa -> va */
 	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
@@ -771,7 +773,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma %0" :: "r" (va) : "memory");
 	sched_unpin();
 }
 
@@ -782,7 +784,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -793,7 +795,7 @@ pmap_invalidate_all(pmap_t pmap)
 	/* TODO */
 
 	sched_pin();
-	__asm __volatile("sfence.vm");
+	__asm __volatile("sfence.vma");
 	sched_unpin();
 }
 
@@ -3181,12 +3183,15 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t pmap;
+	uint64_t reg;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	td->td_pcb->pcb_l1addr = vtophys(pmap->pm_l1);
 
-	__asm __volatile("csrw sptbr, %0" :: "r"(td->td_pcb->pcb_l1addr >> PAGE_SHIFT));
+	reg = SATP_MODE_SV39;
+	reg |= (td->td_pcb->pcb_l1addr >> PAGE_SHIFT);
+	__asm __volatile("csrw sptbr, %0" :: "r"(reg));
 
 	pmap_invalidate_all(pmap);
 	critical_exit();
