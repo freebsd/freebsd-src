@@ -83,6 +83,8 @@ static int	madt_probe(void);
 static int	madt_probe_cpus(void);
 static void	madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
 		    void *arg __unused);
+static void	madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
+		    void *arg __unused);
 static void	madt_register(void *dummy);
 static int	madt_setup_local(void);
 static int	madt_setup_io(void);
@@ -140,6 +142,7 @@ madt_setup_local(void)
 	bool bios_x2apic;
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
+	madt_walk_table(madt_setup_cpus_handler, NULL);
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
 		reason = NULL;
 
@@ -302,6 +305,19 @@ madt_walk_table(acpi_subtable_handler *handler, void *arg)
 }
 
 static void
+madt_parse_cpu(unsigned int apic_id, unsigned int flags)
+{
+
+	if (!(flags & ACPI_MADT_ENABLED) || mp_ncpus == MAXCPU ||
+	    apic_id > MAX_APIC_ID)
+		return;
+
+	mp_ncpus++;
+	mp_maxid = mp_ncpus - 1;
+	max_apic_id = max(apic_id, max_apic_id);
+}
+
+static void
 madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 {
 	struct lapic_info *la;
@@ -331,6 +347,24 @@ madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 
 static void
 madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	ACPI_MADT_LOCAL_APIC *proc;
+	ACPI_MADT_LOCAL_X2APIC *x2apic;
+
+	switch (entry->Type) {
+	case ACPI_MADT_TYPE_LOCAL_APIC:
+		proc = (ACPI_MADT_LOCAL_APIC *)entry;
+		madt_parse_cpu(proc->Id, proc->LapicFlags);
+		break;
+	case ACPI_MADT_TYPE_LOCAL_X2APIC:
+		x2apic = (ACPI_MADT_LOCAL_X2APIC *)entry;
+		madt_parse_cpu(x2apic->LocalApicId, x2apic->LapicFlags);
+		break;
+	}
+}
+
+static void
+madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_LOCAL_APIC *proc;
 	ACPI_MADT_LOCAL_X2APIC *x2apic;
