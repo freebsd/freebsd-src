@@ -21,7 +21,14 @@ TOP = .
 # Set this non-0 to enable full warnings (-W4, etc) when compiling.
 #
 !IFNDEF USE_FULLWARN
-USE_FULLWARN = 0
+USE_FULLWARN = 1
+!ENDIF
+
+# Set this non-0 to enable treating warnings as errors (-WX, etc) when
+# compiling.
+#
+!IFNDEF USE_FATAL_WARN
+USE_FATAL_WARN = 0
 !ENDIF
 
 # Set this non-0 to enable full runtime error checks (-RTC1, etc).  This
@@ -29,6 +36,13 @@ USE_FULLWARN = 0
 #
 !IFNDEF USE_RUNTIME_CHECKS
 USE_RUNTIME_CHECKS = 0
+!ENDIF
+
+# Set this non-0 to create a SQLite amalgamation file that excludes the
+# various built-in extensions.
+#
+!IFNDEF MINIMAL_AMALGAMATION
+MINIMAL_AMALGAMATION = 0
 !ENDIF
 
 # Set this non-0 to use "stdcall" calling convention for the core library
@@ -255,12 +269,15 @@ SQLITE3EXEPDB = /pdb:sqlite3sh.pdb
 !ENDIF
 !ENDIF
 
+
 # These are the "standard" SQLite compilation options used when compiling for
 # the Windows platform.
 #
 !IFNDEF OPT_FEATURE_FLAGS
+!IF $(MINIMAL_AMALGAMATION)==0
 OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_FTS3=1
 OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_RTREE=1
+!ENDIF
 OPT_FEATURE_FLAGS = $(OPT_FEATURE_FLAGS) -DSQLITE_ENABLE_COLUMN_METADATA=1
 !ENDIF
 
@@ -444,6 +461,12 @@ TCC = $(CC) -nologo -W4 -DINCLUDE_MSVC_H=1 $(CCOPTS) $(TCCOPTS)
 TCC = $(CC) -nologo -W3 $(CCOPTS) $(TCCOPTS)
 !ENDIF
 
+# Check if warnings should be treated as errors when compiling.
+#
+!IF $(USE_FATAL_WARN)!=0
+TCC = $(TCC) -WX
+!ENDIF
+
 TCC = $(TCC) -DSQLITE_OS_WIN=1 -I. -I$(TOP) -fp:precise
 RCC = $(RC) -DSQLITE_OS_WIN=1 -I. -I$(TOP) $(RCOPTS) $(RCCOPTS)
 
@@ -622,6 +645,10 @@ RCC = $(RCC) -DSQLITE_ENABLE_API_ARMOR=1
 !IF $(DEBUG)>2
 TCC = $(TCC) -DSQLITE_DEBUG=1
 RCC = $(RCC) -DSQLITE_DEBUG=1
+!IF $(DYNAMIC_SHELL)==0
+TCC = $(TCC) -DSQLITE_ENABLE_WHERETRACE -DSQLITE_ENABLE_SELECTTRACE
+RCC = $(RCC) -DSQLITE_ENABLE_WHERETRACE -DSQLITE_ENABLE_SELECTTRACE
+!ENDIF
 !ENDIF
 
 !IF $(DEBUG)>4 || $(OSTRACE)!=0
@@ -900,7 +927,7 @@ LIBRESOBJS =
 # when the shell is not being dynamically linked.
 #
 !IF $(DYNAMIC_SHELL)==0 && $(FOR_WIN10)==0
-SHELL_COMPILE_OPTS = $(SHELL_COMPILE_OPTS) -DSQLITE_SHELL_JSON1 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_EXPLAIN_COMMENTS
+SHELL_COMPILE_OPTS = $(SHELL_COMPILE_OPTS) -DSQLITE_SHELL_JSON1 -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_EXPLAIN_COMMENTS -DSQLITE_ENABLE_STMTVTAB
 !ENDIF
 
 
@@ -927,7 +954,7 @@ Replace.exe:
 sqlite3.def:	Replace.exe $(LIBOBJ)
 	echo EXPORTS > sqlite3.def
 	dumpbin /all $(LIBOBJ) \
-		| .\Replace.exe "^\s+/EXPORT:_?(sqlite3_[^@,]*)(?:@\d+|,DATA)?$$" $$1 true \
+		| .\Replace.exe "^\s+/EXPORT:_?(sqlite3(?:session|changeset|changegroup)?_[^@,]*)(?:@\d+|,DATA)?$$" $$1 true \
 		| sort >> sqlite3.def
 
 $(SQLITE3EXE):	$(TOP)\shell.c $(SHELL_CORE_DEP) $(LIBRESOBJS) $(SHELL_CORE_SRC) $(SQLITE3H)
