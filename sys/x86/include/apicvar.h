@@ -182,7 +182,7 @@ inthand_t
 	IDTVEC(spuriousint), IDTVEC(timerint);
 
 extern vm_paddr_t lapic_paddr;
-extern int apic_cpuids[];
+extern int *apic_cpuids;
 
 void	apic_register_enumerator(struct apic_enumerator *enumerator);
 void	*ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase);
