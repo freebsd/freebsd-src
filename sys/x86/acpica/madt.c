@@ -59,7 +59,7 @@ static struct {
 static struct lapic_info {
 	u_int la_enabled;
 	u_int la_acpi_id;
-} lapics[MAX_APIC_ID + 1];
+} *lapics;
 
 int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
@@ -141,8 +141,6 @@ madt_setup_local(void)
 	int user_x2apic;
 	bool bios_x2apic;
 
-	madt = pmap_mapbios(madt_physaddr, madt_length);
-	madt_walk_table(madt_setup_cpus_handler, NULL);
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
 		reason = NULL;
 
@@ -214,6 +212,11 @@ madt_setup_local(void)
 		}
 	}
 
+	madt = pmap_mapbios(madt_physaddr, madt_length);
+	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_MADT,
+	    M_WAITOK | M_ZERO);
+	madt_walk_table(madt_setup_cpus_handler, NULL);
+
 	lapic_init(madt->Address);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->Header.OemId), madt->Header.OemId,
@@ -235,6 +238,8 @@ madt_setup_io(void)
 	void *ioapic;
 	u_int pin;
 	int i;
+
+	KASSERT(lapics != NULL, ("local APICs not initialized"));
 
 	/* Try to initialize ACPI so that we can access the FADT. */
 	i = acpi_Startup();
@@ -281,6 +286,10 @@ madt_setup_io(void)
 
 	free(ioapics, M_MADT);
 	ioapics = NULL;
+
+	/* NB: this is the last use of the lapics array. */
+	free(lapics, M_MADT);
+	lapics = NULL;
 
 	return (0);
 }
@@ -332,7 +341,7 @@ madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 		    "enabled" : "disabled");
 	if (!(flags & ACPI_MADT_ENABLED))
 		return;
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > max_apic_id) {
 		printf("MADT: Ignoring local APIC ID %u (too high)\n",
 		    apic_id);
 		return;
@@ -471,7 +480,7 @@ madt_find_cpu(u_int acpi_id, u_int *apic_id)
 {
 	int i;
 
-	for (i = 0; i <= MAX_APIC_ID; i++) {
+	for (i = 0; i <= max_apic_id; i++) {
 		if (!lapics[i].la_enabled)
 			continue;
 		if (lapics[i].la_acpi_id != acpi_id)
@@ -723,6 +732,9 @@ madt_set_ids(void *dummy)
 
 	if (madt == NULL)
 		return;
+
+	KASSERT(lapics != NULL, ("local APICs not initialized"));
+
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %u", i));
