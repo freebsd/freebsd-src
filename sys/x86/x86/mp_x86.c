@@ -825,10 +825,6 @@ cpu_add(u_int apic_id, char boot_cpu)
 		boot_cpu_id = apic_id;
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
-	if (mp_ncpus < MAXCPU) {
-		mp_ncpus++;
-		mp_maxid = mp_ncpus - 1;
-	}
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");

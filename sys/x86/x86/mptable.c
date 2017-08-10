@@ -191,6 +191,7 @@ static void	mptable_pci_setup(void);
 static int	mptable_probe(void);
 static int	mptable_probe_cpus(void);
 static void	mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
+static void	mptable_setup_cpus_handler(u_char *entry, void *arg __unused);
 static void	mptable_register(void *dummy);
 static int	mptable_setup_local(void);
 static int	mptable_setup_io(void);
@@ -329,14 +330,11 @@ mptable_probe_cpus(void)
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
-		lapic_create(0, 1);
-		lapic_create(1, 0);
+		mp_ncpus = 2;
+		mp_maxid = 1;
+		max_apic_id = 1;
 	} else {
-		cpu_mask = 0;
 		mptable_walk_table(mptable_probe_cpus_handler, &cpu_mask);
-#ifdef MPTABLE_FORCE_HTT
-		mptable_hyperthread_fixup(cpu_mask);
-#endif
 	}
 	return (0);
 }
@@ -352,9 +350,17 @@ mptable_setup_local(void)
 	/* Is this a pre-defined config? */
 	printf("MPTable: <");
 	if (mpfps->config_type != 0) {
+		lapic_create(0, 1);
+		lapic_create(1, 0);
 		addr = DEFAULT_APIC_BASE;
 		printf("Default Configuration %d", mpfps->config_type);
+
 	} else {
+		cpu_mask = 0;
+		mptable_walk_table(mptable_setup_cpus_handler, &cpu_mask);
+#ifdef MPTABLE_FORCE_HTT
+		mptable_hyperthread_fixup(cpu_mask);
+#endif
 		addr = mpct->apic_address;
 		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
 		    (int)sizeof(mpct->product_id), mpct->product_id);
@@ -464,6 +470,25 @@ mptable_walk_extended_table(mptable_extended_entry_handler *handler, void *arg)
 
 static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
+{
+	proc_entry_ptr proc;
+
+	switch (*entry) {
+	case MPCT_ENTRY_PROCESSOR:
+		proc = (proc_entry_ptr)entry;
+		if (proc->cpu_flags & PROCENTRY_FLAG_EN &&
+		    proc->apic_id < MAX_LAPIC_ID && mp_ncpus < MAXCPU) {
+			mp_ncpus++;
+			mp_maxid = mp_ncpus - 1;
+			max_apic_id = max(max_apic_id, proc->apic_id);
+		}
+		break;
+	}
+}
+
+
+static void
+mptable_setup_cpus_handler(u_char *entry, void *arg)
 {
 	proc_entry_ptr proc;
 	u_int *cpu_mask;
