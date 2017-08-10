@@ -103,8 +103,9 @@ static void nfsrv_pnfsremove(struct vnode *, fhandle_t *, char *, NFSPROC_T *);
 static int nfsrv_proxyds(struct nfsrv_descript *, struct vnode *, off_t, int,
     struct ucred *, struct thread *, int, struct mbuf **, char *,
     struct mbuf **, struct nfsvattr *, struct acl *);
-static int nfsrv_dsgetsockmnt(struct vnode *, int, char *, int, NFSPROC_T *,
-    struct vnode **, struct nfsmount **, fhandle_t *, char *, char *);
+static int nfsrv_dsgetsockmnt(struct vnode *, int, char *, int, int *,
+    NFSPROC_T *, struct vnode **, struct nfsmount **, fhandle_t *, char *,
+    char *);
 static int nfsrv_setextattr(struct vnode *, struct nfsvattr *, NFSPROC_T *);
 static int nfsrv_readdsrpc(fhandle_t *, off_t, int, struct ucred *,
     NFSPROC_T *, struct nfsmount *, struct mbuf **, struct mbuf **);
@@ -3748,12 +3749,12 @@ static void
 nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
     fhandle_t *fhp, char *fname)
 {
-	struct vnode *dvp;
-	struct nfsmount *nmp;
+	struct vnode *dvp[NFSDEV_MAXMIRRORS];
+	struct nfsmount *nmp[NFSDEV_MAXMIRRORS];
 	struct vattr va;
 	struct ucred *tcred;
 	char *buf;
-	int buflen, error;
+	int buflen, error, mirrorcnt;
 
 	*dvpp = NULL;
 	/* If not an exported regular file or not a pNFS server, just return. */
@@ -3779,19 +3780,19 @@ nfsrv_pnfsremovesetup(struct vnode *vp, NFSPROC_T *p, struct vnode **dvpp,
 	buflen = 1024;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	/* Get the directory vnode for the DS mount and the file handle. */
-	error = nfsrv_dsgetsockmnt(vp, LK_EXCLUSIVE, buf, buflen, p, &dvp,
-	    &nmp, NULL, NULL, fname);
+	error = nfsrv_dsgetsockmnt(vp, LK_EXCLUSIVE, buf, buflen, &mirrorcnt, p,
+	    dvp, nmp, NULL, NULL, fname);
 	if (error == 0) {
 		error = nfsvno_getfh(vp, fhp, p);
 		if (error != 0) {
-			NFSVOPUNLOCK(dvp, 0);
+			NFSVOPUNLOCK(dvp[0], 0);
 			printf("pNFS: nfsrv_pnfsremovesetup getfh=%d\n", error);
 		}
 	} else
 		printf("pNFS: nfsrv_pnfsremovesetup getsockmnt=%d\n", error);
 	free(buf, M_TEMP);
 	if (error == 0)
-		*dvpp = dvp;
+		*dvpp = dvp[0];
 }
 
 /*
@@ -3892,12 +3893,12 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
     struct ucred *cred, struct thread *p, int ioproc, struct mbuf **mpp,
     char *cp, struct mbuf **mpp2, struct nfsvattr *nap, struct acl *aclp)
 {
-	struct nfsmount *nmp;
-	fhandle_t fh;
-	struct vnode *dvp;
+	struct nfsmount *nmp[NFSDEV_MAXMIRRORS];
+	fhandle_t fh[NFSDEV_MAXMIRRORS];
+	struct vnode *dvp[NFSDEV_MAXMIRRORS];
 	struct pnfsdsattr dsattr;
 	char *buf;
-	int buflen, error;
+	int buflen, error, mirrorcnt;
 
 	NFSD_DEBUG(4, "in nfsrv_proxyds\n");
 	/*
@@ -3958,29 +3959,29 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
 
 	if (error == 0) {
 		buflen = 1024;
-		error = nfsrv_dsgetsockmnt(vp, LK_SHARED, buf, buflen, p,
-		    &dvp, &nmp, &fh, NULL, NULL);
+		error = nfsrv_dsgetsockmnt(vp, LK_SHARED, buf, buflen,
+		    &mirrorcnt, p, dvp, nmp, fh, NULL, NULL);
 		if (error != 0)
 			printf("pNFS: proxy getextattr sockaddr=%d\n", error);
 	} else
 		printf("pNFS: nfsrv_dsgetsockmnt=%d\n", error);
 	if (error == 0) {
 		if (ioproc == NFSPROC_READDS)
-			error = nfsrv_readdsrpc(&fh, off, cnt, cred, p, nmp,
+			error = nfsrv_readdsrpc(fh, off, cnt, cred, p, nmp[0],
 			    mpp, mpp2);
 		else if (ioproc == NFSPROC_WRITEDS)
-			error = nfsrv_writedsrpc(&fh, off, cnt, cred, p, vp,
-			    nmp, mpp, cp);
+			error = nfsrv_writedsrpc(fh, off, cnt, cred, p, vp,
+			    nmp[0], mpp, cp);
 		else if (ioproc == NFSPROC_SETATTR)
-			error = nfsrv_setattrdsrpc(&fh, cred, p, vp, nmp,
+			error = nfsrv_setattrdsrpc(fh, cred, p, vp, nmp[0],
 			    nap);
 		else if (ioproc == NFSPROC_SETACL)
-			error = nfsrv_setacldsrpc(&fh, cred, p, vp, nmp,
+			error = nfsrv_setacldsrpc(fh, cred, p, vp, nmp[0],
 			    aclp);
 		else
-			error = nfsrv_getattrdsrpc(&fh, cred, p, vp, nmp,
+			error = nfsrv_getattrdsrpc(fh, cred, p, vp, nmp[0],
 			    nap);
-		NFSVOPUNLOCK(dvp, 0);
+		NFSVOPUNLOCK(dvp[0], 0);
 		NFSD_DEBUG(4, "nfsrv_proxyds: aft RPC=%d\n", error);
 	} else {
 		/* Return ENOENT for any Extended Attribute error. */
@@ -3997,8 +3998,8 @@ nfsrv_proxyds(struct nfsrv_descript *nd, struct vnode *vp, off_t off, int cnt,
  */
 static int
 nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
-    NFSPROC_T *p, struct vnode **dvpp, struct nfsmount **nmpp, fhandle_t *fhp,
-    char *devid, char *fnamep)
+    int *mirrorcntp, NFSPROC_T *p, struct vnode **dvpp, struct nfsmount **nmpp,
+    fhandle_t *fhp, char *devid, char *fnamep)
 {
 	struct vnode *dvp;
 	struct nfsmount *nmp;
@@ -4008,6 +4009,7 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 	uint32_t dsdir;
 	int error, fhiszero;
 
+	*mirrorcntp = 1;
 	fhiszero = 0;
 	if (lktype == 0)
 		lktype = LK_SHARED;
@@ -4523,9 +4525,8 @@ nfsrv_dsgetdevandfh(struct vnode *vp, NFSPROC_T *p, int *mirrorcntp,
 
 	buflen = 1024;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflen, p, NULL, NULL, fhp,
-	    devid, NULL);
-	*mirrorcntp = 1;
+	error = nfsrv_dsgetsockmnt(vp, 0, buf, buflen, mirrorcntp, p, NULL,
+	    NULL, fhp, devid, NULL);
 	free(buf, M_TEMP);
 	return (error);
 }
