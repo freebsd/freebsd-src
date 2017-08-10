@@ -41,7 +41,7 @@ struct timer_list {
 	struct callout timer_callout;
 	void    (*function) (unsigned long);
 	unsigned long data;
-	unsigned long expires;
+	int expires;
 };
 
 extern unsigned long linux_timer_hz_mask;
@@ -65,7 +65,7 @@ extern unsigned long linux_timer_hz_mask;
 	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
-extern void mod_timer(struct timer_list *, unsigned long);
+extern void mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 
@@ -73,7 +73,7 @@ extern void add_timer_on(struct timer_list *, int cpu);
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
 #define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
 #define	round_jiffies(j)	\
-	((unsigned long)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
+	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
 #define	round_jiffies_relative(j) round_jiffies(j)
 #define	round_jiffies_up(j)	round_jiffies(j)
 #define	round_jiffies_up_relative(j) round_jiffies_up(j)
