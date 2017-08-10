@@ -213,12 +213,18 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
     unsigned int state, spinlock_t *lock)
 {
 	struct task_struct *task;
-	long ret;
+	int ret;
 
 	if (lock != NULL)
 		spin_unlock_irq(lock);
 
 	DROP_GIANT();
+
+	/* range check timeout */
+	if (timeout < 1)
+		timeout = 1;
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
+		timeout = 0;
 
 	task = current;
 
