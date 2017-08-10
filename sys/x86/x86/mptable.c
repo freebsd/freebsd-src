@@ -159,7 +159,7 @@ struct pci_route_interrupt_args {
 static mpfps_t mpfps;
 static mpcth_t mpct;
 static ext_entry_ptr mpet;
-static void *ioapics[MAX_APIC_ID + 1];
+static void *ioapics[IOAPIC_MAX_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
@@ -393,7 +393,7 @@ mptable_setup_io(void)
 	mptable_parse_ints();
 
 	/* Fourth, we register all the I/O APIC's. */
-	for (i = 0; i <= MAX_APIC_ID; i++)
+	for (i = 0; i <= IOAPIC_MAX_ID; i++)
 		if (ioapics[i] != NULL)
 			ioapic_register(ioapics[i]);
 
@@ -589,7 +589,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 		apic = (io_apic_entry_ptr)entry;
 		if (!(apic->apic_flags & IOAPICENTRY_FLAG_EN))
 			break;
-		if (apic->apic_id > MAX_APIC_ID)
+		if (apic->apic_id > IOAPIC_MAX_ID)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->apic_id);
 		if (ioapics[apic->apic_id] != NULL)
@@ -736,7 +736,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 			return;
 		}
 	}
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > IOAPIC_MAX_ID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
