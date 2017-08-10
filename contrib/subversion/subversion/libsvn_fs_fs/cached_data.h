@@ -81,6 +81,18 @@ svn_fs_fs__get_contents(svn_stream_t **contents_p,
                         svn_boolean_t cache_fulltext,
                         apr_pool_t *pool);
 
+/* Set *CONTENTS_P to be a readable svn_stream_t that receives the text
+   representation REP as seen in filesystem FS.  Read the latest element
+   of the delta chain from FILE at offset OFFSET.
+   Use POOL for allocations. */
+svn_error_t *
+svn_fs_fs__get_contents_from_file(svn_stream_t **contents_p,
+                                  svn_fs_t *fs,
+                                  representation_t *rep,
+                                  apr_file_t *file,
+                                  apr_off_t offset,
+                                  apr_pool_t *pool);
+
 /* Attempt to fetch the text representation of node-revision NODEREV as
    seen in filesystem FS and pass it along with the BATON to the PROCESSOR.
    Set *SUCCESS only of the data could be provided and the processing

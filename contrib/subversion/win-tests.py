@@ -24,7 +24,7 @@ Driver for running the tests on Windows.
 For a list of options, run this script with the --help option.
 """
 
-# $HeadURL: http://svn.apache.org/repos/asf/subversion/branches/1.9.x/win-tests.py $
+# $HeadURL: https://svn.apache.org/repos/asf/subversion/branches/1.9.x/win-tests.py $
 # $LastChangedRevision: 1718291 $
 
 import os, sys, subprocess
