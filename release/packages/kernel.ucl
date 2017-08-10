@@ -25,6 +25,9 @@ scripts: {
 			continue
 			;;
 	esac
+	if [ -z "${TERM}" ]; then
+		exit 0
+	fi
 	echo "****************************************************************"
 	echo "It is recommended to install the FreeBSD-%PKGNAME% package"
 	echo "with:"
@@ -37,16 +40,7 @@ scripts: {
 	echo "	pkg upgrade"
 	echo
 	echo "****************************************************************"
-	echo
-	echo "Do you want to continue anyway?"
-	echo "[Enter] to continue, ^C to cancel."
-	echo
-	read ANSWER
-	case ${ANSWER} in
-		*)
-			continue
-			;;
-	esac
+	sleep 5
 EOD
 
 	post-install = <<EOD
