@@ -381,7 +381,11 @@ ofw_fdt_setprop(ofw_t ofw, phandle_t package, const char *propname,
 	if (offset < 0)
 		return (-1);
 
-	return (fdt_setprop_inplace(fdtp, offset, propname, buf, len));
+	if (fdt_setprop_inplace(fdtp, offset, propname, buf, len) != 0)
+		/* Try to add property, when setting value inplace failed */
+		return (fdt_setprop(fdtp, offset, propname, buf, len));
+
+	return (0);
 }
 
 /* Convert a device specifier to a fully qualified pathname. */
