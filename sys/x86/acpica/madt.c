@@ -212,6 +212,14 @@ madt_setup_local(void)
 		}
 	}
 
+	/*
+	 * Truncate max_apic_id if not in x2APIC mode. Some structures
+	 * will already be allocated with the previous max_apic_id, but
+	 * at least we can prevent wasting more memory elsewhere.
+	 */
+	if (!x2apic_mode)
+		max_apic_id = min(max_apic_id, xAPIC_MAX_APIC_ID);
+
 	madt = pmap_mapbios(madt_physaddr, madt_length);
 	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_MADT,
 	    M_WAITOK | M_ZERO);
@@ -250,7 +258,7 @@ madt_setup_io(void)
 		panic("Using MADT but ACPI doesn't work");
 	}
 
-	ioapics = malloc(sizeof(*ioapics) * (MAX_APIC_ID + 1), M_MADT,
+	ioapics = malloc(sizeof(*ioapics) * (IOAPIC_MAX_ID + 1), M_MADT,
 	    M_WAITOK | M_ZERO);
 
 	/* First, we run through adding I/O APIC's. */
@@ -277,7 +285,7 @@ madt_setup_io(void)
 	}
 
 	/* Third, we register all the I/O APIC's. */
-	for (i = 0; i <= MAX_APIC_ID; i++)
+	for (i = 0; i <= IOAPIC_MAX_ID; i++)
 		if (ioapics[i].io_apic != NULL)
 			ioapic_register(ioapics[i].io_apic);
 
@@ -408,7 +416,7 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    "MADT: Found IO APIC ID %u, Interrupt %u at %p\n",
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
-		if (apic->Id > MAX_APIC_ID)
+		if (apic->Id > IOAPIC_MAX_ID)
 			panic("%s: I/O APIC ID %u too high", __func__,
 			    apic->Id);
 		if (ioapics[apic->Id].io_apic != NULL)
@@ -501,7 +509,7 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	int i, best;
 
 	best = -1;
-	for (i = 0; i <= MAX_APIC_ID; i++) {
+	for (i = 0; i <= IOAPIC_MAX_ID; i++) {
 		if (ioapics[i].io_apic == NULL ||
 		    ioapics[i].io_vector > intr)
 			continue;

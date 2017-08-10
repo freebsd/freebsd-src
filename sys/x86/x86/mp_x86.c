@@ -137,6 +137,10 @@ volatile int aps_ready = 0;
 struct cpu_info *cpu_info;
 int *apic_cpuids;
 int cpu_apic_ids[MAXCPU];
+_Static_assert(MAXCPU <= MAX_APIC_ID,
+    "MAXCPU cannot be larger that MAX_APIC_ID");
+_Static_assert(xAPIC_MAX_APIC_ID <= MAX_APIC_ID,
+    "xAPIC_MAX_APIC_ID cannot be larger that MAX_APIC_ID");
 
 /* Holds pending bitmap based IPIs per CPU */
 volatile u_int cpu_ipi_pending[MAXCPU];
@@ -830,18 +834,18 @@ cpu_add(u_int apic_id, char boot_cpu)
 		panic("SMP: APIC ID %d too high", apic_id);
 		return;
 	}
-	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
+	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %u added twice",
 	    apic_id));
 	cpu_info[apic_id].cpu_present = 1;
 	if (boot_cpu) {
 		KASSERT(boot_cpu_id == -1,
-		    ("CPU %d claims to be BSP, but CPU %d already is", apic_id,
+		    ("CPU %u claims to be BSP, but CPU %u already is", apic_id,
 		    boot_cpu_id));
 		boot_cpu_id = apic_id;
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
 	if (bootverbose)
-		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
+		printf("SMP: Added CPU %u (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
 }
 
