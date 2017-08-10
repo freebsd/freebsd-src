@@ -52,49 +52,100 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "libc_private.h"
 
+static enum LMB {
+	LMB_UNKNOWN,
+	LMB_NONE,
+	LMB_MFENCE,
+	LMB_LFENCE
+} lfence_works = LMB_UNKNOWN;
+
 static void
-lfence_mb(void)
+cpuidp(u_int leaf, u_int p[4])
+{
+
+	__asm __volatile(
+#if defined(__i386__)
+	    "	pushl	%%ebx\n"
+#endif
+	    "	cpuid\n"
+#if defined(__i386__)
+	    "	movl	%%ebx,%1\n"
+	    "	popl	%%ebx"
+#endif
+	    : "=a" (p[0]),
+#if defined(__i386__)
+	    "=r" (p[1]),
+#elif defined(__amd64__)
+	    "=b" (p[1]),
+#else
+#error "Arch"
+#endif
+	    "=c" (p[2]), "=d" (p[3])
+	    :  "0" (leaf));
+}
+
+static enum LMB
+select_lmb(void)
+{
+	u_int p[4];
+	static const char intel_id[] = "GenuntelineI";
+
+	cpuidp(0, p);
+	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
+	    LMB_LFENCE : LMB_MFENCE);
+}
+
+static void
+init_fence(void)
 {
 #if defined(__i386__)
-	static int lfence_works = -1;
 	u_int cpuid_supported, p[4];
 
-	if (lfence_works == -1) {
-		__asm __volatile(
-		    "	pushfl\n"
-		    "	popl	%%eax\n"
-		    "	movl    %%eax,%%ecx\n"
-		    "	xorl    $0x200000,%%eax\n"
-		    "	pushl	%%eax\n"
-		    "	popfl\n"
-		    "	pushfl\n"
-		    "	popl    %%eax\n"
-		    "	xorl    %%eax,%%ecx\n"
-		    "	je	1f\n"
-		    "	movl	$1,%0\n"
-		    "	jmp	2f\n"
-		    "1:	movl	$0,%0\n"
-		    "2:\n"
-		    : "=r" (cpuid_supported) : : "eax", "ecx", "cc");
-		if (cpuid_supported) {
-			__asm __volatile(
-			    "	pushl	%%ebx\n"
-			    "	cpuid\n"
-			    "	movl	%%ebx,%1\n"
-			    "	popl	%%ebx\n"
-			    : "=a" (p[0]), "=r" (p[1]), "=c" (p[2]), "=d" (p[3])
-			    :  "0" (0x1));
-			lfence_works = (p[3] & CPUID_SSE2) != 0;
-		} else
-			lfence_works = 0;
-	}
-	if (lfence_works == 1)
-		lfence();
+	__asm __volatile(
+	    "	pushfl\n"
+	    "	popl	%%eax\n"
+	    "	movl    %%eax,%%ecx\n"
+	    "	xorl    $0x200000,%%eax\n"
+	    "	pushl	%%eax\n"
+	    "	popfl\n"
+	    "	pushfl\n"
+	    "	popl    %%eax\n"
+	    "	xorl    %%eax,%%ecx\n"
+	    "	je	1f\n"
+	    "	movl	$1,%0\n"
+	    "	jmp	2f\n"
+	    "1:	movl	$0,%0\n"
+	    "2:\n"
+	    : "=r" (cpuid_supported) : : "eax", "ecx", "cc");
+	if (cpuid_supported) {
+		cpuidp(0x1, p);
+		if ((p[3] & CPUID_SSE2) != 0)
+			lfence_works = select_lmb();
+	} else
+		lfence_works = LMB_NONE;
 #elif defined(__amd64__)
-	lfence();
+	lfence_works = select_lmb();
 #else
-#error "arch"
+#error "Arch"
 #endif
+}
+
+static void
+rdtsc_mb(void)
+{
+
+again:
+	if (__predict_true(lfence_works == LMB_LFENCE)) {
+		lfence();
+		return;
+	} else if (lfence_works == LMB_MFENCE) {
+		mfence();
+		return;
+	} else if (lfence_works == LMB_NONE) {
+		return;
+	}
+	init_fence();
+	goto again;
 }
 
 static u_int
@@ -102,7 +153,7 @@ __vdso_gettc_rdtsc_low(const struct vdso_timehands *th)
 {
 	u_int rv;
 
-	lfence_mb();
+	rdtsc_mb();
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
 	return (rv);
@@ -112,7 +163,7 @@ static u_int
 __vdso_rdtsc32(void)
 {
 
-	lfence_mb();
+	rdtsc_mb();
 	return (rdtsc32());
 }
 
@@ -211,7 +262,7 @@ __vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
 		scale = tsc_ref->tsc_scale;
 		ofs = tsc_ref->tsc_ofs;
 
-		lfence_mb();
+		rdtsc_mb();
 		tsc = rdtsc();
 
 		/* ret = ((tsc * scale) >> 64) + ofs */
