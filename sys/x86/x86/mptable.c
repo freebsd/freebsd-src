@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 #ifdef NEW_PCIB
 #include <sys/rman.h>
 #endif
@@ -330,8 +331,10 @@ mptable_probe_cpus(void)
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
+#ifdef SMP
 		mp_ncpus = 2;
 		mp_maxid = 1;
+#endif
 		max_apic_id = 1;
 	} else {
 		mptable_walk_table(mptable_probe_cpus_handler, &cpu_mask);
@@ -346,6 +349,7 @@ static int
 mptable_setup_local(void)
 {
 	vm_paddr_t addr;
+	u_int cpu_mask;
 
 	/* Is this a pre-defined config? */
 	printf("MPTable: <");
@@ -478,8 +482,10 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 		proc = (proc_entry_ptr)entry;
 		if (proc->cpu_flags & PROCENTRY_FLAG_EN &&
 		    proc->apic_id < MAX_LAPIC_ID && mp_ncpus < MAXCPU) {
+#ifdef SMP
 			mp_ncpus++;
 			mp_maxid = mp_ncpus - 1;
+#endif
 			max_apic_id = max(max_apic_id, proc->apic_id);
 		}
 		break;
