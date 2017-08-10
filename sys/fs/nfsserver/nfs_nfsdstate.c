@@ -6839,7 +6839,9 @@ nfsrv_setdsserver(char *dspathp, char *mirrorp, NFSPROC_T *p,
 			i = 1;
 			TAILQ_FOREACH(tds, &mds->nfsdev_mirrors, nfsdev_list)
 				i++;
-			if (i > nfsrv_maxpnfsmirror)
+			if (i > NFSDEV_MAXMIRRORS)
+				error = ENXIO;
+			else if (i > nfsrv_maxpnfsmirror)
 				nfsrv_maxpnfsmirror = i;
 			break;
 		}
@@ -6940,6 +6942,7 @@ nfsrv_createdevids(struct nfsd_nfsd_args *args, NFSPROC_T *p)
 	dnshostp = args->dnshost;
 	dspathp = args->dspath;
 	mirrorp = args->mirror;
+	nfsrv_maxpnfsmirror = 1;
 	if (addrp == NULL || dnshostp == NULL || dspathp == NULL ||
 	    mirrorp == NULL)
 		return (0);
