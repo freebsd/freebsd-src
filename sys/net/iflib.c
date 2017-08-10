@@ -267,6 +267,8 @@ iflib_get_sctx(if_ctx_t ctx)
 #define RX_SW_DESC_INUSE        (1 << 3)
 #define TX_SW_DESC_MAPPED       (1 << 4)
 
+#define	M_TOOBIG		M_UNUSED_8
+
 typedef struct iflib_sw_rx_desc_array {
 	bus_dmamap_t	*ifsd_map;         /* bus_dma maps for packet */
 	struct mbuf	**ifsd_m;           /* pkthdr mbufs */
@@ -2930,8 +2932,11 @@ iflib_busdma_load_mbuf_sg(iflib_txq_t txq, bus_dma_tag_t tag, bus_dmamap_t map,
 			m = m->m_next;
 			count++;
 		} while (m != NULL);
-		if (count > *nsegs)
+		if (count > *nsegs) {
+			ifsd_m[pidx] = *m0;
+			ifsd_m[pidx]->m_flags |= M_TOOBIG;
 			return (0);
+		}
 		m = *m0;
 		count = 0;
 		do {
@@ -3241,8 +3246,15 @@ iflib_tx_desc_free(iflib_txq_t txq, int n)
 			if ((m = ifsd_m[cidx]) != NULL) {
 				/* XXX we don't support any drivers that batch packets yet */
 				MPASS(m->m_nextpkt == NULL);
-
-				m_free(m);
+				/* if the number of clusters exceeds the number of segments
+				 * there won't be space on the ring to save a pointer to each
+				 * cluster so we simply free the list here
+				 */
+				if (m->m_flags & M_TOOBIG) {
+					m_freem(m);
+				} else {
+					m_free(m);
+				}
 				ifsd_m[cidx] = NULL;
 #if MEMORY_LOGGING
 				txq->ift_dequeued++;
