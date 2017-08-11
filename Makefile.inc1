@@ -346,6 +346,12 @@ SVN=   ${_P}/${_S}
 . endfor
 .endif
 SVNFLAGS?=	-r HEAD
+.if !defined(VCS_REVISION) && empty(VCS_REVISION)
+_VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
+. if !empty(_VCS_REVISION)
+VCS_REVISION=	$$(echo r${_VCS_REVISION})
+. endif
+.endif
 
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
@@ -1626,9 +1632,10 @@ create-world-package-${pkgname}: .PHONY
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
-		' ${WSTAGEDIR}/${pkgname}.ucl ;
+		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
@@ -1658,6 +1665,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1692,6 +1700,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
