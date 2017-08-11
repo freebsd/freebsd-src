@@ -199,7 +199,8 @@ static struct sysentvec cloudabi64_elf_sysvec = {
 	.sv_coredump		= elf64_coredump,
 	.sv_pagesize		= PAGE_SIZE,
 	.sv_minuser		= VM_MIN_ADDRESS,
-	.sv_maxuser		= VM_MAXUSER_ADDRESS,
+	/* Keep top page reserved to work around AMD Ryzen stability issues. */
+	.sv_maxuser		= VM_MAXUSER_ADDRESS - PAGE_SIZE,
 	.sv_stackprot		= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_strings	= cloudabi64_copyout_strings,
 	.sv_setregs		= cloudabi64_proc_setregs,
