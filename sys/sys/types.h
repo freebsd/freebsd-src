@@ -364,14 +364,9 @@ __bitcount64(__uint64_t _x)
 
 #include <sys/select.h>
 
-/*
- * minor() gives a cookie instead of an index since we don't want to
- * change the meanings of bits 0-15 or waste time and space shifting
- * bits 16-31 for devices that don't use them.
- */
-#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
+#define	major(x)	((int)((dev_t)(x) >> 32))
+#define	minor(x)	((int)(x))
+#define	makedev(x, y)	(((dev_t)(x) << 32) | (unsigned)(y))
 
 /*
  * These declarations belong elsewhere, but are repeated here and in

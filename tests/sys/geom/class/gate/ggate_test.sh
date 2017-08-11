@@ -16,6 +16,8 @@ ggated_head()
 
 ggated_body()
 {
+	load_ggate
+
 	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	src=$(alloc_md)
@@ -57,6 +59,8 @@ ggatel_file_head()
 
 ggatel_file_body()
 {
+	load_ggate
+
 	us=$(alloc_ggate_dev)
 
 	echo src work >> ${PLAINFILES}
@@ -91,6 +95,8 @@ ggatel_md_head()
 
 ggatel_md_body()
 {
+	load_ggate
+
 	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	src=$(alloc_md)
@@ -193,6 +199,18 @@ common_cleanup()
 		rm md.devs
 	fi
 	true
+}
+
+load_ggate()
+{
+	local class=gate
+
+	# If the geom class isn't already loaded, try loading it.
+	if ! kldstat -q -m g_${class}; then
+		if ! geom ${class} load; then
+			atf_skip "could not load module for geom class=${class}"
+		fi
+	fi
 }
 
 # Bug 204616: ggatel(8) creates /dev/ggate* asynchronously if `ggatel create`

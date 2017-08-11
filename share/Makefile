@@ -26,7 +26,6 @@ SUBDIR=	${_colldef} \
 	${_syscons} \
 	tabset \
 	termcap \
-	${_tests} \
 	${_timedef} \
 	${_vt} \
 	${_zoneinfo}
@@ -82,9 +81,7 @@ _doc=		doc
 _syscons=	syscons
 .endif
 
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_VT} != "no"
 _vt=		vt

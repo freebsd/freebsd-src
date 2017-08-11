@@ -197,7 +197,6 @@ typedef uint8_t cloudabi_filetype_t;
 #define CLOUDABI_FILETYPE_REGULAR_FILE      96
 #define CLOUDABI_FILETYPE_SHARED_MEMORY    112
 #define CLOUDABI_FILETYPE_SOCKET_DGRAM     128
-#define CLOUDABI_FILETYPE_SOCKET_SEQPACKET 129
 #define CLOUDABI_FILETYPE_SOCKET_STREAM    130
 #define CLOUDABI_FILETYPE_SYMBOLIC_LINK    144
 
@@ -237,13 +236,6 @@ typedef uint8_t cloudabi_msflags_t;
 #define CLOUDABI_MS_INVALIDATE 0x02
 #define CLOUDABI_MS_SYNC       0x04
 
-typedef uint16_t cloudabi_msgflags_t;
-#define CLOUDABI_MSG_CTRUNC  0x0001
-#define CLOUDABI_MSG_EOR     0x0002
-#define CLOUDABI_MSG_PEEK    0x0004
-#define CLOUDABI_MSG_TRUNC   0x0008
-#define CLOUDABI_MSG_WAITALL 0x0010
-
 typedef uint32_t cloudabi_nthreads_t;
 
 typedef uint16_t cloudabi_oflags_t;
@@ -251,6 +243,10 @@ typedef uint16_t cloudabi_oflags_t;
 #define CLOUDABI_O_DIRECTORY 0x0002
 #define CLOUDABI_O_EXCL      0x0004
 #define CLOUDABI_O_TRUNC     0x0008
+
+typedef uint16_t cloudabi_riflags_t;
+#define CLOUDABI_SOCK_RECV_PEEK    0x0004
+#define CLOUDABI_SOCK_RECV_WAITALL 0x0010
 
 typedef uint64_t cloudabi_rights_t;
 #define CLOUDABI_RIGHT_FD_DATASYNC            0x0000000000000001
@@ -295,11 +291,9 @@ typedef uint64_t cloudabi_rights_t;
 #define CLOUDABI_RIGHT_SOCK_SHUTDOWN          0x0000008000000000
 #define CLOUDABI_RIGHT_SOCK_STAT_GET          0x0000010000000000
 
-typedef uint8_t cloudabi_sa_family_t;
-#define CLOUDABI_AF_UNSPEC 0
-#define CLOUDABI_AF_INET   1
-#define CLOUDABI_AF_INET6  2
-#define CLOUDABI_AF_UNIX   3
+typedef uint16_t cloudabi_roflags_t;
+#define CLOUDABI_SOCK_RECV_FDS_TRUNCATED  0x0001
+#define CLOUDABI_SOCK_RECV_DATA_TRUNCATED 0x0008
 
 typedef uint8_t cloudabi_scope_t;
 #define CLOUDABI_SCOPE_PRIVATE 4
@@ -308,6 +302,8 @@ typedef uint8_t cloudabi_scope_t;
 typedef uint8_t cloudabi_sdflags_t;
 #define CLOUDABI_SHUT_RD 0x01
 #define CLOUDABI_SHUT_WR 0x02
+
+typedef uint16_t cloudabi_siflags_t;
 
 typedef uint8_t cloudabi_signal_t;
 #define CLOUDABI_SIGABRT    1
@@ -428,34 +424,11 @@ _Static_assert(sizeof(cloudabi_lookup_t) == 8, "Incorrect layout");
 _Static_assert(_Alignof(cloudabi_lookup_t) == 4, "Incorrect layout");
 
 typedef struct {
-  _Alignas(1) cloudabi_sa_family_t sa_family;
-  union {
-    struct {
-      _Alignas(1) uint8_t addr[4];
-      _Alignas(2) uint16_t port;
-    } sa_inet;
-    struct {
-      _Alignas(1) uint8_t addr[16];
-      _Alignas(2) uint16_t port;
-    } sa_inet6;
-  };
-} cloudabi_sockaddr_t;
-_Static_assert(offsetof(cloudabi_sockaddr_t, sa_family) == 0, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockaddr_t, sa_inet.addr) == 2, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockaddr_t, sa_inet.port) == 6, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockaddr_t, sa_inet6.addr) == 2, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockaddr_t, sa_inet6.port) == 18, "Incorrect layout");
-_Static_assert(sizeof(cloudabi_sockaddr_t) == 20, "Incorrect layout");
-_Static_assert(_Alignof(cloudabi_sockaddr_t) == 2, "Incorrect layout");
-
-typedef struct {
-  _Alignas(2) cloudabi_sockaddr_t ss_sockname;
-  _Alignas(2) cloudabi_sockaddr_t ss_peername;
+  _Alignas(1) char ss_unused[40];
   _Alignas(2) cloudabi_errno_t ss_error;
   _Alignas(4) cloudabi_sstate_t ss_state;
 } cloudabi_sockstat_t;
-_Static_assert(offsetof(cloudabi_sockstat_t, ss_sockname) == 0, "Incorrect layout");
-_Static_assert(offsetof(cloudabi_sockstat_t, ss_peername) == 20, "Incorrect layout");
+_Static_assert(offsetof(cloudabi_sockstat_t, ss_unused) == 0, "Incorrect layout");
 _Static_assert(offsetof(cloudabi_sockstat_t, ss_error) == 40, "Incorrect layout");
 _Static_assert(offsetof(cloudabi_sockstat_t, ss_state) == 44, "Incorrect layout");
 _Static_assert(sizeof(cloudabi_sockstat_t) == 48, "Incorrect layout");

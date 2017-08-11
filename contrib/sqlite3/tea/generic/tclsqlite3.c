@@ -166,6 +166,7 @@ struct SqliteDb {
   int nStmt;                 /* Number of statements in stmtList */
   IncrblobChannel *pIncrblob;/* Linked list of open incrblob channels */
   int nStep, nSort, nIndex;  /* Statistics for most recent operation */
+  int nVMStep;               /* Another statistic for most recent operation */
   int nTransaction;          /* Number of nested [transaction] methods */
   int openFlags;             /* Flags used to open.  (SQLITE_OPEN_URI) */
 #ifdef SQLITE_TEST
@@ -595,7 +596,8 @@ static int DbProgressHandler(void *cd){
 }
 #endif
 
-#ifndef SQLITE_OMIT_TRACE
+#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT) && \
+    !defined(SQLITE_OMIT_DEPRECATED)
 /*
 ** This routine is called by the SQLite trace handler whenever a new
 ** block of SQL is executed.  The TCL script in pDb->zTrace is executed.
@@ -689,7 +691,8 @@ static int DbTraceV2Handler(
 }
 #endif
 
-#ifndef SQLITE_OMIT_TRACE
+#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT) && \
+    !defined(SQLITE_OMIT_DEPRECATED)
 /*
 ** This routine is called by the SQLite profile handler after a statement
 ** SQL has executed.  The TCL script in pDb->zProfile is evaluated.
@@ -1036,9 +1039,16 @@ static int auth_callback(
   Tcl_DString str;
   int rc;
   const char *zReply;
+  /* EVIDENCE-OF: R-38590-62769 The first parameter to the authorizer
+  ** callback is a copy of the third parameter to the
+  ** sqlite3_set_authorizer() interface.
+  */
   SqliteDb *pDb = (SqliteDb*)pArg;
   if( pDb->disableAuth ) return SQLITE_OK;
 
+  /* EVIDENCE-OF: R-56518-44310 The second parameter to the callback is an
+  ** integer action code that specifies the particular action to be
+  ** authorized. */
   switch( code ){
     case SQLITE_COPY              : zCode="SQLITE_COPY"; break;
     case SQLITE_CREATE_INDEX      : zCode="SQLITE_CREATE_INDEX"; break;
@@ -1210,12 +1220,18 @@ static int dbPrepare(
   sqlite3_stmt **ppStmt,          /* OUT: Prepared statement */
   const char **pzOut              /* OUT: Pointer to next SQL statement */
 ){
+  unsigned int prepFlags = 0;
 #ifdef SQLITE_TEST
   if( pDb->bLegacyPrepare ){
     return sqlite3_prepare(pDb->db, zSql, -1, ppStmt, pzOut);
   }
 #endif
-  return sqlite3_prepare_v2(pDb->db, zSql, -1, ppStmt, pzOut);
+  /* If the statement cache is large, use the SQLITE_PREPARE_PERSISTENT
+  ** flags, which uses less lookaside memory.  But if the cache is small,
+  ** omit that flag to make full use of lookaside */
+  if( pDb->maxStmt>5 ) prepFlags = SQLITE_PREPARE_PERSISTENT;
+
+  return sqlite3_prepare_v3(pDb->db, zSql, -1, prepFlags, ppStmt, pzOut);
 }
 
 /*
@@ -1446,9 +1462,12 @@ struct DbEvalContext {
   const char *zSql;               /* Remaining SQL to execute */
   SqlPreparedStmt *pPreStmt;      /* Current statement */
   int nCol;                       /* Number of columns returned by pStmt */
+  int evalFlags;                  /* Flags used */
   Tcl_Obj *pArray;                /* Name of array variable */
   Tcl_Obj **apColName;            /* Array of column names */
 };
+
+#define SQLITE_EVAL_WITHOUTNULLS  0x00001  /* Unset array(*) for NULL */
 
 /*
 ** Release any cache of column names currently held as part of
@@ -1482,7 +1501,8 @@ static void dbEvalInit(
   DbEvalContext *p,               /* Pointer to structure to initialize */
   SqliteDb *pDb,                  /* Database handle */
   Tcl_Obj *pSql,                  /* Object containing SQL script */
-  Tcl_Obj *pArray                 /* Name of Tcl array to set (*) element of */
+  Tcl_Obj *pArray,                /* Name of Tcl array to set (*) element of */
+  int evalFlags                   /* Flags controlling evaluation */
 ){
   memset(p, 0, sizeof(DbEvalContext));
   p->pDb = pDb;
@@ -1493,6 +1513,7 @@ static void dbEvalInit(
     p->pArray = pArray;
     Tcl_IncrRefCount(pArray);
   }
+  p->evalFlags = evalFlags;
 }
 
 /*
@@ -1584,6 +1605,7 @@ static int dbEvalStep(DbEvalContext *p){
       pDb->nStep = sqlite3_stmt_status(pStmt,SQLITE_STMTSTATUS_FULLSCAN_STEP,1);
       pDb->nSort = sqlite3_stmt_status(pStmt,SQLITE_STMTSTATUS_SORT,1);
       pDb->nIndex = sqlite3_stmt_status(pStmt,SQLITE_STMTSTATUS_AUTOINDEX,1);
+      pDb->nVMStep = sqlite3_stmt_status(pStmt,SQLITE_STMTSTATUS_VM_STEP,1);
       dbReleaseColumnNames(p);
       p->pPreStmt = 0;
 
@@ -1724,11 +1746,15 @@ static int SQLITE_TCLAPI DbEvalNextCmd(
     Tcl_Obj **apColName;
     dbEvalRowInfo(p, &nCol, &apColName);
     for(i=0; i<nCol; i++){
-      Tcl_Obj *pVal = dbEvalColumnValue(p, i);
       if( pArray==0 ){
-        Tcl_ObjSetVar2(interp, apColName[i], 0, pVal, 0);
+        Tcl_ObjSetVar2(interp, apColName[i], 0, dbEvalColumnValue(p,i), 0);
+      }else if( (p->evalFlags & SQLITE_EVAL_WITHOUTNULLS)!=0
+             && sqlite3_column_type(p->pPreStmt->pStmt, i)==SQLITE_NULL 
+      ){
+        Tcl_UnsetVar2(interp, Tcl_GetString(pArray), 
+                      Tcl_GetString(apColName[i]), 0);
       }else{
-        Tcl_ObjSetVar2(interp, pArray, apColName[i], pVal, 0);
+        Tcl_ObjSetVar2(interp, pArray, apColName[i], dbEvalColumnValue(p,i), 0);
       }
     }
 
@@ -2310,7 +2336,7 @@ static int SQLITE_TCLAPI DbObjCmd(
     }
     in = fopen(zFile, "rb");
     if( in==0 ){
-      Tcl_AppendResult(interp, "Error: cannot open file: ", zFile, NULL);
+      Tcl_AppendResult(interp, "Error: cannot open file: ", zFile, (char*)0);
       sqlite3_finalize(pStmt);
       return TCL_ERROR;
     }
@@ -2441,7 +2467,7 @@ static int SQLITE_TCLAPI DbObjCmd(
       return TCL_ERROR;
     }
 
-    dbEvalInit(&sEval, pDb, objv[2], 0);
+    dbEvalInit(&sEval, pDb, objv[2], 0, 0);
     rc = dbEvalStep(&sEval);
     if( choice==DB_ONECOLUMN ){
       if( rc==TCL_OK ){
@@ -2462,7 +2488,7 @@ static int SQLITE_TCLAPI DbObjCmd(
   }
 
   /*
-  **    $db eval $sql ?array? ?{  ...code... }?
+  **    $db eval ?options? $sql ?array? ?{  ...code... }?
   **
   ** The SQL statement in $sql is evaluated.  For each row, the values are
   ** placed in elements of the array named "array" and ...code... is executed.
@@ -2471,8 +2497,22 @@ static int SQLITE_TCLAPI DbObjCmd(
   ** that have the same name as the fields extracted by the query.
   */
   case DB_EVAL: {
+    int evalFlags = 0;
+    const char *zOpt;
+    while( objc>3 && (zOpt = Tcl_GetString(objv[2]))!=0 && zOpt[0]=='-' ){
+      if( strcmp(zOpt, "-withoutnulls")==0 ){
+        evalFlags |= SQLITE_EVAL_WITHOUTNULLS;
+      }
+      else{
+        Tcl_AppendResult(interp, "unknown option: \"", zOpt, "\"", (void*)0);
+        return TCL_ERROR;
+      }
+      objc--;
+      objv++;
+    }
     if( objc<3 || objc>5 ){
-      Tcl_WrongNumArgs(interp, 2, objv, "SQL ?ARRAY-NAME? ?SCRIPT?");
+      Tcl_WrongNumArgs(interp, 2, objv, 
+          "?OPTIONS? SQL ?ARRAY-NAME? ?SCRIPT?");
       return TCL_ERROR;
     }
 
@@ -2480,7 +2520,7 @@ static int SQLITE_TCLAPI DbObjCmd(
       DbEvalContext sEval;
       Tcl_Obj *pRet = Tcl_NewObj();
       Tcl_IncrRefCount(pRet);
-      dbEvalInit(&sEval, pDb, objv[2], 0);
+      dbEvalInit(&sEval, pDb, objv[2], 0, 0);
       while( TCL_OK==(rc = dbEvalStep(&sEval)) ){
         int i;
         int nCol;
@@ -2501,14 +2541,14 @@ static int SQLITE_TCLAPI DbObjCmd(
       Tcl_Obj *pArray = 0;
       Tcl_Obj *pScript;
 
-      if( objc==5 && *(char *)Tcl_GetString(objv[3]) ){
+      if( objc>=5 && *(char *)Tcl_GetString(objv[3]) ){
         pArray = objv[3];
       }
       pScript = objv[objc-1];
       Tcl_IncrRefCount(pScript);
 
       p = (DbEvalContext *)Tcl_Alloc(sizeof(DbEvalContext));
-      dbEvalInit(p, pDb, objv[2], pArray);
+      dbEvalInit(p, pDb, objv[2], pArray, evalFlags);
 
       cd2[0] = (void *)p;
       cd2[1] = (void *)pScript;
@@ -2539,7 +2579,7 @@ static int SQLITE_TCLAPI DbObjCmd(
       int n = strlen30(z);
       if( n>2 && strncmp(z, "-argcount",n)==0 ){
         if( i==(objc-2) ){
-          Tcl_AppendResult(interp, "option requires an argument: ", z, 0);
+          Tcl_AppendResult(interp, "option requires an argument: ", z,(char*)0);
           return TCL_ERROR;
         }
         if( Tcl_GetIntFromObj(interp, objv[i+1], &nArg) ) return TCL_ERROR;
@@ -2554,7 +2594,7 @@ static int SQLITE_TCLAPI DbObjCmd(
         flags |= SQLITE_DETERMINISTIC;
       }else{
         Tcl_AppendResult(interp, "bad option \"", z,
-            "\": must be -argcount or -deterministic", 0
+            "\": must be -argcount or -deterministic", (char*)0
         );
         return TCL_ERROR;
       }
@@ -2752,7 +2792,8 @@ static int SQLITE_TCLAPI DbObjCmd(
       }else{
         pDb->zProfile = 0;
       }
-#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT)
+#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT) && \
+    !defined(SQLITE_OMIT_DEPRECATED)
       if( pDb->zProfile ){
         pDb->interp = interp;
         sqlite3_profile(pDb->db, DbProfileHandler, pDb);
@@ -2850,7 +2891,7 @@ static int SQLITE_TCLAPI DbObjCmd(
   }
 
   /*
-  **     $db status (step|sort|autoindex)
+  **     $db status (step|sort|autoindex|vmstep)
   **
   ** Display SQLITE_STMTSTATUS_FULLSCAN_STEP or
   ** SQLITE_STMTSTATUS_SORT for the most recent eval.
@@ -2869,9 +2910,11 @@ static int SQLITE_TCLAPI DbObjCmd(
       v = pDb->nSort;
     }else if( strcmp(zOp, "autoindex")==0 ){
       v = pDb->nIndex;
+    }else if( strcmp(zOp, "vmstep")==0 ){
+      v = pDb->nVMStep;
     }else{
       Tcl_AppendResult(interp,
-            "bad argument: should be autoindex, step, or sort",
+            "bad argument: should be autoindex, step, sort or vmstep",
             (char*)0);
       return TCL_ERROR;
     }
@@ -2939,8 +2982,8 @@ static int SQLITE_TCLAPI DbObjCmd(
       }else{
         pDb->zTrace = 0;
       }
-#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT) \
-    && !defined(SQLITE_OMIT_DEPRECATED)
+#if !defined(SQLITE_OMIT_TRACE) && !defined(SQLITE_OMIT_FLOATING_POINT) && \
+    !defined(SQLITE_OMIT_DEPRECATED)
       if( pDb->zTrace ){
         pDb->interp = interp;
         sqlite3_trace(pDb->db, DbTraceHandler, pDb);
@@ -3142,7 +3185,8 @@ static int SQLITE_TCLAPI DbObjCmd(
   */
   case DB_PREUPDATE: {
 #ifndef SQLITE_ENABLE_PREUPDATE_HOOK
-    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time");
+    Tcl_AppendResult(interp, "preupdate_hook was omitted at compile-time", 
+                     (char*)0);
     rc = TCL_ERROR;
 #else
     static const char *azSub[] = {"count", "depth", "hook", "new", "old", 0};
@@ -3209,7 +3253,7 @@ static int SQLITE_TCLAPI DbObjCmd(
           pObj = Tcl_NewStringObj((char*)sqlite3_value_text(pValue), -1);
           Tcl_SetObjResult(interp, pObj);
         }else{
-          Tcl_AppendResult(interp, sqlite3_errmsg(pDb->db), 0);
+          Tcl_AppendResult(interp, sqlite3_errmsg(pDb->db), (char*)0);
           return TCL_ERROR;
         }
       }
@@ -3406,10 +3450,6 @@ static int SQLITE_TCLAPI DbMain(
   }
   zErrMsg = 0;
   p = (SqliteDb*)Tcl_Alloc( sizeof(*p) );
-  if( p==0 ){
-    Tcl_SetResult(interp, (char *)"malloc failed", TCL_STATIC);
-    return TCL_ERROR;
-  }
   memset(p, 0, sizeof(*p));
   zFile = Tcl_GetStringFromObj(objv[2], 0);
   zFile = Tcl_TranslateFileName(interp, zFile, &translatedFilename);

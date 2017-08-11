@@ -64,7 +64,7 @@ typedef struct {
 } archive_crypto_ctx;
 
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
-#include <Bcrypt.h>
+#include <bcrypt.h>
 
 /* Common in other bcrypt implementations, but missing from VS2008. */
 #ifndef BCRYPT_SUCCESS

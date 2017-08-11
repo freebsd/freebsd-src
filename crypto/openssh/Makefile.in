@@ -236,6 +236,8 @@ clean:	regressclean
 	rm -f regress/unittests/sshkey/test_sshkey
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap
+	rm -f regress/unittests/conversion/*.o
+	rm -f regress/unittests/conversion/test_conversion
 	rm -f regress/unittests/hostkeys/*.o
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
@@ -262,6 +264,8 @@ distclean:	regressclean
 	rm -f regress/unittests/sshkey/test_sshkey
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap
+	rm -f regress/unittests/conversion/*.o
+	rm -f regress/unittests/conversion/test_conversion
 	rm -f regress/unittests/hostkeys/*.o
 	rm -f regress/unittests/hostkeys/test_hostkeys
 	rm -f regress/unittests/kex/*.o
@@ -426,6 +430,8 @@ regress-prep:
 		mkdir -p `pwd`/regress/unittests/sshkey
 	[ -d `pwd`/regress/unittests/bitmap ] || \
 		mkdir -p `pwd`/regress/unittests/bitmap
+	[ -d `pwd`/regress/unittests/conversion ] || \
+		mkdir -p `pwd`/regress/unittests/conversion
 	[ -d `pwd`/regress/unittests/hostkeys ] || \
 		mkdir -p `pwd`/regress/unittests/hostkeys
 	[ -d `pwd`/regress/unittests/kex ] || \
@@ -503,6 +509,16 @@ regress/unittests/bitmap/test_bitmap$(EXEEXT): ${UNITTESTS_TEST_BITMAP_OBJS} \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
+UNITTESTS_TEST_CONVERSION_OBJS=\
+	regress/unittests/conversion/tests.o
+
+regress/unittests/conversion/test_conversion$(EXEEXT): \
+    ${UNITTESTS_TEST_CONVERSION_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_CONVERSION_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
 UNITTESTS_TEST_KEX_OBJS=\
 	regress/unittests/kex/tests.o \
 	regress/unittests/kex/test_kex.o
@@ -558,13 +574,14 @@ regress-binaries: regress/modpipe$(EXEEXT) \
 	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
+	regress/unittests/conversion/test_conversion$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
 	regress/unittests/kex/test_kex$(EXEEXT) \
 	regress/unittests/match/test_match$(EXEEXT) \
 	regress/unittests/utf8/test_utf8$(EXEEXT) \
 	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
 
-tests interop-tests t-exec: regress-prep regress-binaries $(TARGETS)
+tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
 	BUILDDIR=`pwd`; \
 	TEST_SSH_SCP="$${BUILDDIR}/scp"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \

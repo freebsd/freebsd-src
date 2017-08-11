@@ -49,16 +49,17 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <x86/apicvar.h>
 
 #include <dev/acpica/acpivar.h>
 
 #if MAXMEMDOM > 1
-struct cpu_info {
+static struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
 	int domain;
-} cpus[MAX_APIC_ID + 1];
+} *cpus;
 
 struct mem_affinity mem_info[VM_PHYSSEG_MAX + 1];
 int num_mem;
@@ -203,7 +204,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		if (cpu->ApicId > MAX_APIC_ID) {
+		if (cpu->ApicId > max_apic_id) {
 			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
 			    cpu->ApicId);
 			break;
@@ -227,7 +228,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(x2apic->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		if (x2apic->ApicId > MAX_APIC_ID) {
+		if (x2apic->ApicId > max_apic_id) {
 			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
 			    x2apic->ApicId);
 			break;
@@ -293,7 +294,7 @@ check_domains(void)
 
 	for (i = 0; i < num_mem; i++) {
 		found = 0;
-		for (j = 0; j <= MAX_APIC_ID; j++)
+		for (j = 0; j <= max_apic_id; j++)
 			if (cpus[j].enabled &&
 			    cpus[j].domain == mem_info[i].domain) {
 				cpus[j].has_memory = 1;
@@ -305,7 +306,7 @@ check_domains(void)
 			return (ENXIO);
 		}
 	}
-	for (i = 0; i <= MAX_APIC_ID; i++)
+	for (i = 0; i <= max_apic_id; i++)
 		if (cpus[i].enabled && !cpus[i].has_memory) {
 			printf("SRAT: No memory found for CPU %d\n", i);
 			return (ENXIO);
@@ -400,7 +401,7 @@ renumber_domains(void)
 		for (j = 0; j < num_mem; j++)
 			if (mem_info[j].domain == domain_pxm[i])
 				mem_info[j].domain = i;
-		for (j = 0; j <= MAX_APIC_ID; j++)
+		for (j = 0; j <= max_apic_id; j++)
 			if (cpus[j].enabled && cpus[j].domain == domain_pxm[i])
 				cpus[j].domain = i;
 	}
@@ -414,6 +415,8 @@ renumber_domains(void)
 static int
 parse_srat(void)
 {
+	unsigned int idx, size;
+	vm_paddr_t addr;
 	int error;
 
 	if (resource_disabled("srat", 0))
@@ -422,6 +425,25 @@ parse_srat(void)
 	srat_physaddr = acpi_find_table(ACPI_SIG_SRAT);
 	if (srat_physaddr == 0)
 		return (-1);
+
+	/*
+	 * Allocate data structure:
+	 *
+	 * Find the last physical memory region and steal some memory from
+	 * it. This is done because at this point in the boot process
+	 * malloc is still not usable.
+	 */
+	for (idx = 0; phys_avail[idx + 1] != 0; idx += 2);
+	KASSERT(idx != 0, ("phys_avail is empty!"));
+	idx -= 2;
+
+	size =  sizeof(*cpus) * (max_apic_id + 1);
+	addr = trunc_page(phys_avail[idx + 1] - size);
+	KASSERT(addr >= phys_avail[idx],
+	    ("Not enough memory for SRAT table items"));
+	phys_avail[idx + 1] = addr - 1;
+
+	cpus = (struct cpu_info *)PHYS_TO_DMAP(addr);
 
 	/*
 	 * Make a pass over the table to populate the cpus[] and

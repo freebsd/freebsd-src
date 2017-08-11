@@ -82,7 +82,6 @@ struct mlx4_en_pkt_stats {
 	unsigned long tx_gt_1548_bytes_packets;
 	unsigned long rx_prio[NUM_PRIORITIES][NUM_PRIORITY_STATS];
 	unsigned long tx_prio[NUM_PRIORITIES][NUM_PRIORITY_STATS];
-#define NUM_PKT_STATS		72
 };
 
 struct mlx4_en_vf_stats {
@@ -97,7 +96,6 @@ struct mlx4_en_vf_stats {
 	unsigned long tx_multicast_packets;
 	unsigned long tx_broadcast_packets;
 	unsigned long tx_errors;
-#define NUM_VF_STATS		11
 };
 
 struct mlx4_en_vport_stats {
@@ -116,7 +114,6 @@ struct mlx4_en_vport_stats {
 	unsigned long tx_broadcast_packets;
 	unsigned long tx_broadcast_bytes;
 	unsigned long tx_errors;
-#define NUM_VPORT_STATS		15
 };
 
 struct mlx4_en_port_stats {
@@ -129,7 +126,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
 	unsigned long tx_chksum_offload;
-#define NUM_PORT_STATS		8
+	unsigned long defrag_attempts;
 };
 
 struct mlx4_en_perf_stats {
@@ -139,7 +136,6 @@ struct mlx4_en_perf_stats {
 	u16 tx_coal_avg;
 	u16 rx_coal_avg;
 	u32 napi_quota;
-#define NUM_PERF_COUNTERS		6
 };
 
 struct mlx4_en_flow_stats {
@@ -151,8 +147,6 @@ struct mlx4_en_flow_stats {
 	u64 tx_pause_transition;
 };
 #define MLX4_NUM_PRIORITIES	8
-#define NUM_FLOW_PRIORITY_STATS	6
-#define NUM_FLOW_STATS		(NUM_FLOW_PRIORITY_STATS*MLX4_NUM_PRIORITIES)
 
 
 struct mlx4_en_stat_out_flow_control_mbox {
@@ -180,6 +174,4 @@ int mlx4_get_vport_ethtool_stats(struct mlx4_dev *dev, int port,
                          struct mlx4_en_vport_stats *vport_stats,
                          int reset);
 
-#define NUM_ALL_STATS	(NUM_PKT_STATS + NUM_FLOW_STATS + NUM_VPORT_STATS + \
-			 NUM_VF_STATS + NUM_PORT_STATS + NUM_PERF_STATS)
 #endif

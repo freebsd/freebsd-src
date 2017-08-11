@@ -50,7 +50,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef PORT
 #define	PORT	9000
+#endif
 
 static int listen_fd;
 

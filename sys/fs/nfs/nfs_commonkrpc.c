@@ -511,7 +511,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (xidp != NULL)
 		*xidp = 0;
 	/* Reject requests while attempting a forced unmount. */
-	if (nmp != NULL && (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)) {
+	if (nmp != NULL && NFSCL_FORCEDISM(nmp->nm_mountp)) {
 		m_freem(nd->nd_mreq);
 		return (ESTALE);
 	}
@@ -1231,7 +1231,7 @@ newnfs_sigintr(struct nfsmount *nmp, struct thread *td)
 	sigset_t tmpset;
 	
 	/* Terminate all requests while attempting a forced unmount. */
-	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
+	if (NFSCL_FORCEDISM(nmp->nm_mountp))
 		return (EIO);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);

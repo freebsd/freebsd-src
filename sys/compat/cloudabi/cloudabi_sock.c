@@ -49,43 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
-/* Converts FreeBSD's struct sockaddr to CloudABI's cloudabi_sockaddr_t. */
-static void
-cloudabi_convert_sockaddr(const struct sockaddr *sa, socklen_t sal,
-    cloudabi_sockaddr_t *rsa)
-{
-	const struct sockaddr_in *sin;
-	const struct sockaddr_in6 *sin6;
-
-	/* Zero-sized socket address. */
-	if (sal < offsetof(struct sockaddr, sa_family) + sizeof(sa->sa_family))
-		return;
-
-	switch (sa->sa_family) {
-	case AF_INET:
-		if (sal < sizeof(struct sockaddr_in))
-			return;
-		sin = (const struct sockaddr_in *)sa;
-		rsa->sa_family = CLOUDABI_AF_INET;
-		memcpy(&rsa->sa_inet.addr, &sin->sin_addr,
-		    sizeof(rsa->sa_inet.addr));
-		rsa->sa_inet.port = ntohs(sin->sin_port);
-		return;
-	case AF_INET6:
-		if (sal < sizeof(struct sockaddr_in6))
-			return;
-		sin6 = (const struct sockaddr_in6 *)sa;
-		rsa->sa_family = CLOUDABI_AF_INET6;
-		memcpy(&rsa->sa_inet6.addr, &sin6->sin6_addr,
-		    sizeof(rsa->sa_inet6.addr));
-		rsa->sa_inet6.port = ntohs(sin6->sin6_port);
-		return;
-	case AF_UNIX:
-		rsa->sa_family = CLOUDABI_AF_UNIX;
-		return;
-	}
-}
-
 /* Copies a pathname into a UNIX socket address structure. */
 static int
 copyin_sockaddr_un(const char *path, size_t pathlen, struct sockaddr_un *sun)
@@ -112,27 +75,8 @@ int
 cloudabi_sys_sock_accept(struct thread *td,
     struct cloudabi_sys_sock_accept_args *uap)
 {
-	struct sockaddr *sa;
-	cloudabi_sockstat_t ss = {};
-	socklen_t sal;
-	int error;
 
-	if (uap->buf == NULL) {
-		/* Only return the new file descriptor number. */
-		return (kern_accept(td, uap->sock, NULL, NULL, NULL));
-	} else {
-		/* Also return properties of the new socket descriptor. */
-		sal = MAX(sizeof(struct sockaddr_in),
-		    sizeof(struct sockaddr_in6));
-		error = kern_accept(td, uap->sock, (void *)&sa, &sal, NULL);
-		if (error != 0)
-			return (error);
-
-		/* TODO(ed): Fill the other members of cloudabi_sockstat_t. */
-		cloudabi_convert_sockaddr(sa, sal, &ss.ss_peername);
-		free(sa, M_SONAME);
-		return (copyout(&ss, uap->buf, sizeof(ss)));
-	}
+	return (kern_accept(td, uap->sock, NULL, NULL, NULL));
 }
 
 int
@@ -200,7 +144,6 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 	cloudabi_sockstat_t ss = {};
 	cap_rights_t rights;
 	struct file *fp;
-	struct sockaddr *sa;
 	struct socket *so;
 	int error;
 
@@ -209,27 +152,6 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
-
-	CURVNET_SET(so->so_vnet);
-
-	/* Set ss_sockname. */
-	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
-	if (error == 0) {
-		cloudabi_convert_sockaddr(sa, sa->sa_len, &ss.ss_sockname);
-		free(sa, M_SONAME);
-	}
-
-	/* Set ss_peername. */
-	if ((so->so_state & (SS_ISCONNECTED | SS_ISCONFIRMING)) != 0) {
-		error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
-		if (error == 0) {
-			cloudabi_convert_sockaddr(sa, sa->sa_len,
-			    &ss.ss_peername);
-			free(sa, M_SONAME);
-		}
-	}
-
-	CURVNET_RESTORE();
 
 	/* Set ss_error. */
 	SOCK_LOCK(so);
@@ -249,8 +171,8 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 int
 cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
     size_t datalen, cloudabi_fd_t *fds, size_t fdslen,
-    cloudabi_msgflags_t flags, size_t *rdatalen, size_t *rfdslen,
-    cloudabi_sockaddr_t *peername, cloudabi_msgflags_t *rflags)
+    cloudabi_riflags_t flags, size_t *rdatalen, size_t *rfdslen,
+    cloudabi_roflags_t *rflags)
 {
 	struct sockaddr_storage ss;
 	struct msghdr hdr = {
@@ -263,9 +185,9 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 	int error;
 
 	/* Convert flags. */
-	if (flags & CLOUDABI_MSG_PEEK)
+	if (flags & CLOUDABI_SOCK_RECV_PEEK)
 		hdr.msg_flags |= MSG_PEEK;
-	if (flags & CLOUDABI_MSG_WAITALL)
+	if (flags & CLOUDABI_SOCK_RECV_WAITALL)
 		hdr.msg_flags |= MSG_WAITALL;
 
 	control = NULL;
@@ -278,13 +200,9 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 	*rdatalen = td->td_retval[0];
 	td->td_retval[0] = 0;
 	*rfdslen = 0;
-	cloudabi_convert_sockaddr((struct sockaddr *)&ss,
-	    MIN(hdr.msg_namelen, sizeof(ss)), peername);
 	*rflags = 0;
-	if (hdr.msg_flags & MSG_EOR)
-		*rflags |= CLOUDABI_MSG_EOR;
 	if (hdr.msg_flags & MSG_TRUNC)
-		*rflags |= CLOUDABI_MSG_TRUNC;
+		*rflags |= CLOUDABI_SOCK_RECV_DATA_TRUNCATED;
 
 	/* Extract file descriptors from SCM_RIGHTS messages. */
 	if (control != NULL) {
@@ -303,7 +221,8 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 				if (nfds > fdslen) {
 					/* Unable to store file descriptors. */
 					nfds = fdslen;
-					*rflags |= CLOUDABI_MSG_CTRUNC;
+					*rflags |=
+					    CLOUDABI_SOCK_RECV_FDS_TRUNCATED;
 				}
 				error = copyout(CMSG_DATA(chdr), fds,
 				    nfds * sizeof(int));
@@ -323,20 +242,14 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 
 int
 cloudabi_sock_send(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
-    size_t datalen, const cloudabi_fd_t *fds, size_t fdslen,
-    cloudabi_msgflags_t flags, size_t *rdatalen)
+    size_t datalen, const cloudabi_fd_t *fds, size_t fdslen, size_t *rdatalen)
 {
 	struct msghdr hdr = {
 		.msg_iov = data,
 		.msg_iovlen = datalen,
 	};
 	struct mbuf *control;
-	int error, mflags;
-
-	/* Convert flags. */
-	mflags = MSG_NOSIGNAL;
-	if (flags & CLOUDABI_MSG_EOR)
-		mflags |= MSG_EOR;
+	int error;
 
 	/* Convert file descriptor array to an SCM_RIGHTS message. */
 	if (fdslen > MCLBYTES || CMSG_SPACE(fdslen * sizeof(int)) > MCLBYTES) {
@@ -361,7 +274,7 @@ cloudabi_sock_send(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 		control = NULL;
 	}
 
-	error = kern_sendit(td, fd, &hdr, mflags, control, UIO_USERSPACE);
+	error = kern_sendit(td, fd, &hdr, MSG_NOSIGNAL, control, UIO_USERSPACE);
 	if (error != 0)
 		return (error);
 	*rdatalen = td->td_retval[0];

@@ -877,12 +877,12 @@ static int mlx4_ib_query_values(struct ib_device *device, int q_values,
 				struct ib_device_values *values)
 {
 	struct mlx4_ib_dev *dev = to_mdev(device);
-	cycle_t cycles;
+	s64 cycles;
 
 	values->values_mask = 0;
 	if (q_values & IBV_VALUES_HW_CLOCK) {
 		cycles = mlx4_read_clock(dev->dev);
-		if (cycles < 0) {
+		if (cycles >= 0) {
 			values->hwclock = cycles & CORE_CLOCK_MASK;
 			values->values_mask |= IBV_VALUES_HW_CLOCK;
 		}

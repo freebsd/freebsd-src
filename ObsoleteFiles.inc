@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170802: ksyms(4) ioctl interface was removed
+OLD_FILES+=usr/include/sys/ksyms.h
+
 # 20170722: new clang import which bumps version from 4.0.0 to 5.0.0.
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/asan_interface.h

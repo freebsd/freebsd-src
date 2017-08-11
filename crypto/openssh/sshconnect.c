@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.272 2016/09/12 01:22:38 deraadt Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.273 2017/03/10 03:22:40 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1533,6 +1533,7 @@ maybe_add_key_to_agent(char *authfile, Key *private, char *comment,
 	if (options.add_keys_to_agent == 2 &&
 	    !ask_permission("Add key %s (%s) to agent?", authfile, comment)) {
 		debug3("user denied adding this key");
+		close(auth_sock);
 		return;
 	}
 
@@ -1541,4 +1542,5 @@ maybe_add_key_to_agent(char *authfile, Key *private, char *comment,
 		debug("identity added to agent: %s", authfile);
 	else
 		debug("could not add identity to agent: %s (%d)", authfile, r);
+	close(auth_sock);
 }

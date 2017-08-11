@@ -201,9 +201,9 @@ _meta_filemon=	1
 # Also skip generating or including .depend.* files if in meta+filemon mode
 # since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
 # for _meta_filemon but not for _SKIP_DEPEND.
-.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(*obj) || \
+.if !defined(NO_SKIP_DEPEND) && (make(*obj) || \
     ${.TARGETS:M*clean*} == ${.TARGETS} || \
-    ${.TARGETS:M*install*} == ${.TARGETS}
+    ${.TARGETS:M*install*} == ${.TARGETS})
 _SKIP_DEPEND=	1
 .endif
 .if defined(_SKIP_DEPEND) || defined(_meta_filemon)
@@ -232,13 +232,11 @@ ${DEPENDOBJS}:	.NOMETA
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if !defined(_meta_filemon)
-.if defined(.PARSEDIR)
+.if !empty(DEPEND_CFLAGS)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
 DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
-.else
-CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .if ${MAKE_VERSION} < 20160220
@@ -259,8 +257,12 @@ beforebuild: kernel-depend
 # For meta+filemon the .meta file is checked for since it is the dependency
 # file used.
 .for __obj in ${DEPENDOBJS:O:u}
-.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
-    (!defined(_meta_filemon) && !exists(${.OBJDIR}/.depend.${__obj}))
+.if defined(_meta_filemon)
+_depfile=	${.OBJDIR}/${__obj}.meta
+.else
+_depfile=	${.OBJDIR}/.depend.${__obj}
+.endif
+.if !exists(${_depfile})
 .if ${SYSTEM_OBJS:M${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS}
 .endif
@@ -275,7 +277,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
 .endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
-.endif
+.endif	# !exists(${_depfile})
 .endfor
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}

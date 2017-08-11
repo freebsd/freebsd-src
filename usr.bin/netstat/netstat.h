@@ -140,7 +140,6 @@ void	intpr(void (*)(char *), int);
 
 void	pr_family(int);
 void	rt_stats(void);
-void	flowtable_stats(void);
 
 char	*routename(struct sockaddr *, int);
 const char *netname(struct sockaddr *, struct sockaddr *);

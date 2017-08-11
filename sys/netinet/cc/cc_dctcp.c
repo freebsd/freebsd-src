@@ -230,29 +230,27 @@ static void
 dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct dctcp *dctcp_data;
-	uint32_t cwin, ssthresh_on_loss;
-	u_int mss;
+	u_int win, mss;
 
 	dctcp_data = ccv->cc_data;
-	cwin = CCV(ccv, snd_cwnd);
+	win = CCV(ccv, snd_cwnd);
 	mss = CCV(ccv, t_maxseg);
-	ssthresh_on_loss =
-	    max((CCV(ccv, snd_max) - CCV(ccv, snd_una)) / 2 / mss, 2)
-		* mss;
 
 	switch (type) {
 	case CC_NDUPACK:
 		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-				CCV(ccv, snd_ssthresh) = ssthresh_on_loss;
+				CCV(ccv, snd_ssthresh) = mss *
+				    max(win / 2 / mss, 2);
 				dctcp_data->num_cong_events++;
 			} else {
 				/* cwnd has already updated as congestion
 				 * recovery. Reverse cwnd value using
 				 * snd_cwnd_prev and recalculate snd_ssthresh
 				 */
-				cwin = CCV(ccv, snd_cwnd_prev);
-				CCV(ccv, snd_ssthresh) = ssthresh_on_loss;
+				win = CCV(ccv, snd_cwnd_prev);
+				CCV(ccv, snd_ssthresh) =
+				    max(win / 2 / mss, 2) * mss;
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -262,17 +260,18 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * Save current snd_cwnd when the host encounters both
 		 * congestion recovery and fast recovery.
 		 */
-		CCV(ccv, snd_cwnd_prev) = cwin;
+		CCV(ccv, snd_cwnd_prev) = win;
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 			if (V_dctcp_slowstart &&
 			    dctcp_data->num_cong_events++ == 0) {
-				CCV(ccv, snd_ssthresh) = ssthresh_on_loss;
+				CCV(ccv, snd_ssthresh) =
+				    mss * max(win / 2 / mss, 2);
 				dctcp_data->alpha = MAX_ALPHA_VALUE;
 				dctcp_data->bytes_ecn = 0;
 				dctcp_data->bytes_total = 0;
 				dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
 			} else
-				CCV(ccv, snd_ssthresh) = max((cwin - ((cwin *
+				CCV(ccv, snd_ssthresh) = max((win - ((win *
 				    dctcp_data->alpha) >> 11)) / mss, 2) * mss;
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
@@ -285,8 +284,6 @@ dctcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			dctcp_update_alpha(ccv);
 			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
 			dctcp_data->num_cong_events++;
-			CCV(ccv, snd_ssthresh) = ssthresh_on_loss;
-			CCV(ccv, snd_cwnd) = mss;
 		}
 		break;
 	}

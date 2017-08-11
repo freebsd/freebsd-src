@@ -1315,13 +1315,24 @@ vnode_pager_putpages_ioflags(int pager_flags)
 	return (ioflags);
 }
 
+/*
+ * vnode_pager_undirty_pages().
+ *
+ * A helper to mark pages as clean after pageout that was possibly
+ * done with a short write.  The lpos argument specifies the page run
+ * length in bytes, and the written argument specifies how many bytes
+ * were actually written.  eof is the offset past the last valid byte
+ * in the vnode using the absolute file position of the first byte in
+ * the run as the base from which it is computed.
+ */
 void
-vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
+    int lpos)
 {
 	vm_object_t obj;
-	int i, pos;
+	int i, pos, pos_devb;
 
-	if (written == 0)
+	if (written == 0 && eof >= lpos)
 		return;
 	obj = ma[0]->object;
 	VM_OBJECT_WLOCK(obj);
@@ -1335,6 +1346,37 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
 		}
 	}
+	if (eof >= lpos) /* avoid truncation */
+		goto done;
+	for (pos = eof, i = OFF_TO_IDX(trunc_page(pos)); pos < lpos; i++) {
+		if (pos != trunc_page(pos)) {
+			/*
+			 * The page contains the last valid byte in
+			 * the vnode, mark the rest of the page as
+			 * clean, potentially making the whole page
+			 * clean.
+			 */
+			pos_devb = roundup2(pos & PAGE_MASK, DEV_BSIZE);
+			vm_page_clear_dirty(ma[i], pos_devb, PAGE_SIZE -
+			    pos_devb);
+
+			/*
+			 * If the page was cleaned, report the pageout
+			 * on it as successful.  msync() no longer
+			 * needs to write out the page, endlessly
+			 * creating write requests and dirty buffers.
+			 */
+			if (ma[i]->dirty == 0)
+				rtvals[i] = VM_PAGER_OK;
+
+			pos = round_page(pos);
+		} else {
+			/* vm_pageout_flush() clears dirty */
+			rtvals[i] = VM_PAGER_BAD;
+			pos += PAGE_SIZE;
+		}
+	}
+done:
 	VM_OBJECT_WUNLOCK(obj);
 }
 

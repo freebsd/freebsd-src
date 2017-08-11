@@ -42,6 +42,7 @@ arm/allwinner/clkng/aw_clk_nkmp.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_nm.c	optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_a64.c	optional	aw_ccu fdt
+arm/allwinner/clkng/ccu_h3.c	optional	aw_ccu fdt
 
 arm/allwinner/if_awg.c		optional	awg fdt
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt

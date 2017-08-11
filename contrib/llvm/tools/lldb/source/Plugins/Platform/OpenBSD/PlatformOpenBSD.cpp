@@ -219,5 +219,7 @@ uint64_t PlatformOpenBSD::ConvertMmapFlagsToPlatform(const ArchSpec &arch,
     flags_platform |= MAP_PRIVATE;
   if (flags & eMmapFlagsAnon)
     flags_platform |= MAP_ANON;
-  return flags_platform;
+
+  MmapArgList args({addr, length, prot, flags_platform, fd, offset});
+  return args;
 }

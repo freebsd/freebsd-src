@@ -306,10 +306,6 @@ ncl_putpages(struct vop_putpages_args *ap)
 		printf("ncl_putpages: called on noncache-able vnode\n");
 		mtx_lock(&np->n_mtx);
 	}
-
-	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_ERROR;
-
 	/*
 	 * When putting pages, do not extend file past EOF.
 	 */
@@ -319,6 +315,9 @@ ncl_putpages(struct vop_putpages_args *ap)
 			count = 0;
 	}
 	mtx_unlock(&np->n_mtx);
+
+	for (i = 0; i < npages; i++)
+		rtvals[i] = VM_PAGER_ERROR;
 
 	VM_CNT_INC(v_vnodeout);
 	VM_CNT_ADD(v_vnodepgsout, count);
@@ -337,8 +336,10 @@ ncl_putpages(struct vop_putpages_args *ap)
 	    cred);
 	crfree(cred);
 
-	if (error == 0 || !nfs_keep_dirty_on_error)
-		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
+	if (error == 0 || !nfs_keep_dirty_on_error) {
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid,
+		    np->n_size - offset, npages * PAGE_SIZE);
+	}
 	return (rtvals[0]);
 }
 
@@ -1341,7 +1342,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
-	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
+	if (NFSCL_FORCEDISM(nmp->nm_mountp))
 		intrflg = 1;
 	if (intrflg) {
 		slpflag = PCATCH;

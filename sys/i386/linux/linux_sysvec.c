@@ -1044,7 +1044,7 @@ linux_vdso_install(void *param)
 	linux_shared_page_obj = __elfN(linux_shared_page_init)
 	    (&linux_shared_page_mapping);
 
-	__elfN(linux_vdso_reloc)(&elf_linux_sysvec, LINUX_SHAREDPAGE);
+	__elfN(linux_vdso_reloc)(&elf_linux_sysvec);
 
 	bcopy(elf_linux_sysvec.sv_sigcode, linux_shared_page_mapping,
 	    linux_szsigcode);

@@ -3579,9 +3579,14 @@ nosys(struct thread *td, struct nosys_args *args)
 	PROC_LOCK(p);
 	tdsignal(td, SIGSYS);
 	PROC_UNLOCK(p);
-	if (kern_lognosys)
+	if (kern_lognosys == 1 || kern_lognosys == 3) {
 		uprintf("pid %d comm %s: nosys %d\n", p->p_pid, p->p_comm,
 		    td->td_sa.code);
+	}
+	if (kern_lognosys == 2 || kern_lognosys == 3) {
+		printf("pid %d comm %s: nosys %d\n", p->p_pid, p->p_comm,
+		    td->td_sa.code);
+	}
 	return (ENOSYS);
 }
 

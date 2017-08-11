@@ -328,6 +328,7 @@ typedef struct acpi_namespace_node
 #define ANOBJ_EVALUATED                 0x20    /* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40    /* Method AML buffer is dynamic (InstallMethod) */
 
+#define IMPLICIT_EXTERNAL               0x02    /* iASL only: This object created implicitly via External */
 #define ANOBJ_IS_EXTERNAL               0x08    /* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10    /* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20    /* iASL only: Method has at least one return value */
@@ -812,7 +813,7 @@ typedef struct acpi_update_state
 typedef struct acpi_pkg_state
 {
     ACPI_STATE_COMMON
-    UINT16                          Index;
+    UINT32                          Index;
     union acpi_operand_object       *SourceObject;
     union acpi_operand_object       *DestObject;
     struct acpi_walk_state          *WalkState;
@@ -1146,7 +1147,7 @@ typedef struct acpi_parse_obj_named
 
 /* This version is used by the iASL compiler only */
 
-#define ACPI_MAX_PARSEOP_NAME   20
+#define ACPI_MAX_PARSEOP_NAME       20
 
 typedef struct acpi_parse_obj_asl
 {
@@ -1190,11 +1191,12 @@ typedef union acpi_parse_object
 
 typedef struct asl_comment_state
 {
-    UINT8                   CommentType;
-    UINT32                  SpacesBefore;
-    ACPI_PARSE_OBJECT       *Latest_Parse_Node;
-    ACPI_PARSE_OBJECT       *ParsingParenBraceNode;
-    BOOLEAN                 CaptureComments;
+    UINT8                           CommentType;
+    UINT32                          SpacesBefore;
+    ACPI_PARSE_OBJECT               *LatestParseOp;
+    ACPI_PARSE_OBJECT               *ParsingParenBraceNode;
+    BOOLEAN                         CaptureComments;
+
 } ASL_COMMENT_STATE;
 
 

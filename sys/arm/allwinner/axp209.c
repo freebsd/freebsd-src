@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
-#include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 
 #include <dev/gpio/gpiobusvar.h>
@@ -59,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/axp209reg.h>
 
-#include "iicbus_if.h"
 #include "gpio_if.h"
 #include "regdev_if.h"
 
@@ -602,7 +600,6 @@ enum AXP2XX_TYPE {
 
 struct axp2xx_softc {
 	device_t		dev;
-	uint32_t		addr;
 	struct resource *	res[1];
 	void *			intrcookie;
 	struct intr_config_hook	intr_hook;
@@ -641,57 +638,15 @@ static struct resource_spec axp_res_spec[] = {
 static int
 axp2xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
 {
-	struct axp2xx_softc *sc = device_get_softc(dev);
-	struct iic_msg msg[2];
 
-	msg[0].slave = sc->addr;
-	msg[0].flags = IIC_M_WR;
-	msg[0].len = 1;
-	msg[0].buf = &reg;
-
-	msg[1].slave = sc->addr;
-	msg[1].flags = IIC_M_RD;
-	msg[1].len = size;
-	msg[1].buf = data;
-
-	return (iicbus_transfer(dev, msg, 2));
+	return (iicdev_readfrom(dev, reg, data, size, IIC_INTRWAIT));
 }
 
 static int
 axp2xx_write(device_t dev, uint8_t reg, uint8_t data)
 {
-	uint8_t buffer[2];
-	struct axp2xx_softc *sc = device_get_softc(dev);
-	struct iic_msg msg[2];
-	int nmsgs = 0;
 
-	if (sc->type == AXP209) {
-		buffer[0] = reg;
-		buffer[1] = data;
-
-		msg[0].slave = sc->addr;
-		msg[0].flags = IIC_M_WR;
-		msg[0].len = 2;
-		msg[0].buf = buffer;
-
-		nmsgs = 1;
-	}
-	else if (sc->type == AXP221) {
-		msg[0].slave = sc->addr;
-		msg[0].flags = IIC_M_WR;
-		msg[0].len = 1;
-		msg[0].buf = &reg;
-
-		msg[1].slave = sc->addr;
-		msg[1].flags = IIC_M_WR;
-		msg[1].len = 1;
-		msg[1].buf = &data;
-		nmsgs = 2;
-	}
-	else
-		return (EINVAL);
-
-	return (iicbus_transfer(dev, msg, nmsgs));
+	return (iicdev_writeto(dev, reg, &data, sizeof(data), IIC_INTRWAIT));
 }
 
 static int
@@ -1239,7 +1194,6 @@ axp2xx_start(void *pdev)
 	dev = pdev;
 
 	sc = device_get_softc(dev);
-	sc->addr = iicbus_get_addr(dev);
 	sc->dev = dev;
 
 	if (bootverbose) {
@@ -1451,4 +1405,4 @@ EARLY_DRIVER_MODULE(ofw_gpiobus, axp2xx_pmu, ofw_gpiobus_driver,
 DRIVER_MODULE(gpioc, axp2xx_pmu, gpioc_driver, gpioc_devclass,
     0, 0);
 MODULE_VERSION(axp2xx, 1);
-MODULE_DEPEND(axp2xx, iicbus, 1, 1, 1);
+MODULE_DEPEND(axp2xx, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);

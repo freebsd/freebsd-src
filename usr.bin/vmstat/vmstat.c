@@ -832,6 +832,7 @@ dovmstat(unsigned int interval, int reps)
 			xo_emit(" ");
 			xo_emit("{:free-memory/%7d}",
 			        vmstat_pgtok(total.t_free));
+			xo_emit(" ");
 		}
 		xo_emit("{:total-page-faults/%5lu} ",
 		        (unsigned long)rate(sum.v_vm_faults -

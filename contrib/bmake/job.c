@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.190 2017/04/16 21:23:43 riastradh Exp $	*/
+/*	$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.190 2017/04/16 21:23:43 riastradh Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.190 2017/04/16 21:23:43 riastradh Exp $");
+__RCSID("$NetBSD: job.c,v 1.191 2017/07/20 19:29:54 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -364,11 +364,6 @@ static Job childExitJob;	/* child exit pseudo-job */
 	    (void)fprintf(fp, TARG_FMT, targPrefix, gn->name)
 
 static sigset_t caught_signals;	/* Set of signals we handle */
-#if defined(SYSV)
-#define KILLPG(pid, sig)	kill(-(pid), (sig))
-#else
-#define KILLPG(pid, sig)	killpg((pid), (sig))
-#endif
 
 static void JobChildSig(int);
 static void JobContinueSig(int);

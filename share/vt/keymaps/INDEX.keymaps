@@ -15,7 +15,7 @@
 # 	german.iso.kbd:en:german
 #
 # See also setlocal
-# /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
+# /usr/share/locale, /usr/local/lib/X11/locale/locale.alias
 #
 #
 # Language support: MENU, FONT
@@ -31,6 +31,7 @@ MENU:he:ךלש תדלקמה תפש תא רחב
 MENU:uk:Оберiть розкладку клавіатури
 MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
 MENU:hy:Ընտրեք ստեղնաշարի դասավորությունը
+MENU:tr:Klavye düzeninizi seçiniz
 
 #
 # The font definition for "en" is the fall-back font for
@@ -210,6 +211,7 @@ de.kbd:de:Deutsch
 de.kbd:fr:Allemand
 de.kbd:pt:Alemão
 de.kbd:es:Alemán
+de.kbd:tr:Almanca
 de.kbd:uk:Німецька
 
 de.acc.kbd:en:German (accent keys)
@@ -488,10 +490,17 @@ ch.macbook.acc.kbd:fr:Suisse-Allemand  Macbook/Macbook Pro (avec accents)
 ch.macbook.acc.kbd:pt:Suiço-Alemão Macbook/Macbook Pro (com acentos)
 ch.macbook.acc.kbd:es:Germanosuizo  Macbook/Macbook Pro (con acentos)
 
-tr.kbd:en:Turkish
-tr.kbd:de:Türkisch
-tr.kbd:fr:Turc
-tr.kbd:uk:Турецька
+tr.kbd:en:Turkish (Q)
+tr.kbd:de:Türkisch (Q)
+tr.kbd:fr:Turc (Q)
+tr.kbd:uk:Турецька (Q)
+tr.kbd:tr:Türkçe (Q)
+
+tr.f.kbd:en:Turkish (F)
+tr.f.kbd:de:Türkisch (F)
+tr.f.kbd:fr:Turc (F)
+tr.f.kbd:uk:Турецька (F)
+tr.f.kbd:tr:Türkçe (F)
 
 uk.kbd:en:United Kingdom
 uk.kbd:de:Vereinigtes Königreich
@@ -501,9 +510,9 @@ uk.kbd:es:Británico
 
 uk.capsctrl.kbd:en:United Kingdom (Caps Lock acts as Left Ctrl)
 uk.capsctrl.kbd:de:Vereinigtes Königreich (Caps Lock als linke Strg)
-#uk.iso-ctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
-#uk.iso-ctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
-#uk.iso-ctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
+#uk.capsctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
 
 uk.dvorak.kbd:en:United Kingdom Dvorak
 uk.dvorak.kbd:de:Vereinigtes Königreich Dvorak

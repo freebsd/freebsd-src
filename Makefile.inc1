@@ -444,7 +444,7 @@ BUILD_ARCH!=	uname -p
 .endif
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
+BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -624,8 +624,7 @@ XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # combined with --sysroot.
 XCFLAGS+=	-B${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
@@ -761,6 +760,16 @@ _worldtmp: .PHONY
 	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
+.if exists(${WORLDTMP})
+	@echo ">>> Deleting stale files in build tree..."
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    delete-old delete-old-libs >/dev/null
+.endif
+.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs >/dev/null
+.endif
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .if ${USING_SYSTEM_COMPILER} == "yes"
 .for cc in cc c++
@@ -770,7 +779,6 @@ _worldtmp: .PHONY
 	fi
 .endfor
 .endif	# ${USING_SYSTEM_COMPILER} == "yes"
-.endif	# !defined(NO_CLEAN)
 
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and
@@ -813,6 +821,9 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
 .endif
 .endfor
+
+.endif	# !defined(NO_CLEAN)
+
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
@@ -1607,7 +1618,10 @@ create-world-package-${pkgname}: .PHONY
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
-		' ${WSTAGEDIR}/${pkgname}.ucl ; \
+		' ${WSTAGEDIR}/${pkgname}.ucl ;
+	@if [ "${pkgname}" == "runtime" ]; then \
+		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
@@ -1618,7 +1632,7 @@ create-world-package-${pkgname}: .PHONY
 create-kernel-packages:	.PHONY
 _default_flavor=	-default
 .if exists(${KSTAGEDIR}/kernel.meta)
-.for flavor in "" -debug
+. for flavor in "" -debug
 create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
@@ -1644,12 +1658,12 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
-.endfor
+. endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
-.if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
-.for flavor in "" -debug
+. for _kernel in ${BUILDKERNELS:[2..-1]}
+.  if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
+.   for flavor in "" -debug
 create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
 create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
@@ -1675,9 +1689,9 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
-.endfor
-.endif
-.endfor
+.   endfor
+.  endif
+. endfor
 .endif
 
 sign-packages:	_pkgbootstrap .PHONY
@@ -2327,11 +2341,12 @@ _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
+.if ${MK_ZFS} != "no"
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+.endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
-cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
-cddl/lib/libzfs__L: lib/libgeom__L
 cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
@@ -2730,8 +2745,7 @@ CD2CFLAGS+=	-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib
 # combined with --sysroot.
 CD2CFLAGS+=	-B${XDDESTDIR}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 CD2CXXFLAGS+=	-isystem ${XDDESTDIR}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
@@ -2749,9 +2763,6 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
 XDDESTDIR=${DESTDIR}/${XDTP}
-.if !defined(OSREL)
-OSREL!= uname -r | sed -e 's/[-(].*//'
-.endif
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
@@ -2845,7 +2856,7 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
-			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
+			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
 .else
 xdev xdev-build xdev-install xdev-links: .PHONY

@@ -130,7 +130,8 @@ rssadapt_init(struct ieee80211vap *vap)
 
 	KASSERT(vap->iv_rs == NULL, ("%s: iv_rs already initialized",
 	    __func__));
-	
+
+	nrefs++;		/* XXX locking */
 	vap->iv_rs = rs = IEEE80211_MALLOC(sizeof(struct ieee80211_rssadapt),
 	    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (rs == NULL) {
@@ -146,6 +147,8 @@ static void
 rssadapt_deinit(struct ieee80211vap *vap)
 {
 	IEEE80211_FREE(vap->iv_rs, M_80211_RATECTL);
+	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
+	nrefs--;		/* XXX locking */
 }
 
 static void

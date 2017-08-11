@@ -45,6 +45,7 @@ BEGIN
 }
 
 syscall::*wait*:entry
+/pid == $1/
 {
 	exit(0);
 }

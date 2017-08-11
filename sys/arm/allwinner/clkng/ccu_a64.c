@@ -712,7 +712,7 @@ static struct clk_fixed_def *fixed_factor_clks[] = {
 static struct aw_clk_init init_clks[] = {
 	{"ahb1", "pll_periph0", 0, false},
 	{"ahb2", "pll_periph0", 0, false},
-	{"dram", "pll_ddr", 0, false},
+	{"dram", "pll_ddr0", 0, false},
 };
 
 void

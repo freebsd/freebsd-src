@@ -313,6 +313,8 @@ AcpiDsCreateBufferField (
 
         if (!(WalkState->ParseFlags & ACPI_PARSE_EXECUTE))
         {
+            ACPI_ERROR ((AE_INFO,
+                "Parse execute mode is not set"));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
 
@@ -701,6 +703,8 @@ AcpiDsInitFieldObjects (
             return_ACPI_STATUS (AE_OK);
         }
 
+        ACPI_ERROR ((AE_INFO,
+            "Parse deferred mode is not set"));
         return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 

@@ -200,10 +200,6 @@ struct cloudabi_sys_mem_advise_args {
 	char mapping_len_l_[PADL_(size_t)]; size_t mapping_len; char mapping_len_r_[PADR_(size_t)];
 	char advice_l_[PADL_(cloudabi_advice_t)]; cloudabi_advice_t advice; char advice_r_[PADR_(cloudabi_advice_t)];
 };
-struct cloudabi_sys_mem_lock_args {
-	char mapping_l_[PADL_(const void *)]; const void * mapping; char mapping_r_[PADR_(const void *)];
-	char mapping_len_l_[PADL_(size_t)]; size_t mapping_len; char mapping_len_r_[PADR_(size_t)];
-};
 struct cloudabi_sys_mem_map_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
@@ -221,10 +217,6 @@ struct cloudabi_sys_mem_sync_args {
 	char mapping_l_[PADL_(void *)]; void * mapping; char mapping_r_[PADR_(void *)];
 	char mapping_len_l_[PADL_(size_t)]; size_t mapping_len; char mapping_len_r_[PADR_(size_t)];
 	char flags_l_[PADL_(cloudabi_msflags_t)]; cloudabi_msflags_t flags; char flags_r_[PADR_(cloudabi_msflags_t)];
-};
-struct cloudabi_sys_mem_unlock_args {
-	char mapping_l_[PADL_(const void *)]; const void * mapping; char mapping_r_[PADR_(const void *)];
-	char mapping_len_l_[PADL_(size_t)]; size_t mapping_len; char mapping_len_r_[PADR_(size_t)];
 };
 struct cloudabi_sys_mem_unmap_args {
 	char mapping_l_[PADL_(void *)]; void * mapping; char mapping_r_[PADR_(void *)];
@@ -265,7 +257,7 @@ struct cloudabi_sys_random_get_args {
 };
 struct cloudabi_sys_sock_accept_args {
 	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
-	char buf_l_[PADL_(cloudabi_sockstat_t *)]; cloudabi_sockstat_t * buf; char buf_r_[PADR_(cloudabi_sockstat_t *)];
+	char unused_l_[PADL_(void *)]; void * unused; char unused_r_[PADR_(void *)];
 };
 struct cloudabi_sys_sock_bind_args {
 	char sock_l_[PADL_(cloudabi_fd_t)]; cloudabi_fd_t sock; char sock_r_[PADR_(cloudabi_fd_t)];
@@ -345,11 +337,9 @@ int	cloudabi_sys_file_symlink(struct thread *, struct cloudabi_sys_file_symlink_
 int	cloudabi_sys_file_unlink(struct thread *, struct cloudabi_sys_file_unlink_args *);
 int	cloudabi_sys_lock_unlock(struct thread *, struct cloudabi_sys_lock_unlock_args *);
 int	cloudabi_sys_mem_advise(struct thread *, struct cloudabi_sys_mem_advise_args *);
-int	cloudabi_sys_mem_lock(struct thread *, struct cloudabi_sys_mem_lock_args *);
 int	cloudabi_sys_mem_map(struct thread *, struct cloudabi_sys_mem_map_args *);
 int	cloudabi_sys_mem_protect(struct thread *, struct cloudabi_sys_mem_protect_args *);
 int	cloudabi_sys_mem_sync(struct thread *, struct cloudabi_sys_mem_sync_args *);
-int	cloudabi_sys_mem_unlock(struct thread *, struct cloudabi_sys_mem_unlock_args *);
 int	cloudabi_sys_mem_unmap(struct thread *, struct cloudabi_sys_mem_unmap_args *);
 int	cloudabi64_sys_poll(struct thread *, struct cloudabi64_sys_poll_args *);
 int	cloudabi64_sys_poll_fd(struct thread *, struct cloudabi64_sys_poll_fd_args *);
@@ -399,6 +389,12 @@ int	cloudabi_sys_thread_yield(struct thread *, struct cloudabi_sys_thread_yield_
 
 #endif /* COMPAT_FREEBSD10 */
 
+
+#ifdef COMPAT_FREEBSD11
+
+
+#endif /* COMPAT_FREEBSD11 */
+
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_clock_res_get	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_clock_time_get	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_condvar_signal	AUE_NULL
@@ -432,11 +428,9 @@ int	cloudabi_sys_thread_yield(struct thread *, struct cloudabi_sys_thread_yield_
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_file_unlink	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_lock_unlock	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_advise	AUE_NULL
-#define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_lock	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_map	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_protect	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_sync	AUE_NULL
-#define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_unlock	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi_sys_mem_unmap	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi64_sys_poll	AUE_NULL
 #define	CLOUDABI64_SYS_AUE_cloudabi64_sys_poll_fd	AUE_NULL

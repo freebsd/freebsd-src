@@ -766,7 +766,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 	    contested, waittime, file, line);
 #ifdef KDTRACE_HOOKS
-	if (spin_time != 0)
+	if (lda.spin_cnt != 0)
 		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
 #endif
 }
@@ -879,7 +879,7 @@ retry:
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 		    contested, waittime, file, line);
 #ifdef KDTRACE_HOOKS
-	if (spin_time != 0)
+	if (lda.spin_cnt != 0)
 		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
 #endif
 }

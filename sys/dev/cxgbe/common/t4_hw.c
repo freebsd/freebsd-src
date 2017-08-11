@@ -469,7 +469,7 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
 		CH_WARN(adap, "%s: T4 NOT supported.\n", __func__);
 		return 0;
 	}
-	if (idx != 0 && idx != 1) {
+	if (idx != MEM_EDC0 && idx != MEM_EDC1) {
 		CH_WARN(adap, "%s: idx %d NOT supported.\n", __func__, idx);
 		return 0;
 	}
@@ -886,7 +886,8 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0xd010, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11190,
+		0xf000, 0x11110,
+		0x11118, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x190e4,
@@ -1424,8 +1425,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30030,
-		0x30038, 0x30038,
-		0x30040, 0x30040,
 		0x30100, 0x30144,
 		0x30190, 0x301a0,
 		0x301a8, 0x301b8,
@@ -1536,8 +1535,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x33c3c, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34030,
-		0x34038, 0x34038,
-		0x34040, 0x34040,
 		0x34100, 0x34144,
 		0x34190, 0x341a0,
 		0x341a8, 0x341b8,
@@ -1648,8 +1645,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x37c3c, 0x37c50,
 		0x37cf0, 0x37cfc,
 		0x38000, 0x38030,
-		0x38038, 0x38038,
-		0x38040, 0x38040,
 		0x38100, 0x38144,
 		0x38190, 0x381a0,
 		0x381a8, 0x381b8,
@@ -1760,8 +1755,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x3bc3c, 0x3bc50,
 		0x3bcf0, 0x3bcfc,
 		0x3c000, 0x3c030,
-		0x3c038, 0x3c038,
-		0x3c040, 0x3c040,
 		0x3c100, 0x3c144,
 		0x3c190, 0x3c1a0,
 		0x3c1a8, 0x3c1b8,
@@ -2254,13 +2247,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30030,
-		0x30038, 0x30038,
-		0x30040, 0x30040,
-		0x30048, 0x30048,
-		0x30050, 0x30050,
-		0x3005c, 0x30060,
-		0x30068, 0x30068,
-		0x30070, 0x30070,
 		0x30100, 0x30168,
 		0x30190, 0x301a0,
 		0x301a8, 0x301b8,
@@ -2323,13 +2309,12 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x326a8, 0x326a8,
 		0x326ec, 0x326ec,
 		0x32a00, 0x32abc,
-		0x32b00, 0x32b38,
+		0x32b00, 0x32b18,
+		0x32b20, 0x32b38,
 		0x32b40, 0x32b58,
 		0x32b60, 0x32b78,
 		0x32c00, 0x32c00,
 		0x32c08, 0x32c3c,
-		0x32e00, 0x32e2c,
-		0x32f00, 0x32f2c,
 		0x33000, 0x3302c,
 		0x33034, 0x33050,
 		0x33058, 0x33058,
@@ -2394,13 +2379,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x33c38, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34030,
-		0x34038, 0x34038,
-		0x34040, 0x34040,
-		0x34048, 0x34048,
-		0x34050, 0x34050,
-		0x3405c, 0x34060,
-		0x34068, 0x34068,
-		0x34070, 0x34070,
 		0x34100, 0x34168,
 		0x34190, 0x341a0,
 		0x341a8, 0x341b8,
@@ -2463,13 +2441,12 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x366a8, 0x366a8,
 		0x366ec, 0x366ec,
 		0x36a00, 0x36abc,
-		0x36b00, 0x36b38,
+		0x36b00, 0x36b18,
+		0x36b20, 0x36b38,
 		0x36b40, 0x36b58,
 		0x36b60, 0x36b78,
 		0x36c00, 0x36c00,
 		0x36c08, 0x36c3c,
-		0x36e00, 0x36e2c,
-		0x36f00, 0x36f2c,
 		0x37000, 0x3702c,
 		0x37034, 0x37050,
 		0x37058, 0x37058,
@@ -2700,6 +2677,7 @@ struct t4_vpd_hdr {
 #define EEPROM_MAX_POLL		5000		/* x 5000 == 50ms */
 
 #define EEPROM_STAT_ADDR	0x7bfc
+#define VPD_SIZE		0x800
 #define VPD_BASE		0x400
 #define VPD_BASE_OLD		0
 #define VPD_LEN			1024
@@ -3040,13 +3018,13 @@ enum {
 	SF_ATTEMPTS = 10,	/* max retries for SF operations */
 
 	/* flash command opcodes */
-	SF_PROG_PAGE    = 2,	/* program page */
+	SF_PROG_PAGE    = 2,	/* program 256B page */
 	SF_WR_DISABLE   = 4,	/* disable writes */
 	SF_RD_STATUS    = 5,	/* read status register */
 	SF_WR_ENABLE    = 6,	/* enable writes */
 	SF_RD_DATA_FAST = 0xb,	/* read flash */
 	SF_RD_ID	= 0x9f,	/* read ID */
-	SF_ERASE_SECTOR = 0xd8,	/* erase sector */
+	SF_ERASE_SECTOR = 0xd8,	/* erase 64KB sector */
 };
 
 /**
@@ -3994,6 +3972,9 @@ static void sge_intr_handler(struct adapter *adapter)
 		  "SGE too many priority ingress contexts", -1, 0 },
 		{ F_INGRESS_SIZE_ERR, "SGE illegal ingress QID", -1, 0 },
 		{ F_EGRESS_SIZE_ERR, "SGE illegal egress QID", -1, 0 },
+		{ F_ERR_PCIE_ERROR0 | F_ERR_PCIE_ERROR1 |
+		  F_ERR_PCIE_ERROR2 | F_ERR_PCIE_ERROR3,
+		  "SGE PCIe error for a DBP thread", -1, 0 },
 		{ 0 }
 	};
 
@@ -4009,8 +3990,6 @@ static void sge_intr_handler(struct adapter *adapter)
  	* For now, treat below interrupts as fatal so that we disable SGE and
  	* get better debug */
 	static const struct intr_info t6_sge_intr_info[] = {
-		{ F_ERR_PCIE_ERROR0 | F_ERR_PCIE_ERROR1,
-		  "SGE PCIe error for a DBP thread", -1, 1 },
 		{ F_FATAL_WRE_LEN,
 		  "SGE Actual WRE packet is less than advertized length",
 		  -1, 1 },
@@ -4065,6 +4044,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ F_MBHOSTPARERR, "CIM mailbox host parity error", -1, 1 },
 		{ F_TIEQINPARERRINT, "CIM TIEQ outgoing parity error", -1, 1 },
 		{ F_TIEQOUTPARERRINT, "CIM TIEQ incoming parity error", -1, 1 },
+		{ F_TIMER0INT, "CIM TIMER0 interrupt", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info cim_upintr_info[] = {
@@ -4098,10 +4078,25 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ F_TIMEOUTMAINT , "CIM PIF MA timeout", -1, 1 },
 		{ 0 }
 	};
+	u32 val, fw_err;
 	int fat;
 
-	if (t4_read_reg(adapter, A_PCIE_FW) & F_PCIE_FW_ERR)
+	fw_err = t4_read_reg(adapter, A_PCIE_FW);
+	if (fw_err & F_PCIE_FW_ERR)
 		t4_report_fw_error(adapter);
+
+	/* When the Firmware detects an internal error which normally wouldn't
+	 * raise a Host Interrupt, it forces a CIM Timer0 interrupt in order
+	 * to make sure the Host sees the Firmware Crash.  So if we have a
+	 * Timer0 interrupt and don't see a Firmware Crash, ignore the Timer0
+	 * interrupt.
+	 */
+	val = t4_read_reg(adapter, A_CIM_HOST_INT_CAUSE);
+	if (val & F_TIMER0INT)
+		if (!(fw_err & F_PCIE_FW_ERR) ||
+		    (G_PCIE_FW_EVAL(fw_err) != PCIE_FW_EVAL_CRASH))
+			t4_write_reg(adapter, A_CIM_HOST_INT_CAUSE,
+				     F_TIMER0INT);
 
 	fat = t4_handle_intr_status(adapter, A_CIM_HOST_INT_CAUSE,
 				    cim_intr_info) +
@@ -4850,55 +4845,177 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 }
 
 /**
- *	t4_fw_tp_pio_rw - Access TP PIO through LDST
- *	@adap: the adapter
- *	@vals: where the indirect register values are stored/written
- *	@nregs: how many indirect registers to read/write
- *	@start_idx: index of first indirect register to read/write
- *	@rw: Read (1) or Write (0)
+ * t4_tp_fw_ldst_rw - Access TP indirect register through LDST
+ * @adap: the adapter
+ * @cmd: TP fw ldst address space type
+ * @vals: where the indirect register values are stored/written
+ * @nregs: how many indirect registers to read/write
+ * @start_idx: index of first indirect register to read/write
+ * @rw: Read (1) or Write (0)
+ * @sleep_ok: if true we may sleep while awaiting command completion
  *
- *	Access TP PIO registers through LDST
- */
-void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
-		     unsigned int start_index, unsigned int rw)
+ * Access TP indirect registers through LDST
+ **/
+static int t4_tp_fw_ldst_rw(struct adapter *adap, int cmd, u32 *vals,
+			    unsigned int nregs, unsigned int start_index,
+			    unsigned int rw, bool sleep_ok)
 {
-	int ret, i;
-	int cmd = FW_LDST_ADDRSPC_TP_PIO;
+	int ret = 0;
+	unsigned int i;
 	struct fw_ldst_cmd c;
 
-	for (i = 0 ; i < nregs; i++) {
+	for (i = 0; i < nregs; i++) {
 		memset(&c, 0, sizeof(c));
 		c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
 						F_FW_CMD_REQUEST |
 						(rw ? F_FW_CMD_READ :
-						     F_FW_CMD_WRITE) |
+						      F_FW_CMD_WRITE) |
 						V_FW_LDST_CMD_ADDRSPACE(cmd));
 		c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
 
 		c.u.addrval.addr = cpu_to_be32(start_index + i);
 		c.u.addrval.val  = rw ? 0 : cpu_to_be32(vals[i]);
-		ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
-		if (ret == 0) {
-			if (rw)
-				vals[i] = be32_to_cpu(c.u.addrval.val);
-		}
+		ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c,
+				      sleep_ok);
+		if (ret)
+			return ret;
+
+		if (rw)
+			vals[i] = be32_to_cpu(c.u.addrval.val);
 	}
+	return 0;
+}
+
+/**
+ * t4_tp_indirect_rw - Read/Write TP indirect register through LDST or backdoor
+ * @adap: the adapter
+ * @reg_addr: Address Register
+ * @reg_data: Data register
+ * @buff: where the indirect register values are stored/written
+ * @nregs: how many indirect registers to read/write
+ * @start_index: index of first indirect register to read/write
+ * @rw: READ(1) or WRITE(0)
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read/Write TP indirect registers through LDST if possible.
+ * Else, use backdoor access
+ **/
+static void t4_tp_indirect_rw(struct adapter *adap, u32 reg_addr, u32 reg_data,
+			      u32 *buff, u32 nregs, u32 start_index, int rw,
+			      bool sleep_ok)
+{
+	int rc = -EINVAL;
+	int cmd;
+
+	switch (reg_addr) {
+	case A_TP_PIO_ADDR:
+		cmd = FW_LDST_ADDRSPC_TP_PIO;
+		break;
+	case A_TP_TM_PIO_ADDR:
+		cmd = FW_LDST_ADDRSPC_TP_TM_PIO;
+		break;
+	case A_TP_MIB_INDEX:
+		cmd = FW_LDST_ADDRSPC_TP_MIB;
+		break;
+	default:
+		goto indirect_access;
+	}
+
+	if (t4_use_ldst(adap))
+		rc = t4_tp_fw_ldst_rw(adap, cmd, buff, nregs, start_index, rw,
+				      sleep_ok);
+
+indirect_access:
+
+	if (rc) {
+		if (rw)
+			t4_read_indirect(adap, reg_addr, reg_data, buff, nregs,
+					 start_index);
+		else
+			t4_write_indirect(adap, reg_addr, reg_data, buff, nregs,
+					  start_index);
+	}
+}
+
+/**
+ * t4_tp_pio_read - Read TP PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP PIO Registers
+ **/
+void t4_tp_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, buff, nregs,
+			  start_index, 1, sleep_ok);
+}
+
+/**
+ * t4_tp_pio_write - Write TP PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are stored
+ * @nregs: how many indirect registers to write
+ * @start_index: index of first indirect register to write
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Write TP PIO Registers
+ **/
+void t4_tp_pio_write(struct adapter *adap, const u32 *buff, u32 nregs,
+		     u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+	    __DECONST(u32 *, buff), nregs, start_index, 0, sleep_ok);
+}
+
+/**
+ * t4_tp_tm_pio_read - Read TP TM PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP TM PIO Registers
+ **/
+void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		       u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, A_TP_TM_PIO_ADDR, A_TP_TM_PIO_DATA, buff,
+			  nregs, start_index, 1, sleep_ok);
+}
+
+/**
+ * t4_tp_mib_read - Read TP MIB registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP MIB Registers
+ **/
+void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs, u32 start_index,
+		    bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, buff, nregs,
+			  start_index, 1, sleep_ok);
 }
 
 /**
  *	t4_read_rss_key - read the global RSS key
  *	@adap: the adapter
  *	@key: 10-entry array holding the 320-bit RSS key
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the global 320-bit RSS key.
  */
-void t4_read_rss_key(struct adapter *adap, u32 *key)
+void t4_read_rss_key(struct adapter *adap, u32 *key, bool sleep_ok)
 {
-	if (t4_use_ldst(adap))
-		t4_fw_tp_pio_rw(adap, key, 10, A_TP_RSS_SECRET_KEY0, 1);
-	else
-		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
-				 A_TP_RSS_SECRET_KEY0);
+	t4_tp_pio_read(adap, key, 10, A_TP_RSS_SECRET_KEY0, sleep_ok);
 }
 
 /**
@@ -4906,12 +5023,14 @@ void t4_read_rss_key(struct adapter *adap, u32 *key)
  *	@adap: the adapter
  *	@key: 10-entry array holding the 320-bit RSS key
  *	@idx: which RSS key to write
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Writes one of the RSS keys with the given 320-bit value.  If @idx is
  *	0..15 the corresponding entry in the RSS key table is written,
  *	otherwise the global RSS key is written.
  */
-void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx,
+		      bool sleep_ok)
 {
 	u8 rss_key_addr_cnt = 16;
 	u32 vrt = t4_read_reg(adap, A_TP_RSS_CONFIG_VRT);
@@ -4925,11 +5044,7 @@ void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
 	    (vrt & F_KEYEXTEND) && (G_KEYMODE(vrt) == 3))
 		rss_key_addr_cnt = 32;
 
-	if (t4_use_ldst(adap))
-		t4_fw_tp_pio_rw(adap, key, 10, A_TP_RSS_SECRET_KEY0, 0);
-	else
-		t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
-				  A_TP_RSS_SECRET_KEY0);
+	t4_tp_pio_write(adap, key, 10, A_TP_RSS_SECRET_KEY0, sleep_ok);
 
 	if (idx >= 0 && idx < rss_key_addr_cnt) {
 		if (rss_key_addr_cnt > 16)
@@ -4947,19 +5062,15 @@ void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
  *	@adapter: the adapter
  *	@index: the entry in the PF RSS table to read
  *	@valp: where to store the returned value
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Configuration Table at the specified index and returns
  *	the value found there.
  */
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
-			   u32 *valp)
+			   u32 *valp, bool sleep_ok)
 {
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, valp, 1,
-				A_TP_RSS_PF0_CONFIG + index, 1);
-	else
-		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 valp, 1, A_TP_RSS_PF0_CONFIG + index);
+	t4_tp_pio_read(adapter, valp, 1, A_TP_RSS_PF0_CONFIG + index, sleep_ok);
 }
 
 /**
@@ -4967,19 +5078,16 @@ void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
  *	@adapter: the adapter
  *	@index: the entry in the VF RSS table to read
  *	@val: the value to store
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Writes the PF RSS Configuration Table at the specified index with the
  *	specified value.
  */
 void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index,
-			    u32 val)
+			    u32 val, bool sleep_ok)
 {
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &val, 1,
-				A_TP_RSS_PF0_CONFIG + index, 0);
-	else
-		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				  &val, 1, A_TP_RSS_PF0_CONFIG + index);
+	t4_tp_pio_write(adapter, &val, 1, A_TP_RSS_PF0_CONFIG + index,
+			sleep_ok);
 }
 
 /**
@@ -4988,12 +5096,13 @@ void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index,
  *	@index: the entry in the VF RSS table to read
  *	@vfl: where to store the returned VFL
  *	@vfh: where to store the returned VFH
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the VF RSS Configuration Table at the specified index and returns
  *	the (VFL, VFH) values found there.
  */
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
-			   u32 *vfl, u32 *vfh)
+			   u32 *vfl, u32 *vfh, bool sleep_ok)
 {
 	u32 vrt, mask, data;
 
@@ -5015,15 +5124,8 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 	/*
 	 * Grab the VFL/VFH values ...
 	 */
-	if (t4_use_ldst(adapter)) {
-		t4_fw_tp_pio_rw(adapter, vfl, 1, A_TP_RSS_VFL_CONFIG, 1);
-		t4_fw_tp_pio_rw(adapter, vfh, 1, A_TP_RSS_VFH_CONFIG, 1);
-	} else {
-		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 vfl, 1, A_TP_RSS_VFL_CONFIG);
-		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 vfh, 1, A_TP_RSS_VFH_CONFIG);
-	}
+	t4_tp_pio_read(adapter, vfl, 1, A_TP_RSS_VFL_CONFIG, sleep_ok);
+	t4_tp_pio_read(adapter, vfh, 1, A_TP_RSS_VFH_CONFIG, sleep_ok);
 }
 
 /**
@@ -5038,7 +5140,7 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
  *	specified (VFL, VFH) values.
  */
 void t4_write_rss_vf_config(struct adapter *adapter, unsigned int index,
-			    u32 vfl, u32 vfh)
+			    u32 vfl, u32 vfh, bool sleep_ok)
 {
 	u32 vrt, mask, data;
 
@@ -5053,15 +5155,8 @@ void t4_write_rss_vf_config(struct adapter *adapter, unsigned int index,
 	/*
 	 * Load up VFL/VFH with the values to be written ...
 	 */
-	if (t4_use_ldst(adapter)) {
-		t4_fw_tp_pio_rw(adapter, &vfl, 1, A_TP_RSS_VFL_CONFIG, 0);
-		t4_fw_tp_pio_rw(adapter, &vfh, 1, A_TP_RSS_VFH_CONFIG, 0);
-	} else {
-		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				  &vfl, 1, A_TP_RSS_VFL_CONFIG);
-		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				  &vfh, 1, A_TP_RSS_VFH_CONFIG);
-	}
+	t4_tp_pio_write(adapter, &vfl, 1, A_TP_RSS_VFL_CONFIG, sleep_ok);
+	t4_tp_pio_write(adapter, &vfh, 1, A_TP_RSS_VFH_CONFIG, sleep_ok);
 
 	/*
 	 * Write the VFL/VFH into the VF Table at index'th location.
@@ -5075,18 +5170,16 @@ void t4_write_rss_vf_config(struct adapter *adapter, unsigned int index,
 /**
  *	t4_read_rss_pf_map - read PF RSS Map
  *	@adapter: the adapter
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Map register and returns its value.
  */
-u32 t4_read_rss_pf_map(struct adapter *adapter)
+u32 t4_read_rss_pf_map(struct adapter *adapter, bool sleep_ok)
 {
 	u32 pfmap;
 
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, 1);
-	else
-		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 &pfmap, 1, A_TP_RSS_PF_MAP);
+	t4_tp_pio_read(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, sleep_ok);
+
 	return pfmap;
 }
 
@@ -5097,30 +5190,24 @@ u32 t4_read_rss_pf_map(struct adapter *adapter)
  *
  *	Writes the specified value to the PF RSS Map register.
  */
-void t4_write_rss_pf_map(struct adapter *adapter, u32 pfmap)
+void t4_write_rss_pf_map(struct adapter *adapter, u32 pfmap, bool sleep_ok)
 {
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, 0);
-	else
-		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				  &pfmap, 1, A_TP_RSS_PF_MAP);
+	t4_tp_pio_write(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, sleep_ok);
 }
 
 /**
  *	t4_read_rss_pf_mask - read PF RSS Mask
  *	@adapter: the adapter
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Mask register and returns its value.
  */
-u32 t4_read_rss_pf_mask(struct adapter *adapter)
+u32 t4_read_rss_pf_mask(struct adapter *adapter, bool sleep_ok)
 {
 	u32 pfmask;
 
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, 1);
-	else
-		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 &pfmask, 1, A_TP_RSS_PF_MSK);
+	t4_tp_pio_read(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, sleep_ok);
+
 	return pfmask;
 }
 
@@ -5131,13 +5218,9 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
  *
  *	Writes the specified value to the PF RSS Mask register.
  */
-void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask)
+void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask, bool sleep_ok)
 {
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, 0);
-	else
-		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				  &pfmask, 1, A_TP_RSS_PF_MSK);
+	t4_tp_pio_write(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, sleep_ok);
 }
 
 /**
@@ -5145,12 +5228,13 @@ void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask)
  *	@adap: the adapter
  *	@v4: holds the TCP/IP counter values
  *	@v6: holds the TCP/IPv6 counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's TCP/IP and TCP/IPv6 MIB counters.
  *	Either @v4 or @v6 may be %NULL to skip the corresponding stats.
  */
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
-			 struct tp_tcp_stats *v6)
+			 struct tp_tcp_stats *v6, bool sleep_ok)
 {
 	u32 val[A_TP_MIB_TCP_RXT_SEG_LO - A_TP_MIB_TCP_OUT_RST + 1];
 
@@ -5159,16 +5243,16 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 #define STAT64(x)   (((u64)STAT(x##_HI) << 32) | STAT(x##_LO))
 
 	if (v4) {
-		t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
-				 ARRAY_SIZE(val), A_TP_MIB_TCP_OUT_RST);
+		t4_tp_mib_read(adap, val, ARRAY_SIZE(val),
+			       A_TP_MIB_TCP_OUT_RST, sleep_ok);
 		v4->tcp_out_rsts = STAT(OUT_RST);
 		v4->tcp_in_segs  = STAT64(IN_SEG);
 		v4->tcp_out_segs = STAT64(OUT_SEG);
 		v4->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 	if (v6) {
-		t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
-				 ARRAY_SIZE(val), A_TP_MIB_TCP_V6OUT_RST);
+		t4_tp_mib_read(adap, val, ARRAY_SIZE(val),
+			       A_TP_MIB_TCP_V6OUT_RST, sleep_ok);
 		v6->tcp_out_rsts = STAT(OUT_RST);
 		v6->tcp_in_segs  = STAT64(IN_SEG);
 		v6->tcp_out_segs = STAT64(OUT_SEG);
@@ -5183,32 +5267,41 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  *	t4_tp_get_err_stats - read TP's error MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's error counters.
  */
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
+			 bool sleep_ok)
 {
 	int nchan = adap->chip_params->nchan;
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->mac_in_errs, nchan, A_TP_MIB_MAC_IN_ERR_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->hdr_in_errs, nchan, A_TP_MIB_HDR_IN_ERR_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->tcp_in_errs, nchan, A_TP_MIB_TCP_IN_ERR_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->tnl_cong_drops, nchan, A_TP_MIB_TNL_CNG_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->ofld_chan_drops, nchan, A_TP_MIB_OFD_CHN_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->tnl_tx_drops, nchan, A_TP_MIB_TNL_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->ofld_vlan_drops, nchan, A_TP_MIB_OFD_VLN_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			st->tcp6_in_errs, nchan, A_TP_MIB_TCP_V6IN_ERR_0);
+	t4_tp_mib_read(adap, st->mac_in_errs, nchan, A_TP_MIB_MAC_IN_ERR_0,
+		       sleep_ok);
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
-			 &st->ofld_no_neigh, 2, A_TP_MIB_OFD_ARP_DROP);
+	t4_tp_mib_read(adap, st->hdr_in_errs, nchan, A_TP_MIB_HDR_IN_ERR_0,
+		       sleep_ok);
+
+	t4_tp_mib_read(adap, st->tcp_in_errs, nchan, A_TP_MIB_TCP_IN_ERR_0,
+		       sleep_ok);
+
+	t4_tp_mib_read(adap, st->tnl_cong_drops, nchan,
+		       A_TP_MIB_TNL_CNG_DROP_0, sleep_ok);
+
+	t4_tp_mib_read(adap, st->ofld_chan_drops, nchan,
+		       A_TP_MIB_OFD_CHN_DROP_0, sleep_ok);
+
+	t4_tp_mib_read(adap, st->tnl_tx_drops, nchan, A_TP_MIB_TNL_DROP_0,
+		       sleep_ok);
+
+	t4_tp_mib_read(adap, st->ofld_vlan_drops, nchan,
+		       A_TP_MIB_OFD_VLN_DROP_0, sleep_ok);
+
+	t4_tp_mib_read(adap, st->tcp6_in_errs, nchan,
+		       A_TP_MIB_TCP_V6IN_ERR_0, sleep_ok);
+
+	t4_tp_mib_read(adap, &st->ofld_no_neigh, 2, A_TP_MIB_OFD_ARP_DROP,
+		       sleep_ok);
 }
 
 /**
@@ -5218,29 +5311,30 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
  *
  *	Returns the values of TP's proxy counters.
  */
-void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st)
+void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st,
+    bool sleep_ok)
 {
 	int nchan = adap->chip_params->nchan;
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->proxy,
-			 nchan, A_TP_MIB_TNL_LPBK_0);
+	t4_tp_mib_read(adap, st->proxy, nchan, A_TP_MIB_TNL_LPBK_0, sleep_ok);
 }
 
 /**
  *	t4_tp_get_cpl_stats - read TP's CPL MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's CPL counters.
  */
-void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
+			 bool sleep_ok)
 {
 	int nchan = adap->chip_params->nchan;
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->req,
-			 nchan, A_TP_MIB_CPL_IN_REQ_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->rsp,
-			 nchan, A_TP_MIB_CPL_OUT_RSP_0);
+	t4_tp_mib_read(adap, st->req, nchan, A_TP_MIB_CPL_IN_REQ_0, sleep_ok);
+
+	t4_tp_mib_read(adap, st->rsp, nchan, A_TP_MIB_CPL_OUT_RSP_0, sleep_ok);
 }
 
 /**
@@ -5250,10 +5344,11 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
  *
  *	Returns the values of TP's RDMA counters.
  */
-void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
+			  bool sleep_ok)
 {
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->rqe_dfr_pkt,
-			 2, A_TP_MIB_RQE_DFR_PKT);
+	t4_tp_mib_read(adap, &st->rqe_dfr_pkt, 2, A_TP_MIB_RQE_DFR_PKT,
+		       sleep_ok);
 }
 
 /**
@@ -5261,20 +5356,24 @@ void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
  *	@adap: the adapter
  *	@idx: the port index
  *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's FCoE counters for the selected port.
  */
 void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
-		       struct tp_fcoe_stats *st)
+		       struct tp_fcoe_stats *st, bool sleep_ok)
 {
 	u32 val[2];
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->frames_ddp,
-			 1, A_TP_MIB_FCOE_DDP_0 + idx);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->frames_drop,
-			 1, A_TP_MIB_FCOE_DROP_0 + idx);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
-			 2, A_TP_MIB_FCOE_BYTE_0_HI + 2 * idx);
+	t4_tp_mib_read(adap, &st->frames_ddp, 1, A_TP_MIB_FCOE_DDP_0 + idx,
+		       sleep_ok);
+
+	t4_tp_mib_read(adap, &st->frames_drop, 1,
+		       A_TP_MIB_FCOE_DROP_0 + idx, sleep_ok);
+
+	t4_tp_mib_read(adap, val, 2, A_TP_MIB_FCOE_BYTE_0_HI + 2 * idx,
+		       sleep_ok);
+
 	st->octets_ddp = ((u64)val[0] << 32) | val[1];
 }
 
@@ -5282,15 +5381,17 @@ void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
  *	t4_get_usm_stats - read TP's non-TCP DDP MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's counters for non-TCP directly-placed packets.
  */
-void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st)
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok)
 {
 	u32 val[4];
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val, 4,
-			 A_TP_MIB_USM_PKTS);
+	t4_tp_mib_read(adap, val, 4, A_TP_MIB_USM_PKTS, sleep_ok);
+
 	st->frames = val[0];
 	st->drops = val[1];
 	st->octets = ((u64)val[2] << 32) | val[3];
@@ -5869,15 +5970,13 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
 	u32 bgmap = t4_get_mps_bg_map(adap, idx);
-	u32 stat_ctl;
+	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
 	(is_t4(adap) ? PORT_REG(idx, A_MPS_PORT_STAT_##name##_L) : \
 	T5_PORT_REG(idx, A_MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
-
-	stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
 	p->tx_octets		= GET_STAT(TX_PORT_BYTES);
@@ -6743,6 +6842,31 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 */
 	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
 	return t4_fw_restart(adap, mbox, reset);
+}
+
+/*
+ * Card doesn't have a firmware, install one.
+ */
+int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
+    unsigned int size)
+{
+	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
+	unsigned int bootstrap =
+	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
+	int ret;
+
+	if (!t4_fw_matches_chip(adap, fw_hdr) || bootstrap)
+		return -EINVAL;
+
+	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, F_UPCRST);
+	t4_write_reg(adap, A_PCIE_FW, 0);	/* Clobber internal state */
+	ret = t4_load_fw(adap, fw_data, size);
+	if (ret < 0)
+		return ret;
+	t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
+	msleep(1000);
+
+	return (0);
 }
 
 /**
@@ -7651,51 +7775,120 @@ struct flash_desc {
 int t4_get_flash_params(struct adapter *adapter)
 {
 	/*
-	 * Table for non-Numonix supported flash parts.  Numonix parts are left
-	 * to the preexisting well-tested code.  All flash parts have 64KB
-	 * sectors.
+	 * Table for non-standard supported Flash parts.  Note, all Flash
+	 * parts must have 64KB sectors.
 	 */
 	static struct flash_desc supported_flash[] = {
-		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+		{ 0x00150201, 4 << 20 },	/* Spansion 4MB S25FL032P */
 	};
 
 	int ret;
-	u32 info = 0;
+	u32 flashid = 0;
+	unsigned int part, manufacturer;
+	unsigned int density, size;
 
+
+	/*
+	 * Issue a Read ID Command to the Flash part.  We decode supported
+	 * Flash parts and their sizes from this.  There's a newer Query
+	 * Command which can retrieve detailed geometry information but many
+	 * Flash parts don't support it.
+	 */
 	ret = sf1_write(adapter, 1, 1, 0, SF_RD_ID);
 	if (!ret)
-		ret = sf1_read(adapter, 3, 0, 1, &info);
+		ret = sf1_read(adapter, 3, 0, 1, &flashid);
 	t4_write_reg(adapter, A_SF_OP, 0);	/* unlock SF */
 	if (ret < 0)
 		return ret;
 
-	for (ret = 0; ret < ARRAY_SIZE(supported_flash); ++ret)
-		if (supported_flash[ret].vendor_and_model_id == info) {
-			adapter->params.sf_size = supported_flash[ret].size_mb;
+	/*
+	 * Check to see if it's one of our non-standard supported Flash parts.
+	 */
+	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
+		if (supported_flash[part].vendor_and_model_id == flashid) {
+			adapter->params.sf_size =
+				supported_flash[part].size_mb;
 			adapter->params.sf_nsec =
 				adapter->params.sf_size / SF_SEC_SIZE;
-			return 0;
+			goto found;
 		}
 
-	if ((info & 0xff) != 0x20)		/* not a Numonix flash */
-		return -EINVAL;
-	info >>= 16;				/* log2 of size */
-	if (info >= 0x14 && info < 0x18)
-		adapter->params.sf_nsec = 1 << (info - 16);
-	else if (info == 0x18)
-		adapter->params.sf_nsec = 64;
-	else
-		return -EINVAL;
-	adapter->params.sf_size = 1 << info;
+	/*
+	 * Decode Flash part size.  The code below looks repetative with
+	 * common encodings, but that's not guaranteed in the JEDEC
+	 * specification for the Read JADEC ID command.  The only thing that
+	 * we're guaranteed by the JADEC specification is where the
+	 * Manufacturer ID is in the returned result.  After that each
+	 * Manufacturer ~could~ encode things completely differently.
+	 * Note, all Flash parts must have 64KB sectors.
+	 */
+	manufacturer = flashid & 0xff;
+	switch (manufacturer) {
+	case 0x20: { /* Micron/Numonix */
+		/*
+		 * This Density -> Size decoding table is taken from Micron
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x14: size = 1 << 20; break; /*   1MB */
+		case 0x15: size = 1 << 21; break; /*   2MB */
+		case 0x16: size = 1 << 22; break; /*   4MB */
+		case 0x17: size = 1 << 23; break; /*   8MB */
+		case 0x18: size = 1 << 24; break; /*  16MB */
+		case 0x19: size = 1 << 25; break; /*  32MB */
+		case 0x20: size = 1 << 26; break; /*  64MB */
+		case 0x21: size = 1 << 27; break; /* 128MB */
+		case 0x22: size = 1 << 28; break; /* 256MB */
 
+		default:
+			CH_ERR(adapter, "Micron Flash Part has bad size, "
+			       "ID = %#x, Density code = %#x\n",
+			       flashid, density);
+			return -EINVAL;
+		}
+		break;
+	}
+
+	case 0xef: { /* Winbond */
+		/*
+		 * This Density -> Size decoding table is taken from Winbond
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: size = 1 << 23; break; /*   8MB */
+		case 0x18: size = 1 << 24; break; /*  16MB */
+
+		default:
+			CH_ERR(adapter, "Winbond Flash Part has bad size, "
+			       "ID = %#x, Density code = %#x\n",
+			       flashid, density);
+			return -EINVAL;
+		}
+		break;
+	}
+
+	default:
+		CH_ERR(adapter, "Unsupported Flash Part, ID = %#x\n", flashid);
+		return -EINVAL;
+	}
+
+	/*
+	 * Store decoded Flash size and fall through into vetting code.
+	 */
+	adapter->params.sf_size = size;
+	adapter->params.sf_nsec = size / SF_SEC_SIZE;
+
+ found:
 	/*
 	 * We should ~probably~ reject adapters with FLASHes which are too
 	 * small but we have some legacy FPGAs with small FLASHes that we'd
 	 * still like to use.  So instead we emit a scary message ...
 	 */
 	if (adapter->params.sf_size < FLASH_MIN_SIZE)
-		CH_WARN(adapter, "WARNING!!! FLASH size %#x < %#x!!!\n",
-			adapter->params.sf_size, FLASH_MIN_SIZE);
+		CH_WARN(adapter, "WARNING: Flash Part ID %#x, size %#x < %#x\n",
+			flashid, adapter->params.sf_size, FLASH_MIN_SIZE);
 
 	return 0;
 }
@@ -7852,10 +8045,9 @@ int t4_shutdown_adapter(struct adapter *adapter)
 	t4_intr_disable(adapter);
 	t4_write_reg(adapter, A_DBG_GPIO_EN, 0);
 	for_each_port(adapter, port) {
-		u32 a_port_cfg = PORT_REG(port,
-					  is_t4(adapter)
-					  ? A_XGMAC_PORT_CFG
-					  : A_MAC_PORT_CFG);
+		u32 a_port_cfg = is_t4(adapter) ?
+				 PORT_REG(port, A_XGMAC_PORT_CFG) :
+				 T5_PORT_REG(port, A_MAC_PORT_CFG);
 
 		t4_write_reg(adapter, a_port_cfg,
 			     t4_read_reg(adapter, a_port_cfg)
@@ -8026,21 +8218,15 @@ int t4_init_sge_params(struct adapter *adapter)
 /*
  * Read and cache the adapter's compressed filter mode and ingress config.
  */
-static void read_filter_mode_and_ingress_config(struct adapter *adap)
+static void read_filter_mode_and_ingress_config(struct adapter *adap,
+    bool sleep_ok)
 {
 	struct tp_params *tpp = &adap->params.tp;
 
-	if (t4_use_ldst(adap)) {
-		t4_fw_tp_pio_rw(adap, &tpp->vlan_pri_map, 1,
-				A_TP_VLAN_PRI_MAP, 1);
-		t4_fw_tp_pio_rw(adap, &tpp->ingress_config, 1,
-				A_TP_INGRESS_CONFIG, 1);
-	} else {
-		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 &tpp->vlan_pri_map, 1, A_TP_VLAN_PRI_MAP);
-		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-				 &tpp->ingress_config, 1, A_TP_INGRESS_CONFIG);
-	}
+	t4_tp_pio_read(adap, &tpp->vlan_pri_map, 1, A_TP_VLAN_PRI_MAP,
+	    sleep_ok);
+	t4_tp_pio_read(adap, &tpp->ingress_config, 1, A_TP_INGRESS_CONFIG,
+	    sleep_ok);
 
 	/*
 	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
@@ -8072,7 +8258,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap)
  *
  *      Initialize various fields of the adapter's TP Parameters structure.
  */
-int t4_init_tp_params(struct adapter *adap)
+int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 {
 	int chan;
 	u32 v;
@@ -8086,7 +8272,7 @@ int t4_init_tp_params(struct adapter *adap)
 	for (chan = 0; chan < MAX_NCHAN; chan++)
 		tpp->tx_modq[chan] = chan;
 
-	read_filter_mode_and_ingress_config(adap);
+	read_filter_mode_and_ingress_config(adap, sleep_ok);
 
 	/*
 	 * Cache a mask of the bits that represent the error vector portion of
@@ -8682,14 +8868,13 @@ void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED])
  *	Return the current configuration of a HW Tx scheduler.
  */
 void t4_get_tx_sched(struct adapter *adap, unsigned int sched, unsigned int *kbps,
-		     unsigned int *ipg)
+		     unsigned int *ipg, bool sleep_ok)
 {
 	unsigned int v, addr, bpt, cpt;
 
 	if (kbps) {
 		addr = A_TP_TX_MOD_Q1_Q0_RATE_LIMIT - sched / 2;
-		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
-		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
 		if (sched & 1)
 			v >>= 16;
 		bpt = (v >> 8) & 0xff;
@@ -8703,8 +8888,7 @@ void t4_get_tx_sched(struct adapter *adap, unsigned int sched, unsigned int *kbp
 	}
 	if (ipg) {
 		addr = A_TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR - sched / 2;
-		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
-		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
 		if (sched & 1)
 			v >>= 16;
 		v &= 0xffff;
@@ -9154,13 +9338,15 @@ out:
  *	t4_set_filter_mode - configure the optional components of filter tuples
  *	@adap: the adapter
  *	@mode_map: a bitmap selcting which optional filter components to enable
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Sets the filter mode by selecting the optional components to enable
  *	in filter tuples.  Returns 0 on success and a negative error if the
  *	requested mode needs more bits than are available for optional
  *	components.
  */
-int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
+int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map,
+		       bool sleep_ok)
 {
 	static u8 width[] = { 1, 3, 17, 17, 8, 8, 16, 9, 3, 1 };
 
@@ -9171,12 +9357,8 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
 			nbits += width[i];
 	if (nbits > FILTER_OPT_LEN)
 		return -EINVAL;
-	if (t4_use_ldst(adap))
-		t4_fw_tp_pio_rw(adap, &mode_map, 1, A_TP_VLAN_PRI_MAP, 0);
-	else
-		t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, &mode_map,
-				  1, A_TP_VLAN_PRI_MAP);
-	read_filter_mode_and_ingress_config(adap);
+	t4_tp_pio_write(adap, &mode_map, 1, A_TP_VLAN_PRI_MAP, sleep_ok);
+	read_filter_mode_and_ingress_config(adap, sleep_ok);
 
 	return 0;
 }
@@ -9367,7 +9549,7 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 }
 
 int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
-    		    int sleep_ok)
+    int sleep_ok)
 {
 	struct fw_sched_cmd cmd;
 

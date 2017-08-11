@@ -413,12 +413,20 @@ AslError (
     ACPI_PARSE_OBJECT       *Op,
     char                    *ExtraMessage);
 
+void
+AslCheckExpectedExceptions (
+    void);
+
+ACPI_STATUS
+AslExpectException (
+    char                    *MessageIdString);
+
 ACPI_STATUS
 AslDisableException (
     char                    *MessageIdString);
 
 BOOLEAN
-AslIsExceptionDisabled (
+AslIsExceptionIgnored (
     UINT8                   Level,
     UINT16                  MessageId);
 
@@ -790,17 +798,6 @@ TrAmlTransformWalkEnd (
 
 
 /*
- * asltree - parse tree support
- */
-ACPI_STATUS
-TrWalkParseTree (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Visitation,
-    ASL_WALK_CALLBACK       DescendingCallback,
-    ASL_WALK_CALLBACK       AscendingCallback,
-    void                    *Context);
-
-/*
  * aslexternal - External opcode support
  */
 ACPI_STATUS
@@ -826,103 +823,111 @@ ExDoExternal (
 #define ASL_WALK_VISIT_TWICE        (ASL_WALK_VISIT_DOWNWARD | ASL_WALK_VISIT_UPWARD)
 
 
-void
-TrSetParent (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_OBJECT       *ParentOp);
-
+/*
+ * aslparseop.c - Parse op create/allocate/cache
+ */
 ACPI_PARSE_OBJECT *
-TrAllocateNode (
-    UINT32                  ParseOpcode);
-
-void
-TrPrintNodeCompileFlags (
-    UINT32                  Flags);
-
-void
-TrReleaseNode (
-    ACPI_PARSE_OBJECT       *Op);
-
-ACPI_PARSE_OBJECT *
-TrUpdateNode (
-    UINT32                  ParseOpcode,
-    ACPI_PARSE_OBJECT       *Op);
-
-ACPI_PARSE_OBJECT *
-TrCreateNode (
+TrCreateOp (
     UINT32                  ParseOpcode,
     UINT32                  NumChildren,
     ...);
 
 ACPI_PARSE_OBJECT *
-TrCreateLeafNode (
+TrCreateLeafOp (
     UINT32                  ParseOpcode);
 
 ACPI_PARSE_OBJECT *
-TrCreateNullTarget (
+TrCreateNullTargetOp (
     void);
 
 ACPI_PARSE_OBJECT *
-TrCreateAssignmentNode (
+TrCreateAssignmentOp (
     ACPI_PARSE_OBJECT       *Target,
     ACPI_PARSE_OBJECT       *Source);
 
 ACPI_PARSE_OBJECT *
-TrCreateTargetOperand (
+TrCreateTargetOp (
     ACPI_PARSE_OBJECT       *OriginalOp,
     ACPI_PARSE_OBJECT       *ParentOp);
 
 ACPI_PARSE_OBJECT *
-TrCreateValuedLeafNode (
+TrCreateValuedLeafOp (
     UINT32                  ParseOpcode,
     UINT64                  Value);
 
 ACPI_PARSE_OBJECT *
-TrCreateConstantLeafNode (
+TrCreateConstantLeafOp (
     UINT32                  ParseOpcode);
 
 ACPI_PARSE_OBJECT *
-TrLinkChildren (
+TrAllocateOp (
+    UINT32                  ParseOpcode);
+
+void
+TrPrintOpFlags (
+    UINT32                  Flags,
+    UINT32                  OutputLevel);
+
+
+/*
+ * asltree.c - Parse tree management
+ */
+void
+TrSetOpParent (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_PARSE_OBJECT       *ParentOp);
+
+ACPI_PARSE_OBJECT *
+TrSetOpIntegerValue (
+    UINT32                  ParseOpcode,
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+TrSetOpEndLineNumber (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+TrSetOpCurrentFilename (
+    ACPI_PARSE_OBJECT       *Op);
+
+ACPI_PARSE_OBJECT *
+TrLinkOpChildren (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  NumChildren,
     ...);
 
-void
-TrSetEndLineNumber (
-    ACPI_PARSE_OBJECT       *Op);
-
-void
-TrSetCurrentFilename (
-    ACPI_PARSE_OBJECT       *Op);
-
-void
-TrWalkTree (
-    void);
-
 ACPI_PARSE_OBJECT *
-TrLinkPeerNode (
+TrLinkPeerOp (
     ACPI_PARSE_OBJECT       *Op1,
     ACPI_PARSE_OBJECT       *Op2);
 
 ACPI_PARSE_OBJECT *
-TrLinkChildNode (
+TrLinkChildOp (
     ACPI_PARSE_OBJECT       *Op1,
     ACPI_PARSE_OBJECT       *Op2);
 
 ACPI_PARSE_OBJECT *
-TrSetNodeFlags (
+TrSetOpFlags (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Flags);
 
 ACPI_PARSE_OBJECT *
-TrSetNodeAmlLength (
+TrSetOpAmlLength (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Length);
 
 ACPI_PARSE_OBJECT *
-TrLinkPeerNodes (
+TrLinkPeerOps (
     UINT32                  NumPeers,
     ...);
+
+ACPI_STATUS
+TrWalkParseTree (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Visitation,
+    ASL_WALK_CALLBACK       DescendingCallback,
+    ASL_WALK_CALLBACK       AscendingCallback,
+    void                    *Context);
 
 
 /*

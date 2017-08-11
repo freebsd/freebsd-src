@@ -49,12 +49,14 @@ __FBSDID("$FreeBSD$");
 
 #ifdef __i386__
 #define	PCB_FP(pcb)	((pcb)->pcb_ebp)
+#define	TF_FLAGS(tf)	((tf)->tf_eflags)
 #define	TF_FP(tf)	((tf)->tf_ebp)
 #define	TF_PC(tf)	((tf)->tf_eip)
 
 typedef struct i386_frame *x86_frame_t;
 #else
 #define	PCB_FP(pcb)	((pcb)->pcb_rbp)
+#define	TF_FLAGS(tf)	((tf)->tf_rflags)
 #define	TF_FP(tf)	((tf)->tf_rbp)
 #define	TF_PC(tf)	((tf)->tf_rip)
 
@@ -104,10 +106,10 @@ stack_nmi_handler(struct trapframe *tf)
 	if (nmi_stack == NULL || curthread != nmi_pending)
 		return (0);
 
-	if (INKERNEL(TF_PC(tf)))
+	if (INKERNEL(TF_PC(tf)) && (TF_FLAGS(tf) & PSL_I) != 0)
 		stack_capture(curthread, nmi_stack, TF_FP(tf));
 	else
-		/* We interrupted a thread in user mode. */
+		/* We were running in usermode or had interrupts disabled. */
 		nmi_stack->depth = 0;
 
 	atomic_store_rel_ptr((long *)&nmi_pending, (long)NULL);
@@ -155,7 +157,6 @@ stack_save_td_running(struct stack *st, struct thread *td)
 	mtx_unlock_spin(&nmi_lock);
 
 	if (st->depth == 0)
-		/* We interrupted a thread in user mode. */
 		return (EAGAIN);
 #else /* !SMP */
 	KASSERT(0, ("curthread isn't running"));

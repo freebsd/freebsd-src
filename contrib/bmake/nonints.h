@@ -143,6 +143,11 @@ int Str_Match(const char *, const char *);
 char *Str_SYSVMatch(const char *, const char *, int *len);
 void Str_SYSVSubst(Buffer *, char *, char *, int);
 
+#ifndef HAVE_STRLCPY
+/* strlcpy.c */
+size_t strlcpy(char *, const char *, size_t);
+#endif
+
 /* suff.c */
 void Suff_ClearSuffixes(void);
 Boolean Suff_IsTransform(char *);

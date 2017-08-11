@@ -110,8 +110,6 @@ MLINKS=	xo_attr.3 xo_attr_h.3 \
 	xo_syslog.3 xo_set_logmask.3 \
 	xo_syslog.3 xo_vsyslog.3
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>

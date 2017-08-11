@@ -315,10 +315,11 @@ static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
+	struct g_geom_alias *gap;
 	struct g_consumer *cp;
 	struct g_dev_softc *sc;
 	int error;
-	struct cdev *dev;
+	struct cdev *dev, *adev;
 	char buf[SPECNAMELEN + 6];
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
@@ -357,6 +358,20 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
 	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	/*
+	 * Now add all the aliases for this drive
+	 */
+	LIST_FOREACH(gap, &pp->geom->aliases, ga_next) {
+		error = make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &adev, dev,
+		    "%s", gap->ga_alias);
+		if (error) {
+			printf("%s: make_dev_alias_p() failed (name=%s, error=%d)\n",
+			    __func__, gap->ga_alias, error);
+			continue;
+		}
+		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
+		devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	}
 
 	return (gp);
 }

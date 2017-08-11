@@ -187,6 +187,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	EFI_SIMPLE_NETWORK *net;
 	EFI_HANDLE h;
 	EFI_STATUS status;
+	UINT32 mask;
 
 	if (nif->nif_driver->netif_ifs[nif->nif_unit].dif_unit < 0) {
 		printf("Invalid network interface %d\n", nif->nif_unit);
@@ -220,16 +221,14 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 		}
 	}
 
-	if (net->Mode->ReceiveFilterSetting == 0) {
-		UINT32 mask = EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
-		    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
+	mask = EFI_SIMPLE_NETWORK_RECEIVE_UNICAST |
+	    EFI_SIMPLE_NETWORK_RECEIVE_BROADCAST;
 
-		status = net->ReceiveFilters(net, mask, 0, FALSE, 0, NULL);
-		if (status != EFI_SUCCESS) {
-			printf("net%d: cannot set rx. filters (status=%lu)\n",
-			    nif->nif_unit, EFI_ERROR_CODE(status));
-			return;
-		}
+	status = net->ReceiveFilters(net, mask, 0, FALSE, 0, NULL);
+	if (status != EFI_SUCCESS) {
+		printf("net%d: cannot set rx. filters (status=%lu)\n",
+		    nif->nif_unit, EFI_ERROR_CODE(status));
+		return;
 	}
 
 #ifdef EFINET_DEBUG

@@ -738,14 +738,15 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 
 	lagg_setmulti(lp);
 
+	LAGG_WUNLOCK(sc);
+
 	if ((error = lagg_proto_addport(sc, lp)) != 0) {
 		/* Remove the port, without calling pr_delport. */
+		LAGG_WLOCK(sc);
 		lagg_port_destroy(lp, 0);
 		LAGG_UNLOCK_ASSERT(sc);
 		return (error);
 	}
-
-	LAGG_WUNLOCK(sc);
 
 	/* Update lagg capabilities */
 	lagg_capabilities(sc);

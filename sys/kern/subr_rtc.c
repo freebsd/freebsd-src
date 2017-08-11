@@ -95,7 +95,10 @@ struct rtc_instance {
 	device_t	clockdev;
 	int		resolution;
 	int		flags;
+	u_int		schedns;
 	struct timespec resadj;
+	struct timeout_task
+			stask;
 	LIST_ENTRY(rtc_instance)
 			rtc_entries;
 };
@@ -104,7 +107,6 @@ struct rtc_instance {
  * Clocks are updated using a task running on taskqueue_thread.
  */
 static void settime_task_func(void *arg, int pending);
-static struct task settime_task = TASK_INITIALIZER(0, settime_task_func, NULL);
 
 /*
  * Registered clocks are kept in a list which is sorted by resolution; the more
@@ -116,9 +118,9 @@ static struct sx rtc_list_lock;
 SX_SYSINIT(rtc_list_lock_init, &rtc_list_lock, "rtc list");
 
 /*
- * On the task thread, invoke the clock_settime() method of each registered
- * clock.  Do so holding only an sxlock, so that clock drivers are free to do
- * whatever kind of locking or sleeping they need to.
+ * On the task thread, invoke the clock_settime() method of the clock.  Do so
+ * holding no locks, so that clock drivers are free to do whatever kind of
+ * locking or sleeping they need to.
  */
 static void
 settime_task_func(void *arg, int pending)
@@ -126,21 +128,18 @@ settime_task_func(void *arg, int pending)
 	struct timespec ts;
 	struct rtc_instance *rtc;
 
-	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
-		if (!(rtc->flags & CLOCKF_SETTIME_NO_TS)) {
-			getnanotime(&ts);
-			if (!(rtc->flags & CLOCKF_SETTIME_NO_ADJ)) {
-				ts.tv_sec -= utc_offset();
-				timespecadd(&ts, &rtc->resadj);
-			}
-		} else {
-			ts.tv_sec  = 0;
-			ts.tv_nsec = 0;
+	rtc = arg;
+	if (!(rtc->flags & CLOCKF_SETTIME_NO_TS)) {
+		getnanotime(&ts);
+		if (!(rtc->flags & CLOCKF_SETTIME_NO_ADJ)) {
+			ts.tv_sec -= utc_offset();
+			timespecadd(&ts, &rtc->resadj);
 		}
-		CLOCK_SETTIME(rtc->clockdev, &ts);
+	} else {
+		ts.tv_sec  = 0;
+		ts.tv_nsec = 0;
 	}
-	sx_xunlock(&rtc_list_lock);
+	CLOCK_SETTIME(rtc->clockdev, &ts);
 }
 
 void
@@ -152,8 +151,11 @@ clock_register_flags(device_t clockdev, long resolution, int flags)
 	newrtc->clockdev = clockdev;
 	newrtc->resolution = (int)resolution;
 	newrtc->flags = flags;
+	newrtc->schedns = 0;
 	newrtc->resadj.tv_sec  = newrtc->resolution / 2 / 1000000;
 	newrtc->resadj.tv_nsec = newrtc->resolution / 2 % 1000000 * 1000;
+	TIMEOUT_TASK_INIT(taskqueue_thread, &newrtc->stask, 0,
+		    settime_task_func, newrtc);
 
 	sx_xlock(&rtc_list_lock);
 	if (LIST_EMPTY(&rtc_list)) {
@@ -192,7 +194,27 @@ clock_unregister(device_t clockdev)
 	LIST_FOREACH_SAFE(rtc, &rtc_list, rtc_entries, tmp) {
 		if (rtc->clockdev == clockdev) {
 			LIST_REMOVE(rtc, rtc_entries);
-			free(rtc, M_DEVBUF);
+			break;
+		}
+	}
+	sx_xunlock(&rtc_list_lock);
+	if (rtc != NULL) {
+		taskqueue_cancel_timeout(taskqueue_thread, &rtc->stask, NULL);
+		taskqueue_drain_timeout(taskqueue_thread, &rtc->stask);
+                free(rtc, M_DEVBUF);
+	}
+}
+
+void
+clock_schedule(device_t clockdev, u_int offsetns)
+{
+	struct rtc_instance *rtc;
+
+	sx_xlock(&rtc_list_lock);
+	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+		if (rtc->clockdev == clockdev) {
+			rtc->schedns = offsetns;
+			break;
 		}
 	}
 	sx_xunlock(&rtc_list_lock);
@@ -275,9 +297,26 @@ inittodr(time_t base)
 void
 resettodr(void)
 {
+	struct timespec now;
+	struct rtc_instance *rtc;
+	sbintime_t sbt;
+	long waitns;
 
 	if (disable_rtc_set)
 		return;
 
-	taskqueue_enqueue(taskqueue_thread, &settime_task);
+	sx_xlock(&rtc_list_lock);
+	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+		if (rtc->schedns != 0) {
+			getnanotime(&now);
+			waitns = rtc->schedns - now.tv_nsec;
+			if (waitns < 0)
+				waitns += 1000000000;
+			sbt = nstosbt(waitns);
+		} else
+			sbt = 0;
+		taskqueue_enqueue_timeout_sbt(taskqueue_thread,
+		    &rtc->stask, -sbt, 0, C_PREL(31));
+	}
+	sx_xunlock(&rtc_list_lock);
 }

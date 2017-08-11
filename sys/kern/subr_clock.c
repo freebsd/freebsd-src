@@ -142,18 +142,27 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 {
 	int i, year, days;
 
-	year = ct->year;
-
 	if (ct_debug) {
 		printf("ct_to_ts(");
 		print_ct(ct);
 		printf(")");
 	}
 
+	/*
+	 * Many realtime clocks store the year as 2-digit BCD; pivot on 70 to
+	 * determine century.  Some clocks have a "century bit" and drivers do
+	 * year += 100, so interpret values between 70-199 as relative to 1900.
+	 */
+	year = ct->year;
+	if (year < 70)
+		year += 2000;
+	else if (year < 200)
+		year += 1900;
+
 	/* Sanity checks. */
 	if (ct->mon < 1 || ct->mon > 12 || ct->day < 1 ||
 	    ct->day > days_in_month(year, ct->mon) ||
-	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 ||
+	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 || year < 1970 ||
 	    (sizeof(time_t) == 4 && year > 2037)) {	/* time_t overflow */
 		if (ct_debug)
 			printf(" = EINVAL\n");

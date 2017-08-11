@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.67 2016/09/17 18:00:27 tedu Exp $ */
+/* $OpenBSD: hostfile.c,v 1.68 2017/03/10 04:26:06 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -419,19 +419,24 @@ write_host_entry(FILE *f, const char *host, const char *ip,
     const struct sshkey *key, int store_hash)
 {
 	int r, success = 0;
-	char *hashed_host = NULL;
+	char *hashed_host = NULL, *lhost;
+
+	lhost = xstrdup(host);
+	lowercase(lhost);
 
 	if (store_hash) {
-		if ((hashed_host = host_hash(host, NULL, 0)) == NULL) {
+		if ((hashed_host = host_hash(lhost, NULL, 0)) == NULL) {
 			error("%s: host_hash failed", __func__);
+			free(lhost);
 			return 0;
 		}
 		fprintf(f, "%s ", hashed_host);
 	} else if (ip != NULL)
-		fprintf(f, "%s,%s ", host, ip);
-	else
-		fprintf(f, "%s ", host);
-
+		fprintf(f, "%s,%s ", lhost, ip);
+	else {
+		fprintf(f, "%s ", lhost);
+	}
+	free(lhost);
 	if ((r = sshkey_write(key, f)) == 0)
 		success = 1;
 	else

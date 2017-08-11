@@ -80,7 +80,7 @@
 #elif __powerpc__
 #define PTRDIFF_IS_LONG		0
 #define SIZEOF_IS_ULONG		0
-#elif __riscv__
+#elif __riscv
 #define PTRDIFF_IS_LONG		1
 #define SIZEOF_IS_ULONG		1
 #elif __sparc__

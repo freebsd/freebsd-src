@@ -78,6 +78,7 @@ extern	int	_ufssel;
 extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
+extern	u_int	max_apic_id;
 
 struct	pcb;
 struct	thread;
@@ -115,7 +116,9 @@ void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
+void	finishidentcpu(void);
 void	identify_cpu(void);
+void	identify_hypervisor(void);
 void	initializecpu(void);
 void	initializecpucache(void);
 bool	fix_cpuid(void);

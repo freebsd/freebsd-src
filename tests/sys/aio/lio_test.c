@@ -99,7 +99,7 @@ ATF_TC_BODY(lio_listio_empty_nowait_signal, tc)
 	struct sigevent sev;
 
 	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
-	    "asynchronous notification if nent==0");
+	    " asynchronous notification if nent==0");
 	ATF_REQUIRE_EQ(0, sem_init(&completions, false, 0));
 	sev.sigev_notify = SIGEV_SIGNAL;
 	sev.sigev_signo = SIGUSR1;
@@ -120,7 +120,7 @@ ATF_TC_BODY(lio_listio_empty_nowait_thread, tc)
 	struct sigevent sev;
 
 	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
-	    "asynchronous notification if nent==0");
+	    " asynchronous notification if nent==0");
 	ATF_REQUIRE_EQ(0, sem_init(&completions, false, 0));
 	bzero(&sev, sizeof(sev));
 	sev.sigev_notify = SIGEV_THREAD;

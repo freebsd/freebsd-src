@@ -1554,17 +1554,27 @@ f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
 f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 
 #
-# If the system was booted with UEFI, set the default boot type to UEFI
+# Determine default boot type
 #
-bootmethod=$( sysctl -n machdep.bootmethod )
-f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
-if [ "$bootmethod" = "UEFI" ]; then
-	: ${ZFSBOOT_BOOT_TYPE:=BIOS+UEFI}
+case $(uname -m) in
+arm64)
+	# We support only UEFI boot for arm64
+	: ${ZFSBOOT_BOOT_TYPE:=UEFI}
 	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
-else
-	: ${ZFSBOOT_BOOT_TYPE:=BIOS}
-	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
-fi
+	;;
+*)
+	# If the system was booted with UEFI, set the default boot type to UEFI
+	bootmethod=$( sysctl -n machdep.bootmethod )
+	f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+	if [ "$bootmethod" = "UEFI" ]; then
+		: ${ZFSBOOT_BOOT_TYPE:=BIOS+UEFI}
+		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+	else
+		: ${ZFSBOOT_BOOT_TYPE:=BIOS}
+		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+	fi
+	;;
+esac
 
 #
 # Loop over the main menu until we've accomplished what we came here to do

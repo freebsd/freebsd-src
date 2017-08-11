@@ -7,8 +7,6 @@ PACKAGE=runtime
 PROG=	date
 SRCS=	date.c netdate.c vary.c
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=    tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

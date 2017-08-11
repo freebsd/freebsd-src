@@ -37,9 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/hrtimer.h>
 
-/* hrtimer flags */
-#define	HRTIMER_ACTIVE		0x01
-
 static void
 hrtimer_call_handler(void *arg)
 {
@@ -49,7 +46,7 @@ hrtimer_call_handler(void *arg)
 	hrtimer = arg;
 	ret = hrtimer->function(hrtimer);
 	MPASS(ret == HRTIMER_NORESTART);
-	hrtimer->flags &= ~HRTIMER_ACTIVE;
+	callout_deactivate(&hrtimer->callout);
 }
 
 bool
@@ -58,19 +55,20 @@ linux_hrtimer_active(struct hrtimer *hrtimer)
 	bool ret;
 
 	mtx_lock(&hrtimer->mtx);
-	ret = (hrtimer->flags & HRTIMER_ACTIVE) != 0;
+	ret = callout_active(&hrtimer->callout);
 	mtx_unlock(&hrtimer->mtx);
 	return (ret);
 }
 
+/*
+ * Cancel active hrtimer.
+ * Return 1 if timer was active and cancellation succeeded, or 0 otherwise.
+ */
 int
 linux_hrtimer_cancel(struct hrtimer *hrtimer)
 {
 
-	if (!hrtimer_active(hrtimer))
-		return (0);
-	(void)callout_drain(&hrtimer->callout);
-	return (1);
+	return (callout_drain(&hrtimer->callout) > 0);
 }
 
 void
@@ -78,7 +76,6 @@ linux_hrtimer_init(struct hrtimer *hrtimer)
 {
 
 	hrtimer->function = NULL;
-	hrtimer->flags = 0;
 	mtx_init(&hrtimer->mtx, "hrtimer", NULL, MTX_DEF | MTX_RECURSE);
 	callout_init_mtx(&hrtimer->callout, &hrtimer->mtx, 0);
 }
@@ -101,8 +98,7 @@ linux_hrtimer_start_range_ns(struct hrtimer *hrtimer, ktime_t time, int64_t nsec
 {
 
 	mtx_lock(&hrtimer->mtx);
-	callout_reset_sbt(&hrtimer->callout, time.tv64 * SBT_1NS,
-	    nsec * SBT_1NS, hrtimer_call_handler, hrtimer, 0);
-	hrtimer->flags |= HRTIMER_ACTIVE;
+	callout_reset_sbt(&hrtimer->callout, nstosbt(time.tv64), nstosbt(nsec),
+	    hrtimer_call_handler, hrtimer, 0);
 	mtx_unlock(&hrtimer->mtx);
 }

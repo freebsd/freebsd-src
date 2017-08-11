@@ -1,7 +1,7 @@
-/*	$Id: mandoc_aux.c,v 1.9 2015/11/07 14:22:29 schwarze Exp $ */
+/*	$Id: mandoc_aux.c,v 1.10 2017/06/12 19:05:47 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -71,7 +71,6 @@ mandoc_malloc(size_t size)
 void *
 mandoc_realloc(void *ptr, size_t size)
 {
-
 	ptr = realloc(ptr, size);
 	if (ptr == NULL)
 		err((int)MANDOCLEVEL_SYSERR, NULL);
@@ -81,8 +80,16 @@ mandoc_realloc(void *ptr, size_t size)
 void *
 mandoc_reallocarray(void *ptr, size_t num, size_t size)
 {
-
 	ptr = reallocarray(ptr, num, size);
+	if (ptr == NULL)
+		err((int)MANDOCLEVEL_SYSERR, NULL);
+	return ptr;
+}
+
+void *
+mandoc_recallocarray(void *ptr, size_t oldnum, size_t num, size_t size)
+{
+	ptr = recallocarray(ptr, oldnum, num, size);
 	if (ptr == NULL)
 		err((int)MANDOCLEVEL_SYSERR, NULL);
 	return ptr;
