@@ -464,8 +464,8 @@ pmcpl_gmon_process(struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
 		    image, pmcid);
 		pgf->pgf_pmcid = pmcid;
 		assert(image->pi_end > image->pi_start);
-		pgf->pgf_nbuckets = (image->pi_end - image->pi_start) /
-		    FUNCTION_ALIGNMENT;	/* see <machine/profile.h> */
+		pgf->pgf_nbuckets = howmany(image->pi_end - image->pi_start,
+		    FUNCTION_ALIGNMENT);	/* see <machine/profile.h> */
 		pgf->pgf_ndatabytes = sizeof(struct gmonhdr) +
 		    pgf->pgf_nbuckets * hc_sz;
 		pgf->pgf_nsamples = 0;
