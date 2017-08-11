@@ -4001,16 +4001,17 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
     int *mirrorcntp, NFSPROC_T *p, struct vnode **dvpp, struct nfsmount **nmpp,
     fhandle_t *fhp, char *devid, char *fnamep)
 {
-	struct vnode *dvp;
+	struct vnode *dvp, **tdvpp;
 	struct nfsmount *nmp;
 	struct sockaddr *sad;
 	struct nfsdevice *ds;
 	struct pnfsdsfile *pf;
 	uint32_t dsdir;
-	int error, fhiszero;
+	int error, fhiszero, i, j, mirrorcnt;
 
 	*mirrorcntp = 1;
 	fhiszero = 0;
+	tdvpp = dvpp;
 	if (lktype == 0)
 		lktype = LK_SHARED;
 	if (dvpp != NULL) {
@@ -4019,62 +4020,81 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int buflen,
 	}
 	error = vn_extattr_get(vp, IO_NODELOCKED, EXTATTR_NAMESPACE_SYSTEM,
 	    "pnfsd.dsfile", &buflen, buf, p);
-	if (error == 0 && buflen != sizeof(*pf))
+	mirrorcnt = buflen / sizeof(*pf);
+	if (error == 0 && (mirrorcnt < 1 || mirrorcnt > NFSDEV_MAXMIRRORS ||
+	    buflen != sizeof(*pf) * mirrorcnt))
 		error = ENOATTR;
-	if (error == 0) {
-		pf = (struct pnfsdsfile *)buf;
+	pf = (struct pnfsdsfile *)buf;
+	for (i = 0; i < mirrorcnt && error == 0; i++, pf++) {
 		sad = (struct sockaddr *)&pf->dsf_sin;
 		dsdir = pf->dsf_dir;
 		if (dsdir >= nfsrv_dsdirsize) {
 			printf("nfsrv_dsgetsockmnt: dsdir=%d\n", dsdir);
 			error = ENOATTR;
 		}
-	}
-	if (error == 0) {
-		if (NFSBCMP(&zerofh, &pf->dsf_fh, sizeof(zerofh)) == 0)
-			fhiszero = 1;
-		/* Use the socket address to find the mount point. */
-		NFSDDSLOCK();
-		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
-			dvp = ds->nfsdev_dvp;
-			nmp = VFSTONFS(dvp->v_mount);
-			if (nfsaddr2_match(sad, nmp->nm_nam))
-				break;
-		}
-		NFSDDSUNLOCK();
-		if (ds != NULL) {
-			if (dvpp != NULL || fhiszero != 0) {
-				dvp = ds->nfsdev_dsdir[dsdir];
-				error = vn_lock(dvp, lktype);
-				/*
-				 * If the file handle is all 0's, try to do a
-				 * Lookup against the DS to acquire it.
-				 */
-				if (error == 0 && fhiszero != 0) {
-					error = nfsrv_pnfslookupds(vp, pf, dvp,
-					    p);
-					if (error != 0 || dvpp == NULL)
-						NFSVOPUNLOCK(dvp, 0);
-				}
+		if (error == 0) {
+			if (NFSBCMP(&zerofh, &pf->dsf_fh, sizeof(zerofh)) == 0)
+				fhiszero = 1;
+			/* Use the socket address to find the mount point. */
+			NFSDDSLOCK();
+			TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
+				dvp = ds->nfsdev_dvp;
+				nmp = VFSTONFS(dvp->v_mount);
+				if (nfsaddr2_match(sad, nmp->nm_nam))
+					break;
 			}
-			if (devid != NULL)
-				NFSBCOPY(ds->nfsdev_deviceid, devid,
-				    NFSX_V4DEVICEID);
-		} else
-			error = ENOENT;
-	}
-	if (error == 0) {
-		if (dvpp != NULL) {
-			*dvpp = dvp;
-			*nmpp = nmp;
+			NFSDDSUNLOCK();
+			if (ds != NULL) {
+				if (dvpp != NULL || fhiszero != 0) {
+					dvp = ds->nfsdev_dsdir[dsdir];
+					error = vn_lock(dvp, lktype);
+					/*
+					 * If the file handle is all 0's, try to
+					 * do a Lookup against the DS to acquire
+					 * it.
+					 * If dvpp == NULL or the Lookup fails,
+					 * unlock dvp after the call.
+					 */
+					if (error == 0 && fhiszero != 0) {
+						error = nfsrv_pnfslookupds(vp,
+						    pf, dvp, p);
+						if (error != 0 || dvpp == NULL)
+							NFSVOPUNLOCK(dvp, 0);
+					}
+				}
+				if (devid != NULL) {
+					NFSBCOPY(ds->nfsdev_deviceid, devid,
+					    NFSX_V4DEVICEID);
+					devid += NFSX_V4DEVICEID;
+				}
+			} else
+				error = ENOENT;
 		}
-		if (fhp != NULL)
-			NFSBCOPY(&pf->dsf_fh, fhp, NFSX_MYFH);
-		if (fnamep != NULL)
-			strlcpy(fnamep, pf->dsf_filename,
-			    sizeof(pf->dsf_filename));
-	} else
-		NFSD_DEBUG(4, "nfsrv_dsgetsockmnt err=%d\n", error);
+		if (error == 0) {
+			if (dvpp != NULL) {
+				*tdvpp++ = dvp;
+				*nmpp++ = nmp;
+			}
+			if (fhp != NULL)
+				NFSBCOPY(&pf->dsf_fh, fhp++, NFSX_MYFH);
+			if (fnamep != NULL && i == 0)
+				strlcpy(fnamep, pf->dsf_filename,
+				    sizeof(pf->dsf_filename));
+		} else
+			NFSD_DEBUG(4, "nfsrv_dsgetsockmnt err=%d\n", error);
+	}
+
+	if (error == 0)
+		*mirrorcntp = mirrorcnt;
+	else if (i > 1 && dvpp != NULL) {
+		/*
+		 * If the error didn't occur on the first one and dvpp != NULL,
+		 * the one(s) prior to the failure will have locked dvp's that
+		 * need to be unlocked.
+		 */
+		for (j = 1; j < i; j++)
+			NFSVOPUNLOCK(*dvpp++, 0);
+	}
 	return (error);
 }
 

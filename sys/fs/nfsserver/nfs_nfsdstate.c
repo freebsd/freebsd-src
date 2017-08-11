@@ -6287,9 +6287,8 @@ nfsrv_layoutget(struct nfsrv_descript *nd, vnode_t vp, struct nfsexstuff *exp,
 	NFSUNLOCKLAYOUT(lhyp);
 
 	/* Find the device id and file handle. */
-	dsfhp = malloc(sizeof(fhandle_t) * nfsrv_maxpnfsmirror, M_TEMP,
-	    M_WAITOK);
-	devid = malloc(NFSX_V4DEVICEID * nfsrv_maxpnfsmirror, M_TEMP, M_WAITOK);
+	dsfhp = malloc(sizeof(fhandle_t) * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK);
+	devid = malloc(NFSX_V4DEVICEID * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK);
 	error = nfsrv_dsgetdevandfh(vp, p, &mirrorcnt, dsfhp, devid);
 	NFSD_DEBUG(4, "layoutget devandfh=%d\n", error);
 	if (error == 0) {
