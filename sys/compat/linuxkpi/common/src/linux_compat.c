@@ -1210,7 +1210,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_end = size;
 	vmap->vm_pgoff = *offset / PAGE_SIZE;
 	vmap->vm_pfn = 0;
-	vmap->vm_flags = vmap->vm_page_prot = nprot;
+	vmap->vm_flags = vmap->vm_page_prot = (nprot & VM_PROT_ALL);
 	vmap->vm_ops = NULL;
 	vmap->vm_file = get_file(filp);
 	vmap->vm_mm = mm;
