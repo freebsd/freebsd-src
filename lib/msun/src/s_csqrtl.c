@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #pragma	STDC CX_LIMITED_RANGE	ON
 
 /* We risk spurious overflow for components >= LDBL_MAX / (1 + sqrt(2)). */
-#define	THRESH	(LDBL_MAX / 2.414213562373095048801688724209698L)
+#define	THRESH	(HALF_LDBL_MAX / 1.207106781186547524400844362104849L)
 
 long double complex
 csqrtl(long double complex z)
