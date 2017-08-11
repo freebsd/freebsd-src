@@ -1,6 +1,92 @@
-$Id: NEWS,v 1.21 2017/02/21 00:37:03 schwarze Exp $
+$Id: NEWS,v 1.26 2017/07/28 14:57:56 schwarze Exp $
 
-This file lists the most important changes in the mdocml.bsd.lv distribution.
+This file lists the most important changes in the mandoc.bsd.lv distribution.
+
+Changes in version 1.14.2, released on July 28, 2017
+
+    --- MAJOR NEW FEATURES ---
+ * New mdoc(7) -Tmarkdown output mode.
+ * For -Thtml, implement internal hyperlinks pointing to authoritative
+   definitions of various syntax elements, similar to the ctags(1)-like
+   less(1) :t internal searching in terminal mode.
+ * Provide a superset of the functionality of the former mdoclint(1)
+   utility and a new -Wstyle message level with several new messages,
+   including validity checking of .Xr cross references.
+ * tbl(7): Implement automatic line breaking inside individual table
+   cells, and several other formatting improvements.
+ * eqn(7): Complete rewrite of the lexer, resulting in several bugfixes.
+ * Continue parser unification, in particular allowing generation
+   of syntax tree nodes on the roff(7) level, allowing implementation
+   of many additional roff requests.
+    --- REMOVED FUNCTIONALITY ---
+ * Delete the manpage(1) utility.  It was never enabled in any release.
+ * Delete the -Txhtml command line option.  It has been an obsolete
+   alias for the -Thtml output mode for more than two years.
+    --- MINOR NEW FEATURES ---
+ * -Tlint now puts parser messages on stdout instead of stderr,
+   making commands like "man -l -Tlint *.1" useful.
+ * mdoc(7): Various .Lk formatting improvements.
+ * mdoc(7) -Thtml: Better CSS for .Bl lists.
+ * man(7): Implement the .MT/.ME block macro (mailto hyperlink).
+ * man(7): Implement the .DT macro (restore default tab positions).
+ * man(7): Improved support for manuals generated with reStructuredText
+   by partial support for the \n[an-margin] number register.
+ * man(7) -Thtml: Support deep linking to .SH and .SS headers.
+ * tbl(7): Implement the "allbox" table option.
+ * tbl(7): Implement the column spacing and the 'w' (minimum column
+   width) layout modifiers.
+ * tbl(7): Significant improvements of the manual page.
+ * eqn(7): Much improved font selection, including recognition of
+   well-known function names, and a few other formatting improvements.
+ * eqn(7) -Thtml: Use <mn> and <mo> in addition to <mi>.
+ * roff(7): Implement the .ce (centering), .mc (margin character),
+   .rj (right justify), .ta (define tab stops), .ti (temporary indent),
+   .als (macro alias), .ec and .eo (escape character control),
+   .po (page offset), and .rn (macro rename) requests.
+ * roff(7) .am: Implement appending to mdoc(7) and man(7) macros.
+ * roff(7): implement the \h (horizontol motion), \l (horizontal
+   line drawing), and \p (break output line) escape sequences,
+   and also several additional character escape sequences.
+ * roff(7): Implement the 'd' conditional (macro or string defined).
+ * man.cgi(8) now uses pledge(2), too.
+ * regress.pl(1): simpler user interface, better summary output,
+   simpler code, and no more recursion.
+    --- THANKS TO ---
+ * Anthony Bentley (OpenBSD) for the implementation of .MT/.ME,
+   reports of many bugs and missing features, and suggestions
+   for a number of feature and documentation improvements.
+ * Sebastien Marie (OpenBSD) for two source code patches and
+   for some useful discussions.
+ * Florian Obser (OpenBSD) for a bugfix patch and a bug report.
+ * Jonathan Gray (OpenBSD) for several bug reports from afl(1)
+   and several more from static analysis tools.
+ * Theo Buehler (OpenBSD) for several bug reports, most from afl(1).
+ * Jason McIntyre (OpenBSD) for many useful discussions about a
+   wide variety of topics, lots of continuous testing, a number of
+   bug reports, and some suggestions for messages and documentation.
+ * Thomas Klausner (NetBSD) for lots of help while migrating
+   mdoclint(1) functionality to mandoc -Tlint, for suggesting
+   several useful new messages, and for release testing.
+ * Reyk Floeter (OpenBSD) and Vsevolod Stakhov (FreeBSD) for
+   suggesting a markdown output mode.
+ * Thomas Guettler for suggesting -Thtml internal hyperlinks.
+ * Yuri Pankov (Illumos) for inspiring new warning messages and
+   for extensive release testing.
+ * Anton Lindqvist and TJ Townsend (both OpenBSD) and Jan Stary
+   for multiple bug reports.
+ * Leah Neukirchen (Void Linux) for bug reports and release testing.
+ * Michael Stapelberg (Debian) for suggesting feature improvements
+   and for release testing.
+ * Martin Natano and Theo de Raadt (both OpenBSD), Andreas Voegele,
+   Gabriel Guzman, Gonzalo Tornaria, Markus Waldeck, and Raf Czlonka
+   for bug reports.
+ * Antoine Jacoutot (OpenBSD) and Steffen Nurpmeso for suggesting
+   feature improvements.
+ * Dag-Erling Smoergrav (FreeBSD) for inspiring new warning messages.
+ * Ted Unangst and Marc Espie (OpenBSD) for providing useful ideas.
+ * Svyatoslav Mishyn (Crux Linux) for release testing.
+ * Carsten Kunze (Heirloom roff) for help keeping mandoc and groff
+   compatible and for committing some of my patches to groff.
 
 Changes in version 1.14.1, released on February 21, 2017
 
@@ -274,11 +360,11 @@ Changes in version 1.13.3, released on March 13, 2015
  * New -Wunsupp message level.
     --- POTENTIONALLY SECURITY RELEVANT BUGFIXES ---
  * Fix a potential write buffer overrun on incomplete string conditionals.
-   http://mdocml.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.241
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.241
  * Fix a potential write buffer overrun on backslash at EOF in a conditional.
-   http://mdocml.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.247
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/roff.c#rev1.247
  * Fix a use after free sometimes hit when validation deletes a block.
-   http://mdocml.bsd.lv/cgi-bin/cvsweb/mdoc_macro.c#rev1.180
+   http://mandoc.bsd.lv/cgi-bin/cvsweb/mdoc_macro.c#rev1.180
     --- MAJOR FUNCTIONALLY RELEVANT BUGFIXES ---
  * Let man(1) show manuals for the current architecture by default,
    and support the MACHINE environment variable.
@@ -889,4 +975,4 @@ Changes in version 1.9.15, released on February 18, 2010
  * and column lengths handled correctly.
 
 For older releases, see the ChangeLog files
-in http://mdocml.bsd.lv/snapshots/ .
+in http://mandoc.bsd.lv/snapshots/ .

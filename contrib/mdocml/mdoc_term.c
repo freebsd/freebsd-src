@@ -1,4 +1,4 @@
-/*	$Id: mdoc_term.c,v 1.363 2017/06/08 12:54:58 schwarze Exp $ */
+/*	$Id: mdoc_term.c,v 1.364 2017/06/14 17:51:15 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -540,7 +540,7 @@ a2width(const struct termp *p, const char *v)
 		SCALE_HS_INIT(&su, term_strlen(p, v));
 		su.scale /= term_strlen(p, "0");
 	}
-	return term_hspan(p, &su) / 24;
+	return term_hen(p, &su);
 }
 
 /*
@@ -686,7 +686,7 @@ termp_it_pre(DECL_ARGS)
 			SCALE_HS_INIT(&su,
 			    term_strlen(p, bl->norm->Bl.cols[i]));
 			su.scale /= term_strlen(p, "0");
-			offset += term_hspan(p, &su) / 24 + dcol;
+			offset += term_hen(p, &su) + dcol;
 		}
 
 		/*
@@ -704,7 +704,7 @@ termp_it_pre(DECL_ARGS)
 		 */
 		SCALE_HS_INIT(&su, term_strlen(p, bl->norm->Bl.cols[i]));
 		su.scale /= term_strlen(p, "0");
-		width = term_hspan(p, &su) / 24 + dcol;
+		width = term_hen(p, &su) + dcol;
 		break;
 	default:
 		if (NULL == bl->norm->Bl.width)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2009, Stacey Son <sson@freebsd.org> 
+ * Copyright (c) 2017 Eric McCorkle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +26,13 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_KSYMS_H_
-#define _SYS_KSYMS_H_
+#ifndef _EFI_DRIVER_UTILS_H_
+#define _EFI_DRIVER_UTILS_H_
 
-#include <sys/ioccom.h>
+#include <efi.h>
+#include <efiprot.h>
 
-#define KIOCGSIZE	_IOR('l', 1, size_t)	
-#define KIOCGADDR	_IOR('l', 2, void *)	
+extern EFI_STATUS install_driver(EFI_DRIVER_BINDING *driver);
+extern EFI_STATUS connect_controllers(EFI_GUID *filter);
 
-#endif /* _SYS_KSYMS_H_ */
+#endif

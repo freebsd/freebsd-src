@@ -182,6 +182,11 @@ efidev_modevents(module_t m, int event, void *arg __unused)
 
 	switch (event) {
 	case MOD_LOAD:
+		/*
+		 * If we have no efi environment, then don't create the device.
+		 */
+		if (efi_rt_ok() != 0)
+			return (0);
 		make_dev_args_init(&mda);
 		mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
 		mda.mda_devsw = &efi_cdevsw;

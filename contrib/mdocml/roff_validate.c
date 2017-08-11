@@ -1,4 +1,4 @@
-/*	$Id: roff_validate.c,v 1.7 2017/06/06 15:01:04 schwarze Exp $ */
+/*	$Id: roff_validate.c,v 1.9 2017/06/14 22:51:25 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -36,6 +36,8 @@ static	const roff_valid_fp roff_valids[ROFF_MAX] = {
 	roff_valid_ft,  /* ft */
 	NULL,  /* ll */
 	NULL,  /* mc */
+	NULL,  /* po */
+	NULL,  /* rj */
 	NULL,  /* sp */
 	NULL,  /* ta */
 	NULL,  /* ti */

@@ -1,22 +1,24 @@
-$Id: INSTALL,v 1.18 2017/02/08 12:24:10 schwarze Exp $
+$Id: INSTALL,v 1.20 2017/07/28 14:57:56 schwarze Exp $
 
-About mdocml, the portable mandoc distribution
-----------------------------------------------
-The mandoc manpage compiler toolset is a suite of tools compiling
-mdoc(7), the roff(7) macro language of choice for BSD manual pages,
-and man(7), the predominant historical language for UNIX manuals.
+About the portable mandoc distribution
+--------------------------------------
+The mandoc manpage compiler toolset (formerly called "mdocml")
+is a suite of tools compiling mdoc(7), the roff(7) macro language
+of choice for BSD manual pages, and man(7), the predominant
+historical language for UNIX manuals.
+
 It includes a man(1) manual viewer and additional tools.
-For general information, see <http://mdocml.bsd.lv/>.
+For general information, see <http://mandoc.bsd.lv/>.
 
 In case you have questions or want to provide feedback, read
-<http://mdocml.bsd.lv/contact.html>.  Consider subscribing to the
+<http://mandoc.bsd.lv/contact.html>.  Consider subscribing to the
 discuss@ mailing list mentioned on that page.  If you intend to
 help with the development of mandoc, consider subscribing to the
 tech@ mailing list, too.
 
 Enjoy using the mandoc toolset!
 
-Ingo Schwarze, Karlsruhe, February 2017
+Ingo Schwarze, Karlsruhe, July 2017
 
 
 Installation
@@ -25,7 +27,7 @@ Before manually installing mandoc on your system, please check
 whether the newest version of mandoc is already installed by default
 or available via a binary package or a ports system.  A list of the
 latest bundled and ported versions of mandoc for various operating
-systems is maintained at <http://mdocml.bsd.lv/ports.html>.
+systems is maintained at <http://mandoc.bsd.lv/ports.html>.
 
 Regarding how packages and ports are maintained for your operating
 system, please consult your operating system documentation.
@@ -35,7 +37,7 @@ To install mandoc manually, the following steps are needed:
 run the command "echo BUILD_CGI=1 >> configure.local".
 Then run "cp cgi.h.example cgi.h" and edit cgi.h as desired.
 
-2. If you also want to build the new catman(8) utility, run the
+2. If you also want to build the catman(8) utility, run the
 command "echo BUILD_CATMAN=1 >> configure.local".  Note that it
 is unlikely to be a drop-in replacement providing the same
 functionality as your system's "catman", if your operating
@@ -75,7 +77,7 @@ command like "make DESTDIR=... install".  Read the *-install targets
 in the "Makefile" to understand how DESTDIR is used.
 
 9. Run the command "sudo makewhatis" to build mandoc.db(5) databases
-in all the directory trees configured in step 6.  Whenever installing
+in all the directory trees configured in step 3.  Whenever installing
 new manual pages, re-run makewhatis(8) to update the databases, or
 apropos(1) will not find the new pages.
 

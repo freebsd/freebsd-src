@@ -1,4 +1,4 @@
-.Dd December 1, 2014
+.Dd $Mdocdate: July 8 2017 $
 .Dt MANDOC_HEADERS 3
 .Os
 .Sh NAME
@@ -87,6 +87,7 @@ Provides
 .Vt enum mandoc_esc ,
 .Vt enum mandocerr ,
 .Vt enum mandoclevel ,
+.Vt enum mandoc_os ,
 .Vt enum tbl_cellt ,
 .Vt enum tbl_datt ,
 .Vt enum tbl_spant ,
@@ -100,7 +101,6 @@ Provides
 .Vt struct tbl_dat ,
 .Vt struct tbl_span ,
 .Vt struct eqn_box ,
-.Vt struct eqn ,
 the function prototype typedef
 .Fn mandocmsg ,
 the function
@@ -122,11 +122,24 @@ Uses the type
 from
 .Pa roff.h
 as an opaque type for function prototypes.
+.It Qq Pa mandoc_xr.h
+Provides
+.Vt struct mandoc_xr
+and the functions
+.Fn mandoc_xr_reset ,
+.Fn mandoc_xr_add ,
+.Fn mandoc_xr_get ,
+and
+.Fn mandoc_xr_free .
 .It Qq Pa roff.h
 Requires
 .Qq Pa mandoc_ohash.h
 for
-.Vt struct ohash .
+.Vt struct ohash
+and
+.Qq Pa mandoc.h
+for
+.Vt enum mandoc_os .
 .Pp
 Provides
 .Vt enum mdoc_endbody ,
@@ -251,17 +264,11 @@ and
 from
 .Pa roff.c
 for function prototypes.
-Uses the types
-.Vt struct tbl_span
-and
-.Vt struct eqn
-from
-.Pa mandoc.h
-and
+Uses the type
 .Vt struct roff_man
 from
 .Pa roff.h
-as opaque types for function prototypes.
+as an opaque type for function prototypes.
 .It Qq Pa roff_int.h
 Requires
 .Qq Pa roff.h
@@ -278,16 +285,11 @@ because the latter two are needed by
 .Qq Pa roff.c .
 .Pp
 Uses the types
-.Vt struct eqn
-and
-.Vt struct tbl_span
-from
-.Pa mandoc.h ,
 .Vt struct roff_man
 and
 .Vt struct roff_node
 from
-.Pa roff.h ,
+.Pa roff.h
 and
 .Vt struct mdoc_arg
 from
@@ -359,16 +361,13 @@ or
 Requires
 .In sys/types.h
 for
-.Vt size_t ,
+.Vt size_t
+and
 .Qq Pa mandoc.h
 for
 .Vt struct tbl_*
 and
-.Vt struct eqn ,
-and
-.Qq Pa libmandoc.h
-for
-.Vt enum rofferr .
+.Vt struct eqn_box .
 .Pp
 Provides
 .Vt enum tbl_part ,
@@ -448,7 +447,7 @@ from
 Uses
 .Vt struct tbl_span
 and
-.Vt struct eqn
+.Vt struct eqn_box
 from
 .Pa mandoc.h
 and
@@ -489,7 +488,7 @@ and many HTML formatting functions.
 Uses
 .Vt struct tbl_span
 and
-.Vt struct eqn
+.Vt struct eqn_box
 from
 .Pa mandoc.h
 and
@@ -535,8 +534,9 @@ Provides
 and the functions
 .Fn manconf_parse ,
 .Fn manconf_output ,
+.Fn manconf_free ,
 and
-.Fn manconf_free .
+.Fn manpath_base .
 .It Qq Pa mansearch.h
 Requires
 .In sys/types.h

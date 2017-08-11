@@ -38,7 +38,9 @@
 #define _FS_FDESC_H_
 
 /* Private mount flags for fdescfs. */
-#define FMNT_UNMOUNTF 0x01
+#define FMNT_UNMOUNTF	0x01
+#define FMNT_LINRDLNKF	0x02
+
 struct fdescmount {
 	struct vnode	*f_root;	/* Root node */
 	int flags;

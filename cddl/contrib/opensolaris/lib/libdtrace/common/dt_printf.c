@@ -311,7 +311,7 @@ pfprint_fp(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 		return (dt_printf(dtp, fp, format,
 		    *((double *)addr) / n));
 #if !defined(__arm__) && !defined(__powerpc__) && \
-    !defined(__mips__) && !defined(__riscv__)
+    !defined(__mips__) && !defined(__riscv)
 	case sizeof (long double):
 		return (dt_printf(dtp, fp, format,
 		    *((long double *)addr) / ldn));

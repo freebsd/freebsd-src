@@ -1,4 +1,4 @@
-# $Id: configure.local.example,v 1.30 2017/03/04 16:36:29 schwarze Exp $
+# $Id: configure.local.example,v 1.33 2017/07/20 16:24:53 schwarze Exp $
 #
 # Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -20,7 +20,7 @@
 # and put any of these settings into it if ./configure autodetection
 # fails or if you want to make different choices for other reasons.
 
-# If autodetection fails, please tell <tech@mdocml.bsd.lv>.
+# If autodetection fails, please tell <tech@mandoc.bsd.lv>.
 
 # We recommend that you write ./configure.local from scratch and
 # only put the lines there you need.  This file contains examples.
@@ -61,6 +61,11 @@ UTF8_LOCALE=en_US.UTF-8
 # trees by default.
 
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+
+# Validation of cross references with mandoc -Tlint only looks
+# for manual pages in the following directories:
+
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 
 # In manual pages written in the mdoc(7) language, the operating system
 # version is displayed in the page footer line.  If an operating system
@@ -292,6 +297,7 @@ HAVE_PATH_MAX=0
 HAVE_PLEDGE=0
 HAVE_PROGNAME=0
 HAVE_REALLOCARRAY=0
+HAVE_RECALLOCARRAY=0
 HAVE_REWB_BSD=0
 HAVE_REWB_SYSV=0
 HAVE_STRCASESTR=0

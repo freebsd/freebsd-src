@@ -3,12 +3,10 @@
 .include <src.opts.mk>
 
 SUBDIR= lib .WAIT \
-	libexec ${_tests} usr.bin usr.sbin
+	libexec usr.bin usr.sbin
 SUBDIR_PARALLEL=
 
-.if ${MK_TESTS} != "no"
-_tests=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 # These are the programs which depend on crypto, but not Kerberos.
 SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\

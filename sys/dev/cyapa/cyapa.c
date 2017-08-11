@@ -1455,7 +1455,7 @@ cyapa_raw_input(struct cyapa_softc *sc, struct cyapa_regs *regs, int freq)
 				sc->delta_x = sc->cap_resx;
 			if (sc->delta_x < -sc->cap_resx)
 				sc->delta_x = -sc->cap_resx;
-			if (sc->delta_y > sc->cap_resx)
+			if (sc->delta_y > sc->cap_resy)
 				sc->delta_y = sc->cap_resy;
 			if (sc->delta_y < -sc->cap_resy)
 				sc->delta_y = -sc->cap_resy;

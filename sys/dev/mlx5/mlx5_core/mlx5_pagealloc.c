@@ -190,13 +190,10 @@ mlx5_fwp_free(struct mlx5_fw_page *fwp)
 	num = fwp->numpages;
 	dev = fwp->dev;
 
-	/* serialize unloading the DMA maps */
-	sx_xlock(&dev->cmd.dma_sx);
 	while (num--) {
 		bus_dmamap_unload(dev->cmd.dma_tag, fwp[num].dma_map);
 		bus_dmamem_free(dev->cmd.dma_tag, fwp[num].virt_addr, fwp[num].dma_map);
 	}
-	sx_xunlock(&dev->cmd.dma_sx);
 
 	kfree(fwp);
 }

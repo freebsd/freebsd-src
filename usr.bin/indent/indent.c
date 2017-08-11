@@ -71,6 +71,8 @@ const char *in_name = "Standard Input";	/* will always point to name of input
 					 * file */
 const char *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
+const char *simple_backup_suffix = ".BAK";	/* Suffix to use for backup
+						 * files */
 char        bakfile[MAXPATHLEN] = "";
 
 int
@@ -99,7 +101,7 @@ main(int argc, char **argv)
 
     int         last_else = 0;	/* true iff last keyword was an else */
     const char *profile_name = NULL;
-
+    const char *envval = NULL;
 
     /*-----------------------------------------------*\
     |		      INITIALIZATION		      |
@@ -159,6 +161,10 @@ main(int argc, char **argv)
 
     output = NULL;
     tabs_to_var = 0;
+
+    envval = getenv("SIMPLE_BACKUP_SUFFIX");
+    if (envval)
+        simple_backup_suffix = envval;
 
     /*--------------------------------------------------*\
     |   		COMMAND LINE SCAN		 |
@@ -1234,7 +1240,7 @@ bakcopy(void)
 	p--;
     if (*p == '/')
 	p++;
-    sprintf(bakfile, "%s.BAK", p);
+    sprintf(bakfile, "%s%s", p, simple_backup_suffix);
 
     /* copy in_name to backup file */
     bakchn = creat(bakfile, 0600);

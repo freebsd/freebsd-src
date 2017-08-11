@@ -1,4 +1,4 @@
-/*	$Id: term.c,v 1.268 2017/06/08 12:54:58 schwarze Exp $ */
+/*	$Id: term.c,v 1.274 2017/07/28 14:25:48 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -38,6 +38,18 @@ static	void		 encode(struct termp *, const char *, size_t);
 static	void		 encode1(struct termp *, int);
 static	void		 endline(struct termp *);
 
+
+void
+term_setcol(struct termp *p, size_t maxtcol)
+{
+	if (maxtcol > p->maxtcol) {
+		p->tcols = mandoc_recallocarray(p->tcols,
+		    p->maxtcol, maxtcol, sizeof(*p->tcols));
+		p->maxtcol = maxtcol;
+	}
+	p->lasttcol = maxtcol - 1;
+	p->tcol = p->tcols;
+}
 
 void
 term_free(struct termp *p)
@@ -104,6 +116,7 @@ term_flushln(struct termp *p)
 	size_t		 jhy;	/* last hyph before overflow w/r/t j */
 	size_t		 maxvis; /* output position of visible boundary */
 	int		 ntab;	/* number of tabs to prepend */
+	int		 breakline; /* after this word */
 
 	vbl = (p->flags & TERMP_NOPAD) || p->tcol->offset < p->viscol ?
 	    0 : p->tcol->offset - p->viscol;
@@ -116,9 +129,9 @@ term_flushln(struct termp *p)
 	    p->maxrmargin - p->viscol - vbl : 0;
 	vis = vend = 0;
 
-	if (p->lasttcol == 0)
+	if ((p->flags & TERMP_MULTICOL) == 0)
 		p->tcol->col = 0;
-	while (p->tcol->col < p->lastcol) {
+	while (p->tcol->col < p->tcol->lastcol) {
 
 		/*
 		 * Handle literal tab characters: collapse all
@@ -126,7 +139,7 @@ term_flushln(struct termp *p)
 		 */
 
 		ntab = 0;
-		while (p->tcol->col < p->lastcol &&
+		while (p->tcol->col < p->tcol->lastcol &&
 		    p->tcol->buf[p->tcol->col] == '\t') {
 			vend = term_tab_next(vis);
 			vbl += vend - vis;
@@ -143,7 +156,13 @@ term_flushln(struct termp *p)
 		 */
 
 		jhy = 0;
-		for (j = p->tcol->col; j < p->lastcol; j++) {
+		breakline = 0;
+		for (j = p->tcol->col; j < p->tcol->lastcol; j++) {
+			if (p->tcol->buf[j] == '\n') {
+				if ((p->flags & TERMP_BRIND) == 0)
+					breakline = 1;
+				continue;
+			}
 			if (p->tcol->buf[j] == ' ' || p->tcol->buf[j] == '\t')
 				break;
 
@@ -178,7 +197,7 @@ term_flushln(struct termp *p)
 
 		if (vend > bp && jhy == 0 && vis > 0 &&
 		    (p->flags & TERMP_BRNEVER) == 0) {
-			if (p->lasttcol)
+			if (p->flags & TERMP_MULTICOL)
 				return;
 
 			endline(p);
@@ -206,14 +225,16 @@ term_flushln(struct termp *p)
 		 * Write out the rest of the word.
 		 */
 
-		for ( ; p->tcol->col < p->lastcol; p->tcol->col++) {
+		for ( ; p->tcol->col < p->tcol->lastcol; p->tcol->col++) {
 			if (vend > bp && jhy > 0 && p->tcol->col > jhy)
 				break;
+			if (p->tcol->buf[p->tcol->col] == '\n')
+				continue;
 			if (p->tcol->buf[p->tcol->col] == '\t')
 				break;
 			if (p->tcol->buf[p->tcol->col] == ' ') {
 				j = p->tcol->col;
-				while (p->tcol->col < p->lastcol &&
+				while (p->tcol->col < p->tcol->lastcol &&
 				    p->tcol->buf[p->tcol->col] == ' ')
 					p->tcol->col++;
 				dv = (p->tcol->col - j) * (*p->width)(p, ' ');
@@ -248,6 +269,26 @@ term_flushln(struct termp *p)
 				    p->tcol->buf[p->tcol->col]);
 		}
 		vis = vend;
+
+		if (breakline == 0)
+			continue;
+
+		/* Explicitly requested output line break. */
+
+		if (p->flags & TERMP_MULTICOL)
+			return;
+
+		endline(p);
+		breakline = 0;
+		vis = vend = 0;
+
+		/* Re-establish indentation. */
+
+		vbl = p->tcol->offset;
+		maxvis = p->tcol->rmargin > vbl ?
+		    p->tcol->rmargin - vbl : 0;
+		bp = !(p->flags & TERMP_NOBREAK) ? maxvis :
+		    p->maxrmargin > vbl ?  p->maxrmargin - vbl : 0;
 	}
 
 	/*
@@ -260,9 +301,12 @@ term_flushln(struct termp *p)
 	else
 		vis = 0;
 
-	p->col = p->lastcol = 0;
+	p->col = p->tcol->col = p->tcol->lastcol = 0;
 	p->minbl = p->trailspace;
 	p->flags &= ~(TERMP_BACKAFTER | TERMP_BACKBEFORE | TERMP_NOPAD);
+
+	if (p->flags & TERMP_MULTICOL)
+		return;
 
 	/* Trailing whitespace is significant in some columns. */
 
@@ -305,7 +349,7 @@ term_newln(struct termp *p)
 {
 
 	p->flags |= TERMP_NOSPACE;
-	if (p->lastcol || p->viscol)
+	if (p->tcol->lastcol || p->viscol)
 		term_flushln(p);
 }
 
@@ -472,6 +516,9 @@ term_word(struct termp *p, const char *word)
 		case ESCAPE_FONTPREV:
 			term_fontlast(p);
 			continue;
+		case ESCAPE_BREAK:
+			bufferc(p, '\n');
+			continue;
 		case ESCAPE_NOSPACE:
 			if (p->flags & TERMP_BACKAFTER)
 				p->flags &= ~TERMP_BACKAFTER;
@@ -479,9 +526,14 @@ term_word(struct termp *p, const char *word)
 				p->flags |= (TERMP_NOSPACE | TERMP_NONEWLINE);
 			continue;
 		case ESCAPE_HORIZ:
+			if (*seq == '|') {
+				seq++;
+				uc = -p->col;
+			} else
+				uc = 0;
 			if (a2roffsu(seq, &su, SCALE_EM) == NULL)
 				continue;
-			uc = term_hspan(p, &su) / 24;
+			uc += term_hen(p, &su);
 			if (uc > 0)
 				while (uc-- > 0)
 					bufferc(p, ASCII_NBRSP);
@@ -500,19 +552,19 @@ term_word(struct termp *p, const char *word)
 			}
 			continue;
 		case ESCAPE_HLINE:
-			if ((seq = a2roffsu(seq, &su, SCALE_EM)) == NULL)
+			if ((cp = a2roffsu(seq, &su, SCALE_EM)) == NULL)
 				continue;
-			uc = term_hspan(p, &su) / 24;
+			uc = term_hen(p, &su);
 			if (uc <= 0) {
 				if (p->tcol->rmargin <= p->tcol->offset)
 					continue;
 				lsz = p->tcol->rmargin - p->tcol->offset;
 			} else
 				lsz = uc;
-			if (*seq == '\0')
+			if (*cp == seq[-1])
 				uc = -1;
-			else if (*seq == '\\') {
-				seq++;
+			else if (*cp == '\\') {
+				seq = cp + 1;
 				esc = mandoc_escape(&seq, &cp, &sz);
 				switch (esc) {
 				case ESCAPE_UNICODE:
@@ -529,7 +581,7 @@ term_word(struct termp *p, const char *word)
 					break;
 				}
 			} else
-				uc = *seq;
+				uc = *cp;
 			if (uc < 0x20 || (uc > 0x7E && uc < 0xA0))
 				uc = '_';
 			if (p->enc == TERMENC_ASCII) {
@@ -565,12 +617,12 @@ term_word(struct termp *p, const char *word)
 				}
 			}
 			/* Trim trailing backspace/blank pair. */
-			if (p->lastcol > 2 &&
-			    (p->tcol->buf[p->lastcol - 1] == ' ' ||
-			     p->tcol->buf[p->lastcol - 1] == '\t'))
-				p->lastcol -= 2;
-			if (p->col > p->lastcol)
-				p->col = p->lastcol;
+			if (p->tcol->lastcol > 2 &&
+			    (p->tcol->buf[p->tcol->lastcol - 1] == ' ' ||
+			     p->tcol->buf[p->tcol->lastcol - 1] == '\t'))
+				p->tcol->lastcol -= 2;
+			if (p->col > p->tcol->lastcol)
+				p->col = p->tcol->lastcol;
 			continue;
 		default:
 			continue;
@@ -613,10 +665,10 @@ bufferc(struct termp *p, char c)
 	}
 	if (p->col + 1 >= p->tcol->maxcols)
 		adjbuf(p->tcol, p->col + 1);
-	if (p->lastcol <= p->col || (c != ' ' && c != ASCII_NBRSP))
+	if (p->tcol->lastcol <= p->col || (c != ' ' && c != ASCII_NBRSP))
 		p->tcol->buf[p->col] = c;
-	if (p->lastcol < ++p->col)
-		p->lastcol = p->col;
+	if (p->tcol->lastcol < ++p->col)
+		p->tcol->lastcol = p->col;
 }
 
 /*
@@ -659,10 +711,10 @@ encode1(struct termp *p, int c)
 			p->tcol->buf[p->col++] = c;
 		p->tcol->buf[p->col++] = '\b';
 	}
-	if (p->lastcol <= p->col || (c != ' ' && c != ASCII_NBRSP))
+	if (p->tcol->lastcol <= p->col || (c != ' ' && c != ASCII_NBRSP))
 		p->tcol->buf[p->col] = c;
-	if (p->lastcol < ++p->col)
-		p->lastcol = p->col;
+	if (p->tcol->lastcol < ++p->col)
+		p->tcol->lastcol = p->col;
 	if (p->flags & TERMP_BACKAFTER) {
 		p->flags |= TERMP_BACKBEFORE;
 		p->flags &= ~TERMP_BACKAFTER;
@@ -688,7 +740,7 @@ encode(struct termp *p, const char *word, size_t sz)
 		    isgraph((unsigned char)word[i]))
 			encode1(p, word[i]);
 		else {
-			if (p->lastcol <= p->col ||
+			if (p->tcol->lastcol <= p->col ||
 			    (word[i] != ' ' && word[i] != ASCII_NBRSP))
 				p->tcol->buf[p->col] = word[i];
 			p->col++;
@@ -705,8 +757,8 @@ encode(struct termp *p, const char *word, size_t sz)
 			}
 		}
 	}
-	if (p->lastcol < p->col)
-		p->lastcol = p->col;
+	if (p->tcol->lastcol < p->col)
+		p->tcol->lastcol = p->col;
 }
 
 void
@@ -919,11 +971,25 @@ term_vspan(const struct termp *p, const struct roffsu *su)
 }
 
 /*
- * Convert a scaling width to basic units, rounding down.
+ * Convert a scaling width to basic units, rounding towards 0.
  */
 int
 term_hspan(const struct termp *p, const struct roffsu *su)
 {
 
 	return (*p->hspan)(p, su);
+}
+
+/*
+ * Convert a scaling width to basic units, rounding to closest.
+ */
+int
+term_hen(const struct termp *p, const struct roffsu *su)
+{
+	int bu;
+
+	if ((bu = (*p->hspan)(p, su)) >= 0)
+		return (bu + 11) / 24;
+	else
+		return -((-bu + 11) / 24);
 }

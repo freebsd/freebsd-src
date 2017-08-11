@@ -429,6 +429,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct sbuf *sb;
+	struct g_geom_alias *gap;
 	off_t offset;
 
 	cp = LIST_FIRST(&gp->consumer);
@@ -439,6 +440,19 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
+		/*
+		 * Add aliases to the geom before we create the provider so that
+		 * geom_dev can taste it with all the aliases in place so all
+		 * the aliased dev_t instances get created for each partition
+		 * (eg foo5p7 gets created for bar5p7 when foo is an alias of bar).
+		 */
+		LIST_FOREACH(gap, &table->gpt_gp->aliases, ga_next) {
+			sb = sbuf_new_auto();
+			G_PART_FULLNAME(table, entry, sb, gap->ga_alias);
+			sbuf_finish(sb);
+			g_geom_add_alias(gp, sbuf_data(sb));
+			sbuf_delete(sb);
+		}
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, gp->name);
 		sbuf_finish(sb);
@@ -1901,6 +1915,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct g_part_entry *entry;
 	struct g_part_table *table;
 	struct root_hold_token *rht;
+	struct g_geom_alias *gap;
 	int attr, depth;
 	int error;
 
@@ -1913,10 +1928,12 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/*
 	 * Create a GEOM with consumer and hook it up to the provider.
-	 * With that we become part of the topology. Optain read access
+	 * With that we become part of the topology. Obtain read access
 	 * to the provider.
 	 */
 	gp = g_new_geomf(mp, "%s", pp->name);
+	LIST_FOREACH(gap, &pp->geom->aliases, ga_next)
+		g_geom_add_alias(gp, gap->ga_alias);
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);

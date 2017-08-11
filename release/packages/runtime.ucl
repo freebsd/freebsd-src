@@ -5,7 +5,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "%COMMENT%"
+comment = "%COMMENT% %VCS_REVISION%"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
@@ -25,6 +25,10 @@ EOD
 }
 deps: {
     "FreeBSD-clibs": {
+        origin: "base"
+        version: "%VERSION%"
+    },
+    "FreeBSD-kernel-%KERNCONF%": {
         origin: "base"
         version: "%VERSION%"
     }

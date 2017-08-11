@@ -2630,7 +2630,7 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 	/* popagate only if decremented ttl >= 1 && forwarding is enabled */
 	if ((ie.gann_ttl - 1) < 1 && !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD))
 		return 0;
-		pgann.gann_flags = ie.gann_flags; /* Reserved */
+	pgann.gann_flags = ie.gann_flags; /* Reserved */
 	pgann.gann_hopcount = ie.gann_hopcount + 1;
 	pgann.gann_ttl = ie.gann_ttl - 1;
 	IEEE80211_ADDR_COPY(pgann.gann_addr, ie.gann_addr);

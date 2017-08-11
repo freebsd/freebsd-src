@@ -1,4 +1,4 @@
-/*	$Id: out.h,v 1.29 2017/06/08 18:11:22 schwarze Exp $ */
+/*	$Id: out.h,v 1.31 2017/06/27 18:25:02 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -33,6 +33,7 @@ enum	roffscale {
 struct	roffcol {
 	size_t		 width; /* width of cell */
 	size_t		 decimal; /* decimal position in cell */
+	size_t		 spacing; /* spacing after the column */
 	int		 flags; /* layout flags, see tbl_cell */
 };
 
@@ -68,4 +69,4 @@ struct	tbl_span;
 
 const char	 *a2roffsu(const char *, struct roffsu *, enum roffscale);
 void		  tblcalc(struct rofftbl *tbl,
-			const struct tbl_span *, size_t);
+			const struct tbl_span *, size_t, size_t);

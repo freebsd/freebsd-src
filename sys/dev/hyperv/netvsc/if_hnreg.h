@@ -133,7 +133,7 @@ struct hn_nvs_ndis_init {
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
 
-#define HN_NVS_DATAPATH_SYNTHETIC	0
+#define HN_NVS_DATAPATH_SYNTH		0
 #define HN_NVS_DATAPATH_VF		1
 
 /* No response */

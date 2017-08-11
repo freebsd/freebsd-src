@@ -143,7 +143,7 @@ struct profile_probe_percpu;
 #define	PROF_ARTIFICIAL_FRAMES	10
 #endif
 
-#ifdef __riscv__
+#ifdef __riscv
 /* TODO: verify */
 #define	PROF_ARTIFICIAL_FRAMES	10
 #endif

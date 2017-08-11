@@ -4044,6 +4044,26 @@ svn_io_write_atomic(const char *final_path,
 svn_error_t *
 svn_io_file_trunc(apr_file_t *file, apr_off_t offset, apr_pool_t *pool)
 {
+  /* Workaround for yet another APR issue with trunc.
+
+     If the APR file internally is in read mode, the current buffer pointer
+     will not be clipped to the valid data range. get_file_offset may then
+     return an invalid position *after* new data was written to it.
+
+     To prevent this, write 1 dummy byte just after the OFFSET at which we
+     will trunc it.  That will force the APR file into write mode
+     internally and the flush() work-around below becomes affective. */
+  apr_off_t position = 0;
+
+  /* A frequent usage is OFFSET==0, in which case we don't need to preserve
+     any file content or file pointer. */
+  if (offset)
+    {
+      SVN_ERR(svn_io_file_seek(file, APR_CUR, &position, pool));
+      SVN_ERR(svn_io_file_seek(file, APR_SET, &offset, pool));
+    }
+  SVN_ERR(svn_io_file_putc(0, file, pool));
+
   /* This is a work-around. APR would flush the write buffer
      _after_ truncating the file causing now invalid buffered
      data to be written behind OFFSET. */
@@ -4052,10 +4072,17 @@ svn_io_file_trunc(apr_file_t *file, apr_off_t offset, apr_pool_t *pool)
                                      N_("Can't flush stream"),
                                      pool));
 
-  return do_io_file_wrapper_cleanup(file, apr_file_trunc(file, offset),
-                                    N_("Can't truncate file '%s'"),
-                                    N_("Can't truncate stream"),
-                                    pool);
+  SVN_ERR(do_io_file_wrapper_cleanup(file, apr_file_trunc(file, offset),
+                                     N_("Can't truncate file '%s'"),
+                                     N_("Can't truncate stream"),
+                                     pool));
+
+  /* Restore original file pointer, if necessary.
+     It's currently at OFFSET. */
+  if (position < offset)
+    SVN_ERR(svn_io_file_seek(file, APR_SET, &position, pool));
+
+  return SVN_NO_ERROR;
 }
 
 

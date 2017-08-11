@@ -78,6 +78,9 @@ device		da			# Direct Access (disks)
 device		cd			# CD
 device		pass			# Passthrough device (direct ATA/SCSI access)
 
+# ATA controllers
+device 		ahci			# AHCI-compatible SATA controllers
+
 # USB support
 device		ehci			# OHCI USB interface
 device		usb			# USB Bus (required)

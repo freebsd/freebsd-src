@@ -11,8 +11,6 @@ MLINKS=	uuencode.1 uudecode.1 \
 	uuencode.1 b64encode.1 \
 	b64encode.1 b64decode.1
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

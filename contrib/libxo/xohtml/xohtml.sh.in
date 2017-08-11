@@ -10,8 +10,10 @@
 #
 
 BASE=@XO_SHAREDIR@
+VERSION=@LIBXO_VERSION@
 CMD=cat
 DONE=
+WEB=http://juniper.github.io/libxo/${VERSION}/xohtml
 
 do_help () {
     echo "xohtml: wrap libxo-enabled output in HTML"
@@ -41,6 +43,11 @@ while [ -z "$DONE" -a ! -z "$1" ]; do
 	    shift;
 	    exec > "$FILE";
             ;;
+        -w|--web)
+            shift;
+            BASE="${WEB}";
+            ;;
+
 	-*)
 	    do_help
 	    ;;

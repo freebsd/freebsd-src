@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2009
+.Dd August 2, 2017
 .Dt KSYMS 4
 .Os
 .Sh NAME
@@ -69,24 +69,6 @@ driver does not block the loading or unloading of modules into the kernel
 while the
 .Pa /dev/ksyms
 file is open but may contain stale data.
-.Sh IOCTLS
-The
-.Xr ioctl 2
-command codes below are defined in
-.Aq Pa sys/ksyms.h .
-.Pp
-The (third) argument to the
-.Xr ioctl 2
-should be a pointer to the type indicated.
-.Bl -tag -width indent -offset indent
-.It Dv KIOCGSIZE (size_t)
-Returns the total size of the current symbol table.
-This can be used when allocating a buffer to make a copy of
-the kernel symbol table.
-.It Dv KIOCGADDR (void *)
-Returns the address of the kernel symbol table mapped in
-the process memory.
-.El
 .Sh FILES
 .Bl -tag -width /dev/ksymsX
 .It Pa /dev/ksyms
@@ -112,7 +94,6 @@ This may occur if the kernel was in the process of loading or
 unloading a module.
 .El
 .Sh SEE ALSO
-.Xr ioctl 2 ,
 .Xr nlist 3 ,
 .Xr elf 5 ,
 .Xr kldload 8
@@ -152,12 +133,3 @@ file once at a time.
 The process must close the
 .Pa /dev/ksyms
 before it is allowed to open it again.
-.Pp
-The
-.Nm
-driver uses the calling process' memory address space to store the snapshot.
-.Xr ioctl 2
-can be used to get the memory address where the symbol table is stored to
-save kernel memory.
-.Xr mmap 2
-may also be used but it will map it to another address.

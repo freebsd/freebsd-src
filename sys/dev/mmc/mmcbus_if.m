@@ -68,7 +68,7 @@ INTERFACE mmcbus;
 # the bus to be claimed.
 #
 METHOD void retune_pause {
-	device_t	brdev;
+	device_t	busdev;
 	device_t	reqdev;
 	bool		retune;
 };
@@ -77,7 +77,7 @@ METHOD void retune_pause {
 # Unpause re-tuning.  Requires the bus to be claimed.
 #
 METHOD void retune_unpause {
-	device_t	brdev;
+	device_t	busdev;
 	device_t	reqdev;
 };
 
@@ -85,7 +85,7 @@ METHOD void retune_unpause {
 # Queue and wait for a request.  Requires the bus to be claimed.
 #
 METHOD int wait_for_request {
-	device_t	brdev;
+	device_t	busdev;
 	device_t	reqdev;
 	struct mmc_request *req;
 };
@@ -95,7 +95,7 @@ METHOD int wait_for_request {
 # longer busy.
 #
 METHOD int acquire_bus {
-	device_t	brdev;
+	device_t	busdev;
 	device_t	reqdev;
 };
 
@@ -103,6 +103,6 @@ METHOD int acquire_bus {
 # Release the current bus.
 #
 METHOD int release_bus {
-	device_t	brdev;
+	device_t	busdev;
 	device_t	reqdev;
 };

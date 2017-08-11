@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2017
+.Dd August 3, 2017
 .Dt USB 4
 .Os
 .Sh NAME
@@ -131,6 +131,19 @@ Any interface specific driver can attach to the device.
 .It
 If none is found, generic interface class drivers can attach.
 .El
+.Sh MIB Variables
+The
+.Nm
+driver exposes the following variables in the
+.Va hw.usb
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va debug"
+.It Va debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh SEE ALSO
 The
 .Tn USB
