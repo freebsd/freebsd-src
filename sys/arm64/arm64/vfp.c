@@ -206,7 +206,7 @@ vfp_restore_state(void)
 
 	/*
 	 * If the previous thread on this cpu to use the VFP was not the
-	 * current threas, or the current thread last used it on a different
+	 * current thread, or the current thread last used it on a different
 	 * cpu we need to restore the old state.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread || cpu != curpcb->pcb_vfpcpu) {
