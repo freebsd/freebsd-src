@@ -1210,7 +1210,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_end = size;
 	vmap->vm_pgoff = *offset / PAGE_SIZE;
 	vmap->vm_pfn = 0;
-	vmap->vm_flags = vmap->vm_page_prot = nprot;
+	vmap->vm_flags = vmap->vm_page_prot = (nprot & VM_PROT_ALL);
 	vmap->vm_ops = NULL;
 	vmap->vm_file = get_file(filp);
 	vmap->vm_mm = mm;
@@ -1417,6 +1417,21 @@ linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	return (0);
 }
 
+unsigned int
+linux_iminor(struct inode *inode)
+{
+	struct linux_cdev *ldev;
+
+	if (inode == NULL || inode->v_rdev == NULL ||
+	    inode->v_rdev->si_devsw != &linuxcdevsw)
+		return (-1U);
+	ldev = inode->v_rdev->si_drv1;
+	if (ldev == NULL)
+		return (-1U);
+
+	return (minor(ldev->dev));
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = invfo_rdwr,
@@ -1583,7 +1598,7 @@ linux_timer_callback_wrapper(void *context)
 }
 
 void
-mod_timer(struct timer_list *timer, unsigned long expires)
+mod_timer(struct timer_list *timer, int expires)
 {
 
 	timer->expires = expires;
@@ -1645,10 +1660,10 @@ linux_complete_common(struct completion *c, int all)
 /*
  * Indefinite wait for done != 0 with or without signals.
  */
-long
+int
 linux_wait_for_common(struct completion *c, int flags)
 {
-	long error;
+	int error;
 
 	if (SCHEDULER_STOPPED())
 		return (0);
@@ -1685,10 +1700,11 @@ intr:
 /*
  * Time limited wait for done != 0 with or without signals.
  */
-long
-linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
+int
+linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 {
-	long end = jiffies + timeout, error;
+	int end = jiffies + timeout;
+	int error;
 	int ret;
 
 	if (SCHEDULER_STOPPED())
@@ -1975,13 +1991,13 @@ linux_in_atomic(void)
 struct linux_cdev *
 linux_find_cdev(const char *name, unsigned major, unsigned minor)
 {
-	int unit = MKDEV(major, minor);
+	dev_t dev = MKDEV(major, minor);
 	struct cdev *cdev;
 
 	dev_lock();
 	LIST_FOREACH(cdev, &linuxcdevsw.d_devs, si_list) {
 		struct linux_cdev *ldev = cdev->si_drv1;
-		if (dev2unit(cdev) == unit &&
+		if (ldev->dev == dev &&
 		    strcmp(kobject_name(&ldev->kobj), name) == 0) {
 			break;
 		}

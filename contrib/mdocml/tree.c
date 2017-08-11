@@ -1,4 +1,4 @@
-/*	$Id: tree.c,v 1.74 2017/04/24 23:06:18 schwarze Exp $ */
+/*	$Id: tree.c,v 1.77 2017/07/08 14:51:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -202,7 +202,7 @@ print_mdoc(const struct roff_node *n, int indent)
 	}
 
 	if (n->eqn)
-		print_box(n->eqn->root->first, indent + 4);
+		print_box(n->eqn->first, indent + 4);
 	if (n->child)
 		print_mdoc(n->child, indent +
 		    (n->type == ROFFT_BLOCK ? 2 : 4));
@@ -287,7 +287,7 @@ print_man(const struct roff_node *n, int indent)
 	}
 
 	if (n->eqn)
-		print_box(n->eqn->root->first, indent + 4);
+		print_box(n->eqn->first, indent + 4);
 	if (n->child)
 		print_man(n->child, indent +
 		    (n->type == ROFFT_BLOCK ? 2 : 4));
@@ -313,10 +313,6 @@ print_box(const struct eqn_box *ep, int indent)
 
 	t = NULL;
 	switch (ep->type) {
-	case EQN_ROOT:
-		t = "eqn-root";
-		break;
-	case EQN_LISTONE:
 	case EQN_LIST:
 		t = "eqn-list";
 		break;

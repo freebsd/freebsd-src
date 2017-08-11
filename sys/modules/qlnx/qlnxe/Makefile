@@ -65,5 +65,6 @@ CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 #CFLAGS += -DQLNX_SOFT_LRO
 #CFLAGS += -DQLNX_QSORT_LRO
 #CFLAGS += -DQLNX_MAX_COALESCE
+#CFLAGS += -DQLNX_RCV_IN_TASKQ
 
 CWARNFLAGS+= -Wno-cast-qual

@@ -14,7 +14,7 @@ arm/freescale/imx/imx6_ccm.c		standard
 arm/freescale/imx/imx6_machdep.c	standard
 arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
-arm/freescale/imx/imx6_snvs.c		standard
+arm/freescale/imx/imx6_snvs.c		optional imx6_snvs
 arm/freescale/imx/imx6_src.c		standard
 arm/freescale/imx/imx_epit.c		standard
 arm/freescale/imx/imx_iomux.c		standard
@@ -25,6 +25,7 @@ arm/freescale/imx/imx_i2c.c		optional fsliic
 arm/freescale/imx/imx6_sdma.c		optional sdma
 arm/freescale/imx/imx6_audmux.c		optional sound
 arm/freescale/imx/imx6_ssi.c		optional sound
+arm/freescale/imx/imx6_ahci.c		optional ahci
 
 dev/hdmi/hdmi_if.m			optional hdmi
 dev/hdmi/dwc_hdmi.c			optional hdmi

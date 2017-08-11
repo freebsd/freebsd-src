@@ -6643,9 +6643,14 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	NFSCL_DEBUG(4, "aft nfsrpc_createlayoutrpc laystat=%d err=%d\n",
 	    laystat, error);
 	lyp = NULL;
-	nfhp = *nfhpp;
-	laystat = nfsrpc_layoutgetres(nmp, dvp, nfhp->nfh_fh, nfhp->nfh_len,
-	    &stateid, retonclose, NULL, &lyp, &flh, laystat, NULL, cred, p);
+	if (laystat == 0) {
+		nfhp = *nfhpp;
+		laystat = nfsrpc_layoutgetres(nmp, dvp, nfhp->nfh_fh,
+		    nfhp->nfh_len, &stateid, retonclose, NULL, &lyp, &flh,
+		    laystat, NULL, cred, p);
+	} else
+		laystat = nfsrpc_layoutgetres(nmp, dvp, NULL, 0, &stateid,
+		    retonclose, NULL, &lyp, &flh, laystat, NULL, cred, p);
 	if (laystat == 0)
 		nfscl_rellayout(lyp, 0);
 	return (error);

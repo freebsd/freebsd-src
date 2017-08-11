@@ -135,4 +135,8 @@ void errx(int, const char *, ...) __attribute__((format(printf, 2, 3)));
 void warn(const char *, ...) __attribute__((format(printf, 1, 2)));
 #endif
 
+#ifndef HAVE_LLABS
+long long llabs(long long);
+#endif
+
 #endif /* _BSD_MISC_H */

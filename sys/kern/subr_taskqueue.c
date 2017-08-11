@@ -289,8 +289,8 @@ taskqueue_timeout_func(void *arg)
 }
 
 int
-taskqueue_enqueue_timeout(struct taskqueue *queue,
-    struct timeout_task *timeout_task, int ticks)
+taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
+    struct timeout_task *timeout_task, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	int res;
 
@@ -304,7 +304,7 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 		/* Do nothing */
 		TQ_UNLOCK(queue);
 		res = -1;
-	} else if (ticks == 0) {
+	} else if (sbt == 0) {
 		taskqueue_enqueue_locked(queue, &timeout_task->t);
 		/* The lock is released inside. */
 	} else {
@@ -313,16 +313,25 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 		} else {
 			queue->tq_callouts++;
 			timeout_task->f |= DT_CALLOUT_ARMED;
-			if (ticks < 0)
-				ticks = -ticks; /* Ignore overflow. */
+			if (sbt < 0)
+				sbt = -sbt; /* Ignore overflow. */
 		}
-		if (ticks > 0) {
-			callout_reset(&timeout_task->c, ticks,
-			    taskqueue_timeout_func, timeout_task);
+		if (sbt > 0) {
+			callout_reset_sbt(&timeout_task->c, sbt, pr,
+			    taskqueue_timeout_func, timeout_task, flags);
 		}
 		TQ_UNLOCK(queue);
 	}
 	return (res);
+}
+
+int
+taskqueue_enqueue_timeout(struct taskqueue *queue,
+    struct timeout_task *ttask, int ticks)
+{
+
+	return (taskqueue_enqueue_timeout_sbt(queue, ttask, ticks * tick_sbt,
+	    0, 0));
 }
 
 static void

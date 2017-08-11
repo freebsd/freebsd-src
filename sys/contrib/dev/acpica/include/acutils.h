@@ -845,7 +845,7 @@ ACPI_GENERIC_STATE *
 AcpiUtCreatePkgState (
     void                    *InternalObject,
     void                    *ExternalObject,
-    UINT16                  Index);
+    UINT32                  Index);
 
 ACPI_STATUS
 AcpiUtCreateUpdateStateAndPush (
@@ -878,6 +878,24 @@ AcpiUtShortDivide (
     UINT32                  Divisor,
     UINT64                  *OutQuotient,
     UINT32                  *OutRemainder);
+
+ACPI_STATUS
+AcpiUtShortMultiply (
+    UINT64                  InMultiplicand,
+    UINT32                  Multiplier,
+    UINT64                  *Outproduct);
+
+ACPI_STATUS
+AcpiUtShortShiftLeft (
+    UINT64                  Operand,
+    UINT32                  Count,
+    UINT64                  *OutResult);
+
+ACPI_STATUS
+AcpiUtShortShiftRight (
+    UINT64                  Operand,
+    UINT32                  Count,
+    UINT64                  *OutResult);
 
 
 /*

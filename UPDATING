@@ -51,14 +51,34 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170808:
+	Since the switch to GPT disk labels, fsck for UFS/FFS has been
+	unable to automatically find alternate superblocks. As of r322297,
+	the information needed to find alternate superblocks has been
+	moved to the end of the area reserved for the boot block.
+	Filesystems created with a newfs of this vintage or later
+	will create the recovery information. If you have a filesystem
+	created prior to this change and wish to have a recovery block
+	created for your filesystem, you can do so by running fsck in
+	forground mode (i.e., do not use the -p or -y options). As it
+	starts, fsck will ask ``SAVE DATA TO FIND ALTERNATE SUPERBLOCKS''
+	to which you should answer yes.
+
+20170728:
+	As of r321665, an NFSv4 server configuration that services
+	Kerberos mounts or clients that do not support the uid/gid in
+	owner/owner_group string capability, must explicitly enable
+	the nfsuserd daemon by adding nfsuserd_enable="YES" to the
+	machine's /etc/rc.conf file.
+
 20170722:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 5.0.0.
 	Please see the 20141231 entry below for information about prerequisites
 	and upgrading, if you are not already using clang 3.5.0 or higher.
 
 20170701:
-	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need them to be
-	built with the base system.
+	WITHOUT_RCMDS is now the default. Set WITH_RCMDS if you need the
+	r-commands (rlogin, rsh, etc.) to be built with the base system.
 
 20170625:
 	The FreeBSD/powerpc platform now uses a 64-bit type for time_t.  This is

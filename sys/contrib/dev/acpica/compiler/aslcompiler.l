@@ -809,7 +809,7 @@ NamePathTail                [.]{NameSeg}
 "__FILE__"                  { count (0); return (PARSEOP___FILE__); }
 "__LINE__"                  { count (0); return (PARSEOP___LINE__); }
 "__PATH__"                  { count (0); return (PARSEOP___PATH__); }
-
+"__METHOD__"                { count (0); return (PARSEOP___METHOD__); }
 
 {NameSeg}                   { char *s;
                                 count (0);

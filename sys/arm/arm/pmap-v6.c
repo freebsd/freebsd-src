@@ -525,8 +525,8 @@ pmap_remap_vm_attr(vm_memattr_t old_attr, vm_memattr_t new_attr)
 	int old_idx, new_idx;
 
 	/* Map VM memattrs to indexes to tex_class table. */
-	old_idx = pte2_attr_tab[(int)old_attr];
-	new_idx = pte2_attr_tab[(int)new_attr];
+	old_idx = PTE2_ATTR2IDX(pte2_attr_tab[(int)old_attr]);
+	new_idx = PTE2_ATTR2IDX(pte2_attr_tab[(int)new_attr]);
 
 	/* Replace TEX attribute and apply it. */
 	tex_class[old_idx] = tex_class[new_idx];

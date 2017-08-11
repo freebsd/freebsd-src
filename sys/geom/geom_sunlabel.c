@@ -65,6 +65,8 @@ struct g_sunlabel_softc {
 	u_char labelsum[16];
 };
 
+static int g_sunlabel_once = 0;
+
 static int
 g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 {
@@ -312,6 +314,12 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_slice_conf_hot(gp, 0, 0, SUN_SIZE,
 	    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
 	gsp->hot = g_sunlabel_hotwrite;
+	if (!g_sunlabel_once) {
+		g_sunlabel_once = 1;
+		printf(
+		    "WARNING: geom_sunlabel (geom %s) is deprecated, "
+		    "use gpart instead.\n", gp->name);
+	}
 	return (gp);
 }
 

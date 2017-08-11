@@ -421,12 +421,21 @@ efi_uninit(void)
 }
 
 int
+efi_rt_ok(void)
+{
+
+	if (efi_runtime == NULL)
+		return (ENXIO);
+	return (0);
+}
+
+int
 efi_get_table(struct uuid *uuid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
 
-	if (efi_cfgtbl == NULL)
+	if (efi_cfgtbl == NULL || efi_systbl == NULL)
 		return (ENXIO);
 	count = efi_systbl->st_entries;
 	ct = efi_cfgtbl;

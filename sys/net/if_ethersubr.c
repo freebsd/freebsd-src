@@ -38,6 +38,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -931,6 +933,11 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
 
 	uuid_ether_add(LLADDR(sdl));
+
+	/* Add necessary bits are setup; announce it now. */
+	EVENTHANDLER_INVOKE(ether_ifattach_event, ifp);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("ETHERNET", ifp->if_xname, "IFATTACH", NULL);
 }
 
 /*

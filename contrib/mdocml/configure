@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.62 2017/03/04 16:36:29 schwarze Exp $
+# $Id: configure,v 1.64 2017/07/01 09:47:30 schwarze Exp $
 #
 # Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -35,6 +35,7 @@ echo "config.log: writing..."
 
 SOURCEDIR=`dirname "$0"`
 
+MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 OSNAME=
 UTF8_LOCALE=
@@ -73,6 +74,7 @@ HAVE_PATH_MAX=
 HAVE_PLEDGE=
 HAVE_PROGNAME=
 HAVE_REALLOCARRAY=
+HAVE_RECALLOCARRAY=
 HAVE_RECVMSG=
 HAVE_REWB_BSD=
 HAVE_REWB_SYSV=
@@ -229,6 +231,7 @@ runtest pledge		PLEDGE		|| true
 runtest sandbox_init	SANDBOX_INIT	|| true
 runtest progname	PROGNAME	|| true
 runtest reallocarray	REALLOCARRAY	|| true
+runtest recallocarray	RECALLOCARRAY	|| true
 runtest rewb-bsd	REWB_BSD	|| true
 runtest rewb-sysv	REWB_SYSV	|| true
 runtest strcasestr	STRCASESTR	|| true
@@ -348,7 +351,8 @@ cat << __HEREDOC__
 
 __HEREDOC__
 
-[ ${HAVE_GETLINE} -eq 0 -o ${HAVE_REALLOCARRAY} -eq 0 -o \
+[ ${HAVE_GETLINE} -eq 0 -o \
+  ${HAVE_REALLOCARRAY} -eq 0 -o ${HAVE_RECALLOCARRAY} -eq 0 -o \
   ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 ] \
 	&& echo "#include <sys/types.h>"
 [ ${HAVE_VASPRINTF} -eq 0 ] && echo "#include <stdarg.h>"
@@ -356,6 +360,7 @@ __HEREDOC__
 
 echo
 echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
+echo "#define MANPATH_BASE \"${MANPATH_BASE}\""
 echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
 [ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
@@ -383,6 +388,7 @@ cat << __HEREDOC__
 #define HAVE_PLEDGE ${HAVE_PLEDGE}
 #define HAVE_PROGNAME ${HAVE_PROGNAME}
 #define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
+#define HAVE_RECALLOCARRAY ${HAVE_RECALLOCARRAY}
 #define HAVE_REWB_BSD ${HAVE_REWB_BSD}
 #define HAVE_REWB_SYSV ${HAVE_REWB_SYSV}
 #define HAVE_SANDBOX_INIT ${HAVE_SANDBOX_INIT}
@@ -433,6 +439,9 @@ fi
 
 [ ${HAVE_REALLOCARRAY} -eq 0 ] && \
 	echo "extern	void	 *reallocarray(void *, size_t, size_t);"
+
+[ ${HAVE_RECALLOCARRAY} -eq 0 ] && \
+	echo "extern	void	 *recallocarray(void *, size_t, size_t, size_t);"
 
 [ ${HAVE_STRCASESTR} -eq 0 ] && \
 	echo "extern	char	 *strcasestr(const char *, const char *);"

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.102 2016/12/07 15:00:46 christos Exp $	*/
+/*	$NetBSD: make.h,v 1.103 2017/07/20 19:29:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -541,6 +541,12 @@ int cached_stat(const char *, void *);
 #endif
 #ifndef PATH_MAX
 #define PATH_MAX	MAXPATHLEN
+#endif
+
+#if defined(SYSV)
+#define KILLPG(pid, sig)	kill(-(pid), (sig))
+#else
+#define KILLPG(pid, sig)	killpg((pid), (sig))
 #endif
 
 #endif /* _MAKE_H_ */

@@ -648,11 +648,12 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		{
 			struct zyd_notif_retry *retry =
 			    (struct zyd_notif_retry *)cmd->data;
+			uint16_t count = le16toh(retry->count);
 
 			DPRINTF(sc, ZYD_DEBUG_TX_PROC,
 			    "retry intr: rate=0x%x addr=%s count=%d (0x%x)\n",
 			    le16toh(retry->rate), ether_sprintf(retry->macaddr),
-			    le16toh(retry->count)&0xff, le16toh(retry->count));
+			    count & 0xff, count);
 
 			/*
 			 * Find the node to which the packet was sent and
@@ -664,13 +665,12 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			if (ni != NULL) {
 				struct ieee80211_ratectl_tx_status *txs =
 				    &sc->sc_txs;
-				int retrycnt =
-				    (int)(le16toh(retry->count) & 0xff);
+				int retrycnt = count & 0xff;
 
 				txs->flags =
 				    IEEE80211_RATECTL_STATUS_LONG_RETRY;
 				txs->long_retries = retrycnt;
-				if (le16toh(retry->count) & 0x100) {
+				if (count & 0x100) {
 					txs->status =
 					    IEEE80211_RATECTL_TX_FAIL_LONG;
 				} else {
@@ -682,7 +682,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				ieee80211_ratectl_tx_complete(ni, txs);
 				ieee80211_free_node(ni);
 			}
-			if (le16toh(retry->count) & 0x100)
+			if (count & 0x100)
 				/* too many retries */
 				if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS,
 				    1);

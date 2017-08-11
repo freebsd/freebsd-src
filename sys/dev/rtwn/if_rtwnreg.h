@@ -18,6 +18,9 @@
  * $FreeBSD$
  */
 
+#ifndef IF_RTWNREG_H
+#define IF_RTWNREG_H
+
 #define R92C_MIN_TX_PWR		0x00
 #define R92C_MAX_TX_PWR		0x3f
 
@@ -165,3 +168,5 @@ rtwn_chan2centieee(const struct ieee80211_channel *c)
 
 	return (chan);
 }
+
+#endif	/* IF_RTWNREG_H */

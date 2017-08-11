@@ -196,7 +196,7 @@ mps_describe_devinfo(uint32_t devinfo, char *string, int len)
 }
 
 void
-_mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
+mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 {
 
 	MPS_PRINTFIELD_START(sc, "IOCFacts");
@@ -237,7 +237,7 @@ _mps_print_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 }
 
 void
-_mps_print_portfacts(struct mps_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
+mps_print_portfacts(struct mps_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
 {
 
 	MPS_PRINTFIELD_START(sc, "PortFacts");
@@ -247,7 +247,7 @@ _mps_print_portfacts(struct mps_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
 }
 
 void
-_mps_print_event(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
+mps_print_evt_generic(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 {
 
 	MPS_PRINTFIELD_START(sc, "EventReply");
@@ -259,7 +259,7 @@ _mps_print_event(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 }
 
 void
-_mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
+mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 {
 	MPS_PRINTFIELD_START(sc, "SAS Device Page 0");
 	MPS_PRINTFIELD(sc, buf, Slot, %d);
@@ -288,10 +288,10 @@ _mps_print_sasdev0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 }
 
 void
-_mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
+mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 {
 
-	_mps_print_event(sc, event);
+	mps_print_evt_generic(sc, event);
 
 	switch(event->Event) {
 	case MPI2_EVENT_SAS_DISCOVERY:
@@ -384,7 +384,7 @@ _mps_print_evt_sas(struct mps_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 }
 
 void
-_mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
+mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 {
 	MPS_PRINTFIELD_START(sc, "SAS Expander Page 1 #%d", buf->Phy);
 	MPS_PRINTFIELD(sc, buf, PhysicalPort, %d);
@@ -424,7 +424,7 @@ _mps_print_expander1(struct mps_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 }
 
 void
-_mps_print_sasphy0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
+mps_print_sasphy0(struct mps_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
 {
 	MPS_PRINTFIELD_START(sc, "SAS PHY Page 0");
 	MPS_PRINTFIELD(sc, buf, OwnerDevHandle, 0x%04x);

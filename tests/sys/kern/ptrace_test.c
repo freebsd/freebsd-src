@@ -1868,7 +1868,12 @@ mask_usr1_thread(void *arg)
  * Verify that the SIGKILL from PT_KILL takes priority over other signals
  * and prevents spurious stops due to those other signals.
  */
-ATF_TC_WITHOUT_HEAD(ptrace__PT_KILL_competing_signal);
+ATF_TC(ptrace__PT_KILL_competing_signal);
+ATF_TC_HEAD(ptrace__PT_KILL_competing_signal, tc)
+{
+
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
 ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
 {
 	pid_t fpid, wpid;
@@ -1962,7 +1967,12 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
  * Verify that the SIGKILL from PT_KILL takes priority over other stop events
  * and prevents spurious stops caused by those events.
  */
-ATF_TC_WITHOUT_HEAD(ptrace__PT_KILL_competing_stop);
+ATF_TC(ptrace__PT_KILL_competing_stop);
+ATF_TC_HEAD(ptrace__PT_KILL_competing_stop, tc)
+{
+
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
 ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 {
 	pid_t fpid, wpid;
@@ -2940,13 +2950,24 @@ terminate_with_pending_sigstop(bool sigstop_from_main_thread)
  * to the older thread (the second test). This behavior has changed in the
  * past, so make no assumption.
  */
-ATF_TC_WITHOUT_HEAD(ptrace__parent_terminate_with_pending_sigstop1);
+ATF_TC(ptrace__parent_terminate_with_pending_sigstop1);
+ATF_TC_HEAD(ptrace__parent_terminate_with_pending_sigstop1, tc)
+{
+
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
 ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop1, tc)
 {
 
 	terminate_with_pending_sigstop(true);
 }
-ATF_TC_WITHOUT_HEAD(ptrace__parent_terminate_with_pending_sigstop2);
+
+ATF_TC(ptrace__parent_terminate_with_pending_sigstop2);
+ATF_TC_HEAD(ptrace__parent_terminate_with_pending_sigstop2, tc)
+{
+
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
 ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop2, tc)
 {
 

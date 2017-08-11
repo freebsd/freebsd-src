@@ -136,7 +136,7 @@ mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
 	u16 sz;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
-	mps_print_evt_sas(sc, event);
+	MPS_DPRINT_EVENT(sc, sas, event);
 	mpssas_record_event(sc, event);
 
 	fw_event = malloc(sizeof(struct mps_fw_event_work), M_MPT2,
@@ -915,7 +915,7 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz, u32 devinfo)
 {
 	Mpi2SataPassthroughRequest_t *mpi_request;
-	Mpi2SataPassthroughReply_t *reply;
+	Mpi2SataPassthroughReply_t *reply = NULL;
 	struct mps_command *cm;
 	char *buffer;
 	int error = 0;
@@ -957,12 +957,14 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	    "command\n", __func__);
 	callout_reset(&cm->cm_callout, MPS_ATA_ID_TIMEOUT * hz,
 	    mpssas_ata_id_timeout, cm);
-	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
+	error = mps_wait_command(sc, &cm, 60, CAN_SLEEP);
 	mps_dprint(sc, MPS_XINFO, "%s stop timeout counter for SATA ID "
 	    "command\n", __func__);
+	/* XXX KDM need to fix the case where this command is destroyed */
 	callout_stop(&cm->cm_callout);
 
-	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
+	if (cm != NULL)
+		reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
  		/*
@@ -989,7 +991,8 @@ out:
 	 * it.  The command will be freed after sending a target reset TM. If
 	 * the command did timeout, use EWOULDBLOCK.
 	 */
-	if ((cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
+	if ((cm != NULL)
+	 && (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
 		mps_free_command(sc, cm);
 	else if (error == 0)
 		error = EWOULDBLOCK;
@@ -1285,7 +1288,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mps_lock(sc);
-	mps_wait_command(sc, cm, 5, CAN_SLEEP);
+	mps_wait_command(sc, &cm, 5, CAN_SLEEP);
 	mps_unlock(sc);
 
 	/*

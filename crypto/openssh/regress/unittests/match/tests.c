@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.3 2016/09/21 17:03:54 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.4 2017/02/03 23:01:42 djm Exp $ */
 /*
  * Regress test for matching functions
  *
@@ -103,6 +103,25 @@ tests(void)
 	/* XXX negated ASSERT_INT_EQ(addr_match_list("127.0.0.1", "!127.0.0.2,10.0.0.1"), 1); */
 	TEST_DONE();
 
+#define CHECK_FILTER(string,filter,expected) \
+	do { \
+		char *result = match_filter_list((string), (filter)); \
+		ASSERT_STRING_EQ(result, expected); \
+		free(result); \
+	} while (0)
+
+	TEST_START("match_filter_list");
+	CHECK_FILTER("a,b,c", "", "a,b,c");
+	CHECK_FILTER("a,b,c", "a", "b,c");
+	CHECK_FILTER("a,b,c", "b", "a,c");
+	CHECK_FILTER("a,b,c", "c", "a,b");
+	CHECK_FILTER("a,b,c", "a,b", "c");
+	CHECK_FILTER("a,b,c", "a,c", "b");
+	CHECK_FILTER("a,b,c", "b,c", "a");
+	CHECK_FILTER("a,b,c", "a,b,c", "");
+	CHECK_FILTER("a,b,c", "b,c", "a");
+	CHECK_FILTER("", "a,b,c", "");
+	TEST_DONE();
 /*
  * XXX TODO
  * int      match_host_and_ip(const char *, const char *, const char *);

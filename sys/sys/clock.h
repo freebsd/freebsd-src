@@ -77,9 +77,16 @@ int clock_ct_to_ts(struct clocktime *, struct timespec *);
 void clock_ts_to_ct(struct timespec *, struct clocktime *);
 
 /*
- * Time-of-day clock register/unregister functions, and associated flags.  These
- * functions can sleep.  Upon return from unregister, the clock's methods are
- * not running and will not be called again.
+ * Time-of-day clock functions and flags.  These functions might sleep.
+ *
+ * clock_register and clock_unregister() do what they say.  Upon return from
+ * unregister, the clock's methods are not running and will not be called again.
+ *
+ * clock_schedule() requests that a registered clock's clock_settime() calls
+ * happen at the given offset into the second.  The default is 0, meaning no
+ * specific scheduling.  To schedule the call as soon after top-of-second as
+ * possible, specify 1.  Each clock has its own schedule, but taskqueue_thread
+ * is shared by many tasks; the timing of the call is not guaranteed.
  *
  * Flags:
  *
@@ -102,6 +109,7 @@ void clock_ts_to_ct(struct timespec *, struct clocktime *);
 
 void clock_register(device_t _clockdev, long _resolution_us);
 void clock_register_flags(device_t _clockdev, long _resolution_us, int _flags);
+void clock_schedule(device_t clockdev, u_int _offsetns);
 void clock_unregister(device_t _clockdev);
 
 /*

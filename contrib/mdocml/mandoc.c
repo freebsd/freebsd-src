@@ -1,4 +1,4 @@
-/*	$Id: mandoc.c,v 1.100 2017/06/02 19:21:23 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.103 2017/07/03 13:40:19 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -28,8 +28,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "mandoc.h"
+#include "roff.h"
 #include "libmandoc.h"
 
 static	int	 a2time(time_t *, const char *, const char *);
@@ -95,6 +96,8 @@ mandoc_escape(const char **end, const char **start, int *sz)
 	case ',':
 	case '/':
 		return ESCAPE_IGNORE;
+	case 'p':
+		return ESCAPE_BREAK;
 
 	/*
 	 * The \z escape is supposed to output the following
@@ -518,27 +521,38 @@ fail:
 }
 
 char *
-mandoc_normdate(struct mparse *parse, char *in, int ln, int pos)
+mandoc_normdate(struct roff_man *man, char *in, int ln, int pos)
 {
+	char		*cp;
 	time_t		 t;
 
 	/* No date specified: use today's date. */
 
 	if (in == NULL || *in == '\0' || strcmp(in, "$" "Mdocdate$") == 0) {
-		mandoc_msg(MANDOCERR_DATE_MISSING, parse, ln, pos, NULL);
+		mandoc_msg(MANDOCERR_DATE_MISSING, man->parse, ln, pos, NULL);
 		return time2a(time(NULL));
 	}
 
 	/* Valid mdoc(7) date format. */
 
 	if (a2time(&t, "$" "Mdocdate: %b %d %Y $", in) ||
-	    a2time(&t, "%b %d, %Y", in))
-		return time2a(t);
+	    a2time(&t, "%b %d, %Y", in)) {
+		cp = time2a(t);
+		if (t > time(NULL) + 86400)
+			mandoc_msg(MANDOCERR_DATE_FUTURE, man->parse,
+			    ln, pos, cp);
+		return cp;
+	}
 
-	/* Do not warn about the legacy man(7) format. */
+	/* In man(7), do not warn about the legacy format. */
 
-	if ( ! a2time(&t, "%Y-%m-%d", in))
-		mandoc_msg(MANDOCERR_DATE_BAD, parse, ln, pos, in);
+	if (a2time(&t, "%Y-%m-%d", in) == 0)
+		mandoc_msg(MANDOCERR_DATE_BAD, man->parse, ln, pos, in);
+	else if (t > time(NULL) + 86400)
+		mandoc_msg(MANDOCERR_DATE_FUTURE, man->parse, ln, pos, in);
+	else if (man->macroset == MACROSET_MDOC)
+		mandoc_vmsg(MANDOCERR_DATE_LEGACY, man->parse,
+		    ln, pos, "Dd %s", in);
 
 	/* Use any non-mdoc(7) date verbatim. */
 

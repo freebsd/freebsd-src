@@ -190,7 +190,7 @@ DtError (
 
     /* Check if user wants to ignore this exception */
 
-    if (AslIsExceptionDisabled (Level, MessageId))
+    if (AslIsExceptionIgnored (Level, MessageId))
     {
         return;
     }

@@ -1,4 +1,4 @@
-/*	$Id: mandocd.c,v 1.5 2017/02/17 14:31:52 schwarze Exp $ */
+/*	$Id: mandocd.c,v 1.6 2017/06/24 14:38:32 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 
 	mchars_alloc();
 	parser = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1,
-	    MANDOCLEVEL_BADARG, NULL, defos);
+	    MANDOCERR_MAX, NULL, MANDOC_OS_OTHER, defos);
 
 	memset(&options, 0, sizeof(options));
 	switch (outtype) {

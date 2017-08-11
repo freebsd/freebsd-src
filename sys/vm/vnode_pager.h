@@ -50,7 +50,8 @@ int vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap);
 int vnode_pager_putpages_ioflags(int pager_flags);
 void vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end);
-void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written);
+void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written,
+    off_t eof, int lpos);
 void vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end);
 

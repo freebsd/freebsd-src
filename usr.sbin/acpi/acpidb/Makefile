@@ -18,8 +18,9 @@ SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsdebug.c dsfield.c dsinit.c	\
-	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c	\
-	dswexec.c dswload.c dswload2.c dswscope.c dswstate.c
+	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dspkginit.c	\
+	dsutils.c dswexec.c dswload.c dswload2.c dswscope.c	\
+	dswstate.c
 
 # components/events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\

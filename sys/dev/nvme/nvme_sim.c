@@ -253,7 +253,7 @@ nvme_sim_new_controller(struct nvme_controller *ctrlr)
 	int unit;
 	struct nvme_sim_softc *sc = NULL;
 
-	max_trans = 256;/* XXX not so simple -- must match queues */
+	max_trans = ctrlr->num_io_queues;
 	unit = device_get_unit(ctrlr->dev);
 	devq = cam_simq_alloc(max_trans);
 	if (devq == NULL)
@@ -371,6 +371,8 @@ struct nvme_consumer *consumer_cookie;
 static void
 nvme_sim_init(void)
 {
+	if (nvme_use_nvd)
+		return;
 
 	consumer_cookie = nvme_register_consumer(nvme_sim_new_ns,
 	    nvme_sim_new_controller, NULL, nvme_sim_controller_fail);
@@ -382,6 +384,8 @@ SYSINIT(nvme_sim_register, SI_SUB_DRIVERS, SI_ORDER_ANY,
 static void
 nvme_sim_uninit(void)
 {
+	if (nvme_use_nvd)
+		return;
 	/* XXX Cleanup */
 
 	nvme_unregister_consumer(consumer_cookie);

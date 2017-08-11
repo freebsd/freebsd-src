@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.106 2016/08/26 23:28:39 dholland Exp $	*/
+/*	$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.106 2016/08/26 23:28:39 dholland Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.106 2016/08/26 23:28:39 dholland Exp $");
+__RCSID("$NetBSD: compat.c,v 1.107 2017/07/20 19:29:54 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -118,6 +118,8 @@ __RCSID("$NetBSD: compat.c,v 1.106 2016/08/26 23:28:39 dholland Exp $");
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 static void CompatInterrupt(int);
+static pid_t compatChild;
+static int compatSigno;
 
 /*
  * CompatDeleteTarget -- delete a failed, interrupted, or otherwise
@@ -176,8 +178,17 @@ CompatInterrupt(int signo)
     }
     if (signo == SIGQUIT)
 	_exit(signo);
-    bmake_signal(signo, SIG_DFL);
-    kill(myPid, signo);
+    /*
+     * If there is a child running, pass the signal on
+     * we will exist after it has exited.
+     */
+    compatSigno = signo;
+    if (compatChild > 0) {
+	KILLPG(compatChild, signo);
+    } else {
+	bmake_signal(signo, SIG_DFL);
+	kill(myPid, signo);
+    }
 }
 
 /*-
@@ -370,7 +381,7 @@ again:
     /*
      * Fork and execute the single command. If the fork fails, we abort.
      */
-    cpid = vFork();
+    compatChild = cpid = vFork();
     if (cpid < 0) {
 	Fatal("Could not fork");
     }
@@ -483,7 +494,12 @@ again:
 	}
     }
     free(cmdStart);
-
+    compatChild = 0;
+    if (compatSigno) {
+	bmake_signal(compatSigno, SIG_DFL);
+	kill(myPid, compatSigno);
+    }
+    
     return (status);
 }
 

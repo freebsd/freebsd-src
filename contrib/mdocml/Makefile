@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.512 2017/05/07 17:31:45 schwarze Exp $
+# $Id: Makefile,v 1.516 2017/07/20 16:24:53 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 # Copyright (c) 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.14.1
+VERSION = 1.14.2
 
 # === LIST OF FILES ====================================================
 
@@ -38,6 +38,7 @@ TESTSRCS	 = test-be32toh.c \
 		   test-progname.c \
 		   test-recvmsg.c \
 		   test-reallocarray.c \
+		   test-recallocarray.c \
 		   test-rewb-bsd.c \
 		   test-rewb-sysv.c \
 		   test-sandbox_init.c \
@@ -64,6 +65,7 @@ SRCS		 = att.c \
 		   compat_ohash.c \
 		   compat_progname.c \
 		   compat_reallocarray.c \
+		   compat_recallocarray.c \
 		   compat_strcasestr.c \
 		   compat_stringlist.c \
 		   compat_strlcat.c \
@@ -92,6 +94,7 @@ SRCS		 = att.c \
 		   mandoc.c \
 		   mandoc_aux.c \
 		   mandoc_ohash.c \
+		   mandoc_xr.c \
 		   mandocd.c \
 		   mandocdb.c \
 		   manpath.c \
@@ -178,6 +181,7 @@ DISTFILES	 = INSTALL \
 		   mandoc_html.3 \
 		   mandoc_malloc.3 \
 		   mandoc_ohash.h \
+		   mandoc_xr.h \
 		   mandocd.8 \
 		   mansearch.3 \
 		   mansearch.h \
@@ -227,6 +231,7 @@ LIBMANDOC_OBJS	 = $(LIBMAN_OBJS) \
 		   mandoc.o \
 		   mandoc_aux.o \
 		   mandoc_ohash.o \
+		   mandoc_xr.o \
 		   msec.o \
 		   preconv.o \
 		   read.o
@@ -240,6 +245,7 @@ COMPAT_OBJS	 = compat_err.o \
 		   compat_ohash.o \
 		   compat_progname.o \
 		   compat_reallocarray.o \
+		   compat_recallocarray.o \
 		   compat_strcasestr.o \
 		   compat_strlcat.o \
 		   compat_strlcpy.o \
@@ -341,9 +347,6 @@ WWW_MANS	 = apropos.1.html \
 		   mdoc.h.html \
 		   roff.h.html
 
-WWW_OBJS	 = mdocml.tar.gz \
-		   mdocml.sha256
-
 # === USER CONFIGURATION ===============================================
 
 include Makefile.local
@@ -354,7 +357,7 @@ all: mandoc demandoc soelim $(BUILD_TARGETS) Makefile.local
 
 install: base-install $(INSTALL_TARGETS)
 
-www: $(WWW_OBJS) $(WWW_MANS)
+www: $(WWW_MANS)
 
 $(WWW_MANS): mandoc
 
@@ -372,10 +375,10 @@ clean:
 	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(COMPAT_OBJS)
 	rm -f mandoc $(MAIN_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
-	rm -f mandocd catman $(MANDOCD_OBJS)
+	rm -f mandocd catman catman.o $(MANDOCD_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
 	rm -f soelim $(SOELIM_OBJS)
-	rm -f $(WWW_MANS) $(WWW_OBJS)
+	rm -f $(WWW_MANS) mandoc.tar.gz mandoc.sha256
 	rm -rf *.dSYM
 
 base-install: mandoc demandoc soelim
@@ -509,13 +512,7 @@ soelim: $(SOELIM_OBJS)
 # --- maintainer targets ---
 
 www-install: www
-	mkdir -p $(HTDOCDIR)/snapshots
 	$(INSTALL_DATA) $(WWW_MANS) mandoc.css $(HTDOCDIR)
-	$(INSTALL_DATA) $(WWW_OBJS) $(HTDOCDIR)/snapshots
-	$(INSTALL_DATA) mdocml.tar.gz \
-		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).tar.gz
-	$(INSTALL_DATA) mdocml.sha256 \
-		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).sha256
 
 depend: config.h
 	mkdep -f Makefile.depend $(CFLAGS) $(SRCS)
@@ -542,24 +539,25 @@ regress-distcheck:
 		! -name '*.out_ascii' \
 		! -name '*.out_utf8' \
 		! -name '*.out_html' \
+		! -name '*.out_markdown' \
 		! -name '*.out_lint' \
 		! -path regress/regress.pl \
 		! -path regress/regress.pl.1
 
-dist: mdocml.sha256
+dist: mandoc.sha256
 
-mdocml.sha256: mdocml.tar.gz
-	sha256 mdocml.tar.gz > $@
+mandoc.sha256: mandoc.tar.gz
+	sha256 mandoc.tar.gz > $@
 
-mdocml.tar.gz: $(DISTFILES)
+mandoc.tar.gz: $(DISTFILES)
 	ls regress/*/*/*.mandoc_* && exit 1 || true
-	mkdir -p .dist/mdocml-$(VERSION)/
-	$(INSTALL) -m 0644 $(DISTFILES) .dist/mdocml-$(VERSION)
-	cp -pR regress .dist/mdocml-$(VERSION)
-	find .dist/mdocml-$(VERSION)/regress \
+	mkdir -p .dist/mandoc-$(VERSION)/
+	$(INSTALL) -m 0644 $(DISTFILES) .dist/mandoc-$(VERSION)
+	cp -pR regress .dist/mandoc-$(VERSION)
+	find .dist/mandoc-$(VERSION)/regress \
 	    -type d -name CVS -print0 | xargs -0 rm -rf
-	chmod 755 .dist/mdocml-$(VERSION)/configure
-	( cd .dist/ && tar zcf ../$@ mdocml-$(VERSION) )
+	chmod 755 .dist/mandoc-$(VERSION)/configure
+	( cd .dist/ && tar zcf ../$@ mandoc-$(VERSION) )
 	rm -rf .dist/
 
 # === SUFFIX RULES =====================================================

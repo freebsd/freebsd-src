@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -163,16 +163,18 @@ ENTRY(cpu_throw)
 	ld	x13, TD_PCB(a1)
 	sd	x13, PC_CURPCB(gp)
 
-	sfence.vm
+	sfence.vma
 
 	/* Switch to the new pmap */
 	ld	t0, PCB_L1ADDR(x13)
 	srli	t0, t0, PAGE_SHIFT
+	li	t1, SATP_MODE_SV39
+	or	t0, t0, t1
 	csrw	sptbr, t0
 
 	/* TODO: Invalidate the TLB */
 
-	sfence.vm
+	sfence.vma
 
 	/* Load registers */
 	ld	ra, (PCB_RA)(x13)
@@ -279,16 +281,18 @@ ENTRY(cpu_switch)
 	 * to a user process.
 	 */
 
-	sfence.vm
+	sfence.vma
 
 	/* Switch to the new pmap */
 	ld	t0, PCB_L1ADDR(x13)
 	srli	t0, t0, PAGE_SHIFT
+	li	t1, SATP_MODE_SV39
+	or	t0, t0, t1
 	csrw	sptbr, t0
 
 	/* TODO: Invalidate the TLB */
 
-	sfence.vm
+	sfence.vma
 
 	/* Release the old thread */
 	sd	a2, TD_LOCK(a0)

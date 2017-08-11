@@ -102,6 +102,7 @@ static uint64_t jobseqno;
 #endif
 
 FEATURE(aio, "Asynchronous I/O");
+SYSCTL_DECL(_p1003_1b);
 
 static MALLOC_DEFINE(M_LIO, "lio", "listio aio control block list");
 
@@ -167,6 +168,11 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
 static int max_buf_aio = MAX_BUF_AIO;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio, CTLFLAG_RW, &max_buf_aio, 0,
     "Maximum buf aio requests per process (stored in the process)");
+
+static int aio_listio_max = AIO_LISTIO_MAX;
+SYSCTL_INT(_p1003_1b, CTL_P1003_1B_AIO_LISTIO_MAX, aio_listio_max,
+    CTLFLAG_RDTUN | CTLFLAG_CAPRD, &aio_listio_max, 0,
+    "Maximum aio requests for a single lio_listio call");
 
 #ifdef COMPAT_FREEBSD6
 typedef struct oaiocb {
@@ -388,6 +394,11 @@ static int
 aio_onceonly(void)
 {
 
+	if (aio_listio_max < AIO_LISTIO_MAX)
+		aio_listio_max = AIO_LISTIO_MAX;
+	if (aio_listio_max > MIN(MAX_AIO_QUEUE_PER_PROC, max_queue_count))
+		aio_listio_max = MIN(MAX_AIO_QUEUE_PER_PROC, max_queue_count);
+
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, aio_proc_rundown, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec,
@@ -405,14 +416,13 @@ aio_onceonly(void)
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiocb_zone = uma_zcreate("AIOCB", sizeof(struct kaiocb), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiol_zone = uma_zcreate("AIOL", AIO_LISTIO_MAX*sizeof(intptr_t) , NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	aiol_zone = uma_zcreate("AIOL", aio_listio_max * sizeof(intptr_t) ,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aioliojob), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	p31b_setcfg(CTL_P1003_1B_ASYNCHRONOUS_IO, _POSIX_ASYNCHRONOUS_IO);
-	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, AIO_LISTIO_MAX);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, MAX_AIO_QUEUE);
 	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, 0);
 
@@ -1943,7 +1953,7 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	struct aiocb **ujoblist;
 	int error;
 
-	if (uap->nent < 0 || uap->nent > AIO_LISTIO_MAX)
+	if (uap->nent < 0 || uap->nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->timeout) {
@@ -2151,7 +2161,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	if ((mode != LIO_NOWAIT) && (mode != LIO_WAIT))
 		return (EINVAL);
 
-	if (nent < 0 || nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > aio_listio_max)
 		return (EINVAL);
 
 	if (p->p_aioinfo == NULL)
@@ -2283,7 +2293,7 @@ freebsd6_lio_listio(struct thread *td, struct freebsd6_lio_listio_args *uap)
 		return (EINVAL);
 
 	nent = uap->nent;
-	if (nent < 0 || nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
@@ -2320,7 +2330,7 @@ sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 		return (EINVAL);
 
 	nent = uap->nent;
-	if (nent < 0 || nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
@@ -2789,7 +2799,7 @@ freebsd32_aio_suspend(struct thread *td, struct freebsd32_aio_suspend_args *uap)
 	uint32_t *ujoblist32;
 	int error, i;
 
-	if (uap->nent < 0 || uap->nent > AIO_LISTIO_MAX)
+	if (uap->nent < 0 || uap->nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->timeout) {
@@ -2915,7 +2925,7 @@ freebsd6_freebsd32_lio_listio(struct thread *td,
 		return (EINVAL);
 
 	nent = uap->nent;
-	if (nent < 0 || nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
@@ -2961,7 +2971,7 @@ freebsd32_lio_listio(struct thread *td, struct freebsd32_lio_listio_args *uap)
 		return (EINVAL);
 
 	nent = uap->nent;
-	if (nent < 0 || nent > AIO_LISTIO_MAX)
+	if (nent < 0 || nent > aio_listio_max)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {

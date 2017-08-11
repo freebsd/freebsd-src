@@ -1,4 +1,4 @@
-.\"	$Id: man.7,v 1.135 2017/05/07 21:44:49 schwarze Exp $
+.\"	$Id: man.7,v 1.136 2017/06/25 11:42:02 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: May 7 2017 $
+.Dd $Mdocdate: June 25 2017 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -466,6 +466,20 @@ See also
 .Sx \&PP ,
 and
 .Sx \&TP .
+.Ss \&ME
+End a mailto block.
+This is a non-standard GNU extension, included only for compatibility.
+See
+.Sx \&MT .
+.Ss \&MT
+Begin a mailto block.
+This is a non-standard GNU extension, included only for compatibility.
+It has the following syntax:
+.Bd -literal -offset indent
+.Pf \. Sx \&MT Ar address
+link description to be shown
+.Pf \. Sx ME
+.Ed
 .Ss \&OP
 Optional command-line argument.
 This is a non-standard GNU extension, included only for compatibility.

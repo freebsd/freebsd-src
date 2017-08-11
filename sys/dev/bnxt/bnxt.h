@@ -214,6 +214,18 @@ __FBSDID("$FreeBSD$");
 /* Chip info */
 #define BNXT_TSO_SIZE	UINT16_MAX
 
+#define min_t(type, x, y) ({                    \
+        type __min1 = (x);                      \
+        type __min2 = (y);                      \
+        __min1 < __min2 ? __min1 : __min2; })
+
+#define max_t(type, x, y) ({                    \
+        type __max1 = (x);                      \
+        type __max2 = (y);                      \
+        __max1 > __max2 ? __max1 : __max2; })
+
+#define clamp_t(type, _x, min, max)     min_t(type, max_t(type, _x, min), max)
+
 /* NVRAM access */
 enum bnxt_nvm_directory_type {
 	BNX_DIR_TYPE_UNUSED = 0,
@@ -569,6 +581,20 @@ struct bnxt_softc {
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
 	uint8_t wol_filter_id;
+	uint16_t		rx_coal_usecs;
+	uint16_t		rx_coal_usecs_irq;
+	uint16_t               	rx_coal_frames;
+	uint16_t               	rx_coal_frames_irq;
+	uint16_t               	tx_coal_usecs;
+	uint16_t               	tx_coal_usecs_irq;
+	uint16_t               	tx_coal_frames;
+	uint16_t               	tx_coal_frames_irq;
+
+#define BNXT_USEC_TO_COAL_TIMER(x)      ((x) * 25 / 2)
+#define BNXT_DEF_STATS_COAL_TICKS        1000000
+#define BNXT_MIN_STATS_COAL_TICKS         250000
+#define BNXT_MAX_STATS_COAL_TICKS        1000000
+
 };
 
 struct bnxt_filter_info {

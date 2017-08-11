@@ -12,8 +12,6 @@ CFLAGS+= -fwrapv
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

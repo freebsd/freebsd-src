@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_html.3,v 1.8 2017/05/12 17:58:21 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.10 2017/07/15 17:57:51 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: May 12 2017 $
+.Dd $Mdocdate: July 15 2017 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -219,11 +219,6 @@ argument, used as a style value.
 Requires one
 .Vt struct roffsu *
 argument, used as a length.
-.It Cm v
-Requires one
-.Vt int
-argument, interpreted as a vertical length in units of
-.Dv SCALE_VS .
 .It Cm w
 Requires one
 .Vt char *
@@ -236,12 +231,15 @@ nothing is printed for this pair.
 .Pp
 The
 .Cm w
-argument type letter can optionally be followed by one or two
+argument type letter can optionally be followed by one, two, or three
 modifier letters.
 The modifier
+.Cm *
+suppresses printing of the pair if the argument matches 6n.
+The modifier
 .Cm +
-increases the width by 10% to make even bold text fit
-and adds two units for padding between columns.
+increases the width by 20% to make even bold text fit
+and adds three units for padding between columns.
 The modifier
 .Cm \-
 makes the width negative by multiplying it with \-1.
@@ -249,10 +247,6 @@ makes the width negative by multiplying it with \-1.
 .Pp
 Style name letters decide what to do with the preceding argument:
 .Bl -tag -width 1n -offset indent
-.It Cm b
-Set
-.Cm margin-bottom
-to the given length.
 .It Cm h
 Set
 .Cm height
@@ -264,10 +258,6 @@ to the given length.
 .It Cm l
 Set
 .Cm margin-left
-to the given length.
-.It Cm t
-Set
-.Cm margin-top
 to the given length.
 .It Cm w
 Set

@@ -103,7 +103,7 @@ ATF_TC_BODY(mlock_err, tc)
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
 #endif
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 	void *invalid_ptr;
 #endif
 	int null_errno = ENOMEM;	/* error expected for NULL */
@@ -155,7 +155,7 @@ ATF_TC_BODY(mlock_err, tc)
 	ATF_REQUIRE_ERRNO(ENOMEM, munlock(buf, page) == -1);
 
 /* There is no sbrk on AArch64 and RISC-V */
-#if !defined(__aarch64__) && !defined(__riscv__)
+#if !defined(__aarch64__) && !defined(__riscv)
 	/*
 	 * These are permitted to fail (EINVAL) but do not on NetBSD
 	 */

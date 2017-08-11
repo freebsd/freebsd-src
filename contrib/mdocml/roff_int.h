@@ -1,4 +1,4 @@
-/*	$Id: roff_int.h,v 1.7 2015/11/07 14:01:16 schwarze Exp $	*/
+/*	$Id: roff_int.h,v 1.9 2017/07/08 17:52:50 schwarze Exp $	*/
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -25,8 +25,6 @@ void		  roff_elem_alloc(struct roff_man *, int, int, int);
 struct roff_node *roff_block_alloc(struct roff_man *, int, int, int);
 struct roff_node *roff_head_alloc(struct roff_man *, int, int, int);
 struct roff_node *roff_body_alloc(struct roff_man *, int, int, int);
-void		  roff_addeqn(struct roff_man *, const struct eqn *);
-void		  roff_addtbl(struct roff_man *, const struct tbl_span *);
 void		  roff_node_unlink(struct roff_man *, struct roff_node *);
 void		  roff_node_free(struct roff_node *);
 void		  roff_node_delete(struct roff_man *, struct roff_node *);

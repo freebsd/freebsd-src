@@ -1,4 +1,4 @@
-/*	$Id: roff_term.c,v 1.10 2017/06/08 12:54:58 schwarze Exp $ */
+/*	$Id: roff_term.c,v 1.14 2017/06/24 14:38:33 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <stddef.h>
 
+#include "mandoc.h"
 #include "roff.h"
 #include "out.h"
 #include "term.h"
@@ -32,6 +33,7 @@ static	void	  roff_term_pre_ce(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_ft(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_ll(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_mc(ROFF_TERM_ARGS);
+static	void	  roff_term_pre_po(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_sp(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_ta(ROFF_TERM_ARGS);
 static	void	  roff_term_pre_ti(ROFF_TERM_ARGS);
@@ -42,6 +44,8 @@ static	const roff_term_pre_fp roff_term_pre_acts[ROFF_MAX] = {
 	roff_term_pre_ft,  /* ft */
 	roff_term_pre_ll,  /* ll */
 	roff_term_pre_mc,  /* mc */
+	roff_term_pre_po,  /* po */
+	roff_term_pre_ce,  /* rj */
 	roff_term_pre_sp,  /* sp */
 	roff_term_pre_ta,  /* ta */
 	roff_term_pre_ti,  /* ti */
@@ -69,33 +73,34 @@ roff_term_pre_br(ROFF_TERM_ARGS)
 static void
 roff_term_pre_ce(ROFF_TERM_ARGS)
 {
-	const struct roff_node	*nch;
+	const struct roff_node	*nc1, *nc2;
 	size_t			 len, lm;
 
 	roff_term_pre_br(p, n);
 	lm = p->tcol->offset;
-	n = n->child->next;
-	while (n != NULL) {
-		nch = n;
+	nc1 = n->child->next;
+	while (nc1 != NULL) {
+		nc2 = nc1;
 		len = 0;
 		do {
-			if (n->type == ROFFT_TEXT) {
+			if (nc2->type == ROFFT_TEXT) {
 				if (len)
 					len++;
-				len += term_strlen(p, nch->string);
+				len += term_strlen(p, nc2->string);
 			}
-			nch = nch->next;
-		} while (nch != NULL && (n->type != ROFFT_TEXT ||
-		    (n->flags & NODE_LINE) == 0));
+			nc2 = nc2->next;
+		} while (nc2 != NULL && (nc2->type != ROFFT_TEXT ||
+		    (nc2->flags & NODE_LINE) == 0));
 		p->tcol->offset = len >= p->tcol->rmargin ? 0 :
 		    lm + len >= p->tcol->rmargin ? p->tcol->rmargin - len :
+		    n->tok == ROFF_rj ? p->tcol->rmargin - len :
 		    (lm + p->tcol->rmargin - len) / 2;
-		while (n != nch) {
-			if (n->type == ROFFT_TEXT)
-				term_word(p, n->string);
+		while (nc1 != nc2) {
+			if (nc1->type == ROFFT_TEXT)
+				term_word(p, nc1->string);
 			else
-				roff_term_pre(p, n);
-			n = n->next;
+				roff_term_pre(p, nc1);
+			nc1 = nc1->next;
 		}
 		p->flags |= TERMP_NOSPACE;
 		term_flushln(p);
@@ -151,6 +156,28 @@ roff_term_pre_mc(ROFF_TERM_ARGS)
 }
 
 static void
+roff_term_pre_po(ROFF_TERM_ARGS)
+{
+	struct roffsu	 su;
+	static int	 po, polast;
+	int		 ponew;
+
+	if (n->child != NULL &&
+	    a2roffsu(n->child->string, &su, SCALE_EM) != NULL) {
+		ponew = term_hen(p, &su);
+		if (*n->child->string == '+' ||
+		    *n->child->string == '-')
+			ponew += po;
+	} else
+		ponew = polast;
+	polast = po;
+	po = ponew;
+
+	ponew = po - polast + (int)p->tcol->offset;
+	p->tcol->offset = ponew > 0 ? ponew : 0;
+}
+
+static void
 roff_term_pre_sp(ROFF_TERM_ARGS)
 {
 	struct roffsu	 su;
@@ -203,7 +230,7 @@ roff_term_pre_ti(ROFF_TERM_ARGS)
 
 	if (a2roffsu(cp, &su, SCALE_EM) == NULL)
 		return;
-	len = term_hspan(p, &su) / 24;
+	len = term_hen(p, &su);
 
 	if (sign == 0) {
 		p->ti = len - p->tcol->offset;

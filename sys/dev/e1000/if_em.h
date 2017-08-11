@@ -555,26 +555,6 @@ typedef struct _em_vendor_info_t {
 
 void em_dump_rs(struct adapter *);
 
-#define	EM_CORE_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
-#define	EM_TX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->tx_mtx, _name, "EM TX Lock", MTX_DEF)
-#define	EM_RX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->rx_mtx, _name, "EM RX Lock", MTX_DEF)
-#define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
-#define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
-#define	EM_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
-#define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
-#define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
-#define	EM_TX_TRYLOCK(_sc)		mtx_trylock(&(_sc)->tx_mtx)
-#define	EM_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
-#define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
-#define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
-#define	EM_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
-#define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
-#define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
-#define	EM_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
-
 #define EM_RSSRK_SIZE	4
 #define EM_RSSRK_VAL(key, i)		(key[(i) * EM_RSSRK_SIZE] | \
 					 key[(i) * EM_RSSRK_SIZE + 1] << 8 | \

@@ -529,7 +529,7 @@ struct iwm_softc {
 	/* phy contexts.  we only use the first one */
 	struct iwm_mvm_phy_ctxt	sc_phyctxt[IWM_NUM_PHY_CTX];
 
-	struct iwm_notif_statistics sc_stats;
+	struct iwm_notif_statistics_v10 sc_stats;
 	int			sc_noise;
 
 	caddr_t			sc_drvbpf;

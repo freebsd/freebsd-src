@@ -549,6 +549,166 @@ bnxt_vlan_strip_sysctl(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+static int
+bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_usecs;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_usecs = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_frames;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_frames = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_usecs_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_usecs_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_rx_frames_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->rx_coal_frames_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->rx_coal_frames_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_usecs;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_usecs = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_frames;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_frames = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_usecs_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_usecs_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
+static int
+bnxt_set_coal_tx_frames_irq(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_coal_frames_irq;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->tx_coal_frames_irq = val;
+	rc = bnxt_hwrm_set_coal(softc);
+
+	return rc;
+}
+
 int
 bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 {
@@ -571,6 +731,31 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    "strip VLAN tag in the RX path");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
 		iflib_get_ifp(softc->ctx)->if_xname, 0, "interface name");
+
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs,
+			"I", "interrupt coalescing Rx Usecs");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames,
+			"I", "interrupt coalescing Rx Frames");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_usecs_irq,
+			"I", "interrupt coalescing Rx Usecs IRQ");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_frames_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_rx_frames_irq,
+			"I", "interrupt coalescing Rx Frames IRQ");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs,
+			"I", "interrupt coalescing Tx Usces");
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames,
+			"I", "interrupt coalescing Tx Frames"); 
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_usecs_irq,
+			"I", "interrupt coalescing Tx Usecs IRQ"); 
+        SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_frames_irq",
+                        CTLTYPE_INT|CTLFLAG_RWTUN, softc, 0, bnxt_set_coal_tx_frames_irq,
+			"I", "interrupt coalescing Tx Frames IRQ");
 
 	return 0;
 }

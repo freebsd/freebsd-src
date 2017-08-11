@@ -204,6 +204,7 @@ struct mmc_request {
 	void *done_data;		/* requestor set data */
 	uint32_t flags;
 #define	MMC_REQ_DONE	1
+#define	MMC_TUNE_DONE	2
 };
 
 /* Command definitions */
@@ -267,6 +268,13 @@ struct mmc_request {
 #define	MMC_ERASE_GROUP_END	36
 			/* 37 -- reserved old command */
 #define	MMC_ERASE		38
+#define	 MMC_ERASE_ERASE	0x00000000
+#define	 MMC_ERASE_TRIM		0x00000001
+#define	 MMC_ERASE_FULE		0x00000002
+#define	 MMC_ERASE_DISCARD	0x00000003
+#define	 MMC_ERASE_SECURE_ERASE	0x80000000
+#define	 MMC_ERASE_SECURE_TRIM1	0x80000001
+#define	 MMC_ERASE_SECURE_TRIM2	0x80008000
 
 /* Class 9: I/O mode commands */
 #define	MMC_FAST_IO		39
@@ -374,6 +382,7 @@ struct mmc_request {
 #define	EXT_CSD_ERASE_TO_MULT	223	/* RO */
 #define	EXT_CSD_ERASE_GRP_SIZE	224	/* RO */
 #define	EXT_CSD_BOOT_SIZE_MULT	226	/* RO */
+#define	EXT_CSD_SEC_FEATURE_SUPPORT 231	/* RO */
 #define	EXT_CSD_PWR_CL_200_195	236	/* RO */
 #define	EXT_CSD_PWR_CL_200_360	237	/* RO */
 #define	EXT_CSD_PWR_CL_52_195_DDR 238	/* RO */
@@ -431,8 +440,8 @@ struct mmc_request {
 
 #define	EXT_CSD_HS_TIMING_BC		0
 #define	EXT_CSD_HS_TIMING_HS		1
-#define	EXT_CSD_HS_TIMING_DDR200	2
-#define	EXT_CSD_HS_TIMING_DDR400	3
+#define	EXT_CSD_HS_TIMING_HS200		2
+#define	EXT_CSD_HS_TIMING_HS400		3
 #define	EXT_CSD_HS_TIMING_DRV_STR_SHIFT	4
 
 #define	EXT_CSD_POWER_CLASS_8BIT_MASK	0xf0
@@ -448,7 +457,6 @@ struct mmc_request {
 #define	EXT_CSD_CARD_TYPE_HS200_1_2V	0x0020
 #define	EXT_CSD_CARD_TYPE_HS400_1_8V	0x0040
 #define	EXT_CSD_CARD_TYPE_HS400_1_2V	0x0080
-#define	EXT_CSD_CARD_TYPE_HS400ES	0x0100
 
 #define	EXT_CSD_BUS_WIDTH_1	0
 #define	EXT_CSD_BUS_WIDTH_4	1
@@ -456,6 +464,24 @@ struct mmc_request {
 #define	EXT_CSD_BUS_WIDTH_4_DDR	5
 #define	EXT_CSD_BUS_WIDTH_8_DDR	6
 #define	EXT_CSD_BUS_WIDTH_ES	0x80
+
+#define	EXT_CSD_STROBE_SUPPORT_EN	0x01
+
+#define	EXT_CSD_SEC_FEATURE_SUPPORT_ER_EN	0x01
+#define	EXT_CSD_SEC_FEATURE_SUPPORT_BD_BLK_EN	0x04
+#define	EXT_CSD_SEC_FEATURE_SUPPORT_GB_CL_EN	0x10
+#define	EXT_CSD_SEC_FEATURE_SUPPORT_SANITIZE	0x40
+
+/*
+ * Vendor specific EXT_CSD fields
+ */
+/* SanDisk iNAND */
+#define	EXT_CSD_INAND_CMD38			113
+#define	 EXT_CSD_INAND_CMD38_ERASE		0x00
+#define	 EXT_CSD_INAND_CMD38_TRIM		0x01
+#define	 EXT_CSD_INAND_CMD38_SECURE_ERASE	0x80
+#define	 EXT_CSD_INAND_CMD38_SECURE_TRIM1	0x81
+#define	 EXT_CSD_INAND_CMD38_SECURE_TRIM2	0x82
 
 #define	MMC_TYPE_HS_26_MAX		26000000
 #define	MMC_TYPE_HS_52_MAX		52000000
@@ -598,8 +624,7 @@ struct mmc_cid {
 	uint8_t fwrev;
 };
 
-struct mmc_csd
-{
+struct mmc_csd {
 	uint8_t csd_structure;
 	uint8_t spec_vers;
 	uint16_t ccc;
@@ -625,16 +650,14 @@ struct mmc_csd
 	    wp_grp_enable:1;
 };
 
-struct mmc_scr
-{
+struct mmc_scr {
 	unsigned char		sda_vsn;
 	unsigned char		bus_widths;
 #define	SD_SCR_BUS_WIDTH_1	(1 << 0)
 #define	SD_SCR_BUS_WIDTH_4	(1 << 2)
 };
 
-struct mmc_sd_status
-{
+struct mmc_sd_status {
 	uint8_t			bus_width;
 	uint8_t			secured_mode;
 	uint16_t		card_type;
@@ -647,6 +670,19 @@ struct mmc_sd_status
 	uint8_t			erase_offset;
 };
 
+struct mmc_quirk {
+	uint32_t mid;
+#define	MMC_QUIRK_MID_ANY	((uint32_t)-1)
+	uint16_t oid;
+#define	MMC_QUIRK_OID_ANY	((uint16_t)-1)
+	const char *pnm;
+	uint32_t quirks;
+#define	MMC_QUIRK_INAND_CMD38	0x0001
+#define	MMC_QUIRK_BROKEN_TRIM	0x0002
+};
+
+#define	MMC_QUIRKS_FMT		"\020" "\001INAND_CMD38" "\002BROKEN_TRIM"
+
 /*
  * Various MMC/SD constants
  */
@@ -656,6 +692,10 @@ struct mmc_sd_status
 
 #define	MMC_PART_GP_MAX	4
 #define	MMC_PART_MAX	8
+
+#define	MMC_TUNING_MAX		64	/* Maximum tuning iterations */
+#define	MMC_TUNING_LEN		64	/* Size of tuning data */
+#define	MMC_TUNING_LEN_HS200	128	/* Size of tuning data in HS200 mode */
 
 /*
  * Older versions of the MMC standard had a variable sector size.  However,
