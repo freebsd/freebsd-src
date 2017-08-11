@@ -118,17 +118,29 @@ static int
 linux_pci_attach(device_t dev)
 {
 	struct resource_list_entry *rle;
+	struct pci_bus *pbus;
 	struct pci_dev *pdev;
 	struct pci_devinfo *dinfo;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
+	device_t parent;
+	devclass_t devclass;
 	int error;
 
-	dinfo = device_get_ivars(dev);
-
 	linux_set_current(curthread);
+
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
+
+	parent = device_get_parent(dev);
+	devclass = device_get_devclass(parent);
+	if (pdrv->isdrm) {
+		dinfo = device_get_ivars(parent);
+		device_set_ivars(dev, dinfo);
+	} else {
+		dinfo = device_get_ivars(dev);
+	}
+
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
@@ -151,6 +163,13 @@ linux_pci_attach(device_t dev)
 	else
 		pdev->dev.irq = LINUX_IRQ_INVALID;
 	pdev->irq = pdev->dev.irq;
+
+	if (pdev->bus == NULL) {
+		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
+		pbus->self = pdev;
+		pdev->bus = pbus;
+	}
+
 	DROP_GIANT();
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -246,13 +265,10 @@ linux_pci_shutdown(device_t dev)
 	return (0);
 }
 
-int
-pci_register_driver(struct pci_driver *pdrv)
+static int
+_linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 {
-	devclass_t bus;
-	int error = 0;
-
-	bus = devclass_find("pci");
+	int error;
 
 	linux_set_current(curthread);
 	spin_lock(&pci_lock);
@@ -263,16 +279,39 @@ pci_register_driver(struct pci_driver *pdrv)
 	pdrv->bsddriver.size = sizeof(struct pci_dev);
 
 	mtx_lock(&Giant);
-	if (bus != NULL) {
-		error = devclass_add_driver(bus, &pdrv->bsddriver,
-		    BUS_PASS_DEFAULT, &pdrv->bsdclass);
-	}
+	error = devclass_add_driver(dc, &pdrv->bsddriver,
+	    BUS_PASS_DEFAULT, &pdrv->bsdclass);
 	mtx_unlock(&Giant);
 	return (-error);
 }
 
+int
+linux_pci_register_driver(struct pci_driver *pdrv)
+{
+	devclass_t dc;
+
+	dc = devclass_find("pci");
+	if (dc == NULL)
+		return (-ENXIO);
+	pdrv->isdrm = false;
+	return (_linux_pci_register_driver(pdrv, dc));
+}
+
+int
+linux_pci_register_drm_driver(struct pci_driver *pdrv)
+{
+	devclass_t dc;
+
+	dc = devclass_create("vgapci");
+	if (dc == NULL)
+		return (-ENXIO);
+	pdrv->isdrm = true;
+	pdrv->name = "drmn";
+	return (_linux_pci_register_driver(pdrv, dc));
+}
+
 void
-pci_unregister_driver(struct pci_driver *pdrv)
+linux_pci_unregister_driver(struct pci_driver *pdrv)
 {
 	devclass_t bus;
 
