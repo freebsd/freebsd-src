@@ -702,7 +702,7 @@ nxprtc_probe(device_t dev)
 #endif
 	device_set_desc(dev, desc_strings[chiptype]);
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
