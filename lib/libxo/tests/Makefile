@@ -242,13 +242,8 @@ PROGS+= test_11
 
 CFLAGS+=	-I${LIBXOSRC}/libxo -I${.CURDIR:H}
 
-LIBADD=		xo util 
+LIBADD=		xo util
 
 SUBDIR+=	encoder
-
-.if ${MACHINE} == "host"
-# make it easy to test without install
-TESTSDIR=	${.OBJDIR}
-.endif
 
 .include <bsd.test.mk>
