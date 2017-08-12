@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
-#include <machine/debug_monitor.h>
 #include <machine/machdep.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -272,7 +271,7 @@ init_secondary(uint64_t cpu)
 	vfp_init();
 #endif
 
-	dbg_monitor_init();
+	dbg_init();
 	pan_enable();
 
 	/* Enable interrupts */
