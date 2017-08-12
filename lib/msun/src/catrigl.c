@@ -307,7 +307,7 @@ clog_for_large_values(long double complex z)
 		ay = t;
 	}
 
-	if (ax >= HALF_LDBL_MAX)
+	if (ax > LDBL_MAX / 2)
 		return (CMPLXL(logl(hypotl(x / m_e, y / m_e)) + 1,
 		    atan2l(y, x)));
 
