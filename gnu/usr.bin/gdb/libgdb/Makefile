@@ -4,7 +4,7 @@
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
 
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc(64|spe)/powerpc/}
+TARGET_CPUARCH=${TARGET_ARCH:${__TO_CPUARCH}}
 .else
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
