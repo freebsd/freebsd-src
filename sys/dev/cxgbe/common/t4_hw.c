@@ -7715,7 +7715,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		int i, old_ptype, old_mtype;
 		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
 		struct port_info *pi = NULL;
-		struct link_config *lc, old_lc;
+		struct link_config *lc, *old_lc;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -7724,19 +7724,20 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		}
 
 		lc = &pi->link_cfg;
-		old_lc = *lc;
+		old_lc = &pi->old_link_cfg;
 		old_ptype = pi->port_type;
 		old_mtype = pi->mod_type;
 
 		handle_port_info(pi, &p->u.info);
 		if (old_ptype != pi->port_type || old_mtype != pi->mod_type) {
-			t4_os_portmod_changed(pi, old_ptype, old_mtype,
-			    &old_lc);
+			t4_os_portmod_changed(pi);
 		}
-		if (old_lc.link_ok != lc->link_ok ||
-		    old_lc.speed != lc->speed ||
-		    old_lc.fc != lc->fc) {
-			t4_os_link_changed(pi, &old_lc);
+		if (old_lc->link_ok != lc->link_ok ||
+		    old_lc->speed != lc->speed ||
+		    old_lc->fec != lc->fec ||
+		    old_lc->fc != lc->fc) {
+			t4_os_link_changed(pi);
+			*old_lc = *lc;
 		}
 	} else {
 		CH_WARN_RATELIMIT(adap, "Unknown firmware reply %d\n", opcode);

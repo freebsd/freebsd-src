@@ -4335,7 +4335,8 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
 	pi->link_cfg.link_down_rc = 255;
-	t4_os_link_changed(pi, NULL);
+	t4_os_link_changed(pi);
+	pi->old_link_cfg = pi->link_cfg;
 
 	return (0);
 }
@@ -9274,8 +9275,7 @@ t4_os_pci_restore_state(struct adapter *sc)
 }
 
 void
-t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
-    struct link_config *old_lc)
+t4_os_portmod_changed(struct port_info *pi)
 {
 	struct vi_info *vi;
 	struct ifnet *ifp;
@@ -9312,7 +9312,7 @@ t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
 }
 
 void
-t4_os_link_changed(struct port_info *pi, struct link_config *old_lc)
+t4_os_link_changed(struct port_info *pi)
 {
 	struct vi_info *vi;
 	struct ifnet *ifp;
