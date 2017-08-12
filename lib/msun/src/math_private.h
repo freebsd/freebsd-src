@@ -272,15 +272,6 @@ do {								\
 #define	LD80C(m, ex, v)	{ .e = (v), }
 #endif
 
-/*
- * XXX LDBL_MAX is broken on i386.  If the precise value of LDBL_MAX is not
- * needed, this may be worked around by instead referring to a proxy, such
- * as HALF_LDBL_MAX, below.  HALF_LDBL_MAX is approximately LDBL_MAX / 2,
- * actually just greater than.  Note that 2 * HALF_LDBL_MAX will always
- * overflow to infinity, regardless of the precision and rounding modes.
- */
-#define	HALF_LDBL_MAX	__CONCAT(__CONCAT(0x0.8p, LDBL_MAX_EXP), L)
-
 #ifdef FLT_EVAL_METHOD
 /*
  * Attempt to get strict C99 semantics for assignment with non-C99 compilers.
