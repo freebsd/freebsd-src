@@ -1051,11 +1051,24 @@ initarm(struct arm64_bootparams *abp)
 	mutex_init();
 	init_param2(physmem);
 
-	dbg_monitor_init();
+	dbg_init();
 	kdb_init();
 	pan_enable();
 
 	early_boot = 0;
+}
+
+void
+dbg_init(void)
+{
+
+	/* Clear OS lock */
+	WRITE_SPECIALREG(OSLAR_EL1, 0);
+
+	/* This permits DDB to use debug registers for watchpoints. */
+	dbg_monitor_init();
+
+	/* TODO: Eventually will need to initialize debug registers here. */
 }
 
 #ifdef DDB
