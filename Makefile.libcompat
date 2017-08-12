@@ -82,8 +82,7 @@ LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
 # sysroot path which --sysroot does not actually do for headers.
 LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800 && \
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800 && \
     (${MK_CLANG_BOOTSTRAP} == "no" && ${MK_GCC_BOOTSTRAP} == "no")
 LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
 			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
