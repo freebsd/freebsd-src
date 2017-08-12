@@ -1248,12 +1248,12 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
         "### passed to the tunnel agent as <user>@<hostname>.)  If the"      NL
         "### built-in ssh scheme were not predefined, it could be defined"   NL
         "### as:"                                                            NL
-        "# ssh = $SVN_SSH ssh -q"                                            NL
+        "# ssh = $SVN_SSH ssh -q --"                                         NL
         "### If you wanted to define a new 'rsh' scheme, to be used with"    NL
         "### 'svn+rsh:' URLs, you could do so as follows:"                   NL
-        "# rsh = rsh"                                                        NL
+        "# rsh = rsh --"                                                     NL
         "### Or, if you wanted to specify a full path and arguments:"        NL
-        "# rsh = /path/to/rsh -l myusername"                                 NL
+        "# rsh = /path/to/rsh -l myusername --"                              NL
         "### On Windows, if you are specifying a full path to a command,"    NL
         "### use a forward slash (/) or a paired backslash (\\\\) as the"    NL
         "### path separator.  A single backslash will be treated as an"      NL
