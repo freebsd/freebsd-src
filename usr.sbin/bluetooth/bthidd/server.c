@@ -289,6 +289,10 @@ server_accept(bthid_server_p srv, int32_t fd)
 			srv->maxfd = s->vkbd;
 	}
 
+	/* Pass device for probing after both channels are established */
+	if (s->state == OPEN)
+		hid_initialise(s);
+
 	return (0);
 }
 
