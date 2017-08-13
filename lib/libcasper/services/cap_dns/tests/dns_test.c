@@ -52,18 +52,20 @@ static int ntest = 1;
 
 #define CHECK(expr)     do {						\
 	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 #define CHECKX(expr)     do {						\
 	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
 		exit(1);						\
 	}								\
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 
@@ -332,6 +334,7 @@ main(void)
 	int families[2];
 
 	printf("1..91\n");
+	fflush(stdout);
 
 	capcas = cap_init();
 	CHECKX(capcas != NULL);
