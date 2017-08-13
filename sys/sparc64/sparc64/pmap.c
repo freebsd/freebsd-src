@@ -1226,7 +1226,6 @@ int
 pmap_pinit(pmap_t pm)
 {
 	vm_page_t ma[TSB_PAGES];
-	vm_page_t m;
 	int i;
 
 	/*
@@ -1249,14 +1248,11 @@ pmap_pinit(pmap_t pm)
 	CPU_ZERO(&pm->pm_active);
 
 	VM_OBJECT_WLOCK(pm->pm_tsb_obj);
-	for (i = 0; i < TSB_PAGES; i++) {
-		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-		m->valid = VM_PAGE_BITS_ALL;
-		m->md.pmap = pm;
-		ma[i] = m;
-	}
+	(void)vm_page_grab_pages(pm->pm_tsb_obj, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO, ma, TSB_PAGES);
 	VM_OBJECT_WUNLOCK(pm->pm_tsb_obj);
+	for (i = 0; i < TSB_PAGES; i++)
+		ma[i]->md.pmap = pm;
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));

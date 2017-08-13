@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -82,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #define	SDT_APICT	SDT_SYS386TGT
 #define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
 #endif
+
+static MALLOC_DEFINE(M_LAPIC, "local_apic", "Local APIC items");
 
 /* Sanity checks on IDT vectors. */
 CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS == APIC_TIMER_INT);
@@ -134,7 +137,7 @@ struct lapic {
 	uint32_t lvt_timer_last;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
-} static lapics[MAX_APIC_ID + 1];
+} static *lapics;
 
 /* Global defaults for local APIC LVT entries. */
 static struct lvt lvts[APIC_LVT_MAX + 1] = {
@@ -184,6 +187,7 @@ static struct eventtimer lapic_et;
 #ifdef SMP
 static uint64_t lapic_ipi_wait_mult;
 #endif
+unsigned int max_apic_id;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 SYSCTL_INT(_hw_apic, OID_AUTO, x2apic_mode, CTLFLAG_RD, &x2apic_mode, 0, "");
@@ -600,7 +604,7 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 {
 	int i;
 
-	if (apic_id > MAX_APIC_ID) {
+	if (apic_id > max_apic_id) {
 		printf("APIC: Ignoring local APIC with ID %d\n", apic_id);
 		if (boot_cpu)
 			panic("Can't ignore BSP");
@@ -1660,7 +1664,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		verbose = 1;
 	else
 		verbose = 0;
-	for (apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
+	for (apic_id = 0; apic_id <= max_apic_id; apic_id++) {
 		if (lapics[apic_id].la_present == 0)
 			continue;
 		db_printf("Interrupts bound to lapic %u\n", apic_id);
@@ -1860,6 +1864,9 @@ apic_setup_local(void *dummy __unused)
 
 	if (best_enum == NULL)
 		return;
+
+	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_LAPIC,
+	    M_WAITOK | M_ZERO);
 
 	/* Initialize the local APIC. */
 	retval = best_enum->apic_setup_local();

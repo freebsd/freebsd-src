@@ -167,15 +167,6 @@
 #define _PATH_LS			"ls"
 #endif
 
-/* path to login program */
-#ifndef LOGIN_PROGRAM
-# ifdef LOGIN_PROGRAM_FALLBACK
-#  define LOGIN_PROGRAM         LOGIN_PROGRAM_FALLBACK
-# else
-#  define LOGIN_PROGRAM         "/usr/bin/login"
-# endif
-#endif /* LOGIN_PROGRAM */
-
 /* Askpass program define */
 #ifndef ASKPASS_PROGRAM
 #define ASKPASS_PROGRAM         "/usr/lib/ssh/ssh-askpass"

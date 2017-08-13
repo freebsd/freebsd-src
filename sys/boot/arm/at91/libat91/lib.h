@@ -28,9 +28,9 @@
 #define ARM_BOOT_LIB_H
 
 int getc(int);
-int putchar(int);
-int xputchar(int);
-int printf(const char *fmt,...);
+void putchar(int);
+void xputchar(int);
+void printf(const char *fmt,...);
 
 /* The following function write eeprom at ee_addr using data 	*/
 /*  from data_add for size bytes.				*/

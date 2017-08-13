@@ -394,6 +394,9 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
  * vm_page_alloc_freelist().  Some functions support only a subset
  * of the flags, and ignore others, see the flags legend.
  *
+ * The meaning of VM_ALLOC_ZERO differs slightly between the vm_page_alloc*()
+ * and the vm_page_grab*() functions.  See these functions for details.
+ *
  * Bits 0 - 1 define class.
  * Bits 2 - 15 dedicated for flags.
  * Legend:
@@ -401,6 +404,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
  * (c) - vm_page_alloc_contig() supports the flag.
  * (f) - vm_page_alloc_freelist() supports the flag.
  * (g) - vm_page_grab() supports the flag.
+ * (p) - vm_page_grab_pages() supports the flag.
  * Bits above 15 define the count of additional pages that the caller
  * intends to allocate.
  */
@@ -408,14 +412,14 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
-#define	VM_ALLOC_WIRED		0x0020	/* (acfg) Allocate non pageable page */
-#define	VM_ALLOC_ZERO		0x0040	/* (acfg) Try to obtain a zeroed page */
+#define	VM_ALLOC_WIRED		0x0020	/* (acfgp) Allocate a wired page */
+#define	VM_ALLOC_ZERO		0x0040	/* (acfgp) Allocate a prezeroed page */
 #define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
-#define	VM_ALLOC_NOBUSY		0x0200	/* (acg) Do not busy the page */
-#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (g) Ignore shared busy flag */
+#define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (gp) Ignore shared busy flag */
 #define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
-#define	VM_ALLOC_SBUSY		0x4000	/* (acg) Shared busy the page */
-#define	VM_ALLOC_NOWAIT		0x8000	/* (g) Do not sleep, return NULL */
+#define	VM_ALLOC_SBUSY		0x4000	/* (acgp) Shared busy the page */
+#define	VM_ALLOC_NOWAIT		0x8000	/* (gp) Do not sleep */
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
@@ -466,6 +470,8 @@ vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     vm_paddr_t boundary, vm_memattr_t memattr);
 vm_page_t vm_page_alloc_freelist(int, int);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
+int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
+    vm_page_t *ma, int count);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_deactivate (vm_page_t);
 void vm_page_deactivate_noreuse(vm_page_t);

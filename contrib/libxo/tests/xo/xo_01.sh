@@ -24,4 +24,10 @@ for i in one:1:red two:2:blue three:3:green four:4:yellow ; do
     NF=--not-first
 done
 
+XOAN="${XO} --wrap anchor  --not-first --warn --depth 1"
+${XOAN} "{[:18}{:address/%p}..{:foo/%u}{]:}\n" 0xdeadbeef 1
+${XOAN} "{[:/18}{:address/%p}..{:foo/%u}{]:}\n" 0xdeadbeef 1
+${XOAN} "{[:/%d}{:address/%p}..{:foo/%u}{]:}\n" 18 0xdeadbeef 1
+${XOAN} "{[:/%s}{:address/%p}..{:foo/%u}{]:}\n" 18 0xdeadbeef 1
+
 ${XO} --close top

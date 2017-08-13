@@ -222,6 +222,7 @@ unit:
 		$$V ${.OBJDIR}/unittests/sshkey/test_sshkey \
 			-d ${.CURDIR}/unittests/sshkey/testdata ; \
 		$$V ${.OBJDIR}/unittests/bitmap/test_bitmap ; \
+		$$V ${.OBJDIR}/unittests/conversion/test_conversion ; \
 		$$V ${.OBJDIR}/unittests/kex/test_kex ; \
 		$$V ${.OBJDIR}/unittests/hostkeys/test_hostkeys \
 			-d ${.CURDIR}/unittests/hostkeys/testdata ; \

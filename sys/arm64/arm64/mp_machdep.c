@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
-#include <machine/debug_monitor.h>
 #include <machine/machdep.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_cpu.h>
 #endif
 
@@ -271,7 +271,7 @@ init_secondary(uint64_t cpu)
 	vfp_init();
 #endif
 
-	dbg_monitor_init();
+	dbg_init();
 	pan_enable();
 
 	/* Enable interrupts */
@@ -530,6 +530,7 @@ static boolean_t
 cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
+	int domain;
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -537,7 +538,17 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	return (start_cpu(id, target_cpu) ? TRUE : FALSE);
+	if (!start_cpu(id, target_cpu))
+		return (FALSE);
+
+	/* Try to read the numa node of this cpu */
+	if (OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) > 0) {
+		__pcpu[id].pc_domain = domain;
+		if (domain < MAXMEMDOM)
+			CPU_SET(id, &cpuset_domain[domain]);
+	}
+
+	return (TRUE);
 }
 #endif
 

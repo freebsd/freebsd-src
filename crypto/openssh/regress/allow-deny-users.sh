@@ -4,7 +4,7 @@
 tid="AllowUsers/DenyUsers"
 
 me="$LOGNAME"
-if [ "x$me" == "x" ]; then
+if [ "x$me" = "x" ]; then
 	me=`whoami`
 fi
 other="nobody"

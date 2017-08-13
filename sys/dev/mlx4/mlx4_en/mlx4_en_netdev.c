@@ -1771,7 +1771,8 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	       (unsigned)dev->if_mtu, (unsigned)new_mtu);
 
 	if ((new_mtu < MLX4_EN_MIN_MTU) || (new_mtu > priv->max_mtu)) {
-		en_err(priv, "Bad MTU size:%d.\n", new_mtu);
+		en_err(priv, "Bad MTU size:%d, max %u.\n", new_mtu,
+		    priv->max_mtu);
 		return -EPERM;
 	}
 	mutex_lock(&mdev->state_lock);
@@ -2681,6 +2682,8 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_chksum_offload",
 	    CTLFLAG_RD, &priv->port_stats.tx_chksum_offload,
 	    "TX checksum offloads");
+	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "defrag_attempts", CTLFLAG_RD,
+	    &priv->port_stats.defrag_attempts, "Oversized chains defragged");
 
 	/* Could strdup the names and add in a loop.  This is simpler. */
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
@@ -2774,6 +2777,10 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 		    CTLFLAG_RD, &tx_ring->packets, "TX packets");
 		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "bytes",
 		    CTLFLAG_RD, &tx_ring->bytes, "TX bytes");
+		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "tso_packets",
+		    CTLFLAG_RD, &tx_ring->tso_packets, "TSO packets");
+		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "defrag_attempts",
+		    CTLFLAG_RD, &tx_ring->defrag_attempts, "Oversized chains defragged");
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {

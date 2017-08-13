@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
+
+#include "efizfs.h"
 #endif
 
 #include "loader_efi.h"
@@ -70,11 +72,6 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
-#ifdef EFI_ZFS_BOOT
-static void efi_zfs_probe(void);
-static uint64_t pool_guid;
-#endif
-
 static int
 has_keyboard(void)
 {
@@ -83,7 +80,7 @@ has_keyboard(void)
 	EFI_HANDLE *hin, *hin_end, *walker;
 	UINTN sz;
 	int retval = 0;
-	
+
 	/*
 	 * Find all the handles that support the SIMPLE_TEXT_INPUT_PROTOCOL and
 	 * do the typical dance to get the right sized buffer.
@@ -140,7 +137,7 @@ has_keyboard(void)
 			} else if (DevicePathType(path) == MESSAGING_DEVICE_PATH &&
 			    DevicePathSubType(path) == MSG_USB_CLASS_DP) {
 				USB_CLASS_DEVICE_PATH *usb;
-			       
+
 				usb = (USB_CLASS_DEVICE_PATH *)(void *)path;
 				if (usb->DeviceClass == 3 && /* HID */
 				    usb->DeviceSubClass == 1 && /* Boot devices */
@@ -892,46 +889,3 @@ command_chain(int argc, char *argv[])
 }
 
 COMMAND_SET(chain, "chain", "chain load file", command_chain);
-
-#ifdef EFI_ZFS_BOOT
-static void
-efi_zfs_probe(void)
-{
-	pdinfo_list_t *hdi;
-	pdinfo_t *hd, *pd = NULL;
-	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
-	EFI_LOADED_IMAGE *img;
-	char devname[SPECNAMELEN + 1];
-
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
-
-	/*
-	 * Find the handle for the boot device. The boot1 did find the
-	 * device with loader binary, now we need to search for the
-	 * same device and if it is part of the zfs pool, we record the
-	 * pool GUID for currdev setup.
-	 */
-	STAILQ_FOREACH(hd, hdi, pd_link) {
-		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
-
-			snprintf(devname, sizeof(devname), "%s%dp%d:",
-			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-			if (pd->pd_handle == img->DeviceHandle)
-				(void) zfs_probe_dev(devname, &pool_guid);
-			else
-				(void) zfs_probe_dev(devname, NULL);
-		}
-	}
-}
-
-uint64_t
-ldi_get_size(void *priv)
-{
-	int fd = (uintptr_t) priv;
-	uint64_t size;
-
-	ioctl(fd, DIOCGMEDIASIZE, &size);
-	return (size);
-}
-#endif

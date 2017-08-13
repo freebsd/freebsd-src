@@ -1279,7 +1279,7 @@ arp_mark_lle_reachable(struct llentry *la)
 }
 
 /*
- * Add pernament link-layer record for given interface address.
+ * Add permanent link-layer record for given interface address.
  */
 static __noinline void
 arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)

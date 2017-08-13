@@ -141,7 +141,7 @@ get_jiffies_64(void)
 }
 
 static inline int
-linux_timer_jiffies_until(unsigned long expires)
+linux_timer_jiffies_until(int expires)
 {
 	int delta = expires - jiffies;
 	/* guard against already expired values */

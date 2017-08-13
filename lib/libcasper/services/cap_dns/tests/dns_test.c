@@ -52,18 +52,20 @@ static int ntest = 1;
 
 #define CHECK(expr)     do {						\
 	if ((expr))							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	else								\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 #define CHECKX(expr)     do {						\
 	if ((expr)) {							\
-		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
 	} else {							\
-		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
 		exit(1);						\
 	}								\
+	fflush(stdout);							\
 	ntest++;							\
 } while (0)
 
@@ -295,32 +297,26 @@ runtest(cap_channel_t *capdns)
 		freeaddrinfo(aic);
 	}
 
-	/*
-	 * 8.8.178.135 is IPv4 address of freefall.freebsd.org
-	 * as of 27 October 2013.
-	 */
-	inet_pton(AF_INET, "8.8.178.135", &ip4);
+	/* XXX: hardcoded addresses for "google-public-dns-a.google.com". */
+#define	GOOGLE_DNS_IPV4	"8.8.8.8"
+#define	GOOGLE_DNS_IPV6	"2001:4860:4860::8888"
+
+	inet_pton(AF_INET, GOOGLE_DNS_IPV4, &ip4);
 	hps = gethostbyaddr(&ip4, sizeof(ip4), AF_INET);
 	if (hps == NULL)
-		fprintf(stderr, "Unable to resolve %s.\n", "8.8.178.135");
+		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV4);
 	hpc = cap_gethostbyaddr(capdns, &ip4, sizeof(ip4), AF_INET);
 	if (hostent_compare(hps, hpc))
 		result |= GETHOSTBYADDR_AF_INET;
 
-	/*
-	 * 2001:1900:2254:206c::16:87 is IPv6 address of freefall.freebsd.org
-	 * as of 27 October 2013.
-	 */
-	inet_pton(AF_INET6, "2001:1900:2254:206c::16:87", &ip6);
+	inet_pton(AF_INET6, GOOGLE_DNS_IPV6, &ip6);
 	hps = gethostbyaddr(&ip6, sizeof(ip6), AF_INET6);
 	if (hps == NULL) {
-		fprintf(stderr, "Unable to resolve %s.\n",
-		    "2001:1900:2254:206c::16:87");
+		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV6);
 	}
 	hpc = cap_gethostbyaddr(capdns, &ip6, sizeof(ip6), AF_INET6);
 	if (hostent_compare(hps, hpc))
 		result |= GETHOSTBYADDR_AF_INET6;
-
 	return (result);
 }
 
@@ -332,6 +328,7 @@ main(void)
 	int families[2];
 
 	printf("1..91\n");
+	fflush(stdout);
 
 	capcas = cap_init();
 	CHECKX(capcas != NULL);

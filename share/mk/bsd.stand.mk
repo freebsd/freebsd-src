@@ -7,7 +7,7 @@
 CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= ${CFLAGS_NO_SIMD} -D_STANDALONE
 .if ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-mno-float
+CFLAGS+=	-march=rv64imac -mabi=lp64
 .elif ${MACHINE_CPUARCH} != "aarch64"
 CFLAGS+=	-msoft-float
 .endif
