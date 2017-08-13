@@ -495,7 +495,7 @@ ds13rtc_get_chiptype(device_t dev)
 	 * We can only attach if provided a chiptype hint string.
 	 */
 	if (resource_string_value(device_get_name(dev), 
-	    device_get_unit(dev), "chiptype", &htype) != 0)
+	    device_get_unit(dev), "compatible", &htype) != 0)
 		return (TYPE_NONE);
 
 	/*
