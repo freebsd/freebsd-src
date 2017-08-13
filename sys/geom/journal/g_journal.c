@@ -1514,49 +1514,10 @@ g_journal_read_find(struct bio *head, int sorted, struct bio *pbp, off_t ostart,
 }
 
 /*
- * Try to find requested data in cache.
- */
-static struct bio *
-g_journal_read_queue_find(struct bio_queue *head, struct bio *pbp, off_t ostart,
-    off_t oend)
-{
-	off_t cstart, cend;
-	struct bio *bp;
-
-	TAILQ_FOREACH(bp, head, bio_queue) {
-		cstart = MAX(ostart, bp->bio_offset);
-		cend = MIN(oend, bp->bio_offset + bp->bio_length);
-		if (cend <= ostart)
-			continue;
-		else if (cstart >= oend)
-			continue;
-		KASSERT(bp->bio_data != NULL,
-		    ("%s: bio_data == NULL", __func__));
-		GJ_DEBUG(3, "READ(%p): (%jd, %jd) (bp=%p)", head, cstart, cend,
-		    bp);
-		bcopy(bp->bio_data + cstart - bp->bio_offset,
-		    pbp->bio_data + cstart - pbp->bio_offset, cend - cstart);
-		pbp->bio_completed += cend - cstart;
-		if (pbp->bio_completed == pbp->bio_length) {
-			/*
-			 * Cool, the whole request was in cache, deliver happy
-			 * message.
-			 */
-			g_io_deliver(pbp, 0);
-			return (pbp);
-		}
-		break;
-	}
-	return (bp);
-}
-
-/*
- * This function is used for colecting data on read.
+ * This function is used for collecting data on read.
  * The complexity is because parts of the data can be stored in four different
  * places:
- * - in delayed requests
  * - in memory - the data not yet send to the active journal provider
- * - in requests which are going to be sent to the active journal
  * - in the active journal
  * - in the inactive journal
  * - in the data provider
@@ -1574,20 +1535,14 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 	cstart = cend = -1;
 	bp = NULL;
 	head = NULL;
-	for (i = 0; i <= 5; i++) {
+	for (i = 1; i <= 5; i++) {
 		switch (i) {
-		case 0:	/* Delayed requests. */
-			head = NULL;
-			sorted = 0;
-			break;
 		case 1:	/* Not-yet-send data. */
 			head = sc->sc_current_queue;
 			sorted = 1;
 			break;
-		case 2:	/* In-flight to the active journal. */
-			head = sc->sc_flush_queue;
-			sorted = 0;
-			break;
+		case 2: /* Skip flush queue as they are also in active queue */
+			continue;
 		case 3:	/* Active journal. */
 			head = sc->sc_active.jj_queue;
 			sorted = 1;
@@ -1606,10 +1561,7 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 		default:
 			panic("gjournal %s: i=%d", __func__, i);
 		}
-		if (i == 0)
-			bp = g_journal_read_queue_find(&sc->sc_delayed_queue.queue, pbp, ostart, oend);
-		else
-			bp = g_journal_read_find(head, sorted, pbp, ostart, oend);
+		bp = g_journal_read_find(head, sorted, pbp, ostart, oend);
 		if (bp == pbp) { /* Got the whole request. */
 			GJ_DEBUG(2, "Got the whole request from %u.", i);
 			return;
