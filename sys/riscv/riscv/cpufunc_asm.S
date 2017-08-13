@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -51,12 +51,12 @@ END(riscv_nullop)
  */
 
 ENTRY(riscv_tlb_flushID)
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_tlb_flushID)
 
 ENTRY(riscv_tlb_flushID_SE)
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_tlb_flushID_SE)
 
@@ -64,7 +64,7 @@ END(riscv_tlb_flushID_SE)
  * void riscv_dcache_wb_range(vm_offset_t, vm_size_t)
  */
 ENTRY(riscv_dcache_wb_range)
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_dcache_wb_range)
 
@@ -72,7 +72,7 @@ END(riscv_dcache_wb_range)
  * void riscv_dcache_wbinv_range(vm_offset_t, vm_size_t)
  */
 ENTRY(riscv_dcache_wbinv_range)
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_dcache_wbinv_range)
 
@@ -80,7 +80,7 @@ END(riscv_dcache_wbinv_range)
  * void riscv_dcache_inv_range(vm_offset_t, vm_size_t)
  */
 ENTRY(riscv_dcache_inv_range)
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_dcache_inv_range)
 
@@ -89,7 +89,7 @@ END(riscv_dcache_inv_range)
  */
 ENTRY(riscv_idcache_wbinv_range)
 	fence.i
-	sfence.vm
+	sfence.vma
 	ret
 END(riscv_idcache_wbinv_range)
 

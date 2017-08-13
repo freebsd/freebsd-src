@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.480 2016/12/09 03:04:29 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.485 2017/03/15 03:52:30 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -383,14 +383,14 @@ sshd_exchange_identification(struct ssh *ssh, int sock_in, int sock_out)
 {
 	u_int i;
 	int remote_major, remote_minor;
-	char *s, *newline = "\n";
+	char *s;
 	char buf[256];			/* Must not be larger than remote_version. */
 	char remote_version[256];	/* Must be at least as big as buf. */
 
-	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s%s",
+	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s\r\n",
 	    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2, SSH_VERSION,
 	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum, newline);
+	    options.version_addendum);
 
 	/* Send our protocol version identification. */
 	if (atomicio(vwrite, sock_out, server_version_string,
@@ -1068,6 +1068,11 @@ server_listen(void)
 			close(listen_sock);
 			continue;
 		}
+		if (fcntl(listen_sock, F_SETFD, FD_CLOEXEC) == -1) {
+			verbose("socket: CLOEXEC: %s", strerror(errno));
+			close(listen_sock);
+			continue;
+		}
 		/*
 		 * Set socket options.
 		 * Allow local port reuse in TIME_WAIT.
@@ -1696,6 +1701,15 @@ main(int ac, char **av)
 			continue;
 		key = key_load_private(options.host_key_files[i], "", NULL);
 		pubkey = key_load_public(options.host_key_files[i], NULL);
+
+		if ((pubkey != NULL && pubkey->type == KEY_RSA1) ||
+		    (key != NULL && key->type == KEY_RSA1)) {
+			verbose("Ignoring RSA1 key %s",
+			    options.host_key_files[i]);
+			key_free(key);
+			key_free(pubkey);
+			continue;
+		}
 		if (pubkey == NULL && key != NULL)
 			pubkey = key_demote(key);
 		sensitive_data.host_keys[i] = key;
@@ -2227,7 +2241,7 @@ do_ssh2_kex(void)
 
 	if (options.rekey_limit || options.rekey_interval)
 		packet_set_rekey_limits(options.rekey_limit,
-		    (time_t)options.rekey_interval);
+		    options.rekey_interval);
 
 	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = compat_pkalg_proposal(
 	    list_hostkey_types());

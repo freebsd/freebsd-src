@@ -3,7 +3,7 @@
 #
 
 CXGBE=	${SRCTOP}/sys/dev/cxgbe
-.PATH: ${CXGBE} ${CXGBE}/common
+.PATH: ${CXGBE} ${CXGBE}/common ${CXGBE}/cudbg
 
 KMOD=	if_cxgbe
 SRCS=	bus_if.h
@@ -24,6 +24,12 @@ SRCS+=	t4_netmap.c
 SRCS+=	t4_sched.c
 SRCS+=	t4_sge.c
 SRCS+=	t4_tracer.c
+SRCS+=  cudbg_common.c
+SRCS+=  cudbg_flash_utils.c
+SRCS+=  cudbg_lib.c
+SRCS+=  cudbg_wtp.c
+SRCS+=  fastlz_api.c
+SRCS+=  fastlz.c
 
 # Provide the timestamp of a packet in its header mbuf.
 #CFLAGS+= -DT4_PKT_TIMESTAMP

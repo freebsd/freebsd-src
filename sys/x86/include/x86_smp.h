@@ -54,7 +54,7 @@ struct cpu_info {
 	int	cpu_disabled:1;
 	int	cpu_hyperthread:1;
 };
-extern struct cpu_info cpu_info[];
+extern struct cpu_info *cpu_info;
 
 #ifdef COUNT_IPIS
 extern u_long *ipi_invltlb_counts[MAXCPU];

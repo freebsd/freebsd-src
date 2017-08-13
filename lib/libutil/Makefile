@@ -35,6 +35,7 @@ MAN+=	expand_number.3 flopen.3 fparseln.3 hexdump.3 \
 	property.3 pty.3 quotafile.3 realhostname.3 realhostname_sa.3 \
 	_secure_path.3 trimdomain.3 uucplock.3 pw_util.3
 MAN+=	login.conf.5
+MLINKS+=flopen.3 flopenat.3
 MLINKS+=kld.3 kld_isloaded.3 kld.3 kld_load.3
 MLINKS+=login_auth.3 auth_cat.3 login_auth.3 auth_checknologin.3
 MLINKS+=login_cap.3 login_close.3 login_cap.3 login_getcapbool.3 \

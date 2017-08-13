@@ -186,6 +186,7 @@ error:
 
 /* OFW bus interface */
 struct gic_v3_ofw_devinfo {
+	struct gic_v3_devinfo	di_gic_dinfo;
 	struct ofw_bus_devinfo	di_dinfo;
 	struct resource_list	di_rl;
 };
@@ -281,6 +282,14 @@ gic_v3_ofw_bus_attach(device_t dev)
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
 			/* Allocate and populate devinfo. */
 			di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+
+			/* Read the numa node, or -1 if there is none */
+			if (OF_getencprop(node, "numa-node-id",
+			    &di->di_gic_dinfo.gic_domain,
+			    sizeof(di->di_gic_dinfo.gic_domain)) <= 0) {
+				di->di_gic_dinfo.gic_domain = -1;
+			}
+
 			if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node)) {
 				if (bootverbose) {
 					device_printf(dev,

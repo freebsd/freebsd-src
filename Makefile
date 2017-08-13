@@ -245,12 +245,17 @@ _MAKE+=	MK_META_MODE=no
 .endif	# !exists(/dev/filemon) && !defined(NO_FILEMON)
 .endif	# !defined(_CAN_USE_META_MODE)
 
-# Guess machine architecture from machine type, and vice versa.
+# Guess target architecture from target type, and vice versa, based on
+# historic FreeBSD practice of tending to have TARGET == TARGET_ARCH
+# expanding to TARGET == TARGET_CPUARCH in recent times, with known
+# exceptions.
 .if !defined(TARGET_ARCH) && defined(TARGET)
+# T->TA mapping is usually TARGET with arm64 the odd man out
 _TARGET_ARCH=	${TARGET:S/arm64/aarch64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?(hf)?/mips/:C/arm(v6)?(eb)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/:C/powerpcspe/powerpc/:C/riscv64(sf)?/riscv/}
+# TA->T mapping is accidentally CPUARCH with aarch64 the odd man out
+_TARGET=	${TARGET_ARCH:${__TO_CPUARCH}:C/aarch64/arm64/}
 .endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}

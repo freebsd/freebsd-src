@@ -59,9 +59,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
+#endif
 
 #include <stdio.h>
 #include <ctype.h>

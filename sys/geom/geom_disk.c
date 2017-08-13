@@ -676,6 +676,7 @@ g_disk_create(void *arg, int flag)
 	struct g_provider *pp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap;
 	char tmpstr[80];
 
 	if (flag == EV_CANCEL)
@@ -704,6 +705,10 @@ g_disk_create(void *arg, int flag)
 	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->softc = sc;
+	LIST_FOREACH(dap, &dp->d_aliases, da_next) {
+		snprintf(tmpstr, sizeof(tmpstr), "%s%d", dap->da_alias, dp->d_unit);
+		g_geom_add_alias(gp, tmpstr);
+	}
 	pp = g_new_providerf(gp, "%s", gp->name);
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
@@ -791,6 +796,7 @@ g_disk_destroy(void *ptr, int flag)
 	struct disk *dp;
 	struct g_geom *gp;
 	struct g_disk_softc *sc;
+	struct disk_alias *dap, *daptmp;
 
 	g_topology_assert();
 	dp = ptr;
@@ -802,6 +808,8 @@ g_disk_destroy(void *ptr, int flag)
 		dp->d_geom = NULL;
 		g_wither_geom(gp, ENXIO);
 	}
+	LIST_FOREACH_SAFE(dap, &dp->d_aliases, da_next, daptmp)
+		g_free(dap);
 
 	g_free(dp);
 }
@@ -834,8 +842,11 @@ g_disk_ident_adjust(char *ident, size_t size)
 struct disk *
 disk_alloc(void)
 {
+	struct disk *dp;
 
-	return (g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO));
+	dp = g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO);
+	LIST_INIT(&dp->d_aliases);
+	return (dp);
 }
 
 void
@@ -882,6 +893,18 @@ disk_destroy(struct disk *dp)
 	if (dp->d_devstat != NULL)
 		devstat_remove_entry(dp->d_devstat);
 	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
+}
+
+void
+disk_add_alias(struct disk *dp, const char *name)
+{
+	struct disk_alias *dap;
+
+	dap = (struct disk_alias *)g_malloc(
+		sizeof(struct disk_alias) + strlen(name) + 1, M_WAITOK);
+	strcpy((char *)(dap + 1), name);
+	dap->da_alias = (const char *)(dap + 1);
+	LIST_INSERT_HEAD(&dp->d_aliases, dap, da_next);
 }
 
 void

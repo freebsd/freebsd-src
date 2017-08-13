@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
+#include "cudbg/cudbg.h"
 #include "t4_ioctl.h"
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
@@ -293,6 +294,51 @@ TUNABLE_INT("hw.cxgbe.nofldtxq_vi", &t4_nofldtxq_vi);
 #define NOFLDRXQ_VI 1
 static int t4_nofldrxq_vi = -NOFLDRXQ_VI;
 TUNABLE_INT("hw.cxgbe.nofldrxq_vi", &t4_nofldrxq_vi);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_keepalive_idle = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.keepalive_idle", &t4_toe_keepalive_idle);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_keepalive_interval = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.keepalive_interval", &t4_toe_keepalive_interval);
+
+/* 0 means chip/fw default, non-zero number is # of keepalives before abort */
+static int t4_toe_keepalive_count = 0;
+TUNABLE_INT("hw.cxgbe.toe.keepalive_count", &t4_toe_keepalive_count);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_rexmt_min = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.rexmt_min", &t4_toe_rexmt_min);
+
+/* 0 means chip/fw default, non-zero number is value in microseconds */
+static u_long t4_toe_rexmt_max = 0;
+TUNABLE_ULONG("hw.cxgbe.toe.rexmt_max", &t4_toe_rexmt_max);
+
+/* 0 means chip/fw default, non-zero number is # of rexmt before abort */
+static int t4_toe_rexmt_count = 0;
+TUNABLE_INT("hw.cxgbe.toe.rexmt_count", &t4_toe_rexmt_count);
+
+/* -1 means chip/fw default, other values are raw backoff values to use */
+static int t4_toe_rexmt_backoff[16] = {
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.0", &t4_toe_rexmt_backoff[0]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.1", &t4_toe_rexmt_backoff[1]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.2", &t4_toe_rexmt_backoff[2]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.3", &t4_toe_rexmt_backoff[3]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.4", &t4_toe_rexmt_backoff[4]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.5", &t4_toe_rexmt_backoff[5]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.6", &t4_toe_rexmt_backoff[6]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.7", &t4_toe_rexmt_backoff[7]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.8", &t4_toe_rexmt_backoff[8]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.9", &t4_toe_rexmt_backoff[9]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.10", &t4_toe_rexmt_backoff[10]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.11", &t4_toe_rexmt_backoff[11]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.12", &t4_toe_rexmt_backoff[12]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.13", &t4_toe_rexmt_backoff[13]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.14", &t4_toe_rexmt_backoff[14]);
+TUNABLE_INT("hw.cxgbe.toe.rexmt_backoff.15", &t4_toe_rexmt_backoff[15]);
 #endif
 
 #ifdef DEV_NETMAP
@@ -575,6 +621,7 @@ static int load_fw(struct adapter *, struct t4_data *);
 static int load_cfg(struct adapter *, struct t4_data *);
 static int load_boot(struct adapter *, struct t4_bootrom *);
 static int load_bootcfg(struct adapter *, struct t4_data *);
+static int cudbg_dump(struct adapter *, struct t4_cudbg_dump *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -3609,62 +3656,70 @@ static int
 set_params__post_init(struct adapter *sc)
 {
 	uint32_t param, val;
+#ifdef TCP_OFFLOAD
 	int i, v, shift;
-	char s[32];
+#endif
 
 	/* ask for encapsulated CPLs */
 	param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
 	val = 1;
 	(void)t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 
+#ifdef TCP_OFFLOAD
 	/*
 	 * Override the TOE timers with user provided tunables.  This is not the
 	 * recommended way to change the timers (the firmware config file is) so
 	 * these tunables are not documented.
 	 *
-	 * All the timer tunables are in milliseconds.
+	 * All the timer tunables are in microseconds.
 	 */
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_idle", &v)) {
+	if (t4_toe_keepalive_idle != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_keepalive_idle);
+		v &= M_KEEPALIVEIDLE;
 		t4_set_reg_field(sc, A_TP_KEEP_IDLE,
-		    V_KEEPALIVEIDLE(M_KEEPALIVEIDLE),
-		    V_KEEPALIVEIDLE(ms_to_tcp_ticks(sc, v)));
+		    V_KEEPALIVEIDLE(M_KEEPALIVEIDLE), V_KEEPALIVEIDLE(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_interval", &v)) {
+	if (t4_toe_keepalive_interval != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_keepalive_interval);
+		v &= M_KEEPALIVEINTVL;
 		t4_set_reg_field(sc, A_TP_KEEP_INTVL,
-		    V_KEEPALIVEINTVL(M_KEEPALIVEINTVL),
-		    V_KEEPALIVEINTVL(ms_to_tcp_ticks(sc, v)));
+		    V_KEEPALIVEINTVL(M_KEEPALIVEINTVL), V_KEEPALIVEINTVL(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.keepalive_count", &v)) {
-		v &= M_KEEPALIVEMAXR1;
+	if (t4_toe_keepalive_count != 0) {
+		v = t4_toe_keepalive_count & M_KEEPALIVEMAXR2;
 		t4_set_reg_field(sc, A_TP_SHIFT_CNT,
 		    V_KEEPALIVEMAXR1(M_KEEPALIVEMAXR1) |
 		    V_KEEPALIVEMAXR2(M_KEEPALIVEMAXR2),
 		    V_KEEPALIVEMAXR1(1) | V_KEEPALIVEMAXR2(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_min", &v)) {
+	if (t4_toe_rexmt_min != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_rexmt_min);
+		v &= M_RXTMIN;
 		t4_set_reg_field(sc, A_TP_RXT_MIN,
-		    V_RXTMIN(M_RXTMIN), V_RXTMIN(ms_to_tcp_ticks(sc, v)));
+		    V_RXTMIN(M_RXTMIN), V_RXTMIN(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_max", &v)) {
+	if (t4_toe_rexmt_max != 0) {
+		v = us_to_tcp_ticks(sc, t4_toe_rexmt_max);
+		v &= M_RXTMAX;
 		t4_set_reg_field(sc, A_TP_RXT_MAX,
-		    V_RXTMAX(M_RXTMAX), V_RXTMAX(ms_to_tcp_ticks(sc, v)));
+		    V_RXTMAX(M_RXTMAX), V_RXTMAX(v));
 	}
-	if (TUNABLE_INT_FETCH("hw.cxgbe.toe.rexmt_count", &v)) {
-		v &= M_RXTSHIFTMAXR1;
+	if (t4_toe_rexmt_count != 0) {
+		v = t4_toe_rexmt_count & M_RXTSHIFTMAXR2;
 		t4_set_reg_field(sc, A_TP_SHIFT_CNT,
 		    V_RXTSHIFTMAXR1(M_RXTSHIFTMAXR1) |
 		    V_RXTSHIFTMAXR2(M_RXTSHIFTMAXR2),
 		    V_RXTSHIFTMAXR1(1) | V_RXTSHIFTMAXR2(v));
 	}
-	for (i = 0; i < 16; i++) {
-		snprintf(s, sizeof(s), "hw.cxgbe.toe.rexmt_backoff.%d", i);
-		if (TUNABLE_INT_FETCH(s, &v)) {
-			v &= M_TIMERBACKOFFINDEX0;
+	for (i = 0; i < nitems(t4_toe_rexmt_backoff); i++) {
+		if (t4_toe_rexmt_backoff[i] != -1) {
+			v = t4_toe_rexmt_backoff[i] & M_TIMERBACKOFFINDEX0;
 			shift = (i & 3) << 3;
 			t4_set_reg_field(sc, A_TP_TCP_BACKOFF_REG0 + (i & ~3),
 			    M_TIMERBACKOFFINDEX0 << shift, v << shift);
 		}
 	}
+#endif
 	return (0);
 }
 
@@ -4280,7 +4335,8 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
 	pi->link_cfg.link_down_rc = 255;
-	t4_os_link_changed(pi, NULL);
+	t4_os_link_changed(pi);
+	pi->old_link_cfg = pi->link_cfg;
 
 	return (0);
 }
@@ -9084,6 +9140,49 @@ done:
 	return (rc);
 }
 
+static int
+cudbg_dump(struct adapter *sc, struct t4_cudbg_dump *dump)
+{
+	int rc;
+	struct cudbg_init *cudbg;
+	void *handle, *buf;
+
+	/* buf is large, don't block if no memory is available */
+	buf = malloc(dump->len, M_CXGBE, M_NOWAIT);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	handle = cudbg_alloc_handle();
+	if (handle == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	cudbg = cudbg_get_init(handle);
+	cudbg->adap = sc;
+	cudbg->print = (cudbg_print_cb)printf;
+
+#ifndef notyet
+	device_printf(sc->dev, "%s: wr_flash %u, len %u, data %p.\n",
+	    __func__, dump->wr_flash, dump->len, dump->data);
+#endif
+
+	if (dump->wr_flash)
+		cudbg->use_flash = 1;
+	MPASS(sizeof(cudbg->dbg_bitmap) == sizeof(dump->bitmap));
+	memcpy(cudbg->dbg_bitmap, dump->bitmap, sizeof(cudbg->dbg_bitmap));
+
+	rc = cudbg_collect(handle, buf, &dump->len);
+	if (rc != 0)
+		goto done;
+
+	rc = copyout(buf, dump->data, dump->len);
+done:
+	cudbg_free_handle(handle);
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
 #define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
@@ -9176,8 +9275,7 @@ t4_os_pci_restore_state(struct adapter *sc)
 }
 
 void
-t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
-    struct link_config *old_lc)
+t4_os_portmod_changed(struct port_info *pi)
 {
 	struct vi_info *vi;
 	struct ifnet *ifp;
@@ -9191,12 +9289,13 @@ t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
 		build_medialist(pi, &vi->media);
 	}
 	PORT_UNLOCK(pi);
+	vi = &pi->vi[0];
 	if (begin_synchronized_op(pi->adapter, vi, HOLD_LOCK, "t4mod") == 0) {
 		init_l1cfg(pi);
 		end_synchronized_op(pi->adapter, LOCK_HELD);
 	}
 
-	ifp = pi->vi[0].ifp;
+	ifp = vi->ifp;
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(ifp, "transceiver unplugged.\n");
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
@@ -9213,7 +9312,7 @@ t4_os_portmod_changed(struct port_info *pi, int old_ptype, int old_mtype,
 }
 
 void
-t4_os_link_changed(struct port_info *pi, struct link_config *old_lc)
+t4_os_link_changed(struct port_info *pi)
 {
 	struct vi_info *vi;
 	struct ifnet *ifp;
@@ -9431,6 +9530,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		break;
 	case CHELSIO_T4_LOAD_BOOTCFG:
 		rc = load_bootcfg(sc, (struct t4_data *)data);
+		break;
+	case CHELSIO_T4_CUDBG_DUMP:
+		rc = cudbg_dump(sc, (struct t4_cudbg_dump *)data);
 		break;
 	default:
 		rc = ENOTTY;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -37,29 +37,97 @@
 #ifndef _MACHINE_SBI_H_
 #define	_MACHINE_SBI_H_
 
-typedef struct {
-	uint64_t base;
-	uint64_t size;
-	uint64_t node_id;
-} memory_block_info;
+#define	SBI_SET_TIMER			0
+#define	SBI_CONSOLE_PUTCHAR		1
+#define	SBI_CONSOLE_GETCHAR		2
+#define	SBI_CLEAR_IPI			3
+#define	SBI_SEND_IPI			4
+#define	SBI_REMOTE_FENCE_I		5
+#define	SBI_REMOTE_SFENCE_VMA		6
+#define	SBI_REMOTE_SFENCE_VMA_ASID	7
+#define	SBI_SHUTDOWN			8
 
-uint64_t sbi_query_memory(uint64_t id, memory_block_info *p);
-uint64_t sbi_hart_id(void);
-uint64_t sbi_num_harts(void);
-uint64_t sbi_timebase(void);
-void sbi_set_timer(uint64_t stime_value);
-void sbi_send_ipi(uint64_t hart_id);
-uint64_t sbi_clear_ipi(void);
-void sbi_shutdown(void);
+static __inline uint64_t
+sbi_call(uint64_t arg7, uint64_t arg0, uint64_t arg1, uint64_t arg2)
+{
 
-void sbi_console_putchar(unsigned char ch);
-int sbi_console_getchar(void);
+	register uintptr_t a0 __asm ("a0") = (uintptr_t)(arg0);
+	register uintptr_t a1 __asm ("a1") = (uintptr_t)(arg1);
+	register uintptr_t a2 __asm ("a2") = (uintptr_t)(arg2);
+	register uintptr_t a7 __asm ("a7") = (uintptr_t)(arg7);
+	__asm __volatile(			\
+		"ecall"				\
+		:"+r"(a0)			\
+		:"r"(a1), "r"(a2), "r"(a7)	\
+		:"memory");
 
-void sbi_remote_sfence_vm(uint64_t hart_mask_ptr, uint64_t asid);
-void sbi_remote_sfence_vm_range(uint64_t hart_mask_ptr, uint64_t asid, uint64_t start, uint64_t size);
-void sbi_remote_fence_i(uint64_t hart_mask_ptr);
+	return (a0);
+}
 
-uint64_t sbi_mask_interrupt(uint64_t which);
-uint64_t sbi_unmask_interrupt(uint64_t which);
+static __inline void
+sbi_console_putchar(int ch)
+{
+
+	sbi_call(SBI_CONSOLE_PUTCHAR, ch, 0, 0);
+}
+
+static __inline int
+sbi_console_getchar(void)
+{
+
+	return (sbi_call(SBI_CONSOLE_GETCHAR, 0, 0, 0));
+}
+
+static __inline void
+sbi_set_timer(uint64_t val)
+{
+
+	sbi_call(SBI_SET_TIMER, val, 0, 0);
+}
+
+static __inline void
+sbi_shutdown(void)
+{
+
+	sbi_call(SBI_SHUTDOWN, 0, 0, 0);
+}
+
+static __inline void
+sbi_clear_ipi(void)
+{
+
+	sbi_call(SBI_CLEAR_IPI, 0, 0, 0);
+}
+
+static __inline void
+sbi_send_ipi(const unsigned long *hart_mask)
+{
+
+	sbi_call(SBI_SEND_IPI, (uint64_t)hart_mask, 0, 0);
+}
+
+static __inline void
+sbi_remote_fence_i(const unsigned long *hart_mask)
+{
+
+	sbi_call(SBI_REMOTE_FENCE_I, (uint64_t)hart_mask, 0, 0);
+}
+
+static __inline void
+sbi_remote_sfence_vma(const unsigned long *hart_mask,
+    unsigned long start, unsigned long size)
+{
+
+	sbi_call(SBI_REMOTE_SFENCE_VMA, (uint64_t)hart_mask, 0, 0);
+}
+
+static __inline void
+sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
+    unsigned long start, unsigned long size,
+    unsigned long asid)
+{
+
+	sbi_call(SBI_REMOTE_SFENCE_VMA_ASID, (uint64_t)hart_mask, 0, 0);
+}
 
 #endif /* !_MACHINE_SBI_H_ */

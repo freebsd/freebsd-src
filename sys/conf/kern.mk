@@ -121,7 +121,7 @@ INLINE_LIMIT?=	8000
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
-CFLAGS.gcc+=	-mcmodel=medany
+CFLAGS.gcc+=	-mcmodel=medany -march=rv64imafdc -mabi=lp64
 INLINE_LIMIT?=	8000
 .endif
 

@@ -130,26 +130,26 @@ SYSCTL_PROC(_kern_geom_journal, OID_AUTO, record_entries,
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
     &g_journal_do_optimize, 0, "Try to combine bios on flush and copy");
 
-static u_int g_journal_cache_used = 0;
-static u_int g_journal_cache_limit = 64 * 1024 * 1024;
+static u_long g_journal_cache_used = 0;
+static u_long g_journal_cache_limit = 64 * 1024 * 1024;
 static u_int g_journal_cache_divisor = 2;
 static u_int g_journal_cache_switch = 90;
 static u_int g_journal_cache_misses = 0;
 static u_int g_journal_cache_alloc_failures = 0;
-static u_int g_journal_cache_low = 0;
+static u_long g_journal_cache_low = 0;
 
 static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
     "GEOM_JOURNAL cache");
-SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
+SYSCTL_ULONG(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
     &g_journal_cache_used, 0, "Number of allocated bytes");
 static int
 g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	u_int limit;
+	u_long limit;
 	int error;
 
 	limit = g_journal_cache_limit;
-	error = sysctl_handle_int(oidp, &limit, 0, req);
+	error = sysctl_handle_long(oidp, &limit, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	g_journal_cache_limit = limit;
@@ -157,7 +157,7 @@ g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal_cache, OID_AUTO, limit,
-    CTLTYPE_UINT | CTLFLAG_RWTUN, NULL, 0, g_journal_cache_limit_sysctl, "I",
+    CTLTYPE_ULONG | CTLFLAG_RWTUN, NULL, 0, g_journal_cache_limit_sysctl, "I",
     "Maximum number of allocated bytes");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, divisor, CTLFLAG_RDTUN,
     &g_journal_cache_divisor, 0,
@@ -1261,7 +1261,7 @@ g_journal_flush(struct g_journal_softc *sc)
 	strlcpy(hdr.jrh_magic, GJ_RECORD_HEADER_MAGIC, sizeof(hdr.jrh_magic));
 
 	bioq = &sc->sc_active.jj_queue;
-	pbp = sc->sc_flush_queue;
+	GJQ_LAST(sc->sc_flush_queue, pbp);
 
 	fbp = g_alloc_bio();
 	fbp->bio_parent = NULL;
@@ -3046,9 +3046,9 @@ g_journal_switcher(void *arg)
 			kproc_exit(0);
 		}
 		if (error == 0 && g_journal_sync_requested == 0) {
-			GJ_DEBUG(1, "Out of cache, force switch (used=%u "
-			    "limit=%u).", g_journal_cache_used,
-			    g_journal_cache_limit);
+			GJ_DEBUG(1, "Out of cache, force switch (used=%jd "
+			    "limit=%jd).", (intmax_t)g_journal_cache_used,
+			    (intmax_t)g_journal_cache_limit);
 		}
 		GJ_TIMER_START(1, &bt);
 		g_journal_do_switch(mp);

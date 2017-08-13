@@ -60,6 +60,7 @@ struct bthid_session
 	int32_t				 ctrl;	/* control channel */
 	int32_t				 intr;	/* interrupt channel */
 	int32_t				 vkbd;	/* virual keyboard */
+	void				*ctx;   /* product specific dev state */
 	bdaddr_t			 bdaddr;/* remote bdaddr */
 	uint16_t			 state;	/* session state */
 #define CLOSED	0
@@ -86,6 +87,7 @@ bthid_session_p	session_by_bdaddr(bthid_server_p srv, bdaddr_p bdaddr);
 bthid_session_p	session_by_fd    (bthid_server_p srv, int32_t fd);
 void		session_close    (bthid_session_p s);
 
+void		hid_initialise	 (bthid_session_p s);
 int32_t		hid_control      (bthid_session_p s, uint8_t *data, int32_t len);
 int32_t		hid_interrupt    (bthid_session_p s, uint8_t *data, int32_t len);
 

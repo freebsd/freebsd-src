@@ -465,8 +465,8 @@ static driver_t am335x_prcm_driver = {
 
 static devclass_t am335x_prcm_devclass;
 
-DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
-	am335x_prcm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
+	am335x_prcm_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
 MODULE_VERSION(am335x_prcm, 1);
 MODULE_DEPEND(am335x_prcm, ti_scm, 1, 1, 1);
 

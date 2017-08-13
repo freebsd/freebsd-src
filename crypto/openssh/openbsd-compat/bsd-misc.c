@@ -301,3 +301,11 @@ mbtowc(wchar_t *pwc, const char *s, size_t n)
 	return 1;
 }
 #endif
+
+#ifndef HAVE_LLABS
+long long
+llabs(long long j)
+{
+	return (j < 0 ? -j : j);
+}
+#endif

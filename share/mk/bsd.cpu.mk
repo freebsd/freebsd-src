@@ -364,8 +364,11 @@ CFLAGS += -mcpu=8540 -Wa,-me500 -mspe=yes -mabi=spe -mfloat-gprs=double
 
 .if ${MACHINE_CPUARCH} == "riscv"
 .if ${TARGET_ARCH:Mriscv*sf}
-CFLAGS += -mno-float
-ACFLAGS += -mno-float
+CFLAGS += -march=rv64imac -mabi=lp64
+ACFLAGS += -march=rv64imac -mabi=lp64
+.else
+CFLAGS += -march=rv64imafdc -mabi=lp64
+ACFLAGS += -march=rv64imafdc -mabi=lp64
 .endif
 .endif
 
@@ -396,7 +399,7 @@ CFLAGS_NO_SIMD= -mno-mmx -mno-sse
 .endif
 CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 
-# Add in any architecture-specific CFLAGS.  
+# Add in any architecture-specific CFLAGS.
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
 CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}

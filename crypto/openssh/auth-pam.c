@@ -833,6 +833,8 @@ fake_password(const char *wire_password)
 		fatal("%s: password length too long: %zu", __func__, l);
 
 	ret = malloc(l + 1);
+	if (ret == NULL)
+		return NULL;
 	for (i = 0; i < l; i++)
 		ret[i] = junk[i % (sizeof(junk) - 1)];
 	ret[i] = '\0';

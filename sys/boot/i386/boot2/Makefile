@@ -38,6 +38,7 @@ CFLAGS=	-fomit-frame-pointer \
 	-Winline
 
 CFLAGS.gcc+=	-Os \
+		-fno-asynchronous-unwind-tables \
 		--param max-inline-insns-single=100
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
 CFLAGS.gcc+=   -mno-align-long-strings

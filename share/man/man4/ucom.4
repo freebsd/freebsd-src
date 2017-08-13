@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd August 3, 2017
 .Dt UCOM 4
 .Os
 .Sh NAME
@@ -63,6 +63,21 @@ This means that normal programs such as
 or
 .Xr ppp 8
 can be used to access the device.
+.Sh MIB Variables
+The
+.Nm
+driver exposes the following variables in the
+.Va hw.usb.ucom
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va pps_mode"
+.It Va debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.It Va pps_mode
+Enables and configure PPS capture mode as described below.
 .Sh Pulse Per Second (PPS) Timing Interface
 The
 .Nm
