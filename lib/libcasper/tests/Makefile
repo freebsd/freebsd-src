@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libcasper
-
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
