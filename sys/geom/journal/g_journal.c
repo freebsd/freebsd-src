@@ -1236,7 +1236,7 @@ g_journal_flush(struct g_journal_softc *sc)
 	struct g_provider *pp;
 	struct bio **bioq;
 	struct bio *bp, *fbp, *pbp;
-	off_t joffset, size;
+	off_t joffset;
 	u_char *data, hash[16];
 	MD5_CTX ctx;
 	u_int i;
@@ -1244,7 +1244,6 @@ g_journal_flush(struct g_journal_softc *sc)
 	if (sc->sc_current_count == 0)
 		return;
 
-	size = 0;
 	pp = sc->sc_jprovider;
 	GJ_VALIDATE_OFFSET(sc->sc_journal_offset, sc);
 	joffset = sc->sc_journal_offset;
@@ -1294,7 +1293,6 @@ g_journal_flush(struct g_journal_softc *sc)
 		ent->je_offset = bp->bio_offset;
 		ent->je_joffset = joffset;
 		ent->je_length = bp->bio_length;
-		size += ent->je_length;
 
 		data = bp->bio_data;
 		if (sc->sc_flags & GJF_DEVICE_CHECKSUM)
