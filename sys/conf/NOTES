@@ -2524,7 +2524,6 @@ device		iicoc		# OpenCores I2C controller support
 # I2C peripheral devices
 #
 device		ds1307		# Dallas DS1307 RTC and compatible
-device		ds1374		# Dallas DS1374 RTC
 device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
 device		ds3231		# Dallas DS3231 RTC + temperature
