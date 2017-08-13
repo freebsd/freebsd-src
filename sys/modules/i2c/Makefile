@@ -4,6 +4,7 @@ SUBDIR = \
 	controllers \
 	cyapa \
 	ds1307 \
+	ds13rtc \
 	ds3231 \
 	if_ic \
 	iic \
