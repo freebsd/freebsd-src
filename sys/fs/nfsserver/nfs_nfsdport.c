@@ -67,6 +67,7 @@ extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfslayouthash *nfslayouthash;
 extern int nfsrv_layouthashsize;
 extern struct mtx nfsrv_dslock_mtx;
+extern struct mtx nfsrv_dsclock_mtx;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -3582,142 +3583,242 @@ nfsrv_backupstable(void)
 }
 
 /*
+ * Create a DS data file for nfsrv_pnfscreate(). Called for each mirror.
+ * The arguments are in a structure, so that they can be passed through
+ * kproc_create() for a kernel process to execute this function.
+ */
+struct nfsrvdscreate {
+	struct ucred		*tcred;
+	struct vnode		*dvp;
+	NFSPROC_T		*p;
+	struct pnfsdsfile	*pf;
+	int			haskproc;
+	int			err;
+	fhandle_t		fh;
+	struct vattr		va;
+	struct vattr		createva;
+	struct pnfsdsattr	dsattr;
+};
+
+static int
+nfsrv_dscreate(struct nfsrvdscreate *dsc)
+{
+	struct vnode *nvp;
+	struct nameidata named;
+	struct vattr va;
+	char *bufp;
+	u_long *hashp;
+	struct nfsnode *np;
+	struct nfsmount *nmp;
+	int error;
+
+	NFSNAMEICNDSET(&named.ni_cnd, dsc->tcred, CREATE,
+	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+	nfsvno_setpathbuf(&named, &bufp, &hashp);
+	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
+	named.ni_cnd.cn_thread = dsc->p;
+	named.ni_cnd.cn_nameptr = bufp;
+	named.ni_cnd.cn_namelen = nfsrv_putfhname(&dsc->fh, bufp);
+
+	/* Create the date file in the DS mount. */
+	error = NFSVOPLOCK(dsc->dvp, LK_EXCLUSIVE);
+	if (error == 0) {
+		error = VOP_CREATE(dsc->dvp, &nvp, &named.ni_cnd,
+		    &dsc->createva);
+		NFSVOPUNLOCK(dsc->dvp, 0);
+		if (error == 0) {
+			/* Set the ownership of the file. */
+			error = VOP_SETATTR(nvp, &dsc->va, dsc->tcred);
+			NFSD_DEBUG(4, "nfsrv_dscreate:"
+			    " setattr-uid=%d\n", error);
+			if (error != 0)
+				vput(nvp);
+		}
+		if (error != 0)
+			printf("pNFS: pnfscreate failed=%d\n", error);
+	} else
+		printf("pNFS: pnfscreate vnlock=%d\n", error);
+	if (error == 0) {
+		np = VTONFS(nvp);
+		nmp = VFSTONFS(nvp->v_mount);
+		if (strcmp(nvp->v_mount->mnt_vfc->vfc_name, "nfs")
+		    != 0 || nmp->nm_nam->sa_len > sizeof(
+		    struct sockaddr_in6) ||
+		    np->n_fhp->nfh_len != NFSX_MYFH) {
+			printf("Bad DS file: fstype=%s salen=%d"
+			    " fhlen=%d\n",
+			    nvp->v_mount->mnt_vfc->vfc_name,
+			    nmp->nm_nam->sa_len, np->n_fhp->nfh_len);
+			error = ENOENT;
+		}
+
+		/* Get the attributes of the DS file. */
+		if (error == 0)
+			error = VOP_GETATTR(nvp, &va, dsc->tcred);
+		/* Set extattrs for the DS on the MDS file. */
+		if (error == 0) {
+			if (dsc->dsattr.dsa_filerev != UINT64_MAX) {
+				dsc->dsattr.dsa_filerev = va.va_filerev;
+				dsc->dsattr.dsa_size = va.va_size;
+				dsc->dsattr.dsa_atime = va.va_atime;
+				dsc->dsattr.dsa_mtime = va.va_mtime;
+			}
+			NFSBCOPY(np->n_fhp->nfh_fh, &dsc->pf->dsf_fh,
+			    NFSX_MYFH);
+			NFSBCOPY(nmp->nm_nam, &dsc->pf->dsf_sin,
+			    nmp->nm_nam->sa_len);
+			NFSBCOPY(named.ni_cnd.cn_nameptr,
+			    dsc->pf->dsf_filename,
+			    sizeof(dsc->pf->dsf_filename));
+		} else
+			printf("pNFS: pnfscreate can't get DS"
+			    " attr=%d\n", error);
+		vput(nvp);
+	}
+	nfsvno_relpathbuf(&named);
+	return (error);
+}
+
+/*
+ * Start up the thread that will execute nfsrv_dscreate().
+ */
+static void
+start_dscreate(void *arg)
+{
+	struct nfsrvdscreate *dsc;
+
+	dsc = (struct nfsrvdscreate *)arg;
+	dsc->err = nfsrv_dscreate(dsc);
+	NFSDSCLOCK();
+	dsc->haskproc = 0;
+	wakeup(dsc);
+	NFSDSCUNLOCK();
+	kproc_exit(0);
+}
+
+/*
  * Create a pNFS data file on the Data Server(s).
  */
 static void
 nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     NFSPROC_T *p)
 {
-	struct vnode *dvp[NFSDEV_MAXMIRRORS], *nvp;
+	struct nfsrvdscreate *dsc, *tdsc;
 	struct nfsdevice *ds, *mds;
-	fhandle_t fh;
-	struct nameidata named;
-	char *bufp;
-	u_long *hashp;
 	struct mount *mp;
-	struct nfsnode *np;
-	struct nfsmount *nmp;
 	struct pnfsdsfile *pf, *tpf;
 	struct pnfsdsattr dsattr;
-	struct vattr va;
 	uid_t vauid;
 	gid_t vagid;
 	u_short vamode;
 	struct ucred *tcred;
-	int error, i, mirrorcnt;
-	uint32_t dsdir[NFSDEV_MAXMIRRORS];
+	int error, haskproc, i, mirrorcnt, ret;
 
 	/* Get a DS server directory in a round-robin order. */
 	mirrorcnt = 1;
+	tdsc = dsc = malloc(sizeof(*dsc) * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK |
+	    M_ZERO);
+	tpf = pf = malloc(sizeof(*pf) * NFSDEV_MAXMIRRORS, M_TEMP, M_WAITOK |
+	    M_ZERO);
 	NFSDDSLOCK();
 	ds = TAILQ_FIRST(&nfsrv_devidhead);
 	if (ds == NULL) {
 		NFSDDSUNLOCK();
+		free(dsc, M_TEMP);
+		free(pf, M_TEMP);
 		NFSD_DEBUG(4, "nfsrv_pnfscreate: no srv\n");
 		return;
 	}
 	/* Put at end of list to implement round-robin usage. */
 	TAILQ_REMOVE(&nfsrv_devidhead, ds, nfsdev_list);
 	TAILQ_INSERT_TAIL(&nfsrv_devidhead, ds, nfsdev_list);
-	i = dsdir[0] = ds->nfsdev_nextdir;
+	i = pf->dsf_dir = ds->nfsdev_nextdir;
 	ds->nfsdev_nextdir = (ds->nfsdev_nextdir + 1) % nfsrv_dsdirsize;
-	dvp[0] = ds->nfsdev_dsdir[i];
+	dsc->dvp = ds->nfsdev_dsdir[i];
 	TAILQ_FOREACH(mds, &ds->nfsdev_mirrors, nfsdev_list) {
-		i = dsdir[mirrorcnt] = mds->nfsdev_nextdir;
+		tpf++;
+		tdsc++;
+		i = tpf->dsf_dir = mds->nfsdev_nextdir;
 		mds->nfsdev_nextdir = (mds->nfsdev_nextdir + 1) %
 		    nfsrv_dsdirsize;
-		dvp[mirrorcnt] = mds->nfsdev_dsdir[i];
+		tdsc->dvp = mds->nfsdev_dsdir[i];
 		mirrorcnt++;
 	}
 	NFSDDSUNLOCK();
+	tpf = pf;
+	tdsc = dsc;
 
-	error = nfsvno_getfh(vp, &fh, p);
+	error = nfsvno_getfh(vp, &dsc->fh, p);
 	if (error == 0)
-		error = VOP_GETATTR(vp, &va, cred);
-	if (error != 0) {
+		error = VOP_GETATTR(vp, &dsc->va, cred);
+	if (error == 0) {
+		/* Set the three attributes for "vp" to Setattr the DS vp. */
+		vauid = dsc->va.va_uid;
+		vagid = dsc->va.va_gid;
+		vamode = dsc->va.va_mode;
+		VATTR_NULL(&dsc->va);
+		dsc->va.va_uid = vauid;
+		dsc->va.va_gid = vagid;
+		dsc->va.va_mode = vamode;
+	} else
 		printf("pNFS: pnfscreate getfh+attr=%d\n", error);
-		return;
-	}
 
-	NFSD_DEBUG(4, "nfsrv_pnfscreate: cruid=%d crgid=%d uid=%d gid=%d\n",
-	    cred->cr_uid, cred->cr_gid, va.va_uid, va.va_gid);
+	NFSD_DEBUG(4, "nfsrv_pnfscreate: cruid=%d crgid=%d\n", cred->cr_uid,
+	    cred->cr_gid);
 	/* Make data file name based on FH. */
 	tcred = newnfs_getcred();
-	tpf = pf = malloc(sizeof(*pf) * mirrorcnt, M_TEMP, M_WAITOK | M_ZERO);
 
-	/* Create the file on each DS mirror. */
-	for (i = 0; i < mirrorcnt && error == 0; i++) {
-		NFSNAMEICNDSET(&named.ni_cnd, tcred, CREATE,
-		    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
-		nfsvno_setpathbuf(&named, &bufp, &hashp);
-		named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
-		named.ni_cnd.cn_thread = p;
-		named.ni_cnd.cn_nameptr = bufp;
-		named.ni_cnd.cn_namelen = nfsrv_putfhname(&fh, bufp);
-	
-		/* Create the date file in the DS mount. */
-		error = NFSVOPLOCK(dvp[i], LK_EXCLUSIVE);
-		if (error == 0) {
-			error = VOP_CREATE(dvp[i], &nvp, &named.ni_cnd, vap);
-			NFSVOPUNLOCK(dvp[i], 0);
-			if (error == 0) {
-				/* Set the ownership of the file. */
-				vauid = va.va_uid;
-				vagid = va.va_gid;
-				vamode = va.va_mode;
-				VATTR_NULL(&va);
-				va.va_uid = vauid;
-				va.va_gid = vagid;
-				va.va_mode = vamode;
-				error = VOP_SETATTR(nvp, &va, tcred);
-				NFSD_DEBUG(4, "nfsrv_pnfscreate:"
-				    " setattr-uid=%d\n", error);
-				if (error != 0)
-					vput(nvp);
-			}
-			if (error != 0)
-				printf("pNFS: pnfscreate failed=%d\n", error);
-		} else
-			printf("pNFS: pnfscreate vnlock=%d\n", error);
-		if (error == 0) {
-			np = VTONFS(nvp);
-			nmp = VFSTONFS(nvp->v_mount);
-			if (strcmp(nvp->v_mount->mnt_vfc->vfc_name, "nfs")
-			    != 0 || nmp->nm_nam->sa_len > sizeof(
-			    struct sockaddr_in6) ||
-			    np->n_fhp->nfh_len != NFSX_MYFH) {
-				printf("Bad DS file: fstype=%s salen=%d"
-				    " fhlen=%d\n",
-				    nvp->v_mount->mnt_vfc->vfc_name,
-				    nmp->nm_nam->sa_len, np->n_fhp->nfh_len);
-				error = ENOENT;
-			}
-	
-			/* Get the attributes of the DS file. */
-			if (error == 0)
-				error = VOP_GETATTR(nvp, &va, cred);
-			/* Set extattrs for the DS on the MDS file. */
-			if (error == 0) {
-				dsattr.dsa_filerev = va.va_filerev;
-				dsattr.dsa_size = va.va_size;
-				dsattr.dsa_atime = va.va_atime;
-				dsattr.dsa_mtime = va.va_mtime;
-				tpf->dsf_dir = dsdir[i];
-				NFSBCOPY(np->n_fhp->nfh_fh, &tpf->dsf_fh,
-				    NFSX_MYFH);
-				NFSBCOPY(nmp->nm_nam, &tpf->dsf_sin,
-				    nmp->nm_nam->sa_len);
-				NFSBCOPY(named.ni_cnd.cn_nameptr,
-				    tpf->dsf_filename,
-				    sizeof(tpf->dsf_filename));
-				tpf++;
-			} else
-				printf("pNFS: pnfscreate can't get DS"
-				    " attr=%d\n", error);
-			vput(nvp);
+	/*
+	 * Create the file on each DS mirror, using kernel process(es) for the
+	 * additional mirrors.
+	 */
+	haskproc = 0;
+	for (i = 0; i < mirrorcnt && error == 0; i++, tpf++, tdsc++) {
+		tdsc->tcred = tcred;
+		tdsc->p = p;
+		tdsc->pf = tpf;
+		tdsc->createva = *vap;
+		if (i > 0) {
+			tdsc->fh = dsc->fh;
+			tdsc->va = dsc->va;
 		}
-		nfsvno_relpathbuf(&named);
+		if (i != mirrorcnt - 1)
+			tdsc->dsattr.dsa_filerev = UINT64_MAX;
+
+		/*
+		 * Do the last create outselves instead of forking a process.
+		 * (This avoids creating kernel processes unless mirrors are
+		 *  in use.)
+		 * tdsc->haskproc marks a create with a kernel process.
+		 * haskproc is set non-zero to indicate at least one kernel
+		 * process has been created.
+		 */
+		ret = ENXIO;
+		if (i < mirrorcnt - 1) {
+			tdsc->haskproc = 1;
+			ret = kproc_create(start_dscreate, (void *)tdsc, NULL,
+			    0, 0, "nfsdpnfs");
+		}
+		if (ret == 0)
+			haskproc = 1;
+		else {
+			tdsc->haskproc = 0;
+			error = nfsrv_dscreate(dsc);
+		}
 	}
+	if (haskproc != 0) {
+		/* Wait for kernel proc(s) to complete. */
+		NFSDSCLOCK();
+		for (tdsc = dsc, i = 0; i < mirrorcnt; i++, tdsc++) {
+			while (tdsc->haskproc != 0)
+				mtx_sleep(tdsc, NFSDSCLOCKMUTEXPTR, PVFS,
+				    "nfspcr", 0);
+			if (error == 0 && tdsc->err != 0)
+				error = tdsc->err;
+		}
+		NFSDSCUNLOCK();
+	}
+
 	NFSFREECRED(tcred);
 	if (error == 0) {
 		error = vn_start_write(vp, &mp, V_WAIT);
@@ -3728,7 +3829,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 			if (error == 0)
 				error = vn_extattr_set(vp, IO_NODELOCKED,
 				    EXTATTR_NAMESPACE_SYSTEM, "pnfsd.dsattr",
-				    sizeof(dsattr), (char *)&dsattr, p);
+				    sizeof(dsattr), (char *)&dsc->dsattr, p);
 			vn_finished_write(mp);
 			if (error != 0)
 				printf("pNFS: pnfscreate setextattr=%d\n",
@@ -3738,6 +3839,7 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	} else
 		printf("pNFS: pnfscreate=%d\n", error);
 	free(pf, M_TEMP);
+	free(dsc, M_TEMP);
 }
 
 /*
