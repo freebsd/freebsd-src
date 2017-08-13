@@ -1772,8 +1772,8 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 		perror("mkdtemp tmp working dir");
 		return;
 	}
-	assert((size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, iname)
-		<= sizeof(tmpstr) - 1);
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, iname);
+	assert(len <= sizeof(tmpstr) - 1);
 	fd = open(tmpstr, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
 		perror("iasl tmp file");
@@ -1805,8 +1805,8 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 	}
 
 	/* Dump iasl's output to stdout */
-	assert((size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, oname)
-		<= sizeof(tmpstr) -1);
+	len = (size_t)snprintf(tmpstr, sizeof(tmpstr), "%s%s", wrkdir, oname);
+	assert(len <= sizeof(tmpstr) - 1);
 	fp = fopen(tmpstr, "r");
 	if (unlink(tmpstr) < 0) {
 		perror("unlink");
