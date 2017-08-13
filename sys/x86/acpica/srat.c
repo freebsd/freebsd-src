@@ -536,7 +536,7 @@ srat_set_cpus(void *dummy)
 	}
 
 	/* Last usage of the cpus array, unmap it. */
-	pmap_unmapdev((vm_offset_t)cpus, sizeof(*cpus) * (max_apic_id + 1));
+	pmap_unmapbios((vm_offset_t)cpus, sizeof(*cpus) * (max_apic_id + 1));
 	cpus = NULL;
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
