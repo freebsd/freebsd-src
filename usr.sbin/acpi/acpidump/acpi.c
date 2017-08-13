@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid.h>
 
 #include "acpidump.h"
 
@@ -70,6 +71,8 @@ static void	acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp);
 static void	acpi_print_srat(ACPI_SUBTABLE_HEADER *srat);
 static void	acpi_handle_srat(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp);
+static void	acpi_print_nfit(ACPI_NFIT_HEADER *nfit);
+static void	acpi_handle_nfit(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_sdt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_fadt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_facs(ACPI_TABLE_FACS *facs);
@@ -79,6 +82,8 @@ static void	acpi_print_rsd_ptr(ACPI_TABLE_RSDP *rp);
 static void	acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp);
 static void	acpi_walk_subtables(ACPI_TABLE_HEADER *table, void *first,
 		    void (*action)(ACPI_SUBTABLE_HEADER *));
+static void	acpi_walk_nfit(ACPI_TABLE_HEADER *table, void *first,
+		    void (*action)(ACPI_NFIT_HEADER *));
 
 /* Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up. */
 static int addr_size;
@@ -272,6 +277,27 @@ acpi_walk_subtables(ACPI_TABLE_HEADER *table, void *first,
 		printf("\n");
 		action(subtable);
 		subtable = (ACPI_SUBTABLE_HEADER *)((char *)subtable +
+		    subtable->Length);
+	}
+}
+
+static void
+acpi_walk_nfit(ACPI_TABLE_HEADER *table, void *first,
+    void (*action)(ACPI_NFIT_HEADER *))
+{
+	ACPI_NFIT_HEADER *subtable;
+	char *end;
+
+	subtable = first;
+	end = (char *)table + table->Length;
+	while ((char *)subtable < end) {
+		printf("\n");
+		if (subtable->Length < sizeof(ACPI_NFIT_HEADER)) {
+			warnx("invalid subtable length %u", subtable->Length);
+			return;
+		}
+		action(subtable);
+		subtable = (ACPI_NFIT_HEADER *)((char *)subtable +
 		    subtable->Length);
 	}
 }
@@ -1137,6 +1163,176 @@ acpi_handle_srat(ACPI_TABLE_HEADER *sdp)
 	printf(END_COMMENT);
 }
 
+static const char *nfit_types[] = {
+    [ACPI_NFIT_TYPE_SYSTEM_ADDRESS] = "System Address",
+    [ACPI_NFIT_TYPE_MEMORY_MAP] = "Memory Map",
+    [ACPI_NFIT_TYPE_INTERLEAVE] = "Interleave",
+    [ACPI_NFIT_TYPE_SMBIOS] = "SMBIOS",
+    [ACPI_NFIT_TYPE_CONTROL_REGION] = "Control Region",
+    [ACPI_NFIT_TYPE_DATA_REGION] = "Data Region",
+    [ACPI_NFIT_TYPE_FLUSH_ADDRESS] = "Flush Address"
+};
+
+
+static void
+acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
+{
+	char *uuidstr;
+	uint32_t status;
+
+	ACPI_NFIT_SYSTEM_ADDRESS *sysaddr;
+	ACPI_NFIT_MEMORY_MAP *mmap;
+	ACPI_NFIT_INTERLEAVE *ileave;
+	ACPI_NFIT_SMBIOS *smbios;
+	ACPI_NFIT_CONTROL_REGION *ctlreg;
+	ACPI_NFIT_DATA_REGION *datareg;
+	ACPI_NFIT_FLUSH_ADDRESS *fladdr;
+
+	if (nfit->Type < nitems(nfit_types))
+		printf("\tType=%s\n", nfit_types[nfit->Type]);
+	else
+		printf("\tType=%u (unknown)\n", nfit->Type);
+	switch (nfit->Type) {
+	case ACPI_NFIT_TYPE_SYSTEM_ADDRESS:
+		sysaddr = (ACPI_NFIT_SYSTEM_ADDRESS *)nfit;
+		printf("\tRangeIndex=%u\n", (u_int)sysaddr->RangeIndex);
+		printf("\tProximityDomain=%u\n",
+		    (u_int)sysaddr->ProximityDomain);
+		uuid_to_string((uuid_t *)(sysaddr->RangeGuid),
+		    &uuidstr, &status);
+		if (status != uuid_s_ok)
+			errx(1, "uuid_to_string: status=%u", status);
+		printf("\tRangeGuid=%s\n", uuidstr);
+		free(uuidstr);
+		printf("\tAddress=0x%016jx\n", (uintmax_t)sysaddr->Address);
+		printf("\tLength=0x%016jx\n", (uintmax_t)sysaddr->Length);
+		printf("\tMemoryMapping=0x%016jx\n",
+		    (uintmax_t)sysaddr->MemoryMapping);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_NFIT_## flag, #flag)
+
+		printf("\tFlags=");
+		PRINTFLAG(sysaddr->Flags, ADD_ONLINE_ONLY);
+		PRINTFLAG(sysaddr->Flags, PROXIMITY_VALID);
+		PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+		break;
+	case ACPI_NFIT_TYPE_MEMORY_MAP:
+		mmap = (ACPI_NFIT_MEMORY_MAP *)nfit;
+		printf("\tDeviceHandle=%u\n", (u_int)mmap->DeviceHandle);
+		printf("\tPhysicalId=%u\n", (u_int)mmap->PhysicalId);
+		printf("\tRegionId=%u\n", (u_int)mmap->RegionId);
+		printf("\tRangeIndex=%u\n", (u_int)mmap->RangeIndex);
+		printf("\tRegionIndex=%u\n", (u_int)mmap->RegionIndex);
+		printf("\tRegionSize=0x%016jx\n", (uintmax_t)mmap->RegionSize);
+		printf("\tRegionOffset=0x%016jx\n",
+		    (uintmax_t)mmap->RegionOffset);
+		printf("\tAddress=0x%016jx\n", (uintmax_t)mmap->Address);
+		printf("\tInterleaveIndex=%u\n", (u_int)mmap->InterleaveIndex);
+		printf("\tInterleaveWays=%u\n", (u_int)mmap->InterleaveWays);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_NFIT_MEM_## flag, #flag)
+
+		printf("\tFlags=");
+		PRINTFLAG(mmap->Flags, SAVE_FAILED);
+		PRINTFLAG(mmap->Flags, RESTORE_FAILED);
+		PRINTFLAG(mmap->Flags, FLUSH_FAILED);
+		PRINTFLAG(mmap->Flags, NOT_ARMED);
+		PRINTFLAG(mmap->Flags, HEALTH_OBSERVED);
+		PRINTFLAG(mmap->Flags, HEALTH_ENABLED);
+		PRINTFLAG(mmap->Flags, MAP_FAILED);
+		PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+		break;
+	case ACPI_NFIT_TYPE_INTERLEAVE:
+		ileave = (ACPI_NFIT_INTERLEAVE *)nfit;
+		printf("\tInterleaveIndex=%u\n",
+		    (u_int)ileave->InterleaveIndex);
+		printf("\tLineCount=%u\n", (u_int)ileave->LineCount);
+		printf("\tLineSize=%u\n", (u_int)ileave->LineSize);
+		/* XXX ileave->LineOffset[i] output is not supported */
+		break;
+	case ACPI_NFIT_TYPE_SMBIOS:
+		smbios = (ACPI_NFIT_SMBIOS *)nfit;
+		/* XXX smbios->Data[x] output is not supported */
+		break;
+	case ACPI_NFIT_TYPE_CONTROL_REGION:
+		ctlreg = (ACPI_NFIT_CONTROL_REGION *)nfit;
+		printf("\tRegionIndex=%u\n", (u_int)ctlreg->RegionIndex);
+		printf("\tVendorId=0x%04x\n", (u_int)ctlreg->VendorId);
+		printf("\tDeviceId=0x%04x\n", (u_int)ctlreg->DeviceId);
+		printf("\tRevisionId=%u\n", (u_int)ctlreg->RevisionId);
+		printf("\tSubsystemVendorId=0x%04x\n",
+		    (u_int)ctlreg->SubsystemVendorId);
+		printf("\tSubsystemDeviceId=0x%04x\n",
+		    (u_int)ctlreg->SubsystemDeviceId);
+		printf("\tSubsystemRevisionId=%u\n",
+		    (u_int)ctlreg->SubsystemRevisionId);
+		printf("\tValidFields=%u\n", (u_int)ctlreg->ValidFields);
+		printf("\tManufacturingLocation=%u\n",
+		    (u_int)ctlreg->ManufacturingLocation);
+		printf("\tManufacturingDate=%u\n",
+		    (u_int)ctlreg->ManufacturingDate);
+		printf("\tSerialNumber=%u\n",
+		    (u_int)ctlreg->SerialNumber);
+		printf("\tCode=0x%04x\n", (u_int)ctlreg->Code);
+		printf("\tWindows=%u\n", (u_int)ctlreg->Windows);
+		printf("\tWindowSize=0x%016jx\n",
+		    (uintmax_t)ctlreg->WindowSize);
+		printf("\tCommandOffset=0x%016jx\n",
+		    (uintmax_t)ctlreg->CommandOffset);
+		printf("\tCommandSize=0x%016jx\n",
+		    (uintmax_t)ctlreg->CommandSize);
+		printf("\tStatusOffset=0x%016jx\n",
+		    (uintmax_t)ctlreg->StatusOffset);
+		printf("\tStatusSize=0x%016jx\n",
+		    (uintmax_t)ctlreg->StatusSize);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_NFIT_## flag, #flag)
+
+		printf("\tFlags=");
+		PRINTFLAG(mmap->Flags, ADD_ONLINE_ONLY);
+		PRINTFLAG(mmap->Flags, PROXIMITY_VALID);
+		PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+		break;
+	case ACPI_NFIT_TYPE_DATA_REGION:
+		datareg = (ACPI_NFIT_DATA_REGION *)nfit;
+		printf("\tRegionIndex=%u\n", (u_int)datareg->RegionIndex);
+		printf("\tWindows=%u\n", (u_int)datareg->Windows);
+		printf("\tOffset=0x%016jx\n", (uintmax_t)datareg->Offset);
+		printf("\tSize=0x%016jx\n", (uintmax_t)datareg->Size);
+		printf("\tCapacity=0x%016jx\n", (uintmax_t)datareg->Capacity);
+		printf("\tStartAddress=0x%016jx\n",
+		    (uintmax_t)datareg->StartAddress);
+		break;
+	case ACPI_NFIT_TYPE_FLUSH_ADDRESS:
+		fladdr = (ACPI_NFIT_FLUSH_ADDRESS *)nfit;
+		printf("\tDeviceHandle=%u\n", (u_int)fladdr->DeviceHandle);
+		printf("\tHintCount=%u\n", (u_int)fladdr->HintCount);
+		/* XXX fladdr->HintAddress[i] output is not supported */
+		break;
+	}
+}
+
+static void
+acpi_handle_nfit(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_NFIT *nfit;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	nfit = (ACPI_TABLE_NFIT *)sdp;
+	acpi_walk_nfit(sdp, (nfit + 1), acpi_print_nfit);
+	printf(END_COMMENT);
+}
+
 static void
 acpi_print_sdt(ACPI_TABLE_HEADER *sdp)
 {
@@ -1452,6 +1648,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			acpi_handle_tcpa(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_DMAR, 4))
 			acpi_handle_dmar(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_NFIT, 4))
+			acpi_handle_nfit(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);
