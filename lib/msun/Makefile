@@ -228,6 +228,7 @@ MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
 .include <src.opts.mk>
 
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.lib.mk>
