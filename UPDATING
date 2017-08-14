@@ -51,6 +51,27 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170814:
+	"make check" behavior (made in ^/head@r295380) has been changed to
+	execute from a limited sandbox, as opposed to executing from
+	${TESTSDIR}.
+
+	Behavioral changes:
+	- The "beforecheck" and "aftercheck" targets are now specified.
+	- ${CHECKDIR} (added in commit noted above) has been removed.
+	- Legacy behavior can be enabled by setting
+	  WITHOUT_MAKE_CHECK_USE_SANDBOX in src.conf(5) or the environment.
+
+	If the limited sandbox mode is enabled, "make check" will execute
+	"make distribution", then install, execute the tests, and clean up the
+	sandbox if successful.
+
+	The "make distribution" and "make install" targets are typically run as
+	root to set appropriate permissions and ownership at installation time.
+	The end-user should set "WITH_INSTALL_AS_USER" in src.conf(5) or the
+	environment if executing "make check" with limited sandbox mode using
+	an unprivileged user.
+
 20170808:
 	Since the switch to GPT disk labels, fsck for UFS/FFS has been
 	unable to automatically find alternate superblocks. As of r322297,
