@@ -1346,23 +1346,12 @@ fix_cpuid(void)
 	return (false);
 }
 
-/*
- * Final stage of CPU identification.
- */
-#ifdef __i386__
-void
-finishidentcpu(void)
-#else
+#ifdef __amd64__
 void
 identify_cpu(void)
-#endif
 {
-	u_int regs[4], cpu_stdext_disable;
-#ifdef __i386__
-	u_char ccr3;
-#endif
+	u_int regs[4];
 
-#ifdef __amd64__
 	do_cpuid(0, regs);
 	cpu_high = regs[0];
 	((u_int *)&cpu_vendor)[0] = regs[1];
@@ -1375,6 +1364,18 @@ identify_cpu(void)
 	cpu_procinfo = regs[1];
 	cpu_feature = regs[3];
 	cpu_feature2 = regs[2];
+}
+#endif
+
+/*
+ * Final stage of CPU identification.
+ */
+void
+finishidentcpu(void)
+{
+	u_int regs[4], cpu_stdext_disable;
+#ifdef __i386__
+	u_char ccr3;
 #endif
 
 	cpu_vendor_id = find_cpu_vendor_id();
