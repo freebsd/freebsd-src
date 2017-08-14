@@ -166,15 +166,21 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 	struct reg regs;
 #endif
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	ksiginfo_t ksi;
+	struct thread *td;
+	struct proc *p;
+	register_t addr;
 #ifdef KDB
 	register_t dr6;
 #endif
-	int i = 0, ucode = 0;
+	int i, ucode;
 	u_int type;
-	register_t addr = 0;
-	ksiginfo_t ksi;
+
+	td = curthread;
+	p = td->td_proc;
+	i = 0;
+	ucode = 0;
+	addr = 0;
 
 	VM_CNT_INC(v_trap);
 	type = frame->tf_trapno;
