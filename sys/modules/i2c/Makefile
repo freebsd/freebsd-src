@@ -15,6 +15,7 @@ SUBDIR = \
 	isl12xx \
 	jedec_ts \
 	nxprtc \
+	s35390a \
 	smb \
 	smbus \
 

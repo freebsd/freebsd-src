@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
  * Driver for Seiko Instruments S-35390A Real-time Clock
  */
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -68,6 +70,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
+
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "clock_if.h"
 #include "iicbus_if.h"
@@ -159,7 +167,7 @@ s390rtc_read(device_t dev, uint8_t reg, uint8_t *buf, size_t len)
 	int i;
 	int error;
 
-	error = iicbus_transfer(dev, msg, 1);
+	error = iicbus_transfer_excl(dev, msg, 1, IIC_WAIT);
 	if (error)
 		return (error);
 
@@ -188,13 +196,20 @@ s390rtc_write(device_t dev, uint8_t reg, uint8_t *buf, size_t len)
 	for (i = 0; i < len; ++i)
 		buf[i] = bitreverse(buf[i]);
 
-	return (iicbus_transfer(dev, msg, 1));
+	return (iicbus_transfer_excl(dev, msg, 1, IIC_WAIT));
 }
 
 static int
 s390rtc_probe(device_t dev)
 {
 
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "sii,s35390a"))
+		return (ENXIO);
+#else
 	if (iicbus_get_addr(dev) != S390_ADDR) {
 		if (bootverbose)
 			device_printf(dev, "slave address mismatch. "
@@ -202,35 +217,35 @@ s390rtc_probe(device_t dev)
 			    S390_ADDR);
 		return (ENXIO);
 	}
-	device_set_desc(dev, "Seiko Instruments S-35390A Real-time Clock");
+#endif
+	device_set_desc(dev, "Seiko Instruments S-35390A RTC");
 
-	return (BUS_PROBE_SPECIFIC);
+	return (BUS_PROBE_DEFAULT);
 }
 
-static int
-s390rtc_attach(device_t dev)
+static void
+s390rtc_start(void *arg)
 {
-	struct s390rtc_softc *sc;
+	device_t dev;
 	uint8_t reg;
 	int error;
 
-	sc = device_get_softc(dev);
-	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev);
+	dev = arg;
 
 	/* Reset the chip and turn on 24h mode, after power-off or battery. */
 	error = s390rtc_read(dev, S390_STATUS1, &reg, 1);
 	if (error) {
 		device_printf(dev, "%s: cannot read status1 register\n",
 		     __func__);
-		return (error);
+		return;
 	}
 	if (reg & (S390_ST1_POC | S390_ST1_BLD)) {
 		reg |= S390_ST1_24H | S390_ST1_RESET;
 		error = s390rtc_write(dev, S390_STATUS1, &reg, 1);
 		if (error) {
-			device_printf(dev, "%s: cannot initialize\n", __func__);
-			return (error);
+			device_printf(dev,
+			    "%s: cannot initialize\n", __func__);
+			return;
 		}
 	}
 
@@ -239,7 +254,7 @@ s390rtc_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "%s: cannot read status2 register\n",
 		    __func__);
-		return (error);
+		return;
 	}
 	if (reg & S390_ST2_TEST) {
 		reg &= ~S390_ST2_TEST;
@@ -247,11 +262,32 @@ s390rtc_attach(device_t dev)
 		if (error) {
 			device_printf(dev,
 			    "%s: cannot disable the test mode\n", __func__);
-			return (error);
+			return;
 		}
 	}
 
 	clock_register(dev, 1000000);   /* 1 second resolution */
+}
+
+static int
+s390rtc_attach(device_t dev)
+{
+	struct s390rtc_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
+	sc->sc_addr = iicbus_get_addr(dev);
+
+	config_intrhook_oneshot(s390rtc_start, dev);
+
+	return (0);
+}
+
+static int
+s390rtc_detach(device_t dev)
+{
+
+	clock_unregister(dev);
 	return (0);
 }
 
@@ -310,6 +346,7 @@ s390rtc_settime(device_t dev, struct timespec *ts)
 static device_method_t s390rtc_methods[] = {
 	DEVMETHOD(device_probe,		s390rtc_probe),
 	DEVMETHOD(device_attach,	s390rtc_attach),
+	DEVMETHOD(device_detach,	s390rtc_detach),
 
 	DEVMETHOD(clock_gettime,	s390rtc_gettime),
 	DEVMETHOD(clock_settime,	s390rtc_settime),
