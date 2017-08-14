@@ -90,9 +90,10 @@ The following options are available:
 .It Fl d Ar datadir
 Where to look for microcode images.
 The option can be specified multiple times.
-.It Fl m Ar msr Ns Op = Ns Ar value
+.It Fl m Ar msr
 Show value of the specified MSR.
 MSR register number should be given as a hexadecimal number.
+The high word is printed first, then the low word is printed second.
 .It Fl m Ar msr Ns = Ns Ar value
 Store the
 .Ar value
