@@ -273,6 +273,18 @@ static const char *format_nice(const struct kinfo_proc *pp);
 static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 static void update_layout(void);
+static int find_uid(uid_t needle, int *haystack);
+
+static int
+find_uid(uid_t needle, int *haystack)
+{
+	size_t i = 0;
+
+	for (; i < TOP_MAX_UIDS; ++i)
+		if ((uid_t)haystack[i] == needle)
+			return 1;
+	return 0;
+}
 
 void
 toggle_pcpustats(void)
@@ -847,7 +859,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	show_jid = sel->jid != -1;
 	show_self = sel->self == -1;
 	show_system = sel->system;
-	show_uid = sel->uid != -1;
+	show_uid = sel->uid[0] != -1;
 	show_command = sel->command != NULL;
 	show_kidle = sel->kidle;
 
@@ -906,7 +918,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			/* skip proc. that don't belong to the selected JID */
 			continue;
 
-		if (show_uid && pp->ki_ruid != (uid_t)sel->uid)
+		if (show_uid && !find_uid(pp->ki_ruid, sel->uid))
 			/* skip proc. that don't belong to the selected UID */
 			continue;
 
