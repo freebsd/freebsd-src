@@ -80,9 +80,10 @@
 } while (0)
 
 #define	READ_ONCE(x) ({			\
-	__typeof(x) __var;		\
-	barrier();			\
-	__var = ACCESS_ONCE(x);		\
+	__typeof(x) __var = ({		\
+		barrier();		\
+		ACCESS_ONCE(x);		\
+	});				\
 	barrier();			\
 	__var;				\
 })
