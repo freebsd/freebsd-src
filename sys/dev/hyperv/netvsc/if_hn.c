@@ -3403,7 +3403,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 */
 		hn_resume(sc);
 
-		if (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED) {
+		if ((sc->hn_flags & HN_FLAG_RXVF) ||
+		    (sc->hn_xvf_flags & HN_XVFFLAG_ENABLED)) {
 			/*
 			 * Since we have reattached the NVS part,
 			 * change the datapath to VF again; in case
