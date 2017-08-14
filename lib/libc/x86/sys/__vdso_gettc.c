@@ -101,6 +101,7 @@ init_fence(void)
 #if defined(__i386__)
 	u_int cpuid_supported, p[4];
 
+	lfence_works = LMB_NONE;
 	__asm __volatile(
 	    "	pushfl\n"
 	    "	popl	%%eax\n"
@@ -121,8 +122,7 @@ init_fence(void)
 		cpuidp(0x1, p);
 		if ((p[3] & CPUID_SSE2) != 0)
 			lfence_works = select_lmb();
-	} else
-		lfence_works = LMB_NONE;
+	}
 #elif defined(__amd64__)
 	lfence_works = select_lmb();
 #else
