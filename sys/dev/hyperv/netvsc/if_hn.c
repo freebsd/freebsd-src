@@ -282,6 +282,8 @@ static bool			hn_xpnt_vf_isready(struct hn_softc *);
 static void			hn_xpnt_vf_setready(struct hn_softc *);
 static void			hn_xpnt_vf_init_taskfunc(void *, int);
 static void			hn_xpnt_vf_init(struct hn_softc *);
+static void			hn_xpnt_vf_setenable(struct hn_softc *);
+static void			hn_xpnt_vf_setdisable(struct hn_softc *, bool);
 
 static int			hn_rndis_rxinfo(const void *, int,
 				    struct hn_rxinfo *);
@@ -1427,6 +1429,40 @@ hn_xpnt_vf_isready(struct hn_softc *sc)
 }
 
 static void
+hn_xpnt_vf_setenable(struct hn_softc *sc)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags |= HN_XVFFLAG_ENABLED;
+	rm_wunlock(&sc->hn_vf_lock);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_rx_flags |= HN_RX_FLAG_XPNT_VF;
+}
+
+static void
+hn_xpnt_vf_setdisable(struct hn_softc *sc, bool clear_vf)
+{
+	int i;
+
+	HN_LOCK_ASSERT(sc);
+
+	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
+	rm_wlock(&sc->hn_vf_lock);
+	sc->hn_xvf_flags &= ~HN_XVFFLAG_ENABLED;
+	if (clear_vf)
+		sc->hn_vf_ifp = NULL;
+	rm_wunlock(&sc->hn_vf_lock);
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_rx_flags &= ~HN_RX_FLAG_XPNT_VF;
+}
+
+static void
 hn_xpnt_vf_init(struct hn_softc *sc)
 {
 	int error;
@@ -1459,10 +1495,8 @@ hn_xpnt_vf_init(struct hn_softc *sc)
 	 */
 	hn_nvs_set_datapath(sc, HN_NVS_DATAPATH_VF);
 
-	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
-	rm_wlock(&sc->hn_vf_lock);
-	sc->hn_xvf_flags |= HN_XVFFLAG_ENABLED;
-	rm_wunlock(&sc->hn_vf_lock);
+	/* Mark transparent mode VF as enabled. */
+	hn_xpnt_vf_setenable(sc);
 }
 
 static void
@@ -1648,11 +1682,8 @@ hn_ifnet_detevent(void *xsc, struct ifnet *ifp)
 		hn_resume_mgmt(sc);
 	}
 
-	/* NOTE: hn_vf_lock for hn_transmit()/hn_qflush() */
-	rm_wlock(&sc->hn_vf_lock);
-	sc->hn_xvf_flags &= ~HN_XVFFLAG_ENABLED;
-	sc->hn_vf_ifp = NULL;
-	rm_wunlock(&sc->hn_vf_lock);
+	/* Mark transparent mode VF as disabled. */
+	hn_xpnt_vf_setdisable(sc, true /* clear hn_vf_ifp */);
 
 	rm_wlock(&hn_vfmap_lock);
 
@@ -2994,13 +3025,16 @@ static int
 hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
     const struct hn_rxinfo *info)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp, *hn_ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
 	int hash_type;
 
-	/* If the VF is active, inject the packet through the VF */
-	ifp = rxr->hn_rxvf_ifp ? rxr->hn_rxvf_ifp : rxr->hn_ifp;
+	/*
+	 * If the non-transparent mode VF is active, inject this packet
+	 * into the VF.
+	 */
+	ifp = rxr->hn_rxvf_ifp ? rxr->hn_rxvf_ifp : hn_ifp;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		/*
@@ -3014,10 +3048,15 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		return (0);
 	}
 
+	if (__predict_false(dlen < ETHER_HDR_LEN)) {
+		if_inc_counter(hn_ifp, IFCOUNTER_IERRORS, 1);
+		return (0);
+	}
+
 	if (dlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 		memcpy(mtod(m_new, void *), data, dlen);
@@ -3038,7 +3077,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 
@@ -3046,7 +3085,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
-	if (__predict_false((ifp->if_capenable & IFCAP_RXCSUM) == 0))
+	if (__predict_false((hn_ifp->if_capenable & IFCAP_RXCSUM) == 0))
 		do_csum = 0;
 
 	/* receive side checksum offload */
@@ -3087,8 +3126,9 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		int hoff;
 
 		hoff = sizeof(*eh);
-		if (m_new->m_len < hoff)
-			goto skip;
+		/* Checked at the beginning of this function. */
+		KASSERT(m_new->m_len >= hoff, ("not ethernet frame"));
+
 		eh = mtod(m_new, struct ether_header *);
 		etype = ntohs(eh->ether_type);
 		if (etype == ETHERTYPE_VLAN) {
@@ -3143,6 +3183,37 @@ skip:
 		m_new->m_flags |= M_VLANTAG;
 	}
 
+	/*
+	 * If VF is activated (tranparent/non-transparent mode does not
+	 * matter here).
+	 *
+	 * - Don't setup mbuf hash, if 'options RSS' is set.
+	 *
+	 *   In Azure, when VF is activated, TCP SYN and SYN|ACK go
+	 *   through hn(4) while the rest of segments and ACKs belonging
+	 *   to the same TCP 4-tuple go through the VF.  So don't setup
+	 *   mbuf hash, if a VF is activated and 'options RSS' is not
+	 *   enabled.  hn(4) and the VF may use neither the same RSS
+	 *   hash key nor the same RSS hash function, so the hash value
+	 *   for packets belonging to the same flow could be different!
+	 *
+	 * - Disable LRO
+	 *
+	 *   hn(4) will only receive broadcast packets, multicast packets,
+	 *   TCP SYN and SYN|ACK (in Azure), LRO is useless for these
+	 *   packet types.
+	 *
+	 *   For non-transparent, we definitely _cannot_ enable LRO at
+	 *   all, since the LRO flush will use hn(4) as the receiving
+	 *   interface; i.e. hn_ifp->if_input(hn_ifp, m).
+	 */
+	if (hn_ifp != ifp || (rxr->hn_rx_flags & HN_RX_FLAG_XPNT_VF)) {
+		do_lro = 0;	/* disable LRO. */
+#ifndef RSS
+		goto skip_hash;	/* skip mbuf hash setup */
+#endif
+	}
+
 	if (info->hash_info != HN_NDIS_HASH_INFO_INVALID) {
 		rxr->hn_rss_pkts++;
 		m_new->m_pkthdr.flowid = info->hash_value;
@@ -3192,15 +3263,36 @@ skip:
 	}
 	M_HASHTYPE_SET(m_new, hash_type);
 
-	/*
-	 * Note:  Moved RX completion back to hv_nv_on_receive() so all
-	 * messages (not just data messages) will trigger a response.
-	 */
-
+#ifndef RSS
+skip_hash:
+#endif
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if (hn_ifp != ifp) {
+		const struct ether_header *eh;
+
+		/*
+		 * Non-transparent mode VF is activated.
+		 */
+
+		/*
+		 * Allow tapping on hn(4).
+		 */
+		ETHER_BPF_MTAP(hn_ifp, m_new);
+
+		/*
+		 * Update hn(4)'s stats.
+		 */
+		if_inc_counter(hn_ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(hn_ifp, IFCOUNTER_IBYTES, m_new->m_pkthdr.len);
+		/* Checked at the beginning of this function. */
+		KASSERT(m_new->m_len >= ETHER_HDR_LEN, ("not ethernet frame"));
+		eh = mtod(m_new, struct ether_header *);
+		if (ETHER_IS_MULTICAST(eh->ether_dhost))
+			if_inc_counter(hn_ifp, IFCOUNTER_IMCASTS, 1);
+	}
 	rxr->hn_pkts++;
 
-	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
+	if ((hn_ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
 		struct lro_ctrl *lro = &rxr->hn_lro;
 
@@ -3213,9 +3305,7 @@ skip:
 		}
 #endif
 	}
-
-	/* We're not holding the lock here, so don't release it */
-	(*ifp->if_input)(ifp, m_new);
+	ifp->if_input(ifp, m_new);
 
 	return (0);
 }
@@ -3511,10 +3601,8 @@ hn_stop(struct hn_softc *sc, bool detaching)
 		KASSERT(sc->hn_vf_ifp != NULL,
 		    ("%s: VF is not attached", ifp->if_xname));
 
-		/* NOTE: hn_vf_lock for hn_transmit() */
-		rm_wlock(&sc->hn_vf_lock);
-		sc->hn_xvf_flags &= ~HN_XVFFLAG_ENABLED;
-		rm_wunlock(&sc->hn_vf_lock);
+		/* Mark transparent mode VF as disabled. */
+		hn_xpnt_vf_setdisable(sc, false /* keep hn_vf_ifp */);
 
 		/*
 		 * NOTE:
